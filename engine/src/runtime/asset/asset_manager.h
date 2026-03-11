@@ -31,7 +31,9 @@ namespace ptgn {
 
 class Application;
 class ApplicationContext;
+class RenderContext;
 class Text;
+class DebugContext;
 
 namespace impl {
 
@@ -152,12 +154,23 @@ public:
 	[[nodiscard]] bool HasTexture(std::string_view key) const;
 	[[nodiscard]] bool HasFont(std::string_view key) const;
 
+	[[nodiscard]] Texture ToTexture(std::variant<Texture, std::string_view> texture) const;
+	[[nodiscard]] std::optional<Texture> ToTexture(
+		std::variant<std::monostate, Texture, std::string_view> texture
+	) const;
+
+	[[nodiscard]] std::optional<Font> ToFont(
+		std::variant<std::monostate, Font, std::string_view> font
+	) const;
+
 private:
 	friend class Application;
 	friend class Shader;
 	friend class Texture;
+	friend class RenderContext;
 	friend class FontSystem;
 	friend class Text;
+	friend class DebugContext;
 
 	void Init(const std::shared_ptr<ApplicationContext>& ctx);
 
@@ -171,6 +184,12 @@ private:
 		const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
 	);
 	Texture CreateTexture(bool persistent, const path& asset_path);
+
+	std::optional<impl::TextureObject> CreateTextTextureObject(
+		std::string_view text_content, Color color, float font_size, Font font_asset,
+		const TextProperties& properties, float hd_scale, bool hd
+	);
+
 	Texture CreateTextTexture(
 		std::string_view text_content, Color text_color, float font_size, Font font,
 		const TextProperties& properties, float hd_scale, bool hd

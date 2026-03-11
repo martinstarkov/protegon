@@ -36,6 +36,7 @@
 #ifdef CreateFont
 #undef CreateFont
 #endif
+#include <type_traits>
 #include <unordered_set>
 
 #include "core/log.h"
@@ -425,27 +426,112 @@ bool AssetManager::HasFont(std::string_view key) const {
 	return HasAssetImpl<std::shared_ptr<TTF_Font>>(manager_, key);
 }
 
+std::optional<Texture> AssetManager::ToTexture(
+	std::variant<std::monostate, Texture, std::string_view> texture
+) const {
+	return std::visit(
+		[&](const auto& arg) -> std::optional<Texture> {
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, std::monostate>) {
+				return std::nullopt;
+			} else if constexpr (std::is_same_v<T, Texture>) {
+				return arg;
+			} else if constexpr (std::is_same_v<T, std::string_view>) {
+				PTGN_ASSERT(
+					HasTexture(arg),
+					"Texture key must be loaded in the asset manager before retrieval"
+				);
+				return GetTexture(arg);
+			} else {
+				PTGN_ERROR("Invalid texture variant type");
+			}
+		},
+		texture
+	);
+}
+
+Texture AssetManager::ToTexture(std::variant<Texture, std::string_view> texture) const {
+	return std::visit(
+		[&](const auto& arg) -> Texture {
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, Texture>) {
+				return arg;
+			} else if constexpr (std::is_same_v<T, std::string_view>) {
+				PTGN_ASSERT(
+					HasTexture(arg),
+					"Texture key must be loaded in the asset manager before retrieval"
+				);
+
+				return *GetTexture(arg);
+			} else {
+				PTGN_ERROR("Invalid texture variant type");
+			}
+		},
+		texture
+	);
+}
+
+std::optional<Font> AssetManager::ToFont(std::variant<std::monostate, Font, std::string_view> font
+) const {
+	return std::visit(
+		[&](const auto& arg) -> std::optional<Font> {
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, std::monostate>) {
+				// Default engine font
+				return std::nullopt;
+			} else if constexpr (std::is_same_v<T, Font>) {
+				return arg;
+			} else if constexpr (std::is_same_v<T, std::string_view>) {
+				PTGN_ASSERT(
+					HasFont(arg), "Font key must be loaded in the asset manager before retrieval"
+				);
+				return *GetFont(arg);
+			} else {
+				PTGN_ERROR("Invalid font variant type");
+			}
+		},
+		font
+	);
+}
+
+std::optional<impl::TextureObject> AssetManager::CreateTextTextureObject(
+	std::string_view text_content, Color color, float font_size, Font font_asset,
+	const TextProperties& properties, float hd_scale, bool hd
+) {
+	auto surface{ ctx_->font.CreateTextSurface(
+		text_content, color, font_size, font_asset, properties, hd_scale, hd
+	) };
+
+	if (!surface.has_value()) {
+		return {};
+	}
+
+	return impl::TextureObject{ ctx_->renderer.gl_renderer_.get(),
+								ctx_->renderer.gl_renderer_->gl->textures.CreateTexture(
+									surface->pixels.data(), impl::gl::PixelDataFormat::RGBA,
+									impl::gl::PixelDataType::UnsignedByte, surface->size,
+									TextureFormat::RGBA8
+								) };
+}
+
 Texture AssetManager::CreateTextTexture(
 	std::string_view text_content, Color color, float font_size, Font font_asset,
 	const TextProperties& properties, float hd_scale, bool hd
 ) {
 	Texture texture{ CreateAsset(), false };
 
-	auto surface{ ctx_->font.CreateTextSurface(
+	auto texture_object{ CreateTextTextureObject(
 		text_content, color, font_size, font_asset, properties, hd_scale, hd
 	) };
 
-	if (!surface.has_value()) {
+	if (!texture_object.has_value()) {
 		return texture;
 	}
 
-	texture.entity_.Add<impl::TextureObject>(
-		ctx_->renderer.gl_renderer_.get(),
-		ctx_->renderer.gl_renderer_->gl->textures.CreateTexture(
-			surface->pixels.data(), impl::gl::PixelDataFormat::RGBA,
-			impl::gl::PixelDataType::UnsignedByte, surface->size, TextureFormat::RGBA8
-		)
-	);
+	texture.entity_.Add<impl::TextureObject>(std::move(*texture_object));
 
 	return texture;
 }

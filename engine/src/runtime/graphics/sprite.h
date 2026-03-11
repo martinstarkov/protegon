@@ -8,6 +8,7 @@
 #include "renderer/primitives/texture.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 
 namespace ptgn {
@@ -43,7 +44,7 @@ public:
 	Sprite() = default;
 	explicit Sprite(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
 	Sprite& SetTexture(Texture texture);
 };

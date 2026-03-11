@@ -17,6 +17,7 @@
 #include "renderer/primitives/texture.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 
 namespace ptgn {
@@ -79,39 +80,39 @@ struct EntityDepthCompare {
 void SetDraw(Entity entity, std::string_view drawable_name);
 
 struct CapsuleDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 };
 
 struct CircleDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 };
 
 struct EllipseDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 };
 
 struct ArcDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 };
 
 struct PolygonDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 };
 
 struct RectDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 };
 
 struct RoundedRectDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 };
 
 struct TriangleDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 };
 
 struct LineDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 };
 
 } // namespace impl

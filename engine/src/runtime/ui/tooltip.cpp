@@ -125,27 +125,7 @@ Tooltip CreateTooltip(
 		" already exists in the manager"
 	);
 
-	std::optional<Texture> resolved_texture;
-
-	std::visit(
-		[&](auto&& arg) {
-			using T = std::decay_t<decltype(arg)>;
-
-			if constexpr (std::is_same_v<T, std::monostate>) {
-				resolved_texture = std::nullopt;
-			} else if constexpr (std::is_same_v<T, Texture>) {
-				resolved_texture = arg;
-			} else if constexpr (std::is_same_v<T, std::string_view>) {
-				PTGN_ASSERT(
-					scene.app().asset.HasTexture(arg),
-					"Texture key must be loaded in the asset manager before creating tooltip"
-				);
-
-				resolved_texture = *scene.app().asset.GetTexture(arg);
-			}
-		},
-		texture
-	);
+	std::optional<Texture> resolved_texture{ scene.app().asset.ToTexture(texture) };
 
 	Tooltip tooltip{ scene.CreateEntity() };
 

@@ -79,7 +79,7 @@ bool EntityDepthCompare::operator()(Entity a, Entity b) const {
 }
 
 template <ShapeType T>
-void DrawShape(DrawContext& renderer, Entity entity) {
+void DrawShape(DrawContext& renderer, Entity entity, [[maybe_unused]] Camera) {
 	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
 	renderer.DrawShape(
 		entity.Get<T>(), GetDrawTransform(entity), GetTint(entity),
@@ -88,40 +88,40 @@ void DrawShape(DrawContext& renderer, Entity entity) {
 	);
 }
 
-void CapsuleDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Capsule>(renderer, entity);
+void CapsuleDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+	DrawShape<Capsule>(renderer, entity, camera);
 }
 
-void CircleDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Circle>(renderer, entity);
+void CircleDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+	DrawShape<Circle>(renderer, entity, camera);
 }
 
-void EllipseDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Ellipse>(renderer, entity);
+void EllipseDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+	DrawShape<Ellipse>(renderer, entity, camera);
 }
 
-void ArcDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Arc>(renderer, entity);
+void ArcDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+	DrawShape<Arc>(renderer, entity, camera);
 }
 
-void PolygonDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Polygon>(renderer, entity);
+void PolygonDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+	DrawShape<Polygon>(renderer, entity, camera);
 }
 
-void RectDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Rect>(renderer, entity);
+void RectDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+	DrawShape<Rect>(renderer, entity, camera);
 }
 
-void RoundedRectDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<RoundedRect>(renderer, entity);
+void RoundedRectDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+	DrawShape<RoundedRect>(renderer, entity, camera);
 }
 
-void TriangleDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Triangle>(renderer, entity);
+void TriangleDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+	DrawShape<Triangle>(renderer, entity, camera);
 }
 
-void LineDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Line>(renderer, entity);
+void LineDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+	DrawShape<Line>(renderer, entity, camera);
 }
 
 } // namespace impl

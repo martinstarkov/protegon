@@ -4,22 +4,20 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <type_traits>
 #include <variant>
 
 #include "app/context.h"
-#include "core/assert.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
-#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/render_context.h"
@@ -27,24 +25,19 @@
 
 namespace ptgn {
 
-static V2_float GetScale(const Scene& scene) {
-	// TODO: Switch to using scene camera scale?
-	auto scale{ scene.app().renderer.GetScale() };
-	PTGN_ASSERT(scale.BothAboveZero());
-	return scale;
+namespace impl {
+
+float GetTextScale(const Scene& scene, const std::optional<Camera>& camera) {
+	return impl::GetCameraParentRenderTargetScale(scene, camera).y;
 }
 
-static float FontSizeToHD(float font_size, const Scene& scene) {
-	auto render_target_scale{ GetScale(scene) };
-	font_size = font_size * render_target_scale.y;
-	return font_size;
-}
+} // namespace impl
 
 Text::Text(Entity entity) : Entity{ entity } {}
 
 void Text::Draw(
 	DrawContext& renderer, Entity entity, V2_int text_size, Color additional_tint,
-	Origin offset_origin, V2_float offset_size
+	Origin offset_origin, V2_float offset_size, Camera camera
 ) {
 	Text text{ entity };
 
@@ -72,12 +65,12 @@ void Text::Draw(
 	transform.Translate(offset);
 
 	if (bool is_hd{ text.IsHD() }) {
-		auto scene_scale{ GetScale(text.GetScene()) };
+		auto scale{ impl::GetCameraParentRenderTargetScale(text.GetScene(), camera) };
 
-		transform.Scale(transform.GetScale() / scene_scale);
+		transform.Scale(transform.GetScale() / scale);
 
-		if (text.GetFontSize(is_hd) != text.Get<impl::HDFontSize>()) {
-			Text::RecreateTexture(text);
+		if (text.GetFontSize(is_hd, camera) != text.Get<impl::HDFontSize>()) {
+			Text::RecreateTexture(text, camera);
 		}
 	}
 
@@ -110,18 +103,18 @@ void Text::Draw(
 	);
 }
 
-void Text::Draw(DrawContext& renderer, Entity text) {
+void Text::Draw(DrawContext& renderer, Entity text, Camera camera) {
 	// This wrapper exists so that buttons can draw offset text.
-	Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
+	Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{}, camera);
 }
 
-void Text::RecreateTexture(Entity entity) {
+void Text::RecreateTexture(Entity entity, const std::optional<Camera>& camera) {
 	Text text{ entity };
 	auto content{ text.GetContent() };
 	auto color{ text.GetColor() };
-	float hd_scale{ GetScale(text.GetScene()).y };
+	float hd_scale{ impl::GetTextScale(text.GetScene(), camera) };
 	bool is_hd{ text.IsHD() };
-	auto font_size{ text.GetFontSize(is_hd) };
+	auto font_size{ text.GetFontSize(is_hd, camera) };
 	auto font{ text.GetFont() };
 	auto properties{ text.GetProperties() };
 
@@ -160,7 +153,7 @@ void Text::SetProperties(Entity text, const TextProperties& properties, bool rec
 	changed |= Text::SetParameter(text, impl::TextWrapAfter{ properties.wrap_after }, false);
 
 	if (changed && recreate_texture) {
-		Text::RecreateTexture(text);
+		Text::RecreateTexture(text, {});
 	}
 }
 
@@ -177,7 +170,7 @@ Text& Text::SetHD(bool hd) {
 	} else {
 		Remove<impl::HDText>();
 	}
-	Text::RecreateTexture(*this);
+	Text::RecreateTexture(*this, {});
 	return *this;
 }
 
@@ -266,23 +259,24 @@ TextJustify Text::GetJustify() const {
 	return Text::GetParameter(*this, TextJustify{});
 }
 
-float Text::GetFontSize(bool hd) const {
+float Text::GetFontSize(bool hd, const std::optional<Camera>& camera) const {
 	const auto& font_size{ Text::GetParameter(*this, impl::FontSize{}) };
 	if (hd) {
 		const auto& scene{ GetScene() };
-		return FontSizeToHD(font_size, scene);
+		float scale{ impl::GetTextScale(scene, camera) };
+		return font_size * scale;
 	}
 	return font_size;
 }
 
-V2_int Text::GetSize(std::string_view content) const {
-	return GetSize(content, GetFont(), GetFontSize(IsHD()));
+V2_int Text::GetSize(std::string_view content, const std::optional<Camera>& camera) const {
+	return GetSize(content, GetFont(), GetFontSize(IsHD(), camera));
 }
 
-V2_int Text::GetSize() const {
+V2_int Text::GetSize(const std::optional<Camera>& camera) const {
 	return GetSize(
 		Text::GetParameter(*this, impl::TextContent{}), Text::GetParameter(*this, Font{}),
-		GetFontSize(IsHD())
+		GetFontSize(IsHD(), camera)
 	);
 }
 
@@ -306,28 +300,7 @@ Text CreateText(
 	Scene& scene, std::string_view content, Color text_color, std::optional<float> font_size,
 	std::variant<std::monostate, Font, std::string_view> font, const TextProperties& properties
 ) {
-	std::optional<Font> resolved_font;
-
-	std::visit(
-		[&](auto&& arg) {
-			using T = std::decay_t<decltype(arg)>;
-
-			if constexpr (std::is_same_v<T, std::monostate>) {
-				// Default engine font
-				resolved_font = std::nullopt;
-			} else if constexpr (std::is_same_v<T, Font>) {
-				resolved_font = arg;
-			} else if constexpr (std::is_same_v<T, std::string_view>) {
-				PTGN_ASSERT(
-					scene.app().asset.HasFont(arg),
-					"Font key must be loaded in the asset manager before creating text"
-				);
-
-				resolved_font = *scene.app().asset.GetFont(arg);
-			}
-		},
-		font
-	);
+	std::optional<Font> resolved_font{ scene.app().asset.ToFont(font) };
 
 	Text text{ scene.CreateEntity() };
 	text.Add<Texture>();

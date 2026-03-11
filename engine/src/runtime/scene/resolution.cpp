@@ -25,13 +25,8 @@ FrameContext::FrameContext(
 ) :
 	display{ app.renderer.GetDisplayViewport().position },
 	render_target{ GetTransform(render_target_entity) },
-	camera{ camera_entity.GetViewport(), render_target_entity.GetSize(), std::invoke([&]() {
-				V2_float game_size{ app.renderer.GetGameSize() };
-				PTGN_ASSERT(game_size.BothAboveZero(), "Game size cannot be negative or zero");
-				V2_float scale{ render_target_entity.GetSize() / game_size };
-				PTGN_ASSERT(scale.BothAboveZero(), "Game scale cannot be negative or zero");
-				return scale;
-			}) },
+	camera{ camera_entity.GetViewport(), render_target_entity.GetSize(),
+			render_target_entity.GetScale() },
 	world{ GetTransform(camera_entity) } {}
 
 V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx) {

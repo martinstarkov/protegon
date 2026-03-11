@@ -10,6 +10,7 @@
 
 #include "core/util/hash.h"
 #include "core/util/type_info.h"
+#include "runtime/graphics/camera.h"
 #include "serialization/json/serialize.h"
 
 // The reason for this instead of a virtual Draw() function in the entity class is because when
@@ -25,8 +26,8 @@ class DrawContext;
 class Entity;
 
 template <typename T>
-concept DrawableType = requires(DrawContext& render_context, Entity entity) {
-	{ T::Draw(render_context, entity) } -> std::same_as<void>;
+concept DrawableType = requires(DrawContext& render_context, Entity entity, Camera camera) {
+	{ T::Draw(render_context, entity, camera) } -> std::same_as<void>;
 };
 
 namespace impl {
@@ -37,7 +38,7 @@ public:
 
 	IDrawable(std::string_view name) : hash{ Hash(name) } {}
 
-	using DrawFunc = void (*)(DrawContext&, Entity);
+	using DrawFunc = void (*)(DrawContext&, Entity, Camera);
 
 	static auto& data() {
 		static std::unordered_map<std::size_t, DrawFunc> s;

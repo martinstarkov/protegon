@@ -12,6 +12,7 @@
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 
@@ -32,8 +33,7 @@ struct GraphicsData {
 
 	void AddCommand(Transform transform, const Shape& shape, bool fill);
 
-	void Draw(DrawContext& renderer, Transform transform, Depth depth, BlendMode blend_mode)
-		const;
+	void Draw(DrawContext& renderer, Transform transform, Depth depth, BlendMode blend_mode) const;
 
 	std::vector<Command> commands_;
 	Color fill_color_{ color::White };
@@ -48,7 +48,7 @@ public:
 	Graphics() = default;
 	explicit Graphics(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
 	void Clear();
 

@@ -10,6 +10,7 @@
 #include <variant>
 #include <vector>
 
+#include "app/context.h"
 #include "core/assert.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
@@ -35,6 +36,8 @@
 #include "renderer/primitives/vertex.h"
 #include "renderer/primitives/viewport.h"
 #include "renderer/renderer.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/asset/font_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
@@ -535,15 +538,16 @@ std::vector<impl::ManualDrawCommand>& RenderContext::GetDebugCommandsForCamera(
 }
 
 void RenderContext::DrawTexture(
-	Texture texture, impl::ShaderId shader, Transform transform, std::optional<V2_float> size,
-	Origin draw_origin, std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
+	impl::TextureId texture, V2_int texture_size, impl::ShaderId shader, Transform transform,
+	std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
+	std::optional<BlendMode> blend_mode,
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates, std::optional<Camera> camera
 ) {
 	auto& draw_commands{ GetDrawCommandsForCamera(camera) };
 
 	PTGN_ASSERT(renderer_ != nullptr, "Render context must be initialized before use");
 
-	Rect rect{ size.value_or(texture.GetSize()) };
+	Rect rect{ size.value_or(texture_size) };
 
 	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
 
@@ -562,9 +566,10 @@ void RenderContext::DrawTexture(
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates, std::optional<Camera> camera
 ) {
 	auto quad_shader{ renderer_->GetShader("quad") };
+	auto texture_size{ texture.GetSize() };
 
 	DrawTexture(
-		texture, quad_shader, transform, size, draw_origin, tint, depth, blend_mode,
+		texture, texture_size, quad_shader, transform, size, draw_origin, tint, depth, blend_mode,
 		texture_coordinates, camera
 	);
 }
@@ -574,9 +579,11 @@ void RenderContext::DrawTexture(
 	Origin draw_origin, std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates, std::optional<Camera> camera
 ) {
+	auto texture_size{ texture.GetSize() };
+
 	DrawTexture(
-		texture, shader.operator impl::ShaderId(), transform, size, draw_origin, tint, depth,
-		blend_mode, texture_coordinates, camera
+		texture, texture_size, shader, transform, size, draw_origin, tint, depth, blend_mode,
+		texture_coordinates, camera
 	);
 }
 
@@ -636,28 +643,56 @@ void RenderContext::DrawShape(
 }
 
 void RenderContext::DrawText(
-	std::string_view content, Transform transform, Color text_color, std::optional<float> font_size,
+	std::string_view text_content, Transform transform, Color text_color,
+	std::optional<float> font_size,
 	const std::variant<std::monostate, Font, std::string_view>& font,
-	const TextProperties& properties, Origin origin, std::optional<V2_float> text_size,
+	const TextProperties& properties, Origin draw_origin, std::optional<V2_float> text_size,
 	bool hd_text, Depth depth, std::optional<BlendMode> blend_mode, std::optional<Camera> camera
 ) {
-	// TODO: Fix once text is refactored.
+	PTGN_ASSERT(
+		scene_ != nullptr && renderer_ != nullptr, "Render context must be initialized before use"
+	);
 
-	// auto& draw_commands{ GetDrawCommandsForCamera(camera) };
+	auto resolved_font{ scene_->app().asset.ToFont(font) };
+
+	float hd_scale{ hd_text ? impl::GetTextScale(*scene_, camera) : 1.0f };
+
+	auto texture_object{ scene_->app().asset.CreateTextTextureObject(
+		text_content, text_color, font_size.value_or(kDefaultFontSize),
+		resolved_font.value_or(Font{}), properties, hd_scale, hd_text
+	) };
+
+	if (!texture_object.has_value()) {
+		return;
+	}
+
+	auto texture_size{ texture_object->GetSize() };
+
+	auto texture_id{ texture_object->operator impl::TextureId() };
+
+	temporary_textures_.emplace_back(std::move(*texture_object));
+
+	auto quad_shader{ renderer_->GetShader("quad") };
+
+	DrawTexture(
+		texture_id, texture_size, quad_shader, transform, text_size, draw_origin, color::White,
+		depth, blend_mode, {}, camera
+	);
 }
 
 void RenderContext::DrawRect(
-	Transform transform, const Rect& rect, Color color, FillStyle fill_style, Origin origin,
+	Transform transform, const Rect& rect, Color color, FillStyle fill_style, Origin draw_origin,
 	Depth depth, std::optional<BlendMode> blend_mode, std::optional<Camera> camera
 ) {
-	DrawShape(rect, transform, color, fill_style, origin, depth, blend_mode, camera);
+	DrawShape(rect, transform, color, fill_style, draw_origin, depth, blend_mode, camera);
 }
 
 void RenderContext::DrawRoundedRect(
 	Transform transform, const RoundedRect& rounded_rect, Color color, FillStyle fill_style,
-	Origin origin, Depth depth, std::optional<BlendMode> blend_mode, std::optional<Camera> camera
+	Origin draw_origin, Depth depth, std::optional<BlendMode> blend_mode,
+	std::optional<Camera> camera
 ) {
-	DrawShape(rounded_rect, transform, color, fill_style, origin, depth, blend_mode, camera);
+	DrawShape(rounded_rect, transform, color, fill_style, draw_origin, depth, blend_mode, camera);
 }
 
 void RenderContext::DrawLine(

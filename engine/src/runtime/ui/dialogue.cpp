@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <format>
 #include <list>
 #include <optional>
 #include <ostream>
@@ -42,6 +43,7 @@
 #include "runtime/scripting/scripts.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
+#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
@@ -389,21 +391,20 @@ DialoguePage* DialogueComponent::GetCurrentDialoguePage() {
 	return &line->pages[static_cast<std::size_t>(current_page_)];
 }
 
-void DialogueComponent::DrawInfo(V2_float position) {
-	// TODO: Fix debug draw.
-	// float font_size{ 32 };
-	// app().debug.DrawText(
-	//	"Dialogue: " + current_dialogue_, position + V2_float{ 0, 0 }, color::White,
-	//	Origin::TopLeft, font_size
-	//);
-	// app().debug.DrawText(
-	//	"Line: " + std::to_string(current_line_), position + V2_float{ 0, 50 }, color::White,
-	//	Origin::TopLeft, font_size
-	//);
-	// app().debug.DrawText(
-	//	"Page: " + std::to_string(current_page_), position + V2_float{ 0, 100 }, color::White,
-	//	Origin::TopLeft, font_size
-	//);
+void DialogueComponent::DrawInfo(Scene& scene, V2_float position) {
+	constexpr float font_size{ 32 };
+	scene.debug.DrawText(
+		std::format("Dialogue: {}", current_dialogue_), position + V2_float{ 0, 0 }, color::White,
+		font_size, {}, {}, Origin::TopLeft
+	);
+	scene.debug.DrawText(
+		std::format("Line: {}", std::to_string(current_line_)), position + V2_float{ 0, 50 },
+		color::White, font_size, {}, {}, Origin::TopLeft
+	);
+	scene.debug.DrawText(
+		std::format("Page: {}", std::to_string(current_page_)), position + V2_float{ 0, 100 },
+		color::White, font_size, {}, {}, Origin::TopLeft
+	);
 }
 
 void DialogueComponent::AlignToTopLeft(const DialoguePageProperties& default_properties) const {

@@ -142,7 +142,7 @@ public:
 	[[nodiscard]] DialogueLine* GetCurrentDialogueLine();
 	[[nodiscard]] DialoguePage* GetCurrentDialoguePage();
 	void IncrementPage();
-	void DrawInfo(V2_float position);
+	void DrawInfo(Scene& scene, V2_float position);
 
 private:
 	friend struct impl::DialogueWaitScript;

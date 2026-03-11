@@ -342,10 +342,15 @@ bool Camera::IsVisible(Entity entity) const {
 	return in_include && !in_exclude || IsUI(*this) && IsUI(entity);
 }
 
-Camera& Camera::SetParentRenderTarget(std::optional<RenderTarget> render_target) {
-	if (render_target.has_value()) {
-		Add<impl::ParentRenderTarget>(*render_target);
-	}
+Camera& Camera::SetParentRenderTarget(const RenderTarget& render_target) {
+	PTGN_ASSERT(
+		render_target, "Cannot set camera parent render target to an invalid render target"
+	);
+	Add<impl::ParentRenderTarget>(render_target);
+	return *this;
+}
+
+Camera& Camera::SetParentRenderTarget() {
 	Add<impl::ParentRenderTarget>(GetScene().GetRenderTarget());
 	return *this;
 }
@@ -410,6 +415,18 @@ bool HasAllMasks(Entity entity, LayerMask test) {
 }
 
 namespace impl {
+
+V2_float GetCameraParentRenderTargetScale(const Scene& scene, const std::optional<Camera>& camera) {
+	Camera cam{ camera.value_or(scene.camera) };
+	RenderTarget render_target;
+	if (auto parent_rt = cam.TryGet<impl::ParentRenderTarget>()) {
+		render_target = parent_rt->render_target;
+	} else {
+		render_target = scene.GetRenderTarget();
+	}
+	PTGN_ASSERT(render_target, "Failed to find a valid render target when calculating scale");
+	return render_target.GetScale();
+}
 
 void AddCameraComponents(Camera camera, const Renderer& renderer) {
 	camera.Add<Transform>();

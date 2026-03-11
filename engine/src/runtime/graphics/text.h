@@ -12,9 +12,9 @@
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/font.h"
-#include "runtime/graphics/text.h"
 #include "serialization/json/enum.h"
 #include "serialization/json/serialize.h"
 
@@ -24,6 +24,8 @@ class DrawContext;
 class Scene;
 
 namespace impl {
+
+float GetTextScale(const Scene& scene, const std::optional<Camera>& camera);
 
 struct HDText {};
 
@@ -131,10 +133,10 @@ public:
 
 	static void Draw(
 		DrawContext& renderer, Entity text, V2_int text_size, Color additional_tint,
-		Origin offset_origin, V2_float offset_size
+		Origin offset_origin, V2_float offset_size, Camera camera
 	);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
 	/// @return True if the text is rendered in high definition, false otherwise.
 	[[nodiscard]] bool IsHD() const;
@@ -150,17 +152,18 @@ public:
 	/// @param hd If true, returns font size scaled to high definition.
 	/// @param camera The camera relative to which an hd font size is retrieved. Only applicable if
 	/// hd is true.
-	[[nodiscard]] float GetFontSize(bool hd = false) const;
+	[[nodiscard]] float GetFontSize(bool hd, const std::optional<Camera>& camera) const;
 
 	/// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
 	/// text is hd
 	/// @return The unscaled size of the text texture given the current content and font.
-	[[nodiscard]] V2_int GetSize() const;
+	[[nodiscard]] V2_int GetSize(const std::optional<Camera>& camera) const;
 
 	/// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
 	/// text is hd
 	/// @return The unscaled size of the text texture given the specified content.
-	[[nodiscard]] V2_int GetSize(std::string_view content) const;
+	[[nodiscard]] V2_int GetSize(std::string_view content, const std::optional<Camera>& camera)
+		const;
 
 	[[nodiscard]] V2_int GetSize(
 		std::string_view content, Font font, std::optional<float> font_size = {}
@@ -213,27 +216,27 @@ public:
 		if (!text.Has<T>()) {
 			text.Add<T>(value);
 			if (recreate_texture) {
-				RecreateTexture(text);
+				RecreateTexture(text, {});
 			}
 			return true;
 		}
 		T& t{ text.Get<T>() };
 		if (t == value) {
 			if (recreate_texture) {
-				RecreateTexture(text);
+				RecreateTexture(text, {});
 			}
 			return false;
 		}
 		t = value;
 		if (recreate_texture) {
-			RecreateTexture(text);
+			RecreateTexture(text, {});
 		}
 		return true;
 	}
 
 private:
 	// Using own properties.
-	static void RecreateTexture(Entity text);
+	static void RecreateTexture(Entity text, const std::optional<Camera>& camera);
 
 	// Using custom properties.
 	static void RecreateTexture(

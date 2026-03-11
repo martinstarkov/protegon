@@ -7,6 +7,7 @@
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/scripting/script.h"
 
@@ -47,7 +48,7 @@ public:
 	RenderTarget() = default;
 	explicit RenderTarget(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
 	/// @brief Binds the render target's internal frame buffer as the current render target.
 	void Bind();
@@ -61,6 +62,9 @@ public:
 
 	void SetClearColor(Color clear_color);
 	[[nodiscard]] Color GetClearColor() const;
+
+	/// @return The scale of the render target size relative to the game size.
+	[[nodiscard]] V2_float GetScale() const;
 
 	[[nodiscard]] V2_int GetSize() const;
 	[[nodiscard]] TextureFormat GetFormat() const;

@@ -3,12 +3,9 @@
 #include <algorithm>
 #include <functional>
 #include <iterator>
-#include <list>
 #include <optional>
-#include <ranges>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -23,7 +20,6 @@
 #include "platform/input/mouse.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
-#include "renderer/renderer.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/ecs/component.h"
@@ -292,7 +288,7 @@ std::string ButtonText::GetTextContent(ButtonState state) const {
 }
 
 float ButtonText::GetFontSize(ButtonState state) const {
-	return GetValid(state).GetFontSize(false);
+	return GetValid(state).GetFontSize(false, {});
 }
 
 TextJustify ButtonText::GetTextJustify(ButtonState state) const {
@@ -420,7 +416,7 @@ static Entity GetButtonText(Entity button, bool is_toggled, const ButtonState& s
 }
 
 template <typename Derived>
-void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
+void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera camera) {
 	Button button{ entity };
 	Color tint{ ptgn::GetTint(button) };
 
@@ -502,7 +498,7 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 					  fixed_size->y.value_or(button_size->y) };
 	}
 
-	Text::Draw(renderer, text, text_size, tint, button_origin, *button_size);
+	Text::Draw(renderer, text, text_size, tint, button_origin, *button_size, camera);
 }
 
 template <typename Derived>

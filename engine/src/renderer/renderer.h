@@ -24,6 +24,7 @@ class Application;
 class EventHandler;
 class RenderContext;
 class DrawContext;
+class DebugContext;
 class Window;
 class Scene;
 class AssetManager;
@@ -94,6 +95,9 @@ private:
 	friend class RenderTarget;
 	friend class DrawContext;
 	friend class RenderContext;
+	friend class DebugContext;
+
+	void Flush();
 
 	void BindScreenTarget();
 

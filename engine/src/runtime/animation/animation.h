@@ -14,6 +14,7 @@
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/graphics/camera.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
@@ -41,7 +42,7 @@ struct Animation : public Entity {
 	Animation() = default;
 	explicit Animation(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
 	Animation& SetTexture(Texture texture);
 

@@ -15,7 +15,9 @@
 #include "renderer/renderer.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
@@ -73,6 +75,16 @@ Color RenderTarget::GetClearColor() const {
 	return GetOrDefault<ClearColor>().value;
 }
 
+V2_float RenderTarget::GetScale() const {
+	const auto& renderer{ GetScene().app().renderer };
+	V2_float game_size{ renderer.GetGameSize() };
+	PTGN_ASSERT(game_size.BothAboveZero(), "Game size cannot be negative or zero");
+	V2_float rt_size{ GetSize() };
+	V2_float scale{ rt_size / game_size };
+	PTGN_ASSERT(scale.BothAboveZero(), "Render target scale cannot be negative or zero");
+	return scale;
+}
+
 V2_int RenderTarget::GetSize() const {
 	return Get<impl::RenderTargetObject>().GetSize();
 }
@@ -85,7 +97,7 @@ RenderTarget::operator impl::TextureId() const {
 	return Get<impl::RenderTargetObject>();
 }
 
-void RenderTarget::Draw(DrawContext& renderer, Entity entity) {
+void RenderTarget::Draw(DrawContext& renderer, Entity entity, [[maybe_unused]] Camera) {
 	PTGN_ASSERT(entity.Has<impl::RenderTargetObject>());
 
 	std::optional<V2_int> size;

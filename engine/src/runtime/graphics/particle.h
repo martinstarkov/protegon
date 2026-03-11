@@ -12,6 +12,7 @@
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/json/enum.h"
@@ -136,7 +137,7 @@ public:
 	ParticleEmitter() = default;
 	explicit ParticleEmitter(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
 	// Starts emitting particles.
 	ParticleEmitter& Start();

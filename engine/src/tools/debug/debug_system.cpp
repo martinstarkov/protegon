@@ -2,22 +2,31 @@
 
 #include <optional>
 #include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
+#include "app/context.h"
 #include "core/assert.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/texture.h"
+#include "renderer/primitives/vertex.h"
+#include "renderer/renderer.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/asset/font_system.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/text.h"
+#include "runtime/scene/scene.h"
 #include "tools/debug/profiling.h"
 #include "tools/debug/stats.h"
 
@@ -26,15 +35,50 @@ namespace ptgn {
 DebugContext::DebugContext(RenderContext& render_context) : render_context_{ render_context } {}
 
 void DebugContext::DrawText(
-	std::string_view content, Transform transform, Color text_color, std::optional<float> font_size,
+	std::string_view text_content, Transform transform, Color text_color,
+	std::optional<float> font_size,
 	const std::variant<std::monostate, Font, std::string_view>& font,
-	const TextProperties& properties, Origin origin, std::optional<V2_float> text_size,
+	const TextProperties& properties, Origin draw_origin, std::optional<V2_float> text_size,
 	bool hd_text, std::optional<Camera> camera
 ) {
-	// TODO: Fix.
+	PTGN_ASSERT(
+		render_context_.scene_ != nullptr && render_context_.renderer_ != nullptr,
+		"Render context must be initialized before use"
+	);
 
-	// auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
-	// debug_commands.emplace_back(...);
+	auto resolved_font{ render_context_.scene_->app().asset.ToFont(font) };
+
+	float hd_scale{ hd_text ? impl::GetTextScale(*render_context_.scene_, camera) : 1.0f };
+
+	auto texture_object{ render_context_.scene_->app().asset.CreateTextTextureObject(
+		text_content, text_color, font_size.value_or(kDefaultFontSize),
+		resolved_font.value_or(Font{}), properties, hd_scale, hd_text
+	) };
+
+	if (!texture_object.has_value()) {
+		return;
+	}
+
+	auto texture_size{ texture_object->GetSize() };
+
+	auto texture_id{ texture_object->operator impl::TextureId() };
+
+	render_context_.temporary_textures_.emplace_back(std::move(*texture_object));
+
+	auto quad_shader{ render_context_.renderer_->GetShader("quad") };
+
+	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
+
+	Rect rect{ text_size.value_or(texture_size) };
+
+	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
+
+	auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
+
+	impl::TextureCommand texture_command{ quad_shader,	texture_id, positions,
+										  color::White, tex_coords, debug_blend_mode };
+
+	debug_commands.emplace_back(texture_command, debug_depth);
 }
 
 void DebugContext::DrawShape(
@@ -53,7 +97,7 @@ void DebugContext::DrawShape(
 	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
 
 	std::visit(
-		[&](const auto& cmd) { RenderContext::AddDrawCommand(debug_commands, cmd, 0.0f); },
+		[&](const auto& cmd) { RenderContext::AddDrawCommand(debug_commands, cmd, debug_depth); },
 		shape_draw_commands
 	);
 }
@@ -69,7 +113,7 @@ void DebugContext::DrawLines(
 		connect_last_to_first
 	) };
 
-	RenderContext::AddDrawCommand(debug_commands, line_draw_commands, 0.0f);
+	RenderContext::AddDrawCommand(debug_commands, line_draw_commands, debug_depth);
 }
 
 void DebugContext::DrawLine(

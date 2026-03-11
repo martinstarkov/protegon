@@ -10,13 +10,13 @@
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/viewport.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/render_target_component.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {
 
 class Scene;
 class Renderer;
+class RenderTarget;
 
 using LayerMask = std::uint64_t;
 
@@ -136,9 +136,11 @@ public:
 
 	[[nodiscard]] bool IsVisible(Entity entity) const;
 
-	/// @brief Sets the camera's parent render target. If render_target is {}, sets the parent
-	/// render target to the default scene render target.
-	Camera& SetParentRenderTarget(std::optional<RenderTarget> render_target = {});
+	/// @brief Sets the camera's parent render target.
+	Camera& SetParentRenderTarget(const RenderTarget& render_target);
+
+	/// @brief Sets the camera's parent render target to the default scene render target.
+	Camera& SetParentRenderTarget();
 
 	/// @brief If clear_color is {}, uses the render target's clear color.
 	void SetClearColor(std::optional<Color> clear_color);
@@ -163,6 +165,11 @@ bool HasAnyMask(Entity entity, LayerMask test);
 bool HasAllMasks(Entity entity, LayerMask test);
 
 namespace impl {
+
+/// @param camera If {}, uses the default scene camera.
+[[nodiscard]] V2_float GetCameraParentRenderTargetScale(
+	const Scene& scene, const std::optional<Camera>& camera
+);
 
 void AddCameraComponents(Camera camera, const Renderer& renderer);
 

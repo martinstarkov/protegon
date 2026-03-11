@@ -36,6 +36,10 @@ Renderer::~Renderer() noexcept {
 	// Destructor access to impl::gl::GLRenderer is needed.
 }
 
+void Renderer::Flush() {
+	return gl_renderer_->FlushBatch();
+}
+
 void Renderer::BindScreenTarget() {
 	return gl_renderer_->BindScreenTarget();
 }

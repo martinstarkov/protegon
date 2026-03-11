@@ -278,24 +278,24 @@ public:
 	);
 
 	void DrawText(
-		std::string_view content, Transform transform, Color text_color,
+		std::string_view text_content, Transform transform, Color text_color,
 		std::optional<float> font_size									 = {},
 		const std::variant<std::monostate, Font, std::string_view>& font = {},
-		const TextProperties& properties = {}, Origin origin = Origin::Center,
+		const TextProperties& properties = {}, Origin draw_origin = Origin::Center,
 		std::optional<V2_float> text_size = {}, bool hd_text = true, Depth depth = {},
 		std::optional<BlendMode> blend_mode = {}, std::optional<Camera> camera = {}
 	);
 
 	void DrawRect(
 		Transform transform, const Rect& rect, Color color,
-		FillStyle fill_style = FillStyle::Hollow(1.0f), Origin origin = Origin::Center,
+		FillStyle fill_style = FillStyle::Hollow(1.0f), Origin draw_origin = Origin::Center,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
 		std::optional<Camera> camera = {}
 	);
 
 	void DrawRoundedRect(
 		Transform transform, const RoundedRect& rounded_rect, Color color,
-		FillStyle fill_style = FillStyle::Hollow(1.0f), Origin origin = Origin::Center,
+		FillStyle fill_style = FillStyle::Hollow(1.0f), Origin draw_origin = Origin::Center,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
 		std::optional<Camera> camera = {}
 	);
@@ -358,8 +358,8 @@ private:
 	friend class DebugContext;
 
 	void DrawTexture(
-		Texture texture, impl::ShaderId shader, Transform transform, std::optional<V2_float> size,
-		Origin draw_origin, std::optional<Color> tint, Depth depth,
+		impl::TextureId texture, V2_int texture_size, impl::ShaderId shader, Transform transform,
+		std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
 		std::optional<BlendMode> blend_mode,
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates,
 		std::optional<Camera> camera
@@ -390,6 +390,8 @@ private:
 
 	std::vector<std::pair<Camera, std::vector<impl::DrawCommand>>> draw_commands_;
 	std::vector<std::pair<Camera, std::vector<impl::ManualDrawCommand>>> debug_commands_;
+
+	std::vector<impl::TextureObject> temporary_textures_;
 };
 
 } // namespace ptgn

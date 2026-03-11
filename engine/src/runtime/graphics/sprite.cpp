@@ -12,6 +12,7 @@
 #include "renderer/primitives/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
@@ -20,7 +21,7 @@ namespace ptgn {
 
 Sprite::Sprite(Entity entity) : Entity{ entity } {}
 
-void Sprite::Draw(DrawContext& renderer, Entity entity) {
+void Sprite::Draw(DrawContext& renderer, Entity entity, [[maybe_unused]] Camera) {
 	PTGN_ASSERT(entity.Has<Texture>());
 	renderer.DrawTexture(
 		entity.Get<Texture>(), GetDrawTransform(entity), GetCroppedTextureSize(entity),
@@ -38,25 +39,7 @@ Sprite CreateSprite(
 	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position,
 	Origin draw_origin
 ) {
-	Texture resolved_texture;
-
-	std::visit(
-		[&](auto&& arg) {
-			using T = std::decay_t<decltype(arg)>;
-
-			if constexpr (std::is_same_v<T, Texture>) {
-				resolved_texture = arg;
-			} else if constexpr (std::is_same_v<T, std::string_view>) {
-				PTGN_ASSERT(
-					scene.app().asset.HasTexture(arg),
-					"Texture key must be loaded in the asset manager before creating sprite"
-				);
-
-				resolved_texture = *scene.app().asset.GetTexture(arg);
-			}
-		},
-		texture
-	);
+	Texture resolved_texture{ scene.app().asset.ToTexture(texture) };
 
 	Sprite sprite{ scene.CreateEntity() };
 	SetDraw<Sprite>(sprite);

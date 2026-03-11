@@ -14,6 +14,7 @@
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
@@ -54,7 +55,7 @@ void GraphicsData::Draw(
 
 Graphics::Graphics(Entity entity) : Entity{ entity } {}
 
-void Graphics::Draw(DrawContext& renderer, Entity entity) {
+void Graphics::Draw(DrawContext& renderer, Entity entity, [[maybe_unused]] Camera) {
 	const auto& instance{ entity.Get<impl::GraphicsData>() };
 
 	const auto& transform{ GetDrawTransform(entity) };

@@ -16,11 +16,12 @@
 #include "core/time/time.h"
 #include "core/time/timer.h"
 #include "renderer/primitives/texture.h"
-#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/scripts.h"
@@ -29,8 +30,8 @@ namespace ptgn {
 
 Animation::Animation(Entity entity) : Entity{ entity } {}
 
-void Animation::Draw(DrawContext& renderer, Entity entity) {
-	Sprite::Draw(renderer, entity);
+void Animation::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+	Sprite::Draw(renderer, entity, camera);
 }
 
 Animation& Animation::Start(bool force) {
@@ -379,25 +380,7 @@ Animation CreateAnimation(
 	std::size_t frame_count, milliseconds animation_duration, std::optional<V2_int> frame_size,
 	std::int64_t play_count, V2_int start_pixel
 ) {
-	Texture resolved_texture;
-
-	std::visit(
-		[&](auto&& arg) {
-			using T = std::decay_t<decltype(arg)>;
-
-			if constexpr (std::is_same_v<T, Texture>) {
-				resolved_texture = arg;
-			} else if constexpr (std::is_same_v<T, std::string_view>) {
-				PTGN_ASSERT(
-					scene.app().asset.HasTexture(arg),
-					"Texture key must be loaded in the asset manager before creating animation"
-				);
-
-				resolved_texture = *scene.app().asset.GetTexture(arg);
-			}
-		},
-		texture
-	);
+	Texture resolved_texture{ scene.app().asset.ToTexture(texture) };
 
 	PTGN_ASSERT(
 		play_count == -1 || play_count >= 0,

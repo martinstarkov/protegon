@@ -21,9 +21,11 @@
 #include "core/time/time.h"
 #include "core/time/timer.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
@@ -98,7 +100,7 @@ void ParticleEmitterComponent::ResetParticle(V2_float start_position, Particle& 
 
 ParticleEmitter::ParticleEmitter(Entity entity) : Entity{ entity } {}
 
-void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
+void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera camera) {
 	auto depth{ GetDepth(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
 
@@ -110,7 +112,7 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
 			scene.app().asset.HasTexture(*i.info.texture_key),
 			"Texture key must be loaded in the asset manager before creating a particle with it"
 		);
-		auto texture{ *scene.app().asset.GetTexture(*i.info.texture_key) };
+		Texture texture{ *scene.app().asset.GetTexture(*i.info.texture_key) };
 
 		Color tint{ color::White };
 

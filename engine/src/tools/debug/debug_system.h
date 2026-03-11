@@ -36,10 +36,10 @@ public:
 
 	/// @param text_size {} results in unscaled size of text based on font.
 	void DrawText(
-		std::string_view content, Transform transform, Color text_color,
+		std::string_view text_content, Transform transform, Color text_color,
 		std::optional<float> font_size									 = {},
 		const std::variant<std::monostate, Font, std::string_view>& font = {},
-		const TextProperties& properties = {}, Origin origin = Origin::Center,
+		const TextProperties& properties = {}, Origin draw_origin = Origin::Center,
 		std::optional<V2_float> text_size = {}, bool hd_text = true,
 		std::optional<Camera> camera = {}
 	);
@@ -67,6 +67,7 @@ public:
 private:
 	friend class Scene;
 
+	Depth debug_depth;
 	std::optional<BlendMode> debug_blend_mode;
 
 	explicit DebugContext(RenderContext& render_context);

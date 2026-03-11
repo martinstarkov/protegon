@@ -21,6 +21,7 @@
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
@@ -374,7 +375,7 @@ public:
 	ButtonBase() = default;
 	explicit ButtonBase(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
 	/// @return If no size is specified, returns {}.
 	/// Otherwise returns, in order of precedence: texture size, rect size, or {2*radius, 2*radius}.

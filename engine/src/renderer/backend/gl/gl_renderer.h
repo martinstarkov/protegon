@@ -132,6 +132,8 @@ public:
 	void ResizeScreenTarget(V2_int size);
 	void BindScreenTarget();
 
+	void FlushBatch();
+
 	std::unique_ptr<GLContext> gl;
 
 private:
@@ -147,8 +149,6 @@ private:
 	bool IsTextureAttachedToCurrentFramebuffer(TextureId texture) const;
 
 	void DrawQuad(ShaderId shader, const QuadParams& p, const QuadSetup& q);
-
-	void FlushBatch();
 
 	std::uint32_t GetTextureSlot(TextureId tex);
 

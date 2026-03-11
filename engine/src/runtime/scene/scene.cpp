@@ -97,7 +97,7 @@ void Scene::InternalEmit(EventDispatcher d) {
 	}
 }
 
-static void InvokeDrawable(DrawContext& draw_context, Entity entity) {
+static void InvokeDrawable(DrawContext& draw_context, Entity entity, Camera camera) {
 	PTGN_ASSERT(entity.Has<impl::IDrawable>(), "Cannot render entity without drawable component");
 	PTGN_ASSERT(entity.Has<impl::Visible>(), "Cannot render entity without visible component");
 
@@ -109,7 +109,7 @@ static void InvokeDrawable(DrawContext& draw_context, Entity entity) {
 
 	const auto& draw_function{ drawable_functions.find(drawable.hash)->second };
 
-	draw_function(draw_context, entity);
+	draw_function(draw_context, entity, camera);
 }
 
 void Scene::InternalDraw() {
@@ -201,7 +201,7 @@ void Scene::InternalDraw() {
 
 			sort_func(cmds);
 
-			draw_func(cmds);
+			draw_func(cmds, cam);
 		}
 		commands.clear();
 	};
@@ -209,14 +209,15 @@ void Scene::InternalDraw() {
 	draw_commands(
 		renderer.draw_commands_,
 		[](auto& cmds) {
-			std::ranges::sort(cmds, [&](const impl::DrawCommand& a, const impl::DrawCommand& b) {
-				return a.depth < b.depth;
-			});
+			std::ranges::stable_sort(
+				cmds, [&](const impl::DrawCommand& a,
+						  const impl::DrawCommand& b) { return a.depth < b.depth; }
+			);
 		},
-		[&draw_context](const auto& cmds) {
+		[&draw_context](const auto& cmds, auto camera) {
 			for (const auto& draw_cmd : cmds) {
 				if (std::holds_alternative<Entity>(draw_cmd.payload)) {
-					InvokeDrawable(draw_context, std::get<Entity>(draw_cmd.payload));
+					InvokeDrawable(draw_context, std::get<Entity>(draw_cmd.payload), camera);
 				} else {
 					draw_context.Draw(
 						std::get<impl::ManualCommand>(draw_cmd.payload), draw_cmd.depth
@@ -232,13 +233,15 @@ void Scene::InternalDraw() {
 		[](auto&) {
 			/* No-op, debug commands are not sorted by depth */
 		},
-		[&draw_context](const auto& cmds) {
+		[&draw_context](const auto& cmds, [[maybe_unused]] auto camera) {
 			for (const auto& draw_cmd : cmds) {
 				draw_context.Draw(draw_cmd.payload, draw_cmd.depth);
 			}
 		},
 		false
 	);
+
+	global_renderer.Flush();
 
 	Viewport viewport{ {}, global_renderer.GetDisplayViewport().size };
 	auto half_viewport{ viewport.size * 0.5f };
@@ -256,6 +259,9 @@ void Scene::InternalDraw() {
 		render_target_, positions, GetTint(render_target_), 0.0f,
 		impl::GetDefaultTextureCoordinates(true)
 	);
+
+	// Must be cleared after BindScreenTarget, as that flushes the batch.
+	renderer.temporary_textures_.clear();
 }
 
 void Scene::InternalUpdate() {
