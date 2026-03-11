@@ -81,18 +81,18 @@ public:
 
 		// TODO: Fix by implementing SetScrollFactor().
 
-		app().renderer.DrawTexture(
+		renderer.DrawTexture(
 			"background", bg_pos, V2_int{ size.x * bg_aspect_ratio, size.y }, Origin::Center
 		);
 		Translate(camera, background_cam);
-		app().renderer.DrawTexture(
+		renderer.DrawTexture(
 			"stars", stars_pos, V2_int{ size.x * bg_aspect_ratio, size.y }, Origin::Center
 		);
 		Translate(camera, star_cam);
-		app().renderer.DrawTexture(
+		renderer.DrawTexture(
 			"planet_b", planet_b_pos, game.texture.GetSize("planet_b") * scale, Origin::Center
 		);
-		app().renderer.DrawTexture(
+		renderer.DrawTexture(
 			"planet_s", planet_s_pos, game.texture.GetSize("planet_s") * scale, Origin::Center
 		);
 		Translate(camera, foreground_cam);

@@ -14,6 +14,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
 
@@ -23,6 +24,8 @@ public:
 	ToggleButton b2;
 
 	void OnEnter() override {
+		input.SetInteractiveSettings({ .enabled = true });
+
 		Origin button_origin{ Origin::TopLeft };
 
 		b1 = CreateButton(*this)

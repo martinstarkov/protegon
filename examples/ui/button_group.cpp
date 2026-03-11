@@ -13,6 +13,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 
 using namespace ptgn;
@@ -47,6 +48,8 @@ class ToggleButtonGroupScene : public Scene {
 	}
 
 	void OnEnter() override {
+		input.SetInteractiveSettings({ .enabled = true });
+
 		auto name1{ "Group 1" };
 		group1 = CreateToggleButtonGroup(*this);
 		group1.SetAlwaysOneActive(false);

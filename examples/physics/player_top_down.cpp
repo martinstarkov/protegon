@@ -1,13 +1,13 @@
 #include "app/application.h"
 #include "core/event/dispatcher.h"
-#include "renderer/primitives/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "renderer/primitives/color.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
-#include "runtime/physics/movement.h"
 #include "runtime/physics/collider.h"
+#include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
@@ -69,8 +69,7 @@ class TopDownMovementScene : public Scene {
 	}
 
 	void OnEnter() override {
-		// TODO: Fix.
-		// SetColliderVisibility(true);
+		SetColliderSettings({ .enabled = true });
 
 		V2_float ws{ game_size };
 

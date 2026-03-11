@@ -17,6 +17,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/ui/button.h"
 #include "runtime/world/grid.h"
@@ -41,6 +42,8 @@ public:
 	}
 
 	void OnEnter() override {
+		input.SetInteractiveSettings({ .enabled = true });
+
 		input.SetTopOnly(true);
 		auto res{ app().renderer.GetGameSize() };
 

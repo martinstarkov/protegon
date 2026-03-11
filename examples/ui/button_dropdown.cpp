@@ -1,11 +1,17 @@
+#include <functional>
+#include <string_view>
+
 #include "app/application.h"
+#include "app/context.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/window/window.h"
 #include "renderer/primitives/color.h"
+#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/dropdown.h"
 
@@ -41,6 +47,8 @@ public:
 	}
 
 	void OnEnter() override {
+		input.SetInteractiveSettings({ .enabled = true });
+
 		Dropdown dropdown  = CreateDropdown();
 		Dropdown dropdown2 = CreateDropdown(false);
 		Dropdown dropdown3 = CreateDropdown(true);

@@ -64,8 +64,7 @@ class PlatformingScene : public Scene {
 	}
 
 	void OnEnter() override {
-		// TODO: Fix.
-		// SetColliderVisibility(true);
+		SetColliderSettings({ .enabled = true });
 
 		V2_float ws{ game_size };
 		physics.SetGravity({ 0.0f, 1.0f });

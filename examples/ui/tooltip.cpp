@@ -2,23 +2,26 @@
 #include "runtime/ui/tooltip.h"
 
 #include "app/application.h"
+#include "app/context.h"
 #include "core/math/vector2.h"
 #include "platform/window/window.h"
 #include "renderer/primitives/color.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
+#include "runtime/ui/interactive.h"
 
 using namespace ptgn;
 
 class TooltipScene : public Scene {
 public:
 	void OnEnter() override {
-		// TODO: Fix draw scene interactables.
-		// input.SetDrawInteractives();
+		input.SetInteractiveSettings({ .enabled = true });
 
 		app().asset.Load("bg", "assets/tooltip_bg.png");
 

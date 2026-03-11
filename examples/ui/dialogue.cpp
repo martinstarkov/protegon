@@ -1,15 +1,19 @@
 #include "runtime/ui/dialogue.h"
 
 #include "app/application.h"
+#include "app/context.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "platform/input/input_handler.h"
 #include "platform/input/key.h"
 #include "platform/window/window.h"
+#include "renderer/renderer.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -18,6 +22,8 @@ struct DialogueScene : public Scene {
 	Entity npc;
 
 	void OnEnter() override {
+		input.SetInteractiveSettings({ .enabled = true });
+
 		PTGN_LOG("Entity count: ", GetEntityCount());
 
 		app().asset.Load("retro_gaming", "assets/retro_gaming.ttf");

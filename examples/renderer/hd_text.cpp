@@ -8,6 +8,7 @@
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/font.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
@@ -43,15 +44,14 @@ class ResolutionTextScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		// TODO: Fix.
-		/*app().renderer.DrawText(
-			content, -1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size,
-			{}, {}, {}, {}, false
+		renderer.DrawText(
+			content, -1 * V2_float{ 0.0f, text.GetFontSize() }, color, font_size, {}, {},
+			Origin::Center, {}, false
 		);
-		app().renderer.DrawText(
-			content, 1 * V2_float{ 0.0f, text.GetFontSize() }, color, Origin::Center, font_size, {},
-			{}, {}, {}, true
-		);*/
+		renderer.DrawText(
+			content, 1 * V2_float{ 0.0f, text.GetFontSize() }, color, font_size, {}, {},
+			Origin::Center, {}, true
+		);
 	}
 };
 

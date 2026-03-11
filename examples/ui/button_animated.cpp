@@ -10,6 +10,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/ui/button.h"
 
@@ -20,8 +21,7 @@ public:
 	Button b1;
 
 	void OnEnter() override {
-		// TODO: Fix draw interactables.
-		// input.SetDrawInteractives();
+		input.SetInteractiveSettings({ .enabled = true });
 
 		app().asset.Load("animation_hover", "assets/button_animation_hover.png");
 		app().asset.Load("animation_activate", "assets/button_animation_activate.png");

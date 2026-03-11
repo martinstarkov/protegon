@@ -69,12 +69,6 @@ public:
 
 		// DrawDebugRect({ 300, 400 }, { 100, 100 }, color::Blue, Origin::TopLeft, -1.0f);
 	}
-
-	void OnExit() override {
-		// TODO: Fix.
-		// json j = *this;
-		// SaveJson(j, "assets/light_scene.json");
-	}
 };
 
 int main(int, char**) {
