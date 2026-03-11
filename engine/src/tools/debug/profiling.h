@@ -11,9 +11,11 @@
 #include "core/time/timer.h"
 #include "core/util/function.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
 class DebugSystem;
+
+namespace impl {
 
 class ProfileInstance {
 public:
@@ -62,7 +64,7 @@ public:
 	}
 
 private:
-	friend class DebugSystem;
+	friend class ptgn::DebugSystem;
 	friend class ProfileInstance;
 
 	template <Duration D = milliseconds>
@@ -78,7 +80,9 @@ static Profiler& GetProfiler() {
 	return profiler;
 }
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn
 
 #define PTGN_PROFILE_FUNCTION()                                   \
 	ptgn::impl::ProfileInstance ptgn_profile_instance_##__LINE__( \
