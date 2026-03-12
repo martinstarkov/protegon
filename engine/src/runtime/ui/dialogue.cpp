@@ -252,7 +252,8 @@ DialogueComponent::DialogueComponent(
 		"Dialogue component must have a non-zero default box size"
 	);
 
-	text_  = GameObject{ CreateText(scene, "", color::White, {}, kDefaultFontKey) };
+	text_ = GameObject{ CreateText(scene, "", color::White, {}, kDefaultFontKey) };
+
 	tween_ = GameObject{ CreateTween(scene) };
 
 	AddChild(parent, tween_, "tween");
@@ -597,7 +598,8 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 		return pages;
 	}
 
-	const int line_height = font.GetSize(properties.font_key, "Ay", properties.font_size).y;
+	const int line_height = font.GetHeight(properties.font_key, properties.font_size);
+	// const int line_height = font.GetSize(properties.font_key, "Ay", properties.font_size).y;
 
 	auto WrapTextToBox = [&](const std::string& text, int max_width, int max_lines,
 							 int split_begin_width,
