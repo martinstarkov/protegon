@@ -2,13 +2,14 @@
 
 #include <array>
 #include <ostream>
+#include <utility>
 
 #include "core/assert.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/flip.h"
+#include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
-#include "renderer/primitives/glsl_types.h"
+#include "renderer/primitives/color.h"
+#include "renderer/primitives/flip.h"
 
 namespace ptgn {
 
@@ -93,7 +94,10 @@ std::array<Vertex, 2> Vertex::GetLine(
 	PTGN_ASSERT(vertices.size() == line_coordinates.size());
 
 	for (std::size_t i{ 0 }; i < line_points.size(); i++) {
-		vertices[i].position  = { line_points[i].x, line_points[i].y, depth };
+		// Rounding avoids sprite artifacts.
+		vertices[i].position  = { static_cast<float>(static_cast<int>(line_points[i].x)),
+								  static_cast<float>(static_cast<int>(line_points[i].y)),
+								  static_cast<float>(static_cast<int>(depth)) };
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
 		vertices[i].tex_coord = { line_coordinates[i].x, line_coordinates[i].y };
 	}
@@ -118,7 +122,10 @@ std::array<Vertex, 3> Vertex::GetTriangle(
 	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
 
 	for (std::size_t i{ 0 }; i < triangle_points.size(); i++) {
-		vertices[i].position  = { triangle_points[i].x, triangle_points[i].y, depth };
+		// Rounding avoids sprite artifacts.
+		vertices[i].position  = { static_cast<float>(static_cast<int>(triangle_points[i].x)),
+								  static_cast<float>(static_cast<int>(triangle_points[i].y)),
+								  static_cast<float>(static_cast<int>(depth)) };
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
 		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
 	}
@@ -143,7 +150,10 @@ std::array<Vertex, 4> Vertex::GetQuad(
 	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
 
 	for (std::size_t i{ 0 }; i < vertices.size(); ++i) {
-		vertices[i].position  = { quad_points[i].x, quad_points[i].y, depth };
+		// Rounding avoids sprite artifacts.
+		vertices[i].position  = { static_cast<float>(static_cast<int>(quad_points[i].x)),
+								  static_cast<float>(static_cast<int>(quad_points[i].y)),
+								  static_cast<float>(static_cast<int>(depth)) };
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
 		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
 		vertices[i].data	  = data;
