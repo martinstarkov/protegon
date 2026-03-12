@@ -26,11 +26,11 @@ struct DialogueScene : public Scene {
 
 		PTGN_LOG("Entity count: ", GetEntityCount());
 
-		app().asset.Load("retro_gaming", "assets/retro_gaming.ttf");
+		app().asset.Load("retro_gaming", "assets/Arial.ttf");
 		app().asset.Load("dialogue_box", "assets/dialogue_box.png");
 
 		npc = CreateEntity();
-		SetPosition(npc, {});
+		SetPosition(npc, { 0.0f, -0.5f });
 
 		Refresh();
 		PTGN_LOG("Entity count: ", GetEntityCount());
@@ -63,7 +63,7 @@ struct DialogueScene : public Scene {
 			if (input.KeyPressed(Key::E)) {
 				dialogue->SetDialogue("epilogue");
 			}
-			dialogue->DrawInfo(*this, -app().renderer.GetGameSize() * 0.5f);
+			// dialogue->DrawInfo(*this, -app().renderer.GetGameSize() * 0.5f);
 		}
 		if (input.KeyPressed(Key::A)) {
 			npc.Add<DialogueComponent>(
