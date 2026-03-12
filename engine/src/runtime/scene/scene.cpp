@@ -158,8 +158,10 @@ void Scene::InternalDraw() {
 
 	DrawContext draw_context{ global_renderer };
 
-	const auto draw_commands = [&](auto& commands, const auto& sort_func, const auto& draw_func,
-								   bool clear) {
+	std::vector<Camera> cleared_cameras;
+	std::vector<RenderTarget> cleared_render_targets;
+
+	const auto draw_commands = [&](auto& commands, const auto& sort_func, const auto& draw_func) {
 		PTGN_ASSERT((!VectorContainsDuplicates(commands, [](const auto& c1, const auto& c2) {
 			return c1.first == c2.first;
 		})));
@@ -178,8 +180,12 @@ void Scene::InternalDraw() {
 			}
 
 			render_target.Bind();
-			if (clear) {
+
+			bool clear_render_target{ !VectorContains(cleared_render_targets, render_target) };
+
+			if (clear_render_target) {
 				render_target.Clear();
+				cleared_render_targets.emplace_back(render_target);
 			}
 
 			auto rt_size{ render_target.GetSize() };
@@ -191,11 +197,14 @@ void Scene::InternalDraw() {
 			draw_context.SetViewport(viewport);
 			draw_context.SetViewProjection(cam.GetViewProjection());
 
-			if (clear) {
+			bool clear_camera{ !VectorContains(cleared_cameras, cam) };
+
+			if (clear_camera) {
 				if (auto clear_color{ cam.GetClearColor() }; clear_color.has_value()) {
 					draw_context.SetScissor(ScissorState{ viewport });
 					render_target.Clear(*clear_color, false);
 					draw_context.SetScissor(ScissorState{ false });
+					cleared_cameras.emplace_back(cam);
 				}
 			}
 
@@ -240,8 +249,7 @@ void Scene::InternalDraw() {
 					);
 				}
 			}
-		},
-		true
+		}
 	);
 
 	draw_commands(
@@ -253,8 +261,7 @@ void Scene::InternalDraw() {
 			for (const auto& draw_cmd : cmds) {
 				draw_context.Draw(draw_cmd.payload, draw_cmd.depth);
 			}
-		},
-		false
+		}
 	);
 
 	global_renderer.Flush();
