@@ -114,7 +114,8 @@ void RenderTarget::Draw(DrawContext& renderer, Entity entity, [[maybe_unused]] C
 	auto blend_mode{ GetBlendMode(entity) };
 	auto draw_origin{ GetDrawOrigin(entity) };
 	auto transform{ GetDrawTransform(entity) };
-	auto positions{ Rect{ *size }.GetWorldVertices(transform, draw_origin) };
+	Rect rect{ V2_float{ *size } };
+	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
 	auto tint{ GetTint(entity) };
 	auto depth{ GetDepth(entity) };
 	auto texture_coordinates{ GetTextureCoordinates(entity, false) };

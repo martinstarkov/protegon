@@ -160,7 +160,7 @@ void InputHandler::Update(const EventSink& sink) {
 void InputHandler::PollEvents(const EventSink& sink) {
 	SDL_Event e;
 
-	auto half_window_size{ window_.GetSize() / 2.0f };
+	V2_float half_window_size{ window_.GetSize() / 2.0f };
 
 	bool mouse_moved{ false };
 

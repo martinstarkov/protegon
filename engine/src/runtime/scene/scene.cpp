@@ -189,7 +189,7 @@ void Scene::InternalDraw() {
 			}
 
 			auto rt_size{ render_target.GetSize() };
-			auto scale{ V2_float{ rt_size } / game_size };
+			V2_float scale{ V2_float{ rt_size } / game_size };
 
 			auto viewport{ cam.GetViewport() };
 			viewport.position = viewport.position * scale;
@@ -267,7 +267,7 @@ void Scene::InternalDraw() {
 	global_renderer.Flush();
 
 	Viewport viewport{ {}, global_renderer.GetDisplayViewport().size };
-	auto half_viewport{ viewport.size * 0.5f };
+	V2_float half_viewport{ viewport.size * 0.5f };
 
 	draw_context.BindScreenTarget();
 	draw_context.SetViewport(viewport);
@@ -276,7 +276,8 @@ void Scene::InternalDraw() {
 
 	auto transform{ GetDrawTransform(render_target_) };
 	auto scene_target_size{ render_target_.GetSize() };
-	auto positions{ Rect{ scene_target_size }.GetWorldVertices(transform, Origin::Center) };
+	Rect scene_rect{ V2_float{ scene_target_size } };
+	auto positions{ scene_rect.GetWorldVertices(transform, Origin::Center) };
 
 	draw_context.DrawTexture(
 		render_target_, positions, GetTint(render_target_), 0.0f,

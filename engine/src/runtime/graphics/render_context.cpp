@@ -475,7 +475,8 @@ void DrawContext::DrawTexture(
 	if (blend_mode.has_value()) {
 		SetBlend(*blend_mode);
 	}
-	auto positions{ Rect{ size }.GetWorldVertices(transform, draw_origin) };
+	Rect rect{ size };
+	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
 	DrawTexture(texture, positions, tint, depth, texture_coordinates);
 }
 
@@ -547,7 +548,7 @@ void RenderContext::DrawTexture(
 
 	PTGN_ASSERT(renderer_ != nullptr, "Render context must be initialized before use");
 
-	Rect rect{ size.value_or(texture_size) };
+	Rect rect{ size.value_or(V2_float{ texture_size }) };
 
 	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
 

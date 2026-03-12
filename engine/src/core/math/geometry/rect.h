@@ -27,22 +27,21 @@ struct Rect {
 	[[nodiscard]] V2_float GetSize() const;
 
 	// @return Size scaled relative to the transform.
-	[[nodiscard]] V2_float GetSize(const Transform& transform) const;
+	[[nodiscard]] V2_float GetSize(Transform transform) const;
 
 	// @return New transform offset by the draw_origin.
-	[[nodiscard]] Transform Offset(const Transform& transform, Origin draw_origin) const;
+	[[nodiscard]] Transform Offset(Transform transform, Origin draw_origin) const;
 
 	// @return Quad vertices relative to the transform where transform.position is taken as the
 	// rectangle center.
-	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices(const Transform& transform) const;
+	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices(Transform transform) const;
 	[[nodiscard]] std::array<V2_float, 4> GetLocalVertices() const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices(
-		const Transform& transform, Origin draw_origin
-	) const;
+	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices(Transform transform, Origin draw_origin)
+		const;
 
 	// @return Center relative to the world.
-	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;
+	[[nodiscard]] V2_float GetCenter(Transform transform) const;
 
 	bool operator==(const Rect&) const = default;
 

@@ -61,14 +61,14 @@ void Text::Draw(
 	}
 
 	// Offset text so it is centered on the offset origin and size.
-	auto offset{ -GetOriginOffset(offset_origin, offset_size * Abs(transform.GetScale())) };
+	V2_float offset{ -GetOriginOffset(offset_origin, offset_size * Abs(transform.GetScale())) };
 	transform.Translate(offset);
 
 	if (bool is_hd{ text.IsHD() }) {
 		// TODO: Most of this code is duplicated with RenderContext::DrawText and
 		// DebugContext::DrawText. Consider moving the common parts to a helper function.
 
-		auto scale{ impl::GetCameraParentRenderTargetScale(text.GetScene(), camera) };
+		V2_float scale{ impl::GetCameraParentRenderTargetScale(text.GetScene(), camera) };
 
 		transform.Scale(transform.GetScale() / scale);
 

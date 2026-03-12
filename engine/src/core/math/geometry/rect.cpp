@@ -15,21 +15,20 @@ V2_float Rect::GetSize() const {
 	return max - min;
 }
 
-V2_float Rect::GetSize(const Transform& transform) const {
+V2_float Rect::GetSize(Transform transform) const {
 	return GetSize() * Abs(transform.GetScale());
 }
 
-Transform Rect::Offset(const Transform& transform, Origin draw_origin) const {
+Transform Rect::Offset(Transform transform, Origin draw_origin) const {
 	auto offset{ GetOriginOffset(draw_origin, GetSize(transform)) };
 	if (offset.IsZero()) {
 		return transform;
 	}
-	Transform result{ transform };
-	result.Translate(-offset);
-	return result;
+	transform.Translate(-offset);
+	return transform;
 }
 
-std::array<V2_float, 4> Rect::GetWorldVertices(const Transform& transform) const {
+std::array<V2_float, 4> Rect::GetWorldVertices(Transform transform) const {
 	auto local_vertices{ GetLocalVertices() };
 	return transform.Apply(local_vertices);
 }
@@ -39,14 +38,13 @@ std::array<V2_float, 4> Rect::GetLocalVertices() const {
 	return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
 }
 
-std::array<V2_float, 4> Rect::GetWorldVertices(const Transform& transform, Origin draw_origin)
-	const {
+std::array<V2_float, 4> Rect::GetWorldVertices(Transform transform, Origin draw_origin) const {
 	auto offset_transform{ Offset(transform, draw_origin) };
 	auto local_vertices{ GetLocalVertices() };
 	return offset_transform.Apply(local_vertices);
 }
 
-V2_float Rect::GetCenter(const Transform& transform) const {
+V2_float Rect::GetCenter(Transform transform) const {
 	return transform.GetPosition() + (max + min) * 0.5f;
 }
 

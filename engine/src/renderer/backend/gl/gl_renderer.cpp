@@ -77,7 +77,7 @@ GLRenderer::GLRenderer(Window& window) : gl{ std::make_unique<GLContext>(window)
 
 	screen_target_ = CreateRenderTarget(viewport, TextureFormat::RGBA8);
 	screen_target_.Bind();
-	auto half_viewport{ viewport / 2.0f };
+	V2_float half_viewport{ viewport / 2.0f };
 	SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
 
 	auto max_texture_slots{ gl->GetMaxTextureSlots() };
@@ -631,7 +631,7 @@ void GLRenderer::EndFrame(Viewport display_viewport) {
 
 	SetFramebuffer({});
 
-	auto half_viewport{ display_viewport.size * 0.5f };
+	V2_float half_viewport{ display_viewport.size * 0.5f };
 	SetViewport(display_viewport);
 	SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
 	SetBlend(BlendMode::ReplaceRGBA);
