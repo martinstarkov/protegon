@@ -114,6 +114,44 @@ struct IdMap {
 		return data_.cend();
 	}
 
+	struct Item {
+		std::size_t id;
+		T& value;
+	};
+
+	auto Items() {
+		struct Iterator {
+			std::size_t index;
+			IdMap* map;
+
+			Item operator*() const {
+				return { map->dense_[index], map->data_[index] };
+			}
+
+			void operator++() {
+				++index;
+			}
+
+			bool operator!=(const Iterator& other) const {
+				return index != other.index;
+			}
+		};
+
+		struct Range {
+			IdMap* map;
+
+			Iterator begin() {
+				return { 0, map };
+			}
+
+			Iterator end() {
+				return { map->dense_.size(), map };
+			}
+		};
+
+		return Range{ this };
+	}
+
 private:
 	std::vector<std::size_t> dense_;
 	std::vector<std::size_t> sparse_;
