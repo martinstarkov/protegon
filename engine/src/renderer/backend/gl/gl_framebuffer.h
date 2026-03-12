@@ -10,10 +10,10 @@
 #include <variant>
 #include <vector>
 
-#include "renderer/primitives/color.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "core/util/id_map.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/framebuffer.h"
 #include "renderer/primitives/renderbuffer.h"
 #include "renderer/primitives/texture.h"
@@ -63,6 +63,8 @@ enum class Attachment : std::uint32_t {
 };
 
 std::ostream& operator<<(std::ostream& os, Attachment attachment);
+
+[[nodiscard]] Attachment ColorAttachment(std::size_t i);
 
 enum class ClearBufferBit : std::uint32_t {
 	None	= 0,
@@ -221,6 +223,9 @@ private:
 	[[nodiscard]] static PixelValue DecodePixel(
 		const std::vector<std::uint8_t>& data, int index, AttachmentType type
 	);
+
+	void InvalidateTexture(TextureId texture);
+	void InvalidateRenderbuffer(RenderbufferId renderbuffer);
 
 	GLContext& gl_;
 

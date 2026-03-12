@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "renderer/primitives/color.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
@@ -27,6 +26,7 @@
 #include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_texture.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/framebuffer.h"
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/renderbuffer.h"
@@ -46,6 +46,11 @@ static void ReadPixels(
 		") -> pixel=", data
 	);
 #endif
+}
+
+Attachment ColorAttachment(std::size_t i) {
+	PTGN_ASSERT(i <= 8, "Color attachment out of range");
+	return Attachment(std::to_underlying(Attachment::Color0) + i);
 }
 
 Framebuffers::Framebuffers(GLContext& gl) : gl_{ gl } {}
@@ -461,6 +466,76 @@ Framebuffers::PixelValue Framebuffers::DecodePixel(
 	}
 
 	PTGN_ERROR("Unknown AttachmentType");
+}
+
+template <typename IdT, typename AttachFn>
+void InvalidateAttachment(
+	GLContext& gl, IdMap<FramebufferCache>& cache, IdT resource, AttachmentObject type,
+	AttachFn&& attach
+) {
+	// Iterate through all framebuffers and detach the given resource from any attachments it is
+	// currently attached to.
+
+	for (auto item : cache.Items()) {
+		FramebufferId fbo{ static_cast<std::uint32_t>(item.id) };
+
+		constexpr std::size_t kMaxAttachments{ 8 + 3 };
+
+		std::array<Attachment, kMaxAttachments> pending{};
+		std::size_t count = 0;
+
+		for (std::size_t i = 0; i < item.value.color.size(); ++i) {
+			auto& a = item.value.color[i];
+
+			if (a.id == resource && a.object == type) {
+				a = {};
+				PTGN_ASSERT(count < kMaxAttachments);
+				pending[count++] = ColorAttachment(i);
+			}
+		}
+
+		if (item.value.depth.id == resource && item.value.depth.object == type) {
+			item.value.depth = {};
+			PTGN_ASSERT(count < kMaxAttachments);
+			pending[count++] = Attachment::Depth;
+		}
+
+		if (item.value.depth_stencil.id == resource && item.value.depth_stencil.object == type) {
+			item.value.depth_stencil = {};
+			PTGN_ASSERT(count < kMaxAttachments);
+			pending[count++] = Attachment::DepthStencil;
+		}
+
+		if (item.value.stencil.id == resource && item.value.stencil.object == type) {
+			item.value.stencil = {};
+			PTGN_ASSERT(count < kMaxAttachments);
+			pending[count++] = Attachment::Stencil;
+		}
+
+		if (count == 0) {
+			continue;
+		}
+
+		auto _ = gl.Bind(fbo, true);
+
+		for (Attachment attachment : pending) {
+			std::invoke(attach, fbo, IdT{ 0 }, attachment);
+		}
+	}
+}
+
+void Framebuffers::InvalidateTexture(TextureId texture) {
+	InvalidateAttachment(
+		gl_, cache_, texture, AttachmentObject::Texture2D,
+		[this](FramebufferId fbo, TextureId tex, Attachment a) { AttachTexture(fbo, tex, a); }
+	);
+}
+
+void Framebuffers::InvalidateRenderbuffer(RenderbufferId renderbuffer) {
+	InvalidateAttachment(
+		gl_, cache_, renderbuffer, AttachmentObject::Renderbuffer,
+		[this](FramebufferId fbo, RenderbufferId r, Attachment a) { AttachRenderbuffer(fbo, r, a); }
+	);
 }
 
 void Framebuffers::DestroyFramebuffer(FramebufferId id) {

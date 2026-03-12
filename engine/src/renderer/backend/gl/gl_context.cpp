@@ -360,34 +360,60 @@ bool GLContext::IsBound(VertexArrayId id) const {
 }
 
 void GLContext::Destroy(VertexBufferId id) {
+	if (bound_.vertex_buffer == id) {
+		bound_.vertex_buffer = {};
+	}
 	buffers.DestroyVertexBuffer(id);
 }
 
 void GLContext::Destroy(ElementBufferId id) {
+	vertex_arrays.InvalidateElementBuffer(id);
 	buffers.DestroyElementBuffer(id);
 }
 
 void GLContext::Destroy(UniformBufferId id) {
+	if (bound_.uniform_buffer == id) {
+		bound_.uniform_buffer = {};
+	}
 	buffers.DestroyUniformBuffer(id);
 }
 
 void GLContext::Destroy(ShaderId id) {
+	if (bound_.shader_program == id) {
+		bound_.shader_program = {};
+	}
 	shaders.DestroyProgram(id);
 }
 
 void GLContext::Destroy(TextureId id) {
+	for (auto& unit : bound_.texture_units) {
+		if (unit.id == id) {
+			unit = {};
+		}
+	}
+	framebuffers.InvalidateTexture(id);
 	textures.DestroyTexture(id);
 }
 
 void GLContext::Destroy(RenderbufferId id) {
+	if (bound_.renderbuffer == id) {
+		bound_.renderbuffer = {};
+	}
+	framebuffers.InvalidateRenderbuffer(id);
 	renderbuffers.DestroyRenderbuffer(id);
 }
 
 void GLContext::Destroy(FramebufferId id) {
+	if (bound_.framebuffer == id) {
+		bound_.framebuffer = {};
+	}
 	framebuffers.DestroyFramebuffer(id);
 }
 
 void GLContext::Destroy(VertexArrayId id) {
+	if (bound_.vertex_array == id) {
+		bound_.vertex_array = {};
+	}
 	vertex_arrays.DestroyVertexArray(id);
 }
 

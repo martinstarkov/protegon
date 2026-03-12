@@ -124,6 +124,8 @@ private:
 
 	[[nodiscard]] int GetMaxVertexAttribs() const;
 
+	void InvalidateElementBuffer(ElementBufferId element_buffer);
+
 	GLContext& gl_;
 
 	IdMap<VertexArrayCache> cache_;

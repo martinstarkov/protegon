@@ -117,6 +117,17 @@ int VertexArrays::GetMaxVertexAttribs() const {
 	return gl_.GetInteger(GL_MAX_VERTEX_ATTRIBS);
 }
 
+void VertexArrays::InvalidateElementBuffer(ElementBufferId element_buffer) {
+	for (auto item : cache_.Items()) {
+		VertexArrayId vao{ static_cast<std::uint32_t>(item.id) };
+		if (item.value.element_buffer == element_buffer) {
+			item.value.element_buffer = {};
+			auto _					  = gl_.Bind(vao, true);
+			SetElementBuffer(vao, ElementBufferId{ 0 });
+		}
+	}
+}
+
 void VertexArrays::DestroyVertexArray(VertexArrayId id) {
 	if (!id) {
 		return;

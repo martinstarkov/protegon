@@ -166,7 +166,7 @@ void GLRenderer::FlushBatch() {
 	// Bind all textures
 	for (std::uint32_t slot = 0; slot < batch_textures_.size(); ++slot) {
 		gl->SetActiveTextureSlot(slot);
-		auto _ = gl->Bind(batch_textures_[slot]);
+		auto _ = gl->Bind(batch_textures_[slot], false);
 	}
 
 	gl->vertex_arrays.DrawElements(
