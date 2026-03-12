@@ -29,30 +29,35 @@ class HDTextScene : public Scene {
 	Color color{ color::White };
 	float font_size{ 20 };
 
+	V2_float stride{ 0.0f, 60.0f };
+	std::uint32_t wrap_after{ 320 };
+
 	void OnEnter() override {
 		app().asset.Load("background", "assets/bg.png");
 		app().renderer.SetGameSize(game_size);
 
 		auto sprite = CreateSprite(*this, "background", {});
-		SetDepth(sprite, -1.0f);
+		SetDepth(sprite, 0.0f);
 
-		text =
-			CreateText(*this, content, color, font_size, {}, TextProperties{ .wrap_after = 300 });
-		SetPosition(text, -2 * V2_float{ 0.0f, text.GetFontSize(text.IsHD(), {}) });
+		text = CreateText(
+			*this, content, color, font_size, {}, TextProperties{ .wrap_after = wrap_after }
+		);
+		SetPosition(text, -2 * stride);
 		text.SetHD(false);
 
-		text_hd =
-			CreateText(*this, content, color, font_size, {}, TextProperties{ .wrap_after = 300 });
-		SetPosition(text_hd, 2 * V2_float{ 0.0f, text.GetFontSize(text.IsHD(), {}) });
+		text_hd = CreateText(
+			*this, content, color, font_size, {}, TextProperties{ .wrap_after = wrap_after }
+		);
+		SetPosition(text_hd, 2 * stride);
 	}
 
 	void OnUpdate() override {
 		renderer.DrawText(
-			content, -1 * V2_float{ 0.0f, text.GetFontSize(false, {}) }, color, font_size, {}, {},
+			content, -1 * stride, color, font_size, {}, TextProperties{ .wrap_after = wrap_after },
 			Origin::Center, {}, false
 		);
 		renderer.DrawText(
-			content, 1 * V2_float{ 0.0f, text.GetFontSize(true, {}) }, color, font_size, {}, {},
+			content, 1 * stride, color, font_size, {}, TextProperties{ .wrap_after = wrap_after },
 			Origin::Center, {}, true
 		);
 	}

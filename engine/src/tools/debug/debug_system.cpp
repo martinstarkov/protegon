@@ -46,13 +46,26 @@ void DebugContext::DrawText(
 		"Render context must be initialized before use"
 	);
 
+	// TODO: Most of this code is duplicated with RenderContext::DrawText and Text::Draw. Consider
+	// moving the common parts to a helper function.
+
 	auto resolved_font{ render_context_.scene_->app().asset.ToFont(font) };
 
 	float hd_scale{ hd_text ? impl::GetTextScale(*render_context_.scene_, camera) : 1.0f };
 
+	float resolved_font_size{ font_size.value_or(kDefaultFontSize) };
+
+	if (hd_text) {
+		resolved_font_size *= hd_scale;
+
+		auto scale{ impl::GetCameraParentRenderTargetScale(*render_context_.scene_, camera) };
+
+		transform.Scale(transform.GetScale() / scale);
+	}
+
 	auto texture_object{ render_context_.scene_->app().asset.CreateTextTextureObject(
-		text_content, text_color, font_size.value_or(kDefaultFontSize),
-		resolved_font.value_or(Font{}), properties, hd_scale, hd_text
+		text_content, text_color, resolved_font_size, resolved_font.value_or(Font{}), properties,
+		hd_scale, hd_text
 	) };
 
 	if (!texture_object.has_value()) {

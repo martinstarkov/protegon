@@ -210,12 +210,28 @@ void Scene::InternalDraw() {
 		renderer.draw_commands_,
 		[](auto& cmds) {
 			std::ranges::stable_sort(
-				cmds, [&](const impl::DrawCommand& a,
-						  const impl::DrawCommand& b) { return a.depth < b.depth; }
+				cmds,
+				[&](const impl::DrawCommand& a, const impl::DrawCommand& b) {
+					// For consecutive entity draw commands with the same depth, we sort them by
+					// reverse creation order (logic explained below).
+					if (a.depth == b.depth && std::holds_alternative<Entity>(a.payload) &&
+						std::holds_alternative<Entity>(b.payload)) {
+						return !std::get<Entity>(a.payload).WasCreatedBefore(
+							std::get<Entity>(b.payload)
+						);
+					}
+
+					// Sorting in reverse depth order so that we can iterate backwards and
+					// prioritize entities drawing before manual draw commands.
+					return a.depth > b.depth;
+				}
 			);
 		},
 		[&draw_context](const auto& cmds, auto camera) {
-			for (const auto& draw_cmd : cmds) {
+			for (std::size_t i{ 0 }; i < cmds.size(); i++) {
+				// By iterating backwards, we ensure that the most recently added commands are drawn
+				// last. This prioritizes drawing entities first followed by manual draw commands.
+				const auto& draw_cmd{ cmds[cmds.size() - 1 - i] };
 				if (std::holds_alternative<Entity>(draw_cmd.payload)) {
 					InvokeDrawable(draw_context, std::get<Entity>(draw_cmd.payload), camera);
 				} else {

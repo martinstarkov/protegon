@@ -65,6 +65,9 @@ void Text::Draw(
 	transform.Translate(offset);
 
 	if (bool is_hd{ text.IsHD() }) {
+		// TODO: Most of this code is duplicated with RenderContext::DrawText and
+		// DebugContext::DrawText. Consider moving the common parts to a helper function.
+
 		auto scale{ impl::GetCameraParentRenderTargetScale(text.GetScene(), camera) };
 
 		transform.Scale(transform.GetScale() / scale);
