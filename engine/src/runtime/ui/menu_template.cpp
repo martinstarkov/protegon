@@ -82,8 +82,7 @@ TemplateMenuScene::TemplateMenuScene(const std::string& key, const json& scene_j
 	key{ key }, scene_json(scene_json_arg) {}
 
 void TemplateMenuScene::OnEnter() {
-	// TODO: Fix scene draw interactables.
-	// input.SetDrawInteractives();
+	input.SetInteractiveSettings({ .enabled = true });
 
 	PTGN_ASSERT(scene_json.contains(key));
 
