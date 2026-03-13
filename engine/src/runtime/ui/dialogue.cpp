@@ -239,7 +239,12 @@ DialogueComponent::DialogueComponent(
 			if constexpr (std::is_same_v<T, GameObject>) {
 				background_ = std::forward<T>(arg);
 				SetParent(*background_, parent);
-				default_properties.box_size = GetDisplaySize(*background_);
+				auto display_size{ GetDisplaySize(*background_) };
+				PTGN_ASSERT(
+					display_size.has_value() && !display_size->IsZero(),
+					"Dialogue backgroud must have a valid display size"
+				);
+				default_properties.box_size = *display_size;
 			} else if constexpr (std::is_same_v<T, V2_float>) {
 				default_properties.box_size = arg;
 			}

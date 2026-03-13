@@ -3,9 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <optional>
-#include <span>
 #include <string_view>
-#include <type_traits>
 #include <vector>
 
 #include "app/context.h"
@@ -15,18 +13,16 @@
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/ellipse.h"
-#include "core/math/geometry/geometry_utils.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/polygon.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/rounded_rect.h"
 #include "core/math/geometry/shape.h"
-#include "core/math/transform.h"
+#include "core/math/geometry/triangle.h"
 #include "core/math/vector2.h"
-#include "core/util/concepts.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
-#include "renderer/primitives/flip.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/vertex.h"
 #include "runtime/ecs/component.h"
@@ -79,7 +75,7 @@ bool EntityDepthCompare::operator()(Entity a, Entity b) const {
 }
 
 template <ShapeType T>
-void DrawShape(DrawContext& renderer, Entity entity, [[maybe_unused]] Camera) {
+void DrawShape(DrawContext& renderer, Entity entity, Camera) {
 	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
 	renderer.DrawShape(
 		entity.Get<T>(), GetDrawTransform(entity), GetTint(entity),
@@ -218,29 +214,22 @@ Color GetTint(Entity entity) {
 	return entity.GetOrDefault<impl::Tint>();
 }
 
-void SetTextureSize(Entity entity, V2_float size) {
-	entity.Add<impl::TextureSize>(size);
-}
-
-V2_int GetTextureSize(Entity entity) {
-	std::optional<V2_int> size;
-
-	if (entity.Has<impl::TextureSize>()) {
-		size = V2_int{ entity.Get<impl::TextureSize>() };
-	} else if (entity.Has<Texture>()) {
-		size = entity.Get<Texture>().GetSize();
+std::optional<V2_int> GetTextureSize(Entity entity) {
+	if (auto texture{ entity.TryGet<Texture>() }) {
+		auto size{ texture->GetSize() };
+		PTGN_ASSERT(!size.IsZero(), "Texture does not have a valid size");
+		return size;
 	}
-
-	PTGN_ASSERT(size.has_value(), "Entity does not have a texture");
-	PTGN_ASSERT(!(*size).IsZero(), "Texture does not have a valid size");
-
-	return *size;
+	return std::nullopt;
 }
 
-V2_int GetCroppedTextureSize(Entity entity) {
-	if (entity.Has<impl::TextureCrop>()) {
-		const auto& crop{ entity.Get<impl::TextureCrop>() };
-		return crop.size;
+std::optional<V2_int> GetCroppedTextureSize(Entity entity) {
+	if (auto crop{ entity.TryGet<impl::TextureCrop>() }) {
+		if (!crop->size.has_value()) {
+			return GetTextureSize(entity);
+		}
+		PTGN_ASSERT(!crop->size->IsZero(), "Cropped texture does not have a valid size");
+		return crop->size;
 	}
 	return GetTextureSize(entity);
 }
@@ -249,52 +238,42 @@ void SetDisplaySize(Entity entity, V2_float display_size) {
 	entity.Add<impl::TextureSize>(display_size);
 }
 
-V2_float GetDisplaySize(Entity entity) {
-	PTGN_ASSERT(entity.Has<Texture>());
-
-	return GetCroppedTextureSize(entity) * GetScale(entity);
+std::optional<V2_float> GetDisplaySize(Entity entity) {
+	if (auto texture_size{ entity.TryGet<impl::TextureSize>() }) {
+		return texture_size->GetValue();
+	}
+	auto cropped_size{ GetCroppedTextureSize(entity) };
+	if (cropped_size.has_value()) {
+		return *cropped_size * GetScale(entity);
+	}
+	return std::nullopt;
 }
 
 std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically) {
-	auto tex_coords{ impl::GetDefaultTextureCoordinates(flip_vertically) };
-
 	if (!entity) {
-		return tex_coords;
+		return impl::GetDefaultTextureCoordinates(flip_vertically);
 	}
 
-	V2_int texture_size{ GetTextureSize(entity) };
+	auto texture_size{ GetTextureSize(entity) };
 
-	if (texture_size.IsZero()) {
-		return tex_coords;
+	if (!texture_size.has_value()) {
+		return impl::GetDefaultTextureCoordinates(flip_vertically);
 	}
 
-	if (entity.Has<impl::TextureCrop>()) {
-		const auto& crop{ entity.Get<impl::TextureCrop>() };
-		if (crop != impl::TextureCrop{}) {
-			tex_coords = impl::GetTextureCoordinates(crop.position, crop.size, texture_size);
-			if (flip_vertically) {
-				impl::FlipTextureCoordinates(tex_coords, Flip::Vertical);
-			}
-		}
+	std::array<V2_float, 4> tex_coords;
+
+	if (auto crop{ entity.TryGet<impl::TextureCrop>() }) {
+		auto crop_size{ crop->size.value_or(*texture_size) };
+		tex_coords = impl::GetTextureCoordinates(
+			crop->position, crop_size, *texture_size, flip_vertically, true
+		);
+	} else {
+		tex_coords = impl::GetDefaultTextureCoordinates(flip_vertically);
 	}
 
 	auto scale{ GetScale(entity) };
 
-	bool flip_x{ scale.x < 0.0f };
-	bool flip_y{ scale.y < 0.0f };
-
-	if (flip_x && flip_y) {
-		impl::FlipTextureCoordinates(tex_coords, Flip::Both);
-	} else if (flip_x) {
-		impl::FlipTextureCoordinates(tex_coords, Flip::Horizontal);
-	} else if (flip_y) {
-		impl::FlipTextureCoordinates(tex_coords, Flip::Vertical);
-	}
-
-	// TODO: Consider if this is necessary given entity scale already flips a texture.
-	if (entity.Has<Flip>()) {
-		impl::FlipTextureCoordinates(tex_coords, entity.Get<Flip>());
-	}
+	impl::FlipTextureCoordinates(tex_coords, scale);
 
 	return tex_coords;
 }

@@ -30,7 +30,7 @@ class ScalingModeScene : public Scene {
 		app().renderer.SetGameSize(game_size, ScalingMode::Disabled);
 
 		auto s1 = CreateSprite(*this, "background", {}, Origin::Center);
-		SetTextureSize(s1, game_size);
+		SetDisplaySize(s1, game_size);
 		CreateRect(
 			*this, V2_float{ -game_size.x * 0.5f, -game_size.y * 0.5f },
 			V2_float{ game_size.x, 30 }, color::Red, FillStyle::Solid(), Origin::TopLeft

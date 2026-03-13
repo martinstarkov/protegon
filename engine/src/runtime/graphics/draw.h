@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <variant>
@@ -158,20 +159,17 @@ void SetTint(Entity entity, Color color = color::White);
 
 [[nodiscard]] Color GetTint(Entity entity);
 
-/// @brief Set the size of the texture to be drawn. This will stretch the texture to fit the given
-/// size.
-void SetTextureSize(Entity entity, V2_float size);
-
 /// @return Unscaled size of the entire texture in pixels.
-[[nodiscard]] V2_int GetTextureSize(Entity entity);
+[[nodiscard]] std::optional<V2_int> GetTextureSize(Entity entity);
 
 /// @return Unscaled size of the cropped texture in pixels.
-[[nodiscard]] V2_int GetCroppedTextureSize(Entity entity);
+[[nodiscard]] std::optional<V2_int> GetCroppedTextureSize(Entity entity);
 
+/// Overrides the scale of the entity.
 void SetDisplaySize(Entity entity, V2_float display_size);
 
 /// @return Scaled size of the cropped texture in pixels.
-[[nodiscard]] V2_float GetDisplaySize(Entity entity);
+[[nodiscard]] std::optional<V2_float> GetDisplaySize(Entity entity);
 
 [[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically);
 

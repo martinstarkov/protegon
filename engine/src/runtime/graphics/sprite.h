@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string_view>
 #include <variant>
 
@@ -31,8 +32,8 @@ struct TextureCrop {
 	// Top left position (in pixels) within the texture from which the crop starts.
 	V2_float position;
 
-	// Size of the crop in pixels. Zero size will use full size of texture.
-	V2_float size;
+	// Size of the crop in pixels. std::nullopt will use full size of the unscaled texture.
+	std::optional<V2_float> size;
 
 	bool operator==(const TextureCrop&) const = default;
 };
