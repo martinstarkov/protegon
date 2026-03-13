@@ -17,7 +17,8 @@ namespace ptgn {
 namespace impl {
 
 std::array<V2_float, 4> GetTextureCoordinates(
-	V2_float source_position, V2_float source_size, V2_float texture_size, bool offset_texels
+	V2_float source_position, V2_float source_size, V2_float texture_size, bool flip_vertically,
+	bool offset_texels
 ) {
 	PTGN_ASSERT(texture_size.x > 0.0f, "Texture must have width > 0");
 	PTGN_ASSERT(texture_size.y > 0.0f, "Texture must have height > 0");
@@ -29,45 +30,54 @@ std::array<V2_float, 4> GetTextureCoordinates(
 		source_position.y < texture_size.y, "Source position Y must be within texture height"
 	);
 
-	V2_float size{ source_size };
-
-	if (size.IsZero()) {
-		size = texture_size - source_position;
+	if (source_size.IsZero()) {
+		source_size = texture_size - source_position;
 	}
 
-	// Convert to 0 -> 1 range.
-	V2_float src_pos{ source_position / texture_size };
-	V2_float src_size{ size / texture_size };
+	V2_float texel = offset_texels ? (0.5f / texture_size) : V2_float{ 0, 0 };
 
-	if (src_size.x > 1.0f || src_size.y > 1.0f) {
+	V2_float min = (source_position + texel) / texture_size;
+	V2_float max = (source_position + source_size - texel) / texture_size;
+
+	if (max.x > 1.0f || max.y > 1.0f) {
 		PTGN_WARN("Drawing source size from outside of texture size");
 	}
 
-	V2_float half_pixel{ (offset_texels ? 0.5f : 0.0f) / texture_size };
+	std::array<V2_float, 4> uv{ min, { max.x, min.y }, max, { min.x, max.y } };
 
-	std::array<V2_float, 4> texture_coordinates{
-		src_pos + half_pixel,
-		V2_float{ src_pos.x + src_size.x - half_pixel.x, src_pos.y + half_pixel.y },
-		src_pos + src_size - half_pixel,
-		V2_float{ src_pos.x + half_pixel.x, src_pos.y + src_size.y - half_pixel.y },
-	};
+	if (flip_vertically) {
+		FlipTextureCoordinates(uv, Flip::Vertical);
+	}
 
-	return texture_coordinates;
+	return uv;
 }
 
-void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip) {
+void FlipTextureCoordinates(std::array<V2_float, 4>& tex_coords, V2_float scale) {
+	bool flip_x{ scale.x < 0.0f };
+	bool flip_y{ scale.y < 0.0f };
+
+	if (flip_x && flip_y) {
+		impl::FlipTextureCoordinates(tex_coords, Flip::Both);
+	} else if (flip_x) {
+		impl::FlipTextureCoordinates(tex_coords, Flip::Horizontal);
+	} else if (flip_y) {
+		impl::FlipTextureCoordinates(tex_coords, Flip::Vertical);
+	}
+}
+
+void FlipTextureCoordinates(std::array<V2_float, 4>& tex_coords, Flip flip) {
 	const auto flip_x = [&]() {
-		std::swap(texture_coords[0].x, texture_coords[1].x);
-		std::swap(texture_coords[2].x, texture_coords[3].x);
+		std::swap(tex_coords[0].x, tex_coords[1].x);
+		std::swap(tex_coords[2].x, tex_coords[3].x);
 	};
 	const auto flip_y = [&]() {
-		std::swap(texture_coords[0].y, texture_coords[3].y);
-		std::swap(texture_coords[1].y, texture_coords[2].y);
+		std::swap(tex_coords[0].y, tex_coords[3].y);
+		std::swap(tex_coords[1].y, tex_coords[2].y);
 	};
 	switch (flip) {
 		case Flip::None:	   break;
-		case Flip::Horizontal: flip_x(); break;
 		case Flip::Vertical:   flip_y(); break;
+		case Flip::Horizontal: flip_x(); break;
 		case Flip::Both:
 			flip_x();
 			flip_y();
@@ -131,16 +141,11 @@ std::array<Vertex, 3> Vertex::GetTriangle(
 
 std::array<Vertex, 4> Vertex::GetQuad(
 	const std::array<V2_float, 4>& quad_points, Color color, float depth,
-	const std::array<float, 4>& data, std::array<V2_float, 4> texture_coordinates,
-	bool flip_vertices
+	const std::array<float, 4>& data, std::array<V2_float, 4> texture_coordinates
 ) {
 	std::array<Vertex, 4> vertices{};
 
 	auto c{ color.Normalized() };
-
-	if (flip_vertices) {
-		FlipTextureCoordinates(texture_coordinates, Flip::Vertical);
-	}
 
 	PTGN_ASSERT(vertices.size() == quad_points.size());
 	PTGN_ASSERT(vertices.size() == texture_coordinates.size());

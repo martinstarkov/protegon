@@ -16,7 +16,7 @@ struct Depth;
 namespace impl {
 
 template <bool kFlipY>
-[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
+[[nodiscard]] inline constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
 	if constexpr (kFlipY) {
 		return { V2_float{ 0.0f, 1.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 1.0f, 0.0f },
 				 V2_float{ 0.0f, 0.0f } };
@@ -31,27 +31,21 @@ template <bool kFlipY>
 	}
 }
 
-[[nodiscard]] static constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates(bool flip_y) {
+[[nodiscard]] inline constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates(bool flip_y) {
 	if (flip_y) {
-		return { V2_float{ 0.0f, 1.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 1.0f, 0.0f },
-				 V2_float{ 0.0f, 0.0f } };
-
+		return GetDefaultTextureCoordinates<true>();
 	} else {
-		return {
-			V2_float{ 0.0f, 0.0f },
-			V2_float{ 1.0f, 0.0f },
-			V2_float{ 1.0f, 1.0f },
-			V2_float{ 0.0f, 1.0f },
-		};
+		return GetDefaultTextureCoordinates<false>();
 	}
 }
 
 [[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(
-	V2_float source_position, V2_float source_size, V2_float texture_size,
-	bool offset_texels = false
+	V2_float source_position, V2_float source_size, V2_float texture_size, bool flip_vertically,
+	bool offset_texels
 );
 
-void FlipTextureCoordinates(std::array<V2_float, 4>& texture_coords, Flip flip);
+void FlipTextureCoordinates(std::array<V2_float, 4>& tex_coords, V2_float scale);
+void FlipTextureCoordinates(std::array<V2_float, 4>& tex_coords, Flip flip);
 
 struct Vertex : public gl::VertexLayout<Vertex, glsl::vec3, glsl::vec4, glsl::vec2, glsl::vec4> {
 	glsl::vec3 position{};
@@ -72,8 +66,7 @@ struct Vertex : public gl::VertexLayout<Vertex, glsl::vec3, glsl::vec4, glsl::ve
 
 	[[nodiscard]] static std::array<Vertex, 4> GetQuad(
 		const std::array<V2_float, 4>& quad_points, Color color, float depth,
-		const std::array<float, 4>& data, std::array<V2_float, 4> texture_coordinates,
-		bool flip_vertices = false
+		const std::array<float, 4>& data, std::array<V2_float, 4> tex_coords
 	);
 
 	static void SetTextureIndex(std::array<Vertex, 4>& vertices, float texture_index);
