@@ -35,7 +35,7 @@ std::array<V2_float, 4> GetTextureCoordinates(
 
 	V2_float texel = offset_texels ? (0.5f / texture_size) : V2_float{ 0, 0 };
 
-	V2_float min = (source_position + texel) / texture_size;
+	V2_float min = (source_position - texel) / texture_size;
 	V2_float max = (source_position + source_size - texel) / texture_size;
 
 	if (max.x > 1.0f || max.y > 1.0f) {

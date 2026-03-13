@@ -268,7 +268,9 @@ std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_verticall
 			crop->position, crop_size, *texture_size, flip_vertically, true
 		);
 	} else {
-		tex_coords = impl::GetDefaultTextureCoordinates(flip_vertically);
+		tex_coords =
+			impl::GetTextureCoordinates({}, *texture_size, *texture_size, flip_vertically, true);
+		// tex_coords = impl::GetDefaultTextureCoordinates(flip_vertically);
 	}
 
 	auto scale{ GetScale(entity) };

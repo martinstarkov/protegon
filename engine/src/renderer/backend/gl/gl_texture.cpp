@@ -34,8 +34,8 @@ TextureId Textures::CreateTexture(
 
 	constexpr TextureMinFilter min_filter{ TextureMinFilter::Nearest };
 	constexpr TextureMagFilter mag_filter{ TextureMagFilter::Nearest };
-	constexpr TextureWrap wrap_s{ TextureWrap::ClampToEdge };
-	constexpr TextureWrap wrap_t{ TextureWrap::ClampToEdge };
+	constexpr TextureWrap wrap_s{ TextureWrap::Repeat };
+	constexpr TextureWrap wrap_t{ TextureWrap::Repeat };
 
 	using enum TextureParameter;
 

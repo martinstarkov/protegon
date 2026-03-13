@@ -30,7 +30,6 @@ struct DialogueScene : public Scene {
 		app().asset.Load("dialogue_box", "assets/dialogue_box.png");
 
 		npc = CreateEntity();
-		SetPosition(npc, { 0.0f, -0.5f });
 
 		Refresh();
 		PTGN_LOG("Entity count: ", GetEntityCount());
