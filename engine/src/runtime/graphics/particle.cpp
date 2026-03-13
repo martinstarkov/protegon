@@ -22,6 +22,7 @@
 #include "core/time/timer.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
+#include "renderer/primitives/vertex.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
@@ -81,11 +82,11 @@ void ParticleEmitterComponent::ResetParticle(V2_float start_position, Particle& 
 		V2_float heading{ std::cos(angle), std::sin(angle) };
 		p.velocity = heading * speed_rng();
 	} else {
-		p.velocity = { info.speed + info.speed_variance * rng() *
-										std::cos(info.starting_angle + info.angle_variance * rng()),
-					   info.speed +
-						   info.speed_variance * rng() *
-							   std::sin(info.starting_angle + info.angle_variance * rng()) };
+		V2_float heading{ std::cos(info.starting_angle + info.angle_variance * rng()),
+						  std::sin(info.starting_angle + info.angle_variance * rng()) };
+		V2_float velocity{ info.speed + info.speed_variance * rng() * heading.x,
+						   info.speed + info.speed_variance * rng() * heading.y };
+		p.velocity = velocity;
 	}
 
 	p.start_radius = std::max(info.radius + info.radius_variance * rng(), 0.0f);
@@ -115,35 +116,42 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera camera) 
 		Texture texture{ *scene.app().asset.GetTexture(*i.info.texture_key) };
 
 		Color tint{ color::White };
+		auto origin{ Origin::Center };
+
+		auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
 
 		for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 			if (i.info.tint_texture) {
 				tint = p.color;
 			}
-
+			Transform transform{ p.position };
+			V2_float size{ 2.0f * p.radius };
 			renderer.DrawTexture(
-				texture, Transform{ p.position }, V2_float{ 2.0f * p.radius, 2.0f * p.radius },
-				Origin::Center, tint, depth, GetTextureCoordinates({}, false), blend_mode
+				texture, transform, size, origin, tint, depth, tex_coords, blend_mode
 			);
 		}
 		return;
 	}
 	switch (i.info.particle_shape) {
 		case ParticleShape::Circle: {
+			auto origin{ Origin::Center };
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
+				Circle circle{ p.radius };
+				Transform transform{ p.position };
 				renderer.DrawShape(
-					Circle{ p.radius }, Transform{ p.position }, p.color, i.info.fill_style,
-					Origin::Center, depth, blend_mode
+					circle, transform, p.color, i.info.fill_style, origin, depth, blend_mode
 				);
 			}
 			break;
 		}
 		case ParticleShape::Square: {
+			auto origin{ Origin::Center };
 			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
 				// TODO: Add rotation.
+				Rect rect{ V2_float{ 2.0f * p.radius } };
+				Transform transform{ p.position };
 				renderer.DrawShape(
-					Rect{ V2_float{ 2.0f * p.radius } }, Transform{ p.position }, p.color,
-					i.info.fill_style, Origin::Center, depth, blend_mode
+					rect, transform, p.color, i.info.fill_style, origin, depth, blend_mode
 				);
 			}
 			break;

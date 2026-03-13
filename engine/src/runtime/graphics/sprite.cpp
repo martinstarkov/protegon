@@ -21,12 +21,19 @@ namespace ptgn {
 
 Sprite::Sprite(Entity entity) : Entity{ entity } {}
 
-void Sprite::Draw(DrawContext& renderer, Entity entity, [[maybe_unused]] Camera) {
+void Sprite::Draw(DrawContext& renderer, Entity entity, Camera) {
 	PTGN_ASSERT(entity.Has<Texture>());
+	auto draw_transform{ GetDrawTransform(entity) };
+	auto texture_size{ GetDisplaySize(entity) };
+	auto draw_origin{ GetDrawOrigin(entity) };
+	auto tint{ GetTint(entity) };
+	auto depth{ GetDepth(entity) };
+	auto tex_coords{ GetTextureCoordinates(entity, false) };
+	auto blend_mode{ GetBlendMode(entity) };
+	const auto& texture{ entity.Get<Texture>() };
+	PTGN_ASSERT(texture_size.has_value(), "Sprite texture does not have a valid texture size");
 	renderer.DrawTexture(
-		entity.Get<Texture>(), GetDrawTransform(entity), GetCroppedTextureSize(entity),
-		GetDrawOrigin(entity), GetTint(entity), GetDepth(entity),
-		GetTextureCoordinates(entity, false), GetBlendMode(entity)
+		texture, draw_transform, *texture_size, draw_origin, tint, depth, tex_coords, blend_mode
 	);
 }
 

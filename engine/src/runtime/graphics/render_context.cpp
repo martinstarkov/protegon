@@ -361,7 +361,8 @@ void DrawContext::DrawTexture(
 
 void DrawContext::DrawQuad(const std::array<V2_float, 4>& positions, Color tint, float depth) {
 	auto white_texture{ GetWhiteTexture() };
-	DrawTexture(white_texture, positions, tint, depth, impl::GetDefaultTextureCoordinates<false>());
+	auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
+	DrawTexture(white_texture, positions, tint, depth, tex_coords);
 }
 
 void DrawContext::BindScreenTarget() {
@@ -469,15 +470,14 @@ void DrawContext::Draw(std::monostate, float depth) const { /* No-op */ }
 
 void DrawContext::DrawTexture(
 	Texture texture, Transform transform, V2_float size, Origin draw_origin, Color tint,
-	float depth, const std::array<V2_float, 4>& texture_coordinates,
-	std::optional<BlendMode> blend_mode
+	float depth, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode> blend_mode
 ) {
 	if (blend_mode.has_value()) {
 		SetBlend(*blend_mode);
 	}
 	Rect rect{ size };
 	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
-	DrawTexture(texture, positions, tint, depth, texture_coordinates);
+	DrawTexture(texture, positions, tint, depth, tex_coords);
 }
 
 void DrawContext::DrawLines(
@@ -552,7 +552,13 @@ void RenderContext::DrawTexture(
 
 	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
 
-	auto tex_coords{ texture_coordinates.value_or(impl::GetDefaultTextureCoordinates<false>()) };
+	std::array<V2_float, 4> tex_coords;
+
+	if (texture_coordinates.has_value()) {
+		tex_coords = *texture_coordinates;
+	} else {
+		tex_coords = impl::GetDefaultTextureCoordinates<false>();
+	}
 
 	impl::TextureCommand texture_command{ shader,	  texture,
 										  positions,  tint.value_or(color::White),

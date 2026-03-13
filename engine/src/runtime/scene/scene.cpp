@@ -271,7 +271,8 @@ void Scene::InternalDraw() {
 
 	draw_context.BindScreenTarget();
 	draw_context.SetViewport(viewport);
-	draw_context.SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
+	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
+	draw_context.SetViewProjection(view_projection);
 	draw_context.SetBlend(BlendMode::Blend);
 
 	auto transform{ GetDrawTransform(render_target_) };
@@ -279,10 +280,10 @@ void Scene::InternalDraw() {
 	Rect scene_rect{ V2_float{ scene_target_size } };
 	auto positions{ scene_rect.GetWorldVertices(transform, Origin::Center) };
 
-	draw_context.DrawTexture(
-		render_target_, positions, GetTint(render_target_), 0.0f,
-		impl::GetDefaultTextureCoordinates(true)
-	);
+	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+	auto rt_tint{ GetTint(render_target_) };
+
+	draw_context.DrawTexture(render_target_, positions, rt_tint, 0.0f, tex_coords);
 
 	// Must be cleared after BindScreenTarget, as that flushes the batch.
 	renderer.temporary_textures_.clear();

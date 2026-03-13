@@ -450,10 +450,11 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 		) };
 
 		if (texture_tint.a) {
+			auto tex_coords{ GetTextureCoordinates(button, false) };
+			Tint final_tint{ texture_tint.Normalized() * tint_n };
 			renderer.DrawTexture(
-				*button_texture, transform, *button_size, button_origin,
-				impl::Tint{ texture_tint.Normalized() * tint_n }, depth,
-				GetTextureCoordinates(button, false), blend_mode
+				*button_texture, transform, *button_size, button_origin, final_tint, depth,
+				tex_coords, blend_mode
 			);
 		}
 	} else {
@@ -465,9 +466,11 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 			};
 
 			if (color.a) {
+				Rect rect{ *button_size };
+				FillStyle fill_style{ line_width.GetValue() };
+				Tint final_tint{ color.Normalized() * tint_n };
 				renderer.DrawShape(
-					Rect{ *button_size }, transform, Tint{ color.Normalized() * tint_n },
-					FillStyle{ line_width.GetValue() }, button_origin, depth, blend_mode
+					rect, transform, final_tint, fill_style, button_origin, depth, blend_mode
 				);
 			}
 		}
@@ -480,9 +483,11 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 		) };
 
 		if (color.a) {
+			Rect rect{ *button_size };
+			FillStyle fill_style{ line_width.GetValue() };
+			Tint final_tint{ color.Normalized() * tint_n };
 			renderer.DrawShape(
-				Rect{ *button_size }, transform, Tint{ color.Normalized() * tint_n },
-				FillStyle{ line_width.GetValue() }, button_origin, depth, blend_mode
+				rect, transform, final_tint, fill_style, button_origin, depth, blend_mode
 			);
 		}
 	}

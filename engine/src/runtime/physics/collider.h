@@ -13,8 +13,6 @@
 
 namespace ptgn {
 
-struct Transform;
-
 struct Collision {
 	Collision() = default;
 

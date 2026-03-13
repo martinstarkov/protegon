@@ -78,7 +78,8 @@ GLRenderer::GLRenderer(Window& window) : gl{ std::make_unique<GLContext>(window)
 	screen_target_ = CreateRenderTarget(viewport, TextureFormat::RGBA8);
 	screen_target_.Bind();
 	V2_float half_viewport{ viewport / 2.0f };
-	SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
+	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
+	SetViewProjection(view_projection);
 
 	auto max_texture_slots{ gl->GetMaxTextureSlots() };
 
@@ -555,6 +556,10 @@ void GLRenderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetD
 
 	bool flip_y = input_is_offscreen && !output_is_offscreen;
 
+	auto texture_size{ gl->textures.GetTextureSize(*input.color_) };
+	auto points{ GetCenteredQuadPoints(texture_size) };
+	auto tex_coords{ impl::GetDefaultTextureCoordinates(flip_y) };
+
 	// Only ping-pong if we're writing into the pass
 	if (writing_to_pass) {
 		RenderTargetData write;
@@ -571,22 +576,14 @@ void GLRenderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetD
 
 		write.Bind(*this);
 
-		DrawTexture(
-			shader, *input.color_,
-			GetCenteredQuadPoints(gl->textures.GetTextureSize(*input.color_)), color::White, 0.0f,
-			impl::GetDefaultTextureCoordinates(flip_y)
-		);
+		DrawTexture(shader, *input.color_, points, color::White, 0.0f, tex_coords);
 
 		// Update pass state
 		p.has_written_once_ = true;
 		p.latest_is_ping_	= (write.framebuffer_ == p.ping_.framebuffer_);
 	} else {
 		// Read-only draw: no mutation, no flip
-		DrawTexture(
-			shader, *input.color_,
-			GetCenteredQuadPoints(gl->textures.GetTextureSize(*input.color_)), color::White, 0.0f,
-			impl::GetDefaultTextureCoordinates(flip_y)
-		);
+		DrawTexture(shader, *input.color_, points, color::White, 0.0f, tex_coords);
 	}
 }
 
@@ -633,7 +630,8 @@ void GLRenderer::EndFrame(Viewport display_viewport) {
 
 	V2_float half_viewport{ display_viewport.size * 0.5f };
 	SetViewport(display_viewport);
-	SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
+	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
+	SetViewProjection(view_projection);
 	SetBlend(BlendMode::ReplaceRGBA);
 
 	PTGN_ASSERT(
@@ -645,10 +643,17 @@ void GLRenderer::EndFrame(Viewport display_viewport) {
 	PTGN_LOG("GLRenderer::EndFrame: Drawing screen target to back buffer");
 #endif
 
+	auto quad_shader{ GetShader("quad") };
+	auto texture_size{ gl->textures.GetTextureSize(*screen_target_.resource_.color_) };
+	PTGN_ASSERT(
+		texture_size == display_viewport.size,
+		"Screen target texture size must match display viewport size"
+	);
+	auto points{ GetCenteredQuadPoints(display_viewport.size) };
+	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+
 	DrawTexture(
-		GetShader("quad"), *screen_target_.resource_.color_,
-		GetCenteredQuadPoints(display_viewport.size), color::White, 0.0f,
-		impl::GetDefaultTextureCoordinates<true>()
+		quad_shader, *screen_target_.resource_.color_, points, color::White, 0.0f, tex_coords
 	);
 
 	FlushBatch();

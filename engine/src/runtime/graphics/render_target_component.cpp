@@ -97,7 +97,7 @@ RenderTarget::operator impl::TextureId() const {
 	return Get<impl::RenderTargetObject>();
 }
 
-void RenderTarget::Draw(DrawContext& renderer, Entity entity, [[maybe_unused]] Camera) {
+void RenderTarget::Draw(DrawContext& renderer, Entity entity, Camera) {
 	PTGN_ASSERT(entity.Has<impl::RenderTargetObject>());
 
 	std::optional<V2_int> size;

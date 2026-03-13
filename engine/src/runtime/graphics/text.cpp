@@ -61,16 +61,18 @@ void Text::Draw(
 	}
 
 	// Offset text so it is centered on the offset origin and size.
-	V2_float offset{ -GetOriginOffset(offset_origin, offset_size * Abs(transform.GetScale())) };
+	const auto transform_scale{ transform.GetScale() };
+	auto scaled_offset{ offset_size * Abs(transform_scale) };
+	V2_float offset{ -GetOriginOffset(offset_origin, scaled_offset) };
 	transform.Translate(offset);
 
 	if (bool is_hd{ text.IsHD() }) {
 		// TODO: Most of this code is duplicated with RenderContext::DrawText and
 		// DebugContext::DrawText. Consider moving the common parts to a helper function.
+		const auto& scene{ text.GetScene() };
+		V2_float scale{ impl::GetCameraParentRenderTargetScale(scene, camera) };
 
-		V2_float scale{ impl::GetCameraParentRenderTargetScale(text.GetScene(), camera) };
-
-		transform.Scale(transform.GetScale() / scale);
+		transform.Scale(transform_scale / scale);
 
 		if (text.GetFontSize(is_hd, camera) != text.Get<impl::HDFontSize>()) {
 			Text::RecreateTexture(text, camera);
@@ -96,13 +98,15 @@ void Text::Draw(
 		}
 	}
 
-	auto texture_coordinates{ GetTextureCoordinates(text, false) };
+	auto tex_coords{ GetTextureCoordinates(text, false) };
 
 	Color text_tint{ additional_tint.Normalized() * tint.Normalized() };
+	auto blend_mode{ GetBlendMode(text) };
+	auto draw_origin{ GetDrawOrigin(text) };
+	auto depth{ GetDepth(text) };
 
 	renderer.DrawTexture(
-		text_texture, transform, size, GetDrawOrigin(text), text_tint, GetDepth(text),
-		texture_coordinates, GetBlendMode(text)
+		text_texture, transform, size, draw_origin, text_tint, depth, tex_coords, blend_mode
 	);
 }
 

@@ -55,7 +55,7 @@ void GraphicsData::Draw(
 
 Graphics::Graphics(Entity entity) : Entity{ entity } {}
 
-void Graphics::Draw(DrawContext& renderer, Entity entity, [[maybe_unused]] Camera) {
+void Graphics::Draw(DrawContext& renderer, Entity entity, Camera) {
 	const auto& instance{ entity.Get<impl::GraphicsData>() };
 
 	const auto& transform{ GetDrawTransform(entity) };

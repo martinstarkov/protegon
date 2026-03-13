@@ -4,7 +4,6 @@
 //
 // namespace ptgn {
 //
-// struct Transform;
 // struct Depth;
 // struct Visible;
 // struct Interactive;
