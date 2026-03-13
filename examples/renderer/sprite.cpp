@@ -11,6 +11,8 @@ class SpriteScene : public Scene {
 	void OnEnter() override {
 		app().asset.Load("sprite", "assets/sprite.png");
 
+		// app().renderer.SetGameSize(V2_int{ 400, 400 }, ScalingMode::IntegerScale);
+
 		auto sprite1 = CreateSprite(*this, "sprite", { 0, 0 });
 		auto sprite2 = CreateSprite(*this, "sprite", { 0, 100.5 });
 		auto sprite3 = CreateSprite(*this, "sprite", { 0, 50.5 });
