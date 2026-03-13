@@ -156,8 +156,8 @@ public:
 
 	void Draw() {
 		auto vertices{ camera.GetWorldVertices() };
-		V2_int min{ Floor(vertices[0] / pixel_size) - V2_int{ 1 } };
-		V2_int max{ Ceil(vertices[2] / pixel_size) + V2_int{ 1 } };
+		V2_int min{ FastFloor(vertices[0] / pixel_size) - V2_int{ 1 } };
+		V2_int max{ FastCeil(vertices[2] / pixel_size) + V2_int{ 1 } };
 
 		PTGN_LOG("Min: ", min, ", Max: ", max);
 
@@ -216,22 +216,22 @@ public:
 					color.a		  = static_cast<std::uint8_t>(opacity);
 				}
 
-				impl::DrawShape(
-					app().renderer, Rect{ pixel_size }, Transform{ p * pixel_size }, color,
-					FillStyle::Solid(), Origin::Center, Depth{}, BlendMode::Blend
+				renderer.DrawShape(
+					Rect{ pixel_size }, Transform{ p * pixel_size }, color, FillStyle::Solid(),
+					Origin::Center, Depth{}, BlendMode::Blend
 				);
 			}
 		}
 
-		impl::DrawShape(
-			app().renderer, Rect{ (max - min) * pixel_size },
+		renderer.DrawShape(
+			Rect{ (max - min) * pixel_size },
 			Transform{ (min * pixel_size + max * pixel_size) * 0.5f }, color::Orange,
 			FillStyle::Hollow(3.0f), Origin::Center, Depth{}, BlendMode::Blend
 		);
 
-		impl::DrawShape(
-			app().renderer, Rect{ 30, 30 }, Transform{}, color::Red, FillStyle::Solid(),
-			Origin::TopLeft, Depth{}, BlendMode::Blend
+		renderer.DrawShape(
+			Rect{ 30, 30 }, Transform{}, color::Red, FillStyle::Solid(), Origin::TopLeft, Depth{},
+			BlendMode::Blend
 		);
 	}
 };

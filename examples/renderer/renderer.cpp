@@ -65,9 +65,9 @@ struct WhirlpoolInfo {
 
 void SetWhirlpoolUniform(Entity entity, const Shader& shader) {
 	/*auto transform{ GetDrawTransform(entity) };
-	float radius{ radius * Abs(transform.scale.x) };*/
+	float radius{ radius * std::abs(transform.GetAverageScale()) };*/
 
-	float time{ app().TimeSinceStart() };
+	float time{ app().TimeSinceStart().count() };
 
 	const auto& info = entity.Get<WhirlpoolInfo>();
 
@@ -214,8 +214,8 @@ struct FollowMouseScript : public Script {
 	void OnUpdate() override {
 		SetPosition(entity, entity.GetScene().input.GetMousePosition());
 		float timescale{ 1000 };
-		V2_float size{ V2_float{ Abs(std::sin(app().TimeSinceStart() / timescale) * 256),
-								 Abs(std::sin(app().TimeSinceStart() / timescale) * 256) } +
+		V2_float size{ V2_float{ std::abs(std::sin(app().TimeSinceStart() / timescale) * 256),
+								 std::abs(std::sin(app().TimeSinceStart() / timescale) * 256) } +
 					   V2_float{ 256, 256 } };
 		SetDisplaySize(entity, size);
 	}
