@@ -425,8 +425,8 @@ void GLRenderer::DrawQuad(ShaderId shader, const QuadParams& params, const QuadS
 
 	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
 
-	if (batch_vertices_.size() + vertices.size() >= kVertexCapacity ||
-		batch_indices_.size() + indices.size() >= kIndexCapacity) {
+	if (batch_vertices_.size() + vertices.size() > kVertexCapacity ||
+		batch_indices_.size() + indices.size() > kIndexCapacity) {
 		FlushBatch();
 	}
 
@@ -448,8 +448,8 @@ void GLRenderer::DrawTriangle(
 
 	constexpr std::size_t triangle_indices{ 3 };
 
-	if (batch_vertices_.size() + vertices.size() >= kVertexCapacity ||
-		batch_indices_.size() + triangle_indices >= kIndexCapacity) {
+	if (batch_vertices_.size() + vertices.size() > kVertexCapacity ||
+		batch_indices_.size() + triangle_indices > kIndexCapacity) {
 		FlushBatch();
 	}
 
@@ -468,8 +468,8 @@ void GLRenderer::DrawLine(
 
 	constexpr std::size_t lines_indices{ 2 };
 
-	if (batch_vertices_.size() + vertices.size() >= kVertexCapacity ||
-		batch_indices_.size() + lines_indices >= kIndexCapacity) {
+	if (batch_vertices_.size() + vertices.size() > kVertexCapacity ||
+		batch_indices_.size() + lines_indices > kIndexCapacity) {
 		FlushBatch();
 	}
 
