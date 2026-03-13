@@ -643,12 +643,11 @@ void GLRenderer::EndFrame(Viewport display_viewport) {
 	PTGN_LOG("GLRenderer::EndFrame: Drawing screen target to back buffer");
 #endif
 
-	auto quad_shader{ GetShader("quad") };
-	auto texture_size{ gl->textures.GetTextureSize(*screen_target_.resource_.color_) };
 	PTGN_ASSERT(
-		texture_size == display_viewport.size,
+		gl->textures.GetTextureSize(*screen_target_.resource_.color_) == display_viewport.size,
 		"Screen target texture size must match display viewport size"
 	);
+	auto quad_shader{ GetShader("quad") };
 	auto points{ GetCenteredQuadPoints(display_viewport.size) };
 	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 

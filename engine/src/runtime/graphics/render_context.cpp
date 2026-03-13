@@ -477,6 +477,9 @@ void DrawContext::DrawTexture(
 	}
 	Rect rect{ size };
 	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
+	for (auto& pos : positions) {
+		pos = FastFloor(pos);
+	}
 	DrawTexture(texture, positions, tint, depth, tex_coords);
 }
 
