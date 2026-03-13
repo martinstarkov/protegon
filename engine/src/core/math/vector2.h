@@ -385,28 +385,28 @@ template <Arithmetic T>
 	return std::abs(a.x - b.x) <= margin.x && std::abs(a.y - b.y) <= margin.y;
 }
 
-// Ceil both components of a vector.
+/// @return Ceil both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Ceil(Vector2<T> vector) {
-	return { Ceil(vector.x), Ceil(vector.y) };
+[[nodiscard]] inline Vector2<T> FastCeil(Vector2<T> vector) {
+	return { FastCeil(vector.x), FastCeil(vector.y) };
 }
 
-// Floor both components of a vector.
+/// @return Floor both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Floor(Vector2<T> vector) {
-	return { Floor(vector.x), Floor(vector.y) };
+[[nodiscard]] inline Vector2<T> FastFloor(Vector2<T> vector) {
+	return { FastFloor(vector.x), FastFloor(vector.y) };
 }
 
-// Round both components of a vector.
+/// @return Round both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Round(Vector2<T> vector) {
-	return { Round(vector.x), Round(vector.y) };
+[[nodiscard]] inline Vector2<T> FastRound(Vector2<T> vector) {
+	return { FastRound(vector.x), FastRound(vector.y) };
 }
 
 // Absolute value for both components of a vector.
 template <Arithmetic T>
 [[nodiscard]] inline Vector2<T> Abs(Vector2<T> vector) {
-	return { Abs(vector.x), Abs(vector.y) };
+	return { std::abs(vector.x), std::abs(vector.y) };
 }
 
 // Swap both components of vectors a and b.

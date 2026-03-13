@@ -1,8 +1,11 @@
 #include "core/math/overlap.h"
 
 #include <algorithm>
+#include <cstdlib>
+#include <functional>
 #include <limits>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -17,7 +20,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/geometry/triangle.h"
-#include "core/math/math_utils.h"
+#include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 
@@ -469,8 +472,9 @@ bool OverlapLineCircle(Transform t1, const Line& A, Transform t2, const Circle& 
 	float max_dist2{ std::max(OP_dist2, OQ_dist2) };
 
 	if (OP.Dot(-PQ) > 0.0f && OQ.Dot(PQ) > 0.0f) {
-		float triangle_area{ Abs(impl::ParallelogramArea(circle_center, line_start, line_end)) /
-							 2.0f };
+		float triangle_area{
+			std::abs(impl::ParallelogramArea(circle_center, line_start, line_end)) / 2.0f
+		};
 		min_dist2 = 4.0f * triangle_area * triangle_area / PQ.Dot(PQ);
 	} else {
 		min_dist2 = std::min(OP_dist2, OQ_dist2);
@@ -512,13 +516,13 @@ bool OverlapLineRect(Transform t1, const Line& A, Transform t2, const Rect& B) {
 	m = m - c;					// Translate box and segment to origin
 
 	// Try world coordinate axes as separating axes.
-	float adx{ Abs(d.x) };
-	if (Abs(m.x) >= e.x + adx) {
+	float adx{ std::abs(d.x) };
+	if (std::abs(m.x) >= e.x + adx) {
 		return false;
 	}
 
-	float ady{ Abs(d.y) };
-	if (Abs(m.y) >= e.y + ady) {
+	float ady{ std::abs(d.y) };
+	if (std::abs(m.y) >= e.y + ady) {
 		return false;
 	}
 
@@ -530,7 +534,7 @@ bool OverlapLineRect(Transform t1, const Line& A, Transform t2, const Rect& B) {
 	// Try cross products of segment direction vector with coordinate axes.
 	float cross{ m.Cross(d) };
 
-	if (float dot{ e.Dot({ ady, adx }) }; Abs(cross) > dot) {
+	if (float dot{ e.Dot({ ady, adx }) }; std::abs(cross) > dot) {
 		return false;
 	}
 

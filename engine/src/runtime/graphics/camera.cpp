@@ -98,7 +98,7 @@ void RecalculateCameraViewProjection(Camera camera) {
 	}
 	*/
 
-	V2_float size{ c.pixel_rounding ? Round(c.viewport.size) : c.viewport.size };
+	V2_float size{ c.pixel_rounding ? FastRound(c.viewport.size) : c.viewport.size };
 
 	auto half_size{ flip_dir * size * 0.5f };
 
@@ -117,7 +117,7 @@ void RecalculateCameraViewProjection(Camera camera) {
 	t.SetPosition(ApplyCameraBounds(camera, t.GetPosition()));
 
 	if (c.pixel_rounding) {
-		t.SetPosition(Round(t.GetPosition()));
+		t.SetPosition(FastRound(t.GetPosition()));
 	}
 
 	c.view = Matrix4::MakeInverseTransform(t);

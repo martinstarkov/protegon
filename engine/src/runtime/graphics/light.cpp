@@ -55,7 +55,7 @@
 //
 //	light_display_pos += display_size * 0.5f;
 //
-//	float radius{ 2.0f * light.GetRadius() * Abs(transform.GetAverageScale()) *
+//	float radius{ 2.0f * light.GetRadius() * std::abs(transform.GetAverageScale()) *
 //				  ((ratio.x + ratio.y) * 0.5f) };
 //
 //	shader.SetUniform("u_LightPosition", light_display_pos);

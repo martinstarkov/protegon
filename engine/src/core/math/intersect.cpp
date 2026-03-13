@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <limits>
 #include <ostream>
 #include <type_traits>
@@ -18,6 +19,7 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/math_utils.h"
 #include "core/math/overlap.h"
+#include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 
@@ -133,7 +135,7 @@ Intersection IntersectCircleRect(Transform t1, const Circle& A, Transform t2, co
 	V2_float mid{ rect_center };
 	V2_float d{ mid - circle_center };
 
-	if (V2_float overlap{ half - V2_float{ Abs(d.x), Abs(d.y) } }; overlap.x < overlap.y) {
+	if (V2_float overlap{ half - Abs(d) }; overlap.x < overlap.y) {
 		c.depth	   = circle_radius + overlap.x;
 		c.normal.x = d.x < 0 ? 1.0f : -1.0f;
 	} else {
@@ -207,7 +209,7 @@ Intersection IntersectRectRect(Transform t1, const Rect& A, Transform t2, const 
 	V2_float a_h{ rectA_size * 0.5f };
 	V2_float b_h{ rectB_size * 0.5f };
 	V2_float d{ rectB_center - rectA_center };
-	V2_float pen{ a_h + b_h - V2_float{ Abs(d.x), Abs(d.y) } };
+	V2_float pen{ a_h + b_h - Abs(d) };
 
 	// Optional: To include seams in collision, simply remove the NearlyEqual calls from this if
 	// statement.
@@ -221,10 +223,10 @@ Intersection IntersectRectRect(Transform t1, const Rect& A, Transform t2, const 
 		c.depth	   = a_h.y + b_h.y;
 	} else if (pen.y < pen.x) {
 		c.normal.y = -Sign(d.y);
-		c.depth	   = Abs(pen.y);
+		c.depth	   = std::abs(pen.y);
 	} else {
 		c.normal.x = -Sign(d.x);
-		c.depth	   = Abs(pen.x);
+		c.depth	   = std::abs(pen.x);
 	}
 
 	PTGN_ASSERT(c.depth >= 0.0f);

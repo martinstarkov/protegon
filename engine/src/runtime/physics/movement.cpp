@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <utility>
 
 #include "core/assert.h"
@@ -50,7 +51,7 @@ void MoveImpl(
 }
 
 float MoveTowards(float current, float target, float maxDelta) {
-	if (Abs(target - current) <= maxDelta) {
+	if (std::abs(target - current) <= maxDelta) {
 		return target;
 	}
 	return current + Sign(target - current) * maxDelta;
@@ -127,10 +128,10 @@ void TopDownMovement::Update(Entity entity, Transform& transform, RigidBody& rb,
 	// Used to flip the character's sprite when she changes direction
 	// Also tells us that we are currently pressing a direction button
 	if (dir.x != 0.0f) {
-		transform.SetScaleX(Abs(transform.GetScale().x) * Sign(dir.x));
+		transform.SetScaleX(std::abs(transform.GetScale().x) * Sign(dir.x));
 	}
 	if (flip_vertically && dir.y != 0.0f) {
-		transform.SetScaleY(Abs(transform.GetScale().y) * Sign(dir.y));
+		transform.SetScaleY(std::abs(transform.GetScale().y) * Sign(dir.y));
 	}
 
 	// Calculate's the character's desired velocity - which is the direction you are facing,
@@ -392,7 +393,7 @@ void PlatformerMovement::Update(const Scene& scene, Transform& transform, RigidB
 	// Used to flip the character's sprite when she changes direction
 	// Also tells us that we are currently pressing a direction button
 	if (dir_x != 0.0f) {
-		transform.SetScaleX(Abs(transform.GetScale().x) * Sign(dir_x));
+		transform.SetScaleX(std::abs(transform.GetScale().x) * Sign(dir_x));
 	}
 
 	// Calculate's the character's desired velocity - which is the direction you are facing,
@@ -515,7 +516,7 @@ void PlatformerJump::Jump(RigidBody& rb, V2_float gravity) {
 	if (rb.velocity.y < 0.0f) {
 		jump_speed = std::max(jump_speed - rb.velocity.y, 0.0f);
 	} else if (rb.velocity.y > 0.0f) {
-		jump_speed += Abs(rb.velocity.y);
+		jump_speed += std::abs(rb.velocity.y);
 	}
 
 	rb.velocity.y -= jump_speed;

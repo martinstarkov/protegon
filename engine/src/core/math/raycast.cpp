@@ -293,7 +293,8 @@ RaycastResult RaycastRect(
 	// TODO: Figure out how to fix biasing of one direction from one side and another on the
 	// other side.
 	bool equal_times{ NearlyEqual(t_near.x, t_near.y) };
-	bool diagonal{ NearlyEqual(Abs(inv_dir.x), Abs(inv_dir.y)) };
+	auto abs_inv_dir{ Abs(inv_dir) };
+	bool diagonal{ NearlyEqual(abs_inv_dir.x, abs_inv_dir.y) };
 
 	if (equal_times && diagonal) { // Both axes collide at the same time.
 		// Diagonal collision, set normal to opposite of direction of movement.

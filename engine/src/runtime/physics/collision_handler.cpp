@@ -526,10 +526,11 @@ V2_float CollisionHandler::GetRemainingVelocity(
 		}
 		case CollisionResponse::Bounce: {
 			auto new_velocity{ velocity * remaining_time };
-			if (!NearlyEqual(Abs(collision.normal.x), 0.0f)) {
+			auto abs_normal{ Abs(collision.normal) };
+			if (!NearlyEqual(abs_normal.x, 0.0f)) {
 				new_velocity.x *= -1.0f;
 			}
-			if (!NearlyEqual(Abs(collision.normal.y), 0.0f)) {
+			if (!NearlyEqual(abs_normal.y, 0.0f)) {
 				new_velocity.y *= -1.0f;
 			}
 			return new_velocity;
@@ -580,7 +581,8 @@ void CollisionHandler::Update(Scene& scene) {
 				if (!object.entity.Has<RigidBody>()) {
 					break;
 				}
-				// Ensure the collider does not start within an object (at least most of the time).
+				// Ensure the collider does not start within an object (at least most of
+				// the time).
 				Intersect(object.entity, dt);
 				Sweep(object.entity, dt);
 				break;

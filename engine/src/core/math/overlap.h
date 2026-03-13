@@ -22,7 +22,7 @@ namespace impl {
 	const V2_float* vertices, std::size_t vertex_count, bool intersection_info
 );
 
-// @return { min, max } of all the polygon vertices projected onto the given axis.
+/// @return { min, max } of all the polygon vertices projected onto the given axis.
 [[nodiscard]] std::pair<float, float> GetPolygonProjectionMinMax(
 	const V2_float* vertices, std::size_t vertex_count, const Axis& axis
 );

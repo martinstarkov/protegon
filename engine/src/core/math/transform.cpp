@@ -49,7 +49,8 @@ Transform Transform::InverseRelativeTo(const Transform& parent) const {
 
 float Transform::GetAverageScale() const {
 	// Abs because scale is used for flip.
-	return (Abs(scale_.x) + Abs(scale_.y)) * 0.5f;
+	auto abs_scale{ Abs(scale_) };
+	return (abs_scale.x + abs_scale.y) * 0.5f;
 }
 
 V2_float Transform::GetPosition() const {

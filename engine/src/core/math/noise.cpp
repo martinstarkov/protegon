@@ -1,6 +1,7 @@
 #include "core/math/noise.h"
 
 #include <cstdint>
+#include <cstdlib>
 
 #include "core/assert.h"
 #include "core/log.h"
@@ -129,7 +130,7 @@ float FractalNoise::GetImpl(
 	for (std::size_t i = 0; i < octaves; i++) {
 		float noise	 = GetNoiseImpl(x, y, seed++, noise_type);
 		sum			+= noise * amplitude;
-		amplitude	*= Lerp(1.0f, Min(noise + 1.0f, 2.0f) * 0.5f, weighted_strength);
+		amplitude	*= Lerp(1.0f, std::min(noise + 1.0f, 2.0f) * 0.5f, weighted_strength);
 
 		x		  *= lacunarity;
 		y		  *= lacunarity;
@@ -139,7 +140,7 @@ float FractalNoise::GetImpl(
 }
 
 float FractalNoise::GetNoiseBounding(std::size_t octaves, float persistence) {
-	float gain		= Abs(persistence);
+	float gain		= std::abs(persistence);
 	float amplitude = gain;
 	float max_amplitude{ 1.0f };
 	for (std::size_t i{ 1 }; i < octaves; i++) {
@@ -162,8 +163,8 @@ float PerlinNoise::GetValue(float x, float y, std::int32_t seed, float frequency
 }
 
 float PerlinNoise::GetImpl(float x, float y, std::int32_t seed) {
-	auto x0 = static_cast<std::int32_t>(Floor(x));
-	auto y0 = static_cast<std::int32_t>(Floor(y));
+	auto x0 = static_cast<std::int32_t>(FastFloor(x));
+	auto y0 = static_cast<std::int32_t>(FastFloor(y));
 
 	auto xd0  = x - static_cast<float>(x0);
 	auto yd0  = y - static_cast<float>(y0);
@@ -201,8 +202,8 @@ float ValueNoise::GetValue(float x, float y, std::int32_t seed, float frequency)
 }
 
 float ValueNoise::GetImpl(float x, float y, std::int32_t seed) {
-	auto x0 = static_cast<std::int32_t>(Floor(x));
-	auto y0 = static_cast<std::int32_t>(Floor(y));
+	auto x0 = static_cast<std::int32_t>(FastFloor(x));
+	auto y0 = static_cast<std::int32_t>(FastFloor(y));
 
 	float xs = Smoothstep(x - static_cast<float>(x0));
 	float ys = Smoothstep(y - static_cast<float>(y0));
@@ -241,8 +242,8 @@ float SimplexNoise::GetImpl(float x, float y, std::int32_t seed) {
 	x			   += t0;
 	y			   += t0;
 
-	auto i	 = static_cast<std::int32_t>(Floor(x));
-	auto j	 = static_cast<std::int32_t>(Floor(y));
+	auto i	 = static_cast<std::int32_t>(FastFloor(x));
+	auto j	 = static_cast<std::int32_t>(FastFloor(y));
 	float xi = x - static_cast<float>(i);
 	float yi = y - static_cast<float>(j);
 

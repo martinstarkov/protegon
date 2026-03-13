@@ -15,8 +15,11 @@
 namespace ptgn {
 
 struct RaycastResult {
-	float t{ 1.0f }; // How far along the ray the impact occurred.
-	V2_float normal; // Normal of the impact (normalised).
+	/// @brief How far along the ray the impact occurred, range: [0.0, 1.0].
+	float t{ 1.0f };
+
+	/// @brief Direction normal of the impact (normalised).
+	V2_float normal;
 
 	operator bool() const {
 		return Occurred();
@@ -24,6 +27,8 @@ struct RaycastResult {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(RaycastResult, t, normal)
 
+	/// @return True if the ray impacted the shape, false if it did not. Impact implies that t is in
+	/// the range [0.0, 1.0) and normal is not zero.
 	[[nodiscard]] bool Occurred() const;
 };
 
