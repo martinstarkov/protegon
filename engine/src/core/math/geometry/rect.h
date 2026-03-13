@@ -3,13 +3,12 @@
 #include <array>
 
 #include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
-
-struct Transform;
 
 // Rect has no rotation center because this can be achieved via using a parent Entity and
 // positioning it where the origin should be.

@@ -1,6 +1,7 @@
 #include "core/math/geometry/arc.h"
 
 #include <array>
+#include <cstdlib>
 
 #include "core/assert.h"
 #include "core/math/math_utils.h"
@@ -15,7 +16,7 @@ Arc::Arc(float arc_radius, float start_angle, float end_angle, bool clockwise) :
 	end_angle{ end_angle },
 	clockwise{ clockwise } {}
 
-V2_float Arc::GetCenter(const Transform& transform) const {
+V2_float Arc::GetCenter(Transform transform) const {
 	return transform.GetPosition();
 }
 
@@ -23,8 +24,8 @@ float Arc::GetRadius() const {
 	return radius;
 }
 
-float Arc::GetRadius(const Transform& transform) const {
-	return GetRadius() * Abs(transform.GetAverageScale());
+float Arc::GetRadius(Transform transform) const {
+	return GetRadius() * std::abs(transform.GetAverageScale());
 }
 
 float Arc::GetStartAngle() const {
@@ -40,7 +41,7 @@ float Arc::GetAperture() const {
 	return aperture;
 }
 
-std::array<V2_float, 4> Arc::GetWorldQuadVertices(const Transform& transform) const {
+std::array<V2_float, 4> Arc::GetWorldQuadVertices(Transform transform) const {
 	auto local_vertices{ GetLocalQuadVertices() };
 	return transform.Apply(local_vertices);
 }

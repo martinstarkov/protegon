@@ -2,13 +2,12 @@
 
 #include <array>
 
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
-
-struct Transform;
 
 struct Ellipse {
 	Ellipse() = default;
@@ -16,15 +15,15 @@ struct Ellipse {
 	template <Arithmetic T>
 	explicit Ellipse(const Vector2<T>& ellipse_radius) : radius{ ellipse_radius } {}
 
-	// @return Center relative to the world.
-	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;
+	/// @return Center relative to the world.
+	[[nodiscard]] V2_float GetCenter(Transform transform) const;
 
 	[[nodiscard]] V2_float GetRadius() const;
 
-	// @return Radius scaled relative to the transform.
-	[[nodiscard]] V2_float GetRadius(const Transform& transform) const;
+	/// @return Radius scaled relative to the transform.
+	[[nodiscard]] V2_float GetRadius(Transform transform) const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(const Transform& transform) const;
+	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
 
 	[[nodiscard]] std::array<V2_float, 4> GetLocalQuadVertices() const;
 

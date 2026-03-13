@@ -8,7 +8,7 @@
 
 namespace ptgn {
 
-V2_float Ellipse::GetCenter(const Transform& transform) const {
+V2_float Ellipse::GetCenter(Transform transform) const {
 	return transform.GetPosition();
 }
 
@@ -16,11 +16,11 @@ V2_float Ellipse::GetRadius() const {
 	return radius;
 }
 
-V2_float Ellipse::GetRadius(const Transform& transform) const {
+V2_float Ellipse::GetRadius(Transform transform) const {
 	return GetRadius() * Abs(transform.GetScale());
 }
 
-std::array<V2_float, 4> Ellipse::GetWorldQuadVertices(const Transform& transform) const {
+std::array<V2_float, 4> Ellipse::GetWorldQuadVertices(Transform transform) const {
 	auto local_vertices{ GetLocalQuadVertices() };
 	return transform.Apply(local_vertices);
 }

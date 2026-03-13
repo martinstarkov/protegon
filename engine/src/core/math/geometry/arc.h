@@ -1,29 +1,30 @@
 #pragma once
 
+#include <array>
+
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
-
-struct Transform;
 
 struct Arc {
 	Arc() = default;
 
 	Arc(float arc_radius, float start_angle, float end_angle, bool clockwise = true);
 
-	// @return Center relative to the world.
-	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;
+	/// @return Center relative to the world.
+	[[nodiscard]] V2_float GetCenter(Transform transform) const;
 
 	[[nodiscard]] float GetRadius() const;
 	[[nodiscard]] float GetStartAngle() const;
 	[[nodiscard]] float GetEndAngle() const;
 	[[nodiscard]] float GetAperture() const;
 
-	// @return Radius scaled relative to the transform.
-	[[nodiscard]] float GetRadius(const Transform& transform) const;
+	/// @return Radius scaled relative to the transform.
+	[[nodiscard]] float GetRadius(Transform transform) const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(const Transform& transform) const;
+	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
 
 	[[nodiscard]] std::array<V2_float, 4> GetLocalQuadVertices() const;
 
@@ -33,7 +34,7 @@ struct Arc {
 	float start_angle{ 0.0f };
 	float end_angle{ 0.0f };
 
-	// Direction of arc.
+	/// @brief Direction of arc.
 	bool clockwise{ true };
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Arc, radius, start_angle, end_angle, clockwise)

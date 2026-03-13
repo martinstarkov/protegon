@@ -1,7 +1,9 @@
 #include "core/math/geometry/circle.h"
 
 #include <array>
+#include <cstdlib>
 
+#include "core/assert.h"
 #include "core/math/math_utils.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
@@ -10,7 +12,7 @@ namespace ptgn {
 
 Circle::Circle(float circle_radius) : radius{ circle_radius } {}
 
-V2_float Circle::GetCenter(const Transform& transform) const {
+V2_float Circle::GetCenter(Transform transform) const {
 	return transform.GetPosition();
 }
 
@@ -18,11 +20,11 @@ float Circle::GetRadius() const {
 	return radius;
 }
 
-float Circle::GetRadius(const Transform& transform) const {
-	return GetRadius() * Abs(transform.GetAverageScale());
+float Circle::GetRadius(Transform transform) const {
+	return GetRadius() * std::abs(transform.GetAverageScale());
 }
 
-std::array<V2_float, 4> Circle::GetWorldQuadVertices(const Transform& transform) const {
+std::array<V2_float, 4> Circle::GetWorldQuadVertices(Transform transform) const {
 	auto local_vertices{ GetLocalQuadVertices() };
 	return transform.Apply(local_vertices);
 }

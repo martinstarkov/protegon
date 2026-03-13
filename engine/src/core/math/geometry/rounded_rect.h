@@ -3,15 +3,14 @@
 #include <array>
 
 #include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
 
-struct Transform;
-
-// RoundedRect has no rotation center because this can be achieved via using a parent Entity and
-// positioning it where the origin should be.
+/// @brief RoundedRect has no rotation center because this can be achieved via using a parent Entity
+/// and positioning it where the origin should be.
 struct RoundedRect {
 	RoundedRect() = default;
 
@@ -21,24 +20,24 @@ struct RoundedRect {
 	[[nodiscard]] V2_float GetSize() const;
 	[[nodiscard]] float GetRadius() const;
 
-	// @return Size scaled relative to the transform.
-	[[nodiscard]] V2_float GetSize(const Transform& transform) const;
-	[[nodiscard]] float GetRadius(const Transform& transform) const;
+	/// @return Size scaled relative to the transform.
+	[[nodiscard]] V2_float GetSize(Transform transform) const;
+	[[nodiscard]] float GetRadius(Transform transform) const;
 
-	// @return New transform offset by the draw_origin.
-	[[nodiscard]] Transform Offset(const Transform& transform, Origin draw_origin) const;
+	/// @return New transform offset by the draw_origin.
+	[[nodiscard]] Transform Offset(Transform transform, Origin draw_origin) const;
 
-	// @return Quad vertices relative to the transform where transform.position is taken as the
-	// rounded rectangle center.
-	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(const Transform& transform) const;
+	/// @return Quad vertices relative to the transform where transform.position is taken as the
+	/// rounded rectangle center.
+	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
 	[[nodiscard]] std::array<V2_float, 4> GetLocalQuadVertices() const;
 
 	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(
-		const Transform& transform, Origin draw_origin
+		Transform transform, Origin draw_origin
 	) const;
 
-	// @return Center relative to the world.
-	[[nodiscard]] V2_float GetCenter(const Transform& transform) const;
+	/// @return Center relative to the world.
+	[[nodiscard]] V2_float GetCenter(Transform transform) const;
 
 	bool operator==(const RoundedRect&) const = default;
 

@@ -1,6 +1,7 @@
 #include "core/math/geometry/capsule.h"
 
 #include <array>
+#include <cstdlib>
 
 #include "core/math/geometry/rect.h"
 #include "core/math/math_utils.h"
@@ -12,9 +13,8 @@ namespace ptgn {
 Capsule::Capsule(V2_float start, V2_float end, float radius) :
 	start{ start }, end{ end }, radius{ radius } {}
 
-std::array<V2_float, 4> Capsule::GetWorldQuadVertices(
-	const Transform& transform, V2_float* out_size
-) const {
+std::array<V2_float, 4> Capsule::GetWorldQuadVertices(Transform transform, V2_float* out_size)
+	const {
 	auto dir{ end - start };
 
 	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
@@ -33,7 +33,7 @@ std::array<V2_float, 4> Capsule::GetWorldQuadVertices(
 	return rect.GetWorldVertices(Transform{ center, rotation, transform.GetScale() });
 }
 
-std::array<V2_float, 2> Capsule::GetWorldVertices(const Transform& transform) const {
+std::array<V2_float, 2> Capsule::GetWorldVertices(Transform transform) const {
 	auto local_vertices{ GetLocalVertices() };
 	return transform.Apply(local_vertices);
 }
@@ -46,8 +46,8 @@ float Capsule::GetRadius() const {
 	return radius;
 }
 
-float Capsule::GetRadius(const Transform& transform) const {
-	return GetRadius() * Abs(transform.GetAverageScale());
+float Capsule::GetRadius(Transform transform) const {
+	return GetRadius() * std::abs(transform.GetAverageScale());
 }
 
 } // namespace ptgn
