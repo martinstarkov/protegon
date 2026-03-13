@@ -5,9 +5,10 @@
 
 #include "core/assert.h"
 #include "core/math/tolerance.h"
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
-#include "core/math/transform.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 
@@ -127,7 +128,7 @@ Matrix4 Matrix4::MakeTransform(V2_float position, float rotation_radians, V2_flo
 	);
 }
 
-Matrix4 Matrix4::MakeTransform(const Transform& transform) {
+Matrix4 Matrix4::MakeTransform(Transform transform) {
 	return MakeTransform(transform.GetPosition(), transform.GetRotation(), transform.GetScale());
 }
 
@@ -152,7 +153,7 @@ Matrix4 Matrix4::MakeInverseTransform(V2_float position, float rotation_radians,
 	);
 }
 
-Matrix4 Matrix4::MakeInverseTransform(const Transform& transform) {
+Matrix4 Matrix4::MakeInverseTransform(Transform transform) {
 	return MakeInverseTransform(
 		transform.GetPosition(), transform.GetRotation(), transform.GetScale()
 	);

@@ -16,11 +16,14 @@ V2_float Rect::GetSize() const {
 }
 
 V2_float Rect::GetSize(Transform transform) const {
-	return GetSize() * Abs(transform.GetScale());
+	auto size{ GetSize() };
+	auto scale{ transform.GetScale() };
+	return size * Abs(scale);
 }
 
 Transform Rect::Offset(Transform transform, Origin draw_origin) const {
-	auto offset{ GetOriginOffset(draw_origin, GetSize(transform)) };
+	auto size{ GetSize(transform) };
+	auto offset{ GetOriginOffset(draw_origin, size) };
 	if (offset.IsZero()) {
 		return transform;
 	}
@@ -45,7 +48,9 @@ std::array<V2_float, 4> Rect::GetWorldVertices(Transform transform, Origin draw_
 }
 
 V2_float Rect::GetCenter(Transform transform) const {
-	return transform.GetPosition() + (max + min) * 0.5f;
+	auto position{ transform.GetPosition() };
+	auto center{ (max + min) * 0.5f };
+	return position + center;
 }
 
 } // namespace ptgn

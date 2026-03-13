@@ -13,7 +13,7 @@ struct Ellipse {
 	Ellipse() = default;
 
 	template <Arithmetic T>
-	explicit Ellipse(const Vector2<T>& ellipse_radius) : radius{ ellipse_radius } {}
+	explicit Ellipse(Vector2<T> ellipse_radius) : radius{ ellipse_radius } {}
 
 	/// @return Center relative to the world.
 	[[nodiscard]] V2_float GetCenter(Transform transform) const;

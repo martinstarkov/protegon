@@ -4,7 +4,6 @@
 #include <cstdlib>
 
 #include "core/math/geometry/rect.h"
-#include "core/math/math_utils.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 
@@ -27,10 +26,14 @@ std::array<V2_float, 4> Capsule::GetWorldQuadVertices(Transform transform, V2_fl
 	auto diameter{ 2.0f * GetRadius() };
 
 	Rect rect{ V2_float{ diameter + dir.Magnitude(), diameter } };
+
 	if (out_size) {
 		*out_size = rect.GetSize(transform);
 	}
-	return rect.GetWorldVertices(Transform{ center, rotation, transform.GetScale() });
+
+	Transform rect_transform{ center, rotation, transform.GetScale() };
+
+	return rect.GetWorldVertices(rect_transform);
 }
 
 std::array<V2_float, 2> Capsule::GetWorldVertices(Transform transform) const {
@@ -47,7 +50,9 @@ float Capsule::GetRadius() const {
 }
 
 float Capsule::GetRadius(Transform transform) const {
-	return GetRadius() * std::abs(transform.GetAverageScale());
+	auto radius{ GetRadius() };
+	auto scale{ transform.GetAverageScale() };
+	return scale * std::abs(scale);
 }
 
 } // namespace ptgn

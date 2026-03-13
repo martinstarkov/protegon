@@ -25,15 +25,20 @@ float RoundedRect::GetRadius() const {
 }
 
 V2_float RoundedRect::GetSize(Transform transform) const {
-	return GetSize() * Abs(transform.GetScale());
+	auto size{ GetSize() };
+	auto scale{ transform.GetScale() };
+	return size * scale;
 }
 
 float RoundedRect::GetRadius(Transform transform) const {
-	return GetRadius() * std::abs(transform.GetAverageScale());
+	auto radius{ GetRadius() };
+	auto scale{ transform.GetAverageScale() };
+	return radius * std::abs(scale);
 }
 
 Transform RoundedRect::Offset(Transform transform, Origin draw_origin) const {
-	auto offset{ GetOriginOffset(draw_origin, GetSize(transform)) };
+	auto size{ GetSize(transform) };
+	auto offset{ GetOriginOffset(draw_origin, size) };
 	if (offset.IsZero()) {
 		return transform;
 	}
@@ -59,7 +64,9 @@ std::array<V2_float, 4> RoundedRect::GetWorldQuadVertices(Transform transform, O
 }
 
 V2_float RoundedRect::GetCenter(Transform transform) const {
-	return transform.GetPosition() + (max + min) * 0.5f;
+	auto position{ transform.GetPosition() };
+	auto center{ (max + min) * 0.5f };
+	return position + center;
 }
 
 } // namespace ptgn

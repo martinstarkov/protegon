@@ -16,15 +16,15 @@ struct Transform {
 	Transform() = default;
 
 	template <Arithmetic T>
-	Transform(const Vector2<T>& position) : position_{ position } {}
+	Transform(Vector2<T> position) : position_{ position } {}
 
 	Transform(V2_float position, float rotation, V2_float scale = { 1.0f, 1.0f });
 
 	[[nodiscard]] Transform Inverse() const;
 
-	[[nodiscard]] Transform RelativeTo(const Transform& parent) const;
+	[[nodiscard]] Transform RelativeTo(Transform parent) const;
 
-	[[nodiscard]] Transform InverseRelativeTo(const Transform& parent) const;
+	[[nodiscard]] Transform InverseRelativeTo(Transform parent) const;
 
 	friend bool operator==(const Transform& a, const Transform& b) {
 		return a.position_ == b.position_ && NearlyEqual(a.rotation_, b.rotation_) &&
@@ -57,7 +57,7 @@ struct Transform {
 	/// @brief Clamps rotation between [0, 2 pi).
 	Transform& ClampRotation();
 
-	/// @return (scale_x + scale_y) / 2
+	/// @return abs(scale_x + scale_y) / 2
 	[[nodiscard]] float GetAverageScale() const;
 
 	[[nodiscard]] V2_float GetScale() const;

@@ -3,8 +3,8 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/math/vector2.h"
 #include "core/math/transform.h"
+#include "core/math/vector2.h"
 
 namespace ptgn {
 
@@ -39,7 +39,7 @@ V2_float Polygon::GetCenter() const {
 	return centroid;
 }
 
-std::vector<V2_float> Polygon::GetWorldVertices(const Transform& transform) const {
+std::vector<V2_float> Polygon::GetWorldVertices(Transform transform) const {
 	return transform.Apply(vertices);
 }
 

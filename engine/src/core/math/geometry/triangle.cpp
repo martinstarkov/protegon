@@ -13,7 +13,7 @@ Triangle::Triangle(V2_float a, V2_float b, V2_float c) : a{ a }, b{ b }, c{ c } 
 Triangle::Triangle(const std::array<V2_float, 3>& vertices) :
 	a{ vertices[0] }, b{ vertices[1] }, c{ vertices[2] } {}
 
-std::array<V2_float, 3> Triangle::GetWorldVertices(const Transform& transform) const {
+std::array<V2_float, 3> Triangle::GetWorldVertices(Transform transform) const {
 	auto local_vertices{ GetLocalVertices() };
 	return transform.Apply(local_vertices);
 }

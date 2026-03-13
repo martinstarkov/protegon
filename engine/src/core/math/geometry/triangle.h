@@ -2,12 +2,11 @@
 
 #include <array>
 
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
-
-struct Transform;
 
 struct Triangle {
 	Triangle() = default;
@@ -15,7 +14,7 @@ struct Triangle {
 	Triangle(V2_float a, V2_float b, V2_float c);
 	explicit Triangle(const std::array<V2_float, 3>& vertices);
 
-	[[nodiscard]] std::array<V2_float, 3> GetWorldVertices(const Transform& transform) const;
+	[[nodiscard]] std::array<V2_float, 3> GetWorldVertices(Transform transform) const;
 
 	[[nodiscard]] std::array<V2_float, 3> GetLocalVertices() const;
 

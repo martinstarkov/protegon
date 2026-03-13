@@ -9,6 +9,8 @@
 #include <type_traits>
 
 #include "core/assert.h"
+#include "core/math/tolerance.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
@@ -17,7 +19,6 @@
 
 namespace ptgn {
 
-struct Transform;
 class Quaternion;
 
 struct Matrix4 {
@@ -163,7 +164,7 @@ public:
 		V2_float position, float rotation_radians, V2_float scale
 	);
 
-	[[nodiscard]] static Matrix4 MakeTransform(const Transform& transform);
+	[[nodiscard]] static Matrix4 MakeTransform(Transform transform);
 
 	[[nodiscard]] static Matrix4 MakeInverseTransform(
 		V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
@@ -173,18 +174,18 @@ public:
 		V2_float position, float rotation_radians, V2_float scale
 	);
 
-	[[nodiscard]] static Matrix4 MakeInverseTransform(const Transform& transform);
+	[[nodiscard]] static Matrix4 MakeInverseTransform(Transform transform);
 
-	// Field of view angle fov_x in radians.
-	// Example usage: Matrix4 proj = Matrix4::Perspective(DegToRad(45.0f), width / height, 0.1f,
-	// 100.0f);
+	/// @brief Field of view angle fov_x in radians.
+	/// Example usage: Matrix4 proj = Matrix4::Perspective(DegToRad(45.0f), width / height, 0.1f,
+	/// 100.0f);
 	[[nodiscard]] static Matrix4 Perspective(
 		float fov_x_radians, float aspect_ratio, float front, float back
 	);
 
 	[[nodiscard]] static Matrix4 Translate(const Matrix4& matrix, V3_float axes);
 
-	// Angle in radians.
+	/// @brief Angle in radians.
 	[[nodiscard]] static Matrix4 Rotate(
 		const Matrix4& matrix, float rotation_radians, V3_float axes
 	);

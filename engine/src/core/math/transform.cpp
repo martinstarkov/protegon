@@ -19,7 +19,7 @@ Transform Transform::Inverse() const {
 	return { -position_, -rotation_, 1.0f / scale_ };
 }
 
-Transform Transform::RelativeTo(const Transform& parent) const {
+Transform Transform::RelativeTo(Transform parent) const {
 	Transform result;
 	// Order is important.
 	result.scale_	 = parent.scale_ * scale_;
@@ -28,7 +28,7 @@ Transform Transform::RelativeTo(const Transform& parent) const {
 	return result;
 }
 
-Transform Transform::InverseRelativeTo(const Transform& parent) const {
+Transform Transform::InverseRelativeTo(Transform parent) const {
 	Transform local;
 
 	float inv_rotation{ -parent.rotation_ };
@@ -48,7 +48,7 @@ Transform Transform::InverseRelativeTo(const Transform& parent) const {
 }
 
 float Transform::GetAverageScale() const {
-	// Abs because scale is used for flip.
+	// Absolute value applied because negative scale is used for flip.
 	auto abs_scale{ Abs(scale_) };
 	return (abs_scale.x + abs_scale.y) * 0.5f;
 }

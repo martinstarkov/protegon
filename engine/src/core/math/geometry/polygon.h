@@ -4,12 +4,11 @@
 #include <ranges>
 #include <vector>
 
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
-
-struct Transform;
 
 struct Polygon {
 	Polygon() = default;
@@ -21,11 +20,11 @@ struct Polygon {
 		vertices.assign(points.begin(), points.end());
 	}
 
-	[[nodiscard]] std::vector<V2_float> GetWorldVertices(const Transform& transform) const;
+	[[nodiscard]] std::vector<V2_float> GetWorldVertices(Transform transform) const;
 
 	[[nodiscard]] std::vector<V2_float> GetLocalVertices() const;
 
-	// @return Centroid of the polygon.
+	/// @return Centroid of the polygon.
 	[[nodiscard]] V2_float GetCenter() const;
 
 	bool operator==(const Polygon&) const = default;
