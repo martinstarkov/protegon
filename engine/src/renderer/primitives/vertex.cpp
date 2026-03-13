@@ -6,6 +6,7 @@
 
 #include "core/assert.h"
 #include "core/log.h"
+#include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "renderer/primitives/color.h"
@@ -94,7 +95,7 @@ std::array<Vertex, 2> Vertex::GetLine(
 	PTGN_ASSERT(vertices.size() == line_coordinates.size());
 
 	for (std::size_t i{ 0 }; i < line_points.size(); i++) {
-		vertices[i].position  = { line_points[i].x, line_points[i].y, depth };
+		vertices[i].position  = { FastFloor(line_points[i].x), FastFloor(line_points[i].y), depth };
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
 		vertices[i].tex_coord = { line_coordinates[i].x, line_coordinates[i].y };
 	}
@@ -119,7 +120,8 @@ std::array<Vertex, 3> Vertex::GetTriangle(
 	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
 
 	for (std::size_t i{ 0 }; i < triangle_points.size(); i++) {
-		vertices[i].position  = { triangle_points[i].x, triangle_points[i].y, depth };
+		vertices[i].position  = { FastFloor(triangle_points[i].x), FastFloor(triangle_points[i].y),
+								  depth };
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
 		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
 	}
@@ -144,7 +146,7 @@ std::array<Vertex, 4> Vertex::GetQuad(
 	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
 
 	for (std::size_t i{ 0 }; i < vertices.size(); ++i) {
-		vertices[i].position  = { quad_points[i].x, quad_points[i].y, depth };
+		vertices[i].position  = { FastFloor(quad_points[i].x), FastFloor(quad_points[i].y), depth };
 		vertices[i].color	  = { c.x, c.y, c.z, c.w };
 		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
 		vertices[i].data	  = data;
