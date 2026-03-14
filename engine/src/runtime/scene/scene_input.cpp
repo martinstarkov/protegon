@@ -322,7 +322,8 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 		};
 
 		// If no draggable is found, find the interactive entity with the highest depth.
-		if (!draggable_it->Has<impl::Draggable>()) {
+		if (!draggable_it->Has<impl::Draggable>() ||
+			!draggable_it->Get<impl::Draggable>().enabled) {
 			draggable_it =
 				std::ranges::max_element(entities.under_mouse, impl::EntityDepthCompare{ true });
 		}
@@ -346,7 +347,7 @@ std::vector<Entity> SceneInput::GetDropzones() {
 
 	for (auto [entity, interactive, dropzone] :
 		 scene_.EntitiesWith<impl::Interactive, impl::Dropzone>()) {
-		if (!interactive.enabled) {
+		if (!interactive.enabled || !dropzone.enabled) {
 			continue;
 		}
 
@@ -426,7 +427,7 @@ void SceneInput::HandleDragging(
 	// Start dragging
 	if (mouse.left_pressed) {
 		for (Entity dragging : over) {
-			if (!dragging.Has<impl::Draggable>()) {
+			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
 
@@ -442,13 +443,14 @@ void SceneInput::HandleDragging(
 				scripts->Emit(event);
 			}
 
-			if (!dragging.Has<impl::Draggable>()) {
+			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
 
 			for (Entity dropzone : dropzones) {
 				PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()));
 				PTGN_ASSERT(dropzone.Get<impl::Interactive>().enabled);
+				PTGN_ASSERT(dropzone.Get<impl::Dropzone>().enabled);
 				if (dropzone == dragging) {
 					continue;
 				}
@@ -474,7 +476,7 @@ void SceneInput::HandleDragging(
 				);
 			}
 
-			if (!dragging.Has<impl::Draggable>()) {
+			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
 
@@ -491,7 +493,7 @@ void SceneInput::HandleDragging(
 	// Continue dragging
 	if (mouse.left_held || mouse.left_pressed) {
 		for (Entity dragging : dragging_entities) {
-			if (!dragging.Has<impl::Draggable>()) {
+			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 				continue;
 			}
 
@@ -507,8 +509,8 @@ void SceneInput::HandleDragging(
 	// Stop dragging
 	if (mouse.left_released) {
 		for (Entity dragging : dragging_entities) {
-			if (!dragging.Has<impl::Draggable>() || !dragging.Has<impl::Interactive>() ||
-				!dragging.Get<impl::Interactive>().enabled) {
+			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled ||
+				!dragging.Has<impl::Interactive>() || !dragging.Get<impl::Interactive>().enabled) {
 				continue;
 			}
 
@@ -518,14 +520,15 @@ void SceneInput::HandleDragging(
 				scripts->Emit(event);
 			}
 
-			if (!dragging.Has<impl::Draggable>() || !dragging.Has<impl::Interactive>() ||
-				!dragging.Get<impl::Interactive>().enabled) {
+			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled ||
+				!dragging.Has<impl::Interactive>() || !dragging.Get<impl::Interactive>().enabled) {
 				continue;
 			}
 
 			for (Entity dropzone : dropzones) {
 				PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()));
 				PTGN_ASSERT(dropzone.Get<impl::Interactive>().enabled);
+				PTGN_ASSERT(dropzone.Get<impl::Dropzone>().enabled);
 				if (dropzone == dragging) {
 					continue;
 				}
@@ -551,8 +554,8 @@ void SceneInput::HandleDragging(
 				);
 			}
 
-			if (!dragging.Has<impl::Draggable>() || !dragging.Has<impl::Interactive>() ||
-				!dragging.Get<impl::Interactive>().enabled) {
+			if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled ||
+				!dragging.Has<impl::Interactive>() || !dragging.Get<impl::Interactive>().enabled) {
 				continue;
 			}
 
@@ -567,15 +570,15 @@ void SceneInput::HandleDragging(
 
 void SceneInput::CleanupDropzones(const std::vector<Entity>& dropzones) {
 	for (Entity dropzone : dropzones) {
-		if (!dropzone.Has<impl::Dropzone>()) {
+		if (!dropzone.Has<impl::Dropzone>() || !dropzone.Get<impl::Dropzone>().enabled) {
 			continue;
 		}
 
 		auto& dropped{ dropzone.Get<impl::Dropzone>().draggables };
 
 		std::erase_if(dropped, [](const Entity& e) {
-			return !e || !e.Has<impl::Draggable>() || !e.Has<impl::Interactive>() ||
-				   !e.Get<impl::Interactive>().enabled;
+			return !e || !e.Has<impl::Draggable>() || !e.Get<impl::Draggable>().enabled ||
+				   !e.Has<impl::Interactive>() || !e.Get<impl::Interactive>().enabled;
 		});
 	}
 }
@@ -586,7 +589,7 @@ void SceneInput::HandleDropzones(
 ) {
 	// 1. Compute which dropzones each dragged entity is currently over
 	for (Entity dragging : dragging_entities) {
-		if (!dragging.Has<impl::Draggable>()) {
+		if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 			continue;
 		}
 
@@ -596,6 +599,7 @@ void SceneInput::HandleDropzones(
 		for (Entity dropzone : dropzones) {
 			PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()));
 			PTGN_ASSERT(dropzone.Get<impl::Interactive>().enabled);
+			PTGN_ASSERT(dropzone.Get<impl::Dropzone>().enabled);
 			if (dragging == dropzone) {
 				continue;
 			}
@@ -644,7 +648,7 @@ void SceneInput::HandleDropzones(
 			);
 		}
 
-		if (!dragging.Has<impl::Draggable>()) {
+		if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 			continue;
 		}
 
@@ -657,7 +661,8 @@ void SceneInput::HandleDropzones(
 				continue;
 			}
 			if (last_dropzone.Has<impl::Dropzone, impl::Interactive>() &&
-				last_dropzone.Get<impl::Interactive>().enabled) {
+				last_dropzone.Get<impl::Interactive>().enabled &&
+				last_dropzone.Get<impl::Dropzone>().enabled) {
 				if (auto dropzone_scripts{ last_dropzone.TryGet<impl::Scripts>() }) {
 					LeaveDropzone event;
 					event.draggable = dragging;
@@ -671,7 +676,7 @@ void SceneInput::HandleDropzones(
 			}
 		}
 
-		if (!dragging.Has<impl::Draggable>()) {
+		if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 			continue;
 		}
 
@@ -679,6 +684,7 @@ void SceneInput::HandleDropzones(
 		for (Entity dropzone : dropzones) {
 			PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()));
 			PTGN_ASSERT(dropzone.Get<impl::Interactive>().enabled);
+			PTGN_ASSERT(dropzone.Get<impl::Dropzone>().enabled);
 			if (dragging == dropzone) {
 				continue;
 			}
@@ -697,7 +703,7 @@ void SceneInput::HandleDropzones(
 			}
 		}
 
-		if (!dragging.Has<impl::Draggable>()) {
+		if (!dragging.Has<impl::Draggable>() || !dragging.Get<impl::Draggable>().enabled) {
 			continue;
 		}
 
@@ -851,7 +857,8 @@ void SceneInput::Update() {
 		CleanupDropzones(dropzones);
 
 		std::erase_if(dragging_entities, [](const auto& entity) {
-			return !entity.template Has<impl::Draggable>();
+			return !entity.template Has<impl::Draggable>() ||
+				   !entity.template Get<impl::Draggable>().enabled;
 		});
 
 		// Save for next frame.

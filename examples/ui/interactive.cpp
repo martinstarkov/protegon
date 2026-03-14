@@ -36,7 +36,7 @@ struct DragScript : public Script {
 	}
 
 	void OnDrag(V2_float pos) {
-		// PTGN_LOG("r3 drag pos: ", pos);
+		// PTGN_LOG(entity, " drag pos: ", pos);
 		SetPosition(entity, pos);
 	}
 };
@@ -48,11 +48,11 @@ struct DropzoneScript : public Script {
 	}
 
 	void OnDrop(Entity draggable) {
-		PTGN_LOG("dropped onto dropzone: ", draggable);
+		PTGN_LOG("dropped ", draggable, " onto dropzone ", entity);
 	}
 
 	void OnPickup(Entity draggable) {
-		PTGN_LOG("picked up from dropzone: ", draggable);
+		PTGN_LOG("picked up ", draggable, " from dropzone ", entity);
 	}
 };
 
@@ -76,56 +76,56 @@ struct DraggableScript : public Script {
 	}
 
 	void OnDrag(V2_float pos) {
-		// PTGN_LOG("c3 drag pos: ", pos);
+		// PTGN_LOG(entity, " drag pos: ", pos);
 		SetPosition(entity, pos);
 	}
 
 	void OnMousePressedOver(Mouse mouse) {
-		PTGN_LOG("c3 Mouse pressed: ", mouse);
+		PTGN_LOG(entity, " Mouse pressed: ", mouse);
 	}
 
 	void OnMousePressedOut(Mouse mouse) {
-		PTGN_LOG("c3 Mouse pressed outside: ", mouse);
+		PTGN_LOG(entity, " Mouse pressed outside: ", mouse);
 	}
 
 	void OnMouseHeldOver(Mouse mouse) {
-		// PTGN_LOG("c3 Mouse held: ", mouse);
+		// PTGN_LOG(entity, " Mouse held: ", mouse);
 	}
 
 	void OnMouseScrollOver(V2_float mouse) {
-		PTGN_LOG("c3 Mouse scroll: ", mouse);
+		PTGN_LOG(entity, " Mouse scroll: ", mouse);
 	}
 
 	void OnMouseReleasedOver(Mouse mouse) {
-		PTGN_LOG("c3 Mouse released: ", mouse);
+		PTGN_LOG(entity, " Mouse released: ", mouse);
 	}
 
 	void OnMouseReleasedOut(Mouse mouse) {
-		PTGN_LOG("c3 Mouse released outside: ", mouse);
+		PTGN_LOG(entity, " Mouse released outside: ", mouse);
 	}
 
 	void OnDragEnter(Entity dropzone) {
-		PTGN_LOG("c3 Drag enter: ", dropzone);
+		PTGN_LOG(entity, " Drag enter: ", dropzone);
 	}
 
 	void OnDragLeave(Entity last_dropzone) {
-		PTGN_LOG("c3 Drag leave: ", last_dropzone);
+		PTGN_LOG(entity, " Drag leave: ", last_dropzone);
 	}
 
 	void OnDragOut(Entity dropzone) {
-		// PTGN_LOG("c3 Drag out: ", dropzone);
+		// PTGN_LOG(entity, " Drag out: ", dropzone);
 	}
 
 	void OnDragOver(Entity dropzone) {
-		// PTGN_LOG("c3 Drag over: ", dropzone);
+		// PTGN_LOG(entity, " Drag over: ", dropzone);
 	}
 
 	void OnDragStart(V2_int start_position) {
-		PTGN_LOG("c3 Drag start: ", start_position);
+		PTGN_LOG(entity, " Drag start: ", start_position);
 	}
 
 	void OnDragStop(V2_int stop_position) {
-		PTGN_LOG("c3 Drag stop: ", stop_position);
+		PTGN_LOG(entity, " Drag stop: ", stop_position);
 	}
 
 	void OnDrop(Entity draggable) {
@@ -155,7 +155,8 @@ struct InteractiveScene : public Scene {
 
 		input.SetInteractiveSettings({ .enabled = true, .line_width = 3.0f });
 
-		app().asset.LoadMany({ { "drag", "assets/drag.png" },
+		app().asset.LoadMany({ { "circle", "assets/circle.png" },
+							   { "drag", "assets/drag.png" },
 							   { "drag_circle", "assets/drag_circle.png" },
 							   { "dropzone", "assets/dropzone.png" } });
 
@@ -191,7 +192,7 @@ struct InteractiveScene : public Scene {
 		app().asset.Load("box", "assets/box.png");
 
 		auto r2		  = CreateSprite(*this, "box", center + V2_float{ -offset.x, 0.0f });
-		auto r2_child = CreateInteractiveRect(GetDisplaySize(r2));
+		auto r2_child = CreateInteractiveRect(*GetDisplaySize(r2));
 		AddInteractiveShape(r2, GameObject{ std::move(r2_child) });
 
 		auto r4		  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
@@ -202,7 +203,7 @@ struct InteractiveScene : public Scene {
 		PTGN_LOG("Dropzone: ", r4);
 
 		auto r3		  = CreateSprite(*this, "drag", center + V2_float{ offset.x, 0.0f });
-		auto r3_child = CreateInteractiveRect(GetDisplaySize(r3));
+		auto r3_child = CreateInteractiveRect(*GetDisplaySize(r3));
 		AddInteractiveShape(r3, GameObject{ std::move(r3_child) });
 		SetDraggable(r3);
 		AddScript<DragScript>(r3);
@@ -210,12 +211,20 @@ struct InteractiveScene : public Scene {
 		PTGN_LOG("Rect drag: ", r3);
 
 		auto c3		  = CreateSprite(*this, "drag_circle", center + V2_float{ 0, 0 });
-		auto c3_child = CreateInteractiveCircle(GetDisplaySize(c3).x * 0.5f);
+		auto c3_child = CreateInteractiveCircle(GetDisplaySize(c3)->x * 0.5f);
 		AddInteractiveShape(c3, GameObject{ std::move(c3_child) });
 		SetDraggable(c3); //.SetTrigger(CallbackTrigger::MouseOverlaps);
 		AddScript<DraggableScript>(c3);
 
 		PTGN_LOG("Circle drag: ", c3);
+
+		auto c4		  = CreateSprite(*this, "circle", center + V2_float{ 0, offset.y });
+		auto c4_child = CreateInteractiveCircle(GetDisplaySize(c4)->x * 0.5f);
+		AddInteractiveShape(c4, GameObject{ std::move(c4_child) });
+		SetDraggable(c4, ComponentState::Disabled);
+		AddScript<DraggableScript>(c4);
+
+		PTGN_LOG("Disabled circle drag: ", c4);
 	}
 
 	const float rotation_speed{ 1.0f };
