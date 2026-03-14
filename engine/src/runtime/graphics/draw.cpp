@@ -270,7 +270,6 @@ std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_verticall
 	} else {
 		tex_coords =
 			impl::GetTextureCoordinates({}, *texture_size, *texture_size, flip_vertically, true);
-		// tex_coords = impl::GetDefaultTextureCoordinates(flip_vertically);
 	}
 
 	auto scale{ GetScale(entity) };

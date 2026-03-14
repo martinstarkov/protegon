@@ -165,11 +165,11 @@ void SetTint(Entity entity, Color color = color::White);
 /// @return Unscaled size of the cropped texture in pixels.
 [[nodiscard]] std::optional<V2_int> GetCroppedTextureSize(Entity entity);
 
-/// Overrides the scale of the entity.
-void SetDisplaySize(Entity entity, V2_float display_size);
-
 /// @return Scaled size of the cropped texture in pixels.
 [[nodiscard]] std::optional<V2_float> GetDisplaySize(Entity entity);
+
+/// @brief Overrides the scale of the entity.
+void SetDisplaySize(Entity entity, V2_float display_size);
 
 [[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically);
 
