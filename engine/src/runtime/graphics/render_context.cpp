@@ -326,29 +326,41 @@ DrawContext::GetShapeDrawCommand(
 }
 
 void DrawContext::DrawLine(
-	impl::ShaderId shader, const std::array<V2_float, 2>& positions, Color tint, float depth
+	impl::ShaderId shader, std::array<V2_float, 2> positions, Color tint, float depth
 ) {
+	for (auto& pos : positions) {
+		pos = FastFloor(pos);
+	}
 	renderer_.DrawLine(shader, positions, tint, depth);
 }
 
 void DrawContext::DrawTriangle(
-	impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
+	impl::ShaderId shader, std::array<V2_float, 3> positions, Color tint, float depth
 ) {
+	for (auto& pos : positions) {
+		pos = FastFloor(pos);
+	}
 	renderer_.DrawTriangle(shader, positions, tint, depth);
 }
 
 void DrawContext::DrawQuad(
-	impl::ShaderId shader, const std::array<V2_float, 4>& positions,
-	const std::array<float, 4>& user_data, Color tint, float depth
+	impl::ShaderId shader, std::array<V2_float, 4> positions, const std::array<float, 4>& user_data,
+	Color tint, float depth, std::function<void()> shader_setup
 ) {
-	renderer_.DrawQuad(shader, positions, user_data, tint, depth);
+	for (auto& pos : positions) {
+		pos = FastFloor(pos);
+	}
+	renderer_.DrawQuad(shader, positions, user_data, tint, depth, shader_setup);
 }
 
 void DrawContext::DrawTexture(
-	impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
-	Color tint, float depth, const std::array<V2_float, 4>& tex_coords
+	impl::ShaderId shader, impl::TextureId texture, std::array<V2_float, 4> positions, Color tint,
+	float depth, const std::array<V2_float, 4>& tex_coords, std::function<void()> shader_setup
 ) {
-	renderer_.DrawTexture(shader, texture, positions, tint, depth, tex_coords);
+	for (auto& pos : positions) {
+		pos = FastFloor(pos);
+	}
+	renderer_.DrawTexture(shader, texture, positions, tint, depth, tex_coords, shader_setup);
 }
 
 void DrawContext::DrawTexture(
@@ -363,6 +375,18 @@ void DrawContext::DrawQuad(const std::array<V2_float, 4>& positions, Color tint,
 	auto white_texture{ GetWhiteTexture() };
 	auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
 	DrawTexture(white_texture, positions, tint, depth, tex_coords);
+}
+
+void DrawContext::DrawTexture(
+	Texture texture, Transform transform, V2_float size, Origin draw_origin, Color tint,
+	float depth, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode> blend_mode
+) {
+	if (blend_mode.has_value()) {
+		SetBlend(*blend_mode);
+	}
+	Rect rect{ size };
+	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
+	DrawTexture(texture, positions, tint, depth, tex_coords);
 }
 
 void DrawContext::BindScreenTarget() {
@@ -467,21 +491,6 @@ void DrawContext::Draw(const std::vector<impl::TriangleCommand>& cmds, float dep
 }
 
 void DrawContext::Draw(std::monostate, float depth) const { /* No-op */ }
-
-void DrawContext::DrawTexture(
-	Texture texture, Transform transform, V2_float size, Origin draw_origin, Color tint,
-	float depth, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode> blend_mode
-) {
-	if (blend_mode.has_value()) {
-		SetBlend(*blend_mode);
-	}
-	Rect rect{ size };
-	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
-	for (auto& pos : positions) {
-		pos = FastFloor(pos);
-	}
-	DrawTexture(texture, positions, tint, depth, tex_coords);
-}
 
 void DrawContext::DrawLines(
 	std::span<const V2_float> points, float line_width, Transform transform, Color tint,

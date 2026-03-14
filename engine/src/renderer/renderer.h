@@ -133,12 +133,14 @@ private:
 
 	void DrawQuad(
 		impl::ShaderId shader, const std::array<V2_float, 4>& positions,
-		const std::array<float, 4>& user_data, Color tint, float depth
+		const std::array<float, 4>& user_data, Color tint, float depth,
+		std::function<void()> shader_setup
 	);
 
 	void DrawTexture(
 		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
-		Color tint, float depth, const std::array<V2_float, 4>& tex_coords
+		Color tint, float depth, const std::array<V2_float, 4>& tex_coords,
+		std::function<void()> shader_setup
 	);
 
 	impl::RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);

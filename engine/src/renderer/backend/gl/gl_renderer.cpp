@@ -496,7 +496,7 @@ bool GLRenderer::IsTextureAttachedToCurrentFramebuffer(TextureId texture) const 
 
 void GLRenderer::DrawTexture(
 	ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, Color tint,
-	float depth, const std::array<V2_float, 4>& tex_coords
+	float depth, const std::array<V2_float, 4>& tex_coords, std::function<void()> shader_setup
 ) {
 	PTGN_ASSERT(
 		!IsTextureAttachedToCurrentFramebuffer(texture),
@@ -510,8 +510,11 @@ void GLRenderer::DrawTexture(
 	p.texture	 = texture;
 	p.tex_coords = tex_coords;
 
-	auto setup = [this](auto s, auto& q) {
+	auto setup = [this, shader_setup](auto s, auto& q) {
 		gl->shaders.SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));
+		if (shader_setup) {
+			shader_setup();
+		}
 	};
 
 	DrawQuad(shader, p, setup);
@@ -519,7 +522,8 @@ void GLRenderer::DrawTexture(
 
 void GLRenderer::DrawQuad(
 	ShaderId shader, const std::array<V2_float, 4>& positions,
-	const std::array<float, 4>& user_data, Color tint, float depth
+	const std::array<float, 4>& user_data, Color tint, float depth,
+	std::function<void()> shader_setup
 ) {
 	QuadParams p;
 	p.positions	 = positions;
@@ -527,10 +531,18 @@ void GLRenderer::DrawQuad(
 	p.tint		 = tint;
 	p.tex_coords = impl::GetDefaultTextureCoordinates<false>();
 
-	DrawQuad(shader, p, [this, user_data](auto, auto& q) { q.user_data = user_data; });
+	DrawQuad(shader, p, [this, user_data, shader_setup](auto, auto& q) {
+		q.user_data = user_data;
+		if (shader_setup) {
+			shader_setup();
+		}
+	});
 }
 
-void GLRenderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetData& scene_target) {
+void GLRenderer::DrawTexture(
+	ShaderId shader, RenderPass& p, const RenderTargetData& scene_target,
+	std::function<void()> shader_setup
+) {
 	RenderTargetData input;
 
 	// Input = latest output, or source before first draw
@@ -576,14 +588,14 @@ void GLRenderer::DrawTexture(ShaderId shader, RenderPass& p, const RenderTargetD
 
 		write.Bind(*this);
 
-		DrawTexture(shader, *input.color_, points, color::White, 0.0f, tex_coords);
+		DrawTexture(shader, *input.color_, points, color::White, 0.0f, tex_coords, shader_setup);
 
 		// Update pass state
 		p.has_written_once_ = true;
 		p.latest_is_ping_	= (write.framebuffer_ == p.ping_.framebuffer_);
 	} else {
 		// Read-only draw: no mutation, no flip
-		DrawTexture(shader, *input.color_, points, color::White, 0.0f, tex_coords);
+		DrawTexture(shader, *input.color_, points, color::White, 0.0f, tex_coords, shader_setup);
 	}
 }
 
@@ -652,7 +664,7 @@ void GLRenderer::EndFrame(Viewport display_viewport) {
 	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 
 	DrawTexture(
-		quad_shader, *screen_target_.resource_.color_, points, color::White, 0.0f, tex_coords
+		quad_shader, *screen_target_.resource_.color_, points, color::White, 0.0f, tex_coords, {}
 	);
 
 	FlushBatch();

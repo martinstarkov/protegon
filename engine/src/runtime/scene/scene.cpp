@@ -283,7 +283,11 @@ void Scene::InternalDraw() {
 	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 	auto rt_tint{ GetTint(render_target_) };
 
-	draw_context.DrawTexture(render_target_, positions, rt_tint, 0.0f, tex_coords);
+	auto quad_shader{ global_renderer.GetShader("quad") };
+
+	global_renderer.DrawTexture(
+		quad_shader, render_target_, positions, rt_tint, 0.0f, tex_coords, {}
+	);
 
 	// Must be cleared after BindScreenTarget, as that flushes the batch.
 	renderer.temporary_textures_.clear();

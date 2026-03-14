@@ -102,16 +102,18 @@ void Renderer::DrawTriangle(
 
 void Renderer::DrawQuad(
 	impl::ShaderId shader, const std::array<V2_float, 4>& positions,
-	const std::array<float, 4>& user_data, Color tint, float depth
+	const std::array<float, 4>& user_data, Color tint, float depth,
+	std::function<void()> shader_setup
 ) {
-	gl_renderer_->DrawQuad(shader, positions, user_data, tint, depth);
+	gl_renderer_->DrawQuad(shader, positions, user_data, tint, depth, shader_setup);
 }
 
 void Renderer::DrawTexture(
 	impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
-	Color tint, float depth, const std::array<V2_float, 4>& tex_coords
+	Color tint, float depth, const std::array<V2_float, 4>& tex_coords,
+	std::function<void()> shader_setup
 ) {
-	gl_renderer_->DrawTexture(shader, texture, positions, tint, depth, tex_coords);
+	gl_renderer_->DrawTexture(shader, texture, positions, tint, depth, tex_coords, shader_setup);
 }
 
 void Renderer::OnEvent(EventDispatcher d) {

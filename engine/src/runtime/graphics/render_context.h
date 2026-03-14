@@ -138,8 +138,9 @@ struct DrawCommand {
 class DrawContext {
 public:
 	void DrawTexture(
-		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
-		Color tint, float depth, const std::array<V2_float, 4>& tex_coords
+		impl::ShaderId shader, impl::TextureId texture, std::array<V2_float, 4> positions,
+		Color tint, float depth, const std::array<V2_float, 4>& tex_coords,
+		std::function<void()> shader_setup = {}
 	);
 
 	void DrawTexture(
@@ -149,14 +150,15 @@ public:
 
 	void DrawQuad(const std::array<V2_float, 4>& positions, Color tint, float depth);
 	void DrawLine(
-		impl::ShaderId shader, const std::array<V2_float, 2>& positions, Color tint, float depth
+		impl::ShaderId shader, std::array<V2_float, 2> positions, Color tint, float depth
 	);
 	void DrawTriangle(
-		impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
+		impl::ShaderId shader, std::array<V2_float, 3> positions, Color tint, float depth
 	);
 	void DrawQuad(
-		impl::ShaderId shader, const std::array<V2_float, 4>& positions,
-		const std::array<float, 4>& user_data, Color tint, float depth
+		impl::ShaderId shader, std::array<V2_float, 4> positions,
+		const std::array<float, 4>& user_data, Color tint, float depth,
+		std::function<void()> shader_setup = {}
 	);
 
 	void DrawTexture(

@@ -96,13 +96,17 @@ public:
 	);
 	void DrawQuad(
 		ShaderId shader, const std::array<V2_float, 4>& positions,
-		const std::array<float, 4>& user_data, Color tint, float depth
+		const std::array<float, 4>& user_data, Color tint, float depth,
+		std::function<void()> shader_setup
 	);
 	void DrawTexture(
 		ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, Color tint,
-		float depth, const std::array<V2_float, 4>& tex_coords
+		float depth, const std::array<V2_float, 4>& tex_coords, std::function<void()> shader_setup
 	);
-	void DrawTexture(ShaderId shader, RenderPass& pass, const RenderTargetData& scene_target);
+	void DrawTexture(
+		ShaderId shader, RenderPass& pass, const RenderTargetData& scene_target,
+		std::function<void()> shader_setup
+	);
 
 	bool SetViewport(Viewport viewport);
 	bool SetViewProjection(const Matrix4& view_projection);

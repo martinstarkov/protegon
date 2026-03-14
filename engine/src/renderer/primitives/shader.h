@@ -13,6 +13,7 @@
 
 namespace ptgn {
 
+class Shader;
 class AssetManager;
 
 struct ShaderCode {
@@ -31,8 +32,6 @@ class ShaderObject : public Resource<ShaderId> {
 public:
 	using Base = Resource<ShaderId>;
 	using Base::Base;
-
-	void Bind();
 
 	void SetUniform(const char* uniform_name, V2_float v);
 	void SetUniform(const char* uniform_name, V3_float v);
@@ -55,6 +54,11 @@ public:
 	);
 	/// @brief Behaves identically to SetUniform(name, std::int32_t).
 	void SetUniform(const char* uniform_name, bool value);
+
+private:
+	friend class ptgn::Shader;
+
+	void Bind();
 };
 
 } // namespace impl
@@ -62,8 +66,6 @@ public:
 class Shader : public EntityHandle {
 public:
 	using EntityHandle::EntityHandle;
-
-	void Bind();
 
 	void SetUniform(const char* uniform_name, V2_float v);
 	void SetUniform(const char* uniform_name, V3_float v);
@@ -91,6 +93,8 @@ public:
 
 private:
 	friend class AssetManager;
+
+	void Bind();
 };
 
 } // namespace ptgn

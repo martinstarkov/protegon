@@ -6,6 +6,7 @@
 
 #include "core/assert.h"
 #include "core/log.h"
+#include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "renderer/primitives/color.h"
