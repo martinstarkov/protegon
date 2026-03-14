@@ -18,8 +18,8 @@
 
 namespace ptgn {
 
-static milliseconds GetTimeSince(impl::Timestamp timestamp) {
-	return milliseconds{ SDL_GetTicks() - timestamp };
+static nanoseconds GetTimeSince(impl::Timestamp timestamp) {
+	return nanoseconds{ SDL_GetTicksNS() - timestamp };
 }
 
 static Mouse GetMouse(const SDL_MouseButtonEvent& event) {
@@ -71,7 +71,7 @@ bool InputHandler::MouseHeld(Mouse mouse_button, milliseconds time) const {
 }
 
 milliseconds InputHandler::GetMouseHeldTime(Mouse button) const {
-	return GetTimeSince(mouse_timestamps_[std::to_underlying(button)]);
+	return duration_cast<milliseconds>(GetTimeSince(mouse_timestamps_[std::to_underlying(button)]));
 }
 
 bool InputHandler::KeyPressed(Key key) const {
@@ -91,7 +91,7 @@ bool InputHandler::KeyHeld(Key key, milliseconds time) const {
 }
 
 milliseconds InputHandler::GetKeyHeldTime(Key key) const {
-	return GetTimeSince(key_timestamps_[std::to_underlying(key)]);
+	return duration_cast<milliseconds>(GetTimeSince(key_timestamps_[std::to_underlying(key)]));
 }
 
 V2_float InputHandler::GetMouseScreenPosition() const {
@@ -115,7 +115,7 @@ void InputHandler::Update(const EventSink& sink) {
 		auto& state{ key_states_[i] };
 		if (state == Released) {
 			state			   = Idle;
-			key_timestamps_[i] = SDL_GetTicks();
+			key_timestamps_[i] = SDL_GetTicksNS();
 		} else if (state == Pressed) {
 			state = Held;
 		}
@@ -128,7 +128,7 @@ void InputHandler::Update(const EventSink& sink) {
 		auto& state{ mouse_states_[i] };
 		if (state == Released) {
 			state				 = Idle;
-			mouse_timestamps_[i] = SDL_GetTicks();
+			mouse_timestamps_[i] = SDL_GetTicksNS();
 		} else if (state == Pressed) {
 			state = Held;
 		}
@@ -180,8 +180,6 @@ void InputHandler::PollEvents(const EventSink& sink) {
 				Mouse mouse{ GetMouse(e.button) };
 				auto index{ std::to_underlying(mouse) };
 
-				// TODO: Convert SDL button to enum correctly.
-
 				mouse_timestamps_[index] = e.button.timestamp;
 				mouse_states_[index]	 = impl::MouseState::Pressed;
 
@@ -213,8 +211,12 @@ void InputHandler::PollEvents(const EventSink& sink) {
 				Key key{ GetKey(e.key) };
 				auto index{ std::to_underlying(key) };
 
-				key_timestamps_[index] = e.key.timestamp;
-				key_states_[index]	   = impl::KeyState::Pressed;
+				if (!e.key.repeat) {
+					key_timestamps_[index] = e.key.timestamp;
+					key_states_[index]	   = impl::KeyState::Pressed;
+				} else {
+					key_states_[index] = impl::KeyState::Held;
+				}
 
 				ptgn::KeyPressed pressed;
 				pressed.key = key;

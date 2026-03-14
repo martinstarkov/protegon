@@ -19,6 +19,7 @@ class SceneInput;
 
 namespace impl {
 
+/// @brief Nanoseconds.
 using Timestamp = std::uint64_t;
 
 /// @brief Number of keys stored in the SDL key states array.
