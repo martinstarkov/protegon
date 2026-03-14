@@ -571,29 +571,35 @@ void RenderContext::DrawTexture(
 }
 
 void RenderContext::DrawTexture(
-	Texture texture, Transform transform, std::optional<V2_float> size, Origin draw_origin,
-	std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
+	std::variant<Texture, std::string_view> texture, Transform transform,
+	std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
+	std::optional<BlendMode> blend_mode,
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates, std::optional<Camera> camera
 ) {
+	auto resolved_texture{ scene_->app().asset.ToTexture(texture) };
+
 	auto quad_shader{ renderer_->GetShader("quad") };
-	auto texture_size{ texture.GetSize() };
+	auto texture_size{ resolved_texture.GetSize() };
 
 	DrawTexture(
-		texture, texture_size, quad_shader, transform, size, draw_origin, tint, depth, blend_mode,
-		texture_coordinates, camera
+		resolved_texture, texture_size, quad_shader, transform, size, draw_origin, tint, depth,
+		blend_mode, texture_coordinates, camera
 	);
 }
 
 void RenderContext::DrawTexture(
-	Texture texture, Shader shader, Transform transform, std::optional<V2_float> size,
-	Origin draw_origin, std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
+	std::variant<Texture, std::string_view> texture, Shader shader, Transform transform,
+	std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
+	std::optional<BlendMode> blend_mode,
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates, std::optional<Camera> camera
 ) {
-	auto texture_size{ texture.GetSize() };
+	auto resolved_texture{ scene_->app().asset.ToTexture(texture) };
+
+	auto texture_size{ resolved_texture.GetSize() };
 
 	DrawTexture(
-		texture, texture_size, shader, transform, size, draw_origin, tint, depth, blend_mode,
-		texture_coordinates, camera
+		resolved_texture, texture_size, shader, transform, size, draw_origin, tint, depth,
+		blend_mode, texture_coordinates, camera
 	);
 }
 

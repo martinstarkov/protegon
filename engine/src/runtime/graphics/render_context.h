@@ -239,17 +239,17 @@ public:
 	RenderContext& operator=(RenderContext&&) noexcept = delete;
 
 	void DrawTexture(
-		Texture texture, Transform transform, std::optional<V2_float> size = {},
-		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
-		std::optional<BlendMode> blend_mode								  = {},
+		std::variant<Texture, std::string_view> texture, Transform transform,
+		std::optional<V2_float> size = {}, Origin draw_origin = Origin::Center,
+		std::optional<Color> tint = {}, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
 		std::optional<Camera> camera									  = {}
 	);
 
 	void DrawTexture(
-		Texture texture, Shader shader, Transform transform, std::optional<V2_float> size = {},
-		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
-		std::optional<BlendMode> blend_mode								  = {},
+		std::variant<Texture, std::string_view> texture, Shader shader, Transform transform,
+		std::optional<V2_float> size = {}, Origin draw_origin = Origin::Center,
+		std::optional<Color> tint = {}, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
 		std::optional<Camera> camera									  = {}
 	);
