@@ -17,14 +17,16 @@ using namespace ptgn;
 class CustomShaderScene : public Scene {
 public:
 	ShaderEntity shader_entity;
+	ShaderEntity shader_entity2;
 
 	void OnEnter() override {
-		app().asset.LoadShader("whirlpool", "assets/shader.glsl", "whirlpool");
+		app().asset.LoadShader("whirlpool", "assets/shader.glsl");
+		app().asset.LoadShader("ripple", ShaderPair{ "quad", "assets/ripple.glsl" });
 		app().asset.LoadTexture("noise", "assets/noise.png");
 
 		shader_entity = CreateShaderEntity(
-			*this, "whirlpool", "noise", V2_float{}, V2_float{ 200.0f },
-			[this](auto s) mutable {
+			*this, "whirlpool", "noise", V2_float{}, V2_float{ 150 },
+			[this](auto, auto s) mutable {
 				float timescale{ 1.0f };
 				float scale{ 0.5f };
 				float opacity{ 0.5f };
@@ -33,6 +35,16 @@ public:
 				s.SetUniform("u_Time", time / 1000.0f * timescale);
 				s.SetUniform("u_Scale", scale);
 				s.SetUniform("u_Opacity", opacity);
+			},
+			Origin::Center
+		);
+
+		shader_entity2 = CreateShaderEntity(
+			*this, "ripple", {}, V2_float{ 200 }, V2_float{ 300 },
+			[this](auto, auto s) mutable {
+				float timescale{ 1.0f };
+				float time{ static_cast<float>(app().TimeSinceStart().count()) };
+				s.SetUniform("u_Time", time / 1000.0f * timescale);
 			},
 			Origin::Center
 		);
