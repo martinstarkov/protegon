@@ -154,6 +154,7 @@ public:
 	[[nodiscard]] bool HasTexture(std::string_view key) const;
 	[[nodiscard]] bool HasFont(std::string_view key) const;
 
+	[[nodiscard]] Shader ToShader(std::variant<Shader, std::string_view> shader) const;
 	[[nodiscard]] Texture ToTexture(std::variant<Texture, std::string_view> texture) const;
 	[[nodiscard]] std::optional<Texture> ToTexture(
 		std::variant<std::monostate, Texture, std::string_view> texture

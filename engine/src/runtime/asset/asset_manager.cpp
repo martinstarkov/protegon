@@ -426,6 +426,28 @@ bool AssetManager::HasFont(std::string_view key) const {
 	return HasAssetImpl<std::shared_ptr<TTF_Font>>(manager_, key);
 }
 
+Shader AssetManager::ToShader(std::variant<Shader, std::string_view> shader) const {
+	return std::visit(
+		[&](const auto& arg) -> Shader {
+			using T = std::decay_t<decltype(arg)>;
+
+			if constexpr (std::is_same_v<T, Shader>) {
+				return arg;
+			} else if constexpr (std::is_same_v<T, std::string_view>) {
+				PTGN_ASSERT(
+					HasShader(arg),
+					"Shader key must be loaded in the asset manager before retrieval"
+				);
+
+				return *GetShader(arg);
+			} else {
+				PTGN_ERROR("Invalid shader variant type");
+			}
+		},
+		shader
+	);
+}
+
 std::optional<Texture> AssetManager::ToTexture(
 	std::variant<std::monostate, Texture, std::string_view> texture
 ) const {
