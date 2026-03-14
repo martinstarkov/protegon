@@ -36,6 +36,7 @@
 #ifdef CreateFont
 #undef CreateFont
 #endif
+#include <list>
 #include <type_traits>
 #include <unordered_set>
 
@@ -60,29 +61,6 @@ void AddAssetKey(ecs::Entity asset, std::string_view key, std::optional<path> pa
 
 } // namespace impl
 
-Shader AssetManager::CreateShader(
-	bool persistent, const std::variant<ShaderCode, path>& source, std::string_view shader_name
-) {
-	Shader shader{ CreateAsset(), persistent };
-	shader.entity_.Add<impl::ShaderObject>(
-		ctx_->renderer.gl_renderer_.get(),
-		ctx_->renderer.gl_renderer_->gl->shaders.CreateProgram(source, shader_name)
-	);
-	return shader;
-}
-
-Shader AssetManager::CreateShader(
-	bool persistent, const std::variant<ShaderCode, std::string>& vertex,
-	const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
-) {
-	Shader shader{ CreateAsset(), persistent };
-	shader.entity_.Add<impl::ShaderObject>(
-		ctx_->renderer.gl_renderer_.get(),
-		ctx_->renderer.gl_renderer_->gl->shaders.CreateProgram(vertex, fragment, shader_name)
-	);
-	return shader;
-}
-
 Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create texture from invalid path: ", asset_path.string()
@@ -102,12 +80,32 @@ Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
 	return texture;
 }
 
+Texture AssetManager::CreateTexture(const path& asset_path) {
+	return CreateTexture(false, asset_path);
+}
+
+Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) {
+	auto texture{ CreateTexture(true, asset_path) };
+	impl::AddAssetKey(texture.entity_, key, asset_path);
+	return texture;
+}
+
 Font AssetManager::CreateFont(bool persistent, const path& asset_path, float font_size) {
 	Font font{ CreateAsset(), persistent };
 	font.entity_.Add<impl::FontSize>(font_size);
 	auto f{ FontSystem::CreateFont(asset_path, font_size) };
 	font.entity_.Add<std::shared_ptr<TTF_Font>>(f);
 
+	return font;
+}
+
+Font AssetManager::CreateFont(const path& asset_path, float font_size) {
+	return CreateFont(false, asset_path, font_size);
+}
+
+Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float font_size) {
+	auto font{ CreateFont(true, asset_path, font_size) };
+	impl::AddAssetKey(font.entity_, key, asset_path);
 	return font;
 }
 
@@ -119,68 +117,45 @@ Audio AssetManager::CreateAudio(bool persistent, const path& asset_path) {
 	return audio;
 }
 
-Shader AssetManager::CreateShader(
-	const std::variant<ShaderCode, path>& source, std::string_view shader_name
-) {
-	return CreateShader(false, source, shader_name);
-}
-
-Shader AssetManager::CreateShader(
-	const std::variant<ShaderCode, std::string>& vertex,
-	const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
-) {
-	return CreateShader(false, vertex, fragment, shader_name);
-}
-
-Texture AssetManager::CreateTexture(const path& asset_path) {
-	return CreateTexture(false, asset_path);
-}
-
-Font AssetManager::CreateFont(const path& asset_path, float font_size) {
-	return CreateFont(false, asset_path, font_size);
-}
-
 Audio AssetManager::CreateAudio(const path& asset_path) {
 	return CreateAudio(false, asset_path);
-}
-
-json AssetManager::CreateJson(const path& asset_path) {
-	return ptgn::LoadJson(asset_path);
-}
-
-Shader AssetManager::LoadShader(
-	std::string_view key, const std::variant<ShaderCode, path>& source, std::string_view shader_name
-) {
-	auto shader{ CreateShader(true, source, shader_name) };
-	impl::AddAssetKey(shader.entity_, key, {});
-	return shader;
-}
-
-Shader AssetManager::LoadShader(
-	std::string_view key, const std::variant<ShaderCode, std::string>& vertex,
-	const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
-) {
-	auto shader{ CreateShader(true, vertex, fragment, shader_name) };
-	impl::AddAssetKey(shader.entity_, key, {});
-	return shader;
-}
-
-Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) {
-	auto texture{ CreateTexture(true, asset_path) };
-	impl::AddAssetKey(texture.entity_, key, asset_path);
-	return texture;
-}
-
-Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float font_size) {
-	auto font{ CreateFont(true, asset_path, font_size) };
-	impl::AddAssetKey(font.entity_, key, asset_path);
-	return font;
 }
 
 Audio AssetManager::LoadAudio(std::string_view key, const path& asset_path) {
 	auto audio{ CreateAudio(true, asset_path) };
 	impl::AddAssetKey(audio.entity_, key, asset_path);
 	return audio;
+}
+
+Shader AssetManager::CreateShader(
+	bool persistent, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
+	std::string_view shader_name
+) {
+	Shader shader{ CreateAsset(), persistent };
+	shader.entity_.Add<impl::ShaderObject>(
+		ctx_->renderer.gl_renderer_.get(),
+		ctx_->renderer.gl_renderer_->gl->shaders.CreateProgram(source, shader_name)
+	);
+	return shader;
+}
+
+Shader AssetManager::CreateShader(
+	const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
+) {
+	return CreateShader(false, source, shader_name);
+}
+
+Shader AssetManager::LoadShader(
+	std::string_view key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
+	std::optional<std::string_view> shader_name
+) {
+	auto shader{ CreateShader(true, source, shader_name.value_or(key)) };
+	impl::AddAssetKey(shader.entity_, key, {});
+	return shader;
+}
+
+json AssetManager::CreateJson(const path& asset_path) {
+	return ptgn::LoadJson(asset_path);
 }
 
 json& AssetManager::LoadJson(std::string_view key, const path& asset_path) {
@@ -243,7 +218,7 @@ void AssetManager::LoadMany(const path& asset_manifest_file) {
 
 	std::unordered_set<std::size_t> taken_asset_keys;
 
-	for (const auto& [key, asset_path] : assets.items()) {
+	for (const auto& [key, asset_variant] : assets.items()) {
 		auto key_hash{ Hash(key) };
 
 		PTGN_ASSERT(
@@ -253,21 +228,46 @@ void AssetManager::LoadMany(const path& asset_manifest_file) {
 
 		taken_asset_keys.insert(key_hash);
 
+		if (asset_variant.is_array()) {
+			PTGN_ASSERT(
+				asset_variant.size() == 2, "Shader asset array must have exactly two elements"
+			);
+			PTGN_ASSERT(
+				asset_variant[0].is_string() && asset_variant[1].is_string(),
+				"Shader asset array elements must both be strings"
+			);
+			ShaderPair shader_pair{ asset_variant[0].get<std::string>(),
+									asset_variant[1].get<std::string>() };
+			Load(key, shader_pair);
+			continue;
+		}
+
 		PTGN_ASSERT(
-			asset_path.is_string(),
-			"Expected string, but got something else for asset path: ", asset_path.dump(4)
+			asset_variant.is_string(),
+			"Expected string, but got something else for asset path: ", asset_variant.dump(4)
 		);
 
-		path filepath{ asset_path.get<std::string>() };
+		path filepath{ asset_variant.get<std::string>() };
 
 		Load(key, filepath);
 	}
 }
 
-void AssetManager::LoadMany(const std::vector<std::pair<std::string, path>>& asset_keys_and_paths) {
-	for (const auto& [asset_key, asset_path] : asset_keys_and_paths) {
-		Load(asset_key, asset_path);
+void AssetManager::LoadMany(
+	const std::vector<std::pair<std::string, std::variant<path, ShaderCode, ShaderPair>>>&
+		asset_keys_and_paths
+) {
+	for (const auto& [asset_key, asset_variant] : asset_keys_and_paths) {
+		std::visit([this, &asset_key](const auto& v) { Load(asset_key, v); }, asset_variant);
 	}
+}
+
+void AssetManager::Load(std::string_view key, const ShaderCode& shader_code) {
+	LoadShader(key, shader_code, std::nullopt);
+}
+
+void AssetManager::Load(std::string_view key, const ShaderPair& shader_pair) {
+	LoadShader(key, shader_pair, std::nullopt);
 }
 
 void AssetManager::Load(std::string_view key, const path& asset_path) {
@@ -288,7 +288,15 @@ void AssetManager::Load(std::string_view key, const path& asset_path) {
 	} else if (ext == ".json") {
 		LoadJson(key, asset_path);
 	} else if (ext == ".glsl") {
-		LoadShader(key, asset_path, key);
+		if (auto shader_content{ FileToString(asset_path) };
+			!HasVertexAndFragmentShader(shader_content)) {
+			// Skip shader files that don't contain both vertex and fragment shader code since they
+			// can't be loaded as standalone shader assets. This allows for load directory to be
+			// used on directories containing shader files that are meant to be used as part of
+			// shader pairs without causing errors.
+			return;
+		}
+		LoadShader(key, asset_path, std::nullopt);
 	} else {
 		PTGN_ERROR(
 			"Attempting to load unsupported file extension from asset file: ", asset_path.string()
@@ -428,9 +436,7 @@ bool AssetManager::HasFont(std::string_view key) const {
 
 Shader AssetManager::ToShader(std::variant<Shader, std::string_view> shader) const {
 	return std::visit(
-		[&](const auto& arg) -> Shader {
-			using T = std::decay_t<decltype(arg)>;
-
+		[&]<typename T>(const T& arg) -> Shader {
 			if constexpr (std::is_same_v<T, Shader>) {
 				return arg;
 			} else if constexpr (std::is_same_v<T, std::string_view>) {
@@ -452,9 +458,7 @@ std::optional<Texture> AssetManager::ToTexture(
 	std::variant<std::monostate, Texture, std::string_view> texture
 ) const {
 	return std::visit(
-		[&](const auto& arg) -> std::optional<Texture> {
-			using T = std::decay_t<decltype(arg)>;
-
+		[&]<typename T>(const T& arg) -> std::optional<Texture> {
 			if constexpr (std::is_same_v<T, std::monostate>) {
 				return std::nullopt;
 			} else if constexpr (std::is_same_v<T, Texture>) {
@@ -475,9 +479,7 @@ std::optional<Texture> AssetManager::ToTexture(
 
 Texture AssetManager::ToTexture(std::variant<Texture, std::string_view> texture) const {
 	return std::visit(
-		[&](const auto& arg) -> Texture {
-			using T = std::decay_t<decltype(arg)>;
-
+		[&]<typename T>(const T& arg) -> Texture {
 			if constexpr (std::is_same_v<T, Texture>) {
 				return arg;
 			} else if constexpr (std::is_same_v<T, std::string_view>) {
@@ -498,9 +500,7 @@ Texture AssetManager::ToTexture(std::variant<Texture, std::string_view> texture)
 std::optional<Font> AssetManager::ToFont(std::variant<std::monostate, Font, std::string_view> font
 ) const {
 	return std::visit(
-		[&](const auto& arg) -> std::optional<Font> {
-			using T = std::decay_t<decltype(arg)>;
-
+		[&]<typename T>(const T& arg) -> std::optional<Font> {
 			if constexpr (std::is_same_v<T, std::monostate>) {
 				// Default engine font
 				return std::nullopt;

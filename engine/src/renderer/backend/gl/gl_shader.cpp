@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -34,7 +35,7 @@ namespace ptgn::impl::gl {
 
 using Header = std::string;
 
-static void DeleteShaderId(ShaderId id, ShaderType type) {
+static void DeleteShaderId(ShaderId id, [[maybe_unused]] ShaderType type) {
 	GLCall(DeleteShader(id));
 #ifdef PTGN_GL_DEBUG_SHADERS
 	PTGN_LOG("glDeleteShader(type=", type, ",id=", id, ")");
@@ -721,74 +722,84 @@ ShaderId Shaders::GetShaderId(std::string_view shader_name, ShaderType type) con
 	}
 }
 
-std::pair<ShaderId, bool> Shaders::GetShaderIdWithDeleteFlag(
-	const std::variant<ShaderCode, std::string>& variant, ShaderType type,
+ShaderInfo Shaders::GetShaderInfo(
+	const ShaderCode& code, ShaderType type, std::string_view shader_name
+) const {
+	return { CompileShaderSource(code.content, type, shader_name), true };
+}
+
+ShaderInfo Shaders::GetShaderInfo(
+	const ShaderPathOrName& path_or_name, ShaderType type, std::string_view shader_name
+) const {
+	if (IsFilePath(path_or_name)) {
+		PTGN_ASSERT(
+			FileExists(path_or_name),
+			"Cannot create shader from non-existent file path: ", path_or_name
+		);
+		return { CompileShaderPath(path_or_name, type, shader_name), true };
+	}
+
+	PTGN_ASSERT(
+		!IsDirectoryPath(path_or_name), "Cannot create shader from directory path: ", path_or_name
+	);
+
+	if (ShaderExists(path_or_name, type)) {
+		return { GetShaderId(path_or_name, type), false };
+	}
+
+	PTGN_ERROR(path_or_name, " is not a valid shader path or loaded ", type, " shader name");
+}
+
+ShaderInfo Shaders::GetShaderInfo(
+	const std::variant<ShaderCode, ShaderPathOrName>& variant, ShaderType type,
 	std::string_view shader_name
 ) const {
-	if (std::holds_alternative<std::string>(variant)) {
-		const auto& name{ std::get<std::string>(variant) };
-		path file{ name };
-		if (FileExists(file)) {
-			return { CompileShaderPath(file, type, shader_name), true };
-		} else if (ShaderExists(shader_name, type)) {
-			return { GetShaderId(shader_name, type), false };
-		} else {
-			PTGN_ERROR(name, " is not a valid shader path or loaded ", type, " shader name");
-		}
-	} else if (std::holds_alternative<ShaderCode>(variant)) {
-		const auto& src{ std::get<ShaderCode>(variant) };
-		return { CompileShaderSource(src.content, type, shader_name), true };
-	} else {
-		PTGN_ERROR("Unknown variant type");
-	}
+	return std::visit(
+		[this, type, shader_name](const auto& arg) -> ShaderInfo {
+			return GetShaderInfo(arg, type, shader_name);
+		},
+		variant
+	);
 }
 
-ShaderId Shaders::CreateProgram(
-	const std::variant<ShaderCode, ShaderName>& vertex,
-	const std::variant<ShaderCode, ShaderName>& fragment, std::string_view shader_name
-) {
-	using enum ShaderType;
+ProgramInfo Shaders::GetProgramInfo(const ShaderPair& shader_pair, std::string_view program_name)
+	const {
+	auto vertex{ GetShaderInfo(shader_pair.vertex, ShaderType::Vertex, program_name) };
+	auto fragment{ GetShaderInfo(shader_pair.fragment, ShaderType::Fragment, program_name) };
 
-	auto program{ CreateProgram(shader_name) };
-
-	auto [vertex_id, delete_vert_after] = GetShaderIdWithDeleteFlag(vertex, Vertex, shader_name);
-	auto [fragment_id, delete_frag_after] =
-		GetShaderIdWithDeleteFlag(fragment, Fragment, shader_name);
-
-	LinkProgram(program, vertex_id, fragment_id);
-
-	if (delete_vert_after && vertex_id) {
-		DeleteShaderId(vertex_id, Vertex);
-	}
-
-	if (delete_frag_after && fragment_id) {
-		DeleteShaderId(fragment_id, Fragment);
-	}
-
-	return program;
+	return { vertex, fragment };
 }
 
-ShaderId Shaders::CreateProgram(
-	const std::variant<ShaderCode, path>& source, std::string_view program_name
-) {
-	auto program{ CreateProgram(program_name) };
-
-	std::string source_string;
-
-	if (std::holds_alternative<path>(source)) {
-		const auto& p{ std::get<path>(source) };
-		source_string = FileToString(p);
-	} else if (std::holds_alternative<ShaderCode>(source)) {
-		const auto& src{ std::get<ShaderCode>(source) };
-		source_string = src.content;
-	} else {
-		PTGN_ERROR("Unknown variant type");
-	}
+ProgramInfo Shaders::GetProgramInfo(
+	const std::variant<ShaderCode, ShaderPath>& code_or_path, std::string_view program_name
+) const {
+	auto [source_string, delete_after] = std::visit(
+		[program_name]<typename T>(const T& arg) -> std::pair<std::string, bool> {
+			if constexpr (std::is_same_v<T, ShaderPath>) {
+				auto source{ FileToString(arg.path) };
+				PTGN_ASSERT(
+					HasVertexAndFragmentShader(source), "Shader program '", program_name,
+					"' loaded from file must provide a vertex and fragment type: ", arg.path
+				);
+				return { source, arg.delete_after };
+			} else if constexpr (std::is_same_v<T, ShaderCode>) {
+				PTGN_ASSERT(
+					HasVertexAndFragmentShader(arg.content), "Shader program '", program_name,
+					"' loaded from code must provide a vertex and fragment type: ", arg.content
+				);
+				return { arg.content, arg.delete_after };
+			} else {
+				PTGN_ERROR("Invalid shader program code or path variant");
+			}
+		},
+		code_or_path
+	);
 
 	auto srcs{ ParseShaderSourceFile(source_string, program_name) };
 
 	PTGN_ASSERT(
-		srcs.size() == 2, "ShaderId file must provide a vertex and fragment type: ", program_name
+		srcs.size() == 2,
+		"Shader program file must provide a vertex and fragment type: ", program_name
 	);
 
 	const auto& first{ srcs[0] };
@@ -810,14 +821,40 @@ ShaderId Shaders::CreateProgram(
 	auto vertex_id{ CompileShader(ShaderType::Vertex, vertex_source) };
 	auto fragment_id{ CompileShader(ShaderType::Fragment, fragment_source) };
 
-	LinkProgram(program, vertex_id, fragment_id);
+	return ProgramInfo{ .vertex	  = { vertex_id, delete_after },
+						.fragment = { fragment_id, delete_after } };
+}
 
-	if (vertex_id) {
-		DeleteShaderId(vertex_id, ShaderType::Vertex);
+ProgramInfo Shaders::GetProgramInfo(
+	const std::variant<ShaderCode, ShaderPath, ShaderPair>& variant, std::string_view program_name
+) const {
+	return std::visit(
+		[this, program_name]<typename T>(const T& arg) -> ProgramInfo {
+			if constexpr (std::is_same_v<T, ShaderPair>) {
+				return GetProgramInfo(arg, program_name);
+			} else {
+				return GetProgramInfo(std::variant<ShaderCode, ShaderPath>{ arg }, program_name);
+			}
+		},
+		variant
+	);
+}
+
+ShaderId Shaders::CreateProgram(
+	const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view program_name
+) {
+	auto program{ CreateProgram(program_name) };
+
+	auto info{ GetProgramInfo(source, program_name) };
+
+	LinkProgram(program, info.vertex.id, info.fragment.id);
+
+	if (info.vertex.delete_after && info.vertex.id) {
+		DeleteShaderId(info.vertex.id, ShaderType::Vertex);
 	}
 
-	if (fragment_id) {
-		DeleteShaderId(fragment_id, ShaderType::Fragment);
+	if (info.fragment.delete_after && info.fragment.id) {
+		DeleteShaderId(info.fragment.id, ShaderType::Fragment);
 	}
 
 	return program;

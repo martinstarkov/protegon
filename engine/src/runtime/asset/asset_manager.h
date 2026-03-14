@@ -62,9 +62,6 @@ public:
 	AssetManager(AssetManager&&) noexcept			 = delete;
 	AssetManager& operator=(AssetManager&&) noexcept = delete;
 
-	// TODO: Add separate shader loading support to LoadMany (.VERT + .FRAG) or (existing_key +
-	// .FRAG)
-
 	/// @brief Loads all supported asset files from a directory.
 	/// @param directory The directory to scan.
 	/// @param recursive If true, scans subdirectories recursively. If false only scans the provided
@@ -75,6 +72,9 @@ public:
 	///
 	/// {
 	///    "asset_key": "path/to/asset/file.extension",
+	///    "shader_key1": "path/to/shader.glsl",
+	///    "shader_key2": ["vertex_shader_name", "path/to/fragment_shader.glsl"],
+	///    "shader_key3": ["path/to/vertex_shader.glsl", "fragment_shader_name"],
 	///    ...
 	/// }
 	///
@@ -87,43 +87,47 @@ public:
 	/// Font: .TTF, .OTF
 	///
 	/// JSON: .JSON
+	///
+	/// Shader: .GLSL or array of [vertex shader path or name, fragment shader path or name]. Name
+	/// is used to reference an already loaded shader, while path is used to load a new shader.
+	///
 	/// @param asset_manifest_file The path to the asset json manifest file.
 	void LoadMany(const path& asset_manifest_file);
 
 	/// @brief Loads multiple assets from the specified file paths.
 	/// @param asset_keys_and_paths A vector of key-path pairs where each pair contains an asset
 	/// identifier string and its corresponding file path.
-	void LoadMany(const std::vector<std::pair<std::string, path>>& asset_keys_and_paths);
+	void LoadMany(
+		const std::vector<std::pair<std::string, std::variant<path, ShaderCode, ShaderPair>>>&
+			asset_keys_and_paths
+	);
 
 	/// @brief Loads a supported asset type (based on extension) from the specified file path and
 	/// associates it with a key.
 	/// @param key The unique identifier used to reference the loaded asset.
 	/// @param asset_path The file system path to the asset to be loaded.
 	void Load(std::string_view key, const path& asset_path);
+	void Load(std::string_view key, const ShaderCode& shader_code);
+	void Load(std::string_view key, const ShaderPair& shader_pair);
 
 	Audio CreateAudio(const path& audio_path);
 	Audio LoadAudio(std::string_view key, const path& audio_path);
 
 	/// @brief Note: Do not brace initialize JSON objects.
 	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
-	json CreateJson(const path& json_path);
+	[[nodiscard]] static json CreateJson(const path& json_path);
 
 	/// @brief Note: Do not brace initialize JSON objects.
 	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 	json& LoadJson(std::string_view key, const path& json_path);
 
-	Shader CreateShader(const std::variant<ShaderCode, path>& source, std::string_view shader_name);
-	Shader LoadShader(
-		std::string_view key, const std::variant<ShaderCode, path>& source,
-		std::string_view shader_name
-	);
 	Shader CreateShader(
-		const std::variant<ShaderCode, std::string>& vertex,
-		const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
+		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 	);
+
 	Shader LoadShader(
-		std::string_view key, const std::variant<ShaderCode, std::string>& vertex,
-		const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
+		std::string_view key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
+		std::optional<std::string_view> shader_name = {}
 	);
 
 	Texture CreateTexture(const path& texture_path);
@@ -178,12 +182,10 @@ private:
 	std::optional<Font> GetFont(std::size_t key) const;
 
 	Shader CreateShader(
-		bool persistent, const std::variant<ShaderCode, path>& source, std::string_view shader_name
+		bool persistent, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
+		std::string_view shader_name
 	);
-	Shader CreateShader(
-		bool persistent, const std::variant<ShaderCode, std::string>& vertex,
-		const std::variant<ShaderCode, std::string>& fragment, std::string_view shader_name
-	);
+
 	Texture CreateTexture(bool persistent, const path& asset_path);
 
 	std::optional<impl::TextureObject> CreateTextTextureObject(

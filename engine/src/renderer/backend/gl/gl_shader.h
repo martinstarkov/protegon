@@ -51,6 +51,16 @@ struct ShaderSpec {
 	ShaderOptions options;
 };
 
+struct ShaderInfo {
+	ShaderId id;
+	bool delete_after{ false };
+};
+
+struct ProgramInfo {
+	ShaderInfo vertex;
+	ShaderInfo fragment;
+};
+
 struct ProgramCache {
 	std::string program_name;
 	bool batchable{ false };
@@ -64,12 +74,8 @@ public:
 	ShaderId CreateProgram(ShaderId vertex, ShaderId fragment, std::string_view program_name);
 
 	ShaderId CreateProgram(
-		const std::variant<ShaderCode, ShaderName>& vertex,
-		const std::variant<ShaderCode, ShaderName>& fragment, std::string_view program_name
-	);
-
-	ShaderId CreateProgram(
-		const std::variant<ShaderCode, path>& source, std::string_view program_name
+		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
+		std::string_view program_name
 	);
 
 	void SetUniform(ShaderId id, const char* uniform_name, V2_float v);
@@ -136,9 +142,31 @@ private:
 
 	ShaderId GetShaderId(std::string_view shader_name, ShaderType type) const;
 
-	std::pair<ShaderId, bool> GetShaderIdWithDeleteFlag(
-		const std::variant<ShaderCode, std::string>& variant, ShaderType type,
+	ProgramInfo GetProgramInfo(
+		const std::variant<ShaderCode, ShaderPath>& code_or_path, std::string_view program_name
+	) const;
+
+	ProgramInfo GetProgramInfo(const ShaderPair& shader_pair, std::string_view program_name) const;
+
+	/// @param program_name Given to the newly compiled shader. Unused if the variant used an
+	/// existing shader name.
+	ProgramInfo GetProgramInfo(
+		const std::variant<ShaderCode, ShaderPath, ShaderPair>& variant,
+		std::string_view program_name
+	) const;
+
+	/// @param shader_name Given to the newly compiled shader. Unused if the variant used an
+	/// existing shader name.
+	ShaderInfo GetShaderInfo(
+		const std::variant<ShaderCode, ShaderPathOrName>& variant, ShaderType type,
 		std::string_view shader_name
+	) const;
+
+	ShaderInfo GetShaderInfo(const ShaderCode& code, ShaderType type, std::string_view shader_name)
+		const;
+
+	ShaderInfo GetShaderInfo(
+		const ShaderPathOrName& path_or_name, ShaderType type, std::string_view shader_name
 	) const;
 
 	[[nodiscard]] ShaderId CompileShader(ShaderType type, const std::string& source) const;
