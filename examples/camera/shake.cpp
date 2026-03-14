@@ -56,7 +56,7 @@ public:
 
 		auto shader_entity = CreateShaderEntity(
 			*this, "whirlpool", "noise", V2_float{}, V2_float{ 200.0f },
-			[this](auto s) mutable {
+			[this](auto, auto s) mutable {
 				float timescale{ 1.0f };
 				float scale{ 0.5f };
 				float opacity{ 0.5f };

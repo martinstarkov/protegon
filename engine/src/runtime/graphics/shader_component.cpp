@@ -47,10 +47,22 @@ void ShaderEntity::Draw(DrawContext& renderer, Entity entity, Camera) {
 	}
 }
 
+void SetShaderSetup(ShaderEntity entity, const std::function<void(Entity, Shader)>& shader_setup) {
+	PTGN_ASSERT(entity.Has<impl::ShaderData>(), "Shader entity must have shader data component");
+	auto& shader_data{ entity.Get<impl::ShaderData>() };
+	if (shader_setup) {
+		shader_data.shader_setup = [shader_setup, s = shader_data.shader, entity]() mutable {
+			shader_setup(entity, s);
+		};
+	} else {
+		shader_data.shader_setup = {};
+	}
+}
+
 ShaderEntity CreateShaderEntity(
 	Scene& scene, std::variant<Shader, std::string_view> shader,
 	std::variant<std::monostate, Texture, std::string_view> texture, V2_float position,
-	V2_float size, const std::function<void(Shader)>& shader_setup, Origin draw_origin
+	V2_float size, const std::function<void(Entity, Shader)>& shader_setup, Origin draw_origin
 ) {
 	ShaderEntity shader_entity{ scene.CreateEntity() };
 
@@ -62,14 +74,9 @@ ShaderEntity CreateShaderEntity(
 	}
 
 	auto& shader_data{ shader_entity.Add<impl::ShaderData>() };
-
 	shader_data.shader = resolved_shader;
 
-	if (shader_setup) {
-		shader_data.shader_setup = [shader_setup, s = shader_data.shader]() mutable {
-			shader_setup(s);
-		};
-	}
+	SetShaderSetup(shader_entity, shader_setup);
 
 	SetDraw<ShaderEntity>(shader_entity);
 

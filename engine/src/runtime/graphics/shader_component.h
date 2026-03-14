@@ -34,10 +34,12 @@ public:
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 };
 
+void SetShaderSetup(ShaderEntity entity, const std::function<void(Entity, Shader)>& shader_setup);
+
 ShaderEntity CreateShaderEntity(
 	Scene& scene, std::variant<Shader, std::string_view> shader,
 	std::variant<std::monostate, Texture, std::string_view> texture, V2_float position,
-	V2_float size, const std::function<void(Shader)>& shader_setup = {},
+	V2_float size, const std::function<void(Entity, Shader)>& shader_setup = {},
 	Origin draw_origin = Origin::Center
 );
 
