@@ -39,7 +39,9 @@ struct GraphicsScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		MoveWASD(graphics, V2_float{ 300.0f * app().DeltaTime().count() });
+		constexpr V2_float speed{ 300.0f };
+		float dt{ app().DeltaTime().count() };
+		MoveWASD(graphics, speed * dt);
 	}
 };
 

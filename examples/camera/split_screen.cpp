@@ -109,9 +109,9 @@ struct ResolutionScene : public Scene {
 	const float zoom_speed{ 0.4f };
 
 	void OnUpdate() override {
-		MoveWASD(camera, { 3.0f, 3.0f });
-
+		constexpr V2_float speed{ 300.0f, 300.0f };
 		float dt{ app().DeltaTime().count() };
+		MoveWASD(camera, speed * dt);
 
 		if (input.KeyHeld(Key::Q)) {
 			Rotate(camera, rotation_speed * dt);
@@ -127,7 +127,7 @@ struct ResolutionScene : public Scene {
 		}
 
 		RenderTarget scene_target{ GetRenderTarget() };
-		MoveArrowKeys(GetRenderTarget(), { 3.0f, 3.0f });
+		MoveArrowKeys(GetRenderTarget(), speed * dt);
 
 		if (input.KeyHeld(Key::R)) {
 			Rotate(scene_target, rotation_speed * dt);

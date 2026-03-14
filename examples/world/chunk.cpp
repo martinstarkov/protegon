@@ -75,14 +75,17 @@ public:
 	}
 
 	void OnUpdate() override {
-		MoveWASD(*this, vel, speed, true);
-		Translate(sheep, vel * app().DeltaTime().count());
+		float dt{ app().DeltaTime().count() };
+
+		MoveWASD(*this, vel, speed * dt, true);
+
+		Translate(sheep, vel * dt);
 
 		if (input.KeyHeld(Key::Q)) {
-			camera.Zoom(-zoom_speed * app().DeltaTime().count());
+			camera.Zoom(-zoom_speed * dt);
 		}
 		if (input.KeyHeld(Key::E)) {
-			camera.Zoom(zoom_speed * app().DeltaTime().count());
+			camera.Zoom(zoom_speed * dt);
 		}
 
 		chunk_manager.Update(*this, camera);

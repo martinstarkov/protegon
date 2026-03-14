@@ -338,13 +338,13 @@ public:
 			StartFollow(camera, mouse, follow_config);
 		}
 
-		app().renderer.DrawText(
-			content, center - 0 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size, {},
-			{}, {}, {}, false
+		renderer.DrawText(
+			content, center - 0 * V2_float{ 0.0f, font_size }, color, font_size, {}, {},
+			Origin::Center, {}, false
 		);
-		app().renderer.DrawText(
-			content, center + 1 * V2_float{ 0.0f, font_size }, color, Origin::Center, font_size, {},
-			{}, {}, {}, true
+		renderer.DrawText(
+			content, center + 1 * V2_float{ 0.0f, font_size }, color, font_size, {}, {},
+			Origin::Center, {}, true
 		);
 	}
 };

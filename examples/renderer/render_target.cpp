@@ -98,8 +98,10 @@ struct RenderTargetScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		MoveArrowKeys(camera1, V2_float{ 3.0f });
-		MoveWASD(camera2, V2_float{ 3.0f });
+		float dt{ app().DeltaTime().count() };
+		constexpr V2_float speed{ 300.0f };
+		MoveArrowKeys(camera1, speed * dt);
+		MoveWASD(camera2, speed * dt);
 	}
 };
 

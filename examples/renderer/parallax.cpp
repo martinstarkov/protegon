@@ -54,7 +54,8 @@ public:
 	}
 
 	void OnUpdate() override {
-		float speed = 10.0f * app().DeltaTime().count();
+		float dt{ app().DeltaTime().count() };
+		float speed = 10.0f * dt;
 
 		V2_float velocity;
 
@@ -90,10 +91,12 @@ public:
 		);
 		Translate(camera, star_cam);
 		renderer.DrawTexture(
-			"planet_b", planet_b_pos, game.texture.GetSize("planet_b") * scale, Origin::Center
+			"planet_b", planet_b_pos, app().asset.GetTexture("planet_b")->GetSize() * scale,
+			Origin::Center
 		);
 		renderer.DrawTexture(
-			"planet_s", planet_s_pos, game.texture.GetSize("planet_s") * scale, Origin::Center
+			"planet_s", planet_s_pos, app().asset.GetTexture("planet_s")->GetSize() * scale,
+			Origin::Center
 		);
 		Translate(camera, foreground_cam);
 	}

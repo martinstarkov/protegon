@@ -64,8 +64,10 @@ struct PhysicsBoundaryScene : public Scene {
 	}
 
 	void OnUpdate() override {
+		constexpr V2_float speed{ 100.0f };
 		V2_float pos{ GetPosition(player) };
-		MoveWASD(*this, pos, V2_float{ 100.0f } * app().DeltaTime().count(), false);
+		float dt{ app().DeltaTime().count() };
+		MoveWASD(*this, pos, speed * dt, false);
 		SetPosition(player, pos);
 
 		if (input.KeyPressed(Key::Q)) {

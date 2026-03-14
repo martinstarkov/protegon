@@ -77,9 +77,10 @@ public:
 	}
 
 	void OnUpdate() override {
-		constexpr V2_float speed{ 3.0f, 3.0f };
+		constexpr V2_float speed{ 300.0f };
 		V2_float pos{ GetPosition(player) };
-		MoveWASD(*this, pos, speed, false);
+		float dt{ app().DeltaTime().count() };
+		MoveWASD(*this, pos, speed * dt, false);
 		SetPosition(player, pos);
 	}
 };

@@ -12,7 +12,7 @@ constexpr V2_int game_size{ 800, 800 };
 class Scene3 : public Scene {
 public:
 	void OnUpdate() final {
-		app().renderer.DrawTexture("bg3", -game_size * 0.5f, game_size * 0.5f, Origin::TopLeft);
+		renderer.DrawTexture("bg3", -game_size * 0.5f, game_size * 0.5f, Origin::TopLeft);
 		if (input.KeyPressed(Key::N)) {
 			app().scene.Transition(
 				"scene3", "scene1", FadeInTransition{ milliseconds{ 3000 } },
@@ -35,7 +35,7 @@ public:
 	}
 
 	void OnUpdate() final {
-		app().renderer.DrawTexture("bg2", {}, game_size * 0.5f, Origin::TopLeft);
+		renderer.DrawTexture("bg2", {}, game_size * 0.5f, Origin::TopLeft);
 		if (input.KeyPressed(Key::A)) {
 			// app().scene.Enter("scene2");
 			app().scene.Enter<Scene2>("scene2", ++i);
@@ -56,7 +56,7 @@ class Scene1 : public Scene {
 public:
 	void OnUpdate() final {
 		// SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		app().renderer.DrawTexture(
+		renderer.DrawTexture(
 			"bg1", V2_float{ 0.0f, -game_size.y * 0.5f }, game_size * 0.5f, Origin::TopLeft
 		);
 

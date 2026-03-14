@@ -14,7 +14,7 @@ class Scene3 : public Scene {
 public:
 	void OnUpdate() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		app().renderer.DrawTexture("bg3", {}, game_size, Origin::Center);
+		renderer.DrawTexture("bg3", {}, game_size, Origin::Center);
 	}
 };
 
@@ -32,7 +32,7 @@ public:
 
 	void OnUpdate() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		app().renderer.DrawTexture("bg2", {}, game_size, Origin::Center);
+		renderer.DrawTexture("bg2", {}, game_size, Origin::Center);
 		if (input.KeyPressed(Key::A)) {
 			// app().scene.Enter("scene2");
 			app().scene.Enter<Scene2>("scene2", ++i);
@@ -47,7 +47,7 @@ class Scene1 : public Scene {
 public:
 	void OnUpdate() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		app().renderer.DrawTexture("bg1", {}, game_size, Origin::Center);
+		renderer.DrawTexture("bg1", {}, game_size, Origin::Center);
 	}
 };
 

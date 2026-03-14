@@ -20,12 +20,11 @@ class PlayerController : public Script {
 public:
 	V2_float vel;
 
-	// TODO: Fix update script not being called.
-	void OnUpdate() {
-		MoveWASD(
-			entity.GetScene(), vel, V2_float{ 10.0f } * entity.GetScene().app().DeltaTime().count(),
-			true
-		);
+	static constexpr V2_float speed{ 10.0f };
+
+	void OnUpdate() override {
+		float dt{ entity.GetScene().app().DeltaTime().count() };
+		MoveWASD(entity.GetScene(), vel, speed * dt, true);
 		Translate(entity, vel);
 	}
 };

@@ -79,8 +79,10 @@ struct BroadphaseScene : public Scene {
 	}
 
 	void OnUpdate() override {
+		constexpr V2_float speed{ 200.0f };
+		float dt{ app().DeltaTime().count() };
 		V2_float pos{ GetPosition(player) };
-		MoveWASD(*this, pos, V2_float{ 100.0f } * app().DeltaTime().count(), false);
+		MoveWASD(*this, pos, speed * dt, false);
 		SetPosition(player, pos);
 
 		for (auto [e, tint] : EntitiesWith<impl::Tint>()) {

@@ -237,9 +237,9 @@ struct InteractiveScene : public Scene {
 			PTGN_LOG("Top only input: ", desired);
 		}
 
-		MoveWASD(camera, { 3.0f, 3.0f });
-
+		constexpr V2_float speed{ 300.0f };
 		float dt{ app().DeltaTime().count() };
+		MoveWASD(camera, speed * dt);
 
 		if (input.KeyHeld(Key::Q)) {
 			Rotate(camera, rotation_speed * dt);

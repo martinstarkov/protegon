@@ -118,7 +118,10 @@ public:
 			thresholding = !thresholding;
 		}
 
-		MoveWASD(camera, V2_float{ 200.0f * app().DeltaTime().count() });
+		constexpr V2_float speed{ 200.0f };
+		float dt{ app().DeltaTime().count() };
+
+		MoveWASD(camera, speed * dt);
 
 		// Clamp fractal noise parameters.
 

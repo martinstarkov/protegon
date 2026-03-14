@@ -102,7 +102,7 @@ public:
 		app().renderer.EnableStencilMask();
 
 		const auto add_to_stencil_mask = [entity](const auto& shape, const Transform& transform) {
-			app().renderer.DrawShape(
+			renderer.DrawShape(
 				transform, shape, color::Black, -1.0f, Origin::Center, GetDepth(entity) + 1,
 				BlendMode::ReplaceAlpha, entity.GetOrDefault<Camera>(),
 				entity.GetOrDefault<PostFX>()
@@ -133,9 +133,9 @@ public:
 			}
 		}
 
-		app().renderer.DrawOutsideStencilMask();
+		renderer.DrawOutsideStencilMask();
 
-		app().renderer.DrawShape(
+		renderer.DrawShape(
 			{}, Rect{ app().renderer.GetDisplaySize() }, color::Black.WithAlpha(0.5f), -1.0f,
 			Origin::Center, {}, BlendMode::Blend, {}, {}, "color"
 		);
