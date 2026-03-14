@@ -28,6 +28,7 @@ struct ShaderData {
 
 class ShaderEntity : public Entity {
 public:
+	ShaderEntity() = default;
 	explicit ShaderEntity(Entity entity);
 
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
