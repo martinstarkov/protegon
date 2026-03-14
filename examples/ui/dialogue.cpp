@@ -62,7 +62,7 @@ struct DialogueScene : public Scene {
 			if (input.KeyPressed(Key::E)) {
 				dialogue->SetDialogue("epilogue");
 			}
-			// dialogue->DrawInfo(*this, -app().renderer.GetGameSize() * 0.5f);
+			dialogue->DrawInfo(*this, -app().renderer.GetGameSize() * 0.5f);
 		}
 		if (input.KeyPressed(Key::A)) {
 			npc.Add<DialogueComponent>(
