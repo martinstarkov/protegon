@@ -17,9 +17,9 @@ V2_float Ellipse::GetRadius() const {
 }
 
 V2_float Ellipse::GetRadius(Transform transform) const {
-	auto radius{ GetRadius() };
+	auto ellipse_radius{ GetRadius() };
 	auto scale{ transform.GetScale() };
-	return radius * Abs(scale);
+	return ellipse_radius * Abs(scale);
 }
 
 std::array<V2_float, 4> Ellipse::GetWorldQuadVertices(Transform transform) const {

@@ -31,9 +31,9 @@ V2_float RoundedRect::GetSize(Transform transform) const {
 }
 
 float RoundedRect::GetRadius(Transform transform) const {
-	auto radius{ GetRadius() };
+	auto rounded_rect_radius{ GetRadius() };
 	auto scale{ transform.GetAverageScale() };
-	return radius * std::abs(scale);
+	return rounded_rect_radius * std::abs(scale);
 }
 
 Transform RoundedRect::Offset(Transform transform, Origin draw_origin) const {

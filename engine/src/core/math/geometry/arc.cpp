@@ -25,9 +25,9 @@ float Arc::GetRadius() const {
 }
 
 float Arc::GetRadius(Transform transform) const {
-	auto radius{ GetRadius() };
+	auto arc_radius{ GetRadius() };
 	auto scale{ transform.GetAverageScale() };
-	return radius * std::abs(scale);
+	return arc_radius * std::abs(scale);
 }
 
 float Arc::GetStartAngle() const {

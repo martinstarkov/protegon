@@ -50,9 +50,9 @@ float Capsule::GetRadius() const {
 }
 
 float Capsule::GetRadius(Transform transform) const {
-	auto radius{ GetRadius() };
+	auto capsule_radius{ GetRadius() };
 	auto scale{ transform.GetAverageScale() };
-	return scale * std::abs(scale);
+	return capsule_radius * std::abs(scale);
 }
 
 } // namespace ptgn

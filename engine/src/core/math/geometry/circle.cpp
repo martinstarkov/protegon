@@ -20,9 +20,9 @@ float Circle::GetRadius() const {
 }
 
 float Circle::GetRadius(Transform transform) const {
-	auto radius{ GetRadius() };
+	auto circle_radius{ GetRadius() };
 	auto scale{ transform.GetAverageScale() };
-	return radius * std::abs(scale);
+	return circle_radius * std::abs(scale);
 }
 
 std::array<V2_float, 4> Circle::GetWorldQuadVertices(Transform transform) const {
