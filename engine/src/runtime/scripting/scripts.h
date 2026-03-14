@@ -30,36 +30,27 @@ public:
 	T& Add(Entity e, TArgs&&... constructor_args) {
 		auto sp	   = std::make_unique<T>(std::forward<TArgs>(constructor_args)...);
 		sp->entity = e;
-		auto& script{ scripts_.emplace_back(std::move(sp)) };
-		script->OnCreate();
-		return static_cast<T&>(*script);
+		constexpr auto hash{ Script::Hash<T>() };
+		sp->SetHash(hash);
+
+		auto* raw = sp.get();
+		pending_add_.push_back(std::move(sp));
+		return *raw;
 	}
 
 	/// @brief Removes all instances of the script type T from the scripts.
-	/// @return True if a script of type T was found and removed, false otherwise.
 	template <ScriptType T>
-	bool Remove() {
-		bool removed = false;
-
-		auto it =
-			std::remove_if(scripts_.begin(), scripts_.end(), [&](const std::unique_ptr<Script>& s) {
-				if (dynamic_cast<T*>(s.get())) {
-					// s->OnDestroy(); // optional lifecycle hook
-					removed = true;
-					return true;
-				}
-				return false;
-			});
-
-		scripts_.erase(it, scripts_.end());
-		return removed;
+	void Remove() {
+		constexpr auto hash{ Script::Hash<T>() };
+		pending_remove_.emplace_back(hash);
 	}
 
 	/// @return True if an instance of a script of type T was found, false otherwise.
 	template <ScriptType T>
 	[[nodiscard]] bool Has() const {
+		constexpr auto hash{ Script::Hash<T>() };
 		return std::any_of(scripts_.begin(), scripts_.end(), [](const std::unique_ptr<Script>& s) {
-			return dynamic_cast<T*>(s.get()) != nullptr;
+			return s->GetHash() == hash;
 		});
 	}
 
@@ -72,10 +63,47 @@ public:
 				break; // bubbling within this entity's scripts
 			}
 		}
+
+		ApplyPending();
+	}
+
+	void Update() {
+		for (auto& s : scripts_) {
+			s->OnUpdate();
+		}
 	}
 
 private:
+	void ApplyPending() {
+		if (!pending_remove_.empty()) {
+			scripts_.erase(
+				std::remove_if(
+					scripts_.begin(), scripts_.end(),
+					[&](auto& s) {
+						for (auto& t : pending_remove_) {
+							if (s->hash_ == t) {
+								return true;
+							}
+						}
+						return false;
+					}
+				),
+				scripts_.end()
+			);
+			pending_remove_.clear();
+		}
+
+		for (auto& s : pending_add_) {
+			s->OnCreate();
+			scripts_.push_back(std::move(s));
+		}
+
+		pending_add_.clear();
+	}
+
 	std::vector<std::unique_ptr<Script>> scripts_;
+	std::vector<std::unique_ptr<Script>> pending_add_;
+	std::vector<std::size_t> pending_remove_;
 };
 
 } // namespace impl
@@ -91,14 +119,11 @@ T& AddScript(Entity entity, TArgs&&... constructor_args) {
 }
 
 /// @brief Removes all instances of the script type T from the entity's scripts.
-/// @return True if a script of type T was found and removed, false otherwise.
 template <ScriptType T>
-bool RemoveScript(Entity entity) {
+void RemoveScript(Entity entity) {
 	if (auto* sc = entity.TryGet<impl::Scripts>()) {
-		return sc->Remove<T>();
+		sc->Remove<T>();
 	}
-
-	return false;
 }
 
 /// @return True if the entity has an instance of a script of type T, false otherwise.

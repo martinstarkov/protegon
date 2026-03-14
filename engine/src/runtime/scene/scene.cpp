@@ -293,6 +293,11 @@ void Scene::InternalUpdate() {
 	input.Update();
 
 	Refresh();
+
+	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
+		scripts.Update();
+	}
+
 	OnUpdate();
 	Refresh();
 
