@@ -68,12 +68,13 @@ public:
 	}
 
 	void Update() {
+		ApplyPending();
 		for (auto& s : scripts_) {
 			s->OnUpdate();
 		}
+		ApplyPending();
 	}
 
-private:
 	void ApplyPending() {
 		if (!pending_remove_.empty()) {
 			scripts_.erase(
@@ -101,6 +102,7 @@ private:
 		pending_add_.clear();
 	}
 
+private:
 	std::vector<std::unique_ptr<Script>> scripts_;
 	std::vector<std::unique_ptr<Script>> pending_add_;
 	std::vector<std::size_t> pending_remove_;

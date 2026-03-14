@@ -78,6 +78,12 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	// PTGN_LOG("[camera=", camera, "]");
 	// PTGN_LOG("[fixed_camera=", fixed_camera, "]");
 	Refresh();
+
+	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
+		scripts.ApplyPending();
+	}
+
+	Refresh();
 }
 
 void Scene::InternalEnter() {
@@ -269,9 +275,9 @@ void Scene::InternalDraw() {
 	Viewport viewport{ {}, global_renderer.GetDisplayViewport().size };
 	V2_float half_viewport{ viewport.size * 0.5f };
 
+	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
 	draw_context.BindScreenTarget();
 	draw_context.SetViewport(viewport);
-	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
 	draw_context.SetViewProjection(view_projection);
 	draw_context.SetBlend(BlendMode::Blend);
 
