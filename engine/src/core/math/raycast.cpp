@@ -656,11 +656,9 @@ RaycastResult Raycast(
 	const ColliderShape& shape2
 ) {
 	return std::visit(
-		[&](const auto& s1) -> RaycastResult {
+		[&]<typename S1>(const S1& s1) -> RaycastResult {
 			return std::visit(
-				[&](const auto& s2) -> RaycastResult {
-					using S1 = std::decay_t<decltype(s1)>;
-					using S2 = std::decay_t<decltype(s2)>;
+				[&]<typename S2>(const S2& s2) -> RaycastResult {
 					PTGN_RAYCAST_SHAPE_PAIR_TABLE {
 						PTGN_ERROR(
 							"Cannot find raycast function for the given shapes: ", type_name<S1>(),

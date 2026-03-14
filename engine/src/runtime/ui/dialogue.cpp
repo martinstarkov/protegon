@@ -234,8 +234,7 @@ DialogueComponent::DialogueComponent(
 	DialoguePageProperties default_properties;
 
 	std::visit(
-		[&](auto&& arg) {
-			using T = std::decay_t<decltype(arg)>;
+		[&]<typename T>(T&& arg) {
 			if constexpr (std::is_same_v<T, GameObject>) {
 				background_ = std::forward<T>(arg);
 				SetParent(*background_, parent);

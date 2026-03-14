@@ -141,11 +141,10 @@ DrawContext::GetShapeDrawCommand(
 	PTGN_ASSERT(line_width != 0.0f);
 
 	return std::visit(
-		[&](const auto& s) -> std::variant<
-							   std::monostate, impl::QuadCommand, impl::QuadShapeCommand,
-							   std::vector<impl::QuadCommand>, std::vector<impl::TriangleCommand>> {
-			using T = std::decay_t<decltype(s)>;
-
+		[&]<typename T>(const T& s)
+			-> std::variant<
+				std::monostate, impl::QuadCommand, impl::QuadShapeCommand,
+				std::vector<impl::QuadCommand>, std::vector<impl::TriangleCommand>> {
 			if constexpr (std::is_same_v<T, Rect>) {
 				if (auto size{ s.GetSize(transform) }; !size.BothAboveZero()) {
 					return {};

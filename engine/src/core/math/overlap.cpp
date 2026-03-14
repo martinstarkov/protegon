@@ -938,11 +938,9 @@ bool OverlapPolygonCapsule(Transform t1, const Polygon& A, Transform t2, const C
 
 bool Overlap(Transform t1, const ColliderShape& shape1, Transform t2, const ColliderShape& shape2) {
 	return std::visit(
-		[&](const auto& s1) -> bool {
+		[&]<typename S1>(const S1& s1) -> bool {
 			return std::visit(
-				[&](const auto& s2) -> bool {
-					using S1 = std::decay_t<decltype(s1)>;
-					using S2 = std::decay_t<decltype(s2)>;
+				[&]<typename S2>(const S2& s2) -> bool {
 					PTGN_OVERLAP_SHAPE_PAIR_TABLE {
 						PTGN_ERROR(
 							"Cannot find overlap function for the given shapes: ", type_name<S1>(),

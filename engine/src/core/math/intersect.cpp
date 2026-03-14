@@ -314,11 +314,9 @@ Intersection Intersect(
 	Transform t1, const ColliderShape& shape1, Transform t2, const ColliderShape& shape2
 ) {
 	return std::visit(
-		[&](const auto& s1) -> Intersection {
+		[&]<typename S1>(const S1& s1) -> Intersection {
 			return std::visit(
-				[&](const auto& s2) -> Intersection {
-					using S1 = std::decay_t<decltype(s1)>;
-					using S2 = std::decay_t<decltype(s2)>;
+				[&]<typename S2>(const S2& s2) -> Intersection {
 					PTGN_INTERSECT_SHAPE_PAIR_TABLE {
 						PTGN_ERROR(
 							"Cannot find intersect function for the given shapes: ",
