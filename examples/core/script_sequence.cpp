@@ -16,11 +16,11 @@
 using namespace ptgn;
 
 struct ScriptSequence2 : public Script {
-	void OnEvent(EventDispatcher d) {
+	void OnEvent(EventDispatcher d) override {
 		d.Dispatch<TweenProgress>([this](auto& e) { OnProgress(e.progress); });
 	}
 
-	void OnProgress(float progress) {
+	void OnProgress(float progress) const {
 		PTGN_LOG("2: 200 ms: ", progress);
 	}
 };
