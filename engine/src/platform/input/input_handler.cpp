@@ -83,7 +83,8 @@ bool InputHandler::KeyReleased(Key key) const {
 }
 
 bool InputHandler::KeyHeld(Key key) const {
-	return key_states_[std::to_underlying(key)] == impl::KeyState::Held;
+	auto state{ key_states_[std::to_underlying(key)] };
+	return state == impl::KeyState::Held || state == impl::KeyState::Pressed;
 }
 
 bool InputHandler::KeyHeld(Key key, milliseconds time) const {
