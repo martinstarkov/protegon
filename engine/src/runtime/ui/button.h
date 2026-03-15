@@ -18,12 +18,14 @@
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
 #include "runtime/animation/animation.h"
+#include "runtime/audio/audio.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/font.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/enum.h"
@@ -33,6 +35,40 @@ namespace ptgn {
 
 class DrawContext;
 class Scene;
+
+/*
+struct ButtonStyle {
+	std::optional<Entity> background;
+	std::optional<Color> tint;
+	std::optional<Entity> border;
+	std::optional<Text> text;
+	std::optional<Entity> sprite;
+	std::optional<Audio> sound;
+};
+
+struct ButtonInteractionConfig {
+	ButtonStyle idle;
+
+	// Hover
+	std::optional<ButtonStyle> hover_start;
+	std::optional<ButtonStyle> hover;
+	std::optional<ButtonStyle> hover_end;
+
+	// Mouse press
+	std::optional<ButtonStyle> press_start;
+	std::optional<ButtonStyle> press;
+
+	// Mouse release
+	std::optional<ButtonStyle> release_over;
+	std::optional<ButtonStyle> release_out;
+};
+
+struct ButtonConfig {
+	ButtonInteractionConfig enabled;
+
+	std::optional<ButtonInteractionConfig> disabled;
+};
+*/
 
 enum class ButtonState : std::uint8_t {
 	Default,
