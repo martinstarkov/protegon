@@ -56,12 +56,12 @@ std::vector<V2_float> GetWorldVertices(const Shape& shape, Transform transform) 
 		[&]<typename T>(const T& s) -> std::vector<V2_float> {
 			if constexpr (IsAnyOf<T, Rect, Polygon, Triangle, Line>) {
 				return ToVector(s.GetWorldVertices(transform));
-			} else if constexpr (IsAnyOf<T, RoundedRect, Ellipse, Circle>) {
+			} else if constexpr (IsAnyOf<T, RoundedRect, Ellipse, Circle, Arc, Capsule>) {
 				return ToVector(s.GetWorldQuadVertices(transform));
 			} else if constexpr (std::is_same_v<T, V2_float>) {
 				return ToVector(Rect{ V2_float{ 1.0f } }.GetWorldVertices(transform));
 			} else {
-				PTGN_ERROR("Unknown shape type");
+				static_assert(false, "Incomplete visitor!");
 			}
 		},
 		shape
@@ -77,7 +77,7 @@ EdgeInfo GetEdges(const Shape& shape, Transform transform) {
 				info.quad_approximation = true;
 			}
 
-			auto world_vertices{ GetWorldVertices(shape, transform) };
+			auto world_vertices{ GetWorldVertices(s, transform) };
 
 			info.edges = PointsToLines(world_vertices, true);
 

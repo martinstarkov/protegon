@@ -234,9 +234,9 @@ DialogueComponent::DialogueComponent(
 	DialoguePageProperties default_properties;
 
 	std::visit(
-		[&]<typename T>(T&& arg) {
+		[&]<typename T>(T arg) {
 			if constexpr (std::is_same_v<T, GameObject>) {
-				background_ = std::forward<T>(arg);
+				background_ = std::move(arg);
 				SetParent(*background_, parent);
 				auto display_size{ GetDisplaySize(*background_) };
 				PTGN_ASSERT(
@@ -246,9 +246,11 @@ DialogueComponent::DialogueComponent(
 				default_properties.box_size = *display_size;
 			} else if constexpr (std::is_same_v<T, V2_float>) {
 				default_properties.box_size = arg;
+			} else {
+				static_assert(false, "Incomplete visitor!");
 			}
 		},
-		background
+		std::move(background)
 	);
 
 	PTGN_ASSERT(
