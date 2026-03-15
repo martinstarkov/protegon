@@ -150,6 +150,9 @@ void SetInteractiveShape(
 /// Remove an interactable shape from the interactive entity.
 void RemoveInteractiveShape(Entity interactive_entity, std::string_view shape_id);
 
+/// @return True if the entity has any interactable shape.
+[[nodiscard]] bool HasInteractiveShape(Entity entity);
+
 /// @return True if the entity has the given interactable.
 [[nodiscard]] bool HasInteractiveShape(Entity interactive_entity, std::string_view shape_id);
 

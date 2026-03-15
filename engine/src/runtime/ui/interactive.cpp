@@ -10,6 +10,8 @@
 
 #include "core/assert.h"
 #include "core/log.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -78,6 +80,14 @@ void RemoveInteractiveShape(Entity entity, std::string_view name) {
 	Entity child{ GetChild(entity, name) };
 	auto& interactive{ entity.Get<impl::Interactive>() };
 	std::erase(interactive.shapes, child);
+}
+
+bool HasInteractiveShape(Entity entity) {
+	if (!entity.Has<impl::Interactive>()) {
+		return false;
+	}
+	const auto& interactive{ entity.Get<impl::Interactive>() };
+	return !interactive.shapes.empty() || entity.HasAny<Rect, Circle>();
 }
 
 bool HasInteractiveShape(Entity entity, std::string_view name) {
