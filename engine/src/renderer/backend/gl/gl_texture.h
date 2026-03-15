@@ -7,7 +7,8 @@
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/util/id_map.h"
-#include "renderer/primitives/texture.h"
+#include "renderer/primitives/id.h"
+#include "renderer/primitives/texture_format.h"
 
 namespace ptgn::impl::gl {
 
@@ -58,8 +59,6 @@ std::ostream& operator<<(std::ostream& os, TextureParameter param);
 struct TextureCache {
 	V2_int size;
 	TextureFormat format{ TextureFormat::RGBA8 };
-
-	TextureFormat GetFormat() const;
 };
 
 [[nodiscard]] constexpr int GetBitCount(TextureFormat fmt) {
@@ -122,6 +121,9 @@ struct TextureCache {
 
 class Textures {
 public:
+	/// @brief Creates an empty texture with the given size and format.
+	TextureId CreateTexture(V2_int size, TextureFormat format);
+
 	TextureId CreateTexture(
 		const void* pixel_data, PixelDataFormat pixel_data_format, PixelDataType pixel_data_type,
 		V2_int size, TextureFormat texture_format, bool restore_bind = true
@@ -130,6 +132,7 @@ public:
 	void DestroyTexture(TextureId id);
 
 	V2_int GetTextureSize(TextureId texture) const;
+	TextureFormat GetTextureFormat(TextureId texture) const;
 
 	void ResizeTexture(TextureId texture, V2_int new_size);
 

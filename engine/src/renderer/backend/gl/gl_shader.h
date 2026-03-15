@@ -6,7 +6,6 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <utility>
 #include <variant>
 #include <vector>
 
@@ -15,6 +14,7 @@
 #include "core/math/vector4.h"
 #include "core/util/file.h"
 #include "core/util/id_map.h"
+#include "renderer/primitives/id.h"
 #include "renderer/primitives/shader.h"
 #include "serialization/json/fwd.h"
 
@@ -27,7 +27,6 @@ struct Matrix4;
 namespace impl::gl {
 
 class GLContext;
-class GLRenderer;
 
 struct ShaderOptions {
 	bool auto_layout{ false };
@@ -78,33 +77,19 @@ public:
 		std::string_view program_name
 	);
 
+	void SetUniform(ShaderId id, const char* uniform_name, const Matrix4& v);
+	void SetUniform(ShaderId id, const char* uniform_name, float v);
 	void SetUniform(ShaderId id, const char* uniform_name, V2_float v);
 	void SetUniform(ShaderId id, const char* uniform_name, V3_float v);
 	void SetUniform(ShaderId id, const char* uniform_name, V4_float v);
-	void SetUniform(ShaderId id, const char* uniform_name, const Matrix4& matrix);
-	void SetUniform(
-		ShaderId id, const char* uniform_name, const std::int32_t* data, std::int32_t count
-	);
-	void SetUniform(ShaderId id, const char* uniform_name, const float* data, std::int32_t count);
-	void SetUniform(ShaderId id, const char* uniform_name, const Vector2<std::int32_t>& v);
-	void SetUniform(ShaderId id, const char* uniform_name, const Vector3<std::int32_t>& v);
-	void SetUniform(ShaderId id, const char* uniform_name, const Vector4<std::int32_t>& v);
-
-	void SetUniform(ShaderId id, const char* uniform_name, float v0);
-	void SetUniform(ShaderId id, const char* uniform_name, float v0, float v1);
-	void SetUniform(ShaderId id, const char* uniform_name, float v0, float v1, float v2);
-	void SetUniform(ShaderId id, const char* uniform_name, float v0, float v1, float v2, float v3);
-	void SetUniform(ShaderId id, const char* uniform_name, std::int32_t v0);
-	void SetUniform(ShaderId id, const char* uniform_name, std::int32_t v0, std::int32_t v1);
-	void SetUniform(
-		ShaderId id, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2
-	);
-	void SetUniform(
-		ShaderId id, const char* uniform_name, std::int32_t v0, std::int32_t v1, std::int32_t v2,
-		std::int32_t v3
-	);
+	void SetUniform(ShaderId id, const char* uniform_name, const std::vector<float>& v);
+	void SetUniform(ShaderId id, const char* uniform_name, int v);
+	void SetUniform(ShaderId id, const char* uniform_name, V2_int v);
+	void SetUniform(ShaderId id, const char* uniform_name, V3_int v);
+	void SetUniform(ShaderId id, const char* uniform_name, V4_int v);
+	void SetUniform(ShaderId id, const char* uniform_name, const std::vector<int>& v);
 	/// @brief Behaves identically to SetUniform(name, std::int32_t).
-	void SetUniform(ShaderId id, const char* uniform_name, bool value);
+	void SetUniform(ShaderId id, const char* uniform_name, bool v);
 
 	[[nodiscard]] ShaderId GetProgram(std::string_view program_name) const;
 
@@ -112,7 +97,6 @@ public:
 
 private:
 	friend class GLContext;
-	friend class GLRenderer;
 
 	explicit Shaders(GLContext& gl);
 	~Shaders() noexcept;

@@ -5,10 +5,6 @@
 
 namespace ptgn::impl {
 
-struct FramebufferTag {};
-
-using FramebufferId = Id<FramebufferTag>;
-
 class FramebufferObject : public Resource<FramebufferId> {
 public:
 	using Base = Resource<FramebufferId>;

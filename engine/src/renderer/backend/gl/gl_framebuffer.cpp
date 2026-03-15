@@ -27,10 +27,8 @@
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/primitives/color.h"
-#include "renderer/primitives/framebuffer.h"
 #include "renderer/primitives/id.h"
-#include "renderer/primitives/renderbuffer.h"
-#include "renderer/primitives/texture.h"
+#include "renderer/primitives/texture_format.h"
 
 namespace ptgn::impl::gl {
 
@@ -601,25 +599,6 @@ std::ostream& operator<<(std::ostream& os, AttachmentObject object) {
 	}
 }
 
-std::ostream& operator<<(std::ostream& os, Attachment attachment) {
-	switch (attachment) {
-		using enum Attachment;
-		case Color0:	   return os << "Color0";
-		case Color1:	   return os << "Color1";
-		case Color2:	   return os << "Color2";
-		case Color3:	   return os << "Color3";
-		case Color4:	   return os << "Color4";
-		case Color5:	   return os << "Color5";
-		case Color6:	   return os << "Color6";
-		case Color7:	   return os << "Color7";
-		case Color8:	   return os << "Color8";
-		case Depth:		   return os << "Depth";
-		case Stencil:	   return os << "Stencil";
-		case DepthStencil: return os << "DepthStencil";
-		default:		   PTGN_ERROR("Unknown Attachment: ", std::to_underlying(attachment));
-	}
-}
-
 std::ostream& operator<<(std::ostream& os, ClearBufferBit bits) {
 	if (bits == ClearBufferBit::None) {
 		return os << "None";
@@ -651,6 +630,25 @@ std::ostream& operator<<(std::ostream& os, ClearBufferType clear_buffer_type) {
 		case Depth:	  return os << "Depth";
 		case Stencil: return os << "Stencil";
 		default:	  PTGN_ERROR("Unknown ClearBufferType: ", std::to_underlying(clear_buffer_type));
+	}
+}
+
+std::ostream& operator<<(std::ostream& os, Attachment attachment) {
+	switch (attachment) {
+		using enum Attachment;
+		case Color0:	   return os << "Color0";
+		case Color1:	   return os << "Color1";
+		case Color2:	   return os << "Color2";
+		case Color3:	   return os << "Color3";
+		case Color4:	   return os << "Color4";
+		case Color5:	   return os << "Color5";
+		case Color6:	   return os << "Color6";
+		case Color7:	   return os << "Color7";
+		case Color8:	   return os << "Color8";
+		case Depth:		   return os << "Depth";
+		case Stencil:	   return os << "Stencil";
+		case DepthStencil: return os << "DepthStencil";
+		default:		   PTGN_ERROR("Unknown Attachment: ", std::to_underlying(attachment));
 	}
 }
 

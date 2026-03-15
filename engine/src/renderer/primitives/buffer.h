@@ -5,16 +5,6 @@
 
 namespace ptgn::impl {
 
-struct VertexBufferTag {};
-
-struct ElementBufferTag {};
-
-struct UniformBufferTag {};
-
-using VertexBufferId  = Id<VertexBufferTag>;
-using ElementBufferId = Id<ElementBufferTag>;
-using UniformBufferId = Id<UniformBufferTag>;
-
 class VertexBufferObject : public Resource<VertexBufferId> {
 public:
 	using Base = Resource<VertexBufferId>;

@@ -12,14 +12,15 @@
 #include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
 #include "renderer/primitives/id.h"
-#include "renderer/primitives/texture.h"
+#include "renderer/primitives/texture_format.h"
 
 namespace ptgn::impl::gl {
 
 Textures::Textures(GLContext& gl) : gl_{ gl } {}
 
-TextureFormat TextureCache::GetFormat() const {
-	return format;
+TextureId Textures::CreateTexture(V2_int size, TextureFormat format) {
+	auto [pixel_format, pixel_type] = GetPixelDataFormat(format);
+	return CreateTexture(nullptr, pixel_format, pixel_type, size, format);
 }
 
 TextureId Textures::CreateTexture(
@@ -50,6 +51,11 @@ TextureId Textures::CreateTexture(
 V2_int Textures::GetTextureSize(TextureId texture) const {
 	PTGN_ASSERT(cache_.Has(texture), "TextureId not in cache");
 	return cache_.Get(texture).size;
+}
+
+TextureFormat Textures::GetTextureFormat(TextureId texture) const {
+	PTGN_ASSERT(cache_.Has(texture), "TextureId not in cache");
+	return cache_.Get(texture).format;
 }
 
 void Textures::ResizeTexture(TextureId texture, V2_int new_size) {

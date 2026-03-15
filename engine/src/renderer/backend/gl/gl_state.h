@@ -4,14 +4,10 @@
 #include <ostream>
 #include <vector>
 
-#include "renderer/primitives/viewport.h"
-#include "renderer/primitives/buffer.h"
-#include "renderer/primitives/framebuffer.h"
+#include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
-#include "renderer/primitives/renderbuffer.h"
-#include "renderer/primitives/shader.h"
-#include "renderer/primitives/texture.h"
-#include "renderer/primitives/vertex_array.h"
+#include "renderer/primitives/texture_format.h"
+#include "renderer/primitives/viewport.h"
 
 namespace ptgn::impl::gl {
 

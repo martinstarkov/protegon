@@ -2,8 +2,6 @@
 
 #include <cstdint>
 
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"
@@ -13,14 +11,16 @@
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
-#include "renderer/primitives/viewport.h"
+#include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/buffer.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/framebuffer.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/renderbuffer.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/vertex_array.h"
+#include "renderer/primitives/viewport.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -47,7 +47,7 @@ class Window;
 
 namespace impl {
 
-struct RenderTargetData;
+class RenderTargetData;
 
 } // namespace impl
 

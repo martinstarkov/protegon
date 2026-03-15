@@ -2,7 +2,9 @@
 
 #include <cstdint>
 
-namespace ptgn::impl {
+namespace ptgn {
+
+namespace impl {
 
 template <typename Tag>
 struct Id {
@@ -17,4 +19,31 @@ struct Id {
 	}
 };
 
-} // namespace ptgn::impl
+struct TextureTag {};
+
+struct ShaderTag {};
+
+struct VertexArrayTag {};
+
+struct FramebufferTag {};
+
+struct RenderbufferTag {};
+
+struct VertexBufferTag {};
+
+struct ElementBufferTag {};
+
+struct UniformBufferTag {};
+
+using TextureId		  = Id<TextureTag>;
+using ShaderId		  = Id<ShaderTag>;
+using VertexArrayId	  = Id<VertexArrayTag>;
+using FramebufferId	  = Id<FramebufferTag>;
+using RenderbufferId  = Id<RenderbufferTag>;
+using VertexBufferId  = Id<VertexBufferTag>;
+using ElementBufferId = Id<ElementBufferTag>;
+using UniformBufferId = Id<UniformBufferTag>;
+
+} // namespace impl
+
+} // namespace ptgn

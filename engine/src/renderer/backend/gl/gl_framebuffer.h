@@ -15,8 +15,7 @@
 #include "core/util/id_map.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/framebuffer.h"
-#include "renderer/primitives/renderbuffer.h"
-#include "renderer/primitives/texture.h"
+#include "renderer/primitives/id.h"
 
 namespace ptgn::impl::gl {
 
@@ -31,18 +30,6 @@ enum class AttachmentObject : std::uint32_t {
 };
 
 std::ostream& operator<<(std::ostream& os, AttachmentObject object);
-
-struct AttachmentSpec {
-	std::uint32_t id{ 0 };
-	AttachmentObject object{ AttachmentObject::None };
-};
-
-struct FramebufferCache {
-	std::array<AttachmentSpec, 8> color;
-	AttachmentSpec depth;
-	AttachmentSpec stencil;
-	AttachmentSpec depth_stencil;
-};
 
 enum class Attachment : std::uint32_t {
 	// Color attachments
@@ -63,6 +50,18 @@ enum class Attachment : std::uint32_t {
 };
 
 std::ostream& operator<<(std::ostream& os, Attachment attachment);
+
+struct AttachmentSpec {
+	std::uint32_t id{ 0 };
+	AttachmentObject object{ AttachmentObject::None };
+};
+
+struct FramebufferCache {
+	std::array<AttachmentSpec, 8> color;
+	AttachmentSpec depth;
+	AttachmentSpec stencil;
+	AttachmentSpec depth_stencil;
+};
 
 [[nodiscard]] Attachment ColorAttachment(std::size_t i);
 
