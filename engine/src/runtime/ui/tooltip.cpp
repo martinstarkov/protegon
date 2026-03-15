@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string_view>
+#include <utility>
 #include <variant>
 
 #include "app/context.h"
@@ -9,6 +10,7 @@
 #include "core/event/dispatcher.h"
 #include "core/math/easing.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/hash.h"
@@ -34,7 +36,9 @@ namespace ptgn {
 Tooltip::Tooltip(Entity entity) : Entity{ entity } {}
 
 void Tooltip::Show(V2_float position) {
-	SetPosition(*this, position);
+	auto parent_scale{ GetScale(GetParent(*this)) };
+	PTGN_ASSERT(!parent_scale.HasZero(), "Attempting division by zero");
+	SetPosition(*this, position / parent_scale);
 
 	auto& instance{ Entity::Get<impl::TooltipData>() };
 
@@ -83,7 +87,7 @@ std::optional<Tooltip> Tooltip::Get(Scene& scene, std::string_view name) {
 			return Tooltip{ entity };
 		}
 	}
-	return {};
+	return std::nullopt;
 }
 
 TooltipHoverScript::TooltipHoverScript(std::string_view name, V2_float offset) :
@@ -99,6 +103,8 @@ void TooltipHoverScript::OnCreate() {
 	manager.Refresh();
 	auto tooltip{ GetTooltip() };
 	AddChild(entity, tooltip);
+	IgnoreParentRotation(tooltip);
+	IgnoreParentScale(tooltip);
 }
 
 void TooltipHoverScript::OnMouseEnter() {
@@ -163,6 +169,17 @@ Tooltip AddTooltipOnHover(
 	std::variant<std::monostate, Texture, std::string_view> tooltip_texture, V2_float tooltip_offset
 ) {
 	SetInteractive(entity);
+
+	if (entity.Has<Texture>() && !HasInteractiveShape(entity)) {
+		auto rect{ entity.GetScene().CreateEntity() };
+		V2_float size{ *GetTextureSize(entity) };
+		rect.Add<Rect>(size);
+		AddInteractiveShape(entity, GameObject{ std::move(rect) });
+	}
+
+	PTGN_ASSERT(
+		HasInteractiveShape(entity), "Cannot AddTooltipOnHover to entity with no interactive shape"
+	);
 
 	auto& scene{ entity.GetScene() };
 
