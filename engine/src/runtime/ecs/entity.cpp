@@ -190,7 +190,7 @@ Transform GetTransform(Entity entity) {
 }
 
 Transform GetWorldTransform(Entity entity) {
-	auto transform{ GetTransform(entity) };
+	const auto transform{ GetTransform(entity) };
 	if (entity.Has<impl::IgnoreParentTransform>()) {
 		return transform;
 	}
@@ -200,6 +200,15 @@ Transform GetWorldTransform(Entity entity) {
 		relative_to = GetWorldTransform(parent);
 	}
 	auto world_transform{ transform.RelativeTo(relative_to) };
+	if (entity.Has<impl::IgnoreParentPosition>()) {
+		world_transform.SetPosition(transform.GetPosition());
+	}
+	if (entity.Has<impl::IgnoreParentScale>()) {
+		world_transform.SetScale(transform.GetScale());
+	}
+	if (entity.Has<impl::IgnoreParentRotation>()) {
+		world_transform.SetRotation(transform.GetRotation());
+	}
 	return world_transform;
 }
 

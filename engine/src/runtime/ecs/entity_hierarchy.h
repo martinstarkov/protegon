@@ -19,7 +19,16 @@ class Entity;
 [[nodiscard]] bool HasParent(Entity entity);
 
 /// @brief If true, the entity's transform will not be affected by its parent's transform.
-void IgnoreParentTransform(Entity entity, bool ignore_parent_transform);
+void IgnoreParentTransform(Entity entity, bool ignore_parent_transform = true);
+
+/// @brief If true, the entity's transform will not be affected by its parent's position.
+void IgnoreParentPosition(Entity entity, bool ignore_parent_position = true);
+
+/// @brief If true, the entity's transform will not be affected by its parent's rotation.
+void IgnoreParentRotation(Entity entity, bool ignore_parent_rotation = true);
+
+/// @brief If true, the entity's transform will not be affected by its parent's scale.
+void IgnoreParentScale(Entity entity, bool ignore_parent_scale = true);
 
 /// @brief Sets the parent entity for the specified entity.
 /// @param entity The entity whose parent is being set.

@@ -72,6 +72,30 @@ void IgnoreParentTransform(Entity entity, bool ignore_parent_transform) {
 	}
 }
 
+void IgnoreParentPosition(Entity entity, bool ignore_parent_position) {
+	if (ignore_parent_position) {
+		entity.Add<impl::IgnoreParentPosition>();
+	} else {
+		entity.Remove<impl::IgnoreParentPosition>();
+	}
+}
+
+void IgnoreParentRotation(Entity entity, bool ignore_parent_rotation) {
+	if (ignore_parent_rotation) {
+		entity.Add<impl::IgnoreParentRotation>();
+	} else {
+		entity.Remove<impl::IgnoreParentRotation>();
+	}
+}
+
+void IgnoreParentScale(Entity entity, bool ignore_parent_scale) {
+	if (ignore_parent_scale) {
+		entity.Add<impl::IgnoreParentScale>();
+	} else {
+		entity.Remove<impl::IgnoreParentScale>();
+	}
+}
+
 void SetParent(Entity entity, Entity parent, bool ignore_parent_transform) {
 	IgnoreParentTransform(entity, ignore_parent_transform);
 	impl::SetParentImpl(entity, parent);

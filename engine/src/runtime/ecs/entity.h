@@ -245,6 +245,12 @@ namespace impl {
 
 struct IgnoreParentTransform {};
 
+struct IgnoreParentPosition {};
+
+struct IgnoreParentRotation {};
+
+struct IgnoreParentScale {};
+
 } // namespace impl
 
 /// @return The transform of the entity.
