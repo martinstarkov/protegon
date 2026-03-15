@@ -47,6 +47,8 @@ public:
 		return o;
 	}
 
+	ecs::Entity GetEntity() const;
+
 protected:
 	ecs::Entity entity_;
 

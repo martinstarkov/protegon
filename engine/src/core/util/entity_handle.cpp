@@ -47,6 +47,10 @@ EntityHandle::operator bool() const {
 	return entity_.operator bool();
 }
 
+ecs::Entity EntityHandle::GetEntity() const {
+	return entity_;
+}
+
 void EntityHandle::AddRef() {
 	if (!HasRefCount()) {
 		return;

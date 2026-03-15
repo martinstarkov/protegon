@@ -3,13 +3,10 @@
 #include <cstdint>
 #include <utility>
 
-#include "runtime/ecs/component.h"
 #include "core/util/entity_handle.h"
+#include "runtime/ecs/component.h"
 
 namespace ptgn {
-
-class FontSystem;
-class AssetManager;
 
 namespace impl {
 
@@ -54,10 +51,6 @@ enum class FontStyle : int {
 class Font : public EntityHandle {
 public:
 	using EntityHandle::EntityHandle;
-
-private:
-	friend class FontSystem;
-	friend class AssetManager;
 };
 
 } // namespace ptgn

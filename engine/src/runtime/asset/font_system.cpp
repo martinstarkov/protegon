@@ -66,9 +66,9 @@ FontSystem::FontSystem(AssetManager& assets) : assets_{ assets } {
 		std::shared_ptr<TTF_Font> f{ default_font, impl::TTF_FontDeleter{} };
 
 		Font font{ assets_.CreateAsset(), true };
-		font.entity_.Add<impl::FontSize>(kDefaultFontSize);
-		font.entity_.Add<std::shared_ptr<TTF_Font>>(f);
-		impl::AddAssetKey(font.entity_, kDefaultFontKey, {});
+		font.GetEntity().Add<impl::FontSize>(kDefaultFontSize);
+		font.GetEntity().Add<std::shared_ptr<TTF_Font>>(f);
+		impl::AddAssetKey(font.GetEntity(), kDefaultFontKey, {});
 	}
 	default_font_key_ = hash;
 }
@@ -99,7 +99,7 @@ std::shared_ptr<TTF_Font> FontSystem::GetFont(std::string_view key, std::optiona
 										  impl::TTF_FontDeleter{} };
 	}
 
-	auto entity{ (*font).entity_ };
+	auto entity{ (*font).GetEntity() };
 
 	if (!font_size.has_value()) {
 		return entity.Get<std::shared_ptr<TTF_Font>>();
@@ -156,8 +156,8 @@ V2_int FontSystem::GetSize(
 	Font font, std::string_view text_content, std::optional<float> font_size, int max_wrap_width
 ) const {
 	return GetSize(
-		font.entity_ ? font.entity_.Get<impl::AssetName>().name : "", text_content, font_size,
-		max_wrap_width
+		font.GetEntity() ? font.GetEntity().Get<impl::AssetName>().name : "", text_content,
+		font_size, max_wrap_width
 	);
 }
 
@@ -177,18 +177,22 @@ std::optional<impl::Surface> FontSystem::CreateTextSurface(
 
 	PTGN_ASSERT(font_asset);
 
-	PTGN_ASSERT(font_asset.entity_.Has<std::shared_ptr<TTF_Font>>());
+	PTGN_ASSERT(font_asset.GetEntity().Has<std::shared_ptr<TTF_Font>>());
 
-	auto font{ font_asset.entity_.Get<std::shared_ptr<TTF_Font>>().get() };
+	auto font{ font_asset.GetEntity().Get<std::shared_ptr<TTF_Font>>().get() };
 
 	PTGN_ASSERT(font != nullptr, "Cannot create texture for text with nullptr font");
 
 	TTF_SetFontStyle(font, std::to_underlying(properties.style));
 
-	TTF_SetFontWrapAlignment(font, static_cast<TTF_HorizontalAlignment>(properties.justify));
+	TTF_SetFontWrapAlignment(
+		font, static_cast<TTF_HorizontalAlignment>(std::to_underlying(properties.justify))
+	);
 
 	if (properties.line_skip.GetValue().has_value()) {
-		TTF_SetFontLineSkip(font, static_cast<int>(*properties.line_skip.GetValue() * scale));
+		auto line_skip{ static_cast<float>(*properties.line_skip.GetValue()) * scale };
+
+		TTF_SetFontLineSkip(font, static_cast<int>(line_skip));
 	}
 
 	PTGN_ASSERT(font_size > 0, "Font size must be greater than zero");
@@ -265,7 +269,7 @@ std::optional<impl::Surface> FontSystem::CreateTextSurface(
 		SDL_Rect rect{ outline_width, outline_width, surface->w, surface->h };
 
 		SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_BLEND);
-		SDL_BlitSurface(surface, NULL, outline_surface, &rect);
+		SDL_BlitSurface(surface, nullptr, outline_surface, &rect);
 		SDL_DestroySurface(surface);
 
 		surface = outline_surface;
