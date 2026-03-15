@@ -4,24 +4,26 @@
 
 #include <filesystem>
 #include <functional>
+#include <list>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
 
 #include "app/context.h"
 #include "core/assert.h"
+#include "core/log.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
+#include "core/util/string.h"
 #include "ecs/ecs.h"
-#include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_renderer.h"
-#include "renderer/backend/gl/gl_shader.h"
 #include "renderer/image/surface.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/shader.h"
@@ -29,6 +31,7 @@
 #include "renderer/renderer.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio.h"
+#include "runtime/audio/audio_system.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
 #include "serialization/json/json.h"
@@ -36,14 +39,7 @@
 #ifdef CreateFont
 #undef CreateFont
 #endif
-#include <list>
-#include <type_traits>
-#include <unordered_set>
-
-#include "core/log.h"
-#include "core/util/string.h"
-#include "renderer/backend/gl/gl_texture.h"
-#include "runtime/audio/audio_system.h"
+#include "renderer/primitives/texture_format.h"
 
 // TODO: Add async asset loading.
 
@@ -69,12 +65,8 @@ Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
 	impl::Surface surface{ asset_path };
 
 	Texture texture{ CreateAsset(), persistent };
-	texture.entity_.Add<impl::TextureObject>(
-		ctx_->renderer.gl_renderer_.get(),
-		ctx_->renderer.gl_renderer_->gl->textures.CreateTexture(
-			surface.pixels.data(), impl::gl::PixelDataFormat::RGBA,
-			impl::gl::PixelDataType::UnsignedByte, surface.size, TextureFormat::RGBA8
-		)
+	texture.GetEntity().Add<impl::TextureObject>(
+		ctx_->renderer.CreateTexture(surface.pixels.data(), surface.size, TextureFormat::RGBA8)
 	);
 
 	return texture;
@@ -86,15 +78,15 @@ Texture AssetManager::CreateTexture(const path& asset_path) {
 
 Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) {
 	auto texture{ CreateTexture(true, asset_path) };
-	impl::AddAssetKey(texture.entity_, key, asset_path);
+	impl::AddAssetKey(texture.GetEntity(), key, asset_path);
 	return texture;
 }
 
 Font AssetManager::CreateFont(bool persistent, const path& asset_path, float font_size) {
 	Font font{ CreateAsset(), persistent };
-	font.entity_.Add<impl::FontSize>(font_size);
+	font.GetEntity().Add<impl::FontSize>(font_size);
 	auto f{ FontSystem::CreateFont(asset_path, font_size) };
-	font.entity_.Add<std::shared_ptr<TTF_Font>>(f);
+	font.GetEntity().Add<std::shared_ptr<TTF_Font>>(f);
 
 	return font;
 }
@@ -105,7 +97,7 @@ Font AssetManager::CreateFont(const path& asset_path, float font_size) {
 
 Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float font_size) {
 	auto font{ CreateFont(true, asset_path, font_size) };
-	impl::AddAssetKey(font.entity_, key, asset_path);
+	impl::AddAssetKey(font.GetEntity(), key, asset_path);
 	return font;
 }
 
@@ -132,10 +124,7 @@ Shader AssetManager::CreateShader(
 	std::string_view shader_name
 ) {
 	Shader shader{ CreateAsset(), persistent };
-	shader.entity_.Add<impl::ShaderObject>(
-		ctx_->renderer.gl_renderer_.get(),
-		ctx_->renderer.gl_renderer_->gl->shaders.CreateProgram(source, shader_name)
-	);
+	shader.GetEntity().Add<impl::ShaderObject>(ctx_->renderer.CreateShader(source, shader_name));
 	return shader;
 }
 
@@ -150,7 +139,7 @@ Shader AssetManager::LoadShader(
 	std::optional<std::string_view> shader_name
 ) {
 	auto shader{ CreateShader(true, source, shader_name.value_or(key)) };
-	impl::AddAssetKey(shader.entity_, key, {});
+	impl::AddAssetKey(shader.GetEntity(), key, {});
 	return shader;
 }
 
@@ -447,7 +436,7 @@ Shader AssetManager::ToShader(std::variant<Shader, std::string_view> shader) con
 
 				return *GetShader(arg);
 			} else {
-				PTGN_ERROR("Invalid shader variant type");
+				static_assert(false, "Incomplete visitor!");
 			}
 		},
 		shader
@@ -470,7 +459,7 @@ std::optional<Texture> AssetManager::ToTexture(
 				);
 				return GetTexture(arg);
 			} else {
-				PTGN_ERROR("Invalid texture variant type");
+				static_assert(false, "Incomplete visitor!");
 			}
 		},
 		texture
@@ -490,7 +479,7 @@ Texture AssetManager::ToTexture(std::variant<Texture, std::string_view> texture)
 
 				return *GetTexture(arg);
 			} else {
-				PTGN_ERROR("Invalid texture variant type");
+				static_assert(false, "Incomplete visitor!");
 			}
 		},
 		texture
@@ -512,7 +501,7 @@ std::optional<Font> AssetManager::ToFont(std::variant<std::monostate, Font, std:
 				);
 				return *GetFont(arg);
 			} else {
-				PTGN_ERROR("Invalid font variant type");
+				static_assert(false, "Incomplete visitor!");
 			}
 		},
 		font
@@ -531,12 +520,9 @@ std::optional<impl::TextureObject> AssetManager::CreateTextTextureObject(
 		return {};
 	}
 
-	return impl::TextureObject{ ctx_->renderer.gl_renderer_.get(),
-								ctx_->renderer.gl_renderer_->gl->textures.CreateTexture(
-									surface->pixels.data(), impl::gl::PixelDataFormat::RGBA,
-									impl::gl::PixelDataType::UnsignedByte, surface->size,
-									TextureFormat::RGBA8
-								) };
+	return ctx_->renderer.CreateTexture(
+		surface->pixels.data(), surface->size, TextureFormat::RGBA8
+	);
 }
 
 Texture AssetManager::CreateTextTexture(
@@ -553,7 +539,7 @@ Texture AssetManager::CreateTextTexture(
 		return texture;
 	}
 
-	texture.entity_.Add<impl::TextureObject>(std::move(*texture_object));
+	texture.GetEntity().Add<impl::TextureObject>(std::move(*texture_object));
 
 	return texture;
 }

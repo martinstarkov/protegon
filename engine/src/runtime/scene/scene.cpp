@@ -4,8 +4,6 @@
 #include <list>
 #include <memory>
 #include <optional>
-#include <ranges>
-#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -13,7 +11,6 @@
 #include "app/context.h"
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
-#include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
@@ -23,8 +20,7 @@
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/render_state.h"
-#include "renderer/primitives/render_target.h"
-#include "renderer/primitives/texture.h"
+#include "renderer/primitives/texture_format.h"
 #include "renderer/primitives/vertex.h"
 #include "renderer/primitives/viewport.h"
 #include "renderer/renderer.h"
@@ -44,7 +40,7 @@
 #include "runtime/physics/physics.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/scripts.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -270,7 +266,7 @@ void Scene::InternalDraw() {
 		}
 	);
 
-	global_renderer.Flush();
+	global_renderer.FlushBatch();
 
 	Viewport viewport{ {}, global_renderer.GetDisplayViewport().size };
 	V2_float half_viewport{ viewport.size * 0.5f };

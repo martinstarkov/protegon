@@ -2,13 +2,11 @@
 
 #include <type_traits>
 
-namespace ptgn::impl {
+namespace ptgn {
 
-namespace gl {
+class Renderer;
 
-class GLRenderer;
-
-} // namespace gl
+namespace impl {
 
 template <typename T>
 class Resource {
@@ -18,7 +16,7 @@ public:
 
 	Resource() = default;
 
-	explicit Resource(gl::GLRenderer* renderer, T resource) noexcept;
+	explicit Resource(Renderer* renderer, T resource) noexcept;
 
 	Resource(const Resource&)			 = delete;
 	Resource& operator=(const Resource&) = delete;
@@ -36,8 +34,10 @@ public:
 protected:
 	void Reset() noexcept;
 
-	gl::GLRenderer* renderer_{ nullptr };
+	Renderer* renderer_{ nullptr };
 	T resource_{};
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn
