@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -26,11 +27,13 @@
 #include "core/util/concepts.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_target.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/viewport.h"
+#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
@@ -45,19 +48,6 @@ class RenderContext;
 class DebugContext;
 
 namespace impl {
-
-struct LineCommand {
-	LineCommand() = default;
-
-	LineCommand(
-		const std::array<V2_float, 2>& positions, Color color, std::optional<BlendMode> blend_mode
-	) :
-		color{ color }, positions{ positions }, blend_mode{ blend_mode } {}
-
-	Color color = color::White;
-	std::array<V2_float, 2> positions;
-	std::optional<BlendMode> blend_mode;
-};
 
 struct TriangleCommand {
 	TriangleCommand() = default;
@@ -120,8 +110,7 @@ struct TextureCommand {
 	std::optional<BlendMode> blend_mode;
 };
 
-using ManualCommand =
-	std::variant<TextureCommand, QuadCommand, QuadShapeCommand, TriangleCommand, LineCommand>;
+using ManualCommand = std::variant<TextureCommand, QuadCommand, QuadShapeCommand, TriangleCommand>;
 
 struct ManualDrawCommand {
 	ManualCommand payload;
@@ -137,10 +126,12 @@ struct DrawCommand {
 
 class DrawContext {
 public:
+	void Flush();
+
 	void DrawTexture(
 		impl::ShaderId shader, impl::TextureId texture, std::array<V2_float, 4> positions,
 		Color tint, float depth, const std::array<V2_float, 4>& tex_coords,
-		std::function<void()> shader_setup = {}
+		const std::function<void()>& shader_setup = {}
 	);
 
 	void DrawTexture(
@@ -149,16 +140,13 @@ public:
 	);
 
 	void DrawQuad(const std::array<V2_float, 4>& positions, Color tint, float depth);
-	void DrawLine(
-		impl::ShaderId shader, std::array<V2_float, 2> positions, Color tint, float depth
-	);
 	void DrawTriangle(
 		impl::ShaderId shader, std::array<V2_float, 3> positions, Color tint, float depth
 	);
 	void DrawQuad(
 		impl::ShaderId shader, std::array<V2_float, 4> positions,
 		const std::array<float, 4>& user_data, Color tint, float depth,
-		std::function<void()> shader_setup = {}
+		const std::function<void()>& shader_setup = {}
 	);
 
 	void DrawTexture(
@@ -189,16 +177,27 @@ public:
 	void SetDepth(const DepthState& depth);
 	void SetStencil(const StencilState& stencil);
 	void SetRaster(const RasterState& raster);
+	void SetShader(const Shader& shader);
+	void SetShader(impl::ShaderId shader);
 	void SetScissor(const ScissorState& scissor);
 	void SetColorMask(const ColorMaskState& color_mask);
 
 	[[nodiscard]] impl::RenderPass BeginPass(const impl::RenderTargetData& scene_target);
+
+	using ShaderVariant = std::variant<Shader, impl::ShaderId, std::string_view>;
+
+	template <typename T>
+	void SetUniform(ShaderVariant shader, const char* uniform_name, const T& value) {
+		renderer_.SetUniform(GetShaderId(shader), uniform_name, value);
+	}
 
 private:
 	friend class Renderer;
 	friend class Scene;
 	friend class DebugContext;
 	friend class RenderContext;
+
+	impl::ShaderId GetShaderId(ShaderVariant shader) const;
 
 	[[nodiscard]] static std::variant<
 		std::monostate, impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
@@ -219,7 +218,6 @@ private:
 	void Draw(const impl::QuadCommand& draw, float depth);
 	void Draw(const std::vector<impl::QuadCommand>& cmds, float depth);
 	void Draw(const impl::QuadShapeCommand& draw, float depth);
-	void Draw(const impl::LineCommand& draw, float depth);
 	void Draw(const impl::TriangleCommand& draw, float depth);
 	void Draw(const std::vector<impl::TriangleCommand>& cmds, float depth);
 	void Draw(std::monostate, float depth) const;
@@ -245,7 +243,7 @@ public:
 		std::optional<V2_float> size = {}, Origin draw_origin = Origin::Center,
 		std::optional<Color> tint = {}, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
-		std::optional<Camera> camera									  = {}
+		const std::optional<Camera>& camera								  = {}
 	);
 
 	void DrawTexture(
@@ -253,7 +251,7 @@ public:
 		std::optional<V2_float> size = {}, Origin draw_origin = Origin::Center,
 		std::optional<Color> tint = {}, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
-		std::optional<Camera> camera									  = {}
+		const std::optional<Camera>& camera								  = {}
 	);
 
 	/// @param size If size is {}, uses the entire game size.
@@ -262,7 +260,7 @@ public:
 	void DrawShader(
 		Shader shader, Transform transform, std::optional<V2_float> size = {},
 		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, std::optional<Camera> camera = {},
+		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {},
 		const std::optional<std::array<float, 4>>& user_data = {}
 	);
 
@@ -270,13 +268,13 @@ public:
 		const std::vector<V2_float>& points, Color color, float line_width = kMinLineWidth,
 		bool connect_last_to_first = false, std::optional<Transform> transform = {},
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		std::optional<Camera> camera = {}
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawShape(
 		const Shape& shape, Transform transform, Color color, FillStyle fill_style,
 		Origin draw_origin = Origin::Center, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, std::optional<Camera> camera = {}
+		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
 	);
 
 	void DrawText(
@@ -285,74 +283,74 @@ public:
 		const std::variant<std::monostate, Font, std::string_view>& font = {},
 		const TextProperties& properties = {}, Origin draw_origin = Origin::Center,
 		std::optional<V2_float> text_size = {}, bool hd_text = true, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, std::optional<Camera> camera = {}
+		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
 	);
 
 	void DrawRect(
 		Transform transform, const Rect& rect, Color color,
 		FillStyle fill_style = FillStyle::Hollow(1.0f), Origin draw_origin = Origin::Center,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		std::optional<Camera> camera = {}
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawRoundedRect(
 		Transform transform, const RoundedRect& rounded_rect, Color color,
 		FillStyle fill_style = FillStyle::Hollow(1.0f), Origin draw_origin = Origin::Center,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		std::optional<Camera> camera = {}
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawLine(
 		Transform transform, const Line& line, Color color, float line_width = kMinLineWidth,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		std::optional<Camera> camera = {}
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawLine(
 		V2_float start, V2_float end, Color color, float line_width = kMinLineWidth,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		std::optional<Camera> camera = {}
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawTriangle(
 		Transform transform, const Triangle& triangle, Color color,
 		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, std::optional<Camera> camera = {}
+		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
 	);
 
 	void DrawEllipse(
 		Transform transform, const Ellipse& ellipse, Color color,
 		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, std::optional<Camera> camera = {}
+		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
 	);
 
 	void DrawCircle(
 		Transform transform, const Circle& circle, Color color,
 		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, std::optional<Camera> camera = {}
+		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
 	);
 
 	void DrawCapsule(
 		Transform transform, const Capsule& capsule, Color color,
 		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, std::optional<Camera> camera = {}
+		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
 	);
 
 	void DrawArc(
 		Transform transform, const Arc& arc, Color color,
 		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, std::optional<Camera> camera = {}
+		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
 	);
 
 	void DrawPolygon(
 		Transform transform, const Polygon& polygon, Color color,
 		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, std::optional<Camera> camera = {}
+		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
 	);
 
 	void DrawPoint(
 		V2_float point, Color color, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		std::optional<Camera> camera = {}
+		const std::optional<Camera>& camera = {}
 	);
 
 private:
@@ -364,7 +362,7 @@ private:
 		std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
 		std::optional<BlendMode> blend_mode,
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates,
-		std::optional<Camera> camera
+		const std::optional<Camera>& camera
 	);
 
 	template <typename T, typename R>
@@ -382,8 +380,10 @@ private:
 
 	/// @brief If camera is {}, returns draw commands for the primary scene camera. If draw commands
 	/// do not exist for the camera, adds them to the vector.
-	std::vector<impl::DrawCommand>& GetDrawCommandsForCamera(std::optional<Camera> camera);
-	std::vector<impl::ManualDrawCommand>& GetDebugCommandsForCamera(std::optional<Camera> camera);
+	std::vector<impl::DrawCommand>& GetDrawCommandsForCamera(const std::optional<Camera>& camera);
+	std::vector<impl::ManualDrawCommand>& GetDebugCommandsForCamera(
+		const std::optional<Camera>& camera
+	);
 
 	void Init(Scene& scene, Renderer& renderer);
 

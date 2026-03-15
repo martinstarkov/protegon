@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -29,6 +30,7 @@
 #include "core/math/vector2.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_target.h"
 #include "renderer/primitives/shader.h"
@@ -115,6 +117,23 @@ std::vector<impl::QuadCommand> DrawContext::GetLineDrawCommands(
 	return cmds;
 }
 
+impl::ShaderId DrawContext::GetShaderId(ShaderVariant shader) const {
+	return std::visit(
+		[&]<typename T>(const T& arg) -> impl::ShaderId {
+			if constexpr (std::is_same_v<T, Shader>) {
+				return arg;
+			} else if constexpr (std::is_same_v<T, impl::ShaderId>) {
+				return arg;
+			} else if constexpr (std::is_same_v<T, std::string_view>) {
+				return renderer_.GetShader(arg);
+			} else {
+				static_assert(false, "Incomplete visitor!");
+			}
+		},
+		shader
+	);
+}
+
 std::variant<
 	std::monostate, impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
 	std::vector<impl::TriangleCommand>>
@@ -145,6 +164,7 @@ DrawContext::GetShapeDrawCommand(
 			-> std::variant<
 				std::monostate, impl::QuadCommand, impl::QuadShapeCommand,
 				std::vector<impl::QuadCommand>, std::vector<impl::TriangleCommand>> {
+			// TODO: Simplify this by using GetWorldVertices(shape, transform).
 			if constexpr (std::is_same_v<T, Rect>) {
 				if (auto size{ s.GetSize(transform) }; !size.BothAboveZero()) {
 					return {};
@@ -318,19 +338,16 @@ DrawContext::GetShapeDrawCommand(
 				auto circle_shader{ renderer.GetShader("circle") };
 
 				return impl::QuadShapeCommand{ circle_shader, positions, data, tint, blend_mode };
+			} else {
+				static_assert(false, "Incomplete visitor!");
 			}
 		},
 		shape
 	);
 }
 
-void DrawContext::DrawLine(
-	impl::ShaderId shader, std::array<V2_float, 2> positions, Color tint, float depth
-) {
-	for (auto& pos : positions) {
-		pos = FastFloor(pos);
-	}
-	renderer_.DrawLine(shader, positions, tint, depth);
+void DrawContext::Flush() {
+	renderer_.FlushBatch();
 }
 
 void DrawContext::DrawTriangle(
@@ -344,7 +361,7 @@ void DrawContext::DrawTriangle(
 
 void DrawContext::DrawQuad(
 	impl::ShaderId shader, std::array<V2_float, 4> positions, const std::array<float, 4>& user_data,
-	Color tint, float depth, std::function<void()> shader_setup
+	Color tint, float depth, const std::function<void()>& shader_setup
 ) {
 	for (auto& pos : positions) {
 		pos = FastFloor(pos);
@@ -354,7 +371,8 @@ void DrawContext::DrawQuad(
 
 void DrawContext::DrawTexture(
 	impl::ShaderId shader, impl::TextureId texture, std::array<V2_float, 4> positions, Color tint,
-	float depth, const std::array<V2_float, 4>& tex_coords, std::function<void()> shader_setup
+	float depth, const std::array<V2_float, 4>& tex_coords,
+	const std::function<void()>& shader_setup
 ) {
 	for (auto& pos : positions) {
 		pos = FastFloor(pos);
@@ -416,6 +434,14 @@ void DrawContext::SetRaster(const RasterState& raster) {
 	renderer_.SetRaster(raster);
 }
 
+void DrawContext::SetShader(const Shader& shader) {
+	renderer_.SetShader(shader);
+}
+
+void DrawContext::SetShader(impl::ShaderId shader) {
+	renderer_.SetShader(shader);
+}
+
 void DrawContext::SetScissor(const ScissorState& scissor) {
 	renderer_.SetScissor(scissor);
 }
@@ -467,14 +493,6 @@ void DrawContext::Draw(const impl::QuadShapeCommand& cmd, float depth) {
 	DrawQuad(cmd.shader, cmd.positions, cmd.user_data, cmd.color, depth);
 }
 
-void DrawContext::Draw(const impl::LineCommand& cmd, float depth) {
-	if (cmd.blend_mode.has_value()) {
-		SetBlend(*cmd.blend_mode);
-	}
-	auto color_shader{ GetShader("color") };
-	DrawLine(color_shader, cmd.positions, cmd.color, depth);
-}
-
 void DrawContext::Draw(const impl::TriangleCommand& cmd, float depth) {
 	if (cmd.blend_mode.has_value()) {
 		SetBlend(*cmd.blend_mode);
@@ -489,7 +507,7 @@ void DrawContext::Draw(const std::vector<impl::TriangleCommand>& cmds, float dep
 	}
 }
 
-void DrawContext::Draw(std::monostate, float depth) const { /* No-op */ }
+void DrawContext::Draw(std::monostate, float) const { /* No-op */ }
 
 void DrawContext::DrawLines(
 	std::span<const V2_float> points, float line_width, Transform transform, Color tint,
@@ -520,7 +538,8 @@ void RenderContext::Init(Scene& scene, Renderer& renderer) {
 	renderer_ = &renderer;
 }
 
-std::vector<impl::DrawCommand>& RenderContext::GetDrawCommandsForCamera(std::optional<Camera> camera
+std::vector<impl::DrawCommand>& RenderContext::GetDrawCommandsForCamera(
+	const std::optional<Camera>& camera
 ) {
 	Camera cam{ camera.value_or(scene_->camera) };
 
@@ -535,7 +554,7 @@ std::vector<impl::DrawCommand>& RenderContext::GetDrawCommandsForCamera(std::opt
 }
 
 std::vector<impl::ManualDrawCommand>& RenderContext::GetDebugCommandsForCamera(
-	std::optional<Camera> camera
+	const std::optional<Camera>& camera
 ) {
 	Camera cam{ camera.value_or(scene_->camera) };
 
@@ -553,7 +572,8 @@ void RenderContext::DrawTexture(
 	impl::TextureId texture, V2_int texture_size, impl::ShaderId shader, Transform transform,
 	std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
 	std::optional<BlendMode> blend_mode,
-	const std::optional<std::array<V2_float, 4>>& texture_coordinates, std::optional<Camera> camera
+	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
+	const std::optional<Camera>& camera
 ) {
 	auto& draw_commands{ GetDrawCommandsForCamera(camera) };
 
@@ -582,7 +602,8 @@ void RenderContext::DrawTexture(
 	std::variant<Texture, std::string_view> texture, Transform transform,
 	std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
 	std::optional<BlendMode> blend_mode,
-	const std::optional<std::array<V2_float, 4>>& texture_coordinates, std::optional<Camera> camera
+	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
+	const std::optional<Camera>& camera
 ) {
 	auto resolved_texture{ scene_->app().asset.ToTexture(texture) };
 
@@ -599,7 +620,8 @@ void RenderContext::DrawTexture(
 	std::variant<Texture, std::string_view> texture, Shader shader, Transform transform,
 	std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
 	std::optional<BlendMode> blend_mode,
-	const std::optional<std::array<V2_float, 4>>& texture_coordinates, std::optional<Camera> camera
+	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
+	const std::optional<Camera>& camera
 ) {
 	auto resolved_texture{ scene_->app().asset.ToTexture(texture) };
 
@@ -614,7 +636,7 @@ void RenderContext::DrawTexture(
 void RenderContext::DrawShader(
 	Shader shader, Transform transform, std::optional<V2_float> size, Origin draw_origin,
 	std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
-	std::optional<Camera> camera, const std::optional<std::array<float, 4>>& user_data
+	const std::optional<Camera>& camera, const std::optional<std::array<float, 4>>& user_data
 ) {
 	auto& draw_commands{ GetDrawCommandsForCamera(camera) };
 
@@ -635,7 +657,7 @@ void RenderContext::DrawShader(
 void RenderContext::DrawLines(
 	const std::vector<V2_float>& points, Color color, float line_width, bool connect_last_to_first,
 	std::optional<Transform> transform, Depth depth, std::optional<BlendMode> blend_mode,
-	std::optional<Camera> camera
+	const std::optional<Camera>& camera
 ) {
 	auto& draw_commands{ GetDrawCommandsForCamera(camera) };
 
@@ -651,7 +673,7 @@ void RenderContext::DrawLines(
 
 void RenderContext::DrawShape(
 	const Shape& shape, Transform transform, Color color, FillStyle fill_style, Origin draw_origin,
-	Depth depth, std::optional<BlendMode> blend_mode, std::optional<Camera> camera
+	Depth depth, std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
 	auto& draw_commands{ GetDrawCommandsForCamera(camera) };
 
@@ -671,7 +693,8 @@ void RenderContext::DrawText(
 	std::optional<float> font_size,
 	const std::variant<std::monostate, Font, std::string_view>& font,
 	const TextProperties& properties, Origin draw_origin, std::optional<V2_float> text_size,
-	bool hd_text, Depth depth, std::optional<BlendMode> blend_mode, std::optional<Camera> camera
+	bool hd_text, Depth depth, std::optional<BlendMode> blend_mode,
+	const std::optional<Camera>& camera
 ) {
 	PTGN_ASSERT(
 		scene_ != nullptr && renderer_ != nullptr, "Render context must be initialized before use"
@@ -719,7 +742,7 @@ void RenderContext::DrawText(
 
 void RenderContext::DrawRect(
 	Transform transform, const Rect& rect, Color color, FillStyle fill_style, Origin draw_origin,
-	Depth depth, std::optional<BlendMode> blend_mode, std::optional<Camera> camera
+	Depth depth, std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
 	DrawShape(rect, transform, color, fill_style, draw_origin, depth, blend_mode, camera);
 }
@@ -727,14 +750,14 @@ void RenderContext::DrawRect(
 void RenderContext::DrawRoundedRect(
 	Transform transform, const RoundedRect& rounded_rect, Color color, FillStyle fill_style,
 	Origin draw_origin, Depth depth, std::optional<BlendMode> blend_mode,
-	std::optional<Camera> camera
+	const std::optional<Camera>& camera
 ) {
 	DrawShape(rounded_rect, transform, color, fill_style, draw_origin, depth, blend_mode, camera);
 }
 
 void RenderContext::DrawLine(
 	Transform transform, const Line& line, Color color, float line_width, Depth depth,
-	std::optional<BlendMode> blend_mode, std::optional<Camera> camera
+	std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
 	DrawShape(
 		line, transform, color, FillStyle::Hollow(line_width), Origin::Center, depth, blend_mode,
@@ -744,7 +767,7 @@ void RenderContext::DrawLine(
 
 void RenderContext::DrawLine(
 	V2_float start, V2_float end, Color color, float line_width, Depth depth,
-	std::optional<BlendMode> blend_mode, std::optional<Camera> camera
+	std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
 	DrawShape(
 		Line{ start, end }, {}, color, FillStyle::Hollow(line_width), Origin::Center, depth,
@@ -754,49 +777,49 @@ void RenderContext::DrawLine(
 
 void RenderContext::DrawTriangle(
 	Transform transform, const Triangle& triangle, Color color, FillStyle fill_style, Depth depth,
-	std::optional<BlendMode> blend_mode, std::optional<Camera> camera
+	std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
 	DrawShape(triangle, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
 }
 
 void RenderContext::DrawEllipse(
 	Transform transform, const Ellipse& ellipse, Color color, FillStyle fill_style, Depth depth,
-	std::optional<BlendMode> blend_mode, std::optional<Camera> camera
+	std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
 	DrawShape(ellipse, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
 }
 
 void RenderContext::DrawCircle(
 	Transform transform, const Circle& circle, Color color, FillStyle fill_style, Depth depth,
-	std::optional<BlendMode> blend_mode, std::optional<Camera> camera
+	std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
 	DrawShape(circle, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
 }
 
 void RenderContext::DrawCapsule(
 	Transform transform, const Capsule& capsule, Color color, FillStyle fill_style, Depth depth,
-	std::optional<BlendMode> blend_mode, std::optional<Camera> camera
+	std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
 	DrawShape(capsule, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
 }
 
 void RenderContext::DrawArc(
 	Transform transform, const Arc& arc, Color color, FillStyle fill_style, Depth depth,
-	std::optional<BlendMode> blend_mode, std::optional<Camera> camera
+	std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
 	DrawShape(arc, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
 }
 
 void RenderContext::DrawPolygon(
 	Transform transform, const Polygon& polygon, Color color, FillStyle fill_style, Depth depth,
-	std::optional<BlendMode> blend_mode, std::optional<Camera> camera
+	std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
 	DrawShape(polygon, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
 }
 
 void RenderContext::DrawPoint(
 	V2_float point, Color color, Depth depth, std::optional<BlendMode> blend_mode,
-	std::optional<Camera> camera
+	const std::optional<Camera>& camera
 ) {
 	DrawShape(point, {}, color, FillStyle::Solid(), Origin::Center, depth, blend_mode, camera);
 }
