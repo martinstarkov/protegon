@@ -27,15 +27,12 @@ public:
 	GroundScript() {}
 
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<CollisionEvent>([this](CollisionEvent& e) {
-			if (e.collision.entity == entity) {
-				Ground(e.collision);
-			}
-		});
+		d.Dispatch<CollisionEvent>([this](CollisionEvent& e) { Ground(e.collision); });
 	}
 
 	void Ground(Collision c) {
 		if (c.normal == V2_float{ 0.0f, -1.0f }) {
+			// PTGN_LOG("Grounded");
 			PlatformerJump::Ground(entity, c, ground_mask);
 		}
 	}
