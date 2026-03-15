@@ -14,6 +14,30 @@ namespace ptgn {
 class DrawContext;
 class Scene;
 
+struct LightProperties {
+	/// @brief Radius of the light. The higher the radius, the further light reaches out from the
+	/// center.
+	float radius{ 100.0f };
+
+	/// @brief Color of the light.
+	Color color{ color::Red };
+
+	/// @brief Angle of the light cone in degrees. If std::nullopt, the light is a
+	/// point light. Range: [0.0, 360.0]. 0.0 means no light is drawn,
+	/// 360.0 means the light is a point light and has no cone.
+	std::optional<float> cone_angle;
+
+	/// @brief Initial angle of the light direction in degrees. 0.0 means pointing to the right.
+	/// Range: [0.0, 360.0]. Only applies to lights with a cone angle.
+	float direction_angle{ 0.0f };
+
+	/// @brief Intensity of the light source. Range: [0, 1].
+	float intensity{ 0.5f };
+
+	/// @brief Falloff of the light. The higher the value, the less light reaches the outer radius.
+	float falloff{ 2.0f };
+};
+
 namespace impl {
 
 struct LightData {
@@ -29,7 +53,7 @@ struct LightData {
 	/// @brief Higher -> Less light reaches the outer radius.
 	float falloff{ 2.0f };
 
-	/// @brief Angle of the light cone in radians. Range: [0.0, 2pi). 0.0 means no light is drawn,
+	/// @brief Angle of the light cone in radians. Range: [0.0, 2pi]. 0.0 means no light is drawn,
 	/// 2pi means the light is a point light and has no cone. If std::nullopt, the light is a
 	/// point light.
 	std::optional<float> cone_angle;
@@ -75,6 +99,9 @@ public:
 	/// @return Cone angle in degrees, if it has been set. Range: [0.0, 360.0].
 	[[nodiscard]] std::optional<float> GetConeAngle() const;
 
+	Light& SetLightProperties(const LightProperties& properties);
+	[[nodiscard]] LightProperties GetLightProperties() const;
+
 private:
 	static void SetUniform(DrawContext& renderer, Entity entity);
 };
@@ -82,18 +109,8 @@ private:
 PTGN_REGISTER_DRAWABLE(Light);
 
 /// @param position Starting point of the light.
-/// @param radius The higher the radius, the further light reaches out from the center.
-/// @param color Color of the light.
-/// @param cone_angle Angle of the light cone in degrees. If std::nullopt, the light is a
-/// point light. Range: [0.0, 360.0]. 0.0 means no light is drawn, 360.0 means the light is a point
-/// light and has no cone.
-/// @param direction_angle Angle of the light direction in degrees. 0.0 means pointing to the right.
-/// @param intensity Intensity of the light source. Range: [0, 1].
-/// @param falloff The higher the value, the Less light reaches the outer radius.
-Light CreateLight(
-	Scene& scene, V2_float position, float radius, Color color,
-	std::optional<float> cone_angle = {}, float direction_angle = 0.0f, float intensity = 0.5f,
-	float falloff = 2.0f
-);
+/// @param properties Optional properties of the light. If not provided, default properties will be
+/// used.
+Light CreateLight(Scene& scene, V2_float position, const LightProperties& properties = {});
 
 } // namespace ptgn

@@ -124,8 +124,7 @@ Color Light::GetAmbientColor() const {
 
 Light& Light::SetRadius(float radius) {
 	PTGN_ASSERT(radius > 0.0f, "Light radius must be above 0");
-	PTGN_ASSERT(Has<Circle>(), "Light must have Circle component");
-	Get<Circle>().radius = radius;
+	Add<Circle>().radius = radius;
 	return *this;
 }
 
@@ -171,29 +170,39 @@ std::optional<float> Light::GetConeAngle() const {
 	}
 }
 
-Light CreateLight(
-	Scene& scene, V2_float position, float radius, Color color, std::optional<float> cone_angle,
-	float direction_angle, float intensity, float falloff
-) {
+Light& Light::SetLightProperties(const LightProperties& properties) {
+	SetRadius(properties.radius);
+	SetColor(properties.color);
+	SetIntensity(properties.intensity);
+	SetFalloff(properties.falloff);
+	SetConeAngle(properties.cone_angle);
+	SetRotation(*this, DegToRad(properties.direction_angle));
+	return *this;
+}
+
+LightProperties Light::GetLightProperties() const {
+	LightProperties properties;
+	properties.radius	  = GetRadius();
+	properties.color	  = GetColor();
+	properties.intensity  = GetIntensity();
+	properties.falloff	  = GetFalloff();
+	properties.cone_angle = GetConeAngle();
+	auto rotation{ GetRotation(*this) };
+	properties.direction_angle = RadToDeg(rotation);
+	return properties;
+}
+
+Light CreateLight(Scene& scene, V2_float position, const LightProperties& properties) {
 	Light light{ scene.CreateEntity() };
+	light.Add<impl::LightData>();
+	light.SetLightProperties(properties);
 
-	light.Add<Circle>(radius);
-	light.Add<impl::Tint>(color);
-
+	SetPosition(light, position);
 	SetDraw<Light>(light);
 	Show(light);
-	SetPosition(light, position);
-
-	auto& light_data{ light.Add<impl::LightData>() };
-	light_data.intensity = intensity;
-	light_data.falloff	 = falloff;
 
 	// Blend mode with which the lights are added to the scene.
 	SetBlendMode(light, BlendMode::PremultipliedAddRGBA);
-
-	SetRotation(light, DegToRad(direction_angle));
-
-	light.SetConeAngle(cone_angle);
 
 	return light;
 }

@@ -1,6 +1,7 @@
 #include "runtime/graphics/light.h"
 
 #include <chrono>
+#include <optional>
 
 #include "app/application.h"
 #include "app/context.h"
@@ -42,10 +43,10 @@ public:
 		float step{ 80 };
 
 		const auto create_light = [&](const Color& color) {
-			static int i = 1;
+			static float i = 1.0f;
 			CreateLight(
 				*this, V2_float{ -app().renderer.GetGameSize() * 0.5f } + V2_float{ i * step },
-				radius, color, {}, 0.0f, intensity, falloff
+				{ .radius = radius, .color = color, .intensity = intensity, .falloff = falloff }
 			);
 			i++;
 		};
@@ -58,24 +59,27 @@ public:
 		create_light(color::Cyan);
 		create_light(color::White);
 
-		// auto ambient = CreatePointLight(*this, { 400, 400 }, 400.0f, color::White, 0.0f,
-		// falloff); ambient.SetAmbientColor(color::White); ambient.SetAmbientIntensity(0.1f);
+		mouse_light = CreateLight(
+			*this, {},
+			{ .radius = 50.0f, .color = color::White, .intensity = 0.1f, .falloff = 0.2f }
+		);
 
-		mouse_light = CreateLight(*this, {}, 50.0f, color::White, {}, 0.0f, 0.1f, 0.2f);
-
-		mouse_directional_light =
-			CreateLight(*this, V2_float{ 0, -300 }, 100.0f, color::Red, 10.0f, 0.0f, 0.8f, 0.2f);
+		mouse_directional_light = CreateLight(
+			*this, V2_float{ 0, -300 },
+			{ .radius	  = 100.0f,
+			  .color	  = color::Red,
+			  .cone_angle = 10.0f,
+			  .intensity  = 0.8f,
+			  .falloff	  = 0.2f }
+		);
 
 		auto sprite2 = CreateSprite(*this, "tree", { -200, 150 });
 		SetDrawOrigin(sprite2, Origin::TopLeft);
 
 		CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, -1.0f, Origin::TopLeft);
-		// mouse_light.SetAmbientColor(color::Red);
-		// mouse_light.SetAmbientIntensity(0.1f);
 	}
 
 	void OnUpdate() override {
-		// PTGN_LOG(input.GetMousePosition());
 		SetPosition(mouse_light, input.GetMousePosition());
 		SetPosition(mouse_directional_light, input.GetMousePosition());
 		float time_scale{ 0.1f };
@@ -89,8 +93,6 @@ public:
 		} else if (scroll < 0.0f) {
 			mouse_directional_light.SetConeAngle(*mouse_directional_light.GetConeAngle() - 5.0f);
 		}
-
-		// DrawDebugRect({ 300, 400 }, { 100, 100 }, color::Blue, Origin::TopLeft, -1.0f);
 	}
 };
 
