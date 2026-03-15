@@ -77,11 +77,16 @@ bool EntityDepthCompare::operator()(Entity a, Entity b) const {
 template <ShapeType T>
 void DrawShape(DrawContext& renderer, Entity entity, Camera) {
 	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
-	renderer.DrawShape(
-		entity.Get<T>(), GetDrawTransform(entity), GetTint(entity),
-		entity.GetOrDefault<FillStyle>(), GetDrawOrigin(entity), GetDepth(entity),
-		GetBlendMode(entity)
-	);
+
+	const auto& shape{ entity.Get<T>() };
+	auto draw_transform{ GetDrawTransform(entity) };
+	auto tint{ GetTint(entity) };
+	auto fill_style{ entity.GetOrDefault<FillStyle>() };
+	auto draw_origin{ GetDrawOrigin(entity) };
+	auto depth{ GetDepth(entity) };
+	auto blend_mode{ GetBlendMode(entity) };
+
+	renderer.DrawShape(shape, draw_transform, tint, fill_style, draw_origin, depth, blend_mode);
 }
 
 void CapsuleDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
