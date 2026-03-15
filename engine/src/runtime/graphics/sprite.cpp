@@ -8,6 +8,7 @@
 #include "app/context.h"
 #include "core/assert.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/texture.h"
 #include "runtime/asset/asset_manager.h"
@@ -24,6 +25,8 @@ Sprite::Sprite(Entity entity) : Entity{ entity } {}
 void Sprite::Draw(DrawContext& renderer, Entity entity, Camera) {
 	PTGN_ASSERT(entity.Has<Texture>());
 	auto draw_transform{ GetDrawTransform(entity) };
+	// Get display size already handles the scale.
+	draw_transform.SetScale(draw_transform.GetScale() / Abs(draw_transform.GetScale()));
 	auto texture_size{ GetDisplaySize(entity) };
 	auto draw_origin{ GetDrawOrigin(entity) };
 	auto tint{ GetTint(entity) };
