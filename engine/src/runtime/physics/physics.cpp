@@ -1,9 +1,11 @@
 #include "runtime/physics/physics.h"
 
+#include <chrono>
 #include <optional>
 #include <ostream>
 #include <utility>
 
+#include "app/context.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/transform.h"
@@ -14,6 +16,8 @@
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
+
+Physics::Physics(Scene& scene) : scene_{ scene } {}
 
 std::optional<Bounds> Physics::GetBounds() const {
 	return bounds_;
@@ -36,8 +40,7 @@ void Physics::SetGravity(V2_float gravity) {
 }
 
 float Physics::DeltaTime() const {
-	// TODO: Allow user to modify this.
-	return 1.0f / 60.0f;
+	return scene_.app().DeltaTime().count();
 }
 
 void Physics::SetEnabled(bool enabled) {
@@ -56,7 +59,7 @@ void Physics::Enable() {
 	return enabled_;
 }
 
-void Physics::PreCollisionUpdate(Scene& scene) const {
+void Physics::PreCollisionUpdate() const {
 	if (!enabled_) {
 		return;
 	}
@@ -64,37 +67,37 @@ void Physics::PreCollisionUpdate(Scene& scene) const {
 	float dt{ Physics::DeltaTime() };
 
 	for (auto [entity, transform, rigid_body, movement] :
-		 scene.EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
+		 scene_.EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
 		movement.Update(entity, transform, rigid_body, dt);
 	}
 
-	scene.Refresh();
+	scene_.Refresh();
 
 	for (auto [e, transform, rigid_body, movement, jump] :
-		 scene.EntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
-		movement.Update(scene, transform, rigid_body, dt);
-		jump.Update(scene, rigid_body, movement.grounded, gravity_);
+		 scene_.EntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
+		movement.Update(scene_, transform, rigid_body, dt);
+		jump.Update(scene_, rigid_body, movement.grounded, gravity_);
 	}
 
-	for (auto [e, rigid_body] : scene.EntitiesWith<RigidBody>()) {
+	for (auto [e, rigid_body] : scene_.EntitiesWith<RigidBody>()) {
 		rigid_body.Update(gravity_, dt);
 	}
 
-	for (auto [e, movement] : scene.EntitiesWith<PlatformerMovement>()) {
+	for (auto [e, movement] : scene_.EntitiesWith<PlatformerMovement>()) {
 		movement.grounded = false;
 	}
 
-	scene.Refresh();
+	scene_.Refresh();
 }
 
-void Physics::PostCollisionUpdate(Scene& scene) const {
+void Physics::PostCollisionUpdate() const {
 	if (!enabled_) {
 		return;
 	}
 
 	float dt{ Physics::DeltaTime() };
 
-	for (auto [entity, transform, rigid_body] : scene.EntitiesWith<Transform, RigidBody>()) {
+	for (auto [entity, transform, rigid_body] : scene_.EntitiesWith<Transform, RigidBody>()) {
 		transform.Translate(rigid_body.velocity * dt);
 		transform.Rotate(rigid_body.angular_velocity * dt);
 		transform.ClampRotation();
@@ -116,7 +119,7 @@ void Physics::PostCollisionUpdate(Scene& scene) const {
 		);
 	}
 
-	scene.Refresh();
+	scene_.Refresh();
 }
 
 void Physics::HandleBoundary(Transform& transform, V2_float& velocity, const Bounds& bounds) {
@@ -153,6 +156,12 @@ void Physics::HandleBoundary(Transform& transform, V2_float& velocity, const Bou
 		}
 		default: PTGN_ERROR("Unknown physics boundary behavior specified");
 	}
+}
+
+void Physics::Reset() {
+	enabled_ = true;
+	bounds_	 = {};
+	gravity_ = {};
 }
 
 std::ostream& operator<<(std::ostream& o, BoundaryBehavior behavior) {

@@ -51,7 +51,7 @@ void SceneEventHandler::Emit(EventDispatcher d) {
 	scene_.InternalEmit(d);
 }
 
-Scene::Scene() : event{ *this }, input{ *this } {}
+Scene::Scene() : event{ *this }, input{ *this }, debug{ renderer }, physics{ *this } {}
 
 Scene::~Scene() {}
 
@@ -84,6 +84,12 @@ void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 
 void Scene::InternalEnter() {
 	OnEnter();
+	Refresh();
+
+	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
+		scripts.ApplyPending();
+	}
+
 	Refresh();
 }
 
@@ -311,9 +317,9 @@ void Scene::InternalUpdate() {
 	Tween::Update(*this, app().DeltaTime());
 	impl::AnimationSystem::Update(*this);
 	Lifetime::Update(*this);
-	physics.PreCollisionUpdate(*this);
+	physics.PreCollisionUpdate();
 	collision_.Update(*this);
-	physics.PostCollisionUpdate(*this);
+	physics.PostCollisionUpdate();
 }
 
 void Scene::InternalExit() {
@@ -322,7 +328,7 @@ void Scene::InternalExit() {
 	Refresh();
 	// Clears component hooks.
 	manager_.Reset();
-	physics = {};
+	physics.Reset();
 	Refresh();
 }
 

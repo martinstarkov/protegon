@@ -68,12 +68,18 @@ public:
 	//)
 
 private:
-	friend class ptgn::Scene;
+	friend class Scene;
 
-	void PreCollisionUpdate(Scene& scene) const;
-	void PostCollisionUpdate(Scene& scene) const;
+	explicit Physics(Scene& scene);
+
+	void PreCollisionUpdate() const;
+	void PostCollisionUpdate() const;
 
 	static void HandleBoundary(Transform& transform, V2_float& velocity, const Bounds& bounds);
+
+	Scene& scene_;
+
+	void Reset();
 
 	bool enabled_{ true };
 	std::optional<Bounds> bounds_;

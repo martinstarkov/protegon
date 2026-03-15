@@ -299,7 +299,7 @@ public:
 	const ApplicationContext& app() const;
 
 	RenderContext renderer;
-	DebugContext debug{ renderer };
+	DebugContext debug;
 	SceneEventHandler event;
 
 	SceneInput input;
