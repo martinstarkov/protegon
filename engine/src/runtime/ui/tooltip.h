@@ -46,7 +46,7 @@ struct TooltipHoverScript : public Script {
 
 	TooltipHoverScript() = default;
 
-	TooltipHoverScript(const std::string& name, V2_float offset);
+	TooltipHoverScript(std::string_view tooltip_name, V2_float offset);
 
 	void OnEvent(EventDispatcher d) override;
 
@@ -61,8 +61,17 @@ private:
 };
 
 Tooltip CreateTooltip(
-	Scene& scene, std::string_view name, std::string_view content, Color text_color,
+	Scene& scene, std::string_view tooltip_name, std::string_view content, Color text_color,
 	std::variant<std::monostate, Texture, std::string_view> texture
+);
+
+void ShowTooltipOnHover(Entity entity, std::string_view tooltip_name, V2_float tooltip_offset = {});
+
+Tooltip AddTooltipOnHover(
+	Entity entity, std::string_view tooltip_name, std::string_view tooltip_content,
+	Color tooltip_text_color,
+	std::variant<std::monostate, Texture, std::string_view> tooltip_texture = {},
+	V2_float tooltip_offset													= {}
 );
 
 } // namespace ptgn

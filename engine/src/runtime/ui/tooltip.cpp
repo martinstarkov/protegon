@@ -1,9 +1,7 @@
 #include "runtime/ui/tooltip.h"
 
 #include <optional>
-#include <string>
 #include <string_view>
-#include <type_traits>
 #include <variant>
 
 #include "app/context.h"
@@ -28,6 +26,8 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
+#include "runtime/scripting/scripts.h"
+#include "runtime/ui/interactive.h"
 
 namespace ptgn {
 
@@ -38,8 +38,10 @@ void Tooltip::Show(V2_float position) {
 
 	auto& instance{ Entity::Get<impl::TooltipData>() };
 
+	// TODO: Make these customizable.
 	milliseconds fade_in_duration{ 250 };
 	Ease fade_in_ease{ Ease::Linear };
+
 	bool fade_in_force{ true };
 
 	const auto fade_in = [=](auto& entity) {
@@ -57,8 +59,10 @@ void Tooltip::Show(V2_float position) {
 void Tooltip::Hide() {
 	auto& instance{ Entity::Get<impl::TooltipData>() };
 
+	// TODO: Make these customizable.
 	milliseconds fade_out_duration{ 250 };
 	Ease fade_out_ease{ Ease::Linear };
+
 	bool fade_out_force{ true };
 
 	const auto fade_out = [=](auto& entity) {
@@ -82,7 +86,7 @@ std::optional<Tooltip> Tooltip::Get(Scene& scene, std::string_view name) {
 	return {};
 }
 
-TooltipHoverScript::TooltipHoverScript(const std::string& name, V2_float offset) :
+TooltipHoverScript::TooltipHoverScript(std::string_view name, V2_float offset) :
 	name{ name }, offset{ offset } {}
 
 void TooltipHoverScript::OnEvent(EventDispatcher d) {
@@ -142,6 +146,30 @@ Tooltip CreateTooltip(
 	instance.text = GameObject{ CreateText(scene, content, text_color) };
 	SetTint(instance.text, color::Transparent);
 	AddChild(tooltip, instance.text);
+
+	return tooltip;
+}
+
+void ShowTooltipOnHover(Entity entity, std::string_view tooltip_name, V2_float tooltip_offset) {
+	PTGN_ASSERT(
+		entity.Has<impl::Interactive>(), "Entity that shows tooltip on hover should be interactive"
+	);
+	AddScript<TooltipHoverScript>(entity, tooltip_name, tooltip_offset);
+}
+
+Tooltip AddTooltipOnHover(
+	Entity entity, std::string_view tooltip_name, std::string_view tooltip_content,
+	Color tooltip_text_color,
+	std::variant<std::monostate, Texture, std::string_view> tooltip_texture, V2_float tooltip_offset
+) {
+	SetInteractive(entity);
+
+	auto& scene{ entity.GetScene() };
+
+	auto tooltip =
+		CreateTooltip(scene, tooltip_name, tooltip_content, tooltip_text_color, tooltip_texture);
+
+	ShowTooltipOnHover(entity, tooltip_name, tooltip_offset);
 
 	return tooltip;
 }
