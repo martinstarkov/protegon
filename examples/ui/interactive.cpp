@@ -2,6 +2,7 @@
 #include "runtime/ui/interactive.h"
 
 #include <chrono>
+#include <optional>
 #include <utility>
 
 #include "app/application.h"

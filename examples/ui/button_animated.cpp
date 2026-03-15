@@ -35,7 +35,7 @@ public:
 		) };
 
 		b1 = CreateAnimatedButton(
-			*this, GetDisplaySize(activate_animation), activate_animation, hover_animation
+			*this, *GetDisplaySize(activate_animation), activate_animation, hover_animation
 		);
 		// TODO: Fix tints.
 		/*.SetTint(color::Red, ButtonState::Default)
