@@ -29,13 +29,18 @@ private:
 /// @brief CRTP base class for strongly-typed events.
 template <typename Derived>
 struct Event : public impl::EventBase {
+public:
+	static constexpr std::size_t TypeId() {
+		return event_id_;
+	}
+
 private:
 	friend class EventDispatcher;
 
 	static constexpr std::size_t event_id_{ Hash(type_name<Derived>()) };
 
 	constexpr std::size_t Type() override {
-		return Hash(type_name<Derived>());
+		return event_id_;
 	}
 };
 
