@@ -4,6 +4,7 @@
 #include <type_traits>
 
 #include "core/util/concepts.h"
+#include "core/util/type_info.h"
 
 namespace ptgn {
 
@@ -43,6 +44,12 @@ struct Vector2;
 
 	return hash;
 	*/
+}
+
+/// @brief Hash a type into a number.
+template <typename T>
+[[nodiscard]] constexpr std::size_t Hash() {
+	return Hash(type_name<T>());
 }
 
 template <Arithmetic T>

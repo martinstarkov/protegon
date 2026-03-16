@@ -24,12 +24,12 @@ class Script {
 public:
 	virtual ~Script() = default;
 
-	virtual void OnCreate() {}
+	virtual void OnCreate() { /* User implementation */ }
 
 	/// @brief Called once per frame.
-	virtual void OnUpdate() {}
+	virtual void OnUpdate() { /* User implementation */ }
 
-	virtual void OnEvent(EventDispatcher) {}
+	virtual void OnEvent(EventDispatcher) { /* User implementation */ }
 
 protected:
 	/// @brief Global emit (via ApplicationContext).
@@ -45,11 +45,6 @@ private:
 
 	void SetHash(std::size_t hash) {
 		hash_ = hash;
-	}
-
-	template <ScriptType T>
-	static constexpr std::size_t Hash() {
-		return ptgn::Hash(type_name<T>());
 	}
 
 	std::size_t GetHash() const {

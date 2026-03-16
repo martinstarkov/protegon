@@ -37,7 +37,7 @@ public:
 private:
 	friend class EventDispatcher;
 
-	static constexpr std::size_t event_id_{ Hash(type_name<Derived>()) };
+	static constexpr std::size_t event_id_{ Hash<Derived>() };
 
 	constexpr std::size_t Type() override {
 		return event_id_;

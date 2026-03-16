@@ -57,8 +57,7 @@ class DrawableRegistrar {
 	friend T;
 
 	static bool RegisterDrawFunction() {
-		constexpr auto name{ type_name<T>() };
-		IDrawable::data()[Hash(name)] = &T::Draw;
+		IDrawable::data()[Hash<T>()] = &T::Draw;
 		return true;
 	}
 

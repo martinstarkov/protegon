@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/event/dispatcher.h"
+#include "core/util/hash.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
 
@@ -30,7 +31,7 @@ public:
 	T& Add(Entity e, TArgs&&... constructor_args) {
 		auto sp	   = std::make_unique<T>(std::forward<TArgs>(constructor_args)...);
 		sp->entity = e;
-		constexpr auto hash{ Script::Hash<T>() };
+		constexpr auto hash{ Hash<T>() };
 		sp->SetHash(hash);
 
 		auto* raw = sp.get();
@@ -41,14 +42,14 @@ public:
 	/// @brief Removes all instances of the script type T from the scripts.
 	template <ScriptType T>
 	void Remove() {
-		constexpr auto hash{ Script::Hash<T>() };
+		constexpr auto hash{ Hash<T>() };
 		pending_remove_.emplace_back(hash);
 	}
 
 	/// @return True if an instance of a script of type T was found, false otherwise.
 	template <ScriptType T>
 	[[nodiscard]] bool Has() const {
-		constexpr auto hash{ Script::Hash<T>() };
+		constexpr auto hash{ Hash<T>() };
 		return std::any_of(scripts_.begin(), scripts_.end(), [](const std::unique_ptr<Script>& s) {
 			return s->GetHash() == hash;
 		});
