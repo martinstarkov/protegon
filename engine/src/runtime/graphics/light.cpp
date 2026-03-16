@@ -29,7 +29,7 @@ void Light::SetUniform(DrawContext& renderer, Entity entity) {
 	V4_float color_n{ color.Normalized() };
 
 	auto ambient_light_n{ light.ambient_color.Normalized() };
-	V3_float ambient_color{ ambient_light_n.x, ambient_light_n.y, ambient_light_n.z };
+	V3_float ambient_color{ ambient_light_n.xyz() };
 	constexpr V3_float light_attenuation{ 1.0f, 0.0f, 0.1f };
 
 	auto light_shader{ renderer.GetShader("light") };

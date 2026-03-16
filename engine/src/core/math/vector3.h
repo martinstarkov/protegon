@@ -8,6 +8,7 @@
 
 #include "core/assert.h"
 #include "core/math/math_utils.h"
+#include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "serialization/json/fwd.h"
 
@@ -55,6 +56,22 @@ struct Vector3 {
 	template <Arithmetic U>
 	constexpr Vector3(std::array<U, 3> o) :
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) }, z{ static_cast<T>(o[2]) } {}
+
+	constexpr Vector2<T> xy() const {
+		return { x, y };
+	}
+
+	constexpr Vector2<T> xx() const {
+		return { x, x };
+	}
+
+	constexpr Vector2<T> yy() const {
+		return { y, y };
+	}
+
+	constexpr Vector2<T> zz() const {
+		return { z, z };
+	}
 
 	friend bool operator==(const Vector3& lhs, const Vector3& rhs) {
 		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) && NearlyEqual(lhs.z, rhs.z);

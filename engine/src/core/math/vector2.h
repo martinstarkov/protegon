@@ -17,8 +17,6 @@
 
 // TODO: Stop exposing assert.h
 
-// TODO: Add xyz() and xyzw() functions.
-
 namespace ptgn {
 
 template <Arithmetic T>
@@ -53,6 +51,14 @@ struct Vector2 {
 	template <Arithmetic U>
 	explicit constexpr Vector2(std::array<U, 2> o) :
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
+
+	constexpr Vector2 xx() const {
+		return { x, x };
+	}
+
+	constexpr Vector2 yy() const {
+		return { y, y };
+	}
 
 	friend bool operator==(Vector2 lhs, Vector2 rhs) {
 		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);

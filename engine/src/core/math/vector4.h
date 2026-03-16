@@ -7,6 +7,8 @@
 
 #include "core/assert.h"
 #include "core/math/tolerance.h"
+#include "core/math/vector2.h"
+#include "core/math/vector3.h"
 #include "core/util/concepts.h"
 #include "serialization/json/fwd.h"
 
@@ -67,6 +69,26 @@ struct Vector4 {
 		y{ static_cast<T>(o[1]) },
 		z{ static_cast<T>(o[2]) },
 		w{ static_cast<T>(o[3]) } {}
+
+	constexpr Vector2<T> xy() const {
+		return { x, y };
+	}
+
+	constexpr Vector2<T> xx() const {
+		return { x, x };
+	}
+
+	constexpr Vector2<T> yy() const {
+		return { y, y };
+	}
+
+	constexpr Vector2<T> zz() const {
+		return { z, z };
+	}
+
+	constexpr Vector3<T> xyz() const {
+		return { x, y, z };
+	}
 
 	friend bool operator==(const Vector4& lhs, const Vector4& rhs) {
 		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) &&
