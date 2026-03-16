@@ -182,154 +182,154 @@ enum class Key {
 };
 
 inline std::ostream& operator<<(std::ostream& os, Key key) {
-	// TODO: Consider switching to using if constexpr or an unordered_map.
 	switch (key) {
-		case Key::W:		  os << "W"; break;
-		case Key::A:		  os << "A"; break;
-		case Key::S:		  os << "S"; break;
-		case Key::D:		  os << "D"; break;
+		using enum Key;
+		case W:			 return os << "W";
+		case A:			 return os << "A";
+		case S:			 return os << "S";
+		case D:			 return os << "D";
 
-		case Key::Right:	  os << "Right"; break;
-		case Key::Left:		  os << "Left"; break;
-		case Key::Down:		  os << "Down"; break;
-		case Key::Up:		  os << "Up"; break;
+		case Right:		 return os << "Right";
+		case Left:		 return os << "Left";
+		case Down:		 return os << "Down";
+		case Up:		 return os << "Up";
 
-		case Key::Space:	  os << "Space"; break;
-		case Key::Escape:	  os << "Escape"; break;
-		case Key::Enter:	  os << "Enter"; break;
-		case Key::Tab:		  os << "Tab"; break;
+		case Space:		 return os << "Space";
+		case Escape:	 return os << "Escape";
+		case Enter:		 return os << "Enter";
+		case Tab:		 return os << "Tab";
 
-		case Key::Q:		  os << "Q"; break;
-		case Key::E:		  os << "E"; break;
-		case Key::R:		  os << "R"; break;
-		case Key::T:		  os << "T"; break;
+		case Q:			 return os << "Q";
+		case E:			 return os << "E";
+		case R:			 return os << "R";
+		case T:			 return os << "T";
 
-		case Key::F:		  os << "F"; break;
-		case Key::G:		  os << "G"; break;
+		case F:			 return os << "F";
+		case G:			 return os << "G";
 
-		case Key::Z:		  os << "Z"; break;
-		case Key::X:		  os << "X"; break;
-		case Key::C:		  os << "C"; break;
-		case Key::V:		  os << "V"; break;
-		case Key::B:		  os << "B"; break;
+		case Z:			 return os << "Z";
+		case X:			 return os << "X";
+		case C:			 return os << "C";
+		case V:			 return os << "V";
+		case B:			 return os << "B";
 
-		case Key::LeftAlt:	  os << "Left Alt"; break;
-		case Key::RightAlt:	  os << "Right Alt"; break;
-		case Key::LeftCtrl:	  os << "Left Ctrl"; break;
-		case Key::RightCtrl:  os << "Right Ctrl"; break;
-		case Key::LeftShift:  os << "Left Shift"; break;
-		case Key::RightShift: os << "Right Shift"; break;
+		case LeftAlt:	 return os << "Left Alt";
+		case RightAlt:	 return os << "Right Alt";
+		case LeftCtrl:	 return os << "Left Ctrl";
+		case RightCtrl:	 return os << "Right Ctrl";
+		case LeftShift:	 return os << "Left Shift";
+		case RightShift: return os << "Right Shift";
 
-		case Key::H:		  os << "H"; break;
-		case Key::I:		  os << "I"; break;
-		case Key::J:		  os << "J"; break;
-		case Key::K:		  os << "K"; break;
-		case Key::L:		  os << "L"; break;
-		case Key::M:		  os << "M"; break;
-		case Key::N:		  os << "N"; break;
-		case Key::O:		  os << "O"; break;
-		case Key::P:		  os << "P"; break;
-		case Key::U:		  os << "U"; break;
-		case Key::Y:		  os << "Y"; break;
+		case H:			 return os << "H";
+		case I:			 return os << "I";
+		case J:			 return os << "J";
+		case K:			 return os << "K";
+		case L:			 return os << "L";
+		case M:			 return os << "M";
+		case N:			 return os << "N";
+		case O:			 return os << "O";
+		case P:			 return os << "P";
+		case U:			 return os << "U";
+		case Y:			 return os << "Y";
 
-		case Key::K_0:		  os << "0"; break;
-		case Key::K_1:		  os << "1"; break;
-		case Key::K_2:		  os << "2"; break;
-		case Key::K_3:		  os << "3"; break;
-		case Key::K_4:		  os << "4"; break;
-		case Key::K_5:		  os << "5"; break;
-		case Key::K_6:		  os << "6"; break;
-		case Key::K_7:		  os << "7"; break;
-		case Key::K_8:		  os << "8"; break;
-		case Key::K_9:		  os << "9"; break;
+		case K_0:		 return os << "0";
+		case K_1:		 return os << "1";
+		case K_2:		 return os << "2";
+		case K_3:		 return os << "3";
+		case K_4:		 return os << "4";
+		case K_5:		 return os << "5";
+		case K_6:		 return os << "6";
+		case K_7:		 return os << "7";
+		case K_8:		 return os << "8";
+		case K_9:		 return os << "9";
 
-		case Key::F1:		  os << "F1"; break;
-		case Key::F2:		  os << "F2"; break;
-		case Key::F3:		  os << "F3"; break;
-		case Key::F4:		  os << "F4"; break;
-		case Key::F5:		  os << "F5"; break;
-		case Key::F6:		  os << "F6"; break;
-		case Key::F7:		  os << "F7"; break;
-		case Key::F8:		  os << "F8"; break;
-		case Key::F9:		  os << "F9"; break;
-		case Key::F10:		  os << "F10"; break;
-		case Key::F11:		  os << "F11"; break;
-		case Key::F12:		  os << "F12"; break;
-		case Key::F13:		  os << "F13"; break;
-		case Key::F14:		  os << "F14"; break;
-		case Key::F15:		  os << "F15"; break;
-		case Key::F16:		  os << "F16"; break;
-		case Key::F17:		  os << "F17"; break;
-		case Key::F18:		  os << "F18"; break;
-		case Key::F19:		  os << "F19"; break;
-		case Key::F20:		  os << "F20"; break;
-		case Key::F21:		  os << "F21"; break;
-		case Key::F22:		  os << "F22"; break;
-		case Key::F23:		  os << "F23"; break;
-		case Key::F24:		  os << "F24"; break;
+		case F1:		 return os << "F1";
+		case F2:		 return os << "F2";
+		case F3:		 return os << "F3";
+		case F4:		 return os << "F4";
+		case F5:		 return os << "F5";
+		case F6:		 return os << "F6";
+		case F7:		 return os << "F7";
+		case F8:		 return os << "F8";
+		case F9:		 return os << "F9";
+		case F10:		 return os << "F10";
+		case F11:		 return os << "F11";
+		case F12:		 return os << "F12";
+		case F13:		 return os << "F13";
+		case F14:		 return os << "F14";
+		case F15:		 return os << "F15";
+		case F16:		 return os << "F16";
+		case F17:		 return os << "F17";
+		case F18:		 return os << "F18";
+		case F19:		 return os << "F19";
+		case F20:		 return os << "F20";
+		case F21:		 return os << "F21";
+		case F22:		 return os << "F22";
+		case F23:		 return os << "F23";
+		case F24:		 return os << "F24";
 
-		case Key::Enter2:	  os << "Enter2"; break;
-		case Key::Home:		  os << "Home"; break;
-		case Key::End:		  os << "End"; break;
-		case Key::Insert:	  os << "Insert"; break;
-		case Key::Delete:	  os << "Delete"; break;
+		case Enter2:	 return os << "Enter2";
+		case Home:		 return os << "Home";
+		case End:		 return os << "End";
+		case Insert:	 return os << "Insert";
+		case Delete:	 return os << "Delete";
 
-		case Key::Apostrophe: os << "'"; break;
-		case Key::Comma:	  os << ","; break;
-		case Key::Period:	  os << "."; break;
-		case Key::Semicolon:  os << ";"; break;
-		case Key::Equals:	  os << "="; break;
-		case Key::Grave:	  os << "`"; break;
-		case Key::Minus:	  os << "-"; break;
-		case Key::Slash:	  os << "/"; break;
-		case Key::Backslash:  os << "\\"; break;
+		case Apostrophe: return os << "'";
+		case Comma:		 return os << ",";
+		case Period:	 return os << ".";
+		case Semicolon:	 return os << ";";
+		case Equals:	 return os << "=";
+		case Grave:		 return os << "`";
+		case Minus:		 return os << "-";
+		case Slash:		 return os << "/";
+		case Backslash:	 return os << "\\";
 
-		case Key::Backspace:  os << "Backspace"; break;
-		case Key::Capslock:	  os << "Capslock"; break;
+		case Backspace:	 return os << "Backspace";
+		case Capslock:	 return os << "Capslock";
 
 #if defined(PTGN_PLATFORM_WINDOWS)
-		case Key::LeftWindows:	os << "Left Windows"; break;
-		case Key::RightWindows: os << "Right Windows"; break;
+		case LeftWindows:  return os << "Left Windows";
+		case RightWindows: return os << "Right Windows";
 #elif defined(PTGN_PLATFORM_MACOS) || defined(PTGN_PLATFORM_LINUX)
-		case Key::LeftCommand:	os << "Left Command"; break;
-		case Key::RightCommand: os << "Right Command"; break;
+		case Key::LeftCommand:	return os << "Left Command";
+		case Key::RightCommand: return os << "Right Command";
 #else
-		case Key::LGUI: os << "LGUI"; break;
-		case Key::RGUI: os << "RGUI"; break;
+		case Key::LGUI: return os << "LGUI";
+		case Key::RGUI: return os << "RGUI";
 #endif
 
-		case Key::PrintScreen:	os << "PrintScreen"; break;
-		case Key::PageDown:		os << "PageDown"; break;
-		case Key::PageUp:		os << "PageUp"; break;
-		case Key::LeftBracket:	os << "LeftBracket"; break;
-		case Key::RightBracket: os << "RightBracket"; break;
-		case Key::ScrollLock:	os << "ScrollLock"; break;
-		case Key::Select:		os << "Select"; break;
-		case Key::Separator:	os << "Separator"; break;
-		case Key::Sleep:		os << "Sleep"; break;
+		case PrintScreen:  return os << "PrintScreen";
+		case PageDown:	   return os << "PageDown";
+		case PageUp:	   return os << "PageUp";
+		case LeftBracket:  return os << "LeftBracket";
+		case RightBracket: return os << "RightBracket";
+		case ScrollLock:   return os << "ScrollLock";
+		case Select:	   return os << "Select";
+		case Separator:	   return os << "Separator";
+		case Sleep:		   return os << "Sleep";
 
-		case Key::Numlock:		os << "Numlock"; break;
+		case Numlock:	   return os << "Numlock";
 
-		case Key::KP_0:			os << "Keypad 0"; break;
-		case Key::KP_1:			os << "Keypad 1"; break;
-		case Key::KP_2:			os << "Keypad 2"; break;
-		case Key::KP_3:			os << "Keypad 3"; break;
-		case Key::KP_4:			os << "Keypad 4"; break;
-		case Key::KP_5:			os << "Keypad 5"; break;
-		case Key::KP_6:			os << "Keypad 6"; break;
-		case Key::KP_7:			os << "Keypad 7"; break;
-		case Key::KP_8:			os << "Keypad 8"; break;
-		case Key::KP_9:			os << "Keypad 9"; break;
+		case KP_0:		   return os << "Keypad 0";
+		case KP_1:		   return os << "Keypad 1";
+		case KP_2:		   return os << "Keypad 2";
+		case KP_3:		   return os << "Keypad 3";
+		case KP_4:		   return os << "Keypad 4";
+		case KP_5:		   return os << "Keypad 5";
+		case KP_6:		   return os << "Keypad 6";
+		case KP_7:		   return os << "Keypad 7";
+		case KP_8:		   return os << "Keypad 8";
+		case KP_9:		   return os << "Keypad 9";
 
-		case Key::KP_Ampersand: os << "Keypad &"; break;
-		case Key::KP_Period:	os << "Keypad ."; break;
-		case Key::KP_Enter:		os << "Keypad Enter"; break;
-		case Key::KP_Plus:		os << "Keypad +"; break;
-		case Key::KP_Minus:		os << "Keypad -"; break;
-		case Key::KP_Multiply:	os << "Keypad *"; break;
-		case Key::KP_Divide:	os << "Keypad /"; break;
+		case KP_Ampersand: return os << "Keypad &";
+		case KP_Period:	   return os << "Keypad .";
+		case KP_Enter:	   return os << "Keypad Enter";
+		case KP_Plus:	   return os << "Keypad +";
+		case KP_Minus:	   return os << "Keypad -";
+		case KP_Multiply:  return os << "Keypad *";
+		case KP_Divide:	   return os << "Keypad /";
 
-		default:				PTGN_ERROR("Invalid key enum value");
+		default:		   PTGN_ERROR("Invalid key enum value");
 	}
 
 	return os;

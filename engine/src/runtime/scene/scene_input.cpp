@@ -137,7 +137,6 @@ bool SceneInput::Overlap(Entity entityA, Entity entityB) {
 namespace impl {
 
 MouseInfo::MouseInfo(const Scene& scene) :
-	// TODO: Use the world frame of the camera.
 	position{ scene.input.GetMousePosition(Frame::Window) },
 	scroll_delta{ scene.input.GetMouseScroll() },
 	left_held{ scene.input.MouseHeld(Mouse::Left) },
@@ -387,7 +386,7 @@ bool SceneInput::IsOverlappingDropzone(
 ) {
 	bool is_overlapping{ false };
 	switch (condition) {
-		using enum ptgn::TriggerCondition;
+		using enum TriggerCondition;
 		case MouseOverlaps: {
 			is_overlapping = Overlap(mouse_position, dropzone);
 			break;

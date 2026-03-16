@@ -32,7 +32,6 @@ public:
 
 	void Ground(Collision c) {
 		if (c.normal == V2_float{ 0.0f, -1.0f }) {
-			// PTGN_LOG("Grounded");
 			PlatformerJump::Ground(entity, c, ground_mask);
 		}
 	}

@@ -31,8 +31,6 @@ void EmscriptenMainLoop(void* application);
 
 #endif
 
-// TODO: Move this class elsewhere so entire Application.h does not need to be included when
-// subsystems use sdl.
 class SDLInstance {
 private:
 	friend class ptgn::Application;
@@ -112,7 +110,6 @@ private:
 	FontSystem font_;
 	AudioSystem audio_;
 
-	// TODO: Make a no-op version of this for release modes.
 	DebugSystem debug_;
 
 	void EnterMainLoop();
