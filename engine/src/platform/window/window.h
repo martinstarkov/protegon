@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <optional>
+#include <ostream>
 #include <string>
 #include <string_view>
 
@@ -44,9 +46,36 @@ class GLContext;
 
 struct WindowConfig {
 	std::string title{ "Default Title" };
+
 	V2_int size{ 800, 800 };
+
 	bool resizeable{ true };
+
+	/// @brief X position of the window on the screen. If nullopt, defaults to centered.
+	std::optional<int> x;
+
+	/// @brief Y position of the window on the screen. If nullopt, defaults to centered.
+	std::optional<int> y;
+
+	bool minimized{ false };
+	bool maximized{ false };
+	bool fullscreen{ false };
+
+	/// @brief If true, the window will start with the mouse captured.
+	bool mouse_grabbed{ false };
+
+	/// @brief If true, the window will always be above other windows.
+	bool always_on_top{ false };
+
+	/// @brief If true, the window will have no border or title bar. This is not the same as
+	/// fullscreen, as a borderless window can still be resized and moved around.
+	bool borderless{ false };
+
+	/// @brief If true window will be transparent in the areas with alpha of 0.
+	bool transparent{ false };
 };
+
+std::ostream& operator<<(std::ostream& os, const WindowConfig& config);
 
 class Window {
 public:

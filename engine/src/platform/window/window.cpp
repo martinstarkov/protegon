@@ -1,10 +1,14 @@
 #include "platform/window/window.h"
 
+#include <SDL3/SDL_error.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_properties.h>
 #include <SDL3/SDL_video.h>
 
+#include <ios>
 #include <memory>
+#include <optional>
+#include <ostream>
 #include <string>
 #include <string_view>
 
@@ -50,16 +54,36 @@ void WindowDeleter::operator()(SDL_Window* window) const {
 } // namespace impl
 
 Window::Window(const WindowConfig& config) {
-	// TODO: Add flags to window constructor.
+	PTGN_ASSERT(
+		config.minimized || config.maximized || config.fullscreen ||
+			!config.minimized && !config.maximized && !config.fullscreen,
+		"Window config can only be one of fullscreen, minimized or maximized at once"
+	);
 	SDL_PropertiesID props = SDL_CreateProperties();
 	SDL_SetStringProperty(props, SDL_PROP_WINDOW_CREATE_TITLE_STRING, config.title.c_str());
-	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_X_NUMBER, SDL_WINDOWPOS_CENTERED);
-	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, SDL_WINDOWPOS_CENTERED);
+	SDL_SetNumberProperty(
+		props, SDL_PROP_WINDOW_CREATE_X_NUMBER, config.x.value_or(SDL_WINDOWPOS_CENTERED)
+	);
+	SDL_SetNumberProperty(
+		props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, config.y.value_or(SDL_WINDOWPOS_CENTERED)
+	);
 	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, config.size.x);
 	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, config.size.y);
+	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, config.resizeable);
+	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_TRANSPARENT_BOOLEAN, config.transparent);
+	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_MAXIMIZED_BOOLEAN, config.maximized);
+	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_MINIMIZED_BOOLEAN, config.minimized);
+	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN, config.fullscreen);
+	SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_BORDERLESS_BOOLEAN, config.borderless);
 	SDL_SetNumberProperty(
-		props, SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER,
-		SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
+		props, SDL_PROP_WINDOW_CREATE_ALWAYS_ON_TOP_BOOLEAN, config.always_on_top
+	);
+	SDL_SetNumberProperty(
+		props, SDL_PROP_WINDOW_CREATE_MOUSE_GRABBED_BOOLEAN, config.mouse_grabbed
+	);
+
+	SDL_SetNumberProperty(
+		props, SDL_PROP_WINDOW_CREATE_FLAGS_NUMBER, SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN
 	);
 
 	instance_ = { SDL_CreateWindowWithProperties(props), impl::WindowDeleter{} };
@@ -67,11 +91,7 @@ Window::Window(const WindowConfig& config) {
 	SDL_SetWindowMinimumSize(instance_.get(), 1, 1);
 
 	PTGN_ASSERT(instance_, "SDL_CreateWindow failed: {}", SDL_GetError());
-	PTGN_INFO("Created window");
-
-	if (!config.resizeable) {
-		SetSetting(WindowSetting::FixedSize);
-	}
+	PTGN_INFO("Created window with config: ", config);
 }
 
 Window::operator SDL_Window*() const {
@@ -170,7 +190,7 @@ void Window::SetTitle(const std::string& new_title) const {
 void Window::SetSetting(WindowSetting setting) const {
 	SDL_Window* win{ *this };
 	switch (setting) {
-		using enum ptgn::WindowSetting;
+		using enum WindowSetting;
 		case Shown:		 SDL_ShowWindow(win); break;
 		case Hidden:	 SDL_HideWindow(win); break;
 		case Windowed:	 SDL_SetWindowFullscreen(win, false); break;
@@ -216,6 +236,28 @@ void Window::SetFixedSize() const {
 
 void Window::SetFullscreen() const {
 	SetSetting(WindowSetting::Fullscreen);
+}
+
+std::ostream& operator<<(std::ostream& os, const WindowConfig& config) {
+	os << std::boolalpha;
+	auto x = config.x.has_value() ? std::to_string(*config.x) : "centered";
+	auto y = config.y.has_value() ? std::to_string(*config.y) : "centered";
+	os << "{\n"
+	   << "  title: \"" << config.title << "\",\n"
+	   << "  size: " << config.size << ",\n"
+	   << "  resizeable: " << config.resizeable << ",\n"
+	   << "  position: (" << x << ", " << x << "),\n"
+	   << "  minimized: " << config.minimized << ",\n"
+	   << "  maximized: " << config.maximized << ",\n"
+	   << "  fullscreen: " << config.fullscreen << ",\n"
+	   << "  mouse_grabbed: " << config.mouse_grabbed << ",\n"
+	   << "  always_on_top: " << config.always_on_top << ",\n"
+	   << "  borderless: " << config.borderless << ",\n"
+	   << "  transparent: " << config.transparent << "\n"
+	   << "}";
+	os << std::noboolalpha;
+
+	return os;
 }
 
 } // namespace ptgn
