@@ -1,20 +1,19 @@
 #include "app/application.h"
+#include "core/event/dispatcher.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/collider.h"
+#include "runtime/physics/collision_handler.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
-
-// TODO: Fix this demo.
 
 using namespace ptgn;
 
@@ -24,13 +23,11 @@ constexpr ColliderMask ground_mask{ 1 };
 
 class GroundScript : public Script {
 public:
-	GroundScript() {}
-
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<CollisionEvent>([this](CollisionEvent& e) { Ground(e.collision); });
+		d.Dispatch<CollisionEvent>([this](const auto& e) { Ground(e.collision); });
 	}
 
-	void Ground(Collision c) {
+	void Ground(const Collision& c) const {
 		if (c.normal == V2_float{ 0.0f, -1.0f }) {
 			PlatformerJump::Ground(entity, c, ground_mask);
 		}
@@ -51,9 +48,9 @@ class PlatformingScene : public Scene {
 		);
 		auto& rb   = entity.Add<RigidBody>();
 		rb.gravity = 1.0f;
-		auto& m	   = entity.Add<PlatformerMovement>();
-		auto& j	   = entity.Add<PlatformerJump>();
-		auto& b	   = entity.Add<Collider>(Rect{ V2_float{ 20, 40 } });
+		entity.Add<PlatformerMovement>();
+		entity.Add<PlatformerJump>();
+		auto& b = entity.Add<Collider>(Rect{ V2_float{ 20, 40 } });
 		b.SetCollisionMode(CollisionMode::Continuous);
 		AddScript<GroundScript>(entity);
 		return entity;
