@@ -24,13 +24,13 @@ public:
 
 		auto r0 = CreateRect(*this, {}, { 200, 100 }, color::Blue, -1.0f);
 
-		AddTooltipOnHover(r0, "tooltip1", "Hello!", color::White, "bg", V2_float{ 0, -80 });
+		AddTooltipOnHover(r0, "tooltip1", { "Hello!", color::White, "bg" }, V2_float{ 0, -80 });
 
 		auto sprite2 = CreateSprite(*this, "smile", { -130.0f, -50.0f });
 		SetScale(sprite2, 0.5f);
 
 		AddTooltipOnHover(
-			sprite2, "tooltip2", "Smile!", color::Yellow, "bg", V2_float{ 0, -75.0f - 25.0f }
+			sprite2, "tooltip2", { "Smile!", color::Yellow, "bg" }, V2_float{ 0, -75.0f - 25.0f }
 		);
 	}
 };

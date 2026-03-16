@@ -1,9 +1,9 @@
 #include "runtime/ui/tooltip.h"
 
+#include <chrono>
 #include <optional>
 #include <string_view>
 #include <utility>
-#include <variant>
 
 #include "app/context.h"
 #include "core/assert.h"
@@ -42,9 +42,8 @@ void Tooltip::Show(V2_float position) {
 
 	auto& instance{ Entity::Get<impl::TooltipData>() };
 
-	// TODO: Make these customizable.
-	milliseconds fade_in_duration{ 250 };
-	Ease fade_in_ease{ Ease::Linear };
+	milliseconds fade_in_duration{ instance.fade_in_duration };
+	Ease fade_in_ease{ instance.fade_in_ease };
 
 	bool fade_in_force{ true };
 
@@ -63,9 +62,8 @@ void Tooltip::Show(V2_float position) {
 void Tooltip::Hide() {
 	auto& instance{ Entity::Get<impl::TooltipData>() };
 
-	// TODO: Make these customizable.
-	milliseconds fade_out_duration{ 250 };
-	Ease fade_out_ease{ Ease::Linear };
+	milliseconds fade_out_duration{ instance.fade_out_duration };
+	Ease fade_out_ease{ instance.fade_out_ease };
 
 	bool fade_out_force{ true };
 
@@ -80,8 +78,8 @@ void Tooltip::Hide() {
 	}
 }
 
-std::optional<Tooltip> Tooltip::Get(Scene& scene, std::string_view name) {
-	auto key{ Hash(name) };
+std::optional<Tooltip> Tooltip::Get(Scene& scene, std::string_view tooltip_name) {
+	auto key{ Hash(tooltip_name) };
 	for (auto [entity, tooltip] : scene.EntitiesWith<impl::TooltipData>()) {
 		if (tooltip.hash == key) {
 			return Tooltip{ entity };
@@ -90,8 +88,8 @@ std::optional<Tooltip> Tooltip::Get(Scene& scene, std::string_view name) {
 	return std::nullopt;
 }
 
-TooltipHoverScript::TooltipHoverScript(std::string_view name, V2_float offset) :
-	name{ name }, offset{ offset } {}
+TooltipHoverScript::TooltipHoverScript(std::string_view name, V2_float tooltip_offset) :
+	name{ name }, offset{ tooltip_offset } {}
 
 void TooltipHoverScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<MouseEnter>([this](const MouseEnter&) { OnMouseEnter(); });
@@ -127,21 +125,25 @@ Tooltip TooltipHoverScript::GetTooltip() {
 }
 
 Tooltip CreateTooltip(
-	Scene& scene, std::string_view name, std::string_view content, Color text_color,
-	std::variant<std::monostate, Texture, std::string_view> texture
+	Scene& scene, std::string_view tooltip_name, const TooltipProperties& tooltip_properties
 ) {
 	PTGN_ASSERT(
-		!Tooltip::Get(scene, name).has_value(), "Tooltip with the name: ", name,
+		!Tooltip::Get(scene, tooltip_name).has_value(), "Tooltip with the name: ", tooltip_name,
 		" already exists in the manager"
 	);
 
-	std::optional<Texture> resolved_texture{ scene.app().asset.ToTexture(texture) };
+	std::optional<Texture> resolved_texture{ scene.app().asset.ToTexture(tooltip_properties.texture
+	) };
 
 	Tooltip tooltip{ scene.CreateEntity() };
 
 	auto& instance{ tooltip.Add<impl::TooltipData>() };
 
-	instance.hash = Hash(name);
+	instance.hash			   = Hash(tooltip_name);
+	instance.fade_in_duration  = tooltip_properties.fade_in_duration;
+	instance.fade_out_duration = tooltip_properties.fade_out_duration;
+	instance.fade_in_ease	   = tooltip_properties.fade_in_ease;
+	instance.fade_out_ease	   = tooltip_properties.fade_out_ease;
 
 	if (resolved_texture.has_value()) {
 		instance.bg = GameObject{ CreateSprite(scene, *resolved_texture, {}, Origin::Center) };
@@ -149,7 +151,8 @@ Tooltip CreateTooltip(
 		AddChild(tooltip, *instance.bg);
 	}
 
-	instance.text = GameObject{ CreateText(scene, content, text_color) };
+	instance.text =
+		GameObject{ CreateText(scene, tooltip_properties.content, tooltip_properties.text_color) };
 	SetTint(instance.text, color::Transparent);
 	AddChild(tooltip, instance.text);
 
@@ -164,9 +167,8 @@ void ShowTooltipOnHover(Entity entity, std::string_view tooltip_name, V2_float t
 }
 
 Tooltip AddTooltipOnHover(
-	Entity entity, std::string_view tooltip_name, std::string_view tooltip_content,
-	Color tooltip_text_color,
-	std::variant<std::monostate, Texture, std::string_view> tooltip_texture, V2_float tooltip_offset
+	Entity entity, std::string_view tooltip_name, const TooltipProperties& tooltip_properties,
+	V2_float tooltip_offset
 ) {
 	SetInteractive(entity);
 
@@ -183,8 +185,7 @@ Tooltip AddTooltipOnHover(
 
 	auto& scene{ entity.GetScene() };
 
-	auto tooltip =
-		CreateTooltip(scene, tooltip_name, tooltip_content, tooltip_text_color, tooltip_texture);
+	auto tooltip = CreateTooltip(scene, tooltip_name, tooltip_properties);
 
 	ShowTooltipOnHover(entity, tooltip_name, tooltip_offset);
 

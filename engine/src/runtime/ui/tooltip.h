@@ -6,7 +6,9 @@
 #include <variant>
 
 #include "core/event/dispatcher.h"
+#include "core/math/easing.h"
 #include "core/math/vector2.h"
+#include "core/time/time.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
 #include "runtime/ecs/entity.h"
@@ -17,6 +19,20 @@ namespace ptgn {
 
 class Scene;
 
+struct TooltipProperties {
+	std::string content{ "Default Tooltip Text" };
+
+	Color text_color{ color::White };
+
+	std::variant<std::monostate, Texture, std::string_view> texture;
+
+	milliseconds fade_in_duration{ 250 };
+	milliseconds fade_out_duration{ 250 };
+
+	Ease fade_in_ease{ Ease::Linear };
+	Ease fade_out_ease{ Ease::Linear };
+};
+
 namespace impl {
 
 class TooltipData {
@@ -24,6 +40,12 @@ public:
 	std::size_t hash{ 0 };
 	GameObject text;
 	std::optional<GameObject> bg;
+
+	milliseconds fade_in_duration{ 250 };
+	milliseconds fade_out_duration{ 250 };
+
+	Ease fade_in_ease{ Ease::Linear };
+	Ease fade_out_ease{ Ease::Linear };
 };
 
 } // namespace impl
@@ -37,7 +59,7 @@ public:
 	void Hide();
 
 	/// @return Nullopt if no tooltip with the given name exists.
-	[[nodiscard]] static std::optional<Tooltip> Get(Scene& scene, std::string_view name);
+	[[nodiscard]] static std::optional<Tooltip> Get(Scene& scene, std::string_view tooltip_name);
 };
 
 struct TooltipHoverScript : public Script {
@@ -46,7 +68,7 @@ struct TooltipHoverScript : public Script {
 
 	TooltipHoverScript() = default;
 
-	TooltipHoverScript(std::string_view tooltip_name, V2_float offset);
+	TooltipHoverScript(std::string_view tooltip_name, V2_float tooltip_offset);
 
 	void OnEvent(EventDispatcher d) override;
 
@@ -61,17 +83,14 @@ private:
 };
 
 Tooltip CreateTooltip(
-	Scene& scene, std::string_view tooltip_name, std::string_view content, Color text_color,
-	std::variant<std::monostate, Texture, std::string_view> texture
+	Scene& scene, std::string_view tooltip_name, const TooltipProperties& tooltip_properties
 );
 
 void ShowTooltipOnHover(Entity entity, std::string_view tooltip_name, V2_float tooltip_offset = {});
 
 Tooltip AddTooltipOnHover(
-	Entity entity, std::string_view tooltip_name, std::string_view tooltip_content,
-	Color tooltip_text_color,
-	std::variant<std::monostate, Texture, std::string_view> tooltip_texture = {},
-	V2_float tooltip_offset													= {}
+	Entity entity, std::string_view tooltip_name, const TooltipProperties& tooltip_properties,
+	V2_float tooltip_offset = {}
 );
 
 } // namespace ptgn
