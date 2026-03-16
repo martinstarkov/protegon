@@ -1,3 +1,169 @@
+#include <functional>
+#include <iostream>
+#include <ostream>
+#include <utility>
+#include <vector>
+
+#include "app/application.h"
+#include "core/event/dispatcher.h"
+#include "core/event/event.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
+#include "core/util/hash.h"
+#include "core/util/type_info.h"
+#include "renderer/primitives/color.h"
+#include "renderer/renderer.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/game_object.h"
+#include "runtime/graphics/shape.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
+#include "runtime/scripting/script.h"
+#include "runtime/scripting/scripts.h"
+#include "runtime/ui/interactive.h"
+
+using namespace ptgn;
+
+struct FSM {
+	using Action = std::function<void(Entity)>;
+
+	struct Transition {
+		std::size_t from;
+		std::size_t event_id;
+		std::size_t to;
+		Action action;
+	};
+
+	std::size_t current{ 0 };
+	std::vector<Transition> transitions;
+
+	void Handle(Entity e, EventDispatcher d) {
+		for (auto& t : transitions) {
+			if (t.from != current) {
+				continue;
+			}
+
+			if (!d.IsType(t.event_id)) {
+				continue;
+			}
+
+			current = t.to;
+
+			if (t.action) {
+				t.action(e);
+			}
+
+			if (d.IsHandled()) {
+				return;
+			}
+		}
+	}
+};
+
+class FSMBuilder {
+public:
+	FSMBuilder(FSM& fsm) : fsm_(fsm) {}
+
+	template <typename S>
+	FSMBuilder& Initial() {
+		fsm_.current = Hash<S>();
+		return *this;
+	}
+
+	template <typename From, EventType Event, typename To>
+	auto Transition() {
+		FSM::Transition t;
+
+		t.from	   = Hash<From>();
+		t.event_id = Event::TypeId();
+		t.to	   = Hash<To>();
+
+		fsm_.transitions.push_back(t);
+
+		return TransitionBuilder(*this, fsm_.transitions.back());
+	}
+
+private:
+	template <typename T>
+	static constexpr std::size_t Hash() {
+		return ::Hash(type_name<T>());
+	}
+
+	class TransitionBuilder {
+	public:
+		TransitionBuilder(FSMBuilder& parent, FSM::Transition& t) : parent_(parent), t_(t) {}
+
+		template <typename Fn>
+		FSMBuilder& Action(Fn fn) {
+			t_.action = fn;
+			return parent_;
+		}
+
+	private:
+		FSMBuilder& parent_;
+		FSM::Transition& t_;
+	};
+
+	FSM& fsm_;
+};
+
+class ButtonScript : public Script {
+public:
+	struct Normal {};
+
+	struct Hovered {};
+
+	struct Pressed {};
+
+	void OnCreate() override {
+		FSMBuilder(fsm_)
+			.Initial<Normal>()
+
+			.Transition<Normal, MouseEnter, Hovered>()
+			.Action([](Entity e) { std::cout << "Hover start\n"; })
+
+			.Transition<Hovered, MouseLeave, Normal>()
+			.Action([](Entity e) { std::cout << "Hover end\n"; })
+
+			.Transition<Hovered, MousePressedOver, Pressed>()
+			.Action([](Entity e) { std::cout << "Pressed\n"; })
+
+			.Transition<Pressed, MouseReleasedOver, Hovered>()
+			.Action([](Entity e) { std::cout << "Click\n"; });
+	}
+
+	void OnEvent(EventDispatcher d) override {
+		fsm_.Handle(entity, d);
+	}
+
+private:
+	FSM fsm_;
+};
+
+struct TestScene : public Scene {
+	Entity CreateInteractiveRect(V2_float size) {
+		auto entity = CreateEntity();
+		entity.Add<Rect>(size);
+		return entity;
+	}
+
+	void OnEnter() override {
+		V2_float rsize{ 100, 50 };
+
+		auto r		= CreateRect(*this, {}, rsize, color::Green, 1.0f);
+		auto rchild = CreateInteractiveRect(rsize);
+		AddInteractiveShape(r, GameObject{ std::move(rchild) });
+		AddScript<ButtonScript>(r);
+	}
+};
+
+int main(int, char**) {
+	Application app{ "TestScene" };
+	app.StartWith<TestScene>();
+}
+
+/*
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -140,3 +306,4 @@ int main(int argc, char* argv[]) {
 
 	return 0;
 }
+*/
