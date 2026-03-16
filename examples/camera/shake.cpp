@@ -43,7 +43,7 @@ public:
 		app().asset.LoadShader("whirlpool", "assets/shader.glsl", "whirlpool");
 		app().asset.LoadTexture("noise", "assets/noise.png");
 
-		input.SetInteractiveSettings({ .enabled = true });
+		input.SetSettings({ .debug_draw_enabled = true });
 
 		input.SetTopOnly(true);
 		auto res{ app().renderer.GetGameSize() };

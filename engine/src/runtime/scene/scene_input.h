@@ -165,12 +165,14 @@ struct DragState {
 
 } // namespace impl
 
-struct InteractiveSettings {
-	bool enabled{ false };
-	Color color{ color::Magenta };
-	float line_width{ 1.0f };
+struct SceneInputSettings {
+	bool debug_draw_enabled{ false };
+	Color debug_draw_color{ color::Magenta };
+	float debug_draw_line_width{ 1.0f };
 
-	PTGN_SERIALIZER_REGISTER(InteractiveSettings, enabled, color, line_width)
+	PTGN_SERIALIZER_REGISTER(
+		SceneInputSettings, debug_draw_enabled, debug_draw_color, debug_draw_line_width
+	)
 };
 
 class SceneInput {
@@ -186,7 +188,7 @@ public:
 	/// two buttons on top of each other, only the top one will be able to be hovered or pressed.
 	void SetTopOnly(bool top_only = true);
 
-	void SetInteractiveSettings(const InteractiveSettings& settings = {});
+	void SetSettings(const SceneInputSettings& settings = {});
 
 	/// @return Mouse position relative to the specified viewport.
 	[[nodiscard]] V2_float GetMousePosition(
@@ -392,7 +394,7 @@ private:
 	/// @brief Indicates whether only the top interactable entity should be processed or considered.
 	bool top_only_{ false };
 
-	InteractiveSettings interactive_debug_draw_;
+	SceneInputSettings settings_;
 };
 
 } // namespace ptgn

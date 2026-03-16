@@ -48,7 +48,7 @@ class ToggleButtonGroupScene : public Scene {
 	}
 
 	void OnEnter() override {
-		input.SetInteractiveSettings({ .enabled = true });
+		input.SetSettings({ .debug_draw_enabled = true });
 
 		auto name1{ "Group 1" };
 		group1 = CreateToggleButtonGroup(*this);

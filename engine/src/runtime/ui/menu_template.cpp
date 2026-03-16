@@ -18,6 +18,7 @@
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/ui/button.h"
 #include "serialization/json/fwd.h"
@@ -82,7 +83,7 @@ TemplateMenuScene::TemplateMenuScene(const std::string& key, const json& scene_j
 	key{ key }, scene_json(scene_json_arg) {}
 
 void TemplateMenuScene::OnEnter() {
-	input.SetInteractiveSettings({ .enabled = true });
+	input.SetSettings({ .debug_draw_enabled = true });
 
 	PTGN_ASSERT(scene_json.contains(key));
 

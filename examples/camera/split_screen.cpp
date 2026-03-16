@@ -76,7 +76,7 @@ struct ResolutionScene : public Scene {
 		camera0.SetViewport(camera0_viewport);
 		camera.SetViewport(camera_viewport);
 
-		input.SetInteractiveSettings({ .enabled = true, .line_width = 10.0f });
+		input.SetSettings({ .enabled = true, .line_width = 10.0f });
 
 		V2_int rect_size{ 100, 100 };
 

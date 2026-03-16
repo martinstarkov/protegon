@@ -21,7 +21,7 @@ public:
 	Button b1;
 
 	void OnEnter() override {
-		input.SetInteractiveSettings({ .enabled = true });
+		input.SetSettings({ .debug_draw_enabled = true });
 
 		app().asset.Load("animation_hover", "assets/button_animation_hover.png");
 		app().asset.Load("animation_activate", "assets/button_animation_activate.png");

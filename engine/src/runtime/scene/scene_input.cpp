@@ -165,8 +165,8 @@ void SceneInput::SetTopOnly(bool top_only) {
 	top_only_ = top_only;
 }
 
-void SceneInput::SetInteractiveSettings(const InteractiveSettings& settings) {
-	interactive_debug_draw_ = settings;
+void SceneInput::SetSettings(const SceneInputSettings& settings) {
+	settings_ = settings;
 }
 
 V2_float SceneInput::GetMousePosition(Frame position_frame_of_reference, bool clamp_to_viewport)
@@ -263,7 +263,7 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 		for (const auto& [shape, shape_entity] : shapes) {
 			auto transform{ GetWorldOffsetTransform(shape, shape_entity, entity) };
 
-			if (interactive_debug_draw_.enabled) {
+			if (settings_.debug_draw_enabled) {
 				auto draw_transform{ GetDrawTransform(shape_entity) };
 
 				if (entity.Has<Rect>()) {
@@ -271,8 +271,8 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 				}
 
 				scene_.debug.DrawShape(
-					shape, draw_transform, interactive_debug_draw_.color,
-					interactive_debug_draw_.line_width, GetDrawOrigin(shape_entity), camera
+					shape, draw_transform, settings_.debug_draw_color,
+					settings_.debug_draw_line_width, GetDrawOrigin(shape_entity), camera
 				);
 			}
 
@@ -811,8 +811,8 @@ void SceneInput::Update() {
 			FrameContext{ *ctx_, render_target, camera }
 		);
 
-		if (interactive_debug_draw_.enabled) {
-			scene_.debug.DrawPoint(mouse.position, interactive_debug_draw_.color, camera);
+		if (settings_.debug_draw_enabled) {
+			scene_.debug.DrawPoint(mouse.position, settings_.debug_draw_color, camera);
 		}
 
 		std::vector<Entity> camera_entities;

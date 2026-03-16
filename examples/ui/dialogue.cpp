@@ -22,7 +22,7 @@ struct DialogueScene : public Scene {
 	Entity npc;
 
 	void OnEnter() override {
-		input.SetInteractiveSettings({ .enabled = true });
+		input.SetSettings({ .debug_draw_enabled = true });
 
 		PTGN_LOG("Entity count: ", GetEntityCount());
 

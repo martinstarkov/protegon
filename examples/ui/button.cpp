@@ -24,7 +24,7 @@ public:
 	ToggleButton b2;
 
 	void OnEnter() override {
-		input.SetInteractiveSettings({ .enabled = true });
+		input.SetSettings({ .debug_draw_enabled = true });
 
 		Origin button_origin{ Origin::TopLeft };
 

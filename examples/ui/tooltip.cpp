@@ -19,7 +19,7 @@ using namespace ptgn;
 class TooltipScene : public Scene {
 public:
 	void OnEnter() override {
-		input.SetInteractiveSettings({ .enabled = true });
+		input.SetSettings({ .debug_draw_enabled = true });
 
 		app().asset.Load("bg", "assets/tooltip_bg.png");
 		app().asset.Load("smile", "assets/smile.png");
