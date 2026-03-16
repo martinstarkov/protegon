@@ -1,6 +1,8 @@
 
 #include "runtime/ui/tooltip.h"
 
+#include <chrono>
+
 #include "app/application.h"
 #include "app/context.h"
 #include "core/math/vector2.h"
@@ -24,7 +26,14 @@ public:
 
 		auto r0 = CreateRect(*this, {}, { 200, 100 }, color::Blue, -1.0f);
 
-		AddTooltipOnHover(r0, "tooltip1", { "Hello!", color::White, "bg" }, V2_float{ 0, -80 });
+		AddTooltipOnHover(
+			r0, "tooltip1",
+			{ .content			= "Hello!",
+			  .text_color		= color::White,
+			  .texture			= "bg",
+			  .fade_in_duration = 1000ms },
+			V2_float{ 0, -80 }
+		);
 
 		auto sprite2 = CreateSprite(*this, "smile", { -130.0f, -50.0f });
 		SetScale(sprite2, 0.5f);
