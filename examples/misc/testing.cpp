@@ -23,124 +23,6 @@
 #include "runtime/scripting/scripts.h"
 #include "runtime/ui/interactive.h"
 
-using namespace ptgn;
-
-struct FSM {
-	using Action = std::function<void(Entity)>;
-
-	struct Transition {
-		std::size_t from;
-		std::size_t event_id;
-		std::size_t to;
-		Action action;
-	};
-
-	std::size_t current{ 0 };
-	std::vector<Transition> transitions;
-
-	void Handle(Entity e, EventDispatcher d) {
-		for (auto& t : transitions) {
-			if (t.from != current) {
-				continue;
-			}
-
-			if (!d.IsType(t.event_id)) {
-				continue;
-			}
-
-			current = t.to;
-
-			if (t.action) {
-				t.action(e);
-			}
-
-			if (d.IsHandled()) {
-				return;
-			}
-		}
-	}
-};
-
-class FSMBuilder {
-public:
-	FSMBuilder(FSM& fsm) : fsm_(fsm) {}
-
-	template <typename S>
-	FSMBuilder& Initial() {
-		fsm_.current = Hash<S>();
-		return *this;
-	}
-
-	template <typename From, EventType Event, typename To>
-	auto Transition() {
-		FSM::Transition t;
-
-		t.from	   = Hash<From>();
-		t.event_id = Event::TypeId();
-		t.to	   = Hash<To>();
-
-		fsm_.transitions.push_back(t);
-
-		return TransitionBuilder(*this, fsm_.transitions.back());
-	}
-
-private:
-	template <typename T>
-	static constexpr std::size_t Hash() {
-		return ::Hash(type_name<T>());
-	}
-
-	class TransitionBuilder {
-	public:
-		TransitionBuilder(FSMBuilder& parent, FSM::Transition& t) : parent_(parent), t_(t) {}
-
-		template <typename Fn>
-		FSMBuilder& Action(Fn fn) {
-			t_.action = fn;
-			return parent_;
-		}
-
-	private:
-		FSMBuilder& parent_;
-		FSM::Transition& t_;
-	};
-
-	FSM& fsm_;
-};
-
-class ButtonScript : public Script {
-public:
-	struct Normal {};
-
-	struct Hovered {};
-
-	struct Pressed {};
-
-	void OnCreate() override {
-		FSMBuilder(fsm_)
-			.Initial<Normal>()
-
-			.Transition<Normal, MouseEnter, Hovered>()
-			.Action([](Entity e) { std::cout << "Hover start\n"; })
-
-			.Transition<Hovered, MouseLeave, Normal>()
-			.Action([](Entity e) { std::cout << "Hover end\n"; })
-
-			.Transition<Hovered, MousePressedOver, Pressed>()
-			.Action([](Entity e) { std::cout << "Pressed\n"; })
-
-			.Transition<Pressed, MouseReleasedOver, Hovered>()
-			.Action([](Entity e) { std::cout << "Click\n"; });
-	}
-
-	void OnEvent(EventDispatcher d) override {
-		fsm_.Handle(entity, d);
-	}
-
-private:
-	FSM fsm_;
-};
-
 struct TestScene : public Scene {
 	Entity CreateInteractiveRect(V2_float size) {
 		auto entity = CreateEntity();
@@ -154,7 +36,41 @@ struct TestScene : public Scene {
 		auto r		= CreateRect(*this, {}, rsize, color::Green, 1.0f);
 		auto rchild = CreateInteractiveRect(rsize);
 		AddInteractiveShape(r, GameObject{ std::move(rchild) });
-		AddScript<ButtonScript>(r);
+
+		struct Normal {};
+
+		struct Hovered {};
+
+		struct Pressed {};
+
+		AddFSM(r)
+			.Initial<Normal>()
+
+			.Transition<Normal, MouseEnter, Hovered>()
+			.Action([](Entity e) { std::cout << "Hover start\n"; })
+
+			.Transition<Hovered, MouseLeave, Normal>()
+			.Action([](Entity e) { std::cout << "Hover end\n"; })
+
+			.Transition<Hovered, MousePressedOver, Pressed>()
+			.Action([](Entity e) { std::cout << "Pressed\n"; })
+
+			.Transition<Pressed, MouseReleasedOver, Hovered>()
+			.Action([](Entity e) { std::cout << "Click\n"; });
+
+		AddFSM(r)
+			.Initial<Normal>()
+
+			.Transition<Normal, MouseEnter, Hovered>()
+			.Action([](Entity e) { std::cout << "Hover animation (infinite loop)\n"; })
+
+			.Transition<Hovered, MouseLeave, Normal>()
+
+			.Transition<Hovered, MousePressedOver, Pressed>()
+			.Action([](Entity e) { std::cout << "Pressed animation (infinite loop)\n"; })
+
+			.Transition<Pressed, MouseReleasedOver, Hovered>()
+			.Action([](Entity e) { std::cout << "Click animation (once)\n"; });
 	}
 };
 
