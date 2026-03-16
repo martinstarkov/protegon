@@ -131,7 +131,7 @@ void Scene::InternalDraw() {
 		for (auto entity : Entities()) {
 			bool visible{ entity.Has<impl::Visible, impl::IDrawable>() };
 
-			if (!collider_debug_draw_.enabled && !visible) {
+			if (!collision.settings_.debug_draw_enabled && !visible) {
 				continue;
 			}
 
@@ -150,13 +150,13 @@ void Scene::InternalDraw() {
 				draw_commands.emplace_back(entity, GetDepth(entity));
 			}
 
-			if (collider_debug_draw_.enabled && entity.Has<Collider>()) {
+			if (collision.settings_.debug_draw_enabled && entity.Has<Collider>()) {
 				const auto& collider{ entity.Get<Collider>() };
 				auto transform{ GetDrawTransform(entity) };
 				auto draw_origin{ GetDrawOrigin(entity) };
 				debug.DrawShape(
-					collider.shape, transform, collider_debug_draw_.color,
-					collider_debug_draw_.fill_style, draw_origin, cam
+					collider.shape, transform, collision.settings_.debug_draw_color,
+					collision.settings_.debug_draw_fill_style, draw_origin, cam
 				);
 			}
 		}
@@ -318,7 +318,7 @@ void Scene::InternalUpdate() {
 	impl::AnimationSystem::Update(*this);
 	Lifetime::Update(*this);
 	physics.PreCollisionUpdate();
-	collision_.Update(*this);
+	collision.Update(*this);
 	physics.PostCollisionUpdate();
 }
 
@@ -381,10 +381,6 @@ RenderTarget Scene::GetRenderTarget() const {
 
 void Scene::Refresh() {
 	manager_.Refresh();
-}
-
-void Scene::SetColliderSettings(const ColliderSettings& settings) {
-	collider_debug_draw_ = settings;
 }
 
 std::size_t Scene::GetEntityCount() const {

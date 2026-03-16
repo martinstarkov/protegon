@@ -6,12 +6,15 @@
 #include "core/event/event.h"
 #include "core/math/raycast.h"
 #include "core/math/vector2.h"
+#include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/physics/broadphase.h"
 #include "runtime/physics/collider.h"
 
 namespace ptgn {
 
+class Physics;
 class Scene;
 
 struct CollisionEvent : public Event<CollisionEvent> {
@@ -30,9 +33,20 @@ struct OverlapStop : public Event<OverlapStop> {
 	Entity overlap_entity;
 };
 
-namespace impl {
+struct CollisionHandlerSettings {
+	/// @brief If true, draws continuous collision detection sweeps for debugging purposes.
+	bool debug_draw_ccd{ false };
 
-class Physics;
+	bool debug_draw_enabled{ false };
+	Color debug_draw_color{ color::Magenta };
+	FillStyle debug_draw_fill_style{ FillStyle::Hollow(1.0f) };
+
+	[[nodiscard]] bool DrawCCD() const {
+		return debug_draw_enabled && debug_draw_ccd;
+	}
+};
+
+namespace impl {
 
 struct SweepCollision {
 	SweepCollision() = default;
@@ -47,6 +61,10 @@ struct SweepCollision {
 	float dist2{ 0.0f };
 };
 
+std::ostream& operator<<(std::ostream& os, const SweepCollision& sweep_collision);
+
+} // namespace impl
+
 class CollisionHandler {
 public:
 	CollisionHandler()										 = default;
@@ -60,34 +78,35 @@ public:
 		Entity entity1, const Collider& collider1, Entity entity2, const Collider& collider2
 	);
 
+	void SetSettings(const CollisionHandlerSettings& settings = {});
+
 private:
 	friend class Physics;
-	friend class ptgn::Scene;
+	friend class Scene;
 
 	void Overlap(Entity entity) const;
 
 	void Intersect(Entity entity, float dt);
 
 	[[nodiscard]] static std::vector<Entity> GetSweepCandidates(
-		Entity entity1, V2_float velocity, const KDTree& tree
+		Entity entity1, V2_float velocity, const impl::KDTree& tree
 	);
 
-	[[nodiscard]] std::vector<SweepCollision> GetSortedCollisions(
+	/// @param offset Offset from the transform position of the entity. This enables doing a
+	/// second sweep.
+	/// @param vel Velocity of the entity. As above, this enables a second sweep in the direction
+	/// of the remaining velocity.
+	[[nodiscard]] std::vector<impl::SweepCollision> GetSortedCollisions(
 		Entity entity1, V2_float offset, V2_float velocity1, float dt
 	) const;
 
-	// @param offset Offset from the transform position of the entity. This enables doing a
-	// second sweep.
-	// @param vel Velocity of the entity. As above, this enables a second sweep in the direction
-	// of the remaining velocity.
-
-	// Adds all collisions which occurred at the earliest time to box.collisions. This ensures
-	// all callbacks are called.
+	/// Adds all collisions which occurred at the earliest time to box.collisions. This ensures
+	/// all callbacks are called.
 	static void AddEarliestCollisions(
-		Entity entity, const std::vector<SweepCollision>& sweep_collisions
+		Entity entity, const std::vector<impl::SweepCollision>& sweep_collisions
 	);
 
-	static void SortCollisions(std::vector<SweepCollision>& collisions);
+	static void SortCollisions(std::vector<impl::SweepCollision>& collisions);
 
 	[[nodiscard]] static V2_float GetRemainingVelocity(
 		V2_float velocity, const RaycastResult& collision, CollisionResponse response
@@ -97,20 +116,29 @@ private:
 
 	void UpdateKDTree(Entity entity, float dt);
 
-	// Updates the velocity of the object to prevent it from colliding with the target objects.
-	void Sweep(Entity entity, float dt);
+	/// @brief Updates the velocity of the object to prevent it from colliding with the target
+	/// objects.
+	void Sweep(Scene& scene, Entity entity, float dt);
+
+	/// @brief If debug draw enabled, draws the collider of the entity with the given position
+	/// offset and color.
+	void TryDrawDebugCollider(Scene& scene, Entity entity, V2_float offset, Color color) const;
+
+	/// @brief If debug draw enabled, draws a line from the entity's position + start_offset to the
+	/// entity's position + end_offset with the given color.
+	void TryDrawDebugLine(
+		Scene& scene, Entity entity, V2_float start_offset, V2_float end_offset, Color color
+	) const;
 
 	void Update(Scene& scene);
 
-	KDTree static_tree_{ 100 };
-	KDTree dynamic_tree_{ 100 };
+	impl::KDTree static_tree_{ 100 };
+	impl::KDTree dynamic_tree_{ 100 };
+
+	CollisionHandlerSettings settings_;
 
 	constexpr static float slop_{ 0.0005f };
 	constexpr static std::size_t max_sweep_iterations_{ 4 };
 };
-
-} // namespace impl
-
-std::ostream& operator<<(std::ostream& os, const impl::SweepCollision& sweep_collision);
 
 } // namespace ptgn

@@ -159,12 +159,6 @@ struct SceneHook {
 	void Connect();
 };
 
-struct ColliderSettings {
-	bool enabled{ false };
-	Color color{ color::Magenta };
-	FillStyle fill_style{ FillStyle::Hollow(1.0f) };
-};
-
 class Scene {
 public:
 	Scene();
@@ -290,8 +284,6 @@ public:
 
 	void Refresh();
 
-	void SetColliderSettings(const ColliderSettings& settings = {});
-
 	const std::shared_ptr<ApplicationContext>& GetContext() const;
 
 	ApplicationContext& app();
@@ -304,6 +296,7 @@ public:
 
 	SceneInput input;
 	Physics physics;
+	CollisionHandler collision;
 
 	/// @brief The default camera used by all objects in the scene. By default it resizes to the
 	/// game size.
@@ -317,8 +310,6 @@ private:
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
 	/// size.
 	Camera fixed_camera;
-
-	ColliderSettings collider_debug_draw_;
 
 	friend class SceneManager;
 	friend class EventHandler;
@@ -359,7 +350,6 @@ private:
 
 	State state_{ State::Constructed };
 
-	impl::CollisionHandler collision_;
 	Manager manager_;
 	RenderTarget render_target_;
 };

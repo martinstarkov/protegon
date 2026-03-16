@@ -7,6 +7,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/collider.h"
+#include "runtime/physics/collision_handler.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
@@ -69,7 +70,7 @@ class TopDownMovementScene : public Scene {
 	}
 
 	void OnEnter() override {
-		SetColliderSettings({ .enabled = true });
+		collision.SetSettings({ .debug_draw_enabled = true });
 
 		V2_float ws{ game_size };
 

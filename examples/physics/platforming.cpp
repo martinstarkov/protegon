@@ -60,7 +60,7 @@ class PlatformingScene : public Scene {
 	}
 
 	void OnEnter() override {
-		SetColliderSettings({ .enabled = true });
+		collision.SetSettings({ .debug_draw_ccd = true, .debug_draw_enabled = true });
 
 		V2_float ws{ game_size };
 		physics.SetGravity({ 0.0f, 1.0f });

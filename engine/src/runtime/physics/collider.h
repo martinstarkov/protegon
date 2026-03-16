@@ -13,6 +13,8 @@
 
 namespace ptgn {
 
+class CollisionHandler;
+
 struct Collision {
 	Collision() = default;
 
@@ -38,12 +40,6 @@ struct Collision {
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Collision, entity, normal)
 };
-
-namespace impl {
-
-class CollisionHandler;
-
-} // namespace impl
 
 } // namespace ptgn
 
@@ -153,7 +149,7 @@ struct Collider {
 	std::function<bool(Entity, Entity)> pre_overlap_check;
 
 private:
-	friend class impl::CollisionHandler;
+	friend class CollisionHandler;
 
 	void ResetContainers();
 
