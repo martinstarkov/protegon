@@ -145,7 +145,7 @@ struct InteractiveScene : public Scene {
 		return entity;
 	}
 
-	Entity CreateInteractiveRect(const V2_float& size) {
+	Entity CreateInteractiveRect(V2_float size) {
 		auto entity = CreateEntity();
 		entity.Add<Rect>(size);
 		return entity;
@@ -154,7 +154,7 @@ struct InteractiveScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::DarkGray);
 
-		input.SetSettings({ .enabled = true, .line_width = 3.0f });
+		input.SetSettings({ .debug_draw_enabled = true, .debug_draw_line_width = 3.0f });
 
 		app().asset.LoadMany({ { "circle", "assets/circle.png" },
 							   { "drag", "assets/drag.png" },
