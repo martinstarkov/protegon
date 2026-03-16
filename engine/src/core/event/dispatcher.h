@@ -78,6 +78,10 @@ public:
 		return event_.Type() == T::event_id_;
 	}
 
+	constexpr bool IsType(std::size_t event_id) const {
+		return event_.Type() == event_id;
+	}
+
 private:
 	impl::EventBase& event_;
 };
