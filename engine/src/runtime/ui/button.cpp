@@ -21,6 +21,7 @@
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
@@ -177,27 +178,36 @@ void ToggleButtonGroupScript::OnButtonActivate() {
 	toggle_button_group_.SetActiveKey(self.Get<ToggleButtonGroupKey>());
 }
 
-static bool IsToggled(Entity button) {
-	return button.Has<impl::ButtonToggled>();
-}
-
 template <typename Derived>
 std::pair<const ButtonStyle&, const ButtonStyle&> ButtonBase<Derived>::GetStyle(
-	ButtonState state, bool enabled
+	ButtonState state, bool disabled, bool toggled
 ) const {
-	ButtonInteractionConfig& config =
-		enabled ? Get<ButtonConfig>().enabled : Get<ButtonConfig>().disabled;
+	PTGN_ASSERT(Has<ButtonConfig>(), "Button must have a valid config");
+
+	ButtonInteractionConfig* config{ nullptr };
+
+	if (toggled) {
+		PTGN_ASSERT(
+			Has<impl::ToggleButtonInteractionConfig>(),
+			"Toggle button must have a toggle interaction config"
+		);
+		config = &Get<impl::ToggleButtonInteractionConfig>();
+	} else {
+		config = disabled ? &Get<ButtonConfig>().disabled : &Get<ButtonConfig>().enabled;
+	}
+
+	PTGN_ASSERT(config != nullptr, "Failed to find button style config");
 
 	switch (state) {
 		using enum ButtonState;
 		case Idle: {
-			return { config.idle, config.idle };
+			return { config->idle, config->idle };
 		}
 		case Hover: {
-			return { config.idle, config.hover };
+			return { config->idle, config->hover };
 		}
 		case Pressed: {
-			return { config.idle, config.pressed };
+			return { config->idle, config->pressed };
 		}
 		default: {
 			auto current_state{ GetState() };
@@ -205,16 +215,16 @@ std::pair<const ButtonStyle&, const ButtonStyle&> ButtonBase<Derived>::GetStyle(
 				current_state != ButtonState::Current,
 				"GetStyle recursive call does not support ButtonState::Current"
 			);
-			return GetStyle(current_state, enabled);
+			return GetStyle(current_state, disabled);
 		}
 	}
 }
 
 template <typename Derived>
 std::pair<ButtonStyle&, ButtonStyle&> ButtonBase<Derived>::GetStyle(
-	ButtonState state, bool enabled
+	ButtonState state, bool disabled, bool toggled
 ) {
-	auto [idle, desired] = std::as_const(*this).GetStyle(state, enabled);
+	auto [idle, desired] = std::as_const(*this).GetStyle(state, disabled, toggled);
 	return { const_cast<ButtonStyle&>(idle), const_cast<ButtonStyle&>(desired) };
 }
 
@@ -234,7 +244,7 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 	auto tint_n{ tint.Normalized() };
 	const auto state{ button.GetState() };
 	auto button_size{ button.GetSize() };
-	bool is_toggled{ IsToggled(button) };
+	bool is_toggled{ button.Has<impl::ButtonToggled>() };
 	PTGN_ASSERT(button_size.has_value(), "Buttons must have a non-zero size to be drawn");
 	auto button_origin{ GetDrawOrigin(button) };
 	auto text{ GetButtonText(button, is_toggled, state) };
@@ -414,26 +424,57 @@ Derived& ButtonBase<Derived>::SetShape(std::variant<std::monostate, Rect, Circle
 }
 
 template <typename Derived>
-Color ButtonBase<Derived>::GetBackgroundColor(ButtonState state) const {
-	auto [desired, idle] = GetStyle(state, true);
+Color ButtonBase<Derived>::GetBackgroundColor(ButtonState state, bool disabled) const {
+	auto [idle, desired] = GetStyle(state, disabled);
 	return desired.background_color.value_or(idle.background_color.value_or(color::Transparent));
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetBackgroundColor(Color color, ButtonState state) {
-	GetStyle(state, true).second.background_color = color;
+Derived& ButtonBase<Derived>::SetBackgroundColor(Color color, ButtonState state, bool disabled) {
+	GetStyle(state, disabled).second.background_color = color;
 	return Self();
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetText(
-	std::string_view content, Color text_color, std::optional<float> font_size,
-	std::optional<Font> font, const TextProperties& text_properties, ButtonState state
-) {}
+void ButtonBase<Derived>::SetText(
+	Entity& text, std::string_view text_content, std::optional<Color> text_color,
+	std::optional<float> font_size, std::optional<Font> font, const TextProperties& text_properties
+) {
+	auto& scene{ GetScene() };
+
+	text = CreateText(
+		scene, text_content, text_color.value_or(kDefaultButtonTextColor), font_size,
+		font.value_or(std::monostate), text_properties
+	);
+	Hide(text);
+	SetParent(text, *this);
+}
 
 template <typename Derived>
-std::optional<Text> ButtonBase<Derived>::GetText(ButtonState state) const {
-	auto [desired, idle] = GetStyle(state, true);
+Derived& ButtonBase<Derived>::SetText(
+	std::string_view text_content, Color text_color, std::optional<float> font_size,
+	std::optional<Font> font, const TextProperties& text_properties, ButtonState state,
+	bool disabled
+) {
+	auto [idle, desired] = GetStyle(state, disabled);
+	if (desired.text.has_value()) {
+		Text::SetParameter(*desired.text, TextColor{ text_color }, false);
+		Text::SetParameter(*desired.text, TextContent{ text_content }, false);
+		Text::SetParameter(*desired.text, font.value_or(Font{}), false);
+		Text::SetParameter(*desired.text, FontSize{ font_size.value_or(kDefaultFontSize) }, false);
+		Text::SetProperties(*desired.text, text_properties, true);
+	} else {
+		SetText(
+			*desired.text, text_content, text_color, font_size, font.value_or(std::monostate),
+			text_properties
+		);
+	}
+	return Self();
+}
+
+template <typename Derived>
+std::optional<Text> ButtonBase<Derived>::GetText(ButtonState state, bool disabled) const {
+	auto [idle, desired] = GetStyle(state, disabled);
 	if (desired.text.has_value()) {
 		return Text{ *desired.text };
 	} else if (idle.text.has_value()) {
@@ -444,8 +485,8 @@ std::optional<Text> ButtonBase<Derived>::GetText(ButtonState state) const {
 }
 
 template <typename Derived>
-std::optional<Color> ButtonBase<Derived>::GetTextColor(ButtonState state) const {
-	if (auto text{ GetText(state) }) {
+std::optional<Color> ButtonBase<Derived>::GetTextColor(ButtonState state, bool disabled) const {
+	if (auto text{ GetText(state, disabled) }) {
 		return text->GetColor();
 	} else {
 		return std::nullopt;
@@ -453,11 +494,20 @@ std::optional<Color> ButtonBase<Derived>::GetTextColor(ButtonState state) const 
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetTextColor(Color text_color, ButtonState state) {}
+Derived& ButtonBase<Derived>::SetTextColor(Color text_color, ButtonState state, bool disabled) {
+	auto [idle, desired] = GetStyle(state, disabled);
+	if (desired.text.has_value()) {
+		Text::SetParameter(*desired.text, impl::TextColor{ text_color }, true);
+	} else {
+		SetText(*desired.text, {}, text_color);
+	}
+	return Self();
+}
 
 template <typename Derived>
-std::optional<std::string> ButtonBase<Derived>::GetTextContent(ButtonState state) const {
-	if (auto text{ GetText(state) }) {
+std::optional<std::string> ButtonBase<Derived>::GetTextContent(ButtonState state, bool disabled)
+	const {
+	if (auto text{ GetText(state, disabled) }) {
 		return text->GetContent();
 	} else {
 		return std::nullopt;
@@ -465,11 +515,22 @@ std::optional<std::string> ButtonBase<Derived>::GetTextContent(ButtonState state
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetTextContent(std::string_view content, ButtonState state) {}
+Derived& ButtonBase<Derived>::SetTextContent(
+	std::string_view text_content, ButtonState state, bool disabled
+) {
+	auto [idle, desired] = GetStyle(state, disabled);
+	if (desired.text.has_value()) {
+		Text::SetParameter(*desired.text, TextContent{ text_content }, true);
+	} else {
+		SetText(*desired.text, text_content);
+	}
+	return Self();
+}
 
 template <typename Derived>
-std::optional<TextJustify> ButtonBase<Derived>::GetTextJustify(ButtonState state) const {
-	if (auto text{ GetText(state) }) {
+std::optional<TextJustify> ButtonBase<Derived>::GetTextJustify(ButtonState state, bool disabled)
+	const {
+	if (auto text{ GetText(state, disabled) }) {
 		return text->GetJustify();
 	} else {
 		return std::nullopt;
@@ -477,26 +538,39 @@ std::optional<TextJustify> ButtonBase<Derived>::GetTextJustify(ButtonState state
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetTextJustify(TextJustify justify, ButtonState state) {}
-
-template <typename Derived>
-ButtonTextFixedSize ButtonBase<Derived>::GetTextFixedSize() const {
-	return GetOrDefault<ButtonTextFixedSize>();
-}
-
-template <typename Derived>
-Derived& ButtonBase<Derived>::SetTextFixedSize(ButtonTextFixedSize size) {
-	if (!size.x.has_value() && !size.y.has_value()) {
-		Remove<ButtonTextFixedSize>();
-		return Self();
+Derived& ButtonBase<Derived>::SetTextJustify(
+	TextJustify justify, ButtonState state, bool disabled
+) {
+	auto [idle, desired] = GetStyle(state, disabled);
+	if (desired.text.has_value()) {
+		Text::SetParameter(*desired.text, justify, true);
+	} else {
+		TextProperties text_properties;
+		text_properties.justify = justify;
+		SetText(*desired.text, {}, {}, {}, {}, text_properties);
 	}
-	Add<ButtonTextFixedSize>(size);
 	return Self();
 }
 
 template <typename Derived>
-std::optional<float> ButtonBase<Derived>::GetFontSize(ButtonState state) const {
-	if (auto text{ GetText(state) }) {
+std::optional<ButtonTextFixedSize> ButtonBase<Derived>::GetTextFixedSize(
+	ButtonState state, bool disabled
+) const {
+	auto [idle, desired] = GetStyle(state, disabled);
+	return desired.text_fixed_size.value_or(idle.text_fixed_size);
+}
+
+template <typename Derived>
+Derived& ButtonBase<Derived>::SetTextFixedSize(
+	std::optional<ButtonTextFixedSize> size, ButtonState state, bool disabled
+) {
+	GetStyle(state, disabled).second.text_fixed_size = size;
+	return Self();
+}
+
+template <typename Derived>
+std::optional<float> ButtonBase<Derived>::GetFontSize(ButtonState state, bool disabled) const {
+	if (auto text{ GetText(state, disabled) }) {
 		return text->GetFontSize();
 	} else {
 		return std::nullopt;
@@ -504,65 +578,96 @@ std::optional<float> ButtonBase<Derived>::GetFontSize(ButtonState state) const {
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetFontSize(float font_size, ButtonState state) {}
-
-template <typename Derived>
-std::optional<Texture> ButtonBase<Derived>::GetTexture(ButtonState state) const {}
-
-template <typename Derived>
-Derived& ButtonBase<Derived>::SetTexture(std::optional<Texture> texture, ButtonState state) {}
-
-template <typename Derived>
-Derived& ButtonBase<Derived>::SetDisabledTexture(std::optional<Texture> texture) {}
-
-template <typename Derived>
-std::optional<Texture> ButtonBase<Derived>::GetDisabledTexture() const {}
-
-template <typename Derived>
-Color ButtonBase<Derived>::GetTint(ButtonState state) const {
-	auto [desired, idle] = GetStyle(state, true);
-	return desired.tint.value_or(idle.tint.value_or(color::White));
-}
-
-template <typename Derived>
-Derived& ButtonBase<Derived>::SetTint(Color color, ButtonState state) {
-	GetStyle(state, true).second.tint = color;
+Derived& ButtonBase<Derived>::SetFontSize(
+	std::optional<float> font_size, ButtonState state, bool disabled
+) {
+	auto [idle, desired] = GetStyle(state, disabled);
+	if (desired.text.has_value()) {
+		Text::SetParameter(*desired.text, FontSize{ font_size.value_or(kDefaultFontSize) }, true);
+	} else {
+		SetText(*desired.text, {}, {}, font_size);
+	}
 	return Self();
 }
 
 template <typename Derived>
-Color ButtonBase<Derived>::GetBorderColor(ButtonState state) const {
-	auto [desired, idle] = GetStyle(state, true);
+std::optional<Texture> ButtonBase<Derived>::GetTexture(ButtonState state, bool disabled) const {
+	auto [idle, desired] = GetStyle(state, disabled);
+	if (desired.sprite.has_value()) {
+		PTGN_ASSERT(desired.sprite->Has<Texture>(), "Button optional must have a texture");
+		return desired.sprite->Get<Texture>();
+	} else if (idle.sprite.has_value()) {
+		PTGN_ASSERT(idle.sprite->Has<Texture>(), "Button optional must have a texture");
+		return idle.sprite->Get<Texture>();
+	} else {
+		return std::nullopt;
+	}
+}
+
+template <typename Derived>
+Derived& ButtonBase<Derived>::SetTexture(
+	std::optional<Texture> texture, ButtonState state, bool disabled
+) {
+	auto [idle, desired] = GetStyle(state, disabled);
+	if (desired.sprite.has_value()) {
+		Sprite{ *desired.sprite }.SetTexture(texture);
+	} else {
+		*desired.sprite = CreateSprite(scene, texture);
+		Hide(*desired.sprite);
+		SetParent(*desired.sprite, *this);
+	}
+	return Self();
+}
+
+template <typename Derived>
+Color ButtonBase<Derived>::GetTint(ButtonState state, bool disabled) const {
+	auto [idle, desired] = GetStyle(state, disabled);
+	return desired.tint.value_or(idle.tint.value_or(Tint{}));
+}
+
+template <typename Derived>
+Derived& ButtonBase<Derived>::SetTint(Color color, ButtonState state, bool disabled) {
+	GetStyle(state, disabled).second.tint = color;
+	return Self();
+}
+
+template <typename Derived>
+Color ButtonBase<Derived>::GetBorderColor(ButtonState state, bool disabled) const {
+	auto [idle, desired] = GetStyle(state, disabled);
 	return desired.border_color.value_or(idle.border_color.value_or(color::Transparent));
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetBorderColor(Color color, ButtonState state) {
-	GetStyle(state, true).second.border_color = color;
+Derived& ButtonBase<Derived>::SetBorderColor(Color color, ButtonState state, bool disabled) {
+	GetStyle(state, disabled).second.border_color = color;
 	return Self();
 }
 
 template <typename Derived>
-std::optional<FillStyle> ButtonBase<Derived>::GetBackgroundFillStyle(ButtonState state) const {
-	auto [desired, idle] = GetStyle(state, true);
+std::optional<FillStyle> ButtonBase<Derived>::GetBackgroundFillStyle(
+	ButtonState state, bool disabled
+) const {
+	auto [idle, desired] = GetStyle(state, disabled);
 	return desired.background_fill.value_or(idle.background_fill);
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetBackgroundFillStyle(FillStyle fill_style, ButtonState state) {
-	GetStyle(state, true).second.background_fill = fill_style;
+Derived& ButtonBase<Derived>::SetBackgroundFillStyle(
+	FillStyle fill_style, ButtonState state, bool disabled
+) {
+	GetStyle(state, disabled).second.background_fill = fill_style;
 	return Self();
 }
 
 template <typename Derived>
-std::optional<float> ButtonBase<Derived>::GetBorderWidth(ButtonState state) const {
-	auto [desired, idle] = GetStyle(state, true);
+std::optional<float> ButtonBase<Derived>::GetBorderWidth(ButtonState state, bool disabled) const {
+	auto [idle, desired] = GetStyle(state, disabled);
 	return desired.border_width.value_or(idle.border_width);
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetBorderWidth(float line_width, ButtonState state) {
-	GetStyle(state, true).second.border_width = line_width;
+Derived& ButtonBase<Derived>::SetBorderWidth(float line_width, ButtonState state, bool disabled) {
+	GetStyle(state, disabled).second.border_width = line_width;
 	return Self();
 }
 
