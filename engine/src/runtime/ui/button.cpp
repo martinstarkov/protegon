@@ -5,12 +5,14 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
+#include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
@@ -743,7 +745,35 @@ Button CreateButton(
 	Show(button, false);
 	SetDraw<Button>(button);
 
+	auto resolved_shape = std::visit(
+		[&]<typename T>(const T& arg) -> std::variant<Rect, Circle> {
+			if constexpr (std::is_same_v<T, std::monostate>) {
+				if (config.enabled.idle.sprite.has_value()) {
+					auto texture_size{ GetCroppedTextureSize(*config.enabled.idle.sprite) };
+					PTGN_ASSERT(texture_size.has_value(), "No valid texture size for button");
+					return Rect{ *texture_size };
+				} else if (config.enabled.idle.text.has_value()) {
+					auto texture_size{ GetCroppedTextureSize(*config.enabled.idle.text) };
+					PTGN_ASSERT(texture_size.has_value(), "No valid text size for button");
+					return Rect{ *texture_size };
+				} else {
+					PTGN_ERROR("Failed to find a valid size for the button");
+				}
+			} else if (std::is_same_v<T, Rect>) {
+				return arg;
+			} else if (std::is_same_v<T, Circle>) {
+				return arg;
+			}
+		},
+		shape
+	);
+
+	std::visit([&]<typename T>(const T& arg) { button.Add<T>(arg); }, resolved_shape);
+
 	SetInteractive(button);
+
+	button.Add<ButtonConfig>(config);
+
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
 
 	PTGN_ASSERT(!HasScript<impl::InternalButtonScript>(button));
@@ -754,10 +784,12 @@ Button CreateButton(
 }
 
 ToggleButton CreateToggleButton(
-	Scene& scene, std::variant<std::monostate, Rect, Circle> shape, const ButtonConfig& config,
-	bool toggled
+	Scene& scene, std::variant<std::monostate, Rect, Circle> shape,
+	const ToggleButtonConfig& config, bool toggled
 ) {
-	ToggleButton toggle_button{ CreateButton(scene) };
+	ToggleButton toggle_button{ CreateButton(scene, shape, config) };
+
+	toggle_button.Add<impl::ToggleButtonInteractionConfig>(config.toggled);
 
 	PTGN_ASSERT(!HasScript<impl::InternalToggleButtonScript>(toggle_button));
 	AddScript<impl::InternalToggleButtonScript>(toggle_button);

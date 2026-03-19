@@ -69,6 +69,14 @@ struct ToggleButtonConfig : public ButtonConfig {
 	std::optional<ButtonInteractionConfig> toggled;
 };
 
+namespace impl {
+
+struct ToggleButtonInteractionConfig {
+	std::optional<ButtonInteractionConfig> toggled;
+};
+
+} // namespace impl
+
 enum class ButtonState : std::uint8_t {
 	Idle,
 	Hover,
@@ -423,7 +431,7 @@ private:
 } // namespace impl
 
 /// @param shape If monostate (default) uses the texture size of the button. If no texture is
-/// provided, debug assertion is called.
+/// provided, text size is used. If no text is provided, calls debug assertion.
 Button CreateButton(
 	Scene& scene, std::variant<std::monostate, Rect, Circle> shape = {},
 	const ButtonConfig& config = {}, bool ui_layer = true
@@ -432,7 +440,7 @@ Button CreateButton(
 /// @param toggled Whether or not the button start in the toggled state.
 ToggleButton CreateToggleButton(
 	Scene& scene, std::variant<std::monostate, Rect, Circle> shape = {},
-	const ButtonConfig& config = {}, bool toggled = false
+	const ToggleButtonConfig& config = {}, bool toggled = false
 );
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
