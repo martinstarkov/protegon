@@ -22,6 +22,25 @@ namespace ptgn {
 class Scene;
 class DrawContext;
 
+struct AnimationConfig {
+	/// @brief Number of frames in the animation sequence.
+	std::size_t frame_count{ 0 };
+
+	/// @brief Duration of the full animation sequence.
+	milliseconds animation_duration{ 0 };
+
+	/// @brief Pixel size of an individual animation frame within the texture.
+	/// If {}, frame_size = { texture_size.x / frame_count, texture_size.y }.
+	std::optional<V2_int> frame_size;
+
+	/// @brief Number of times that the animation plays for, -1 for infinite replay.
+	std::int64_t play_count = -1;
+
+	/// @brief Pixel within the texture which indicates the top left position of the
+	/// animation sequence.
+	V2_int start_pixel;
+};
+
 struct AnimationStart : Event<AnimationStart> {};
 
 struct AnimationStop : Event<AnimationStop> {};
@@ -218,17 +237,9 @@ public:
 /// @param manager Which manager the entity is added to.
 /// @param texture Texture or texture key to be used for the animation.
 /// @param position Where on the screen to place the animation object.
-/// @param frame_count Number of frames in the animation sequence.
-/// @param animation_duration Duration of the full animation sequence.
-/// @param frame_size Pixel size of an individual animation frame within the texture.
-/// If {}, frame_size = { texture_size.x / frame_count, texture_size.y }.
-/// @param play_count Number of times that the animation plays for, -1 for infinite replay.
-/// @param start_pixel Pixel within the texture which indicates the top left position of the
-/// animation sequence.
 Animation CreateAnimation(
 	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position,
-	std::size_t frame_count, milliseconds animation_duration = milliseconds{ 0 },
-	std::optional<V2_int> frame_size = {}, std::int64_t play_count = -1, V2_int start_pixel = {}
+	const AnimationConfig& config
 );
 
 AnimationMap CreateAnimationMap(Scene& scene);

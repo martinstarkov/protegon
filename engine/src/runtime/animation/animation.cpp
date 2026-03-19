@@ -377,28 +377,33 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 
 Animation CreateAnimation(
 	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position,
-	std::size_t frame_count, milliseconds animation_duration, std::optional<V2_int> frame_size,
-	std::int64_t play_count, V2_int start_pixel
+	const AnimationConfig& config
 ) {
 	Texture resolved_texture{ scene.app().asset.ToTexture(texture) };
 
 	PTGN_ASSERT(
-		play_count == -1 || play_count >= 0,
+		config.play_count == -1 || config.play_count >= 0,
 		"Play count must be -1 (infinite) or otherwise non-negative"
 	);
 
-	PTGN_ASSERT(frame_count > 0, "Cannot create an animation with 0 frames");
+	PTGN_ASSERT(config.frame_count > 0, "Cannot create an animation with 0 frames");
 
 	Animation animation{ CreateSprite(scene, resolved_texture, position) };
 
 	auto texture_size{ resolved_texture.GetSize() };
 
-	if (!frame_size.has_value()) {
-		frame_size = { static_cast<std::size_t>(texture_size.x) / frame_count, texture_size.y };
+	V2_int frame_size;
+
+	if (config.frame_size.has_value()) {
+		frame_size = *config.frame_size;
+	} else {
+		frame_size = { static_cast<std::size_t>(texture_size.x) / config.frame_count,
+					   texture_size.y };
 	}
 
 	const auto& anim = animation.Add<impl::AnimationInfo>(
-		animation_duration, frame_count, *frame_size, play_count, start_pixel
+		config.animation_duration, config.frame_count, frame_size, config.play_count,
+		config.start_pixel
 	);
 	auto& crop = animation.Add<impl::TextureCrop>();
 

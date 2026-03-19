@@ -1,14 +1,16 @@
 #include "runtime/animation/animation.h"
 
 #include "app/application.h"
+#include "app/context.h"
 #include "core/event/dispatcher.h"
+#include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "platform/input/input_handler.h"
-#include "runtime/animation/animation.h"
-#include "runtime/animation/tween.h"
+#include "platform/input/key.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 
@@ -16,45 +18,45 @@ using namespace ptgn;
 
 struct MyAnimationScript1 : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<AnimationStart>([this](auto& e) { OnAnimationStart(); });
-		d.Dispatch<AnimationUpdate>([this](auto& e) { OnAnimationUpdate(); });
-		d.Dispatch<AnimationRepeat>([this](auto& e) { OnAnimationRepeat(); });
-		d.Dispatch<AnimationFrameChange>([this](auto& e) { OnAnimationFrameChange(); });
-		d.Dispatch<AnimationComplete>([this](auto& e) { OnAnimationComplete(); });
-		d.Dispatch<AnimationPause>([this](auto& e) { OnAnimationPause(); });
-		d.Dispatch<AnimationResume>([this](auto& e) { OnAnimationResume(); });
-		d.Dispatch<AnimationStop>([this](auto& e) { OnAnimationStop(); });
+		d.Dispatch<AnimationStart>([this](auto&) { OnAnimationStart(); });
+		d.Dispatch<AnimationUpdate>([this](auto&) { OnAnimationUpdate(); });
+		d.Dispatch<AnimationRepeat>([this](auto&) { OnAnimationRepeat(); });
+		d.Dispatch<AnimationFrameChange>([this](auto&) { OnAnimationFrameChange(); });
+		d.Dispatch<AnimationComplete>([this](auto&) { OnAnimationComplete(); });
+		d.Dispatch<AnimationPause>([this](auto&) { OnAnimationPause(); });
+		d.Dispatch<AnimationResume>([this](auto&) { OnAnimationResume(); });
+		d.Dispatch<AnimationStop>([this](auto&) { OnAnimationStop(); });
 	}
 
-	void OnAnimationStart() {
+	void OnAnimationStart() const {
 		PTGN_LOG("OnAnimationStart");
 	}
 
-	void OnAnimationUpdate() {
+	void OnAnimationUpdate() const {
 		// PTGN_LOG("OnAnimationUpdate");
 	}
 
-	void OnAnimationRepeat() {
+	void OnAnimationRepeat() const {
 		PTGN_LOG("OnAnimationRepeat");
 	}
 
-	void OnAnimationFrameChange() {
+	void OnAnimationFrameChange() const {
 		PTGN_LOG("OnAnimationFrameChange");
 	}
 
-	void OnAnimationComplete() {
+	void OnAnimationComplete() const {
 		PTGN_LOG("OnAnimationComplete");
 	}
 
-	void OnAnimationPause() {
+	void OnAnimationPause() const {
 		PTGN_LOG("OnAnimationPause");
 	}
 
-	void OnAnimationResume() {
+	void OnAnimationResume() const {
 		PTGN_LOG("OnAnimationResume");
 	}
 
-	void OnAnimationStop() {
+	void OnAnimationStop() const {
 		PTGN_LOG("OnAnimationStop");
 	}
 };
@@ -69,8 +71,8 @@ public:
 		app().asset.Load("anim", "assets/animation.png");
 
 		animation = CreateAnimation(
-			*this, "anim", GetPosition(camera), 4, milliseconds{ 500 }, V2_int{ 16, 32 }, -1,
-			{ 0, 32 }
+			*this, "anim", GetPosition(camera),
+			{ 4, milliseconds{ 500 }, V2_int{ 16, 32 }, -1, { 0, 32 } }
 		);
 
 		SetScale(animation, 4.0f);
