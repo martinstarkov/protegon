@@ -71,24 +71,24 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 		) };
 		auto a0 = anim_map.Add(
 			"down", CreateAnimation(
-						scene, texture, anim_position, config.animation_frame_count->x, duration,
-						config.animation_frame_size
+						scene, texture, anim_position,
+						{ config.animation_frame_count->x, duration, config.animation_frame_size }
 					)
 		);
 		anim_map.SetActive("down");
 		auto a1 = anim_map.Add(
-			"right",
-			CreateAnimation(
-				scene, texture, anim_position, config.animation_frame_count->x, duration,
-				config.animation_frame_size, -1, V2_float{ 0, config.animation_frame_size->y }
-			)
+			"right", CreateAnimation(
+						 scene, texture, anim_position,
+						 { config.animation_frame_count->x, duration, config.animation_frame_size,
+						   -1, V2_float{ 0, config.animation_frame_size->y } }
+					 )
 		);
 		auto a2 = anim_map.Add(
-			"up",
-			CreateAnimation(
-				scene, texture, anim_position, config.animation_frame_count->x, duration,
-				config.animation_frame_size, -1, V2_float{ 0, 2 * config.animation_frame_size->y }
-			)
+			"up", CreateAnimation(
+					  scene, texture, anim_position,
+					  { config.animation_frame_count->x, duration, config.animation_frame_size, -1,
+						V2_float{ 0, 2 * config.animation_frame_size->y } }
+				  )
 		);
 
 		SetParent(a0, player);
