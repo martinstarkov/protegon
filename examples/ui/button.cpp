@@ -9,7 +9,6 @@
 #include "core/math/vector2.h"
 #include "platform/input/events.h"
 #include "platform/input/key.h"
-#include "platform/window/window.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
@@ -30,7 +29,7 @@ public:
 
 		b1 = CreateButton(*this)
 				 .OnActivate([]() { PTGN_LOG("Clicked regular button!"); })
-				 .SetSize({ 200, 100 })
+				 .SetShape(V2_int{ 200, 100 })
 				 .SetBackgroundColor(color::Pink)
 				 .SetBackgroundColor(color::Red, ButtonState::Hover)
 				 .SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
@@ -42,7 +41,7 @@ public:
 				 .OnToggle([](bool toggled) {
 					 PTGN_LOG("Toggled button: ", ": ", std::boolalpha, toggled, std::noboolalpha);
 				 })
-				 .SetSize({ 200, 100 })
+				 .SetShape(V2_int{ 200, 100 })
 				 .SetBackgroundColor(color::LightRed)
 				 .SetBackgroundColor(color::Red, ButtonState::Hover)
 				 .SetBackgroundColor(color::DarkRed, ButtonState::Pressed)

@@ -10,6 +10,7 @@
 #include <variant>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/log.h"
@@ -55,24 +56,24 @@ struct ButtonStyle {
 
 struct ButtonInteractionConfig {
 	ButtonStyle idle;
-	std::optional<ButtonStyle> hover;
-	std::optional<ButtonStyle> press;
+	ButtonStyle hover;
+	ButtonStyle pressed;
 };
 
 struct ButtonConfig {
 	ButtonInteractionConfig enabled;
 
-	std::optional<ButtonInteractionConfig> disabled;
+	ButtonInteractionConfig disabled;
 };
 
 struct ToggleButtonConfig : public ButtonConfig {
-	std::optional<ButtonInteractionConfig> toggled;
+	ButtonInteractionConfig toggled;
 };
 
 namespace impl {
 
 struct ToggleButtonInteractionConfig {
-	std::optional<ButtonInteractionConfig> toggled;
+	ButtonInteractionConfig toggled;
 };
 
 } // namespace impl
@@ -278,21 +279,28 @@ public:
 	[[nodiscard]] ButtonState GetState() const;
 	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
 	[[nodiscard]] Color GetBackgroundColor(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] Texture GetTexture(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] Texture GetDisabledTexture() const;
+	[[nodiscard]] std::optional<Texture> GetTexture(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] std::optional<Texture> GetDisabledTexture() const;
 	[[nodiscard]] Color GetTint(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] Color GetTextColor(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] std::string GetTextContent(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] TextJustify GetTextJustify(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] std::optional<Color> GetTextColor(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] std::optional<std::string> GetTextContent(
+		ButtonState state = ButtonState::Current
+	) const;
+	[[nodiscard]] std::optional<TextJustify> GetTextJustify(
+		ButtonState state = ButtonState::Current
+	) const;
 	/// @return A pair of (x, y) fixed text size, or {} if the text size is not fixed. If either
 	/// axis is
 	/// {}, it is stretched to fit the entire size of the button rectangle (along that axis).
 	[[nodiscard]] ButtonTextFixedSize GetTextFixedSize() const;
-	[[nodiscard]] float GetFontSize(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] Entity GetText(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] std::optional<float> GetFontSize(ButtonState state = ButtonState::Current) const;
+	[[nodiscard]] std::optional<Text> GetText(ButtonState state = ButtonState::Current) const;
 	[[nodiscard]] Color GetBorderColor(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] FillStyle GetBackgroundFillStyle() const;
-	[[nodiscard]] float GetBorderWidth() const;
+	[[nodiscard]] std::optional<FillStyle> GetBackgroundFillStyle(
+		ButtonState state = ButtonState::Current
+	) const;
+	[[nodiscard]] std::optional<float> GetBorderWidth(ButtonState state = ButtonState::Current)
+		const;
 
 	/// @brief Set button callback scripts.
 	Derived& OnActivate(const std::function<void()>& callback);
@@ -319,8 +327,8 @@ public:
 	/// texture size.
 	Derived& SetShape(std::variant<std::monostate, Rect, Circle> shape = {});
 	Derived& SetBackgroundColor(Color color, ButtonState state = ButtonState::Idle);
-	Derived& SetTexture(Texture texture, ButtonState state = ButtonState::Idle);
-	Derived& SetDisabledTexture(Texture texture);
+	Derived& SetTexture(std::optional<Texture> texture, ButtonState state = ButtonState::Idle);
+	Derived& SetDisabledTexture(std::optional<Texture> texture);
 	Derived& SetTint(Color tint, ButtonState state = ButtonState::Idle);
 	Derived& SetTextColor(Color text_color, ButtonState state = ButtonState::Idle);
 	Derived& SetTextContent(std::string_view content, ButtonState state = ButtonState::Idle);
@@ -335,12 +343,22 @@ public:
 		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Idle
 	);
 	Derived& SetBorderColor(Color color, ButtonState state = ButtonState::Idle);
-	Derived& SetBackgroundFillStyle(FillStyle fill_style);
-	Derived& SetBorderWidth(float line_width);
+	Derived& SetBackgroundFillStyle(FillStyle fill_style, ButtonState state = ButtonState::Idle);
+	Derived& SetBorderWidth(float line_width, ButtonState state = ButtonState::Idle);
 
 private:
 	Derived& Self();
 	const Derived& Self() const;
+
+	template <typename T>
+	struct ButtonStyles {
+		T idle;
+		T desired;
+	};
+
+	std::pair<const ButtonStyle&, const ButtonStyle&> GetStyle(ButtonState state, bool enabled)
+		const;
+	std::pair<ButtonStyle&, ButtonStyle&> GetStyle(ButtonState state, bool enabled);
 };
 
 } // namespace impl
