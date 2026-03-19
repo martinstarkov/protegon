@@ -53,12 +53,15 @@ public:
 		SetDrawOrigin(b2, button_origin);
 	}
 
-	void OnEvent(EventDispatcher d) override {
+	void OnUpdate() override {
 		static impl::InternalButtonState state{ impl::InternalButtonState::IdleUp };
 		if (auto s{ b1.GetInternalState() }; state != s) {
 			state = s;
 			PTGN_LOG("Button 1 internal state: ", state);
 		}
+	}
+
+	void OnEvent(EventDispatcher d) override {
 		d.Dispatch<KeyPressed>([this](auto& key) {
 			if (key == Key::Q) {
 				b1.Disable();

@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <functional>
-#include <iterator>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -12,19 +11,13 @@
 
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
-#include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "core/math/vector4.h"
 #include "platform/input/mouse.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
-#include "runtime/animation/animation.h"
-#include "runtime/asset/font_system.h"
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
@@ -41,51 +34,6 @@
 namespace ptgn {
 
 namespace impl {
-
-InternalAnimatedButtonScript::InternalAnimatedButtonScript(
-	std::optional<Animation> activate_animation, std::optional<Animation> hover_animation,
-	bool force_start_on_activate, bool force_start_on_hover_start, bool stop_on_hover_stop
-) :
-	activate_animation{ activate_animation },
-	hover_animation{ hover_animation },
-	force_start_on_activate{ force_start_on_activate },
-	force_start_on_hover_start{ force_start_on_hover_start },
-	stop_on_hover_stop{ stop_on_hover_stop } {
-	PTGN_ASSERT(
-		activate_animation.has_value() || hover_animation.has_value(),
-		"Animated button must have at least one animation provided (activate or hover)"
-	);
-}
-
-void InternalAnimatedButtonScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<ButtonHoverStart>([this](const ButtonHoverStart&) { OnButtonHoverStart(); });
-	d.Dispatch<ButtonHoverStop>([this](const ButtonHoverStop&) { OnButtonHoverStop(); });
-	d.Dispatch<ButtonActivate>([this](const ButtonActivate&) { OnButtonActivate(); });
-}
-
-void InternalAnimatedButtonScript::OnButtonHoverStart() {
-	// TODO: Check button state. If pressed we dont start hover animation.
-	if (hover_animation.has_value()) {
-		hover_animation->Start(force_start_on_hover_start);
-	}
-}
-
-void InternalAnimatedButtonScript::OnButtonHoverStop() {
-	// TODO: Check button state. If pressed we dont stop hover animation.
-	if (hover_animation.has_value() && stop_on_hover_stop) {
-		hover_animation->Stop();
-	}
-}
-
-void InternalAnimatedButtonScript::OnButtonActivate() {
-	if (activate_animation.has_value()) {
-		activate_animation->Start(force_start_on_activate);
-	}
-}
-
-ButtonDisabledTexture::ButtonDisabledTexture(const Texture& t) : Texture{ t } {}
-
-ButtonDisabledTexture::ButtonDisabledTexture(Texture&& t) : Texture{ std::move(t) } {}
 
 void InternalButtonScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<MouseMoveOver>([this](const MouseMoveOver&) { OnMouseMoveOver(); });
@@ -226,193 +174,8 @@ void ToggleButtonGroupScript::OnButtonActivate() {
 	toggle_button_group_.SetActiveKey(self.Get<ToggleButtonGroupKey>());
 }
 
-void ButtonColor::SetToState(ButtonState state) {
-	current_ = Get(state);
-}
-
-const Color& ButtonColor::Get(ButtonState state) const {
-	switch (state) {
-		using enum ptgn::ButtonState;
-		case Current: return current_;
-		case Default: return default_;
-		case Hover:	  return hover_;
-		case Pressed: return pressed_;
-		default:	  PTGN_ERROR("Invalid button state");
-	}
-}
-
-Color& ButtonColor::Get(ButtonState state) {
-	return const_cast<Color&>(std::as_const(*this).Get(state));
-}
-
-ButtonText::ButtonText(
-	Entity parent, Scene& scene, ButtonState state, std::string_view text_content, Color text_color,
-	std::optional<float> font_size, std::optional<Font> font, const TextProperties& text_properties
-) {
-	Set(parent, scene, ButtonState::Default, text_content, text_color, font_size, font,
-		text_properties);
-	if (state != ButtonState::Default) {
-		Set(parent, scene, state, text_content, text_color, font_size, font, text_properties);
-	}
-}
-
-Text ButtonText::Get(ButtonState state) const {
-	switch (state) {
-		using enum ptgn::ButtonState;
-		case Default: return Text{ default_ };
-		case Hover:	  return Text{ hover_ };
-		case Pressed: return Text{ pressed_ };
-		case Current: [[fallthrough]];
-		default:	  PTGN_ERROR("Invalid button state");
-	}
-}
-
-Text ButtonText::GetValid(ButtonState state) const {
-	using enum ptgn::ButtonState;
-	if (state == Current) {
-		return Get(Default);
-	}
-	auto text{ Get(state) };
-	if (!text) {
-		return Get(Default);
-	}
-	return text;
-}
-
-Color ButtonText::GetTextColor(ButtonState state) const {
-	return GetValid(state).GetColor();
-}
-
-std::string ButtonText::GetTextContent(ButtonState state) const {
-	return GetValid(state).GetContent();
-}
-
-float ButtonText::GetFontSize(ButtonState state) const {
-	return GetValid(state).GetFontSize(false, {});
-}
-
-TextJustify ButtonText::GetTextJustify(ButtonState state) const {
-	return GetValid(state).GetJustify();
-}
-
-void ButtonText::Set(
-	Entity parent, Scene& scene, ButtonState state, std::string_view text_content, Color text_color,
-	std::optional<float> font_size, std::optional<Font> font, const TextProperties& text_properties
-) {
-	PTGN_ASSERT(
-		state != ButtonState::Current,
-		"Cannot set button's current text as it is a non-owning pointer"
-	);
-	auto text{ Get(state) };
-	if (!text) {
-		std::variant<std::monostate, Font, std::string_view> resolved_font{};
-		if (font.has_value()) {
-			resolved_font = *font;
-		}
-		text =
-			CreateText(scene, text_content, text_color, font_size, resolved_font, text_properties);
-		Hide(text);
-		SetParent(text, parent);
-		switch (state) {
-			using enum ptgn::ButtonState;
-			case Default: {
-				PTGN_ASSERT(!default_);
-				default_ = GameObject{ std::move(text) };
-				break;
-			}
-			case Hover: {
-				PTGN_ASSERT(!hover_);
-				hover_ = GameObject{ std::move(text) };
-				break;
-			}
-			case Pressed: {
-				PTGN_ASSERT(!pressed_);
-				pressed_ = GameObject{ std::move(text) };
-				break;
-			}
-			case Current: [[fallthrough]];
-			default:	  PTGN_ERROR("Invalid button state");
-		}
-	} else {
-		Text::SetParameter(text, impl::TextColor{ text_color }, false);
-		Text::SetParameter(text, impl::TextContent{ text_content }, false);
-		Text::SetParameter(text, font.value_or(Font{}), false);
-		Text::SetParameter(text, FontSize{ font_size.value_or(kDefaultFontSize) }, false);
-		Text::SetProperties(text, text_properties, true);
-	}
-}
-
-Texture ButtonTexture::Get(ButtonState state) const {
-	switch (state) {
-		using enum ptgn::ButtonState;
-		case Default: return default_;
-		case Hover:	  return hover_;
-		case Pressed: return pressed_;
-		case Current: [[fallthrough]];
-		default:	  PTGN_ERROR("Invalid button state");
-	}
-}
-
-template <typename TProperty>
-static void UpdateStateProperty(Entity entity, const ButtonState& state) {
-	if (auto property{ entity.TryGet<TProperty>() }) {
-		property->SetToState(state);
-	}
-}
-
-static void SetTextureState(Button button, bool is_toggled, const ButtonState& state) {
-	auto key{ button.TryGet<Texture>() };
-	if (!key) {
-		return;
-	}
-	if (!button.IsEnabled(false) && button.Has<impl::ButtonDisabledTexture>()) {
-		*key = button.Get<impl::ButtonDisabledTexture>();
-	} else if (is_toggled && button.Has<impl::ButtonTextureToggled>()) {
-		*key = button.Get<impl::ButtonTextureToggled>().Get(state);
-	} else if (button.Has<impl::ButtonTexture>()) {
-		*key = button.Get<impl::ButtonTexture>().Get(state);
-	}
-}
-
 static bool IsToggled(Entity button) {
 	return button.Has<impl::ButtonToggled>();
-}
-
-template <typename DefaultComponent, typename ToggledComponent>
-static Color GetEffectiveColor(
-	Entity button, bool is_toggled, Color fallback_color = color::Transparent
-) {
-	if (is_toggled && button.Has<ToggledComponent>()) {
-		return button.Get<ToggledComponent>().current_;
-	} else if (button.Has<DefaultComponent>()) {
-		return button.Get<DefaultComponent>().current_;
-	}
-	return fallback_color;
-}
-
-// @return Button texture, or {} is button has no valid texture.
-static std::optional<Texture> GetButtonTexture(
-	Button button, bool is_toggled, const ButtonState& state
-) {
-	SetTextureState(button, is_toggled, state);
-
-	auto texture{ button.TryGet<Texture>() };
-	return texture ? std::optional<Texture>{ *texture } : std::nullopt;
-}
-
-// @return Button text, or empty text object if button has no text.
-static Entity GetButtonText(Entity button, bool is_toggled, const ButtonState& state) {
-	Entity text;
-
-	if (is_toggled && button.Has<impl::ButtonTextToggled>()) {
-		const auto& button_text_toggled{ button.Get<impl::ButtonTextToggled>() };
-		text = button_text_toggled.GetValid(state);
-	} else if (button.Has<impl::ButtonText>()) {
-		const auto& button_text{ button.Get<impl::ButtonText>() };
-		text = button_text.GetValid(state);
-	}
-
-	return text;
 }
 
 template <typename Derived>
@@ -435,13 +198,6 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 	PTGN_ASSERT(button_size.has_value(), "Buttons must have a non-zero size to be drawn");
 	auto button_origin{ GetDrawOrigin(button) };
 	auto text{ GetButtonText(button, is_toggled, state) };
-
-	UpdateStateProperty<impl::ButtonColor>(button, state);
-	UpdateStateProperty<impl::ButtonColorToggled>(button, state);
-	UpdateStateProperty<impl::ButtonTint>(button, state);
-	UpdateStateProperty<impl::ButtonTintToggled>(button, state);
-	UpdateStateProperty<impl::ButtonBorderColor>(button, state);
-	UpdateStateProperty<impl::ButtonBorderColorToggled>(button, state);
 
 	if (auto button_texture{ GetButtonTexture(button, is_toggled, state) };
 		button_texture.has_value()) {
@@ -568,151 +324,43 @@ bool ButtonBase<Derived>::IsEnabled(bool check_for_hover_enabled) const {
 }
 
 template <typename Derived>
-std::optional<V2_float> ButtonBase<Derived>::GetSize() const {
-	if (auto texture{ TryGet<Texture>() }) {
-		return texture->GetSize();
-	}
-
-	if (auto rect{ TryGet<Rect>() }) {
-		return rect->GetSize();
-	}
-
-	if (auto circle{ TryGet<Circle>() }) {
-		return V2_float{ circle->radius * 2.0f };
-	}
-	return {};
-}
+std::variant<Rect, Circle> ButtonBase<Derived>::GetShape() const {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetSize(V2_float size) {
-	Remove<Circle>();
-	if (Has<Rect>()) {
-		Get<Rect>() = Rect{ size };
-	} else {
-		Add<Rect>(size);
-	}
-	if (IsInteractive(*this)) {
-		ClearInteractiveShapes(*this);
-		auto shape{ GetScene().CreateEntity() };
-		AddChild(*this, shape);
-		shape.template Add<Rect>(size);
-		AddInteractiveShape(*this, GameObject{ std::move(shape) });
-	}
-	return Self();
-}
+Derived& ButtonBase<Derived>::SetShape(std::variant<std::monostate, Rect, Circle>) {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetRadius(float radius) {
-	Remove<Rect>();
-	if (Has<Circle>()) {
-		Get<Circle>() = Circle{ radius };
-	} else {
-		Add<Circle>(radius);
-	}
-	if (IsInteractive(*this)) {
-		ClearInteractiveShapes(*this);
-		auto shape{ GetScene().CreateEntity() };
-		AddChild(*this, shape);
-		shape.template Add<Circle>(radius);
-		AddInteractiveShape(*this, GameObject{ std::move(shape) });
-	}
-	return Self();
-}
+Color ButtonBase<Derived>::GetBackgroundColor(ButtonState state) const {}
 
 template <typename Derived>
-Color ButtonBase<Derived>::GetBackgroundColor(ButtonState state) const {
-	const auto c{ Has<impl::ButtonColor>() ? Get<impl::ButtonColor>() : impl::ButtonColor{} };
-	return c.Get(state);
-}
-
-template <typename Derived>
-Derived& ButtonBase<Derived>::SetBackgroundColor(Color color, ButtonState state) {
-	if (!Has<impl::ButtonColor>()) {
-		Add<impl::ButtonColor>(color);
-	} else {
-		auto& c{ Get<impl::ButtonColor>() };
-		c.Get(state) = color;
-	}
-	return Self();
-}
+Derived& ButtonBase<Derived>::SetBackgroundColor(Color color, ButtonState state) {}
 
 template <typename Derived>
 Derived& ButtonBase<Derived>::SetText(
 	std::string_view content, Color text_color, std::optional<float> font_size,
 	std::optional<Font> font, const TextProperties& text_properties, ButtonState state
-) {
-	if (!Has<impl::ButtonText>()) {
-		Add<impl::ButtonText>(
-			*this, GetScene(), state, content, text_color, font_size, font, text_properties
-		);
-	} else {
-		auto& c{ Get<impl::ButtonText>() };
-		c.Set(*this, GetScene(), state, content, text_color, font_size, font, text_properties);
-	}
-	return Self();
-}
+) {}
 
 template <typename Derived>
-Entity ButtonBase<Derived>::GetText(ButtonState state) const {
-	return Get<impl::ButtonText>().GetValid(state);
-}
+Entity ButtonBase<Derived>::GetText(ButtonState state) const {}
 
 template <typename Derived>
-Color ButtonBase<Derived>::GetTextColor(ButtonState state) const {
-	return Get<impl::ButtonText>().GetTextColor(state);
-}
+Color ButtonBase<Derived>::GetTextColor(ButtonState state) const {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetTextColor(Color text_color, ButtonState state) {
-	if (!Has<impl::ButtonText>()) {
-		Add<impl::ButtonText>(
-			*this, GetScene(), state, std::string_view{}, text_color, std::nullopt, std::nullopt,
-			TextProperties{}
-		);
-	} else {
-		const auto& c{ Get<impl::ButtonText>() };
-		c.Get(state).SetColor(text_color);
-	}
-	return Self();
-}
+Derived& ButtonBase<Derived>::SetTextColor(Color text_color, ButtonState state) {}
 
 template <typename Derived>
-std::string ButtonBase<Derived>::GetTextContent(ButtonState state) const {
-	return Get<impl::ButtonText>().GetTextContent(state);
-}
+std::string ButtonBase<Derived>::GetTextContent(ButtonState state) const {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetTextContent(std::string_view content, ButtonState state) {
-	if (!Has<impl::ButtonText>()) {
-		Add<impl::ButtonText>(
-			*this, GetScene(), state, content, Color{}, std::nullopt, std::nullopt, TextProperties{}
-		);
-	} else {
-		const auto& c{ Get<impl::ButtonText>() };
-		c.Get(state).SetContent(content);
-	}
-	return Self();
-}
+Derived& ButtonBase<Derived>::SetTextContent(std::string_view content, ButtonState state) {}
 
 template <typename Derived>
-TextJustify ButtonBase<Derived>::GetTextJustify(ButtonState state) const {
-	return Get<impl::ButtonText>().GetTextJustify(state);
-}
+TextJustify ButtonBase<Derived>::GetTextJustify(ButtonState state) const {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetTextJustify(TextJustify justify, ButtonState state) {
-	if (!Has<impl::ButtonText>()) {
-		TextProperties p{};
-		p.justify = justify;
-		Add<impl::ButtonText>(
-			*this, GetScene(), state, std::string_view{}, Color{}, std::nullopt, std::nullopt, p
-		);
-	} else {
-		const auto& c{ Get<impl::ButtonText>() };
-		c.Get(state).SetJustify(justify);
-	}
-	return Self();
-}
+Derived& ButtonBase<Derived>::SetTextJustify(TextJustify justify, ButtonState state) {}
 
 template <typename Derived>
 ButtonTextFixedSize ButtonBase<Derived>::GetTextFixedSize() const {
@@ -730,142 +378,46 @@ Derived& ButtonBase<Derived>::SetTextFixedSize(ButtonTextFixedSize size) {
 }
 
 template <typename Derived>
-float ButtonBase<Derived>::GetFontSize(ButtonState state) const {
-	return Get<impl::ButtonText>().GetFontSize(state);
-}
+float ButtonBase<Derived>::GetFontSize(ButtonState state) const {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetFontSize(float font_size, ButtonState state) {
-	if (!Has<impl::ButtonText>()) {
-		Add<impl::ButtonText>(
-			*this, GetScene(), state, std::string_view{}, Color{}, font_size, std::nullopt,
-			TextProperties{}
-		);
-	} else {
-		const auto& c{ Get<impl::ButtonText>() };
-		c.Get(state).SetFontSize(font_size);
-	}
-	return Self();
-}
+Derived& ButtonBase<Derived>::SetFontSize(float font_size, ButtonState state) {}
 
 template <typename Derived>
-Texture ButtonBase<Derived>::GetTexture(ButtonState state) const {
-	if (state == ButtonState::Current) {
-		PTGN_ASSERT(
-			Has<Texture>(),
-			"Cannot retrieve current texture key as no texture has been added to the button"
-		);
-		return Get<Texture>();
-	}
-	PTGN_ASSERT(
-		Has<impl::ButtonTexture>(),
-		"Cannot retrieve texture key as no texture has been added to the button"
-	);
-	return Get<impl::ButtonTexture>().Get(state);
-}
+Texture ButtonBase<Derived>::GetTexture(ButtonState state) const {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetTexture(Texture texture, ButtonState state) {
-	if (IsInteractive(*this) && GetInteractiveShapes(*this).empty()) {
-		auto shape{ GetScene().CreateEntity() };
-		AddChild(*this, shape);
-		auto size{ texture.GetSize() };
-		shape.template Add<Rect>(size);
-		AddInteractiveShape(*this, GameObject{ std::move(shape) });
-	}
-	if (!Has<Texture>()) {
-		Add<Texture>(texture);
-	} else if (state == ButtonState::Current) {
-		Add<Texture>(texture);
-		return Self();
-	}
-	if (!Has<impl::ButtonTexture>()) {
-		Add<impl::ButtonTexture>(texture);
-	} else {
-		const auto& c{ Get<impl::ButtonTexture>() };
-		c.Get(state) = texture;
-	}
-	return Self();
-}
+Derived& ButtonBase<Derived>::SetTexture(Texture texture, ButtonState state) {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetDisabledTexture(Texture texture) {
-	if (!texture) {
-		Remove<impl::ButtonDisabledTexture>();
-	} else {
-		Add<impl::ButtonDisabledTexture>(texture);
-	}
-	return Self();
-}
+Derived& ButtonBase<Derived>::SetDisabledTexture(Texture texture) {}
 
 template <typename Derived>
-Texture ButtonBase<Derived>::GetDisabledTexture() const {
-	PTGN_ASSERT(
-		Has<impl::ButtonDisabledTexture>(),
-		"Cannot retrieve disabled texture key as it has not been set for the button"
-	);
-	return Get<impl::ButtonDisabledTexture>();
-}
+Texture ButtonBase<Derived>::GetDisabledTexture() const {}
 
 template <typename Derived>
-Color ButtonBase<Derived>::GetTint(ButtonState state) const {
-	const auto c{ Has<impl::ButtonTint>() ? Get<impl::ButtonTint>() : impl::ButtonTint{} };
-	return c.Get(state);
-}
+Color ButtonBase<Derived>::GetTint(ButtonState state) const {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetTint(Color color, ButtonState state) {
-	TryAdd<impl::ButtonTint>().Get(state) = color;
-	return Self();
-}
+Derived& ButtonBase<Derived>::SetTint(Color color, ButtonState state) {}
 
 template <typename Derived>
-Color ButtonBase<Derived>::GetBorderColor(ButtonState state) const {
-	return GetOrDefault<impl::ButtonBorderColor>().Get(state);
-}
+Color ButtonBase<Derived>::GetBorderColor(ButtonState state) const {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetBorderColor(Color color, ButtonState state) {
-	if (!Has<impl::ButtonBorderColor>()) {
-		Add<impl::ButtonBorderColor>(color);
-	} else {
-		auto& c{ Get<impl::ButtonBorderColor>() };
-		c.Get(state) = color;
-	}
-	return Self();
-}
+Derived& ButtonBase<Derived>::SetBorderColor(Color color, ButtonState state) {}
 
 template <typename Derived>
-float ButtonBase<Derived>::GetBackgroundLineWidth() const {
-	return GetOrDefault<impl::ButtonBackgroundWidth>();
-}
+FillStyle ButtonBase<Derived>::GetBackgroundFillStyle() const {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetBackgroundLineWidth(float line_width) {
-	PTGN_ASSERT(line_width >= 0.0f || line_width == -1.0f, "Invalid button background line width");
-	if (line_width != -1.0f && line_width < 1.0f) {
-		Remove<impl::ButtonBackgroundWidth>();
-	} else {
-		Add<impl::ButtonBackgroundWidth>(line_width);
-	}
-	return Self();
-}
+Derived& ButtonBase<Derived>::SetBackgroundFillStyle(FillStyle fill_style) {}
 
 template <typename Derived>
-float ButtonBase<Derived>::GetBorderWidth() const {
-	return GetOrDefault<impl::ButtonBorderWidth>();
-}
+float ButtonBase<Derived>::GetBorderWidth() const {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetBorderWidth(float line_width) {
-	PTGN_ASSERT(line_width >= 1.0f || line_width == 0.0f, "Cannot set negative border width");
-	if (line_width == 0.0f) {
-		Remove<impl::ButtonBorderWidth>();
-	} else {
-		Add<impl::ButtonBorderWidth>(line_width);
-	}
-	return Self();
-}
+Derived& ButtonBase<Derived>::SetBorderWidth(float line_width) {}
 
 template <typename Derived>
 impl::InternalButtonState ButtonBase<Derived>::GetInternalState() const {
@@ -882,7 +434,7 @@ ButtonState ButtonBase<Derived>::GetState() const {
 	} else if (state == Pressed || state == HeldOutside) {
 		return ButtonState::Pressed;
 	} else {
-		return ButtonState::Default;
+		return ButtonState::Idle;
 	}
 }
 
@@ -984,137 +536,36 @@ ToggleButton& ToggleButton::Toggle() {
 	return SetToggled(!IsToggled());
 }
 
-Color ToggleButton::GetBackgroundColorToggled(ButtonState state) const {
-	const auto c{ Has<impl::ButtonColorToggled>() ? Get<impl::ButtonColorToggled>()
-												  : impl::ButtonColorToggled{} };
-	return c.Get(state);
-}
+Color ToggleButton::GetBackgroundColorToggled(ButtonState state) const {}
 
-ToggleButton& ToggleButton::SetBackgroundColorToggled(Color color, ButtonState state) {
-	if (!Has<impl::ButtonColorToggled>()) {
-		Add<impl::ButtonColorToggled>(color);
-	} else {
-		auto& c{ Get<impl::ButtonColorToggled>() };
-		c.Get(state) = color;
-	}
-	return *this;
-}
+ToggleButton& ToggleButton::SetBackgroundColorToggled(Color color, ButtonState state) {}
 
-Color ToggleButton::GetTextColorToggled(ButtonState state) const {
-	return Get<impl::ButtonTextToggled>().GetTextColor(state);
-}
+Color ToggleButton::GetTextColorToggled(ButtonState state) const {}
 
-ToggleButton& ToggleButton::SetTextColorToggled(Color text_color, ButtonState state) {
-	if (!Has<impl::ButtonTextToggled>()) {
-		Add<impl::ButtonTextToggled>(
-			*this, GetScene(), state, std::string_view{}, text_color, std::nullopt, std::nullopt,
-			TextProperties{}
-		);
-	} else {
-		const auto& c{ Get<impl::ButtonTextToggled>() };
-		c.Get(state).SetColor(text_color);
-	}
-	return *this;
-}
+ToggleButton& ToggleButton::SetTextColorToggled(Color text_color, ButtonState state) {}
 
-std::string ToggleButton::GetTextContentToggled(ButtonState state) const {
-	return Get<impl::ButtonTextToggled>().GetTextContent(state);
-}
+std::string ToggleButton::GetTextContentToggled(ButtonState state) const {}
 
-ToggleButton& ToggleButton::SetTextContentToggled(std::string_view content, ButtonState state) {
-	if (!Has<impl::ButtonTextToggled>()) {
-		Add<impl::ButtonTextToggled>(
-			*this, GetScene(), state, content, Color{}, std::nullopt, std::nullopt, TextProperties{}
-		);
-	} else {
-		const auto& c{ Get<impl::ButtonTextToggled>() };
-		c.Get(state).SetContent(content);
-	}
-	return *this;
-}
+ToggleButton& ToggleButton::SetTextContentToggled(std::string_view content, ButtonState state) {}
 
 ToggleButton& ToggleButton::SetTextToggled(
 	std::string_view content, Color text_color, std::optional<float> font_size,
 	std::optional<Font> font, const TextProperties& text_properties, ButtonState state
-) {
-	if (!Has<impl::ButtonTextToggled>()) {
-		Add<impl::ButtonTextToggled>(
-			*this, GetScene(), state, content, text_color, font_size, font, text_properties
-		);
-	} else {
-		auto& c{ Get<impl::ButtonTextToggled>() };
-		c.Set(*this, GetScene(), state, content, text_color, font_size, font, text_properties);
-	}
-	return *this;
-}
+) {}
 
-Text ToggleButton::GetTextToggled(ButtonState state) const {
-	return Get<impl::ButtonTextToggled>().GetValid(state);
-}
+Text ToggleButton::GetTextToggled(ButtonState state) const {}
 
-Color ToggleButton::GetBorderColorToggled(ButtonState state) const {
-	const auto c{ Has<impl::ButtonBorderColorToggled>() ? Get<impl::ButtonBorderColorToggled>()
-														: impl::ButtonBorderColorToggled{} };
-	return c.Get(state);
-}
+Color ToggleButton::GetBorderColorToggled(ButtonState state) const {}
 
-ToggleButton& ToggleButton::SetBorderColorToggled(Color color, ButtonState state) {
-	if (!Has<impl::ButtonBorderColorToggled>()) {
-		Add<impl::ButtonBorderColorToggled>(color);
-	} else {
-		auto& c{ Get<impl::ButtonBorderColorToggled>() };
-		c.Get(state) = color;
-	}
-	return *this;
-}
+ToggleButton& ToggleButton::SetBorderColorToggled(Color color, ButtonState state) {}
 
-Texture ToggleButton::GetTextureToggled(ButtonState state) const {
-	if (state == ButtonState::Current) {
-		PTGN_ASSERT(
-			Has<Texture>(),
-			"Cannot retrieve current texture key as no texture has been added to the button"
-		);
-		return Get<Texture>();
-	}
-	PTGN_ASSERT(
-		Has<impl::ButtonTextureToggled>(),
-		"Cannot retrieve toggled texture key as no toggled texture has been added to the button"
-	);
-	return Get<impl::ButtonTextureToggled>().Get(state);
-}
+Texture ToggleButton::GetTextureToggled(ButtonState state) const {}
 
-ToggleButton& ToggleButton::SetTextureToggled(Texture texture, ButtonState state) {
-	if (!Has<Texture>()) {
-		Add<Texture>(texture);
-	} else if (state == ButtonState::Current && Has<impl::ButtonToggled>()) {
-		Add<Texture>(texture);
-		return *this;
-	}
-	if (!Has<impl::ButtonTextureToggled>()) {
-		Add<impl::ButtonTextureToggled>(texture);
-	} else {
-		const auto& c{ Get<impl::ButtonTextureToggled>() };
-		c.Get(state) = texture;
-	}
-	return *this;
-}
+ToggleButton& ToggleButton::SetTextureToggled(Texture texture, ButtonState state) {}
 
-Color ToggleButton::GetTintToggled(ButtonState state) const {
-	const auto c{ Has<impl::ButtonTintToggled>() ? Get<impl::ButtonTintToggled>()
-												 : impl::ButtonTintToggled{} };
-	return c.Get(state);
-}
+Color ToggleButton::GetTintToggled(ButtonState state) const {}
 
-ToggleButton& ToggleButton::SetTintToggled(Color color, ButtonState state) {
-	if (!Has<impl::ButtonTintToggled>()) {
-		auto& c{ Add<impl::ButtonTintToggled>() };
-		c.Get(state) = color;
-	} else {
-		auto& c{ Get<impl::ButtonTintToggled>() };
-		c.Get(state) = color;
-	}
-	return *this;
-}
+ToggleButton& ToggleButton::SetTintToggled(Color color, ButtonState state) {}
 
 ToggleButtonGroup::ToggleButtonGroup(Entity entity) : Entity{ entity } {}
 
@@ -1279,7 +730,10 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	}
 }
 
-Button CreateButton(Scene& scene, bool ui_layer) {
+Button CreateButton(
+	Scene& scene, std::variant<std::monostate, Rect, Circle> shape, const ButtonConfig& config,
+	bool ui_layer
+) {
 	Button button{ scene.CreateEntity() };
 
 	if (ui_layer) {
@@ -1299,15 +753,10 @@ Button CreateButton(Scene& scene, bool ui_layer) {
 	return button;
 }
 
-Button CreateTextButton(Scene& scene, std::string_view text_content, Color text_color) {
-	Button button{ CreateButton(scene) };
-
-	button.SetText(text_content, text_color);
-
-	return button;
-}
-
-ToggleButton CreateToggleButton(Scene& scene, bool toggled) {
+ToggleButton CreateToggleButton(
+	Scene& scene, std::variant<std::monostate, Rect, Circle> shape, const ButtonConfig& config,
+	bool toggled
+) {
 	ToggleButton toggle_button{ CreateButton(scene) };
 
 	PTGN_ASSERT(!HasScript<impl::InternalToggleButtonScript>(toggle_button));
@@ -1323,31 +772,6 @@ ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {
 	toggle_button_group.Entity::Add<impl::ToggleButtonGroupData>();
 
 	return toggle_button_group;
-}
-
-Button CreateAnimatedButton(
-	Scene& scene, V2_float button_size, std::optional<Animation> activate_animation,
-	std::optional<Animation> hover_animation, bool force_start_on_activate,
-	bool force_start_on_hover_start, bool stop_on_hover_stop
-) {
-	auto button{ CreateButton(scene) };
-
-	if (activate_animation) {
-		AddChild(button, *activate_animation, "activate_animation");
-	}
-	if (hover_animation) {
-		AddChild(button, *hover_animation, "hover_animation");
-	}
-
-	button.SetSize(button_size);
-
-	PTGN_ASSERT(!HasScript<impl::InternalAnimatedButtonScript>(button));
-	AddScript<impl::InternalAnimatedButtonScript>(
-		button, activate_animation, hover_animation, force_start_on_activate,
-		force_start_on_hover_start, stop_on_hover_stop
-	);
-
-	return button;
 }
 
 } // namespace ptgn

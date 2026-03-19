@@ -6,26 +6,26 @@
 #include <ostream>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/log.h"
-#include "core/math/vector2.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/rect.h"
 #include "platform/input/mouse.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
-#include "runtime/animation/animation.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/camera.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/font.h"
-#include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/enum.h"
@@ -36,31 +36,27 @@ namespace ptgn {
 class DrawContext;
 class Scene;
 
-/*
 struct ButtonStyle {
-	std::optional<Entity> background;
+	std::optional<std::variant<Rect, Circle>> background;
+	std::optional<Color> background_color;
+	std::optional<FillStyle> background_fill;
+
+	std::optional<std::variant<Rect, Circle>> border;
+	std::optional<Color> border_color;
+	std::optional<float> border_width;
+
+	std::optional<GameObject> sprite;
 	std::optional<Color> tint;
-	std::optional<Entity> border;
-	std::optional<Text> text;
-	std::optional<Entity> sprite;
+
+	std::optional<GameObject> text;
+
 	std::optional<Audio> sound;
 };
 
 struct ButtonInteractionConfig {
 	ButtonStyle idle;
-
-	// Hover
-	std::optional<ButtonStyle> hover_start;
 	std::optional<ButtonStyle> hover;
-	std::optional<ButtonStyle> hover_end;
-
-	// Mouse press
-	std::optional<ButtonStyle> press_start;
 	std::optional<ButtonStyle> press;
-
-	// Mouse release
-	std::optional<ButtonStyle> release_over;
-	std::optional<ButtonStyle> release_out;
 };
 
 struct ButtonConfig {
@@ -68,10 +64,13 @@ struct ButtonConfig {
 
 	std::optional<ButtonInteractionConfig> disabled;
 };
-*/
+
+struct ToggleButtonConfig : public ButtonConfig {
+	std::optional<ButtonInteractionConfig> toggled;
+};
 
 enum class ButtonState : std::uint8_t {
-	Default,
+	Idle,
 	Hover,
 	Pressed,
 	Current
@@ -79,17 +78,17 @@ enum class ButtonState : std::uint8_t {
 
 inline std::ostream& operator<<(std::ostream& os, ButtonState state) {
 	switch (state) {
-		using enum ptgn::ButtonState;
-		case Default: os << "Default"; break;
-		case Hover:	  os << "Hover"; break;
-		case Pressed: os << "Pressed"; break;
-		default:	  PTGN_ERROR("Invalid button state");
+		using enum ButtonState;
+		case Idle:	  return os << "Idle";
+		case Hover:	  return os << "Hover";
+		case Pressed: return os << "Pressed";
+		case Current: return os << "Current";
+		default:	  PTGN_ERROR("Unknown button state: ", std::to_underlying(state));
 	}
-	return os;
 }
 
 PTGN_SERIALIZE_ENUM(
-	ButtonState, { { ButtonState::Default, "default" },
+	ButtonState, { { ButtonState::Idle, "idle" },
 				   { ButtonState::Hover, "hover" },
 				   { ButtonState::Pressed, "pressed" },
 				   { ButtonState::Current, "current" } }
@@ -118,15 +117,14 @@ enum class InternalButtonState {
 inline std::ostream& operator<<(std::ostream& os, InternalButtonState state) {
 	switch (state) {
 		using enum InternalButtonState;
-		case IdleDown:	   os << "Idle Down"; break;
-		case IdleUp:	   os << "Idle Up"; break;
-		case Hover:		   os << "Hover"; break;
-		case HoverPressed: os << "Hover Pressed"; break;
-		case Pressed:	   os << "Pressed"; break;
-		case HeldOutside:  os << "Held Outside"; break;
-		default:		   PTGN_ERROR("Invalid internal button state");
+		case IdleDown:	   return os << "Idle Down";
+		case IdleUp:	   return os << "Idle Up";
+		case Hover:		   return os << "Hover";
+		case HoverPressed: return os << "Hover Pressed";
+		case Pressed:	   return os << "Pressed";
+		case HeldOutside:  return os << "Held Outside";
+		default:		   PTGN_ERROR("Unknown internal button state: ", std::to_underlying(state));
 	}
-	return os;
 }
 
 PTGN_SERIALIZE_ENUM(
@@ -211,32 +209,6 @@ private:
 	void OnButtonActivate() const;
 };
 
-struct InternalAnimatedButtonScript : public Script {
-	InternalAnimatedButtonScript() = default;
-
-	explicit InternalAnimatedButtonScript(
-		std::optional<Animation> activate_animation, std::optional<Animation> hover_animation = {},
-		bool force_start_on_activate = true, bool force_start_on_hover_start = true,
-		bool stop_on_hover_stop = true
-	);
-
-	void OnEvent(EventDispatcher d) override;
-
-	void OnButtonHoverStart();
-
-	void OnButtonHoverStop();
-
-	void OnButtonActivate();
-
-	std::optional<Animation> activate_animation;
-	std::optional<Animation> hover_animation;
-
-	bool force_start_on_activate{ true };
-
-	bool force_start_on_hover_start{ true };
-	bool stop_on_hover_stop{ true };
-};
-
 struct ToggleButtonGroupKey : public HashComponent {
 	using HashComponent::HashComponent;
 };
@@ -275,129 +247,6 @@ struct ToggleButtonGroupData {
 
 struct ButtonToggled {};
 
-struct ButtonDisabledTexture : public Texture {
-	using Texture::Texture;
-
-	ButtonDisabledTexture(const Texture& t);
-
-	ButtonDisabledTexture(Texture&& t);
-};
-
-struct ButtonBorderWidth : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	ButtonBorderWidth() : ArithmeticComponent{ 1.0f } {}
-};
-
-struct ButtonBackgroundWidth : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	ButtonBackgroundWidth() : ArithmeticComponent{ -1.0f } {}
-};
-
-struct ButtonColor {
-	ButtonColor() = default;
-
-	explicit ButtonColor(Color color) :
-		current_{ color }, default_{ color }, hover_{ color }, pressed_{ color } {}
-
-	void SetToState(ButtonState state);
-
-	[[nodiscard]] const Color& Get(ButtonState state) const;
-	[[nodiscard]] Color& Get(ButtonState state);
-
-	Color current_;
-	Color default_;
-	Color hover_;
-	Color pressed_;
-
-	PTGN_SERIALIZER_REGISTER_NAMED(
-		ButtonColor, KeyValue("current", current_), KeyValue("default", default_),
-		KeyValue("hover", hover_), KeyValue("pressed", pressed_)
-	)
-};
-
-struct ButtonColorToggled : public ButtonColor {
-	using ButtonColor::ButtonColor;
-};
-
-struct ButtonTint : public ButtonColor {
-	using ButtonColor::ButtonColor;
-
-	ButtonTint() : ButtonColor{ color::White } {}
-};
-
-struct ButtonTintToggled : public ButtonTint {
-	using ButtonTint::ButtonTint;
-};
-
-struct ButtonBorderColor : public ButtonColor {
-	using ButtonColor::ButtonColor;
-};
-
-struct ButtonBorderColorToggled : public ButtonBorderColor {
-	using ButtonBorderColor::ButtonBorderColor;
-};
-
-struct ButtonTexture {
-	ButtonTexture() = default;
-
-	explicit ButtonTexture(Texture texture) :
-		default_{ texture }, hover_{ texture }, pressed_{ texture } {}
-
-	[[nodiscard]] Texture Get(ButtonState state) const;
-
-	Texture default_;
-	Texture hover_;
-	Texture pressed_;
-
-	// TODO: Fix serialization.
-	// PTGN_SERIALIZER_REGISTER_NAMED(
-	//	ButtonTexture, KeyValue("default", default_), KeyValue("hover", hover_),
-	//	KeyValue("pressed", pressed_)
-	//)
-};
-
-struct ButtonTextureToggled : public ButtonTexture {
-	using ButtonTexture::ButtonTexture;
-};
-
-struct ButtonText {
-	ButtonText()								 = default;
-	ButtonText& operator=(ButtonText&&) noexcept = default;
-	ButtonText(ButtonText&&) noexcept			 = default;
-	ButtonText& operator=(const ButtonText&)	 = delete;
-	ButtonText(const ButtonText&)				 = delete;
-	~ButtonText()								 = default;
-
-	ButtonText(
-		Entity parent, Scene& scene, ButtonState state, std::string_view text_content,
-		Color text_color, std::optional<float> font_size, std::optional<Font> font,
-		const TextProperties& text_properties
-	);
-
-	[[nodiscard]] Color GetTextColor(ButtonState state) const;
-	[[nodiscard]] std::string GetTextContent(ButtonState state) const;
-	[[nodiscard]] float GetFontSize(ButtonState state) const;
-	[[nodiscard]] TextJustify GetTextJustify(ButtonState state) const;
-	[[nodiscard]] Text Get(ButtonState state) const;
-	[[nodiscard]] Text GetValid(ButtonState state) const;
-
-	void Set(
-		Entity parent, Scene& scene, ButtonState state, std::string_view text_content,
-		Color text_color, std::optional<float> font_size, std::optional<Font> font,
-		const TextProperties& text_properties
-	);
-
-	GameObject default_;
-	GameObject hover_;
-	GameObject pressed_;
-};
-
-struct ButtonTextToggled : public ButtonText {
-	using ButtonText::ButtonText;
-};
-
 struct ButtonEnabled {
 	bool activate{ true };
 	bool hover{ true };
@@ -413,9 +262,8 @@ public:
 
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
-	/// @return If no size is specified, returns {}.
-	/// Otherwise returns, in order of precedence: texture size, rect size, or {2*radius, 2*radius}.
-	[[nodiscard]] std::optional<V2_float> GetSize() const;
+	/// @return In order of precedence: rect size, circle radius, texture size.
+	[[nodiscard]] std::variant<Rect, Circle> GetShape() const;
 	/// @param check_for_hover_enabled If true, checks for button hovering being enabled instead.
 	/// @return True if the button activation is enabled, false otherwise.
 	[[nodiscard]] bool IsEnabled(bool check_for_hover_enabled = false) const;
@@ -435,7 +283,7 @@ public:
 	[[nodiscard]] float GetFontSize(ButtonState state = ButtonState::Current) const;
 	[[nodiscard]] Entity GetText(ButtonState state = ButtonState::Current) const;
 	[[nodiscard]] Color GetBorderColor(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] float GetBackgroundLineWidth() const;
+	[[nodiscard]] FillStyle GetBackgroundFillStyle() const;
 	[[nodiscard]] float GetBorderWidth() const;
 
 	/// @brief Set button callback scripts.
@@ -459,30 +307,27 @@ public:
 	Derived& ContinueHover();
 	/// Called once when hovering stops (mouse exits button).
 	Derived& StopHover();
-	/// @param Sets the button to have a rectangle interactive shape.
-	Derived& SetSize(V2_float size = {});
-	/// @param Sets the button to have a circle interactive shape.
-	Derived& SetRadius(float radius = {});
-	Derived& SetBackgroundColor(Color color, ButtonState state = ButtonState::Default);
-	Derived& SetTexture(Texture texture, ButtonState state = ButtonState::Default);
+	/// @param Sets the shape of the button interactive area. If monostate (default), uses the
+	/// texture size.
+	Derived& SetShape(std::variant<std::monostate, Rect, Circle> shape = {});
+	Derived& SetBackgroundColor(Color color, ButtonState state = ButtonState::Idle);
+	Derived& SetTexture(Texture texture, ButtonState state = ButtonState::Idle);
 	Derived& SetDisabledTexture(Texture texture);
-	Derived& SetTint(Color tint, ButtonState state = ButtonState::Default);
-	Derived& SetTextColor(Color text_color, ButtonState state = ButtonState::Default);
-	Derived& SetTextContent(std::string_view content, ButtonState state = ButtonState::Default);
-	Derived& SetTextJustify(TextJustify justify, ButtonState state = ButtonState::Default);
+	Derived& SetTint(Color tint, ButtonState state = ButtonState::Idle);
+	Derived& SetTextColor(Color text_color, ButtonState state = ButtonState::Idle);
+	Derived& SetTextContent(std::string_view content, ButtonState state = ButtonState::Idle);
+	Derived& SetTextJustify(TextJustify justify, ButtonState state = ButtonState::Idle);
 	/// If either axis of the text size is {}, it is stretched to fit the entire size of the button
 	/// rectangle (along that axis).
 	Derived& SetTextFixedSize(ButtonTextFixedSize size = {});
-	Derived& SetFontSize(float font_size, ButtonState state = ButtonState::Default);
+	Derived& SetFontSize(float font_size, ButtonState state = ButtonState::Idle);
 	Derived& SetText(
 		std::string_view content, Color text_color = color::Black,
 		std::optional<float> font_size = {}, std::optional<Font> font = {},
-		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Default
+		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Idle
 	);
-	Derived& SetBorderColor(Color color, ButtonState state = ButtonState::Default);
-	/// If -1 (default), button background is a solid rectangle, otherwise uses the specified line
-	/// width.
-	Derived& SetBackgroundLineWidth(float line_width);
+	Derived& SetBorderColor(Color color, ButtonState state = ButtonState::Idle);
+	Derived& SetBackgroundFillStyle(FillStyle fill_style);
 	Derived& SetBorderWidth(float line_width);
 
 private:
@@ -506,7 +351,7 @@ public:
 
 	[[nodiscard]] bool IsToggled() const;
 	[[nodiscard]] Color GetBackgroundColorToggled(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] Texture GetTextureToggled(ButtonState state = ButtonState::Default) const;
+	[[nodiscard]] Texture GetTextureToggled(ButtonState state = ButtonState::Idle) const;
 	[[nodiscard]] Color GetTintToggled(ButtonState state = ButtonState::Current) const;
 	[[nodiscard]] Color GetTextColorToggled(ButtonState state = ButtonState::Current) const;
 	[[nodiscard]] std::string GetTextContentToggled(ButtonState state = ButtonState::Current) const;
@@ -516,19 +361,19 @@ public:
 	ToggleButton& OnToggle(const std::function<void(bool)>& callback);
 	ToggleButton& SetToggled(bool toggled);
 	ToggleButton& Toggle();
-	ToggleButton& SetBackgroundColorToggled(Color color, ButtonState state = ButtonState::Default);
-	ToggleButton& SetTextureToggled(Texture texture, ButtonState state = ButtonState::Default);
-	ToggleButton& SetTintToggled(Color color, ButtonState state = ButtonState::Default);
-	ToggleButton& SetTextColorToggled(Color text_color, ButtonState state = ButtonState::Default);
+	ToggleButton& SetBackgroundColorToggled(Color color, ButtonState state = ButtonState::Idle);
+	ToggleButton& SetTextureToggled(Texture texture, ButtonState state = ButtonState::Idle);
+	ToggleButton& SetTintToggled(Color color, ButtonState state = ButtonState::Idle);
+	ToggleButton& SetTextColorToggled(Color text_color, ButtonState state = ButtonState::Idle);
 	ToggleButton& SetTextContentToggled(
-		std::string_view content, ButtonState state = ButtonState::Default
+		std::string_view content, ButtonState state = ButtonState::Idle
 	);
 	ToggleButton& SetTextToggled(
 		std::string_view content, Color text_color = color::Black,
 		std::optional<float> font_size = {}, std::optional<Font> font = {},
-		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Default
+		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Idle
 	);
-	ToggleButton& SetBorderColorToggled(Color color, ButtonState state = ButtonState::Default);
+	ToggleButton& SetBorderColorToggled(Color color, ButtonState state = ButtonState::Idle);
 };
 
 class ToggleButtonGroup : public Entity {
@@ -577,22 +422,20 @@ private:
 
 } // namespace impl
 
-Button CreateButton(Scene& scene, bool ui_layer = true);
-
-Button CreateTextButton(
-	Scene& scene, std::string_view text_content, Color text_color = color::Black
+/// @param shape If monostate (default) uses the texture size of the button. If no texture is
+/// provided, debug assertion is called.
+Button CreateButton(
+	Scene& scene, std::variant<std::monostate, Rect, Circle> shape = {},
+	const ButtonConfig& config = {}, bool ui_layer = true
 );
 
 /// @param toggled Whether or not the button start in the toggled state.
-ToggleButton CreateToggleButton(Scene& scene, bool toggled = false);
+ToggleButton CreateToggleButton(
+	Scene& scene, std::variant<std::monostate, Rect, Circle> shape = {},
+	const ButtonConfig& config = {}, bool toggled = false
+);
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
-
-Button CreateAnimatedButton(
-	Scene& scene, V2_float button_size, std::optional<Animation> activate_animation,
-	std::optional<Animation> hover_animation = {}, bool force_start_on_activate = true,
-	bool force_start_on_hover_start = true, bool stop_on_hover_stop = true
-);
 
 PTGN_REGISTER_DRAWABLE(Button);
 

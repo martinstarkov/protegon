@@ -292,12 +292,12 @@
 //				button.Set<ButtonProperty::Toggleable>(true);
 //			}
 //			if (legend.button_texture_default &&
-//				!button.Get<ButtonProperty::Texture>(ButtonState::Default)) {
+//				!button.Get<ButtonProperty::Texture>(ButtonState::Idle)) {
 //				button.Set<ButtonProperty::Texture>(
-//					legend.button_texture_default, ButtonState::Default
+//					legend.button_texture_default, ButtonState::Idle
 //				);
 //			} else {
-//				button.Set<ButtonProperty::BackgroundColor>(color::DarkGreen, ButtonState::Default);
+//				button.Set<ButtonProperty::BackgroundColor>(color::DarkGreen, ButtonState::Idle);
 //			}
 //			if (legend.button_texture_hover &&
 //				!button.Get<ButtonProperty::Texture>(ButtonState::Hover)) {
@@ -314,12 +314,12 @@
 //				);
 //			}
 //			if (legend.button_texture_toggled &&
-//				!button.Get<ButtonProperty::Texture>(ButtonState::Default, true)) {
+//				!button.Get<ButtonProperty::Texture>(ButtonState::Idle, true)) {
 //				button.Set<ButtonProperty::Texture>(
-//					legend.button_texture_toggled, ButtonState::Default, true
+//					legend.button_texture_toggled, ButtonState::Idle, true
 //				);
 //			} else {
-//				button.Set<ButtonProperty::BackgroundColor>(color::Red, ButtonState::Default, true);
+//				button.Set<ButtonProperty::BackgroundColor>(color::Red, ButtonState::Idle, true);
 //			}
 //		} else {
 //			button.Disable();

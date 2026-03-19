@@ -38,7 +38,7 @@ public:
 			*this, *GetDisplaySize(activate_animation), activate_animation, hover_animation
 		);
 		// TODO: Fix tints.
-		/*.SetTint(color::Red, ButtonState::Default)
+		/*.SetTint(color::Red, ButtonState::Idle)
 		.SetTint(color::Green, ButtonState::Hover)
 		.SetTint(color::Blue, ButtonState::Pressed);*/
 
