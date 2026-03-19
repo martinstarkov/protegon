@@ -183,8 +183,9 @@ public:
 	/// FontStyle::Italic && FontStyle::Bold
 	Text& SetFontStyle(FontStyle font_style);
 
-	/// Set the point size of text. Infinity will use the current point size of the font.
-	Text& SetFontSize(float pt_size);
+	/// Set the point size of text. std::nullopt will use the current default font size of the
+	/// engine.
+	Text& SetFontSize(std::optional<float> pt_size);
 
 	/// Note: This function will implicitly set font render mode to Blended as it is required.
 	/// @param outline Setting outline.width to 0 will remove the text outline.

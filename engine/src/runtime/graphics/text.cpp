@@ -201,8 +201,8 @@ Text& Text::SetFontStyle(FontStyle font_style) {
 	return *this;
 }
 
-Text& Text::SetFontSize(float pixels) {
-	Text::SetParameter(*this, impl::FontSize{ pixels });
+Text& Text::SetFontSize(std::optional<float> pixels) {
+	Text::SetParameter(*this, impl::FontSize{ pixels.value_or(kDefaultFontSize) });
 	return *this;
 }
 
