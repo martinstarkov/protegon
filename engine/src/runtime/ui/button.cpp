@@ -20,6 +20,7 @@
 #include "platform/input/mouse.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
+#include "runtime/asset/font_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
@@ -27,6 +28,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/render_context.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
@@ -54,63 +56,67 @@ void InternalButtonScript::OnEvent(EventDispatcher d) {
 
 void InternalButtonScript::OnMouseMoveOver() {
 	using enum InternalButtonState;
-	auto& state{ entity.Get<InternalButtonState>() };
+	const auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
 	if (!button.IsEnabled(true)) {
 		return;
 	}
 	if (state == IdleUp) {
-		state = Hover;
+		button.SetState(Hover);
 		button.StartHover();
 	} else if (state == IdleDown) {
-		state = HoverPressed;
+		button.SetState(HoverPressed);
 		button.StartHover();
 	} else if (state == HeldOutside) {
-		state = Pressed;
+		button.SetState(Pressed);
 		return;
 	}
 	button.ContinueHover();
 }
 
 void InternalButtonScript::OnMouseMoveOut() {
-	auto& state{ entity.Get<InternalButtonState>() };
+	const auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
 	if (!button.IsEnabled(true)) {
 		return;
 	}
 	using enum InternalButtonState;
 	if (state == Hover) {
-		state = IdleUp;
+		button.SetState(IdleUp);
 		button.StopHover();
 	} else if (state == Pressed) {
-		state = HeldOutside;
+		button.SetState(HeldOutside);
 		button.StopHover();
 	} else if (state == HoverPressed) {
-		state = IdleDown;
+		button.SetState(IdleDown);
 		button.StopHover();
 	}
 }
 
 void InternalButtonScript::OnMousePressedOver(Mouse mouse) {
-	if (Button button{ entity }; !button.IsEnabled(false)) {
+	Button button{ entity };
+	if (!button.IsEnabled(false)) {
 		return;
 	}
 	if (mouse == Mouse::Left) {
-		auto& state{ entity.Get<InternalButtonState>() };
-		if (state == InternalButtonState::Hover) {
-			state = InternalButtonState::Pressed;
+		const auto& state{ entity.Get<InternalButtonState>() };
+		using enum InternalButtonState;
+		if (state == Hover) {
+			button.SetState(Pressed);
 		}
 	}
 }
 
 void InternalButtonScript::OnMousePressedOut(Mouse mouse) {
-	if (Button button{ entity }; !button.IsEnabled(false)) {
+	Button button{ entity };
+	if (!button.IsEnabled(false)) {
 		return;
 	}
 	if (mouse == Mouse::Left) {
-		auto& state{ entity.Get<InternalButtonState>() };
-		if (state == InternalButtonState::IdleUp) {
-			state = InternalButtonState::IdleDown;
+		const auto& state{ entity.Get<InternalButtonState>() };
+		using enum InternalButtonState;
+		if (state == IdleUp) {
+			button.SetState(IdleDown);
 		}
 	}
 }
@@ -121,28 +127,27 @@ void InternalButtonScript::OnMouseReleasedOver(Mouse mouse) {
 		return;
 	}
 	if (mouse == Mouse::Left) {
-		using enum ptgn::impl::InternalButtonState;
-		auto& state{ entity.Get<InternalButtonState>() };
+		using enum InternalButtonState;
+		const auto& state{ entity.Get<InternalButtonState>() };
 		if (state == Pressed) {
-			state = Hover;
+			button.SetState(Hover);
 			button.Activate();
 		} else if (state == HoverPressed) {
-			state = Hover;
+			button.SetState(Hover);
 		}
 	}
 }
 
 void InternalButtonScript::OnMouseReleasedOut(Mouse mouse) {
-	if (Button button{ entity }; !button.IsEnabled(false)) {
+	Button button{ entity };
+	if (!button.IsEnabled(false)) {
 		return;
 	}
 	if (mouse == Mouse::Left) {
-		using enum ptgn::impl::InternalButtonState;
-		auto& state{ entity.Get<InternalButtonState>() };
-		if (state == IdleDown) {
-			state = IdleUp;
-		} else if (state == HeldOutside) {
-			state = IdleUp;
+		using enum InternalButtonState;
+		const auto& state{ entity.Get<InternalButtonState>() };
+		if (state == IdleDown || state == HeldOutside) {
+			button.SetState(IdleUp);
 		}
 	}
 }
@@ -184,14 +189,14 @@ std::pair<const ButtonStyle&, const ButtonStyle&> ButtonBase<Derived>::GetStyle(
 ) const {
 	PTGN_ASSERT(Has<ButtonConfig>(), "Button must have a valid config");
 
-	ButtonInteractionConfig* config{ nullptr };
+	const ButtonInteractionConfig* config{ nullptr };
 
 	if (toggled) {
 		PTGN_ASSERT(
 			Has<impl::ToggleButtonInteractionConfig>(),
 			"Toggle button must have a toggle interaction config"
 		);
-		config = &Get<impl::ToggleButtonInteractionConfig>();
+		config = &Get<impl::ToggleButtonInteractionConfig>().toggled;
 	} else {
 		config = disabled ? &Get<ButtonConfig>().disabled : &Get<ButtonConfig>().enabled;
 	}
@@ -355,8 +360,7 @@ Derived& ButtonBase<Derived>::SetEnabled(
 ) {
 	Add<impl::ButtonEnabled>(enable_activation, enable_hover);
 	if (reset_state) {
-		auto& state{ Get<impl::InternalButtonState>() };
-		state = impl::InternalButtonState::IdleUp;
+		SetState(impl::InternalButtonState::IdleUp);
 	}
 	return Self();
 }
@@ -442,10 +446,17 @@ void ButtonBase<Derived>::SetText(
 ) {
 	auto& scene{ GetScene() };
 
+	std::variant<std::monostate, Font, std::string_view> resolved_font;
+
+	if (font.has_value()) {
+		resolved_font = *font;
+	}
+
 	text = CreateText(
-		scene, text_content, text_color.value_or(kDefaultButtonTextColor), font_size,
-		font.value_or(std::monostate), text_properties
+		scene, text_content, text_color.value_or(kDefaultButtonTextColor), font_size, resolved_font,
+		text_properties
 	);
+
 	Hide(text);
 	SetParent(text, *this);
 }
@@ -464,10 +475,7 @@ Derived& ButtonBase<Derived>::SetText(
 		Text::SetParameter(*desired.text, FontSize{ font_size.value_or(kDefaultFontSize) }, false);
 		Text::SetProperties(*desired.text, text_properties, true);
 	} else {
-		SetText(
-			*desired.text, text_content, text_color, font_size, font.value_or(std::monostate),
-			text_properties
-		);
+		SetText(*desired.text, text_content, text_color, font_size, font, text_properties);
 	}
 	return Self();
 }
@@ -736,6 +744,44 @@ Derived& ButtonBase<Derived>::StopHover() {
 		scripts->Emit(event);
 	}
 	return Self();
+}
+
+template <typename Derived>
+void ButtonBase<Derived>::SetState(InternalButtonState new_state) {
+	auto& state = Get<InternalButtonState>();
+
+	if (state == new_state) {
+		return;
+	}
+
+	InternalButtonState old_state = state;
+	state						  = new_state;
+
+	OnStateChange(old_state, new_state);
+}
+
+template <typename Derived>
+void ButtonBase<Derived>::OnStateChange(InternalButtonState from, InternalButtonState to) {
+	// TODO: Fix.
+
+	// StopAllAnimations();
+	// HideAllAnimations();
+
+	// using enum InternalButtonState;
+
+	// switch (to) {
+	//	case IdleUp:	   button.Play("idle_up", /*loop=*/true, /*force=*/false); break;
+
+	//	case Hover:		   button.Play("hover_enter", false, true); break;
+
+	//	case Pressed:	   button.Play("press_down", false, true); break;
+
+	//	case HeldOutside:  button.Play("held_out", false, true); break;
+
+	//	case IdleDown:	   button.Play("idle_down", true, false); break;
+
+	//	case HoverPressed: button.Play("hover_pressed", true, false); break;
+	//}
 }
 
 template <typename Derived>

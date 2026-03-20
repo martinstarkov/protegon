@@ -386,6 +386,8 @@ public:
 	);
 
 private:
+	friend class impl::InternalButtonScript;
+
 	Derived& Self();
 	const Derived& Self() const;
 
@@ -406,7 +408,11 @@ private:
 		Entity& text, std::string_view text_content = {}, std::optional<Color> text_color = {},
 		std::optional<float> font_size = {}, std::optional<Font> font = {},
 		const TextProperties& text_properties = {}
-	)
+	);
+
+	void SetState(InternalButtonState new_state);
+
+	void OnStateChange(InternalButtonState from, InternalButtonState to);
 };
 
 } // namespace impl
