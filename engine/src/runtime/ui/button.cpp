@@ -612,7 +612,7 @@ Derived& ButtonBase<Derived>::SetTexture(
 	if (desired.sprite.has_value()) {
 		Sprite{ *desired.sprite }.SetTexture(texture);
 	} else {
-		*desired.sprite = CreateSprite(scene, texture);
+		desired.sprite = CreateSprite(scene, texture);
 		Hide(*desired.sprite);
 		SetParent(*desired.sprite, *this);
 	}
