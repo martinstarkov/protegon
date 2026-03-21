@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 
 struct MIX_Audio;
 struct MIX_Track;
@@ -13,15 +13,10 @@ class AudioSystem;
 
 namespace impl {
 
-struct CallbackData {
-	AudioSystem* self{ nullptr };
-	std::size_t id{ 0 };
-};
-
 class Track {
 public:
 	/// @param loops -1 for infinite loops.
-	Track(MIX_Mixer* mixer, MIX_Audio* audio, std::int64_t loops);
+	Track(std::size_t id, MIX_Mixer* mixer, MIX_Audio* audio, std::int64_t loops);
 
 	~Track() noexcept;
 
@@ -34,16 +29,13 @@ public:
 
 	MIX_Track* Get() const noexcept;
 
+	std::size_t GetId() const noexcept;
+
 	void StopImmediate();
 
-	void SetStoppedCallback(
-		void (*cb)(void* userdata, MIX_Track* track), AudioSystem* self, std::size_t id
-	);
-
 private:
+	std::size_t id_{ 0 };
 	MIX_Track* track_{ nullptr };
-
-	CallbackData cbdata_{};
 };
 
 } // namespace impl

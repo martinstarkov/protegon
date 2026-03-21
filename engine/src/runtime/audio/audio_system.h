@@ -1,12 +1,12 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
 #include <string_view>
-#include <unordered_map>
+#include <variant>
 #include <vector>
 
 #include "core/util/file.h"
+#include "runtime/audio/audio.h"
 #include "runtime/audio/track.h"
 
 struct MIX_Audio;
@@ -55,65 +55,66 @@ public:
 	void StopAll();
 
 	/// @brief Pauses all audio tracks.
-	void PauseAll();
+	void PauseAll() const;
 
 	/// @brief Resumes all audio tracks.
-	void ResumeAll();
+	void ResumeAll() const;
 
 	/// @return True if any audio track is playing.
-	[[nodiscard]] bool IsAnyPlaying();
+	[[nodiscard]] bool IsAnyPlaying() const;
 
 	/// @param loops The number of loops to play the audio for, -1 for infinite looping.
 	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume].
-	void Play(std::string_view key, float volume = 0.5f, int loops = -1);
+	void Play(std::variant<Audio, std::string_view> key, float volume = 0.5f, int loops = 0);
 
 	/// @brief Stop the audio.
-	void Stop(std::string_view key);
+	void Stop(std::variant<Audio, std::string_view> key);
 
 	/// @brief Pauses the audio.
-	void Pause(std::string_view key);
+	void Pause(std::variant<Audio, std::string_view> key);
 
 	/// @brief Resumes the audio.
-	void Resume(std::string_view key);
+	void Resume(std::variant<Audio, std::string_view> key);
 
 	/// @brief Toggles the pause state of the audio.
-	void TogglePause(std::string_view key);
+	void TogglePause(std::variant<Audio, std::string_view> key);
 
 	/// @brief Only sets the volume of the specific audio if it's currently playing; otherwise, does
 	/// nothing.
 	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume].
-	void SetVolume(std::string_view key, float volume);
+	void SetVolume(std::variant<Audio, std::string_view> key, float volume);
 
 	/// @brief Only gets the volume of the specific audio if it's currently playing; otherwise,
 	/// returns 0
 	/// @return Volume of the specific audio in range [kMinVolume, kMaxVolume].
-	[[nodiscard]] float GetVolume(std::string_view key);
+	[[nodiscard]] float GetVolume(std::variant<Audio, std::string_view> key);
 
 	/// @brief Toggles the volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new volume of the audio to this value
 	/// in range [kMinVolume, kMaxVolume].
-	void ToggleVolume(std::string_view key, float new_volume = 1.0f);
+	void ToggleVolume(std::variant<Audio, std::string_view> key, float new_volume = 1.0f);
 
 	/// @return True if the audio is currently, false otherwise.
-	[[nodiscard]] bool IsPlaying(std::string_view key);
+	[[nodiscard]] bool IsPlaying(std::variant<Audio, std::string_view> key);
 
 	/// @return True if the audio is currently paused, false otherwise.
-	[[nodiscard]] bool IsPaused(std::string_view key);
+	[[nodiscard]] bool IsPaused(std::variant<Audio, std::string_view> key);
 
 	// TODO: Add these functions.
 	///// @return True if the audio is currently fading in OR out, false otherwise.
-	//[[nodiscard]] bool IsFading(std::string_view key);
+	//[[nodiscard]] bool IsFading(std::variant<Audio, std::string_view> key);
 	///// @param fade_time How long to fade the audio in for.
 	///// @param loops The number of loops to play the audio for, -1 for infinite looping.
-	// void FadeIn(std::string_view key, milliseconds fade_time, int loops = -1);
+	// void FadeIn(std::variant<Audio, std::string_view> key, milliseconds fade_time, int loops =
+	// -1);
 	///// @param fade_time Time over which to fade the audio out.
-	// void FadeOut(std::string_view key, milliseconds fade_time);
+	// void FadeOut(std::variant<Audio, std::string_view> key, milliseconds fade_time);
 
 private:
 	friend class AssetManager;
 	friend class Application;
 
-	static void OnTrackStopped(void* userdata, MIX_Track* track);
+	[[nodiscard]] std::size_t Hash(std::variant<Audio, std::string_view> key) const;
 
 	void Update();
 
@@ -123,10 +124,7 @@ private:
 
 	MIX_Mixer* mixer_{ nullptr };
 
-	std::unordered_map<std::size_t, impl::Track> tracks_;
-
-	std::vector<std::size_t> pending_removals_;
-	std::mutex mutex_;
+	std::vector<impl::Track> tracks_;
 };
 
 } // namespace ptgn

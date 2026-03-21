@@ -6,12 +6,14 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <list>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "core/assert.h"
@@ -20,6 +22,7 @@
 #include "core/util/hash.h"
 #include "ecs/ecs.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/audio/audio.h"
 #include "runtime/audio/track.h"
 
 namespace ptgn {
@@ -39,75 +42,87 @@ AudioSystem::AudioSystem(AssetManager& assets) : assets_{ assets } {
 }
 
 AudioSystem::~AudioSystem() noexcept {
-	std::scoped_lock lock(mutex_);
-	tracks_.clear(); // RAII for Track should destroy underlying MIX_Track.
-	pending_removals_.clear();
+	tracks_.clear();
 
 	MIX_DestroyMixer(mixer_);
 }
 
-void AudioSystem::Play(std::string_view key, float volume, int loops) {
-	std::size_t id = Hash(key);
+std::size_t AudioSystem::Hash(std::variant<Audio, std::string_view> key) const {
+	return std::visit(
+		[]<typename T>(const T& arg) {
+			if constexpr (std::is_same_v<T, std::string_view>) {
+				return ptgn::Hash(arg);
+			} else if constexpr (std::is_same_v<T, Audio>) {
+				return std::hash<T>()(arg);
+			} else {
+				static_assert(false, "Unimplemented visitor!");
+			}
+		},
+		key
+	);
+}
 
-	Stop(key); // replace if present
-
-	auto audio = assets_.GetAudio(key);
+void AudioSystem::Play(std::variant<Audio, std::string_view> key, float volume, int loops) {
+	auto audio = assets_.ToAudio(key);
 	PTGN_ASSERT(
-		audio.has_value(), "Cannot play audio '", key,
-		"' which has not been loaded into the asset manager"
+		audio.has_value(), "Cannot play audio which has not been loaded into the asset manager"
 	);
 	MIX_Audio* mix_audio = audio->entity_.Get<std::shared_ptr<MIX_Audio>>().get();
 
 	PTGN_ASSERT(mix_audio);
 
-	impl::Track track{ mixer_, mix_audio, loops };
+	std::size_t id{ Hash(key) };
+
+	impl::Track track{ id, mixer_, mix_audio, loops };
 
 	float clamped{ std::clamp(volume, kMinVolume, kMaxVolume) };
 	MIX_SetTrackGain(track.Get(), clamped);
 
-	// Attach per-track stopped callback (per SDL3_mixer API).
-	// Track owns callback userdata for lifetime safety.
-	track.SetStoppedCallback(&AudioSystem::OnTrackStopped, this, id);
-
-	std::scoped_lock lock(mutex_);
-	tracks_.emplace(id, std::move(track));
+	tracks_.emplace_back(std::move(track));
 }
 
-void AudioSystem::Stop(std::string_view key) {
+void AudioSystem::Stop(std::variant<Audio, std::string_view> key) {
 	std::size_t id{ Hash(key) };
 
-	std::scoped_lock lock(mutex_);
-	tracks_.erase(id);
-	// Note: MIX_DestroyTrack() does NOT call the stopped callback.
+	std::erase_if(tracks_, [id](auto& track) {
+		if (track.GetId() == id) {
+			if (auto* t = track.Get()) {
+				MIX_StopTrack(t, 0);
+			}
+			return true;
+		}
+		return false;
+	});
 }
 
-void AudioSystem::Pause(std::string_view key) {
-	std::size_t id = Hash(key);
+void AudioSystem::Pause(std::variant<Audio, std::string_view> key) {
+	std::size_t id{ Hash(key) };
 
-	std::scoped_lock lock(mutex_);
-	auto it = tracks_.find(id);
+	auto it =
+		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
+
 	if (it == tracks_.end()) {
 		return;
 	}
 
-	MIX_PauseTrack(it->second.Get()); // prefer the dedicated API if available
+	MIX_PauseTrack(it->Get()); // prefer the dedicated API if available
 	// (If you're using MIX_SetTrackPaused, keep it; Pause semantics do not fire stopped callback.)
 }
 
-void AudioSystem::Resume(std::string_view key) {
-	std::size_t id = Hash(key);
+void AudioSystem::Resume(std::variant<Audio, std::string_view> key) {
+	std::size_t id{ Hash(key) };
 
-	std::scoped_lock lock(mutex_);
+	auto it =
+		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
 
-	auto it = tracks_.find(id);
 	if (it == tracks_.end()) {
 		return;
 	}
 
-	MIX_ResumeTrack(it->second.Get()); // prefer the dedicated API if available
+	MIX_ResumeTrack(it->Get()); // prefer the dedicated API if available
 }
 
-void AudioSystem::TogglePause(std::string_view key) {
+void AudioSystem::TogglePause(std::variant<Audio, std::string_view> key) {
 	if (IsPaused(key)) {
 		Resume(key);
 	} else {
@@ -115,17 +130,17 @@ void AudioSystem::TogglePause(std::string_view key) {
 	}
 }
 
-bool AudioSystem::IsPaused(std::string_view key) {
-	std::size_t id = Hash(key);
+bool AudioSystem::IsPaused(std::variant<Audio, std::string_view> key) {
+	std::size_t id{ Hash(key) };
 
-	std::scoped_lock lock(mutex_);
+	auto it =
+		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
 
-	auto it = tracks_.find(id);
 	if (it == tracks_.end()) {
 		return false;
 	}
 
-	MIX_Track* track = it->second.Get();
+	MIX_Track* track = it->Get();
 	if (!track) {
 		return false;
 	}
@@ -133,17 +148,17 @@ bool AudioSystem::IsPaused(std::string_view key) {
 	return MIX_TrackPaused(track);
 }
 
-bool AudioSystem::IsPlaying(std::string_view key) {
-	std::size_t id = Hash(key);
+bool AudioSystem::IsPlaying(std::variant<Audio, std::string_view> key) {
+	std::size_t id{ Hash(key) };
 
-	std::scoped_lock lock(mutex_);
+	auto it =
+		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
 
-	auto it = tracks_.find(id);
 	if (it == tracks_.end()) {
 		return false;
 	}
 
-	MIX_Track* track = it->second.Get();
+	MIX_Track* track = it->Get();
 	if (!track) {
 		return false;
 	}
@@ -151,19 +166,19 @@ bool AudioSystem::IsPlaying(std::string_view key) {
 	return MIX_TrackPlaying(track);
 }
 
-void AudioSystem::SetVolume(std::string_view key, float volume) {
-	std::size_t id = Hash(key);
+void AudioSystem::SetVolume(std::variant<Audio, std::string_view> key, float volume) {
+	std::size_t id{ Hash(key) };
 
 	float clamped{ std::clamp(volume, kMinVolume, kMaxVolume) };
 
-	std::scoped_lock lock(mutex_);
+	auto it =
+		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
 
-	auto it = tracks_.find(id);
 	if (it == tracks_.end()) {
 		return;
 	}
 
-	MIX_Track* track = it->second.Get();
+	MIX_Track* track = it->Get();
 	if (!track) {
 		return;
 	}
@@ -171,17 +186,17 @@ void AudioSystem::SetVolume(std::string_view key, float volume) {
 	MIX_SetTrackGain(track, clamped);
 }
 
-float AudioSystem::GetVolume(std::string_view key) {
-	std::size_t id = Hash(key);
+float AudioSystem::GetVolume(std::variant<Audio, std::string_view> key) {
+	std::size_t id{ Hash(key) };
 
-	std::scoped_lock lock(mutex_);
+	auto it =
+		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
 
-	auto it = tracks_.find(id);
 	if (it == tracks_.end()) {
 		return kMinVolume;
 	}
 
-	MIX_Track* track = it->second.Get();
+	MIX_Track* track = it->Get();
 	if (!track) {
 		return kMinVolume;
 	}
@@ -189,7 +204,7 @@ float AudioSystem::GetVolume(std::string_view key) {
 	return MIX_GetTrackGain(track);
 }
 
-void AudioSystem::ToggleVolume(std::string_view key, float new_volume) {
+void AudioSystem::ToggleVolume(std::variant<Audio, std::string_view> key, float new_volume) {
 	PTGN_ASSERT(new_volume >= kMinVolume && new_volume <= kMaxVolume);
 
 	float current = GetVolume(key);
@@ -199,15 +214,6 @@ void AudioSystem::ToggleVolume(std::string_view key, float new_volume) {
 	} else {
 		SetVolume(key, new_volume);
 	}
-}
-
-void AudioSystem::OnTrackStopped(void* userdata, [[maybe_unused]] MIX_Track* track) {
-	auto* data = static_cast<impl::CallbackData*>(userdata);
-	auto* self = data->self;
-
-	// Called from the mixer thread; don't touch tracks_ here.
-	std::scoped_lock lock(self->mutex_);
-	self->pending_removals_.push_back(data->id);
 }
 
 void AudioSystem::SetVolume(float volume) {
@@ -231,31 +237,24 @@ void AudioSystem::ToggleVolume(float new_volume) {
 	}
 }
 
-void AudioSystem::PauseAll() {
-	std::scoped_lock lock(mutex_);
-	for (const auto& [id, track] : tracks_) {
+void AudioSystem::PauseAll() const {
+	for (const auto& track : tracks_) {
 		MIX_PauseTrack(track.Get());
 	}
 }
 
-void AudioSystem::ResumeAll() {
-	std::scoped_lock lock(mutex_);
-	for (const auto& [id, track] : tracks_) {
+void AudioSystem::ResumeAll() const {
+	for (const auto& track : tracks_) {
 		MIX_ResumeTrack(track.Get());
 	}
 }
 
 void AudioSystem::StopAll() {
-	std::scoped_lock lock(mutex_);
-
 	tracks_.clear();
-	pending_removals_.clear();
 }
 
-bool AudioSystem::IsAnyPlaying() {
-	std::scoped_lock lock(mutex_);
-
-	for (const auto& [id, track] : tracks_) {
+bool AudioSystem::IsAnyPlaying() const {
+	for (const auto& track : tracks_) {
 		MIX_Track* raw = track.Get();
 		if (!raw) {
 			continue;
@@ -270,21 +269,10 @@ bool AudioSystem::IsAnyPlaying() {
 }
 
 void AudioSystem::Update() {
-	std::vector<std::size_t> to_remove;
-
-	{
-		std::scoped_lock lock(mutex_);
-		to_remove.swap(pending_removals_);
-	}
-
-	if (to_remove.empty()) {
-		return;
-	}
-
-	std::scoped_lock lock(mutex_);
-	for (std::size_t id : to_remove) {
-		tracks_.erase(id); // RAII destroys track here
-	}
+	std::erase_if(tracks_, [](const auto& track) {
+		MIX_Track* raw = track.Get();
+		return !raw || !MIX_TrackPlaying(raw);
+	});
 }
 
 std::shared_ptr<MIX_Audio> AudioSystem::CreateAudio(const path& audio_path) const {
