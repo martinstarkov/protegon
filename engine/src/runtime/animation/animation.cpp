@@ -30,10 +30,6 @@ namespace ptgn {
 
 Animation::Animation(Entity entity) : Entity{ entity } {}
 
-void Animation::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	Sprite::Draw(renderer, entity, camera);
-}
-
 Animation& Animation::Start(bool force) {
 	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
 	PTGN_ASSERT(Has<impl::TextureCrop>(), "Animation must have TextureCrop component");
