@@ -28,7 +28,9 @@ void Sprite::Draw(DrawContext& renderer, Entity entity, Camera, Color additional
 	PTGN_ASSERT(entity.Has<Texture>());
 	auto draw_transform{ GetDrawTransform(entity) };
 	// Get display size already handles the scale.
-	draw_transform.SetScale(draw_transform.GetScale() / Abs(draw_transform.GetScale()));
+	auto scale{ draw_transform.GetScale() };
+	PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component");
+	draw_transform.SetScale(scale / Abs(scale));
 	auto texture_size{ GetDisplaySize(entity) };
 	auto draw_origin{ GetDrawOrigin(entity) };
 	auto tint{ GetTint(entity) };

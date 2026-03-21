@@ -59,6 +59,8 @@ void DebugContext::DrawText(
 
 		auto scale{ impl::GetCameraParentRenderTargetScale(*render_context_.scene_, camera) };
 
+		PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component");
+
 		transform.Scale(transform.GetScale() / scale);
 	}
 

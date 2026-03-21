@@ -31,7 +31,7 @@ public:
 		app().asset.Load("animation_activate", "assets/button_animation_activate.png");
 
 		auto hover_animation{ CreateAnimation(
-			*this, "animation_activate", V2_int{}, { 4, milliseconds{ 200 }, V2_int{ 32, 16 }, 1 }
+			*this, "animation_activate", V2_int{}, { 4, milliseconds{ 500 }, V2_int{ 32, 16 }, -1 }
 		) };
 
 		auto activate_animation{ CreateAnimation(

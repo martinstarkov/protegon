@@ -249,7 +249,7 @@ std::optional<V2_float> GetDisplaySize(Entity entity) {
 	}
 	auto cropped_size{ GetCroppedTextureSize(entity) };
 	if (cropped_size.has_value()) {
-		return *cropped_size * GetScale(entity);
+		return *cropped_size * GetWorldScale(entity);
 	}
 	return std::nullopt;
 }
@@ -277,7 +277,7 @@ std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_verticall
 			impl::GetTextureCoordinates({}, *texture_size, *texture_size, flip_vertically, true);
 	}
 
-	auto scale{ GetScale(entity) };
+	auto scale{ GetWorldScale(entity) };
 
 	impl::FlipTextureCoordinates(tex_coords, scale);
 
