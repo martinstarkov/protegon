@@ -1,20 +1,19 @@
 #include "app/application.h"
+#include "app/context.h"
 #include "core/log.h"
 #include "core/math/easing.h"
 #include "core/time/time.h"
-#include "platform/input/input_handler.h"
 #include "platform/input/key.h"
 #include "platform/input/mouse.h"
 #include "renderer/primitives/color.h"
-#include "renderer/renderer.h"
 #include "runtime/animation/tween.h"
 #include "runtime/animation/tween_effect.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
-#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 

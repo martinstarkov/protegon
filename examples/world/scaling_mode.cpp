@@ -1,20 +1,19 @@
 #include "renderer/primitives/scaling_mode.h"
 
 #include "app/application.h"
+#include "app/context.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/geometry/rect.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "platform/input/key.h"
 #include "platform/window/window.h"
-#include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
 

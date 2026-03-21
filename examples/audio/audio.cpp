@@ -3,19 +3,19 @@
 #include <algorithm>
 #include <functional>
 #include <string>
+#include <string_view>
 
 #include "app/application.h"
+#include "app/context.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
-#include "platform/window/window.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_manager.h"
 #include "runtime/ui/button.h"
 #include "runtime/world/grid.h"
 

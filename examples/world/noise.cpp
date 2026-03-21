@@ -1,24 +1,29 @@
 #include "core/math/noise.h"
 
 #include <algorithm>
+#include <array>
+#include <chrono>
 #include <cstdint>
 
 #include "app/application.h"
+#include "app/context.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/math_utils.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "platform/input/input_handler.h"
 #include "platform/input/key.h"
-#include "platform/window/window.h"
+#include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
 

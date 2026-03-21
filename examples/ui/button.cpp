@@ -3,6 +3,7 @@
 #include <ios>
 
 #include "app/application.h"
+#include "app/context.h"
 #include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
@@ -10,6 +11,7 @@
 #include "platform/input/events.h"
 #include "platform/input/key.h"
 #include "renderer/primitives/color.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
@@ -25,6 +27,10 @@ public:
 	void OnEnter() override {
 		input.SetSettings({ .debug_draw_enabled = true });
 
+		// app().asset.LoadAudio("idle", "assets/idle.ogg");
+		app().asset.LoadAudio("hover", "assets/hover.ogg");
+		app().asset.LoadAudio("click", "assets/click.ogg");
+
 		Origin button_origin{ Origin::Center };
 
 		b1 = CreateButton(*this, V2_int{ 200, 100 })
@@ -32,7 +38,11 @@ public:
 				 .SetBackgroundShape(V2_int{ 200, 100 })
 				 .SetBackgroundColor(color::Pink)
 				 .SetBackgroundColor(color::Red, ButtonState::Hover)
-				 .SetBackgroundColor(color::DarkRed, ButtonState::Press);
+				 .SetBackgroundColor(color::DarkRed, ButtonState::Press)
+				 // .SetSound("idle", ButtonState::Idle)
+				 .SetSound("hover", ButtonState::Hover)
+				 .SetSound("click", ButtonState::Press);
+
 		SetPosition(b1, V2_float{ 0, -150 - 50 });
 		SetDrawOrigin(b1, button_origin);
 
@@ -45,9 +55,9 @@ public:
 				 .SetBackgroundColor(color::LightRed)
 				 .SetBackgroundColor(color::Red, ButtonState::Hover)
 				 .SetBackgroundColor(color::DarkRed, ButtonState::Press)
-				 .SetBackgroundColor(color::LightBlue, ButtonState::Idle, false, true)
-				 .SetBackgroundColor(color::Blue, ButtonState::Hover, false, true)
-				 .SetBackgroundColor(color::DarkBlue, ButtonState::Press, false, true);
+				 .SetBackgroundColor(color::LightBlue, { ButtonState::Idle, false, true })
+				 .SetBackgroundColor(color::Blue, { ButtonState::Hover, false, true })
+				 .SetBackgroundColor(color::DarkBlue, { ButtonState::Press, false, true });
 		SetPosition(b2, V2_float{ 0, 150 - 50 });
 		SetDrawOrigin(b2, button_origin);
 	}

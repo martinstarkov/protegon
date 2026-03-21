@@ -6,7 +6,6 @@
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "platform/window/window.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"

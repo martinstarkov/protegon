@@ -31,9 +31,9 @@ class ToggleButtonGroupScene : public Scene {
 				.SetBackgroundColor(color::LightRed)
 				.SetBackgroundColor(color::Red, ButtonState::Hover)
 				.SetBackgroundColor(color::DarkRed, ButtonState::Press)
-				.SetBackgroundColor(color::LightBlue, ButtonState::Idle, false, true)
-				.SetBackgroundColor(color::Blue, ButtonState::Hover, false, true)
-				.SetBackgroundColor(color::DarkBlue, ButtonState::Press, false, true)
+				.SetBackgroundColor(color::LightBlue, { ButtonState::Idle, false, true })
+				.SetBackgroundColor(color::Blue, { ButtonState::Hover, false, true })
+				.SetBackgroundColor(color::DarkBlue, { ButtonState::Press, false, true })
 				.OnActivate([number, group_name]() { PTGN_LOG(group_name, " activated ", number); })
 				.OnToggle([number, group_name](bool toggled) {
 					PTGN_LOG(

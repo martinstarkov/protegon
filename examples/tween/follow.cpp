@@ -1,12 +1,14 @@
 #include <vector>
 
 #include "app/application.h"
+#include "app/context.h"
 #include "core/math/vector2.h"
 #include "platform/input/mouse.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/tween_effect.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"

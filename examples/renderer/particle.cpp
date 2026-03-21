@@ -101,7 +101,7 @@ public:
 
 		grid.ForEach([&](auto coord, Button& b) {
 			SetPosition(b, -ws * 0.5f + coord * size + (coord + V2_int{ 1, 1 }) * offset);
-			b.SetSize(size);
+			b.SetShape(size);
 			SetDrawOrigin(b, Origin::TopLeft);
 		});
 	}

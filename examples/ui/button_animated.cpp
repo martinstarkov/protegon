@@ -1,10 +1,13 @@
 
+#include <utility>
+
 #include "app/application.h"
 #include "app/context.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "platform/window/window.h"
+#include "renderer/primitives/color.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -23,6 +26,7 @@ public:
 	void OnEnter() override {
 		input.SetSettings({ .debug_draw_enabled = true });
 
+		app().asset.Load("idle", "assets/button_idle.png");
 		app().asset.Load("animation_hover", "assets/button_animation_hover.png");
 		app().asset.Load("animation_activate", "assets/button_animation_activate.png");
 
@@ -34,13 +38,13 @@ public:
 			*this, "animation_activate", V2_int{}, { 4, milliseconds{ 200 }, V2_int{ 32, 16 }, 1 }
 		) };
 
-		b1 = CreateAnimatedButton(
-			*this, *GetDisplaySize(activate_animation), activate_animation, hover_animation
-		);
-		// TODO: Fix tints.
-		/*.SetTint(color::Red, ButtonState::Idle)
-		.SetTint(color::Green, ButtonState::Hover)
-		.SetTint(color::Blue, ButtonState::Press);*/
+		b1 = CreateButton(*this, *GetDisplaySize(activate_animation));
+		b1.SetTexture("idle")
+			.SetAnimation(std::move(hover_animation), ButtonState::Hover)
+			.SetAnimation(std::move(activate_animation), ButtonState::Press)
+			.SetTint(color::Red, ButtonState::Idle)
+			.SetTint(color::Green, ButtonState::Hover)
+			.SetTint(color::Blue, ButtonState::Press);
 
 		SetScale(b1, 4.0f);
 
