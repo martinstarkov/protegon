@@ -184,6 +184,12 @@ template <impl::RNGType T = std::int32_t>
 	return rng();
 }
 
+template <impl::RNGType T = std::int32_t>
+[[nodiscard]] T RandomNumber(T min, T max) {
+	RNG<T> rng{ min, max };
+	return rng();
+}
+
 template <typename Container>
 auto RandomSample(const Container& choices, std::size_t count, bool unique = true) {
 	using T = typename Container::value_type;
