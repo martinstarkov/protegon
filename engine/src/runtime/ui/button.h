@@ -34,6 +34,7 @@
 
 namespace ptgn {
 
+class Button;
 class DrawContext;
 class Scene;
 
@@ -113,6 +114,16 @@ struct ToggleButtonConfig {
 namespace impl {
 
 constexpr Color kDefaultButtonTextColor{ color::Black };
+
+struct ButtonAnimationCompleteScript : public Script {
+	ButtonAnimationCompleteScript() = default;
+
+	explicit ButtonAnimationCompleteScript(Entity button);
+
+	Entity button;
+
+	void OnEvent(EventDispatcher d) override;
+};
 
 struct ToggleButtonInteractionConfig {
 	ButtonInteractionConfig toggled;
@@ -465,6 +476,7 @@ public:
 
 private:
 	friend class impl::InternalButtonScript;
+	friend struct impl::ButtonAnimationCompleteScript;
 
 	Derived& Self();
 	const Derived& Self() const;

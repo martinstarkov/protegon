@@ -49,6 +49,26 @@ namespace impl {
 constexpr std::array<ButtonState, 3> kButtonStates{ ButtonState::Idle, ButtonState::Hover,
 													ButtonState::Press };
 
+ButtonAnimationCompleteScript::ButtonAnimationCompleteScript(Entity button) : button{ button } {}
+
+void ButtonAnimationCompleteScript::OnEvent(EventDispatcher d) {
+	d.Dispatch<AnimationComplete>([this](const AnimationComplete&) mutable {
+		if (button) {
+			Button{ button }.PlayAnimation(ButtonState::Hover);
+		}
+	});
+}
+
+static void AddAnimationCompleteCallback(const Button& button, std::optional<GameObject>& child) {
+	if (child.has_value()) {
+		PTGN_ASSERT(
+			!HasScript<ButtonAnimationCompleteScript>(*child),
+			"Button animation cannot have the internal animation complete script more than once"
+		);
+		AddScript<ButtonAnimationCompleteScript>(*child, button);
+	}
+}
+
 void InternalButtonScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<MouseMoveOver>([this](const MouseMoveOver&) { OnMouseMoveOver(); });
 	d.Dispatch<MouseMoveOut>([this](const MouseMoveOut&) { OnMouseMoveOut(); });
@@ -253,6 +273,10 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 
 	auto style_state = button.GetStyleState();
 
+	if (button.Has<InteractionLock>()) {
+		style_state.state = ButtonState::Press;
+	}
+
 	Tint button_tint{ button.GetTint(style_state) };
 
 	Tint tint{ entity_tint.Normalized() * button_tint.Normalized() };
@@ -268,7 +292,12 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 
 	std::optional<V2_float> button_size;
 
-	if (auto sprite{ button.GetSprite(style_state) }; sprite.has_value()) {
+	auto sprite_state{ style_state };
+	// If we want to prevent the press state animation from playing, we can do this:
+	// if (!button.Has<InteractionLock>() && sprite_state.state == ButtonState::Press) {
+	//	sprite_state.state = ButtonState::Hover;
+	//}
+	if (auto sprite{ button.GetSprite(sprite_state) }; sprite.has_value()) {
 		button_size = GetDisplaySize(*sprite);
 		Sprite::Draw(renderer, *sprite, camera, tint);
 	}
@@ -527,6 +556,7 @@ Derived& ButtonBase<Derived>::SetAnimation(Animation&& animation, ButtonStyleSta
 	Hide(animation);
 	SetParent(animation, *this);
 	desired.sprite = GameObject{ std::move(animation) };
+	impl::AddAnimationCompleteCallback(Button{ *this }, desired.sprite);
 	return Self();
 }
 
@@ -996,45 +1026,55 @@ void ButtonBase<Derived>::PlayAnimation(ButtonState active) {
 		}
 		if (state == active) {
 			animation->Start(true);
-		} else {
-			if (stop_others) {
-				animation->Stop();
-			}
+		} else if (stop_others) {
+			animation->Reset();
 		}
 	}
 }
 
 template <typename Derived>
 Derived& ButtonBase<Derived>::Activate() {
-	if (!IsEnabled(false)) {
+	if (!IsEnabled(false) || Has<InteractionLock>()) {
 		return Self();
 	}
 	if (auto scripts{ TryGet<impl::Scripts>() }) {
 		impl::ButtonActivate event;
 		scripts->Emit(event);
 	}
+
+	auto state{ GetStyleState() };
+	state.state = ButtonState::Press;
+	if (auto animation = GetAnimation(state); animation.has_value()) {
+		Add<InteractionLock>(InteractionLock{ .remaining_time = animation->GetDuration(),
+											  .block_hover	  = false,
+											  .block_click	  = true });
+		PlayAnimation(ButtonState::Press);
+	}
+
 	PlaySound(ButtonState::Press);
-	PlayAnimation(ButtonState::Press);
+
 	return Self();
 }
 
 template <typename Derived>
 Derived& ButtonBase<Derived>::StartHover() {
-	if (!IsEnabled(true)) {
+	if (!IsEnabled(true) || Has<InteractionLock>()) {
 		return Self();
 	}
 	if (auto scripts{ TryGet<impl::Scripts>() }) {
 		impl::ButtonHoverStart event;
 		scripts->Emit(event);
 	}
+
 	PlaySound(ButtonState::Hover);
 	PlayAnimation(ButtonState::Hover);
+
 	return Self();
 }
 
 template <typename Derived>
 Derived& ButtonBase<Derived>::ContinueHover() {
-	if (!IsEnabled(true)) {
+	if (!IsEnabled(true) || Has<InteractionLock>()) {
 		return Self();
 	}
 	if (auto scripts{ TryGet<impl::Scripts>() }) {
@@ -1046,15 +1086,17 @@ Derived& ButtonBase<Derived>::ContinueHover() {
 
 template <typename Derived>
 Derived& ButtonBase<Derived>::StopHover() {
-	if (!IsEnabled(true)) {
+	if (!IsEnabled(true) || Has<InteractionLock>()) {
 		return Self();
 	}
 	if (auto scripts{ TryGet<impl::Scripts>() }) {
 		impl::ButtonHoverStop event;
 		scripts->Emit(event);
 	}
+
 	PlaySound(ButtonState::Idle);
 	PlayAnimation(ButtonState::Idle);
+
 	return Self();
 }
 
@@ -1316,6 +1358,9 @@ Button CreateButton(
 	ProcessButtonChild(button, config.disabled.activate.sprite);
 	ProcessButtonChild(button, config.disabled.activate.text);
 
+	impl::AddAnimationCompleteCallback(button, config.enabled.activate.sprite);
+	impl::AddAnimationCompleteCallback(button, config.disabled.activate.sprite);
+
 	button.Add<ButtonConfig>(std::move(config));
 
 	if (ui_layer) {
@@ -1347,7 +1392,9 @@ ToggleButton CreateToggleButton(
 
 	ButtonInteractionConfig toggle_config{ std::move(config.toggled) };
 
-	ToggleButton toggle_button{ CreateButton(scene, shape, std::move(button_config)) };
+	Button button{ CreateButton(scene, shape, std::move(button_config)) };
+
+	ToggleButton toggle_button{ button };
 
 	ProcessButtonChild(toggle_button, toggle_config.idle.sprite);
 	ProcessButtonChild(toggle_button, toggle_config.idle.text);
@@ -1355,6 +1402,8 @@ ToggleButton CreateToggleButton(
 	ProcessButtonChild(toggle_button, toggle_config.hover.text);
 	ProcessButtonChild(toggle_button, toggle_config.activate.sprite);
 	ProcessButtonChild(toggle_button, toggle_config.activate.text);
+
+	impl::AddAnimationCompleteCallback(button, toggle_config.activate.sprite);
 
 	toggle_button.Add<impl::ToggleButtonInteractionConfig>(std::move(toggle_config));
 
