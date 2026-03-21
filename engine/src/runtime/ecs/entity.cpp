@@ -94,6 +94,10 @@ UUID Entity::GetUUID() const {
 	return Get<UUID>();
 }
 
+std::size_t Entity::GetId() const {
+	return entity_.GetId();
+}
+
 std::size_t Entity::GetHash() const {
 	return std::hash<ecs::impl::EntityHandle<JsonArchiver>>()(entity_);
 }

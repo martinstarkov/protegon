@@ -149,6 +149,8 @@ public:
 
 	UUID GetUUID() const;
 
+	std::size_t GetId() const;
+
 	std::size_t GetHash() const;
 
 	// Serialization.
