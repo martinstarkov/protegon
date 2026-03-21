@@ -10,6 +10,8 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/math/vector4.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -22,7 +24,7 @@ namespace ptgn {
 
 Sprite::Sprite(Entity entity) : Entity{ entity } {}
 
-void Sprite::Draw(DrawContext& renderer, Entity entity, Camera) {
+void Sprite::Draw(DrawContext& renderer, Entity entity, Camera, Color additional_tint) {
 	PTGN_ASSERT(entity.Has<Texture>());
 	auto draw_transform{ GetDrawTransform(entity) };
 	// Get display size already handles the scale.
@@ -30,6 +32,7 @@ void Sprite::Draw(DrawContext& renderer, Entity entity, Camera) {
 	auto texture_size{ GetDisplaySize(entity) };
 	auto draw_origin{ GetDrawOrigin(entity) };
 	auto tint{ GetTint(entity) };
+	impl::Tint final_tint{ tint.Normalized() * additional_tint.Normalized() };
 	auto depth{ GetDepth(entity) };
 	auto tex_coords{ GetTextureCoordinates(entity, false) };
 	auto blend_mode{ GetBlendMode(entity) };
@@ -40,8 +43,16 @@ void Sprite::Draw(DrawContext& renderer, Entity entity, Camera) {
 	);
 }
 
-Sprite& Sprite::SetTexture(Texture texture) {
-	Add<Texture>(texture);
+void Sprite::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+	Sprite::Draw(renderer, entity, camera, color::White);
+}
+
+Sprite& Sprite::SetTexture(std::variant<Texture, std::string_view> texture) {
+	const auto& scene{ GetScene() };
+
+	Texture resolved_texture{ *scene.app().asset.ToTexture(texture) };
+
+	Add<Texture>(resolved_texture);
 	return *this;
 }
 
@@ -49,13 +60,12 @@ Sprite CreateSprite(
 	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position,
 	Origin draw_origin
 ) {
-	Texture resolved_texture{ scene.app().asset.ToTexture(texture) };
-
 	Sprite sprite{ scene.CreateEntity() };
+
 	SetDraw<Sprite>(sprite);
 	Show(sprite, false);
 
-	sprite.SetTexture(resolved_texture);
+	sprite.SetTexture(texture);
 
 	SetPosition(sprite, position);
 	SetDrawOrigin(sprite, draw_origin);

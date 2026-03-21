@@ -6,6 +6,7 @@
 
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
+#include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
@@ -45,9 +46,11 @@ public:
 	Sprite() = default;
 	explicit Sprite(Entity entity);
 
+	static void Draw(DrawContext& renderer, Entity entity, Camera, Color additional_tint);
+
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
-	Sprite& SetTexture(Texture texture);
+	Sprite& SetTexture(std::variant<Texture, std::string_view> texture);
 };
 
 Sprite CreateSprite(
