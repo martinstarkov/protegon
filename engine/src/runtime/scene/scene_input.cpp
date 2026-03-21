@@ -84,10 +84,6 @@ Transform SceneInput::GetWorldOffsetTransform(
 ) {
 	auto transform{ GetWorldTransform(shape_entity) };
 
-	if (parent.Has<Rect>()) {
-		transform = OffsetByOrigin(parent.Get<Rect>(), transform, parent);
-	}
-
 	transform = OffsetByOrigin(shape, transform, shape_entity);
 
 	return transform;
@@ -265,10 +261,6 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 
 			if (settings_.debug_draw_enabled) {
 				auto draw_transform{ GetDrawTransform(shape_entity) };
-
-				if (entity.Has<Rect>()) {
-					draw_transform = OffsetByOrigin(entity.Get<Rect>(), draw_transform, entity);
-				}
 
 				scene_.debug.DrawShape(
 					shape, draw_transform, settings_.debug_draw_color,

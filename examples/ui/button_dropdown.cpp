@@ -20,10 +20,12 @@ using namespace ptgn;
 class DropdownScene : public Scene {
 public:
 	Button CreateButton(std::string_view content, const std::function<void()>& on_activate) {
-		Button button{ CreateTextButton(*this, content, color::White) };
+		Button button{ ptgn::CreateButton(*this, {}) };
+		button.SetTextContent(content);
+		button.SetTextColor(color::White);
 		button.SetBackgroundColor(color::Gray);
 		button.SetBackgroundColor(color::LightGray, ButtonState::Hover);
-		button.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
+		button.SetBackgroundColor(color::DarkGray, ButtonState::Press);
 		button.OnActivate(on_activate);
 		button.SetBorderColor(color::Red);
 		button.SetBorderWidth(3.0f);
@@ -31,12 +33,11 @@ public:
 	}
 
 	Dropdown CreateDropdown(bool open = false) {
-		Dropdown d = CreateDropdownButton(*this, open)
+		Dropdown d = ptgn::CreateDropdown(*this, V2_int{ 200, 100 }, open)
 						 .SetText("Dropdown", color::Yellow)
 						 .SetBackgroundColor(color::Gray)
 						 .SetBackgroundColor(color::LightGray, ButtonState::Hover)
-						 .SetBackgroundColor(color::DarkGray, ButtonState::Pressed)
-						 .SetSize({ 200, 100 })
+						 .SetBackgroundColor(color::DarkGray, ButtonState::Press)
 						 .SetBorderColor(color::Gold)
 						 .SetBorderWidth(3.0f)
 						 .SetButtonSize(V2_float{ 100, 50 })
@@ -77,9 +78,9 @@ public:
 		dropdown4.SetText("Dropdown 4", color::Yellow);
 		dropdown4.SetDropdownOrigin(Origin::CenterTop);
 		dropdown4.SetDropdownDirection(Origin::CenterTop);
-		dropdown2.SetSize({ 200, 50 });
-		dropdown3.SetSize({ 200, 50 });
-		dropdown4.SetSize({ 200, 50 });
+		dropdown2.SetShape(V2_int{ 200, 50 });
+		dropdown3.SetShape(V2_int{ 200, 50 });
+		dropdown4.SetShape(V2_int{ 200, 50 });
 		// dropdown3.SetButtonOffset();
 	}
 };

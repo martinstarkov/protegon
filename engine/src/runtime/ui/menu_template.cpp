@@ -99,7 +99,7 @@ void TemplateMenuScene::OnEnter() {
 
 		const auto& label = j_button.at("label");
 		auto button{ CreateButton(*this) };
-		button.SetSize(button_size);
+		button.SetShape(button_size);
 		button.SetText(label, button_text_color);
 		const auto& action_name{ j_button.at("action").get<std::string>() };
 		button.OnActivate(SceneAction::Get(*this, key, scene_json, action_name));

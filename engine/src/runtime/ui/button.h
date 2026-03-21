@@ -10,7 +10,6 @@
 #include <variant>
 #include <vector>
 
-#include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/log.h"
@@ -45,11 +44,18 @@ struct ButtonTextFixedSize {
 };
 
 struct ButtonStyle {
-	std::optional<std::variant<Rect, Circle>> background;
+	ButtonStyle()								   = default;
+	~ButtonStyle() noexcept						   = default;
+	ButtonStyle(ButtonStyle&&) noexcept			   = default;
+	ButtonStyle& operator=(ButtonStyle&&) noexcept = default;
+	ButtonStyle(const ButtonStyle&)				   = delete;
+	ButtonStyle& operator=(const ButtonStyle&)	   = delete;
+
+	std::optional<std::variant<Rect, Circle>> background_shape;
 	std::optional<Color> background_color;
 	std::optional<FillStyle> background_fill;
 
-	std::optional<std::variant<Rect, Circle>> border;
+	std::optional<std::variant<Rect, Circle>> border_shape;
 	std::optional<Color> border_color;
 	std::optional<float> border_width;
 
@@ -63,18 +69,43 @@ struct ButtonStyle {
 };
 
 struct ButtonInteractionConfig {
+	ButtonInteractionConfig()											   = default;
+	~ButtonInteractionConfig() noexcept									   = default;
+	ButtonInteractionConfig(ButtonInteractionConfig&&) noexcept			   = default;
+	ButtonInteractionConfig& operator=(ButtonInteractionConfig&&) noexcept = default;
+	ButtonInteractionConfig(const ButtonInteractionConfig&)				   = delete;
+	ButtonInteractionConfig& operator=(const ButtonInteractionConfig&)	   = delete;
+
 	ButtonStyle idle;
 	ButtonStyle hover;
-	ButtonStyle pressed;
+	ButtonStyle activate;
 };
 
 struct ButtonConfig {
+	ButtonConfig()									 = default;
+	~ButtonConfig() noexcept						 = default;
+	ButtonConfig(ButtonConfig&&) noexcept			 = default;
+	ButtonConfig& operator=(ButtonConfig&&) noexcept = default;
+	ButtonConfig(const ButtonConfig&)				 = delete;
+	ButtonConfig& operator=(const ButtonConfig&)	 = delete;
+
 	ButtonInteractionConfig enabled;
 
 	ButtonInteractionConfig disabled;
 };
 
-struct ToggleButtonConfig : public ButtonConfig {
+struct ToggleButtonConfig {
+	ToggleButtonConfig()										 = default;
+	~ToggleButtonConfig() noexcept								 = default;
+	ToggleButtonConfig(ToggleButtonConfig&&) noexcept			 = default;
+	ToggleButtonConfig& operator=(ToggleButtonConfig&&) noexcept = default;
+	ToggleButtonConfig(const ToggleButtonConfig&)				 = delete;
+	ToggleButtonConfig& operator=(const ToggleButtonConfig&)	 = delete;
+
+	ButtonInteractionConfig enabled;
+
+	ButtonInteractionConfig disabled;
+
 	ButtonInteractionConfig toggled;
 };
 
@@ -91,7 +122,7 @@ struct ToggleButtonInteractionConfig {
 enum class ButtonState : std::uint8_t {
 	Idle,
 	Hover,
-	Pressed,
+	Press,
 	Current
 };
 
@@ -100,7 +131,7 @@ inline std::ostream& operator<<(std::ostream& os, ButtonState state) {
 		using enum ButtonState;
 		case Idle:	  return os << "Idle";
 		case Hover:	  return os << "Hover";
-		case Pressed: return os << "Pressed";
+		case Press:	  return os << "Press";
 		case Current: return os << "Current";
 		default:	  PTGN_ERROR("Unknown button state: ", std::to_underlying(state));
 	}
@@ -109,7 +140,7 @@ inline std::ostream& operator<<(std::ostream& os, ButtonState state) {
 PTGN_SERIALIZE_ENUM(
 	ButtonState, { { ButtonState::Idle, "idle" },
 				   { ButtonState::Hover, "hover" },
-				   { ButtonState::Pressed, "pressed" },
+				   { ButtonState::Press, "press" },
 				   { ButtonState::Current, "current" } }
 );
 
@@ -275,49 +306,57 @@ public:
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
 	/// @return In order of precedence: rect size, circle radius, texture size.
-	[[nodiscard]] std::variant<Rect, Circle> GetShape() const;
+	[[nodiscard]] std::optional<std::variant<Rect, Circle>> GetShape() const;
 	/// @param check_for_hover_enabled If true, checks for button hovering being enabled instead.
 	/// @return True if the button activation is enabled, false otherwise.
 	[[nodiscard]] bool IsEnabled(bool check_for_hover_enabled = false) const;
 	[[nodiscard]] ButtonState GetState() const;
 	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
+	[[nodiscard]] std::optional<std::variant<Rect, Circle>> GetBackgroundShape(
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
+	) const;
 	[[nodiscard]] Color GetBackgroundColor(
-		ButtonState state = ButtonState::Current, bool disabled = false
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
 	) const;
 	[[nodiscard]] std::optional<Texture> GetTexture(
-		ButtonState state = ButtonState::Current, bool disabled = false
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
 	) const;
-	[[nodiscard]] Color GetTint(ButtonState state = ButtonState::Current, bool disabled = false)
-		const;
+	[[nodiscard]] Color GetTint(
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
+	) const;
 	[[nodiscard]] std::optional<Color> GetTextColor(
-		ButtonState state = ButtonState::Current, bool disabled = false
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
 	) const;
 	[[nodiscard]] std::optional<std::string> GetTextContent(
-		ButtonState state = ButtonState::Current, bool disabled = false
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
 	) const;
 	[[nodiscard]] std::optional<TextJustify> GetTextJustify(
-		ButtonState state = ButtonState::Current, bool disabled = false
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
 	) const;
 	/// @return A pair of (x, y) fixed text size, or {} if the text size is not fixed. If either
 	/// axis is
 	/// {}, it is stretched to fit the entire size of the button rectangle (along that axis).
 	[[nodiscard]] std::optional<ButtonTextFixedSize> GetTextFixedSize(
-		ButtonState state = ButtonState::Current, bool disabled = false
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
 	) const;
 	[[nodiscard]] std::optional<float> GetFontSize(
-		ButtonState state = ButtonState::Current, bool disabled = false
+		bool hd, const std::optional<Camera>& camera, ButtonState state = ButtonState::Current,
+		bool disabled = false, bool toggled = false
 	) const;
 	[[nodiscard]] std::optional<Text> GetText(
-		ButtonState state = ButtonState::Current, bool disabled = false
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
+	) const;
+	[[nodiscard]] std::optional<std::variant<Rect, Circle>> GetBorderShape(
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
 	) const;
 	[[nodiscard]] Color GetBorderColor(
-		ButtonState state = ButtonState::Current, bool disabled = false
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
 	) const;
 	[[nodiscard]] std::optional<FillStyle> GetBackgroundFillStyle(
-		ButtonState state = ButtonState::Current, bool disabled = false
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
 	) const;
 	[[nodiscard]] std::optional<float> GetBorderWidth(
-		ButtonState state = ButtonState::Current, bool disabled = false
+		ButtonState state = ButtonState::Current, bool disabled = false, bool toggled = false
 	) const;
 
 	/// @brief Set button callback scripts.
@@ -344,46 +383,73 @@ public:
 	/// @param Sets the shape of the button interactive area. If monostate (default), uses the
 	/// texture size.
 	Derived& SetShape(std::variant<std::monostate, Rect, Circle> shape = {});
+
+	/// @brief Makes it so the button has no shape. This is primarily for custom buttons which rely
+	/// on parent shapes.
+	Derived& RemoveShape();
+
+	Derived& SetBackgroundShape(
+		std::optional<std::variant<Rect, Circle>> shape, ButtonState state = ButtonState::Idle,
+		bool disabled = false, bool toggled = false
+	);
 	Derived& SetBackgroundColor(
-		Color color, ButtonState state = ButtonState::Idle, bool disabled = false
+		Color color, ButtonState state = ButtonState::Idle, bool disabled = false,
+		bool toggled = false
 	);
 	Derived& SetTexture(
-		std::optional<Texture> texture, ButtonState state = ButtonState::Idle, bool disabled = false
+		Texture texture, ButtonState state = ButtonState::Idle, bool disabled = false,
+		bool toggled = false
 	);
-	Derived& SetTint(Color tint, ButtonState state = ButtonState::Idle, bool disabled = false);
+	Derived& SetTint(
+		Color tint, ButtonState state = ButtonState::Idle, bool disabled = false,
+		bool toggled = false
+	);
 	Derived& SetTextColor(
-		Color text_color, ButtonState state = ButtonState::Idle, bool disabled = false
+		Color text_color, ButtonState state = ButtonState::Idle, bool disabled = false,
+		bool toggled = false
 	);
 	Derived& SetTextContent(
-		std::string_view text_content, ButtonState state = ButtonState::Idle, bool disabled = false
+		std::string_view text_content, ButtonState state = ButtonState::Idle, bool disabled = false,
+		bool toggled = false
 	);
 	Derived& SetTextJustify(
-		TextJustify justify, ButtonState state = ButtonState::Idle, bool disabled = false
+		TextJustify justify, ButtonState state = ButtonState::Idle, bool disabled = false,
+		bool toggled = false
 	);
 	/// If either axis of the text size is {}, it is stretched to fit the entire size of the button
 	/// rectangle (along that axis).
 	Derived& SetTextFixedSize(
 		std::optional<ButtonTextFixedSize> size = {}, ButtonState state = ButtonState::Idle,
-		bool disabled = false
+		bool disabled = false, bool toggled = false
 	);
 	Derived& SetFontSize(
-		std::optional<float> font_size, ButtonState state = ButtonState::Idle, bool disabled = false
+		std::optional<float> font_size, ButtonState state = ButtonState::Idle,
+		bool disabled = false, bool toggled = false
 	);
 	Derived& SetText(
 		std::string_view text_content, Color text_color = color::Black,
 		std::optional<float> font_size = {}, std::optional<Font> font = {},
 		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Idle,
-		bool disabled = false
+		bool disabled = false, bool toggled = false
+	);
+	Derived& SetBorderShape(
+		std::optional<std::variant<Rect, Circle>> shape, ButtonState state = ButtonState::Idle,
+		bool disabled = false, bool toggled = false
 	);
 	Derived& SetBorderColor(
-		Color color, ButtonState state = ButtonState::Idle, bool disabled = false
+		Color color, ButtonState state = ButtonState::Idle, bool disabled = false,
+		bool toggled = false
 	);
 	Derived& SetBackgroundFillStyle(
-		FillStyle fill_style, ButtonState state = ButtonState::Idle, bool disabled = false
+		FillStyle fill_style, ButtonState state = ButtonState::Idle, bool disabled = false,
+		bool toggled = false
 	);
 	Derived& SetBorderWidth(
-		float line_width, ButtonState state = ButtonState::Idle, bool disabled = false
+		float line_width, ButtonState state = ButtonState::Idle, bool disabled = false,
+		bool toggled = false
 	);
+
+	std::optional<Entity> GetSprite(ButtonState state, bool disabled, bool toggled) const;
 
 private:
 	friend class impl::InternalButtonScript;
@@ -397,15 +463,16 @@ private:
 		T desired;
 	};
 
-	std::pair<const ButtonStyle&, const ButtonStyle&> GetStyle(
+	std::tuple<const ButtonStyle&, const ButtonStyle&, const ButtonStyle&> GetStyle(
 		ButtonState state, bool disabled, bool toggled = false
 	) const;
-	std::pair<ButtonStyle&, ButtonStyle&> GetStyle(
+
+	std::tuple<ButtonStyle&, ButtonStyle&, ButtonStyle&> GetStyle(
 		ButtonState state, bool disabled, bool toggled = false
 	);
 
 	void SetText(
-		Entity& text, std::string_view text_content = {}, std::optional<Color> text_color = {},
+		GameObject& text, std::string_view text_content = {}, std::optional<Color> text_color = {},
 		std::optional<float> font_size = {}, std::optional<Font> font = {},
 		const TextProperties& text_properties = {}
 	);
@@ -430,30 +497,10 @@ public:
 	operator Button() const;
 
 	[[nodiscard]] bool IsToggled() const;
-	[[nodiscard]] Color GetBackgroundColorToggled(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] Texture GetTextureToggled(ButtonState state = ButtonState::Idle) const;
-	[[nodiscard]] Color GetTintToggled(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] Color GetTextColorToggled(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] std::string GetTextContentToggled(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] Text GetTextToggled(ButtonState state = ButtonState::Current) const;
-	[[nodiscard]] Color GetBorderColorToggled(ButtonState state = ButtonState::Current) const;
 
 	ToggleButton& OnToggle(const std::function<void(bool)>& callback);
 	ToggleButton& SetToggled(bool toggled);
 	ToggleButton& Toggle();
-	ToggleButton& SetBackgroundColorToggled(Color color, ButtonState state = ButtonState::Idle);
-	ToggleButton& SetTextureToggled(Texture texture, ButtonState state = ButtonState::Idle);
-	ToggleButton& SetTintToggled(Color color, ButtonState state = ButtonState::Idle);
-	ToggleButton& SetTextColorToggled(Color text_color, ButtonState state = ButtonState::Idle);
-	ToggleButton& SetTextContentToggled(
-		std::string_view content, ButtonState state = ButtonState::Idle
-	);
-	ToggleButton& SetTextToggled(
-		std::string_view content, Color text_color = color::Black,
-		std::optional<float> font_size = {}, std::optional<Font> font = {},
-		const TextProperties& text_properties = {}, ButtonState state = ButtonState::Idle
-	);
-	ToggleButton& SetBorderColorToggled(Color color, ButtonState state = ButtonState::Idle);
 };
 
 class ToggleButtonGroup : public Entity {
@@ -505,14 +552,14 @@ private:
 /// @param shape If monostate (default) uses the texture size of the button. If no texture is
 /// provided, text size is used. If no text is provided, calls debug assertion.
 Button CreateButton(
-	Scene& scene, std::variant<std::monostate, Rect, Circle> shape = {},
-	const ButtonConfig& config = {}, bool ui_layer = true
+	Scene& scene, std::variant<std::monostate, Rect, Circle> shape = {}, ButtonConfig config = {},
+	bool ui_layer = true
 );
 
 /// @param toggled Whether or not the button start in the toggled state.
 ToggleButton CreateToggleButton(
 	Scene& scene, std::variant<std::monostate, Rect, Circle> shape = {},
-	const ToggleButtonConfig& config = {}, bool toggled = false
+	ToggleButtonConfig config = {}, bool toggled = false
 );
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);

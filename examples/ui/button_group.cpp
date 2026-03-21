@@ -26,15 +26,14 @@ class ToggleButtonGroupScene : public Scene {
 		const V2_float& position, int number, std::string group_name
 	) {
 		ToggleButton b =
-			CreateToggleButton(*this, false)
-				.SetSize({ 200, 130 })
+			CreateToggleButton(*this, V2_int{ 200, 130 }, {}, false)
 				.SetText(std::to_string(number), color::White)
 				.SetBackgroundColor(color::LightRed)
 				.SetBackgroundColor(color::Red, ButtonState::Hover)
-				.SetBackgroundColor(color::DarkRed, ButtonState::Pressed)
-				.SetBackgroundColorToggled(color::LightBlue)
-				.SetBackgroundColorToggled(color::Blue, ButtonState::Hover)
-				.SetBackgroundColorToggled(color::DarkBlue, ButtonState::Pressed)
+				.SetBackgroundColor(color::DarkRed, ButtonState::Press)
+				.SetBackgroundColor(color::LightBlue, ButtonState::Idle, false, true)
+				.SetBackgroundColor(color::Blue, ButtonState::Hover, false, true)
+				.SetBackgroundColor(color::DarkBlue, ButtonState::Press, false, true)
 				.OnActivate([number, group_name]() { PTGN_LOG(group_name, " activated ", number); })
 				.OnToggle([number, group_name](bool toggled) {
 					PTGN_LOG(

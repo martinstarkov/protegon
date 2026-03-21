@@ -1,10 +1,13 @@
 #pragma once
 
 #include <optional>
+#include <variant>
 #include <vector>
 
 #include "core/event/dispatcher.h"
+#include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
@@ -56,7 +59,7 @@ public:
 	using impl::ButtonBase<Dropdown>::ButtonBase;
 	operator Button() const;
 
-	Dropdown& SetSize(V2_float size);
+	Dropdown& SetShape(std::variant<std::monostate, Rect, Circle> shape = {});
 
 	Dropdown& SetOrigin(Origin origin);
 
@@ -86,6 +89,8 @@ private:
 };
 
 /// @param open If true, dropdown starts in an open state.
-Dropdown CreateDropdownButton(Scene& manager, bool start_open = false);
+Dropdown CreateDropdown(
+	Scene& manager, std::variant<std::monostate, Rect, Circle> shape = {}, bool start_open = false
+);
 
 } // namespace ptgn

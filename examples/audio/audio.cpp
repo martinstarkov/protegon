@@ -49,10 +49,11 @@ public:
 		std::string_view content, const std::function<void()>& on_activate,
 		Color bg_color = color::LightGray
 	) {
-		Button b{ CreateTextButton(*this, content, color::Black) };
+		Button b{ CreateButton(*this) };
+		b.SetText(content, color::Black);
 		b.SetBackgroundColor(bg_color);
 		b.SetBackgroundColor(color::Gray, ButtonState::Hover);
-		b.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
+		b.SetBackgroundColor(color::DarkGray, ButtonState::Press);
 		b.SetBorderColor(color::LightGray);
 		b.SetBorderWidth(3.0f);
 		b.OnActivate(on_activate);
@@ -303,7 +304,7 @@ public:
 					b, -app().renderer.GetGameSize() * 0.5f + coord * (size + offset) + offset
 				);
 				SetDrawOrigin(b, Origin::TopLeft);
-				b.SetSize(size);
+				b.SetShape(size);
 			}
 		});
 	}

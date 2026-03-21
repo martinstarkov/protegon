@@ -29,10 +29,11 @@ public:
 	Grid<Button> grid{ { 1, 5 } };
 
 	Button CreateButton(std::string_view content, const std::function<void()>& on_activate) {
-		Button b{ CreateTextButton(*this, content, color::Black) };
+		Button b{ ptgn::CreateButton(*this) };
+		b.SetText(content, color::Black);
 		b.SetBackgroundColor(color::Gold);
 		b.SetBackgroundColor(color::Gray, ButtonState::Hover);
-		b.SetBackgroundColor(color::DarkGray, ButtonState::Pressed);
+		b.SetBackgroundColor(color::DarkGray, ButtonState::Press);
 		b.SetBorderColor(color::LightGray);
 		b.SetBorderWidth(3.0f);
 		b.OnActivate(on_activate);
@@ -87,7 +88,7 @@ public:
 				return;
 			}
 			SetPosition(b, -res * 0.5f + screen_offset + (offset + size) * coord);
-			b.SetSize(size);
+			b.SetShape(size);
 			SetDrawOrigin(b, Origin::TopLeft);
 			if (coord == V2_int{}) {
 				SetUI(b, false);

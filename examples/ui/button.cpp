@@ -25,30 +25,30 @@ public:
 	void OnEnter() override {
 		input.SetSettings({ .debug_draw_enabled = true });
 
-		Origin button_origin{ Origin::TopLeft };
+		Origin button_origin{ Origin::Center };
 
-		b1 = CreateButton(*this)
+		b1 = CreateButton(*this, V2_int{ 200, 100 })
 				 .OnActivate([]() { PTGN_LOG("Clicked regular button!"); })
-				 .SetShape(V2_int{ 200, 100 })
+				 .SetBackgroundShape(V2_int{ 200, 100 })
 				 .SetBackgroundColor(color::Pink)
 				 .SetBackgroundColor(color::Red, ButtonState::Hover)
-				 .SetBackgroundColor(color::DarkRed, ButtonState::Pressed);
-		SetPosition(b1, V2_float{ -100, -150 - 50 });
+				 .SetBackgroundColor(color::DarkRed, ButtonState::Press);
+		SetPosition(b1, V2_float{ 0, -150 - 50 });
 		SetDrawOrigin(b1, button_origin);
 
-		b2 = CreateToggleButton(*this, false)
+		b2 = CreateToggleButton(*this, V2_int{ 200, 100 })
 				 .OnActivate([]() { PTGN_LOG("Clicked toggle button!"); })
 				 .OnToggle([](bool toggled) {
 					 PTGN_LOG("Toggled button: ", ": ", std::boolalpha, toggled, std::noboolalpha);
 				 })
-				 .SetShape(V2_int{ 200, 100 })
+				 .SetBackgroundShape(V2_int{ 200, 100 })
 				 .SetBackgroundColor(color::LightRed)
 				 .SetBackgroundColor(color::Red, ButtonState::Hover)
-				 .SetBackgroundColor(color::DarkRed, ButtonState::Pressed)
-				 .SetBackgroundColorToggled(color::LightBlue)
-				 .SetBackgroundColorToggled(color::Blue, ButtonState::Hover)
-				 .SetBackgroundColorToggled(color::DarkBlue, ButtonState::Pressed);
-		SetPosition(b2, V2_float{ -100, 150 - 50 });
+				 .SetBackgroundColor(color::DarkRed, ButtonState::Press)
+				 .SetBackgroundColor(color::LightBlue, ButtonState::Idle, false, true)
+				 .SetBackgroundColor(color::Blue, ButtonState::Hover, false, true)
+				 .SetBackgroundColor(color::DarkBlue, ButtonState::Press, false, true);
+		SetPosition(b2, V2_float{ 0, 150 - 50 });
 		SetDrawOrigin(b2, button_origin);
 	}
 

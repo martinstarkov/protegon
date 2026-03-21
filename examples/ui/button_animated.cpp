@@ -40,7 +40,7 @@ public:
 		// TODO: Fix tints.
 		/*.SetTint(color::Red, ButtonState::Idle)
 		.SetTint(color::Green, ButtonState::Hover)
-		.SetTint(color::Blue, ButtonState::Pressed);*/
+		.SetTint(color::Blue, ButtonState::Press);*/
 
 		SetScale(b1, 4.0f);
 

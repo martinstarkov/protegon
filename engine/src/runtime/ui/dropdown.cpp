@@ -1,11 +1,15 @@
 #include "runtime/ui/dropdown.h"
 
 #include <optional>
+#include <type_traits>
+#include <variant>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
+#include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -37,8 +41,8 @@ Dropdown::operator Button() const {
 	return Button{ *this };
 }
 
-Dropdown& Dropdown::SetSize(V2_float size) {
-	ButtonBase<Dropdown>::SetSize(size);
+Dropdown& Dropdown::SetShape(std::variant<std::monostate, Rect, Circle> shape) {
+	ButtonBase<Dropdown>::SetShape(shape);
 	if (HasParent(*this)) {
 		Entity parent{ GetParent(*this) };
 		if (parent.Has<impl::DropdownInstance>()) {
@@ -66,39 +70,64 @@ void Dropdown::RecalculateButtonPositions() {
 		return;
 	}
 
-	auto parent_size{ GetSize() };
+	auto parent_shape{ GetShape() };
 
-	PTGN_ASSERT(parent_size.has_value(), "Dropdown parent button must have a valid size");
+	auto transform{ GetWorldTransform(*this) };
 
-	const auto get_size = [parent_size, &info](const auto& button) {
-		if (auto size{ button.GetSize() }; size.has_value()) {
-			return *size;
-		}
-		if (info.button_size_.has_value()) {
-			return *info.button_size_;
-		}
-		return *parent_size;
+	auto get_shape_size = [transform](const std::variant<Rect, Circle>& shape) {
+		return std::visit(
+			[&]<typename T>(const T& s) {
+				if constexpr (std::is_same_v<T, Rect> || std::is_same_v<T, Circle>) {
+					return s.GetSize(transform);
+				} else {
+					static_assert(false, "Unknown shape type for dropdown button");
+				}
+			},
+			shape
+		);
 	};
 
-	V2_float parent_center{ -GetOriginOffset(GetDrawOrigin(*this), *parent_size) };
-	V2_float parent_edge{ parent_center + GetOriginOffset(info.origin_, *parent_size) };
+	auto parent_size{ parent_shape.has_value() ? std::visit(get_shape_size, *parent_shape)
+											   : V2_float{} };
+
+	const auto get_shape = [parent_shape, parent_size,
+							&info](const auto& button) -> std::variant<Rect, Circle> {
+		if (auto rect{ button.TryGet<Rect>() }) {
+			return *rect;
+		}
+		if (auto circle{ button.TryGet<Circle>() }) {
+			return *circle;
+		}
+		if (info.button_size_.has_value()) {
+			return Rect{ *info.button_size_ };
+		}
+		PTGN_ASSERT(
+			parent_shape.has_value(), "Cannot rely on parent dropdown shape if it has no shape set"
+		);
+		return *parent_shape;
+	};
+
+	V2_float parent_center{ -GetOriginOffset(GetDrawOrigin(*this), parent_size) };
+	V2_float parent_edge{ parent_center + GetOriginOffset(info.origin_, parent_size) };
 
 	PTGN_ASSERT(info.buttons_.size() >= 1);
 	const auto& first_button{ info.buttons_.front() };
-	auto size{ get_size(first_button) };
+	auto shape{ get_shape(first_button) };
+	auto size{ get_shape_size(shape) };
 
 	V2_float offset{ parent_edge + GetOriginOffset(info.origin_, size) };
 
 	for (std::size_t i{ 0 }; i < info.buttons_.size(); ++i) {
 		auto& button{ info.buttons_[i] };
-		size = get_size(button);
+		shape = get_shape(button);
+		size  = get_shape_size(shape);
 		// First button offset goes in the direction of the dropdown origin, the rest go in the
 		// direction of dropdown.
 		if (i != 0) {
 			offset += GetOriginOffset(info.direction_, size);
 		}
 		SetPosition(button, offset);
-		button.SetSize(size);
+		std::visit([&](const auto& s) { button.SetShape(s); }, shape);
 		SetDrawOrigin(button, Origin::Center);
 		// Offset is added separately while moving through dropdown buttons.
 		offset += GetOriginOffset(info.direction_, size);
@@ -248,8 +277,10 @@ Dropdown& Dropdown::Close(bool close_parents) {
 	return *this;
 }
 
-Dropdown CreateDropdownButton(Scene& scene, bool start_open) {
-	Dropdown dropdown_button{ CreateButton(scene) };
+Dropdown CreateDropdown(
+	Scene& scene, std::variant<std::monostate, Rect, Circle> shape, bool start_open
+) {
+	Dropdown dropdown_button{ CreateButton(scene, shape) };
 
 	auto& i{ dropdown_button.Add<impl::DropdownInstance>() };
 	i.start_open_ = start_open;
