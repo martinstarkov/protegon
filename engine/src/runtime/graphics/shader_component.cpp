@@ -66,7 +66,7 @@ ShaderEntity CreateShaderEntity(
 ) {
 	ShaderEntity shader_entity{ scene.CreateEntity() };
 
-	auto resolved_shader{ scene.app().asset.ToShader(shader) };
+	auto resolved_shader{ *scene.app().asset.ToShader(shader) };
 
 	if (auto resolved_texture{ scene.app().asset.ToTexture(texture) };
 		resolved_texture.has_value()) {

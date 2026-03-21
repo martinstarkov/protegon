@@ -607,7 +607,7 @@ void RenderContext::DrawTexture(
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
 	const std::optional<Camera>& camera
 ) {
-	auto resolved_texture{ scene_->app().asset.ToTexture(texture) };
+	auto resolved_texture{ *scene_->app().asset.ToTexture(texture) };
 
 	auto quad_shader{ renderer_->GetShader("quad") };
 	auto texture_size{ resolved_texture.GetSize() };
@@ -625,7 +625,7 @@ void RenderContext::DrawTexture(
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
 	const std::optional<Camera>& camera
 ) {
-	auto resolved_texture{ scene_->app().asset.ToTexture(texture) };
+	auto resolved_texture{ *scene_->app().asset.ToTexture(texture) };
 
 	auto texture_size{ resolved_texture.GetSize() };
 
