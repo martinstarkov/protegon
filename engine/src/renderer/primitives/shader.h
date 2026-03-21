@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ostream>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -80,5 +81,7 @@ public:
 
 	operator impl::ShaderId() const;
 };
+
+std::ostream& operator<<(std::ostream& o, const Shader& s);
 
 } // namespace ptgn

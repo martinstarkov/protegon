@@ -1,5 +1,6 @@
 #include "renderer/primitives/shader.h"
 
+#include <ostream>
 #include <vector>
 
 #include "core/assert.h"
@@ -44,6 +45,13 @@ template void ShaderObject::SetUniform<Matrix4>(const char* uniform_name, const 
 
 Shader::operator impl::ShaderId() const {
 	return entity_.Get<impl::ShaderObject>();
+}
+
+std::ostream& operator<<(std::ostream& o, const Shader& s) {
+	o << "{";
+	o << "shader id: " << static_cast<impl::ShaderId>(s);
+	o << "}";
+	return o;
 }
 
 } // namespace ptgn

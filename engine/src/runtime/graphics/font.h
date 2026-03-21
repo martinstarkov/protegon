@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <ostream>
 #include <utility>
 
 #include "core/util/entity_handle.h"
@@ -52,5 +52,7 @@ class Font : public EntityHandle {
 public:
 	using EntityHandle::EntityHandle;
 };
+
+std::ostream& operator<<(std::ostream& o, const Font& f);
 
 } // namespace ptgn

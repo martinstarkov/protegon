@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ostream>
+
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "renderer/primitives/id.h"
@@ -31,5 +33,7 @@ public:
 
 	operator impl::TextureId() const;
 };
+
+std::ostream& operator<<(std::ostream& o, const Texture& t);
 
 } // namespace ptgn
