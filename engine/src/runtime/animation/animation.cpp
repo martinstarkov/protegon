@@ -31,9 +31,9 @@ namespace ptgn {
 Animation::Animation(Entity entity) : Entity{ entity } {}
 
 Animation& Animation::Start(bool force) {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	PTGN_ASSERT(Has<impl::TextureCrop>(), "Animation must have TextureCrop component");
-	auto& anim{ Get<impl::AnimationInfo>() };
+	auto& anim{ Get<impl::AnimationData>() };
 	anim.current_frame = 0;
 	anim.frames_played = 0;
 	auto& crop		   = Get<impl::TextureCrop>();
@@ -49,9 +49,9 @@ Animation& Animation::Start(bool force) {
 }
 
 Animation& Animation::Reset() {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	PTGN_ASSERT(Has<impl::TextureCrop>(), "Animation must have TextureCrop component");
-	auto& anim{ Get<impl::AnimationInfo>() };
+	auto& anim{ Get<impl::AnimationData>() };
 	anim.current_frame = 0;
 	anim.frames_played = 0;
 	auto& crop		   = Get<impl::TextureCrop>();
@@ -66,8 +66,8 @@ Animation& Animation::Reset() {
 }
 
 Animation& Animation::Stop() {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Stop();
 	if (auto scripts{ TryGet<impl::Scripts>() }) {
 		AnimationStop event;
@@ -86,8 +86,8 @@ Animation& Animation::Toggle() {
 }
 
 Animation& Animation::Pause() {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Pause();
 	if (auto scripts{ TryGet<impl::Scripts>() }) {
 		AnimationPause event;
@@ -97,8 +97,8 @@ Animation& Animation::Pause() {
 }
 
 Animation& Animation::Resume() {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Resume();
 	if (auto scripts{ TryGet<impl::Scripts>() }) {
 		AnimationResume event;
@@ -108,83 +108,83 @@ Animation& Animation::Resume() {
 }
 
 bool Animation::IsPaused() const {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	const auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.frame_timer.IsPaused();
 }
 
 bool Animation::IsPlaying() const {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	const auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.frame_timer.IsRunning();
 }
 
 std::size_t Animation::GetPlayCount() const {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	const auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.GetPlayCount();
 }
 
 std::size_t Animation::GetFramePlayCount() const {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	const auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.frames_played;
 }
 
 milliseconds Animation::GetDuration() const {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	const auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.duration;
 }
 
 milliseconds Animation::GetFrameDuration() const {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	const auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	const auto& anim{ Get<impl::AnimationData>() };
 	milliseconds frame_duration{ anim.duration / anim.frame_count };
 	return frame_duration;
 }
 
 std::size_t Animation::GetFrameCount() const {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	const auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.frame_count;
 }
 
 Animation& Animation::SetCurrentFrame(std::size_t new_frame) {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	auto& anim{ Get<impl::AnimationData>() };
 	anim.SetCurrentFrame(new_frame);
 	return *this;
 }
 
 Animation& Animation::IncrementFrame() {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	auto& anim{ Get<impl::AnimationData>() };
 	anim.IncrementFrame();
 	return *this;
 }
 
 std::size_t Animation::GetCurrentFrame() const {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	const auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.current_frame;
 }
 
 V2_int Animation::GetCurrentFramePosition() const {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	const auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.GetCurrentFramePosition();
 }
 
 V2_int Animation::GetFrameSize() const {
-	PTGN_ASSERT(Has<impl::AnimationInfo>(), "Animation must have AnimationInfo component");
-	const auto& anim{ Get<impl::AnimationInfo>() };
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.frame_size;
 }
 
 namespace impl {
 
-AnimationInfo::AnimationInfo(
+AnimationData::AnimationData(
 	milliseconds animation_duration, std::size_t animation_frame_count,
 	V2_float animation_frame_size, std::int64_t animation_play_count, V2_float animation_start_pixel
 ) :
@@ -194,29 +194,29 @@ AnimationInfo::AnimationInfo(
 	play_count{ animation_play_count },
 	start_pixel{ animation_start_pixel } {}
 
-milliseconds AnimationInfo::GetFrameDuration() const {
+milliseconds AnimationData::GetFrameDuration() const {
 	return duration / frame_count;
 }
 
-V2_int AnimationInfo::GetCurrentFramePosition() const {
+V2_int AnimationData::GetCurrentFramePosition() const {
 	return { start_pixel.x + frame_size.x * static_cast<int>(current_frame), start_pixel.y };
 }
 
-std::size_t AnimationInfo::GetPlayCount() const {
+std::size_t AnimationData::GetPlayCount() const {
 	return frames_played / frame_count;
 }
 
-void AnimationInfo::SetCurrentFrame(std::size_t new_frame) {
+void AnimationData::SetCurrentFrame(std::size_t new_frame) {
 	current_frame = new_frame % frame_count;
 	frame_dirty	  = true;
 }
 
-void AnimationInfo::IncrementFrame() {
+void AnimationData::IncrementFrame() {
 	SetCurrentFrame(current_frame + 1);
 }
 
 void AnimationSystem::Update(Scene& scene) {
-	for (auto [entity, anim, crop] : scene.EntitiesWith<AnimationInfo, TextureCrop>()) {
+	for (auto [entity, anim, crop] : scene.EntitiesWith<AnimationData, TextureCrop>()) {
 		if (anim.frame_dirty) {
 			crop.size	  = anim.frame_size;
 			crop.position = anim.GetCurrentFramePosition();
@@ -375,7 +375,7 @@ Animation CreateAnimation(
 	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position,
 	const AnimationConfig& config
 ) {
-	Texture resolved_texture{ scene.app().asset.ToTexture(texture) };
+	Texture resolved_texture{ *scene.app().asset.ToTexture(texture) };
 
 	PTGN_ASSERT(
 		config.play_count == -1 || config.play_count >= 0,
@@ -397,7 +397,7 @@ Animation CreateAnimation(
 					   texture_size.y };
 	}
 
-	const auto& anim = animation.Add<impl::AnimationInfo>(
+	const auto& anim = animation.Add<impl::AnimationData>(
 		config.animation_duration, config.frame_count, frame_size, config.play_count,
 		config.start_pixel
 	);

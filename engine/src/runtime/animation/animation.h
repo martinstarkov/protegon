@@ -172,11 +172,11 @@ public:
 
 namespace impl {
 
-class AnimationInfo {
+class AnimationData {
 public:
-	AnimationInfo() = default;
+	AnimationData() = default;
 
-	AnimationInfo(
+	AnimationData(
 		milliseconds animation_duration, std::size_t animation_frame_count,
 		V2_float animation_frame_size, std::int64_t animation_play_count,
 		V2_float animation_start_pixel
@@ -192,7 +192,7 @@ public:
 	void IncrementFrame();
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		AnimationInfo, duration, frame_timer, frame_count, frame_size, play_count, start_pixel,
+		AnimationData, duration, frame_timer, frame_count, frame_size, play_count, start_pixel,
 		current_frame, frames_played
 	)
 
