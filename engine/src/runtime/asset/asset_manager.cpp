@@ -423,9 +423,39 @@ bool AssetManager::HasFont(std::string_view key) const {
 	return HasAssetImpl<std::shared_ptr<TTF_Font>>(manager_, key);
 }
 
-Shader AssetManager::ToShader(std::variant<Shader, std::string_view> shader) const {
+std::optional<std::reference_wrapper<const json>> AssetManager::ToJson(
+	const std::optional<std::variant<std::reference_wrapper<const json>, std::string_view>>&
+		json_object
+) const {
+	if (!json_object.has_value()) {
+		return std::nullopt;
+	}
 	return std::visit(
-		[&]<typename T>(const T& arg) {
+		[this]<typename T>(const T& arg) -> std::reference_wrapper<const json> {
+			if constexpr (std::is_same_v<T, std::reference_wrapper<const json>>) {
+				return arg;
+			} else if constexpr (std::is_same_v<T, std::string_view>) {
+				PTGN_ASSERT(
+					HasJson(arg), "Json key must be loaded in the asset manager before retrieval"
+				);
+
+				return *GetJson(arg);
+			} else {
+				static_assert(false, "Incomplete visitor!");
+			}
+		},
+		*json_object
+	);
+}
+
+std::optional<Shader> AssetManager::ToShader(
+	const std::optional<std::variant<Shader, std::string_view>>& shader
+) const {
+	if (!shader.has_value()) {
+		return std::nullopt;
+	}
+	return std::visit(
+		[this]<typename T>(const T& arg) {
 			if constexpr (std::is_same_v<T, Shader>) {
 				return arg;
 			} else if constexpr (std::is_same_v<T, std::string_view>) {
@@ -439,12 +469,36 @@ Shader AssetManager::ToShader(std::variant<Shader, std::string_view> shader) con
 				static_assert(false, "Incomplete visitor!");
 			}
 		},
-		shader
+		*shader
+	);
+}
+
+std::optional<Audio> AssetManager::ToAudio(
+	const std::optional<std::variant<Audio, std::string_view>>& audio
+) const {
+	if (!audio.has_value()) {
+		return std::nullopt;
+	}
+	return std::visit(
+		[this]<typename T>(const T& arg) {
+			if constexpr (std::is_same_v<T, Audio>) {
+				return arg;
+			} else if constexpr (std::is_same_v<T, std::string_view>) {
+				PTGN_ASSERT(
+					HasAudio(arg), "Audio key must be loaded in the asset manager before retrieval"
+				);
+
+				return *GetAudio(arg);
+			} else {
+				static_assert(false, "Incomplete visitor!");
+			}
+		},
+		*audio
 	);
 }
 
 std::optional<Texture> AssetManager::ToTexture(
-	std::optional<std::variant<Texture, std::string_view>> texture
+	const std::optional<std::variant<Texture, std::string_view>>& texture
 ) const {
 	if (!texture.has_value()) {
 		return std::nullopt;
@@ -458,7 +512,7 @@ std::optional<Texture> AssetManager::ToTexture(
 					HasTexture(arg),
 					"Texture key must be loaded in the asset manager before retrieval"
 				);
-				return GetTexture(arg);
+				return *GetTexture(arg);
 			} else {
 				static_assert(false, "Incomplete visitor!");
 			}
@@ -467,27 +521,8 @@ std::optional<Texture> AssetManager::ToTexture(
 	);
 }
 
-Texture AssetManager::ToTexture(std::variant<Texture, std::string_view> texture) const {
-	return std::visit(
-		[&]<typename T>(const T& arg) -> Texture {
-			if constexpr (std::is_same_v<T, Texture>) {
-				return arg;
-			} else if constexpr (std::is_same_v<T, std::string_view>) {
-				PTGN_ASSERT(
-					HasTexture(arg),
-					"Texture key must be loaded in the asset manager before retrieval"
-				);
-
-				return *GetTexture(arg);
-			} else {
-				static_assert(false, "Incomplete visitor!");
-			}
-		},
-		texture
-	);
-}
-
-std::optional<Font> AssetManager::ToFont(std::optional<std::variant<Font, std::string_view>> font
+std::optional<Font> AssetManager::ToFont(
+	const std::optional<std::variant<Font, std::string_view>>& font
 ) const {
 	if (!font.has_value()) {
 		return std::nullopt;

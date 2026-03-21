@@ -158,14 +158,25 @@ public:
 	[[nodiscard]] bool HasTexture(std::string_view key) const;
 	[[nodiscard]] bool HasFont(std::string_view key) const;
 
-	[[nodiscard]] Shader ToShader(std::variant<Shader, std::string_view> shader) const;
-	[[nodiscard]] Texture ToTexture(std::variant<Texture, std::string_view> texture) const;
+	[[nodiscard]] std::optional<std::reference_wrapper<const json>> ToJson(
+		const std::optional<std::variant<std::reference_wrapper<const json>, std::string_view>>&
+			json
+	) const;
+
+	[[nodiscard]] std::optional<Shader> ToShader(
+		const std::optional<std::variant<Shader, std::string_view>>& shader
+	) const;
+
+	[[nodiscard]] std::optional<Audio> ToAudio(
+		const std::optional<std::variant<Audio, std::string_view>>& audio
+	) const;
+
 	[[nodiscard]] std::optional<Texture> ToTexture(
-		std::optional<std::variant<Texture, std::string_view>> texture
+		const std::optional<std::variant<Texture, std::string_view>>& texture
 	) const;
 
 	[[nodiscard]] std::optional<Font> ToFont(
-		std::optional<std::variant<Font, std::string_view>> font
+		const std::optional<std::variant<Font, std::string_view>>& font
 	) const;
 
 private:
