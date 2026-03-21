@@ -19,6 +19,16 @@ float Circle::GetRadius() const {
 	return radius;
 }
 
+V2_float Circle::GetSize() const {
+	return V2_float{ radius } * 2.0f;
+}
+
+V2_float Circle::GetSize(Transform transform) const {
+	auto circle_size{ GetSize() };
+	auto scale{ transform.GetScale() };
+	return circle_size * Abs(scale);
+}
+
 float Circle::GetRadius(Transform transform) const {
 	auto circle_radius{ GetRadius() };
 	auto scale{ transform.GetAverageScale() };

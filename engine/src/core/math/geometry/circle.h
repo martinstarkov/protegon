@@ -16,6 +16,12 @@ struct Circle {
 	/// @return Center relative to the world.
 	[[nodiscard]] V2_float GetCenter(Transform transform) const;
 
+	// @return { radius * 2, radius * 2 }
+	[[nodiscard]] V2_float GetSize() const;
+
+	// @return { radius * 2, radius * 2 } scaled relative to the transform.
+	[[nodiscard]] V2_float GetSize(Transform transform) const;
+
 	[[nodiscard]] float GetRadius() const;
 
 	/// @return Radius scaled relative to the transform.
