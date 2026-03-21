@@ -380,13 +380,19 @@ public:
 	Derived& ContinueHover();
 	/// Called once when hovering stops (mouse exits button).
 	Derived& StopHover();
-	/// @param Sets the shape of the button interactive area. If monostate (default), uses the
+
+	/// @param Sets the shape of the button interactive area. If nullopt, uses the
 	/// texture size.
-	Derived& SetShape(std::variant<std::monostate, Rect, Circle> shape = {});
+	Derived& SetShape(const std::optional<std::variant<Rect, Circle>>& shape = {});
 
 	/// @brief Makes it so the button has no shape. This is primarily for custom buttons which rely
 	/// on parent shapes.
 	Derived& RemoveShape();
+
+	Derived& SetSound(
+		std::optional<std::variant<Audio, std::string_view>> sound,
+		ButtonState state = ButtonState::Idle, bool disabled = false, bool toggled = false
+	);
 
 	Derived& SetBackgroundShape(
 		std::optional<std::variant<Rect, Circle>> shape, ButtonState state = ButtonState::Idle,
@@ -549,16 +555,16 @@ private:
 
 } // namespace impl
 
-/// @param shape If monostate (default) uses the texture size of the button. If no texture is
+/// @param shape If nullopt, uses the texture size of the button. If no texture is
 /// provided, text size is used. If no text is provided, calls debug assertion.
 Button CreateButton(
-	Scene& scene, std::variant<std::monostate, Rect, Circle> shape = {}, ButtonConfig config = {},
-	bool ui_layer = true
+	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape = {},
+	ButtonConfig config = {}, bool ui_layer = true
 );
 
 /// @param toggled Whether or not the button start in the toggled state.
 ToggleButton CreateToggleButton(
-	Scene& scene, std::variant<std::monostate, Rect, Circle> shape = {},
+	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape = {},
 	ToggleButtonConfig config = {}, bool toggled = false
 );
 

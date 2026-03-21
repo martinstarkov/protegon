@@ -1,3 +1,4 @@
+#include <chrono>
 #include <functional>
 #include <string_view>
 
@@ -9,6 +10,7 @@
 #include "renderer/primitives/shader.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/tween_effect.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"

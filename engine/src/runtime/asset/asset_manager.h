@@ -161,11 +161,11 @@ public:
 	[[nodiscard]] Shader ToShader(std::variant<Shader, std::string_view> shader) const;
 	[[nodiscard]] Texture ToTexture(std::variant<Texture, std::string_view> texture) const;
 	[[nodiscard]] std::optional<Texture> ToTexture(
-		std::variant<std::monostate, Texture, std::string_view> texture
+		std::optional<std::variant<Texture, std::string_view>> texture
 	) const;
 
 	[[nodiscard]] std::optional<Font> ToFont(
-		std::variant<std::monostate, Font, std::string_view> font
+		std::optional<std::variant<Font, std::string_view>> font
 	) const;
 
 private:

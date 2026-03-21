@@ -24,7 +24,7 @@ struct TooltipProperties {
 
 	Color text_color{ color::White };
 
-	std::variant<std::monostate, Texture, std::string_view> texture;
+	std::optional<std::variant<Texture, std::string_view>> texture;
 
 	milliseconds fade_in_duration{ 250 };
 	milliseconds fade_out_duration{ 250 };

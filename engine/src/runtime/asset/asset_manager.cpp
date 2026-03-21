@@ -425,7 +425,7 @@ bool AssetManager::HasFont(std::string_view key) const {
 
 Shader AssetManager::ToShader(std::variant<Shader, std::string_view> shader) const {
 	return std::visit(
-		[&]<typename T>(const T& arg) -> Shader {
+		[&]<typename T>(const T& arg) {
 			if constexpr (std::is_same_v<T, Shader>) {
 				return arg;
 			} else if constexpr (std::is_same_v<T, std::string_view>) {
@@ -444,13 +444,14 @@ Shader AssetManager::ToShader(std::variant<Shader, std::string_view> shader) con
 }
 
 std::optional<Texture> AssetManager::ToTexture(
-	std::variant<std::monostate, Texture, std::string_view> texture
+	std::optional<std::variant<Texture, std::string_view>> texture
 ) const {
+	if (!texture.has_value()) {
+		return std::nullopt;
+	}
 	return std::visit(
-		[&]<typename T>(const T& arg) -> std::optional<Texture> {
-			if constexpr (std::is_same_v<T, std::monostate>) {
-				return std::nullopt;
-			} else if constexpr (std::is_same_v<T, Texture>) {
+		[this]<typename T>(const T& arg) {
+			if constexpr (std::is_same_v<T, Texture>) {
 				return arg;
 			} else if constexpr (std::is_same_v<T, std::string_view>) {
 				PTGN_ASSERT(
@@ -462,7 +463,7 @@ std::optional<Texture> AssetManager::ToTexture(
 				static_assert(false, "Incomplete visitor!");
 			}
 		},
-		texture
+		*texture
 	);
 }
 
@@ -486,14 +487,14 @@ Texture AssetManager::ToTexture(std::variant<Texture, std::string_view> texture)
 	);
 }
 
-std::optional<Font> AssetManager::ToFont(std::variant<std::monostate, Font, std::string_view> font
+std::optional<Font> AssetManager::ToFont(std::optional<std::variant<Font, std::string_view>> font
 ) const {
+	if (!font.has_value()) {
+		return std::nullopt;
+	}
 	return std::visit(
-		[&]<typename T>(const T& arg) -> std::optional<Font> {
-			if constexpr (std::is_same_v<T, std::monostate>) {
-				// Default engine font
-				return std::nullopt;
-			} else if constexpr (std::is_same_v<T, Font>) {
+		[this]<typename T>(const T& arg) {
+			if constexpr (std::is_same_v<T, Font>) {
 				return arg;
 			} else if constexpr (std::is_same_v<T, std::string_view>) {
 				PTGN_ASSERT(
@@ -504,7 +505,7 @@ std::optional<Font> AssetManager::ToFont(std::variant<std::monostate, Font, std:
 				static_assert(false, "Incomplete visitor!");
 			}
 		},
-		font
+		*font
 	);
 }
 

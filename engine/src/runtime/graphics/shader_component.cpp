@@ -61,7 +61,7 @@ void SetShaderSetup(ShaderEntity entity, const std::function<void(Entity, Shader
 
 ShaderEntity CreateShaderEntity(
 	Scene& scene, std::variant<Shader, std::string_view> shader,
-	std::variant<std::monostate, Texture, std::string_view> texture, V2_float position,
+	const std::optional<std::variant<Texture, std::string_view>>& texture, V2_float position,
 	V2_float size, const std::function<void(Entity, Shader)>& shader_setup, Origin draw_origin
 ) {
 	ShaderEntity shader_entity{ scene.CreateEntity() };

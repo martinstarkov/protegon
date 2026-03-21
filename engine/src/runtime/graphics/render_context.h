@@ -199,9 +199,9 @@ private:
 
 	impl::ShaderId GetShaderId(ShaderVariant shader) const;
 
-	[[nodiscard]] static std::variant<
-		std::monostate, impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
-		std::vector<impl::TriangleCommand>>
+	[[nodiscard]] static std::optional<std::variant<
+		impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
+		std::vector<impl::TriangleCommand>>>
 	GetShapeDrawCommand(
 		Renderer& renderer, const Shape& shape, Transform transform, Color tint,
 		FillStyle fill_style, Origin draw_origin, std::optional<BlendMode> blend_mode
@@ -220,7 +220,6 @@ private:
 	void Draw(const impl::QuadShapeCommand& draw, float depth);
 	void Draw(const impl::TriangleCommand& draw, float depth);
 	void Draw(const std::vector<impl::TriangleCommand>& cmds, float depth);
-	void Draw(std::monostate, float depth) const;
 	void Draw(const impl::ManualCommand& command, float depth);
 
 	DrawContext() = delete;
@@ -279,8 +278,8 @@ public:
 
 	void DrawText(
 		std::string_view text_content, Transform transform, Color text_color,
-		std::optional<float> font_size									 = {},
-		const std::variant<std::monostate, Font, std::string_view>& font = {},
+		std::optional<float> font_size									= {},
+		const std::optional<std::variant<Font, std::string_view>>& font = {},
 		const TextProperties& properties = {}, Origin draw_origin = Origin::Center,
 		std::optional<V2_float> text_size = {}, bool hd_text = true, Depth depth = {},
 		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
@@ -367,9 +366,7 @@ private:
 
 	template <typename T, typename R>
 	static void AddDrawCommand(T& commands, const R& command, float depth) {
-		if constexpr (std::is_same_v<R, std::monostate>) {
-			return;
-		} else if constexpr (SpecializationOf<R, std::vector>) {
+		if constexpr (SpecializationOf<R, std::vector>) {
 			for (const auto& c : command) {
 				commands.emplace_back(c, depth);
 			}

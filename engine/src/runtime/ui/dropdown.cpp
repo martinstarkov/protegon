@@ -41,7 +41,7 @@ Dropdown::operator Button() const {
 	return Button{ *this };
 }
 
-Dropdown& Dropdown::SetShape(std::variant<std::monostate, Rect, Circle> shape) {
+Dropdown& Dropdown::SetShape(const std::optional<std::variant<Rect, Circle>>& shape) {
 	ButtonBase<Dropdown>::SetShape(shape);
 	if (HasParent(*this)) {
 		Entity parent{ GetParent(*this) };
@@ -90,8 +90,7 @@ void Dropdown::RecalculateButtonPositions() {
 	auto parent_size{ parent_shape.has_value() ? std::visit(get_shape_size, *parent_shape)
 											   : V2_float{} };
 
-	const auto get_shape = [parent_shape, parent_size,
-							&info](const auto& button) -> std::variant<Rect, Circle> {
+	const auto get_shape = [parent_shape, &info](const auto& button) -> std::variant<Rect, Circle> {
 		if (auto rect{ button.TryGet<Rect>() }) {
 			return *rect;
 		}
@@ -278,7 +277,7 @@ Dropdown& Dropdown::Close(bool close_parents) {
 }
 
 Dropdown CreateDropdown(
-	Scene& scene, std::variant<std::monostate, Rect, Circle> shape, bool start_open
+	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape, bool start_open
 ) {
 	Dropdown dropdown_button{ CreateButton(scene, shape) };
 

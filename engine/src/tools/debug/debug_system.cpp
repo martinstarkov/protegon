@@ -14,8 +14,8 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/id.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/vertex.h"
 #include "renderer/renderer.h"
@@ -36,8 +36,7 @@ DebugContext::DebugContext(RenderContext& render_context) : render_context_{ ren
 
 void DebugContext::DrawText(
 	std::string_view text_content, Transform transform, Color text_color,
-	std::optional<float> font_size,
-	const std::variant<std::monostate, Font, std::string_view>& font,
+	std::optional<float> font_size, const std::optional<std::variant<Font, std::string_view>>& font,
 	const TextProperties& properties, Origin draw_origin, std::optional<V2_float> text_size,
 	bool hd_text, std::optional<Camera> camera
 ) {
@@ -109,9 +108,13 @@ void DebugContext::DrawShape(
 
 	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
 
+	if (!shape_draw_commands.has_value()) {
+		return;
+	}
+
 	std::visit(
 		[&](const auto& cmd) { RenderContext::AddDrawCommand(debug_commands, cmd, debug_depth); },
-		shape_draw_commands
+		*shape_draw_commands
 	);
 }
 

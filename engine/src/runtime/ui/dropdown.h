@@ -9,7 +9,6 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
 
@@ -59,7 +58,7 @@ public:
 	using impl::ButtonBase<Dropdown>::ButtonBase;
 	operator Button() const;
 
-	Dropdown& SetShape(std::variant<std::monostate, Rect, Circle> shape = {});
+	Dropdown& SetShape(const std::optional<std::variant<Rect, Circle>>& shape = {});
 
 	Dropdown& SetOrigin(Origin origin);
 
@@ -90,7 +89,8 @@ private:
 
 /// @param open If true, dropdown starts in an open state.
 Dropdown CreateDropdown(
-	Scene& manager, std::variant<std::monostate, Rect, Circle> shape = {}, bool start_open = false
+	Scene& manager, const std::optional<std::variant<Rect, Circle>>& shape = {},
+	bool start_open = false
 );
 
 } // namespace ptgn

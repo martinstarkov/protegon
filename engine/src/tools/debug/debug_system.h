@@ -1,7 +1,6 @@
 #pragma once
 
 #include <optional>
-#include <string>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -12,7 +11,6 @@
 #include "core/math/vector2.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
-#include "renderer/primitives/render_state.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
@@ -37,8 +35,8 @@ public:
 	/// @param text_size {} results in unscaled size of text based on font.
 	void DrawText(
 		std::string_view text_content, Transform transform, Color text_color,
-		std::optional<float> font_size									 = {},
-		const std::variant<std::monostate, Font, std::string_view>& font = {},
+		std::optional<float> font_size									= {},
+		const std::optional<std::variant<Font, std::string_view>>& font = {},
 		const TextProperties& properties = {}, Origin draw_origin = Origin::Center,
 		std::optional<V2_float> text_size = {}, bool hd_text = true,
 		std::optional<Camera> camera = {}

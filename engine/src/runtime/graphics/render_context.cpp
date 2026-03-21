@@ -134,9 +134,9 @@ impl::ShaderId DrawContext::GetShaderId(ShaderVariant shader) const {
 	);
 }
 
-std::variant<
-	std::monostate, impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
-	std::vector<impl::TriangleCommand>>
+std::optional<std::variant<
+	impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
+	std::vector<impl::TriangleCommand>>>
 DrawContext::GetShapeDrawCommand(
 	Renderer& renderer, const Shape& shape, Transform transform, Color tint, FillStyle fill_style,
 	Origin draw_origin, std::optional<BlendMode> blend_mode
@@ -153,7 +153,7 @@ DrawContext::GetShapeDrawCommand(
 		if (auto width{ std::get<impl::Hollow>(fill_style.style).line_width }; width >= 1.0f) {
 			line_width = width;
 		} else {
-			return {};
+			return std::nullopt;
 		}
 	}
 
@@ -161,13 +161,13 @@ DrawContext::GetShapeDrawCommand(
 
 	return std::visit(
 		[&]<typename T>(const T& s)
-			-> std::variant<
-				std::monostate, impl::QuadCommand, impl::QuadShapeCommand,
-				std::vector<impl::QuadCommand>, std::vector<impl::TriangleCommand>> {
+			-> std::optional<std::variant<
+				impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
+				std::vector<impl::TriangleCommand>>> {
 			// TODO: Simplify this by using GetWorldVertices(shape, transform).
 			if constexpr (std::is_same_v<T, Rect>) {
 				if (auto size{ s.GetSize(transform) }; !size.BothAboveZero()) {
-					return {};
+					return std::nullopt;
 				}
 
 				if (line_width == -1.0f) {
@@ -206,7 +206,7 @@ DrawContext::GetShapeDrawCommand(
 
 				if (vertices.size() < 3) {
 					if (vertices.empty()) {
-						return {};
+						return std::nullopt;
 					} else if (vertices.size() == 1) {
 						return GetShapeDrawCommand(
 							renderer, vertices.front(), transform, tint, fill_style, draw_origin,
@@ -246,7 +246,7 @@ DrawContext::GetShapeDrawCommand(
 				auto radius{ s.GetRadius(transform) };
 
 				if (radius <= 0.0f) {
-					return {};
+					return std::nullopt;
 				}
 
 				V2_float size;
@@ -269,7 +269,7 @@ DrawContext::GetShapeDrawCommand(
 				auto radius{ s.GetRadius(transform) };
 
 				if (radius <= 0.0f) {
-					return {};
+					return std::nullopt;
 				}
 
 				auto diameter{ 2.0f * radius };
@@ -292,7 +292,7 @@ DrawContext::GetShapeDrawCommand(
 				auto size = s.GetSize(transform);
 
 				if (!size.BothAboveZero()) {
-					return {};
+					return std::nullopt;
 				}
 
 				float radius = s.GetRadius(transform);
@@ -323,7 +323,7 @@ DrawContext::GetShapeDrawCommand(
 				auto radius = s.GetRadius(transform);
 
 				if (!radius.BothAboveZero()) {
-					return {};
+					return std::nullopt;
 				}
 
 				auto diameter{ 2.0f * radius };
@@ -507,8 +507,6 @@ void DrawContext::Draw(const std::vector<impl::TriangleCommand>& cmds, float dep
 	}
 }
 
-void DrawContext::Draw(std::monostate, float) const { /* No-op */ }
-
 void DrawContext::DrawLines(
 	std::span<const V2_float> points, float line_width, Transform transform, Color tint,
 	float depth, std::optional<BlendMode> blend_mode, bool connect_last_to_first
@@ -530,7 +528,11 @@ void DrawContext::DrawShape(
 		GetShapeDrawCommand(renderer_, shape, transform, tint, fill_style, draw_origin, blend_mode)
 	};
 
-	std::visit([&](const auto& cmd) { Draw(cmd, depth); }, shape_draw_commands);
+	if (!shape_draw_commands.has_value()) {
+		return;
+	}
+
+	std::visit([&](const auto& cmd) { Draw(cmd, depth); }, *shape_draw_commands);
 }
 
 void RenderContext::Init(Scene& scene, Renderer& renderer) {
@@ -683,15 +685,18 @@ void RenderContext::DrawShape(
 		*renderer_, shape, transform, color, fill_style, draw_origin, blend_mode
 	) };
 
+	if (!shape_draw_commands.has_value()) {
+		return;
+	}
+
 	std::visit(
-		[&](const auto& cmd) { AddDrawCommand(draw_commands, cmd, depth); }, shape_draw_commands
+		[&](const auto& cmd) { AddDrawCommand(draw_commands, cmd, depth); }, *shape_draw_commands
 	);
 }
 
 void RenderContext::DrawText(
 	std::string_view text_content, Transform transform, Color text_color,
-	std::optional<float> font_size,
-	const std::variant<std::monostate, Font, std::string_view>& font,
+	std::optional<float> font_size, const std::optional<std::variant<Font, std::string_view>>& font,
 	const TextProperties& properties, Origin draw_origin, std::optional<V2_float> text_size,
 	bool hd_text, Depth depth, std::optional<BlendMode> blend_mode,
 	const std::optional<Camera>& camera
