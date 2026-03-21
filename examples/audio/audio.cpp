@@ -157,9 +157,12 @@ public:
 		);
 
 		grid.Set(
-			{ 2, 0 }, CreateAudioButton(
-						  "Play Channel 1", [&]() { app().audio.Play("sound1"); }, sound1_color
-					  )
+			{ 2, 0 },
+			CreateAudioButton(
+				"Play Channel 1",
+				[&]() { app().audio.Play("sound1", 1.0, 0, RandomNumber(0.01f, 100.0f)); },
+				sound1_color
+			)
 		);
 		grid.Set(
 			{ 2, 1 }, CreateAudioButton(
@@ -226,9 +229,12 @@ public:
 		);
 
 		grid.Set(
-			{ 3, 0 }, CreateAudioButton(
-						  "Play Channel 2", [this]() { app().audio.Play("sound2"); }, sound2_color
-					  )
+			{ 3, 0 },
+			CreateAudioButton(
+				"Play Channel 2",
+				[this]() { app().audio.Play("sound2", 1.0, 0, RandomNumber(0.1f, 2.0f)); },
+				sound2_color
+			)
 		);
 		grid.Set(
 			{ 3, 1 }, CreateAudioButton(

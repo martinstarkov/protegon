@@ -62,12 +62,14 @@ std::size_t AudioSystem::Hash(std::variant<Audio, std::string_view> key) const {
 	);
 }
 
-void AudioSystem::Play(std::variant<Audio, std::string_view> key, float volume, int loops) {
+void AudioSystem::Play(
+	std::variant<Audio, std::string_view> key, float volume, int loops, float frequency_ratio
+) {
 	auto audio = assets_.ToAudio(key);
 	PTGN_ASSERT(
 		audio.has_value(), "Cannot play audio which has not been loaded into the asset manager"
 	);
-	MIX_Audio* mix_audio = audio->entity_.Get<std::shared_ptr<MIX_Audio>>().get();
+	MIX_Audio* mix_audio = audio->GetEntity().Get<std::shared_ptr<MIX_Audio>>().get();
 
 	PTGN_ASSERT(mix_audio);
 
@@ -75,8 +77,10 @@ void AudioSystem::Play(std::variant<Audio, std::string_view> key, float volume, 
 
 	impl::Track track{ id, mixer_, mix_audio, loops };
 
-	float clamped{ std::clamp(volume, kMinVolume, kMaxVolume) };
-	MIX_SetTrackGain(track.Get(), clamped);
+	volume = std::clamp(volume, kMinVolume, kMaxVolume);
+	MIX_SetTrackGain(track.Get(), volume);
+	frequency_ratio = std::clamp(frequency_ratio, kMinFrequencyRatio, kMaxFrequencyRatio);
+	MIX_SetTrackFrequencyRatio(track.Get(), frequency_ratio);
 
 	tracks_.emplace_back(std::move(track));
 }

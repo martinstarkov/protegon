@@ -17,6 +17,8 @@ namespace ptgn {
 
 inline constexpr float kMinVolume{ 0.0f };
 inline constexpr float kMaxVolume{ 5.0f };
+inline constexpr float kMinFrequencyRatio{ 0.01f };
+inline constexpr float kMaxFrequencyRatio{ 100.0f };
 
 class AssetManager;
 class Application;
@@ -65,7 +67,15 @@ public:
 
 	/// @param loops The number of loops to play the audio for, -1 for infinite looping.
 	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume].
-	void Play(std::variant<Audio, std::string_view> key, float volume = 0.5f, int loops = 0);
+	/// @param frequency_ratio The frequency ratio is used to adjust the rate at which audio data is
+	/// consumed. Range: [0.01, 100.0]. Changing this effectively modifies the speed and pitch of
+	/// the track's audio. A value greater than 1.0f will play the audio faster, and at a higher
+	/// pitch. A value less than 1.0f will play the audio slower, and at a lower pitch. 1.0f is
+	/// normal speed.
+	void Play(
+		std::variant<Audio, std::string_view> key, float volume = 1.0f, int loops = 0,
+		float frequency_ratio = 1.0f
+	);
 
 	/// @brief Stop the audio.
 	void Stop(std::variant<Audio, std::string_view> key);
