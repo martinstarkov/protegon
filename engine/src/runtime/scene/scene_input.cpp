@@ -1,6 +1,7 @@
 #include "runtime/scene/scene_input.h"
 
 #include <algorithm>
+#include <chrono>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -250,6 +251,13 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 	std::unordered_map<Entity, std::vector<std::pair<InteractiveShape, Entity>>> entity_shapes;
 
 	for (Entity entity : all_entities) {
+		if (auto lock{ entity.TryGet<InteractionLock>() }; lock && lock->block_hover) {
+			PTGN_ASSERT(
+				lock->remaining_time >= secondsf{ 0.0f }, "Interaction time cannot be negative"
+			);
+			continue;
+		}
+
 		std::vector<std::pair<InteractiveShape, Entity>> shapes;
 
 		GetShapes(entity, entity, shapes);
@@ -711,6 +719,13 @@ void SceneInput::DispatchMouseEvents(
 			continue;
 		}
 
+		if (auto lock{ e.TryGet<InteractionLock>() }; lock && lock->block_click) {
+			PTGN_ASSERT(
+				lock->remaining_time >= secondsf{ 0.0f }, "Interaction time cannot be negative"
+			);
+			continue;
+		}
+
 		MouseMoveOver move_over_event;
 		e.Get<impl::Scripts>().Emit(move_over_event);
 
@@ -740,6 +755,7 @@ void SceneInput::DispatchMouseEvents(
 		if (!e.Has<impl::Scripts>()) {
 			continue;
 		}
+
 		if (VectorContains(over, e)) {
 			continue;
 		}
@@ -771,6 +787,16 @@ void SceneInput::DispatchMouseEvents(
 }
 
 void SceneInput::Update() {
+	secondsf dt{ scene_.app().DeltaTime() };
+
+	for (auto [entity, lock] : scene_.EntitiesWith<InteractionLock>()) {
+		lock.remaining_time -= dt;
+
+		if (lock.remaining_time <= secondsf{ 0.0f }) {
+			entity.Remove<InteractionLock>();
+		}
+	}
+
 	const impl::MouseInfo mouse_state{ scene_ };
 
 	std::vector<Entity> cameras;

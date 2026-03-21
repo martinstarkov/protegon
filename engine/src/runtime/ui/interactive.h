@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/math/vector2.h"
+#include "core/time/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "serialization/json/enum.h"
@@ -51,6 +52,15 @@ PTGN_SERIALIZE_ENUM(
 					  { DragEventPhase::Drop, "drop" },
 					  { DragEventPhase::Pickup, "pickup" } }
 );
+
+/// @brief Add to an interactive entity to temporarily block interactions with it for the specified
+/// remaining time. Automatically removed when the remaining time reaches zero.
+struct InteractionLock {
+	secondsf remaining_time{ 0.0f };
+
+	bool block_hover{ true };
+	bool block_click{ true };
+};
 
 namespace impl {
 
