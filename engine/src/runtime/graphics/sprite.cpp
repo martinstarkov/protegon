@@ -41,7 +41,8 @@ void Sprite::Draw(DrawContext& renderer, Entity entity, Camera, Color additional
 	const auto& texture{ entity.Get<Texture>() };
 	PTGN_ASSERT(texture_size.has_value(), "Sprite texture does not have a valid texture size");
 	renderer.DrawTexture(
-		texture, draw_transform, *texture_size, draw_origin, tint, depth, tex_coords, blend_mode
+		texture, draw_transform, *texture_size, draw_origin, final_tint, depth, tex_coords,
+		blend_mode
 	);
 }
 
