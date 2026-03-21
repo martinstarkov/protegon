@@ -1,11 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string_view>
 #include <unordered_map>
 #include <variant>
 
+#include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -14,6 +16,7 @@
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/scripting/script.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
@@ -40,27 +43,62 @@ struct AnimationConfig {
 	V2_int start_pixel;
 };
 
-struct AnimationStart : Event<AnimationStart> {};
+struct AnimationStart : public Event<AnimationStart> {};
 
-struct AnimationStop : Event<AnimationStop> {};
+struct AnimationStop : public Event<AnimationStop> {};
 
-struct AnimationPause : Event<AnimationPause> {};
+struct AnimationPause : public Event<AnimationPause> {};
 
-struct AnimationResume : Event<AnimationResume> {};
+struct AnimationResume : public Event<AnimationResume> {};
 
-struct AnimationRepeat : Event<AnimationRepeat> {};
+struct AnimationRepeat : public Event<AnimationRepeat> {};
 
-struct AnimationFrameChange : Event<AnimationFrameChange> {};
+struct AnimationFrameChange : public Event<AnimationFrameChange> {};
 
-struct AnimationUpdate : Event<AnimationUpdate> {};
+struct AnimationUpdate : public Event<AnimationUpdate> {};
 
-struct AnimationComplete : Event<AnimationComplete> {};
+struct AnimationComplete : public Event<AnimationComplete> {};
+
+namespace impl {
+
+template <EventType T>
+struct AnimationScript : public Script {
+	AnimationScript() = default;
+
+	explicit AnimationScript(const std::function<void()>& callback) : callback_{ callback } {}
+
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<T>([this](T&) { callback_(); });
+	}
+
+private:
+	std::function<void()> callback_;
+};
+
+using AnimationStartScript		 = AnimationScript<AnimationStart>;
+using AnimationStopScript		 = AnimationScript<AnimationStop>;
+using AnimationPauseScript		 = AnimationScript<AnimationPause>;
+using AnimationResumeScript		 = AnimationScript<AnimationResume>;
+using AnimationRepeatScript		 = AnimationScript<AnimationRepeat>;
+using AnimationFrameChangeScript = AnimationScript<AnimationFrameChange>;
+using AnimationUpdateScript		 = AnimationScript<AnimationUpdate>;
+using AnimationCompleteScript	 = AnimationScript<AnimationComplete>;
+
+} // namespace impl
 
 struct Animation : public Entity {
 	Animation() = default;
 	explicit Animation(Entity entity);
 
-	Animation& SetTexture(Texture texture);
+	Animation& OnStart(const std::function<void()>& callback);
+	Animation& OnStop(const std::function<void()>& callback);
+	Animation& OnPause(const std::function<void()>& callback);
+	Animation& OnResume(const std::function<void()>& callback);
+	Animation& OnFrameChange(const std::function<void()>& callback);
+	Animation& OnUpdate(const std::function<void()>& callback);
+	Animation& OnComplete(const std::function<void()>& callback);
+
+	Animation& SetTexture(std::variant<Texture, std::string_view> texture);
 
 	/// @brief Starts the animation. Can also be used to restart the animation.
 	/// @param force If false, only starts the animation if it is not already playing.
@@ -69,7 +107,7 @@ struct Animation : public Entity {
 	/// @brief Stops and resets the animation.
 	Animation& Reset();
 
-	Animation& Stop();
+	Animation& Stop(bool reset = false);
 
 	/// @brief Toggles the pause state of the animation.
 	Animation& Toggle();

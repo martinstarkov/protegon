@@ -2,10 +2,10 @@
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <list>
 #include <optional>
 #include <string_view>
-#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <variant>
@@ -19,9 +19,7 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/scripts.h"
@@ -65,7 +63,11 @@ Animation& Animation::Reset() {
 	return *this;
 }
 
-Animation& Animation::Stop() {
+Animation& Animation::Stop(bool reset) {
+	if (reset) {
+		Reset();
+		return *this;
+	}
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Stop();
@@ -157,6 +159,11 @@ Animation& Animation::SetCurrentFrame(std::size_t new_frame) {
 	return *this;
 }
 
+Animation& Animation::SetTexture(std::variant<Texture, std::string_view> texture) {
+	Sprite{ *this }.SetTexture(texture);
+	return *this;
+}
+
 Animation& Animation::IncrementFrame() {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	auto& anim{ Get<impl::AnimationData>() };
@@ -180,6 +187,41 @@ V2_int Animation::GetFrameSize() const {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.frame_size;
+}
+
+Animation& Animation::OnStart(const std::function<void()>& callback) {
+	AddScript<impl::AnimationStartScript>(*this, callback);
+	return *this;
+}
+
+Animation& Animation::OnStop(const std::function<void()>& callback) {
+	AddScript<impl::AnimationStopScript>(*this, callback);
+	return *this;
+}
+
+Animation& Animation::OnPause(const std::function<void()>& callback) {
+	AddScript<impl::AnimationPauseScript>(*this, callback);
+	return *this;
+}
+
+Animation& Animation::OnResume(const std::function<void()>& callback) {
+	AddScript<impl::AnimationResumeScript>(*this, callback);
+	return *this;
+}
+
+Animation& Animation::OnFrameChange(const std::function<void()>& callback) {
+	AddScript<impl::AnimationFrameChangeScript>(*this, callback);
+	return *this;
+}
+
+Animation& Animation::OnUpdate(const std::function<void()>& callback) {
+	AddScript<impl::AnimationUpdateScript>(*this, callback);
+	return *this;
+}
+
+Animation& Animation::OnComplete(const std::function<void()>& callback) {
+	AddScript<impl::AnimationCompleteScript>(*this, callback);
+	return *this;
 }
 
 namespace impl {
@@ -264,7 +306,6 @@ void AnimationSystem::Update(Scene& scene) {
 		}
 
 		// Frame completed.
-
 		anim.frames_played++;
 
 		anim.IncrementFrame();
