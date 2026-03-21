@@ -25,19 +25,19 @@
 
 using namespace ptgn;
 
-struct EInventoryChanged : Event<EInventoryChanged> {
+struct EInventoryChanged : public Event<EInventoryChanged> {
 	Entity who{};
 	int delta	 = 0;
 	int newCount = 0;
 };
 
-struct EAnnounceGlobal : Event<EAnnounceGlobal> {
+struct EAnnounceGlobal : public Event<EAnnounceGlobal> {
 	EAnnounceGlobal(const char* text) : text{ text } {}
 
 	const char* text{};
 };
 
-struct EButtonClick : Event<EButtonClick> {
+struct EButtonClick : public Event<EButtonClick> {
 	Entity target{};
 	int mouseButton = 0;
 	int clicks		= 1;
