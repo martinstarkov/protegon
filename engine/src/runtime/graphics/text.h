@@ -2,14 +2,16 @@
 
 #include <cstdint>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <string_view>
-#include <variant>
 
 #include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "renderer/primitives/color.h"
+#include "runtime/asset/asset.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
@@ -26,6 +28,10 @@ class Scene;
 namespace impl {
 
 float GetTextScale(const Scene& scene, const std::optional<Camera>& camera);
+
+std::optional<float> ApplyHDTextScaling(
+	bool hd, Transform& transform, const Scene& scene, const std::optional<Camera>& camera
+);
 
 struct HDText {};
 
@@ -70,6 +76,8 @@ enum class TextJustify {
 	Right  = 2	// TTF_HORIZONTAL_ALIGN_RIGHT
 };
 
+std::ostream& operator<<(std::ostream& os, TextJustify text_justify);
+
 PTGN_SERIALIZE_ENUM(
 	TextJustify, { { TextJustify::Left, "left" },
 				   { TextJustify::Center, "center" },
@@ -79,17 +87,17 @@ PTGN_SERIALIZE_ENUM(
 struct TextLineSkip {
 	TextLineSkip() = default;
 
-	TextLineSkip(std::optional<std::int32_t> value) : value_{ value } {}
+	TextLineSkip(std::optional<std::int32_t> value) : value_{ value } {} // NOSONAR
 
-	operator std::optional<std::int32_t>() const {
+	operator std::optional<std::int32_t>() const {						 // NOSONAR
 		return value_;
 	}
 
-	[[nodiscard]] std::optional<std::int32_t> GetValue() const {
+	std::optional<std::int32_t> GetValue() const {
 		return value_;
 	}
 
-	[[nodiscard]] std::optional<std::int32_t>& GetValue() {
+	std::optional<std::int32_t>& GetValue() {
 		return value_;
 	}
 
@@ -141,41 +149,32 @@ public:
 	/// @return True if the text is rendered in high definition, false otherwise.
 	[[nodiscard]] bool IsHD() const;
 
-	[[nodiscard]] Font GetFont() const;
-	[[nodiscard]] std::string GetContent() const;
-	[[nodiscard]] Color GetColor() const;
-	[[nodiscard]] FontStyle GetFontStyle() const;
-	[[nodiscard]] FontRenderMode GetFontRenderMode() const;
-	[[nodiscard]] Color GetShadingColor() const;
-	[[nodiscard]] TextJustify GetJustify() const;
+	Font GetFont() const;
+	std::string GetContent() const;
+	Color GetColor() const;
+	FontStyle GetFontStyle() const;
+	FontRenderMode GetFontRenderMode() const;
+	Color GetShadingColor() const;
+	TextJustify GetJustify() const;
 
-	/// @param hd If true, returns font size scaled to high definition.
-	/// @param camera The camera relative to which an hd font size is retrieved. Only applicable if
-	/// hd is true.
-	[[nodiscard]] float GetFontSize(bool hd, const std::optional<Camera>& camera) const;
+	FontSize GetFontSize() const;
 
-	/// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
-	/// text is hd
-	/// @return The unscaled size of the text texture given the current content and font.
-	[[nodiscard]] V2_int GetSize(const std::optional<Camera>& camera) const;
+	/// @return Unscaled size of this text's texture.
+	V2_int GetSize() const;
 
-	/// @param camera The camera relative to which an hd text size is retrieved. Only applicable if
-	/// text is hd
-	/// @return The unscaled size of the text texture given the specified content.
-	[[nodiscard]] V2_int GetSize(std::string_view content, const std::optional<Camera>& camera)
-		const;
+	/// @return Unscaled texture size for the given text content using this text's font and size.
+	V2_int GetSize(std::string_view text_content) const;
 
-	[[nodiscard]] V2_int GetSize(
-		std::string_view content, Font font, std::optional<float> font_size = {}
-	) const;
+	/// @return Unscaled texture size for the given text content using the specified font and size.
+	V2_int GetSize(std::string_view text_content, FontOrKey font, FontSize font_size = {}) const;
 
-	[[nodiscard]] TextProperties GetProperties() const;
+	TextProperties GetProperties() const;
 
 	/// Set text to be rendered in high definition instead of natively scaling to its camera.
 	Text& SetHD(bool hd = true);
 
 	/// @param font Default {} corresponds to the default engine font.
-	Text& SetFont(std::optional<Font> font = {});
+	Text& SetFont(FontOrKey font = {});
 	Text& SetContent(std::string_view content);
 	Text& SetColor(Color color);
 
@@ -183,9 +182,8 @@ public:
 	/// FontStyle::Italic && FontStyle::Bold
 	Text& SetFontStyle(FontStyle font_style);
 
-	/// Set the point size of text. std::nullopt will use the current default font size of the
-	/// engine.
-	Text& SetFontSize(std::optional<float> pt_size);
+	/// Set the unscaled font size of text. Default value will use default engine font.
+	Text& SetFontSize(FontSize font_size = {});
 
 	/// Note: This function will implicitly set font render mode to Blended as it is required.
 	/// @param outline Setting outline.width to 0 will remove the text outline.
@@ -217,20 +215,20 @@ public:
 		if (!text.Has<T>()) {
 			text.Add<T>(value);
 			if (recreate_texture) {
-				RecreateTexture(text, {});
+				RecreateTexture(text, std::nullopt);
 			}
 			return true;
 		}
 		T& t{ text.Get<T>() };
 		if (t == value) {
 			if (recreate_texture) {
-				RecreateTexture(text, {});
+				RecreateTexture(text, std::nullopt);
 			}
 			return false;
 		}
 		t = value;
 		if (recreate_texture) {
-			RecreateTexture(text, {});
+			RecreateTexture(text, std::nullopt);
 		}
 		return true;
 	}
@@ -241,12 +239,12 @@ private:
 
 	// Using custom properties.
 	static void RecreateTexture(
-		Entity text, std::string_view text_content, Color text_color, float font_size, Font font,
-		const TextProperties& properties, float hd_scale, bool hd
+		Entity text, std::string_view text_content, Color text_color, FontSize font_size,
+		FontOrKey font, const TextProperties& properties, std::optional<float> hd_scale
 	);
 
 	template <impl::TextParameter T>
-	[[nodiscard]] static const T& GetParameter(Entity text, const T& default_value) {
+	static const T& GetParameter(Entity text, const T& default_value) {
 		if (!text.Has<T>()) {
 			return default_value;
 		}
@@ -254,12 +252,9 @@ private:
 	}
 };
 
-/// @param font Default {} corresponds to the default engine font.
 Text CreateText(
-	Scene& scene, std::string_view content, Color text_color = {},
-	std::optional<float> font_size									= {},
-	const std::optional<std::variant<Font, std::string_view>>& font = {},
-	const TextProperties& properties								= {}
+	Scene& scene, std::string_view text_content, Color text_color = color::White,
+	FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {}
 );
 
 PTGN_REGISTER_DRAWABLE(Text);

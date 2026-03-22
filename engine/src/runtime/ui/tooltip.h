@@ -3,14 +3,13 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <variant>
 
 #include "core/event/dispatcher.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "renderer/primitives/color.h"
-#include "renderer/primitives/texture.h"
+#include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/scripting/script.h"
@@ -24,7 +23,7 @@ struct TooltipProperties {
 
 	Color text_color{ color::White };
 
-	std::optional<std::variant<Texture, std::string_view>> texture;
+	std::optional<TextureOrKey> texture;
 
 	milliseconds fade_in_duration{ 250 };
 	milliseconds fade_out_duration{ 250 };
@@ -59,7 +58,7 @@ public:
 	void Hide();
 
 	/// @return Nullopt if no tooltip with the given name exists.
-	[[nodiscard]] static std::optional<Tooltip> Get(Scene& scene, std::string_view tooltip_name);
+	static std::optional<Tooltip> Get(Scene& scene, std::string_view tooltip_name);
 };
 
 struct TooltipHoverScript : public Script {
@@ -79,7 +78,7 @@ struct TooltipHoverScript : public Script {
 	void OnMouseLeave();
 
 private:
-	[[nodiscard]] Tooltip GetTooltip();
+	Tooltip GetTooltip();
 };
 
 Tooltip CreateTooltip(

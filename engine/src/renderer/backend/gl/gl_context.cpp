@@ -4,7 +4,6 @@
 #include <SDL3/SDL_video.h>
 
 #include <cstdint>
-#include <optional>
 #include <ostream>
 #include <utility>
 #include <vector>
@@ -27,17 +26,12 @@
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/buffer.h"
 #include "renderer/primitives/color.h"
-#include "renderer/primitives/framebuffer.h"
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
-#include "renderer/primitives/render_target.h"
-#include "renderer/primitives/renderbuffer.h"
-#include "renderer/primitives/shader.h"
-#include "renderer/primitives/texture.h"
-#include "renderer/primitives/vertex_array.h"
 #include "renderer/primitives/viewport.h"
+#include "SDL3/SDL_opengl.h"
+#include "SDL3/SDL_opengl_glext.h"
 
 namespace ptgn::impl::gl {
 
@@ -109,6 +103,7 @@ GLContext::GLContext(const Window& window) :
 	renderbuffers{ *this },
 	framebuffers{ *this },
 	vertex_arrays{ *this } {
+	// NOSONAR
 	// PTGN_LOG("OpenGL Build: ", GLCall(glGetString(GL_VERSION)));
 
 	auto max_texture_slots{ static_cast<std::size_t>(GetInteger(GL_MAX_TEXTURE_IMAGE_UNITS)) };
@@ -417,27 +412,8 @@ void GLContext::Destroy(VertexArrayId id) {
 	vertex_arrays.DestroyVertexArray(id);
 }
 
-void Destroy(VertexBufferId id);
-void Destroy(ElementBufferId id);
-void Destroy(UniformBufferId id);
-void Destroy(ShaderId id);
-void Destroy(TextureId id);
-void Destroy(RenderbufferId id);
-void Destroy(FramebufferId id);
-void Destroy(VertexArrayId id);
-
-void GLContext::Destroy(RenderTargetData& render_target) {
-	if (render_target.color_.has_value()) {
-		textures.DestroyTexture(*render_target.color_);
-	}
-	if (render_target.depth_.has_value()) {
-		renderbuffers.DestroyRenderbuffer(*render_target.depth_);
-	}
-
-	framebuffers.DestroyFramebuffer(render_target.framebuffer_);
-
-	render_target.size_	  = {};
-	render_target.format_ = {};
+void GLContext::Destroy(RenderTargetId id) {
+	framebuffers.DestroyFramebufferOwning(FramebufferId{ id });
 }
 
 void GLContext::EnableGammaCorrection() const {

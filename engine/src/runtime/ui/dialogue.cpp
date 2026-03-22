@@ -9,7 +9,6 @@
 #include <ostream>
 #include <sstream>
 #include <string>
-#include <string_view>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -69,8 +68,7 @@ void DialogueWaitScript::OnEvent(EventDispatcher d) {
 
 void DialogueWaitScript::OnKeyPressed(Key k) {
 	auto& dialogue_component{ GetDialogueComponent() };
-	auto continue_key{ dialogue_component.GetContinueKey() };
-	if (k != continue_key) {
+	if (auto continue_key{ dialogue_component.GetContinueKey() }; k != continue_key) {
 		return;
 	}
 	PTGN_ASSERT(dialogue_component.tween_);
@@ -258,7 +256,7 @@ DialogueComponent::DialogueComponent(
 		"Dialogue component must have a non-zero default box size"
 	);
 
-	text_ = GameObject{ CreateText(scene, "", color::White, {}, kDefaultFontKey) };
+	text_ = GameObject{ CreateText(scene, "") };
 
 	tween_ = GameObject{ CreateTween(scene) };
 
@@ -750,10 +748,10 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 	return pages;
 }
 
-std::ostream& operator<<(std::ostream& o, DialogueBehavior behavior) {
+std::ostream& operator<<(std::ostream& os, DialogueBehavior behavior) {
 	switch (behavior) {
-		case DialogueBehavior::Sequential: return o << "Sequential";
-		case DialogueBehavior::Random:	   return o << "Random";
+		case DialogueBehavior::Sequential: return os << "Sequential";
+		case DialogueBehavior::Random:	   return os << "Random";
 		default:						   PTGN_ERROR("Unknown DialogueBehavior: ", std::to_underlying(behavior));
 	}
 }

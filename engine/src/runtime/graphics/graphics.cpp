@@ -12,7 +12,6 @@
 #include "core/math/vector2.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
-#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
@@ -63,56 +62,67 @@ void Graphics::Draw(DrawContext& renderer, Entity entity, Camera) {
 	instance.Draw(renderer, transform, GetDepth(entity), GetBlendMode(entity));
 }
 
-void Graphics::Clear() {
+Graphics& Graphics::Clear() {
 	auto& instance{ Get<impl::GraphicsData>() };
 	instance.commands_.clear();
+	return *this;
 }
 
-void Graphics::SetFillColor(Color color) {
+Graphics& Graphics::SetFillColor(Color color) {
 	auto& instance{ Get<impl::GraphicsData>() };
 	instance.fill_color_ = color;
+	return *this;
 }
 
-void Graphics::SetStrokeColor(Color color) {
+Graphics& Graphics::SetStrokeColor(Color color) {
 	auto& instance{ Get<impl::GraphicsData>() };
 	instance.stroke_color_ = color;
+	return *this;
 }
 
-void Graphics::SetLineWidth(FillStyle width) {
+Graphics& Graphics::SetLineWidth(FillStyle width) {
 	auto& instance{ Get<impl::GraphicsData>() };
 	instance.line_width_ = width;
+	return *this;
 }
 
-void Graphics::Line(V2_float start, V2_float end) {
-	Graphics::Line(ptgn::Line{ start, end });
+Graphics& Graphics::Line(V2_float start, V2_float end) {
+	return Graphics::Line(ptgn::Line{ start, end });
 }
 
-void Graphics::Line(ptgn::Line line) {
+Graphics& Graphics::Line(ptgn::Line line) {
 	Get<impl::GraphicsData>().AddCommand({}, line, false);
+	return *this;
 }
 
-void Graphics::FillRect(Transform transform, Rect rect) {
+Graphics& Graphics::FillRect(Transform transform, Rect rect) {
 	Get<impl::GraphicsData>().AddCommand(transform, rect, true);
+	return *this;
 }
 
-void Graphics::StrokeRect(Transform transform, Rect rect) {
+Graphics& Graphics::StrokeRect(Transform transform, Rect rect) {
 	Get<impl::GraphicsData>().AddCommand(transform, rect, false);
+	return *this;
 }
 
-void Graphics::FillCircle(V2_float position, Circle circle) {
+Graphics& Graphics::FillCircle(V2_float position, Circle circle) {
 	Get<impl::GraphicsData>().AddCommand(position, circle, true);
+	return *this;
 }
 
-void Graphics::StrokeCircle(V2_float position, Circle circle) {
+Graphics& Graphics::StrokeCircle(V2_float position, Circle circle) {
 	Get<impl::GraphicsData>().AddCommand(position, circle, false);
+	return *this;
 }
 
-void Graphics::FillPolygon(const Polygon& polygon) {
+Graphics& Graphics::FillPolygon(const Polygon& polygon) {
 	Get<impl::GraphicsData>().AddCommand({}, polygon, true);
+	return *this;
 }
 
-void Graphics::StrokePolygon(const Polygon& polygon) {
+Graphics& Graphics::StrokePolygon(const Polygon& polygon) {
 	Get<impl::GraphicsData>().AddCommand({}, polygon, false);
+	return *this;
 }
 
 Graphics CreateGraphics(Scene& scene, V2_float position) {

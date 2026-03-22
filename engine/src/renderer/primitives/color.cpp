@@ -1,21 +1,37 @@
 #include "renderer/primitives/color.h"
 
+#include <array>
 #include <cstdint>
 
 #include "core/assert.h"
+#include "core/math/math_utils.h"
 #include "core/math/rng.h"
+#include "core/math/vector4.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
 
+Color::operator V4_float() const {
+	return Normalized();
+}
+
+Color::operator std::array<float, 4>() const {
+	auto n{ Normalized() };
+	return { n.x, n.y, n.z, n.w };
+}
+
+Color::operator std::array<std::uint8_t, 4>() const {
+	return { r, g, b, a };
+}
+
 Color Color::RandomOpaque() {
-	RNG<int> rng{ 0, 255 };
+	static RNG<int> rng{ 0, 255 };
 	return { static_cast<std::uint8_t>(rng()), static_cast<std::uint8_t>(rng()),
 			 static_cast<std::uint8_t>(rng()), 255 };
 }
 
 Color Color::RandomTransparent() {
-	RNG<int> rng{ 0, 255 };
+	static RNG<int> rng{ 0, 255 };
 	return { static_cast<std::uint8_t>(rng()), static_cast<std::uint8_t>(rng()),
 			 static_cast<std::uint8_t>(rng()), static_cast<std::uint8_t>(rng()) };
 }
@@ -44,6 +60,20 @@ void from_json(const json& j, Color& color) {
 	color.g = j[1];
 	color.b = j[2];
 	color.a = j[3];
+}
+
+Color Lerp(Color lhs, Color rhs, float t) {
+	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t)),
+				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t)),
+				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t)),
+				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t)) };
+}
+
+Color Lerp(Color lhs, Color rhs, V4_float t) {
+	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t.x)),
+				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t.y)),
+				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t.z)),
+				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t.w)) };
 }
 
 } // namespace ptgn

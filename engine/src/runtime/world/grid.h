@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <concepts>
 #include <functional>
 #include <type_traits>
@@ -7,6 +8,7 @@
 
 #include "core/assert.h"
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 
 // TODO: Add serialization.
 
@@ -58,19 +60,22 @@ public:
 		}
 	}
 
-	void ForEachIndex(const std::function<void(int)>& function) const {
+	template <InvocableR<void, int> F>
+	void ForEachIndex(F function) const {
 		for (int i{ 0 }; i < length; i++) {
 			function(i);
 		}
 	}
 
-	void ForEachElement(const std::function<void(T&)>& function) {
+	template <InvocableR<void, T&> F>
+	void ForEachElement(F function) {
 		for (auto& cell : cells) {
 			function(cell);
 		}
 	}
 
-	void ForEachElement(const std::function<void(const T&)>& function) const {
+	template <InvocableR<void, const T&> F>
+	void ForEachElement(F function) const {
 		for (auto& cell : cells) {
 			function(cell);
 		}
@@ -90,7 +95,7 @@ public:
 		return index >= 0 && index < length;
 	}
 
-	[[nodiscard]] const T& Get(V2_int coordinate) const {
+	const T& Get(V2_int coordinate) const {
 		return Get(OneDimensionalize(coordinate));
 	}
 
@@ -98,7 +103,7 @@ public:
 		return Pop(OneDimensionalize(coordinate));
 	}
 
-	[[nodiscard]] T& Get(V2_int coordinate) {
+	T& Get(V2_int coordinate) {
 		return Get(OneDimensionalize(coordinate));
 	}
 
@@ -109,12 +114,12 @@ public:
 		return popped;
 	}
 
-	[[nodiscard]] const T& Get(int index) const {
+	const T& Get(int index) const {
 		PTGN_ASSERT(Has(index), "Cannot get grid element which is outside the grid");
 		return cells[static_cast<std::size_t>(index)];
 	}
 
-	[[nodiscard]] T& Get(int index) {
+	T& Get(int index) {
 		return const_cast<T&>(std::as_const(*this).Get(index));
 	}
 
@@ -133,15 +138,15 @@ public:
 		cells.clear();
 	}
 
-	[[nodiscard]] const V2_int& GetSize() const {
+	const V2_int& GetSize() const {
 		return size;
 	}
 
-	[[nodiscard]] int GetLength() const {
+	int GetLength() const {
 		return length;
 	}
 
-	// @return -1 if coordinate is invalid, otherwise: coordinate.x + coordinate.y * size.x.
+	/// @return -1 if coordinate is invalid, otherwise: coordinate.x + coordinate.y * size.x.
 	[[nodiscard]] int OneDimensionalize(V2_int coordinate) const {
 		if (coordinate.x < 0 || coordinate.y < 0) {
 			return -1;
@@ -161,7 +166,7 @@ public:
 			std::is_copy_constructible_v<T>,
 			"Cannot fill grid with type which is not copy constructible"
 		);
-		std::fill(cells.begin(), cells.end(), object);
+		std::ranges::fill(cells, object);
 	}
 
 protected:

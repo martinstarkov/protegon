@@ -26,7 +26,7 @@ template <typename... Ts>
 concept NonEmptyPack = (sizeof...(Ts) > 0);
 
 template <typename T>
-concept Enum = std::is_enum_v<T>;
+concept EnumType = std::is_enum_v<T>;
 
 template <typename T>
 concept ScopedEnum = std::is_enum_v<T> && !std::is_convertible_v<T, int>;
@@ -94,5 +94,9 @@ concept AllSameAs = std::conjunction_v<std::is_same<Type, Types>...>;
 
 template <typename T, typename... Ts>
 concept IsAnyOf = (std::is_same_v<T, Ts> || ...);
+
+template <typename F, typename R, typename... Args>
+concept InvocableR =
+	std::regular_invocable<F, Args...> && std::same_as<std::invoke_result_t<F, Args...>, R>;
 
 } // namespace ptgn

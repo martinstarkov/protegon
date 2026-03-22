@@ -5,6 +5,7 @@
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"
+#include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_shader.h"
@@ -12,15 +13,11 @@
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/buffer.h"
 #include "renderer/primitives/color.h"
-#include "renderer/primitives/framebuffer.h"
+#include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
-#include "renderer/primitives/renderbuffer.h"
-#include "renderer/primitives/shader.h"
-#include "renderer/primitives/texture.h"
-#include "renderer/primitives/vertex_array.h"
 #include "renderer/primitives/viewport.h"
+#include "SDL3/SDL_opengl.h"
 
 #ifdef __EMSCRIPTEN__
 
@@ -57,7 +54,7 @@ namespace ptgn::impl::gl {
 
 class GLContext;
 
-// This class exists to ensure the OpenGL context is destroyed after things like shaders.
+/// @brief This class exists to ensure the OpenGL context is destroyed after things like shaders.
 class SDLGLContext {
 private:
 	friend class GLContext;
@@ -95,16 +92,16 @@ public:
 	[[nodiscard]] BindGuard<FramebufferId> Bind(FramebufferId id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<VertexArrayId> Bind(VertexArrayId id, bool restore_bind = false);
 
-	[[nodiscard]] const State& GetBoundState() const;
-	[[nodiscard]] State& GetBoundState();
-	[[nodiscard]] VertexBufferId GetBoundVertexBuffer() const;
-	[[nodiscard]] ElementBufferId GetBoundElementBuffer() const;
-	[[nodiscard]] UniformBufferId GetBoundUniformBuffer() const;
-	[[nodiscard]] ShaderId GetBoundShader() const;
-	[[nodiscard]] TextureId GetBoundTexture() const;
-	[[nodiscard]] RenderbufferId GetBoundRenderbuffer() const;
-	[[nodiscard]] FramebufferId GetBoundFramebuffer() const;
-	[[nodiscard]] VertexArrayId GetBoundVertexArray() const;
+	const State& GetBoundState() const;
+	State& GetBoundState();
+	VertexBufferId GetBoundVertexBuffer() const;
+	ElementBufferId GetBoundElementBuffer() const;
+	UniformBufferId GetBoundUniformBuffer() const;
+	ShaderId GetBoundShader() const;
+	TextureId GetBoundTexture() const;
+	RenderbufferId GetBoundRenderbuffer() const;
+	FramebufferId GetBoundFramebuffer() const;
+	VertexArrayId GetBoundVertexArray() const;
 
 	[[nodiscard]] bool IsBound(VertexBufferId id) const;
 	[[nodiscard]] bool IsBound(ElementBufferId id) const;
@@ -123,18 +120,18 @@ public:
 	void Destroy(RenderbufferId id);
 	void Destroy(FramebufferId id);
 	void Destroy(VertexArrayId id);
-	void Destroy(RenderTargetData& render_target);
+	void Destroy(RenderTargetId id);
 
 	void EnableGammaCorrection() const;
 	void DisableGammaCorrection() const;
 
-	// Enabling blending will disable depth testing.
+	/// @brief Enabling blending will disable depth testing.
 	void SetBlending(bool enabled);
 	void SetBlend(const BlendState& blend_state);
-	// Will disable depth testing.
+	/// @brief Will disable depth testing.
 	void SetBlendMode(BlendMode mode);
 
-	// Enabling depth testing will disable blending.
+	/// @brief Enabling depth testing will disable blending.
 	void SetDepthTesting(bool enabled);
 
 	void SetDepth(const DepthState& state);
@@ -154,12 +151,12 @@ public:
 	void SetClearStencil(int stencil);
 
 	void SetViewport(Viewport viewport);
-	[[nodiscard]] Viewport GetViewport() const;
+	Viewport GetViewport() const;
 
 	void SetActiveTextureSlot(std::uint32_t slot);
 
-	// @return The maximum number of texture slots available on the current hardware.
-	[[nodiscard]] std::size_t GetMaxTextureSlots() const;
+	/// @return The maximum number of texture slots available on the current hardware.
+	std::size_t GetMaxTextureSlots() const;
 
 	Buffers buffers;
 	Shaders shaders;
@@ -169,7 +166,7 @@ public:
 	VertexArrays vertex_arrays;
 
 	int GetInteger(GLenum pname) const;
-	[[nodiscard]] std::uint32_t GetActiveTextureSlot() const;
+	std::uint32_t GetActiveTextureSlot() const;
 
 private:
 	State bound_;

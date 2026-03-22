@@ -8,6 +8,7 @@
 #include "core/util/file.h"
 #include "renderer/image/surface.h"
 #include "renderer/primitives/color.h"
+#include "runtime/asset/asset.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
 
@@ -20,9 +21,6 @@ struct TTF_Font;
 struct SDL_IOStream;
 
 namespace ptgn {
-
-inline constexpr float kDefaultFontSize{ 18.0f };
-inline constexpr const char* kDefaultFontKey{ "" };
 
 class AssetManager;
 
@@ -45,28 +43,23 @@ public:
 
 	Font GetDefault() const;
 
-	/// @brief Empty font key corresponds to the engine default font.
-	void SetDefault(std::string_view key = kDefaultFontKey);
+	/// @param font Default ({}) key corresponds to the engine default font.
+	void SetDefault(FontOrKey font = {});
 
-	int GetLineSkip(std::string_view key, std::optional<float> font_size) const;
+	int GetLineSkip(FontOrKey font, FontSize font_size = {}) const;
 
-	/// @param Text to calculate size of, in UTF-8 encoding.
+	/// @param text_content Text to calculate size of, in UTF-8 encoding.
 	/// @param font_size Optional font size to check the size for. If {}, uses the current font
 	/// size.
 	/// @param max_wrap_width The maximum width or 0 to wrap on newline characters.
 	V2_int GetSize(
-		std::string_view key, std::string_view content, std::optional<float> font_size = {},
-		int max_wrap_width = 0
-	) const;
-
-	V2_int GetSize(
-		Font font, std::string_view text_content, std::optional<float> font_size = {},
+		FontOrKey font, std::string_view text_content, FontSize font_size = {},
 		int max_wrap_width = 0
 	) const;
 
 	/// @param font_size Optional font size to check the height for. If {}, uses the current font
 	/// size.
-	int GetHeight(std::string_view key, std::optional<float> font_size = {}) const;
+	int GetHeight(FontOrKey font, FontSize font_size = {}) const;
 
 private:
 	friend class Shader;
@@ -74,17 +67,17 @@ private:
 	friend class AssetManager;
 
 	std::optional<impl::Surface> CreateTextSurface(
-		std::string_view text_content, Color color, float font_size, Font font_asset,
-		const TextProperties& properties, float hd_scale, bool hd
+		std::string_view text_content, Color color, FontSize font_size, FontOrKey font,
+		const TextProperties& properties, std::optional<float> hd_scale
 	) const;
 
-	static std::shared_ptr<TTF_Font> CreateFont(const path& font_path, float pt_size);
+	static std::shared_ptr<TTF_Font> CreateFont(const path& font_path, FontSize font_size);
 
-	std::shared_ptr<TTF_Font> GetFont(std::string_view key, std::optional<float> font_size) const;
+	std::shared_ptr<TTF_Font> GetFont(FontOrKey font, FontSize font_size) const;
 
 	AssetManager& assets_;
 
-	std::size_t default_font_key_{ 0 };
+	FontOrKey default_font_;
 
 	SDL_IOStream* raw_default_font_{ nullptr };
 };

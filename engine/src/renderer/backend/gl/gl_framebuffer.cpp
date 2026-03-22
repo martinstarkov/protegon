@@ -244,7 +244,7 @@ Framebuffers::PixelValue Framebuffers::ReadPixel(
 	PixelDataType::UnsignedByte, &stencil); return stencil;
 	}
 	if (type == AttachmentType::DepthStencil) {
-		// GL_DEPTH_STENCIL returns two integers: depth + stencil packed.
+		// PixelDataFormat::DepthStencil returns two integers: depth + stencil packed.
 		struct {
 			std::uint32_t depth;
 			std::uint8_t stencil;
@@ -257,6 +257,38 @@ Framebuffers::PixelValue Framebuffers::ReadPixel(
 	}
 	*/
 	PTGN_ERROR("Unhandled attachment type");
+}
+
+std::vector<AttachmentSpec> Framebuffers::GetAttachments(FramebufferId framebuffer) const {
+	std::vector<AttachmentSpec> attachments;
+
+	if (!framebuffer) {
+		return attachments;
+	}
+
+	PTGN_ASSERT(cache_.Has(framebuffer), "No framebuffer with id ", framebuffer, " in cache");
+
+	const auto& cache = cache_.Get(framebuffer);
+
+	for (const auto& color_attachment : cache.color) {
+		if (color_attachment.id != 0) {
+			attachments.push_back(color_attachment);
+		}
+	}
+
+	if (cache.depth.id != 0) {
+		attachments.push_back(cache.depth);
+	}
+
+	if (cache.stencil.id != 0) {
+		attachments.push_back(cache.stencil);
+	}
+
+	if (cache.depth_stencil.id != 0) {
+		attachments.push_back(cache.depth_stencil);
+	}
+
+	return attachments;
 }
 
 Framebuffers::PixelBuffer Framebuffers::ReadPixels(
@@ -303,27 +335,26 @@ bool Framebuffers::FramebufferIsComplete(FramebufferId framebuffer) const {
 const char* Framebuffers::GetFramebufferStatus() const {
 	auto status{ GLCallReturn(CheckFramebufferStatus(kFrameBufferTarget)) };
 	switch (status) {
-		case GL_FRAMEBUFFER_COMPLETE:  return "FramebufferId is complete.";
-		case GL_FRAMEBUFFER_UNDEFINED: return "FramebufferId is undefined (no framebuffer bound).";
+		case GL_FRAMEBUFFER_COMPLETE:  return "FramebufferId is complete";
+		case GL_FRAMEBUFFER_UNDEFINED: return "FramebufferId is undefined (no framebuffer bound)";
 		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
 			return "Incomplete attachment: One or more framebuffer attachment points are "
-				   "incomplete.";
+				   "incomplete";
 		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-			return "Missing attachment: No images are attached to the framebuffer.";
+			return "Missing attachment: No images are attached to the framebuffer";
 		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-			return "Incomplete draw buffer: Draw buffer points to a missing attachment.";
+			return "Incomplete draw buffer: Draw buffer points to a missing attachment";
 		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-			return "Incomplete read buffer: Read buffer points to a missing attachment.";
+			return "Incomplete read buffer: Read buffer points to a missing attachment";
 		case GL_FRAMEBUFFER_UNSUPPORTED:
 			return "FramebufferId unsupported: Format combination not supported by "
-				   "implementation.";
+				   "implementation";
 		case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
 			return "Incomplete multisample: Mismatched sample counts or improper use of "
-				   "multisampling.";
+				   "multisampling";
 		case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
-			return "Incomplete layer targets: Layered attachments are not all complete or "
-				   "not "
-				   "matching.";
+			return "Incomplete layer targets: Layered attachments are not all complete or not "
+				   "matching";
 		default: PTGN_ERROR("Unknown framebuffer status.");
 	}
 }
@@ -353,7 +384,7 @@ Framebuffers::AttachmentType Framebuffers::GetAttachmentType(Attachment attachme
 AttachmentSpec& Framebuffers::GetFramebufferAttachment(
 	FramebufferId framebuffer, Attachment attachment
 ) {
-	return const_cast<AttachmentSpec&>(
+	return const_cast<AttachmentSpec&>( // NOSONAR
 		std::as_const(*this).GetFramebufferAttachment(framebuffer, attachment)
 	);
 }
@@ -469,7 +500,7 @@ Framebuffers::PixelValue Framebuffers::DecodePixel(
 template <typename IdT, typename AttachFn>
 void InvalidateAttachment(
 	GLContext& gl, IdMap<FramebufferCache>& cache, IdT resource, AttachmentObject type,
-	AttachFn&& attach
+	AttachFn attach
 ) {
 	// Iterate through all framebuffers and detach the given resource from any attachments it is
 	// currently attached to.
@@ -477,7 +508,7 @@ void InvalidateAttachment(
 	for (auto item : cache.Items()) {
 		FramebufferId fbo{ static_cast<std::uint32_t>(item.id) };
 
-		constexpr std::size_t kMaxAttachments{ 8 + 3 };
+		constexpr std::size_t kMaxAttachments{ 8ULL + 3ULL };
 
 		std::array<Attachment, kMaxAttachments> pending{};
 		std::size_t count = 0;
@@ -488,26 +519,30 @@ void InvalidateAttachment(
 			if (a.id == resource && a.object == type) {
 				a = {};
 				PTGN_ASSERT(count < kMaxAttachments);
-				pending[count++] = ColorAttachment(i);
+				pending[count] = ColorAttachment(i);
+				count++;
 			}
 		}
 
 		if (item.value.depth.id == resource && item.value.depth.object == type) {
 			item.value.depth = {};
 			PTGN_ASSERT(count < kMaxAttachments);
-			pending[count++] = Attachment::Depth;
+			pending[count] = Attachment::Depth;
+			count++;
 		}
 
 		if (item.value.depth_stencil.id == resource && item.value.depth_stencil.object == type) {
 			item.value.depth_stencil = {};
 			PTGN_ASSERT(count < kMaxAttachments);
-			pending[count++] = Attachment::DepthStencil;
+			pending[count] = Attachment::DepthStencil;
+			count++;
 		}
 
 		if (item.value.stencil.id == resource && item.value.stencil.object == type) {
 			item.value.stencil = {};
 			PTGN_ASSERT(count < kMaxAttachments);
-			pending[count++] = Attachment::Stencil;
+			pending[count] = Attachment::Stencil;
+			count++;
 		}
 
 		if (count == 0) {
@@ -534,6 +569,22 @@ void Framebuffers::InvalidateRenderbuffer(RenderbufferId renderbuffer) {
 		gl_, cache_, renderbuffer, AttachmentObject::Renderbuffer,
 		[this](FramebufferId fbo, RenderbufferId r, Attachment a) { AttachRenderbuffer(fbo, r, a); }
 	);
+}
+
+void Framebuffers::DestroyFramebufferOwning(FramebufferId id) {
+	auto attachments{ GetAttachments(id) };
+
+	for (const auto& attachment : attachments) {
+		PTGN_ASSERT(attachment.id != 0);
+
+		if (attachment.object == AttachmentObject::Texture2D) {
+			gl_.textures.DestroyTexture(TextureId{ attachment.id });
+		} else if (attachment.object == AttachmentObject::Renderbuffer) {
+			gl_.renderbuffers.DestroyRenderbuffer(RenderbufferId{ attachment.id });
+		}
+	}
+
+	DestroyFramebuffer(id);
 }
 
 void Framebuffers::DestroyFramebuffer(FramebufferId id) {

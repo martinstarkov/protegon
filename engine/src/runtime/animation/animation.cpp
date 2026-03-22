@@ -8,7 +8,6 @@
 #include <string_view>
 #include <unordered_map>
 #include <utility>
-#include <variant>
 
 #include "app/context.h"
 #include "core/assert.h"
@@ -16,7 +15,7 @@
 #include "core/time/time.h"
 #include "core/time/timer.h"
 #include "renderer/primitives/texture.h"
-#include "runtime/asset/asset_manager.h"
+#include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/draw.h"
@@ -159,7 +158,7 @@ Animation& Animation::SetCurrentFrame(std::size_t new_frame) {
 	return *this;
 }
 
-Animation& Animation::SetTexture(std::variant<Texture, std::string_view> texture) {
+Animation& Animation::SetTexture(TextureOrKey texture) {
 	Sprite{ *this }.SetTexture(texture);
 	return *this;
 }
@@ -413,10 +412,11 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 }
 
 Animation CreateAnimation(
-	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position,
-	const AnimationConfig& config
+	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config
 ) {
-	Texture resolved_texture{ *scene.app().asset.ToTexture(texture) };
+	const auto& assets{ scene.app().asset };
+
+	Texture resolved_texture{ texture.Get(assets) };
 
 	PTGN_ASSERT(
 		config.play_count == -1 || config.play_count >= 0,

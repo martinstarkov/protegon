@@ -1,18 +1,16 @@
 #include "renderer/backend/gl/gl_bind_guard.h"
 
-#include "gl_vertex_array.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/primitives/framebuffer.h"
-#include "renderer/primitives/renderbuffer.h"
-#include "renderer/primitives/shader.h"
-#include "renderer/primitives/texture.h"
+#include "renderer/primitives/id.h"
 
 namespace ptgn::impl::gl {
 
 template <typename T>
 BindGuard<T>::~BindGuard() noexcept {
 	if (restore_bind_) {
-		auto _ = gl_.Bind(id_, false);
+		// Tricks MSVC to see GLContext usage.
+		GLContext& gl{ gl_ };
+		auto _ = gl.Bind(id_, false);
 	}
 }
 

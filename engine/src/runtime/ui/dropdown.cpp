@@ -28,7 +28,7 @@ void DropdownScript::OnEvent(EventDispatcher d) {
 
 void DropdownItemScript::OnEvent(EventDispatcher d) {
 	d.Dispatch<ButtonActivate>([this](const ButtonActivate&) {
-		if (!entity.Has<impl::DropdownInstance>()) {
+		if (!entity.Has<impl::DropdownData>()) {
 			PTGN_ASSERT(HasParent(entity));
 			Dropdown{ GetParent(entity) }.Close();
 		}
@@ -45,7 +45,7 @@ Dropdown& Dropdown::SetShape(const std::optional<std::variant<Rect, Circle>>& sh
 	ButtonBase<Dropdown>::SetShape(shape);
 	if (HasParent(*this)) {
 		Entity parent{ GetParent(*this) };
-		if (parent.Has<impl::DropdownInstance>()) {
+		if (parent.Has<impl::DropdownData>()) {
 			Dropdown{ parent }.RecalculateButtonPositions();
 		}
 	}
@@ -61,10 +61,10 @@ Dropdown& Dropdown::SetOrigin(Origin origin) {
 
 void Dropdown::RecalculateButtonPositions() {
 	PTGN_ASSERT(
-		Has<impl::DropdownInstance>(), "Cannot recalculate button positions of invalid dropdown"
+		Has<impl::DropdownData>(), "Cannot recalculate button positions of invalid dropdown"
 	);
 
-	auto& info{ Get<impl::DropdownInstance>() };
+	auto& info{ Get<impl::DropdownData>() };
 
 	if (info.buttons_.empty()) {
 		return;
@@ -134,19 +134,19 @@ void Dropdown::RecalculateButtonPositions() {
 }
 
 bool Dropdown::WillStartOpen() const {
-	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot set button size of invalid dropdown");
+	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set button size of invalid dropdown");
 	if (HasParent(*this)) {
 		Entity parent{ GetParent(*this) };
-		if (parent.Has<impl::DropdownInstance>()) {
-			return Get<impl::DropdownInstance>().start_open_ && Dropdown{ parent }.WillStartOpen();
+		if (parent.Has<impl::DropdownData>()) {
+			return Get<impl::DropdownData>().start_open_ && Dropdown{ parent }.WillStartOpen();
 		}
 	}
-	return Get<impl::DropdownInstance>().start_open_;
+	return Get<impl::DropdownData>().start_open_;
 }
 
 Dropdown& Dropdown::AddButton(Button button) {
-	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot set button size of invalid dropdown");
-	auto& i{ Get<impl::DropdownInstance>() };
+	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set button size of invalid dropdown");
+	auto& i{ Get<impl::DropdownData>() };
 
 	SetParent(button, *this);
 
@@ -168,8 +168,8 @@ Dropdown& Dropdown::AddButton(Button button) {
 }
 
 Dropdown& Dropdown::SetButtonSize(std::optional<V2_float> button_size) {
-	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot set button size of invalid dropdown");
-	auto& i{ Get<impl::DropdownInstance>() };
+	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set button size of invalid dropdown");
+	auto& i{ Get<impl::DropdownData>() };
 	if (i.button_size_ == button_size) {
 		return *this;
 	}
@@ -179,8 +179,8 @@ Dropdown& Dropdown::SetButtonSize(std::optional<V2_float> button_size) {
 }
 
 Dropdown& Dropdown::SetButtonOffset(V2_float button_offset) {
-	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot set button offset of invalid dropdown");
-	auto& i{ Get<impl::DropdownInstance>() };
+	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set button offset of invalid dropdown");
+	auto& i{ Get<impl::DropdownData>() };
 	if (i.button_offset_ == button_offset) {
 		return *this;
 	}
@@ -190,8 +190,8 @@ Dropdown& Dropdown::SetButtonOffset(V2_float button_offset) {
 }
 
 Dropdown& Dropdown::SetDropdownDirection(Origin dropdown_direction) {
-	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot set dropdown direction of invalid dropdown");
-	auto& i{ Get<impl::DropdownInstance>() };
+	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set dropdown direction of invalid dropdown");
+	auto& i{ Get<impl::DropdownData>() };
 	if (i.direction_ == dropdown_direction) {
 		return *this;
 	}
@@ -204,8 +204,8 @@ Dropdown& Dropdown::SetDropdownDirection(Origin dropdown_direction) {
 }
 
 Dropdown& Dropdown::SetDropdownOrigin(Origin dropdown_origin) {
-	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot set dropdown origin of invalid dropdown");
-	auto& i{ Get<impl::DropdownInstance>() };
+	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set dropdown origin of invalid dropdown");
+	auto& i{ Get<impl::DropdownData>() };
 	if (i.origin_ == dropdown_origin) {
 		return *this;
 	}
@@ -216,8 +216,8 @@ Dropdown& Dropdown::SetDropdownOrigin(Origin dropdown_origin) {
 }
 
 Dropdown& Dropdown::Toggle() {
-	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot toggle invalid dropdown");
-	auto& i{ Get<impl::DropdownInstance>() };
+	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot toggle invalid dropdown");
+	auto& i{ Get<impl::DropdownData>() };
 	i.open_ = !i.open_;
 	if (i.open_) {
 		Open();
@@ -228,8 +228,8 @@ Dropdown& Dropdown::Toggle() {
 }
 
 Dropdown& Dropdown::Open() {
-	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot open invalid dropdown");
-	auto& i{ Get<impl::DropdownInstance>() };
+	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot open invalid dropdown");
+	auto& i{ Get<impl::DropdownData>() };
 	i.open_ = true;
 	for (auto& b : i.buttons_) {
 		b.Enable();
@@ -240,8 +240,8 @@ Dropdown& Dropdown::Open() {
 	}
 	const auto& children{ GetChildren(*this) };
 	for (const auto& child : children) {
-		if (child.Has<impl::DropdownInstance>()) {
-			const auto& child_i{ child.Get<impl::DropdownInstance>() };
+		if (child.Has<impl::DropdownData>()) {
+			const auto& child_i{ child.Get<impl::DropdownData>() };
 			if (child_i.start_open_) {
 				Dropdown{ child }.Open();
 			}
@@ -251,8 +251,8 @@ Dropdown& Dropdown::Open() {
 }
 
 Dropdown& Dropdown::Close(bool close_parents) {
-	PTGN_ASSERT(Has<impl::DropdownInstance>(), "Cannot close invalid dropdown");
-	auto& i{ Get<impl::DropdownInstance>() };
+	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot close invalid dropdown");
+	auto& i{ Get<impl::DropdownData>() };
 	i.open_ = false;
 	for (auto& b : i.buttons_) {
 		b.Disable();
@@ -260,7 +260,7 @@ Dropdown& Dropdown::Close(bool close_parents) {
 	}
 	if (close_parents && HasParent(*this)) {
 		Entity parent{ GetParent(*this) };
-		if (parent.Has<impl::DropdownInstance>()) {
+		if (parent.Has<impl::DropdownData>()) {
 			Dropdown{ parent }.Close();
 		}
 	}
@@ -269,7 +269,7 @@ Dropdown& Dropdown::Close(bool close_parents) {
 	}
 	const auto& children{ GetChildren(*this) };
 	for (const auto& child : children) {
-		if (child.Has<impl::DropdownInstance>()) {
+		if (child.Has<impl::DropdownData>()) {
 			Dropdown{ child }.Close(false);
 		}
 	}
@@ -281,7 +281,7 @@ Dropdown CreateDropdown(
 ) {
 	Dropdown dropdown_button{ CreateButton(scene, shape) };
 
-	auto& i{ dropdown_button.Add<impl::DropdownInstance>() };
+	auto& i{ dropdown_button.Add<impl::DropdownData>() };
 	i.start_open_ = start_open;
 	AddScript<impl::DropdownScript>(dropdown_button);
 

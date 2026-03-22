@@ -18,7 +18,7 @@
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
 #include "runtime/animation/tween_effect.h"
-#include "runtime/asset/asset_manager.h"
+#include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
@@ -132,8 +132,12 @@ Tooltip CreateTooltip(
 		" already exists in the manager"
 	);
 
-	std::optional<Texture> resolved_texture{ scene.app().asset.ToTexture(tooltip_properties.texture
-	) };
+	std::optional<Texture> resolved_texture;
+
+	if (tooltip_properties.texture.has_value()) {
+		const auto& assets{ scene.app().asset };
+		resolved_texture = tooltip_properties.texture->Get(assets);
+	}
 
 	Tooltip tooltip{ scene.CreateEntity() };
 

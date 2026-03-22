@@ -23,6 +23,7 @@
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_target.h"
+#include "renderer/primitives/resource.h"
 #include "renderer/primitives/scaling_mode.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
@@ -54,9 +55,8 @@ class ShaderObject;
 class SDLInstance;
 class RenderTargetObject;
 class TextureObject;
-class RenderTargetData;
 
-template <typename T>
+template <ResourceType T>
 class Resource;
 
 template <typename State, typename F>
@@ -132,21 +132,21 @@ public:
 	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
 
 	/// @return The display size of the renderer.
-	[[nodiscard]] V2_int GetDisplaySize() const;
+	V2_int GetDisplaySize() const;
 
 	Viewport GetDisplayViewport() const;
 
 	/// @return The amount by which game size is scaled to achieve the display size.
-	[[nodiscard]] V2_float GetScale() const;
+	V2_float GetScale() const;
 
 	/// @return The game size of the renderer. Returns window size if unset.
-	[[nodiscard]] V2_int GetGameSize() const;
+	V2_int GetGameSize() const;
 
 	/// @return The game size scaling mode.
-	[[nodiscard]] ScalingMode GetScalingMode() const;
+	ScalingMode GetScalingMode() const;
 
 	void SetBackgroundColor(Color background_color);
-	[[nodiscard]] Color GetBackgroundColor() const;
+	Color GetBackgroundColor() const;
 
 private:
 	friend class Application;
@@ -159,10 +159,9 @@ private:
 	friend class DebugContext;
 	friend class impl::ShaderObject;
 	friend class impl::RenderTargetObject;
-	friend class impl::RenderTargetData;
 	friend class impl::TextureObject;
 	friend class impl::SDLInstance;
-	template <typename T>
+	template <impl::ResourceType T>
 	friend class impl::Resource;
 
 	template <typename State, typename F>
@@ -205,11 +204,15 @@ private:
 	void Destroy(impl::RenderbufferId id);
 	void Destroy(impl::FramebufferId id);
 	void Destroy(impl::VertexArrayId id);
-	void Destroy(impl::RenderTargetData& render_target);
+	void Destroy(impl::RenderTargetId id);
 
-	void ResizeRenderTarget(impl::RenderTargetData& rt, V2_int new_size);
-	void ClearRenderTarget(const impl::RenderTargetData& rt, Color color, bool set_viewport) const;
-	void BindRenderTarget(const impl::RenderTargetData& rt);
+	impl::TextureId GetRenderTargetTexture(impl::RenderTargetId render_target) const;
+	V2_int GetRenderTargetSize(impl::RenderTargetId render_target) const;
+	TextureFormat GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const;
+	void ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size);
+	void ClearRenderTarget(impl::RenderTargetId render_target, Color color, bool set_viewport)
+		const;
+	void BindRenderTarget(impl::RenderTargetId render_target);
 	void BindRenderPass(impl::RenderPass& render_pass);
 
 	/// @brief Flushes the batch if adding the given number of vertices and indices would exceed
@@ -249,7 +252,7 @@ private:
 	);
 
 	void DrawTexture(
-		impl::ShaderId shader, impl::RenderPass& pass, const impl::RenderTargetData& scene_target,
+		impl::ShaderId shader, impl::RenderPass& pass, impl::RenderTargetId scene_render_target,
 		const std::function<void()>& shader_setup
 	);
 
@@ -271,13 +274,14 @@ private:
 	void BeginFrame();
 	void EndFrame();
 
-	impl::RenderPass BeginPass(const impl::RenderTargetData& scene_target);
+	impl::RenderPass BeginPass(impl::RenderTargetId scene_render_target);
 
 	impl::RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
 
-	impl::RenderTargetData AcquirePooledTarget(V2_int size, TextureFormat format);
+	impl::RenderTargetId AcquirePooledTargetCopy(impl::RenderTargetId render_target);
+	impl::RenderTargetId AcquirePooledTarget(V2_int size, TextureFormat format);
 
-	void ReleasePooledTarget(impl::RenderTargetData& target);
+	void ReleasePooledTarget(impl::RenderTargetId render_target);
 
 	Window& window_;
 

@@ -8,6 +8,7 @@
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
+#include "runtime/asset/asset.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
@@ -27,13 +28,13 @@ struct TextureSize : public Vector2Component<float> {
 };
 
 struct TextureCrop {
-	// Position and size are V2_float instead of V2_int to allow for smooth increase in display size
-	// (for example).
+	/// @brief Position and size are V2_float instead of V2_int to allow for smooth increase in
+	/// display size (for example).
 
-	// Top left position (in pixels) within the texture from which the crop starts.
+	/// @brief Top left position (in pixels) within the texture from which the crop starts.
 	V2_float position;
 
-	// Size of the crop in pixels. std::nullopt will use full size of the unscaled texture.
+	/// @brief Size of the crop in pixels. std::nullopt will use full size of the unscaled texture.
 	std::optional<V2_float> size;
 
 	bool operator==(const TextureCrop&) const = default;
@@ -50,12 +51,11 @@ public:
 
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
-	Sprite& SetTexture(std::variant<Texture, std::string_view> texture);
+	Sprite& SetTexture(TextureOrKey texture);
 };
 
 Sprite CreateSprite(
-	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position = {},
-	Origin draw_origin = Origin::Center
+	Scene& scene, TextureOrKey texture, V2_float position = {}, Origin draw_origin = Origin::Center
 );
 
 PTGN_REGISTER_DRAWABLE(Sprite);

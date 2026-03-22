@@ -19,6 +19,7 @@
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
 #include "runtime/animation/animation.h"
+#include "runtime/asset/asset.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
@@ -143,7 +144,7 @@ enum class ButtonState : std::uint8_t {
 struct ButtonStyleState {
 	ButtonStyleState() = default;
 
-	ButtonStyleState(ButtonState state, bool disabled = false, bool toggled = false) :
+	ButtonStyleState(ButtonState state, bool disabled = false, bool toggled = false) : // NOSONAR
 		state{ state }, disabled{ disabled }, toggled{ toggled } {}
 
 	static ButtonStyleState Idle() {
@@ -162,7 +163,7 @@ inline std::ostream& operator<<(std::ostream& os, ButtonState state) {
 		case Hover:	  return os << "Hover";
 		case Press:	  return os << "Press";
 		case Current: return os << "Current";
-		default:	  PTGN_ERROR("Unknown button state: ", std::to_underlying(state));
+		default:	  PTGN_ERROR("Unknown ButtonState: ", std::to_underlying(state));
 	}
 }
 
@@ -189,13 +190,13 @@ enum class InternalButtonState {
 inline std::ostream& operator<<(std::ostream& os, InternalButtonState state) {
 	switch (state) {
 		using enum InternalButtonState;
-		case IdleDown:	   return os << "Idle Down";
-		case IdleUp:	   return os << "Idle Up";
+		case IdleDown:	   return os << "IdleDown";
+		case IdleUp:	   return os << "IdleUp";
 		case Hover:		   return os << "Hover";
-		case HoverPressed: return os << "Hover Pressed";
+		case HoverPressed: return os << "HoverPressed";
 		case Pressed:	   return os << "Pressed";
-		case HeldOutside:  return os << "Held Outside";
-		default:		   PTGN_ERROR("Unknown internal button state: ", std::to_underlying(state));
+		case HeldOutside:  return os << "HeldOutside";
+		default:		   PTGN_ERROR("Unknown InternalButtonState: ", std::to_underlying(state));
 	}
 }
 
@@ -335,60 +336,52 @@ public:
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
 	/// @return In order of precedence: rect size, circle radius, texture size.
-	[[nodiscard]] std::optional<std::variant<Rect, Circle>> GetShape() const;
+	std::optional<std::variant<Rect, Circle>> GetShape() const;
 
 	/// @param check_for_hover_enabled If true, checks for button hovering being enabled instead.
 	/// @return True if the button activation is enabled, false otherwise.
 	[[nodiscard]] bool IsEnabled(bool check_for_hover_enabled = false) const;
 
-	[[nodiscard]] ButtonState GetState() const;
+	ButtonState GetState() const;
 
-	[[nodiscard]] ButtonStyleState GetStyleState() const;
+	ButtonStyleState GetStyleState() const;
 
-	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
+	impl::InternalButtonState GetInternalState() const;
 
-	[[nodiscard]] std::optional<std::variant<Rect, Circle>> GetBackgroundShape(
-		ButtonStyleState state = {}
-	) const;
+	std::optional<std::variant<Rect, Circle>> GetBackgroundShape(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] Color GetBackgroundColor(ButtonStyleState state = {}) const;
+	Color GetBackgroundColor(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] std::optional<Texture> GetTexture(ButtonStyleState state = {}) const;
+	std::optional<Texture> GetTexture(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] Color GetTint(ButtonStyleState state = {}) const;
+	Color GetTint(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] std::optional<Color> GetTextColor(ButtonStyleState state = {}) const;
+	std::optional<Color> GetTextColor(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] std::optional<std::string> GetTextContent(ButtonStyleState state = {}) const;
+	std::optional<std::string> GetTextContent(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] std::optional<TextJustify> GetTextJustify(ButtonStyleState state = {}) const;
+	std::optional<TextJustify> GetTextJustify(ButtonStyleState state = {}) const;
 
 	/// @return A pair of (x, y) fixed text size, or {} if the text size is not fixed. If either
 	/// axis is
 	/// {}, it is stretched to fit the entire size of the button rectangle (along that axis).
-	[[nodiscard]] std::optional<ButtonTextFixedSize> GetTextFixedSize(ButtonStyleState state = {})
-		const;
+	std::optional<ButtonTextFixedSize> GetTextFixedSize(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] std::optional<float> GetFontSize(
-		bool hd, const std::optional<Camera>& camera, ButtonStyleState state = {}
-	) const;
+	std::optional<FontSize> GetFontSize(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] std::optional<Text> GetText(ButtonStyleState state = {}) const;
+	std::optional<Text> GetText(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] std::optional<Audio> GetSound(ButtonStyleState state = {}) const;
+	std::optional<Audio> GetSound(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] std::optional<Animation> GetAnimation(ButtonStyleState state = {}) const;
+	std::optional<Animation> GetAnimation(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] std::optional<std::variant<Rect, Circle>> GetBorderShape(
-		ButtonStyleState state = {}
-	) const;
+	std::optional<std::variant<Rect, Circle>> GetBorderShape(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] Color GetBorderColor(ButtonStyleState state = {}) const;
+	Color GetBorderColor(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] std::optional<FillStyle> GetBackgroundFillStyle(ButtonStyleState state = {})
-		const;
+	std::optional<FillStyle> GetBackgroundFillStyle(ButtonStyleState state = {}) const;
 
-	[[nodiscard]] std::optional<float> GetBorderWidth(ButtonStyleState state = {}) const;
+	std::optional<float> GetBorderWidth(ButtonStyleState state = {}) const;
 
 	std::optional<Entity> GetSprite(ButtonStyleState state = {}) const;
 
@@ -404,14 +397,14 @@ public:
 		bool enable_activation = true, bool enable_hover = true, bool reset_state = true
 	);
 
-	/// Manual button script triggers.
+	/// @brief Manual button script triggers.
 	/// Called when the mouse is clicked over the button.
 	Derived& Activate();
-	/// Called once when hovering starts (mouse enters button).
+	/// @brief Called once when hovering starts (mouse enters button).
 	Derived& StartHover();
-	/// Called continuously when hovering (including when hover starts).
+	/// @brief Called continuously when hovering (including when hover starts).
 	Derived& ContinueHover();
-	/// Called once when hovering stops (mouse exits button).
+	/// @brief Called once when hovering stops (mouse exits button).
 	Derived& StopHover();
 
 	/// @param Sets the shape of the button interactive area. If nullopt, uses the
@@ -424,8 +417,7 @@ public:
 
 	/// @param sound If nullopt, removes the button sound.
 	Derived& SetSound(
-		const std::optional<std::variant<Audio, std::string_view>>& sound,
-		ButtonStyleState state = ButtonStyleState::Idle()
+		std::optional<AudioOrKey> sound, ButtonStyleState state = ButtonStyleState::Idle()
 	);
 
 	Derived& SetAnimation(Animation&& animation, ButtonStyleState state = ButtonStyleState::Idle());
@@ -437,10 +429,7 @@ public:
 		ButtonStyleState state = ButtonStyleState::Idle()
 	);
 	Derived& SetBackgroundColor(Color color, ButtonStyleState state = ButtonStyleState::Idle());
-	Derived& SetTexture(
-		std::variant<Texture, std::string_view> texture,
-		ButtonStyleState state = ButtonStyleState::Idle()
-	);
+	Derived& SetTexture(TextureOrKey texture, ButtonStyleState state = ButtonStyleState::Idle());
 	Derived& SetTint(Color tint, ButtonStyleState state = ButtonStyleState::Idle());
 	Derived& SetTextColor(Color text_color, ButtonStyleState state = ButtonStyleState::Idle());
 	Derived& SetTextContent(
@@ -453,14 +442,11 @@ public:
 		std::optional<ButtonTextFixedSize> size = {},
 		ButtonStyleState state					= ButtonStyleState::Idle()
 	);
-	Derived& SetFontSize(
-		std::optional<float> font_size, ButtonStyleState state = ButtonStyleState::Idle()
-	);
+	Derived& SetFontSize(FontSize font_size, ButtonStyleState state = ButtonStyleState::Idle());
 	Derived& SetText(
-		std::string_view text_content, Color text_color = color::Black,
-		std::optional<float> font_size = {}, std::optional<Font> font = {},
-		const TextProperties& text_properties = {},
-		ButtonStyleState state				  = ButtonStyleState::Idle()
+		std::string_view text_content, Color text_color = color::Black, FontSize font_size = {},
+		FontOrKey font = {}, const TextProperties& text_properties = {},
+		ButtonStyleState state = ButtonStyleState::Idle()
 	);
 	Derived& SetBorderShape(
 		std::optional<std::variant<Rect, Circle>> shape,
@@ -499,8 +485,7 @@ private:
 
 	void SetText(
 		GameObject& text, std::string_view text_content = {}, std::optional<Color> text_color = {},
-		std::optional<float> font_size = {}, std::optional<Font> font = {},
-		const TextProperties& text_properties = {}
+		FontSize font_size = {}, FontOrKey font = {}, const TextProperties& text_properties = {}
 	);
 
 	void SetState(InternalButtonState new_state);
@@ -523,7 +508,7 @@ class ToggleButton : public impl::ButtonBase<ToggleButton> {
 public:
 	ToggleButton() = default;
 	using impl::ButtonBase<ToggleButton>::ButtonBase;
-	operator Button() const;
+	operator Button() const; // NOSONAR
 
 	[[nodiscard]] bool IsToggled() const;
 
@@ -551,7 +536,7 @@ public:
 	void SetActive(std::string_view button_key);
 
 	/// @return Active button, or nullopt if no button is active.
-	[[nodiscard]] std::optional<ToggleButton> GetActive() const;
+	std::optional<ToggleButton> GetActive() const;
 
 	void AddToggleScript(ToggleButton toggle_button) const;
 
@@ -582,13 +567,13 @@ private:
 /// provided, text size is used. If no text is provided, calls debug assertion.
 Button CreateButton(
 	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape = {},
-	ButtonConfig config = {}, bool ui_layer = true
+	ButtonConfig config = ButtonConfig{}, bool ui_layer = true
 );
 
 /// @param toggled Whether or not the button start in the toggled state.
 ToggleButton CreateToggleButton(
 	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape = {},
-	ToggleButtonConfig config = {}, bool toggled = false
+	ToggleButtonConfig config = ToggleButtonConfig{}, bool toggled = false
 );
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);

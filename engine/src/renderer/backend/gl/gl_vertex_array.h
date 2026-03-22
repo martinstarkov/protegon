@@ -121,7 +121,7 @@ private:
 		std::uint32_t index, const BufferElement& element, std::int32_t stride
 	);
 
-	[[nodiscard]] int GetMaxVertexAttribs() const;
+	int GetMaxVertexAttribs() const;
 
 	void InvalidateElementBuffer(ElementBufferId element_buffer);
 

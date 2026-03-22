@@ -9,9 +9,10 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_target.h"
-#include "renderer/primitives/texture.h"
+#include "renderer/primitives/texture_format.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
@@ -52,14 +53,7 @@ void RenderTarget::Bind() {
 }
 
 void RenderTarget::Clear(std::optional<Color> color, bool set_viewport) {
-	Color clear;
-
-	if (color.has_value()) {
-		clear = *color;
-	} else {
-		clear = GetOrDefault<ClearColor>().value;
-	}
-
+	Color clear{ color.value_or(GetOrDefault<ClearColor>().value) };
 	Get<impl::RenderTargetObject>().Clear(clear, set_viewport);
 }
 
@@ -93,8 +87,8 @@ TextureFormat RenderTarget::GetFormat() const {
 	return Get<impl::RenderTargetObject>().GetFormat();
 }
 
-RenderTarget::operator impl::TextureId() const {
-	return Get<impl::RenderTargetObject>();
+RenderTarget::operator impl::RenderTargetId() const {
+	return Get<impl::RenderTargetObject>().operator impl::RenderTargetId();
 }
 
 void RenderTarget::Draw(DrawContext& renderer, Entity entity, Camera) {
@@ -119,7 +113,7 @@ void RenderTarget::Draw(DrawContext& renderer, Entity entity, Camera) {
 	auto tint{ GetTint(entity) };
 	auto depth{ GetDepth(entity) };
 	auto texture_coordinates{ GetTextureCoordinates(entity, false) };
-	auto texture{ entity.Get<impl::RenderTargetObject>().operator impl::TextureId() };
+	auto texture{ entity.Get<impl::RenderTargetObject>().GetTextureId() };
 
 	renderer.SetBlend(blend_mode);
 	renderer.DrawTexture(texture, positions, tint, depth.GetValue(), texture_coordinates);

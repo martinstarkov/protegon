@@ -30,10 +30,10 @@ struct ShaderPath {
 
 	// Not explicit on purpose. Allows implicit conversion from path to ShaderPath, which is useful
 	// for the common case of loading shaders from files.
-	ShaderPath(const char* path, bool delete_after = true) :
+	ShaderPath(const char* path, bool delete_after = true) : // NOSONAR
 		path{ path }, delete_after{ delete_after } {}
 
-	ShaderPath(const path& path, bool delete_after = true) :
+	ShaderPath(const path& path, bool delete_after = true) : // NOSONAR
 		path{ path }, delete_after{ delete_after } {}
 
 	path path;
@@ -76,12 +76,27 @@ public:
 
 	template <typename T>
 	void SetUniform(const char* uniform_name, const T& value) {
-		entity_.Get<impl::ShaderObject>().SetUniform(uniform_name, value);
+		GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, value);
 	}
 
-	operator impl::ShaderId() const;
+	friend std::ostream& operator<<(std::ostream& os, const Shader& s) {
+		os << "{ shader id: " << s.operator impl::ShaderId() << " }";
+		return os;
+	}
+
+	// TODO: Consider moving this to private and not exposing any render functions that use ids.
+	operator impl::ShaderId() const; // NOSONAR
 };
 
-std::ostream& operator<<(std::ostream& o, const Shader& s);
-
 } // namespace ptgn
+
+namespace std {
+
+template <>
+struct hash<ptgn::Shader> {
+	std::size_t operator()(const ptgn::Shader& shader) const {
+		return std::hash<ecs::Entity>()(shader.GetEntity());
+	}
+};
+
+} // namespace std

@@ -50,23 +50,23 @@ public:
 
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
-	void Clear();
+	Graphics& Clear();
 
-	void SetFillColor(Color color);
-	void SetStrokeColor(Color color);
-	void SetLineWidth(FillStyle width);
+	Graphics& SetFillColor(Color color);
+	Graphics& SetStrokeColor(Color color);
+	Graphics& SetLineWidth(FillStyle width);
 
-	void Line(V2_float start, V2_float end);
-	void Line(ptgn::Line line);
+	Graphics& Line(V2_float start, V2_float end);
+	Graphics& Line(ptgn::Line line);
 
-	void FillRect(Transform transform, Rect rect);
-	void StrokeRect(Transform transform, Rect rect);
+	Graphics& FillRect(Transform transform, Rect rect);
+	Graphics& StrokeRect(Transform transform, Rect rect);
 
-	void FillCircle(V2_float center, Circle circle);
-	void StrokeCircle(V2_float center, Circle circle);
+	Graphics& FillCircle(V2_float center, Circle circle);
+	Graphics& StrokeCircle(V2_float center, Circle circle);
 
-	void FillPolygon(const Polygon& polygon);
-	void StrokePolygon(const Polygon& polygon);
+	Graphics& FillPolygon(const Polygon& polygon);
+	Graphics& StrokePolygon(const Polygon& polygon);
 };
 
 PTGN_REGISTER_DRAWABLE(Graphics);

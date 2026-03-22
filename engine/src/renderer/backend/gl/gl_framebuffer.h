@@ -14,7 +14,6 @@
 #include "core/util/file.h"
 #include "core/util/id_map.h"
 #include "renderer/primitives/color.h"
-#include "renderer/primitives/framebuffer.h"
 #include "renderer/primitives/id.h"
 
 namespace ptgn::impl::gl {
@@ -104,6 +103,10 @@ public:
 
 	void DestroyFramebuffer(FramebufferId id);
 
+	/// @brief Destroys the framebuffer and any color, depth, or stencil attachments that are
+	/// attached to it.
+	void DestroyFramebufferOwning(FramebufferId id);
+
 	void AttachTexture(FramebufferId framebuffer, TextureId texture, Attachment attachment);
 
 	void AttachRenderbuffer(
@@ -134,9 +137,11 @@ public:
 	/// @brief WARNING: This function is slow and should be primarily used for debugging
 	/// framebuffers.
 	/// @param coordinate Pixel coordinate from [0, size).
-	PixelValue ReadPixel(
+	[[nodiscard]] PixelValue ReadPixel(
 		FramebufferId framebuffer, V2_int coordinate, Attachment attachment = Attachment::Color0
 	);
+
+	std::vector<AttachmentSpec> GetAttachments(FramebufferId framebuffer) const;
 
 	enum class AttachmentType {
 		Color,
@@ -208,7 +213,7 @@ private:
 
 	[[nodiscard]] bool FramebufferIsComplete(FramebufferId framebuffer) const;
 
-	[[nodiscard]] const char* GetFramebufferStatus() const;
+	const char* GetFramebufferStatus() const;
 
 	AttachmentType GetAttachmentType(Attachment attachment) const;
 

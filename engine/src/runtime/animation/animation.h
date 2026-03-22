@@ -13,6 +13,7 @@
 #include "core/time/time.h"
 #include "core/time/timer.h"
 #include "renderer/primitives/texture.h"
+#include "runtime/asset/asset.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
@@ -98,7 +99,7 @@ struct Animation : public Entity {
 	Animation& OnUpdate(const std::function<void()>& callback);
 	Animation& OnComplete(const std::function<void()>& callback);
 
-	Animation& SetTexture(std::variant<Texture, std::string_view> texture);
+	Animation& SetTexture(TextureOrKey texture);
 
 	/// @brief Starts the animation. Can also be used to restart the animation.
 	/// @param force If false, only starts the animation if it is not already playing.
@@ -123,18 +124,18 @@ struct Animation : public Entity {
 	[[nodiscard]] bool IsPlaying() const;
 
 	/// @return The number of plays of the full animation sequence so far.
-	[[nodiscard]] std::size_t GetPlayCount() const;
+	std::size_t GetPlayCount() const;
 
 	/// @return The total number of plays of individual animation frames so far.
-	[[nodiscard]] std::size_t GetFramePlayCount() const;
+	std::size_t GetFramePlayCount() const;
 
 	/// @return Duration of the full animation sequence.
-	[[nodiscard]] milliseconds GetDuration() const;
+	milliseconds GetDuration() const;
 
 	/// @return Duration of a single animation frame (all frames currently have the same duration).
-	[[nodiscard]] milliseconds GetFrameDuration() const;
+	milliseconds GetFrameDuration() const;
 
-	[[nodiscard]] std::size_t GetFrameCount() const;
+	std::size_t GetFrameCount() const;
 
 	/// @brief Set the current animation frame.
 	/// new_frame is wrapped around frame_count using Mod().
@@ -142,11 +143,11 @@ struct Animation : public Entity {
 
 	Animation& IncrementFrame();
 
-	[[nodiscard]] std::size_t GetCurrentFrame() const;
+	std::size_t GetCurrentFrame() const;
 
-	[[nodiscard]] V2_int GetCurrentFramePosition() const;
+	V2_int GetCurrentFramePosition() const;
 
-	[[nodiscard]] V2_int GetFrameSize() const;
+	V2_int GetFrameSize() const;
 };
 
 namespace impl {
@@ -205,7 +206,7 @@ public:
 	bool SetActive(std::string_view animation_key);
 
 	/// @return Active animation, or nullopt if no animation is active.
-	[[nodiscard]] std::optional<Animation> GetActive() const;
+	std::optional<Animation> GetActive() const;
 };
 
 namespace impl {
@@ -220,11 +221,11 @@ public:
 		V2_float animation_start_pixel
 	);
 
-	[[nodiscard]] milliseconds GetFrameDuration() const;
-	[[nodiscard]] V2_int GetCurrentFramePosition() const;
+	milliseconds GetFrameDuration() const;
+	V2_int GetCurrentFramePosition() const;
 
 	/// @return Total number of animation repeats.
-	[[nodiscard]] std::size_t GetPlayCount() const;
+	std::size_t GetPlayCount() const;
 
 	void SetCurrentFrame(std::size_t new_frame);
 	void IncrementFrame();
@@ -273,8 +274,7 @@ public:
 /// @param texture Texture or texture key to be used for the animation.
 /// @param position Where on the screen to place the animation object.
 Animation CreateAnimation(
-	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position,
-	const AnimationConfig& config
+	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config
 );
 
 AnimationMap CreateAnimationMap(Scene& scene);

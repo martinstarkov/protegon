@@ -2,9 +2,7 @@
 
 #include <cstdint>
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 template <typename Tag>
 struct Id {
@@ -14,7 +12,7 @@ struct Id {
 
 	constexpr explicit Id(std::uint32_t v) : value{ v } {}
 
-	constexpr operator std::uint32_t() const {
+	constexpr operator std::uint32_t() const { // NOSONAR
 		return value;
 	}
 };
@@ -35,15 +33,16 @@ struct ElementBufferTag {};
 
 struct UniformBufferTag {};
 
+struct RenderTargetTag {};
+
 using TextureId		  = Id<TextureTag>;
 using ShaderId		  = Id<ShaderTag>;
 using VertexArrayId	  = Id<VertexArrayTag>;
 using FramebufferId	  = Id<FramebufferTag>;
+using RenderTargetId  = Id<RenderTargetTag>;
 using RenderbufferId  = Id<RenderbufferTag>;
 using VertexBufferId  = Id<VertexBufferTag>;
 using ElementBufferId = Id<ElementBufferTag>;
 using UniformBufferId = Id<UniformBufferTag>;
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

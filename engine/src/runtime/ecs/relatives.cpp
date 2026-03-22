@@ -66,7 +66,8 @@ bool Children::Has(Entity child) const {
 
 bool Children::Has(std::string_view name) const {
 	ChildKey k{ name };
-	for (const auto& entity : children_) {
+
+	for (const auto& entity : children_) { // NOSONAR
 		if (entity.Has<ChildKey>() && entity.Get<ChildKey>() == k) {
 			return true;
 		}

@@ -143,7 +143,7 @@ BindGuard<VertexArrayId> VertexArrays::BindVertexArray(
 	return gl_.Bind(vertex_array, restore_bind);
 }
 
-[[nodiscard]] bool VertexArrays::IsBound(VertexArrayId vertex_array) const {
+bool VertexArrays::IsBound(VertexArrayId vertex_array) const {
 	return gl_.IsBound(vertex_array);
 }
 

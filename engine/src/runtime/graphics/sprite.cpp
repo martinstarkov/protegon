@@ -1,9 +1,6 @@
 #include "runtime/graphics/sprite.h"
 
 #include <optional>
-#include <string_view>
-#include <type_traits>
-#include <variant>
 
 #include "app/context.h"
 #include "core/assert.h"
@@ -13,7 +10,7 @@
 #include "core/math/vector4.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
-#include "runtime/asset/asset_manager.h"
+#include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
@@ -26,20 +23,24 @@ Sprite::Sprite(Entity entity) : Entity{ entity } {}
 
 void Sprite::Draw(DrawContext& renderer, Entity entity, Camera, Color additional_tint) {
 	PTGN_ASSERT(entity.Has<Texture>());
+	const auto& texture{ entity.Get<Texture>() };
+	auto texture_size{ GetDisplaySize(entity) };
+	PTGN_ASSERT(texture_size.has_value(), "Sprite texture does not have a valid texture size");
+
 	auto draw_transform{ GetDrawTransform(entity) };
-	// Get display size already handles the scale.
+	// GetDisplaySize already handles the scaling.
 	auto scale{ draw_transform.GetScale() };
 	PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component");
 	draw_transform.SetScale(scale / Abs(scale));
-	auto texture_size{ GetDisplaySize(entity) };
-	auto draw_origin{ GetDrawOrigin(entity) };
+
 	auto tint{ GetTint(entity) };
 	impl::Tint final_tint{ tint.Normalized() * additional_tint.Normalized() };
+
+	auto draw_origin{ GetDrawOrigin(entity) };
 	auto depth{ GetDepth(entity) };
 	auto tex_coords{ GetTextureCoordinates(entity, false) };
 	auto blend_mode{ GetBlendMode(entity) };
-	const auto& texture{ entity.Get<Texture>() };
-	PTGN_ASSERT(texture_size.has_value(), "Sprite texture does not have a valid texture size");
+
 	renderer.DrawTexture(
 		texture, draw_transform, *texture_size, draw_origin, final_tint, depth, tex_coords,
 		blend_mode
@@ -47,22 +48,20 @@ void Sprite::Draw(DrawContext& renderer, Entity entity, Camera, Color additional
 }
 
 void Sprite::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	Sprite::Draw(renderer, entity, camera, color::White);
+	Sprite::Draw(renderer, entity, camera, impl::Tint{});
 }
 
-Sprite& Sprite::SetTexture(std::variant<Texture, std::string_view> texture) {
+Sprite& Sprite::SetTexture(TextureOrKey texture) {
 	const auto& scene{ GetScene() };
+	const auto& assets{ scene.app().asset };
 
-	Texture resolved_texture{ *scene.app().asset.ToTexture(texture) };
+	Texture resolved_texture{ texture.Get(assets) };
 
 	Add<Texture>(resolved_texture);
 	return *this;
 }
 
-Sprite CreateSprite(
-	Scene& scene, std::variant<Texture, std::string_view> texture, V2_float position,
-	Origin draw_origin
-) {
+Sprite CreateSprite(Scene& scene, TextureOrKey texture, V2_float position, Origin draw_origin) {
 	Sprite sprite{ scene.CreateEntity() };
 
 	SetDraw<Sprite>(sprite);

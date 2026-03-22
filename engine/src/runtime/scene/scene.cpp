@@ -293,8 +293,10 @@ void Scene::InternalDraw() {
 
 	auto quad_shader{ global_renderer.GetShader("quad") };
 
+	auto render_target_texture{ global_renderer.GetRenderTargetTexture(render_target_) };
+
 	global_renderer.DrawTexture(
-		quad_shader, render_target_, positions, rt_tint, 0.0f, tex_coords, {}
+		quad_shader, render_target_texture, positions, rt_tint, 0.0f, tex_coords, {}
 	);
 
 	// Must be cleared after BindScreenTarget, as that flushes the batch.

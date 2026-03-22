@@ -4,6 +4,7 @@
 
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
+#include "ecs/ecs.h"
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/resource.h"
 #include "renderer/primitives/texture_format.h"
@@ -31,9 +32,25 @@ public:
 	V2_int GetSize() const;
 	TextureFormat GetFormat() const;
 
-	operator impl::TextureId() const;
+	friend std::ostream& operator<<(std::ostream& os, const Texture& t) {
+		os << "{ texture id: " << t.operator impl::TextureId();
+		os << ", size: " << t.GetSize() << " }";
+		return os;
+	}
+
+	// TODO: Consider moving this to private and not exposing any render functions that use ids.
+	operator impl::TextureId() const; // NOSONAR
 };
 
-std::ostream& operator<<(std::ostream& o, const Texture& t);
-
 } // namespace ptgn
+
+namespace std {
+
+template <>
+struct hash<ptgn::Texture> {
+	std::size_t operator()(const ptgn::Texture& texture) const {
+		return std::hash<ecs::Entity>()(texture.GetEntity());
+	}
+};
+
+} // namespace std

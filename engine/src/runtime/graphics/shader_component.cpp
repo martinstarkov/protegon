@@ -2,8 +2,6 @@
 
 #include <functional>
 #include <optional>
-#include <string_view>
-#include <variant>
 
 #include "app/context.h"
 #include "core/assert.h"
@@ -12,7 +10,7 @@
 #include "core/math/vector2.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
-#include "runtime/asset/asset_manager.h"
+#include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
@@ -60,17 +58,18 @@ void SetShaderSetup(ShaderEntity entity, const std::function<void(Entity, Shader
 }
 
 ShaderEntity CreateShaderEntity(
-	Scene& scene, std::variant<Shader, std::string_view> shader,
-	const std::optional<std::variant<Texture, std::string_view>>& texture, V2_float position,
+	Scene& scene, ShaderOrKey shader, std::optional<TextureOrKey> texture, V2_float position,
 	V2_float size, const std::function<void(Entity, Shader)>& shader_setup, Origin draw_origin
 ) {
 	ShaderEntity shader_entity{ scene.CreateEntity() };
 
-	auto resolved_shader{ *scene.app().asset.ToShader(shader) };
+	const auto& assets{ scene.app().asset };
 
-	if (auto resolved_texture{ scene.app().asset.ToTexture(texture) };
-		resolved_texture.has_value()) {
-		shader_entity.Add<Texture>(*resolved_texture);
+	auto resolved_shader{ shader.Get(assets) };
+
+	if (texture.has_value()) {
+		auto resolved_texture{ texture->Get(assets) };
+		shader_entity.Add<Texture>(resolved_texture);
 	}
 
 	auto& shader_data{ shader_entity.Add<impl::ShaderData>() };

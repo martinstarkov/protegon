@@ -79,7 +79,6 @@ Renderer::Renderer(Window& window, EventHandler& events) :
 													V2_int{ 1, 1 }, TextureFormat::RGBA8
 												) };
 
-	// TODO: Use display size instead of window size.
 	auto viewport{ window.GetSize() };
 
 	PTGN_ASSERT(viewport.BothAboveZero(), "Viewport cannot be zero");
@@ -133,14 +132,13 @@ impl::RenderTargetObject Renderer::CreateRenderTarget(V2_int size, TextureFormat
 		IsDepthOnlyFormat(format) ? impl::gl::Attachment::Depth : impl::gl::Attachment::DepthStencil
 	);
 
-	return impl::RenderTargetObject{ this, impl::RenderTargetData{ framebuffer, color, depth, size,
-																   format } };
+	return impl::RenderTargetObject{ this, impl::RenderTargetId{ framebuffer } };
 }
 
-impl::RenderPass Renderer::BeginPass(const impl::RenderTargetData& scene_target) {
+impl::RenderPass Renderer::BeginPass(impl::RenderTargetId scene_render_target) {
 	impl::RenderPass p;
-	p.source_			= scene_target;
-	p.ping_				= AcquirePooledTarget(scene_target.size_, scene_target.format_);
+	p.source_			= scene_render_target;
+	p.ping_				= AcquirePooledTargetCopy(scene_render_target);
 	p.has_ping_			= true;
 	p.has_written_once_ = false; // latest = source initially
 	p.latest_is_ping_	= true;	 // irrelevant until has_written_once==true
@@ -148,7 +146,14 @@ impl::RenderPass Renderer::BeginPass(const impl::RenderTargetData& scene_target)
 	return p;
 }
 
-impl::RenderTargetData Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
+impl::RenderTargetId Renderer::AcquirePooledTargetCopy(impl::RenderTargetId render_target) {
+	auto size{ GetRenderTargetSize(render_target) };
+	auto format{ GetRenderTargetTextureFormat(render_target) };
+
+	return AcquirePooledTarget(size, format);
+}
+
+impl::RenderTargetId Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
 	++pool_tick_;
 
 	auto claim = [&](impl::PooledTarget& e) {
@@ -203,11 +208,11 @@ impl::RenderTargetData Renderer::AcquirePooledTarget(V2_int size, TextureFormat 
 	return rt.target.resource_;
 }
 
-void Renderer::ReleasePooledTarget(impl::RenderTargetData& target) {
+void Renderer::ReleasePooledTarget(impl::RenderTargetId render_target) {
 	++pool_tick_;
 
-	std::erase_if(rt_pool_, [&target](auto& e) {
-		if (e.target.resource_ == target) {
+	std::erase_if(rt_pool_, [render_target](auto& e) {
+		if (e.target.resource_ == render_target) {
 			return true; // remove from pool
 		}
 		return false;
@@ -216,15 +221,13 @@ void Renderer::ReleasePooledTarget(impl::RenderTargetData& target) {
 #ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("Renderer::ReleasePooledTarget -> rt_pool_.size() = ", rt_pool_.size());
 #endif
-
-	target = {};
 }
 
 void Renderer::DrawTexture(
-	impl::ShaderId shader, impl::RenderPass& p, const impl::RenderTargetData& scene_target,
+	impl::ShaderId shader, impl::RenderPass& p, impl::RenderTargetId scene_render_target,
 	const std::function<void()>& shader_setup
 ) {
-	impl::RenderTargetData input;
+	impl::RenderTargetId input;
 
 	// Input = latest output, or source before first draw
 	if (!p.has_written_once_) {
@@ -235,33 +238,31 @@ void Renderer::DrawTexture(
 		input = p.pong_;
 	}
 
-	PTGN_ASSERT(input.color_.has_value(), "Cannot draw to input texture with no color attachment");
-
 	auto bound_frame_buffer{ gl_->GetBoundFramebuffer() };
 
 	// Are we rendering *into this pass*?
-	bool writing_to_pass = bound_frame_buffer == p.ping_.framebuffer_ ||
-						   (p.has_pong_ && bound_frame_buffer == p.pong_.framebuffer_);
+	bool writing_to_pass =
+		bound_frame_buffer == p.ping_ || (p.has_pong_ && bound_frame_buffer == p.pong_);
 
-	bool input_is_offscreen = input.framebuffer_ != scene_target.framebuffer_;
+	bool input_is_offscreen = input != scene_render_target;
 
-	bool output_is_offscreen = bound_frame_buffer != scene_target.framebuffer_;
+	bool output_is_offscreen = bound_frame_buffer != scene_render_target;
 
 	bool flip_y = input_is_offscreen && !output_is_offscreen;
 
-	auto texture_size{ gl_->textures.GetTextureSize(*input.color_) };
+	auto texture_size{ GetRenderTargetSize(input) };
 	auto points{ impl::GetCenteredQuadPoints(texture_size) };
 	auto tex_coords{ impl::GetDefaultTextureCoordinates(flip_y) };
 
 	// Only ping-pong if we're writing into the pass
 	if (writing_to_pass) {
-		impl::RenderTargetData write;
+		impl::RenderTargetId write;
 
 		if (!p.has_written_once_) {
 			write = p.ping_;
 		} else {
 			if (!p.has_pong_ && p.latest_is_ping_) {
-				p.pong_		= AcquirePooledTarget(p.source_.size_, p.source_.format_);
+				p.pong_		= AcquirePooledTargetCopy(p.source_);
 				p.has_pong_ = true;
 			}
 			write = p.latest_is_ping_ ? p.pong_ : p.ping_;
@@ -269,14 +270,17 @@ void Renderer::DrawTexture(
 
 		BindRenderTarget(write);
 
-		DrawTexture(shader, *input.color_, points, color::White, 0.0f, tex_coords, shader_setup);
+		auto texture{ GetRenderTargetTexture(input) };
+
+		DrawTexture(shader, texture, points, color::White, 0.0f, tex_coords, shader_setup);
 
 		// Update pass state
 		p.has_written_once_ = true;
-		p.latest_is_ping_	= (write.framebuffer_ == p.ping_.framebuffer_);
+		p.latest_is_ping_	= write == p.ping_;
 	} else {
+		auto texture{ GetRenderTargetTexture(input) };
 		// Read-only draw: no mutation, no flip
-		DrawTexture(shader, *input.color_, points, color::White, 0.0f, tex_coords, shader_setup);
+		DrawTexture(shader, texture, points, color::White, 0.0f, tex_coords, shader_setup);
 	}
 }
 
@@ -312,8 +316,8 @@ void Renderer::Destroy(impl::VertexArrayId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(impl::RenderTargetData& render_target) {
-	gl_->Destroy(render_target);
+void Renderer::Destroy(impl::RenderTargetId id) {
+	gl_->Destroy(id);
 };
 
 V2_int Renderer::GetTextureSize(impl::TextureId texture) const {
@@ -324,48 +328,70 @@ TextureFormat Renderer::GetTextureFormat(impl::TextureId texture) const {
 	return gl_->textures.GetTextureFormat(texture);
 }
 
-void Renderer::ResizeRenderTarget(impl::RenderTargetData& rt, V2_int new_size) {
-	if (rt.size_ == new_size) {
-		return;
-	}
-
-	gl_->framebuffers.ResizeFramebuffer(rt.framebuffer_, new_size);
-
-	rt.size_ = new_size;
+void Renderer::ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size) {
+	gl_->framebuffers.ResizeFramebuffer(impl::FramebufferId{ render_target }, new_size);
 }
 
-void Renderer::ClearRenderTarget(const impl::RenderTargetData& rt, Color color, bool set_viewport)
+impl::TextureId Renderer::GetRenderTargetTexture(impl::RenderTargetId render_target) const {
+	const auto& color_attachment{ gl_->framebuffers.GetFramebufferAttachment(
+		impl::FramebufferId{ render_target }, impl::gl::Attachment::Color0
+	) };
+	PTGN_ASSERT(
+		color_attachment.id,
+		"Render target must have a valid color attachment for its texture to be retrieved"
+	);
+	return impl::TextureId{ color_attachment.id };
+}
+
+V2_int Renderer::GetRenderTargetSize(impl::RenderTargetId render_target) const {
+	auto id{ GetRenderTargetTexture(render_target) };
+
+	auto size{ gl_->textures.GetTextureSize(id) };
+
+	return size;
+}
+
+TextureFormat Renderer::GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const {
+	auto id{ GetRenderTargetTexture(render_target) };
+
+	auto texture_format{ gl_->textures.GetTextureFormat(id) };
+
+	return texture_format;
+}
+
+void Renderer::ClearRenderTarget(impl::RenderTargetId render_target, Color color, bool set_viewport)
 	const {
-	auto bind_guard = gl_->Bind(rt.framebuffer_, true);
+	auto bind_guard = gl_->Bind(impl::FramebufferId{ render_target }, true);
 
 	std::optional<Viewport> viewport;
 	if (set_viewport) {
 		viewport = gl_->GetViewport();
 
-		gl_->SetViewport({ {}, rt.size_ });
+		auto render_target_size{ GetRenderTargetSize(render_target) };
+
+		gl_->SetViewport({ {}, render_target_size });
 	}
 
-	gl_->framebuffers.ClearToColor(rt.framebuffer_, color);
+	gl_->framebuffers.ClearToColor(impl::FramebufferId{ render_target }, color);
 
 	if (set_viewport && viewport.has_value()) {
 		gl_->SetViewport(*viewport);
 	}
 }
 
-void Renderer::BindRenderTarget(const impl::RenderTargetData& rt) {
-	SetFramebuffer(rt.framebuffer_);
+void Renderer::BindRenderTarget(impl::RenderTargetId render_target) {
+	SetFramebuffer(impl::FramebufferId{ render_target });
 }
 
 void Renderer::BindRenderPass(impl::RenderPass& render_pass) {
 	// Bind the next write target (opposite of latest output; ping for first write)
-	impl::RenderTargetData write;
+	impl::RenderTargetId write;
 
 	if (!render_pass.has_written_once_) {
 		write = render_pass.ping_;
 	} else {
 		if (!render_pass.has_pong_ && render_pass.latest_is_ping_) {
-			render_pass.pong_ =
-				AcquirePooledTarget(render_pass.source_.size_, render_pass.source_.format_);
+			render_pass.pong_	  = AcquirePooledTargetCopy(render_pass.source_);
 			render_pass.has_pong_ = true;
 		}
 		write = render_pass.latest_is_ping_ ? render_pass.pong_ : render_pass.ping_;
@@ -898,7 +924,9 @@ void Renderer::BeginFrame() {
 
 	BindScreenTarget();
 	SetViewport({ {}, screen_target_.GetSize() });
-	gl_->framebuffers.ClearToColor(screen_target_.resource_.framebuffer_, background_color_.value);
+	gl_->framebuffers.ClearToColor(
+		impl::FramebufferId{ screen_target_.resource_ }, background_color_.value
+	);
 
 #ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("Renderer::BeginFrame: END");
@@ -923,26 +951,21 @@ void Renderer::EndFrame() {
 	SetViewProjection(view_projection);
 	SetBlend(BlendMode::ReplaceRGBA, true);
 
-	PTGN_ASSERT(
-		screen_target_.resource_.color_.has_value(),
-		"Cannot draw to screen target with no color attachment"
-	);
-
 #ifdef PTGN_GL_DEBUG_RENDERER
 	PTGN_LOG("Renderer::EndFrame: Drawing screen target to back buffer");
 #endif
 
 	PTGN_ASSERT(
-		gl_->textures.GetTextureSize(*screen_target_.resource_.color_) == display_viewport_.size,
+		GetRenderTargetSize(screen_target_.resource_) == display_viewport_.size,
 		"Screen target texture size must match display viewport size"
 	);
 	auto quad_shader{ GetShader("quad") };
 	auto points{ impl::GetCenteredQuadPoints(display_viewport_.size) };
 	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 
-	DrawTexture(
-		quad_shader, *screen_target_.resource_.color_, points, color::White, 0.0f, tex_coords, {}
-	);
+	auto screen_texture{ GetRenderTargetTexture(screen_target_.resource_) };
+
+	DrawTexture(quad_shader, screen_texture, points, color::White, 0.0f, tex_coords, {});
 
 	FlushBatch();
 

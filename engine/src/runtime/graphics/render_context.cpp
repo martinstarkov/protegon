@@ -38,8 +38,8 @@
 #include "renderer/primitives/vertex.h"
 #include "renderer/primitives/viewport.h"
 #include "renderer/renderer.h"
+#include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/asset/font_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
@@ -164,7 +164,6 @@ DrawContext::GetShapeDrawCommand(
 			-> std::optional<std::variant<
 				impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
 				std::vector<impl::TriangleCommand>>> {
-			// TODO: Simplify this by using GetWorldVertices(shape, transform).
 			if constexpr (std::is_same_v<T, Rect>) {
 				if (auto size{ s.GetSize(transform) }; !size.BothAboveZero()) {
 					return std::nullopt;
@@ -450,8 +449,8 @@ void DrawContext::SetColorMask(const ColorMaskState& color_mask) {
 	renderer_.SetColorMask(color_mask);
 }
 
-impl::RenderPass DrawContext::BeginPass(const impl::RenderTargetData& scene_target) {
-	return renderer_.BeginPass(scene_target);
+impl::RenderPass DrawContext::BeginPass(impl::RenderTargetId scene_render_target) {
+	return renderer_.BeginPass(scene_render_target);
 }
 
 impl::TextureId DrawContext::GetWhiteTexture() const {
@@ -585,13 +584,9 @@ void RenderContext::DrawTexture(
 
 	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
 
-	std::array<V2_float, 4> tex_coords;
-
-	if (texture_coordinates.has_value()) {
-		tex_coords = *texture_coordinates;
-	} else {
-		tex_coords = impl::GetDefaultTextureCoordinates<false>();
-	}
+	std::array<V2_float, 4> tex_coords{
+		texture_coordinates.value_or(impl::GetDefaultTextureCoordinates<false>())
+	};
 
 	impl::TextureCommand texture_command{ shader,	  texture,
 										  positions,  tint.value_or(color::White),
@@ -601,15 +596,17 @@ void RenderContext::DrawTexture(
 }
 
 void RenderContext::DrawTexture(
-	std::variant<Texture, std::string_view> texture, Transform transform,
-	std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
-	std::optional<BlendMode> blend_mode,
+	TextureOrKey texture, Transform transform, std::optional<V2_float> size, Origin draw_origin,
+	std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
 	const std::optional<Camera>& camera
 ) {
-	auto resolved_texture{ *scene_->app().asset.ToTexture(texture) };
+	PTGN_ASSERT(scene_ != nullptr);
 
 	auto quad_shader{ renderer_->GetShader("quad") };
+
+	const auto& assets{ scene_->app().asset };
+	auto resolved_texture{ texture.Get(assets) };
 	auto texture_size{ resolved_texture.GetSize() };
 
 	DrawTexture(
@@ -619,14 +616,14 @@ void RenderContext::DrawTexture(
 }
 
 void RenderContext::DrawTexture(
-	std::variant<Texture, std::string_view> texture, Shader shader, Transform transform,
-	std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
-	std::optional<BlendMode> blend_mode,
+	TextureOrKey texture, Shader shader, Transform transform, std::optional<V2_float> size,
+	Origin draw_origin, std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
 	const std::optional<Camera>& camera
 ) {
-	auto resolved_texture{ *scene_->app().asset.ToTexture(texture) };
-
+	PTGN_ASSERT(scene_ != nullptr);
+	const auto& assets{ scene_->app().asset };
+	auto resolved_texture{ texture.Get(assets) };
 	auto texture_size{ resolved_texture.GetSize() };
 
 	DrawTexture(
@@ -695,38 +692,19 @@ void RenderContext::DrawShape(
 }
 
 void RenderContext::DrawText(
-	std::string_view text_content, Transform transform, Color text_color,
-	std::optional<float> font_size, const std::optional<std::variant<Font, std::string_view>>& font,
-	const TextProperties& properties, Origin draw_origin, std::optional<V2_float> text_size,
-	bool hd_text, Depth depth, std::optional<BlendMode> blend_mode,
-	const std::optional<Camera>& camera
+	std::string_view text_content, Transform transform, Color text_color, FontSize font_size,
+	FontOrKey font, const TextProperties& properties, Origin draw_origin,
+	std::optional<V2_float> text_size, bool hd_text, Depth depth,
+	std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
 	PTGN_ASSERT(
 		scene_ != nullptr && renderer_ != nullptr, "Render context must be initialized before use"
 	);
 
-	// TODO: Most of this code is duplicated with DebugContext::DrawText and Text::Draw. Consider
-	// moving the common parts to a helper function.
-
-	auto resolved_font{ scene_->app().asset.ToFont(font) };
-
-	float hd_scale{ hd_text ? impl::GetTextScale(*scene_, camera) : 1.0f };
-
-	float resolved_font_size{ font_size.value_or(kDefaultFontSize) };
-
-	if (hd_text) {
-		resolved_font_size *= hd_scale;
-
-		auto scale{ impl::GetCameraParentRenderTargetScale(*scene_, camera) };
-
-		PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component");
-
-		transform.Scale(transform.GetScale() / scale);
-	}
+	auto hd_scale{ impl::ApplyHDTextScaling(hd_text, transform, *scene_, camera) };
 
 	auto texture_object{ scene_->app().asset.CreateTextTextureObject(
-		text_content, text_color, resolved_font_size, resolved_font.value_or(Font{}), properties,
-		hd_scale, hd_text
+		text_content, text_color, font_size, font, properties, hd_scale
 	) };
 
 	if (!texture_object.has_value()) {

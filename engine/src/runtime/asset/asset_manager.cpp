@@ -28,7 +28,9 @@
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
+#include "renderer/primitives/texture_format.h"
 #include "renderer/renderer.h"
+#include "runtime/asset/asset.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
@@ -39,20 +41,22 @@
 #ifdef CreateFont
 #undef CreateFont
 #endif
-#include "renderer/primitives/texture_format.h"
-
-// TODO: Add async asset loading.
 
 namespace ptgn {
 
 namespace impl {
 
-void AddAssetKey(ecs::Entity asset, std::string_view key, std::optional<path> path) {
-	asset.Add<impl::AssetName>(key);
-	asset.Add<impl::AssetKey>(Hash(key));
+void AddAssetKey(ecs::Entity asset, std::size_t key_hash, std::optional<path> path) {
+	asset.Add<impl::AssetKey>(key_hash);
 	if (path.has_value()) {
 		asset.Add<ptgn::path>(*path);
 	}
+}
+
+void AddAssetKey(ecs::Entity asset, std::string_view key, std::optional<path> path) {
+	asset.Add<impl::AssetName>(key);
+	auto key_hash{ Hash(key) };
+	AddAssetKey(asset, key_hash, path);
 }
 
 } // namespace impl
@@ -64,9 +68,13 @@ Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
 
 	impl::Surface surface{ asset_path };
 
+	const auto data{ surface.Data() };
+	auto size{ surface.GetSize() };
+
 	Texture texture{ CreateAsset(), persistent };
+
 	texture.GetEntity().Add<impl::TextureObject>(
-		ctx_->renderer.CreateTexture(surface.pixels.data(), surface.size, TextureFormat::RGBA8)
+		ctx_->renderer.CreateTexture(data, size, TextureFormat::RGBA8)
 	);
 
 	return texture;
@@ -84,8 +92,11 @@ Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) 
 
 Font AssetManager::CreateFont(bool persistent, const path& asset_path, float font_size) {
 	Font font{ CreateAsset(), persistent };
-	font.GetEntity().Add<impl::FontSize>(font_size);
+
+	font.GetEntity().Add<FontSize>(font_size);
+
 	auto f{ FontSystem::CreateFont(asset_path, font_size) };
+
 	font.GetEntity().Add<std::shared_ptr<TTF_Font>>(f);
 
 	return font;
@@ -103,8 +114,10 @@ Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float 
 
 Audio AssetManager::CreateAudio(bool persistent, const path& asset_path) {
 	Audio audio{ CreateAsset(), persistent };
+
 	auto a{ ctx_->audio.CreateAudio(asset_path) };
-	audio.entity_.Add<std::shared_ptr<MIX_Audio>>(a);
+
+	audio.GetEntity().Add<std::shared_ptr<MIX_Audio>>(a);
 
 	return audio;
 }
@@ -115,7 +128,7 @@ Audio AssetManager::CreateAudio(const path& asset_path) {
 
 Audio AssetManager::LoadAudio(std::string_view key, const path& asset_path) {
 	auto audio{ CreateAudio(true, asset_path) };
-	impl::AddAssetKey(audio.entity_, key, asset_path);
+	impl::AddAssetKey(audio.GetEntity(), key, asset_path);
 	return audio;
 }
 
@@ -124,7 +137,9 @@ Shader AssetManager::CreateShader(
 	std::string_view shader_name
 ) {
 	Shader shader{ CreateAsset(), persistent };
+
 	shader.GetEntity().Add<impl::ShaderObject>(ctx_->renderer.CreateShader(source, shader_name));
+
 	return shader;
 }
 
@@ -347,42 +362,25 @@ std::optional<HandleType> GetAssetImpl(const ecs::Manager& manager, std::size_t 
 	return std::nullopt;
 }
 
-std::optional<Audio> AssetManager::GetAudio(std::string_view key) const {
-	return GetAssetImpl<std::shared_ptr<MIX_Audio>, Audio>(manager_, Hash(key));
+std::optional<Audio> AssetManager::GetAudio(std::size_t key_hash) const {
+	return GetAssetImpl<std::shared_ptr<MIX_Audio>, Audio>(manager_, key_hash);
 }
 
-std::optional<Shader> AssetManager::GetShader(std::string_view key) const {
-	return GetAssetImpl<impl::ShaderObject, Shader>(manager_, Hash(key));
+std::optional<Shader> AssetManager::GetShader(std::size_t key_hash) const {
+	return GetAssetImpl<impl::ShaderObject, Shader>(manager_, key_hash);
 }
 
-std::optional<Texture> AssetManager::GetTexture(std::string_view key) const {
-	return GetAssetImpl<impl::TextureObject, Texture>(manager_, Hash(key));
+std::optional<Texture> AssetManager::GetTexture(std::size_t key_hash) const {
+	return GetAssetImpl<impl::TextureObject, Texture>(manager_, key_hash);
 }
 
-std::optional<Font> AssetManager::GetFont(std::string_view key) const {
-	return GetFont(Hash(key));
+std::optional<Font> AssetManager::GetFont(std::size_t key_hash) const {
+	return GetAssetImpl<std::shared_ptr<TTF_Font>, Font>(manager_, key_hash);
 }
 
-std::optional<Font> AssetManager::GetFont(std::size_t key) const {
-	return GetAssetImpl<std::shared_ptr<TTF_Font>, Font>(manager_, key);
-}
+std::optional<std::reference_wrapper<json>> AssetManager::GetJson(std::size_t key_hash) {
+	auto it = jsons_.find(key_hash);
 
-std::optional<std::reference_wrapper<const json>> AssetManager::GetJson(std::string_view key
-) const {
-	auto hash{ Hash(key) };
-
-	auto it = jsons_.find(hash);
-	if (it == jsons_.end()) {
-		return std::nullopt;
-	}
-
-	return std::cref(it->second);
-}
-
-std::optional<std::reference_wrapper<json>> AssetManager::GetJson(std::string_view key) {
-	auto hash{ Hash(key) };
-
-	auto it = jsons_.find(hash);
 	if (it == jsons_.end()) {
 		return std::nullopt;
 	}
@@ -390,12 +388,47 @@ std::optional<std::reference_wrapper<json>> AssetManager::GetJson(std::string_vi
 	return std::ref(it->second);
 }
 
-template <typename ResourceComponent>
-bool HasAssetImpl(const ecs::Manager& manager, std::string_view key) {
-	auto hash{ Hash(key) };
+std::optional<std::reference_wrapper<const json>> AssetManager::GetJson(std::size_t key_hash
+) const {
+	auto it = jsons_.find(key_hash);
 
-	for (auto [entity, k, resource] : manager.EntitiesWith<impl::AssetKey, ResourceComponent>()) {
-		if (k.hash == hash) {
+	if (it == jsons_.end()) {
+		return std::nullopt;
+	}
+
+	return std::cref(it->second);
+}
+
+std::optional<std::reference_wrapper<const json>> AssetManager::GetJson(std::string_view key
+) const {
+	return GetJson(Hash(key));
+}
+
+std::optional<std::reference_wrapper<json>> AssetManager::GetJson(std::string_view key) {
+	return GetJson(Hash(key));
+}
+
+std::optional<Audio> AssetManager::GetAudio(std::string_view key) const {
+	return GetAudio(Hash(key));
+}
+
+std::optional<Shader> AssetManager::GetShader(std::string_view key) const {
+	return GetShader(Hash(key));
+}
+
+std::optional<Texture> AssetManager::GetTexture(std::string_view key) const {
+	return GetTexture(Hash(key));
+}
+
+std::optional<Font> AssetManager::GetFont(std::string_view key) const {
+	return GetFont(Hash(key));
+}
+
+template <typename ResourceComponent>
+bool HasAssetImpl(const ecs::Manager& manager, std::size_t key_hash) {
+	for (auto [entity, k, resource] : // NOSONAR
+		 manager.EntitiesWith<impl::AssetKey, ResourceComponent>()) {
+		if (k.hash == key_hash) {
 			return true;
 		}
 	}
@@ -403,173 +436,195 @@ bool HasAssetImpl(const ecs::Manager& manager, std::string_view key) {
 	return false;
 }
 
+template <>
+bool AssetManager::Unload<json>(std::string_view key) {
+	return UnloadJson(key);
+}
+
+template <>
+bool AssetManager::Unload<std::reference_wrapper<const json>>(std::string_view key) {
+	return UnloadJson(key);
+}
+
+template <>
+bool AssetManager::Unload<Shader>(std::string_view key) {
+	return UnloadShader(key);
+}
+
+template <>
+bool AssetManager::Unload<Texture>(std::string_view key) {
+	return UnloadTexture(key);
+}
+
+template <>
+bool AssetManager::Unload<Audio>(std::string_view key) {
+	return UnloadAudio(key);
+}
+
+template <>
+bool AssetManager::Unload<Font>(std::string_view key) {
+	return UnloadFont(key);
+}
+
+template <>
+std::optional<std::reference_wrapper<const json>>
+AssetManager::Get<std::reference_wrapper<const json>>(std::size_t key_hash) const {
+	return GetJson(key_hash);
+}
+
+template <>
+std::optional<Shader> AssetManager::Get<Shader>(std::size_t key_hash) const {
+	return GetShader(key_hash);
+}
+
+template <>
+std::optional<Texture> AssetManager::Get<Texture>(std::size_t key_hash) const {
+	return GetTexture(key_hash);
+}
+
+template <>
+std::optional<Audio> AssetManager::Get<Audio>(std::size_t key_hash) const {
+	return GetAudio(key_hash);
+}
+
+template <>
+std::optional<Font> AssetManager::Get<Font>(std::size_t key_hash) const {
+	return GetFont(key_hash);
+}
+
+template <>
+std::optional<std::reference_wrapper<const json>>
+AssetManager::Get<std::reference_wrapper<const json>>(std::string_view key) const {
+	return GetJson(key);
+}
+
+template <>
+std::optional<Shader> AssetManager::Get<Shader>(std::string_view key) const {
+	return GetShader(key);
+}
+
+template <>
+std::optional<Texture> AssetManager::Get<Texture>(std::string_view key) const {
+	return GetTexture(key);
+}
+
+template <>
+std::optional<Audio> AssetManager::Get<Audio>(std::string_view key) const {
+	return GetAudio(key);
+}
+
+template <>
+std::optional<Font> AssetManager::Get<Font>(std::string_view key) const {
+	return GetFont(key);
+}
+
+template <>
+bool AssetManager::Has<json>(std::string_view key) const {
+	return HasJson(key);
+}
+
+template <>
+bool AssetManager::Has<std::reference_wrapper<const json>>(std::string_view key) const {
+	return HasJson(key);
+}
+
+template <>
+bool AssetManager::Has<Shader>(std::string_view key) const {
+	return HasShader(key);
+}
+
+template <>
+bool AssetManager::Has<Texture>(std::string_view key) const {
+	return HasTexture(key);
+}
+
+template <>
+bool AssetManager::Has<Audio>(std::string_view key) const {
+	return HasAudio(key);
+}
+
+template <>
+bool AssetManager::Has<Font>(std::string_view key) const {
+	return HasFont(key);
+}
+
+template <>
+bool AssetManager::Has<json>(std::size_t key_hash) const {
+	return jsons_.contains(key_hash);
+}
+
+template <>
+bool AssetManager::Has<std::reference_wrapper<const json>>(std::size_t key_hash) const {
+	return jsons_.contains(key_hash);
+}
+
+template <>
+bool AssetManager::Has<Shader>(std::size_t key_hash) const {
+	return HasAssetImpl<impl::ShaderObject>(manager_, key_hash);
+}
+
+template <>
+bool AssetManager::Has<Texture>(std::size_t key_hash) const {
+	return HasAssetImpl<impl::TextureObject>(manager_, key_hash);
+}
+
+template <>
+bool AssetManager::Has<Audio>(std::size_t key_hash) const {
+	return HasAssetImpl<std::shared_ptr<MIX_Audio>>(manager_, key_hash);
+}
+
+template <>
+bool AssetManager::Has<Font>(std::size_t key_hash) const {
+	return HasAssetImpl<std::shared_ptr<TTF_Font>>(manager_, key_hash);
+}
+
 bool AssetManager::HasJson(std::string_view key) const {
-	return jsons_.contains(Hash(key));
+	return Has<json>(Hash(key));
 }
 
 bool AssetManager::HasAudio(std::string_view key) const {
-	return HasAssetImpl<std::shared_ptr<MIX_Audio>>(manager_, key);
+	return Has<Audio>(Hash(key));
 }
 
 bool AssetManager::HasShader(std::string_view key) const {
-	return HasAssetImpl<impl::ShaderObject>(manager_, key);
+	return Has<Shader>(Hash(key));
 }
 
 bool AssetManager::HasTexture(std::string_view key) const {
-	return HasAssetImpl<impl::TextureObject>(manager_, key);
+	return Has<Texture>(Hash(key));
 }
 
 bool AssetManager::HasFont(std::string_view key) const {
-	return HasAssetImpl<std::shared_ptr<TTF_Font>>(manager_, key);
-}
-
-std::optional<std::reference_wrapper<const json>> AssetManager::ToJson(
-	const std::optional<std::variant<std::reference_wrapper<const json>, std::string_view>>&
-		json_object
-) const {
-	if (!json_object.has_value()) {
-		return std::nullopt;
-	}
-	return std::visit(
-		[this]<typename T>(const T& arg) -> std::reference_wrapper<const json> {
-			if constexpr (std::is_same_v<T, std::reference_wrapper<const json>>) {
-				return arg;
-			} else if constexpr (std::is_same_v<T, std::string_view>) {
-				PTGN_ASSERT(
-					HasJson(arg), "Json key must be loaded in the asset manager before retrieval"
-				);
-
-				return *GetJson(arg);
-			} else {
-				static_assert(false, "Incomplete visitor!");
-			}
-		},
-		*json_object
-	);
-}
-
-std::optional<Shader> AssetManager::ToShader(
-	const std::optional<std::variant<Shader, std::string_view>>& shader
-) const {
-	if (!shader.has_value()) {
-		return std::nullopt;
-	}
-	return std::visit(
-		[this]<typename T>(const T& arg) {
-			if constexpr (std::is_same_v<T, Shader>) {
-				return arg;
-			} else if constexpr (std::is_same_v<T, std::string_view>) {
-				PTGN_ASSERT(
-					HasShader(arg),
-					"Shader key must be loaded in the asset manager before retrieval"
-				);
-
-				return *GetShader(arg);
-			} else {
-				static_assert(false, "Incomplete visitor!");
-			}
-		},
-		*shader
-	);
-}
-
-std::optional<Audio> AssetManager::ToAudio(
-	const std::optional<std::variant<Audio, std::string_view>>& audio
-) const {
-	if (!audio.has_value()) {
-		return std::nullopt;
-	}
-	return std::visit(
-		[this]<typename T>(const T& arg) {
-			if constexpr (std::is_same_v<T, Audio>) {
-				return arg;
-			} else if constexpr (std::is_same_v<T, std::string_view>) {
-				PTGN_ASSERT(
-					HasAudio(arg), "Audio key must be loaded in the asset manager before retrieval"
-				);
-
-				return *GetAudio(arg);
-			} else {
-				static_assert(false, "Incomplete visitor!");
-			}
-		},
-		*audio
-	);
-}
-
-std::optional<Texture> AssetManager::ToTexture(
-	const std::optional<std::variant<Texture, std::string_view>>& texture
-) const {
-	if (!texture.has_value()) {
-		return std::nullopt;
-	}
-	return std::visit(
-		[this]<typename T>(const T& arg) {
-			if constexpr (std::is_same_v<T, Texture>) {
-				return arg;
-			} else if constexpr (std::is_same_v<T, std::string_view>) {
-				PTGN_ASSERT(
-					HasTexture(arg),
-					"Texture key must be loaded in the asset manager before retrieval"
-				);
-				return *GetTexture(arg);
-			} else {
-				static_assert(false, "Incomplete visitor!");
-			}
-		},
-		*texture
-	);
-}
-
-std::optional<Font> AssetManager::ToFont(
-	const std::optional<std::variant<Font, std::string_view>>& font
-) const {
-	if (!font.has_value()) {
-		return std::nullopt;
-	}
-	return std::visit(
-		[this]<typename T>(const T& arg) {
-			if constexpr (std::is_same_v<T, Font>) {
-				return arg;
-			} else if constexpr (std::is_same_v<T, std::string_view>) {
-				PTGN_ASSERT(
-					HasFont(arg), "Font key must be loaded in the asset manager before retrieval"
-				);
-				return *GetFont(arg);
-			} else {
-				static_assert(false, "Incomplete visitor!");
-			}
-		},
-		*font
-	);
+	return Has<Font>(Hash(key));
 }
 
 std::optional<impl::TextureObject> AssetManager::CreateTextTextureObject(
-	std::string_view text_content, Color color, float font_size, Font font_asset,
-	const TextProperties& properties, float hd_scale, bool hd
+	std::string_view text_content, Color color, float font_size, FontOrKey font,
+	const TextProperties& properties, std::optional<float> hd_scale
 ) {
-	auto surface{ ctx_->font.CreateTextSurface(
-		text_content, color, font_size, font_asset, properties, hd_scale, hd
-	) };
+	auto surface{
+		ctx_->font.CreateTextSurface(text_content, color, font_size, font, properties, hd_scale)
+	};
 
 	if (!surface.has_value()) {
 		return {};
 	}
 
-	return ctx_->renderer.CreateTexture(
-		surface->pixels.data(), surface->size, TextureFormat::RGBA8
-	);
+	const auto pixel_data{ surface->Data() };
+	auto size{ surface->GetSize() };
+
+	return ctx_->renderer.CreateTexture(pixel_data, size, TextureFormat::RGBA8);
 }
 
 Texture AssetManager::CreateTextTexture(
-	std::string_view text_content, Color color, float font_size, Font font_asset,
-	const TextProperties& properties, float hd_scale, bool hd
+	std::string_view text_content, Color color, float font_size, FontOrKey font,
+	const TextProperties& properties, std::optional<float> hd_scale
 ) {
 	Texture texture{ CreateAsset(), false };
 
-	auto texture_object{ CreateTextTextureObject(
-		text_content, color, font_size, font_asset, properties, hd_scale, hd
-	) };
+	auto texture_object{
+		CreateTextTextureObject(text_content, color, font_size, font, properties, hd_scale)
+	};
 
 	if (!texture_object.has_value()) {
 		return texture;

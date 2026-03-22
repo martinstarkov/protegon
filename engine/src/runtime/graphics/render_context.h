@@ -5,7 +5,6 @@
 #include <optional>
 #include <span>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -34,6 +33,7 @@
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/viewport.h"
 #include "renderer/renderer.h"
+#include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
@@ -182,12 +182,12 @@ public:
 	void SetScissor(const ScissorState& scissor);
 	void SetColorMask(const ColorMaskState& color_mask);
 
-	[[nodiscard]] impl::RenderPass BeginPass(const impl::RenderTargetData& scene_target);
+	[[nodiscard]] impl::RenderPass BeginPass(impl::RenderTargetId scene_render_target);
 
 	using ShaderVariant = std::variant<Shader, impl::ShaderId, std::string_view>;
 
 	template <typename T>
-	void SetUniform(ShaderVariant shader, const char* uniform_name, const T& value) {
+	void SetUniform(const ShaderVariant& shader, const char* uniform_name, const T& value) {
 		renderer_.SetUniform(GetShaderId(shader), uniform_name, value);
 	}
 
@@ -199,7 +199,7 @@ private:
 
 	impl::ShaderId GetShaderId(ShaderVariant shader) const;
 
-	[[nodiscard]] static std::optional<std::variant<
+	static std::optional<std::variant<
 		impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
 		std::vector<impl::TriangleCommand>>>
 	GetShapeDrawCommand(
@@ -209,7 +209,7 @@ private:
 
 	/// @param connect_last_to_first Whether to draw a line connecting the last point back to the
 	/// first.
-	[[nodiscard]] static std::vector<impl::QuadCommand> GetLineDrawCommands(
+	static std::vector<impl::QuadCommand> GetLineDrawCommands(
 		std::span<const V2_float> points, float line_width, Transform transform, Color tint,
 		std::optional<BlendMode> blend_mode, bool connect_last_to_first
 	);
@@ -238,17 +238,17 @@ public:
 	RenderContext& operator=(RenderContext&&) noexcept = delete;
 
 	void DrawTexture(
-		std::variant<Texture, std::string_view> texture, Transform transform,
-		std::optional<V2_float> size = {}, Origin draw_origin = Origin::Center,
-		std::optional<Color> tint = {}, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
+		TextureOrKey texture, Transform transform, std::optional<V2_float> size = {},
+		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
+		std::optional<BlendMode> blend_mode								  = {},
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
 		const std::optional<Camera>& camera								  = {}
 	);
 
 	void DrawTexture(
-		std::variant<Texture, std::string_view> texture, Shader shader, Transform transform,
-		std::optional<V2_float> size = {}, Origin draw_origin = Origin::Center,
-		std::optional<Color> tint = {}, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
+		TextureOrKey texture, Shader shader, Transform transform, std::optional<V2_float> size = {},
+		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
+		std::optional<BlendMode> blend_mode								  = {},
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
 		const std::optional<Camera>& camera								  = {}
 	);
@@ -278,11 +278,10 @@ public:
 
 	void DrawText(
 		std::string_view text_content, Transform transform, Color text_color,
-		std::optional<float> font_size									= {},
-		const std::optional<std::variant<Font, std::string_view>>& font = {},
-		const TextProperties& properties = {}, Origin draw_origin = Origin::Center,
-		std::optional<V2_float> text_size = {}, bool hd_text = true, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
+		FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {},
+		Origin draw_origin = Origin::Center, std::optional<V2_float> text_size = {},
+		bool hd_text = true, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawRect(

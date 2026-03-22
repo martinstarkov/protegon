@@ -5,7 +5,8 @@
 #include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
-#include "renderer/primitives/texture.h"
+#include "renderer/primitives/id.h"
+#include "renderer/primitives/texture_format.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
@@ -61,17 +62,19 @@ public:
 	void Clear(std::optional<Color> color = {}, bool set_viewport = true);
 
 	void SetClearColor(Color clear_color);
-	[[nodiscard]] Color GetClearColor() const;
+	Color GetClearColor() const;
 
 	/// @return The scale of the render target size relative to the game size.
-	[[nodiscard]] V2_float GetScale() const;
+	V2_float GetScale() const;
 
-	[[nodiscard]] V2_int GetSize() const;
-	[[nodiscard]] TextureFormat GetFormat() const;
-
-	operator impl::TextureId() const;
+	V2_int GetSize() const;
+	TextureFormat GetFormat() const;
 
 private:
+	friend class Scene;
+
+	operator impl::RenderTargetId() const; // NOSONAR
+
 	friend RenderTarget CreateRenderTarget(Scene&, V2_int, Color, TextureFormat);
 	friend RenderTarget CreateRenderTarget(Scene&, ResizeMode, Color, TextureFormat);
 

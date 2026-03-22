@@ -6,13 +6,16 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <variant>
+#include <vector>
 
 #include "core/util/file.h"
 #include "ecs/ecs.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
+#include "runtime/asset/asset.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio.h"
 #include "runtime/graphics/font.h"
@@ -22,8 +25,6 @@
 #ifdef CreateFont
 #undef CreateFont
 #endif
-#include <utility>
-#include <vector>
 
 struct SDL_IOStream;
 
@@ -49,6 +50,7 @@ struct AssetKey {
 	std::size_t hash{ 0 };
 };
 
+void AddAssetKey(ecs::Entity asset, std::size_t key_hash, std::optional<path> path);
 void AddAssetKey(ecs::Entity asset, std::string_view key, std::optional<path> path);
 
 } // namespace impl
@@ -127,7 +129,7 @@ public:
 
 	Shader LoadShader(
 		std::string_view key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
-		std::optional<std::string_view> shader_name = {}
+		std::optional<std::string_view> shader_name = std::nullopt
 	);
 
 	Texture CreateTexture(const path& texture_path);
@@ -136,48 +138,36 @@ public:
 	Font CreateFont(const path& font_path, float font_size);
 	Font LoadFont(std::string_view key, const path& font_path, float font_size = kDefaultFontSize);
 
+	template <AssetType T>
+	bool Unload(std::string_view key);
+
 	bool UnloadAudio(std::string_view key);
 	bool UnloadJson(std::string_view key);
 	bool UnloadShader(std::string_view key);
 	bool UnloadTexture(std::string_view key);
 	bool UnloadFont(std::string_view key);
 
+	template <AssetType T>
+	std::optional<T> Get(std::string_view key) const;
+
 	/// @brief Note: Do not brace initialize JSON objects.
 	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 	std::optional<std::reference_wrapper<json>> GetJson(std::string_view key);
-
 	std::optional<std::reference_wrapper<const json>> GetJson(std::string_view key) const;
+
 	std::optional<Audio> GetAudio(std::string_view key) const;
 	std::optional<Shader> GetShader(std::string_view key) const;
 	std::optional<Texture> GetTexture(std::string_view key) const;
 	std::optional<Font> GetFont(std::string_view key) const;
+
+	template <AssetType T>
+	[[nodiscard]] bool Has(std::string_view key) const;
 
 	[[nodiscard]] bool HasJson(std::string_view key) const;
 	[[nodiscard]] bool HasAudio(std::string_view key) const;
 	[[nodiscard]] bool HasShader(std::string_view key) const;
 	[[nodiscard]] bool HasTexture(std::string_view key) const;
 	[[nodiscard]] bool HasFont(std::string_view key) const;
-
-	[[nodiscard]] std::optional<std::reference_wrapper<const json>> ToJson(
-		const std::optional<std::variant<std::reference_wrapper<const json>, std::string_view>>&
-			json
-	) const;
-
-	[[nodiscard]] std::optional<Shader> ToShader(
-		const std::optional<std::variant<Shader, std::string_view>>& shader
-	) const;
-
-	[[nodiscard]] std::optional<Audio> ToAudio(
-		const std::optional<std::variant<Audio, std::string_view>>& audio
-	) const;
-
-	[[nodiscard]] std::optional<Texture> ToTexture(
-		const std::optional<std::variant<Texture, std::string_view>>& texture
-	) const;
-
-	[[nodiscard]] std::optional<Font> ToFont(
-		const std::optional<std::variant<Font, std::string_view>>& font
-	) const;
 
 private:
 	friend class Application;
@@ -187,31 +177,44 @@ private:
 	friend class FontSystem;
 	friend class Text;
 	friend class DebugContext;
+	template <AssetType T>
+	friend class AssetOrKey;
 
 	void Init(const std::shared_ptr<ApplicationContext>& ctx);
 
-	std::optional<Font> GetFont(std::size_t key) const;
+	template <AssetType T>
+	[[nodiscard]] bool Has(std::size_t key_hash) const;
 
-	Shader CreateShader(
+	template <AssetType T>
+	std::optional<T> Get(std::size_t key_hash) const;
+
+	std::optional<std::reference_wrapper<json>> GetJson(std::size_t key_hash);
+	std::optional<std::reference_wrapper<const json>> GetJson(std::size_t key_hash) const;
+	std::optional<Font> GetFont(std::size_t key_hash) const;
+	std::optional<Audio> GetAudio(std::size_t key_hash) const;
+	std::optional<Texture> GetTexture(std::size_t key_hash) const;
+	std::optional<Shader> GetShader(std::size_t key_hash) const;
+
+	[[nodiscard]] Shader CreateShader(
 		bool persistent, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 		std::string_view shader_name
 	);
 
-	Texture CreateTexture(bool persistent, const path& asset_path);
+	[[nodiscard]] Texture CreateTexture(bool persistent, const path& asset_path);
 
-	std::optional<impl::TextureObject> CreateTextTextureObject(
-		std::string_view text_content, Color color, float font_size, Font font_asset,
-		const TextProperties& properties, float hd_scale, bool hd
+	[[nodiscard]] std::optional<impl::TextureObject> CreateTextTextureObject(
+		std::string_view text_content, Color color, float font_size, FontOrKey font,
+		const TextProperties& properties, std::optional<float> hd_scale
 	);
 
-	Texture CreateTextTexture(
-		std::string_view text_content, Color text_color, float font_size, Font font,
-		const TextProperties& properties, float hd_scale, bool hd
+	[[nodiscard]] Texture CreateTextTexture(
+		std::string_view text_content, Color text_color, float font_size, FontOrKey font,
+		const TextProperties& properties, std::optional<float> hd_scale
 	);
-	Font CreateFont(bool persistent, const path& asset_path, float pt_size);
-	Audio CreateAudio(bool persistent, const path& asset_path);
+	[[nodiscard]] Font CreateFont(bool persistent, const path& asset_path, float pt_size);
+	[[nodiscard]] Audio CreateAudio(bool persistent, const path& asset_path);
 
-	ecs::Entity CreateAsset();
+	[[nodiscard]] ecs::Entity CreateAsset();
 
 	ecs::Manager manager_;
 

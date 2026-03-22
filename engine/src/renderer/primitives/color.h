@@ -1,13 +1,11 @@
 #pragma once
 
 #include <array>
-#include <concepts>
 #include <cstdint>
 #include <ostream>
 #include <type_traits>
 
 #include "core/assert.h"
-#include "core/math/math_utils.h"
 #include "core/math/vector4.h"
 #include "core/util/concepts.h"
 #include "serialization/json/fwd.h"
@@ -35,14 +33,14 @@ struct Color {
 		return &r;
 	}
 
-	// Default color is transparent.
+	/// @brief Default: Transparent.
 	constexpr Color() = default;
 
 	constexpr Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue, std::uint8_t alpha) :
 		r{ red }, g{ green }, b{ blue }, a{ alpha } {}
 
 	/// @brief Constructs from normalized RGBA values [r, g, b, a].
-	/// @param color Components expected in range [0, 1].
+	/// @param color Components expected in range [0.0, 1.0].
 	explicit constexpr Color(std::array<float, 4> color) :
 		Color{ V4_float{ color[0], color[1], color[2], color[3] } } {}
 
@@ -50,7 +48,7 @@ struct Color {
 		Color{ color[0], color[1], color[2], color[3] } {}
 
 	/// @brief Constructs from normalized RGBA vector (x == r, y == g, z == b, w == a).
-	/// @param color Components expected in range [0, 1].
+	/// @param color Components expected in range [0.0, 1.0].
 	explicit constexpr Color(V4_float color) :
 		r{ static_cast<std::uint8_t>(color.x * 255.0f) },
 		g{ static_cast<std::uint8_t>(color.y * 255.0f) },
@@ -76,24 +74,17 @@ struct Color {
 		}
 	}
 
-	/// @return Color values normalized in range [0, 1].
+	/// @return Color values normalized in range [0.0, 1.0].
 	[[nodiscard]] constexpr V4_float Normalized() const {
 		return { static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f,
 				 static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
 	}
 
-	explicit operator V4_float() const noexcept {
-		return Normalized();
-	}
+	explicit operator V4_float() const;
 
-	explicit operator std::array<float, 4>() const noexcept {
-		auto n{ Normalized() };
-		return { n.x, n.y, n.z, n.w };
-	}
+	explicit operator std::array<float, 4>() const;
 
-	explicit operator std::array<std::uint8_t, 4>() const noexcept {
-		return { r, g, b, a };
-	}
+	explicit operator std::array<std::uint8_t, 4>() const;
 
 	/// @brief Generates a random fully opaque color.
 	[[nodiscard]] static Color RandomOpaque();
@@ -128,28 +119,13 @@ struct Color {
 	}
 };
 
-/// @brief Linearly interpolates between two colors (per-channel).
-/// @param t Interpolation factor in range [0, 1].
-template <std::floating_point U>
-[[nodiscard]] inline Color Lerp(Color lhs, Color rhs, U t) {
-	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t)),
-				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t)),
-				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t)),
-				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t)) };
-}
+/// @brief Linearly interpolates between two colors.
+/// @param t Interpolation factor in range [0.0, 1.0].
+[[nodiscard]] Color Lerp(Color lhs, Color rhs, float t);
 
 /// @brief Linearly interpolates between two colors (per-channel).
-/// @param t_r Red interpolation factor in range [0, 1]
-/// @param t_g Green interpolation factor in range [0, 1].
-/// @param t_b Blue interpolation factor in range [0, 1].
-/// @param t_a Alpha interpolation factor in range [0, 1].
-template <std::floating_point U>
-[[nodiscard]] inline Color Lerp(Color lhs, Color rhs, U t_r, U t_g, U t_b, U t_a) {
-	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t_r)),
-				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t_g)),
-				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t_b)),
-				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t_a)) };
-}
+/// @param t Separate RGBA interpolation factors in range [0.0, 1.0]
+[[nodiscard]] Color Lerp(Color lhs, Color rhs, V4_float t);
 
 namespace color {
 

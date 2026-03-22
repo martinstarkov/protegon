@@ -3,7 +3,6 @@
 #include <optional>
 #include <ostream>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -14,9 +13,9 @@
 #include "core/util/file.h"
 #include "platform/input/key.h"
 #include "renderer/primitives/color.h"
-#include "runtime/asset/font_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/graphics/font.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/enum.h"
 #include "serialization/json/fwd.h"
@@ -29,9 +28,7 @@ class DialogueComponent;
 namespace impl {
 
 struct DialogueWaitScript : public Script {
-	DialogueWaitScript() {}
-
-	[[nodiscard]] DialogueComponent& GetDialogueComponent();
+	DialogueComponent& GetDialogueComponent();
 
 	void OnEvent(EventDispatcher d) override;
 
@@ -39,9 +36,7 @@ struct DialogueWaitScript : public Script {
 };
 
 struct DialogueScrollScript : public Script {
-	DialogueScrollScript() {}
-
-	[[nodiscard]] DialogueComponent& GetDialogueComponent();
+	DialogueComponent& GetDialogueComponent();
 
 	static void UpdateText(Entity text_entity, float elapsed_fraction);
 
@@ -65,7 +60,7 @@ struct DialoguePageProperties {
 	void SetPadding(int top, int right, int bottom, int left);
 
 	Color color{ color::White };
-	std::string font_key{ kDefaultFontKey };
+	std::string font_key;
 	float font_size{ kDefaultFontSize };
 	V2_float box_size;
 	int padding_left{ 0 };
@@ -92,7 +87,7 @@ enum class DialogueBehavior {
 	Random
 };
 
-std::ostream& operator<<(std::ostream& o, DialogueBehavior behavior);
+std::ostream& operator<<(std::ostream& os, DialogueBehavior behavior);
 
 PTGN_SERIALIZE_ENUM(
 	DialogueBehavior,
@@ -110,8 +105,8 @@ struct Dialogue {
 	std::string next_dialogue;
 
 	[[nodiscard]] std::size_t PickRandomIndex() const;
-	[[nodiscard]] const DialogueLine* GetCurrentDialogueLine() const;
-	[[nodiscard]] int GetNewDialogueLine();
+	const DialogueLine* GetCurrentDialogueLine() const;
+	int GetNewDialogueLine();
 
 	std::vector<DialogueLine> lines;
 	std::vector<std::size_t> used_line_indices;
@@ -126,7 +121,7 @@ public:
 		Entity parent, const path& json_path, std::variant<GameObject, V2_float> background
 	);
 
-	[[nodiscard]] Key GetContinueKey() const;
+	Key GetContinueKey() const;
 	void SetContinueKey(Key continue_key);
 
 	[[nodiscard]] bool IsOpen() const;
@@ -137,10 +132,10 @@ public:
 	void SetNextDialogue();
 	void SetDialogue(const std::string& name = "");
 
-	[[nodiscard]] const std::unordered_map<std::string, Dialogue>& GetDialogues() const;
-	[[nodiscard]] Dialogue* GetCurrentDialogue();
-	[[nodiscard]] DialogueLine* GetCurrentDialogueLine();
-	[[nodiscard]] DialoguePage* GetCurrentDialoguePage();
+	const std::unordered_map<std::string, Dialogue>& GetDialogues() const;
+	Dialogue* GetCurrentDialogue();
+	DialogueLine* GetCurrentDialogueLine();
+	DialoguePage* GetCurrentDialoguePage();
 	void IncrementPage();
 	void DrawInfo(Scene& scene, V2_float position);
 

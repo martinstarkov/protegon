@@ -1,12 +1,10 @@
 #pragma once
 
 #include <memory>
-#include <string_view>
-#include <variant>
 #include <vector>
 
 #include "core/util/file.h"
-#include "runtime/audio/audio.h"
+#include "runtime/asset/asset.h"
 #include "runtime/audio/track.h"
 
 struct MIX_Audio;
@@ -46,7 +44,7 @@ public:
 	void SetVolume(float volume);
 
 	/// @return Volume of the master audio in range [kMinVolume, kMaxVolume].
-	[[nodiscard]] float GetVolume();
+	float GetVolume();
 
 	/// @brief Toggles the master volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new master volume to this value
@@ -72,59 +70,53 @@ public:
 	/// the track's audio. A value greater than 1.0f will play the audio faster, and at a higher
 	/// pitch. A value less than 1.0f will play the audio slower, and at a lower pitch. 1.0f is
 	/// normal speed.
-	void Play(
-		std::variant<Audio, std::string_view> key, float volume = 1.0f, int loops = 0,
-		float frequency_ratio = 1.0f
-	);
+	void Play(AudioOrKey audio, float volume = 1.0f, int loops = 0, float frequency_ratio = 1.0f);
 
 	/// @brief Stop the audio.
-	void Stop(std::variant<Audio, std::string_view> key);
+	void Stop(AudioOrKey audio);
 
 	/// @brief Pauses the audio.
-	void Pause(std::variant<Audio, std::string_view> key);
+	void Pause(AudioOrKey audio);
 
 	/// @brief Resumes the audio.
-	void Resume(std::variant<Audio, std::string_view> key);
+	void Resume(AudioOrKey audio);
 
 	/// @brief Toggles the pause state of the audio.
-	void TogglePause(std::variant<Audio, std::string_view> key);
+	void TogglePause(AudioOrKey audio);
 
 	/// @brief Only sets the volume of the specific audio if it's currently playing; otherwise, does
 	/// nothing.
 	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume].
-	void SetVolume(std::variant<Audio, std::string_view> key, float volume);
+	void SetVolume(AudioOrKey audio, float volume);
 
 	/// @brief Only gets the volume of the specific audio if it's currently playing; otherwise,
 	/// returns 0
 	/// @return Volume of the specific audio in range [kMinVolume, kMaxVolume].
-	[[nodiscard]] float GetVolume(std::variant<Audio, std::string_view> key);
+	float GetVolume(AudioOrKey audio);
 
 	/// @brief Toggles the volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new volume of the audio to this value
 	/// in range [kMinVolume, kMaxVolume].
-	void ToggleVolume(std::variant<Audio, std::string_view> key, float new_volume = 1.0f);
+	void ToggleVolume(AudioOrKey audio, float new_volume = 1.0f);
 
 	/// @return True if the audio is currently, false otherwise.
-	[[nodiscard]] bool IsPlaying(std::variant<Audio, std::string_view> key);
+	[[nodiscard]] bool IsPlaying(AudioOrKey audio);
 
 	/// @return True if the audio is currently paused, false otherwise.
-	[[nodiscard]] bool IsPaused(std::variant<Audio, std::string_view> key);
+	[[nodiscard]] bool IsPaused(AudioOrKey audio);
 
-	// TODO: Add these functions.
 	///// @return True if the audio is currently fading in OR out, false otherwise.
-	//[[nodiscard]] bool IsFading(std::variant<Audio, std::string_view> key);
+	//[[nodiscard]] bool IsFading(AudioOrKey audio);
 	///// @param fade_time How long to fade the audio in for.
 	///// @param loops The number of loops to play the audio for, -1 for infinite looping.
-	// void FadeIn(std::variant<Audio, std::string_view> key, milliseconds fade_time, int loops =
+	// void FadeIn(AudioOrKey audio, milliseconds fade_time, int loops =
 	// -1);
 	///// @param fade_time Time over which to fade the audio out.
-	// void FadeOut(std::variant<Audio, std::string_view> key, milliseconds fade_time);
+	// void FadeOut(AudioOrKey audio, milliseconds fade_time);
 
 private:
 	friend class AssetManager;
 	friend class Application;
-
-	[[nodiscard]] std::size_t Hash(std::variant<Audio, std::string_view> key) const;
 
 	void Update();
 

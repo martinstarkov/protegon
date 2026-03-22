@@ -1,7 +1,5 @@
 #pragma once
 
-#include <ostream>
-
 #include "core/util/entity_handle.h"
 #include "ecs/ecs.h"
 
@@ -18,8 +16,6 @@ private:
 	friend class AudioSystem;
 	friend class AssetManager;
 };
-
-std::ostream& operator<<(std::ostream& o, const Audio& a);
 
 } // namespace ptgn
 

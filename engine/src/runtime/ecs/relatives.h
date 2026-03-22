@@ -13,19 +13,19 @@ namespace ptgn::impl {
 struct ChildKey : public ArithmeticComponent<std::size_t> {
 	using ArithmeticComponent::ArithmeticComponent;
 
-	ChildKey(std::string_view key);
+	explicit ChildKey(std::string_view key);
 };
 
 struct Parent : public Entity {
 	using Entity::Entity;
 
-	Parent(Entity entity);
+	explicit Parent(Entity entity);
 };
 
 struct Children {
 	Children() = default;
 
-	Children(Entity first_child);
+	explicit Children(Entity first_child);
 
 	void Clear();
 

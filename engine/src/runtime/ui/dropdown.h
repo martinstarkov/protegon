@@ -19,10 +19,10 @@ class Scene;
 
 namespace impl {
 
-struct DropdownInstance {
+struct DropdownData {
 	std::vector<Button> buttons_;
 
-	// Whether dropdown is open or closed.
+	/// @brief Whether dropdown is open or closed.
 	bool start_open_{ false };
 	bool open_{ false };
 

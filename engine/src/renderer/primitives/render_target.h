@@ -1,7 +1,5 @@
 #pragma once
 
-#include <optional>
-
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/id.h"
@@ -14,27 +12,6 @@ class Renderer;
 
 namespace impl {
 
-class RenderTargetData {
-public:
-	FramebufferId framebuffer_;
-	std::optional<TextureId> color_;
-	std::optional<RenderbufferId> depth_;
-	// TODO: Consider using the cache values instead to prevent synchronization issues.
-	V2_int size_;
-	TextureFormat format_{ TextureFormat::RGBA8 };
-
-	RenderTargetData() = default;
-
-	RenderTargetData(
-		FramebufferId framebuffer, const std::optional<TextureId>& color,
-		const std::optional<RenderbufferId>& depth, V2_int size, TextureFormat format
-	);
-
-	bool operator==(const RenderTargetData&) const = default;
-
-	operator TextureId() const;
-};
-
 class RenderPass {
 public:
 	void Bind();
@@ -42,10 +19,10 @@ public:
 private:
 	friend class Renderer;
 
-	RenderTargetData source_;
+	RenderTargetId source_;
 
-	RenderTargetData ping_;
-	RenderTargetData pong_;
+	RenderTargetId ping_;
+	RenderTargetId pong_;
 
 	bool has_ping_{ false };
 	bool has_pong_{ false };
@@ -57,20 +34,21 @@ private:
 	Renderer* renderer_{ nullptr };
 };
 
-class RenderTargetObject : public Resource<RenderTargetData> {
+class RenderTargetObject : public Resource<RenderTargetId> {
 public:
-	using Base = Resource<RenderTargetData>;
+	using Base = Resource<RenderTargetId>;
 	using Base::Base;
 
 	V2_int GetSize() const;
 	TextureFormat GetFormat() const;
+
 	void Resize(V2_int new_size);
 
 	void Bind() const;
 
 	void Clear(Color color, bool set_viewport) const;
 
-	operator TextureId() const;
+	impl::TextureId GetTextureId() const;
 
 private:
 	friend class Renderer;

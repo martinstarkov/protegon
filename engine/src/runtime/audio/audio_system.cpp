@@ -6,23 +6,17 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <functional>
 #include <memory>
-#include <optional>
 #include <string>
-#include <string_view>
-#include <type_traits>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
-#include "core/util/hash.h"
 #include "ecs/ecs.h"
+#include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/audio/audio.h"
 #include "runtime/audio/track.h"
 
 namespace ptgn {
@@ -47,46 +41,28 @@ AudioSystem::~AudioSystem() noexcept {
 	MIX_DestroyMixer(mixer_);
 }
 
-std::size_t AudioSystem::Hash(std::variant<Audio, std::string_view> key) const {
-	return std::visit(
-		[]<typename T>(const T& arg) {
-			if constexpr (std::is_same_v<T, std::string_view>) {
-				return ptgn::Hash(arg);
-			} else if constexpr (std::is_same_v<T, Audio>) {
-				return std::hash<T>()(arg);
-			} else {
-				static_assert(false, "Unimplemented visitor!");
-			}
-		},
-		key
-	);
-}
+void AudioSystem::Play(AudioOrKey audio, float volume, int loops, float frequency_ratio) {
+	auto resolved_audio{ audio.Get(assets_) };
 
-void AudioSystem::Play(
-	std::variant<Audio, std::string_view> key, float volume, int loops, float frequency_ratio
-) {
-	auto audio = assets_.ToAudio(key);
-	PTGN_ASSERT(
-		audio.has_value(), "Cannot play audio which has not been loaded into the asset manager"
-	);
-	MIX_Audio* mix_audio = audio->GetEntity().Get<std::shared_ptr<MIX_Audio>>().get();
+	MIX_Audio* mix_audio = resolved_audio.GetEntity().Get<std::shared_ptr<MIX_Audio>>().get();
 
 	PTGN_ASSERT(mix_audio);
 
-	std::size_t id{ Hash(key) };
+	auto id{ HashAsset(audio) };
 
 	impl::Track track{ id, mixer_, mix_audio, loops };
 
 	volume = std::clamp(volume, kMinVolume, kMaxVolume);
 	MIX_SetTrackGain(track.Get(), volume);
+
 	frequency_ratio = std::clamp(frequency_ratio, kMinFrequencyRatio, kMaxFrequencyRatio);
 	MIX_SetTrackFrequencyRatio(track.Get(), frequency_ratio);
 
 	tracks_.emplace_back(std::move(track));
 }
 
-void AudioSystem::Stop(std::variant<Audio, std::string_view> key) {
-	std::size_t id{ Hash(key) };
+void AudioSystem::Stop(AudioOrKey audio) {
+	auto id{ HashAsset(audio) };
 
 	std::erase_if(tracks_, [id](auto& track) {
 		if (track.GetId() == id) {
@@ -99,8 +75,8 @@ void AudioSystem::Stop(std::variant<Audio, std::string_view> key) {
 	});
 }
 
-void AudioSystem::Pause(std::variant<Audio, std::string_view> key) {
-	std::size_t id{ Hash(key) };
+void AudioSystem::Pause(AudioOrKey audio) {
+	auto id{ HashAsset(audio) };
 
 	auto it =
 		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
@@ -113,8 +89,8 @@ void AudioSystem::Pause(std::variant<Audio, std::string_view> key) {
 	// (If you're using MIX_SetTrackPaused, keep it; Pause semantics do not fire stopped callback.)
 }
 
-void AudioSystem::Resume(std::variant<Audio, std::string_view> key) {
-	std::size_t id{ Hash(key) };
+void AudioSystem::Resume(AudioOrKey audio) {
+	auto id{ HashAsset(audio) };
 
 	auto it =
 		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
@@ -126,16 +102,16 @@ void AudioSystem::Resume(std::variant<Audio, std::string_view> key) {
 	MIX_ResumeTrack(it->Get()); // prefer the dedicated API if available
 }
 
-void AudioSystem::TogglePause(std::variant<Audio, std::string_view> key) {
-	if (IsPaused(key)) {
-		Resume(key);
+void AudioSystem::TogglePause(AudioOrKey audio) {
+	if (IsPaused(audio)) {
+		Resume(audio);
 	} else {
-		Pause(key);
+		Pause(audio);
 	}
 }
 
-bool AudioSystem::IsPaused(std::variant<Audio, std::string_view> key) {
-	std::size_t id{ Hash(key) };
+bool AudioSystem::IsPaused(AudioOrKey audio) {
+	auto id{ HashAsset(audio) };
 
 	auto it =
 		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
@@ -152,8 +128,8 @@ bool AudioSystem::IsPaused(std::variant<Audio, std::string_view> key) {
 	return MIX_TrackPaused(track);
 }
 
-bool AudioSystem::IsPlaying(std::variant<Audio, std::string_view> key) {
-	std::size_t id{ Hash(key) };
+bool AudioSystem::IsPlaying(AudioOrKey audio) {
+	auto id{ HashAsset(audio) };
 
 	auto it =
 		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
@@ -170,8 +146,8 @@ bool AudioSystem::IsPlaying(std::variant<Audio, std::string_view> key) {
 	return MIX_TrackPlaying(track);
 }
 
-void AudioSystem::SetVolume(std::variant<Audio, std::string_view> key, float volume) {
-	std::size_t id{ Hash(key) };
+void AudioSystem::SetVolume(AudioOrKey audio, float volume) {
+	auto id{ HashAsset(audio) };
 
 	float clamped{ std::clamp(volume, kMinVolume, kMaxVolume) };
 
@@ -190,8 +166,8 @@ void AudioSystem::SetVolume(std::variant<Audio, std::string_view> key, float vol
 	MIX_SetTrackGain(track, clamped);
 }
 
-float AudioSystem::GetVolume(std::variant<Audio, std::string_view> key) {
-	std::size_t id{ Hash(key) };
+float AudioSystem::GetVolume(AudioOrKey audio) {
+	auto id{ HashAsset(audio) };
 
 	auto it =
 		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
@@ -208,15 +184,15 @@ float AudioSystem::GetVolume(std::variant<Audio, std::string_view> key) {
 	return MIX_GetTrackGain(track);
 }
 
-void AudioSystem::ToggleVolume(std::variant<Audio, std::string_view> key, float new_volume) {
+void AudioSystem::ToggleVolume(AudioOrKey audio, float new_volume) {
 	PTGN_ASSERT(new_volume >= kMinVolume && new_volume <= kMaxVolume);
 
-	float current = GetVolume(key);
+	float current = GetVolume(audio);
 
 	if (current > kMinVolume) {
-		SetVolume(key, kMinVolume);
+		SetVolume(audio, kMinVolume);
 	} else {
-		SetVolume(key, new_volume);
+		SetVolume(audio, new_volume);
 	}
 }
 

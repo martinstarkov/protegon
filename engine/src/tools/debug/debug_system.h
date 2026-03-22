@@ -11,6 +11,7 @@
 #include "core/math/vector2.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
+#include "runtime/asset/asset.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
@@ -35,32 +36,30 @@ public:
 	/// @param text_size {} results in unscaled size of text based on font.
 	void DrawText(
 		std::string_view text_content, Transform transform, Color text_color,
-		std::optional<float> font_size									= {},
-		const std::optional<std::variant<Font, std::string_view>>& font = {},
-		const TextProperties& properties = {}, Origin draw_origin = Origin::Center,
-		std::optional<V2_float> text_size = {}, bool hd_text = true,
-		std::optional<Camera> camera = {}
+		FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {},
+		Origin draw_origin = Origin::Center, std::optional<V2_float> text_size = {},
+		bool hd_text = true, const std::optional<Camera>& camera = {}
 	);
 
 	/// @param origin only applicable to Rect and RoundedRect.
 	void DrawShape(
 		const Shape& shape, Transform transform, Color color,
 		FillStyle fill_style = FillStyle::Hollow(1.0f), Origin draw_origin = Origin::Center,
-		std::optional<Camera> camera = {}
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawLines(
 		const std::vector<V2_float>& points, Color color, float line_width = kMinLineWidth,
 		bool connect_last_to_first = false, std::optional<Transform> transform = {},
-		std::optional<Camera> camera = {}
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawLine(
 		V2_float start, V2_float end, Color color, float line_width = 1.0f,
-		std::optional<Camera> camera = {}
+		const std::optional<Camera>& camera = {}
 	);
 
-	void DrawPoint(V2_float point, Color color, std::optional<Camera> camera = {});
+	void DrawPoint(V2_float point, Color color, const std::optional<Camera>& camera = {});
 
 private:
 	friend class Scene;

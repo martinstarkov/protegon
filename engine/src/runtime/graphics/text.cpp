@@ -2,17 +2,21 @@
 
 #include <cstdint>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <string_view>
-#include <variant>
+#include <utility>
 
 #include "app/context.h"
+#include "core/assert.h"
+#include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
+#include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/ecs/component.h"
@@ -29,6 +33,22 @@ namespace impl {
 
 float GetTextScale(const Scene& scene, const std::optional<Camera>& camera) {
 	return impl::GetCameraParentRenderTargetScale(scene, camera).y;
+}
+
+std::optional<float> ApplyHDTextScaling(
+	bool hd, Transform& transform, const Scene& scene, const std::optional<Camera>& camera
+) {
+	if (hd) {
+		auto scale{ impl::GetCameraParentRenderTargetScale(scene, camera) };
+
+		PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component");
+
+		transform.Scale(transform.GetScale() / scale);
+
+		return impl::GetTextScale(scene, camera);
+	}
+
+	return std::nullopt;
 }
 
 } // namespace impl
@@ -66,17 +86,10 @@ void Text::Draw(
 	V2_float offset{ -GetOriginOffset(offset_origin, scaled_offset) };
 	transform.Translate(offset);
 
-	if (bool is_hd{ text.IsHD() }) {
-		// TODO: Most of this code is duplicated with RenderContext::DrawText and
-		// DebugContext::DrawText. Consider moving the common parts to a helper function.
-		const auto& scene{ text.GetScene() };
-		V2_float scale{ impl::GetCameraParentRenderTargetScale(scene, camera) };
-
-		transform.Scale(transform_scale / scale);
-
-		if (text.GetFontSize(is_hd, camera) != text.Get<impl::HDFontSize>()) {
-			Text::RecreateTexture(text, camera);
-		}
+	if (auto hd_scale{ impl::ApplyHDTextScaling(text.IsHD(), transform, text.GetScene(), camera) };
+		hd_scale.has_value() &&
+		text.GetFontSize() * hd_scale.value() != text.Get<impl::HDFontSize>()) {
+		Text::RecreateTexture(text, camera);
 	}
 
 	const auto& text_texture{ text.Get<Texture>() };
@@ -119,18 +132,22 @@ void Text::RecreateTexture(Entity entity, const std::optional<Camera>& camera) {
 	Text text{ entity };
 	auto content{ text.GetContent() };
 	auto color{ text.GetColor() };
-	float hd_scale{ impl::GetTextScale(text.GetScene(), camera) };
-	bool is_hd{ text.IsHD() };
-	auto font_size{ text.GetFontSize(is_hd, camera) };
+	std::optional<float> hd_scale;
+
+	if (text.IsHD()) {
+		hd_scale = impl::GetTextScale(text.GetScene(), camera);
+	}
+
+	auto font_size{ text.GetFontSize() };
 	auto font{ text.GetFont() };
 	auto properties{ text.GetProperties() };
 
-	RecreateTexture(text, content, color, font_size, font, properties, hd_scale, is_hd);
+	RecreateTexture(text, content, color, font_size, font, properties, hd_scale);
 }
 
 void Text::RecreateTexture(
-	Entity text, std::string_view content, Color text_color, float font_size, Font font,
-	const TextProperties& properties, float hd_scale, bool hd
+	Entity text, std::string_view content, Color text_color, FontSize font_size, FontOrKey font,
+	const TextProperties& properties, std::optional<float> hd_scale
 ) {
 	// Cache the font size of the texture so that if HD resolution changes, the text is updated
 	// before drawing.
@@ -139,7 +156,7 @@ void Text::RecreateTexture(
 	auto& asset{ text.GetScene().app().asset };
 
 	auto texture{
-		asset.CreateTextTexture(content, text_color, font_size, font, properties, hd_scale, hd)
+		asset.CreateTextTexture(content, text_color, font_size, font, properties, hd_scale)
 	};
 
 	text.Add<Texture>(texture);
@@ -160,7 +177,7 @@ void Text::SetProperties(Entity text, const TextProperties& properties, bool rec
 	changed |= Text::SetParameter(text, impl::TextWrapAfter{ properties.wrap_after }, false);
 
 	if (changed && recreate_texture) {
-		Text::RecreateTexture(text, {});
+		Text::RecreateTexture(text, std::nullopt);
 	}
 }
 
@@ -177,12 +194,14 @@ Text& Text::SetHD(bool hd) {
 	} else {
 		Remove<impl::HDText>();
 	}
-	Text::RecreateTexture(*this, {});
+	Text::RecreateTexture(*this, std::nullopt);
 	return *this;
 }
 
-Text& Text::SetFont(std::optional<Font> font) {
-	Text::SetParameter(*this, font.value_or(Font{}));
+Text& Text::SetFont(FontOrKey font) {
+	const auto& scene{ GetScene() };
+	auto resolved_font{ font.Get(scene.app().asset) };
+	Text::SetParameter(*this, resolved_font);
 	return *this;
 }
 
@@ -201,8 +220,8 @@ Text& Text::SetFontStyle(FontStyle font_style) {
 	return *this;
 }
 
-Text& Text::SetFontSize(std::optional<float> pixels) {
-	Text::SetParameter(*this, impl::FontSize{ pixels.value_or(kDefaultFontSize) });
+Text& Text::SetFontSize(FontSize font_size) {
+	Text::SetParameter(*this, font_size);
 	return *this;
 }
 
@@ -266,29 +285,23 @@ TextJustify Text::GetJustify() const {
 	return Text::GetParameter(*this, TextJustify{});
 }
 
-float Text::GetFontSize(bool hd, const std::optional<Camera>& camera) const {
-	const auto& font_size{ Text::GetParameter(*this, impl::FontSize{}) };
-	if (hd) {
-		const auto& scene{ GetScene() };
-		float scale{ impl::GetTextScale(scene, camera) };
-		return font_size * scale;
-	}
-	return font_size;
+FontSize Text::GetFontSize() const {
+	return Text::GetParameter(*this, FontSize{});
 }
 
-V2_int Text::GetSize(std::string_view content, const std::optional<Camera>& camera) const {
-	return GetSize(content, GetFont(), GetFontSize(IsHD(), camera));
-}
-
-V2_int Text::GetSize(const std::optional<Camera>& camera) const {
+V2_int Text::GetSize() const {
 	return GetSize(
 		Text::GetParameter(*this, impl::TextContent{}), Text::GetParameter(*this, Font{}),
-		GetFontSize(IsHD(), camera)
+		GetFontSize()
 	);
 }
 
-V2_int Text::GetSize(std::string_view content, Font font, std::optional<float> font_size) const {
-	return GetScene().app().font.GetSize(font, content, font_size);
+V2_int Text::GetSize(std::string_view text_content, FontOrKey font, FontSize font_size) const {
+	return GetScene().app().font.GetSize(font, text_content, font_size);
+}
+
+V2_int Text::GetSize(std::string_view text_content) const {
+	return GetSize(text_content, GetFont(), GetFontSize());
 }
 
 TextProperties Text::GetProperties() const {
@@ -304,23 +317,32 @@ TextProperties Text::GetProperties() const {
 }
 
 Text CreateText(
-	Scene& scene, std::string_view content, Color text_color, std::optional<float> font_size,
-	const std::optional<std::variant<Font, std::string_view>>& font,
-	const TextProperties& properties
+	Scene& scene, std::string_view text_content, Color text_color, FontSize font_size,
+	FontOrKey font, const TextProperties& properties
 ) {
-	std::optional<Font> resolved_font{ scene.app().asset.ToFont(font) };
+	auto resolved_font{ font.Get(scene.app().asset) };
 
 	Text text{ scene.CreateEntity() };
 	text.Add<Texture>();
 	SetDraw<Text>(text);
 	Show(text, false);
 	text.Add<impl::HDText>();
-	Text::SetParameter(text, impl::TextContent{ content }, false);
+	Text::SetParameter(text, impl::TextContent{ text_content }, false);
 	Text::SetParameter(text, impl::TextColor{ text_color }, false);
-	Text::SetParameter(text, resolved_font.value_or(Font{}), false);
-	Text::SetParameter(text, impl::FontSize{ font_size.value_or(kDefaultFontSize) }, false);
+	Text::SetParameter(text, resolved_font, false);
+	Text::SetParameter(text, font_size, false);
 	Text::SetProperties(text, properties, true);
 	return text;
+}
+
+std::ostream& operator<<(std::ostream& os, TextJustify text_justify) {
+	switch (text_justify) {
+		using enum TextJustify;
+		case Left:	 return os << "Left";
+		case Center: return os << "Center";
+		case Right:	 return os << "Right";
+		default:	 PTGN_ERROR("Unknown TextJustify: ", std::to_underlying(text_justify));
+	}
 }
 
 } // namespace ptgn
