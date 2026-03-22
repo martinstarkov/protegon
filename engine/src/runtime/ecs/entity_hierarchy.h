@@ -4,17 +4,15 @@
 #include <string_view>
 #include <vector>
 
-// TODO: Add tests for entity hierarchy functions.
-
 namespace ptgn {
 
 class Entity;
 
 /// @return The parent most entity, or *this if no parent exists.
-[[nodiscard]] Entity GetRootEntity(Entity entity);
+Entity GetRootEntity(Entity entity);
 
 /// @return Parent entity of the object. If object has no parent, returns *this.
-[[nodiscard]] Entity GetParent(Entity entity);
+Entity GetParent(Entity entity);
 
 [[nodiscard]] bool HasParent(Entity entity);
 
@@ -55,12 +53,12 @@ void RemoveChild(Entity entity, std::string_view name);
 [[nodiscard]] bool HasChild(Entity entity, std::string_view name);
 
 /// @return Child entity with the given name. Assertion called if entity does not exist
-[[nodiscard]] Entity GetChild(Entity entity, std::string_view name);
+Entity GetChild(Entity entity, std::string_view name);
 
 [[nodiscard]] bool HasChildren(Entity entity);
 
 /// @return All direct children of the object.
-[[nodiscard]] const std::vector<Entity>& GetChildren(Entity entity);
+const std::vector<Entity>& GetChildren(Entity entity);
 
 namespace impl {
 

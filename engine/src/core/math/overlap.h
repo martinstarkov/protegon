@@ -18,12 +18,12 @@ namespace ptgn {
 
 namespace impl {
 
-[[nodiscard]] std::vector<Axis> GetPolygonAxes(
+std::vector<Axis> GetPolygonAxes(
 	const V2_float* vertices, std::size_t vertex_count, bool intersection_info
 );
 
 /// @return { min, max } of all the polygon vertices projected onto the given axis.
-[[nodiscard]] std::pair<float, float> GetPolygonProjectionMinMax(
+std::pair<float, float> GetPolygonProjectionMinMax(
 	const V2_float* vertices, std::size_t vertex_count, const Axis& axis
 );
 
@@ -31,7 +31,7 @@ namespace impl {
 	Transform t1, const Polygon& A, Transform t2, const Polygon& B
 );
 
-[[nodiscard]] bool GetPolygonMinimumOverlap(
+bool GetPolygonMinimumOverlap(
 	Transform t1, const Polygon& A, Transform t2, const Polygon& B, float& depth, Axis& axis
 );
 

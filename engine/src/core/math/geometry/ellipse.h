@@ -16,16 +16,16 @@ struct Ellipse {
 	explicit Ellipse(Vector2<T> ellipse_radius) : radius{ ellipse_radius } {}
 
 	/// @return Center relative to the world.
-	[[nodiscard]] V2_float GetCenter(Transform transform) const;
+	V2_float GetCenter(Transform transform) const;
 
-	[[nodiscard]] V2_float GetRadius() const;
+	V2_float GetRadius() const;
 
 	/// @return Radius scaled relative to the transform.
-	[[nodiscard]] V2_float GetRadius(Transform transform) const;
+	V2_float GetRadius(Transform transform) const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
+	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetLocalQuadVertices() const;
+	std::array<V2_float, 4> GetLocalQuadVertices() const;
 
 	bool operator==(const Ellipse&) const = default;
 

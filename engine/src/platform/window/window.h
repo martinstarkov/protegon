@@ -88,31 +88,31 @@ public:
 	Window& operator=(const Window&)	 = delete;
 
 	void SetMinimumSize(V2_int minimum_size) const;
-	[[nodiscard]] V2_int GetMinimumSize() const;
+	V2_int GetMinimumSize() const;
 
 	void SetMaximumSize(V2_int maximum_size) const;
-	[[nodiscard]] V2_int GetMaximumSize() const;
+	V2_int GetMaximumSize() const;
 
 	void SetSize(V2_int new_size, bool centered = true) const;
-	[[nodiscard]] V2_int GetSize() const;
+	V2_int GetSize() const;
 
-	// @return Top left of the window relative to the top left of the screen.
-	[[nodiscard]] V2_int GetPosition() const;
+	/// @return Top left of the window relative to the top left of the screen.
+	V2_int GetPosition() const;
 
 	void SetTitle(const std::string& title) const;
-	[[nodiscard]] std::string_view GetTitle() const;
+	std::string_view GetTitle() const;
 
 	void Center() const;
 
 	void SetBackgroundColor(Color background_color = color::Transparent);
-	[[nodiscard]] Color GetBackgroundColor() const;
+	Color GetBackgroundColor() const;
 
 	void SetPosition(V2_int new_origin) const;
 
 	void SetSetting(WindowSetting setting) const;
 
-	// Get the current state of a window setting.
-	[[nodiscard]] bool GetSetting(WindowSetting setting) const;
+	/// @brief Get the current state of a window setting.
+	bool GetSetting(WindowSetting setting) const;
 
 	void SetResizable() const;
 
@@ -124,7 +124,7 @@ public:
 
 #ifdef __EMSCRIPTEN__
 	void SetCanvasSize(V2_int new_size) const;
-	[[nodiscard]] V2_int GetCanvasSize() const;
+	V2_int GetCanvasSize() const;
 #endif
 
 	// TODO: Move to private.
@@ -133,10 +133,10 @@ public:
 private:
 	friend class impl::gl::GLContext;
 
-	// While the mouse is in relative mode, the cursor is hidden, the mouse position is constrained
-	// to the window, and there will be continuous relative mouse motion events triggered even if
-	// the mouse is at the edge of the window.
-	// @param Whether or not mouse relative mode should be turned on or not.
+	/// @brief While the mouse is in relative mode, the cursor is hidden, the mouse position is
+	/// constrained to the window, and there will be continuous relative mouse motion events
+	/// triggered even if the mouse is at the edge of the window.
+	/// @param Whether or not mouse relative mode should be turned on or not.
 	void SetRelativeMouseMode(bool on) const;
 
 	void SetMouseGrab(bool on) const;

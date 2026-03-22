@@ -16,16 +16,16 @@ struct Polygon {
 	template <typename Container>
 		requires std::ranges::input_range<Container> &&
 				 std::convertible_to<std::ranges::range_value_t<Container>, V2_float>
-	Polygon(const Container& points) {
+	Polygon(const Container& points) { // NOSONAR
 		vertices.assign(points.begin(), points.end());
 	}
 
-	[[nodiscard]] std::vector<V2_float> GetWorldVertices(Transform transform) const;
+	std::vector<V2_float> GetWorldVertices(Transform transform) const;
 
-	[[nodiscard]] std::vector<V2_float> GetLocalVertices() const;
+	std::vector<V2_float> GetLocalVertices() const;
 
 	/// @return Centroid of the polygon.
-	[[nodiscard]] V2_float GetCenter() const;
+	V2_float GetCenter() const;
 
 	bool operator==(const Polygon&) const = default;
 

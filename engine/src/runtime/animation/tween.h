@@ -64,54 +64,57 @@ public:
 	/// @return True if the tween is currently paused.
 	[[nodiscard]] bool IsPaused() const;
 
-	/// Resets and starts the tween. Will restart paused tweens.
+	/// @brief Resets and starts the tween. Will restart paused tweens.
 	/// @param force If true, ignores the current state of the tween. If false, will only start if
 	/// the tween is paused or not currently started.
 	Tween& Start(bool force = true);
 
-	/// Stops the tween.
+	/// @brief Stops the tween.
 	Tween& Stop();
 
-	/// Pause the tween.
+	/// @brief Pause the tween.
 	Tween& Pause();
 
-	/// Resume the tween.
+	/// @brief Resume the tween.
 	Tween& Resume();
 
-	/// Toggles the tween between paused and resumed, or if starts the tween if it is stopped.
+	/// @brief Toggles the tween between paused and resumed, or if starts the tween if it is
+	/// stopped.
 	Tween& Toggle();
 
-	/// Will trigger OnReset callback for each tween point if the tween was started or completed.
+	/// @brief Will trigger OnReset callback for each tween point if the tween was started or
+	/// completed.
 	Tween& Reset();
 
-	/// Clears previously assigned tween points and resets the tween. Will skip invoking callbacks.
+	/// @brief Clears previously assigned tween points and resets the tween. Will skip invoking
+	/// callbacks.
 	Tween& Clear();
 
 	Tween& Ease(ptgn::Ease ease);
 
-	/// -1 for infinite repeats.
+	/// @brief -1 for infinite repeats.
 	Tween& Repeat(std::int64_t repeats);
 
 	Tween& Reverse(bool reversed = true);
 
 	Tween& Yoyo(bool yoyo = true);
 
-	/// Note: This value is impacted by the Ease value set for the current tween point.
+	/// @brief Note: This value is impacted by the Ease value set for the current tween point.
 	/// @return Current eased progress of the tween [0.0f, 1.0f].
-	[[nodiscard]] float GetProgress() const;
+	float GetProgress() const;
 
-	/// Note: This value is NOT impacted by the Ease value set for the current tween point.
+	/// @brief Note: This value is NOT impacted by the Ease value set for the current tween point.
 	/// @return Current uneased progress of the tween [0.0f, 1.0f].
-	[[nodiscard]] float GetLinearProgress() const;
+	float GetLinearProgress() const;
 
 	/// @return Current number of repeats of the current tween point.
-	[[nodiscard]] std::int64_t GetRepeats() const;
+	std::int64_t GetRepeats() const;
 
 	/// @return Index of the current tween point.
-	[[nodiscard]] std::size_t GetCurrentIndex() const;
+	std::size_t GetCurrentIndex() const;
 
 	/// @return The easing mode of the current tween point.
-	[[nodiscard]] ptgn::Ease GetEase() const;
+	ptgn::Ease GetEase() const;
 
 	/// @param duration Duration to set for the tween.
 	/// @param tween_point_index Which tween point to set the duration of.
@@ -119,7 +122,7 @@ public:
 
 	/// @param tween_point_index Which tween point to query to duration of.
 	/// @return The duration of the specified tween point.
-	[[nodiscard]] milliseconds GetDuration(std::size_t tween_point_index = 0) const;
+	milliseconds GetDuration(std::size_t tween_point_index = 0) const;
 
 	// TODO: Implement and test.
 	// dt in seconds.
@@ -129,8 +132,9 @@ public:
 
 	void Step(secondsf dt);
 
-	/// If there are future tween points, will simulate a tween point completion. If the tween has
-	/// completed or is in the middle of the final tween point, this function does nothing.
+	/// @brief If there are future tween points, will simulate a tween point completion. If the
+	/// tween has completed or is in the middle of the final tween point, this function does
+	/// nothing.
 	Tween& IncrementPoint();
 
 	Tween& RemoveLastTweenPoint();
@@ -139,23 +143,23 @@ public:
 
 	void Seek(milliseconds time);
 
-	[[nodiscard]] std::size_t GetTweenPointCount() const;
+	std::size_t GetTweenPointCount() const;
 
-	[[nodiscard]] const impl::TweenPoint& GetTweenPoint(std::size_t tween_point_index) const;
-	[[nodiscard]] impl::TweenPoint& GetTweenPoint(std::size_t tween_point_index);
+	const impl::TweenPoint& GetTweenPoint(std::size_t tween_point_index) const;
+	impl::TweenPoint& GetTweenPoint(std::size_t tween_point_index);
 
-	[[nodiscard]] impl::TweenPoint& GetLastTweenPoint();
-	[[nodiscard]] const impl::TweenPoint& GetLastTweenPoint() const;
+	impl::TweenPoint& GetLastTweenPoint();
+	const impl::TweenPoint& GetLastTweenPoint() const;
 
 private:
 	friend class Scene;
 	friend class ScriptSequence;
 	friend class SceneManager;
 
-	[[nodiscard]] milliseconds GetTotalDuration() const;
+	milliseconds GetTotalDuration() const;
 
-	[[nodiscard]] const impl::TweenPoint& GetCurrentTweenPoint() const;
-	[[nodiscard]] impl::TweenPoint& GetCurrentTweenPoint();
+	const impl::TweenPoint& GetCurrentTweenPoint() const;
+	impl::TweenPoint& GetCurrentTweenPoint();
 
 	static void Update(Scene& scene, secondsf dt);
 };

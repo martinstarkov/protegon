@@ -16,13 +16,13 @@ struct Line {
 	/// @param out_size Optional parameter for the unrotated size of the quad.
 	/// @return Quad vertices relative to the given transform for this line with a given a line
 	/// width.
-	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(
+	std::array<V2_float, 4> GetWorldQuadVertices(
 		Transform transform, float line_width = 1.0f, V2_float* out_size = nullptr
 	) const;
 
-	[[nodiscard]] std::array<V2_float, 2> GetWorldVertices(Transform transform) const;
+	std::array<V2_float, 2> GetWorldVertices(Transform transform) const;
 
-	[[nodiscard]] std::array<V2_float, 2> GetLocalVertices() const;
+	std::array<V2_float, 2> GetLocalVertices() const;
 
 	bool operator==(const Line&) const = default;
 

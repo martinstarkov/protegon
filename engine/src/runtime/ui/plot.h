@@ -30,25 +30,25 @@
 //	std::vector<V2_float> points;
 //
 //	// @return Maximum values along both axes.
-//	[[nodiscard]] V2_float GetMax() const;
+//	V2_float GetMax() const;
 //
 //	// @return Minimum values along both axes.
-//	[[nodiscard]] V2_float GetMin() const;
+//	V2_float GetMin() const;
 //
 //	// Sorts point vector by ascending x values (smallest to largest).
 //	void SortAscendingByX();
 //
 //	// @return Maximum value along the x axis.
-//	[[nodiscard]] float GetMaxX() const;
+//	float GetMaxX() const;
 //
 //	// @return Maximum value along the y axis.
-//	[[nodiscard]] float GetMaxY() const;
+//	float GetMaxY() const;
 //
 //	// @return Minimum value along the x axis.
-//	[[nodiscard]] float GetMinX() const;
+//	float GetMinX() const;
 //
 //	// @return Minimum value along the y axis.
-//	[[nodiscard]] float GetMinY() const;
+//	float GetMinY() const;
 // };
 //
 //// Plot Properties:
@@ -106,11 +106,11 @@
 //
 //	DataPoints data;
 //
-//	[[nodiscard]] const Button& GetButton() const {
+//	const Button& GetButton() const {
 //		return button_;
 //	}
 //
-//	[[nodiscard]] Button& GetButton() {
+//	Button& GetButton() {
 //		return button_;
 //	}
 //
@@ -127,7 +127,7 @@
 //	V2_float min;
 //	V2_float max;
 //
-//	[[nodiscard]] V2_float GetLength() const {
+//	V2_float GetLength() const {
 //		return max - min;
 //	}
 //};
@@ -226,19 +226,19 @@
 //	void SetMaxX(float max_x);
 //	void SetMaxY(float max_y);
 //
-//	[[nodiscard]] float GetMinX() const;
-//	[[nodiscard]] float GetMinY() const;
-//	[[nodiscard]] float GetMaxX() const;
-//	[[nodiscard]] float GetMaxY() const;
+//	float GetMinX() const;
+//	float GetMinY() const;
+//	float GetMaxX() const;
+//	float GetMaxY() const;
 //
 //	// Resets a plot after it has been moved.
 //	void Reset();
 //
 //	// @return Maximum axis values that are displayed on the plot.
-//	[[nodiscard]] V2_float GetAxisMax() const;
+//	V2_float GetAxisMax() const;
 //
 //	// @return Minimum axis values that are displayed on the plot.
-//	[[nodiscard]] V2_float GetAxisMin() const;
+//	V2_float GetAxisMin() const;
 //
 //	// @param destination Destination rectangle where to draw the plot. Default of {} results in
 //	// fullscreen.

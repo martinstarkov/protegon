@@ -80,60 +80,46 @@
 		f, userdata, PTGN_MAP_INC(index), peek, __VA_ARGS__                     \
 	)
 
-/**
- * Applies the function macro `f` to each of the remaining parameters.
- */
+/// @brief Applies the function macro `f` to each of the remaining parameters.
 #define PTGN_MAP(f, ...) PTGN_EVAL(PTGN_MAP1(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
-/**
- * Applies the function macro `f` to each of the remaining parameters and
- * inserts commas between the results.
- */
+/// @brief Applies the function macro `f` to each of the remaining parameters and inserts commas
+/// between the results.
 #define PTGN_MAP_LIST(f, ...) PTGN_EVAL(PTGN_MAP_LIST2(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
-/**
- * Applies the function macro `f` to each of the remaining parameters and passes userdata as the
- * second parameter to each invocation, e.g. PTGN_MAP_UD(f, x, a, b, c) evaluates to f(a, x) f(b, x)
- * f(c, x)
- */
+/// @brief Applies the function macro `f` to each of the remaining parameters and passes userdata as
+/// the second parameter to each invocation, e.g. PTGN_MAP_UD(f, x, a, b, c) evaluates to f(a, x)
+/// f(b, x) f(c, x)
 #define PTGN_MAP_DATA(f, userdata, ...) \
 	PTGN_EVAL(PTGN_MAP1_UD(f, userdata, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
-/**
- * Applies the function macro `f` to each of the remaining parameters, inserts commas between the
- * results, and passes userdata as the second parameter to each invocation, e.g. PTGN_MAP_LIST_UD(f,
- * x, a, b, c) evaluates to f(a, x), f(b, x), f(c, x)
- */
+/// @brief Applies the function macro `f` to each of the remaining parameters, inserts commas
+/// between the results, and passes userdata as the second parameter to each invocation, e.g.
+/// PTGN_MAP_LIST_UD(f, x, a, b, c) evaluates to f(a, x), f(b, x), f(c, x)
 #define PTGN_MAP_LIST_DATA(f, userdata, ...) \
 	PTGN_EVAL(PTGN_MAP_LIST2_UD(f, userdata, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
-/**
- * Applies the function macro `f` to each of the remaining parameters, passes userdata as the second
- * parameter to each invocation, and the index of the invocation as the third parameter, e.g.
- * PTGN_MAP_UD_I(f, x, a, b, c) evaluates to f(a, x, 0) f(b, x, 1) f(c, x, 2)
- */
+/// @brief Applies the function macro `f` to each of the remaining parameters, passes userdata as
+/// the second parameter to each invocation, and the index of the invocation as the third parameter,
+/// e.g. PTGN_MAP_UD_I(f, x, a, b, c) evaluates to f(a, x, 0) f(b, x, 1) f(c, x, 2)
 #define PTGN_MAP_DATA_INDEX(f, userdata, ...) \
 	PTGN_EVAL(PTGN_MAP1_UD_I(f, userdata, 0, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
-/**
- * Applies the function macro `f` to each of the remaining parameters, inserts commas between the
- * results, passes userdata as the second parameter to each invocation, and the index of the
- * invocation as the third parameter, e.g. PTGN_MAP_LIST_UD_I(f, x, a, b, c) evaluates to f(a, x,
- * 0), f(b, x, 1), f(c, x, 2)
- */
+/// @brief Applies the function macro `f` to each of the remaining parameters, inserts commas
+/// between the results, passes userdata as the second parameter to each invocation, and the index
+/// of the invocation as the third parameter, e.g. PTGN_MAP_LIST_UD_I(f, x, a, b, c) evaluates to
+/// f(a, x, 0), f(b, x, 1), f(c, x, 2)
 #define PTGN_MAP_LIST_DATA_INDEX(f, userdata, ...) \
 	PTGN_EVAL(PTGN_MAP_LIST2_UD_I(f, userdata, 0, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
-/*
- * Because the preprocessor can't do arithmetic that produces integer literals for the *_I macros,
- * we have to do it manually. Since the number of parameters is limited anyways, this is sufficient
- * for all cases. If extra PTGN_EVAL layers are added, these definitions have to be extended. This
- * is equivalent to the way Boost.preprocessor does it:
- * https://github.com/boostorg/preprocessor/blob/develop/include/boost/preprocessor/arithmetic/inc.hpp
- * The *_I macros could alternatively pass C expressions such as (0), (0+1), (0+1+1...) to the user
- * macro, but passing 0, 1, 2 ... allows the user to incorporate the index into C identifiers, e.g.
- * to define a function like test_##index () for each macro invocation.
- */
+/// Because the preprocessor can't do arithmetic that produces integer literals for the *_I macros,
+/// we have to do it manually. Since the number of parameters is limited anyways, this is sufficient
+/// for all cases. If extra PTGN_EVAL layers are added, these definitions have to be extended. This
+/// is equivalent to the way Boost.preprocessor does it:
+/// https://github.com/boostorg/preprocessor/blob/develop/include/boost/preprocessor/arithmetic/inc.hpp
+/// The *_I macros could alternatively pass C expressions such as (0), (0+1), (0+1+1...) to the user
+/// macro, but passing 0, 1, 2 ... allows the user to incorporate the index into C identifiers, e.g.
+/// to define a function like test_##index () for each macro invocation.
 #define PTGN_MAP_INC_0	 1
 #define PTGN_MAP_INC_1	 2
 #define PTGN_MAP_INC_2	 3

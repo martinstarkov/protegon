@@ -1,9 +1,7 @@
 #pragma once
 
 #include <array>
-#include <cstdint>
 #include <optional>
-#include <span>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -11,11 +9,9 @@
 #include "core/event/event.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/shape.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
-#include "renderer/primitives/texture.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
@@ -57,9 +53,6 @@ struct Depth : public ArithmeticComponent<float> {
 };
 
 namespace impl {
-
-template <ShapeType T>
-void DrawShape(DrawContext& renderer, Entity entity);
 
 struct Visible {};
 
@@ -122,7 +115,7 @@ void SortByDepth(std::vector<Entity>& entities, bool ascending = true);
 
 void SetDrawOrigin(Entity entity, Origin origin);
 
-[[nodiscard]] Origin GetDrawOrigin(Entity entity);
+Origin GetDrawOrigin(Entity entity);
 
 template <DrawableType T>
 void SetDraw(Entity entity) {
@@ -148,30 +141,30 @@ struct EntityHide : public Event<EntityHide> {};
 
 void SetDepth(Entity entity, Depth depth);
 
-[[nodiscard]] Depth GetDepth(Entity entity);
+Depth GetDepth(Entity entity);
 
 void SetBlendMode(Entity entity, BlendMode blend_mode);
 
-[[nodiscard]] BlendMode GetBlendMode(Entity entity);
+BlendMode GetBlendMode(Entity entity);
 
 /// @param color color::White will clear any tint.
 void SetTint(Entity entity, Color color = color::White);
 
-[[nodiscard]] Color GetTint(Entity entity);
+Color GetTint(Entity entity);
 
 /// @return Unscaled size of the entire texture in pixels.
-[[nodiscard]] std::optional<V2_int> GetTextureSize(Entity entity);
+std::optional<V2_int> GetTextureSize(Entity entity);
 
 /// @return Unscaled size of the cropped texture in pixels.
-[[nodiscard]] std::optional<V2_int> GetCroppedTextureSize(Entity entity);
+std::optional<V2_int> GetCroppedTextureSize(Entity entity);
 
 /// @return Scaled size of the cropped texture in pixels.
-[[nodiscard]] std::optional<V2_float> GetDisplaySize(Entity entity);
+std::optional<V2_float> GetDisplaySize(Entity entity);
 
 /// @brief Overrides the scale of the entity.
 void SetDisplaySize(Entity entity, V2_float display_size);
 
-[[nodiscard]] std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically);
+std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically);
 
 PTGN_REGISTER_DRAWABLE(impl::CapsuleDraw);
 PTGN_REGISTER_DRAWABLE(impl::CircleDraw);

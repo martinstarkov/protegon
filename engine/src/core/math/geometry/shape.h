@@ -17,8 +17,6 @@
 #include "core/math/vector2.h"
 #include "serialization/json/fwd.h"
 
-// TODO: Change this to be something more readable and doesn't cause IntelliSense issues.
-
 namespace ptgn {
 
 class Shape;
@@ -109,16 +107,16 @@ public:
 /// For a line, this is the start and end points.
 /// For polygons, this is equivalent to their vertices.
 /// For shapes with curved edges, this is the quad that contains them.
-[[nodiscard]] std::vector<V2_float> GetWorldVertices(const Shape& shape, Transform transform);
+std::vector<V2_float> GetWorldVertices(const Shape& shape, Transform transform);
 
 struct EdgeInfo {
-	// If a shape has arced edges, this is set to true and edges is populated with the quad edges
-	// that outline the shape.
+	/// @brief If a shape has arced edges, this is set to true and edges is populated with the quad
+	/// edges that outline the shape.
 	bool quad_approximation{ false };
 
 	std::vector<Line> edges;
 };
 
-[[nodiscard]] EdgeInfo GetEdges(const Shape& shape, Transform transform);
+EdgeInfo GetEdges(const Shape& shape, Transform transform);
 
 } // namespace ptgn

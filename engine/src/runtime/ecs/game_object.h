@@ -32,6 +32,7 @@ public:
 	GameObject& operator=(const GameObject&) = delete;
 };
 
+/// @brief For situations where a game object needs to be added to an entity as a unique component.
 template <typename T>
 class TaggedGameObject : public GameObject {
 public:

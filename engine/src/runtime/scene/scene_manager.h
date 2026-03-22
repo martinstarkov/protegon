@@ -616,20 +616,20 @@ public:
 
 	void Exit(const SceneKey& scene_key);
 
-	[[nodiscard]] std::shared_ptr<Scene> Get(std::string_view scene_key) {
+	std::shared_ptr<Scene> Get(std::string_view scene_key) {
 		auto p = GetImpl(key);
 		PTGN_ASSERT(p, "Cannot retrieve scene which does not exist in the scene manager");
 		return p;
 	}
 
-	[[nodiscard]] std::shared_ptr<const Scene> Get(std::string_view scene_key) const {
+	std::shared_ptr<const Scene> Get(std::string_view scene_key) const {
 		auto p = GetImpl(key);
 		PTGN_ASSERT(p, "Cannot retrieve scene which does not exist in the scene manager");
 		return std::static_pointer_cast<const Scene>(p);
 	}
 
 	template <impl::SceneType TScene>
-	[[nodiscard]] std::shared_ptr<TScene> Get(std::string_view scene_key) {
+	std::shared_ptr<TScene> Get(std::string_view scene_key) {
 		auto base = GetImpl(key);
 		PTGN_ASSERT(base, "Cannot retrieve scene which does not exist in the scene manager");
 
@@ -643,7 +643,7 @@ public:
 	}
 
 	template <impl::SceneType TScene>
-	[[nodiscard]] std::shared_ptr<const TScene> Get(std::string_view scene_key) const {
+	std::shared_ptr<const TScene> Get(std::string_view scene_key) const {
 		auto base = GetImpl(key);
 		PTGN_ASSERT(base, "Cannot retrieve scene which does not exist in the scene manager");
 
@@ -656,8 +656,8 @@ public:
 		}
 	}
 
-	[[nodiscard]] std::shared_ptr<const Scene> GetCurrent() const;
-	[[nodiscard]] std::shared_ptr<Scene> GetCurrent();
+	std::shared_ptr<const Scene> GetCurrent() const;
+	std::shared_ptr<Scene> GetCurrent();
 
 	[[nodiscard]] bool Has(const SceneKey& scene_key) const;
 

@@ -18,7 +18,7 @@ struct BoundingAABB {
 	[[nodiscard]] BoundingAABB ExpandByVelocity(V2_float velocity) const;
 };
 
-// @return Axis aligned bounding box which contains the given shape (fully surrounding it).
-[[nodiscard]] BoundingAABB GetBoundingAABB(const ColliderShape& shape, Transform transform);
+/// @return Axis aligned bounding box which contains the given shape (fully surrounding it).
+BoundingAABB GetBoundingAABB(const ColliderShape& shape, Transform transform);
 
 } // namespace ptgn

@@ -64,18 +64,18 @@ public:
 	InputHandler& operator=(InputHandler&&) noexcept = delete;
 
 	/// @return Mouse position relative to the center of the window.
-	[[nodiscard]] V2_float GetMousePosition() const;
+	V2_float GetMousePosition() const;
 
 	/// @return Mouse position relative to the center of the window during the previous frame.
-	[[nodiscard]] V2_float GetPreviousMousePosition() const;
+	V2_float GetPreviousMousePosition() const;
 
 	/// @return Mouse delta (current_position - previous_position) relative to the center of the
 	/// window.
-	[[nodiscard]] V2_float GetMouseDelta() const;
+	V2_float GetMouseDelta() const;
 
 	/// @return The amount scrolled by the mouse vertically in the current frame,
 	/// positive upward, negative downward. Zero if no scroll occurred.
-	[[nodiscard]] float GetMouseScroll() const;
+	float GetMouseScroll() const;
 
 	/// @param button The mouse button to check.
 	/// @return True the first frame that the mouse is pressed.
@@ -97,7 +97,7 @@ public:
 	/// @param button The mouse button to check.
 	/// @return The amount of time that the mouse button has been held down, negative numbers
 	/// indicate the time since the mouse button was last held.
-	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button) const;
+	milliseconds GetMouseHeldTime(Mouse button) const;
 
 	/// @param key The key to check.
 	/// @return True the first frame that the key is pressed.
@@ -119,7 +119,7 @@ public:
 	/// @param key The key to check.
 	/// @return The amount of time that the key has been held down, negative numbers
 	/// indicate the time since the key was last held.
-	[[nodiscard]] milliseconds GetKeyHeldTime(Key key) const;
+	milliseconds GetKeyHeldTime(Key key) const;
 
 private:
 	friend class Application;
@@ -128,7 +128,7 @@ private:
 	using EventSink = std::function<void(impl::EventBase&)>;
 
 	/// @return Mouse position relative to the top left of the screen.
-	[[nodiscard]] V2_float GetMouseScreenPosition() const;
+	V2_float GetMouseScreenPosition() const;
 
 	/// Updates the user inputs and posts any triggered input events. Run internally when using game
 	/// scenes.

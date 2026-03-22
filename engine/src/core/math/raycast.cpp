@@ -394,7 +394,7 @@ RaycastResult RaycastCapsule(
 	return c;
 }
 
-[[nodiscard]] RaycastResult RaycastPolygon(
+RaycastResult RaycastPolygon(
 	V2_float ray_start, V2_float ray_end, Transform transform2, const Polygon& B
 ) {
 	PTGN_ASSERT(impl::IsConvexPolygon(B.vertices.data(), B.vertices.size()));
@@ -431,7 +431,7 @@ RaycastResult RaycastCircleLine(
 	);
 }
 
-[[nodiscard]] RaycastResult RaycastCirclePolygon(
+RaycastResult RaycastCirclePolygon(
 	V2_float ray, Transform transform1, const Circle& A, Transform transform2, const Polygon& B
 ) {
 	PTGN_ASSERT(impl::IsConvexPolygon(B.vertices.data(), B.vertices.size()));

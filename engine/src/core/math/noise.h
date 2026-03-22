@@ -25,13 +25,13 @@ public:
 	virtual ~Noise() = default;
 
 	void SetFrequency(float frequency);
-	[[nodiscard]] float GetFrequency() const;
+	float GetFrequency() const;
 
 	void SetSeed(std::int32_t seed);
-	[[nodiscard]] std::int32_t GetSeed() const;
+	std::int32_t GetSeed() const;
 
-	[[nodiscard]] virtual float Get(float x, float y) const = 0;
-	[[nodiscard]] virtual float Get(float x) const			= 0;
+	virtual float Get(float x, float y) const = 0;
+	virtual float Get(float x) const		  = 0;
 
 protected:
 	[[nodiscard]] static float ValueCoordinate(
@@ -146,8 +146,8 @@ private:
 
 	std::int32_t seed_{ 0 };
 
-	// Sampling rate of the first layer of noise as a % of the provided noise array.
-	// Lower value means the initial noise layer has a higher noise frequency.
+	/// @brief Sampling rate of the first layer of noise as a % of the provided noise array.
+	/// Lower value means the initial noise layer has a higher noise frequency.
 	float frequency_{ 0.01f };
 };
 
@@ -155,51 +155,45 @@ private:
 
 class PerlinNoise : public impl::Noise {
 public:
-	[[nodiscard]] float Get(float x, float y) const final;
-	[[nodiscard]] float Get(float x) const final;
-	[[nodiscard]] static float GetValue(
-		float x, float y, std::int32_t seed = 0, float frequency = 0.01f
-	);
+	float Get(float x, float y) const final;
+	float Get(float x) const final;
+	static float GetValue(float x, float y, std::int32_t seed = 0, float frequency = 0.01f);
 
 private:
 	friend class FractalNoise;
-	// x and y already multiplied by frequency.
-	[[nodiscard]] static float GetImpl(float x, float y, std::int32_t seed);
+	/// @brief x and y already multiplied by frequency.
+	static float GetImpl(float x, float y, std::int32_t seed);
 };
 
 class ValueNoise : public impl::Noise {
 public:
-	[[nodiscard]] float Get(float x, float y) const final;
-	[[nodiscard]] float Get(float x) const final;
-	[[nodiscard]] static float GetValue(
-		float x, float y, std::int32_t seed = 0, float frequency = 0.01f
-	);
+	float Get(float x, float y) const final;
+	float Get(float x) const final;
+	static float GetValue(float x, float y, std::int32_t seed = 0, float frequency = 0.01f);
 
 private:
 	friend class FractalNoise;
-	// x and y already multiplied by frequency.
-	[[nodiscard]] static float GetImpl(float x, float y, std::int32_t seed);
+	/// @brief x and y already multiplied by frequency.
+	static float GetImpl(float x, float y, std::int32_t seed);
 };
 
-// Technically OpenSimplex noise but "Open" removed for brevity.
+/// @brief Technically OpenSimplex noise but "Open" removed for brevity.
 class SimplexNoise : public impl::Noise {
 public:
-	[[nodiscard]] float Get(float x, float y) const final;
-	[[nodiscard]] float Get(float x) const final;
-	[[nodiscard]] static float GetValue(
-		float x, float y, std::int32_t seed = 0, float frequency = 0.01f
-	);
+	float Get(float x, float y) const final;
+	float Get(float x) const final;
+	static float GetValue(float x, float y, std::int32_t seed = 0, float frequency = 0.01f);
 
 private:
 	friend class FractalNoise;
-	// x and y already multiplied by frequency.
-	[[nodiscard]] static float GetImpl(float x, float y, std::int32_t seed);
+	/// @brief x and y already multiplied by frequency.
+	static float GetImpl(float x, float y, std::int32_t seed);
 };
 
 enum class NoiseType {
 	Perlin,
 	Value,
-	Simplex // Technically OpenSimplex noise but "Open" removed for brevity.
+	Simplex /// @brief Technically OpenSimplex noise but "Open" removed for brevity.
 };
 
 class FractalNoise : public impl::Noise {
@@ -207,68 +201,67 @@ public:
 	FractalNoise();
 
 	void SetNoiseType(NoiseType type);
-	[[nodiscard]] NoiseType GetNoiseType() const;
+	NoiseType GetNoiseType() const;
 
-	// Number of layers of noise added on top of each other. Lower value means less higher frequency
-	// noise layers.
+	/// @brief Number of layers of noise added on top of each other. Lower value means less higher
+	/// frequency noise layers.
 	void SetOctaves(std::size_t octaves);
-	[[nodiscard]] std::size_t GetOctaves() const;
+	std::size_t GetOctaves() const;
 
-	// Amount by which the amplitude of each successive layer of noise is multiplied. Lower value
-	// means less high frequency noise. Also sometimes called fractal gain.
-	// Increasing the value of persistence increases the influence of small features on the overall
-	// noise map.
+	/// @brief Amount by which the amplitude of each successive layer of noise is multiplied. Lower
+	/// value means less high frequency noise. Also sometimes called fractal gain. Increasing the
+	/// value of persistence increases the influence of small features on the overall noise map.
 	void SetPersistence(float persistence);
-	[[nodiscard]] float GetPersistence() const;
+	float GetPersistence() const;
 
-	// Higher values mean higher octaves have less impact if lower octaves have a large impact.
+	/// @brief Higher values mean higher octaves have less impact if lower octaves have a large
+	/// impact.
 	void SetWeightedStrength(float weighted_strength);
-	[[nodiscard]] float GetWeightedStrength() const;
+	float GetWeightedStrength() const;
 
-	// Amount by which the sampling rate (frequency) of each successive layer of noise is
-	// multiplied. Lower value means the noise frequency of each noise layer increases slower.
-	// Increasing the value of lacunarity increases the number of small features.
+	/// @brief Amount by which the sampling rate (frequency) of each successive layer of noise is
+	/// multiplied. Lower value means the noise frequency of each noise layer increases slower.
+	/// Increasing the value of lacunarity increases the number of small features.
 	void SetLacunarity(float lacunarity);
-	[[nodiscard]] float GetLacunarity() const;
+	float GetLacunarity() const;
 
-	[[nodiscard]] float Get(float x, float y) const final;
-	[[nodiscard]] float Get(float x) const final;
+	float Get(float x, float y) const final;
+	float Get(float x) const final;
 
-	[[nodiscard]] static float GetValue(
+	static float GetValue(
 		float x, float y, std::int32_t seed = 0, float frequency = 0.01f,
 		NoiseType noise_type = NoiseType::Perlin, std::size_t octaves = 3, float lacunarity = 2.0f,
 		float persistence = 0.5f, float weighted_strength = 0.0f
 	);
 
 private:
-	// x and y already multiplied by frequency.
-	[[nodiscard]] static float GetImpl(
+	/// @brief x and y already multiplied by frequency.
+	static float GetImpl(
 		float x, float y, std::int32_t seed, NoiseType noise_type, std::size_t octaves,
 		float lacunarity, float persistence, float weighted_strength, float noise_bounding
 	);
 
-	[[nodiscard]] static float GetNoiseImpl(
-		float x, float y, std::int32_t seed, NoiseType noise_type
-	);
+	static float GetNoiseImpl(float x, float y, std::int32_t seed, NoiseType noise_type);
 
-	[[nodiscard]] static float GetNoiseBounding(std::size_t octaves, float persistence);
+	static float GetNoiseBounding(std::size_t octaves, float persistence);
 
-	// 1 / maximum value of noise possible with given fractal properties.
+	/// @brief 1 / maximum value of noise possible with given fractal properties.
 	float noise_bounding_{ 1.0f / 1.75f };
 
-	// Number of layers of noise added on top of each other. Lower value means less higher frequency
-	// noise layers.
+	/// @brief Number of layers of noise added on top of each other. Lower value means less higher
+	/// frequency noise layers.
 	std::size_t octaves_{ 3 };
 
-	// Amount by which the sampling rate (frequency) of each successive layer of noise is
-	// multiplied. Lower value means the noise frequency of each noise layer increases slower.
+	/// @brief Amount by which the sampling rate (frequency) of each successive layer of noise is
+	/// multiplied. Lower value means the noise frequency of each noise layer increases slower.
 	float lacunarity_{ 2.0f };
 
-	// Amount by which the amplitude of each successive layer of noise is multiplied. Lower value
-	// means less high frequency noise. Also sometimes called fractal gain.
+	/// @brief Amount by which the amplitude of each successive layer of noise is multiplied. Lower
+	/// value means less high frequency noise. Also sometimes called fractal gain.
 	float persistence_{ 0.5f };
 
-	// Higher values mean higher octaves have less impact if lower octaves have a large impact.
+	/// @brief Higher values mean higher octaves have less impact if lower octaves have a large
+	/// impact.
 	float weighted_strength_{ 0.0f };
 
 	NoiseType noise_type_{ NoiseType::Perlin };

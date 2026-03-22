@@ -209,7 +209,7 @@ void ChunkManager::DrawDebugChunkBorders() const {
 	}
 }
 
-[[nodiscard]] std::vector<Entity> ChunkManager::GenerateEntities(V2_int chunk_coordinate) const {
+std::vector<Entity> ChunkManager::GenerateEntities(V2_int chunk_coordinate) const {
 	std::vector<Entity> entities;
 	for (const auto& layer : noise_layers_) {
 		for (int i{ 0 }; i < chunk_size.x; i++) {

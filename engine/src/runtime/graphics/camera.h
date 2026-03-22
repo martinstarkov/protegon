@@ -34,10 +34,10 @@ struct UILayer {};
 struct CameraData {
 	Viewport viewport;
 
-	// If true, rounds camera position to pixel precision.
+	/// @brief If true, rounds camera position to pixel precision.
 	bool pixel_rounding{ false };
 
-	// If nullopt, no bounds are enforced.
+	/// @brief If nullopt, no bounds are enforced.
 	std::optional<Viewport> bounding_box;
 
 	Matrix4 view{ 1.0f };
@@ -72,24 +72,24 @@ public:
 	Camera() = default;
 	explicit Camera(Entity entity);
 
-	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices() const;
+	std::array<V2_float, 4> GetWorldVertices() const;
 
-	[[nodiscard]] Viewport GetViewport() const;
+	Viewport GetViewport() const;
 	/// @return Viewport size scaled by the inverse of the zoom. In other words, the size of the
 	/// viewport in world units.
-	[[nodiscard]] V2_float GetDisplaySize() const;
+	V2_float GetDisplaySize() const;
 
-	[[nodiscard]] V2_float GetScroll() const;
-	[[nodiscard]] V2_float GetZoom() const;
+	V2_float GetScroll() const;
+	V2_float GetZoom() const;
 
-	[[nodiscard]] bool GetPixelRounding() const;
+	bool GetPixelRounding() const;
 
-	[[nodiscard]] const Matrix4& GetViewProjection() const;
-	[[nodiscard]] const Matrix4& GetView() const;
-	[[nodiscard]] const Matrix4& GetProjection() const;
+	const Matrix4& GetViewProjection() const;
+	const Matrix4& GetView() const;
+	const Matrix4& GetProjection() const;
 
 	/// @return Bounding box viewport if set.
-	[[nodiscard]] std::optional<Viewport> GetBounds() const;
+	std::optional<Viewport> GetBounds() const;
 
 	Camera& SetViewport(Viewport viewport);
 
@@ -119,8 +119,8 @@ public:
 	/// @brief Resets the camera's viewport and scroll and zoom to the default values.
 	Camera& Reset();
 
-	[[nodiscard]] LayerMask GetIncludeMask() const;
-	[[nodiscard]] LayerMask GetExcludeMask() const;
+	LayerMask GetIncludeMask() const;
+	LayerMask GetExcludeMask() const;
 
 	Camera& SetMasks(LayerMask include, LayerMask exclude = kLayersNone);
 	Camera& SetIncludeMask(LayerMask include);
@@ -144,7 +144,7 @@ public:
 
 	/// @brief If clear_color is {}, uses the render target's clear color.
 	void SetClearColor(std::optional<Color> clear_color);
-	[[nodiscard]] std::optional<Color> GetClearColor() const;
+	std::optional<Color> GetClearColor() const;
 };
 
 LayerMask GetMask(Entity entity);
@@ -167,9 +167,7 @@ bool HasAllMasks(Entity entity, LayerMask test);
 namespace impl {
 
 /// @param camera If {}, uses the default scene camera.
-[[nodiscard]] V2_float GetCameraParentRenderTargetScale(
-	const Scene& scene, const std::optional<Camera>& camera
-);
+V2_float GetCameraParentRenderTargetScale(const Scene& scene, const std::optional<Camera>& camera);
 
 void AddCameraComponents(Camera camera, const Renderer& renderer);
 

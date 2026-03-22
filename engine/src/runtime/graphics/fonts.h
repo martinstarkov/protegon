@@ -4,6 +4,6 @@
 
 namespace ptgn::impl {
 
-[[nodiscard]] FontBinary GetLiberationSansRegular();
+FontBinary GetLiberationSansRegular();
 
 } // namespace ptgn::impl

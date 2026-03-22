@@ -55,7 +55,7 @@ struct SweepCollision {
 		const RaycastResult& raycast_result, float distance_squared, Entity sweep_entity
 	);
 
-	// Collision entity.
+	/// @brief Collision entity.
 	Entity entity;
 	RaycastResult collision;
 	float dist2{ 0.0f };
@@ -88,7 +88,7 @@ private:
 
 	void Intersect(Entity entity, float dt);
 
-	[[nodiscard]] static std::vector<Entity> GetSweepCandidates(
+	static std::vector<Entity> GetSweepCandidates(
 		Entity entity1, V2_float velocity, const impl::KDTree& tree
 	);
 
@@ -96,23 +96,23 @@ private:
 	/// second sweep.
 	/// @param vel Velocity of the entity. As above, this enables a second sweep in the direction
 	/// of the remaining velocity.
-	[[nodiscard]] std::vector<impl::SweepCollision> GetSortedCollisions(
+	std::vector<impl::SweepCollision> GetSortedCollisions(
 		Entity entity1, V2_float offset, V2_float velocity1, float dt
 	) const;
 
-	/// Adds all collisions which occurred at the earliest time to box.collisions. This ensures
-	/// all callbacks are called.
+	/// @brief Adds all collisions which occurred at the earliest time to box.collisions. This
+	/// ensures all callbacks are called.
 	static void AddEarliestCollisions(
 		Entity entity, const std::vector<impl::SweepCollision>& sweep_collisions
 	);
 
 	static void SortCollisions(std::vector<impl::SweepCollision>& collisions);
 
-	[[nodiscard]] static V2_float GetRemainingVelocity(
+	static V2_float GetRemainingVelocity(
 		V2_float velocity, const RaycastResult& collision, CollisionResponse response
 	);
 
-	[[nodiscard]] static V2_float GetRelativeVelocity(V2_float velocity1, Entity entity2, float dt);
+	static V2_float GetRelativeVelocity(V2_float velocity1, Entity entity2, float dt);
 
 	void UpdateKDTree(Entity entity, float dt);
 

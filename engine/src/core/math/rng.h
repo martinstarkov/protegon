@@ -32,16 +32,14 @@ enum class Distribution {
 	Normal	= 1
 };
 
-/*
- * Define RNG object by giving it a type to generate from
- * and a range or seed for the distribution.
- * Upper and lower bounds of RNG range are both inclusive: [min, max].
- * Use operator() on the RNG object to obtain new random numbers.
- * @tparam T Type of number to generate.
- * @tparam D Distribution to use for generating values.
- * @tparam E Type of rng engine to use (std::minstd_rand,
- * std::mt19937, etc).
- */
+/// @brief Define RNG object by giving it a type to generate from
+/// and a range or seed for the distribution.
+/// Upper and lower bounds of RNG range are both inclusive: [min, max].
+/// Use operator() on the RNG object to obtain new random numbers.
+/// @tparam T Type of number to generate.
+/// @tparam D Distribution to use for generating values.
+/// @tparam E Type of rng engine to use (std::minstd_rand,
+/// std::mt19937, etc).
 template <impl::RNGType T, Distribution D = Distribution::Uniform, typename E = std::mt19937>
 class RNG {
 private:
@@ -51,32 +49,32 @@ private:
 
 	using normal_type = std::normal_distribution<T>;
 
-	// Template which picks correct distribution based on the provided type.
+	/// @brief Template which picks correct distribution based on the provided type.
 	using distribution = typename std::conditional_t<
 		(D == Distribution::Uniform), uniform_type,
 		std::conditional_t<(D == Distribution::Normal), normal_type, void>>;
 
 public:
-	// Default range seedless distribution.
-	// Range: [0, 1] (inclusive).
+	/// @brief Default range seedless distribution.
+	/// Range: [0, 1] (inclusive).
 	RNG() = default;
 
-	// Default range seeded distribution.
-	// Range: [0, 1] (inclusive).
+	/// @brief Default range seeded distribution.
+	/// Range: [0, 1] (inclusive).
 	explicit RNG(std::uint32_t seed) : RNG{ seed, T{ 0 }, T{ 1 } } {}
 
-	// Custom range seeded distribution.
-	// Range: [min, max] (inclusive).
+	/// @brief Custom range seeded distribution.
+	/// Range: [min, max] (inclusive).
 	RNG(std::uint32_t seed, T min, T max) :
 		seed_{ seed }, min_{ min }, max_{ max }, generator_{ seed_ } {
 		SetupDistribution();
 	}
 
-	// Custom range seedless distribution.
-	// Range: [min, max] (inclusive).
+	/// @brief Custom range seedless distribution.
+	/// Range: [min, max] (inclusive).
 	RNG(T min, T max) : RNG{ std::random_device{}(), min, max } {}
 
-	// Generate a new random number in the specified range.
+	/// @brief Generate a new random number in the specified range.
 	[[nodiscard]] T operator()() {
 		auto v = distribution_(generator_);
 		// TODO: Check if this assert triggers occasionally for normal distributions. I saw a
@@ -89,28 +87,28 @@ public:
 		return v;
 	}
 
-	// Change seed of random number generator.
+	/// @brief Change seed of random number generator.
 	void SetSeed(std::uint32_t new_seed) {
 		seed_ = new_seed;
 		generator_.seed(seed_);
 	}
 
-	// Change the range of the random number generator.
+	/// @brief Change the range of the random number generator.
 	void SetRange(T min, T max) {
 		min_ = min;
 		max_ = max;
 		SetupDistribution();
 	}
 
-	[[nodiscard]] std::uint32_t GetSeed() const {
+	std::uint32_t GetSeed() const {
 		return seed_;
 	}
 
-	[[nodiscard]] T GetMin() const {
+	T GetMin() const {
 		return min_;
 	}
 
-	[[nodiscard]] T GetMax() const {
+	T GetMax() const {
 		return max_;
 	}
 
@@ -160,11 +158,11 @@ private:
 	T min_{ 0 };
 	T max_{ 1 };
 
-	// Internal random number generator.
+	/// @brief Internal random number generator.
 	E generator_{ seed_ };
 
-	// Defined internal distribution.
-	// Range: [0, 1] (inclusive).
+	/// @brief Defined internal distribution.
+	/// Range: [0, 1] (inclusive).
 	distribution distribution_{ min_, max_ };
 };
 
@@ -175,7 +173,7 @@ PTGN_SERIALIZE_ENUM(
 	Distribution, { { Distribution::Uniform, "uniform" }, { Distribution::Normal, "normal" } }
 );
 
-// @return True for "heads", false for "tails"
+/// @brief @return True for "heads", false for "tails"
 [[nodiscard]] bool FlipCoin();
 
 template <impl::RNGType T = std::int32_t>
@@ -191,7 +189,7 @@ template <impl::RNGType T = std::int32_t>
 }
 
 template <typename Container>
-auto RandomSample(const Container& choices, std::size_t count, bool unique = true) {
+[[nodiscard]] auto RandomSample(const Container& choices, std::size_t count, bool unique = true) {
 	using T = typename Container::value_type;
 
 	static std::mt19937 rng{ std::random_device{}() };
@@ -228,13 +226,13 @@ auto RandomSample(const Container& choices, std::size_t count, bool unique = tru
 template <typename T>
 class RandomPicker {
 public:
-	// Accepts any number of arguments to initialize the item list
+	/// @brief Accepts any number of arguments to initialize the item list
 	template <typename... Args>
 	explicit RandomPicker(Args&&... args) :
 		items_{ std::forward<Args>(args)... }, rng_(0, Size() - 1) {}
 
-	// @return The next random element removed from the RandomPicker, or std::nullopt if none are
-	// available.
+	/// @return The next random element removed from the RandomPicker, or std::nullopt if none are
+	/// available.
 	std::optional<T> Next() {
 		if (IsEmpty()) {
 			return std::nullopt;
@@ -252,12 +250,12 @@ public:
 		return value;
 	}
 
-	// @return True if the RandomPicker no longer has any items, false otherwise.
+	/// @return True if the RandomPicker no longer has any items, false otherwise.
 	[[nodiscard]] bool IsEmpty() const {
 		return items_.empty();
 	}
 
-	// @return How many items remain in the RandomPicker.
+	/// @return How many items remain in the RandomPicker.
 	[[nodiscard]] std::size_t Size() const {
 		return items_.size();
 	}

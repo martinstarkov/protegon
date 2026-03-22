@@ -173,10 +173,10 @@ struct TopDownMovement {
 	[[nodiscard]] bool WasMoving(MoveDirection direction) const;
 
 	/// @return The current direction of movement.
-	[[nodiscard]] MoveDirection GetDirection() const;
+	MoveDirection GetDirection() const;
 
 	/// @return The previous direction of movement.
-	[[nodiscard]] MoveDirection GetPreviousDirection() const;
+	MoveDirection GetPreviousDirection() const;
 
 	V2_float facing_direction;
 
@@ -191,9 +191,9 @@ private:
 	/// @brief @param dt Unit: seconds.
 	void RunWithAcceleration(V2_float desired_velocity, RigidBody& rb, float dt) const;
 
-	[[nodiscard]] static bool GetMovingState(V2_float d, MoveDirection direction);
+	static bool GetMovingState(V2_float d, MoveDirection direction);
 
-	[[nodiscard]] static MoveDirection GetDirectionState(V2_float d);
+	static MoveDirection GetDirectionState(V2_float d);
 
 	void InvokeCallbacks(Entity entity) const;
 

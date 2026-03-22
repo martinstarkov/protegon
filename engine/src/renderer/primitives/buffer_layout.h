@@ -127,7 +127,7 @@ struct BufferLayout {
 		CalculateOffsets();
 	}
 
-	[[nodiscard]] constexpr std::int32_t GetStride() const {
+	constexpr std::int32_t GetStride() const {
 		return stride_;
 	}
 
@@ -163,7 +163,7 @@ struct BufferLayout {
 		stride_ = static_cast<std::int32_t>(offset);
 	}
 
-	[[nodiscard]] constexpr const std::array<BufferElement, sizeof...(Ts)>& GetElements() const {
+	constexpr const std::array<BufferElement, sizeof...(Ts)>& GetElements() const {
 		return elements_;
 	}
 };

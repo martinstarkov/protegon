@@ -14,19 +14,19 @@ struct Arc {
 	Arc(float arc_radius, float start_angle, float end_angle, bool clockwise = true);
 
 	/// @return Center relative to the world.
-	[[nodiscard]] V2_float GetCenter(Transform transform) const;
+	V2_float GetCenter(Transform transform) const;
 
-	[[nodiscard]] float GetRadius() const;
-	[[nodiscard]] float GetStartAngle() const;
-	[[nodiscard]] float GetEndAngle() const;
-	[[nodiscard]] float GetAperture() const;
+	float GetRadius() const;
+	float GetStartAngle() const;
+	float GetEndAngle() const;
+	float GetAperture() const;
 
 	/// @return Radius scaled relative to the transform.
-	[[nodiscard]] float GetRadius(Transform transform) const;
+	float GetRadius(Transform transform) const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
+	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetLocalQuadVertices() const;
+	std::array<V2_float, 4> GetLocalQuadVertices() const;
 
 	bool operator==(const Arc&) const = default;
 

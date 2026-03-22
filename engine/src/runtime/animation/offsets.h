@@ -18,7 +18,7 @@ namespace impl {
 struct Offsets {
 	/// @brief Computes the combined transform of all temporary offsets.
 	/// @return Transform The total combined offset transform (e.g., shake + bounce).
-	[[nodiscard]] Transform GetTotal() const;
+	Transform GetTotal() const;
 
 	/// @brief Temporary transform applied for camera or entity shake effect.
 	Transform shake;
@@ -41,7 +41,7 @@ struct Offsets {
 ///
 /// @param entity The entity to compute the relative offset for.
 /// @return Transform The computed relative offset.
-[[nodiscard]] Transform GetRelativeOffset(Entity entity);
+Transform GetRelativeOffset(Entity entity);
 
 /// @brief Retrieves the total (including parent offsets) temporary transform offset for a given
 /// entity.
@@ -51,7 +51,7 @@ struct Offsets {
 ///
 /// @param entity The entity to retrieve the offset for.
 /// @return Transform The total offset applied to the entity.
-[[nodiscard]] Transform GetOffset(Entity entity);
+Transform GetOffset(Entity entity);
 
 /// @brief Sets a custom draw offset for the entity relative to its transform position.
 void SetDrawOffset(Entity entity, V2_float offset = {});

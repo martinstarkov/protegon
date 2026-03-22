@@ -3,11 +3,11 @@
 #include <string>
 #include <string_view>
 
-#include "renderer/primitives/color.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
+#include "renderer/primitives/color.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
@@ -29,11 +29,11 @@ struct ArithmeticComponent {
 		return value_;
 	}
 
-	[[nodiscard]] T GetValue() const {
+	T GetValue() const {
 		return value_;
 	}
 
-	[[nodiscard]] T& GetValue() {
+	T& GetValue() {
 		return value_;
 	}
 
@@ -53,11 +53,11 @@ struct Vector2Component {
 		return value_;
 	}
 
-	[[nodiscard]] Vector2<T> GetValue() const {
+	Vector2<T> GetValue() const {
 		return value_;
 	}
 
-	[[nodiscard]] Vector2<T>& GetValue() {
+	Vector2<T>& GetValue() {
 		return value_;
 	}
 
@@ -88,11 +88,11 @@ struct StringComponent {
 		return value_;
 	}
 
-	[[nodiscard]] const std::string& GetValue() const {
+	const std::string& GetValue() const {
 		return value_;
 	}
 
-	[[nodiscard]] std::string& GetValue() {
+	std::string& GetValue() {
 		return value_;
 	}
 

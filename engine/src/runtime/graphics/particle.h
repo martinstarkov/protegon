@@ -28,7 +28,7 @@ enum class ParticleShape {
 	Square
 };
 
-std::ostream& operator<<(std::ostream& o, ParticleShape shape);
+std::ostream& operator<<(std::ostream& os, ParticleShape shape);
 
 PTGN_SERIALIZE_ENUM(
 	ParticleShape, { { ParticleShape::Circle, "circle" }, { ParticleShape::Square, "square" } }
@@ -139,13 +139,13 @@ public:
 
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
-	// Starts emitting particles.
+	/// @brief Starts emitting particles.
 	ParticleEmitter& Start();
 
-	// Stops emitting particles.
+	/// @brief Stops emitting particles.
 	ParticleEmitter& Stop();
 
-	// Toggle particle emission.
+	/// @brief Toggle particle emission.
 	ParticleEmitter& Toggle();
 
 	ParticleEmitter& EmitParticle();
@@ -153,30 +153,30 @@ public:
 	ParticleEmitter& Reset();
 
 	ParticleEmitter& SetGravity(V2_float particle_gravity);
-	[[nodiscard]] V2_float GetGravity() const;
+	V2_float GetGravity() const;
 
-	// Will make the emitter use random velocities instead of gravity.
+	/// @brief Will make the emitter use random velocities instead of gravity.
 	ParticleEmitter& UseRandomVelocities(
 		float min_speed, float max_speed, bool use_random_velocities = true
 	);
 
 	ParticleEmitter& SetMaxParticles(std::size_t max_particles);
-	[[nodiscard]] std::size_t GetMaxParticles() const;
+	std::size_t GetMaxParticles() const;
 
 	ParticleEmitter& SetShape(ParticleShape shape);
-	[[nodiscard]] ParticleShape GetShape() const;
+	ParticleShape GetShape() const;
 
 	ParticleEmitter& SetRadius(float particle_radius);
-	[[nodiscard]] float GetRadius() const;
+	float GetRadius() const;
 
 	ParticleEmitter& SetStartColor(const Color& start_color);
-	[[nodiscard]] Color GetStartColor() const;
+	Color GetStartColor() const;
 
 	ParticleEmitter& SetEndColor(const Color& end_color);
-	[[nodiscard]] Color GetEndColor() const;
+	Color GetEndColor() const;
 
 	ParticleEmitter& SetEmissionDelay(milliseconds emission_delay);
-	[[nodiscard]] milliseconds GetEmissionDelay() const;
+	milliseconds GetEmissionDelay() const;
 
 private:
 	friend class Scene;

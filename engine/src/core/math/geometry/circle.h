@@ -11,25 +11,25 @@ namespace ptgn {
 struct Circle {
 	Circle() = default;
 
-	Circle(float radius);
+	Circle(float radius); // NOSONAR
 
 	/// @return Center relative to the world.
-	[[nodiscard]] V2_float GetCenter(Transform transform) const;
+	V2_float GetCenter(Transform transform) const;
 
-	// @return { radius * 2, radius * 2 }
-	[[nodiscard]] V2_float GetSize() const;
+	/// @return { radius * 2, radius * 2 }
+	V2_float GetSize() const;
 
-	// @return { radius * 2, radius * 2 } scaled relative to the transform.
-	[[nodiscard]] V2_float GetSize(Transform transform) const;
+	/// @return { radius * 2, radius * 2 } scaled relative to the transform.
+	V2_float GetSize(Transform transform) const;
 
-	[[nodiscard]] float GetRadius() const;
+	float GetRadius() const;
 
 	/// @return Radius scaled relative to the transform.
-	[[nodiscard]] float GetRadius(Transform transform) const;
+	float GetRadius(Transform transform) const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
+	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetLocalQuadVertices() const;
+	std::array<V2_float, 4> GetLocalQuadVertices() const;
 
 	bool operator==(const Circle&) const = default;
 

@@ -2,7 +2,6 @@
 #include <cmath>
 
 #include "app/application.h"
-#include "renderer/primitives/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
@@ -11,6 +10,7 @@
 #include "platform/input/input_handler.h"
 #include "platform/input/key.h"
 #include "platform/window/window.h"
+#include "renderer/primitives/color.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -31,7 +31,7 @@ public:
 		return sampling.Completed(samping_rate_) || !sampling.IsRunning();
 	}
 
-	[[nodiscard]] float GetValue() {
+	float GetValue() {
 		sampling.Start();
 		return amplitude_rng() * std::sin(sine_frequency * app().TimeSinceStart());
 	}

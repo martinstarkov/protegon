@@ -10,37 +10,36 @@
 
 namespace ptgn {
 
-// Rect has no rotation center because this can be achieved via using a parent Entity and
-// positioning it where the origin should be.
+/// @brief Rect has no rotation center because this can be achieved via using a parent Entity and
+/// positioning it where the origin should be.
 struct Rect {
 	Rect() = default;
 
 	Rect(V2_float min, V2_float max);
 
 	template <Arithmetic T>
-	Rect(Vector2<T> size) : min{ -size * 0.5f }, max{ size * 0.5f } {}
+	Rect(Vector2<T> size) : min{ -size * 0.5f }, max{ size * 0.5f } {} // NOSONAR
 
 	template <Arithmetic T>
 	Rect(T x, T y) : Rect{ Vector2<T>{ x, y } } {}
 
-	[[nodiscard]] V2_float GetSize() const;
+	V2_float GetSize() const;
 
-	// @return Size scaled relative to the transform.
-	[[nodiscard]] V2_float GetSize(Transform transform) const;
+	/// @return Size scaled relative to the transform.
+	V2_float GetSize(Transform transform) const;
 
-	// @return New transform offset by the draw_origin.
+	/// @return New transform offset by the draw_origin.
 	[[nodiscard]] Transform Offset(Transform transform, Origin draw_origin) const;
 
-	// @return Quad vertices relative to the transform where transform.position is taken as the
-	// rectangle center.
-	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices(Transform transform) const;
-	[[nodiscard]] std::array<V2_float, 4> GetLocalVertices() const;
+	/// @return Quad vertices relative to the transform where transform.position is taken as the
+	/// rectangle center.
+	std::array<V2_float, 4> GetWorldVertices(Transform transform) const;
+	std::array<V2_float, 4> GetLocalVertices() const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetWorldVertices(Transform transform, Origin draw_origin)
-		const;
+	std::array<V2_float, 4> GetWorldVertices(Transform transform, Origin draw_origin) const;
 
-	// @return Center relative to the world.
-	[[nodiscard]] V2_float GetCenter(Transform transform) const;
+	/// @return Center relative to the world.
+	V2_float GetCenter(Transform transform) const;
 
 	bool operator==(const Rect&) const = default;
 

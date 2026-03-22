@@ -19,12 +19,10 @@ std::uint64_t Allocations::Freed() {
 	return total_freed_;
 }
 
-// Notifies AllocationMetrics that an allocation has been made.
 void Allocations::Allocation(const std::size_t& size) {
 	total_allocated_ += size;
 }
 
-// Notifies AllocationMetrics that a deallocation has been made.
 void Allocations::Deallocation(const std::size_t& size) noexcept {
 	total_freed_ += size;
 }

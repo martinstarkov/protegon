@@ -192,10 +192,10 @@ public:
 	void SetBackgroundColor(Color background_color);
 
 	/// @return The background color of the scene.
-	[[nodiscard]] Color GetBackgroundColor() const;
+	Color GetBackgroundColor() const;
 
 	/// @return {} if no entity with the given uuid exists in the manager.
-	[[nodiscard]] Entity GetEntityByUUID(UUID uuid) const;
+	Entity GetEntityByUUID(UUID uuid) const;
 
 	/// Make sure to call Refresh() after this function.
 	Entity CreateEntity();
@@ -302,9 +302,9 @@ public:
 	/// game size.
 	Camera camera;
 
-	[[nodiscard]] std::size_t GetEntityCount() const;
+	std::size_t GetEntityCount() const;
 
-	[[nodiscard]] RenderTarget GetRenderTarget() const;
+	RenderTarget GetRenderTarget() const;
 
 private:
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game

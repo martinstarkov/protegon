@@ -23,7 +23,7 @@ public:
 	UUID();
 	explicit UUID(std::uint64_t uuid);
 
-	operator std::uint64_t() const;
+	operator std::uint64_t() const; // NOSONAR
 
 	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(UUID, uuid_)
 
@@ -37,7 +37,7 @@ public:
 
 	Entity() = default;
 
-	Entity(ecs::impl::EntityHandle<JsonArchiver> entity) : entity_{ entity } {}
+	Entity(ecs::impl::EntityHandle<JsonArchiver> entity) : entity_{ entity } {} // NOSONAR
 
 	Entity(ecs::impl::EntityHandle<JsonArchiver> entity, const Scene* scene) :
 		entity_{ entity }, scene_{ const_cast<Scene*>(scene) } {}
@@ -60,32 +60,31 @@ public:
 		return lhs.WasCreatedBefore(rhs);
 	}
 
-	friend std::ostream& operator<<(std::ostream& o, const Entity& lhs) {
-		o << "[id=";
-		o << lhs.entity_.GetId();
-		o << ",manager=";
-		o << &lhs.entity_.GetManager();
-		o << "]";
-		return o;
+	friend std::ostream& operator<<(std::ostream& os, const Entity& entity) {
+		os << "{ id: " << entity.entity_.GetId() << " }";
+		// NOSONAR
+		// os << ", version: " << &entity.entity_.GetVersion() << " }";
+		// os << ", manager: " << &entity.entity_.GetManager() << " }";
+		return os;
 	}
 
-	// Copying a destroyed entity will return a null entity.
-	// Copying an entity with no components simply returns a new entity.
-	// Make sure to call manager.Refresh() after this function.
+	/// @brief Copying a destroyed entity will return a null entity.
+	/// Copying an entity with no components simply returns a new entity.
+	/// Make sure to call manager.Refresh() after this function.
 	template <typename... TComponents>
 	[[nodiscard]] Entity Copy() {
 		return entity_.Copy<TComponents...>();
 	}
 
-	// Adds or replaces the component if the entity already has it.
-	// @return Reference to the added or replaced component.
+	/// @brief Adds or replaces the component if the entity already has it.
+	/// @return Reference to the added or replaced component.
 	template <typename TComponent, typename... TArgs>
 	TComponent& Add(TArgs&&... constructor_args) {
 		return entity_.Add<TComponent, TArgs...>(std::forward<TArgs>(constructor_args)...);
 	}
 
-	// Only adds the component if one does not exist on the entity.
-	// @return Reference to the added or existing component.
+	/// @brief Only adds the component if one does not exist on the entity.
+	/// @return Reference to the added or existing component.
 	template <typename TComponent, typename... TArgs>
 	TComponent& TryAdd(TArgs&&... constructor_args) {
 		return entity_.TryAdd<TComponent, TArgs...>(std::forward<TArgs>(constructor_args)...);
@@ -126,12 +125,10 @@ public:
 		return entity_.TryGet<T>();
 	}
 
-	// void Clear() const;
-
-	// Destroy the given entity and potentially its children.
-	// @param orphan_children If false, destroys all the children (and their children). If true,
-	// removes the parents of all the entity's children, orphaning them.
-	// @return *this, allowing for it to be set to {} if needed.
+	/// @brief Destroy the given entity and potentially its children.
+	/// @param orphan_children If false, destroys all the children (and their children). If true,
+	/// removes the parents of all the entity's children, orphaning them.
+	/// @return *this, allowing for it to be set to {} if needed.
 	Entity& Destroy(bool orphan_children = false);
 
 	const Scene& GetScene() const;
@@ -158,7 +155,7 @@ public:
 	friend void to_json(json& j, const Entity& entity);
 	friend void from_json(const json& j, Entity& entity);
 
-	// Converts the specified entity components to a JSON object.
+	/// @brief Converts the specified entity components to a JSON object.
 	template <JsonSerializable... TComponents>
 	[[nodiscard]] json Serialize() const {
 		PTGN_ASSERT(*this, "Cannot serialize a null entity");
@@ -174,9 +171,9 @@ public:
 		return j;
 	}
 
-	// Populates the entity's components based on a JSON object. Does not impact existing
-	// components, unless they are specified as part of TComponents, in which case they are
-	// replaced.
+	/// @brief Populates the entity's components based on a JSON object. Does not impact existing
+	/// components, unless they are specified as part of TComponents, in which case they are
+	/// replaced.
 	template <JsonDeserializable... TComponents>
 	void Deserialize(const json& j) {
 		if constexpr (sizeof...(TComponents) == 0) {
@@ -206,10 +203,10 @@ public:
 		return TComponent{ std::forward<TArgs>(args)... };
 	}
 
-	// @return True if *this was created before other.
+	/// @return True if *this was created before other.
 	bool WasCreatedBefore(Entity other) const;
 
-	// Equivalent of setting the entity handle to {}
+	/// @brief Equivalent of setting the entity handle to {}
 	void Invalidate();
 
 private:
@@ -239,9 +236,6 @@ private:
 };
 
 [[nodiscard]] std::size_t Hash(Entity entity);
-
-// template <typename T>
-// concept EntityWrapper = std::derived_from<T, Entity>;
 
 namespace impl {
 

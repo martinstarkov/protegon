@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <concepts>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <ranges>
@@ -13,8 +14,6 @@
 #include <vector>
 
 #include "core/util/concepts.h"
-
-// TODO: Get rid of stuff that is outdated as of my C++ 20 move.
 
 namespace ptgn {
 
@@ -49,7 +48,7 @@ inline std::size_t Sizeof(const std::vector<T>& vector) {
 
 // @return How many bits the contents of the array take up.
 template <typename T, std::size_t I>
-inline constexpr std::size_t Sizeof(const std::array<T, I>& array) {
+constexpr std::size_t Sizeof(const std::array<T, I>& array) {
 	return sizeof(T) * array.size();
 }
 
@@ -79,31 +78,29 @@ inline const std::vector<Type>& ToVector(const std::vector<Type>& vector) {
 }
 
 template <typename Key, typename Value, typename Hash, typename Pred, typename Alloc>
-[[nodiscard]] inline auto GetKeys(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
+inline auto GetKeys(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
 	return impl::GetElements<Key>(map);
 }
 
 template <typename Key, typename Value, typename Hash, typename Pred, typename Alloc>
-[[nodiscard]] inline auto GetValues(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
+inline auto GetValues(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
 	return impl::GetElements<Value>(map);
 }
 
 template <typename Key, typename Value, typename Compare, typename Alloc>
-[[nodiscard]] inline auto GetKeys(const std::map<Key, Value, Compare, Alloc>& map) {
+inline auto GetKeys(const std::map<Key, Value, Compare, Alloc>& map) {
 	return impl::GetElements<Key>(map);
 }
 
 template <typename Key, typename Value, typename Compare, typename Alloc>
-[[nodiscard]] inline auto GetValues(const std::map<Key, Value, Compare, Alloc>& map) {
+inline auto GetValues(const std::map<Key, Value, Compare, Alloc>& map) {
 	return impl::GetElements<Value>(map);
 }
 
 /// @brief Checks if a container (map/unordered_map) contains a value
 template <typename MapType, typename ValueType>
 inline bool ValuesContain(const MapType& map, const ValueType& value) {
-	return std::any_of(map.begin(), map.end(), [&](const auto& pair) {
-		return pair.second == value;
-	});
+	return std::ranges::any_of(map, [&](const auto& pair) { return pair.second == value; });
 }
 
 template <typename T>
@@ -155,15 +152,15 @@ template <typename T>
 
 template <typename T>
 inline void VectorRemoveDuplicates(std::vector<T>& v) {
-	std::sort(v.begin(), v.end());
+	std::sort(v.begin(), v.end()); // NOSONAR
 	auto last{ std::ranges::unique(v) };
 	v.erase(last.begin(), last.end());
 }
 
 template <typename T, typename Pred>
 inline bool VectorContainsDuplicates(const std::vector<T>& v, Pred pred) {
-	for (size_t i = 0; i < v.size(); ++i) {
-		for (size_t j = i + 1; j < v.size(); ++j) {
+	for (std::size_t i = 0; i < v.size(); ++i) {
+		for (std::size_t j = i + 1; j < v.size(); ++j) {
 			if (pred(v[i], v[j])) {
 				return true;
 			}
@@ -176,8 +173,8 @@ inline bool VectorContainsDuplicates(const std::vector<T>& v, Pred pred) {
 /// Swaps vector elements if they both exist in the vector.
 template <typename T>
 inline void VectorSwapElements(std::vector<T>& v, const T& e1, const T& e2) {
-	auto it1{ std::find(v.begin(), v.end(), e1) };
-	auto it2{ std::find(v.begin(), v.end(), e2) };
+	auto it1{ std::ranges::find(v, e1) };
+	auto it2{ std::ranges::find(v, e2) };
 	if (it1 == v.end() || it2 == v.end()) {
 		return;
 	}
@@ -249,7 +246,7 @@ inline std::pair<bool, std::shared_ptr<T>&> VectorReplaceOrEmplaceIf(
 
 /// @return True if the element was erased from the vector, false otherwise.
 template <typename T, typename Predicate>
-inline bool VectorEraseIf(std::vector<T>& v, Predicate&& condition) {
+inline bool VectorEraseIf(std::vector<T>& v, Predicate condition) {
 	auto before{ v.size() };
 	std::erase_if(v, condition);
 	return v.size() != before;
@@ -270,7 +267,7 @@ inline void VectorSubtract(std::vector<T>& a, const std::vector<T>& b) {
 	std::unordered_set<T> b_set(b.begin(), b.end());
 
 	// Erase all elements from a that are in b_set
-	std::erase_if(a, [&b_set](const T& val) { return b_set.count(val) > 0; });
+	std::erase_if(a, [&b_set](const T& val) { return b_set.contains(val); });
 }
 
 } // namespace ptgn

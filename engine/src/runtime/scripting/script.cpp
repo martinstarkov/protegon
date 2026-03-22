@@ -1,7 +1,8 @@
 #include "runtime/scripting/script.h"
 
 #include "app/context.h"
-#include "core/event/event.h"
+#include "core/event/dispatcher.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/event/event_handler.h"
 #include "runtime/scene/scene.h"
 

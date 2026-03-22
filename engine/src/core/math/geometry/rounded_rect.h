@@ -17,27 +17,25 @@ struct RoundedRect {
 	RoundedRect(V2_float min, V2_float max, float radius);
 	RoundedRect(V2_float size, float radius);
 
-	[[nodiscard]] V2_float GetSize() const;
-	[[nodiscard]] float GetRadius() const;
+	V2_float GetSize() const;
+	float GetRadius() const;
 
 	/// @return Size scaled relative to the transform.
-	[[nodiscard]] V2_float GetSize(Transform transform) const;
-	[[nodiscard]] float GetRadius(Transform transform) const;
+	V2_float GetSize(Transform transform) const;
+	float GetRadius(Transform transform) const;
 
 	/// @return New transform offset by the draw_origin.
 	[[nodiscard]] Transform Offset(Transform transform, Origin draw_origin) const;
 
 	/// @return Quad vertices relative to the transform where transform.position is taken as the
 	/// rounded rectangle center.
-	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
-	[[nodiscard]] std::array<V2_float, 4> GetLocalQuadVertices() const;
+	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
+	std::array<V2_float, 4> GetLocalQuadVertices() const;
 
-	[[nodiscard]] std::array<V2_float, 4> GetWorldQuadVertices(
-		Transform transform, Origin draw_origin
-	) const;
+	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform, Origin draw_origin) const;
 
 	/// @return Center relative to the world.
-	[[nodiscard]] V2_float GetCenter(Transform transform) const;
+	V2_float GetCenter(Transform transform) const;
 
 	bool operator==(const RoundedRect&) const = default;
 

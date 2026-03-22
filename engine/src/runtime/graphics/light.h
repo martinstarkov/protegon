@@ -74,22 +74,22 @@ public:
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
 	Light& SetIntensity(float intensity);
-	[[nodiscard]] float GetIntensity() const;
+	float GetIntensity() const;
 
 	Light& SetColor(Color color);
-	[[nodiscard]] Color GetColor() const;
+	Color GetColor() const;
 
 	Light& SetAmbientIntensity(float ambient_intensity);
-	[[nodiscard]] float GetAmbientIntensity() const;
+	float GetAmbientIntensity() const;
 
 	Light& SetAmbientColor(Color ambient_color);
-	[[nodiscard]] Color GetAmbientColor() const;
+	Color GetAmbientColor() const;
 
 	Light& SetRadius(float radius);
-	[[nodiscard]] float GetRadius() const;
+	float GetRadius() const;
 
 	Light& SetFalloff(float falloff);
-	[[nodiscard]] float GetFalloff() const;
+	float GetFalloff() const;
 
 	/// @param cone_angle Angle of the light cone in degrees. If std::nullopt, the light is a
 	/// point light. Range: [0.0, 360.0]. 0.0 means no light is drawn, 360.0 means the light is a
@@ -97,10 +97,10 @@ public:
 	Light& SetConeAngle(std::optional<float> cone_angle);
 
 	/// @return Cone angle in degrees, if it has been set. Range: [0.0, 360.0].
-	[[nodiscard]] std::optional<float> GetConeAngle() const;
+	std::optional<float> GetConeAngle() const;
 
 	Light& SetLightProperties(const LightProperties& properties);
-	[[nodiscard]] LightProperties GetLightProperties() const;
+	LightProperties GetLightProperties() const;
 
 private:
 	static void SetUniform(DrawContext& renderer, Entity entity);

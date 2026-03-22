@@ -26,7 +26,7 @@ constexpr V2_float game_size{ 800, 600 };
 
 // TODO: Move all of this into the collision system.
 
-[[nodiscard]] BoundingAABB GetBoundingAABB(const Entity& entity) {
+BoundingAABB GetBoundingAABB(const Entity& entity) {
 	return GetBoundingAABB(entity.Get<Rect>(), GetTransform(entity));
 }
 
