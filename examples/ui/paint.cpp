@@ -81,16 +81,15 @@ public:
 				}
 			}
 
-			impl::DrawShape(
-				app().renderer, Rect{ tile_size },
+			renderer.DrawShape(
+				Rect{ tile_size },
 				Transform{ -res * 0.5f + V2_int{ p.x * tile_size.x, p.y * tile_size.y } }, c,
 				FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		});
 		if (grid.Has(mouse_tile)) {
-			impl::DrawShape(
-				app().renderer, Rect{ tile_size },
-				Transform{ -res * 0.5f + mouse_tile * tile_size }, color::Yellow,
+			renderer.DrawShape(
+				Rect{ tile_size }, Transform{ -res * 0.5f + mouse_tile * tile_size }, color::Yellow,
 				FillStyle::Hollow(1.0f), Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		}

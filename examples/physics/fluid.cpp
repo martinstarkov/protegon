@@ -375,10 +375,9 @@ public:
 					}
 				}
 
-				impl::DrawShape(
-					app().renderer, Rect{ scale },
-					Transform{ -game_size * 0.5f + position * scale }, color, FillStyle::Solid(),
-					Origin::TopLeft, Depth{}, BlendMode::Blend
+				renderer.DrawShape(
+					Rect{ scale }, Transform{ -game_size * 0.5f + position * scale }, color,
+					FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
 				);
 			}
 		}

@@ -50,14 +50,14 @@ int main(int, char**) {
 	auto tint_color{ color::Blue };
 	SetTint(e1, tint_color);
 	e1.Add<FillStyle>(3.5f);
-	e1.Add<TextureHandle>("sheep1");
-	e1.Add<TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
+	e1.Add<TextureOrKey>("sheep1");
+	e1.Add<impl::TextureCrop>(V2_float{ 1, 2 }, V2_float{ 11, 12 });
 	e1.Add<RigidBody>();
 	SetInteractive(e1);
 	// auto child = m.CreateEntity();
 	// child.Add<Circle>(30.0f);
 	// AddInteractable(e1, std::move(child));
-	e1.Add<Draggable>();
+	e1.Add<impl::Draggable>();
 	e1.Add<impl::Offsets>(); // Transforms will be serialized as nulls because they are default
 							 // values.
 	e1.Add<Lifetime>(milliseconds{ 300 }).Start();
@@ -89,16 +89,16 @@ int main(int, char**) {
 
 		PTGN_ASSERT(e2.Has<Transform>());
 		PTGN_ASSERT(e2.Has<UUID>());
-		PTGN_ASSERT(e2.Has<Draggable>());
-		PTGN_ASSERT(e2.Has<TextureCrop>());
-		PTGN_ASSERT(e2.Has<Visible>());
+		PTGN_ASSERT(e2.Has<impl::Draggable>());
+		PTGN_ASSERT(e2.Has<impl::TextureCrop>());
+		PTGN_ASSERT(e2.Has<impl::Visible>());
 		PTGN_ASSERT(e2.Has<Depth>());
-		PTGN_ASSERT(e2.Has<Tint>());
-		PTGN_ASSERT(e2.Get<Tint>() == tint_color);
+		PTGN_ASSERT(e2.Has<impl::Tint>());
+		PTGN_ASSERT(e2.Get<impl::Tint>() == tint_color);
 		PTGN_ASSERT(e2.Has<FillStyle>());
-		PTGN_ASSERT(e2.Has<TextureHandle>());
+		PTGN_ASSERT(e2.Has<TextureOrKey>());
 		PTGN_ASSERT(e2.Has<RigidBody>());
-		PTGN_ASSERT(e2.Has<Interactive>());
+		PTGN_ASSERT(e2.Has<impl::Interactive>());
 		PTGN_ASSERT(e2.Has<impl::Offsets>());
 		PTGN_ASSERT(e2.Get<impl::Offsets>().bounce == Transform{});
 		PTGN_ASSERT(e2.Has<Lifetime>());

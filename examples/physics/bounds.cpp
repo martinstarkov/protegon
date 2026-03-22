@@ -72,10 +72,12 @@ struct PhysicsBoundaryScene : public Scene {
 
 		if (input.KeyPressed(Key::Q)) {
 			behavior = BoundaryBehavior::StopVelocity;
-			ReEnter();
+			// TODO: Fix ReEnter.
+			// ReEnter();
 		} else if (input.KeyPressed(Key::E)) {
 			behavior = BoundaryBehavior::ReflectVelocity;
-			ReEnter();
+			// TODO: Fix ReEnter.
+			// ReEnter();
 		}
 	}
 };

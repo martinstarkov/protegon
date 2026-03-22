@@ -76,18 +76,16 @@ class PathfindingScene : public Scene {
 				c = color::Gold;
 			}
 
-			impl::DrawShape(
-				app().renderer, Rect{ tile_size },
-				Transform{ -game_size * 0.5f + tile * tile_size }, c, FillStyle::Solid(),
-				Origin::TopLeft, Depth{}, BlendMode::Blend
+			renderer.DrawShape(
+				Rect{ tile_size }, Transform{ -game_size * 0.5f + tile * tile_size }, c,
+				FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		});
 
 		if (grid.Has(mouse_tile)) {
-			impl::DrawShape(
-				app().renderer, Rect{ tile_size },
-				Transform{ -game_size * 0.5f + mouse_tile * tile_size }, color::Yellow,
-				FillStyle{ 1.0f }, Origin::Center, Depth{}, BlendMode::Blend
+			renderer.DrawShape(
+				Rect{ tile_size }, Transform{ -game_size * 0.5f + mouse_tile * tile_size },
+				color::Yellow, FillStyle{ 1.0f }, Origin::Center, Depth{}, BlendMode::Blend
 			);
 		}
 
@@ -133,21 +131,20 @@ class PathfindingScene : public Scene {
 					current_waypoint
 				) };
 
-			impl::DrawShape(
-				app().renderer, Rect{ tile_size }, Transform{ p }, color::Purple,
-				FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
+			renderer.DrawShape(
+				Rect{ tile_size }, Transform{ p }, color::Purple, FillStyle::Solid(),
+				Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		} else {
-			impl::DrawShape(
-				app().renderer, Rect{ tile_size }, Transform{ -game_size * 0.5f + pos * tile_size },
-				color::Purple, FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
+			renderer.DrawShape(
+				Rect{ tile_size }, Transform{ -game_size * 0.5f + pos * tile_size }, color::Purple,
+				FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		}
 
 		const auto display_waypoints = [=](const auto& waypoints, const auto& color) {
 			for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
-				impl::DrawShape(
-					app().renderer,
+				renderer.DrawShape(
 					Line{ -game_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
 						  -game_size * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f },
 					Transform{}, color, FillStyle::Hollow(1.0f), Origin::Center, Depth{},
