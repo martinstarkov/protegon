@@ -1,20 +1,16 @@
 #include "renderer/primitives/vertex.h"
 
 #include <array>
-#include <ostream>
 #include <utility>
 
 #include "core/assert.h"
 #include "core/log.h"
-#include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/flip.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 std::array<V2_float, 4> GetTextureCoordinates(
 	V2_float source_position, V2_float source_size, V2_float texture_size, bool flip_vertically,
@@ -56,12 +52,14 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& tex_coords, V2_float scale)
 	bool flip_x{ scale.x < 0.0f };
 	bool flip_y{ scale.y < 0.0f };
 
+	using enum Flip;
+
 	if (flip_x && flip_y) {
-		impl::FlipTextureCoordinates(tex_coords, Flip::Both);
+		impl::FlipTextureCoordinates(tex_coords, Both);
 	} else if (flip_x) {
-		impl::FlipTextureCoordinates(tex_coords, Flip::Horizontal);
+		impl::FlipTextureCoordinates(tex_coords, Horizontal);
 	} else if (flip_y) {
-		impl::FlipTextureCoordinates(tex_coords, Flip::Vertical);
+		impl::FlipTextureCoordinates(tex_coords, Vertical);
 	}
 }
 
@@ -75,10 +73,11 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& tex_coords, Flip flip) {
 		std::swap(tex_coords[1].y, tex_coords[2].y);
 	};
 	switch (flip) {
-		case Flip::None:	   break;
-		case Flip::Vertical:   flip_y(); break;
-		case Flip::Horizontal: flip_x(); break;
-		case Flip::Both:
+		using enum Flip;
+		case None:		 break;
+		case Vertical:	 flip_y(); break;
+		case Horizontal: flip_x(); break;
+		case Both:
 			flip_x();
 			flip_y();
 			break;
@@ -165,29 +164,4 @@ void Vertex::SetTextureIndex(std::array<Vertex, 4>& vertices, float texture_inde
 	}
 }
 
-} // namespace impl
-
-template <typename T, std::size_t N>
-std::ostream& operator<<(std::ostream& os, const std::array<T, N>& arr) {
-	os << "(";
-	for (std::size_t i = 0; i < N; ++i) {
-		os << arr[i];
-		if (i + 1 < N) {
-			os << ", ";
-		}
-	}
-	os << ")";
-	return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const impl::Vertex& v) {
-	os << "Vertex{ ";
-	os << "pos=" << v.position;
-	os << ", col=" << v.color;
-	os << ", uv=" << v.tex_coord;
-	os << ", data=" << v.data;
-	os << " }";
-	return os;
-}
-
-} // namespace ptgn
+} // namespace ptgn::impl

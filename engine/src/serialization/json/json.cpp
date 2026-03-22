@@ -1,6 +1,7 @@
 #include "serialization/json/json.h"
 
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
 #include <ostream>
@@ -12,11 +13,11 @@
 namespace ptgn {
 
 void SaveJson(const json& j, const path& filepath, bool indent) {
-	std::ofstream o{ filepath };
+	std::ofstream of{ filepath };
 	if (indent) {
-		o << std::setw(4);
+		of << std::setw(4);
 	}
-	o << j << std::endl;
+	of << j << std::endl;
 }
 
 json LoadJson(const path& filepath) {

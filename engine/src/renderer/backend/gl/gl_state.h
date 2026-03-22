@@ -21,13 +21,13 @@ struct ActiveTexture {
 	bool operator==(const ActiveTexture&) const = default;
 
 	friend std::ostream& operator<<(std::ostream& os, const ActiveTexture& active_texture) {
-		os << "ActiveTexture(slot=" << active_texture.slot << ")";
+		os << "{ slot: " << active_texture.slot << " }";
 		return os;
 	}
 };
 
 struct TextureUnitState {
-	TextureId id{ 0 };
+	TextureId id;
 
 	TextureMinFilter min_filter{ TextureMinFilter::Linear };
 	TextureMagFilter mag_filter{ TextureMagFilter::Linear };
@@ -41,12 +41,12 @@ using TextureUnits = std::vector<TextureUnitState>;
 
 struct State {
 	// Core object bindings
-	FramebufferId framebuffer{ 0 };
-	RenderbufferId renderbuffer{ 0 };
-	VertexBufferId vertex_buffer{ 0 };
-	UniformBufferId uniform_buffer{ 0 };
-	ShaderId shader_program{ 0 };
-	VertexArrayId vertex_array{ 0 };
+	FramebufferId framebuffer;
+	RenderbufferId renderbuffer;
+	VertexBufferId vertex_buffer;
+	UniformBufferId uniform_buffer;
+	ShaderId shader_program;
+	VertexArrayId vertex_array;
 
 	Viewport viewport;
 

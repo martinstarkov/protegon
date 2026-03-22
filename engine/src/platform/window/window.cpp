@@ -246,7 +246,7 @@ std::ostream& operator<<(std::ostream& os, const WindowConfig& config) {
 	   << "  title: \"" << config.title << "\",\n"
 	   << "  size: " << config.size << ",\n"
 	   << "  resizeable: " << config.resizeable << ",\n"
-	   << "  position: (" << x << ", " << x << "),\n"
+	   << "  position: (" << x << ", " << y << "),\n"
 	   << "  minimized: " << config.minimized << ",\n"
 	   << "  maximized: " << config.maximized << ",\n"
 	   << "  fullscreen: " << config.fullscreen << ",\n"

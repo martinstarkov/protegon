@@ -55,7 +55,7 @@ void Physics::Enable() {
 	SetEnabled(true);
 }
 
-[[nodiscard]] bool Physics::IsEnabled() const {
+bool Physics::IsEnabled() const {
 	return enabled_;
 }
 
@@ -164,12 +164,12 @@ void Physics::Reset() {
 	gravity_ = {};
 }
 
-std::ostream& operator<<(std::ostream& o, BoundaryBehavior behavior) {
+std::ostream& operator<<(std::ostream& os, BoundaryBehavior behavior) {
 	switch (behavior) {
 		using enum BoundaryBehavior;
-		case StopVelocity:	  return o << "StopVelocity";
-		case SlideVelocity:	  return o << "SlideVelocity";
-		case ReflectVelocity: return o << "ReflectVelocity";
+		case StopVelocity:	  return os << "StopVelocity";
+		case SlideVelocity:	  return os << "SlideVelocity";
+		case ReflectVelocity: return os << "ReflectVelocity";
 		default:			  PTGN_ERROR("Unknown BoundaryBehavior: ", std::to_underlying(behavior));
 	}
 }

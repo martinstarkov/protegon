@@ -64,7 +64,7 @@ struct ProgramCache {
 	std::string program_name;
 	bool batchable{ false };
 
-	// cache needs to be mutable even in const functions.
+	/// @brief Cache needs to be mutable even in const functions.
 	mutable std::unordered_map<std::size_t, std::int32_t> uniform_locations;
 };
 
@@ -91,7 +91,7 @@ public:
 	/// @brief Behaves identically to SetUniform(name, std::int32_t).
 	void SetUniform(ShaderId id, const char* uniform_name, bool v);
 
-	[[nodiscard]] ShaderId GetProgram(std::string_view program_name) const;
+	ShaderId GetProgram(std::string_view program_name) const;
 
 	void DestroyProgram(ShaderId id);
 
@@ -161,7 +161,7 @@ private:
 
 	void LinkProgram(ShaderId id, ShaderId vertex, ShaderId fragment);
 
-	[[nodiscard]] std::int32_t GetUniform(ShaderId id, const char* uniform_name);
+	std::int32_t GetUniform(ShaderId id, const char* uniform_name);
 
 	[[nodiscard]] ShaderId CreateProgram(std::string_view program_name);
 

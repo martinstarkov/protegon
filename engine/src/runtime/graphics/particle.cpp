@@ -20,12 +20,12 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/time/timer.h"
+#include "ecs/ecs.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/vertex.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/manager.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
@@ -120,7 +120,7 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera camera) 
 
 		auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
 
-		for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
+		for (const auto& [e, p] : std::as_const(i.manager).EntitiesWith<Particle>()) {
 			if (i.info.tint_texture) {
 				tint = p.color;
 			}
@@ -135,7 +135,7 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera camera) 
 	switch (i.info.particle_shape) {
 		case ParticleShape::Circle: {
 			auto origin{ Origin::Center };
-			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
+			for (const auto& [e, p] : std::as_const(i.manager).EntitiesWith<Particle>()) {
 				Circle circle{ p.radius };
 				Transform transform{ p.position };
 				renderer.DrawShape(
@@ -146,7 +146,7 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera camera) 
 		}
 		case ParticleShape::Square: {
 			auto origin{ Origin::Center };
-			for (const auto& [e, p] : i.manager.EntitiesWith<Particle>()) {
+			for (const auto& [e, p] : std::as_const(i.manager).EntitiesWith<Particle>()) {
 				// TODO: Add rotation.
 				Rect rect{ V2_float{ 2.0f * p.radius } };
 				Transform transform{ p.position };
@@ -283,11 +283,11 @@ ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info) {
 	return emitter;
 }
 
-std::ostream& operator<<(std::ostream& o, ParticleShape shape) {
+std::ostream& operator<<(std::ostream& os, ParticleShape shape) {
 	switch (shape) {
 		using enum ParticleShape;
-		case Circle: return o << "Circle";
-		case Square: return o << "Square";
+		case Circle: return os << "Circle";
+		case Square: return os << "Square";
 		default:	 PTGN_ERROR("Unknown ParticleShape: ", std::to_underlying(shape));
 	}
 }

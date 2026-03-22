@@ -2,9 +2,10 @@
 
 #include <cstdlib>
 #include <format>
-#include <ostream>
+#include <optional>
 #include <source_location>
 #include <sstream>
+#include <string>
 #include <string_view>
 
 #include "core/config.h"
@@ -14,7 +15,6 @@
 #ifdef PTGN_DEBUG
 #define PTGN_ENABLE_ASSERTS
 #endif
-#include <string>
 
 #ifdef PTGN_ENABLE_ASSERTS
 
@@ -39,10 +39,10 @@ template <Loggable... Ts>
 
 } // namespace ptgn::impl
 
-// Usage:
-//   PTGN_ASSERT(x > 0);
-//   PTGN_ASSERT(ptr, "null ptr for key=", key);
-//   PTGN_ASSERT(a == b, "a=", a, " b=", b);
+/// Usage:
+///   PTGN_ASSERT(x > 0);
+///   PTGN_ASSERT(ptr, "null ptr for key=", key);
+///   PTGN_ASSERT(a == b, "a=", a, " b=", b);
 #define PTGN_ASSERT(condition, ...)                                                    \
 	do {                                                                               \
 		if (!(condition)) [[unlikely]] {                                               \

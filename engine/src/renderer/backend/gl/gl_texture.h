@@ -61,7 +61,7 @@ struct TextureCache {
 	TextureFormat format{ TextureFormat::RGBA8 };
 };
 
-[[nodiscard]] constexpr int GetBitCount(TextureFormat fmt) {
+constexpr int GetBitCount(TextureFormat fmt) {
 	switch (fmt) {
 		using enum TextureFormat;
 		case RGBA8:
@@ -88,9 +88,7 @@ struct TextureCache {
 	}
 }
 
-[[nodiscard]] constexpr std::pair<PixelDataFormat, PixelDataType> GetPixelDataFormat(
-	TextureFormat fmt
-) {
+constexpr std::pair<PixelDataFormat, PixelDataType> GetPixelDataFormat(TextureFormat fmt) {
 	switch (fmt) {
 		using enum PixelDataFormat;
 		using enum TextureFormat;
@@ -164,10 +162,10 @@ private:
 	void SetTextureParameter(TextureId texture, TextureParameter param, float value) const;
 	void SetTextureParameter(TextureId texture, TextureParameter param, int value) const;
 
-	[[nodiscard]] int GetTextureParameter(TextureId texture, TextureParameter param) const;
+	int GetTextureParameter(TextureId texture, TextureParameter param) const;
 
-	/// Ensure that the texture scaling of the currently bound texture is valid for generating
-	/// mipmaps.
+	/// @return True if the texture scaling of the currently bound texture is valid for
+	/// generating mipmaps.
 	[[nodiscard]] static bool SupportsMipmaps(TextureMinFilter texture_min_filter);
 
 	void GenerateMipmaps(TextureId texture) const;

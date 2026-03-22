@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <ostream>
 #include <string_view>
 #include <unordered_set>
 #include <vector>
@@ -16,20 +17,32 @@ namespace ptgn {
 
 /// @brief Controls the lifecycle state of a behavior/component on an entity.
 enum class ComponentState {
-	Disabled, /// Component exists but is inactive.
-	Enabled,  /// Component exists and is active.
-	Removed	  /// Component is removed entirely from the entity.
+	/// @brief Component exists but is inactive.
+	Disabled,
+	/// @brief Component exists and is active.
+	Enabled,
+	/// @brief Component is removed entirely from the entity.
+	Removed
 };
+
+std::ostream& operator<<(std::ostream& os, ComponentState state);
 
 /// @brief Defines the conditions under which a drag event is triggered for a draggable or dropzone
 /// entity.
 enum class TriggerCondition {
-	None,			   /// Event is never triggered.
-	MouseOverlaps,	   /// Event triggered if the mouse position overlaps the dropzone.
-	TransformOverlaps, /// Event triggered if the object's transform overlaps the dropzone.
-	Overlaps,		   /// Event triggered if any part of the object overlaps the dropzone.
-	Contains		   /// Event triggered if the object is entirely contained within the dropzone.
+	/// @brief Event is never triggered.
+	None,
+	/// @brief Event triggered if the mouse position overlaps the dropzone.
+	MouseOverlaps,
+	/// @brief Event triggered if the object's transform overlaps the dropzone.
+	TransformOverlaps,
+	/// @brief Event triggered if any part of the object overlaps the dropzone.
+	Overlaps,
+	/// @brief Event triggered if the object is entirely contained within the dropzone.
+	Contains
 };
+
+std::ostream& operator<<(std::ostream& os, TriggerCondition condition);
 
 PTGN_SERIALIZE_ENUM(
 	TriggerCondition, { { TriggerCondition::None, nullptr },
@@ -46,6 +59,8 @@ enum class DragEventPhase {
 	Drop,
 	Pickup
 };
+
+std::ostream& operator<<(std::ostream& os, DragEventPhase phase);
 
 PTGN_SERIALIZE_ENUM(
 	DragEventPhase, { { DragEventPhase::MoveOver, "mouse_over" },
@@ -167,7 +182,7 @@ void RemoveInteractiveShape(Entity interactive_entity, std::string_view shape_id
 [[nodiscard]] bool HasInteractiveShape(Entity interactive_entity, std::string_view shape_id);
 
 /// @return Entity handles to interactable shapes attached to the entity.
-[[nodiscard]] std::vector<Entity> GetInteractiveShapes(Entity interactive_entity);
+std::vector<Entity> GetInteractiveShapes(Entity interactive_entity);
 
 /// @brief Destroys all interactable shapes attached to the entity.
 void ClearInteractiveShapes(Entity interactive_entity);
@@ -183,10 +198,10 @@ void SetDraggable(Entity entity, ComponentState state = ComponentState::Enabled)
 
 /// @return Offset from the drag target center. Adding this value to the target position will
 /// maintain the relative position between the mouse and drag target.
-[[nodiscard]] V2_float GetDragOffset(Entity draggable_entity);
+V2_float GetDragOffset(Entity draggable_entity);
 
 /// @return Mouse position where the drag started.
-[[nodiscard]] V2_float GetDragStart(Entity draggable_entity);
+V2_float GetDragStart(Entity draggable_entity);
 
 /// @return True if the mouse is currently dragging the draggable, false otherwise.
 [[nodiscard]] bool IsBeingDragged(Entity draggable_entity);
@@ -198,10 +213,10 @@ void SetDropzone(Entity entity, ComponentState state = ComponentState::Enabled);
 [[nodiscard]] bool IsDropzone(Entity entity);
 
 /// @return Dropzones that the draggable is currently dropped on.
-[[nodiscard]] const std::unordered_set<Entity>& GetDropzones(Entity draggable_entity);
+const std::unordered_set<Entity>& GetDropzones(Entity draggable_entity);
 
 /// @return Draggable entities which are currently dropped on the dropzone.
-[[nodiscard]] const std::unordered_set<Entity>& GetDraggables(Entity dropzone_entity);
+const std::unordered_set<Entity>& GetDraggables(Entity dropzone_entity);
 
 /// @brief Assigns a condition that determines whether the specified entity should respond to drag
 /// events for a given drag phase.

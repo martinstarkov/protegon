@@ -16,11 +16,11 @@ enum class MoveMode {
 	Velocity
 };
 
-inline std::ostream& operator<<(std::ostream& o, MoveMode mode) {
+inline std::ostream& operator<<(std::ostream& os, MoveMode mode) {
 	switch (mode) {
 		using enum MoveMode;
-		case Lerp:	   return o << "Lerp";
-		case Velocity: return o << "Velocity";
+		case Lerp:	   return os << "Lerp";
+		case Velocity: return os << "Velocity";
 		default:	   PTGN_ERROR("Unknown MoveMode: ", std::to_underlying(mode));
 	}
 }

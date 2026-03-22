@@ -10,8 +10,7 @@
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_debug.h"
-#include "renderer/primitives/buffer.h"
-#include "renderer/primitives/vertex_array.h"
+#include "renderer/primitives/id.h"
 
 namespace ptgn::impl::gl {
 
@@ -176,6 +175,7 @@ template void Buffers::DestroyBuffer<UniformBufferId>(UniformBufferId);
 int Buffers::GetBufferParameter(BufferTarget target, BufferParameter parameter) const {
 	int value{ -1 };
 	GLCall(GetBufferParameteriv(std::to_underlying(target), std::to_underlying(parameter), &value));
+	// NOSONAR
 	// #ifdef PTGN_GL_DEBUG_BUFFERS
 	//	PTGN_LOG(
 	//		"glGetBufferParameteriv(target=", target, ",parameter=", parameter, ") -> value=", value
@@ -197,7 +197,7 @@ std::ostream& operator<<(std::ostream& os, BufferUsage usage) {
 		case StaticCopy:  return os << "StaticCopy";
 		case DynamicCopy: return os << "DynamicCopy";
 		case StreamCopy:  return os << "StreamCopy";
-		default:		  PTGN_ERROR("Unknown buffer usage: ", std::to_underlying(usage));
+		default:		  PTGN_ERROR("Unknown BufferUsage: ", std::to_underlying(usage));
 	}
 }
 
@@ -218,7 +218,7 @@ std::ostream& operator<<(std::ostream& os, BufferTarget target) {
 		case TextureBuffer:			  return os << "TextureBuffer";
 		case TransformFeedbackBuffer: return os << "TransformFeedbackBuffer";
 		case UniformBuffer:			  return os << "UniformBuffer";
-		default:					  PTGN_ERROR("Unknown buffer target: ", std::to_underlying(target));
+		default:					  PTGN_ERROR("Unknown BufferTarget: ", std::to_underlying(target));
 	}
 }
 
@@ -234,7 +234,7 @@ std::ostream& operator<<(std::ostream& os, BufferParameter parameter) {
 		case Size:			   return os << "Size";
 		case StorageFlags:	   return os << "StorageFlags";
 		case Usage:			   return os << "Usage";
-		default:			   PTGN_ERROR("Unknown buffer parameter: ", std::to_underlying(parameter));
+		default:			   PTGN_ERROR("Unknown BufferParameter: ", std::to_underlying(parameter));
 	}
 }
 

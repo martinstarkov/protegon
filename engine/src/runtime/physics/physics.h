@@ -18,7 +18,7 @@ enum class BoundaryBehavior {
 	ReflectVelocity // Bounce off bounds by flipping velocity
 };
 
-std::ostream& operator<<(std::ostream& o, BoundaryBehavior behavior);
+std::ostream& operator<<(std::ostream& os, BoundaryBehavior behavior);
 
 PTGN_SERIALIZE_ENUM(
 	BoundaryBehavior, { { BoundaryBehavior::StopVelocity, "stop_velocity" },
@@ -34,23 +34,24 @@ struct Bounds {
 
 	BoundaryBehavior behavior{ BoundaryBehavior::SlideVelocity };
 
-	friend std::ostream& operator<<(std::ostream& o, const Bounds& bounds) {
-		o << "(position=" << bounds.position << ", size=" << bounds.size
-		  << ", behavior=" << bounds.behavior << ")";
-		return o;
+	friend std::ostream& operator<<(std::ostream& os, const Bounds& bounds) {
+		os << "{ position: " << bounds.position;
+		os << ", size: " << bounds.size;
+		os << ", behavior: " << bounds.behavior << " }";
+		return os;
 	}
 };
 
 class Physics {
 public:
-	[[nodiscard]] std::optional<Bounds> GetBounds() const;
-	// Default values of {} result in no boundary enforcement.
+	std::optional<Bounds> GetBounds() const;
+	/// @param bounds Nullopt results in no boundary enforcement.
 	void SetBounds(std::optional<Bounds> bounds = {});
 
-	[[nodiscard]] V2_float GetGravity() const;
+	V2_float GetGravity() const;
 	void SetGravity(V2_float gravity);
 
-	// @return Physics time step in seconds.
+	/// @return Physics time step in seconds.
 	[[nodiscard]] float DeltaTime() const;
 
 	void SetEnabled(bool enabled = true);

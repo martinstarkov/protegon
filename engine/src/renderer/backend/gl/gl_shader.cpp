@@ -730,7 +730,7 @@ ShaderInfo Shaders::GetShaderInfo(
 }
 
 ShaderInfo Shaders::GetShaderInfo(
-	const ShaderPathOrName& path_or_name, ShaderType type, std::string_view shader_name
+	const ShaderPathOrName& path_or_name, ShaderType type, std::string_view shader_name // NOSONAR
 ) const {
 	if (IsFilePath(path_or_name)) {
 		PTGN_ASSERT(

@@ -1,11 +1,11 @@
 #pragma once
 
-#include <concepts>
 #include <cstdint>
 #include <ostream>
 
+#include "core/util/concepts.h"
 #include "core/util/id_map.h"
-#include "renderer/primitives/buffer.h"
+#include "renderer/primitives/id.h"
 
 namespace ptgn::impl::gl {
 
@@ -66,8 +66,7 @@ struct BufferCache {
 };
 
 template <typename T>
-concept BufferType = std::same_as<T, VertexBufferId> || std::same_as<T, ElementBufferId> ||
-					 std::same_as<T, UniformBufferId>;
+concept BufferType = IsAnyOf<T, VertexBufferId, ElementBufferId, UniformBufferId>;
 
 class Buffers {
 public:
@@ -113,7 +112,6 @@ private:
 
 	int GetBufferParameter(BufferTarget target, BufferParameter parameter) const;
 
-	// TODO: Consider splitting this up into separate caches.
 	IdMap<BufferCache> cache_;
 
 	GLContext& gl_;

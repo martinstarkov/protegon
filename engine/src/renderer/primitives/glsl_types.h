@@ -3,7 +3,6 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <ostream>
 
 namespace ptgn::glsl {
 

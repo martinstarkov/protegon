@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ostream>
+#include <utility>
 
 #include "core/log.h"
 #include "serialization/json/enum.h"
@@ -103,7 +104,7 @@ inline std::ostream& operator<<(std::ostream& os, BlendMode blend_mode) {
 		case MultiplyAlpha:				 return os << "MultiplyAlpha";
 		case MultiplyRGBWithAlphaBlend:	 return os << "MultiplyRGBWithAlphaBlend";
 		case MultiplyRGBAWithAlphaBlend: return os << "MultiplyRGBAWithAlphaBlend";
-		default:						 PTGN_ERROR("Failed to identify blend mode");
+		default:						 PTGN_ERROR("Unknown BlendMode: ", std::to_underlying(blend_mode));
 	}
 }
 

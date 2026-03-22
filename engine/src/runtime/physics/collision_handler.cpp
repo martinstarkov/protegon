@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <chrono>
 #include <functional>
-#include <ostream>
 #include <vector>
 
 #include "app/context.h"
@@ -640,12 +639,6 @@ SweepCollision::SweepCollision(
 	const RaycastResult& raycast_result, float distance_squared, Entity sweep_entity
 ) :
 	entity{ sweep_entity }, collision{ raycast_result }, dist2{ distance_squared } {}
-
-std::ostream& operator<<(std::ostream& os, const SweepCollision& sweep_collision) {
-	os << "{ entity: " << sweep_collision.entity << ", collision: " << sweep_collision.collision
-	   << ", dist2: " << sweep_collision.dist2 << " }";
-	return os;
-}
 
 } // namespace impl
 

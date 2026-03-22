@@ -132,7 +132,7 @@ inline std::ostream& operator<<(std::ostream& os, TextureFormat fmt) {
 		case Stencil8:			return os << "Stencil8";
 		case SRGB8:				return os << "SRGB8";
 		case SRGB8_ALPHA8:		return os << "SRGB8_ALPHA8";
-		default:				PTGN_ERROR("Unknown texture format: ", std::to_underlying(fmt));
+		default:				PTGN_ERROR("Unknown TextureFormat: ", std::to_underlying(fmt));
 	}
 }
 
@@ -145,7 +145,7 @@ inline std::ostream& operator<<(std::ostream& os, TextureMinFilter filter) {
 		case LinearMipmapNearest:  return os << "LinearMipmapNearest";
 		case NearestMipmapLinear:  return os << "NearestMipmapLinear";
 		case LinearMipmapLinear:   return os << "LinearMipmapLinear";
-		default:				   PTGN_ERROR("Unknown texture min filter: ", std::to_underlying(filter));
+		default:				   PTGN_ERROR("Unknown TextureMinFilter: ", std::to_underlying(filter));
 	}
 }
 
@@ -154,7 +154,7 @@ inline std::ostream& operator<<(std::ostream& os, TextureMagFilter filter) {
 		using enum TextureMagFilter;
 		case Nearest: return os << "Nearest";
 		case Linear:  return os << "Linear";
-		default:	  PTGN_ERROR("Unknown texture mag filter: ", std::to_underlying(filter));
+		default:	  PTGN_ERROR("Unknown TextureMagFilter: ", std::to_underlying(filter));
 	}
 }
 
@@ -164,7 +164,7 @@ inline std::ostream& operator<<(std::ostream& os, TextureWrap wrap) {
 		case ClampToEdge:	 return os << "ClampToEdge";
 		case MirroredRepeat: return os << "MirroredRepeat";
 		case Repeat:		 return os << "Repeat";
-		default:			 PTGN_ERROR("Unknown texture wrap: ", std::to_underlying(wrap));
+		default:			 PTGN_ERROR("Unknown TextureWrap: ", std::to_underlying(wrap));
 	}
 }
 

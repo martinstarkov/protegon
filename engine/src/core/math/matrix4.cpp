@@ -1,5 +1,6 @@
 #include "core/math/matrix4.h"
 
+#include <array>
 #include <cmath>
 #include <functional>
 
@@ -162,7 +163,7 @@ Matrix4 Matrix4::MakeInverseTransform(Transform transform) {
 Matrix4 Matrix4::Orthographic(
 	float left, float right, float bottom, float top, float near, float far
 ) {
-	Matrix4 o;
+	Matrix4 ortho;
 
 	float depth{ far - near };
 	float horizontal{ right - left };
@@ -172,24 +173,24 @@ Matrix4 Matrix4::Orthographic(
 	PTGN_ASSERT(!NearlyEqual(horizontal, 0.0f), "Orthographic matrix horizontal cannot be zero");
 	PTGN_ASSERT(!NearlyEqual(vertical, 0.0f), "Orthographic matrix vertical cannot be zero");
 
-	o[0]  = 2.0f / horizontal;
-	o[5]  = 2.0f / vertical;
-	o[10] = -2.0f / depth; // -1 by default
-	o[12] = -(right + left) / horizontal;
-	o[13] = -(top + bottom) / vertical;
+	ortho[0]  = 2.0f / horizontal;
+	ortho[5]  = 2.0f / vertical;
+	ortho[10] = -2.0f / depth; // -1 by default
+	ortho[12] = -(right + left) / horizontal;
+	ortho[13] = -(top + bottom) / vertical;
 	float plane_sum{ far + near };
 
 	if (std::isnan(plane_sum)) {
 		plane_sum = 0.0f;
 	}
 
-	o[14] = -plane_sum / depth; // 0 by default
-	o[15] = 1.0f;
+	ortho[14] = -plane_sum / depth; // 0 by default
+	ortho[15] = 1.0f;
 
 	PTGN_ASSERT(
 		std::invoke([&]() -> bool {
-			for (std::size_t i{ 0 }; i < o.length; i++) {
-				if (std::isnan(o[i]) || std::isinf(o[i])) {
+			for (std::size_t i{ 0 }; i < ortho.length; i++) {
+				if (std::isnan(ortho[i]) || std::isinf(ortho[i])) {
 					return false;
 				}
 			}
@@ -198,7 +199,7 @@ Matrix4 Matrix4::Orthographic(
 		"Failed to create valid orthographic matrix"
 	);
 
-	return o;
+	return ortho;
 }
 
 Matrix4 Matrix4::Orthographic(V2_float min, V2_float max, float near, float far) {

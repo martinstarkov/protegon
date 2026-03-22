@@ -85,13 +85,17 @@ struct StencilState {
 
 	friend std::ostream& operator<<(std::ostream& os, const StencilState& stencil) {
 		if (stencil.enabled) {
-			os << "(enabled=" << stencil.enabled << ", func=" << stencil.func
-			   << ", ref=" << stencil.ref << ", mask=0x" << std::hex << stencil.mask << std::dec
-			   << ", fail_op=" << stencil.fail_op << ", zfail_op=" << stencil.zfail_op
-			   << ", zpass_op=" << stencil.zpass_op << ", write_mask=0x" << std::hex
-			   << stencil.write_mask << std::dec << ")";
+			os << "{ enabled: " << stencil.enabled;
+			os << ", func: " << stencil.func;
+			os << ", ref: " << stencil.ref;
+			os << ", mask: 0x" << std::hex << stencil.mask << std::dec;
+			os << ", fail_op: " << stencil.fail_op;
+			os << ", zfail_op: " << stencil.zfail_op;
+			os << ", zpass_op: " << stencil.zpass_op;
+			os << ", write_mask: 0x" << std::hex << stencil.write_mask << std::dec;
+			os << " }";
 		} else {
-			os << "(enabled=" << stencil.enabled << ")";
+			os << "{ enabled: " << stencil.enabled << " }";
 		}
 		return os;
 	}
@@ -110,10 +114,13 @@ struct DepthState {
 
 	friend std::ostream& operator<<(std::ostream& os, const DepthState& depth) {
 		if (depth.test) {
-			os << "(test=" << depth.test << ", write=" << depth.write << ", func=" << depth.func
-			   << ", range_near=" << depth.range_near << ", range_far=" << depth.range_far << ")";
+			os << "{ test: " << depth.test;
+			os << ", write: " << depth.write;
+			os << ", func: " << depth.func;
+			os << ", range_near: " << depth.range_near;
+			os << ", range_far: " << depth.range_far << " }";
 		} else {
-			os << "(test=" << depth.test << ")";
+			os << "{ test: " << depth.test << " }";
 		}
 		return os;
 	}
@@ -128,8 +135,10 @@ struct ColorMaskState {
 	bool operator==(const ColorMaskState&) const = default;
 
 	friend std::ostream& operator<<(std::ostream& os, const ColorMaskState& mask) {
-		os << "(r=" << mask.red << ",g=" << mask.green << ",b=" << mask.blue << ",a=" << mask.alpha
-		   << ")";
+		os << "{ r: " << mask.red;
+		os << ", g: " << mask.green;
+		os << ", b: " << mask.blue;
+		os << ", a: " << mask.alpha << " }";
 		return os;
 	}
 };
@@ -141,18 +150,19 @@ struct ScissorState {
 
 	explicit ScissorState(bool enabled) : enabled{ enabled } {}
 
-	bool enabled{ false };
-
 	/// @brief Viewport of the scissor rectangle.
 	Viewport viewport;
+
+	bool enabled{ false };
 
 	bool operator==(const ScissorState&) const = default;
 
 	friend std::ostream& operator<<(std::ostream& os, const ScissorState& scissor) {
 		if (scissor.enabled) {
-			os << "(enabled=" << scissor.enabled << ", viewport=" << scissor.viewport << ")";
+			os << "{ enabled: " << scissor.enabled;
+			os << ", viewport: " << scissor.viewport << " }";
 		} else {
-			os << "(enabled=" << scissor.enabled << ")";
+			os << "{ enabled: " << scissor.enabled << " }";
 		}
 		return os;
 	}
@@ -200,10 +210,11 @@ struct CullState {
 
 	friend std::ostream& operator<<(std::ostream& os, const CullState& cull) {
 		if (cull.enabled) {
-			os << "(enabled=" << cull.enabled << ", cull_face=" << cull.cull_face
-			   << ", front_face=" << cull.front_face << ")";
+			os << "{ enabled: " << cull.enabled;
+			os << ", cull_face: " << cull.cull_face;
+			os << ", front_face: " << cull.front_face << " }";
 		} else {
-			os << "(enabled=" << cull.enabled << ")";
+			os << "{ enabled: " << cull.enabled << " }";
 		}
 		return os;
 	}
@@ -233,7 +244,8 @@ struct PolygonState {
 	bool operator==(const PolygonState&) const = default;
 
 	friend std::ostream& operator<<(std::ostream& os, const PolygonState& polygon) {
-		os << "(front=" << polygon.front << ", back=" << polygon.back << ")";
+		os << "{ front: " << polygon.front;
+		os << ", back: " << polygon.back << " }";
 		return os;
 	}
 };
@@ -262,9 +274,10 @@ struct RasterState {
 	bool operator==(const RasterState&) const = default;
 
 	friend std::ostream& operator<<(std::ostream& os, const RasterState& raster) {
-		os << "(cull=" << raster.cull << ", polygon=" << raster.polygon
-		   << ", line_width=" << raster.line_width.value
-		   << ", line_smoothing=" << raster.line_smoothing << ")";
+		os << "{ cull: " << raster.cull;
+		os << ", polygon: " << raster.polygon;
+		os << ", line_width: " << raster.line_width.value;
+		os << ", line_smoothing: " << raster.line_smoothing << " }";
 		return os;
 	}
 };
@@ -281,9 +294,10 @@ struct BlendState {
 
 	friend std::ostream& operator<<(std::ostream& os, const BlendState& blend) {
 		if (blend.enabled) {
-			os << "(enabled=" << blend.enabled << ", mode=" << blend.mode << ")";
+			os << "{ enabled: " << blend.enabled;
+			os << ", mode: " << blend.mode << " }";
 		} else {
-			os << "(enabled=" << blend.enabled << ")";
+			os << "{ enabled: " << blend.enabled << " }";
 		}
 		return os;
 	}

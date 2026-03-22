@@ -1,7 +1,7 @@
 #pragma once
 
-#include <concepts>
 #include <limits>
+#include <utility>
 #include <vector>
 
 #include "core/assert.h"
@@ -32,9 +32,9 @@ struct IdMap {
 		if (sparse_[id] == std::numeric_limits<std::size_t>::max()) { // new
 			sparse_[id] = dense_.size();
 			dense_.emplace_back(id);
-			data_.emplace_back(value);
+			data_.emplace_back(std::move(value));
 		} else { // overwrite
-			data_[sparse_[id]] = value;
+			data_[sparse_[id]] = std::move(value);
 		}
 	}
 

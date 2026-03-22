@@ -191,24 +191,24 @@ public:
 	void SetSettings(const SceneInputSettings& settings = {});
 
 	/// @return Mouse position relative to the specified viewport.
-	[[nodiscard]] V2_float GetMousePosition(
+	V2_float GetMousePosition(
 		Frame position_frame_of_reference = Frame::World, bool clamp_to_viewport = true
 	) const;
 
 	/// @return Mouse position relative to the specified viewport during the previous frame.
-	[[nodiscard]] V2_float GetPreviousMousePosition(
+	V2_float GetPreviousMousePosition(
 		Frame position_frame_of_reference = Frame::World, bool clamp_to_viewport = true
 	) const;
 
 	/// @return Mouse delta (current_position - previous_position) relative to the specified
 	/// viewport.
-	[[nodiscard]] V2_float GetMouseDelta(
+	V2_float GetMouseDelta(
 		Frame delta_frame_of_reference = Frame::World, bool clamp_to_viewport = true
 	) const;
 
 	/// @return The amount scrolled by the mouse vertically in the current frame,
 	/// positive upward, negative downward. Zero if no scroll occurred.
-	[[nodiscard]] float GetMouseScroll() const;
+	float GetMouseScroll() const;
 
 	/// @param button The mouse button to check.
 	/// @return True the first frame that the mouse is pressed.
@@ -230,7 +230,7 @@ public:
 	/// @param button The mouse button to check.
 	/// @return The amount of time that the mouse button has been held down, negative numbers
 	/// indicate the time since the mouse button was last held.
-	[[nodiscard]] milliseconds GetMouseHeldTime(Mouse button) const;
+	milliseconds GetMouseHeldTime(Mouse button) const;
 
 	/// @param key The key to check.
 	/// @return True the first frame that the key is pressed.
@@ -252,7 +252,7 @@ public:
 	/// @param key The key to check.
 	/// @return The amount of time that the key has been held down, negative numbers
 	/// indicate the time since the key was last held.
-	[[nodiscard]] milliseconds GetKeyHeldTime(Key key) const;
+	milliseconds GetKeyHeldTime(Key key) const;
 
 private:
 	friend class Scene;
@@ -268,12 +268,10 @@ private:
 		std::vector<Entity> under_mouse;
 		std::vector<Entity> not_under_mouse;
 
-		friend std::ostream& operator<<(std::ostream& o, const InteractiveEntities& entities) {
-			o << "Under mouse: ";
-			o << entities.under_mouse.size();
-			o << ", Not under mouse: ";
-			o << entities.not_under_mouse.size();
-			return o;
+		friend std::ostream& operator<<(std::ostream& os, const InteractiveEntities& entities) {
+			os << "{ under_mouse: " << entities.under_mouse.size();
+			os << ", not_under_mouse: " << entities.not_under_mouse.size() << " }";
+			return os;
 		}
 	};
 
@@ -283,14 +281,14 @@ private:
 
 	/// Convert position from being relative to the center of the window to being relative to
 	/// the center of the specified viewport.
-	[[nodiscard]] V2_float GetMousePositionRelativeTo(
+	V2_float GetMousePositionRelativeTo(
 		V2_float position, Frame frame_of_reference, bool clamp_to_viewport
 	) const;
 
 	[[nodiscard]] static bool Overlap(V2_float point, Entity entity);
 	[[nodiscard]] static bool Overlap(Entity entityA, Entity entityB);
 
-	[[nodiscard]] static Transform GetWorldOffsetTransform(
+	static Transform GetWorldOffsetTransform(
 		const Shape& shape, Entity shape_entity, Entity parent
 	);
 

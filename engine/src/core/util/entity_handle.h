@@ -9,14 +9,14 @@ namespace ptgn {
 
 namespace impl {
 
-/// Component for reference counting the EntityHandle.
+/// @brief Component for reference counting the EntityHandle.
 struct RefCount {
 	std::uint32_t value{ 0 };
 };
 
 } // namespace impl
 
-/// An optionally reference counted object that owns an entity.
+/// @brief An optionally reference counted object that owns an entity.
 /// This creates a uniform interface for user-owned entities and manager-owned entities.
 class EntityHandle {
 public:
@@ -40,19 +40,18 @@ public:
 
 	explicit operator bool() const;
 
-	friend std::ostream& operator<<(std::ostream& o, const EntityHandle& e) {
-		o << e.entity_.GetId();
-		o << "-";
-		o << e.entity_.GetVersion();
-		return o;
+	friend std::ostream& operator<<(std::ostream& os, const EntityHandle& e) {
+		os << e.entity_.GetId();
+		os << "-";
+		os << e.entity_.GetVersion();
+		return os;
 	}
 
 	ecs::Entity GetEntity() const;
 
-protected:
+private:
 	ecs::Entity entity_;
 
-private:
 	void AddRef();
 
 	void Release();

@@ -24,14 +24,14 @@ inline std::ostream& operator<<(std::ostream& os, MoveDirection direction) {
 	switch (direction) {
 		using enum MoveDirection;
 		case None:		return os << "None";
-		case UpLeft:	return os << "Up Left";
+		case UpLeft:	return os << "UpLeft";
 		case Up:		return os << "Up";
-		case UpRight:	return os << "Up Right";
+		case UpRight:	return os << "UpRight";
 		case Left:		return os << "Left";
 		case Right:		return os << "Right";
-		case DownLeft:	return os << "Down Left";
+		case DownLeft:	return os << "DownLeft";
 		case Down:		return os << "Down";
-		case DownRight: return os << "Down Right";
+		case DownRight: return os << "DownRight";
 		default:		PTGN_ERROR("Unknown MoveDirection: ", std::to_underlying(direction));
 	}
 }

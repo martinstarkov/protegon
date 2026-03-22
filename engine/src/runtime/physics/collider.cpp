@@ -74,7 +74,7 @@ Collider& Collider::SetCollidesWith(const std::vector<ColliderMask>& masks) {
 	return *this;
 }
 
-[[nodiscard]] static Collision GetIfExists(const std::vector<Collision>& collisions, Entity other) {
+static Collision GetIfExists(const std::vector<Collision>& collisions, Entity other) {
 	auto it{ std::ranges::find_if(collisions, [&other](auto& collision) {
 		return collision.entity == other;
 	}) };
@@ -135,24 +135,24 @@ void Collider::AddSweep(const Collision& collision) {
 	sweeps_.emplace_back(collision);
 }
 
-std::ostream& operator<<(std::ostream& o, CollisionResponse response) {
+std::ostream& operator<<(std::ostream& os, CollisionResponse response) {
 	switch (response) {
 		using enum CollisionResponse;
-		case Slide:	 return o << "Slide";
-		case Bounce: return o << "Bounce";
-		case Push:	 return o << "Push";
-		case Stick:	 return o << "Stick";
+		case Slide:	 return os << "Slide";
+		case Bounce: return os << "Bounce";
+		case Push:	 return os << "Push";
+		case Stick:	 return os << "Stick";
 		default:	 PTGN_ERROR("Unknown CollisionResponse: ", std::to_underlying(response));
 	}
 }
 
-std::ostream& operator<<(std::ostream& o, CollisionMode mode) {
+std::ostream& operator<<(std::ostream& os, CollisionMode mode) {
 	switch (mode) {
 		using enum CollisionMode;
-		case None:		 return o << "None";
-		case Overlap:	 return o << "Overlap";
-		case Discrete:	 return o << "Discrete";
-		case Continuous: return o << "Continuous";
+		case None:		 return os << "None";
+		case Overlap:	 return os << "Overlap";
+		case Discrete:	 return os << "Discrete";
+		case Continuous: return os << "Continuous";
 		default:		 PTGN_ERROR("Unknown CollisionMode: ", std::to_underlying(mode));
 	}
 }

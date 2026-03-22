@@ -30,9 +30,12 @@ struct RaycastResult {
 	/// @return True if the ray impacted the shape, false if it did not. Impact implies that t is in
 	/// the range [0.0, 1.0) and normal is not zero.
 	[[nodiscard]] bool Occurred() const;
-};
 
-std::ostream& operator<<(std::ostream& os, const RaycastResult& result);
+	friend std::ostream& operator<<(std::ostream& os, const RaycastResult& result) {
+		os << "{ t: " << result.t << ", normal: " << result.normal << " }";
+		return os;
+	}
+};
 
 namespace impl {
 

@@ -19,9 +19,13 @@ struct Intersection {
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Intersection, depth, normal)
 
 	[[nodiscard]] bool Occurred() const;
-};
 
-std::ostream& operator<<(std::ostream& os, const Intersection& c);
+	friend std::ostream& operator<<(std::ostream& os, const Intersection& c) {
+		os << "{ depth: " << c.depth;
+		os << ", normal: " << c.normal << " }";
+		return os;
+	}
+};
 
 namespace impl {
 

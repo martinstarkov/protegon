@@ -59,9 +59,14 @@ struct SweepCollision {
 	Entity entity;
 	RaycastResult collision;
 	float dist2{ 0.0f };
-};
 
-std::ostream& operator<<(std::ostream& os, const SweepCollision& sweep_collision);
+	friend std::ostream& operator<<(std::ostream& os, const SweepCollision& sweep_collision) {
+		os << "{ entity: " << sweep_collision.entity;
+		os << ", collision: " << sweep_collision.collision;
+		os << ", dist2: " << sweep_collision.dist2 << " }";
+		return os;
+	}
+};
 
 } // namespace impl
 

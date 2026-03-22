@@ -15,7 +15,7 @@ void Noise::SetFrequency(float frequency) {
 	frequency_ = frequency;
 }
 
-[[nodiscard]] float Noise::GetFrequency() const {
+float Noise::GetFrequency() const {
 	return frequency_;
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ostream>
+#include <utility>
 
 #include "core/log.h"
 #include "platform/platform.h"
@@ -329,10 +330,8 @@ inline std::ostream& operator<<(std::ostream& os, Key key) {
 		case KP_Multiply:  return os << "Keypad *";
 		case KP_Divide:	   return os << "Keypad /";
 
-		default:		   PTGN_ERROR("Invalid key enum value");
+		default:		   PTGN_ERROR("Unknown Key: ", std::to_underlying(key));
 	}
-
-	return os;
 }
 
 PTGN_SERIALIZE_ENUM(

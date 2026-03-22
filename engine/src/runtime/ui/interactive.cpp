@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <ostream>
 #include <ranges>
 #include <string_view>
 #include <unordered_set>
@@ -167,7 +168,7 @@ const std::unordered_set<Entity>& GetDropzones(Entity draggable) {
 	return draggable.Get<impl::Draggable>().dropzones;
 }
 
-[[nodiscard]] const std::unordered_set<Entity>& GetDraggables(Entity dropzone) {
+const std::unordered_set<Entity>& GetDraggables(Entity dropzone) {
 	return dropzone.Get<impl::Dropzone>().draggables;
 }
 
@@ -189,6 +190,38 @@ void SetDraggableCondition(Entity draggable, DragEventPhase phase, TriggerCondit
 
 void SetDropzoneCondition(Entity dropzone, DragEventPhase phase, TriggerCondition condition) {
 	SetCondition<impl::Dropzone>(dropzone, phase, condition);
+}
+
+std::ostream& operator<<(std::ostream& os, ComponentState state) {
+	switch (state) {
+		using enum ComponentState;
+		case Disabled: return os << "Disabled";
+		case Enabled:  return os << "Enabled";
+		case Removed:  return os << "Removed";
+		default:	   PTGN_ERROR("Unknown ComponentState: ", std::to_underlying(state));
+	}
+}
+
+std::ostream& operator<<(std::ostream& os, TriggerCondition condition) {
+	switch (condition) {
+		using enum TriggerCondition;
+		case None:				return os << "None";
+		case MouseOverlaps:		return os << "MouseOverlaps";
+		case TransformOverlaps: return os << "TransformOverlaps";
+		case Overlaps:			return os << "Overlaps";
+		case Contains:			return os << "Contains";
+		default:				return os << "Unknown TriggerCondition: " << std::to_underlying(condition);
+	}
+}
+
+std::ostream& operator<<(std::ostream& os, DragEventPhase phase) {
+	switch (phase) {
+		using enum DragEventPhase;
+		case MoveOver: return os << "MoveOver";
+		case Drop:	   return os << "Drop";
+		case Pickup:   return os << "Pickup";
+		default:	   PTGN_ERROR("Unknown DragEventPhase: ", std::to_underlying(phase));
+	}
 }
 
 } // namespace ptgn

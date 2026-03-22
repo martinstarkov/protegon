@@ -31,7 +31,7 @@ struct Transform {
 			   a.scale_ == b.scale_;
 	}
 
-	[[nodiscard]] V2_float GetPosition() const;
+	V2_float GetPosition() const;
 
 	Transform& SetPosition(V2_float position);
 	/// @brief Set position along a particular axis: x == 0, y == 1.
@@ -45,7 +45,7 @@ struct Transform {
 	Transform& TranslateY(float position_y_difference);
 
 	/// @return Unit: Radians, Direction: Clockwise positive.
-	[[nodiscard]] float GetRotation() const;
+	float GetRotation() const;
 
 	/// @param rotation Unit: Radians, Direction: Clockwise positive.
 	Transform& SetRotation(float rotation);
@@ -58,9 +58,9 @@ struct Transform {
 	Transform& ClampRotation();
 
 	/// @return abs(scale_x + scale_y) / 2
-	[[nodiscard]] float GetAverageScale() const;
+	float GetAverageScale() const;
 
-	[[nodiscard]] V2_float GetScale() const;
+	V2_float GetScale() const;
 
 	Transform& SetScale(float scale);
 	Transform& SetScale(V2_float scale);
@@ -95,12 +95,9 @@ struct Transform {
 	}
 
 	friend std::ostream& operator<<(std::ostream& os, const Transform& transform) {
-		os << "{ position: ";
-		os << transform.position_;
-		os << ", rotation: ";
-		os << transform.rotation_;
-		os << ", scale: ";
-		os << transform.scale_ << "}";
+		os << "{ position: " << transform.position_;
+		os << ", rotation: " << transform.rotation_;
+		os << ", scale: " << transform.scale_ << " }";
 		return os;
 	}
 

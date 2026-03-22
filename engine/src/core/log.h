@@ -62,10 +62,10 @@ inline void PrintImpl(
 	OStreamStateGuard guard{ os };
 	if (scientific) {
 		os.setf(std::ios::scientific, std::ios::floatfield);
-		if (precision) {
+		if (precision.has_value()) {
 			os << std::setprecision(*precision);
 		}
-	} else if (precision) {
+	} else if (precision.has_value()) {
 		os.setf(std::ios::fixed, std::ios::floatfield);
 		os << std::setprecision(*precision);
 	}

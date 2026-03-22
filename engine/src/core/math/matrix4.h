@@ -30,6 +30,32 @@ public:
 
 	friend void from_json(const json& j, Matrix4& m);
 
+	friend std::ostream& operator<<(std::ostream& os, const Matrix4& m) {
+		os << "\n";
+		os << std::fixed << std::right << std::setprecision(static_cast<std::streamsize>(3))
+		   << std::setfill(' ') << "[";
+		for (std::size_t i{ 0 }; i < m.size.x; ++i) {
+			if (i != 0) {
+				os << " ";
+			}
+			os << "[";
+			for (std::size_t j = 0; j < m.size.y; ++j) {
+				os << std::setw(9);
+				os << m(i, j);
+				if (j != static_cast<std::size_t>(m.size.y) - 1) {
+					os << ",";
+				}
+			}
+			os << "]";
+			if (i != static_cast<std::size_t>(m.size.x) - 1) {
+				// os << ",";
+				os << "\n";
+			}
+		}
+		os << "]";
+		return os;
+	}
+
 private:
 	friend class Quaternion;
 
@@ -243,32 +269,6 @@ public:
 		return res;
 	}
 };
-
-inline std::ostream& operator<<(std::ostream& os, const ptgn::Matrix4& m) {
-	os << "\n";
-	os << std::fixed << std::right << std::setprecision(static_cast<std::streamsize>(3))
-	   << std::setfill(' ') << "[";
-	for (std::size_t i{ 0 }; i < m.size.x; ++i) {
-		if (i != 0) {
-			os << " ";
-		}
-		os << "[";
-		for (std::size_t j = 0; j < m.size.y; ++j) {
-			os << std::setw(9);
-			os << m(i, j);
-			if (j != static_cast<std::size_t>(m.size.y) - 1) {
-				os << ",";
-			}
-		}
-		os << "]";
-		if (i != static_cast<std::size_t>(m.size.x) - 1) {
-			// os << ",";
-			os << "\n";
-		}
-	}
-	os << "]";
-	return os;
-}
 
 template <Arithmetic U>
 [[nodiscard]] inline Matrix4 operator*(U A, const Matrix4& B) {

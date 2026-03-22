@@ -33,9 +33,10 @@ struct Collision {
 		return a.entity == b.entity;
 	}
 
-	friend std::ostream& operator<<(std::ostream& o, const Collision& collision) {
-		o << "{entity: " << collision.entity << ", normal: " << collision.normal << "}";
-		return o;
+	friend std::ostream& operator<<(std::ostream& os, const Collision& collision) {
+		os << "{ entity: " << collision.entity;
+		os << ", normal: " << collision.normal << " }";
+		return os;
 	}
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Collision, entity, normal)
@@ -66,7 +67,7 @@ enum class CollisionResponse {
 	Stick	/// Velocity set to 0.
 };
 
-std::ostream& operator<<(std::ostream& o, CollisionResponse response);
+std::ostream& operator<<(std::ostream& os, CollisionResponse response);
 
 PTGN_SERIALIZE_ENUM(
 	CollisionResponse, { { CollisionResponse::Slide, "slide" },
@@ -82,7 +83,7 @@ enum class CollisionMode {
 	Continuous, /// Continuous collision detection for high velocity colliders.
 };
 
-std::ostream& operator<<(std::ostream& o, CollisionMode mode);
+std::ostream& operator<<(std::ostream& os, CollisionMode mode);
 
 PTGN_SERIALIZE_ENUM(
 	CollisionMode, { { CollisionMode::None, nullptr },
@@ -108,7 +109,7 @@ struct Collider {
 
 	Collider& SetCollisionMode(CollisionMode new_mode = CollisionMode::Discrete);
 
-	[[nodiscard]] ColliderMask GetMask() const;
+	ColliderMask GetMask() const;
 
 	Collider& SetMask(ColliderMask mask);
 

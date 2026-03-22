@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ostream>
+#include <utility>
 
 #include "core/log.h"
 #include "serialization/json/enum.h"
@@ -15,14 +16,12 @@ enum class Mouse {
 
 inline std::ostream& operator<<(std::ostream& os, Mouse mouse) {
 	switch (mouse) {
-		using enum ptgn::Mouse;
-		case Left:	 os << "Left"; break;
-		case Right:	 os << "Right"; break;
-		case Middle: os << "Middle"; break;
-		default:	 PTGN_ERROR("Invalid mouse type");
+		using enum Mouse;
+		case Left:	 return os << "Left";
+		case Right:	 return os << "Right";
+		case Middle: return os << "Middle";
+		default:	 PTGN_ERROR("Unknown Mouse: ", std::to_underlying(mouse));
 	}
-
-	return os;
 }
 
 PTGN_SERIALIZE_ENUM(
