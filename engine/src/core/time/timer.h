@@ -10,7 +10,7 @@
 
 namespace ptgn {
 
-/// Monotonic clock to prevent time variations if system time is changed.
+/// @brief Monotonic clock to prevent time variations if system time is changed.
 class Timer {
 public:
 	Timer() = default;
@@ -47,21 +47,21 @@ public:
 
 	/// @tparam Duration The unit of time. Default: milliseconds.
 	/// @param Amount of time to add to the timer.
-	template <Duration D = milliseconds>
+	template <DurationType D = milliseconds>
 	void AddOffset(D extra_time) {
 		offset_ += extra_time;
 	}
 
 	/// @tparam Duration The unit of time. Default: milliseconds.
 	/// @param Amount of time to remove from the timer.
-	template <Duration D = milliseconds>
+	template <DurationType D = milliseconds>
 	void RemoveOffset(D time_to_remove) {
 		offset_ -= time_to_remove;
 	}
 
 	/// @tparam Duration The unit of time. Default: milliseconds.
 	/// @return Elapsed duration of time since timer start.
-	template <Duration D = milliseconds>
+	template <DurationType D = milliseconds>
 	[[nodiscard]] D Elapsed() const {
 		auto end_time = running_ ? std::chrono::steady_clock::now() : stop_time_;
 		return to_duration<D>(end_time - start_time_ + offset_);
@@ -70,7 +70,7 @@ public:
 	/// @tparam Duration The unit of time. Default: milliseconds.
 	/// @param compared_to The time to check that the timer has completed.
 	/// @return True the timer has elapsed compared_to time and false if not.
-	template <Duration D = milliseconds>
+	template <DurationType D = milliseconds>
 	[[nodiscard]] bool Completed(D compared_to) const {
 		return ElapsedPercentage(compared_to) >= 1.0f;
 	}
@@ -79,7 +79,7 @@ public:
 	/// @param compared_to The time relative to which the elapsed time is returned.
 	/// @return Elapsed percentage of compared_to time duration clamped between 0.0 and 1.0. Returns
 	/// 1 if compared_to is 0.
-	template <Duration D = milliseconds, std::floating_point T = float>
+	template <DurationType D = milliseconds, std::floating_point T = float>
 	[[nodiscard]] T ElapsedPercentage(D compared_to) const {
 		if (compared_to == D{ 0 }) {
 			return 1.0f;

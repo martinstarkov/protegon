@@ -10,6 +10,7 @@
 #include "core/time/time.h"
 #include "core/time/timer.h"
 #include "core/util/function.h"
+#include "core/util/macro.h"
 
 namespace ptgn {
 
@@ -46,14 +47,14 @@ public:
 		PrintAll<>();
 	}
 
-	template <Duration D = milliseconds>
+	template <DurationType D = milliseconds>
 	void PrintAll() const {
 		for (const auto& [name, time] : timings_) {
 			PrintInfo<D>(name, to_duration<D>(time));
 		}
 	}
 
-	template <Duration D = milliseconds>
+	template <DurationType D = milliseconds>
 	void Print(const std::string& name) const {
 		PTGN_ASSERT(
 			timings_.contains(name),
@@ -67,7 +68,7 @@ private:
 	friend class ptgn::DebugSystem;
 	friend class ProfileInstance;
 
-	template <Duration D = milliseconds>
+	template <DurationType D = milliseconds>
 	void PrintInfo(std::string_view name, const D& time) const {
 		PrintLine("PROFILING: ", impl::TrimFunctionSignature(name), ": ", time);
 	}

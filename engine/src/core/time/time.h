@@ -29,7 +29,7 @@ struct is_chrono_duration<std::chrono::duration<_Rep, _Period>> : std::true_type
 } // namespace impl
 
 template <typename T>
-concept Duration = impl::is_chrono_duration<T>::value;
+concept DurationType = impl::is_chrono_duration<T>::value;
 
 using hours			= std::chrono::hours;
 using hoursf		= duration<float, hours::period>;
@@ -44,43 +44,43 @@ using microsecondsf = duration<float, microseconds::period>;
 using nanoseconds	= std::chrono::nanoseconds;
 using nanosecondsf	= duration<float, nanoseconds::period>;
 
-template <Duration To, Duration From>
+template <DurationType To, DurationType From>
 constexpr To to_duration(const From& duration) {
 	return std::chrono::duration_cast<To>(duration);
 }
 
 /// Generic helper: casts to target duration and returns its count.
-template <Duration To, Duration From>
+template <DurationType To, DurationType From>
 constexpr typename To::rep to_duration_value(const From& duration) {
 	return to_duration<To>(duration).count();
 }
 
-template <Duration From>
+template <DurationType From>
 constexpr typename From::rep to_seconds(const From& duration) {
 	return to_duration_value<std::chrono::duration<typename From::rep>>(duration);
 }
 
-template <Duration From>
+template <DurationType From>
 constexpr typename From::rep to_milliseconds(const From& duration) {
 	return to_duration_value<std::chrono::duration<typename From::rep, std::milli>>(duration);
 }
 
-template <Duration From>
+template <DurationType From>
 constexpr typename From::rep to_microseconds(const From& duration) {
 	return to_duration_value<std::chrono::duration<typename From::rep, std::micro>>(duration);
 }
 
-template <Duration From>
+template <DurationType From>
 constexpr typename From::rep to_nanoseconds(const From& duration) {
 	return to_duration_value<std::chrono::duration<typename From::rep, std::nano>>(duration);
 }
 
-template <Duration From>
+template <DurationType From>
 constexpr typename From::rep to_minutes(const From& duration) {
 	return to_duration_value<std::chrono::duration<typename From::rep, std::ratio<60>>>(duration);
 }
 
-template <Duration From>
+template <DurationType From>
 constexpr typename From::rep to_hours(const From& duration) {
 	return to_duration_value<std::chrono::duration<typename From::rep, std::ratio<3600>>>(duration);
 }
@@ -116,7 +116,7 @@ template <typename Rep, typename Period>
 struct adl_serializer<ptgn::duration<Rep, Period>> {
 	static void to_json(json& j, const ptgn::duration<Rep, Period>& d) {
 		using namespace ptgn;
-		// Convert duration to milliseconds (common base unit for serialization)
+		// Convert DurationType To milliseconds (common base unit for serialization)
 		auto ms{ to_duration<milliseconds>(d) };
 
 		if (ms == d) {
