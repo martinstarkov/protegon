@@ -220,8 +220,14 @@ struct SceneManager {
 						break;
 					}
 
-					auto newScene		 = cmd.factory();
-					newScene->state		 = SceneState::TransitionIn;
+					auto newScene	= cmd.factory();
+					newScene->state = SceneState::TransitionIn;
+					// TODO: Figure out delay system.
+					/*if (!cmd.use_delay) {
+						s->scene_on_entered = true;
+						newScene->OnEnter();
+					}*/
+					// newScene->use_delay = cmd.use_delay;
 					newScene->transition = cmd.inTransitionFactory();
 					scenes.push_back(std::move(newScene));
 					break;
@@ -248,13 +254,20 @@ struct SceneManager {
 						break;
 					}
 
-					std::string temp	 = key + "_reenter";
-					auto newScene		 = cmd.factory();
-					newScene->key		 = temp;
-					newScene->state		 = SceneState::TransitionIn;
+					std::string temp = key + "_reenter";
+					auto newScene	 = cmd.factory();
+					newScene->key	 = temp;
+					newScene->state	 = SceneState::TransitionIn;
+					// TODO: Figure out delay system.
+					/*if (!cmd.use_delay) {
+						s->scene_on_entered = true;
+						newScene->OnEnter();
+					}*/
+					// newScene->use_delay = cmd.use_delay;
 					newScene->transition = cmd.inTransitionFactory();
 
 					scene->state	  = SceneState::TransitionOut;
+					scene->locked	  = true;
 					scene->transition = cmd.outTransitionFactory();
 
 					scenes.push_back(std::move(newScene));
@@ -278,6 +291,17 @@ struct SceneManager {
 
 		// Update transitions
 		for (auto& s : scenes) {
+			// TODO: Put a check here for delay:
+			/*
+			if (s->use_delay) {
+				s->delay_elapsed += dt;
+				if (s->delay_elapsed >= s->delay) {
+					s->OnEnter();
+					s->scene_on_entered = true;
+					s->use_delay = false;
+				}
+			}
+			*/
 			if (s->transition) {
 				s->transition->Update(dt);
 
@@ -288,9 +312,18 @@ struct SceneManager {
 
 					s->transition.reset();
 				}
+			} else {
+				if (s->state == SceneState::TransitionIn) {
+					s->state = SceneState::Active;
+					/*		if (!s->scene_on_entered) {
+								s->OnEnter();
+								s->scene_on_entered = true;
+							}*/
+				}
 			}
 		}
 
+		// TODO: Move this erase into the upper for loop.
 		// Cleanup
 		scenes.erase(
 			std::remove_if(
@@ -304,6 +337,8 @@ struct SceneManager {
 		for (auto it = reenterMap.begin(); it != reenterMap.end();) {
 			Scene* s = Find(it->first);
 			if (s && s->state == SceneState::Active) {
+				// TODO: This can be done by simply removing _reenter from scene key when it turns
+				// active.
 				s->key = it->second;
 				it	   = reenterMap.erase(it);
 			} else {
@@ -339,7 +374,7 @@ void LocalSceneManager::Enter(
 	if (!CanIssueCommands()) {
 		return;
 	}
-
+	// TODO: Check CanModifyTarget here for key.
 	manager->AddCommand(SceneCommand{
 		CommandType::Enter, key, owner_key, priority,
 		std::function([=]() { return std::make_unique<T>(key, manager, args...); }), inT, nullptr }
@@ -352,6 +387,7 @@ void LocalSceneManager::Exit(
 	if (!CanIssueCommands()) {
 		return;
 	}
+	// TODO: Check CanModifyTarget here for key.
 
 	manager->AddCommand({ CommandType::Exit, key, owner_key, priority, nullptr, nullptr, outT });
 }
@@ -365,6 +401,7 @@ void LocalSceneManager::ReEnter(
 		return;
 	}
 
+	// TODO: Check CanModifyTarget here for key.
 	manager->AddCommand({ CommandType::ReEnter, key, owner_key, INT_MAX,
 						  [=]() { return std::make_unique<T>(key, manager, args...); }, inT, outT }
 	);
