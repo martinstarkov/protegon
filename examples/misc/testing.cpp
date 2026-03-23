@@ -1,82 +1,433 @@
+#include <algorithm>
+#include <cassert>
 #include <functional>
 #include <iostream>
-#include <ostream>
-#include <utility>
+#include <memory>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
-#include "app/application.h"
-#include "core/event/dispatcher.h"
-#include "core/event/event.h"
-#include "core/math/geometry/rect.h"
-#include "core/math/transform.h"
-#include "core/math/vector2.h"
-#include "core/util/hash.h"
-#include "core/util/type_info.h"
-#include "renderer/primitives/color.h"
-#include "renderer/renderer.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/ecs/game_object.h"
-#include "runtime/graphics/shape.h"
-#include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
-#include "runtime/scripting/script.h"
-#include "runtime/scripting/scripts.h"
-#include "runtime/ui/interactive.h"
+// ============================================================
+// TRANSITIONS
+// ============================================================
 
-struct TestScene : public Scene {
-	Entity CreateInteractiveRect(V2_float size) {
-		auto entity = CreateEntity();
-		entity.Add<Rect>(size);
-		return entity;
+struct Transition {
+	virtual ~Transition()			= default;
+	virtual void Update(float dt)	= 0;
+	virtual bool IsFinished() const = 0;
+};
+
+struct TimedTransition : public Transition {
+	float duration;
+	float time = 0.f;
+
+	TimedTransition(float d) : duration(d) {}
+
+	void Update(float dt) override {
+		time += dt;
 	}
 
-	void OnEnter() override {
-		V2_float rsize{ 100, 50 };
-
-		auto r		= CreateRect(*this, {}, rsize, color::Green, 1.0f);
-		auto rchild = CreateInteractiveRect(rsize);
-		AddInteractiveShape(r, GameObject{ std::move(rchild) });
-
-		struct Normal {};
-
-		struct Hovered {};
-
-		struct Pressed {};
-
-		AddFSM(r)
-			.Initial<Normal>()
-
-			.Transition<Normal, MouseEnter, Hovered>()
-			.Action([](Entity e) { std::cout << "Hover start\n"; })
-
-			.Transition<Hovered, MouseLeave, Normal>()
-			.Action([](Entity e) { std::cout << "Hover end\n"; })
-
-			.Transition<Hovered, MousePressedOver, Pressed>()
-			.Action([](Entity e) { std::cout << "Pressed\n"; })
-
-			.Transition<Pressed, MouseReleasedOver, Hovered>()
-			.Action([](Entity e) { std::cout << "Click\n"; });
-
-		AddFSM(r)
-			.Initial<Normal>()
-
-			.Transition<Normal, MouseEnter, Hovered>()
-			.Action([](Entity e) { std::cout << "Hover animation (infinite loop)\n"; })
-
-			.Transition<Hovered, MouseLeave, Normal>()
-
-			.Transition<Hovered, MousePressedOver, Pressed>()
-			.Action([](Entity e) { std::cout << "Pressed animation (infinite loop)\n"; })
-
-			.Transition<Pressed, MouseReleasedOver, Hovered>()
-			.Action([](Entity e) { std::cout << "Click animation (once)\n"; });
+	bool IsFinished() const override {
+		return time >= duration;
 	}
 };
 
-int main(int, char**) {
-	Application app{ "TestScene" };
-	app.StartWith<TestScene>();
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum class SceneState {
+	Active,
+	TransitionIn,
+	TransitionOut
+};
+
+enum class CommandType {
+	Enter,
+	Exit,
+	ReEnter
+};
+
+// ============================================================
+// FORWARD
+// ============================================================
+struct SceneManager;
+
+// ============================================================
+// COMMAND
+// ============================================================
+
+class Scene;
+
+struct SceneCommand {
+	CommandType type;
+	std::string target_key;
+	std::string caller_key;
+	int priority = 0;
+
+	std::function<std::unique_ptr<Scene>()> factory;
+
+	std::function<std::unique_ptr<Transition>()> inTransitionFactory;
+	std::function<std::unique_ptr<Transition>()> outTransitionFactory;
+};
+
+// ============================================================
+// LOCAL SCENE MANAGER
+// ============================================================
+
+struct LocalSceneManager {
+	SceneManager* manager;
+	std::string owner_key;
+
+	bool CanIssueCommands() const;
+
+	template <typename T, typename... Args>
+	void Enter(
+		const std::string& key, std::function<std::unique_ptr<Transition>()> inT, int priority,
+		Args&&... args
+	);
+
+	void Exit(
+		const std::string& key, std::function<std::unique_ptr<Transition>()> outT, int priority
+	);
+
+	template <typename T, typename... Args>
+	void ReEnter(
+		const std::string& key, std::function<std::unique_ptr<Transition>()> inT,
+		std::function<std::unique_ptr<Transition>()> outT, Args&&... args
+	);
+};
+
+// ============================================================
+// SCENE
+// ============================================================
+
+class Scene {
+public:
+	std::string key;
+	SceneState state = SceneState::Active;
+	bool locked		 = false;
+
+	std::unique_ptr<Transition> transition;
+
+	LocalSceneManager local;
+
+	Scene(const std::string& k, SceneManager* mgr) : key(k), local{ mgr, k } {}
+
+	virtual ~Scene() = default;
+
+	virtual void Update(float dt) {}
+};
+
+// ============================================================
+// SCENE MANAGER
+// ============================================================
+
+struct SceneManager {
+	std::vector<std::unique_ptr<Scene>> scenes;
+	std::vector<SceneCommand> commandBuffer;
+
+	std::unordered_map<std::string, std::string> reenterMap;
+
+	Scene* Find(const std::string& key) {
+		for (auto& s : scenes) {
+			if (s->key == key) {
+				return s.get();
+			}
+		}
+		return nullptr;
+	}
+
+	void AddCommand(SceneCommand cmd) {
+		commandBuffer.push_back(std::move(cmd));
+	}
+
+	bool CanModifyTarget(Scene* target) {
+		if (!target) {
+			return true; // entering new scene is fine
+		}
+
+		if (target->state == SceneState::TransitionIn) {
+			return false;
+		}
+		if (target->state == SceneState::TransitionOut) {
+			return false;
+		}
+
+		return true;
+	}
+
+	// ---------------- RESOLVE ----------------
+
+	std::unordered_map<std::string, SceneCommand> Resolve() {
+		std::unordered_map<std::string, std::vector<SceneCommand>> grouped;
+
+		for (auto& c : commandBuffer) {
+			grouped[c.target_key].push_back(std::move(c));
+		}
+
+		std::unordered_map<std::string, SceneCommand> resolved;
+
+		for (auto& [key, cmds] : grouped) {
+			// ReEnter wins
+			auto re = std::find_if(cmds.begin(), cmds.end(), [](auto& c) {
+				return c.type == CommandType::ReEnter;
+			});
+			if (re != cmds.end()) {
+				resolved[key] = std::move(*re);
+				continue;
+			}
+
+			std::vector<SceneCommand*> exits;
+			std::vector<SceneCommand*> enters;
+
+			for (auto& c : cmds) {
+				if (c.type == CommandType::Exit) {
+					exits.push_back(&c);
+				} else if (c.type == CommandType::Enter) {
+					enters.push_back(&c);
+				}
+			}
+
+			auto pick = [](auto& vec) {
+				return *std::max_element(vec.begin(), vec.end(), [](auto* a, auto* b) {
+					return a->priority < b->priority;
+				});
+			};
+
+			if (!exits.empty()) {
+				resolved[key] = std::move(*pick(exits));
+			} else if (!enters.empty()) {
+				resolved[key] = std::move(*pick(enters));
+			}
+		}
+
+		return resolved;
+	}
+
+	// ---------------- APPLY ----------------
+
+	void Apply(auto& resolved) {
+		for (auto& [key, cmd] : resolved) {
+			Scene* scene = Find(key);
+
+			switch (cmd.type) {
+				case CommandType::Enter: {
+					Scene* target = Find(cmd.target_key);
+
+					// Block if target exists and is transitioning
+					if (target && !CanModifyTarget(target)) {
+						break;
+					}
+
+					auto newScene		 = cmd.factory();
+					newScene->state		 = SceneState::TransitionIn;
+					newScene->transition = cmd.inTransitionFactory();
+					scenes.push_back(std::move(newScene));
+					break;
+				}
+
+				case CommandType::Exit: {
+					if (!scene) {
+						break;
+					}
+					if (!CanModifyTarget(scene)) {
+						break;
+					}
+					scene->state	  = SceneState::TransitionOut;
+					scene->locked	  = true;
+					scene->transition = cmd.outTransitionFactory();
+					break;
+				}
+
+				case CommandType::ReEnter: {
+					if (!scene) {
+						break;
+					}
+					if (!CanModifyTarget(scene)) {
+						break;
+					}
+
+					std::string temp	 = key + "_reenter";
+					auto newScene		 = cmd.factory();
+					newScene->key		 = temp;
+					newScene->state		 = SceneState::TransitionIn;
+					newScene->transition = cmd.inTransitionFactory();
+
+					scene->state	  = SceneState::TransitionOut;
+					scene->transition = cmd.outTransitionFactory();
+
+					scenes.push_back(std::move(newScene));
+					reenterMap[temp] = key;
+					break;
+				}
+			}
+		}
+	}
+
+	// ---------------- UPDATE ----------------
+
+	void Update(float dt) {
+		for (auto& s : scenes) {
+			s->Update(dt);
+		}
+
+		auto resolved = Resolve();
+		Apply(resolved);
+		commandBuffer.clear();
+
+		// Update transitions
+		for (auto& s : scenes) {
+			if (s->transition) {
+				s->transition->Update(dt);
+
+				if (s->transition->IsFinished()) {
+					if (s->state == SceneState::TransitionIn) {
+						s->state = SceneState::Active;
+					}
+
+					s->transition.reset();
+				}
+			}
+		}
+
+		// Cleanup
+		scenes.erase(
+			std::remove_if(
+				scenes.begin(), scenes.end(),
+				[](auto& s) { return s->state == SceneState::TransitionOut && !s->transition; }
+			),
+			scenes.end()
+		);
+
+		// Reenter finalize
+		for (auto it = reenterMap.begin(); it != reenterMap.end();) {
+			Scene* s = Find(it->first);
+			if (s && s->state == SceneState::Active) {
+				s->key = it->second;
+				it	   = reenterMap.erase(it);
+			} else {
+				++it;
+			}
+		}
+	}
+};
+
+// ============================================================
+// LOCAL IMPLEMENTATION
+// ============================================================
+
+bool LocalSceneManager::CanIssueCommands() const {
+	Scene* s = manager->Find(owner_key);
+	if (!s) {
+		return false;
+	}
+	if (s->state == SceneState::TransitionIn) {
+		return false;
+	}
+	if (s->locked) {
+		return false;
+	}
+	return true;
+}
+
+template <typename T, typename... Args>
+void LocalSceneManager::Enter(
+	const std::string& key, std::function<std::unique_ptr<Transition>()> inT, int priority,
+	Args&&... args
+) {
+	if (!CanIssueCommands()) {
+		return;
+	}
+
+	manager->AddCommand(SceneCommand{
+		CommandType::Enter, key, owner_key, priority,
+		std::function([=]() { return std::make_unique<T>(key, manager, args...); }), inT, nullptr }
+	);
+}
+
+void LocalSceneManager::Exit(
+	const std::string& key, std::function<std::unique_ptr<Transition>()> outT, int priority
+) {
+	if (!CanIssueCommands()) {
+		return;
+	}
+
+	manager->AddCommand({ CommandType::Exit, key, owner_key, priority, nullptr, nullptr, outT });
+}
+
+template <typename T, typename... Args>
+void LocalSceneManager::ReEnter(
+	const std::string& key, std::function<std::unique_ptr<Transition>()> inT,
+	std::function<std::unique_ptr<Transition>()> outT, Args&&... args
+) {
+	if (!CanIssueCommands()) {
+		return;
+	}
+
+	manager->AddCommand({ CommandType::ReEnter, key, owner_key, INT_MAX,
+						  [=]() { return std::make_unique<T>(key, manager, args...); }, inT, outT }
+	);
+}
+
+// ============================================================
+// EXAMPLE SCENES
+// ============================================================
+
+struct GameScene : Scene {
+	int counter = 0;
+
+	GameScene(const std::string& k, SceneManager* mgr) : Scene(k, mgr) {}
+
+	void Update(float dt) override;
+};
+
+struct MenuScene : Scene {
+	int ticks = 0;
+
+	MenuScene(const std::string& k, SceneManager* mgr) : Scene(k, mgr) {}
+
+	void Update(float dt) override;
+};
+
+void MenuScene::Update(float dt) {
+	ticks++;
+	std::cout << "MenuScene update " << ticks << "\n";
+
+	if (ticks == 3) {
+		local.ReEnter<MenuScene>(
+			"menu", [] { return std::make_unique<TimedTransition>(1.f); },
+			[] { return std::make_unique<TimedTransition>(1.f); }
+		);
+	}
+}
+
+void GameScene::Update(float dt) {
+	counter++;
+	std::cout << "GameScene update " << counter << "\n";
+
+	if (counter == 2) {
+		local.Enter<MenuScene>("menu", [] { return std::make_unique<TimedTransition>(1.f); }, 1);
+	}
+
+	if (counter == 4) {
+		local.Exit("game", [] { return std::make_unique<TimedTransition>(1.f); }, 2);
+	}
+}
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+
+int main() {
+	SceneManager mgr;
+
+	mgr.scenes.push_back(std::make_unique<GameScene>("game", &mgr));
+
+	for (int i = 0; i < 10; ++i) {
+		std::cout << "--- Frame " << i << " ---\n";
+		mgr.Update(0.5f);
+	}
 }
 
 /*
