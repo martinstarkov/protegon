@@ -290,6 +290,10 @@ public:
 
 	const ApplicationContext& app() const;
 
+	// TODO: Move all of these into a scene context that is accessed via ctx().
+
+	// TODO: Add a local scene manager.
+
 	RenderContext renderer;
 	DebugContext debug;
 	SceneEventHandler event;

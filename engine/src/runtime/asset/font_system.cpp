@@ -145,6 +145,7 @@ V2_int FontSystem::GetSize(
 	return size;
 }
 
+// TODO: Make this static and pass in font, not FontOrKey.
 std::optional<impl::Surface> FontSystem::CreateTextSurface(
 	std::string_view text_content, Color color, FontSize font_size, FontOrKey font,
 	const TextProperties& properties, std::optional<float> hd_scale

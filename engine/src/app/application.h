@@ -78,6 +78,9 @@ public:
 	void StartWith(std::string_view scene_key, TArgs&&... args) {
 		renderer_.UpdateDisplayViewport(window_.GetSize(), false);
 
+		// TODO: SceneManager just handles updating. Local scene managers have the enter leave
+		// functions. Here we just manually push the first scene into the SceneManager.
+
 		// Initialize the first scene using the SceneManager.
 		scenes_.SwitchTo<TScene>(scene_key, nullptr, std::forward<TArgs>(args)...);
 

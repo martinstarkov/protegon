@@ -22,13 +22,27 @@ private:
 public:
 	explicit ApplicationContext(Application& app);
 
+	// TODO: Move into scene context.
 	Window& window;
+	// TODO: Move into scene context.
 	Renderer& renderer;
+
+	// TODO: Make this be hidden part of application. Use LocalSceneManager instead.
 	SceneManager& scene;
+
+	// TODO: Make this be called global event handler or something.
 	EventHandler& event;
+
+	// TODO: Remove in favor of scene input.
 	InputHandler& input;
+
+	// TODO: Move into scene context.
 	AssetManager& asset;
+
+	// TODO: Move into scene context.
 	FontSystem& font;
+
+	// TODO: Move into scene context.
 	AudioSystem& audio;
 
 	/// @brief Terminates the main application loop.

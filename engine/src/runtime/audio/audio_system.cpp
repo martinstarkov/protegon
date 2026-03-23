@@ -255,6 +255,7 @@ void AudioSystem::Update() {
 	});
 }
 
+// TODO: Move this out of AudioSystem?
 std::shared_ptr<MIX_Audio> AudioSystem::CreateAudio(const path& audio_path) const {
 	PTGN_ASSERT(
 		FileExists(audio_path), "Cannot create audio from invalid path: ", audio_path.string()

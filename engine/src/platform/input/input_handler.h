@@ -63,6 +63,8 @@ public:
 	InputHandler(InputHandler&&) noexcept			 = delete;
 	InputHandler& operator=(InputHandler&&) noexcept = delete;
 
+	// TODO: Move this public API into the scene input class.
+
 	/// @return Mouse position relative to the center of the window.
 	V2_float GetMousePosition() const;
 

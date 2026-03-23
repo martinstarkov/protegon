@@ -230,6 +230,7 @@ milliseconds SceneInput::GetKeyHeldTime(Key key) const {
 	return ctx_->input.GetKeyHeldTime(key);
 }
 
+// TODO: Get rid of ctx and pass in ptr to input instead.
 void SceneInput::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	ctx_ = ctx;
 }
@@ -786,6 +787,7 @@ void SceneInput::DispatchMouseEvents(
 	}
 }
 
+// TODO: Pass in renderer here.
 void SceneInput::Update() {
 	secondsf dt{ scene_.app().DeltaTime() };
 

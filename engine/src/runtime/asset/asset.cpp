@@ -40,6 +40,7 @@ const std::variant<std::size_t, T>& AssetOrKey<T>::GetVariant() const {
 	return value_;
 }
 
+// TODO: Move to asset manager.
 template <AssetType T>
 T AssetOrKey<T>::Get(const AssetManager& assets) const {
 	return std::visit(

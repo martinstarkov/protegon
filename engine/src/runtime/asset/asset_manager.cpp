@@ -635,6 +635,7 @@ Texture AssetManager::CreateTextTexture(
 	return texture;
 }
 
+// TODO: Get rid of this in favor of pointer to renderer and audio system.
 void AssetManager::Init(const std::shared_ptr<ApplicationContext>& ctx) {
 	ctx_ = ctx;
 }
