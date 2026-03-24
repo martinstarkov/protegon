@@ -9,6 +9,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/render_target_component.h"
+#include "runtime/scene/scene_state.h"
 #include "runtime/scene/scene_view.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
@@ -18,7 +19,10 @@ namespace ptgn {
 class Application;
 class Scene;
 class SceneContext;
+class SceneManager;
+class SceneTransition;
 class SceneEventHandler;
+class LocalSceneManager;
 
 template <typename TComponent>
 struct SceneHook {
@@ -164,8 +168,11 @@ public:
 private:
 	friend class SceneManager;
 	friend class EventHandler;
+	friend class Application;
 	friend class FrameContext;
 	friend class SceneInput;
+	friend class LocalSceneManager;
+	friend class SceneManager;
 	friend class SceneEventHandler;
 	template <typename TComponent>
 	friend struct SceneHook;
@@ -185,9 +192,15 @@ private:
 	void InternalDraw();
 	void InternalEmit(EventDispatcher d);
 
+	[[nodiscard]] bool IsTransitioning() const;
+
 	std::unique_ptr<SceneContext> ctx_;
 	Manager manager_;
 	RenderTarget render_target_;
+
+	std::size_t key_{ 0 };
+	std::unique_ptr<SceneTransition> transition_;
+	impl::SceneState state_{ impl::SceneState::TransitionIn };
 };
 
 template <typename T>

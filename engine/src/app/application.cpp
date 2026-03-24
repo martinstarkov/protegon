@@ -250,7 +250,7 @@ void Application::Update() {
 	});
 
 	renderer_.BeginFrame();
-	scenes_.Update();
+	scenes_.Update(*this);
 
 	audio_.Update();
 

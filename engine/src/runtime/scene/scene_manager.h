@@ -1,12 +1,16 @@
 #pragma once
+
 #include <memory>
+#include <unordered_map>
 #include <vector>
+
+#include "runtime/scene/scene_command.h"
 
 namespace ptgn {
 
 class Application;
-class LocalSceneManager;
 class Scene;
+class LocalSceneManager;
 class EventHandler;
 
 class SceneManager {
@@ -22,21 +26,22 @@ private:
 	SceneManager(const SceneManager&)				 = delete;
 	SceneManager& operator=(const SceneManager&)	 = delete;
 
-	void Update();
+	/// @return A map of scene keys to the highest priority command for each scene (if a command was
+	/// issued).
+	std::unordered_map<std::size_t, impl::SceneCommand> GetTopPriorityCommands();
+
+	void ApplyCommands(std::unordered_map<std::size_t, impl::SceneCommand>& top_priority_commands);
+
+	void Update(Application& app);
+
+	[[nodiscard]] bool Has(std::size_t key) const;
+	const Scene& Get(std::size_t key) const;
+	Scene& Get(std::size_t key);
 
 	std::vector<std::unique_ptr<Scene>> scenes_;
-};
-
-class LocalSceneManager {
-public:
-	// TODO: Add Enter, Exit, ReEnter.
-
-private:
-	friend class SceneContext;
-
-	explicit LocalSceneManager(SceneManager& scene_manager);
-
-	SceneManager& scene_manager_;
+	std::vector<impl::SceneCommand> commands_;
+	/// @brief Contains the scene key of currently re-entering scenes.
+	std::vector<std::size_t> reentering_scenes_;
 };
 
 } // namespace ptgn

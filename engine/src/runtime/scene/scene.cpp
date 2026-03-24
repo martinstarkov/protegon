@@ -39,6 +39,7 @@
 #include "runtime/physics/physics.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_state.h"
 #include "runtime/scripting/scripts.h"
 #include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
@@ -91,6 +92,10 @@ void Scene::InternalEmit(EventDispatcher d) {
 	if (!d.IsHandled()) {
 		OnEvent(d);
 	}
+}
+
+bool Scene::IsTransitioning() const {
+	return state_ == impl::SceneState::TransitionIn || state_ == impl::SceneState::TransitionOut;
 }
 
 static void InvokeDrawable(DrawContext& draw_context, Entity entity, Camera camera) {

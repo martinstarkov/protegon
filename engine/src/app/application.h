@@ -1,12 +1,15 @@
 #pragma once
 
 #include <concepts>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 #include "core/math/vector2.h"
 #include "core/time/time.h"
+#include "core/util/hash.h"
 #include "platform/input/input_handler.h"
 #include "platform/window/window.h"
 #include "renderer/renderer.h"
@@ -22,6 +25,7 @@ namespace ptgn {
 
 class Application;
 class SceneContext;
+class SceneManager;
 
 namespace impl {
 
@@ -78,12 +82,12 @@ public:
 	void StartWith(std::string_view scene_key, TArgs&&... args) {
 		renderer_.UpdateDisplayViewport(window_.GetSize(), false);
 
-		// TODO: SceneManager just handles updating. Local scene managers have the enter leave
-		// functions. Here we just manually push the first scene into the SceneManager.
+		auto first_scene  = std::make_unique<TScene>(std::forward<TArgs>(args)...);
+		first_scene->key_ = Hash(scene_key);
+		first_scene->Init(*this);
+		first_scene->OnEnter();
 
-		// Initialize the first scene using the SceneManager.
-		// TODO: Fix.
-		// scenes_.SwitchTo<TScene>(scene_key, nullptr, std::forward<TArgs>(args)...);
+		scenes_.scenes_.emplace_back(std::move(first_scene));
 
 		EnterMainLoop();
 	}
@@ -99,6 +103,7 @@ private:
 	friend void impl::EmscriptenMainLoop(void* application);
 #endif
 	friend class SceneContext;
+	friend class SceneManager;
 
 	impl::SDLInstance sdl_;
 
