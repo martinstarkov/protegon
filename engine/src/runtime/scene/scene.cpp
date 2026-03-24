@@ -50,7 +50,7 @@ Scene::Scene() {}
 Scene::~Scene() {}
 
 void Scene::Init(Application& app) {
-	ctx_ = std::make_unique<SceneContext>(app);
+	ctx_ = std::make_unique<SceneContext>(app, *this);
 
 	render_target_ = CreateRenderTarget(
 		*this, ResizeMode::DisplaySize, color::Transparent, TextureFormat::RGBA8

@@ -1,27 +1,17 @@
 #pragma once
 
 #include <concepts>
-#include <iterator>
 #include <memory>
-#include <utility>
 
 #include "core/event/dispatcher.h"
-#include "core/math/vector2.h"
 #include "ecs/ecs.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
-#include "runtime/graphics/camera.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target_component.h"
-#include "runtime/physics/collision_handler.h"
-#include "runtime/physics/physics.h"
-#include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_view.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
-#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 

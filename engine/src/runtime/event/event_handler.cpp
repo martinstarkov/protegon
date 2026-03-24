@@ -11,8 +11,8 @@ namespace ptgn {
 EventHandler::EventHandler(SceneManager& scenes) : scenes_{ scenes } {}
 
 void EventHandler::Emit(EventDispatcher d) {
-	for (auto& entry : scenes_.entries_) {
-		entry.ptr->InternalEmit(d);
+	for (auto& entry : scenes_.scenes_) {
+		entry->InternalEmit(d);
 		if (d.IsHandled()) {
 			return;
 		}

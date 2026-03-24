@@ -18,6 +18,7 @@
 #include "runtime/physics/move_direction.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/scripts.h"
 
@@ -29,10 +30,10 @@ void MoveImpl(
 	const Scene& scene, V2_float& vel, V2_float amount, Key left_key, Key right_key, Key up_key,
 	Key down_key, bool cancel_velocity_if_unpressed
 ) {
-	bool left{ scene.input.KeyHeld(left_key) };
-	bool right{ scene.input.KeyHeld(right_key) };
-	bool up{ scene.input.KeyHeld(up_key) };
-	bool down{ scene.input.KeyHeld(down_key) };
+	bool left{ scene.ctx().input.KeyHeld(left_key) };
+	bool right{ scene.ctx().input.KeyHeld(right_key) };
+	bool up{ scene.ctx().input.KeyHeld(up_key) };
+	bool down{ scene.ctx().input.KeyHeld(down_key) };
 
 	if (left && !right) {
 		vel.x -= amount.x;
@@ -88,7 +89,7 @@ void MoveArrowKeys(Entity entity, V2_float speed) {
 }
 
 void TopDownMovement::Update(Entity entity, Transform& transform, RigidBody& rb, float dt) {
-	const auto& input{ entity.GetScene().input };
+	const auto& input{ entity.GetScene().ctx().input };
 
 	if (keys_enabled) {
 		if (input.KeyHeld(up_key)) {
@@ -375,7 +376,7 @@ void TopDownMovement::RunWithAcceleration(V2_float desired_velocity, RigidBody& 
 
 void PlatformerMovement::Update(const Scene& scene, Transform& transform, RigidBody& rb, float dt)
 	const {
-	const auto& input{ scene.input };
+	const auto& input{ scene.ctx().input };
 
 	bool left{ input.KeyHeld(left_key) };
 	bool right{ input.KeyHeld(right_key) };
@@ -415,7 +416,7 @@ void PlatformerMovement::Update(const Scene& scene, Transform& transform, RigidB
 void PlatformerMovement::RunWithAcceleration(
 	const Scene& scene, V2_float desired_velocity, float dir_x, RigidBody& rb, float dt
 ) const {
-	const auto& input{ scene.input };
+	const auto& input{ scene.ctx().input };
 
 	// Set our acceleration, deceleration, and turn speed stats, based on whether we're on the
 	// ground on in the air
@@ -468,7 +469,7 @@ void PlatformerJump::Ground(Entity entity, const Collision& collision, ColliderM
 }
 
 void PlatformerJump::Update(const Scene& scene, RigidBody& rb, bool grounded, V2_float gravity) {
-	const auto& input{ scene.input };
+	const auto& input{ scene.ctx().input };
 
 	bool pressed_jump{ input.KeyPressed(jump_key) };
 
@@ -530,7 +531,7 @@ void PlatformerJump::Jump(RigidBody& rb, V2_float gravity) {
 void PlatformerJump::CalculateGravity(
 	const Scene& scene, RigidBody& rb, bool grounded, V2_float gravity
 ) const {
-	const auto& input{ scene.input };
+	const auto& input{ scene.ctx().input };
 
 	float gravity_multiplier{ 0.0f };
 

@@ -18,6 +18,7 @@
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
 namespace ptgn {
@@ -135,7 +136,7 @@ bool IsDraggable(Entity entity) {
 }
 
 bool IsDragging(Entity entity) {
-	const auto& dragging_entities{ entity.GetScene().input.dragging_entities_ };
+	const auto& dragging_entities{ entity.GetScene().ctx().input.dragging_entities_ };
 	for (const auto& [camera, entities] : dragging_entities) {
 		if (entities.contains(entity)) {
 			return true;

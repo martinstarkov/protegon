@@ -164,28 +164,25 @@ void SceneInput::SetSettings(const SceneInputSettings& settings) {
 	settings_ = settings;
 }
 
-V2_float SceneInput::GetMousePosition(Frame position_frame_of_reference, bool clamp_to_viewport)
-	const {
+V2_float SceneInput::GetMousePosition(Frame position_frame_of_reference) const {
 	auto position{ input_.GetMousePosition() };
 
-	if (!clamp_to_viewport) {
-		position = input_.GetMouseScreenPosition();
-	}
+	// if (!clamp_to_viewport) {
+	//	position = input_.GetMouseScreenPosition();
+	// }
 
-	return GetMousePositionRelativeTo(position, position_frame_of_reference, clamp_to_viewport);
+	return GetMousePositionRelativeTo(position, position_frame_of_reference);
 }
 
-V2_float SceneInput::GetPreviousMousePosition(
-	Frame position_frame_of_reference, bool clamp_to_viewport
-) const {
+V2_float SceneInput::GetPreviousMousePosition(Frame position_frame_of_reference) const {
 	return GetMousePositionRelativeTo(
-		input_.GetPreviousMousePosition(), position_frame_of_reference, clamp_to_viewport
+		input_.GetPreviousMousePosition(), position_frame_of_reference
 	);
 }
 
-V2_float SceneInput::GetMouseDelta(Frame delta_frame_of_reference, bool clamp_to_viewport) const {
-	return GetMousePosition(delta_frame_of_reference, clamp_to_viewport) -
-		   GetPreviousMousePosition(delta_frame_of_reference, clamp_to_viewport);
+V2_float SceneInput::GetMouseDelta(Frame delta_frame_of_reference) const {
+	return GetMousePosition(delta_frame_of_reference) -
+		   GetPreviousMousePosition(delta_frame_of_reference);
 }
 
 float SceneInput::GetMouseScroll() const {

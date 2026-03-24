@@ -34,6 +34,14 @@ private:
 
 class SceneContext {
 public:
+	SceneContext() = delete;
+	explicit SceneContext(Application& app, Scene& parent_scene);
+	~SceneContext() noexcept;
+	SceneContext(const SceneContext&)				 = delete;
+	SceneContext& operator=(const SceneContext&)	 = delete;
+	SceneContext(SceneContext&&) noexcept			 = default;
+	SceneContext& operator=(SceneContext&&) noexcept = default;
+
 	EventHandler& global_event;
 	Window& window;
 	AssetManager& asset;
@@ -71,13 +79,12 @@ private:
 	friend class RenderTarget;
 	friend class Scene;
 
-	explicit SceneContext(Application& app, Scene& scene);
-
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
 	/// size.
 	Camera fixed_camera_;
 
 	Renderer& global_renderer_;
+	Application& app_;
 };
 
 } // namespace ptgn

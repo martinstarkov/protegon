@@ -1,14 +1,19 @@
 #pragma once
+#include <memory>
+#include <vector>
 
 namespace ptgn {
 
 class Application;
 class LocalSceneManager;
+class Scene;
+class EventHandler;
 
 class SceneManager {
 private:
 	friend class Application;
 	friend class LocalSceneManager;
+	friend class EventHandler;
 
 	SceneManager()									 = default;
 	~SceneManager() noexcept						 = default;
@@ -18,6 +23,8 @@ private:
 	SceneManager& operator=(const SceneManager&)	 = delete;
 
 	void Update();
+
+	std::vector<std::unique_ptr<Scene>> scenes_;
 };
 
 class LocalSceneManager {

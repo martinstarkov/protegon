@@ -191,20 +191,14 @@ public:
 	void SetSettings(const SceneInputSettings& settings = {});
 
 	/// @return Mouse position relative to the specified viewport.
-	V2_float GetMousePosition(
-		Frame position_frame_of_reference = Frame::World, bool clamp_to_viewport = true
-	) const;
+	V2_float GetMousePosition(Frame position_frame_of_reference = Frame::World) const;
 
 	/// @return Mouse position relative to the specified viewport during the previous frame.
-	V2_float GetPreviousMousePosition(
-		Frame position_frame_of_reference = Frame::World, bool clamp_to_viewport = true
-	) const;
+	V2_float GetPreviousMousePosition(Frame position_frame_of_reference = Frame::World) const;
 
 	/// @return Mouse delta (current_position - previous_position) relative to the specified
 	/// viewport.
-	V2_float GetMouseDelta(
-		Frame delta_frame_of_reference = Frame::World, bool clamp_to_viewport = true
-	) const;
+	V2_float GetMouseDelta(Frame delta_frame_of_reference = Frame::World) const;
 
 	/// @return The amount scrolled by the mouse vertically in the current frame,
 	/// positive upward, negative downward. Zero if no scroll occurred.
