@@ -31,8 +31,9 @@ struct SDL_IOStream;
 namespace ptgn {
 
 class Application;
-class ApplicationContext;
 class RenderContext;
+class Renderer;
+class AudioSystem;
 class Text;
 class DebugContext;
 
@@ -50,20 +51,13 @@ struct AssetKey {
 	std::size_t hash{ 0 };
 };
 
-void AddAssetKey(ecs::Entity asset, std::size_t key_hash, std::optional<path> path);
-void AddAssetKey(ecs::Entity asset, std::string_view key, std::optional<path> path);
+void AddAssetKey(ecs::Entity asset, std::size_t key_hash, const std::optional<path>& path);
+void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<path>& path);
 
 } // namespace impl
 
 class AssetManager {
 public:
-	AssetManager()									 = default;
-	~AssetManager() noexcept						 = default;
-	AssetManager(const AssetManager&)				 = delete;
-	AssetManager& operator=(const AssetManager&)	 = delete;
-	AssetManager(AssetManager&&) noexcept			 = delete;
-	AssetManager& operator=(AssetManager&&) noexcept = delete;
-
 	/// @brief Loads all supported asset files from a directory.
 	/// @param directory The directory to scan.
 	/// @param recursive If true, scans subdirectories recursively. If false only scans the provided
@@ -180,7 +174,13 @@ private:
 	template <AssetType T>
 	friend class AssetOrKey;
 
-	void Init(const std::shared_ptr<ApplicationContext>& ctx);
+	AssetManager() = delete;
+	AssetManager(Renderer& renderer, AudioSystem& audio);
+	~AssetManager() noexcept						 = default;
+	AssetManager(const AssetManager&)				 = delete;
+	AssetManager& operator=(const AssetManager&)	 = delete;
+	AssetManager(AssetManager&&) noexcept			 = delete;
+	AssetManager& operator=(AssetManager&&) noexcept = delete;
 
 	template <AssetType T>
 	[[nodiscard]] bool Has(std::size_t key_hash) const;
@@ -216,9 +216,10 @@ private:
 
 	[[nodiscard]] ecs::Entity CreateAsset();
 
-	ecs::Manager manager_;
+	Renderer& renderer_;
+	AudioSystem& audio_;
 
-	std::shared_ptr<ApplicationContext> ctx_;
+	ecs::Manager manager_;
 
 	std::unordered_map<std::size_t, json> jsons_;
 };

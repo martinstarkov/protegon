@@ -12,6 +12,7 @@
 #include "renderer/renderer.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -294,36 +295,36 @@ public:
 			initialized = true;
 		}
 
-		if (input.KeyPressed(Key::Space)) {
+		if (ctx().input.KeyPressed(Key::Space)) {
 			fluid.Reset();
 		}
-		if (input.KeyPressed(Key::R)) {
+		if (ctx().input.KeyPressed(Key::R)) {
 			gravity = {};
 		}
-		if (input.KeyHeld(Key::Down)) {
+		if (ctx().input.KeyHeld(Key::Down)) {
 			gravity.y += gravity_increment;
 		}
-		if (input.KeyHeld(Key::Up)) {
+		if (ctx().input.KeyHeld(Key::Up)) {
 			gravity.y -= gravity_increment;
 		}
-		if (input.KeyHeld(Key::Left)) {
+		if (ctx().input.KeyHeld(Key::Left)) {
 			gravity.x -= gravity_increment;
 		}
-		if (input.KeyHeld(Key::Right)) {
+		if (ctx().input.KeyHeld(Key::Right)) {
 			gravity.x += gravity_increment;
 		}
 
 		// Left click: add fluid
-		if (input.MouseHeld(Mouse::Left)) {
-			auto mouse_position = input.GetMousePosition() + game_size * 0.5f;
+		if (ctx().input.MouseHeld(Mouse::Left)) {
+			auto mouse_position = ctx().input.GetMousePosition() + game_size * 0.5f;
 			V2_int pos			= mouse_position / scale;
 			fluid.AddDensity(pos.x, pos.y, 1000, static_cast<int>(10.0f / scale.x));
 			fluid.AddVelocity(pos.x, pos.y, gravity.x, gravity.y);
 		}
 
 		// Right click: draw obstacles
-		if (input.MouseHeld(Mouse::Right)) {
-			auto mouse_position = input.GetMousePosition() + game_size * 0.5f;
+		if (ctx().input.MouseHeld(Mouse::Right)) {
+			auto mouse_position = ctx().input.GetMousePosition() + game_size * 0.5f;
 			V2_int pos			= mouse_position / scale;
 			// Make a small brush radius to draw obstacles
 			int brush_radius = static_cast<int>(3.0f / scale.x);
@@ -352,7 +353,7 @@ public:
 
 	void Draw() {
 		static bool density_graph{ false };
-		if (input.KeyPressed(Key::D)) {
+		if (ctx().input.KeyPressed(Key::D)) {
 			density_graph = !density_graph;
 		}
 
@@ -375,7 +376,7 @@ public:
 					}
 				}
 
-				renderer.DrawShape(
+				ctx().renderer.DrawShape(
 					Rect{ scale }, Transform{ -game_size * 0.5f + position * scale }, color,
 					FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
 				);

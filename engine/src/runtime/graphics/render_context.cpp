@@ -11,7 +11,6 @@
 #include <variant>
 #include <vector>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
@@ -33,6 +32,7 @@
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_target.h"
+#include "renderer/primitives/scaling_mode.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/vertex.h"
@@ -46,6 +46,7 @@
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -534,15 +535,13 @@ void DrawContext::DrawShape(
 	std::visit([&](const auto& cmd) { Draw(cmd, depth); }, *shape_draw_commands);
 }
 
-void RenderContext::Init(Scene& scene, Renderer& renderer) {
-	scene_	  = &scene;
-	renderer_ = &renderer;
-}
+RenderContext::RenderContext(Scene& scene, Renderer& renderer) :
+	scene_{ scene }, renderer_{ renderer } {}
 
 std::vector<impl::DrawCommand>& RenderContext::GetDrawCommandsForCamera(
 	const std::optional<Camera>& camera
 ) {
-	Camera cam{ camera.value_or(scene_->camera) };
+	Camera cam{ camera.value_or(scene_.ctx().camera) };
 
 	PTGN_ASSERT(cam);
 
@@ -557,7 +556,7 @@ std::vector<impl::DrawCommand>& RenderContext::GetDrawCommandsForCamera(
 std::vector<impl::ManualDrawCommand>& RenderContext::GetDebugCommandsForCamera(
 	const std::optional<Camera>& camera
 ) {
-	Camera cam{ camera.value_or(scene_->camera) };
+	Camera cam{ camera.value_or(scene_.ctx().camera) };
 
 	PTGN_ASSERT(cam);
 
@@ -577,8 +576,6 @@ void RenderContext::DrawTexture(
 	const std::optional<Camera>& camera
 ) {
 	auto& draw_commands{ GetDrawCommandsForCamera(camera) };
-
-	PTGN_ASSERT(renderer_ != nullptr, "Render context must be initialized before use");
 
 	Rect rect{ size.value_or(V2_float{ texture_size }) };
 
@@ -601,11 +598,9 @@ void RenderContext::DrawTexture(
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
 	const std::optional<Camera>& camera
 ) {
-	PTGN_ASSERT(scene_ != nullptr);
+	auto quad_shader{ renderer_.GetShader("quad") };
 
-	auto quad_shader{ renderer_->GetShader("quad") };
-
-	const auto& assets{ scene_->app().asset };
+	const auto& assets{ scene_.ctx().asset };
 	auto resolved_texture{ texture.Get(assets) };
 	auto texture_size{ resolved_texture.GetSize() };
 
@@ -621,8 +616,7 @@ void RenderContext::DrawTexture(
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
 	const std::optional<Camera>& camera
 ) {
-	PTGN_ASSERT(scene_ != nullptr);
-	const auto& assets{ scene_->app().asset };
+	const auto& assets{ scene_.ctx().asset };
 	auto resolved_texture{ texture.Get(assets) };
 	auto texture_size{ resolved_texture.GetSize() };
 
@@ -639,9 +633,7 @@ void RenderContext::DrawShader(
 ) {
 	auto& draw_commands{ GetDrawCommandsForCamera(camera) };
 
-	PTGN_ASSERT(renderer_ != nullptr, "Render context must be initialized before use");
-
-	Rect rect{ size.value_or(renderer_->GetGameSize()) };
+	Rect rect{ size.value_or(renderer_.GetGameSize()) };
 
 	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
 
@@ -676,10 +668,8 @@ void RenderContext::DrawShape(
 ) {
 	auto& draw_commands{ GetDrawCommandsForCamera(camera) };
 
-	PTGN_ASSERT(renderer_ != nullptr, "Render context must be initialized before use");
-
 	auto shape_draw_commands{ DrawContext::GetShapeDrawCommand(
-		*renderer_, shape, transform, color, fill_style, draw_origin, blend_mode
+		renderer_, shape, transform, color, fill_style, draw_origin, blend_mode
 	) };
 
 	if (!shape_draw_commands.has_value()) {
@@ -697,13 +687,9 @@ void RenderContext::DrawText(
 	std::optional<V2_float> text_size, bool hd_text, Depth depth,
 	std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
-	PTGN_ASSERT(
-		scene_ != nullptr && renderer_ != nullptr, "Render context must be initialized before use"
-	);
+	auto hd_scale{ impl::ApplyHDTextScaling(hd_text, transform, scene_, camera) };
 
-	auto hd_scale{ impl::ApplyHDTextScaling(hd_text, transform, *scene_, camera) };
-
-	auto texture_object{ scene_->app().asset.CreateTextTextureObject(
+	auto texture_object{ scene_.ctx().asset.CreateTextTextureObject(
 		text_content, text_color, font_size, font, properties, hd_scale
 	) };
 
@@ -717,7 +703,7 @@ void RenderContext::DrawText(
 
 	temporary_textures_.emplace_back(std::move(*texture_object));
 
-	auto quad_shader{ renderer_->GetShader("quad") };
+	auto quad_shader{ renderer_.GetShader("quad") };
 
 	DrawTexture(
 		texture_id, texture_size, quad_shader, transform, text_size, draw_origin, color::White,
@@ -807,6 +793,42 @@ void RenderContext::DrawPoint(
 	const std::optional<Camera>& camera
 ) {
 	DrawShape(point, {}, color, FillStyle::Solid(), Origin::Center, depth, blend_mode, camera);
+}
+
+void RenderContext::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_mode) {
+	renderer_.SetGameSize(game_size, scaling_mode);
+}
+
+void RenderContext::SetScalingMode(ScalingMode scaling_mode) {
+	renderer_.SetScalingMode(scaling_mode);
+}
+
+V2_int RenderContext::GetDisplaySize() const {
+	return renderer_.GetDisplaySize();
+}
+
+Viewport RenderContext::GetDisplayViewport() const {
+	return renderer_.GetDisplayViewport();
+}
+
+V2_float RenderContext::GetScale() const {
+	return renderer_.GetScale();
+}
+
+V2_int RenderContext::GetGameSize() const {
+	return renderer_.GetGameSize();
+}
+
+ScalingMode RenderContext::GetScalingMode() const {
+	return renderer_.GetScalingMode();
+}
+
+void RenderContext::SetBackgroundColor(Color background_color) {
+	renderer_.SetBackgroundColor(background_color);
+}
+
+Color RenderContext::GetBackgroundColor() const {
+	return renderer_.GetBackgroundColor();
 }
 
 } // namespace ptgn

@@ -8,7 +8,6 @@
 #include <ostream>
 #include <utility>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/geometry/circle.h"
@@ -30,6 +29,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -110,10 +110,10 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera camera) 
 	if (i.info.texture_key.has_value()) {
 		const auto& scene{ entity.GetScene() };
 		PTGN_ASSERT(
-			scene.app().asset.HasTexture(*i.info.texture_key),
+			scene.ctx().asset.HasTexture(*i.info.texture_key),
 			"Texture key must be loaded in the asset manager before creating a particle with it"
 		);
-		Texture texture{ *scene.app().asset.GetTexture(*i.info.texture_key) };
+		Texture texture{ *scene.ctx().asset.GetTexture(*i.info.texture_key) };
 
 		Color tint{ color::White };
 		auto origin{ Origin::Center };
@@ -264,7 +264,7 @@ milliseconds ParticleEmitter::GetEmissionDelay() const {
 void ParticleEmitter::Update(Scene& scene) {
 	for (auto [entity, particle_manager] : scene.EntitiesWith<impl::ParticleEmitterComponent>()) {
 		auto position{ GetPosition(entity) };
-		particle_manager.Update(position, scene.app().DeltaTime());
+		particle_manager.Update(position, scene.ctx().dt());
 	}
 
 	scene.Refresh();

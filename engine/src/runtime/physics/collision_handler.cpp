@@ -5,7 +5,6 @@
 #include <functional>
 #include <vector>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/intersect.h"
@@ -25,6 +24,7 @@
 #include "runtime/physics/collider.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/scripts.h"
 #include "tools/debug/debug_system.h"
 
@@ -425,7 +425,7 @@ void CollisionHandler::TryDrawDebugCollider(
 		auto transform{ GetWorldTransform(entity) };
 		transform.Translate(offset);
 		const auto& collider{ entity.Get<Collider>() };
-		scene.debug.DrawShape(collider.shape, transform, color);
+		scene.ctx().debug.DrawShape(collider.shape, transform, color);
 	}
 }
 
@@ -435,7 +435,7 @@ void CollisionHandler::TryDrawDebugLine(
 	if (settings_.DrawCCD()) {
 		auto transform{ GetWorldTransform(entity) };
 		auto position{ transform.GetPosition() };
-		scene.debug.DrawLine(position + start_offset, position + end_offset, color);
+		scene.ctx().debug.DrawLine(position + start_offset, position + end_offset, color);
 	}
 }
 
@@ -547,7 +547,7 @@ void CollisionHandler::Update(Scene& scene) {
 	std::vector<impl::KDObject> objects;
 	std::vector<impl::KDObject> dynamic_objects;
 
-	float dt{ scene.app().DeltaTime().count() };
+	float dt{ scene.ctx().dt().count() };
 
 	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
 		collider.ResetContainers();

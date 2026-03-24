@@ -4,7 +4,6 @@
 #include <string_view>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -16,6 +15,7 @@
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 
@@ -99,10 +99,10 @@ static Button CreateMoveButton(
 class ButtonTemplatesScene : public Scene {
 public:
 	void OnEnter() override {
-		input.SetSettings({ .debug_draw_enabled = true });
+		ctx().input.SetSettings({ .debug_draw_enabled = true });
 		SetBackgroundColor(color::LightGray);
-		app().asset.LoadAudio("hover", "assets/hover.ogg");
-		app().asset.LoadAudio("click", "assets/click.ogg");
+		ctx().asset.LoadAudio("hover", "assets/hover.ogg");
+		ctx().asset.LoadAudio("click", "assets/click.ogg");
 
 		CreateMoveButton(
 			*this, { 0, 300 }, { 150, 50 },
@@ -112,11 +112,11 @@ public:
 			  .hover			= "hover" }
 		);
 
-		// app().asset.Load("idle", "assets/bell.png");
-		// app().asset.Load("animation_hover", "assets/bell_hover_animation.png");
-		// app().asset.Load("animation_activate", "assets/bell_click_animation.png");
-		// app().asset.LoadAudio("hover", "assets/hover.ogg");
-		// app().asset.LoadAudio("click", "assets/bell.ogg");
+		// ctx().asset.Load("idle", "assets/bell.png");
+		// ctx().asset.Load("animation_hover", "assets/bell_hover_animation.png");
+		// ctx().asset.Load("animation_activate", "assets/bell_click_animation.png");
+		// ctx().asset.LoadAudio("hover", "assets/hover.ogg");
+		// ctx().asset.LoadAudio("click", "assets/bell.ogg");
 		// auto hover_animation{ CreateAnimation(
 		//	*this, "animation_hover", V2_int{}, { 3, milliseconds{ 400 }, V2_int{ 253, 167 }, -1 }
 		//) };

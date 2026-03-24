@@ -1,7 +1,7 @@
 #pragma once
 
 #include <concepts>
-#include <memory>
+#include <string>
 #include <string_view>
 #include <type_traits>
 
@@ -21,7 +21,7 @@
 namespace ptgn {
 
 class Application;
-class ApplicationContext;
+class SceneContext;
 
 namespace impl {
 
@@ -82,10 +82,8 @@ public:
 		// functions. Here we just manually push the first scene into the SceneManager.
 
 		// Initialize the first scene using the SceneManager.
-		scenes_.SwitchTo<TScene>(scene_key, nullptr, std::forward<TArgs>(args)...);
-
-		// Flush queued ops so the first scene becomes active before main loop.
-		scenes_.Update(secondsf{ 0.0f }, false);
+		// TODO: Fix.
+		// scenes_.SwitchTo<TScene>(scene_key, nullptr, std::forward<TArgs>(args)...);
 
 		EnterMainLoop();
 	}
@@ -100,7 +98,7 @@ private:
 #ifdef __EMSCRIPTEN__
 	friend void impl::EmscriptenMainLoop(void* application);
 #endif
-	friend class ApplicationContext;
+	friend class SceneContext;
 
 	impl::SDLInstance sdl_;
 
@@ -117,13 +115,20 @@ private:
 
 	void EnterMainLoop();
 	void Update();
+
 	[[nodiscard]] milliseconds TimeSinceStart() const;
+
+	void Stop();
+
+	[[nodiscard]] secondsf dt() const;
+
+	[[nodiscard]] bool IsRunning() const;
+
+	std::size_t GetFrameCount() const;
 
 	secondsf dt_{ 0.0f };
 	bool running_{ false };
 	std::size_t frame_count_{ 0 };
-
-	std::shared_ptr<ApplicationContext> ctx_;
 };
 
 } // namespace ptgn

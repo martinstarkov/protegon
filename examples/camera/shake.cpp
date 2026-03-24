@@ -3,7 +3,6 @@
 #include <string_view>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
@@ -18,6 +17,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 #include "runtime/world/grid.h"
@@ -43,13 +43,13 @@ public:
 	}
 
 	void OnEnter() override {
-		app().asset.LoadShader("whirlpool", "assets/shader.glsl", "whirlpool");
-		app().asset.LoadTexture("noise", "assets/noise.png");
+		ctx().asset.LoadShader("whirlpool", "assets/shader.glsl", "whirlpool");
+		ctx().asset.LoadTexture("noise", "assets/noise.png");
 
-		input.SetSettings({ .debug_draw_enabled = true });
+		ctx().input.SetSettings({ .debug_draw_enabled = true });
 
-		input.SetTopOnly(true);
-		auto res{ app().renderer.GetGameSize() };
+		ctx().input.SetTopOnly(true);
+		auto res{ ctx().renderer.GetGameSize() };
 
 		CreateRect(*this, -res * 0.5f + V2_float{ 500, 250 }, { 200, 50 }, color::Green);
 
@@ -64,7 +64,7 @@ public:
 				float scale{ 0.5f };
 				float opacity{ 0.5f };
 
-				float time{ static_cast<float>(app().TimeSinceStart().count()) };
+				float time{ static_cast<float>(ctx().TimeSinceStart().count()) };
 				s.SetUniform("u_Time", time / 1000.0f * timescale);
 				s.SetUniform("u_Scale", scale);
 				s.SetUniform("u_Opacity", opacity);
@@ -72,14 +72,16 @@ public:
 			Origin::Center
 		);
 
-		StartFollow(camera, player);
+		StartFollow(ctx().camera, player);
 		// TranslateTo(camera, GetPosition(player), 1000ms);
 
-		grid.Set({ 0, 0 }, CreateButton("Stop Shake", [&]() { StopShake(camera); }));
-		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() { Shake(camera, 0.1f); }));
-		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [&]() { Shake(camera, 0.25f); }));
-		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [&]() { Shake(camera, 0.5f); }));
-		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [&]() { Shake(camera, 1.0f); }));
+		grid.Set({ 0, 0 }, CreateButton("Stop Shake", [&]() { StopShake(ctx().camera); }));
+		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() { Shake(ctx().camera, 0.1f); }));
+		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [&]() {
+					 Shake(ctx().camera, 0.25f);
+				 }));
+		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [&]() { Shake(ctx().camera, 0.5f); }));
+		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [&]() { Shake(ctx().camera, 1.0f); }));
 
 		V2_float screen_offset{ 30, 30 };
 		V2_float offset{ 6, 6 };
@@ -101,7 +103,7 @@ public:
 	void OnUpdate() override {
 		constexpr V2_float speed{ 300.0f };
 		V2_float pos{ GetPosition(player) };
-		float dt{ app().DeltaTime().count() };
+		float dt{ ctx().dt().count() };
 		MoveWASD(*this, pos, speed * dt, false);
 		SetPosition(player, pos);
 	}

@@ -11,6 +11,7 @@
 namespace ptgn {
 
 class Scene;
+class SceneContext;
 
 enum class BoundaryBehavior {
 	StopVelocity,	// Clamp position and stop velocity.
@@ -52,7 +53,7 @@ public:
 	void SetGravity(V2_float gravity);
 
 	/// @return Physics time step in seconds.
-	[[nodiscard]] float DeltaTime() const;
+	[[nodiscard]] float dt() const;
 
 	void SetEnabled(bool enabled = true);
 	void Disable();
@@ -70,6 +71,7 @@ public:
 
 private:
 	friend class Scene;
+	friend class SceneContext;
 
 	explicit Physics(Scene& scene);
 

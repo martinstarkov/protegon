@@ -29,7 +29,7 @@
 //
 //				// entity.Destroy();
 //				// PTGN_LOG("Destroying entity: ", entity.GetId());
-//				app().scene.Transition<OtherScene>("", "other", {});
+//				ctx().scene.Transition<OtherScene>("", "other", {});
 //			} else {
 //				PTGN_WARN("Should not be here after pressing R");
 //			}
@@ -81,7 +81,7 @@
 //
 // int main(int, char**) {
 //	game.Init("EventScene", window_size);
-//	app().scene.Enter<EventScene>();
+//	ctx().scene.Enter<EventScene>();
 //
 // }
 

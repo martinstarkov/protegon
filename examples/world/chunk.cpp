@@ -20,6 +20,7 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -58,37 +59,37 @@ public:
 		fractal_noise.SetLacunarity(20.0f);
 		fractal_noise.SetPersistence(0.8f);
 
-		app().asset.LoadTexture("sheep", "assets/test.png");
-		app().asset.LoadTexture("red", "assets/red_tile.png");
-		app().asset.LoadTexture("blue", "assets/blue_tile.png");
-		app().asset.LoadTexture("green", "assets/green_tile.png");
+		ctx().asset.LoadTexture("sheep", "assets/test.png");
+		ctx().asset.LoadTexture("red", "assets/red_tile.png");
+		ctx().asset.LoadTexture("blue", "assets/blue_tile.png");
+		ctx().asset.LoadTexture("green", "assets/green_tile.png");
 
 		chunk_manager.AddNoiseLayer(NoiseLayer{
 			fractal_noise, [&](V2_float coordinate, float noise) {
 				return CreateColorTile(
-					-app().renderer.GetGameSize() * 0.5f + coordinate, color::White.WithAlpha(noise)
+					-ctx().renderer.GetGameSize() * 0.5f + coordinate, color::White.WithAlpha(noise)
 				);
 			} });
 
 		sheep = CreateSheep(V2_float{ 0, 0 });
-		StartFollow(camera, sheep);
+		StartFollow(ctx().camera, sheep);
 	}
 
 	void OnUpdate() override {
-		float dt{ app().DeltaTime().count() };
+		float dt{ ctx().dt().count() };
 
 		MoveWASD(*this, vel, speed * dt, true);
 
 		Translate(sheep, vel * dt);
 
-		if (input.KeyHeld(Key::Q)) {
-			camera.Zoom(-zoom_speed * dt);
+		if (ctx().input.KeyHeld(Key::Q)) {
+			ctx().camera.Zoom(-zoom_speed * dt);
 		}
-		if (input.KeyHeld(Key::E)) {
-			camera.Zoom(zoom_speed * dt);
+		if (ctx().input.KeyHeld(Key::E)) {
+			ctx().camera.Zoom(zoom_speed * dt);
 		}
 
-		chunk_manager.Update(*this, camera);
+		chunk_manager.Update(*this, ctx().camera);
 	}
 };
 

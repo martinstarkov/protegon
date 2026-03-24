@@ -3,7 +3,6 @@
 #include <functional>
 #include <optional>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -16,6 +15,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -63,7 +63,7 @@ ShaderEntity CreateShaderEntity(
 ) {
 	ShaderEntity shader_entity{ scene.CreateEntity() };
 
-	const auto& assets{ scene.app().asset };
+	const auto& assets{ scene.ctx().asset };
 
 	auto resolved_shader{ shader.Get(assets) };
 

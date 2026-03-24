@@ -11,6 +11,7 @@
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -70,7 +71,7 @@ class TopDownMovementScene : public Scene {
 	}
 
 	void OnEnter() override {
-		collision.SetSettings({ .debug_draw_enabled = true });
+		ctx().collision.SetSettings({ .debug_draw_enabled = true });
 
 		V2_float ws{ game_size };
 

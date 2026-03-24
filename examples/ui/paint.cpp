@@ -16,6 +16,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/world/grid.h"
 
@@ -48,7 +49,7 @@ public:
 			}
 		});
 		inner_grid = Grid<int>{ outer_grid.GetSize(), cells_without };
-		if (input.KeyPressed(Key::B)) {
+		if (ctx().input.KeyPressed(Key::B)) {
 			toggle = !toggle;
 		}
 		if (toggle) {
@@ -57,17 +58,17 @@ public:
 			grid = inner_grid;
 		}
 
-		auto res{ app().renderer.GetGameSize() };
+		auto res{ ctx().renderer.GetGameSize() };
 
-		V2_int mouse_pos = input.GetMousePosition() + res * 0.5f;
+		V2_int mouse_pos = ctx().input.GetMousePosition() + res * 0.5f;
 
 		V2_int mouse_tile = mouse_pos / tile_size;
 
 		if (grid.Has(mouse_tile)) {
-			if (input.MouseHeld(Mouse::Left)) {
+			if (ctx().input.MouseHeld(Mouse::Left)) {
 				outer_grid.Set(mouse_tile, 1);
 			}
-			if (input.MouseHeld(Mouse::Right)) {
+			if (ctx().input.MouseHeld(Mouse::Right)) {
 				outer_grid.Set(mouse_tile, 0);
 			}
 		}
@@ -81,14 +82,14 @@ public:
 				}
 			}
 
-			renderer.DrawShape(
+			ctx().renderer.DrawShape(
 				Rect{ tile_size },
 				Transform{ -res * 0.5f + V2_int{ p.x * tile_size.x, p.y * tile_size.y } }, c,
 				FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		});
 		if (grid.Has(mouse_tile)) {
-			renderer.DrawShape(
+			ctx().renderer.DrawShape(
 				Rect{ tile_size }, Transform{ -res * 0.5f + mouse_tile * tile_size }, color::Yellow,
 				FillStyle::Hollow(1.0f), Origin::TopLeft, Depth{}, BlendMode::Blend
 			);

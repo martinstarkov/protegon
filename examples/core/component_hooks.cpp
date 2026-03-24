@@ -7,6 +7,7 @@
 #include "platform/input/key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -30,11 +31,11 @@ struct ComponentHookScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		if (input.KeyPressed(Key::A)) {
+		if (ctx().input.KeyPressed(Key::A)) {
 			CreateEntity().Add<Test>();
 		}
 
-		if (input.KeyPressed(Key::C)) {
+		if (ctx().input.KeyPressed(Key::C)) {
 			for (Entity e : list) {
 				e.Destroy();
 			}

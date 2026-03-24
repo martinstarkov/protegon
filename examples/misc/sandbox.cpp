@@ -2,7 +2,6 @@
 #include <ostream>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
@@ -20,6 +19,7 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 
@@ -139,7 +139,7 @@ public:
 		click.mouseButton = 0;
 		click.clicks	  = 1;
 
-		event.Emit(click); // scene-local bubbling
+		ctx().event.Emit(click); // scene-local bubbling
 	}
 };
 
@@ -149,17 +149,17 @@ public:
 		PTGN_INFO("Entered asset scene");
 
 		V2_int game_size{ 320, 180 };
-		app().renderer.SetGameSize(game_size);
+		ctx().renderer.SetGameSize(game_size);
 		V2_int window_size{ 1280, 720 };
-		app().window.SetSize(window_size);
+		ctx().window.SetSize(window_size);
 
 		// PTGN_LOG("Working Directory: ", GetWorkingDirectory());
-		auto a = app().asset.LoadAudio("test", "assets/music.ogg");
-		// auto f = app().asset.LoadFont("test", "assets/ttf.ttf", 11);
-		auto t = app().asset.LoadTexture("test", "assets/smile.png");
-		// auto j = app().asset.LoadJson("test", "assets/dialogue.json");
+		auto a = ctx().asset.LoadAudio("test", "assets/music.ogg");
+		// auto f = ctx().asset.LoadFont("test", "assets/ttf.ttf", 11);
+		auto t = ctx().asset.LoadTexture("test", "assets/smile.png");
+		// auto j = ctx().asset.LoadJson("test", "assets/dialogue.json");
 
-		// app().audio.Play("test");
+		// ctx().audio.Play("test");
 
 		auto sprite = CreateSprite(*this, t, {});
 
@@ -171,7 +171,7 @@ public:
 		PTGN_ASSERT(sprite2.Has<Texture>());
 		PTGN_ASSERT((sprite2.Get<Texture>().GetSize() == V2_int{ 300, 300 }));
 
-		auto arial = app().asset.LoadFont("arial", "assets/Arial.ttf", 72.0f);
+		auto arial = ctx().asset.LoadFont("arial", "assets/Arial.ttf", 72.0f);
 
 		auto text = CreateText(*this, "Hello World", color::Orange, 72.0f, arial, {});
 		text.SetHD(true);
@@ -185,9 +185,9 @@ public:
 	}
 
 	void OnUpdate() override {
-		/*PTGN_LOG("Master Volume: ", app().audio.GetVolume());
-		PTGN_LOG("Volume: ", app().audio.GetVolume("test"));
-		PTGN_LOG("Test audio is playing: ", app().audio.IsPlaying("test"));*/
+		/*PTGN_LOG("Master Volume: ", ctx().audio.GetVolume());
+		PTGN_LOG("Volume: ", ctx().audio.GetVolume("test"));
+		PTGN_LOG("Test audio is playing: ", ctx().audio.IsPlaying("test"));*/
 		// PTGN_INFO("Updating test scene");
 	}
 

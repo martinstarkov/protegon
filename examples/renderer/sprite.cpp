@@ -1,16 +1,16 @@
 #include "runtime/graphics/sprite.h"
 
 #include "app/application.h"
-#include "app/context.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 
 class SpriteScene : public Scene {
 	void OnEnter() override {
-		app().asset.Load("sprite", "assets/sprite.png");
-		app().asset.Load("sprite2", "assets/sprite2.png");
+		ctx().asset.Load("sprite", "assets/sprite.png");
+		ctx().asset.Load("sprite2", "assets/sprite2.png");
 
 		auto sprite1 = CreateSprite(*this, "sprite", { -50 + 0, 0 });
 		auto sprite2 = CreateSprite(*this, "sprite", { -50 + 0, 100.5 });

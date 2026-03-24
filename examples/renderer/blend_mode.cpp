@@ -8,16 +8,17 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
 struct BlendModeScene : public Scene {
 	void OnEnter() override {
-		app().asset.Load("semitransparent", "assets/semitransparent.png");
-		app().asset.Load("opaque", "assets/smile.png");
+		ctx().asset.Load("semitransparent", "assets/semitransparent.png");
+		ctx().asset.Load("opaque", "assets/smile.png");
 
-		V2_float ws{ app().renderer.GetGameSize() };
+		V2_float ws{ ctx().renderer.GetGameSize() };
 
 		CreateRect(
 			*this, -ws * 0.5f + V2_float{}, { ws.x, 100 }, color::Red, FillStyle::Solid(),

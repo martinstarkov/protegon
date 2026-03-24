@@ -15,7 +15,7 @@
 namespace ptgn {
 
 class Scene;
-class Renderer;
+class RenderContext;
 class RenderTarget;
 
 using LayerMask = std::uint64_t;
@@ -169,7 +169,7 @@ namespace impl {
 /// @param camera If {}, uses the default scene camera.
 V2_float GetCameraParentRenderTargetScale(const Scene& scene, const std::optional<Camera>& camera);
 
-void AddCameraComponents(Camera camera, const Renderer& renderer);
+void AddCameraComponents(Camera camera, const RenderContext& renderer);
 
 void RecalculateCameraViewProjection(Camera camera);
 

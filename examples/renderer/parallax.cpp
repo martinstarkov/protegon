@@ -5,6 +5,7 @@
 #include "platform/window/window.h"
 #include "renderer/renderer.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 // TODO: Fix this demo.
@@ -30,18 +31,18 @@ public:
 	float bg_aspect_ratio{ 0.0f };
 
 	void OnEnter() override {
-		app().asset.LoadMany({ { "background", "assets/background.png" },
+		ctx().asset.LoadMany({ { "background", "assets/background.png" },
 							   { "planet_b", "assets/planet_b.png" },
 							   { "planet_s", "assets/planet_s.png" },
 							   { "stars", "assets/stars.png" } });
 
-		bg_pos		 = app().renderer.GetGameSize() * 0.5f;
-		planet_b_pos = app().renderer.GetGameSize() * 0.5f - V2_float{ 200, 200 };
-		planet_s_pos = app().renderer.GetGameSize() * 0.5f + V2_float{ 200, 200 };
-		stars_pos	 = app().renderer.GetGameSize() * 0.5f;
+		bg_pos		 = ctx().renderer.GetGameSize() * 0.5f;
+		planet_b_pos = ctx().renderer.GetGameSize() * 0.5f - V2_float{ 200, 200 };
+		planet_s_pos = ctx().renderer.GetGameSize() * 0.5f + V2_float{ 200, 200 };
+		stars_pos	 = ctx().renderer.GetGameSize() * 0.5f;
 
-		size			= app().renderer.GetGameSize() * scale;
-		background_size = app().asset.GetTexture("background")->GetSize();
+		size			= ctx().renderer.GetGameSize() * scale;
+		background_size = ctx().asset.GetTexture("background")->GetSize();
 		bg_aspect_ratio = background_size.x / background_size.y;
 
 		ResetPositions();
@@ -54,25 +55,25 @@ public:
 	}
 
 	void OnUpdate() override {
-		float dt{ app().DeltaTime().count() };
+		float dt{ ctx().dt().count() };
 		float speed = 10.0f * dt;
 
 		V2_float velocity;
 
-		if (input.KeyHeld(Key::W)) {
+		if (ctx().input.KeyHeld(Key::W)) {
 			velocity.y = -speed;
 		}
-		if (input.KeyHeld(Key::S)) {
+		if (ctx().input.KeyHeld(Key::S)) {
 			velocity.y = +speed;
 		}
-		if (input.KeyHeld(Key::A)) {
+		if (ctx().input.KeyHeld(Key::A)) {
 			velocity.x = -speed;
 		}
-		if (input.KeyHeld(Key::D)) {
+		if (ctx().input.KeyHeld(Key::D)) {
 			velocity.x = +speed;
 		}
 
-		if (input.KeyPressed(Key::R)) {
+		if (ctx().input.KeyPressed(Key::R)) {
 			ResetPositions();
 		}
 
@@ -82,23 +83,23 @@ public:
 
 		// TODO: Fix by implementing SetScrollFactor().
 
-		renderer.DrawTexture(
+		ctx().renderer.DrawTexture(
 			"background", bg_pos, V2_int{ size.x * bg_aspect_ratio, size.y }, Origin::Center
 		);
-		Translate(camera, background_cam);
-		renderer.DrawTexture(
+		Translate(ctx().camera, background_cam);
+		ctx().renderer.DrawTexture(
 			"stars", stars_pos, V2_int{ size.x * bg_aspect_ratio, size.y }, Origin::Center
 		);
-		Translate(camera, star_cam);
-		renderer.DrawTexture(
-			"planet_b", planet_b_pos, app().asset.GetTexture("planet_b")->GetSize() * scale,
+		Translate(ctx().camera, star_cam);
+		ctx().renderer.DrawTexture(
+			"planet_b", planet_b_pos, ctx().asset.GetTexture("planet_b")->GetSize() * scale,
 			Origin::Center
 		);
-		renderer.DrawTexture(
-			"planet_s", planet_s_pos, app().asset.GetTexture("planet_s")->GetSize() * scale,
+		ctx().renderer.DrawTexture(
+			"planet_s", planet_s_pos, ctx().asset.GetTexture("planet_s")->GetSize() * scale,
 			Origin::Center
 		);
-		Translate(camera, foreground_cam);
+		Translate(ctx().camera, foreground_cam);
 	}
 };
 

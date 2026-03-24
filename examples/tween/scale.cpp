@@ -3,6 +3,7 @@
 #include "runtime/animation/tween_effect.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -13,7 +14,7 @@ struct ScaleEffectScene : public Scene {
 	Sprite sprite3;
 
 	void OnEnter() override {
-		app().asset.Load("smile", "assets/smile.png");
+		ctx().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });
@@ -28,10 +29,10 @@ struct ScaleEffectScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		if (input.MousePressed(Mouse::Left)) {
+		if (ctx().input.MousePressed(Mouse::Left)) {
 			ScaleTo(sprite1, { 5.0f, 5.0f }, milliseconds{ 4000 }, Ease::Linear, true);
 		}
-		if (input.MousePressed(Mouse::Right)) {
+		if (ctx().input.MousePressed(Mouse::Right)) {
 			ScaleTo(sprite1, { 0.25f, 0.25f }, milliseconds{ 4000 }, Ease::Linear, true);
 		}
 	}

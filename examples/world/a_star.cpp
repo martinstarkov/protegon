@@ -13,6 +13,7 @@
 #include "renderer/renderer.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/world/grid.h"
 
@@ -38,11 +39,11 @@ class PathfindingScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		V2_float mouse_pos	= input.GetMousePosition() + game_size * 0.5f;
+		V2_float mouse_pos	= ctx().input.GetMousePosition() + game_size * 0.5f;
 		V2_float mouse_tile = mouse_pos / tile_size;
 
-		if (input.MouseHeld(Mouse::Right)) {
-			if (input.KeyHeld(Key::LeftCtrl)) {
+		if (ctx().input.MouseHeld(Mouse::Right)) {
+			if (ctx().input.KeyHeld(Key::LeftCtrl)) {
 				end				 = mouse_tile;
 				global_waypoints = grid.FindWaypoints(start, end);
 			} else if (grid.SetObstacle(mouse_tile, false)) {
@@ -50,9 +51,9 @@ class PathfindingScene : public Scene {
 			}
 		}
 
-		if (input.MouseHeld(Mouse::Left)) {
+		if (ctx().input.MouseHeld(Mouse::Left)) {
 			if (grid.Has(mouse_tile)) {
-				if (input.KeyHeld(Key::LeftCtrl)) {
+				if (ctx().input.KeyHeld(Key::LeftCtrl)) {
 					start			 = mouse_tile;
 					pos				 = start;
 					global_waypoints = grid.FindWaypoints(start, end);
@@ -64,7 +65,7 @@ class PathfindingScene : public Scene {
 
 		grid.ForEachCoordinate([&](const V2_int& tile) {
 			Color c = color::Gray;
-			if (input.KeyHeld(Key::V) && grid.IsVisited(tile)) {
+			if (ctx().input.KeyHeld(Key::V) && grid.IsVisited(tile)) {
 				c = color::Cyan;
 			}
 			if (grid.IsObstacle(tile)) {
@@ -76,14 +77,14 @@ class PathfindingScene : public Scene {
 				c = color::Gold;
 			}
 
-			renderer.DrawShape(
+			ctx().renderer.DrawShape(
 				Rect{ tile_size }, Transform{ -game_size * 0.5f + tile * tile_size }, c,
 				FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		});
 
 		if (grid.Has(mouse_tile)) {
-			renderer.DrawShape(
+			ctx().renderer.DrawShape(
 				Rect{ tile_size }, Transform{ -game_size * 0.5f + mouse_tile * tile_size },
 				color::Yellow, FillStyle{ 1.0f }, Origin::Center, Depth{}, BlendMode::Blend
 			);
@@ -102,7 +103,7 @@ class PathfindingScene : public Scene {
 		}
 
 		if (path_exists) { // global or local path exists
-			current_waypoint += app().DeltaTime().count() * vel;
+			current_waypoint += ctx().dt().count() * vel;
 			assert(idx >= 0);
 			assert(idx < local_waypoints.size());
 			assert(idx + 1 < local_waypoints.size());
@@ -131,12 +132,12 @@ class PathfindingScene : public Scene {
 					current_waypoint
 				) };
 
-			renderer.DrawShape(
+			ctx().renderer.DrawShape(
 				Rect{ tile_size }, Transform{ p }, color::Purple, FillStyle::Solid(),
 				Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		} else {
-			renderer.DrawShape(
+			ctx().renderer.DrawShape(
 				Rect{ tile_size }, Transform{ -game_size * 0.5f + pos * tile_size }, color::Purple,
 				FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
@@ -144,7 +145,7 @@ class PathfindingScene : public Scene {
 
 		const auto display_waypoints = [=](const auto& waypoints, const auto& color) {
 			for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
-				renderer.DrawShape(
+				ctx().renderer.DrawShape(
 					Line{ -game_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
 						  -game_size * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f },
 					Transform{}, color, FillStyle::Hollow(1.0f), Origin::Center, Depth{},

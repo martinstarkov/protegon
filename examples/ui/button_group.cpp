@@ -13,6 +13,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 
@@ -47,7 +48,7 @@ class ToggleButtonGroupScene : public Scene {
 	}
 
 	void OnEnter() override {
-		input.SetSettings({ .debug_draw_enabled = true });
+		ctx().input.SetSettings({ .debug_draw_enabled = true });
 
 		auto name1{ "Group 1" };
 		group1 = CreateToggleButtonGroup(*this);

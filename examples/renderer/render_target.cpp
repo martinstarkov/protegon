@@ -9,6 +9,7 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -73,7 +74,7 @@ struct RenderTargetScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::LightGray);
 
-		app().renderer.SetGameSize(game_size);
+		ctx().renderer.SetGameSize(game_size);
 
 		CreateRect(*this, V2_float{ 200, -200 }, { 200, 200 }, color::Gray, -1.0f, Origin::Center);
 
@@ -98,7 +99,7 @@ struct RenderTargetScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		float dt{ app().DeltaTime().count() };
+		float dt{ ctx().dt().count() };
 		constexpr V2_float speed{ 300.0f };
 		MoveArrowKeys(camera1, speed * dt);
 		MoveWASD(camera2, speed * dt);

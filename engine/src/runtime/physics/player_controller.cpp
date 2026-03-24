@@ -3,7 +3,6 @@
 #include <optional>
 #include <string_view>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/math/geometry/rect.h"
@@ -21,6 +20,7 @@
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 
@@ -59,11 +59,11 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 
 	if (config.animation_texture_key.has_value() && config.animation_frame_count.has_value()) {
 		PTGN_ASSERT(
-			scene.app().asset.HasTexture(*config.animation_texture_key),
+			scene.ctx().asset.HasTexture(*config.animation_texture_key),
 			"Cannot create player with animation key which has not been loaded"
 		);
 
-		auto texture{ *scene.app().asset.GetTexture(*config.animation_texture_key) };
+		auto texture{ *scene.ctx().asset.GetTexture(*config.animation_texture_key) };
 		V2_float anim_position;
 		auto duration{ config.animation_duration.value_or(milliseconds{ 1000 }) };
 
@@ -111,13 +111,13 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 			void OnAnimationFrameChange() {
 				auto frame{ Animation{ entity }.GetCurrentFrame() };
 				if (frame % walk_sound_frequency == 0) {
-					entity.GetScene().app().audio.Play(walk_sound_key);
+					entity.GetScene().ctx().audio.Play(walk_sound_key);
 				}
 			}
 		};
 
 		if (config.walk_sound_key.has_value()) {
-			PTGN_ASSERT(scene.app().asset.HasAudio(*config.walk_sound_key));
+			PTGN_ASSERT(scene.ctx().asset.HasAudio(*config.walk_sound_key));
 			auto frequency{ config.walk_sound_frequency.value_or(1) };
 
 			AddScript<AnimationRepeat>(a0, frequency, *config.walk_sound_key);

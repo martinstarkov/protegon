@@ -2,7 +2,6 @@
 #include <utility>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/event/dispatcher.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
@@ -21,6 +20,7 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -61,22 +61,22 @@ struct ResolutionScene : public Scene {
 	Camera camera0;
 
 	void OnEnter() override {
-		app().renderer.SetGameSize(game_size);
-		app().window.SetBackgroundColor(color::LightPurple);
-		app().renderer.SetBackgroundColor(color::LightBlue);
-		app().renderer.SetScalingMode(ScalingMode::Letterbox);
+		ctx().renderer.SetGameSize(game_size);
+		ctx().window.SetBackgroundColor(color::LightPurple);
+		ctx().renderer.SetBackgroundColor(color::LightBlue);
+		ctx().renderer.SetScalingMode(ScalingMode::Letterbox);
 
 		SetBackgroundColor(color::LightGray.WithAlpha(0.8f));
 
 		camera0 = CreateCamera(*this);
 
 		camera0.SetClearColor(color::LightPink.WithAlpha(0.5f));
-		camera.SetClearColor(color::LightGold.WithAlpha(0.5f));
+		ctx().camera.SetClearColor(color::LightGold.WithAlpha(0.5f));
 
 		camera0.SetViewport(camera0_viewport);
-		camera.SetViewport(camera_viewport);
+		ctx().camera.SetViewport(camera_viewport);
 
-		input.SetSettings({ .debug_draw_enabled = true, .debug_draw_line_width = 10.0f });
+		ctx().input.SetSettings({ .debug_draw_enabled = true, .debug_draw_line_width = 10.0f });
 
 		V2_int rect_size{ 100, 100 };
 
@@ -110,35 +110,35 @@ struct ResolutionScene : public Scene {
 
 	void OnUpdate() override {
 		constexpr V2_float speed{ 300.0f, 300.0f };
-		float dt{ app().DeltaTime().count() };
-		MoveWASD(camera, speed * dt);
+		float dt{ ctx().dt().count() };
+		MoveWASD(ctx().camera, speed * dt);
 
-		if (input.KeyHeld(Key::Q)) {
-			Rotate(camera, rotation_speed * dt);
+		if (ctx().input.KeyHeld(Key::Q)) {
+			Rotate(ctx().camera, rotation_speed * dt);
 		}
-		if (input.KeyHeld(Key::E)) {
-			Rotate(camera, -rotation_speed * dt);
+		if (ctx().input.KeyHeld(Key::E)) {
+			Rotate(ctx().camera, -rotation_speed * dt);
 		}
-		if (input.KeyHeld(Key::Z)) {
-			camera.Zoom(zoom_speed * dt);
+		if (ctx().input.KeyHeld(Key::Z)) {
+			ctx().camera.Zoom(zoom_speed * dt);
 		}
-		if (input.KeyHeld(Key::C)) {
-			camera.Zoom(-zoom_speed * dt);
+		if (ctx().input.KeyHeld(Key::C)) {
+			ctx().camera.Zoom(-zoom_speed * dt);
 		}
 
 		RenderTarget scene_target{ GetRenderTarget() };
 		MoveArrowKeys(GetRenderTarget(), speed * dt);
 
-		if (input.KeyHeld(Key::R)) {
+		if (ctx().input.KeyHeld(Key::R)) {
 			Rotate(scene_target, rotation_speed * dt);
 		}
-		if (input.KeyHeld(Key::T)) {
+		if (ctx().input.KeyHeld(Key::T)) {
 			Rotate(scene_target, -rotation_speed * dt);
 		}
-		if (input.KeyHeld(Key::F)) {
+		if (ctx().input.KeyHeld(Key::F)) {
 			SetScale(scene_target, GetScale(scene_target) + V2_float{ zoom_speed * dt });
 		}
-		if (input.KeyHeld(Key::G)) {
+		if (ctx().input.KeyHeld(Key::G)) {
 			SetScale(scene_target, GetScale(scene_target) + V2_float{ -zoom_speed * dt });
 		}
 	}

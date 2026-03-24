@@ -16,6 +16,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
 
 using namespace ptgn;
@@ -40,7 +41,7 @@ struct GraphicsScene : public Scene {
 
 	void OnUpdate() override {
 		constexpr V2_float speed{ 300.0f };
-		float dt{ app().DeltaTime().count() };
+		float dt{ ctx().dt().count() };
 		MoveWASD(graphics, speed * dt);
 	}
 };

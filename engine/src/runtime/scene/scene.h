@@ -18,137 +18,17 @@
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/physics.h"
 #include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_view.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
+class Application;
 class Scene;
-class SceneInput;
-class SceneManager;
-class FrameContext;
-class ApplicationContext;
-class EventHandler;
-class Renderer;
-class InputHandler;
-
-// TODO: Move classes to other files.
-
-class SceneEventHandler {
-public:
-	explicit SceneEventHandler(Scene& scene);
-
-	void Emit(EventDispatcher d);
-
-private:
-	Scene& scene_;
-};
-
-template <typename SceneT, typename EcsView>
-struct SceneEntityRange {
-	SceneT* scene;
-	EcsView view;
-
-	struct iterator {
-		SceneT* scene;
-		using EcsIterator = decltype(std::declval<EcsView&>().begin());
-		EcsIterator it;
-
-		using iterator_category = std::forward_iterator_tag;
-		using difference_type	= std::ptrdiff_t;
-
-		iterator& operator++() {
-			++it;
-			return *this;
-		}
-
-		iterator operator++(int) {
-			auto tmp = *this;
-			++(*this);
-			return tmp;
-		}
-
-		bool operator==(const iterator& other) const {
-			return it == other.it;
-		}
-
-		auto operator*() const {
-			// underlying is ecs::Entity
-			auto native_entity = *it;
-			return Entity{ native_entity, scene };
-		}
-	};
-
-	iterator begin() {
-		return { scene, view.begin() };
-	}
-
-	iterator end() {
-		return { scene, view.end() };
-	}
-
-	iterator begin() const {
-		return { scene, view.begin() };
-	}
-
-	iterator end() const {
-		return { scene, view.end() };
-	}
-};
-
-template <typename SceneT, typename EcsView, typename... TComponents>
-struct SceneEntitiesWithRange {
-	SceneT* scene;
-	EcsView view;
-
-	struct iterator {
-		SceneT* scene;
-		using EcsIterator = decltype(std::declval<EcsView&>().begin());
-		EcsIterator it;
-
-		using iterator_category = std::forward_iterator_tag;
-		using difference_type	= std::ptrdiff_t;
-
-		iterator& operator++() {
-			++it;
-			return *this;
-		}
-
-		iterator operator++(int) {
-			auto tmp = *this;
-			++(*this);
-			return tmp;
-		}
-
-		bool operator==(const iterator& other) const {
-			return it == other.it;
-		}
-
-		auto operator*() const {
-			auto underlying = *it; // tuple<ecs::Entity, TComponents&...>
-
-			return std::apply(
-				[this](auto&& native_entity, auto&&... comps) {
-					// Note: TComponents&... matches the underlying refs
-					return std::tuple<Entity, TComponents&...>{
-						Entity{ std::forward<decltype(native_entity)>(native_entity), scene },
-						static_cast<TComponents&>(comps)...
-					};
-				},
-				underlying
-			);
-		}
-	};
-
-	iterator begin() {
-		return { scene, view.begin() };
-	}
-
-	iterator end() {
-		return { scene, view.end() };
-	}
-};
+class SceneContext;
+class SceneEventHandler;
 
 template <typename TComponent>
 struct SceneHook {
@@ -284,37 +164,14 @@ public:
 
 	void Refresh();
 
-	const std::shared_ptr<ApplicationContext>& GetContext() const;
-
-	ApplicationContext& app();
-
-	const ApplicationContext& app() const;
-
-	// TODO: Move all of these into a scene context that is accessed via ctx().
-
-	// TODO: Add a local scene manager.
-
-	RenderContext renderer;
-	DebugContext debug;
-	SceneEventHandler event;
-
-	SceneInput input;
-	Physics physics;
-	CollisionHandler collision;
-
-	/// @brief The default camera used by all objects in the scene. By default it resizes to the
-	/// game size.
-	Camera camera;
-
 	std::size_t GetEntityCount() const;
 
 	RenderTarget GetRenderTarget() const;
 
-private:
-	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
-	/// size.
-	Camera fixed_camera;
+	[[nodiscard]] const SceneContext& ctx() const;
+	[[nodiscard]] SceneContext& ctx();
 
+private:
 	friend class SceneManager;
 	friend class EventHandler;
 	friend class FrameContext;
@@ -328,32 +185,17 @@ private:
 		(this->*Member)(Entity{ handle, this });
 	}
 
-	std::shared_ptr<ApplicationContext> ctx_;
+	void Init(Application& app);
 
-	void InternalEmit(EventDispatcher d);
-
-	void Init(const std::shared_ptr<ApplicationContext>& ctx);
-
-	// Called by scene manager when a new scene is loaded and entered.
+	/// @brief Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
-	void InternalUpdate();
-	void InternalDraw();
 	void InternalExit();
 
-	// If the actions is manually numbered, its order determines the execution order of scene
-	// functions.
-	enum class State {
-		Constructed = 0,
-		Entering,
-		Running,
-		Paused,
-		Sleeping,
-		Exiting,
-		Unloading
-	};
+	void InternalUpdate();
+	void InternalDraw();
+	void InternalEmit(EventDispatcher d);
 
-	State state_{ State::Constructed };
-
+	std::unique_ptr<SceneContext> ctx_;
 	Manager manager_;
 	RenderTarget render_target_;
 };

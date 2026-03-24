@@ -6,6 +6,7 @@
 #include "runtime/animation/tween_effect.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -17,8 +18,8 @@ struct TintEffectScene : public Scene {
 	Sprite sprite4;
 
 	void OnEnter() override {
-		app().asset.Load("tree", "assets/jpg.jpg");
-		app().asset.Load("smile", "assets/smile.png");
+		ctx().asset.Load("tree", "assets/jpg.jpg");
+		ctx().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "tree", { -300, -300 });
 		sprite2 = CreateSprite(*this, "tree", { -300, 200 });
@@ -36,10 +37,10 @@ struct TintEffectScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		if (input.MousePressed(Mouse::Left)) {
+		if (ctx().input.MousePressed(Mouse::Left)) {
 			TintTo(sprite1, color::Purple, milliseconds{ 4000 }, Ease::Linear, true);
 		}
-		if (input.MousePressed(Mouse::Right)) {
+		if (ctx().input.MousePressed(Mouse::Right)) {
 			TintTo(sprite1, color::White, milliseconds{ 4000 }, Ease::Linear, true);
 		}
 	}

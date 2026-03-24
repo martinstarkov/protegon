@@ -11,7 +11,6 @@
 #include <variant>
 #include <vector>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/math/geometry/circle.h"
@@ -35,6 +34,7 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -543,7 +543,7 @@ Derived& ButtonBase<Derived>::SetSound(std::optional<AudioOrKey> sound, ButtonSt
 
 	const auto& scene{ GetScene() };
 
-	const auto& assets{ scene.app().asset };
+	const auto& assets{ scene.ctx().asset };
 	Audio resolved_sound{ sound->Get(assets) };
 
 	desired.sound = resolved_sound;
@@ -624,7 +624,7 @@ Derived& ButtonBase<Derived>::SetText(
 	auto [enabled_idle, idle, desired] = GetStyle(state);
 	if (desired.text.has_value()) {
 		const auto& scene{ GetScene() };
-		const auto& assets{ scene.app().asset };
+		const auto& assets{ scene.ctx().asset };
 
 		Font resolved_font{ font.Get(assets) };
 
@@ -980,7 +980,7 @@ void ButtonBase<Derived>::PlaySound(ButtonState active) {
 	auto s{ GetStyleState() };
 
 	auto& scene{ GetScene() };
-	auto& audio_system{ scene.app().audio };
+	AudioSystem& audio_system{ scene.ctx().audio };
 
 	bool exclusive_audio{ Has<ButtonExclusiveAudio>() };
 

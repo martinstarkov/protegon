@@ -6,7 +6,6 @@
 #include <string_view>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
@@ -16,6 +15,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
 #include "runtime/world/grid.h"
 
@@ -61,14 +61,14 @@ public:
 	}
 
 	void OnEnter() override {
-		app().asset.Load("music1", "assets/music.ogg");
-		app().asset.Load("music2", "assets/music2.ogg");
-		app().asset.Load("sound1", "assets/sound.ogg");
-		app().asset.Load("sound2", "assets/sound2.ogg");
+		ctx().asset.Load("music1", "assets/music.ogg");
+		ctx().asset.Load("music2", "assets/music2.ogg");
+		ctx().asset.Load("sound1", "assets/sound.ogg");
+		ctx().asset.Load("sound2", "assets/sound2.ogg");
 
-		app().audio.SetVolume(starting_volume);
-		app().audio.SetVolume("sound1", starting_volume);
-		app().audio.SetVolume("sound2", starting_volume);
+		ctx().audio.SetVolume(starting_volume);
+		ctx().audio.SetVolume("sound1", starting_volume);
+		ctx().audio.SetVolume("sound2", starting_volume);
 
 		b1	= grid.Set({ 0, 0 }, CreateAudioButton("Music Volume: ", nullptr, music_color));
 		b2	= grid.Set({ 0, 1 }, CreateAudioButton("Music Is Playing: ", nullptr, music_color));
@@ -85,24 +85,24 @@ public:
 
 		grid.Set(
 			{ 1, 0 }, CreateAudioButton(
-						  "Play Music 1", [&]() { app().audio.Play("music1"); }, music_color
+						  "Play Music 1", [&]() { ctx().audio.Play("music1"); }, music_color
 					  )
 		);
 		grid.Set(
 			{ 1, 1 }, CreateAudioButton(
-						  "Play Music 2", [&]() { app().audio.Play("music2"); }, music_color
+						  "Play Music 2", [&]() { ctx().audio.Play("music2"); }, music_color
 					  )
 		);
 		grid.Set(
 			{ 1, 2 }, CreateAudioButton(
-						  "Stop Music", [&]() { app().audio.StopAll(); }, music_color
+						  "Stop Music", [&]() { ctx().audio.StopAll(); }, music_color
 					  )
 		);
 		grid.Set(
 			{ 1, 3 },
 			CreateAudioButton(
 				"Fade In Music 1 (3s)",
-				[&]() { /* TODO: Fix: app().audio.FadeIn("music1", milliseconds{ 3000 });*/ },
+				[&]() { /* TODO: Fix: ctx().audio.FadeIn("music1", milliseconds{ 3000 });*/ },
 				music_color
 			)
 		);
@@ -110,7 +110,7 @@ public:
 			{ 1, 4 },
 			CreateAudioButton(
 				"Fade In Music 2 (3s)",
-				[&]() { /* TODO: Fix: app().audio.FadeIn("music2", milliseconds{ 3000 });*/ },
+				[&]() { /* TODO: Fix: ctx().audio.FadeIn("music2", milliseconds{ 3000 });*/ },
 				music_color
 			)
 		);
@@ -118,18 +118,18 @@ public:
 			{ 1, 5 },
 			CreateAudioButton(
 				"Fade Out Music (3s)",
-				[&]() { /* TODO: Fix: app().audio.FadeOut(milliseconds{ 3000 });*/ }, music_color
+				[&]() { /* TODO: Fix: ctx().audio.FadeOut(milliseconds{ 3000 });*/ }, music_color
 			)
 		);
 		grid.Set(
 			{ 1, 6 },
 			CreateAudioButton(
-				"Toggle Music 1 Pause", [&]() { app().audio.TogglePause("music1"); }, music_color
+				"Toggle Music 1 Pause", [&]() { ctx().audio.TogglePause("music1"); }, music_color
 			)
 		);
 		grid.Set(
 			{ 1, 7 }, CreateAudioButton(
-						  "Toggle Volume", [this]() { app().audio.ToggleVolume(starting_volume); },
+						  "Toggle Volume", [this]() { ctx().audio.ToggleVolume(starting_volume); },
 						  music_color
 					  )
 		);
@@ -137,8 +137,8 @@ public:
 			{ 1, 8 }, CreateAudioButton(
 						  "+ Music Volume",
 						  [&]() {
-							  app().audio.SetVolume(std::clamp(
-								  app().audio.GetVolume() + volume_increment, kMinVolume, kMaxVolume
+							  ctx().audio.SetVolume(std::clamp(
+								  ctx().audio.GetVolume() + volume_increment, kMinVolume, kMaxVolume
 							  ));
 						  },
 						  music_color
@@ -148,8 +148,8 @@ public:
 			{ 1, 9 }, CreateAudioButton(
 						  "- Music Volume",
 						  [&]() {
-							  app().audio.SetVolume(std::clamp(
-								  app().audio.GetVolume() - volume_increment, kMinVolume, kMaxVolume
+							  ctx().audio.SetVolume(std::clamp(
+								  ctx().audio.GetVolume() - volume_increment, kMinVolume, kMaxVolume
 							  ));
 						  },
 						  music_color
@@ -160,13 +160,13 @@ public:
 			{ 2, 0 },
 			CreateAudioButton(
 				"Play Channel 1",
-				[&]() { app().audio.Play("sound1", 1.0, 0, RandomNumber(0.01f, 100.0f)); },
+				[&]() { ctx().audio.Play("sound1", 1.0, 0, RandomNumber(0.01f, 100.0f)); },
 				sound1_color
 			)
 		);
 		grid.Set(
 			{ 2, 1 }, CreateAudioButton(
-						  "Stop Channel 1", [this]() { app().audio.Stop("sound1"); }, sound1_color
+						  "Stop Channel 1", [this]() { ctx().audio.Stop("sound1"); }, sound1_color
 					  )
 		);
 		grid.Set(
@@ -174,7 +174,7 @@ public:
 			CreateAudioButton(
 				"Fade In Sound 1 (3s)",
 				[this](
-				) { /* TODO: Fix: app().audio.FadeIn("sound1", milliseconds{ 3000 }, channel1);*/ },
+				) { /* TODO: Fix: ctx().audio.FadeIn("sound1", milliseconds{ 3000 }, channel1);*/ },
 				sound1_color
 			)
 		);
@@ -182,13 +182,13 @@ public:
 			{ 2, 3 },
 			CreateAudioButton(
 				"Fade Out Channel 1 (3s)",
-				[this]() { /* TODO: Fix: app().audio.FadeOut(milliseconds{ 3000 }, channel1);*/ },
+				[this]() { /* TODO: Fix: ctx().audio.FadeOut(milliseconds{ 3000 }, channel1);*/ },
 				sound1_color
 			)
 		);
 		grid.Set(
 			{ 2, 4 }, CreateAudioButton(
-						  "Toggle Channel 1 Pause", [this]() { app().audio.TogglePause("sound1"); },
+						  "Toggle Channel 1 Pause", [this]() { ctx().audio.TogglePause("sound1"); },
 						  sound1_color
 					  )
 		);
@@ -196,16 +196,16 @@ public:
 			{ 2, 5 },
 			CreateAudioButton(
 				"Toggle Sound 1 Mute",
-				[this]() { app().audio.ToggleVolume("sound1", starting_volume); }, sound1_color
+				[this]() { ctx().audio.ToggleVolume("sound1", starting_volume); }, sound1_color
 			)
 		);
 		grid.Set(
 			{ 2, 6 }, CreateAudioButton(
 						  "+ Channel 1 Volume",
 						  [this]() {
-							  app().audio.SetVolume(
+							  ctx().audio.SetVolume(
 								  "sound1", std::clamp(
-												app().audio.GetVolume("sound1") + volume_increment,
+												ctx().audio.GetVolume("sound1") + volume_increment,
 												kMinVolume, kMaxVolume
 											)
 							  );
@@ -217,9 +217,9 @@ public:
 			{ 2, 7 }, CreateAudioButton(
 						  "- Channel 1 Volume",
 						  [this]() {
-							  app().audio.SetVolume(
+							  ctx().audio.SetVolume(
 								  "sound1", std::clamp(
-												app().audio.GetVolume("sound1") - volume_increment,
+												ctx().audio.GetVolume("sound1") - volume_increment,
 												kMinVolume, kMaxVolume
 											)
 							  );
@@ -232,13 +232,13 @@ public:
 			{ 3, 0 },
 			CreateAudioButton(
 				"Play Channel 2",
-				[this]() { app().audio.Play("sound2", 1.0, 0, RandomNumber(0.1f, 2.0f)); },
+				[this]() { ctx().audio.Play("sound2", 1.0, 0, RandomNumber(0.1f, 2.0f)); },
 				sound2_color
 			)
 		);
 		grid.Set(
 			{ 3, 1 }, CreateAudioButton(
-						  "Stop Channel 2", [this]() { app().audio.Stop("sound2"); }, sound2_color
+						  "Stop Channel 2", [this]() { ctx().audio.Stop("sound2"); }, sound2_color
 					  )
 		);
 		grid.Set(
@@ -246,7 +246,7 @@ public:
 			CreateAudioButton(
 				"Fade In Sound 2 (3s)",
 				[this](
-				) { /* TODO: Fix: app().audio.FadeIn("sound2", milliseconds{ 3000 }, channel2);*/ },
+				) { /* TODO: Fix: ctx().audio.FadeIn("sound2", milliseconds{ 3000 }, channel2);*/ },
 				sound2_color
 			)
 		);
@@ -254,13 +254,13 @@ public:
 			{ 3, 3 },
 			CreateAudioButton(
 				"Fade Out Channel 2 (3s)",
-				[this]() { /* TODO: Fix: app().audio.FadeOut(milliseconds{ 3000 }, channel2);*/ },
+				[this]() { /* TODO: Fix: ctx().audio.FadeOut(milliseconds{ 3000 }, channel2);*/ },
 				sound2_color
 			)
 		);
 		grid.Set(
 			{ 3, 4 }, CreateAudioButton(
-						  "Toggle Channel 2 Pause", [this]() { app().audio.TogglePause("sound2"); },
+						  "Toggle Channel 2 Pause", [this]() { ctx().audio.TogglePause("sound2"); },
 						  sound2_color
 					  )
 		);
@@ -268,16 +268,16 @@ public:
 			{ 3, 5 },
 			CreateAudioButton(
 				"Toggle Sound 2 Mute",
-				[this]() { app().audio.ToggleVolume("sound2", starting_volume); }, sound2_color
+				[this]() { ctx().audio.ToggleVolume("sound2", starting_volume); }, sound2_color
 			)
 		);
 		grid.Set(
 			{ 3, 6 }, CreateAudioButton(
 						  "+ Channel 2 Volume",
 						  [this]() {
-							  app().audio.SetVolume(
+							  ctx().audio.SetVolume(
 								  "sound2", std::clamp(
-												app().audio.GetVolume("sound2") + volume_increment,
+												ctx().audio.GetVolume("sound2") + volume_increment,
 												kMinVolume, kMaxVolume
 											)
 							  );
@@ -289,9 +289,9 @@ public:
 			{ 3, 7 }, CreateAudioButton(
 						  "- Channel 2 Volume",
 						  [this]() {
-							  app().audio.SetVolume(
+							  ctx().audio.SetVolume(
 								  "sound2", std::clamp(
-												app().audio.GetVolume("sound2") - volume_increment,
+												ctx().audio.GetVolume("sound2") - volume_increment,
 												kMinVolume, kMaxVolume
 											)
 							  );
@@ -301,13 +301,13 @@ public:
 		);
 
 		V2_int offset{ 6, 6 };
-		V2_int size{ (app().renderer.GetGameSize() - offset * (grid.GetSize() + V2_int{ 1, 1 })) /
+		V2_int size{ (ctx().renderer.GetGameSize() - offset * (grid.GetSize() + V2_int{ 1, 1 })) /
 					 grid.GetSize() };
 
 		grid.ForEach([&, size, offset](auto coord, Button& b) {
 			if (b != Button{}) {
 				SetPosition(
-					b, -app().renderer.GetGameSize() * 0.5f + coord * (size + offset) + offset
+					b, -ctx().renderer.GetGameSize() * 0.5f + coord * (size + offset) + offset
 				);
 				SetDrawOrigin(b, Origin::TopLeft);
 				b.SetShape(size);
@@ -316,41 +316,41 @@ public:
 	}
 
 	void OnUpdate() override {
-		b1.SetTextContent(std::string("Music Volume: ") + std::to_string(app().audio.GetVolume()));
+		b1.SetTextContent(std::string("Music Volume: ") + std::to_string(ctx().audio.GetVolume()));
 		b2.SetTextContent(
-			std::string("Music Is Playing: ") + (app().audio.IsPlaying("music1") ? "true" : "false")
+			std::string("Music Is Playing: ") + (ctx().audio.IsPlaying("music1") ? "true" : "false")
 		);
 		b3.SetTextContent(
-			std::string("Music Is Paused: ") + (app().audio.IsPaused("music1") ? "true" : "false")
+			std::string("Music Is Paused: ") + (ctx().audio.IsPaused("music1") ? "true" : "false")
 		);
 		b4.SetTextContent(std::string("Music Is Fading: "
-		) /* TODO: Fix: + (app().audio.IsFading() ? "true" : "false")*/
+		) /* TODO: Fix: + (ctx().audio.IsFading() ? "true" : "false")*/
 		);
 		b5.SetTextContent(
-			std::string("Channel 1 Volume: ") + std::to_string(app().audio.GetVolume("sound1"))
+			std::string("Channel 1 Volume: ") + std::to_string(ctx().audio.GetVolume("sound1"))
 		);
 		b6.SetTextContent(
-			std::string("Channel 2 Volume: ") + std::to_string(app().audio.GetVolume("sound2"))
+			std::string("Channel 2 Volume: ") + std::to_string(ctx().audio.GetVolume("sound2"))
 		);
 		b7.SetTextContent(
 			std::string("Channel 1 Playing: ") +
-			(app().audio.IsPlaying("sound1") ? "true" : "false")
+			(ctx().audio.IsPlaying("sound1") ? "true" : "false")
 		);
 		b8.SetTextContent(
 			std::string("Channel 2 Playing: ") +
-			(app().audio.IsPlaying("sound2") ? "true" : "false")
+			(ctx().audio.IsPlaying("sound2") ? "true" : "false")
 		);
 		b9.SetTextContent(
-			std::string("Channel 1 Paused: ") + (app().audio.IsPaused("sound1") ? "true" : "false")
+			std::string("Channel 1 Paused: ") + (ctx().audio.IsPaused("sound1") ? "true" : "false")
 		);
 		b10.SetTextContent(
-			std::string("Channel 2 Paused: ") + (app().audio.IsPaused("sound2") ? "true" : "false")
+			std::string("Channel 2 Paused: ") + (ctx().audio.IsPaused("sound2") ? "true" : "false")
 		);
 		b11.SetTextContent(std::string("Channel 1 Fading: "
-		) /* TODO: Fix: + (app().audio.IsFading("sound1") ? "true" : "false")*/
+		) /* TODO: Fix: + (ctx().audio.IsFading("sound1") ? "true" : "false")*/
 		);
 		b12.SetTextContent(std::string("Channel 2 Fading: "
-		) /* TODO: Fix: + (app().audio.IsFading("sound2") ? "true" : "false")*/
+		) /* TODO: Fix: + (ctx().audio.IsFading("sound2") ? "true" : "false")*/
 		);
 	}
 };

@@ -18,6 +18,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -67,7 +68,7 @@ void SetWhirlpoolUniform(Entity entity, const Shader& shader) {
 	/*auto transform{ GetDrawTransform(entity) };
 	float radius{ radius * std::abs(transform.GetAverageScale()) };*/
 
-	float time{ app().TimeSinceStart().count() };
+	float time{ ctx().TimeSinceStart().count() };
 
 	const auto& info = entity.Get<WhirlpoolInfo>();
 
@@ -212,9 +213,9 @@ Entity TestAddBlur(Scene& s) {
 
 struct FollowMouseScript : public Script {
 	void OnUpdate() override {
-		SetPosition(entity, entity.GetScene().input.GetMousePosition());
+		SetPosition(entity, entity.GetScene().ctx().input.GetMousePosition());
 		float timescale{ 1000.0f };
-		auto time{ entity.GetScene().app().TimeSinceStart().count() / timescale };
+		auto time{ entity.GetScene().ctx().TimeSinceStart().count() / timescale };
 		V2_float size{ V2_float{ std::abs(std::sin(time) * 256), std::abs(std::sin(time) * 256) } +
 					   V2_float{ 256, 256 } };
 		SetDisplaySize(entity, size);
@@ -222,8 +223,8 @@ struct FollowMouseScript : public Script {
 };
 
 void GenerateTestCases() {
-	app().asset.Load("test", "assets/test1.jpg");
-	app().asset.Load("noise", "assets/noise.png");
+	ctx().asset.Load("test", "assets/test1.jpg");
+	ctx().asset.Load("noise", "assets/noise.png");
 
 	tests.emplace_back([](Scene& s) { auto sprite{ AddSprite(s, rect1_pos) }; });
 
@@ -663,8 +664,8 @@ struct RendererScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		CycleTest(input.KeyPressed(Key::Q), -1);
-		CycleTest(input.KeyPressed(Key::E), 1);
+		CycleTest(ctx().input.KeyPressed(Key::Q), -1);
+		CycleTest(ctx().input.KeyPressed(Key::E), 1);
 	}
 };
 

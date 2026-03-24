@@ -5,7 +5,6 @@
 #include <string_view>
 #include <utility>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/math/easing.h"
@@ -26,6 +25,7 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -135,7 +135,7 @@ Tooltip CreateTooltip(
 	std::optional<Texture> resolved_texture;
 
 	if (tooltip_properties.texture.has_value()) {
-		const auto& assets{ scene.app().asset };
+		const auto& assets{ scene.ctx().asset };
 		resolved_texture = tooltip_properties.texture->Get(assets);
 	}
 

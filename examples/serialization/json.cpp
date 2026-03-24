@@ -109,8 +109,8 @@ int main(int, char**) {
 	const auto test_manager_serialization = [](const std::string& manager_name,
 											   auto& resource_manager, const path& resource1_path,
 											   const path& resource2_path, bool is_music = false) {
-		app().asset.Load(manager_name + "1", resource1_path, is_music);
-		app().asset.Load(manager_name + "2", resource2_path, is_music);
+		ctx().asset.Load(manager_name + "1", resource1_path, is_music);
+		ctx().asset.Load(manager_name + "2", resource2_path, is_music);
 
 		PTGN_ASSERT(resource_manager.Has(manager_name + "1"));
 		PTGN_ASSERT(resource_manager.Has(manager_name + "2"));
@@ -164,7 +164,7 @@ int main(int, char**) {
 		JsonInputArchive json_input("assets/mydata.json");
 		MyData data4;
 
-		json_input.Read("data3", data4);
+		json_ctx().input.Read("data3", data4);
 
 		std::cout << "JSON: id=" << data4.id << ", message=\"" << data4.message
 				  << "\", value=" << data4.value << std::endl;

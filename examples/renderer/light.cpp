@@ -4,7 +4,6 @@
 #include <optional>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
@@ -16,6 +15,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -26,10 +26,10 @@ public:
 	Light mouse_directional_light;
 
 	void OnEnter() override {
-		app().renderer.SetBackgroundColor(color::White);
+		ctx().renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
 
-		app().asset.Load("tree", "assets/jpg.jpg");
+		ctx().asset.Load("tree", "assets/jpg.jpg");
 
 		auto sprite = CreateSprite(*this, "tree", { -200, -200 });
 		SetDrawOrigin(sprite, Origin::TopLeft);
@@ -45,7 +45,7 @@ public:
 		const auto create_light = [&](const Color& color) {
 			static float i = 1.0f;
 			CreateLight(
-				*this, V2_float{ -app().renderer.GetGameSize() * 0.5f } + V2_float{ i * step },
+				*this, V2_float{ -ctx().renderer.GetGameSize() * 0.5f } + V2_float{ i * step },
 				{ .radius = radius, .color = color, .intensity = intensity, .falloff = falloff }
 			);
 			i++;
@@ -80,13 +80,13 @@ public:
 	}
 
 	void OnUpdate() override {
-		SetPosition(mouse_light, input.GetMousePosition());
-		SetPosition(mouse_directional_light, input.GetMousePosition());
+		SetPosition(mouse_light, ctx().input.GetMousePosition());
+		SetPosition(mouse_directional_light, ctx().input.GetMousePosition());
 		float time_scale{ 0.1f };
-		auto time{ static_cast<float>(app().TimeSinceStart().count()) };
+		auto time{ static_cast<float>(ctx().TimeSinceStart().count()) };
 		SetRotation(mouse_directional_light, DegToRad(time * time_scale));
 
-		auto scroll{ input.GetMouseScroll() };
+		auto scroll{ ctx().input.GetMouseScroll() };
 
 		if (scroll > 0.0f) {
 			mouse_directional_light.SetConeAngle(*mouse_directional_light.GetConeAngle() + 5.0f);

@@ -5,6 +5,7 @@
 #include "runtime/animation/tween_effect.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -15,7 +16,7 @@ struct ShakeEffectScene : public Scene {
 	Sprite sprite3;
 
 	void OnEnter() override {
-		app().asset.Load("smile", "assets/smile.png");
+		ctx().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });
@@ -28,10 +29,10 @@ struct ShakeEffectScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		if (input.MousePressed(Mouse::Left)) {
+		if (ctx().input.MousePressed(Mouse::Left)) {
 			Shake(sprite3, 1.0f, {}, true);
 		}
-		if (input.MousePressed(Mouse::Right)) {
+		if (ctx().input.MousePressed(Mouse::Right)) {
 			StopShake(sprite3, true);
 		}
 	}

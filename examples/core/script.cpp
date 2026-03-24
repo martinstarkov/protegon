@@ -1,7 +1,6 @@
 #include "runtime/scripting/script.h"
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
@@ -12,6 +11,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/scripts.h"
 
 using namespace ptgn;
@@ -23,7 +23,7 @@ public:
 	static constexpr V2_float speed{ 10.0f };
 
 	void OnUpdate() override {
-		float dt{ entity.GetScene().app().DeltaTime().count() };
+		float dt{ entity.GetScene().ctx().dt().count() };
 		MoveWASD(entity.GetScene(), vel, speed * dt, true);
 		Translate(entity, vel);
 	}

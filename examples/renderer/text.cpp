@@ -4,7 +4,6 @@
 #include <string_view>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
@@ -14,6 +13,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 
@@ -34,10 +34,10 @@ struct TextScene : public Scene {
 	}
 
 	void OnEnter() override {
-		app().renderer.SetGameSize(game_size);
+		ctx().renderer.SetGameSize(game_size);
 		SetBackgroundColor(color::LightGray);
 
-		app().asset.Load(font, "assets/Arial.ttf");
+		ctx().asset.Load(font, "assets/Arial.ttf");
 
 		// Default font.
 		CreateText(color::Black, 0, {});

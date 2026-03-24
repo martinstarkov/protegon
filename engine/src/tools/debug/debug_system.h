@@ -23,16 +23,10 @@ namespace ptgn {
 
 class RenderContext;
 class Application;
+class SceneContext;
 
 class DebugContext {
 public:
-	DebugContext()									 = delete;
-	~DebugContext()									 = default;
-	DebugContext(const DebugContext&)				 = delete;
-	DebugContext& operator=(const DebugContext&)	 = delete;
-	DebugContext(DebugContext&&) noexcept			 = delete;
-	DebugContext& operator=(DebugContext&&) noexcept = delete;
-
 	/// @param text_size {} results in unscaled size of text based on font.
 	void DrawText(
 		std::string_view text_content, Transform transform, Color text_color,
@@ -63,11 +57,18 @@ public:
 
 private:
 	friend class Scene;
+	friend class SceneContext;
+
+	DebugContext() = delete;
+	explicit DebugContext(RenderContext& render_context);
+	~DebugContext()									 = default;
+	DebugContext(const DebugContext&)				 = delete;
+	DebugContext& operator=(const DebugContext&)	 = delete;
+	DebugContext(DebugContext&&) noexcept			 = delete;
+	DebugContext& operator=(DebugContext&&) noexcept = delete;
 
 	Depth debug_depth;
 	std::optional<BlendMode> debug_blend_mode;
-
-	explicit DebugContext(RenderContext& render_context);
 
 	RenderContext& render_context_;
 };

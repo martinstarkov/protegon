@@ -6,7 +6,6 @@
 #include <type_traits>
 #include <variant>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/util/hash.h"
 #include "renderer/primitives/shader.h"
@@ -15,6 +14,7 @@
 #include "runtime/audio/audio.h"
 #include "runtime/graphics/font.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
@@ -63,7 +63,7 @@ T AssetOrKey<T>::Get(const AssetManager& assets) const {
 
 template <AssetType T>
 T AssetOrKey<T>::Get(const Scene& scene) const {
-	const ApplicationContext& context{ scene.app() };
+	const SceneContext& context{ scene.ctx() };
 	return Get(context.asset);
 }
 

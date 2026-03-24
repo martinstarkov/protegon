@@ -10,6 +10,7 @@
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 
@@ -53,7 +54,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		if (input.KeyPressed(Key::I)) {
+		if (ctx().input.KeyPressed(Key::I)) {
 			PTGN_LOG("Entity Count: ", GetEntityCount());
 		}
 	}

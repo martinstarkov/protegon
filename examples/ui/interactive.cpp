@@ -6,7 +6,6 @@
 #include <utility>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/geometry/circle.h"
@@ -25,6 +24,7 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -154,14 +154,14 @@ struct InteractiveScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::DarkGray);
 
-		input.SetSettings({ .debug_draw_enabled = true, .debug_draw_line_width = 3.0f });
+		ctx().input.SetSettings({ .debug_draw_enabled = true, .debug_draw_line_width = 3.0f });
 
-		app().asset.LoadMany({ { "circle", "assets/circle.png" },
+		ctx().asset.LoadMany({ { "circle", "assets/circle.png" },
 							   { "drag", "assets/drag.png" },
 							   { "drag_circle", "assets/drag_circle.png" },
 							   { "dropzone", "assets/dropzone.png" } });
 
-		V2_float center{ GetTransform(camera).GetPosition() };
+		V2_float center{ GetTransform(ctx().camera).GetPosition() };
 
 		V2_float offset{ 250, 250 };
 		V2_float rsize{ 100, 50 };
@@ -190,7 +190,7 @@ struct InteractiveScene : public Scene {
 		auto r1_child = CreateInteractiveRect(rsize * 2);
 		AddInteractiveShape(r1, GameObject{ std::move(r1_child) });
 
-		app().asset.Load("box", "assets/box.png");
+		ctx().asset.Load("box", "assets/box.png");
 
 		auto r2		  = CreateSprite(*this, "box", center + V2_float{ -offset.x, 0.0f });
 		auto r2_child = CreateInteractiveRect(*GetDisplaySize(r2));
@@ -232,27 +232,27 @@ struct InteractiveScene : public Scene {
 	const float zoom_speed{ 0.4f };
 
 	void OnUpdate() override {
-		if (input.KeyPressed(Key::T)) {
-			bool desired{ !input.IsTopOnly() };
-			input.SetTopOnly(desired);
+		if (ctx().input.KeyPressed(Key::T)) {
+			bool desired{ !ctx().input.IsTopOnly() };
+			ctx().input.SetTopOnly(desired);
 			PTGN_LOG("Top only input: ", desired);
 		}
 
 		constexpr V2_float speed{ 300.0f };
-		float dt{ app().DeltaTime().count() };
-		MoveWASD(camera, speed * dt);
+		float dt{ ctx().dt().count() };
+		MoveWASD(ctx().camera, speed * dt);
 
-		if (input.KeyHeld(Key::Q)) {
-			Rotate(camera, rotation_speed * dt);
+		if (ctx().input.KeyHeld(Key::Q)) {
+			Rotate(ctx().camera, rotation_speed * dt);
 		}
-		if (input.KeyHeld(Key::E)) {
-			Rotate(camera, -rotation_speed * dt);
+		if (ctx().input.KeyHeld(Key::E)) {
+			Rotate(ctx().camera, -rotation_speed * dt);
 		}
-		if (input.KeyHeld(Key::Z)) {
-			camera.Zoom(zoom_speed * dt);
+		if (ctx().input.KeyHeld(Key::Z)) {
+			ctx().camera.Zoom(zoom_speed * dt);
 		}
-		if (input.KeyHeld(Key::C)) {
-			camera.Zoom(-zoom_speed * dt);
+		if (ctx().input.KeyHeld(Key::C)) {
+			ctx().camera.Zoom(-zoom_speed * dt);
 		}
 	}
 };

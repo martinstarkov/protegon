@@ -1,7 +1,6 @@
 #include "renderer/primitives/scaling_mode.h"
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/input/key.h"
@@ -13,6 +12,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -24,9 +24,9 @@ class ScalingModeScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
 
-		app().window.SetSize(window_size);
-		app().asset.Load("background", "assets/outlined.jpg");
-		app().renderer.SetGameSize(game_size, ScalingMode::Disabled);
+		ctx().window.SetSize(window_size);
+		ctx().asset.Load("background", "assets/outlined.jpg");
+		ctx().renderer.SetGameSize(game_size, ScalingMode::Disabled);
 
 		auto s1 = CreateSprite(*this, "background", {}, Origin::Center);
 		SetDisplaySize(s1, game_size);
@@ -49,20 +49,20 @@ class ScalingModeScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		if (input.KeyPressed(Key::Q)) {
-			app().renderer.SetScalingMode(ScalingMode::Disabled);
+		if (ctx().input.KeyPressed(Key::Q)) {
+			ctx().renderer.SetScalingMode(ScalingMode::Disabled);
 		}
-		if (input.KeyPressed(Key::W)) {
-			app().renderer.SetScalingMode(ScalingMode::Stretch);
+		if (ctx().input.KeyPressed(Key::W)) {
+			ctx().renderer.SetScalingMode(ScalingMode::Stretch);
 		}
-		if (input.KeyPressed(Key::E)) {
-			app().renderer.SetScalingMode(ScalingMode::Letterbox);
+		if (ctx().input.KeyPressed(Key::E)) {
+			ctx().renderer.SetScalingMode(ScalingMode::Letterbox);
 		}
-		if (input.KeyPressed(Key::R)) {
-			app().renderer.SetScalingMode(ScalingMode::IntegerScale);
+		if (ctx().input.KeyPressed(Key::R)) {
+			ctx().renderer.SetScalingMode(ScalingMode::IntegerScale);
 		}
-		if (input.KeyPressed(Key::T)) {
-			app().renderer.SetScalingMode(ScalingMode::Overscan);
+		if (ctx().input.KeyPressed(Key::T)) {
+			ctx().renderer.SetScalingMode(ScalingMode::Overscan);
 		}
 	}
 };

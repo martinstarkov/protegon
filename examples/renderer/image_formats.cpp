@@ -9,6 +9,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -19,7 +20,7 @@ class TextureFormatScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::Pink);
 
-		app().asset.LoadMany({ { "jpg", "assets/jpg.jpg" },
+		ctx().asset.LoadMany({ { "jpg", "assets/jpg.jpg" },
 							   { "jpg2", "assets/jpg2.jpg" },
 							   { "jpg3", "assets/jpg3.jpg" },
 							   { "bmp", "assets/bmp.bmp" },
@@ -36,7 +37,7 @@ class TextureFormatScene : public Scene {
 							   { "png10", "assets/png10.png" },
 							   { "png11", "assets/png11.png" } });
 
-		V2_float ws{ app().renderer.GetGameSize() };
+		V2_float ws{ ctx().renderer.GetGameSize() };
 
 		SetScale(
 			sprites.emplace_back(CreateSprite(*this, "jpg", -ws * 0.5f + V2_float{ 0, 0 })), 1.0f

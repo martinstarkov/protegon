@@ -1,7 +1,6 @@
 #include <vector>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/math/vector2.h"
 #include "platform/input/mouse.h"
 #include "renderer/primitives/color.h"
@@ -13,6 +12,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -43,7 +43,7 @@ struct FollowEffectScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::DarkGray);
 
-		app().asset.Load("smile", "assets/white_smile.png");
+		ctx().asset.Load("smile", "assets/white_smile.png");
 
 		mouse = Sprite{ CreateEntity() };
 		SetPosition(mouse, {});
@@ -74,7 +74,7 @@ struct FollowEffectScene : public Scene {
 		config5.stop_distance = 40.0f;
 		config5.move_mode	  = MoveMode::Velocity;
 
-		V2_float game_size{ app().renderer.GetGameSize() };
+		V2_float game_size{ ctx().renderer.GetGameSize() };
 		V2_float half{ game_size * 0.5f };
 		V2_float center{ 0, 0 };
 
@@ -107,10 +107,10 @@ struct FollowEffectScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		SetPosition(mouse, input.GetMousePosition());
-		if (input.MousePressed(Mouse::Left)) {
+		SetPosition(mouse, ctx().input.GetMousePosition());
+		if (ctx().input.MousePressed(Mouse::Left)) {
 			Stop();
-		} else if (input.MousePressed(Mouse::Right)) {
+		} else if (ctx().input.MousePressed(Mouse::Right)) {
 			Start();
 		}
 	}

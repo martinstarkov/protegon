@@ -3,13 +3,13 @@
 #include <string>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/assert.h"
 #include "renderer/primitives/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/ui/menu_template.h"
 
@@ -41,14 +41,14 @@ public:
 class SceneTemplateExample : public Scene {
 public:
 	void OnEnter() {
-		app().asset.LoadMany({ { "bg1", "assets/scene1.png" },
+		ctx().asset.LoadMany({ { "bg1", "assets/scene1.png" },
 							   { "bg2", "assets/scene2.png" },
 							   { "bg3", "assets/scene3.png" } });
 
-		SceneAction::Register(*this, "load_level_1", [ctx = GetContext()]() mutable {
+		SceneAction::Register(*this, "load_level_1", [ctx = ctx()]() mutable {
 			ctx->scene.SwitchTo<GameScene>("game_scene", {}, 1);
 		});
-		SceneAction::Register(*this, "load_level_2", [ctx = GetContext()]() mutable {
+		SceneAction::Register(*this, "load_level_2", [ctx = ctx()]() mutable {
 			ctx->scene.SwitchTo<GameScene>("game_scene", {}, 2);
 		});
 

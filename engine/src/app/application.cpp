@@ -14,17 +14,19 @@
 #include <memory>
 #include <string>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/config.h"
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/log.h"
+#include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "platform/input/events.h"
 #include "platform/input/input_handler.h"
 #include "platform/window/window.h"
 #include "renderer/renderer.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/audio/audio_system.h"
 #include "runtime/event/event_handler.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
@@ -50,9 +52,6 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "CoreFoundation/CoreFoundation.h"
 
 #endif
-#include "core/math/vector2.h"
-#include "runtime/asset/asset_manager.h"
-#include "runtime/audio/audio_system.h"
 
 namespace ptgn {
 
@@ -183,14 +182,10 @@ Application::Application(const ApplicationConfig& config) :
 	events_{ scenes_ },
 	scenes_{},
 	input_{ window_ },
-	assets_{},
+	assets_{ renderer_, audio_ },
 	font_{ assets_ },
 	audio_{ assets_ },
-	debug_{},
-	ctx_{ std::make_shared<ApplicationContext>(*this) } {
-	scenes_.Init(ctx_);
-	assets_.Init(ctx_);
-}
+	debug_{} {}
 
 Application::Application(const std::string& title) :
 	Application{ ApplicationConfig{ .window = { .title = title } } } {}
@@ -200,13 +195,6 @@ Application::Application(const std::string& title, V2_int window_size) :
 
 Application::~Application() noexcept {
 	// Requires access to destructors.
-}
-
-milliseconds Application::TimeSinceStart() const {
-	return milliseconds{ static_cast<milliseconds::rep>(SDL_GetTicks()) };
-	// return std::chrono::duration_cast<milliseconds>(
-	//	std::chrono::steady_clock::now().time_since_epoch()
-	//);
 }
 
 void Application::EnterMainLoop() {
@@ -262,7 +250,7 @@ void Application::Update() {
 	});
 
 	renderer_.BeginFrame();
-	scenes_.Update(dt_, true);
+	scenes_.Update();
 
 	audio_.Update();
 
@@ -275,6 +263,29 @@ void Application::Update() {
 	end = std::chrono::system_clock::now();
 
 	frame_count_++;
+}
+
+milliseconds Application::TimeSinceStart() const {
+	return milliseconds{ static_cast<milliseconds::rep>(SDL_GetTicks()) };
+	// return std::chrono::duration_cast<milliseconds>(
+	//	std::chrono::steady_clock::now().time_since_epoch()
+	//);
+}
+
+void Application::Stop() {
+	running_ = false;
+}
+
+secondsf Application::dt() const {
+	return dt_;
+}
+
+bool Application::IsRunning() const {
+	return running_;
+}
+
+std::size_t Application::GetFrameCount() const {
+	return frame_count_;
 }
 
 } // namespace ptgn

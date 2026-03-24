@@ -29,6 +29,7 @@
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_target.h"
+#include "renderer/primitives/scaling_mode.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/viewport.h"
@@ -43,6 +44,7 @@
 namespace ptgn {
 
 class Scene;
+class SceneContext;
 class Renderer;
 class RenderContext;
 class DebugContext;
@@ -230,12 +232,29 @@ private:
 
 class RenderContext {
 public:
-	RenderContext()									   = default;
-	~RenderContext() noexcept						   = default;
-	RenderContext(const RenderContext&)				   = delete;
-	RenderContext(RenderContext&&) noexcept			   = delete;
-	RenderContext& operator=(const RenderContext&)	   = delete;
-	RenderContext& operator=(RenderContext&&) noexcept = delete;
+	/// @param game_size Setting to {} will use dynamic window size.
+	void SetGameSize(
+		std::optional<V2_int> game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
+	);
+
+	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
+
+	/// @return The display size of the renderer.
+	V2_int GetDisplaySize() const;
+
+	Viewport GetDisplayViewport() const;
+
+	/// @return The amount by which game size is scaled to achieve the display size.
+	V2_float GetScale() const;
+
+	/// @return The game size of the renderer. Returns window size if unset.
+	V2_int GetGameSize() const;
+
+	/// @return The game size scaling mode.
+	ScalingMode GetScalingMode() const;
+
+	void SetBackgroundColor(Color background_color);
+	Color GetBackgroundColor() const;
 
 	void DrawTexture(
 		TextureOrKey texture, Transform transform, std::optional<V2_float> size = {},
@@ -353,7 +372,16 @@ public:
 
 private:
 	friend class Scene;
+	friend class SceneContext;
 	friend class DebugContext;
+
+	RenderContext() = default;
+	RenderContext(Scene& scene, Renderer& renderer);
+	~RenderContext() noexcept						   = default;
+	RenderContext(const RenderContext&)				   = delete;
+	RenderContext(RenderContext&&) noexcept			   = delete;
+	RenderContext& operator=(const RenderContext&)	   = delete;
+	RenderContext& operator=(RenderContext&&) noexcept = delete;
 
 	void DrawTexture(
 		impl::TextureId texture, V2_int texture_size, impl::ShaderId shader, Transform transform,
@@ -381,10 +409,8 @@ private:
 		const std::optional<Camera>& camera
 	);
 
-	void Init(Scene& scene, Renderer& renderer);
-
-	Scene* scene_{ nullptr };
-	Renderer* renderer_{ nullptr };
+	Scene& scene_;
+	Renderer& renderer_;
 
 	std::vector<std::pair<Camera, std::vector<impl::DrawCommand>>> draw_commands_;
 	std::vector<std::pair<Camera, std::vector<impl::ManualDrawCommand>>> debug_commands_;

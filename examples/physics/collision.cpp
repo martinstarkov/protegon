@@ -206,10 +206,10 @@ public:
 	}
 
 	void OnUpdate() override {
-		if (input.KeyDown(Key::E)) {
+		if (ctx().input.KeyDown(Key::E)) {
 			move_entity++;
 		}
-		if (input.KeyDown(Key::Q)) {
+		if (ctx().input.KeyDown(Key::Q)) {
 			move_entity--;
 		}
 		move_entity = Mod(move_entity, move_entities);
@@ -232,7 +232,7 @@ public:
 
 		PTGN_ASSERT(vel != nullptr);
 
-		MoveWASD(*this, *vel, speed * physics.DeltaTime());
+		MoveWASD(*this, *vel, speed * ctx().physics.dt());
 	}
 
 	void Draw() override {
@@ -240,13 +240,13 @@ public:
 		for (auto [e, collider] : game.scene.Get("").EntitiesWith<Collider>()) {
 			auto transform{ GetAbsoluteTransform(e) };
 			if (collider.mode == CollisionMode::Discrete) {
-				game.debug.DrawText("Intersect", transform.GetPosition(), text_color);
+				game.ctx().debug.DrawText("Intersect", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::Overlap) {
-				game.debug.DrawText("Overlap", transform.GetPosition(), text_color);
+				game.ctx().debug.DrawText("Overlap", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::Continuous) {
-				game.debug.DrawText("Sweep", transform.GetPosition(), text_color);
+				game.ctx().debug.DrawText("Sweep", transform.GetPosition(), text_color);
 			} else if (collider.mode == CollisionMode::None) {
-				game.debug.DrawText("None", transform.GetPosition(), text_color);
+				game.ctx().debug.DrawText("None", transform.GetPosition(), text_color);
 			}
 		}
 	}
@@ -277,10 +277,10 @@ public:
 	void OnUpdate() override {
 		MoveWASD(
 			entity.Get<RigidBody>().velocity,
-			speed * game.scene.Get("").physics.dt()
+			speed * game.scene.Get("").ctx().physics.dt()
 		);
 
-		if (input.KeyDown(Key::R)) {
+		if (ctx().input.KeyDown(Key::R)) {
 			Enter();
 		}
 	}
@@ -341,11 +341,11 @@ public:
 	}
 
 	void OnUpdate() override {
-		if (input.MousePressed(Mouse::Left)) {
-			p1 = V2_int{ input.GetMousePosition() };
+		if (ctx().input.MousePressed(Mouse::Left)) {
+			p1 = V2_int{ ctx().input.GetMousePosition() };
 		}
-		if (input.MousePressed(Mouse::Right)) {
-			p0 = V2_int{ input.GetMousePosition() };
+		if (ctx().input.MousePressed(Mouse::Right)) {
+			p0 = V2_int{ ctx().input.GetMousePosition() };
 		}
 	}
 
@@ -364,7 +364,7 @@ class PointOverlapTest : public ShapeCollisionTest {
 public:
 	void OnUpdate() override {
 		DrawGrid();
-		p1 = V2_int{ input.GetMousePosition() };
+		p1 = V2_int{ ctx().input.GetMousePosition() };
 
 		V2_float c0{ p1 };
 		c0.Draw(color::Green, 1.0f);
@@ -444,7 +444,7 @@ class CircleOverlapTest : public ShapeCollisionTest {
 public:
 	void OnUpdate() override {
 		DrawGrid();
-		p1 = V2_int{ input.GetMousePosition() };
+		p1 = V2_int{ ctx().input.GetMousePosition() };
 
 		Circle c0{ p1, circle_radius };
 		c0.Draw(color::Green, -1.0f);
@@ -484,7 +484,7 @@ class RectOverlapTest : public ShapeCollisionTest {
 public:
 	void OnUpdate() override {
 		DrawGrid();
-		p1 = V2_int{ input.GetMousePosition() };
+		p1 = V2_int{ ctx().input.GetMousePosition() };
 
 		Rect c0{ p1, rect_size, Origin::Center, 0.0f };
 		c0.Draw(color::Green, -1.0f);
@@ -624,32 +624,32 @@ public:
 	void OnEnter() override {}
 
 	void OnUpdate() override {
-		auto mouse = input.GetMousePosition();
+		auto mouse = ctx().input.GetMousePosition();
 
-		if (input.KeyDown(Key::T)) {
+		if (ctx().input.KeyDown(Key::T)) {
 			option++;
 			option = option++ % options;
 		}
 
-		if (input.KeyDown(Key::G)) {
+		if (ctx().input.KeyDown(Key::G)) {
 			type++;
 			type = type++ % types;
 		}
 
-		if (input.KeyDown(Key::R)) {
+		if (ctx().input.KeyDown(Key::R)) {
 			position4 = mouse;
 		}
 
-		if (input.KeyPressed(Key::Q)) {
+		if (ctx().input.KeyPressed(Key::Q)) {
 			rot_1 -= rot_speed * game.dt();
 		}
-		if (input.KeyPressed(Key::E)) {
+		if (ctx().input.KeyPressed(Key::E)) {
 			rot_1 += rot_speed * game.dt();
 		}
-		if (input.KeyPressed(Key::Z)) {
+		if (ctx().input.KeyPressed(Key::Z)) {
 			rot_2 -= rot_speed * game.dt();
 		}
-		if (input.KeyPressed(Key::C)) {
+		if (ctx().input.KeyPressed(Key::C)) {
 			rot_2 += rot_speed * game.dt();
 		}
 
@@ -1333,24 +1333,24 @@ struct SweepTest : public CollisionTest {
 			);
 		}
 
-		if (!fixed_velocity.IsZero() && !input.KeyPressed(Key::A) &&
-			!input.KeyPressed(Key::D) && !input.KeyPressed(Key::S) &&
-			!input.KeyPressed(Key::W)) {
+		if (!fixed_velocity.IsZero() && !ctx().input.KeyPressed(Key::A) &&
+			!ctx().input.KeyPressed(Key::D) && !ctx().input.KeyPressed(Key::S) &&
+			!ctx().input.KeyPressed(Key::W)) {
 			rb.velocity = fixed_velocity;
 		} else {
 			rb.velocity = {};
 		}
 
-		if (input.KeyPressed(Key::A)) {
+		if (ctx().input.KeyPressed(Key::A)) {
 			rb.velocity.x = -player_velocity.x;
 		}
-		if (input.KeyPressed(Key::D)) {
+		if (ctx().input.KeyPressed(Key::D)) {
 			rb.velocity.x = player_velocity.x;
 		}
-		if (input.KeyPressed(Key::W)) {
+		if (ctx().input.KeyPressed(Key::W)) {
 			rb.velocity.y = -player_velocity.y;
 		}
-		if (input.KeyPressed(Key::S)) {
+		if (ctx().input.KeyPressed(Key::S)) {
 			rb.velocity.y = player_velocity.y;
 		}
 
@@ -1367,7 +1367,7 @@ struct SweepTest : public CollisionTest {
 			game.collision.Intersect(player, collider, boxes, circles);
 		}
 
-		if (input.KeyDown(Key::Space)) {
+		if (ctx().input.KeyDown(Key::Space)) {
 			transform.position += rb.velocity * game.dt();
 		}
 
@@ -1386,7 +1386,7 @@ struct SweepTest : public CollisionTest {
 			return true;
 		};
 
-		if (input.KeyPressed(Key::R)) {
+		if (ctx().input.KeyPressed(Key::R)) {
 			transform.position = {};
 			rb.velocity		   = {};
 		}
@@ -1556,7 +1556,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	}
 
 	void OnUpdate() override {
-		bool space_down = input.KeyDown(Key::Space);
+		bool space_down = ctx().input.KeyDown(Key::Space);
 		for (auto [e, rb, id] : manager.EntitiesWith<RigidBody, Id>()) {
 			PTGN_ASSERT(id < entity_data.size());
 			rb.velocity = entity_data[id].velocity;
@@ -1764,12 +1764,12 @@ public:
 	}
 
 	void OnUpdate() override {
-		if (input.KeyDown(Key::Left)) {
+		if (ctx().input.KeyDown(Key::Left)) {
 			tests[static_cast<std::size_t>(current_test)]->Exit();
 			current_test--;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));
 			tests[static_cast<std::size_t>(current_test)]->Enter();
-		} else if (input.KeyDown(Key::Right)) {
+		} else if (ctx().input.KeyDown(Key::Right)) {
 			tests[static_cast<std::size_t>(current_test)]->Exit();
 			current_test++;
 			current_test = Mod(current_test, static_cast<int>(tests.size()));

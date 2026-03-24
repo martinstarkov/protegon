@@ -6,7 +6,6 @@
 #include <string_view>
 #include <vector>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/geometry/arc.h"
@@ -33,6 +32,7 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -155,7 +155,7 @@ void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
 		entity.Add<impl::Visible>();
 		if (emit_visibility_event && entity.HasScene()) {
 			EntityShow show;
-			entity.GetScene().app().event.Emit(show);
+			entity.GetScene().ctx().event.Emit(show);
 		}
 	} else {
 		if (!entity.Has<impl::Visible>()) {
@@ -164,7 +164,7 @@ void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
 		entity.Remove<impl::Visible>();
 		if (emit_visibility_event && entity.HasScene()) {
 			EntityHide hide;
-			entity.GetScene().app().event.Emit(hide);
+			entity.GetScene().ctx().event.Emit(hide);
 		}
 	}
 }

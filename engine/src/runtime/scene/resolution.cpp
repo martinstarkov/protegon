@@ -1,29 +1,27 @@
 #include "runtime/scene/resolution.h"
 
-#include <functional>
-#include <memory>
 #include <utility>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/viewport.h"
-#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target_component.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
 FrameContext::FrameContext(const Scene& scene) :
-	FrameContext{ *scene.ctx_, scene.render_target_, scene.camera } {}
+	FrameContext{ scene.ctx().renderer, scene.render_target_, scene.ctx().camera } {}
 
 FrameContext::FrameContext(
-	const ApplicationContext& app, RenderTarget render_target_entity, Camera camera_entity
+	const RenderContext& renderer, RenderTarget render_target_entity, Camera camera_entity
 ) :
-	display{ app.renderer.GetDisplayViewport().position },
+	display{ renderer.GetDisplayViewport().position },
 	render_target{ GetTransform(render_target_entity) },
 	camera{ camera_entity.GetViewport(), render_target_entity.GetSize(),
 			render_target_entity.GetScale() },

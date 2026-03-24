@@ -2,13 +2,11 @@
 
 #include <algorithm>
 #include <chrono>
-#include <memory>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/geometry/circle.h"
@@ -31,6 +29,7 @@
 #include "runtime/physics/broadphase.h"
 #include "runtime/scene/resolution.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/scripts.h"
 #include "runtime/ui/interactive.h"
 #include "tools/debug/debug_system.h"
@@ -80,9 +79,21 @@ static void GetShapes(
 	}
 }
 
-Transform SceneInput::GetWorldOffsetTransform(
-	const Shape& shape, Entity shape_entity, Entity parent
-) {
+namespace impl {
+
+MouseInfo::MouseInfo(const SceneInput& input) :
+	position{ input.GetMousePosition(Frame::Window) },
+	scroll_delta{ input.GetMouseScroll() },
+	left_held{ input.MouseHeld(Mouse::Left) },
+	left_pressed{ input.MousePressed(Mouse::Left) },
+	left_released{ input.MouseReleased(Mouse::Left) } {}
+
+} // namespace impl
+
+SceneInput::SceneInput(Scene& scene, const InputHandler& input) :
+	scene_{ scene }, input_{ input } {}
+
+Transform SceneInput::GetWorldOffsetTransform(const Shape& shape, Entity shape_entity) {
 	auto transform{ GetWorldTransform(shape_entity) };
 
 	transform = OffsetByOrigin(shape, transform, shape_entity);
@@ -97,7 +108,7 @@ bool SceneInput::Overlap(V2_float point, Entity entity) {
 	PTGN_ASSERT(!shapes.empty(), "Cannot check for overlap with an interactive that has no shape");
 
 	for (const auto& [shape, e] : shapes) {
-		auto transform{ GetWorldOffsetTransform(shape, e, entity) };
+		auto transform{ GetWorldOffsetTransform(shape, e) };
 		if (ptgn::Overlap(point, transform, shape)) {
 			return true;
 		}
@@ -119,9 +130,9 @@ bool SceneInput::Overlap(Entity entityA, Entity entityB) {
 	);
 
 	for (const auto& [shapeA, eA] : shapesA) {
-		auto transformA{ GetWorldOffsetTransform(shapeA, eA, entityA) };
+		auto transformA{ GetWorldOffsetTransform(shapeA, eA) };
 		for (const auto& [shapeB, eB] : shapesB) {
-			auto transformB{ GetWorldOffsetTransform(shapeB, eB, entityB) };
+			auto transformB{ GetWorldOffsetTransform(shapeB, eB) };
 			if (ptgn::Overlap(transformA, shapeA, transformB, shapeB)) {
 				return true;
 			}
@@ -130,19 +141,6 @@ bool SceneInput::Overlap(Entity entityA, Entity entityB) {
 
 	return false;
 }
-
-namespace impl {
-
-MouseInfo::MouseInfo(const Scene& scene) :
-	position{ scene.input.GetMousePosition(Frame::Window) },
-	scroll_delta{ scene.input.GetMouseScroll() },
-	left_held{ scene.input.MouseHeld(Mouse::Left) },
-	left_pressed{ scene.input.MousePressed(Mouse::Left) },
-	left_released{ scene.input.MouseReleased(Mouse::Left) } {}
-
-} // namespace impl
-
-SceneInput::SceneInput(Scene& scene) : scene_{ scene } {}
 
 bool SceneInput::IsAnyDragging(Camera camera) const {
 	auto it{ dragging_entities_.find(camera) };
@@ -168,10 +166,10 @@ void SceneInput::SetSettings(const SceneInputSettings& settings) {
 
 V2_float SceneInput::GetMousePosition(Frame position_frame_of_reference, bool clamp_to_viewport)
 	const {
-	auto position{ ctx_->input.GetMousePosition() };
+	auto position{ input_.GetMousePosition() };
 
 	if (!clamp_to_viewport) {
-		position = ctx_->input.GetMouseScreenPosition();
+		position = input_.GetMouseScreenPosition();
 	}
 
 	return GetMousePositionRelativeTo(position, position_frame_of_reference, clamp_to_viewport);
@@ -181,7 +179,7 @@ V2_float SceneInput::GetPreviousMousePosition(
 	Frame position_frame_of_reference, bool clamp_to_viewport
 ) const {
 	return GetMousePositionRelativeTo(
-		ctx_->input.GetPreviousMousePosition(), position_frame_of_reference, clamp_to_viewport
+		input_.GetPreviousMousePosition(), position_frame_of_reference, clamp_to_viewport
 	);
 }
 
@@ -191,52 +189,47 @@ V2_float SceneInput::GetMouseDelta(Frame delta_frame_of_reference, bool clamp_to
 }
 
 float SceneInput::GetMouseScroll() const {
-	return ctx_->input.GetMouseScroll();
+	return input_.GetMouseScroll();
 }
 
 bool SceneInput::MousePressed(Mouse button) const {
-	return ctx_->input.MousePressed(button);
+	return input_.MousePressed(button);
 }
 
 bool SceneInput::MouseReleased(Mouse button) const {
-	return ctx_->input.MouseReleased(button);
+	return input_.MouseReleased(button);
 }
 
 bool SceneInput::MouseHeld(Mouse button) const {
-	return ctx_->input.MouseHeld(button);
+	return input_.MouseHeld(button);
 }
 
 bool SceneInput::MouseHeld(Mouse button, milliseconds time) const {
-	return ctx_->input.MouseHeld(button, time);
+	return input_.MouseHeld(button, time);
 }
 
 milliseconds SceneInput::GetMouseHeldTime(Mouse button) const {
-	return ctx_->input.GetMouseHeldTime(button);
+	return input_.GetMouseHeldTime(button);
 }
 
 bool SceneInput::KeyPressed(Key key) const {
-	return ctx_->input.KeyPressed(key);
+	return input_.KeyPressed(key);
 }
 
 bool SceneInput::KeyReleased(Key key) const {
-	return ctx_->input.KeyReleased(key);
+	return input_.KeyReleased(key);
 }
 
 bool SceneInput::KeyHeld(Key key) const {
-	return ctx_->input.KeyHeld(key);
+	return input_.KeyHeld(key);
 }
 
 milliseconds SceneInput::GetKeyHeldTime(Key key) const {
-	return ctx_->input.GetKeyHeldTime(key);
-}
-
-// TODO: Get rid of ctx and pass in ptr to input instead.
-void SceneInput::Init(const std::shared_ptr<ApplicationContext>& ctx) {
-	ctx_ = ctx;
+	return input_.GetKeyHeldTime(key);
 }
 
 V2_float SceneInput::GetMousePositionRelativeTo(
-	V2_float position, Frame position_frame_of_reference, bool clamp_to_viewport
+	V2_float position, Frame position_frame_of_reference
 ) const {
 	return ConvertPoint(
 		position, Frame::Window, position_frame_of_reference, FrameContext{ scene_ }
@@ -266,12 +259,12 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 		entity_shapes.try_emplace(entity, shapes);
 
 		for (const auto& [shape, shape_entity] : shapes) {
-			auto transform{ GetWorldOffsetTransform(shape, shape_entity, entity) };
+			auto transform{ GetWorldOffsetTransform(shape, shape_entity) };
 
 			if (settings_.debug_draw_enabled) {
 				auto draw_transform{ GetDrawTransform(shape_entity) };
 
-				scene_.debug.DrawShape(
+				scene_.ctx().debug.DrawShape(
 					shape, draw_transform, settings_.debug_draw_color,
 					settings_.debug_draw_line_width, GetDrawOrigin(shape_entity), camera
 				);
@@ -303,7 +296,7 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 				continue;
 			}
 
-			auto transform{ GetWorldOffsetTransform(shape, shape_entity, entity) };
+			auto transform{ GetWorldOffsetTransform(shape, shape_entity) };
 
 			if (ptgn::Overlap(mouse_state.position, transform, shape)) {
 				PTGN_ASSERT(
@@ -787,9 +780,8 @@ void SceneInput::DispatchMouseEvents(
 	}
 }
 
-// TODO: Pass in renderer here.
 void SceneInput::Update() {
-	secondsf dt{ scene_.app().DeltaTime() };
+	secondsf dt{ scene_.ctx().dt() };
 
 	for (auto [entity, lock] : scene_.EntitiesWith<InteractionLock>()) {
 		lock.remaining_time -= dt;
@@ -799,7 +791,7 @@ void SceneInput::Update() {
 		}
 	}
 
-	const impl::MouseInfo mouse_state{ scene_ };
+	const impl::MouseInfo mouse_state{ *this };
 
 	std::vector<Entity> cameras;
 
@@ -828,11 +820,11 @@ void SceneInput::Update() {
 
 		mouse.position = ConvertPoint(
 			mouse.position, Frame::Window, Frame::Camera,
-			FrameContext{ *ctx_, render_target, camera }
+			FrameContext{ scene_.ctx().renderer, render_target, camera }
 		);
 
 		if (settings_.debug_draw_enabled) {
-			scene_.debug.DrawPoint(mouse.position, settings_.debug_draw_color, camera);
+			scene_.ctx().debug.DrawPoint(mouse.position, settings_.debug_draw_color, camera);
 		}
 
 		std::vector<Entity> camera_entities;

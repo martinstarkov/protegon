@@ -8,7 +8,6 @@
 #include <variant>
 #include <vector>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/math/geometry/origin.h"
@@ -38,6 +37,7 @@
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/physics.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/scripts.h"
 #include "serialization/json/json.h"
@@ -45,30 +45,18 @@
 
 namespace ptgn {
 
-SceneEventHandler::SceneEventHandler(Scene& scene) : scene_{ scene } {}
-
-void SceneEventHandler::Emit(EventDispatcher d) {
-	scene_.InternalEmit(d);
-}
-
-Scene::Scene() : event{ *this }, input{ *this }, debug{ renderer }, physics{ *this } {}
+Scene::Scene() {}
 
 Scene::~Scene() {}
 
-void Scene::Init(const std::shared_ptr<ApplicationContext>& ctx) {
-	ctx_ = ctx;
-
-	input.Init(ctx_);
-	renderer.Init(*this, ctx_->renderer);
+void Scene::Init(Application& app) {
+	ctx_ = std::make_unique<SceneContext>(app);
 
 	render_target_ = CreateRenderTarget(
 		*this, ResizeMode::DisplaySize, color::Transparent, TextureFormat::RGBA8
 	);
 	render_target_.Remove<impl::IDrawable>();
-	camera		 = CreateCamera(*this);
-	fixed_camera = CreateCamera(*this);
-	fixed_camera.SetMasks(kLayersNone, kLayersAll);
-	SetUI(fixed_camera, true);
+
 	// PTGN_LOG("[scene=", this, "]");
 	// PTGN_LOG("[rt=", render_target_, "]");
 	// PTGN_LOG("[camera=", camera, "]");
@@ -121,8 +109,7 @@ static void InvokeDrawable(DrawContext& draw_context, Entity entity, Camera came
 }
 
 void Scene::InternalDraw() {
-	auto& global_renderer{ app().renderer };
-	auto game_size{ global_renderer.GetGameSize() };
+	auto game_size{ ctx().renderer.GetGameSize() };
 
 	for (auto [c, _camera] : EntitiesWith<impl::CameraData>()) {
 		Camera cam{ c };
@@ -131,7 +118,7 @@ void Scene::InternalDraw() {
 		for (auto entity : Entities()) {
 			bool visible{ entity.Has<impl::Visible, impl::IDrawable>() };
 
-			if (!collision.settings_.debug_draw_enabled && !visible) {
+			if (!ctx().collision.settings_.debug_draw_enabled && !visible) {
 				continue;
 			}
 
@@ -146,17 +133,17 @@ void Scene::InternalDraw() {
 			}*/
 
 			if (visible) {
-				auto& draw_commands{ renderer.GetDrawCommandsForCamera(cam) };
+				auto& draw_commands{ ctx().renderer.GetDrawCommandsForCamera(cam) };
 				draw_commands.emplace_back(entity, GetDepth(entity));
 			}
 
-			if (collision.settings_.debug_draw_enabled && entity.Has<Collider>()) {
+			if (ctx().collision.settings_.debug_draw_enabled && entity.Has<Collider>()) {
 				const auto& collider{ entity.Get<Collider>() };
 				auto transform{ GetDrawTransform(entity) };
 				auto draw_origin{ GetDrawOrigin(entity) };
-				debug.DrawShape(
-					collider.shape, transform, collision.settings_.debug_draw_color,
-					collision.settings_.debug_draw_fill_style, draw_origin, cam
+				ctx().debug.DrawShape(
+					collider.shape, transform, ctx().collision.settings_.debug_draw_color,
+					ctx().collision.settings_.debug_draw_fill_style, draw_origin, cam
 				);
 			}
 		}
@@ -164,7 +151,7 @@ void Scene::InternalDraw() {
 
 	impl::EntityDepthCompare compare{ true };
 
-	DrawContext draw_context{ global_renderer };
+	DrawContext draw_context{ ctx().global_renderer_ };
 
 	std::vector<Camera> cleared_cameras;
 	std::vector<RenderTarget> cleared_render_targets;
@@ -224,7 +211,7 @@ void Scene::InternalDraw() {
 	};
 
 	draw_commands(
-		renderer.draw_commands_,
+		ctx().renderer.draw_commands_,
 		[](auto& cmds) {
 			std::ranges::stable_sort(
 				cmds,
@@ -261,7 +248,7 @@ void Scene::InternalDraw() {
 	);
 
 	draw_commands(
-		renderer.debug_commands_,
+		ctx().renderer.debug_commands_,
 		[](auto&) {
 			/* No-op, debug commands are not sorted by depth */
 		},
@@ -272,9 +259,9 @@ void Scene::InternalDraw() {
 		}
 	);
 
-	global_renderer.FlushBatch();
+	ctx().global_renderer_.FlushBatch();
 
-	Viewport viewport{ {}, global_renderer.GetDisplayViewport().size };
+	Viewport viewport{ {}, ctx().renderer.GetDisplayViewport().size };
 	V2_float half_viewport{ viewport.size * 0.5f };
 
 	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
@@ -291,20 +278,20 @@ void Scene::InternalDraw() {
 	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 	auto rt_tint{ GetTint(render_target_) };
 
-	auto quad_shader{ global_renderer.GetShader("quad") };
+	auto quad_shader{ ctx().global_renderer_.GetShader("quad") };
 
-	auto render_target_texture{ global_renderer.GetRenderTargetTexture(render_target_) };
+	auto render_target_texture{ ctx().global_renderer_.GetRenderTargetTexture(render_target_) };
 
-	global_renderer.DrawTexture(
+	ctx().global_renderer_.DrawTexture(
 		quad_shader, render_target_texture, positions, rt_tint, 0.0f, tex_coords, {}
 	);
 
 	// Must be cleared after BindScreenTarget, as that flushes the batch.
-	renderer.temporary_textures_.clear();
+	ctx().renderer.temporary_textures_.clear();
 }
 
 void Scene::InternalUpdate() {
-	input.Update();
+	ctx().input.Update();
 
 	Refresh();
 
@@ -316,12 +303,12 @@ void Scene::InternalUpdate() {
 	Refresh();
 
 	ParticleEmitter::Update(*this);
-	Tween::Update(*this, app().DeltaTime());
+	Tween::Update(*this, ctx().dt());
 	impl::AnimationSystem::Update(*this);
 	Lifetime::Update(*this);
-	physics.PreCollisionUpdate();
-	collision.Update(*this);
-	physics.PostCollisionUpdate();
+	ctx().physics.PreCollisionUpdate();
+	ctx().collision.Update(*this);
+	ctx().physics.PostCollisionUpdate();
 }
 
 void Scene::InternalExit() {
@@ -330,7 +317,7 @@ void Scene::InternalExit() {
 	Refresh();
 	// Clears component hooks.
 	manager_.Reset();
-	physics.Reset();
+	ctx().physics.Reset();
 	Refresh();
 }
 
@@ -411,16 +398,14 @@ void from_json(const json& j, Scene& scene) {
 	// j.at("input").get_to(scene.input);
 }
 
-const std::shared_ptr<ApplicationContext>& Scene::GetContext() const {
-	return ctx_;
+SceneContext& Scene::ctx() {
+	PTGN_ASSERT(ctx_ != nullptr, "Scene context has not been set yet");
+	return *ctx_;
 }
 
-ApplicationContext& Scene::app() {
-	return *ctx_.get();
-}
-
-const ApplicationContext& Scene::app() const {
-	return *ctx_.get();
+const SceneContext& Scene::ctx() const {
+	PTGN_ASSERT(ctx_ != nullptr, "Scene context has not been set yet");
+	return *ctx_;
 }
 
 } // namespace ptgn

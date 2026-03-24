@@ -7,6 +7,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -17,7 +18,7 @@ struct BounceEffectScene : public Scene {
 	Sprite sprite3;
 
 	void OnEnter() override {
-		app().asset.Load("smile", "assets/smile.png");
+		ctx().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", V2_float{ 250, 0 });
 		sprite2 = CreateSprite(*this, "smile", V2_float{ 0, 0 });
@@ -29,7 +30,7 @@ struct BounceEffectScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		if (input.MousePressed(Mouse::Left)) {
+		if (ctx().input.MousePressed(Mouse::Left)) {
 			SymmetricalBounce(
 				sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::Linear, {}, true
 			);
@@ -40,7 +41,7 @@ struct BounceEffectScene : public Scene {
 				sprite3, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InOutElastic, {}, true
 			);
 		}
-		if (input.MousePressed(Mouse::Right)) {
+		if (ctx().input.MousePressed(Mouse::Right)) {
 			Bounce(sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InSine, {}, true);
 			Bounce(sprite2, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::OutSine, {}, true);
 			Bounce(sprite3, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InOutSine, {}, true);

@@ -15,7 +15,6 @@
 #include <variant>
 #include <vector>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/log.h"
@@ -38,6 +37,7 @@
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 #include "serialization/json/fwd.h"
@@ -98,12 +98,12 @@ void DialogueScrollScript::UpdateText(Entity text_entity, float elapsed_fraction
 
 	const auto& scene{ text_entity.GetScene() };
 	PTGN_ASSERT(
-		scene.app().asset.HasFont(page->properties.font_key),
+		scene.ctx().asset.HasFont(page->properties.font_key),
 		"Font key for dialogue must be loaded in the asset manager before use: ",
 		page->properties.font_key
 	);
 
-	auto font{ *scene.app().asset.GetFont(page->properties.font_key) };
+	auto font{ *scene.ctx().asset.GetFont(page->properties.font_key) };
 	FontSize font_size{ page->properties.font_size };
 	Text t{ text_entity };
 	// Do not recreate texture more than once.
@@ -398,15 +398,15 @@ DialoguePage* DialogueComponent::GetCurrentDialoguePage() {
 
 void DialogueComponent::DrawInfo(Scene& scene, V2_float position) {
 	constexpr float font_size{ 32 };
-	scene.debug.DrawText(
+	scene.ctx().debug.DrawText(
 		std::format("Dialogue: {}", current_dialogue_), position + V2_float{ 0, 0 }, color::White,
 		font_size, {}, {}, Origin::TopLeft
 	);
-	scene.debug.DrawText(
+	scene.ctx().debug.DrawText(
 		std::format("Line: {}", std::to_string(current_line_)), position + V2_float{ 0, 50 },
 		color::White, font_size, {}, {}, Origin::TopLeft
 	);
-	scene.debug.DrawText(
+	scene.ctx().debug.DrawText(
 		std::format("Page: {}", std::to_string(current_page_)), position + V2_float{ 0, 100 },
 		color::White, font_size, {}, {}, Origin::TopLeft
 	);
@@ -581,7 +581,7 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 	const Scene& scene, const std::string& full_text, const DialoguePageProperties& properties,
 	const std::string& split_end, const std::string& split_begin
 ) {
-	const auto& font{ scene.app().font };
+	const FontSystem& font{ scene.ctx().font };
 
 	// TODO: Potentially move these outside of this function.
 	const int split_begin_width{

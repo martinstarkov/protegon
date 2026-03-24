@@ -1,7 +1,6 @@
 #include "runtime/animation/animation.h"
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
@@ -10,6 +9,7 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -68,10 +68,10 @@ public:
 	Animation sprite;
 
 	void OnEnter() override {
-		app().asset.Load("anim", "assets/animation.png");
+		ctx().asset.Load("anim", "assets/animation.png");
 
 		animation = CreateAnimation(
-			*this, "anim", GetPosition(camera),
+			*this, "anim", GetPosition(ctx().camera),
 			{ 4, milliseconds{ 500 }, V2_int{ 16, 32 }, -1, { 0, 32 } }
 		);
 
@@ -83,12 +83,12 @@ public:
 	}
 
 	void OnUpdate() override {
-		if (input.KeyPressed(Key::R)) {
+		if (ctx().input.KeyPressed(Key::R)) {
 			animation.Resume();
-		} else if (input.KeyPressed(Key::P)) {
+		} else if (ctx().input.KeyPressed(Key::P)) {
 			animation.Pause();
 		}
-		if (input.KeyPressed(Key::T)) {
+		if (ctx().input.KeyPressed(Key::T)) {
 			animation.Toggle();
 		}
 	}

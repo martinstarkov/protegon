@@ -13,6 +13,7 @@
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -54,7 +55,7 @@ struct PhysicsBoundaryScene : public Scene {
 	}
 
 	void OnEnter() override {
-		physics.SetBounds(Bounds{ {}, game_size, behavior });
+		ctx().physics.SetBounds(Bounds{ {}, game_size, behavior });
 		player = AddEntity({}, player_size, color::Purple, false);
 		SetDepth(player, 1);
 
@@ -66,15 +67,15 @@ struct PhysicsBoundaryScene : public Scene {
 	void OnUpdate() override {
 		constexpr V2_float speed{ 100.0f };
 		V2_float pos{ GetPosition(player) };
-		float dt{ app().DeltaTime().count() };
+		float dt{ ctx().dt().count() };
 		MoveWASD(*this, pos, speed * dt, false);
 		SetPosition(player, pos);
 
-		if (input.KeyPressed(Key::Q)) {
+		if (ctx().input.KeyPressed(Key::Q)) {
 			behavior = BoundaryBehavior::StopVelocity;
 			// TODO: Fix ReEnter.
 			// ReEnter();
-		} else if (input.KeyPressed(Key::E)) {
+		} else if (ctx().input.KeyPressed(Key::E)) {
 			behavior = BoundaryBehavior::ReflectVelocity;
 			// TODO: Fix ReEnter.
 			// ReEnter();

@@ -1,7 +1,6 @@
 #include "runtime/ui/dialogue.h"
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "platform/input/input_handler.h"
@@ -13,6 +12,7 @@
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -22,12 +22,12 @@ struct DialogueScene : public Scene {
 	Entity npc;
 
 	void OnEnter() override {
-		input.SetSettings({ .debug_draw_enabled = true });
+		ctx().input.SetSettings({ .debug_draw_enabled = true });
 
 		PTGN_LOG("Entity count: ", GetEntityCount());
 
-		app().asset.Load("retro_gaming", "assets/Arial.ttf");
-		app().asset.Load("dialogue_box", "assets/dialogue_box.png");
+		ctx().asset.Load("retro_gaming", "assets/Arial.ttf");
+		ctx().asset.Load("dialogue_box", "assets/dialogue_box.png");
 
 		npc = CreateEntity();
 
@@ -44,33 +44,33 @@ struct DialogueScene : public Scene {
 
 	void OnUpdate() override {
 		if (auto dialogue{ npc.TryGet<DialogueComponent>() }) {
-			if (input.KeyPressed(Key::Space)) {
+			if (ctx().input.KeyPressed(Key::Space)) {
 				dialogue->Open();
 			}
-			if (input.KeyPressed(Key::Escape)) {
+			if (ctx().input.KeyPressed(Key::Escape)) {
 				dialogue->Close();
 			}
-			if (input.KeyPressed(Key::N)) {
+			if (ctx().input.KeyPressed(Key::N)) {
 				dialogue->SetNextDialogue();
 			}
-			if (input.KeyPressed(Key::I)) {
+			if (ctx().input.KeyPressed(Key::I)) {
 				dialogue->SetDialogue("intro");
 			}
-			if (input.KeyPressed(Key::O)) {
+			if (ctx().input.KeyPressed(Key::O)) {
 				dialogue->SetDialogue("outro");
 			}
-			if (input.KeyPressed(Key::E)) {
+			if (ctx().input.KeyPressed(Key::E)) {
 				dialogue->SetDialogue("epilogue");
 			}
-			dialogue->DrawInfo(*this, -app().renderer.GetGameSize() * 0.5f);
+			dialogue->DrawInfo(*this, -ctx().renderer.GetGameSize() * 0.5f);
 		}
-		if (input.KeyPressed(Key::A)) {
+		if (ctx().input.KeyPressed(Key::A)) {
 			npc.Add<DialogueComponent>(
 				npc, "assets/dialogue.json", GameObject{ CreateSprite(*this, "dialogue_box", {}) }
 			);
 			PTGN_LOG("Entity count: ", GetEntityCount());
 		}
-		if (input.KeyPressed(Key::D)) {
+		if (ctx().input.KeyPressed(Key::D)) {
 			npc.Remove<DialogueComponent>();
 			PTGN_LOG("Entity count: ", GetEntityCount());
 		}

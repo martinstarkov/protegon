@@ -1,5 +1,4 @@
 #include "app/application.h"
-#include "app/context.h"
 #include "core/math/easing.h"
 #include "core/time/time.h"
 #include "platform/input/mouse.h"
@@ -8,6 +7,7 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -20,7 +20,7 @@ struct TranslateEffectScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
 
-		app().asset.Load("smile", "assets/smile.png");
+		ctx().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });
@@ -35,9 +35,9 @@ struct TranslateEffectScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		if (input.MousePressed(Mouse::Left)) {
+		if (ctx().input.MousePressed(Mouse::Left)) {
 			TranslateTo(
-				sprite1, input.GetMousePosition(), milliseconds{ 1000 }, Ease::Linear, true
+				sprite1, ctx().input.GetMousePosition(), milliseconds{ 1000 }, Ease::Linear, true
 			);
 		}
 	}

@@ -6,7 +6,6 @@
 #include <limits>
 #include <optional>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/math/geometry/rect.h"
@@ -22,6 +21,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/render_target_component.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 
@@ -417,7 +417,7 @@ bool HasAllMasks(Entity entity, LayerMask test) {
 namespace impl {
 
 V2_float GetCameraParentRenderTargetScale(const Scene& scene, const std::optional<Camera>& camera) {
-	Camera cam{ camera.value_or(scene.camera) };
+	Camera cam{ camera.value_or(scene.ctx().camera) };
 	RenderTarget render_target;
 	if (auto parent_rt = cam.TryGet<impl::ParentRenderTarget>()) {
 		render_target = parent_rt->render_target;
@@ -428,7 +428,7 @@ V2_float GetCameraParentRenderTargetScale(const Scene& scene, const std::optiona
 	return render_target.GetScale();
 }
 
-void AddCameraComponents(Camera camera, const Renderer& renderer) {
+void AddCameraComponents(Camera camera, const RenderContext& renderer) {
 	camera.Add<Transform>();
 	camera.Add<impl::CameraData>();
 	camera.SetViewport({ {}, renderer.GetGameSize() });
@@ -439,7 +439,7 @@ void AddCameraComponents(Camera camera, const Renderer& renderer) {
 
 Camera CreateCamera(Scene& scene) {
 	Camera camera{ scene.CreateEntity() };
-	impl::AddCameraComponents(camera, scene.app().renderer);
+	impl::AddCameraComponents(camera, scene.ctx().renderer);
 	return camera;
 }
 

@@ -66,12 +66,14 @@ private:
 	friend class Texture;
 	friend class AssetManager;
 
-	std::optional<impl::Surface> CreateTextSurface(
-		std::string_view text_content, Color color, FontSize font_size, FontOrKey font,
+	[[nodiscard]] static std::optional<impl::Surface> CreateTextSurface(
+		std::string_view text_content, Color color, FontSize font_size, Font font_asset,
 		const TextProperties& properties, std::optional<float> hd_scale
-	) const;
+	);
 
-	static std::shared_ptr<TTF_Font> CreateFont(const path& font_path, FontSize font_size);
+	[[nodiscard]] static std::shared_ptr<TTF_Font> CreateFont(
+		const path& font_path, FontSize font_size
+	);
 
 	std::shared_ptr<TTF_Font> GetFont(FontOrKey font, FontSize font_size) const;
 

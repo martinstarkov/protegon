@@ -1,6 +1,7 @@
 #include "runtime/scene/scene.h"
 
 #include "app/application.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -10,8 +11,8 @@ using namespace ptgn;
 class DeserializedScene : public Scene {
 public:
 	void OnEnter() override {
-		app().asset.Load("anim", "assets/animation.png");
-		app().asset.Load("test", "assets/test1.jpg");
+		ctx().asset.Load("anim", "assets/animation.png");
+		ctx().asset.Load("test", "assets/test1.jpg");
 		json j = LoadJson("assets/animation_scene.json");
 		j	   = LoadJson("assets/light_scene.json");
 		j.at("manager").get_to(*this);

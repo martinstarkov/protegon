@@ -16,6 +16,7 @@ namespace ptgn {
 
 class Physics;
 class Scene;
+class SceneContext;
 
 struct CollisionEvent : public Event<CollisionEvent> {
 	Collision collision;
@@ -72,13 +73,6 @@ struct SweepCollision {
 
 class CollisionHandler {
 public:
-	CollisionHandler()										 = default;
-	~CollisionHandler() noexcept							 = default;
-	CollisionHandler(CollisionHandler&&) noexcept			 = default;
-	CollisionHandler& operator=(CollisionHandler&&) noexcept = default;
-	CollisionHandler& operator=(const CollisionHandler&)	 = delete;
-	CollisionHandler(const CollisionHandler&)				 = delete;
-
 	[[nodiscard]] static bool CanCollide(
 		Entity entity1, const Collider& collider1, Entity entity2, const Collider& collider2
 	);
@@ -88,6 +82,14 @@ public:
 private:
 	friend class Physics;
 	friend class Scene;
+	friend class SceneContext;
+
+	CollisionHandler()										 = default;
+	~CollisionHandler() noexcept							 = default;
+	CollisionHandler(CollisionHandler&&) noexcept			 = default;
+	CollisionHandler& operator=(CollisionHandler&&) noexcept = default;
+	CollisionHandler& operator=(const CollisionHandler&)	 = delete;
+	CollisionHandler(const CollisionHandler&)				 = delete;
 
 	void Overlap(Entity entity) const;
 

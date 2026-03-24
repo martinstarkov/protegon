@@ -12,6 +12,7 @@
 #include "platform/window/window.h"
 #include "renderer/primitives/color.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -33,7 +34,7 @@ public:
 
 	float GetValue() {
 		sampling.Start();
-		return amplitude_rng() * std::sin(sine_frequency * app().TimeSinceStart());
+		return amplitude_rng() * std::sin(sine_frequency * ctx().TimeSinceStart());
 	}
 
 	float sine_frequency{ 0.0005f };
@@ -111,11 +112,11 @@ class PlotScene : public Scene {
 				);
 		}
 
-		if (input.KeyPressed(Key::R)) {
+		if (ctx().input.KeyPressed(Key::R)) {
 			plot.Reset();
 		}
 
-		plot.Draw({ app().window.GetCenter(), { 500, 500 }, Origin::Center });
+		plot.Draw({ ctx().window.GetCenter(), { 500, 500 }, Origin::Center });
 	}*/
 };
 

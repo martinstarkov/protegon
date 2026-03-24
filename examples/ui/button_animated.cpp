@@ -2,7 +2,6 @@
 #include <utility>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -13,6 +12,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/ui/button.h"
@@ -25,18 +25,18 @@ public:
 	Button b2;
 
 	void OnEnter() override {
-		input.SetSettings({ .debug_draw_enabled = true });
+		ctx().input.SetSettings({ .debug_draw_enabled = true });
 
-		app().asset.Load("idle", "assets/bell.png");
-		app().asset.Load("animation_hover", "assets/bell_hover_animation.png");
-		app().asset.Load("animation_activate", "assets/bell_click_animation.png");
-		app().asset.LoadAudio("hover", "assets/hover.ogg");
-		app().asset.LoadAudio("click", "assets/bell.ogg");
+		ctx().asset.Load("idle", "assets/bell.png");
+		ctx().asset.Load("animation_hover", "assets/bell_hover_animation.png");
+		ctx().asset.Load("animation_activate", "assets/bell_click_animation.png");
+		ctx().asset.LoadAudio("hover", "assets/hover.ogg");
+		ctx().asset.LoadAudio("click", "assets/bell.ogg");
 
-		app().asset.Load("idle2", "assets/button_idle.png");
-		app().asset.Load("animation_hover2", "assets/button_animation_hover.png");
-		app().asset.Load("animation_activate2", "assets/button_animation_activate.png");
-		app().asset.LoadAudio("click2", "assets/click.ogg");
+		ctx().asset.Load("idle2", "assets/button_idle.png");
+		ctx().asset.Load("animation_hover2", "assets/button_animation_hover.png");
+		ctx().asset.Load("animation_activate2", "assets/button_animation_activate.png");
+		ctx().asset.LoadAudio("click2", "assets/click.ogg");
 
 		auto hover_animation{ CreateAnimation(
 			*this, "animation_hover", V2_int{}, { 3, milliseconds{ 400 }, V2_int{ 253, 167 }, -1 }

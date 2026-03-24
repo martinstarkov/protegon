@@ -1,10 +1,8 @@
 #pragma once
 
-#include <memory>
 #include <ostream>
 #include <unordered_map>
 #include <unordered_set>
-#include <utility>
 #include <vector>
 
 #include "core/event/event.h"
@@ -24,7 +22,9 @@
 namespace ptgn {
 
 class Scene;
-class ApplicationContext;
+class SceneInput;
+class SceneContext;
+class InputHandler;
 
 struct MouseEnter : public Event<MouseEnter> {};
 
@@ -149,7 +149,7 @@ struct DragOut : public Event<DragOut> {
 namespace impl {
 
 struct MouseInfo {
-	explicit MouseInfo(const Scene& scene);
+	explicit MouseInfo(const SceneInput& input);
 
 	V2_float position;
 	V2_int scroll_delta;
@@ -256,6 +256,7 @@ public:
 
 private:
 	friend class Scene;
+	friend class SceneContext;
 	friend bool IsDragging(Entity entity);
 
 	enum class DropzoneAction {
@@ -275,36 +276,35 @@ private:
 		}
 	};
 
-	explicit SceneInput(Scene& scene);
+	explicit SceneInput(Scene& scene, const InputHandler& input);
 
-	void Init(const std::shared_ptr<ApplicationContext>& ctx);
-
-	/// Convert position from being relative to the center of the window to being relative to
+	/// @brief Convert position from being relative to the center of the window to being relative to
 	/// the center of the specified viewport.
-	V2_float GetMousePositionRelativeTo(
-		V2_float position, Frame frame_of_reference, bool clamp_to_viewport
-	) const;
+	V2_float GetMousePositionRelativeTo(V2_float position, Frame frame_of_reference) const;
 
 	[[nodiscard]] static bool Overlap(V2_float point, Entity entity);
 	[[nodiscard]] static bool Overlap(Entity entityA, Entity entityB);
 
-	static Transform GetWorldOffsetTransform(
-		const Shape& shape, Entity shape_entity, Entity parent
-	);
+	static Transform GetWorldOffsetTransform(const Shape& shape, Entity shape_entity);
 
 	template <DropzoneAction action, typename T>
 	static TriggerCondition GetTriggerCondition(const T& component) {
-		if constexpr (action == DropzoneAction::Move) {
+		using enum DropzoneAction;
+
+		if constexpr (action == Move) {
 			return component.move_condition;
-		} else if constexpr (action == DropzoneAction::Pickup) {
+		} else if constexpr (action == Pickup) {
 			return component.pickup_condition;
-		} else if constexpr (action == DropzoneAction::Drop) {
+		} else if constexpr (action == Drop) {
 			return component.drop_condition;
 		} else {
 			return TriggerCondition::None;
 		}
 	}
 
+	/// @brief This function basically determines whether or not the the callback condition of the
+	/// entity is met (since they can be different), and if so it calls the respective provided
+	/// function.
 	template <
 		SceneInput::DropzoneAction action, typename DropzoneFunc, typename DraggableFunc,
 		typename OverlapFunc>
@@ -312,10 +312,6 @@ private:
 		Entity& dragging, Entity& dropzone, const V2_float& mouse_position,
 		DropzoneFunc&& dropzone_func, DraggableFunc&& draggable_func, OverlapFunc&& overlap_func
 	) {
-		// This function basically determines whether or not the the callback condition of the
-		// entity is met (since they can be different), and if so it calls the respective provided
-		// function.
-
 		auto draggable_trigger{ dragging.Has<impl::Draggable>()
 									? GetTriggerCondition<action>(dragging.Get<impl::Draggable>())
 									: TriggerCondition::None };
@@ -380,7 +376,7 @@ private:
 	);
 
 	Scene& scene_;
-	std::shared_ptr<ApplicationContext> ctx_;
+	const InputHandler& input_;
 
 	/// @brief A set of entities currently being dragged per a given camera.
 	std::unordered_map<Camera, std::unordered_set<Entity>> dragging_entities_;

@@ -9,14 +9,12 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/util/entity_handle.h"
@@ -46,20 +44,25 @@ namespace ptgn {
 
 namespace impl {
 
-void AddAssetKey(ecs::Entity asset, std::size_t key_hash, std::optional<path> path) {
+void AddAssetKey(ecs::Entity asset, std::size_t key_hash, const std::optional<path>& path) {
 	asset.Add<impl::AssetKey>(key_hash);
 	if (path.has_value()) {
 		asset.Add<ptgn::path>(*path);
 	}
 }
 
-void AddAssetKey(ecs::Entity asset, std::string_view key, std::optional<path> path) {
+void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<path>& path) {
 	asset.Add<impl::AssetName>(key);
 	auto key_hash{ Hash(key) };
 	AddAssetKey(asset, key_hash, path);
 }
 
 } // namespace impl
+
+AssetManager::AssetManager(Renderer& renderer, AudioSystem& audio) :
+	renderer_{ renderer }, audio_{ audio } {
+	// Note: Do not use audio here as it is constructed after asset manager.
+}
 
 Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
 	PTGN_ASSERT(
@@ -74,7 +77,7 @@ Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
 	Texture texture{ CreateAsset(), persistent };
 
 	texture.GetEntity().Add<impl::TextureObject>(
-		ctx_->renderer.CreateTexture(data, size, TextureFormat::RGBA8)
+		renderer_.CreateTexture(data, size, TextureFormat::RGBA8)
 	);
 
 	return texture;
@@ -115,7 +118,7 @@ Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float 
 Audio AssetManager::CreateAudio(bool persistent, const path& asset_path) {
 	Audio audio{ CreateAsset(), persistent };
 
-	auto a{ ctx_->audio.CreateAudio(asset_path) };
+	auto a{ audio_.CreateAudio(asset_path) };
 
 	audio.GetEntity().Add<std::shared_ptr<MIX_Audio>>(a);
 
@@ -138,7 +141,7 @@ Shader AssetManager::CreateShader(
 ) {
 	Shader shader{ CreateAsset(), persistent };
 
-	shader.GetEntity().Add<impl::ShaderObject>(ctx_->renderer.CreateShader(source, shader_name));
+	shader.GetEntity().Add<impl::ShaderObject>(renderer_.CreateShader(source, shader_name));
 
 	return shader;
 }
@@ -602,9 +605,11 @@ std::optional<impl::TextureObject> AssetManager::CreateTextTextureObject(
 	std::string_view text_content, Color color, float font_size, FontOrKey font,
 	const TextProperties& properties, std::optional<float> hd_scale
 ) {
-	auto surface{
-		ctx_->font.CreateTextSurface(text_content, color, font_size, font, properties, hd_scale)
-	};
+	auto font_asset{ font.Get(*this) };
+
+	auto surface{ FontSystem::CreateTextSurface(
+		text_content, color, font_size, font_asset, properties, hd_scale
+	) };
 
 	if (!surface.has_value()) {
 		return {};
@@ -613,7 +618,7 @@ std::optional<impl::TextureObject> AssetManager::CreateTextTextureObject(
 	const auto pixel_data{ surface->Data() };
 	auto size{ surface->GetSize() };
 
-	return ctx_->renderer.CreateTexture(pixel_data, size, TextureFormat::RGBA8);
+	return renderer_.CreateTexture(pixel_data, size, TextureFormat::RGBA8);
 }
 
 Texture AssetManager::CreateTextTexture(
@@ -633,11 +638,6 @@ Texture AssetManager::CreateTextTexture(
 	texture.GetEntity().Add<impl::TextureObject>(std::move(*texture_object));
 
 	return texture;
-}
-
-// TODO: Get rid of this in favor of pointer to renderer and audio system.
-void AssetManager::Init(const std::shared_ptr<ApplicationContext>& ctx) {
-	ctx_ = ctx;
 }
 
 } // namespace ptgn

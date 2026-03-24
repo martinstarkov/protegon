@@ -6,8 +6,6 @@
 #include <variant>
 #include <vector>
 
-#include "app/context.h"
-#include "core/assert.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -27,6 +25,7 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "tools/debug/profiling.h"
 #include "tools/debug/stats.h"
 
@@ -39,14 +38,9 @@ void DebugContext::DrawText(
 	FontOrKey font, const TextProperties& properties, Origin draw_origin,
 	std::optional<V2_float> text_size, bool hd_text, const std::optional<Camera>& camera
 ) {
-	PTGN_ASSERT(
-		render_context_.scene_ != nullptr && render_context_.renderer_ != nullptr,
-		"Render context must be initialized before use"
-	);
+	auto hd_scale{ impl::ApplyHDTextScaling(hd_text, transform, render_context_.scene_, camera) };
 
-	auto hd_scale{ impl::ApplyHDTextScaling(hd_text, transform, *render_context_.scene_, camera) };
-
-	auto texture_object{ render_context_.scene_->app().asset.CreateTextTextureObject(
+	auto texture_object{ render_context_.scene_.ctx().asset.CreateTextTextureObject(
 		text_content, text_color, font_size, font, properties, hd_scale
 	) };
 
@@ -60,7 +54,7 @@ void DebugContext::DrawText(
 
 	render_context_.temporary_textures_.emplace_back(std::move(*texture_object));
 
-	auto quad_shader{ render_context_.renderer_->GetShader("quad") };
+	auto quad_shader{ render_context_.renderer_.GetShader("quad") };
 
 	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
 
@@ -80,12 +74,8 @@ void DebugContext::DrawShape(
 	const Shape& shape, Transform transform, Color color, FillStyle fill_style, Origin draw_origin,
 	const std::optional<Camera>& camera
 ) {
-	PTGN_ASSERT(
-		render_context_.renderer_ != nullptr, "Render context must be initialized before use"
-	);
-
 	auto shape_draw_commands{ DrawContext::GetShapeDrawCommand(
-		*render_context_.renderer_, shape, transform, color, fill_style, draw_origin,
+		render_context_.renderer_, shape, transform, color, fill_style, draw_origin,
 		debug_blend_mode
 	) };
 

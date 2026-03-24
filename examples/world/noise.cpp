@@ -6,7 +6,6 @@
 #include <cstdint>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
@@ -23,6 +22,7 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -44,20 +44,20 @@ public:
 	int types{ 4 };
 
 	void OnEnter() override {
-		app().renderer.SetBackgroundColor(color::Magenta);
+		ctx().renderer.SetBackgroundColor(color::Magenta);
 		PTGN_ASSERT(type == 0 || type == 1 || type == 2 || type == 3);
 	}
 
 	void OnUpdate() override {
-		if (input.KeyPressed(Key::Left)) {
+		if (ctx().input.KeyPressed(Key::Left)) {
 			type--;
 			type = Mod(type, types);
-		} else if (input.KeyPressed(Key::Right)) {
+		} else if (ctx().input.KeyPressed(Key::Right)) {
 			type++;
 			type = Mod(type, types);
 		}
 
-		if (input.KeyPressed(Key::T)) {
+		if (ctx().input.KeyPressed(Key::T)) {
 			if (type == 0) {
 				fractal_noise.SetFrequency(fractal_noise.GetFrequency() + 0.01f);
 			} else if (type == 1) {
@@ -68,7 +68,7 @@ public:
 				value_noise.SetFrequency(value_noise.GetFrequency() + 0.01f);
 			}
 		}
-		if (input.KeyPressed(Key::G)) {
+		if (ctx().input.KeyPressed(Key::G)) {
 			if (type == 0) {
 				fractal_noise.SetFrequency(fractal_noise.GetFrequency() - 0.01f);
 			} else if (type == 1) {
@@ -81,25 +81,25 @@ public:
 		}
 
 		if (type == 0) {
-			if (input.KeyPressed(Key::R)) {
+			if (ctx().input.KeyPressed(Key::R)) {
 				fractal_noise.SetOctaves(fractal_noise.GetOctaves() + 1);
 			}
-			if (input.KeyPressed(Key::F)) {
+			if (ctx().input.KeyPressed(Key::F)) {
 				fractal_noise.SetOctaves(std::clamp((int)fractal_noise.GetOctaves() - 1, 1, 1000));
 			}
-			if (input.KeyPressed(Key::Y)) {
+			if (ctx().input.KeyPressed(Key::Y)) {
 				fractal_noise.SetLacunarity(fractal_noise.GetLacunarity() + 0.1f);
 			}
-			if (input.KeyPressed(Key::H)) {
+			if (ctx().input.KeyPressed(Key::H)) {
 				fractal_noise.SetLacunarity(
 					std::clamp(fractal_noise.GetLacunarity() - 0.1f, 0.001f, 1000.0f)
 				);
 			}
 
-			if (input.KeyPressed(Key::U)) {
+			if (ctx().input.KeyPressed(Key::U)) {
 				fractal_noise.SetPersistence(fractal_noise.GetPersistence() + 0.05f);
 			}
-			if (input.KeyPressed(Key::J)) {
+			if (ctx().input.KeyPressed(Key::J)) {
 				fractal_noise.SetPersistence(
 					std::clamp(fractal_noise.GetPersistence() - 0.05f, 0.001f, 1000.f)
 				);
@@ -110,23 +110,23 @@ public:
 			divisions = std::clamp((int)divisions, 1, 32);
 		};
 
-		if (input.KeyPressed(Key::Q)) {
+		if (ctx().input.KeyPressed(Key::Q)) {
 			divisions--;
 			cap_divisions();
 		}
-		if (input.KeyPressed(Key::E)) {
+		if (ctx().input.KeyPressed(Key::E)) {
 			divisions++;
 			cap_divisions();
 		}
 
-		if (input.KeyPressed(Key::Z)) {
+		if (ctx().input.KeyPressed(Key::Z)) {
 			thresholding = !thresholding;
 		}
 
 		constexpr V2_float speed{ 200.0f };
-		float dt{ app().DeltaTime().count() };
+		float dt{ ctx().dt().count() };
 
-		MoveWASD(camera, speed * dt);
+		MoveWASD(ctx().camera, speed * dt);
 
 		// Clamp fractal noise parameters.
 
@@ -143,7 +143,7 @@ public:
 			value_noise.SetFrequency(std::clamp(value_noise.GetFrequency(), 0.005f, 1.0f));
 		}
 
-		if (input.KeyPressed(Key::P)) {
+		if (ctx().input.KeyPressed(Key::P)) {
 			PTGN_LOG("--------------------------------");
 			if (type == 0) {
 				PTGN_LOG("octaves: ", fractal_noise.GetOctaves());
@@ -163,7 +163,7 @@ public:
 	}
 
 	void Draw() {
-		auto vertices{ camera.GetWorldVertices() };
+		auto vertices{ ctx().camera.GetWorldVertices() };
 		V2_int min{ FastFloor(vertices[0] / pixel_size) - V2_int{ 1 } };
 		V2_int max{ FastCeil(vertices[2] / pixel_size) + V2_int{ 1 } };
 
@@ -224,20 +224,20 @@ public:
 					color.a		  = static_cast<std::uint8_t>(opacity);
 				}
 
-				renderer.DrawShape(
+				ctx().renderer.DrawShape(
 					Rect{ pixel_size }, Transform{ p * pixel_size }, color, FillStyle::Solid(),
 					Origin::Center, Depth{}, BlendMode::Blend
 				);
 			}
 		}
 
-		renderer.DrawShape(
+		ctx().renderer.DrawShape(
 			Rect{ (max - min) * pixel_size },
 			Transform{ (min * pixel_size + max * pixel_size) * 0.5f }, color::Orange,
 			FillStyle::Hollow(3.0f), Origin::Center, Depth{}, BlendMode::Blend
 		);
 
-		renderer.DrawShape(
+		ctx().renderer.DrawShape(
 			Rect{ 30, 30 }, Transform{}, color::Red, FillStyle::Solid(), Origin::TopLeft, Depth{},
 			BlendMode::Blend
 		);

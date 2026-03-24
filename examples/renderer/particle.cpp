@@ -6,7 +6,6 @@
 #include <utility>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
@@ -17,6 +16,7 @@
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 #include "runtime/world/grid.h"
@@ -74,7 +74,7 @@ public:
 		p.SetEmissionDelay(milliseconds{ 1 });
 		p.Start();
 
-		V2_float ws{ app().renderer.GetGameSize() };
+		V2_float ws{ ctx().renderer.GetGameSize() };
 
 		CreateFixedEmitter(-ws * 0.5f + V2_float{ 400, 300 }, color::Orange, color::Red);
 		CreateFixedEmitter(-ws * 0.5f + V2_float{ 500, 500 }, color::Cyan, color::Magenta);
@@ -111,7 +111,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		SetPosition(p, input.GetMousePosition());
+		SetPosition(p, ctx().input.GetMousePosition());
 	}
 };
 

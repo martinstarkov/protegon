@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/math/geometry/geometry_utils.h"
 #include "core/math/geometry/line.h"
@@ -33,6 +32,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -99,7 +99,7 @@ public:
 	static void Draw(const Entity& entity) {
 		const auto& light_map{ entity.Get<impl::LightMapInstance>() };
 
-		app().renderer.EnableStencilMask();
+		ctx().renderer.EnableStencilMask();
 
 		const auto add_to_stencil_mask = [entity](const auto& shape, const Transform& transform) {
 			renderer.DrawShape(
@@ -136,16 +136,16 @@ public:
 		renderer.DrawOutsideStencilMask();
 
 		renderer.DrawShape(
-			{}, Rect{ app().renderer.GetDisplaySize() }, color::Black.WithAlpha(0.5f), -1.0f,
+			{}, Rect{ ctx().renderer.GetDisplaySize() }, color::Black.WithAlpha(0.5f), -1.0f,
 			Origin::Center, {}, BlendMode::Blend, {}, {}, "color"
 		);
 
-		app().renderer.DisableStencilMask();
+		ctx().renderer.DisableStencilMask();
 	}
 
 private:
 	static void AddWorldBoundaries(std::vector<Line>& shadow_segments) {
-		auto size{ app().renderer.GetGameSize() };
+		auto size{ ctx().renderer.GetGameSize() };
 		auto half_size{ size * 0.5f };
 
 		shadow_segments.emplace_back(-half_size, V2_float{ half_size.x, -half_size.y });
@@ -219,10 +219,10 @@ public:
 	LightMap light_map;
 
 	void OnEnter() override {
-		app().renderer.SetBackgroundColor(color::White);
+		ctx().renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
 
-		app().asset.Load("test", "assets/test1.jpg");
+		ctx().asset.Load("test", "assets/test1.jpg");
 
 		auto sprite = CreateSprite(*this, "test", { -200, -200 });
 		SetDrawOrigin(sprite, Origin::TopLeft);
@@ -236,7 +236,7 @@ public:
 		const auto create_light = [&](const Color& color) {
 			static int i = 1;
 			auto light	 = CreatePointLight(
-				  *this, -app().renderer.GetGameSize() * 0.5f + V2_float{ i * step }, radius, color,
+				  *this, -ctx().renderer.GetGameSize() * 0.5f + V2_float{ i * step }, radius, color,
 				  intensity, falloff
 			  );
 			i++;
@@ -267,10 +267,10 @@ public:
 	}
 
 	void OnUpdate() override {
-		auto pos{ input.GetMousePosition() };
+		auto pos{ ctx().input.GetMousePosition() };
 		SetPosition(mouse_light, pos);
 
-		if (input.MouseHeld(Mouse::Right)) {
+		if (ctx().input.MouseHeld(Mouse::Right)) {
 			SetPosition(static_light, pos);
 		}
 	}

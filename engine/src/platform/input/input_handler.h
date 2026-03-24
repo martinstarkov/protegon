@@ -55,15 +55,16 @@ PTGN_SERIALIZE_ENUM(
 } // namespace impl
 
 class InputHandler {
-public:
+private:
+	friend class Application;
+	friend class SceneInput;
+
 	explicit InputHandler(Window& window);
 	~InputHandler() noexcept						 = default;
 	InputHandler(const InputHandler&)				 = delete;
 	InputHandler& operator=(const InputHandler&)	 = delete;
 	InputHandler(InputHandler&&) noexcept			 = delete;
 	InputHandler& operator=(InputHandler&&) noexcept = delete;
-
-	// TODO: Move this public API into the scene input class.
 
 	/// @return Mouse position relative to the center of the window.
 	V2_float GetMousePosition() const;
@@ -122,10 +123,6 @@ public:
 	/// @return The amount of time that the key has been held down, negative numbers
 	/// indicate the time since the key was last held.
 	milliseconds GetKeyHeldTime(Key key) const;
-
-private:
-	friend class Application;
-	friend class SceneInput;
 
 	using EventSink = std::function<void(impl::EventBase&)>;
 

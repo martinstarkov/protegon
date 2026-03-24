@@ -1,7 +1,6 @@
 #include <string>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/window/window.h"
@@ -14,6 +13,7 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -33,8 +33,8 @@ class HDTextScene : public Scene {
 	std::uint32_t wrap_after{ 320 };
 
 	void OnEnter() override {
-		app().asset.Load("background", "assets/bg.png");
-		app().renderer.SetGameSize(game_size);
+		ctx().asset.Load("background", "assets/bg.png");
+		ctx().renderer.SetGameSize(game_size);
 
 		auto sprite = CreateSprite(*this, "background", {});
 		SetDepth(sprite, 0.0f);
@@ -52,11 +52,11 @@ class HDTextScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		renderer.DrawText(
+		ctx().renderer.DrawText(
 			content, -1 * stride, color, font_size, {}, TextProperties{ .wrap_after = wrap_after },
 			Origin::Center, {}, false
 		);
-		renderer.DrawText(
+		ctx().renderer.DrawText(
 			content, 1 * stride, color, font_size, {}, TextProperties{ .wrap_after = wrap_after },
 			Origin::Center, {}, true
 		);

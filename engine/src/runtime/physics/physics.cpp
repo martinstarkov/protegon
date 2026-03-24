@@ -5,7 +5,6 @@
 #include <ostream>
 #include <utility>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/transform.h"
@@ -14,6 +13,7 @@
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -39,8 +39,8 @@ void Physics::SetGravity(V2_float gravity) {
 	gravity_ = gravity;
 }
 
-float Physics::DeltaTime() const {
-	return scene_.app().DeltaTime().count();
+float Physics::dt() const {
+	return scene_.ctx().dt().count();
 }
 
 void Physics::SetEnabled(bool enabled) {
@@ -64,7 +64,7 @@ void Physics::PreCollisionUpdate() const {
 		return;
 	}
 
-	float dt{ Physics::DeltaTime() };
+	float dt{ Physics::dt() };
 
 	for (auto [entity, transform, rigid_body, movement] :
 		 scene_.EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
@@ -95,7 +95,7 @@ void Physics::PostCollisionUpdate() const {
 		return;
 	}
 
-	float dt{ Physics::DeltaTime() };
+	float dt{ Physics::dt() };
 
 	for (auto [entity, transform, rigid_body] : scene_.EntitiesWith<Transform, RigidBody>()) {
 		transform.Translate(rigid_body.velocity * dt);

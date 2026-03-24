@@ -2,7 +2,6 @@
 
 #include <optional>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
@@ -16,6 +15,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -53,7 +53,7 @@ void Sprite::Draw(DrawContext& renderer, Entity entity, Camera camera) {
 
 Sprite& Sprite::SetTexture(TextureOrKey texture) {
 	const auto& scene{ GetScene() };
-	const auto& assets{ scene.app().asset };
+	const auto& assets{ scene.ctx().asset };
 
 	Texture resolved_texture{ texture.Get(assets) };
 

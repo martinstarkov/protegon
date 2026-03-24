@@ -8,8 +8,8 @@
 
 namespace ptgn {
 
-class ApplicationContext;
 class Scene;
+class RenderContext;
 
 struct DisplayFrame {
 	/// @brief Pixels relative to window center in window frame of reference.
@@ -51,7 +51,7 @@ class FrameContext {
 public:
 	FrameContext() = default;
 
-	FrameContext(const ApplicationContext& app, RenderTarget render_target, Camera camera);
+	FrameContext(const RenderContext& renderer, RenderTarget render_target, Camera camera);
 	explicit FrameContext(const Scene& scene);
 
 	DisplayFrame display;

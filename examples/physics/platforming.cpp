@@ -12,6 +12,7 @@
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 
@@ -57,10 +58,10 @@ class PlatformingScene : public Scene {
 	}
 
 	void OnEnter() override {
-		collision.SetSettings({ .debug_draw_ccd = true, .debug_draw_enabled = true });
+		ctx().collision.SetSettings({ .debug_draw_ccd = true, .debug_draw_enabled = true });
 
 		V2_float ws{ game_size };
-		physics.SetGravity({ 0.0f, 1.0f });
+		ctx().physics.SetGravity({ 0.0f, 1.0f });
 
 		CreatePlayer();
 		CreatePlatform(-ws * 0.5f + V2_float{ 0, ws.y - 10 }, { ws.x, 10 }, Origin::TopLeft);

@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/log.h"
@@ -26,6 +25,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
 
 using namespace ptgn;
@@ -108,7 +108,7 @@ public:
 };
 
 void SetProgress(const V2_float& size, const Entity& e, float progress) {
-	V2_float res{ e.GetScene().app().renderer.GetGameSize() };
+	V2_float res{ e.GetScene().ctx().renderer.GetGameSize() };
 	auto width{ res.x - size.x };
 	Entity target{ e };
 	if (HasParent(e)) {
@@ -124,7 +124,7 @@ public:
 	V2_float size{ 40.0f };
 
 	V2_float GetNextPosition() const {
-		V2_float res{ app().renderer.GetGameSize() };
+		V2_float res{ ctx().renderer.GetGameSize() };
 		static int count{ 0 };
 		V2_float pos{ -res.x * 0.5f + size.x / 2.0f,
 					  -res.y * 0.5f + size.y * static_cast<float>(count) };
@@ -214,7 +214,7 @@ public:
 
 		PTGN_ASSERT(tween_count > 0);
 
-		V2_float res{ app().renderer.GetGameSize() };
+		V2_float res{ ctx().renderer.GetGameSize() };
 		size   = { 0.0f, res.y / static_cast<float>(tween_count) };
 		size.x = std::clamp(size.y, 5.0f, 30.0f);
 
@@ -233,7 +233,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		if (input.KeyPressed(Key::T)) {
+		if (ctx().input.KeyPressed(Key::T)) {
 			for (auto e : EntitiesWithout<impl::Parent>()) {
 				if (!e.Has<Rect>()) {
 					continue;
@@ -247,7 +247,7 @@ public:
 			}
 		}
 
-		if (input.KeyPressed(Key::R)) {
+		if (ctx().input.KeyPressed(Key::R)) {
 			for (auto e : EntitiesWithout<impl::Parent>()) {
 				if (!e.Has<Rect>()) {
 					continue;
@@ -257,7 +257,7 @@ public:
 			}
 		}
 
-		if (input.KeyPressed(Key::S)) {
+		if (ctx().input.KeyPressed(Key::S)) {
 			for (auto e : EntitiesWithout<impl::Parent>()) {
 				if (!e.Has<Rect>()) {
 					continue;

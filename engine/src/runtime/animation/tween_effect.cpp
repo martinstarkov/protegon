@@ -7,7 +7,6 @@
 #include <functional>
 #include <vector>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/math/easing.h"
 #include "core/math/math_utils.h"
@@ -28,6 +27,7 @@
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -134,7 +134,7 @@ void TargetFollowImpl(Entity target, const TargetFollowConfig& config, Entity tw
 		VelocityModeMoveImpl(config, parent, dir);
 	} else {
 		auto new_pos{ GetFollowPosition(
-			target.GetScene().app().DeltaTime(), config, current_position, target_pos
+			target.GetScene().ctx().dt(), config, current_position, target_pos
 		) };
 		dir = target_pos - new_pos;
 
@@ -187,7 +187,7 @@ void PathFollowImpl(
 	}
 
 	auto new_pos{ GetFollowPosition(
-		tween_entity.GetScene().app().DeltaTime(), config, current_pos, target_pos
+		tween_entity.GetScene().ctx().dt(), config, current_pos, target_pos
 	) };
 	SetPosition(parent, new_pos);
 }
@@ -523,7 +523,7 @@ Tween Shake(
 		Entity parent{ GetParent(e) };
 		auto& offsets{ parent.Get<impl::Offsets>() };
 
-		ApplyShake(e.GetScene().app().TimeSinceStart(), offsets, shake.trauma, config, seed);
+		ApplyShake(e.GetScene().ctx().TimeSinceStart(), offsets, shake.trauma, config, seed);
 	};
 
 	if (!infinite_shake) {
@@ -559,10 +559,10 @@ Tween Shake(
 			auto& offsets{ parent.Get<impl::Offsets>() };
 
 			shake.trauma = std::clamp(
-				shake.trauma - config.recovery_speed * e.GetScene().app().DeltaTime().count(), 0.0f,
+				shake.trauma - config.recovery_speed * e.GetScene().ctx().dt().count(), 0.0f,
 				1.0f
 			);
-			ApplyShake(e.GetScene().app().TimeSinceStart(), offsets, shake.trauma, config, seed);
+			ApplyShake(e.GetScene().ctx().TimeSinceStart(), offsets, shake.trauma, config, seed);
 
 			if (shake.trauma <= 0.0f) {
 				Tween{ e }.IncrementPoint();

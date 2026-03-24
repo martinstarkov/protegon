@@ -16,7 +16,7 @@ namespace ptgn {
 
 class Scene;
 class DrawContext;
-class Renderer;
+class SceneContext;
 class RenderTarget;
 
 /// @brief Determines which resolution the render target automatically resizes to when the game or
@@ -79,12 +79,12 @@ private:
 	friend RenderTarget CreateRenderTarget(Scene&, ResizeMode, Color, TextureFormat);
 
 	static void AddRenderTargetComponents(
-		RenderTarget render_target, Renderer& renderer, V2_int size, Color clear_color,
+		RenderTarget render_target, SceneContext& ctx, V2_int size, Color clear_color,
 		TextureFormat format
 	);
 
 	static void AddRenderTargetComponents(
-		RenderTarget render_target, Renderer& renderer, ResizeMode resize_to_resolution,
+		RenderTarget render_target, SceneContext& ctx, ResizeMode resize_to_resolution,
 		Color clear_color, TextureFormat texture_format
 	);
 };

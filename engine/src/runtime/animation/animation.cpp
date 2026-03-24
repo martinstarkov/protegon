@@ -9,7 +9,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -21,6 +20,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/scripts.h"
 
 namespace ptgn {
@@ -414,7 +414,7 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 Animation CreateAnimation(
 	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config
 ) {
-	const auto& assets{ scene.app().asset };
+	const auto& assets{ scene.ctx().asset };
 
 	Texture resolved_texture{ texture.Get(assets) };
 

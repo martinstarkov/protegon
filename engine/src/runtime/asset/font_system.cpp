@@ -145,18 +145,15 @@ V2_int FontSystem::GetSize(
 	return size;
 }
 
-// TODO: Make this static and pass in font, not FontOrKey.
 std::optional<impl::Surface> FontSystem::CreateTextSurface(
-	std::string_view text_content, Color color, FontSize font_size, FontOrKey font,
+	std::string_view text_content, Color color, FontSize font_size, Font font_asset,
 	const TextProperties& properties, std::optional<float> hd_scale
-) const {
+) {
 	if (text_content.empty()) {
 		return {};
 	}
 
 	float scale{ hd_scale.value_or(1.0f) };
-
-	auto font_asset{ font.Get(assets_) };
 
 	PTGN_ASSERT(font_asset.GetEntity().Has<std::shared_ptr<TTF_Font>>());
 

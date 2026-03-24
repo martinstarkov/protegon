@@ -17,6 +17,7 @@
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/profiling.h"
 
@@ -59,7 +60,7 @@ struct BroadphaseScene : public Scene {
 	RNG<float> rngsize{ 5.0f, 30.0f };
 
 	void OnEnter() override {
-		physics.SetBounds(Bounds{ V2_float{}, game_size, BoundaryBehavior::ReflectVelocity });
+		ctx().physics.SetBounds(Bounds{ V2_float{}, game_size, BoundaryBehavior::ReflectVelocity });
 
 		player = AddEntity(*this, {}, player_size, color::Purple, false);
 		SetDepth(player, 1);
@@ -80,7 +81,7 @@ struct BroadphaseScene : public Scene {
 
 	void OnUpdate() override {
 		constexpr V2_float speed{ 200.0f };
-		float dt{ app().DeltaTime().count() };
+		float dt{ ctx().dt().count() };
 		V2_float pos{ GetPosition(player) };
 		MoveWASD(*this, pos, speed * dt, false);
 		SetPosition(player, pos);
@@ -144,7 +145,7 @@ struct BroadphaseScene : public Scene {
 		// For full raycasts:
 
 		auto player_pos{ GetPosition(player) };
-		auto mouse_pos{ input.GetMousePosition() };
+		auto mouse_pos{ ctx().input.GetMousePosition() };
 		auto dir{ mouse_pos - player_pos };
 
 		auto player_rect{ GetBoundingAABB(player) };
@@ -163,7 +164,7 @@ struct BroadphaseScene : public Scene {
 			SetTint(candidate, color::Red);
 		}
 
-		renderer.DrawShape(
+		ctx().renderer.DrawShape(
 			Line{ player_pos, mouse_pos }, Transform{}, color::Gold, FillStyle::Hollow(2.0f),
 			Origin::Center, Depth{}, BlendMode::Blend
 		);

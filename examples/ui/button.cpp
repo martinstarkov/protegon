@@ -3,7 +3,6 @@
 #include <ios>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
@@ -15,6 +14,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -25,11 +25,11 @@ public:
 	ToggleButton b2;
 
 	void OnEnter() override {
-		input.SetSettings({ .debug_draw_enabled = true });
+		ctx().input.SetSettings({ .debug_draw_enabled = true });
 
-		// app().asset.LoadAudio("idle", "assets/idle.ogg");
-		app().asset.LoadAudio("hover", "assets/hover.ogg");
-		app().asset.LoadAudio("click", "assets/click.ogg");
+		// ctx().asset.LoadAudio("idle", "assets/idle.ogg");
+		ctx().asset.LoadAudio("hover", "assets/hover.ogg");
+		ctx().asset.LoadAudio("click", "assets/click.ogg");
 
 		Origin button_origin{ Origin::Center };
 

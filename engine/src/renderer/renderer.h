@@ -115,7 +115,22 @@ inline constexpr std::size_t kIndexCapacity{ kBatchCapacity * 6 };
 } // namespace impl
 
 class Renderer {
-public:
+private:
+	friend class Application;
+	friend class AssetManager;
+	friend class EventHandler;
+	friend class Scene;
+	friend class RenderTarget;
+	friend class DrawContext;
+	friend class RenderContext;
+	friend class DebugContext;
+	friend class impl::ShaderObject;
+	friend class impl::RenderTargetObject;
+	friend class impl::TextureObject;
+	friend class impl::SDLInstance;
+	template <impl::ResourceType T>
+	friend class impl::Resource;
+
 	Renderer() = delete;
 	explicit Renderer(Window& window, EventHandler& events);
 	~Renderer() noexcept;
@@ -147,22 +162,6 @@ public:
 
 	void SetBackgroundColor(Color background_color);
 	Color GetBackgroundColor() const;
-
-private:
-	friend class Application;
-	friend class AssetManager;
-	friend class EventHandler;
-	friend class Scene;
-	friend class RenderTarget;
-	friend class DrawContext;
-	friend class RenderContext;
-	friend class DebugContext;
-	friend class impl::ShaderObject;
-	friend class impl::RenderTargetObject;
-	friend class impl::TextureObject;
-	friend class impl::SDLInstance;
-	template <impl::ResourceType T>
-	friend class impl::Resource;
 
 	template <typename State, typename F>
 		requires std::same_as<std::invoke_result_t<F&>, void>

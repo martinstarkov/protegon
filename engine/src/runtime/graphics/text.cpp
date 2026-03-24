@@ -7,7 +7,6 @@
 #include <string_view>
 #include <utility>
 
-#include "app/context.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
@@ -26,6 +25,7 @@
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -153,7 +153,7 @@ void Text::RecreateTexture(
 	// before drawing.
 	text.Add<impl::HDFontSize>(font_size);
 
-	auto& asset{ text.GetScene().app().asset };
+	auto& asset{ text.GetScene().ctx().asset };
 
 	auto texture{
 		asset.CreateTextTexture(content, text_color, font_size, font, properties, hd_scale)
@@ -200,7 +200,7 @@ Text& Text::SetHD(bool hd) {
 
 Text& Text::SetFont(FontOrKey font) {
 	const auto& scene{ GetScene() };
-	auto resolved_font{ font.Get(scene.app().asset) };
+	auto resolved_font{ font.Get(scene.ctx().asset) };
 	Text::SetParameter(*this, resolved_font);
 	return *this;
 }
@@ -297,7 +297,7 @@ V2_int Text::GetSize() const {
 }
 
 V2_int Text::GetSize(std::string_view text_content, FontOrKey font, FontSize font_size) const {
-	return GetScene().app().font.GetSize(font, text_content, font_size);
+	return GetScene().ctx().font.GetSize(font, text_content, font_size);
 }
 
 V2_int Text::GetSize(std::string_view text_content) const {
@@ -320,7 +320,7 @@ Text CreateText(
 	Scene& scene, std::string_view text_content, Color text_color, FontSize font_size,
 	FontOrKey font, const TextProperties& properties
 ) {
-	auto resolved_font{ font.Get(scene.app().asset) };
+	auto resolved_font{ font.Get(scene.ctx().asset) };
 
 	Text text{ scene.CreateEntity() };
 	text.Add<Texture>();

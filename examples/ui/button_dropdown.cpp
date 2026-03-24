@@ -2,7 +2,6 @@
 #include <string_view>
 
 #include "app/application.h"
-#include "app/context.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
@@ -10,6 +9,7 @@
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/dropdown.h"
@@ -42,12 +42,12 @@ public:
 						 .SetButtonSize(V2_float{ 100, 50 })
 						 .SetDropdownDirection(Origin::CenterBottom);
 		// SetDrawOrigin(d, Origin::Center);
-		SetPosition(d, -app().renderer.GetGameSize() * 0.5f + V2_float{ 400, 200 });
+		SetPosition(d, -ctx().renderer.GetGameSize() * 0.5f + V2_float{ 400, 200 });
 		return d;
 	}
 
 	void OnEnter() override {
-		input.SetSettings({ .debug_draw_enabled = true });
+		ctx().input.SetSettings({ .debug_draw_enabled = true });
 
 		Dropdown dropdown  = CreateDropdown();
 		Dropdown dropdown2 = CreateDropdown(false);
