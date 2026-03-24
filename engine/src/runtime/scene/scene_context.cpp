@@ -9,7 +9,6 @@
 #include "core/event/dispatcher.h"
 #include "core/time/time.h"
 #include "core/util/hash.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_command.h"
 #include "runtime/scene/scene_manager.h"
@@ -74,15 +73,8 @@ SceneContext::SceneContext(Application& app, Scene& parent_scene) :
 	event{ parent_scene },
 	input{ parent_scene, app.input_ },
 	physics{ parent_scene },
-	collision{},
-	// TODO: Set scene context.
-	camera{ CreateCamera(parent_scene) },
-	fixed_camera_{ CreateCamera(parent_scene) },
 	global_renderer_{ app.renderer_ },
-	app_{ app } {
-	fixed_camera_.SetMasks(kLayersNone, kLayersAll);
-	SetUI(fixed_camera_, true);
-}
+	app_{ app } {}
 
 SceneContext::~SceneContext() noexcept {
 	// Needs access to destructors.

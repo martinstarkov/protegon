@@ -53,6 +53,11 @@ Scene::~Scene() {}
 void Scene::Init(Application& app) {
 	ctx_ = std::make_unique<SceneContext>(app, *this);
 
+	ctx_->camera		= CreateCamera(*this);
+	ctx_->fixed_camera_ = CreateCamera(*this);
+	ctx_->fixed_camera_.SetMasks(kLayersNone, kLayersAll);
+	SetUI(ctx_->fixed_camera_, true);
+
 	render_target_ = CreateRenderTarget(
 		*this, ResizeMode::DisplaySize, color::Transparent, TextureFormat::RGBA8
 	);

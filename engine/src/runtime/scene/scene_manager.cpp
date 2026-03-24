@@ -77,14 +77,14 @@ void SceneManager::ApplyCommands(
 		// TODO: Figure out delay system.
 		// if (!cmd.use_delay) {
 		//	s->scene_on_entered = true;
-		//	newScene->OnEnter();
+		//	newScene->InternalEnter();
 		//}
 		// newScene->use_delay = cmd.use_delay;
 
 		new_scene->state_	   = impl::SceneState::TransitionIn;
 		new_scene->transition_ = std::move(cmd.transition_in);
 		new_scene->key_		   = target_key;
-		new_scene->OnEnter();
+		new_scene->InternalEnter();
 
 		scenes_.emplace_back(std::move(new_scene));
 	};
@@ -165,14 +165,15 @@ void SceneManager::Update(Application& app) {
 			// what appears in the scene when.
 			// TODO: Add delay system.
 			// if (!scene->scene_on_entered) {
-			//	scene->OnEnter();
+			//	scene->InternalEnter();
 			//	scene->scene_on_entered = true;
 			//}
 			++it;
 		} else if (scene->state_ == TransitionOut) {
-			scene->OnExit();
+			scene->InternalExit();
 			it = scenes_.erase(it);
-			break;
+		} else {
+			++it;
 		}
 	}
 

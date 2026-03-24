@@ -85,7 +85,7 @@ public:
 		auto first_scene  = std::make_unique<TScene>(std::forward<TArgs>(args)...);
 		first_scene->key_ = Hash(scene_key);
 		first_scene->Init(*this);
-		first_scene->OnEnter();
+		first_scene->InternalEnter();
 
 		scenes_.scenes_.emplace_back(std::move(first_scene));
 
