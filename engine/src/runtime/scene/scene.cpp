@@ -237,7 +237,7 @@ void Scene::InternalDraw() {
 
 					// Sorting in reverse depth order so that we can iterate backwards and
 					// prioritize entities drawing before manual draw commands.
-					return a.depth > b.depth;
+					return a.depth >= b.depth;
 				}
 			);
 		},
@@ -295,6 +295,8 @@ void Scene::InternalDraw() {
 	ctx().global_renderer_.DrawTexture(
 		quad_shader, render_target_texture, positions, rt_tint, 0.0f, tex_coords, {}
 	);
+
+	ctx().global_renderer_.FlushBatch();
 
 	// Must be cleared after BindScreenTarget, as that flushes the batch.
 	ctx().renderer.temporary_textures_.clear();
