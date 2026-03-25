@@ -478,6 +478,11 @@ void Tween::Update(Scene& scene, secondsf dt) {
 	for (auto [entity, tween] : scene.EntitiesWith<impl::TweenInstance>()) {
 		Tween{ entity }.Step(dt);
 	}
+	for (auto [entity, tween] : scene.EntitiesWith<impl::TweenInstance>()) {
+		for (auto& point : tween.points_) {
+			point.script_container_.Update();
+		}
+	}
 }
 
 std::ostream& operator<<(std::ostream& os, impl::TweenState state) {

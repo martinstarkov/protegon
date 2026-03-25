@@ -328,9 +328,9 @@ std::ostream& operator<<(std::ostream& os, impl::TweenState state);
 
 template <typename T, typename... TArgs>
 Tween& Tween::AddScript(TArgs&&... args) {
-	auto& script{
-		GetLastTweenPoint().script_container_.Add<T>(*this, std::forward<TArgs>(args)...)
-	};
+	auto& container{ GetLastTweenPoint().script_container_ };
+	auto& script{ container.Add<T>(*this, std::forward<TArgs>(args)...) };
+	container.ApplyPending();
 	return *this;
 }
 
