@@ -45,20 +45,6 @@ struct CrossFadeTransition : public SceneTransitionPair<FadeOutTransition, FadeI
 	);
 };
 
-// TODO: Add CoverTransition, requires Z-ordering
-// TODO: Add UncoverTransition, requires Z-ordering
-
-// TODO: Add ZoomInTransition
-// TODO: Add ZoomOutTransition
-// TODO: Add ZoomTransition
-
-// TODO: Add WipeTransition
-// TODO: Add RadialWipeTransition
-// TODO: Add IrisInTransition
-// TODO: Add IrisOutTransition
-// TODO: Add IrisOutInTransition
-// TODO: Add PixelateTransition
-
 struct SlideInTransition : public SceneTransition {
 	explicit SlideInTransition(
 		milliseconds duration, V2_float from_direction = { 1.0f, 0.0f },
