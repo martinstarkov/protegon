@@ -3,6 +3,7 @@
 #include <concepts>
 #include <cstdint>
 #include <functional>
+#include <variant>
 
 #include "core/time/time.h"
 #include "runtime/animation/tween.h"
@@ -23,13 +24,15 @@ struct ScriptSequenceData {
 
 } // namespace impl
 
+using SequenceFunction = std::variant<std::function<void()>, std::function<void(Entity)>>;
+
 class ScriptSequence : public Entity {
 public:
 	/// @brief Add a script that runs for the given duration.
 	template <ScriptType TScript, typename... TArgs>
 		requires std::constructible_from<TScript, TArgs...>
 	ScriptSequence& During(milliseconds duration, TArgs&&... args) {
-		auto& instance{ Get<impl::ScriptSequenceData>() };
+		const auto& instance{ Get<impl::ScriptSequenceData>() };
 		auto& sequence{ Tween{ instance.tween }.During(duration) };
 		auto& script{ sequence.GetLastTweenPoint().script_container_.Add<TScript>(
 			*this, std::forward<TArgs>(args)...
@@ -38,10 +41,10 @@ public:
 	}
 
 	/// @brief Add a function that runs continuously during the specified duration.
-	ScriptSequence& During(milliseconds duration, std::function<void(Entity)> func);
+	ScriptSequence& During(milliseconds duration, SequenceFunction func);
 
 	/// @brief Instantaneous function trigger.
-	ScriptSequence& Then(std::function<void(Entity)> func);
+	ScriptSequence& Then(SequenceFunction func);
 
 	/// @brief Wait for a duration without running any functions.
 	ScriptSequence& Wait(milliseconds duration);
@@ -58,8 +61,8 @@ public:
 
 ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete = true);
 
-void After(Scene& scene, milliseconds duration, const std::function<void(Entity)>& func);
+void After(Scene& scene, milliseconds duration, const SequenceFunction& func);
 
-void During(Scene& scene, milliseconds duration, const std::function<void(Entity)>& func);
+void During(Scene& scene, milliseconds duration, const SequenceFunction& func);
 
 } // namespace ptgn
