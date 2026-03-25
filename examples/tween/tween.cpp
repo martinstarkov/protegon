@@ -25,7 +25,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scripting/script.h"
 
 using namespace ptgn;

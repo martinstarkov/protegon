@@ -3,7 +3,7 @@
 #include "core/event/dispatcher.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 
 namespace ptgn {
 

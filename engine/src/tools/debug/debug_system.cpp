@@ -25,7 +25,7 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "tools/debug/profiling.h"
 #include "tools/debug/stats.h"
 

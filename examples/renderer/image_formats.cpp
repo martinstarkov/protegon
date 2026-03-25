@@ -9,7 +9,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;

@@ -4,7 +4,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/renderer.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;

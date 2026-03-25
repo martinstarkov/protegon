@@ -14,7 +14,7 @@
 #include "runtime/audio/audio.h"
 #include "runtime/graphics/font.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "serialization/json/fwd.h"
 
 namespace ptgn {

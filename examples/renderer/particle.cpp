@@ -16,7 +16,7 @@
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 #include "runtime/world/grid.h"

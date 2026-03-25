@@ -18,7 +18,7 @@
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scene/scene_input.h"
 
 namespace ptgn {

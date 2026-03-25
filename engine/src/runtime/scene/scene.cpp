@@ -8,12 +8,14 @@
 #include <variant>
 #include <vector>
 
+#include "app/application.h"
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
+#include "core/time/time.h"
 #include "core/util/span.h"
 #include "ecs/ecs.h"
 #include "renderer/primitives/blend_mode.h"
@@ -37,14 +39,79 @@
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/physics.h"
-#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_state.h"
 #include "runtime/scripting/scripts.h"
 #include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
+
+SceneEventHandler::SceneEventHandler(Scene& scene) : scene_{ scene } {}
+
+void SceneEventHandler::Emit(EventDispatcher d) {
+	scene_.InternalEmit(d);
+}
+
+LocalSceneManager::LocalSceneManager(SceneManager& scene_manager, Scene& scene) :
+	scene_manager_{ scene_manager }, scene_{ scene } {}
+
+bool LocalSceneManager::CanIssueCommands(std::size_t target_key) const {
+	if (scene_.IsTransitioning()) {
+		return false;
+	}
+
+	if (!scene_manager_.Has(target_key)) {
+		return true;
+	}
+
+	if (const auto& target_scene{ scene_manager_.Get(target_key) };
+		target_scene.IsTransitioning()) {
+		return false;
+	}
+
+	return true;
+}
+
+SceneContext::SceneContext(Application& app, Scene& parent_scene) :
+	global_event{ app.events_ },
+	window{ app.window_ },
+	asset{ app.assets_ },
+	font{ app.font_ },
+	audio{ app.audio_ },
+	scene{ app.scenes_, parent_scene },
+	renderer{ parent_scene, app.renderer_ },
+	debug{ renderer },
+	event{ parent_scene },
+	input{ parent_scene, app.input_ },
+	physics{ parent_scene },
+	global_renderer_{ app.renderer_ },
+	app_{ app } {}
+
+SceneContext::~SceneContext() noexcept {
+	// Needs access to destructors.
+}
+
+void SceneContext::Stop() {
+	app_.Stop();
+}
+
+secondsf SceneContext::dt() const {
+	return app_.dt();
+}
+
+milliseconds SceneContext::TimeSinceStart() const {
+	return app_.TimeSinceStart();
+}
+
+bool SceneContext::IsRunning() const {
+	return app_.IsRunning();
+}
+
+std::size_t SceneContext::GetFrameCount() const {
+	return app_.GetFrameCount();
+}
 
 Scene::Scene() {}
 

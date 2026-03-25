@@ -15,7 +15,6 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_transition.h"
 
@@ -74,8 +73,8 @@ public:
 			color::Magenta, 30
 		);
 		if (ctx().input.KeyPressed(Key::A)) {
-			if (ctx().scene.ReEnter<Scene2>(
-					"scene2", FadeOutTransition{ 3000ms }, FadeInTransition{ 3000ms }, reenter_count
+			if (ReEnter<Scene2>(
+					FadeOutTransition{ 3000ms }, FadeInTransition{ 3000ms }, reenter_count
 				)) {
 				++reenter_count;
 			}

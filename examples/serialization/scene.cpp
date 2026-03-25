@@ -1,7 +1,7 @@
 #include "runtime/scene/scene.h"
 
 #include "app/application.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;

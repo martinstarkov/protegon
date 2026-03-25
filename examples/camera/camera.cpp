@@ -19,7 +19,7 @@
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"

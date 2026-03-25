@@ -37,7 +37,7 @@
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 #include "serialization/json/fwd.h"

@@ -20,7 +20,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scripting/scripts.h"
 
 namespace ptgn {

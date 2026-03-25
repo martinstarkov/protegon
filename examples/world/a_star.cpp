@@ -13,7 +13,7 @@
 #include "renderer/renderer.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scene/scene_manager.h"
 #include "runtime/world/grid.h"
 

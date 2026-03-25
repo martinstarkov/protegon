@@ -3,7 +3,7 @@
 #include "core/log.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 
 using namespace ptgn;
 

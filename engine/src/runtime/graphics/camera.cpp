@@ -21,7 +21,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/render_target_component.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 

@@ -29,7 +29,7 @@
 #include "runtime/physics/broadphase.h"
 #include "runtime/scene/resolution.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scripting/scripts.h"
 #include "runtime/ui/interactive.h"
 #include "tools/debug/debug_system.h"

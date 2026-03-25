@@ -22,7 +22,7 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;

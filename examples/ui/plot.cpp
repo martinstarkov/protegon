@@ -12,7 +12,7 @@
 #include "platform/window/window.h"
 #include "renderer/primitives/color.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;

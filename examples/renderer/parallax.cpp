@@ -5,7 +5,7 @@
 #include "platform/window/window.h"
 #include "renderer/renderer.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
+
 #include "runtime/scene/scene_manager.h"
 
 // TODO: Fix this demo.
