@@ -35,6 +35,8 @@ private:
 
 	void Update(secondsf dt);
 
+	[[nodiscard]] std::size_t GenerateTempKey() const;
+
 	[[nodiscard]] bool Has(std::size_t key) const;
 	const Scene& Get(std::size_t key) const;
 	Scene& Get(std::size_t key);
@@ -42,7 +44,7 @@ private:
 	std::vector<std::unique_ptr<Scene>> scenes_;
 	std::vector<impl::SceneCommand> commands_;
 	/// @brief Contains the scene key of currently re-entering scenes.
-	std::vector<std::size_t> reentering_scenes_;
+	std::vector<impl::ReEnteringScene> reentering_scenes_;
 };
 
 } // namespace ptgn

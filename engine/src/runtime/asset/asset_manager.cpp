@@ -34,6 +34,7 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
+#include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 
 #ifdef CreateFont
@@ -88,6 +89,9 @@ Texture AssetManager::CreateTexture(const path& asset_path) {
 }
 
 Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) {
+	if (auto existing{ GetTexture(key) }; existing.has_value()) {
+		return *existing;
+	}
 	auto texture{ CreateTexture(true, asset_path) };
 	impl::AddAssetKey(texture.GetEntity(), key, asset_path);
 	return texture;
@@ -110,6 +114,9 @@ Font AssetManager::CreateFont(const path& asset_path, float font_size) {
 }
 
 Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float font_size) {
+	if (auto existing{ GetFont(key) }; existing.has_value()) {
+		return *existing;
+	}
 	auto font{ CreateFont(true, asset_path, font_size) };
 	impl::AddAssetKey(font.GetEntity(), key, asset_path);
 	return font;
@@ -130,6 +137,9 @@ Audio AssetManager::CreateAudio(const path& asset_path) {
 }
 
 Audio AssetManager::LoadAudio(std::string_view key, const path& asset_path) {
+	if (auto existing{ GetAudio(key) }; existing.has_value()) {
+		return *existing;
+	}
 	auto audio{ CreateAudio(true, asset_path) };
 	impl::AddAssetKey(audio.GetEntity(), key, asset_path);
 	return audio;
@@ -156,6 +166,9 @@ Shader AssetManager::LoadShader(
 	std::string_view key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 	std::optional<std::string_view> shader_name
 ) {
+	if (auto existing{ GetShader(key) }; existing.has_value()) {
+		return *existing;
+	}
 	auto shader{ CreateShader(true, source, shader_name.value_or(key)) };
 	impl::AddAssetKey(shader.GetEntity(), key, {});
 	return shader;
@@ -166,7 +179,7 @@ json AssetManager::CreateJson(const path& asset_path) {
 }
 
 json& AssetManager::LoadJson(std::string_view key, const path& asset_path) {
-	auto [it, _] = jsons_.insert_or_assign(Hash(key), ptgn::LoadJson(asset_path));
+	auto [it, _] = jsons_.try_emplace(Hash(key), ptgn::LoadJson(asset_path));
 	return it->second;
 }
 
@@ -599,6 +612,10 @@ bool AssetManager::HasTexture(std::string_view key) const {
 
 bool AssetManager::HasFont(std::string_view key) const {
 	return Has<Font>(Hash(key));
+}
+
+std::size_t AssetManager::Size() const {
+	return manager_.Size() + jsons_.size();
 }
 
 std::optional<impl::TextureObject> AssetManager::CreateTextTextureObject(

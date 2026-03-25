@@ -25,7 +25,12 @@ int reenter_count{ 1 };
 constexpr V2_int game_size{ 800, 800 };
 
 struct FadeInTransition : public SceneTransition {
-	explicit FadeInTransition(milliseconds duration) : SceneTransition{ duration } {}
+	explicit FadeInTransition(milliseconds duration, milliseconds delay = milliseconds{ 0 }) :
+		SceneTransition{ duration, delay } {}
+
+	void OnDelayStart(Scene& scene) final {
+		SetTint(scene.GetRenderTarget(), color::Transparent);
+	}
 
 	void OnStart(Scene& scene) final {
 		FadeIn(scene.GetRenderTarget(), GetDuration(), {}, true, true);
@@ -37,7 +42,12 @@ struct FadeInTransition : public SceneTransition {
 };
 
 struct FadeOutTransition : public SceneTransition {
-	explicit FadeOutTransition(milliseconds duration) : SceneTransition{ duration } {}
+	explicit FadeOutTransition(milliseconds duration, milliseconds delay = milliseconds{ 0 }) :
+		SceneTransition{ duration, delay } {}
+
+	void OnDelayStart(Scene& scene) final {
+		SetTint(scene.GetRenderTarget(), color::White);
+	}
 
 	void OnStart(Scene& scene) final {
 		FadeOut(scene.GetRenderTarget(), GetDuration(), {}, true, true);
@@ -50,7 +60,14 @@ struct FadeOutTransition : public SceneTransition {
 
 struct FadeOutInTransition : public SceneTransitionPair<FadeOutTransition, FadeInTransition> {
 	explicit FadeOutInTransition(milliseconds duration) :
-		SceneTransitionPair{ FadeOutTransition{ duration }, FadeInTransition{ duration } } {}
+		SceneTransitionPair{ FadeOutTransition{ duration },
+							 FadeInTransition{ duration, duration } } {}
+};
+
+struct CrossFadeTransition : public SceneTransitionPair<FadeOutTransition, FadeInTransition> {
+	explicit CrossFadeTransition(milliseconds duration) :
+		SceneTransitionPair{ FadeOutTransition{ duration },
+							 FadeInTransition{ duration, milliseconds{ 0 } } } {}
 };
 
 class Scene3 : public Scene {
@@ -97,7 +114,11 @@ public:
 		);
 
 		if (ctx().input.KeyPressed(Key::N)) {
-			ctx().scene.Switch<Scene2>("scene2", FadeOutInTransition{ 3000ms });
+			if (ctx().scene.Switch<Scene2>(
+					"scene2", FadeOutInTransition{ 3000ms }, reenter_count
+				)) {
+				++reenter_count;
+			}
 		}
 	}
 };
@@ -106,7 +127,7 @@ void Scene3::OnUpdate() {
 	// PTGN_LOG("Scene 3 tint: ", GetTint(GetRenderTarget()));
 	ctx().renderer.DrawTexture("bg3", -game_size * 0.5f, game_size * 0.5f, Origin::TopLeft);
 	if (ctx().input.KeyPressed(Key::N)) {
-		ctx().scene.Switch<Scene1>("scene1", FadeOutInTransition{ 3000ms });
+		ctx().scene.Switch<Scene1>("scene1", CrossFadeTransition{ 3000ms });
 	}
 }
 

@@ -2,6 +2,7 @@
 
 #include <concepts>
 #include <initializer_list>
+#include <optional>
 #include <type_traits>
 
 #include "core/time/time.h"
@@ -14,12 +15,15 @@ class SceneManager;
 class SceneTransition {
 public:
 	SceneTransition() = default;
-	explicit SceneTransition(milliseconds duration);
+	explicit SceneTransition(milliseconds duration, milliseconds delay = milliseconds{ 0 });
 
 	virtual ~SceneTransition() = default;
 
 	float GetElapsedFraction() const;
 	milliseconds GetDuration() const;
+
+	virtual void OnDelayStart([[maybe_unused]] Scene& target_scene
+	) { /* Optional user implementation */ }
 
 	virtual void OnStart([[maybe_unused]] Scene& target_scene) { /* Optional user implementation */
 	}
@@ -33,10 +37,16 @@ private:
 	friend class SceneManager;
 
 	void UpdateTime(secondsf dt);
+	void UpdateDelayTime(secondsf dt);
 	[[nodiscard]] bool IsFinished() const;
+	[[nodiscard]] bool IsInDelay() const;
 
 	milliseconds elapsed_{ 0 };
 	milliseconds duration_{ 0 };
+
+	milliseconds delay_elapsed_{ 0 };
+	milliseconds delay_duration_{ 0 };
+	bool started_{ false };
 };
 
 struct NoTransition {};

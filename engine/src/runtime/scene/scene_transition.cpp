@@ -7,14 +7,25 @@
 
 namespace ptgn {
 
-SceneTransition::SceneTransition(milliseconds duration) : duration_{ duration } {}
+SceneTransition::SceneTransition(milliseconds duration, milliseconds delay) :
+	duration_{ duration }, delay_duration_{ delay }, started_{ delay == milliseconds{ 0 } } {
+	PTGN_ASSERT(delay >= milliseconds{ 0 });
+}
 
 void SceneTransition::UpdateTime(secondsf dt) {
 	elapsed_ += duration_cast<milliseconds>(dt);
 }
 
+void SceneTransition::UpdateDelayTime(secondsf dt) {
+	delay_elapsed_ += duration_cast<milliseconds>(dt);
+}
+
 bool SceneTransition::IsFinished() const {
 	return elapsed_ >= duration_;
+}
+
+bool SceneTransition::IsInDelay() const {
+	return !started_ && delay_elapsed_ < delay_duration_;
 }
 
 float SceneTransition::GetElapsedFraction() const {

@@ -39,6 +39,11 @@ struct SceneCommand {
 	std::unique_ptr<SceneTransition> transition_in;
 };
 
+struct ReEnteringScene {
+	std::size_t scene_key{ 0 };
+	std::size_t temporary_scene_key{ 0 };
+};
+
 } // namespace impl
 
 } // namespace ptgn

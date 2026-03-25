@@ -10,6 +10,7 @@
 #include "app/application.h"
 #include "core/assert.h"
 #include "core/log.h"
+#include "core/math/rng.h"
 #include "core/time/time.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_command.h"
@@ -74,20 +75,19 @@ void SceneManager::ApplyCommands(
 	const auto enter = [this](auto target_key, auto& cmd) {
 		auto new_scene = cmd.scene_factory();
 
-		// TODO: Figure out delay system.
-		// if (!cmd.use_delay) {
-		//	s->scene_on_entered = true;
-		//	newScene->InternalEnter();
-		//}
-		// newScene->use_delay = cmd.use_delay;
-
 		new_scene->state_	   = impl::SceneState::TransitionIn;
+		new_scene->key_		   = target_key;
 		new_scene->transition_ = std::move(cmd.transition_in);
-		if (new_scene->transition_) {
-			new_scene->transition_->OnStart(*new_scene);
+		if (!new_scene->transition_) {
+			new_scene->InternalEnter();
+		} else {
+			new_scene->transition_->OnDelayStart(*new_scene);
+			if (!new_scene->transition_->IsInDelay()) {
+				new_scene->transition_->started_ = true;
+				new_scene->transition_->OnStart(*new_scene);
+				new_scene->InternalEnter();
+			}
 		}
-		new_scene->key_ = target_key;
-		new_scene->InternalEnter();
 
 		scenes_.emplace_back(std::move(new_scene));
 	};
@@ -97,7 +97,11 @@ void SceneManager::ApplyCommands(
 		target_scene.state_		 = impl::SceneState::TransitionOut;
 		target_scene.transition_ = std::move(cmd.transition_out);
 		if (target_scene.transition_) {
-			target_scene.transition_->OnStart(target_scene);
+			target_scene.transition_->OnDelayStart(target_scene);
+			if (!target_scene.transition_->IsInDelay()) {
+				target_scene.transition_->started_ = true;
+				target_scene.transition_->OnStart(target_scene);
+			}
 		}
 	};
 
@@ -125,12 +129,13 @@ void SceneManager::ApplyCommands(
 				PTGN_ASSERT(
 					Has(target_key), "Cannot re-enter a scene which is not in the scene manager"
 				);
-				std::size_t temporary_key = target_key + 1;
+
+				std::size_t temporary_key{ GenerateTempKey() };
 
 				exit(target_key, cmd);
 				enter(temporary_key, cmd);
 
-				reentering_scenes_.emplace_back(temporary_key);
+				reentering_scenes_.emplace_back(target_key, temporary_key);
 				break;
 			}
 		}
@@ -153,6 +158,18 @@ void SceneManager::Update(secondsf dt) {
 
 		const auto& scene = *it;
 		if (scene->transition_) {
+			if (scene->transition_->IsInDelay()) {
+				scene->transition_->UpdateDelayTime(dt);
+				++it;
+				continue;
+			} else if (!scene->transition_->started_) {
+				scene->transition_->started_ = true;
+				scene->transition_->OnStart(*scene);
+				if (scene->state_ == TransitionIn) {
+					scene->InternalEnter();
+				}
+			}
+
 			scene->transition_->UpdateTime(dt);
 			scene->transition_->OnUpdate(*scene);
 
@@ -171,13 +188,6 @@ void SceneManager::Update(secondsf dt) {
 		if (scene->state_ == TransitionIn) {
 			scene->transition_.reset();
 			scene->state_ = Active;
-			// TODO: Add some sort of scene->OnTransitionFinished() callback so scenes can control
-			// what appears in the scene when.
-			// TODO: Add delay system.
-			// if (!scene->scene_on_entered) {
-			//	scene->InternalEnter();
-			//	scene->scene_on_entered = true;
-			//}
 			++it;
 		} else if (scene->state_ == TransitionOut) {
 			scene->transition_.reset();
@@ -189,22 +199,28 @@ void SceneManager::Update(secondsf dt) {
 	}
 
 	for (auto it = reentering_scenes_.begin(); it != reentering_scenes_.end();) {
-		auto scene_key = *it;
-
-		if (!Has(scene_key)) {
-			++it;
+		if (!Has(it->temporary_scene_key)) {
+			it = reentering_scenes_.erase(it);
 			continue;
 		}
 
-		auto& scene{ Get(scene_key) };
+		auto& scene{ Get(it->temporary_scene_key) };
 
 		if (scene.state_ == impl::SceneState::Active) {
-			scene.key_ = scene_key - 1;
+			scene.key_ = it->scene_key;
 			it		   = reentering_scenes_.erase(it);
 		} else {
 			++it;
 		}
 	}
+}
+
+std::size_t SceneManager::GenerateTempKey() const {
+	static std::size_t next_temp_key{ 1 };
+	while (Has(next_temp_key)) {
+		++next_temp_key;
+	}
+	return next_temp_key;
 }
 
 bool SceneManager::Has(std::size_t key) const {

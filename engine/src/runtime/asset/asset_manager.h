@@ -163,6 +163,10 @@ public:
 	[[nodiscard]] bool HasTexture(std::string_view key) const;
 	[[nodiscard]] bool HasFont(std::string_view key) const;
 
+	/// @return The total number of assets currently loaded in the manager. Never below 1 (default
+	/// font is always loaded).
+	[[nodiscard]] std::size_t Size() const;
+
 private:
 	friend class Application;
 	friend class Shader;
