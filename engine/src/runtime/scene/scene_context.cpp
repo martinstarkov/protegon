@@ -42,25 +42,6 @@ bool LocalSceneManager::CanIssueCommands(std::size_t target_key) const {
 	return true;
 }
 
-void LocalSceneManager::Exit(
-	std::string_view key, std::unique_ptr<SceneTransition> transition_out, std::size_t priority
-) {
-	auto key_hash{ Hash(key) };
-
-	if (!CanIssueCommands(key_hash)) {
-		return;
-	}
-
-	if (!scene_manager_.Has(key_hash)) {
-		return;
-	}
-
-	scene_manager_.commands_.emplace_back(
-		impl::SceneCommandType::Exit, scene_.key_, key_hash, priority, nullptr, nullptr,
-		std::move(transition_out)
-	);
-}
-
 SceneContext::SceneContext(Application& app, Scene& parent_scene) :
 	global_event{ app.events_ },
 	window{ app.window_ },
