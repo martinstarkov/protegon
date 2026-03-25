@@ -9,10 +9,10 @@ namespace ptgn {
 
 class Scene;
 
-struct ScenePriority {
-	explicit ScenePriority() = default;
+struct SceneTransitionPriority {
+	explicit SceneTransitionPriority() = default;
 
-	explicit ScenePriority(std::size_t value) : value{ value } {}
+	explicit SceneTransitionPriority(std::size_t value) : value{ value } {}
 
 	std::size_t value{ 0 };
 };
@@ -31,7 +31,7 @@ struct SceneCommand {
 	std::size_t from_scene_key{ 0 };
 	std::size_t to_scene_key{ 0 };
 
-	ScenePriority priority;
+	SceneTransitionPriority priority;
 
 	std::function<std::unique_ptr<Scene>()> scene_factory;
 

@@ -5,6 +5,7 @@
 #include <limits>
 #include <memory>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 #include "core/assert.h"
@@ -73,7 +74,7 @@ public:
 	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	bool Enter(
-		std::string_view scene_key, TransitionIn&& transition_in, ScenePriority priority,
+		std::string_view scene_key, TransitionIn&& transition_in, SceneTransitionPriority priority,
 		TArgs&&... constructor_args
 	) {
 		return Enter<T>(
@@ -88,14 +89,16 @@ public:
 		std::string_view scene_key, TransitionIn&& transition_in, TArgs&&... constructor_args
 	) {
 		return Enter<T>(
-			scene_key, std::forward<TransitionIn>(transition_in), ScenePriority{},
+			scene_key, std::forward<TransitionIn>(transition_in), SceneTransitionPriority{},
 			std::forward<TArgs>(constructor_args)...
 		);
 	}
 
 	template <SceneType T, typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
-	bool Enter(std::string_view scene_key, ScenePriority priority, TArgs&&... constructor_args) {
+	bool Enter(
+		std::string_view scene_key, SceneTransitionPriority priority, TArgs&&... constructor_args
+	) {
 		return Enter<T>(
 			scene_key, NoTransition{}, priority, std::forward<TArgs>(constructor_args)...
 		);
@@ -105,19 +108,22 @@ public:
 		requires std::constructible_from<T, TArgs...>
 	bool Enter(std::string_view scene_key, TArgs&&... constructor_args) {
 		return Enter<T>(
-			scene_key, NoTransition{}, ScenePriority{}, std::forward<TArgs>(constructor_args)...
+			scene_key, NoTransition{}, SceneTransitionPriority{},
+			std::forward<TArgs>(constructor_args)...
 		);
 	}
 
 	template <SceneTransitionType TransitionOut>
 	bool Exit(
 		std::string_view scene_key, TransitionOut&& transition_out,
-		ScenePriority priority = ScenePriority{ 0 }
+		SceneTransitionPriority priority = SceneTransitionPriority{ 0 }
 	) {
 		return Exit(Hash(scene_key), std::forward<TransitionOut>(transition_out), priority);
 	}
 
-	bool Exit(std::string_view scene_key, ScenePriority priority = ScenePriority{ 0 }) {
+	bool Exit(
+		std::string_view scene_key, SceneTransitionPriority priority = SceneTransitionPriority{ 0 }
+	) {
 		return Exit(scene_key, NoTransition{}, priority);
 	}
 
@@ -126,36 +132,11 @@ public:
 		typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	bool ReEnter(
-		std::string_view scene_key, TransitionOut&& transition_out, TransitionIn&& transition_in,
+		std::string_view scene_key, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
 		TArgs&&... constructor_args
 	) {
 		return ReEnter<T>(
-			Hash(scene_key), std::forward<TransitionOut>(transition_out),
-			std::forward<TransitionIn>(transition_in), std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType T, SceneTransitionType TransitionOut, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool ReEnter(
-		std::string_view scene_key, TransitionOut&& transition_out, std::initializer_list<int>,
-		TArgs&&... constructor_args
-	) {
-		return ReEnter<T>(
-			scene_key, std::forward<TransitionOut>(transition_out), NoTransition{},
-			std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool ReEnter(
-		std::string_view scene_key, std::initializer_list<int>, TransitionIn&& transition_in,
-		TArgs&&... constructor_args
-	) {
-		return ReEnter<T>(
-			scene_key, NoTransition{}, std::forward<TransitionIn>(transition_in),
-			std::forward<TArgs>(constructor_args)...
+			Hash(scene_key), std::move(transition), std::forward<TArgs>(constructor_args)...
 		);
 	}
 
@@ -163,7 +144,7 @@ public:
 		requires std::constructible_from<T, TArgs...>
 	bool ReEnter(std::string_view scene_key, TArgs&&... constructor_args) {
 		return ReEnter<T>(
-			scene_key, NoTransition{}, NoTransition{}, std::forward<TArgs>(constructor_args)...
+			scene_key, SceneTransitionPair{}, std::forward<TArgs>(constructor_args)...
 		);
 	}
 
@@ -173,12 +154,11 @@ public:
 		requires std::constructible_from<ToScene, TArgs...>
 	bool Transition(
 		std::string_view from_scene_key, std::string_view to_scene_key,
-		TransitionOut&& transition_out, TransitionIn&& transition_in, ScenePriority priority,
-		TArgs&&... to_scene_constructor_args
+		SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
+		SceneTransitionPriority priority, TArgs&&... to_scene_constructor_args
 	) {
 		return Transition<ToScene>(
-			Hash(from_scene_key), Hash(to_scene_key), std::forward<TransitionOut>(transition_out),
-			std::forward<TransitionIn>(transition_in), priority,
+			Hash(from_scene_key), Hash(to_scene_key), std::move(transition), priority,
 			std::forward<TArgs>(to_scene_constructor_args)...
 		);
 	}
@@ -189,74 +169,23 @@ public:
 		requires std::constructible_from<ToScene, TArgs...>
 	bool Transition(
 		std::string_view from_scene_key, std::string_view to_scene_key,
-		TransitionOut&& transition_out, TransitionIn&& transition_in,
+		SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
 		TArgs&&... to_scene_constructor_args
 	) {
 		return Transition<ToScene>(
-			from_scene_key, to_scene_key, std::forward<TransitionOut>(transition_out),
-			std::forward<TransitionIn>(transition_in), ScenePriority{},
+			from_scene_key, to_scene_key, std::move(transition), SceneTransitionPriority{},
 			std::forward<TArgs>(to_scene_constructor_args)...
-		);
-	}
-
-	template <SceneType ToScene, SceneTransitionType TransitionIn, typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Transition(
-		std::string_view from_scene_key, std::string_view to_scene_key, std::initializer_list<int>,
-		TransitionIn&& transition_in, ScenePriority priority, TArgs&&... to_scene_constructor_args
-	) {
-		return Transition<ToScene>(
-			from_scene_key, to_scene_key, NoTransition{}, std::forward<TransitionIn>(transition_in),
-			priority, std::forward<TArgs>(to_scene_constructor_args)...
-		);
-	}
-
-	template <SceneType ToScene, SceneTransitionType TransitionIn, typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Transition(
-		std::string_view from_scene_key, std::string_view to_scene_key, std::initializer_list<int>,
-		TransitionIn&& transition_in, TArgs&&... to_scene_constructor_args
-	) {
-		return Transition<ToScene>(
-			from_scene_key, to_scene_key, NoTransition{}, std::forward<TransitionIn>(transition_in),
-			ScenePriority{}, std::forward<TArgs>(to_scene_constructor_args)...
-		);
-	}
-
-	template <SceneType ToScene, SceneTransitionType TransitionOut, typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Transition(
-		std::string_view from_scene_key, std::string_view to_scene_key,
-		TransitionOut&& transition_out, std::initializer_list<int>, ScenePriority priority,
-		TArgs&&... to_scene_constructor_args
-	) {
-		return Transition<ToScene>(
-			from_scene_key, to_scene_key, std::forward<TransitionOut>(transition_out),
-			NoTransition{}, priority, std::forward<TArgs>(to_scene_constructor_args)...
-		);
-	}
-
-	template <SceneType ToScene, SceneTransitionType TransitionOut, typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Transition(
-		std::string_view from_scene_key, std::string_view to_scene_key,
-		TransitionOut&& transition_out, std::initializer_list<int>,
-		TArgs&&... to_scene_constructor_args
-	) {
-		return Transition<ToScene>(
-			from_scene_key, to_scene_key, std::forward<TransitionOut>(transition_out),
-			NoTransition{}, ScenePriority{}, std::forward<TArgs>(to_scene_constructor_args)...
 		);
 	}
 
 	template <SceneType ToScene, typename... TArgs>
 		requires std::constructible_from<ToScene, TArgs...>
 	bool Transition(
-		std::string_view from_scene_key, std::string_view to_scene_key, ScenePriority priority,
-		TArgs&&... to_scene_constructor_args
+		std::string_view from_scene_key, std::string_view to_scene_key,
+		SceneTransitionPriority priority, TArgs&&... to_scene_constructor_args
 	) {
 		return Transition<ToScene>(
-			from_scene_key, to_scene_key, NoTransition{}, NoTransition{}, priority,
+			from_scene_key, to_scene_key, SceneTransitionPair{}, priority,
 			std::forward<TArgs>(to_scene_constructor_args)...
 		);
 	}
@@ -268,7 +197,7 @@ public:
 		TArgs&&... to_scene_constructor_args
 	) {
 		return Transition<ToScene>(
-			from_scene_key, to_scene_key, NoTransition{}, NoTransition{}, ScenePriority{},
+			from_scene_key, to_scene_key, SceneTransitionPair{}, SceneTransitionPriority{},
 			std::forward<TArgs>(to_scene_constructor_args)...
 		);
 	}
@@ -278,8 +207,8 @@ public:
 		typename... TArgs>
 		requires std::constructible_from<ToScene, TArgs...>
 	bool Switch(
-		std::string_view scene_key, TransitionOut&& transition_out, TransitionIn&& transition_in,
-		ScenePriority priority, TArgs&&... constructor_args
+		std::string_view scene_key, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
+		SceneTransitionPriority priority, TArgs&&... constructor_args
 	);
 
 	template <
@@ -287,70 +216,22 @@ public:
 		typename... TArgs>
 		requires std::constructible_from<ToScene, TArgs...>
 	bool Switch(
-		std::string_view scene_key, TransitionOut&& transition_out, TransitionIn&& transition_in,
+		std::string_view scene_key, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
 		TArgs&&... constructor_args
 	) {
 		return Switch<ToScene>(
-			scene_key, std::forward<TransitionOut>(transition_out),
-			std::forward<TransitionIn>(transition_in), ScenePriority{},
-			std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType ToScene, SceneTransitionType TransitionIn, typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Switch(
-		std::string_view scene_key, std::initializer_list<int>, TransitionIn&& transition_in,
-		ScenePriority priority, TArgs&&... constructor_args
-	) {
-		return Switch<ToScene>(
-			scene_key, NoTransition{}, std::forward<TransitionIn>(transition_in), priority,
-			std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType ToScene, SceneTransitionType TransitionIn, typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Switch(
-		std::string_view scene_key, std::initializer_list<int>, TransitionIn&& transition_in,
-		TArgs&&... constructor_args
-	) {
-		return Switch<ToScene>(
-			scene_key, NoTransition{}, std::forward<TransitionIn>(transition_in), ScenePriority{},
-			std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType ToScene, SceneTransitionType TransitionOut, typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Switch(
-		std::string_view scene_key, TransitionOut&& transition_out, std::initializer_list<int>,
-		ScenePriority priority, TArgs&&... constructor_args
-	) {
-		return Switch<ToScene>(
-			scene_key, std::forward<TransitionOut>(transition_out), NoTransition{}, priority,
-			std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType ToScene, SceneTransitionType TransitionOut, typename... TArgs>
-		requires std::constructible_from<ToScene, TArgs...>
-	bool Switch(
-		std::string_view scene_key, TransitionOut&& transition_out, std::initializer_list<int>,
-		TArgs&&... constructor_args
-	) {
-		return Switch<ToScene>(
-			scene_key, std::forward<TransitionOut>(transition_out), NoTransition{}, ScenePriority{},
+			scene_key, std::move(transition), SceneTransitionPriority{},
 			std::forward<TArgs>(constructor_args)...
 		);
 	}
 
 	template <SceneType ToScene, typename... TArgs>
 		requires std::constructible_from<ToScene, TArgs...>
-	bool Switch(std::string_view scene_key, ScenePriority priority, TArgs&&... constructor_args) {
+	bool Switch(
+		std::string_view scene_key, SceneTransitionPriority priority, TArgs&&... constructor_args
+	) {
 		return Switch<ToScene>(
-			scene_key, NoTransition{}, NoTransition{}, priority,
-			std::forward<TArgs>(constructor_args)...
+			scene_key, SceneTransitionPair{}, priority, std::forward<TArgs>(constructor_args)...
 		);
 	}
 
@@ -358,7 +239,7 @@ public:
 		requires std::constructible_from<ToScene, TArgs...>
 	bool Switch(std::string_view scene_key, TArgs&&... constructor_args) {
 		return Switch<ToScene>(
-			scene_key, NoTransition{}, NoTransition{}, ScenePriority{},
+			scene_key, SceneTransitionPair{}, SceneTransitionPriority{},
 			std::forward<TArgs>(constructor_args)...
 		);
 	}
@@ -379,21 +260,21 @@ private:
 		typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	bool ReEnter(
-		std::size_t scene_key_hash, TransitionOut&& transition_out, TransitionIn&& transition_in,
+		std::size_t scene_key_hash, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
 		TArgs&&... constructor_args
 	);
 
 	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	bool Enter(
-		std::size_t scene_key_hash, TransitionIn&& transition_in, ScenePriority priority,
+		std::size_t scene_key_hash, TransitionIn&& transition_in, SceneTransitionPriority priority,
 		TArgs&&... constructor_args
 	);
 
 	template <SceneTransitionType TransitionOut>
 	bool Exit(
 		std::size_t scene_key_hash, TransitionOut&& transition_out,
-		ScenePriority priority = ScenePriority{ 0 }
+		SceneTransitionPriority priority = SceneTransitionPriority{ 0 }
 	);
 
 	template <
@@ -402,22 +283,19 @@ private:
 		requires std::constructible_from<ToScene, TArgs...>
 	bool Transition(
 		std::size_t from_scene_key_hash, std::size_t to_scene_key_hash,
-		TransitionOut&& transition_out, TransitionIn&& transition_in, ScenePriority priority,
-		TArgs&&... to_scene_constructor_args
+		SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
+		SceneTransitionPriority priority, TArgs&&... to_scene_constructor_args
 	) {
 		if (from_scene_key_hash == to_scene_key_hash) {
 			return ReEnter<ToScene>(
-				to_scene_key_hash, std::forward<TransitionOut>(transition_out),
-				std::forward<TransitionIn>(transition_in),
+				to_scene_key_hash, std::move(transition),
 				std::forward<TArgs>(to_scene_constructor_args)...
 			);
 		}
 
-		bool exited{
-			Exit(from_scene_key_hash, std::forward<TransitionOut>(transition_out), priority)
-		};
+		bool exited{ Exit(from_scene_key_hash, std::move(transition.out), priority) };
 		bool entered{ Enter<ToScene>(
-			to_scene_key_hash, std::forward<TransitionIn>(transition_in), priority,
+			to_scene_key_hash, std::move(transition.in), priority,
 			std::forward<TArgs>(to_scene_constructor_args)...
 		) };
 		return exited || entered;
@@ -513,33 +391,10 @@ public:
 		typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	bool ReEnter(
-		TransitionOut&& transition_out, TransitionIn&& transition_in, TArgs&&... constructor_args
+		SceneTransitionPair<TransitionOut, TransitionIn>&& transition, TArgs&&... constructor_args
 	) {
 		return ctx().scene.ReEnter<T>(
-			key_, std::forward<TransitionOut>(transition_out),
-			std::forward<TransitionIn>(transition_in), std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool ReEnter(
-		std::initializer_list<int>, TransitionIn&& transition_in, TArgs&&... constructor_args
-	) {
-		return ctx().scene.ReEnter<T>(
-			key_, NoTransition{}, std::forward<TransitionIn>(transition_in),
-			std::forward<TArgs>(constructor_args)...
-		);
-	}
-
-	template <SceneType T, SceneTransitionType TransitionOut, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	bool ReEnter(
-		TransitionOut&& transition_out, std::initializer_list<int>, TArgs&&... constructor_args
-	) {
-		return ctx().scene.ReEnter<T>(
-			key_, std::forward<TransitionOut>(transition_out), NoTransition{},
-			std::forward<TArgs>(constructor_args)...
+			key_, std::move(transition), std::forward<TArgs>(constructor_args)...
 		);
 	}
 
@@ -547,7 +402,7 @@ public:
 		requires std::constructible_from<T, TArgs...>
 	bool ReEnter(TArgs&&... constructor_args) {
 		return ctx().scene.ReEnter<T>(
-			key_, NoTransition{}, NoTransition{}, std::forward<TArgs>(constructor_args)...
+			key_, SceneTransitionPair{}, std::forward<TArgs>(constructor_args)...
 		);
 	}
 
@@ -714,7 +569,7 @@ template <
 	typename... TArgs>
 	requires std::constructible_from<T, TArgs...>
 bool LocalSceneManager::ReEnter(
-	std::size_t scene_key_hash, TransitionOut&& transition_out, TransitionIn&& transition_in,
+	std::size_t scene_key_hash, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
 	TArgs&&... constructor_args
 ) {
 	if (!CanIssueCommands(scene_key_hash)) {
@@ -730,18 +585,16 @@ bool LocalSceneManager::ReEnter(
 
 	if constexpr (!std::same_as<std::decay_t<TransitionOut>, NoTransition>) {
 		transition_out_ptr =
-			std::make_unique<std::decay_t<TransitionOut>>(std::forward<TransitionOut>(transition_out
-			));
+			std::make_unique<std::decay_t<TransitionOut>>(std::move(transition.out));
 	}
 
 	if constexpr (!std::same_as<std::decay_t<TransitionIn>, NoTransition>) {
-		transition_in_ptr =
-			std::make_unique<std::decay_t<TransitionIn>>(std::forward<TransitionIn>(transition_in));
+		transition_in_ptr = std::make_unique<std::decay_t<TransitionIn>>(std::move(transition.in));
 	}
 
 	scene_manager_.commands_.emplace_back(
 		impl::SceneCommandType::ReEnter, scene_.key_, scene_key_hash,
-		ScenePriority{ std::numeric_limits<std::size_t>::max() },
+		SceneTransitionPriority{ std::numeric_limits<std::size_t>::max() },
 		GetInitFunction<T>(std::forward<TArgs>(constructor_args)...), std::move(transition_out_ptr),
 		std::move(transition_in_ptr)
 	);
@@ -752,7 +605,7 @@ bool LocalSceneManager::ReEnter(
 template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
 	requires std::constructible_from<T, TArgs...>
 bool LocalSceneManager::Enter(
-	std::size_t scene_key_hash, TransitionIn&& transition_in, ScenePriority priority,
+	std::size_t scene_key_hash, TransitionIn&& transition_in, SceneTransitionPriority priority,
 	TArgs&&... constructor_args
 ) {
 	if (!CanIssueCommands(scene_key_hash)) {
@@ -761,7 +614,7 @@ bool LocalSceneManager::Enter(
 
 	if (scene_manager_.Has(scene_key_hash)) {
 		return ReEnter<T>(
-			scene_key_hash, NoTransition{}, std::forward<TransitionIn>(transition_in),
+			scene_key_hash, SceneTransitionPair{ {}, std::forward<TransitionIn>(transition_in) },
 			std::forward<TArgs>(constructor_args)...
 		);
 	}
@@ -784,7 +637,7 @@ bool LocalSceneManager::Enter(
 
 template <SceneTransitionType TransitionOut>
 bool LocalSceneManager::Exit(
-	std::size_t scene_key_hash, TransitionOut&& transition_out, ScenePriority priority
+	std::size_t scene_key_hash, TransitionOut&& transition_out, SceneTransitionPriority priority
 ) {
 	if (!CanIssueCommands(scene_key_hash)) {
 		return false;
@@ -815,12 +668,11 @@ template <
 	typename... TArgs>
 	requires std::constructible_from<ToScene, TArgs...>
 bool LocalSceneManager::Switch(
-	std::string_view scene_key, TransitionOut&& transition_out, TransitionIn&& transition_in,
-	ScenePriority priority, TArgs&&... constructor_args
+	std::string_view scene_key, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
+	SceneTransitionPriority priority, TArgs&&... constructor_args
 ) {
 	return Transition<ToScene>(
-		scene_.key_, Hash(scene_key), std::forward<TransitionOut>(transition_out),
-		std::forward<TransitionIn>(transition_in), priority,
+		scene_.key_, Hash(scene_key), std::move(transition), priority,
 		std::forward<TArgs>(constructor_args)...
 	);
 }

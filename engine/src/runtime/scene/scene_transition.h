@@ -1,6 +1,7 @@
 #pragma once
 
 #include <concepts>
+#include <initializer_list>
 #include <type_traits>
 
 #include "core/time/time.h"
@@ -43,5 +44,18 @@ struct NoTransition {};
 template <typename T>
 concept SceneTransitionType =
 	std::derived_from<T, SceneTransition> || std::same_as<std::decay_t<T>, NoTransition>;
+
+template <
+	SceneTransitionType TransitionOut = NoTransition,
+	SceneTransitionType TransitionIn  = NoTransition>
+struct SceneTransitionPair {
+	SceneTransitionPair() = default;
+
+	SceneTransitionPair(TransitionOut&& out, TransitionIn&& in) :
+		out{ std::move(out) }, in{ std::move(in) } {}
+
+	TransitionOut out{};
+	TransitionIn in{};
+};
 
 } // namespace ptgn

@@ -48,6 +48,11 @@ struct FadeOutTransition : public SceneTransition {
 	}
 };
 
+struct FadeOutInTransition : public SceneTransitionPair<FadeOutTransition, FadeInTransition> {
+	explicit FadeOutInTransition(milliseconds duration) :
+		SceneTransitionPair{ FadeOutTransition{ duration }, FadeInTransition{ duration } } {}
+};
+
 class Scene3 : public Scene {
 public:
 	void OnUpdate() final;
@@ -73,16 +78,12 @@ public:
 			color::Magenta, 30
 		);
 		if (ctx().input.KeyPressed(Key::A)) {
-			if (ReEnter<Scene2>(
-					FadeOutTransition{ 3000ms }, FadeInTransition{ 3000ms }, reenter_count
-				)) {
+			if (ReEnter<Scene2>(FadeOutInTransition{ 3000ms }, reenter_count)) {
 				++reenter_count;
 			}
 		}
 		if (ctx().input.KeyPressed(Key::N)) {
-			ctx().scene.Switch<Scene3>(
-				"scene3", FadeOutTransition{ 3000ms }, FadeInTransition{ 3000ms }
-			);
+			ctx().scene.Switch<Scene3>("scene3", FadeOutInTransition{ 3000ms });
 		}
 	}
 };
@@ -96,9 +97,7 @@ public:
 		);
 
 		if (ctx().input.KeyPressed(Key::N)) {
-			ctx().scene.Switch<Scene2>(
-				"scene2", FadeOutTransition{ 3000ms }, FadeInTransition{ 3000ms }
-			);
+			ctx().scene.Switch<Scene2>("scene2", FadeOutInTransition{ 3000ms });
 		}
 	}
 };
@@ -107,9 +106,7 @@ void Scene3::OnUpdate() {
 	// PTGN_LOG("Scene 3 tint: ", GetTint(GetRenderTarget()));
 	ctx().renderer.DrawTexture("bg3", -game_size * 0.5f, game_size * 0.5f, Origin::TopLeft);
 	if (ctx().input.KeyPressed(Key::N)) {
-		ctx().scene.Switch<Scene1>(
-			"scene1", FadeOutTransition{ 3000ms }, FadeInTransition{ 3000ms }
-		);
+		ctx().scene.Switch<Scene1>("scene1", FadeOutInTransition{ 3000ms });
 	}
 }
 
