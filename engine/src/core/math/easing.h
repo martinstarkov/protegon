@@ -7,12 +7,7 @@
 namespace ptgn {
 
 enum class Ease {
-	Invalid = -1,
-
-	None,
-
 	// Symmetrical eases.
-
 	Linear,
 	InOutSine,
 	InOutQuad,
@@ -46,7 +41,11 @@ enum class Ease {
 	InBack,
 	OutBack,
 	InBounce,
-	OutBounce
+	OutBounce,
+
+	// No ease.
+
+	None
 };
 
 std::ostream& operator<<(std::ostream& os, Ease ease);
@@ -56,8 +55,7 @@ std::ostream& operator<<(std::ostream& os, Ease ease);
 [[nodiscard]] float ApplyEase(float t, Ease ease);
 
 PTGN_SERIALIZE_ENUM(
-	Ease, { { Ease::Invalid, nullptr },
-			{ Ease::None, "none" },
+	Ease, { { Ease::None, "none" },
 			{ Ease::Linear, "linear" },
 			{ Ease::InOutSine, "in_out_sine" },
 			{ Ease::InOutQuad, "in_out_quad" },

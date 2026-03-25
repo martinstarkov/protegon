@@ -131,7 +131,6 @@ float ApplyEase(float t, Ease ease) {
 std::ostream& operator<<(std::ostream& os, Ease ease) {
 	switch (ease) {
 		using enum Ease;
-		case Invalid:	   return os << "Invalid";
 		case None:		   return os << "None";
 		case Linear:	   return os << "Linear";
 		case InOutSine:	   return os << "InOutSine";
