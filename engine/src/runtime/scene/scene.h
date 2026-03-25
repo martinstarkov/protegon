@@ -366,22 +366,22 @@ public:
 	Scene();
 	virtual ~Scene();
 
-	/// Called when the scene is added to active scenes.
+	/// @brief Called when the scene is added to active scenes.
 	virtual void OnEnter() {
 		/* user implementation */
 	}
 
-	/// Called once per frame for each active scene.
+	/// @brief Called once per frame for each active scene.
 	virtual void OnUpdate() {
 		/* user implementation */
 	}
 
-	/// Called when the scene is removed from active scenes.
+	/// @brief Called when the scene is removed from active scenes.
 	virtual void OnExit() {
 		/* user implementation */
 	}
 
-	/// Called an event is emitted by the event handler.
+	/// @brief Called an event is emitted by the event handler.
 	virtual void OnEvent(EventDispatcher) {
 		/* user implementation */
 	}
@@ -415,18 +415,18 @@ public:
 	/// @return {} if no entity with the given uuid exists in the manager.
 	Entity GetEntityByUUID(UUID uuid) const;
 
-	/// Make sure to call Refresh() after this function.
+	/// @brief Make sure to call Refresh() after this function.
 	Entity CreateEntity();
 
+	/// @brief Creates an entity with a specific uuid.
 	/// Make sure to call Refresh() after this function.
-	/// Creates an entity with a specific uuid.
 	Entity CreateEntity(UUID uuid);
 
+	/// @brief Creates an entity from a json object.
 	/// Make sure to call Refresh() after this function.
-	/// Creates an entity from a json object.
 	Entity CreateEntity(const json& j);
 
-	/// Make sure to call Refresh() after this function.
+	/// @brief Make sure to call Refresh() after this function.
 	template <typename... Ts>
 	Entity CopyEntity(Entity from) {
 		auto entity{ manager_.CopyEntity<Ts...>(from) };
