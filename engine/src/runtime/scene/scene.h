@@ -200,7 +200,7 @@ private:
 
 	std::size_t key_{ 0 };
 	std::unique_ptr<SceneTransition> transition_;
-	impl::SceneState state_{ impl::SceneState::TransitionIn };
+	impl::SceneState state_{ impl::SceneState::Active };
 };
 
 template <typename T>

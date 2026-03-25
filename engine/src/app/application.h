@@ -19,6 +19,7 @@
 #include "runtime/event/event_handler.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_state.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -82,8 +83,9 @@ public:
 	void StartWith(std::string_view scene_key, TArgs&&... args) {
 		renderer_.UpdateDisplayViewport(window_.GetSize(), false);
 
-		auto first_scene  = std::make_unique<TScene>(std::forward<TArgs>(args)...);
-		first_scene->key_ = Hash(scene_key);
+		auto first_scene	= std::make_unique<TScene>(std::forward<TArgs>(args)...);
+		first_scene->state_ = impl::SceneState::Active;
+		first_scene->key_	= Hash(scene_key);
 		first_scene->Init(*this);
 		first_scene->InternalEnter();
 
