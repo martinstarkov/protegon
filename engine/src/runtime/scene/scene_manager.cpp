@@ -58,7 +58,7 @@ std::unordered_map<std::size_t, impl::SceneCommand> SceneManager::GetTopPriority
 				}
 
 				// Exit & Enter: higher priority first
-				return a.priority > b.priority;
+				return a.priority.value > b.priority.value;
 			}
 		);
 
@@ -83,7 +83,10 @@ void SceneManager::ApplyCommands(
 
 		new_scene->state_	   = impl::SceneState::TransitionIn;
 		new_scene->transition_ = std::move(cmd.transition_in);
-		new_scene->key_		   = target_key;
+		if (new_scene->transition_) {
+			new_scene->transition_->OnStart(*new_scene);
+		}
+		new_scene->key_ = target_key;
 		new_scene->InternalEnter();
 
 		scenes_.emplace_back(std::move(new_scene));
@@ -93,6 +96,9 @@ void SceneManager::ApplyCommands(
 		auto& target_scene{ Get(target_key) };
 		target_scene.state_		 = impl::SceneState::TransitionOut;
 		target_scene.transition_ = std::move(cmd.transition_out);
+		if (target_scene.transition_) {
+			target_scene.transition_->OnStart(target_scene);
+		}
 	};
 
 	for (auto& [target_key, cmd] : top_priority_commands) {
@@ -131,25 +137,24 @@ void SceneManager::ApplyCommands(
 	}
 }
 
-void SceneManager::Update(Application& app) {
-	for (auto& scene : scenes_) {
+void SceneManager::Update(secondsf dt) {
+	for (const auto& scene : scenes_) {
 		scene->InternalUpdate();
 	}
-	for (auto& scene : scenes_) {
+	for (const auto& scene : scenes_) {
 		scene->InternalDraw();
 	}
 
 	auto top_priority_commands = GetTopPriorityCommands();
 	ApplyCommands(top_priority_commands);
 
-	secondsf dt{ app.dt() };
-
 	for (auto it = scenes_.begin(); it != scenes_.end();) {
 		using enum impl::SceneState;
 
-		auto& scene = *it;
+		const auto& scene = *it;
 		if (scene->transition_) {
 			scene->transition_->UpdateTime(dt);
+			scene->transition_->OnUpdate(*scene);
 
 			if (!scene->transition_->IsFinished()) {
 				++it;
@@ -159,7 +164,12 @@ void SceneManager::Update(Application& app) {
 
 		// Scene has no transition or transition is finished.
 
+		if (scene->transition_) {
+			scene->transition_->OnStop(*scene);
+		}
+
 		if (scene->state_ == TransitionIn) {
+			scene->transition_.reset();
 			scene->state_ = Active;
 			// TODO: Add some sort of scene->OnTransitionFinished() callback so scenes can control
 			// what appears in the scene when.
@@ -170,6 +180,7 @@ void SceneManager::Update(Application& app) {
 			//}
 			++it;
 		} else if (scene->state_ == TransitionOut) {
+			scene->transition_.reset();
 			scene->InternalExit();
 			it = scenes_.erase(it);
 		} else {

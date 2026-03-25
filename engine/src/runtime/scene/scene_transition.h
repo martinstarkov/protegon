@@ -1,9 +1,13 @@
 #pragma once
 
+#include <concepts>
+#include <type_traits>
+
 #include "core/time/time.h"
 
 namespace ptgn {
 
+class Scene;
 class SceneManager;
 
 class SceneTransition {
@@ -16,6 +20,14 @@ public:
 	float GetElapsedFraction() const;
 	milliseconds GetDuration() const;
 
+	virtual void OnStart([[maybe_unused]] Scene& target_scene) { /* Optional user implementation */
+	}
+
+	virtual void OnUpdate([[maybe_unused]] Scene& target_scene) { /* Optional user implementation */
+	}
+
+	virtual void OnStop([[maybe_unused]] Scene& target_scene) { /* Optional user implementation */ }
+
 private:
 	friend class SceneManager;
 
@@ -25,5 +37,11 @@ private:
 	milliseconds elapsed_{ 0 };
 	milliseconds duration_{ 0 };
 };
+
+struct NoTransition {};
+
+template <typename T>
+concept SceneTransitionType =
+	std::derived_from<T, SceneTransition> || std::same_as<std::decay_t<T>, NoTransition>;
 
 } // namespace ptgn

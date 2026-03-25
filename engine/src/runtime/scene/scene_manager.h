@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "core/time/time.h"
 #include "runtime/scene/scene_command.h"
 
 namespace ptgn {
@@ -32,7 +33,7 @@ private:
 
 	void ApplyCommands(std::unordered_map<std::size_t, impl::SceneCommand>& top_priority_commands);
 
-	void Update(Application& app);
+	void Update(secondsf dt);
 
 	[[nodiscard]] bool Has(std::size_t key) const;
 	const Scene& Get(std::size_t key) const;
