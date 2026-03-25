@@ -133,9 +133,9 @@ void TargetFollowImpl(Entity target, const TargetFollowConfig& config, Entity tw
 	if (config.move_mode == MoveMode::Velocity) {
 		VelocityModeMoveImpl(config, parent, dir);
 	} else {
-		auto new_pos{ GetFollowPosition(
-			target.GetScene().ctx().dt(), config, current_position, target_pos
-		) };
+		auto new_pos{
+			GetFollowPosition(target.GetScene().ctx().dt(), config, current_position, target_pos)
+		};
 		dir = target_pos - new_pos;
 
 		SetPosition(parent, new_pos);
@@ -186,9 +186,9 @@ void PathFollowImpl(
 		return;
 	}
 
-	auto new_pos{ GetFollowPosition(
-		tween_entity.GetScene().ctx().dt(), config, current_pos, target_pos
-	) };
+	auto new_pos{
+		GetFollowPosition(tween_entity.GetScene().ctx().dt(), config, current_pos, target_pos)
+	};
 	SetPosition(parent, new_pos);
 }
 
@@ -400,11 +400,17 @@ Tween TintTo(Entity entity, Color target_tint, milliseconds duration, Ease ease,
 	);
 }
 
-Tween FadeIn(Entity entity, milliseconds duration, Ease ease, bool force) {
+Tween FadeIn(Entity entity, milliseconds duration, Ease ease, bool force, bool start_transparent) {
+	if (start_transparent) {
+		SetTint(entity, color::Transparent);
+	}
 	return TintTo(entity, color::White, duration, ease, force);
 }
 
-Tween FadeOut(Entity entity, milliseconds duration, Ease ease, bool force) {
+Tween FadeOut(Entity entity, milliseconds duration, Ease ease, bool force, bool start_opaque) {
+	if (start_opaque) {
+		SetTint(entity, color::White);
+	}
 	return TintTo(entity, color::Transparent, duration, ease, force);
 }
 
@@ -559,8 +565,7 @@ Tween Shake(
 			auto& offsets{ parent.Get<impl::Offsets>() };
 
 			shake.trauma = std::clamp(
-				shake.trauma - config.recovery_speed * e.GetScene().ctx().dt().count(), 0.0f,
-				1.0f
+				shake.trauma - config.recovery_speed * e.GetScene().ctx().dt().count(), 0.0f, 1.0f
 			);
 			ApplyShake(e.GetScene().ctx().TimeSinceStart(), offsets, shake.trauma, config, seed);
 

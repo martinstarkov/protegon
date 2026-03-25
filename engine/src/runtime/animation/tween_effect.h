@@ -231,7 +231,10 @@ Tween TintTo(
 /// @param duration The time span over which the fade-in will occur.
 /// @param ease The easing function used to interpolate the fade.
 /// @param force If true, the fade-in will override any ongoing fade effect.
-Tween FadeIn(Entity entity, milliseconds duration, Ease ease = Ease::Linear, bool force = true);
+Tween FadeIn(
+	Entity entity, milliseconds duration, Ease ease = Ease::Linear, bool force = true,
+	bool start_transparent = false
+);
 
 /// @brief Fades out the specified entity over a given duration. If the object already has a tint of
 /// color::Transparent, does nothing. Set tint to color::White for a full fade out effect.
@@ -240,7 +243,10 @@ Tween FadeIn(Entity entity, milliseconds duration, Ease ease = Ease::Linear, boo
 /// @param duration The time span over which the fade-out will occur.
 /// @param ease The easing function used to interpolate the fade.
 /// @param force If true, the fade-out will override any ongoing fade effect.
-Tween FadeOut(Entity entity, milliseconds duration, Ease ease = Ease::Linear, bool force = true);
+Tween FadeOut(
+	Entity entity, milliseconds duration, Ease ease = Ease::Linear, bool force = true,
+	bool start_opaque = false
+);
 
 /// @brief Applies a bouncing motion to the specified entity.
 ///
