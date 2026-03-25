@@ -15,7 +15,6 @@
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 
@@ -42,6 +41,81 @@ struct MoveButtonConfig {
 };
 
 static Button CreateMoveButton(
+	Scene& scene, V2_float position, V2_float size, const MoveButtonConfig& config = {}
+) {
+	auto button = CreateButton(scene, size);
+	SetPosition(button, position);
+
+	TextProperties text_properties;
+	text_properties.outline.width = config.text_outline_width;
+	text_properties.outline.color = config.text_outline_color;
+
+	button.SetText(
+		config.content, config.text_color, config.font_size, config.font, text_properties,
+		ButtonState::Idle
+	);
+	button.SetText(
+		config.content, config.text_hover_color, config.font_size, config.font, text_properties,
+		ButtonState::Hover
+	);
+	button.SetText(
+		config.content, config.text_click_color, config.font_size, config.font, text_properties,
+		ButtonState::Press
+	);
+
+	button.SetSound(config.click, ButtonState::Press);
+	button.SetSound(config.hover, ButtonState::Hover);
+
+	button.OnHoverStart([button, config]() {
+		TranslateTo(
+			*button.GetText(ButtonState::Idle), config.move_offset, config.move_duration,
+			config.move_ease, false
+		);
+		TranslateTo(
+			*button.GetText(ButtonState::Hover), config.move_offset, config.move_duration,
+			config.move_ease, false
+		);
+		TranslateTo(
+			*button.GetText(ButtonState::Press), config.move_offset, config.move_duration,
+			config.move_ease, false
+		);
+	});
+
+	button.OnHoverStop([button, config]() {
+		TranslateTo(
+			*button.GetText(ButtonState::Idle), {}, config.move_duration, config.move_ease, true
+		);
+		TranslateTo(
+			*button.GetText(ButtonState::Hover), {}, config.move_duration, config.move_ease, true
+		);
+		TranslateTo(
+			*button.GetText(ButtonState::Press), {}, config.move_duration, config.move_ease, true
+		);
+	});
+	return button;
+}
+
+struct ScaleButtonConfig {
+	std::string_view content;
+	Color text_color{ color::Gray };
+	Color text_hover_color{ color::Gold };
+	Color text_click_color{ text_hover_color };
+
+	FontSize font_size;
+	FontOrKey font;
+
+	int text_outline_width{ 1 };
+	Color text_outline_color{ color::Black };
+
+	AudioOrKey click{};
+	AudioOrKey hover{};
+
+	V2_float scale{ 1.25f };
+	milliseconds scale_duration{ 100 };
+	Ease scale_ease{ Ease::Linear };
+};
+
+static Button CreateScaleButton(
 	Scene& scene, V2_float position, V2_float size, const MoveButtonConfig& config = {}
 ) {
 	auto button = CreateButton(scene, size);
