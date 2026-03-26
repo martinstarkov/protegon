@@ -26,7 +26,6 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
 
-
 namespace ptgn {
 
 namespace impl {
@@ -87,9 +86,12 @@ void Text::Draw(
 	transform.Translate(offset);
 
 	if (auto hd_scale{ impl::ApplyHDTextScaling(text.IsHD(), transform, text.GetScene(), camera) };
-		hd_scale.has_value() &&
-		text.GetFontSize() * hd_scale.value() != text.Get<impl::HDFontSize>()) {
-		Text::RecreateTexture(text, camera);
+		hd_scale.has_value()) {
+		auto font_size{ text.GetFontSize() };
+		auto hd_text_scale{ font_size * hd_scale.value() };
+		if (hd_text_scale != text.Get<impl::HDFontSize>()) {
+			Text::RecreateTexture(text, camera);
+		}
 	}
 
 	const auto& text_texture{ text.Get<Texture>() };
@@ -151,7 +153,7 @@ void Text::RecreateTexture(
 ) {
 	// Cache the font size of the texture so that if HD resolution changes, the text is updated
 	// before drawing.
-	text.Add<impl::HDFontSize>(font_size);
+	text.Add<impl::HDFontSize>(font_size * hd_scale.value_or(1.0f));
 
 	auto& asset{ text.GetScene().ctx().asset };
 
