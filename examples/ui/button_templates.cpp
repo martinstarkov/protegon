@@ -36,8 +36,8 @@ struct MoveButtonConfig {
 	AudioOrKey hover{};
 
 	V2_float move_offset{ 20, 0 };
-	milliseconds move_duration{ 100 };
-	Ease move_ease{ Ease::Linear };
+	milliseconds duration{ 100 };
+	Ease ease{ Ease::Linear };
 };
 
 static Button CreateMoveButton(
@@ -68,29 +68,23 @@ static Button CreateMoveButton(
 
 	button.OnHoverStart([button, config]() {
 		TranslateTo(
-			*button.GetText(ButtonState::Idle), config.move_offset, config.move_duration,
-			config.move_ease, false
+			*button.GetText(ButtonState::Idle), config.move_offset, config.duration, config.ease,
+			false
 		);
 		TranslateTo(
-			*button.GetText(ButtonState::Hover), config.move_offset, config.move_duration,
-			config.move_ease, false
+			*button.GetText(ButtonState::Hover), config.move_offset, config.duration, config.ease,
+			false
 		);
 		TranslateTo(
-			*button.GetText(ButtonState::Press), config.move_offset, config.move_duration,
-			config.move_ease, false
+			*button.GetText(ButtonState::Press), config.move_offset, config.duration, config.ease,
+			false
 		);
 	});
 
 	button.OnHoverStop([button, config]() {
-		TranslateTo(
-			*button.GetText(ButtonState::Idle), {}, config.move_duration, config.move_ease, true
-		);
-		TranslateTo(
-			*button.GetText(ButtonState::Hover), {}, config.move_duration, config.move_ease, true
-		);
-		TranslateTo(
-			*button.GetText(ButtonState::Press), {}, config.move_duration, config.move_ease, true
-		);
+		TranslateTo(*button.GetText(ButtonState::Idle), {}, config.duration, config.ease, true);
+		TranslateTo(*button.GetText(ButtonState::Hover), {}, config.duration, config.ease, true);
+		TranslateTo(*button.GetText(ButtonState::Press), {}, config.duration, config.ease, true);
 	});
 	return button;
 }
@@ -111,12 +105,12 @@ struct ScaleButtonConfig {
 	AudioOrKey hover{};
 
 	V2_float scale{ 1.25f };
-	milliseconds scale_duration{ 100 };
-	Ease scale_ease{ Ease::Linear };
+	milliseconds duration{ 100 };
+	Ease ease{ Ease::Linear };
 };
 
 static Button CreateScaleButton(
-	Scene& scene, V2_float position, V2_float size, const MoveButtonConfig& config = {}
+	Scene& scene, V2_float position, V2_float size, const ScaleButtonConfig& config = {}
 ) {
 	auto button = CreateButton(scene, size);
 	SetPosition(button, position);
@@ -141,30 +135,67 @@ static Button CreateScaleButton(
 	button.SetSound(config.click, ButtonState::Press);
 	button.SetSound(config.hover, ButtonState::Hover);
 
-	button.OnHoverStart([button, config]() {
-		TranslateTo(
-			*button.GetText(ButtonState::Idle), config.move_offset, config.move_duration,
-			config.move_ease, false
+	button.OnHoverStart([button, config, starting_font_idle = button.GetFontSize(ButtonState::Idle),
+						 starting_font_hover = button.GetFontSize(ButtonState::Hover),
+						 starting_font_press = button.GetFontSize(ButtonState::Press)]() {
+		impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
+			*button.GetText(ButtonState::Idle),
+			V2_float{ starting_font_idle->GetValue() } * config.scale, config.duration, config.ease,
+			false,
+			[](Entity e) {
+				return V2_float{ Button(GetParent(e)).GetFontSize(ButtonState::Idle)->GetValue() };
+			},
+			[](Entity e, V2_float v) { Button(GetParent(e)).SetFontSize(v.x, ButtonState::Idle); }
 		);
-		TranslateTo(
-			*button.GetText(ButtonState::Hover), config.move_offset, config.move_duration,
-			config.move_ease, false
+		impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
+			*button.GetText(ButtonState::Hover),
+			V2_float{ starting_font_hover.value_or(*starting_font_idle).GetValue() } * config.scale,
+			config.duration, config.ease, false,
+			[](Entity e) {
+				return V2_float{ Button(GetParent(e)).GetFontSize(ButtonState::Hover)->GetValue() };
+			},
+			[](Entity e, V2_float v) { Button(GetParent(e)).SetFontSize(v.x, ButtonState::Hover); }
 		);
-		TranslateTo(
-			*button.GetText(ButtonState::Press), config.move_offset, config.move_duration,
-			config.move_ease, false
+		impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
+			*button.GetText(ButtonState::Press),
+			V2_float{ starting_font_press.value_or(*starting_font_idle).GetValue() } * config.scale,
+			config.duration, config.ease, false,
+			[](Entity e) {
+				return V2_float{ Button(GetParent(e)).GetFontSize(ButtonState::Press)->GetValue() };
+			},
+			[](Entity e, V2_float v) { Button(GetParent(e)).SetFontSize(v.x, ButtonState::Press); }
 		);
 	});
 
-	button.OnHoverStop([button, config]() {
-		TranslateTo(
-			*button.GetText(ButtonState::Idle), {}, config.move_duration, config.move_ease, true
+	button.OnHoverStop([button, config, starting_font_idle = button.GetFontSize(ButtonState::Idle),
+						starting_font_hover = button.GetFontSize(ButtonState::Hover),
+						starting_font_press = button.GetFontSize(ButtonState::Press)]() {
+		PTGN_ASSERT(starting_font_idle.has_value());
+		impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
+			*button.GetText(ButtonState::Idle), V2_float{ starting_font_idle->GetValue() },
+			config.duration, config.ease, true,
+			[](Entity e) {
+				return V2_float{ Button(GetParent(e)).GetFontSize(ButtonState::Idle)->GetValue() };
+			},
+			[](Entity e, V2_float v) { Button(GetParent(e)).SetFontSize(v.x, ButtonState::Idle); }
 		);
-		TranslateTo(
-			*button.GetText(ButtonState::Hover), {}, config.move_duration, config.move_ease, true
+		impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
+			*button.GetText(ButtonState::Hover),
+			V2_float{ starting_font_hover.value_or(*starting_font_idle).GetValue() },
+			config.duration, config.ease, true,
+			[](Entity e) {
+				return V2_float{ Button(GetParent(e)).GetFontSize(ButtonState::Hover)->GetValue() };
+			},
+			[](Entity e, V2_float v) { Button(GetParent(e)).SetFontSize(v.x, ButtonState::Hover); }
 		);
-		TranslateTo(
-			*button.GetText(ButtonState::Press), {}, config.move_duration, config.move_ease, true
+		impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
+			*button.GetText(ButtonState::Press),
+			V2_float{ starting_font_press.value_or(*starting_font_idle).GetValue() },
+			config.duration, config.ease, true,
+			[](Entity e) {
+				return V2_float{ Button(GetParent(e)).GetFontSize(ButtonState::Press)->GetValue() };
+			},
+			[](Entity e, V2_float v) { Button(GetParent(e)).SetFontSize(v.x, ButtonState::Press); }
 		);
 	});
 	return button;
@@ -184,6 +215,15 @@ public:
 			  .text_hover_color = color::Red,
 			  .click			= "click",
 			  .hover			= "hover" }
+		);
+
+		CreateScaleButton(
+			*this, { 0, 200 }, { 150, 50 },
+			{ .content			= "Click Me!",
+			  .text_hover_color = color::Gold,
+			  .click			= "click",
+			  .hover			= "hover",
+			  .scale			= V2_float{ 1.25f } }
 		);
 
 		// ctx().asset.Load("idle", "assets/bell.png");
