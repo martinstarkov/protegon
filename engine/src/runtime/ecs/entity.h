@@ -1,7 +1,9 @@
 #pragma once
 
+#include <concepts>
 #include <cstdint>
 #include <ostream>
+#include <type_traits>
 
 #include "core/assert.h"
 #include "core/math/transform.h"
@@ -234,6 +236,9 @@ private:
 	ecs::impl::EntityHandle<JsonArchiver> entity_;
 	Scene* scene_{ nullptr };
 };
+
+template <typename T>
+concept EntityType = std::same_as<std::remove_cvref_t<T>, Entity> || std::derived_from<T, Entity>;
 
 [[nodiscard]] std::size_t Hash(Entity entity);
 
