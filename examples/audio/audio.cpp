@@ -15,7 +15,6 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/ui/button.h"
 #include "runtime/world/grid.h"
 
@@ -46,7 +45,7 @@ public:
 	Color sound2_color{ color::LightPink };
 
 	Button CreateAudioButton(
-		std::string_view content, const std::function<void()>& on_activate,
+		std::string_view content, const std::function<void()>& on_press,
 		Color bg_color = color::LightGray
 	) {
 		Button b{ CreateButton(*this) };
@@ -56,7 +55,7 @@ public:
 		b.SetBackgroundColor(color::DarkGray, ButtonState::Press);
 		b.SetBorderColor(color::LightGray);
 		b.SetBorderWidth(3.0f);
-		b.OnActivate(on_activate);
+		b.OnPress(on_press);
 		return b;
 	}
 

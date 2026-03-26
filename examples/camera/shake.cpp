@@ -17,7 +17,6 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 #include "runtime/world/grid.h"
@@ -30,7 +29,7 @@ public:
 
 	Grid<Button> grid{ { 1, 5 } };
 
-	Button CreateButton(std::string_view content, const std::function<void()>& on_activate) {
+	Button CreateButton(std::string_view content, const std::function<void()>& on_press) {
 		Button b{ ptgn::CreateButton(*this) };
 		b.SetText(content, color::Black);
 		b.SetBackgroundColor(color::Gold);
@@ -38,7 +37,7 @@ public:
 		b.SetBackgroundColor(color::DarkGray, ButtonState::Press);
 		b.SetBorderColor(color::LightGray);
 		b.SetBorderWidth(3.0f);
-		b.OnActivate(on_activate);
+		b.OnPress(on_press);
 		return b;
 	}
 

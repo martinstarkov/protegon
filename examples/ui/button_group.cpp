@@ -13,7 +13,6 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 
@@ -35,7 +34,7 @@ class ToggleButtonGroupScene : public Scene {
 				.SetBackgroundColor(color::LightBlue, { ButtonState::Idle, false, true })
 				.SetBackgroundColor(color::Blue, { ButtonState::Hover, false, true })
 				.SetBackgroundColor(color::DarkBlue, { ButtonState::Press, false, true })
-				.OnActivate([number, group_name]() { PTGN_LOG(group_name, " activated ", number); })
+				.OnPress([number, group_name]() { PTGN_LOG(group_name, " pressed ", number); })
 				.OnToggle([number, group_name](bool toggled) {
 					PTGN_LOG(
 						group_name, " toggled ", number, ": ", std::boolalpha, toggled,

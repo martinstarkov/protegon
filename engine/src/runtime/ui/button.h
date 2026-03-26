@@ -63,6 +63,11 @@ struct ButtonStyle {
 	std::optional<float> border_width;
 
 	std::optional<GameObject> sprite;
+
+	/// @brief Applies to the sprite only.
+	std::optional<Color> sprite_tint;
+
+	/// @brief Applies to all aspects of the button.
 	std::optional<Color> tint;
 
 	std::optional<GameObject> text;
@@ -81,7 +86,7 @@ struct ButtonInteractionConfig {
 
 	ButtonStyle idle;
 	ButtonStyle hover;
-	ButtonStyle activate;
+	ButtonStyle press;
 };
 
 struct ButtonConfig {
@@ -227,7 +232,7 @@ private:
 	void OnMouseReleasedOut(Mouse mouse);
 };
 
-struct ButtonActivate : public Event<ButtonActivate> {};
+struct ButtonPress : public Event<ButtonPress> {};
 
 struct ButtonHoverStart : public Event<ButtonHoverStart> {};
 
@@ -253,7 +258,7 @@ private:
 	std::function<void()> callback_;
 };
 
-using ButtonActivateScript	 = ButtonScript<ButtonActivate>;
+using ButtonPressScript		 = ButtonScript<ButtonPress>;
 using ButtonHoverStartScript = ButtonScript<ButtonHoverStart>;
 using ButtonHoverStopScript	 = ButtonScript<ButtonHoverStop>;
 using ButtonHoverScript		 = ButtonScript<ButtonHover>;
@@ -279,7 +284,7 @@ public:
 	void OnEvent(EventDispatcher d) override;
 
 private:
-	void OnButtonActivate() const;
+	void OnButtonPress() const;
 };
 
 struct ToggleButtonGroupKey : public HashComponent {
@@ -321,10 +326,10 @@ struct ToggleButtonGroupData {
 struct ButtonToggled {};
 
 struct ButtonEnabled {
-	bool activate{ true };
+	bool press{ true };
 	bool hover{ true };
 
-	PTGN_SERIALIZER_REGISTER(ButtonEnabled, activate, hover)
+	PTGN_SERIALIZER_REGISTER(ButtonEnabled, press, hover)
 };
 
 template <typename Derived>
@@ -350,11 +355,13 @@ public:
 
 	std::optional<std::variant<Rect, Circle>> GetBackgroundShape(ButtonStyleState state = {}) const;
 
-	Color GetBackgroundColor(ButtonStyleState state = {}) const;
+	std::optional<Color> GetBackgroundColor(ButtonStyleState state = {}) const;
 
 	std::optional<Texture> GetTexture(ButtonStyleState state = {}) const;
 
-	Color GetTint(ButtonStyleState state = {}) const;
+	std::optional<Color> GetTextureTint(ButtonStyleState state = {}) const;
+
+	std::optional<Color> GetTint(ButtonStyleState state = {}) const;
 
 	std::optional<Color> GetTextColor(ButtonStyleState state = {}) const;
 
@@ -377,7 +384,7 @@ public:
 
 	std::optional<std::variant<Rect, Circle>> GetBorderShape(ButtonStyleState state = {}) const;
 
-	Color GetBorderColor(ButtonStyleState state = {}) const;
+	std::optional<Color> GetBorderColor(ButtonStyleState state = {}) const;
 
 	std::optional<FillStyle> GetBackgroundFillStyle(ButtonStyleState state = {}) const;
 
@@ -386,7 +393,7 @@ public:
 	std::optional<Entity> GetSprite(ButtonStyleState state = {}) const;
 
 	/// @brief Set button callback scripts.
-	Derived& OnActivate(const std::function<void()>& callback);
+	Derived& OnPress(const std::function<void()>& callback);
 	Derived& OnHover(const std::function<void()>& callback);
 	Derived& OnHoverStart(const std::function<void()>& callback);
 	Derived& OnHoverStop(const std::function<void()>& callback);
@@ -398,8 +405,8 @@ public:
 	);
 
 	/// @brief Manual button script triggers.
-	/// Called when the mouse is clicked over the button.
-	Derived& Activate();
+	/// Called when the mouse is pressed over the button.
+	Derived& Press();
 	/// @brief Called once when hovering starts (mouse enters button).
 	Derived& StartHover();
 	/// @brief Called continuously when hovering (including when hover starts).
@@ -428,9 +435,16 @@ public:
 		std::optional<std::variant<Rect, Circle>> shape,
 		ButtonStyleState state = ButtonStyleState::Idle()
 	);
-	Derived& SetBackgroundColor(Color color, ButtonStyleState state = ButtonStyleState::Idle());
-	Derived& SetTexture(TextureOrKey texture, ButtonStyleState state = ButtonStyleState::Idle());
-	Derived& SetTint(Color tint, ButtonStyleState state = ButtonStyleState::Idle());
+	Derived& SetBackgroundColor(
+		std::optional<Color> color, ButtonStyleState state = ButtonStyleState::Idle()
+	);
+	Derived& SetTexture(
+		std::optional<TextureOrKey> texture, ButtonStyleState state = ButtonStyleState::Idle()
+	);
+	Derived& SetTextureTint(
+		std::optional<Color> texture_tint, ButtonStyleState state = ButtonStyleState::Idle()
+	);
+	Derived& SetTint(std::optional<Color> tint, ButtonStyleState state = ButtonStyleState::Idle());
 	Derived& SetTextColor(Color text_color, ButtonStyleState state = ButtonStyleState::Idle());
 	Derived& SetTextContent(
 		std::string_view text_content, ButtonStyleState state = ButtonStyleState::Idle()
@@ -452,7 +466,9 @@ public:
 		std::optional<std::variant<Rect, Circle>> shape,
 		ButtonStyleState state = ButtonStyleState::Idle()
 	);
-	Derived& SetBorderColor(Color color, ButtonStyleState state = ButtonStyleState::Idle());
+	Derived& SetBorderColor(
+		std::optional<Color> color, ButtonStyleState state = ButtonStyleState::Idle()
+	);
 	Derived& SetBackgroundFillStyle(
 		FillStyle fill_style, ButtonStyleState state = ButtonStyleState::Idle()
 	);
@@ -556,7 +572,7 @@ public:
 	void OnEvent(EventDispatcher d) override;
 
 private:
-	void OnButtonActivate();
+	void OnButtonPress();
 
 	ToggleButtonGroup toggle_button_group_;
 };

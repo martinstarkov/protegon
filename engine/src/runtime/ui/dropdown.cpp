@@ -23,11 +23,11 @@ namespace ptgn {
 namespace impl {
 
 void DropdownScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<ButtonActivate>([this](const ButtonActivate&) { Dropdown{ entity }.Toggle(); });
+	d.Dispatch<ButtonPress>([this](const ButtonPress&) { Dropdown{ entity }.Toggle(); });
 }
 
 void DropdownItemScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<ButtonActivate>([this](const ButtonActivate&) {
+	d.Dispatch<ButtonPress>([this](const ButtonPress&) {
 		if (!entity.Has<impl::DropdownData>()) {
 			PTGN_ASSERT(HasParent(entity));
 			Dropdown{ GetParent(entity) }.Close();

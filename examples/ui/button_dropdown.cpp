@@ -9,7 +9,6 @@
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/dropdown.h"
@@ -18,14 +17,14 @@ using namespace ptgn;
 
 class DropdownScene : public Scene {
 public:
-	Button CreateButton(std::string_view content, const std::function<void()>& on_activate) {
+	Button CreateButton(std::string_view content, const std::function<void()>& on_press) {
 		Button button{ ptgn::CreateButton(*this, {}) };
 		button.SetTextContent(content);
 		button.SetTextColor(color::White);
 		button.SetBackgroundColor(color::Gray);
 		button.SetBackgroundColor(color::LightGray, ButtonState::Hover);
 		button.SetBackgroundColor(color::DarkGray, ButtonState::Press);
-		button.OnActivate(on_activate);
+		button.OnPress(on_press);
 		button.SetBorderColor(color::Red);
 		button.SetBorderWidth(3.0f);
 		return button;

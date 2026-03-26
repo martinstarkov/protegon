@@ -19,7 +19,6 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 
@@ -37,10 +36,10 @@ struct EAnnounceGlobal : public Event<EAnnounceGlobal> {
 	const char* text{};
 };
 
-struct EButtonClick : public Event<EButtonClick> {
+struct EButtonPress : public Event<EButtonPress> {
 	Entity target{};
 	int mouseButton = 0;
-	int clicks		= 1;
+	int presses		= 1;
 };
 
 class PlayerInventoryUI : public Script {
@@ -133,13 +132,13 @@ public:
 		pickup.Collect(player);
 		pickup.Collect(player);
 
-		// Simulate button click
-		EButtonClick click{};
-		click.target	  = player;
-		click.mouseButton = 0;
-		click.clicks	  = 1;
+		// Simulate button press
+		EButtonPress press{};
+		press.target	  = player;
+		press.mouseButton = 0;
+		press.presses	  = 1;
 
-		ctx().event.Emit(click); // scene-local bubbling
+		ctx().event.Emit(press); // scene-local bubbling
 	}
 };
 
@@ -176,8 +175,8 @@ public:
 		auto text = CreateText(*this, "Hello World", color::Orange, 72.0f, arial, {});
 		text.SetHD(true);
 
-		/*auto button = CreateTextButton(*this, "Click me", color::Black);
-		button.SetSize({ 200, 200 }).OnActivate([this]() { PTGN_LOG("Button clicked!"); });*/
+		/*auto button = CreateTextButton(*this, "Press me", color::Black);
+		button.SetSize({ 200, 200 }).OnPress([this]() { PTGN_LOG("Pressed button!"); });*/
 
 		// PTGN_LOG("Loaded all assets!");
 

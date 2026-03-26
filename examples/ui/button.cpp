@@ -14,7 +14,6 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -29,25 +28,25 @@ public:
 
 		// ctx().asset.LoadAudio("idle", "assets/idle.ogg");
 		ctx().asset.LoadAudio("hover", "assets/hover.ogg");
-		ctx().asset.LoadAudio("click", "assets/click.ogg");
+		ctx().asset.LoadAudio("press", "assets/press.ogg");
 
 		Origin button_origin{ Origin::Center };
 
 		b1 = CreateButton(*this, V2_int{ 200, 100 })
-				 .OnActivate([]() { PTGN_LOG("Clicked regular button!"); })
+				 .OnPress([]() { PTGN_LOG("Pressed regular button!"); })
 				 .SetBackgroundShape(V2_int{ 200, 100 })
 				 .SetBackgroundColor(color::Pink)
 				 .SetBackgroundColor(color::Red, ButtonState::Hover)
 				 .SetBackgroundColor(color::DarkRed, ButtonState::Press)
 				 // .SetSound("idle", ButtonState::Idle)
 				 .SetSound("hover", ButtonState::Hover)
-				 .SetSound("click", ButtonState::Press);
+				 .SetSound("press", ButtonState::Press);
 
 		SetPosition(b1, V2_float{ 0, -150 - 50 });
 		SetDrawOrigin(b1, button_origin);
 
 		b2 = CreateToggleButton(*this, V2_int{ 200, 100 })
-				 .OnActivate([]() { PTGN_LOG("Clicked toggle button!"); })
+				 .OnPress([]() { PTGN_LOG("Pressed toggle button!"); })
 				 .OnToggle([](bool toggled) {
 					 PTGN_LOG("Toggled button: ", ": ", std::boolalpha, toggled, std::noboolalpha);
 				 })

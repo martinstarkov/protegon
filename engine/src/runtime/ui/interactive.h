@@ -74,7 +74,7 @@ struct InteractionLock {
 	secondsf remaining_time{ 0.0f };
 
 	bool block_hover{ true };
-	bool block_click{ true };
+	bool block_press{ true };
 };
 
 namespace impl {

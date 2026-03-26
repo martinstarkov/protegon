@@ -16,7 +16,6 @@
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 #include "runtime/world/grid.h"
@@ -29,9 +28,7 @@ public:
 
 	Grid<Button> grid{ { 1, 3 } };
 
-	Button CreateParticleButton(
-		std::string_view content, const std::function<void()>& on_activate
-	) {
+	Button CreateParticleButton(std::string_view content, const std::function<void()>& on_press) {
 		Button b{ CreateButton(*this) };
 		b.SetBackgroundColor(color::Gold)
 			.SetBackgroundColor(color::Red, ButtonState::Hover)
@@ -39,7 +36,7 @@ public:
 			.SetBorderColor(color::LightGray)
 			.SetBorderWidth(3.0f)
 			.SetText(content, color::Black)
-			.OnActivate(on_activate);
+			.OnPress(on_press);
 		SetParent(b, p, true);
 		return b;
 	}

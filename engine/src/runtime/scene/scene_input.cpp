@@ -29,7 +29,6 @@
 #include "runtime/physics/broadphase.h"
 #include "runtime/scene/resolution.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scripting/scripts.h"
 #include "runtime/ui/interactive.h"
 #include "tools/debug/debug_system.h"
@@ -710,7 +709,7 @@ void SceneInput::DispatchMouseEvents(
 			continue;
 		}
 
-		if (auto lock{ e.TryGet<InteractionLock>() }; lock && lock->block_click) {
+		if (auto lock{ e.TryGet<InteractionLock>() }; lock && lock->block_press) {
 			PTGN_ASSERT(
 				lock->remaining_time >= secondsf{ 0.0f }, "Interaction time cannot be negative"
 			);
