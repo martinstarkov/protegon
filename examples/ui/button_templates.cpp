@@ -14,6 +14,7 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "renderer/primitives/color.h"
+#include "runtime/animation/animation.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
@@ -65,8 +66,8 @@ struct TextButtonConfig {
 
 	std::optional<V2_float> background_size;
 
-	std::optional<AudioOrKey> sound_press;
 	std::optional<AudioOrKey> sound_hover;
+	std::optional<AudioOrKey> sound_press;
 
 	std::optional<MoveButtonConfig> move;
 	std::optional<ScaleButtonConfig> scale;
@@ -207,69 +208,111 @@ static Button CreateTextButton(
 	return button;
 }
 
+struct AnimatedButtonConfig {
+	TextureOrKey texture;
+	TextureOrKey texture_hover;
+	std::optional<TextureOrKey> texture_press;
+	AnimationConfig animation_hover;
+	std::optional<AnimationConfig> animation_press;
+	std::optional<AudioOrKey> sound_hover;
+	std::optional<AudioOrKey> sound_press;
+};
+
+static Button CreateAnimatedButton(
+	Scene& scene, V2_float position, std::optional<V2_float> size,
+	const AnimatedButtonConfig& config
+) {
+	auto hover_animation{
+		CreateAnimation(scene, config.texture_hover, V2_int{}, config.animation_hover)
+	};
+
+	V2_float button_size{ size.or_else([&hover_animation]() {
+								  auto display_size{ GetDisplaySize(hover_animation) };
+								  PTGN_ASSERT(display_size.has_value());
+								  return display_size;
+							  }
+	).value() };
+
+	auto button = CreateButton(scene, button_size);
+	SetPosition(button, position);
+
+	button.SetTexture(config.texture, ButtonState::Idle);
+
+	button.SetAnimation(std::move(hover_animation), ButtonState::Hover);
+
+	if (config.animation_press.has_value() || config.texture_press.has_value()) {
+		auto press_animation{ CreateAnimation(
+			scene, config.texture_press.value_or(config.texture_hover), V2_int{},
+			config.animation_press.value_or(config.animation_hover)
+		) };
+		button.SetAnimation(std::move(press_animation), ButtonState::Press);
+	}
+
+	button.SetSound(config.sound_hover, ButtonState::Hover);
+	button.SetSound(config.sound_press, ButtonState::Press);
+
+	return button;
+}
+
 class ButtonTemplatesScene : public Scene {
 public:
 	void OnEnter() override {
 		ctx().input.SetSettings({ .debug_draw_enabled = true });
 		SetBackgroundColor(color::LightGray);
-		ctx().asset.Load("hover", "assets/hover.ogg");
-		ctx().asset.Load("press", "assets/press.ogg");
-		ctx().asset.Load("idle", "assets/big_button_idle.png");
-		ctx().asset.Load("hover", "assets/big_button_hover.png");
-		ctx().asset.Load("press", "assets/big_button_press.png");
+
+		ctx().asset.LoadMany({ { "hover", "assets/hover.ogg" },
+							   { "press", "assets/press.ogg" },
+							   { "idle", "assets/big_button_idle.png" },
+							   { "hover", "assets/big_button_hover.png" },
+							   { "press", "assets/big_button_press.png" },
+							   { "bell_idle", "assets/bell.png" },
+							   { "bell_hover", "assets/bell_hover_animation.png" },
+							   { "bell_press", "assets/bell_press_animation.png" },
+							   { "bell_hover", "assets/hover.ogg" },
+							   { "bell_press", "assets/bell.ogg" } });
 
 		V2_float size{ 200, 50 };
 		V2_float offset{ 0, 70 };
 
 		CreateTextButton(
-			*this, offset * 3, size,
-			{ .content			  = "Celeste",
-			  .text_color_hover	  = color::Green,
-			  .text_outline_width = 1,
-			  .sound_press		  = "press",
-			  .sound_hover		  = "hover",
-			  .move				  = MoveButtonConfig{} }
+			*this, offset * -5, size,
+			{
+				.content			= "It Takes Two 1",
+				.text_color			= color::Gold,
+				.text_color_hover	= color::Brown,
+				.text_outline_width = 1,
+				.texture			= "idle",
+				.texture_tint_hover = color::Orange,
+				.texture_tint_press = color::Blue,
+				.sound_hover		= "hover",
+				.sound_press		= "press",
+			}
 		);
 
 		CreateTextButton(
-			*this, offset * 2, size,
-			{ .content			  = "Terraria",
-			  .text_color		  = color::Gray,
-			  .text_color_hover	  = color::Gold,
-			  .text_outline_width = 1,
-			  .sound_press		  = "press",
-			  .sound_hover		  = "hover",
-			  .scale			  = ScaleButtonConfig{} }
+			*this, offset * -4, size,
+			{
+				.content			= "It Takes Two 2",
+				.text_color			= color::White,
+				.text_color_hover	= color::Brown,
+				.text_outline_width = 1,
+				.texture_hover		= "hover",
+				.sound_hover		= "hover",
+				.sound_press		= "press",
+				.move				= MoveButtonConfig{},
+				.scale				= ScaleButtonConfig{ .scale = 1.1f },
+			}
 		);
 
 		CreateTextButton(
-			*this, offset * 1, size,
-			{ .content				  = "Payday 2",
-			  .text_color			  = color::LightBlue,
-			  .text_color_hover		  = color::Blue,
-			  .text_outline_width	  = 1,
-			  .background_color_hover = color::Blue.WithAlpha(0.1f),
-			  .sound_press			  = "press",
-			  .sound_hover			  = "hover" }
-		);
-
-		CreateTextButton(
-			*this, offset * 0, size,
-			{ .content			= "Enter the Gungeon",
-			  .text_color		= color::Gray,
-			  .text_color_hover = color::White,
-			  .sound_press		= "press",
-			  .sound_hover		= "hover" }
-		);
-
-		CreateTextButton(
-			*this, offset * -1, size,
-			{ .content		 = "Rogue Legacy 2",
-			  .text_color	 = color::Gray,
+			*this, offset * -3, size,
+			{ .content		 = "Baba Is You",
+			  .text_color	 = color::White,
+			  .texture		 = "idle",
 			  .texture_hover = "hover",
-			  .texture_press = "hover",
-			  .sound_press	 = "press",
-			  .sound_hover	 = "hover" }
+			  .texture_press = "press",
+			  .sound_hover	 = "hover",
+			  .sound_press	 = "press" }
 		);
 
 		CreateTextButton(
@@ -279,29 +322,85 @@ public:
 			  .text_color_hover	  = color::White,
 			  .texture			  = "idle",
 			  .texture_tint_hover = color::Orange,
-			  .sound_press		  = "press",
-			  .sound_hover		  = "hover" }
+			  .sound_hover		  = "hover",
+			  .sound_press		  = "press" }
 		);
 
-		// ctx().asset.Load("idle", "assets/bell.png");
-		// ctx().asset.Load("animation_hover", "assets/bell_hover_animation.png");
-		// ctx().asset.Load("animation_press", "assets/bell_press_animation.png");
-		// ctx().asset.LoadAudio("hover", "assets/hover.ogg");
-		// ctx().asset.LoadAudio("press", "assets/bell.ogg");
-		// auto hover_animation{ CreateAnimation(
-		//	*this, "animation_hover", V2_int{}, { 3, milliseconds{ 400 }, V2_int{ 253, 167 }, -1 }
-		//) };
-		// auto press_animation{ CreateAnimation(
-		//	*this, "animation_press", V2_int{}, { 3, milliseconds{ 200 }, V2_int{ 253, 167 }, 1 }
-		//) };
-		// b1 = CreateButton(*this, *GetDisplaySize(press_animation));
-		// b1.SetTexture("idle")
-		//	.SetAnimation(std::move(hover_animation), ButtonState::Hover)
-		//	.SetAnimation(std::move(press_animation), ButtonState::Press)
-		//	.SetSound("hover", ButtonState::Hover)
-		//	.SetSound("press", ButtonState::Press);
-		// SetScale(b1, 1.0f);
-		// b1.OnPress([]() { PTGN_LOG("Pressed bell!"); });
+		CreateTextButton(
+			*this, offset * -1, size,
+			{ .content		 = "Rogue Legacy 2",
+			  .text_color	 = color::Gray,
+			  .texture_hover = "hover",
+			  .texture_press = "hover",
+			  .sound_hover	 = "hover",
+			  .sound_press	 = "press" }
+		);
+
+		CreateTextButton(
+			*this, offset * 0, size,
+			{ .content			= "Enter the Gungeon",
+			  .text_color		= color::Gray,
+			  .text_color_hover = color::White,
+			  .sound_hover		= "hover",
+			  .sound_press		= "press" }
+		);
+
+		CreateTextButton(
+			*this, offset * 1, size,
+			{ .content				  = "Payday 2",
+			  .text_color			  = color::LightBlue,
+			  .text_color_hover		  = color::Blue,
+			  .text_outline_width	  = 1,
+			  .background_color_hover = color::Blue.WithAlpha(0.1f),
+			  .sound_hover			  = "hover",
+			  .sound_press			  = "press" }
+		);
+
+		CreateTextButton(
+			*this, offset * 2, size,
+			{ .content			  = "Terraria",
+			  .text_color		  = color::Gray,
+			  .text_color_hover	  = color::Gold,
+			  .text_outline_width = 1,
+			  .sound_hover		  = "hover",
+			  .sound_press		  = "press",
+			  .scale			  = ScaleButtonConfig{} }
+		);
+
+		CreateTextButton(
+			*this, offset * 3, size,
+			{ .content			  = "Celeste",
+			  .text_color_hover	  = color::Green,
+			  .text_outline_width = 1,
+			  .sound_hover		  = "hover",
+			  .sound_press		  = "press",
+			  .move				  = MoveButtonConfig{} }
+		);
+
+		CreateTextButton(
+			*this, offset * 4, size,
+			{ .content				  = "Golf with Friends",
+			  .text_color			  = color::White,
+			  .text_color_hover		  = color::Black,
+			  .text_outline_width	  = 1,
+			  .background_color		  = color::Gray.WithAlpha(0.5f),
+			  .background_color_hover = color::Gold.WithAlpha(0.5f),
+			  .sound_hover			  = "hover",
+			  .sound_press			  = "press" }
+		);
+
+		CreateAnimatedButton(
+			*this, { 250, 0 }, std::nullopt,
+			{
+				.texture		 = "bell_idle",
+				.texture_hover	 = "bell_hover",
+				.texture_press	 = "bell_press",
+				.animation_hover = { 3, milliseconds{ 400 }, V2_int{ 253, 167 }, -1 },
+				.animation_press = AnimationConfig{ 3, milliseconds{ 200 }, V2_int{ 253, 167 }, 1 },
+				.sound_hover	 = "bell_hover",
+				.sound_press	 = "bell_press",
+			}
+		);
 	}
 };
 
