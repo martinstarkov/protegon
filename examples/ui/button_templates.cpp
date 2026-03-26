@@ -1,9 +1,12 @@
 
 
+#include <chrono>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 #include "app/application.h"
+#include "core/assert.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -11,6 +14,7 @@
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
@@ -67,24 +71,21 @@ static Button CreateMoveButton(
 	button.SetSound(config.hover, ButtonState::Hover);
 
 	button.OnHoverStart([button, config]() {
+		using enum ButtonState;
 		TranslateTo(
-			*button.GetText(ButtonState::Idle), config.move_offset, config.duration, config.ease,
-			false
-		);
-		TranslateTo(
-			*button.GetText(ButtonState::Hover), config.move_offset, config.duration, config.ease,
-			false
-		);
-		TranslateTo(
-			*button.GetText(ButtonState::Press), config.move_offset, config.duration, config.ease,
-			false
+			std::vector<Text>{ *button.GetText(Idle), *button.GetText(Hover),
+							   *button.GetText(Press) },
+			config.move_offset, config.duration, config.ease
 		);
 	});
 
 	button.OnHoverStop([button, config]() {
-		TranslateTo(*button.GetText(ButtonState::Idle), {}, config.duration, config.ease, true);
-		TranslateTo(*button.GetText(ButtonState::Hover), {}, config.duration, config.ease, true);
-		TranslateTo(*button.GetText(ButtonState::Press), {}, config.duration, config.ease, true);
+		using enum ButtonState;
+		TranslateTo(
+			std::vector<Text>{ *button.GetText(Idle), *button.GetText(Hover),
+							   *button.GetText(Press) },
+			V2_float{}, config.duration, config.ease
+		);
 	});
 	return button;
 }
@@ -104,7 +105,7 @@ struct ScaleButtonConfig {
 	AudioOrKey click{};
 	AudioOrKey hover{};
 
-	V2_float scale{ 1.25f };
+	float scale{ 1.25f };
 	milliseconds duration{ 100 };
 	Ease ease{ Ease::Linear };
 };
@@ -135,69 +136,37 @@ static Button CreateScaleButton(
 	button.SetSound(config.click, ButtonState::Press);
 	button.SetSound(config.hover, ButtonState::Hover);
 
-	button.OnHoverStart([button, config, starting_font_idle = button.GetFontSize(ButtonState::Idle),
-						 starting_font_hover = button.GetFontSize(ButtonState::Hover),
-						 starting_font_press = button.GetFontSize(ButtonState::Press)]() {
-		impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
-			*button.GetText(ButtonState::Idle),
-			V2_float{ starting_font_idle->GetValue() } * config.scale, config.duration, config.ease,
-			false,
-			[](Entity e) {
-				return V2_float{ Button(GetParent(e)).GetFontSize(ButtonState::Idle)->GetValue() };
-			},
-			[](Entity e, V2_float v) { Button(GetParent(e)).SetFontSize(v.x, ButtonState::Idle); }
-		);
-		impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
-			*button.GetText(ButtonState::Hover),
-			V2_float{ starting_font_hover.value_or(*starting_font_idle).GetValue() } * config.scale,
-			config.duration, config.ease, false,
-			[](Entity e) {
-				return V2_float{ Button(GetParent(e)).GetFontSize(ButtonState::Hover)->GetValue() };
-			},
-			[](Entity e, V2_float v) { Button(GetParent(e)).SetFontSize(v.x, ButtonState::Hover); }
-		);
-		impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
-			*button.GetText(ButtonState::Press),
-			V2_float{ starting_font_press.value_or(*starting_font_idle).GetValue() } * config.scale,
-			config.duration, config.ease, false,
-			[](Entity e) {
-				return V2_float{ Button(GetParent(e)).GetFontSize(ButtonState::Press)->GetValue() };
-			},
-			[](Entity e, V2_float v) { Button(GetParent(e)).SetFontSize(v.x, ButtonState::Press); }
-		);
-	});
+	struct ButtonTextFontSize {};
 
-	button.OnHoverStop([button, config, starting_font_idle = button.GetFontSize(ButtonState::Idle),
-						starting_font_hover = button.GetFontSize(ButtonState::Hover),
-						starting_font_press = button.GetFontSize(ButtonState::Press)]() {
-		PTGN_ASSERT(starting_font_idle.has_value());
-		impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
-			*button.GetText(ButtonState::Idle), V2_float{ starting_font_idle->GetValue() },
-			config.duration, config.ease, true,
-			[](Entity e) {
-				return V2_float{ Button(GetParent(e)).GetFontSize(ButtonState::Idle)->GetValue() };
-			},
-			[](Entity e, V2_float v) { Button(GetParent(e)).SetFontSize(v.x, ButtonState::Idle); }
-		);
-		impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
-			*button.GetText(ButtonState::Hover),
-			V2_float{ starting_font_hover.value_or(*starting_font_idle).GetValue() },
-			config.duration, config.ease, true,
-			[](Entity e) {
-				return V2_float{ Button(GetParent(e)).GetFontSize(ButtonState::Hover)->GetValue() };
-			},
-			[](Entity e, V2_float v) { Button(GetParent(e)).SetFontSize(v.x, ButtonState::Hover); }
-		);
-		impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
-			*button.GetText(ButtonState::Press),
-			V2_float{ starting_font_press.value_or(*starting_font_idle).GetValue() },
-			config.duration, config.ease, true,
-			[](Entity e) {
-				return V2_float{ Button(GetParent(e)).GetFontSize(ButtonState::Press)->GetValue() };
-			},
-			[](Entity e, V2_float v) { Button(GetParent(e)).SetFontSize(v.x, ButtonState::Press); }
-		);
-	});
+	auto sf_idle  = button.GetFontSize(ButtonState::Idle);
+	auto sf_hover = button.GetFontSize(ButtonState::Hover);
+	auto sf_press = button.GetFontSize(ButtonState::Press);
+
+	PTGN_ASSERT(sf_idle.has_value());
+
+	const std::vector<float> start_fonts{ *sf_idle, sf_hover.value_or(*sf_idle),
+										  sf_press.value_or(*sf_idle) };
+
+	auto target_fonts{ start_fonts };
+
+	for (auto& target_font : target_fonts) {
+		target_font *= config.scale;
+	}
+
+	const auto tween_fonts = [button, config](const auto& fonts) {
+		using enum ButtonState;
+		std::vector<Text> texts{
+			*button.GetText(Idle),
+			*button.GetText(Hover),
+			*button.GetText(Press),
+		};
+
+		ScaleTextSize(texts, fonts, config.duration, config.ease);
+	};
+
+	button.OnHoverStop([tween_fonts, start_fonts]() { tween_fonts(start_fonts); });
+	button.OnHoverStart([tween_fonts, target_fonts]() { tween_fonts(target_fonts); });
+
 	return button;
 }
 
@@ -223,7 +192,7 @@ public:
 			  .text_hover_color = color::Gold,
 			  .click			= "click",
 			  .hover			= "hover",
-			  .scale			= V2_float{ 1.25f } }
+			  .scale			= 1.25f }
 		);
 
 		// ctx().asset.Load("idle", "assets/bell.png");
