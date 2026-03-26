@@ -63,7 +63,7 @@ struct TextShadingColor : public ColorComponent {
 
 struct TextOutline {
 	std::int32_t width{ 0 };
-	Color color;
+	Color color{ color::Black };
 
 	bool operator==(const TextOutline&) const = default;
 
