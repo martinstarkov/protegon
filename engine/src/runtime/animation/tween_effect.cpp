@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdint>
 #include <functional>
+#include <variant>
 #include <vector>
 
 #include "core/assert.h"
@@ -21,13 +22,14 @@
 #include "runtime/animation/offsets.h"
 #include "runtime/animation/shake_config.h"
 #include "runtime/animation/tween.h"
+#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/text.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-
 
 namespace ptgn {
 
@@ -647,6 +649,35 @@ Tween ScaleTo(Entity entity, V2_float target_scale, milliseconds duration, Ease 
 	return impl::AddTweenEffect<impl::ScaleEffect, V2_float>(
 		entity, target_scale, duration, ease, force, [](Entity e) { return GetScale(e); },
 		[](Entity e, V2_float v) { SetScale(e, v); }
+	);
+}
+
+static TweenProperty<float> TextSizeProperty() {
+	return { [](Entity e) { return Text{ e }.GetFontSize().GetValue(); },
+			 [](Entity e, const float& v) {
+				 Text{ e }.SetFontSize(v);
+			 } };
+};
+
+Tween ScaleTextSize(
+	Text entity, float target_font_size, milliseconds duration, Ease ease, bool force
+) {
+	struct TextFontSizeTween {};
+
+	return TweenTo<TextFontSizeTween, float>(
+		entity, target_font_size, duration, ease, TextSizeProperty(), force
+	);
+}
+
+std::vector<Tween> ScaleTextSize(
+	const std::vector<Text>& entities,
+	const std::variant<float, std::vector<float>>& target_font_size, milliseconds duration,
+	Ease ease, bool force
+) {
+	struct TextFontSizeTween {};
+
+	return TweenTo<TextFontSizeTween, float>(
+		entities, target_font_size, duration, ease, TextSizeProperty(), force
 	);
 }
 
