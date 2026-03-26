@@ -1,14 +1,19 @@
 #pragma once
 
+#include <chrono>
+#include <concepts>
 #include <cstdint>
 #include <functional>
+#include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
+#include "core/util/concepts.h"
 #include "renderer/primitives/color.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/shake_config.h"
@@ -16,6 +21,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/graphics/text.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
@@ -174,6 +180,108 @@ Tween StartFollowPathImpl(
 
 } // namespace impl
 
+template <typename T>
+struct TweenProperty {
+	TweenProperty() = default;
+
+	template <InvocableR<T, Entity> GetFunc, InvocableR<void, Entity, const T&> SetFunc>
+	TweenProperty(GetFunc&& get, SetFunc&& set) :
+		get{ std::forward<GetFunc>(get) }, set{ std::forward<SetFunc>(set) } {}
+
+	template <InvocableR<T, Entity> GetFunc>
+	TweenProperty(GetFunc&& get) : get{ std::forward<GetFunc>(get) } {} // NOSONAR
+
+	template <InvocableR<void, Entity, const T&> SetFunc>
+	TweenProperty(SetFunc&& set) : set{ std::forward<SetFunc>(set) } {} // NOSONAR
+
+	std::function<T(Entity)> get;
+	std::function<void(Entity, const T&)> set;
+};
+
+/// @brief Tweens a property of an entity to a target value over a specified duration.
+///
+/// @tparam TComponent The component used to tag the target property.
+/// @tparam T The type of the value being tweened (e.g., float, V2_float).
+///
+/// @param entity The entity whose property will be tweened.
+/// @param target The target value.
+/// @param duration The duration of the tween.
+/// @param ease The easing function to apply.
+/// @param property The property getter/setter pair.
+/// @param force If true, overrides any ongoing tween.
+template <typename TComponent, std::copy_constructible T>
+Tween TweenTo(
+	Entity entity, const T& target, milliseconds duration, Ease ease, TweenProperty<T> property,
+	bool force = true
+) {
+	PTGN_ASSERT(duration > milliseconds{ 0 }, "Tween must have a positive duration");
+
+	auto tween{ impl::GetTween<TComponent>(entity) };
+
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	}
+
+	// Store start value inside the tween
+	auto start = std::make_shared<T>();
+
+	auto update_start = [start, property](Entity e) mutable {
+		Entity parent{ GetParent(e) };
+		*start = property.get(parent);
+	};
+
+	tween.During(duration)
+		.Ease(ease)
+		.OnStart(update_start)
+		.OnProgress([start, property, target](Entity e, float progress) mutable {
+			auto result = Lerp(*start, target, progress);
+			Entity parent{ GetParent(e) };
+			property.set(parent, result);
+		})
+		.OnPointComplete(update_start)
+		.OnComplete(update_start)
+		.OnStop(update_start)
+		.OnReset(update_start);
+
+	tween.Start(force);
+
+	return tween;
+}
+
+template <typename TComponent, std::copy_constructible T, EntityType E>
+std::vector<Tween> TweenTo(
+	const std::vector<E>& entities, const std::variant<T, std::vector<T>>& target,
+	milliseconds duration, Ease ease, TweenProperty<T> property, bool force = true
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+	std::visit(
+		[&]<typename TType>(const TType& target_value) {
+			if constexpr (std::is_same_v<TType, T>) {
+				for (const auto& entity : entities) {
+					tweens.emplace_back(TweenTo<TComponent, T>(
+						entity, target_value, duration, ease, property, force
+					));
+				}
+			} else if constexpr (std::is_same_v<TType, std::vector<T>>) {
+				PTGN_ASSERT(
+					target_value.size() == entities.size(),
+					"Target vector size must match entities size"
+				);
+				for (std::size_t i = 0; i < entities.size(); ++i) {
+					tweens.emplace_back(TweenTo<TComponent, T>(
+						entities[i], target_value[i], duration, ease, property, force
+					));
+				}
+			} else {
+				static_assert(false, "Unsupported target type for TweenTo");
+			}
+		},
+		target
+	);
+	return tweens;
+}
+
 /// @brief Translates an entity to a target position over a specified duration using a tweening
 /// function.
 ///
@@ -186,6 +294,41 @@ Tween TranslateTo(
 	Entity entity, V2_float target_position, milliseconds duration, Ease ease = Ease::Linear,
 	bool force = true
 );
+
+template <EntityType E>
+std::vector<Tween> TranslateTo(
+	const std::vector<E>& entities,
+	const std::variant<V2_float, std::vector<V2_float>>& target_position, milliseconds duration,
+	Ease ease = Ease::Linear, bool force = true
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+
+	std::visit(
+		[&]<typename TType>(const TType& target_value) {
+			if constexpr (std::is_same_v<TType, V2_float>) {
+				for (const auto& entity : entities) {
+					tweens.emplace_back(TranslateTo(entity, target_value, duration, ease, force));
+				}
+			} else if constexpr (std::is_same_v<TType, std::vector<V2_float>>) {
+				PTGN_ASSERT(
+					target_value.size() == entities.size(),
+					"Target vector size must match entities size"
+				);
+				for (std::size_t i = 0; i < entities.size(); ++i) {
+					tweens.emplace_back(
+						TranslateTo(entities[i], target_value[i], duration, ease, force)
+					);
+				}
+			} else {
+				static_assert(false, "Unsupported target type");
+			}
+		},
+		target_position
+	);
+
+	return tweens;
+}
 
 /// @brief Rotates an entity to a target angle over a specified duration using a tweening function.
 ///
@@ -200,6 +343,40 @@ Tween RotateTo(
 	bool force = true
 );
 
+template <EntityType E>
+std::vector<Tween> RotateTo(
+	const std::vector<E>& entities, const std::variant<float, std::vector<float>>& target_angle,
+	milliseconds duration, Ease ease = Ease::Linear, bool force = true
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+
+	std::visit(
+		[&]<typename TType>(const TType& target_value) {
+			if constexpr (std::is_same_v<TType, float>) {
+				for (const auto& entity : entities) {
+					tweens.emplace_back(RotateTo(entity, target_value, duration, ease, force));
+				}
+			} else if constexpr (std::is_same_v<TType, std::vector<float>>) {
+				PTGN_ASSERT(
+					target_value.size() == entities.size(),
+					"Target vector size must match entities size"
+				);
+				for (std::size_t i = 0; i < entities.size(); ++i) {
+					tweens.emplace_back(
+						RotateTo(entities[i], target_value[i], duration, ease, force)
+					);
+				}
+			} else {
+				static_assert(false, "Unsupported target type");
+			}
+		},
+		target_angle
+	);
+
+	return tweens;
+}
+
 /// @brief Scales an entity to a target size over a specified duration using a tweening function.
 ///
 /// @param entity The entity to be scaled.
@@ -210,6 +387,51 @@ Tween RotateTo(
 Tween ScaleTo(
 	Entity entity, V2_float target_scale, milliseconds duration, Ease ease = Ease::Linear,
 	bool force = true
+);
+
+template <EntityType E>
+std::vector<Tween> ScaleTo(
+	const std::vector<E>& entities,
+	const std::variant<V2_float, std::vector<V2_float>>& target_scale, milliseconds duration,
+	Ease ease = Ease::Linear, bool force = true
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+
+	std::visit(
+		[&]<typename TType>(const TType& target_value) {
+			if constexpr (std::is_same_v<TType, V2_float>) {
+				for (const auto& entity : entities) {
+					tweens.emplace_back(ScaleTo(entity, target_value, duration, ease, force));
+				}
+			} else if constexpr (std::is_same_v<TType, std::vector<V2_float>>) {
+				PTGN_ASSERT(
+					target_value.size() == entities.size(),
+					"Target vector size must match entities size"
+				);
+				for (std::size_t i = 0; i < entities.size(); ++i) {
+					tweens.emplace_back(ScaleTo(entities[i], target_value[i], duration, ease, force)
+					);
+				}
+			} else {
+				static_assert(false, "Unsupported target type");
+			}
+		},
+		target_scale
+	);
+
+	return tweens;
+}
+
+Tween ScaleTextSize(
+	Text entity, float target_font_size, milliseconds duration, Ease ease = Ease::Linear,
+	bool force = true
+);
+
+std::vector<Tween> ScaleTextSize(
+	const std::vector<Text>& entities,
+	const std::variant<float, std::vector<float>>& target_font_size, milliseconds duration,
+	Ease ease = Ease::Linear, bool force = true
 );
 
 /// @brief Tints an entity to a target color over a specified duration using a tweening function.
@@ -224,6 +446,39 @@ Tween TintTo(
 	bool force = true
 );
 
+template <EntityType E>
+std::vector<Tween> TintTo(
+	const std::vector<E>& entities, const std::variant<Color, std::vector<Color>>& target_tint,
+	milliseconds duration, Ease ease = Ease::Linear, bool force = true
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+
+	std::visit(
+		[&]<typename TType>(const TType& target_value) {
+			if constexpr (std::is_same_v<TType, Color>) {
+				for (const auto& entity : entities) {
+					tweens.emplace_back(TintTo(entity, target_value, duration, ease, force));
+				}
+			} else if constexpr (std::is_same_v<TType, std::vector<Color>>) {
+				PTGN_ASSERT(
+					target_value.size() == entities.size(),
+					"Target vector size must match entities size"
+				);
+				for (std::size_t i = 0; i < entities.size(); ++i) {
+					tweens.emplace_back(TintTo(entities[i], target_value[i], duration, ease, force)
+					);
+				}
+			} else {
+				static_assert(false, "Unsupported target type");
+			}
+		},
+		target_tint
+	);
+
+	return tweens;
+}
+
 /// @brief Fades in the specified entity over a given duration. If the object already has a tint of
 /// color::White, does nothing. Set tint to color::Transparent for a full fade in effect.
 ///
@@ -236,6 +491,19 @@ Tween FadeIn(
 	bool start_transparent = false
 );
 
+template <EntityType E>
+std::vector<Tween> FadeIn(
+	const std::vector<E>& entities, milliseconds duration, Ease ease = Ease::Linear,
+	bool force = true, bool start_transparent = false
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+	for (const auto& entity : entities) {
+		tweens.emplace_back(FadeIn(entity, duration, ease, force, start_transparent));
+	}
+	return tweens;
+}
+
 /// @brief Fades out the specified entity over a given duration. If the object already has a tint of
 /// color::Transparent, does nothing. Set tint to color::White for a full fade out effect.
 ///
@@ -247,6 +515,19 @@ Tween FadeOut(
 	Entity entity, milliseconds duration, Ease ease = Ease::Linear, bool force = true,
 	bool start_opaque = false
 );
+
+template <EntityType E>
+std::vector<Tween> FadeOut(
+	const std::vector<E>& entities, milliseconds duration, Ease ease = Ease::Linear,
+	bool force = true, bool start_opaque = false
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+	for (const auto& entity : entities) {
+		tweens.emplace_back(FadeOut(entity, duration, ease, force, start_opaque));
+	}
+	return tweens;
+}
 
 /// @brief Applies a bouncing motion to the specified entity.
 ///
@@ -267,6 +548,22 @@ Tween Bounce(
 	std::int64_t total_periods = -1, Ease ease = Ease::Linear, V2_float static_offset = {},
 	bool force = true
 );
+
+template <EntityType E>
+std::vector<Tween> Bounce(
+	const std::vector<E>& entities, V2_float bounce_amplitude, milliseconds duration,
+	std::int64_t total_periods = -1, Ease ease = Ease::Linear, V2_float static_offset = {},
+	bool force = true
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+	for (const auto& entity : entities) {
+		tweens.emplace_back(
+			Bounce(entity, bounce_amplitude, duration, total_periods, ease, static_offset, force)
+		);
+	}
+	return tweens;
+}
 
 /// @brief Applies a symmetrical bouncing motion to the specified entity.
 ///
@@ -291,11 +588,34 @@ Tween SymmetricalBounce(
 	bool force = true
 );
 
+template <EntityType E>
+std::vector<Tween> SymmetricalBounce(
+	const std::vector<E>& entities, V2_float bounce_amplitude, milliseconds duration,
+	std::int64_t total_periods = -1, Ease ease = Ease::Linear, V2_float static_offset = {},
+	bool force = true
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+	for (const auto& entity : entities) {
+		tweens.emplace_back(SymmetricalBounce(
+			entity, bounce_amplitude, duration, total_periods, ease, static_offset, force
+		));
+	}
+	return tweens;
+}
+
 /// @brief Stops the current bounce tween and proceeds to the next one in the queue.
 ///
 /// @param entity The entity whose bounce animation should be stopped.
 /// @param force If true, clears the entire bounce queue instead of just the current tween.
 void StopBounce(Entity entity, bool force = true);
+
+template <EntityType E>
+void StopBounce(const std::vector<E>& entities, bool force = true) {
+	for (const auto& entity : entities) {
+		StopBounce(entity, force);
+	}
+}
 
 /// @brief Applies a continuous shake effect to the specified entity.
 ///
@@ -315,6 +635,20 @@ Tween Shake(
 	Ease ease = Ease::None, bool force = true, bool reset_trauma = false
 );
 
+template <EntityType E>
+std::vector<Tween> Shake(
+	const std::vector<E>& entities, float intensity, milliseconds duration,
+	const ShakeConfig& config = {}, Ease ease = Ease::None, bool force = true,
+	bool reset_trauma = false
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+	for (const auto& entity : entities) {
+		tweens.emplace_back(Shake(entity, intensity, duration, config, ease, force, reset_trauma));
+	}
+	return tweens;
+}
+
 /// @brief Applies a continuous constant shake of a given intensity to the specified entity.
 ///
 /// @param entity The entity to apply the shake effect to.
@@ -331,6 +665,21 @@ Tween Shake(
 	bool force = true, bool reset_trauma = false
 );
 
+template <EntityType E>
+std::vector<Tween> Shake(
+	const std::vector<E>& entities, float intensity, milliseconds duration,
+	const ShakeConfig& config = {}, bool force = true, bool reset_trauma = false
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+	for (const auto& entity : entities) {
+		tweens.emplace_back(
+			Shake(entity, intensity, duration, config, Ease::None, force, reset_trauma)
+		);
+	}
+	return tweens;
+}
+
 /// @brief Applies an instantenous shake effect to the specified entity.
 ///
 /// @param entity The entity to apply the shake effect to.
@@ -340,11 +689,33 @@ Tween Shake(
 /// @param force If true, overrides any existing shake effect.
 Tween Shake(Entity entity, float intensity, const ShakeConfig& config = {}, bool force = true);
 
+template <EntityType E>
+std::vector<Tween> Shake(
+	const std::vector<E>& entities, float intensity, const ShakeConfig& config = {},
+	bool force = true
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+	for (const auto& entity : entities) {
+		tweens.emplace_back(
+			Shake(entity, intensity, milliseconds{ 0 }, config, Ease::None, force, false)
+		);
+	}
+	return tweens;
+}
+
 /// @brief Stops any ongoing shake effect on the specified entity.
 ///
 /// @param entity The entity whose shake effect should be stopped.
 /// @param force If true, clears all queued or active shake effects.
 void StopShake(Entity entity, bool force = true);
+
+template <EntityType E>
+void StopShake(const std::vector<E>& entities, bool force = true) {
+	for (const auto& entity : entities) {
+		StopShake(entity, force);
+	}
+}
 
 /// @brief Starts a follow behavior where one entity follows another based on the specified
 /// configuration.
@@ -356,6 +727,19 @@ void StopShake(Entity entity, bool force = true);
 Tween StartFollow(
 	Entity entity, Entity target, const TargetFollowConfig& config = {}, bool force = true
 );
+
+template <EntityType E>
+std::vector<Tween> StartFollow(
+	const std::vector<E>& entities, Entity target, const TargetFollowConfig& config = {},
+	bool force = true
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+	for (const auto& entity : entities) {
+		tweens.emplace_back(StartFollow(entity, target, config, force));
+	}
+	return tweens;
+}
 
 /// @brief Starts a follow behavior where the entity follows a path of waypoints based on the
 /// specified configuration.
@@ -372,6 +756,19 @@ Tween StartFollow(
 	bool force = true, bool reset_waypoint_index = false
 );
 
+template <EntityType E>
+std::vector<Tween> StartFollow(
+	const std::vector<E>& entities, const std::vector<V2_float>& waypoints,
+	const PathFollowConfig& config = {}, bool force = true, bool reset_waypoint_index = false
+) {
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+	for (const auto& entity : entities) {
+		tweens.emplace_back(StartFollow(entity, waypoints, config, force, reset_waypoint_index));
+	}
+	return tweens;
+}
+
 /// @brief Stops any active follow behavior on the specified entity.
 ///
 /// @param entity The entity whose follow behavior should be stopped.
@@ -380,5 +777,14 @@ Tween StartFollow(
 /// follow will continue where it started as long as waypoints have not changed or the end has not
 /// been reached (if config.loop_path is false).
 void StopFollow(Entity entity, bool force = true, bool reset_previous_waypoints = false);
+
+template <EntityType E>
+void StopFollow(
+	const std::vector<E>& entities, bool force = true, bool reset_previous_waypoints = false
+) {
+	for (const auto& entity : entities) {
+		StopFollow(entity, force, reset_previous_waypoints);
+	}
+}
 
 } // namespace ptgn
