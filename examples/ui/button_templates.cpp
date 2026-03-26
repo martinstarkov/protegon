@@ -3,11 +3,14 @@
 #include <chrono>
 #include <optional>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include "app/application.h"
 #include "core/assert.h"
 #include "core/math/easing.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "renderer/primitives/color.h"
@@ -41,12 +44,17 @@ struct TemplateButtonConfig {
 	Color text_color{ color::White };
 	Color text_hover_color{ color::Green };
 	Color text_click_color{ text_hover_color };
+	int text_outline_width{ 0 };
+	Color text_outline_color{ color::Black };
 
 	FontSize font_size;
 	FontOrKey font;
 
-	int text_outline_width{ 1 };
-	Color text_outline_color{ color::Black };
+	Color background_color{ color::Transparent };
+	Color background_hover_color{ color::Transparent };
+	Color background_click_color{ color::Transparent };
+
+	std::optional<V2_float> background_size;
 
 	AudioOrKey click{};
 	AudioOrKey hover{};
@@ -64,6 +72,18 @@ static Button CreateTemplateButton(
 	TextProperties text_properties;
 	text_properties.outline.width = config.text_outline_width;
 	text_properties.outline.color = config.text_outline_color;
+
+	std::optional<std::variant<Rect, Circle>> shape;
+
+	if (config.background_size.has_value()) {
+		shape = Rect{ *config.background_size };
+	}
+
+	button.SetBackgroundShape(shape, ButtonState::Idle);
+
+	button.SetBackgroundColor(config.background_color, ButtonState::Idle);
+	button.SetBackgroundColor(config.background_hover_color, ButtonState::Hover);
+	button.SetBackgroundColor(config.background_click_color, ButtonState::Press);
 
 	button.SetText(
 		config.content, config.text_color, config.font_size, config.font, text_properties,
@@ -143,23 +163,48 @@ public:
 		ctx().asset.LoadAudio("hover", "assets/hover.ogg");
 		ctx().asset.LoadAudio("click", "assets/click.ogg");
 
+		V2_float size{ 200, 50 };
+		V2_float offset{ 0, 70 };
+
 		CreateTemplateButton(
-			*this, { 0, 300 }, { 150, 50 },
-			{ .content			= "Click Me!",
-			  .text_hover_color = color::Red,
-			  .click			= "click",
-			  .hover			= "hover",
-			  .move				= MoveButtonConfig{} }
+			*this, offset * 3, size,
+			{ .content			  = "Celeste",
+			  .text_hover_color	  = color::Red,
+			  .text_outline_width = 1,
+			  .click			  = "click",
+			  .hover			  = "hover",
+			  .move				  = MoveButtonConfig{} }
 		);
 
 		CreateTemplateButton(
-			*this, { 0, 200 }, { 150, 50 },
-			{ .content			= "Click Me!",
+			*this, offset * 2, size,
+			{ .content			  = "Terraria",
+			  .text_color		  = color::Gray,
+			  .text_hover_color	  = color::Gold,
+			  .text_outline_width = 1,
+			  .click			  = "click",
+			  .hover			  = "hover",
+			  .scale			  = ScaleButtonConfig{} }
+		);
+
+		CreateTemplateButton(
+			*this, offset * 1, size,
+			{ .content				  = "Payday 2",
+			  .text_color			  = color::LightBlue,
+			  .text_hover_color		  = color::Blue,
+			  .text_outline_width	  = 1,
+			  .background_hover_color = color::Blue.WithAlpha(0.1f),
+			  .click				  = "click",
+			  .hover				  = "hover" }
+		);
+
+		CreateTemplateButton(
+			*this, offset * 0, size,
+			{ .content			= "Enter the Gungeon",
 			  .text_color		= color::Gray,
-			  .text_hover_color = color::Gold,
+			  .text_hover_color = color::White,
 			  .click			= "click",
-			  .hover			= "hover",
-			  .scale			= ScaleButtonConfig{} }
+			  .hover			= "hover" }
 		);
 
 		// ctx().asset.Load("idle", "assets/bell.png");
