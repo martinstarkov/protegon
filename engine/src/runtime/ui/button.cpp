@@ -34,7 +34,6 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -667,7 +666,7 @@ template <typename Derived>
 Derived& ButtonBase<Derived>::SetTextColor(Color text_color, ButtonStyleState state) {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
 	if (desired.text.has_value()) {
-		Text::SetParameter(*desired.text, impl::TextColor{ text_color }, true);
+		Text{ *desired.text }.SetColor(text_color);
 	} else {
 		desired.text = GameObject{};
 		SetText(*desired.text, {}, text_color);
@@ -690,7 +689,7 @@ Derived& ButtonBase<Derived>::SetTextContent(
 ) {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
 	if (desired.text.has_value()) {
-		Text::SetParameter(*desired.text, TextContent{ text_content }, true);
+		Text{ *desired.text }.SetContent(text_content);
 	} else {
 		desired.text = GameObject{};
 		SetText(*desired.text, text_content);
@@ -711,7 +710,7 @@ template <typename Derived>
 Derived& ButtonBase<Derived>::SetTextJustify(TextJustify justify, ButtonStyleState state) {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
 	if (desired.text.has_value()) {
-		Text::SetParameter(*desired.text, justify, true);
+		Text{ *desired.text }.SetJustify(justify);
 	} else {
 		TextProperties text_properties;
 		text_properties.justify = justify;
@@ -758,7 +757,7 @@ template <typename Derived>
 Derived& ButtonBase<Derived>::SetFontSize(FontSize font_size, ButtonStyleState state) {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
 	if (desired.text.has_value()) {
-		Text::SetParameter(*desired.text, font_size, true);
+		Text{ *desired.text }.SetFontSize(font_size);
 	} else {
 		desired.text = GameObject{};
 		SetText(*desired.text, {}, {}, font_size);
