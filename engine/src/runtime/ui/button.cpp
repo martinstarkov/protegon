@@ -21,6 +21,7 @@
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
 #include "runtime/animation/animation.h"
+#include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset.h"
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
@@ -210,34 +211,35 @@ void ToggleButtonGroupScript::OnButtonPress() {
 }
 
 template <typename Derived>
-ButtonBase<Derived>::ConstButtonStyles ButtonBase<Derived>::GetStyle(ButtonStyleState state) const {
-	PTGN_ASSERT(Has<ButtonConfig>(), "Button must have a valid config");
+ButtonBase<Derived>::ConstButtonStyleTuple ButtonBase<Derived>::GetStyle(ButtonStyleState state
+) const {
+	PTGN_ASSERT(Has<ButtonStyles>(), "Button must have a valid style");
 
-	ButtonInteractionConfig& backup_config{ Get<ButtonConfig>().enabled };
-	const ButtonInteractionConfig* config{ nullptr };
+	ButtonInteractionStyle& backup_style{ Get<ButtonStyles>().enabled };
+	const ButtonInteractionStyle* style{ nullptr };
 
 	if (state.toggled) {
 		PTGN_ASSERT(
-			Has<impl::ToggleButtonInteractionConfig>(),
-			"Toggle button must have a toggle interaction config"
+			Has<impl::ToggleButtonInteractionStyle>(),
+			"Toggle button must have a toggle interaction style"
 		);
-		config = &Get<impl::ToggleButtonInteractionConfig>().toggled;
+		style = &Get<impl::ToggleButtonInteractionStyle>().toggled;
 	} else {
-		config = state.disabled ? &Get<ButtonConfig>().disabled : &backup_config;
+		style = state.disabled ? &Get<ButtonStyles>().disabled : &backup_style;
 	}
 
-	PTGN_ASSERT(config != nullptr, "Failed to find button style config");
+	PTGN_ASSERT(style != nullptr, "Failed to find button style style");
 
 	switch (state.state) {
 		using enum ButtonState;
 		case Idle: {
-			return { backup_config.idle, config->idle, config->idle };
+			return { backup_style.idle, style->idle, style->idle };
 		}
 		case Hover: {
-			return { backup_config.idle, config->idle, config->hover };
+			return { backup_style.idle, style->idle, style->hover };
 		}
 		case Press: {
-			return { backup_config.idle, config->idle, config->press };
+			return { backup_style.idle, style->idle, style->press };
 		}
 		default: {
 			ButtonStyleState current_state;
@@ -254,7 +256,7 @@ ButtonBase<Derived>::ConstButtonStyles ButtonBase<Derived>::GetStyle(ButtonStyle
 }
 
 template <typename Derived>
-ButtonBase<Derived>::ButtonStyles ButtonBase<Derived>::GetStyle(ButtonStyleState state) {
+ButtonBase<Derived>::ButtonStyleTuple ButtonBase<Derived>::GetStyle(ButtonStyleState state) {
 	auto [enabled_idle, idle, desired] = std::as_const(*this).GetStyle(state);
 	return { const_cast<ButtonStyle&>(enabled_idle), const_cast<ButtonStyle&>(idle),
 			 const_cast<ButtonStyle&>(desired) };
@@ -477,7 +479,7 @@ bool ButtonBase<Derived>::IsEnabled(bool check_for_hover_enabled) const {
 
 template <typename Derived>
 std::optional<std::variant<Rect, Circle>> ButtonBase<Derived>::GetShape() const {
-	const auto& config{ Get<ButtonConfig>() };
+	const auto& style{ Get<ButtonStyles>() };
 
 	if (auto rect{ TryGet<Rect>() }) {
 		return *rect;
@@ -492,9 +494,9 @@ std::optional<std::variant<Rect, Circle>> ButtonBase<Derived>::GetShape() const 
 			PTGN_ASSERT(size.has_value(), msg);
 			return Rect{ *size };
 		};
-		return from_optional(config.enabled.idle.sprite, "No valid texture size for button")
-			.or_else([&from_optional, &config]() {
-				return from_optional(config.enabled.idle.text, "No valid text size for button");
+		return from_optional(style.enabled.idle.sprite, "No valid texture size for button")
+			.or_else([&from_optional, &style]() {
+				return from_optional(style.enabled.idle.text, "No valid text size for button");
 			});
 	}
 }
@@ -511,7 +513,7 @@ Derived& ButtonBase<Derived>::SetShape(const std::optional<std::variant<Rect, Ci
 	std::optional<std::variant<Rect, Circle>> resolved_shape;
 
 	if (!shape.has_value()) {
-		const auto& config{ Get<ButtonConfig>() };
+		const auto& styles{ Get<ButtonStyles>() };
 
 		auto from_optional = [&](const auto& opt, const char* msg) -> std::optional<Rect> {
 			if (!opt) {
@@ -523,9 +525,9 @@ Derived& ButtonBase<Derived>::SetShape(const std::optional<std::variant<Rect, Ci
 		};
 
 		resolved_shape =
-			from_optional(config.enabled.idle.sprite, "No valid texture size for button")
-				.or_else([&from_optional, &config]() {
-					return from_optional(config.enabled.idle.text, "No valid text size for button");
+			from_optional(styles.enabled.idle.sprite, "No valid texture size for button")
+				.or_else([&from_optional, &styles]() {
+					return from_optional(styles.enabled.idle.text, "No valid text size for button");
 				});
 	} else {
 		resolved_shape = *shape;
@@ -951,7 +953,7 @@ template <typename Derived>
 ButtonStyleState ButtonBase<Derived>::GetStyleState() const {
 	auto state{ GetState() };
 	auto disabled{ !IsEnabled(false) };
-	auto toggled{ Has<ButtonToggled>() && Has<ToggleButtonInteractionConfig>() };
+	auto toggled{ Has<ButtonToggled>() && Has<ToggleButtonInteractionStyle>() };
 	return { state, disabled, toggled };
 }
 
@@ -1316,28 +1318,28 @@ static void ProcessButtonChild(Button button, std::optional<GameObject>& child) 
 }
 
 Button CreateButton(
-	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape, ButtonConfig config,
+	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape, ButtonStyles styles,
 	bool ui_layer
 ) {
 	Button button{ scene.CreateEntity() };
 
-	ProcessButtonChild(button, config.enabled.idle.sprite);
-	ProcessButtonChild(button, config.enabled.idle.text);
-	ProcessButtonChild(button, config.enabled.hover.sprite);
-	ProcessButtonChild(button, config.enabled.hover.text);
-	ProcessButtonChild(button, config.enabled.press.sprite);
-	ProcessButtonChild(button, config.enabled.press.text);
-	ProcessButtonChild(button, config.disabled.idle.sprite);
-	ProcessButtonChild(button, config.disabled.idle.text);
-	ProcessButtonChild(button, config.disabled.hover.sprite);
-	ProcessButtonChild(button, config.disabled.hover.text);
-	ProcessButtonChild(button, config.disabled.press.sprite);
-	ProcessButtonChild(button, config.disabled.press.text);
+	ProcessButtonChild(button, styles.enabled.idle.sprite);
+	ProcessButtonChild(button, styles.enabled.idle.text);
+	ProcessButtonChild(button, styles.enabled.hover.sprite);
+	ProcessButtonChild(button, styles.enabled.hover.text);
+	ProcessButtonChild(button, styles.enabled.press.sprite);
+	ProcessButtonChild(button, styles.enabled.press.text);
+	ProcessButtonChild(button, styles.disabled.idle.sprite);
+	ProcessButtonChild(button, styles.disabled.idle.text);
+	ProcessButtonChild(button, styles.disabled.hover.sprite);
+	ProcessButtonChild(button, styles.disabled.hover.text);
+	ProcessButtonChild(button, styles.disabled.press.sprite);
+	ProcessButtonChild(button, styles.disabled.press.text);
 
-	impl::AddAnimationCompleteCallback(button, config.enabled.press.sprite);
-	impl::AddAnimationCompleteCallback(button, config.disabled.press.sprite);
+	impl::AddAnimationCompleteCallback(button, styles.enabled.press.sprite);
+	impl::AddAnimationCompleteCallback(button, styles.disabled.press.sprite);
 
-	button.Add<ButtonConfig>(std::move(config));
+	button.Add<ButtonStyles>(std::move(styles));
 
 	if (ui_layer) {
 		SetUI(button, true);
@@ -1358,30 +1360,199 @@ Button CreateButton(
 	return button;
 }
 
+Button CreateButton(Scene& scene, V2_float position, V2_float size, const ButtonConfig& config) {
+	auto button = CreateButton(scene, size);
+	SetPosition(button, position);
+
+	std::optional<std::variant<Rect, Circle>> shape;
+
+	if (config.background_size.has_value()) {
+		shape = Rect{ *config.background_size };
+	}
+
+	button.SetBackgroundShape(shape, ButtonState::Idle);
+
+	if (config.background_color.has_value()) {
+		button.SetBackgroundColor(*config.background_color, ButtonState::Idle);
+	}
+	if (config.background_color_hover.has_value()) {
+		button.SetBackgroundColor(*config.background_color_hover, ButtonState::Hover);
+	}
+
+	if (config.background_color_press.has_value() || config.background_color_hover.has_value()) {
+		Color bg_color{ config.background_color_press
+							.or_else([&config]() { return config.background_color_hover; })
+							.value() };
+		button.SetBackgroundColor(bg_color, ButtonState::Press);
+	}
+
+	if (config.texture.has_value()) {
+		button.SetTexture(*config.texture, ButtonState::Idle);
+	}
+	if (config.texture_hover.has_value()) {
+		button.SetTexture(*config.texture_hover, ButtonState::Hover);
+	}
+	if (config.texture_press.has_value()) {
+		button.SetTexture(*config.texture_press, ButtonState::Press);
+	}
+
+	if (config.texture_tint.has_value()) {
+		button.SetTextureTint(*config.texture_tint, ButtonState::Idle);
+	}
+
+	if (config.texture_tint_hover.has_value()) {
+		button.SetTextureTint(*config.texture_tint_hover, ButtonState::Hover);
+	}
+
+	if (config.texture_tint_press.has_value() || config.texture_tint_hover.has_value()) {
+		Color tint{
+			config.texture_tint_press.or_else([&config]() { return config.texture_tint_hover; }
+			).value()
+		};
+		button.SetTextureTint(tint, ButtonState::Press);
+	}
+
+	if (config.content.has_value()) {
+		TextProperties text_properties;
+		if (config.text_outline_width.has_value()) {
+			text_properties.outline.width = *config.text_outline_width;
+		}
+		if (config.text_outline_color.has_value()) {
+			text_properties.outline.color = *config.text_outline_color;
+		}
+		auto idle_color{ config.text_color.value_or(impl::kDefaultButtonTextColor) };
+		button.SetText(
+			*config.content, idle_color, config.font_size, config.font, text_properties,
+			ButtonState::Idle
+		);
+		auto hover_color{ config.text_color_hover.value_or(idle_color) };
+		button.SetText(
+			*config.content, hover_color, config.font_size, config.font, text_properties,
+			ButtonState::Hover
+		);
+		button.SetText(
+			*config.content, config.text_color_press.value_or(hover_color), config.font_size,
+			config.font, text_properties, ButtonState::Press
+		);
+	}
+
+	button.SetSound(config.sound_hover, ButtonState::Hover);
+	button.SetSound(config.sound_press, ButtonState::Press);
+
+	if (config.move.has_value()) {
+		button.OnHoverStart([button, config = *config.move]() {
+			using enum ButtonState;
+			TranslateTo(
+				std::vector<Text>{ *button.GetText(Idle), *button.GetText(Hover),
+								   *button.GetText(Press) },
+				config.offset, config.duration, config.ease
+			);
+		});
+
+		button.OnHoverStop([button, config = *config.move]() {
+			using enum ButtonState;
+			TranslateTo(
+				std::vector<Text>{ *button.GetText(Idle), *button.GetText(Hover),
+								   *button.GetText(Press) },
+				V2_float{}, config.duration, config.ease
+			);
+		});
+	}
+
+	if (config.scale.has_value()) {
+		auto sf_idle  = button.GetFontSize(ButtonState::Idle);
+		auto sf_hover = button.GetFontSize(ButtonState::Hover);
+		auto sf_press = button.GetFontSize(ButtonState::Press);
+
+		PTGN_ASSERT(sf_idle.has_value());
+
+		const std::vector<float> start_fonts{ *sf_idle, sf_hover.value_or(*sf_idle),
+											  sf_press.value_or(*sf_idle) };
+
+		auto target_fonts{ start_fonts };
+
+		for (auto& target_font : target_fonts) {
+			target_font *= config.scale->scale;
+		}
+
+		const auto tween_fonts = [button, config = *config.scale](const auto& fonts) {
+			using enum ButtonState;
+			std::vector<Text> texts{
+				*button.GetText(Idle),
+				*button.GetText(Hover),
+				*button.GetText(Press),
+			};
+
+			ScaleTextSize(texts, fonts, config.duration, config.ease);
+		};
+
+		button.OnHoverStop([tween_fonts, start_fonts]() { tween_fonts(start_fonts); });
+		button.OnHoverStart([tween_fonts, target_fonts]() { tween_fonts(target_fonts); });
+	}
+
+	return button;
+}
+
+Button CreateAnimatedButton(
+	Scene& scene, V2_float position, std::optional<V2_float> size,
+	const AnimatedButtonConfig& config
+) {
+	auto hover_animation{
+		CreateAnimation(scene, config.texture_hover, V2_int{}, config.animation_hover)
+	};
+
+	V2_float button_size{ size.or_else([&hover_animation]() {
+								  auto display_size{ GetDisplaySize(hover_animation) };
+								  PTGN_ASSERT(display_size.has_value());
+								  return display_size;
+							  }
+	).value() };
+
+	auto button = CreateButton(scene, button_size);
+	SetPosition(button, position);
+
+	button.SetTexture(config.texture, ButtonState::Idle);
+
+	button.SetAnimation(std::move(hover_animation), ButtonState::Hover);
+
+	if (config.animation_press.has_value() || config.texture_press.has_value()) {
+		auto press_animation{ CreateAnimation(
+			scene, config.texture_press.value_or(config.texture_hover), V2_int{},
+			config.animation_press.value_or(config.animation_hover)
+		) };
+		button.SetAnimation(std::move(press_animation), ButtonState::Press);
+	}
+
+	button.SetSound(config.sound_hover, ButtonState::Hover);
+	button.SetSound(config.sound_press, ButtonState::Press);
+
+	return button;
+}
+
 ToggleButton CreateToggleButton(
-	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape, ToggleButtonConfig config,
+	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape, ToggleButtonStyles styles,
 	bool toggled
 ) {
-	ButtonConfig button_config;
-	button_config.enabled  = std::move(config.enabled);
-	button_config.disabled = std::move(config.disabled);
+	ButtonStyles button_styles;
+	button_styles.enabled  = std::move(styles.enabled);
+	button_styles.disabled = std::move(styles.disabled);
 
-	ButtonInteractionConfig toggle_config{ std::move(config.toggled) };
+	ButtonInteractionStyle toggle_style{ std::move(styles.toggled) };
 
-	Button button{ CreateButton(scene, shape, std::move(button_config)) };
+	Button button{ CreateButton(scene, shape, std::move(button_styles)) };
 
 	ToggleButton toggle_button{ button };
 
-	ProcessButtonChild(toggle_button, toggle_config.idle.sprite);
-	ProcessButtonChild(toggle_button, toggle_config.idle.text);
-	ProcessButtonChild(toggle_button, toggle_config.hover.sprite);
-	ProcessButtonChild(toggle_button, toggle_config.hover.text);
-	ProcessButtonChild(toggle_button, toggle_config.press.sprite);
-	ProcessButtonChild(toggle_button, toggle_config.press.text);
+	ProcessButtonChild(toggle_button, toggle_style.idle.sprite);
+	ProcessButtonChild(toggle_button, toggle_style.idle.text);
+	ProcessButtonChild(toggle_button, toggle_style.hover.sprite);
+	ProcessButtonChild(toggle_button, toggle_style.hover.text);
+	ProcessButtonChild(toggle_button, toggle_style.press.sprite);
+	ProcessButtonChild(toggle_button, toggle_style.press.text);
 
-	impl::AddAnimationCompleteCallback(button, toggle_config.press.sprite);
+	impl::AddAnimationCompleteCallback(button, toggle_style.press.sprite);
 
-	toggle_button.Add<impl::ToggleButtonInteractionConfig>(std::move(toggle_config));
+	toggle_button.Add<impl::ToggleButtonInteractionStyle>(std::move(toggle_style));
 
 	PTGN_ASSERT(!HasScript<impl::InternalToggleButtonScript>(toggle_button));
 	AddScript<impl::InternalToggleButtonScript>(toggle_button);

@@ -13,8 +13,11 @@
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/log.h"
+#include "core/math/easing.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/vector2.h"
+#include "core/time/time.h"
 #include "platform/input/mouse.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
@@ -76,45 +79,101 @@ struct ButtonStyle {
 	std::optional<Audio> sound;
 };
 
-struct ButtonInteractionConfig {
-	ButtonInteractionConfig()											   = default;
-	~ButtonInteractionConfig() noexcept									   = default;
-	ButtonInteractionConfig(ButtonInteractionConfig&&) noexcept			   = default;
-	ButtonInteractionConfig& operator=(ButtonInteractionConfig&&) noexcept = default;
-	ButtonInteractionConfig(const ButtonInteractionConfig&)				   = delete;
-	ButtonInteractionConfig& operator=(const ButtonInteractionConfig&)	   = delete;
+struct ButtonInteractionStyle {
+	ButtonInteractionStyle()											 = default;
+	~ButtonInteractionStyle() noexcept									 = default;
+	ButtonInteractionStyle(ButtonInteractionStyle&&) noexcept			 = default;
+	ButtonInteractionStyle& operator=(ButtonInteractionStyle&&) noexcept = default;
+	ButtonInteractionStyle(const ButtonInteractionStyle&)				 = delete;
+	ButtonInteractionStyle& operator=(const ButtonInteractionStyle&)	 = delete;
 
 	ButtonStyle idle;
 	ButtonStyle hover;
 	ButtonStyle press;
 };
 
-struct ButtonConfig {
-	ButtonConfig()									 = default;
-	~ButtonConfig() noexcept						 = default;
-	ButtonConfig(ButtonConfig&&) noexcept			 = default;
-	ButtonConfig& operator=(ButtonConfig&&) noexcept = default;
-	ButtonConfig(const ButtonConfig&)				 = delete;
-	ButtonConfig& operator=(const ButtonConfig&)	 = delete;
+struct ButtonStyles {
+	ButtonStyles()									 = default;
+	~ButtonStyles() noexcept						 = default;
+	ButtonStyles(ButtonStyles&&) noexcept			 = default;
+	ButtonStyles& operator=(ButtonStyles&&) noexcept = default;
+	ButtonStyles(const ButtonStyles&)				 = delete;
+	ButtonStyles& operator=(const ButtonStyles&)	 = delete;
 
-	ButtonInteractionConfig enabled;
+	ButtonInteractionStyle enabled;
 
-	ButtonInteractionConfig disabled;
+	ButtonInteractionStyle disabled;
 };
 
-struct ToggleButtonConfig {
-	ToggleButtonConfig()										 = default;
-	~ToggleButtonConfig() noexcept								 = default;
-	ToggleButtonConfig(ToggleButtonConfig&&) noexcept			 = default;
-	ToggleButtonConfig& operator=(ToggleButtonConfig&&) noexcept = default;
-	ToggleButtonConfig(const ToggleButtonConfig&)				 = delete;
-	ToggleButtonConfig& operator=(const ToggleButtonConfig&)	 = delete;
+struct ToggleButtonStyles {
+	ToggleButtonStyles()										 = default;
+	~ToggleButtonStyles() noexcept								 = default;
+	ToggleButtonStyles(ToggleButtonStyles&&) noexcept			 = default;
+	ToggleButtonStyles& operator=(ToggleButtonStyles&&) noexcept = default;
+	ToggleButtonStyles(const ToggleButtonStyles&)				 = delete;
+	ToggleButtonStyles& operator=(const ToggleButtonStyles&)	 = delete;
 
-	ButtonInteractionConfig enabled;
+	ButtonInteractionStyle enabled;
 
-	ButtonInteractionConfig disabled;
+	ButtonInteractionStyle disabled;
 
-	ButtonInteractionConfig toggled;
+	ButtonInteractionStyle toggled;
+};
+
+struct MoveButtonConfig {
+	V2_float offset{ 20, 0 };
+	milliseconds duration{ 100 };
+	Ease ease{ Ease::Linear };
+};
+
+struct ScaleButtonConfig {
+	float scale{ 1.25f };
+	milliseconds duration{ 100 };
+	Ease ease{ Ease::Linear };
+};
+
+struct ButtonConfig {
+	std::optional<std::string_view> content;
+	std::optional<Color> text_color{ color::White };
+	std::optional<Color> text_color_hover;
+	std::optional<Color> text_color_press;
+	std::optional<int> text_outline_width;
+	std::optional<Color> text_outline_color;
+
+	FontSize font_size;
+	FontOrKey font;
+
+	std::optional<TextureOrKey> texture;
+	std::optional<TextureOrKey> texture_hover;
+	std::optional<TextureOrKey> texture_press;
+
+	std::optional<Color> texture_tint;
+	std::optional<Color> texture_tint_hover;
+	std::optional<Color> texture_tint_press;
+
+	std::optional<Color> background_color;
+	std::optional<Color> background_color_hover;
+	std::optional<Color> background_color_press;
+
+	std::optional<V2_float> background_size;
+
+	std::optional<AudioOrKey> sound_hover;
+	std::optional<AudioOrKey> sound_press;
+
+	std::optional<MoveButtonConfig> move;
+	std::optional<ScaleButtonConfig> scale;
+};
+
+struct AnimatedButtonConfig {
+	TextureOrKey texture;
+	TextureOrKey texture_hover;
+	std::optional<TextureOrKey> texture_press;
+
+	AnimationConfig animation_hover;
+	std::optional<AnimationConfig> animation_press;
+
+	std::optional<AudioOrKey> sound_hover;
+	std::optional<AudioOrKey> sound_press;
 };
 
 namespace impl {
@@ -131,8 +190,8 @@ struct ButtonAnimationCompleteScript : public Script {
 	void OnEvent(EventDispatcher d) override;
 };
 
-struct ToggleButtonInteractionConfig {
-	ButtonInteractionConfig toggled;
+struct ToggleButtonInteractionStyle {
+	ButtonInteractionStyle toggled;
 };
 
 struct ButtonExclusiveAudio {};
@@ -483,21 +542,21 @@ private:
 	Derived& Self();
 	const Derived& Self() const;
 
-	struct ButtonStyles {
+	struct ButtonStyleTuple {
 		ButtonStyle& enabled_idle;
 		ButtonStyle& idle;
 		ButtonStyle& desired;
 	};
 
-	struct ConstButtonStyles {
+	struct ConstButtonStyleTuple {
 		const ButtonStyle& enabled_idle;
 		const ButtonStyle& idle;
 		const ButtonStyle& desired;
 	};
 
-	ConstButtonStyles GetStyle(ButtonStyleState state) const;
+	ConstButtonStyleTuple GetStyle(ButtonStyleState state) const;
 
-	ButtonStyles GetStyle(ButtonStyleState state);
+	ButtonStyleTuple GetStyle(ButtonStyleState state);
 
 	void SetText(
 		GameObject& text, std::string_view text_content = {}, std::optional<Color> text_color = {},
@@ -583,13 +642,20 @@ private:
 /// provided, text size is used. If no text is provided, calls debug assertion.
 Button CreateButton(
 	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape = {},
-	ButtonConfig config = ButtonConfig{}, bool ui_layer = true
+	ButtonStyles styles = ButtonStyles{}, bool ui_layer = true
+);
+
+Button CreateButton(Scene& scene, V2_float position, V2_float size, const ButtonConfig& config);
+
+Button CreateAnimatedButton(
+	Scene& scene, V2_float position, std::optional<V2_float> size,
+	const AnimatedButtonConfig& config
 );
 
 /// @param toggled Whether or not the button start in the toggled state.
 ToggleButton CreateToggleButton(
 	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape = {},
-	ToggleButtonConfig config = ToggleButtonConfig{}, bool toggled = false
+	ToggleButtonStyles styles = ToggleButtonStyles{}, bool toggled = false
 );
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
