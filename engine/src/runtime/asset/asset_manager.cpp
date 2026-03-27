@@ -185,8 +185,9 @@ json& AssetManager::LoadJson(std::string_view key, const path& asset_path) {
 
 void AssetManager::LoadDirectory(const path& directory, bool recursive) {
 	PTGN_ASSERT(
-		FileExists(directory) && DirectoryExists(directory),
-		"Provided path is not a valid directory: ", directory.string()
+		DirectoryExists(directory) && FileExists(directory),
+		"Provided path is not a valid directory: ", directory.string(),
+		", current working directory is: ", GetWorkingDirectory()
 	);
 
 	std::unordered_set<std::size_t> taken_asset_keys;
