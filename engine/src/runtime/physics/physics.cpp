@@ -14,7 +14,6 @@
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 
-
 namespace ptgn {
 
 Physics::Physics(Scene& scene) : scene_{ scene } {}
@@ -79,8 +78,10 @@ void Physics::PreCollisionUpdate() const {
 		jump.Update(scene_, rigid_body, movement.grounded, gravity_);
 	}
 
+	secondsf dt_seconds{ dt };
+
 	for (auto [e, rigid_body] : scene_.EntitiesWith<RigidBody>()) {
-		rigid_body.Update(gravity_, dt);
+		rigid_body.Update(gravity_, dt_seconds);
 	}
 
 	for (auto [e, movement] : scene_.EntitiesWith<PlatformerMovement>()) {

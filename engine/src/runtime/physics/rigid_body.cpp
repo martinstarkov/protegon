@@ -4,16 +4,17 @@
 
 #include "core/assert.h"
 #include "core/math/vector2.h"
+#include "core/time/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 
 namespace ptgn {
 
-void RigidBody::Update(V2_float physics_gravity, float dt) {
-	velocity += gravity * physics_gravity * dt;
-	velocity *= 1.0f / (1.0f + drag * dt);
+void RigidBody::Update(V2_float physics_gravity, secondsf dt) {
+	velocity += gravity * physics_gravity * dt.count();
+	velocity *= 1.0f / (1.0f + drag * dt.count());
 	// Or alternatively: velocity *= std::clamp(1.0f - drag * dt, 0.0f, 1.0f);
-	angular_velocity *= 1.0f / (1.0f + angular_drag * dt);
+	angular_velocity *= 1.0f / (1.0f + angular_drag * dt.count());
 	if (max_speed != -1.0f) {
 		PTGN_ASSERT(max_speed >= 0.0f, "Max speed must be a positive number or -1 to omit it");
 		velocity = Clamp(velocity, -max_speed, max_speed);
@@ -30,12 +31,12 @@ void RigidBody::Update(V2_float physics_gravity, float dt) {
 RigidBody::RigidBody(float rb_max_speed, float rb_drag, float rb_gravity, bool rb_immovable) :
 	max_speed{ rb_max_speed }, drag{ rb_drag }, gravity{ rb_gravity }, immovable{ rb_immovable } {}
 
-void RigidBody::AddAcceleration(V2_float acceleration, float dt) {
-	velocity += acceleration * dt;
+void RigidBody::AddAcceleration(V2_float acceleration, secondsf dt) {
+	velocity += acceleration * dt.count();
 }
 
-void RigidBody::AddAngularAcceleration(float angular_acceleration, float dt) {
-	angular_velocity += angular_acceleration * dt;
+void RigidBody::AddAngularAcceleration(float angular_acceleration, secondsf dt) {
+	angular_velocity += angular_acceleration * dt.count();
 }
 
 void RigidBody::AddImpulse(V2_float impulse) {

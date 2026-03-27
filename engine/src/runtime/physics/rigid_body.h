@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/math/vector2.h"
+#include "core/time/time.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
@@ -13,11 +14,11 @@ struct RigidBody {
 
 	// vel += accel * dt
 	// @param dt Unit: seconds.
-	void AddAcceleration(V2_float acceleration, float dt);
+	void AddAcceleration(V2_float acceleration, secondsf dt);
 
 	// angular_vel += angular_accel * dt
 	// @param dt Unit: seconds.
-	void AddAngularAcceleration(float angular_acceleration, float dt);
+	void AddAngularAcceleration(float angular_acceleration, secondsf dt);
 
 	// vel += impulse
 	void AddImpulse(V2_float impulse);
@@ -26,7 +27,7 @@ struct RigidBody {
 	void AddAngularImpulse(float angular_impulse);
 
 	// @param dt Unit: seconds.
-	void Update(V2_float physics_gravity, float dt);
+	void Update(V2_float physics_gravity, secondsf dt);
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		RigidBody, max_speed, max_angular_speed, drag, angular_drag, gravity, immovable, velocity,
