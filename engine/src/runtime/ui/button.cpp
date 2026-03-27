@@ -581,7 +581,7 @@ template <typename Derived>
 Derived& ButtonBase<Derived>::RemoveAnimation(ButtonStyleState state) {
 	auto [_1, _2, desired] = GetStyle(state);
 	if (desired.sprite.has_value()) {
-		desired.sprite->Remove<AnimationData>();
+		desired.sprite->template Remove<AnimationData>();
 	}
 	return Self();
 }
@@ -589,7 +589,7 @@ Derived& ButtonBase<Derived>::RemoveAnimation(ButtonStyleState state) {
 template <typename Derived>
 std::optional<Animation> ButtonBase<Derived>::GetAnimation(ButtonStyleState state) const {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
-	if (desired.sprite.has_value() && desired.sprite->Has<AnimationData>()) {
+	if (desired.sprite.has_value() && desired.sprite->template Has<AnimationData>()) {
 		return Animation{ *desired.sprite };
 	}
 	return std::nullopt;
@@ -789,7 +789,7 @@ std::optional<Texture> ButtonBase<Derived>::GetTexture(ButtonStyleState state) c
 	auto sprite{ GetSprite(state) };
 	if (sprite.has_value()) {
 		PTGN_ASSERT(sprite->Has<Texture>(), "Button sprite must have a texture");
-		return sprite->Get<Texture>();
+		return sprite->template Get<Texture>();
 	} else {
 		return std::nullopt;
 	}

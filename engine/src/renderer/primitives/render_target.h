@@ -17,7 +17,7 @@ public:
 	void Bind();
 
 private:
-	friend class Renderer;
+	friend class ptgn::Renderer;
 
 	RenderTargetId source_;
 
@@ -51,7 +51,7 @@ public:
 	impl::TextureId GetTextureId() const;
 
 private:
-	friend class Renderer;
+	friend class ptgn::Renderer;
 
 	RenderTargetObject() = default;
 	RenderTargetObject(Renderer* renderer, V2_int size, TextureFormat format);

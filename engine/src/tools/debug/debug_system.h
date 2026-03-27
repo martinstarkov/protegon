@@ -64,7 +64,7 @@ private:
 	~DebugContext()									 = default;
 	DebugContext(const DebugContext&)				 = delete;
 	DebugContext& operator=(const DebugContext&)	 = delete;
-	DebugContext(DebugContext&&) noexcept			 = delete;
+	DebugContext(DebugContext&&) noexcept			 = default;
 	DebugContext& operator=(DebugContext&&) noexcept = delete;
 
 	Depth debug_depth;

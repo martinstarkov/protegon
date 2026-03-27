@@ -98,7 +98,8 @@ void TemplateMenuScene::OnEnter() {
 		const auto& label = j_button.at("label");
 		auto button{ CreateButton(*this) };
 		button.SetShape(button_size);
-		button.SetText(label, button_text_color);
+		auto label_string{ label.get<std::string>() };
+		button.SetText(label_string, button_text_color);
 		const auto& action_name{ j_button.at("action").get<std::string>() };
 		button.OnPress([key = key, scene_json = scene_json, action_name, button]() mutable {
 			std::invoke(SceneAction::Get(key, scene_json, action_name), button.GetScene());

@@ -313,7 +313,7 @@ public:
 	SceneContext(const SceneContext&)				 = delete;
 	SceneContext& operator=(const SceneContext&)	 = delete;
 	SceneContext(SceneContext&&) noexcept			 = default;
-	SceneContext& operator=(SceneContext&&) noexcept = default;
+	SceneContext& operator=(SceneContext&&) noexcept = delete;
 
 	EventHandler& global_event;
 	Window& window;

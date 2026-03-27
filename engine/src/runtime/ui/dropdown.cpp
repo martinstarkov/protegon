@@ -91,10 +91,10 @@ void Dropdown::RecalculateButtonPositions() {
 											   : V2_float{} };
 
 	const auto get_shape = [parent_shape, &info](const auto& button) -> std::variant<Rect, Circle> {
-		if (auto rect{ button.TryGet<Rect>() }) {
+		if (auto rect{ button.template TryGet<Rect>() }) {
 			return *rect;
 		}
-		if (auto circle{ button.TryGet<Circle>() }) {
+		if (auto circle{ button.template TryGet<Circle>() }) {
 			return *circle;
 		}
 		if (info.button_size_.has_value()) {

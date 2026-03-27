@@ -32,7 +32,7 @@ public:
 	explicit operator bool() const;
 
 protected:
-	friend class Renderer;
+	friend class ptgn::Renderer;
 
 	void Reset() noexcept;
 

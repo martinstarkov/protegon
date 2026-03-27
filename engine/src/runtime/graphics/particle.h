@@ -69,7 +69,7 @@ private:
 		float radius{ 1.0f };
 	};
 
-	std::variant<ArcShape, V2_float> type;
+	std::variant<ArcShape, V2_float> type{};
 };
 
 /// @brief A rate of particle emission over time.

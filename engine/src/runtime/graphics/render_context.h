@@ -375,12 +375,12 @@ private:
 	friend class SceneContext;
 	friend class DebugContext;
 
-	RenderContext() = default;
+	RenderContext() = delete;
 	RenderContext(Scene& scene, Renderer& renderer);
 	~RenderContext() noexcept						   = default;
 	RenderContext(const RenderContext&)				   = delete;
-	RenderContext(RenderContext&&) noexcept			   = delete;
 	RenderContext& operator=(const RenderContext&)	   = delete;
+	RenderContext(RenderContext&&) noexcept			   = default;
 	RenderContext& operator=(RenderContext&&) noexcept = delete;
 
 	void DrawTexture(

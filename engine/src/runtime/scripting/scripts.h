@@ -24,6 +24,8 @@ public:
 	Scripts(Scripts&&) noexcept			   = default;
 	Scripts& operator=(Scripts&&) noexcept = default;
 
+	bool operator==(const Scripts&) const = default;
+
 	/// @brief Adds an instance of a script of type T to the given entity (multiple instances can
 	/// exist), forwarding the given arguments to its constructor.
 	/// @return Reference to the added script instance.

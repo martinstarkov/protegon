@@ -245,7 +245,7 @@ void Scene::InternalDraw() {
 		for (auto& [cam, cmds] : commands) {
 			RenderTarget render_target;
 
-			if (auto parent_rt = cam.TryGet<impl::ParentRenderTarget>()) {
+			if (auto parent_rt = cam.template TryGet<impl::ParentRenderTarget>()) {
 				render_target = parent_rt->render_target;
 			} else {
 				render_target = render_target_;

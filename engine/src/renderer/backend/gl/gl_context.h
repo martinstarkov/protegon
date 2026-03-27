@@ -17,7 +17,6 @@
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/viewport.h"
-#include "SDL3/SDL_opengl.h"
 
 #ifdef __EMSCRIPTEN__
 
