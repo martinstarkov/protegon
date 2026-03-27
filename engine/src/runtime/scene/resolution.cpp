@@ -12,7 +12,6 @@
 #include "runtime/graphics/render_target_component.h"
 #include "runtime/scene/scene.h"
 
-
 namespace ptgn {
 
 FrameContext::FrameContext(const Scene& scene) :
@@ -103,12 +102,12 @@ V2_float TopLeftToCenter(V2_float point_top_left, V2_float size) {
 	return point_top_left - size * 0.5f;
 }
 
-V2_float WindowToDisplay(V2_float window_point, const DisplayFrame& display_frame) {
-	return window_point - display_frame.display_center;
+V2_float WindowToDisplay(V2_float window_point, const DisplayFrame&) {
+	return window_point;
 }
 
-V2_float DisplayToWindow(V2_float display_point, const DisplayFrame& display_frame) {
-	return display_point + display_frame.display_center;
+V2_float DisplayToWindow(V2_float display_point, const DisplayFrame&) {
+	return display_point;
 }
 
 V2_float DisplayToRenderTarget(
