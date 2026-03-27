@@ -20,6 +20,121 @@
 
 namespace ptgn {
 
+template <typename T>
+struct Range {
+	T min;
+	T max;
+};
+
+template <typename T>
+using ConstantOrRange = std::variant<T, ptgn::Range<T>>;
+
+template <typename T>
+T Evaluate(const ConstantOrRange<T>& value) {
+	return std::visit(
+		[&]<typename V>(const V& v) -> T {
+			if constexpr (std::is_same_v<V, T>) {
+				return v;
+			} else if constexpr (std::is_same_v<V, Range<T>>) {
+				float t = Random01();
+				return Lerp(v.min, v.max, t);
+			}
+		},
+		value
+	);
+}
+
+/// @brief The shape from which particles are emitted. Determines the initial position of emitted
+/// particles.
+class EmissionShape {
+public:
+	EmissionShape() = default;
+
+	static EmissionShape Arc(float arc_angle_degrees, float radius) {
+		EmissionShape s;
+		s.type = ArcShape{ arc_angle_degrees, radius };
+		return s;
+	}
+
+	static EmissionShape Rect(V2_float size) {
+		EmissionShape s;
+		s.type = size;
+		return s;
+	}
+
+private:
+	struct ArcShape {
+		float arc_angle_degrees{ 360.0f };
+		float radius{ 1.0f };
+	};
+
+	std::variant<ArcShape, V2_float> type;
+};
+
+/// @brief A rate of particle emission over time.
+struct Rate {
+	/// @brief Duration of a full cycle of the particle emitter. Only applies if loop is true.
+	milliseconds duration{ 1000 };
+
+	/// @brief If true, the particle emitter will continuously emit particles in cycles of the given
+	/// duration. If false, the particle emitter will only emit particles for one duration cycle and
+	/// then stop.
+	bool loop{ true };
+
+	/// @brief If true, the particle emitter will immediately emit particles as if one full cycle
+	/// has already passed.
+	bool prewarm{ false };
+
+	/// @brief The number of particles emitted per second.
+	std::size_t rate_over_time{ 10 };
+};
+
+/// @brief A burst of particles emitted at once.
+struct Burst {
+	/// @brief The number of particles to emit in the burst.
+	std::size_t particle_count{ 10 };
+
+	/// @brief Number of times the burst should be emitted.
+	std::size_t cycles{ 1 };
+
+	/// @brief Time between consecutive cycles.
+	milliseconds interval{ 1000 };
+};
+
+struct ParticleConfig {
+	std::variant<Rate, Burst> rate_or_burst;
+
+	/// @brief Time after which a particle despawns. If nullopt defaults to duration.
+	std::optional<ConstantOrRange<milliseconds>> lifetime;
+
+	ConstantOrRange<float> start_speed{ 1.0f };
+
+	ConstantOrRange<float> start_size{ 1.0f };
+
+	/// @brief Starting rotation of an individual particle in degrees.
+	ConstantOrRange<float> start_rotation{ 0.0f };
+
+	ConstantOrRange<Color> start_color{ color::White };
+
+	ConstantOrRange<V2_float> start_gravity{ V2_float{} };
+
+	std::size_t max_particles{ 1000 };
+
+	float simulation_speed{ 1.0f };
+
+	std::variant<Shape, TextureOrKey> particle_type{ Rect{ V2_float{ 1.0f } } };
+
+	FillStyle particle_fill_style{ FillStyle::Solid() };
+
+	EmissionShape emission_shape;
+
+	std::optional<ConstantOrRange<V2_float>> velocity_over_lifetime;
+
+	std::optional<ConstantOrRange<std::variant<float, V2_float>>> size_over_lifetime;
+
+	std::optional<ConstantOrRange<Color>> color_over_lifetime;
+};
+
 class Scene;
 class DrawContext;
 
