@@ -17,6 +17,9 @@ class FontSystem;
 
 namespace impl {
 
+/// @brief Loads an image file into an SDL_Surface. The surface must be freed by the caller.
+[[nodiscard]] SDL_Surface* LoadSurface(const path& filepath);
+
 class Surface {
 public:
 	explicit Surface(const path& filepath);

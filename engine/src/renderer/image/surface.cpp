@@ -20,6 +20,16 @@
 
 namespace ptgn::impl {
 
+SDL_Surface* LoadSurface(const path& filepath) {
+	PTGN_ASSERT(
+		FileExists(filepath),
+		"Cannot create surface from a nonexistent filepath: ", filepath.string()
+	);
+	SDL_Surface* sdl_surface{ IMG_Load(filepath.string().c_str()) };
+	PTGN_ASSERT(sdl_surface != nullptr, SDL_GetError());
+	return sdl_surface;
+}
+
 Surface::Surface(SDL_Surface* sdl_surface) {
 	PTGN_ASSERT(sdl_surface != nullptr, "Cannot create surface from nullptr");
 
@@ -65,16 +75,8 @@ Surface::Surface(SDL_Surface* sdl_surface) {
 }
 
 Surface::Surface(const path& filepath) :
-	Surface{ std::invoke([&filepath]() {
-		PTGN_ASSERT(
-			FileExists(filepath),
-			"Cannot create surface from a nonexistent filepath: ", filepath.string()
-		);
-		// Freed by Surface constructor.
-		SDL_Surface* sdl_surface{ IMG_Load(filepath.string().c_str()) };
-		PTGN_ASSERT(sdl_surface != nullptr, SDL_GetError());
-		return sdl_surface;
-	}) } {}
+	Surface{ LoadSurface(filepath)
+			 /* SDL_Surface destroyed by Surface constructor. */ } {}
 
 void Surface::FlipVertically() {
 	PTGN_ASSERT(!pixels_.empty(), "Cannot vertically flip an empty surface");
