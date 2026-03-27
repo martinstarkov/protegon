@@ -3,8 +3,11 @@
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_properties.h>
+#include <SDL3/SDL_surface.h>
 #include <SDL3/SDL_video.h>
 
+#include <cstdint>
+#include <functional>
 #include <ios>
 #include <memory>
 #include <optional>
@@ -15,15 +18,14 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
+#include "core/util/file.h"
+#include "renderer/image/surface.h"
 #include "renderer/primitives/color.h"
 
 #ifdef __EMSCRIPTEN__
 
 #include <emscripten.h>
 #include <emscripten/html5.h>
-
-#include <cstdint>
-#include <functional>
 
 EM_JS(int, get_canvas_width, (), { return Module.canvas.width; });
 EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
@@ -49,6 +51,12 @@ namespace impl {
 void WindowDeleter::operator()(SDL_Window* window) const {
 	SDL_DestroyWindow(window);
 	PTGN_INFO("Destroyed window");
+}
+
+void CursorDeleter::operator()(SDL_Cursor* cursor) const {
+	if (cursor) {
+		SDL_DestroyCursor(cursor);
+	}
 }
 
 } // namespace impl
@@ -123,6 +131,40 @@ void Window::CaptureMouse(bool on) const {
 
 void Window::SetAlwaysOnTop(bool on) const {
 	SDL_SetWindowAlwaysOnTop(*this, on);
+}
+
+void Window::SetOSCursor(const path& img_filepath, V2_int cursor_hotspot) {
+	auto surface{ impl::LoadSurface(img_filepath) };
+
+	PTGN_ASSERT(surface != nullptr, "Failed to load cursor surface: ", SDL_GetError());
+
+	SDL_Cursor* cursor = SDL_CreateColorCursor(surface, cursor_hotspot.x, cursor_hotspot.y);
+
+	SDL_SetCursor(cursor);
+
+	custom_cursor_ = { cursor, impl::CursorDeleter{} };
+
+	SDL_DestroySurface(surface);
+}
+
+void Window::ResetOSCursor() {
+	custom_cursor_.reset();
+
+	auto default_cursor{ SDL_GetDefaultCursor() };
+
+	PTGN_ASSERT(default_cursor != nullptr, SDL_GetError());
+
+	auto set_cursor{ SDL_SetCursor(default_cursor) };
+
+	PTGN_ASSERT(set_cursor, SDL_GetError());
+}
+
+void Window::SetOSCursorVisibility(bool visibility) const {
+	if (visibility) {
+		SDL_ShowCursor();
+	} else {
+		SDL_HideCursor();
+	}
 }
 
 void Window::SetMinimumSize(V2_int minimum_size) const {

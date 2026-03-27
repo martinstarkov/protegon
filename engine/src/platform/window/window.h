@@ -7,10 +7,12 @@
 #include <string_view>
 
 #include "core/math/vector2.h"
+#include "core/util/file.h"
 #include "renderer/primitives/color.h"
 #include "serialization/json/enum.h"
 
 struct SDL_Window;
+struct SDL_Cursor;
 
 namespace ptgn {
 
@@ -34,6 +36,10 @@ namespace impl {
 
 struct WindowDeleter {
 	void operator()(SDL_Window* window) const;
+};
+
+struct CursorDeleter {
+	void operator()(SDL_Cursor* cursor) const;
 };
 
 namespace gl {
@@ -86,6 +92,10 @@ public:
 	Window& operator=(Window&&) noexcept = delete;
 	Window(const Window&)				 = delete;
 	Window& operator=(const Window&)	 = delete;
+
+	void SetOSCursor(const path& img_filepath, V2_int cursor_hotspot = {});
+	void ResetOSCursor();
+	void SetOSCursorVisibility(bool visibility = true) const;
 
 	void SetMinimumSize(V2_int minimum_size) const;
 	V2_int GetMinimumSize() const;
@@ -144,6 +154,9 @@ private:
 	void SetAlwaysOnTop(bool on) const;
 
 	Color background_color_{ color::Transparent };
+	/// @brief Potential custom cursor defined by the user or nullptr if the default cursor is being
+	/// used.
+	std::unique_ptr<SDL_Cursor, impl::CursorDeleter> custom_cursor_;
 	std::unique_ptr<SDL_Window, impl::WindowDeleter> instance_;
 };
 
