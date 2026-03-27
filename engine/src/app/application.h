@@ -83,13 +83,14 @@ public:
 	void StartWith(std::string_view scene_key, TArgs&&... args) {
 		renderer_.UpdateDisplayViewport(window_.GetSize(), false);
 
-		auto first_scene	= std::make_unique<TScene>(std::forward<TArgs>(args)...);
-		first_scene->state_ = impl::SceneState::Active;
-		first_scene->key_	= Hash(scene_key);
-		first_scene->Init(*this);
-		first_scene->InternalEnter();
+		auto first_scene = std::make_unique<TScene>(std::forward<TArgs>(args)...);
 
-		scenes_.scenes_.emplace_back(std::move(first_scene));
+		auto& scene = scenes_.scenes_.emplace_back(std::move(first_scene));
+
+		scene->state_ = impl::SceneState::Active;
+		scene->key_	  = Hash(scene_key);
+		scene->Init(*this);
+		scene->InternalEnter();
 
 		EnterMainLoop();
 	}
