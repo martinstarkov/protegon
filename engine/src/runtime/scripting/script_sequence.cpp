@@ -74,7 +74,7 @@ ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete) {
 	ScriptSequence sequence{ scene.CreateEntity() };
 
 	auto tween{ CreateTween(scene) };
-	SetParent(tween, sequence);
+	AddChild(sequence, tween, "tween");
 
 	const auto& instance{ sequence.Add<impl::ScriptSequenceData>(GameObject{ std::move(tween) }) };
 
