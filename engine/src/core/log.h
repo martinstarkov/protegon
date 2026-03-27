@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "platform/debug_break.h"
 
@@ -18,11 +19,29 @@
 	PTGN_DEBUGBREAK(); \
 	std::abort()
 
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
+	os << "[";
+	for (std::size_t i = 0; i < vec.size(); ++i) {
+		os << vec[i];
+		if (i + 1 < vec.size()) {
+			os << ", ";
+		}
+	}
+	os << "]";
+	return os;
+}
+
 namespace ptgn::impl {
 
 // Streamability concept (works for any type that can be piped to std::ostream)
-template <class T>
-concept Loggable = requires(std::ostream& os, T&& v) { os << std::forward<T>(v); };
+template <typename T>
+concept Stream = std::is_convertible_v<T, std::ostream&>;
+
+template <typename T>
+concept Loggable = requires(std::ostream& os, T value) {
+	{ os << value } -> Stream;
+};
 
 // Save/restore ostream formatting state (RAII)
 class OStreamStateGuard {
@@ -47,8 +66,9 @@ private:
 };
 
 // Compose any number of Loggable parts into a std::string
-template <Loggable... Ts>
+template <typename... Ts>
 [[nodiscard]] inline std::string ToString(Ts&&... parts) {
+	static_assert((impl::Loggable<Ts> && ...), "All items must be Loggable");
 	std::ostringstream oss;
 	((oss << std::forward<Ts>(parts)), ...);
 	return std::move(oss).str();
@@ -81,28 +101,32 @@ inline std::string Basename(std::string_view path) {
 }
 
 // Print any number of Loggable items to std::cout (no newline).
-template <impl::Loggable... Ts>
+template <typename... Ts>
 inline void Print(Ts&&... items) {
+	static_assert((impl::Loggable<Ts> && ...), "All items must be Loggable");
 	((std::cout << std::forward<Ts>(items)), ...);
 }
 
 // Print + newline
-template <impl::Loggable... Ts>
+template <typename... Ts>
 inline void PrintLine(Ts&&... items) {
+	static_assert((impl::Loggable<Ts> && ...), "All items must be Loggable");
 	Print(std::forward<Ts>(items)...);
 	std::cout << '\n';
 }
 
 // Precision/scientific variants
-template <impl::Loggable... Ts>
+template <typename... Ts>
 inline void PrintPrecise(std::optional<int> precision, bool scientific, Ts&&... items) {
+	static_assert((impl::Loggable<Ts> && ...), "All items must be Loggable");
 	impl::PrintImpl(std::cout, precision, scientific, [&](std::ostream& os) {
 		((os << std::forward<Ts>(items)), ...);
 	});
 }
 
-template <impl::Loggable... Ts>
+template <typename... Ts>
 inline void PrintPreciseLine(std::optional<int> precision, bool scientific, Ts&&... items) {
+	static_assert((impl::Loggable<Ts> && ...), "All items must be Loggable");
 	PrintPrecise(precision, scientific, std::forward<Ts>(items)...);
 	std::cout << '\n';
 }
@@ -120,20 +144,23 @@ inline void DebugMessage(
 }
 
 // Convenience log levels (no location)
-template <impl::Loggable... Ts>
+template <typename... Ts>
 inline void Info(Ts&&... parts) {
+	static_assert((impl::Loggable<Ts> && ...), "All items must be Loggable");
 	Print("INFO: ");
 	PrintLine(std::forward<Ts>(parts)...);
 }
 
-template <impl::Loggable... Ts>
+template <typename... Ts>
 inline void Warn(Ts&&... parts) {
+	static_assert((impl::Loggable<Ts> && ...), "All items must be Loggable");
 	Print("WARN: ");
 	PrintLine(std::forward<Ts>(parts)...);
 }
 
-template <impl::Loggable... Ts>
+template <typename... Ts>
 [[noreturn]] inline void Error(Ts&&... parts) {
+	static_assert((impl::Loggable<Ts> && ...), "All items must be Loggable");
 	// Include location for errors.
 	DebugMessage("ERROR: ", impl::ToString(std::forward<Ts>(parts)...));
 	PTGN_ABORT();
