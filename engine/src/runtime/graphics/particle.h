@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <ostream>
+#include <string>
 #include <string_view>
 
 #include "core/math/math_utils.h"
@@ -122,7 +123,7 @@ struct ParticleConfig {
 
 	float simulation_speed{ 1.0f };
 
-	std::variant<Shape, TextureOrKey> particle_type{ Rect{ V2_float{ 1.0f } } };
+	std::variant<Shape, std::string> particle_type{ Rect{ V2_float{ 1.0f } } };
 
 	FillStyle particle_fill_style{ FillStyle::Solid() };
 
