@@ -173,7 +173,7 @@ PTGN_SERIALIZE_ENUM(
 	Distribution, { { Distribution::Uniform, "uniform" }, { Distribution::Normal, "normal" } }
 );
 
-/// @brief @return True for "heads", false for "tails"
+/// @return True for "heads", false for "tails"
 [[nodiscard]] bool FlipCoin();
 
 template <impl::RNGType T = std::int32_t>
@@ -185,6 +185,12 @@ template <impl::RNGType T = std::int32_t>
 template <impl::RNGType T = std::int32_t>
 [[nodiscard]] T RandomNumber(T min, T max) {
 	RNG<T> rng{ min, max };
+	return rng();
+}
+
+/// @return Random value in the range [0.0, 1.0].
+[[nodiscard]] inline float Random01() {
+	static RNG<float> rng{ 0.0f, 1.0f };
 	return rng();
 }
 
