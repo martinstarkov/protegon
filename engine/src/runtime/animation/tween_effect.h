@@ -90,23 +90,27 @@ struct EffectObject : public TaggedGameObject<TComponent> {
 	using TaggedGameObject<TComponent>::TaggedGameObject;
 };
 
+} // namespace impl
+
 template <typename TComponent>
 Tween GetTween(Entity entity) {
 	Tween tween;
 
-	if (!entity.Has<EffectObject<TComponent>>()) {
-		EffectObject<TComponent> obj{ CreateTween(entity.GetScene()) };
+	if (!entity.Has<impl::EffectObject<TComponent>>()) {
+		impl::EffectObject<TComponent> obj{ CreateTween(entity.GetScene()) };
 		SetParent(obj, entity);
 		tween = Tween{ obj };
-		entity.Add<EffectObject<TComponent>>(std::move(obj));
+		entity.Add<impl::EffectObject<TComponent>>(std::move(obj));
 	} else {
-		tween = Tween{ entity.Get<EffectObject<TComponent>>() };
+		tween = Tween{ entity.Get<impl::EffectObject<TComponent>>() };
 	}
 
 	PTGN_ASSERT(tween, "Failed to retrieve effect tween for entity: ", entity);
 
 	return tween;
 }
+
+namespace impl {
 
 template <typename TComponent, typename T>
 Tween AddTweenEffect(
@@ -216,7 +220,7 @@ Tween TweenTo(
 ) {
 	PTGN_ASSERT(duration > milliseconds{ 0 }, "Tween must have a positive duration");
 
-	auto tween{ impl::GetTween<TComponent>(entity) };
+	auto tween{ GetTween<TComponent>(entity) };
 
 	if (force || tween.IsCompleted()) {
 		tween.Clear();

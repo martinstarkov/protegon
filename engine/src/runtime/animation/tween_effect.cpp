@@ -250,7 +250,7 @@ Tween StartFollowPathImpl(
 	PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
 	PTGN_ASSERT(config.lerp.y >= 0.0f && config.lerp.y <= 1.0f);
 
-	auto tween{ impl::GetTween<impl::FollowEffect>(entity) };
+	auto tween{ GetTween<impl::FollowEffect>(entity) };
 
 	auto& follow_comp{ tween.TryAdd<impl::FollowEffect>() };
 
@@ -466,7 +466,7 @@ Tween Shake(
 		"Shake effect must have a positive duration or be -1 (infinite shake)"
 	);
 
-	auto tween{ impl::GetTween<impl::ShakeEffect>(entity) };
+	auto tween{ GetTween<impl::ShakeEffect>(entity) };
 	auto& shake_effect{ tween.TryAdd<impl::ShakeEffect>() };
 
 	float previous_target{ shake_effect.previous_target };
