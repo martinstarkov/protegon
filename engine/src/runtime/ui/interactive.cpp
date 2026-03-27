@@ -17,8 +17,8 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 
 namespace ptgn {
@@ -70,6 +70,51 @@ void SetInteractiveShape(
 ) {
 	ClearInteractiveShapes(entity);
 	AddInteractiveShape(entity, std::move(shape), shape_id, ignore_parent_transform);
+}
+
+void AddInteractiveRect(
+	Entity interactive_entity, V2_float position, V2_float size, Origin draw_origin,
+	std::optional<std::string_view> shape_id, bool ignore_parent_transform
+) {
+	auto& scene{ interactive_entity.GetScene() };
+	auto shape = scene.CreateEntity();
+	shape.Add<Rect>(size);
+	SetPosition(shape, position);
+	SetDrawOrigin(shape, draw_origin);
+	AddInteractiveShape(
+		interactive_entity, GameObject{ std::move(shape) }, shape_id, ignore_parent_transform
+	);
+}
+
+void SetInteractiveRect(
+	Entity interactive_entity, V2_float position, V2_float size, Origin draw_origin,
+	std::optional<std::string_view> shape_id, bool ignore_parent_transform
+) {
+	ClearInteractiveShapes(interactive_entity);
+	AddInteractiveRect(
+		interactive_entity, position, size, draw_origin, shape_id, ignore_parent_transform
+	);
+}
+
+void AddInteractiveCircle(
+	Entity interactive_entity, V2_float position, float radius,
+	std::optional<std::string_view> shape_id, bool ignore_parent_transform
+) {
+	auto& scene{ interactive_entity.GetScene() };
+	auto shape = scene.CreateEntity();
+	shape.Add<Circle>(radius);
+	SetPosition(shape, position);
+	AddInteractiveShape(
+		interactive_entity, GameObject{ std::move(shape) }, shape_id, ignore_parent_transform
+	);
+}
+
+void SetInteractiveCircle(
+	Entity interactive_entity, V2_float position, float radius,
+	std::optional<std::string_view> shape_id, bool ignore_parent_transform
+) {
+	ClearInteractiveShapes(interactive_entity);
+	AddInteractiveCircle(interactive_entity, position, radius, shape_id, ignore_parent_transform);
 }
 
 void RemoveInteractiveShape(Entity entity, std::string_view name) {

@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "runtime/ecs/entity.h"
@@ -170,6 +171,28 @@ void AddInteractiveShape(
 void SetInteractiveShape(
 	Entity interactive_entity, GameObject&& shape, std::optional<std::string_view> shape_id = {},
 	bool ignore_parent_transform = false
+);
+
+void AddInteractiveRect(
+	Entity interactive_entity, V2_float position, V2_float size,
+	Origin draw_origin = Origin::Center, std::optional<std::string_view> shape_id = {},
+	bool ignore_parent_transform = false
+);
+
+void SetInteractiveRect(
+	Entity interactive_entity, V2_float position, V2_float size,
+	Origin draw_origin = Origin::Center, std::optional<std::string_view> shape_id = {},
+	bool ignore_parent_transform = false
+);
+
+void AddInteractiveCircle(
+	Entity interactive_entity, V2_float position, float radius,
+	std::optional<std::string_view> shape_id = {}, bool ignore_parent_transform = false
+);
+
+void SetInteractiveCircle(
+	Entity interactive_entity, V2_float position, float radius,
+	std::optional<std::string_view> shape_id = {}, bool ignore_parent_transform = false
 );
 
 /// Remove an interactable shape from the interactive entity.
