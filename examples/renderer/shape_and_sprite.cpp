@@ -11,6 +11,7 @@
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
 #include "runtime/animation/tween_effect.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
