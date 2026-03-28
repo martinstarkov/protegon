@@ -133,7 +133,7 @@ struct ScaleButtonConfig {
 };
 
 struct ButtonConfig {
-	std::optional<std::string_view> content;
+	std::optional<std::string> content;
 	std::optional<Color> text_color{ color::White };
 	std::optional<Color> text_color_hover;
 	std::optional<Color> text_color_press;

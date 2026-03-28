@@ -47,7 +47,10 @@ public:
 	Sprite() = default;
 	explicit Sprite(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity, Camera, Color additional_tint);
+	static void Draw(
+		DrawContext& renderer, Entity entity, Origin offset_origin, V2_float offset_size, Camera,
+		Color additional_tint
+	);
 
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 

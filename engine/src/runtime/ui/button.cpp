@@ -294,19 +294,29 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 
 	std::optional<V2_float> button_size;
 
+	if (auto rect{ button.TryGet<Rect>() }) {
+		button_size = rect->GetSize(transform);
+	} else if (auto circle{ button.TryGet<Circle>() }) {
+		button_size = circle->GetSize(transform);
+	}
+
 	auto sprite_state{ style_state };
 	// If we want to prevent the press state animation from playing, we can do this:
 	// if (!button.Has<InteractionLock>() && sprite_state.state == ButtonState::Press) {
 	//	sprite_state.state = ButtonState::Hover;
 	//}
 	if (auto sprite{ button.GetSprite(sprite_state) }; sprite.has_value()) {
-		button_size = GetDisplaySize(*sprite);
+		auto display_size{ GetDisplaySize(*sprite) };
+		if (!button_size.has_value()) {
+			button_size = display_size;
+		}
+		PTGN_ASSERT(button_size.has_value());
 		auto texture_tint{ button.GetTextureTint(sprite_state) };
 		Tint sprite_tint{ tint };
 		if (texture_tint.has_value()) {
 			sprite_tint = Tint{ tint.Normalized() * texture_tint->Normalized() };
 		}
-		Sprite::Draw(renderer, *sprite, camera, sprite_tint);
+		Sprite::Draw(renderer, *sprite, button_origin, *button_size, camera, sprite_tint);
 	}
 
 	auto background_shape{ button.GetBackgroundShape(style_state) };
@@ -378,14 +388,6 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 					*border_shape
 				);
 			}
-		}
-	}
-
-	if (!button_size.has_value()) {
-		if (auto rect{ button.TryGet<Rect>() }) {
-			button_size = rect->GetSize(transform);
-		} else if (auto circle{ button.TryGet<Circle>() }) {
-			button_size = circle->GetSize(transform);
 		}
 	}
 
@@ -1015,10 +1017,6 @@ Derived& ButtonBase<Derived>::Press() {
 	if (!IsEnabled(false) || Has<InteractionLock>()) {
 		return Self();
 	}
-	if (auto scripts{ TryGet<impl::Scripts>() }) {
-		impl::ButtonPress event;
-		scripts->Emit(event);
-	}
 
 	auto state{ GetStyleState() };
 	state.state = ButtonState::Press;
@@ -1030,6 +1028,11 @@ Derived& ButtonBase<Derived>::Press() {
 	}
 
 	PlaySound(ButtonState::Press);
+
+	if (auto scripts{ TryGet<impl::Scripts>() }) {
+		impl::ButtonPress event;
+		scripts->Emit(event);
+	}
 
 	return Self();
 }

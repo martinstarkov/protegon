@@ -16,20 +16,27 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
 
-
 namespace ptgn {
 
 Sprite::Sprite(Entity entity) : Entity{ entity } {}
 
-void Sprite::Draw(DrawContext& renderer, Entity entity, Camera, Color additional_tint) {
+void Sprite::Draw(
+	DrawContext& renderer, Entity entity, Origin offset_origin, V2_float offset_size, Camera,
+	Color additional_tint
+) {
 	PTGN_ASSERT(entity.Has<Texture>());
 	const auto& texture{ entity.Get<Texture>() };
 	auto texture_size{ GetDisplaySize(entity) };
 	PTGN_ASSERT(texture_size.has_value(), "Sprite texture does not have a valid texture size");
 
 	auto draw_transform{ GetDrawTransform(entity) };
-	// GetDisplaySize already handles the scaling.
 	auto scale{ draw_transform.GetScale() };
+
+	auto scaled_offset{ offset_size * Abs(scale) };
+	V2_float offset{ -GetOriginOffset(offset_origin, scaled_offset) };
+	draw_transform.Translate(offset);
+
+	// GetDisplaySize already handles the scaling.
 	PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component");
 	draw_transform.SetScale(scale / Abs(scale));
 
@@ -48,7 +55,7 @@ void Sprite::Draw(DrawContext& renderer, Entity entity, Camera, Color additional
 }
 
 void Sprite::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	Sprite::Draw(renderer, entity, camera, impl::Tint{});
+	Sprite::Draw(renderer, entity, Origin::Center, {}, camera, impl::Tint{});
 }
 
 Sprite& Sprite::SetTexture(TextureOrKey texture) {
