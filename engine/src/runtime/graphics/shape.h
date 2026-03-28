@@ -57,4 +57,10 @@ Entity CreateCircle(
 	FillStyle fill_style = FillStyle::Solid()
 );
 
+/// @brief Unit: Radians
+Entity CreateArc(
+	Scene& scene, V2_float position, float arc_radius, float start_angle, float end_angle,
+	bool clockwise, Color color, FillStyle fill_style = FillStyle::Solid()
+);
+
 } // namespace ptgn

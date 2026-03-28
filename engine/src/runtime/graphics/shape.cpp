@@ -118,4 +118,22 @@ Entity CreateCircle(
 	return circle;
 }
 
+Entity CreateArc(
+	Scene& scene, V2_float position, float arc_radius, float start_angle, float end_angle,
+	bool clockwise, Color color, FillStyle fill_style
+) {
+	auto arc{ scene.CreateEntity() };
+
+	SetDraw<impl::ArcDraw>(arc);
+	Show(arc, false);
+
+	SetPosition(arc, position);
+	arc.Add<Arc>(arc_radius, start_angle, end_angle, clockwise);
+
+	SetTint(arc, color);
+	arc.Add<FillStyle>(fill_style);
+
+	return arc;
+}
+
 } // namespace ptgn
