@@ -144,9 +144,15 @@ void SceneManager::ApplyCommands(
 
 void SceneManager::Update(secondsf dt) {
 	for (const auto& scene : scenes_) {
+		if (scene->transition_ && !scene->transition_->started_) {
+			continue;
+		}
 		scene->InternalUpdate();
 	}
 	for (const auto& scene : scenes_) {
+		if (scene->transition_ && !scene->transition_->started_) {
+			continue;
+		}
 		scene->InternalDraw();
 	}
 

@@ -10,6 +10,7 @@ namespace ptgn {
 
 class Scene;
 class SceneManager;
+class EventHandler;
 
 class SceneTransition {
 public:
@@ -44,6 +45,7 @@ public:
 
 private:
 	friend class SceneManager;
+	friend class EventHandler;
 
 	void UpdateTime(secondsf dt);
 	void UpdateDelayTime(secondsf dt);
