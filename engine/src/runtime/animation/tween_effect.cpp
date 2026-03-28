@@ -265,7 +265,7 @@ Tween StartFollowPathImpl(
 		Entity parent{ GetParent(e) };
 		if (config.teleport_on_start && !waypoints.empty()) {
 			V2_float target_position{ waypoints.back() };
-			SetPosition(parent, target_position);
+			SetPosition(parent, target_position + config.offset);
 		}
 
 		// Reasons to reset waypoint index:
@@ -692,7 +692,7 @@ Tween StartFollow(Entity entity, Entity target, const TargetFollowConfig& config
 		[config, target](Entity e) {
 			Entity parent{ GetParent(e) };
 			if (config.teleport_on_start) {
-				SetPosition(parent, GetPosition(target));
+				SetPosition(parent, GetPosition(target) + config.offset);
 			}
 			impl::EntityFollowStartImpl(parent, config);
 		},
