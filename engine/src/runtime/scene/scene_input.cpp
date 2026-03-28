@@ -100,9 +100,9 @@ Transform SceneInput::GetWorldOffsetTransform(const Shape& shape, Entity shape_e
 	return transform;
 }
 
-bool SceneInput::Overlap(V2_float point, Entity entity) {
+bool SceneInput::Overlap(V2_float point, Entity interactive_entity) {
 	std::vector<std::pair<InteractiveShape, Entity>> shapes;
-	GetShapes(entity, entity, shapes);
+	GetShapes(interactive_entity, interactive_entity, shapes);
 
 	PTGN_ASSERT(!shapes.empty(), "Cannot check for overlap with an interactive that has no shape");
 

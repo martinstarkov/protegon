@@ -248,6 +248,9 @@ public:
 	/// indicate the time since the key was last held.
 	milliseconds GetKeyHeldTime(Key key) const;
 
+	[[nodiscard]] static bool Overlap(V2_float point, Entity interactive_entity);
+	[[nodiscard]] static bool Overlap(Entity entityA, Entity entityB);
+
 private:
 	friend class Scene;
 	friend class SceneContext;
@@ -275,9 +278,6 @@ private:
 	/// @brief Convert position from being relative to the center of the window to being relative to
 	/// the center of the specified viewport.
 	V2_float GetMousePositionRelativeTo(V2_float position, Frame frame_of_reference) const;
-
-	[[nodiscard]] static bool Overlap(V2_float point, Entity entity);
-	[[nodiscard]] static bool Overlap(Entity entityA, Entity entityB);
 
 	static Transform GetWorldOffsetTransform(const Shape& shape, Entity shape_entity);
 
