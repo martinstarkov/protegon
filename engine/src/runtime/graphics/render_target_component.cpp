@@ -28,7 +28,7 @@ namespace ptgn {
 namespace impl {
 
 void RenderTargetGameResizeScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<GameResized>([this](auto& e) {
+	d.Dispatch<InternalGameResized>([this](auto& e) {
 		auto& rt{ entity.Get<RenderTargetObject>() };
 		// PTGN_LOG("Render target ", entity, " received game resize: ", e.size);
 		rt.Resize(e.size);
@@ -36,7 +36,7 @@ void RenderTargetGameResizeScript::OnEvent(EventDispatcher d) {
 }
 
 void RenderTargetDisplayResizeScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<DisplayResized>([this](auto& e) {
+	d.Dispatch<InternalDisplayResized>([this](auto& e) {
 		auto& rt{ entity.Get<RenderTargetObject>() };
 		// PTGN_LOG("Render target ", entity, " received display resize: ", e.size);
 		rt.Resize(e.size);

@@ -18,6 +18,8 @@ public:
 	void Emit(EventDispatcher d);
 
 private:
+	[[nodiscard]] bool IsInternalEvent(const EventDispatcher& d) const;
+
 	SceneManager& scenes_;
 };
 

@@ -46,6 +46,10 @@ class RenderTarget;
 class Renderer;
 
 struct GameResized : public Event<GameResized> {
+	GameResized() = default;
+
+	explicit GameResized(V2_int game_size) : size{ game_size } {}
+
 	V2_int size;
 };
 
@@ -62,6 +66,14 @@ class Resource;
 template <typename State, typename F>
 	requires std::same_as<std::invoke_result_t<F&>, void>
 void UpdateStateIfChanged(Renderer&, const State&, const State&, F&&);
+
+struct InternalGameResized : public Event<InternalGameResized> {
+	InternalGameResized() = default;
+
+	explicit InternalGameResized(V2_int game_size) : size{ game_size } {}
+
+	V2_int size;
+};
 
 struct QuadInfo {
 	std::array<V2_float, 4> positions;
@@ -86,11 +98,11 @@ struct QuadParams {
 	std::optional<TextureId> texture;
 };
 
-struct DisplayResized : public Event<DisplayResized> {
+struct InternalDisplayResized : public Event<InternalDisplayResized> {
 	V2_int size;
 };
 
-struct DisplayViewportChanged : public Event<DisplayViewportChanged> {
+struct InternalDisplayViewportChanged : public Event<InternalDisplayViewportChanged> {
 	Viewport viewport;
 };
 
