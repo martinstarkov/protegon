@@ -11,6 +11,7 @@ namespace ptgn {
 struct Arc {
 	Arc() = default;
 
+	/// @brief Unit: Radians
 	Arc(float arc_radius, float start_angle, float end_angle, bool clockwise = true);
 
 	/// @return Center relative to the world.
@@ -31,7 +32,9 @@ struct Arc {
 	bool operator==(const Arc&) const = default;
 
 	float radius{ 0.0f };
+	/// @brief Unit: Radians
 	float start_angle{ 0.0f };
+	/// @brief Unit: Radians
 	float end_angle{ 0.0f };
 
 	/// @brief Direction of arc.

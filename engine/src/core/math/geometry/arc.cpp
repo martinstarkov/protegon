@@ -5,6 +5,7 @@
 
 #include "core/assert.h"
 #include "core/math/math_utils.h"
+#include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 
@@ -39,8 +40,25 @@ float Arc::GetEndAngle() const {
 }
 
 float Arc::GetAperture() const {
-	float aperture{ ClampAngle2Pi(end_angle - start_angle + two_pi<float>) };
-	return aperture;
+	float start = start_angle;
+	float end	= end_angle;
+
+	float delta;
+
+	if (clockwise) {
+		delta = end - start;
+	} else {
+		delta = start - end;
+	}
+
+	delta = ClampAngle2Pi(delta);
+
+	// Handle full circle edge case
+	if (NearlyEqual(delta, 0.0f) && !NearlyEqual(start, end)) {
+		return two_pi<float>;
+	}
+
+	return delta;
 }
 
 std::array<V2_float, 4> Arc::GetWorldQuadVertices(Transform transform) const {
