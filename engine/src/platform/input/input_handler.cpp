@@ -298,9 +298,15 @@ void InputHandler::PollEvents(const EventSink& sink) {
 		V2_float global_mouse_position;
 		// If mouse moves outside the window, SDL does not send a mouse motion event, so we query
 		// manually.
-		SDL_GetGlobalMouseState(&global_mouse_position.x, &global_mouse_position.y);
 
 		auto window_position{ window_.GetPosition() };
+
+#ifdef __EMSCRIPTEN__
+		SDL_GetMouseState(&global_mouse_position.x, &global_mouse_position.y);
+		window_position = {};
+#else
+		SDL_GetGlobalMouseState(&global_mouse_position.x, &global_mouse_position.y);
+#endif
 
 		V2_float new_mouse_position{ global_mouse_position - window_position - half_window_size };
 
