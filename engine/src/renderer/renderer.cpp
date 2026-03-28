@@ -474,15 +474,15 @@ void Renderer::FlushBatch() {
 	batch_textures_[0] = white_texture_;
 }
 
-std::uint32_t Renderer::GetTextureSlot(impl::TextureId tex) {
+std::pair<std::uint32_t, bool> Renderer::GetTextureSlot(impl::TextureId tex) {
 	if (tex == white_texture_.operator impl::TextureId()) {
-		return 0; // always slot 0
+		return { 0, false }; // always slot 0
 	}
 
 	// Check if texture already exists in batch
 	for (std::uint32_t i = 1; i < batch_textures_.size(); ++i) {
 		if (batch_textures_[i] == tex) {
-			return i;
+			return { i, false };
 		}
 	}
 
@@ -491,11 +491,8 @@ std::uint32_t Renderer::GetTextureSlot(impl::TextureId tex) {
 		FlushBatch();
 	}
 
-	// Add texture to batch (but do NOT bind yet)
-	batch_textures_.push_back(tex);
-
 	// Its slot is index in the vector
-	return static_cast<std::uint32_t>(batch_textures_.size() - 1);
+	return { static_cast<std::uint32_t>(batch_textures_.size()), true };
 }
 
 namespace impl {
@@ -597,15 +594,18 @@ void Renderer::DrawQuad(
 	impl::QuadDesc quad;
 	quad.quad = params.quad;
 
+	bool push_texture{ false };
+
 	// Texture -> user data slot 0 (convention)
 	if (params.texture.has_value()) {
-		std::uint32_t slot = GetTextureSlot(*params.texture);
-		quad.user_data[0]  = static_cast<float>(slot);
+		auto [slot, push] = GetTextureSlot(*params.texture);
+		push_texture	  = push;
+		quad.user_data[0] = static_cast<float>(slot);
 	}
 
 	SetShader(shader);
 
-	bool flush{ setup(shader, quad) };
+	bool flush_after{ setup(shader, quad) };
 
 	auto vertices{ impl::Vertex::GetQuad(
 		quad.quad.positions, quad.quad.color, quad.quad.depth, quad.user_data, quad.quad.tex_coords
@@ -623,7 +623,12 @@ void Renderer::DrawQuad(
 		batch_indices_.push_back(idx + start_index);
 	}
 
-	if (flush) {
+	if (push_texture) {
+		PTGN_ASSERT(params.texture.has_value(), "Texture must have a value for it to be pushed");
+		batch_textures_.push_back(*params.texture);
+	}
+
+	if (flush_after) {
 		FlushBatch();
 	}
 }

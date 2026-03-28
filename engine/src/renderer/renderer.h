@@ -190,7 +190,9 @@ private:
 	void SetUniform(impl::ShaderId id, const char* uniform_name, const std::vector<int>& v);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, bool v);
 
-	std::uint32_t GetTextureSlot(impl::TextureId tex);
+	/// @return The texture slot the given texture is bound to, and whether it should be pushed to
+	/// batch_textures.
+	std::pair<std::uint32_t, bool> GetTextureSlot(impl::TextureId tex);
 
 	V2_int GetTextureSize(impl::TextureId id) const;
 	TextureFormat GetTextureFormat(impl::TextureId id) const;
@@ -255,7 +257,8 @@ private:
 		const std::function<void()>& shader_setup
 	);
 
-	/// @param setup Returns true if the renderer should flush the batch after adding the vertices.
+	/// @param setup Returns true if the renderer should flush the batch after adding the quad
+	/// params. This allows shader uniforms to be applied to each unique quad in the batch.
 	void DrawQuad(
 		impl::ShaderId shader, const impl::QuadParams& p,
 		const std::function<bool(impl::ShaderId, impl::QuadDesc&)>& setup
