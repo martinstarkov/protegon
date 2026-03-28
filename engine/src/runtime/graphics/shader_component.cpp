@@ -16,7 +16,6 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
 
-
 namespace ptgn {
 
 ShaderEntity::ShaderEntity(Entity entity) : Entity{ entity } {}
@@ -36,12 +35,16 @@ void ShaderEntity::Draw(DrawContext& renderer, Entity entity, Camera) {
 
 	renderer.SetBlend(blend_mode);
 
+	constexpr bool floor_positions{ true };
+
 	if (entity.Has<Texture>()) {
 		auto texture{ entity.Get<Texture>() };
 		auto tex_coords{ GetTextureCoordinates(entity, false) };
-		renderer.DrawTexture(shader, texture, positions, tint, depth, tex_coords, setup);
+		renderer.DrawTexture(
+			shader, texture, positions, tint, depth, tex_coords, setup, floor_positions
+		);
 	} else {
-		renderer.DrawQuad(shader, positions, {}, tint, depth, setup);
+		renderer.DrawQuad(shader, positions, {}, tint, depth, setup, floor_positions);
 	}
 }
 

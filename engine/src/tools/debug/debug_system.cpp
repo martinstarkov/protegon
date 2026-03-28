@@ -25,7 +25,6 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
-
 #include "tools/debug/profiling.h"
 #include "tools/debug/stats.h"
 
@@ -64,8 +63,11 @@ void DebugContext::DrawText(
 
 	auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
 
-	impl::TextureCommand texture_command{ quad_shader,	texture_id, positions,
-										  color::White, tex_coords, debug_blend_mode };
+	constexpr bool floor_positions{ true };
+
+	impl::TextureCommand texture_command{ quad_shader,	  texture_id, positions,
+										  color::White,	  tex_coords, debug_blend_mode,
+										  floor_positions };
 
 	debug_commands.emplace_back(texture_command, debug_depth);
 }
@@ -97,9 +99,11 @@ void DebugContext::DrawLines(
 ) {
 	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
 
+	constexpr bool floor_positions{ false };
+
 	auto line_draw_commands{ DrawContext::GetLineDrawCommands(
 		points, line_width, transform.value_or(Transform{}), color, debug_blend_mode,
-		connect_last_to_first
+		connect_last_to_first, floor_positions
 	) };
 
 	RenderContext::AddDrawCommand(debug_commands, line_draw_commands, debug_depth);

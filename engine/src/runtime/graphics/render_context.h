@@ -55,26 +55,36 @@ struct TriangleCommand {
 	TriangleCommand() = default;
 
 	TriangleCommand(
-		const std::array<V2_float, 3>& positions, Color color, std::optional<BlendMode> blend_mode
+		const std::array<V2_float, 3>& positions, Color color, std::optional<BlendMode> blend_mode,
+		bool floor_positions
 	) :
-		color{ color }, positions{ positions }, blend_mode{ blend_mode } {}
+		color{ color },
+		positions{ positions },
+		blend_mode{ blend_mode },
+		floor_positions{ floor_positions } {}
 
 	Color color = color::White;
 	std::array<V2_float, 3> positions;
 	std::optional<BlendMode> blend_mode;
+	bool floor_positions{ true };
 };
 
 struct QuadCommand {
 	QuadCommand() = default;
 
 	QuadCommand(
-		const std::array<V2_float, 4>& positions, Color color, std::optional<BlendMode> blend_mode
+		const std::array<V2_float, 4>& positions, Color color, std::optional<BlendMode> blend_mode,
+		bool floor_positions
 	) :
-		color{ color }, positions{ positions }, blend_mode{ blend_mode } {}
+		color{ color },
+		positions{ positions },
+		blend_mode{ blend_mode },
+		floor_positions{ floor_positions } {}
 
 	Color color = color::White;
 	std::array<V2_float, 4> positions;
 	std::optional<BlendMode> blend_mode;
+	bool floor_positions{ true };
 };
 
 struct QuadShapeCommand : public QuadCommand {
@@ -82,9 +92,12 @@ struct QuadShapeCommand : public QuadCommand {
 
 	QuadShapeCommand(
 		impl::ShaderId shader, const std::array<V2_float, 4>& positions,
-		const std::array<float, 4>& user_data, Color color, std::optional<BlendMode> blend_mode
+		const std::array<float, 4>& user_data, Color color, std::optional<BlendMode> blend_mode,
+		bool floor_positions
 	) :
-		QuadCommand{ positions, color, blend_mode }, shader{ shader }, user_data{ user_data } {}
+		QuadCommand{ positions, color, blend_mode, floor_positions },
+		shader{ shader },
+		user_data{ user_data } {}
 
 	impl::ShaderId shader;
 	std::array<float, 4> user_data;
@@ -95,14 +108,16 @@ struct TextureCommand {
 
 	TextureCommand(
 		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
-		Color tint, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode> blend_mode
+		Color tint, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode> blend_mode,
+		bool floor_positions
 	) :
 		shader{ shader },
 		texture{ texture },
 		tint{ tint },
 		positions{ positions },
 		tex_coords{ tex_coords },
-		blend_mode{ blend_mode } {}
+		blend_mode{ blend_mode },
+		floor_positions{ floor_positions } {}
 
 	impl::ShaderId shader;
 	impl::TextureId texture;
@@ -110,6 +125,7 @@ struct TextureCommand {
 	std::array<V2_float, 4> positions;
 	std::array<V2_float, 4> tex_coords;
 	std::optional<BlendMode> blend_mode;
+	bool floor_positions{ true };
 };
 
 using ManualCommand = std::variant<TextureCommand, QuadCommand, QuadShapeCommand, TriangleCommand>;
@@ -133,22 +149,25 @@ public:
 	void DrawTexture(
 		impl::ShaderId shader, impl::TextureId texture, std::array<V2_float, 4> positions,
 		Color tint, float depth, const std::array<V2_float, 4>& tex_coords,
-		const std::function<void()>& shader_setup = {}
+		const std::function<void()>& shader_setup, bool floor_positions
 	);
 
 	void DrawTexture(
 		impl::TextureId texture, const std::array<V2_float, 4>& positions, Color tint, float depth,
-		const std::array<V2_float, 4>& tex_coords
+		const std::array<V2_float, 4>& tex_coords, bool floor_positions
 	);
 
-	void DrawQuad(const std::array<V2_float, 4>& positions, Color tint, float depth);
+	void DrawQuad(
+		const std::array<V2_float, 4>& positions, Color tint, float depth, bool floor_positions
+	);
 	void DrawTriangle(
-		impl::ShaderId shader, std::array<V2_float, 3> positions, Color tint, float depth
+		impl::ShaderId shader, std::array<V2_float, 3> positions, Color tint, float depth,
+		bool floor_positions
 	);
 	void DrawQuad(
 		impl::ShaderId shader, std::array<V2_float, 4> positions,
 		const std::array<float, 4>& user_data, Color tint, float depth,
-		const std::function<void()>& shader_setup = {}
+		const std::function<void()>& shader_setup, bool floor_positions
 	);
 
 	void DrawTexture(
@@ -213,7 +232,7 @@ private:
 	/// first.
 	static std::vector<impl::QuadCommand> GetLineDrawCommands(
 		std::span<const V2_float> points, float line_width, Transform transform, Color tint,
-		std::optional<BlendMode> blend_mode, bool connect_last_to_first
+		std::optional<BlendMode> blend_mode, bool connect_last_to_first, bool floor_positions
 	);
 
 	void Draw(const impl::TextureCommand& draw, float depth);

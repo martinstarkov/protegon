@@ -20,7 +20,6 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 
@@ -115,8 +114,12 @@ void RenderTarget::Draw(DrawContext& renderer, Entity entity, Camera) {
 	auto texture_coordinates{ GetTextureCoordinates(entity, false) };
 	auto texture{ entity.Get<impl::RenderTargetObject>().GetTextureId() };
 
+	constexpr bool floor_positions{ true };
+
 	renderer.SetBlend(blend_mode);
-	renderer.DrawTexture(texture, positions, tint, depth.GetValue(), texture_coordinates);
+	renderer.DrawTexture(
+		texture, positions, tint, depth.GetValue(), texture_coordinates, floor_positions
+	);
 }
 
 void RenderTarget::AddRenderTargetComponents(

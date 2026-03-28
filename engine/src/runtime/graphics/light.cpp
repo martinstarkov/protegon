@@ -76,8 +76,12 @@ void Light::Draw(DrawContext& renderer, Entity entity, Camera) {
 		SetUniform(renderer, entity);
 	};
 
+	constexpr bool floor_positions{ true };
+
 	renderer.SetBlend(blend_mode);
-	renderer.DrawQuad(light_shader, positions, user_data, tint, depth, shader_setup);
+	renderer.DrawQuad(
+		light_shader, positions, user_data, tint, depth, shader_setup, floor_positions
+	);
 }
 
 Light& Light::SetIntensity(float intensity) {
