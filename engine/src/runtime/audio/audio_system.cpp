@@ -41,7 +41,18 @@ AudioSystem::~AudioSystem() noexcept {
 	MIX_DestroyMixer(mixer_);
 }
 
-void AudioSystem::Play(AudioOrKey audio, float volume, int loops, float frequency_ratio) {
+void AudioSystem::Play(
+	AudioOrKey audio, float volume, int loops, float frequency_ratio, bool exclusive,
+	bool force_restart
+) {
+	if (exclusive && IsPlaying(audio)) {
+		if (force_restart) {
+			Stop(audio);
+		} else {
+			return;
+		}
+	}
+
 	auto resolved_audio{ audio.Get(assets_) };
 
 	MIX_Audio* mix_audio = resolved_audio.GetEntity().Get<std::shared_ptr<MIX_Audio>>().get();

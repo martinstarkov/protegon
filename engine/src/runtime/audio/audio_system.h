@@ -70,7 +70,15 @@ public:
 	/// the track's audio. A value greater than 1.0f will play the audio faster, and at a higher
 	/// pitch. A value less than 1.0f will play the audio slower, and at a lower pitch. 1.0f is
 	/// normal speed.
-	void Play(AudioOrKey audio, float volume = 1.0f, int loops = 0, float frequency_ratio = 1.0f);
+	/// @param exclusive If true, stops any currently playing track of the same audio before playing
+	/// the new track. Otherwise, allows multiple tracks of the same audio to play simultaneously.
+	/// @param force_restart If true, when exclusive is true and the audio is already playing, it
+	/// will stop the currently playing track and start a new one. If false, when exclusive is true
+	/// and the audio is already playing, it will do nothing.
+	void Play(
+		AudioOrKey audio, float volume = 1.0f, int loops = 0, float frequency_ratio = 1.0f,
+		bool exclusive = false, bool force_restart = true
+	);
 
 	/// @brief Stop the audio.
 	void Stop(AudioOrKey audio);
