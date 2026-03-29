@@ -1,45 +1,44 @@
 # protegon
 
-**protegon** is a fast, modular **2D game engine** written in C++20, using **OpenGL** for rendering and **SDL2** for input, audio, and font support. Designed for flexibility and performance, it gives you full control over your game while providing helpful abstractions to get you started quickly.
+protegon is a fast, modular 2D game engine written in C++23, using OpenGL for rendering and SDL3 for input, audio, and font support. Designed for flexibility and performance, it gives you full control over your game while providing helpful abstractions to get you started quickly.
 
 ---
 
-## 🚀 Features at a Glance
+## Features at a Glance
 
-- 🔺 **Custom Batch Renderer** — Efficient rendering with minimal draw calls.
-- ✨ **Shader Support** — Easily integrate and manage GLSL shaders.
-- 🎬 **Scene & Camera System** — Organize your game logic into manageable scenes with camera control.
-- 🧱 **Entity Component System** — Lightweight ECS for scalable gameplay architecture.
-- 🔊 **Audio Support** — Music and sound playback using SDL_mixer.
-- 🖱️ **Input Handling** — Mouse and keyboard input built in.
-- 🧮 **Math Library** — Vectors, matrices, quaternions, and more.
-- 🧲 **Collision Detection** — Built-in physics utilities for 2D collisions.
-- 🎛️ **UI Elements** — Basic UI widgets like buttons.
-- 🕒 **Timers & Tweens** — Time-based animations and smooth transitions.
-- 🎲 **Randomness & Noise** — Fractal noise and RNG utilities.
-- 📦 **Resource Managers** — Manage textures, fonts, shaders, and more.
-- 🧪 **Debug Tools** — Function profiling, performance logging, and development helpers.
+- **Custom Batch Renderer**: Efficient rendering with minimal draw calls.
+- **Shader Support**: Easily integrate and utilize GLSL shaders.
+- **Scene & Camera System**: Organize your game logic into manageable scenes with camera control.
+- **Entity Component System**: Lightweight ECS for scalable data handling.
+- **Audio Support**: Audio playback using SDL_mixer.
+- **Input Handling**: Mouse and keyboard input built in.
+- **Math Library**: Vectors, matrices, quaternions, and more.
+- **Collision Detection**: Built-in physics utilities for 2D collisions.
+- **UI Elements**: Basic UI widgets like buttons, dropdowns, dialogue boxes.
+- **Timers & Tweens**: Animations and pre-built tween effects.
+- **Randomness & Noise**: Fractal noise and RNG utilities.
+- **Debug Tools**: Function profiling and performance logging.
 
 ---
 
-## 🛠️ Getting Started
+## Getting Started
 
 ### Prerequisites
 
-- **C++20 or newer**
-- **[CMake 3.20+](https://cmake.org/download/)**
+- C++23 or newer
+- [CMake 3.28+](https://cmake.org/download/)
 - A C++ compiler + build system (Visual Studio, Ninja, Make, etc.)
 
 ---
 
-## 📦 Adding protegon to your CMake project
+## Adding protegon to your CMake project
 
 Clone or add protegon as a submodule:
 
 ```bash
-git clone https://github.com/yourusername/protegon.git  
+git clone https://github.com/martinstarkov/protegon.git  
 # or  
-git submodule add https://github.com/yourusername/protegon.git  
+git submodule add https://github.com/martinstarkov/protegon.git  
 ```
 
 Then, in your CMakeLists.txt:
@@ -48,16 +47,16 @@ Then, in your CMakeLists.txt:
 add_subdirectory(<repository_directory> binary_dir)  
 add_protegon_to(<target_name>)  
 
-# (optional) create symlink to resources folder  
-create_resource_symlink(<target_name> <source_parent_dir> <destination_parent_dir> <directory_name>)  
+# (optional) create symlink to asset folder  
+create_symlink(<target_name> <source_parent_dir> <destination_parent_dir>) 
 ```
 
 ---
 
-## 🧱 Building protegon
+## Building protegon
 
 1. Clone the repository:  
-    `git clone https://github.com/yourusername/protegon.git && cd protegon`
+    `git clone https://github.com/martinstarkov/protegon.git && cd protegon`
 
 2. Create and enter a build directory:  
 ```bash
@@ -97,9 +96,9 @@ make
 ./your_project_name.exe  
 ```
 
-> 💡 *Tip: On Linux, you may need to install `Homebrew` or development packages for SDL2 and OpenGL.*
+> *On Linux, you may need to install `Homebrew` or development packages for SDL3.*
 
-## 🌐 Web (Emscripten + WebGL)
+## Web (Emscripten + WebGL)
 
 ### Requirements
 
@@ -112,24 +111,47 @@ emcc --version
 ninja --version  # or gcc --version  
 ```
 
-### Build Scripts (Run from `scripts/`)
+## Build Scripts (run from `scripts/`)
 
-| Script | Description |
-|--------|-------------|
-| `./build-emscripten.sh` | Builds WebGL version (HTML, WASM) |
-| `./run-emscripten.sh` | Serves locally via `emrun` |
-| `./build-run-emscripten.sh` | Combines build and run |
-| `./zip-for-itch.sh` | Creates `.zip` for Itch.io uploads |
-| `./build-itch.sh` | Builds and zips for Itch.io |
+### Web (Engine-Level)
 
-## ❗ Troubleshooting
+> Run `./build_web_dependencies.sh` at least once before building web examples.
+
+- `./build_web_dependencies.sh` – Build required web dependencies  
+- `./build_web_examples.sh` – Build all web examples (HTML + WASM)  
+- `./run_web_examples.sh` – Serve examples locally  
+- `./build_run_web_examples.sh` – Build and run examples  
+
+---
+
+### Web (Specific Project)
+
+Located in `scripts/project/`:
+
+- `./build_web.sh` – Build the project (HTML + WASM)  
+- `./run_web.sh` – Serve the project locally  
+- `./build_run_web.sh` – Build and run the project  
+- `./zip_web.sh` – Create distributable `.zip`  
+- `./build_zip_web.sh` – Build and zip in one step  
+
+---
+
+### SDL Setup (Native Builds)
+
+> Required only if the correct SDL development binaries are not already installed.
+
+- `./download_sdl_windows_msvc.sh` – Windows (MSVC) SDL dev binaries  
+- `./download_sdl_macos_brew.sh` – macOS (Homebrew install)  
+- `./download_sdl_macos_dmg.sh` – macOS (manual DMG download)  
+
+## Troubleshooting
 
 ### Windows: Symlink Error
 
 If you see:
-- If you get the error `A required privilege is not held by the client` when creating a symlink using `create_resource_symlink` on Windows, [turn on Developer mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development).
+- If you get the error `A required privilege is not held by the client` when creating a symlink using `create_symlink` on Windows, [turn on Developer mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development).
 
 
-## 📚 License
+## License
 
 [MIT License](LICENSE)

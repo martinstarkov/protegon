@@ -1,0 +1,304 @@
+// Populated by CMake via configure_file()
+const examples = [
+@PTGN_EXAMPLE_ITEMS@
+].filter(x => x && x.label && x.file);
+
+// DOM
+const gridView   = document.getElementById("gridView");
+const playerView = document.getElementById("playerView");
+const grid       = document.getElementById("grid");
+const runner     = document.getElementById("runner");
+const backBtn    = document.getElementById("backBtn");
+const crumbsEl   = document.getElementById("crumbs");
+
+// --- helpers ---
+function normalizePath(p) {
+  // hash paths are like "audio/mixer_demo" or "audio" or ""
+  p = (p || "").trim();
+  p = p.replace(/^\/+/, "").replace(/\/+$/, ""); // trim leading/trailing slashes
+  return p;
+}
+
+function prettyLeaf(name) {
+  return String(name || "").replaceAll("_", " ");
+}
+
+function findExampleByLabel(label) {
+  return examples.find(e => e.label === label) || null;
+}
+
+function getHashPath() {
+  const raw = (location.hash || "").replace(/^#/, "");
+  return normalizePath(decodeURI(raw));
+}
+
+function setHashPath(path) {
+  const p = normalizePath(path);
+
+  if (p) {
+    location.hash = "#" + encodeURI(p);
+  } else {
+    location.hash = "";
+  }
+}
+
+function navigateTo(path) {
+  if (typeof setRoutePath === "function") return setRoutePath(path); // path routing version
+  if (typeof setHashPath === "function") return setHashPath(path);   // hash routing version
+
+  // fallback: hash routing
+  const p = normalizePath(path);
+  location.hash = p ? ("#" + encodeURI(p)) : "";
+}
+
+
+// --- build a directory tree from examples ---
+/*
+Tree node shape:
+{
+  folders: Map<string, node>,
+  files: Array<{ label, file }>
+}
+*/
+function makeNode() {
+  return { folders: new Map(), files: [] };
+}
+
+const root = makeNode();
+for (const ex of examples) {
+  const parts = ex.label.split("/").filter(Boolean);
+  let node = root;
+  for (let i = 0; i < parts.length; i++) {
+    const seg = parts[i];
+    const isLeaf = (i === parts.length - 1);
+    if (isLeaf) {
+      node.files.push(ex);
+    } else {
+      if (!node.folders.has(seg)) node.folders.set(seg, makeNode());
+      node = node.folders.get(seg);
+    }
+  }
+}
+
+function getNodeAt(path) {
+  const p = normalizePath(path);
+  if (!p) return root;
+
+  const parts = p.split("/").filter(Boolean);
+  let node = root;
+  for (const seg of parts) {
+    const next = node.folders.get(seg);
+    if (!next) return null;
+    node = next;
+  }
+  return node;
+}
+
+// --- UI ---
+function showBrowser() {
+  runner.src = "about:blank";
+  playerView.style.display = "none";
+  gridView.style.display = "block";
+
+  // Keep the back button visible in folder view
+  backBtn.classList.remove("hidden");
+}
+
+function showPlayer(label) {
+  const ex = findExampleByLabel(label);
+  if (!ex) return false;
+
+  gridView.style.display = "none";
+  playerView.style.display = "block";
+  backBtn.classList.remove("hidden");
+
+  restartDemo(label);
+  return true;
+}
+
+function renderBreadcrumb(path, demoLabel /* optional full label, e.g. "audio/test_audio" */) {
+  const p = normalizePath(path);
+  const parts = p ? p.split("/").filter(Boolean) : [];
+
+  crumbsEl.innerHTML = "";
+
+  // root crumb
+  const rootA = document.createElement("a");
+  rootA.className = "crumbLink";
+  rootA.href = "#";
+  rootA.textContent = "examples";
+  rootA.addEventListener("click", (e) => {
+    e.preventDefault();
+    // IMPORTANT: this will actually clear the hash
+    location.hash = "";
+    route();
+  });
+  crumbsEl.appendChild(rootA);
+
+  // folder crumbs
+  let accum = "";
+  for (const seg of parts) {
+    const sep = document.createElement("span");
+    sep.className = "crumbSep";
+    sep.textContent = "/";
+    crumbsEl.appendChild(sep);
+
+    accum = accum ? `${accum}/${seg}` : seg;
+
+    const a = document.createElement("a");
+    a.className = "crumbLink";
+    a.href = "#" + encodeURI(accum);
+    a.textContent = seg;
+    a.addEventListener("click", (e) => { e.preventDefault(); setHashPath(accum); });
+    crumbsEl.appendChild(a);
+  }
+
+    // If we're running a demo, append its leaf name as the last crumb.
+  if (demoLabel) {
+    const parts2 = demoLabel.split("/").filter(Boolean);
+    const leaf = parts2[parts2.length - 1];
+
+    const sep2 = document.createElement("span");
+    sep2.className = "crumbSep";
+    sep2.textContent = "/";
+    crumbsEl.appendChild(sep2);
+
+    const demoA = document.createElement("a");
+    demoA.className = "crumbLink";
+    demoA.href = "/" + encodeURI(demoLabel); // keep it a real path for copy/open
+    demoA.textContent = prettyLeaf(leaf);
+    demoA.title = "Restart demo";
+    demoA.addEventListener("click", (e) => {
+      e.preventDefault();
+      // Restart the running demo (refresh iframe)
+      restartDemo(demoLabel);
+    });
+    crumbsEl.appendChild(demoA);
+  }
+}
+
+function renderFolder(path) {
+  const node = getNodeAt(path);
+  grid.innerHTML = "";
+
+  if (!node) {
+    const pill = document.createElement("div");
+    pill.className = "pill";
+    pill.textContent = "Folder not found.";
+    grid.appendChild(pill);
+    return;
+  }
+
+  const folderNames = Array.from(node.folders.keys()).sort((a,b) => a.localeCompare(b));
+  const files = [...node.files].sort((a,b) => a.label.localeCompare(b.label));
+
+  if (!folderNames.length && !files.length) {
+    const pill = document.createElement("div");
+    pill.className = "pill";
+    pill.textContent = "This folder is empty.";
+    grid.appendChild(pill);
+    return;
+  }
+
+  // Helper to create an item row
+  function addItem(iconText, title, onActivate) {
+    const row = document.createElement("div");
+    row.className = "item";
+    row.tabIndex = 0;
+
+    const ico = document.createElement("div");
+    ico.className = "ico";
+    ico.textContent = iconText;
+
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = title;
+
+    row.appendChild(ico);
+    row.appendChild(name);
+
+    row.addEventListener("click", onActivate);
+    row.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        onActivate();
+      }
+    });
+
+    grid.appendChild(row);
+  }
+
+  // Folders first: 📁 <name>
+  for (const name of folderNames) {
+    const nextPath = normalizePath(path ? `${path}/${name}` : name);
+    addItem("📁", prettyLeaf(name), () => navigateTo(nextPath));
+  }
+
+  // Examples: ▶ <example-name>
+  for (const ex of files) {
+    const parts = ex.label.split("/");
+    const leaf = parts[parts.length - 1];
+    addItem("▶", prettyLeaf(leaf), () => navigateTo(ex.label));
+  }
+}
+
+function route() {
+  const p = getHashPath();
+
+  updateBackButton(p);
+
+  // If hash exactly matches an example label => run it
+  const ex = findExampleByLabel(p);
+  if (ex) {
+    const parts = p.split("/").filter(Boolean);
+    const folderPath = parts.slice(0, -1).join("/");
+    renderBreadcrumb(folderPath, p);
+    showPlayer(p);
+    return;
+  }
+
+  // Otherwise treat as folder path
+  renderBreadcrumb(p);
+  showBrowser();
+  renderFolder(p);
+}
+
+function updateBackButton(currentPath) {
+  const p = normalizePath(currentPath);
+  const isAtRootFolder = (p === "");
+  backBtn.disabled = isAtRootFolder;
+  backBtn.setAttribute("aria-disabled", String(isAtRootFolder));
+}
+
+function restartDemo(label) {
+  const ex = findExampleByLabel(label);
+  if (!ex) return;
+
+  // Force a reload even if the browser caches aggressively
+  const sep = ex.file.includes("?") ? "&" : "?";
+  runner.src = ex.file + sep + "r=" + Date.now();
+}
+
+// Back button: go up one folder (or to root from a demo)
+backBtn.addEventListener("click", () => {
+  if (backBtn.disabled) return;
+
+  const p = getHashPath();
+  const ex = findExampleByLabel(p);
+  if (ex) {
+    // go to containing folder
+    const parts = p.split("/").filter(Boolean);
+    setHashPath(parts.slice(0, -1).join("/"));
+    return;
+  }
+
+  // go up one folder level
+  const parts = p.split("/").filter(Boolean);
+  parts.pop();
+  setHashPath(parts.join("/"));
+});
+
+window.addEventListener("hashchange", route);
+
+// initial render
+route();

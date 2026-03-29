@@ -1,0 +1,11 @@
+{
+  "png": "assets/png.png",
+  "jpg": "assets/jpg.jpg",
+  "bmp": "assets/bmp.bmp",
+  "music": "assets/music.ogg",
+  "sound": "assets/sound.ogg",
+  "ttf": "assets/ttf.ttf",
+  "otf": "assets/otf.otf",
+  "json": "assets/json.json",
+  "shader": "assets/shader.glsl"
+}

@@ -1,30 +1,70 @@
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/SourcesAndHeaders.cmake")
+set(PTGN_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "")
+set(PTGN_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE INTERNAL "")
 
-if(EMSCRIPTEN)
-  add_library(protegon STATIC ${PROTEGON_SOURCES} ${PROTEGON_HEADERS}
-                              ${PROTEGON_ES_SHADERS})
-else()
-  add_library(protegon STATIC ${PROTEGON_SOURCES} ${PROTEGON_HEADERS}
-                              ${PROTEGON_CORE_SHADERS})
-endif()
+include(cmake/SDLVersions.cmake)
+include(cmake/FindSDL.cmake)
+include(cmake/SourcesAndHeaders.cmake)
+include(cmake/CreateSymlink.cmake)
+include(cmake/CMakeRC.cmake)
 
-target_compile_features(protegon PUBLIC cxx_std_20)
+function(add_protegon_to target)
+  if(NOT TARGET ${target})
+    message(FATAL_ERROR "add_protegon_to: target '${target}' does not exist")
+  endif()
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CreateSymlink.cmake")
+  set(options)
+  set(oneValueArgs ASSETS_DIR SHELL_HTML)
+  cmake_parse_arguments(P "${options}" "${oneValueArgs}" "" ${ARGN})
 
-if(NOT EMSCRIPTEN)
-  include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/SetupSDL2.cmake")
-  include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerWarnings.cmake")
-  include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerSettings.cmake")
-  set_project_warnings(protegon)
-  set_compiler_settings(protegon)
-endif()
+  if(NOT P_ASSETS_DIR)
+    set(P_ASSETS_DIR "${PTGN_ROOT_DIR}/examples/assets")
+  endif()
 
-if(MSVC)
-  include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/MSVCSetup.cmake")
-endif()
+  if(NOT P_SHELL_HTML)
+    set(P_SHELL_HTML "${PTGN_ROOT_DIR}/platform/emscripten/shell.html")
+  endif()
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/ShaderSetup.cmake")
+  target_link_libraries(${target} PRIVATE protegon)
+
+  if(EMSCRIPTEN)
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/dist")
+    set_target_properties(${target} PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/dist"
+    )
+
+    set_target_properties(${target} PROPERTIES OUTPUT_NAME "index")
+    set_target_properties(${target} PROPERTIES SUFFIX ".html")
+    
+    if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+      target_compile_options(${target} PRIVATE -O0)
+    else()
+      target_compile_options(${target} PRIVATE -O3)
+    endif()
+    
+
+    # Shared assets for ALL examples
+    if(EXISTS "${P_ASSETS_DIR}")
+      target_link_options(${target} PRIVATE
+        "--preload-file=${P_ASSETS_DIR}@/assets"
+      )
+    endif()
+
+    target_link_options(${target} PRIVATE
+      "--shell-file=${P_SHELL_HTML}"
+      "-sALLOW_MEMORY_GROWTH=1"
+      "-sFULL_ES3=1"
+      "-sWARN_ON_UNDEFINED_SYMBOLS=1"
+      "-sNO_EXIT_RUNTIME=1"
+      "-sAGGRESSIVE_VARIABLE_ELIMINATION=1"
+      "-sUSE_ZLIB=1"
+      "-sASSERTIONS=1"
+    )
+  else()
+    if(WIN32)
+      add_sdl_dll_copy(${target})
+    endif()
+  endif()
+endfunction()
 
 include(FetchContent)
 
@@ -33,83 +73,39 @@ FetchContent_Declare(
   URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz)
 FetchContent_MakeAvailable(json)
 
-target_link_libraries(protegon PUBLIC nlohmann_json::nlohmann_json)
-target_link_libraries(protegon PUBLIC rc::shader)
+cmrc_add_resource_library(resources-shader ALIAS rc::shader NAMESPACE shader WHENCE "${PTGN_SHADER_DIR}" ${PTGN_SHADERS} "${PTGN_SHADER_DIR}/manifest.json")
 
-if(NOT EMSCRIPTEN)
-  find_package(OpenGL REQUIRED)
+add_library(protegon STATIC ${PTGN_FILES})
 
-  target_link_libraries(
-    protegon PRIVATE ${OPENGL_LIBRARIES} SDL2::SDL2 SDL2_image::SDL2_image
-                     SDL2_ttf::SDL2_ttf SDL2_mixer::SDL2_mixer)
-else()
-  if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
-    set(ECXXFLAGS "-O0")
-  else()
-    set(ECXXFLAGS "-O3")
-  endif()
-  set(ECXXFLAGS
-      "${ECXXFLAGS} -std=c++20 --use-port=sdl2 --use-port=sdl2_image:formats=bmp,png,xpm,jpg --use-port=sdl2_mixer --use-port=sdl2_ttf"
-  )
-  set_target_properties(
-    protegon
-    PROPERTIES
-      LINK_FLAGS
-      "${ECXXFLAGS} -s FULL_ES3=1 -s ALLOW_MEMORY_GROWTH=1 -s WARN_ON_UNDEFINED_SYMBOLS=1 -s NO_EXIT_RUNTIME=1 -s AGGRESSIVE_VARIABLE_ELIMINATION=1"
-  )
-  set_target_properties(protegon PROPERTIES COMPILE_FLAGS "${ECXXFLAGS}")
-endif()
+target_include_directories(protegon
+  PUBLIC "${PTGN_ROOT_DIR}/include"
+         "${PTGN_ROOT_DIR}/modules/ecs/include"
+         "${PTGN_ROOT_DIR}/engine/assets"
+  PUBLIC "${PTGN_ROOT_DIR}/engine/src"
+)
 
-target_include_directories(
-  protegon
-  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include"
-         "${CMAKE_CURRENT_SOURCE_DIR}/modules/ecs/include"
-         "${CMAKE_CURRENT_SOURCE_DIR}/engine/assets"
-  # Keeping this public for testing purposes.
-  PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/engine/src")
+target_compile_features(protegon PUBLIC cxx_std_23)
 
-# Add d to debug static lib files to differentiate them from release
+# Link third-party deps ON THE LIBRARY
+target_link_libraries(protegon
+  PUBLIC
+    SDL3_image::SDL3_image
+    SDL3_ttf::SDL3_ttf
+    SDL3_mixer::SDL3_mixer
+    SDL3::SDL3
+    rc::shader
+    nlohmann_json::nlohmann_json
+)
+
 set_target_properties(protegon PROPERTIES DEBUG_POSTFIX d)
 
-function(add_protegon_to TARGET)
+if(NOT EMSCRIPTEN)
+  include(cmake/CompilerWarnings.cmake)
+  include(cmake/CompilerSettings.cmake)
+  
+  set_project_warnings(protegon "${PTGN_WARNINGS_AS_ERRORS}")
+  set_compiler_settings(protegon ${PTGN_FILES})
 
-  target_link_libraries(${TARGET} PRIVATE protegon)
-  # if(XCODE) set_target_properties(${TARGET} PROPERTIES XCODE_GENERATE_SCHEME
-  # TRUE XCODE_SCHEME_WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}") endif()
-  # Commands for copying dlls to executable directory on Windows.
-  if(WIN32
-     AND NOT LINK_STATIC_SDL
-     AND NOT EMSCRIPTEN)
-    add_sdl_dll_copy(${TARGET})
-  endif()
-
-endfunction()
-
-message(STATUS "Found protegon")
-
-# Add d to debug static lib files to differentiate them from release
-# set_target_properties(protegon PROPERTIES DEBUG_POSTFIX d)
-
-# target_include_directories(protegon PUBLIC
-# $<BUILD_INTERFACE:${PROTEGON_DIR}/include>
-# $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include> $<INSTALL_INTERFACE:include>)
-
-# if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
-
-# include(GNUInstallDirs)
-
-# if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT) set(CMAKE_INSTALL_PREFIX
-# "${PROJECT_SOURCE_DIR}/install" CACHE PATH "" FORCE) endif()
-
-# install(TARGETS protegon RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" LIBRARY
-# DESTINATION "${CMAKE_INSTALL_LIBDIR}" ARCHIVE DESTINATION
-# "${CMAKE_INSTALL_LIBDIR}")
-
-# install(FILES ${PROTEGON_HEADERS} DESTINATION
-# "${CMAKE_INSTALL_INCLUDEDIR}/protegon")
-
-# if (WIN32 AND SHARED_SDL2_LIBS) # Copy SDL dlls to executable directory
-# install(FILES ${SDL_TARGET_FILES} DESTINATION "${CMAKE_INSTALL_BINDIR}")
-# endif()
-
-# endif()
+  find_package(OpenGL REQUIRED)
+  target_link_libraries(protegon PUBLIC ${OPENGL_LIBRARIES})
+endif()

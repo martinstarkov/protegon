@@ -24,6 +24,7 @@ mono_crash.*
 # Build results
 [Bb]uild/
 [Bb]uild-wasm/
+[Bb]uild-web/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
@@ -38,7 +39,8 @@ bld/
 [Ll]ogs/
 [Ii]nstall/
 
-!src/debug/
+!engine/src/debug/
+!engine/src/tools/debug
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

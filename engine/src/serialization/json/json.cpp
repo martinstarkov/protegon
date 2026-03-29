@@ -1,24 +1,23 @@
 #include "serialization/json/json.h"
 
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
-#include <iosfwd>
 #include <nlohmann/json.hpp>
 #include <ostream>
 
-#include "core/utils/file.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
+#include "core/assert.h"
+#include "core/util/file.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
 
 void SaveJson(const json& j, const path& filepath, bool indent) {
-	std::ofstream o{ filepath };
+	std::ofstream of{ filepath };
 	if (indent) {
-		o << std::setw(4);
+		of << std::setw(4);
 	}
-	o << j << std::endl;
+	of << j << std::endl;
 }
 
 json LoadJson(const path& filepath) {

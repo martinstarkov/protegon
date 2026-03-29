@@ -1,10 +1,4 @@
-# from here:
-#
-# https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Avai
-# lable.md
-# Courtesy of Jason Turner
-
-function(set_project_warnings project_name)
+function(set_project_warnings project_name warnings_as_errors)
   set(MSVC_WARNINGS
       /W4     # Baseline reasonable warnings
       /w14242 # 'identifier': conversion from 'type1' to 'type1', possible loss
@@ -63,11 +57,6 @@ function(set_project_warnings project_name)
                  # (ie printf)
   )
 
-  if (${PROJECT_NAME}_WARNINGS_AS_ERRORS)
-    set(CLANG_WARNINGS ${CLANG_WARNINGS} -Werror)
-    set(MSVC_WARNINGS ${MSVC_WARNINGS} /WX)
-  endif()
-
   set(GCC_WARNINGS
       ${CLANG_WARNINGS}
       -Wmisleading-indentation # warn if indentation implies blocks where blocks
@@ -79,6 +68,13 @@ function(set_project_warnings project_name)
       -Wuseless-cast # warn if you perform a cast to the same type
   )
 
+  # Add "warnings as errors" based on the function parameter
+  if(warnings_as_errors)
+    list(APPEND CLANG_WARNINGS -Werror)
+    list(APPEND GCC_WARNINGS   -Werror)
+    list(APPEND MSVC_WARNINGS  /WX)
+  endif()
+
   if(MSVC)
     set(PROJECT_WARNINGS ${MSVC_WARNINGS})
   elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
@@ -89,13 +85,10 @@ function(set_project_warnings project_name)
     message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")
   endif()
 
-  if(${PROJECT_NAME}_BUILD_HEADERS_ONLY)
-    target_compile_options(${project_name} INTERFACE ${PROJECT_WARNINGS})
-  else()
-    target_compile_options(${project_name} PUBLIC ${PROJECT_WARNINGS})
-  endif()
-
   if(NOT TARGET ${project_name})
     message(AUTHOR_WARNING "${project_name} is not a target, thus no compiler warning were added.")
+    return()
   endif()
+
+  target_compile_options(${project_name} PUBLIC ${PROJECT_WARNINGS})
 endfunction()

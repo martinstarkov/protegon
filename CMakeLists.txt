@@ -1,23 +1,19 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.28)
 
-project(protegon)
+project(protegon LANGUAGES CXX)
 
-option(PROTEGON_DEMOS "Build protegon demos" ON)
-option(protegon_WARNINGS_AS_ERRORS "Treat compiler warnings as errors." OFF)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-if(WIN32)
-  option(DOWNLOAD_SDL "Download prebuilt windows SDL libraries" ON)
-  option(LINK_STATIC_SDL "Link SDL2 statically into the protegon library" OFF)
-  # TODO: Figure out how to disable console for macOS and enable for linux
-  # option(ENABLE_CONSOLE "Enable console executable" ON)
-endif()
+include(cmake/SetupProtegon.cmake)
 
-set(PROTEGON_ROOT_DIR
-    "${CMAKE_CURRENT_SOURCE_DIR}"
-    CACHE BOOL "")
+option(PTGN_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+option(PTGN_EXAMPLES "Build protegon examples" ON)
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/SetupProtegon.cmake")
+set(PTGN_WEB_EXAMPLES "ALL" CACHE STRING
+  "Web examples to build (Emscripten only): ALL=build all examples, or list like basic/hello_world;audio/mixer_demo")
 
-if(PROTEGON_DEMOS)
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/demos")
+if(PTGN_EXAMPLES)
+  add_subdirectory(examples)
 endif()

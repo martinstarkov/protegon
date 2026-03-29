@@ -1,420 +1,1062 @@
+
 #include "renderer/renderer.h"
 
+#include <SDL3/SDL_video.h>
+
+#include <algorithm>
 #include <array>
+#include <concepts>
 #include <cstdint>
-#include <limits>
+#include <functional>
+#include <memory>
+#include <numeric>
 #include <optional>
-#include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include "core/app/game.h"
-#include "core/app/window.h"
-#include "core/ecs/components/draw.h"
-#include "core/ecs/components/effects.h"
-#include "core/ecs/components/generic.h"
-#include "core/ecs/components/transform.h"
-#include "debug/core/log.h"
-#include "debug/runtime/assert.h"
-#include "math/geometry/arc.h"
-#include "math/geometry/capsule.h"
-#include "math/geometry/circle.h"
-#include "math/geometry/ellipse.h"
-#include "math/geometry/line.h"
-#include "math/geometry/polygon.h"
-#include "math/geometry/rect.h"
-#include "math/geometry/rounded_rect.h"
-#include "math/geometry/shape.h"
-#include "math/geometry/triangle.h"
-#include "math/vector2.h"
-#include "renderer/api/blend_mode.h"
-#include "renderer/api/color.h"
-#include "renderer/api/origin.h"
-#include "renderer/buffers/frame_buffer.h"
-#include "renderer/gl/gl_renderer.h"
-#include "renderer/materials/shader.h"
-#include "renderer/materials/texture.h"
-#include "renderer/render_data.h"
-#include "renderer/render_target.h"
-#include "renderer/text/font.h"
-#include "renderer/text/text.h"
-#include "world/scene/camera.h"
-#include "world/scene/scene.h"
-#include "world/scene/scene_manager.h"
+#include "core/assert.h"
+#include "core/event/dispatcher.h"
+#include "core/log.h"
+#include "core/math/matrix4.h"
+#include "core/math/vector2.h"
+#include "core/math/vector3.h"
+#include "core/math/vector4.h"
+#include "platform/input/events.h"
+#include "platform/window/window.h"
+#include "primitives/shader.h"
+#include "renderer/backend/gl/gl_buffer.h"
+#include "renderer/backend/gl/gl_context.h"
+#include "renderer/backend/gl/gl_framebuffer.h"
+#include "renderer/backend/gl/gl_renderbuffer.h"
+#include "renderer/backend/gl/gl_shader.h"
+#include "renderer/backend/gl/gl_state.h"
+#include "renderer/backend/gl/gl_texture.h"
+#include "renderer/backend/gl/gl_vertex_array.h"
+#include "renderer/primitives/blend_mode.h"
+#include "renderer/primitives/buffer.h"
+#include "renderer/primitives/buffer_layout.h"
+#include "renderer/primitives/color.h"
+#include "renderer/primitives/id.h"
+#include "renderer/primitives/render_state.h"
+#include "renderer/primitives/render_target.h"
+#include "renderer/primitives/resource.h"
+#include "renderer/primitives/scaling_mode.h"
+#include "renderer/primitives/texture.h"
+#include "renderer/primitives/texture_format.h"
+#include "renderer/primitives/vertex.h"
+#include "renderer/primitives/vertex_array.h"
+#include "renderer/primitives/viewport.h"
+#include "runtime/event/event_handler.h"
 
 namespace ptgn {
 
+Renderer::Renderer(Window& window, EventHandler& events) :
+	window_{ window }, events_{ events }, gl_{ std::make_unique<impl::gl::GLContext>(window) } {
+	ebo_ = impl::ElementBufferObject{ this, gl_->buffers.CreateElementBuffer(
+												nullptr, impl::kIndexCapacity, sizeof(impl::Index),
+												impl::gl::BufferUsage::DynamicDraw
+											) };
+
+	vbo_ = impl::VertexBufferObject{ this, gl_->buffers.CreateVertexBuffer(
+											   nullptr, impl::kVertexCapacity, sizeof(impl::Vertex),
+											   impl::gl::BufferUsage::DynamicDraw
+										   ) };
+
+	vao_ = impl::VertexArrayObject{
+		this, gl_->vertex_arrays.CreateVertexArray(vbo_, impl::Vertex::GetLayout(), ebo_)
+	};
+
+	// Important to use unsigned byte for the white texture as color::White is stored in
+	// std::uint8_t.
+	constexpr impl::gl::PixelDataType pixel_type{ impl::gl::PixelDataType::UnsignedByte };
+
+	white_texture_ = impl::TextureObject{ this, gl_->textures.CreateTexture(
+													static_cast<const void*>(&color::White),
+													impl::gl::PixelDataFormat::RGBA, pixel_type,
+													V2_int{ 1, 1 }, TextureFormat::RGBA8
+												) };
+
+	auto viewport{ window.GetSize() };
+
+	PTGN_ASSERT(viewport.BothAboveZero(), "Viewport cannot be zero");
+
+	screen_target_ = CreateRenderTarget(viewport, TextureFormat::RGBA8);
+	BindScreenTarget();
+	V2_float half_viewport{ viewport / 2.0f };
+	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
+	SetViewProjection(view_projection);
+
+	auto max_texture_slots{ gl_->GetMaxTextureSlots() };
+
+	std::vector<std::int32_t> samplers(max_texture_slots);
+	std::iota(samplers.begin(), samplers.end(), 0);
+
+	auto quad{ gl_->shaders.GetProgram("quad") };
+	auto _1 = gl_->Bind(quad, false);
+	SetUniform(quad, "u_Textures", samplers);
+
+#ifdef PTGN_PLATFORM_MACOS
+	//  Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
+	//  GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
+	//  texture because texture unloadable."
+	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
+		gl_->SetActiveTextureSlot(slot);
+		auto _3 = gl_->Bind(white_texture_, false);
+	}
+#endif
+	gl_->SetActiveTextureSlot(0);
+	auto _2 = gl_->Bind(white_texture_, false);
+
+	PTGN_ASSERT(batch_textures_.empty());
+	batch_textures_.push_back(white_texture_);
+}
+
+Renderer::~Renderer() noexcept {
+	// Destructor access to impl::gl::GLContext is needed.
+}
+
+impl::RenderTargetObject Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
+	auto color = gl_->textures.CreateTexture(size, format);
+
+	std::optional<impl::RenderbufferId> depth;
+
+	if (!IsColorFormat(format)) {
+		depth = gl_->renderbuffers.CreateRenderbuffer(size, format);
+	}
+
+	auto framebuffer = gl_->framebuffers.CreateFramebuffer(
+		color, impl::gl::Attachment::Color0, depth,
+		IsDepthOnlyFormat(format) ? impl::gl::Attachment::Depth : impl::gl::Attachment::DepthStencil
+	);
+
+	return impl::RenderTargetObject{ this, impl::RenderTargetId{ framebuffer } };
+}
+
+impl::RenderPass Renderer::BeginPass(impl::RenderTargetId scene_render_target) {
+	impl::RenderPass p;
+	p.source_			= scene_render_target;
+	p.ping_				= AcquirePooledTargetCopy(scene_render_target);
+	p.has_ping_			= true;
+	p.has_written_once_ = false; // latest = source initially
+	p.latest_is_ping_	= true;	 // irrelevant until has_written_once==true
+
+	return p;
+}
+
+impl::RenderTargetId Renderer::AcquirePooledTargetCopy(impl::RenderTargetId render_target) {
+	auto size{ GetRenderTargetSize(render_target) };
+	auto format{ GetRenderTargetTextureFormat(render_target) };
+
+	return AcquirePooledTarget(size, format);
+}
+
+impl::RenderTargetId Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
+	++pool_tick_;
+
+	auto claim = [&](impl::PooledTarget& e) {
+		if (e.target.GetSize() != size) {
+			ResizeRenderTarget(e.target.resource_, size);
+		}
+		e.in_use		 = true;
+		e.last_used_tick = pool_tick_;
+		return e.target.resource_;
+	};
+
+	// Find a free candidate:
+	//  - Prefer exact size+format
+	//  - Otherwise pick least-recently-used with same format
+	impl::PooledTarget* exact			= nullptr;
+	impl::PooledTarget* lru_same_format = nullptr;
+
+	for (auto& e : rt_pool_) {
+		if (e.in_use) {
+			continue;
+		}
+		if (e.target.GetFormat() != format) {
+			continue;
+		}
+
+		if (e.target.GetSize() == size) {
+			exact = &e;
+			break; // can't beat an exact match
+		}
+
+		if (!lru_same_format || e.last_used_tick < lru_same_format->last_used_tick) {
+			lru_same_format = &e;
+		}
+	}
+
+	if (exact) {
+		return claim(*exact);
+	}
+	if (lru_same_format) {
+		return claim(*lru_same_format);
+	}
+
+	// No compatible free target available.
+	// If we have room in the pool, create one.
+	// Pool is at/over the limit and no compatible spare existed:
+	impl::PooledTarget entry{ CreateRenderTarget(size, format), pool_tick_, true };
+	const auto& rt{ rt_pool_.emplace_back(std::move(entry)) };
+#ifdef PTGN_GL_DEBUG_RENDERER
+	PTGN_LOG("Renderer::AcquirePooledTarget -> rt_pool_.size() = ", rt_pool_.size());
+#endif
+
+	return rt.target.resource_;
+}
+
+void Renderer::ReleasePooledTarget(impl::RenderTargetId render_target) {
+	++pool_tick_;
+
+	std::erase_if(rt_pool_, [render_target](auto& e) {
+		if (e.target.resource_ == render_target) {
+			return true; // remove from pool
+		}
+		return false;
+	});
+
+#ifdef PTGN_GL_DEBUG_RENDERER
+	PTGN_LOG("Renderer::ReleasePooledTarget -> rt_pool_.size() = ", rt_pool_.size());
+#endif
+}
+
+void Renderer::DrawTexture(
+	impl::ShaderId shader, impl::RenderPass& p, impl::RenderTargetId scene_render_target,
+	const std::function<void()>& shader_setup
+) {
+	impl::RenderTargetId input;
+
+	// Input = latest output, or source before first draw
+	if (!p.has_written_once_) {
+		input = p.source_;
+	} else if (p.latest_is_ping_) {
+		input = p.ping_;
+	} else {
+		input = p.pong_;
+	}
+
+	auto bound_frame_buffer{ gl_->GetBoundFramebuffer() };
+
+	// Are we rendering *into this pass*?
+	bool writing_to_pass =
+		bound_frame_buffer == p.ping_ || (p.has_pong_ && bound_frame_buffer == p.pong_);
+
+	bool input_is_offscreen = input != scene_render_target;
+
+	bool output_is_offscreen = bound_frame_buffer != scene_render_target;
+
+	bool flip_y = input_is_offscreen && !output_is_offscreen;
+
+	auto texture_size{ GetRenderTargetSize(input) };
+	auto points{ impl::GetCenteredQuadPoints(texture_size) };
+	auto tex_coords{ impl::GetDefaultTextureCoordinates(flip_y) };
+
+	// Only ping-pong if we're writing into the pass
+	if (writing_to_pass) {
+		impl::RenderTargetId write;
+
+		if (!p.has_written_once_) {
+			write = p.ping_;
+		} else {
+			if (!p.has_pong_ && p.latest_is_ping_) {
+				p.pong_		= AcquirePooledTargetCopy(p.source_);
+				p.has_pong_ = true;
+			}
+			write = p.latest_is_ping_ ? p.pong_ : p.ping_;
+		}
+
+		BindRenderTarget(write);
+
+		auto texture{ GetRenderTargetTexture(input) };
+
+		DrawTexture(shader, texture, points, color::White, 0.0f, tex_coords, shader_setup);
+
+		// Update pass state
+		p.has_written_once_ = true;
+		p.latest_is_ping_	= write == p.ping_;
+	} else {
+		auto texture{ GetRenderTargetTexture(input) };
+		// Read-only draw: no mutation, no flip
+		DrawTexture(shader, texture, points, color::White, 0.0f, tex_coords, shader_setup);
+	}
+}
+
+void Renderer::Destroy(impl::VertexBufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::ElementBufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::UniformBufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::ShaderId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::TextureId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::RenderbufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::FramebufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::VertexArrayId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(impl::RenderTargetId id) {
+	gl_->Destroy(id);
+};
+
+V2_int Renderer::GetTextureSize(impl::TextureId texture) const {
+	return gl_->textures.GetTextureSize(texture);
+}
+
+TextureFormat Renderer::GetTextureFormat(impl::TextureId texture) const {
+	return gl_->textures.GetTextureFormat(texture);
+}
+
+void Renderer::ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size) {
+	gl_->framebuffers.ResizeFramebuffer(impl::FramebufferId{ render_target }, new_size);
+}
+
+impl::TextureId Renderer::GetRenderTargetTexture(impl::RenderTargetId render_target) const {
+	const auto& color_attachment{ gl_->framebuffers.GetFramebufferAttachment(
+		impl::FramebufferId{ render_target }, impl::gl::Attachment::Color0
+	) };
+	PTGN_ASSERT(
+		color_attachment.id,
+		"Render target must have a valid color attachment for its texture to be retrieved"
+	);
+	return impl::TextureId{ color_attachment.id };
+}
+
+V2_int Renderer::GetRenderTargetSize(impl::RenderTargetId render_target) const {
+	auto id{ GetRenderTargetTexture(render_target) };
+
+	auto size{ gl_->textures.GetTextureSize(id) };
+
+	return size;
+}
+
+TextureFormat Renderer::GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const {
+	auto id{ GetRenderTargetTexture(render_target) };
+
+	auto texture_format{ gl_->textures.GetTextureFormat(id) };
+
+	return texture_format;
+}
+
+void Renderer::ClearRenderTarget(impl::RenderTargetId render_target, Color color, bool set_viewport)
+	const {
+	auto bind_guard = gl_->Bind(impl::FramebufferId{ render_target }, true);
+
+	std::optional<Viewport> viewport;
+	if (set_viewport) {
+		viewport = gl_->GetViewport();
+
+		auto render_target_size{ GetRenderTargetSize(render_target) };
+
+		gl_->SetViewport({ {}, render_target_size });
+	}
+
+	gl_->framebuffers.ClearToColor(impl::FramebufferId{ render_target }, color);
+
+	if (set_viewport && viewport.has_value()) {
+		gl_->SetViewport(*viewport);
+	}
+}
+
+void Renderer::BindRenderTarget(impl::RenderTargetId render_target) {
+	SetFramebuffer(impl::FramebufferId{ render_target });
+}
+
+void Renderer::BindRenderPass(impl::RenderPass& render_pass) {
+	// Bind the next write target (opposite of latest output; ping for first write)
+	impl::RenderTargetId write;
+
+	if (!render_pass.has_written_once_) {
+		write = render_pass.ping_;
+	} else {
+		if (!render_pass.has_pong_ && render_pass.latest_is_ping_) {
+			render_pass.pong_	  = AcquirePooledTargetCopy(render_pass.source_);
+			render_pass.has_pong_ = true;
+		}
+		write = render_pass.latest_is_ping_ ? render_pass.pong_ : render_pass.ping_;
+	}
+
+	BindRenderTarget(write);
+}
+
+void Renderer::FlushBatch() {
+	if (batch_indices_.empty()) {
+		return; // Nothing to draw
+	}
+
+	auto _vao = gl_->Bind(vao_, false);
+
+	// Upload vertex data
+	gl_->buffers.SetBufferSubData<impl::VertexBufferId>(
+		vbo_, impl::gl::BufferTarget::ArrayBuffer, batch_vertices_.data(), 0,
+		static_cast<std::uint32_t>(batch_vertices_.size()), sizeof(impl::Vertex)
+	);
+
+	// Upload index data
+	gl_->buffers.SetBufferSubData<impl::ElementBufferId>(
+		ebo_, impl::gl::BufferTarget::ElementArrayBuffer, batch_indices_.data(), 0,
+		static_cast<std::uint32_t>(batch_indices_.size()), sizeof(impl::Index)
+	);
+
+	// Bind all textures
+	for (std::uint32_t slot = 0; slot < batch_textures_.size(); ++slot) {
+		gl_->SetActiveTextureSlot(slot);
+		auto _ = gl_->Bind(batch_textures_[slot], false);
+	}
+
+	gl_->vertex_arrays.DrawElements(
+		vao_, static_cast<std::uint32_t>(batch_indices_.size()), impl::gl::IndexType::UnsignedInt,
+		impl::gl::PrimitiveMode::Triangles
+	);
+
+#ifdef PTGN_GL_DEBUG_RENDERER
+	PTGN_LOG("Renderer::FlushBatch");
+	PTGN_LOG("Framebuffer: ", gl_->GetBoundState().framebuffer);
+	PTGN_LOG("Blend Mode: ", gl_->GetBoundState().blend);
+	auto shader_id{ gl_->GetBoundShader() };
+	Print("Shader: (id=", shader_id);
+	if (auto shader{ gl_->shaders.cache_.TryGet(shader_id) }) {
+		Print(", name=", shader->program_name);
+	}
+	PrintLine(")");
+	PTGN_LOG("Vertices: (", batch_vertices_.size(), "):");
+
+	for (std::size_t i = 0; i < batch_vertices_.size(); ++i) {
+		PTGN_LOG("  [", i, "] ", batch_vertices_[i]);
+	}
+
+	Print("Indices: (", batch_indices_.size(), "): [");
+
+	for (std::size_t i = 0; i < batch_indices_.size(); ++i) {
+		Print(batch_indices_[i]);
+		if (i + 1 < batch_indices_.size()) {
+			Print(", ");
+		}
+	}
+	PrintLine("]");
+
+	Print("Textures: (", batch_textures_.size(), "): [");
+
+	for (std::size_t i = 0; i < batch_textures_.size(); ++i) {
+		Print(batch_textures_[i]);
+		if (i + 1 < batch_textures_.size()) {
+			Print(", ");
+		}
+	}
+	PrintLine("]");
+#endif
+
+	// Clear batch (keep white texture)
+	batch_vertices_.clear();
+	batch_indices_.clear();
+	batch_textures_.resize(1);
+	batch_textures_[0] = white_texture_;
+}
+
+std::pair<std::uint32_t, bool> Renderer::GetTextureSlot(impl::TextureId tex) {
+	if (tex == white_texture_.operator impl::TextureId()) {
+		return { 0, false }; // always slot 0
+	}
+
+	// Check if texture already exists in batch
+	for (std::uint32_t i = 1; i < batch_textures_.size(); ++i) {
+		if (batch_textures_[i] == tex) {
+			return { i, false };
+		}
+	}
+
+	// Flush if we would exceed GPU texture slots
+	if (batch_textures_.size() >= gl_->GetMaxTextureSlots()) {
+		FlushBatch();
+	}
+
+	// Its slot is index in the vector
+	return { static_cast<std::uint32_t>(batch_textures_.size()), true };
+}
+
 namespace impl {
 
-void Renderer::DrawTexture(
-	const Texture& texture, const Transform& transform, const V2_float& texture_size, Origin origin,
-	const Tint& tint, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-	const PreFX& pre_fx, const PostFX& post_fx, const std::array<V2_float, 4>& texture_coordinates
-) {
-	Rect rect{ !texture_size.IsZero() ? texture_size : V2_float{ texture.GetSize() } };
-
-	DrawTextureCommand cmd;
-
-	cmd.transform				= transform;
-	cmd.texture_id				= texture.GetId();
-	cmd.texture_size			= texture.GetSize();
-	cmd.texture_format			= texture.GetFormat();
-	cmd.rect					= rect;
-	cmd.origin					= origin;
-	cmd.depth					= depth;
-	cmd.pre_fx					= pre_fx;
-	cmd.tint					= tint;
-	cmd.texture_coordinates		= texture_coordinates;
-	cmd.render_state.blend_mode = blend_mode;
-	cmd.render_state.camera		= camera;
-	cmd.render_state.post_fx	= post_fx;
-
-	render_data_.Submit(cmd);
+template <typename State, typename F>
+	requires std::same_as<std::invoke_result_t<F&>, void>
+void UpdateStateIfChanged(Renderer& r, const State& cached, const State& desired, F&& func) {
+	if (cached != desired) {
+		r.FlushBatch();
+		std::invoke(std::forward<F>(func));
+	}
 }
 
-void Renderer::DrawTexture(
-	const TextureHandle& texture_key, const Transform& transform, const V2_float& texture_size,
-	Origin origin, const Tint& tint, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-	const PreFX& pre_fx, const PostFX& post_fx, const std::array<V2_float, 4>& texture_coordinates
-) {
-	DrawTexture(
-		texture_key.GetTexture(), transform, texture_size, origin, tint, depth, blend_mode, camera,
-		pre_fx, post_fx, texture_coordinates
+} // namespace impl
+
+void Renderer::SetViewport(Viewport viewport) {
+	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().viewport, viewport, [this, viewport] {
+		gl_->SetViewport(viewport);
+	});
+}
+
+void Renderer::SetViewProjection(const Matrix4& view_projection) {
+	if (view_projection_ != view_projection) {
+		FlushBatch();
+		view_projection_ = view_projection;
+	}
+	// TODO: Find a better way to do this. This is needed to ensure that the shader's uniform is
+	// updated even if the shader itself doesn't change.
+	if (auto shader{ gl_->GetBoundShader() }; shader) {
+		gl_->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+	}
+}
+
+void Renderer::SetShader(impl::ShaderId shader) {
+	if (gl_->GetBoundState().shader_program != shader) {
+		FlushBatch();
+		auto _ = gl_->Bind(shader, false);
+		gl_->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+	}
+}
+
+void Renderer::SetBlend(BlendMode mode, bool enabled) {
+	BlendState desired{ mode, enabled };
+
+	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().blend, desired, [this, desired] {
+		gl_->SetBlend(desired);
+	});
+}
+
+void Renderer::SetFramebuffer(impl::FramebufferId framebuffer) {
+	if (gl_->GetBoundState().framebuffer != framebuffer) {
+		FlushBatch();
+		auto _ = gl_->Bind(framebuffer, false);
+	}
+}
+
+void Renderer::SetDepth(const DepthState& depth) {
+	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().depth, depth, [this, depth] {
+		gl_->SetDepth(depth);
+	});
+}
+
+void Renderer::SetStencil(const StencilState& stencil) {
+	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().stencil, stencil, [this, stencil] {
+		gl_->SetStencil(stencil);
+	});
+}
+
+void Renderer::SetRaster(const RasterState& raster) {
+	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().raster, raster, [this, raster] {
+		gl_->SetRaster(raster);
+	});
+}
+
+void Renderer::SetScissor(const ScissorState& scissor) {
+	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().scissor, scissor, [this, scissor] {
+		gl_->SetScissor(scissor);
+	});
+}
+
+void Renderer::SetColorMask(const ColorMaskState& color_mask) {
+	impl::UpdateStateIfChanged(
+		*this, gl_->GetBoundState().color_mask, color_mask,
+		[this, color_mask] { gl_->SetColorMask(color_mask); }
 	);
 }
 
-void Renderer::DrawLines(
-	const Transform& transform, const std::vector<V2_float>& line_points, const Tint& color,
-	const LineWidth& line_width, bool connect_last_to_first, const Depth& depth,
-	BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
-) {
-	DrawLinesCommand cmd;
-
-	cmd.transform				= transform;
-	cmd.points					= line_points;
-	cmd.tint					= color;
-	cmd.line_width				= line_width;
-	cmd.connect_last_to_first	= connect_last_to_first;
-	cmd.depth					= depth;
-	cmd.render_state.blend_mode = blend_mode;
-	cmd.render_state.camera		= camera;
-	cmd.render_state.post_fx	= post_fx;
-
-	render_data_.Submit(cmd);
+void Renderer::FlushIfExceedsCapacity(std::size_t vertices, std::size_t indices) {
+	if (batch_vertices_.size() + vertices > impl::kVertexCapacity ||
+		batch_indices_.size() + indices > impl::kIndexCapacity) {
+		FlushBatch();
+	}
 }
 
-void Renderer::DrawLines(
-	const std::vector<V2_float>& line_points, const Tint& color, const LineWidth& line_width,
-	bool connect_last_to_first, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-	const PostFX& post_fx
+void Renderer::DrawQuad(
+	impl::ShaderId shader, const impl::QuadParams& params,
+	const std::function<bool(impl::ShaderId, impl::QuadDesc&)>& setup
 ) {
-	DrawLines(
-		{}, line_points, color, line_width, connect_last_to_first, depth, blend_mode, camera,
-		post_fx
-	);
-}
+	impl::QuadDesc quad;
+	quad.quad = params.quad;
 
-void Renderer::DrawShape(
-	const Transform& transform, const Shape& shape, const Tint& color, const LineWidth& line_width,
-	Origin origin, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-	const PostFX& post_fx, const ShaderPass& shader_pass
-) {
-	DrawShapeCommand cmd;
+	bool push_texture{ false };
 
-	cmd.transform				 = transform;
-	cmd.shape					 = shape;
-	cmd.tint					 = color;
-	cmd.line_width				 = line_width;
-	cmd.origin					 = origin;
-	cmd.depth					 = depth;
-	cmd.render_state.shader_pass = shader_pass;
-	cmd.render_state.blend_mode	 = blend_mode;
-	cmd.render_state.camera		 = camera;
-	cmd.render_state.post_fx	 = post_fx;
-
-	render_data_.Submit(cmd);
-}
-
-void Renderer::DrawShader(
-	const ShaderPass& shader_pass, const Entity& entity, bool clear_between_consecutive_calls,
-	const Color& target_clear_color, const TextureOrSize& texture_or_size,
-	BlendMode intermediate_blend_mode, const Depth& depth, BlendMode blend_mode,
-	const Camera& camera, TextureFormat texture_format, const PostFX& post_fx,
-	std::optional<BlendMode> target_blend_mode
-) {
-	DrawShaderCommand cmd;
-
-	cmd.entity							= entity;
-	cmd.clear_between_consecutive_calls = clear_between_consecutive_calls;
-	cmd.target_clear_color				= target_clear_color;
-	cmd.texture_or_size					= texture_or_size;
-	cmd.intermediate_blend_mode			= intermediate_blend_mode;
-	cmd.target_blend_mode				= target_blend_mode;
-	cmd.depth							= depth;
-	cmd.texture_format					= texture_format;
-	cmd.render_state.shader_pass		= shader_pass;
-	cmd.render_state.post_fx			= post_fx;
-	cmd.render_state.blend_mode			= blend_mode;
-	cmd.render_state.camera				= camera;
-
-	render_data_.Submit(cmd);
-}
-
-impl::Texture Renderer::CreateTexture(
-	Transform& out_transform, V2_float& out_text_size, const TextContent& content,
-	const TextColor& color, const FontSize& font_size, const ResourceHandle& font_key,
-	const TextProperties& properties, bool hd_text, const Camera& camera
-) {
-	FontSize final_font_size{ font_size };
-
-	if (hd_text) {
-		const auto& scene{ game.scene.GetCurrent() };
-
-		auto render_target_scale{ scene.GetRenderTargetScaleRelativeTo(camera) };
-
-		PTGN_ASSERT(render_target_scale.BothAboveZero());
-
-		out_transform.Scale(1.0f / render_target_scale);
-
-		final_font_size =
-			static_cast<std::int32_t>(static_cast<float>(font_size) * render_target_scale.y);
+	// Texture -> user data slot 0 (convention)
+	if (params.texture.has_value()) {
+		auto [slot, push] = GetTextureSlot(*params.texture);
+		push_texture	  = push;
+		quad.user_data[0] = static_cast<float>(slot);
 	}
 
-	auto texture{ Text::CreateTexture(content, color, final_font_size, font_key, properties) };
+	SetShader(shader);
 
-	if (out_text_size.IsZero()) {
-		out_text_size = Text::GetSize(content, font_key, final_font_size);
-	}
+	bool flush_after{ setup(shader, quad) };
 
-	return texture;
-}
-
-void Renderer::DrawText(
-	const std::string& content, Transform transform, const TextColor& color, Origin origin,
-	const FontSize& font_size, const ResourceHandle& font_key, const TextProperties& properties,
-	V2_float text_size, const Tint& tint, bool hd_text, const Depth& depth, BlendMode blend_mode,
-	const Camera& camera, const PreFX& pre_fx, const PostFX& post_fx,
-	const std::array<V2_float, 4>& texture_coordinates
-) {
-	auto texture{ CreateTexture(
-		transform, text_size, content, color, font_size, font_key, properties, hd_text, camera
+	auto vertices{ impl::Vertex::GetQuad(
+		quad.quad.positions, quad.quad.color, quad.quad.depth, quad.user_data, quad.quad.tex_coords
 	) };
 
-	DrawTexture(
-		texture, transform, text_size, origin, tint, depth, blend_mode, camera, pre_fx, post_fx,
-		texture_coordinates
-	);
+	constexpr std::array<impl::Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
 
-	render_data_.AddTemporaryTexture(std::move(texture));
-}
+	FlushIfExceedsCapacity(vertices.size(), indices.size());
 
-void Renderer::DrawRect(
-	const Transform& transform, const Rect& rect, const Tint& color, const LineWidth& line_width,
-	Origin origin, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-	const PostFX& post_fx
-) {
-	DrawShape(transform, rect, color, line_width, origin, depth, blend_mode, camera, post_fx);
-}
+	auto start_index = static_cast<std::uint32_t>(batch_vertices_.size());
 
-void Renderer::DrawRoundedRect(
-	const Transform& transform, const RoundedRect& rounded_rect, const Tint& color,
-	const LineWidth& line_width, Origin origin, const Depth& depth, BlendMode blend_mode,
-	const Camera& camera, const PostFX& post_fx
-) {
-	DrawShape(
-		transform, rounded_rect, color, line_width, origin, depth, blend_mode, camera, post_fx
-	);
-}
+	batch_vertices_.insert(batch_vertices_.end(), vertices.begin(), vertices.end());
 
-void Renderer::DrawLine(
-	const V2_float& start, const V2_float& end, const Tint& color, const LineWidth& line_width,
-	const Depth& depth, BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
-) {
-	DrawLine({}, Line{ start, end }, color, line_width, depth, blend_mode, camera, post_fx);
-}
+	for (auto idx : indices) {
+		batch_indices_.push_back(idx + start_index);
+	}
 
-void Renderer::DrawLine(
-	const Transform& transform, const Line& line, const Tint& color, const LineWidth& line_width,
-	const Depth& depth, BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
-) {
-	DrawShape(
-		transform, line, color, line_width, Origin::Center, depth, blend_mode, camera, post_fx
-	);
+	if (push_texture) {
+		PTGN_ASSERT(params.texture.has_value(), "Texture must have a value for it to be pushed");
+		batch_textures_.push_back(*params.texture);
+	}
+
+	if (flush_after) {
+		FlushBatch();
+	}
 }
 
 void Renderer::DrawTriangle(
-	const Transform& transform, const Triangle& triangle, const Tint& color,
-	const LineWidth& line_width, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-	const PostFX& post_fx
+	impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
 ) {
-	DrawShape(
-		transform, triangle, color, line_width, Origin::Center, depth, blend_mode, camera, post_fx
+	SetShader(shader);
+
+	auto vertices{ impl::Vertex::GetTriangle(positions, tint, depth) };
+
+	constexpr std::size_t triangle_indices{ 3 };
+
+	FlushIfExceedsCapacity(vertices.size(), triangle_indices);
+
+	auto start_index = static_cast<std::uint32_t>(batch_vertices_.size());
+
+	batch_vertices_.insert(batch_vertices_.end(), vertices.begin(), vertices.end());
+	batch_indices_.insert(batch_indices_.end(), { start_index, start_index + 1, start_index + 2 });
+}
+
+impl::ShaderId Renderer::GetShader(std::string_view name) const {
+	return gl_->shaders.GetProgram(name);
+}
+
+bool Renderer::IsTextureAttachedToCurrentFramebuffer(impl::TextureId texture) const {
+	auto bound{ gl_->GetBoundFramebuffer() };
+
+	if (bound == impl::FramebufferId{ 0 }) {
+		return false;
+	}
+
+	return gl_->framebuffers.GetFramebufferAttachment(bound, impl::gl::Attachment::Color0).id ==
+		   texture;
+}
+
+void Renderer::DrawTexture(
+	impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
+	Color tint, float depth, const std::array<V2_float, 4>& tex_coords,
+	const std::function<void()>& shader_setup
+) {
+	PTGN_ASSERT(
+		!IsTextureAttachedToCurrentFramebuffer(texture),
+		"Cannot draw a texture that is attached to the currently set framebuffer"
 	);
+
+	impl::QuadParams p;
+	p.quad.positions  = positions;
+	p.quad.depth	  = depth;
+	p.quad.color	  = tint;
+	p.quad.tex_coords = tex_coords;
+	p.texture		  = texture;
+
+	auto setup = [this, shader_setup](auto s, auto& q) {
+		// Only quad drawn textures are batchable.
+		bool batchable{ s == gl_->shaders.GetProgram("quad") };
+
+		if (!batchable) {
+			gl_->shaders.SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));
+		} else {
+			PTGN_ASSERT(!shader_setup, "Quad shader should have no shader setup");
+		}
+
+		if (!batchable && shader_setup) {
+			shader_setup();
+		}
+
+		return !batchable;
+	};
+
+	DrawQuad(shader, p, setup);
 }
 
-void Renderer::DrawEllipse(
-	const Transform& transform, const Ellipse& ellipse, const Tint& color,
-	const LineWidth& line_width, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-	const PostFX& post_fx
+void Renderer::DrawQuad(
+	impl::ShaderId shader, const std::array<V2_float, 4>& positions,
+	const std::array<float, 4>& user_data, Color tint, float depth,
+	const std::function<void()>& shader_setup
 ) {
-	DrawShape(
-		transform, ellipse, color, line_width, Origin::Center, depth, blend_mode, camera, post_fx
-	);
+	impl::QuadParams p;
+	p.quad.positions  = positions;
+	p.quad.depth	  = depth;
+	p.quad.color	  = tint;
+	p.quad.tex_coords = impl::GetDefaultTextureCoordinates<false>();
+
+	DrawQuad(shader, p, [this, user_data, shader_setup](auto, auto& q) {
+		q.user_data = user_data;
+		if (shader_setup) {
+			shader_setup();
+			return true;
+		}
+		return false;
+	});
 }
 
-void Renderer::DrawCircle(
-	const Transform& transform, const Circle& circle, const Tint& color,
-	const LineWidth& line_width, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-	const PostFX& post_fx
-) {
-	DrawShape(
-		transform, circle, color, line_width, Origin::Center, depth, blend_mode, camera, post_fx
-	);
+impl::TextureId Renderer::GetWhiteTexture() const {
+	return white_texture_;
 }
 
-void Renderer::DrawCapsule(
-	const Transform& transform, const Capsule& capsule, const Tint& color,
-	const LineWidth& line_width, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-	const PostFX& post_fx
-) {
-	DrawShape(
-		transform, capsule, color, line_width, Origin::Center, depth, blend_mode, camera, post_fx
-	);
-}
+void Renderer::OnEvent(EventDispatcher d) {
+	d.Dispatch<WindowResized>([this](auto& e) {
+		if (!game_size_.has_value()) {
+			// PTGN_LOG("Emitting game resized: ", e.size);
+			impl::InternalGameResized internal_game_resized{ e.size };
+			GameResized game_resized{ e.size };
+			events_.Emit(internal_game_resized);
+			events_.Emit(game_resized);
+		}
 
-void Renderer::DrawArc(
-	const Transform& transform, const Arc& arc, const Tint& color, const LineWidth& line_width,
-	const Depth& depth, BlendMode blend_mode, const Camera& camera, const PostFX& post_fx
-) {
-	DrawShape(
-		transform, arc, color, line_width, Origin::Center, depth, blend_mode, camera, post_fx
-	);
-}
-
-void Renderer::DrawPolygon(
-	const Transform& transform, const Polygon& polygon, const Tint& color,
-	const LineWidth& line_width, const Depth& depth, BlendMode blend_mode, const Camera& camera,
-	const PostFX& post_fx
-) {
-	DrawShape(
-		transform, polygon, color, line_width, Origin::Center, depth, blend_mode, camera, post_fx
-	);
-}
-
-void Renderer::DrawPoint(
-	const V2_float& point, const Tint& color, const Depth& depth, BlendMode blend_mode,
-	const Camera& camera
-) {
-	DrawShape({}, point, color, -1.0f, Origin::Center, depth, blend_mode, camera, {});
-}
-
-void Renderer::EnableStencilMask() {
-	render_data_.Submit(impl::EnableStencilMask{});
-}
-
-void Renderer::DisableStencilMask() {
-	render_data_.Submit(impl::DisableStencilMask{});
-}
-
-void Renderer::DrawOutsideStencilMask() {
-	render_data_.Submit(impl::DrawOutsideStencilMask{});
-}
-
-void Renderer::DrawInsideStencilMask() {
-	render_data_.Submit(impl::DrawInsideStencilMask{});
-}
-
-void Renderer::Init() {
-	render_data_.Init();
-}
-
-void Renderer::SetBackgroundColor(const Color& background_color) {
-	render_data_.screen_target_.SetClearColor(background_color);
-}
-
-Color Renderer::GetBackgroundColor() const {
-	return render_data_.screen_target_.GetClearColor();
-}
-
-void Renderer::Reset() {
-	bound_ = {};
-
-	FrameBuffer::Unbind(); // Will set bound_frame_buffer_id_ to 0.
-
-	render_data_ = {};
-	render_data_.Init();
-}
-
-void Renderer::Shutdown() {
-	Reset();
+		UpdateDisplayViewport(e.size);
+	});
 }
 
 void Renderer::SetScalingMode(ScalingMode scaling_mode) {
-	V2_int resolution{ render_data_.game_size_set_ ? render_data_.game_size_
-												   : game.window.GetSize() };
-	render_data_.UpdateResolutions(resolution, scaling_mode);
+	if (scaling_mode_ == scaling_mode) {
+		return;
+	}
+
+	scaling_mode_ = scaling_mode;
+
+	UpdateDisplayViewport(window_.GetSize());
 }
 
-void Renderer::SetGameSize(const V2_int& game_size, ScalingMode scaling_mode) {
-	render_data_.game_size_set_ = !game_size.IsZero();
-	V2_int resolution{ render_data_.game_size_set_ ? game_size : game.window.GetSize() };
-	render_data_.UpdateResolutions(resolution, scaling_mode);
+void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_mode) {
+	if (game_size_ == game_size && scaling_mode_ == scaling_mode) {
+		return;
+	}
+
+	PTGN_ASSERT(
+		!game_size.has_value() || game_size.has_value() && game_size->BothAboveZero(),
+		"Game size cannot be negative or zero"
+	);
+
+	game_size_	  = game_size;
+	scaling_mode_ = scaling_mode;
+
+	impl::InternalGameResized internal_game_resized{ GetGameSize() };
+	GameResized game_resized{ internal_game_resized.size };
+	// PTGN_LOG("Emitting game resized: ", game_resized.size);
+	events_.Emit(internal_game_resized);
+	events_.Emit(game_resized);
+
+	UpdateDisplayViewport(window_.GetSize());
 }
 
 V2_int Renderer::GetDisplaySize() const {
-	return render_data_.display_viewport_.size;
+	return display_viewport_.size;
 }
 
 V2_float Renderer::GetScale() const {
-	V2_int display_size{ GetDisplaySize() };
-	V2_int game_size{ GetGameSize() };
+	auto display_size{ GetDisplaySize() };
+	auto game_size{ GetGameSize() };
+
 	PTGN_ASSERT(display_size.BothAboveZero());
 	PTGN_ASSERT(game_size.BothAboveZero());
+
 	return V2_float{ display_size } / game_size;
 }
 
 V2_int Renderer::GetGameSize() const {
-	return render_data_.game_size_;
+	if (game_size_) {
+		return *game_size_;
+	}
+	return window_.GetSize();
 }
 
 ScalingMode Renderer::GetScalingMode() const {
-	return render_data_.resolution_mode_;
+	return scaling_mode_;
 }
 
-void Renderer::PresentScreen() {
-	FrameBuffer::Unbind();
+void Renderer::SetBackgroundColor(Color background_color) {
+	background_color_.value = background_color;
+}
 
-	// PTGN_ASSERT(
-	// 	std::invoke([]() {
-	// 		auto viewport_size{ GLRenderer::GetViewportSize() };
-	// 		if (viewport_size.IsZero()) {
-	// 			return false;
-	// 		}
-	// 		if (viewport_size.x == 1 && viewport_size.y == 1) {
-	// 			return false;
-	// 		}
-	// 		return true;
-	// 	}),
-	// 	"Attempting to render to 0 or 1 sized viewport"
-	// );
+Color Renderer::GetBackgroundColor() const {
+	return background_color_.value;
+}
 
-	PTGN_ASSERT(
-		FrameBuffer::IsUnbound(),
-		"Frame buffer must be unbound (id=0) before swapping SDL2 buffer to the screen"
+Viewport Renderer::GetDisplayViewport() const {
+	return display_viewport_;
+}
+
+void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
+	PTGN_ASSERT(window_size == window_.GetSize());
+
+	auto game_size{ game_size_.value_or(window_size) };
+
+	PTGN_ASSERT(window_size.BothAboveZero());
+	PTGN_ASSERT(game_size.BothAboveZero());
+
+	Viewport viewport{ .position = { 0, 0 }, .size = window_size };
+
+	auto compute_aspect_fit = [&viewport, game_size, window_size](bool letterbox_mode) {
+		float window_aspect{ static_cast<float>(window_size.x) / window_size.y };
+		float game_aspect{ static_cast<float>(game_size.x) / game_size.y };
+
+		// In letterbox mode we need require window_aspect > game_aspect to fit height, and in
+		// overscan we require window_aspect > game_aspect to fit height.
+		bool fit_height{ (window_aspect > game_aspect) == letterbox_mode };
+
+		if (fit_height) {
+			viewport.size.y = window_size.y;
+			viewport.size.x =
+				static_cast<int>(static_cast<float>(window_size.y) * game_aspect + 0.5f);
+			viewport.position.x = (window_size.x - viewport.size.x) / 2; // left edge.
+			viewport.position.y = 0;
+		} else {
+			// Fit width.
+			viewport.size.x = window_size.x;
+			viewport.size.y =
+				static_cast<int>(static_cast<float>(window_size.x) / game_aspect + 0.5f);
+			viewport.position.x = 0;
+			viewport.position.y = (window_size.y - viewport.size.y) / 2; // top edge.
+		}
+	};
+
+	switch (scaling_mode_) {
+		case ScalingMode::Letterbox: compute_aspect_fit(true); break;
+		case ScalingMode::Overscan:	 compute_aspect_fit(false); break;
+
+		case ScalingMode::Stretch:
+			PTGN_ASSERT(viewport.position == V2_int{});
+			PTGN_ASSERT(viewport.size == window_.GetSize());
+			// Viewport is full window (default).
+			break;
+
+		case ScalingMode::IntegerScale: {
+			V2_int ratio{ window_size / game_size };
+			// Find which dimension limits the scaling factor.
+			int scale{ std::max(1, std::min(ratio.x, ratio.y)) };
+			viewport.size	  = game_size * scale;				   // scale up.
+			viewport.position = (window_size - viewport.size) / 2; // center of window.
+			break;
+		}
+
+		case ScalingMode::Disabled:
+			viewport.size	  = game_size;						   // no change.
+			viewport.position = (window_size - viewport.size) / 2; // center of window.
+			break;
+
+		default: PTGN_ERROR("Unsupported resolution mode");
+	}
+
+	bool resized{ viewport.size != display_viewport_.size };
+	bool moved{ viewport.position != display_viewport_.position };
+
+	if (resized || moved) {
+		PTGN_ASSERT(viewport.size.BothAboveZero());
+
+		display_viewport_ = viewport;
+
+		if (resized) {
+			ResizeScreenTarget(display_viewport_.size);
+
+			if (emit_events) {
+				impl::InternalDisplayResized internal_display_resized;
+				internal_display_resized.size = display_viewport_.size;
+				// PTGN_LOG("Emitting display resized: ", display_resized.size);
+				events_.Emit(internal_display_resized);
+			}
+		}
+
+		if (emit_events) {
+			impl::InternalDisplayViewportChanged display_changed;
+			display_changed.viewport = display_viewport_;
+			// PTGN_LOG("Emitting viewport changed: ", display_changed.viewport);
+			events_.Emit(display_changed);
+		}
+	}
+}
+
+void Renderer::ResizeScreenTarget(V2_int size) {
+	ResizeRenderTarget(screen_target_.resource_, size);
+}
+
+void Renderer::BindScreenTarget() {
+	BindRenderTarget(screen_target_);
+}
+
+void Renderer::BeginFrame() {
+#ifdef PTGN_GL_DEBUG_RENDERER
+	PTGN_LOG("Renderer::BeginFrame: BEGIN");
+#endif
+	PTGN_ASSERT(batch_vertices_.empty());
+	PTGN_ASSERT(batch_indices_.empty());
+
+#ifdef PTGN_GL_DEBUG_RENDERER
+	PTGN_LOG("Renderer::BeginFrame: Clearing back buffer to transparent");
+#endif
+
+	V2_int window_size{ window_.GetSize() };
+	Color window_background_color{ window_.GetBackgroundColor() };
+
+	auto _1 = gl_->Bind(impl::FramebufferId{ 0 }, false);
+	gl_->SetClearColor(window_background_color);
+	SetViewport({ {}, window_size });
+	gl_->framebuffers.Clear();
+
+#ifdef PTGN_GL_DEBUG_RENDERER
+	PTGN_LOG("Renderer::BeginFrame: Clearing screen target to transparent");
+#endif
+
+	BindScreenTarget();
+	SetViewport({ {}, screen_target_.GetSize() });
+	gl_->framebuffers.ClearToColor(
+		impl::FramebufferId{ screen_target_.resource_ }, background_color_.value
 	);
 
-	game.window.SwapBuffers();
+#ifdef PTGN_GL_DEBUG_RENDERER
+	PTGN_LOG("Renderer::BeginFrame: END");
+#endif
 }
 
-void Renderer::ClearScreen() const {
-	FrameBuffer::Unbind();
-	GLRenderer::SetClearColor(color::Transparent);
-	GLRenderer::Clear();
-	render_data_.ClearScreenTarget();
+void Renderer::EndFrame() {
+#ifdef PTGN_GL_DEBUG_RENDERER
+	PTGN_LOG("Renderer::EndFrame(display_viewport=", display_viewport_, "): BEGIN");
+#endif
+	PTGN_ASSERT(display_viewport_.size.BothAboveZero());
+
+#ifdef PTGN_GL_DEBUG_RENDERER
+	PTGN_LOG("Renderer::EndFrame: Binding back buffer");
+#endif
+
+	SetFramebuffer({});
+
+	V2_float half_viewport{ display_viewport_.size * 0.5f };
+	SetViewport(display_viewport_);
+	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
+	SetViewProjection(view_projection);
+	SetBlend(BlendMode::ReplaceRGBA, true);
+
+#ifdef PTGN_GL_DEBUG_RENDERER
+	PTGN_LOG("Renderer::EndFrame: Drawing screen target to back buffer");
+#endif
+
+	PTGN_ASSERT(
+		GetRenderTargetSize(screen_target_.resource_) == display_viewport_.size,
+		"Screen target texture size must match display viewport size"
+	);
+	auto quad_shader{ GetShader("quad") };
+	auto points{ impl::GetCenteredQuadPoints(display_viewport_.size) };
+	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+
+	auto screen_texture{ GetRenderTargetTexture(screen_target_.resource_) };
+
+	DrawTexture(quad_shader, screen_texture, points, color::White, 0.0f, tex_coords, {});
+
+	FlushBatch();
+
+#ifdef PTGN_GL_DEBUG_RENDERER
+	PTGN_LOG("Renderer::EndFrame: END");
+#endif
 }
 
-} // namespace impl
+void Renderer::SetGLVersion() {
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, PTGN_OPENGL_CONTEXT_PROFILE);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, PTGN_OPENGL_MAJOR_VERSION);
+	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, PTGN_OPENGL_MINOR_VERSION);
+}
+
+impl::ShaderObject Renderer::CreateShader(
+	const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
+) {
+	return impl::ShaderObject{ this, gl_->shaders.CreateProgram(source, shader_name) };
+}
+
+impl::TextureObject Renderer::CreateTexture(
+	const std::uint8_t* pixel_data, V2_int size, TextureFormat format
+) {
+	auto [pixel_format, pixel_type] = impl::gl::GetPixelDataFormat(format);
+	PTGN_ASSERT(
+		pixel_type == impl::gl::PixelDataType::UnsignedByte,
+		"Texture format must have a type of bytes"
+	);
+	return impl::TextureObject{
+		this, gl_->textures.CreateTexture(pixel_data, pixel_format, pixel_type, size, format)
+	};
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, const Matrix4& v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, float v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V2_float v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V3_float v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V4_float v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(
+	impl::ShaderId shader, const char* uniform_name, const std::vector<float>& v
+) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, int v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V2_int v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V3_int v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V4_int v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(
+	impl::ShaderId shader, const char* uniform_name, const std::vector<int>& v
+) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, bool v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
 
 } // namespace ptgn

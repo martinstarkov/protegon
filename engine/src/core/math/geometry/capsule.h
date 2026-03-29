@@ -1,0 +1,40 @@
+#pragma once
+
+#include <array>
+
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
+#include "serialization/json/serialize.h"
+
+namespace ptgn {
+
+struct Capsule {
+	Capsule() = default;
+
+	Capsule(V2_float start, V2_float end, float radius);
+
+	/// @param out_size Optional parameter for the unrotated size of the quad.
+	/// @return Quad vertices relative to the given transform for this line with a given a line
+	/// width.
+	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform, V2_float* out_size = nullptr)
+		const;
+
+	std::array<V2_float, 2> GetWorldVertices(Transform transform) const;
+
+	std::array<V2_float, 2> GetLocalVertices() const;
+
+	float GetRadius() const;
+
+	/// @return Radius scaled relative to the transform.
+	float GetRadius(Transform transform) const;
+
+	bool operator==(const Capsule&) const = default;
+
+	V2_float start;
+	V2_float end;
+	float radius{ 0.0f };
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Capsule, start, end, radius)
+};
+
+} // namespace ptgn

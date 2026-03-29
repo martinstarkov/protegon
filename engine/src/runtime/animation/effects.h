@@ -1,0 +1,42 @@
+// #pragma once
+//
+// #include <vector>
+//
+// #include "ecs/entity.h"
+// #include "serialization/json/serializable.h"
+//
+// namespace ptgn {
+//
+//// Note: Will call hide on post_fx entity.
+// void AddPostFX(Entity& entity, Entity post_fx);
+//
+//// Note: Will call hide on pre_fx entity.
+// void AddPreFX(Entity& entity, Entity pre_fx);
+//
+// namespace impl {
+//
+// struct UsePreviousTexture {};
+//
+// } // namespace impl
+//
+// struct PostFX {
+//	PostFX() = default;
+//
+//	std::vector<Entity> post_fx_;
+//
+//	friend bool operator==(const PostFX&, const PostFX&) = default;
+//
+//	PTGN_SERIALIZER_REGISTER_NAMED(PostFX, KeyValue("post_fx", post_fx_))
+// };
+//
+// struct PreFX {
+//	PreFX() = default;
+//
+//	std::vector<Entity> pre_fx_;
+//
+//	friend bool operator==(const PreFX&, const PreFX&) = default;
+//
+//	PTGN_SERIALIZER_REGISTER_NAMED(PreFX, KeyValue("pre_fx", pre_fx_))
+// };
+//
+// } // namespace ptgn

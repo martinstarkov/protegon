@@ -6,12 +6,12 @@
 // #include <string_view>
 // #include <type_traits>
 //
-// #include "debug/runtime/assert.h"
-// #include "core/utils/type_info.h"
+// #include "core/assert.h"
+// #include "core/util/type_info.h"
 //
-// #include "core/ecs/entity.h"
+// #include "ecs/entity.h"
 // #include "serialization/json/serializable.h"
-// #include "core/utils/file.h"
+// #include "core/util/file.h"
 //
 // PTGN_HAS_TEMPLATE_FUNCTION(Serialize);
 // PTGN_HAS_TEMPLATE_FUNCTION(Deserialize);

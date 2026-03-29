@@ -1,0 +1,291 @@
+#include "app/application.h"
+
+#include <SDL3/SDL_error.h>
+#include <SDL3/SDL_init.h>
+#include <SDL3/SDL_timer.h>
+#include <SDL3/SDL_version.h>
+#include <SDL3_image/SDL_image.h>
+#include <SDL3_mixer/SDL_mixer.h>
+#include <SDL3_ttf/SDL_ttf.h>
+
+#include <chrono>
+#include <cstdint>
+#include <format>
+#include <memory>
+#include <string>
+
+#include "core/assert.h"
+#include "core/config.h"
+#include "core/event/dispatcher.h"
+#include "core/event/event.h"
+#include "core/log.h"
+#include "core/math/vector2.h"
+#include "core/time/time.h"
+#include "platform/input/events.h"
+#include "platform/input/input_handler.h"
+#include "platform/window/window.h"
+#include "renderer/renderer.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/audio/audio_system.h"
+#include "runtime/event/event_handler.h"
+#include "runtime/scene/scene_manager.h"
+#include "tools/debug/debug_system.h"
+
+#ifdef __EMSCRIPTEN__
+
+#include <emscripten.h>
+#include <emscripten/html5.h>
+
+EM_JS(int, get_screen_width, (), { return window.screen.width; });
+EM_JS(int, get_screen_height, (), { return window.screen.height; });
+EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.0; });
+
+#endif
+
+#ifdef PTGN_PLATFORM_MACOS
+
+#include <mach-o/dyld.h>
+
+#include <filesystem>
+#include <iostream>
+
+#include "CoreFoundation/CoreFoundation.h"
+
+#endif
+
+namespace ptgn {
+
+namespace impl {
+
+static std::string FormatSDLVersion(int packed_version) {
+	const int major = packed_version / 1'000'000;
+	const int minor = (packed_version / 1'000) % 1'000;
+	const int patch = packed_version % 1'000;
+
+	return std::format("{}.{}.{}", major, minor, patch);
+}
+
+#ifdef __EMSCRIPTEN__
+
+static EM_BOOL EmscriptenResize(
+	int event_type, const EmscriptenUiEvent* ui_event, void* window_ptr
+) {
+	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
+	V2_int window_size{ ui_event->windowInnerWidth, ui_event->windowInnerHeight };
+	// TODO: Figure out how to deal with itch.io fullscreen button not changing SDL status to
+	// fullscreen.
+	V2_int screen_size{ get_screen_width(), get_screen_height() };
+	if (window_size == screen_size) {
+		auto device_pixel_ratio{ get_device_pixel_ratio() };
+		window_size = window_size * device_pixel_ratio;
+	}
+	window.SetSize(window_size);
+	return 0;
+}
+
+static void EmscriptenInit(Window& window) {
+	emscripten_set_resize_callback(
+		EMSCRIPTEN_EVENT_TARGET_WINDOW, static_cast<void*>(&window), 0, EmscriptenResize
+	);
+}
+
+void EmscriptenMainLoop(void* application) {
+	auto& app{ *static_cast<Application*>(application) };
+
+	app.Update();
+
+	if (!app.running_) {
+		emscripten_cancel_main_loop();
+	}
+}
+
+#endif
+
+SDLInstance::SDLInstance() {
+#if defined(PTGN_PLATFORM_MACOS) && !defined(__EMSCRIPTEN__)
+	// When using AppleClang, the working directory for the executable is set to $HOME instead of
+	// the executable directory. Therefore, the C++ code corrects the working directory using
+	// std::filesystem so that relative paths work properly.
+	// TODO: Add check that this hasnt happened yet.
+	char path[1024];
+	std::uint32_t size = sizeof(path);
+	std::filesystem::path exe_dir;
+	if (_NSGetExecutablePath(path, &size) == 0) {
+		exe_dir = std::filesystem::path(path).parent_path();
+	} else {
+		std::cout << "Buffer too small to retrieve executable path. Please run "
+					 "the executable from a terminal"
+				  << std::endl;
+		exe_dir = std::getenv("PWD");
+	}
+	std::filesystem::current_path(exe_dir);
+	// TODO: Check if needed:
+	/*CFBundleRef main_bundle = CFBundleGetMainBundle();
+	CFURLRef resources_url = CFBundleCopyResourcesDirectoryURL(main_bundle);
+	char path[PATH_MAX];
+	if (!CFURLGetFileSystemRepresentation(resources_url, TRUE, (UInt8*)path,
+	PATH_MAX)) { std::cout << "Couldn't get file system representation! " <<
+	std::endl;
+	}
+	CFRelease(resources_url);
+	chdir(path);*/
+#endif
+
+	std::uint32_t sdl_flags{ SDL_INIT_VIDEO | SDL_INIT_AUDIO };
+	PTGN_ASSERT(
+		SDL_WasInit(sdl_flags) != sdl_flags, "Cannot reinitialize SDL instance before shutting down"
+	);
+
+	bool sdl_init{ SDL_Init(sdl_flags) };
+	PTGN_ASSERT(sdl_init, SDL_GetError());
+
+#ifdef PTGN_DEBUG
+	PTGN_INFO("Build Type: Debug");
+#else
+	PTGN_INFO("Build Type: Release");
+#endif
+
+	PTGN_INFO("Initialized SDL version: ", FormatSDLVersion(SDL_GetVersion()));
+
+	Renderer::SetGLVersion();
+
+	PTGN_INFO("Initialized SDL_image version: ", FormatSDLVersion(IMG_Version()));
+
+	bool ttf_init{ TTF_Init() };
+
+	PTGN_ASSERT(ttf_init, SDL_GetError());
+
+	PTGN_INFO("Initialized SDL_ttf version: ", FormatSDLVersion(TTF_Version()));
+
+	bool mix_init{ MIX_Init() };
+
+	PTGN_ASSERT(mix_init, SDL_GetError());
+
+	PTGN_INFO("Initialized SDL_mixer version: ", FormatSDLVersion(MIX_Version()));
+}
+
+SDLInstance::~SDLInstance() noexcept {
+	MIX_Quit();
+	PTGN_INFO("Deinitialized SDL_mixer");
+	TTF_Quit();
+	PTGN_INFO("Deinitialized SDL_ttf");
+	SDL_Quit();
+	PTGN_INFO("Deinitialized SDL_image");
+	PTGN_INFO("Deinitialized SDL");
+}
+
+} // namespace impl
+
+Application::Application(const ApplicationConfig& config) :
+	window_{ config.window },
+	renderer_{ window_, events_ },
+	events_{ scenes_ },
+	scenes_{},
+	input_{ window_ },
+	assets_{ renderer_, audio_, font_ },
+	font_{ assets_ },
+	audio_{ assets_ },
+	debug_{} {}
+
+Application::Application(const std::string& title) :
+	Application{ ApplicationConfig{ .window = { .title = title } } } {}
+
+Application::Application(const std::string& title, V2_int window_size) :
+	Application{ ApplicationConfig{ .window = { .title = title, .size = window_size } } } {}
+
+Application::~Application() noexcept {
+	// Requires access to destructors.
+}
+
+void Application::EnterMainLoop() {
+	// Design decision: Latest possible point to show window is right before
+	// loop starts. Comment this if you wish the window to appear hidden for an
+	// indefinite period of time.
+	window_.SetSetting(WindowSetting::Shown);
+	running_ = true;
+
+	renderer_.UpdateDisplayViewport(window_.GetSize(), true);
+
+#ifdef __EMSCRIPTEN__
+	// TODO: Replace with new SDL3 callbacks.
+	impl::EmscriptenInit(window_);
+	emscripten_set_main_loop_arg(
+		impl::EmscriptenMainLoop, this, /*fps=*/0, /*simulateInfiniteLoop=*/true
+	);
+#else
+	while (running_) {
+		Update();
+	}
+#endif
+}
+
+void Application::Update() {
+	debug_.PreUpdate();
+
+	static auto start{ std::chrono::system_clock::now() };
+	static auto end{ std::chrono::system_clock::now() };
+	// Calculate time elapsed during previous frame. Unit: seconds.
+	dt_ = end - start;
+
+	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
+	/*constexpr const float fps{ 60.0f };
+	dt_ = 1.0f / fps;*/
+
+	/*if (elapsed < dt_) {
+		impl::SDLInstance::Delay(to_duration<milliseconds>(secondsf{
+			dt_ - elapsed }));
+	}*/ // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
+	// PTGN_LOG("Dt: ", dt_);
+
+	start = end;
+
+	input_.Update([this](impl::EventBase& e) {
+		renderer_.OnEvent(e);
+
+		events_.Emit(e);
+
+		if (EventDispatcher{ e }.IsType<WindowQuit>()) {
+			running_ = false;
+		}
+	});
+
+	renderer_.BeginFrame();
+	scenes_.Update(dt());
+
+	audio_.Update();
+
+	debug_.PostUpdate();
+
+	renderer_.EndFrame();
+
+	window_.SwapBuffers();
+
+	end = std::chrono::system_clock::now();
+
+	frame_count_++;
+}
+
+milliseconds Application::TimeSinceStart() const {
+	return milliseconds{ static_cast<milliseconds::rep>(SDL_GetTicks()) };
+	// return std::chrono::duration_cast<milliseconds>(
+	//	std::chrono::steady_clock::now().time_since_epoch()
+	//);
+}
+
+void Application::Stop() {
+	running_ = false;
+}
+
+secondsf Application::dt() const {
+	return dt_;
+}
+
+bool Application::IsRunning() const {
+	return running_;
+}
+
+std::size_t Application::GetFrameCount() const {
+	return frame_count_;
+}
+
+} // namespace ptgn

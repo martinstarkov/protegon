@@ -29,7 +29,7 @@ in vec4 v_Color;
 in vec2 v_TexCoord;
 in vec4 v_Data; // x = texture index
 
-uniform sampler2D u_Texture[{MAX_TEXTURE_SLOTS}];
+uniform sampler2D u_Textures[{MAX_TEXTURE_SLOTS}];
 
 void main() {
 	vec4 texColor = v_Color;
@@ -39,7 +39,7 @@ void main() {
     // Why? https://stackoverflow.com/a/74729081
 	{TEXTURE_SWITCH_BLOCK}
 
-	// v_TexIndex == 0 is the white texture, which should be drawn if tinted transparent.
+	// v_TexIndex == 0 is the white texture, which SHOULD be drawn EVEN IF tinted transparent.
     if (texColor.a <= 0.0f && v_TexIndex != 0.0f)
         discard;
 

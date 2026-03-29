@@ -25,10 +25,10 @@ void main() {
     float angle = atan(uv.y, uv.x);
     if (angle < 0.0f) angle += 2.0f * PI;
 
-    if (direction < 0.0f) angle = 2.0f * PI - angle;
+    if (direction < 0.0f)
+        angle = 2.0f * PI - angle;
 
-    // Check if angle is inside the aperture range [0, aperture]
-    if (angle > aperture)
+    if (aperture < 2.0 * PI && angle > aperture)
         discard;
 
     float distance = ArcDistance(uv);

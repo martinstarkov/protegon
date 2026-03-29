@@ -1,0 +1,139 @@
+#include "tools/debug/debug_system.h"
+
+#include <optional>
+#include <string_view>
+#include <utility>
+#include <variant>
+#include <vector>
+
+#include "core/math/geometry/line.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/shape.h"
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
+#include "renderer/primitives/color.h"
+#include "renderer/primitives/id.h"
+#include "renderer/primitives/texture.h"
+#include "renderer/primitives/vertex.h"
+#include "renderer/renderer.h"
+#include "runtime/asset/asset.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/graphics/camera.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/font.h"
+#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/text.h"
+#include "runtime/scene/scene.h"
+#include "tools/debug/profiling.h"
+#include "tools/debug/stats.h"
+
+namespace ptgn {
+
+DebugContext::DebugContext(RenderContext& render_context) : render_context_{ render_context } {}
+
+void DebugContext::DrawText(
+	std::string_view text_content, Transform transform, Color text_color, FontSize font_size,
+	FontOrKey font, const TextProperties& properties, Origin draw_origin,
+	std::optional<V2_float> text_size, bool hd_text, const std::optional<Camera>& camera
+) {
+	auto hd_scale{ impl::ApplyHDTextScaling(hd_text, transform, render_context_.scene_, camera) };
+
+	auto texture_object{ render_context_.scene_.ctx().asset.CreateTextTextureObject(
+		text_content, text_color, font_size, font, properties, hd_scale
+	) };
+
+	if (!texture_object.has_value()) {
+		return;
+	}
+
+	auto texture_size{ texture_object->GetSize() };
+
+	auto texture_id{ texture_object->operator impl::TextureId() };
+
+	render_context_.temporary_textures_.emplace_back(std::move(*texture_object));
+
+	auto quad_shader{ render_context_.renderer_.GetShader("quad") };
+
+	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
+
+	Rect rect{ text_size.value_or(texture_size) };
+
+	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
+
+	auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
+
+	constexpr bool floor_positions{ true };
+
+	impl::TextureCommand texture_command{ quad_shader,	  texture_id, positions,
+										  color::White,	  tex_coords, debug_blend_mode,
+										  floor_positions };
+
+	debug_commands.emplace_back(texture_command, debug_depth);
+}
+
+void DebugContext::DrawShape(
+	const Shape& shape, Transform transform, Color color, FillStyle fill_style, Origin draw_origin,
+	const std::optional<Camera>& camera
+) {
+	auto shape_draw_commands{ DrawContext::GetShapeDrawCommand(
+		render_context_.renderer_, shape, transform, color, fill_style, draw_origin,
+		debug_blend_mode
+	) };
+
+	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
+
+	if (!shape_draw_commands.has_value()) {
+		return;
+	}
+
+	std::visit(
+		[&](const auto& cmd) { RenderContext::AddDrawCommand(debug_commands, cmd, debug_depth); },
+		*shape_draw_commands
+	);
+}
+
+void DebugContext::DrawLines(
+	const std::vector<V2_float>& points, Color color, float line_width, bool connect_last_to_first,
+	std::optional<Transform> transform, const std::optional<Camera>& camera
+) {
+	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
+
+	constexpr bool floor_positions{ false };
+
+	auto line_draw_commands{ DrawContext::GetLineDrawCommands(
+		points, line_width, transform.value_or(Transform{}), color, debug_blend_mode,
+		connect_last_to_first, floor_positions
+	) };
+
+	RenderContext::AddDrawCommand(debug_commands, line_draw_commands, debug_depth);
+}
+
+void DebugContext::DrawLine(
+	V2_float start, V2_float end, Color color, float line_width, const std::optional<Camera>& camera
+) {
+	DrawShape(Line{ start, end }, {}, color, FillStyle::Hollow(line_width), Origin::Center, camera);
+}
+
+void DebugContext::DrawPoint(V2_float point, Color color, const std::optional<Camera>& camera) {
+	DrawShape(point, {}, color, FillStyle::Hollow(1.0f), Origin::Center, camera);
+}
+
+DebugSystem::DebugSystem() {}
+
+void DebugSystem::PreUpdate() {
+	impl::GetProfiler().timings_.clear();
+}
+
+void DebugSystem::PostUpdate() {
+	// stats.PrintCollisionOverlap();
+	// stats.PrintCollisionIntersect();
+	// stats.PrintCollisionRaycast();
+	// stats.PrintRenderer();
+	// PTGN_LOG("--------------------------------------");
+	// profiler.PrintAll();
+
+	stats.Reset();
+}
+
+} // namespace ptgn
