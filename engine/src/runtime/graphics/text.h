@@ -70,6 +70,7 @@ struct TextOutline {
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(TextOutline, width, color)
 };
 
+/// @brief Only influences multiline text.
 enum class TextJustify {
 	Left   = 0, // TTF_HORIZONTAL_ALIGN_LEFT
 	Center = 1, // TTF_HORIZONTAL_ALIGN_CENTER
@@ -112,6 +113,7 @@ private:
 
 struct TextProperties {
 	FontStyle style{};
+	/// @brief Only influences multiline text.
 	TextJustify justify{};
 	TextLineSkip line_skip{};
 	std::uint32_t wrap_after{ 0 };

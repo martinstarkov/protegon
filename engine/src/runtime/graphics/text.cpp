@@ -120,6 +120,12 @@ void Text::Draw(
 	auto draw_origin{ GetDrawOrigin(text) };
 	auto depth{ GetDepth(text) };
 
+	// NOSONAR
+	// Enable to see outline of text:
+	// entity.GetScene().ctx().debug.DrawShape(
+	//	Rect{ size }, transform, color::Purple, {}, draw_origin
+	//);
+
 	renderer.DrawTexture(
 		text_texture, transform, size, draw_origin, text_tint, depth, tex_coords, blend_mode
 	);
