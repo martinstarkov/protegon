@@ -3,7 +3,6 @@
 #include <filesystem>
 #include <fstream>
 #include <ios>
-#include <iosfwd>
 #include <ostream>
 #include <sstream>
 #include <string>
@@ -23,20 +22,70 @@ std::string FileToString(const path& file) {
 	return buffer.str();
 }
 
-path GetExecutablePath() {
+path GetWorkingDirectory() {
 	return fs::current_path();
-}
-
-path GetExecutableDirectory() {
-	return GetExecutablePath().parent_path();
 }
 
 path MergePaths(const path& pathA, const path& pathB) {
 	return pathA / pathB;
 }
 
+bool IsFilePath(const std::string& s) {
+	if (s.empty()) {
+		return false;
+	}
+
+	// directories must not count as files
+	if (IsDirectoryPath(s)) {
+		return false;
+	}
+
+	path p{ s };
+
+	// extension strongly indicates a file
+	if (p.has_extension()) {
+		return true;
+	}
+
+	// path like "dir/file" (no extension but looks like a file)
+	if (p.has_parent_path()) {
+		return true;
+	}
+
+	return false;
+}
+
+bool IsDirectoryPath(const std::string& s) {
+	if (s.empty()) {
+		return false;
+	}
+
+	path p{ s };
+
+	// explicit directory style
+	if (s.ends_with('/') || s.ends_with('\\')) {
+		return true;
+	}
+
+	// "." or ".."
+	if (s == "." || s == "..") {
+		return true;
+	}
+
+	// has separators but no extension
+	if (p.has_parent_path() && !p.has_extension()) {
+		return true;
+	}
+
+	return false;
+}
+
 bool FileExists(const path& file_path) {
 	return fs::exists(file_path);
+}
+
+bool DirectoryExists(const path& directory_path) {
+	return fs::is_directory(directory_path);
 }
 
 path GetAbsolutePath(const path& relative_file_path) {

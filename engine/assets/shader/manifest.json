@@ -40,6 +40,10 @@
     "vertex": "screen_default",
     "fragment": "screen_grayscale"
   },
+  "isolate_bright": {
+    "vertex": "screen_default",
+    "fragment": "screen_isolate_bright"
+  },
   "inverse_color": {
     "vertex": "screen_default",
     "fragment": "screen_inverse_color"

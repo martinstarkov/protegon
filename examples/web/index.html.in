@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Protegon Examples</title>
+
+  <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+  <header>
+    <div class="bar">
+      <button id="backBtn" class="btn hidden" type="button" aria-label="Back">
+        <span aria-hidden="true">←</span>
+        Back
+      </button>
+
+      <div class="title">
+        <h1>Protegon Examples</h1>
+      </div>
+
+      <nav id="crumbs" class="crumbs" aria-label="Examples path"></nav>
+
+      <div class="spacer"></div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Browser view -->
+    <section id="gridView">
+      <div id="grid"></div>
+    </section>
+
+    <!-- Player view -->
+    <section id="playerView">
+      <div class="playerShell">
+        <iframe id="runner" title="Protegon demo"></iframe>
+      </div>
+    </section>
+  </main>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>

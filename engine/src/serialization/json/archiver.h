@@ -103,9 +103,9 @@ public:
 		}
 	}
 
-	// @return dense_set, sparse_set
+	/// @return dense_set, sparse_set
 	template <typename T>
-	[[nodiscard]] std::vector<ecs::impl::Id> GetSparseSet() const {
+	std::vector<ecs::impl::Id> GetSparseSet() const {
 		if constexpr (JsonDeserializable<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			if (!j.contains(class_name)) {
@@ -120,7 +120,7 @@ public:
 	}
 
 	template <typename T>
-	[[nodiscard]] std::vector<ecs::impl::Id> GetDenseSet() const {
+	std::vector<ecs::impl::Id> GetDenseSet() const {
 		if constexpr (JsonDeserializable<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			if (!j.contains(class_name)) {

@@ -1,0 +1,49 @@
+#pragma once
+
+#include <array>
+
+#include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
+#include "serialization/json/serialize.h"
+
+namespace ptgn {
+
+/// @brief RoundedRect has no rotation center because this can be achieved via using a parent Entity
+/// and positioning it where the origin should be.
+struct RoundedRect {
+	RoundedRect() = default;
+
+	RoundedRect(V2_float min, V2_float max, float radius);
+	RoundedRect(V2_float size, float radius);
+
+	V2_float GetSize() const;
+	float GetRadius() const;
+
+	/// @return Size scaled relative to the transform.
+	V2_float GetSize(Transform transform) const;
+	float GetRadius(Transform transform) const;
+
+	/// @return New transform offset by the draw_origin.
+	[[nodiscard]] Transform Offset(Transform transform, Origin draw_origin) const;
+
+	/// @return Quad vertices relative to the transform where transform.position is taken as the
+	/// rounded rectangle center.
+	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
+	std::array<V2_float, 4> GetLocalQuadVertices() const;
+
+	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform, Origin draw_origin) const;
+
+	/// @return Center relative to the world.
+	V2_float GetCenter(Transform transform) const;
+
+	bool operator==(const RoundedRect&) const = default;
+
+	V2_float min;
+	V2_float max;
+	float radius{ 0.0f };
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(RoundedRect, min, max, radius)
+};
+
+} // namespace ptgn

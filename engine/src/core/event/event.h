@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <concepts>
 #include <type_traits>
 
 #include "core/util/hash.h"
@@ -9,9 +9,6 @@
 namespace ptgn {
 
 class EventDispatcher;
-class EventHandler;
-class Scene;
-class Scripts;
 
 namespace impl {
 
@@ -20,7 +17,7 @@ public:
 	virtual ~EventBase() = default;
 
 private:
-	friend class EventDispatcher;
+	friend class ptgn::EventDispatcher;
 
 	bool event_handled_{ false };
 
@@ -29,60 +26,25 @@ private:
 
 } // namespace impl
 
+/// @brief CRTP base class for strongly-typed events.
 template <typename Derived>
 struct Event : public impl::EventBase {
+public:
+	static constexpr std::size_t TypeId() {
+		return event_id_;
+	}
+
 private:
 	friend class EventDispatcher;
 
-	static constexpr std::size_t event_id_{ Hash(type_name<Derived>()) };
+	static constexpr std::size_t event_id_{ Hash<Derived>() };
 
 	constexpr std::size_t Type() override {
-		return Hash(type_name<Derived>());
+		return event_id_;
 	}
 };
 
-class EventDispatcher {
-public:
-	EventDispatcher(impl::EventBase& e) : e_(e) {}
-
-	template <typename TEvent>
-		requires std::is_base_of_v<impl::EventBase, std::remove_reference_t<TEvent>>
-	EventDispatcher(TEvent&& evt) : e_{ evt } {}
-
-	template <typename TEvent, typename TEventFn>
-	void Dispatch(TEventFn&& fn) {
-		if (e_.event_handled_) {
-			return;
-		}
-		if (e_.Type() != TEvent::event_id_) {
-			return;
-		}
-
-		using TReturn = std::invoke_result_t<TEventFn, TEvent&>;
-
-		if constexpr (std::is_same_v<TReturn, bool>) {
-			if (fn(static_cast<TEvent&>(e_))) {
-				e_.event_handled_ = true;
-			}
-		} else if constexpr (std::is_same_v<TReturn, void>) {
-			fn(static_cast<TEvent&>(e_));
-		}
-	}
-
-private:
-	friend class EventHandler;
-	friend class Scene;
-	friend class Scripts;
-
-	operator impl::EventBase&() const {
-		return e_;
-	}
-
-	bool IsHandled() const {
-		return e_.event_handled_;
-	}
-
-	impl::EventBase& e_;
-};
+template <typename T>
+concept EventType = std::derived_from<T, Event<T>> && std::is_base_of_v<impl::EventBase, T>;
 
 } // namespace ptgn

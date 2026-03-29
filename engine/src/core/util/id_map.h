@@ -1,12 +1,14 @@
 #pragma once
 
-#include <concepts>
 #include <limits>
+#include <utility>
 #include <vector>
+
+#include "core/assert.h"
 
 namespace ptgn {
 
-template <std::integral I, typename T>
+template <typename T>
 struct IdMap {
 	[[nodiscard]] std::size_t Size() const {
 		return dense_.size();
@@ -22,26 +24,26 @@ struct IdMap {
 		data_.clear();
 	}
 
-	void Add(I id, T&& value) {
+	void Add(std::size_t id, T&& value) {
 		if (id >= sparse_.size()) {
-			sparse_.resize(id + 1, std::numeric_limits<I>::max());
+			sparse_.resize(id + 1, std::numeric_limits<std::size_t>::max());
 		}
 
-		if (sparse_[id] == std::numeric_limits<I>::max()) { // new
-			sparse_[id] = static_cast<I>(dense_.size());
+		if (sparse_[id] == std::numeric_limits<std::size_t>::max()) { // new
+			sparse_[id] = dense_.size();
 			dense_.emplace_back(id);
-			data_.emplace_back(value);
+			data_.emplace_back(std::move(value));
 		} else { // overwrite
-			data_[sparse_[id]] = value;
+			data_[sparse_[id]] = std::move(value);
 		}
 	}
 
-	void Add(I id, const T& value) {
+	void Add(std::size_t id, const T& value) {
 		return Add(id, T{ value });
 	}
 
-	void Remove(I id) {
-		if (id >= sparse_.size() || sparse_[id] == std::numeric_limits<I>::max()) {
+	void Remove(std::size_t id) {
+		if (id >= sparse_.size() || sparse_[id] == std::numeric_limits<std::size_t>::max()) {
 			return;
 		}
 
@@ -52,38 +54,38 @@ struct IdMap {
 		data_[idx]	= data_.back();
 
 		sparse_[last] = idx;
-		sparse_[id]	  = std::numeric_limits<I>::max();
+		sparse_[id]	  = std::numeric_limits<std::size_t>::max();
 
 		dense_.pop_back();
 		data_.pop_back();
 	}
 
-	bool Has(I id) const {
-		return id < sparse_.size() && sparse_[id] != std::numeric_limits<I>::max();
+	bool Has(std::size_t id) const {
+		return id < sparse_.size() && sparse_[id] != std::numeric_limits<std::size_t>::max();
 	}
 
-	auto Find(I id) {
+	auto Find(std::size_t id) {
 		return Has(id) ? data_.begin() + sparse_[id] : data_.end();
 	}
 
-	auto Find(I id) const {
+	auto Find(std::size_t id) const {
 		return Has(id) ? data_.begin() + sparse_[id] : data_.end();
 	}
 
-	const T* TryGet(I id) const {
+	const T* TryGet(std::size_t id) const {
 		return Has(id) ? &data_[sparse_[id]] : nullptr;
 	}
 
-	T* TryGet(I id) {
+	T* TryGet(std::size_t id) {
 		return Has(id) ? &data_[sparse_[id]] : nullptr;
 	}
 
-	const T& Get(I id) const {
+	const T& Get(std::size_t id) const {
 		PTGN_ASSERT(Has(id), "Id does not exist in the id map");
 		return data_[sparse_[id]];
 	}
 
-	T& Get(I id) {
+	T& Get(std::size_t id) {
 		PTGN_ASSERT(Has(id), "Id does not exist in the id map");
 		return data_[sparse_[id]];
 	}
@@ -112,9 +114,47 @@ struct IdMap {
 		return data_.cend();
 	}
 
+	struct Item {
+		std::size_t id;
+		T& value;
+	};
+
+	auto Items() {
+		struct Iterator {
+			std::size_t index;
+			IdMap* map;
+
+			Item operator*() const {
+				return { map->dense_[index], map->data_[index] };
+			}
+
+			void operator++() {
+				++index;
+			}
+
+			bool operator!=(const Iterator& other) const {
+				return index != other.index;
+			}
+		};
+
+		struct Range {
+			IdMap* map;
+
+			Iterator begin() {
+				return { 0, map };
+			}
+
+			Iterator end() {
+				return { map->dense_.size(), map };
+			}
+		};
+
+		return Range{ this };
+	}
+
 private:
 	std::vector<std::size_t> dense_;
-	std::vector<I> sparse_;
+	std::vector<std::size_t> sparse_;
 	std::vector<T> data_;
 };
 

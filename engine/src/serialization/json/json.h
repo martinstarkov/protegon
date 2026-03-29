@@ -12,6 +12,8 @@ namespace ptgn {
 
 void SaveJson(const json& j, const path& filepath, bool indent = true);
 
+// Note: Do not brace initialize JSON objects.
+// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 [[nodiscard]] json LoadJson(const path& filepath);
 
 // template <typename T>
@@ -53,8 +55,7 @@ template <typename... Ts>
 struct adl_serializer<std::variant<Ts...>> {
 	static void to_json(json& j, const std::variant<Ts...>& data) {
 		std::visit(
-			[&j](const auto& v) {
-				using T	  = std::decay_t<decltype(v)>;
+			[&j]<typename T>(const T& v) {
 				j["type"] = ptgn::type_name_without_namespaces<T>();
 				j["data"] = v;
 			},

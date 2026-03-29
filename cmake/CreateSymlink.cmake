@@ -1,60 +1,121 @@
-set(PROTEGON_SCRIPT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/scripts" CACHE BOOL "")
+# cmake/CreateSymlink.cmake
+#
+# Provides:
+#   create_symlink(<target> <src_path> <dest_root>)
+#
+# Also acts as a build-time script when invoked via:
+#   cmake -DPTGN_SRC=... -DPTGN_DST=... -P cmake/CreateSymlink.cmake
 
-function(create_resource_symlink TARGET SRC_DIRECTORY DEST_DIRECTORY DIR_NAME)
-  set(SOURCE_DIRECTORY "${SRC_DIRECTORY}/${DIR_NAME}")
-  set(DESTINATION_DIRECTORY "${DEST_DIRECTORY}/${DIR_NAME}")
-  file(TO_NATIVE_PATH "${SOURCE_DIRECTORY}" _src_dir)
-
-  if(MSVC OR XCODE)
-    set(EXE_DEST_DIR "${DEST_DIRECTORY}/$<CONFIG>/${DIR_NAME}")
-    file(TO_NATIVE_PATH "${EXE_DEST_DIR}" _exe_dir)
-
-    if(MSVC)
-      add_custom_command(
-        TARGET ${TARGET}
-        POST_BUILD
-        COMMAND "${PROTEGON_SCRIPT_DIR}/create_link_win.sh" "${_exe_dir}"
-                "${_src_dir}")
-    elseif(XCODE)
-      message("Entering ${TARGET}")
-      message(
-        STATUS "Creating Symlink from ${SOURCE_DIRECTORY} to ${EXE_DEST_DIR}")
-      add_custom_command(
-        TARGET ${TARGET}
-        POST_BUILD
-        COMMAND ln -sf "${SOURCE_DIRECTORY}" "${EXE_DEST_DIR}")
-    endif()
-
-    # This is for distributing the binaries add_custom_command(TARGET ${TARGET}
-    # POST_BUILD COMMAND ${SYMLINK_COMMAND})
+# -----------------------------
+# Build-time script entrypoint
+# -----------------------------
+function(_ptgn_create_link_impl)
+  if(NOT DEFINED PTGN_SRC OR NOT DEFINED PTGN_DST)
+    message(FATAL_ERROR "CreateSymlink.cmake requires -DPTGN_SRC and -DPTGN_DST when run with -P")
   endif()
 
-  if(NOT EXISTS "${DESTINATION_DIRECTORY}")
-    if(NOT EXISTS "${DEST_DIRECTORY}")
-      file(TO_NATIVE_PATH "${DEST_DIRECTORY}" _dst_parent_dir)
-      file(MAKE_DIRECTORY "${_dst_parent_dir}")
-    endif()
-    if(MSVC)
-      file(TO_NATIVE_PATH "${DESTINATION_DIRECTORY}" _dst_dir)
-      execute_process(COMMAND cmd.exe /c mklink /J "${_dst_dir}" "${_src_dir}")
-    elseif(MINGW OR WIN32)
-      file(TO_NATIVE_PATH "${DESTINATION_DIRECTORY}" _dst_dir)
-      message(
-        STATUS
-          "Creating Symlink from ${SOURCE_DIRECTORY} to ${DESTINATION_DIRECTORY}"
-      )
-      execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
-                              "${SOURCE_DIRECTORY}" "${DESTINATION_DIRECTORY}")
-    elseif(APPLE)
-      message(
-        STATUS
-          "Creating Symlink from ${SOURCE_DIRECTORY} to ${DESTINATION_DIRECTORY}"
-      )
-      execute_process(COMMAND ln -sf "${SOURCE_DIRECTORY}"
-                              "${DESTINATION_DIRECTORY}")
-    elseif(UNIX AND NOT APPLE)
-      execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink
-                              "${SOURCE_DIRECTORY}" "${DESTINATION_DIRECTORY}")
-    endif()
+  # Strip accidental surrounding quotes
+  string(REPLACE "\"" "" PTGN_SRC "${PTGN_SRC}")
+  string(REPLACE "\"" "" PTGN_DST "${PTGN_DST}")
+
+  file(TO_CMAKE_PATH "${PTGN_SRC}" _src)
+  file(TO_CMAKE_PATH "${PTGN_DST}" _dst)
+
+  if(NOT EXISTS "${_src}")
+    message(FATAL_ERROR "Symlink source does not exist: '${_src}'")
   endif()
+
+  # If destination already exists, do nothing
+  if(EXISTS "${_dst}")
+    message(STATUS "Symlink/junction exists, skipping: '${_dst}'")
+    return()
+  endif()
+
+  # Ensure parent directory exists
+  get_filename_component(_dst_parent "${_dst}" DIRECTORY)
+  if(NOT EXISTS "${_dst_parent}")
+    file(MAKE_DIRECTORY "${_dst_parent}")
+  endif()
+
+  # Windows: prefer junctions (no admin/dev-mode required)
+  if(WIN32)
+    file(TO_NATIVE_PATH "${_src}" _src_native)
+    file(TO_NATIVE_PATH "${_dst}" _dst_native)
+
+    execute_process(
+      COMMAND cmd.exe /c mklink /J "${_dst_native}" "${_src_native}"
+      RESULT_VARIABLE _rv
+      OUTPUT_VARIABLE _out
+      ERROR_VARIABLE  _err
+    )
+
+    if(NOT _rv EQUAL 0)
+      message(FATAL_ERROR
+        "Failed to create junction:\n"
+        "  dst: ${_dst_native}\n"
+        "  src: ${_src_native}\n"
+        "  exit: ${_rv}\n"
+        "  out: ${_out}\n"
+        "  err: ${_err}\n")
+    endif()
+
+    message(STATUS "Created junction: '${_dst}' -> '${_src}'")
+  else()
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E create_symlink "${_src}" "${_dst}"
+      RESULT_VARIABLE _rv
+      OUTPUT_VARIABLE _out
+      ERROR_VARIABLE  _err
+    )
+
+    if(NOT _rv EQUAL 0)
+      message(FATAL_ERROR
+        "Failed to create symlink:\n"
+        "  dst: ${_dst}\n"
+        "  src: ${_src}\n"
+        "  exit: ${_rv}\n"
+        "  out: ${_out}\n"
+        "  err: ${_err}\n")
+    endif()
+
+    message(STATUS "Created symlink: '${_dst}' -> '${_src}'")
+  endif()
+endfunction()
+
+# If we're being run as a script (-P), do the work and stop.
+if(CMAKE_SCRIPT_MODE_FILE)
+  # Only run if the caller passed PTGN_SRC/PTGN_DST; otherwise it's being included.
+  if(DEFINED PTGN_SRC OR DEFINED PTGN_DST)
+    _ptgn_create_link_impl()
+  endif()
+  return()
+endif()
+
+# -----------------------------
+# Configure-time function
+# -----------------------------
+function(create_symlink TARGET SRC_PATH DEST_ROOT)
+  if(NOT TARGET "${TARGET}")
+    message(AUTHOR_WARNING "${TARGET} is not a target, thus no symlink was added.")
+    return()
+  endif()
+
+  get_filename_component(_name "${SRC_PATH}" NAME)
+  if(_name STREQUAL "" OR _name STREQUAL "." OR _name STREQUAL "..")
+    message(FATAL_ERROR "create_symlink: Could not infer name from SRC_PATH='${SRC_PATH}'")
+  endif()
+
+  # Always link into DEST_ROOT/<name>.
+  # (DEST_ROOT can be a generator expression like $<TARGET_FILE_DIR:...>.)
+  set(_dst "${DEST_ROOT}/${_name}")
+
+  add_custom_command(
+    TARGET "${TARGET}"
+    POST_BUILD
+    COMMAND "${CMAKE_COMMAND}"
+      -DPTGN_SRC:PATH=${SRC_PATH}
+      -DPTGN_DST:PATH=${_dst}
+      -P "${PTGN_ROOT_DIR}/cmake/CreateSymlink.cmake"
+    VERBATIM
+  )
 endfunction()

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <concepts>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <ranges>
@@ -13,8 +14,6 @@
 #include <vector>
 
 #include "core/util/concepts.h"
-
-// TODO: Get rid of stuff that is outdated as of my C++ 20 move.
 
 namespace ptgn {
 
@@ -49,7 +48,7 @@ inline std::size_t Sizeof(const std::vector<T>& vector) {
 
 // @return How many bits the contents of the array take up.
 template <typename T, std::size_t I>
-inline constexpr std::size_t Sizeof(const std::array<T, I>& array) {
+constexpr std::size_t Sizeof(const std::array<T, I>& array) {
 	return sizeof(T) * array.size();
 }
 
@@ -79,23 +78,29 @@ inline const std::vector<Type>& ToVector(const std::vector<Type>& vector) {
 }
 
 template <typename Key, typename Value, typename Hash, typename Pred, typename Alloc>
-[[nodiscard]] inline auto GetKeys(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
+inline auto GetKeys(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
 	return impl::GetElements<Key>(map);
 }
 
 template <typename Key, typename Value, typename Hash, typename Pred, typename Alloc>
-[[nodiscard]] inline auto GetValues(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
+inline auto GetValues(const std::unordered_map<Key, Value, Hash, Pred, Alloc>& map) {
 	return impl::GetElements<Value>(map);
 }
 
 template <typename Key, typename Value, typename Compare, typename Alloc>
-[[nodiscard]] inline auto GetKeys(const std::map<Key, Value, Compare, Alloc>& map) {
+inline auto GetKeys(const std::map<Key, Value, Compare, Alloc>& map) {
 	return impl::GetElements<Key>(map);
 }
 
 template <typename Key, typename Value, typename Compare, typename Alloc>
-[[nodiscard]] inline auto GetValues(const std::map<Key, Value, Compare, Alloc>& map) {
+inline auto GetValues(const std::map<Key, Value, Compare, Alloc>& map) {
 	return impl::GetElements<Value>(map);
+}
+
+/// @brief Checks if a container (map/unordered_map) contains a value
+template <typename MapType, typename ValueType>
+inline bool ValuesContain(const MapType& map, const ValueType& value) {
+	return std::ranges::any_of(map, [&](const auto& pair) { return pair.second == value; });
 }
 
 template <typename T>
@@ -108,6 +113,8 @@ template <typename T, typename Predicate>
 	return std::ranges::find_if(container, std::forward<Predicate>(condition)) != container.end();
 }
 
+/// @brief Combine any number of arrays into one.
+/// @return A new array containing the elements of all array.
 template <typename Type, std::size_t... sizes>
 [[nodiscard]] inline auto ConcatenateArrays(const std::array<Type, sizes>&... arrays) {
 	std::array<Type, (sizes + ...)> result;
@@ -118,6 +125,8 @@ template <typename Type, std::size_t... sizes>
 	return result;
 }
 
+/// @brief Combine more than two vectors into one.
+/// @return A new vector containing the elements of all vectors.
 template <typename T, typename... TArgs>
 [[nodiscard]] inline auto ConcatenateVectors(
 	const std::vector<T>& v1, const std::vector<T>& v2, const TArgs&... vectors
@@ -130,6 +139,8 @@ template <typename T, typename... TArgs>
 	return result;
 }
 
+/// @brief Combine two vectors into one.
+/// @return A new vector containing the elements of both vectors.
 template <typename T>
 [[nodiscard]] inline auto ConcatenateVectors(const std::vector<T>& v1, const std::vector<T>& v2) {
 	std::vector<T> result;
@@ -140,26 +151,39 @@ template <typename T>
 }
 
 template <typename T>
-void VectorRemoveDuplicates(std::vector<T>& v) {
-	std::sort(v.begin(), v.end());
+inline void VectorRemoveDuplicates(std::vector<T>& v) {
+	std::sort(v.begin(), v.end()); // NOSONAR
 	auto last{ std::ranges::unique(v) };
 	v.erase(last.begin(), last.end());
 }
 
-// Swaps vector elements if they both exist in the vector.
+template <typename T, typename Pred>
+inline bool VectorContainsDuplicates(const std::vector<T>& v, Pred pred) {
+	for (std::size_t i = 0; i < v.size(); ++i) {
+		for (std::size_t j = i + 1; j < v.size(); ++j) {
+			if (pred(v[i], v[j])) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+/// Swaps vector elements if they both exist in the vector.
 template <typename T>
 inline void VectorSwapElements(std::vector<T>& v, const T& e1, const T& e2) {
-	auto it1{ std::find(v.begin(), v.end(), e1) };
-	auto it2{ std::find(v.begin(), v.end(), e2) };
+	auto it1{ std::ranges::find(v, e1) };
+	auto it2{ std::ranges::find(v, e2) };
 	if (it1 == v.end() || it2 == v.end()) {
 		return;
 	}
 	std::swap(*it1, *it2);
 }
 
-// Do not emplace if condition is true.
-// @return first True if emplaced, false if condition was met
-//         second Reference to emplaced or existing element.
+/// @brief Do not emplace if condition is true.
+/// @return first True if emplaced, false if condition was met
+///         second Reference to emplaced or existing element.
 template <typename T, typename Predicate, typename... Args>
 inline std::pair<bool, T&> VectorTryEmplaceIf(
 	std::vector<T>& vec, Predicate&& condition, Args&&... args
@@ -172,9 +196,9 @@ inline std::pair<bool, T&> VectorTryEmplaceIf(
 	return { true, vec.emplace_back(std::forward<Args>(args)...) };
 }
 
-// Do not emplace if condition is true.
-// @return first True if emplaced, false if condition was met
-//         second Reference to emplaced or existing element.
+/// @brief Do not emplace if condition is true.
+/// @return first True if emplaced, false if condition was met
+///         second Reference to emplaced or existing element.
 template <typename S, typename T, typename Predicate, typename... Args>
 	requires IsOrDerivedFrom<S, T>
 inline std::pair<bool, T&> VectorTryEmplaceIf(
@@ -188,8 +212,8 @@ inline std::pair<bool, T&> VectorTryEmplaceIf(
 	return { true, vec.emplace_back(std::make_shared<S>(std::forward<Args>(args)...)) };
 }
 
-// @return first True if replaced, false if emplaced.
-//         second Reference to replaced or emplaced element.
+/// @return first True if replaced, false if emplaced.
+///         second Reference to replaced or emplaced element.
 template <typename T, typename Predicate, typename... Args>
 inline std::pair<bool, T&> VectorReplaceOrEmplaceIf(
 	std::vector<T>& vec, Predicate&& condition, Args&&... args
@@ -203,8 +227,8 @@ inline std::pair<bool, T&> VectorReplaceOrEmplaceIf(
 	return { false, vec.emplace_back(std::forward<Args>(args)...) }; // Emplaced.
 }
 
-// @return first True if replaced, false if emplaced.
-//         second Reference to replaced or emplaced element.
+/// @return first True if replaced, false if emplaced.
+///         second Reference to replaced or emplaced element.
 template <typename S, typename T, typename Predicate, typename... Args>
 	requires IsOrDerivedFrom<S, T>
 inline std::pair<bool, std::shared_ptr<T>&> VectorReplaceOrEmplaceIf(
@@ -220,15 +244,15 @@ inline std::pair<bool, std::shared_ptr<T>&> VectorReplaceOrEmplaceIf(
 			 vec.emplace_back(std::make_shared<S>(std::forward<Args>(args)...)) }; // Emplaced.
 }
 
-// @return True if the element was erased from the vector, false otherwise.
+/// @return True if the element was erased from the vector, false otherwise.
 template <typename T, typename Predicate>
-inline bool VectorEraseIf(std::vector<T>& v, Predicate&& condition) {
+inline bool VectorEraseIf(std::vector<T>& v, Predicate condition) {
 	auto before{ v.size() };
 	std::erase_if(v, condition);
 	return v.size() != before;
 }
 
-// @return True if the element was erased from the vector, false otherwise.
+/// @return True if the element was erased from the vector, false otherwise.
 template <typename T>
 inline bool VectorErase(std::vector<T>& v, const T& element) {
 	auto before{ v.size() };
@@ -236,14 +260,14 @@ inline bool VectorErase(std::vector<T>& v, const T& element) {
 	return v.size() != before;
 }
 
-// Subtract elements of b from a.
+/// @brief Subtract elements of b from a.
 template <typename T>
 inline void VectorSubtract(std::vector<T>& a, const std::vector<T>& b) {
 	// Create a hash set of elements in b for fast lookup
 	std::unordered_set<T> b_set(b.begin(), b.end());
 
 	// Erase all elements from a that are in b_set
-	std::erase_if(a, [&b_set](const T& val) { return b_set.count(val) > 0; });
+	std::erase_if(a, [&b_set](const T& val) { return b_set.contains(val); });
 }
 
 } // namespace ptgn

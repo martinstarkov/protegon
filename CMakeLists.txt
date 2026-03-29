@@ -1,20 +1,19 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.28)
 
 project(protegon LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(PROTEGON_DEMOS "Build protegon demos" ON)
-option(PROTEGON_WARNINGS_AS_ERRORS "Treat compiler warnings as errors." OFF)
-option(PROTEGON_DOWNLOAD_SDL "Download prebuilt windows SDL libraries" ON)
-
 include(cmake/SetupProtegon.cmake)
 
-set(PROTEGON_ROOT_DIR
-  "${CMAKE_CURRENT_SOURCE_DIR}"
-  CACHE BOOL "")
+option(PTGN_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+option(PTGN_EXAMPLES "Build protegon examples" ON)
 
-if(PROTEGON_DEMOS)
-  add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/demos")
+set(PTGN_WEB_EXAMPLES "ALL" CACHE STRING
+  "Web examples to build (Emscripten only): ALL=build all examples, or list like basic/hello_world;audio/mixer_demo")
+
+if(PTGN_EXAMPLES)
+  add_subdirectory(examples)
 endif()

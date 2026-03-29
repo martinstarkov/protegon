@@ -1,0 +1,173 @@
+{
+  "creatures": {
+    "category_1": {
+      "radiation resistant": {
+        "good": ["weak ozone layer", "high radiation levels"],
+        "bad": ["little radiation present"]
+      },
+      "radiation sensitive": {
+        "good": ["low radiation levels", "thick ozone layer", "weak sun uv"],
+        "bad": [
+          "weak ozone layer",
+          "high radiation levels",
+          "high solar flare activity"
+        ]
+      }
+    },
+    "category_2": {
+      "carnivore": {
+        "good": ["lots of animals", "native mammals"],
+        "bad": ["no animal life", "poisonous animal life", "lifeless"]
+      },
+      "herbivore": {
+        "good": [
+          "abundant plant life",
+          "rich in vegetation",
+          "plant dominated biosphere"
+        ],
+        "bad": ["no vegetation", "lifeless"]
+      },
+      "photosynthesizer": {
+        "good": [
+          "lifeless",
+          "no animal life",
+          "no plant life",
+          "abundant sunlight"
+        ],
+        "bad": ["dark"]
+      },
+      "omnivore": {
+        "good": [
+          "lots of animals",
+          "native mammals",
+          "abundant plant life",
+          "rich in vegetation"
+        ],
+        "bad": ["lifeless"]
+      }
+    },
+    "category_3": {
+      "weak lungs": {
+        "good": ["highly breathable atmosphere", "high oxygen levels"],
+        "bad": ["no atmosphere", "low oxygen atmosphere", "no oxygen"]
+      },
+      "strong lungs": {
+        "good": [
+          "low oxygen atmosphere",
+          "thin atmosphere",
+          "average oxygen levels"
+        ],
+        "bad": ["no atmosphere", "no oxygen", "high oxygen levels"]
+      },
+      "multi breathing aparatus technology": {
+        "good": [
+          "breathable atmosphere",
+          "no atmosphere",
+          "highly breathable atmosphere",
+          "high oxygen levels",
+          "low oxygen atmosphere",
+          "thin atmosphere",
+          "average oxygen levels"
+        ],
+        "bad": ["test"]
+      }
+    },
+    "category_4": {
+      "low insulation bodies": {
+        "good": [
+          "warm climate",
+          "high surface temperature",
+          "long warm summers"
+        ],
+        "bad": [
+          "extreme cold climate",
+          "frequent snow and ice storms",
+          "long winters",
+          "little warmth on surface"
+        ]
+      },
+      "moderately insulated bodies": {
+        "good": [
+          "temperate climate",
+          "changing seasons",
+          "mild summers",
+          "mild winters"
+        ],
+        "bad": [
+          "boiling atmosphere",
+          "extreme heat",
+          "extreme cold climate",
+          "frequent snow and ice storms"
+        ]
+      },
+      "highly insulated bodies": {
+        "good": [
+          "extreme cold climate",
+          "frequent snow and ice storms",
+          "long winters",
+          "little warmth on surface"
+        ],
+        "bad": [
+          "warm climate",
+          "high surface temperature",
+          "long warm summers",
+          "boiling atmosphere",
+          "extreme heat"
+        ]
+      }
+    },
+    "category_5": {
+      "high water needs": {
+        "good": ["abundance of surface water", "water present on surface"],
+        "bad": ["no water", "desert surface"]
+      },
+      "low water needs": {
+        "good": ["desert surface", "low water presence on surface"],
+        "bad": ["no dry land"]
+      }
+    },
+    "category_6": {
+      "hardy physical form": {
+        "good": [
+          "frequent storms",
+          "frequent earthquakes",
+          "active volcanoes",
+          "moderately stable environment"
+        ],
+        "bad": ["highly stable environment", "highly unstable environment"]
+      },
+      "weak physical form": {
+        "good": [
+          "stable environment",
+          "low storm activity",
+          "low earthequake activity"
+        ],
+        "bad": [
+          "highly unstable environment",
+          "frequent storms",
+          "frequent earthquakes",
+          "active volcanoes"
+        ]
+      },
+      "technologically disaster resistant": {
+        "good": [
+          "highly unstable environment",
+          "frequent storms",
+          "frequent earthquakes",
+          "active volcanoes"
+        ],
+        "bad": ["highly stable environment"]
+      }
+    },
+    "category_7": {
+      "low gravity adapted": {
+        "good": ["low gravity"],
+        "bad": ["high gravity"]
+      },
+      "high gravity adapted": {
+        "good": ["high gravity"],
+        "bad": ["low gravity"]
+      }
+    }
+  }
+}
