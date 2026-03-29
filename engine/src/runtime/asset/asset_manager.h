@@ -34,6 +34,7 @@ class Application;
 class RenderContext;
 class Renderer;
 class AudioSystem;
+class FontSystem;
 class Text;
 class DebugContext;
 
@@ -53,6 +54,35 @@ struct AssetKey {
 
 void AddAssetKey(ecs::Entity asset, std::size_t key_hash, const std::optional<path>& path);
 void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<path>& path);
+
+enum class AssetType {
+	Texture,
+	Audio,
+	Font,
+	Json,
+	Shader,
+	Unknown
+};
+
+std::ostream& operator<<(std::ostream& os, const AssetType& type);
+
+static const std::unordered_map<std::string, AssetType> kExtensionToType{
+	{ ".png", AssetType::Texture }, { ".jpg", AssetType::Texture },
+	{ ".bmp", AssetType::Texture }, { ".gif", AssetType::Texture },
+
+	{ ".ogg", AssetType::Audio },	{ ".mp3", AssetType::Audio },
+	{ ".wav", AssetType::Audio },	{ ".opus", AssetType::Audio },
+
+	{ ".ttf", AssetType::Font },	{ ".otf", AssetType::Font },
+
+	{ ".json", AssetType::Json },
+
+	{ ".glsl", AssetType::Shader }
+};
+
+AssetType GetAssetType(const std::string& ext);
+
+AssetType GetAssetType(const path& asset_path);
 
 } // namespace impl
 
@@ -179,12 +209,14 @@ private:
 	friend class AssetOrKey;
 
 	AssetManager() = delete;
-	AssetManager(Renderer& renderer, AudioSystem& audio);
+	AssetManager(Renderer& renderer, AudioSystem& audio, FontSystem& font);
 	~AssetManager() noexcept						 = default;
 	AssetManager(const AssetManager&)				 = delete;
 	AssetManager& operator=(const AssetManager&)	 = delete;
 	AssetManager(AssetManager&&) noexcept			 = delete;
 	AssetManager& operator=(AssetManager&&) noexcept = delete;
+
+	void Load(std::string_view key, const path& asset_path, impl::AssetType type);
 
 	template <AssetType T>
 	[[nodiscard]] bool Has(std::size_t key_hash) const;
@@ -222,6 +254,7 @@ private:
 
 	Renderer& renderer_;
 	AudioSystem& audio_;
+	FontSystem& font_;
 
 	ecs::Manager manager_;
 

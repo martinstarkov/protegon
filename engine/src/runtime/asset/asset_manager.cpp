@@ -40,6 +40,7 @@
 #ifdef CreateFont
 #undef CreateFont
 #endif
+#include <ostream>
 
 namespace ptgn {
 
@@ -58,11 +59,40 @@ void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<pa
 	AddAssetKey(asset, key_hash, path);
 }
 
+std::ostream& operator<<(std::ostream& os, const AssetType& type) {
+	switch (type) {
+		using enum AssetType;
+		case Texture: return os << "Texture";
+		case Audio:	  return os << "Audio";
+		case Font:	  return os << "Font";
+		case Json:	  return os << "Json";
+		case Shader:  return os << "Shader";
+		default:	  return os << "Unknown";
+	}
+}
+
+AssetType GetAssetType(const std::string& ext) {
+	if (auto it = kExtensionToType.find(ext); it != kExtensionToType.end()) {
+		return it->second;
+	}
+	return AssetType::Unknown;
+}
+
+AssetType GetAssetType(const path& asset_path) {
+	std::string ext{ ToLower(asset_path.extension().string()) };
+
+	PTGN_ASSERT(!ext.empty(), "Asset file extension is missing: ", asset_path.string());
+
+	auto type{ impl::GetAssetType(ext) };
+
+	return type;
+}
+
 } // namespace impl
 
-AssetManager::AssetManager(Renderer& renderer, AudioSystem& audio) :
-	renderer_{ renderer }, audio_{ audio } {
-	// Note: Do not use audio here as it is constructed after asset manager.
+AssetManager::AssetManager(Renderer& renderer, AudioSystem& audio, FontSystem& font) :
+	renderer_{ renderer }, audio_{ audio }, font_{ font } {
+	// Note: Do not use audio or font here as they are constructed after asset manager.
 }
 
 Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
@@ -190,27 +220,32 @@ void AssetManager::LoadDirectory(const path& directory, bool recursive) {
 		", current working directory is: ", GetWorkingDirectory()
 	);
 
-	std::unordered_set<std::size_t> taken_asset_keys;
+	std::unordered_map<impl::AssetType, std::unordered_set<std::size_t>> taken_asset_keys;
 
 	auto process_entry = [&](const fs::directory_entry& entry) {
 		if (!entry.is_regular_file()) {
 			return;
 		}
 
-		const path& filepath = entry.path();
+		const path& asset_path = entry.path();
 
-		// Use filename without extension as key
-		std::string key = filepath.stem().string();
+		// Use filename without extension as key.
+		// This is because including the extension would make
+		// music.mp3 and music.ogg have different keys even though both would be loaded as audio
+		// assets and only the first loaded one could ever be accessed.
+		std::string key = asset_path.stem().string();
 		auto key_hash	= Hash(key);
 
+		auto type{ impl::GetAssetType(asset_path) };
+
 		PTGN_ASSERT(
-			taken_asset_keys.count(key_hash) == 0,
-			"Duplicate asset key detected while loading directory: ", key
+			taken_asset_keys[type].count(key_hash) == 0, "Duplicate ", type,
+			" key detected while loading directory: ", key
 		);
 
-		taken_asset_keys.insert(key_hash);
+		taken_asset_keys[type].insert(key_hash);
 
-		Load(key, filepath);
+		Load(key, asset_path, type);
 	};
 
 	if (recursive) {
@@ -237,19 +272,16 @@ void AssetManager::LoadMany(const path& asset_manifest_file) {
 		"Expected json object, but got something else for assets: ", assets.dump(4)
 	);
 
-	std::unordered_set<std::size_t> taken_asset_keys;
+	std::unordered_map<impl::AssetType, std::unordered_set<std::size_t>> taken_asset_keys;
 
 	for (const auto& [key, asset_variant] : assets.items()) {
 		auto key_hash{ Hash(key) };
 
-		PTGN_ASSERT(
-			taken_asset_keys.count(key_hash) == 0,
-			"Asset key should not be repeated more than once: ", key
-		);
-
-		taken_asset_keys.insert(key_hash);
-
 		if (asset_variant.is_array()) {
+			PTGN_ASSERT(
+				taken_asset_keys[impl::AssetType::Shader].count(key_hash) == 0,
+				"Shader key should not be repeated more than once: ", key
+			);
 			PTGN_ASSERT(
 				asset_variant.size() == 2, "Shader asset array must have exactly two elements"
 			);
@@ -268,9 +300,18 @@ void AssetManager::LoadMany(const path& asset_manifest_file) {
 			"Expected string, but got something else for asset path: ", asset_variant.dump(4)
 		);
 
-		path filepath{ asset_variant.get<std::string>() };
+		path asset_path{ asset_variant.get<std::string>() };
 
-		Load(key, filepath);
+		auto type{ impl::GetAssetType(asset_path) };
+
+		PTGN_ASSERT(
+			taken_asset_keys[type].count(key_hash) == 0, type,
+			" key should not be repeated more than once: ", key
+		);
+
+		taken_asset_keys[type].insert(key_hash);
+
+		Load(key, asset_path);
 	}
 }
 
@@ -291,38 +332,44 @@ void AssetManager::Load(std::string_view key, const ShaderPair& shader_pair) {
 	LoadShader(key, shader_pair, std::nullopt);
 }
 
-void AssetManager::Load(std::string_view key, const path& asset_path) {
+void AssetManager::Load(std::string_view key, const path& asset_path, impl::AssetType type) {
 	PTGN_ASSERT(
-		FileExists(asset_path), "Cannot load non-existent asset file: ", asset_path.string()
+		FileExists(asset_path), "Cannot get non-existent ", type, " file: ", asset_path.string()
 	);
 
-	std::string ext{ ToLower(asset_path.extension().string()) };
+	switch (type) {
+		using enum impl::AssetType;
+		case Texture: LoadTexture(key, asset_path); break;
+		case Audio:	  LoadAudio(key, asset_path); break;
+		case Font:	  LoadFont(key, asset_path); break;
+		case Json:	  LoadJson(key, asset_path); break;
 
-	PTGN_ASSERT(!ext.empty(), "Asset file extension is invalid: ", asset_path.string());
-
-	if (ext == ".png" || ext == ".jpg" || ext == ".bmp" || ext == ".gif") {
-		LoadTexture(key, asset_path);
-	} else if (ext == ".ogg" || ext == ".mp3" || ext == ".wav" || ext == ".opus") {
-		LoadAudio(key, asset_path);
-	} else if (ext == ".ttf" || ext == ".otf") {
-		LoadFont(key, asset_path);
-	} else if (ext == ".json") {
-		LoadJson(key, asset_path);
-	} else if (ext == ".glsl") {
-		if (auto shader_content{ FileToString(asset_path) };
-			!HasVertexAndFragmentShader(shader_content)) {
-			// Skip shader files that don't contain both vertex and fragment shader code since they
-			// can't be loaded as standalone shader assets. This allows for load directory to be
-			// used on directories containing shader files that are meant to be used as part of
-			// shader pairs without causing errors.
-			return;
+		case Shader:  {
+			if (auto shader_content = FileToString(asset_path);
+				!HasVertexAndFragmentShader(shader_content)) {
+				// Skip shader files that don't contain both vertex and fragment shader code since
+				// they can't be loaded as standalone shader assets. This allows for load directory
+				// to be used on directories containing shader files that are meant to be used as
+				// part of shader pairs without causing errors.
+				return;
+			}
+			LoadShader(key, asset_path, std::nullopt);
+			break;
 		}
-		LoadShader(key, asset_path, std::nullopt);
-	} else {
-		PTGN_ERROR(
-			"Attempting to load unsupported file extension from asset file: ", asset_path.string()
-		);
+
+		case Unknown:
+		default:
+			PTGN_ERROR(
+				"Attempting to load unsupported file extension from asset file: ",
+				asset_path.string()
+			);
+			break;
 	}
+}
+
+void AssetManager::Load(std::string_view key, const path& asset_path) {
+	impl::AssetType type{ impl::GetAssetType(asset_path) };
+	Load(key, asset_path, type);
 }
 
 template <typename ResourceComponent>
@@ -392,6 +439,9 @@ std::optional<Texture> AssetManager::GetTexture(std::size_t key_hash) const {
 }
 
 std::optional<Font> AssetManager::GetFont(std::size_t key_hash) const {
+	if (key_hash == 0) {
+		key_hash = HashAsset(font_.default_font_);
+	}
 	return GetAssetImpl<std::shared_ptr<TTF_Font>, Font>(manager_, key_hash);
 }
 
@@ -592,6 +642,9 @@ bool AssetManager::Has<Audio>(std::size_t key_hash) const {
 
 template <>
 bool AssetManager::Has<Font>(std::size_t key_hash) const {
+	if (key_hash == 0) {
+		key_hash = HashAsset(font_.default_font_);
+	}
 	return HasAssetImpl<std::shared_ptr<TTF_Font>>(manager_, key_hash);
 }
 

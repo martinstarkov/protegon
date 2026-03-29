@@ -182,7 +182,7 @@ Application::Application(const ApplicationConfig& config) :
 	events_{ scenes_ },
 	scenes_{},
 	input_{ window_ },
-	assets_{ renderer_, audio_ },
+	assets_{ renderer_, audio_, font_ },
 	font_{ assets_ },
 	audio_{ assets_ },
 	debug_{} {}
