@@ -23,11 +23,11 @@ struct ShapeScene : public Scene {
 
 	std::vector<V2_float> GetStarVertices(int count, float outer_radius, float inner_radius) {
 		std::vector<V2_float> vertices;
-		float angleStep = pi<float> / count; // Half angle between full points
+		float angleStep = kPi / count; // Half angle between full points
 
 		for (int i = 0; i < 2 * count; ++i) {
 			float r		= (i % 2 == 0) ? outer_radius : inner_radius;
-			float theta = i * angleStep - half_pi<float>; // Rotate so the first point is at the top
+			float theta = i * angleStep - kHalfPi; // Rotate so the first point is at the top
 			float x		= r * cos(theta);
 			float y		= r * sin(theta);
 			vertices.push_back({ x, y });

@@ -34,7 +34,7 @@ std::vector<V2_float> GetArcVertices(
 	V2_float center, float radius, float start_angle, float end_angle, bool clockwise
 ) {
 	if (start_angle > end_angle) {
-		end_angle += two_pi<float>;
+		end_angle += kTwoPi;
 	}
 
 	float arc_angle{ end_angle - start_angle };

@@ -67,7 +67,7 @@ public:
 		if (std::abs(w) > cos_of_half) {
 			float a = std::asin(std::sqrt(x * x + y * y + z * z)) * 2.0f;
 			if (w < 0.0f) {
-				return two_pi<float> - a;
+				return kTwoPi - a;
 			}
 			return a;
 		}

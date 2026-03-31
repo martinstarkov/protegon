@@ -55,7 +55,7 @@ float Arc::GetAperture() const {
 
 	// Handle full circle edge case
 	if (NearlyEqual(delta, 0.0f) && !NearlyEqual(start, end)) {
-		return two_pi<float>;
+		return kTwoPi;
 	}
 
 	return delta;
