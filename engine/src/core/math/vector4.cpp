@@ -1,5 +1,6 @@
 #include "core/math/vector4.h"
 
+#include "core/assert.h"
 #include "core/util/concepts.h"
 #include "serialization/json/json.h"
 
@@ -29,13 +30,10 @@ void from_json(const json& j, Vector4<T>& vector) {
 
 template struct Vector4<int>;
 template struct Vector4<float>;
-template struct Vector4<double>;
 
 template void to_json<int>(json&, const Vector4<int>&);
 template void from_json<int>(const json&, Vector4<int>&);
 template void to_json<float>(json&, const Vector4<float>&);
 template void from_json<float>(const json&, Vector4<float>&);
-template void to_json<double>(json&, const Vector4<double>&);
-template void from_json<double>(const json&, Vector4<double>&);
 
 } // namespace ptgn

@@ -228,7 +228,7 @@ Matrix4 Matrix4::Perspective(float fov_x_radians, float aspect_ratio, float fron
 
 Matrix4 Matrix4::Translate(const Matrix4& m, V3_float axes) {
 	Matrix4 result{ m };
-	for (std::size_t i{ 0 }; i < result.size.x; i++) {
+	for (std::size_t i{ 0 }; i < static_cast<std::size_t>(result.size.x); i++) { // NOSONAR
 		result[i + 12] = m[i] * axes.x + m[i + 4] * axes.y + m[i + 8] * axes.z + m[i + 12];
 	}
 	return result;
@@ -266,7 +266,7 @@ Matrix4 Matrix4::Rotate(const Matrix4& matrix, float rotation_radians, V3_float 
 
 	Matrix4 result;
 
-	for (std::size_t i{ 0 }; i < result.size.x; i++) {
+	for (std::size_t i{ 0 }; i < static_cast<std::size_t>(result.size.x); i++) { // NOSONAR
 		result[i + 0] =
 			matrix[i + 0] * rotate[0] + matrix[i + 4] * rotate[4] + matrix[i + 8] * rotate[8];
 		result[i + 4] =
@@ -280,7 +280,7 @@ Matrix4 Matrix4::Rotate(const Matrix4& matrix, float rotation_radians, V3_float 
 
 Matrix4 Matrix4::Scale(const Matrix4& m, V3_float axes) {
 	Matrix4 result;
-	for (std::size_t i{ 0 }; i < result.size.x; i++) {
+	for (std::size_t i{ 0 }; i < static_cast<std::size_t>(result.size.x); i++) { // NOSONAR
 		result[i + 0]  = m[i + 0] * axes.x;
 		result[i + 4]  = m[i + 4] * axes.y;
 		result[i + 8]  = m[i + 8] * axes.z;
@@ -309,7 +309,7 @@ bool Matrix4::ExactlyEquals(const Matrix4& o) const {
 
 Matrix4 Matrix4::operator+(const Matrix4& rhs) {
 	Matrix4 result;
-	for (std::size_t i{ 0 }; i < result.length; i++) {
+	for (std::size_t i{ 0 }; i < result.length; i++) { // NOSONAR
 		result[i] = m_[i] + rhs[i];
 	}
 	return result;
@@ -317,7 +317,7 @@ Matrix4 Matrix4::operator+(const Matrix4& rhs) {
 
 Matrix4 Matrix4::operator-(const Matrix4& rhs) {
 	Matrix4 result;
-	for (std::size_t i{ 0 }; i < result.length; i++) {
+	for (std::size_t i{ 0 }; i < result.length; i++) { // NOSONAR
 		result[i] = m_[i] - rhs[i];
 	}
 	return result;
@@ -326,13 +326,14 @@ Matrix4 Matrix4::operator-(const Matrix4& rhs) {
 Matrix4 Matrix4::operator*(const Matrix4& rhs) {
 	Matrix4 res;
 
-	for (std::size_t col = 0; col < rhs.size.y; ++col) {
-		std::size_t res_stride{ col * res.size.x };
-		std::size_t B_stride{ col * rhs.size.x };
-		for (std::size_t row = 0; row < size.x; ++row) {
+	for (std::size_t col = 0; col < static_cast<std::size_t>(rhs.size.y); ++col) { // NOSONAR
+		std::size_t res_stride{ col * static_cast<std::size_t>(res.size.x) };	   // NOSONAR
+		std::size_t B_stride{ col * static_cast<std::size_t>(rhs.size.x) };		   // NOSONAR
+		for (std::size_t row = 0; row < static_cast<std::size_t>(size.x); ++row) {
 			std::size_t res_index{ row + res_stride };
-			for (std::size_t i{ 0 }; i < rhs.size.x; ++i) {
-				res[res_index] += m_[row + i * size.x] * rhs[i + B_stride];
+			for (std::size_t i{ 0 }; i < static_cast<std::size_t>(rhs.size.x); ++i) { // NOSONAR
+				res[res_index] +=
+					m_[row + i * static_cast<std::size_t>(size.x)] * rhs[i + B_stride];
 			}
 		}
 	}

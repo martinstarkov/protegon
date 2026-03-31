@@ -6,7 +6,6 @@
 #include <iterator>
 #include <limits>
 #include <ostream>
-#include <type_traits>
 
 #include "core/assert.h"
 #include "core/math/tolerance.h"
@@ -23,7 +22,7 @@ class Quaternion;
 
 struct Matrix4 {
 public:
-	constexpr static V2_size size{ 4, 4 };
+	constexpr static V2_int size{ 4, 4 };
 	constexpr static std::size_t length{ size.x * size.y };
 
 	friend void to_json(json& j, const Matrix4& m);
@@ -32,22 +31,23 @@ public:
 
 	friend std::ostream& operator<<(std::ostream& os, const Matrix4& m) {
 		os << "\n";
-		os << std::fixed << std::right << std::setprecision(static_cast<std::streamsize>(3))
-		   << std::setfill(' ') << "[";
-		for (std::size_t i{ 0 }; i < m.size.x; ++i) {
+		os << std::fixed << std::right											// NOSONAR
+		   << std::setprecision(static_cast<std::streamsize>(3))				// NOSONAR
+		   << std::setfill(' ') << "[";											// NOSONAR
+		for (std::size_t i{ 0 }; i < static_cast<std::size_t>(m.size.x); ++i) { // NOSONAR
 			if (i != 0) {
 				os << " ";
 			}
 			os << "[";
-			for (std::size_t j = 0; j < m.size.y; ++j) {
+			for (std::size_t j = 0; j < static_cast<std::size_t>(m.size.y); ++j) { // NOSONAR
 				os << std::setw(9);
 				os << m(i, j);
-				if (j != static_cast<std::size_t>(m.size.y) - 1) {
+				if (j != static_cast<std::size_t>(m.size.y) - 1) { // NOSONAR
 					os << ",";
 				}
 			}
 			os << "]";
-			if (i != static_cast<std::size_t>(m.size.x) - 1) {
+			if (i != static_cast<std::size_t>(m.size.x) - 1) { // NOSONAR
 				// os << ",";
 				os << "\n";
 			}
@@ -102,21 +102,21 @@ public:
 	}
 
 	explicit constexpr Matrix4(float diag) {
-		for (std::size_t x{ 0 }; x < size.x; x++) {
-			m_[x + x * size.x] = diag;
+		for (std::size_t x{ 0 }; x < static_cast<std::size_t>(size.x); x++) {
+			m_[x + x * static_cast<std::size_t>(size.x)] = diag;
 		}
 	}
 
 	[[nodiscard]] constexpr float& operator()(std::size_t x, std::size_t y) {
-		PTGN_ASSERT(x < size.x);
-		PTGN_ASSERT(y < size.y);
-		return m_[x + y * size.x];
+		PTGN_ASSERT(x < static_cast<std::size_t>(size.x));
+		PTGN_ASSERT(y < static_cast<std::size_t>(size.y));
+		return m_[x + y * static_cast<std::size_t>(size.x)];
 	}
 
 	[[nodiscard]] constexpr const float& operator()(std::size_t x, std::size_t y) const {
-		PTGN_ASSERT(x < size.x);
-		PTGN_ASSERT(y < size.y);
-		return m_[x + y * size.x];
+		PTGN_ASSERT(x < static_cast<std::size_t>(size.x));
+		PTGN_ASSERT(y < static_cast<std::size_t>(size.y));
+		return m_[x + y * static_cast<std::size_t>(size.x)];
 	}
 
 	[[nodiscard]] constexpr float& operator[](std::size_t col_major_index) {
@@ -241,9 +241,9 @@ public:
 	[[nodiscard]] inline V4_float operator*(Vector4<U> rhs) {
 		V4_float res;
 
-		for (std::size_t row{ 0 }; row < size.x; ++row) {
-			for (std::size_t i{ 0 }; i < size.y; ++i) {
-				res[row] += m_[row + i * size.x] * rhs[i];
+		for (std::size_t row{ 0 }; row < static_cast<std::size_t>(size.x); ++row) {
+			for (std::size_t i{ 0 }; i < static_cast<std::size_t>(size.y); ++i) {
+				res[row] += m_[row + i * static_cast<std::size_t>(size.x)] * rhs[i];
 			}
 		}
 		return res;
@@ -263,7 +263,7 @@ public:
 	[[nodiscard]] inline Matrix4 operator/(U rhs) {
 		Matrix4 res;
 
-		for (std::size_t i{ 0 }; i < res.length; ++i) {
+		for (std::size_t i{ 0 }; i < res.length; ++i) { // NOSONAR
 			res[i] = m_[i] / static_cast<float>(rhs);
 		}
 		return res;
@@ -271,7 +271,7 @@ public:
 };
 
 template <Arithmetic U>
-[[nodiscard]] inline Matrix4 operator*(U A, const Matrix4& B) {
+[[nodiscard]] inline Matrix4 operator*(U A, const Matrix4& B) { // NOSONAR
 	return B * A;
 }
 
