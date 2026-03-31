@@ -30,7 +30,6 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
 
-
 namespace ptgn {
 
 namespace impl {
@@ -77,8 +76,7 @@ void ParticleEmitterComponent::ResetParticle(V2_float start_position, Particle& 
 
 	if (info.use_random_velocities) {
 		RNG<float> speed_rng{ info.min_speed, info.max_speed };
-		static RNG<float> heading_rng{ 0.0f, two_pi<float> };
-		float angle{ heading_rng() };
+		float angle{ RandomAngleRadians() };
 		V2_float heading{ std::cos(angle), std::sin(angle) };
 		p.velocity = heading * speed_rng();
 	} else {

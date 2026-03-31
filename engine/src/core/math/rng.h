@@ -188,11 +188,29 @@ template <impl::RNGType T = std::int32_t>
 	return rng();
 }
 
-/// @return Random value in the range [0.0, 1.0].
-[[nodiscard]] inline float Random01() {
-	static RNG<float> rng{ 0.0f, 1.0f };
-	return rng();
-}
+[[nodiscard]] std::size_t RandomSize(std::size_t min, std::size_t max);
+
+[[nodiscard]] int RandomInt(int min, int max);
+
+[[nodiscard]] float RandomFloat(float min, float max);
+
+[[nodiscard]] std::uint8_t Random0255();
+
+/// @return Random float in the range [-1.0, 1.0].
+[[nodiscard]] float Random11();
+
+/// @return Random float in the range [0.0, 1.0].
+[[nodiscard]] float Random01();
+
+/// @return True with the given probability, clamped to [0.0, 1.0]. 0.0 means never, 1.0 means
+/// always.
+[[nodiscard]] bool Chance(float probability);
+
+/// @return Random degree angle in the range [0.0, 360.0].
+[[nodiscard]] float RandomAngle();
+
+/// @return Random radian angle in the range [0.0, kTwoPi].
+[[nodiscard]] float RandomAngleRadians();
 
 template <typename Container>
 [[nodiscard]] auto RandomSample(const Container& choices, std::size_t count, bool unique = true) {
