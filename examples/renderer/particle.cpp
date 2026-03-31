@@ -11,10 +11,10 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "renderer/primitives/color.h"
-#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
@@ -55,8 +55,7 @@ public:
 		fixed_info.radius		  = 5.0f;
 		fixed_info.particle_shape = ParticleShape::Circle;
 
-		auto fixed_emitter{ CreateParticleEmitter(*this, fixed_info) };
-		SetPosition(fixed_emitter, position);
+		auto fixed_emitter{ CreateParticleEmitter(*this, position, fixed_info) };
 		fixed_emitter.Start();
 	}
 

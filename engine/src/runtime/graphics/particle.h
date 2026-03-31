@@ -300,7 +300,9 @@ private:
 	static void Update(Scene& scene);
 };
 
-ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info = {});
+ParticleEmitter CreateParticleEmitter(
+	Scene& scene, V2_float position = {}, const ParticleInfo& info = {}
+);
 
 PTGN_REGISTER_DRAWABLE(ParticleEmitter);
 

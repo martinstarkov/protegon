@@ -268,7 +268,7 @@ void ParticleEmitter::Update(Scene& scene) {
 	scene.Refresh();
 }
 
-ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info) {
+ParticleEmitter CreateParticleEmitter(Scene& scene, V2_float position, const ParticleInfo& info) {
 	ParticleEmitter emitter{ scene.CreateEntity() };
 
 	SetDraw<ParticleEmitter>(emitter);
@@ -276,7 +276,7 @@ ParticleEmitter CreateParticleEmitter(Scene& scene, const ParticleInfo& info) {
 	i.info = info;
 	i.manager.Reserve(i.info.max_particles);
 	Show(emitter, false);
-	SetPosition(emitter, {});
+	SetPosition(emitter, position);
 
 	return emitter;
 }
