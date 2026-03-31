@@ -8,7 +8,6 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/geometry/shape.h"
-#include "core/util/span.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {
@@ -45,7 +44,7 @@ Collider& Collider::ResetCollidesWith() {
 }
 
 bool Collider::CanCollideWith(ColliderMask mask) const {
-	return collides_with_masks_.empty() || VectorContains(collides_with_masks_, mask);
+	return collides_with_masks_.empty() || std::ranges::contains(collides_with_masks_, mask);
 }
 
 bool Collider::IsMask(ColliderMask mask) const {
@@ -54,7 +53,7 @@ bool Collider::IsMask(ColliderMask mask) const {
 
 Collider& Collider::AddCollidesWith(ColliderMask mask) {
 	PTGN_ASSERT(
-		!VectorContains(collides_with_masks_, mask),
+		!std::ranges::contains(collides_with_masks_, mask),
 		"Cannot add the same collision mask to a collider more than once"
 	);
 	collides_with_masks_.emplace_back(mask);
@@ -62,7 +61,7 @@ Collider& Collider::AddCollidesWith(ColliderMask mask) {
 }
 
 Collider& Collider::RemoveCollidesWith(ColliderMask mask) {
-	VectorErase(collides_with_masks_, mask);
+	std::erase(collides_with_masks_, mask);
 	return *this;
 }
 
@@ -90,7 +89,7 @@ Collision Collider::SweptWith(Entity other) const {
 }
 
 bool Collider::OverlappedWith(Entity other) const {
-	return VectorContains(overlaps_, other);
+	return std::ranges::contains(overlaps_, other);
 }
 
 void Collider::ResetContainers() {
@@ -122,14 +121,14 @@ void Collider::AddOverlap(Entity other) {
 }
 
 void Collider::AddIntersect(const Collision& collision) {
-	if (VectorContains(intersects_, collision)) {
+	if (std::ranges::contains(intersects_, collision)) {
 		return;
 	}
 	intersects_.emplace_back(collision);
 }
 
 void Collider::AddSweep(const Collision& collision) {
-	if (VectorContains(sweeps_, collision)) {
+	if (std::ranges::contains(sweeps_, collision)) {
 		return;
 	}
 	sweeps_.emplace_back(collision);

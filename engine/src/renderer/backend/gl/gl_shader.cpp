@@ -1,5 +1,6 @@
 #include "renderer/backend/gl/gl_shader.h"
 
+#include <algorithm>
 #include <cmrc/cmrc.hpp>
 #include <cstdint>
 #include <filesystem>
@@ -99,7 +100,9 @@ static std::pair<Header, std::vector<ShaderSpec>> ParseShaderSources(
 	TrimRawStringLiteral(input);
 
 	const auto contains_type = [&sources](auto type) {
-		return VectorFindIf(sources, [type](const ShaderSpec& sts) { return sts.type == type; });
+		return std::ranges::any_of(sources, [type](const ShaderSpec& sts) {
+			return sts.type == type;
+		});
 	};
 
 	// Regex to find: #type <stage> and capture everything until next #type or EOF

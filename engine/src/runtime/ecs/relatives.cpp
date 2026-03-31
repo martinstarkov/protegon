@@ -1,11 +1,11 @@
 #include "runtime/ecs/relatives.h"
 
+#include <algorithm>
 #include <string_view>
 #include <vector>
 
 #include "core/log.h"
 #include "core/util/hash.h"
-#include "core/util/span.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 
@@ -23,14 +23,14 @@ void Children::Add(Entity child, std::optional<std::string_view> name) {
 	if (name.has_value()) {
 		child.Add<ChildKey>(*name);
 	}
-	if (VectorContains(children_, child)) {
+	if (std::ranges::contains(children_, child)) {
 		return;
 	}
 	children_.emplace_back(child);
 }
 
 void Children::Remove(Entity child) {
-	VectorErase(children_, child);
+	std::erase(children_, child);
 	// TODO: Consider adding a use count to ChildKey so it can be removed once an entity is no
 	// longer a child of any other entity.
 }
@@ -61,7 +61,7 @@ bool Children::IsEmpty() const {
 }
 
 bool Children::Has(Entity child) const {
-	return VectorContains(children_, child);
+	return std::ranges::contains(children_, child);
 }
 
 bool Children::Has(std::string_view name) const {

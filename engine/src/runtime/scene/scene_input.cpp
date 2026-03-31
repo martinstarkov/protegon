@@ -288,7 +288,7 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 		const auto& shapes{ entity_shapes.find(entity)->second };
 
 		for (const auto& [shape, shape_entity] : shapes) {
-			if (VectorContains(entities.under_mouse, entity)) {
+			if (std::ranges::contains(entities.under_mouse, entity)) {
 				continue;
 			}
 
@@ -296,7 +296,7 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 
 			if (ptgn::Overlap(mouse_state.position, transform, shape)) {
 				PTGN_ASSERT(
-					!VectorContains(entities.under_mouse, entity),
+					!std::ranges::contains(entities.under_mouse, entity),
 					"Attempting to check same interactive entity under mouse twice"
 				);
 				entities.under_mouse.emplace_back(entity);
@@ -324,9 +324,11 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 
 	auto all{ all_entities };
 
-	VectorSubtract(all, entities.under_mouse);
+	std::erase_if(all, [&entities](const auto& x) {
+		return std::ranges::contains(entities.under_mouse, x);
+	});
 
-	entities.not_under_mouse = all_entities;
+	entities.not_under_mouse = all;
 
 	return entities;
 }
@@ -363,7 +365,7 @@ void SceneInput::UpdateMouseOverStates(
 		if (!e.Has<impl::Scripts>()) {
 			continue;
 		}
-		if (!VectorContains(current, e)) {
+		if (!std::ranges::contains(current, e)) {
 			MouseLeave event;
 			e.Get<impl::Scripts>().Emit(event);
 		}
@@ -746,7 +748,7 @@ void SceneInput::DispatchMouseEvents(
 			continue;
 		}
 
-		if (VectorContains(over, e)) {
+		if (std::ranges::contains(over, e)) {
 			continue;
 		}
 
@@ -876,11 +878,11 @@ void SceneInput::Update() {
 	// Remove deleted cameras.
 
 	std::erase_if(dragging_entities_, [&](const auto& pair) {
-		return !VectorContains(cameras, Entity{ pair.first });
+		return !std::ranges::contains(cameras, Entity{ pair.first });
 	});
 
 	std::erase_if(last_mouse_over_, [&](const auto& pair) {
-		return !VectorContains(cameras, Entity{ pair.first });
+		return !std::ranges::contains(cameras, Entity{ pair.first });
 	});
 
 	scene_.Refresh();

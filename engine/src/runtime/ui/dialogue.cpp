@@ -175,7 +175,7 @@ std::size_t Dialogue::PickRandomIndex() const {
 	std::size_t chosen_index{ index };
 	do {
 		chosen_index = index_rng();
-	} while (VectorContains(used_line_indices, chosen_index));
+	} while (std::ranges::contains(used_line_indices, chosen_index));
 	return chosen_index;
 }
 
@@ -184,7 +184,7 @@ const DialogueLine* Dialogue::GetCurrentDialogueLine() const {
 	PTGN_ASSERT(!used_line_indices.empty());
 	std::size_t current_index = Mod(index, lines.size());
 	PTGN_ASSERT(current_index < lines.size());
-	PTGN_ASSERT(VectorContains(used_line_indices, current_index));
+	PTGN_ASSERT(std::ranges::contains(used_line_indices, current_index));
 	return &lines[current_index];
 }
 
@@ -214,7 +214,7 @@ int Dialogue::GetNewDialogueLine() {
 		default: PTGN_ERROR("Unrecognized dialogue behavior");
 	}
 	PTGN_ASSERT(static_cast<std::size_t>(chosen_index) < lines.size());
-	PTGN_ASSERT(!VectorContains(used_line_indices, static_cast<std::size_t>(chosen_index)));
+	PTGN_ASSERT(!std::ranges::contains(used_line_indices, static_cast<std::size_t>(chosen_index)));
 	used_line_indices.emplace_back(static_cast<std::size_t>(chosen_index));
 	if (lines[static_cast<std::size_t>(chosen_index)].pages.empty()) {
 		return -1;

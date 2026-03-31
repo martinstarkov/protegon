@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <functional>
+#include <ranges>
 #include <vector>
 
 #include "core/assert.h"
@@ -24,7 +25,6 @@
 #include "runtime/physics/collider.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scripting/scripts.h"
 #include "tools/debug/debug_system.h"
 
@@ -295,7 +295,7 @@ std::vector<impl::SweepCollision> CollisionHandler::GetSortedCollisions(
 	auto static_collideables{ GetSweepCandidates(entity1, velocity1, static_tree_) };
 	auto dynamic_collideables{ GetSweepCandidates(entity1, velocity1, dynamic_tree_) };
 
-	auto collideables{ ConcatenateVectors(static_collideables, dynamic_collideables) };
+	auto collideables{ VectorConcat(static_collideables, dynamic_collideables) };
 
 	VectorRemoveDuplicates(collideables);
 
@@ -600,7 +600,7 @@ void CollisionHandler::Update(Scene& scene) {
 		}
 		for (const auto& current : collider.overlaps_) {
 			PTGN_ASSERT(current != entity);
-			if (!VectorContains(collider.previous_overlaps_, current)) {
+			if (!std::ranges::contains(collider.previous_overlaps_, current)) {
 				if (auto scripts{ entity.TryGet<impl::Scripts>() }) {
 					OverlapStart event;
 					event.overlap_entity = current;
@@ -610,7 +610,7 @@ void CollisionHandler::Update(Scene& scene) {
 		}
 		for (const auto& previous : collider.previous_overlaps_) {
 			PTGN_ASSERT(previous != entity);
-			if (!VectorContains(collider.overlaps_, previous)) {
+			if (!std::ranges::contains(collider.overlaps_, previous)) {
 				if (auto scripts{ entity.TryGet<impl::Scripts>() }) {
 					OverlapStop event;
 					event.overlap_entity = previous;

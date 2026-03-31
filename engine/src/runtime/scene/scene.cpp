@@ -205,7 +205,7 @@ void Scene::InternalDraw() {
 			}
 
 			// Frustum culling.
-			/*if (!VectorContains(frustum_objects, drawable)) {
+			/*if (!std::ranges::contains(frustum_objects, drawable)) {
 				continue;
 			}*/
 
@@ -253,7 +253,9 @@ void Scene::InternalDraw() {
 
 			render_target.Bind();
 
-			bool clear_render_target{ !VectorContains(cleared_render_targets, render_target) };
+			bool clear_render_target{
+				!std::ranges::contains(cleared_render_targets, render_target)
+			};
 
 			if (clear_render_target) {
 				render_target.Clear();
@@ -269,7 +271,7 @@ void Scene::InternalDraw() {
 			draw_context.SetViewport(viewport);
 			draw_context.SetViewProjection(cam.GetViewProjection());
 
-			bool clear_camera{ !VectorContains(cleared_cameras, cam) };
+			bool clear_camera{ !std::ranges::contains(cleared_cameras, cam) };
 
 			if (clear_camera) {
 				if (auto clear_color{ cam.GetClearColor() }; clear_color.has_value()) {
