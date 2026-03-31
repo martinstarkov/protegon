@@ -277,9 +277,10 @@ Dropdown& Dropdown::Close(bool close_parents) {
 }
 
 Dropdown CreateDropdown(
-	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape, bool start_open
+	Scene& scene, V2_float position, const std::optional<std::variant<Rect, Circle>>& shape,
+	Origin draw_origin, bool start_open
 ) {
-	Dropdown dropdown_button{ CreateButton(scene, shape) };
+	Dropdown dropdown_button{ CreateButton(scene, position, shape, draw_origin) };
 
 	auto& i{ dropdown_button.Add<impl::DropdownData>() };
 	i.start_open_ = start_open;

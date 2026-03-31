@@ -10,8 +10,6 @@
 #include "platform/input/events.h"
 #include "platform/input/key.h"
 #include "renderer/primitives/color.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
@@ -26,7 +24,7 @@ class ToggleButtonGroupScene : public Scene {
 		const V2_float& position, int number, std::string group_name
 	) {
 		ToggleButton b =
-			CreateToggleButton(*this, V2_int{ 200, 130 }, {}, false)
+			CreateToggleButton(*this, position, V2_int{ 200, 130 }, Origin::TopLeft, {}, false)
 				.SetText(std::to_string(number), color::White)
 				.SetBackgroundColor(color::LightRed)
 				.SetBackgroundColor(color::Red, ButtonState::Hover)
@@ -41,8 +39,6 @@ class ToggleButtonGroupScene : public Scene {
 						std::noboolalpha
 					);
 				});
-		SetPosition(b, position);
-		SetDrawOrigin(b, Origin::TopLeft);
 		return b;
 	}
 

@@ -1,19 +1,18 @@
 
+#include <optional>
 #include <utility>
 
 #include "app/application.h"
 #include "core/log.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "platform/window/window.h"
-#include "renderer/primitives/color.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
-#include "runtime/scene/scene_manager.h"
 #include "runtime/ui/button.h"
 
 using namespace ptgn;
@@ -38,14 +37,14 @@ public:
 		ctx().asset.LoadAudio("press2", "assets/press.ogg");
 
 		auto hover_animation{ CreateAnimation(
-			*this, "animation_hover", V2_int{}, { 3, milliseconds{ 400 }, V2_int{ 253, 167 }, -1 }
+			*this, "animation_hover", {}, { 3, milliseconds{ 400 }, V2_int{ 253, 167 }, -1 }
 		) };
 
 		auto press_animation{ CreateAnimation(
-			*this, "animation_press", V2_int{}, { 3, milliseconds{ 200 }, V2_int{ 253, 167 }, 1 }
+			*this, "animation_press", {}, { 3, milliseconds{ 200 }, V2_int{ 253, 167 }, 1 }
 		) };
 
-		b1 = CreateButton(*this, *GetDisplaySize(press_animation));
+		b1 = CreateButton(*this, {}, *GetDisplaySize(press_animation));
 		b1.SetTexture("idle")
 			.SetAnimation(std::move(hover_animation), ButtonState::Hover)
 			.SetAnimation(std::move(press_animation), ButtonState::Press)
@@ -57,21 +56,20 @@ public:
 		b1.OnPress([]() { PTGN_LOG("Pressed bell!"); });
 
 		auto hover_animation2{ CreateAnimation(
-			*this, "animation_hover2", V2_int{}, { 4, milliseconds{ 400 }, V2_int{ 32, 16 }, -1 }
+			*this, "animation_hover2", {}, { 4, milliseconds{ 400 }, V2_int{ 32, 16 }, -1 }
 		) };
 
 		auto press_animation2{ CreateAnimation(
-			*this, "animation_press2", V2_int{}, { 4, milliseconds{ 200 }, V2_int{ 32, 16 }, 1 }
+			*this, "animation_press2", {}, { 4, milliseconds{ 200 }, V2_int{ 32, 16 }, 1 }
 		) };
 
-		b2 = CreateButton(*this, *GetDisplaySize(press_animation2));
+		b2 = CreateButton(*this, { 0, 200 }, *GetDisplaySize(press_animation2));
 		b2.SetTexture("idle2")
 			.SetAnimation(std::move(hover_animation2), ButtonState::Hover)
 			.SetAnimation(std::move(press_animation2), ButtonState::Press)
 			.SetSound("hover", ButtonState::Hover)
 			.SetSound("press2", ButtonState::Press);
 
-		SetPosition(b2, { 0, 200 });
 		SetScale(b2, 4.0f);
 
 		b2.OnPress([]() { PTGN_LOG("Pressed button!"); });

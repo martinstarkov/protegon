@@ -9,6 +9,7 @@
 
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/time/timer.h"
@@ -274,7 +275,8 @@ public:
 /// @param texture Texture or texture key to be used for the animation.
 /// @param position Where on the screen to place the animation object.
 Animation CreateAnimation(
-	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config
+	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config,
+	Origin draw_origin = Origin::Center
 );
 
 AnimationMap CreateAnimationMap(Scene& scene);

@@ -1322,8 +1322,8 @@ static void ProcessButtonChild(Button button, std::optional<GameObject>& child) 
 }
 
 Button CreateButton(
-	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape, ButtonStyles styles,
-	bool ui_layer
+	Scene& scene, V2_float position, const std::optional<std::variant<Rect, Circle>>& shape,
+	Origin draw_origin, ButtonStyles styles, bool ui_layer
 ) {
 	Button button{ scene.CreateEntity() };
 
@@ -1353,6 +1353,8 @@ Button CreateButton(
 	SetDraw<Button>(button);
 	button.SetShape(shape);
 
+	SetPosition(button, position);
+	SetDrawOrigin(button, draw_origin);
 	SetInteractive(button);
 
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
@@ -1364,8 +1366,10 @@ Button CreateButton(
 	return button;
 }
 
-Button CreateButton(Scene& scene, V2_float position, V2_float size, const ButtonConfig& config) {
-	auto button = CreateButton(scene, size);
+Button CreateButton(
+	Scene& scene, V2_float position, V2_float size, const ButtonConfig& config, Origin draw_origin
+) {
+	auto button = CreateButton(scene, position, size, draw_origin);
 	SetPosition(button, position);
 
 	std::optional<std::variant<Rect, Circle>> shape;
@@ -1499,10 +1503,10 @@ Button CreateButton(Scene& scene, V2_float position, V2_float size, const Button
 
 Button CreateAnimatedButton(
 	Scene& scene, V2_float position, std::optional<V2_float> size,
-	const AnimatedButtonConfig& config
+	const AnimatedButtonConfig& config, Origin draw_origin
 ) {
 	auto hover_animation{
-		CreateAnimation(scene, config.texture_hover, V2_int{}, config.animation_hover)
+		CreateAnimation(scene, config.texture_hover, {}, config.animation_hover)
 	};
 
 	V2_float button_size{ size.or_else([&hover_animation]() {
@@ -1512,8 +1516,7 @@ Button CreateAnimatedButton(
 							  }
 	).value() };
 
-	auto button = CreateButton(scene, button_size);
-	SetPosition(button, position);
+	auto button = CreateButton(scene, position, button_size, draw_origin);
 
 	button.SetTexture(config.texture, ButtonState::Idle);
 
@@ -1534,8 +1537,8 @@ Button CreateAnimatedButton(
 }
 
 ToggleButton CreateToggleButton(
-	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape, ToggleButtonStyles styles,
-	bool toggled
+	Scene& scene, V2_float position, const std::optional<std::variant<Rect, Circle>>& shape,
+	Origin draw_origin, ToggleButtonStyles styles, bool toggled
 ) {
 	ButtonStyles button_styles;
 	button_styles.enabled  = std::move(styles.enabled);
@@ -1543,7 +1546,7 @@ ToggleButton CreateToggleButton(
 
 	ButtonInteractionStyle toggle_style{ std::move(styles.toggled) };
 
-	Button button{ CreateButton(scene, shape, std::move(button_styles)) };
+	Button button{ CreateButton(scene, position, shape, draw_origin, std::move(button_styles)) };
 
 	ToggleButton toggle_button{ button };
 

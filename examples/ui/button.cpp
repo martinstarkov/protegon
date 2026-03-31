@@ -32,7 +32,7 @@ public:
 
 		Origin button_origin{ Origin::Center };
 
-		b1 = CreateButton(*this, V2_int{ 200, 100 })
+		b1 = CreateButton(*this, V2_float{ 0, -150 - 50 }, V2_int{ 200, 100 }, button_origin)
 				 .OnPress([]() { PTGN_LOG("Pressed regular button!"); })
 				 .SetBackgroundShape(V2_int{ 200, 100 })
 				 .SetBackgroundColor(color::Pink)
@@ -42,10 +42,7 @@ public:
 				 .SetSound("hover", ButtonState::Hover)
 				 .SetSound("press", ButtonState::Press);
 
-		SetPosition(b1, V2_float{ 0, -150 - 50 });
-		SetDrawOrigin(b1, button_origin);
-
-		b2 = CreateToggleButton(*this, V2_int{ 200, 100 })
+		b2 = CreateToggleButton(*this, V2_float{ 0, 150 - 50 }, V2_int{ 200, 100 }, button_origin)
 				 .OnPress([]() { PTGN_LOG("Pressed toggle button!"); })
 				 .OnToggle([](bool toggled) {
 					 PTGN_LOG("Toggled button: ", ": ", std::boolalpha, toggled, std::noboolalpha);
@@ -57,8 +54,6 @@ public:
 				 .SetBackgroundColor(color::LightBlue, { ButtonState::Idle, false, true })
 				 .SetBackgroundColor(color::Blue, { ButtonState::Hover, false, true })
 				 .SetBackgroundColor(color::DarkBlue, { ButtonState::Press, false, true });
-		SetPosition(b2, V2_float{ 0, 150 - 50 });
-		SetDrawOrigin(b2, button_origin);
 	}
 
 	void OnUpdate() override {

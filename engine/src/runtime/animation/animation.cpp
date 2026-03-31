@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "core/assert.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/time/timer.h"
@@ -20,7 +21,6 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scripting/scripts.h"
 
 namespace ptgn {
@@ -412,7 +412,8 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 }
 
 Animation CreateAnimation(
-	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config
+	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config,
+	Origin draw_origin
 ) {
 	const auto& assets{ scene.ctx().asset };
 
@@ -425,7 +426,7 @@ Animation CreateAnimation(
 
 	PTGN_ASSERT(config.frame_count > 0, "Cannot create an animation with 0 frames");
 
-	Animation animation{ CreateSprite(scene, resolved_texture, position) };
+	Animation animation{ CreateSprite(scene, resolved_texture, position, draw_origin) };
 
 	auto texture_size{ resolved_texture.GetSize() };
 

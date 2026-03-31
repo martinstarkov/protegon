@@ -15,6 +15,7 @@
 #include "core/log.h"
 #include "core/math/easing.h"
 #include "core/math/geometry/circle.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -641,21 +642,27 @@ private:
 /// @param shape If nullopt, uses the texture size of the button. If no texture is
 /// provided, text size is used. If no text is provided, calls debug assertion.
 Button CreateButton(
-	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape = {},
-	ButtonStyles styles = ButtonStyles{}, bool ui_layer = true
+	Scene& scene, V2_float position = {},
+	const std::optional<std::variant<Rect, Circle>>& shape = {},
+	Origin draw_origin = Origin::Center, ButtonStyles styles = ButtonStyles{}, bool ui_layer = true
 );
 
-Button CreateButton(Scene& scene, V2_float position, V2_float size, const ButtonConfig& config);
+Button CreateButton(
+	Scene& scene, V2_float position, V2_float size, const ButtonConfig& config,
+	Origin draw_origin = Origin::Center
+);
 
 Button CreateAnimatedButton(
 	Scene& scene, V2_float position, std::optional<V2_float> size,
-	const AnimatedButtonConfig& config
+	const AnimatedButtonConfig& config, Origin draw_origin = Origin::Center
 );
 
 /// @param toggled Whether or not the button start in the toggled state.
 ToggleButton CreateToggleButton(
-	Scene& scene, const std::optional<std::variant<Rect, Circle>>& shape = {},
-	ToggleButtonStyles styles = ToggleButtonStyles{}, bool toggled = false
+	Scene& scene, V2_float position = {},
+	const std::optional<std::variant<Rect, Circle>>& shape = {},
+	Origin draw_origin = Origin::Center, ToggleButtonStyles styles = ToggleButtonStyles{},
+	bool toggled = false
 );
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);

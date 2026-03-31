@@ -18,20 +18,23 @@ using namespace ptgn;
 class DropdownScene : public Scene {
 public:
 	Button CreateButton(std::string_view content, const std::function<void()>& on_press) {
-		Button button{ ptgn::CreateButton(*this, {}) };
-		button.SetTextContent(content);
-		button.SetTextColor(color::White);
-		button.SetBackgroundColor(color::Gray);
-		button.SetBackgroundColor(color::LightGray, ButtonState::Hover);
-		button.SetBackgroundColor(color::DarkGray, ButtonState::Press);
-		button.OnPress(on_press);
-		button.SetBorderColor(color::Red);
-		button.SetBorderWidth(3.0f);
+		Button button{ ptgn::CreateButton(*this) };
+		button.SetTextContent(content)
+			.SetTextColor(color::White)
+			.SetBackgroundColor(color::Gray)
+			.SetBackgroundColor(color::LightGray, ButtonState::Hover)
+			.SetBackgroundColor(color::DarkGray, ButtonState::Press)
+			.OnPress(on_press)
+			.SetBorderColor(color::Red)
+			.SetBorderWidth(3.0f);
 		return button;
 	}
 
 	Dropdown CreateDropdown(bool open = false) {
-		Dropdown d = ptgn::CreateDropdown(*this, V2_int{ 200, 100 }, open)
+		Dropdown d = ptgn::CreateDropdown(
+						 *this, -ctx().renderer.GetGameSize() * 0.5f + V2_float{ 400, 200 },
+						 V2_int{ 200, 100 }, Origin::Center, open
+		)
 						 .SetText("Dropdown", color::Yellow)
 						 .SetBackgroundColor(color::Gray)
 						 .SetBackgroundColor(color::LightGray, ButtonState::Hover)
@@ -40,8 +43,6 @@ public:
 						 .SetBorderWidth(3.0f)
 						 .SetButtonSize(V2_float{ 100, 50 })
 						 .SetDropdownDirection(Origin::CenterBottom);
-		// SetDrawOrigin(d, Origin::Center);
-		SetPosition(d, -ctx().renderer.GetGameSize() * 0.5f + V2_float{ 400, 200 });
 		return d;
 	}
 

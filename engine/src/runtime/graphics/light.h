@@ -111,6 +111,6 @@ PTGN_REGISTER_DRAWABLE(Light);
 /// @param position Starting point of the light.
 /// @param properties Optional properties of the light. If not provided, default properties will be
 /// used.
-Light CreateLight(Scene& scene, V2_float position, const LightProperties& properties = {});
+Light CreateLight(Scene& scene, V2_float position = {}, const LightProperties& properties = {});
 
 } // namespace ptgn
