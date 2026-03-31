@@ -13,7 +13,6 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -40,15 +39,15 @@ class HDTextScene : public Scene {
 		SetDepth(sprite, 0.0f);
 
 		text = CreateText(
-			*this, content, color, font_size, {}, TextProperties{ .wrap_after = wrap_after }
+			*this, -2 * stride, content, color, font_size, {}, Origin::Center,
+			TextProperties{ .wrap_after = wrap_after }
 		);
-		SetPosition(text, -2 * stride);
 		text.SetHD(false);
 
 		text_hd = CreateText(
-			*this, content, color, font_size, {}, TextProperties{ .wrap_after = wrap_after }
+			*this, 2 * stride, content, color, font_size, {}, Origin::Center,
+			TextProperties{ .wrap_after = wrap_after }
 		);
-		SetPosition(text_hd, 2 * stride);
 	}
 
 	void OnUpdate() override {

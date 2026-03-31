@@ -37,7 +37,6 @@
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 #include "serialization/json/fwd.h"
@@ -256,7 +255,7 @@ DialogueComponent::DialogueComponent(
 		"Dialogue component must have a non-zero default box size"
 	);
 
-	text_ = GameObject{ CreateText(scene, "") };
+	text_ = GameObject{ CreateText(scene, {}, "") };
 
 	tween_ = GameObject{ CreateTween(scene) };
 

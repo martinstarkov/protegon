@@ -172,7 +172,7 @@ public:
 
 		auto arial = ctx().asset.LoadFont("arial", "assets/Arial.ttf", 72.0f);
 
-		auto text = CreateText(*this, "Hello World", color::Orange, 72.0f, arial, {});
+		auto text = CreateText(*this, {}, "Hello World", color::Orange, 72.0f, arial);
 		text.SetHD(true);
 
 		/*auto button = CreateTextButton(*this, "Press me", color::Black);

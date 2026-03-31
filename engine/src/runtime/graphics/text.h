@@ -255,8 +255,9 @@ private:
 };
 
 Text CreateText(
-	Scene& scene, std::string_view text_content, Color text_color = color::White,
-	FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {}
+	Scene& scene, V2_float position, std::string_view text_content, Color text_color = color::White,
+	FontSize font_size = {}, FontOrKey font = {}, Origin draw_origin = Origin::Center,
+	const TextProperties& properties = {}
 );
 
 PTGN_REGISTER_DRAWABLE(Text);

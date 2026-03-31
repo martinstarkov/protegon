@@ -325,13 +325,15 @@ TextProperties Text::GetProperties() const {
 }
 
 Text CreateText(
-	Scene& scene, std::string_view text_content, Color text_color, FontSize font_size,
-	FontOrKey font, const TextProperties& properties
+	Scene& scene, V2_float position, std::string_view text_content, Color text_color,
+	FontSize font_size, FontOrKey font, Origin draw_origin, const TextProperties& properties
 ) {
 	auto resolved_font{ font.Get(scene.ctx().asset) };
 
 	Text text{ scene.CreateEntity() };
 	text.Add<Texture>();
+	SetPosition(text, position);
+	SetDrawOrigin(text, draw_origin);
 	SetDraw<Text>(text);
 	Show(text, false);
 	text.Add<impl::HDText>();

@@ -33,13 +33,11 @@ struct ShapeAndSpriteScene : public Scene {
 		ctx().asset.Load("combo_meter_arc", "assets/combo_meter_arc.png");
 
 		V2_float combo_meter_pos{ V2_float{ 6, 6 } - game_size / 2.0f };
-		auto text1 = CreateText(*this, "1", color::Black);
-		SetPosition(text1, { 100, 0 });
+		CreateText(*this, { 100, 0 }, "1", color::Black);
 		auto arc_meter = CreateSprite(*this, "combo_meter_arc", combo_meter_pos, Origin::TopLeft);
 		arc			   = CreateArc(*this, {}, 17.0f, start_angle, end_angle, false, color::Red);
 		auto meter	   = CreateSprite(*this, "combo_meter", combo_meter_pos, Origin::TopLeft);
-		auto text2	   = CreateText(*this, "2", color::Black);
-		SetPosition(text2, { 200, 0 });
+		CreateText(*this, { 200, 0 }, "2", color::Black);
 
 		float scale{ 4.0f };
 

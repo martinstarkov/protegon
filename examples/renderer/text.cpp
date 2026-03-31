@@ -14,7 +14,6 @@
 #include "runtime/graphics/font.h"
 #include "runtime/scene/scene.h"
 
-
 using namespace ptgn;
 
 constexpr V2_int game_size{ 800, 800 };
@@ -27,9 +26,10 @@ struct TextScene : public Scene {
 		constexpr float stride{ 44.0f };
 		float font_size{ 30.0f };
 
-		auto text = ptgn::CreateText(*this, content, color, font_size, font_key);
-		SetDrawOrigin(text, Origin::CenterTop);
-		SetPosition(text, { 0.0f, -game_size.y * 0.5f + stride * static_cast<float>(index) });
+		auto text = ptgn::CreateText(
+			*this, { 0.0f, -game_size.y * 0.5f + stride * static_cast<float>(index) }, content,
+			color, font_size, font_key, Origin::CenterTop
+		);
 		return text;
 	}
 

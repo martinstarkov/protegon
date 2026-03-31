@@ -25,7 +25,6 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -155,8 +154,9 @@ Tooltip CreateTooltip(
 		AddChild(tooltip, *instance.bg);
 	}
 
-	instance.text =
-		GameObject{ CreateText(scene, tooltip_properties.content, tooltip_properties.text_color) };
+	instance.text = GameObject{
+		CreateText(scene, {}, tooltip_properties.content, tooltip_properties.text_color)
+	};
 	SetTint(instance.text, color::Transparent);
 	AddChild(tooltip, instance.text);
 

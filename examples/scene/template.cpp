@@ -31,7 +31,7 @@ public:
 		}
 
 		CreateRect(*this, {}, { 100, 100 }, color);
-		CreateText(*this, label, color::White);
+		CreateText(*this, {}, label, color::White);
 	}
 };
 

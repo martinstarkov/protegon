@@ -14,6 +14,7 @@
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
 #include "core/math/geometry/circle.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
@@ -621,8 +622,8 @@ void ButtonBase<Derived>::SetText(
 	auto& scene{ GetScene() };
 
 	text = GameObject{ CreateText(
-		scene, text_content, text_color.value_or(kDefaultButtonTextColor), font_size, font,
-		text_properties
+		scene, {}, text_content, text_color.value_or(kDefaultButtonTextColor), font_size, font,
+		Origin::Center, text_properties
 	) };
 
 	Hide(text);

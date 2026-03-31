@@ -25,7 +25,6 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scripting/script.h"
 
 using namespace ptgn;
@@ -134,7 +133,7 @@ public:
 
 	Tween CreateRectTween(const Color& color, const std::string& name) {
 		auto rect	= CreateRect(*this, V2_float{}, V2_float{}, color, -1.0f, Origin::CenterTop);
-		auto text	= CreateText(*this, name, color::Black);
+		auto text	= CreateText(*this, {}, name, color::Black);
 		Tween tween = CreateTween(*this).During(duration);
 		tween.OnProgress([this](auto e, float progress) { SetProgress(size, e, progress); });
 		AddChild(rect, text, "text");
