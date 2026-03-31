@@ -29,45 +29,45 @@ static void VisitSequenceFunction(const SequenceFunction& func, Entity entity) {
 	);
 }
 
-impl::ScriptSequenceData::ScriptSequenceData(GameObject tween) : tween{ std::move(tween) } {}
+impl::ScriptSequenceData::ScriptSequenceData(GameObject<Tween> tween) : tween{ std::move(tween) } {}
 
 ScriptSequence& ScriptSequence::During(milliseconds duration, SequenceFunction func) {
-	const auto& instance{ Get<impl::ScriptSequenceData>() };
-	Tween{ instance.tween }.During(duration).OnProgress([f = std::move(func)](Entity e, float) {
+	auto& instance{ Get<impl::ScriptSequenceData>() };
+	instance.tween.During(duration).OnProgress([f = std::move(func)](Entity e, float) {
 		VisitSequenceFunction(f, e);
 	});
 	return *this;
 }
 
 ScriptSequence& ScriptSequence::Then(SequenceFunction func) {
-	const auto& instance{ Get<impl::ScriptSequenceData>() };
-	Tween{ instance.tween }
-		.During(milliseconds{ 0 })
-		.OnPointComplete([f = std::move(func)](Entity e) { VisitSequenceFunction(f, e); });
+	auto& instance{ Get<impl::ScriptSequenceData>() };
+	instance.tween.During(milliseconds{ 0 }).OnPointComplete([f = std::move(func)](Entity e) {
+		VisitSequenceFunction(f, e);
+	});
 	return *this;
 }
 
 ScriptSequence& ScriptSequence::Wait(milliseconds duration) {
-	const auto& instance{ Get<impl::ScriptSequenceData>() };
-	Tween{ instance.tween }.During(duration);
+	auto& instance{ Get<impl::ScriptSequenceData>() };
+	instance.tween.During(duration);
 	return *this;
 }
 
 ScriptSequence& ScriptSequence::Repeat(std::int64_t repeats) {
-	const auto& instance{ Get<impl::ScriptSequenceData>() };
-	Tween{ instance.tween }.Repeat(repeats);
+	auto& instance{ Get<impl::ScriptSequenceData>() };
+	instance.tween.Repeat(repeats);
 	return *this;
 }
 
 ScriptSequence& ScriptSequence::MoveOn() {
-	const auto& instance{ Get<impl::ScriptSequenceData>() };
-	Tween{ instance.tween }.IncrementPoint();
+	auto& instance{ Get<impl::ScriptSequenceData>() };
+	instance.tween.IncrementPoint();
 	return *this;
 }
 
 void ScriptSequence::Start(bool force) {
-	const auto& instance{ Get<impl::ScriptSequenceData>() };
-	Tween{ instance.tween }.Start(force);
+	auto& instance{ Get<impl::ScriptSequenceData>() };
+	instance.tween.Start(force);
 }
 
 ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete) {
@@ -76,10 +76,10 @@ ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete) {
 	auto tween{ CreateTween(scene) };
 	AddChild(sequence, tween, "tween");
 
-	const auto& instance{ sequence.Add<impl::ScriptSequenceData>(GameObject{ std::move(tween) }) };
+	auto& instance{ sequence.Add<impl::ScriptSequenceData>(GameObject{ std::move(tween) }) };
 
 	if (destroy_on_complete) {
-		Tween{ instance.tween }.During(milliseconds{ 0 }).OnComplete([](Entity e) {
+		instance.tween.During(milliseconds{ 0 }).OnComplete([](Entity e) {
 			GetParent(e).Destroy();
 		});
 	}

@@ -18,8 +18,8 @@ class Scene;
 namespace impl {
 
 struct ScriptSequenceData {
-	explicit ScriptSequenceData(GameObject tween);
-	GameObject tween;
+	explicit ScriptSequenceData(GameObject<Tween> tween);
+	GameObject<Tween> tween;
 };
 
 } // namespace impl

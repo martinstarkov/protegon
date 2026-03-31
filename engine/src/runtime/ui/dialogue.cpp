@@ -35,6 +35,7 @@
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
@@ -71,9 +72,9 @@ void DialogueWaitScript::OnKeyPressed(Key k) {
 		return;
 	}
 	PTGN_ASSERT(dialogue_component.tween_);
-	if (Tween{ dialogue_component.tween_ }.IsRunning()) {
+	if (dialogue_component.tween_.IsRunning()) {
 		impl::DialogueScrollScript::UpdateText(dialogue_component.text_, 1.0f);
-		Tween{ dialogue_component.tween_ }.Clear();
+		dialogue_component.tween_.Clear();
 		return;
 	}
 	dialogue_component.NextPage();
@@ -223,7 +224,7 @@ int Dialogue::GetNewDialogueLine() {
 }
 
 DialogueComponent::DialogueComponent(
-	Entity parent, const path& json_path, std::variant<GameObject, V2_float> background
+	Entity parent, const path& json_path, std::variant<GameObject<Sprite>, V2_float> background
 ) {
 	json j = LoadJson(json_path);
 	auto& scene{ parent.GetScene() };
@@ -232,7 +233,7 @@ DialogueComponent::DialogueComponent(
 
 	std::visit(
 		[&]<typename T>(T arg) {
-			if constexpr (std::is_same_v<T, GameObject>) {
+			if constexpr (std::is_same_v<T, GameObject<Sprite>>) {
 				background_ = std::move(arg);
 				SetParent(*background_, parent);
 				auto display_size{ GetDisplaySize(*background_) };
@@ -312,7 +313,7 @@ void DialogueComponent::Close() {
 	if (background_.has_value()) {
 		Hide(*background_);
 	}
-	Tween{ tween_ }.Clear();
+	tween_.Clear();
 	RemoveScript<impl::DialogueWaitScript>(text_);
 	current_line_ = 0;
 	current_page_ = 0;
@@ -331,8 +332,8 @@ void DialogueComponent::NextPage() {
 	}
 	auto duration{ page->properties.scroll_duration };
 
-	Tween{ tween_ }.Clear();
-	Tween{ tween_ }.During(duration).AddScript<impl::DialogueScrollScript>().Start();
+	tween_.Clear();
+	tween_.During(duration).AddScript<impl::DialogueScrollScript>().Start();
 }
 
 void DialogueComponent::SetNextDialogue() {
@@ -426,8 +427,8 @@ void DialogueComponent::StartDialogueLine(int dialogue_line_index) {
 	auto page	  = GetCurrentDialoguePage();
 	PTGN_ASSERT(page);
 	auto duration = page->properties.scroll_duration;
-	Tween{ tween_ }.Clear();
-	Tween{ tween_ }.During(duration).AddScript<impl::DialogueScrollScript>().Start();
+	tween_.Clear();
+	tween_.During(duration).AddScript<impl::DialogueScrollScript>().Start();
 	AddScript<impl::DialogueWaitScript>(text_);
 }
 

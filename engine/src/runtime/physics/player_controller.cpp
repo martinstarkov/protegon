@@ -5,7 +5,6 @@
 
 #include "core/assert.h"
 #include "core/event/dispatcher.h"
-#include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -67,8 +66,7 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 		V2_float anim_position;
 		auto duration{ config.animation_duration.value_or(milliseconds{ 1000 }) };
 
-		AnimationMap anim_map{ player.Add<TaggedGameObject<AnimationMap>>(CreateAnimationMap(scene)
-		) };
+		AnimationMap anim_map{ player.Add<GameObject<AnimationMap>>(CreateAnimationMap(scene)) };
 		auto a0 = anim_map.Add(
 			"down", CreateAnimation(
 						scene, texture, anim_position,

@@ -12,6 +12,8 @@
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/graphics/sprite.h"
+#include "runtime/graphics/text.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {
@@ -37,8 +39,8 @@ namespace impl {
 class TooltipData {
 public:
 	std::size_t hash{ 0 };
-	GameObject text;
-	std::optional<GameObject> bg;
+	GameObject<Text> text;
+	std::optional<GameObject<Sprite>> bg;
 
 	milliseconds fade_in_duration{ 250 };
 	milliseconds fade_out_duration{ 250 };

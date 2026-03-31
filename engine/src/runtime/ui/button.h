@@ -32,6 +32,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/font.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/enum.h"
@@ -66,7 +67,7 @@ struct ButtonStyle {
 	std::optional<Color> border_color;
 	std::optional<float> border_width;
 
-	std::optional<GameObject> sprite;
+	std::optional<GameObject<Sprite>> sprite;
 
 	/// @brief Applies to the sprite only.
 	std::optional<Color> sprite_tint;
@@ -74,7 +75,7 @@ struct ButtonStyle {
 	/// @brief Applies to all aspects of the button.
 	std::optional<Color> tint;
 
-	std::optional<GameObject> text;
+	std::optional<GameObject<Text>> text;
 	std::optional<ButtonTextFixedSize> text_fixed_size;
 
 	std::optional<Audio> sound;
@@ -380,7 +381,7 @@ struct ToggleButtonGroupData {
 
 	bool always_active{ true };
 	std::optional<ToggleButtonGroupKey> active;
-	std::vector<std::pair<ToggleButtonGroupKey, GameObject>> buttons;
+	std::vector<std::pair<ToggleButtonGroupKey, GameObject<>>> buttons;
 };
 
 struct ButtonToggled {};
@@ -560,8 +561,9 @@ private:
 	ButtonStyleTuple GetStyle(ButtonStyleState state);
 
 	void SetText(
-		GameObject& text, std::string_view text_content = {}, std::optional<Color> text_color = {},
-		FontSize font_size = {}, FontOrKey font = {}, const TextProperties& text_properties = {}
+		GameObject<Text>& text, std::string_view text_content = {},
+		std::optional<Color> text_color = {}, FontSize font_size = {}, FontOrKey font = {},
+		const TextProperties& text_properties = {}
 	);
 
 	void SetState(InternalButtonState new_state);

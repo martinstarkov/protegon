@@ -13,9 +13,12 @@
 #include "core/util/file.h"
 #include "platform/input/key.h"
 #include "renderer/primitives/color.h"
+#include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/font.h"
+#include "runtime/graphics/sprite.h"
+#include "runtime/graphics/text.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/enum.h"
 #include "serialization/json/fwd.h"
@@ -118,7 +121,7 @@ public:
 	/// @param background Either the sprite that is used as the background or the size of the
 	/// background.
 	DialogueComponent(
-		Entity parent, const path& json_path, std::variant<GameObject, V2_float> background
+		Entity parent, const path& json_path, std::variant<GameObject<Sprite>, V2_float> background
 	);
 
 	Key GetContinueKey() const;
@@ -155,9 +158,9 @@ private:
 
 	[[nodiscard]] static std::string JoinLines(const std::vector<std::string>& lines);
 
-	GameObject tween_;
-	GameObject text_;
-	std::optional<GameObject> background_;
+	GameObject<Tween> tween_;
+	GameObject<Text> text_;
+	std::optional<GameObject<Sprite>> background_;
 
 	Key continue_key_{ Key::Enter };
 

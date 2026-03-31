@@ -12,6 +12,7 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/geometry/circle.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
@@ -48,7 +49,7 @@ bool IsInteractive(Entity entity) {
 }
 
 void AddInteractiveShape(
-	Entity entity, GameObject&& shape, std::optional<std::string_view> shape_id,
+	Entity entity, GameObject<>&& shape, std::optional<std::string_view> shape_id,
 	bool ignore_parent_transform
 ) {
 	IgnoreParentTransform(shape, ignore_parent_transform);
@@ -65,7 +66,7 @@ void AddInteractiveShape(
 }
 
 void SetInteractiveShape(
-	Entity entity, GameObject&& shape, std::optional<std::string_view> shape_id,
+	Entity entity, GameObject<>&& shape, std::optional<std::string_view> shape_id,
 	bool ignore_parent_transform
 ) {
 	ClearInteractiveShapes(entity);

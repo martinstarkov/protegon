@@ -90,7 +90,7 @@ struct Interactive {
 
 	/// Interactive owns that shapes.
 	/// List of entities that can be interacted with. They require a valid Rect / Circle component.
-	std::vector<GameObject> shapes;
+	std::vector<GameObject<>> shapes;
 
 	bool enabled{ true };
 
@@ -157,7 +157,7 @@ void SetInteractive(Entity entity, ComponentState state = ComponentState::Enable
 /// @param ignore_parent_transform If true, the shape's position will be treated as world space
 /// instead of relative to the interactive entity's transform.
 void AddInteractiveShape(
-	Entity interactive_entity, GameObject&& shape, std::optional<std::string_view> shape_id = {},
+	Entity interactive_entity, GameObject<>&& shape, std::optional<std::string_view> shape_id = {},
 	bool ignore_parent_transform = false
 );
 
@@ -169,7 +169,7 @@ void AddInteractiveShape(
 /// @param ignore_parent_transform If true, the shape's position will be treated as world space
 /// instead of relative to the interactive entity's transform.
 void SetInteractiveShape(
-	Entity interactive_entity, GameObject&& shape, std::optional<std::string_view> shape_id = {},
+	Entity interactive_entity, GameObject<>&& shape, std::optional<std::string_view> shape_id = {},
 	bool ignore_parent_transform = false
 );
 

@@ -5,7 +5,6 @@
 #include <optional>
 #include <string_view>
 #include <unordered_map>
-#include <variant>
 
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
@@ -13,7 +12,6 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/time/timer.h"
-#include "renderer/primitives/texture.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
@@ -186,7 +184,7 @@ public:
 	AnimationMapData& operator=(const AnimationMapData&)	 = delete;
 
 	AnimationMapKey active;
-	std::unordered_map<AnimationMapKey, GameObject> animations;
+	std::unordered_map<AnimationMapKey, GameObject<Animation>> animations;
 };
 
 } // namespace impl

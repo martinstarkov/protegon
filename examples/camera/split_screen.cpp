@@ -20,7 +20,6 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"

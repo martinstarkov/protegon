@@ -402,7 +402,7 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 
 	// Hide and pause old active animation.
 	Hide(prev_active->second, false);
-	Animation{ prev_active->second }.Pause();
+	prev_active->second.Pause();
 
 	auto it{ info.animations.find(key) };
 

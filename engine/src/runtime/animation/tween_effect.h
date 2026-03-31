@@ -86,8 +86,8 @@ struct ShakeEffect {
 };
 
 template <typename TComponent>
-struct EffectObject : public TaggedGameObject<TComponent> {
-	using TaggedGameObject<TComponent>::TaggedGameObject;
+struct EffectObject : public GameObject<> {
+	using GameObject<>::GameObject;
 };
 
 } // namespace impl

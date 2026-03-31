@@ -6,37 +6,33 @@
 
 namespace ptgn {
 
-/// Owning version of an entity handle.
-class GameObject : public Entity {
+/// @brief Owning version of an entity handle.
+template <EntityType T = Entity>
+class GameObject : public T {
 public:
 	GameObject() = default;
 
-	explicit GameObject(Entity&& entity) : Entity{ std::move(entity) } {}
+	explicit GameObject(T&& entity) : T{ std::move(entity) } {}
 
 	~GameObject() noexcept {
 		Entity::Destroy();
 	}
 
 	GameObject(GameObject&& other) noexcept :
-		Entity{ std::exchange(static_cast<Entity&>(other), Entity{}) } {}
+		T{ std::exchange(static_cast<Entity&>(other), Entity{}) } {}
 
 	GameObject& operator=(GameObject&& other) noexcept {
 		if (this != &other) {
 			Entity::Destroy();
-			Entity::operator=(std::move(other));
+			T::operator=(std::move(other));
 		}
 		return *this;
 	}
 
 	GameObject(const GameObject&)			 = delete;
 	GameObject& operator=(const GameObject&) = delete;
-};
 
-/// @brief For situations where a game object needs to be added to an entity as a unique component.
-template <typename T>
-class TaggedGameObject : public GameObject {
-public:
-	using GameObject::GameObject;
+	using T::T;
 };
 
 } // namespace ptgn

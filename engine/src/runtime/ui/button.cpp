@@ -27,7 +27,6 @@
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
@@ -59,7 +58,9 @@ void ButtonAnimationCompleteScript::OnEvent(EventDispatcher d) {
 	});
 }
 
-static void AddAnimationCompleteCallback(const Button& button, std::optional<GameObject>& child) {
+static void AddAnimationCompleteCallback(
+	const Button& button, std::optional<GameObject<Sprite>>& child
+) {
 	if (child.has_value()) {
 		PTGN_ASSERT(
 			!HasScript<ButtonAnimationCompleteScript>(*child),
@@ -575,7 +576,7 @@ Derived& ButtonBase<Derived>::SetAnimation(Animation&& animation, ButtonStyleSta
 	auto [_1, _2, desired] = GetStyle(state);
 	Hide(animation);
 	SetParent(animation, *this);
-	desired.sprite = GameObject{ std::move(animation) };
+	desired.sprite = GameObject<Sprite>{ std::move(animation) };
 	impl::AddAnimationCompleteCallback(Button{ *this }, desired.sprite);
 	return Self();
 }
@@ -616,12 +617,12 @@ Derived& ButtonBase<Derived>::SetBackgroundColor(
 
 template <typename Derived>
 void ButtonBase<Derived>::SetText(
-	GameObject& text, std::string_view text_content, std::optional<Color> text_color,
+	GameObject<Text>& text, std::string_view text_content, std::optional<Color> text_color,
 	FontSize font_size, FontOrKey font, const TextProperties& text_properties
 ) {
 	auto& scene{ GetScene() };
 
-	text = GameObject{ CreateText(
+	text = GameObject<Text>{ CreateText(
 		scene, {}, text_content, text_color.value_or(kDefaultButtonTextColor), font_size, font,
 		Origin::Center, text_properties
 	) };
@@ -648,7 +649,7 @@ Derived& ButtonBase<Derived>::SetText(
 		Text::SetParameter(*desired.text, font_size, false);
 		Text::SetProperties(*desired.text, text_properties, true);
 	} else {
-		desired.text = GameObject{};
+		desired.text = GameObject<Text>{};
 		SetText(*desired.text, text_content, text_color, font_size, font, text_properties);
 	}
 	return Self();
@@ -681,9 +682,9 @@ template <typename Derived>
 Derived& ButtonBase<Derived>::SetTextColor(Color text_color, ButtonStyleState state) {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
 	if (desired.text.has_value()) {
-		Text{ *desired.text }.SetColor(text_color);
+		desired.text->SetColor(text_color);
 	} else {
-		desired.text = GameObject{};
+		desired.text = GameObject<Text>{};
 		SetText(*desired.text, {}, text_color);
 	}
 	return Self();
@@ -704,9 +705,9 @@ Derived& ButtonBase<Derived>::SetTextContent(
 ) {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
 	if (desired.text.has_value()) {
-		Text{ *desired.text }.SetContent(text_content);
+		desired.text->SetContent(text_content);
 	} else {
-		desired.text = GameObject{};
+		desired.text = GameObject<Text>{};
 		SetText(*desired.text, text_content);
 	}
 	return Self();
@@ -725,11 +726,11 @@ template <typename Derived>
 Derived& ButtonBase<Derived>::SetTextJustify(TextJustify justify, ButtonStyleState state) {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
 	if (desired.text.has_value()) {
-		Text{ *desired.text }.SetJustify(justify);
+		desired.text->SetJustify(justify);
 	} else {
 		TextProperties text_properties;
 		text_properties.justify = justify;
-		desired.text			= GameObject{};
+		desired.text			= GameObject<Text>{};
 		SetText(*desired.text, {}, {}, {}, {}, text_properties);
 	}
 	return Self();
@@ -765,9 +766,9 @@ template <typename Derived>
 Derived& ButtonBase<Derived>::SetFontSize(FontSize font_size, ButtonStyleState state) {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
 	if (desired.text.has_value()) {
-		Text{ *desired.text }.SetFontSize(font_size);
+		desired.text->SetFontSize(font_size);
 	} else {
-		desired.text = GameObject{};
+		desired.text = GameObject<Text>{};
 		SetText(*desired.text, {}, {}, font_size);
 	}
 	return Self();
@@ -808,7 +809,7 @@ Derived& ButtonBase<Derived>::SetTexture(
 		return Self();
 	}
 	if (desired.sprite.has_value()) {
-		Sprite{ *desired.sprite }.SetTexture(*texture);
+		desired.sprite->SetTexture(*texture);
 	} else {
 		auto& scene{ GetScene() };
 		desired.sprite = GameObject{ CreateSprite(scene, *texture) };
@@ -1171,7 +1172,7 @@ void ToggleButtonGroup::SetAlwaysOneActive(
 			PTGN_ASSERT(
 				std::ranges::contains(
 					info.buttons, impl::ToggleButtonGroupKey{ *button_key },
-					&std::pair<impl::ToggleButtonGroupKey, GameObject>::first
+					&std::pair<impl::ToggleButtonGroupKey, GameObject<>>::first
 				),
 				"Cannot set always active button key until it has been added to the toggle button "
 				"group"
@@ -1198,7 +1199,7 @@ ToggleButton ToggleButtonGroup::Add(std::string_view button_key, ToggleButton&& 
 	toggle_button.Add<impl::ToggleButtonGroupKey>(key);
 
 	auto it = std::ranges::find(
-		info.buttons, key, &std::pair<impl::ToggleButtonGroupKey, GameObject>::first
+		info.buttons, key, &std::pair<impl::ToggleButtonGroupKey, GameObject<>>::first
 	);
 
 	ToggleButton btn;
@@ -1210,7 +1211,7 @@ ToggleButton ToggleButtonGroup::Add(std::string_view button_key, ToggleButton&& 
 		btn = ToggleButton{ obj };
 		AddToggleScript(btn);
 	} else {
-		it->second = GameObject{ std::move(toggle_button) };
+		it->second = GameObject{ std::move(Entity{ toggle_button }) };
 		AddToggleScript(ToggleButton{ it->second });
 		btn = ToggleButton{ it->second };
 	}
@@ -1231,7 +1232,7 @@ void ToggleButtonGroup::Remove(std::string_view button_key) {
 	impl::ToggleButtonGroupKey key{ button_key };
 
 	auto it = std::ranges::find(
-		info.buttons, key, &std::pair<impl::ToggleButtonGroupKey, GameObject>::first
+		info.buttons, key, &std::pair<impl::ToggleButtonGroupKey, GameObject<>>::first
 	);
 
 	if (it != info.buttons.end()) {
@@ -1255,7 +1256,7 @@ std::optional<ToggleButton> ToggleButtonGroup::GetActive() const {
 	}
 
 	auto it = std::ranges::find(
-		info.buttons, info.active, &std::pair<impl::ToggleButtonGroupKey, GameObject>::first
+		info.buttons, info.active, &std::pair<impl::ToggleButtonGroupKey, GameObject<>>::first
 	);
 
 	if (it == info.buttons.end()) {
@@ -1293,7 +1294,7 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	info.active = key;
 
 	auto it = std::ranges::find(
-		info.buttons, info.active, &std::pair<impl::ToggleButtonGroupKey, GameObject>::first
+		info.buttons, info.active, &std::pair<impl::ToggleButtonGroupKey, GameObject<>>::first
 	);
 
 	PTGN_ASSERT(
@@ -1314,7 +1315,8 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	}
 }
 
-static void ProcessButtonChild(Button button, std::optional<GameObject>& child) {
+template <EntityType T>
+static void ProcessButtonChild(Button button, std::optional<GameObject<T>>& child) {
 	if (child.has_value()) {
 		Hide(*child);
 		SetParent(*child, button);

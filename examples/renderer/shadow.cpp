@@ -32,7 +32,6 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -47,7 +46,7 @@ namespace impl {
 struct LightMapInstance {
 	// Entities which will form the shadow segments.
 	std::vector<Entity> shadow_entities;
-	std::vector<PointLight> light_entities;
+	std::vector<Light> light_entities;
 	// TODO: Draw lights to this render target, and then draw shadows on top.
 	GameObject<RenderTarget> light_render_target;
 	bool hide_shadow_entities{ false };
