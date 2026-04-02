@@ -363,8 +363,8 @@ private:
 
 class Scene {
 public:
-	Scene();
-	virtual ~Scene();
+	Scene()			 = default;
+	virtual ~Scene() = default;
 
 	/// @brief Called when the scene is added to active scenes.
 	virtual void OnEnter() {

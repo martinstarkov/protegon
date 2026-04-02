@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <list>
 #include <memory>
-#include <optional>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -16,6 +15,7 @@
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
+#include "core/util/concepts.h"
 #include "core/util/span.h"
 #include "ecs/ecs.h"
 #include "renderer/primitives/blend_mode.h"
@@ -113,10 +113,6 @@ std::size_t SceneContext::GetFrameCount() const {
 	return app_.GetFrameCount();
 }
 
-Scene::Scene() {}
-
-Scene::~Scene() {}
-
 void Scene::Init(Application& app) {
 	ctx_ = std::make_unique<SceneContext>(app, *this);
 
@@ -185,6 +181,97 @@ static void InvokeDrawable(DrawContext& draw_context, Entity entity, Camera came
 	draw_function(draw_context, entity, camera);
 }
 
+static void SortDrawCommands(std::vector<impl::DrawCommand>& draw_commands) {
+	std::ranges::stable_sort(
+		draw_commands,
+		[&](const impl::DrawCommand& a, const impl::DrawCommand& b) {
+			const bool a_is_entity = std::holds_alternative<Entity>(a.payload);
+			const bool b_is_entity = std::holds_alternative<Entity>(b.payload);
+
+			// If only one is an Entity, it comes first
+			if (a_is_entity != b_is_entity) {
+				return !a_is_entity; // false -> a comes first
+			}
+
+			// For consecutive entity draw commands with the same depth, we sort them by
+			// reverse creation order (logic explained below).
+			if (a_is_entity && b_is_entity && a.depth == b.depth) {
+				return !std::get<Entity>(a.payload).WasCreatedBefore(std::get<Entity>(b.payload));
+			}
+
+			// Sorting in reverse depth order so that we can iterate backwards and
+			// prioritize entities drawing before manual draw commands.
+			return a.depth >= b.depth;
+		}
+	);
+}
+
+struct ClearedEntities {
+	std::vector<RenderTarget>& render_targets;
+	std::vector<Camera>& cameras;
+};
+
+template <
+	typename T, InvocableR<void, std::vector<T>&> F,
+	InvocableR<void, DrawContext&, const std::vector<T>&, Camera> D>
+static void DrawCommands(
+	std::vector<std::pair<Camera, std::vector<T>>>& commands, DrawContext& draw_context,
+	const RenderTarget& scene_render_target, ClearedEntities cleared, V2_int game_size,
+	F&& sort_func, D&& draw_func
+) {
+	PTGN_ASSERT((!VectorContainsDuplicates(commands, [](const auto& c1, const auto& c2) {
+		return c1.first == c2.first;
+	})));
+
+	impl::EntityDepthCompare compare{ true };
+
+	std::ranges::sort(commands, [&](const auto& a, const auto& b) {
+		return compare(a.first, b.first);
+	});
+
+	for (auto& [cam, cmds] : commands) {
+		RenderTarget render_target;
+
+		if (auto parent_rt = cam.template TryGet<impl::ParentRenderTarget>()) {
+			render_target = parent_rt->render_target;
+		} else {
+			render_target = scene_render_target;
+		}
+
+		render_target.Bind();
+
+		if (bool clear_render_target{
+				!std::ranges::contains(cleared.render_targets, render_target) };
+			clear_render_target) {
+			render_target.Clear();
+			cleared.render_targets.emplace_back(render_target);
+		}
+
+		auto rt_size{ render_target.GetSize() };
+		V2_float scale{ V2_float{ rt_size } / game_size };
+
+		auto viewport{ cam.GetViewport() };
+		viewport.position = viewport.position * scale;
+		viewport.size	  = viewport.size * scale;
+		draw_context.SetViewport(viewport);
+		draw_context.SetViewProjection(cam.GetViewProjection());
+
+		if (bool clear_camera{ !std::ranges::contains(cleared.cameras, cam) }; clear_camera) {
+			if (auto clear_color{ cam.GetClearColor() }; clear_color.has_value()) {
+				draw_context.SetScissor(ScissorState{ viewport });
+				render_target.Clear(*clear_color, false);
+				draw_context.SetScissor(ScissorState{ false });
+				cleared.cameras.emplace_back(cam);
+			}
+		}
+
+		sort_func(cmds);
+
+		draw_func(draw_context, cmds, cam);
+	}
+	commands.clear();
+}
+
 void Scene::InternalDraw() {
 	auto game_size{ ctx().renderer.GetGameSize() };
 
@@ -226,98 +313,15 @@ void Scene::InternalDraw() {
 		}
 	}
 
-	impl::EntityDepthCompare compare{ true };
-
 	DrawContext draw_context{ ctx().global_renderer_ };
 
 	std::vector<Camera> cleared_cameras;
 	std::vector<RenderTarget> cleared_render_targets;
 
-	const auto draw_commands = [&](auto& commands, const auto& sort_func, const auto& draw_func) {
-		PTGN_ASSERT((!VectorContainsDuplicates(commands, [](const auto& c1, const auto& c2) {
-			return c1.first == c2.first;
-		})));
-
-		std::ranges::sort(commands, [&](const auto& a, const auto& b) {
-			return compare(a.first, b.first);
-		});
-
-		for (auto& [cam, cmds] : commands) {
-			RenderTarget render_target;
-
-			if (auto parent_rt = cam.template TryGet<impl::ParentRenderTarget>()) {
-				render_target = parent_rt->render_target;
-			} else {
-				render_target = render_target_;
-			}
-
-			render_target.Bind();
-
-			bool clear_render_target{
-				!std::ranges::contains(cleared_render_targets, render_target)
-			};
-
-			if (clear_render_target) {
-				render_target.Clear();
-				cleared_render_targets.emplace_back(render_target);
-			}
-
-			auto rt_size{ render_target.GetSize() };
-			V2_float scale{ V2_float{ rt_size } / game_size };
-
-			auto viewport{ cam.GetViewport() };
-			viewport.position = viewport.position * scale;
-			viewport.size	  = viewport.size * scale;
-			draw_context.SetViewport(viewport);
-			draw_context.SetViewProjection(cam.GetViewProjection());
-
-			bool clear_camera{ !std::ranges::contains(cleared_cameras, cam) };
-
-			if (clear_camera) {
-				if (auto clear_color{ cam.GetClearColor() }; clear_color.has_value()) {
-					draw_context.SetScissor(ScissorState{ viewport });
-					render_target.Clear(*clear_color, false);
-					draw_context.SetScissor(ScissorState{ false });
-					cleared_cameras.emplace_back(cam);
-				}
-			}
-
-			sort_func(cmds);
-
-			draw_func(cmds, cam);
-		}
-		commands.clear();
-	};
-
-	draw_commands(
-		ctx().renderer.draw_commands_,
-		[](auto& cmds) {
-			std::ranges::stable_sort(
-				cmds,
-				[&](const impl::DrawCommand& a, const impl::DrawCommand& b) {
-					const bool a_is_entity = std::holds_alternative<Entity>(a.payload);
-					const bool b_is_entity = std::holds_alternative<Entity>(b.payload);
-
-					// If only one is an Entity, it comes first
-					if (a_is_entity != b_is_entity) {
-						return !a_is_entity; // false -> a comes first
-					}
-
-					// For consecutive entity draw commands with the same depth, we sort them by
-					// reverse creation order (logic explained below).
-					if (a_is_entity && b_is_entity && a.depth == b.depth) {
-						return !std::get<Entity>(a.payload).WasCreatedBefore(
-							std::get<Entity>(b.payload)
-						);
-					}
-
-					// Sorting in reverse depth order so that we can iterate backwards and
-					// prioritize entities drawing before manual draw commands.
-					return a.depth >= b.depth;
-				}
-			);
-		},
-		[&draw_context](const auto& cmds, auto camera) {
+	DrawCommands(
+		ctx().renderer.draw_commands_, draw_context, render_target_,
+		{ cleared_render_targets, cleared_cameras }, game_size, &SortDrawCommands,
+		[](auto& draw_context, const auto& cmds, auto camera) {
 			for (std::size_t i{ 0 }; i < cmds.size(); i++) {
 				// By iterating backwards, we ensure that the most recently added commands are drawn
 				// last. This prioritizes drawing entities first followed by manual draw commands.
@@ -333,12 +337,13 @@ void Scene::InternalDraw() {
 		}
 	);
 
-	draw_commands(
-		ctx().renderer.debug_commands_,
+	DrawCommands(
+		ctx().renderer.debug_commands_, draw_context, render_target_,
+		{ cleared_render_targets, cleared_cameras }, game_size,
 		[](auto&) {
 			/* No-op, debug commands are not sorted by depth */
 		},
-		[&draw_context](const auto& cmds, [[maybe_unused]] auto camera) {
+		[](auto& draw_context, const auto& cmds, [[maybe_unused]] auto camera) {
 			for (const auto& draw_cmd : cmds) {
 				draw_context.Draw(draw_cmd.payload, draw_cmd.depth);
 			}
@@ -408,11 +413,6 @@ void Scene::InternalExit() {
 	ctx().physics.Reset();
 	Refresh();
 }
-
-// TODO: Fix.
-// void Scene::ReEnter() {
-//	app().scene.Enter(*this);
-// }
 
 Entity Scene::GetEntityByUUID(UUID uuid) const {
 	auto entities{ Entities() };
