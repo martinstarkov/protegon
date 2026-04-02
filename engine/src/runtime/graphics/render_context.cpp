@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/log.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
@@ -27,6 +28,8 @@
 #include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
+#include "core/util/variant.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/id.h"
@@ -59,19 +62,6 @@ static float GetFade(V2_float diameter) {
 	return GetFade(diameter.y);
 }
 
-static float NormalizeArcLineWidthToThickness(float line_width, float fade, V2_float radii) {
-	if (line_width == -1.0f) {
-		// Internally line width for a filled SDF is 1.0f.
-		line_width = 1.0f;
-	} else {
-		PTGN_ASSERT(line_width >= kMinLineWidth, "Invalid line width for circle");
-
-		// Internally line width for a completely hollow ellipse is 0.0f.
-		line_width = fade + line_width / std::min(radii.x, radii.y);
-	}
-	return line_width;
-}
-
 static float GetAspectRatio(V2_float size) {
 	PTGN_ASSERT(size.x > 0.0f);
 	return size.y / size.x;
@@ -85,7 +75,24 @@ static float GetNormalizedRadius(float diameter, float size_x) {
 
 DrawContext::DrawContext(Renderer& renderer) : renderer_{ renderer } {}
 
-std::vector<impl::QuadCommand> DrawContext::GetLineDrawCommands(
+impl::ShaderId DrawContext::GetShaderId(ShaderVariant shader) const {
+	return std::visit(
+		[&]<typename T>(const T& arg) -> impl::ShaderId {
+			if constexpr (std::is_same_v<T, Shader>) {
+				return arg;
+			} else if constexpr (std::is_same_v<T, impl::ShaderId>) {
+				return arg;
+			} else if constexpr (std::is_same_v<T, std::string_view>) {
+				return renderer_.GetShader(arg);
+			} else {
+				static_assert(false, "Incomplete visitor!");
+			}
+		},
+		shader
+	);
+}
+
+std::vector<impl::QuadCommand> DrawContext::GetDrawCommand(
 	std::span<const V2_float> points, float line_width, Transform transform, Color tint,
 	std::optional<BlendMode> blend_mode, bool connect_last_to_first, bool floor_positions
 ) {
@@ -117,49 +124,254 @@ std::vector<impl::QuadCommand> DrawContext::GetLineDrawCommands(
 	return cmds;
 }
 
-impl::ShaderId DrawContext::GetShaderId(ShaderVariant shader) const {
-	return std::visit(
-		[&]<typename T>(const T& arg) -> impl::ShaderId {
-			if constexpr (std::is_same_v<T, Shader>) {
-				return arg;
-			} else if constexpr (std::is_same_v<T, impl::ShaderId>) {
-				return arg;
-			} else if constexpr (std::is_same_v<T, std::string_view>) {
-				return renderer_.GetShader(arg);
-			} else {
-				static_assert(false, "Incomplete visitor!");
-			}
+std::optional<std::variant<impl::QuadCommand, std::vector<impl::QuadCommand>>>
+DrawContext::GetDrawCommand(
+	const Rect& rect, Transform transform, FillStyle fill_style, Origin draw_origin, Color tint,
+	std::optional<BlendMode> blend_mode, bool floor_positions
+) {
+	if (auto size{ rect.GetSize(transform) }; !size.BothAboveZero()) {
+		return std::nullopt;
+	}
+
+	auto vertices{ rect.GetWorldVertices(transform, draw_origin) };
+
+	return fill_style.Apply(
+		[&]() { return impl::QuadCommand{ vertices, tint, blend_mode, floor_positions }; },
+		[&](float line_width) {
+			return GetDrawCommand(
+				vertices, line_width, Transform{}, tint, blend_mode, true, floor_positions
+			);
+		}
+	);
+}
+
+std::variant<impl::QuadCommand, std::vector<impl::QuadCommand>> DrawContext::GetDrawCommand(
+	const Triangle& triangle, Transform transform, FillStyle fill_style, Color tint,
+	std::optional<BlendMode> blend_mode, bool floor_positions
+) {
+	return fill_style.Apply(
+		[&]() {
+			auto vertices{ triangle.GetWorldQuadVertices(transform) };
+			return impl::QuadCommand{ vertices, tint, blend_mode, floor_positions };
 		},
-		shader
+		[&](float line_width) {
+			auto vertices{ triangle.GetLocalVertices() };
+			return GetDrawCommand(
+				vertices, line_width, transform, tint, blend_mode, true, floor_positions
+			);
+		}
+	);
+}
+
+impl::QuadCommand DrawContext::GetDrawCommand(
+	V2_float point, Transform transform, Color tint, std::optional<BlendMode> blend_mode,
+	bool floor_positions
+) {
+	Rect rect{ V2_float{ 1.0f } };
+	transform.Translate(point);
+	auto vertices{ rect.GetWorldVertices(transform, Origin::Center) };
+	return impl::QuadCommand{ vertices, tint, blend_mode, floor_positions };
+}
+
+std::optional<impl::QuadShapeCommand> DrawContext::GetDrawCommand(
+	impl::ShaderId capsule_shader, const Capsule& capsule, Transform transform,
+	FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
+) {
+	float radius{ capsule.GetRadius(transform) };
+
+	if (radius <= 0.0f) {
+		return std::nullopt;
+	}
+
+	V2_float size;
+	auto vertices{ capsule.GetWorldQuadVertices(transform, &size) };
+
+	float diameter{ 2.0f * radius };
+	float fade{ GetFade(diameter) };
+	float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
+	float aspect_ratio{ GetAspectRatio(size) };
+	float thickness{ fill_style.NormalizedToSDFThickness(fade, V2_float{ radius }) };
+
+	std::array<float, 4> data{ thickness, fade, normalized_radius, aspect_ratio };
+
+	return impl::QuadShapeCommand{
+		capsule_shader, vertices, data, tint, blend_mode, floor_positions
+	};
+}
+
+std::optional<impl::QuadShapeCommand> DrawContext::GetDrawCommand(
+	impl::ShaderId arc_shader, const Arc& arc, Transform transform, FillStyle fill_style,
+	Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
+) {
+	float radius{ arc.GetRadius(transform) };
+
+	if (radius <= 0.0f) {
+		return std::nullopt;
+	}
+
+	float diameter{ 2.0f * radius };
+	float fade{ GetFade(diameter) };
+	float aperture{ arc.GetAperture() };
+	float direction{ arc.clockwise ? 1.0f : -1.0f };
+	float thickness{ fill_style.NormalizedToSDFThickness(fade, V2_float{ radius }) };
+
+	std::array<float, 4> data{ thickness, fade, aperture, direction };
+
+	transform.Rotate(arc.GetStartAngle());
+
+	auto vertices{ arc.GetWorldQuadVertices(transform) };
+
+	return impl::QuadShapeCommand{ arc_shader, vertices, data, tint, blend_mode, floor_positions };
+}
+
+std::optional<impl::QuadShapeCommand> DrawContext::GetDrawCommand(
+	impl::ShaderId circle_shader, const Ellipse& ellipse, Transform transform, FillStyle fill_style,
+	Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
+) {
+	V2_float radius{ ellipse.GetRadius(transform) };
+
+	if (!radius.BothAboveZero()) {
+		return std::nullopt;
+	}
+
+	V2_float diameter{ 2.0f * radius };
+	float fade{ GetFade(diameter) };
+	float thickness{ fill_style.NormalizedToSDFThickness(fade, V2_float{ radius }) };
+
+	std::array<float, 4> data{ thickness, fade, 0.0f, 0.0f };
+
+	auto vertices{ ellipse.GetWorldQuadVertices(transform) };
+
+	return impl::QuadShapeCommand{
+		circle_shader, vertices, data, tint, blend_mode, floor_positions
+	};
+}
+
+std::optional<impl::QuadShapeCommand> DrawContext::GetDrawCommand(
+	impl::ShaderId circle_shader, const Circle& circle, Transform transform, FillStyle fill_style,
+	Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
+) {
+	Ellipse ellipse{ V2_float{ circle.GetRadius() } };
+	return GetDrawCommand(
+		circle_shader, ellipse, transform, fill_style, tint, blend_mode, floor_positions
+	);
+}
+
+std::optional<
+	std::variant<impl::QuadShapeCommand, impl::QuadCommand, std::vector<impl::QuadCommand>>>
+DrawContext::GetDrawCommand(
+	impl::ShaderId rounded_rect_shader, const RoundedRect& rounded_rect, Transform transform,
+	FillStyle fill_style, Origin draw_origin, Color tint, std::optional<BlendMode> blend_mode,
+	bool floor_positions
+) {
+	V2_float size{ rounded_rect.GetSize(transform) };
+
+	if (!size.BothAboveZero()) {
+		return std::nullopt;
+	}
+
+	float radius{ rounded_rect.GetRadius(transform) };
+
+	if (radius <= 0.0f) {
+		return OptionalVariantCast<
+			impl::QuadShapeCommand, impl::QuadCommand, std::vector<impl::QuadCommand>>(
+			GetDrawCommand(
+				Rect{ rounded_rect.GetSize() }, transform, fill_style, draw_origin, tint,
+				blend_mode, floor_positions
+			)
+		);
+	}
+
+	float diameter{ 2.0f * radius };
+	float fade{ GetFade(diameter) };
+	float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
+	float aspect_ratio{ GetAspectRatio(size) };
+	float thickness{ fill_style.NormalizedToSDFThickness(fade, V2_float{ radius }) };
+
+	std::array<float, 4> data{ thickness, fade, normalized_radius, aspect_ratio };
+
+	auto vertices{ rounded_rect.GetWorldQuadVertices(transform, draw_origin) };
+
+	return impl::QuadShapeCommand{ rounded_rect_shader, vertices,		data, tint,
+								   blend_mode,			floor_positions };
+}
+
+std::optional<std::variant<
+	std::vector<impl::TriangleCommand>, std::vector<impl::QuadCommand>, impl::QuadCommand>>
+DrawContext::GetDrawCommand(
+	const Polygon& polygon, Transform transform, FillStyle fill_style, Color tint,
+	std::optional<BlendMode> blend_mode, bool floor_positions
+) {
+	auto vertices{ polygon.GetLocalVertices() };
+
+	if (vertices.empty()) {
+		return std::nullopt;
+	}
+
+	if (vertices.size() == 1) {
+		return GetDrawCommand(vertices.front(), transform, tint, blend_mode, floor_positions);
+	}
+
+	if (vertices.size() == 2) {
+		return GetDrawCommand(
+			Line{ vertices[0], vertices[1] }, transform, tint, fill_style, blend_mode,
+			floor_positions
+		);
+	}
+
+	return OptionalVariantCast<
+		std::vector<impl::TriangleCommand>, std::vector<impl::QuadCommand>, impl::QuadCommand>(
+		fill_style.Apply(
+			[&]() {
+				auto world_vertices{ polygon.GetWorldVertices(transform) };
+				auto triangles{ impl::Triangulate(world_vertices) };
+
+				std::vector<impl::TriangleCommand> triangle_commands;
+
+				for (const auto& triangle : triangles) {
+					triangle_commands.emplace_back(triangle, tint, blend_mode, floor_positions);
+				}
+
+				return triangle_commands;
+			},
+			[&](float line_width) {
+				return GetDrawCommand(
+					vertices, line_width, transform, tint, blend_mode, true, floor_positions
+				);
+			}
+		)
+	);
+}
+
+std::vector<impl::QuadCommand> DrawContext::GetDrawCommand(
+	const Line& line, Transform transform, Color tint, FillStyle fill_style,
+	std::optional<BlendMode> blend_mode, bool floor_positions
+) {
+	return fill_style.Apply(
+		[]() -> std::vector<impl::QuadCommand> { PTGN_ERROR("Cannot draw solid line"); },
+		[&](float line_width) {
+			auto vertices{ line.GetLocalVertices() };
+			return GetDrawCommand(
+				vertices, line_width, transform, tint, blend_mode, false, floor_positions
+			);
+		}
 	);
 }
 
 std::optional<std::variant<
 	impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
 	std::vector<impl::TriangleCommand>>>
-DrawContext::GetShapeDrawCommand(
-	Renderer& renderer, const Shape& shape, Transform transform, Color tint, FillStyle fill_style,
-	Origin draw_origin, std::optional<BlendMode> blend_mode
+DrawContext::GetDrawCommand(
+	const Renderer& renderer, const Shape& shape, Transform transform, Color tint,
+	FillStyle fill_style, Origin draw_origin, std::optional<BlendMode> blend_mode
 ) {
-	float line_width{ 0.0f };
-
-	if (std::holds_alternative<impl::Solid>(fill_style.style)) {
-		PTGN_ASSERT(
-			!std::holds_alternative<Line>(shape),
-			"Cannot draw a solid line, use FillStyle::Hollow(line_width)"
-		);
-		line_width = -1.0f;
-	} else {
-		if (auto width{ std::get<impl::Hollow>(fill_style.style).line_width }; width >= 1.0f) {
-			line_width = width;
-		} else {
-			return std::nullopt;
-		}
-	}
-
-	PTGN_ASSERT(line_width != 0.0f);
-
 	constexpr bool floor_positions{ false };
+
+	auto variant_cast = []<typename S>(S&& s) {
+		return OptionalVariantCast<
+			impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
+			std::vector<impl::TriangleCommand>>(std::forward<S>(s));
+	};
 
 	return std::visit(
 		[&]<typename T>(const T& s)
@@ -167,183 +379,41 @@ DrawContext::GetShapeDrawCommand(
 				impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
 				std::vector<impl::TriangleCommand>>> {
 			if constexpr (std::is_same_v<T, Rect>) {
-				if (auto size{ s.GetSize(transform) }; !size.BothAboveZero()) {
-					return std::nullopt;
-				}
-
-				if (line_width == -1.0f) {
-					auto vertices{ s.GetWorldVertices(transform, draw_origin) };
-					return impl::QuadCommand{ vertices, tint, blend_mode, floor_positions };
-				} else {
-					auto vertices{ s.GetWorldVertices(transform, draw_origin) };
-					return GetLineDrawCommands(
-						vertices, line_width, {}, tint, blend_mode, true, floor_positions
-					);
-				}
-			} else if constexpr (std::is_same_v<T, Circle>) {
-				Ellipse ellipse{ V2_float{ s.GetRadius() } };
-				return GetShapeDrawCommand(
-					renderer, ellipse, transform, tint, fill_style, draw_origin, blend_mode
+				return variant_cast(GetDrawCommand(
+					s, transform, fill_style, draw_origin, tint, blend_mode, floor_positions
+				));
+			} else if constexpr (IsAnyOf<T, Circle, Ellipse>) {
+				return variant_cast(GetDrawCommand(
+					renderer.GetShader("circle"), s, transform, fill_style, tint, blend_mode,
+					floor_positions
+				));
+			} else if constexpr (std::is_same_v<T, Polygon>) {
+				return variant_cast(
+					GetDrawCommand(s, transform, fill_style, tint, blend_mode, floor_positions)
 				);
 			} else if constexpr (std::is_same_v<T, Line>) {
-				auto vertices{ s.GetLocalVertices() };
-				return GetLineDrawCommands(
-					vertices, line_width, transform, tint, blend_mode, false, floor_positions
-				);
+				return GetDrawCommand(s, transform, tint, fill_style, blend_mode, floor_positions);
 			} else if constexpr (std::is_same_v<T, Triangle>) {
-				auto triangle{ s.GetWorldVertices(transform) };
-				std::array<V2_float, 4> points{ triangle[0], triangle[1], triangle[2],
-												triangle[0] };
-
-				if (line_width == -1.0f) {
-					return impl::QuadCommand{ points, tint, blend_mode, floor_positions };
-				} else {
-					auto vertices{ s.GetLocalVertices() };
-					return GetLineDrawCommands(
-						vertices, line_width, transform, tint, blend_mode, true, floor_positions
-					);
-				}
-
-			} else if constexpr (std::is_same_v<T, Polygon>) {
-				auto vertices{ s.GetLocalVertices() };
-
-				if (vertices.size() < 3) {
-					if (vertices.empty()) {
-						return std::nullopt;
-					} else if (vertices.size() == 1) {
-						return GetShapeDrawCommand(
-							renderer, vertices.front(), transform, tint, fill_style, draw_origin,
-							blend_mode
-						);
-					} else if (vertices.size() == 2) {
-						return GetShapeDrawCommand(
-							renderer, Line{ vertices[0], vertices[1] }, transform, tint, fill_style,
-							draw_origin, blend_mode
-						);
-					}
-				}
-
-				if (line_width == -1.0f) {
-					auto points{ s.GetWorldVertices(transform) };
-					auto triangles{ impl::Triangulate(points) };
-
-					std::vector<impl::TriangleCommand> triangle_commands;
-
-					for (const auto& triangle : triangles) {
-						triangle_commands.emplace_back(triangle, tint, blend_mode, floor_positions);
-					}
-
-					return triangle_commands;
-				} else {
-					return GetLineDrawCommands(
-						vertices, line_width, transform, tint, blend_mode, true, floor_positions
-					);
-				}
+				return variant_cast(
+					GetDrawCommand(s, transform, fill_style, tint, blend_mode, floor_positions)
+				);
 			} else if constexpr (std::is_same_v<T, V2_float>) {
-				Rect rect{ V2_float{ 1.0f } };
-				transform.Translate(s);
-				auto positions{ rect.GetWorldVertices(transform, Origin::Center) };
-
-				return impl::QuadCommand{ positions, tint, blend_mode, floor_positions };
+				return GetDrawCommand(s, transform, tint, blend_mode, floor_positions);
 			} else if constexpr (std::is_same_v<T, Capsule>) {
-				auto radius{ s.GetRadius(transform) };
-
-				if (radius <= 0.0f) {
-					return std::nullopt;
-				}
-
-				V2_float size;
-				auto positions{ s.GetWorldQuadVertices(transform, &size) };
-
-				auto diameter{ 2.0f * radius };
-				float fade{ GetFade(diameter) };
-				float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
-				float aspect_ratio{ GetAspectRatio(size) };
-				auto thickness{
-					NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius })
-				};
-
-				std::array<float, 4> data{ thickness, fade, normalized_radius, aspect_ratio };
-
-				auto capsule_shader{ renderer.GetShader("capsule") };
-
-				return impl::QuadShapeCommand{ capsule_shader, positions,  data,
-											   tint,		   blend_mode, floor_positions };
+				return variant_cast(GetDrawCommand(
+					renderer.GetShader("capsule"), s, transform, fill_style, tint, blend_mode,
+					floor_positions
+				));
 			} else if constexpr (std::is_same_v<T, Arc>) {
-				auto radius{ s.GetRadius(transform) };
-
-				if (radius <= 0.0f) {
-					return std::nullopt;
-				}
-
-				auto diameter{ 2.0f * radius };
-				float fade{ GetFade(diameter) };
-				float thickness{
-					NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius })
-				};
-				float aperture{ s.GetAperture() };
-				float direction{ s.clockwise ? 1.0f : -1.0f };
-				std::array<float, 4> data{ thickness, fade, aperture, direction };
-
-				transform.Rotate(s.GetStartAngle());
-
-				auto positions{ s.GetWorldQuadVertices(transform) };
-
-				auto arc_shader{ renderer.GetShader("arc") };
-
-				return impl::QuadShapeCommand{ arc_shader, positions,  data,
-											   tint,	   blend_mode, floor_positions };
+				return variant_cast(GetDrawCommand(
+					renderer.GetShader("arc"), s, transform, fill_style, tint, blend_mode,
+					floor_positions
+				));
 			} else if constexpr (std::is_same_v<T, RoundedRect>) {
-				auto size = s.GetSize(transform);
-
-				if (!size.BothAboveZero()) {
-					return std::nullopt;
-				}
-
-				float radius = s.GetRadius(transform);
-
-				if (radius <= 0.0f) {
-					return GetShapeDrawCommand(
-						renderer, Rect{ s.GetSize() }, transform, tint, fill_style, draw_origin,
-						blend_mode
-					);
-				}
-
-				auto diameter{ 2.0f * radius };
-				float fade{ GetFade(diameter) };
-				float normalized_radius{ GetNormalizedRadius(diameter, size.x) };
-				float aspect_ratio{ GetAspectRatio(size) };
-				auto thickness{
-					NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius })
-				};
-				std::array<float, 4> data{ thickness, fade, normalized_radius, aspect_ratio };
-
-				auto positions{ s.GetWorldQuadVertices(transform, draw_origin) };
-
-				auto rounded_rect_shader{ renderer.GetShader("rounded_rect") };
-
-				return impl::QuadShapeCommand{ rounded_rect_shader, positions,		data, tint,
-											   blend_mode,			floor_positions };
-			} else if constexpr (std::is_same_v<T, Ellipse>) {
-				auto radius = s.GetRadius(transform);
-
-				if (!radius.BothAboveZero()) {
-					return std::nullopt;
-				}
-
-				auto diameter{ 2.0f * radius };
-				float fade{ GetFade(diameter) };
-				float thickness{
-					NormalizeArcLineWidthToThickness(line_width, fade, V2_float{ radius })
-				};
-				std::array<float, 4> data{ thickness, fade, 0.0f, 0.0f };
-
-				auto positions{ s.GetWorldQuadVertices(transform) };
-
-				auto circle_shader{ renderer.GetShader("circle") };
-
-				return impl::QuadShapeCommand{ circle_shader, positions,  data,
-											   tint,		  blend_mode, floor_positions };
+				return variant_cast(GetDrawCommand(
+					renderer.GetShader("rounded_rect"), s, transform, fill_style, draw_origin, tint,
+					blend_mode, floor_positions
+				));
 			} else {
 				static_assert(false, "Incomplete visitor!");
 			}
@@ -532,7 +602,7 @@ void DrawContext::DrawLines(
 ) {
 	constexpr bool floor_positions{ false };
 
-	auto line_draw_commands{ GetLineDrawCommands(
+	auto line_draw_commands{ GetDrawCommand(
 		points, line_width, transform, tint, blend_mode, connect_last_to_first, floor_positions
 	) };
 
@@ -546,7 +616,7 @@ void DrawContext::DrawShape(
 	float depth, std::optional<BlendMode> blend_mode
 ) {
 	auto shape_draw_commands{
-		GetShapeDrawCommand(renderer_, shape, transform, tint, fill_style, draw_origin, blend_mode)
+		GetDrawCommand(renderer_, shape, transform, tint, fill_style, draw_origin, blend_mode)
 	};
 
 	if (!shape_draw_commands.has_value()) {
@@ -681,7 +751,7 @@ void RenderContext::DrawLines(
 
 	constexpr bool floor_positions{ false };
 
-	auto line_draw_commands{ DrawContext::GetLineDrawCommands(
+	auto line_draw_commands{ DrawContext::GetDrawCommand(
 		points, line_width, transform.value_or(Transform{}), color, blend_mode,
 		connect_last_to_first, floor_positions
 	) };
@@ -697,7 +767,7 @@ void RenderContext::DrawShape(
 ) {
 	auto& draw_commands{ GetDrawCommandsForCamera(camera) };
 
-	auto shape_draw_commands{ DrawContext::GetShapeDrawCommand(
+	auto shape_draw_commands{ DrawContext::GetDrawCommand(
 		renderer_, shape, transform, color, fill_style, draw_origin, blend_mode
 	) };
 

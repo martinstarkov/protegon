@@ -1,20 +1,22 @@
 
 #include <chrono>
-#include <cmath>
-#include <vector>
+#include <optional>
 
 #include "app/application.h"
-#include "core/math/geometry/ellipse.h"
+#include "core/math/geometry/arc.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/geometry/polygon.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
+#include "runtime/animation/tween.h"
 #include "runtime/animation/tween_effect.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
 
 using namespace ptgn;

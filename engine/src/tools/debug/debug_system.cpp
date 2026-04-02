@@ -76,7 +76,7 @@ void DebugContext::DrawShape(
 	const Shape& shape, Transform transform, Color color, FillStyle fill_style, Origin draw_origin,
 	const std::optional<Camera>& camera
 ) {
-	auto shape_draw_commands{ DrawContext::GetShapeDrawCommand(
+	auto shape_draw_commands{ DrawContext::GetDrawCommand(
 		render_context_.renderer_, shape, transform, color, fill_style, draw_origin,
 		debug_blend_mode
 	) };
@@ -101,7 +101,7 @@ void DebugContext::DrawLines(
 
 	constexpr bool floor_positions{ false };
 
-	auto line_draw_commands{ DrawContext::GetLineDrawCommands(
+	auto line_draw_commands{ DrawContext::GetDrawCommand(
 		points, line_width, transform.value_or(Transform{}), color, debug_blend_mode,
 		connect_last_to_first, floor_positions
 	) };

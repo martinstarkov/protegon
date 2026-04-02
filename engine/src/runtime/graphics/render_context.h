@@ -220,19 +220,75 @@ private:
 
 	impl::ShaderId GetShaderId(ShaderVariant shader) const;
 
+	/// @param connect_last_to_first Whether to draw a line connecting the last point back to the
+	/// first.
+	static std::vector<impl::QuadCommand> GetDrawCommand(
+		std::span<const V2_float> points, float line_width, Transform transform, Color tint,
+		std::optional<BlendMode> blend_mode, bool connect_last_to_first, bool floor_positions
+	);
+
+	static std::optional<std::variant<impl::QuadCommand, std::vector<impl::QuadCommand>>>
+	GetDrawCommand(
+		const Rect& rect, Transform transform, FillStyle fill_style, Origin draw_origin, Color tint,
+		std::optional<BlendMode> blend_mode, bool floor_positions
+	);
+
+	static std::variant<impl::QuadCommand, std::vector<impl::QuadCommand>> GetDrawCommand(
+		const Triangle& triangle, Transform transform, FillStyle fill_style, Color tint,
+		std::optional<BlendMode> blend_mode, bool floor_positions
+	);
+
+	static impl::QuadCommand GetDrawCommand(
+		V2_float point, Transform transform, Color tint, std::optional<BlendMode> blend_mode,
+		bool floor_positions
+	);
+
+	static std::optional<impl::QuadShapeCommand> GetDrawCommand(
+		impl::ShaderId capsule_shader, const Capsule& capsule, Transform transform,
+		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
+	);
+
+	static std::optional<impl::QuadShapeCommand> GetDrawCommand(
+		impl::ShaderId arc_shader, const Arc& arc, Transform transform, FillStyle fill_style,
+		Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
+	);
+
+	static std::optional<impl::QuadShapeCommand> GetDrawCommand(
+		impl::ShaderId circle_shader, const Ellipse& ellipse, Transform transform,
+		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
+	);
+
+	static std::optional<impl::QuadShapeCommand> GetDrawCommand(
+		impl::ShaderId circle_shader, const Circle& circle, Transform transform,
+		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
+	);
+
+	static std::optional<
+		std::variant<impl::QuadShapeCommand, impl::QuadCommand, std::vector<impl::QuadCommand>>>
+	GetDrawCommand(
+		impl::ShaderId rounded_rect_shader, const RoundedRect& rounded_rect, Transform transform,
+		FillStyle fill_style, Origin draw_origin, Color tint, std::optional<BlendMode> blend_mode,
+		bool floor_positions
+	);
+
+	static std::optional<std::variant<
+		std::vector<impl::TriangleCommand>, std::vector<impl::QuadCommand>, impl::QuadCommand>>
+	GetDrawCommand(
+		const Polygon& polygon, Transform transform, FillStyle fill_style, Color tint,
+		std::optional<BlendMode> blend_mode, bool floor_positions
+	);
+
+	static std::vector<impl::QuadCommand> GetDrawCommand(
+		const Line& line, Transform transform, Color tint, FillStyle fill_style,
+		std::optional<BlendMode> blend_mode, bool floor_positions
+	);
+
 	static std::optional<std::variant<
 		impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
 		std::vector<impl::TriangleCommand>>>
-	GetShapeDrawCommand(
-		Renderer& renderer, const Shape& shape, Transform transform, Color tint,
+	GetDrawCommand(
+		const Renderer& renderer, const Shape& shape, Transform transform, Color tint,
 		FillStyle fill_style, Origin draw_origin, std::optional<BlendMode> blend_mode
-	);
-
-	/// @param connect_last_to_first Whether to draw a line connecting the last point back to the
-	/// first.
-	static std::vector<impl::QuadCommand> GetLineDrawCommands(
-		std::span<const V2_float> points, float line_width, Transform transform, Color tint,
-		std::optional<BlendMode> blend_mode, bool connect_last_to_first, bool floor_positions
 	);
 
 	void Draw(const impl::TextureCommand& draw, float depth);
