@@ -95,6 +95,10 @@ concept AllSameAs = std::conjunction_v<std::is_same<Type, Types>...>;
 template <typename T, typename... Ts>
 concept IsAnyOf = (std::is_same_v<T, Ts> || ...);
 
+/// @brief No return type specified.
+template <typename F, typename... Args>
+concept Invocable = std::invocable<F, Args...>;
+
 template <typename F, typename R, typename... Args>
 concept InvocableR =
 	std::regular_invocable<F, Args...> && std::same_as<std::invoke_result_t<F, Args...>, R>;
