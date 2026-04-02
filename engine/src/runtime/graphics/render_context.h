@@ -140,6 +140,10 @@ struct DrawCommand {
 	float depth{ 0.0f };
 };
 
+using DrawCommandType = std::variant<
+	impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
+	std::vector<impl::TriangleCommand>>;
+
 } // namespace impl
 
 class DrawContext {
@@ -222,71 +226,63 @@ private:
 
 	/// @param connect_last_to_first Whether to draw a line connecting the last point back to the
 	/// first.
-	static std::vector<impl::QuadCommand> GetDrawCommand(
+	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		std::span<const V2_float> points, float line_width, Transform transform, Color tint,
 		std::optional<BlendMode> blend_mode, bool connect_last_to_first, bool floor_positions
 	);
 
-	static std::optional<std::variant<impl::QuadCommand, std::vector<impl::QuadCommand>>>
-	GetDrawCommand(
+	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		const Rect& rect, Transform transform, FillStyle fill_style, Origin draw_origin, Color tint,
 		std::optional<BlendMode> blend_mode, bool floor_positions
 	);
 
-	static std::variant<impl::QuadCommand, std::vector<impl::QuadCommand>> GetDrawCommand(
+	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		const Triangle& triangle, Transform transform, FillStyle fill_style, Color tint,
 		std::optional<BlendMode> blend_mode, bool floor_positions
 	);
 
-	static impl::QuadCommand GetDrawCommand(
+	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		V2_float point, Transform transform, Color tint, std::optional<BlendMode> blend_mode,
 		bool floor_positions
 	);
 
-	static std::optional<impl::QuadShapeCommand> GetDrawCommand(
+	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		impl::ShaderId capsule_shader, const Capsule& capsule, Transform transform,
 		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
 	);
 
-	static std::optional<impl::QuadShapeCommand> GetDrawCommand(
+	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		impl::ShaderId arc_shader, const Arc& arc, Transform transform, FillStyle fill_style,
 		Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
 	);
 
-	static std::optional<impl::QuadShapeCommand> GetDrawCommand(
+	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		impl::ShaderId circle_shader, const Ellipse& ellipse, Transform transform,
 		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
 	);
 
-	static std::optional<impl::QuadShapeCommand> GetDrawCommand(
+	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		impl::ShaderId circle_shader, const Circle& circle, Transform transform,
 		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
 	);
 
-	static std::optional<
-		std::variant<impl::QuadShapeCommand, impl::QuadCommand, std::vector<impl::QuadCommand>>>
-	GetDrawCommand(
+	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		impl::ShaderId rounded_rect_shader, const RoundedRect& rounded_rect, Transform transform,
 		FillStyle fill_style, Origin draw_origin, Color tint, std::optional<BlendMode> blend_mode,
 		bool floor_positions
 	);
 
-	static std::optional<std::variant<
-		std::vector<impl::TriangleCommand>, std::vector<impl::QuadCommand>, impl::QuadCommand>>
-	GetDrawCommand(
+	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		const Polygon& polygon, Transform transform, FillStyle fill_style, Color tint,
 		std::optional<BlendMode> blend_mode, bool floor_positions
 	);
 
-	static std::vector<impl::QuadCommand> GetDrawCommand(
-		const Line& line, Transform transform, Color tint, FillStyle fill_style,
+	static std::optional<impl::DrawCommandType> GetDrawCommand(
+		const Line& line, Transform transform, FillStyle fill_style, Color tint,
 		std::optional<BlendMode> blend_mode, bool floor_positions
 	);
 
-	static std::optional<std::variant<
-		impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
-		std::vector<impl::TriangleCommand>>>
-	GetDrawCommand(
+	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		const Renderer& renderer, const Shape& shape, Transform transform, Color tint,
 		FillStyle fill_style, Origin draw_origin, std::optional<BlendMode> blend_mode
 	);

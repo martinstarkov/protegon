@@ -6,6 +6,7 @@
 #include <variant>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -101,10 +102,18 @@ void DebugContext::DrawLines(
 
 	constexpr bool floor_positions{ false };
 
-	auto line_draw_commands{ DrawContext::GetDrawCommand(
+	auto draw_commands{ DrawContext::GetDrawCommand(
 		points, line_width, transform.value_or(Transform{}), color, debug_blend_mode,
 		connect_last_to_first, floor_positions
 	) };
+
+	if (!draw_commands.has_value()) {
+		return;
+	}
+
+	PTGN_ASSERT(std::holds_alternative<std::vector<impl::QuadCommand>>(*draw_commands));
+
+	const auto& line_draw_commands{ std::get<std::vector<impl::QuadCommand>>(*draw_commands) };
 
 	RenderContext::AddDrawCommand(debug_commands, line_draw_commands, debug_depth);
 }
