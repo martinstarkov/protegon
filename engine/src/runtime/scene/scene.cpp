@@ -295,10 +295,17 @@ void Scene::InternalDraw() {
 			std::ranges::stable_sort(
 				cmds,
 				[&](const impl::DrawCommand& a, const impl::DrawCommand& b) {
+					const bool a_is_entity = std::holds_alternative<Entity>(a.payload);
+					const bool b_is_entity = std::holds_alternative<Entity>(b.payload);
+
+					// If only one is an Entity, it comes first
+					if (a_is_entity != b_is_entity) {
+						return !a_is_entity; // false -> a comes first
+					}
+
 					// For consecutive entity draw commands with the same depth, we sort them by
 					// reverse creation order (logic explained below).
-					if (a.depth == b.depth && std::holds_alternative<Entity>(a.payload) &&
-						std::holds_alternative<Entity>(b.payload)) {
+					if (a_is_entity && b_is_entity && a.depth == b.depth) {
 						return !std::get<Entity>(a.payload).WasCreatedBefore(
 							std::get<Entity>(b.payload)
 						);
