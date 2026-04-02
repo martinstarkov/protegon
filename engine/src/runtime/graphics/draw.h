@@ -1,15 +1,19 @@
 #pragma once
 
 #include <array>
+#include <concepts>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/event/event.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/component.h"
@@ -35,15 +39,58 @@ struct Hollow {
 
 struct FillStyle {
 	FillStyle() = default;
-	FillStyle(float line_width);
+	FillStyle(float line_width); // NOSONAR
 
 	static FillStyle Hollow(float line_width = 1.0f);
 	static FillStyle Solid();
 
-	std::variant<impl::Hollow, impl::Solid> style{ impl::Hollow{} };
+	template <typename F>
+	decltype(auto) Visit(F&& f) const {
+		return std::visit(std::forward<F>(f), style);
+	}
+
+	template <Invocable SolidFn, Invocable<float> HollowFn>
+	auto Apply(SolidFn&& solid_fn, HollowFn&& hollow_fn) {
+		using R1 = std::invoke_result_t<SolidFn>;
+		using R2 = std::invoke_result_t<HollowFn, float>;
+
+		if constexpr (std::same_as<R1, R2>) {
+			return Visit([&]<typename T>(const T& s) -> R1 {
+				if constexpr (std::is_same_v<T, impl::Solid>) {
+					return solid_fn();
+				} else if constexpr (std::is_same_v<T, impl::Hollow>) {
+					PTGN_ASSERT(s.line_width >= kMinLineWidth);
+					return hollow_fn(s.line_width);
+				} else {
+					static_assert(false, "Incomplete visitor");
+				}
+			});
+		} else {
+			using R = std::variant<R1, R2>;
+
+			return Visit([&]<typename T>(const T& s) -> R {
+				if constexpr (std::is_same_v<T, impl::Solid>) {
+					return R{ solid_fn() };
+				} else if constexpr (std::is_same_v<T, impl::Hollow>) {
+					PTGN_ASSERT(s.line_width >= kMinLineWidth);
+					return R{ hollow_fn(s.line_width) };
+				} else {
+					static_assert(false, "Incomplete visitor");
+				}
+			});
+		}
+	}
 
 private:
-	FillStyle(impl::Solid);
+	friend class DrawContext;
+
+	FillStyle(impl::Solid); // NOSONAR
+
+	/// @brief Converts a fill style to a SDF line thickness for shaders to draw hollow and solid
+	/// shapes.
+	[[nodiscard]] float NormalizedToSDFThickness(float fade, V2_float radii) const;
+
+	std::variant<impl::Hollow, impl::Solid> style{ impl::Hollow{} };
 };
 
 struct Depth : public ArithmeticComponent<float> {

@@ -4,6 +4,8 @@
 #include <array>
 #include <optional>
 #include <string_view>
+#include <type_traits>
+#include <variant>
 #include <vector>
 
 #include "core/assert.h"
@@ -33,7 +35,6 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 
-
 namespace ptgn {
 
 FillStyle::FillStyle(float line_width) : style{ impl::Hollow{ line_width } } {
@@ -47,6 +48,22 @@ FillStyle::FillStyle(float line_width) : style{ impl::Hollow{ line_width } } {
 }
 
 FillStyle::FillStyle(impl::Solid) : style{ impl::Solid{} } {}
+
+float FillStyle::NormalizedToSDFThickness(float fade, V2_float radii) const {
+	return Visit([fade, radii]<typename T>(const T& s) {
+		if constexpr (std::is_same_v<T, impl::Solid>) {
+			// Internally line width for a filled SDF is 1.0f.
+			return 1.0f;
+		} else if constexpr (std::is_same_v<T, impl::Hollow>) {
+			PTGN_ASSERT(s.line_width >= kMinLineWidth, "Invalid line width for circle");
+
+			// Internally line width for a completely hollow ellipse is 0.0f.
+			return fade + s.line_width / std::min(radii.x, radii.y);
+		} else {
+			static_assert(false, "Incomplete visitor!");
+		}
+	});
+}
 
 FillStyle FillStyle::Hollow(float line_width) {
 	PTGN_ASSERT(line_width >= kMinLineWidth, "Hollow line width must be >= kMinLineWidth");
