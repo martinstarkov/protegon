@@ -13,13 +13,19 @@ Triangle::Triangle(V2_float a, V2_float b, V2_float c) : a{ a }, b{ b }, c{ c } 
 Triangle::Triangle(const std::array<V2_float, 3>& vertices) :
 	a{ vertices[0] }, b{ vertices[1] }, c{ vertices[2] } {}
 
+std::array<V2_float, 3> Triangle::GetLocalVertices() const {
+	return { a, b, c };
+}
+
 std::array<V2_float, 3> Triangle::GetWorldVertices(Transform transform) const {
 	auto local_vertices{ GetLocalVertices() };
 	return transform.Apply(local_vertices);
 }
 
-std::array<V2_float, 3> Triangle::GetLocalVertices() const {
-	return { a, b, c };
+std::array<V2_float, 4> Triangle::GetWorldQuadVertices(Transform transform) const {
+	auto vertices{ GetWorldVertices(transform) };
+	std::array<V2_float, 4> quad_vertices{ vertices[0], vertices[1], vertices[2], vertices[0] };
+	return quad_vertices;
 }
 
 } // namespace ptgn

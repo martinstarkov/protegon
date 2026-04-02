@@ -14,9 +14,11 @@ struct Triangle {
 	Triangle(V2_float a, V2_float b, V2_float c);
 	explicit Triangle(const std::array<V2_float, 3>& vertices);
 
+	std::array<V2_float, 3> GetLocalVertices() const;
+
 	std::array<V2_float, 3> GetWorldVertices(Transform transform) const;
 
-	std::array<V2_float, 3> GetLocalVertices() const;
+	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
 
 	bool operator==(const Triangle&) const = default;
 
