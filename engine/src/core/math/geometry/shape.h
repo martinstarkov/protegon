@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <variant>
 #include <vector>
 
@@ -15,93 +14,134 @@
 #include "core/math/geometry/triangle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
 
-class Shape;
-
-namespace impl {
-
-template <typename... Ts>
-struct NamedVariant : public std::variant<Ts...> {
-	using std::variant<Ts...>::variant;
-	using variant_type = std::variant<Ts...>;
-
-	template <typename T>
-	static constexpr bool contains = (std::is_same_v<T, Ts> || ...);
-};
-
-using ShapeVariant = NamedVariant<
-	V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
-
-using ColliderVariant = NamedVariant<
-	V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
-
-using InteractiveVariant = NamedVariant<Rect, Circle>;
-
-} // namespace impl
-
-template <typename T>
-concept Visitable = requires(const T& v) {
-	std::visit([](const auto&) {}, static_cast<const typename T::variant_type&>(v));
-};
-
-template <typename T>
-concept ShapeType = impl::ShapeVariant::template contains<T>;
-
-template <typename T>
-concept InteractiveType = impl::InteractiveVariant::template contains<T>;
-
-template <typename T>
-concept ColliderType = impl::ColliderVariant::template contains<T>;
-
-class InteractiveShape : public impl::InteractiveVariant {
+class Shape {
 public:
-	using impl::InteractiveVariant::InteractiveVariant;
-
-	template <Visitable T>
-	InteractiveShape(const T& shape) {
-		std::visit([&](const auto& value) { *this = InteractiveShape{ value }; }, shape);
-	}
-
-	bool operator==(const InteractiveShape&) const = default;
-
-	// friend void to_json(json& j, const InteractiveShape& shape);
-	// friend void from_json(const json& j, InteractiveShape& shape);
-};
-
-class ColliderShape : public impl::ColliderVariant {
-public:
-	using impl::ColliderVariant::ColliderVariant;
-
-	template <Visitable T>
-	ColliderShape(const T& shape) {
-		std::visit([&](const auto& value) { *this = ColliderShape{ value }; }, shape);
-	}
-
-	bool operator==(const ColliderShape&) const = default;
-
-	// friend void to_json(json& j, const ColliderShape& shape);
-	// friend void from_json(const json& j, ColliderShape& shape);
-};
-
-class Shape : public impl::ShapeVariant {
-public:
-	using impl::ShapeVariant::ShapeVariant;
+	using Variant = std::variant<
+		V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
 
 	Shape() = default;
 
-	template <Visitable T>
-	Shape(const T& shape) {
-		std::visit([&](const auto& value) { *this = Shape{ value }; }, shape);
+	template <VariantContains<Variant> T>
+	Shape(const T& shape) : shape_{ shape } { // NOSONAR
+	}
+
+	template <VariantContains<Variant> T>
+	[[nodiscard]] bool HoldsAlternative() const {
+		return std::holds_alternative<T>(shape_);
+	}
+
+	template <VariantContains<Variant> T>
+	[[nodiscard]] const T& Get() const {
+		return std::get<T>(shape_);
+	}
+
+	template <typename F>
+	decltype(auto) Visit(F&& f) const {
+		return std::visit(std::forward<F>(f), shape_);
 	}
 
 	bool operator==(const Shape&) const = default;
 
 	// friend void to_json(json& j, const Shape& shape);
 	// friend void from_json(const json& j, Shape& shape);
+private:
+	Variant shape_;
 };
+
+class ColliderShape {
+public:
+	using Variant = std::variant<
+		V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
+
+	ColliderShape() = default;
+
+	template <VariantContains<Variant> T>
+	ColliderShape(const T& shape) : shape_{ shape } { // NOSONAR
+	}
+
+	template <VariantContains<Variant> T>
+	[[nodiscard]] bool HoldsAlternative() const {
+		return std::holds_alternative<T>(shape_);
+	}
+
+	template <VariantContains<Variant> T>
+	[[nodiscard]] const T& Get() const {
+		return std::get<T>(shape_);
+	}
+
+	template <typename F>
+	decltype(auto) Visit(F&& f) const {
+		return std::visit(std::forward<F>(f), shape_);
+	}
+
+	operator Shape() const { // NOSONAR
+		return std::visit([](const auto& s) { return Shape{ s }; }, shape_);
+	}
+
+	bool operator==(const ColliderShape&) const = default;
+
+	// friend void to_json(json& j, const ColliderShape& shape);
+	// friend void from_json(const json& j, ColliderShape& shape);
+
+private:
+	Variant shape_;
+};
+
+class InteractiveShape {
+public:
+	using Variant = std::variant<Rect, Circle>;
+
+	InteractiveShape() = default;
+
+	template <VariantContains<Variant> T>
+	InteractiveShape(const T& shape) : shape_{ shape } { // NOSONAR
+	}
+
+	template <VariantContains<Variant> T>
+	[[nodiscard]] bool HoldsAlternative() const {
+		return std::holds_alternative<T>(shape_);
+	}
+
+	template <VariantContains<Variant> T>
+	[[nodiscard]] const T& Get() const {
+		return std::get<T>(shape_);
+	}
+
+	template <typename F>
+	decltype(auto) Visit(F&& f) const {
+		return std::visit(std::forward<F>(f), shape_);
+	}
+
+	operator Shape() const { // NOSONAR
+		return std::visit([](const auto& s) { return Shape{ s }; }, shape_);
+	}
+
+	operator ColliderShape() const { // NOSONAR
+		return std::visit([](const auto& s) { return ColliderShape{ s }; }, shape_);
+	}
+
+	bool operator==(const InteractiveShape&) const = default;
+
+	// friend void to_json(json& j, const InteractiveShape& shape);
+	// friend void from_json(const json& j, InteractiveShape& shape);
+
+private:
+	Variant shape_;
+};
+
+template <typename T>
+concept ShapeType = VariantContains<T, Shape::Variant>;
+
+template <typename T>
+concept InteractiveType = VariantContains<T, InteractiveShape::Variant>;
+
+template <typename T>
+concept ColliderType = VariantContains<T, ColliderShape::Variant>;
 
 /// @return The vertices that fully contain the shape.
 /// For a line, this is the start and end points.

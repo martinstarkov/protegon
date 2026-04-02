@@ -1,7 +1,6 @@
 #include "runtime/graphics/shape.h"
 
 #include <optional>
-#include <variant>
 #include <vector>
 
 #include "core/assert.h"
@@ -27,10 +26,10 @@
 namespace ptgn {
 
 Transform OffsetByOrigin(const Shape& shape, Transform transform, Entity entity) {
-	if (!std::holds_alternative<Rect>(shape)) {
+	if (!shape.HoldsAlternative<Rect>()) {
 		return transform;
 	}
-	const Rect& rect{ std::get<Rect>(shape) };
+	const auto& rect{ shape.Get<Rect>() };
 	auto draw_origin{ GetDrawOrigin(entity) };
 	return rect.Offset(transform, draw_origin);
 }

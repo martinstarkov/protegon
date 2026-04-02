@@ -1,8 +1,6 @@
 #include "core/math/geometry/shape.h"
 
-#include <ranges>
 #include <type_traits>
-#include <variant>
 #include <vector>
 
 #include "core/math/geometry/arc.h"
@@ -18,7 +16,6 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
-#include "core/util/span.h"
 
 namespace ptgn {
 
@@ -51,41 +48,34 @@ void from_json(const json& j, Shape& shape) {
 */
 
 std::vector<V2_float> GetWorldVertices(const Shape& shape, Transform transform) {
-	return std::visit(
-		[&]<typename T>(const T& s) -> std::vector<V2_float> {
-			if constexpr (IsAnyOf<T, Rect, Polygon, Triangle, Line>) {
-				return std::ranges::to<std::vector>(s.GetWorldVertices(transform));
-			} else if constexpr (IsAnyOf<T, RoundedRect, Ellipse, Circle, Arc, Capsule>) {
-				return std::ranges::to<std::vector>(s.GetWorldQuadVertices(transform));
-			} else if constexpr (std::is_same_v<T, V2_float>) {
-				return std::ranges::to<std::vector>(
-					Rect{ V2_float{ 1.0f } }.GetWorldVertices(transform)
-				);
-			} else {
-				static_assert(false, "Incomplete visitor!");
-			}
-		},
-		shape
-	);
+	return shape.Visit([&]<typename T>(const T& s) -> std::vector<V2_float> {
+		if constexpr (IsAnyOf<T, Rect, Polygon, Triangle, Line>) {
+			return std::ranges::to<std::vector>(s.GetWorldVertices(transform));
+		} else if constexpr (IsAnyOf<T, RoundedRect, Ellipse, Circle, Arc, Capsule>) {
+			return std::ranges::to<std::vector>(s.GetWorldQuadVertices(transform));
+		} else if constexpr (std::is_same_v<T, V2_float>) {
+			return std::ranges::to<std::vector>(Rect{ V2_float{ 1.0f } }.GetWorldVertices(transform)
+			);
+		} else {
+			static_assert(false, "Incomplete visitor!");
+		}
+	});
 }
 
 EdgeInfo GetEdges(const Shape& shape, Transform transform) {
-	return std::visit(
-		[&]<typename T>(const T& s) {
-			EdgeInfo info;
+	return shape.Visit([&]<typename T>(const T& s) {
+		EdgeInfo info;
 
-			if constexpr (IsAnyOf<T, RoundedRect, Ellipse, Circle>) {
-				info.quad_approximation = true;
-			}
+		if constexpr (IsAnyOf<T, RoundedRect, Ellipse, Circle>) {
+			info.quad_approximation = true;
+		}
 
-			auto world_vertices{ GetWorldVertices(s, transform) };
+		auto world_vertices{ GetWorldVertices(s, transform) };
 
-			info.edges = PointsToLines(world_vertices, true);
+		info.edges = PointsToLines(world_vertices, true);
 
-			return info;
-		},
-		shape
-	);
+		return info;
+	});
 }
 
 } // namespace ptgn

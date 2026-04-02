@@ -649,22 +649,16 @@ RaycastResult Raycast(
 	V2_float ray, Transform transform1, const ColliderShape& shape1, Transform transform2,
 	const ColliderShape& shape2
 ) {
-	return std::visit(
-		[&]<typename S1>(const S1& s1) -> RaycastResult {
-			return std::visit(
-				[&]<typename S2>(const S2& s2) -> RaycastResult {
-					PTGN_RAYCAST_SHAPE_PAIR_TABLE {
-						PTGN_ERROR(
-							"Cannot find raycast function for the given shapes: ", type_name<S1>(),
-							" and ", type_name<S2>()
-						);
-					}
-				},
-				shape2
-			);
-		},
-		shape1
-	);
+	return shape1.Visit([&]<typename S1>(const S1& s1) -> RaycastResult {
+		return shape2.Visit([&]<typename S2>(const S2& s2) -> RaycastResult {
+			PTGN_RAYCAST_SHAPE_PAIR_TABLE {
+				PTGN_ERROR(
+					"Cannot find raycast function for the given shapes: ", type_name<S1>(), " and ",
+					type_name<S2>()
+				);
+			}
+		});
+	});
 }
 
 } // namespace ptgn

@@ -937,22 +937,16 @@ bool OverlapPolygonCapsule(Transform t1, const Polygon& A, Transform t2, const C
 } // namespace impl
 
 bool Overlap(Transform t1, const ColliderShape& shape1, Transform t2, const ColliderShape& shape2) {
-	return std::visit(
-		[&]<typename S1>(const S1& s1) -> bool {
-			return std::visit(
-				[&]<typename S2>(const S2& s2) -> bool {
-					PTGN_OVERLAP_SHAPE_PAIR_TABLE {
-						PTGN_ERROR(
-							"Cannot find overlap function for the given shapes: ", type_name<S1>(),
-							" and ", type_name<S2>()
-						);
-					}
-				},
-				shape2
-			);
-		},
-		shape1
-	);
+	return shape1.Visit([&]<typename S1>(const S1& s1) -> bool {
+		return shape2.Visit([&]<typename S2>(const S2& s2) -> bool {
+			PTGN_OVERLAP_SHAPE_PAIR_TABLE {
+				PTGN_ERROR(
+					"Cannot find overlap function for the given shapes: ", type_name<S1>(), " and ",
+					type_name<S2>()
+				);
+			}
+		});
+	});
 }
 
 bool Overlap(V2_float point, Transform t2, const ColliderShape& shape2) {
