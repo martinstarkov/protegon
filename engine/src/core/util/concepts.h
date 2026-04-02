@@ -6,6 +6,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace ptgn {
 
@@ -16,6 +17,13 @@ struct is_specialization : std::false_type {};
 
 template <template <typename...> class Ref, typename... Args>
 struct is_specialization<Ref<Args...>, Ref> : std::true_type {};
+
+template <typename T, typename Variant>
+struct variant_contains : std::false_type {};
+
+template <typename T, typename... Ts>
+struct variant_contains<T, std::variant<Ts...>> :
+	std::bool_constant<(std::same_as<std::remove_cvref_t<T>, Ts> || ...)> {};
 
 } // namespace impl
 
@@ -77,7 +85,7 @@ concept MapLike = requires(T t, typename T::key_type key) {
 	typename T::mapped_type;
 	// requires T::value_type is like std::pair<const key_type, mapped_type>
 	requires std::same_as<
-		typename T::value_type, std::pair<const typename T::key_type, typename T::mapped_type> >;
+		typename T::value_type, std::pair<const typename T::key_type, typename T::mapped_type>>;
 
 	{ t.find(key) } -> std::same_as<typename T::iterator>;
 	{ t[key] } -> std::same_as<typename T::mapped_type&>;
@@ -102,5 +110,13 @@ concept Invocable = std::invocable<F, Args...>;
 template <typename F, typename R, typename... Args>
 concept InvocableR =
 	std::regular_invocable<F, Args...> && std::same_as<std::invoke_result_t<F, Args...>, R>;
+
+template <typename T, typename Variant>
+concept VariantContains = impl::variant_contains<T, Variant>::value;
+
+template <typename T>
+concept Visitable = requires(const T& v) {
+	std::visit([](const auto&) { /**/ }, static_cast<const typename T::variant_type&>(v));
+};
 
 } // namespace ptgn
