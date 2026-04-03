@@ -261,7 +261,7 @@ template <typename Derived>
 ButtonBase<Derived>::ButtonStyleTuple ButtonBase<Derived>::GetStyle(ButtonStyleState state) {
 	auto [enabled_idle, idle, desired] = std::as_const(*this).GetStyle(state);
 	return { const_cast<ButtonStyle&>(enabled_idle), const_cast<ButtonStyle&>(idle),
-			 const_cast<ButtonStyle&>(desired) };
+			 const_cast<ButtonStyle&>(desired) }; // NOSONAR
 }
 
 template <typename Derived>
@@ -425,26 +425,26 @@ template <typename Derived>
 ButtonBase<Derived>::ButtonBase(Entity entity) : Entity{ entity } {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::OnPress(const std::function<void()>& callback) {
-	AddScript<impl::ButtonPressScript>(*this, callback);
+Derived& ButtonBase<Derived>::OnPress(const BaseButtonCallback<Derived>& callback) {
+	AddScript<impl::ButtonPressScript<Derived>>(*this, callback);
 	return Self();
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::OnHover(const std::function<void()>& callback) {
-	AddScript<impl::ButtonHoverScript>(*this, callback);
+Derived& ButtonBase<Derived>::OnHover(const BaseButtonCallback<Derived>& callback) {
+	AddScript<impl::ButtonHoverScript<Derived>>(*this, callback);
 	return Self();
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::OnHoverStart(const std::function<void()>& callback) {
-	AddScript<impl::ButtonHoverStartScript>(*this, callback);
+Derived& ButtonBase<Derived>::OnHoverStart(const BaseButtonCallback<Derived>& callback) {
+	AddScript<impl::ButtonHoverStartScript<Derived>>(*this, callback);
 	return Self();
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::OnHoverStop(const std::function<void()>& callback) {
-	AddScript<impl::ButtonHoverStopScript>(*this, callback);
+Derived& ButtonBase<Derived>::OnHoverStop(const BaseButtonCallback<Derived>& callback) {
+	AddScript<impl::ButtonHoverStopScript<Derived>>(*this, callback);
 	return Self();
 }
 
@@ -1094,12 +1094,7 @@ void ButtonBase<Derived>::SetState(InternalButtonState new_state) {
 	InternalButtonState old_state = state;
 	state						  = new_state;
 
-	OnStateChange(old_state, new_state);
-}
-
-template <typename Derived>
-void ButtonBase<Derived>::OnStateChange(InternalButtonState, InternalButtonState) {
-	/* No-op currently */
+	// OnStateChange(old_state, new_state);
 }
 
 template <typename Derived>
@@ -1110,6 +1105,31 @@ Derived& ButtonBase<Derived>::Self() {
 template <typename Derived>
 const Derived& ButtonBase<Derived>::Self() const {
 	return static_cast<const Derived&>(*this);
+}
+
+ButtonToggleScript::ButtonToggleScript(const ToggleButtonCallback& callback) :
+	callback_{ callback } {}
+
+void ButtonToggleScript::OnEvent(EventDispatcher d) {
+	d.Dispatch<ButtonToggleEvent>([&](ButtonToggleEvent& e) {
+		std::visit(
+			[&]<typename TCallback>(const TCallback& callback) {
+				if constexpr (std::is_same_v<TCallback, std::function<void()>>) {
+					callback();
+				} else if constexpr (std::is_same_v<TCallback, std::function<void(ToggleButton)>>) {
+					callback(ToggleButton{ entity });
+				} else if constexpr (std::is_same_v<
+										 TCallback, std::function<void(ToggleButton, bool)>>) {
+					callback(ToggleButton{ entity }, e.toggled);
+				} else if constexpr (std::is_same_v<TCallback, std::function<void(bool)>>) {
+					callback(e.toggled);
+				} else {
+					static_assert(false, "Incomplete visitor");
+				}
+			},
+			callback_
+		);
+	});
 }
 
 template class ButtonBase<Button>;
@@ -1126,7 +1146,7 @@ bool ToggleButton::IsToggled() const {
 	return Has<impl::ButtonToggled>();
 }
 
-ToggleButton& ToggleButton::OnToggle(const std::function<void(bool)>& callback) {
+ToggleButton& ToggleButton::OnToggle(const ToggleButtonCallback& callback) {
 	AddScript<impl::ButtonToggleScript>(*this, callback);
 	return *this;
 }
@@ -1211,7 +1231,7 @@ ToggleButton ToggleButtonGroup::Add(std::string_view button_key, ToggleButton&& 
 		btn = ToggleButton{ obj };
 		AddToggleScript(btn);
 	} else {
-		it->second = GameObject{ std::move(Entity{ toggle_button }) };
+		it->second = GameObject{ Entity{ toggle_button } };
 		AddToggleScript(ToggleButton{ it->second });
 		btn = ToggleButton{ it->second };
 	}

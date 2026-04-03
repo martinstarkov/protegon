@@ -33,7 +33,7 @@ public:
 		Origin button_origin{ Origin::Center };
 
 		b1 = CreateButton(*this, V2_float{ 0, -150 - 50 }, V2_int{ 200, 100 }, button_origin)
-				 .OnPress([]() { PTGN_LOG("Pressed regular button!"); })
+				 .OnPress([](Button) { PTGN_LOG("Pressed regular button!"); })
 				 .SetBackgroundShape(V2_int{ 200, 100 })
 				 .SetBackgroundColor(color::Pink)
 				 .SetBackgroundColor(color::Red, ButtonState::Hover)
@@ -43,7 +43,7 @@ public:
 				 .SetSound("press", ButtonState::Press);
 
 		b2 = CreateToggleButton(*this, V2_float{ 0, 150 - 50 }, V2_int{ 200, 100 }, button_origin)
-				 .OnPress([]() { PTGN_LOG("Pressed toggle button!"); })
+				 .OnPress([](ToggleButton) { PTGN_LOG("Pressed toggle button!"); })
 				 .OnToggle([](bool toggled) {
 					 PTGN_LOG("Toggled button: ", ": ", std::boolalpha, toggled, std::noboolalpha);
 				 })
