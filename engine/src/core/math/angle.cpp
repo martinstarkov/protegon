@@ -36,8 +36,18 @@ Degrees Degrees::Random() {
 	return Degrees{ rng() };
 }
 
+Degrees Degrees::Random(Degrees min, Degrees max) {
+	RNG<float> rng{ min.value, max.value };
+	return Degrees{ rng() };
+}
+
 Radians Radians::Random() {
 	static RNG<float> rng{ 0.0f, kTwoPi };
+	return Radians{ rng() };
+}
+
+Radians Radians::Random(Radians min, Radians max) {
+	RNG<float> rng{ min.value, max.value };
 	return Radians{ rng() };
 }
 
