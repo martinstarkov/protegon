@@ -4,8 +4,12 @@
 #include <ostream>
 #include <string>
 #include <string_view>
+#include <type_traits>
+#include <variant>
 
 #include "core/math/angle.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/shape.h"
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
