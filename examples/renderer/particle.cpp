@@ -1,18 +1,20 @@
 #include "runtime/graphics/particle.h"
 
-#include <chrono>
 #include <functional>
+#include <optional>
 #include <string_view>
-#include <utility>
+#include <variant>
 
 #include "app/application.h"
+#include "core/math/angle.h"
+#include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/math_utils.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/shape.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
@@ -28,46 +30,95 @@ public:
 
 	Grid<Button> grid{ { 1, 3 } };
 
+	ParticleConfig main_config{};
+	bool use_circle{ true };
+	bool gravity_enabled{ false };
+
 	Button CreateParticleButton(std::string_view content, const std::function<void()>& on_press) {
 		Button b{ CreateButton(*this) };
 		b.SetBackgroundColor(color::Gold)
 			.SetBackgroundColor(color::Red, ButtonState::Hover)
-			.SetBackgroundColor(color::DarkRed, ButtonState::Hover)
+			.SetBackgroundColor(color::DarkRed, ButtonState::Press)
 			.SetBorderColor(color::LightGray)
 			.SetBorderWidth(3.0f)
 			.SetText(content, color::Black)
 			.OnPress(on_press);
-		SetParent(b, p, true);
+
 		return b;
 	}
 
-	void CreateFixedEmitter(const V2_float& position, const Color& start, const Color& end) {
-		ParticleInfo fixed_info;
-		fixed_info.lifetime		  = milliseconds{ 2000 };
-		fixed_info.start_scale	  = 1.0f;
-		fixed_info.end_scale	  = 0.0f;
-		fixed_info.min_speed	  = 10.0f;
-		fixed_info.max_speed	  = 100.0f;
-		fixed_info.start_color	  = start;
-		fixed_info.end_color	  = end;
-		fixed_info.emission_delay = milliseconds{ 3 };
-		fixed_info.max_particles  = 1000;
-		fixed_info.radius		  = 5.0f;
-		fixed_info.particle_shape = ParticleShape::Circle;
+	void RecreateMainEmitter() {
+		V2_float position{ ctx().input.GetMousePosition() };
 
-		auto fixed_emitter{ CreateParticleEmitter(*this, position, fixed_info) };
+		p.Reset();
+		p.Destroy();
+
+		p = CreateParticleEmitter(*this, position, main_config);
+		p.Start();
+	}
+
+	ParticleConfig CreateMainConfig() const {
+		ParticleConfig config{};
+
+		config.rate_or_burst = Rate{
+			.duration = milliseconds{ 1000 }, .loop = true, .prewarm = false, .rate_over_time = 1000
+		};
+
+		config.lifetime			   = ConstantOrRange<milliseconds>{ milliseconds{ 2000 } };
+		config.start_speed		   = Range<float>{ 10.0f, 100.0f };
+		config.start_size		   = ConstantOrRange<float>{ 60.0f };
+		config.start_color		   = ConstantOrRange<Color>{ color::Red };
+		config.color_over_lifetime = ConstantOrRange<Color>{ color::Blue };
+		config.start_gravity =
+			ConstantOrRange<V2_float>{ gravity_enabled ? V2_float{ 0.0f, 300.0f } : V2_float{} };
+		config.max_particles	= 1000;
+		config.simulation_speed = 1.0f;
+		config.emission_shape	= EmissionShape::Arc(Degrees{ 360.0f }, 0.0f);
+
+		if (use_circle) {
+			config.particle_type = Shape{ Circle{ 0.5f } };
+		} else {
+			config.particle_type = Shape{ Rect{ V2_float{ 1.0f, 1.0f } } };
+		}
+
+		config.particle_fill_style = FillStyle::Solid();
+
+		// Shrink to zero over lifetime.
+		config.size_over_lifetime = ConstantOrRange<float>{ 0.0f };
+
+		return config;
+	}
+
+	void CreateFixedEmitter(const V2_float& position, const Color& start, const Color& end) {
+		ParticleConfig config{};
+
+		config.rate_or_burst = Rate{
+			.duration		= milliseconds{ 1000 },
+			.loop			= true,
+			.prewarm		= false,
+			.rate_over_time = 333 // roughly old emission_delay = 3ms
+		};
+
+		config.lifetime			   = ConstantOrRange<milliseconds>{ milliseconds{ 2000 } };
+		config.start_size		   = ConstantOrRange<float>{ 10.0f };
+		config.size_over_lifetime  = ConstantOrRange<float>{ 0.0f };
+		config.start_speed		   = Range<float>{ 10.0f, 100.0f };
+		config.start_color		   = ConstantOrRange<Color>{ start };
+		config.color_over_lifetime = ConstantOrRange<Color>{ end };
+		config.start_gravity	   = ConstantOrRange<V2_float>{ V2_float{} };
+		config.max_particles	   = 1000;
+		config.simulation_speed	   = 1.0f;
+		config.particle_type	   = Shape{ Circle{ 0.5f } };
+		config.particle_fill_style = FillStyle::Solid();
+		config.emission_shape	   = EmissionShape::Arc(Degrees{ 360.0f }, 0.0f);
+
+		auto fixed_emitter{ CreateParticleEmitter(*this, position, config) };
 		fixed_emitter.Start();
 	}
 
 	void OnEnter() override {
-		p = CreateParticleEmitter(*this);
-
-		p.SetMaxParticles(1000);
-		p.SetShape(ParticleShape::Circle);
-		p.SetRadius(30.0f);
-		p.SetStartColor(color::Red);
-		p.SetEndColor(color::Blue);
-		p.SetEmissionDelay(milliseconds{ 1 });
+		main_config = CreateMainConfig();
+		p			= CreateParticleEmitter(*this, {}, main_config);
 		p.Start();
 
 		V2_float ws{ ctx().renderer.GetGameSize() };
@@ -75,21 +126,20 @@ public:
 		CreateFixedEmitter(-ws * 0.5f + V2_float{ 400, 300 }, color::Orange, color::Red);
 		CreateFixedEmitter(-ws * 0.5f + V2_float{ 500, 500 }, color::Cyan, color::Magenta);
 
-		grid.Set({ 0, 0 }, CreateParticleButton("Switch Particle Shape", [=]() {
-					 int shape{ std::to_underlying(p.GetShape()) };
-					 shape++;
-					 shape = Mod(shape, 2);
-					 p.SetShape(static_cast<ParticleShape>(shape));
+		grid.Set({ 0, 0 }, CreateParticleButton("Switch Particle Shape", [this]() {
+					 use_circle	 = !use_circle;
+					 main_config = CreateMainConfig();
+					 RecreateMainEmitter();
 				 }));
 
-		grid.Set({ 0, 1 }, CreateParticleButton("Toggle Particle Emission", [=]() { p.Toggle(); }));
+		grid.Set({ 0, 1 }, CreateParticleButton("Toggle Particle Emission", [this]() {
+					 p.Toggle();
+				 }));
 
-		grid.Set({ 0, 2 }, CreateParticleButton("Toggle Gravity", [=]() {
-					 if (p.GetGravity().IsZero()) {
-						 p.SetGravity({ 0, 300.0f });
-					 } else {
-						 p.SetGravity({});
-					 }
+		grid.Set({ 0, 2 }, CreateParticleButton("Toggle Gravity", [this]() {
+					 gravity_enabled = !gravity_enabled;
+					 main_config	 = CreateMainConfig();
+					 RecreateMainEmitter();
 				 }));
 
 		V2_int offset{ 6, 6 };

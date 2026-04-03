@@ -1,11 +1,10 @@
 #pragma once
 
 #include <optional>
-#include <ostream>
 #include <string>
-#include <string_view>
 #include <type_traits>
 #include <variant>
+#include <vector>
 
 #include "core/math/angle.h"
 #include "core/math/geometry/rect.h"
@@ -14,17 +13,17 @@
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "core/time/timer.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
-#include "serialization/json/enum.h"
-#include "serialization/json/serialize.h"
 
 namespace ptgn {
+
+class Scene;
+class DrawContext;
 
 template <typename T>
 struct Range {
@@ -56,25 +55,26 @@ class EmissionShape {
 public:
 	EmissionShape() = default;
 
-	static EmissionShape Arc(float arc_angle_degrees, float radius) {
+	static EmissionShape Arc(Degrees arc_angle, float outer_radius, float inner_radius = 0.0f) {
 		EmissionShape s;
-		s.type = ArcShape{ arc_angle_degrees, radius };
+		s.type = ArcShape{ arc_angle, outer_radius, inner_radius };
 		return s;
 	}
 
 	static EmissionShape Rect(V2_float size) {
 		EmissionShape s;
-		s.type = size;
+		s.type = ptgn::Rect{ size };
 		return s;
 	}
 
-private:
+	// TODO: Move to private.
 	struct ArcShape {
-		float arc_angle_degrees{ 360.0f };
-		float radius{ 1.0f };
+		Degrees arc_angle{ 360.0f };
+		float outer_radius{ 1.0f };
+		float inner_radius{ 0.0f };
 	};
 
-	std::variant<ArcShape, V2_float> type{};
+	std::variant<ArcShape, ptgn::Rect> type{};
 };
 
 /// @brief A rate of particle emission over time.
@@ -117,8 +117,8 @@ struct ParticleConfig {
 
 	ConstantOrRange<float> start_size{ 1.0f };
 
-	/// @brief Starting rotation of an individual particle in degrees.
-	std::optional<ConstantOrRange<float>> start_rotation;
+	/// @brief Starting rotation of an individual particle.
+	std::optional<ConstantOrRange<Degrees>> start_rotation;
 
 	/// @brief If true, will attempt to align particles to their emission direction upon emission.
 	/// This is overridden if start_rotation is set.
@@ -140,119 +140,57 @@ struct ParticleConfig {
 
 	std::optional<ConstantOrRange<V2_float>> velocity_over_lifetime;
 
-	std::optional<ConstantOrRange<std::variant<float, V2_float>>> size_over_lifetime;
+	std::optional<ConstantOrRange<float>> size_over_lifetime;
 
 	std::optional<ConstantOrRange<Color>> color_over_lifetime;
 };
 
-class Scene;
-class DrawContext;
-
-enum class ParticleShape {
-	Circle,
-	Square
-};
-
-std::ostream& operator<<(std::ostream& os, ParticleShape shape);
-
-PTGN_SERIALIZE_ENUM(
-	ParticleShape, { { ParticleShape::Circle, "circle" }, { ParticleShape::Square, "square" } }
-);
-
-struct Particle {
-	V2_float position;
-	V2_float velocity;
-	Color color;
-	Color start_color;
-	Color end_color;
-	Timer timer;
-	milliseconds lifetime;
-	float start_radius{ 0.0f };
-	float radius{ 0.0f };
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		Particle, position, velocity, color, start_color, end_color, timer, lifetime, start_radius,
-		radius
-	)
-};
-
-struct ParticleInfo {
-	ParticleInfo() = default;
-
-	std::optional<std::string_view> texture_key;
-	bool tint_texture{ true };
-
-	std::size_t max_particles{ 200 };
-
-	milliseconds emission_delay{ 60 };
-	milliseconds lifetime{ 2000 };
-
-	float speed{ 10.0f };
-	Degrees starting_angle{ 0.0f };
-
-	/// @brief Only applies if texture_key == nullopt.
-	FillStyle fill_style{ FillStyle::Solid() };
-
-	ParticleShape particle_shape{ ParticleShape::Circle };
-
-	Color start_color{ color::Red };
-	Color end_color{ color::Red };
-
-	float radius{ 5.0f };
-	float radius_variance{ 4.0f };
-
-	float start_scale{ 1.0f };
-	float end_scale{ 0.0f };
-
-	milliseconds lifetime_variance{ 400 };
-
-	float speed_variance{ 5.0f };
-	Degrees angle_variance{ 5.0f };
-	V2_float position_variance{ 5.0f };
-	V2_float gravity;
-
-	float min_speed{ 0.0f };
-	float max_speed{ 10.0f };
-	bool use_random_velocities{ true };
-
-	// TODO: Implement functionality.
-	Color start_color_variance{ color::Red };
-	Color end_color_variance{ color::Orange };
-	V2_float radial_acceleration;
-	V2_float radial_acceleration_variance;
-	V2_float tangential_acceleration;
-	V2_float tangential_acceleration_variance;
-
-	// TODO: Fix serialization (add fill_style and texture).
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		ParticleInfo, tint_texture, max_particles, emission_delay, lifetime, speed, starting_angle,
-		particle_shape, start_color, end_color, radius, radius_variance, start_scale, end_scale,
-		lifetime_variance, speed_variance, angle_variance, position_variance, gravity,
-		start_color_variance, end_color_variance, radial_acceleration, radial_acceleration_variance,
-		tangential_acceleration, tangential_acceleration_variance
-	)
-};
-
 namespace impl {
 
-class RenderData;
+enum class ParticleEmitterState {
+	Stopped,
+	Playing,
+	Paused
+};
+
+struct ParticleEmitterPlayback {
+	ParticleEmitterState state{ ParticleEmitterState::Stopped };
+
+	milliseconds elapsed{ 0 };
+	milliseconds cycle_elapsed{ 0 };
+
+	float spawn_accumulator{ 0.0f };
+
+	milliseconds burst_elapsed{ 0 };
+	std::size_t burst_cycles_emitted{ 0 };
+
+	bool initialized{ false };
+};
+
+struct Particle {
+	V2_float position{};
+	V2_float velocity{};
+	V2_float gravity{};
+
+	Color start_color{ color::White };
+	Color end_color{ color::White };
+	Color color{ color::White };
+
+	float start_size{ 1.0f };
+	float end_size{ 1.0f };
+	float size{ 1.0f };
+
+	Radians rotation{ 0.0f };
+
+	milliseconds age{ 0 };
+	milliseconds lifetime{ 1000 };
+};
 
 struct ParticleEmitterComponent {
-	ParticleInfo info;
-	std::size_t particle_count{ 0 };
-	Timer emission;
-	Gaussian<float> rng{ -1.0f, 1.0f };
+	ParticleConfig config;
+	ParticleEmitterPlayback playback;
 	Manager manager;
-
-	void Update(V2_float start_position, secondsf dt);
-
-	void EmitParticle(V2_float start_position);
-
-	void ResetParticle(V2_float start_position, Particle& p);
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		ParticleEmitterComponent, info, particle_count, emission, rng, manager
-	)
+	std::size_t live_particle_count{ 0 };
 };
 
 } // namespace impl
@@ -264,44 +202,16 @@ public:
 
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 
-	/// @brief Starts emitting particles.
 	ParticleEmitter& Start();
-
-	/// @brief Stops emitting particles.
 	ParticleEmitter& Stop();
-
-	/// @brief Toggle particle emission.
+	ParticleEmitter& Pause();
+	ParticleEmitter& Resume();
 	ParticleEmitter& Toggle();
-
-	ParticleEmitter& EmitParticle();
-
 	ParticleEmitter& Reset();
 
-	ParticleEmitter& SetGravity(V2_float particle_gravity);
-	V2_float GetGravity() const;
-
-	/// @brief Will make the emitter use random velocities instead of gravity.
-	ParticleEmitter& UseRandomVelocities(
-		float min_speed, float max_speed, bool use_random_velocities = true
-	);
-
-	ParticleEmitter& SetMaxParticles(std::size_t max_particles);
-	std::size_t GetMaxParticles() const;
-
-	ParticleEmitter& SetShape(ParticleShape shape);
-	ParticleShape GetShape() const;
-
-	ParticleEmitter& SetRadius(float particle_radius);
-	float GetRadius() const;
-
-	ParticleEmitter& SetStartColor(const Color& start_color);
-	Color GetStartColor() const;
-
-	ParticleEmitter& SetEndColor(const Color& end_color);
-	Color GetEndColor() const;
-
-	ParticleEmitter& SetEmissionDelay(milliseconds emission_delay);
-	milliseconds GetEmissionDelay() const;
+	[[nodiscard]] bool IsPlaying() const;
+	[[nodiscard]] bool IsPaused() const;
+	[[nodiscard]] bool IsStopped() const;
 
 private:
 	friend class Scene;
@@ -310,7 +220,7 @@ private:
 };
 
 ParticleEmitter CreateParticleEmitter(
-	Scene& scene, V2_float position = {}, const ParticleInfo& info = {}
+	Scene& scene, V2_float position = {}, const ParticleConfig& config = {}
 );
 
 PTGN_REGISTER_DRAWABLE(ParticleEmitter);
