@@ -1,11 +1,15 @@
 #include "runtime/scene/scene.h"
 
 #include "app/application.h"
+#include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "renderer/renderer.h"
-
-#include "runtime/scene/scene_manager.h"
+#include "platform/input/key.h"
+#include "renderer/primitives/color.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
+#include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
 
@@ -23,11 +27,11 @@ class Scene2 : public Scene {
 public:
 	Scene2() = default;
 
-	Scene2(int i) : i{ i } {}
+	explicit Scene2(int i) : i{ i } {}
 
 	int i{ 0 };
 
-	void OnEnter() {
+	void OnEnter() final {
 		PTGN_LOG("Entered scene 2: ", i);
 	}
 
@@ -35,11 +39,8 @@ public:
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
 		ctx().renderer.DrawTexture("bg2", {}, game_size, Origin::Center);
 		if (ctx().input.KeyPressed(Key::A)) {
-			// ctx().scene.Enter("scene2");
-			ctx().scene.Enter<Scene2>("scene2", ++i);
-			// ctx().scene.Transition("scene2", "scene2");
-			// ctx().scene.Transition<Scene2>("scene2", "scene2");
-			// ctx().scene.Transition<Scene2>("scene2", "scene2", ++i);
+			++i;
+			ctx().scene.Enter<Scene2>("scene2", i);
 		}
 	}
 };
@@ -58,18 +59,12 @@ public:
 		ctx().asset.LoadMany({ { "bg1", "assets/scene1.png" },
 							   { "bg2", "assets/scene2.png" },
 							   { "bg3", "assets/scene3.png" } });
-
-		ctx().scene.Load<Scene1>("scene1");
-		ctx().scene.Load<Scene2>("scene2");
-		ctx().scene.Load<Scene3>("scene3");
 	}
 
 	void OnEnter() override {
-		ctx().scene.Enter("scene1");
-		ctx().scene.Enter("scene2");
+		ctx().scene.Enter<Scene1>("scene1");
+		ctx().scene.Enter<Scene2>("scene2");
 	}
-
-	void OnUpdate() override {}
 };
 
 int main(int, char**) {

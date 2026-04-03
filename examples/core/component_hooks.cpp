@@ -7,7 +7,6 @@
 #include "platform/input/key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -26,8 +25,8 @@ struct ComponentHookScene : public Scene {
 	}
 
 	void OnEnter() override {
-		OnConstruct<Test>().Connect<&AddToUpdateList>();
-		OnDestruct<Test>().Connect<&RemoveFromUpdateList>();
+		OnConstruct<Test>().Connect<&ComponentHookScene::AddToUpdateList>();
+		OnDestruct<Test>().Connect<&ComponentHookScene::RemoveFromUpdateList>();
 	}
 
 	void OnUpdate() override {

@@ -521,9 +521,9 @@ private:
 	template <typename TComponent>
 	friend struct SceneHook;
 
-	template <auto Member>
+	template <typename TScene, auto Member>
 	void HookThunk(ecs::impl::EntityHandle<JsonArchiver> handle) {
-		(this->*Member)(Entity{ handle, this });
+		(static_cast<TScene*>(this)->*Member)(Entity{ handle, this });
 	}
 
 	void Init(Application& app);
@@ -547,10 +547,29 @@ private:
 	impl::SceneState state_{ impl::SceneState::Active };
 };
 
+namespace impl {
+
+template <typename T>
+struct MemberPointerClass;
+
+template <typename C, typename R, typename... Args>
+struct MemberPointerClass<R (C::*)(Args...)> {
+	using type = C;
+};
+
+template <typename C, typename R, typename... Args>
+struct MemberPointerClass<R (C::*)(Args...) const> {
+	using type = C;
+};
+
+} // namespace impl
+
 template <typename TComponent>
 template <auto Member>
 void SceneHook<TComponent>::Connect() {
-	hook.template Connect<Scene, &Scene::template HookThunk<Member>>(&scene);
+	using TScene = typename impl::MemberPointerClass<decltype(Member)>::type;
+
+	hook.template Connect<Scene, &Scene::template HookThunk<TScene, Member>>(&scene);
 }
 
 template <SceneType T, typename... TArgs>
