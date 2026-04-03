@@ -108,6 +108,11 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::duration<Rep, Peri
 	return os;
 }
 
+template <DurationType T>
+[[nodiscard]] constexpr T Lerp(T a, T b, float t) {
+	return duration_cast<T>(a + t * (b - a));
+}
+
 } // namespace ptgn
 
 NLOHMANN_JSON_NAMESPACE_BEGIN
