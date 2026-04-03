@@ -17,10 +17,11 @@ namespace ptgn {
 
 namespace impl {
 
-template <typename T>
+template <impl::UniformType T>
 void ShaderObject::SetUniform(const char* uniform_name, const T& value) {
 	PTGN_ASSERT(renderer_ != nullptr, "Renderer must be initialized before setting uniform");
-	renderer_->SetUniform(resource_, uniform_name, value);
+	Renderer& renderer{ *renderer_ }; // Trick MSVC into not excluding header.
+	renderer.SetUniform(resource_, uniform_name, value);
 }
 
 template void ShaderObject::SetUniform<float>(const char* uniform_name, const float& value);

@@ -9,6 +9,7 @@
 #include <variant>
 #include <vector>
 
+#include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
@@ -20,11 +21,7 @@
 
 CMRC_DECLARE(shader);
 
-namespace ptgn {
-
-struct Matrix4;
-
-namespace impl::gl {
+namespace ptgn::impl::gl {
 
 class GLContext;
 
@@ -177,6 +174,4 @@ private:
 	IdMap<ProgramCache> cache_;
 };
 
-} // namespace impl::gl
-
-} // namespace ptgn
+} // namespace ptgn::impl::gl

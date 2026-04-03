@@ -13,6 +13,7 @@
 
 #include "core/assert.h"
 #include "core/log.h"
+#include "core/math/angle.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
@@ -29,7 +30,6 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
-#include "core/util/variant.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/id.h"
@@ -212,11 +212,11 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 
 	float diameter{ 2.0f * radius };
 	float fade{ GetFade(diameter) };
-	float aperture{ arc.GetAperture() };
-	float direction{ arc.clockwise ? 1.0f : -1.0f };
+	auto aperture{ arc.GetAperture() };
+	float direction{ arc.IsClockwise() ? 1.0f : -1.0f };
 	float thickness{ fill_style.NormalizedToSDFThickness(fade, V2_float{ radius }) };
 
-	std::array<float, 4> data{ thickness, fade, aperture, direction };
+	std::array<float, 4> data{ thickness, fade, aperture.ToRad().value, direction };
 
 	transform.Rotate(arc.GetStartAngle());
 

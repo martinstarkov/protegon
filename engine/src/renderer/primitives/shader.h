@@ -4,7 +4,13 @@
 #include <string>
 #include <string_view>
 #include <variant>
+#include <vector>
 
+#include "core/math/matrix4.h"
+#include "core/math/vector2.h"
+#include "core/math/vector3.h"
+#include "core/math/vector4.h"
+#include "core/util/concepts.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "ecs/ecs.h"
@@ -59,12 +65,17 @@ inline bool HasVertexAndFragmentShader(std::string_view source) {
 
 namespace impl {
 
+template <typename T>
+concept UniformType = IsAnyOf<
+	T, Matrix4, float, V2_float, V3_float, V4_float, std::vector<float>, int, V2_int, V3_int,
+	V4_int, std::vector<int>, bool>;
+
 class ShaderObject : public Resource<ShaderId> {
 public:
 	using Base = Resource<ShaderId>;
 	using Base::Base;
 
-	template <typename T>
+	template <impl::UniformType T>
 	void SetUniform(const char* uniform_name, const T& value);
 };
 
@@ -74,7 +85,7 @@ class Shader : public EntityHandle {
 public:
 	using EntityHandle::EntityHandle;
 
-	template <typename T>
+	template <impl::UniformType T>
 	void SetUniform(const char* uniform_name, const T& value) {
 		GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, value);
 	}
