@@ -114,7 +114,11 @@ struct ParticleConfig {
 	ConstantOrRange<float> start_size{ 1.0f };
 
 	/// @brief Starting rotation of an individual particle in degrees.
-	ConstantOrRange<float> start_rotation{ 0.0f };
+	std::optional<ConstantOrRange<float>> start_rotation;
+
+	/// @brief If true, will attempt to align particles to their emission direction upon emission.
+	/// This is overridden if start_rotation is set.
+	bool align_to_direction{ false };
 
 	ConstantOrRange<Color> start_color{ color::White };
 
