@@ -11,8 +11,8 @@ namespace ptgn {
 struct KeyPressed : public Event<KeyPressed> {
 	Key key;
 
-	bool operator==(Key k) const {
-		return key == k;
+	operator Key() const { // NOSONAR
+		return key;
 	}
 };
 
@@ -20,8 +20,8 @@ struct KeyPressed : public Event<KeyPressed> {
 struct KeyHeld : public Event<KeyHeld> {
 	Key key;
 
-	bool operator==(Key k) const {
-		return key == k;
+	operator Key() const { // NOSONAR
+		return key;
 	}
 };
 
@@ -29,8 +29,8 @@ struct KeyHeld : public Event<KeyHeld> {
 struct KeyReleased : public Event<KeyReleased> {
 	Key key;
 
-	bool operator==(Key k) const {
-		return key == k;
+	operator Key() const { // NOSONAR
+		return key;
 	}
 };
 
@@ -50,8 +50,8 @@ struct MousePressed : public Event<MousePressed> {
 	/// down.
 	V2_int position;
 
-	bool operator==(Mouse b) const {
-		return button == b;
+	operator Mouse() const { // NOSONAR
+		return button;
 	}
 };
 
@@ -63,8 +63,8 @@ struct MouseHeld : public Event<MouseHeld> {
 	/// down.
 	V2_int position;
 
-	bool operator==(Mouse b) const {
-		return button == b;
+	operator Mouse() const { // NOSONAR
+		return button;
 	}
 };
 
@@ -76,8 +76,8 @@ struct MouseReleased : public Event<MouseReleased> {
 	/// down.
 	V2_int position;
 
-	bool operator==(Mouse b) const {
-		return button == b;
+	operator Mouse() const { // NOSONAR
+		return button;
 	}
 };
 
