@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/math/angle.h"
 #include "core/math/geometry/ellipse.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/polygon.h"
@@ -21,13 +22,11 @@ struct ArcScene : public Scene {
 	static constexpr float arc_radius{ 25.0f };
 
 	void CreateArcWithCircleBg(
-		V2_float pos, float start_angle_deg, float end_angle_deg, bool clockwise, Color color,
+		V2_float pos, Degrees start_angle_deg, Degrees end_angle_deg, bool clockwise, Color color,
 		float radius = arc_radius
 	) {
 		CreateCircle(*this, pos, radius, color::LightGray);
-		CreateArc(
-			*this, pos, radius, DegToRad(start_angle_deg), DegToRad(end_angle_deg), clockwise, color
-		);
+		CreateArc(*this, pos, radius, start_angle_deg, end_angle_deg, clockwise, color);
 	}
 
 	void OnEnter() override {

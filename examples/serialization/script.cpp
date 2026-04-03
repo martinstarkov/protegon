@@ -219,6 +219,9 @@ int main() {
 }
 
 */
+
+// TODO: Fix this demo.
+
 #include "runtime/scripting/script.h"
 
 #include <array>
@@ -230,11 +233,20 @@ int main() {
 #include <unordered_set>
 #include <vector>
 
+#include "core/event/dispatcher.h"
+#include "core/log.h"
+#include "platform/input/events.h"
+#include "platform/input/key.h"
 #include "runtime/ecs/manager.h"
 
 using namespace ptgn;
 
-struct TestScript : public Script<TestScript, GlobalMouseScript, KeyScript> {
+struct TestScript : public Script {
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<KeyPressed>([this](KeyPressed k) { OnKeyPressed(k); });
+		d.Dispatch<MouseMove>([this](auto) { OnMouseMove(); });
+	}
+
 	void OnMouseMove() {
 		PTGN_LOG("Mouse moved 1");
 	}
@@ -244,15 +256,19 @@ struct TestScript : public Script<TestScript, GlobalMouseScript, KeyScript> {
 	}
 };
 
-struct TestScript2 : public Script<TestScript2, GlobalMouseScript> {
+struct TestScript2 : public Script {
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<MouseMove>([this](MouseMove) { OnMouseMove(); });
+	}
+
 	void OnMouseMove() {
 		PTGN_LOG("Mouse moved 2");
 	}
 };
 
-struct TestScript3 : public Script<TestScript3, TweenScript> {};
+struct TestScript3 : public Script {};
 
-struct TestScript4 : public Script<TestScript4, GlobalMouseScript, TweenScript> {};
+struct TestScript4 : public Script {};
 
 int main() {
 	// Instead of storing scripts in one container, store them in a unordered map of vectors of
@@ -266,6 +282,7 @@ int main() {
 	// TODO: Consider using script_types as a hash type thing instead of having a map with separate
 	// function pointers.
 
+	/*
 	Manager m;
 
 	auto e1{ m.CreateEntity() };
@@ -329,6 +346,7 @@ int main() {
 	// PTGN_ASSERT(script4_remade->mouse_index == 33.0f);
 
 	PTGN_LOG("Scripts deserialized correctly");
+	*/
 	/*
 	std::weak_ptr<CollisionScript> weak = entity.GetComponent<CollisionScript>();
 

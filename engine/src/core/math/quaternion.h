@@ -6,6 +6,8 @@
 #include <cstdlib>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
+#include "core/math/math_utils.h"
 #include "core/math/matrix4.h"
 #include "core/math/tolerance.h"
 #include "core/math/vector3.h"
@@ -32,18 +34,17 @@ public:
 	}
 
 	/// @brief From: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
-	/// orientation is (yaw, pitch, roll) in radians.
-	[[nodiscard]] static Quaternion FromEuler(const V3_float& orientation) {
-		float half_yaw	 = orientation.x * 0.5f;
-		float half_pitch = orientation.y * 0.5f;
-		float half_roll	 = orientation.z * 0.5f;
+	[[nodiscard]] static Quaternion FromEuler(Radians yaw, Radians pitch, Radians roll) {
+		auto half_yaw	= yaw * 0.5f;
+		auto half_pitch = pitch * 0.5f;
+		auto half_roll	= roll * 0.5f;
 
-		float cr = std::cos(half_roll);
-		float sr = std::sin(half_roll);
-		float cp = std::cos(half_pitch);
-		float sp = std::sin(half_pitch);
-		float cy = std::cos(half_yaw);
-		float sy = std::sin(half_yaw);
+		float sr = half_roll.Sin();
+		float cr = half_roll.Cos();
+		float sp = half_pitch.Sin();
+		float cp = half_pitch.Cos();
+		float sy = half_yaw.Sin();
+		float cy = half_yaw.Cos();
 
 		Quaternion q;
 		q.x = sr * cp * cy - cr * sp * sy;
@@ -54,25 +55,25 @@ public:
 		return q;
 	}
 
-	/// @return New quaternion rotated by the given angle in radians along the given axes.
-	static Quaternion GetAngleAxis(float angle_radians, const V3_float& axes) {
-		const float a{ angle_radians * 0.5f };
-		const float s = std::sin(a);
+	/// @return New quaternion rotated by the given angle along the given axes.
+	static Quaternion GetAngleAxis(Radians angle, const V3_float& axes) {
+		const auto a{ angle * 0.5f };
+		const float s = a.Sin();
 
-		return Quaternion(axes.x * s, axes.y * s, axes.z * s, std::cos(a));
+		return Quaternion(axes.x * s, axes.y * s, axes.z * s, a.Cos());
 	}
 
-	/// @return The euler angle of the quaternion in radians.
-	float GetAngle() const {
+	/// @return The euler angle of the quaternion.
+	Radians GetAngle() const {
 		if (std::abs(w) > cos_of_half) {
-			float a = std::asin(std::sqrt(x * x + y * y + z * z)) * 2.0f;
+			Radians a{ std::asin(std::sqrt(x * x + y * y + z * z)) * 2.0f };
 			if (w < 0.0f) {
-				return kTwoPi - a;
+				return Radians{ kTwoPi } - a;
 			}
 			return a;
 		}
 
-		return std::acos(w) * 2.0f;
+		return Radians{ std::acos(w) * 2.0f };
 	}
 
 	V3_float GetAxis() const {
@@ -84,33 +85,30 @@ public:
 		return V3_float{ x * tmp2, y * tmp2, z * tmp2 };
 	}
 
-	/// @brief Angle in radians.
-	float GetRoll() const {
+	Radians GetRoll() const {
 		float b = 2.0f * (x * y + w * z);
 		float a = w * w + x * x - y * y - z * z;
 
 		if (NearlyEqual(a, 0.0f) && NearlyEqual(b, 0.0f)) {
-			return 0.0f;
+			return Radians{ 0.0f };
 		}
 
-		return std::atan2(b, a);
+		return Radians{ std::atan2(b, a) };
 	}
 
-	/// @brief Angle in radians.
-	float GetPitch() const {
+	Radians GetPitch() const {
 		float b = 2.0f * (y * z + w * x);
 		float a = w * w - x * x - y * y + z * z;
 
 		if (NearlyEqual(a, 0.0f) && NearlyEqual(b, 0.0f)) {
-			return 2.0f * std::atan2(a, w);
+			return Radians{ 2.0f * std::atan2(a, w) };
 		}
 
-		return std::atan2(b, a);
+		return Radians{ std::atan2(b, a) };
 	}
 
-	/// @brief Angle in radians.
-	float GetYaw() const {
-		return std::asin(std::clamp(-2.0f * (x * z - w * y), -1.0f, 1.0f));
+	Radians GetYaw() const {
+		return Radians{ std::asin(std::clamp(-2.0f * (x * z - w * y), -1.0f, 1.0f)) };
 	}
 
 	[[nodiscard]] Matrix4 ToMatrix4() const {
@@ -161,7 +159,7 @@ public:
 	}
 
 private:
-	/// @brief Angle in radians.
+	/// @brief Equivalent to cos(0.5 rad).
 	constexpr static float cos_of_half{ 0.877582561890372716130286068203503191f };
 };
 

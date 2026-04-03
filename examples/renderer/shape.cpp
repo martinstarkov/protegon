@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/math/angle.h"
 #include "core/math/geometry/ellipse.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/polygon.h"
@@ -13,21 +14,19 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
 
-
 using namespace ptgn;
 
 constexpr V2_int game_size{ 800, 800 };
 
 struct ShapeScene : public Scene {
-	void OnEnter() override {}
-
-	std::vector<V2_float> GetStarVertices(int count, float outer_radius, float inner_radius) {
+	std::vector<V2_float> GetStarVertices(int count, float outer_radius, float inner_radius) const {
 		std::vector<V2_float> vertices;
-		float angleStep = kPi / count; // Half angle between full points
+		float angleStep = kPi / static_cast<float>(count); // Half angle between full points
 
 		for (int i = 0; i < 2 * count; ++i) {
-			float r		= (i % 2 == 0) ? outer_radius : inner_radius;
-			float theta = i * angleStep - kHalfPi; // Rotate so the first point is at the top
+			float r = (i % 2 == 0) ? outer_radius : inner_radius;
+			// Rotate so the first point is at the top
+			float theta = static_cast<float>(i) * angleStep - kHalfPi;
 			float x		= r * cos(theta);
 			float y		= r * sin(theta);
 			vertices.push_back({ x, y });
@@ -59,14 +58,14 @@ struct ShapeScene : public Scene {
 			{}, { { -200, -350 + 150 }, { -150, -300 + 150 }, 12.0f }, color::LightGold, -1.0f
 		);
 
-		constexpr float start_angle1{ DegToRad(0.0f) };
-		constexpr float end_angle1{ DegToRad(180.0f) };
-		constexpr float start_angle2{ DegToRad(180.0f) };
-		constexpr float end_angle2{ DegToRad(0.0f) };
-		constexpr float start_angle3{ DegToRad(-180.0f) };
-		constexpr float end_angle3{ DegToRad(90.0f) };
-		constexpr float start_angle4{ DegToRad(-90.0f) };
-		constexpr float end_angle4{ DegToRad(269.0f) };
+		constexpr Degrees start_angle1{ 0.0f };
+		constexpr Degrees end_angle1{ 180.0f };
+		constexpr Degrees start_angle2{ 180.0f };
+		constexpr Degrees end_angle2{ 0.0f };
+		constexpr Degrees start_angle3{ -180.0f };
+		constexpr Degrees end_angle3{ 90.0f };
+		constexpr Degrees start_angle4{ -90.0f };
+		constexpr Degrees end_angle4{ 269.0f };
 
 		float arc_radius{ 20.0f };
 		bool clockwise{ true };
@@ -189,18 +188,17 @@ struct ShapeScene : public Scene {
 
 		float time{ static_cast<float>(ctx().TimeSinceStart().count()) };
 
+		Radians rotation{ Degrees{ time / 10.0f } };
+
 		ctx().renderer.DrawRect(
-			{ { -50, -250 }, DegToRad(time / 10.0f) }, V2_int{ 50, 25 }, color::Blue, 1.0f,
-			Origin::Center
+			{ { -50, -250 }, rotation }, V2_int{ 50, 25 }, color::Blue, 1.0f, Origin::Center
 		);
 		ctx().renderer.DrawRect(
-			{ { 0, -250 }, DegToRad(time / 10.0f) }, V2_int{ 50, 25 }, color::LightBlue, -1.0f,
-			Origin::TopLeft
+			{ { 0, -250 }, rotation }, V2_int{ 50, 25 }, color::LightBlue, -1.0f, Origin::TopLeft
 
 		);
 		ctx().renderer.DrawRect(
-			{ { 100, -250 }, DegToRad(time / 10.0f) }, V2_int{ 50, 25 }, color::DarkBlue, 5.0f,
-			Origin::Center
+			{ { 100, -250 }, rotation }, V2_int{ 50, 25 }, color::DarkBlue, 5.0f, Origin::Center
 
 		);
 
@@ -211,21 +209,20 @@ struct ShapeScene : public Scene {
 			V2_int{ 0, -175 }, { { 50, 25 }, 12.0f }, color::LightBlue, -1.0f, Origin::TopLeft
 		);
 		ctx().renderer.DrawRoundedRect(
-			{ { 100, -175 }, DegToRad(time / 10.0f) }, { { 50, 25 }, 12.0f }, color::DarkBlue, 5.0f,
+			{ { 100, -175 }, rotation }, { { 50, 25 }, 12.0f }, color::DarkBlue, 5.0f,
 			Origin::Center
 		);
 		ctx().renderer.DrawRoundedRect(
-			{ { -50, -100 }, DegToRad(time / 10.0f) }, { { 50, 25 }, 12.0f }, color::Blue, 1.0f,
-			Origin::Center
+			{ { -50, -100 }, rotation }, { { 50, 25 }, 12.0f }, color::Blue, 1.0f, Origin::Center
 
 		);
 		ctx().renderer.DrawRoundedRect(
-			{ { 0, -100 }, DegToRad(time / 10.0f) }, { { 50, 25 }, 12.0f }, color::LightBlue, -1.0f,
+			{ { 0, -100 }, rotation }, { { 50, 25 }, 12.0f }, color::LightBlue, -1.0f,
 			Origin::TopLeft
 
 		);
 		ctx().renderer.DrawRoundedRect(
-			{ { 100, -100 }, DegToRad(time / 10.0f) }, { { 50, 25 }, 12.0f }, color::DarkBlue, 5.0f,
+			{ { 100, -100 }, rotation }, { { 50, 25 }, 12.0f }, color::DarkBlue, 5.0f,
 			Origin::Center
 
 		);
@@ -244,18 +241,15 @@ struct ShapeScene : public Scene {
 			V2_int{ 350, -250 }, Ellipse{ V2_int{ 25, 12 } }, color::LightPurple, -1.0f
 		);
 		ctx().renderer.DrawEllipse(
-			{ V2_int{ 200, -175 }, DegToRad(time / 10.0f) }, Ellipse{ V2_int{ 25, 12 } },
-			color::Green, 1.0f
+			{ V2_int{ 200, -175 }, rotation }, Ellipse{ V2_int{ 25, 12 } }, color::Green, 1.0f
 
 		);
 		ctx().renderer.DrawEllipse(
-			{ V2_int{ 275, -175 }, DegToRad(time / 10.0f) }, Ellipse{ V2_int{ 25, 12 } },
-			color::DarkGreen, 5.0f
+			{ V2_int{ 275, -175 }, rotation }, Ellipse{ V2_int{ 25, 12 } }, color::DarkGreen, 5.0f
 
 		);
 		ctx().renderer.DrawEllipse(
-			{ V2_int{ 350, -175 }, DegToRad(time / 10.0f) }, Ellipse{ V2_int{ 25, 12 } },
-			color::LightGreen, -1.0f
+			{ V2_int{ 350, -175 }, rotation }, Ellipse{ V2_int{ 25, 12 } }, color::LightGreen, -1.0f
 
 		);
 

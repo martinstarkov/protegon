@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include <limits>
 #include <type_traits>
-#include <variant>
 #include <vector>
 
 #include "core/assert.h"
@@ -71,7 +70,7 @@ Intersection IntersectCircleCircle(Transform t1, const Circle& A, Transform t2, 
 		return c;
 	}
 
-	if (dist2 > epsilon<float> * epsilon<float>) {
+	if (dist2 > kEpsilon<float> * kEpsilon<float>) {
 		float dist{ std::sqrt(dist2) };
 		PTGN_ASSERT(!NearlyEqual(dist, 0.0f));
 		c.normal = -d / dist;
@@ -88,7 +87,7 @@ Intersection IntersectCircleCircle(Transform t1, const Circle& A, Transform t2, 
 }
 
 Intersection IntersectCircleRect(Transform t1, const Circle& A, Transform t2, const Rect& B) {
-	if (t2.GetRotation() != 0.0f) {
+	if (t2.HasRotation()) {
 		return IntersectCirclePolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 
@@ -188,7 +187,7 @@ Intersection IntersectCirclePolygon(Transform t1, const Circle& A, Transform t2,
 Intersection IntersectRectRect(Transform t1, const Rect& A, Transform t2, const Rect& B) {
 	Intersection c;
 
-	if (t1.GetRotation() != 0.0f || t2.GetRotation() != 0.0f) {
+	if (t1.HasRotation() || t2.HasRotation()) {
 		return IntersectPolygonPolygon(
 			t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
 		);
@@ -235,12 +234,12 @@ Intersection IntersectPolygonPolygon(
 	Polygon polygon_B{ B.GetWorldVertices(t2) };
 
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(polygon_A.vertices.data(), polygon_A.vertices.size()),
+		impl::IsConvexPolygon(polygon_A),
 		"PolygonPolygon intersection check only works if both polygons are convex"
 	);
 
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(polygon_B.vertices.data(), polygon_B.vertices.size()),
+		impl::IsConvexPolygon(polygon_B),
 		"PolygonPolygon intersection check only works if both polygons are convex"
 	);
 

@@ -12,7 +12,6 @@
 #include "platform/window/window.h"
 #include "renderer/primitives/color.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -24,7 +23,8 @@ public:
 	Sensor() = default;
 
 	// @param samping_rate How often the sensor samples its function.
-	Sensor(milliseconds samping_rate) : samping_rate_{ samping_rate } {
+	Sensor(milliseconds samping_rate, Scene* scene) :
+		samping_rate_{ samping_rate }, scene{ scene } {
 		sampling.Start();
 	}
 
@@ -34,7 +34,9 @@ public:
 
 	float GetValue() {
 		sampling.Start();
-		return amplitude_rng() * std::sin(sine_frequency * ctx().TimeSinceStart());
+		PTGN_ASSERT(scene != nullptr);
+		return amplitude_rng() *
+			   std::sin(sine_frequency * static_cast<float>(scene->ctx().TimeSinceStart().count()));
 	}
 
 	float sine_frequency{ 0.0005f };
@@ -44,6 +46,8 @@ private:
 
 	milliseconds samping_rate_{ 250 };
 	Timer sampling;
+
+	Scene* scene{ nullptr };
 };
 
 class PlotScene : public Scene {

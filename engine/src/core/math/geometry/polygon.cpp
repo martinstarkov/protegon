@@ -8,8 +8,16 @@
 
 namespace ptgn {
 
+const std::vector<V2_float>& Polygon::GetVertices() const {
+	return vertices_;
+}
+
+std::vector<V2_float>& Polygon::GetVertices() {
+	return vertices_;
+}
+
 V2_float Polygon::GetCenter() const {
-	PTGN_ASSERT(vertices.size() >= 3);
+	PTGN_ASSERT(vertices_.size() >= 3);
 	// Source: https://stackoverflow.com/a/63901131
 	V2_float centroid;
 	float signed_area{ 0.0f };
@@ -17,13 +25,13 @@ V2_float Polygon::GetCenter() const {
 	V2_float v1{ 0.0f }; // Next vertex
 	float a{ 0.0f };	 // Partial signed area
 
-	std::size_t lastdex{ vertices.size() - 1 };
-	const V2_float* prev = &(vertices[lastdex]);
+	std::size_t lastdex{ vertices_.size() - 1 };
+	const V2_float* prev = &(vertices_[lastdex]);
 	const V2_float* next{ nullptr };
 
 	// For all vertices in a loop
-	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-		const auto& vertex{ vertices[i] };
+	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
+		const auto& vertex{ vertices_[i] };
 		next		 = &vertex;
 		v0			 = *prev;
 		v1			 = *next;
@@ -40,11 +48,11 @@ V2_float Polygon::GetCenter() const {
 }
 
 std::vector<V2_float> Polygon::GetWorldVertices(Transform transform) const {
-	return transform.Apply(vertices);
+	return transform.Apply(vertices_);
 }
 
 std::vector<V2_float> Polygon::GetLocalVertices() const {
-	return vertices;
+	return vertices_;
 }
 
 } // namespace ptgn

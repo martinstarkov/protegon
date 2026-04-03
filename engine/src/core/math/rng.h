@@ -206,12 +206,6 @@ template <impl::RNGType T = std::int32_t>
 /// always.
 [[nodiscard]] bool Chance(float probability);
 
-/// @return Random degree angle in the range [0.0, 360.0].
-[[nodiscard]] float RandomAngle();
-
-/// @return Random radian angle in the range [0.0, kTwoPi].
-[[nodiscard]] float RandomAngleRadians();
-
 template <typename Container>
 [[nodiscard]] auto RandomSample(const Container& choices, std::size_t count, bool unique = true) {
 	using T = typename Container::value_type;

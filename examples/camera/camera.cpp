@@ -19,10 +19,11 @@
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
+
+// TODO: Fix this demo.
 
 using namespace ptgn;
 
@@ -144,10 +145,10 @@ public:
 		camera.ZoomTo(0.25f, seconds{ 3 });
 		camera.ZoomTo(1.0f, seconds{ 3 });
 
-		camera.RotateTo(DegToRad(90.0f), seconds{ 3 });
-		camera.RotateTo(DegToRad(0.0f), seconds{ 3 });
-		camera.RotateTo(DegToRad(-90.0f), seconds{ 3 });
-		camera.RotateTo(DegToRad(0.0f), seconds{ 3 });
+		camera.RotateTo(90.0f, seconds{ 3 });
+		camera.RotateTo(0.0f, seconds{ 3 });
+		camera.RotateTo(-90.0f, seconds{ 3 });
+		camera.RotateTo(0.0f, seconds{ 3 });
 	}
 
 	void OnUpdate() override {
@@ -220,6 +221,7 @@ seconds{ 4 },Ease::InOutSine, false); } else if (ctx().input.MousePressed(Mouse:
 };
 */
 
+/*
 class PostProcessingEffect {
 public:
 	PostProcessingEffect() {}
@@ -252,6 +254,7 @@ Entity CreateGrayscale(Scene& scene) {
 	grayscale.Add<impl::ShaderPass>(game.shader.Get("grayscale"), nullptr);
 	return grayscale;
 }
+*/
 
 class CameraScene : public Scene {
 public:
@@ -274,20 +277,20 @@ public:
 		mouse = CreateEntity();
 		SetPosition(mouse, {});
 
-		auto blur{ CreateBlur(*this) };
-		auto grayscale{ CreateGrayscale(*this) };
+		// auto blur{ CreateBlur(*this) };
+		// auto grayscale{ CreateGrayscale(*this) };
 		auto game_size{ ctx().renderer.GetGameSize() };
 		auto s1{ CreateSprite(*this, "tree", -game_size * 0.5f + V2_float{ 100, 400 }) };
-		AddPreFX(s1, blur);
+		// AddPreFX(s1, blur);
 		auto s2{ CreateSprite(*this, "tree", -game_size * 0.5f + V2_float{ 700, 400 }) };
-		AddPostFX(s2, grayscale);
+		// AddPostFX(s2, grayscale);
 
 		follow_config.move_mode = MoveMode::Lerp;
 		follow_config.lerp		= { 0.5f, 0.5f };
 		follow_config.deadzone	= { 300, 300 };
 
 		// Shake(camera, 0.5f, seconds{ 5 });
-		// RotateTo(camera, DegToRad(360.0f), seconds{ 5 });
+		// RotateTo(camera, 360.0f, seconds{ 5 });
 		// Shake(camera, 1, seconds{ 5 }, {}, Ease::Linear, false);
 		// Shake(camera, 0, seconds{ 5 }, {}, Ease::Linear, false);
 		// FadeTo(camera, color::Red, seconds{ 5 });

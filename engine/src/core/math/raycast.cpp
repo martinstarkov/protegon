@@ -5,7 +5,6 @@
 #include <cmath>
 #include <type_traits>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "core/assert.h"
@@ -190,7 +189,7 @@ RaycastResult RaycastRect(
 		return c;
 	}
 
-	if (transform2.GetRotation() != 0.0f) {
+	if (transform2.HasRotation()) {
 		return RaycastPolygon(ray_start, ray_end, transform2, Polygon{ B.GetLocalVertices() });
 	}
 
@@ -391,7 +390,7 @@ RaycastResult RaycastCapsule(
 RaycastResult RaycastPolygon(
 	V2_float ray_start, V2_float ray_end, Transform transform2, const Polygon& B
 ) {
-	PTGN_ASSERT(impl::IsConvexPolygon(B.vertices.data(), B.vertices.size()));
+	PTGN_ASSERT(impl::IsConvexPolygon(B));
 	// Convert polygon to world space
 	auto world_points{ B.GetWorldVertices(transform2) };
 	std::size_t count{ world_points.size() };
@@ -421,14 +420,14 @@ RaycastResult RaycastCircleLine(
 	auto circle_center{ A.GetCenter(transform1) };
 	return RaycastCapsule(
 		circle_center, circle_center + ray, transform2,
-		Capsule{ B.start, B.end, A.GetRadius(transform1) }
+		Capsule{ B.GetStart(), B.GetEnd(), A.GetRadius(transform1) }
 	);
 }
 
 RaycastResult RaycastCirclePolygon(
 	V2_float ray, Transform transform1, const Circle& A, Transform transform2, const Polygon& B
 ) {
-	PTGN_ASSERT(impl::IsConvexPolygon(B.vertices.data(), B.vertices.size()));
+	PTGN_ASSERT(impl::IsConvexPolygon(B));
 	// Convert polygon to world space
 	auto world_points{ B.GetWorldVertices(transform2) };
 	std::size_t count{ world_points.size() };
@@ -466,7 +465,7 @@ RaycastResult RaycastCircleCircle(
 RaycastResult RaycastCircleRect(
 	V2_float ray, Transform transform1, const Circle& A, Transform transform2, const Rect& B
 ) {
-	if (transform2.GetRotation() != 0.0f) {
+	if (transform2.HasRotation()) {
 		return RaycastCirclePolygon(
 			ray, transform1, A, transform2, Polygon{ B.GetLocalVertices() }
 		);
@@ -548,7 +547,7 @@ RaycastResult RaycastCircleCapsule(
 	auto capsule_center{ transform2.GetPosition() };
 	return RaycastCapsule(
 		circle_center, circle_center + ray, Transform{ capsule_center, transform2.GetRotation() },
-		Capsule{ B.start, B.end, A.GetRadius(transform1) + B.GetRadius(transform2) }
+		Capsule{ B.GetStart(), B.GetEnd(), A.GetRadius(transform1) + B.GetRadius(transform2) }
 	);
 }
 
@@ -561,8 +560,8 @@ RaycastResult RaycastRectCircle(
 RaycastResult RaycastRectRect(
 	V2_float ray, Transform transform1, const Rect& A, Transform transform2, const Rect& B
 ) {
-	bool rotated1{ transform1.GetRotation() != 0.0f };
-	bool rotated2{ transform2.GetRotation() != 0.0f };
+	bool rotated1{ transform1.HasRotation() };
+	bool rotated2{ transform2.HasRotation() };
 
 	if ((!rotated1 && !rotated2) || (!rotated1 && rotated2)) {
 		auto rectA_center{ A.GetCenter(transform1) };
@@ -590,8 +589,8 @@ RaycastResult RaycastRectPolygon(
 RaycastResult RaycastPolygonPolygon(
 	V2_float ray, Transform transform1, const Polygon& A, Transform transform2, const Polygon& B
 ) {
-	PTGN_ASSERT(impl::IsConvexPolygon(A.vertices.data(), A.vertices.size()));
-	PTGN_ASSERT(impl::IsConvexPolygon(B.vertices.data(), B.vertices.size()));
+	PTGN_ASSERT(impl::IsConvexPolygon(A));
+	PTGN_ASSERT(impl::IsConvexPolygon(B));
 
 	RaycastResult best;
 

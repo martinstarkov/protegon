@@ -10,14 +10,53 @@
 
 namespace ptgn {
 
-struct Polygon {
+class Polygon {
+public:
 	Polygon() = default;
 
-	template <typename Container>
+	template <typename Container> // NOSONAR
 		requires std::ranges::input_range<Container> &&
 				 std::convertible_to<std::ranges::range_value_t<Container>, V2_float>
-	Polygon(const Container& points) { // NOSONAR
-		vertices.assign(points.begin(), points.end());
+	Polygon(const Container& vertices) { // NOSONAR
+		vertices_.assign(vertices.begin(), vertices.end());
+	}
+
+	template <typename Container> // NOSONAR
+		requires std::ranges::input_range<Container> &&
+				 std::convertible_to<std::ranges::range_value_t<Container>, V2_float>
+	void SetVertices(const Container& vertices) {
+		vertices_.assign(vertices.begin(), vertices.end());
+	}
+
+	const std::vector<V2_float>& GetVertices() const;
+	std::vector<V2_float>& GetVertices();
+
+	constexpr V2_float* Data() noexcept {
+		return vertices_.data();
+	}
+
+	constexpr const V2_float* Data() const noexcept {
+		return vertices_.data();
+	}
+
+	constexpr std::size_t GetVertexCount() const {
+		return vertices_.size();
+	}
+
+	constexpr auto begin() noexcept {
+		return vertices_.begin();
+	}
+
+	constexpr auto end() noexcept {
+		return vertices_.end();
+	}
+
+	constexpr auto begin() const noexcept {
+		return vertices_.begin();
+	}
+
+	constexpr auto end() const noexcept {
+		return vertices_.end();
 	}
 
 	std::vector<V2_float> GetWorldVertices(Transform transform) const;
@@ -29,9 +68,10 @@ struct Polygon {
 
 	bool operator==(const Polygon&) const = default;
 
-	std::vector<V2_float> vertices;
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Polygon, vertices_)
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Polygon, vertices)
+private:
+	std::vector<V2_float> vertices_;
 };
 
 } // namespace ptgn

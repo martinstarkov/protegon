@@ -3,6 +3,7 @@
 #include <optional>
 #include <vector>
 
+#include "core/math/angle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
@@ -57,9 +58,8 @@ Entity CreateCircle(
 	FillStyle fill_style = FillStyle::Solid()
 );
 
-/// @brief Unit: Radians
 Entity CreateArc(
-	Scene& scene, V2_float position, float arc_radius, float start_angle, float end_angle,
+	Scene& scene, V2_float position, float arc_radius, Degrees start_angle, Degrees end_angle,
 	bool clockwise, Color color, FillStyle fill_style = FillStyle::Solid()
 );
 

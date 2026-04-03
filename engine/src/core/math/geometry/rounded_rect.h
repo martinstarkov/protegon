@@ -11,11 +11,16 @@ namespace ptgn {
 
 /// @brief RoundedRect has no rotation center because this can be achieved via using a parent Entity
 /// and positioning it where the origin should be.
-struct RoundedRect {
+class RoundedRect {
+public:
 	RoundedRect() = default;
 
 	RoundedRect(V2_float min, V2_float max, float radius);
 	RoundedRect(V2_float size, float radius);
+
+	void SetRadius(float radius);
+	void SetSize(V2_float size);
+	void SetSize(V2_float min, V2_float max);
 
 	V2_float GetSize() const;
 	float GetRadius() const;
@@ -39,11 +44,12 @@ struct RoundedRect {
 
 	bool operator==(const RoundedRect&) const = default;
 
-	V2_float min;
-	V2_float max;
-	float radius{ 0.0f };
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(RoundedRect, min_, max_, radius_)
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(RoundedRect, min, max, radius)
+private:
+	V2_float min_;
+	V2_float max_;
+	float radius_{ 0.0f };
 };
 
 } // namespace ptgn

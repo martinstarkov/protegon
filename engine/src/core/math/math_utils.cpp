@@ -9,16 +9,6 @@
 
 namespace ptgn {
 
-float ClampAngle2Pi(float angle_radians) {
-	float clamped{ std::fmod(angle_radians, kTwoPi) };
-
-	if (clamped < 0.0f) {
-		clamped += kTwoPi;
-	}
-
-	return clamped;
-}
-
 std::tuple<bool, float, float> QuadraticFormula(float a, float b, float c) {
 	const float disc{ b * b - 4.0f * a * c };
 	if (disc < 0.0f) {

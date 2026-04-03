@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "app/application.h"
+#include "core/math/angle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
@@ -15,7 +16,6 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -84,7 +84,7 @@ public:
 		SetPosition(mouse_directional_light, ctx().input.GetMousePosition());
 		float time_scale{ 0.1f };
 		auto time{ static_cast<float>(ctx().TimeSinceStart().count()) };
-		SetRotation(mouse_directional_light, DegToRad(time * time_scale));
+		SetRotation(mouse_directional_light, Degrees{ time * time_scale });
 
 		auto scroll{ ctx().input.GetMouseScroll() };
 

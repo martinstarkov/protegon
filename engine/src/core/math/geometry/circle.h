@@ -8,10 +8,13 @@
 
 namespace ptgn {
 
-struct Circle {
+class Circle {
+public:
 	Circle() = default;
 
 	Circle(float radius); // NOSONAR
+
+	void SetRadius(float radius);
 
 	/// @return Center relative to the world.
 	V2_float GetCenter(Transform transform) const;
@@ -33,9 +36,10 @@ struct Circle {
 
 	bool operator==(const Circle&) const = default;
 
-	float radius{ 0.0f };
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Circle, radius_)
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Circle, radius)
+private:
+	float radius_{ 0.0f };
 };
 
 } // namespace ptgn

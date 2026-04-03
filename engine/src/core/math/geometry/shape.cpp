@@ -1,5 +1,6 @@
 #include "core/math/geometry/shape.h"
 
+#include <ranges>
 #include <type_traits>
 #include <vector>
 

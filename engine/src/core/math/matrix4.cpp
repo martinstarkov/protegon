@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
@@ -111,22 +112,31 @@ Matrix4 Matrix4::Inverse() const {
 }
 
 Matrix4 Matrix4::MakeTransform(
-	V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
+	V3_float position, Radians rotation, V3_float rotation_axis, V3_float scale
 ) {
 	Matrix4 m{ Matrix4::Identity() };
 
 	m = Matrix4::Scale(m, scale);
-	m = Matrix4::Rotate(m, rotation_radians, rotation_axis);
+	m = Matrix4::Rotate(m, rotation, rotation_axis);
 	m = Matrix4::Translate(m, position);
 
 	return m;
 }
 
-Matrix4 Matrix4::MakeTransform(V2_float position, float rotation_radians, V2_float scale) {
+Matrix4 Matrix4::MakeTransform(
+	V3_float position, Degrees rotation, V3_float rotation_axis, V3_float scale
+) {
+	return MakeTransform(position, rotation.ToRad(), rotation_axis, scale);
+}
+
+Matrix4 Matrix4::MakeTransform(V2_float position, Radians rotation, V2_float scale) {
 	return MakeTransform(
-		{ position.x, position.y, 0.0f }, rotation_radians, { 0.0f, 0.0f, 1.0f },
-		{ scale.x, scale.y, 1.0f }
+		{ position.x, position.y, 0.0f }, rotation, { 0.0f, 0.0f, 1.0f }, { scale.x, scale.y, 1.0f }
 	);
+}
+
+Matrix4 Matrix4::MakeTransform(V2_float position, Degrees rotation, V2_float scale) {
+	return MakeTransform(position, rotation.ToRad(), scale);
 }
 
 Matrix4 Matrix4::MakeTransform(Transform transform) {
@@ -134,24 +144,33 @@ Matrix4 Matrix4::MakeTransform(Transform transform) {
 }
 
 Matrix4 Matrix4::MakeInverseTransform(
-	V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
+	V3_float position, Radians rotation, V3_float rotation_axis, V3_float scale
 ) {
 	PTGN_ASSERT(!scale.HasZero(), "Cannot get inverse transform with zero scale");
 
 	Matrix4 m{ Matrix4::Identity() };
 
 	m = Matrix4::Scale(m, 1.0f / scale);
-	m = Matrix4::Rotate(m, -rotation_radians, rotation_axis);
+	m = Matrix4::Rotate(m, -rotation, rotation_axis);
 	m = Matrix4::Translate(m, -position);
 
 	return m;
 }
 
-Matrix4 Matrix4::MakeInverseTransform(V2_float position, float rotation_radians, V2_float scale) {
+Matrix4 Matrix4::MakeInverseTransform(
+	V3_float position, Degrees rotation, V3_float rotation_axis, V3_float scale
+) {
+	return MakeInverseTransform(position, rotation.ToRad(), rotation_axis, scale);
+}
+
+Matrix4 Matrix4::MakeInverseTransform(V2_float position, Radians rotation, V2_float scale) {
 	return MakeInverseTransform(
-		{ position.x, position.y, 0.0f }, rotation_radians, { 0.0f, 0.0f, 1.0f },
-		{ scale.x, scale.y, 1.0f }
+		{ position.x, position.y, 0.0f }, rotation, { 0.0f, 0.0f, 1.0f }, { scale.x, scale.y, 1.0f }
 	);
+}
+
+Matrix4 Matrix4::MakeInverseTransform(V2_float position, Degrees rotation, V2_float scale) {
+	return MakeInverseTransform(position, rotation.ToRad(), scale);
 }
 
 Matrix4 Matrix4::MakeInverseTransform(Transform transform) {
@@ -206,11 +225,11 @@ Matrix4 Matrix4::Orthographic(V2_float min, V2_float max, float near, float far)
 	return Orthographic(min.x, max.x, max.y, min.y, near, far);
 }
 
-Matrix4 Matrix4::Perspective(float fov_x_radians, float aspect_ratio, float front, float back) {
-	float tangent{ std::tan(fov_x_radians / 2.0f) }; // tangent of half fovX
-	float right{ front * tangent };					 // half width of near plane
+Matrix4 Matrix4::Perspective(Radians fov_x, float aspect_ratio, float front, float back) {
+	float tangent{ (fov_x / 2.0f).Tan() }; // tangent of half fovX
+	float right{ front * tangent };		   // half width of near plane
 	PTGN_ASSERT(!NearlyEqual(aspect_ratio, 0.0f), "Perspective matrix aspect ratio cannot be zero");
-	float top{ right / aspect_ratio };				 // half height of near plane
+	float top{ right / aspect_ratio };	   // half height of near plane
 
 	float depth{ back - front };
 
@@ -226,6 +245,10 @@ Matrix4 Matrix4::Perspective(float fov_x_radians, float aspect_ratio, float fron
 	return p;
 }
 
+Matrix4 Matrix4::Perspective(Degrees fov_x, float aspect_ratio, float front, float back) {
+	return Perspective(fov_x.ToRad(), aspect_ratio, front, back);
+}
+
 Matrix4 Matrix4::Translate(const Matrix4& m, V3_float axes) {
 	Matrix4 result{ m };
 	for (std::size_t i{ 0 }; i < static_cast<std::size_t>(result.size.x); i++) { // NOSONAR
@@ -234,9 +257,9 @@ Matrix4 Matrix4::Translate(const Matrix4& m, V3_float axes) {
 	return result;
 }
 
-Matrix4 Matrix4::Rotate(const Matrix4& matrix, float rotation_radians, V3_float axes) {
-	const float c{ std::cos(rotation_radians) };
-	const float s{ std::sin(rotation_radians) };
+Matrix4 Matrix4::Rotate(const Matrix4& matrix, Radians rotation, V3_float axes) {
+	const float c{ rotation.Cos() };
+	const float s{ rotation.Sin() };
 
 	float magnitude{ axes.Dot(axes) };
 
@@ -276,6 +299,10 @@ Matrix4 Matrix4::Rotate(const Matrix4& matrix, float rotation_radians, V3_float 
 		result[i + 12] = matrix[i + 12];
 	}
 	return result;
+}
+
+Matrix4 Matrix4::Rotate(const Matrix4& matrix, Degrees rotation, V3_float axes) {
+	return Rotate(matrix, rotation.ToRad(), axes);
 }
 
 Matrix4 Matrix4::Scale(const Matrix4& m, V3_float axes) {

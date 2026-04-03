@@ -13,12 +13,14 @@
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/ui/interactive.h"
 #include "serialization/json/fwd.h"
-#include "serialization/json/json.h"
 #include "serialization/json/serialize.h"
+
+// TODO: Fix this demo.
 
 using namespace ptgn;
 
@@ -34,6 +36,7 @@ public:
 };
 
 int main(int, char**) {
+	/*
 	Manager manager;
 	Entity entity{ manager.CreateEntity() };
 	SetPosition(entity, { 30, 50 });
@@ -149,6 +152,7 @@ int main(int, char**) {
 		);
 		test_manager_serialization("json", game.json, "assets/json1.json", "assets/json2.json");
 	}
+	*/
 
 	/*{
 		JsonOutputArchive json_output("assets/mydata.json");

@@ -4,9 +4,9 @@
 #include <cstdlib>
 #include <functional>
 #include <limits>
+#include <span>
 #include <type_traits>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "core/assert.h"
@@ -73,7 +73,7 @@ using Point = V2_float;
 namespace impl {
 
 std::vector<Axis> GetPolygonAxes(
-	const V2_float* vertices, std::size_t vertex_count, [[maybe_unused]] bool intersection_info
+	std::span<const V2_float> vertices, [[maybe_unused]] bool intersection_info
 ) {
 	std::vector<Axis> axes;
 
@@ -86,10 +86,10 @@ std::vector<Axis> GetPolygonAxes(
 		return false;
 	};
 
-	axes.reserve(vertex_count);
+	axes.reserve(vertices.size());
 
-	for (std::size_t a{ 0 }; a < vertex_count; a++) {
-		std::size_t b{ a + 1 == vertex_count ? 0 : a + 1 };
+	for (std::size_t a{ 0 }; a < vertices.size(); a++) {
+		std::size_t b{ a + 1 == vertices.size() ? 0 : a + 1 };
 
 		Axis axis;
 		axis.midpoint  = Midpoint(vertices[a], vertices[b]);
@@ -116,9 +116,9 @@ std::vector<Axis> GetPolygonAxes(
 }
 
 std::pair<float, float> GetPolygonProjectionMinMax(
-	const V2_float* vertices, std::size_t vertex_count, const Axis& axis
+	std::span<const V2_float> vertices, const Axis& axis
 ) {
-	PTGN_ASSERT(vertex_count > 0);
+	PTGN_ASSERT(vertices.size() > 0);
 	PTGN_ASSERT(
 		std::invoke([&]() {
 			float mag2{ axis.direction.MagnitudeSquared() };
@@ -129,8 +129,8 @@ std::pair<float, float> GetPolygonProjectionMinMax(
 
 	float min{ axis.direction.Dot(vertices[0]) };
 	float max{ min };
-	for (std::size_t i{ 1 }; i < vertex_count; i++) {
-		float p = vertices[i].Dot(axis.direction);
+	for (std::size_t i{ 1 }; i < vertices.size(); i++) {
+		float p{ vertices[i].Dot(axis.direction) };
 		if (p < min) {
 			min = p;
 		} else if (p > max) {
@@ -145,12 +145,10 @@ bool PolygonsHaveOverlapAxis(Transform t1, const Polygon& A, Transform t2, const
 	auto world_pointsA{ A.GetWorldVertices(t1) };
 	auto world_pointsB{ B.GetWorldVertices(t2) };
 
-	const auto axes{ impl::GetPolygonAxes(world_pointsA.data(), world_pointsA.size(), false) };
+	const auto axes{ impl::GetPolygonAxes(world_pointsA, false) };
 	for (const Axis& a : axes) {
-		auto [min1, max1] =
-			impl::GetPolygonProjectionMinMax(world_pointsA.data(), world_pointsA.size(), a);
-		auto [min2, max2] =
-			impl::GetPolygonProjectionMinMax(world_pointsB.data(), world_pointsB.size(), a);
+		auto [min1, max1] = impl::GetPolygonProjectionMinMax(world_pointsA, a);
+		auto [min2, max2] = impl::GetPolygonProjectionMinMax(world_pointsB, a);
 
 		if (!impl::IntervalsOverlap(min1, max1, min2, max2)) {
 			return false;
@@ -165,16 +163,10 @@ bool GetPolygonMinimumOverlap(
 	Polygon world_polygonA{ A.GetWorldVertices(t1) };
 	Polygon world_polygonB{ B.GetWorldVertices(t2) };
 
-	const auto axes{
-		impl::GetPolygonAxes(world_polygonA.vertices.data(), world_polygonA.vertices.size(), true)
-	};
+	const auto axes{ impl::GetPolygonAxes(world_polygonA, true) };
 	for (const Axis& a : axes) {
-		auto [min1, max1] = impl::GetPolygonProjectionMinMax(
-			world_polygonA.vertices.data(), world_polygonA.vertices.size(), a
-		);
-		auto [min2, max2] = impl::GetPolygonProjectionMinMax(
-			world_polygonB.vertices.data(), world_polygonB.vertices.size(), a
-		);
+		auto [min1, max1] = impl::GetPolygonProjectionMinMax(world_polygonA, a);
+		auto [min2, max2] = impl::GetPolygonProjectionMinMax(world_polygonB, a);
 
 		if (!impl::IntervalsOverlap(min1, max1, min2, max2)) {
 			return false;
@@ -223,7 +215,7 @@ bool PolygonContainsPolygon(Transform t1, const Polygon& A, Transform t2, const 
 	Polygon world_polygonA{ A.GetWorldVertices(t1) };
 	Polygon world_polygonB{ B.GetWorldVertices(t2) };
 
-	for (const auto& vertexB : world_polygonB.vertices) {
+	for (const auto& vertexB : world_polygonB) {
 		if (!OverlapPointPolygon(Transform{}, vertexB, Transform{}, world_polygonA)) {
 			return false;
 		}
@@ -313,7 +305,7 @@ bool OverlapPointRect(Transform t1, V2_float A, Transform t2, const Rect& B) {
 	if (rect_size.IsZero()) {
 		return false;
 	}
-	if (t2.GetRotation() != 0.0f) {
+	if (t2.HasRotation()) {
 		return OverlapPointPolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 
@@ -363,7 +355,7 @@ bool OverlapPointCapsule(Transform t1, V2_float A, Transform t2, const Capsule& 
 bool OverlapPointPolygon(Transform t1, V2_float A, Transform t2, const Polygon& B) {
 	auto point{ t1.Apply(A) };
 
-	auto world_points{ t2.Apply(B.vertices) };
+	auto world_points{ t2.Apply(B.GetVertices()) };
 	std::size_t count{ world_points.size() };
 	const auto& v{ world_points };
 
@@ -389,13 +381,13 @@ bool OverlapLineLine(Transform t1, const Line& A, Transform t2, const Line& B) {
 	// Source:
 	// https://www.geeksforgeeks.org/check-if-two-given-line-segments-intersect/
 
-	// Sign of areas correspond to which side of ab points c and d are
-	float a1{
-		impl::ParallelogramArea(lineA_start, lineA_end, lineB_end)
-	}; // Compute winding of abd (+ or -)
-	float a2{
-		impl::ParallelogramArea(lineA_start, lineA_end, lineB_start)
-	}; // To intersect, must have sign opposite of a1
+	// Sign of areas correspond to which side of ab points c and d are.
+	// Compute winding of abd (+ or -)
+	float a1{ impl::ParallelogramArea(lineA_start, lineA_end, lineB_end) };
+
+	// To intersect, must have sign opposite of a1
+	float a2{ impl::ParallelogramArea(lineA_start, lineA_end, lineB_start) };
+
 	// If c and d are on different sides of ab, areas have different signs
 	bool polarity_diff{ false };
 	bool collinear{ false };
@@ -500,7 +492,7 @@ bool OverlapLineRect(Transform t1, const Line& A, Transform t2, const Rect& B) {
 		return false;
 	}
 	auto [line_start, line_end] = A.GetWorldVertices(t1);
-	if (t2.GetRotation() != 0.0f) {
+	if (t2.HasRotation()) {
 		return OverlapLinePolygon(
 			Transform{}, Line{ line_start, line_end }, t2, Polygon{ B.GetLocalVertices() }
 		);
@@ -528,8 +520,8 @@ bool OverlapLineRect(Transform t1, const Line& A, Transform t2, const Rect& B) {
 
 	// Add in an epsilon term to counteract arithmetic errors when segment is
 	// (near) parallel to a coordinate axis.
-	adx += epsilon<float>;
-	ady += epsilon<float>;
+	adx += kEpsilon<float>;
+	ady += kEpsilon<float>;
 
 	// Try cross products of segment direction vector with coordinate axes.
 	float cross{ m.Cross(d) };
@@ -568,18 +560,17 @@ bool OverlapLineCapsule(Transform t1, const Line& A, Transform t2, const Capsule
 bool OverlapLinePolygon(Transform t1, const Line& A, Transform t2, const Polygon& B) {
 	auto [line_start, line_end] = A.GetWorldVertices(t1);
 	auto polygon_vertices		= B.GetWorldVertices(t2);
+
 	if (OverlapPointPolygon(Transform{}, line_start, Transform{}, Polygon{ polygon_vertices })) {
 		return true;
 	}
 
-	std::size_t polygon_vertex_count{ polygon_vertices.size() };
+	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices));
 
-	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices.data(), polygon_vertex_count));
-
-	for (std::size_t i{ 0 }; i < polygon_vertex_count; ++i) {
+	for (std::size_t i{ 0 }; i < polygon_vertices.size(); ++i) {
 		if (OverlapLineLine(
 				Transform{}, { line_start, line_end }, Transform{},
-				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertex_count] }
+				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertices.size()] }
 			)) {
 			return true;
 		}
@@ -621,7 +612,7 @@ bool OverlapCircleRect(Transform t1, const Circle& A, Transform t2, const Rect& 
 	if (rect_size.IsZero()) {
 		return false;
 	}
-	if (t2.GetRotation() != 0.0f) {
+	if (t2.HasRotation()) {
 		return OverlapCirclePolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
 	auto circle_center{ A.GetCenter(t1) };
@@ -649,14 +640,14 @@ bool OverlapCirclePolygon(Transform t1, const Circle& A, Transform t2, const Pol
 	}
 
 	auto polygon_vertices{ B.GetWorldVertices(t2) };
-	std::size_t polygon_vertex_count{ polygon_vertices.size() };
 
-	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices.data(), polygon_vertex_count));
+	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices));
 
-	for (std::size_t i{ 0 }; i < polygon_vertex_count; ++i) {
+	for (std::size_t i{ 0 }; i < polygon_vertices.size(); ++i) {
 		if (OverlapLineCircle(
 				Transform{},
-				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertex_count] }, t1, A
+				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertices.size()] },
+				t1, A
 			)) {
 			return true;
 		}
@@ -720,14 +711,13 @@ bool OverlapTrianglePolygon(Transform t1, const Triangle& A, Transform t2, const
 	}
 
 	auto polygon_vertices{ B.GetWorldVertices(t2) };
-	std::size_t polygon_vertex_count{ polygon_vertices.size() };
 
-	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices.data(), polygon_vertex_count));
+	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices));
 
-	for (std::size_t i{ 0 }; i < polygon_vertex_count; ++i) {
+	for (std::size_t i{ 0 }; i < polygon_vertices.size(); ++i) {
 		if (OverlapLineTriangle(
 				Transform{},
-				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertex_count] },
+				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertices.size()] },
 				Transform{}, Triangle{ a, b, c }
 			)) {
 			return true;
@@ -764,7 +754,7 @@ bool OverlapTriangleCapsule(Transform t1, const Triangle& A, Transform t2, const
 }
 
 bool OverlapRectRect(Transform t1, const Rect& A, Transform t2, const Rect& B) {
-	if (t1.GetRotation() != 0.0f || t2.GetRotation() != 0.0f) {
+	if (t1.HasRotation() || t2.HasRotation()) {
 		return OverlapPolygonPolygon(
 			t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
 		);
@@ -824,7 +814,7 @@ bool OverlapRectCapsule(Transform t1, const Rect& A, Transform t2, const Capsule
 	}
 
 	// Rotated rect.
-	if (t1.GetRotation() != 0.0f) {
+	if (t1.HasRotation()) {
 		return OverlapPolygonCapsule(
 			t1, Polygon{ A.GetLocalVertices() }, Transform{},
 			Capsule{ capsule_start, capsule_end, capsule_radius }
@@ -900,11 +890,11 @@ bool OverlapCapsuleCapsule(Transform t1, const Capsule& A, Transform t2, const C
 
 bool OverlapPolygonPolygon(Transform t1, const Polygon& A, Transform t2, const Polygon& B) {
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(A.vertices.data(), A.vertices.size()),
+		impl::IsConvexPolygon(A),
 		"PolygonPolygon overlap check only works if both polygons are convex"
 	);
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(B.vertices.data(), B.vertices.size()),
+		impl::IsConvexPolygon(B),
 		"PolygonPolygon overlap check only works if both polygons are convex"
 	);
 	return impl::PolygonsHaveOverlapAxis(t1, A, t2, B) &&

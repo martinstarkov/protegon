@@ -1,10 +1,10 @@
 #include "runtime/graphics/light.h"
 
-#include <algorithm>
 #include <array>
 #include <optional>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
@@ -40,10 +40,10 @@ void Light::SetUniform(DrawContext& renderer, Entity entity) {
 
 	if (light.cone_angle.has_value()) {
 		renderer.SetUniform(light_shader, "u_UseCone", 1.0f);
-		renderer.SetUniform(light_shader, "u_ConeAngle", *light.cone_angle / 2.0f);
+		renderer.SetUniform(light_shader, "u_ConeAngle", (*light.cone_angle / 2.0f).value);
 	} else {
 		renderer.SetUniform(light_shader, "u_UseCone", 0.0f);
-		renderer.SetUniform(light_shader, "u_ConeAngle", DegToRad(360.0f));
+		renderer.SetUniform(light_shader, "u_ConeAngle", kTwoPi);
 	}
 
 	renderer.SetUniform(light_shader, "u_Color", color_n);
@@ -56,7 +56,7 @@ void Light::Draw(DrawContext& renderer, Entity entity, Camera) {
 	PTGN_ASSERT((entity.Has<Circle, impl::LightData>()));
 
 	if (const auto& light{ entity.Get<impl::LightData>() };
-		light.cone_angle.has_value() && *light.cone_angle == 0.0f) {
+		light.cone_angle.has_value() && *light.cone_angle == Radians{ 0.0f }) {
 		// Directional light with cone angle of 0.0f.
 		return;
 	}
@@ -128,13 +128,13 @@ Color Light::GetAmbientColor() const {
 
 Light& Light::SetRadius(float radius) {
 	PTGN_ASSERT(radius > 0.0f, "Light radius must be above 0");
-	Add<Circle>().radius = radius;
+	Add<Circle>().SetRadius(radius);
 	return *this;
 }
 
 float Light::GetRadius() const {
 	PTGN_ASSERT(Has<Circle>(), "Light must have Circle component");
-	return Get<Circle>().radius;
+	return Get<Circle>().GetRadius();
 }
 
 Light& Light::SetFalloff(float falloff) {
@@ -149,7 +149,7 @@ float Light::GetFalloff() const {
 	return Get<impl::LightData>().falloff;
 };
 
-Light& Light::SetConeAngle(std::optional<float> cone_angle) {
+Light& Light::SetConeAngle(std::optional<Degrees> cone_angle) {
 	PTGN_ASSERT(Has<impl::LightData>(), "Directional light must have LightData component");
 	auto& light_data{ Get<impl::LightData>() };
 
@@ -158,17 +158,15 @@ Light& Light::SetConeAngle(std::optional<float> cone_angle) {
 		return *this;
 	}
 
-	float angle = std::clamp(*cone_angle, 0.0f, 360.0f);
-
-	light_data.cone_angle = DegToRad(angle);
+	light_data.cone_angle = Radians{ Clamp(*cone_angle) };
 
 	return *this;
 }
 
-std::optional<float> Light::GetConeAngle() const {
+std::optional<Degrees> Light::GetConeAngle() const {
 	PTGN_ASSERT(Has<impl::LightData>(), "Light must have LightData component");
 	if (const auto& light_data{ Get<impl::LightData>() }; light_data.cone_angle.has_value()) {
-		return RadToDeg(*light_data.cone_angle);
+		return light_data.cone_angle->ToDeg();
 	} else {
 		return std::nullopt;
 	}
@@ -180,7 +178,7 @@ Light& Light::SetLightProperties(const LightProperties& properties) {
 	SetIntensity(properties.intensity);
 	SetFalloff(properties.falloff);
 	SetConeAngle(properties.cone_angle);
-	SetRotation(*this, DegToRad(properties.direction_angle));
+	SetRotation(*this, properties.direction_angle);
 	return *this;
 }
 
@@ -192,7 +190,7 @@ LightProperties Light::GetLightProperties() const {
 	properties.falloff	  = GetFalloff();
 	properties.cone_angle = GetConeAngle();
 	auto rotation{ GetRotation(*this) };
-	properties.direction_angle = RadToDeg(rotation);
+	properties.direction_angle = rotation;
 	return properties;
 }
 

@@ -6,6 +6,7 @@
 #include <type_traits>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "ecs/ecs.h"
@@ -267,8 +268,8 @@ Transform GetDrawTransform(Entity entity);
 V2_float GetPosition(Entity entity);
 V2_float GetWorldPosition(Entity entity);
 
-float GetRotation(Entity entity);
-float GetWorldRotation(Entity entity);
+Degrees GetRotation(Entity entity);
+Degrees GetWorldRotation(Entity entity);
 
 V2_float GetScale(Entity entity);
 V2_float GetWorldScale(Entity entity);
@@ -284,16 +285,18 @@ void Translate(Entity entity, V2_float position_difference);
 void TranslateX(Entity entity, float position_x_difference);
 void TranslateY(Entity entity, float position_y_difference);
 
-/// Set 2D rotation angle in radians.
-/// Range: (-3.14159, 3.14159].
-/// (clockwise positive).
-///            -1.5708
-///               |
-///    3.14159 ---o--- 0
-///               |
-///             1.5708
-void SetRotation(Entity entity, float rotation);
-void Rotate(Entity entity, float angle_difference);
+/// Set 2D rotation angle.
+/// Range: (-180, 180].
+/// Positive clockwise.
+///          -90
+///           |
+///    180 ---o--- 0
+///           |
+///           90
+void SetRotation(Entity entity, Radians rotation);
+void SetRotation(Entity entity, Degrees rotation);
+void Rotate(Entity entity, Radians angle_difference);
+void Rotate(Entity entity, Degrees angle_difference);
 
 void SetScale(Entity entity, V2_float scale);
 void SetScale(Entity entity, float scale);

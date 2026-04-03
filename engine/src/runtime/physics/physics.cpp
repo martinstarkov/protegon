@@ -7,8 +7,10 @@
 
 #include "core/assert.h"
 #include "core/log.h"
+#include "core/math/angle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/time/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"

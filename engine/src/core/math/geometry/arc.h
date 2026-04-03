@@ -2,25 +2,35 @@
 
 #include <array>
 
+#include "core/math/angle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {
 
-struct Arc {
+class Arc {
+public:
 	Arc() = default;
 
-	/// @brief Unit: Radians
-	Arc(float arc_radius, float start_angle, float end_angle, bool clockwise = true);
+	Arc(float arc_radius, Radians start_angle, Radians end_angle, bool clockwise = true);
+	Arc(float arc_radius, Degrees start_angle, Degrees end_angle, bool clockwise = true);
+
+	void SetRadius(float radius);
+	void SetStartAngle(Radians start_angle);
+	void SetEndAngle(Radians end_angle);
+	void SetStartAngle(Degrees start_angle);
+	void SetEndAngle(Degrees end_angle);
+	void SetClockwise(bool clockwise = true);
 
 	/// @return Center relative to the world.
 	V2_float GetCenter(Transform transform) const;
 
 	float GetRadius() const;
-	float GetStartAngle() const;
-	float GetEndAngle() const;
-	float GetAperture() const;
+	Degrees GetStartAngle() const;
+	Degrees GetEndAngle() const;
+	Degrees GetAperture() const;
+	[[nodiscard]] bool IsClockwise() const;
 
 	/// @return Radius scaled relative to the transform.
 	float GetRadius(Transform transform) const;
@@ -31,16 +41,15 @@ struct Arc {
 
 	bool operator==(const Arc&) const = default;
 
-	float radius{ 0.0f };
-	/// @brief Unit: Radians
-	float start_angle{ 0.0f };
-	/// @brief Unit: Radians
-	float end_angle{ 0.0f };
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Arc, radius_, start_angle_, end_angle_, clockwise_)
+
+private:
+	float radius_{ 0.0f };
+	Radians start_angle_{ 0.0f };
+	Radians end_angle_{ 0.0f };
 
 	/// @brief Direction of arc.
-	bool clockwise{ true };
-
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Arc, radius, start_angle, end_angle, clockwise)
+	bool clockwise_{ true };
 };
 
 } // namespace ptgn

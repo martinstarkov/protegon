@@ -12,16 +12,20 @@ namespace ptgn {
 
 /// @brief Rect has no rotation center because this can be achieved via using a parent Entity and
 /// positioning it where the origin should be.
-struct Rect {
+class Rect {
+public:
 	Rect() = default;
 
 	Rect(V2_float min, V2_float max);
 
 	template <Arithmetic T>
-	Rect(Vector2<T> size) : min{ -size * 0.5f }, max{ size * 0.5f } {} // NOSONAR
+	Rect(Vector2<T> size) : min_{ -size * 0.5f }, max_{ size * 0.5f } {} // NOSONAR
 
 	template <Arithmetic T>
 	Rect(T x, T y) : Rect{ Vector2<T>{ x, y } } {}
+
+	void SetSize(V2_float size);
+	void SetSize(V2_float min, V2_float max);
 
 	V2_float GetSize() const;
 
@@ -43,10 +47,11 @@ struct Rect {
 
 	bool operator==(const Rect&) const = default;
 
-	V2_float min;
-	V2_float max;
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Rect, min_, max_)
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Rect, min, max)
+private:
+	V2_float min_;
+	V2_float max_;
 };
 
 } // namespace ptgn

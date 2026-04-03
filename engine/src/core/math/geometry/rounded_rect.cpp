@@ -11,17 +11,31 @@
 namespace ptgn {
 
 RoundedRect::RoundedRect(V2_float min, V2_float max, float radius) :
-	min{ min }, max{ max }, radius{ radius } {}
+	min_{ min }, max_{ max }, radius_{ radius } {}
 
 RoundedRect::RoundedRect(V2_float size, float radius) :
-	min{ -size * 0.5f }, max{ size * 0.5f }, radius{ radius } {}
+	RoundedRect{ -size * 0.5f, size * 0.5f, radius } {}
+
+void RoundedRect::SetRadius(float radius) {
+	radius_ = radius;
+}
+
+void RoundedRect::SetSize(V2_float size) {
+	min_ = -size * 0.5f;
+	max_ = size * 0.5f;
+}
+
+void RoundedRect::SetSize(V2_float min, V2_float max) {
+	min_ = min;
+	max_ = max;
+}
 
 V2_float RoundedRect::GetSize() const {
-	return max - min;
+	return max_ - min_;
 }
 
 float RoundedRect::GetRadius() const {
-	return radius;
+	return radius_;
 }
 
 V2_float RoundedRect::GetSize(Transform transform) const {
@@ -52,8 +66,8 @@ std::array<V2_float, 4> RoundedRect::GetWorldQuadVertices(Transform transform) c
 }
 
 std::array<V2_float, 4> RoundedRect::GetLocalQuadVertices() const {
-	PTGN_ASSERT(min != max, "Cannot get local vertices for a rounded rect with size zero");
-	return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
+	PTGN_ASSERT(min_ != max_, "Cannot get local vertices for a rounded rect with size zero");
+	return { min_, V2_float{ max_.x, min_.y }, max_, V2_float{ min_.x, max_.y } };
 }
 
 std::array<V2_float, 4> RoundedRect::GetWorldQuadVertices(Transform transform, Origin draw_origin)
@@ -65,7 +79,7 @@ std::array<V2_float, 4> RoundedRect::GetWorldQuadVertices(Transform transform, O
 
 V2_float RoundedRect::GetCenter(Transform transform) const {
 	auto position{ transform.GetPosition() };
-	auto center{ (max + min) * 0.5f };
+	auto center{ (max_ + min_) * 0.5f };
 	return position + center;
 }
 

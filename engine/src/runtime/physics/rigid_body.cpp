@@ -1,8 +1,10 @@
 #include "runtime/physics/rigid_body.h"
 
 #include <algorithm>
+#include <chrono>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "runtime/ecs/entity.h"
@@ -24,7 +26,8 @@ void RigidBody::Update(V2_float physics_gravity, secondsf dt) {
 			max_angular_speed >= 0.0f,
 			"Max angular speed must be a positive number or -1 to omit it"
 		);
-		angular_velocity = std::clamp(angular_velocity, -max_angular_speed, max_angular_speed);
+		angular_velocity =
+			Radians{ std::clamp(angular_velocity.value, -max_angular_speed, max_angular_speed) };
 	}
 }
 
@@ -35,16 +38,24 @@ void RigidBody::AddAcceleration(V2_float acceleration, secondsf dt) {
 	velocity += acceleration * dt.count();
 }
 
-void RigidBody::AddAngularAcceleration(float angular_acceleration, secondsf dt) {
+void RigidBody::AddAngularAcceleration(Radians angular_acceleration, secondsf dt) {
 	angular_velocity += angular_acceleration * dt.count();
+}
+
+void RigidBody::AddAngularAcceleration(Degrees angular_acceleration, secondsf dt) {
+	AddAngularAcceleration(angular_acceleration.ToRad(), dt);
 }
 
 void RigidBody::AddImpulse(V2_float impulse) {
 	velocity += impulse;
 }
 
-void RigidBody::AddAngularImpulse(float angular_impulse) {
+void RigidBody::AddAngularImpulse(Radians angular_impulse) {
 	angular_velocity += angular_impulse;
+}
+
+void RigidBody::AddAngularImpulse(Degrees angular_impulse) {
+	AddAngularImpulse(angular_impulse.ToRad());
 }
 
 bool IsImmovable(Entity entity, bool check_parents) {

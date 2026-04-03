@@ -8,10 +8,15 @@
 
 namespace ptgn {
 
-struct Capsule {
+class Capsule {
+public:
 	Capsule() = default;
 
 	Capsule(V2_float start, V2_float end, float radius);
+
+	void SetStart(V2_float start);
+	void SetEnd(V2_float end);
+	void SetRadius(float radius);
 
 	/// @param out_size Optional parameter for the unrotated size of the quad.
 	/// @return Quad vertices relative to the given transform for this line with a given a line
@@ -28,13 +33,20 @@ struct Capsule {
 	/// @return Radius scaled relative to the transform.
 	float GetRadius(Transform transform) const;
 
+	V2_float GetStart() const;
+	V2_float GetEnd() const;
+
+	/// @brief Get direction from start to end.
+	V2_float GetDirection() const;
+
 	bool operator==(const Capsule&) const = default;
 
-	V2_float start;
-	V2_float end;
-	float radius{ 0.0f };
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Capsule, start_, end_, radius_)
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Capsule, start, end, radius)
+private:
+	V2_float start_;
+	V2_float end_;
+	float radius_{ 0.0f };
 };
 
 } // namespace ptgn

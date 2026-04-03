@@ -2,10 +2,11 @@
 
 #include <cstdint>
 #include <memory>
-#include <random>
 #include <utility>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
+#include "core/math/rng.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/type_info.h"
@@ -21,15 +22,7 @@
 
 namespace ptgn {
 
-namespace impl {
-
-static std::random_device uuid_random_device;
-static std::mt19937_64 uuid_engine(uuid_random_device());
-static std::uniform_int_distribution<std::uint64_t> uuid_distribution;
-
-} // namespace impl
-
-UUID::UUID() : uuid_{ impl::uuid_distribution(impl::uuid_engine) } {}
+UUID::UUID() : uuid_{ RandomNumber<std::uint64_t>() } {}
 
 UUID::UUID(std::uint64_t uuid) : uuid_{ uuid } {}
 
@@ -37,7 +30,7 @@ UUID::operator std::uint64_t() const {
 	return uuid_;
 }
 
-Entity::Entity(Scene& scene) : Entity{ scene.CreateEntity() } {}
+Entity::Entity(Scene& scene) : Entity{ scene.CreateEntity(), &scene } {}
 
 // void Entity::Clear() const {
 //	entity_.Clear();
@@ -49,9 +42,9 @@ Entity& Entity::Destroy(bool orphan_children) {
 	}
 
 	if (HasChildren(*this)) {
-		auto children{ GetChildren(*this) };
+		const auto& children{ GetChildren(*this) };
 		if (orphan_children) {
-			for (Entity child : children) {
+			for (const auto& child : children) {
 				impl::RemoveParentImpl(child);
 			}
 		} else {
@@ -78,7 +71,7 @@ const Scene& Entity::GetScene() const {
 }
 
 Scene& Entity::GetScene() {
-	return const_cast<Scene&>(std::as_const(*this).GetScene());
+	return const_cast<Scene&>(std::as_const(*this).GetScene()); // NOSONAR
 }
 
 bool Entity::HasScene() const {
@@ -136,9 +129,9 @@ void Entity::DeserializeAllImpl(const json& j) {
 
 	impl::ComponentRegistry::AddTypes(GetManager());
 
-	auto& manager{ GetManager() };
+	const auto& manager{ GetManager() };
 
-	for (auto& pool : manager.pools_) {
+	for (const auto& pool : manager.pools_) {
 		if (!pool) {
 			continue;
 		}
@@ -232,11 +225,11 @@ V2_float GetWorldPosition(Entity entity) {
 	return GetWorldTransform(entity).GetPosition();
 }
 
-float GetRotation(Entity entity) {
+Degrees GetRotation(Entity entity) {
 	return GetTransform(entity).GetRotation();
 }
 
-float GetWorldRotation(Entity entity) {
+Degrees GetWorldRotation(Entity entity) {
 	return GetWorldTransform(entity).GetRotation();
 }
 
@@ -278,14 +271,22 @@ void TranslateY(Entity entity, float position_y_difference) {
 	Translate(entity, V2_float{ 0.0f, position_y_difference });
 }
 
-void SetRotation(Entity entity, float rotation) {
+void SetRotation(Entity entity, Radians rotation) {
 	auto transform{ GetTransform(entity) };
 	transform.SetRotation(rotation);
 	SetTransform(entity, transform);
 }
 
-void Rotate(Entity entity, float angle_difference) {
-	SetRotation(entity, GetRotation(entity) + angle_difference);
+void SetRotation(Entity entity, Degrees rotation) {
+	SetRotation(entity, rotation.ToRad());
+}
+
+void Rotate(Entity entity, Radians angle_difference) {
+	SetRotation(entity, GetRotation(entity).ToRad() + angle_difference);
+}
+
+void Rotate(Entity entity, Degrees angle_difference) {
+	Rotate(entity, angle_difference.ToRad());
 }
 
 void SetScale(Entity entity, V2_float scale) {

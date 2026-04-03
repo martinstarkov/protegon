@@ -9,11 +9,14 @@
 
 namespace ptgn {
 
-struct Ellipse {
+class Ellipse {
+public:
 	Ellipse() = default;
 
 	template <Arithmetic T>
-	explicit Ellipse(Vector2<T> ellipse_radius) : radius{ ellipse_radius } {}
+	explicit Ellipse(Vector2<T> ellipse_radius) : radius_{ ellipse_radius } {}
+
+	void SetRadius(V2_float radius);
 
 	/// @return Center relative to the world.
 	V2_float GetCenter(Transform transform) const;
@@ -29,9 +32,10 @@ struct Ellipse {
 
 	bool operator==(const Ellipse&) const = default;
 
-	V2_float radius;
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Ellipse, radius_)
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Ellipse, radius)
+private:
+	V2_float radius_;
 };
 
 } // namespace ptgn

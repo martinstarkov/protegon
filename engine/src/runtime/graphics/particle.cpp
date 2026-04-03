@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cmath>
 #include <cstdint>
 #include <optional>
 #include <ostream>
@@ -10,6 +9,7 @@
 
 #include "core/assert.h"
 #include "core/log.h"
+#include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -76,12 +76,13 @@ void ParticleEmitterComponent::ResetParticle(V2_float start_position, Particle& 
 
 	if (info.use_random_velocities) {
 		RNG<float> speed_rng{ info.min_speed, info.max_speed };
-		float angle{ RandomAngleRadians() };
-		V2_float heading{ std::cos(angle), std::sin(angle) };
+		auto angle{ Radians::Random() };
+		V2_float heading{ angle.Cos(), angle.Sin() };
 		p.velocity = heading * speed_rng();
 	} else {
-		V2_float heading{ std::cos(info.starting_angle + info.angle_variance * rng()),
-						  std::sin(info.starting_angle + info.angle_variance * rng()) };
+		Radians angle{ info.starting_angle + info.angle_variance * rng() };
+
+		V2_float heading{ angle.Cos(), angle.Sin() };
 		V2_float velocity{ info.speed + info.speed_variance * rng() * heading.x,
 						   info.speed + info.speed_variance * rng() * heading.y };
 		p.velocity = velocity;

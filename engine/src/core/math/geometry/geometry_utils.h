@@ -6,21 +6,12 @@
 #include <span>
 #include <vector>
 
+#include "core/math/angle.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/triangle.h"
 #include "core/math/vector2.h"
 
 namespace ptgn {
-
-// TODO: Move to tolerance.h
-
-[[nodiscard]] bool StrictlyLess(
-	float a, float b, float epsilon = std::numeric_limits<float>::epsilon()
-);
-
-[[nodiscard]] bool StrictlyLess(
-	V2_float a, V2_float b, float epsilon = std::numeric_limits<float>::epsilon()
-);
 
 namespace impl {
 
@@ -30,7 +21,7 @@ namespace impl {
 /// @param end_angle Must be in range: [0, 2pi).
 /// @return The vertices which make up the arc.
 std::vector<V2_float> GetArcVertices(
-	V2_float center, float radius, float start_angle, float end_angle, bool clockwise
+	V2_float center, float radius, Radians start_angle, Radians end_angle, bool clockwise
 );
 
 [[nodiscard]] float TriangulateArea(std::span<const V2_float> vertices);
@@ -147,10 +138,10 @@ float GetIntervalOverlap(
 );
 
 /// @return True if all the interior angles are less than 180 degrees.
-[[nodiscard]] bool IsConvexPolygon(const V2_float* vertices, std::size_t vertex_count);
+[[nodiscard]] bool IsConvexPolygon(std::span<const V2_float> vertices);
 
 /// @return True if any of the interior angles are above 180 degrees.
-[[nodiscard]] bool IsConcavePolygon(const V2_float* vertices, std::size_t vertex_count);
+[[nodiscard]] bool IsConcavePolygon(std::span<const V2_float> vertices);
 
 } // namespace impl
 

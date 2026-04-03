@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 
+#include "core/math/angle.h"
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
@@ -179,7 +180,7 @@ struct ParticleInfo {
 	milliseconds lifetime{ 2000 };
 
 	float speed{ 10.0f };
-	float starting_angle{ DegToRad(0.0f) };
+	Degrees starting_angle{ 0.0f };
 
 	/// @brief Only applies if texture_key == nullopt.
 	FillStyle fill_style{ FillStyle::Solid() };
@@ -198,7 +199,7 @@ struct ParticleInfo {
 	milliseconds lifetime_variance{ 400 };
 
 	float speed_variance{ 5.0f };
-	float angle_variance{ DegToRad(5.0f) };
+	Degrees angle_variance{ 5.0f };
 	V2_float position_variance{ 5.0f };
 	V2_float gravity;
 

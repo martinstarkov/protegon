@@ -8,11 +8,14 @@
 
 namespace ptgn {
 
-struct Triangle {
+class Triangle {
+public:
 	Triangle() = default;
 
 	Triangle(V2_float a, V2_float b, V2_float c);
 	explicit Triangle(const std::array<V2_float, 3>& vertices);
+
+	void SetVertices(V2_float a, V2_float b, V2_float c);
 
 	std::array<V2_float, 3> GetLocalVertices() const;
 
@@ -22,11 +25,10 @@ struct Triangle {
 
 	bool operator==(const Triangle&) const = default;
 
-	V2_float a;
-	V2_float b;
-	V2_float c;
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Triangle, vertices_)
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Triangle, a, b, c)
+private:
+	std::array<V2_float, 3> vertices_;
 };
 
 } // namespace ptgn

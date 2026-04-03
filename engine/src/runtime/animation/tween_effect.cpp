@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
 #include "core/math/easing.h"
 #include "core/math/math_utils.h"
 #include "core/math/noise.h"
@@ -142,7 +143,7 @@ void TargetFollowImpl(Entity target, const TargetFollowConfig& config, Entity tw
 
 		SetPosition(parent, new_pos);
 	}
-	if (config.stop_distance < epsilon<float>) {
+	if (config.stop_distance < kEpsilon<float>) {
 		return;
 	}
 	if (auto dist2{ dir.MagnitudeSquared() };
@@ -243,7 +244,7 @@ Tween StartFollowPathImpl(
 ) {
 	PTGN_ASSERT(!waypoints.empty(), "Cannot follow an empty set of waypoints");
 	PTGN_ASSERT(
-		config.stop_distance >= epsilon<float>,
+		config.stop_distance >= kEpsilon<float>,
 		"Stopping distance cannot be negative or 0 when following waypoints"
 	);
 
@@ -368,7 +369,7 @@ void VelocityModeMoveImpl(const FollowConfig& config, Entity parent, V2_float di
 
 	auto dist2{ dir.MagnitudeSquared() };
 
-	if (config.stop_distance >= epsilon<float> &&
+	if (config.stop_distance >= kEpsilon<float> &&
 		dist2 < config.stop_distance * config.stop_distance) {
 		return;
 	}
@@ -638,10 +639,11 @@ Tween TranslateTo(
 	);
 }
 
-Tween RotateTo(Entity entity, float target_angle, milliseconds duration, Ease ease, bool force) {
-	return impl::AddTweenEffect<impl::RotateEffect, float>(
-		entity, target_angle, duration, ease, force, [](Entity e) { return GetRotation(e); },
-		[](Entity e, float v) { SetRotation(e, v); }
+Tween RotateTo(Entity entity, Degrees target_angle, milliseconds duration, Ease ease, bool force) {
+	return impl::AddTweenEffect<impl::RotateEffect, Radians>(
+		entity, target_angle.ToRad(), duration, ease, force,
+		[](Entity e) { return GetRotation(e).ToRad(); },
+		[](Entity e, Radians v) { SetRotation(e, v); }
 	);
 }
 

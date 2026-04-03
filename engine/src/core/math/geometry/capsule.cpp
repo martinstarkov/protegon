@@ -10,18 +10,42 @@
 namespace ptgn {
 
 Capsule::Capsule(V2_float start, V2_float end, float radius) :
-	start{ start }, end{ end }, radius{ radius } {}
+	start_{ start }, end_{ end }, radius_{ radius } {}
+
+void Capsule::SetStart(V2_float start) {
+	start_ = start;
+}
+
+void Capsule::SetEnd(V2_float end) {
+	end_ = end;
+}
+
+void Capsule::SetRadius(float radius) {
+	radius_ = radius;
+}
+
+V2_float Capsule::GetStart() const {
+	return start_;
+}
+
+V2_float Capsule::GetEnd() const {
+	return end_;
+}
+
+V2_float Capsule::GetDirection() const {
+	return end_ - start_;
+}
 
 std::array<V2_float, 4> Capsule::GetWorldQuadVertices(Transform transform, V2_float* out_size)
 	const {
-	auto dir{ end - start };
+	auto dir{ GetDirection() };
 
 	//  TODO: Fix right and top side of line being 1 pixel thicker than left and bottom.
-	auto local_center{ start + dir * 0.5f };
+	auto local_center{ start_ + dir * 0.5f };
 
 	V2_float center{ transform.Apply(local_center) };
 
-	float rotation{ dir.Angle() };
+	auto rotation{ dir.Angle() };
 
 	auto diameter{ 2.0f * GetRadius() };
 
@@ -42,11 +66,11 @@ std::array<V2_float, 2> Capsule::GetWorldVertices(Transform transform) const {
 }
 
 std::array<V2_float, 2> Capsule::GetLocalVertices() const {
-	return { start, end };
+	return { start_, end_ };
 }
 
 float Capsule::GetRadius() const {
-	return radius;
+	return radius_;
 }
 
 float Capsule::GetRadius(Transform transform) const {

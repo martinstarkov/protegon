@@ -14,6 +14,7 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
+#include "core/util/type_info.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/component.h"

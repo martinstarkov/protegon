@@ -9,8 +9,9 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
+
+// TODO: Fix this demo.
 
 using namespace ptgn;
 
@@ -18,54 +19,6 @@ constexpr V2_int game_size{ 800, 800 };
 
 float rect_thickness{ -1.0f };
 float circle_thickness{ -1.0f };
-
-class PostProcessingEffect {
-public:
-	PostProcessingEffect() {}
-
-	static void Draw(const Entity& entity) {
-		impl::DrawShader(entity);
-	}
-};
-
-PTGN_DRAWABLE_REGISTER(PostProcessingEffect);
-
-Entity CreatePostFX(Scene& scene) {
-	auto effect{ scene.CreateEntity() };
-
-	SetDraw<PostProcessingEffect>(effect);
-	Show(effect);
-	SetBlendMode(effect, BlendMode::ReplaceRGBA);
-
-	return effect;
-}
-
-Entity CreateBlur(Scene& scene) {
-	auto blur{ CreatePostFX(scene) };
-	blur.Add<impl::ShaderPass>(game.shader.Get("blur"), nullptr);
-	return blur;
-}
-
-Entity CreateGrayscale(Scene& scene) {
-	auto grayscale{ CreatePostFX(scene) };
-	grayscale.Add<impl::ShaderPass>(game.shader.Get("grayscale"), nullptr);
-	return grayscale;
-}
-
-Entity AddRect(Scene& s, V2_float pos, V2_float size, Color color) {
-	auto e = CreateRect(s, pos, size, color, rect_thickness);
-	return e;
-}
-
-Entity AddCircle(Scene& s, V2_float pos, float radius, Color color) {
-	auto e = CreateCircle(s, pos, radius, color, circle_thickness);
-	return e;
-}
-
-Entity AddSprite(Scene& s, V2_float pos) {
-	auto e = CreateSprite(s, "test", pos);
-	return e;
-}
 
 struct RenderTargetScene : public Scene {
 	RenderTarget rt1;
@@ -85,7 +38,7 @@ struct RenderTargetScene : public Scene {
 		auto rect1 =
 			CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::Orange, -1.0f, Origin::Center);
 
-		rt1.AddToDisplayList(rect1);
+		// rt1.AddToDisplayList(rect1);
 
 		rt2 = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
 		SetDrawOrigin(rt2, Origin::TopLeft);
@@ -95,14 +48,15 @@ struct RenderTargetScene : public Scene {
 		auto rect2 =
 			CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::White, -1.0f, Origin::Center);
 
-		rt2.AddToDisplayList(rect2);
+		// rt2.AddToDisplayList(rect2);
 	}
 
 	void OnUpdate() override {
 		float dt{ ctx().dt().count() };
 		constexpr V2_float speed{ 300.0f };
-		MoveArrowKeys(camera1, speed * dt);
-		MoveWASD(camera2, speed * dt);
+		// TODO: Fix.
+		// MoveArrowKeys(camera1, speed * dt);
+		// MoveWASD(camera2, speed * dt);
 	}
 };
 

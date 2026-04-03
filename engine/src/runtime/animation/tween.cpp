@@ -399,7 +399,7 @@ void Tween::Seek(float new_progress) {
 		current_progress = tween.progress_;
 
 		if (std::abs(current_progress - before) <
-			epsilon<float>) { // Avoid infinite loop on broken tweens
+			kEpsilon<float>) { // Avoid infinite loop on broken tweens
 			break;
 		}
 	}

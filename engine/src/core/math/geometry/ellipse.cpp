@@ -8,12 +8,16 @@
 
 namespace ptgn {
 
+void Ellipse::SetRadius(V2_float radius) {
+	radius_ = radius;
+}
+
 V2_float Ellipse::GetCenter(Transform transform) const {
 	return transform.GetPosition();
 }
 
 V2_float Ellipse::GetRadius() const {
-	return radius;
+	return radius_;
 }
 
 V2_float Ellipse::GetRadius(Transform transform) const {
@@ -28,8 +32,8 @@ std::array<V2_float, 4> Ellipse::GetWorldQuadVertices(Transform transform) const
 }
 
 std::array<V2_float, 4> Ellipse::GetLocalQuadVertices() const {
-	auto min{ -radius };
-	auto max{ radius };
+	auto min{ -radius_ };
+	auto max{ radius_ };
 	PTGN_ASSERT(min != max, "Cannot get local vertices for a ellipse with size zero");
 	return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
 }

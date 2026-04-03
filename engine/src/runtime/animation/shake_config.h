@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/math/angle.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "serialization/json/serialize.h"
@@ -10,8 +11,8 @@ struct ShakeConfig {
 	/// @brief Maximum translation distance during shaking.
 	V2_float maximum_translation{ 30.0f, 30.0f };
 
-	/// @brief Maximum rotation (in radians) during shaking.
-	float maximum_rotation{ DegToRad(30.0f) };
+	/// @brief Maximum rotation during shaking.
+	Degrees maximum_rotation{ 30.0f };
 
 	/// @brief Frequency of the Perlin noise function. Higher values will result in faster shaking.
 	float frequency{ 10.0f };

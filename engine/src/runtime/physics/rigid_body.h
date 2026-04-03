@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/math/angle.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "serialization/json/serialize.h"
@@ -12,21 +13,20 @@ struct RigidBody {
 	RigidBody() = default;
 	RigidBody(float max_speed, float drag, float gravity, bool immovable);
 
-	// vel += accel * dt
-	// @param dt Unit: seconds.
+	/// @brief vel += accel * dt
 	void AddAcceleration(V2_float acceleration, secondsf dt);
 
-	// angular_vel += angular_accel * dt
-	// @param dt Unit: seconds.
-	void AddAngularAcceleration(float angular_acceleration, secondsf dt);
+	/// @brief angular_vel += angular_accel * dt
+	void AddAngularAcceleration(Radians angular_acceleration, secondsf dt);
+	void AddAngularAcceleration(Degrees angular_acceleration, secondsf dt);
 
-	// vel += impulse
+	/// @brief vel += impulse
 	void AddImpulse(V2_float impulse);
 
-	// angular_vel += angular_impulse
-	void AddAngularImpulse(float angular_impulse);
+	/// @brief angular_vel += angular_impulse
+	void AddAngularImpulse(Radians angular_impulse);
+	void AddAngularImpulse(Degrees angular_impulse);
 
-	// @param dt Unit: seconds.
 	void Update(V2_float physics_gravity, secondsf dt);
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
@@ -34,16 +34,16 @@ struct RigidBody {
 		angular_velocity
 	)
 
-	// -1 means no enforcement of maximum speed.
+	/// @brief -1 means no enforcement of maximum speed.
 	float max_speed{ -1.0f };
 	float max_angular_speed{ -1.0f };
 	float drag{ 0.0f };
 	float angular_drag{ 0.0f };
-	// Gravity relative to scene.physics.GetGravity().
+	/// @brief Gravity relative to scene.physics.GetGravity().
 	float gravity{ 0.0f };
 	bool immovable{ false };
 	V2_float velocity;
-	float angular_velocity{ 0.0f };
+	Radians angular_velocity{ 0.0f };
 };
 
 [[nodiscard]] bool IsImmovable(Entity entity, bool check_parents = true);

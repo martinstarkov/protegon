@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
@@ -118,7 +119,7 @@ Entity CreateCircle(
 }
 
 Entity CreateArc(
-	Scene& scene, V2_float position, float arc_radius, float start_angle, float end_angle,
+	Scene& scene, V2_float position, float arc_radius, Degrees start_angle, Degrees end_angle,
 	bool clockwise, Color color, FillStyle fill_style
 ) {
 	auto arc{ scene.CreateEntity() };

@@ -1,8 +1,12 @@
 #include "tools/debug/profiling.h"
 
+#include <chrono>
+#include <list>
 #include <string>
 #include <string_view>
+#include <utility>
 
+#include "core/assert.h"
 #include "core/time/time.h"
 #include "core/time/timer.h"
 
@@ -16,6 +20,11 @@ ProfileInstance::~ProfileInstance() {
 	auto& time = GetProfiler().timings_.emplace(name_, nanoseconds{ 0 }).first->second;
 	auto elapsed{ timer_.Elapsed<nanoseconds>() };
 	time += elapsed;
+}
+
+Profiler& GetProfiler() {
+	static Profiler profiler;
+	return profiler;
 }
 
 } // namespace ptgn::impl

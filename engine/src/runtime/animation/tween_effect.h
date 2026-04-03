@@ -1,15 +1,14 @@
 #pragma once
 
-#include <chrono>
 #include <concepts>
 #include <cstdint>
 #include <functional>
 #include <type_traits>
-#include <utility>
 #include <variant>
 #include <vector>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -47,7 +46,7 @@ struct Effect {
 
 struct TranslateEffect : public Effect<V2_float> {};
 
-struct RotateEffect : public Effect<float> {};
+struct RotateEffect : public Effect<Radians> {};
 
 struct ScaleEffect : public Effect<V2_float> {};
 
@@ -337,19 +336,18 @@ std::vector<Tween> TranslateTo(
 /// @brief Rotates an entity to a target angle over a specified duration using a tweening function.
 ///
 /// @param entity The entity to be rotated.
-/// @param target_angle The angle (in radians) to rotate the entity to. Positive clockwise, negative
-/// counter-clockwise.
+/// @param target_angle The angle to rotate the entity to. Positive clockwise.
 /// @param duration The duration over which the rotation should occur.
 /// @param ease The easing function to apply for the rotation animation.
 /// @param force If true, forcibly overrides any ongoing rotation.
 Tween RotateTo(
-	Entity entity, float target_angle, milliseconds duration, Ease ease = Ease::Linear,
+	Entity entity, Degrees target_angle, milliseconds duration, Ease ease = Ease::Linear,
 	bool force = true
 );
 
 template <EntityType E>
 std::vector<Tween> RotateTo(
-	const std::vector<E>& entities, const std::variant<float, std::vector<float>>& target_angle,
+	const std::vector<E>& entities, const std::variant<Degrees, std::vector<Degrees>>& target_angle,
 	milliseconds duration, Ease ease = Ease::Linear, bool force = true
 ) {
 	std::vector<Tween> tweens;
@@ -357,11 +355,11 @@ std::vector<Tween> RotateTo(
 
 	std::visit(
 		[&]<typename TType>(const TType& target_value) {
-			if constexpr (std::is_same_v<TType, float>) {
+			if constexpr (std::is_same_v<TType, Degrees>) {
 				for (const auto& entity : entities) {
 					tweens.emplace_back(RotateTo(entity, target_value, duration, ease, force));
 				}
-			} else if constexpr (std::is_same_v<TType, std::vector<float>>) {
+			} else if constexpr (std::is_same_v<TType, std::vector<Degrees>>) {
 				PTGN_ASSERT(
 					target_value.size() == entities.size(),
 					"Target vector size must match entities size"

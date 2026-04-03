@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <cstdint>
 
-#include "core/math/math_utils.h"
-
 namespace ptgn {
 
 bool FlipCoin() {
@@ -51,16 +49,6 @@ bool Chance(float probability) {
 		return true;
 	}
 	return Random01() <= probability;
-}
-
-float RandomAngle() {
-	static RNG<float> rng{ 0.0f, 360.0f };
-	return rng();
-}
-
-float RandomAngleRadians() {
-	static RNG<float> rng{ 0.0f, kTwoPi };
-	return rng();
 }
 
 } // namespace ptgn

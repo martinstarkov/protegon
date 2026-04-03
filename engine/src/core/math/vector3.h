@@ -6,6 +6,7 @@
 #include <ostream>
 #include <type_traits>
 
+#include "core/math/angle.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "serialization/json/fwd.h"
@@ -180,20 +181,24 @@ struct Vector3 {
 
 	/// @brief See https://en.wikipedia.org/wiki/Rotation_matrix for details
 	/// Note: This is Euler angles and not Tait-Bryan angles.
-	/// Angles in radians.
-	[[nodiscard]] Vector3<float> Rotated(float yaw_radians, float pitch_radians, float roll_radians)
-		const {
-		auto sin_a = std::sin(yaw_radians);
-		auto cos_a = std::cos(yaw_radians);
-		auto sin_B = std::sin(pitch_radians);
-		auto cos_B = std::cos(pitch_radians);
-		auto sin_y = std::sin(roll_radians);
-		auto cos_y = std::cos(roll_radians);
+	[[nodiscard]] Vector3<float> Rotated(Radians yaw, Radians pitch, Radians roll) const {
+		auto sin_a = yaw.Sin();
+		auto cos_a = yaw.Cos();
+		auto sin_B = pitch.Sin();
+		auto cos_B = pitch.Cos();
+		auto sin_y = roll.Sin();
+		auto cos_y = roll.Cos();
 		return { x * (cos_B * cos_y) + y * (sin_a * sin_B * cos_y - cos_a * sin_y) +
 					 z * (cos_a * sin_B * cos_y + sin_a * sin_y),
 				 x * (cos_B * sin_y) + y * (sin_a * sin_B * sin_y + cos_a * cos_y) +
 					 z * (cos_a * sin_B * sin_y - sin_a * cos_y),
 				 x * (-sin_B) + y * (sin_a * cos_B) + z * (cos_a * cos_B) };
+	}
+
+	/// @brief See https://en.wikipedia.org/wiki/Rotation_matrix for details
+	/// Note: This is Euler angles and not Tait-Bryan angles.
+	[[nodiscard]] Vector3<float> Rotated(Degrees yaw, Degrees pitch, Degrees roll) const {
+		return Rotated(yaw.ToRad(), pitch.ToRad(), roll.ToRad());
 	}
 
 	/// @return True if all components are zero (or very close to zero within a small epsilon).

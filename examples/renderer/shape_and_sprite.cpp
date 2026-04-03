@@ -26,8 +26,8 @@ constexpr V2_int game_size{ 320, 180 };
 struct ShapeAndSpriteScene : public Scene {
 	Entity arc;
 
-	float start_angle{ DegToRad(252.0f) };
-	float end_angle{ DegToRad(153.0f) };
+	Degrees start_angle{ 252.0f };
+	Degrees end_angle{ 153.0f };
 
 	void OnEnter() override {
 		SetBackgroundColor(color::LightCyan);
@@ -56,7 +56,7 @@ struct ShapeAndSpriteScene : public Scene {
 			.OnProgress([this](Entity e, float progress) {
 				auto& arc_shape{ GetParent(e).Get<Arc>() };
 
-				arc_shape.start_angle = Lerp(start_angle, end_angle, progress);
+				arc_shape.SetStartAngle(Lerp(start_angle, end_angle, progress));
 			})
 			.Start();
 	}

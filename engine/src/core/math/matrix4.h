@@ -8,6 +8,7 @@
 #include <ostream>
 
 #include "core/assert.h"
+#include "core/math/angle.h"
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
@@ -157,8 +158,12 @@ public:
 		*this = Scale(*this, axes);
 	}
 
-	void Rotate(float rotation_radians, V3_float axes) {
-		*this = Rotate(*this, rotation_radians, axes);
+	void Rotate(Radians rotation, V3_float axes) {
+		*this = Rotate(*this, rotation, axes);
+	}
+
+	void Rotate(Degrees rotation, V3_float axes) {
+		*this = Rotate(*this, rotation, axes);
 	}
 
 	void Translate(V3_float translation) {
@@ -183,38 +188,47 @@ public:
 	);
 
 	[[nodiscard]] static Matrix4 MakeTransform(
-		V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
+		V3_float position, Radians rotation, V3_float rotation_axis, V3_float scale
+	);
+	[[nodiscard]] static Matrix4 MakeTransform(
+		V3_float position, Degrees rotation, V3_float rotation_axis, V3_float scale
 	);
 
-	[[nodiscard]] static Matrix4 MakeTransform(
-		V2_float position, float rotation_radians, V2_float scale
-	);
+	[[nodiscard]] static Matrix4 MakeTransform(V2_float position, Radians rotation, V2_float scale);
+	[[nodiscard]] static Matrix4 MakeTransform(V2_float position, Degrees rotation, V2_float scale);
 
 	[[nodiscard]] static Matrix4 MakeTransform(Transform transform);
 
 	[[nodiscard]] static Matrix4 MakeInverseTransform(
-		V3_float position, float rotation_radians, V3_float rotation_axis, V3_float scale
+		V3_float position, Radians rotation, V3_float rotation_axis, V3_float scale
+	);
+	[[nodiscard]] static Matrix4 MakeInverseTransform(
+		V3_float position, Degrees rotation, V3_float rotation_axis, V3_float scale
 	);
 
 	[[nodiscard]] static Matrix4 MakeInverseTransform(
-		V2_float position, float rotation_radians, V2_float scale
+		V2_float position, Radians rotation, V2_float scale
+	);
+	[[nodiscard]] static Matrix4 MakeInverseTransform(
+		V2_float position, Degrees rotation, V2_float scale
 	);
 
 	[[nodiscard]] static Matrix4 MakeInverseTransform(Transform transform);
 
-	/// @brief Field of view angle fov_x in radians.
-	/// Example usage: Matrix4 proj = Matrix4::Perspective(DegToRad(45.0f), width / height, 0.1f,
-	/// 100.0f);
+	/// @brief Example usage: Matrix4 proj = Matrix4::Perspective(Radians{ 45.0f }, width / height,
+	/// 0.1f, 100.0f);
+	/// @param fov_x Field of view angle
 	[[nodiscard]] static Matrix4 Perspective(
-		float fov_x_radians, float aspect_ratio, float front, float back
+		Radians fov_x, float aspect_ratio, float front, float back
+	);
+	[[nodiscard]] static Matrix4 Perspective(
+		Degrees fov_x, float aspect_ratio, float front, float back
 	);
 
 	[[nodiscard]] static Matrix4 Translate(const Matrix4& matrix, V3_float axes);
 
-	/// @brief Angle in radians.
-	[[nodiscard]] static Matrix4 Rotate(
-		const Matrix4& matrix, float rotation_radians, V3_float axes
-	);
+	[[nodiscard]] static Matrix4 Rotate(const Matrix4& matrix, Radians rotation, V3_float axes);
+	[[nodiscard]] static Matrix4 Rotate(const Matrix4& matrix, Degrees rotation, V3_float axes);
 
 	[[nodiscard]] static Matrix4 Scale(const Matrix4& matrix, V3_float axes);
 

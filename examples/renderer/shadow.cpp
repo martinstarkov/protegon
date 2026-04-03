@@ -35,7 +35,7 @@
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 
-// TODO: Move LightMap to engine.
+// TODO: Fix this demo.
 
 using namespace ptgn;
 
@@ -59,6 +59,7 @@ struct ShadowDepth : public Depth {
 	using Depth::Depth;
 };
 
+/*
 class LightMap : public Entity {
 public:
 	LightMap() = default;
@@ -88,9 +89,7 @@ public:
 	void AddLight(const Entity& entity) {
 		auto& light_map{ Get<impl::LightMapInstance>() };
 
-		PTGN_ASSERT(
-			entity.Has<impl::LightProperties>(), "Cannot add light entity which is not a light"
-		);
+		PTGN_ASSERT(entity.Has<impl::LightData>(), "Cannot add light entity which is not a light");
 
 		light_map.light_entities.emplace_back(entity);
 	}
@@ -119,7 +118,7 @@ public:
 		auto shadow_segments{ GetShadowSegments(shadows) };
 
 		for (const auto& light : light_map.light_entities) {
-			if (!light.Has<impl::LightProperties>()) {
+			if (!light.Has<impl::LightData>()) {
 				continue;
 			}
 
@@ -207,9 +206,11 @@ LightMap CreateLightMap(Manager& manager) {
 
 	return light_map;
 }
+*/
 
 } // namespace ptgn
 
+/*
 class ShadowScene : public Scene {
 public:
 	PointLight mouse_light;
@@ -274,8 +275,9 @@ public:
 		}
 	}
 };
+*/
 
 int main(int, char**) {
-	Application app{ "ShadowScene: Right: Move static light" };
-	app.StartWith<ShadowScene>();
+	/*Application app{ "ShadowScene: Right: Move static light" };
+	app.StartWith<ShadowScene>();*/
 }

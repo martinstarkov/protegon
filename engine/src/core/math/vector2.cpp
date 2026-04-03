@@ -1,6 +1,7 @@
 #include "core/math/vector2.h"
 
 #include "core/assert.h"
+#include "core/math/tolerance.h"
 #include "core/util/concepts.h"
 #include "serialization/json/json.h"
 
@@ -24,6 +25,10 @@ void from_json(const json& j, Vector2<T>& vector) {
 	);
 	vector.x = j[0];
 	vector.y = j[1];
+}
+
+bool StrictlyLess(V2_float a, V2_float b, float epsilon) {
+	return StrictlyLess(a.x, b.x, epsilon) && StrictlyLess(a.y, b.y, epsilon);
 }
 
 template struct Vector2<int>;

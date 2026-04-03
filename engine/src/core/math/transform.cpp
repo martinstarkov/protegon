@@ -1,18 +1,20 @@
 #include "core/math/transform.h"
 
 #include <algorithm>
-#include <cmath>
 #include <span>
 #include <vector>
 
 #include "core/assert.h"
-#include "core/math/math_utils.h"
+#include "core/math/angle.h"
 #include "core/math/vector2.h"
 
 namespace ptgn {
 
-Transform::Transform(V2_float position, float rotation, V2_float scale) :
+Transform::Transform(V2_float position, Radians rotation, V2_float scale) :
 	position_{ position }, rotation_{ rotation }, scale_{ scale } {}
+
+Transform::Transform(V2_float position, Degrees rotation, V2_float scale) :
+	Transform{ position, rotation.ToRad(), scale } {}
 
 Transform Transform::Inverse() const {
 	PTGN_ASSERT(!scale_.HasZero(), "Cannot get inverse of transform with zero");
@@ -31,7 +33,7 @@ Transform Transform::RelativeTo(Transform parent) const {
 Transform Transform::InverseRelativeTo(Transform parent) const {
 	Transform local;
 
-	float inv_rotation{ -parent.rotation_ };
+	auto inv_rotation{ -parent.rotation_ };
 	V2_float inv_scale{ parent.scale_.x != 0 ? 1.0f / parent.scale_.x : 0.0f,
 						parent.scale_.y != 0 ? 1.0f / parent.scale_.y : 0.0f };
 
@@ -57,8 +59,12 @@ V2_float Transform::GetPosition() const {
 	return position_;
 }
 
-float Transform::GetRotation() const {
-	return rotation_;
+bool Transform::HasRotation() const {
+	return rotation_.value != 0.0f;
+}
+
+Degrees Transform::GetRotation() const {
+	return rotation_.ToDeg();
 }
 
 V2_float Transform::GetScale() const {
@@ -86,13 +92,17 @@ Transform& Transform::SetPositionY(float y) {
 	return SetPosition(V2_float{ position_.x, y });
 }
 
-Transform& Transform::SetRotation(float rotation) {
+Transform& Transform::SetRotation(Radians rotation) {
 	rotation_ = rotation;
 	return *this;
 }
 
+Transform& Transform::SetRotation(Degrees rotation) {
+	return SetRotation(rotation.ToRad());
+}
+
 Transform& Transform::ClampRotation() {
-	return SetRotation(ClampAngle2Pi(rotation_));
+	return SetRotation(Clamp(rotation_));
 }
 
 Transform& Transform::SetScale(float scale) {
@@ -125,8 +135,12 @@ Transform& Transform::TranslateY(float position_y_difference) {
 	return SetPositionX(position_.y + position_y_difference);
 }
 
-Transform& Transform::Rotate(float angle_difference) {
+Transform& Transform::Rotate(Radians angle_difference) {
 	return SetRotation(rotation_ + angle_difference);
+}
+
+Transform& Transform::Rotate(Degrees angle_difference) {
+	return Rotate(angle_difference.ToRad());
 }
 
 Transform& Transform::Scale(V2_float scale_multiplier) {
@@ -141,11 +155,9 @@ Transform& Transform::ScaleY(float scale_y_multiplier) {
 	return SetScaleY(scale_.y * scale_y_multiplier);
 }
 
-V2_float Transform::ApplyWithRotation(
-	V2_float point, float cos_angle_radians, float sin_angle_radians
-) const {
+V2_float Transform::ApplyWithRotation(V2_float point, float cos, float sin) const {
 	PTGN_ASSERT(!scale_.HasZero(), "Cannot transform point for an object with zero ");
-	return position_ + (scale_ * point).Rotated(cos_angle_radians, sin_angle_radians);
+	return position_ + (scale_ * point).Rotated(cos, sin);
 }
 
 V2_float Transform::ApplyWithoutRotation(V2_float point) const {
@@ -153,12 +165,10 @@ V2_float Transform::ApplyWithoutRotation(V2_float point) const {
 	return position_ + scale_ * point;
 }
 
-V2_float Transform::ApplyInverseWithRotation(
-	V2_float point, float cos_angle_radians, float sin_angle_radians
-) const {
+V2_float Transform::ApplyInverseWithRotation(V2_float point, float cos, float sin) const {
 	PTGN_ASSERT(!scale_.HasZero(), "Cannot inverse transform point for an object with zero");
 
-	return (point - position_).Rotated(cos_angle_radians, -sin_angle_radians) / scale_;
+	return (point - position_).Rotated(cos, -sin) / scale_;
 }
 
 V2_float Transform::ApplyInverseWithoutRotation(V2_float point) const {
@@ -168,8 +178,8 @@ V2_float Transform::ApplyInverseWithoutRotation(V2_float point) const {
 }
 
 V2_float Transform::Apply(V2_float point) const {
-	if (rotation_ != 0.0f) {
-		return ApplyWithRotation(point, std::cos(rotation_), std::sin(rotation_));
+	if (HasRotation()) {
+		return ApplyWithRotation(point, rotation_.Cos(), rotation_.Sin());
 	}
 	if (*this != Transform{}) {
 		return ApplyWithoutRotation(point);
@@ -178,8 +188,8 @@ V2_float Transform::Apply(V2_float point) const {
 }
 
 V2_float Transform::ApplyInverse(V2_float point) const {
-	if (rotation_ != 0.0f) {
-		return ApplyInverseWithRotation(point, std::cos(rotation_), std::sin(rotation_));
+	if (HasRotation()) {
+		return ApplyInverseWithRotation(point, rotation_.Cos(), rotation_.Sin());
 	}
 	if (*this != Transform{}) {
 		return ApplyInverseWithoutRotation(point);
@@ -191,12 +201,12 @@ void Transform::Apply(std::span<const V2_float> points, std::span<V2_float> out_
 	const {
 	PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
-	if (rotation_ != 0.0f) {
-		float cosA{ std::cos(rotation_) };
-		float sinA{ std::sin(rotation_) };
+	if (HasRotation()) {
+		float cos{ rotation_.Cos() };
+		float sin{ rotation_.Sin() };
 
 		for (std::size_t i{ 0 }; i < points.size(); ++i) {
-			out_transformed_points[i] = ApplyWithRotation(points[i], cosA, sinA);
+			out_transformed_points[i] = ApplyWithRotation(points[i], cos, sin);
 		}
 		return;
 	}
@@ -216,12 +226,12 @@ void Transform::ApplyInverse(
 ) const {
 	PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
-	if (rotation_ != 0.0f) {
-		float cosA{ std::cos(rotation_) };
-		float sinA{ std::sin(rotation_) };
+	if (HasRotation()) {
+		float cos{ rotation_.Cos() };
+		float sin{ rotation_.Sin() };
 
 		for (std::size_t i{ 0 }; i < points.size(); ++i) {
-			out_transformed_points[i] = ApplyInverseWithRotation(points[i], cosA, sinA);
+			out_transformed_points[i] = ApplyInverseWithRotation(points[i], cos, sin);
 		}
 		return;
 	}

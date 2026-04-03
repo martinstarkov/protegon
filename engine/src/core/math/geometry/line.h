@@ -8,10 +8,14 @@
 
 namespace ptgn {
 
-struct Line {
+class Line {
+public:
 	Line() = default;
 
 	Line(V2_float start, V2_float end);
+
+	void SetStart(V2_float start);
+	void SetEnd(V2_float end);
 
 	/// @param out_size Optional parameter for the unrotated size of the quad.
 	/// @return Quad vertices relative to the given transform for this line with a given a line
@@ -24,12 +28,19 @@ struct Line {
 
 	std::array<V2_float, 2> GetLocalVertices() const;
 
+	V2_float GetStart() const;
+	V2_float GetEnd() const;
+
+	/// @brief Get direction from start to end.
+	V2_float GetDirection() const;
+
 	bool operator==(const Line&) const = default;
 
-	V2_float start;
-	V2_float end;
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Line, start_, end_)
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Line, start, end)
+private:
+	V2_float start_;
+	V2_float end_;
 };
 
 } // namespace ptgn

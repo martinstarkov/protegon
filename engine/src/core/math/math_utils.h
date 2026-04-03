@@ -20,43 +20,12 @@ inline constexpr float kSqrtTwo{ std::numbers::sqrt2_v<float> };
 
 inline constexpr float kEuler{ std::numbers::e_v<float> };
 
-/// @brief Convert degrees to radians.
-[[nodiscard]] constexpr float DegToRad(float angle_degrees) {
-	return angle_degrees * kPi / 180.0f;
-}
-
-/// @brief Convert radians to degrees.
-[[nodiscard]] constexpr float RadToDeg(float angle_radians) {
-	return angle_radians / kPi * 180.0f;
-}
-
 /// @brief Modulo operator which supports wrapping negative numbers.
 /// e.g. Mod(-1, 2) returns 1.
 template <std::integral T>
 [[nodiscard]] T Mod(T a, T b) {
 	return (a % b + b) % b;
 }
-
-/// @brief Angle in degrees from [0, 360).
-template <Arithmetic T>
-[[nodiscard]] T ClampAngle360(T angle_degrees) {
-	T clamped{ 0 };
-
-	if constexpr (std::is_floating_point_v<T>) {
-		clamped = std::fmod(angle_degrees, T{ 360 });
-	} else {
-		clamped = Mod(angle_degrees, T{ 360 });
-	}
-
-	if (clamped < 0) {
-		clamped += T{ 360 };
-	}
-
-	return clamped;
-}
-
-/// @return Angle in radians in range [0, 2 pi).
-[[nodiscard]] float ClampAngle2Pi(float angle_radians);
 
 /// @brief Signum function.
 /// Returns  1  if value is positive.

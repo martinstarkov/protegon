@@ -76,10 +76,7 @@ private:
 	std::unordered_map<std::string, nanoseconds> timings_;
 };
 
-static Profiler& GetProfiler() {
-	static Profiler profiler;
-	return profiler;
-}
+Profiler& GetProfiler();
 
 } // namespace impl
 

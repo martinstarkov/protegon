@@ -8,6 +8,7 @@
 #include <ostream>
 #include <type_traits>
 
+#include "core/math/angle.h"
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
 #include "core/math/tolerance.h"
@@ -198,14 +199,13 @@ struct Vector2 {
 		return std::sqrt(static_cast<float>(MagnitudeSquared()));
 	}
 
-	/// @return Random unit vector in a heading within the given range of angles (radians).
+	/// @return Random unit vector in a heading within the given range of angles.
 	[[nodiscard]] static Vector2 RandomHeading(
-		float min_angle_radians = 0.0f, float max_angle_radians = kTwoPi
+		Degrees min_angle = 0.0f, Degrees max_angle = 360.0f
 	) {
-		RNG<float> heading_rng{ ClampAngle2Pi(min_angle_radians),
-								ClampAngle2Pi(max_angle_radians) };
-		float heading{ heading_rng() };
-		return { std::cos(heading), std::sin(heading) };
+		RNG<float> heading_rng{ Clamp(min_angle).value, Clamp(max_angle).value };
+		Radians heading{ Degrees{ heading_rng() } };
+		return { heading.Cos(), heading.Sin() };
 	}
 
 	/// @return Unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
@@ -224,51 +224,58 @@ struct Vector2 {
 	}
 
 	/// @brief See https://en.wikipedia.org/wiki/Rotation_matrix for details.
-	/// Angle in radians. Positive angle rotates clockwise.
+	/// Positive clockwise.
 	/// @return New vector rotated by the given angle.
-	[[nodiscard]] Vector2<float> Rotated(float angle_radians) const {
-		if (NearlyEqual(angle_radians, 0.0f)) {
+	[[nodiscard]] Vector2<float> Rotated(Radians angle) const {
+		if (NearlyEqual(angle.value, 0.0f)) {
 			return { x, y };
 		}
-		auto c{ std::cos(angle_radians) };
-		auto s{ std::sin(angle_radians) };
+		auto c{ angle.Cos() };
+		auto s{ angle.Sin() };
 		return Rotated(c, s);
 	}
 
-	/// @brief Provide cached std::cos(angle_radians) and std::sin(angle_radians) values.
-	[[nodiscard]] Vector2<float> Rotated(float cos_angle_radians, float sin_angle_radians) const {
-		return { x * cos_angle_radians - y * sin_angle_radians,
-				 x * sin_angle_radians + y * cos_angle_radians };
+	/// @brief See https://en.wikipedia.org/wiki/Rotation_matrix for details.
+	/// Positive clockwise.
+	/// @return New vector rotated by the given angle.
+	[[nodiscard]] Vector2<float> Rotated(Degrees angle) const {
+		return Rotated(angle.ToRad());
 	}
 
-	/// @return Angle in radians between vector x and y components in radians.
+	/// @brief Provide cached std::cos(angle) and std::sin(angle) values.
+	[[nodiscard]] Vector2<float> Rotated(float cos, float sin) const {
+		return { x * cos - y * sin, x * sin + y * cos };
+	}
+
+	/// @return Angle in degrees between vector x and y components in radians.
 	/// Relative to the horizontal x-axis (1, 0).
-	/// Range: (-3.14159, 3.14159].
-	/// (clockwise positive).
-	///           -1.5708
-	///               |
-	///    3.14159 ---o--- 0
-	///               |
-	///            1.5708
-	[[nodiscard]] float Angle() const {
-		return std::atan2(static_cast<float>(y), static_cast<float>(x));
+	/// Range: (-180.0f, 180.0f].
+	/// Positive clockwise.
+	///          -90
+	///           |
+	///    180 ---o--- 0
+	///           |
+	///           90
+	[[nodiscard]] Degrees Angle() const {
+		return Radians{ std::atan2(static_cast<float>(y), static_cast<float>(x)) }.ToDeg();
 	}
 
-	[[nodiscard]] float Angle(Vector2 target) const {
+	/// @brief Angle between this vector and a target vector in degrees.
+	[[nodiscard]] Degrees Angle(Vector2 target) const {
 		float mag1{ static_cast<float>(MagnitudeSquared()) };
 		float mag2{ static_cast<float>(target.MagnitudeSquared()) };
 
 		if (NearlyEqual(mag1, 0.0f) || NearlyEqual(mag2, 0.0f)) {
-			return 0.0f;
+			return Degrees{ 0.0f };
 		}
 
-		float cosine{ Dot(target) / std::sqrt(mag1 * mag2) };
+		float cos{ Dot(target) / std::sqrt(mag1 * mag2) };
 
 		// Clamp cosine to the range [-1, 1] to avoid domain errors for acos. This can very rarely
 		// happen due to floating point inaccuracies.
-		cosine = std::clamp(cosine, -1.0f, 1.0f);
+		cos = std::clamp(cos, -1.0f, 1.0f);
 
-		return std::acos(cosine);
+		return Radians{ std::acos(cos) }.ToDeg();
 	}
 
 	/// @return True if both components are zero (or very close to zero within a small epsilon).
@@ -438,6 +445,8 @@ template <Arithmetic T>
 [[nodiscard]] inline T Min(Vector2<T> vector) {
 	return std::min(vector.x, vector.y);
 }
+
+[[nodiscard]] bool StrictlyLess(V2_float a, V2_float b, float epsilon = kEpsilon<float>);
 
 } // namespace ptgn
 

@@ -9,18 +9,22 @@
 
 namespace ptgn {
 
-Circle::Circle(float circle_radius) : radius{ circle_radius } {}
+Circle::Circle(float radius) : radius_{ radius } {}
+
+void Circle::SetRadius(float radius) {
+	radius_ = radius;
+}
 
 V2_float Circle::GetCenter(Transform transform) const {
 	return transform.GetPosition();
 }
 
 float Circle::GetRadius() const {
-	return radius;
+	return radius_;
 }
 
 V2_float Circle::GetSize() const {
-	return V2_float{ radius } * 2.0f;
+	return V2_float{ radius_ } * 2.0f;
 }
 
 V2_float Circle::GetSize(Transform transform) const {
@@ -41,8 +45,8 @@ std::array<V2_float, 4> Circle::GetWorldQuadVertices(Transform transform) const 
 }
 
 std::array<V2_float, 4> Circle::GetLocalQuadVertices() const {
-	V2_float min{ -radius };
-	V2_float max{ radius };
+	V2_float min{ -radius_ };
+	V2_float max{ radius_ };
 	PTGN_ASSERT(min != max, "Cannot get local vertices for a circle with size zero");
 	return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
 }

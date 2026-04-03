@@ -1,10 +1,12 @@
 #include "app/application.h"
-#include "platform/input/input_handler.h"
+#include "core/math/easing.h"
+#include "core/time/time.h"
+#include "platform/input/mouse.h"
 #include "runtime/animation/tween_effect.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
 
@@ -20,20 +22,20 @@ struct RotateEffectScene : public Scene {
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });
 		sprite3 = CreateSprite(*this, "smile", { 200, -300 });
 
-		RotateTo(sprite1, DegToRad(180.0f), milliseconds{ 4000 }, Ease::Linear);
-		RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 1000 }, Ease::Linear, false);
-		RotateTo(sprite2, DegToRad(-180.0f), milliseconds{ 4000 }, Ease::InOutSine);
-		RotateTo(sprite2, DegToRad(0.0f), milliseconds{ 1000 }, Ease::InOutSine, false);
-		RotateTo(sprite3, DegToRad(360.0f), milliseconds{ 4000 }, Ease::InSine);
-		RotateTo(sprite3, DegToRad(0.0f), milliseconds{ 1000 }, Ease::InSine, false);
+		RotateTo(sprite1, 180.0f, milliseconds{ 4000 }, Ease::Linear);
+		RotateTo(sprite1, 0.0f, milliseconds{ 1000 }, Ease::Linear, false);
+		RotateTo(sprite2, -180.0f, milliseconds{ 4000 }, Ease::InOutSine);
+		RotateTo(sprite2, 0.0f, milliseconds{ 1000 }, Ease::InOutSine, false);
+		RotateTo(sprite3, 360.0f, milliseconds{ 4000 }, Ease::InSine);
+		RotateTo(sprite3, 0.0f, milliseconds{ 1000 }, Ease::InSine, false);
 	}
 
 	void OnUpdate() override {
 		if (ctx().input.MousePressed(Mouse::Left)) {
-			RotateTo(sprite1, DegToRad(360.0f), milliseconds{ 4000 }, Ease::Linear, true);
+			RotateTo(sprite1, 360.0f, milliseconds{ 4000 }, Ease::Linear, true);
 		}
 		if (ctx().input.MousePressed(Mouse::Right)) {
-			RotateTo(sprite1, DegToRad(0.0f), milliseconds{ 4000 }, Ease::Linear, true);
+			RotateTo(sprite1, 0.0f, milliseconds{ 4000 }, Ease::Linear, true);
 		}
 	}
 };

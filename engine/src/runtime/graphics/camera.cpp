@@ -159,7 +159,7 @@ Camera& Camera::ScrollY(float scroll_y_amount) {
 
 Camera& Camera::SetZoom(V2_float new_zoom) {
 	auto clamped{ Clamp(
-		new_zoom, V2_float{ 1000.0f * epsilon<float> },
+		new_zoom, V2_float{ 1000.0f * kEpsilon<float> },
 		V2_float{ std::numeric_limits<float>::max() }
 	) };
 	if (GetZoom() == clamped) {

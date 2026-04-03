@@ -9,10 +9,19 @@
 
 namespace ptgn {
 
-Rect::Rect(V2_float min, V2_float max) : min{ min }, max{ max } {}
+Rect::Rect(V2_float min, V2_float max) : min_{ min }, max_{ max } {}
+
+void Rect::SetSize(V2_float size) {
+	*this = Rect{ size };
+}
+
+void Rect::SetSize(V2_float min, V2_float max) {
+	min_ = min;
+	max_ = max;
+}
 
 V2_float Rect::GetSize() const {
-	return max - min;
+	return max_ - min_;
 }
 
 V2_float Rect::GetSize(Transform transform) const {
@@ -37,8 +46,8 @@ std::array<V2_float, 4> Rect::GetWorldVertices(Transform transform) const {
 }
 
 std::array<V2_float, 4> Rect::GetLocalVertices() const {
-	PTGN_ASSERT(min != max, "Cannot get local vertices for a rect with size zero");
-	return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
+	PTGN_ASSERT(min_ != max_, "Cannot get local vertices for a rect with size zero");
+	return { min_, V2_float{ max_.x, min_.y }, max_, V2_float{ min_.x, max_.y } };
 }
 
 std::array<V2_float, 4> Rect::GetWorldVertices(Transform transform, Origin draw_origin) const {
@@ -49,7 +58,7 @@ std::array<V2_float, 4> Rect::GetWorldVertices(Transform transform, Origin draw_
 
 V2_float Rect::GetCenter(Transform transform) const {
 	auto position{ transform.GetPosition() };
-	auto center{ (max + min) * 0.5f };
+	auto center{ (max_ + min_) * 0.5f };
 	return position + center;
 }
 
