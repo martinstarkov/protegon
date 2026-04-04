@@ -27,54 +27,84 @@ class DrawContext;
 
 template <typename T>
 struct Range {
+	Range() = delete;
+
+	Range(T min, T max) : min{ min }, max{ max } {}
+
 	T min;
 	T max;
 };
 
 template <typename T>
-using ConstantOrRange = std::variant<T, ptgn::Range<T>>;
+struct ConstantOrRange {
+	ConstantOrRange(const T& v) : value_{ v } {} // NOSONAR
 
-template <typename T>
-T Evaluate(const ConstantOrRange<T>& value) {
-	return std::visit(
-		[&]<typename V>(const V& v) -> T {
-			if constexpr (std::is_same_v<V, T>) {
-				return v;
-			} else if constexpr (std::is_same_v<V, Range<T>>) {
-				float t = Random01();
-				return Lerp(v.min, v.max, t);
-			}
-		},
-		value
-	);
-}
+	ConstantOrRange(const T& min, const T& max) : value_{ Range<T>{ min, max } } {}
+
+	ConstantOrRange(const Range<T>& range) : value_{ range } {} // NOSONAR
+
+	[[nodiscard]] T Evaluate() const {
+		return std::visit(
+			[&]<typename V>(const V& v) -> T {
+				if constexpr (std::is_same_v<V, T>) {
+					return v;
+				} else if constexpr (std::is_same_v<V, Range<T>>) {
+					float t = Random01();
+					return Lerp(v.min, v.max, t);
+				}
+			},
+			value_
+		);
+	}
+
+private:
+	std::variant<T, Range<T>> value_;
+};
 
 /// @brief The shape from which particles are emitted. Determines the initial position of emitted
 /// particles.
 class EmissionShape {
 public:
+	struct EmissionSample {
+		V2_float position;
+		V2_float direction;
+	};
+
 	EmissionShape() = default;
 
-	static EmissionShape Arc(Degrees arc_angle, float outer_radius, float inner_radius = 0.0f) {
+	[[nodiscard]] static EmissionShape Arc(
+		Degrees arc_angle, float outer_radius, V2_float direction = V2_float{ 1.0f, 0.0f },
+		float inner_radius = 0.0f
+	) {
 		EmissionShape s;
-		s.type = ArcShape{ arc_angle, outer_radius, inner_radius };
+		s.type_ = ArcShape{ arc_angle, outer_radius, direction, inner_radius };
 		return s;
 	}
 
-	static EmissionShape Rect(V2_float size) {
+	[[nodiscard]] static EmissionShape Rect(
+		V2_float size, V2_float direction = V2_float{ 0.0f, 1.0f }
+	) {
 		EmissionShape s;
-		s.type = ptgn::Rect{ size };
+		s.type_ = RectShape{ size, direction };
 		return s;
 	}
 
-	// TODO: Move to private.
+	[[nodiscard]] EmissionSample SampleEmission() const;
+
+private:
 	struct ArcShape {
 		Degrees arc_angle{ 360.0f };
 		float outer_radius{ 1.0f };
+		V2_float direction{ 1.0f, 0.0f };
 		float inner_radius{ 0.0f };
 	};
 
-	std::variant<ArcShape, ptgn::Rect> type{};
+	struct RectShape {
+		ptgn::Rect rect{ V2_float{ 1.0f } };
+		V2_float direction{ 0.0f, 1.0f };
+	};
+
+	std::variant<ArcShape, RectShape> type_{};
 };
 
 /// @brief A rate of particle emission over time.
@@ -122,11 +152,11 @@ struct ParticleConfig {
 
 	/// @brief If true, will attempt to align particles to their emission direction upon emission.
 	/// This is overridden if start_rotation is set.
-	bool align_to_direction{ false };
+	bool align_to_direction{ true };
 
 	ConstantOrRange<Color> start_color{ color::White };
 
-	ConstantOrRange<V2_float> start_gravity{ V2_float{} };
+	std::optional<V2_float> start_gravity;
 
 	std::size_t max_particles{ 1000 };
 

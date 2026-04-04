@@ -3,9 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <cstdint>
 #include <optional>
-#include <ostream>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -13,7 +11,6 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/log.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
@@ -24,7 +21,6 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "core/time/timer.h"
 #include "ecs/ecs.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
@@ -38,66 +34,33 @@
 
 namespace ptgn {
 
-namespace impl {
-
-static V2_float SampleEmissionPosition(const EmissionShape& shape) {
+EmissionShape::EmissionSample EmissionShape::SampleEmission() const {
 	return std::visit(
-		[]<typename V>(const V& s) {
+		[]<typename V>(const V& s) -> EmissionSample {
 			if constexpr (std::is_same_v<V, EmissionShape::ArcShape>) {
-				Radians arc{ s.arc_angle };
+				Radians half_arc = Radians{ s.arc_angle } * 0.5f;
+				Radians offset	 = Radians::Random(-half_arc, half_arc);
 
-				// Sample angle in arc
+				V2_float direction{ s.direction.IsZero() ? V2_float{ 1.0f, 0.0f } : s.direction };
 
-				auto angle{ Radians::Random(Radians{ 0.0f }, arc) };
+				V2_float dir = direction.Normalized().Rotated(offset);
 
-				// Uniform area distribution:
-				// r = sqrt(lerp(inner^2, outer^2))
 				float r0 = s.inner_radius * s.inner_radius;
 				float r1 = s.outer_radius * s.outer_radius;
-				auto dist{ RandomFloat(r0, r1) };
-				float r = std::sqrt(dist);
+				float r	 = std::sqrt(RandomFloat(r0, r1));
 
-				float x = angle.Cos() * r;
-				float y = angle.Sin() * r;
-
-				return V2_float{ x, y };
-			}
-
-			else if constexpr (std::is_same_v<V, ptgn::Rect>) {
-				auto half = s.GetSize() * 0.5f;
-
-				return V2_float::Random(-half, half);
+				return { dir * r, dir };
+			} else if constexpr (std::is_same_v<V, EmissionShape::RectShape>) {
+				auto half = s.rect.GetSize() * 0.5f;
+				V2_float direction{ s.direction.IsZero() ? V2_float{ 0.0f, 1.0f } : s.direction };
+				return { V2_float::Random(-half, half), direction.Normalized() };
 			}
 		},
-		shape.type
+		type_
 	);
 }
 
-static V2_float SampleEmissionDirection(const EmissionShape& shape) {
-	return std::visit(
-		[]<typename V>(const V& s) {
-			if constexpr (std::is_same_v<V, EmissionShape::ArcShape>) {
-				Radians arc{ s.arc_angle };
-
-				auto angle{ Radians::Random(Radians{ 0.0f }, arc) };
-
-				V2_float dir{ 1.0f, 0.0f };
-
-				return dir.Rotated(angle);
-			}
-
-			else if constexpr (std::is_same_v<V, ptgn::Rect>) {
-				// Default: random direction
-				auto angle{ Radians::Random() };
-
-				V2_float dir{ 1.0f, 0.0f };
-
-				return dir.Rotated(angle);
-			}
-		},
-		shape.type
-	);
-}
+namespace impl {
 
 static Particle* TrySpawnParticle(ParticleEmitterComponent& emitter) {
 	if (emitter.live_particle_count >= emitter.config.max_particles) {
@@ -110,45 +73,44 @@ static Particle* TrySpawnParticle(ParticleEmitterComponent& emitter) {
 
 	const auto& config = emitter.config;
 
-	const V2_float emission_offset = SampleEmissionPosition(config.emission_shape);
-	const V2_float dir			   = SampleEmissionDirection(config.emission_shape);
-	const float speed			   = Evaluate(config.start_speed);
+	auto sample = config.emission_shape.SampleEmission();
+	float speed = config.start_speed.Evaluate();
 
-	p.position = emission_offset;
-	p.velocity = dir * speed;
-	p.gravity  = Evaluate(config.start_gravity);
-	p.size	   = Evaluate(config.start_size);
-	p.color	   = Evaluate(config.start_color);
+	p.position = sample.position;
+	p.velocity = sample.direction * speed;
+	p.gravity  = config.start_gravity.value_or(V2_float{});
+	p.size	   = config.start_size.Evaluate();
+	p.color	   = config.start_color.Evaluate();
 
 	if (config.start_rotation) {
-		p.rotation = Evaluate(*config.start_rotation).ToRad();
+		p.rotation = config.start_rotation->Evaluate().ToRad();
 	} else if (config.align_to_direction) {
-		p.rotation = dir.Angle().ToRad();
+		p.rotation = sample.direction.Angle().ToRad();
 	}
 
 	if (config.lifetime) {
-		p.lifetime = Evaluate(*config.lifetime);
+		p.lifetime = config.lifetime->Evaluate();
 	} else if (std::holds_alternative<Rate>(config.rate_or_burst)) {
 		p.lifetime = std::get<Rate>(config.rate_or_burst).duration;
 	} else {
 		p.lifetime = milliseconds{ 1000 };
 	}
 
-	p.start_size = Evaluate(config.start_size);
+	p.start_size = config.start_size.Evaluate();
 	p.size		 = p.start_size;
 
 	if (config.size_over_lifetime) {
-		const auto size_value = Evaluate(*config.size_over_lifetime);
-		p.end_size			  = size_value;
+		auto size_value = config.size_over_lifetime->Evaluate();
+		p.end_size		= size_value;
 	} else {
 		p.end_size = p.start_size;
 	}
 
-	p.start_color = Evaluate(config.start_color);
+	p.start_color = config.start_color.Evaluate();
 	p.color		  = p.start_color;
 
 	if (config.color_over_lifetime) {
-		p.end_color = Evaluate(*config.color_over_lifetime);
+		p.end_color = config.color_over_lifetime->Evaluate();
 	} else {
 		p.end_color = p.start_color;
 	}
@@ -164,10 +126,10 @@ static void UpdateRateEmitter(ParticleEmitterComponent& emitter, milliseconds dt
 		return;
 	}
 
-	const float dt_seconds		= duration<float>(dt).count();
-	playback.spawn_accumulator += rate.rate_over_time * dt_seconds;
+	float dt_seconds			= duration<float>(dt).count();
+	playback.spawn_accumulator += static_cast<float>(rate.rate_over_time) * dt_seconds;
 
-	std::size_t to_spawn		= static_cast<std::size_t>(playback.spawn_accumulator);
+	auto to_spawn				= static_cast<std::size_t>(playback.spawn_accumulator);
 	playback.spawn_accumulator -= static_cast<float>(to_spawn);
 
 	for (std::size_t i = 0; i < to_spawn; ++i) {
@@ -232,9 +194,10 @@ static void InitializeEmitterRun(ParticleEmitterComponent& emitter) {
 	}
 	// Prewarm means: make the emitter look like it has already been running
 	// for one full cycle.
-	const float duration_seconds = std::chrono::duration<float>(rate.duration).count();
+	float duration_seconds = std::chrono::duration<float>(rate.duration).count();
 
-	const auto prewarm_count = static_cast<std::size_t>(rate.rate_over_time * duration_seconds);
+	auto prewarm_count =
+		static_cast<std::size_t>(static_cast<float>(rate.rate_over_time) * duration_seconds);
 
 	for (std::size_t i = 0; i < prewarm_count; ++i) {
 		Particle* p = TrySpawnParticle(emitter);
@@ -243,10 +206,10 @@ static void InitializeEmitterRun(ParticleEmitterComponent& emitter) {
 		}
 
 		if (p->lifetime.count() > 0) {
-			const auto max_age = static_cast<float>(p->lifetime.count());
+			auto max_age = static_cast<float>(p->lifetime.count());
 			p->age = milliseconds{ static_cast<milliseconds::rep>(RandomFloat(0.0f, max_age)) };
 
-			const float dt = std::chrono::duration<float>(p->age).count() * config.simulation_speed;
+			float dt = std::chrono::duration<float>(p->age).count() * config.simulation_speed;
 
 			p->velocity += p->gravity * dt;
 			p->position += p->velocity * dt;
@@ -256,7 +219,7 @@ static void InitializeEmitterRun(ParticleEmitterComponent& emitter) {
 
 static void UpdateParticles(ParticleEmitterComponent& emitter, milliseconds dt) {
 	const auto& config = emitter.config;
-	const float sim_dt = std::chrono::duration<float>(dt).count() * config.simulation_speed;
+	float sim_dt	   = std::chrono::duration<float>(dt).count() * config.simulation_speed;
 
 	std::vector<Entity> dead_particles;
 
@@ -264,11 +227,11 @@ static void UpdateParticles(ParticleEmitterComponent& emitter, milliseconds dt) 
 		p.age += dt;
 
 		if (p.age >= p.lifetime) {
-			dead_particles.push_back(entity);
-			return;
+			dead_particles.emplace_back(entity);
+			continue;
 		}
 
-		const float t =
+		float t =
 			(p.lifetime.count() > 0)
 				? std::clamp(
 					  static_cast<float>(p.age.count()) / static_cast<float>(p.lifetime.count()),
@@ -323,16 +286,18 @@ static void UpdateEmitterPlayback(ParticleEmitterComponent& emitter, millisecond
 ParticleEmitter::ParticleEmitter(Entity entity) : Entity{ entity } {}
 
 ParticleEmitter& ParticleEmitter::Start() {
+	using enum impl::ParticleEmitterState;
+
 	auto& emitter = Get<impl::ParticleEmitterComponent>();
 
-	if (emitter.playback.state == impl::ParticleEmitterState::Paused) {
-		emitter.playback.state = impl::ParticleEmitterState::Playing;
+	if (emitter.playback.state == Paused) {
+		emitter.playback.state = Playing;
 		return *this;
 	}
 
-	if (emitter.playback.state == impl::ParticleEmitterState::Stopped) {
+	if (emitter.playback.state == Stopped) {
 		InitializeEmitterRun(emitter);
-		emitter.playback.state = impl::ParticleEmitterState::Playing;
+		emitter.playback.state = Playing;
 	}
 
 	return *this;
@@ -345,28 +310,27 @@ ParticleEmitter& ParticleEmitter::Stop() {
 }
 
 ParticleEmitter& ParticleEmitter::Pause() {
-	auto& emitter = Get<impl::ParticleEmitterComponent>();
-	if (emitter.playback.state == impl::ParticleEmitterState::Playing) {
+	if (auto& emitter = Get<impl::ParticleEmitterComponent>();
+		emitter.playback.state == impl::ParticleEmitterState::Playing) {
 		emitter.playback.state = impl::ParticleEmitterState::Paused;
 	}
 	return *this;
 }
 
 ParticleEmitter& ParticleEmitter::Resume() {
-	auto& emitter = Get<impl::ParticleEmitterComponent>();
-	if (emitter.playback.state == impl::ParticleEmitterState::Paused) {
+	if (auto& emitter = Get<impl::ParticleEmitterComponent>();
+		emitter.playback.state == impl::ParticleEmitterState::Paused) {
 		emitter.playback.state = impl::ParticleEmitterState::Playing;
 	}
 	return *this;
 }
 
 ParticleEmitter& ParticleEmitter::Toggle() {
-	auto& emitter = Get<impl::ParticleEmitterComponent>();
-
-	switch (emitter.playback.state) {
-		case impl::ParticleEmitterState::Stopped: Start(); break;
-		case impl::ParticleEmitterState::Playing: Pause(); break;
-		case impl::ParticleEmitterState::Paused:  Resume(); break;
+	switch (const auto& emitter = Get<impl::ParticleEmitterComponent>(); emitter.playback.state) {
+		using enum impl::ParticleEmitterState;
+		case Stopped: Start(); break;
+		case Playing: Pause(); break;
+		case Paused:  Resume(); break;
 	}
 
 	return *this;
@@ -380,18 +344,18 @@ ParticleEmitter& ParticleEmitter::Reset() {
 	return *this;
 }
 
-void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera) {
 	auto depth{ GetDepth(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
 
 	const auto& emitter = entity.Get<impl::ParticleEmitterComponent>();
 	const auto& config	= emitter.config;
 
-	const Transform base_transform{ GetWorldTransform(entity) };
+	const Transform base_transform{ GetDrawTransform(entity) };
 
 	for (const auto& [particle_entity, p] :
 		 std::as_const(emitter.manager).EntitiesWith<impl::Particle>()) {
-		Transform transform = base_transform;
+		Transform transform{ base_transform };
 		transform.Translate(p.position);
 		transform.Rotate(p.rotation);
 
@@ -419,13 +383,14 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera camera) 
 
 			shape.Visit([&]<typename S>(const S& s) {
 				if constexpr (std::is_same_v<S, Circle>) {
-					Circle circle{ p.size * 0.5f };
+					Circle circle{ s.GetRadius() * p.size * 0.5f };
 					renderer.DrawShape(
 						circle, transform, p.color, config.particle_fill_style, origin, depth,
 						blend_mode
 					);
 				} else if constexpr (std::is_same_v<S, Rect>) {
-					Rect rect{ V2_float{ p.size } };
+					Rect rect{ s.GetSize() * V2_float{ p.size } };
+					transform.Rotate(Radians{ kHalfPi });
 					renderer.DrawShape(
 						rect, transform, p.color, config.particle_fill_style, origin, depth,
 						blend_mode
