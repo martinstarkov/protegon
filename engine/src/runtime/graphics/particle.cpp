@@ -45,8 +45,11 @@ EmissionShape::EmissionSample EmissionShape::SampleEmission() const {
 
 				V2_float dir = direction.Normalized().Rotated(offset);
 
-				float r0 = s.inner_radius * s.inner_radius;
-				float r1 = s.outer_radius * s.outer_radius;
+				float inner = std::max(0.0f, std::min(s.inner_radius, s.outer_radius));
+				float outer = std::max(inner, s.outer_radius);
+
+				float r0 = inner * inner;
+				float r1 = outer * outer;
 				float r	 = std::sqrt(RandomFloat(r0, r1));
 
 				return { dir * r, dir };
@@ -82,6 +85,15 @@ static Particle* TrySpawnParticle(ParticleEmitterComponent& emitter) {
 	p.size	   = config.start_size.Evaluate();
 	p.color	   = config.start_color.Evaluate();
 
+	float start_size  = config.start_size.Evaluate();
+	Color start_color = config.start_color.Evaluate();
+
+	p.start_size = start_size;
+	p.size		 = start_size;
+
+	p.start_color = start_color;
+	p.color		  = start_color;
+
 	if (config.start_rotation) {
 		p.rotation = config.start_rotation->Evaluate().ToRad();
 	} else if (config.align_to_direction) {
@@ -92,12 +104,7 @@ static Particle* TrySpawnParticle(ParticleEmitterComponent& emitter) {
 		p.lifetime = config.lifetime->Evaluate();
 	} else if (std::holds_alternative<Rate>(config.rate_or_burst)) {
 		p.lifetime = std::get<Rate>(config.rate_or_burst).duration;
-	} else {
-		p.lifetime = milliseconds{ 1000 };
 	}
-
-	p.start_size = config.start_size.Evaluate();
-	p.size		 = p.start_size;
 
 	if (config.size_over_lifetime) {
 		auto size_value = config.size_over_lifetime->Evaluate();
@@ -105,9 +112,6 @@ static Particle* TrySpawnParticle(ParticleEmitterComponent& emitter) {
 	} else {
 		p.end_size = p.start_size;
 	}
-
-	p.start_color = config.start_color.Evaluate();
-	p.color		  = p.start_color;
 
 	if (config.color_over_lifetime) {
 		p.end_color = config.color_over_lifetime->Evaluate();
@@ -184,6 +188,10 @@ static void InitializeEmitterRun(ParticleEmitterComponent& emitter) {
 	emitter.manager.Clear();
 	emitter.live_particle_count = 0;
 
+	if (std::holds_alternative<Burst>(config.rate_or_burst)) {
+		playback.burst_elapsed = std::get<Burst>(config.rate_or_burst).interval;
+	}
+
 	if (!std::holds_alternative<Rate>(config.rate_or_burst)) {
 		return;
 	}
@@ -222,9 +230,10 @@ static void UpdateParticles(ParticleEmitterComponent& emitter, milliseconds dt) 
 	float sim_dt	   = std::chrono::duration<float>(dt).count() * config.simulation_speed;
 
 	std::vector<Entity> dead_particles;
+	dead_particles.reserve(emitter.live_particle_count);
 
 	for (auto [entity, p] : emitter.manager.EntitiesWith<Particle>()) {
-		p.age += dt;
+		p.age += duration_cast<milliseconds>(dt * config.simulation_speed);
 
 		if (p.age >= p.lifetime) {
 			dead_particles.emplace_back(entity);
@@ -342,6 +351,21 @@ ParticleEmitter& ParticleEmitter::Reset() {
 	emitter.manager.Clear();
 	emitter.live_particle_count = 0;
 	return *this;
+}
+
+bool ParticleEmitter::IsPlaying() const {
+	return Get<impl::ParticleEmitterComponent>().playback.state ==
+		   impl::ParticleEmitterState::Playing;
+}
+
+bool ParticleEmitter::IsPaused() const {
+	return Get<impl::ParticleEmitterComponent>().playback.state ==
+		   impl::ParticleEmitterState::Paused;
+}
+
+bool ParticleEmitter::IsStopped() const {
+	return Get<impl::ParticleEmitterComponent>().playback.state ==
+		   impl::ParticleEmitterState::Stopped;
 }
 
 void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera) {
