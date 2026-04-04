@@ -277,6 +277,12 @@ Animation CreateAnimation(
 	Origin draw_origin = Origin::Center
 );
 
+/// @brief Creates and starts an animation that will automatically destroy itself once it finishes.
+Animation PlayTemporaryAnimation(
+	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config,
+	Origin draw_origin = Origin::Center
+);
+
 AnimationMap CreateAnimationMap(Scene& scene);
 
 } // namespace ptgn

@@ -451,6 +451,17 @@ Animation CreateAnimation(
 	return animation;
 }
 
+Animation PlayTemporaryAnimation(
+	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config,
+	Origin draw_origin
+) {
+	Animation anim = CreateAnimation(scene, texture, position, config, draw_origin);
+	Show(anim, true);
+	anim.OnComplete([anim]() mutable { anim.Destroy(); });
+	anim.Start(true);
+	return anim;
+}
+
 AnimationMap CreateAnimationMap(Scene& scene) {
 	AnimationMap animation_map{ scene.CreateEntity() };
 
