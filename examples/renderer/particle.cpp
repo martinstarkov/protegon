@@ -169,9 +169,9 @@ public:
 		ParticleConfig config{};
 
 		config.rate_or_burst =
-			Rate{ .duration = 1s, .loop = true, .prewarm = false, .rate_over_time = 70 };
+			Rate{ .duration = 8s, .loop = true, .prewarm = true, .rate_over_time = 70 };
 
-		config.lifetime = { 8s, 16s };
+		config.lifetime = { 6s, 8s };
 
 		config.start_speed		   = { 15.0f, 40.0f };
 		config.start_size		   = { 6.0f, 12.0f };

@@ -65,9 +65,9 @@ EmissionShape::EmissionSample EmissionShape::SampleEmission() const {
 
 namespace impl {
 
-static Particle* TrySpawnParticle(ParticleEmitterComponent& emitter) {
+static std::optional<Entity> TrySpawnParticle(ParticleEmitterComponent& emitter) {
 	if (emitter.live_particle_count >= emitter.config.max_particles) {
-		return nullptr;
+		return std::nullopt;
 	}
 
 	Entity particle_entity = emitter.manager.CreateEntity();
@@ -119,7 +119,7 @@ static Particle* TrySpawnParticle(ParticleEmitterComponent& emitter) {
 		p.end_color = p.start_color;
 	}
 
-	return &p;
+	return particle_entity;
 }
 
 static void UpdateRateEmitter(ParticleEmitterComponent& emitter, milliseconds dt) {
@@ -137,7 +137,7 @@ static void UpdateRateEmitter(ParticleEmitterComponent& emitter, milliseconds dt
 	playback.spawn_accumulator -= static_cast<float>(to_spawn);
 
 	for (std::size_t i = 0; i < to_spawn; ++i) {
-		if (!TrySpawnParticle(emitter)) {
+		if (!TrySpawnParticle(emitter).has_value()) {
 			break;
 		}
 	}
@@ -159,7 +159,7 @@ static void UpdateBurstEmitter(ParticleEmitterComponent& emitter, milliseconds d
 		playback.burst_elapsed -= burst.interval;
 
 		for (std::size_t i = 0; i < burst.particle_count; ++i) {
-			if (!TrySpawnParticle(emitter)) {
+			if (!TrySpawnParticle(emitter).has_value()) {
 				break;
 			}
 		}
@@ -208,19 +208,34 @@ static void InitializeEmitterRun(ParticleEmitterComponent& emitter) {
 		static_cast<std::size_t>(static_cast<float>(rate.rate_over_time) * duration_seconds);
 
 	for (std::size_t i = 0; i < prewarm_count; ++i) {
-		Particle* p = TrySpawnParticle(emitter);
-		if (!p) {
+		auto particle_entity = TrySpawnParticle(emitter);
+
+		if (!particle_entity.has_value()) {
 			break;
 		}
 
-		if (p->lifetime.count() > 0) {
-			auto max_age = static_cast<float>(p->lifetime.count());
-			p->age = milliseconds{ static_cast<milliseconds::rep>(RandomFloat(0.0f, max_age)) };
+		PTGN_ASSERT(particle_entity->Has<Particle>());
 
-			float dt = std::chrono::duration<float>(p->age).count() * config.simulation_speed;
+		Particle& p{ particle_entity->Get<Particle>() };
 
-			p->velocity += p->gravity * dt;
-			p->position += p->velocity * dt;
+		if (p.lifetime.count() > 0) {
+			auto max_age = static_cast<float>(p.lifetime.count());
+			p.age = milliseconds{ static_cast<milliseconds::rep>(RandomFloat(0.0f, max_age)) };
+
+			float t = std::clamp(
+				static_cast<float>(p.age.count()) / static_cast<float>(p.lifetime.count()), 0.0f,
+				1.0f
+			);
+
+			float dt = std::chrono::duration<float>(p.age).count() * config.simulation_speed;
+
+			V2_float initial_velocity = p.velocity;
+
+			p.position += initial_velocity * dt + 0.5f * p.gravity * dt * dt;
+			p.velocity	= initial_velocity + p.gravity * dt;
+
+			p.size	= Lerp(p.start_size, p.end_size, t);
+			p.color = Lerp(p.start_color, p.end_color, t);
 		}
 	}
 }
