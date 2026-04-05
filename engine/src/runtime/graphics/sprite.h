@@ -21,6 +21,8 @@ class DrawContext;
 
 namespace impl {
 
+class AnimationData;
+
 /// Component for a custom texture size to be used instead of the actual texture size. This can be
 /// used for example to render a texture at a larger size.
 struct TextureSize : public Vector2Component<float> {
@@ -38,6 +40,9 @@ struct TextureCrop {
 	std::optional<V2_float> size;
 
 	bool operator==(const TextureCrop&) const = default;
+
+	/// @brief Updates the crop size based on the animation data.
+	void Update(const AnimationData& anim);
 };
 
 } // namespace impl

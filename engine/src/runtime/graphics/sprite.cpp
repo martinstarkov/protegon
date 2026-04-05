@@ -9,6 +9,7 @@
 #include "core/math/vector4.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
+#include "runtime/animation/animation.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
@@ -17,6 +18,15 @@
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
+
+namespace impl {
+
+void TextureCrop::Update(const AnimationData& anim) {
+	position = anim.GetCurrentFramePosition();
+	size	 = anim.config.frame_size;
+}
+
+} // namespace impl
 
 Sprite::Sprite(Entity entity) : Entity{ entity } {}
 
