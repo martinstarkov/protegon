@@ -1,10 +1,13 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
+#include <variant>
 
 #include "core/event/dispatcher.h"
 #include "core/event/event.h"
@@ -32,71 +35,84 @@ struct AnimationConfig {
 	milliseconds animation_duration{ 0 };
 
 	/// @brief Pixel size of an individual animation frame within the texture.
-	/// If {}, frame_size = { texture_size.x / frame_count, texture_size.y }.
-	std::optional<V2_int> frame_size;
+	/// If {}, automatically calculated as { texture_size.x / frame_count, texture_size.y }.
+	V2_int frame_size;
 
 	/// @brief Number of times that the animation plays for, -1 for infinite replay.
-	std::int64_t play_count = -1;
+	std::int64_t play_count{ 1 };
 
 	/// @brief Pixel within the texture which indicates the top left position of the
 	/// animation sequence.
 	V2_int start_pixel;
+
+	/// @brief Reset animation to frame 0 when it completes.
+	bool reset_on_complete{ false };
+
+	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+		AnimationConfig, frame_count, animation_duration, frame_size, play_count, start_pixel,
+		reset_on_complete
+	)
 };
 
+/// @brief Triggered when an animation is started.
 struct AnimationStart : public Event<AnimationStart> {};
 
+/// @brief Triggered when an animation is stopped, either by calling Stop() or Reset(), or when the
+/// animation completes.
 struct AnimationStop : public Event<AnimationStop> {};
 
+/// @brief Triggered when an animation is paused.
 struct AnimationPause : public Event<AnimationPause> {};
 
+/// @brief Triggered when an animation is resumed.
 struct AnimationResume : public Event<AnimationResume> {};
 
-struct AnimationRepeat : public Event<AnimationRepeat> {};
-
+/// @brief Triggered any time the animation frame changes, including when the animation starts. Does
+/// not trigger when the animation is manually reset or if it completes and reset_on_complete is
+/// true.
 struct AnimationFrameChange : public Event<AnimationFrameChange> {};
 
+/// @brief Triggered every frame that an animation is playing.
 struct AnimationUpdate : public Event<AnimationUpdate> {};
 
+/// @brief Triggered when all animation plays have completed.
 struct AnimationComplete : public Event<AnimationComplete> {};
 
-namespace impl {
-
-template <EventType T>
-struct AnimationScript : public Script {
-	AnimationScript() = default;
-
-	explicit AnimationScript(const std::function<void()>& callback) : callback_{ callback } {}
-
-	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<T>([this](T&) { callback_(); });
-	}
-
-private:
-	std::function<void()> callback_;
-};
-
-using AnimationStartScript		 = AnimationScript<AnimationStart>;
-using AnimationStopScript		 = AnimationScript<AnimationStop>;
-using AnimationPauseScript		 = AnimationScript<AnimationPause>;
-using AnimationResumeScript		 = AnimationScript<AnimationResume>;
-using AnimationRepeatScript		 = AnimationScript<AnimationRepeat>;
-using AnimationFrameChangeScript = AnimationScript<AnimationFrameChange>;
-using AnimationUpdateScript		 = AnimationScript<AnimationUpdate>;
-using AnimationCompleteScript	 = AnimationScript<AnimationComplete>;
-
-} // namespace impl
+/// @brief Triggered every time an animation plays through all its frames.
+struct AnimationLoopComplete : public Event<AnimationLoopComplete> {};
 
 struct Animation : public Entity {
 	Animation() = default;
 	explicit Animation(Entity entity);
 
-	Animation& OnStart(const std::function<void()>& callback);
-	Animation& OnStop(const std::function<void()>& callback);
-	Animation& OnPause(const std::function<void()>& callback);
-	Animation& OnResume(const std::function<void()>& callback);
-	Animation& OnFrameChange(const std::function<void()>& callback);
-	Animation& OnUpdate(const std::function<void()>& callback);
-	Animation& OnComplete(const std::function<void()>& callback);
+	using Callback = std::variant<std::function<void()>, std::function<void(Animation)>>;
+
+	/// @brief Triggered when an animation is started.
+	Animation& OnStart(const Callback& callback);
+
+	/// @brief Triggered when an animation is stopped, either by calling Stop() or Reset(), or when
+	/// the animation completes.
+	Animation& OnStop(const Callback& callback);
+
+	/// @brief Triggered when an animation is paused.
+	Animation& OnPause(const Callback& callback);
+
+	/// @brief Triggered when an animation is resumed.
+	Animation& OnResume(const Callback& callback);
+
+	/// @brief Triggered any time the animation frame changes, including when the animation starts.
+	/// Does not trigger when the animation is manually reset or if it completes and
+	/// reset_on_complete is true.
+	Animation& OnFrameChange(const Callback& callback);
+
+	/// @brief Triggered every frame that an animation is playing.
+	Animation& OnUpdate(const Callback& callback);
+
+	/// @brief Triggered when all animation plays have completed.
+	Animation& OnComplete(const Callback& callback);
+
+	/// @brief Triggered every time an animation plays through all its frames.
+	Animation& OnLoopComplete(const Callback& callback);
 
 	Animation& SetTexture(TextureOrKey texture);
 
@@ -142,6 +158,10 @@ struct Animation : public Entity {
 
 	Animation& IncrementFrame();
 
+	/// @brief If true, the animation will reset to frame 0 when it completes. Otherwise, it will
+	/// stay on the last frame.
+	Animation& SetResetOnComplete(bool reset_on_complete = true);
+
 	std::size_t GetCurrentFrame() const;
 
 	V2_int GetCurrentFramePosition() const;
@@ -154,6 +174,43 @@ namespace impl {
 struct AnimationMapKey : public HashComponent {
 	using HashComponent::HashComponent;
 };
+
+template <EventType T>
+struct AnimationScript : public Script {
+	AnimationScript() = default;
+
+	explicit AnimationScript(const Animation::Callback& callback) : callback_{ callback } {}
+
+	void OnEvent(EventDispatcher d) override {
+		d.Dispatch<T>([this](T&) {
+			std::visit(
+				[this]<typename TCallback>(const TCallback& callback) {
+					if constexpr (std::is_same_v<TCallback, std::function<void()>>) {
+						callback();
+					} else if constexpr (std::is_same_v<
+											 TCallback, std::function<void(Animation)>>) {
+						callback(Animation{ entity });
+					} else {
+						static_assert(false, "Incomplete visitor");
+					}
+				},
+				callback_
+			);
+		});
+	}
+
+private:
+	Animation::Callback callback_;
+};
+
+using AnimationStartScript		  = AnimationScript<AnimationStart>;
+using AnimationStopScript		  = AnimationScript<AnimationStop>;
+using AnimationPauseScript		  = AnimationScript<AnimationPause>;
+using AnimationResumeScript		  = AnimationScript<AnimationResume>;
+using AnimationFrameChangeScript  = AnimationScript<AnimationFrameChange>;
+using AnimationUpdateScript		  = AnimationScript<AnimationUpdate>;
+using AnimationCompleteScript	  = AnimationScript<AnimationComplete>;
+using AnimationLoopCompleteScript = AnimationScript<AnimationLoopComplete>;
 
 } // namespace impl
 
@@ -214,11 +271,7 @@ class AnimationData {
 public:
 	AnimationData() = default;
 
-	AnimationData(
-		milliseconds animation_duration, std::size_t animation_frame_count,
-		V2_float animation_frame_size, std::int64_t animation_play_count,
-		V2_float animation_start_pixel
-	);
+	AnimationData(const AnimationConfig& config, V2_int texture_size);
 
 	milliseconds GetFrameDuration() const;
 	V2_int GetCurrentFramePosition() const;
@@ -230,26 +283,12 @@ public:
 	void IncrementFrame();
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		AnimationData, duration, frame_timer, frame_count, frame_size, play_count, start_pixel,
-		current_frame, frames_played
+		AnimationData, config, frame_timer, current_frame, frames_played
 	)
 
-	milliseconds duration{ 0 };
+	AnimationConfig config;
 
 	Timer frame_timer;
-
-	/// @brief Number of frames in the animation.
-	std::size_t frame_count{ 0 };
-
-	/// @brief Size of an individual animation frame.
-	V2_int frame_size;
-
-	/// @brief Number of times the full animation is played. -1 for infinite playback.
-	std::int64_t play_count{ 1 };
-
-	/// @brief Pixel within the texture which indicates the top left position of the animation
-	/// sequence.
-	V2_int start_pixel;
 
 	/// @brief Current frame of the animation.
 	std::size_t current_frame{ 0 };
@@ -278,9 +317,13 @@ Animation CreateAnimation(
 );
 
 /// @brief Creates and starts an animation that will automatically destroy itself once it finishes.
+/// @param texture Texture or texture key to be used for the animation.
+/// @param position Where on the screen to place the animation object.
+/// @param destroy_delay If 0ms, the animation is destroyed immediately after finishing. Otherwise,
+/// the animation is destroyed after the specified delay once it finishes.
 Animation PlayTemporaryAnimation(
 	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config,
-	Origin draw_origin = Origin::Center
+	milliseconds destroy_delay = 0ms, Origin draw_origin = Origin::Center
 );
 
 AnimationMap CreateAnimationMap(Scene& scene);

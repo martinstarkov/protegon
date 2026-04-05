@@ -1,8 +1,6 @@
 #include "runtime/animation/animation.h"
 
 #include <chrono>
-#include <cstdint>
-#include <functional>
 #include <list>
 #include <optional>
 #include <string_view>
@@ -21,6 +19,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scripting/script_sequence.h"
 #include "runtime/scripting/scripts.h"
 
 namespace ptgn {
@@ -33,9 +32,8 @@ Animation& Animation::Start(bool force) {
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.current_frame = 0;
 	anim.frames_played = 0;
-	auto& crop		   = Get<impl::TextureCrop>();
-	crop.position	   = anim.GetCurrentFramePosition();
-	crop.size		   = anim.frame_size;
+	auto& crop{ Get<impl::TextureCrop>() };
+	crop.Update(anim);
 	if (bool started{ anim.frame_timer.Start(force) }; started) {
 		if (auto scripts{ TryGet<impl::Scripts>() }) {
 			AnimationStart event;
@@ -51,9 +49,8 @@ Animation& Animation::Reset() {
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.current_frame = 0;
 	anim.frames_played = 0;
-	auto& crop		   = Get<impl::TextureCrop>();
-	crop.position	   = anim.GetCurrentFramePosition();
-	crop.size		   = anim.frame_size;
+	auto& crop{ Get<impl::TextureCrop>() };
+	crop.Update(anim);
 	anim.frame_timer.Reset();
 	if (auto scripts{ TryGet<impl::Scripts>() }) {
 		AnimationStop event;
@@ -135,20 +132,20 @@ std::size_t Animation::GetFramePlayCount() const {
 milliseconds Animation::GetDuration() const {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	const auto& anim{ Get<impl::AnimationData>() };
-	return anim.duration;
+	return anim.config.animation_duration;
 }
 
 milliseconds Animation::GetFrameDuration() const {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	const auto& anim{ Get<impl::AnimationData>() };
-	milliseconds frame_duration{ anim.duration / anim.frame_count };
+	milliseconds frame_duration{ anim.config.animation_duration / anim.config.frame_count };
 	return frame_duration;
 }
 
 std::size_t Animation::GetFrameCount() const {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	const auto& anim{ Get<impl::AnimationData>() };
-	return anim.frame_count;
+	return anim.config.frame_count;
 }
 
 Animation& Animation::SetCurrentFrame(std::size_t new_frame) {
@@ -170,6 +167,13 @@ Animation& Animation::IncrementFrame() {
 	return *this;
 }
 
+Animation& Animation::SetResetOnComplete(bool reset_on_complete) {
+	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	auto& anim{ Get<impl::AnimationData>() };
+	anim.config.reset_on_complete = reset_on_complete;
+	return *this;
+}
+
 std::size_t Animation::GetCurrentFrame() const {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	const auto& anim{ Get<impl::AnimationData>() };
@@ -185,70 +189,81 @@ V2_int Animation::GetCurrentFramePosition() const {
 V2_int Animation::GetFrameSize() const {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	const auto& anim{ Get<impl::AnimationData>() };
-	return anim.frame_size;
+	return anim.config.frame_size;
 }
 
-Animation& Animation::OnStart(const std::function<void()>& callback) {
+Animation& Animation::OnStart(const Animation::Callback& callback) {
 	AddScript<impl::AnimationStartScript>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnStop(const std::function<void()>& callback) {
+Animation& Animation::OnStop(const Animation::Callback& callback) {
 	AddScript<impl::AnimationStopScript>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnPause(const std::function<void()>& callback) {
+Animation& Animation::OnPause(const Animation::Callback& callback) {
 	AddScript<impl::AnimationPauseScript>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnResume(const std::function<void()>& callback) {
+Animation& Animation::OnResume(const Animation::Callback& callback) {
 	AddScript<impl::AnimationResumeScript>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnFrameChange(const std::function<void()>& callback) {
+Animation& Animation::OnFrameChange(const Animation::Callback& callback) {
 	AddScript<impl::AnimationFrameChangeScript>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnUpdate(const std::function<void()>& callback) {
+Animation& Animation::OnUpdate(const Animation::Callback& callback) {
 	AddScript<impl::AnimationUpdateScript>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnComplete(const std::function<void()>& callback) {
+Animation& Animation::OnComplete(const Animation::Callback& callback) {
 	AddScript<impl::AnimationCompleteScript>(*this, callback);
+	return *this;
+}
+
+Animation& Animation::OnLoopComplete(const Animation::Callback& callback) {
+	AddScript<impl::AnimationLoopCompleteScript>(*this, callback);
 	return *this;
 }
 
 namespace impl {
 
-AnimationData::AnimationData(
-	milliseconds animation_duration, std::size_t animation_frame_count,
-	V2_float animation_frame_size, std::int64_t animation_play_count, V2_float animation_start_pixel
-) :
-	duration{ animation_duration },
-	frame_count{ animation_frame_count },
-	frame_size{ animation_frame_size },
-	play_count{ animation_play_count },
-	start_pixel{ animation_start_pixel } {}
+AnimationData::AnimationData(const AnimationConfig& anim_config, V2_int texture_size) :
+	config{ anim_config } {
+	PTGN_ASSERT(
+		config.play_count == -1 || config.play_count >= 0,
+		"Play count must be -1 (infinite) or otherwise non-negative"
+	);
+
+	PTGN_ASSERT(config.frame_count > 0, "Cannot create an animation with 0 frames");
+
+	if (config.frame_size.IsZero()) {
+		config.frame_size = { static_cast<std::size_t>(texture_size.x) / config.frame_count,
+							  texture_size.y };
+	}
+}
 
 milliseconds AnimationData::GetFrameDuration() const {
-	return duration / frame_count;
+	return config.animation_duration / config.frame_count;
 }
 
 V2_int AnimationData::GetCurrentFramePosition() const {
-	return { start_pixel.x + frame_size.x * static_cast<int>(current_frame), start_pixel.y };
+	return { config.start_pixel.x + config.frame_size.x * static_cast<int>(current_frame),
+			 config.start_pixel.y };
 }
 
 std::size_t AnimationData::GetPlayCount() const {
-	return frames_played / frame_count;
+	return frames_played / config.frame_count;
 }
 
 void AnimationData::SetCurrentFrame(std::size_t new_frame) {
-	current_frame = new_frame % frame_count;
+	current_frame = new_frame % config.frame_count;
 	frame_dirty	  = true;
 }
 
@@ -257,36 +272,48 @@ void AnimationData::IncrementFrame() {
 }
 
 void AnimationSystem::Update(Scene& scene) {
+	const auto frame_change = [](auto anim_entity, auto& crop, const auto& anim) {
+		if (auto scripts{ anim_entity.TryGet<Scripts>() }) {
+			AnimationFrameChange event;
+			scripts->Emit(event);
+		}
+		crop.Update(anim);
+	};
+
 	for (auto [entity, anim, crop] : scene.EntitiesWith<AnimationData, TextureCrop>()) {
 		if (anim.frame_dirty) {
-			crop.size	  = anim.frame_size;
-			crop.position = anim.GetCurrentFramePosition();
+			crop.Update(anim);
 
 			anim.frame_dirty = false;
 		}
 
-		if (anim.frame_count == 0 || anim.duration <= milliseconds{ 0 } ||
+		if (anim.config.frame_count == 0 || anim.config.animation_duration <= 0ms ||
 			!anim.frame_timer.IsRunning() || anim.frame_timer.IsPaused()) {
 			// Timer is not active or animation has no frames / duration.
 			continue;
 		}
 
-		if (bool infinite_playback{ anim.play_count == -1 };
-			!infinite_playback &&
-			anim.frames_played >= static_cast<std::size_t>(anim.play_count) * anim.frame_count) {
+		std::size_t total_frames =
+			static_cast<std::size_t>(anim.config.play_count) * anim.config.frame_count;
+
+		std::size_t next_frames_played = anim.frames_played + 1;
+
+		// All animation plays have completed.
+		if (anim.config.play_count != -1 && next_frames_played >= total_frames) {
 			if (auto scripts{ entity.TryGet<Scripts>() }) {
 				AnimationComplete event;
 				scripts->Emit(event);
 			}
-			// Reset animation to start frame after it finishes.
-			anim.SetCurrentFrame(0);
-			if (auto scripts{ entity.TryGet<Scripts>() }) {
-				AnimationFrameChange event;
-				scripts->Emit(event);
+
+			if (anim.config.reset_on_complete) {
+				// Reset animation to start frame after it finishes.
+				anim.SetCurrentFrame(0);
+
+				frame_change(entity, crop, anim);
 			}
-			crop.size	  = anim.frame_size;
-			crop.position = anim.GetCurrentFramePosition();
+
 			anim.frame_timer.Stop();
+
 			if (auto scripts{ entity.TryGet<Scripts>() }) {
 				AnimationStop event;
 				scripts->Emit(event);
@@ -304,22 +331,16 @@ void AnimationSystem::Update(Scene& scene) {
 			continue;
 		}
 
-		// Frame completed.
-		anim.frames_played++;
+		anim.frames_played = next_frames_played;
 
 		anim.IncrementFrame();
 
-		if (auto scripts{ entity.TryGet<Scripts>() }) {
-			AnimationFrameChange event;
-			scripts->Emit(event);
-		}
+		frame_change(entity, crop, anim);
 
-		crop.size	  = anim.frame_size;
-		crop.position = anim.GetCurrentFramePosition();
-
-		if (anim.frames_played % anim.frame_count == 0) {
+		// Loop completed.
+		if (anim.frames_played % anim.config.frame_count == 0) {
 			if (auto scripts{ entity.TryGet<Scripts>() }) {
-				AnimationRepeat event;
+				AnimationLoopComplete event;
 				scripts->Emit(event);
 			}
 		}
@@ -419,46 +440,35 @@ Animation CreateAnimation(
 
 	Texture resolved_texture{ texture.Get(assets) };
 
-	PTGN_ASSERT(
-		config.play_count == -1 || config.play_count >= 0,
-		"Play count must be -1 (infinite) or otherwise non-negative"
-	);
-
-	PTGN_ASSERT(config.frame_count > 0, "Cannot create an animation with 0 frames");
-
 	Animation animation{ CreateSprite(scene, resolved_texture, position, draw_origin) };
 
 	auto texture_size{ resolved_texture.GetSize() };
 
-	V2_int frame_size;
+	const auto& anim{ animation.Add<impl::AnimationData>(config, texture_size) };
 
-	if (config.frame_size.has_value()) {
-		frame_size = *config.frame_size;
-	} else {
-		frame_size = { static_cast<std::size_t>(texture_size.x) / config.frame_count,
-					   texture_size.y };
-	}
-
-	const auto& anim = animation.Add<impl::AnimationData>(
-		config.animation_duration, config.frame_count, frame_size, config.play_count,
-		config.start_pixel
-	);
-	auto& crop = animation.Add<impl::TextureCrop>();
-
-	crop.position = anim.GetCurrentFramePosition();
-	crop.size	  = anim.frame_size;
+	auto& crop{ animation.Add<impl::TextureCrop>() };
+	crop.Update(anim);
 
 	return animation;
 }
 
 Animation PlayTemporaryAnimation(
 	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config,
-	Origin draw_origin
+	milliseconds destroy_delay, Origin draw_origin
 ) {
-	Animation anim = CreateAnimation(scene, texture, position, config, draw_origin);
-	Show(anim, true);
-	anim.OnComplete([anim]() mutable { anim.Destroy(); });
+	Animation anim{ CreateAnimation(scene, texture, position, config, draw_origin) };
+
+	if (destroy_delay == 0ms) {
+		anim.OnComplete([](auto anim) mutable { anim.Destroy(); });
+	} else {
+		auto script_sequence{ CreateScriptSequence(scene) };
+		script_sequence.Wait(destroy_delay);
+		script_sequence.Then([anim]() mutable { anim.Destroy(); });
+		anim.OnComplete([script_sequence]() mutable { script_sequence.Start(); });
+	}
+
 	anim.Start(true);
+
 	return anim;
 }
 
