@@ -245,15 +245,15 @@ public:
 					 }
 
 					 // Apply to existing particles
-					 for (auto [e, particle] : emitter.manager.EntitiesWith<impl::Particle>()) {
+					 for (auto [e, particle] : emitter.manager.EntitiesWith<Particle>()) {
 						 particle.gravity = emitter.config.start_gravity.value_or(V2_float{});
 					 }
 				 }));
 
-		V2_int offset{ 6, 6 };
-		V2_int size{ 180, 80 };
+		grid.ForEach([this](auto coord, Button& b) {
+			constexpr V2_int offset{ 6, 6 };
+			constexpr V2_int size{ 150, 40 };
 
-		grid.ForEach([&](auto coord, Button& b) {
 			if (!b) {
 				return;
 			}

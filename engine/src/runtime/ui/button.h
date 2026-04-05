@@ -619,9 +619,9 @@ struct ButtonScript : public Script {
 	explicit ButtonScript(const BaseButtonCallback<Derived>& callback) : callback_{ callback } {}
 
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<T>([&](T&) {
+		d.Dispatch<T>([this](T&) {
 			std::visit(
-				[&]<typename TCallback>(const TCallback& callback) {
+				[this]<typename TCallback>(const TCallback& callback) {
 					if constexpr (std::is_same_v<TCallback, std::function<void()>>) {
 						callback();
 					} else if constexpr (std::is_same_v<TCallback, std::function<void(Derived)>>) {
