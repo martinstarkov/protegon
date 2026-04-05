@@ -1,11 +1,14 @@
 #pragma once
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <type_traits>
 #include <variant>
 #include <vector>
 
+#include "core/event/dispatcher.h"
+#include "core/event/event.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
@@ -19,6 +22,7 @@
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/scripting/script.h"
 
 namespace ptgn {
 
@@ -197,6 +201,15 @@ struct ParticleEmitterPlayback {
 	bool initialized{ false };
 };
 
+struct ParticleEmitterComponent {
+	ParticleConfig config;
+	ParticleEmitterPlayback playback;
+	Manager manager;
+	std::size_t live_particle_count{ 0 };
+};
+
+} // namespace impl
+
 struct Particle {
 	V2_float position{};
 	V2_float velocity{};
@@ -216,14 +229,7 @@ struct Particle {
 	milliseconds lifetime{ 1000 };
 };
 
-struct ParticleEmitterComponent {
-	ParticleConfig config;
-	ParticleEmitterPlayback playback;
-	Manager manager;
-	std::size_t live_particle_count{ 0 };
-};
-
-} // namespace impl
+struct ParticleDestroyed;
 
 class ParticleEmitter : public Entity {
 public:
@@ -239,6 +245,11 @@ public:
 	ParticleEmitter& Toggle();
 	ParticleEmitter& Reset();
 
+	using DestroyCallback =
+		std::variant<std::function<void()>, std::function<void(ParticleDestroyed)>>;
+
+	ParticleEmitter& OnParticleDestroy(const DestroyCallback& callback);
+
 	[[nodiscard]] bool IsPlaying() const;
 	[[nodiscard]] bool IsPaused() const;
 	[[nodiscard]] bool IsStopped() const;
@@ -248,6 +259,27 @@ private:
 
 	static void Update(Scene& scene);
 };
+
+/// @brief Triggered when a particle is destroyed after reaching the end of its lifetime.
+struct ParticleDestroyed : public Event<ParticleDestroyed> {
+	ParticleEmitter emitter;
+	Particle particle;
+};
+
+namespace impl {
+
+struct ParticleDestroyScript : public Script {
+	ParticleDestroyScript() = default;
+
+	explicit ParticleDestroyScript(const ParticleEmitter::DestroyCallback& callback);
+
+	void OnEvent(EventDispatcher d) override;
+
+private:
+	ParticleEmitter::DestroyCallback callback_;
+};
+
+} // namespace impl
 
 ParticleEmitter CreateParticleEmitter(
 	Scene& scene, V2_float position = {}, const ParticleConfig& config = {}

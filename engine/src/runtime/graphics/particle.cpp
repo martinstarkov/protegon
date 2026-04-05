@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <functional>
 #include <optional>
 #include <string>
 #include <type_traits>
@@ -11,6 +12,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/event/dispatcher.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
@@ -31,6 +33,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scripting/scripts.h"
 
 namespace ptgn {
 
@@ -240,7 +243,9 @@ static void InitializeEmitterRun(ParticleEmitterComponent& emitter) {
 	}
 }
 
-static void UpdateParticles(ParticleEmitterComponent& emitter, milliseconds dt) {
+static void UpdateParticles(
+	ParticleEmitter emitter_entity, ParticleEmitterComponent& emitter, milliseconds dt
+) {
 	const auto& config = emitter.config;
 	float sim_dt	   = std::chrono::duration<float>(dt).count() * config.simulation_speed;
 
@@ -252,16 +257,23 @@ static void UpdateParticles(ParticleEmitterComponent& emitter, milliseconds dt) 
 
 		if (p.age >= p.lifetime) {
 			dead_particles.emplace_back(entity);
+			if (auto scripts{ emitter_entity.TryGet<Scripts>() }) {
+				ParticleDestroyed event;
+				event.emitter  = emitter_entity;
+				event.particle = p;
+				scripts->Emit(event);
+			}
 			continue;
 		}
 
-		float t =
-			(p.lifetime.count() > 0)
-				? std::clamp(
-					  static_cast<float>(p.age.count()) / static_cast<float>(p.lifetime.count()),
-					  0.0f, 1.0f
-				  )
-				: 1.0f;
+		float t{ 1.0f };
+
+		if (p.lifetime.count() > 0) {
+			t = std::clamp(
+				static_cast<float>(p.age.count()) / static_cast<float>(p.lifetime.count()), 0.0f,
+				1.0f
+			);
+		}
 
 		p.velocity += p.gravity * sim_dt;
 		p.position += p.velocity * sim_dt;
@@ -303,6 +315,27 @@ static void UpdateEmitterPlayback(ParticleEmitterComponent& emitter, millisecond
 	} else {
 		UpdateBurstEmitter(emitter, dt);
 	}
+}
+
+ParticleDestroyScript::ParticleDestroyScript(const ParticleEmitter::DestroyCallback& callback) :
+	callback_{ callback } {}
+
+void ParticleDestroyScript::OnEvent(EventDispatcher d) {
+	d.Dispatch<ParticleDestroyed>([this](const ParticleDestroyed& event) {
+		std::visit(
+			[this, &event]<typename TCallback>(const TCallback& callback) {
+				if constexpr (std::is_same_v<TCallback, std::function<void()>>) {
+					callback();
+				} else if constexpr (std::is_same_v<
+										 TCallback, std::function<void(ParticleDestroyed)>>) {
+					callback(event);
+				} else {
+					static_assert(false, "Incomplete visitor");
+				}
+			},
+			callback_
+		);
+	});
 }
 
 } // namespace impl
@@ -368,6 +401,12 @@ ParticleEmitter& ParticleEmitter::Reset() {
 	return *this;
 }
 
+ParticleEmitter& ParticleEmitter::OnParticleDestroy(const ParticleEmitter::DestroyCallback& callback
+) {
+	AddScript<impl::ParticleDestroyScript>(*this, callback);
+	return *this;
+}
+
 bool ParticleEmitter::IsPlaying() const {
 	return Get<impl::ParticleEmitterComponent>().playback.state ==
 		   impl::ParticleEmitterState::Playing;
@@ -393,7 +432,7 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera) {
 	const Transform base_transform{ GetDrawTransform(entity) };
 
 	for (const auto& [particle_entity, p] :
-		 std::as_const(emitter.manager).EntitiesWith<impl::Particle>()) {
+		 std::as_const(emitter.manager).EntitiesWith<Particle>()) {
 		Transform transform{ base_transform };
 		transform.Translate(p.position);
 		transform.Rotate(p.rotation);
@@ -448,12 +487,12 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera) {
 void ParticleEmitter::Update(Scene& scene) {
 	auto dt{ duration_cast<milliseconds>(scene.ctx().dt()) };
 	for (auto [entity, emitter] : scene.EntitiesWith<impl::ParticleEmitterComponent>()) {
-		// 1. Update emission (spawn new particles)
+		// Update emission (spawn new particles)
 		UpdateEmitterPlayback(emitter, dt);
 
-		// 2. Update existing particles (movement, lifetime, etc.)
+		// Update existing particles (movement, lifetime, etc.)
 		if (emitter.playback.state != impl::ParticleEmitterState::Paused) {
-			UpdateParticles(emitter, dt);
+			UpdateParticles(ParticleEmitter{ entity }, emitter, dt);
 		}
 	}
 
