@@ -25,15 +25,18 @@
 using namespace ptgn;
 
 struct EInventoryChanged : public Event<EInventoryChanged> {
+	EInventoryChanged(Entity who, int delta, int newCount) :
+		who{ who }, delta{ delta }, newCount{ newCount } {}
+
 	Entity who{};
 	int delta	 = 0;
 	int newCount = 0;
 };
 
 struct EAnnounceGlobal : public Event<EAnnounceGlobal> {
-	EAnnounceGlobal(const char* text) : text{ text } {}
+	explicit EAnnounceGlobal(const std::string& text) : text{ text } {}
 
-	const char* text{};
+	std::string text{};
 };
 
 struct EButtonPress : public Event<EButtonPress> {
@@ -74,15 +77,9 @@ public:
 		}
 		*counter_ += 1;
 
-		EInventoryChanged ev{};
-		ev.who		= player;
-		ev.delta	= +1;
-		ev.newCount = *counter_;
+		PushEvent<EInventoryChanged>(entity, player, 1, *counter_); // scene-local inventory change
 
-		EmitScene(ev); // scene-local inventory change
-
-		EAnnounceGlobal g{ "picked up loot" };
-		Emit(g); // global
+		PushEvent<EAnnounceGlobal>({}, "picked up loot");
 	}
 
 private:
@@ -94,8 +91,7 @@ public:
 	void OnEvent(EventDispatcher d) override {
 		d.Dispatch<event::MousePressed>([this](const auto& e) {
 			if (e == Mouse::Left) {
-				EAnnounceGlobal g{ "Mouse down!" };
-				Emit(g);
+				PushEvent<EAnnounceGlobal>({}, "Mouse down");
 				return true; // handled -> stop bubbling
 			}
 			return false;

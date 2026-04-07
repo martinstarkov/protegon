@@ -17,14 +17,16 @@ using namespace ptgn;
 
 struct MyAnimationScript1 : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<event::AnimationStart>(&OnAnimationStart, this);
-		d.Dispatch<event::AnimationUpdate>(&OnAnimationUpdate, this);
-		d.Dispatch<event::AnimationLoopComplete>(&OnAnimationLoopComplete, this);
-		d.Dispatch<event::AnimationFrameChange>(&OnAnimationFrameChange, this);
-		d.Dispatch<event::AnimationComplete>(&OnAnimationComplete, this);
-		d.Dispatch<event::AnimationPause>(&OnAnimationPause, this);
-		d.Dispatch<event::AnimationResume>(&OnAnimationResume, this);
-		d.Dispatch<event::AnimationStop>(&OnAnimationStop, this);
+		d.Dispatch<event::AnimationStart>(&MyAnimationScript1::OnAnimationStart, this);
+		d.Dispatch<event::AnimationUpdate>(&MyAnimationScript1::OnAnimationUpdate, this);
+		d.Dispatch<event::AnimationLoopComplete>(
+			&MyAnimationScript1::OnAnimationLoopComplete, this
+		);
+		d.Dispatch<event::AnimationFrameChange>(&MyAnimationScript1::OnAnimationFrameChange, this);
+		d.Dispatch<event::AnimationComplete>(&MyAnimationScript1::OnAnimationComplete, this);
+		d.Dispatch<event::AnimationPause>(&MyAnimationScript1::OnAnimationPause, this);
+		d.Dispatch<event::AnimationResume>(&MyAnimationScript1::OnAnimationResume, this);
+		d.Dispatch<event::AnimationStop>(&MyAnimationScript1::OnAnimationStop, this);
 	}
 
 	void OnAnimationStart() const {

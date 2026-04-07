@@ -25,10 +25,10 @@ constexpr ColliderMask ground_mask{ 1 };
 
 struct TopDownScript1 : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<event::PlayerMoveStart>(&OnMoveStart, this);
-		d.Dispatch<event::PlayerMoveStop>(&OnMoveStop, this);
-		d.Dispatch<event::PlayerMoveHeld>(&OnMove, this);
-		d.Dispatch<event::PlayerMoveDirectionChange>(&OnDirectionChange, this);
+		d.Dispatch<event::PlayerMoveStart>(&TopDownScript1::OnMoveStart, this);
+		d.Dispatch<event::PlayerMoveStop>(&TopDownScript1::OnMoveStop, this);
+		d.Dispatch<event::PlayerMoveHeld>(&TopDownScript1::OnMove, this);
+		d.Dispatch<event::PlayerMoveDirectionChange>(&TopDownScript1::OnDirectionChange, this);
 	}
 
 	void OnMoveStart(MoveDirection direction) {

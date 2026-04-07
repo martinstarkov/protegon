@@ -39,30 +39,30 @@ struct StateMachineScene : public Scene {
 		AddStateMachine(r)
 			.Initial<Normal>()
 
-			.Transition<Normal, MouseEnter, Hovered>()
+			.Transition<Normal, event::MouseEnter, Hovered>()
 			.Action([](Entity e) { PTGN_LOG("Hover start"); })
 
-			.Transition<Hovered, MouseLeave, Normal>()
+			.Transition<Hovered, event::MouseLeave, Normal>()
 			.Action([](Entity e) { PTGN_LOG("Hover end"); })
 
-			.Transition<Hovered, MousePressedOver, Pressed>()
+			.Transition<Hovered, event::MousePressedOver, Pressed>()
 			.Action([](Entity e) { PTGN_LOG("Pressed"); })
 
-			.Transition<Pressed, MouseReleasedOver, Hovered>()
+			.Transition<Pressed, event::MouseReleasedOver, Hovered>()
 			.Action([](Entity e) { PTGN_LOG("Released"); });
 
 		AddStateMachine(r)
 			.Initial<Normal>()
 
-			.Transition<Normal, MouseEnter, Hovered>()
+			.Transition<Normal, event::MouseEnter, Hovered>()
 			.Action([](Entity e) { PTGN_LOG("Hover animation (infinite loop)"); })
 
-			.Transition<Hovered, MouseLeave, Normal>()
+			.Transition<Hovered, event::MouseLeave, Normal>()
 
-			.Transition<Hovered, MousePressedOver, Pressed>()
+			.Transition<Hovered, event::MousePressedOver, Pressed>()
 			.Action([](Entity e) { PTGN_LOG("Pressed animation (infinite loop)"); })
 
-			.Transition<Pressed, MouseReleasedOver, Hovered>()
+			.Transition<Pressed, event::MouseReleasedOver, Hovered>()
 			.Action([](Entity e) { PTGN_LOG("Released animation (once)"); });
 	}
 };
