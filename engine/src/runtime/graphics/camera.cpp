@@ -7,18 +7,19 @@
 #include <optional>
 
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "render_context.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/event.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/viewport.h"
-#include "renderer/renderer.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/render_target_component.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
@@ -28,11 +29,11 @@ namespace ptgn {
 
 namespace impl {
 
-void CameraResizeScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<InternalGameResized>([this](auto& e) {
-		auto& c{ entity.Get<CameraData>() };
-		c.viewport = { {}, e.size };
-		// PTGN_LOG("Camera ", entity, " received game resize: ", e.size);
+void CameraResizeScript::OnEvent(EventDispatcher dispatcher) {
+	dispatcher.Dispatch<event::InternalGameResized>([this](auto& resized) {
+		auto& camera{ entity.Get<CameraData>() };
+		camera.viewport = { {}, resized.size };
+		// PTGN_LOG("Camera ", entity, " received game resize: ", resized.size);
 		ApplyCameraBounds(Camera{ entity });
 	});
 }
@@ -424,7 +425,9 @@ V2_float GetCameraParentRenderTargetScale(const Scene& scene, const std::optiona
 		render_target = scene.GetRenderTarget();
 	}
 	PTGN_ASSERT(render_target, "Failed to find a valid render target when calculating scale");
-	return render_target.GetScale();
+	auto zoom{ cam.GetZoom() };
+	PTGN_ASSERT(zoom.BothAboveZero(), "Camera zoom cannot be negative or zero");
+	return render_target.GetScale() * zoom;
 }
 
 void AddCameraComponents(Camera camera, const RenderContext& renderer) {

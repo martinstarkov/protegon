@@ -18,7 +18,6 @@
 #include "runtime/physics/move_direction.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/scripts.h"
 
@@ -188,22 +187,17 @@ MoveDirection TopDownMovement::GetDirectionState(V2_float d) {
 }
 
 template <typename StartEvent, typename ContinueEvent, typename StopEvent, typename... Args>
-static void InvokeMoveCallbacks(
-	impl::Scripts& scripts, bool was_moving, bool is_moving, Args&&... args
-) {
+static void InvokeMoveCallbacks(Entity entity, bool was_moving, bool is_moving, Args&&... args) {
 	if (!was_moving && is_moving) {
-		StartEvent e{ std::forward<Args>(args)... };
-		scripts.Emit(e);
+		PushEvent<StartEvent>(entity, std::forward<Args>(args)...);
 	}
 
 	if (is_moving) {
-		ContinueEvent e{ std::forward<Args>(args)... };
-		scripts.Emit(e);
+		PushEvent<ContinueEvent>(entity, std::forward<Args>(args)...);
 	}
 
 	if (was_moving && !is_moving) {
-		StopEvent e{ std::forward<Args>(args)... };
-		scripts.Emit(e);
+		PushEvent<StopEvent>(entity, std::forward<Args>(args)...);
 	}
 }
 
@@ -214,17 +208,12 @@ void TopDownMovement::InvokeCallbacks(Entity entity) const {
 		return;
 	}
 
-	auto& scripts{ entity.Get<impl::Scripts>() };
-
 	if (dir != prev_dir) {
 		// Clamp because turning from left to right can cause a difference in direction of 2.0f,
 		// which we see as the same as 1.0f.
 		V2_float diff{ Clamp(prev_dir - dir, V2_float{ -1.0f }, V2_float{ 1.0f }) };
 		auto dir_state{ GetDirectionState(diff) };
-		PlayerMoveDirectionChange event;
-		event.difference		= diff;
-		event.current_direction = dir_state;
-		scripts.Emit(event);
+		PushEvent<event::PlayerMoveDirectionChange>(entity, diff, dir_state);
 	}
 
 	// TODO: Consider instead of using WasMoving, IsMoving, switch to providing an index and
@@ -235,35 +224,32 @@ void TopDownMovement::InvokeCallbacks(Entity entity) const {
 	auto is_moving{ !IsMoving(None) };
 
 	if (!was_moving && is_moving) {
-		PlayerMoveStart e{ GetDirection() };
-		scripts.Emit(e);
+		PushEvent<event::PlayerMoveStart>(entity, GetDirection());
 	}
 
 	if (is_moving) {
-		PlayerMoveHeld e{ GetDirection() };
-		scripts.Emit(e);
+		PushEvent<event::PlayerMoveHeld>(entity, GetDirection());
 	}
 
 	if (was_moving && !is_moving) {
-		PlayerMoveStop e{ GetPreviousDirection() };
-		scripts.Emit(e);
+		PushEvent<event::PlayerMoveStop>(entity, GetPreviousDirection());
 	}
 
-	InvokeMoveCallbacks<PlayerMoveDirectionStart, PlayerMoveDirectionHeld, PlayerMoveDirectionStop>(
-		scripts, WasMoving(Up), IsMoving(Up), Up
-	);
+	InvokeMoveCallbacks<
+		event::PlayerMoveDirectionStart, event::PlayerMoveDirectionHeld,
+		event::PlayerMoveDirectionStop>(entity, WasMoving(Up), IsMoving(Up), Up);
 
-	InvokeMoveCallbacks<PlayerMoveDirectionStart, PlayerMoveDirectionHeld, PlayerMoveDirectionStop>(
-		scripts, WasMoving(Down), IsMoving(Down), Down
-	);
+	InvokeMoveCallbacks<
+		event::PlayerMoveDirectionStart, event::PlayerMoveDirectionHeld,
+		event::PlayerMoveDirectionStop>(entity, WasMoving(Down), IsMoving(Down), Down);
 
-	InvokeMoveCallbacks<PlayerMoveDirectionStart, PlayerMoveDirectionHeld, PlayerMoveDirectionStop>(
-		scripts, WasMoving(Left), IsMoving(Left), Left
-	);
+	InvokeMoveCallbacks<
+		event::PlayerMoveDirectionStart, event::PlayerMoveDirectionHeld,
+		event::PlayerMoveDirectionStop>(entity, WasMoving(Left), IsMoving(Left), Left);
 
-	InvokeMoveCallbacks<PlayerMoveDirectionStart, PlayerMoveDirectionHeld, PlayerMoveDirectionStop>(
-		scripts, WasMoving(Right), IsMoving(Right), Right
-	);
+	InvokeMoveCallbacks<
+		event::PlayerMoveDirectionStart, event::PlayerMoveDirectionHeld,
+		event::PlayerMoveDirectionStop>(entity, WasMoving(Right), IsMoving(Right), Right);
 }
 
 bool TopDownMovement::GetMovingState(V2_float d, MoveDirection direction) {

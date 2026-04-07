@@ -7,7 +7,6 @@
 #include <variant>
 #include <vector>
 
-#include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/rect.h"
@@ -19,6 +18,7 @@
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
@@ -229,7 +229,11 @@ struct Particle {
 	milliseconds lifetime{ 1000 };
 };
 
+namespace event {
+
 struct ParticleDestroyed;
+
+} // namespace event
 
 class ParticleEmitter : public Entity {
 public:
@@ -246,7 +250,7 @@ public:
 	ParticleEmitter& Reset();
 
 	using DestroyCallback =
-		std::variant<std::function<void()>, std::function<void(ParticleDestroyed)>>;
+		std::variant<std::function<void()>, std::function<void(event::ParticleDestroyed)>>;
 
 	ParticleEmitter& OnParticleDestroy(const DestroyCallback& callback);
 
@@ -260,11 +264,20 @@ private:
 	static void Update(Scene& scene);
 };
 
+namespace event {
+
 /// @brief Triggered when a particle is destroyed after reaching the end of its lifetime.
 struct ParticleDestroyed : public Event<ParticleDestroyed> {
+	ParticleDestroyed() = default;
+
+	ParticleDestroyed(const ParticleEmitter& emitter, const Particle& particle) :
+		emitter{ emitter }, particle{ particle } {}
+
 	ParticleEmitter emitter;
 	Particle particle;
 };
+
+} // namespace event
 
 namespace impl {
 
@@ -273,7 +286,7 @@ struct ParticleDestroyScript : public Script {
 
 	explicit ParticleDestroyScript(const ParticleEmitter::DestroyCallback& callback);
 
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(EventDispatcher dispatcher) override;
 
 private:
 	ParticleEmitter::DestroyCallback callback_;

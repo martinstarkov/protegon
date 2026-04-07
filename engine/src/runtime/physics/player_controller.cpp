@@ -4,7 +4,6 @@
 #include <string_view>
 
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -14,6 +13,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/move_direction.h"
@@ -106,7 +106,9 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 			std::string_view walk_sound_key;
 
 			void OnEvent(EventDispatcher d) override {
-				d.Dispatch<AnimationFrameChange>([this](auto) { OnAnimationFrameChange(); });
+				d.Dispatch<event::AnimationFrameChange>(
+					&AnimationRepeat::OnAnimationFrameChange, this
+				);
 			}
 
 			void OnAnimationFrameChange() {
@@ -128,11 +130,11 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 
 		struct MovementScript : public Script {
 			void OnEvent(EventDispatcher d) override {
-				d.Dispatch<PlayerMoveStart>([this](auto) { OnMoveStart(); });
-				d.Dispatch<PlayerMoveStop>([this](auto) { OnMoveStop(); });
-				d.Dispatch<PlayerMoveDirectionChange>([this](const auto& e) {
-					OnDirectionChange(e.current_direction);
-				});
+				d.Dispatch<event::PlayerMoveStart>(&MovementScript::OnMoveStart, this);
+				d.Dispatch<event::PlayerMoveStop>(&MovementScript::OnMoveStop, this);
+				d.Dispatch<event::PlayerMoveDirectionChange>(
+					&MovementScript::OnDirectionChange, this
+				);
 			}
 
 			void OnMoveStart() {

@@ -13,7 +13,6 @@
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -73,12 +72,10 @@ struct PhysicsBoundaryScene : public Scene {
 
 		if (ctx().input.KeyPressed(Key::Q)) {
 			behavior = BoundaryBehavior::StopVelocity;
-			// TODO: Fix ReEnter.
-			// ReEnter();
+			ReEnter<PhysicsBoundaryScene>();
 		} else if (ctx().input.KeyPressed(Key::E)) {
 			behavior = BoundaryBehavior::ReflectVelocity;
-			// TODO: Fix ReEnter.
-			// ReEnter();
+			ReEnter<PhysicsBoundaryScene>();
 		}
 	}
 };

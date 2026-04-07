@@ -1,7 +1,7 @@
 #include "runtime/graphics/graphics.h"
 
 #include "app/application.h"
-#include "core/event/dispatcher.h"
+#include "runtime/event/event_dispatcher.h"
 #include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"

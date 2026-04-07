@@ -27,8 +27,6 @@ void Lifetime::Update(Scene& scene) {
 	for (auto [entity, lifetime] : scene.EntitiesWith<Lifetime>()) {
 		lifetime.Update(entity);
 	}
-
-	scene.Refresh();
 }
 
 } // namespace ptgn

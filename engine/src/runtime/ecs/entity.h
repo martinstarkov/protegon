@@ -10,7 +10,6 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "ecs/ecs.h"
-#include "runtime/ecs/entity_hierarchy.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
@@ -20,6 +19,7 @@ namespace ptgn {
 
 class Manager;
 class Scene;
+class EventDispatcher;
 
 class UUID {
 public:
@@ -51,7 +51,7 @@ public:
 	explicit Entity(Scene& scene);
 
 	explicit operator bool() const {
-		return entity_.operator bool();
+		return entity_.operator bool() && entity_.IsAlive();
 	}
 
 	bool operator==(const Entity&) const = default;
@@ -195,17 +195,6 @@ public:
 		return TComponent{ std::forward<TArgs>(args)... };
 	}
 
-	template <typename TComponent, typename... TArgs>
-	TComponent GetOrParentOrDefault(TArgs&&... args) const {
-		if (Has<TComponent>()) {
-			return Get<TComponent>();
-		}
-		if (HasParent(*this)) {
-			return GetParent(*this).GetOrParentOrDefault<TComponent>(std::forward<TArgs>(args)...);
-		}
-		return TComponent{ std::forward<TArgs>(args)... };
-	}
-
 	/// @return True if *this was created before other.
 	bool WasCreatedBefore(Entity other) const;
 
@@ -215,6 +204,8 @@ public:
 private:
 	friend class Manager;
 	friend class Scene;
+
+	void OnEvent(EventDispatcher& dispatcher);
 
 	template <JsonSerializable T>
 	void SerializeImpl(json& j) const {

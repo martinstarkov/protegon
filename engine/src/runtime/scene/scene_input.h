@@ -26,67 +26,181 @@ class SceneInput;
 class SceneContext;
 class InputHandler;
 
-struct MouseEnter : public Event<MouseEnter> {};
+namespace event {
 
-struct MouseLeave : public Event<MouseLeave> {};
+struct MouseEnter : public Event<MouseEnter> {
+	MouseEnter() = default;
+};
 
-struct MouseMoveOver : public Event<MouseMoveOver> {};
+struct MouseLeave : public Event<MouseLeave> {
+	MouseLeave() = default;
+};
+
+struct MouseMoveOver : public Event<MouseMoveOver> {
+	MouseMoveOver() = default;
+};
 
 struct MousePressedOver : public Event<MousePressedOver> {
+	MousePressedOver() = default;
+
+	explicit MousePressedOver(Mouse button) : button{ button } {}
+
+	operator Mouse() const { // NOSONAR
+		return button;
+	}
+
 	Mouse button;
 };
 
 struct MouseHeldOver : public Event<MouseHeldOver> {
+	MouseHeldOver() = default;
+
+	explicit MouseHeldOver(Mouse button) : button{ button } {}
+
+	operator Mouse() const { // NOSONAR
+		return button;
+	}
+
 	Mouse button;
 };
 
 struct MouseReleasedOver : public Event<MouseReleasedOver> {
+	MouseReleasedOver() = default;
+
+	explicit MouseReleasedOver(Mouse button) : button{ button } {}
+
+	operator Mouse() const { // NOSONAR
+		return button;
+	}
+
 	Mouse button;
 };
 
 struct MouseScrollOver : public Event<MouseScrollOver> {
+	MouseScrollOver() = default;
+
+	explicit MouseScrollOver(V2_float scroll_delta) : scroll_delta{ scroll_delta } {}
+
+	operator V2_float() const { // NOSONAR
+		return scroll_delta;
+	}
+
 	V2_float scroll_delta;
 };
 
-struct MouseMoveOut : public Event<MouseMoveOut> {};
+struct MouseMoveOut : public Event<MouseMoveOut> {
+	MouseMoveOut() = default;
+};
 
 struct MousePressedOut : public Event<MousePressedOut> {
+	MousePressedOut() = default;
+
+	explicit MousePressedOut(Mouse button) : button{ button } {}
+
+	operator Mouse() const { // NOSONAR
+		return button;
+	}
+
 	Mouse button;
 };
 
 struct MouseHeldOut : public Event<MouseHeldOut> {
+	MouseHeldOut() = default;
+
+	explicit MouseHeldOut(Mouse button) : button{ button } {}
+
+	operator Mouse() const { // NOSONAR
+		return button;
+	}
+
 	Mouse button;
 };
 
 struct MouseReleasedOut : public Event<MouseReleasedOut> {
+	MouseReleasedOut() = default;
+
+	explicit MouseReleasedOut(Mouse button) : button{ button } {}
+
+	operator Mouse() const { // NOSONAR
+		return button;
+	}
+
 	Mouse button;
 };
 
 struct MouseScrollOut : public Event<MouseScrollOut> {
+	MouseScrollOut() = default;
+
+	explicit MouseScrollOut(V2_float scroll_delta) : scroll_delta{ scroll_delta } {}
+
+	operator V2_float() const { // NOSONAR
+		return scroll_delta;
+	}
+
 	V2_float scroll_delta;
 };
 
 struct DragStart : public Event<DragStart> {
+	DragStart() = default;
+
+	explicit DragStart(V2_float start_position) : start_position{ start_position } {}
+
+	operator V2_float() const { // NOSONAR
+		return start_position;
+	}
+
 	/// @brief Position of the mouse in world coordinates at the start of the drag.
 	V2_float start_position;
 };
 
 struct DragStop : public Event<DragStop> {
+	DragStop() = default;
+
+	explicit DragStop(V2_float stop_position) : stop_position{ stop_position } {}
+
+	operator V2_float() const { // NOSONAR
+		return stop_position;
+	}
+
 	/// @brief Position of the mouse in world coordinates at the end of the drag.
 	V2_float stop_position;
 };
 
 struct PickupFromDropzone : public Event<PickupFromDropzone> {
+	PickupFromDropzone() = default;
+
+	explicit PickupFromDropzone(Entity draggable) : draggable{ draggable } {}
+
+	operator Entity() const { // NOSONAR
+		return draggable;
+	}
+
 	/// @brief The draggable that was picked up from the dropzone.
 	Entity draggable;
 };
 
 struct PickupDraggable : public Event<PickupDraggable> {
+	PickupDraggable() = default;
+
+	explicit PickupDraggable(Entity dropzone) : dropzone{ dropzone } {}
+
+	operator Entity() const { // NOSONAR
+		return dropzone;
+	}
+
 	/// @brief The dropzone that the draggable was picked up from.
 	Entity dropzone;
 };
 
 struct Dragging : public Event<Dragging> {
+	Dragging() = default;
+
+	Dragging(V2_float position, V2_float offset) : position{ position }, offset{ offset } {}
+
+	operator V2_float() const { // NOSONAR
+		return position;
+	}
+
 	/// @brief Current position of the mouse in world coordinates relative to the camera the entity
 	/// is being dragged in.
 	V2_float position;
@@ -97,54 +211,136 @@ struct Dragging : public Event<Dragging> {
 };
 
 struct DropDraggable : public Event<DropDraggable> {
+	DropDraggable() = default;
+
+	explicit DropDraggable(Entity dropzone) : dropzone{ dropzone } {}
+
+	operator Entity() const { // NOSONAR
+		return dropzone;
+	}
+
 	/// @brief The dropzone that the draggable was dropped into.
 	Entity dropzone;
 };
 
 struct DropIntoDropzone : public Event<DropIntoDropzone> {
+	DropIntoDropzone() = default;
+
+	explicit DropIntoDropzone(Entity draggable) : draggable{ draggable } {}
+
+	operator Entity() const { // NOSONAR
+		return draggable;
+	}
+
 	/// @brief The draggable that was dropped into the dropzone.
 	Entity draggable;
 };
 
 struct EnterDropzone : public Event<EnterDropzone> {
+	EnterDropzone() = default;
+
+	explicit EnterDropzone(Entity draggable) : draggable{ draggable } {}
+
+	operator Entity() const { // NOSONAR
+		return draggable;
+	}
+
 	/// @brief The draggable that entered the dropzone.
 	Entity draggable;
 };
 
 struct LeaveDropzone : public Event<LeaveDropzone> {
+	LeaveDropzone() = default;
+
+	explicit LeaveDropzone(Entity draggable) : draggable{ draggable } {}
+
+	operator Entity() const { // NOSONAR
+		return draggable;
+	}
+
 	/// @brief The draggable that left the dropzone.
 	Entity draggable;
 };
 
 struct MoveOverDropzone : public Event<MoveOverDropzone> {
+	MoveOverDropzone() = default;
+
+	explicit MoveOverDropzone(Entity draggable) : draggable{ draggable } {}
+
+	operator Entity() const { // NOSONAR
+		return draggable;
+	}
+
 	/// @brief The draggable that is over the dropzone.
 	Entity draggable;
 };
 
 struct MoveOutsideDropzone : public Event<MoveOutsideDropzone> {
+	MoveOutsideDropzone() = default;
+
+	explicit MoveOutsideDropzone(Entity draggable) : draggable{ draggable } {}
+
+	operator Entity() const { // NOSONAR
+		return draggable;
+	}
+
 	/// @brief The draggable that is outside the dropzone.
 	Entity draggable;
 };
 
 struct DragEnter : public Event<DragEnter> {
+	DragEnter() = default;
+
+	explicit DragEnter(Entity dropzone) : dropzone{ dropzone } {}
+
+	operator Entity() const { // NOSONAR
+		return dropzone;
+	}
+
 	/// @brief The dropzone that the draggable entered.
 	Entity dropzone;
 };
 
 struct DragLeave : public Event<DragLeave> {
+	DragLeave() = default;
+
+	explicit DragLeave(Entity last_dropzone) : last_dropzone{ last_dropzone } {}
+
+	operator Entity() const { // NOSONAR
+		return last_dropzone;
+	}
+
 	/// @brief The dropzone that the draggable left.
 	Entity last_dropzone;
 };
 
 struct DragOver : public Event<DragOver> {
+	DragOver() = default;
+
+	explicit DragOver(Entity dropzone) : dropzone{ dropzone } {}
+
+	operator Entity() const { // NOSONAR
+		return dropzone;
+	}
+
 	/// @brief The dropzone that the draggable was dragged over.
 	Entity dropzone;
 };
 
 struct DragOut : public Event<DragOut> {
+	DragOut() = default;
+
+	explicit DragOut(Entity dropzone) : dropzone{ dropzone } {}
+
+	operator Entity() const { // NOSONAR
+		return dropzone;
+	}
+
 	/// @brief The dropzone that the draggable was dragged outside of.
 	Entity dropzone;
 };
+
+} // namespace event
 
 namespace impl {
 

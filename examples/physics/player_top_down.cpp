@@ -1,18 +1,19 @@
 #include "app/application.h"
-#include "core/event/dispatcher.h"
+#include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/collision_handler.h"
+#include "runtime/physics/move_direction.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-
-#include "runtime/scene/scene_manager.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 
@@ -24,28 +25,29 @@ constexpr ColliderMask ground_mask{ 1 };
 
 struct TopDownScript1 : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<PlayerMoveStart>([this](const PlayerMoveStart& m) { OnMoveStart(m); });
-		d.Dispatch<PlayerMoveStop>([this](const PlayerMoveStop& m) { OnMoveStop(m); });
-		d.Dispatch<PlayerMoveHeld>([this](const PlayerMoveHeld& m) { OnMove(m); });
-		d.Dispatch<PlayerMoveDirectionChange>([this](const PlayerMoveDirectionChange& m) {
-			OnDirectionChange(m);
-		});
+		d.Dispatch<event::PlayerMoveStart>(&OnMoveStart, this);
+		d.Dispatch<event::PlayerMoveStop>(&OnMoveStop, this);
+		d.Dispatch<event::PlayerMoveHeld>(&OnMove, this);
+		d.Dispatch<event::PlayerMoveDirectionChange>(&OnDirectionChange, this);
 	}
 
-	void OnMoveStart(const PlayerMoveStart& m) {
-		PTGN_LOG("OnMoveStart: ", m.direction);
+	void OnMoveStart(MoveDirection direction) {
+		PTGN_LOG("OnMoveStart: ", direction);
 	}
 
-	void OnMove(const PlayerMoveHeld& m) {
-		PTGN_LOG("OnMove: ", m.direction);
+	void OnMove(MoveDirection direction) {
+		PTGN_LOG("OnMove: ", direction);
 	}
 
-	void OnMoveStop(const PlayerMoveStop& m) {
-		PTGN_LOG("OnMoveStop: ", m.last_direction);
+	void OnMoveStop(MoveDirection last_direction) {
+		PTGN_LOG("OnMoveStop: ", last_direction);
 	}
 
-	void OnDirectionChange(const PlayerMoveDirectionChange& m) {
-		PTGN_LOG("OnDirectionChange: difference: ", m.difference);
+	void OnDirectionChange(const event::PlayerMoveDirectionChange& change) {
+		PTGN_LOG(
+			"OnDirectionChange difference: ", change.difference,
+			", current dir: ", change.current_direction
+		);
 	}
 };
 

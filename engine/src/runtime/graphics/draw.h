@@ -180,9 +180,21 @@ void Show(Entity entity, bool emit_visibility_event = true);
 
 void Hide(Entity entity, bool emit_visibility_event = true);
 
-struct EntityShow : public Event<EntityShow> {};
+namespace event {
 
-struct EntityHide : public Event<EntityHide> {};
+/// @brief This event is emitted when an entity becomes visible, either through Show() or
+/// SetVisible(true).
+struct EntityShow : public Event<EntityShow> {
+	EntityShow() = default;
+};
+
+/// @brief This event is emitted when an entity becomes hidden, either through Hide() or
+/// SetVisible(false).
+struct EntityHide : public Event<EntityHide> {
+	EntityHide() = default;
+};
+
+} // namespace event
 
 /// @return True if the entity is visible, false otherwise.
 [[nodiscard]] bool IsVisible(Entity entity);

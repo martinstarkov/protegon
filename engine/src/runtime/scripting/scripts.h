@@ -1,17 +1,25 @@
 #pragma once
 
+#include <algorithm>
 #include <memory>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
-#include "core/event/dispatcher.h"
+#include "core/event/event.h"
 #include "core/util/hash.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {
 
+class Scene;
+class Tween;
+
 namespace impl {
+
+class TweenData;
 
 class Scripts {
 public:
@@ -57,45 +65,35 @@ public:
 		});
 	}
 
-	/// @brief Emits the given event to all scripts of the entity in the order they were added until
-	/// one of them handles it (or until all scripts have been tried).
-	void Emit(EventDispatcher d) {
-		for (auto& s : scripts_) {
-			s->OnEvent(d);
-			if (d.IsHandled()) {
-				break; // bubbling within this entity's scripts
-			}
-		}
-
-		ApplyPending();
-	}
+private:
+	friend class ptgn::Entity;
+	friend class ptgn::Scene;
+	friend class ptgn::Tween;
+	friend class TweenData;
 
 	void Update() {
-		ApplyPending();
-		for (auto& s : scripts_) {
+		// Scripts wont be modified during dispatch because pending script changes are applied by
+		// ApplyPending.
+		for (const auto& s : scripts_) {
 			s->OnUpdate();
 		}
-		ApplyPending();
 	}
 
 	void ApplyPending() {
 		if (!pending_remove_.empty()) {
-			scripts_.erase(
-				std::remove_if(
-					scripts_.begin(), scripts_.end(),
-					[&](auto& s) {
-						for (auto& t : pending_remove_) {
-							if (s->hash_ == t) {
-								return true;
-							}
-						}
-						return false;
-					}
-				),
-				scripts_.end()
-			);
-			pending_remove_.clear();
+			std::erase_if(scripts_, [this](const auto& s) {
+				return std::ranges::contains(pending_remove_, s->hash_);
+			});
 		}
+
+		// If a script was added and removed in the same frame, we never add it.
+		if (!pending_remove_.empty()) {
+			std::erase_if(pending_add_, [this](const auto& s) {
+				return std::ranges::contains(pending_remove_, s->hash_);
+			});
+		}
+
+		pending_remove_.clear();
 
 		for (auto& s : pending_add_) {
 			s->OnCreate();
@@ -105,7 +103,19 @@ public:
 		pending_add_.clear();
 	}
 
-private:
+	/// @brief Emits the given event to all scripts of the entity in the order they were added until
+	/// one of them handles it (or until all scripts have been tried).
+	void OnEvent(EventDispatcher dispatcher) const {
+		// Scripts wont be modified during dispatch because pending script changes are applied by
+		// ApplyPending.
+		for (const auto& s : scripts_) {
+			s->OnEvent(dispatcher);
+			if (dispatcher.IsHandled()) {
+				break; // bubbling within this entity's scripts
+			}
+		}
+	}
+
 	std::vector<std::unique_ptr<Script>> scripts_;
 	std::vector<std::unique_ptr<Script>> pending_add_;
 	std::vector<std::size_t> pending_remove_;

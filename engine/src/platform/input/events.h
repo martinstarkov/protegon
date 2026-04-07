@@ -5,10 +5,14 @@
 #include "platform/input/key.h"
 #include "platform/input/mouse.h"
 
-namespace ptgn {
+namespace ptgn::event {
 
 /// @brief Fired once during the frame when a key is first pressed down.
 struct KeyPressed : public Event<KeyPressed> {
+	KeyPressed() = default;
+
+	explicit KeyPressed(Key key) : key{ key } {}
+
 	Key key;
 
 	operator Key() const { // NOSONAR
@@ -18,6 +22,10 @@ struct KeyPressed : public Event<KeyPressed> {
 
 /// @brief Fired every frame while a key is held down including the initial press.
 struct KeyHeld : public Event<KeyHeld> {
+	KeyHeld() = default;
+
+	explicit KeyHeld(Key key) : key{ key } {}
+
 	Key key;
 
 	operator Key() const { // NOSONAR
@@ -27,6 +35,10 @@ struct KeyHeld : public Event<KeyHeld> {
 
 /// @brief Fired once during the frame when a key is released after being pressed down.
 struct KeyReleased : public Event<KeyReleased> {
+	KeyReleased() = default;
+
+	explicit KeyReleased(Key key) : key{ key } {}
+
 	Key key;
 
 	operator Key() const { // NOSONAR
@@ -36,14 +48,23 @@ struct KeyReleased : public Event<KeyReleased> {
 
 /// @brief Fired every frame that the mouse moves.
 struct MouseMove : public Event<MouseMove> {
+	MouseMove() = default;
+
+	MouseMove(V2_int position, V2_int delta) : position{ position }, delta{ delta } {}
+
 	/// @brief Relative to the center of the window, with positive x to the right and positive y
 	/// down.
 	V2_int position;
+
 	V2_int delta;
 };
 
 /// @brief Fired once during the frame when a mouse button is first pressed down.
 struct MousePressed : public Event<MousePressed> {
+	MousePressed() = default;
+
+	MousePressed(Mouse button, V2_int position) : button{ button }, position{ position } {}
+
 	Mouse button;
 
 	/// @brief Relative to the center of the window, with positive x to the right and positive y
@@ -57,6 +78,10 @@ struct MousePressed : public Event<MousePressed> {
 
 /// @brief Fired every frame while a mouse button is held down including the initial press.
 struct MouseHeld : public Event<MouseHeld> {
+	MouseHeld() = default;
+
+	MouseHeld(Mouse button, V2_int position) : button{ button }, position{ position } {}
+
 	Mouse button;
 
 	/// @brief Relative to the center of the window, with positive x to the right and positive y
@@ -70,6 +95,10 @@ struct MouseHeld : public Event<MouseHeld> {
 
 /// @brief Fired once during the frame when a mouse button is released after being pressed down.
 struct MouseReleased : public Event<MouseReleased> {
+	MouseReleased() = default;
+
+	MouseReleased(Mouse button, V2_int position) : button{ button }, position{ position } {}
+
 	Mouse button;
 
 	/// @brief Relative to the center of the window, with positive x to the right and positive y
@@ -83,6 +112,10 @@ struct MouseReleased : public Event<MouseReleased> {
 
 /// @brief Fired every frame that the mouse wheel is scrolled.
 struct MouseScroll : public Event<MouseScroll> {
+	MouseScroll() = default;
+
+	MouseScroll(V2_int scroll, V2_int position) : scroll{ scroll }, position{ position } {}
+
 	V2_int scroll;
 
 	/// @brief Relative to the center of the window, with positive x to the right and positive y
@@ -96,21 +129,37 @@ struct WindowQuit : public Event<WindowQuit> {};
 /// @brief Fired one or more times (consult SDL_PollEvent rate and game FPS) after size change
 /// occurs or resizing is finished (window is released).
 struct WindowResized : public Event<WindowResized> {
+	WindowResized() = default;
+
+	explicit WindowResized(V2_int size) : size{ size } {}
+
 	V2_int size;
 };
 
 /// @brief Fired every time the window is moved.
 struct WindowMoved : public Event<WindowMoved> {
+	WindowMoved() = default;
+
+	explicit WindowMoved(V2_int position) : position{ position } {}
+
 	V2_int position;
 };
 
 /// @brief Fired once when the window is maximized.
 struct WindowMaximized : public Event<WindowMaximized> {
+	WindowMaximized() = default;
+
+	explicit WindowMaximized(V2_int size) : size{ size } {}
+
 	V2_int size;
 };
 
 /// @brief Fired once when the window is minimized.
 struct WindowMinimized : public Event<WindowMinimized> {
+	WindowMinimized() = default;
+
+	explicit WindowMinimized(V2_int size) : size{ size } {}
+
 	V2_int size;
 };
 
@@ -120,4 +169,4 @@ struct WindowFocusLost : public Event<WindowFocusLost> {};
 /// @brief Fired once when the window gains focus.
 struct WindowFocusGained : public Event<WindowFocusGained> {};
 
-} // namespace ptgn
+} // namespace ptgn::event

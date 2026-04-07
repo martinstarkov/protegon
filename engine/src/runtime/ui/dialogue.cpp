@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/math_utils.h"
@@ -33,6 +32,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/sprite.h"
@@ -63,7 +63,7 @@ DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
 }
 
 void DialogueWaitScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<KeyPressed>([this](const KeyPressed& e) { OnKeyPressed(e.key); });
+	d.Dispatch<event::KeyPressed>(&DialogueWaitScript::OnKeyPressed, this);
 }
 
 void DialogueWaitScript::OnKeyPressed(Key k) {
@@ -114,8 +114,8 @@ void DialogueScrollScript::UpdateText(Entity text_entity, float elapsed_fraction
 }
 
 void DialogueScrollScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<TweenPointComplete>([this](const TweenPointComplete&) { OnPointComplete(); });
-	d.Dispatch<TweenProgress>([this](const TweenProgress& p) { OnProgress(p.progress); });
+	d.Dispatch<event::TweenPointComplete>(&DialogueScrollScript::OnPointComplete, this);
+	d.Dispatch<event::TweenProgress>(&DialogueScrollScript::OnProgress, this);
 }
 
 void DialogueScrollScript::OnPointComplete() const {

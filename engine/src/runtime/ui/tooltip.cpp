@@ -6,7 +6,6 @@
 #include <utility>
 
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/math/easing.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -21,6 +20,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
@@ -91,8 +91,8 @@ TooltipHoverScript::TooltipHoverScript(std::string_view name, V2_float tooltip_o
 	name{ name }, offset{ tooltip_offset } {}
 
 void TooltipHoverScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<MouseEnter>([this](const MouseEnter&) { OnMouseEnter(); });
-	d.Dispatch<MouseLeave>([this](const MouseLeave&) { OnMouseLeave(); });
+	d.Dispatch<event::MouseEnter>(&TooltipHoverScript::OnMouseEnter, this);
+	d.Dispatch<event::MouseLeave>(&TooltipHoverScript::OnMouseLeave, this);
 }
 
 void TooltipHoverScript::OnCreate() {

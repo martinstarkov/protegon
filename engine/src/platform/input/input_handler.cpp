@@ -15,6 +15,8 @@
 #include "platform/input/key.h"
 #include "platform/input/mouse.h"
 #include "platform/window/window.h"
+#include "renderer/renderer.h"
+#include "runtime/event/event_handler.h"
 
 namespace ptgn {
 
@@ -104,7 +106,7 @@ V2_float InputHandler::GetMouseScreenPosition() const {
 	return mouse_screen_pos;
 }
 
-void InputHandler::Update(const EventSink& sink) {
+bool InputHandler::Update(EventHandler& events, Renderer& renderer) {
 	previous_mouse_position_ = mouse_position_;
 	mouse_scroll_			 = {};
 	mouse_scroll_delta_		 = {};
@@ -135,35 +137,34 @@ void InputHandler::Update(const EventSink& sink) {
 		}
 	}
 
-	PollEvents(sink);
+	bool running{ PollEvents(events, renderer) };
 
 	// Before polling events, their states are updated from pressed to held and from released to
 	// idle. This means that if a key or mouse button is still held after polling events, it has
 	// must have been held.
 	for (std::size_t i{ 0 }; i < mouse_states_.size(); ++i) {
 		if (mouse_states_[i] == impl::MouseState::Held) {
-			ptgn::MouseHeld held;
-			held.button	  = static_cast<Mouse>(i);
-			held.position = mouse_position_;
-			sink(held);
+			events.Push<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
 		}
 	}
 
 	for (std::size_t i{ 0 }; i < key_states_.size(); ++i) {
 		if (key_states_[i] == impl::KeyState::Held) {
-			ptgn::KeyHeld held;
-			held.key = static_cast<Key>(i);
-			sink(held);
+			events.Push<event::KeyHeld>(static_cast<Key>(i));
 		}
 	}
+
+	return running;
 }
 
-void InputHandler::PollEvents(const EventSink& sink) {
+bool InputHandler::PollEvents(EventHandler& events, Renderer& renderer) {
 	SDL_Event e;
 
 	V2_float half_window_size{ window_.GetSize() / 2.0f };
 
 	bool mouse_moved{ false };
+
+	bool running{ true };
 
 	while (SDL_PollEvent(&e)) {
 		switch (e.type) {
@@ -171,10 +172,9 @@ void InputHandler::PollEvents(const EventSink& sink) {
 				mouse_position_ = V2_float{ e.motion.x, e.motion.y } - half_window_size;
 				mouse_moved		= true;
 				mouse_set_		= true;
-				MouseMove move;
-				move.position = mouse_position_;
-				move.delta	  = { e.motion.xrel, e.motion.yrel };
-				sink(move);
+				events.Push<event::MouseMove>(
+					mouse_position_, V2_int{ e.motion.xrel, e.motion.yrel }
+				);
 				break;
 			}
 			case SDL_EVENT_MOUSE_BUTTON_DOWN: {
@@ -184,15 +184,9 @@ void InputHandler::PollEvents(const EventSink& sink) {
 				mouse_timestamps_[index] = e.button.timestamp;
 				mouse_states_[index]	 = impl::MouseState::Pressed;
 
-				ptgn::MousePressed pressed;
-				pressed.button	 = mouse;
-				pressed.position = mouse_position_;
-				sink(pressed);
+				events.Push<event::MousePressed>(mouse, mouse_position_);
+				events.Push<event::MouseHeld>(mouse, mouse_position_);
 
-				ptgn::MouseHeld held;
-				held.button	  = mouse;
-				held.position = mouse_position_;
-				sink(held);
 				break;
 			}
 			case SDL_EVENT_MOUSE_BUTTON_UP: {
@@ -202,10 +196,7 @@ void InputHandler::PollEvents(const EventSink& sink) {
 				mouse_timestamps_[index] = e.button.timestamp;
 				mouse_states_[index]	 = impl::MouseState::Released;
 
-				ptgn::MouseReleased released;
-				released.button	  = mouse;
-				released.position = mouse_position_;
-				sink(released);
+				events.Push<event::MouseReleased>(mouse, mouse_position_);
 				break;
 			}
 			case SDL_EVENT_KEY_DOWN: {
@@ -219,13 +210,8 @@ void InputHandler::PollEvents(const EventSink& sink) {
 					key_states_[index] = impl::KeyState::Held;
 				}
 
-				ptgn::KeyPressed pressed;
-				pressed.key = key;
-				sink(pressed);
-
-				ptgn::KeyHeld held;
-				held.key = key;
-				sink(held);
+				events.Push<event::KeyPressed>(key);
+				events.Push<event::KeyHeld>(key);
 				break;
 			}
 			case SDL_EVENT_KEY_UP: {
@@ -235,9 +221,7 @@ void InputHandler::PollEvents(const EventSink& sink) {
 				key_timestamps_[index] = e.key.timestamp;
 				key_states_[index]	   = impl::KeyState::Released;
 
-				ptgn::KeyReleased released;
-				released.key = key;
-				sink(released);
+				events.Push<event::KeyReleased>(key);
 				break;
 			}
 			case SDL_EVENT_MOUSE_WHEEL: {
@@ -245,49 +229,41 @@ void InputHandler::PollEvents(const EventSink& sink) {
 				mouse_scroll_			 = { e.wheel.x, e.wheel.y };
 				mouse_scroll_delta_		+= mouse_scroll_;
 
-				ptgn::MouseScroll scroll;
-				scroll.scroll	= mouse_scroll_;
-				scroll.position = mouse_position_;
-				sink(scroll);
+				events.Push<event::MouseScroll>(mouse_scroll_, mouse_position_);
 				break;
 			}
 			case SDL_EVENT_QUIT: {
-				WindowQuit quit{};
-				sink(quit);
+				events.Push<event::WindowQuit>();
+				running = false;
 				break;
 			}
 			case SDL_EVENT_WINDOW_RESIZED: {
-				WindowResized resized;
-				resized.size = { e.window.data1, e.window.data2 };
-				sink(resized);
+				V2_int size{ e.window.data1, e.window.data2 };
+				renderer.OnWindowResize(size);
+				events.Push<event::WindowResized>(size);
 				break;
 			}
 			case SDL_EVENT_WINDOW_MAXIMIZED: {
-				WindowMaximized maximized;
-				maximized.size = { e.window.data1, e.window.data2 };
-				sink(maximized);
+				V2_int size{ e.window.data1, e.window.data2 };
+				events.Push<event::WindowMaximized>(size);
 				break;
 			}
 			case SDL_EVENT_WINDOW_MINIMIZED: {
-				WindowMinimized minimized;
-				minimized.size = { e.window.data1, e.window.data2 };
-				sink(minimized);
+				V2_int size{ e.window.data1, e.window.data2 };
+				events.Push<event::WindowMinimized>(size);
 				break;
 			}
 			case SDL_EVENT_WINDOW_MOVED: {
-				WindowMoved moved;
-				moved.position = { e.window.data1, e.window.data2 };
-				sink(moved);
+				V2_int position{ e.window.data1, e.window.data2 };
+				events.Push<event::WindowMoved>(position);
 				break;
 			}
 			case SDL_EVENT_WINDOW_FOCUS_LOST: {
-				WindowFocusLost focus{};
-				sink(focus);
+				events.Push<event::WindowFocusLost>();
 				break;
 			}
 			case SDL_EVENT_WINDOW_FOCUS_GAINED: {
-				WindowFocusGained focus{};
-				sink(focus);
+				events.Push<event::WindowFocusGained>();
 				break;
 			}
 			default: break;
@@ -317,15 +293,14 @@ void InputHandler::PollEvents(const EventSink& sink) {
 			mouse_position_ = new_mouse_position;
 
 			if (mouse_set_) {
-				ptgn::MouseMove move;
-				move.position = mouse_position_;
-				move.delta	  = difference;
-				sink(move);
+				events.Push<event::MouseMove>(mouse_position_, difference);
 			}
 
 			mouse_set_ = true;
 		}
 	}
+
+	return running;
 }
 
 } // namespace ptgn

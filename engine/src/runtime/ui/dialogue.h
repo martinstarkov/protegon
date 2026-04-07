@@ -7,7 +7,7 @@
 #include <variant>
 #include <vector>
 
-#include "core/event/dispatcher.h"
+#include "runtime/event/event_dispatcher.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/file.h"

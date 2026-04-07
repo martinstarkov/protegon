@@ -2,7 +2,7 @@
 
 #include "app/application.h"
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
+#include "runtime/event/event_dispatcher.h"
 #include "core/math/angle.h"
 #include "core/math/easing.h"
 #include "core/math/geometry/arc.h"

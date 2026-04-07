@@ -6,7 +6,6 @@
 #include <utility>
 
 #include "app/application.h"
-#include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
@@ -18,13 +17,13 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
@@ -33,7 +32,7 @@ using namespace ptgn;
 
 struct DragScript : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<Dragging>([this](auto& e) { OnDrag(e.position); });
+		d.Dispatch<event::Dragging>([this](auto& e) { OnDrag(e.position); });
 	}
 
 	void OnDrag(V2_float pos) {
@@ -44,8 +43,8 @@ struct DragScript : public Script {
 
 struct DropzoneScript : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<DropIntoDropzone>([this](auto& e) { OnDrop(e.draggable); });
-		d.Dispatch<PickupFromDropzone>([this](auto& e) { OnPickup(e.draggable); });
+		d.Dispatch<event::DropIntoDropzone>([this](auto& e) { OnDrop(e.draggable); });
+		d.Dispatch<event::PickupFromDropzone>([this](auto& e) { OnPickup(e.draggable); });
 	}
 
 	void OnDrop(Entity draggable) {
@@ -59,21 +58,21 @@ struct DropzoneScript : public Script {
 
 struct DraggableScript : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<Dragging>([this](auto& e) { OnDrag(e.position); });
-		d.Dispatch<MousePressedOver>([this](auto& e) { OnMousePressedOver(e.button); });
-		d.Dispatch<MousePressedOut>([this](auto& e) { OnMousePressedOut(e.button); });
-		d.Dispatch<MouseHeldOver>([this](auto& e) { OnMouseHeldOver(e.button); });
-		d.Dispatch<MouseScrollOver>([this](auto& e) { OnMouseScrollOver(e.scroll_delta); });
-		d.Dispatch<MouseReleasedOver>([this](auto& e) { OnMouseReleasedOver(e.button); });
-		d.Dispatch<MouseReleasedOut>([this](auto& e) { OnMouseReleasedOut(e.button); });
-		d.Dispatch<DragEnter>([this](auto& e) { OnDragEnter(e.dropzone); });
-		d.Dispatch<DragLeave>([this](auto& e) { OnDragLeave(e.last_dropzone); });
-		d.Dispatch<DragOut>([this](auto& e) { OnDragOut(e.dropzone); });
-		d.Dispatch<DragOver>([this](auto& e) { OnDragOver(e.dropzone); });
-		d.Dispatch<DragStart>([this](auto& e) { OnDragStart(e.start_position); });
-		d.Dispatch<DragStop>([this](auto& e) { OnDragStop(e.stop_position); });
-		d.Dispatch<DropIntoDropzone>([this](auto& e) { OnDrop(e.draggable); });
-		d.Dispatch<PickupFromDropzone>([this](auto& e) { OnPickup(e.draggable); });
+		d.Dispatch<event::Dragging>(&DraggableScript::OnDrag, this);
+		d.Dispatch<event::MousePressedOver>(&DraggableScript::OnMousePressedOver, this);
+		d.Dispatch<event::MousePressedOut>(&DraggableScript::OnMousePressedOut, this);
+		d.Dispatch<event::MouseHeldOver>(&DraggableScript::OnMouseHeldOver, this);
+		d.Dispatch<event::MouseScrollOver>(&DraggableScript::OnMouseScrollOver, this);
+		d.Dispatch<event::MouseReleasedOver>(&DraggableScript::OnMouseReleasedOver, this);
+		d.Dispatch<event::MouseReleasedOut>(&DraggableScript::OnMouseReleasedOut, this);
+		d.Dispatch<event::DragEnter>(&DraggableScript::OnDragEnter, this);
+		d.Dispatch<event::DragLeave>(&DraggableScript::OnDragLeave, this);
+		d.Dispatch<event::DragOut>(&DraggableScript::OnDragOut, this);
+		d.Dispatch<event::DragOver>(&DraggableScript::OnDragOver, this);
+		d.Dispatch<event::DragStart>(&DraggableScript::OnDragStart, this);
+		d.Dispatch<event::DragStop>(&DraggableScript::OnDragStop, this);
+		d.Dispatch<event::DropIntoDropzone>(&DraggableScript::OnDrop, this);
+		d.Dispatch<event::PickupFromDropzone>(&DraggableScript::OnPickup, this);
 	}
 
 	void OnDrag(V2_float pos) {
@@ -121,11 +120,11 @@ struct DraggableScript : public Script {
 		// PTGN_LOG(entity, " Drag over: ", dropzone);
 	}
 
-	void OnDragStart(V2_int start_position) {
+	void OnDragStart(V2_float start_position) {
 		PTGN_LOG(entity, " Drag start: ", start_position);
 	}
 
-	void OnDragStop(V2_int stop_position) {
+	void OnDragStop(V2_float stop_position) {
 		PTGN_LOG(entity, " Drag stop: ", stop_position);
 	}
 

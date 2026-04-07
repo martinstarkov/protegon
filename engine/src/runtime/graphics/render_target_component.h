@@ -2,12 +2,12 @@
 
 #include <optional>
 
-#include "core/event/dispatcher.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/texture_format.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/scripting/script.h"
@@ -34,12 +34,12 @@ namespace impl {
 
 class RenderTargetGameResizeScript : public Script {
 public:
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(EventDispatcher dispatcher) override;
 };
 
 class RenderTargetDisplayResizeScript : public Script {
 public:
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(EventDispatcher dispatcher) override;
 };
 
 } // namespace impl

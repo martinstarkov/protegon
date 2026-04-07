@@ -3,11 +3,11 @@
 #include <optional>
 
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
+#include "renderer/primitives/event.h"
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_target.h"
@@ -15,6 +15,7 @@
 #include "renderer/renderer.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
@@ -27,19 +28,19 @@ namespace ptgn {
 
 namespace impl {
 
-void RenderTargetGameResizeScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<InternalGameResized>([this](auto& e) {
+void RenderTargetGameResizeScript::OnEvent(EventDispatcher dispatcher) {
+	dispatcher.Dispatch<event::InternalGameResized>([this](const auto& resized) {
 		auto& rt{ entity.Get<RenderTargetObject>() };
-		// PTGN_LOG("Render target ", entity, " received game resize: ", e.size);
-		rt.Resize(e.size);
+		// PTGN_LOG("Render target ", entity, " received game resize: ", resized.size);
+		rt.Resize(resized.size);
 	});
 }
 
-void RenderTargetDisplayResizeScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<InternalDisplayResized>([this](auto& e) {
+void RenderTargetDisplayResizeScript::OnEvent(EventDispatcher dispatcher) {
+	dispatcher.Dispatch<event::InternalDisplayResized>([this](const auto& resized) {
 		auto& rt{ entity.Get<RenderTargetObject>() };
-		// PTGN_LOG("Render target ", entity, " received display resize: ", e.size);
-		rt.Resize(e.size);
+		// PTGN_LOG("Render target ", entity, " received display resize: ", resized.size);
+		rt.Resize(resized.size);
 	});
 }
 

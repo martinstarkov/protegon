@@ -272,7 +272,7 @@ public:
 
 	void OnEnter() override {
 		//	camera.SetPixelRounding(true);
-		ctx().asset.Load("tree", "assets/test1.jpg");
+		ctx().asset.Load("tree", "assets/jpg.jpg");
 
 		mouse = CreateEntity();
 		SetPosition(mouse, {});

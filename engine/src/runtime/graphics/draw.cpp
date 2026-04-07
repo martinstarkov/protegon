@@ -28,7 +28,6 @@
 #include "renderer/primitives/vertex.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/event/event_handler.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/render_context.h"
@@ -171,8 +170,7 @@ void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
 		}
 		entity.Add<impl::Visible>();
 		if (emit_visibility_event && entity.HasScene()) {
-			EntityShow show;
-			entity.GetScene().ctx().event.Emit(show);
+			PushEvent<event::EntityShow>(entity);
 		}
 	} else {
 		if (!entity.Has<impl::Visible>()) {
@@ -180,8 +178,7 @@ void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
 		}
 		entity.Remove<impl::Visible>();
 		if (emit_visibility_event && entity.HasScene()) {
-			EntityHide hide;
-			entity.GetScene().ctx().event.Emit(hide);
+			PushEvent<event::EntityHide>(entity);
 		}
 	}
 }

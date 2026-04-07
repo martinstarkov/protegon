@@ -3,7 +3,6 @@
 
 #include "app/application.h"
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
@@ -16,6 +15,7 @@
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
@@ -37,6 +37,11 @@ struct EAnnounceGlobal : public Event<EAnnounceGlobal> {
 };
 
 struct EButtonPress : public Event<EButtonPress> {
+	EButtonPress() = default;
+
+	EButtonPress(Entity target, int mouseButton, int presses) :
+		target{ target }, mouseButton{ mouseButton }, presses{ presses } {}
+
 	Entity target{};
 	int mouseButton = 0;
 	int presses		= 1;
@@ -45,14 +50,14 @@ struct EButtonPress : public Event<EButtonPress> {
 class PlayerInventoryUI : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<EInventoryChanged>([this](auto& e) {
+		d.Dispatch<EInventoryChanged>([this](const auto& e) {
 			if (e.who == entity) {
 				std::cout << "[UI] inventory now " << e.newCount << " (delta " << e.delta << ")\n";
 			}
 			// no bool returned -> not "handled", keep bubbling
 		});
 
-		d.Dispatch<EAnnounceGlobal>([](auto& e) {
+		d.Dispatch<EAnnounceGlobal>([](const auto& e) {
 			std::cout << e.text << "\n";
 			// also not handled, just reacts
 		});
@@ -87,7 +92,7 @@ private:
 class RestartButton : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<MousePressed>([this](auto& e) {
+		d.Dispatch<event::MousePressed>([this](const auto& e) {
 			if (e == Mouse::Left) {
 				EAnnounceGlobal g{ "Mouse down!" };
 				Emit(g);
@@ -138,7 +143,7 @@ public:
 		press.mouseButton = 0;
 		press.presses	  = 1;
 
-		ctx().event.Emit(press); // scene-local bubbling
+		ctx().event.Push<EButtonPress>({}, player, 0, 1); // scene-local bubbling
 	}
 };
 
@@ -195,7 +200,7 @@ public:
 	}
 
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<KeyPressed>([this](auto& e) {
+		d.Dispatch<event::KeyPressed>([this](const auto& e) {
 			if (e == Key::Enter) {
 				PTGN_LOG("Pressed enter");
 			} else if (e == Key::Space) {

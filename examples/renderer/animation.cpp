@@ -1,14 +1,13 @@
 #include "runtime/animation/animation.h"
 
 #include "app/application.h"
-#include "core/event/dispatcher.h"
 #include "core/log.h"
-#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "platform/input/key.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
@@ -18,14 +17,14 @@ using namespace ptgn;
 
 struct MyAnimationScript1 : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<AnimationStart>([this](auto&) { OnAnimationStart(); });
-		d.Dispatch<AnimationUpdate>([this](auto&) { OnAnimationUpdate(); });
-		d.Dispatch<AnimationRepeat>([this](auto&) { OnAnimationRepeat(); });
-		d.Dispatch<AnimationFrameChange>([this](auto&) { OnAnimationFrameChange(); });
-		d.Dispatch<AnimationComplete>([this](auto&) { OnAnimationComplete(); });
-		d.Dispatch<AnimationPause>([this](auto&) { OnAnimationPause(); });
-		d.Dispatch<AnimationResume>([this](auto&) { OnAnimationResume(); });
-		d.Dispatch<AnimationStop>([this](auto&) { OnAnimationStop(); });
+		d.Dispatch<event::AnimationStart>(&OnAnimationStart, this);
+		d.Dispatch<event::AnimationUpdate>(&OnAnimationUpdate, this);
+		d.Dispatch<event::AnimationLoopComplete>(&OnAnimationLoopComplete, this);
+		d.Dispatch<event::AnimationFrameChange>(&OnAnimationFrameChange, this);
+		d.Dispatch<event::AnimationComplete>(&OnAnimationComplete, this);
+		d.Dispatch<event::AnimationPause>(&OnAnimationPause, this);
+		d.Dispatch<event::AnimationResume>(&OnAnimationResume, this);
+		d.Dispatch<event::AnimationStop>(&OnAnimationStop, this);
 	}
 
 	void OnAnimationStart() const {
@@ -36,8 +35,8 @@ struct MyAnimationScript1 : public Script {
 		// PTGN_LOG("OnAnimationUpdate");
 	}
 
-	void OnAnimationRepeat() const {
-		PTGN_LOG("OnAnimationRepeat");
+	void OnAnimationLoopComplete() const {
+		PTGN_LOG("OnAnimationLoopComplete");
 	}
 
 	void OnAnimationFrameChange() const {

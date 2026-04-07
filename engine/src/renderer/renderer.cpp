@@ -18,15 +18,13 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
-#include "platform/input/events.h"
 #include "platform/window/window.h"
-#include "primitives/shader.h"
+#include "primitives/event.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
@@ -44,6 +42,7 @@
 #include "renderer/primitives/render_target.h"
 #include "renderer/primitives/resource.h"
 #include "renderer/primitives/scaling_mode.h"
+#include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/primitives/texture_format.h"
 #include "renderer/primitives/vertex.h"
@@ -727,18 +726,14 @@ impl::TextureId Renderer::GetWhiteTexture() const {
 	return white_texture_;
 }
 
-void Renderer::OnEvent(EventDispatcher d) {
-	d.Dispatch<WindowResized>([this](auto& e) {
-		if (!game_size_.has_value()) {
-			// PTGN_LOG("Emitting game resized: ", e.size);
-			impl::InternalGameResized internal_game_resized{ e.size };
-			GameResized game_resized{ e.size };
-			events_.Emit(internal_game_resized);
-			events_.Emit(game_resized);
-		}
+void Renderer::OnWindowResize(V2_int size) {
+	if (!game_size_.has_value()) {
+		// PTGN_LOG("Emitting game resized: ", size);
+		events_.Push<impl::event::InternalGameResized>(size);
+		events_.Push<event::GameResized>(size);
+	}
 
-		UpdateDisplayViewport(e.size);
-	});
+	UpdateDisplayViewport(size);
 }
 
 void Renderer::SetScalingMode(ScalingMode scaling_mode) {
@@ -764,11 +759,11 @@ void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_
 	game_size_	  = game_size;
 	scaling_mode_ = scaling_mode;
 
-	impl::InternalGameResized internal_game_resized{ GetGameSize() };
-	GameResized game_resized{ internal_game_resized.size };
-	// PTGN_LOG("Emitting game resized: ", game_resized.size);
-	events_.Emit(internal_game_resized);
-	events_.Emit(game_resized);
+	auto size{ GetGameSize() };
+
+	// PTGN_LOG("Emitting game resized: ", size);
+	events_.Push<impl::event::InternalGameResized>(size);
+	events_.Push<event::GameResized>(size);
 
 	UpdateDisplayViewport(window_.GetSize());
 }
@@ -883,18 +878,14 @@ void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 			ResizeScreenTarget(display_viewport_.size);
 
 			if (emit_events) {
-				impl::InternalDisplayResized internal_display_resized;
-				internal_display_resized.size = display_viewport_.size;
-				// PTGN_LOG("Emitting display resized: ", display_resized.size);
-				events_.Emit(internal_display_resized);
+				// PTGN_LOG("Emitting display resized: ", display_viewport_.size);
+				events_.Push<impl::event::InternalDisplayResized>(display_viewport_.size);
 			}
 		}
 
 		if (emit_events) {
-			impl::InternalDisplayViewportChanged display_changed;
-			display_changed.viewport = display_viewport_;
-			// PTGN_LOG("Emitting viewport changed: ", display_changed.viewport);
-			events_.Emit(display_changed);
+			// PTGN_LOG("Emitting viewport changed: ", display_viewport_);
+			events_.Push<impl::event::InternalDisplayViewportChanged>(display_viewport_);
 		}
 	}
 }

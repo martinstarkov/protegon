@@ -53,7 +53,7 @@ public:
 			*this, { 0.0f, static_cast<float>(-ctx().renderer.GetGameSize().y) / 2.0f }, config
 		);
 
-		rain.OnParticleDestroy([](ParticleDestroyed p) {
+		rain.OnParticleDestroy([](auto p) {
 			if (Chance(0.3f)) {
 				auto& scene{ p.emitter.GetScene() };
 

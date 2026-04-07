@@ -18,21 +18,57 @@ class Physics;
 class Scene;
 class SceneContext;
 
+namespace event {
+
 struct CollisionEvent : public Event<CollisionEvent> {
+	CollisionEvent() = default;
+
+	explicit CollisionEvent(const Collision& collision) : collision{ collision } {}
+
+	operator Collision() const { // NOSONAR
+		return collision;
+	}
+
 	Collision collision;
 };
 
 struct OverlapStart : public Event<OverlapStart> {
+	OverlapStart() = default;
+
+	explicit OverlapStart(Entity overlap_entity) : overlap_entity{ overlap_entity } {}
+
+	operator Entity() const { // NOSONAR
+		return overlap_entity;
+	}
+
 	Entity overlap_entity;
 };
 
 struct OverlapContinue : public Event<OverlapContinue> {
+	OverlapContinue() = default;
+
+	explicit OverlapContinue(Entity overlap_entity) : overlap_entity{ overlap_entity } {}
+
+	operator Entity() const { // NOSONAR
+		return overlap_entity;
+	}
+
 	Entity overlap_entity;
 };
 
 struct OverlapStop : public Event<OverlapStop> {
+	OverlapStop() = default;
+
+	explicit OverlapStop(Entity overlap_entity) : overlap_entity{ overlap_entity } {}
+
+	operator Entity() const { // NOSONAR
+		return overlap_entity;
+	}
+
 	Entity overlap_entity;
 };
+
+} // namespace event
 
 struct CollisionHandlerSettings {
 	/// @brief If true, draws continuous collision detection sweeps for debugging purposes.

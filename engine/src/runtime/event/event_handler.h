@@ -1,10 +1,17 @@
 #pragma once
 
-#include "core/event/dispatcher.h"
+#include <concepts>
+#include <memory>
+#include <optional>
+
+#include "core/event/event.h"
+#include "renderer/primitives/event.h"
+#include "runtime/event/event_dispatcher.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_transition.h"
 
 namespace ptgn {
-
-class SceneManager;
 
 class EventHandler {
 public:
@@ -15,11 +22,21 @@ public:
 	EventHandler(EventHandler&&) noexcept			 = delete;
 	EventHandler& operator=(EventHandler&&) noexcept = delete;
 
-	void Emit(EventDispatcher d);
+	template <EventType T, typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	void Push(TArgs&&... args) {
+		for (const auto& entry : scenes_.scenes_) {
+			// Dont push events during a transition unless they are internal.
+			if constexpr (!impl::InternalRenderEvent<T>) {
+				if (entry->transition_ && !entry->transition_->started_) {
+					continue;
+				}
+			}
+			entry->ctx().event.Push<T>(std::nullopt, std::forward<TArgs>(args)...);
+		}
+	}
 
 private:
-	[[nodiscard]] bool IsInternalEvent(const EventDispatcher& d) const;
-
 	SceneManager& scenes_;
 };
 

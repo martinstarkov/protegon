@@ -4,9 +4,9 @@
 #include <string_view>
 #include <vector>
 
-namespace ptgn {
+#include "runtime/ecs/entity.h"
 
-class Entity;
+namespace ptgn {
 
 /// @return The parent most entity, or *this if no parent exists.
 Entity GetRootEntity(Entity entity);

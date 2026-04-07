@@ -35,10 +35,7 @@ Animation& Animation::Start(bool force) {
 	auto& crop{ Get<impl::TextureCrop>() };
 	crop.Update(anim);
 	if (bool started{ anim.frame_timer.Start(force) }; started) {
-		if (auto scripts{ TryGet<impl::Scripts>() }) {
-			AnimationStart event;
-			scripts->Emit(event);
-		}
+		PushEvent<event::AnimationStart>(*this);
 	}
 	return *this;
 }
@@ -52,10 +49,7 @@ Animation& Animation::Reset() {
 	auto& crop{ Get<impl::TextureCrop>() };
 	crop.Update(anim);
 	anim.frame_timer.Reset();
-	if (auto scripts{ TryGet<impl::Scripts>() }) {
-		AnimationStop event;
-		scripts->Emit(event);
-	}
+	PushEvent<event::AnimationStop>(*this);
 	return *this;
 }
 
@@ -67,10 +61,7 @@ Animation& Animation::Stop(bool reset) {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Stop();
-	if (auto scripts{ TryGet<impl::Scripts>() }) {
-		AnimationStop event;
-		scripts->Emit(event);
-	}
+	PushEvent<event::AnimationStop>(*this);
 	return *this;
 }
 
@@ -87,10 +78,7 @@ Animation& Animation::Pause() {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Pause();
-	if (auto scripts{ TryGet<impl::Scripts>() }) {
-		AnimationPause event;
-		scripts->Emit(event);
-	}
+	PushEvent<event::AnimationPause>(*this);
 	return *this;
 }
 
@@ -98,10 +86,7 @@ Animation& Animation::Resume() {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Resume();
-	if (auto scripts{ TryGet<impl::Scripts>() }) {
-		AnimationResume event;
-		scripts->Emit(event);
-	}
+	PushEvent<event::AnimationResume>(*this);
 	return *this;
 }
 
@@ -273,10 +258,7 @@ void AnimationData::IncrementFrame() {
 
 void AnimationSystem::Update(Scene& scene) {
 	const auto frame_change = [](auto anim_entity, auto& crop, const auto& anim) {
-		if (auto scripts{ anim_entity.TryGet<Scripts>() }) {
-			AnimationFrameChange event;
-			scripts->Emit(event);
-		}
+		PushEvent<event::AnimationFrameChange>(anim_entity);
 		crop.Update(anim);
 	};
 
@@ -300,10 +282,7 @@ void AnimationSystem::Update(Scene& scene) {
 
 		// All animation plays have completed.
 		if (anim.config.play_count != -1 && next_frames_played >= total_frames) {
-			if (auto scripts{ entity.TryGet<Scripts>() }) {
-				AnimationComplete event;
-				scripts->Emit(event);
-			}
+			PushEvent<event::AnimationComplete>(entity);
 
 			if (anim.config.reset_on_complete) {
 				// Reset animation to start frame after it finishes.
@@ -314,17 +293,11 @@ void AnimationSystem::Update(Scene& scene) {
 
 			anim.frame_timer.Stop();
 
-			if (auto scripts{ entity.TryGet<Scripts>() }) {
-				AnimationStop event;
-				scripts->Emit(event);
-			}
+			PushEvent<event::AnimationStop>(entity);
 			continue;
 		}
 
-		if (auto scripts{ entity.TryGet<Scripts>() }) {
-			AnimationUpdate event;
-			scripts->Emit(event);
-		}
+		PushEvent<event::AnimationUpdate>(entity);
 
 		if (auto frame_duration{ anim.GetFrameDuration() };
 			!anim.frame_timer.Completed(frame_duration)) {
@@ -339,16 +312,11 @@ void AnimationSystem::Update(Scene& scene) {
 
 		// Loop completed.
 		if (anim.frames_played % anim.config.frame_count == 0) {
-			if (auto scripts{ entity.TryGet<Scripts>() }) {
-				AnimationLoopComplete event;
-				scripts->Emit(event);
-			}
+			PushEvent<event::AnimationLoopComplete>(entity);
 		}
 
 		anim.frame_timer.Start(true);
 	}
-
-	scene.Refresh();
 }
 
 } // namespace impl

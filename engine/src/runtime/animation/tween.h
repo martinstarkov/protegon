@@ -1,29 +1,43 @@
 #pragma once
 
+#include <chrono>
+#include <concepts>
 #include <cstdint>
 #include <functional>
+#include <memory>
+#include <optional>
 #include <ostream>
+#include <type_traits>
+#include <variant>
 #include <vector>
 
-#include "core/event/dispatcher.h"
+#include "core/assert.h"
 #include "core/event/event.h"
 #include "core/math/easing.h"
 #include "core/time/time.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
+#include "serialization/json/enum.h"
 
 namespace ptgn {
 
 class Scene;
+class ScriptSequence;
+class TweenPoint;
+
+namespace event {
+
+struct TweenProgress;
+
+} // namespace event
 
 namespace impl {
 
-struct TweenPoint;
+class TweenData;
 
 } // namespace impl
-
-using TweenCallback = std::function<void(Entity)>;
 
 class Tween : public Entity {
 public:
@@ -38,19 +52,21 @@ public:
 	template <typename T, typename... TArgs>
 	Tween& AddScript(TArgs&&... args);
 
-	// TODO: Add variant functions with no entity argument.
+	using Callback = std::variant<std::function<void()>, std::function<void(Tween)>>;
+	using ProgressCallback =
+		std::variant<std::function<void()>, std::function<void(event::TweenProgress)>>;
 
-	Tween& OnProgress(const std::function<void(Entity, float)>& func);
-	Tween& OnStart(const TweenCallback& func);
-	Tween& OnComplete(const TweenCallback& func);
-	Tween& OnPointStart(const TweenCallback& func);
-	Tween& OnPointComplete(const TweenCallback& func);
-	Tween& OnReset(const TweenCallback& func);
-	Tween& OnStop(const TweenCallback& func);
-	Tween& OnPause(const TweenCallback& func);
-	Tween& OnResume(const TweenCallback& func);
-	Tween& OnYoyo(const TweenCallback& func);
-	Tween& OnRepeat(const TweenCallback& func);
+	Tween& OnProgress(const ProgressCallback& func);
+	Tween& OnStart(const Callback& func);
+	Tween& OnComplete(const Callback& func);
+	Tween& OnPointStart(const Callback& func);
+	Tween& OnPointComplete(const Callback& func);
+	Tween& OnReset(const Callback& func);
+	Tween& OnStop(const Callback& func);
+	Tween& OnPause(const Callback& func);
+	Tween& OnResume(const Callback& func);
+	Tween& OnYoyo(const Callback& func);
+	Tween& OnRepeat(const Callback& func);
 
 	/// @return True if the tween has completed all of its tween points.
 	[[nodiscard]] bool IsCompleted() const;
@@ -110,19 +126,14 @@ public:
 	/// @return Current number of repeats of the current tween point.
 	std::int64_t GetRepeats() const;
 
-	/// @return Index of the current tween point.
-	std::size_t GetCurrentIndex() const;
-
 	/// @return The easing mode of the current tween point.
 	ptgn::Ease GetEase() const;
 
-	/// @param duration Duration to set for the tween.
-	/// @param tween_point_index Which tween point to set the duration of.
-	Tween& SetDuration(milliseconds duration, std::size_t tween_point_index);
+	/// @param duration Duration to set for the current tween point.
+	Tween& SetDuration(milliseconds duration);
 
-	/// @param tween_point_index Which tween point to query to duration of.
-	/// @return The duration of the specified tween point.
-	milliseconds GetDuration(std::size_t tween_point_index = 0) const;
+	/// @return The duration of the current tween point.
+	milliseconds GetDuration() const;
 
 	// TODO: Implement and test.
 	// dt in seconds.
@@ -143,31 +154,48 @@ public:
 
 	void Seek(milliseconds time);
 
+	/// @return The number of valid tween points in the tween.
 	std::size_t GetTweenPointCount() const;
 
-	const impl::TweenPoint& GetTweenPoint(std::size_t tween_point_index) const;
-	impl::TweenPoint& GetTweenPoint(std::size_t tween_point_index);
-
-	impl::TweenPoint& GetLastTweenPoint();
-	const impl::TweenPoint& GetLastTweenPoint() const;
+	TweenPoint& GetLastTweenPoint();
+	const TweenPoint& GetLastTweenPoint() const;
 
 private:
 	friend class Scene;
 	friend class ScriptSequence;
 	friend class SceneManager;
 
+	/// @return Index of the current tween point, if a valid one exists.
+	std::optional<std::size_t> GetCurrentIndex() const;
+
+	template <EventType T, typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	void PushEventToCurrentTweenPoint(TArgs&&... args);
+
+	template <EventType T, typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	void PushEventToAllTweenPoints(TArgs&&... args);
+
 	milliseconds GetTotalDuration() const;
 
-	const impl::TweenPoint& GetCurrentTweenPoint() const;
-	impl::TweenPoint& GetCurrentTweenPoint();
+	const TweenPoint& GetCurrentTweenPoint() const;
+	TweenPoint& GetCurrentTweenPoint();
 
 	static void Update(Scene& scene, secondsf dt);
 };
 
+namespace event {
+
 struct TweenProgress : public Event<TweenProgress> {
 	TweenProgress() = default;
 
-	explicit TweenProgress(float progress) : progress{ progress } {}
+	TweenProgress(const Tween& tween, float progress) : tween{ tween }, progress{ progress } {}
+
+	Tween tween;
+
+	operator float() const { // NOSONAR
+		return progress;
+	}
 
 	/// @brief Value between [0.0f, 1.0f] indicating how much of the total duration the tween has
 	/// passed in the current repetition. Note: This value remains 0.0f to 1.0f even when the tween
@@ -175,29 +203,50 @@ struct TweenProgress : public Event<TweenProgress> {
 	float progress{ 0.0f };
 };
 
-struct TweenComplete : public Event<TweenComplete> {};
+struct TweenComplete : public Event<TweenComplete> {
+	TweenComplete() = default;
+};
 
-struct TweenPointStart : public Event<TweenPointStart> {};
+struct TweenPointStart : public Event<TweenPointStart> {
+	TweenPointStart() = default;
+};
 
-struct TweenPointComplete : public Event<TweenPointComplete> {};
+struct TweenPointComplete : public Event<TweenPointComplete> {
+	TweenPointComplete() = default;
+};
 
-struct TweenReset : public Event<TweenReset> {};
+struct TweenReset : public Event<TweenReset> {
+	TweenReset() = default;
+};
 
-struct TweenStart : public Event<TweenStart> {};
+struct TweenStart : public Event<TweenStart> {
+	TweenStart() = default;
+};
 
-struct TweenStop : public Event<TweenStop> {};
+struct TweenStop : public Event<TweenStop> {
+	TweenStop() = default;
+};
 
-struct TweenPause : public Event<TweenPause> {};
+struct TweenPause : public Event<TweenPause> {
+	TweenPause() = default;
+};
 
-struct TweenResume : public Event<TweenResume> {};
+struct TweenResume : public Event<TweenResume> {
+	TweenResume() = default;
+};
 
-struct TweenYoyo : public Event<TweenYoyo> {};
+struct TweenYoyo : public Event<TweenYoyo> {
+	TweenYoyo() = default;
+};
 
-struct TweenRepeat : public Event<TweenRepeat> {};
+struct TweenRepeat : public Event<TweenRepeat> {
+	TweenRepeat() = default;
+};
 
-namespace impl {
+} // namespace event
 
-struct TweenPoint {
+class TweenPoint {
+public:
 	TweenPoint()		   = default;
 	~TweenPoint() noexcept = default;
 
@@ -208,6 +257,21 @@ struct TweenPoint {
 	TweenPoint& operator=(TweenPoint&&) noexcept = default;
 
 	bool operator==(const TweenPoint&) const = default;
+
+	/// @return True if the tween point has infinite repeats.
+	[[nodiscard]] bool IsInfinite() const {
+		return total_repeats_ == -1;
+	}
+
+	/// @return True if the tween point has a duration of 0, meaning it will complete instantly.
+	[[nodiscard]] bool IsInstant() const {
+		return duration_ == 0ms;
+	}
+
+private:
+	friend class Tween;
+	friend class impl::TweenData;
+	friend class ScriptSequence;
 
 	/// @brief Current number of repetitions of the tween.
 	std::int64_t current_repeat_{ 0 };
@@ -228,7 +292,11 @@ struct TweenPoint {
 	/// @brief Easing function between tween start and end value.
 	Ease ease_{ Ease::Linear };
 
-	Scripts script_container_;
+	bool flagged_for_removal_{ false };
+
+	impl::Scripts script_container_;
+
+	LocalEventHandler events_;
 
 	// TODO: Fix serialization.
 	// PTGN_SERIALIZER_REGISTER_NAMED(
@@ -239,6 +307,8 @@ struct TweenPoint {
 	//	KeyValue("ease", ease_), KeyValue("script_container", script_container_)
 	//)
 };
+
+namespace impl {
 
 enum class TweenState {
 	Stopped,
@@ -254,83 +324,169 @@ PTGN_SERIALIZE_ENUM(
 				  { TweenState::Completed, "completed" } }
 );
 
-struct TweenInstance {
-	TweenInstance()			  = default;
-	~TweenInstance() noexcept = default;
+class TweenData {
+public:
+	TweenData()			  = default;
+	~TweenData() noexcept = default;
 
-	TweenInstance(const TweenInstance&)			   = delete;
-	TweenInstance& operator=(const TweenInstance&) = delete;
+	TweenData(const TweenData&)			   = delete;
+	TweenData& operator=(const TweenData&) = delete;
 
-	TweenInstance(TweenInstance&&) noexcept			   = default;
-	TweenInstance& operator=(TweenInstance&&) noexcept = default;
+	TweenData(TweenData&&) noexcept			   = default;
+	TweenData& operator=(TweenData&&) noexcept = default;
 
 	/// @brief Value between [0.0f, 1.0f] indicating how much of the total duration the tween has
 	/// passed in the current repetition. Note: This value remains 0.0f to 1.0f even when the tween
 	/// is reversed or yoyoing.
 	float progress_{ 0.0f };
 
-	std::size_t index_{ 0 };
-	std::vector<TweenPoint> points_;
-
 	TweenState state_{ TweenState::Stopped };
 
 	// TODO: Fix serialization.
 	// PTGN_SERIALIZER_REGISTER_NAMED(
-	//	TweenInstance, KeyValue("progress", progress_), KeyValue("index", index_),
+	//	TweenData, KeyValue("progress", progress_), KeyValue("index", index_),
 	//	KeyValue("points", points_), KeyValue("state", state_)
 	//)
+
+	/// @return Index of the current tween point if there is a valid current tween point,
+	/// std::nullopt otherwise.
+	std::optional<std::size_t> GetCurrentIndex() const;
+
+	/// @return Index of the last tween point if there are any valid tween points available,
+	/// std::nullopt otherwise.
+	std::optional<std::size_t> GetLastIndex() const;
+
+	void IncrementIndex();
+
+	void RemoveLastTweenPoint();
+
+	void Clear();
+
+	void Reset();
+
+	/// @return True if there is a valid tween point following the current one, false if there are
+	/// no more valid tween points, or std::nullopt if there are no valid tween points at all.
+	[[nodiscard]] std::optional<bool> FutureTweenPointIsValid() const;
+
+	std::size_t GetValidPointCount() const;
+
+	[[nodiscard]] bool IsEmpty() const;
+
+	TweenPoint& EmplaceTweenPoint();
+
+	milliseconds GetTotalDuration() const;
+
+	const TweenPoint& GetCurrentTweenPoint() const;
+	TweenPoint& GetCurrentTweenPoint();
+
+	const TweenPoint& GetLastTweenPoint() const;
+	TweenPoint& GetLastTweenPoint();
+
+	void OnEvent();
+
+	void ApplyPending();
+
+	void ClearFlagged();
+
+	template <EventType T, typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	void PushEventToAllTweenPoints(TArgs&&... args);
+
+	/// @brief Does nothing if there is no valid current tween point.
+	template <EventType T, typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	void PushEventToCurrentTweenPoint(TArgs&&... args);
+
+private:
+	std::vector<std::unique_ptr<TweenPoint>> points_;
+
+	/// @brief Not a reliable indicator of what is the current tween point as tween points may be
+	/// flagged for removal, which makes them invalid. This index is updates every time the user
+	/// requests it.
+	mutable std::size_t index_{ 0 };
 };
 
 template <typename T>
-struct TweenCallbackScript : public Script {
-	TweenCallbackScript() = default;
+struct TweenScript : public Script {
+	TweenScript() = default;
 
-	explicit TweenCallbackScript(const TweenCallback& callback) : callback_{ callback } {}
+	explicit TweenScript(const Tween::Callback& callback) : callback_{ callback } {}
 
-	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<T>([this](const T&) { std::invoke(callback_, entity); });
+	void OnEvent(EventDispatcher dispatcher) override {
+		dispatcher.DispatchVariantBound<T>(callback_, Tween{ entity });
 	}
 
 private:
-	TweenCallback callback_;
+	Tween::Callback callback_;
 };
 
-using TweenStartScript		   = TweenCallbackScript<TweenStart>;
-using TweenCompleteScript	   = TweenCallbackScript<TweenComplete>;
-using TweenPointStartScript	   = TweenCallbackScript<TweenPointStart>;
-using TweenPointCompleteScript = TweenCallbackScript<TweenPointComplete>;
-using TweenResetScript		   = TweenCallbackScript<TweenReset>;
-using TweenStopScript		   = TweenCallbackScript<TweenStop>;
-using TweenPauseScript		   = TweenCallbackScript<TweenPause>;
-using TweenResumeScript		   = TweenCallbackScript<TweenResume>;
-using TweenYoyoScript		   = TweenCallbackScript<TweenYoyo>;
-using TweenRepeatScript		   = TweenCallbackScript<TweenRepeat>;
+using TweenStartScript		   = TweenScript<ptgn::event::TweenStart>;
+using TweenCompleteScript	   = TweenScript<ptgn::event::TweenComplete>;
+using TweenPointStartScript	   = TweenScript<ptgn::event::TweenPointStart>;
+using TweenPointCompleteScript = TweenScript<ptgn::event::TweenPointComplete>;
+using TweenResetScript		   = TweenScript<ptgn::event::TweenReset>;
+using TweenStopScript		   = TweenScript<ptgn::event::TweenStop>;
+using TweenPauseScript		   = TweenScript<ptgn::event::TweenPause>;
+using TweenResumeScript		   = TweenScript<ptgn::event::TweenResume>;
+using TweenYoyoScript		   = TweenScript<ptgn::event::TweenYoyo>;
+using TweenRepeatScript		   = TweenScript<ptgn::event::TweenRepeat>;
 
 struct TweenProgressScript : public Script {
 	TweenProgressScript() = default;
 
-	explicit TweenProgressScript(const std::function<void(Entity, float)>& callback) :
-		callback_{ callback } {}
+	explicit TweenProgressScript(const Tween::ProgressCallback& callback);
 
-	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<TweenProgress>([this](const TweenProgress& e) {
-			std::invoke(callback_, entity, e.progress);
-		});
-	}
+	void OnEvent(EventDispatcher dispatcher) override;
 
 private:
-	std::function<void(Entity, float)> callback_;
+	Tween::ProgressCallback callback_;
 };
+
+template <EventType T, typename... TArgs>
+	requires std::constructible_from<T, TArgs...>
+void TweenData::PushEventToAllTweenPoints(TArgs&&... args) {
+	for (const auto& point : points_) {
+		PTGN_ASSERT(point);
+		if (point->flagged_for_removal_) {
+			continue;
+		}
+		point->events_.Push<T>(std::nullopt, std::forward<TArgs>(args)...);
+	}
+}
+
+template <EventType T, typename... TArgs>
+	requires std::constructible_from<T, TArgs...>
+void TweenData::PushEventToCurrentTweenPoint(TArgs&&... args) {
+	auto current_index{ GetCurrentIndex() };
+	if (!current_index.has_value() || *current_index >= points_.size() ||
+		!points_[*current_index]) {
+		return;
+	}
+	points_[*current_index]->events_.Push<T>(std::nullopt, std::forward<TArgs>(args)...);
+}
 
 } // namespace impl
 
 std::ostream& operator<<(std::ostream& os, impl::TweenState state);
 
+template <EventType T, typename... TArgs>
+	requires std::constructible_from<T, TArgs...>
+void Tween::PushEventToCurrentTweenPoint(TArgs&&... args) {
+	auto& tween{ Get<impl::TweenData>() };
+	tween.PushEventToCurrentTweenPoint<T>(std::forward<TArgs>(args)...);
+}
+
+template <EventType T, typename... TArgs>
+	requires std::constructible_from<T, TArgs...>
+void Tween::PushEventToAllTweenPoints(TArgs&&... args) {
+	auto& tween{ Get<impl::TweenData>() };
+	tween.PushEventToAllTweenPoints<T>(std::forward<TArgs>(args)...);
+}
+
 template <typename T, typename... TArgs>
 Tween& Tween::AddScript(TArgs&&... args) {
 	auto& container{ GetLastTweenPoint().script_container_ };
-	auto& script{ container.Add<T>(*this, std::forward<TArgs>(args)...) };
-	container.ApplyPending();
+	container.Add<T>(*this, std::forward<TArgs>(args)...);
 	return *this;
 }
 

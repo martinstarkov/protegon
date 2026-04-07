@@ -4,12 +4,12 @@
 #include <cstdint>
 #include <optional>
 
-#include "core/event/dispatcher.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/viewport.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {
@@ -47,7 +47,7 @@ struct CameraData {
 
 class CameraResizeScript : public Script {
 public:
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(EventDispatcher dispatcher) override;
 };
 
 /// @brief If an entity has no RenderMask, we treat it as having

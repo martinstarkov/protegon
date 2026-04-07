@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "core/event/dispatcher.h"
+#include "runtime/event/event_dispatcher.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"

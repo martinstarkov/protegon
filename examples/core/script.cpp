@@ -1,17 +1,16 @@
 #include "runtime/scripting/script.h"
 
 #include "app/application.h"
-#include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "platform/input/events.h"
 #include "platform/input/key.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scripting/scripts.h"
 
 using namespace ptgn;
@@ -32,7 +31,7 @@ public:
 class RemoveScript : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<KeyPressed>([this](auto e) { OnKeyPressed(e.key); });
+		d.Dispatch<event::KeyPressed>(&RemoveScript::OnKeyPressed, this);
 	}
 
 	void OnKeyPressed(Key k) {

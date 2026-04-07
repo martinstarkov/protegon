@@ -4,11 +4,11 @@
 #include <chrono>
 
 #include "app/application.h"
-#include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "platform/input/key.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
@@ -17,7 +17,7 @@ using namespace ptgn;
 
 struct ScriptSequence2 : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<TweenProgress>([this](auto& e) { OnProgress(e.progress); });
+		d.Dispatch<event::TweenProgress>(&ScriptSequence2::OnProgress, this);
 	}
 
 	void OnProgress(float progress) const {

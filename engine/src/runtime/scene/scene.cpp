@@ -3,13 +3,13 @@
 #include <algorithm>
 #include <list>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <variant>
 #include <vector>
 
 #include "app/application.h"
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
@@ -29,6 +29,7 @@
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
@@ -47,12 +48,6 @@
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
-
-SceneEventHandler::SceneEventHandler(Scene& scene) : scene_{ scene } {}
-
-void SceneEventHandler::Emit(EventDispatcher d) {
-	scene_.InternalEmit(d);
-}
 
 LocalSceneManager::LocalSceneManager(SceneManager& scene_manager, Scene& scene) :
 	scene_manager_{ scene_manager }, scene_{ scene } {}
@@ -83,7 +78,6 @@ SceneContext::SceneContext(Application& app, Scene& parent_scene) :
 	scene{ app.scenes_, parent_scene },
 	renderer{ parent_scene, app.renderer_ },
 	debug{ renderer },
-	event{ parent_scene },
 	input{ parent_scene, app.input_ },
 	physics{ parent_scene },
 	global_renderer_{ app.renderer_ },
@@ -111,6 +105,38 @@ bool SceneContext::IsRunning() const {
 
 std::size_t SceneContext::GetFrameCount() const {
 	return app_.GetFrameCount();
+}
+
+void Scene::InternalEmit() {
+	auto& events{ ctx().event };
+
+	auto current = std::exchange(events.pending_, {});
+
+	for (auto& event : current) {
+		EventDispatcher dispatcher{ event };
+
+		if (event.entity.has_value()) {
+			// Single entity event.
+			event.entity->OnEvent(dispatcher);
+			continue;
+		}
+
+		// Global event, dispatched to all entities in the scene.
+		for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
+			e.OnEvent(dispatcher);
+			if (dispatcher.IsHandled()) {
+				break;
+			}
+		}
+
+		if (!dispatcher.IsHandled()) {
+			OnEvent(dispatcher);
+		}
+
+		for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
+			scripts.ApplyPending();
+		}
+	}
 }
 
 void Scene::Init(Application& app) {
@@ -148,18 +174,6 @@ void Scene::InternalEnter() {
 	}
 
 	Refresh();
-}
-
-void Scene::InternalEmit(EventDispatcher d) {
-	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-		scripts.Emit(d);
-		if (d.IsHandled()) {
-			return;
-		}
-	}
-	if (!d.IsHandled()) {
-		OnEvent(d);
-	}
 }
 
 bool Scene::IsTransitioning() const {
@@ -386,14 +400,13 @@ void Scene::InternalDraw() {
 void Scene::InternalUpdate() {
 	ctx().input.Update();
 
-	Refresh();
+	InternalEmit();
 
 	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
 		scripts.Update();
 	}
 
 	OnUpdate();
-	Refresh();
 
 	ParticleEmitter::Update(*this);
 	Tween::Update(*this, ctx().dt());
@@ -402,6 +415,8 @@ void Scene::InternalUpdate() {
 	ctx().physics.PreCollisionUpdate();
 	ctx().collision.Update(*this);
 	ctx().physics.PostCollisionUpdate();
+
+	Refresh();
 }
 
 void Scene::InternalExit() {

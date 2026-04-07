@@ -1,10 +1,10 @@
 #include "app/application.h"
-#include "core/event/dispatcher.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/collision_handler.h"
@@ -12,7 +12,6 @@
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 
@@ -25,7 +24,7 @@ constexpr ColliderMask ground_mask{ 1 };
 class GroundScript : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<CollisionEvent>([this](const auto& e) { Ground(e.collision); });
+		d.Dispatch<event::CollisionEvent>(&Ground, this);
 	}
 
 	void Ground(const Collision& c) const {

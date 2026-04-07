@@ -72,8 +72,6 @@ void Physics::PreCollisionUpdate() const {
 		movement.Update(entity, transform, rigid_body, dt);
 	}
 
-	scene_.Refresh();
-
 	for (auto [e, transform, rigid_body, movement, jump] :
 		 scene_.EntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
 		movement.Update(scene_, transform, rigid_body, dt);
@@ -89,8 +87,6 @@ void Physics::PreCollisionUpdate() const {
 	for (auto [e, movement] : scene_.EntitiesWith<PlatformerMovement>()) {
 		movement.grounded = false;
 	}
-
-	scene_.Refresh();
 }
 
 void Physics::PostCollisionUpdate() const {
@@ -121,8 +117,6 @@ void Physics::PostCollisionUpdate() const {
 			transform, rigid_body.velocity, Bounds{ bounds_->position, bounds_->size, behavior }
 		);
 	}
-
-	scene_.Refresh();
 }
 
 void Physics::HandleBoundary(Transform& transform, V2_float& velocity, const Bounds& bounds) {

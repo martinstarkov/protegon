@@ -33,15 +33,15 @@ impl::ScriptSequenceData::ScriptSequenceData(GameObject<Tween> tween) : tween{ s
 
 ScriptSequence& ScriptSequence::During(milliseconds duration, SequenceFunction func) {
 	auto& instance{ Get<impl::ScriptSequenceData>() };
-	instance.tween.During(duration).OnProgress([f = std::move(func)](Entity e, float) {
-		VisitSequenceFunction(f, e);
+	instance.tween.During(duration).OnProgress([f = std::move(func)](auto p) {
+		VisitSequenceFunction(f, p.tween);
 	});
 	return *this;
 }
 
 ScriptSequence& ScriptSequence::Then(SequenceFunction func) {
 	auto& instance{ Get<impl::ScriptSequenceData>() };
-	instance.tween.During(milliseconds{ 0 }).OnPointComplete([f = std::move(func)](Entity e) {
+	instance.tween.During(milliseconds{ 0 }).OnPointComplete([f = std::move(func)](auto e) {
 		VisitSequenceFunction(f, e);
 	});
 	return *this;
@@ -79,9 +79,7 @@ ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete) {
 	auto& instance{ sequence.Add<impl::ScriptSequenceData>(GameObject{ std::move(tween) }) };
 
 	if (destroy_on_complete) {
-		instance.tween.During(milliseconds{ 0 }).OnComplete([](Entity e) {
-			GetParent(e).Destroy();
-		});
+		instance.tween.During(milliseconds{ 0 }).OnComplete([](auto e) { GetParent(e).Destroy(); });
 	}
 
 	return sequence;

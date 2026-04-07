@@ -187,16 +187,8 @@ void CollisionHandler::Intersect(Entity entity1, float dt) {
 			continue;
 		}
 
-		if (auto scripts1{ entity1.TryGet<impl::Scripts>() }) {
-			CollisionEvent event;
-			event.collision = Collision{ entity2, intersection.normal };
-			scripts1->Emit(event);
-		}
-		if (auto scripts2{ entity2.TryGet<impl::Scripts>() }) {
-			CollisionEvent event;
-			event.collision = Collision{ entity1, -intersection.normal };
-			scripts2->Emit(event);
-		}
+		PushEvent<event::CollisionEvent>(entity1, Collision{ entity2, intersection.normal });
+		PushEvent<event::CollisionEvent>(entity2, Collision{ entity1, -intersection.normal });
 
 		collider1.AddIntersect(Collision{ entity2, intersection.normal });
 		collider2.AddIntersect(Collision{ entity1, -intersection.normal });
@@ -461,11 +453,8 @@ void CollisionHandler::AddEarliestCollisions(
 
 	auto& collider{ entity.Get<Collider>() };
 
-	if (auto scripts{ entity.TryGet<impl::Scripts>() }) {
-		CollisionEvent event;
-		event.collision = first;
-		scripts->Emit(event);
-	}
+	PushEvent<event::CollisionEvent>(entity, first);
+
 	collider.AddSweep(first);
 
 	for (std::size_t i{ 1 }; i < sweep_collisions.size(); ++i) {
@@ -474,11 +463,9 @@ void CollisionHandler::AddEarliestCollisions(
 		if (sweep.collision.t == first_sweep.collision.t) {
 			PTGN_ASSERT(entity != sweep.entity, "Self collision not possible");
 			Collision matching{ sweep.entity, sweep.collision.normal };
-			if (auto scripts{ entity.TryGet<impl::Scripts>() }) {
-				CollisionEvent event;
-				event.collision = matching;
-				scripts->Emit(event);
-			}
+
+			PushEvent<event::CollisionEvent>(entity, matching);
+
 			collider.AddSweep(matching);
 		}
 	}
@@ -601,32 +588,18 @@ void CollisionHandler::Update(Scene& scene) {
 		for (const auto& current : collider.overlaps_) {
 			PTGN_ASSERT(current != entity);
 			if (!std::ranges::contains(collider.previous_overlaps_, current)) {
-				if (auto scripts{ entity.TryGet<impl::Scripts>() }) {
-					OverlapStart event;
-					event.overlap_entity = current;
-					scripts->Emit(event);
-				}
+				PushEvent<event::OverlapStart>(entity, current);
 			}
 		}
 		for (const auto& previous : collider.previous_overlaps_) {
 			PTGN_ASSERT(previous != entity);
 			if (!std::ranges::contains(collider.overlaps_, previous)) {
-				if (auto scripts{ entity.TryGet<impl::Scripts>() }) {
-					OverlapStop event;
-					event.overlap_entity = previous;
-					scripts->Emit(event);
-				}
+				PushEvent<event::OverlapStop>(entity, previous);
 			} else {
-				if (auto scripts{ entity.TryGet<impl::Scripts>() }) {
-					OverlapContinue event;
-					event.overlap_entity = previous;
-					scripts->Emit(event);
-				}
+				PushEvent<event::OverlapContinue>(entity, previous);
 			}
 		}
 	}
-
-	scene.Refresh();
 }
 
 void CollisionHandler::SetSettings(const CollisionHandlerSettings& settings) {

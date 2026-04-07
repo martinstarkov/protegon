@@ -7,7 +7,6 @@
 
 #include "app/application.h"
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/easing.h"
 #include "core/math/geometry/origin.h"
@@ -17,14 +16,17 @@
 #include "ecs/ecs.h"
 #include "platform/input/key.h"
 #include "renderer/primitives/color.h"
-#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/relatives.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_view.h"
 #include "runtime/scripting/script.h"
 
 using namespace ptgn;
@@ -32,39 +34,39 @@ using namespace ptgn;
 class TweenScriptA : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<TweenComplete>([this](auto e) { PTGN_LOG("Completed tween A"); });
+		d.Dispatch<event::TweenComplete>([this](auto e) { PTGN_LOG("Completed tween A"); });
 	}
 };
 
 class TweenScriptB : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<TweenPause>([this](auto e) { PTGN_LOG("Paused tween B"); });
+		d.Dispatch<event::TweenPause>([this](auto e) { PTGN_LOG("Paused tween B"); });
 	}
 };
 
 class TweenScriptC : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<TweenRepeat>([this](auto e) {
+		d.Dispatch<event::TweenRepeat>([this]() {
 			PTGN_ERROR("This repeat should never be triggered for tween C");
 		});
-		d.Dispatch<TweenResume>([this](auto e) {
+		d.Dispatch<event::TweenResume>([this]() {
 			PTGN_LOG("Resumed tween C with value ", Tween{ entity }.GetProgress());
 		});
-		d.Dispatch<TweenPause>([this](auto e) {
+		d.Dispatch<event::TweenPause>([this]() {
 			PTGN_LOG("Paused tween C with value ", Tween{ entity }.GetProgress());
 		});
-		d.Dispatch<TweenStop>([this](auto e) {
+		d.Dispatch<event::TweenStop>([this]() {
 			PTGN_LOG("Stopped tween C with value ", Tween{ entity }.GetProgress());
 		});
-		d.Dispatch<TweenComplete>([this](auto e) {
+		d.Dispatch<event::TweenComplete>([this]() {
 			PTGN_LOG("Completed tween C with value ", Tween{ entity }.GetProgress());
 		});
-		d.Dispatch<TweenStart>([this](auto e) {
+		d.Dispatch<event::TweenStart>([this]() {
 			PTGN_LOG("Starting tween C with value ", Tween{ entity }.GetProgress());
 		});
-		d.Dispatch<TweenProgress>([this](auto e) {
+		d.Dispatch<event::TweenProgress>([]() {
 			// PTGN_LOG("Updated Value: ", Tween{ entity }.GetProgress());
 		});
 	}
@@ -73,7 +75,7 @@ public:
 class TweenScriptE : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<TweenRepeat>([this](auto e) {
+		d.Dispatch<event::TweenRepeat>([this]() {
 			PTGN_LOG("Repeating tween E (repeat #", Tween{ entity }.GetRepeats(), ")");
 		});
 	}
@@ -82,7 +84,7 @@ public:
 class TweenScriptG : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<TweenYoyo>([this](auto e) {
+		d.Dispatch<event::TweenYoyo>([this]() {
 			PTGN_LOG("Yoyoing tween G (repeat #", Tween{ entity }.GetRepeats(), ")");
 		});
 	}
@@ -91,7 +93,7 @@ public:
 class TweenScriptI : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<TweenRepeat>([this](auto e) {
+		d.Dispatch<event::TweenRepeat>([this]() {
 			PTGN_LOG("Infinitely repeating tween I (repeat #", Tween{ entity }.GetRepeats(), ")");
 		});
 	}
@@ -100,7 +102,7 @@ public:
 class TweenScriptCustom : public Script {
 public:
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<TweenPointComplete>([this](auto e) {
+		d.Dispatch<event::TweenPointComplete>([this]() {
 			SetTint(GetParent(entity), Color::RandomOpaque());
 		});
 	}
@@ -135,7 +137,7 @@ public:
 		auto rect	= CreateRect(*this, V2_float{}, V2_float{}, color, -1.0f, Origin::CenterTop);
 		auto text	= CreateText(*this, {}, name, color::Black);
 		Tween tween = CreateTween(*this).During(duration);
-		tween.OnProgress([this](auto e, float progress) { SetProgress(size, e, progress); });
+		tween.OnProgress([this](auto p) { SetProgress(size, p.tween, p.progress); });
 		AddChild(rect, text, "text");
 		AddChild(rect, tween, "tween");
 		return tween;
@@ -185,14 +187,14 @@ public:
 
 		tweenN.AddScript<TweenScriptCustom>()
 			.During(duration)
-			.OnProgress([this](auto e, float progress) { SetProgress(size, e, progress); })
+			.OnProgress([this](auto p) { SetProgress(size, p.tween, p.progress); })
 			.AddScript<TweenScriptCustom>()
 			.Reverse();
 
 		tweenO.AddScript<TweenScriptCustom>()
 			.Repeat(repeats)
 			.During(duration)
-			.OnProgress([this](auto e, float progress) { SetProgress(size, e, progress); })
+			.OnProgress([this](auto p) { SetProgress(size, p.tween, p.progress); })
 			.Repeat(repeats)
 			.Reverse()
 			.AddScript<TweenScriptCustom>();
@@ -201,7 +203,7 @@ public:
 			.Yoyo()
 			.Repeat(repeats)
 			.During(duration)
-			.OnProgress([this](auto e, float progress) { SetProgress(size, e, progress); })
+			.OnProgress([this](auto p) { SetProgress(size, p.tween, p.progress); })
 			.AddScript<TweenScriptCustom>()
 			.Yoyo()
 			.Repeat(repeats)

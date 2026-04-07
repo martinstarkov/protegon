@@ -16,15 +16,17 @@ namespace ptgn {
 
 class Scene;
 
+namespace event {
+
 struct PlayerMoveStart : public Event<PlayerMoveStart> {
 	PlayerMoveStart() = default;
 
 	explicit PlayerMoveStart(MoveDirection direction) : direction{ direction } {}
 
-	MoveDirection direction; // Direction at start
+	MoveDirection direction;		 // Direction at start
 
-	bool operator==(MoveDirection d) const {
-		return direction == d;
+	operator MoveDirection() const { // NOSONAR
+		return direction;
 	}
 };
 
@@ -33,10 +35,10 @@ struct PlayerMoveHeld : public Event<PlayerMoveHeld> {
 
 	explicit PlayerMoveHeld(MoveDirection direction) : direction{ direction } {}
 
-	MoveDirection direction; // Current direction
+	MoveDirection direction;		 // Current direction
 
-	bool operator==(MoveDirection d) const {
-		return direction == d;
+	operator MoveDirection() const { // NOSONAR
+		return direction;
 	}
 };
 
@@ -45,10 +47,10 @@ struct PlayerMoveStop : public Event<PlayerMoveStop> {
 
 	explicit PlayerMoveStop(MoveDirection last_direction) : last_direction{ last_direction } {}
 
-	MoveDirection last_direction; // Direction before stopping
+	MoveDirection last_direction;	 // Direction before stopping
 
-	bool operator==(MoveDirection d) const {
-		return last_direction == d;
+	operator MoveDirection() const { // NOSONAR
+		return last_direction;
 	}
 };
 
@@ -61,8 +63,8 @@ struct PlayerMoveDirectionChange : public Event<PlayerMoveDirectionChange> {
 	V2_float difference;
 	MoveDirection current_direction; // Resulting direction
 
-	bool operator==(MoveDirection d) const {
-		return current_direction == d;
+	operator MoveDirection() const { // NOSONAR
+		return current_direction;
 	}
 };
 
@@ -73,8 +75,8 @@ struct PlayerMoveDirectionStart : public Event<PlayerMoveDirectionStart> {
 
 	MoveDirection direction;
 
-	bool operator==(MoveDirection d) const {
-		return direction == d;
+	operator MoveDirection() const { // NOSONAR
+		return direction;
 	}
 };
 
@@ -85,8 +87,8 @@ struct PlayerMoveDirectionHeld : public Event<PlayerMoveDirectionHeld> {
 
 	MoveDirection direction;
 
-	bool operator==(MoveDirection d) const {
-		return direction == d;
+	operator MoveDirection() const { // NOSONAR
+		return direction;
 	}
 };
 
@@ -97,10 +99,12 @@ struct PlayerMoveDirectionStop : public Event<PlayerMoveDirectionStop> {
 
 	MoveDirection direction;
 
-	bool operator==(MoveDirection d) const {
-		return direction == d;
+	operator MoveDirection() const { // NOSONAR
+		return direction;
 	}
 };
+
+} // namespace event
 
 namespace impl {
 

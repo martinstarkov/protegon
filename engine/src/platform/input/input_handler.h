@@ -2,9 +2,7 @@
 
 #include <array>
 #include <cstdint>
-#include <functional>
 
-#include "core/event/event.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "platform/input/key.h"
@@ -16,6 +14,8 @@ namespace ptgn {
 class Application;
 class Window;
 class SceneInput;
+class Renderer;
+class EventHandler;
 
 namespace impl {
 
@@ -124,15 +124,15 @@ private:
 	/// indicate the time since the key was last held.
 	milliseconds GetKeyHeldTime(Key key) const;
 
-	using EventSink = std::function<void(impl::EventBase&)>;
-
 	/// @return Mouse position relative to the top left of the screen.
 	V2_float GetMouseScreenPosition() const;
 
-	/// Updates the user inputs and posts any triggered input events. Run internally when using game
-	/// scenes.
-	void Update(const EventSink& sink);
-	void PollEvents(const EventSink& sink);
+	/// @brief Updates the user inputs and posts any triggered input events. Run internally when
+	/// using game scenes.
+	/// @return False is returned if the application window was quit, true otherwise.
+	bool Update(EventHandler& events, Renderer& renderer);
+	/// @return False is returned if the application window was quit, true otherwise.
+	bool PollEvents(EventHandler& events, Renderer& renderer);
 
 	Window& window_;
 

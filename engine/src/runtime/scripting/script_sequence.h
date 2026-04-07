@@ -34,9 +34,9 @@ public:
 	ScriptSequence& During(milliseconds duration, TArgs&&... args) {
 		const auto& instance{ Get<impl::ScriptSequenceData>() };
 		auto& sequence{ Tween{ instance.tween }.During(duration) };
-		auto& script{ sequence.GetLastTweenPoint().script_container_.Add<TScript>(
+		sequence.GetLastTweenPoint().script_container_.Add<TScript>(
 			*this, std::forward<TArgs>(args)...
-		) };
+		);
 		return *this;
 	}
 

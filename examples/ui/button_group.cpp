@@ -3,13 +3,13 @@
 
 #include "app/application.h"
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/input/events.h"
 #include "platform/input/key.h"
 #include "renderer/primitives/color.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
@@ -33,9 +33,9 @@ class ToggleButtonGroupScene : public Scene {
 				.SetBackgroundColor(color::Blue, { ButtonState::Hover, false, true })
 				.SetBackgroundColor(color::DarkBlue, { ButtonState::Press, false, true })
 				.OnPress([number, group_name]() { PTGN_LOG(group_name, " pressed ", number); })
-				.OnToggle([number, group_name](bool toggled) {
+				.OnToggle([number, group_name](auto t) {
 					PTGN_LOG(
-						group_name, " toggled ", number, ": ", std::boolalpha, toggled,
+						group_name, " toggled ", number, ": ", std::boolalpha, t.toggled,
 						std::noboolalpha
 					);
 				});
@@ -64,7 +64,7 @@ class ToggleButtonGroupScene : public Scene {
 	}
 
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<KeyPressed>([this](auto& key) {
+		d.Dispatch<event::KeyPressed>([this](const auto& key) {
 			if (key == Key::I) {
 				auto active1{ group1.GetActive() };
 				PTGN_ASSERT(active1.has_value(), "No active button set for group 1");

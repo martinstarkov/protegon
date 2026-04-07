@@ -15,8 +15,10 @@
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/manager.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scripting/scripts.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 
@@ -111,6 +113,27 @@ bool Entity::WasCreatedBefore(Entity other) const {
 
 void Entity::Invalidate() {
 	*this = {};
+}
+
+void Entity::OnEvent(EventDispatcher& dispatcher) {
+	if (!*this) {
+		return;
+	}
+
+	if (auto scripts{ TryGet<impl::Scripts>() }) {
+		scripts->OnEvent(dispatcher);
+	}
+
+	// OnEvent may have resulted in this entity being destroyed, or the scripts component being
+	// removed.
+
+	if (!*this) {
+		return;
+	}
+
+	if (auto scripts{ TryGet<impl::Scripts>() }) {
+		scripts->ApplyPending();
+	}
 }
 
 void Entity::SerializeAllImpl(json& j) const {

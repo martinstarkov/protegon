@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -28,6 +27,7 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/font.h"
@@ -50,8 +50,8 @@ constexpr std::array<ButtonState, 3> kButtonStates{ ButtonState::Idle, ButtonSta
 
 ButtonAnimationCompleteScript::ButtonAnimationCompleteScript(Entity button) : button{ button } {}
 
-void ButtonAnimationCompleteScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<AnimationComplete>([this](const AnimationComplete&) mutable {
+void ButtonAnimationCompleteScript::OnEvent(EventDispatcher dispatcher) {
+	dispatcher.Dispatch<ptgn::event::AnimationComplete>([this]() mutable {
 		if (button) {
 			Button{ button }.PlayAnimation(ButtonState::Hover);
 		}
@@ -70,17 +70,14 @@ static void AddAnimationCompleteCallback(
 	}
 }
 
-void InternalButtonScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<MouseMoveOver>([this](const MouseMoveOver&) { OnMouseMoveOver(); });
-	d.Dispatch<MouseMoveOut>([this](const MouseMoveOut&) { OnMouseMoveOut(); });
-	d.Dispatch<MousePressedOver>([this](const MousePressedOver& e) { OnMousePressedOver(e.button); }
-	);
-	d.Dispatch<MousePressedOut>([this](const MousePressedOut& e) { OnMousePressedOut(e.button); });
-	d.Dispatch<MouseReleasedOver>([this](const MouseReleasedOver& e) {
-		OnMouseReleasedOver(e.button);
-	});
-	d.Dispatch<MouseReleasedOut>([this](const MouseReleasedOut& e) { OnMouseReleasedOut(e.button); }
-	);
+void InternalButtonScript::OnEvent(EventDispatcher dispatcher) {
+	using namespace ptgn::event;
+	dispatcher.Dispatch<MouseMoveOver>(&InternalButtonScript::OnMouseMoveOver, this);
+	dispatcher.Dispatch<MouseMoveOut>(&InternalButtonScript::OnMouseMoveOut, this);
+	dispatcher.Dispatch<MousePressedOver>(&InternalButtonScript::OnMousePressedOver, this);
+	dispatcher.Dispatch<MousePressedOut>(&InternalButtonScript::OnMousePressedOut, this);
+	dispatcher.Dispatch<MouseReleasedOver>(&InternalButtonScript::OnMouseReleasedOver, this);
+	dispatcher.Dispatch<MouseReleasedOut>(&InternalButtonScript::OnMouseReleasedOut, this);
 }
 
 void InternalButtonScript::OnMouseMoveOver() {
@@ -181,8 +178,10 @@ void InternalButtonScript::OnMouseReleasedOut(Mouse mouse) {
 	}
 }
 
-void InternalToggleButtonScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<ButtonPress>([this](const ButtonPress&) { OnButtonPress(); });
+void InternalToggleButtonScript::OnEvent(EventDispatcher dispatcher) {
+	dispatcher.Dispatch<event::InternalButtonPress>(
+		&InternalToggleButtonScript::OnButtonPress, this
+	);
 }
 
 void InternalToggleButtonScript::OnButtonPress() const {
@@ -196,8 +195,8 @@ void InternalToggleButtonScript::OnButtonPress() const {
 ToggleButtonGroupScript::ToggleButtonGroupScript(const ToggleButtonGroup& group) :
 	toggle_button_group_{ group } {}
 
-void ToggleButtonGroupScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<ButtonPress>([this](const ButtonPress&) { OnButtonPress(); });
+void ToggleButtonGroupScript::OnEvent(EventDispatcher dispatcher) {
+	dispatcher.Dispatch<event::InternalButtonPress>(&ToggleButtonGroupScript::OnButtonPress, this);
 }
 
 void ToggleButtonGroupScript::OnButtonPress() {
@@ -260,8 +259,8 @@ ButtonBase<Derived>::ConstButtonStyleTuple ButtonBase<Derived>::GetStyle(ButtonS
 template <typename Derived>
 ButtonBase<Derived>::ButtonStyleTuple ButtonBase<Derived>::GetStyle(ButtonStyleState state) {
 	auto [enabled_idle, idle, desired] = std::as_const(*this).GetStyle(state);
-	return { const_cast<ButtonStyle&>(enabled_idle), const_cast<ButtonStyle&>(idle),
-			 const_cast<ButtonStyle&>(desired) }; // NOSONAR
+	return { const_cast<ButtonStyle&>(enabled_idle), const_cast<ButtonStyle&>(idle), // NOSONAR
+			 const_cast<ButtonStyle&>(desired) };									 // NOSONAR
 }
 
 template <typename Derived>
@@ -425,25 +424,25 @@ template <typename Derived>
 ButtonBase<Derived>::ButtonBase(Entity entity) : Entity{ entity } {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::OnPress(const BaseButtonCallback<Derived>& callback) {
+Derived& ButtonBase<Derived>::OnPress(const ButtonBase<Derived>::Callback& callback) {
 	AddScript<impl::ButtonPressScript<Derived>>(*this, callback);
 	return Self();
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::OnHover(const BaseButtonCallback<Derived>& callback) {
+Derived& ButtonBase<Derived>::OnHover(const ButtonBase<Derived>::Callback& callback) {
 	AddScript<impl::ButtonHoverScript<Derived>>(*this, callback);
 	return Self();
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::OnHoverStart(const BaseButtonCallback<Derived>& callback) {
+Derived& ButtonBase<Derived>::OnHoverStart(const ButtonBase<Derived>::Callback& callback) {
 	AddScript<impl::ButtonHoverStartScript<Derived>>(*this, callback);
 	return Self();
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::OnHoverStop(const BaseButtonCallback<Derived>& callback) {
+Derived& ButtonBase<Derived>::OnHoverStop(const ButtonBase<Derived>::Callback& callback) {
 	AddScript<impl::ButtonHoverStopScript<Derived>>(*this, callback);
 	return Self();
 }
@@ -1031,10 +1030,7 @@ Derived& ButtonBase<Derived>::Press() {
 
 	PlaySound(ButtonState::Press);
 
-	if (auto scripts{ TryGet<impl::Scripts>() }) {
-		impl::ButtonPress event;
-		scripts->Emit(event);
-	}
+	PushEvent<event::InternalButtonPress>(*this);
 
 	return Self();
 }
@@ -1044,10 +1040,8 @@ Derived& ButtonBase<Derived>::StartHover() {
 	if (!IsEnabled(true) || Has<InteractionLock>()) {
 		return Self();
 	}
-	if (auto scripts{ TryGet<impl::Scripts>() }) {
-		impl::ButtonHoverStart event;
-		scripts->Emit(event);
-	}
+
+	PushEvent<event::InternalButtonHoverStart>(*this);
 
 	PlaySound(ButtonState::Hover);
 	PlayAnimation(ButtonState::Hover);
@@ -1060,10 +1054,9 @@ Derived& ButtonBase<Derived>::ContinueHover() {
 	if (!IsEnabled(true) || Has<InteractionLock>()) {
 		return Self();
 	}
-	if (auto scripts{ TryGet<impl::Scripts>() }) {
-		impl::ButtonHover event;
-		scripts->Emit(event);
-	}
+
+	PushEvent<event::InternalButtonHover>(*this);
+
 	return Self();
 }
 
@@ -1072,10 +1065,8 @@ Derived& ButtonBase<Derived>::StopHover() {
 	if (!IsEnabled(true) || Has<InteractionLock>()) {
 		return Self();
 	}
-	if (auto scripts{ TryGet<impl::Scripts>() }) {
-		impl::ButtonHoverStop event;
-		scripts->Emit(event);
-	}
+
+	PushEvent<event::InternalButtonHoverStop>(*this);
 
 	PlaySound(ButtonState::Idle);
 	PlayAnimation(ButtonState::Idle);
@@ -1091,8 +1082,8 @@ void ButtonBase<Derived>::SetState(InternalButtonState new_state) {
 		return;
 	}
 
-	InternalButtonState old_state = state;
-	state						  = new_state;
+	[[maybe_unused]] InternalButtonState old_state{ state };
+	state = new_state;
 
 	// OnStateChange(old_state, new_state);
 }
@@ -1107,29 +1098,11 @@ const Derived& ButtonBase<Derived>::Self() const {
 	return static_cast<const Derived&>(*this);
 }
 
-ButtonToggleScript::ButtonToggleScript(const ToggleButtonCallback& callback) :
+ButtonToggleScript::ButtonToggleScript(const ToggleButton::Callback& callback) :
 	callback_{ callback } {}
 
-void ButtonToggleScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<ButtonToggleEvent>([&](ButtonToggleEvent& e) {
-		std::visit(
-			[&]<typename TCallback>(const TCallback& callback) {
-				if constexpr (std::is_same_v<TCallback, std::function<void()>>) {
-					callback();
-				} else if constexpr (std::is_same_v<TCallback, std::function<void(ToggleButton)>>) {
-					callback(ToggleButton{ entity });
-				} else if constexpr (std::is_same_v<
-										 TCallback, std::function<void(ToggleButton, bool)>>) {
-					callback(ToggleButton{ entity }, e.toggled);
-				} else if constexpr (std::is_same_v<TCallback, std::function<void(bool)>>) {
-					callback(e.toggled);
-				} else {
-					static_assert(false, "Incomplete visitor");
-				}
-			},
-			callback_
-		);
-	});
+void ButtonToggleScript::OnEvent(EventDispatcher dispatcher) {
+	dispatcher.DispatchVariant<ptgn::event::ButtonToggle>(callback_);
 }
 
 template class ButtonBase<Button>;
@@ -1146,7 +1119,7 @@ bool ToggleButton::IsToggled() const {
 	return Has<impl::ButtonToggled>();
 }
 
-ToggleButton& ToggleButton::OnToggle(const ToggleButtonCallback& callback) {
+ToggleButton& ToggleButton::OnToggle(const ToggleButton::Callback& callback) {
 	AddScript<impl::ButtonToggleScript>(*this, callback);
 	return *this;
 }
@@ -1160,11 +1133,7 @@ ToggleButton& ToggleButton::SetToggled(bool toggled) {
 	} else {
 		Remove<impl::ButtonToggled>();
 	}
-	if (auto scripts{ TryGet<impl::Scripts>() }) {
-		impl::ButtonToggleEvent event;
-		event.toggled = toggled;
-		scripts->Emit(event);
-	}
+	PushEvent<event::ButtonToggle>(*this, *this, toggled);
 	return *this;
 }
 

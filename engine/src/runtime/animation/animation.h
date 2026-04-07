@@ -9,7 +9,6 @@
 #include <unordered_map>
 #include <variant>
 
-#include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
@@ -19,6 +18,7 @@
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/serialize.h"
 
@@ -54,32 +54,52 @@ struct AnimationConfig {
 	)
 };
 
+namespace event {
+
 /// @brief Triggered when an animation is started.
-struct AnimationStart : public Event<AnimationStart> {};
+struct AnimationStart : public Event<AnimationStart> {
+	AnimationStart() = default;
+};
 
 /// @brief Triggered when an animation is stopped, either by calling Stop() or Reset(), or when the
 /// animation completes.
-struct AnimationStop : public Event<AnimationStop> {};
+struct AnimationStop : public Event<AnimationStop> {
+	AnimationStop() = default;
+};
 
 /// @brief Triggered when an animation is paused.
-struct AnimationPause : public Event<AnimationPause> {};
+struct AnimationPause : public Event<AnimationPause> {
+	AnimationPause() = default;
+};
 
 /// @brief Triggered when an animation is resumed.
-struct AnimationResume : public Event<AnimationResume> {};
+struct AnimationResume : public Event<AnimationResume> {
+	AnimationResume() = default;
+};
 
 /// @brief Triggered any time the animation frame changes, including when the animation starts. Does
 /// not trigger when the animation is manually reset or if it completes and reset_on_complete is
 /// true.
-struct AnimationFrameChange : public Event<AnimationFrameChange> {};
+struct AnimationFrameChange : public Event<AnimationFrameChange> {
+	AnimationFrameChange() = default;
+};
 
 /// @brief Triggered every frame that an animation is playing.
-struct AnimationUpdate : public Event<AnimationUpdate> {};
+struct AnimationUpdate : public Event<AnimationUpdate> {
+	AnimationUpdate() = default;
+};
 
 /// @brief Triggered when all animation plays have completed.
-struct AnimationComplete : public Event<AnimationComplete> {};
+struct AnimationComplete : public Event<AnimationComplete> {
+	AnimationComplete() = default;
+};
 
 /// @brief Triggered every time an animation plays through all its frames.
-struct AnimationLoopComplete : public Event<AnimationLoopComplete> {};
+struct AnimationLoopComplete : public Event<AnimationLoopComplete> {
+	AnimationLoopComplete() = default;
+};
+
+} // namespace event
 
 struct Animation : public Entity {
 	Animation() = default;
@@ -181,36 +201,22 @@ struct AnimationScript : public Script {
 
 	explicit AnimationScript(const Animation::Callback& callback) : callback_{ callback } {}
 
-	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<T>([this](T&) {
-			std::visit(
-				[this]<typename TCallback>(const TCallback& callback) {
-					if constexpr (std::is_same_v<TCallback, std::function<void()>>) {
-						callback();
-					} else if constexpr (std::is_same_v<
-											 TCallback, std::function<void(Animation)>>) {
-						callback(Animation{ entity });
-					} else {
-						static_assert(false, "Incomplete visitor");
-					}
-				},
-				callback_
-			);
-		});
+	void OnEvent(EventDispatcher dispatcher) override {
+		dispatcher.DispatchVariantBound<T>(callback_, Animation{ entity });
 	}
 
 private:
 	Animation::Callback callback_;
 };
 
-using AnimationStartScript		  = AnimationScript<AnimationStart>;
-using AnimationStopScript		  = AnimationScript<AnimationStop>;
-using AnimationPauseScript		  = AnimationScript<AnimationPause>;
-using AnimationResumeScript		  = AnimationScript<AnimationResume>;
-using AnimationFrameChangeScript  = AnimationScript<AnimationFrameChange>;
-using AnimationUpdateScript		  = AnimationScript<AnimationUpdate>;
-using AnimationCompleteScript	  = AnimationScript<AnimationComplete>;
-using AnimationLoopCompleteScript = AnimationScript<AnimationLoopComplete>;
+using AnimationStartScript		  = AnimationScript<ptgn::event::AnimationStart>;
+using AnimationStopScript		  = AnimationScript<ptgn::event::AnimationStop>;
+using AnimationPauseScript		  = AnimationScript<ptgn::event::AnimationPause>;
+using AnimationResumeScript		  = AnimationScript<ptgn::event::AnimationResume>;
+using AnimationFrameChangeScript  = AnimationScript<ptgn::event::AnimationFrameChange>;
+using AnimationUpdateScript		  = AnimationScript<ptgn::event::AnimationUpdate>;
+using AnimationCompleteScript	  = AnimationScript<ptgn::event::AnimationComplete>;
+using AnimationLoopCompleteScript = AnimationScript<ptgn::event::AnimationLoopComplete>;
 
 } // namespace impl
 

@@ -136,10 +136,10 @@ Tween AddTweenEffect(
 	tween.During(duration)
 		.Ease(ease)
 		.OnStart(update_start)
-		.OnProgress([target, set_current_value](Entity e, float progress) mutable {
-			auto& value{ e.template Get<TComponent>() };
-			auto result{ Lerp(value.start, target, progress) };
-			Entity parent{ GetParent(e) };
+		.OnProgress([target, set_current_value](auto p) mutable {
+			auto& value{ p.tween.template Get<TComponent>() };
+			auto result{ Lerp(value.start, target, p.progress) };
+			Entity parent{ GetParent(p.tween) };
 			set_current_value(parent, result);
 		})
 		.OnPointComplete(update_start)
@@ -161,17 +161,17 @@ V2_float GetFollowPosition(
 
 void VelocityModeMoveImpl(const FollowConfig& config, Entity parent, V2_float dir);
 
-void TargetFollowImpl(Entity target, const TargetFollowConfig& config, Entity tween_entity);
+void TargetFollowImpl(Entity target, const TargetFollowConfig& config, Tween tween);
 
 void PathFollowImpl(
-	const std::vector<V2_float>& waypoints, const PathFollowConfig& config, Entity tween_entity
+	const std::vector<V2_float>& waypoints, const PathFollowConfig& config, Tween tween
 );
 
 void EntityFollowStopImpl(Entity e);
 
 Tween StartFollowImpl(
-	Entity entity, bool force, const TweenCallback& start_func,
-	const std::function<void(Entity, float)>& update_func
+	Entity entity, bool force, const Tween::Callback& start_func,
+	const Tween::ProgressCallback& update_func
 );
 
 void EntityFollowStartImpl(Entity parent, const FollowConfig& config);
@@ -236,9 +236,9 @@ Tween TweenTo(
 	tween.During(duration)
 		.Ease(ease)
 		.OnStart(update_start)
-		.OnProgress([start, property, target](Entity e, float progress) mutable {
-			auto result = Lerp(*start, target, progress);
-			Entity parent{ GetParent(e) };
+		.OnProgress([start, property, target](auto p) mutable {
+			auto result = Lerp(*start, target, p.progress);
+			Entity parent{ GetParent(p.tween) };
 			property.set(parent, result);
 		})
 		.OnPointComplete(update_start)

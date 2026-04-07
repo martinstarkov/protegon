@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
@@ -29,6 +28,7 @@
 #include "renderer/primitives/vertex.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
@@ -257,12 +257,7 @@ static void UpdateParticles(
 
 		if (p.age >= p.lifetime) {
 			dead_particles.emplace_back(entity);
-			if (auto scripts{ emitter_entity.TryGet<Scripts>() }) {
-				ParticleDestroyed event;
-				event.emitter  = emitter_entity;
-				event.particle = p;
-				scripts->Emit(event);
-			}
+			PushEvent<event::ParticleDestroyed>(emitter_entity, emitter_entity, p);
 			continue;
 		}
 
@@ -320,22 +315,8 @@ static void UpdateEmitterPlayback(ParticleEmitterComponent& emitter, millisecond
 ParticleDestroyScript::ParticleDestroyScript(const ParticleEmitter::DestroyCallback& callback) :
 	callback_{ callback } {}
 
-void ParticleDestroyScript::OnEvent(EventDispatcher d) {
-	d.Dispatch<ParticleDestroyed>([this](const ParticleDestroyed& event) {
-		std::visit(
-			[this, &event]<typename TCallback>(const TCallback& callback) {
-				if constexpr (std::is_same_v<TCallback, std::function<void()>>) {
-					callback();
-				} else if constexpr (std::is_same_v<
-										 TCallback, std::function<void(ParticleDestroyed)>>) {
-					callback(event);
-				} else {
-					static_assert(false, "Incomplete visitor");
-				}
-			},
-			callback_
-		);
-	});
+void ParticleDestroyScript::OnEvent(EventDispatcher dispatcher) {
+	dispatcher.DispatchVariant<event::ParticleDestroyed>(callback_);
 }
 
 } // namespace impl
@@ -486,6 +467,7 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera) {
 
 void ParticleEmitter::Update(Scene& scene) {
 	auto dt{ duration_cast<milliseconds>(scene.ctx().dt()) };
+
 	for (auto [entity, emitter] : scene.EntitiesWith<impl::ParticleEmitterComponent>()) {
 		// Update emission (spawn new particles)
 		UpdateEmitterPlayback(emitter, dt);
@@ -495,8 +477,6 @@ void ParticleEmitter::Update(Scene& scene) {
 			UpdateParticles(ParticleEmitter{ entity }, emitter, dt);
 		}
 	}
-
-	scene.Refresh();
 }
 
 ParticleEmitter CreateParticleEmitter(

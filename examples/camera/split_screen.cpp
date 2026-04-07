@@ -2,7 +2,7 @@
 #include <utility>
 
 #include "app/application.h"
-#include "core/event/dispatcher.h"
+#include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
@@ -14,7 +14,9 @@
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target_component.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
@@ -35,10 +37,10 @@ constexpr Viewport camera_viewport{ { game_size.x / 2.0f, 0.0f },
 
 struct RectDragScript : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<Dragging>([this](auto d) { OnDrag(d.position); });
+		d.Dispatch<event::Dragging>(&RectDragScript::OnDrag, this);
 	}
 
-	void OnDrag(V2_float pos) {
+	void OnDrag(V2_float pos) const {
 		SetPosition(entity, pos);
 		PTGN_LOG("Position: ", pos);
 	}
@@ -46,17 +48,15 @@ struct RectDragScript : public Script {
 
 struct CircleDragScript : public Script {
 	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<Dragging>([this](auto d) { OnDrag(d.position); });
+		d.Dispatch<event::Dragging>(&CircleDragScript::OnDrag, this);
 	}
 
-	void OnDrag(V2_float pos) {
+	void OnDrag(V2_float pos) const {
 		SetPosition(entity, pos);
 	}
 };
 
 struct ResolutionScene : public Scene {
-	Sprite circle;
-
 	Camera camera0;
 
 	void OnEnter() override {
@@ -78,7 +78,6 @@ struct ResolutionScene : public Scene {
 		ctx().input.SetSettings({ .debug_draw_enabled = true, .debug_draw_line_width = 10.0f });
 
 		V2_int rect_size{ 100, 100 };
-
 		auto rect = CreateRect(*this, { 0, 0 }, rect_size, color::Green);
 		auto child0{ CreateEntity() };
 		child0.Add<Rect>(rect_size);
@@ -104,7 +103,7 @@ struct ResolutionScene : public Scene {
 		AddScript<CircleDragScript>(circle);*/
 	}
 
-	const float rotation_speed{ 1.0f };
+	const float rotation_speed{ 100.0f };
 	const float zoom_speed{ 0.4f };
 
 	void OnUpdate() override {

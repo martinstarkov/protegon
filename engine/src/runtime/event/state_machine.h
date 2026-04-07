@@ -3,7 +3,7 @@
 #include <functional>
 #include <vector>
 
-#include "core/event/dispatcher.h"
+#include "runtime/event/event_dispatcher.h"
 #include "core/event/event.h"
 #include "core/util/hash.h"
 #include "runtime/ecs/entity.h"

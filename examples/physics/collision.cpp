@@ -5,7 +5,6 @@
 
 #include "app/application.h"
 #include "core/assert.h"
-#include "core/event/dispatcher.h"
 #include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
@@ -16,6 +15,7 @@
 #include "platform/input/key.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/collision_handler.h"
@@ -54,15 +54,9 @@ struct TestOverlapScript : public Script {
 	explicit TestOverlapScript(const std::string& name) : name{ name } {}
 
 	void OnEvent(EventDispatcher d) final {
-		d.Dispatch<OverlapStart>([this](const OverlapStart& overlap) {
-			OnOverlapStart(overlap.overlap_entity);
-		});
-		d.Dispatch<OverlapContinue>([this](const OverlapContinue& overlap) {
-			OnOverlap(overlap.overlap_entity);
-		});
-		d.Dispatch<OverlapStop>([this](const OverlapStop& overlap) {
-			OnOverlapStop(overlap.overlap_entity);
-		});
+		d.Dispatch<event::OverlapStart>(&OnOverlapStart, this);
+		d.Dispatch<event::OverlapContinue>(&OnOverlap, this);
+		d.Dispatch<event::OverlapStop>(&OnOverlapStop, this);
 	}
 
 	void OnOverlapStart(Entity other) {
@@ -86,7 +80,7 @@ struct TestIntersectScript : public Script {
 	explicit TestIntersectScript(const std::string& name) : name{ name } {}
 
 	void OnEvent(EventDispatcher d) final {
-		d.Dispatch<CollisionEvent>([this](const CollisionEvent& c) { OnCollision(c.collision); });
+		d.Dispatch<event::CollisionEvent>(&OnCollision, this);
 	}
 
 	void OnCollision(Collision c) {
@@ -102,7 +96,7 @@ struct TestRaycastScript : public Script {
 	explicit TestRaycastScript(const std::string& name) : name{ name } {}
 
 	void OnEvent(EventDispatcher d) final {
-		d.Dispatch<CollisionEvent>([this](const CollisionEvent& c) { OnCollision(c.collision); });
+		d.Dispatch<event::CollisionEvent>(&OnCollision, this);
 	}
 
 	void OnCollision(Collision c) {

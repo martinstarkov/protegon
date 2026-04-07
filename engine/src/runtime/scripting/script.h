@@ -1,11 +1,13 @@
 #pragma once
 
 #include <concepts>
+#include <optional>
 
-#include "core/event/dispatcher.h"
+#include "core/event/event.h"
 #include "core/util/hash.h"
 #include "core/util/type_info.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 
 namespace ptgn {
 
@@ -32,11 +34,17 @@ public:
 	virtual void OnEvent(EventDispatcher) { /* User implementation */ }
 
 protected:
-	/// @brief Global emit (via ApplicationContext).
-	void Emit(EventDispatcher d);
+	template <EventType T, typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	void PushEvent(TArgs&&... args) {
+		PushEvent<T>(entity, std::forward<TArgs>(args)...);
+	}
 
-	/// @brief Local emit (via Scene).
-	void EmitScene(EventDispatcher d);
+	template <EventType T, typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	void PushSceneEvent(TArgs&&... args) {
+		PushEvent<T>(std::nullopt, std::forward<TArgs>(args)...);
+	}
 
 	Entity entity;
 

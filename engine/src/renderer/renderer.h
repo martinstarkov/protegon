@@ -12,8 +12,6 @@
 #include <variant>
 #include <vector>
 
-#include "core/event/dispatcher.h"
-#include "core/event/event.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
@@ -45,14 +43,7 @@ class Scene;
 class AssetManager;
 class RenderTarget;
 class Renderer;
-
-struct GameResized : public Event<GameResized> {
-	GameResized() = default;
-
-	explicit GameResized(V2_int game_size) : size{ game_size } {}
-
-	V2_int size;
-};
+class InputHandler;
 
 namespace impl {
 
@@ -67,14 +58,6 @@ class Resource;
 template <typename State, typename F>
 	requires std::same_as<std::invoke_result_t<F&>, void>
 void UpdateStateIfChanged(Renderer&, const State&, const State&, F&&);
-
-struct InternalGameResized : public Event<InternalGameResized> {
-	InternalGameResized() = default;
-
-	explicit InternalGameResized(V2_int game_size) : size{ game_size } {}
-
-	V2_int size;
-};
 
 struct QuadInfo {
 	std::array<V2_float, 4> positions;
@@ -97,14 +80,6 @@ struct TriangleParams {
 struct QuadParams {
 	QuadInfo quad;
 	std::optional<TextureId> texture;
-};
-
-struct InternalDisplayResized : public Event<InternalDisplayResized> {
-	V2_int size;
-};
-
-struct InternalDisplayViewportChanged : public Event<InternalDisplayViewportChanged> {
-	Viewport viewport;
 };
 
 struct PooledTarget {
@@ -136,6 +111,7 @@ private:
 	friend class RenderTarget;
 	friend class DrawContext;
 	friend class RenderContext;
+	friend class InputHandler;
 	friend class DebugContext;
 	friend class impl::ShaderObject;
 	friend class impl::RenderTargetObject;
@@ -284,7 +260,7 @@ private:
 	void BindScreenTarget();
 	void ResizeScreenTarget(V2_int size);
 
-	void OnEvent(EventDispatcher d);
+	void OnWindowResize(V2_int size);
 
 	void BeginFrame();
 	void EndFrame();

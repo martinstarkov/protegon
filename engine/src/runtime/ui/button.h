@@ -11,7 +11,6 @@
 #include <variant>
 #include <vector>
 
-#include "core/event/dispatcher.h"
 #include "core/event/event.h"
 #include "core/log.h"
 #include "core/math/easing.h"
@@ -29,6 +28,7 @@
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
@@ -190,7 +190,7 @@ struct ButtonAnimationCompleteScript : public Script {
 
 	Entity button;
 
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(EventDispatcher dispatcher) override;
 };
 
 struct ToggleButtonInteractionStyle {
@@ -241,6 +241,12 @@ PTGN_SERIALIZE_ENUM(
 				   { ButtonState::Current, "current" } }
 );
 
+namespace event {
+
+struct ButtonToggle;
+
+} // namespace event
+
 namespace impl {
 
 class ToggleButtonGroupScript;
@@ -278,7 +284,7 @@ PTGN_SERIALIZE_ENUM(
 
 class InternalButtonScript : public Script {
 public:
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(EventDispatcher dispatcher) override;
 
 private:
 	void OnMouseMoveOver();
@@ -294,21 +300,29 @@ private:
 	void OnMouseReleasedOut(Mouse mouse);
 };
 
-struct ButtonPress : public Event<ButtonPress> {};
+namespace event {
 
-struct ButtonHoverStart : public Event<ButtonHoverStart> {};
-
-struct ButtonHoverStop : public Event<ButtonHoverStop> {};
-
-struct ButtonHover : public Event<ButtonHover> {};
-
-struct ButtonToggleEvent : public Event<ButtonToggleEvent> {
-	bool toggled{ false };
+struct InternalButtonPress : public Event<InternalButtonPress> {
+	InternalButtonPress() = default;
 };
+
+struct InternalButtonHoverStart : public Event<InternalButtonHoverStart> {
+	InternalButtonHoverStart() = default;
+};
+
+struct InternalButtonHoverStop : public Event<InternalButtonHoverStop> {
+	InternalButtonHoverStop() = default;
+};
+
+struct InternalButtonHover : public Event<InternalButtonHover> {
+	InternalButtonHover() = default;
+};
+
+} // namespace event
 
 class InternalToggleButtonScript : public Script {
 public:
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(EventDispatcher dispatcher) override;
 
 private:
 	void OnButtonPress() const;
@@ -336,9 +350,6 @@ struct hash<ptgn::impl::ToggleButtonGroupKey> {
 namespace ptgn {
 
 namespace impl {
-
-template <typename Derived>
-using BaseButtonCallback = std::variant<std::function<void()>, std::function<void(Derived)>>;
 
 struct ToggleButtonGroupData {
 	ToggleButtonGroupData()											   = default;
@@ -422,11 +433,13 @@ public:
 
 	std::optional<Entity> GetSprite(ButtonStyleState state = {}) const;
 
+	using Callback = std::variant<std::function<void()>, std::function<void(Derived)>>;
+
 	/// @brief Set button callback scripts.
-	Derived& OnPress(const BaseButtonCallback<Derived>& callback);
-	Derived& OnHover(const BaseButtonCallback<Derived>& callback);
-	Derived& OnHoverStart(const BaseButtonCallback<Derived>& callback);
-	Derived& OnHoverStop(const BaseButtonCallback<Derived>& callback);
+	Derived& OnPress(const Callback& callback);
+	Derived& OnHover(const Callback& callback);
+	Derived& OnHoverStart(const Callback& callback);
+	Derived& OnHoverStop(const Callback& callback);
 
 	Derived& Enable(bool enable_hover = true, bool reset_state = true);
 	Derived& Disable(bool disable_hover = true, bool reset_state = true);
@@ -551,10 +564,6 @@ public:
 
 class ToggleButton;
 
-using ToggleButtonCallback = std::variant<
-	std::function<void()>, std::function<void(bool)>, std::function<void(ToggleButton)>,
-	std::function<void(ToggleButton, bool)>>;
-
 class ToggleButton : public impl::ButtonBase<ToggleButton> {
 public:
 	ToggleButton() = default;
@@ -563,7 +572,9 @@ public:
 
 	[[nodiscard]] bool IsToggled() const;
 
-	ToggleButton& OnToggle(const ToggleButtonCallback& callback);
+	using Callback = std::variant<std::function<void()>, std::function<void(event::ButtonToggle)>>;
+
+	ToggleButton& OnToggle(const Callback& callback);
 	ToggleButton& SetToggled(bool toggled);
 	ToggleButton& Toggle();
 };
@@ -597,6 +608,19 @@ private:
 	void SetActiveKey(impl::ToggleButtonGroupKey key);
 };
 
+namespace event {
+
+struct ButtonToggle : public Event<ButtonToggle> {
+	ButtonToggle() = default;
+
+	ButtonToggle(const ToggleButton& button, bool toggled) : button{ button }, toggled{ toggled } {}
+
+	ToggleButton button;
+	bool toggled{ false };
+};
+
+} // namespace event
+
 namespace impl {
 
 class ToggleButtonGroupScript : public Script {
@@ -604,7 +628,7 @@ public:
 	ToggleButtonGroupScript() = default;
 	explicit ToggleButtonGroupScript(const ToggleButtonGroup& group);
 
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(EventDispatcher dispatcher) override;
 
 private:
 	void OnButtonPress();
@@ -616,47 +640,34 @@ template <typename Derived, EventType T>
 struct ButtonScript : public Script {
 	ButtonScript() = default;
 
-	explicit ButtonScript(const BaseButtonCallback<Derived>& callback) : callback_{ callback } {}
+	explicit ButtonScript(const ButtonBase<Derived>::Callback& callback) : callback_{ callback } {}
 
-	void OnEvent(EventDispatcher d) override {
-		d.Dispatch<T>([this](T&) {
-			std::visit(
-				[this]<typename TCallback>(const TCallback& callback) {
-					if constexpr (std::is_same_v<TCallback, std::function<void()>>) {
-						callback();
-					} else if constexpr (std::is_same_v<TCallback, std::function<void(Derived)>>) {
-						callback(Derived{ entity });
-					} else {
-						static_assert(false, "Incomplete visitor");
-					}
-				},
-				callback_
-			);
-		});
+	void OnEvent(EventDispatcher dispatcher) override {
+		dispatcher.DispatchVariantBound<T>(callback_, Derived{ entity });
 	}
 
 private:
-	BaseButtonCallback<Derived> callback_;
+	ButtonBase<Derived>::Callback callback_;
 };
 
 template <typename Derived>
-using ButtonPressScript = ButtonScript<Derived, ButtonPress>;
+using ButtonPressScript = ButtonScript<Derived, event::InternalButtonPress>;
 template <typename Derived>
-using ButtonHoverStartScript = ButtonScript<Derived, ButtonHoverStart>;
+using ButtonHoverStartScript = ButtonScript<Derived, event::InternalButtonHoverStart>;
 template <typename Derived>
-using ButtonHoverStopScript = ButtonScript<Derived, ButtonHoverStop>;
+using ButtonHoverStopScript = ButtonScript<Derived, event::InternalButtonHoverStop>;
 template <typename Derived>
-using ButtonHoverScript = ButtonScript<Derived, ButtonHover>;
+using ButtonHoverScript = ButtonScript<Derived, event::InternalButtonHover>;
 
 struct ButtonToggleScript : public Script {
 	ButtonToggleScript() = default;
 
-	explicit ButtonToggleScript(const ToggleButtonCallback& callback);
+	explicit ButtonToggleScript(const ToggleButton::Callback& callback);
 
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(EventDispatcher dispatcher) override;
 
 private:
-	ToggleButtonCallback callback_;
+	ToggleButton::Callback callback_;
 };
 
 } // namespace impl

@@ -1,7 +1,9 @@
 #pragma once
 
 #include <concepts>
+#include <memory>
 #include <type_traits>
+#include <variant>
 
 #include "core/util/hash.h"
 #include "core/util/type_info.h"
@@ -21,7 +23,7 @@ private:
 
 	bool event_handled_{ false };
 
-	constexpr virtual std::size_t Type() = 0;
+	constexpr virtual std::size_t Type() const = 0;
 };
 
 } // namespace impl
@@ -39,7 +41,7 @@ private:
 
 	static constexpr std::size_t event_id_{ Hash<Derived>() };
 
-	constexpr std::size_t Type() override {
+	constexpr std::size_t Type() const override {
 		return event_id_;
 	}
 };

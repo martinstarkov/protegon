@@ -11,23 +11,17 @@
 #include <chrono>
 #include <cstdint>
 #include <format>
-#include <memory>
 #include <string>
 
 #include "core/assert.h"
 #include "core/config.h"
-#include "core/event/dispatcher.h"
-#include "core/event/event.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "platform/input/events.h"
 #include "platform/input/input_handler.h"
 #include "platform/window/window.h"
 #include "renderer/renderer.h"
-#include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio_system.h"
-#include "runtime/event/event_handler.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
 
@@ -239,17 +233,10 @@ void Application::Update() {
 
 	start = end;
 
-	input_.Update([this](impl::EventBase& e) {
-		renderer_.OnEvent(e);
-
-		events_.Emit(e);
-
-		if (EventDispatcher{ e }.IsType<WindowQuit>()) {
-			running_ = false;
-		}
-	});
+	running_ = input_.Update(events_, renderer_);
 
 	renderer_.BeginFrame();
+
 	scenes_.Update(dt());
 
 	audio_.Update();
