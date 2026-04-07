@@ -54,7 +54,7 @@ struct ShapeAndSpriteScene : public Scene {
 			.During(1s)
 			.Repeat(-1)
 			.OnProgress([this](auto p) {
-				auto& arc_shape{ GetParent(p.tween).Get<Arc>() };
+				auto& arc_shape{ GetParent(p.tween).template Get<Arc>() };
 
 				arc_shape.SetStartAngle(Lerp(start_angle, end_angle, p.progress));
 			})

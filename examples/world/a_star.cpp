@@ -13,7 +13,6 @@
 #include "renderer/renderer.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_manager.h"
 #include "runtime/world/grid.h"
 
@@ -143,7 +142,7 @@ class PathfindingScene : public Scene {
 			);
 		}
 
-		const auto display_waypoints = [=](const auto& waypoints, const auto& color) {
+		const auto display_waypoints = [&](const auto& waypoints, const auto& color) {
 			for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
 				ctx().renderer.DrawShape(
 					Line{ -game_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,

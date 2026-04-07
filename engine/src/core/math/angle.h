@@ -92,14 +92,6 @@ constexpr Degrees Radians::ToDeg() const {
 	return Degrees{ *this };
 }
 
-consteval Degrees operator"" _deg(long double d) {
-	return Degrees{ static_cast<float>(d) };
-}
-
-consteval Radians operator"" _rad(long double r) {
-	return Radians{ static_cast<float>(r) };
-}
-
 constexpr Degrees operator+(Degrees a, Degrees b) { // NOSONAR
 	return Degrees{ a.value + b.value };
 }

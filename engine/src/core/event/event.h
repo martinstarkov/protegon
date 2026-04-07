@@ -16,6 +16,8 @@ namespace impl {
 
 struct EventBase {
 public:
+	bool operator==(const EventBase&) const = default;
+
 	virtual ~EventBase() = default;
 
 private:

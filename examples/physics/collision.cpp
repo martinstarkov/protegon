@@ -299,7 +299,6 @@ public:
 
 	void Draw() override {
 		// TODO: Fix debug drawing.
-		/*
 		for (auto [e, b] : manager.EntitiesWith<BoxCollider>()) {
 			Rect r{ b.GetAbsoluteRect() };
 			DrawRect(e, r);

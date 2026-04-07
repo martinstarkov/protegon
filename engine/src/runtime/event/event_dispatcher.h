@@ -21,10 +21,14 @@ namespace impl {
 class TweenData;
 
 struct TagEvent {
+	bool operator==(const TagEvent&) const = default;
+
 	std::size_t type_id{ 0 };
 };
 
 struct PayloadEvent {
+	bool operator==(const PayloadEvent&) const = default;
+
 	std::unique_ptr<EventBase> event;
 };
 
@@ -32,6 +36,8 @@ struct QueuedEvent {
 	std::optional<Entity> entity;
 	bool handled{ false };
 	std::variant<TagEvent, PayloadEvent> storage;
+
+	bool operator==(const QueuedEvent&) const = default;
 
 	template <EventType T, typename... TArgs>
 	static QueuedEvent Make(const std::optional<Entity>& entity, TArgs&&... args) {
@@ -232,6 +238,8 @@ public:
 		}
 		pending_.emplace_back(impl::QueuedEvent::Make<T>(entity, std::forward<TArgs>(args)...));
 	}
+
+	bool operator==(const LocalEventHandler&) const = default;
 
 private:
 	friend class Scene;
