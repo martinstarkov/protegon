@@ -1,7 +1,6 @@
 #pragma once
 
 #include <concepts>
-#include <optional>
 
 #include "core/event/event.h"
 #include "core/util/hash.h"
@@ -34,18 +33,6 @@ public:
 	virtual void OnEvent(EventDispatcher) { /* User implementation */ }
 
 protected:
-	template <EventType T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	void PushEvent(TArgs&&... args) {
-		PushEvent<T>(entity, std::forward<TArgs>(args)...);
-	}
-
-	template <EventType T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
-	void PushSceneEvent(TArgs&&... args) {
-		PushEvent<T>(std::nullopt, std::forward<TArgs>(args)...);
-	}
-
 	Entity entity;
 
 private:
