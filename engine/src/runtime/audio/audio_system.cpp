@@ -17,17 +17,10 @@
 #include "ecs/ecs.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/audio/audio.h"
 #include "runtime/audio/track.h"
 
 namespace ptgn {
-
-namespace impl {
-
-void MIX_AudioDeleter::operator()(MIX_Audio* audio) const {
-	MIX_DestroyAudio(audio);
-}
-
-} // namespace impl
 
 AudioSystem::AudioSystem(AssetManager& assets) : assets_{ assets } {
 	mixer_ = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, nullptr);

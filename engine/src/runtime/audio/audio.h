@@ -3,10 +3,20 @@
 #include "core/util/entity_handle.h"
 #include "ecs/ecs.h"
 
+struct MIX_Audio;
+
 namespace ptgn {
 
 class AssetManager;
 class AudioSystem;
+
+namespace impl {
+
+struct MIX_AudioDeleter {
+	void operator()(MIX_Audio* audio) const;
+};
+
+} // namespace impl
 
 class Audio : public EntityHandle {
 public:

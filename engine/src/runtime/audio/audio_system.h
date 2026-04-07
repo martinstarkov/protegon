@@ -21,16 +21,6 @@ inline constexpr float kMaxFrequencyRatio{ 100.0f };
 class AssetManager;
 class Application;
 
-namespace impl {
-
-class SDLInstance;
-
-struct MIX_AudioDeleter {
-	void operator()(MIX_Audio* audio) const;
-};
-
-} // namespace impl
-
 class AudioSystem {
 public:
 	explicit AudioSystem(AssetManager& assets);
