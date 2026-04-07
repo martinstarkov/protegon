@@ -790,8 +790,6 @@ void SceneInput::Update() {
 	std::erase_if(last_mouse_over_, [&cameras](const auto& pair) {
 		return !std::ranges::contains(cameras, Entity{ pair.first });
 	});
-
-	scene_.Refresh();
 }
 
 } // namespace ptgn
