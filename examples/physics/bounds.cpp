@@ -20,6 +20,10 @@ using namespace ptgn;
 constexpr V2_int game_size{ 800, 800 };
 
 struct PhysicsBoundaryScene : public Scene {
+	PhysicsBoundaryScene() = default;
+
+	PhysicsBoundaryScene(BoundaryBehavior behavior) : behavior{ behavior } {}
+
 	Entity player;
 	V2_float player_size{ 20, 20 };
 
@@ -71,11 +75,9 @@ struct PhysicsBoundaryScene : public Scene {
 		SetPosition(player, pos);
 
 		if (ctx().input.KeyPressed(Key::Q)) {
-			behavior = BoundaryBehavior::StopVelocity;
-			ReEnter<PhysicsBoundaryScene>();
+			ReEnter<PhysicsBoundaryScene>(BoundaryBehavior::StopVelocity);
 		} else if (ctx().input.KeyPressed(Key::E)) {
-			behavior = BoundaryBehavior::ReflectVelocity;
-			ReEnter<PhysicsBoundaryScene>();
+			ReEnter<PhysicsBoundaryScene>(BoundaryBehavior::ReflectVelocity);
 		}
 	}
 };

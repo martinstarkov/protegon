@@ -55,19 +55,17 @@ public:
 
 class SceneExample : public Scene {
 public:
-	SceneExample() {
+	void OnEnter() override {
 		ctx().asset.LoadMany({ { "bg1", "assets/scene1.png" },
 							   { "bg2", "assets/scene2.png" },
 							   { "bg3", "assets/scene3.png" } });
-	}
 
-	void OnEnter() override {
 		ctx().scene.Enter<Scene1>("scene1");
 		ctx().scene.Enter<Scene2>("scene2");
 	}
 };
 
 int main(int, char**) {
-	Application app{ "SceneExample", game_size };
+	Application app{ "SceneExample: A to re-enter scene 2", game_size };
 	app.StartWith<SceneExample>("scene_example");
 }

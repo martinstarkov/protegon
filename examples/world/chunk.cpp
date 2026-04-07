@@ -20,15 +20,14 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
 class ChunkScene : public Scene {
 public:
-	Entity CreateSheep(V2_float position) {
-		auto e = CreateSprite(*this, "sheep", position);
+	Entity CreatePlayer(V2_float position) {
+		auto e = CreateSprite(*this, "white_smile", position);
 		SetDepth(e, 1);
 		return e;
 	}
@@ -44,7 +43,7 @@ public:
 		return e;
 	}
 
-	Entity sheep;
+	Entity player;
 
 	V2_float vel;
 	V2_float speed{ 30, 30 };
@@ -59,7 +58,7 @@ public:
 		fractal_noise.SetLacunarity(20.0f);
 		fractal_noise.SetPersistence(0.8f);
 
-		ctx().asset.LoadTexture("sheep", "assets/test.png");
+		ctx().asset.LoadTexture("white_smile", "assets/white_smile.png");
 		ctx().asset.LoadTexture("red", "assets/red_tile.png");
 		ctx().asset.LoadTexture("blue", "assets/blue_tile.png");
 		ctx().asset.LoadTexture("green", "assets/green_tile.png");
@@ -71,8 +70,8 @@ public:
 				);
 			} });
 
-		sheep = CreateSheep(V2_float{ 0, 0 });
-		StartFollow(ctx().camera, sheep);
+		player = CreatePlayer(V2_float{ 0, 0 });
+		StartFollow(ctx().camera, player);
 	}
 
 	void OnUpdate() override {
@@ -80,7 +79,7 @@ public:
 
 		MoveWASD(*this, vel, speed * dt, true);
 
-		Translate(sheep, vel * dt);
+		Translate(player, vel * dt);
 
 		if (ctx().input.KeyHeld(Key::Q)) {
 			ctx().camera.Zoom(-zoom_speed * dt);

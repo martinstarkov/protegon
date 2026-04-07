@@ -22,7 +22,6 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -245,6 +244,6 @@ public:
 };
 
 int main(int, char**) {
-	Application app{ "NoiseExample: Arrow keys to swap noise type" };
+	Application app{ "NoiseExample: T: Zoom out, Arrow keys to swap noise type" };
 	app.StartWith<NoiseExampleScene>();
 }

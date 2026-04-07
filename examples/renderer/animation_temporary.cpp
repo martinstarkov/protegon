@@ -37,7 +37,7 @@ class AnimationTemporaryScene : public Scene {
 		if (ctx().input.KeyPressed(Key::Space) && !HasChild(player, "love_bubble")) {
 			auto anim = PlayTemporaryAnimation(
 				*this, "anim", { 0, -50 },
-				{ .frame_count = 4, .animation_duration = 1s, .play_count = 2 }, 5s
+				{ .frame_count = 4, .animation_duration = 1s, .play_count = 2 }, 2s
 			);
 			SetScale(anim, 3);
 			AddChild(player, anim, "love_bubble");
