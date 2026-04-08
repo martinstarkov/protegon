@@ -34,7 +34,7 @@
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
-#include "renderer/primitives/render_target.h"
+#include "renderer/primitives/render_pass.h"
 #include "renderer/primitives/scaling_mode.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"

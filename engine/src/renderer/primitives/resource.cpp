@@ -3,7 +3,6 @@
 #include <utility>
 
 #include "renderer/primitives/id.h"
-#include "renderer/primitives/render_target.h"
 #include "renderer/renderer.h"
 
 namespace ptgn {

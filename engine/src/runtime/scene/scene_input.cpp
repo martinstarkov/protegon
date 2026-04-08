@@ -24,7 +24,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_target_component.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/broadphase.h"

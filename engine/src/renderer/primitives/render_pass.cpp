@@ -1,4 +1,4 @@
-#include "renderer/primitives/render_target.h"
+#include "renderer/primitives/render_pass.h"
 
 #include "core/assert.h"
 #include "core/math/vector2.h"

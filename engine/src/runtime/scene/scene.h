@@ -21,7 +21,7 @@
 #include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/render_context.h"
-#include "runtime/graphics/render_target_component.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/physics.h"
 #include "runtime/scene/scene_command.h"

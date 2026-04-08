@@ -1,5 +1,3 @@
-#include "runtime/graphics/render_target_component.h"
-
 #include <optional>
 
 #include "core/assert.h"
@@ -9,8 +7,8 @@
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/event.h"
 #include "renderer/primitives/id.h"
+#include "renderer/primitives/render_pass.h"
 #include "renderer/primitives/render_state.h"
-#include "renderer/primitives/render_target.h"
 #include "renderer/primitives/texture_format.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/component.h"
@@ -19,6 +17,7 @@
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"

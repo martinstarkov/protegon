@@ -1,29 +1,5 @@
 // #pragma once
 //
-// #include <array>
-// #include <cstdint>
-// #include <string>
-// #include <string_view>
-// #include <vector>
-//
-// #include "runtime/ecs/component.h"
-// #include "core/asset/asset_manager.h"
-// #include "ecs/entity.h"
-// #include "core/app/manager.h"
-//
-// #include "math/geometry_utils.h"
-// #include "math/vector2.h"
-// #include "renderer/api/color.h"
-// #include "runtime/graphics/font.h"
-// #include "renderer/api/origin.h"
-// #include "renderer/render_target.h"
-// #include "runtime/graphics/text.h"
-//
-// #include "runtime/graphics/fonts.h"
-// #include "ui/button.h"
-// #include "core/assert.h"
-//
-//
 // namespace ptgn {
 //
 // struct DataPoints {

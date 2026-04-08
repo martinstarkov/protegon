@@ -25,22 +25,22 @@ struct ShaderData {
 
 }; // namespace impl
 
-class ShaderEntity : public Entity {
+class CustomShader : public Entity {
 public:
-	ShaderEntity() = default;
-	explicit ShaderEntity(Entity entity);
+	CustomShader() = default;
+	explicit CustomShader(Entity entity);
 
 	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
 };
 
-void SetShaderSetup(ShaderEntity entity, const std::function<void(Entity, Shader)>& shader_setup);
+void SetShaderSetup(CustomShader entity, const std::function<void(Entity, Shader)>& shader_setup);
 
-ShaderEntity CreateShaderEntity(
+CustomShader CreateCustomShader(
 	Scene& scene, ShaderOrKey shader, std::optional<TextureOrKey> texture, V2_float position,
 	V2_float size, const std::function<void(Entity, Shader)>& shader_setup = {},
 	Origin draw_origin = Origin::Center
 );
 
-PTGN_REGISTER_DRAWABLE(ShaderEntity);
+PTGN_REGISTER_DRAWABLE(CustomShader);
 
 } // namespace ptgn

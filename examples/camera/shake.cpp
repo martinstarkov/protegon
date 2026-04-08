@@ -12,8 +12,8 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
+#include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/shader_component.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
@@ -56,7 +56,7 @@ public:
 		// V2_float player_pos{ -res * 0.5f + V2_float{ 400, 150 } };
 		player = CreateRect(*this, player_pos, { 50, 50 }, color::Red);
 
-		auto shader_entity = CreateShaderEntity(
+		auto shader_entity = CreateCustomShader(
 			*this, "whirlpool", "noise", V2_float{}, V2_float{ 200.0f },
 			[this](auto, auto s) mutable {
 				float timescale{ 1.0f };

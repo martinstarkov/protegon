@@ -1,4 +1,4 @@
-#include "runtime/graphics/shader_component.h"
+#include "runtime/graphics/custom_shader.h"
 
 #include <functional>
 #include <optional>
@@ -18,9 +18,9 @@
 
 namespace ptgn {
 
-ShaderEntity::ShaderEntity(Entity entity) : Entity{ entity } {}
+CustomShader::CustomShader(Entity entity) : Entity{ entity } {}
 
-void ShaderEntity::Draw(DrawContext& renderer, Entity entity, Camera) {
+void CustomShader::Draw(DrawContext& renderer, Entity entity, Camera) {
 	PTGN_ASSERT((entity.Has<Rect, impl::ShaderData>()));
 
 	const auto& [shader, setup] = entity.Get<impl::ShaderData>();
@@ -48,7 +48,7 @@ void ShaderEntity::Draw(DrawContext& renderer, Entity entity, Camera) {
 	}
 }
 
-void SetShaderSetup(ShaderEntity entity, const std::function<void(Entity, Shader)>& shader_setup) {
+void SetShaderSetup(CustomShader entity, const std::function<void(Entity, Shader)>& shader_setup) {
 	PTGN_ASSERT(entity.Has<impl::ShaderData>(), "Shader entity must have shader data component");
 	auto& shader_data{ entity.Get<impl::ShaderData>() };
 	if (shader_setup) {
@@ -60,11 +60,11 @@ void SetShaderSetup(ShaderEntity entity, const std::function<void(Entity, Shader
 	}
 }
 
-ShaderEntity CreateShaderEntity(
+CustomShader CreateCustomShader(
 	Scene& scene, ShaderOrKey shader, std::optional<TextureOrKey> texture, V2_float position,
 	V2_float size, const std::function<void(Entity, Shader)>& shader_setup, Origin draw_origin
 ) {
-	ShaderEntity shader_entity{ scene.CreateEntity() };
+	CustomShader custom_shader{ scene.CreateEntity() };
 
 	const auto& assets{ scene.ctx().asset };
 
@@ -72,25 +72,25 @@ ShaderEntity CreateShaderEntity(
 
 	if (texture.has_value()) {
 		auto resolved_texture{ texture->Get(assets) };
-		shader_entity.Add<Texture>(resolved_texture);
+		custom_shader.Add<Texture>(resolved_texture);
 	}
 
-	auto& shader_data{ shader_entity.Add<impl::ShaderData>() };
+	auto& shader_data{ custom_shader.Add<impl::ShaderData>() };
 	shader_data.shader = resolved_shader;
 
-	SetShaderSetup(shader_entity, shader_setup);
+	SetShaderSetup(custom_shader, shader_setup);
 
-	SetDraw<ShaderEntity>(shader_entity);
+	SetDraw<CustomShader>(custom_shader);
 
-	Show(shader_entity, false);
+	Show(custom_shader, false);
 
-	shader_entity.Add<Rect>(size);
+	custom_shader.Add<Rect>(size);
 
-	SetPosition(shader_entity, position);
+	SetPosition(custom_shader, position);
 
-	SetDrawOrigin(shader_entity, draw_origin);
+	SetDrawOrigin(custom_shader, draw_origin);
 
-	return shader_entity;
+	return custom_shader;
 }
 
 } // namespace ptgn

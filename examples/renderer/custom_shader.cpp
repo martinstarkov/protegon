@@ -1,4 +1,6 @@
 
+#include "runtime/graphics/custom_shader.h"
+
 #include <chrono>
 
 #include "app/application.h"
@@ -7,24 +9,22 @@
 #include "renderer/primitives/shader.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/shader_component.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-
 
 using namespace ptgn;
 
 class CustomShaderScene : public Scene {
 public:
-	ShaderEntity shader_entity;
-	ShaderEntity shader_entity2;
+	CustomShader shader_entity;
+	CustomShader shader_entity2;
 
 	void OnEnter() override {
 		ctx().asset.LoadShader("whirlpool", "assets/shader.glsl");
 		ctx().asset.LoadShader("ripple", ShaderPair{ "quad", "assets/ripple.glsl" });
 		ctx().asset.LoadTexture("noise", "assets/noise.png");
 
-		shader_entity = CreateShaderEntity(
+		shader_entity = CreateCustomShader(
 			*this, "whirlpool", "noise", V2_float{}, V2_float{ 150 },
 			[this](auto, auto s) mutable {
 				float timescale{ 1.0f };
@@ -39,7 +39,7 @@ public:
 			Origin::Center
 		);
 
-		shader_entity2 = CreateShaderEntity(
+		shader_entity2 = CreateCustomShader(
 			*this, "ripple", {}, V2_float{ 200 }, V2_float{ 300 },
 			[this](auto, auto s) mutable {
 				float timescale{ 1.0f };

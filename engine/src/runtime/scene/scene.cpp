@@ -35,7 +35,7 @@
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/particle.h"
 #include "runtime/graphics/render_context.h"
-#include "runtime/graphics/render_target_component.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/lifetime.h"

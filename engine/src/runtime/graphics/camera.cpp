@@ -20,7 +20,7 @@
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/event/event_dispatcher.h"
-#include "runtime/graphics/render_target_component.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"

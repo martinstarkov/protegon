@@ -4,7 +4,7 @@
 #include "core/math/vector2.h"
 #include "renderer/primitives/viewport.h"
 #include "runtime/graphics/camera.h"
-#include "runtime/graphics/render_target_component.h"
+#include "runtime/graphics/render_target.h"
 
 namespace ptgn {
 
