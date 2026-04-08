@@ -28,6 +28,7 @@
 #include "runtime/animation/animation.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
@@ -417,6 +418,9 @@ void Scene::InternalUpdate() {
 	ctx().physics.PostCollisionUpdate();
 
 	Refresh();
+
+	impl::OrphanChildren(*this);
+	impl::ClearDeadChildren(*this);
 }
 
 void Scene::InternalExit() {

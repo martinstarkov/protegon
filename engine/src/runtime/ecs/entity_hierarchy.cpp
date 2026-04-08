@@ -8,10 +8,30 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/ecs/relatives.h"
+#include "runtime/scene/scene.h"
 
 namespace ptgn {
 
 namespace impl {
+
+void OrphanChild(Entity entity) {
+	PTGN_ASSERT(entity, "Cannot orphan null entity child");
+
+	entity.Add<Orphan>();
+}
+
+void OrphanChildren(Scene& scene) {
+	for (auto [entity, orphan] : scene.EntitiesWith<Orphan>()) {
+		entity.Remove<Parent>();
+		entity.Remove<Orphan>();
+	}
+}
+
+void ClearDeadChildren(Scene& scene) {
+	for (auto [entity, children] : scene.EntitiesWith<impl::Children>()) {
+		std::erase_if(children.children_, [](const Entity& child) { return !child; });
+	}
+}
 
 void AddChildImpl(Entity entity, Entity child, std::optional<std::string_view> name) {
 	PTGN_ASSERT(child, "Cannot add an null entity as a child");
@@ -22,10 +42,6 @@ void AddChildImpl(Entity entity, Entity child, std::optional<std::string_view> n
 	);
 	auto& children{ entity.TryAdd<Children>() };
 	children.Add(child, name);
-}
-
-void RemoveParentImpl(Entity entity) {
-	entity.Remove<Parent>();
 }
 
 void SetParentImpl(Entity entity, Entity parent) {
@@ -60,7 +76,7 @@ void RemoveParent(Entity entity) {
 			auto& children{ parent.Get<impl::Children>() };
 			children.Remove(entity);
 		}
-		impl::RemoveParentImpl(entity);
+		entity.Remove<impl::Parent>();
 	}
 }
 

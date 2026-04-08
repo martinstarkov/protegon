@@ -8,6 +8,8 @@
 
 namespace ptgn {
 
+class Scene;
+
 /// @return The parent most entity, or *this if no parent exists.
 Entity GetRootEntity(Entity entity);
 
@@ -62,11 +64,17 @@ const std::vector<Entity>& GetChildren(Entity entity);
 
 namespace impl {
 
+struct Orphan {};
+
+void OrphanChildren(Scene& scene);
+
+void ClearDeadChildren(Scene& scene);
+
+void OrphanChild(Entity entity);
+
 void AddChildImpl(Entity entity, Entity child, std::optional<std::string_view> name);
 
 void SetParentImpl(Entity entity, Entity parent);
-
-void RemoveParentImpl(Entity entity);
 
 } // namespace impl
 

@@ -43,16 +43,11 @@ Entity& Entity::Destroy(bool orphan_children) {
 		return *this;
 	}
 
-	if (HasParent(*this)) {
-		Entity parent{ GetParent(*this) };
-		RemoveChild(parent, *this);
-	}
-
 	if (HasChildren(*this)) {
 		const auto& children{ GetChildren(*this) };
 		if (orphan_children) {
 			for (const auto& child : children) {
-				impl::RemoveParentImpl(child);
+				impl::OrphanChild(child);
 			}
 		} else {
 			for (Entity child : children) {
