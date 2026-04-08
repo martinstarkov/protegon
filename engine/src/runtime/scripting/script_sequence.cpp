@@ -15,13 +15,12 @@
 
 namespace ptgn {
 
-static void VisitSequenceFunction(const SequenceFunction& func, Entity entity) {
+static void VisitSequenceFunction(const SequenceFunction& func, Entity parent) {
 	std::visit(
 		[&]<typename T>(const T& func_variant) {
 			if constexpr (std::is_same_v<T, std::function<void()>>) {
 				func_variant();
 			} else if constexpr (std::is_same_v<T, std::function<void(Entity)>>) {
-				auto parent{ GetParent(entity) };
 				func_variant(parent);
 			}
 		},
@@ -34,7 +33,7 @@ impl::ScriptSequenceData::ScriptSequenceData(GameObject<Tween> tween) : tween{ s
 ScriptSequence& ScriptSequence::During(milliseconds duration, SequenceFunction func) {
 	auto& instance{ Get<impl::ScriptSequenceData>() };
 	instance.tween.During(duration).OnProgress([f = std::move(func)](auto p) {
-		VisitSequenceFunction(f, p.tween);
+		VisitSequenceFunction(f, p.parent);
 	});
 	return *this;
 }
@@ -42,7 +41,7 @@ ScriptSequence& ScriptSequence::During(milliseconds duration, SequenceFunction f
 ScriptSequence& ScriptSequence::Then(SequenceFunction func) {
 	auto& instance{ Get<impl::ScriptSequenceData>() };
 	instance.tween.During(milliseconds{ 0 }).OnPointComplete([f = std::move(func)](auto e) {
-		VisitSequenceFunction(f, e);
+		VisitSequenceFunction(f, e.parent);
 	});
 	return *this;
 }
@@ -79,7 +78,7 @@ ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete) {
 	auto& instance{ sequence.Add<impl::ScriptSequenceData>(GameObject{ std::move(tween) }) };
 
 	if (destroy_on_complete) {
-		instance.tween.During(milliseconds{ 0 }).OnComplete([](auto e) { GetParent(e).Destroy(); });
+		instance.tween.During(milliseconds{ 0 }).OnComplete([](auto e) { e.parent.Destroy(); });
 	}
 
 	return sequence;

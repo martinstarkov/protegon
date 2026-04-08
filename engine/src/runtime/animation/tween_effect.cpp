@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/math/angle.h"
 #include "core/math/easing.h"
 #include "core/math/math_utils.h"
@@ -34,6 +35,16 @@
 namespace ptgn {
 
 namespace impl {
+
+static void EntityFollowStopImpl(Entity parent) {
+	parent.template Remove<TopDownMovement>();
+	parent.template Remove<RigidBody>();
+}
+
+template <EventType T>
+void EntityFollowStopImpl(const T& event) {
+	EntityFollowStopImpl(event.parent);
+}
 
 static float ApplyBounceEase(float t, bool symmetrical, Ease ease) {
 	if (!symmetrical) {
@@ -74,7 +85,7 @@ static Tween BounceImpl(
 ) {
 	PTGN_ASSERT(duration > milliseconds{ 0 }, "Tween effect must have a positive duration");
 
-	auto tween{ GetTween<BounceEffect>(entity) };
+	auto tween{ GetOrCreateTween<BounceEffect>(entity) };
 
 	entity.TryAdd<Offsets>();
 
@@ -82,9 +93,8 @@ static Tween BounceImpl(
 		tween.Clear();
 	}
 
-	auto reset_bounce = [](auto e) mutable {
-		Entity parent{ GetParent(e) };
-		auto& offsets{ parent.Get<Offsets>() };
+	auto reset_bounce = [](auto p) mutable {
+		auto& offsets{ p.parent.Get<Offsets>() };
 		offsets.bounce = {};
 	};
 
@@ -92,15 +102,13 @@ static Tween BounceImpl(
 		.Ease(ease)
 		.OnStart(reset_bounce)
 		.Repeat(total_periods)
-		.OnProgress([amplitude, static_offset, symmetrical](const event::TweenProgress& p) mutable {
+		.OnProgress([amplitude, static_offset, symmetrical](const auto& p) mutable {
 			float linear_progress{ p.tween.GetLinearProgress() };
 			auto current_ease{ p.tween.GetEase() };
 
 			float t{ ApplyBounceEase(linear_progress, symmetrical, current_ease) };
 
-			Entity parent{ GetParent(p.tween) };
-
-			auto& offsets{ parent.Get<Offsets>() };
+			auto& offsets{ p.parent.Get<Offsets>() };
 
 			offsets.bounce.SetPosition(static_offset + amplitude * t);
 		})
@@ -211,10 +219,10 @@ void EntityFollowStartImpl(Entity parent, const FollowConfig& config) {
 }
 
 Tween StartFollowImpl(
-	Entity entity, bool force, const Tween::Callback& start_func,
-	const Tween::ProgressCallback& update_func
+	Entity entity, bool force, const Tween::Callback<ptgn::event::TweenStart>& start_func,
+	const Tween::Callback<ptgn::event::TweenProgress>& update_func
 ) {
-	auto tween{ GetTween<FollowEffect>(entity) };
+	auto tween{ GetOrCreateTween<FollowEffect>(entity) };
 
 	tween.TryAdd<FollowEffect>();
 
@@ -226,10 +234,10 @@ Tween StartFollowImpl(
 		.Repeat(-1)
 		.OnStart(start_func)
 		.OnProgress(update_func)
-		.OnPointComplete(&EntityFollowStopImpl)
-		.OnComplete(&EntityFollowStopImpl)
-		.OnStop(&EntityFollowStopImpl)
-		.OnReset(&EntityFollowStopImpl);
+		.OnPointComplete(&EntityFollowStopImpl<event::TweenPointComplete>)
+		.OnComplete(&EntityFollowStopImpl<event::TweenComplete>)
+		.OnStop(&EntityFollowStopImpl<event::TweenStop>)
+		.OnReset(&EntityFollowStopImpl<event::TweenReset>);
 	tween.Start(force);
 
 	return tween;
@@ -248,7 +256,7 @@ Tween StartFollowPathImpl(
 	PTGN_ASSERT(config.lerp.x >= 0.0f && config.lerp.x <= 1.0f);
 	PTGN_ASSERT(config.lerp.y >= 0.0f && config.lerp.y <= 1.0f);
 
-	auto tween{ GetTween<impl::FollowEffect>(entity) };
+	auto tween{ GetOrCreateTween<impl::FollowEffect>(entity) };
 
 	auto& follow_comp{ tween.TryAdd<impl::FollowEffect>() };
 
@@ -259,24 +267,24 @@ Tween StartFollowPathImpl(
 	std::vector<V2_float> prev_waypoints{ follow_comp.waypoints };
 	follow_comp.waypoints = waypoints;
 
-	const auto start_func = [reset_waypoint_index, config, waypoints, prev_waypoints](auto e) {
-		Entity parent{ GetParent(e) };
+	const auto start_func = [reset_waypoint_index, config, waypoints,
+							 prev_waypoints](const event::TweenStart& e) {
 		if (config.teleport_on_start && !waypoints.empty()) {
 			V2_float target_position{ waypoints.back() };
-			SetPosition(parent, target_position + config.offset);
+			SetPosition(e.parent, target_position + config.offset);
 		}
 
 		// Reasons to reset waypoint index:
 		// 1. User requested it.
 		// 2. Current waypoint is beyond the waypoints array size.
 		// 3. Waypoints have changed.
-		if (auto& follow{ e.template Get<impl::FollowEffect>() };
+		if (auto& follow{ e.tween.template Get<impl::FollowEffect>() };
 			reset_waypoint_index || follow.current_waypoint >= waypoints.size() ||
 			waypoints != prev_waypoints) {
 			follow.current_waypoint = 0;
 		}
 
-		impl::EntityFollowStartImpl(parent, config);
+		impl::EntityFollowStartImpl(e.parent, config);
 	};
 
 	const auto update_func = [config, waypoints](const event::TweenProgress& p) {
@@ -287,10 +295,10 @@ Tween StartFollowPathImpl(
 		.Repeat(-1)
 		.OnStart(start_func)
 		.OnProgress(update_func)
-		.OnPointComplete(&impl::EntityFollowStopImpl)
-		.OnComplete(&impl::EntityFollowStopImpl)
-		.OnStop(&impl::EntityFollowStopImpl)
-		.OnReset(&impl::EntityFollowStopImpl);
+		.OnPointComplete(&impl::EntityFollowStopImpl<event::TweenPointComplete>)
+		.OnComplete(&impl::EntityFollowStopImpl<event::TweenComplete>)
+		.OnStop(&impl::EntityFollowStopImpl<event::TweenStop>)
+		.OnReset(&impl::EntityFollowStopImpl<event::TweenReset>);
 
 	tween.Start(force);
 
@@ -387,12 +395,6 @@ void VelocityModeMoveImpl(const FollowConfig& config, Entity parent, V2_float di
 	movement.Move(norm_dir);
 }
 
-void EntityFollowStopImpl(Entity e) {
-	Entity parent{ GetParent(e) };
-	parent.template Remove<TopDownMovement>();
-	parent.template Remove<RigidBody>();
-}
-
 } // namespace impl
 
 Tween TintTo(Entity entity, Color target_tint, milliseconds duration, Ease ease, bool force) {
@@ -466,7 +468,7 @@ Tween Shake(
 		"Shake effect must have a positive duration or be -1 (infinite shake)"
 	);
 
-	auto tween{ GetTween<impl::ShakeEffect>(entity) };
+	auto tween{ GetOrCreateTween<impl::ShakeEffect>(entity) };
 	auto& shake_effect{ tween.TryAdd<impl::ShakeEffect>() };
 
 	float previous_target{ shake_effect.previous_target };
@@ -474,14 +476,13 @@ Tween Shake(
 	float target_intensity{ std::clamp(previous_target + intensity, 0.0f, 1.0f) };
 	shake_effect.previous_target = target_intensity;
 
-	auto update_start = [previous_target](auto e) {
-		auto& shake{ e.template Get<impl::ShakeEffect>() };
+	auto update_start = [previous_target](const event::TweenStart& s) {
+		auto& shake{ s.tween.template Get<impl::ShakeEffect>() };
 		shake.trauma = previous_target;
 	};
 
-	auto update_stop = [](auto e) {
-		Entity parent{ GetParent(e) };
-		auto& offsets{ parent.template Get<impl::Offsets>() };
+	auto update_stop = [](const auto& s) {
+		auto& offsets{ s.parent.template Get<impl::Offsets>() };
 		offsets.shake = {};
 	};
 
@@ -520,7 +521,7 @@ Tween Shake(
 	auto seed{ RandomNumber<std::int32_t>() };
 
 	const auto shake_func = [seed, config, previous_target,
-							 target_intensity](const event::TweenProgress& p) mutable {
+							 target_intensity](const auto& p) mutable {
 		auto& shake{ p.tween.Get<impl::ShakeEffect>() };
 
 		float current_intensity{ Lerp(previous_target, target_intensity, p.progress) };
@@ -528,8 +529,7 @@ Tween Shake(
 
 		shake.trauma = current_intensity;
 
-		Entity parent{ GetParent(p.tween) };
-		auto& offsets{ parent.Get<impl::Offsets>() };
+		auto& offsets{ p.parent.Get<impl::Offsets>() };
 
 		ApplyShake(p.tween.GetScene().ctx().TimeSinceStart(), offsets, shake.trauma, config, seed);
 	};
@@ -557,29 +557,26 @@ Tween Shake(
 
 	if (!reset_trauma) {
 		// Add a infinite tween point that reduces trauma organically.
-		tween.During(milliseconds{ 0 })
-			.Repeat(-1)
-			.OnProgress([config, seed](event::TweenProgress p) {
-				if (!p.tween.Has<impl::ShakeEffect>()) {
-					p.tween.IncrementPoint();
-					return;
-				}
-				auto& shake{ p.tween.Get<impl::ShakeEffect>() };
-				Entity parent{ GetParent(p.tween) };
-				auto& offsets{ parent.Get<impl::Offsets>() };
+		tween.During(milliseconds{ 0 }).Repeat(-1).OnProgress([config, seed](auto p) {
+			if (!p.tween.Has<impl::ShakeEffect>()) {
+				p.tween.IncrementPoint();
+				return;
+			}
+			auto& shake{ p.tween.Get<impl::ShakeEffect>() };
+			auto& offsets{ p.parent.Get<impl::Offsets>() };
 
-				const auto& ctx{ p.tween.GetScene().ctx() };
+			const auto& ctx{ p.tween.GetScene().ctx() };
 
-				auto dt{ ctx.dt().count() };
-				auto time{ ctx.TimeSinceStart() };
+			auto dt{ ctx.dt().count() };
+			auto time{ ctx.TimeSinceStart() };
 
-				shake.trauma = std::clamp(shake.trauma - config.recovery_speed * dt, 0.0f, 1.0f);
-				ApplyShake(time, offsets, shake.trauma, config, seed);
+			shake.trauma = std::clamp(shake.trauma - config.recovery_speed * dt, 0.0f, 1.0f);
+			ApplyShake(time, offsets, shake.trauma, config, seed);
 
-				if (shake.trauma <= 0.0f) {
-					p.tween.IncrementPoint();
-				}
-			});
+			if (shake.trauma <= 0.0f) {
+				p.tween.IncrementPoint();
+			}
+		});
 	}
 
 	tween.Start(force);
@@ -695,16 +692,13 @@ Tween StartFollow(Entity entity, Entity target, const TargetFollowConfig& config
 
 	return impl::StartFollowImpl(
 		base, force,
-		[config, target](Entity e) {
-			Entity parent{ GetParent(e) };
+		[config, target](const auto& p) {
 			if (config.teleport_on_start) {
-				SetPosition(parent, GetPosition(target) + config.offset);
+				SetPosition(p.parent, GetPosition(target) + config.offset);
 			}
-			impl::EntityFollowStartImpl(parent, config);
+			impl::EntityFollowStartImpl(p.parent, config);
 		},
-		[config, target](const event::TweenProgress& p) {
-			impl::TargetFollowImpl(target, config, p.tween);
-		}
+		[config, target](const auto& p) { impl::TargetFollowImpl(target, config, p.tween); }
 	);
 }
 

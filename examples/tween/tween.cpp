@@ -108,14 +108,10 @@ public:
 	}
 };
 
-void SetProgress(const V2_float& size, const Entity& e, float progress) {
-	V2_float res{ e.GetScene().ctx().renderer.GetGameSize() };
+void SetProgress(V2_float size, const event::TweenProgress& event) {
+	V2_float res{ event.tween.GetScene().ctx().renderer.GetGameSize() };
 	auto width{ res.x - size.x };
-	Entity target{ e };
-	if (HasParent(e)) {
-		target = GetParent(e);
-	}
-	SetPositionX(target, size.x * 0.5f - res.x * 0.5f + width * progress);
+	SetPositionX(event.parent, size.x * 0.5f - res.x * 0.5f + width * event.progress);
 }
 
 class TweenScene : public Scene {
@@ -137,7 +133,7 @@ public:
 		auto rect	= CreateRect(*this, V2_float{}, V2_float{}, color, -1.0f, Origin::CenterTop);
 		auto text	= CreateText(*this, {}, name, color::Black);
 		Tween tween = CreateTween(*this).During(duration);
-		tween.OnProgress([this](auto p) { SetProgress(size, p.tween, p.progress); });
+		tween.OnProgress([this](auto p) { SetProgress(size, p); });
 		AddChild(rect, text, "text");
 		AddChild(rect, tween, "tween");
 		return tween;
@@ -181,20 +177,20 @@ public:
 		tweenK.Yoyo().Repeat(-1);
 		tweenL.Yoyo().Repeat(-1).Reverse();
 
-		tweenM.Ease(Ease::InOutQuart).Yoyo().Repeat(-1).Reverse().OnRepeat([](auto entity) {
-			PTGN_LOG("Lambda repeat: ", Tween{ entity }.GetRepeats());
+		tweenM.Ease(Ease::InOutQuart).Yoyo().Repeat(-1).Reverse().OnRepeat([](auto p) {
+			PTGN_LOG("Lambda repeat: ", p.tween.GetRepeats());
 		});
 
 		tweenN.AddScript<TweenScriptCustom>()
 			.During(duration)
-			.OnProgress([this](auto p) { SetProgress(size, p.tween, p.progress); })
+			.OnProgress([this](auto p) { SetProgress(size, p); })
 			.AddScript<TweenScriptCustom>()
 			.Reverse();
 
 		tweenO.AddScript<TweenScriptCustom>()
 			.Repeat(repeats)
 			.During(duration)
-			.OnProgress([this](auto p) { SetProgress(size, p.tween, p.progress); })
+			.OnProgress([this](auto p) { SetProgress(size, p); })
 			.Repeat(repeats)
 			.Reverse()
 			.AddScript<TweenScriptCustom>();
@@ -203,7 +199,7 @@ public:
 			.Yoyo()
 			.Repeat(repeats)
 			.During(duration)
-			.OnProgress([this](auto p) { SetProgress(size, p.tween, p.progress); })
+			.OnProgress([this](auto p) { SetProgress(size, p); })
 			.AddScript<TweenScriptCustom>()
 			.Yoyo()
 			.Repeat(repeats)

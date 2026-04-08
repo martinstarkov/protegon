@@ -3,9 +3,9 @@
 #include <optional>
 
 #include "app/application.h"
+#include "core/math/angle.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
 #include "runtime/animation/tween.h"
@@ -50,11 +50,11 @@ struct ShapeAndSpriteScene : public Scene {
 
 		struct ArcTween {};
 
-		GetTween<ArcTween>(arc)
+		GetOrCreateTween<ArcTween>(arc)
 			.During(1s)
 			.Repeat(-1)
 			.OnProgress([this](auto p) {
-				auto& arc_shape{ GetParent(p.tween).template Get<Arc>() };
+				auto& arc_shape{ p.parent.template Get<Arc>() };
 
 				arc_shape.SetStartAngle(Lerp(start_angle, end_angle, p.progress));
 			})

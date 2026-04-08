@@ -45,12 +45,12 @@ struct FadeEffectScene : public Scene {
 			FadeOut(sprite1, milliseconds{ 4000 }, Ease::Linear, true);
 		}
 		if (ctx().input.KeyPressed(Key::T)) {
-			FadeOut(GetRenderTarget(), milliseconds{ 3000 }).OnComplete([](Entity) {
+			FadeOut(GetRenderTarget(), milliseconds{ 3000 }).OnComplete([]() {
 				PTGN_LOG("Finished fading out scene");
 			});
 		}
 		if (ctx().input.KeyPressed(Key::R)) {
-			FadeIn(GetRenderTarget(), milliseconds{ 3000 }).OnComplete([](Entity) {
+			FadeIn(GetRenderTarget(), milliseconds{ 3000 }).OnComplete([]() {
 				PTGN_LOG("Finished fading in scene");
 			});
 		}

@@ -27,17 +27,27 @@ class Scene;
 class ScriptSequence;
 class TweenPoint;
 
-namespace event {
-
-struct TweenProgress;
-
-} // namespace event
-
 namespace impl {
 
 class TweenData;
 
 } // namespace impl
+
+namespace event {
+
+struct TweenProgress;
+struct TweenComplete;
+struct TweenPointStart;
+struct TweenPointComplete;
+struct TweenReset;
+struct TweenStart;
+struct TweenStop;
+struct TweenPause;
+struct TweenResume;
+struct TweenYoyo;
+struct TweenRepeat;
+
+} // namespace event
 
 class Tween : public Entity {
 public:
@@ -52,21 +62,20 @@ public:
 	template <typename T, typename... TArgs>
 	Tween& AddScript(TArgs&&... args);
 
-	using Callback = std::variant<std::function<void()>, std::function<void(Tween)>>;
-	using ProgressCallback =
-		std::variant<std::function<void()>, std::function<void(event::TweenProgress)>>;
+	template <typename T>
+	using Callback = std::variant<std::function<void()>, std::function<void(T)>>;
 
-	Tween& OnProgress(const ProgressCallback& func);
-	Tween& OnStart(const Callback& func);
-	Tween& OnComplete(const Callback& func);
-	Tween& OnPointStart(const Callback& func);
-	Tween& OnPointComplete(const Callback& func);
-	Tween& OnReset(const Callback& func);
-	Tween& OnStop(const Callback& func);
-	Tween& OnPause(const Callback& func);
-	Tween& OnResume(const Callback& func);
-	Tween& OnYoyo(const Callback& func);
-	Tween& OnRepeat(const Callback& func);
+	Tween& OnProgress(const Callback<event::TweenProgress>& callback);
+	Tween& OnStart(const Callback<event::TweenStart>& callback);
+	Tween& OnComplete(const Callback<event::TweenComplete>& callback);
+	Tween& OnPointStart(const Callback<event::TweenPointStart>& callback);
+	Tween& OnPointComplete(const Callback<event::TweenPointComplete>& callback);
+	Tween& OnReset(const Callback<event::TweenReset>& callback);
+	Tween& OnStop(const Callback<event::TweenStop>& callback);
+	Tween& OnPause(const Callback<event::TweenPause>& callback);
+	Tween& OnResume(const Callback<event::TweenResume>& callback);
+	Tween& OnYoyo(const Callback<event::TweenYoyo>& callback);
+	Tween& OnRepeat(const Callback<event::TweenRepeat>& callback);
 
 	/// @return True if the tween has completed all of its tween points.
 	[[nodiscard]] bool IsCompleted() const;
@@ -184,14 +193,30 @@ private:
 	static void Update(Scene& scene, secondsf dt);
 };
 
+namespace impl {
+
+template <typename T>
+struct TweenEventBase : public Event<T> {
+	TweenEventBase() = default;
+
+	TweenEventBase(Tween tween, Entity parent) : tween{ tween }, parent{ parent } {}
+
+	/// @brief Tween associated with the event.
+	Tween tween;
+
+	/// @brief Parent entity of the tween, or the tween itself if it has no parent.
+	Entity parent;
+};
+
+} // namespace impl
+
 namespace event {
 
-struct TweenProgress : public Event<TweenProgress> {
+struct TweenProgress : public impl::TweenEventBase<TweenProgress> {
 	TweenProgress() = default;
 
-	TweenProgress(const Tween& tween, float progress) : tween{ tween }, progress{ progress } {}
-
-	Tween tween;
+	TweenProgress(Tween tween, Entity parent, float progress) :
+		TweenEventBase{ tween, parent }, progress{ progress } {}
 
 	operator float() const { // NOSONAR
 		return progress;
@@ -203,44 +228,44 @@ struct TweenProgress : public Event<TweenProgress> {
 	float progress{ 0.0f };
 };
 
-struct TweenComplete : public Event<TweenComplete> {
-	TweenComplete() = default;
+struct TweenComplete : public impl::TweenEventBase<TweenComplete> {
+	using TweenEventBase::TweenEventBase;
 };
 
-struct TweenPointStart : public Event<TweenPointStart> {
-	TweenPointStart() = default;
+struct TweenPointStart : public impl::TweenEventBase<TweenPointStart> {
+	using TweenEventBase::TweenEventBase;
 };
 
-struct TweenPointComplete : public Event<TweenPointComplete> {
-	TweenPointComplete() = default;
+struct TweenPointComplete : public impl::TweenEventBase<TweenPointComplete> {
+	using TweenEventBase::TweenEventBase;
 };
 
-struct TweenReset : public Event<TweenReset> {
-	TweenReset() = default;
+struct TweenReset : public impl::TweenEventBase<TweenReset> {
+	using TweenEventBase::TweenEventBase;
 };
 
-struct TweenStart : public Event<TweenStart> {
-	TweenStart() = default;
+struct TweenStart : public impl::TweenEventBase<TweenStart> {
+	using TweenEventBase::TweenEventBase;
 };
 
-struct TweenStop : public Event<TweenStop> {
-	TweenStop() = default;
+struct TweenStop : public impl::TweenEventBase<TweenStop> {
+	using TweenEventBase::TweenEventBase;
 };
 
-struct TweenPause : public Event<TweenPause> {
-	TweenPause() = default;
+struct TweenPause : public impl::TweenEventBase<TweenPause> {
+	using TweenEventBase::TweenEventBase;
 };
 
-struct TweenResume : public Event<TweenResume> {
-	TweenResume() = default;
+struct TweenResume : public impl::TweenEventBase<TweenResume> {
+	using TweenEventBase::TweenEventBase;
 };
 
-struct TweenYoyo : public Event<TweenYoyo> {
-	TweenYoyo() = default;
+struct TweenYoyo : public impl::TweenEventBase<TweenYoyo> {
+	using TweenEventBase::TweenEventBase;
 };
 
-struct TweenRepeat : public Event<TweenRepeat> {
-	TweenRepeat() = default;
+struct TweenRepeat : public impl::TweenEventBase<TweenRepeat> {
+	using TweenEventBase::TweenEventBase;
 };
 
 } // namespace event
@@ -360,7 +385,7 @@ public:
 
 	void RemoveLastTweenPoint();
 
-	void Clear();
+	void Clear() const;
 
 	void Reset();
 
@@ -384,7 +409,7 @@ public:
 
 	void OnEvent();
 
-	void ApplyPending();
+	void ApplyPending() const;
 
 	void ClearFlagged();
 
@@ -410,14 +435,14 @@ template <typename T>
 struct TweenScript : public Script {
 	TweenScript() = default;
 
-	explicit TweenScript(const Tween::Callback& callback) : callback_{ callback } {}
+	explicit TweenScript(const Tween::Callback<T>& callback) : callback_{ callback } {}
 
 	void OnEvent(EventDispatcher dispatcher) override {
-		dispatcher.DispatchVariantBound<T>(callback_, Tween{ entity });
+		dispatcher.DispatchVariant<T>(callback_);
 	}
 
 private:
-	Tween::Callback callback_;
+	Tween::Callback<T> callback_;
 };
 
 using TweenStartScript		   = TweenScript<ptgn::event::TweenStart>;
@@ -430,17 +455,7 @@ using TweenPauseScript		   = TweenScript<ptgn::event::TweenPause>;
 using TweenResumeScript		   = TweenScript<ptgn::event::TweenResume>;
 using TweenYoyoScript		   = TweenScript<ptgn::event::TweenYoyo>;
 using TweenRepeatScript		   = TweenScript<ptgn::event::TweenRepeat>;
-
-struct TweenProgressScript : public Script {
-	TweenProgressScript() = default;
-
-	explicit TweenProgressScript(const Tween::ProgressCallback& callback);
-
-	void OnEvent(EventDispatcher dispatcher) override;
-
-private:
-	Tween::ProgressCallback callback_;
-};
+using TweenProgressScript	   = TweenScript<ptgn::event::TweenProgress>;
 
 template <EventType T, typename... TArgs>
 	requires std::constructible_from<T, TArgs...>

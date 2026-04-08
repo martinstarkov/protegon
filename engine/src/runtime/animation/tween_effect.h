@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -92,7 +93,7 @@ struct EffectObject : public GameObject<> {
 } // namespace impl
 
 template <typename TComponent>
-Tween GetTween(Entity entity) {
+Tween GetOrCreateTween(Entity entity) {
 	Tween tween;
 
 	if (!entity.Has<impl::EffectObject<TComponent>>()) {
@@ -119,7 +120,7 @@ Tween AddTweenEffect(
 ) {
 	PTGN_ASSERT(duration > milliseconds{ 0 }, "Tween effect must have a positive duration");
 
-	auto tween{ GetTween<TComponent>(entity) };
+	auto tween{ GetOrCreateTween<TComponent>(entity) };
 
 	tween.template TryAdd<TComponent>();
 
@@ -127,10 +128,9 @@ Tween AddTweenEffect(
 		tween.Clear();
 	}
 
-	auto update_start = [get_current_value](auto e) mutable {
-		auto& value{ e.template Get<TComponent>() };
-		Entity parent{ GetParent(e) };
-		value.start = get_current_value(parent);
+	auto update_start = [get_current_value](auto p) mutable {
+		auto& value{ p.tween.template Get<TComponent>() };
+		value.start = get_current_value(p.parent);
 	};
 
 	tween.During(duration)
@@ -139,8 +139,7 @@ Tween AddTweenEffect(
 		.OnProgress([target, set_current_value](auto p) mutable {
 			auto& value{ p.tween.template Get<TComponent>() };
 			auto result{ Lerp(value.start, target, p.progress) };
-			Entity parent{ GetParent(p.tween) };
-			set_current_value(parent, result);
+			set_current_value(p.parent, result);
 		})
 		.OnPointComplete(update_start)
 		.OnComplete(update_start)
@@ -167,11 +166,9 @@ void PathFollowImpl(
 	const std::vector<V2_float>& waypoints, const PathFollowConfig& config, Tween tween
 );
 
-void EntityFollowStopImpl(Entity e);
-
 Tween StartFollowImpl(
-	Entity entity, bool force, const Tween::Callback& start_func,
-	const Tween::ProgressCallback& update_func
+	Entity entity, bool force, const Tween::Callback<ptgn::event::TweenStart>& start_func,
+	const Tween::Callback<ptgn::event::TweenProgress>& update_func
 );
 
 void EntityFollowStartImpl(Entity parent, const FollowConfig& config);
@@ -219,7 +216,7 @@ Tween TweenTo(
 ) {
 	PTGN_ASSERT(duration > milliseconds{ 0 }, "Tween must have a positive duration");
 
-	auto tween{ GetTween<TComponent>(entity) };
+	auto tween{ GetOrCreateTween<TComponent>(entity) };
 
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
@@ -228,9 +225,8 @@ Tween TweenTo(
 	// Store start value inside the tween
 	auto start = std::make_shared<T>();
 
-	auto update_start = [start, property](Entity e) mutable {
-		Entity parent{ GetParent(e) };
-		*start = property.get(parent);
+	auto update_start = [start, property](auto p) mutable {
+		*start = property.get(p.parent);
 	};
 
 	tween.During(duration)
@@ -238,8 +234,7 @@ Tween TweenTo(
 		.OnStart(update_start)
 		.OnProgress([start, property, target](auto p) mutable {
 			auto result = Lerp(*start, target, p.progress);
-			Entity parent{ GetParent(p.tween) };
-			property.set(parent, result);
+			property.set(p.parent, result);
 		})
 		.OnPointComplete(update_start)
 		.OnComplete(update_start)
