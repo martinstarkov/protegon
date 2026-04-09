@@ -30,7 +30,8 @@ public:
 	AudioSystem(AudioSystem&&) noexcept			   = delete;
 	AudioSystem& operator=(AudioSystem&&) noexcept = delete;
 
-	/// @param volume Volume of the master audio in range [kMinVolume, kMaxVolume].
+	/// @param volume Volume of the master audio in range [kMinVolume, kMaxVolume].  Volume clamped
+	/// if outside of range.
 	void SetVolume(float volume);
 
 	/// @return Volume of the master audio in range [kMinVolume, kMaxVolume].
@@ -38,7 +39,7 @@ public:
 
 	/// @brief Toggles the master volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new master volume to this value
-	/// in range [kMinVolume, kMaxVolume].
+	/// in range [kMinVolume, kMaxVolume]. Volume clamped if outside of range.
 	void ToggleVolume(float new_volume);
 
 	/// @brief Stops all audio tracks.
@@ -54,7 +55,8 @@ public:
 	[[nodiscard]] bool IsAnyPlaying() const;
 
 	/// @param loops The number of loops to play the audio for, -1 for infinite looping.
-	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume].
+	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume]. Volume clamped
+	/// if outside of range.
 	/// @param frequency_ratio The frequency ratio is used to adjust the rate at which audio data is
 	/// consumed. Range: [0.01, 100.0]. Changing this effectively modifies the speed and pitch of
 	/// the track's audio. A value greater than 1.0f will play the audio faster, and at a higher
@@ -84,7 +86,8 @@ public:
 
 	/// @brief Only sets the volume of the specific audio if it's currently playing; otherwise, does
 	/// nothing.
-	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume].
+	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume]. Volume clamped
+	/// if outside of range.
 	void SetVolume(AudioOrKey audio, float volume);
 
 	/// @brief Only gets the volume of the specific audio if it's currently playing; otherwise,
@@ -94,7 +97,7 @@ public:
 
 	/// @brief Toggles the volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new volume of the audio to this value
-	/// in range [kMinVolume, kMaxVolume].
+	/// in range [kMinVolume, kMaxVolume]. Volume clamped if outside of range.
 	void ToggleVolume(AudioOrKey audio, float new_volume = 1.0f);
 
 	/// @return True if the audio is currently, false otherwise.

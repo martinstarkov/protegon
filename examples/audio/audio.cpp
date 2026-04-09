@@ -133,26 +133,20 @@ public:
 					  )
 		);
 		grid.Set(
-			{ 1, 8 }, CreateAudioButton(
-						  "+ Music Volume",
-						  [&]() {
-							  ctx().audio.SetVolume(std::clamp(
-								  ctx().audio.GetVolume() + volume_increment, kMinVolume, kMaxVolume
-							  ));
-						  },
-						  music_color
-					  )
+			{ 1, 8 },
+			CreateAudioButton(
+				"+ Music Volume",
+				[&]() { ctx().audio.SetVolume(ctx().audio.GetVolume() + volume_increment); },
+				music_color
+			)
 		);
 		grid.Set(
-			{ 1, 9 }, CreateAudioButton(
-						  "- Music Volume",
-						  [&]() {
-							  ctx().audio.SetVolume(std::clamp(
-								  ctx().audio.GetVolume() - volume_increment, kMinVolume, kMaxVolume
-							  ));
-						  },
-						  music_color
-					  )
+			{ 1, 9 },
+			CreateAudioButton(
+				"- Music Volume",
+				[&]() { ctx().audio.SetVolume(ctx().audio.GetVolume() - volume_increment); },
+				music_color
+			)
 		);
 
 		grid.Set(
@@ -203,10 +197,7 @@ public:
 						  "+ Channel 1 Volume",
 						  [this]() {
 							  ctx().audio.SetVolume(
-								  "sound1", std::clamp(
-												ctx().audio.GetVolume("sound1") + volume_increment,
-												kMinVolume, kMaxVolume
-											)
+								  "sound1", ctx().audio.GetVolume("sound1") + volume_increment
 							  );
 						  },
 						  sound1_color
@@ -217,10 +208,7 @@ public:
 						  "- Channel 1 Volume",
 						  [this]() {
 							  ctx().audio.SetVolume(
-								  "sound1", std::clamp(
-												ctx().audio.GetVolume("sound1") - volume_increment,
-												kMinVolume, kMaxVolume
-											)
+								  "sound1", ctx().audio.GetVolume("sound1") - volume_increment
 							  );
 						  },
 						  sound1_color
@@ -271,28 +259,21 @@ public:
 			)
 		);
 		grid.Set(
-			{ 3, 6 }, CreateAudioButton(
-						  "+ Channel 2 Volume",
-						  [this]() {
-							  ctx().audio.SetVolume(
-								  "sound2", std::clamp(
-												ctx().audio.GetVolume("sound2") + volume_increment,
-												kMinVolume, kMaxVolume
-											)
-							  );
-						  },
-						  sound2_color
-					  )
+			{ 3, 6 },
+			CreateAudioButton(
+				"+ Channel 2 Volume",
+				[this]() {
+					ctx().audio.SetVolume(ctx().audio.GetVolume("sound2") + volume_increment);
+				},
+				sound2_color
+			)
 		);
 		grid.Set(
 			{ 3, 7 }, CreateAudioButton(
 						  "- Channel 2 Volume",
 						  [this]() {
 							  ctx().audio.SetVolume(
-								  "sound2", std::clamp(
-												ctx().audio.GetVolume("sound2") - volume_increment,
-												kMinVolume, kMaxVolume
-											)
+								  "sound2", ctx().audio.GetVolume("sound2") - volume_increment
 							  );
 						  },
 						  sound2_color
