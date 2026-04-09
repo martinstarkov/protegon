@@ -10,9 +10,9 @@ namespace ptgn {
 
 class Line {
 public:
-	Line() = default;
+	constexpr Line() = default;
 
-	Line(V2_float start, V2_float end);
+	constexpr Line(V2_float start, V2_float end) : start_{ start }, end_{ end } {}
 
 	void SetStart(V2_float start);
 	void SetEnd(V2_float end);

@@ -10,9 +10,9 @@ namespace ptgn {
 
 class Circle {
 public:
-	Circle() = default;
+	constexpr Circle() = default;
 
-	Circle(float radius); // NOSONAR
+	constexpr Circle(float radius) : radius_{ radius } {}
 
 	void SetRadius(float radius);
 

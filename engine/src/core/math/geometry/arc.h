@@ -11,10 +11,16 @@ namespace ptgn {
 
 class Arc {
 public:
-	Arc() = default;
+	constexpr Arc() = default;
 
-	Arc(float arc_radius, Radians start_angle, Radians end_angle, bool clockwise = true);
-	Arc(float arc_radius, Degrees start_angle, Degrees end_angle, bool clockwise = true);
+	constexpr Arc(float arc_radius, Radians start_angle, Radians end_angle, bool clockwise = true) :
+		radius_{ arc_radius },
+		start_angle_{ start_angle },
+		end_angle_{ end_angle },
+		clockwise_{ clockwise } {}
+
+	constexpr Arc(float arc_radius, Degrees start_angle, Degrees end_angle, bool clockwise = true) :
+		Arc{ arc_radius, start_angle.ToRad(), end_angle.ToRad(), clockwise } {}
 
 	void SetRadius(float radius);
 	void SetStartAngle(Radians start_angle);

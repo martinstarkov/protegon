@@ -12,15 +12,6 @@
 
 namespace ptgn {
 
-Arc::Arc(float arc_radius, Radians start_angle, Radians end_angle, bool clockwise) :
-	radius_{ arc_radius },
-	start_angle_{ start_angle },
-	end_angle_{ end_angle },
-	clockwise_{ clockwise } {}
-
-Arc::Arc(float arc_radius, Degrees start_angle, Degrees end_angle, bool clockwise) :
-	Arc{ arc_radius, start_angle.ToRad(), end_angle.ToRad(), clockwise } {}
-
 void Arc::SetRadius(float radius) {
 	radius_ = radius;
 }

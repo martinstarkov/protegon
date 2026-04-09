@@ -11,10 +11,10 @@ namespace ptgn {
 
 class Ellipse {
 public:
-	Ellipse() = default;
+	constexpr Ellipse() = default;
 
 	template <Arithmetic T>
-	explicit Ellipse(Vector2<T> ellipse_radius) : radius_{ ellipse_radius } {}
+	constexpr explicit Ellipse(Vector2<T> ellipse_radius) : radius_{ ellipse_radius } {}
 
 	void SetRadius(V2_float radius);
 

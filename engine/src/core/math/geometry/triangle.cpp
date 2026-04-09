@@ -8,10 +8,6 @@
 
 namespace ptgn {
 
-Triangle::Triangle(V2_float a, V2_float b, V2_float c) : vertices_{ a, b, c } {}
-
-Triangle::Triangle(const std::array<V2_float, 3>& vertices) : vertices_{ vertices } {}
-
 void Triangle::SetVertices(V2_float a, V2_float b, V2_float c) {
 	vertices_ = { a, b, c };
 }

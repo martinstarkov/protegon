@@ -14,15 +14,15 @@ namespace ptgn {
 /// positioning it where the origin should be.
 class Rect {
 public:
-	Rect() = default;
+	constexpr Rect() = default;
 
-	Rect(V2_float min, V2_float max);
-
-	template <Arithmetic T>
-	Rect(Vector2<T> size) : min_{ -size * 0.5f }, max_{ size * 0.5f } {} // NOSONAR
+	constexpr Rect(V2_float min, V2_float max) : min_{ min }, max_{ max } {}
 
 	template <Arithmetic T>
-	Rect(T x, T y) : Rect{ Vector2<T>{ x, y } } {}
+	constexpr Rect(Vector2<T> size) : min_{ -size * 0.5f }, max_{ size * 0.5f } {} // NOSONAR
+
+	template <Arithmetic T>
+	constexpr Rect(T x, T y) : Rect{ Vector2<T>{ x, y } } {}
 
 	void SetSize(V2_float size);
 	void SetSize(V2_float min, V2_float max);

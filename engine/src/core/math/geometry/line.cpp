@@ -9,8 +9,6 @@
 
 namespace ptgn {
 
-Line::Line(V2_float start, V2_float end) : start_{ start }, end_{ end } {}
-
 void Line::SetStart(V2_float start) {
 	start_ = start;
 }

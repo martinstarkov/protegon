@@ -10,9 +10,10 @@ namespace ptgn {
 
 class Capsule {
 public:
-	Capsule() = default;
+	constexpr Capsule() = default;
 
-	Capsule(V2_float start, V2_float end, float radius);
+	constexpr Capsule(V2_float start, V2_float end, float radius) :
+		start_{ start }, end_{ end }, radius_{ radius } {}
 
 	void SetStart(V2_float start);
 	void SetEnd(V2_float end);

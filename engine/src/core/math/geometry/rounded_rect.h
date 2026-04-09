@@ -13,10 +13,13 @@ namespace ptgn {
 /// and positioning it where the origin should be.
 class RoundedRect {
 public:
-	RoundedRect() = default;
+	constexpr RoundedRect() = default;
 
-	RoundedRect(V2_float min, V2_float max, float radius);
-	RoundedRect(V2_float size, float radius);
+	constexpr RoundedRect(V2_float min, V2_float max, float radius) :
+		min_{ min }, max_{ max }, radius_{ radius } {}
+
+	constexpr RoundedRect(V2_float size, float radius) :
+		RoundedRect{ -size * 0.5f, size * 0.5f, radius } {}
 
 	void SetRadius(float radius);
 	void SetSize(V2_float size);

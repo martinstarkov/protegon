@@ -9,8 +9,6 @@
 
 namespace ptgn {
 
-Circle::Circle(float radius) : radius_{ radius } {}
-
 void Circle::SetRadius(float radius) {
 	radius_ = radius;
 }

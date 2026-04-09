@@ -10,10 +10,11 @@ namespace ptgn {
 
 class Triangle {
 public:
-	Triangle() = default;
+	constexpr Triangle() = default;
 
-	Triangle(V2_float a, V2_float b, V2_float c);
-	explicit Triangle(const std::array<V2_float, 3>& vertices);
+	constexpr Triangle(V2_float a, V2_float b, V2_float c) : vertices_{ a, b, c } {}
+
+	constexpr explicit Triangle(const std::array<V2_float, 3>& vertices) : vertices_{ vertices } {}
 
 	void SetVertices(V2_float a, V2_float b, V2_float c);
 

@@ -12,12 +12,12 @@ namespace ptgn {
 
 class Polygon {
 public:
-	Polygon() = default;
+	constexpr Polygon() = default;
 
 	template <typename Container> // NOSONAR
 		requires std::ranges::input_range<Container> &&
 				 std::convertible_to<std::ranges::range_value_t<Container>, V2_float>
-	Polygon(const Container& vertices) { // NOSONAR
+	constexpr Polygon(const Container& vertices) { // NOSONAR
 		vertices_.assign(vertices.begin(), vertices.end());
 	}
 

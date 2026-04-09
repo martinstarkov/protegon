@@ -9,8 +9,6 @@
 
 namespace ptgn {
 
-Rect::Rect(V2_float min, V2_float max) : min_{ min }, max_{ max } {}
-
 void Rect::SetSize(V2_float size) {
 	*this = Rect{ size };
 }

@@ -10,12 +10,6 @@
 
 namespace ptgn {
 
-RoundedRect::RoundedRect(V2_float min, V2_float max, float radius) :
-	min_{ min }, max_{ max }, radius_{ radius } {}
-
-RoundedRect::RoundedRect(V2_float size, float radius) :
-	RoundedRect{ -size * 0.5f, size * 0.5f, radius } {}
-
 void RoundedRect::SetRadius(float radius) {
 	radius_ = radius;
 }

@@ -24,10 +24,10 @@ public:
 	using Variant = std::variant<
 		V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
 
-	Shape() = default;
+	constexpr Shape() = default;
 
 	template <VariantContains<Variant> T>
-	Shape(const T& shape) : shape_{ shape } { // NOSONAR
+	constexpr Shape(const T& shape) : shape_{ shape } { // NOSONAR
 	}
 
 	template <VariantContains<Variant> T>

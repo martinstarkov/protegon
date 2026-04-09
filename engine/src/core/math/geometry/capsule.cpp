@@ -9,9 +9,6 @@
 
 namespace ptgn {
 
-Capsule::Capsule(V2_float start, V2_float end, float radius) :
-	start_{ start }, end_{ end }, radius_{ radius } {}
-
 void Capsule::SetStart(V2_float start) {
 	start_ = start;
 }
