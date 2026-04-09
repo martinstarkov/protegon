@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstdint>
 
+#include "core/math/math_utils.h"
+
 namespace ptgn {
 
 bool FlipCoin() {
@@ -41,7 +43,7 @@ float Random01() {
 }
 
 bool Chance(float probability) {
-	probability = std::clamp(probability, 0.0f, 1.0f);
+	probability = Clamp01(probability);
 	if (probability <= 0.0f) {
 		return false;
 	}

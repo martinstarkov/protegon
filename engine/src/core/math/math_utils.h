@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <concepts>
 #include <cstdint>
 #include <numbers>
@@ -19,6 +20,12 @@ inline constexpr float kHalfPi{ kPi / 2.0f };
 inline constexpr float kSqrtTwo{ std::numbers::sqrt2_v<float> };
 
 inline constexpr float kEuler{ std::numbers::e_v<float> };
+
+/// @brief Clamp a value between 0 and 1.
+template <Arithmetic T>
+[[nodiscard]] constexpr T Clamp01(T value) {
+	return std::clamp(value, T{ 0 }, T{ 1 });
+}
 
 /// @brief Modulo operator which supports wrapping negative numbers.
 /// e.g. Mod(-1, 2) returns 1.

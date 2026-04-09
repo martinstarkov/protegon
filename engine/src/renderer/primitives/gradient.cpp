@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "core/math/math_utils.h"
 #include "renderer/primitives/color.h"
 
 namespace ptgn {
@@ -36,7 +37,7 @@ Gradient::Gradient(const std::string& css) { // NOSONAR
 }
 
 void Gradient::AddStop(float t, Color color) {
-	stops_.emplace_back(std::clamp(t, 0.0f, 1.0f), color);
+	stops_.emplace_back(Clamp01(t), color);
 
 	std::stable_sort(stops_.begin(), stops_.end(), [](const auto& a, const auto& b) {
 		return a.t < b.t;
@@ -44,7 +45,7 @@ void Gradient::AddStop(float t, Color color) {
 }
 
 Color Gradient::Sample(float t) const {
-	t = std::clamp(t, 0.0f, 1.0f);
+	t = Clamp01(t);
 
 	if (stops_.empty()) {
 		return color::White;

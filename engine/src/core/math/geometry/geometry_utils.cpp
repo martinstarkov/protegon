@@ -579,13 +579,13 @@ float ClosestPointLineLine(
 		// First segment degenerates into a point
 		s = 0.0f;
 		t = f / e; // s = 0 => t = (b*s + f) / e = f / e
-		t = std::clamp(t, 0.0f, 1.0f);
+		t = Clamp01(t);
 	} else {
 		float c = d1.Dot(r);
 		if (e <= kEpsilon<float>) {
 			// Second segment degenerates into a point
 			t = 0.0f;
-			s = std::clamp(-c / a, 0.0f, 1.0f); // t = 0 => s = (b*t - c) / a = -c / a
+			s = Clamp01(-c / a); // t = 0 => s = (b*t - c) / a = -c / a
 		} else {
 			// The general nondegenerate case starts here
 			float b		= d1.Dot(d2);
@@ -593,7 +593,7 @@ float ClosestPointLineLine(
 			// If segments not parallel, compute closest point on L1 to L2 and
 			// clamp to segment S1. Else pick arbitrary s (here 0)
 			if (denom != 0.0f) {
-				s = std::clamp((b * f - c * e) / denom, 0.0f, 1.0f);
+				s = Clamp01((b * f - c * e) / denom);
 			} else {
 				s = 0.0f;
 			}
@@ -604,10 +604,10 @@ float ClosestPointLineLine(
 
 			if (tnom < 0.0f) {
 				t = 0.0f;
-				s = std::clamp(-c / a, 0.0f, 1.0f);
+				s = Clamp01(-c / a);
 			} else if (tnom > e) {
 				t = 1.0f;
-				s = std::clamp((b - c) / a, 0.0f, 1.0f);
+				s = Clamp01((b - c) / a);
 			} else {
 				t = tnom / e;
 			}

@@ -26,6 +26,7 @@
 #include "core/math/geometry/rounded_rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/geometry/triangle.h"
+#include "core/math/math_utils.h"
 #include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
@@ -33,8 +34,8 @@
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/id.h"
-#include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_pass.h"
+#include "renderer/primitives/render_state.h"
 #include "renderer/primitives/scaling_mode.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
@@ -70,7 +71,7 @@ static float GetAspectRatio(V2_float size) {
 static float GetNormalizedRadius(float diameter, float size_x) {
 	PTGN_ASSERT(size_x > 0.0f);
 	float normalized_radius{ diameter / size_x };
-	return std::clamp(normalized_radius, 0.0f, 1.0f);
+	return Clamp01(normalized_radius);
 }
 
 DrawContext::DrawContext(Renderer& renderer) : renderer_{ renderer } {}

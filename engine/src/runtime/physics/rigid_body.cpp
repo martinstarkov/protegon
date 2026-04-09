@@ -15,7 +15,7 @@ namespace ptgn {
 void RigidBody::Update(V2_float physics_gravity, secondsf dt) {
 	velocity += gravity * physics_gravity * dt.count();
 	velocity *= 1.0f / (1.0f + drag * dt.count());
-	// Or alternatively: velocity *= std::clamp(1.0f - drag * dt, 0.0f, 1.0f);
+	// Or alternatively: velocity *= Clamp01(1.0f - drag * dt);
 	angular_velocity *= 1.0f / (1.0f + angular_drag * dt.count());
 	if (max_speed != -1.0f) {
 		PTGN_ASSERT(max_speed >= 0.0f, "Max speed must be a positive number or -1 to omit it");

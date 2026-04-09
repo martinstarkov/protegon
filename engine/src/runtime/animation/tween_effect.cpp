@@ -473,7 +473,7 @@ Tween Shake(
 
 	float previous_target{ shake_effect.previous_target };
 
-	float target_intensity{ std::clamp(previous_target + intensity, 0.0f, 1.0f) };
+	float target_intensity{ Clamp01(previous_target + intensity) };
 	shake_effect.previous_target = target_intensity;
 
 	auto update_start = [previous_target](const event::TweenStart& s) {
@@ -513,7 +513,7 @@ Tween Shake(
 		if (instant_tween && !infinite_tween) {
 			// If a previous instantenous shake exists with 0 duration, add to its trauma instead of
 			// queueing a new shake effect.
-			shake_effect.trauma = std::clamp(shake_effect.trauma + intensity, 0.0f, 1.0f);
+			shake_effect.trauma = Clamp01(shake_effect.trauma + intensity);
 			return tween;
 		}
 	}
@@ -570,7 +570,7 @@ Tween Shake(
 			auto dt{ ctx.dt().count() };
 			auto time{ ctx.TimeSinceStart() };
 
-			shake.trauma = std::clamp(shake.trauma - config.recovery_speed * dt, 0.0f, 1.0f);
+			shake.trauma = Clamp01(shake.trauma - config.recovery_speed * dt);
 			ApplyShake(time, offsets, shake.trauma, config, seed);
 
 			if (shake.trauma <= 0.0f) {
