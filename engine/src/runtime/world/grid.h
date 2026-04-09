@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <concepts>
 #include <functional>
+#include <optional>
 #include <type_traits>
 #include <vector>
 
@@ -34,50 +35,53 @@ public:
 		PTGN_ASSERT(static_cast<std::size_t>(length) == cells.size(), "Failed to construct grid");
 	}
 
-	void ForEachCoordinate(const std::function<void(V2_int)>& function) const {
+	template <InvocableR<void, V2_int> F>
+	void ForEachCoordinate(F&& func) const {
 		for (int i{ 0 }; i < size.x; i++) {
 			for (int j{ 0 }; j < size.y; j++) {
-				function(V2_int{ i, j });
+				func(V2_int{ i, j });
 			}
 		}
 	}
 
-	void ForEach(const std::function<void(V2_int, const T&)>& function) const {
+	template <InvocableR<void, V2_int, const T&> F>
+	void ForEach(F&& func) const {
 		for (int i{ 0 }; i < size.x; i++) {
 			for (int j{ 0 }; j < size.y; j++) {
 				V2_int coordinate{ i, j };
-				function(coordinate, Get(coordinate));
+				func(coordinate, Get(coordinate));
 			}
 		}
 	}
 
-	void ForEach(const std::function<void(V2_int, T&)>& function) {
+	template <InvocableR<void, V2_int, T&> F>
+	void ForEach(F&& func) {
 		for (int i{ 0 }; i < size.x; i++) {
 			for (int j{ 0 }; j < size.y; j++) {
 				V2_int coordinate{ i, j };
-				function(coordinate, Get(coordinate));
+				func(coordinate, Get(coordinate));
 			}
 		}
 	}
 
 	template <InvocableR<void, int> F>
-	void ForEachIndex(F function) const {
+	void ForEachIndex(F&& func) const {
 		for (int i{ 0 }; i < length; i++) {
-			function(i);
+			func(i);
 		}
 	}
 
 	template <InvocableR<void, T&> F>
-	void ForEachElement(F function) {
+	void ForEachElement(F&& func) {
 		for (auto& cell : cells) {
-			function(cell);
+			func(cell);
 		}
 	}
 
 	template <InvocableR<void, const T&> F>
-	void ForEachElement(F function) const {
+	void ForEachElement(F&& func) const {
 		for (auto& cell : cells) {
-			function(cell);
+			func(cell);
 		}
 	}
 
@@ -96,15 +100,21 @@ public:
 	}
 
 	const T& Get(V2_int coordinate) const {
-		return Get(OneDimensionalize(coordinate));
+		auto c{ OneDimensionalize(coordinate) };
+		PTGN_ASSERT(c.has_value(), "Coordinate out of range");
+		return Get(*c);
 	}
 
 	[[nodiscard]] T Pop(V2_int coordinate) {
-		return Pop(OneDimensionalize(coordinate));
+		auto c{ OneDimensionalize(coordinate) };
+		PTGN_ASSERT(c.has_value(), "Coordinate out of range");
+		return Pop(*c);
 	}
 
 	T& Get(V2_int coordinate) {
-		return Get(OneDimensionalize(coordinate));
+		auto c{ OneDimensionalize(coordinate) };
+		PTGN_ASSERT(c.has_value(), "Coordinate out of range");
+		return Get(*c);
 	}
 
 	[[nodiscard]] T Pop(int index) {
@@ -124,7 +134,9 @@ public:
 	}
 
 	T& Set(V2_int coordinate, T&& object) {
-		return Set(OneDimensionalize(coordinate), std::move(object));
+		auto c{ OneDimensionalize(coordinate) };
+		PTGN_ASSERT(c.has_value(), "Coordinate out of range");
+		return Set(*c, std::move(object));
 	}
 
 	T& Set(int index, T&& object) {
@@ -146,13 +158,13 @@ public:
 		return length;
 	}
 
-	/// @return -1 if coordinate is invalid, otherwise: coordinate.x + coordinate.y * size.x.
-	[[nodiscard]] int OneDimensionalize(V2_int coordinate) const {
+	/// @return nullopt if coordinate is invalid, otherwise: coordinate.x + coordinate.y * size.x.
+	[[nodiscard]] std::optional<int> OneDimensionalize(V2_int coordinate) const {
 		if (coordinate.x < 0 || coordinate.y < 0) {
-			return -1;
+			return std::nullopt;
 		}
 		if (coordinate.x >= size.x || coordinate.y >= size.y) {
-			return -1;
+			return std::nullopt;
 		}
 		return coordinate.x + coordinate.y * size.x;
 	}

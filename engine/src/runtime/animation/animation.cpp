@@ -221,11 +221,6 @@ namespace impl {
 
 AnimationData::AnimationData(const AnimationConfig& anim_config, V2_int texture_size) :
 	config{ anim_config } {
-	PTGN_ASSERT(
-		config.play_count == -1 || config.play_count >= 0,
-		"Play count must be -1 (infinite) or otherwise non-negative"
-	);
-
 	PTGN_ASSERT(config.frame_count > 0, "Cannot create an animation with 0 frames");
 
 	if (config.frame_size.IsZero()) {
@@ -275,26 +270,26 @@ void AnimationSystem::Update(Scene& scene) {
 			continue;
 		}
 
-		std::size_t total_frames =
-			static_cast<std::size_t>(anim.config.play_count) * anim.config.frame_count;
-
-		std::size_t next_frames_played = anim.frames_played + 1;
+		std::size_t next_frames_played{ anim.frames_played + 1 };
 
 		// All animation plays have completed.
-		if (anim.config.play_count != -1 && next_frames_played >= total_frames) {
-			PushEvent<event::AnimationComplete>(entity);
+		if (anim.config.play_count.has_value()) {
+			if (std::size_t total_frames{ *anim.config.play_count * anim.config.frame_count };
+				next_frames_played >= total_frames) {
+				PushEvent<event::AnimationComplete>(entity);
 
-			if (anim.config.reset_on_complete) {
-				// Reset animation to start frame after it finishes.
-				anim.SetCurrentFrame(0);
+				if (anim.config.reset_on_complete) {
+					// Reset animation to start frame after it finishes.
+					anim.SetCurrentFrame(0);
 
-				frame_change(entity, crop, anim);
+					frame_change(entity, crop, anim);
+				}
+
+				anim.frame_timer.Stop();
+
+				PushEvent<event::AnimationStop>(entity);
+				continue;
 			}
-
-			anim.frame_timer.Stop();
-
-			PushEvent<event::AnimationStop>(entity);
-			continue;
 		}
 
 		PushEvent<event::AnimationUpdate>(entity);

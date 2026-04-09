@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "core/math/angle.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -29,19 +31,24 @@ struct RigidBody {
 
 	void Update(V2_float physics_gravity, secondsf dt);
 
+	// TODO: Fix max_speed and max_angular_speed serialization.
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		RigidBody, max_speed, max_angular_speed, drag, angular_drag, gravity, immovable, velocity,
-		angular_velocity
+		RigidBody, drag, angular_drag, gravity, immovable, velocity, angular_velocity
 	)
 
-	/// @brief -1 means no enforcement of maximum speed.
-	float max_speed{ -1.0f };
-	float max_angular_speed{ -1.0f };
+	/// @brief nullopt means no enforcement of maximum speed.
+	std::optional<float> max_speed;
+	/// @brief nullopt means no enforcement of maximum angular speed.
+	std::optional<float> max_angular_speed;
+
 	float drag{ 0.0f };
 	float angular_drag{ 0.0f };
+
 	/// @brief Gravity relative to scene.physics.GetGravity().
 	float gravity{ 0.0f };
+
 	bool immovable{ false };
+
 	V2_float velocity;
 	Radians angular_velocity{ 0.0f };
 };

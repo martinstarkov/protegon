@@ -5,14 +5,20 @@
 #include <SDL3_mixer/SDL_mixer.h>
 
 #include <cstdint>
+#include <optional>
 #include <utility>
 
 #include "core/assert.h"
 
 namespace ptgn::impl {
 
-Track::Track(std::size_t id, MIX_Mixer* mixer, MIX_Audio* audio, std::int64_t loops) : id_{ id } {
-	PTGN_ASSERT(loops == -1 || loops >= 0, "Loops cannot be negative unless -1 (infinite)");
+Track::Track(
+	std::size_t id, MIX_Mixer* mixer, MIX_Audio* audio, std::optional<std::int64_t> loops
+) :
+	id_{ id } {
+	PTGN_ASSERT(
+		!loops.has_value() || *loops >= 0, "Audio loop count must be positive or infinite (nullopt)"
+	);
 
 	track_ = MIX_CreateTrack(mixer);
 	PTGN_ASSERT(track_, SDL_GetError());
@@ -23,7 +29,7 @@ Track::Track(std::size_t id, MIX_Mixer* mixer, MIX_Audio* audio, std::int64_t lo
 	SDL_PropertiesID props = SDL_CreateProperties();
 	PTGN_ASSERT(props != 0);
 
-	auto loop_set{ SDL_SetNumberProperty(props, MIX_PROP_PLAY_LOOPS_NUMBER, loops) };
+	auto loop_set{ SDL_SetNumberProperty(props, MIX_PROP_PLAY_LOOPS_NUMBER, loops.value_or(-1)) };
 	PTGN_ASSERT(loop_set, SDL_GetError());
 
 	auto play_track{ MIX_PlayTrack(track_, props) };

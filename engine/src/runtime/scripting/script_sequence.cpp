@@ -1,7 +1,8 @@
 #include "runtime/scripting/script_sequence.h"
 
-#include <cstdint>
+#include <chrono>
 #include <functional>
+#include <optional>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -61,7 +62,7 @@ ScriptSequence& ScriptSequence::Wait(milliseconds duration) {
 	return *this;
 }
 
-ScriptSequence& ScriptSequence::Repeat(std::int64_t repeats) {
+ScriptSequence& ScriptSequence::Repeat(std::optional<std::size_t> repeats) {
 	auto& instance{ Get<impl::ScriptSequenceData>() };
 	instance.tween.Repeat(repeats);
 	return *this;

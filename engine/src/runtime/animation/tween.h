@@ -7,7 +7,6 @@
 #include <memory>
 #include <optional>
 #include <ostream>
-#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -117,8 +116,8 @@ public:
 
 	Tween& Ease(ptgn::Ease ease);
 
-	/// @brief -1 for infinite repeats.
-	Tween& Repeat(std::int64_t repeats);
+	/// @brief nullopt for infinite repeats.
+	Tween& Repeat(std::optional<std::size_t> repeats = std::nullopt);
 
 	Tween& Reverse(bool reversed = true);
 
@@ -133,7 +132,7 @@ public:
 	float GetLinearProgress() const;
 
 	/// @return Current number of repeats of the current tween point.
-	std::int64_t GetRepeats() const;
+	std::size_t GetRepeats() const;
 
 	/// @return The easing mode of the current tween point.
 	ptgn::Ease GetEase() const;
@@ -146,7 +145,7 @@ public:
 
 	// TODO: Implement and test.
 	// dt in seconds.
-	// float Rewind(float dt) {
+	// float Rewind(secondsf dt) {
 	// return Step(-dt);
 	//}
 
@@ -284,14 +283,10 @@ public:
 	bool operator==(const TweenPoint&) const = default;
 
 	/// @return True if the tween point has infinite repeats.
-	[[nodiscard]] bool IsInfinite() const {
-		return total_repeats_ == -1;
-	}
+	[[nodiscard]] bool IsInfinite() const;
 
 	/// @return True if the tween point has a duration of 0, meaning it will complete instantly.
-	[[nodiscard]] bool IsInstant() const {
-		return duration_ == 0ms;
-	}
+	[[nodiscard]] bool IsInstant() const;
 
 private:
 	friend class Tween;
@@ -299,10 +294,10 @@ private:
 	friend class ScriptSequence;
 
 	/// @brief Current number of repetitions of the tween.
-	std::int64_t current_repeat_{ 0 };
+	std::size_t current_repeat_{ 0 };
 
-	/// @brief Total number of repetitions of the tween (-1 for infinite tween).
-	std::int64_t total_repeats_{ 0 };
+	/// @brief Total number of repetitions of the tween (nullopt for infinite tween).
+	std::optional<std::size_t> total_repeats_{ 0 };
 
 	/// @brief Go back and fourth between values (requires repeat != 0) (both
 	/// directions take duration time).

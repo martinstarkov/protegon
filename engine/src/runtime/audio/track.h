@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <cstdlib>
+#include <optional>
 
 struct MIX_Audio;
 struct MIX_Track;
@@ -15,8 +15,8 @@ namespace impl {
 
 class Track {
 public:
-	/// @param loops -1 for infinite loops.
-	Track(std::size_t id, MIX_Mixer* mixer, MIX_Audio* audio, std::int64_t loops);
+	/// @param loops Nullopt for infinite loops.
+	Track(std::size_t id, MIX_Mixer* mixer, MIX_Audio* audio, std::optional<std::int64_t> loops);
 
 	~Track() noexcept;
 

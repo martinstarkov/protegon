@@ -3,6 +3,7 @@
 #include <concepts>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <variant>
 
 #include "core/time/time.h"
@@ -53,8 +54,8 @@ public:
 	/// @brief Wait for a duration without running any functions.
 	ScriptSequence& Wait(milliseconds duration);
 
-	/// @brief Repeat the last added function repeats times, -1 for infinite repeats.
-	ScriptSequence& Repeat(std::int64_t repeats);
+	/// @brief Repeat the last added function repeats times, nullopt for infinite repeats.
+	ScriptSequence& Repeat(std::optional<std::size_t> repeats = std::nullopt);
 
 	/// @brief Move onto the next sequence element, skipping the current one.
 	ScriptSequence& MoveOn();

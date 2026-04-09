@@ -7,7 +7,6 @@
 #include <variant>
 #include <vector>
 
-#include "runtime/event/event_dispatcher.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/file.h"
@@ -16,6 +15,7 @@
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/font.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text.h"
@@ -109,7 +109,8 @@ struct Dialogue {
 
 	[[nodiscard]] std::size_t PickRandomIndex() const;
 	const DialogueLine* GetCurrentDialogueLine() const;
-	int GetNewDialogueLine();
+
+	std::optional<int> GetNewDialogueLine();
 
 	std::vector<DialogueLine> lines;
 	std::vector<std::size_t> used_line_indices;

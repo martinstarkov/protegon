@@ -414,7 +414,7 @@ void Scene::InternalUpdate() {
 	impl::AnimationSystem::Update(*this);
 	Lifetime::Update(*this);
 	ctx().physics.PreCollisionUpdate();
-	ctx().collision.Update(*this);
+	ctx().collision.Update(*this, ctx().dt());
 	ctx().physics.PostCollisionUpdate();
 
 	Refresh();

@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdint>
 #include <cstdlib>
 #include <memory>
 #include <optional>
@@ -238,6 +237,14 @@ void TweenData::Reset() {
 
 } // namespace impl
 
+bool TweenPoint::IsInfinite() const {
+	return !total_repeats_.has_value();
+}
+
+bool TweenPoint::IsInstant() const {
+	return duration_ == 0ms;
+}
+
 Tween::Tween(Entity entity) : Entity{ entity } {}
 
 Tween& Tween::OnProgress(const Tween::Callback<event::TweenProgress>& callback) {
@@ -305,7 +312,7 @@ bool Tween::IsPaused() const {
 }
 
 Tween& Tween::During(milliseconds duration) {
-	PTGN_ASSERT(duration >= nanoseconds{ 0 }, "Tween duration cannot be negative");
+	PTGN_ASSERT(duration >= 0ms, "Tween duration cannot be negative");
 	auto& tween{ Get<impl::TweenData>() };
 	auto& point{ tween.EmplaceTweenPoint() };
 	point.duration_ = duration;
@@ -392,18 +399,19 @@ Tween& Tween::Ease(ptgn::Ease ease) {
 	return *this;
 }
 
-Tween& Tween::Repeat(std::int64_t repeats) {
-	if (repeats == 0) {
+Tween& Tween::Repeat(std::optional<std::size_t> repeats) {
+	bool infinite{ !repeats.has_value() };
+
+	if (!infinite && *repeats == 0) {
 		return *this;
 	}
-	PTGN_ASSERT(
-		repeats == -1 || repeats > 0, "Repeats cannot be negative unless it is -1 (infinite)"
-	);
+	PTGN_ASSERT(infinite || *repeats > 0, "Repeats cannot be negative");
+
 	auto& total_repeats{ GetLastTweenPoint().total_repeats_ };
 	total_repeats = repeats;
-	if (total_repeats != -1) {
+	if (!infinite) {
 		// +1 because the first pass is not counted as a repeat.
-		total_repeats += 1;
+		total_repeats.value() += 1;
 	}
 	return *this;
 }
@@ -438,7 +446,7 @@ ptgn::Ease Tween::GetEase() const {
 	return point.ease_;
 }
 
-std::int64_t Tween::GetRepeats() const {
+std::size_t Tween::GetRepeats() const {
 	const auto& point{ GetCurrentTweenPoint() };
 	return point.current_repeat_;
 }
@@ -457,12 +465,10 @@ milliseconds Tween::GetDuration() const {
 	return GetCurrentTweenPoint().duration_;
 }
 
-void Tween::Step(secondsf dt_secs) {
+void Tween::Step(secondsf dt) {
 	auto& tween{ Get<impl::TweenData>() };
 
-	float dt{ dt_secs.count() };
-
-	if (dt <= 0.0f || tween.state_ != impl::TweenState::Started) {
+	if (dt <= 0s || tween.state_ != impl::TweenState::Started) {
 		return;
 	}
 
@@ -474,23 +480,22 @@ void Tween::Step(secondsf dt_secs) {
 		return;
 	}
 
-	while (dt > 0.0f && tween.state_ == impl::TweenState::Started) {
+	while (dt > 0s && tween.state_ == impl::TweenState::Started) {
 		TweenPoint& point{ GetCurrentTweenPoint() };
 
-		if (float duration_sec{ duration_cast<secondsf>(point.duration_).count() };
-			duration_sec <= 0.0f) {
+		if (auto duration{ duration_cast<secondsf>(point.duration_) }; duration <= 0s) {
 			tween.progress_ = 1.0f;
-			dt				= 0.0f;
+			dt				= 0s;
 		} else {
-			float progress_inc{ dt / duration_sec };
+			float progress_inc{ dt.count() / duration.count() };
 			float new_progress{ tween.progress_ + progress_inc };
 
 			if (new_progress >= 1.0f) {
-				dt				= (new_progress - 1.0f) * duration_sec;
+				dt				= (new_progress - 1.0f) * duration;
 				tween.progress_ = 1.0f;
 			} else {
 				tween.progress_ = new_progress;
-				dt				= 0.0f;
+				dt				= 0s;
 			}
 		}
 
@@ -503,8 +508,8 @@ void Tween::Step(secondsf dt_secs) {
 
 			point.current_repeat_++;
 
-			bool infinite_repeat = point.total_repeats_ == -1;
-			bool should_repeat	 = infinite_repeat || point.current_repeat_ < point.total_repeats_;
+			bool infinite_repeat{ !point.total_repeats_.has_value() };
+			bool should_repeat = infinite_repeat || point.current_repeat_ < *point.total_repeats_;
 
 			if (point.yoyo_ && should_repeat) {
 				point.currently_reversed_ = !point.currently_reversed_;

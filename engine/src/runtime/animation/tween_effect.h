@@ -3,6 +3,7 @@
 #include <concepts>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -118,7 +119,7 @@ Tween AddTweenEffect(
 	const std::function<T(Entity)>& get_current_value,
 	const std::function<void(Entity, T)>& set_current_value
 ) {
-	PTGN_ASSERT(duration > milliseconds{ 0 }, "Tween effect must have a positive duration");
+	PTGN_ASSERT(duration > 0ms, "Tween effect must have a positive duration");
 
 	auto tween{ GetOrCreateTween<TComponent>(entity) };
 
@@ -214,7 +215,7 @@ Tween TweenTo(
 	Entity entity, const T& target, milliseconds duration, Ease ease, TweenProperty<T> property,
 	bool force = true
 ) {
-	PTGN_ASSERT(duration > milliseconds{ 0 }, "Tween must have a positive duration");
+	PTGN_ASSERT(duration > 0ms, "Tween must have a positive duration");
 
 	auto tween{ GetOrCreateTween<TComponent>(entity) };
 
@@ -535,22 +536,22 @@ std::vector<Tween> FadeOut(
 /// @param entity The entity to apply the bounce effect to.
 /// @param bounce_amplitude The peak offset applied during the bounce.
 /// @param duration The duration of one bounce cycle (e.g., up and down).
-/// @param total_periods Number of up and down bounce cycles. If -1, bounce continues indefinitely
-/// until StopBounce is called.
+/// @param total_periods Number of up and down bounce cycles. If nullopt, bounce continues
+/// indefinitely until StopBounce is called.
 /// @param ease The easing function to use for the bounce.
 /// @param static_offset A constant offset added to the entity's position throughout the bounce.
 /// @param force If true, overrides any existing bounce effect on the entity.
 Tween Bounce(
 	Entity entity, V2_float bounce_amplitude, milliseconds duration,
-	std::int64_t total_periods = -1, Ease ease = Ease::Linear, V2_float static_offset = {},
-	bool force = true
+	std::optional<std::size_t> total_periods = std::nullopt, Ease ease = Ease::Linear,
+	V2_float static_offset = {}, bool force = true
 );
 
 template <EntityType E>
 std::vector<Tween> Bounce(
 	const std::vector<E>& entities, V2_float bounce_amplitude, milliseconds duration,
-	std::int64_t total_periods = -1, Ease ease = Ease::Linear, V2_float static_offset = {},
-	bool force = true
+	std::optional<std::size_t> total_periods = std::nullopt, Ease ease = Ease::Linear,
+	V2_float static_offset = {}, bool force = true
 ) {
 	std::vector<Tween> tweens;
 	tweens.reserve(entities.size());
@@ -574,22 +575,22 @@ std::vector<Tween> Bounce(
 /// @param entity The entity to apply the bounce effect to.
 /// @param bounce_amplitude The peak offset applied during the bounce.
 /// @param duration The duration of one bounce cycle (e.g., up and down).
-/// @param total_periods Number of up and down bounce cycles. If -1, bounce continues indefinitely
-/// until StopBounce is called.
+/// @param total_periods Number of up and down bounce cycles. If nullopt, bounce continues
+/// indefinitely until StopBounce is called.
 /// @param ease The symmetrical easing function to use for the bounce.
 /// @param static_offset A constant offset added to the entity's position throughout the bounce.
 /// @param force If true, overrides any existing bounce effect on the entity.
 Tween SymmetricalBounce(
 	Entity entity, V2_float bounce_amplitude, milliseconds duration,
-	std::int64_t total_periods = -1, Ease ease = Ease::Linear, V2_float static_offset = {},
-	bool force = true
+	std::optional<std::size_t> total_periods = std::nullopt, Ease ease = Ease::Linear,
+	V2_float static_offset = {}, bool force = true
 );
 
 template <EntityType E>
 std::vector<Tween> SymmetricalBounce(
 	const std::vector<E>& entities, V2_float bounce_amplitude, milliseconds duration,
-	std::int64_t total_periods = -1, Ease ease = Ease::Linear, V2_float static_offset = {},
-	bool force = true
+	std::optional<std::size_t> total_periods = std::nullopt, Ease ease = Ease::Linear,
+	V2_float static_offset = {}, bool force = true
 ) {
 	std::vector<Tween> tweens;
 	tweens.reserve(entities.size());
@@ -619,7 +620,7 @@ void StopBounce(const std::vector<E>& entities, bool force = true) {
 /// @param entity The entity to apply the shake effect to.
 /// @param intensity The intensity of the shake, in the range [-1, 1] (negative values reduce any
 /// existing shake trauma).
-/// @param duration The total duration of the shake effect. If -1, the shake continues until
+/// @param duration The total duration of the shake effect. If nullopt, the shake continues until
 /// StopShake is called.
 /// @param config Configuration parameters for the shake behavior.
 /// @param ease The easing function to use for the shake. If Ease::None, shake remains at
@@ -628,8 +629,9 @@ void StopBounce(const std::vector<E>& entities, bool force = true) {
 /// @param reset_trauma If true, resets the trauma immediately upon completing the final queued
 /// shake effect.
 Tween Shake(
-	Entity entity, float intensity, milliseconds duration, const ShakeConfig& config = {},
-	Ease ease = Ease::None, bool force = true, bool reset_trauma = false
+	Entity entity, float intensity, std::optional<milliseconds> duration,
+	const ShakeConfig& config = {}, Ease ease = Ease::None, bool force = true,
+	bool reset_trauma = false
 );
 
 template <EntityType E>
@@ -651,15 +653,15 @@ std::vector<Tween> Shake(
 /// @param entity The entity to apply the shake effect to.
 /// @param intensity The intensity of the shake, in the range [-1, 1] (negative values reduce any
 /// existing shake trauma).
-/// @param duration The total duration of the shake effect. If -1, the shake continues until
+/// @param duration The total duration of the shake effect. If nullopt, the shake continues until
 /// StopShake is called.
 /// @param config Configuration parameters for the shake behavior.
 /// @param force If true, overrides any existing shake effect.
 /// @param reset_trauma If true, resets the trauma immediately upon completing the final queued
 /// shake effect.
 Tween Shake(
-	Entity entity, float intensity, milliseconds duration, const ShakeConfig& config = {},
-	bool force = true, bool reset_trauma = false
+	Entity entity, float intensity, std::optional<milliseconds> duration,
+	const ShakeConfig& config = {}, bool force = true, bool reset_trauma = false
 );
 
 template <EntityType E>
@@ -694,9 +696,7 @@ std::vector<Tween> Shake(
 	std::vector<Tween> tweens;
 	tweens.reserve(entities.size());
 	for (const auto& entity : entities) {
-		tweens.emplace_back(
-			Shake(entity, intensity, milliseconds{ 0 }, config, Ease::None, force, false)
-		);
+		tweens.emplace_back(Shake(entity, intensity, 0ms, config, Ease::None, force, false));
 	}
 	return tweens;
 }

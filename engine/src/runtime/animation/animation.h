@@ -38,8 +38,8 @@ struct AnimationConfig {
 	/// If {}, automatically calculated as { texture_size.x / frame_count, texture_size.y }.
 	V2_int frame_size;
 
-	/// @brief Number of times that the animation plays for, -1 for infinite replay.
-	std::int64_t play_count{ 1 };
+	/// @brief Number of times that the animation plays for, nullopt for infinite replay.
+	std::optional<std::size_t> play_count{ 1 };
 
 	/// @brief Pixel within the texture which indicates the top left position of the
 	/// animation sequence.
@@ -48,9 +48,9 @@ struct AnimationConfig {
 	/// @brief Reset animation to frame 0 when it completes.
 	bool reset_on_complete{ false };
 
+	// TODO: Fix play count serialization.
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		AnimationConfig, frame_count, animation_duration, frame_size, play_count, start_pixel,
-		reset_on_complete
+		AnimationConfig, frame_count, animation_duration, frame_size, start_pixel, reset_on_complete
 	)
 };
 

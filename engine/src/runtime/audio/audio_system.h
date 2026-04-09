@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "core/util/file.h"
@@ -54,7 +55,7 @@ public:
 	/// @return True if any audio track is playing.
 	[[nodiscard]] bool IsAnyPlaying() const;
 
-	/// @param loops The number of loops to play the audio for, -1 for infinite looping.
+	/// @param loops The number of loops to play the audio for, nullopt for infinite looping.
 	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume]. Volume clamped
 	/// if outside of range.
 	/// @param frequency_ratio The frequency ratio is used to adjust the rate at which audio data is
@@ -68,8 +69,8 @@ public:
 	/// will stop the currently playing track and start a new one. If false, when exclusive is true
 	/// and the audio is already playing, it will do nothing.
 	void Play(
-		AudioOrKey audio, float volume = 1.0f, int loops = 0, float frequency_ratio = 1.0f,
-		bool exclusive = false, bool force_restart = true
+		AudioOrKey audio, float volume = 1.0f, std::optional<int> loops = {},
+		float frequency_ratio = 1.0f, bool exclusive = false, bool force_restart = true
 	);
 
 	/// @brief Stop the audio.
@@ -109,9 +110,8 @@ public:
 	///// @return True if the audio is currently fading in OR out, false otherwise.
 	//[[nodiscard]] bool IsFading(AudioOrKey audio);
 	///// @param fade_time How long to fade the audio in for.
-	///// @param loops The number of loops to play the audio for, -1 for infinite looping.
-	// void FadeIn(AudioOrKey audio, milliseconds fade_time, int loops =
-	// -1);
+	///// @param loops The number of loops to play the audio for, nullopt for infinite looping.
+	// void FadeIn(AudioOrKey audio, milliseconds fade_time, std::optional<int> loops);
 	///// @param fade_time Time over which to fade the audio out.
 	// void FadeOut(AudioOrKey audio, milliseconds fade_time);
 

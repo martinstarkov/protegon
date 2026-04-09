@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -35,7 +36,7 @@ AudioSystem::~AudioSystem() noexcept {
 }
 
 void AudioSystem::Play(
-	AudioOrKey audio, float volume, int loops, float frequency_ratio, bool exclusive,
+	AudioOrKey audio, float volume, std::optional<int> loops, float frequency_ratio, bool exclusive,
 	bool force_restart
 ) {
 	if (exclusive && IsPlaying(audio)) {

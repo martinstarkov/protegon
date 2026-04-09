@@ -54,7 +54,7 @@ public:
 
 	[[nodiscard]] std::deque<V2_int> FindWaypoints(V2_int start, V2_int end);
 
-	[[nodiscard]] static int FindWaypointIndex(
+	[[nodiscard]] static std::optional<int> FindWaypointIndex(
 		const std::deque<V2_int>& waypoints, V2_int position
 	);
 

@@ -189,13 +189,13 @@ const DialogueLine* Dialogue::GetCurrentDialogueLine() const {
 	return &lines[current_index];
 }
 
-int Dialogue::GetNewDialogueLine() {
+std::optional<int> Dialogue::GetNewDialogueLine() {
 	if (lines.empty()) {
-		return -1;
+		return std::nullopt;
 	}
 	if (lines.size() == used_line_indices.size()) {
 		if (!repeatable) {
-			return -1;
+			return std::nullopt;
 		}
 		used_line_indices.clear();
 		if (lines.size() > 1 && behavior == DialogueBehavior::Random) {
@@ -218,7 +218,7 @@ int Dialogue::GetNewDialogueLine() {
 	PTGN_ASSERT(!std::ranges::contains(used_line_indices, static_cast<std::size_t>(chosen_index)));
 	used_line_indices.emplace_back(static_cast<std::size_t>(chosen_index));
 	if (lines[static_cast<std::size_t>(chosen_index)].pages.empty()) {
-		return -1;
+		return std::nullopt;
 	}
 	return chosen_index;
 }
@@ -297,11 +297,11 @@ void DialogueComponent::Open(const std::string& dialogue_name) {
 	if (!dialogue) {
 		return;
 	}
-	int dialogue_line_index = dialogue->GetNewDialogueLine();
-	if (dialogue_line_index == -1) {
+	auto dialogue_line_index = dialogue->GetNewDialogueLine();
+	if (!dialogue_line_index.has_value()) {
 		return;
 	}
-	StartDialogueLine(dialogue_line_index);
+	StartDialogueLine(*dialogue_line_index);
 	Show(text_);
 	if (background_.has_value()) {
 		Show(*background_);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <ostream>
 #include <utility>
 #include <vector>
@@ -39,9 +40,9 @@ struct FollowConfig {
 	/// @brief Teleport to the target when the following starts.
 	bool teleport_on_start{ false };
 
-	/// @brief What is considered close enough to the target, -1 means that the follow will never
-	/// complete.
-	float stop_distance{ -1.0f };
+	/// @brief What is considered close enough to the target, nullopt means that the follow will
+	/// never complete.
+	std::optional<float> stop_distance;
 
 	/// @brief Value from 0 to 1 which determines how aggressively the move mode interpolates. Only
 	/// applicable when move mode is set to lerp.
@@ -59,9 +60,10 @@ struct FollowConfig {
 
 	bool operator==(const FollowConfig&) const = default;
 
+	// TODO: Fix stop distance serialization.
 	PTGN_SERIALIZER_REGISTER(
-		FollowConfig, move_mode, follow_x, follow_y, teleport_on_start, stop_distance, lerp,
-		deadzone, offset, max_speed, max_acceleration
+		FollowConfig, move_mode, follow_x, follow_y, teleport_on_start, lerp, deadzone, offset,
+		max_speed, max_acceleration
 	)
 };
 

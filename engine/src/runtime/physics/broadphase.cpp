@@ -1,7 +1,10 @@
 #include "runtime/physics/broadphase.h"
 
 #include <algorithm>
+#include <list>
 #include <memory>
+#include <optional>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -76,11 +79,13 @@ void KDTree::EndFrameUpdate() {
 	}
 
 	// If too many changed, rebuild fully from entity_map (fast, cache-friendly)
-	if (moved >= std::max<std::size_t>(1, static_cast<std::size_t>(rebuild_threshold * total))) {
+	if (moved >= std::max<std::size_t>(
+					 1, static_cast<std::size_t>(rebuild_threshold * static_cast<float>(total))
+				 )) {
 		std::vector<KDObject> all;
 		all.reserve(entity_map.size());
-		for (const auto& kv : entity_map) {
-			all.push_back(kv.second);
+		for (const auto& [_, object] : entity_map) {
+			all.emplace_back(object);
 		}
 		root = BuildRecursive(all, 0);
 		moved_entities.clear();
@@ -97,7 +102,7 @@ void KDTree::EndFrameUpdate() {
 
 std::vector<Entity> KDTree::Query(BoundingAABB region) const {
 	std::vector<Entity> result;
-	Traverse(root.get(), [&](const KDObject& obj) {
+	Traverse(root.get(), [&region, &result](const KDObject& obj) {
 		if (obj.aabb.Overlaps(region)) {
 			result.emplace_back(obj.entity);
 		}
@@ -107,7 +112,7 @@ std::vector<Entity> KDTree::Query(BoundingAABB region) const {
 
 std::vector<Entity> KDTree::Query(V2_float point) const {
 	std::vector<Entity> result;
-	Traverse(root.get(), [&](const KDObject& obj) {
+	Traverse(root.get(), [&point, &result](const KDObject& obj) {
 		if (obj.aabb.Overlaps(point)) {
 			result.emplace_back(obj.entity);
 		}
@@ -118,7 +123,7 @@ std::vector<Entity> KDTree::Query(V2_float point) const {
 std::vector<Entity> KDTree::Raycast(Entity entity, V2_float dir, BoundingAABB aabb) const {
 	std::vector<Entity> hits;
 	Rect rect{ aabb.min, aabb.max };
-	Traverse(root.get(), [&](const KDObject& obj) {
+	Traverse(root.get(), [&entity, &dir, &rect, &hits](const KDObject& obj) {
 		if (obj.entity == entity) {
 			return;
 		}
@@ -136,7 +141,7 @@ Entity KDTree::RaycastFirst(Entity entity, V2_float dir, BoundingAABB aabb) cons
 	Entity closest_hit;
 	float closest_t{ 1.0f };
 	Rect rect{ aabb.min, aabb.max };
-	Traverse(root.get(), [&](const KDObject& obj) {
+	Traverse(root.get(), [&entity, &dir, &rect, &closest_t, &closest_hit](const KDObject& obj) {
 		if (obj.entity == entity) {
 			return;
 		}
@@ -209,8 +214,8 @@ void KDTree::PartialUpdate() {
 		// No existing tree; build from scratch from entity_map
 		std::vector<KDObject> all;
 		all.reserve(entity_map.size());
-		for (const auto& kv : entity_map) {
-			all.push_back(kv.second);
+		for (const auto& [_, object] : entity_map) {
+			all.emplace_back(object);
 		}
 		root = BuildRecursive(all, 0);
 		return;
@@ -222,18 +227,18 @@ void KDTree::PartialUpdate() {
 	std::vector<KDNode*> touched_leaves;
 	touched_leaves.reserve(moved_entities.size());
 
-	for (Entity e : moved_entities) {
+	for (const auto& entity : moved_entities) {
 		// if entity isn't present in the tree (inserted this frame), skip removal
 		// We'll insert it below from entity_map
-		bool found_and_removed = RemoveFromTree(root.get(), e, 0, touched_leaves);
+		bool found_and_removed = RemoveFromTree(root.get(), entity, 0, touched_leaves);
 		(void)found_and_removed; // fine if not found
 	}
 
 	// 2) Bulk-insert: gather moved objects from entity_map and insert into leaves without
 	// splitting yet We insert directly into leaves to avoid repeated traversals doing node
 	// splitting mid-flight.
-	for (Entity e : moved_entities) {
-		auto it = entity_map.find(e);
+	for (const auto& entity : moved_entities) {
+		auto it = entity_map.find(entity);
 		if (it == entity_map.end()) {
 			continue; // removed completely by user
 		}
@@ -252,9 +257,9 @@ void KDTree::PartialUpdate() {
 		if (leaf && leaf->objects.size() > max_objects_per_node) {
 			// We need to call SplitNode with a depth. We don't store depths in nodes, so we
 			// compute it by walking from root.
-			int depth = ComputeDepth(root.get(), leaf, 0);
-			if (depth >= 0) {
-				SplitNodeExternal(leaf, depth);
+			auto depth = ComputeDepth(root.get(), leaf, 0);
+			if (depth.has_value() && *depth >= 0) {
+				SplitNodeExternal(leaf, *depth);
 			}
 		}
 	}
@@ -323,14 +328,14 @@ void KDTree::InsertIntoLeaf(KDNode* node, const KDObject& obj, int depth) {
 	}
 }
 
-int KDTree::ComputeDepth(KDNode* current, KDNode* target, int depth) {
+std::optional<int> KDTree::ComputeDepth(const KDNode* current, KDNode* target, int depth) {
 	if (!current) {
-		return -1;
+		return std::nullopt;
 	}
 	if (current == target) {
 		return depth;
 	}
-	if (int d = ComputeDepth(current->left.get(), target, depth + 1); d >= 0) {
+	if (auto d = ComputeDepth(current->left.get(), target, depth + 1); d.has_value() && *d >= 0) {
 		return d;
 	}
 	return ComputeDepth(current->right.get(), target, depth + 1);

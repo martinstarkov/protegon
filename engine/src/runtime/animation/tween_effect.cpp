@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <variant>
 #include <vector>
 
@@ -80,10 +81,11 @@ static float ApplyBounceEase(float t, bool symmetrical, Ease ease) {
 }
 
 static Tween BounceImpl(
-	Entity entity, V2_float amplitude, milliseconds duration, std::int64_t total_periods, Ease ease,
-	V2_float static_offset, bool force, bool symmetrical
+	Entity entity, V2_float amplitude, milliseconds duration,
+	std::optional<std::size_t> total_periods, Ease ease, V2_float static_offset, bool force,
+	bool symmetrical
 ) {
-	PTGN_ASSERT(duration > milliseconds{ 0 }, "Tween effect must have a positive duration");
+	PTGN_ASSERT(duration > 0ms, "Tween effect must have a positive duration");
 
 	auto tween{ GetOrCreateTween<BounceEffect>(entity) };
 
@@ -148,11 +150,12 @@ void TargetFollowImpl(Entity target, const TargetFollowConfig& config, Tween twe
 
 		SetPosition(parent, new_pos);
 	}
-	if (config.stop_distance < kEpsilon<float>) {
+	if (!config.stop_distance.has_value() || *config.stop_distance < kEpsilon<float>) {
 		return;
 	}
+
 	if (auto dist2{ dir.MagnitudeSquared() };
-		dist2 >= config.stop_distance * config.stop_distance) {
+		dist2 >= *config.stop_distance * (*config.stop_distance)) {
 		return;
 	}
 	tween.IncrementPoint();
@@ -177,7 +180,11 @@ void PathFollowImpl(
 
 	auto dir{ target_pos - current_pos };
 
-	if (dir.MagnitudeSquared() < config.stop_distance * config.stop_distance) {
+	PTGN_ASSERT(
+		config.stop_distance.has_value(), "Stop distance must be specified for path follow configs"
+	);
+
+	if (dir.MagnitudeSquared() < *config.stop_distance * (*config.stop_distance)) {
 		if (follow.current_waypoint + 1 < waypoints.size()) {
 			follow.current_waypoint++;
 		} else if (config.loop_path) {
@@ -230,8 +237,8 @@ Tween StartFollowImpl(
 		tween.Clear();
 	}
 
-	tween.During(milliseconds{ 0 })
-		.Repeat(-1)
+	tween.During(0ms)
+		.Repeat()
 		.OnStart(start_func)
 		.OnProgress(update_func)
 		.OnPointComplete(&EntityFollowStopImpl<event::TweenPointComplete>)
@@ -291,8 +298,8 @@ Tween StartFollowPathImpl(
 		impl::PathFollowImpl(waypoints, config, p.tween);
 	};
 
-	tween.During(milliseconds{ 0 })
-		.Repeat(-1)
+	tween.During(0ms)
+		.Repeat()
 		.OnStart(start_func)
 		.OnProgress(update_func)
 		.OnPointComplete(&impl::EntityFollowStopImpl<event::TweenPointComplete>)
@@ -376,8 +383,8 @@ void VelocityModeMoveImpl(const FollowConfig& config, Entity parent, V2_float di
 
 	auto dist2{ dir.MagnitudeSquared() };
 
-	if (config.stop_distance >= kEpsilon<float> &&
-		dist2 < config.stop_distance * config.stop_distance) {
+	if (config.stop_distance.has_value() && *config.stop_distance >= kEpsilon<float> &&
+		dist2 < *config.stop_distance * (*config.stop_distance)) {
 		return;
 	}
 
@@ -419,8 +426,8 @@ Tween FadeOut(Entity entity, milliseconds duration, Ease ease, bool force, bool 
 }
 
 Tween Bounce(
-	Entity entity, V2_float amplitude, milliseconds duration, std::int64_t total_periods, Ease ease,
-	V2_float static_offset, bool force
+	Entity entity, V2_float amplitude, milliseconds duration,
+	std::optional<std::size_t> total_periods, Ease ease, V2_float static_offset, bool force
 ) {
 	return impl::BounceImpl(
 		entity, amplitude, duration, total_periods, ease, static_offset, force, false
@@ -428,8 +435,8 @@ Tween Bounce(
 }
 
 Tween SymmetricalBounce(
-	Entity entity, V2_float amplitude, milliseconds duration, std::int64_t total_periods, Ease ease,
-	V2_float static_offset, bool force
+	Entity entity, V2_float amplitude, milliseconds duration,
+	std::optional<std::size_t> total_periods, Ease ease, V2_float static_offset, bool force
 ) {
 	return impl::BounceImpl(
 		entity, amplitude, duration, total_periods, ease, static_offset, force, true
@@ -454,18 +461,18 @@ void StopBounce(Entity entity, bool force) {
 }
 
 Tween Shake(
-	Entity entity, float intensity, milliseconds duration, const ShakeConfig& config, Ease ease,
-	bool force, bool reset_trauma
+	Entity entity, float intensity, std::optional<milliseconds> duration, const ShakeConfig& config,
+	Ease ease, bool force, bool reset_trauma
 ) {
 	PTGN_ASSERT(
 		intensity >= -1.0f && intensity <= 1.0f, "Shake intensity must be in range [-1, 1]"
 	);
 
-	bool infinite_shake{ duration == milliseconds{ -1 } };
+	bool infinite_shake{ !duration.has_value() };
 
 	PTGN_ASSERT(
-		duration >= milliseconds{ 0 } || infinite_shake,
-		"Shake effect must have a positive duration or be -1 (infinite shake)"
+		infinite_shake || *duration >= 0ms,
+		"Shake effect must have a positive duration or be infinite"
 	);
 
 	auto tween{ GetOrCreateTween<impl::ShakeEffect>(entity) };
@@ -535,7 +542,7 @@ Tween Shake(
 	};
 
 	if (!infinite_shake) {
-		tween.During(duration)
+		tween.During(*duration)
 			.Ease(ease)
 			.OnStart(update_start)
 			.OnProgress(shake_func)
@@ -544,9 +551,9 @@ Tween Shake(
 			.OnStop(update_stop)
 			.OnReset(update_stop);
 	} else {
-		tween.During(milliseconds{ 0 })
+		tween.During(0ms)
 			.Ease(ease)
-			.Repeat(-1)
+			.Repeat()
 			.OnStart(update_start)
 			.OnProgress(shake_func)
 			.OnPointComplete(update_stop)
@@ -557,7 +564,7 @@ Tween Shake(
 
 	if (!reset_trauma) {
 		// Add a infinite tween point that reduces trauma organically.
-		tween.During(milliseconds{ 0 }).Repeat(-1).OnProgress([config, seed](auto p) {
+		tween.During(0ms).Repeat().OnProgress([config, seed](auto p) {
 			if (!p.tween.Has<impl::ShakeEffect>()) {
 				p.tween.IncrementPoint();
 				return;
@@ -584,14 +591,14 @@ Tween Shake(
 }
 
 Tween Shake(
-	Entity entity, float intensity, milliseconds duration, const ShakeConfig& config, bool force,
-	bool reset_trauma
+	Entity entity, float intensity, std::optional<milliseconds> duration, const ShakeConfig& config,
+	bool force, bool reset_trauma
 ) {
 	return Shake(entity, intensity, duration, config, Ease::None, force, reset_trauma);
 }
 
 Tween Shake(Entity entity, float intensity, const ShakeConfig& config, bool force) {
-	return Shake(entity, intensity, milliseconds{ 0 }, config, Ease::None, force, false);
+	return Shake(entity, intensity, 0ms, config, Ease::None, force, false);
 }
 
 void StopShake(Entity entity, bool force) {

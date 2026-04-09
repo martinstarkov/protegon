@@ -79,7 +79,7 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 			"right", CreateAnimation(
 						 scene, texture, anim_position,
 						 { config.animation_frame_count->x, duration,
-						   config.animation_frame_size.value_or(V2_int{}), -1,
+						   config.animation_frame_size.value_or(V2_int{}), std::nullopt,
 						   V2_float{ 0, config.animation_frame_size->y } }
 					 )
 		);
@@ -87,7 +87,7 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 			"up", CreateAnimation(
 					  scene, texture, anim_position,
 					  { config.animation_frame_count->x, duration,
-						config.animation_frame_size.value_or(V2_int{}), -1,
+						config.animation_frame_size.value_or(V2_int{}), std::nullopt,
 						V2_float{ 0, 2 * config.animation_frame_size->y } }
 				  )
 		);

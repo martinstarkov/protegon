@@ -5,6 +5,7 @@
 
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/time/time.h"
 #include "serialization/json/enum.h"
 #include "serialization/json/serialize.h"
 
@@ -177,7 +178,7 @@ private:
 
 	body.velocity.set(velocityX, velocityY);
 
-	if (maxSpeed > -1 && body.velocity.length() > maxSpeed) {
+	if (maxSpeed.has_value() && body.velocity.length() > maxSpeed) {
 		body.velocity.normalize().scale(maxSpeed);
 		speed = maxSpeed;
 	}

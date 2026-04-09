@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -135,8 +136,8 @@ private:
 	/// @brief Insert object into a leaf (descend using object's rect). We do NOT split here.
 	void InsertIntoLeaf(KDNode* node, const KDObject& obj, int depth);
 
-	/// @brief Compute depth of a target leaf by walking tree; returns -1 if not found.
-	[[nodiscard]] int ComputeDepth(KDNode* current, KDNode* target, int depth);
+	/// @brief Compute depth of a target leaf by walking tree; returns nullopt if not found.
+	[[nodiscard]] std::optional<int> ComputeDepth(const KDNode* current, KDNode* target, int depth);
 
 	/// @brief External SplitNode: we'll emulate the same logic as your original SplitNode but
 	/// accept a pointer to an existing leaf.
