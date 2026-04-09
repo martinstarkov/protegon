@@ -77,7 +77,7 @@ struct CollisionHandlerSettings {
 
 	bool debug_draw_enabled{ false };
 	Color debug_draw_color{ color::Magenta };
-	FillStyle debug_draw_fill_style{ FillStyle::Hollow(1.0f) };
+	FillStyle debug_draw_fill_style{ 1.0f };
 
 	[[nodiscard]] bool DrawCCD() const {
 		return debug_draw_enabled && debug_draw_ccd;

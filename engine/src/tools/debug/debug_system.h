@@ -37,9 +37,8 @@ public:
 
 	/// @param origin only applicable to Rect and RoundedRect.
 	void DrawShape(
-		const Shape& shape, Transform transform, Color color,
-		FillStyle fill_style = FillStyle::Hollow(1.0f), Origin draw_origin = Origin::Center,
-		const std::optional<Camera>& camera = {}
+		const Shape& shape, Transform transform, Color color, FillStyle fill_style = 1.0f,
+		Origin draw_origin = Origin::Center, const std::optional<Camera>& camera = {}
 	);
 
 	void DrawLines(

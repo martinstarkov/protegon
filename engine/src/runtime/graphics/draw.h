@@ -28,22 +28,16 @@ class DrawContext;
 
 inline constexpr float kMinLineWidth{ 1.0f };
 
-namespace impl {
-
 struct Solid {};
 
 struct Hollow {
 	float line_width{ kMinLineWidth }; // must be positive and >= kMinLineWidth
 };
 
-} // namespace impl
-
 struct FillStyle {
 	FillStyle() = default;
 	FillStyle(float line_width); // NOSONAR
-
-	static FillStyle Hollow(float line_width = 1.0f);
-	static FillStyle Solid();
+	FillStyle(Solid);			 // NOSONAR
 
 	template <typename F>
 	decltype(auto) Visit(F&& f) const {
@@ -57,9 +51,9 @@ struct FillStyle {
 
 		if constexpr (std::same_as<R1, R2>) {
 			return Visit([&]<typename T>(const T& s) -> R1 {
-				if constexpr (std::is_same_v<T, impl::Solid>) {
+				if constexpr (std::is_same_v<T, Solid>) {
 					return solid_fn();
-				} else if constexpr (std::is_same_v<T, impl::Hollow>) {
+				} else if constexpr (std::is_same_v<T, Hollow>) {
 					PTGN_ASSERT(s.line_width >= kMinLineWidth);
 					return hollow_fn(s.line_width);
 				} else {
@@ -70,9 +64,9 @@ struct FillStyle {
 			using R = std::variant<R1, R2>;
 
 			return Visit([&]<typename T>(const T& s) -> R {
-				if constexpr (std::is_same_v<T, impl::Solid>) {
+				if constexpr (std::is_same_v<T, Solid>) {
 					return R{ solid_fn() };
-				} else if constexpr (std::is_same_v<T, impl::Hollow>) {
+				} else if constexpr (std::is_same_v<T, Hollow>) {
 					PTGN_ASSERT(s.line_width >= kMinLineWidth);
 					return R{ hollow_fn(s.line_width) };
 				} else {
@@ -85,13 +79,11 @@ struct FillStyle {
 private:
 	friend class DrawContext;
 
-	FillStyle(impl::Solid); // NOSONAR
-
 	/// @brief Converts a fill style to a SDF line thickness for shaders to draw hollow and solid
 	/// shapes.
 	[[nodiscard]] float NormalizedToSDFThickness(float fade, V2_float radii) const;
 
-	std::variant<impl::Hollow, impl::Solid> style{ impl::Hollow{} };
+	std::variant<Hollow, Solid> style{ Solid{} };
 };
 
 struct Depth : public ArithmeticComponent<float> {

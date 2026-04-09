@@ -39,7 +39,7 @@ public:
 
 	Entity CreateColorTile(V2_float position, const Color& color) {
 		auto e =
-			CreateRect(*this, position, chunk_manager.tile_size, color, -1.0f, Origin::TopLeft);
+			CreateRect(*this, position, chunk_manager.tile_size, color, Solid{}, Origin::TopLeft);
 		return e;
 	}
 

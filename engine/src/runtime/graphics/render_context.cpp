@@ -97,7 +97,8 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 	std::span<const V2_float> points, float line_width, Transform transform, Color tint,
 	std::optional<BlendMode> blend_mode, bool connect_last_to_first, bool floor_positions
 ) {
-	PTGN_ASSERT(line_width >= kMinLineWidth, "Invalid line width for lines");
+	PTGN_ASSERT(line_width >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
+	;
 
 	std::size_t count{ points.size() };
 
@@ -810,20 +811,16 @@ void RenderContext::DrawLine(
 	Transform transform, const Line& line, Color color, float line_width, Depth depth,
 	std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
-	DrawShape(
-		line, transform, color, FillStyle::Hollow(line_width), Origin::Center, depth, blend_mode,
-		camera
-	);
+	PTGN_ASSERT(line_width >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
+	DrawShape(line, transform, color, line_width, Origin::Center, depth, blend_mode, camera);
 }
 
 void RenderContext::DrawLine(
 	V2_float start, V2_float end, Color color, float line_width, Depth depth,
 	std::optional<BlendMode> blend_mode, const std::optional<Camera>& camera
 ) {
-	DrawShape(
-		Line{ start, end }, {}, color, FillStyle::Hollow(line_width), Origin::Center, depth,
-		blend_mode, camera
-	);
+	PTGN_ASSERT(line_width >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
+	DrawShape(Line{ start, end }, {}, color, line_width, Origin::Center, depth, blend_mode, camera);
 }
 
 void RenderContext::DrawTriangle(
@@ -872,7 +869,7 @@ void RenderContext::DrawPoint(
 	V2_float point, Color color, Depth depth, std::optional<BlendMode> blend_mode,
 	const std::optional<Camera>& camera
 ) {
-	DrawShape(point, {}, color, FillStyle::Solid(), Origin::Center, depth, blend_mode, camera);
+	DrawShape(point, {}, color, Solid{}, Origin::Center, depth, blend_mode, camera);
 }
 
 void RenderContext::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_mode) {

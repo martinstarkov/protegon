@@ -1,7 +1,6 @@
 #include "runtime/graphics/graphics.h"
 
 #include "app/application.h"
-#include "runtime/event/event_dispatcher.h"
 #include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
@@ -13,10 +12,10 @@
 #include "platform/window/window.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/ui/button.h"
 
 using namespace ptgn;
@@ -28,7 +27,7 @@ struct GraphicsScene : public Scene {
 		graphics = CreateGraphics(*this);
 
 		graphics.SetStrokeColor(color::Blue);
-		graphics.SetLineWidth(FillStyle::Hollow(2.0f));
+		graphics.SetLineWidth(2.0f);
 		graphics.StrokeCircle({ 0, 80 }, Circle{ 40.0f });
 		graphics.StrokeCircle({ 40, 80 }, Circle{ 20.0f });
 

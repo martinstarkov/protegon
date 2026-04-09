@@ -105,8 +105,8 @@ public:
 		renderer.DrawOutsideStencilMask();
 
 		renderer.DrawShape(
-			{}, Rect{ ctx().renderer.GetDisplaySize() }, color::Black.WithAlpha(0.5f), -1.0f,
-			Origin::Center, {}, BlendMode::Blend, {}, {}, "color"
+			{}, Rect{ ctx().renderer.GetDisplaySize() }, color::Black.WithAlpha(0.5f),
+Solid{}, Origin::Center, {}, BlendMode::Blend, {}, {}, "color"
 		);
 
 		ctx().renderer.DisableStencilMask();
@@ -223,7 +223,8 @@ public:
 		SetDrawOrigin(sprite2, Origin::TopLeft);
 
 		auto rect2 =
-			CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, -1.0f, Origin::TopLeft);
+			CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, Solid{},
+Origin::TopLeft);
 
 		light_map = CreateLightMap(*this);
 

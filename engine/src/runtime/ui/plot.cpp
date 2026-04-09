@@ -225,7 +225,7 @@
 //	/*
 //	Rect r{ ... };
 //
-//	r.Draw(entity_.Get<BackgroundColor>(), -1.0f, canvas_);
+//	r.Draw(entity_.Get<BackgroundColor>(), Solid{}, canvas_);
 //
 //	DrawPoints(r);
 //
@@ -347,7 +347,7 @@
 //
 //	legend_rect_ = Rect{ dest.Center() + GetOffsetFromCenter(dest.size, legend.origin), legend_size,
 //						 legend.origin };
-//	legend_rect_.Draw(legend.background_color, -1.0f, legend_layer);
+//	legend_rect_.Draw(legend.background_color, Solid{}, legend_layer);
 //
 //	V2_float text_offset;
 //	V2_float button_offset;

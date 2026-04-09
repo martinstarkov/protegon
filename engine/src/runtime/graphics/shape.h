@@ -34,7 +34,7 @@ std::optional<Shape> GetSpriteOrShape(Entity entity);
 /// @return Entity     A handle to the newly created rectangle entity.
 Entity CreateRect(
 	Scene& scene, V2_float position, V2_float size, Color color,
-	FillStyle fill_style = FillStyle::Solid(), Origin origin = Origin::Center
+	FillStyle fill_style = Solid{}, Origin origin = Origin::Center
 );
 
 /// @brief Creates a polygon entity in the scene at the specified position.
@@ -45,7 +45,7 @@ Entity CreateRect(
 /// @return The newly created polygon entity.
 Entity CreatePolygon(
 	Scene& scene, V2_float position, const std::vector<V2_float>& vertices, Color color,
-	FillStyle fill_style = FillStyle::Solid()
+	FillStyle fill_style = Solid{}
 );
 
 /// @brief Creates a circle entity in the manager.
@@ -55,12 +55,12 @@ Entity CreatePolygon(
 /// @return Entity     A handle to the newly created circle entity.
 Entity CreateCircle(
 	Scene& scene, V2_float position, float radius, Color color,
-	FillStyle fill_style = FillStyle::Solid()
+	FillStyle fill_style = Solid{}
 );
 
 Entity CreateArc(
 	Scene& scene, V2_float position, float arc_radius, Degrees start_angle, Degrees end_angle,
-	bool clockwise, Color color, FillStyle fill_style = FillStyle::Solid()
+	bool clockwise, Color color, FillStyle fill_style = Solid{}
 );
 
 } // namespace ptgn

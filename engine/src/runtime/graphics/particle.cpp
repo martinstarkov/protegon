@@ -66,15 +66,14 @@ EmissionShape::EmissionSample EmissionShape::SampleEmission() const {
 }
 
 EmissionShape EmissionShape::Arc(
-	Degrees arc_angle, float outer_radius, V2_float direction = V2_float{ 1.0f, 0.0f },
-	float inner_radius = 0.0f
+	Degrees arc_angle, float outer_radius, V2_float direction, float inner_radius
 ) {
 	EmissionShape s;
 	s.type_ = ArcShape{ arc_angle, outer_radius, direction, inner_radius };
 	return s;
 }
 
-EmissionShape EmissionShape::Rect(V2_float size, V2_float direction = V2_float{ 0.0f, 1.0f }) {
+EmissionShape EmissionShape::Rect(V2_float size, V2_float direction) {
 	EmissionShape s;
 	s.type_ = RectShape{ size, direction };
 	return s;

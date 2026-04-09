@@ -325,7 +325,7 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 
 	if (auto bg_color{ button.GetBackgroundColor(style_state) };
 		bg_color.has_value() || background_shape.has_value() || bg_fill_style.has_value()) {
-		FillStyle fill{ bg_fill_style.value_or(FillStyle::Solid()) };
+		FillStyle fill{ bg_fill_style.value_or(Solid{}) };
 		Tint color{ bg_color.value_or(color::Transparent).Normalized() * tint.Normalized() };
 		if (!background_shape.has_value()) {
 			if (button.Has<Rect>()) {
@@ -369,7 +369,7 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 		}
 		PTGN_ASSERT(border_width.has_value());
 		if (*border_width >= kMinLineWidth) {
-			FillStyle fill{ FillStyle::Hollow(*border_width) };
+			FillStyle fill{ *border_width };
 			Tint color{ border_color.value_or(color::Transparent).Normalized() *
 						tint.Normalized() };
 			if (!border_shape.has_value()) {

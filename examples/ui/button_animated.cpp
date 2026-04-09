@@ -35,9 +35,9 @@ public:
 		ctx().asset.Load("animation_press2", "assets/button_press_animation.png");
 		ctx().asset.LoadAudio("press2", "assets/press.ogg");
 
-		auto hover_animation{
-			CreateAnimation(*this, "animation_hover", {}, { 3, 400ms, V2_int{ 253, 167 }, -1 })
-		};
+		auto hover_animation{ CreateAnimation(
+			*this, "animation_hover", {}, { 3, 400ms, V2_int{ 253, 167 }, std::nullopt }
+		) };
 
 		auto press_animation{
 			CreateAnimation(*this, "animation_press", {}, { 3, 200ms, V2_int{ 253, 167 }, 1 })
@@ -54,9 +54,9 @@ public:
 
 		b1.OnPress([]() { PTGN_LOG("Pressed bell!"); });
 
-		auto hover_animation2{
-			CreateAnimation(*this, "animation_hover2", {}, { 4, 400ms, V2_int{ 32, 16 }, -1 })
-		};
+		auto hover_animation2{ CreateAnimation(
+			*this, "animation_hover2", {}, { 4, 400ms, V2_int{ 32, 16 }, std::nullopt }
+		) };
 
 		auto press_animation2{
 			CreateAnimation(*this, "animation_press2", {}, { 4, 200ms, V2_int{ 32, 16 }, 1 })

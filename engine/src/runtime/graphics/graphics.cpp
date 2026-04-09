@@ -27,7 +27,7 @@ void GraphicsData::AddCommand(Transform transform, const Shape& shape, bool fill
 
 	if (fill) {
 		cmd.color	   = fill_color_;
-		cmd.line_width = FillStyle::Solid();
+		cmd.line_width = Solid{};
 	} else {
 		cmd.color	   = stroke_color_;
 		cmd.line_width = line_width_;

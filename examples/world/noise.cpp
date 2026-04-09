@@ -224,20 +224,20 @@ public:
 				}
 
 				ctx().renderer.DrawShape(
-					Rect{ pixel_size }, Transform{ p * pixel_size }, color, FillStyle::Solid(),
-					Origin::Center, Depth{}, BlendMode::Blend
+					Rect{ pixel_size }, Transform{ p * pixel_size }, color, Solid{}, Origin::Center,
+					Depth{}, BlendMode::Blend
 				);
 			}
 		}
 
 		ctx().renderer.DrawShape(
 			Rect{ (max - min) * pixel_size },
-			Transform{ (min * pixel_size + max * pixel_size) * 0.5f }, color::Orange,
-			FillStyle::Hollow(3.0f), Origin::Center, Depth{}, BlendMode::Blend
+			Transform{ (min * pixel_size + max * pixel_size) * 0.5f }, color::Orange, 3.0f,
+			Origin::Center, Depth{}, BlendMode::Blend
 		);
 
 		ctx().renderer.DrawShape(
-			Rect{ 30, 30 }, Transform{}, color::Red, FillStyle::Solid(), Origin::TopLeft, Depth{},
+			Rect{ 30, 30 }, Transform{}, color::Red, Solid{}, Origin::TopLeft, Depth{},
 			BlendMode::Blend
 		);
 	}

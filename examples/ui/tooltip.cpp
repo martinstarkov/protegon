@@ -11,7 +11,6 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -24,7 +23,7 @@ public:
 		ctx().asset.Load("bg", "assets/tooltip_bg.png");
 		ctx().asset.Load("smile", "assets/smile.png");
 
-		auto r0 = CreateRect(*this, {}, { 200, 100 }, color::Blue, -1.0f);
+		auto r0 = CreateRect(*this, {}, { 200, 100 }, color::Blue, Solid{});
 
 		AddTooltipOnHover(
 			r0, "tooltip1",

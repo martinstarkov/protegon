@@ -27,8 +27,8 @@
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/id.h"
-#include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_pass.h"
+#include "renderer/primitives/render_state.h"
 #include "renderer/primitives/scaling_mode.h"
 #include "renderer/primitives/shader.h"
 #include "renderer/primitives/texture.h"
@@ -375,17 +375,15 @@ public:
 	);
 
 	void DrawRect(
-		Transform transform, const Rect& rect, Color color,
-		FillStyle fill_style = FillStyle::Hollow(1.0f), Origin draw_origin = Origin::Center,
-		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		Transform transform, const Rect& rect, Color color, FillStyle fill_style = 1.0f,
+		Origin draw_origin = Origin::Center, Depth depth = {},
+		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
 	);
 
 	void DrawRoundedRect(
 		Transform transform, const RoundedRect& rounded_rect, Color color,
-		FillStyle fill_style = FillStyle::Hollow(1.0f), Origin draw_origin = Origin::Center,
-		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		FillStyle fill_style = 1.0f, Origin draw_origin = Origin::Center, Depth depth = {},
+		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
 	);
 
 	void DrawLine(
@@ -401,39 +399,39 @@ public:
 	);
 
 	void DrawTriangle(
-		Transform transform, const Triangle& triangle, Color color,
-		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
+		Transform transform, const Triangle& triangle, Color color, FillStyle fill_style = 1.0f,
+		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawEllipse(
-		Transform transform, const Ellipse& ellipse, Color color,
-		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
+		Transform transform, const Ellipse& ellipse, Color color, FillStyle fill_style = 1.0f,
+		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawCircle(
-		Transform transform, const Circle& circle, Color color,
-		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
+		Transform transform, const Circle& circle, Color color, FillStyle fill_style = 1.0f,
+		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawCapsule(
-		Transform transform, const Capsule& capsule, Color color,
-		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
+		Transform transform, const Capsule& capsule, Color color, FillStyle fill_style = 1.0f,
+		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawArc(
-		Transform transform, const Arc& arc, Color color,
-		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
+		Transform transform, const Arc& arc, Color color, FillStyle fill_style = 1.0f,
+		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawPolygon(
-		Transform transform, const Polygon& polygon, Color color,
-		FillStyle fill_style = FillStyle::Hollow(1.0f), Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
+		Transform transform, const Polygon& polygon, Color color, FillStyle fill_style = 1.0f,
+		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
+		const std::optional<Camera>& camera = {}
 	);
 
 	void DrawPoint(

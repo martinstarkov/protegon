@@ -121,11 +121,12 @@ void DebugContext::DrawLines(
 void DebugContext::DrawLine(
 	V2_float start, V2_float end, Color color, float line_width, const std::optional<Camera>& camera
 ) {
-	DrawShape(Line{ start, end }, {}, color, FillStyle::Hollow(line_width), Origin::Center, camera);
+	PTGN_ASSERT(line_width >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
+	DrawShape(Line{ start, end }, {}, color, line_width, Origin::Center, camera);
 }
 
 void DebugContext::DrawPoint(V2_float point, Color color, const std::optional<Camera>& camera) {
-	DrawShape(point, {}, color, FillStyle::Hollow(1.0f), Origin::Center, camera);
+	DrawShape(point, {}, color, 1.0f, Origin::Center, camera);
 }
 
 DebugSystem::DebugSystem() {}

@@ -130,7 +130,7 @@ public:
 	}
 
 	Tween CreateRectTween(const Color& color, const std::string& name) {
-		auto rect	= CreateRect(*this, V2_float{}, V2_float{}, color, -1.0f, Origin::CenterTop);
+		auto rect	= CreateRect(*this, V2_float{}, V2_float{}, color, Solid{}, Origin::CenterTop);
 		auto text	= CreateText(*this, {}, name, color::Black);
 		Tween tween = CreateTween(*this).During(duration);
 		tween.OnProgress([this](auto p) { SetProgress(size, p); });
@@ -172,12 +172,12 @@ public:
 		tweenG.Yoyo().Repeat(repeats).AddScript<TweenScriptG>();
 		tweenH.Yoyo().Repeat(repeats).Reverse();
 
-		tweenI.Repeat(-1).AddScript<TweenScriptI>();
-		tweenJ.Repeat(-1).Reverse();
-		tweenK.Yoyo().Repeat(-1);
-		tweenL.Yoyo().Repeat(-1).Reverse();
+		tweenI.Repeat().AddScript<TweenScriptI>();
+		tweenJ.Repeat().Reverse();
+		tweenK.Yoyo().Repeat();
+		tweenL.Yoyo().Repeat().Reverse();
 
-		tweenM.Ease(Ease::InOutQuart).Yoyo().Repeat(-1).Reverse().OnRepeat([](auto p) {
+		tweenM.Ease(Ease::InOutQuart).Yoyo().Repeat().Reverse().OnRepeat([](auto p) {
 			PTGN_LOG("Lambda repeat: ", p.tween.GetRepeats());
 		});
 

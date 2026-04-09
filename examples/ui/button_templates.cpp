@@ -155,7 +155,7 @@ public:
 				.texture		 = "bell_idle",
 				.texture_hover	 = "bell_hover",
 				.texture_press	 = "bell_press",
-				.animation_hover = { 3, 400ms, V2_int{ 253, 167 }, -1 },
+				.animation_hover = { 3, 400ms, V2_int{ 253, 167 }, std::nullopt },
 				.animation_press = AnimationConfig{ 3, 200ms, V2_int{ 253, 167 }, 1 },
 				.sound_hover	 = "bell_hover",
 				.sound_press	 = "bell_press",

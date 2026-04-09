@@ -34,20 +34,19 @@ public:
 		ParticleConfig config{};
 
 		config.rate_or_burst =
-			Rate{ .duration = 1s, .loop = true, .prewarm = false, .rate_over_time = 250 };
+			ParticleRate{ .duration = 1s, .loop = true, .prewarm = false, .rate_over_time = 250 };
 		config.lifetime			   = { 900ms, 1000ms };
 		config.start_speed		   = { 260.0f, 420.0f };
 		config.start_size		   = 6.0f;
 		config.align_to_direction  = true;
 		config.start_color		   = Color{ 120, 170, 255, 255 };
 		config.color_over_lifetime = Color{ 120, 170, 255, 200 };
-		config.start_gravity	   = V2_float{ 0.0f, 300.0f };
+		config.start_gravity	   = { 0.0f, 300.0f };
 		config.max_particles	   = 1000;
-		config.particle_type	   = Shape{ Rect{ V2_float{ 0.25f, 1.0f } } };
-		config.particle_fill_style = FillStyle::Solid();
-		config.emission_shape =
-			EmissionShape::Rect(V2_float{ 500.0f, 20.0f }, V2_float{ 0.0f, 1.0f });
-		config.size_over_lifetime = 3.0f;
+		config.particle_type	   = Rect{ V2_float{ 0.25f, 1.0f } };
+		config.particle_fill_style = Solid{};
+		config.emission_shape	   = EmissionShape::Rect({ 500.0f, 20.0f }, { 0.0f, 1.0f });
+		config.size_over_lifetime  = 3.0f;
 
 		rain = CreateParticleEmitter(
 			*this, { 0.0f, static_cast<float>(-ctx().renderer.GetGameSize().y) / 2.0f }, config

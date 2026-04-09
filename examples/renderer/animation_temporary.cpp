@@ -27,7 +27,7 @@ class AnimationTemporaryScene : public Scene {
 		ctx().collision.SetSettings({ .debug_draw_enabled = true });
 
 		player = CreateRect(
-			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::Orange, -1.0f, Origin::Center
+			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::Orange, Solid{}, Origin::Center
 		);
 		player.Add<RigidBody>();
 		player.Add<TopDownMovement>();

@@ -86,7 +86,7 @@ public:
 		config.max_particles	   = 1000;
 		config.simulation_speed	   = 1.0f;
 		config.particle_type	   = Circle{ 0.5f };
-		config.particle_fill_style = FillStyle::Solid();
+		config.particle_fill_style = Solid{};
 		config.emission_shape	   = EmissionShape::Arc(360.0f, 12.0f, {}, 0.0f);
 		config.size_over_lifetime  = 40.0f;
 
@@ -110,7 +110,7 @@ public:
 		config.max_particles	   = 1000;
 		config.simulation_speed	   = 1.0f;
 		config.particle_type	   = Circle{ 0.5f };
-		config.particle_fill_style = FillStyle::Solid();
+		config.particle_fill_style = Solid{};
 		config.emission_shape	   = EmissionShape::Arc(50.0f, 8.0f, { 0.0f, -1.0f }, 0.0f);
 		config.size_over_lifetime  = 2.0f;
 
@@ -133,7 +133,7 @@ public:
 		config.max_particles	   = 1000;
 		config.simulation_speed	   = 1.0f;
 		config.particle_type	   = Circle{ 0.5f };
-		config.particle_fill_style = FillStyle::Solid();
+		config.particle_fill_style = Solid{};
 		config.emission_shape	   = EmissionShape::Arc(360.0f, 6.0f, {}, 0.0f);
 		config.size_over_lifetime  = 0.0f;
 
@@ -157,7 +157,7 @@ public:
 		config.max_particles	   = 2000;
 		config.simulation_speed	   = 1.0f;
 		config.particle_type	   = Rect{ 0.25f, 1.0f };
-		config.particle_fill_style = FillStyle::Solid();
+		config.particle_fill_style = Solid{};
 		config.emission_shape	   = EmissionShape::Rect({ 500.0f, 20.0f }, { 0.0f, 1.0f });
 		config.size_over_lifetime  = 3.0f;
 
@@ -181,7 +181,7 @@ public:
 		config.max_particles	   = 1000;
 		config.simulation_speed	   = 1.0f;
 		config.particle_type	   = Circle{ 0.5f };
-		config.particle_fill_style = FillStyle::Solid();
+		config.particle_fill_style = Solid{};
 		config.emission_shape	   = EmissionShape::Rect({ 500.0f, 20.0f }, { 0.0f, 1.0f });
 		config.size_over_lifetime  = 4.0f;
 

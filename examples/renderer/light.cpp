@@ -34,7 +34,7 @@ public:
 		auto sprite = CreateSprite(*this, "tree", { -200, -200 });
 		SetDrawOrigin(sprite, Origin::TopLeft);
 
-		CreateRect(*this, { 0, 0 }, { 100, 100 }, color::Blue, -1.0f, Origin::TopLeft);
+		CreateRect(*this, { 0, 0 }, { 100, 100 }, color::Blue, Solid{}, Origin::TopLeft);
 
 		float intensity{ 0.5f };
 		float radius{ 30.0f };
@@ -76,7 +76,7 @@ public:
 		auto sprite2 = CreateSprite(*this, "tree", { -200, 150 });
 		SetDrawOrigin(sprite2, Origin::TopLeft);
 
-		CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, -1.0f, Origin::TopLeft);
+		CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, Solid{}, Origin::TopLeft);
 	}
 
 	void OnUpdate() override {

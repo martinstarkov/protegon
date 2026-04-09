@@ -53,7 +53,7 @@ struct TopDownScript1 : public Script {
 
 class TopDownMovementScene : public Scene {
 	Entity CreateWall(const V2_float& position, const V2_float& size, Origin origin) {
-		Entity entity = CreateRect(*this, position, size, color::Purple, -1.0f, origin);
+		Entity entity = CreateRect(*this, position, size, color::Purple, Solid{}, origin);
 		auto& box	  = entity.Add<Collider>(Rect{ size });
 		SetDrawOrigin(entity, origin);
 		box.SetMask(ground_mask);
@@ -62,7 +62,8 @@ class TopDownMovementScene : public Scene {
 
 	Entity CreatePlayer() {
 		Entity entity = CreateRect(
-			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen, -1.0f, Origin::Center
+			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen, Solid{},
+			Origin::Center
 		);
 		AddScript<TopDownScript1>(entity);
 		auto& rb = entity.Add<RigidBody>();

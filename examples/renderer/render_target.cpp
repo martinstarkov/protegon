@@ -17,9 +17,6 @@ using namespace ptgn;
 
 constexpr V2_int game_size{ 800, 800 };
 
-float rect_thickness{ -1.0f };
-float circle_thickness{ -1.0f };
-
 struct RenderTargetScene : public Scene {
 	RenderTarget rt1;
 	RenderTarget rt2;
@@ -29,14 +26,17 @@ struct RenderTargetScene : public Scene {
 
 		ctx().renderer.SetGameSize(game_size);
 
-		CreateRect(*this, V2_float{ 200, -200 }, { 200, 200 }, color::Gray, -1.0f, Origin::Center);
+		CreateRect(
+			*this, V2_float{ 200, -200 }, { 200, 200 }, color::Gray, Solid{}, Origin::Center
+		);
 
 		rt1 = CreateRenderTarget(*this, { 400, 400 }, color::Red);
 		SetDrawOrigin(rt1, Origin::TopLeft);
 		SetPosition(rt1, -game_size * 0.5f);
 
-		auto rect1 =
-			CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::Orange, -1.0f, Origin::Center);
+		auto rect1 = CreateRect(
+			*this, V2_float{ 0, 0 }, { 100, 100 }, color::Orange, Solid{}, Origin::Center
+		);
 
 		// rt1.AddToDisplayList(rect1);
 
@@ -45,8 +45,9 @@ struct RenderTargetScene : public Scene {
 		SetPosition(rt2, -game_size * 0.5f + V2_float{ 400, 400 });
 
 		// Rect2 position is relative to rt position (0, 0 is center of rt).
-		auto rect2 =
-			CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::White, -1.0f, Origin::Center);
+		auto rect2 = CreateRect(
+			*this, V2_float{ 0, 0 }, { 100, 100 }, color::White, Solid{}, Origin::Center
+		);
 
 		// rt2.AddToDisplayList(rect2);
 	}

@@ -36,7 +36,7 @@ public:
 
 class PlatformingScene : public Scene {
 	Entity CreatePlatform(const V2_float& position, const V2_float& size, Origin origin) {
-		auto entity = CreateRect(*this, position, size, color::Purple, -1.0f, origin);
+		auto entity = CreateRect(*this, position, size, color::Purple, Solid{}, origin);
 		auto& box	= entity.Add<Collider>(Rect{ size });
 		box.SetMask(ground_mask);
 		return entity;
@@ -44,7 +44,8 @@ class PlatformingScene : public Scene {
 
 	Entity CreatePlayer() {
 		auto entity = CreateRect(
-			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen, -1.0f, Origin::Center
+			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen, Solid{},
+			Origin::Center
 		);
 		auto& rb   = entity.Add<RigidBody>();
 		rb.gravity = 1.0f;

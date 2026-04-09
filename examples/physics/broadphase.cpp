@@ -17,7 +17,6 @@
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/profiling.h"
 
@@ -165,8 +164,8 @@ struct BroadphaseScene : public Scene {
 		}
 
 		ctx().renderer.DrawShape(
-			Line{ player_pos, mouse_pos }, Transform{}, color::Gold, FillStyle::Hollow(2.0f),
-			Origin::Center, Depth{}, BlendMode::Blend
+			Line{ player_pos, mouse_pos }, Transform{}, color::Gold, 2.0f, Origin::Center, Depth{},
+			BlendMode::Blend
 		);
 
 #else

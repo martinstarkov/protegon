@@ -244,7 +244,7 @@ public:
 
 		PTGN_ASSERT(vel != nullptr);
 
-		MoveWASD(*scene, *vel, speed * scene->ctx().physics.dt());
+		MoveWASD(*scene, *vel, speed * scene->ctx().physics.dt().count());
 	}
 
 	void OnDraw() override {
@@ -386,13 +386,13 @@ public:
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Red, 1.0f);
 				} else {
-					s2.Draw(color::Red, -1.0f);
+					s2.Draw(color::Red, Solid{});
 				}
 			} else {
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Green, 1.0f);
 				} else {
-					s2.Draw(color::Green, -1.0f);
+					s2.Draw(color::Green, Solid{});
 				}
 			}
 		};
@@ -426,13 +426,13 @@ public:
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Red, 1.0f);
 				} else {
-					s2.Draw(color::Red, -1.0f);
+					s2.Draw(color::Red, Solid{});
 				}
 			} else {
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Green, 1.0f);
 				} else {
-					s2.Draw(color::Green, -1.0f);
+					s2.Draw(color::Green, Solid{});
 				}
 			}
 		};
@@ -458,21 +458,21 @@ public:
 		p1 = V2_int{ ctx().input.GetMousePosition() };
 
 		Circle c0{ p1, circle_radius };
-		c0.Draw(color::Green, -1.0f);
+		c0.Draw(color::Green, Solid{});
 
 		const auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
-				s1.Draw(color::Red, -1.0f);
+				s1.Draw(color::Red, Solid{});
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Red, 1.0f);
 				} else {
-					s2.Draw(color::Red, -1.0f);
+					s2.Draw(color::Red, Solid{});
 				}
 			} else {
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Green, 1.0f);
 				} else {
-					s2.Draw(color::Green, -1.0f);
+					s2.Draw(color::Green, Solid{});
 				}
 			}
 		};
@@ -498,21 +498,21 @@ public:
 		p1 = V2_int{ ctx().input.GetMousePosition() };
 
 		Rect c0{ p1, rect_size, Origin::Center, 0.0f };
-		c0.Draw(color::Green, -1.0f);
+		c0.Draw(color::Green, Solid{});
 
 		const auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
-				s1.Draw(color::Red, -1.0f);
+				s1.Draw(color::Red, Solid{});
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Red, 1.0f);
 				} else {
-					s2.Draw(color::Red, -1.0f);
+					s2.Draw(color::Red, Solid{});
 				}
 			} else {
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Green, 1.0f);
 				} else {
-					s2.Draw(color::Green, -1.0f);
+					s2.Draw(color::Green, Solid{});
 				}
 			}
 		};
@@ -538,21 +538,21 @@ public:
 		ShapeCollisionTest::Update();
 
 		Capsule c0{ p0, p1, capsule_radius };
-		c0.Draw(color::Green, -1.0f);
+		c0.Draw(color::Green, Solid{});
 
 		const auto overlap = [](auto s1, auto s2) {
 			if (s2.Overlaps(s1)) {
-				s1.Draw(color::Red, -1.0f);
+				s1.Draw(color::Red, Solid{});
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Red, 1.0f);
 				} else {
-					s2.Draw(color::Red, -1.0f);
+					s2.Draw(color::Red, Solid{});
 				}
 			} else {
 				if constexpr (std::is_same_v<decltype(s2), Line>) {
 					s2.Draw(color::Green, 1.0f);
 				} else {
-					s2.Draw(color::Green, -1.0f);
+					s2.Draw(color::Green, Solid{});
 				}
 			}
 		};
@@ -580,18 +580,18 @@ public:
 		V2_float vel{ p1 - p0 };
 
 		Rect c0{ p0, rect_size };
-		c0.Draw(color::Green, -1.0f);
+		c0.Draw(color::Green, Solid{});
 
 		const auto sweep = [&](auto s1, auto s2) {
 			Raycast raycast{ s1.Raycast(vel, s2) };
 			if (raycast.Occurred()) {
 				Rect c1{ p0 + vel * raycast.t, rect_size };
-				s1.Draw(color::Red, -1.0f);
-				s2.Draw(color::Red, -1.0f);
-				c1.Draw(color::Purple, -1.0f);
+				s1.Draw(color::Red, Solid{});
+				s2.Draw(color::Red, Solid{});
+				c1.Draw(color::Purple, Solid{});
 			} else {
-				s1.Draw(color::Green, -1.0f);
-				s2.Draw(color::Green, -1.0f);
+				s1.Draw(color::Green, Solid{});
+				s2.Draw(color::Green, Solid{});
 			}
 		};
 

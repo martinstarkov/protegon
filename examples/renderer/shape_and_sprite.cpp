@@ -52,7 +52,7 @@ struct ShapeAndSpriteScene : public Scene {
 
 		GetOrCreateTween<ArcTween>(arc)
 			.During(1s)
-			.Repeat(-1)
+			.Repeat()
 			.OnProgress([this](auto p) {
 				auto& arc_shape{ p.parent.template Get<Arc>() };
 

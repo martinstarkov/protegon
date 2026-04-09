@@ -77,8 +77,8 @@ class PathfindingScene : public Scene {
 			}
 
 			ctx().renderer.DrawShape(
-				Rect{ tile_size }, Transform{ -game_size * 0.5f + tile * tile_size }, c,
-				FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
+				Rect{ tile_size }, Transform{ -game_size * 0.5f + tile * tile_size }, c, Solid{},
+				Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		});
 
@@ -90,55 +90,55 @@ class PathfindingScene : public Scene {
 		}
 
 		local_waypoints = global_waypoints;
-		int idx			= AStarGrid::FindWaypointIndex(local_waypoints, pos);
+		auto idx		= AStarGrid::FindWaypointIndex(local_waypoints, pos);
 		// path is obviously finished if character is at the end tile.
 		bool path_exists = pos != end;
-		if (idx == -1 && path_exists) { // look for a local path if the character is not on the
-										// global path or at the end
+		if (!idx.has_value() && path_exists) { // look for a local path if the character is not on
+											   // the global path or at the end
 			local_waypoints = grid.FindWaypoints(pos, end);
 
 			idx			= AStarGrid::FindWaypointIndex(local_waypoints, pos);
-			path_exists = idx != -1;
+			path_exists = idx.has_value();
 		}
 
 		if (path_exists) { // global or local path exists
 			current_waypoint += ctx().dt().count() * vel;
-			assert(idx >= 0);
-			assert(idx < local_waypoints.size());
-			assert(idx + 1 < local_waypoints.size());
+			assert(*idx >= 0);
+			assert(*idx < local_waypoints.size());
+			assert(*idx + 1 < local_waypoints.size());
 			// Keep moving character 1 tile forward on its path
 			// until there is no longer enough "speed" for 1 full tile
 			// in which case exit the loop and linearly interpolate
 			// the position between the "in progress" tiles.
-			while (current_waypoint >= 1.0f && idx + 1 < local_waypoints.size()) {
-				pos				 += local_waypoints[idx + 1] - local_waypoints[idx];
+			while (current_waypoint >= 1.0f && *idx + 1 < local_waypoints.size()) {
+				pos				 += local_waypoints[*idx + 1] - local_waypoints[*idx];
 				current_waypoint -= 1.0f;
-				idx++;
+				(*idx)++;
 			}
 		}
-		if (path_exists && idx + 1 < local_waypoints.size()) {
+		if (path_exists && *idx + 1 < local_waypoints.size()) {
 			assert(current_waypoint <= 1.0f);
 			assert(current_waypoint >= 0.0f);
-			assert(idx >= 0);
-			assert(idx < local_waypoints.size());
-			assert(idx + 1 < local_waypoints.size());
+			assert(*idx >= 0);
+			assert(*idx < local_waypoints.size());
+			assert(*idx + 1 < local_waypoints.size());
 
-			auto p =
-				-game_size * 0.5f +
-				V2_int{ Lerp(
-					V2_float{ pos * tile_size },
-					V2_float{ (pos + local_waypoints[idx + 1] - local_waypoints[idx]) * tile_size },
-					current_waypoint
-				) };
+			auto p = -game_size * 0.5f +
+					 V2_int{ Lerp(
+						 V2_float{ pos * tile_size },
+						 V2_float{ (pos + local_waypoints[*idx + 1] - local_waypoints[*idx]) *
+								   tile_size },
+						 current_waypoint
+					 ) };
 
 			ctx().renderer.DrawShape(
-				Rect{ tile_size }, Transform{ p }, color::Purple, FillStyle::Solid(),
-				Origin::TopLeft, Depth{}, BlendMode::Blend
+				Rect{ tile_size }, Transform{ p }, color::Purple, Solid{}, Origin::TopLeft, Depth{},
+				BlendMode::Blend
 			);
 		} else {
 			ctx().renderer.DrawShape(
 				Rect{ tile_size }, Transform{ -game_size * 0.5f + pos * tile_size }, color::Purple,
-				FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
+				Solid{}, Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		}
 
@@ -147,8 +147,7 @@ class PathfindingScene : public Scene {
 				ctx().renderer.DrawShape(
 					Line{ -game_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
 						  -game_size * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f },
-					Transform{}, color, FillStyle::Hollow(1.0f), Origin::Center, Depth{},
-					BlendMode::Blend
+					Transform{}, color, 1.0f, Origin::Center, Depth{}, BlendMode::Blend
 				);
 			}
 		};

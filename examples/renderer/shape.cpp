@@ -55,7 +55,7 @@ struct ShapeScene : public Scene {
 			{}, { { -300, -300 + 150 }, { -250, -350 + 150 }, 12.0f }, color::Orange, 5.0f
 		);
 		ctx().renderer.DrawCapsule(
-			{}, { { -200, -350 + 150 }, { -150, -300 + 150 }, 12.0f }, color::LightGold, -1.0f
+			{}, { { -200, -350 + 150 }, { -150, -300 + 150 }, 12.0f }, color::LightGold, Solid{}
 		);
 
 		constexpr Degrees start_angle1{ 0.0f };
@@ -108,19 +108,19 @@ struct ShapeScene : public Scene {
 
 		ctx().renderer.DrawArc(
 			V2_float{ -50, arc_y + 100.0f }, { arc_radius, start_angle1, end_angle1, clockwise },
-			color::BrightYellow, -1.0f
+			color::BrightYellow, Solid{}
 		);
 		ctx().renderer.DrawArc(
 			V2_float{ 0, arc_y + 100.0f }, { arc_radius, start_angle3, end_angle2, clockwise },
-			color::BrightYellow, -1.0f
+			color::BrightYellow, Solid{}
 		);
 		ctx().renderer.DrawArc(
 			V2_float{ 50, arc_y + 100.0f }, { arc_radius, start_angle3, end_angle3, clockwise },
-			color::BrightYellow, -1.0f
+			color::BrightYellow, Solid{}
 		);
 		ctx().renderer.DrawArc(
 			V2_float{ 100, arc_y + 100.0f }, { arc_radius, start_angle4, end_angle4, clockwise },
-			color::BrightYellow, -1.0f
+			color::BrightYellow, Solid{}
 		);
 
 		clockwise = false;
@@ -161,26 +161,26 @@ struct ShapeScene : public Scene {
 
 		ctx().renderer.DrawArc(
 			V2_float{ -50, arc_y + 250.0f }, { arc_radius, start_angle1, end_angle1, clockwise },
-			color::BrightYellow, -1.0f
+			color::BrightYellow, Solid{}
 		);
 		ctx().renderer.DrawArc(
 			V2_float{ 0, arc_y + 250.0f }, { arc_radius, start_angle3, end_angle2, clockwise },
-			color::BrightYellow, -1.0f
+			color::BrightYellow, Solid{}
 		);
 		ctx().renderer.DrawArc(
 			V2_float{ 50, arc_y + 250.0f }, { arc_radius, start_angle3, end_angle3, clockwise },
-			color::BrightYellow, -1.0f
+			color::BrightYellow, Solid{}
 		);
 		ctx().renderer.DrawArc(
 			V2_float{ 100, arc_y + 250.0f }, { arc_radius, start_angle4, end_angle4, clockwise },
-			color::BrightYellow, -1.0f
+			color::BrightYellow, Solid{}
 		);
 
 		ctx().renderer.DrawRect(
 			V2_int{ -50, -325 }, V2_int{ 50, 25 }, color::Blue, 1.0f, Origin::Center
 		);
 		ctx().renderer.DrawRect(
-			V2_int{ 0, -325 }, V2_int{ 50, 25 }, color::LightBlue, -1.0f, Origin::TopLeft
+			V2_int{ 0, -325 }, V2_int{ 50, 25 }, color::LightBlue, Solid{}, Origin::TopLeft
 		);
 		ctx().renderer.DrawRect(
 			V2_int{ 100, -325 }, V2_int{ 50, 25 }, color::DarkBlue, 5.0f, Origin::Center
@@ -194,7 +194,7 @@ struct ShapeScene : public Scene {
 			{ { -50, -250 }, rotation }, V2_int{ 50, 25 }, color::Blue, 1.0f, Origin::Center
 		);
 		ctx().renderer.DrawRect(
-			{ { 0, -250 }, rotation }, V2_int{ 50, 25 }, color::LightBlue, -1.0f, Origin::TopLeft
+			{ { 0, -250 }, rotation }, V2_int{ 50, 25 }, color::LightBlue, Solid{}, Origin::TopLeft
 
 		);
 		ctx().renderer.DrawRect(
@@ -206,7 +206,7 @@ struct ShapeScene : public Scene {
 			V2_int{ -50, -175 }, { { 50, 25 }, 12.0f }, color::Blue, 1.0f, Origin::Center
 		);
 		ctx().renderer.DrawRoundedRect(
-			V2_int{ 0, -175 }, { { 50, 25 }, 12.0f }, color::LightBlue, -1.0f, Origin::TopLeft
+			V2_int{ 0, -175 }, { { 50, 25 }, 12.0f }, color::LightBlue, Solid{}, Origin::TopLeft
 		);
 		ctx().renderer.DrawRoundedRect(
 			{ { 100, -175 }, rotation }, { { 50, 25 }, 12.0f }, color::DarkBlue, 5.0f,
@@ -217,7 +217,7 @@ struct ShapeScene : public Scene {
 
 		);
 		ctx().renderer.DrawRoundedRect(
-			{ { 0, -100 }, rotation }, { { 50, 25 }, 12.0f }, color::LightBlue, -1.0f,
+			{ { 0, -100 }, rotation }, { { 50, 25 }, 12.0f }, color::LightBlue, Solid{},
 			Origin::TopLeft
 
 		);
@@ -229,7 +229,7 @@ struct ShapeScene : public Scene {
 
 		ctx().renderer.DrawCircle(V2_int{ 200, -325 }, 25.0f, color::Gold, 1.0f);
 		ctx().renderer.DrawCircle(V2_int{ 275, -325 }, 25.0f, color::DarkYellow, 5.0f);
-		ctx().renderer.DrawCircle(V2_int{ 350, -325 }, 25.0f, color::LightYellow, -1.0f);
+		ctx().renderer.DrawCircle(V2_int{ 350, -325 }, 25.0f, color::LightYellow, Solid{});
 
 		ctx().renderer.DrawEllipse(
 			V2_int{ 200, -250 }, Ellipse{ V2_int{ 25, 12 } }, color::Purple, 1.0f
@@ -238,7 +238,7 @@ struct ShapeScene : public Scene {
 			V2_int{ 275, -250 }, Ellipse{ V2_int{ 25, 12 } }, color::Magenta, 5.0f
 		);
 		ctx().renderer.DrawEllipse(
-			V2_int{ 350, -250 }, Ellipse{ V2_int{ 25, 12 } }, color::LightPurple, -1.0f
+			V2_int{ 350, -250 }, Ellipse{ V2_int{ 25, 12 } }, color::LightPurple, Solid{}
 		);
 		ctx().renderer.DrawEllipse(
 			{ V2_int{ 200, -175 }, rotation }, Ellipse{ V2_int{ 25, 12 } }, color::Green, 1.0f
@@ -249,14 +249,15 @@ struct ShapeScene : public Scene {
 
 		);
 		ctx().renderer.DrawEllipse(
-			{ V2_int{ 350, -175 }, rotation }, Ellipse{ V2_int{ 25, 12 } }, color::LightGreen, -1.0f
+			{ V2_int{ 350, -175 }, rotation }, Ellipse{ V2_int{ 25, 12 } }, color::LightGreen,
+			Solid{}
 
 		);
 
 		Polygon p{ GetStarVertices(5, 10, 20) };
 
 		ctx().renderer.DrawShape(p, V2_int{ -225, -100 }, color::Cyan, 1.0f);
-		ctx().renderer.DrawShape(p, V2_int{ -300, -100 }, color::Cyan, -1.0f);
+		ctx().renderer.DrawShape(p, V2_int{ -300, -100 }, color::Cyan, Solid{});
 		ctx().renderer.DrawShape(p, V2_int{ -150, -100 }, color::Cyan, 5.0f);
 	}
 };

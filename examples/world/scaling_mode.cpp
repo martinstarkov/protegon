@@ -32,19 +32,19 @@ class ScalingModeScene : public Scene {
 		SetDisplaySize(s1, game_size);
 		CreateRect(
 			*this, V2_float{ -game_size.x * 0.5f, -game_size.y * 0.5f },
-			V2_float{ game_size.x, 30 }, color::Red, FillStyle::Solid(), Origin::TopLeft
+			V2_float{ game_size.x, 30 }, color::Red, Solid{}, Origin::TopLeft
 		);
 		CreateRect(
 			*this, V2_float{ game_size.x * 0.5f - 30, -game_size.y * 0.5f },
-			V2_float{ 30, game_size.y }, color::Green, FillStyle::Solid(), Origin::TopLeft
+			V2_float{ 30, game_size.y }, color::Green, Solid{}, Origin::TopLeft
 		);
 		CreateRect(
 			*this, V2_float{ -game_size.x * 0.5f, game_size.y * 0.5f - 30 },
-			V2_float{ game_size.x, 30 }, color::Blue, FillStyle::Solid(), Origin::TopLeft
+			V2_float{ game_size.x, 30 }, color::Blue, Solid{}, Origin::TopLeft
 		);
 		CreateRect(
 			*this, V2_float{ -game_size.x * 0.5f, -game_size.y * 0.5f },
-			V2_float{ 30, game_size.y }, color::Teal, FillStyle::Solid(), Origin::TopLeft
+			V2_float{ 30, game_size.y }, color::Teal, Solid{}, Origin::TopLeft
 		);
 	}
 

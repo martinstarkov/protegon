@@ -168,7 +168,7 @@ struct ParticleConfig {
 
 	std::variant<Shape, std::string> particle_type{ Rect{ V2_float{ 1.0f } } };
 
-	FillStyle particle_fill_style{ FillStyle::Solid() };
+	FillStyle particle_fill_style{ Solid{} };
 
 	EmissionShape emission_shape;
 
@@ -283,7 +283,7 @@ struct Particle {
 	milliseconds lifetime{ 1000 };
 
 private:
-	friend class impl::ParticleEmitterComponent;
+	friend struct impl::ParticleEmitterComponent;
 
 	/// @return True if the particle died during the update, false otherwise.
 	[[nodiscard]] bool Update(secondsf dt);

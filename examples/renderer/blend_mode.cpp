@@ -21,16 +21,16 @@ struct BlendModeScene : public Scene {
 		V2_float ws{ ctx().renderer.GetGameSize() };
 
 		CreateRect(
-			*this, -ws * 0.5f + V2_float{}, { ws.x, 100 }, color::Red, FillStyle::Solid(),
+			*this, -ws * 0.5f + V2_float{}, { ws.x, 100 }, color::Red, Solid{},
 			Origin::TopLeft
 		);
 		CreateRect(
 			*this, -ws * 0.5f + V2_float{ 0, 100 }, { ws.x, 100 }, Color{ 255, 0, 0, 128 },
-			FillStyle::Solid(), Origin::TopLeft
+			Solid{}, Origin::TopLeft
 		);
 		CreateRect(
 			*this, -ws * 0.5f + V2_float{}, { ws.x / 2.0f, ws.y }, Color{ 0, 0, 255, 128 },
-			FillStyle::Solid(), Origin::TopLeft
+			Solid{}, Origin::TopLeft
 		);
 
 		auto s1 = CreateSprite(*this, "semitransparent", -ws * 0.5f + V2_float{ 100, 100 });

@@ -378,7 +378,7 @@ public:
 
 				ctx().renderer.DrawShape(
 					Rect{ scale }, Transform{ -game_size * 0.5f + position * scale }, color,
-					FillStyle::Solid(), Origin::TopLeft, Depth{}, BlendMode::Blend
+					Solid{}, Origin::TopLeft, Depth{}, BlendMode::Blend
 				);
 			}
 		}
