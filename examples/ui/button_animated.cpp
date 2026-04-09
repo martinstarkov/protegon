@@ -1,12 +1,11 @@
 
+#include <chrono>
 #include <optional>
 #include <utility>
 
 #include "app/application.h"
 #include "core/log.h"
-#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -36,13 +35,13 @@ public:
 		ctx().asset.Load("animation_press2", "assets/button_press_animation.png");
 		ctx().asset.LoadAudio("press2", "assets/press.ogg");
 
-		auto hover_animation{ CreateAnimation(
-			*this, "animation_hover", {}, { 3, milliseconds{ 400 }, V2_int{ 253, 167 }, -1 }
-		) };
+		auto hover_animation{
+			CreateAnimation(*this, "animation_hover", {}, { 3, 400ms, V2_int{ 253, 167 }, -1 })
+		};
 
-		auto press_animation{ CreateAnimation(
-			*this, "animation_press", {}, { 3, milliseconds{ 200 }, V2_int{ 253, 167 }, 1 }
-		) };
+		auto press_animation{
+			CreateAnimation(*this, "animation_press", {}, { 3, 200ms, V2_int{ 253, 167 }, 1 })
+		};
 
 		b1 = CreateButton(*this, {}, *GetDisplaySize(press_animation));
 		b1.SetTexture("idle")
@@ -55,13 +54,13 @@ public:
 
 		b1.OnPress([]() { PTGN_LOG("Pressed bell!"); });
 
-		auto hover_animation2{ CreateAnimation(
-			*this, "animation_hover2", {}, { 4, milliseconds{ 400 }, V2_int{ 32, 16 }, -1 }
-		) };
+		auto hover_animation2{
+			CreateAnimation(*this, "animation_hover2", {}, { 4, 400ms, V2_int{ 32, 16 }, -1 })
+		};
 
-		auto press_animation2{ CreateAnimation(
-			*this, "animation_press2", {}, { 4, milliseconds{ 200 }, V2_int{ 32, 16 }, 1 }
-		) };
+		auto press_animation2{
+			CreateAnimation(*this, "animation_press2", {}, { 4, 200ms, V2_int{ 32, 16 }, 1 })
+		};
 
 		b2 = CreateButton(*this, { 0, 200 }, *GetDisplaySize(press_animation2));
 		b2.SetTexture("idle2")

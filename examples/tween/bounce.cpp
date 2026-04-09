@@ -7,7 +7,6 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -17,6 +16,8 @@ struct BounceEffectScene : public Scene {
 	Sprite sprite2;
 	Sprite sprite3;
 
+	milliseconds bounce_duration{ 5000 };
+
 	void OnEnter() override {
 		ctx().asset.Load("smile", "assets/smile.png");
 
@@ -24,27 +25,23 @@ struct BounceEffectScene : public Scene {
 		sprite2 = CreateSprite(*this, "smile", V2_float{ 0, 0 });
 		sprite3 = CreateSprite(*this, "smile", V2_float{ -250, 0 });
 
-		Bounce(sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InSine, {}, true);
-		Bounce(sprite2, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::OutSine, {}, true);
-		Bounce(sprite3, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InOutSine, {}, true);
+		Bounce(sprite1, { 0, -400 }, bounce_duration, -1, Ease::InSine, {}, true);
+		Bounce(sprite2, { 0, -400 }, bounce_duration, -1, Ease::OutSine, {}, true);
+		Bounce(sprite3, { 0, -400 }, bounce_duration, -1, Ease::InOutSine, {}, true);
 	}
 
 	void OnUpdate() override {
 		if (ctx().input.MousePressed(Mouse::Left)) {
+			SymmetricalBounce(sprite1, { 0, -400 }, bounce_duration, -1, Ease::Linear, {}, true);
+			SymmetricalBounce(sprite2, { 0, -400 }, bounce_duration, -1, Ease::InOutSine, {}, true);
 			SymmetricalBounce(
-				sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::Linear, {}, true
-			);
-			SymmetricalBounce(
-				sprite2, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InOutSine, {}, true
-			);
-			SymmetricalBounce(
-				sprite3, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InOutElastic, {}, true
+				sprite3, { 0, -400 }, bounce_duration, -1, Ease::InOutElastic, {}, true
 			);
 		}
 		if (ctx().input.MousePressed(Mouse::Right)) {
-			Bounce(sprite1, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InSine, {}, true);
-			Bounce(sprite2, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::OutSine, {}, true);
-			Bounce(sprite3, { 0, -400 }, milliseconds{ 8000 }, -1, Ease::InOutSine, {}, true);
+			Bounce(sprite1, { 0, -400 }, bounce_duration, -1, Ease::InSine, {}, true);
+			Bounce(sprite2, { 0, -400 }, bounce_duration, -1, Ease::OutSine, {}, true);
+			Bounce(sprite3, { 0, -400 }, bounce_duration, -1, Ease::InOutSine, {}, true);
 		}
 	}
 };

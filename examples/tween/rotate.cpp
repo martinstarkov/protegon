@@ -15,6 +15,9 @@ struct RotateEffectScene : public Scene {
 	Sprite sprite2;
 	Sprite sprite3;
 
+	milliseconds rotation_duration1{ 4000 };
+	milliseconds rotation_duration2{ 1000 };
+
 	void OnEnter() override {
 		ctx().asset.Load("smile", "assets/smile.png");
 
@@ -22,20 +25,20 @@ struct RotateEffectScene : public Scene {
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });
 		sprite3 = CreateSprite(*this, "smile", { 200, -300 });
 
-		RotateTo(sprite1, 180.0f, milliseconds{ 4000 }, Ease::Linear);
-		RotateTo(sprite1, 0.0f, milliseconds{ 1000 }, Ease::Linear, false);
-		RotateTo(sprite2, -180.0f, milliseconds{ 4000 }, Ease::InOutSine);
-		RotateTo(sprite2, 0.0f, milliseconds{ 1000 }, Ease::InOutSine, false);
-		RotateTo(sprite3, 360.0f, milliseconds{ 4000 }, Ease::InSine);
-		RotateTo(sprite3, 0.0f, milliseconds{ 1000 }, Ease::InSine, false);
+		RotateTo(sprite1, 180.0f, rotation_duration1, Ease::Linear);
+		RotateTo(sprite1, 0.0f, rotation_duration2, Ease::Linear, false);
+		RotateTo(sprite2, -180.0f, rotation_duration1, Ease::InOutSine);
+		RotateTo(sprite2, 0.0f, rotation_duration2, Ease::InOutSine, false);
+		RotateTo(sprite3, 360.0f, rotation_duration1, Ease::InSine);
+		RotateTo(sprite3, 0.0f, rotation_duration2, Ease::InSine, false);
 	}
 
 	void OnUpdate() override {
 		if (ctx().input.MousePressed(Mouse::Left)) {
-			RotateTo(sprite1, 360.0f, milliseconds{ 4000 }, Ease::Linear, true);
+			RotateTo(sprite1, 360.0f, rotation_duration1, Ease::Linear, true);
 		}
 		if (ctx().input.MousePressed(Mouse::Right)) {
-			RotateTo(sprite1, 0.0f, milliseconds{ 4000 }, Ease::Linear, true);
+			RotateTo(sprite1, 0.0f, rotation_duration1, Ease::Linear, true);
 		}
 	}
 };

@@ -72,8 +72,7 @@ public:
 		ctx().asset.Load("anim", "assets/animation.png");
 
 		animation = CreateAnimation(
-			*this, "anim", GetPosition(ctx().camera),
-			{ 4, milliseconds{ 500 }, V2_int{ 16, 32 }, -1, { 0, 32 } }
+			*this, "anim", GetPosition(ctx().camera), { 4, 500ms, V2_int{ 16, 32 }, -1, { 0, 32 } }
 		);
 
 		SetScale(animation, 4.0f);

@@ -98,27 +98,22 @@ public:
 					  )
 		);
 		grid.Set(
-			{ 1, 3 },
-			CreateAudioButton(
-				"Fade In Music 1 (3s)",
-				[&]() { /* TODO: Fix: ctx().audio.FadeIn("music1", milliseconds{ 3000 });*/ },
-				music_color
-			)
+			{ 1, 3 }, CreateAudioButton(
+						  "Fade In Music 1 (3s)",
+						  [&]() { /* TODO: Fix: ctx().audio.FadeIn("music1", 3s);*/ }, music_color
+					  )
 		);
 		grid.Set(
-			{ 1, 4 },
-			CreateAudioButton(
-				"Fade In Music 2 (3s)",
-				[&]() { /* TODO: Fix: ctx().audio.FadeIn("music2", milliseconds{ 3000 });*/ },
-				music_color
-			)
+			{ 1, 4 }, CreateAudioButton(
+						  "Fade In Music 2 (3s)",
+						  [&]() { /* TODO: Fix: ctx().audio.FadeIn("music2", 3s);*/ }, music_color
+					  )
 		);
 		grid.Set(
-			{ 1, 5 },
-			CreateAudioButton(
-				"Fade Out Music (3s)",
-				[&]() { /* TODO: Fix: ctx().audio.FadeOut(milliseconds{ 3000 });*/ }, music_color
-			)
+			{ 1, 5 }, CreateAudioButton(
+						  "Fade Out Music (3s)", [&]() { /* TODO: Fix: ctx().audio.FadeOut(3s);*/ },
+						  music_color
+					  )
 		);
 		grid.Set(
 			{ 1, 6 },
@@ -163,20 +158,17 @@ public:
 					  )
 		);
 		grid.Set(
-			{ 2, 2 },
-			CreateAudioButton(
-				"Fade In Sound 1 (3s)",
-				[this](
-				) { /* TODO: Fix: ctx().audio.FadeIn("sound1", milliseconds{ 3000 }, channel1);*/ },
-				sound1_color
-			)
+			{ 2, 2 }, CreateAudioButton(
+						  "Fade In Sound 1 (3s)",
+						  [this]() { /* TODO: Fix: ctx().audio.FadeIn("sound1", 3s, channel1);*/ },
+						  sound1_color
+					  )
 		);
 		grid.Set(
 			{ 2, 3 },
 			CreateAudioButton(
 				"Fade Out Channel 1 (3s)",
-				[this]() { /* TODO: Fix: ctx().audio.FadeOut(milliseconds{ 3000 }, channel1);*/ },
-				sound1_color
+				[this]() { /* TODO: Fix: ctx().audio.FadeOut(3s, channel1);*/ }, sound1_color
 			)
 		);
 		grid.Set(
@@ -229,20 +221,17 @@ public:
 					  )
 		);
 		grid.Set(
-			{ 3, 2 },
-			CreateAudioButton(
-				"Fade In Sound 2 (3s)",
-				[this](
-				) { /* TODO: Fix: ctx().audio.FadeIn("sound2", milliseconds{ 3000 }, channel2);*/ },
-				sound2_color
-			)
+			{ 3, 2 }, CreateAudioButton(
+						  "Fade In Sound 2 (3s)",
+						  [this]() { /* TODO: Fix: ctx().audio.FadeIn("sound2", 3s, channel2);*/ },
+						  sound2_color
+					  )
 		);
 		grid.Set(
 			{ 3, 3 },
 			CreateAudioButton(
 				"Fade Out Channel 2 (3s)",
-				[this]() { /* TODO: Fix: ctx().audio.FadeOut(milliseconds{ 3000 }, channel2);*/ },
-				sound2_color
+				[this]() { /* TODO: Fix: ctx().audio.FadeOut(3s, channel2);*/ }, sound2_color
 			)
 		);
 		grid.Set(

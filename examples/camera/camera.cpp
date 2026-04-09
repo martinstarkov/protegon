@@ -52,9 +52,9 @@ public:
 		deadzone.SetTint(color::DarkGreen);
 		deadzone.Show();
 
-		camera.FadeFrom(color::Black, seconds{ 3 });
-		camera.FadeTo(color::Red, seconds{ 3 });
-		camera.FadeFrom(color::Red, seconds{ 3 });
+		camera.FadeFrom(color::Black, 3s);
+		camera.FadeTo(color::Red, 3s);
+		camera.FadeFrom(color::Red, 3s);
 	}
 };
 */
@@ -131,29 +131,29 @@ public:
 		mouse.SetTint(color::Red);
 		mouse.Show();
 
-		camera.PanTo({ 0, 0 }, seconds{ 3 });
-		camera.PanTo({ 800, 0 }, seconds{ 3 });
-		camera.PanTo({ 800, 800 }, seconds{ 3 });
-		camera.PanTo({ 0, 800 }, seconds{ 3 });
+		camera.PanTo({ 0, 0 }, 3s);
+		camera.PanTo({ 800, 0 }, 3s);
+		camera.PanTo({ 800, 800 }, 3s);
+		camera.PanTo({ 0, 800 }, 3s);
 		StartFollow(camera,mouse);
 		camera.SetLerp(V2_float{ 0.9f });
 		// camera.SetOffset(V2_float{ -75, -75 });
 		camera.SetDeadzone(deadzone_size);
 
-		camera.ZoomTo(0.5f, seconds{ 3 });
-		camera.ZoomTo(2.0f, seconds{ 3 });
-		camera.ZoomTo(0.25f, seconds{ 3 });
-		camera.ZoomTo(1.0f, seconds{ 3 });
+		camera.ZoomTo(0.5f, 3s);
+		camera.ZoomTo(2.0f, 3s);
+		camera.ZoomTo(0.25f, 3s);
+		camera.ZoomTo(1.0f, 3s);
 
-		camera.RotateTo(90.0f, seconds{ 3 });
-		camera.RotateTo(0.0f, seconds{ 3 });
-		camera.RotateTo(-90.0f, seconds{ 3 });
-		camera.RotateTo(0.0f, seconds{ 3 });
+		camera.RotateTo(90.0f, 3s);
+		camera.RotateTo(0.0f, 3s);
+		camera.RotateTo(-90.0f, 3s);
+		camera.RotateTo(0.0f, 3s);
 	}
 
 	void OnUpdate() override {
 		V2_float center{ ctx().window.GetCenter() };
-		float dt{ ctx().dt().count() };
+		auto dt{ ctx().dt().count() };
 
 		if (ctx().input.KeyHeld(Key::W)) {
 			Translate(camera,{ 0, -pan_speed * dt });
@@ -208,7 +208,7 @@ public:
 			mouse.SetPosition( =
 				camera.TransformToCamera(ctx().input.GetMousePosition());
 			//camera.PanTo(camera.TransformToCamera(ctx().input.GetMousePosition()),
-seconds{ 4 },Ease::InOutSine, false); } else if (ctx().input.MousePressed(Mouse::Right)) {
+4s,Ease::InOutSine, false); } else if (ctx().input.MousePressed(Mouse::Right)) {
 			StopFollow(camera);
 		}
 
@@ -289,17 +289,17 @@ public:
 		follow_config.lerp		= { 0.5f, 0.5f };
 		follow_config.deadzone	= { 300, 300 };
 
-		// Shake(camera, 0.5f, seconds{ 5 });
-		// RotateTo(camera, 360.0f, seconds{ 5 });
-		// Shake(camera, 1, seconds{ 5 }, {}, Ease::Linear, false);
-		// Shake(camera, 0, seconds{ 5 }, {}, Ease::Linear, false);
-		// FadeTo(camera, color::Red, seconds{ 5 });
-		// FadeFrom(camera, color::Red, seconds{ 3 }, Ease::InOutBack, false);
+		// Shake(camera, 0.5f, 5s);
+		// RotateTo(camera, 360.0f, 5s);
+		// Shake(camera, 1, 5s, {}, Ease::Linear, false);
+		// Shake(camera, 0, 5s, {}, Ease::Linear, false);
+		// FadeTo(camera, color::Red, 5s);
+		// FadeFrom(camera, color::Red, 3s, Ease::InOutBack, false);
 		// StartFollow(camera, mouse, follow_config);
 	}
 
 	void OnUpdate() override {
-		float dt{ ctx().dt().count() };
+		auto dt{ ctx().dt().count() };
 
 		/*	PTGN_LOG(
 				"Mouse screen pos: ", ctx().input.GetMouseWindowPosition(),

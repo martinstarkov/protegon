@@ -63,7 +63,7 @@ int main(int, char**) {
 	e1.Add<impl::Draggable>();
 	e1.Add<impl::Offsets>(); // Transforms will be serialized as nulls because they are default
 							 // values.
-	e1.Add<Lifetime>(milliseconds{ 300 }).Start();
+	e1.Add<Lifetime>(300ms).Start();
 
 	{
 		json j = e1.Serialize();

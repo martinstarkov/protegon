@@ -64,7 +64,7 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 
 		auto texture{ *scene.ctx().asset.GetTexture(*config.animation_texture_key) };
 		V2_float anim_position;
-		auto duration{ config.animation_duration.value_or(milliseconds{ 1000 }) };
+		auto duration{ config.animation_duration.value_or(1000ms) };
 
 		AnimationMap anim_map{ player.Add<GameObject<AnimationMap>>(CreateAnimationMap(scene)) };
 		auto a0 = anim_map.Add(

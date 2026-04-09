@@ -1,10 +1,10 @@
 
 
+#include <chrono>
 #include <optional>
 
 #include "app/application.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
 #include "renderer/primitives/color.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
@@ -155,8 +155,8 @@ public:
 				.texture		 = "bell_idle",
 				.texture_hover	 = "bell_hover",
 				.texture_press	 = "bell_press",
-				.animation_hover = { 3, milliseconds{ 400 }, V2_int{ 253, 167 }, -1 },
-				.animation_press = AnimationConfig{ 3, milliseconds{ 200 }, V2_int{ 253, 167 }, 1 },
+				.animation_hover = { 3, 400ms, V2_int{ 253, 167 }, -1 },
+				.animation_press = AnimationConfig{ 3, 200ms, V2_int{ 253, 167 }, 1 },
 				.sound_hover	 = "bell_hover",
 				.sound_press	 = "bell_press",
 			}
