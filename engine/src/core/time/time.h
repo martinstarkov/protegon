@@ -5,10 +5,11 @@
 #include <ostream>
 #include <ratio>
 #include <regex>
-#include <stdexcept>
 #include <string>
 #include <type_traits>
 
+#include "core/log.h"
+#include "core/math/rng.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
@@ -44,47 +45,6 @@ using microsecondsf = duration<float, microseconds::period>;
 using nanoseconds	= std::chrono::nanoseconds;
 using nanosecondsf	= duration<float, nanoseconds::period>;
 
-template <DurationType To, DurationType From>
-constexpr To to_duration(const From& duration) {
-	return std::chrono::duration_cast<To>(duration);
-}
-
-/// Generic helper: casts to target duration and returns its count.
-template <DurationType To, DurationType From>
-constexpr typename To::rep to_duration_value(const From& duration) {
-	return to_duration<To>(duration).count();
-}
-
-template <DurationType From>
-constexpr typename From::rep to_seconds(const From& duration) {
-	return to_duration_value<std::chrono::duration<typename From::rep>>(duration);
-}
-
-template <DurationType From>
-constexpr typename From::rep to_milliseconds(const From& duration) {
-	return to_duration_value<std::chrono::duration<typename From::rep, std::milli>>(duration);
-}
-
-template <DurationType From>
-constexpr typename From::rep to_microseconds(const From& duration) {
-	return to_duration_value<std::chrono::duration<typename From::rep, std::micro>>(duration);
-}
-
-template <DurationType From>
-constexpr typename From::rep to_nanoseconds(const From& duration) {
-	return to_duration_value<std::chrono::duration<typename From::rep, std::nano>>(duration);
-}
-
-template <DurationType From>
-constexpr typename From::rep to_minutes(const From& duration) {
-	return to_duration_value<std::chrono::duration<typename From::rep, std::ratio<60>>>(duration);
-}
-
-template <DurationType From>
-constexpr typename From::rep to_hours(const From& duration) {
-	return to_duration_value<std::chrono::duration<typename From::rep, std::ratio<3600>>>(duration);
-}
-
 template <typename Rep, typename Period>
 inline std::ostream& operator<<(std::ostream& os, const ptgn::duration<Rep, Period>& d) {
 	os << d.count();
@@ -113,6 +73,12 @@ template <DurationType T>
 	return duration_cast<T>(a + t * (b - a));
 }
 
+template <DurationType T = milliseconds>
+[[nodiscard]] T RandomDuration(T min, T max) {
+	RNG<typename T::rep> rng{ min.count(), max.count() };
+	return T{ rng() };
+}
+
 } // namespace ptgn
 
 NLOHMANN_JSON_NAMESPACE_BEGIN
@@ -122,13 +88,13 @@ struct adl_serializer<ptgn::duration<Rep, Period>> {
 	static void to_json(json& j, const ptgn::duration<Rep, Period>& d) {
 		using namespace ptgn;
 		// Convert DurationType To milliseconds (common base unit for serialization)
-		auto ms{ to_duration<milliseconds>(d) };
+		auto ms{ duration_cast<milliseconds>(d) };
 
 		if (ms == d) {
 			j = std::to_string(ms.count()) + "ms";
 		} else {
 			// For non-integral durations (e.g., seconds, minutes)
-			float value{ to_duration_value<secondsf>(d) };
+			float value{ duration_cast<secondsf>(d).count() };
 			if (std::is_integral_v<Rep>) {
 				j = std::to_string(ms.count()) + "ms";
 			} else {
@@ -140,7 +106,7 @@ struct adl_serializer<ptgn::duration<Rep, Period>> {
 	static void from_json(const json& j, ptgn::duration<Rep, Period>& d) {
 		using namespace ptgn;
 		if (!j.is_string()) {
-			throw std::runtime_error("Expected duration as string");
+			PTGN_ERROR("Expected duration as string");
 		}
 
 		std::string s{ j.get<std::string>() };
@@ -148,7 +114,7 @@ struct adl_serializer<ptgn::duration<Rep, Period>> {
 
 		if (std::regex pattern{ R"(^\s*([\d.]+)\s*(ms|s|min|h)\s*$)", std::regex::icase };
 			!std::regex_match(s, match, pattern)) {
-			throw std::runtime_error("Invalid duration format: " + s);
+			PTGN_ERROR("Invalid duration format: ", s);
 		}
 
 		float value{ std::stof(match[1].str()) };
@@ -158,19 +124,19 @@ struct adl_serializer<ptgn::duration<Rep, Period>> {
 		using dur = ptgn::duration<Rep, Period>;
 
 		if (unit == "s" || unit == "S") {
-			d = to_duration<dur>(secondsf{ value });
+			d = duration_cast<dur>(secondsf{ value });
 		} else if (unit == "ms" || unit == "MS") {
-			d = to_duration<dur>(millisecondsf{ value });
+			d = duration_cast<dur>(millisecondsf{ value });
 		} else if (unit == "min" || unit == "MIN") {
-			d = to_duration<dur>(minutesf{ value });
+			d = duration_cast<dur>(minutesf{ value });
 		} else if (unit == "h" || unit == "H") {
-			d = to_duration<dur>(hoursf{ value });
+			d = duration_cast<dur>(hoursf{ value });
 		} else if (unit == "ns" || unit == "NS") {
-			d = to_duration<dur>(nanosecondsf{ value });
+			d = duration_cast<dur>(nanosecondsf{ value });
 		} else if (unit == "us" || unit == "US") {
-			d = to_duration<dur>(microsecondsf{ value });
+			d = duration_cast<dur>(microsecondsf{ value });
 		} else {
-			throw std::runtime_error("Unsupported time unit: " + std::string(unit));
+			PTGN_ERROR("Unsupported time unit: ", unit);
 		}
 	}
 };

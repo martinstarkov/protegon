@@ -50,7 +50,7 @@ public:
 	template <DurationType D = milliseconds>
 	void PrintAll() const {
 		for (const auto& [name, time] : timings_) {
-			PrintInfo<D>(name, to_duration<D>(time));
+			PrintInfo<D>(name, duration_cast<D>(time));
 		}
 	}
 
@@ -61,7 +61,7 @@ public:
 			"Cannot print profiling info for name which is not being profiled"
 		);
 		auto& time{ timings_.find(name)->second };
-		PrintInfo<D>(name, to_duration<D>(time));
+		PrintInfo<D>(name, duration_cast<D>(time));
 	}
 
 private:
