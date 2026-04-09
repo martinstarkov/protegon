@@ -334,6 +334,12 @@ public:
 	/// @brief Returns the delta time of the current frame.
 	secondsf dt() const;
 
+	/// @brief Returns the delta time of the current frame.
+	template <DurationType T>
+	[[nodiscard]] T dt() const {
+		return duration_cast<T>(dt());
+	}
+
 	/// @brief Returns the time elapsed since the Application instance was constructed.
 	[[nodiscard]] milliseconds TimeSinceStart() const;
 
