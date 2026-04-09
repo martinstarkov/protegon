@@ -40,8 +40,8 @@ void Physics::SetGravity(V2_float gravity) {
 	gravity_ = gravity;
 }
 
-float Physics::dt() const {
-	return scene_.ctx().dt().count();
+secondsf Physics::dt() const {
+	return scene_.ctx().dt();
 }
 
 void Physics::SetEnabled(bool enabled) {
@@ -65,7 +65,7 @@ void Physics::PreCollisionUpdate() const {
 		return;
 	}
 
-	float dt{ Physics::dt() };
+	auto dt{ Physics::dt() };
 
 	for (auto [entity, transform, rigid_body, movement] :
 		 scene_.EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
@@ -78,10 +78,8 @@ void Physics::PreCollisionUpdate() const {
 		jump.Update(scene_, rigid_body, movement.grounded, gravity_);
 	}
 
-	secondsf dt_seconds{ dt };
-
 	for (auto [e, rigid_body] : scene_.EntitiesWith<RigidBody>()) {
-		rigid_body.Update(gravity_, dt_seconds);
+		rigid_body.Update(gravity_, dt);
 	}
 
 	for (auto [e, movement] : scene_.EntitiesWith<PlatformerMovement>()) {
@@ -94,11 +92,11 @@ void Physics::PostCollisionUpdate() const {
 		return;
 	}
 
-	float dt{ Physics::dt() };
+	auto dt{ Physics::dt() };
 
 	for (auto [entity, transform, rigid_body] : scene_.EntitiesWith<Transform, RigidBody>()) {
-		transform.Translate(rigid_body.velocity * dt);
-		transform.Rotate(rigid_body.angular_velocity * dt);
+		transform.Translate(rigid_body.velocity * dt.count());
+		transform.Rotate(rigid_body.angular_velocity * dt.count());
 		transform.ClampRotation();
 
 		if (!bounds_.has_value()) {

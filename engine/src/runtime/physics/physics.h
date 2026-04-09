@@ -52,8 +52,8 @@ public:
 	V2_float GetGravity() const;
 	void SetGravity(V2_float gravity);
 
-	/// @return Physics time step in seconds.
-	[[nodiscard]] float dt() const;
+	/// @return Physics time step. Currently the same as the delta time of the current frame.
+	[[nodiscard]] secondsf dt() const;
 
 	void SetEnabled(bool enabled = true);
 	void Disable();

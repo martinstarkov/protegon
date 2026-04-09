@@ -15,6 +15,7 @@
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/time/time.h"
 #include "core/util/span.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
@@ -112,7 +113,7 @@ std::vector<Entity> GetDiscreteCollideables(Entity entity1, const impl::KDTree& 
 	return collideables;
 }
 
-void CollisionHandler::UpdateKDTree(Entity entity, float dt) {
+void CollisionHandler::UpdateKDTree(Entity entity, secondsf dt) {
 	const auto& collider{ entity.Get<Collider>() };
 	auto transform{ GetWorldTransform(entity) };
 	transform = OffsetByOrigin(collider.shape, transform, entity);
@@ -120,7 +121,7 @@ void CollisionHandler::UpdateKDTree(Entity entity, float dt) {
 	static_tree_.UpdateBoundingAABB(entity, new_bounding_aabb);
 	static_tree_.EndFrameUpdate();
 	if (const auto rb{ entity.TryGet<RigidBody>() }) {
-		auto v{ rb->velocity * dt };
+		auto v{ rb->velocity * dt.count() };
 		auto new_expanded_aabb{ new_bounding_aabb.ExpandByVelocity(v) };
 		dynamic_tree_.UpdateBoundingAABB(entity, new_expanded_aabb);
 		dynamic_tree_.EndFrameUpdate();
@@ -156,7 +157,7 @@ void CollisionHandler::Overlap(Entity entity1) const {
 	}
 }
 
-void CollisionHandler::Intersect(Entity entity1, float dt) {
+void CollisionHandler::Intersect(Entity entity1, secondsf dt) {
 	PTGN_ASSERT(entity1.Has<Collider>());
 
 	auto collideables{ GetDiscreteCollideables<
@@ -282,7 +283,7 @@ std::vector<Entity> CollisionHandler::GetSweepCandidates(
 }
 
 std::vector<impl::SweepCollision> CollisionHandler::GetSortedCollisions(
-	Entity entity1, V2_float offset, V2_float velocity1, float dt
+	Entity entity1, V2_float offset, V2_float velocity1, secondsf dt
 ) const {
 	auto static_collideables{ GetSweepCandidates(entity1, velocity1, static_tree_) };
 	auto dynamic_collideables{ GetSweepCandidates(entity1, velocity1, dynamic_tree_) };
@@ -332,7 +333,7 @@ std::vector<impl::SweepCollision> CollisionHandler::GetSortedCollisions(
 	return collisions;
 }
 
-void CollisionHandler::Sweep(Scene& scene, Entity entity, float dt) {
+void CollisionHandler::Sweep(Scene& scene, Entity entity, secondsf dt) {
 	PTGN_ASSERT(entity.Has<Collider>());
 	PTGN_ASSERT(entity.Get<Collider>().mode == CollisionMode::Continuous);
 	PTGN_ASSERT(entity.Has<RigidBody>());
@@ -344,7 +345,7 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, float dt) {
 	bool raycast_hit{ false };
 
 	do {
-		auto velocity{ entity.Get<RigidBody>().velocity * dt };
+		auto velocity{ entity.Get<RigidBody>().velocity * dt.count() };
 
 		if (velocity.IsZero()) {
 			break;
@@ -382,12 +383,12 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, float dt) {
 
 		auto collisions2{ GetSortedCollisions(entity, offset, new_velocity, dt) };
 
-		PTGN_ASSERT(dt > 0.0f);
+		PTGN_ASSERT(dt > 0s);
 
 		if (collisions2.empty()) {
 			TryDrawDebugLine(scene, entity, velocity * earliest.t, new_velocity, color::Orange);
 
-			entity.Get<RigidBody>().AddImpulse(new_velocity / dt);
+			entity.Get<RigidBody>().AddImpulse(new_velocity / dt.count());
 			break;
 		}
 
@@ -399,7 +400,7 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, float dt) {
 
 		AddEarliestCollisions(entity, collisions2);
 
-		entity.Get<RigidBody>().AddImpulse(new_velocity / dt * earliest2.t);
+		entity.Get<RigidBody>().AddImpulse(new_velocity / dt.count() * earliest2.t);
 
 		iterations++;
 	} while (false /*TODO: Consider readding: iterations < max_sweep_iterations_*/);
@@ -431,10 +432,10 @@ void CollisionHandler::TryDrawDebugLine(
 	}
 }
 
-V2_float CollisionHandler::GetRelativeVelocity(V2_float velocity1, Entity entity2, float dt) {
+V2_float CollisionHandler::GetRelativeVelocity(V2_float velocity1, Entity entity2, secondsf dt) {
 	V2_float relative_velocity{ velocity1 };
 	if (const auto rb2{ entity2.TryGet<RigidBody>() }) {
-		auto velocity2{ rb2->velocity * dt };
+		auto velocity2{ rb2->velocity * dt.count() };
 		relative_velocity -= velocity2;
 	}
 	return relative_velocity;
@@ -530,11 +531,9 @@ V2_float CollisionHandler::GetRemainingVelocity(
 	PTGN_ERROR("Failed to identify DynamicCollisionResponse type");
 }
 
-void CollisionHandler::Update(Scene& scene) {
+void CollisionHandler::Update(Scene& scene, secondsf dt) {
 	std::vector<impl::KDObject> objects;
 	std::vector<impl::KDObject> dynamic_objects;
-
-	float dt{ scene.ctx().dt().count() };
 
 	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
 		collider.ResetContainers();
@@ -544,7 +543,7 @@ void CollisionHandler::Update(Scene& scene) {
 		objects.emplace_back(entity, bounding_aabb);
 		if (entity.Has<RigidBody>()) {
 			const auto& rb{ entity.Get<RigidBody>() };
-			auto velocity{ rb.velocity * dt };
+			auto velocity{ rb.velocity * dt.count() };
 			auto expanded_aabb{ bounding_aabb.ExpandByVelocity(velocity) };
 			dynamic_objects.emplace_back(entity, expanded_aabb);
 		}

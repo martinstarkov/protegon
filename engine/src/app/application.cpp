@@ -218,7 +218,7 @@ void Application::Update() {
 
 	static auto start{ std::chrono::system_clock::now() };
 	static auto end{ std::chrono::system_clock::now() };
-	// Calculate time elapsed during previous frame. Unit: seconds.
+	// Calculate time elapsed during previous frame.
 	dt_ = end - start;
 
 	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.

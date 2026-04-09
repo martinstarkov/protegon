@@ -6,6 +6,7 @@
 #include "core/event/event.h"
 #include "core/math/raycast.h"
 #include "core/math/vector2.h"
+#include "core/time/time.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
@@ -129,7 +130,7 @@ private:
 
 	void Overlap(Entity entity) const;
 
-	void Intersect(Entity entity, float dt);
+	void Intersect(Entity entity, secondsf dt);
 
 	static std::vector<Entity> GetSweepCandidates(
 		Entity entity1, V2_float velocity, const impl::KDTree& tree
@@ -140,7 +141,7 @@ private:
 	/// @param vel Velocity of the entity. As above, this enables a second sweep in the direction
 	/// of the remaining velocity.
 	std::vector<impl::SweepCollision> GetSortedCollisions(
-		Entity entity1, V2_float offset, V2_float velocity1, float dt
+		Entity entity1, V2_float offset, V2_float velocity1, secondsf dt
 	) const;
 
 	/// @brief Adds all collisions which occurred at the earliest time to box.collisions. This
@@ -155,13 +156,13 @@ private:
 		V2_float velocity, const RaycastResult& collision, CollisionResponse response
 	);
 
-	static V2_float GetRelativeVelocity(V2_float velocity1, Entity entity2, float dt);
+	static V2_float GetRelativeVelocity(V2_float velocity1, Entity entity2, secondsf dt);
 
-	void UpdateKDTree(Entity entity, float dt);
+	void UpdateKDTree(Entity entity, secondsf dt);
 
 	/// @brief Updates the velocity of the object to prevent it from colliding with the target
 	/// objects.
-	void Sweep(Scene& scene, Entity entity, float dt);
+	void Sweep(Scene& scene, Entity entity, secondsf dt);
 
 	/// @brief If debug draw enabled, draws the collider of the entity with the given position
 	/// offset and color.
@@ -173,7 +174,7 @@ private:
 		Scene& scene, Entity entity, V2_float start_offset, V2_float end_offset, Color color
 	) const;
 
-	void Update(Scene& scene);
+	void Update(Scene& scene, secondsf dt);
 
 	impl::KDTree static_tree_{ 100 };
 	impl::KDTree dynamic_tree_{ 100 };

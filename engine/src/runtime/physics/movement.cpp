@@ -1,6 +1,7 @@
 #include "runtime/physics/movement.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdlib>
 #include <utility>
@@ -11,6 +12,7 @@
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/time/time.h"
 #include "core/time/timer.h"
 #include "platform/input/key.h"
 #include "runtime/ecs/entity.h"
@@ -87,7 +89,7 @@ void MoveArrowKeys(Entity entity, V2_float speed) {
 	SetPosition(entity, position);
 }
 
-void TopDownMovement::Update(Entity entity, Transform& transform, RigidBody& rb, float dt) {
+void TopDownMovement::Update(Entity entity, Transform& transform, RigidBody& rb, secondsf dt) {
 	const auto& input{ entity.GetScene().ctx().input };
 
 	if (keys_enabled) {
@@ -326,7 +328,7 @@ void TopDownMovement::Move(MoveDirection direction) {
 	}
 }
 
-void TopDownMovement::RunWithAcceleration(V2_float desired_velocity, RigidBody& rb, float dt)
+void TopDownMovement::RunWithAcceleration(V2_float desired_velocity, RigidBody& rb, secondsf dt)
 	const {
 	// In the future one could include a state machine based choice here.
 	float acceleration{ max_acceleration };
@@ -340,15 +342,15 @@ void TopDownMovement::RunWithAcceleration(V2_float desired_velocity, RigidBody& 
 			// If the sign (i.e. positive or negative) of our input direction doesn't match our
 			// movement, it means we're turning around and so should use the turn speed stat.
 			if (!NearlyEqual(Sign(dir[i]), Sign(rb.velocity[i]))) {
-				max_speed_change = turn_speed * dt;
+				max_speed_change = turn_speed * dt.count();
 			} else {
 				// If they match, it means we're simply running along and so should use the
 				// acceleration stat
-				max_speed_change = acceleration * dt;
+				max_speed_change = acceleration * dt.count();
 			}
 		} else {
 			// And if we're not pressing a direction at all, use the deceleration stat
-			max_speed_change = deceleration * dt;
+			max_speed_change = deceleration * dt.count();
 		}
 
 		// Move our velocity towards the desired velocity, at the rate of the number calculated
@@ -360,8 +362,9 @@ void TopDownMovement::RunWithAcceleration(V2_float desired_velocity, RigidBody& 
 	set_velocity(1);
 }
 
-void PlatformerMovement::Update(const Scene& scene, Transform& transform, RigidBody& rb, float dt)
-	const {
+void PlatformerMovement::Update(
+	const Scene& scene, Transform& transform, RigidBody& rb, secondsf dt
+) const {
 	const auto& input{ scene.ctx().input };
 
 	bool left{ input.KeyHeld(left_key) };
@@ -400,7 +403,7 @@ void PlatformerMovement::Update(const Scene& scene, Transform& transform, RigidB
 }
 
 void PlatformerMovement::RunWithAcceleration(
-	const Scene& scene, V2_float desired_velocity, float dir_x, RigidBody& rb, float dt
+	const Scene& scene, V2_float desired_velocity, float dir_x, RigidBody& rb, secondsf dt
 ) const {
 	const auto& input{ scene.ctx().input };
 
@@ -421,15 +424,15 @@ void PlatformerMovement::RunWithAcceleration(
 		// If the sign (i.e. positive or negative) of our input direction doesn't match our
 		// movement, it means we're turning around and so should use the turn speed stat.
 		if (!NearlyEqual(Sign(dir_x), Sign(rb.velocity.x))) {
-			max_speed_change = turn_speed * dt;
+			max_speed_change = turn_speed * dt.count();
 		} else {
 			// If they match, it means we're simply running along and so should use the
 			// acceleration stat
-			max_speed_change = acceleration * dt;
+			max_speed_change = acceleration * dt.count();
 		}
 	} else {
 		// And if we're not pressing a direction at all, use the deceleration stat
-		max_speed_change = deceleration * dt;
+		max_speed_change = deceleration * dt.count();
 	}
 
 	// Move our velocity towards the desired velocity, at the rate of the number calculated

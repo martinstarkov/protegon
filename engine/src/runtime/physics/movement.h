@@ -161,8 +161,7 @@ struct TopDownMovement {
 	Key down_key{ Key::S };
 	Key right_key{ Key::D };
 
-	/// @param dt Unit: seconds.
-	void Update(Entity entity, Transform& transform, RigidBody& rb, float dt);
+	void Update(Entity entity, Transform& transform, RigidBody& rb, secondsf dt);
 
 	/// @brief Invoke a movement command in a specific direction the same as a key input would. If
 	/// move direction is none, movement inputs will be set to false.
@@ -192,8 +191,7 @@ struct TopDownMovement {
 	)
 
 private:
-	/// @brief @param dt Unit: seconds.
-	void RunWithAcceleration(V2_float desired_velocity, RigidBody& rb, float dt) const;
+	void RunWithAcceleration(V2_float desired_velocity, RigidBody& rb, secondsf dt) const;
 
 	static bool GetMovingState(V2_float d, MoveDirection direction);
 
@@ -244,8 +242,7 @@ struct PlatformerMovement {
 	Key left_key{ Key::A };
 	Key right_key{ Key::D };
 
-	/// @param dt Unit: seconds.
-	void Update(const Scene& scene, Transform& transform, RigidBody& rb, float dt) const;
+	void Update(const Scene& scene, Transform& transform, RigidBody& rb, secondsf dt) const;
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
 		PlatformerMovement, grounded, max_speed, max_acceleration, max_deceleration, max_turn_speed,
@@ -253,9 +250,8 @@ struct PlatformerMovement {
 		left_key, right_key
 	)
 private:
-	/// @param dt Unit: seconds.
 	void RunWithAcceleration(
-		const Scene& scene, V2_float desired_velocity, float dir_x, RigidBody& rb, float dt
+		const Scene& scene, V2_float desired_velocity, float dir_x, RigidBody& rb, secondsf dt
 	) const;
 };
 
