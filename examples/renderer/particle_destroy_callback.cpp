@@ -1,12 +1,9 @@
 #include <chrono>
-#include <optional>
-#include <variant>
 #include <vector>
 
 #include "app/application.h"
 #include "core/log.h"
 #include "core/math/geometry/rect.h"
-#include "core/math/geometry/shape.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
 #include "renderer/primitives/color.h"
@@ -22,7 +19,6 @@
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
-using namespace std::chrono_literals;
 
 class ParticleDestroyCallbackScene : public Scene {
 public:
@@ -31,25 +27,23 @@ public:
 	void OnEnter() override {
 		ctx().asset.Load("anim", "assets/animation_rain_splash.png");
 
-		ParticleConfig config{};
-
-		config.rate_or_burst =
-			ParticleRate{ .duration = 1s, .loop = true, .prewarm = false, .rate_over_time = 250 };
-		config.lifetime			   = { 900ms, 1000ms };
-		config.start_speed		   = { 260.0f, 420.0f };
-		config.start_size		   = 6.0f;
-		config.align_to_direction  = true;
-		config.start_color		   = Color{ 120, 170, 255, 255 };
-		config.color_over_lifetime = Color{ 120, 170, 255, 200 };
-		config.start_gravity	   = { 0.0f, 300.0f };
-		config.max_particles	   = 1000;
-		config.particle_type	   = Rect{ V2_float{ 0.25f, 1.0f } };
-		config.particle_fill_style = Solid{};
-		config.emission_shape	   = EmissionShape::Rect({ 500.0f, 20.0f }, { 0.0f, 1.0f });
-		config.size_over_lifetime  = 3.0f;
-
 		rain = CreateParticleEmitter(
-			*this, { 0.0f, static_cast<float>(-ctx().renderer.GetGameSize().y) / 2.0f }, config
+			*this, { 0.0f, static_cast<float>(-ctx().renderer.GetGameSize().y) / 2.0f },
+			{ .rate_or_burst =
+				  ParticleRate{
+					  .duration = 1s, .loop = true, .prewarm = false, .rate_over_time = 250 },
+			  .lifetime			   = ConstantOrRange{ 900ms, 1000ms },
+			  .start_speed		   = { 260.0f, 420.0f },
+			  .start_size		   = 6.0f,
+			  .align_to_direction  = true,
+			  .start_color		   = Color{ 120, 170, 255, 255 },
+			  .start_gravity	   = V2_float{ 0.0f, 300.0f },
+			  .max_particles	   = 1000,
+			  .particle_type	   = Rect{ V2_float{ 0.25f, 1.0f } },
+			  .particle_fill_style = Solid{},
+			  .emission_shape	   = EmissionShape::Rect({ 500.0f, 20.0f }, { 0.0f, 1.0f }),
+			  .size_over_lifetime  = 3.0f,
+			  .color_over_lifetime = Color{ 120, 170, 255, 200 } }
 		);
 
 		rain.OnParticleDestroy([](auto p) {

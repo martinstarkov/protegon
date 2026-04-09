@@ -38,9 +38,9 @@ struct ParticleEmitterComponent;
 
 template <typename T>
 struct Range {
-	Range() = delete;
+	constexpr Range() = delete;
 
-	Range(T min, T max) : min{ min }, max{ max } {}
+	constexpr Range(T min, T max) : min{ min }, max{ max } {}
 
 	T min;
 	T max;
@@ -48,11 +48,11 @@ struct Range {
 
 template <typename T>
 struct ConstantOrRange {
-	ConstantOrRange(const T& v) : value_{ v } {} // NOSONAR
+	constexpr ConstantOrRange(const T& v) : value_{ v } {} // NOSONAR
 
-	ConstantOrRange(const T& min, const T& max) : value_{ Range<T>{ min, max } } {}
+	constexpr ConstantOrRange(const T& min, const T& max) : value_{ Range<T>{ min, max } } {}
 
-	ConstantOrRange(const Range<T>& range) : value_{ range } {} // NOSONAR
+	constexpr ConstantOrRange(const Range<T>& range) : value_{ range } {} // NOSONAR
 
 	[[nodiscard]] T Evaluate() const {
 		return std::visit(
@@ -81,16 +81,24 @@ public:
 		V2_float direction;
 	};
 
-	EmissionShape() = default;
+	constexpr EmissionShape() = default;
 
-	[[nodiscard]] static EmissionShape Arc(
+	[[nodiscard]] constexpr static EmissionShape Arc(
 		Degrees arc_angle, float outer_radius, V2_float direction = V2_float{ 1.0f, 0.0f },
 		float inner_radius = 0.0f
-	);
+	) {
+		EmissionShape s;
+		s.type_ = ArcShape{ arc_angle, outer_radius, direction, inner_radius };
+		return s;
+	}
 
-	[[nodiscard]] static EmissionShape Rect(
+	[[nodiscard]] constexpr static EmissionShape Rect(
 		V2_float size, V2_float direction = V2_float{ 0.0f, 1.0f }
-	);
+	) {
+		EmissionShape s;
+		s.type_ = RectShape{ size, direction };
+		return s;
+	}
 
 	[[nodiscard]] EmissionSample SampleEmission() const;
 
