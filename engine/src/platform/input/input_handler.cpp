@@ -106,6 +106,21 @@ V2_float InputHandler::GetMouseScreenPosition() const {
 	return mouse_screen_pos;
 }
 
+void InputHandler::ClearInputState() {
+	for (std::size_t i = 0; i < key_states_.size(); ++i) {
+		key_states_[i]	   = impl::KeyState::Idle;
+		key_timestamps_[i] = SDL_GetTicksNS();
+	}
+
+	for (std::size_t i = 0; i < mouse_states_.size(); ++i) {
+		mouse_states_[i]	 = impl::MouseState::Idle;
+		mouse_timestamps_[i] = SDL_GetTicksNS();
+	}
+
+	mouse_scroll_		= {};
+	mouse_scroll_delta_ = {};
+}
+
 bool InputHandler::Update(EventHandler& events, Renderer& renderer) {
 	previous_mouse_position_ = mouse_position_;
 	mouse_scroll_			 = {};
@@ -139,18 +154,20 @@ bool InputHandler::Update(EventHandler& events, Renderer& renderer) {
 
 	bool running{ PollEvents(events, renderer) };
 
-	// Before polling events, their states are updated from pressed to held and from released to
-	// idle. This means that if a key or mouse button is still held after polling events, it has
-	// must have been held.
-	for (std::size_t i{ 0 }; i < mouse_states_.size(); ++i) {
-		if (mouse_states_[i] == impl::MouseState::Held) {
-			events.Push<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
+	if (window_.focused_) {
+		// Before polling events, their states are updated from pressed to held and from released to
+		// idle. This means that if a key or mouse button is still held after polling events, it has
+		// must have been held.
+		for (std::size_t i{ 0 }; i < mouse_states_.size(); ++i) {
+			if (mouse_states_[i] == impl::MouseState::Held) {
+				events.Push<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
+			}
 		}
-	}
 
-	for (std::size_t i{ 0 }; i < key_states_.size(); ++i) {
-		if (key_states_[i] == impl::KeyState::Held) {
-			events.Push<event::KeyHeld>(static_cast<Key>(i));
+		for (std::size_t i{ 0 }; i < key_states_.size(); ++i) {
+			if (key_states_[i] == impl::KeyState::Held) {
+				events.Push<event::KeyHeld>(static_cast<Key>(i));
+			}
 		}
 	}
 
@@ -259,10 +276,13 @@ bool InputHandler::PollEvents(EventHandler& events, Renderer& renderer) {
 				break;
 			}
 			case SDL_EVENT_WINDOW_FOCUS_LOST: {
+				window_.focused_ = false;
+				ClearInputState();
 				events.Push<event::WindowFocusLost>();
 				break;
 			}
 			case SDL_EVENT_WINDOW_FOCUS_GAINED: {
+				window_.focused_ = true;
 				events.Push<event::WindowFocusGained>();
 				break;
 			}
@@ -270,7 +290,7 @@ bool InputHandler::PollEvents(EventHandler& events, Renderer& renderer) {
 		}
 	}
 
-	if (!mouse_moved) {
+	if (window_.focused_ && !mouse_moved) {
 		V2_float global_mouse_position;
 		// If mouse moves outside the window, SDL does not send a mouse motion event, so we query
 		// manually.

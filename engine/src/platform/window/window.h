@@ -16,6 +16,8 @@ struct SDL_Cursor;
 
 namespace ptgn {
 
+class InputHandler;
+
 // TODO: Make it so these can be | together.
 enum class WindowSetting {
 	None,
@@ -142,6 +144,7 @@ public:
 
 private:
 	friend class impl::gl::GLContext;
+	friend class InputHandler;
 
 	/// @brief While the mouse is in relative mode, the cursor is hidden, the mouse position is
 	/// constrained to the window, and there will be continuous relative mouse motion events
@@ -153,6 +156,7 @@ private:
 	void CaptureMouse(bool on) const;
 	void SetAlwaysOnTop(bool on) const;
 
+	bool focused_{ true };
 	Color background_color_{ color::Transparent };
 	/// @brief Potential custom cursor defined by the user or nullptr if the default cursor is being
 	/// used.

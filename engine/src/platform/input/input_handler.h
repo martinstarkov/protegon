@@ -134,6 +134,8 @@ private:
 	/// @return False is returned if the application window was quit, true otherwise.
 	bool PollEvents(EventHandler& events, Renderer& renderer);
 
+	void ClearInputState();
+
 	Window& window_;
 
 	std::array<impl::KeyState, impl::kKeyCount> key_states_{};
