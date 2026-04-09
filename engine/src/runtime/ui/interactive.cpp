@@ -215,6 +215,10 @@ const std::unordered_set<Entity>& GetDropzones(Entity draggable) {
 	return draggable.Get<impl::Draggable>().dropzones;
 }
 
+const std::unordered_set<Entity>& GetHoveredDropzones(Entity draggable) {
+	return draggable.Get<impl::Draggable>().hovered_dropzones;
+}
+
 const std::unordered_set<Entity>& GetDraggables(Entity dropzone) {
 	return dropzone.Get<impl::Dropzone>().draggables;
 }

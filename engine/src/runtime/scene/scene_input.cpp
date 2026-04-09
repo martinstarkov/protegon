@@ -436,10 +436,16 @@ void SceneInput::HandleDragging(
 					continue;
 				}
 
+				// Only allow pickup from dropzones this draggable was actually dropped into.
+				if (!dropzone.Get<impl::Dropzone>().draggables.contains(dragging)) {
+					continue;
+				}
+
 				AddDropzoneActions<DropzoneAction::Pickup>(
 					dragging, dropzone, mouse.position,
 					[&]() {
 						dropzone.Get<impl::Dropzone>().draggables.erase(dragging);
+						dragging.Get<impl::Draggable>().dropzones.erase(dropzone);
 						PushEvent<event::PickupFromDropzone>(dropzone, dragging);
 					},
 					[&]() { PushEvent<event::PickupDraggable>(dragging, dropzone); }, []() {}
@@ -499,6 +505,7 @@ void SceneInput::HandleDragging(
 					dragging, dropzone, mouse.position,
 					[&]() {
 						dropzone.Get<impl::Dropzone>().draggables.emplace(dragging);
+						dragging.Get<impl::Draggable>().dropzones.emplace(dropzone);
 						PushEvent<event::DropIntoDropzone>(dropzone, dragging);
 					},
 					[&]() { PushEvent<event::DropDraggable>(dragging, dropzone); }, []() {}
@@ -545,7 +552,7 @@ void SceneInput::HandleDropzones(
 		}
 
 		auto& draggable{ dragging.Get<impl::Draggable>() };
-		draggable.dropzones = {};
+		draggable.hovered_dropzones = {};
 
 		for (Entity dropzone : dropzones) {
 			PTGN_ASSERT((dropzone.Has<impl::Dropzone, impl::Interactive>()));
@@ -555,7 +562,7 @@ void SceneInput::HandleDropzones(
 				continue;
 			}
 
-			bool entered{ !draggable.last_dropzones.contains(dropzone) };
+			bool entered{ !draggable.last_hovered_dropzones.contains(dropzone) };
 
 			AddDropzoneActions<DropzoneAction::Move>(
 				dragging, dropzone, mouse.position,
@@ -575,7 +582,7 @@ void SceneInput::HandleDropzones(
 						PushEvent<event::DragOver>(dragging, dropzone);
 					}
 				},
-				[&]() { draggable.dropzones.emplace(dropzone); }
+				[&]() { draggable.hovered_dropzones.emplace(dropzone); }
 			);
 		}
 
@@ -584,11 +591,11 @@ void SceneInput::HandleDropzones(
 		}
 
 		// 2. Handle leaving dropzones
-		for (Entity last_dropzone : draggable.last_dropzones) {
+		for (Entity last_dropzone : draggable.last_hovered_dropzones) {
 			if (dragging == last_dropzone) {
 				continue;
 			}
-			if (draggable.dropzones.contains(last_dropzone)) {
+			if (draggable.hovered_dropzones.contains(last_dropzone)) {
 				continue;
 			}
 			if (last_dropzone.Has<impl::Dropzone, impl::Interactive>() &&
@@ -611,7 +618,7 @@ void SceneInput::HandleDropzones(
 			if (dragging == dropzone) {
 				continue;
 			}
-			if (draggable.dropzones.contains(dropzone)) {
+			if (draggable.hovered_dropzones.contains(dropzone)) {
 				continue;
 			}
 			PushEvent<event::MoveOutsideDropzone>(dropzone, dragging);
@@ -623,7 +630,7 @@ void SceneInput::HandleDropzones(
 		}
 
 		// Store current for next frame.
-		draggable.last_dropzones = draggable.dropzones;
+		draggable.last_hovered_dropzones = draggable.hovered_dropzones;
 	}
 }
 

@@ -108,11 +108,15 @@ struct Draggable {
 	/// @brief If the entity is currently being dragged.
 	bool dragging{ false };
 
-	/// @brief Dropzones the draggable is currently on.
+	/// @brief Dropzone entities that the draggable is currently dropped on.
 	std::unordered_set<Entity> dropzones;
 
-	/// @brief Dropzones the draggable was on during the previous frame (for triggering callbacks).
-	std::unordered_set<Entity> last_dropzones;
+	/// @brief Dropzones the draggable is currently hovered on.
+	std::unordered_set<Entity> hovered_dropzones;
+
+	/// @brief Dropzones the draggable was hovered on during the previous frame (for triggering
+	/// callbacks).
+	std::unordered_set<Entity> last_hovered_dropzones;
 
 	bool enabled{ true };
 
@@ -121,8 +125,8 @@ struct Draggable {
 	TriggerCondition pickup_condition{ TriggerCondition::Overlaps };
 
 	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
-		Draggable, dropzones, last_dropzones, offset, start, dragging, move_condition,
-		drop_condition, pickup_condition
+		Draggable, dropzones, hovered_dropzones, last_hovered_dropzones, offset, start, dragging,
+		move_condition, drop_condition, pickup_condition
 	)
 };
 
@@ -237,6 +241,9 @@ void SetDropzone(Entity entity, ComponentState state = ComponentState::Enabled);
 
 /// @return Dropzones that the draggable is currently dropped on.
 const std::unordered_set<Entity>& GetDropzones(Entity draggable_entity);
+
+/// @return Dropzones that the draggable is currently hovered over.
+const std::unordered_set<Entity>& GetHoveredDropzones(Entity draggable_entity);
 
 /// @return Draggable entities which are currently dropped on the dropzone.
 const std::unordered_set<Entity>& GetDraggables(Entity dropzone_entity);
