@@ -13,6 +13,7 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/easing.h"
+#include "core/math/math_utils.h"
 #include "core/math/tolerance.h"
 #include "core/time/time.h"
 #include "runtime/ecs/entity.h"
@@ -476,7 +477,7 @@ void Tween::Step(secondsf dt_secs) {
 	while (dt > 0.0f && tween.state_ == impl::TweenState::Started) {
 		TweenPoint& point{ GetCurrentTweenPoint() };
 
-		if (float duration_sec{ to_duration_value<secondsf>(point.duration_) };
+		if (float duration_sec{ duration_cast<secondsf>(point.duration_).count() };
 			duration_sec <= 0.0f) {
 			tween.progress_ = 1.0f;
 			dt				= 0.0f;
@@ -570,7 +571,7 @@ Tween& Tween::RemoveLastTweenPoint() {
 }
 
 void Tween::Seek(float new_progress) {
-	new_progress = std::clamp(new_progress, 0.0f, 1.0f);
+	new_progress = Clamp01(new_progress);
 
 	Reset(); // Reset and re-simulate from 0.
 	Start();
@@ -597,12 +598,13 @@ void Tween::Seek(float new_progress) {
 }
 
 void Tween::Seek(milliseconds time) {
-	float total_ms{ to_duration_value<millisecondsf>(GetTotalDuration()) };
-	float target_progress{ to_duration_value<millisecondsf>(time) / total_ms };
+	float total_ms{ duration_cast<millisecondsf>(GetTotalDuration()).count() };
+	PTGN_ASSERT(total_ms > 0.0f, "Cannot seek tween when total duration is 0");
+	float target_progress{ duration_cast<millisecondsf>(time).count() / total_ms };
 	Seek(target_progress);
 
 	// Alternative implementation.
-	// float target_time{ to_duration_value<secondsf>(time) };
+	// float target_time{ duration_cast<secondsf>(time).count() };
 	//// Reset and simulate forward.
 	// Reset();
 	// Start();
