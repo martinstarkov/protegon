@@ -38,7 +38,7 @@ ScriptSequence& ScriptSequence::During(milliseconds duration, DuringSequenceFunc
 
 ScriptSequence& ScriptSequence::Then(SequenceFunction func) {
 	auto& instance{ Get<impl::ScriptSequenceData>() };
-	instance.tween.During(milliseconds{ 0 }).OnPointComplete([f = std::move(func)](auto p) {
+	instance.tween.During(0ms).OnPointComplete([f = std::move(func)](auto p) {
 		std::visit(
 			[&]<typename T>(const T& func_variant) {
 				if constexpr (std::is_same_v<T, std::function<void()>>) {
@@ -87,7 +87,7 @@ ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete) {
 	auto& instance{ sequence.Add<impl::ScriptSequenceData>(GameObject{ std::move(tween) }) };
 
 	if (destroy_on_complete) {
-		instance.tween.During(milliseconds{ 0 }).OnComplete([](auto e) { e.parent.Destroy(); });
+		instance.tween.During(0ms).OnComplete([](auto e) { e.parent.Destroy(); });
 	}
 
 	return sequence;

@@ -15,7 +15,7 @@ struct TimedTransition : public SceneTransition {
 
 struct FadeInTransition : public SceneTransition {
 	explicit FadeInTransition(
-		milliseconds duration, milliseconds delay = milliseconds{ 0 }, Ease ease = Ease::Linear
+		milliseconds duration, milliseconds delay = 0ms, Ease ease = Ease::Linear
 	);
 
 	void OnDelayStart(Scene& scene) override;
@@ -25,7 +25,7 @@ struct FadeInTransition : public SceneTransition {
 
 struct FadeOutTransition : public SceneTransition {
 	explicit FadeOutTransition(
-		milliseconds duration, milliseconds delay = milliseconds{ 0 }, Ease ease = Ease::Linear
+		milliseconds duration, milliseconds delay = 0ms, Ease ease = Ease::Linear
 	);
 
 	void OnDelayStart(Scene& scene) override;
@@ -35,20 +35,20 @@ struct FadeOutTransition : public SceneTransition {
 
 struct FadeTransition : public SceneTransitionPair<FadeOutTransition, FadeInTransition> {
 	explicit FadeTransition(
-		milliseconds duration, milliseconds delay = milliseconds{ 0 }, Ease ease = Ease::Linear
+		milliseconds duration, milliseconds delay = 0ms, Ease ease = Ease::Linear
 	);
 };
 
 struct CrossFadeTransition : public SceneTransitionPair<FadeOutTransition, FadeInTransition> {
 	explicit CrossFadeTransition(
-		milliseconds duration, milliseconds delay = milliseconds{ 0 }, Ease ease = Ease::Linear
+		milliseconds duration, milliseconds delay = 0ms, Ease ease = Ease::Linear
 	);
 };
 
 struct SlideInTransition : public SceneTransition {
 	explicit SlideInTransition(
-		milliseconds duration, V2_float from_direction = { 1.0f, 0.0f },
-		milliseconds delay = milliseconds{ 0 }, Ease ease = Ease::Linear
+		milliseconds duration, V2_float from_direction = { 1.0f, 0.0f }, milliseconds delay = 0ms,
+		Ease ease = Ease::Linear
 	);
 
 	void OnDelayStart(Scene& scene) override;
@@ -60,8 +60,8 @@ struct SlideInTransition : public SceneTransition {
 
 struct SlideOutTransition : public SceneTransition {
 	explicit SlideOutTransition(
-		milliseconds duration, V2_float to_direction = { 1.0f, 0.0f },
-		milliseconds delay = milliseconds{ 0 }, Ease ease = Ease::Linear
+		milliseconds duration, V2_float to_direction = { 1.0f, 0.0f }, milliseconds delay = 0ms,
+		Ease ease = Ease::Linear
 	);
 
 	void OnDelayStart(Scene& scene) override;
@@ -73,8 +73,8 @@ struct SlideOutTransition : public SceneTransition {
 
 struct SlideTransition : public SceneTransitionPair<SlideOutTransition, SlideInTransition> {
 	explicit SlideTransition(
-		milliseconds duration, V2_float to_direction = { 1.0f, 0.0f },
-		milliseconds delay = milliseconds{ 0 }, Ease ease = Ease::Linear
+		milliseconds duration, V2_float to_direction = { 1.0f, 0.0f }, milliseconds delay = 0ms,
+		Ease ease = Ease::Linear
 	);
 };
 

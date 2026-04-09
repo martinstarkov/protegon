@@ -9,11 +9,8 @@
 namespace ptgn {
 
 SceneTransition::SceneTransition(milliseconds duration, milliseconds delay, Ease ease) :
-	duration_{ duration },
-	delay_duration_{ delay },
-	started_{ delay == milliseconds{ 0 } },
-	ease_{ ease } {
-	PTGN_ASSERT(delay >= milliseconds{ 0 });
+	duration_{ duration }, delay_duration_{ delay }, started_{ delay == 0ms }, ease_{ ease } {
+	PTGN_ASSERT(delay >= 0ms);
 }
 
 void SceneTransition::UpdateTime(secondsf dt) {
@@ -41,7 +38,7 @@ Ease SceneTransition::GetEase() const {
 }
 
 float SceneTransition::GetUneasedElapsedFraction() const {
-	PTGN_ASSERT(duration_ >= milliseconds{ 0 });
+	PTGN_ASSERT(duration_ >= 0ms);
 	if (duration_.count() == 0) {
 		return 1.0f;
 	}

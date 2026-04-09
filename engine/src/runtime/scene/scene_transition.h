@@ -16,7 +16,7 @@ class SceneTransition {
 public:
 	SceneTransition() = default;
 	explicit SceneTransition(
-		milliseconds duration, milliseconds delay = milliseconds{ 0 }, Ease ease = Ease::Linear
+		milliseconds duration, milliseconds delay = 0ms, Ease ease = Ease::Linear
 	);
 
 	virtual ~SceneTransition() = default;
