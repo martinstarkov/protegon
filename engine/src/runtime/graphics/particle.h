@@ -28,6 +28,13 @@ namespace ptgn {
 
 class Scene;
 class DrawContext;
+class ParticleEmitter;
+
+namespace impl {
+
+struct ParticleEmitterComponent;
+
+} // namespace impl
 
 template <typename T>
 struct Range {
@@ -79,19 +86,11 @@ public:
 	[[nodiscard]] static EmissionShape Arc(
 		Degrees arc_angle, float outer_radius, V2_float direction = V2_float{ 1.0f, 0.0f },
 		float inner_radius = 0.0f
-	) {
-		EmissionShape s;
-		s.type_ = ArcShape{ arc_angle, outer_radius, direction, inner_radius };
-		return s;
-	}
+	);
 
 	[[nodiscard]] static EmissionShape Rect(
 		V2_float size, V2_float direction = V2_float{ 0.0f, 1.0f }
-	) {
-		EmissionShape s;
-		s.type_ = RectShape{ size, direction };
-		return s;
-	}
+	);
 
 	[[nodiscard]] EmissionSample SampleEmission() const;
 
@@ -112,7 +111,7 @@ private:
 };
 
 /// @brief A rate of particle emission over time.
-struct Rate {
+struct ParticleRate {
 	/// @brief Duration of a full cycle of the particle emitter. Only applies if loop is true.
 	milliseconds duration{ 1000 };
 
@@ -126,11 +125,11 @@ struct Rate {
 	bool prewarm{ false };
 
 	/// @brief The number of particles emitted per second.
-	std::size_t rate_over_time{ 10 };
+	float rate_over_time{ 10.0f };
 };
 
 /// @brief A burst of particles emitted at once.
-struct Burst {
+struct ParticleBurst {
 	/// @brief The number of particles to emit in the burst.
 	std::size_t particle_count{ 10 };
 
@@ -142,7 +141,7 @@ struct Burst {
 };
 
 struct ParticleConfig {
-	std::variant<Rate, Burst> rate_or_burst;
+	std::variant<ParticleRate, ParticleBurst> rate_or_burst;
 
 	/// @brief Time after which a particle despawns. If nullopt defaults to duration.
 	std::optional<ConstantOrRange<milliseconds>> lifetime;
@@ -164,6 +163,7 @@ struct ParticleConfig {
 
 	std::size_t max_particles{ 1000 };
 
+	/// @brief Simulation speed multiplier.
 	float simulation_speed{ 1.0f };
 
 	std::variant<Shape, std::string> particle_type{ Rect{ V2_float{ 1.0f } } };
@@ -199,35 +199,31 @@ struct ParticleEmitterPlayback {
 	std::size_t burst_cycles_emitted{ 0 };
 
 	bool initialized{ false };
+
+	void Start();
+
+	void Update(ParticleEmitterComponent& emitter, const ParticleBurst& burst, milliseconds dt);
+	void Update(ParticleEmitterComponent& emitter, const ParticleRate& rate, milliseconds dt);
 };
 
 struct ParticleEmitterComponent {
+	ParticleEmitterComponent() = default;
+
+	explicit ParticleEmitterComponent(const ParticleConfig& config);
+
 	ParticleConfig config;
 	ParticleEmitterPlayback playback;
 	Manager manager;
 	std::size_t live_particle_count{ 0 };
+
+	std::optional<Entity> TrySpawnParticle();
+
+	void Start();
+
+	void Update(const ParticleEmitter& emitter, secondsf dt);
 };
 
 } // namespace impl
-
-struct Particle {
-	V2_float position{};
-	V2_float velocity{};
-	V2_float gravity{};
-
-	Color start_color{ color::White };
-	Color end_color{ color::White };
-	Color color{ color::White };
-
-	float start_size{ 1.0f };
-	float end_size{ 1.0f };
-	float size{ 1.0f };
-
-	Radians rotation{ 0.0f };
-
-	milliseconds age{ 0 };
-	milliseconds lifetime{ 1000 };
-};
 
 namespace event {
 
@@ -264,14 +260,50 @@ private:
 	static void Update(Scene& scene);
 };
 
+struct Particle {
+	Particle() = default;
+
+	explicit Particle(const ParticleConfig& config);
+
+	V2_float position;
+	V2_float velocity;
+	V2_float gravity;
+
+	Color start_color{ color::White };
+	Color end_color{ color::White };
+	Color color{ color::White };
+
+	float start_size{ 1.0f };
+	float end_size{ 1.0f };
+	float size{ 1.0f };
+
+	Radians rotation{ 0.0f };
+
+	milliseconds age{ 0 };
+	milliseconds lifetime{ 1000 };
+
+private:
+	friend class impl::ParticleEmitterComponent;
+
+	/// @return True if the particle died during the update, false otherwise.
+	[[nodiscard]] bool Update(secondsf dt);
+
+	void Prewarm(float simulation_speed);
+
+	/// @return Progress of the particle's lifetime in the range [0.0, 1.0].
+	float GetProgress() const;
+
+	/// @brief Linearly interpolates the particle's properties based on its lifetime progress.
+	void Lerp(float t);
+};
+
 namespace event {
 
 /// @brief Triggered when a particle is destroyed after reaching the end of its lifetime.
 struct ParticleDestroyed : public Event<ParticleDestroyed> {
 	ParticleDestroyed() = default;
 
-	ParticleDestroyed(const ParticleEmitter& emitter, const Particle& particle) :
-		emitter{ emitter }, particle{ particle } {}
+	ParticleDestroyed(const ParticleEmitter& emitter, const Particle& particle);
 
 	ParticleEmitter emitter;
 	Particle particle;

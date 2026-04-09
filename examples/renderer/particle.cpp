@@ -73,7 +73,7 @@ public:
 		ParticleConfig config{};
 
 		config.rate_or_burst =
-			Rate{ .duration = 1s, .loop = true, .prewarm = false, .rate_over_time = 80 };
+			ParticleRate{ .duration = 1s, .loop = true, .prewarm = false, .rate_over_time = 80 };
 
 		config.lifetime = { 1500ms, 3s };
 
@@ -82,12 +82,12 @@ public:
 		config.start_rotation	   = { 0.0f, 360.0f };
 		config.start_color		   = Color{ 120, 120, 120, 180 };
 		config.color_over_lifetime = Color{ 60, 60, 60, 0 };
-		config.start_gravity	   = V2_float{ 0.0f, -10.0f };
+		config.start_gravity	   = { 0.0f, -10.0f };
 		config.max_particles	   = 1000;
 		config.simulation_speed	   = 1.0f;
 		config.particle_type	   = Circle{ 0.5f };
 		config.particle_fill_style = FillStyle::Solid();
-		config.emission_shape	   = EmissionShape::Arc(Degrees{ 360.0f }, 12.0f, {}, 0.0f);
+		config.emission_shape	   = EmissionShape::Arc(360.0f, 12.0f, {}, 0.0f);
 		config.size_over_lifetime  = 40.0f;
 
 		return config;
@@ -97,7 +97,7 @@ public:
 		ParticleConfig config{};
 
 		config.rate_or_burst =
-			Rate{ .duration = 1s, .loop = true, .prewarm = false, .rate_over_time = 180 };
+			ParticleRate{ .duration = 1s, .loop = true, .prewarm = false, .rate_over_time = 180 };
 
 		config.lifetime = { 800ms, 1800ms };
 
@@ -106,13 +106,13 @@ public:
 		config.start_rotation	   = { 0.0f, 360.0f };
 		config.start_color		   = color::Yellow;
 		config.color_over_lifetime = Color{ 180, 20, 20, 0 };
-		config.start_gravity	   = V2_float{ 0.0f, -80.0f };
+		config.start_gravity	   = { 0.0f, -80.0f };
 		config.max_particles	   = 1000;
 		config.simulation_speed	   = 1.0f;
-		config.particle_type	   = Shape{ Circle{ 0.5f } };
+		config.particle_type	   = Circle{ 0.5f };
 		config.particle_fill_style = FillStyle::Solid();
-		config.emission_shape = EmissionShape::Arc(Degrees{ 50.0f }, 8.0f, { 0.0f, -1.0f }, 0.0f);
-		config.size_over_lifetime = 2.0f;
+		config.emission_shape	   = EmissionShape::Arc(50.0f, 8.0f, { 0.0f, -1.0f }, 0.0f);
+		config.size_over_lifetime  = 2.0f;
 
 		return config;
 	}
@@ -120,7 +120,7 @@ public:
 	ParticleConfig CreateExplosionConfig() const {
 		ParticleConfig config{};
 
-		config.rate_or_burst = Burst{ .particle_count = 180, .cycles = 1, .interval = 1ms };
+		config.rate_or_burst = ParticleBurst{ .particle_count = 180, .cycles = 1, .interval = 1ms };
 
 		config.lifetime = { 500ms, 1200ms };
 
@@ -129,12 +129,12 @@ public:
 		config.start_rotation	   = { 0.0f, 360.0f };
 		config.start_color		   = color::Orange;
 		config.color_over_lifetime = Color{ 80, 80, 80, 0 };
-		config.start_gravity	   = V2_float{ 0.0f, 120.0f };
+		config.start_gravity	   = { 0.0f, 120.0f };
 		config.max_particles	   = 1000;
 		config.simulation_speed	   = 1.0f;
-		config.particle_type	   = Shape{ Circle{ 0.5f } };
+		config.particle_type	   = Circle{ 0.5f };
 		config.particle_fill_style = FillStyle::Solid();
-		config.emission_shape	   = EmissionShape::Arc(Degrees{ 360.0f }, 6.0f, {}, 0.0f);
+		config.emission_shape	   = EmissionShape::Arc(360.0f, 6.0f, {}, 0.0f);
 		config.size_over_lifetime  = 0.0f;
 
 		return config;
@@ -144,7 +144,7 @@ public:
 		ParticleConfig config{};
 
 		config.rate_or_burst =
-			Rate{ .duration = 1s, .loop = true, .prewarm = false, .rate_over_time = 250 };
+			ParticleRate{ .duration = 1s, .loop = true, .prewarm = false, .rate_over_time = 250 };
 
 		config.lifetime = { 2000ms, 2500ms };
 
@@ -153,14 +153,13 @@ public:
 		config.align_to_direction  = true;
 		config.start_color		   = Color{ 120, 170, 255, 220 };
 		config.color_over_lifetime = Color{ 120, 170, 255, 40 };
-		config.start_gravity	   = V2_float{ 0.0f, 300.0f };
+		config.start_gravity	   = { 0.0f, 300.0f };
 		config.max_particles	   = 2000;
 		config.simulation_speed	   = 1.0f;
-		config.particle_type	   = Shape{ Rect{ V2_float{ 0.25f, 1.0f } } };
+		config.particle_type	   = Rect{ 0.25f, 1.0f };
 		config.particle_fill_style = FillStyle::Solid();
-		config.emission_shape =
-			EmissionShape::Rect(V2_float{ 500.0f, 20.0f }, V2_float{ 0.0f, 1.0f });
-		config.size_over_lifetime = 3.0f;
+		config.emission_shape	   = EmissionShape::Rect({ 500.0f, 20.0f }, { 0.0f, 1.0f });
+		config.size_over_lifetime  = 3.0f;
 
 		return config;
 	}
@@ -169,7 +168,7 @@ public:
 		ParticleConfig config{};
 
 		config.rate_or_burst =
-			Rate{ .duration = 8s, .loop = true, .prewarm = true, .rate_over_time = 70 };
+			ParticleRate{ .duration = 8s, .loop = true, .prewarm = true, .rate_over_time = 70 };
 
 		config.lifetime = { 6s, 8s };
 
@@ -178,14 +177,13 @@ public:
 		config.start_rotation	   = { 0.0f, 360.0f };
 		config.start_color		   = Color{ 245, 245, 255, 230 };
 		config.color_over_lifetime = Color{ 245, 245, 255, 100 };
-		config.start_gravity	   = V2_float{ 0.0f, 18.0f };
+		config.start_gravity	   = { 0.0f, 18.0f };
 		config.max_particles	   = 1000;
 		config.simulation_speed	   = 1.0f;
-		config.particle_type	   = Shape{ Circle{ 0.5f } };
+		config.particle_type	   = Circle{ 0.5f };
 		config.particle_fill_style = FillStyle::Solid();
-		config.emission_shape =
-			EmissionShape::Rect(V2_float{ 500.0f, 20.0f }, V2_float{ 0.0f, 1.0f });
-		config.size_over_lifetime = 4.0f;
+		config.emission_shape	   = EmissionShape::Rect({ 500.0f, 20.0f }, { 0.0f, 1.0f });
+		config.size_over_lifetime  = 4.0f;
 
 		return config;
 	}
