@@ -15,33 +15,42 @@
 
 namespace ptgn {
 
-static void VisitSequenceFunction(const SequenceFunction& func, Entity parent) {
-	std::visit(
-		[&]<typename T>(const T& func_variant) {
-			if constexpr (std::is_same_v<T, std::function<void()>>) {
-				func_variant();
-			} else if constexpr (std::is_same_v<T, std::function<void(Entity)>>) {
-				func_variant(parent);
-			}
-		},
-		func
-	);
-}
-
 impl::ScriptSequenceData::ScriptSequenceData(GameObject<Tween> tween) : tween{ std::move(tween) } {}
 
-ScriptSequence& ScriptSequence::During(milliseconds duration, SequenceFunction func) {
+ScriptSequence& ScriptSequence::During(milliseconds duration, DuringSequenceFunction func) {
 	auto& instance{ Get<impl::ScriptSequenceData>() };
 	instance.tween.During(duration).OnProgress([f = std::move(func)](auto p) {
-		VisitSequenceFunction(f, p.parent);
+		std::visit(
+			[&]<typename T>(const T& func_variant) {
+				if constexpr (std::is_same_v<T, std::function<void()>>) {
+					func_variant();
+				} else if constexpr (std::is_same_v<T, std::function<void(SequenceInfo)>>) {
+					func_variant({ p.parent, p.tween, p.progress });
+				} else {
+					static_assert(false, "Incomplete variant visitor");
+				}
+			},
+			f
+		);
 	});
 	return *this;
 }
 
 ScriptSequence& ScriptSequence::Then(SequenceFunction func) {
 	auto& instance{ Get<impl::ScriptSequenceData>() };
-	instance.tween.During(milliseconds{ 0 }).OnPointComplete([f = std::move(func)](auto e) {
-		VisitSequenceFunction(f, e.parent);
+	instance.tween.During(milliseconds{ 0 }).OnPointComplete([f = std::move(func)](auto p) {
+		std::visit(
+			[&]<typename T>(const T& func_variant) {
+				if constexpr (std::is_same_v<T, std::function<void()>>) {
+					func_variant();
+				} else if constexpr (std::is_same_v<T, std::function<void(ScriptSequence)>>) {
+					func_variant(ScriptSequence{ p.parent });
+				} else {
+					static_assert(false, "Incomplete variant visitor");
+				}
+			},
+			f
+		);
 	});
 	return *this;
 }
@@ -91,7 +100,7 @@ void After(Scene& scene, milliseconds duration, const SequenceFunction& func) {
 	script_sequence.Start();
 }
 
-void During(Scene& scene, milliseconds duration, const SequenceFunction& func) {
+void During(Scene& scene, milliseconds duration, const DuringSequenceFunction& func) {
 	auto script_sequence{ CreateScriptSequence(scene) };
 	script_sequence.During(duration, func);
 	script_sequence.Start();

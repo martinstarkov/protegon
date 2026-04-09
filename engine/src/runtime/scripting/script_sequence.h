@@ -14,6 +14,8 @@
 namespace ptgn {
 
 class Scene;
+class ScriptSequence;
+struct SequenceInfo;
 
 namespace impl {
 
@@ -24,7 +26,9 @@ struct ScriptSequenceData {
 
 } // namespace impl
 
-using SequenceFunction = std::variant<std::function<void()>, std::function<void(Entity)>>;
+using SequenceFunction = std::variant<std::function<void()>, std::function<void(ScriptSequence)>>;
+using DuringSequenceFunction =
+	std::variant<std::function<void()>, std::function<void(SequenceInfo)>>;
 
 class ScriptSequence : public Entity {
 public:
@@ -32,8 +36,8 @@ public:
 	template <ScriptType TScript, typename... TArgs>
 		requires std::constructible_from<TScript, TArgs...>
 	ScriptSequence& During(milliseconds duration, TArgs&&... args) {
-		const auto& instance{ Get<impl::ScriptSequenceData>() };
-		auto& sequence{ Tween{ instance.tween }.During(duration) };
+		auto& instance{ Get<impl::ScriptSequenceData>() };
+		auto& sequence{ instance.tween.During(duration) };
 		sequence.GetLastTweenPoint().script_container_.Add<TScript>(
 			*this, std::forward<TArgs>(args)...
 		);
@@ -41,7 +45,7 @@ public:
 	}
 
 	/// @brief Add a function that runs continuously during the specified duration.
-	ScriptSequence& During(milliseconds duration, SequenceFunction func);
+	ScriptSequence& During(milliseconds duration, DuringSequenceFunction func);
 
 	/// @brief Instantaneous function trigger.
 	ScriptSequence& Then(SequenceFunction func);
@@ -59,10 +63,21 @@ public:
 	void Start(bool force = true);
 };
 
+struct SequenceInfo {
+	/// @brief The entity of the script sequence.
+	ScriptSequence sequence;
+
+	/// @brief The child tween entity of the sequence entity.
+	Tween tween;
+
+	/// @brief A value from 0.0f to 1.0f representing the progress of the current tween point.
+	float progress{ 0.0f };
+};
+
 ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete = true);
 
 void After(Scene& scene, milliseconds duration, const SequenceFunction& func);
 
-void During(Scene& scene, milliseconds duration, const SequenceFunction& func);
+void During(Scene& scene, milliseconds duration, const DuringSequenceFunction& func);
 
 } // namespace ptgn
