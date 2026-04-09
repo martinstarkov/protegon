@@ -5,6 +5,7 @@
 #include <type_traits>
 
 #include "core/assert.h"
+#include "core/math/math_utils.h"
 #include "core/time/time.h"
 #include "serialization/json/fwd.h"
 
@@ -62,9 +63,9 @@ public:
 	/// @tparam Duration The unit of time. Default: milliseconds.
 	/// @return Elapsed duration of time since timer start.
 	template <DurationType D = milliseconds>
-	[[nodiscard]] D Elapsed() const {
+	[[nodiscard]] D ElapsedDuration() const {
 		auto end_time = running_ ? std::chrono::steady_clock::now() : stop_time_;
-		return to_duration<D>(end_time - start_time_ + offset_);
+		return duration_cast<D>(end_time - start_time_ + offset_);
 	}
 
 	/// @tparam Duration The unit of time. Default: milliseconds.
@@ -72,27 +73,22 @@ public:
 	/// @return True the timer has elapsed compared_to time and false if not.
 	template <DurationType D = milliseconds>
 	[[nodiscard]] bool Completed(D compared_to) const {
-		return ElapsedPercentage(compared_to) >= 1.0f;
+		return ElapsedFraction(compared_to) >= 1.0f;
 	}
 
 	/// @tparam Duration The unit of time. Default: milliseconds.
-	/// @param compared_to The time relative to which the elapsed time is returned.
-	/// @return Elapsed percentage of compared_to time duration clamped between 0.0 and 1.0. Returns
-	/// 1 if compared_to is 0.
-	template <DurationType D = milliseconds, std::floating_point T = float>
-	[[nodiscard]] T ElapsedPercentage(D compared_to) const {
-		if (compared_to == D{ 0 }) {
+	/// @param duration The time relative to which the elapsed time is returned.
+	/// @return Elapsed fraction of compared_to time duration clamped to range [0.0, 1.0]. Returns
+	/// 1 if duration is 0.
+	template <DurationType D = milliseconds>
+	[[nodiscard]] float ElapsedFraction(D duration) const {
+		if (duration == D{ 0 }) {
 			return 1.0f;
 		}
-		duration<T, typename D::period> elapsed_time{ Elapsed<duration<T, typename D::period>>() /
-													  compared_to };
-		T percentage{ std::clamp(elapsed_time.count(), T{ 0 }, T{ 1 }) };
-		PTGN_ASSERT(
-			percentage >= T{ 0 } && percentage <= T{ 1 },
-			"Elapsed countdown percentage cannot be outside the 0.0 to 1.0 "
-			"range"
-		);
-		return percentage;
+		using T = ptgn::duration<float, typename D::period>;
+		T elapsed_time{ ElapsedDuration<T>() / duration };
+		float elapsed{ Clamp01(elapsed_time.count()) };
+		return elapsed;
 	}
 
 	friend void to_json(json& j, const Timer& timer);

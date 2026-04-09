@@ -105,14 +105,14 @@ class PlotScene : public Scene {
 		if (temperature.HasNewValue()) {
 			plot.Get("temperature")
 				.data.points.emplace_back(
-					clock.Elapsed<x_axis_unit>().count(), temperature.GetValue()
+					clock.ElapsedDuration<x_axis_unit>().count(), temperature.GetValue()
 				);
 		}
 
 		if (acceleration.HasNewValue()) {
 			plot.Get("acceleration")
 				.data.points.emplace_back(
-					clock.Elapsed<x_axis_unit>().count(), acceleration.GetValue()
+					clock.ElapsedDuration<x_axis_unit>().count(), acceleration.GetValue()
 				);
 		}
 

@@ -18,7 +18,7 @@ ProfileInstance::ProfileInstance(std::string_view function_name) :
 ProfileInstance::~ProfileInstance() {
 	PTGN_ASSERT(!name_.empty());
 	auto& time = GetProfiler().timings_.emplace(name_, nanoseconds{ 0 }).first->second;
-	auto elapsed{ timer_.Elapsed<nanoseconds>() };
+	auto elapsed{ timer_.ElapsedDuration<nanoseconds>() };
 	time += elapsed;
 }
 

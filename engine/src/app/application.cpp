@@ -226,8 +226,7 @@ void Application::Update() {
 	dt_ = 1.0f / fps;*/
 
 	/*if (elapsed < dt_) {
-		impl::SDLInstance::Delay(to_duration<milliseconds>(secondsf{
-			dt_ - elapsed }));
+		impl::SDLInstance::Delay(duration_cast<milliseconds>(dt_ - elapsed));
 	}*/ // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
 	// PTGN_LOG("Dt: ", dt_);
 
