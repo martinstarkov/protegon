@@ -28,16 +28,27 @@ class DrawContext;
 
 inline constexpr float kMinLineWidth{ 1.0f };
 
-struct Solid {};
+struct Solid {
+	constexpr Solid() = default;
+};
 
 struct Hollow {
+	constexpr Hollow() = default;
+
+	constexpr Hollow(float line_width) : line_width{ line_width } { // NOSONAR
+		PTGN_ASSERT(line_width >= kMinLineWidth, "Line width must be at least {}", kMinLineWidth);
+	}
+
 	float line_width{ kMinLineWidth }; // must be positive and >= kMinLineWidth
 };
 
 struct FillStyle {
-	FillStyle() = default;
-	FillStyle(float line_width); // NOSONAR
-	FillStyle(Solid);			 // NOSONAR
+	constexpr FillStyle() = default;
+
+	constexpr FillStyle(float line_width) : style{ Hollow{ line_width } } { // NOSONAR
+	}
+
+	constexpr FillStyle(Solid) : style{ Solid{} } {} // NOSONAR
 
 	template <typename F>
 	decltype(auto) Visit(F&& f) const {

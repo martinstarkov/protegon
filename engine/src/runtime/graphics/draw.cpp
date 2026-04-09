@@ -36,12 +36,6 @@
 
 namespace ptgn {
 
-FillStyle::FillStyle(float line_width) : style{ Hollow{ line_width } } {
-	PTGN_ASSERT(line_width >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
-}
-
-FillStyle::FillStyle(Solid) : style{ Solid{} } {}
-
 float FillStyle::NormalizedToSDFThickness(float fade, V2_float radii) const {
 	return Visit([fade, radii]<typename T>(const T& s) {
 		if constexpr (std::is_same_v<T, Solid>) {
