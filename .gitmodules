@@ -19,3 +19,9 @@
 [submodule "engine/vendor/freetype"]
 	path = engine/vendor/freetype
 	url = https://github.com/freetype/freetype.git
+[submodule "engine/vendor/ogg"]
+	path = engine/vendor/ogg
+	url = https://github.com/xiph/ogg.git
+[submodule "engine/vendor/vorbis"]
+	path = engine/vendor/vorbis
+	url = https://github.com/xiph/vorbis.git
