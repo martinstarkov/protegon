@@ -3,10 +3,10 @@
 #include <functional>
 #include <vector>
 
-#include "runtime/event/event_dispatcher.h"
 #include "core/event/event.h"
 #include "core/util/hash.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {

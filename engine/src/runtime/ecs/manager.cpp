@@ -59,7 +59,7 @@ void from_json(const json& j, Manager& manager) {
 
 	PTGN_ASSERT(!manager.pools_.empty(), "Failed to create any valid manager component pool types");
 
-	for (auto& pool : manager.pools_) {
+	for (const auto& pool : manager.pools_) {
 		if (pool == nullptr) {
 			continue;
 		}

@@ -25,8 +25,6 @@ struct Parent : public Entity {
 struct Children {
 	Children() = default;
 
-	explicit Children(Entity first_child);
-
 	void Clear();
 
 	void Add(Entity child, std::optional<std::string_view> name = {});

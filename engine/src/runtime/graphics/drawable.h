@@ -1,15 +1,10 @@
 #pragma once
 
 #include <concepts>
-#include <cstddef>
-#include <iostream>
 #include <string_view>
-#include <type_traits>
 #include <unordered_map>
-#include <utility>
 
 #include "core/util/hash.h"
-#include "core/util/type_info.h"
 #include "runtime/graphics/camera.h"
 #include "serialization/json/serialize.h"
 

@@ -3,8 +3,8 @@
 #include <functional>
 #include <vector>
 
-#include "runtime/event/event_dispatcher.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/event/event_dispatcher.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 

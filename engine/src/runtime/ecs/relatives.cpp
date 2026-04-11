@@ -1,6 +1,7 @@
 #include "runtime/ecs/relatives.h"
 
 #include <algorithm>
+#include <optional>
 #include <string_view>
 #include <vector>
 
