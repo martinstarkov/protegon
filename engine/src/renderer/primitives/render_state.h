@@ -237,18 +237,18 @@ inline std::ostream& operator<<(std::ostream& os, PolygonMode mode) {
 	}
 }
 
-struct PolygonState {
-	PolygonMode front{ PolygonMode::Fill };
-	PolygonMode back{ PolygonMode::Fill };
-
-	bool operator==(const PolygonState&) const = default;
-
-	friend std::ostream& operator<<(std::ostream& os, const PolygonState& polygon) {
-		os << "{ front: " << polygon.front;
-		os << ", back: " << polygon.back << " }";
-		return os;
-	}
-};
+// struct PolygonState {
+//	PolygonMode front{ PolygonMode::Fill };
+//	PolygonMode back{ PolygonMode::Fill };
+//
+//	bool operator==(const PolygonState&) const = default;
+//
+//	friend std::ostream& operator<<(std::ostream& os, const PolygonState& polygon) {
+//		os << "{ front: " << polygon.front;
+//		os << ", back: " << polygon.back << " }";
+//		return os;
+//	}
+// };
 
 struct LineWidth {
 	LineWidth() = default;
@@ -267,17 +267,17 @@ struct LineWidth {
 
 struct RasterState {
 	CullState cull;
-	PolygonState polygon;
+	// PolygonState polygon;
 	LineWidth line_width{ 1.0f };
-	bool line_smoothing{ false };
+	// bool line_smoothing{ false };
 
 	bool operator==(const RasterState&) const = default;
 
 	friend std::ostream& operator<<(std::ostream& os, const RasterState& raster) {
 		os << "{ cull: " << raster.cull;
-		os << ", polygon: " << raster.polygon;
-		os << ", line_width: " << raster.line_width.value;
-		os << ", line_smoothing: " << raster.line_smoothing << " }";
+		// os << ", polygon: " << raster.polygon;
+		os << ", line_width: " << raster.line_width.value << " }";
+		// os << ", line_smoothing: " << raster.line_smoothing << " }";
 		return os;
 	}
 };

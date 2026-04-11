@@ -1,7 +1,8 @@
 #include "renderer/backend/gl/gl_context.h"
 
+#include <glad/gl.h>
+
 #include <cstdint>
-#include <ostream>
 #include <utility>
 #include <vector>
 
@@ -32,68 +33,7 @@
 
 namespace ptgn::impl::gl {
 
-enum class VSyncMode : int {
-	Immediate = 0, /// No sync
-	VSync	  = 1, /// Sync with vertical retrace
-	Adaptive  = -1 /// Adaptive vsync (late swap tearing)
-};
-
-constexpr VSyncMode kVSyncMode{ VSyncMode::Adaptive };
-
-struct GLVersion {
-	GLVersion() {
-		bool r = SDL_GL_GetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, &major);
-		PTGN_ASSERT(r, SDL_GetError());
-		r = SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &minor);
-		PTGN_ASSERT(r, SDL_GetError());
-	}
-
-	friend std::ostream& operator<<(std::ostream& os, const GLVersion& v) {
-		os << v.major << "." << v.minor;
-		return os;
-	}
-
-	int major{ 0 };
-	int minor{ 0 };
-};
-
-SDLGLContext::SDLGLContext(const Window& window) {
-	if (context_ != nullptr) {
-		int result = SDL_GL_MakeCurrent(window, context_);
-		PTGN_ASSERT(!result, SDL_GetError());
-		return;
-	}
-
-	context_ = SDL_GL_CreateContext(window);
-	PTGN_ASSERT(context_, SDL_GetError());
-
-	GLVersion gl_version;
-
-	PTGN_INFO("Initialized OpenGL version: ", gl_version);
-	PTGN_INFO("Created OpenGL context");
-
-	// From: https://nullprogram.com/blog/2023/01/08/
-	// Set a non-zero SDL_GL_SetSwapInterval so that SDL_GL_SwapWindow synchronizes.
-	if (!SDL_GL_SetSwapInterval(std::to_underlying(kVSyncMode))) {
-		// If no adaptive VSYNC available, fallback to VSYNC.
-		SDL_GL_SetSwapInterval(std::to_underlying(VSyncMode::VSync));
-	}
-
-	LoadGLFunctions();
-}
-
-SDLGLContext::~SDLGLContext() noexcept {
-	if (context_) {
-		SDL_GL_DestroyContext(context_);
-		context_ = nullptr;
-		PTGN_INFO("Destroyed OpenGL context");
-		// Note: If this is the last message you see and the window does not close, it is likely
-		// that a GL asset is destructed after the GL context has been deleted.
-	}
-}
-
 GLContext::GLContext(const Window& window) :
-	context_{ window },
 	buffers{ *this },
 	shaders{ *this },
 	textures{ *this },
@@ -590,8 +530,8 @@ void GLContext::SetCull(const CullState& cull) {
 
 void GLContext::SetRaster(const RasterState& raster) {
 	SetLineWidth(raster.line_width.value);
-	SetLineSmoothing(raster.line_smoothing);
-	SetPolygonMode(raster.polygon.front, raster.polygon.back);
+	// SetLineSmoothing(raster.line_smoothing);
+	// SetPolygonMode(raster.polygon.front, raster.polygon.back);
 	SetCull(raster.cull);
 }
 
@@ -637,7 +577,7 @@ std::uint32_t GLContext::GetActiveTextureSlot() const {
 	return bound_.active_texture.slot;
 }
 
-int GLContext::GetInteger(GLenum pname) const {
+int GLContext::GetInteger(std::uint32_t pname) const {
 	int value = -1;
 	GLCall(glGetIntegerv(pname, &value));
 	PTGN_ASSERT(value >= 0, "Failed to query integer parameter");

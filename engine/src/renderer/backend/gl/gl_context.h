@@ -20,38 +20,13 @@ namespace ptgn {
 
 class Window;
 
-namespace impl {
-
-class RenderTargetData;
-
-} // namespace impl
-
 } // namespace ptgn
 
 namespace ptgn::impl::gl {
 
 class GLContext;
 
-/// @brief This class exists to ensure the OpenGL context is destroyed after things like shaders.
-class SDLGLContext {
-private:
-	friend class GLContext;
-
-	SDLGLContext() = delete;
-	explicit SDLGLContext(const Window& window);
-	~SDLGLContext() noexcept;
-	SDLGLContext(const SDLGLContext&)				 = delete;
-	SDLGLContext(SDLGLContext&&) noexcept			 = delete;
-	SDLGLContext& operator=(const SDLGLContext&)	 = delete;
-	SDLGLContext& operator=(SDLGLContext&&) noexcept = delete;
-
-	SDL_GLContextState* context_{ nullptr };
-};
-
 class GLContext {
-private:
-	SDLGLContext context_;
-
 public:
 	GLContext() = delete;
 	explicit GLContext(const Window& window);
@@ -138,7 +113,7 @@ public:
 	Framebuffers framebuffers;
 	VertexArrays vertex_arrays;
 
-	int GetInteger(GLenum pname) const;
+	int GetInteger(std::uint32_t pname) const;
 	std::uint32_t GetActiveTextureSlot() const;
 
 private:
