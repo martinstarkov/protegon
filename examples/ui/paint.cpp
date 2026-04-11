@@ -6,9 +6,9 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/string.h"
-#include "platform/input/input_handler.h"
-#include "platform/input/key.h"
-#include "platform/input/mouse.h"
+
+#include "platform/key.h"
+#include "platform/mouse.h"
 #include "renderer/primitives/blend_mode.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"

@@ -1,5 +1,6 @@
 #include "runtime/audio/track.h"
 
+#include <extras/decoders/libvorbis/miniaudio_libvorbis.h>
 #include <miniaudio.h>
 
 #include <cstdint>
@@ -14,6 +15,18 @@
 
 namespace ptgn::impl {
 
+static bool IsOggFile(const path& p) {
+	auto ext = p.extension().string();
+	std::ranges::transform(ext, ext.begin(), [](unsigned char c) {
+		return static_cast<char>(std::tolower(c));
+	});
+	return ext == ".ogg";
+}
+
+struct Track::OggDecoder {
+	ma_libvorbis vorbis{};
+};
+
 Track::Track(
 	std::size_t id, ma_engine* engine, const path& audio_path, std::optional<std::int64_t> loops
 ) :
@@ -23,21 +36,47 @@ Track::Track(
 		!loops.has_value() || *loops >= 0, "Audio loop count must be positive or infinite (nullopt)"
 	);
 
-	// Disable spatialization since your old API is plain 2D playback.
 	ma_uint32 flags = MA_SOUND_FLAG_NO_SPATIALIZATION;
 
 	PTGN_ASSERT(
 		FileExists(audio_path), "Cannot create audio from invalid path: ", audio_path.string()
 	);
 
-	auto result = ma_sound_init_from_file(
-		engine, audio_path.string().c_str(), flags, nullptr, nullptr, sound_.get()
-	);
+	auto abs_path{ GetAbsolutePath(audio_path) };
 
-	PTGN_ASSERT(result == MA_SUCCESS, "ma_sound_init_from_file() failed");
+	const auto file_path{ abs_path.string() };
+
+	ma_result result = MA_ERROR;
+
+	if (IsOggFile(abs_path)) {
+		vorbis_ = std::make_unique<OggDecoder>();
+
+		PTGN_ASSERT(vorbis_ != nullptr);
+
+		result = ma_libvorbis_init_file(file_path.c_str(), nullptr, nullptr, &vorbis_->vorbis);
+		PTGN_ASSERT(
+			result == MA_SUCCESS, "ma_libvorbis_init_file() failed for: ", file_path,
+			", result=", result
+		);
+
+		result = ma_sound_init_from_data_source(
+			engine, static_cast<ma_data_source*>(vorbis_.get()), flags, nullptr, sound_.get()
+		);
+		PTGN_ASSERT(
+			result == MA_SUCCESS, "ma_sound_init_from_data_source() failed for: ", file_path,
+			", result=", result
+		);
+	} else {
+		result = ma_sound_init_from_file(
+			engine, file_path.c_str(), flags, nullptr, nullptr, sound_.get()
+		);
+		PTGN_ASSERT(
+			result == MA_SUCCESS, "ma_sound_init_from_file() failed for: ", file_path,
+			", result=", result
+		);
+	}
 
 	if (!loops.has_value()) {
-		// Infinite loop.
 		ma_sound_set_looping(sound_.get(), MA_TRUE);
 	}
 
@@ -53,7 +92,8 @@ Track::Track(Track&& other) noexcept :
 	id_{ std::exchange(other.id_, 0) },
 	sound_{ std::move(other.sound_) },
 	paused_{ std::exchange(other.paused_, false) },
-	remaining_loops_{ std::exchange(other.remaining_loops_, std::nullopt) } {}
+	remaining_loops_{ std::exchange(other.remaining_loops_, std::nullopt) },
+	vorbis_{ std::move(other.vorbis_) } {}
 
 Track& Track::operator=(Track&& other) noexcept {
 	if (this != &other) {
@@ -62,6 +102,7 @@ Track& Track::operator=(Track&& other) noexcept {
 		sound_			 = std::move(other.sound_);
 		paused_			 = std::exchange(other.paused_, false);
 		remaining_loops_ = std::exchange(other.remaining_loops_, std::nullopt);
+		vorbis_			 = std::move(other.vorbis_);
 	}
 	return *this;
 }
@@ -101,8 +142,13 @@ void Track::StopImmediate() {
 	if (sound_) {
 		ma_sound_uninit(sound_.get());
 		sound_.reset();
-		paused_ = false;
 	}
+
+	if (vorbis_) {
+		ma_libvorbis_uninit(&vorbis_->vorbis, nullptr);
+		vorbis_.reset();
+	}
+	paused_ = false;
 }
 
 bool Track::IsPlaying() const {

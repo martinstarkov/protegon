@@ -20,8 +20,8 @@ public:
 	void OnEnter() override {
 		ctx().input.SetSettings({ .debug_draw_enabled = true });
 
-		ctx().asset.Load("bg", "assets/tooltip_bg.png");
-		ctx().asset.Load("smile", "assets/smile.png");
+		ctx().asset.Load("bg", "examples/assets/tooltip_bg.png");
+		ctx().asset.Load("smile", "examples/assets/smile.png");
 
 		auto r0 = CreateRect(*this, {}, { 200, 100 }, color::Blue, Solid{});
 

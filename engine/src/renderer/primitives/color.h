@@ -10,8 +10,6 @@
 #include "core/util/concepts.h"
 #include "serialization/json/fwd.h"
 
-struct SDL_Color;
-
 namespace ptgn {
 
 /// @brief 8-bit RGBA color.

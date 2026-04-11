@@ -4,7 +4,7 @@
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "platform/input/mouse.h"
+#include "platform/mouse.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/sprite.h"
@@ -21,7 +21,7 @@ struct BounceEffectScene : public Scene {
 	milliseconds bounce_duration{ 5000 };
 
 	void OnEnter() override {
-		ctx().asset.Load("smile", "assets/smile.png");
+		ctx().asset.Load("smile", "examples/assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", V2_float{ 250, 0 });
 		sprite2 = CreateSprite(*this, "smile", V2_float{ 0, 0 });

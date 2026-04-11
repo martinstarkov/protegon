@@ -4,7 +4,7 @@
 
 #include "app/application.h"
 #include "core/log.h"
-#include "platform/input/key.h"
+#include "platform/key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"

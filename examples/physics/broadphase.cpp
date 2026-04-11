@@ -6,7 +6,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
-#include "platform/input/input_handler.h"
+
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"

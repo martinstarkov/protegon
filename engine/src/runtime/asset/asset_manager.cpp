@@ -3,7 +3,6 @@
 #include <filesystem>
 #include <functional>
 #include <list>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -132,7 +131,7 @@ Font AssetManager::CreateFont(bool persistent, const path& asset_path, float fon
 
 	auto f{ FontSystem::CreateFont(asset_path, font_size) };
 
-	font.GetEntity().Add<std::shared_ptr<TTF_Font>>(f);
+	font.GetEntity().Add<impl::FontObject>(f);
 
 	return font;
 }
@@ -153,7 +152,7 @@ Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float 
 Audio AssetManager::CreateAudio(bool persistent, const path& asset_path) {
 	Audio audio{ CreateAsset(), persistent };
 
-	audio.GetEntity().Add<ptgn::path>(asset_path);
+	audio.GetEntity().Add<impl::AudioObject>(asset_path);
 
 	return audio;
 }
@@ -386,7 +385,7 @@ bool UnloadAssetImpl(ecs::Manager& manager, std::string_view key) {
 }
 
 bool AssetManager::UnloadAudio(std::string_view key) {
-	return UnloadAssetImpl<std::shared_ptr<MIX_Audio>>(manager_, key);
+	return UnloadAssetImpl<impl::AudioObject>(manager_, key);
 }
 
 bool AssetManager::UnloadJson(std::string_view key) {
@@ -402,7 +401,7 @@ bool AssetManager::UnloadTexture(std::string_view key) {
 }
 
 bool AssetManager::UnloadFont(std::string_view key) {
-	return UnloadAssetImpl<std::shared_ptr<TTF_Font>>(manager_, key);
+	return UnloadAssetImpl<impl::FontObject>(manager_, key);
 }
 
 ecs::Entity AssetManager::CreateAsset() {
@@ -423,7 +422,7 @@ std::optional<HandleType> GetAssetImpl(const ecs::Manager& manager, std::size_t 
 }
 
 std::optional<Audio> AssetManager::GetAudio(std::size_t key_hash) const {
-	return GetAssetImpl<std::shared_ptr<MIX_Audio>, Audio>(manager_, key_hash);
+	return GetAssetImpl<impl::AudioObject, Audio>(manager_, key_hash);
 }
 
 std::optional<Shader> AssetManager::GetShader(std::size_t key_hash) const {
@@ -438,7 +437,7 @@ std::optional<Font> AssetManager::GetFont(std::size_t key_hash) const {
 	if (key_hash == 0) {
 		key_hash = HashAsset(font_.default_font_);
 	}
-	return GetAssetImpl<std::shared_ptr<TTF_Font>, Font>(manager_, key_hash);
+	return GetAssetImpl<impl::FontObject, Font>(manager_, key_hash);
 }
 
 std::optional<std::reference_wrapper<json>> AssetManager::GetJson(std::size_t key_hash) {
@@ -633,7 +632,7 @@ bool AssetManager::Has<Texture>(std::size_t key_hash) const {
 
 template <>
 bool AssetManager::Has<Audio>(std::size_t key_hash) const {
-	return HasAssetImpl<std::shared_ptr<MIX_Audio>>(manager_, key_hash);
+	return HasAssetImpl<impl::AudioObject>(manager_, key_hash);
 }
 
 template <>
@@ -641,7 +640,7 @@ bool AssetManager::Has<Font>(std::size_t key_hash) const {
 	if (key_hash == 0) {
 		key_hash = HashAsset(font_.default_font_);
 	}
-	return HasAssetImpl<std::shared_ptr<TTF_Font>>(manager_, key_hash);
+	return HasAssetImpl<impl::FontObject>(manager_, key_hash);
 }
 
 bool AssetManager::HasJson(std::string_view key) const {

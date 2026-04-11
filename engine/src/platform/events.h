@@ -2,8 +2,8 @@
 
 #include "core/event/event.h"
 #include "core/math/vector2.h"
-#include "platform/input/key.h"
-#include "platform/input/mouse.h"
+#include "platform/key.h"
+#include "platform/mouse.h"
 
 namespace ptgn::event {
 
@@ -50,26 +50,26 @@ struct KeyReleased : public Event<KeyReleased> {
 struct MouseMove : public Event<MouseMove> {
 	MouseMove() = default;
 
-	MouseMove(V2_int position, V2_int delta) : position{ position }, delta{ delta } {}
+	MouseMove(V2_float position, V2_float delta) : position{ position }, delta{ delta } {}
 
 	/// @brief Relative to the center of the window, with positive x to the right and positive y
 	/// down.
-	V2_int position;
+	V2_float position;
 
-	V2_int delta;
+	V2_float delta;
 };
 
 /// @brief Fired once during the frame when a mouse button is first pressed down.
 struct MousePressed : public Event<MousePressed> {
 	MousePressed() = default;
 
-	MousePressed(Mouse button, V2_int position) : button{ button }, position{ position } {}
+	MousePressed(Mouse button, V2_float position) : button{ button }, position{ position } {}
 
 	Mouse button;
 
 	/// @brief Relative to the center of the window, with positive x to the right and positive y
 	/// down.
-	V2_int position;
+	V2_float position;
 
 	operator Mouse() const { // NOSONAR
 		return button;
@@ -80,13 +80,13 @@ struct MousePressed : public Event<MousePressed> {
 struct MouseHeld : public Event<MouseHeld> {
 	MouseHeld() = default;
 
-	MouseHeld(Mouse button, V2_int position) : button{ button }, position{ position } {}
+	MouseHeld(Mouse button, V2_float position) : button{ button }, position{ position } {}
 
 	Mouse button;
 
 	/// @brief Relative to the center of the window, with positive x to the right and positive y
 	/// down.
-	V2_int position;
+	V2_float position;
 
 	operator Mouse() const { // NOSONAR
 		return button;
@@ -97,13 +97,13 @@ struct MouseHeld : public Event<MouseHeld> {
 struct MouseReleased : public Event<MouseReleased> {
 	MouseReleased() = default;
 
-	MouseReleased(Mouse button, V2_int position) : button{ button }, position{ position } {}
+	MouseReleased(Mouse button, V2_float position) : button{ button }, position{ position } {}
 
 	Mouse button;
 
 	/// @brief Relative to the center of the window, with positive x to the right and positive y
 	/// down.
-	V2_int position;
+	V2_float position;
 
 	operator Mouse() const { // NOSONAR
 		return button;
@@ -114,19 +114,19 @@ struct MouseReleased : public Event<MouseReleased> {
 struct MouseScroll : public Event<MouseScroll> {
 	MouseScroll() = default;
 
-	MouseScroll(V2_int scroll, V2_int position) : scroll{ scroll }, position{ position } {}
+	MouseScroll(V2_float scroll, V2_float position) : scroll{ scroll }, position{ position } {}
 
-	V2_int scroll;
+	V2_float scroll;
 
 	/// @brief Relative to the center of the window, with positive x to the right and positive y
 	/// down.
-	V2_int position;
+	V2_float position;
 };
 
 /// @brief Fired once when the window is quit.
 struct WindowQuit : public Event<WindowQuit> {};
 
-/// @brief Fired one or more times (consult SDL_PollEvent rate and game FPS) after size change
+/// @brief Fired one or more times after size change
 /// occurs or resizing is finished (window is released).
 struct WindowResized : public Event<WindowResized> {
 	WindowResized() = default;

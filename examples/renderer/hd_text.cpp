@@ -3,7 +3,7 @@
 #include "app/application.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "platform/window/window.h"
+#include "platform/window.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
@@ -32,7 +32,7 @@ class HDTextScene : public Scene {
 	std::uint32_t wrap_after{ 320 };
 
 	void OnEnter() override {
-		ctx().asset.Load("background", "assets/bg.png");
+		ctx().asset.Load("background", "examples/assets/bg.png");
 		ctx().renderer.SetGameSize(game_size);
 
 		auto sprite = CreateSprite(*this, "background", {});

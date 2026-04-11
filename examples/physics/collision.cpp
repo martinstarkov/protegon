@@ -12,7 +12,7 @@
 #include "core/math/math_utils.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "platform/input/key.h"
+#include "platform/key.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/event/event_dispatcher.h"

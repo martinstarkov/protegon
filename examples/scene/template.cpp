@@ -38,9 +38,9 @@ public:
 class SceneTemplateExample : public Scene {
 public:
 	void OnEnter() final {
-		ctx().asset.LoadMany({ { "bg1", "assets/scene1.png" },
-							   { "bg2", "assets/scene2.png" },
-							   { "bg3", "assets/scene3.png" } });
+		ctx().asset.LoadMany({ { "bg1", "examples/assets/scene1.png" },
+							   { "bg2", "examples/assets/scene2.png" },
+							   { "bg3", "examples/assets/scene3.png" } });
 
 		SceneAction::Register("load_level_1", [](Scene& scene) mutable {
 			scene.ctx().scene.Switch<GameScene>("game_scene", 1);
@@ -49,7 +49,7 @@ public:
 			scene.ctx().scene.Switch<GameScene>("game_scene", 2);
 		});
 
-		EnterSceneConfig(*this, "assets/scenes.json");
+		EnterSceneConfig(*this, "examples/assets/scenes.json");
 	}
 };
 

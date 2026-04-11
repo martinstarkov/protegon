@@ -6,8 +6,8 @@
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "platform/input/events.h"
-#include "platform/input/key.h"
+#include "platform/events.h"
+#include "platform/key.h"
 #include "renderer/primitives/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/event/event_dispatcher.h"
@@ -24,9 +24,9 @@ public:
 	void OnEnter() override {
 		ctx().input.SetSettings({ .debug_draw_enabled = true });
 
-		// ctx().asset.LoadAudio("idle", "assets/idle.ogg");
-		ctx().asset.LoadAudio("hover", "assets/hover.ogg");
-		ctx().asset.LoadAudio("press", "assets/press.ogg");
+		// ctx().asset.LoadAudio("idle", "examples/assets/idle.ogg");
+		ctx().asset.LoadAudio("hover", "examples/assets/hover.ogg");
+		ctx().asset.LoadAudio("press", "examples/assets/press.ogg");
 
 		Origin button_origin{ Origin::Center };
 

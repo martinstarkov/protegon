@@ -2,8 +2,8 @@
 #include "core/log.h"
 #include "core/math/easing.h"
 #include "core/time/time.h"
-#include "platform/input/key.h"
-#include "platform/input/mouse.h"
+#include "platform/key.h"
+#include "platform/mouse.h"
 #include "renderer/primitives/color.h"
 #include "runtime/animation/tween.h"
 #include "runtime/animation/tween_effect.h"
@@ -24,8 +24,8 @@ struct FadeEffectScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
 
-		ctx().asset.Load("tree", "assets/jpg.jpg");
-		ctx().asset.Load("smile", "assets/smile.png");
+		ctx().asset.Load("tree", "examples/assets/jpg.jpg");
+		ctx().asset.Load("smile", "examples/assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "tree", { -200, -200 });
 		sprite2 = CreateSprite(*this, "smile", { 200, 200 });

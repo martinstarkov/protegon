@@ -4,7 +4,7 @@
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "platform/input/key.h"
+#include "platform/key.h"
 #include "renderer/primitives/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/draw.h"
@@ -56,9 +56,9 @@ public:
 class SceneExample : public Scene {
 public:
 	void OnEnter() override {
-		ctx().asset.LoadMany({ { "bg1", "assets/scene1.png" },
-							   { "bg2", "assets/scene2.png" },
-							   { "bg3", "assets/scene3.png" } });
+		ctx().asset.LoadMany({ { "bg1", "examples/assets/scene1.png" },
+							   { "bg2", "examples/assets/scene2.png" },
+							   { "bg3", "examples/assets/scene3.png" } });
 
 		ctx().scene.Enter<Scene1>("scene1");
 		ctx().scene.Enter<Scene2>("scene2");

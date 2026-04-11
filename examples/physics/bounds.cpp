@@ -3,8 +3,8 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
-#include "platform/input/input_handler.h"
-#include "platform/input/key.h"
+
+#include "platform/key.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"

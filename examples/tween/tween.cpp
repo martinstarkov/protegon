@@ -14,7 +14,7 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "ecs/ecs.h"
-#include "platform/input/key.h"
+#include "platform/key.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"

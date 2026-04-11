@@ -10,7 +10,7 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/file.h"
-#include "platform/input/key.h"
+#include "platform/key.h"
 #include "renderer/primitives/color.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"

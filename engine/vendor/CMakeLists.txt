@@ -25,7 +25,10 @@ else()
 endif()
 
 # miniaudio
-add_library(ptgn_miniaudio STATIC ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/miniaudio.c)
+add_library(ptgn_miniaudio
+  STATIC 
+  ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/miniaudio.c 
+  ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/extras/decoders/libvorbis/miniaudio_libvorbis.c)
 
 target_include_directories(ptgn_miniaudio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio)
 

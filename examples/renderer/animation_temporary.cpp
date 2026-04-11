@@ -4,7 +4,7 @@
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "platform/input/key.h"
+#include "platform/key.h"
 #include "renderer/primitives/color.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
@@ -23,7 +23,7 @@ class AnimationTemporaryScene : public Scene {
 	Entity player;
 
 	void OnEnter() override {
-		ctx().asset.Load("anim", "assets/animation_bubble.png");
+		ctx().asset.Load("anim", "examples/assets/animation_bubble.png");
 		ctx().collision.SetSettings({ .debug_draw_enabled = true });
 
 		player = CreateRect(

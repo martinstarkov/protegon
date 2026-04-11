@@ -1,7 +1,6 @@
 #pragma once
 
 #include <concepts>
-#include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -10,8 +9,7 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/hash.h"
-#include "platform/input/input_handler.h"
-#include "platform/window/window.h"
+#include "platform/window.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/font_system.h"
@@ -36,16 +34,16 @@ void EmscriptenMainLoop(void* application);
 
 #endif
 
-class SDLInstance {
+class ApplicationLibrary {
 private:
 	friend class ptgn::Application;
 
-	SDLInstance();
-	~SDLInstance() noexcept;
-	SDLInstance(const SDLInstance&)				   = delete;
-	SDLInstance& operator=(const SDLInstance&)	   = delete;
-	SDLInstance(SDLInstance&&) noexcept			   = delete;
-	SDLInstance& operator=(SDLInstance&&) noexcept = delete;
+	ApplicationLibrary();
+	~ApplicationLibrary() noexcept;
+	ApplicationLibrary(const ApplicationLibrary&)				 = delete;
+	ApplicationLibrary& operator=(const ApplicationLibrary&)	 = delete;
+	ApplicationLibrary(ApplicationLibrary&&) noexcept			 = delete;
+	ApplicationLibrary& operator=(ApplicationLibrary&&) noexcept = delete;
 };
 
 } // namespace impl
@@ -108,13 +106,15 @@ private:
 	friend class SceneContext;
 	friend class SceneManager;
 
-	impl::SDLInstance sdl_;
+	impl::ApplicationLibrary app_library_;
 
+	// Must be created before every other system and hence destroyed after every other system.
 	Window window_;
+	// Must be created after Window but before other systems that rely on it.
 	Renderer renderer_;
-	EventHandler events_;
+
 	SceneManager scenes_;
-	InputHandler input_;
+	EventHandler events_;
 	AssetManager assets_;
 	FontSystem font_;
 	AudioSystem audio_;

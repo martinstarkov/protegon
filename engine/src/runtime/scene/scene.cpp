@@ -79,7 +79,7 @@ SceneContext::SceneContext(Application& app, Scene& parent_scene) :
 	scene{ app.scenes_, parent_scene },
 	renderer{ parent_scene, app.renderer_ },
 	debug{ renderer },
-	input{ parent_scene, app.input_ },
+	input{ parent_scene, app.window_ },
 	physics{ parent_scene },
 	global_renderer_{ app.renderer_ },
 	app_{ app } {}

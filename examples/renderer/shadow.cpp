@@ -193,7 +193,7 @@ public:
 		ctx().renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
 
-		ctx().asset.Load("test", "assets/test1.jpg");
+		ctx().asset.Load("test", "examples/assets/test1.jpg");
 
 		auto sprite = CreateSprite(*this, "test", { -200, -200 });
 		SetDrawOrigin(sprite, Origin::TopLeft);

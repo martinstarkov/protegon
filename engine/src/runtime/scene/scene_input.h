@@ -10,8 +10,8 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "platform/input/key.h"
-#include "platform/input/mouse.h"
+#include "platform/key.h"
+#include "platform/mouse.h"
 #include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
@@ -24,7 +24,7 @@ namespace ptgn {
 class Scene;
 class SceneInput;
 class SceneContext;
-class InputHandler;
+class Window;
 
 namespace event {
 
@@ -469,7 +469,7 @@ private:
 		}
 	};
 
-	explicit SceneInput(Scene& scene, const InputHandler& input);
+	explicit SceneInput(Scene& scene, const Window& window);
 
 	/// @brief Convert position from being relative to the center of the window to being relative to
 	/// the center of the specified viewport.
@@ -566,7 +566,7 @@ private:
 	);
 
 	Scene& scene_;
-	const InputHandler& input_;
+	const Window& window_;
 
 	/// @brief A set of entities currently being dragged per a given camera.
 	std::unordered_map<Camera, std::unordered_set<Entity>> dragging_entities_;

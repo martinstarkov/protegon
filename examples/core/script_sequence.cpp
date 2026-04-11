@@ -5,7 +5,7 @@
 
 #include "app/application.h"
 #include "core/log.h"
-#include "platform/input/key.h"
+#include "platform/key.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/event/event_dispatcher.h"

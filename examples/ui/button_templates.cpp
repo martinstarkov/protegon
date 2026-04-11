@@ -20,16 +20,16 @@ public:
 		ctx().input.SetSettings({ .debug_draw_enabled = true });
 		SetBackgroundColor(color::LightGray);
 
-		ctx().asset.LoadMany({ { "hover", "assets/hover.ogg" },
-							   { "press", "assets/press.ogg" },
-							   { "idle", "assets/big_button_idle.png" },
-							   { "hover", "assets/big_button_hover.png" },
-							   { "press", "assets/big_button_press.png" },
-							   { "bell_idle", "assets/bell.png" },
-							   { "bell_hover", "assets/bell_hover_animation.png" },
-							   { "bell_press", "assets/bell_press_animation.png" },
-							   { "bell_hover", "assets/hover.ogg" },
-							   { "bell_press", "assets/bell.ogg" } });
+		ctx().asset.LoadMany({ { "hover", "examples/assets/hover.ogg" },
+							   { "press", "examples/assets/press.ogg" },
+							   { "idle", "examples/assets/big_button_idle.png" },
+							   { "hover", "examples/assets/big_button_hover.png" },
+							   { "press", "examples/assets/big_button_press.png" },
+							   { "bell_idle", "examples/assets/bell.png" },
+							   { "bell_hover", "examples/assets/bell_hover_animation.png" },
+							   { "bell_press", "examples/assets/bell_press_animation.png" },
+							   { "bell_hover", "examples/assets/hover.ogg" },
+							   { "bell_press", "examples/assets/bell.ogg" } });
 
 		V2_float size{ 200, 50 };
 		V2_float offset{ 0, 70 };

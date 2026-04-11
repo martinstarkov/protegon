@@ -700,7 +700,7 @@ public:
 
 private:
 	bool LoadAssets() {
-		const auto font_path = base_path_ / "assets/Inter-VariableFont.ttf";
+		const auto font_path = base_path_ / "examples/assets/Inter-VariableFont.ttf";
 		SDL_Log("Font path: %s", font_path.string().c_str());
 
 		std::unique_ptr<TTF_Font, FontDeleter> font(TTF_OpenFont(font_path.string().c_str(), 36));
@@ -734,7 +734,7 @@ private:
 			.h = static_cast<float>(message_tex_.height),
 		};
 
-		const auto png_path = base_path_ / "assets/logo.png";
+		const auto png_path = base_path_ / "examples/assets/logo.png";
 		SDL_Log("PNG path: %s", png_path.string().c_str());
 
 		SDL_Surface* img = IMG_Load(png_path.string().c_str());
@@ -770,7 +770,7 @@ private:
 			return false;
 		}
 
-		const auto music_path = base_path_ / "assets/the_entertainer.ogg";
+		const auto music_path = base_path_ / "examples/assets/the_entertainer.ogg";
 		SDL_Log("Music path: %s", music_path.string().c_str());
 
 		MIX_Audio* music = MIX_LoadAudio(mixer_, music_path.string().c_str(), false);

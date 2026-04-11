@@ -81,15 +81,15 @@ bool IsDirectoryPath(const std::string& s) {
 }
 
 bool FileExists(const path& file_path) {
-	return fs::exists(file_path);
+	return fs::exists(file_path) || fs::exists(GetAbsolutePath(file_path));
 }
 
 bool DirectoryExists(const path& directory_path) {
-	return fs::is_directory(directory_path);
+	return fs::is_directory(directory_path) || fs::is_directory(GetAbsolutePath(directory_path));
 }
 
 path GetAbsolutePath(const path& relative_file_path) {
-	return fs::current_path() / relative_file_path;
+	return (path{ PTGN_ROOT } / relative_file_path).lexically_normal();
 }
 
 path GetRelativePath(const path& absolute_file_path) {

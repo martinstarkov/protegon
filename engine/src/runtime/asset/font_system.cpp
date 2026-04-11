@@ -1,23 +1,11 @@
 #include "runtime/asset/font_system.h"
 
-#include <SDL3/SDL_blendmode.h>
-#include <SDL3/SDL_error.h>
-#include <SDL3/SDL_iostream.h>
-#include <SDL3/SDL_pixels.h>
-#include <SDL3/SDL_rect.h>
-#include <SDL3/SDL_surface.h>
-#include <SDL3_ttf/SDL_ttf.h>
-
-#include <cstdint>
 #include <filesystem>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 
 #include "core/assert.h"
-#include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
@@ -27,54 +15,30 @@
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/font.h"
-#include "runtime/graphics/fonts.h"
 #include "runtime/graphics/text.h"
 
 #ifdef CreateFont
 #undef CreateFont
 #endif
-#include "runtime/ecs/component.h"
 
 namespace ptgn {
 
-namespace impl {
-
-void TTF_FontDeleter::operator()(TTF_Font* font) const {
-	TTF_CloseFont(font);
-}
-
-} // namespace impl
-
-static TTF_Font* LoadFromBinary(SDL_IOStream* raw_buffer, float font_size, bool free_buffer) {
-	PTGN_ASSERT(raw_buffer != nullptr, SDL_GetError());
-	auto ptr{ TTF_OpenFontIO(raw_buffer, free_buffer, font_size) };
-	PTGN_ASSERT(ptr != nullptr, SDL_GetError());
-	return ptr;
-}
-
-static SDL_IOStream* GetRawBuffer(const FontBinary& binary) {
-	PTGN_ASSERT(binary.buffer != nullptr, "Cannot load font from invalid binary");
-	return SDL_IOFromMem(
-		static_cast<void*>(binary.buffer), static_cast<std::int32_t>(binary.length)
-	);
-}
-
 FontSystem::FontSystem(AssetManager& assets) : assets_{ assets } {
 	if (!raw_default_font_) {
-		raw_default_font_ = GetRawBuffer(impl::GetLiberationSansRegular());
-		auto default_font{ LoadFromBinary(raw_default_font_, kDefaultFontSize, false) };
-		std::shared_ptr<TTF_Font> f{ default_font, impl::TTF_FontDeleter{} };
+		// raw_default_font_ = GetRawBuffer(impl::GetLiberationSansRegular());
+		// auto default_font{ LoadFromBinary(raw_default_font_, kDefaultFontSize, false) };
+		impl::FontObject f{};
 
 		Font font{ assets_.CreateAsset(), true };
 		font.GetEntity().Add<FontSize>(kDefaultFontSize);
-		font.GetEntity().Add<std::shared_ptr<TTF_Font>>(f);
+		font.GetEntity().Add<impl::FontObject>(f);
 		impl::AddAssetKey(font.GetEntity(), 0, std::nullopt);
 	}
 }
 
 FontSystem::~FontSystem() noexcept {
 	if (raw_default_font_) {
-		SDL_CloseIO(raw_default_font_);
+		// SDL_CloseIO(raw_default_font_);
 	}
 }
 
@@ -90,20 +54,22 @@ void FontSystem::SetDefault(FontOrKey font) {
 	default_font_ = font;
 }
 
-std::shared_ptr<TTF_Font> FontSystem::GetFont(FontOrKey font, FontSize font_size) const {
+impl::FontObject FontSystem::GetFont(FontOrKey font, FontSize font_size) const {
 	auto font_asset{ font.Get(assets_) };
 
 	auto font_entity{ font_asset.GetEntity() };
 
 	if (font_entity.Get<FontSize>() == font_size) {
-		return font_entity.Get<std::shared_ptr<TTF_Font>>();
+		return font_entity.Get<impl::FontObject>();
 	}
 
 	if (font_entity.Has<path>()) {
 		auto path_string{ font_entity.Get<path>().string() };
 		PTGN_ASSERT(!path_string.empty(), "Invalid font path");
-		return std::shared_ptr<TTF_Font>{ TTF_OpenFont(path_string.c_str(), font_size),
-										  impl::TTF_FontDeleter{} };
+		// TODO: Fix.
+		// return std::shared_ptr<TTF_Font>{ TTF_OpenFont(path_string.c_str(), font_size),
+		//								  impl::TTF_FontDeleter{} };
+		return impl::FontObject{};
 	}
 
 	// Font has no path defined.
@@ -112,16 +78,22 @@ std::shared_ptr<TTF_Font> FontSystem::GetFont(FontOrKey font, FontSize font_size
 		"Font key must have a valid path unless it is the default font"
 	);
 
-	return std::shared_ptr<TTF_Font>{ LoadFromBinary(raw_default_font_, font_size, false),
-									  impl::TTF_FontDeleter{} };
+	// TODO: Fix.
+	// return std::shared_ptr<TTF_Font>{ LoadFromBinary(raw_default_font_, font_size, false),
+	//								  impl::TTF_FontDeleter{} };
+	return impl::FontObject{};
 }
 
 int FontSystem::GetLineSkip(FontOrKey font, FontSize font_size) const {
-	return TTF_GetFontLineSkip(GetFont(font, font_size).get());
+	// TODO: Fix.
+	// return TTF_GetFontLineSkip(GetFont(font, font_size).get());
+	return 0;
 }
 
 int FontSystem::GetHeight(FontOrKey font, FontSize font_size) const {
-	return TTF_GetFontHeight(GetFont(font, font_size).get());
+	// TODO: Fix.
+	// return TTF_GetFontHeight(GetFont(font, font_size).get());
+	return 0;
 }
 
 V2_int FontSystem::GetSize(
@@ -135,12 +107,12 @@ V2_int FontSystem::GetSize(
 		return size;
 	}
 
-	auto success{ TTF_GetStringSizeWrapped(
-		GetFont(font, font_size).get(), text_content.data(), text_content.length(), max_wrap_width,
-		&size.x, &size.y
-	) };
-
-	PTGN_ASSERT(success, "Failed to get size of wrapped font string");
+	// TODO: Fix.
+	// auto success{ TTF_GetStringSizeWrapped(
+	//	GetFont(font, font_size).get(), text_content.data(), text_content.length(), max_wrap_width,
+	//	&size.x, &size.y
+	//) };
+	// PTGN_ASSERT(success, "Failed to get size of wrapped font string");
 
 	return size;
 }
@@ -150,9 +122,13 @@ std::optional<impl::Surface> FontSystem::CreateTextSurface(
 	const TextProperties& properties, std::optional<float> hd_scale
 ) {
 	if (text_content.empty()) {
-		return {};
+		return std::nullopt;
 	}
 
+	// TODO: Fix.
+	return std::nullopt;
+
+	/*
 	float scale{ hd_scale.value_or(1.0f) };
 
 	PTGN_ASSERT(font_asset.GetEntity().Has<std::shared_ptr<TTF_Font>>());
@@ -259,18 +235,20 @@ std::optional<impl::Surface> FontSystem::CreateTextSurface(
 	PTGN_ASSERT(surface != nullptr, "Failed to blit text surface to text outline surface");
 
 	return impl::Surface{ surface };
+	*/
 }
 
-std::shared_ptr<TTF_Font> FontSystem::CreateFont(const path& font_path, FontSize font_size) {
+impl::FontObject FontSystem::CreateFont(const path& font_path, FontSize font_size) {
 	PTGN_ASSERT(
 		FileExists(font_path), "Cannot create font from invalid path: ", font_path.string()
 	);
 
-	auto ttf_font = TTF_OpenFont(font_path.string().c_str(), font_size);
+	// TODO: Fix.
+	// auto ttf_font = TTF_OpenFont(font_path.string().c_str(), font_size);
+	// PTGN_ASSERT(ttf_font, SDL_GetError());
+	// return std::shared_ptr<TTF_Font>{ ttf_font, impl::TTF_FontDeleter{} };
 
-	PTGN_ASSERT(ttf_font, SDL_GetError());
-
-	return std::shared_ptr<TTF_Font>{ ttf_font, impl::TTF_FontDeleter{} };
+	return impl::FontObject{};
 }
 
 } // namespace ptgn

@@ -26,8 +26,10 @@ Surface::Surface(const path& filepath) {
 	int height{ 0 };
 	int channels_in_file{ 0 };
 
+	auto abs_path{ GetAbsolutePath(filepath) };
+
 	auto data = stbi_load(
-		filepath.string().c_str(), &width, &height, &channels_in_file,
+		abs_path.string().c_str(), &width, &height, &channels_in_file,
 		static_cast<int>(kBytesPerPixel)
 	);
 
@@ -49,7 +51,7 @@ Surface::Surface(const path& filepath) {
 }
 
 void Surface::FlipVertically() {
-	PTGN_ASSERT(!pixels_.empty(), "Cannot vertically flip an empty surface");
+	PTGN_ASSERT(!IsEmpty(), "Cannot vertically flip an empty surface");
 
 	const std::size_t row_bytes = static_cast<std::size_t>(size_.x) * kBytesPerPixel;
 
@@ -82,7 +84,7 @@ Color Surface::GetPixel(V2_int coordinate) const {
 }
 
 Color Surface::GetPixel(std::size_t pixel_index) const {
-	PTGN_ASSERT(!pixels_.empty(), "Cannot get pixel of an empty surface");
+	PTGN_ASSERT(!IsEmpty(), "Cannot get pixel of an empty surface");
 
 	const std::size_t byte_index = pixel_index * kBytesPerPixel;
 	PTGN_ASSERT(byte_index + 3 < pixels_.size(), "Pixel index outside of range of surface");
@@ -97,6 +99,10 @@ V2_int Surface::GetSize() const {
 
 const std::uint8_t* Surface::Data() const {
 	return pixels_.data();
+}
+
+[[nodiscard]] bool Surface::IsEmpty() const {
+	return pixels_.empty();
 }
 
 } // namespace ptgn::impl

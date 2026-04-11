@@ -18,9 +18,9 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/span.h"
-#include "platform/input/input_handler.h"
-#include "platform/input/key.h"
-#include "platform/input/mouse.h"
+#include "platform/key.h"
+#include "platform/mouse.h"
+#include "platform/window.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
@@ -90,8 +90,7 @@ MouseInfo::MouseInfo(const SceneInput& input) :
 
 } // namespace impl
 
-SceneInput::SceneInput(Scene& scene, const InputHandler& input) :
-	scene_{ scene }, input_{ input } {}
+SceneInput::SceneInput(Scene& scene, const Window& window) : scene_{ scene }, window_{ window } {}
 
 Transform SceneInput::GetWorldOffsetTransform(const Shape& shape, Entity shape_entity) {
 	auto transform{ GetWorldTransform(shape_entity) };
@@ -165,13 +164,13 @@ void SceneInput::SetSettings(const SceneInputSettings& settings) {
 }
 
 V2_float SceneInput::GetMousePosition(Frame position_frame_of_reference) const {
-	auto position{ input_.GetMousePosition() };
+	auto position{ window_.GetMousePosition() };
 	return GetMousePositionRelativeTo(position, position_frame_of_reference);
 }
 
 V2_float SceneInput::GetPreviousMousePosition(Frame position_frame_of_reference) const {
 	return GetMousePositionRelativeTo(
-		input_.GetPreviousMousePosition(), position_frame_of_reference
+		window_.GetPreviousMousePosition(), position_frame_of_reference
 	);
 }
 
@@ -181,43 +180,43 @@ V2_float SceneInput::GetMouseDelta(Frame delta_frame_of_reference) const {
 }
 
 float SceneInput::GetMouseScroll() const {
-	return input_.GetMouseScroll();
+	return window_.GetMouseScroll();
 }
 
 bool SceneInput::MousePressed(Mouse button) const {
-	return input_.MousePressed(button);
+	return window_.MousePressed(button);
 }
 
 bool SceneInput::MouseReleased(Mouse button) const {
-	return input_.MouseReleased(button);
+	return window_.MouseReleased(button);
 }
 
 bool SceneInput::MouseHeld(Mouse button) const {
-	return input_.MouseHeld(button);
+	return window_.MouseHeld(button);
 }
 
 bool SceneInput::MouseHeld(Mouse button, milliseconds time) const {
-	return input_.MouseHeld(button, time);
+	return window_.MouseHeld(button, time);
 }
 
 milliseconds SceneInput::GetMouseHeldTime(Mouse button) const {
-	return input_.GetMouseHeldTime(button);
+	return window_.GetMouseHeldTime(button);
 }
 
 bool SceneInput::KeyPressed(Key key) const {
-	return input_.KeyPressed(key);
+	return window_.KeyPressed(key);
 }
 
 bool SceneInput::KeyReleased(Key key) const {
-	return input_.KeyReleased(key);
+	return window_.KeyReleased(key);
 }
 
 bool SceneInput::KeyHeld(Key key) const {
-	return input_.KeyHeld(key);
+	return window_.KeyHeld(key);
 }
 
 milliseconds SceneInput::GetKeyHeldTime(Key key) const {
-	return input_.GetKeyHeldTime(key);
+	return window_.GetKeyHeldTime(key);
 }
 
 V2_float SceneInput::GetMousePositionRelativeTo(

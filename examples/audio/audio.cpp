@@ -60,10 +60,10 @@ public:
 	}
 
 	void OnEnter() override {
-		ctx().asset.Load("music1", "assets/music.ogg");
-		ctx().asset.Load("music2", "assets/music2.ogg");
-		ctx().asset.Load("sound1", "assets/sound.ogg");
-		ctx().asset.Load("sound2", "assets/sound2.ogg");
+		ctx().asset.Load("music1", "examples/assets/music.ogg");
+		ctx().asset.Load("music2", "examples/assets/music2.ogg");
+		ctx().asset.Load("sound1", "examples/assets/sound.ogg");
+		ctx().asset.Load("sound2", "examples/assets/sound2.ogg");
 
 		ctx().audio.SetVolume(starting_volume);
 		ctx().audio.SetVolume("sound1", starting_volume);

@@ -11,8 +11,8 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "platform/input/key.h"
-#include "platform/input/mouse.h"
+#include "platform/key.h"
+#include "platform/mouse.h"
 #include "renderer/primitives/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -155,10 +155,11 @@ struct InteractiveScene : public Scene {
 
 		ctx().input.SetSettings({ .debug_draw_enabled = true, .debug_draw_line_width = 3.0f });
 
-		ctx().asset.LoadMany({ { "circle", "assets/circle.png" },
-							   { "drag", "assets/drag.png" },
-							   { "drag_circle", "assets/drag_circle.png" },
-							   { "dropzone", "assets/dropzone.png" } });
+		ctx().asset.LoadMany({ { "circle", "examples/assets/circle.png" },
+							   { "drag", "examples/assets/drag.png" },
+							   { "drag_circle", "examples/assets/drag_circle.png" },
+							   { "dropzone", "examples/assets/dropzone.png" },
+							   { "box", "examples/assets/box.png" } });
 
 		V2_float center{ GetTransform(ctx().camera).GetPosition() };
 
@@ -188,8 +189,6 @@ struct InteractiveScene : public Scene {
 		);
 		auto r1_child = CreateInteractiveRect(rsize * 2);
 		AddInteractiveShape(r1, GameObject{ std::move(r1_child) });
-
-		ctx().asset.Load("box", "assets/box.png");
 
 		auto r2		  = CreateSprite(*this, "box", center + V2_float{ -offset.x, 0.0f });
 		auto r2_child = CreateInteractiveRect(*GetDisplaySize(r2));
@@ -231,6 +230,12 @@ struct InteractiveScene : public Scene {
 	const float zoom_speed{ 0.4f };
 
 	void OnUpdate() override {
+		PTGN_LOG(
+			"Pressed: ", ctx().input.MousePressed(Mouse::Left),
+			", held: ", ctx().input.MouseHeld(Mouse::Left),
+			", released: ", ctx().input.MouseReleased(Mouse::Left)
+		);
+
 		if (ctx().input.KeyPressed(Key::T)) {
 			bool desired{ !ctx().input.IsTopOnly() };
 			ctx().input.SetTopOnly(desired);

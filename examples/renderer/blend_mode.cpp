@@ -1,7 +1,7 @@
 #include "app/application.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "platform/window/window.h"
+#include "platform/window.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/graphics/draw.h"
@@ -15,8 +15,8 @@ using namespace ptgn;
 
 struct BlendModeScene : public Scene {
 	void OnEnter() override {
-		ctx().asset.Load("semitransparent", "assets/semitransparent.png");
-		ctx().asset.Load("opaque", "assets/smile.png");
+		ctx().asset.Load("semitransparent", "examples/assets/semitransparent.png");
+		ctx().asset.Load("opaque", "examples/assets/smile.png");
 
 		V2_float ws{ ctx().renderer.GetGameSize() };
 

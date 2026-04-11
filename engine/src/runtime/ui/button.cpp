@@ -17,7 +17,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
-#include "platform/input/mouse.h"
+#include "platform/mouse.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
 #include "runtime/animation/animation.h"

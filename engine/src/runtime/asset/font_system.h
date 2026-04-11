@@ -16,19 +16,13 @@
 #undef CreateFont
 #endif
 
-struct TTF_Font;
-
-struct SDL_IOStream;
-
 namespace ptgn {
 
 class AssetManager;
 
 namespace impl {
 
-struct TTF_FontDeleter {
-	void operator()(TTF_Font* font) const;
-};
+struct FontObject {};
 
 } // namespace impl
 
@@ -71,17 +65,15 @@ private:
 		const TextProperties& properties, std::optional<float> hd_scale
 	);
 
-	[[nodiscard]] static std::shared_ptr<TTF_Font> CreateFont(
-		const path& font_path, FontSize font_size
-	);
+	[[nodiscard]] static impl::FontObject CreateFont(const path& font_path, FontSize font_size);
 
-	std::shared_ptr<TTF_Font> GetFont(FontOrKey font, FontSize font_size) const;
+	impl::FontObject GetFont(FontOrKey font, FontSize font_size) const;
 
 	AssetManager& assets_;
 
 	FontOrKey default_font_;
 
-	SDL_IOStream* raw_default_font_{ nullptr };
+	void* raw_default_font_{ nullptr };
 };
 
 } // namespace ptgn

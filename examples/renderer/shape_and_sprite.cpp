@@ -31,8 +31,8 @@ struct ShapeAndSpriteScene : public Scene {
 
 	void OnEnter() override {
 		SetBackgroundColor(color::LightCyan);
-		ctx().asset.Load("combo_meter", "assets/combo_meter.png");
-		ctx().asset.Load("combo_meter_arc", "assets/combo_meter_arc.png");
+		ctx().asset.Load("combo_meter", "examples/assets/combo_meter.png");
+		ctx().asset.Load("combo_meter_arc", "examples/assets/combo_meter_arc.png");
 
 		V2_float combo_meter_pos{ V2_float{ 6, 6 } - game_size / 2.0f };
 		CreateText(*this, { 100, 0 }, "1", color::Black);

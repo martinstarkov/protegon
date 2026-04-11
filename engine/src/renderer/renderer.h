@@ -43,12 +43,11 @@ class Scene;
 class AssetManager;
 class RenderTarget;
 class Renderer;
-class InputHandler;
+class Window;
 
 namespace impl {
 
 class ShaderObject;
-class SDLInstance;
 class TextureObject;
 
 template <ResourceType T>
@@ -110,12 +109,11 @@ private:
 	friend class RenderTarget;
 	friend class DrawContext;
 	friend class RenderContext;
-	friend class InputHandler;
+	friend class Window;
 	friend class DebugContext;
 	friend class impl::ShaderObject;
 	friend class impl::RenderTargetObject;
 	friend class impl::TextureObject;
-	friend class impl::SDLInstance;
 	template <impl::ResourceType T>
 	friend class impl::Resource;
 

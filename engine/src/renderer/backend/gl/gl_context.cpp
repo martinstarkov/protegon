@@ -12,7 +12,7 @@
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "core/util/id_map.h"
-#include "platform/window/window.h"
+#include "platform/window.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"

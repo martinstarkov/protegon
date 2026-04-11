@@ -1,7 +1,7 @@
 #include "app/application.h"
 #include "core/math/easing.h"
 #include "core/time/time.h"
-#include "platform/input/mouse.h"
+#include "platform/mouse.h"
 #include "renderer/primitives/color.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
@@ -22,7 +22,7 @@ struct TranslateEffectScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
 
-		ctx().asset.Load("smile", "assets/smile.png");
+		ctx().asset.Load("smile", "examples/assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });

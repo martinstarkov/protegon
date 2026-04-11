@@ -6,10 +6,10 @@
 #include "core/event/event.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "platform/input/events.h"
-#include "platform/input/key.h"
-#include "platform/input/mouse.h"
-#include "platform/window/window.h"
+#include "platform/events.h"
+#include "platform/key.h"
+#include "platform/mouse.h"
+#include "platform/window.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/texture.h"
 #include "renderer/renderer.h"
@@ -154,10 +154,10 @@ public:
 		ctx().window.SetSize(window_size);
 
 		// PTGN_LOG("Working Directory: ", GetWorkingDirectory());
-		auto a = ctx().asset.LoadAudio("test", "assets/music.ogg");
-		// auto f = ctx().asset.LoadFont("test", "assets/ttf.ttf", 11);
-		auto t = ctx().asset.LoadTexture("test", "assets/smile.png");
-		// auto j = ctx().asset.LoadJson("test", "assets/dialogue.json");
+		auto a = ctx().asset.LoadAudio("test", "examples/assets/music.ogg");
+		// auto f = ctx().asset.LoadFont("test", "examples/assets/ttf.ttf", 11);
+		auto t = ctx().asset.LoadTexture("test", "examples/assets/smile.png");
+		// auto j = ctx().asset.LoadJson("test", "examples/assets/dialogue.json");
 
 		// ctx().audio.Play("test");
 
@@ -171,7 +171,7 @@ public:
 		PTGN_ASSERT(sprite2.Has<Texture>());
 		PTGN_ASSERT((sprite2.Get<Texture>().GetSize() == V2_int{ 300, 300 }));
 
-		auto arial = ctx().asset.LoadFont("arial", "assets/Arial.ttf", 72.0f);
+		auto arial = ctx().asset.LoadFont("arial", "examples/assets/Arial.ttf", 72.0f);
 
 		auto text = CreateText(*this, {}, "Hello World", color::Orange, 72.0f, arial);
 		text.SetHD(true);

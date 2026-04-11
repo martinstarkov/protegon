@@ -2,7 +2,7 @@
 
 #include "app/application.h"
 #include "core/math/vector2.h"
-#include "platform/input/mouse.h"
+#include "platform/mouse.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/follow_config.h"
@@ -43,7 +43,7 @@ struct FollowEffectScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::DarkGray);
 
-		ctx().asset.Load("smile", "assets/white_smile.png");
+		ctx().asset.Load("smile", "examples/assets/white_smile.png");
 
 		mouse = Sprite{ CreateEntity() };
 		SetPosition(mouse, {});

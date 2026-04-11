@@ -28,7 +28,6 @@
 #include "core/util/span.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_debug.h"
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/shader.h"
 #include "serialization/json/json.h"

@@ -1,5 +1,5 @@
 #include "app/application.h"
-#include "platform/input/input_handler.h"
+
 #include "runtime/animation/tween_effect.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
@@ -16,7 +16,7 @@ struct ScaleEffectScene : public Scene {
 	milliseconds scale_duration2{ 1000 };
 
 	void OnEnter() override {
-		ctx().asset.Load("smile", "assets/smile.png");
+		ctx().asset.Load("smile", "examples/assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });

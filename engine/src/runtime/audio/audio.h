@@ -1,12 +1,21 @@
 #pragma once
 
 #include "core/util/entity_handle.h"
+#include "core/util/file.h"
 #include "ecs/ecs.h"
 
 namespace ptgn {
 
 class AssetManager;
 class AudioSystem;
+
+namespace impl {
+
+struct AudioObject {
+	path path;
+};
+
+}; // namespace impl
 
 class Audio : public EntityHandle {
 public:

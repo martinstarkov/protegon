@@ -26,8 +26,6 @@
 #undef CreateFont
 #endif
 
-struct SDL_IOStream;
-
 namespace ptgn {
 
 class Application;

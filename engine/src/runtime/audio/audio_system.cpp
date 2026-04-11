@@ -15,6 +15,7 @@
 #include "ecs/ecs.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/audio/audio.h"
 #include "runtime/audio/track.h"
 
 namespace ptgn {
@@ -50,7 +51,7 @@ void AudioSystem::Play(
 	}
 
 	auto resolved_audio{ audio.Get(assets_) };
-	const auto& audio_path{ resolved_audio.GetEntity().Get<ptgn::path>() };
+	const auto& audio_path{ resolved_audio.GetEntity().Get<impl::AudioObject>().path };
 
 	PTGN_ASSERT(engine_);
 

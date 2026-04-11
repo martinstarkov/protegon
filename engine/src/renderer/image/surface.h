@@ -46,6 +46,8 @@ public:
 
 	[[nodiscard]] const std::uint8_t* Data() const;
 
+	[[nodiscard]] bool IsEmpty() const;
+
 private:
 	friend class ptgn::FontSystem;
 

@@ -25,7 +25,7 @@ public:
 	ParticleEmitter rain;
 
 	void OnEnter() override {
-		ctx().asset.Load("anim", "assets/animation_rain_splash.png");
+		ctx().asset.Load("anim", "examples/assets/animation_rain_splash.png");
 
 		rain = CreateParticleEmitter(
 			*this, { 0.0f, static_cast<float>(-ctx().renderer.GetGameSize().y) / 2.0f },

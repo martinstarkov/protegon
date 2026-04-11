@@ -1,9 +1,11 @@
 set(PTGN_EDITOR_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(PTGN_EDITOR_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+set(PTGN_EDITOR_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include/protegon_editor")
 
 add_library(protegon_editor STATIC
-  "${PTGN_EDITOR_SRC_DIR}/EditorLayer.cpp"
-  "${PTGN_EDITOR_SRC_DIR}/EditorPanels.cpp"
+  "${PTGN_EDITOR_SRC_DIR}/layer.cpp"
+  "${PTGN_EDITOR_SRC_DIR}/panels.cpp"
+  "${PTGN_EDITOR_INCLUDE_DIR}/layer.h"
+  "${PTGN_EDITOR_INCLUDE_DIR}/panels.h"
 )
 
 add_library(protegon::editor ALIAS protegon_editor)

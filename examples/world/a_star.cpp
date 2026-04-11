@@ -6,9 +6,9 @@
 #include "app/application.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "platform/input/input_handler.h"
-#include "platform/input/key.h"
-#include "platform/input/mouse.h"
+
+#include "platform/key.h"
+#include "platform/mouse.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/graphics/draw.h"

@@ -3,9 +3,9 @@
 #include "app/application.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "platform/input/input_handler.h"
-#include "platform/input/key.h"
-#include "platform/window/window.h"
+
+#include "platform/key.h"
+#include "platform/window.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -25,8 +25,8 @@ struct DialogueScene : public Scene {
 
 		PTGN_LOG("Entity count: ", GetEntityCount());
 
-		ctx().asset.Load("retro_gaming", "assets/Arial.ttf");
-		ctx().asset.Load("dialogue_box", "assets/dialogue_box.png");
+		ctx().asset.Load("retro_gaming", "examples/assets/Arial.ttf");
+		ctx().asset.Load("dialogue_box", "examples/assets/dialogue_box.png");
 
 		npc = CreateEntity();
 
@@ -34,7 +34,7 @@ struct DialogueScene : public Scene {
 		PTGN_LOG("Entity count: ", GetEntityCount());
 
 		npc.Add<DialogueComponent>(
-			npc, "assets/dialogue.json", GameObject{ CreateSprite(*this, "dialogue_box", {}) }
+			npc, "examples/assets/dialogue.json", GameObject{ CreateSprite(*this, "dialogue_box", {}) }
 		);
 
 		Refresh();
@@ -65,7 +65,7 @@ struct DialogueScene : public Scene {
 		}
 		if (ctx().input.KeyPressed(Key::A)) {
 			npc.Add<DialogueComponent>(
-				npc, "assets/dialogue.json", GameObject{ CreateSprite(*this, "dialogue_box", {}) }
+				npc, "examples/assets/dialogue.json", GameObject{ CreateSprite(*this, "dialogue_box", {}) }
 			);
 			PTGN_LOG("Entity count: ", GetEntityCount());
 		}

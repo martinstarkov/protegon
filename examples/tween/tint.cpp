@@ -1,7 +1,7 @@
 #include "app/application.h"
 #include "core/math/easing.h"
 #include "core/time/time.h"
-#include "platform/input/mouse.h"
+#include "platform/mouse.h"
 #include "renderer/primitives/color.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
@@ -21,8 +21,8 @@ struct TintEffectScene : public Scene {
 	milliseconds tint_duration2{ 1000 };
 
 	void OnEnter() override {
-		ctx().asset.Load("tree", "assets/jpg.jpg");
-		ctx().asset.Load("smile", "assets/smile.png");
+		ctx().asset.Load("tree", "examples/assets/jpg.jpg");
+		ctx().asset.Load("smile", "examples/assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "tree", { -300, -300 });
 		sprite2 = CreateSprite(*this, "tree", { -300, 200 });

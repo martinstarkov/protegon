@@ -67,7 +67,7 @@ void Buffers::SetBufferSubData(
 	// This buffer size check must be done after the buffer is bound.
 	PTGN_ASSERT(
 		(size <= static_cast<std::uint32_t>(
-					 glGetBufferParameter(BufferTarget::ArrayBuffer, BufferParameter::Size)
+					 GetBufferParameter(BufferTarget::ArrayBuffer, BufferParameter::Size)
 				 )),
 		"Attempting to bind data outside of allocated buffer size"
 	);
@@ -79,7 +79,7 @@ void Buffers::SetBufferSubData(
 			std::uint32_t buffer_size{ cache.count * element_size };
 			PTGN_ASSERT(buffer_size > 0);
 			PTGN_ASSERT(
-				(buffer_size <= static_cast<std::uint32_t>(glGetBufferParameter(
+				(buffer_size <= static_cast<std::uint32_t>(GetBufferParameter(
 									BufferTarget::ArrayBuffer, BufferParameter::Size
 								))),
 				"Buffer element size does not appear to match the "

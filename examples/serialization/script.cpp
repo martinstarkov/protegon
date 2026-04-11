@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "core/log.h"
-#include "platform/input/events.h"
-#include "platform/input/key.h"
+#include "platform/events.h"
+#include "platform/key.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/event/event_dispatcher.h"
 

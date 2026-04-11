@@ -9,8 +9,8 @@ using namespace ptgn;
 
 class SpriteScene : public Scene {
 	void OnEnter() override {
-		ctx().asset.Load("sprite", "assets/sprite.png");
-		ctx().asset.Load("sprite2", "assets/sprite2.png");
+		ctx().asset.Load("sprite", "examples/assets/sprite.png");
+		ctx().asset.Load("sprite2", "examples/assets/sprite2.png");
 
 		auto sprite1 = CreateSprite(*this, "sprite", { -50 + 0, 0 });
 		auto sprite2 = CreateSprite(*this, "sprite", { -50 + 0, 100.5 });

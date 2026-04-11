@@ -20,22 +20,22 @@ class TextureFormatScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::Pink);
 
-		ctx().asset.LoadMany({ { "jpg", "assets/jpg.jpg" },
-							   { "jpg2", "assets/jpg2.jpg" },
-							   { "jpg3", "assets/jpg3.jpg" },
-							   { "bmp", "assets/bmp.bmp" },
-							   { "bmp2", "assets/bmp2.bmp" },
-							   { "png1", "assets/png1.png" },
-							   { "png2", "assets/png2.png" },
-							   { "png3", "assets/png3.png" },
-							   { "png4", "assets/png4.png" },
-							   { "png5", "assets/png5.png" },
-							   { "png6", "assets/png6.png" },
-							   { "png7", "assets/png7.png" },
-							   { "png8", "assets/png8.png" },
-							   { "png9", "assets/png9.png" },
-							   { "png10", "assets/png10.png" },
-							   { "png11", "assets/png11.png" } });
+		ctx().asset.LoadMany({ { "jpg", "examples/assets/jpg.jpg" },
+							   { "jpg2", "examples/assets/jpg2.jpg" },
+							   { "jpg3", "examples/assets/jpg3.jpg" },
+							   { "bmp", "examples/assets/bmp.bmp" },
+							   { "bmp2", "examples/assets/bmp2.bmp" },
+							   { "png1", "examples/assets/png1.png" },
+							   { "png2", "examples/assets/png2.png" },
+							   { "png3", "examples/assets/png3.png" },
+							   { "png4", "examples/assets/png4.png" },
+							   { "png5", "examples/assets/png5.png" },
+							   { "png6", "examples/assets/png6.png" },
+							   { "png7", "examples/assets/png7.png" },
+							   { "png8", "examples/assets/png8.png" },
+							   { "png9", "examples/assets/png9.png" },
+							   { "png10", "examples/assets/png10.png" },
+							   { "png11", "examples/assets/png11.png" } });
 
 		V2_float ws{ ctx().renderer.GetGameSize() };
 

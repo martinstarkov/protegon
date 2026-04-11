@@ -58,6 +58,10 @@ private:
 	/// nullopt, infinite looping handled by miniaudio directly
 	/// N, play once + restart N additional times
 	mutable std::optional<std::int64_t> remaining_loops_;
+
+	struct OggDecoder;
+
+	std::unique_ptr<OggDecoder> vorbis_;
 };
 
 } // namespace impl
