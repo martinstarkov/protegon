@@ -1,91 +1,66 @@
 #include "renderer/image/surface.h"
 
-#include <SDL3/SDL_error.h>
-#include <SDL3/SDL_pixels.h>
-#include <SDL3/SDL_surface.h>
-#include <SDL3_image/SDL_image.h>
+#include <stb_image.h>
 
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
-#include <functional>
 #include <string>
 #include <vector>
 
 #include "core/assert.h"
-#include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "renderer/primitives/color.h"
 
 namespace ptgn::impl {
 
-SDL_Surface* LoadSurface(const path& filepath) {
+Surface::Surface(const path& filepath) {
 	PTGN_ASSERT(
 		FileExists(filepath),
 		"Cannot create surface from a nonexistent filepath: ", filepath.string()
 	);
-	SDL_Surface* sdl_surface{ IMG_Load(filepath.string().c_str()) };
-	PTGN_ASSERT(sdl_surface != nullptr, SDL_GetError());
-	return sdl_surface;
-}
 
-Surface::Surface(SDL_Surface* sdl_surface) {
-	PTGN_ASSERT(sdl_surface != nullptr, "Cannot create surface from nullptr");
+	int width{ 0 };
+	int height{ 0 };
+	int channels_in_file{ 0 };
 
-	// TODO: In the future, instead of converting all formats to RGBA, figure out how to deal with
-	// Windows and MacOS discrepencies between image formats and SDL surface formats to enable the
-	// use of RGB888 format (faster for JPGs). When I was using this approach in the past, MacOS had
-	// an issue rendering JPG images as it perceived them as having 4 bytes per pixel with BGRA8888
-	// format even though SDL said they were RGB888. Whereas on Windows, the same JPGs opened as 3
-	// channel RGB888 surfaces as expected.
-	SDL_Surface* surface = SDL_ConvertSurface(sdl_surface, SDL_PixelFormat::SDL_PIXELFORMAT_RGBA32);
-
-	PTGN_ASSERT(surface != nullptr, SDL_GetError());
-
-	PTGN_ASSERT(
-		SDL_GetPixelFormatDetails(surface->format)->bytes_per_pixel == kBytesPerPixel,
-		"Failed to convert surface to RGBA32"
+	auto data = stbi_load(
+		filepath.string().c_str(), &width, &height, &channels_in_file,
+		static_cast<int>(kBytesPerPixel)
 	);
 
-	SDL_DestroySurface(sdl_surface);
+	PTGN_ASSERT(
+		data != nullptr, "Failed to load image '", filepath.string(), "': ", stbi_failure_reason()
+	);
 
-	bool lock{ SDL_LockSurface(surface) };
-	PTGN_ASSERT(lock, "Failed to lock surface when copying pixels");
+	PTGN_ASSERT(width > 0 && height > 0, "Loaded image has invalid size");
 
-	size_ = { surface->w, surface->h };
+	size_ = { width, height };
 
-	std::size_t total_pixels{ static_cast<std::size_t>(size_.x) *
-							  static_cast<std::size_t>(size_.y) * kBytesPerPixel };
+	const std::size_t total_bytes =
+		static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * kBytesPerPixel;
 
-	pixels_.reserve(total_pixels);
+	pixels_.resize(total_bytes);
+	std::memcpy(pixels_.data(), data, total_bytes);
 
-	for (int y{ 0 }; y < size_.y; ++y) {
-		auto row_index{ static_cast<std::uint8_t*>(surface->pixels) + y * surface->pitch };
-		for (int x{ 0 }; x < size_.x; ++x) {
-			auto pixel{ row_index + static_cast<std::size_t>(x) * kBytesPerPixel };
-			for (std::size_t b{ 0 }; b < kBytesPerPixel; ++b) {
-				pixels_.push_back(pixel[b]);
-			}
-		}
-	}
-
-	SDL_UnlockSurface(surface);
-	SDL_DestroySurface(surface);
+	stbi_image_free(data);
 }
-
-Surface::Surface(const path& filepath) :
-	Surface{ LoadSurface(filepath)
-			 /* SDL_Surface destroyed by Surface constructor. */ } {}
 
 void Surface::FlipVertically() {
 	PTGN_ASSERT(!pixels_.empty(), "Cannot vertically flip an empty surface");
-	// TODO: Check that this works as intended (i.e. middle row in odd height images is skipped).
-	for (std::size_t row{ 0 }; row < static_cast<std::size_t>(size_.y) / 2; ++row) {
-		std::swap_ranges(
-			pixels_.begin() + row * size_.x, pixels_.begin() + (row + 1) * size_.x,
-			pixels_.begin() + (size_.y - row - 1) * size_.x
-		);
+
+	const std::size_t row_bytes = static_cast<std::size_t>(size_.x) * kBytesPerPixel;
+
+	for (std::size_t row = 0; row < static_cast<std::size_t>(size_.y) / 2; ++row) {
+		auto top_begin = pixels_.begin() + static_cast<std::ptrdiff_t>(row * row_bytes);
+		auto top_end   = top_begin + static_cast<std::ptrdiff_t>(row_bytes);
+		auto bot_begin =
+			pixels_.begin() +
+			static_cast<std::ptrdiff_t>((static_cast<std::size_t>(size_.y) - row - 1) * row_bytes);
+
+		std::swap_ranges(top_begin, top_end, bot_begin);
 	}
 }
 
@@ -98,28 +73,22 @@ Color Surface::GetPixel(V2_int coordinate) const {
 		coordinate.y >= 0 && coordinate.y < size_.y, "Y Coordinate '", coordinate.y,
 		"' outside of surface height: ", size_.y
 	);
-	auto index{ (static_cast<std::size_t>(coordinate.y) * static_cast<std::size_t>(size_.x) +
-				 static_cast<std::size_t>(coordinate.x)) *
-				kBytesPerPixel };
-	return GetPixel(index);
+
+	const auto pixel_index =
+		static_cast<std::size_t>(coordinate.y) * static_cast<std::size_t>(size_.x) +
+		static_cast<std::size_t>(coordinate.x);
+
+	return GetPixel(pixel_index);
 }
 
-Color Surface::GetPixel(std::size_t index) const {
+Color Surface::GetPixel(std::size_t pixel_index) const {
 	PTGN_ASSERT(!pixels_.empty(), "Cannot get pixel of an empty surface");
-	PTGN_ASSERT(index < pixels_.size(), "Index outside of range of grid");
-	index *= kBytesPerPixel;
-	if constexpr (kBytesPerPixel == 4) {
-		PTGN_ASSERT(index + 3 < pixels_.size(), "Index outside of range of grid");
-		return { pixels_[index + 0], pixels_[index + 1], pixels_[index + 2], pixels_[index + 3] };
-	} else if constexpr (kBytesPerPixel == 3) {
-		PTGN_ASSERT(index + 2 < pixels_.size(), "Index outside of range of grid");
-		return { pixels_[index + 0], pixels_[index + 1], pixels_[index + 2], 255 };
-	} else if constexpr (kBytesPerPixel == 1) {
-		PTGN_ASSERT(index < pixels_.size(), "Index outside of range of grid");
-		return { 255, 255, 255, pixels_[index] };
-	} else {
-		PTGN_ERROR("Unsupported texture format");
-	}
+
+	const std::size_t byte_index = pixel_index * kBytesPerPixel;
+	PTGN_ASSERT(byte_index + 3 < pixels_.size(), "Pixel index outside of range of surface");
+
+	return { pixels_[byte_index + 0], pixels_[byte_index + 1], pixels_[byte_index + 2],
+			 pixels_[byte_index + 3] };
 }
 
 V2_int Surface::GetSize() const {

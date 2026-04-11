@@ -16,9 +16,9 @@ Color GetPixel(const path& texture_filepath, V2_int coordinate);
 /// @param function The function must be callable as void(V2_int, Color).
 /// @return The pixel size of the looped texture.
 template <InvocableR<void, V2_int, Color> F>
-V2_int ForEachPixel(const path& texture_filepath, F&& function) {
+V2_int ForEachPixel(const path& texture_filepath, F&& func) {
 	impl::Surface s{ texture_filepath };
-	s.ForEachPixel(function);
+	s.ForEachPixel(std::forward<F>(func));
 	return s.GetSize();
 }
 
