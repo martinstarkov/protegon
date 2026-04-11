@@ -1,0 +1,21 @@
+[submodule "engine/vendor/glfw"]
+	path = engine/vendor/glfw
+	url = https://github.com/glfw/glfw.git
+[submodule "engine/vendor/miniaudio"]
+	path = engine/vendor/miniaudio
+	url = https://github.com/mackron/miniaudio.git
+[submodule "engine/vendor/json"]
+	path = engine/vendor/json
+	url = https://github.com/nlohmann/json.git
+[submodule "engine/vendor/ecs"]
+	path = engine/vendor/ecs
+	url = https://github.com/martinstarkov/ecs.git
+[submodule "engine/vendor/imgui"]
+	path = engine/vendor/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "engine/vendor/msdf-atlas-gen"]
+	path = engine/vendor/msdf-atlas-gen
+	url = https://github.com/Chlumsky/msdf-atlas-gen.git
+[submodule "engine/vendor/freetype"]
+	path = engine/vendor/freetype
+	url = https://github.com/freetype/freetype.git

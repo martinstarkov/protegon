@@ -3,11 +3,6 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
-# Vendor / external files
-[Vv]endor/
-[Ee]xternal/
-[Ee]xtern/
-
 # User-specific files
 *.rsuser
 *.suo
