@@ -46,7 +46,7 @@ public:
 	/// @brief Toggles the master volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new master volume to this value
 	/// in range [kMinVolume, kMaxVolume]. Volume clamped if outside of range.
-	void ToggleVolume(float new_volume) const;
+	void ToggleVolume(float new_volume);
 
 	/// @brief Stops all audio tracks.
 	void StopAll();
@@ -74,7 +74,7 @@ public:
 	/// will stop the currently playing track and start a new one. If false, when exclusive is true
 	/// and the audio is already playing, it will do nothing.
 	void Play(
-		AudioOrKey audio, float volume = 1.0f, std::optional<int> loops = {},
+		AudioOrKey audio, float volume = 1.0f, std::optional<int> loops = 0,
 		float frequency_ratio = 1.0f, bool exclusive = false, bool force_restart = true
 	);
 

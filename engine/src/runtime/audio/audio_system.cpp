@@ -164,7 +164,7 @@ float AudioSystem::GetVolume() const {
 	return ma_engine_get_volume(engine_.get());
 }
 
-void AudioSystem::ToggleVolume(float new_volume) const {
+void AudioSystem::ToggleVolume(float new_volume) {
 	new_volume = std::clamp(new_volume, kMinVolume, kMaxVolume);
 
 	if (float current{ GetVolume() }; current == kMinVolume) {

@@ -24,13 +24,49 @@ else()
   target_include_directories(ptgn_glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/glad/include)
 endif()
 
-# miniaudio
-add_library(ptgn_miniaudio
-  STATIC 
-  ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/miniaudio.c 
-  ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/extras/decoders/libvorbis/miniaudio_libvorbis.c)
+# Ogg / Vorbis
+if(NOT EMSCRIPTEN)
+  set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 
-target_include_directories(ptgn_miniaudio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio)
+  set(_old_warn_deprecated ${CMAKE_WARN_DEPRECATED})
+  set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
+  add_subdirectory(ogg)
+  add_subdirectory(vorbis)
+  set(CMAKE_WARN_DEPRECATED ${_old_warn_deprecated} CACHE BOOL "" FORCE)
+endif()
+
+# miniaudio
+if(EMSCRIPTEN)
+  add_library(ptgn_miniaudio STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/miniaudio.c
+  )
+else()
+  add_library(ptgn_miniaudio STATIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/miniaudio.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/extras/decoders/libvorbis/miniaudio_libvorbis.c
+  )
+endif()
+
+target_include_directories(ptgn_miniaudio
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio
+)
+
+if(NOT EMSCRIPTEN)
+  target_include_directories(ptgn_miniaudio
+    PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/extras/decoders/libvorbis
+      ${CMAKE_CURRENT_SOURCE_DIR}/ogg/include
+      ${CMAKE_CURRENT_SOURCE_DIR}/vorbis/include
+  )
+
+  target_link_libraries(ptgn_miniaudio
+    PUBLIC
+      ogg
+      vorbis
+      vorbisfile
+  )
+endif()
 
 if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
   target_link_libraries(ptgn_miniaudio PUBLIC pthread m dl)
@@ -72,9 +108,9 @@ if(EMSCRIPTEN)
 endif()
 
 # FreeType
-set(FT_DISABLE_ZLIB FALSE CACHE BOOL "" FORCE)
+set(FT_DISABLE_ZLIB TRUE CACHE BOOL "" FORCE)
 set(FT_DISABLE_BZIP2 TRUE CACHE BOOL "" FORCE)
-set(FT_DISABLE_PNG FALSE CACHE BOOL "" FORCE)
+set(FT_DISABLE_PNG TRUE CACHE BOOL "" FORCE)
 set(FT_DISABLE_HARFBUZZ TRUE CACHE BOOL "" FORCE)
 set(FT_DISABLE_BROTLI TRUE CACHE BOOL "" FORCE)
 
@@ -111,6 +147,10 @@ set_folder_if_target("vendor"
   ptgn_miniaudio
   ptgn_stb_image
   ptgn_imgui_obj
+  vorbis
+  vorbisenc
+  vorbisfile
+  ogg
   ptgn_ecs
   freetype
   msdf-atlas-gen
