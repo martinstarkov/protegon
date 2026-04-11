@@ -1,7 +1,5 @@
 #include "runtime/asset/asset_manager.h"
 
-#include <SDL3_mixer/SDL_mixer.h>
-
 #include <filesystem>
 #include <functional>
 #include <list>
@@ -155,9 +153,7 @@ Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float 
 Audio AssetManager::CreateAudio(bool persistent, const path& asset_path) {
 	Audio audio{ CreateAsset(), persistent };
 
-	auto a{ audio_.CreateAudio(asset_path) };
-
-	audio.GetEntity().Add<std::shared_ptr<MIX_Audio>>(a);
+	audio.GetEntity().Add<ptgn::path>(asset_path);
 
 	return audio;
 }

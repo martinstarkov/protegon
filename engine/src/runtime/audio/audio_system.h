@@ -4,13 +4,10 @@
 #include <optional>
 #include <vector>
 
-#include "core/util/file.h"
 #include "runtime/asset/asset.h"
 #include "runtime/audio/track.h"
 
-struct MIX_Audio;
-struct MIX_Mixer;
-struct MIX_Track;
+struct ma_engine;
 
 namespace ptgn {
 
@@ -22,10 +19,18 @@ inline constexpr float kMaxFrequencyRatio{ 100.0f };
 class AssetManager;
 class Application;
 
+namespace impl {
+
+struct AudioEngineDeleter {
+	void operator()(ma_engine* engine) const noexcept;
+};
+
+} // namespace impl
+
 class AudioSystem {
 public:
 	explicit AudioSystem(AssetManager& assets);
-	~AudioSystem() noexcept;
+	~AudioSystem() noexcept						   = default;
 	AudioSystem(const AudioSystem&)				   = delete;
 	AudioSystem& operator=(const AudioSystem&)	   = delete;
 	AudioSystem(AudioSystem&&) noexcept			   = delete;
@@ -33,24 +38,24 @@ public:
 
 	/// @param volume Volume of the master audio in range [kMinVolume, kMaxVolume].  Volume clamped
 	/// if outside of range.
-	void SetVolume(float volume);
+	void SetVolume(float volume) const;
 
 	/// @return Volume of the master audio in range [kMinVolume, kMaxVolume].
-	float GetVolume();
+	float GetVolume() const;
 
 	/// @brief Toggles the master volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new master volume to this value
 	/// in range [kMinVolume, kMaxVolume]. Volume clamped if outside of range.
-	void ToggleVolume(float new_volume);
+	void ToggleVolume(float new_volume) const;
 
 	/// @brief Stops all audio tracks.
 	void StopAll();
 
 	/// @brief Pauses all audio tracks.
-	void PauseAll() const;
+	void PauseAll();
 
 	/// @brief Resumes all audio tracks.
-	void ResumeAll() const;
+	void ResumeAll();
 
 	/// @return True if any audio track is playing.
 	[[nodiscard]] bool IsAnyPlaying() const;
@@ -121,11 +126,9 @@ private:
 
 	void Update();
 
-	std::shared_ptr<MIX_Audio> CreateAudio(const path& audio_path) const;
-
 	AssetManager& assets_;
 
-	MIX_Mixer* mixer_{ nullptr };
+	std::unique_ptr<ma_engine, impl::AudioEngineDeleter> engine_;
 
 	std::vector<impl::Track> tracks_;
 };
