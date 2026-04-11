@@ -1,5 +1,7 @@
 #include "renderer/backend/gl/gl_buffer.h"
 
+#include <glad/gl.h>
+
 #include <cstdint>
 #include <ostream>
 #include <utility>
@@ -9,7 +11,6 @@
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_debug.h"
 #include "renderer/primitives/id.h"
 
 namespace ptgn::impl::gl {
@@ -66,7 +67,7 @@ void Buffers::SetBufferSubData(
 	// This buffer size check must be done after the buffer is bound.
 	PTGN_ASSERT(
 		(size <= static_cast<std::uint32_t>(
-					 GetBufferParameter(BufferTarget::ArrayBuffer, BufferParameter::Size)
+					 glGetBufferParameter(BufferTarget::ArrayBuffer, BufferParameter::Size)
 				 )),
 		"Attempting to bind data outside of allocated buffer size"
 	);
@@ -78,31 +79,19 @@ void Buffers::SetBufferSubData(
 			std::uint32_t buffer_size{ cache.count * element_size };
 			PTGN_ASSERT(buffer_size > 0);
 			PTGN_ASSERT(
-				(buffer_size <= static_cast<std::uint32_t>(GetBufferParameter(
+				(buffer_size <= static_cast<std::uint32_t>(glGetBufferParameter(
 									BufferTarget::ArrayBuffer, BufferParameter::Size
 								))),
 				"Buffer element size does not appear to match the "
 				"originally allocated buffer element size"
 			);
-			GLCall(BufferData(
+			GLCall(glBufferData(
 				std::to_underlying(target), buffer_size, nullptr, std::to_underlying(cache.usage)
 			));
-#ifdef PTGN_GL_DEBUG_BUFFERS
-			PTGN_LOG(
-				"glBufferData(target=", target, ",size=", buffer_size,
-				",data=nullptr(orphaning),usage=", cache.usage, ")"
-			);
-#endif
 		}
 	}
 
-	GLCall(BufferSubData(std::to_underlying(target), byte_offset, size, data));
-#ifdef PTGN_GL_DEBUG_BUFFERS
-	PTGN_LOG(
-		"glBufferSubData(target=", target, ",offset=", byte_offset, ",size=", size, ",data=", data,
-		")"
-	);
-#endif
+	GLCall(glBufferSubData(std::to_underlying(target), byte_offset, size, data));
 }
 
 template void Buffers::SetBufferSubData<VertexBufferId>(
@@ -124,10 +113,7 @@ T Buffers::CreateBuffer(
 	PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
 
 	T id{ 0 };
-	GLCall(GenBuffers(1, &id.value));
-#ifdef PTGN_GL_DEBUG_BUFFERS
-	PTGN_LOG("glGenBuffers() -> id=", id.value);
-#endif
+	GLCall(glGenBuffers(1, &id.value));
 
 	PTGN_ASSERT(id, "Failed to create buffer");
 
@@ -136,10 +122,7 @@ T Buffers::CreateBuffer(
 
 	const std::uint32_t size = element_count * element_size;
 
-	GLCall(BufferData(std::to_underlying(target), size, data, std::to_underlying(usage)));
-#ifdef PTGN_GL_DEBUG_BUFFERS
-	PTGN_LOG("glBufferData(target=", target, ",size=", size, ",data=", data, ",usage=", usage, ")");
-#endif
+	GLCall(glBufferData(std::to_underlying(target), size, data, std::to_underlying(usage)));
 
 	cache_.Add(id, BufferCache{ .usage = usage, .count = element_count });
 
@@ -161,10 +144,7 @@ void Buffers::DestroyBuffer(T id) {
 	if (!id) {
 		return;
 	}
-	GLCall(DeleteBuffers(1, &id.value));
-#ifdef PTGN_GL_DEBUG_BUFFERS
-	PTGN_LOG("glDeleteBuffers(id=", id.value, ")");
-#endif
+	GLCall(glDeleteBuffers(1, &id.value));
 	cache_.Remove(id);
 }
 
@@ -174,13 +154,8 @@ template void Buffers::DestroyBuffer<UniformBufferId>(UniformBufferId);
 
 int Buffers::GetBufferParameter(BufferTarget target, BufferParameter parameter) const {
 	int value{ -1 };
-	GLCall(GetBufferParameteriv(std::to_underlying(target), std::to_underlying(parameter), &value));
-	// NOSONAR
-	// #ifdef PTGN_GL_DEBUG_BUFFERS
-	//	PTGN_LOG(
-	//		"glGetBufferParameteriv(target=", target, ",parameter=", parameter, ") -> value=", value
-	//	);
-	// #endif
+	GLCall(glGetBufferParameteriv(std::to_underlying(target), std::to_underlying(parameter), &value)
+	);
 	PTGN_ASSERT(value >= 0, "Failed to query buffer parameter");
 	return value;
 }

@@ -1,5 +1,7 @@
 #include "renderer/backend/gl/gl_texture.h"
 
+#include <glad/gl.h>
+
 #include <ostream>
 #include <utility>
 
@@ -9,7 +11,6 @@
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/texture_format.h"
@@ -99,13 +100,6 @@ void Textures::SetTextureData(
 		border, std::to_underlying(pixel_data_format), std::to_underlying(pixel_data_type),
 		pixel_data
 	));
-#ifdef PTGN_GL_DEBUG_TEXTURES
-	PTGN_LOG(
-		"glTexImage2D(target=", target, ",mipmap_level=", mipmap_level, ",format=", format,
-		",size=", size, ",border=", border, ",pixel_format=", pixel_data_format,
-		",pixel_type=", pixel_data_type, ",pixel_data=", pixel_data, ")"
-	);
-#endif
 
 	auto& cache	 = cache_.Get(texture);
 	cache.size	 = size;
@@ -127,13 +121,6 @@ void Textures::SetTextureSubData(
 		subdata_size.x, subdata_size.y, std::to_underlying(pixel_data_format),
 		std::to_underlying(pixel_data_type), pixel_subdata
 	));
-#ifdef PTGN_GL_DEBUG_TEXTURES
-	PTGN_LOG(
-		"glTexSubImage2D(target=", target, ",mipmap_level=", mipmap_level,
-		",offset=", subdata_offset, ",size=", subdata_size, ",pixel_format=", pixel_data_format,
-		",pixel_type=", pixel_data_type, ",pixel_subdata=", pixel_subdata, ")"
-	);
-#endif
 }
 
 void Textures::SetTextureParameter(TextureId texture, TextureParameter param, const float* values)
@@ -142,9 +129,6 @@ void Textures::SetTextureParameter(TextureId texture, TextureParameter param, co
 	PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 	GLCall(glTexParameterfv(std::to_underlying(target), std::to_underlying(param), values));
-#ifdef PTGN_GL_DEBUG_TEXTURES
-	PTGN_LOG("glTexParameterfv(target=", target, ",param=", param, ",values=", values, ")");
-#endif
 }
 
 void Textures::SetTextureParameter(TextureId texture, TextureParameter param, const int* values)
@@ -153,9 +137,6 @@ void Textures::SetTextureParameter(TextureId texture, TextureParameter param, co
 	PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 	GLCall(glTexParameteriv(std::to_underlying(target), std::to_underlying(param), values));
-#ifdef PTGN_GL_DEBUG_TEXTURES
-	PTGN_LOG("glTexParameteriv(target=", target, ",param=", param, ",values=", values, ")");
-#endif
 }
 
 void Textures::SetTextureParameter(TextureId texture, TextureParameter param, float value) const {
@@ -163,9 +144,6 @@ void Textures::SetTextureParameter(TextureId texture, TextureParameter param, fl
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 	GLCall(glTexParameterf(std::to_underlying(target), std::to_underlying(param), value));
-#ifdef PTGN_GL_DEBUG_TEXTURES
-	PTGN_LOG("glTexParameterf(target=", target, ",param=", param, ",value=", value, ")");
-#endif
 }
 
 void Textures::SetTextureParameter(TextureId texture, TextureParameter param, int value) const {
@@ -173,9 +151,6 @@ void Textures::SetTextureParameter(TextureId texture, TextureParameter param, in
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 	GLCall(glTexParameteri(std::to_underlying(target), std::to_underlying(param), value));
-#ifdef PTGN_GL_DEBUG_TEXTURES
-	PTGN_LOG("glTexParameteri(target=", target, ",param=", param, ",value=", value, ")");
-#endif
 }
 
 int Textures::GetTextureParameter(TextureId texture, TextureParameter param) const {
@@ -183,9 +158,6 @@ int Textures::GetTextureParameter(TextureId texture, TextureParameter param) con
 	GLint value{ -1 };
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 	GLCall(glGetTexParameteriv(std::to_underlying(target), std::to_underlying(param), &value));
-#ifdef PTGN_GL_DEBUG_TEXTURES
-	PTGN_LOG("glGetTexParameteriv(target=", target, ",param=", param, ") -> value=", value);
-#endif
 	PTGN_ASSERT(value != -1, "Failed to retrieve texture parameter");
 	return value;
 }
@@ -207,18 +179,12 @@ void Textures::GenerateMipmaps(TextureId texture) const {
 	);
 #endif
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-	GLCall(GenerateMipmap(std::to_underlying(target)));
-#ifdef PTGN_GL_DEBUG_TEXTURES
-	PTGN_LOG("glGenerateMipmap(target=", target, ")");
-#endif
+	GLCall(glGenerateMipmap(std::to_underlying(target)));
 }
 
 TextureId Textures::CreateTexture() {
 	TextureId id{ 0 };
 	GLCall(glGenTextures(1, &id.value));
-#ifdef PTGN_GL_DEBUG_TEXTURES
-	PTGN_LOG("glGenTextures() -> id=", id.value);
-#endif
 	PTGN_ASSERT(id, "Failed to create texture");
 	cache_.Add(id, TextureCache{});
 	return id;
@@ -229,9 +195,6 @@ void Textures::DestroyTexture(TextureId id) {
 		return;
 	}
 	GLCall(glDeleteTextures(1, &id.value));
-#ifdef PTGN_GL_DEBUG_TEXTURES
-	PTGN_LOG("glDeleteTextures(id=", id.value, ")");
-#endif
 	cache_.Remove(id);
 }
 

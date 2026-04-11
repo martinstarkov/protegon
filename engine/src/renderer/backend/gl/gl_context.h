@@ -2,10 +2,8 @@
 
 #include <cstdint>
 
-#include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"
-#include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_shader.h"
@@ -17,25 +15,6 @@
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/render_state.h"
 #include "renderer/primitives/viewport.h"
-
-#ifdef __EMSCRIPTEN__
-
-constexpr auto PTGN_OPENGL_MAJOR_VERSION = 3;
-constexpr auto PTGN_OPENGL_MINOR_VERSION = 0;
-#define PTGN_OPENGL_CONTEXT_PROFILE SDL_GL_CONTEXT_PROFILE_ES
-
-#else
-
-constexpr auto PTGN_OPENGL_MAJOR_VERSION = 3;
-constexpr auto PTGN_OPENGL_MINOR_VERSION = 3;
-#define PTGN_OPENGL_CONTEXT_PROFILE SDL_GL_CONTEXT_PROFILE_CORE
-
-#endif
-
-#define PTGN_IMPL_BLEND_CASE(name, srcRGB, dstRGB, srcA, dstA) \
-	case BlendMode::name: GLCall(BlendFuncSeparate(srcRGB, dstRGB, srcA, dstA)); break;
-
-struct SDL_GLContextState;
 
 namespace ptgn {
 
@@ -121,9 +100,6 @@ public:
 	void Destroy(VertexArrayId id);
 	void Destroy(RenderTargetId id);
 
-	void EnableGammaCorrection() const;
-	void DisableGammaCorrection() const;
-
 	/// @brief Enabling blending will disable depth testing.
 	void SetBlending(bool enabled);
 	void SetBlend(const BlendState& blend_state);
@@ -138,8 +114,6 @@ public:
 	void SetDepthFunc(CompareFunc depth_func);
 	void SetDepthRange(float near_val, float far_val);
 	void SetLineWidth(float width);
-	void SetLineSmoothing(bool enabled);
-	void SetPolygonMode(PolygonMode front_mode, PolygonMode back_mode);
 	void SetColorMask(const ColorMaskState& mask);
 	void SetScissor(const ScissorState& scissor);
 	void SetCull(const CullState& cull);

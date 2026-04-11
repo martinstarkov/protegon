@@ -1,8 +1,6 @@
 
 #include "renderer/renderer.h"
 
-#include <SDL3/SDL_video.h>
-
 #include <algorithm>
 #include <array>
 #include <concepts>
@@ -38,8 +36,8 @@
 #include "renderer/primitives/buffer_layout.h"
 #include "renderer/primitives/color.h"
 #include "renderer/primitives/id.h"
-#include "renderer/primitives/render_state.h"
 #include "renderer/primitives/render_pass.h"
+#include "renderer/primitives/render_state.h"
 #include "renderer/primitives/resource.h"
 #include "renderer/primitives/scaling_mode.h"
 #include "renderer/primitives/shader.h"
@@ -200,9 +198,6 @@ impl::RenderTargetId Renderer::AcquirePooledTarget(V2_int size, TextureFormat fo
 	// Pool is at/over the limit and no compatible spare existed:
 	impl::PooledTarget entry{ CreateRenderTarget(size, format), pool_tick_, true };
 	const auto& rt{ rt_pool_.emplace_back(std::move(entry)) };
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::AcquirePooledTarget -> rt_pool_.size() = ", rt_pool_.size());
-#endif
 
 	return rt.target.resource_;
 }
@@ -216,10 +211,6 @@ void Renderer::ReleasePooledTarget(impl::RenderTargetId render_target) {
 		}
 		return false;
 	});
-
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::ReleasePooledTarget -> rt_pool_.size() = ", rt_pool_.size());
-#endif
 }
 
 void Renderer::DrawTexture(
@@ -428,43 +419,6 @@ void Renderer::FlushBatch() {
 		vao_, static_cast<std::uint32_t>(batch_indices_.size()), impl::gl::IndexType::UnsignedInt,
 		impl::gl::PrimitiveMode::Triangles
 	);
-
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::FlushBatch");
-	PTGN_LOG("Framebuffer: ", gl_->GetBoundState().framebuffer);
-	PTGN_LOG("Blend Mode: ", gl_->GetBoundState().blend);
-	auto shader_id{ gl_->GetBoundShader() };
-	Print("Shader: (id=", shader_id);
-	if (auto shader{ gl_->shaders.cache_.TryGet(shader_id) }) {
-		Print(", name=", shader->program_name);
-	}
-	PrintLine(")");
-	PTGN_LOG("Vertices: (", batch_vertices_.size(), "):");
-
-	for (std::size_t i = 0; i < batch_vertices_.size(); ++i) {
-		PTGN_LOG("  [", i, "] ", batch_vertices_[i]);
-	}
-
-	Print("Indices: (", batch_indices_.size(), "): [");
-
-	for (std::size_t i = 0; i < batch_indices_.size(); ++i) {
-		Print(batch_indices_[i]);
-		if (i + 1 < batch_indices_.size()) {
-			Print(", ");
-		}
-	}
-	PrintLine("]");
-
-	Print("Textures: (", batch_textures_.size(), "): [");
-
-	for (std::size_t i = 0; i < batch_textures_.size(); ++i) {
-		Print(batch_textures_[i]);
-		if (i + 1 < batch_textures_.size()) {
-			Print(", ");
-		}
-	}
-	PrintLine("]");
-#endif
 
 	// Clear batch (keep white texture)
 	batch_vertices_.clear();
@@ -899,15 +853,8 @@ void Renderer::BindScreenTarget() {
 }
 
 void Renderer::BeginFrame() {
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::BeginFrame: BEGIN");
-#endif
 	PTGN_ASSERT(batch_vertices_.empty());
 	PTGN_ASSERT(batch_indices_.empty());
-
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::BeginFrame: Clearing back buffer to transparent");
-#endif
 
 	V2_int window_size{ window_.GetSize() };
 	Color window_background_color{ window_.GetBackgroundColor() };
@@ -917,30 +864,15 @@ void Renderer::BeginFrame() {
 	SetViewport({ {}, window_size });
 	gl_->framebuffers.Clear();
 
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::BeginFrame: Clearing screen target to transparent");
-#endif
-
 	BindScreenTarget();
 	SetViewport({ {}, screen_target_.GetSize() });
 	gl_->framebuffers.ClearToColor(
 		impl::FramebufferId{ screen_target_.resource_ }, background_color_.value
 	);
-
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::BeginFrame: END");
-#endif
 }
 
 void Renderer::EndFrame() {
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::EndFrame(display_viewport=", display_viewport_, "): BEGIN");
-#endif
 	PTGN_ASSERT(display_viewport_.size.BothAboveZero());
-
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::EndFrame: Binding back buffer");
-#endif
 
 	SetFramebuffer({});
 
@@ -949,10 +881,6 @@ void Renderer::EndFrame() {
 	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
 	SetViewProjection(view_projection);
 	SetBlend(BlendMode::ReplaceRGBA, true);
-
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::EndFrame: Drawing screen target to back buffer");
-#endif
 
 	PTGN_ASSERT(
 		GetRenderTargetSize(screen_target_.resource_) == display_viewport_.size,
@@ -967,16 +895,6 @@ void Renderer::EndFrame() {
 	DrawTexture(quad_shader, screen_texture, points, color::White, 0.0f, tex_coords, {});
 
 	FlushBatch();
-
-#ifdef PTGN_GL_DEBUG_RENDERER
-	PTGN_LOG("Renderer::EndFrame: END");
-#endif
-}
-
-void Renderer::SetGLVersion() {
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, PTGN_OPENGL_CONTEXT_PROFILE);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, PTGN_OPENGL_MAJOR_VERSION);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, PTGN_OPENGL_MINOR_VERSION);
 }
 
 impl::ShaderObject Renderer::CreateShader(

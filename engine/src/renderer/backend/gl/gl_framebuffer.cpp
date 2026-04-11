@@ -1,10 +1,5 @@
 #include "renderer/backend/gl/gl_framebuffer.h"
 
-#include <SDL3/SDL_error.h>
-#include <SDL3/SDL_pixels.h>
-#include <SDL3/SDL_surface.h>
-#include <SDL3_image/SDL_image.h>
-
 #include <array>
 #include <cstdint>
 #include <filesystem>
@@ -23,7 +18,6 @@
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/primitives/color.h"
@@ -38,12 +32,6 @@ static void ReadPixels(
 	GLCall(glReadPixels(
 		coord.x, coord.y, size.x, size.y, std::to_underlying(format), std::to_underlying(type), data
 	));
-#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
-	PTGN_LOG(
-		"glReadPixels(coordinate=", coord, ",size=", size, ",format=", format, ",pixel_type=", type,
-		") -> pixel=", data
-	);
-#endif
 }
 
 Attachment ColorAttachment(std::size_t i) {
@@ -98,17 +86,10 @@ void Framebuffers::AttachTexture(
 	constexpr AttachmentObject texture_target{ AttachmentObject::Texture2D };
 	constexpr std::int32_t mipmap_level{ 0 };
 
-	GLCall(FramebufferTexture2D(
+	GLCall(glFramebufferTexture2D(
 		kFrameBufferTarget, std::to_underlying(attachment), std::to_underlying(texture_target),
 		texture, mipmap_level
 	));
-#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
-	PTGN_LOG(
-		"glFramebufferTexture2D(target=kFrameBufferTarget,attachment=", attachment,
-		",texture_target=", texture_target, ",texture=", texture, ",mipmap_level=", mipmap_level,
-		")"
-	);
-#endif
 
 	UpdateFramebufferCache(framebuffer, texture, attachment, texture_target);
 }
@@ -129,25 +110,16 @@ void Framebuffers::AttachRenderbuffer(
 
 	constexpr AttachmentObject renderbuffer_target{ AttachmentObject::Renderbuffer };
 
-	GLCall(FramebufferRenderbuffer(
+	GLCall(glFramebufferRenderbuffer(
 		kFrameBufferTarget, std::to_underlying(attachment), std::to_underlying(renderbuffer_target),
 		renderbuffer
 	));
-#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
-	PTGN_LOG(
-		"glFramebufferRenderbuffer(target=kFrameBufferTarget,attachment=", attachment,
-		",renderbuffer_target=", renderbuffer_target, ",renderbuffer=", renderbuffer, ")"
-	);
-#endif
 
 	UpdateFramebufferCache(framebuffer, renderbuffer, attachment, renderbuffer_target);
 }
 
 void Framebuffers::Clear(ClearBufferBit buffers) const {
 	GLCall(glClear(std::to_underlying(buffers)));
-#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
-	PTGN_LOG("glClear(bits=", buffers, ")");
-#endif
 }
 
 void Framebuffers::ClearToColor(
@@ -164,10 +136,7 @@ void Framebuffers::ClearToColor(
 		"color buffers"
 	);
 	auto c{ static_cast<V4_float>(color) };
-	GLCall(ClearBufferfv(std::to_underlying(buffer), drawbuffer, c.Data()));
-#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
-	PTGN_LOG("glClearBufferfv(type=", buffer, ",drawbuffer=", drawbuffer, ",color=", color, ")");
-#endif
+	GLCall(glClearBufferfv(std::to_underlying(buffer), drawbuffer, c.Data()));
 }
 
 Framebuffers::PixelValue Framebuffers::ReadPixel(
@@ -328,12 +297,12 @@ Framebuffers::PixelBuffer Framebuffers::ReadPixels(
 
 bool Framebuffers::FramebufferIsComplete(FramebufferId framebuffer) const {
 	PTGN_ASSERT(gl_.IsBound(framebuffer), "Cannot check status of framebuffer until it is bound");
-	auto status{ GLCallReturn(CheckFramebufferStatus(kFrameBufferTarget)) };
+	auto status{ GLCallReturn(glCheckFramebufferStatus(kFrameBufferTarget)) };
 	return status == GL_FRAMEBUFFER_COMPLETE;
 }
 
 const char* Framebuffers::GetFramebufferStatus() const {
-	auto status{ GLCallReturn(CheckFramebufferStatus(kFrameBufferTarget)) };
+	auto status{ GLCallReturn(glCheckFramebufferStatus(kFrameBufferTarget)) };
 	switch (status) {
 		case GL_FRAMEBUFFER_COMPLETE:  return "FramebufferId is complete";
 		case GL_FRAMEBUFFER_UNDEFINED: return "FramebufferId is undefined (no framebuffer bound)";
@@ -453,10 +422,7 @@ void Framebuffers::ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size)
 
 FramebufferId Framebuffers::CreateFramebufferImpl() {
 	FramebufferId id{ 0 };
-	GLCall(GenFramebuffers(1, &id.value));
-#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
-	PTGN_LOG("glGenFramebuffers() -> id=", id.value);
-#endif
+	GLCall(glGenFramebuffers(1, &id.value));
 	PTGN_ASSERT(id, "Failed to create framebuffer");
 	cache_.Add(id, FramebufferCache{});
 	return id;
@@ -591,10 +557,7 @@ void Framebuffers::DestroyFramebuffer(FramebufferId id) {
 	if (!id) {
 		return;
 	}
-	GLCall(DeleteFramebuffers(1, &id.value));
-#ifdef PTGN_GL_DEBUG_FRAMEBUFFERS
-	PTGN_LOG("glDeleteFramebuffers(id=", id.value, ")");
-#endif
+	GLCall(glDeleteFramebuffers(1, &id.value));
 	cache_.Remove(id);
 }
 
@@ -627,6 +590,8 @@ void Framebuffers::SavePNG(const path& path, FramebufferId framebuffer, Attachme
 		rgba[idx + 3] = c->a;
 	});
 
+	// TODO: Fix.
+	/*
 	SDL_Surface* surface = SDL_CreateSurfaceFrom(
 		size.x, size.y, SDL_PIXELFORMAT_RGBA32, rgba.data(), size.x * channels
 	);
@@ -638,6 +603,7 @@ void Framebuffers::SavePNG(const path& path, FramebufferId framebuffer, Attachme
 	PTGN_ASSERT(saved, SDL_GetError());
 
 	SDL_DestroySurface(surface);
+	*/
 }
 
 std::ostream& operator<<(std::ostream& os, AttachmentObject object) {

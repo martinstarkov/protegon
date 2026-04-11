@@ -7,7 +7,6 @@
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_debug.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/texture_format.h"
@@ -61,12 +60,9 @@ void Renderbuffers::SetRenderbufferStorage(
 
 	constexpr AttachmentObject target{ AttachmentObject::Renderbuffer };
 
-	GLCall(
-		RenderbufferStorage(std::to_underlying(target), std::to_underlying(format), size.x, size.y)
-	);
-#ifdef PTGN_GL_DEBUG_RENDERBUFFERS
-	PTGN_LOG("glRenderbufferStorage(target=", target, ",format=", format, ",size=", size, ")");
-#endif
+	GLCall(glRenderbufferStorage(
+		std::to_underlying(target), std::to_underlying(format), size.x, size.y
+	));
 
 	auto& cache	 = cache_.Get(renderbuffer);
 	cache.size	 = size;
@@ -75,10 +71,7 @@ void Renderbuffers::SetRenderbufferStorage(
 
 RenderbufferId Renderbuffers::CreateRenderbuffer() {
 	RenderbufferId id{ 0 };
-	GLCall(GenRenderbuffers(1, &id.value));
-#ifdef PTGN_GL_DEBUG_RENDERBUFFERS
-	PTGN_LOG("glGenRenderbuffers() -> id=", id.value);
-#endif
+	GLCall(glGenRenderbuffers(1, &id.value));
 	PTGN_ASSERT(id, "Failed to create renderbuffer");
 	cache_.Add(id, RenderbufferCache{});
 	return id;
@@ -88,10 +81,7 @@ void Renderbuffers::DestroyRenderbuffer(RenderbufferId id) {
 	if (!id) {
 		return;
 	}
-	GLCall(DeleteRenderbuffers(1, &id.value));
-#ifdef PTGN_GL_DEBUG_RENDERBUFFERS
-	PTGN_LOG("glDeleteRenderbuffers(id=", id.value, ")");
-#endif
+	GLCall(glDeleteRenderbuffers(1, &id.value));
 	cache_.Remove(id);
 }
 

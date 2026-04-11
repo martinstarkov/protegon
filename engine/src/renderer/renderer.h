@@ -155,8 +155,6 @@ private:
 		requires std::same_as<std::invoke_result_t<F&>, void>
 	friend void impl::UpdateStateIfChanged(Renderer&, const State&, const State&, F&&);
 
-	static void SetGLVersion();
-
 	impl::ShaderObject CreateShader(
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 	);
