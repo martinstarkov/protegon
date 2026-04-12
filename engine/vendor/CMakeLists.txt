@@ -158,4 +158,4 @@ set_folder_if_target("vendor"
   msdfgen-ext
 )
 
-set_target_properties(update_mappings PROPERTIES FOLDER "vendor/GLFW3")
+set_folder_if_target("vendor/GLFW3" update_mappings)
