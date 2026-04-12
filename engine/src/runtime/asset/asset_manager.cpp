@@ -244,11 +244,11 @@ void AssetManager::LoadDirectory(const path& directory, bool recursive) {
 	};
 
 	if (recursive) {
-		for (const auto& entry : fs::recursive_directory_iterator(directory)) {
+		for (const auto& entry : fs::recursive_directory_iterator(GetAbsolutePath(directory))) {
 			process_entry(entry);
 		}
 	} else {
-		for (const auto& entry : fs::directory_iterator(directory)) {
+		for (const auto& entry : fs::directory_iterator(GetAbsolutePath(directory))) {
 			process_entry(entry);
 		}
 	}
