@@ -2,15 +2,18 @@
 
 #include <array>
 #include <cstdint>
+#include <expected>
 #include <memory>
 #include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/file.h"
+#include "platform/file_dialog.h"
 #include "platform/key.h"
 #include "platform/mouse.h"
 #include "renderer/primitives/color.h"
@@ -138,14 +141,6 @@ std::ostream& operator<<(std::ostream& os, const WindowConfig& config);
 
 class Window {
 public:
-	Window() = delete;
-	explicit Window(EventHandler& events, Renderer& renderer, const WindowConfig& config);
-	~Window() noexcept					 = default;
-	Window(Window&&) noexcept			 = delete;
-	Window& operator=(Window&&) noexcept = delete;
-	Window(const Window&)				 = delete;
-	Window& operator=(const Window&)	 = delete;
-
 	void SetOSCursor(const path& img_filepath, V2_int cursor_hotspot = {});
 	void ResetOSCursor();
 	void SetOSCursorVisibility(bool visibility = true);
@@ -192,10 +187,25 @@ public:
 
 	void ClearInputState();
 
+	FileDialog file;
+
 private:
 	friend class impl::gl::GLContext;
 	friend class Application;
 	friend class SceneInput;
+	friend class FileDialog;
+
+	Window() = delete;
+	explicit Window(EventHandler& events, Renderer& renderer, const WindowConfig& config);
+	~Window();
+	Window(Window&&) noexcept			 = delete;
+	Window& operator=(Window&&) noexcept = delete;
+	Window(const Window&)				 = delete;
+	Window& operator=(const Window&)	 = delete;
+
+	void InitializeFileDialogs();
+
+	void ShutdownFileDialogs();
 
 	void SetCallbacks();
 

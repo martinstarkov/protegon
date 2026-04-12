@@ -2,6 +2,11 @@ include_guard(GLOBAL)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
+# native file dialog
+if (NOT EMSCRIPTEN)
+add_subdirectory(nativefiledialog-extended)
+endif()
+
 # GLFW
 if(EMSCRIPTEN)
   # Use Emscripten's built-in GLFW port.

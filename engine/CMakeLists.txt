@@ -44,6 +44,10 @@ target_link_libraries(protegon
     msdf-atlas-gen::msdf-atlas-gen
 )
 
+if (NOT EMSCRIPTEN)
+  target_link_libraries(protegon PRIVATE nfd)
+endif()
+
 set_target_properties(protegon PROPERTIES DEBUG_POSTFIX d)
 
 if(NOT EMSCRIPTEN)

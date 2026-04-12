@@ -10,9 +10,19 @@ EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
 
 #endif
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
+#ifndef __EMSCRIPTEN__
+#include <nfd.h>
+#include <nfd_glfw3.h>
+#endif
+
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <expected>
 #include <ios>
 #include <memory>
 #include <optional>
@@ -20,6 +30,7 @@ EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/log.h"
@@ -225,7 +236,7 @@ void Window::SetCallbacks() {
 }
 
 Window::Window(EventHandler& events, Renderer& renderer, const WindowConfig& config) :
-	title_{ config.title }, events_{ events }, renderer_{ renderer } {
+	file{ *this }, title_{ config.title }, events_{ events }, renderer_{ renderer } {
 	int exclusive_states = static_cast<int>(config.minimized) + static_cast<int>(config.maximized) +
 						   static_cast<int>(config.fullscreen);
 
@@ -249,15 +260,22 @@ Window::Window(EventHandler& events, Renderer& renderer, const WindowConfig& con
 		PTGN_ASSERT(monitor != nullptr, "glfwGetPrimaryMonitor failed");
 	}
 
-#ifndef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
+	const char* glsl_version = "#version 300 es";
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+#else
+	const char* glsl_version = "#version 330 core";
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
 #ifdef __APPLE__
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
 #endif
 #endif
+
+	InitializeFileDialogs();
 
 	instance_ = std::unique_ptr<GLFWwindow, impl::WindowDeleter>{
 		glfwCreateWindow(config.size.x, config.size.y, title_.c_str(), monitor, nullptr),
@@ -269,6 +287,30 @@ Window::Window(EventHandler& events, Renderer& renderer, const WindowConfig& con
 	glfwMakeContextCurrent(instance_.get());
 
 	glfwSwapInterval(1);
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	(void)io;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;  // Enable Gamepad Controls
+
+	// Setup Dear ImGui style
+	ImGui::StyleColorsDark();
+	// ImGui::StyleColorsLight();
+
+	float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor());
+
+	// Setup scaling
+	ImGuiStyle& style = ImGui::GetStyle();
+	style.ScaleAllSizes(main_scale);
+	style.FontScaleDpi = main_scale;
+
+	ImGui_ImplGlfw_InitForOpenGL(instance_.get(), true);
+#ifdef __EMSCRIPTEN__
+	ImGui_ImplGlfw_InstallEmscriptenCallbacks(instance_.get(), "#canvas");
+#endif
+	ImGui_ImplOpenGL3_Init(glsl_version);
 
 #ifndef __EMSCRIPTEN__
 	int status{ gladLoadGL(glfwGetProcAddress) };
@@ -300,6 +342,12 @@ Window::Window(EventHandler& events, Renderer& renderer, const WindowConfig& con
 
 	// Callbacks should be set after window setup so they dont trigger initially.
 	SetCallbacks();
+}
+
+Window::~Window() {
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
 }
 
 void Window::SwapBuffers() const {
@@ -422,6 +470,23 @@ bool Window::Update() {
 	prev_key_down_	 = key_down_;
 
 	return !quit_;
+}
+
+void Window::InitializeFileDialogs() {
+#ifndef __EMSCRIPTEN__
+	if (NFD_Init() != NFD_OKAY) {
+		PTGN_ERROR("NFD_Init failed: ", NFD_GetError());
+	}
+	if (!NFD_SetDisplayPropertiesFromGLFW()) {
+		PTGN_ERROR("NFD_SetDisplayPropertiesFromGLFW failed");
+	}
+#endif
+}
+
+void Window::ShutdownFileDialogs() {
+#ifndef __EMSCRIPTEN__
+	NFD_Quit();
+#endif
 }
 
 void Window::CacheWindowedRect() {
@@ -772,6 +837,284 @@ void Window::ClearInputState() {
 
 	raw_mouse_position_ = {};
 	raw_scroll_accum_	= {};
+}
+
+#ifndef __EMSCRIPTEN__
+
+static std::string GetNFDError() {
+	if (const char* err{ NFD_GetError() }) {
+		return err;
+	}
+	return "Unknown NFD error";
+}
+
+struct NfdFilterStorage {
+	std::vector<std::string> names;
+	std::vector<std::string> specs;
+	std::vector<nfdu8filteritem_t> items;
+};
+
+static NfdFilterStorage BuildFilters(const std::vector<Window::FileDialogFilter>& filters) {
+	NfdFilterStorage out;
+	out.names.reserve(filters.size());
+	out.specs.reserve(filters.size());
+	out.items.reserve(filters.size());
+
+	for (const auto& filter : filters) {
+		out.names.push_back(filter.name);
+		out.specs.push_back(filter.spec);
+	}
+
+	for (std::size_t i = 0; i < filters.size(); ++i) {
+		out.items.push_back(nfdu8filteritem_t{
+			out.names[i].c_str(),
+			out.specs[i].c_str(),
+		});
+	}
+
+	return out;
+}
+
+struct DialogCommonData {
+	NfdFilterStorage filters;
+	std::string default_path;
+	std::string default_name;
+};
+
+static DialogCommonData BuildDialogCommonData(const Window::FileDialogOptions& options) {
+	DialogCommonData data;
+	data.filters = BuildFilters(options.filters);
+
+	if (options.default_path.has_value()) {
+		data.default_path = options.default_path->string();
+	}
+
+	if (options.default_name.has_value()) {
+		data.default_name = *options.default_name;
+	}
+
+	return data;
+}
+
+template <typename TArgs>
+static void FillCommonDialogArgs(
+	GLFWwindow* glfw_window, const DialogCommonData& common, TArgs& args
+) {
+	if constexpr (requires {
+					  args.filterList;
+					  args.filterCount;
+				  }) {
+		args.filterList	 = common.filters.items.empty() ? nullptr : common.filters.items.data();
+		args.filterCount = static_cast<nfdfiltersize_t>(common.filters.items.size());
+	}
+
+	if constexpr (requires { args.defaultPath; }) {
+		args.defaultPath = common.default_path.empty() ? nullptr : common.default_path.c_str();
+	}
+
+	if constexpr (requires { args.defaultName; }) {
+		args.defaultName = common.default_name.empty() ? nullptr : common.default_name.c_str();
+	}
+
+	NFD_GetNativeWindowFromGLFWWindow(glfw_window, &args.parentWindow);
+}
+
+static Window::DialogResult<path> MakeSinglePathResult(nfdresult_t res, nfdu8char_t* out_path) {
+	switch (res) {
+		case NFD_OKAY: {
+			path result{ out_path ? out_path : "" };
+			if (out_path) {
+				NFD_FreePathU8(out_path);
+			}
+			return std::optional<path>{ std::move(result) };
+		}
+		case NFD_CANCEL: return std::optional<path>{ std::nullopt };
+		case NFD_ERROR:	 return std::unexpected(GetNFDError());
+		default:		 return std::unexpected("Unknown native file dialog result");
+	}
+}
+
+static Window::DialogResult<std::vector<path>> MakePathSetResult(
+	nfdresult_t res, const nfdpathset_t* out_paths
+) {
+	switch (res) {
+		case NFD_OKAY: {
+			std::vector<path> results;
+
+			nfdpathsetsize_t count = 0;
+			const auto count_res   = NFD_PathSet_GetCount(out_paths, &count);
+			if (count_res != NFD_OKAY) {
+				NFD_PathSet_Free(out_paths);
+				return std::unexpected(GetNFDError());
+			}
+
+			results.reserve(static_cast<std::size_t>(count));
+
+			for (nfdpathsetsize_t i = 0; i < count; ++i) {
+				nfdu8char_t* p		= nullptr;
+				const auto path_res = NFD_PathSet_GetPathU8(out_paths, i, &p);
+				if (path_res != NFD_OKAY) {
+					NFD_PathSet_Free(out_paths);
+					return std::unexpected(GetNFDError());
+				}
+
+				results.emplace_back(p ? p : "");
+				if (p) {
+					NFD_PathSet_FreePathU8(p);
+				}
+			}
+
+			NFD_PathSet_Free(out_paths);
+			return std::optional<std::vector<path>>{ std::move(results) };
+		}
+		case NFD_CANCEL: return std::optional<std::vector<path>>{ std::nullopt };
+		case NFD_ERROR:	 return std::unexpected(GetNFDError());
+		default:		 return std::unexpected("Unknown native file dialog result");
+	}
+}
+
+template <typename TArgs, typename TOptions, typename TFunc>
+static Window::DialogResult<path> RunSinglePathDialog(
+	GLFWwindow* glfw_window, const TOptions& options, TFunc&& func
+) {
+	DialogCommonData common = BuildDialogCommonData(options);
+
+	TArgs args = { 0 };
+	FillCommonDialogArgs(glfw_window, common, args);
+
+	nfdu8char_t* out_path = nullptr;
+	return MakeSinglePathResult(func(&out_path, args), out_path);
+}
+
+template <typename TArgs, typename TOptions, typename TFunc>
+[[nodiscard]] DialogResult<std::vector<path>> RunPathSetDialog(
+	GLFWwindow* glfw_window, const TOptions& options, TFunc&& func
+) {
+	DialogCommonData common = BuildDialogCommonData(options);
+
+	TArgs args = { 0 };
+	FillCommonDialogArgs(glfw_window, common, args);
+
+	const nfdpathset_t* out_paths = nullptr;
+	return MakePathSetResult(func(&out_paths, args), out_paths);
+}
+
+#endif
+
+Window::DialogResult<path> Window::OpenFileDialog(const OpenFileDialogOptions& options) const {
+#ifdef __EMSCRIPTEN__
+	return std::unexpected("OpenFileDialog is not supported on Emscripten");
+#else
+	const auto filters = BuildFilters(options.filters);
+
+	nfdopendialogu8args_t args{ 0 };
+	args.filterList	 = filters.items.empty() ? nullptr : filters.items.data();
+	args.filterCount = static_cast<nfdfiltersize_t>(filters.items.size());
+
+	std::string default_path_storage;
+	if (options.default_path.has_value()) {
+		default_path_storage = options.default_path->string();
+		args.defaultPath	 = default_path_storage.c_str();
+	}
+
+	SetParentWindow(instance_.get(), args);
+
+	nfdu8char_t* out_path = nullptr;
+	return MakeSinglePathResult(NFD_OpenDialogU8_With(&out_path, &args), out_path);
+#endif
+}
+
+Window::DialogResult<std::vector<path>> Window::OpenFilesDialog(const OpenFileDialogOptions& options
+) const {
+#ifdef __EMSCRIPTEN__
+	return std::unexpected("OpenFilesDialog is not supported on Emscripten");
+#else
+	const auto filters = BuildFilters(options.filters);
+
+	nfdopendialogu8args_t args{ 0 };
+	args.filterList	 = filters.items.empty() ? nullptr : filters.items.data();
+	args.filterCount = static_cast<nfdfiltersize_t>(filters.items.size());
+
+	std::string default_path_storage;
+	if (options.default_path.has_value()) {
+		default_path_storage = options.default_path->string();
+		args.defaultPath	 = default_path_storage.c_str();
+	}
+
+	SetParentWindow(instance_.get(), args);
+
+	const nfdpathset_t* out_paths = nullptr;
+	return MakePathSetResult(NFD_OpenDialogMultipleU8_With(&out_paths, &args), out_paths);
+#endif
+}
+
+Window::DialogResult<path> Window::SaveFileDialog(const SaveFileDialogOptions& options) const {
+#ifdef __EMSCRIPTEN__
+	return std::unexpected("SaveFileDialog is not supported on Emscripten");
+#else
+	const auto filters = BuildFilters(options.filters);
+
+	nfdsavedialogu8args_t args{ 0 };
+	args.filterList	 = filters.items.empty() ? nullptr : filters.items.data();
+	args.filterCount = static_cast<nfdfiltersize_t>(filters.items.size());
+
+	std::string default_path_storage;
+	if (options.default_path.has_value()) {
+		default_path_storage = options.default_path->string();
+		args.defaultPath	 = default_path_storage.c_str();
+	}
+
+	std::string default_name_storage;
+	if (options.default_name.has_value()) {
+		default_name_storage = *options.default_name;
+		args.defaultName	 = default_name_storage.c_str();
+	}
+
+	SetParentWindow(instance_.get(), args);
+
+	nfdu8char_t* out_path = nullptr;
+	return MakeSinglePathResult(NFD_SaveDialogU8_With(&out_path, &args), out_path);
+#endif
+}
+
+Window::DialogResult<path> Window::PickFolderDialog(const PickFolderDialogOptions& options) const {
+#ifdef __EMSCRIPTEN__
+	return std::unexpected("PickFolderDialog is not supported on Emscripten");
+#else
+	nfdpickfolderu8args_t args{ 0 };
+
+	std::string default_path_storage;
+	if (options.default_path.has_value()) {
+		default_path_storage = options.default_path->string();
+		args.defaultPath	 = default_path_storage.c_str();
+	}
+
+	SetParentWindow(instance_.get(), args);
+
+	nfdu8char_t* out_path = nullptr;
+	return MakeSinglePathResult(NFD_PickFolderU8_With(&out_path, &args), out_path);
+#endif
+}
+
+Window::DialogResult<std::vector<path>> Window::PickFoldersDialog(
+	const PickFolderDialogOptions& options
+) const {
+#ifdef __EMSCRIPTEN__
+	return std::unexpected("PickFoldersDialog is not supported on Emscripten");
+#else
+	nfdpickfolderu8args_t args{ 0 };
+
+	std::string default_path_storage;
+	if (options.default_path.has_value()) {
+		default_path_storage = options.default_path->string();
+		args.defaultPath	 = default_path_storage.c_str();
+	}
+
+	SetParentWindow(instance_.get(), args);
+
+	const nfdpathset_t* out_paths = nullptr;
+	return MakePathSetResult(NFD_PickFolderMultipleU8_With(&out_paths, &args), out_paths);
+#endif
 }
 
 } // namespace ptgn
