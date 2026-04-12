@@ -81,9 +81,9 @@ ApplicationLibrary::~ApplicationLibrary() noexcept {
 
 Application::Application(const ApplicationConfig& config) :
 	window_{ events_, renderer_, config.window },
+	renderer_{ window_, events_ },
 	scenes_{},
 	events_{ scenes_ },
-	renderer_{ window_, events_ },
 	assets_{ renderer_, audio_, font_ },
 	font_{ assets_ },
 	audio_{ assets_ },
@@ -135,7 +135,6 @@ void Application::Update() {
 	/*if (elapsed < dt_) {
 		Delay(duration_cast<milliseconds>(dt_ - elapsed));
 	}*/ // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
-	// PTGN_LOG("Dt: ", dt_);
 
 	start = end;
 

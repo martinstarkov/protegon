@@ -57,7 +57,7 @@ using Timestamp = double;
 /// @brief Number of keys stored in the key states array.
 /// From GLFW documentation.
 inline constexpr std::size_t kKeyCount{ 348 };
-inline constexpr std::size_t kMouseCount{ 3 };
+inline constexpr std::size_t kMouseCount{ 8 };
 
 enum class KeyState : std::uint8_t {
 	Idle	 = 0, /// When the key is not pressed.
@@ -287,6 +287,10 @@ private:
 
 	void ClearInputState();
 
+	std::array<bool, impl::kKeyCount> key_down_{};
+	std::array<bool, impl::kKeyCount> prev_key_down_{};
+	std::array<bool, impl::kMouseCount> mouse_down_{};
+	std::array<bool, impl::kMouseCount> prev_mouse_down_{};
 	std::array<impl::KeyState, impl::kKeyCount> key_states_{};
 	std::array<impl::Timestamp, impl::kKeyCount> key_timestamps_{};
 	std::array<impl::MouseState, impl::kMouseCount> mouse_states_{};
@@ -297,17 +301,21 @@ private:
 	/// be a better alternative.
 	bool mouse_set_{ false };
 
-	/// @brief Stored mouse positions are relative to the center of the window.
-	V2_float mouse_position_;
+	/// @brief Raw mouse position updated by window cursor move callback. Relative to top left of
+	/// the window.
+	V2_float raw_mouse_position_{};
 
-	/// @brief Mouse position during the previous frame, relative to the center of the window.
-	V2_float previous_mouse_position_;
+	/// @brief Current mouse position relative to the center of the window.
+	V2_float mouse_position_{};
 
-	/// @brief Total scroll amount in the current frame (cumulative).
-	V2_float mouse_scroll_delta_;
+	/// @brief Previous mouse position relative to the center of the window.
+	V2_float previous_mouse_position_{};
 
-	/// @brief Scroll amount in the most recent scroll event.
-	V2_float mouse_scroll_;
+	/// @brief Raw mouse scroll accumulated in the current frame.
+	V2_float raw_scroll_accum_{};
+
+	/// @brief Current scroll amount in the current frame (not cumulative).
+	V2_float mouse_scroll_{};
 
 	/// @brief Timestamp of the most recent scroll event.
 	impl::Timestamp mouse_scroll_timestamp_{ 0 };

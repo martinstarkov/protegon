@@ -10,6 +10,7 @@ EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
 
 #endif
 
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <ios>
@@ -18,6 +19,7 @@ EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
 #include <ostream>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "core/assert.h"
 #include "core/log.h"
@@ -145,35 +147,32 @@ void Window::SetCallbacks() {
 		self->events_.Push<event::WindowQuit>();
 	});
 
-	glfwSetKeyCallback(win, [](GLFWwindow* window, int key, int scancode, int action, int mods) {
-		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
-		if (!self || key < 0) {
-			return;
-		}
-
-		PTGN_ASSERT(key < self->key_states_.size(), "Key outside of range of valid keys");
-
-		switch (action) {
-			case GLFW_PRESS: {
-				self->key_timestamps_[key] = glfwGetTime();
-				self->key_states_[key]	   = impl::KeyState::Pressed;
-				self->events_.Push<event::KeyPressed>(Key{ key });
-				self->events_.Push<event::KeyHeld>(Key{ key });
-				break;
+	glfwSetKeyCallback(
+		win,
+		[](GLFWwindow* window, int key, [[maybe_unused]] int scancode, int action,
+		   [[maybe_unused]] int mods) {
+			auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+			if (!self || key < 0 || static_cast<std::size_t>(key) >= self->key_states_.size()) {
+				return;
 			}
-			case GLFW_RELEASE: {
-				self->key_timestamps_[key] = glfwGetTime();
-				self->key_states_[key]	   = impl::KeyState::Released;
-				self->events_.Push<event::KeyReleased>(Key{ key });
-				break;
-			}
-			case GLFW_REPEAT: {
-				self->key_states_[key] = impl::KeyState::Held;
-				self->events_.Push<event::KeyPressed>(Key{ key });
-				self->events_.Push<event::KeyHeld>(Key{ key });
+
+			switch (action) {
+				case GLFW_PRESS: {
+					self->key_down_[static_cast<std::size_t>(key)] = true;
+					break;
+				}
+				case GLFW_RELEASE: {
+					self->key_down_[static_cast<std::size_t>(key)] = false;
+					break;
+				}
+				case GLFW_REPEAT:
+					// Ignore for physical state.
+					// The key is already down.
+					break;
+				default: PTGN_ERROR("Unknown key action: ", action);
 			}
 		}
-	});
+	);
 
 	// TODO: In the future add unicode callback.
 	// glfwSetCharCallback(win, [](GLFWwindow* window, unsigned int keycode) {
@@ -183,33 +182,28 @@ void Window::SetCallbacks() {
 	//	}
 	//});
 
-	glfwSetMouseButtonCallback(win, [](GLFWwindow* window, int button, int action, int mods) {
-		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
-		if (!self || button < 0) {
-			return;
-		}
-
-		PTGN_ASSERT(
-			button < self->mouse_states_.size(),
-			"Mouse button outside of range of valid mouse buttons"
-		);
-
-		switch (action) {
-			case GLFW_PRESS: {
-				self->mouse_timestamps_[button] = glfwGetTime();
-				self->mouse_states_[button]		= impl::MouseState::Pressed;
-				self->events_.Push<event::MousePressed>(Mouse{ button }, self->GetMousePosition());
-				self->events_.Push<event::MouseHeld>(Mouse{ button }, self->GetMousePosition());
-				break;
+	glfwSetMouseButtonCallback(
+		win,
+		[](GLFWwindow* window, int button, int action, [[maybe_unused]] int mods) {
+			auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
+			if (!self || button < 0 ||
+				static_cast<std::size_t>(button) >= self->mouse_states_.size()) {
+				return;
 			}
-			case GLFW_RELEASE: {
-				self->mouse_timestamps_[button] = glfwGetTime();
-				self->mouse_states_[button]		= impl::MouseState::Released;
-				self->events_.Push<event::MouseReleased>(Mouse{ button }, self->GetMousePosition());
-				break;
+
+			switch (action) {
+				case GLFW_PRESS: {
+					self->mouse_down_[static_cast<std::size_t>(button)] = true;
+					break;
+				}
+				case GLFW_RELEASE: {
+					self->mouse_down_[static_cast<std::size_t>(button)] = false;
+					break;
+				}
+				default: PTGN_ERROR("Unknown mouse action: ", action);
 			}
 		}
-	});
+	);
 
 	glfwSetScrollCallback(win, [](GLFWwindow* window, double x, double y) {
 		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
@@ -217,11 +211,7 @@ void Window::SetCallbacks() {
 			return;
 		}
 
-		self->mouse_scroll_timestamp_  = glfwGetTime();
-		self->mouse_scroll_			   = V2_float{ x, y };
-		self->mouse_scroll_delta_	  += self->mouse_scroll_;
-
-		self->events_.Push<event::MouseScroll>(self->mouse_scroll_, self->GetMousePosition());
+		self->raw_scroll_accum_ += V2_float{ x, y };
 	});
 
 	glfwSetCursorPosCallback(win, [](GLFWwindow* window, double x, double y) {
@@ -230,15 +220,7 @@ void Window::SetCallbacks() {
 			return;
 		}
 
-		V2_float pos{ x, y };
-
-		auto half_window_size{ self->GetSize() / 2.0f };
-
-		self->mouse_position_ = pos - half_window_size;
-
-		self->events_.Push<event::MouseMove>(
-			self->mouse_position_, self->previous_mouse_position_ - self->mouse_position_
-		);
+		self->raw_mouse_position_ = { x, y };
 	});
 }
 
@@ -286,6 +268,8 @@ Window::Window(EventHandler& events, Renderer& renderer, const WindowConfig& con
 
 	glfwMakeContextCurrent(instance_.get());
 
+	glfwSwapInterval(1);
+
 #ifndef __EMSCRIPTEN__
 	int status{ gladLoadGL(glfwGetProcAddress) };
 	PTGN_ASSERT(status, "Failed to load OpenGL functions");
@@ -320,6 +304,112 @@ Window::Window(EventHandler& events, Renderer& renderer, const WindowConfig& con
 
 void Window::SwapBuffers() const {
 	glfwSwapBuffers(instance_.get());
+}
+
+bool Window::Update() {
+	glfwPollEvents();
+
+	auto context{ glfwGetCurrentContext() };
+	PTGN_ASSERT(context == instance_.get());
+	PTGN_ASSERT(instance_.get() != nullptr);
+
+	bool focused{ true };
+
+#ifdef __EMSCRIPTEN__
+	// Emscripten does not support window focus, so we assume the window is always focused.
+	focused = true;
+#endif
+
+	previous_mouse_position_ = mouse_position_;
+
+	bool mouse_moved{ !raw_mouse_position_.IsZero() };
+
+	auto half_window_size{ GetSize() / 2.0f };
+
+	if (mouse_moved) {
+		mouse_position_ = raw_mouse_position_ - half_window_size;
+		auto delta{ mouse_position_ - previous_mouse_position_ };
+		events_.Push<event::MouseMove>(mouse_position_, delta);
+		raw_mouse_position_ = {};
+		mouse_set_			= true;
+	} else if (focused) {
+		double x{ 0.0 };
+		double y{ 0.0 };
+		glfwGetCursorPos(instance_.get(), &x, &y);
+
+		V2_float new_mouse_position{ V2_float{ x, y } - half_window_size };
+
+		V2_float difference{ new_mouse_position - mouse_position_ };
+
+		if (!difference.IsZero()) {
+			mouse_position_ = new_mouse_position;
+			if (mouse_set_) {
+				events_.Push<event::MouseMove>(mouse_position_, difference);
+			}
+			mouse_set_ = true;
+		}
+	}
+
+	mouse_scroll_ = raw_scroll_accum_;
+	if (!mouse_scroll_.IsZero()) {
+		mouse_scroll_timestamp_ = glfwGetTime();
+	}
+	raw_scroll_accum_ = {};
+
+	if (focused) { // NOSONAR
+		if (!mouse_scroll_.IsZero()) {
+			events_.Push<event::MouseScroll>(mouse_scroll_, mouse_position_);
+		}
+
+		for (std::size_t i = 0; i < mouse_states_.size(); ++i) {
+			bool was_down = prev_mouse_down_[i];
+			bool is_down  = mouse_down_[i];
+
+			using enum impl::MouseState;
+			if (!was_down && is_down) {
+				mouse_states_[i]	 = Pressed;
+				mouse_timestamps_[i] = glfwGetTime();
+				events_.Push<event::MousePressed>(static_cast<Mouse>(i), mouse_position_);
+				events_.Push<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
+			} else if (was_down && is_down) {
+				mouse_states_[i] = Held;
+				events_.Push<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
+			} else if (was_down && !is_down) {
+				mouse_states_[i]	 = Released;
+				mouse_timestamps_[i] = glfwGetTime();
+				events_.Push<event::MouseReleased>(static_cast<Mouse>(i), mouse_position_);
+			} else {
+				mouse_states_[i] = Idle;
+			}
+		}
+
+		for (std::size_t i = 0; i < key_states_.size(); ++i) {
+			bool was_down = prev_key_down_[i];
+			bool is_down  = key_down_[i];
+
+			using enum impl::KeyState;
+			if (!was_down && is_down) {
+				key_states_[i]	   = Pressed;
+				key_timestamps_[i] = glfwGetTime();
+				events_.Push<event::KeyPressed>(static_cast<Key>(i));
+				events_.Push<event::KeyHeld>(static_cast<Key>(i));
+			} else if (was_down && is_down) {
+				key_states_[i] = Held;
+				events_.Push<event::KeyHeld>(static_cast<Key>(i));
+			} else if (was_down && !is_down) {
+				key_states_[i]	   = Released;
+				key_timestamps_[i] = glfwGetTime();
+				events_.Push<event::KeyReleased>(static_cast<Key>(i));
+			} else {
+				key_states_[i] = Idle;
+			}
+		}
+	}
+
+	prev_mouse_down_ = mouse_down_;
+	prev_key_down_	 = key_down_;
+
+	return !quit_;
 }
 
 void Window::CacheWindowedRect() {
@@ -440,6 +530,7 @@ void Window::SetSize(V2_int new_size, bool centered) {
 
 V2_int Window::GetSize() const {
 	V2_int window_size;
+	// glfwGetWindowSize(instance_.get(), &window_size.x, &window_size.y);
 	glfwGetFramebufferSize(instance_.get(), &window_size.x, &window_size.y);
 	return window_size;
 }
@@ -485,33 +576,23 @@ void Window::SetSetting(WindowSetting setting) {
 
 	switch (setting) {
 		using enum WindowSetting;
-
 		case None:		 break;
-
 		case Shown:		 glfwShowWindow(win); break;
-
 		case Hidden:	 glfwHideWindow(win); break;
-
 		case Windowed:	 SetFullscreen(false); break;
-
 		case Fullscreen: SetFullscreen(true); break;
-
 		case Borderless: glfwSetWindowAttrib(win, GLFW_DECORATED, GLFW_FALSE); break;
-
 		case Bordered:	 glfwSetWindowAttrib(win, GLFW_DECORATED, GLFW_TRUE); break;
-
 		case Resizable:	 glfwSetWindowAttrib(win, GLFW_RESIZABLE, GLFW_TRUE); break;
-
 		case FixedSize:	 glfwSetWindowAttrib(win, GLFW_RESIZABLE, GLFW_FALSE); break;
-
+		case Minimized:	 glfwIconifyWindow(win); break;
 		case Maximized:
 			if (glfwGetWindowMonitor(win) == nullptr) {
 				glfwMaximizeWindow(win);
 				windowed_was_maximized_ = true;
 			}
 			break;
-
-		case Minimized: glfwIconifyWindow(win); break;
+		default: PTGN_ERROR("Unknown WindowSetting: ", std::to_underlying(setting));
 	}
 }
 
@@ -521,7 +602,6 @@ bool Window::GetSetting(WindowSetting setting) const {
 
 	switch (setting) {
 		using enum WindowSetting;
-
 		case None:		 return false;
 		case Shown:		 return glfwGetWindowAttrib(win, GLFW_VISIBLE) == GLFW_TRUE;
 		case Hidden:	 return glfwGetWindowAttrib(win, GLFW_VISIBLE) == GLFW_FALSE;
@@ -533,7 +613,7 @@ bool Window::GetSetting(WindowSetting setting) const {
 		case FixedSize:	 return glfwGetWindowAttrib(win, GLFW_RESIZABLE) == GLFW_FALSE;
 		case Maximized:	 return glfwGetWindowAttrib(win, GLFW_MAXIMIZED) == GLFW_TRUE;
 		case Minimized:	 return glfwGetWindowAttrib(win, GLFW_ICONIFIED) == GLFW_TRUE;
-		default:		 return false;
+		default:		 PTGN_ERROR("Unknown WindowSetting: ", std::to_underlying(setting));
 	}
 }
 
@@ -607,63 +687,6 @@ std::ostream& operator<<(std::ostream& os, const WindowConfig& config) {
 	return os;
 }
 
-bool Window::Update() {
-	previous_mouse_position_ = mouse_position_;
-	mouse_scroll_			 = {};
-	mouse_scroll_delta_		 = {};
-
-	// Set key state from pressed to held and from released to idle to ensure those states only
-	// last one frame.
-	for (std::size_t i{ 0 }; i < key_states_.size(); ++i) {
-		using enum impl::KeyState;
-		auto& state{ key_states_[i] };
-		if (state == Released) {
-			state			   = Idle;
-			key_timestamps_[i] = glfwGetTime();
-		} else if (state == Pressed) {
-			state = Held;
-		}
-	}
-
-	// Set mouse button states from pressed to held and from released to idle to ensure those states
-	// only last one frame.
-	for (std::size_t i{ 0 }; i < mouse_states_.size(); ++i) {
-		using enum impl::MouseState;
-		auto& state{ mouse_states_[i] };
-		if (state == Released) {
-			state				 = Idle;
-			mouse_timestamps_[i] = glfwGetTime();
-		} else if (state == Pressed) {
-			state = Held;
-		}
-	}
-
-	glfwPollEvents();
-
-	auto context{ glfwGetCurrentContext() };
-	PTGN_ASSERT(context == instance_.get());
-	PTGN_ASSERT(instance_.get() != nullptr);
-
-	if (focused_) {
-		// Before polling events, their states are updated from pressed to held and from released to
-		// idle. This means that if a key or mouse button is still held after polling events, it has
-		// must have been held.
-		for (std::size_t i{ 0 }; i < mouse_states_.size(); ++i) {
-			if (mouse_states_[i] == impl::MouseState::Held) {
-				events_.Push<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
-			}
-		}
-
-		for (std::size_t i{ 0 }; i < key_states_.size(); ++i) {
-			if (key_states_[i] == impl::KeyState::Held) {
-				events_.Push<event::KeyHeld>(static_cast<Key>(i));
-			}
-		}
-	}
-
-	return !quit_;
-}
-
 static duration<double> GetTimeSince(impl::Timestamp timestamp) {
 	return duration<double>{ glfwGetTime() - timestamp };
 }
@@ -681,7 +704,7 @@ V2_float Window::GetMouseDelta() const {
 }
 
 float Window::GetMouseScroll() const {
-	return mouse_scroll_delta_.y;
+	return mouse_scroll_.y;
 }
 
 bool Window::MousePressed(Mouse mouse_button) const {
@@ -728,17 +751,22 @@ milliseconds Window::GetKeyHeldTime(Key key) const {
 
 void Window::ClearInputState() {
 	for (std::size_t i = 0; i < key_states_.size(); ++i) {
+		key_down_[i]	   = false;
+		prev_key_down_[i]  = false;
 		key_states_[i]	   = impl::KeyState::Idle;
 		key_timestamps_[i] = glfwGetTime();
 	}
 
 	for (std::size_t i = 0; i < mouse_states_.size(); ++i) {
+		mouse_down_[i]		 = false;
+		prev_mouse_down_[i]	 = false;
 		mouse_states_[i]	 = impl::MouseState::Idle;
 		mouse_timestamps_[i] = glfwGetTime();
 	}
 
-	mouse_scroll_		= {};
-	mouse_scroll_delta_ = {};
+	raw_scroll_accum_		= {};
+	mouse_scroll_			= {};
+	mouse_scroll_timestamp_ = glfwGetTime();
 }
 
 } // namespace ptgn

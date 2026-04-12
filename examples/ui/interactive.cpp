@@ -76,7 +76,7 @@ struct DraggableScript : public Script {
 	}
 
 	void OnDrag(V2_float pos) {
-		// PTGN_LOG(entity, " drag pos: ", pos);
+		// PTGN_LOG("Setting draggable entity position to: ", pos);
 		SetPosition(entity, pos);
 	}
 
@@ -230,12 +230,6 @@ struct InteractiveScene : public Scene {
 	const float zoom_speed{ 0.4f };
 
 	void OnUpdate() override {
-		PTGN_LOG(
-			"Pressed: ", ctx().input.MousePressed(Mouse::Left),
-			", held: ", ctx().input.MouseHeld(Mouse::Left),
-			", released: ", ctx().input.MouseReleased(Mouse::Left)
-		);
-
 		if (ctx().input.KeyPressed(Key::T)) {
 			bool desired{ !ctx().input.IsTopOnly() };
 			ctx().input.SetTopOnly(desired);
