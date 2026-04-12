@@ -35,6 +35,9 @@ namespace impl {
 static EM_BOOL EmscriptenResize(
 	int event_type, const EmscriptenUiEvent* ui_event, void* window_ptr
 ) {
+	if (!window_ptr) {
+		return -1;
+	}
 	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
 	V2_int window_size{ ui_event->windowInnerWidth, ui_event->windowInnerHeight };
 	// TODO: Figure out how to deal with itch.io fullscreen button not changing status to
@@ -48,9 +51,24 @@ static EM_BOOL EmscriptenResize(
 	return 0;
 }
 
+static EM_BOOL EmscriptenResizeMouseLeave(
+	int event_type, const EmscriptenMouseEvent* mouse_event, void* window_ptr
+) {
+	if (!window_ptr) {
+		return -1;
+	}
+	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
+	window.ClearInputState();
+	return 0;
+}
+
 static void EmscriptenInit(Window& window) {
 	emscripten_set_resize_callback(
 		EMSCRIPTEN_EVENT_TARGET_WINDOW, static_cast<void*>(&window), 0, EmscriptenResize
+	);
+	emscripten_set_mouseleave_callback(
+		EMSCRIPTEN_EVENT_TARGET_WINDOW, static_cast<void*>(&window), EM_TRUE,
+		EmscriptenResizeMouseLeave
 	);
 }
 
