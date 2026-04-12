@@ -190,6 +190,8 @@ public:
 	V2_int GetCanvasSize() const;
 #endif
 
+	void ClearInputState();
+
 private:
 	friend class impl::gl::GLContext;
 	friend class Application;
@@ -284,8 +286,6 @@ private:
 	/// @return The amount of time that the key has been held down, negative numbers
 	/// indicate the time since the key was last held.
 	milliseconds GetKeyHeldTime(Key key) const;
-
-	void ClearInputState();
 
 	std::array<bool, impl::kKeyCount> key_down_{};
 	std::array<bool, impl::kKeyCount> prev_key_down_{};

@@ -313,7 +313,7 @@ bool Window::Update() {
 	PTGN_ASSERT(context == instance_.get());
 	PTGN_ASSERT(instance_.get() != nullptr);
 
-	bool focused{ true };
+	bool focused{ focused_ };
 
 #ifdef __EMSCRIPTEN__
 	// Emscripten does not support window focus, so we assume the window is always focused.
@@ -329,7 +329,9 @@ bool Window::Update() {
 	if (mouse_moved) {
 		mouse_position_ = raw_mouse_position_ - half_window_size;
 		auto delta{ mouse_position_ - previous_mouse_position_ };
-		events_.Push<event::MouseMove>(mouse_position_, delta);
+		if (focused) {
+			events_.Push<event::MouseMove>(mouse_position_, delta);
+		}
 		raw_mouse_position_ = {};
 		mouse_set_			= true;
 	} else if (focused) {
@@ -356,53 +358,63 @@ bool Window::Update() {
 	}
 	raw_scroll_accum_ = {};
 
-	if (focused) { // NOSONAR
-		if (!mouse_scroll_.IsZero()) {
-			events_.Push<event::MouseScroll>(mouse_scroll_, mouse_position_);
-		}
+	if (focused && !mouse_scroll_.IsZero()) {
+		events_.Push<event::MouseScroll>(mouse_scroll_, mouse_position_);
+	}
 
-		for (std::size_t i = 0; i < mouse_states_.size(); ++i) {
-			bool was_down = prev_mouse_down_[i];
-			bool is_down  = mouse_down_[i];
+	for (std::size_t i = 0; i < mouse_states_.size(); ++i) {
+		bool was_down = prev_mouse_down_[i];
+		bool is_down  = mouse_down_[i];
 
-			using enum impl::MouseState;
-			if (!was_down && is_down) {
-				mouse_states_[i]	 = Pressed;
-				mouse_timestamps_[i] = glfwGetTime();
+		using enum impl::MouseState;
+		if (!was_down && is_down) {
+			mouse_states_[i]	 = Pressed;
+			mouse_timestamps_[i] = glfwGetTime();
+			if (focused) {
 				events_.Push<event::MousePressed>(static_cast<Mouse>(i), mouse_position_);
 				events_.Push<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
-			} else if (was_down && is_down) {
-				mouse_states_[i] = Held;
-				events_.Push<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
-			} else if (was_down && !is_down) {
-				mouse_states_[i]	 = Released;
-				mouse_timestamps_[i] = glfwGetTime();
-				events_.Push<event::MouseReleased>(static_cast<Mouse>(i), mouse_position_);
-			} else {
-				mouse_states_[i] = Idle;
 			}
+		} else if (was_down && is_down) {
+			mouse_states_[i] = Held;
+			if (focused) {
+				events_.Push<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
+			}
+		} else if (was_down && !is_down) {
+			mouse_states_[i]	 = Released;
+			mouse_timestamps_[i] = glfwGetTime();
+			if (focused) {
+				events_.Push<event::MouseReleased>(static_cast<Mouse>(i), mouse_position_);
+			}
+		} else {
+			mouse_states_[i] = Idle;
 		}
+	}
 
-		for (std::size_t i = 0; i < key_states_.size(); ++i) {
-			bool was_down = prev_key_down_[i];
-			bool is_down  = key_down_[i];
+	for (std::size_t i = 0; i < key_states_.size(); ++i) {
+		bool was_down = prev_key_down_[i];
+		bool is_down  = key_down_[i];
 
-			using enum impl::KeyState;
-			if (!was_down && is_down) {
-				key_states_[i]	   = Pressed;
-				key_timestamps_[i] = glfwGetTime();
+		using enum impl::KeyState;
+		if (!was_down && is_down) {
+			key_states_[i]	   = Pressed;
+			key_timestamps_[i] = glfwGetTime();
+			if (focused) {
 				events_.Push<event::KeyPressed>(static_cast<Key>(i));
 				events_.Push<event::KeyHeld>(static_cast<Key>(i));
-			} else if (was_down && is_down) {
-				key_states_[i] = Held;
-				events_.Push<event::KeyHeld>(static_cast<Key>(i));
-			} else if (was_down && !is_down) {
-				key_states_[i]	   = Released;
-				key_timestamps_[i] = glfwGetTime();
-				events_.Push<event::KeyReleased>(static_cast<Key>(i));
-			} else {
-				key_states_[i] = Idle;
 			}
+		} else if (was_down && is_down) {
+			key_states_[i] = Held;
+			if (focused) {
+				events_.Push<event::KeyHeld>(static_cast<Key>(i));
+			}
+		} else if (was_down && !is_down) {
+			key_states_[i]	   = Released;
+			key_timestamps_[i] = glfwGetTime();
+			if (focused) {
+				events_.Push<event::KeyReleased>(static_cast<Key>(i));
+			}
+		} else {
+			key_states_[i] = Idle;
 		}
 	}
 
@@ -751,22 +763,15 @@ milliseconds Window::GetKeyHeldTime(Key key) const {
 
 void Window::ClearInputState() {
 	for (std::size_t i = 0; i < key_states_.size(); ++i) {
-		key_down_[i]	   = false;
-		prev_key_down_[i]  = false;
-		key_states_[i]	   = impl::KeyState::Idle;
-		key_timestamps_[i] = glfwGetTime();
+		key_down_[i] = false;
 	}
 
 	for (std::size_t i = 0; i < mouse_states_.size(); ++i) {
-		mouse_down_[i]		 = false;
-		prev_mouse_down_[i]	 = false;
-		mouse_states_[i]	 = impl::MouseState::Idle;
-		mouse_timestamps_[i] = glfwGetTime();
+		mouse_down_[i] = false;
 	}
 
-	raw_scroll_accum_		= {};
-	mouse_scroll_			= {};
-	mouse_scroll_timestamp_ = glfwGetTime();
+	raw_mouse_position_ = {};
+	raw_scroll_accum_	= {};
 }
 
 } // namespace ptgn
