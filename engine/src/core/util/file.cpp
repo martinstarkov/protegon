@@ -13,10 +13,11 @@
 namespace ptgn {
 
 std::string FileToString(const path& file) {
+	PTGN_ASSERT(FileExists(file), "Cannot convert non-existent file to string: ", file.string());
 	// Source: https://stackoverflow.com/a/2602258
-	std::ifstream f(file, std::ios::in | std::ios::binary);
+	std::ifstream f(GetAbsolutePath(file), std::ios::in | std::ios::binary);
 	// TODO: Add further checks for file being opened correctly.
-	PTGN_ASSERT(f, "Could not open file to convert it to string");
+	PTGN_ASSERT(f, "Could not open file to convert it to string: ", file.string());
 	std::stringstream buffer;
 	buffer << f.rdbuf();
 	return buffer.str();
