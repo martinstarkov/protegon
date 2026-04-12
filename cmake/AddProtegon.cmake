@@ -1,6 +1,3 @@
-set(PTGN_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}" CACHE INTERNAL "")
-set(PTGN_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}" CACHE INTERNAL "")
-
 function(add_protegon_to target)
   if(NOT TARGET ${target})
     message(FATAL_ERROR "add_protegon_to: target '${target}' does not exist")
@@ -23,7 +20,13 @@ function(add_protegon_to target)
     target_compile_definitions(${target} PRIVATE PTGN_EDITOR=1)
   endif()
 
-  if(EMSCRIPTEN)
+  if(NOT EMSCRIPTEN)
+    if(NOT PTGN_ASSETS_DIR)
+      target_compile_definitions(protegon PRIVATE PTGN_ASSET_ROOT="${CMAKE_SOURCE_DIR}")
+    else()
+      target_compile_definitions(protegon PRIVATE PTGN_ASSET_ROOT="${PTGN_ASSETS_DIR}/..")
+    endif()
+  else()
     if(NOT PTGN_ASSETS_DIR)
       message(FATAL_ERROR
         "add_protegon_to(${target}): ASSETS_DIR is required when building with Emscripten"
@@ -31,9 +34,7 @@ function(add_protegon_to target)
     endif()
 
     if(NOT PTGN_SHELL_HTML)
-      message(FATAL_ERROR
-        "add_protegon_to(${target}): SHELL_HTML is required when building with Emscripten"
-      )
+      set(PTGN_SHELL_HTML "${CMAKE_CURRENT_SOURCE_DIR}/../platform/emscripten/shell.html")
     endif()
 
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/dist")
@@ -49,32 +50,54 @@ function(add_protegon_to target)
     else()
       target_compile_options(${target} PRIVATE -O3)
     endif()
-
-    if(EXISTS "${PTGN_ASSETS_DIR}")
-      target_link_options(${target} PRIVATE
-        "--preload-file=${PTGN_ASSETS_DIR}@/assets"
-      )
-    else()
-      message(FATAL_ERROR
-        "add_protegon_to(${target}): ASSETS_DIR does not exist: ${PTGN_ASSETS_DIR}"
-      )
-    endif()
-
-    if(NOT EXISTS "${PTGN_SHELL_HTML}")
-      message(FATAL_ERROR
-        "add_protegon_to(${target}): SHELL_HTML does not exist: ${PTGN_SHELL_HTML}"
-      )
-    endif()
+    
+    target_compile_definitions(protegon PRIVATE PTGN_ASSET_ROOT="/assets/..")
 
     target_link_options(${target} PRIVATE
       "--shell-file=${PTGN_SHELL_HTML}"
+      "--preload-file=${PTGN_ASSETS_DIR}@/assets"
       "-sALLOW_MEMORY_GROWTH=1"
       "-sFULL_ES3=1"
       "-sWARN_ON_UNDEFINED_SYMBOLS=1"
       "-sNO_EXIT_RUNTIME=1"
-      "-sAGGRESSIVE_VARIABLE_ELIMINATION=1"
       "-sUSE_ZLIB=1"
-      "-sASSERTIONS=1"
     )
+
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+      target_compile_options(${target} PRIVATE
+        -O0
+        -g3
+      )
+
+      target_link_options(${target} PRIVATE
+        -O0
+        -g3
+        "-sASSERTIONS=2"
+        "-sSTACK_OVERFLOW_CHECK=2"
+        "-sSAFE_HEAP=1"
+      )
+
+    elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+      target_compile_options(${target} PRIVATE
+        -O2
+        -g3
+      )
+
+      target_link_options(${target} PRIVATE
+        -O2
+        -g3
+        "-sASSERTIONS=1"
+      )
+
+    else()
+      target_compile_options(${target} PRIVATE
+        -O3
+      )
+
+      target_link_options(${target} PRIVATE
+        -O3
+        "-sASSERTIONS=1"
+      )
+    endif()
   endif()
 endfunction()

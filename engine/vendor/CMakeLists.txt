@@ -25,52 +25,38 @@ else()
 endif()
 
 # Ogg / Vorbis
-if(NOT EMSCRIPTEN)
-  set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 
-  set(_old_warn_deprecated ${CMAKE_WARN_DEPRECATED})
-  set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
-  add_subdirectory(ogg)
-  add_subdirectory(vorbis)
-  set(CMAKE_WARN_DEPRECATED ${_old_warn_deprecated} CACHE BOOL "" FORCE)
-endif()
+set(_old_warn_deprecated ${CMAKE_WARN_DEPRECATED})
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
+add_subdirectory(ogg)
+add_subdirectory(vorbis)
+set(CMAKE_WARN_DEPRECATED ${_old_warn_deprecated} CACHE BOOL "" FORCE)
 
 # miniaudio
-if(EMSCRIPTEN)
-  add_library(ptgn_miniaudio STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/miniaudio.c
-  )
-else()
-  add_library(ptgn_miniaudio STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/miniaudio.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/extras/decoders/libvorbis/miniaudio_libvorbis.c
-  )
-endif()
+add_library(ptgn_miniaudio STATIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/miniaudio.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/extras/decoders/libvorbis/miniaudio_libvorbis.c
+)
 
 target_include_directories(ptgn_miniaudio
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio
 )
 
-if(NOT EMSCRIPTEN)
-  target_include_directories(ptgn_miniaudio
-    PRIVATE
-      ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/extras/decoders/libvorbis
-      ${CMAKE_CURRENT_SOURCE_DIR}/ogg/include
-      ${CMAKE_CURRENT_SOURCE_DIR}/vorbis/include
-  )
+target_include_directories(ptgn_miniaudio
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/extras/decoders/libvorbis
+    ${CMAKE_CURRENT_SOURCE_DIR}/ogg/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/vorbis/include
+)
 
-  target_link_libraries(ptgn_miniaudio
-    PUBLIC
-      ogg
-      vorbis
-      vorbisfile
-  )
-endif()
-
-if(UNIX AND NOT APPLE AND NOT EMSCRIPTEN)
-  target_link_libraries(ptgn_miniaudio PUBLIC pthread m dl)
-endif()
+target_link_libraries(ptgn_miniaudio
+  PUBLIC
+    ogg
+    vorbis
+    vorbisfile
+)
 
 # stb_image
 add_library(ptgn_stb_image STATIC ${CMAKE_CURRENT_SOURCE_DIR}/stb_image/stb_image.cpp)

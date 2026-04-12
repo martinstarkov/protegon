@@ -44,7 +44,6 @@ target_link_libraries(protegon
     msdf-atlas-gen::msdf-atlas-gen
 )
 
-target_compile_definitions(protegon PRIVATE PTGN_ROOT="${CMAKE_SOURCE_DIR}")
 set_target_properties(protegon PROPERTIES DEBUG_POSTFIX d)
 
 if(NOT EMSCRIPTEN)

@@ -19,6 +19,7 @@ path GetWorkingDirectory();
 [[nodiscard]] bool IsDirectoryPath(const std::string& potential_directory_path);
 path GetAbsolutePath(const path& relative_file_path);
 path GetRelativePath(const path& absolute_file_path);
+path GetAssetRoot();
 
 void to_json(json& j, const path& p);
 void from_json(const json& j, path& p);

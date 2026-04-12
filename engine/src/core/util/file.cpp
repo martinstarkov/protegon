@@ -90,11 +90,24 @@ bool DirectoryExists(const path& directory_path) {
 }
 
 path GetAbsolutePath(const path& relative_file_path) {
-	return (path{ PTGN_ROOT } / relative_file_path).lexically_normal();
+	auto combined{ GetAssetRoot() / relative_file_path };
+
+	if (fs::exists(combined)) {
+		return combined.lexically_normal();
+	}
+
+	auto absolute_path{ GetWorkingDirectory() / relative_file_path };
+
+	return absolute_path.lexically_normal();
 }
 
 path GetRelativePath(const path& absolute_file_path) {
 	return absolute_file_path.relative_path();
+}
+
+path GetAssetRoot() {
+	path root{ PTGN_ASSET_ROOT };
+	return root.lexically_normal();
 }
 
 void to_json(json& j, const path& p) {
