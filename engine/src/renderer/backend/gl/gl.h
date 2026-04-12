@@ -1,6 +1,16 @@
 #pragma once
 
+#ifdef __EMSCRIPTEN__
+
+#include <GLES3/gl3.h>
+#define glClearDepth glClearDepthf
+#define glDepthRange glDepthRangef
+
+#else
+
 #include <glad/gl.h>
+
+#endif
 
 #include <source_location>
 #include <string_view>

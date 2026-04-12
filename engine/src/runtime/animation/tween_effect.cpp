@@ -96,7 +96,7 @@ static Tween BounceImpl(
 	}
 
 	auto reset_bounce = [](auto p) mutable {
-		auto& offsets{ p.parent.Get<Offsets>() };
+		auto& offsets{ p.parent.template Get<Offsets>() };
 		offsets.bounce = {};
 	};
 
@@ -110,8 +110,7 @@ static Tween BounceImpl(
 
 			float t{ ApplyBounceEase(linear_progress, symmetrical, current_ease) };
 
-			auto& offsets{ p.parent.Get<Offsets>() };
-
+			auto& offsets{ p.parent.template Get<Offsets>() };
 			offsets.bounce.SetPosition(static_offset + amplitude * t);
 		})
 		.OnPointComplete(reset_bounce)
@@ -529,14 +528,14 @@ Tween Shake(
 
 	const auto shake_func = [seed, config, previous_target,
 							 target_intensity](const auto& p) mutable {
-		auto& shake{ p.tween.Get<impl::ShakeEffect>() };
+		auto& shake{ p.tween.template Get<impl::ShakeEffect>() };
 
 		float current_intensity{ Lerp(previous_target, target_intensity, p.progress) };
 		PTGN_ASSERT(current_intensity >= 0.0f && current_intensity <= 1.0f);
 
 		shake.trauma = current_intensity;
 
-		auto& offsets{ p.parent.Get<impl::Offsets>() };
+		auto& offsets{ p.parent.template Get<impl::Offsets>() };
 
 		ApplyShake(p.tween.GetScene().ctx().TimeSinceStart(), offsets, shake.trauma, config, seed);
 	};
@@ -565,12 +564,12 @@ Tween Shake(
 	if (!reset_trauma) {
 		// Add a infinite tween point that reduces trauma organically.
 		tween.During(0ms).Repeat().OnProgress([config, seed](auto p) {
-			if (!p.tween.Has<impl::ShakeEffect>()) {
+			if (!p.tween.template Has<impl::ShakeEffect>()) {
 				p.tween.IncrementPoint();
 				return;
 			}
-			auto& shake{ p.tween.Get<impl::ShakeEffect>() };
-			auto& offsets{ p.parent.Get<impl::Offsets>() };
+			auto& shake{ p.tween.template Get<impl::ShakeEffect>() };
+			auto& offsets{ p.parent.template Get<impl::Offsets>() };
 
 			const auto& ctx{ p.tween.GetScene().ctx() };
 

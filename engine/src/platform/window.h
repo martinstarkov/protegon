@@ -197,14 +197,11 @@ private:
 
 	void SetCallbacks();
 
+	void CacheWindowedRect();
+
 	/// @brief While the mouse is in relative mode, the cursor is hidden, the mouse position is
 	/// constrained to the window, and there will be continuous relative mouse motion events
 	/// triggered even if the mouse is at the edge of the window.
-	/// @param Whether or not mouse relative mode should be turned on or not.
-	void SetRelativeMouseMode(bool on);
-
-	void CacheWindowedRect();
-
 	void SetMouseMode(MouseMode mode);
 	void SetAlwaysOnTop(bool on);
 

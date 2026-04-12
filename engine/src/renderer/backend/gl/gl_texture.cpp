@@ -1,7 +1,5 @@
 #include "renderer/backend/gl/gl_texture.h"
 
-#include <glad/gl.h>
-
 #include <ostream>
 #include <utility>
 

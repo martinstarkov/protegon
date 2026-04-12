@@ -1,7 +1,14 @@
 #include "platform/window.h"
 
-#include <glad/gl.h>
-#include <GLFW/glfw3.h>
+#ifdef __EMSCRIPTEN__
+
+#include <emscripten.h>
+#include <emscripten/html5.h>
+
+EM_JS(int, get_canvas_width, (), { return Module.canvas.width; });
+EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
+
+#endif
 
 #include <chrono>
 #include <cstdint>
@@ -18,22 +25,14 @@
 #include "core/time/time.h"
 #include "core/util/file.h"
 #include "platform/events.h"
+#include "platform/glfw.h"
 #include "platform/key.h"
 #include "platform/mouse.h"
+#include "renderer/backend/gl/gl.h"
 #include "renderer/image/surface.h"
 #include "renderer/primitives/color.h"
 #include "renderer/renderer.h"
 #include "runtime/event/event_handler.h"
-
-#ifdef __EMSCRIPTEN__
-
-#include <emscripten.h>
-#include <emscripten/html5.h>
-
-EM_JS(int, get_canvas_width, (), { return Module.canvas.width; });
-EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
-
-#endif
 
 namespace ptgn {
 
@@ -244,7 +243,7 @@ void Window::SetCallbacks() {
 }
 
 Window::Window(EventHandler& events, Renderer& renderer, const WindowConfig& config) :
-	events_{ events }, renderer_{ renderer }, title_{ config.title } {
+	title_{ config.title }, events_{ events }, renderer_{ renderer } {
 	int exclusive_states = static_cast<int>(config.minimized) + static_cast<int>(config.maximized) +
 						   static_cast<int>(config.fullscreen);
 
@@ -286,8 +285,11 @@ Window::Window(EventHandler& events, Renderer& renderer, const WindowConfig& con
 	PTGN_ASSERT(instance_ != nullptr, "glfwCreateWindow failed");
 
 	glfwMakeContextCurrent(instance_.get());
+
+#ifndef __EMSCRIPTEN__
 	int status{ gladLoadGL(glfwGetProcAddress) };
 	PTGN_ASSERT(status, "Failed to load OpenGL functions");
+#endif
 
 	PTGN_INFO("Graphics Card: ", glGetString(GL_RENDERER));
 	PTGN_INFO("OpenGL Version: ", glGetString(GL_VERSION));
@@ -335,16 +337,6 @@ void Window::CacheWindowedRect() {
 	windowed_was_maximized_ = glfwGetWindowAttrib(win, GLFW_MAXIMIZED) == GLFW_TRUE;
 }
 
-void Window::SetRelativeMouseMode(bool on) {
-	glfwSetInputMode(instance_.get(), GLFW_CURSOR, on ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
-
-	if (on && glfwRawMouseMotionSupported()) {
-		glfwSetInputMode(instance_.get(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-	} else {
-		glfwSetInputMode(instance_.get(), GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
-	}
-}
-
 void Window::SetMouseMode(MouseMode mode) {
 	using enum MouseMode;
 	int glfw_mode = GLFW_CURSOR_NORMAL;
@@ -358,10 +350,12 @@ void Window::SetMouseMode(MouseMode mode) {
 	glfwSetInputMode(instance_.get(), GLFW_CURSOR, glfw_mode);
 
 	// Optional: raw mouse input for better FPS camera behavior
-	if (mode == Disabled && glfwRawMouseMotionSupported()) {
-		glfwSetInputMode(instance_.get(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
-	} else {
-		glfwSetInputMode(instance_.get(), GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+	if (glfwRawMouseMotionSupported()) {
+		if (mode == Disabled) {
+			glfwSetInputMode(instance_.get(), GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
+		} else {
+			glfwSetInputMode(instance_.get(), GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
+		}
 	}
 }
 

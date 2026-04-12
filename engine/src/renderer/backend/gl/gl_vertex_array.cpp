@@ -1,7 +1,5 @@
 #include "renderer/backend/gl/gl_vertex_array.h"
 
-#include <glad/gl.h>
-
 #include <cstdint>
 #include <ostream>
 #include <utility>

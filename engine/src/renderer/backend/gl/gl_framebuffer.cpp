@@ -304,27 +304,26 @@ bool Framebuffers::FramebufferIsComplete(FramebufferId framebuffer) const {
 const char* Framebuffers::GetFramebufferStatus() const {
 	auto status{ GLCallReturn(glCheckFramebufferStatus(kFrameBufferTarget)) };
 	switch (status) {
-		case GL_FRAMEBUFFER_COMPLETE:  return "FramebufferId is complete";
-		case GL_FRAMEBUFFER_UNDEFINED: return "FramebufferId is undefined (no framebuffer bound)";
-		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-			return "Incomplete attachment: One or more framebuffer attachment points are "
-				   "incomplete";
+		case GL_FRAMEBUFFER_COMPLETE:			   return "GL_FRAMEBUFFER_COMPLETE";
+		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT: return "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
 		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-			return "Missing attachment: No images are attached to the framebuffer";
-		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
-			return "Incomplete draw buffer: Draw buffer points to a missing attachment";
-		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
-			return "Incomplete read buffer: Read buffer points to a missing attachment";
-		case GL_FRAMEBUFFER_UNSUPPORTED:
-			return "FramebufferId unsupported: Format combination not supported by "
-				   "implementation";
-		case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
-			return "Incomplete multisample: Mismatched sample counts or improper use of "
-				   "multisampling";
+			return "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
+		case GL_FRAMEBUFFER_UNSUPPORTED:			return "GL_FRAMEBUFFER_UNSUPPORTED";
+		case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE: return "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE";
+
+#ifdef GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER
+		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER: return "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER";
+#endif
+
+#ifdef GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER
+		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER: return "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER";
+#endif
+
+#ifdef GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS
 		case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
-			return "Incomplete layer targets: Layered attachments are not all complete or not "
-				   "matching";
-		default: PTGN_ERROR("Unknown framebuffer status.");
+			return "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS";
+#endif
+		default: PTGN_ERROR("Unknown framebuffer status: ", status);
 	}
 }
 

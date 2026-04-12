@@ -1,7 +1,5 @@
 #include "app/application.h"
 
-#include <GLFW/glfw3.h>
-
 #include <chrono>
 #include <format>
 #include <string>
@@ -10,6 +8,7 @@
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
+#include "platform/glfw.h"
 #include "platform/window.h"
 #include "renderer/renderer.h"
 #include "runtime/audio/audio_system.h"

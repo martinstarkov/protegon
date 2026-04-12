@@ -1,7 +1,5 @@
 #include "renderer/backend/gl/gl_buffer.h"
 
-#include <glad/gl.h>
-
 #include <cstdint>
 #include <ostream>
 #include <utility>

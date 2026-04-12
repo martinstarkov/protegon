@@ -1,7 +1,5 @@
 #include "renderer/backend/gl/gl.h"
 
-#include <glad/gl.h>
-
 #include <source_location>
 #include <string_view>
 #include <vector>
@@ -45,6 +43,6 @@ void HandleErrors(std::source_location location) {
 	}
 }
 
-#endif
-
 } // namespace ptgn::impl::gl
+
+#endif

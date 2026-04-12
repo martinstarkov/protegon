@@ -791,7 +791,7 @@ template <typename Derived>
 std::optional<Texture> ButtonBase<Derived>::GetTexture(ButtonStyleState state) const {
 	auto sprite{ GetSprite(state) };
 	if (sprite.has_value()) {
-		PTGN_ASSERT(sprite->Has<Texture>(), "Button sprite must have a texture");
+		PTGN_ASSERT(sprite->template Has<Texture>(), "Button sprite must have a texture");
 		return sprite->template Get<Texture>();
 	} else {
 		return std::nullopt;

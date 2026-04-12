@@ -1,7 +1,5 @@
 #include "renderer/backend/gl/gl_context.h"
 
-#include <glad/gl.h>
-
 #include <cstdint>
 #include <utility>
 #include <vector>
@@ -374,7 +372,7 @@ void GLContext::SetDepthTesting(bool enabled) {
 	}
 	if (enabled) {
 		constexpr double value{ 1.0 };
-		GLCall(glClearDepth(value));
+		SetClearDepth(value);
 		GLCall(glEnable(GL_DEPTH_TEST));
 	} else {
 		GLCall(glDisable(GL_DEPTH_TEST));
@@ -465,7 +463,7 @@ void GLContext::SetClearDepth(double depth) {
 	if (NearlyEqual(bound_.clear_depth.value, depth)) {
 		return;
 	}
-	PTGN_ASSERT(depth >= 0.0 && depth <= 1.0, "glClearDepth: depth must be in range [0.0, 1.0]");
+	PTGN_ASSERT(depth >= 0.0 && depth <= 1.0, "Clear depth must be in range [0.0, 1.0]");
 	GLCall(glClearDepth(depth));
 	bound_.clear_depth = ClearDepth{ depth };
 }
