@@ -37,7 +37,7 @@ struct TextScene : public Scene {
 		ctx().renderer.SetGameSize(game_size);
 		SetBackgroundColor(color::LightGray);
 
-		ctx().asset.Load(font, "examples/assets/Arial.ttf");
+		ctx().asset.Load(font, "assets/Arial.ttf");
 
 		// Default font.
 		CreateText(color::Black, 0, {});

@@ -19,7 +19,7 @@ struct RotateEffectScene : public Scene {
 	milliseconds rotation_duration2{ 1000 };
 
 	void OnEnter() override {
-		ctx().asset.Load("smile", "examples/assets/smile.png");
+		ctx().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });

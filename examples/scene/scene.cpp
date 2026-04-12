@@ -56,9 +56,9 @@ public:
 class SceneExample : public Scene {
 public:
 	void OnEnter() override {
-		ctx().asset.LoadMany({ { "bg1", "examples/assets/scene1.png" },
-							   { "bg2", "examples/assets/scene2.png" },
-							   { "bg3", "examples/assets/scene3.png" } });
+		ctx().asset.LoadMany({ { "bg1", "assets/scene1.png" },
+							   { "bg2", "assets/scene2.png" },
+							   { "bg3", "assets/scene3.png" } });
 
 		ctx().scene.Enter<Scene1>("scene1");
 		ctx().scene.Enter<Scene2>("scene2");

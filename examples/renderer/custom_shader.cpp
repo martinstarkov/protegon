@@ -20,9 +20,9 @@ public:
 	CustomShader shader_entity2;
 
 	void OnEnter() override {
-		ctx().asset.LoadShader("whirlpool", "examples/assets/shader.glsl");
-		ctx().asset.LoadShader("ripple", ShaderPair{ "quad", "examples/assets/ripple.glsl" });
-		ctx().asset.LoadTexture("noise", "examples/assets/noise.png");
+		ctx().asset.LoadShader("whirlpool", "assets/shader.glsl");
+		ctx().asset.LoadShader("ripple", ShaderPair{ "quad", "assets/ripple.glsl" });
+		ctx().asset.LoadTexture("noise", "assets/noise.png");
 
 		shader_entity = CreateCustomShader(
 			*this, "whirlpool", "noise", V2_float{}, V2_float{ 150 },

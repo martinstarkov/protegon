@@ -10,7 +10,7 @@ using namespace ptgn;
 class LoadResourcesScene : public Scene {
 public:
 	void OnEnter() override {
-		// ctx().asset.LoadMany("examples/assets/assets.json");
+		// ctx().asset.LoadMany("assets/assets.json");
 		ctx().asset.LoadDirectory("assets");
 		PTGN_LOG("Loaded all assets!");
 	}

@@ -31,10 +31,10 @@ public:
 	float bg_aspect_ratio{ 0.0f };
 
 	void OnEnter() override {
-		ctx().asset.LoadMany({ { "background", "examples/assets/background.png" },
-							   { "planet_b", "examples/assets/planet_b.png" },
-							   { "planet_s", "examples/assets/planet_s.png" },
-							   { "stars", "examples/assets/stars.png" } });
+		ctx().asset.LoadMany({ { "background", "assets/background.png" },
+							   { "planet_b", "assets/planet_b.png" },
+							   { "planet_s", "assets/planet_s.png" },
+							   { "stars", "assets/stars.png" } });
 
 		bg_pos		 = ctx().renderer.GetGameSize() * 0.5f;
 		planet_b_pos = ctx().renderer.GetGameSize() * 0.5f - V2_float{ 200, 200 };

@@ -43,7 +43,7 @@ struct FollowEffectScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::DarkGray);
 
-		ctx().asset.Load("smile", "examples/assets/white_smile.png");
+		ctx().asset.Load("smile", "assets/white_smile.png");
 
 		mouse = Sprite{ CreateEntity() };
 		SetPosition(mouse, {});

@@ -68,7 +68,7 @@ int main(int, char**) {
 	{
 		json j = e1.Serialize();
 
-		SaveJson(j, "examples/assets/mydata.json");
+		SaveJson(j, "assets/mydata.json");
 
 		PTGN_LOG("Successfully serialized all entity components: ", j.dump(4));
 
@@ -86,7 +86,7 @@ int main(int, char**) {
 	}
 
 	{
-		auto j = LoadJson("examples/assets/mydata.json");
+		auto j = LoadJson("assets/mydata.json");
 
 		Entity e2{ m.CreateEntity(j) };
 
@@ -143,19 +143,19 @@ int main(int, char**) {
 
 	{
 		test_manager_serialization(
-			"texture", game.texture, "examples/assets/texture1.png", "examples/assets/texture2.png"
+			"texture", game.texture, "assets/texture1.png", "assets/texture2.png"
 		);
-		test_manager_serialization("font", game.font, "examples/assets/font1.ttf", "examples/assets/font2.ttf");
-		test_manager_serialization("sound", game.sound, "examples/assets/sound1.ogg", "examples/assets/sound2.ogg");
+		test_manager_serialization("font", game.font, "assets/font1.ttf", "assets/font2.ttf");
+		test_manager_serialization("sound", game.sound, "assets/sound1.ogg", "assets/sound2.ogg");
 		test_manager_serialization(
-			"music", game.music, "examples/assets/sound1.ogg", "examples/assets/sound2.ogg", true
+			"music", game.music, "assets/sound1.ogg", "assets/sound2.ogg", true
 		);
-		test_manager_serialization("json", game.json, "examples/assets/json1.json", "examples/assets/json2.json");
+		test_manager_serialization("json", game.json, "assets/json1.json", "assets/json2.json");
 	}
 	*/
 
 	/*{
-		JsonOutputArchive json_output("examples/assets/mydata.json");
+		JsonOutputArchive json_output("assets/mydata.json");
 		MyData data3;
 		data3.id	  = 456;
 		data3.message = "JSON Data";
@@ -165,7 +165,7 @@ int main(int, char**) {
 	}*/
 
 	/*{
-		JsonInputArchive json_input("examples/assets/mydata.json");
+		JsonInputArchive json_input("assets/mydata.json");
 		MyData data4;
 
 		json_ctx().input.Read("data3", data4);
@@ -206,10 +206,10 @@ int main(int, char**) {
 
 		PTGN_LOG("Serialized script with name: ", test->GetName(), "\n", j.dump(4));
 
-		SaveJson(j, "examples/assets/myscripts.json");
+		SaveJson(j, "assets/myscripts.json");
 	}
 	{
-		auto j = LoadJson("examples/assets/myscripts.json");
+		auto j = LoadJson("assets/myscripts.json");
 
 		std::unique_ptr<TweenScript> test2{ std::make_unique<TweenScript1>() };
 		j.get_to(*test2);

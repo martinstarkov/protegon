@@ -26,7 +26,7 @@ if(EMSCRIPTEN)
   endif()
 endif()
 
-set(_examples_dir "${PTGN_ROOT_DIR}/examples")
+set(_examples_dir "${CMAKE_CURRENT_SOURCE_DIR}")
 set(_web_dir "${_examples_dir}/web")
 set(_default_assets_dir "${_examples_dir}/assets")
 
@@ -58,7 +58,7 @@ if(EMSCRIPTEN AND NOT _select_all)
 endif()
 
 if(EMSCRIPTEN)
-  set(_shell_html "${_web_dir}/shell.html")
+  set(_shell_html "${CMAKE_CURRENT_SOURCE_DIR}/../platform/emscripten/shell.html")
   if(NOT EXISTS "${_shell_html}")
     message(FATAL_ERROR "Missing Emscripten shell file: ${_shell_html}")
   endif()
@@ -127,7 +127,7 @@ foreach(_src IN LISTS _example_sources)
       SHELL_HTML "${_shell_html}"
     )
   else()
-    add_protegon_to(${_t})
+    add_protegon_to(${_t} ASSETS_DIR "${_assets_src}")
   endif()
 
   set_target_properties(${_t} PROPERTIES OUTPUT_NAME "${_t}")
@@ -207,7 +207,7 @@ if(EMSCRIPTEN AND _built_examples)
         ${CMAKE_COMMAND}
           -DINPUT_HTML=$<TARGET_FILE:${_t}>
           -DDEST_DIR=${PTGN_DIST_DIR}
-          -P ${PTGN_ROOT_DIR}/cmake/CopyEmscriptenOutput.cmake
+          -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/CopyEmscriptenOutput.cmake
     )
   endforeach()
 endif()

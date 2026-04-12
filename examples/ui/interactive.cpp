@@ -155,11 +155,11 @@ struct InteractiveScene : public Scene {
 
 		ctx().input.SetSettings({ .debug_draw_enabled = true, .debug_draw_line_width = 3.0f });
 
-		ctx().asset.LoadMany({ { "circle", "examples/assets/circle.png" },
-							   { "drag", "examples/assets/drag.png" },
-							   { "drag_circle", "examples/assets/drag_circle.png" },
-							   { "dropzone", "examples/assets/dropzone.png" },
-							   { "box", "examples/assets/box.png" } });
+		ctx().asset.LoadMany({ { "circle", "assets/circle.png" },
+							   { "drag", "assets/drag.png" },
+							   { "drag_circle", "assets/drag_circle.png" },
+							   { "dropzone", "assets/dropzone.png" },
+							   { "box", "assets/box.png" } });
 
 		V2_float center{ GetTransform(ctx().camera).GetPosition() };
 

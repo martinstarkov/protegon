@@ -32,7 +32,7 @@ class HDTextScene : public Scene {
 	std::uint32_t wrap_after{ 320 };
 
 	void OnEnter() override {
-		ctx().asset.Load("background", "examples/assets/bg.png");
+		ctx().asset.Load("background", "assets/bg.png");
 		ctx().renderer.SetGameSize(game_size);
 
 		auto sprite = CreateSprite(*this, "background", {});

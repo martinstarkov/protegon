@@ -29,7 +29,7 @@ public:
 		ctx().renderer.SetBackgroundColor(color::White);
 		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
 
-		ctx().asset.Load("tree", "examples/assets/jpg.jpg");
+		ctx().asset.Load("tree", "assets/jpg.jpg");
 
 		auto sprite = CreateSprite(*this, "tree", { -200, -200 });
 		SetDrawOrigin(sprite, Origin::TopLeft);

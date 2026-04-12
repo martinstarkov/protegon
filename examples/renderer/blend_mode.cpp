@@ -15,8 +15,8 @@ using namespace ptgn;
 
 struct BlendModeScene : public Scene {
 	void OnEnter() override {
-		ctx().asset.Load("semitransparent", "examples/assets/semitransparent.png");
-		ctx().asset.Load("opaque", "examples/assets/smile.png");
+		ctx().asset.Load("semitransparent", "assets/semitransparent.png");
+		ctx().asset.Load("opaque", "assets/smile.png");
 
 		V2_float ws{ ctx().renderer.GetGameSize() };
 

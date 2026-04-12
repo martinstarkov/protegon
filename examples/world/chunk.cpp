@@ -58,10 +58,10 @@ public:
 		fractal_noise.SetLacunarity(20.0f);
 		fractal_noise.SetPersistence(0.8f);
 
-		ctx().asset.LoadTexture("white_smile", "examples/assets/white_smile.png");
-		ctx().asset.LoadTexture("red", "examples/assets/red_tile.png");
-		ctx().asset.LoadTexture("blue", "examples/assets/blue_tile.png");
-		ctx().asset.LoadTexture("green", "examples/assets/green_tile.png");
+		ctx().asset.LoadTexture("white_smile", "assets/white_smile.png");
+		ctx().asset.LoadTexture("red", "assets/red_tile.png");
+		ctx().asset.LoadTexture("blue", "assets/blue_tile.png");
+		ctx().asset.LoadTexture("green", "assets/green_tile.png");
 
 		chunk_manager.AddNoiseLayer(NoiseLayer{
 			fractal_noise, [&](V2_float coordinate, float noise) {

@@ -64,7 +64,7 @@ public:
 			std::map<int, int> map{ { 10, 11 }, { 12, 13 }, { 14, 15 } };
 			std::unordered_map<int, int> unordered_map{ { 16, 17 }, { 18, 19 }, { 20, 21 } };
 
-			FileStreamWriter w{ "examples/assets/data.bin" };
+			FileStreamWriter w{ "assets/data.bin" };
 
 			w.Write(trivial);
 			w.Write(trivial_composite);
@@ -86,7 +86,7 @@ public:
 			std::map<int, int> map;
 			std::unordered_map<int, int> unordered_map;
 
-			FileStreamReader r{ "examples/assets/data.bin" };
+			FileStreamReader r{ "assets/data.bin" };
 
 			auto print_values = [&]() {
 				PTGN_LOG("trivial: ", trivial.a, ", ", trivial.b);

@@ -22,7 +22,7 @@ struct TranslateEffectScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
 
-		ctx().asset.Load("smile", "examples/assets/smile.png");
+		ctx().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
 		sprite2 = CreateSprite(*this, "smile", { -300, 200 });

@@ -25,7 +25,7 @@ class ScalingModeScene : public Scene {
 		SetBackgroundColor(color::LightBlue);
 
 		ctx().window.SetSize(window_size);
-		ctx().asset.Load("background", "examples/assets/outlined.jpg");
+		ctx().asset.Load("background", "assets/outlined.jpg");
 		ctx().renderer.SetGameSize(game_size, ScalingMode::Disabled);
 
 		auto s1 = CreateSprite(*this, "background", {}, Origin::Center);

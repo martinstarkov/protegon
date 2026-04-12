@@ -24,8 +24,8 @@ struct FadeEffectScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::LightBlue);
 
-		ctx().asset.Load("tree", "examples/assets/jpg.jpg");
-		ctx().asset.Load("smile", "examples/assets/smile.png");
+		ctx().asset.Load("tree", "assets/jpg.jpg");
+		ctx().asset.Load("smile", "assets/smile.png");
 
 		sprite1 = CreateSprite(*this, "tree", { -200, -200 });
 		sprite2 = CreateSprite(*this, "smile", { 200, 200 });

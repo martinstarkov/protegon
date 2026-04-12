@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	TTF_Font* font = TTF_OpenFont("examples/assets/Arial.ttf", 24);
+	TTF_Font* font = TTF_OpenFont("assets/Arial.ttf", 24);
 	if (!font) {
 		printf("Font load error: %s\n", SDL_GetError());
 		return 1;

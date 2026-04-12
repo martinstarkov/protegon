@@ -71,7 +71,7 @@ public:
 	Animation sprite;
 
 	void OnEnter() override {
-		ctx().asset.Load("anim", "examples/assets/animation.png");
+		ctx().asset.Load("anim", "assets/animation.png");
 
 		animation = CreateAnimation(
 			*this, "anim", GetPosition(ctx().camera),

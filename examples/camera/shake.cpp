@@ -42,8 +42,8 @@ public:
 	}
 
 	void OnEnter() override {
-		ctx().asset.LoadShader("whirlpool", "examples/assets/shader.glsl", "whirlpool");
-		ctx().asset.LoadTexture("noise", "examples/assets/noise.png");
+		ctx().asset.LoadShader("whirlpool", "assets/shader.glsl", "whirlpool");
+		ctx().asset.LoadTexture("noise", "assets/noise.png");
 
 		ctx().input.SetSettings({ .debug_draw_enabled = true });
 

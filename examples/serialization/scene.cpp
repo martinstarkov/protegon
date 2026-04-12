@@ -11,10 +11,10 @@ using namespace ptgn;
 class DeserializedScene : public Scene {
 public:
 	void OnEnter() override {
-		ctx().asset.Load("anim", "examples/assets/animation.png");
-		ctx().asset.Load("test", "examples/assets/test1.jpg");
-		json j = LoadJson("examples/assets/animation_scene.json");
-		j	   = LoadJson("examples/assets/light_scene.json");
+		ctx().asset.Load("anim", "assets/animation.png");
+		ctx().asset.Load("test", "assets/test1.jpg");
+		json j = LoadJson("assets/animation_scene.json");
+		j	   = LoadJson("assets/light_scene.json");
 		j.at("manager").get_to(*this);
 		// TODO: Figure this out: j.get_to(*this);
 	}

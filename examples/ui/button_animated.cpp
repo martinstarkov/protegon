@@ -24,16 +24,16 @@ public:
 	void OnEnter() override {
 		ctx().input.SetSettings({ .debug_draw_enabled = true });
 
-		ctx().asset.Load("idle", "examples/assets/bell.png");
-		ctx().asset.Load("animation_hover", "examples/assets/bell_hover_animation.png");
-		ctx().asset.Load("animation_press", "examples/assets/bell_press_animation.png");
-		ctx().asset.LoadAudio("hover", "examples/assets/hover.ogg");
-		ctx().asset.LoadAudio("press", "examples/assets/bell.ogg");
+		ctx().asset.Load("idle", "assets/bell.png");
+		ctx().asset.Load("animation_hover", "assets/bell_hover_animation.png");
+		ctx().asset.Load("animation_press", "assets/bell_press_animation.png");
+		ctx().asset.LoadAudio("hover", "assets/hover.ogg");
+		ctx().asset.LoadAudio("press", "assets/bell.ogg");
 
-		ctx().asset.Load("idle2", "examples/assets/button_idle.png");
-		ctx().asset.Load("animation_hover2", "examples/assets/button_hover_animation.png");
-		ctx().asset.Load("animation_press2", "examples/assets/button_press_animation.png");
-		ctx().asset.LoadAudio("press2", "examples/assets/press.ogg");
+		ctx().asset.Load("idle2", "assets/button_idle.png");
+		ctx().asset.Load("animation_hover2", "assets/button_hover_animation.png");
+		ctx().asset.Load("animation_press2", "assets/button_press_animation.png");
+		ctx().asset.LoadAudio("press2", "assets/press.ogg");
 
 		auto hover_animation{ CreateAnimation(
 			*this, "animation_hover", {}, { 3, 400ms, V2_int{ 253, 167 }, std::nullopt }

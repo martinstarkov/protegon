@@ -32,7 +32,7 @@ class CameraUIScene : public Scene {
 constexpr V2_int deadzone_size{ 150, 150 };
 public:
 	void OnEnter() override {
-		game.texture.Load("ui_texture2", "examples/assets/ui2.jpg");
+		game.texture.Load("ui_texture2", "assets/ui2.jpg");
 
 		auto ui = CreateSprite(*this, "ui_texture2");
 		ui.SetPosition({});
@@ -75,7 +75,7 @@ public:
 	}
 
 	void OnEnter() override {
-		game.texture.Load("texture", "examples/assets/test1.jpg");
+		game.texture.Load("texture", "assets/test1.jpg");
 
 		camera.SetPosition(ctx().window.GetCenter());
 		// camera.SetBounds({}, window_size);
@@ -113,7 +113,7 @@ public:
 
 		ctx().scene.Enter("ui_scene");
 
-		game.texture.Load("ui_texture", "examples/assets/ui.jpg");
+		game.texture.Load("ui_texture", "assets/ui.jpg");
 
 		ui = CreateSprite(*this, "ui_texture");
 		ui.SetPosition(V2_float{ window_size.x, 0 });
@@ -272,7 +272,7 @@ public:
 
 	void OnEnter() override {
 		//	camera.SetPixelRounding(true);
-		ctx().asset.Load("tree", "examples/assets/jpg.jpg");
+		ctx().asset.Load("tree", "assets/jpg.jpg");
 
 		mouse = CreateEntity();
 		SetPosition(mouse, {});
