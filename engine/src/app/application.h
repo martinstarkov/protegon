@@ -1,11 +1,13 @@
 #pragma once
 
 #include <concepts>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <vector>
 
+#include "app/layer.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/hash.h"
@@ -137,6 +139,8 @@ private:
 	secondsf dt_{ 0.0f };
 	bool running_{ false };
 	std::size_t frame_count_{ 0 };
+
+	std::vector<std::unique_ptr<Layer>> layers_;
 };
 
 } // namespace ptgn

@@ -1,5 +1,9 @@
 #include "app/application.h"
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
 #include <chrono>
 #include <format>
 #include <string>
@@ -19,6 +23,8 @@
 
 #include <emscripten.h>
 #include <emscripten/html5.h>
+
+#include <memory>
 
 EM_JS(int, get_screen_width, (), { return window.screen.width; });
 EM_JS(int, get_screen_height, (), { return window.screen.height; });
@@ -158,6 +164,10 @@ void Application::Update() {
 
 	running_ = window_.Update();
 
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+
 	renderer_.BeginFrame();
 
 	scenes_.Update(dt());
@@ -166,7 +176,18 @@ void Application::Update() {
 
 	debug_.PostUpdate();
 
+	for (const auto& layer : layers_) {
+		layer->OnUpdate(*this);
+	}
+
 	renderer_.EndFrame();
+
+	for (const auto& layer : layers_) {
+		layer->OnRender(*this);
+	}
+
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 	window_.SwapBuffers();
 
