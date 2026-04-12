@@ -23,6 +23,7 @@ target_include_directories(protegon
   PUBLIC
     "${PTGN_INCLUDE_DIR}"
     "${PTGN_SRC_DIR}"
+  PRIVATE
     "${PTGN_ASSETS_DIR}"
 )
 
@@ -51,5 +52,5 @@ if(NOT EMSCRIPTEN)
   set_compiler_settings(protegon "${CMAKE_CURRENT_SOURCE_DIR}" ${PTGN_FILES})
 
   find_package(OpenGL REQUIRED)
-  target_link_libraries(protegon PUBLIC ${OPENGL_LIBRARIES})
+  target_link_libraries(protegon PRIVATE OpenGL::GL)
 endif()
