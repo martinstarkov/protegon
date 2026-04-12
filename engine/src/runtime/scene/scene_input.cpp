@@ -227,8 +227,75 @@ V2_float SceneInput::GetMousePositionRelativeTo(
 	);
 }
 
+void SceneInput::DrawDebug() const {
+	if (!settings_.debug_draw_enabled) {
+		return;
+	}
+
+	const impl::MouseInfo mouse_state{ *this };
+
+	std::vector<Entity> cameras;
+
+	for (auto [camera, _cam] : scene_.EntitiesWith<impl::CameraData>()) {
+		cameras.emplace_back(camera);
+	}
+
+	SortByDepth(cameras, false);
+
+	for (const Entity& camera_entity : cameras) {
+		Camera camera{ camera_entity };
+
+		RenderTarget render_target;
+
+		if (auto rt{ camera.TryGet<impl::ParentRenderTarget>() }) {
+			render_target = rt->render_target;
+		} else {
+			render_target = scene_.GetRenderTarget();
+		}
+
+		PTGN_ASSERT(render_target);
+
+		impl::MouseInfo mouse{ mouse_state };
+
+		mouse.position = ConvertPoint(
+			mouse.position, Frame::Window, Frame::Camera,
+			FrameContext{ scene_.ctx().renderer, render_target, camera }
+		);
+
+		if (settings_.debug_draw_enabled) {
+			scene_.ctx().debug.DrawPoint(mouse.position, settings_.debug_draw_color, camera);
+		}
+
+		for (auto [entity, interactive] : scene_.EntitiesWith<impl::Interactive>()) {
+			if (!interactive.enabled) {
+				continue;
+			}
+			if (!camera.IsVisible(entity)) {
+				continue;
+			}
+
+			if (auto lock{ entity.TryGet<InteractionLock>() }; lock && lock->block_hover) {
+				continue;
+			}
+
+			std::vector<std::pair<InteractiveShape, Entity>> shapes;
+
+			GetShapes(entity, entity, shapes);
+
+			for (const auto& [shape, shape_entity] : shapes) {
+				auto draw_transform{ GetDrawTransform(shape_entity) };
+
+				scene_.ctx().debug.DrawShape(
+					shape, draw_transform, settings_.debug_draw_color,
+					settings_.debug_draw_line_width, GetDrawOrigin(shape_entity), camera
+				);
+			}
+		}
+	}
+}
+
 SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
-	const impl::MouseInfo& mouse_state, const std::vector<Entity>& all_entities, Camera camera
+	const impl::MouseInfo& mouse_state, const std::vector<Entity>& all_entities
 ) const {
 	impl::KDTree tree{ 20 };
 	std::vector<impl::KDObject> objects;
@@ -251,19 +318,10 @@ SceneInput::InteractiveEntities SceneInput::GetInteractiveEntities(
 
 		for (const auto& [shape, shape_entity] : shapes) {
 			auto transform{ GetWorldOffsetTransform(shape, shape_entity) };
-
-			if (settings_.debug_draw_enabled) {
-				auto draw_transform{ GetDrawTransform(shape_entity) };
-
-				scene_.ctx().debug.DrawShape(
-					shape, draw_transform, settings_.debug_draw_color,
-					settings_.debug_draw_line_width, GetDrawOrigin(shape_entity), camera
-				);
-			}
-
 			objects.emplace_back(entity, GetBoundingAABB(shape, transform));
 		}
 	}
+
 	tree.Build(objects);
 
 	// Broadphase check.
@@ -346,7 +404,7 @@ std::vector<Entity> SceneInput::GetDropzones() {
 void SceneInput::UpdateMouseOverStates(
 	const std::vector<Entity>& current, const std::unordered_set<Entity>& last_mouse_over
 ) {
-	for (Entity e : current) {
+	for (const Entity& e : current) {
 		if (!e.Has<impl::Scripts>()) {
 			continue;
 		}
@@ -355,7 +413,7 @@ void SceneInput::UpdateMouseOverStates(
 		}
 	}
 
-	for (Entity e : last_mouse_over) {
+	for (const Entity& e : last_mouse_over) {
 		if (!e.Has<impl::Scripts>()) {
 			continue;
 		}
@@ -664,7 +722,7 @@ void SceneInput::DispatchMouseEvents(
 		}
 	}
 
-	for (Entity e : out) {
+	for (const Entity& e : out) {
 		if (!e.Has<impl::Scripts>()) {
 			continue;
 		}
@@ -713,7 +771,7 @@ void SceneInput::Update() {
 
 	bool handled_under_mouse{ false };
 
-	for (Entity camera_entity : cameras) {
+	for (const Entity& camera_entity : cameras) {
 		Camera camera{ camera_entity };
 
 		RenderTarget render_target;
@@ -733,10 +791,6 @@ void SceneInput::Update() {
 			FrameContext{ scene_.ctx().renderer, render_target, camera }
 		);
 
-		if (settings_.debug_draw_enabled) {
-			scene_.ctx().debug.DrawPoint(mouse.position, settings_.debug_draw_color, camera);
-		}
-
 		std::vector<Entity> camera_entities;
 
 		for (auto [entity, interactive] : scene_.EntitiesWith<impl::Interactive>()) {
@@ -749,7 +803,7 @@ void SceneInput::Update() {
 			camera_entities.emplace_back(entity);
 		}
 
-		auto entities = GetInteractiveEntities(mouse, camera_entities, camera);
+		auto entities = GetInteractiveEntities(mouse, camera_entities);
 
 		if (top_only_ && handled_under_mouse) {
 			entities.under_mouse	 = {};

@@ -541,7 +541,7 @@ private:
 	void Update();
 
 	InteractiveEntities GetInteractiveEntities(
-		const impl::MouseInfo& mouse_state, const std::vector<Entity>& all_entities, Camera camera
+		const impl::MouseInfo& mouse_state, const std::vector<Entity>& all_entities
 	) const;
 
 	std::vector<Entity> GetDropzones();
@@ -564,6 +564,8 @@ private:
 		const std::vector<Entity>& dropzones, const impl::MouseInfo& mouse,
 		const std::unordered_set<Entity>& dragging_entities
 	);
+
+	void DrawDebug() const;
 
 	Scene& scene_;
 	const Window& window_;

@@ -328,6 +328,8 @@ void Scene::InternalDraw() {
 		}
 	}
 
+	ctx().input.DrawDebug();
+
 	DrawContext draw_context{ ctx().global_renderer_ };
 
 	std::vector<Camera> cleared_cameras;
