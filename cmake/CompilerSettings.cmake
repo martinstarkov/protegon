@@ -6,14 +6,17 @@ function(set_compiler_settings project_name root_dir)
     return()
   endif()
 
-  target_compile_options(
-    ${project_name}
-    PUBLIC
-      $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<COMPILE_LANGUAGE:CXX>>:/Zc:preprocessor>
-      $<$<AND:$<CXX_COMPILER_ID:MSVC>,$<COMPILE_LANGUAGE:CXX>>:/JMC>
-      $<$<CXX_COMPILER_ID:MSVC>:/MP>
-      $<$<CXX_COMPILER_ID:MSVC>:/bigobj>
-  )
+  if(MSVC)
+    target_compile_options(
+      ${project_name}
+      PUBLIC
+        /Zc:preprocessor
+      PRIVATE
+        /JMC
+        /MP
+        /bigobj
+    )
+  endif()
 
   if(MSVC AND ARGN)
     foreach(_source IN LISTS ARGN)
