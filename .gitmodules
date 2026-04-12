@@ -13,6 +13,7 @@
 [submodule "engine/vendor/imgui"]
 	path = engine/vendor/imgui
 	url = https://github.com/ocornut/imgui.git
+	branch = docking
 [submodule "engine/vendor/msdf-atlas-gen"]
 	path = engine/vendor/msdf-atlas-gen
 	url = https://github.com/Chlumsky/msdf-atlas-gen.git
