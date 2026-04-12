@@ -23,7 +23,7 @@ using LayerMask = std::uint64_t;
 inline constexpr LayerMask kLayersAll  = ~LayerMask{ 0 };
 inline constexpr LayerMask kLayersNone = LayerMask{ 0 };
 
-constexpr LayerMask Layer(int i) {
+constexpr LayerMask GetLayer(int i) {
 	return LayerMask{ 1 } << i;
 }
 
