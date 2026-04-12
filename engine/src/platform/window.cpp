@@ -244,7 +244,7 @@ void Window::SetCallbacks() {
 }
 
 Window::Window(EventHandler& events, Renderer& renderer, const WindowConfig& config) :
-	events_{ events }, renderer_{ renderer } {
+	events_{ events }, renderer_{ renderer }, title_{ config.title } {
 	int exclusive_states = static_cast<int>(config.minimized) + static_cast<int>(config.maximized) +
 						   static_cast<int>(config.fullscreen);
 
