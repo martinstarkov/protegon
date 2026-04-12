@@ -1,18 +1,19 @@
-// #pragma once
-//
-// namespace ptgn {
-//
-// class EditorApp;
-//
-// namespace EditorPanels {
-//
-// void DrawDockspace(EditorApp& app);
-// void DrawHierarchyWindow(EditorApp& app);
-// void DrawScenesWindow(EditorApp& app);
-// void DrawInspectorWindow(EditorApp& app);
-// void DrawGameWindow(EditorApp& app);
-// void DrawEngineSettingsWindow(EditorApp& app);
-// void DrawAssetsWindow(EditorApp& app);
-//
-// }  // namespace EditorPanels
-// }  // namespace ptgn
+#pragma once
+
+namespace ptgn {
+
+class Application;
+
+namespace editor {
+
+void DrawDockspace(Application& app);
+void DrawHierarchyWindow(Application& app);
+void DrawScenesWindow(Application& app);
+void DrawInspectorWindow(Application& app);
+void DrawGameWindow(Application& app);
+void DrawEngineSettingsWindow(Application& app);
+void DrawAssetsWindow(Application& app);
+
+} // namespace editor
+
+} // namespace ptgn
