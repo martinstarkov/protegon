@@ -26,3 +26,6 @@
 [submodule "engine/vendor/vorbis"]
 	path = engine/vendor/vorbis
 	url = https://github.com/xiph/vorbis.git
+[submodule "engine/vendor/nativefiledialog-extended"]
+	path = engine/vendor/nativefiledialog-extended
+	url = https://github.com/btzy/nativefiledialog-extended.git
