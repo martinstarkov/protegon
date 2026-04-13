@@ -3,7 +3,7 @@
 #include "app/application.h"
 #include "core/math/vector2.h"
 #include "platform/mouse.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/tween_effect.h"

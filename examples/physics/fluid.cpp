@@ -8,7 +8,7 @@
 
 #include "platform/key.h"
 #include "platform/mouse.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "renderer/renderer.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"

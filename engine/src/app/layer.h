@@ -2,15 +2,13 @@
 
 namespace ptgn {
 
-class Application;
-
 class Layer {
 public:
 	virtual ~Layer() = default;
 
-	virtual void OnUpdate(Application& app) { /* User implementation */ }
+	virtual void OnUpdate() { /* User implementation */ }
 
-	virtual void OnRender(Application& app) { /* User implementation */ }
+	virtual void OnRender() { /* User implementation */ }
 };
 
 } // namespace ptgn

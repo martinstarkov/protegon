@@ -5,7 +5,7 @@
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"

@@ -6,7 +6,7 @@
 #include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/shape.h"

@@ -5,7 +5,7 @@
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"

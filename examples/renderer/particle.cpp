@@ -1,4 +1,4 @@
-#include "runtime/graphics/particle.h"
+#include "runtime/graphics/fx/particle.h"
 
 #include <functional>
 #include <optional>
@@ -9,7 +9,7 @@
 #include "core/math/vector2.h"
 #include "ecs/ecs.h"
 #include "platform/mouse.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/particle_presets.h"

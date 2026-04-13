@@ -5,7 +5,7 @@
 
 #include "app/application.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene.h"

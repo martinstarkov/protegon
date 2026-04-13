@@ -10,7 +10,7 @@
 #include "core/math/geometry/polygon.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"

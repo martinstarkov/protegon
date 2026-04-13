@@ -6,7 +6,6 @@
 #include <variant>
 
 #include "core/util/hash.h"
-#include "core/util/type_info.h"
 
 namespace ptgn {
 
@@ -50,5 +49,38 @@ private:
 
 template <typename T>
 concept EventType = std::derived_from<T, Event<T>> && std::is_base_of_v<impl::EventBase, T>;
+
+namespace impl {
+
+struct TagEvent {
+	bool operator==(const TagEvent&) const = default;
+
+	std::size_t type_id{ 0 };
+};
+
+struct PayloadEvent {
+	bool operator==(const PayloadEvent&) const = default;
+
+	std::unique_ptr<EventBase> event;
+};
+
+struct EventData {
+	template <EventType T>
+	explicit EventData(T&& event) {
+		using U = std::remove_cvref_t<T>;
+		if constexpr (std::is_empty_v<U>) {
+			storage = TagEvent{ Hash<U>() };
+		} else {
+			storage = PayloadEvent{ std::make_unique<U>(std::forward<T>(event)) };
+		}
+	}
+
+	std::variant<TagEvent, PayloadEvent> storage;
+	bool handled{ false };
+
+	bool operator==(const EventData&) const = default;
+};
+
+} // namespace impl
 
 } // namespace ptgn

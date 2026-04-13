@@ -9,8 +9,8 @@
 
 #include "platform/key.h"
 #include "platform/mouse.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "core/graphics/color.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"

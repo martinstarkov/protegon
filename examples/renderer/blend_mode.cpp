@@ -2,7 +2,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/window.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "renderer/renderer.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"

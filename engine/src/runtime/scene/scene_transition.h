@@ -9,8 +9,12 @@
 namespace ptgn {
 
 class Scene;
+
+namespace impl {
+
 class SceneManager;
-class EventHandler;
+
+} // namespace impl
 
 class SceneTransition {
 public:
@@ -44,8 +48,7 @@ public:
 	virtual void OnStop([[maybe_unused]] Scene& target_scene) { /* Optional user implementation */ }
 
 private:
-	friend class SceneManager;
-	friend class EventHandler;
+	friend class impl::SceneManager;
 
 	void UpdateTime(secondsf dt);
 	void UpdateDelayTime(secondsf dt);

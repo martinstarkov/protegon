@@ -12,19 +12,18 @@
 
 #include "core/assert.h"
 #include "core/event/event.h"
+#include "core/event/event_dispatcher.h"
+#include "core/graphics/color.h"
 #include "core/time/time.h"
 #include "core/util/hash.h"
 #include "ecs/ecs.h"
-#include "renderer/primitives/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
-#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/physics.h"
-#include "runtime/scene/scene_command.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_state.h"
@@ -40,7 +39,6 @@ namespace ptgn {
 
 class Application;
 class Scene;
-class SceneManager;
 class SceneTransition;
 class SceneEventHandler;
 class LocalSceneManager;
@@ -296,7 +294,7 @@ private:
 		return exited || entered;
 	}
 
-	SceneManager& scene_manager_;
+	impl::SceneManager& scene_manager_;
 	Scene& scene_;
 };
 
@@ -319,7 +317,7 @@ public:
 	LocalSceneManager scene;
 	RenderContext renderer;
 	DebugContext debug;
-	LocalEventHandler event;
+	EventQueue event;
 	SceneInput input;
 	Physics physics;
 	CollisionHandler collision;
@@ -511,13 +509,12 @@ public:
 	[[nodiscard]] SceneContext& ctx();
 
 private:
-	friend class SceneManager;
+	friend class impl::SceneManager;
 	friend class EventHandler;
 	friend class Application;
 	friend class FrameContext;
 	friend class SceneInput;
 	friend class LocalSceneManager;
-	friend class SceneManager;
 	friend class SceneEventHandler;
 	template <typename TComponent>
 	friend struct SceneHook;
@@ -607,7 +604,8 @@ bool LocalSceneManager::ReEnter(
 	}
 
 	PTGN_ASSERT(
-		scene_manager_.Has(scene_key_hash), "Cannot re-enter a scene key which has not been entered"
+		scene_manager_.HasScene(scene_key_hash),
+		"Cannot re-enter a scene key which has not been entered"
 	);
 
 	std::unique_ptr<SceneTransition> transition_out_ptr;
@@ -622,7 +620,7 @@ bool LocalSceneManager::ReEnter(
 		transition_in_ptr = std::make_unique<std::decay_t<TransitionIn>>(std::move(transition.in));
 	}
 
-	scene_manager_.commands_.emplace_back(
+	scene_manager_.PushCommand(
 		impl::SceneCommandType::ReEnter, scene_.key_, scene_key_hash,
 		SceneTransitionPriority{ std::numeric_limits<std::size_t>::max() },
 		GetInitFunction<T>(std::forward<TArgs>(constructor_args)...), std::move(transition_out_ptr),
@@ -642,7 +640,7 @@ bool LocalSceneManager::Enter(
 		return false;
 	}
 
-	if (scene_manager_.Has(scene_key_hash)) {
+	if (scene_manager_.HasScene(scene_key_hash)) {
 		return ReEnter<T>(
 			scene_key_hash, SceneTransitionPair{ {}, std::forward<TransitionIn>(transition_in) },
 			std::forward<TArgs>(constructor_args)...
@@ -656,7 +654,7 @@ bool LocalSceneManager::Enter(
 			std::make_unique<std::decay_t<TransitionIn>>(std::forward<TransitionIn>(transition_in));
 	}
 
-	scene_manager_.commands_.emplace_back(
+	scene_manager_.PushCommand(
 		impl::SceneCommandType::Enter, scene_.key_, scene_key_hash, priority,
 		GetInitFunction<T>(std::forward<TArgs>(constructor_args)...), nullptr,
 		std::move(transition_in_ptr)
@@ -673,7 +671,7 @@ bool LocalSceneManager::Exit(
 		return false;
 	}
 
-	if (!scene_manager_.Has(scene_key_hash)) {
+	if (!scene_manager_.HasScene(scene_key_hash)) {
 		return false;
 	}
 
@@ -685,7 +683,7 @@ bool LocalSceneManager::Exit(
 			));
 	}
 
-	scene_manager_.commands_.emplace_back(
+	scene_manager_.PushCommand(
 		impl::SceneCommandType::Exit, scene_.key_, scene_key_hash, priority, nullptr,
 		std::move(transition_out_ptr), nullptr
 	);

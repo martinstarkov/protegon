@@ -9,7 +9,7 @@
 #include "platform/key.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/event/event_dispatcher.h"
+#include "core/event/event_dispatcher.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"

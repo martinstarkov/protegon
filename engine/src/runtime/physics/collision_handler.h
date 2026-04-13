@@ -7,7 +7,7 @@
 #include "core/math/raycast.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/broadphase.h"

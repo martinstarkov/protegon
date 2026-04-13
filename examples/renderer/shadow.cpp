@@ -3,7 +3,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/light.h"
+#include "runtime/graphics/fx/light.h"
 #include "runtime/graphics/render_target.h"
 
 // TODO: Fix this demo.

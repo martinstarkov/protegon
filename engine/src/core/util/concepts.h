@@ -37,7 +37,7 @@ template <typename T>
 concept EnumType = std::is_enum_v<T>;
 
 template <typename T>
-concept ScopedEnum = std::is_enum_v<T> && !std::is_convertible_v<T, int>;
+concept ScopedEnum = EnumType<T> && !std::is_convertible_v<T, int>;
 
 template <typename T, typename BaseType>
 concept IsOrDerivedFrom = std::is_same_v<T, BaseType> || std::derived_from<T, BaseType>;
@@ -54,9 +54,6 @@ concept NarrowingArithmetic =
 
 template <typename From, typename To>
 concept NotNarrowingArithmetic = !NarrowingArithmetic<From, To>;
-
-template <typename T>
-concept Arithmetic = std::is_arithmetic_v<T>;
 
 template <typename T>
 concept ConvertibleToArithmetic = requires { static_cast<double>(std::declval<T>()); };
@@ -91,14 +88,8 @@ concept MapLike = requires(T t, typename T::key_type key) {
 	{ t[key] } -> std::same_as<typename T::mapped_type&>;
 };
 
-template <typename From, typename To>
-concept IsSafelyCastable = std::is_convertible_v<From, To>;
-
-template <typename T, typename... Ts>
-concept IsSafelyCastableToOneOf = (IsSafelyCastable<T, Ts> || ...);
-
 template <typename Type, typename... Types>
-concept AllSameAs = std::conjunction_v<std::is_same<Type, Types>...>;
+concept SameType = std::conjunction_v<std::is_same<Type, Types>...>;
 
 template <typename T, typename... Ts>
 concept IsAnyOf = (std::is_same_v<T, Ts> || ...);
@@ -118,5 +109,8 @@ template <typename T>
 concept Visitable = requires(const T& v) {
 	std::visit([](const auto&) { /**/ }, static_cast<const typename T::variant_type&>(v));
 };
+
+template <typename T, typename... TArgs>
+concept BraceConstructible = requires(TArgs&&... args) { T{ std::forward<TArgs>(args)... }; };
 
 } // namespace ptgn

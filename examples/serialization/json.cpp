@@ -6,7 +6,7 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/texture.h"
+#include "renderer/resources/texture.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/entity.h"

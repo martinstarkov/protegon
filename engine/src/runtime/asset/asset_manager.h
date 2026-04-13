@@ -12,9 +12,9 @@
 
 #include "core/util/file.h"
 #include "ecs/ecs.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/shader.h"
-#include "renderer/primitives/texture.h"
+#include "core/graphics/color.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio.h"

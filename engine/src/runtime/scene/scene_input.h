@@ -12,7 +12,7 @@
 #include "core/time/time.h"
 #include "platform/key.h"
 #include "platform/mouse.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/scene/resolution.h"

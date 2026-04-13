@@ -6,8 +6,8 @@
 
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/texture.h"
+#include "core/graphics/color.h"
+#include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"

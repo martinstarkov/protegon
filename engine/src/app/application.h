@@ -124,7 +124,7 @@ private:
 	// Must be created after Window but before other systems that rely on it.
 	Renderer renderer_;
 
-	SceneManager scenes_;
+	impl::SceneManager scene_manager_;
 	EventHandler events_;
 	AssetManager assets_;
 	FontSystem font_;

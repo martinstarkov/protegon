@@ -5,7 +5,7 @@
 
 #include "core/util/concepts.h"
 #include "core/util/id_map.h"
-#include "renderer/primitives/id.h"
+#include "renderer/resources/id.h"
 
 namespace ptgn::impl::gl {
 

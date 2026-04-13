@@ -13,8 +13,8 @@
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "core/util/id_map.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/id.h"
+#include "core/graphics/color.h"
+#include "renderer/resources/id.h"
 
 namespace ptgn::impl::gl {
 

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "core/graphics/color.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
@@ -10,11 +11,10 @@
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/render_state.h"
-#include "renderer/primitives/viewport.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/viewport.h"
+#include "renderer/resources/id.h"
 
 namespace ptgn {
 
@@ -114,7 +114,9 @@ public:
 	VertexArrays vertex_arrays;
 
 	int GetInteger(std::uint32_t pname) const;
-	std::uint32_t GetActiveTextureSlot() const;
+	std::optional<std::uint32_t> GetActiveTextureSlot() const;
+
+	void InvalidateState();
 
 private:
 	State bound_;

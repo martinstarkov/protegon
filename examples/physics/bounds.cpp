@@ -5,7 +5,7 @@
 #include "core/math/vector2.h"
 
 #include "platform/key.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"

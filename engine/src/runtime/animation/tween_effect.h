@@ -15,7 +15,7 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/concepts.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/shake_config.h"
 #include "runtime/animation/tween.h"

@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "runtime/ecs/entity.h"
-#include "runtime/event/event_dispatcher.h"
+#include "core/event/event_dispatcher.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 

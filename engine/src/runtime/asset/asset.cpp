@@ -8,8 +8,8 @@
 
 #include "core/assert.h"
 #include "core/util/hash.h"
-#include "renderer/primitives/shader.h"
-#include "renderer/primitives/texture.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio.h"
 #include "runtime/graphics/font.h"

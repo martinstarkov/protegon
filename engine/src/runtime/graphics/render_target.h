@@ -3,11 +3,11 @@
 #include <optional>
 
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/texture_format.h"
+#include "core/graphics/color.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/event/event_dispatcher.h"
+#include "core/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/scripting/script.h"

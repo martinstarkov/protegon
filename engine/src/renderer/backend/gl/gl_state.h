@@ -1,13 +1,14 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <ostream>
 #include <vector>
 
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/render_state.h"
-#include "renderer/primitives/texture_format.h"
-#include "renderer/primitives/viewport.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/viewport.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/texture_format.h"
 
 namespace ptgn::impl::gl {
 
@@ -27,12 +28,12 @@ struct ActiveTexture {
 };
 
 struct TextureUnitState {
-	TextureId id;
+	std::optional<TextureId> id;
 
-	TextureMinFilter min_filter{ TextureMinFilter::Linear };
-	TextureMagFilter mag_filter{ TextureMagFilter::Linear };
-	TextureWrap wrap_s{ TextureWrap::Repeat };
-	TextureWrap wrap_t{ TextureWrap::Repeat };
+	std::optional<TextureMinFilter> min_filter{ TextureMinFilter::Linear };
+	std::optional<TextureMagFilter> mag_filter{ TextureMagFilter::Linear };
+	std::optional<TextureWrap> wrap_s{ TextureWrap::Repeat };
+	std::optional<TextureWrap> wrap_t{ TextureWrap::Repeat };
 
 	bool operator==(const TextureUnitState&) const = default;
 };
@@ -41,36 +42,44 @@ using TextureUnits = std::vector<TextureUnitState>;
 
 struct State {
 	// Core object bindings
-	FramebufferId framebuffer;
-	RenderbufferId renderbuffer;
-	VertexBufferId vertex_buffer;
-	UniformBufferId uniform_buffer;
-	ShaderId shader_program;
-	VertexArrayId vertex_array;
+	std::optional<FramebufferId> framebuffer;
+	std::optional<RenderbufferId> renderbuffer;
+	std::optional<VertexBufferId> vertex_buffer;
+	std::optional<UniformBufferId> uniform_buffer;
+	std::optional<ShaderId> shader_program;
+	std::optional<VertexArrayId> vertex_array;
 
-	Viewport viewport;
+	std::optional<Viewport> viewport;
 
-	DepthState depth;
+	std::optional<DepthState> depth;
 
-	BlendState blend;
+	std::optional<BlendState> blend;
 
-	ColorMaskState color_mask;
+	std::optional<ColorMaskState> color_mask;
 
-	ActiveTexture active_texture;
+	std::optional<ActiveTexture> active_texture;
 	TextureUnits texture_units;
 
-	ClearColor clear_color;
-	ClearDepth clear_depth;
-	ClearStencil clear_stencil;
-
-	ScissorState scissor;
+	std::optional<ScissorState> scissor;
 
 	// Polygon rasterization
-	RasterState raster;
+	std::optional<RasterState> raster;
 
-	StencilState stencil;
+	std::optional<StencilState> stencil;
+
+	std::optional<double> clear_depth;
+	std::optional<int> clear_stencil;
+	std::optional<Color> clear_color;
 
 	bool operator==(const State&) const = default;
+
+	void Invalidate() {
+		std::size_t max_texture_slots{ texture_units.size() };
+
+		*this = {};
+
+		texture_units.resize(max_texture_slots, {});
+	}
 };
 
 } // namespace ptgn::impl::gl

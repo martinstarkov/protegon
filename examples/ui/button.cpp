@@ -8,9 +8,9 @@
 #include "core/math/vector2.h"
 #include "platform/events.h"
 #include "platform/key.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/event/event_dispatcher.h"
+#include "core/event/event_dispatcher.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 

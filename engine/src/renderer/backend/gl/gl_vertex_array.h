@@ -7,8 +7,8 @@
 #include "core/util/concepts.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
-#include "renderer/primitives/buffer_layout.h"
-#include "renderer/primitives/id.h"
+#include "renderer/pipeline/buffer_layout.h"
+#include "renderer/resources/id.h"
 
 namespace ptgn::impl::gl {
 

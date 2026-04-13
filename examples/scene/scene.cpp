@@ -5,7 +5,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/key.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"

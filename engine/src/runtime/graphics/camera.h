@@ -6,10 +6,10 @@
 
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/viewport.h"
+#include "core/graphics/color.h"
+#include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/event/event_dispatcher.h"
+#include "core/event/event_dispatcher.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {

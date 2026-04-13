@@ -9,7 +9,7 @@
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "platform/window.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
@@ -66,7 +66,7 @@ public:
 
 				LogFileDialogResult("OpenFile", result);
 			})
-			.SetText("Open File")
+			//.SetText("Open File")
 			.SetBackgroundShape(button_size)
 			.SetBackgroundColor(color::LightBlue)
 			.SetBackgroundColor(color::Blue, ButtonState::Hover)
@@ -86,7 +86,7 @@ public:
 
 				LogFileDialogResult("OpenFiles", result);
 			})
-			.SetText("Open Files")
+			//.SetText("Open Files")
 			.SetBackgroundShape(button_size)
 			.SetBackgroundColor(color::LightRed)
 			.SetBackgroundColor(color::Red, ButtonState::Hover)
@@ -107,7 +107,7 @@ public:
 
 				LogFileDialogResult("SaveFile", result);
 			})
-			.SetText("Save File")
+			//.SetText("Save File")
 			.SetBackgroundShape(button_size)
 			.SetBackgroundColor(color::LightGreen)
 			.SetBackgroundColor(color::Green, ButtonState::Hover)
@@ -121,7 +121,7 @@ public:
 
 				LogFileDialogResult("OpenFolder", result);
 			})
-			.SetText("Open Folder")
+			//.SetText("Open Folder")
 			.SetBackgroundShape(button_size)
 			.SetBackgroundColor(color::Pink)
 			.SetBackgroundColor(color::Red, ButtonState::Hover)
@@ -135,7 +135,7 @@ public:
 
 				LogFileDialogResult("OpenFolders", result);
 			})
-			.SetText("Open Folders")
+			//.SetText("Open Folders")
 			.SetBackgroundShape(button_size)
 			.SetBackgroundColor(color::LightPurple)
 			.SetBackgroundColor(color::Purple, ButtonState::Hover)

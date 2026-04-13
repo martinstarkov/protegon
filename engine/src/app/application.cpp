@@ -1,11 +1,22 @@
 #include "app/application.h"
 
+#ifdef __EMSCRIPTEN__
+
+#include <emscripten.h>
+#include <emscripten/html5.h>
+
+EM_JS(int, get_screen_width, (), { return window.screen.width; });
+EM_JS(int, get_screen_height, (), { return window.screen.height; });
+EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.0; });
+
+#endif
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
 #include <chrono>
-#include <format>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -16,24 +27,10 @@
 #include "core/time/time.h"
 #include "platform/glfw.h"
 #include "platform/window.h"
-#include "renderer/backend/gl/gl.h"
 #include "renderer/renderer.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
-
-#ifdef __EMSCRIPTEN__
-
-#include <emscripten.h>
-#include <emscripten/html5.h>
-
-#include <memory>
-
-EM_JS(int, get_screen_width, (), { return window.screen.width; });
-EM_JS(int, get_screen_height, (), { return window.screen.height; });
-EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.0; });
-
-#endif
 
 namespace ptgn {
 
@@ -109,8 +106,7 @@ ApplicationLibrary::~ApplicationLibrary() noexcept {
 Application::Application(const ApplicationConfig& config) :
 	window_{ events_, renderer_, config.window },
 	renderer_{ window_, events_ },
-	scenes_{},
-	events_{ scenes_ },
+	events_{ scene_manager_ },
 	assets_{ renderer_, audio_, font_ },
 	font_{ assets_ },
 	audio_{ assets_ },
@@ -175,22 +171,22 @@ void Application::Update() {
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	renderer_.BeginFrame();
+	scene_manager_.Update(dt());
 
-	scenes_.Update(dt());
+	for (const auto& layer : layers_) {
+		layer->OnUpdate();
+	}
 
 	audio_.Update();
 
 	debug_.PostUpdate();
 
-	for (const auto& layer : layers_) {
-		layer->OnUpdate(*this);
-	}
-
+	renderer_.BeginFrame();
+	scene_manager_.Draw();
 	renderer_.EndFrame();
 
 	for (const auto& layer : layers_) {
-		layer->OnRender(*this);
+		layer->OnRender();
 	}
 
 	ImGui::Render();

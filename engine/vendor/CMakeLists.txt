@@ -7,6 +7,9 @@ if (NOT EMSCRIPTEN)
 add_subdirectory(nativefiledialog-extended)
 endif()
 
+# magic_enum
+add_subdirectory(magic_enum)
+
 # GLFW
 if(EMSCRIPTEN)
   # Use Emscripten's built-in GLFW port.

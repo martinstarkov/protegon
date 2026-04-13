@@ -38,7 +38,7 @@ EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
 #include "platform/mouse.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/image/surface.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "renderer/renderer.h"
 #include "runtime/event/event_handler.h"
 

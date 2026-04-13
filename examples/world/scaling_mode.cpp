@@ -1,11 +1,11 @@
-#include "renderer/primitives/scaling_mode.h"
+#include "renderer/pipeline/scaling_mode.h"
 
 #include "app/application.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/key.h"
 #include "platform/window.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/draw.h"

@@ -9,7 +9,7 @@
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/primitives/id.h"
+#include "renderer/resources/id.h"
 
 namespace ptgn::impl::gl {
 

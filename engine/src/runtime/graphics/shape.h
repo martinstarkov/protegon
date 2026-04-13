@@ -8,7 +8,7 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 

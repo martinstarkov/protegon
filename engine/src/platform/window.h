@@ -14,7 +14,7 @@
 #include "platform/file_dialog.h"
 #include "platform/key.h"
 #include "platform/mouse.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "serialization/json/enum.h"
 
 struct GLFWwindow;

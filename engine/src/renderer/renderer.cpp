@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
@@ -31,21 +32,20 @@
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/buffer.h"
-#include "renderer/primitives/buffer_layout.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/render_pass.h"
-#include "renderer/primitives/render_state.h"
-#include "renderer/primitives/resource.h"
-#include "renderer/primitives/scaling_mode.h"
-#include "renderer/primitives/shader.h"
-#include "renderer/primitives/texture.h"
-#include "renderer/primitives/texture_format.h"
-#include "renderer/primitives/vertex.h"
-#include "renderer/primitives/vertex_array.h"
-#include "renderer/primitives/viewport.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/buffer_layout.h"
+#include "renderer/pipeline/render_pass.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/viewport.h"
+#include "renderer/resources/buffer.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/resource.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
+#include "renderer/resources/texture_format.h"
+#include "renderer/resources/vertex_array.h"
+#include "renderer/vertex/vertex.h"
 #include "runtime/event/event_handler.h"
 
 namespace ptgn {
@@ -852,7 +852,13 @@ void Renderer::BindScreenTarget() {
 	BindRenderTarget(screen_target_);
 }
 
+void Renderer::InvalidateState() {
+	gl_->
+}
+
 void Renderer::BeginFrame() {
+	InvalidateState();
+
 	PTGN_ASSERT(batch_vertices_.empty());
 	PTGN_ASSERT(batch_indices_.empty());
 

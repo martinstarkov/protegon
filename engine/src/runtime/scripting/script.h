@@ -6,7 +6,7 @@
 #include "core/util/hash.h"
 #include "core/util/type_info.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/event/event_dispatcher.h"
+#include "core/event/event_dispatcher.h"
 
 namespace ptgn {
 

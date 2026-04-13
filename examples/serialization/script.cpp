@@ -15,7 +15,7 @@
 #include "platform/events.h"
 #include "platform/key.h"
 #include "runtime/ecs/manager.h"
-#include "runtime/event/event_dispatcher.h"
+#include "core/event/event_dispatcher.h"
 
 using namespace ptgn;
 

@@ -7,8 +7,8 @@
 #include <variant>
 
 #include "core/util/concepts.h"
-#include "renderer/primitives/shader.h"
-#include "renderer/primitives/texture.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
 #include "runtime/audio/audio.h"
 #include "runtime/graphics/font.h"
 #include "serialization/json/fwd.h"

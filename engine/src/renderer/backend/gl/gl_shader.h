@@ -15,8 +15,8 @@
 #include "core/math/vector4.h"
 #include "core/util/file.h"
 #include "core/util/id_map.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/shader.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/shader.h"
 #include "serialization/json/fwd.h"
 
 CMRC_DECLARE(shader);

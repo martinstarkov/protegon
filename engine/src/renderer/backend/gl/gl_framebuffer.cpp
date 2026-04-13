@@ -20,9 +20,9 @@
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_texture.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/texture_format.h"
+#include "core/graphics/color.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/texture_format.h"
 
 namespace ptgn::impl::gl {
 

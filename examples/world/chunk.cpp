@@ -9,8 +9,8 @@
 #include "core/math/vector2.h"
 
 #include "platform/key.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/texture.h"
+#include "core/graphics/color.h"
+#include "renderer/resources/texture.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/ecs/entity.h"

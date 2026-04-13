@@ -14,7 +14,7 @@
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "nlohmann/json.hpp"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"

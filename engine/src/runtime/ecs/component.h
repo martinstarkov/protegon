@@ -7,7 +7,7 @@
 #include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "serialization/json/serialize.h"
 
 namespace ptgn {

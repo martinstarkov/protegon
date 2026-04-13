@@ -17,7 +17,7 @@
 #include "core/time/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/event/event_dispatcher.h"
+#include "core/event/event_dispatcher.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/scripts.h"
 

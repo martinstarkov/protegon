@@ -12,7 +12,7 @@
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/event/event_dispatcher.h"
+#include "core/event/event_dispatcher.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"

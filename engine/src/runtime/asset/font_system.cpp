@@ -11,7 +11,7 @@
 #include "core/util/file.h"
 #include "ecs/ecs.h"
 #include "renderer/image/surface.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/font.h"

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/tolerance.h"
 #include "core/math/vector2.h"
@@ -20,11 +21,10 @@
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/render_state.h"
-#include "renderer/primitives/viewport.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/viewport.h"
+#include "renderer/resources/id.h"
 
 #define PTGN_IMPL_BLEND_CASE(name, srcRGB, dstRGB, srcA, dstA) \
 	case BlendMode::name: GLCall(glBlendFuncSeparate(srcRGB, dstRGB, srcA, dstA)); break;
@@ -510,7 +510,7 @@ void GLContext::SetScissor(const ScissorState& scissor) {
 }
 
 void GLContext::SetCull(const CullState& cull) {
-	if (bound_.raster.cull == cull) {
+	if (bound_.raster.has_value() && bound_.raster->cull == cull) {
 		return;
 	}
 
@@ -523,7 +523,10 @@ void GLContext::SetCull(const CullState& cull) {
 	GLCall(glCullFace(std::to_underlying(cull.cull_face)));
 	GLCall(glFrontFace(std::to_underlying(cull.front_face)));
 
-	bound_.raster.cull = cull;
+	if (!bound_.raster.has_value()) {
+		bound_.raster = RasterState{};
+	}
+	bound_.raster->cull = cull;
 }
 
 void GLContext::SetRaster(const RasterState& raster) {
@@ -555,7 +558,7 @@ void GLContext::SetStencil(const StencilState& stencil) {
 }
 
 void GLContext::SetActiveTextureSlot(std::uint32_t slot) {
-	if (bound_.active_texture.slot == slot) {
+	if (bound_.active_texture.has_value() && bound_.active_texture->slot == slot) {
 		return;
 	}
 	PTGN_ASSERT(
@@ -571,8 +574,11 @@ std::size_t GLContext::GetMaxTextureSlots() const {
 	return bound_.texture_units.size();
 }
 
-std::uint32_t GLContext::GetActiveTextureSlot() const {
-	return bound_.active_texture.slot;
+std::optional<std::uint32_t> GLContext::GetActiveTextureSlot() const {
+	if (bound_.active_texture.has_value()) {
+		return bound_.active_texture->slot;
+	}
+	return std::nullopt;
 }
 
 int GLContext::GetInteger(std::uint32_t pname) const {
@@ -580,6 +586,10 @@ int GLContext::GetInteger(std::uint32_t pname) const {
 	GLCall(glGetIntegerv(pname, &value));
 	PTGN_ASSERT(value >= 0, "Failed to query integer parameter");
 	return value;
+}
+
+void GLContext::InvalidateState() {
+	bound_.Invalidate();
 }
 
 } // namespace ptgn::impl::gl

@@ -35,6 +35,7 @@ target_link_libraries(protegon
     ptgn_ecs
     nlohmann_json::nlohmann_json
     ptgn_imgui
+    magic_enum::magic_enum
   PRIVATE
     ptgn_glad
     glfw

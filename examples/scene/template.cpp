@@ -3,7 +3,7 @@
 
 #include "app/application.h"
 #include "core/assert.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text.h"

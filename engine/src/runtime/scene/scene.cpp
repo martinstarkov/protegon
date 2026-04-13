@@ -10,6 +10,8 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/event/event_dispatcher.h"
+#include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
@@ -18,23 +20,21 @@
 #include "core/util/concepts.h"
 #include "core/util/span.h"
 #include "ecs/ecs.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/render_state.h"
-#include "renderer/primitives/texture_format.h"
-#include "renderer/primitives/vertex.h"
-#include "renderer/primitives/viewport.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/texture_format.h"
+#include "renderer/vertex/vertex.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/manager.h"
-#include "runtime/event/event_dispatcher.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/particle.h"
+#include "runtime/graphics/fx/particle.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/physics/collider.h"
@@ -58,11 +58,11 @@ bool LocalSceneManager::CanIssueCommands(std::size_t target_key) const {
 		return false;
 	}
 
-	if (!scene_manager_.Has(target_key)) {
+	if (!scene_manager_.HasScene(target_key)) {
 		return true;
 	}
 
-	if (const auto& target_scene{ scene_manager_.Get(target_key) };
+	if (const auto& target_scene{ scene_manager_.GetScene(target_key) };
 		target_scene.IsTransitioning()) {
 		return false;
 	}
@@ -111,7 +111,7 @@ std::size_t SceneContext::GetFrameCount() const {
 void Scene::InternalEmit() {
 	auto& events{ ctx().event };
 
-	auto current = std::exchange(events.pending_, {});
+	auto current = std::exchange(events.queue_, {});
 
 	for (auto& event : current) {
 		EventDispatcher dispatcher{ event };

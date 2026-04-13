@@ -12,24 +12,24 @@
 #include <variant>
 #include <vector>
 
+#include "core/graphics/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
-#include "renderer/primitives/blend_mode.h"
-#include "renderer/primitives/buffer.h"
-#include "renderer/primitives/color.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/render_pass.h"
-#include "renderer/primitives/render_state.h"
-#include "renderer/primitives/resource.h"
-#include "renderer/primitives/scaling_mode.h"
-#include "renderer/primitives/shader.h"
-#include "renderer/primitives/texture.h"
-#include "renderer/primitives/texture_format.h"
-#include "renderer/primitives/vertex.h"
-#include "renderer/primitives/vertex_array.h"
-#include "renderer/primitives/viewport.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/render_pass.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/viewport.h"
+#include "renderer/resources/buffer.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/resource.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
+#include "renderer/resources/texture_format.h"
+#include "renderer/resources/vertex_array.h"
+#include "renderer/vertex/vertex.h"
 
 namespace ptgn {
 
@@ -98,25 +98,8 @@ inline constexpr std::size_t kBatchCapacity{ 10000 };
 inline constexpr std::size_t kVertexCapacity{ kBatchCapacity * 4 };
 inline constexpr std::size_t kIndexCapacity{ kBatchCapacity * 6 };
 
-} // namespace impl
-
 class Renderer {
-private:
-	friend class Application;
-	friend class AssetManager;
-	friend class EventHandler;
-	friend class Scene;
-	friend class RenderTarget;
-	friend class DrawContext;
-	friend class RenderContext;
-	friend class Window;
-	friend class DebugContext;
-	friend class impl::ShaderObject;
-	friend class impl::RenderTargetObject;
-	friend class impl::TextureObject;
-	template <impl::ResourceType T>
-	friend class impl::Resource;
-
+public:
 	Renderer() = delete;
 	explicit Renderer(Window& window, EventHandler& events);
 	~Renderer() noexcept;
@@ -125,6 +108,10 @@ private:
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
+	void BeginFrame();
+	void EndFrame();
+
+private:
 	/// @param game_size Setting to {} will use dynamic window size.
 	void SetGameSize(
 		std::optional<V2_int> game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
@@ -257,9 +244,6 @@ private:
 
 	void OnWindowResize(V2_int size);
 
-	void BeginFrame();
-	void EndFrame();
-
 	impl::RenderPass BeginPass(impl::RenderTargetId scene_render_target);
 
 	impl::RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
@@ -268,6 +252,8 @@ private:
 	impl::RenderTargetId AcquirePooledTarget(V2_int size, TextureFormat format);
 
 	void ReleasePooledTarget(impl::RenderTargetId render_target);
+
+	void InvalidateState();
 
 	Window& window_;
 
@@ -303,5 +289,7 @@ private:
 	std::uint64_t pool_tick_{ 0 };
 	std::size_t max_pool_size_{ 16 };
 };
+
+} // namespace impl
 
 } // namespace ptgn

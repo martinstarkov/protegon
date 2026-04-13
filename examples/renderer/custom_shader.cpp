@@ -6,7 +6,7 @@
 #include "app/application.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/shader.h"
+#include "renderer/resources/shader.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/physics/movement.h"

@@ -18,7 +18,7 @@
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "runtime/event/event_dispatcher.h"
+#include "core/event/event_dispatcher.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/serialize.h"
 

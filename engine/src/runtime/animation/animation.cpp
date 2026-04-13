@@ -12,7 +12,7 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/time/timer.h"
-#include "renderer/primitives/texture.h"
+#include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"

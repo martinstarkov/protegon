@@ -7,7 +7,7 @@
 #include "core/math/vector2.h"
 #include "core/util/string.h"
 #include "platform/key.h"
-#include "renderer/primitives/color.h"
+#include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
