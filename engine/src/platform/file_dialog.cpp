@@ -41,19 +41,22 @@ FileDialog::Result<std::vector<path>> FileDialog::OpenFolders(const Options&) co
 #include <nfd.h>
 #include <nfd_glfw3.h>
 
+#include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <nfd.hpp>
 #include <optional>
 #include <string>
 #include <utility>
 
+#include "core/assert.h"
 #include "core/log.h"
 
 namespace ptgn {
 
 FileDialog::FileDialog(Window& window) : window_{ window } {
-	if (NFD_Init() != NFD_OKAY) {
-		PTGN_ERROR("NFD_Init failed: ", NFD_GetError());
+	if (NFD::Init() != NFD_OKAY) {
+		PTGN_ERROR("NFD Init failed: ", NFD::GetError());
 	}
 	if (!NFD_SetDisplayPropertiesFromGLFW()) {
 		PTGN_ERROR("NFD_SetDisplayPropertiesFromGLFW failed");
@@ -61,204 +64,120 @@ FileDialog::FileDialog(Window& window) : window_{ window } {
 }
 
 FileDialog::~FileDialog() {
-	NFD_Quit();
+	NFD::Quit();
 }
 
-static std::string GetNFDError() {
-	if (const char* err{ NFD_GetError() }) {
-		return err;
-	}
-	return "Unknown NFD error";
-}
+template <typename From, typename Into, typename F, typename FTransform>
+static std::expected<std::optional<Into>, std::string> GetResult(
+	GLFWwindow* glfw_window, const FileDialog::Options& options, F&& func,
+	FTransform&& transform_func
+) {
+	PTGN_ASSERT(glfw_window, "Window must be initialized before opening a file dialog");
 
-struct NfdFilterStorage {
-	std::vector<std::string> names;
-	std::vector<std::string> specs;
-	std::vector<nfdu8filteritem_t> items;
-};
+	From out{};
 
-static NfdFilterStorage BuildFilters(const std::vector<FileDialog::Filter>& filters) {
-	NfdFilterStorage out;
-	out.names.reserve(filters.size());
-	out.specs.reserve(filters.size());
-	out.items.reserve(filters.size());
-
-	for (const auto& filter : filters) {
-		out.names.push_back(filter.name);
-		out.specs.push_back(filter.spec);
+	std::vector<nfdfilteritem_t> filters;
+	filters.reserve(options.filters.size());
+	for (const auto& filter : options.filters) {
+		filters.emplace_back(filter.name.c_str(), filter.spec.c_str());
 	}
 
-	for (std::size_t i = 0; i < filters.size(); ++i) {
-		out.items.push_back(nfdu8filteritem_t{
-			out.names[i].c_str(),
-			out.specs[i].c_str(),
-		});
-	}
+	nfdwindowhandle_t native_window;
 
-	return out;
-}
+	auto success{ NFD_GetNativeWindowFromGLFWWindow(glfw_window, &native_window) };
+	PTGN_ASSERT(success, "Failed to get native window handle from GLFW window for NFD");
 
-struct DialogCommonData {
-	NfdFilterStorage filters;
-	std::string default_path;
-	std::string default_name;
-};
-
-static DialogCommonData BuildDialogCommonData(const FileDialog::Options& options) {
-	DialogCommonData data;
-	data.filters = BuildFilters(options.filters);
+	std::u8string path_storage;
+	const nfdu8char_t* path{ nullptr };
 
 	if (options.default_path.has_value()) {
-		data.default_path = options.default_path->string();
+		path_storage = options.default_path->u8string();
+		path		 = reinterpret_cast<const char*>(path_storage.c_str());
 	}
 
-	if (options.default_name.has_value()) {
-		data.default_name = *options.default_name;
-	}
+	const nfdu8char_t* name{ options.default_name.has_value() ? options.default_name->c_str()
+															  : nullptr };
 
-	return data;
-}
+	auto result{ func(
+		out, filters.data(), static_cast<std::uint32_t>(filters.size()), path, name, native_window
+	) };
 
-template <typename TArgs>
-static void FillCommonDialogArgs(
-	GLFWwindow* glfw_window, const DialogCommonData& common, TArgs& args
-) {
-	if constexpr (requires {
-					  args.filterList;
-					  args.filterCount;
-				  }) {
-		args.filterList	 = common.filters.items.empty() ? nullptr : common.filters.items.data();
-		args.filterCount = static_cast<nfdfiltersize_t>(common.filters.items.size());
-	}
-
-	if constexpr (requires { args.defaultPath; }) {
-		args.defaultPath = common.default_path.empty() ? nullptr : common.default_path.c_str();
-	}
-
-	if constexpr (requires { args.defaultName; }) {
-		args.defaultName = common.default_name.empty() ? nullptr : common.default_name.c_str();
-	}
-
-	NFD_GetNativeWindowFromGLFWWindow(glfw_window, &args.parentWindow);
-}
-
-static FileDialog::Result<path> MakeSinglePathResult(nfdresult_t res, nfdu8char_t* out_path) {
-	switch (res) {
-		case NFD_OKAY: {
-			path result{ out_path ? out_path : "" };
-			if (out_path) {
-				NFD_FreePathU8(out_path);
-			}
-			return std::optional<path>{ std::move(result) };
-		}
-		case NFD_CANCEL: return std::optional<path>{ std::nullopt };
-		case NFD_ERROR:	 return std::unexpected(GetNFDError());
-		default:		 return std::unexpected("Unknown native file dialog result");
+	if (result == NFD_OKAY) {
+		return transform_func(std::move(out));
+	} else if (result == NFD_CANCEL) {
+		return std::nullopt;
+	} else {
+		return std::unexpected(NFD::GetError());
 	}
 }
 
-static FileDialog::Result<std::vector<path>> MakePathSetResult(
-	nfdresult_t res, const nfdpathset_t* out_paths
-) {
-	switch (res) {
-		case NFD_OKAY: {
-			std::vector<path> results;
-
-			nfdpathsetsize_t count = 0;
-			if (auto count_res{ NFD_PathSet_GetCount(out_paths, &count) }; count_res != NFD_OKAY) {
-				NFD_PathSet_Free(out_paths);
-				return std::unexpected(GetNFDError());
-			}
-
-			results.reserve(static_cast<std::size_t>(count));
-
-			for (nfdpathsetsize_t i = 0; i < count; ++i) {
-				nfdu8char_t* p = nullptr;
-				if (auto path_res{ NFD_PathSet_GetPathU8(out_paths, i, &p) };
-					path_res != NFD_OKAY) {
-					NFD_PathSet_Free(out_paths);
-					return std::unexpected(GetNFDError());
-				}
-
-				results.emplace_back(p ? p : "");
-				if (p) {
-					NFD_PathSet_FreePathU8(p);
-				}
-			}
-
-			NFD_PathSet_Free(out_paths);
-			return std::optional<std::vector<path>>{ std::move(results) };
-		}
-		case NFD_CANCEL: return std::optional<std::vector<path>>{ std::nullopt };
-		case NFD_ERROR:	 return std::unexpected(GetNFDError());
-		default:		 return std::unexpected("Unknown native file dialog result");
+static std::vector<path> ToPaths(NFD::UniquePathSet path_set) {
+	std::vector<path> paths;
+	nfdpathsetsize_t count{ 0 };
+	NFD::PathSet::Count(path_set, count);
+	paths.reserve(count);
+	for (nfdpathsetsize_t i{ 0 }; i < count; ++i) {
+		NFD::UniquePathSetPathU8 path;
+		NFD::PathSet::GetPath(path_set, i, path);
+		paths.emplace_back(path.get());
 	}
-}
-
-template <typename TArgs, typename TOptions, typename TFunc>
-static FileDialog::Result<path> RunSinglePathDialog(
-	GLFWwindow* glfw_window, const TOptions& options, TFunc&& func
-) {
-	DialogCommonData common{ BuildDialogCommonData(options) };
-	TArgs args{ nullptr };
-	FillCommonDialogArgs(glfw_window, common, args);
-	nfdu8char_t* out_path{ nullptr };
-	return MakeSinglePathResult(func(&out_path, args), out_path);
-}
-
-template <typename TArgs, typename TOptions, typename TFunc>
-static FileDialog::Result<std::vector<path>> RunPathSetDialog(
-	GLFWwindow* glfw_window, const TOptions& options, TFunc&& func
-) {
-	DialogCommonData common{ BuildDialogCommonData(options) };
-	TArgs args{ nullptr };
-	FillCommonDialogArgs(glfw_window, common, args);
-	const nfdpathset_t* out_paths{ nullptr };
-	return MakePathSetResult(func(&out_paths, args), out_paths);
+	return paths;
 }
 
 FileDialog::Result<path> FileDialog::OpenFile(const Options& options) const {
-	return RunSinglePathDialog<nfdopendialogu8args_t>(
+	return GetResult<NFD::UniquePathU8, path>(
 		window_.instance_.get(), options,
-		[](nfdu8char_t** out_path, const nfdopendialogu8args_t& args) {
-			return NFD_OpenDialogU8_With(out_path, &args);
-		}
+		[](auto& out, auto filter_data, auto filter_count, auto default_path, auto,
+		   auto native_window) {
+			return NFD::OpenDialog(out, filter_data, filter_count, default_path, native_window);
+		},
+		[](auto from) { return path{ from.get() }; }
 	);
 }
 
 FileDialog::Result<std::vector<path>> FileDialog::OpenFiles(const Options& options) const {
-	return RunPathSetDialog<nfdopendialogu8args_t>(
+	return GetResult<NFD::UniquePathSet, std::vector<path>>(
 		window_.instance_.get(), options,
-		[](const nfdpathset_t** out_paths, const nfdopendialogu8args_t& args) {
-			return NFD_OpenDialogMultipleU8_With(out_paths, &args);
-		}
+		[](auto& out, auto filter_data, auto filter_count, auto default_path, auto,
+		   auto native_window) {
+			return NFD::OpenDialogMultiple(
+				out, filter_data, filter_count, default_path, native_window
+			);
+		},
+		[](auto from) { return ToPaths(std::move(from)); }
 	);
 }
 
 FileDialog::Result<path> FileDialog::SaveFile(const Options& options) const {
-	return RunSinglePathDialog<nfdsavedialogu8args_t>(
+	return GetResult<NFD::UniquePathU8, path>(
 		window_.instance_.get(), options,
-		[](nfdu8char_t** out_path, const nfdsavedialogu8args_t& args) {
-			return NFD_SaveDialogU8_With(out_path, &args);
-		}
+		[](auto& out, auto filter_data, auto filter_count, auto default_path, auto default_name,
+		   auto native_window) {
+			return NFD::SaveDialog(
+				out, filter_data, filter_count, default_path, default_name, native_window
+			);
+		},
+		[](auto from) { return path{ from.get() }; }
 	);
 }
 
 FileDialog::Result<path> FileDialog::OpenFolder(const Options& options) const {
-	return RunSinglePathDialog<nfdpickfolderu8args_t>(
+	return GetResult<NFD::UniquePathU8, path>(
 		window_.instance_.get(), options,
-		[](nfdu8char_t** out_path, const nfdpickfolderu8args_t& args) {
-			return NFD_PickFolderU8_With(out_path, &args);
-		}
+		[](auto& out, auto, auto, auto default_path, auto, auto native_window) {
+			return NFD::PickFolder(out, default_path, native_window);
+		},
+		[](auto from) { return path{ from.get() }; }
 	);
 }
 
 FileDialog::Result<std::vector<path>> FileDialog::OpenFolders(const Options& options) const {
-	return RunPathSetDialog<nfdpickfolderu8args_t>(
+	return GetResult<NFD::UniquePathSet, std::vector<path>>(
 		window_.instance_.get(), options,
-		[](const nfdpathset_t** out_paths, const nfdpickfolderu8args_t& args) {
-			return NFD_PickFolderMultipleU8_With(out_paths, &args);
-		}
+		[](auto& out, auto, auto, auto default_path, auto, auto native_window) {
+			return NFD::PickFolderMultiple(out, default_path, native_window);
+		},
+		[](auto from) { return ToPaths(std::move(from)); }
 	);
 }
 

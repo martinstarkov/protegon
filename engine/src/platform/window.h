@@ -2,13 +2,11 @@
 
 #include <array>
 #include <cstdint>
-#include <expected>
 #include <memory>
 #include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
-#include <vector>
 
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -202,10 +200,6 @@ private:
 	Window& operator=(Window&&) noexcept = delete;
 	Window(const Window&)				 = delete;
 	Window& operator=(const Window&)	 = delete;
-
-	void InitializeFileDialogs();
-
-	void ShutdownFileDialogs();
 
 	void SetCallbacks();
 
