@@ -1,146 +1,149 @@
-int main(int, char**) {}
+#include "platform/file_dialog.h"
 
-/*
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_opengl.h>
-#include <SDL3_ttf/SDL_ttf.h>
-#include <stdio.h>
-#include <string.h>
+#include <concepts>
+#include <filesystem>
 
-#define WINDOW_W   800
-#define WINDOW_H   600
-#define WRAP_WIDTH 300
+#include "app/application.h"
+#include "core/log.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/vector2.h"
+#include "core/util/file.h"
+#include "platform/window.h"
+#include "renderer/primitives/color.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_input.h"
+#include "runtime/ui/button.h"
 
-GLuint texture_from_surface(SDL_Surface* surf) {
-	SDL_Surface* converted = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_RGBA32);
+using namespace ptgn;
 
-	GLuint tex;
-	glGenTextures(1, &tex);
-	glBindTexture(GL_TEXTURE_2D, tex);
+namespace {
 
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-	glTexImage2D(
-		GL_TEXTURE_2D, 0, GL_RGBA, converted->w, converted->h, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-		converted->pixels
-	);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	SDL_DestroySurface(converted);
-
-	return tex;
-}
-
-int main(int argc, char* argv[]) {
-	SDL_Init(SDL_INIT_VIDEO);
-	TTF_Init();
-
-	SDL_Window* window =
-		SDL_CreateWindow("SDL3_ttf OpenGL Test", WINDOW_W, WINDOW_H, SDL_WINDOW_OPENGL);
-
-	SDL_GLContext glctx = SDL_GL_CreateContext(window);
-
-	glViewport(0, 0, WINDOW_W, WINDOW_H);
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(0, WINDOW_W, WINDOW_H, 0, -1, 1);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	TTF_Font* font = TTF_OpenFont("assets/Arial.ttf", 24);
-	if (!font) {
-		printf("Font load error: %s\n", SDL_GetError());
-		return 1;
+template <typename T>
+void LogFileDialogResult(const char* label, const FileDialog::Result<T>& result) {
+	if (!result) {
+		PTGN_ERROR(label, " failed: ", result.error());
+		return;
 	}
 
-	char text[4096]	   = "Wrapping test: ";
-	const char* source = "The quick brown fox jumps over the lazy dog. ";
-
-	int source_index = 0;
-	Uint64 last_add	 = SDL_GetTicks();
-
-	SDL_Color white = { 255, 255, 255, 255 };
-
-	int running = 1;
-
-	while (running) {
-		SDL_Event e;
-		while (SDL_PollEvent(&e)) {
-			if (e.type == SDL_EVENT_QUIT) {
-				running = 0;
-			}
-		}
-
-		Uint64 now = SDL_GetTicks();
-
-		size_t len = strlen(text);
-
-		if (now - last_add > 50) {
-			text[len]	  = source[source_index];
-			text[len + 1] = '\0';
-
-			source_index++;
-			if (source[source_index] == '\0') {
-				source_index = 0;
-			}
-
-			last_add = now;
-		}
-
-		glClearColor(0.08f, 0.08f, 0.08f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		SDL_Surface* surf = TTF_RenderText_Blended_Wrapped(font, text, len, white, WRAP_WIDTH);
-
-		if (surf) {
-			GLuint tex = texture_from_surface(surf);
-
-			float x = 50.5f;
-			float y = 50.5f;
-			float w = (float)surf->w;
-			float h = (float)surf->h;
-
-			glBindTexture(GL_TEXTURE_2D, tex);
-
-			glBegin(GL_QUADS);
-
-			glTexCoord2f(0.0f, 0.0f);
-			glVertex2f(x, y);
-
-			glTexCoord2f(1.0f, 0.0f);
-			glVertex2f(x + w, y);
-
-			glTexCoord2f(1.0f, 1.0f);
-			glVertex2f(x + w, y + h);
-
-			glTexCoord2f(0.0f, 1.0f);
-			glVertex2f(x, y + h);
-
-			glEnd();
-
-			glDeleteTextures(1, &tex);
-			SDL_DestroySurface(surf);
-		}
-
-		SDL_GL_SwapWindow(window);
+	if (!*result) {
+		PTGN_LOG(label, " cancelled");
+		return;
 	}
 
-	TTF_CloseFont(font);
-
-	SDL_GL_DestroyContext(glctx);
-	SDL_DestroyWindow(window);
-
-	TTF_Quit();
-	SDL_Quit();
-
-	return 0;
+	if constexpr (std::same_as<T, std::filesystem::path>) {
+		PTGN_LOG(label, " selected: ", (**result).string());
+	} else {
+		PTGN_LOG(label, " selected ", (**result).size(), " paths:");
+		for (const auto& path : **result) {
+			PTGN_LOG("  - ", path.string());
+		}
+	}
 }
-*/
+
+} // namespace
+
+class FileDialogDemoScene : public Scene {
+public:
+	void OnEnter() override {
+		ctx().input.SetSettings({ .debug_draw_enabled = true });
+
+		const Origin button_origin{ Origin::Center };
+		const V2_int button_size{ 360, 72 };
+
+		CreateButton(*this, V2_float{ 0, -220 }, button_size, button_origin)
+			.OnPress([](auto button) {
+				const auto result =
+						button.GetScene().ctx().window.file.OpenFile({
+							.filters =
+								{
+									{ "Images", "png,jpg,jpeg,bmp,tga" },
+									{ "Scenes", "scene,ptgn,json" },
+									{ "All Files", "*" },
+								},
+							.default_path = "assets",
+						});
+
+				LogFileDialogResult("OpenFile", result);
+			})
+			.SetText("Open File")
+			.SetBackgroundShape(button_size)
+			.SetBackgroundColor(color::LightBlue)
+			.SetBackgroundColor(color::Blue, ButtonState::Hover)
+			.SetBackgroundColor(color::DarkBlue, ButtonState::Press);
+
+		CreateButton(*this, V2_float{ 0, -110 }, button_size, button_origin)
+			.OnPress([](auto button) {
+				const auto result =
+						button.GetScene().ctx().window.file.OpenFiles({
+							.filters =
+								{
+									{ "Audio", "wav,ogg,mp3,flac" },
+									{ "Images", "png,jpg,jpeg,bmp,tga" },
+								},
+							.default_path = "assets",
+						});
+
+				LogFileDialogResult("OpenFiles", result);
+			})
+			.SetText("Open Files")
+			.SetBackgroundShape(button_size)
+			.SetBackgroundColor(color::LightRed)
+			.SetBackgroundColor(color::Red, ButtonState::Hover)
+			.SetBackgroundColor(color::DarkRed, ButtonState::Press);
+
+		CreateButton(*this, V2_float{ 0, 0 }, button_size, button_origin)
+			.OnPress([](auto button) {
+				const auto result =
+						button.GetScene().ctx().window.file.SaveFile({
+							.filters =
+								{
+									{ "Scene Files", "scene,ptgn,json" },
+									{ "Text Files", "txt" },
+								},
+							.default_path = "assets",
+							.default_name = "untitled.scene",
+						});
+
+				LogFileDialogResult("SaveFile", result);
+			})
+			.SetText("Save File")
+			.SetBackgroundShape(button_size)
+			.SetBackgroundColor(color::LightGreen)
+			.SetBackgroundColor(color::Green, ButtonState::Hover)
+			.SetBackgroundColor(color::DarkGreen, ButtonState::Press);
+
+		CreateButton(*this, V2_float{ 0, 110 }, button_size, button_origin)
+			.OnPress([](auto button) {
+				const auto result = button.GetScene().ctx().window.file.OpenFolder({
+					.default_path = "assets",
+				});
+
+				LogFileDialogResult("OpenFolder", result);
+			})
+			.SetText("Open Folder")
+			.SetBackgroundShape(button_size)
+			.SetBackgroundColor(color::Pink)
+			.SetBackgroundColor(color::Red, ButtonState::Hover)
+			.SetBackgroundColor(color::DarkRed, ButtonState::Press);
+
+		CreateButton(*this, V2_float{ 0, 220 }, button_size, button_origin)
+			.OnPress([](auto button) {
+				const auto result = button.GetScene().ctx().window.file.OpenFolders({
+					.default_path = "default_path",
+				});
+
+				LogFileDialogResult("OpenFolders", result);
+			})
+			.SetText("Open Folders")
+			.SetBackgroundShape(button_size)
+			.SetBackgroundColor(color::LightPurple)
+			.SetBackgroundColor(color::Purple, ButtonState::Hover)
+			.SetBackgroundColor(color::DarkPurple, ButtonState::Press);
+	}
+};
+
+int main(int, char**) {
+	Application game{ "FileDialogDemoScene" };
+	game.StartWith<FileDialogDemoScene>();
+}
