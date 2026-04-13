@@ -1,20 +1,13 @@
-#include "layer.h"
+#include "protegon_editor/layer.h"
 
-#include <backends/imgui_impl_opengl3.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 
-#include <algorithm>
-#include <cmrc/cmrc.hpp>
-#include <cstdio>
-#include <nlohmann/json.hpp>
-#include <stdexcept>
-#include <string>
 #include <vector>
 
 #include "app/application.h"
 #include "app/layer.h"
-#include "panels.h"
+#include "protegon_editor/panels.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {
@@ -26,13 +19,13 @@ void EditorLayer::OnUpdate(Application& app) {}
 void EditorLayer::OnRender(Application& app) {
 	hierarchy_drag_active_ = false;
 
-	editor::DrawDockspace(app);
-	editor::DrawHierarchyWindow(app);
-	editor::DrawScenesWindow(app);
-	editor::DrawInspectorWindow(app);
-	editor::DrawEngineSettingsWindow(app);
-	editor::DrawAssetsWindow(app);
-	editor::DrawGameWindow(app);
+	editor::DrawDockspace(*this, app);
+	editor::DrawHierarchyWindow(*this, app);
+	editor::DrawScenesWindow(*this, app);
+	editor::DrawInspectorWindow(*this, app);
+	editor::DrawEngineSettingsWindow(*this, app);
+	editor::DrawAssetsWindow(*this, app);
+	editor::DrawGameWindow(*this, app);
 }
 
 Entity EditorLayer::FindEntityById(int id) const {
@@ -375,7 +368,6 @@ void EditorLayer::BuildDefaultDockLayout(unsigned int dockspace_id) {
 
 int EditorLayer::GetLastEntityInHierarchyOrder() const {
 	// TODO: Fix.
-	return -1;
 	// if (CurrentScene().entities.empty()) {
 	//	return -1;
 	// }
@@ -384,6 +376,7 @@ int EditorLayer::GetLastEntityInHierarchyOrder() const {
 	if (roots.empty()) {
 		// TODO: Fix.
 		// return CurrentScene().entities.back().id;
+		return -1;
 	}
 
 	int last_id = -1;

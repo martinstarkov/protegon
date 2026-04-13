@@ -1,4 +1,4 @@
-#include "panels.h"
+#include "protegon_editor/panels.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -9,10 +9,10 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
-#include "layer.h"
+#include "app/application.h"
+#include "protegon_editor/layer.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {
@@ -600,7 +600,7 @@ void DrawDockspace(EditorLayer& layer, Application& app) {
 
 void DrawHierarchyWindow(EditorLayer& layer, Application& app) {
 	// TODO: Fix.
-	std::string window_name = "Test Scene1";
+	std::string window_name = "Test Scene1" + std::string("###SceneHierarchyWindow");
 	// std::string window_name = app.CurrentScene().name + "###SceneHierarchyWindow";
 	ImGui::Begin(window_name.c_str());
 
@@ -920,32 +920,6 @@ static void DrawComponentImpl(EditorLayer& layer,Application& app, ScriptCompone
 }
 */
 
-template <typename T>
-concept HasInspectorDraw =
-	requires(Application& app, T& component) { DrawComponentImpl(app, component); };
-
-template <typename T>
-void DrawComponent(Application& app, bool has_component, T& component) {
-	if (!has_component) {
-		return;
-	}
-
-	if constexpr (!HasInspectorDraw<T>) {
-		return;
-	} else {
-		constexpr bool kNonRemovable = (Kind == ComponentKind::Transform);
-		const bool open				 = DrawComponentHeader(
-			 app, InspectorDetail::GetComponentLabel<Kind>(), Kind, kNonRemovable
-		 );
-
-		if (open) {
-			ImGui::Spacing();
-			DrawComponentImpl(app, component);
-			ImGui::Spacing();
-		}
-	}
-}
-
 void DrawInspectorWindow(EditorLayer& layer, Application& app) {
 	ImGui::Begin("Inspector");
 
@@ -1163,10 +1137,15 @@ void DrawGameWindow(EditorLayer& layer, Application& app) {
 	const ImVec2 view_min(region_min.x + offset_x, region_min.y + offset_y);
 	const ImVec2 view_max(view_min.x + view_w, view_min.y + view_h);
 
-	const ImU32 game_color = ImGui::ColorConvertFloat4ToU32(ImVec4(
-		layer.clear_color_[0], layer.clear_color_[1], layer.clear_color_[2], layer.clear_color_[3]
-	));
-	draw_list->AddRectFilled(view_min, view_max, game_color);
+	// Get your GL texture id from the renderer/screen target.
+	auto gl_tex = app.GetScreenTargetId();
+
+	//// FBO textures usually need flipped UVs in ImGui.
+	draw_list->AddImage(
+		(void*)(intptr_t)gl_tex, view_min, view_max, ImVec2(0.0f, 1.0f), // uv0
+		ImVec2(1.0f, 0.0f)												 // uv1
+	);
+
 	draw_list->AddRect(view_min, view_max, IM_COL32(255, 255, 255, 35));
 
 	ImGui::InvisibleButton("GameSurface", avail);
@@ -1356,54 +1335,10 @@ static ImTextureID LoadFakeThumbnailForPath(Application& app, const std::string&
 	*/
 }
 
-static void SDLCALL
-OnImportAssetsSelected(void* userdata, const char* const* filelist, int filter) {
-	(void)userdata;
-	(void)filter;
-
-	if (filelist == nullptr) {
-		SDL_Log("SDL_ShowOpenFileDialog failed: %s", SDL_GetError());
-		return;
-	}
-
-	if (*filelist == nullptr) {
-		// User canceled.
-		return;
-	}
-
-	std::lock_guard<std::mutex> lock(g_pending_imports.mutex);
-	while (*filelist != nullptr) {
-		g_pending_imports.paths.emplace_back(*filelist);
-		++filelist;
-	}
-}
-
-static void OpenImportAssetsDialog(SDL_Window* sdl_window) {
-	static const SDL_DialogFileFilter filters[] = {
-		{ "Images", "png;jpg;jpeg;bmp;tga;gif;webp" },
-		{ "Audio", "wav;ogg;mp3" },
-		{ "Scenes", "scene;json" },
-		{ "All files", "*" },
-	};
-
-	SDL_ShowOpenFileDialog(
-		OnImportAssetsSelected, nullptr, sdl_window, filters, SDL_arraysize(filters), nullptr,
-		true // allow_many
-	);
-}
-
-enum class AssetSortMode {
-	Name,
-	Type,
-};
-
-static AssetSortMode sort_mode = AssetSortMode::Name;
-static bool sort_ascending	   = true;
-
-void DrawAssetsWindow(Application& app) {
+void DrawAssetsWindow(EditorLayer& layer, Application& app) {
 	ImGui::Begin("Assets", nullptr, ImGuiWindowFlags_NoCollapse);
 
-	const std::string current_scene_key = GetCurrentSceneKey(app);
+	const std::string current_scene_key = GetCurrentSceneKey(layer, app);
 	if (current_scene_key.empty()) {
 		ImGui::TextUnformatted("No scene selected.");
 		ImGui::End();
@@ -1437,14 +1372,25 @@ void DrawAssetsWindow(Application& app) {
 	ImGui::Separator();
 
 	static int items_per_row = 4;
+
 	enum class AssetSortMode {
 		Name,
 		Type,
 	};
+
 	static AssetSortMode sort_mode = AssetSortMode::Name;
+	static bool sort_ascending	   = true;
 
 	if (ImGui::Button("Import...", ImVec2(120.0f, 0.0f))) {
-		OpenImportAssetsDialog(app.window_);
+		// TODO: Fix.
+		/*const auto result = app.window_.file.OpenFiles({
+			.filters = {
+				{ "Images", "png,jpg,jpeg,bmp,tga,gif,webp" },
+				{ "Audio", "wav,ogg,mp3" },
+				{ "Scenes", "scene,json" },
+				{ "All files", "*" },
+			},
+		});*/
 	}
 
 	ImGui::SameLine();
@@ -1552,11 +1498,10 @@ void DrawAssetsWindow(Application& app) {
 			}
 
 			{
-				char key_buffer[256];
-				SDL_strlcpy(key_buffer, asset->key.c_str(), sizeof(key_buffer));
+				std::string key_buffer = asset->key;
 				ImGui::SetNextItemWidth(preview_size);
 				if (ImGui::InputText(
-						"##AssetKey", key_buffer, sizeof(key_buffer),
+						"##AssetKey", key_buffer.data(), key_buffer.size(),
 						ImGuiInputTextFlags_EnterReturnsTrue
 					)) {
 					std::string renamed_key = key_buffer;

@@ -3,16 +3,17 @@
 namespace ptgn {
 
 class Application;
+class EditorLayer;
 
 namespace editor {
 
-void DrawDockspace(Application& app);
-void DrawHierarchyWindow(Application& app);
-void DrawScenesWindow(Application& app);
-void DrawInspectorWindow(Application& app);
-void DrawGameWindow(Application& app);
-void DrawEngineSettingsWindow(Application& app);
-void DrawAssetsWindow(Application& app);
+void DrawDockspace(EditorLayer& layer, Application& app);
+void DrawHierarchyWindow(EditorLayer& layer, Application& app);
+void DrawScenesWindow(EditorLayer& layer, Application& app);
+void DrawInspectorWindow(EditorLayer& layer, Application& app);
+void DrawGameWindow(EditorLayer& layer, Application& app);
+void DrawEngineSettingsWindow(EditorLayer& layer, Application& app);
+void DrawAssetsWindow(EditorLayer& layer, Application& app);
 
 } // namespace editor
 
