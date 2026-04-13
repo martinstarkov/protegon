@@ -34,6 +34,9 @@ template <typename... Ts>
 concept NonEmptyPack = (sizeof...(Ts) > 0);
 
 template <typename T>
+concept Arithmetic = std::is_arithmetic_v<T>;
+
+template <typename T>
 concept EnumType = std::is_enum_v<T>;
 
 template <typename T>
@@ -49,8 +52,7 @@ template <typename From, typename To>
 concept NotNarrowing = !Narrowing<From, To>;
 
 template <typename From, typename To>
-concept NarrowingArithmetic =
-	std::is_arithmetic_v<From> && std::is_arithmetic_v<To> && Narrowing<From, To>;
+concept NarrowingArithmetic = Arithmetic<From> && Arithmetic<To> && Narrowing<From, To>;
 
 template <typename From, typename To>
 concept NotNarrowingArithmetic = !NarrowingArithmetic<From, To>;
