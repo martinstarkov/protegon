@@ -6,14 +6,17 @@
 
 #include <chrono>
 #include <format>
+#include <memory>
 #include <string>
 
+#include "app/layer.h"
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "platform/glfw.h"
 #include "platform/window.h"
+#include "renderer/backend/gl/gl.h"
 #include "renderer/renderer.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/scene/scene_manager.h"
@@ -121,6 +124,10 @@ Application::Application(const std::string& title, V2_int window_size) :
 
 Application::~Application() noexcept {
 	// Requires access to destructors.
+}
+
+std::uint32_t Application::GetScreenTargetId() const {
+	return renderer_.GetRenderTargetTexture(renderer_.screen_target_).operator std::uint32_t();
 }
 
 void Application::EnterMainLoop() {

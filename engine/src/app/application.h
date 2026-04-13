@@ -101,6 +101,15 @@ public:
 		StartWith<TScene>("");
 	}
 
+	template <typename TLayer, typename... TArgs>
+		requires std::is_base_of_v<Layer, TLayer> && std::constructible_from<TLayer, TArgs...>
+	void PushLayer(TArgs&&... args) {
+		layers_.emplace_back(std::make_unique<TLayer>(std::forward<TArgs>(args)...));
+	}
+
+	// TODO: Find a better workaround.
+	std::uint32_t GetScreenTargetId() const;
+
 private:
 #ifdef __EMSCRIPTEN__
 	friend void impl::EmscriptenMainLoop(void* application);
