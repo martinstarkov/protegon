@@ -1,12 +1,11 @@
 #pragma once
 
 #include <chrono>
-#include <functional>
 #include <optional>
 #include <string_view>
 #include <unordered_map>
-#include <variant>
 
+#include "core/event/event.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -49,38 +48,49 @@ struct AnimationConfig {
 	)
 };
 
+namespace event {
+
+struct AnimationStart;
+struct AnimationStop;
+struct AnimationPause;
+struct AnimationResume;
+struct AnimationFrameChange;
+struct AnimationUpdate;
+struct AnimationComplete;
+struct AnimationLoopComplete;
+
+}; // namespace event
+
 struct Animation : public Entity {
 	Animation() = default;
 	explicit Animation(Entity entity);
 
-	using Callback = std::variant<std::function<void()>, std::function<void(Animation)>>;
-
 	/// @brief Triggered when an animation is started.
-	Animation& OnStart(const Callback& callback);
+	Animation& OnStart(const EventCallback<event::AnimationStart>& callback);
 
 	/// @brief Triggered when an animation is stopped, either by calling Stop() or Reset(), or when
 	/// the animation completes.
-	Animation& OnStop(const Callback& callback);
+	Animation& OnStop(const EventCallback<event::AnimationStop>& callback);
 
 	/// @brief Triggered when an animation is paused.
-	Animation& OnPause(const Callback& callback);
+	Animation& OnPause(const EventCallback<event::AnimationPause>& callback);
 
 	/// @brief Triggered when an animation is resumed.
-	Animation& OnResume(const Callback& callback);
+	Animation& OnResume(const EventCallback<event::AnimationResume>& callback);
 
 	/// @brief Triggered any time the animation frame changes, including when the animation starts.
 	/// Does not trigger when the animation is manually reset or if it completes and
 	/// reset_on_complete is true.
-	Animation& OnFrameChange(const Callback& callback);
+	Animation& OnFrameChange(const EventCallback<event::AnimationFrameChange>& callback);
 
 	/// @brief Triggered every frame that an animation is playing.
-	Animation& OnUpdate(const Callback& callback);
+	Animation& OnUpdate(const EventCallback<event::AnimationUpdate>& callback);
 
 	/// @brief Triggered when all animation plays have completed.
-	Animation& OnComplete(const Callback& callback);
+	Animation& OnComplete(const EventCallback<event::AnimationComplete>& callback);
 
 	/// @brief Triggered every time an animation plays through all its frames.
-	Animation& OnLoopComplete(const Callback& callback);
+	Animation& OnLoopComplete(const EventCallback<event::AnimationLoopComplete>& callback);
 
 	Animation& SetTexture(TextureOrKey texture);
 
@@ -212,8 +222,6 @@ public:
 	void SetCurrentFrame(std::size_t new_frame);
 	void IncrementFrame();
 
-	PTGN_REFLECT(AnimationData, config, frame_timer, current_frame, frames_played)
-
 	AnimationConfig config;
 
 	Timer frame_timer;
@@ -227,6 +235,8 @@ public:
 
 	/// @brief If the current frame has been changed externally.
 	bool frame_dirty{ false };
+
+	PTGN_REFLECT(AnimationData, config, frame_timer, current_frame, frames_played)
 };
 
 class AnimationSystem {

@@ -28,7 +28,9 @@ EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
 #include <vector>
 
 #include "core/assert.h"
-
+#include "core/event/event.h"
+#include "core/event/key_event.h"
+#include "core/event/mouse_event.h"
 #include "core/event/window_event.h"
 #include "core/graphics/color.h"
 #include "core/graphics/surface.h"
@@ -88,8 +90,7 @@ void Window::SetCallbacks() {
 		if (glfwGetWindowMonitor(window) == nullptr) {
 			self->windowed_pos_ = pos;
 		}
-		PTGN_ASSERT(self->event_sink_);
-		self->event_sink_(impl::EventData::Create<event::WindowMoved>(pos));
+		self->PushEvent<event::WindowMoved>(pos);
 	});
 
 	glfwSetWindowMaximizeCallback(win, [](GLFWwindow* window, int maximized) {
@@ -98,7 +99,7 @@ void Window::SetCallbacks() {
 			return;
 		}
 		if (maximized) {
-			self->events_.Push<event::WindowMaximized>();
+			self->PushEvent<event::WindowMaximized>();
 		}
 	});
 
@@ -108,7 +109,7 @@ void Window::SetCallbacks() {
 			return;
 		}
 		if (iconified) {
-			self->events_.Push<event::WindowMinimized>();
+			self->PushEvent<event::WindowMinimized>();
 		}
 	});
 
@@ -127,7 +128,7 @@ void Window::SetCallbacks() {
 		V2_int size{ width, height };
 
 		self->renderer_.OnWindowResize(size);
-		self->events_.Push<event::WindowResized>(size);
+		self->PushEvent<event::WindowResized>(size);
 	});
 
 	glfwSetWindowFocusCallback(win, [](GLFWwindow* window, int focused) {
@@ -137,11 +138,11 @@ void Window::SetCallbacks() {
 		}
 		if (focused) {
 			self->focused_ = true;
-			self->events_.Push<event::WindowFocusGained>();
+			self->PushEvent<event::WindowFocusGained>();
 		} else {
 			self->ClearInputState();
 			self->focused_ = false;
-			self->events_.Push<event::WindowFocusLost>();
+			self->PushEvent<event::WindowFocusLost>();
 		}
 	});
 
@@ -152,7 +153,7 @@ void Window::SetCallbacks() {
 		}
 
 		self->quit_ = true;
-		self->events_.Push<event::WindowQuit>();
+		self->PushEvent<event::WindowQuit>();
 	});
 
 	glfwSetKeyCallback(
@@ -232,8 +233,7 @@ void Window::SetCallbacks() {
 	});
 }
 
-Window::Window(EventHandler& events, Renderer& renderer, const WindowConfig& config) :
-	file{ *this }, title_{ config.title }, events_{ events }, renderer_{ renderer } {
+Window::Window(const WindowConfig& config) : file{ *this }, title_{ config.title } {
 	int exclusive_states = static_cast<int>(config.minimized) + static_cast<int>(config.maximized) +
 						   static_cast<int>(config.fullscreen);
 
@@ -372,7 +372,7 @@ bool Window::PollEvents() {
 		mouse_position_ = raw_mouse_position_ - half_window_size;
 		auto delta{ mouse_position_ - previous_mouse_position_ };
 		if (focused) {
-			event_sink_(event::MouseMove{ mouse_position_, delta });
+			PushEvent<event::MouseMove>(mouse_position_, delta);
 		}
 		raw_mouse_position_ = {};
 		mouse_set_			= true;
@@ -388,7 +388,7 @@ bool Window::PollEvents() {
 		if (!delta.IsZero()) {
 			mouse_position_ = new_mouse_position;
 			if (mouse_set_) {
-				event_sink_(event::MouseMove{ mouse_position_, delta });
+				PushEvent<event::MouseMove>(mouse_position_, delta);
 			}
 			mouse_set_ = true;
 		}
@@ -401,7 +401,7 @@ bool Window::PollEvents() {
 	raw_scroll_accum_ = {};
 
 	if (focused && !mouse_scroll_.IsZero()) {
-		event_sink_(event::MouseScroll{ mouse_scroll_, mouse_position_ });
+		PushEvent<event::MouseScroll>(mouse_scroll_, mouse_position_);
 	}
 
 	for (std::size_t i = 0; i < mouse_states_.size(); ++i) {
@@ -413,19 +413,19 @@ bool Window::PollEvents() {
 			mouse_states_[i]	 = Pressed;
 			mouse_timestamps_[i] = glfwGetTime();
 			if (focused) {
-				event_sink_(event::MousePressed{ static_cast<Mouse>(i), mouse_position_ });
-				event_sink_(event::MouseHeld{ static_cast<Mouse>(i), mouse_position_ });
+				PushEvent<event::MousePressed>(static_cast<Mouse>(i), mouse_position_);
+				PushEvent<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
 			}
 		} else if (was_down && is_down) {
 			mouse_states_[i] = Held;
 			if (focused) {
-				event_sink_(event::MouseHeld{ static_cast<Mouse>(i), mouse_position_ });
+				PushEvent<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
 			}
 		} else if (was_down && !is_down) {
 			mouse_states_[i]	 = Released;
 			mouse_timestamps_[i] = glfwGetTime();
 			if (focused) {
-				event_sink_(event::MouseReleased{ static_cast<Mouse>(i), mouse_position_ });
+				PushEvent<event::MouseReleased>(static_cast<Mouse>(i), mouse_position_);
 			}
 		} else {
 			mouse_states_[i] = Idle;
@@ -441,19 +441,19 @@ bool Window::PollEvents() {
 			key_states_[i]	   = Pressed;
 			key_timestamps_[i] = glfwGetTime();
 			if (focused) {
-				event_sink_(event::KeyPressed{ static_cast<Key>(i) });
-				event_sink_(event::KeyHeld{ static_cast<Key>(i) });
+				PushEvent<event::KeyPressed>(static_cast<Key>(i));
+				PushEvent<event::KeyHeld>(static_cast<Key>(i));
 			}
 		} else if (was_down && is_down) {
 			key_states_[i] = Held;
 			if (focused) {
-				event_sink_(event::KeyHeld{ static_cast<Key>(i) });
+				PushEvent<event::KeyHeld>(static_cast<Key>(i));
 			}
 		} else if (was_down && !is_down) {
 			key_states_[i]	   = Released;
 			key_timestamps_[i] = glfwGetTime();
 			if (focused) {
-				event_sink_(event::KeyReleased{ static_cast<Key>(i) });
+				PushEvent<event::KeyReleased>(static_cast<Key>(i));
 			}
 		} else {
 			key_states_[i] = Idle;
@@ -707,38 +707,6 @@ void Window::SetFullscreen(bool on) {
 			glfwMaximizeWindow(win);
 		}
 	}
-}
-
-std::ostream& operator<<(std::ostream& os, const MouseMode& mode) {
-	switch (mode) {
-		using enum MouseMode;
-		case Normal:   return os << "Normal";
-		case Hidden:   return os << "Hidden";
-		case Disabled: return os << "Disabled";
-		default:	   PTGN_ERROR("Unknown MouseMode: ", std::to_underlying(mode));
-	}
-}
-
-std::ostream& operator<<(std::ostream& os, const WindowConfig& config) {
-	os << std::boolalpha;
-	auto x = config.x.has_value() ? std::to_string(*config.x) : "centered";
-	auto y = config.y.has_value() ? std::to_string(*config.y) : "centered";
-	os << "{\n"
-	   << "  title: \"" << config.title << "\",\n"
-	   << "  size: " << config.size << ",\n"
-	   << "  resizable: " << config.resizable << ",\n"
-	   << "  position: (" << x << ", " << y << "),\n"
-	   << "  minimized: " << config.minimized << ",\n"
-	   << "  maximized: " << config.maximized << ",\n"
-	   << "  fullscreen: " << config.fullscreen << ",\n"
-	   << "  mouse_mode: " << config.mouse_mode << ",\n"
-	   << "  always_on_top: " << config.always_on_top << ",\n"
-	   << "  borderless: " << config.borderless << ",\n"
-	   << "  transparent: " << config.transparent << "\n"
-	   << "}";
-	os << std::noboolalpha;
-
-	return os;
 }
 
 static duration<double> GetTimeSince(impl::Timestamp timestamp) {

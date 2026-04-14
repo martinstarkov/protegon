@@ -2,6 +2,7 @@
 
 #include <concepts>
 #include <istream>
+#include <iterator>
 #include <ostream>
 #include <string_view>
 #include <type_traits>
@@ -89,6 +90,12 @@ concept MapLike = requires(T t, typename T::key_type key) {
 	{ t.find(key) } -> std::same_as<typename T::iterator>;
 	{ t[key] } -> std::same_as<typename T::mapped_type&>;
 };
+
+template <typename T>
+concept IterableType = requires(T value) {
+	std::begin(value);
+	std::end(value);
+} && !std::is_convertible_v<T, std::string_view>;
 
 template <typename Type, typename... Types>
 concept SameType = std::conjunction_v<std::is_same<Type, Types>...>;

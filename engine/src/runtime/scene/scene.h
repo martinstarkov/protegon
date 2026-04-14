@@ -570,7 +570,7 @@ struct MemberPointerClass<R (C::*)(Args...) const> {
 } // namespace impl
 
 template <typename T, typename... TArgs>
-	requires std::constructible_from<T, TArgs...>
+	requires BraceConstructible<T, TArgs...>
 void PushEvent(Entity entity, TArgs&&... args) {
 	entity.GetScene().ctx().event.Push<T>(entity, std::forward<TArgs>(args)...);
 }

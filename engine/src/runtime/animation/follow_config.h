@@ -1,13 +1,8 @@
 #pragma once
 
 #include <optional>
-#include <ostream>
-#include <utility>
-#include <vector>
 
-#include "core/log.h"
 #include "core/math/vector2.h"
-#include "serialization/serialize.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -16,17 +11,7 @@ enum class MoveMode {
 	Lerp,
 	Velocity
 };
-
-inline std::ostream& operator<<(std::ostream& os, MoveMode mode) {
-	switch (mode) {
-		using enum MoveMode;
-		case Lerp:	   return os << "Lerp";
-		case Velocity: return os << "Velocity";
-		default:	   PTGN_ERROR("Unknown MoveMode: ", std::to_underlying(mode));
-	}
-}
-
-PTGN_REFLECT_ENUM(MoveMode, { { MoveMode::Lerp, "lerp" }, { MoveMode::Velocity, "velocity" } });
+PTGN_REFLECT_ENUM(MoveMode);
 
 struct FollowConfig {
 	MoveMode move_mode{ MoveMode::Lerp };
@@ -60,10 +45,9 @@ struct FollowConfig {
 
 	bool operator==(const FollowConfig&) const = default;
 
-	// TODO: Fix stop distance serialization.
-	PTGN_REFLECTR_REGISTER(
-		FollowConfig, move_mode, follow_x, follow_y, teleport_on_start, lerp, deadzone, offset,
-		max_speed, max_acceleration
+	PTGN_REFLECT(
+		FollowConfig, move_mode, follow_x, follow_y, teleport_on_start, stop_distance, lerp,
+		deadzone, offset, max_speed, max_acceleration
 	)
 };
 
@@ -82,15 +66,7 @@ struct PathFollowConfig : public FollowConfig {
 
 	bool operator==(const PathFollowConfig&) const = default;
 
-	friend void to_json(json& j, const PathFollowConfig& config) {
-		to_json(j, static_cast<const FollowConfig&>(config));
-		j["loop_path"] = config.loop_path;
-	}
-
-	friend void from_json(const json& j, PathFollowConfig& config) {
-		from_json(j, static_cast<FollowConfig&>(config));
-		j.at("loop_path").get_to(config.loop_path);
-	}
+	PTGN_REFLECT_DERIVED(PathFollowConfig, FollowConfig, loop_path)
 };
 
 } // namespace ptgn

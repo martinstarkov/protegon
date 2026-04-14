@@ -45,7 +45,6 @@
 #include "renderer/resources/texture_format.h"
 #include "renderer/resources/vertex_array.h"
 #include "renderer/vertex/vertex.h"
-#include "runtime/scene/scene_event.h"
 
 namespace ptgn {
 
@@ -77,7 +76,7 @@ Renderer::Renderer(Window& window) :
 								 pixel_type, V2_int{ 1, 1 }, TextureFormat::RGBA8
 							 ) };
 
-	auto viewport{ window.GetSize() };
+	auto viewport{ GetFullViewportSize() };
 
 	PTGN_ASSERT(viewport.BothAboveZero(), "Viewport cannot be zero");
 
@@ -477,8 +476,8 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	}
 	// TODO: Find a better way to do this. This is needed to ensure that the shader's uniform is
 	// updated even if the shader itself doesn't change.
-	if (auto shader{ gl_->GetBoundShader() }; shader) {
-		gl_->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+	if (auto shader{ gl_->GetBoundShader() }; shader.has_value() && *shader) {
+		gl_->shaders.SetUniform(*shader, "u_ViewProjection", view_projection_);
 	}
 }
 
@@ -619,11 +618,11 @@ ShaderId Renderer::GetShader(std::string_view name) const {
 bool Renderer::IsTextureAttachedToCurrentFramebuffer(TextureId texture) const {
 	auto bound{ gl_->GetBoundFramebuffer() };
 
-	if (bound == FramebufferId{ 0 }) {
+	if (!bound.has_value() || *bound == FramebufferId{ 0 }) {
 		return false;
 	}
 
-	return gl_->framebuffers.GetFramebufferAttachment(bound, gl::Attachment::Color0).id == texture;
+	return gl_->framebuffers.GetFramebufferAttachment(*bound, gl::Attachment::Color0).id == texture;
 }
 
 void Renderer::DrawTexture(
@@ -688,14 +687,12 @@ TextureId Renderer::GetWhiteTexture() const {
 	return white_texture_;
 }
 
-void Renderer::OnWindowResize(V2_int size) {
+void Renderer::OnFullViewportResize(V2_int size) {
 	if (!game_size_.has_value()) {
-		// PTGN_LOG("Emitting game resized: ", size);
-		events_.Push<event::InternalGameResized>(size);
-		events_.Push<event::GameResized>(size);
+		event_sink_(size, ResizeType::Game);
 	}
 
-	UpdateDisplayViewport(size);
+	UpdateDisplayViewport();
 }
 
 void Renderer::SetScalingMode(ScalingMode scaling_mode) {
@@ -705,7 +702,7 @@ void Renderer::SetScalingMode(ScalingMode scaling_mode) {
 
 	scaling_mode_ = scaling_mode;
 
-	UpdateDisplayViewport(window_.GetSize());
+	UpdateDisplayViewport();
 }
 
 void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_mode) {
@@ -723,11 +720,9 @@ void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_
 
 	auto size{ GetGameSize() };
 
-	// PTGN_LOG("Emitting game resized: ", size);
-	events_.Push<event::InternalGameResized>(size);
-	events_.Push<event::GameResized>(size);
+	event_sink_(size, ResizeType::Game);
 
-	UpdateDisplayViewport(window_.GetSize());
+	UpdateDisplayViewport();
 }
 
 V2_int Renderer::GetDisplaySize() const {
@@ -748,7 +743,7 @@ V2_int Renderer::GetGameSize() const {
 	if (game_size_) {
 		return *game_size_;
 	}
-	return window_.GetSize();
+	return GetFullViewportSize();
 }
 
 ScalingMode Renderer::GetScalingMode() const {
@@ -756,48 +751,54 @@ ScalingMode Renderer::GetScalingMode() const {
 }
 
 void Renderer::SetBackgroundColor(Color background_color) {
-	background_color_.value = background_color;
+	background_color_ = background_color;
 }
 
 Color Renderer::GetBackgroundColor() const {
-	return background_color_.value;
+	return background_color_;
 }
 
 Viewport Renderer::GetDisplayViewport() const {
 	return display_viewport_;
 }
 
-void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
-	PTGN_ASSERT(window_size == window_.GetSize());
+V2_int Renderer::GetFullViewportSize() const {
+	return window_.GetSize();
+}
 
-	auto game_size{ game_size_.value_or(window_size) };
+void Renderer::UpdateDisplayViewport(bool emit_events) {
+	auto full_viewport_size{ GetFullViewportSize() };
 
-	PTGN_ASSERT(window_size.BothAboveZero());
+	PTGN_ASSERT(full_viewport_size.BothAboveZero());
+
+	auto game_size{ game_size_.value_or(full_viewport_size) };
+
 	PTGN_ASSERT(game_size.BothAboveZero());
 
-	Viewport viewport{ .position = { 0, 0 }, .size = window_size };
+	Viewport viewport{ .position = { 0, 0 }, .size = full_viewport_size };
 
-	auto compute_aspect_fit = [&viewport, game_size, window_size](bool letterbox_mode) {
-		float window_aspect{ static_cast<float>(window_size.x) / window_size.y };
+	auto compute_aspect_fit = [&viewport, game_size, full_viewport_size](bool letterbox_mode) {
+		float full_viewport_aspect{ static_cast<float>(full_viewport_size.x) /
+									full_viewport_size.y };
 		float game_aspect{ static_cast<float>(game_size.x) / game_size.y };
 
-		// In letterbox mode we need require window_aspect > game_aspect to fit height, and in
-		// overscan we require window_aspect > game_aspect to fit height.
-		bool fit_height{ (window_aspect > game_aspect) == letterbox_mode };
+		// In letterbox mode we need require full_viewport_aspect > game_aspect to fit height, and
+		// in overscan we require full_viewport_aspect > game_aspect to fit height.
+		bool fit_height{ (full_viewport_aspect > game_aspect) == letterbox_mode };
 
 		if (fit_height) {
-			viewport.size.y = window_size.y;
+			viewport.size.y = full_viewport_size.y;
 			viewport.size.x =
-				static_cast<int>(static_cast<float>(window_size.y) * game_aspect + 0.5f);
-			viewport.position.x = (window_size.x - viewport.size.x) / 2; // left edge.
+				static_cast<int>(static_cast<float>(full_viewport_size.y) * game_aspect + 0.5f);
+			viewport.position.x = (full_viewport_size.x - viewport.size.x) / 2; // left edge.
 			viewport.position.y = 0;
 		} else {
 			// Fit width.
-			viewport.size.x = window_size.x;
+			viewport.size.x = full_viewport_size.x;
 			viewport.size.y =
-				static_cast<int>(static_cast<float>(window_size.x) / game_aspect + 0.5f);
+				static_cast<int>(static_cast<float>(full_viewport_size.x) / game_aspect + 0.5f);
 			viewport.position.x = 0;
-			viewport.position.y = (window_size.y - viewport.size.y) / 2; // top edge.
+			viewport.position.y = (full_viewport_size.y - viewport.size.y) / 2; // top edge.
 		}
 	};
 
@@ -807,22 +808,24 @@ void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 
 		case ScalingMode::Stretch:
 			PTGN_ASSERT(viewport.position == V2_int{});
-			PTGN_ASSERT(viewport.size == window_.GetSize());
-			// Viewport is full window (default).
+			PTGN_ASSERT(viewport.size == GetFullViewportSize());
+			// Viewport is full (default).
 			break;
 
 		case ScalingMode::IntegerScale: {
-			V2_int ratio{ window_size / game_size };
+			V2_int ratio{ full_viewport_size / game_size };
 			// Find which dimension limits the scaling factor.
 			int scale{ std::max(1, std::min(ratio.x, ratio.y)) };
-			viewport.size	  = game_size * scale;				   // scale up.
-			viewport.position = (window_size - viewport.size) / 2; // center of window.
+			viewport.size = game_size * scale;			  // scale up.
+			viewport.position =
+				(full_viewport_size - viewport.size) / 2; // center of full viewport.
 			break;
 		}
 
 		case ScalingMode::Disabled:
-			viewport.size	  = game_size;						   // no change.
-			viewport.position = (window_size - viewport.size) / 2; // center of window.
+			viewport.size = game_size;					  // no change.
+			viewport.position =
+				(full_viewport_size - viewport.size) / 2; // center of full viewport.
 			break;
 
 		default: PTGN_ERROR("Unsupported resolution mode");
@@ -840,14 +843,8 @@ void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 			ResizeScreenTarget(display_viewport_.size);
 
 			if (emit_events) {
-				// PTGN_LOG("Emitting display resized: ", display_viewport_.size);
-				events_.Push<event::InternalDisplayResized>(display_viewport_.size);
+				event_sink_(display_viewport_.size, ResizeType::Display);
 			}
-		}
-
-		if (emit_events) {
-			// PTGN_LOG("Emitting viewport changed: ", display_viewport_);
-			events_.Push<event::InternalDisplayViewportChanged>(display_viewport_);
 		}
 	}
 }
@@ -861,7 +858,7 @@ void Renderer::BindScreenTarget() {
 }
 
 void Renderer::InvalidateState() {
-	gl_->
+	gl_->InvalidateState();
 }
 
 void Renderer::BeginFrame() {
@@ -870,19 +867,17 @@ void Renderer::BeginFrame() {
 	PTGN_ASSERT(batch_vertices_.empty());
 	PTGN_ASSERT(batch_indices_.empty());
 
-	V2_int window_size{ window_.GetSize() };
+	V2_int full_viewport_size{ GetFullViewportSize() };
 	Color window_background_color{ window_.GetBackgroundColor() };
 
 	auto _1 = gl_->Bind(FramebufferId{ 0 }, false);
 	gl_->SetClearColor(window_background_color);
-	SetViewport({ {}, window_size });
+	SetViewport({ {}, full_viewport_size });
 	gl_->framebuffers.Clear();
 
 	BindScreenTarget();
 	SetViewport({ {}, screen_target_.GetSize() });
-	gl_->framebuffers.ClearToColor(
-		FramebufferId{ screen_target_.resource_ }, background_color_.value
-	);
+	gl_->framebuffers.ClearToColor(FramebufferId{ screen_target_.resource_ }, background_color_);
 }
 
 void Renderer::EndFrame() {
@@ -894,7 +889,7 @@ void Renderer::EndFrame() {
 	SetViewport(display_viewport_);
 	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
 	SetViewProjection(view_projection);
-	SetBlend(BlendMode::ReplaceRGBA, true);
+	SetBlendMode(BlendMode::ReplaceRGBA);
 
 	PTGN_ASSERT(
 		GetRenderTargetSize(screen_target_.resource_) == display_viewport_.size,

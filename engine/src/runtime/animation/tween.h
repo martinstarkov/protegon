@@ -1,6 +1,5 @@
 #pragma once
 
-#include <concepts>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -9,6 +8,7 @@
 #include "core/event/event.h"
 #include "core/math/easing.h"
 #include "core/time/time.h"
+#include "core/util/concepts.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
 #include "serialization/serialize.h"
@@ -167,11 +167,11 @@ private:
 	std::optional<std::size_t> GetCurrentIndex() const;
 
 	template <typename T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
+		requires BraceConstructible<T, TArgs...>
 	void PushEventToCurrentTweenPoint(TArgs&&... args);
 
 	template <typename T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
+		requires BraceConstructible<T, TArgs...>
 	void PushEventToAllTweenPoints(TArgs&&... args);
 
 	milliseconds GetTotalDuration() const;
@@ -231,14 +231,10 @@ private:
 
 	std::vector<impl::EventData> events_;
 
-	// TODO: Fix serialization.
-	// PTGN_REFLECT_PRIV(
-	//	TweenPoint, KeyValue("current_repeat", current_repeat_),
-	//	KeyValue("total_repeats", total_repeats_), KeyValue("yoyo", yoyo_),
-	//	KeyValue("currently_reversed", currently_reversed_),
-	//	KeyValue("start_reversed", start_reversed_), KeyValue("duration", duration_),
-	//	KeyValue("ease", ease_), KeyValue("script_container", script_container_)
-	//)
+	PTGN_REFLECT_PRIV(
+		TweenPoint, current_repeat_, total_repeats_, yoyo_, currently_reversed_, start_reversed_,
+		duration_, ease_, flagged_for_removal_, script_container_
+	)
 };
 
 namespace impl {
@@ -262,8 +258,10 @@ public:
 	TweenData(TweenData&&) noexcept			   = default;
 	TweenData& operator=(TweenData&&) noexcept = default;
 
-	void SetState(TweenState new_state);
+	float GetProgress() const;
+	void SetProgress(float new_progress);
 
+	void SetState(TweenState new_state);
 	[[nodiscard]] bool IsState(TweenState state) const;
 
 	/// @return Index of the current tween point if there is a valid current tween point,
@@ -307,19 +305,15 @@ public:
 	void ClearFlagged();
 
 	template <typename T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
+		requires BraceConstructible<T, TArgs...>
 	void PushEventToAllTweenPoints(TArgs&&... args);
 
 	/// @brief Does nothing if there is no valid current tween point.
 	template <typename T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
+		requires BraceConstructible<T, TArgs...>
 	void PushEventToCurrentTweenPoint(TArgs&&... args);
 
-	// TODO: Fix serialization.
-	// PTGN_REFLECT_PRIV(
-	//	TweenData, KeyValue("progress", progress_), KeyValue("index", index_),
-	//	KeyValue("points", points_), KeyValue("state", state_)
-	//)
+	PTGN_REFLECT_PRIV(TweenData, progress_, index_, state_, points_)
 private:
 	/// @brief Value between [0.0f, 1.0f] indicating how much of the total duration the tween has
 	/// passed in the current repetition. Note: This value remains 0.0f to 1.0f even when the tween
@@ -337,43 +331,41 @@ private:
 };
 
 template <typename T, typename... TArgs>
-	requires std::constructible_from<T, TArgs...>
+	requires BraceConstructible<T, TArgs...>
 void TweenData::PushEventToAllTweenPoints(TArgs&&... args) {
 	for (const auto& point : points_) {
 		PTGN_ASSERT(point);
 		if (point->flagged_for_removal_) {
 			continue;
 		}
-		point->events_.emplace_back(
-			Hash<T>(), false, std::make_unique<T>(std::forward<TArgs>(args)...)
-		);
+		auto event{ EventData::Create<T>(std::forward<TArgs>(args)...) };
+		point->events_.emplace_back(std::move(event));
 	}
 }
 
 template <typename T, typename... TArgs>
-	requires std::constructible_from<T, TArgs...>
+	requires BraceConstructible<T, TArgs...>
 void TweenData::PushEventToCurrentTweenPoint(TArgs&&... args) {
 	auto current_index{ GetCurrentIndex() };
 	if (!current_index.has_value() || *current_index >= points_.size() ||
 		!points_[*current_index]) {
 		return;
 	}
-	points_[*current_index]->events_.emplace_back(
-		Hash<T>(), false, std::make_unique<T>(std::forward<TArgs>(args)...)
-	);
+	auto event{ EventData::Create<T>(std::forward<TArgs>(args)...) };
+	points_[*current_index]->events_.emplace_back(std::move(event));
 }
 
 } // namespace impl
 
 template <typename T, typename... TArgs>
-	requires std::constructible_from<T, TArgs...>
+	requires BraceConstructible<T, TArgs...>
 void Tween::PushEventToCurrentTweenPoint(TArgs&&... args) {
 	auto& tween{ Get<impl::TweenData>() };
 	tween.PushEventToCurrentTweenPoint<T>(std::forward<TArgs>(args)...);
 }
 
 template <typename T, typename... TArgs>
-	requires std::constructible_from<T, TArgs...>
+	requires BraceConstructible<T, TArgs...>
 void Tween::PushEventToAllTweenPoints(TArgs&&... args) {
 	auto& tween{ Get<impl::TweenData>() };
 	tween.PushEventToAllTweenPoints<T>(std::forward<TArgs>(args)...);

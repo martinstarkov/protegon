@@ -1,6 +1,5 @@
 #include "runtime/animation/tween_effect.h"
 
-#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -9,7 +8,8 @@
 #include <vector>
 
 #include "core/assert.h"
-
+#include "core/event/event.h"
+#include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/easing.h"
 #include "core/math/math_utils.h"
@@ -19,16 +19,16 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "core/graphics/color.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/animation/shake_config.h"
 #include "runtime/animation/tween.h"
+#include "runtime/animation/tween_event.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
@@ -95,7 +95,7 @@ static Tween BounceImpl(
 		tween.Clear();
 	}
 
-	auto reset_bounce = [](auto p) mutable {
+	auto reset_bounce = [](auto& p) mutable {
 		auto& offsets{ p.parent.template Get<Offsets>() };
 		offsets.bounce = {};
 	};
@@ -225,8 +225,8 @@ void EntityFollowStartImpl(Entity parent, const FollowConfig& config) {
 }
 
 Tween StartFollowImpl(
-	Entity entity, bool force, const Tween::Callback<ptgn::event::TweenStart>& start_func,
-	const Tween::Callback<ptgn::event::TweenProgress>& update_func
+	Entity entity, bool force, const EventCallback<ptgn::event::TweenStart>& start_func,
+	const EventCallback<ptgn::event::TweenProgress>& update_func
 ) {
 	auto tween{ GetOrCreateTween<FollowEffect>(entity) };
 

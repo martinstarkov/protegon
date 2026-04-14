@@ -41,7 +41,6 @@ class Window;
 class Scene;
 class AssetManager;
 class RenderTarget;
-class Window;
 
 namespace impl {
 
@@ -104,7 +103,7 @@ public:
 	/// @return The display size of the renderer.
 	V2_int GetDisplaySize() const;
 
-	/// @return The game size of the renderer. Returns window size if unset.
+	/// @return The game size of the renderer. Returns full viewport size if unset.
 	V2_int GetGameSize() const;
 
 private:
@@ -121,7 +120,7 @@ private:
 	void BeginFrame();
 	void EndFrame();
 
-	/// @param game_size Setting to {} will use dynamic window size.
+	/// @param game_size Setting to {} will use dynamic full viewport size.
 	void SetGameSize(
 		std::optional<V2_int> game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
 	);
@@ -241,7 +240,7 @@ private:
 	void BindScreenTarget();
 	void ResizeScreenTarget(V2_int size);
 
-	void OnWindowResize(V2_int size);
+	void OnFullViewportResize(V2_int size);
 
 	RenderPass BeginPass(RenderTargetId scene_render_target);
 
@@ -260,7 +259,9 @@ private:
 
 	// emit_events = false is used to prevent emitting events when initializing the window and
 	// scene.
-	void UpdateDisplayViewport(V2_int window_size, bool emit_events = true);
+	void UpdateDisplayViewport(bool emit_events = true);
+
+	V2_int GetFullViewportSize() const;
 
 	VertexBufferObject vbo_;
 	ElementBufferObject ebo_;

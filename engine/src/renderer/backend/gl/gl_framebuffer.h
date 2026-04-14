@@ -69,7 +69,8 @@ enum class ClearBufferBit : std::uint32_t {
 	Depth	= 0x00000100, // GL_DEPTH_BUFFER_BIT
 	Stencil = 0x00000400  // GL_STENCIL_BUFFER_BIT
 };
-PTGN_REFLECT_ENUM_NOSTREAM(ClearBufferBit);
+PTGN_SERIALIZE_ENUM(ClearBufferBit);
+
 std::ostream& operator<<(std::ostream& os, ClearBufferBit bits);
 
 constexpr ClearBufferBit operator|(ClearBufferBit a, ClearBufferBit b) {

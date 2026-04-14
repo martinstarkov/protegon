@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/event/event.h"
+#include "core/util/concepts.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {
@@ -25,11 +26,10 @@ struct EntityEvent {
 class EventHandler {
 public:
 	template <typename T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
+		requires BraceConstructible<T, TArgs...>
 	void Push(TArgs&&... args) {
-		global_event_queue_.emplace_back(
-			Hash<T>(), false, std::make_unique<T>(std::forward<TArgs>(args)...)
-		);
+		auto event{ impl::EventData::Create<T>(std::forward<TArgs>(args)...) };
+		global_event_queue_.emplace_back(std::move(event));
 	}
 
 private:
@@ -48,16 +48,17 @@ private:
 class LocalEventHandler {
 public:
 	template <typename T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
+		requires BraceConstructible<T, TArgs...>
 	void Push(Entity entity, TArgs&&... args) {
 		if (!entity) {
 			return;
 		}
-		entity_event_queue_.emplace_back(entity, std::forward<TArgs>(args)...);
+		auto event{ impl::EventData::Create<T>(std::forward<TArgs>(args)...) };
+		entity_event_queue_.emplace_back(entity, std::move(event));
 	}
 
 	template <typename T, typename... TArgs>
-		requires std::constructible_from<T, TArgs...>
+		requires BraceConstructible<T, TArgs...>
 	void PushGlobal(TArgs&&... args) {
 		event_handler_.Push<T>(std::forward<TArgs>(args)...);
 	}

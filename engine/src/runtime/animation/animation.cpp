@@ -8,19 +8,21 @@
 #include <utility>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/time/timer.h"
 #include "renderer/resources/texture.h"
+#include "runtime/animation/animation_event.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scripting/script_sequence.h"
 #include "runtime/scripting/script.h"
+#include "runtime/scripting/script_sequence.h"
 
 namespace ptgn {
 
@@ -177,43 +179,43 @@ V2_int Animation::GetFrameSize() const {
 	return anim.config.frame_size;
 }
 
-Animation& Animation::OnStart(const Animation::Callback& callback) {
-	AddScript<impl::AnimationStartScript>(*this, callback);
+Animation& Animation::OnStart(const EventCallback<event::AnimationStart>& callback) {
+	AddScript<impl::EventScript<event::AnimationStart>>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnStop(const Animation::Callback& callback) {
-	AddScript<impl::AnimationStopScript>(*this, callback);
+Animation& Animation::OnStop(const EventCallback<event::AnimationStop>& callback) {
+	AddScript<impl::EventScript<event::AnimationStop>>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnPause(const Animation::Callback& callback) {
-	AddScript<impl::AnimationPauseScript>(*this, callback);
+Animation& Animation::OnPause(const EventCallback<event::AnimationPause>& callback) {
+	AddScript<impl::EventScript<event::AnimationPause>>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnResume(const Animation::Callback& callback) {
-	AddScript<impl::AnimationResumeScript>(*this, callback);
+Animation& Animation::OnResume(const EventCallback<event::AnimationResume>& callback) {
+	AddScript<impl::EventScript<event::AnimationResume>>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnFrameChange(const Animation::Callback& callback) {
-	AddScript<impl::AnimationFrameChangeScript>(*this, callback);
+Animation& Animation::OnFrameChange(const EventCallback<event::AnimationFrameChange>& callback) {
+	AddScript<impl::EventScript<event::AnimationFrameChange>>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnUpdate(const Animation::Callback& callback) {
-	AddScript<impl::AnimationUpdateScript>(*this, callback);
+Animation& Animation::OnUpdate(const EventCallback<event::AnimationUpdate>& callback) {
+	AddScript<impl::EventScript<event::AnimationUpdate>>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnComplete(const Animation::Callback& callback) {
-	AddScript<impl::AnimationCompleteScript>(*this, callback);
+Animation& Animation::OnComplete(const EventCallback<event::AnimationComplete>& callback) {
+	AddScript<impl::EventScript<event::AnimationComplete>>(*this, callback);
 	return *this;
 }
 
-Animation& Animation::OnLoopComplete(const Animation::Callback& callback) {
-	AddScript<impl::AnimationLoopCompleteScript>(*this, callback);
+Animation& Animation::OnLoopComplete(const EventCallback<event::AnimationLoopComplete>& callback) {
+	AddScript<impl::EventScript<event::AnimationLoopComplete>>(*this, callback);
 	return *this;
 }
 
@@ -422,7 +424,7 @@ Animation PlayTemporaryAnimation(
 	Animation anim{ CreateAnimation(scene, texture, position, config, draw_origin) };
 
 	if (destroy_delay == 0ms) {
-		anim.OnComplete([](auto anim) mutable { anim.Destroy(); });
+		anim.OnComplete([](auto a) { a.animation.Destroy(); });
 	} else {
 		auto script_sequence{ CreateScriptSequence(scene) };
 		script_sequence.Wait(destroy_delay);

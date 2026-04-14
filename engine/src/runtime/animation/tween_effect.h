@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <concepts>
 #include <cstdint>
 #include <functional>
@@ -10,12 +11,13 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/event/event.h"
+#include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/concepts.h"
-#include "core/graphics/color.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/shake_config.h"
 #include "runtime/animation/tween.h"
@@ -168,8 +170,8 @@ void PathFollowImpl(
 );
 
 Tween StartFollowImpl(
-	Entity entity, bool force, const Tween::Callback<ptgn::event::TweenStart>& start_func,
-	const Tween::Callback<ptgn::event::TweenProgress>& update_func
+	Entity entity, bool force, const EventCallback<ptgn::event::TweenStart>& start_func,
+	const EventCallback<ptgn::event::TweenProgress>& update_func
 );
 
 void EntityFollowStartImpl(Entity parent, const FollowConfig& config);

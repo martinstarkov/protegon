@@ -5,17 +5,16 @@
 #include <cstdlib>
 #include <memory>
 #include <optional>
-#include <ostream>
 #include <utility>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/event/event.h"
-#include "core/log.h"
 #include "core/math/easing.h"
 #include "core/math/math_utils.h"
 #include "core/math/tolerance.h"
 #include "core/time/time.h"
+#include "runtime/animation/tween_event.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/scene/scene.h"
@@ -160,6 +159,14 @@ bool TweenData::IsState(TweenState state) const {
 
 void TweenData::SetState(TweenState new_state) {
 	state_ = new_state;
+}
+
+float TweenData::GetProgress() const {
+	return progress_;
+}
+
+void TweenData::SetProgress(float new_progress) {
+	progress_ = new_progress;
 }
 
 void TweenData::IncrementIndex() {
@@ -345,7 +352,7 @@ Tween& Tween::Start(bool force) {
 Tween& Tween::Stop() {
 	if (IsStarted() || IsPaused()) {
 		auto& tween{ Get<impl::TweenData>() };
-		tween.state_ = impl::TweenState::Stopped;
+		tween.SetState(impl::TweenState::Stopped);
 		PushEventToAllTweenPoints<event::TweenStop>(*this, GetParent(*this));
 	}
 	return *this;
@@ -356,7 +363,7 @@ Tween& Tween::Pause() {
 		return *this;
 	}
 	auto& tween{ Get<impl::TweenData>() };
-	tween.state_ = impl::TweenState::Paused;
+	tween.SetState(impl::TweenState::Paused);
 	PushEventToAllTweenPoints<event::TweenPause>(*this, GetParent(*this));
 	return *this;
 }
@@ -366,7 +373,7 @@ Tween& Tween::Resume() {
 		return *this;
 	}
 	auto& tween{ Get<impl::TweenData>() };
-	tween.state_ = impl::TweenState::Started;
+	tween.SetState(impl::TweenState::Started);
 	PushEventToAllTweenPoints<event::TweenResume>(*this, GetParent(*this));
 	return *this;
 }
@@ -436,9 +443,9 @@ Tween& Tween::Yoyo(bool yoyo) {
 float Tween::GetLinearProgress() const {
 	const auto& tween{ Get<impl::TweenData>() };
 	if (const auto& point{ GetCurrentTweenPoint() }; point.currently_reversed_) {
-		return 1.0f - tween.progress_;
+		return 1.0f - tween.GetProgress();
 	}
-	return tween.progress_;
+	return tween.GetProgress();
 }
 
 float Tween::GetProgress() const {
@@ -473,40 +480,39 @@ milliseconds Tween::GetDuration() const {
 void Tween::Step(secondsf dt) {
 	auto& tween{ Get<impl::TweenData>() };
 
-	if (dt <= 0s || tween.state_ != impl::TweenState::Started) {
+	if (dt <= 0s || !tween.IsState(impl::TweenState::Started)) {
 		return;
 	}
 
 	auto parent{ GetParent(*this) };
 
 	if (tween.IsEmpty()) {
-		tween.state_ = impl::TweenState::Completed;
+		tween.SetState(impl::TweenState::Completed);
 		PushEventToAllTweenPoints<event::TweenComplete>(*this, parent);
 		return;
 	}
 
-	while (dt > 0s && tween.state_ == impl::TweenState::Started) {
+	while (dt > 0s && tween.IsState(impl::TweenState::Started)) {
 		TweenPoint& point{ GetCurrentTweenPoint() };
 
 		if (auto duration{ duration_cast<secondsf>(point.duration_) }; duration <= 0s) {
-			tween.progress_ = 1.0f;
-			dt				= 0s;
+			tween.SetProgress(1.0f);
+			dt = 0s;
 		} else {
 			float progress_inc{ dt.count() / duration.count() };
-			float new_progress{ tween.progress_ + progress_inc };
-
+			float new_progress{ tween.GetProgress() + progress_inc };
 			if (new_progress >= 1.0f) {
-				dt				= (new_progress - 1.0f) * duration;
-				tween.progress_ = 1.0f;
+				dt = (new_progress - 1.0f) * duration;
+				tween.SetProgress(1.0f);
 			} else {
-				tween.progress_ = new_progress;
-				dt				= 0s;
+				tween.SetProgress(new_progress);
+				dt = 0s;
 			}
 		}
 
 		PushEventToCurrentTweenPoint<event::TweenProgress>(*this, parent, GetProgress());
 
-		if (tween.progress_ >= 1.0f) {
+		if (tween.GetProgress() >= 1.0f) {
 			if (tween.IsEmpty()) {
 				continue;
 			}
@@ -518,13 +524,13 @@ void Tween::Step(secondsf dt) {
 
 			if (point.yoyo_ && should_repeat) {
 				point.currently_reversed_ = !point.currently_reversed_;
-				tween.progress_			  = 0.0f;
+				tween.SetProgress(0.0f);
 				PushEventToCurrentTweenPoint<event::TweenYoyo>(*this, parent);
 				continue;
 			}
 
 			if (should_repeat) {
-				tween.progress_ = 0.0f;
+				tween.SetProgress(0.0f);
 				PushEventToCurrentTweenPoint<event::TweenRepeat>(*this, parent);
 				continue;
 			}
@@ -554,7 +560,7 @@ Tween& Tween::IncrementPoint() {
 		PushEventToCurrentTweenPoint<event::TweenPointComplete>(*this, parent);
 		tween.IncrementIndex();
 		PushEventToCurrentTweenPoint<event::TweenPointStart>(*this, parent);
-		tween.progress_ = 0.0f;
+		tween.SetProgress(0.0f);
 
 		// Reset repeat count and reversal
 		TweenPoint& new_point		  = GetCurrentTweenPoint();
@@ -564,12 +570,12 @@ Tween& Tween::IncrementPoint() {
 	}
 
 	// Final tween point completed, complete tween.
-	if (tween.state_ != impl::TweenState::Completed) {
+	if (!tween.IsState(impl::TweenState::Completed)) {
 		PushEventToCurrentTweenPoint<event::TweenPointComplete>(*this, parent);
 	}
 	// No more points: complete
-	tween.state_	= impl::TweenState::Completed;
-	tween.progress_ = 1.0f;
+	tween.SetState(impl::TweenState::Completed);
+	tween.SetProgress(1.0f);
 	PushEventToAllTweenPoints<event::TweenComplete>(*this, parent);
 	return *this;
 }
@@ -594,12 +600,11 @@ void Tween::Seek(float new_progress) {
 	const auto& tween{ Get<impl::TweenData>() };
 
 	while (current_progress < target_progress && !IsCompleted()) {
-		float before{ tween.progress_ };
+		float before{ tween.GetProgress() };
 
 		Step(secondsf{ step_size });
 
-		current_progress = tween.progress_;
-
+		current_progress = tween.GetProgress();
 		// Avoid infinite loop on broken tweens
 		if (std::abs(current_progress - before) < kEpsilon<float>) {
 			break;
@@ -668,17 +673,6 @@ void Tween::Update(Scene& scene, secondsf dt) {
 	}
 	for (auto [entity, tween] : scene.EntitiesWith<impl::TweenData>()) {
 		tween.ClearFlagged();
-	}
-}
-
-std::ostream& operator<<(std::ostream& os, impl::TweenState state) {
-	switch (state) {
-		using enum impl::TweenState;
-		case Stopped:	return os << "Stopped";
-		case Started:	return os << "Started";
-		case Paused:	return os << "Paused";
-		case Completed: return os << "Completed";
-		default:		PTGN_ERROR("Unknown TweenState: ", std::to_underlying(state));
 	}
 }
 

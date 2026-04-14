@@ -5,16 +5,17 @@
 #include <functional>
 #include <memory>
 #include <optional>
-#include <ostream>
 #include <string>
 #include <string_view>
 
-
+#include "core/assert.h"
+#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
+#include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "platform/file_dialog.h"
 #include "serialization/serialize.h"
@@ -285,6 +286,14 @@ private:
 	/// @return The amount of time that the key has been held down, negative numbers
 	/// indicate the time since the key was last held.
 	milliseconds GetKeyHeldTime(Key key) const;
+
+	template <typename T, typename... TArgs>
+		requires BraceConstructible<T, TArgs...>
+	void PushEvent(TArgs&&... args) {
+		PTGN_ASSERT(event_sink_);
+		auto event{ impl::EventData::Create<T>(std::forward<TArgs>(args)...) };
+		event_sink_(std::move(event));
+	}
 
 	std::array<bool, impl::kKeyCount> key_down_{};
 	std::array<bool, impl::kKeyCount> prev_key_down_{};

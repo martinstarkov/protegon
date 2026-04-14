@@ -370,7 +370,7 @@ struct ButtonEnabled {
 	bool press{ true };
 	bool hover{ true };
 
-	PTGN_REFLECTR_REGISTER(ButtonEnabled, press, hover)
+	PTGN_REFLECT(ButtonEnabled, press, hover)
 };
 
 template <typename Derived>

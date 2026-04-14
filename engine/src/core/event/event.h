@@ -7,6 +7,7 @@
 
 #include "core/assert.h"
 #include "core/util/concepts.h"
+#include "core/util/hash.h"
 
 namespace ptgn {
 
@@ -20,6 +21,17 @@ struct EventData {
 	std::size_t type_hash{ 0 };
 	bool handled{ false };
 	std::unique_ptr<void> payload;
+
+	template <typename T, typename... TArgs>
+		requires BraceConstructible<T, TArgs...>
+	static EventData Create(TArgs&&... args) {
+		if constexpr (sizeof...(TArgs) == 0 && std::is_empty_v<T>) {
+			return EventData{ Hash<T>(), false, nullptr };
+		}
+
+		return EventData{ Hash<T>(), false,
+						  std::make_unique<T>(new T{ std::forward<TArgs>(args)... }) };
+	}
 };
 
 template <typename F, typename T>
@@ -177,8 +189,6 @@ private:
 };
 
 template <typename T>
-using EventCallback = std::variant<
-	std::function<void()>, std::function<void(T)>, std::function<void(T&)>,
-	std::function<void(const T&)>>;
+using EventCallback = std::variant<std::function<void()>, std::function<void(T&)>>;
 
 } // namespace ptgn
