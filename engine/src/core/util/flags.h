@@ -81,7 +81,7 @@ public:
 		bits_ = bits;
 	}
 
-	PTGN_REFLECT_PRIV(Flags<TEnum>, bits_)
+	PTGN_REFLECT(Flags<TEnum>, bits_)
 
 private:
 	underlying bits_{ 0 };

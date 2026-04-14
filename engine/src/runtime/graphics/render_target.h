@@ -2,6 +2,7 @@
 
 #include <optional>
 
+#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/scaling_mode.h"
@@ -10,6 +11,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/scripting/script.h"
 
 namespace ptgn {
 
@@ -27,6 +29,16 @@ struct ClearColor {
 	Color color{ color::Transparent };
 
 	operator Color() const; // NOSONAR
+};
+
+class RenderTargetGameResizeScript : public Script {
+public:
+	void OnEvent(Event event) override;
+};
+
+class RenderTargetDisplayResizeScript : public Script {
+public:
+	void OnEvent(Event event) override;
 };
 
 } // namespace impl

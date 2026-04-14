@@ -58,6 +58,10 @@ bool RaycastResult::Occurred() const {
 	return t >= 0.0f && t < 1.0f && !normal.IsZero();
 }
 
+RaycastResult::operator bool() const {
+	return Occurred();
+}
+
 namespace impl {
 
 RaycastResult RaycastLine(V2_float ray_start, V2_float ray_end, Transform t2, const Line& B) {

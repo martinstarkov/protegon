@@ -11,8 +11,8 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "serialization/serialize.h"
 #include "serialization/json/json.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -31,6 +31,7 @@ enum class Distribution {
 	Uniform = 0,
 	Normal	= 1
 };
+PTGN_REFLECT_ENUM(Distribution);
 
 /// @brief Define RNG object by giving it a type to generate from
 /// and a range or seed for the distribution.
@@ -168,10 +169,6 @@ private:
 
 template <typename T>
 using Gaussian = RNG<T, Distribution::Normal>;
-
-PTGN_REFLECT_ENUM(
-	Distribution, { { Distribution::Uniform, "uniform" }, { Distribution::Normal, "normal" } }
-);
 
 /// @return True for "heads", false for "tails"
 [[nodiscard]] bool FlipCoin();

@@ -105,7 +105,7 @@ struct TextLineSkip {
 	bool operator==(const TextLineSkip&) const = default;
 
 	// TODO: Fix serialization.
-	// PTGN_REFLECT_PRIV(TextLineSkip, value_.value_or(0))
+	// PTGN_REFLECT(TextLineSkip, value_.value_or(0))
 
 private:
 	std::optional<std::int32_t> value_{};

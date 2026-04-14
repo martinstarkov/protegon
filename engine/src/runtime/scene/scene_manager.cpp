@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/event.h"
 #include "core/log.h"
 #include "core/time/time.h"
 #include "runtime/scene/scene.h"
@@ -148,16 +147,7 @@ void SceneManager::PreUpdate() {
 	}
 }
 
-void SceneManager::OnEvent(std::vector<impl::EventData> events) {
-	for (const auto& global_event : events) {
-		for (const auto& scene : scenes_) {
-			if (scene->IsAwaitingTransitionDelay()) {
-				continue;
-			}
-			Event event{ global_event };
-			scene->InternalOnEvent(event);
-		}
-	}
+void SceneManager::OnEvent() {
 	for (const auto& scene : scenes_) {
 		if (scene->IsAwaitingTransitionDelay()) {
 			continue;

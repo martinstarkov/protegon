@@ -26,6 +26,12 @@ template <typename T, typename... Ts>
 struct variant_contains<T, std::variant<Ts...>> :
 	std::bool_constant<(std::same_as<std::remove_cvref_t<T>, Ts> || ...)> {};
 
+template <typename T>
+struct is_variant : std::false_type {};
+
+template <typename... Ts>
+struct is_variant<std::variant<Ts...>> : std::true_type {};
+
 } // namespace impl
 
 template <typename T, template <typename...> class Ref>
@@ -96,6 +102,9 @@ concept IterableType = requires(T value) {
 	std::begin(value);
 	std::end(value);
 } && !std::is_convertible_v<T, std::string_view>;
+
+template <typename T>
+concept VariantType = impl::is_variant<std::remove_cvref_t<T>>::value;
 
 template <typename Type, typename... Types>
 concept SameType = std::conjunction_v<std::is_same<Type, Types>...>;

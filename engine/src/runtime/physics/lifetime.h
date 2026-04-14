@@ -21,7 +21,7 @@ struct Lifetime {
 
 	milliseconds duration{ 0 };
 
-	PTGN_REFLECT_PRIV(
+	PTGN_REFLECT(
 		Lifetime, KeyValue("duration", duration), KeyValue("timer", timer_)
 	)
 

@@ -50,6 +50,10 @@ bool Intersection::Occurred() const {
 	return !normal.IsZero();
 }
 
+Intersection::operator bool() const {
+	return Occurred();
+}
+
 namespace impl {
 
 Intersection IntersectCircleCircle(Transform t1, const Circle& A, Transform t2, const Circle& B) {

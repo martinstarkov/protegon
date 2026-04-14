@@ -16,6 +16,7 @@
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "serialization/json/fwd.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -47,8 +48,7 @@ public:
 
 	bool operator==(const Shape&) const = default;
 
-	// friend void to_json(json& j, const Shape& shape);
-	// friend void from_json(const json& j, Shape& shape);
+	PTGN_REFLECT_VALUE(Shape, shape_)
 private:
 	Variant shape_;
 };
@@ -88,6 +88,7 @@ public:
 	// friend void to_json(json& j, const ColliderShape& shape);
 	// friend void from_json(const json& j, ColliderShape& shape);
 
+	PTGN_REFLECT_VALUE(ColliderShape, shape_)
 private:
 	Variant shape_;
 };
@@ -130,6 +131,7 @@ public:
 	// friend void to_json(json& j, const InteractiveShape& shape);
 	// friend void from_json(const json& j, InteractiveShape& shape);
 
+	PTGN_REFLECT_VALUE(InteractiveShape, shape_)
 private:
 	Variant shape_;
 };

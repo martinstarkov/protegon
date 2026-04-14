@@ -16,7 +16,6 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include <imgui_impl_opengl3.h>
 
 #include <chrono>
-#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -26,13 +25,17 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "app/layer.h"
 #include "core/assert.h"
 #include "core/event/event.h"
+#include "core/event/window_event.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "platform/glfw.h"
 #include "platform/window.h"
+#include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/viewport_event.h"
 #include "renderer/renderer.h"
 #include "runtime/audio/audio_system.h"
+#include "runtime/scene/scene.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
@@ -115,12 +118,16 @@ Application::Application(const ApplicationConfig& config) :
 	font_{ assets_ },
 	audio_{ assets_ },
 	debug_{} {
-	window_.event_sink_	  = std::function([this](impl::EventData&& event) {
-		  event_handler_.global_event_queue_.emplace_back(event);
-	  });
-	renderer_.event_sink_ = std::function([this](impl::EventData&& event) {
+	window_.event_sink_ = [this](impl::EventData&& event) {
 		event_handler_.global_event_queue_.emplace_back(event);
-	});
+	};
+	renderer_.event_sink_ = [this](V2_int size, ResizeType type) {
+		switch (type) {
+			case ResizeType::Display: event_handler_.Push<event::GameResized>(size); break;
+			case ResizeType::Game:	  event_handler_.Push<event::DisplayResized>(size); break;
+			default:				  PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(type));
+		}
+	};
 }
 
 Application::Application(const std::string& title) :
@@ -140,7 +147,7 @@ void Application::EnterMainLoop() {
 	window_.SetSetting(WindowSetting::Shown);
 	running_ = true;
 
-	renderer_.UpdateDisplayViewport(window_.GetSize(), true);
+	renderer_.UpdateDisplayViewport(true);
 
 #ifdef __EMSCRIPTEN__
 	impl::EmscriptenInit(window_);
@@ -152,6 +159,23 @@ void Application::EnterMainLoop() {
 		Update();
 	}
 #endif
+}
+
+void Application::HandleGlobalEvents() {
+	auto global_events{ std::exchange(event_handler_.global_event_queue_, {}) };
+
+	for (auto& global_event : global_events) {
+		Event event{ global_event };
+		event.Dispatch<event::WindowResized>([this](const auto& size) {
+			renderer_.OnFullViewportResize(size);
+		});
+		for (const auto& scene : scene_manager_.GetScenes()) {
+			if (scene->IsAwaitingTransitionDelay()) {
+				continue;
+			}
+			scene->InternalOnEvent(event);
+		}
+	}
 }
 
 void Application::Update() {
@@ -180,7 +204,9 @@ void Application::Update() {
 
 	scene_manager_.PreUpdate();
 
-	scene_manager_.OnEvent(std::exchange(event_handler_.global_event_queue_, {}));
+	HandleGlobalEvents();
+
+	scene_manager_.OnEvent();
 
 	scene_manager_.Update(dt());
 

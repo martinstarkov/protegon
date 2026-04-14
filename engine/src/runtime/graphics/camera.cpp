@@ -7,13 +7,13 @@
 #include <optional>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/pipeline/viewport_event.h"
 #include "runtime/animation/offsets.h"
@@ -355,15 +355,15 @@ Camera& Camera::SetParentRenderTarget() {
 
 void Camera::SetClearColor(std::optional<Color> clear_color) {
 	if (clear_color.has_value()) {
-		Add<ClearColor>(*clear_color);
+		Add<impl::ClearColor>(*clear_color);
 	} else {
-		Remove<ClearColor>();
+		Remove<impl::ClearColor>();
 	}
 }
 
 std::optional<Color> Camera::GetClearColor() const {
-	if (auto color{ TryGet<ClearColor>() }) {
-		return color->value;
+	if (auto color{ TryGet<impl::ClearColor>() }) {
+		return *color;
 	} else {
 		return {};
 	}

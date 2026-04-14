@@ -64,7 +64,7 @@ public:
 	[[nodiscard]] bool IsEnabled() const;
 
 	// TODO: Fix serialization.
-	// PTGN_REFLECT_PRIV(
+	// PTGN_REFLECT(
 	//	Physics, KeyValue("gravity", gravity_), KeyValue("bounds_top_left", bounds_top_left_),
 	//	KeyValue("bounds_size", bounds_size_), KeyValue("boundary_behavior", boundary_behavior_),
 	//	KeyValue("enabled", enabled_)

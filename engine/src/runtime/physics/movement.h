@@ -286,7 +286,7 @@ public:
 	float jump_height{ 150.0f };
 	float time_to_jump_apex{ 1.0f };
 
-	PTGN_REFLECT_PRIV(
+	PTGN_REFLECT(
 		PlatformerJump, KeyValue("jump_key", jump_key), KeyValue("down_key", down_key),
 		KeyValue("jump_buffer_time", jump_buffer_time), KeyValue("coyote_time", coyote_time),
 		KeyValue("default_gravity_scale", default_gravity_scale),

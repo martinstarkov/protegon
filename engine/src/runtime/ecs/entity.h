@@ -28,7 +28,7 @@ public:
 
 	operator std::uint64_t() const; // NOSONAR
 
-	PTGN_REFLECT_PRIV(UUID, uuid_)
+	PTGN_REFLECT(UUID, uuid_)
 
 private:
 	std::uint64_t uuid_{ 0 };

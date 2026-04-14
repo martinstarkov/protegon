@@ -1,7 +1,5 @@
 #pragma once
 
-#include <ostream>
-
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/line.h"
@@ -21,20 +19,12 @@ struct RaycastResult {
 	/// @brief Direction normal of the impact (normalised).
 	V2_float normal;
 
-	operator bool() const {
-		return Occurred();
-	};
-
-	PTGN_REFLECT(RaycastResult, t, normal)
-
 	/// @return True if the ray impacted the shape, false if it did not. Impact implies that t is in
 	/// the range [0.0, 1.0) and normal is not zero.
 	[[nodiscard]] bool Occurred() const;
+	operator bool() const;
 
-	friend std::ostream& operator<<(std::ostream& os, const RaycastResult& result) {
-		os << "{ t: " << result.t << ", normal: " << result.normal << " }";
-		return os;
-	}
+	PTGN_REFLECT(RaycastResult, t, normal)
 };
 
 namespace impl {

@@ -40,7 +40,7 @@ struct Degrees {
 		return os;
 	}
 
-	PTGN_REFLECT(Degrees, value)
+	PTGN_SERIALIZE_VALUE(Degrees, value)
 
 	float value{ 0.0f };
 };
@@ -70,7 +70,12 @@ struct Radians {
 		return NearlyEqual(a.value, b.value);
 	}
 
-	PTGN_REFLECT_VALUE(Radians, value)
+	friend std::ostream& operator<<(std::ostream& os, Radians r) {
+		os << r.value << " rad";
+		return os;
+	}
+
+	PTGN_SERIALIZE_VALUE(Radians, value)
 
 	float value{ 0.0f };
 };

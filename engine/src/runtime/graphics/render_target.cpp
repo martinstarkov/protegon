@@ -29,27 +29,21 @@ namespace ptgn {
 
 namespace impl {
 
-class RenderTargetGameResizeScript : public Script {
-public:
-	void OnEvent(Event event) {
-		event.Dispatch<ptgn::event::GameResized>([this](const auto& resized) {
-			auto& rt{ entity.Get<RenderTargetObject>() };
-			// PTGN_LOG("Render target ", entity, " received game resize: ", resized.size);
-			rt.Resize(resized.size);
-		});
-	}
-};
+void RenderTargetGameResizeScript::OnEvent(Event event) {
+	event.Dispatch<ptgn::event::GameResized>([this](const auto& resized) {
+		auto& rt{ entity.Get<RenderTargetObject>() };
+		// PTGN_LOG("Render target ", entity, " received game resize: ", resized.size);
+		rt.Resize(resized.size);
+	});
+}
 
-class RenderTargetDisplayResizeScript : public Script {
-public:
-	void OnEvent(Event event) {
-		event.Dispatch<ptgn::event::DisplayResized>([this](const auto& resized) {
-			auto& rt{ entity.Get<RenderTargetObject>() };
-			// PTGN_LOG("Render target ", entity, " received display resize: ", resized.size);
-			rt.Resize(resized.size);
-		});
-	}
-};
+void RenderTargetDisplayResizeScript::OnEvent(Event event) {
+	event.Dispatch<ptgn::event::DisplayResized>([this](const auto& resized) {
+		auto& rt{ entity.Get<RenderTargetObject>() };
+		// PTGN_LOG("Render target ", entity, " received display resize: ", resized.size);
+		rt.Resize(resized.size);
+	});
+}
 
 ClearColor::operator ptgn::Color() const {
 	return color;

@@ -16,8 +16,8 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio_system.h"
-#include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_state.h"
 #include "tools/debug/debug_system.h"
@@ -91,7 +91,7 @@ public:
 	template <SceneType TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	void StartWith(std::string_view scene_key, TArgs&&... args) {
-		renderer_.UpdateDisplayViewport(window_.GetSize(), false);
+		renderer_.UpdateDisplayViewport(false);
 
 		auto first_scene = std::make_unique<TScene>(std::forward<TArgs>(args)...);
 
@@ -136,6 +136,7 @@ private:
 
 	void EnterMainLoop();
 	void Update();
+	void HandleGlobalEvents();
 
 	[[nodiscard]] milliseconds TimeSinceStart() const;
 

@@ -8,6 +8,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 #include "core/log.h"
 #include "core/util/concepts.h"
@@ -77,6 +78,11 @@ void DeserializeValue(const nlohmann::json& j, T& value) {
 template <typename T>
 void StreamValue(std::ostream& os, const T& value);
 
+template <typename... Ts>
+void StreamVariant(std::ostream& os, const std::variant<Ts...>& value) {
+	std::visit([&]<typename TAlt>(const TAlt& alt) { StreamValue(os, alt); }, value);
+}
+
 template <typename T>
 void StreamIterable(std::ostream& os, const T& value) {
 	os << "[";
@@ -123,6 +129,8 @@ void StreamValue(std::ostream& os, const T& value) {
 		}
 	} else if constexpr (IterableType<T>) {
 		StreamIterable(os, value);
+	} else if constexpr (VariantType<T>) {
+		StreamVariant(os, value);
 	} else {
 		static_assert(Streamable<T>, "Type must be streamable or iterable");
 		os << value;
@@ -133,25 +141,16 @@ void StreamValue(std::ostream& os, const T& value) {
 
 // Helpers
 
-#define PTGN_IMPL_SERIALIZE_PRIV_KEY(member) ::ptgn::impl::StripTrailingUnderscore(#member)
+#define PTGN_IMPL_SERIALIZE_OSTREAM_FIELD(member)                               \
+	::ptgn::impl::StreamField(                                                  \
+		os, first, ::ptgn::impl::StripTrailingUnderscore(#member), value.member \
+	);
 
-#define PTGN_IMPL_SERIALIZE_OSTREAM_FIELD_PUBLIC(member) \
-	::ptgn::impl::StreamField(os, first, PTGN_STRINGIFY(member), value.member);
+#define PTGN_IMPL_SERIALIZE_TO_JSON_FIELD(member) \
+	::ptgn::impl::SerializeField(j, ::ptgn::impl::StripTrailingUnderscore(#member), value.member);
 
-#define PTGN_IMPL_SERIALIZE_OSTREAM_FIELD_PRIV(member) \
-	::ptgn::impl::StreamField(os, first, PTGN_IMPL_SERIALIZE_PRIV_KEY(member), value.member);
-
-#define PTGN_IMPL_SERIALIZE_TO_JSON_FIELD_PUBLIC(member) \
-	::ptgn::impl::SerializeField(j, PTGN_STRINGIFY(member), value.member);
-
-#define PTGN_IMPL_SERIALIZE_TO_JSON_FIELD_PRIV(member) \
-	::ptgn::impl::SerializeField(j, PTGN_IMPL_SERIALIZE_PRIV_KEY(member), value.member);
-
-#define PTGN_IMPL_SERIALIZE_FROM_JSON_FIELD_PUBLIC(member) \
-	::ptgn::impl::DeserializeField(j, PTGN_STRINGIFY(member), value.member);
-
-#define PTGN_IMPL_SERIALIZE_FROM_JSON_FIELD_PRIV(member) \
-	::ptgn::impl::DeserializeField(j, PTGN_IMPL_SERIALIZE_PRIV_KEY(member), value.member);
+#define PTGN_IMPL_SERIALIZE_FROM_JSON_FIELD(member) \
+	::ptgn::impl::DeserializeField(j, ::ptgn::impl::StripTrailingUnderscore(#member), value.member);
 
 /// @brief Use this OUTSIDE the enum declaration.
 #define PTGN_OSTREAM_ENUM(Type)                                                       \
@@ -175,24 +174,9 @@ void StreamValue(std::ostream& os, const T& value) {
 		);                                                                           \
 		bool first{ true };                                                          \
 		os << "{";                                                                   \
-		PTGN_MAP(PTGN_IMPL_SERIALIZE_OSTREAM_FIELD_PUBLIC, __VA_ARGS__)              \
+		PTGN_MAP(PTGN_IMPL_SERIALIZE_OSTREAM_FIELD, __VA_ARGS__)                     \
 		os << "}";                                                                   \
 		return os;                                                                   \
-	}
-
-/// @brief Use this INSIDE the class/struct body.
-/// Removes underscores from all member names.
-#define PTGN_OSTREAM_PRIV(Type, ...)                                                      \
-	friend std::ostream& operator<<(std::ostream& os, const Type& value) {                \
-		static_assert(                                                                    \
-			!std::is_enum_v<Type>,                                                        \
-			"PTGN_OSTREAM_PRIV must not be used with an enum type: " PTGN_STRINGIFY(Type) \
-		);                                                                                \
-		bool first{ true };                                                               \
-		os << "{";                                                                        \
-		PTGN_MAP(PTGN_IMPL_SERIALIZE_OSTREAM_FIELD_PRIV, __VA_ARGS__)                     \
-		os << "}";                                                                        \
-		return os;                                                                        \
 	}
 
 /// @brief Use this INSIDE the class/struct body.
@@ -205,6 +189,16 @@ void StreamValue(std::ostream& os, const T& value) {
 		);                                                                                 \
 		::ptgn::impl::StreamValue(os, value.Field);                                        \
 		return os;                                                                         \
+	}
+
+#define PTGN_OSTREAM_EMPTY(Type)                                                                \
+	friend std::ostream& operator<<(std::ostream& os, const Type&) {                            \
+		static_assert(                                                                          \
+			!std::is_enum_v<Type> && std::is_empty_v<Type>,                                     \
+			"PTGN_OSTREAM_EMPTY must be used with an empty class/struct: " PTGN_STRINGIFY(Type) \
+		);                                                                                      \
+		os << PTGN_STRINGIFY(Type);                                                             \
+		return os;                                                                              \
 	}
 
 #define PTGN_OSTREAM_DERIVED(Type, Base, ...)                                                \
@@ -223,7 +217,7 @@ void StreamValue(std::ostream& os, const T& value) {
 				first = false;                                                               \
 			}                                                                                \
 		}();                                                                                 \
-		PTGN_MAP(PTGN_IMPL_SERIALIZE_OSTREAM_FIELD_PUBLIC, __VA_ARGS__)                      \
+		PTGN_MAP(PTGN_IMPL_SERIALIZE_OSTREAM_FIELD, __VA_ARGS__)                             \
 		os << "}";                                                                           \
 		return os;                                                                           \
 	}
@@ -265,33 +259,14 @@ void StreamValue(std::ostream& os, const T& value) {
 			"PTGN_SERIALIZE must not be used with an enum type: " PTGN_STRINGIFY(Type) \
 		);                                                                             \
 		j = nlohmann::json::object();                                                  \
-		PTGN_MAP(PTGN_IMPL_SERIALIZE_TO_JSON_FIELD_PUBLIC, __VA_ARGS__)                \
+		PTGN_MAP(PTGN_IMPL_SERIALIZE_TO_JSON_FIELD, __VA_ARGS__)                       \
 	}                                                                                  \
 	friend void from_json(const nlohmann::json& j, Type& value) {                      \
 		static_assert(                                                                 \
 			!std::is_enum_v<Type>,                                                     \
 			"PTGN_SERIALIZE must not be used with an enum type: " PTGN_STRINGIFY(Type) \
 		);                                                                             \
-		PTGN_MAP(PTGN_IMPL_SERIALIZE_FROM_JSON_FIELD_PUBLIC, __VA_ARGS__)              \
-	}
-
-/// @brief Use this INSIDE the class/struct body.
-/// Removes underscores from all member names.
-#define PTGN_SERIALIZE_PRIV(Type, ...)                                                      \
-	friend void to_json(nlohmann::json& j, const Type& value) {                             \
-		static_assert(                                                                      \
-			!std::is_enum_v<Type>,                                                          \
-			"PTGN_SERIALIZE_PRIV must not be used with an enum type: " PTGN_STRINGIFY(Type) \
-		);                                                                                  \
-		j = nlohmann::json::object();                                                       \
-		PTGN_MAP(PTGN_IMPL_SERIALIZE_TO_JSON_FIELD_PRIV, __VA_ARGS__)                       \
-	}                                                                                       \
-	friend void from_json(const nlohmann::json& j, Type& value) {                           \
-		static_assert(                                                                      \
-			!std::is_enum_v<Type>,                                                          \
-			"PTGN_SERIALIZE_PRIV must not be used with an enum type: " PTGN_STRINGIFY(Type) \
-		);                                                                                  \
-		PTGN_MAP(PTGN_IMPL_SERIALIZE_FROM_JSON_FIELD_PRIV, __VA_ARGS__)                     \
+		PTGN_MAP(PTGN_IMPL_SERIALIZE_FROM_JSON_FIELD, __VA_ARGS__)                     \
 	}
 
 /// @brief Use this INSIDE the class/struct body.
@@ -312,14 +287,31 @@ void StreamValue(std::ostream& os, const T& value) {
 		::ptgn::impl::DeserializeValue(j, value.Field);                                      \
 	}
 
-#define PTGN_SERIALIZE_DERIVED(Type, Base, ...)                           \
-	friend void to_json(nlohmann::json& j, const Type& value) {           \
-		to_json(j, static_cast<const Base&>(value));                      \
-		PTGN_MAP(PTGN_IMPL_SERIALIZE_TO_JSON_FIELD_PUBLIC, __VA_ARGS__)   \
-	}                                                                     \
-	friend void from_json(const nlohmann::json& j, Type& value) {         \
-		from_json(j, static_cast<Base&>(value));                          \
-		PTGN_MAP(PTGN_IMPL_SERIALIZE_FROM_JSON_FIELD_PUBLIC, __VA_ARGS__) \
+#define PTGN_SERIALIZE_EMPTY(Type)                                                                \
+	friend void to_json(nlohmann::json& j, const Type&) {                                         \
+		static_assert(                                                                            \
+			!std::is_enum_v<Type> && std::is_empty_v<Type>,                                       \
+			"PTGN_SERIALIZE_EMPTY must be used with an empty class/struct: " PTGN_STRINGIFY(Type) \
+		);                                                                                        \
+		j = PTGN_STRINGIFY(Type);                                                                 \
+	}                                                                                             \
+	friend void from_json(const nlohmann::json& j, Type&) {                                       \
+		static_assert(                                                                            \
+			!std::is_enum_v<Type> && std::is_empty_v<Type>,                                       \
+			"PTGN_SERIALIZE_EMPTY must be used with an empty class/struct: " PTGN_STRINGIFY(Type) \
+		);                                                                                        \
+		const auto s = j.get<std::string>();                                                      \
+		PTGN_ASSERT(s == PTGN_STRINGIFY(Type), "Expected ", s, " for ", PTGN_STRINGIFY(Type));    \
+	}
+
+#define PTGN_SERIALIZE_DERIVED(Type, Base, ...)                    \
+	friend void to_json(nlohmann::json& j, const Type& value) {    \
+		to_json(j, static_cast<const Base&>(value));               \
+		PTGN_MAP(PTGN_IMPL_SERIALIZE_TO_JSON_FIELD, __VA_ARGS__)   \
+	}                                                              \
+	friend void from_json(const nlohmann::json& j, Type& value) {  \
+		from_json(j, static_cast<Base&>(value));                   \
+		PTGN_MAP(PTGN_IMPL_SERIALIZE_FROM_JSON_FIELD, __VA_ARGS__) \
 	}
 
 /// @brief Use this OUTSIDE the enum declaration.
@@ -336,17 +328,17 @@ void StreamValue(std::ostream& os, const T& value) {
 
 /// @brief Use this INSIDE the class/struct body.
 /// Declares both ostream operator and JSON serialization for the class/struct.
-/// Removes underscores from all member names.
-#define PTGN_REFLECT_PRIV(Type, ...)     \
-	PTGN_OSTREAM_PRIV(Type, __VA_ARGS__) \
-	PTGN_SERIALIZE_PRIV(Type, __VA_ARGS__)
-
-/// @brief Use this INSIDE the class/struct body.
-/// Declares both ostream operator and JSON serialization for the class/struct.
 /// Serializes and prints directly as that value, without a field name.
 #define PTGN_REFLECT_VALUE(Type, Field) \
 	PTGN_OSTREAM_VALUE(Type, Field)     \
 	PTGN_SERIALIZE_VALUE(Type, Field)
+
+/// @brief Use this INSIDE the class/struct body.
+/// Declares both ostream operator and JSON serialization for the class/struct.
+/// Serializes and prints directly as the name of the class/struct.
+#define PTGN_REFLECT_EMPTY(Type) \
+	PTGN_OSTREAM_EMPTY(Type)     \
+	PTGN_SERIALIZE_EMPTY(Type)
 
 #define PTGN_REFLECT_DERIVED(Type, Base, ...)     \
 	PTGN_OSTREAM_DERIVED(Type, Base, __VA_ARGS__) \

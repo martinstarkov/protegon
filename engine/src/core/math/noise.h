@@ -1,20 +1,10 @@
 #pragma once
 
-#include <algorithm>
 #include <array>
-#include <cmath>
 #include <cstdint>
-#include <numeric>
-#include <utility>
-#include <vector>
 
 #include "core/assert.h"
-#include "core/math/math_utils.h"
-#include "core/math/rng.h"
-#include "core/math/vector2.h"
 #include "serialization/serialize.h"
-
-// TODO: Add serialization.
 
 namespace ptgn {
 
@@ -66,6 +56,8 @@ protected:
 	static constexpr std::int32_t prime_z = 1720413743;
 
 	static constexpr float default_y = 0.12345f; /* default y for 1D noise */
+
+	PTGN_REFLECT(Noise, seed_, frequency_)
 
 private:
 	static constexpr std::array<float, 256> gradients{
@@ -195,6 +187,7 @@ enum class NoiseType {
 	Value,
 	Simplex /// @brief Technically OpenSimplex noise but "Open" removed for brevity.
 };
+PTGN_REFLECT_ENUM(NoiseType);
 
 class FractalNoise : public impl::Noise {
 public:
@@ -234,6 +227,11 @@ public:
 		float persistence = 0.5f, float weighted_strength = 0.0f
 	);
 
+	PTGN_REFLECT_DERIVED(
+		FractalNoise, impl::Noise, noise_bounding_, octaves_, lacunarity_, persistence_,
+		weighted_strength_, noise_type_
+	)
+
 private:
 	/// @brief x and y already multiplied by frequency.
 	static float GetImpl(
@@ -266,11 +264,5 @@ private:
 
 	NoiseType noise_type_{ NoiseType::Perlin };
 };
-
-PTGN_REFLECT_ENUM(
-	NoiseType, { { NoiseType::Perlin, "perlin" },
-				 { NoiseType::Value, "value" },
-				 { NoiseType::Simplex, "simplex" } }
-);
 
 } // namespace ptgn

@@ -19,7 +19,6 @@ enum class Mouse {
 	Right  = Button1,
 	Middle = Button2
 };
-
 PTGN_REFLECT_ENUM(Mouse);
 
 } // namespace ptgn

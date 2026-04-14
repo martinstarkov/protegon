@@ -1,7 +1,6 @@
 #include "core/math/easing.h"
 
 #include <cmath>
-#include <ostream>
 #include <utility>
 
 #include "core/assert.h"
@@ -125,45 +124,6 @@ float ApplyEase(float t, Ease ease) {
 			}
 		}
 		default: PTGN_ERROR("Unknown Ease: ", std::to_underlying(ease));
-	}
-}
-
-std::ostream& operator<<(std::ostream& os, Ease ease) {
-	switch (ease) {
-		using enum Ease;
-		case None:		   return os << "None";
-		case Linear:	   return os << "Linear";
-		case InOutSine:	   return os << "InOutSine";
-		case InOutQuad:	   return os << "InOutQuad";
-		case InOutCubic:   return os << "InOutCubic";
-		case InOutQuart:   return os << "InOutQuart";
-		case InOutQuint:   return os << "InOutQuint";
-		case InOutExpo:	   return os << "InOutExpo";
-		case InOutCirc:	   return os << "InOutCirc";
-		case InOutElastic: return os << "InOutElastic";
-		case InOutBack:	   return os << "InOutBack";
-		case InOutBounce:  return os << "InOutBounce";
-		case InSine:	   return os << "InSine";
-		case OutSine:	   return os << "OutSine";
-		case InQuad:	   return os << "InQuad";
-		case OutQuad:	   return os << "OutQuad";
-		case InCubic:	   return os << "InCubic";
-		case OutCubic:	   return os << "OutCubic";
-		case InQuart:	   return os << "InQuart";
-		case OutQuart:	   return os << "OutQuart";
-		case InQuint:	   return os << "InQuint";
-		case OutQuint:	   return os << "OutQuint";
-		case InExpo:	   return os << "InExpo";
-		case OutExpo:	   return os << "OutExpo";
-		case InCirc:	   return os << "InCirc";
-		case OutCirc:	   return os << "OutCirc";
-		case InElastic:	   return os << "InElastic";
-		case OutElastic:   return os << "OutElastic";
-		case InBack:	   return os << "InBack";
-		case OutBack:	   return os << "OutBack";
-		case InBounce:	   return os << "InBounce";
-		case OutBounce:	   return os << "OutBounce";
-		default:		   PTGN_ERROR("Unknown Ease: ", std::to_underlying(ease));
 	}
 }
 

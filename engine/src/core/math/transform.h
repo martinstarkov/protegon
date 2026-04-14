@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <ostream>
 #include <span>
 #include <vector>
 
@@ -96,17 +95,7 @@ struct Transform {
 		return transformed_points;
 	}
 
-	friend std::ostream& operator<<(std::ostream& os, const Transform& transform) {
-		os << "{ position: " << transform.position_;
-		os << ", rotation: " << transform.rotation_;
-		os << ", scale: " << transform.scale_ << " }";
-		return os;
-	}
-
-	PTGN_REFLECT_PRIV_IGNORE_DEFAULTS(
-		Transform, KeyValue("position", position_), KeyValue("rotation", rotation_),
-		KeyValue("scale", scale_)
-	)
+	PTGN_REFLECT(Transform, position_, rotation_, scale_)
 private:
 	void Apply(std::span<const V2_float> points, std::span<V2_float> out_transformed_points) const;
 

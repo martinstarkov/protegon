@@ -1,7 +1,5 @@
 #pragma once
 
-#include <ostream>
-
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/polygon.h"
 #include "core/math/geometry/rect.h"
@@ -16,15 +14,10 @@ struct Intersection {
 	float depth{ 0.0f };
 	V2_float normal;
 
-	PTGN_REFLECT(Intersection, depth, normal)
-
 	[[nodiscard]] bool Occurred() const;
+	operator bool() const;
 
-	friend std::ostream& operator<<(std::ostream& os, const Intersection& c) {
-		os << "{ depth: " << c.depth;
-		os << ", normal: " << c.normal << " }";
-		return os;
-	}
+	PTGN_REFLECT(Intersection, depth, normal)
 };
 
 namespace impl {

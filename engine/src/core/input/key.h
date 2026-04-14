@@ -136,7 +136,6 @@ enum class Key {
 	RightSuper = 347,
 	Menu	   = 348
 };
-
 PTGN_REFLECT_ENUM(Key);
 
 } // namespace ptgn

@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "core/graphics/color.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -13,6 +14,8 @@ struct ColorStop {
 	/// @brief Range: [0, 1]
 	float t{ 0.5f };
 	Color color;
+
+	PTGN_REFLECT(ColorStop, t, color)
 };
 
 } // namespace impl
@@ -30,6 +33,7 @@ public:
 	/// @param t Position along the gradient, clamped to range [0, 1].
 	void AddStop(float t, Color color);
 
+	PTGN_REFLECT_VALUE(Gradient, stops_)
 private:
 	std::vector<impl::ColorStop> stops_;
 };

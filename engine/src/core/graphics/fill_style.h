@@ -9,15 +9,16 @@
 #include "core/assert.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
-
-class DrawContext;
 
 inline constexpr float kMinLineWidth{ 1.0f };
 
 struct Solid {
 	constexpr Solid() = default;
+
+	PTGN_REFLECT_EMPTY(Solid)
 };
 
 struct Hollow {
@@ -28,19 +29,21 @@ struct Hollow {
 	}
 
 	float line_width{ kMinLineWidth }; // must be positive and >= kMinLineWidth
+
+	PTGN_REFLECT_VALUE(Hollow, line_width)
 };
 
 struct FillStyle {
 	constexpr FillStyle() = default;
 
-	constexpr FillStyle(float line_width) : style{ Hollow{ line_width } } { // NOSONAR
+	constexpr FillStyle(float line_width) : style_{ Hollow{ line_width } } { // NOSONAR
 	}
 
-	constexpr FillStyle(Solid) : style{ Solid{} } {} // NOSONAR
+	constexpr FillStyle(Solid) : style_{ Solid{} } {} // NOSONAR
 
 	template <typename F>
 	decltype(auto) Visit(F&& f) const {
-		return std::visit(std::forward<F>(f), style);
+		return std::visit(std::forward<F>(f), style_);
 	}
 
 	template <Invocable SolidFn, Invocable<float> HollowFn>
@@ -75,9 +78,6 @@ struct FillStyle {
 		}
 	}
 
-private:
-	friend class DrawContext;
-
 	/// @brief Converts a fill style to a SDF line thickness for shaders to draw hollow and solid
 	/// shapes.
 	[[nodiscard]] float NormalizedToSDFThickness(float fade, V2_float radii) const {
@@ -96,7 +96,9 @@ private:
 		});
 	}
 
-	std::variant<Hollow, Solid> style{ Solid{} };
+	PTGN_REFLECT_VALUE(FillStyle, style_)
+private:
+	std::variant<Hollow, Solid> style_{ Solid{} };
 };
 
 } // namespace ptgn

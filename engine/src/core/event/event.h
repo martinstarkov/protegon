@@ -12,6 +12,7 @@
 namespace ptgn {
 
 class Scene;
+class Application;
 
 namespace impl {
 
@@ -158,6 +159,7 @@ public:
 	}
 
 private:
+	friend class Application;
 	friend class Scene;
 	friend class impl::TweenData;
 

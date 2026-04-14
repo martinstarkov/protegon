@@ -135,7 +135,7 @@ struct Collider {
 
 	// TODO: Fix collider shape serialization: KeyValue("shape", shape)
 
-	PTGN_REFLECT_PRIV(
+	PTGN_REFLECT(
 		Collider, KeyValue("mode", mode), KeyValue("response", response), KeyValue("mask", mask_),
 		KeyValue("collides_with_masks_", collides_with_masks_)
 	)

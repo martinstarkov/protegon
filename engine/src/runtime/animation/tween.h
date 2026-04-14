@@ -231,7 +231,7 @@ private:
 
 	std::vector<impl::EventData> events_;
 
-	PTGN_REFLECT_PRIV(
+	PTGN_REFLECT(
 		TweenPoint, current_repeat_, total_repeats_, yoyo_, currently_reversed_, start_reversed_,
 		duration_, ease_, flagged_for_removal_, script_container_
 	)
@@ -313,7 +313,7 @@ public:
 		requires BraceConstructible<T, TArgs...>
 	void PushEventToCurrentTweenPoint(TArgs&&... args);
 
-	PTGN_REFLECT_PRIV(TweenData, progress_, index_, state_, points_)
+	PTGN_REFLECT(TweenData, progress_, index_, state_, points_)
 private:
 	/// @brief Value between [0.0f, 1.0f] indicating how much of the total duration the tween has
 	/// passed in the current repetition. Note: This value remains 0.0f to 1.0f even when the tween

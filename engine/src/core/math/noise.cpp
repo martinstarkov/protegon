@@ -1,5 +1,6 @@
 #include "core/math/noise.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 
