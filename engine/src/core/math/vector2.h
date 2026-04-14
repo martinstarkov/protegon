@@ -17,7 +17,7 @@
 
 namespace ptgn {
 
-template <std::is_arithmetic T>
+template <Arithmetic T>
 struct Vector2 {
 	T x{ 0 };
 	T y{ 0 };

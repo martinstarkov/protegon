@@ -12,7 +12,7 @@
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
-#include "serialization/json/enum.h"
+#include "serialization/serialize.h"
 
 // TODO: Add serialization.
 

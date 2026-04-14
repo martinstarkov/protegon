@@ -48,11 +48,21 @@ private:
 	ApplicationLibrary& operator=(ApplicationLibrary&&) noexcept = delete;
 };
 
+class ApplicationInternals {
+public:
+	ApplicationInternals(Application& application) : internals{ application } {}
+
+	Application& internals;
+};
+
 } // namespace impl
 
 /// @brief Configuration data used to initialize an Application.
 struct ApplicationConfig {
 	WindowConfig window;
+#ifdef PTGN_EDITOR
+	bool editor{ true };
+#endif
 };
 
 /// @brief Core engine entry point coordinating windowing, rendering,
@@ -107,22 +117,20 @@ public:
 		layers_.emplace_back(std::make_unique<TLayer>(std::forward<TArgs>(args)...));
 	}
 
-	// TODO: Find a better workaround.
-	std::uint32_t GetScreenTargetId() const;
-
 private:
 #ifdef __EMSCRIPTEN__
 	friend void impl::EmscriptenMainLoop(void* application);
 #endif
 	friend class SceneContext;
 	friend class SceneManager;
+	friend class impl::ApplicationInternals;
 
 	impl::ApplicationLibrary app_library_;
 
 	// Must be created before every other system and hence destroyed after every other system.
 	Window window_;
 	// Must be created after Window but before other systems that rely on it.
-	Renderer renderer_;
+	impl::Renderer renderer_;
 
 	impl::SceneManager scene_manager_;
 	EventHandler events_;

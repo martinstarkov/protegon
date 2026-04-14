@@ -11,8 +11,6 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/event.h"
-#include "core/event/event_dispatcher.h"
 #include "core/graphics/color.h"
 #include "core/time/time.h"
 #include "core/util/hash.h"
@@ -42,13 +40,18 @@ class Scene;
 class SceneTransition;
 class SceneEventHandler;
 class LocalSceneManager;
-class Renderer;
 class RenderTarget;
 class FontSystem;
 class AssetManager;
 class EventHandler;
 class Window;
 class AudioSystem;
+
+namespace impl {
+
+class Renderer;
+
+} // namespace impl
 
 template <typename T>
 concept SceneType = std::derived_from<T, Scene>;
@@ -356,7 +359,7 @@ private:
 	/// size.
 	Camera fixed_camera_;
 
-	Renderer& global_renderer_;
+	impl::Renderer& global_renderer_;
 	Application& app_;
 };
 
@@ -536,6 +539,7 @@ private:
 	void InternalDraw();
 
 	[[nodiscard]] bool IsTransitioning() const;
+	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
 
 	std::unique_ptr<SceneContext> ctx_;
 	Manager manager_;

@@ -22,8 +22,8 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
-#include "runtime/graphics/text.h"
-#include "serialization/json/serialize.h"
+#include "runtime/graphics/text/text.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 

@@ -10,7 +10,7 @@
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/audio/audio.h"
-#include "runtime/graphics/font.h"
+#include "runtime/graphics/text/font.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {

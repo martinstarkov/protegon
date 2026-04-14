@@ -1,22 +1,34 @@
-#include "renderer/image/surface.h"
+#include "core/graphics/surface.h"
 
 #include <stb_image.h>
+#include <stb_image_write.h>
 
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <expected>
 #include <filesystem>
+#include <span>
 #include <string>
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
-#include "core/graphics/color.h"
 
 namespace ptgn::impl {
 
-Surface::Surface(const path& filepath) {
+Surface::Surface(V2_int size, std::span<const std::uint8_t> pixels, std::size_t channels) :
+	channels_{ channels }, pixels_(pixels.begin(), pixels.end()), size_{ size } {
+	PTGN_ASSERT(size.x > 0 && size.y > 0, "Invalid surface size");
+	PTGN_ASSERT(
+		pixels.size() == static_cast<std::size_t>(size.x) * size.y * channels,
+		"Pixel data size does not match expected size for given surface dimensions"
+	);
+}
+
+Surface::Surface(const path& filepath, std::size_t desired_channels) {
 	PTGN_ASSERT(
 		FileExists(filepath),
 		"Cannot create surface from a nonexistent filepath: ", filepath.string()
@@ -30,8 +42,10 @@ Surface::Surface(const path& filepath) {
 
 	auto data = stbi_load(
 		abs_path.string().c_str(), &width, &height, &channels_in_file,
-		static_cast<int>(kBytesPerPixel)
+		static_cast<int>(desired_channels)
 	);
+
+	channels_ = desired_channels;
 
 	PTGN_ASSERT(
 		data != nullptr, "Failed to load image '", filepath.string(), "': ", stbi_failure_reason()
@@ -42,7 +56,7 @@ Surface::Surface(const path& filepath) {
 	size_ = { width, height };
 
 	const std::size_t total_bytes =
-		static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * kBytesPerPixel;
+		static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * channels_;
 
 	pixels_.resize(total_bytes);
 	std::memcpy(pixels_.data(), data, total_bytes);
@@ -53,7 +67,7 @@ Surface::Surface(const path& filepath) {
 void Surface::FlipVertically() {
 	PTGN_ASSERT(!IsEmpty(), "Cannot vertically flip an empty surface");
 
-	const std::size_t row_bytes = static_cast<std::size_t>(size_.x) * kBytesPerPixel;
+	const std::size_t row_bytes = static_cast<std::size_t>(size_.x) * channels_;
 
 	for (std::size_t row = 0; row < static_cast<std::size_t>(size_.y) / 2; ++row) {
 		auto top_begin = pixels_.begin() + static_cast<std::ptrdiff_t>(row * row_bytes);
@@ -86,7 +100,9 @@ Color Surface::GetPixel(V2_int coordinate) const {
 Color Surface::GetPixel(std::size_t pixel_index) const {
 	PTGN_ASSERT(!IsEmpty(), "Cannot get pixel of an empty surface");
 
-	const std::size_t byte_index = pixel_index * kBytesPerPixel;
+	PTGN_ASSERT(channels_ == 4, "GetPixel only works for surfaces with 4 channels");
+
+	const std::size_t byte_index = pixel_index * channels_;
 	PTGN_ASSERT(byte_index + 3 < pixels_.size(), "Pixel index outside of range of surface");
 
 	return { pixels_[byte_index + 0], pixels_[byte_index + 1], pixels_[byte_index + 2],
@@ -103,6 +119,24 @@ const std::uint8_t* Surface::Data() const {
 
 [[nodiscard]] bool Surface::IsEmpty() const {
 	return pixels_.empty();
+}
+
+std::expected<void, std::string> Surface::SavePNG(const path& filepath) const {
+#ifdef __EMSCRIPTEN__
+	return std::unexpected(
+		"Saving PNGs is not supported in Emscripten builds. This function should not be called."
+	);
+#endif
+
+	int stride_in_bytes{ size_.x * channels_ };
+
+	auto success{ stbi_write_png(
+		filepath.string().c_str(), size_.x, size_.y, channels_, pixels_.data(), stride_in_bytes
+	) };
+
+	if (!success) {
+		return std::unexpected("Failed to save PNG");
+	}
 }
 
 } // namespace ptgn::impl

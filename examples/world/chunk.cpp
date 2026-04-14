@@ -8,7 +8,7 @@
 #include "core/math/noise.h"
 #include "core/math/vector2.h"
 
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "core/graphics/color.h"
 #include "renderer/resources/texture.h"
 #include "renderer/renderer.h"

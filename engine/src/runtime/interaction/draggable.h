@@ -11,8 +11,8 @@
 #include "core/time/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "serialization/json/enum.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 

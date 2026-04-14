@@ -1,10 +1,6 @@
 #pragma once
 
-#include <ostream>
-#include <utility>
-
-#include "core/log.h"
-#include "serialization/json/enum.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -85,45 +81,6 @@ enum class BlendMode {
 	/// dstA   = srcA * dstA
 	MultiplyRGBAWithAlphaBlend
 };
-
-inline std::ostream& operator<<(std::ostream& os, BlendMode blend_mode) {
-	switch (blend_mode) {
-		using enum BlendMode;
-		case Blend:						 return os << "Blend";
-		case PremultipliedBlend:		 return os << "PremultipliedBlend";
-		case ReplaceRGBA:				 return os << "ReplaceRGBA";
-		case ReplaceRGB:				 return os << "ReplaceRGB";
-		case ReplaceAlpha:				 return os << "ReplaceAlpha";
-		case AddRGB:					 return os << "AddRGB";
-		case AddRGBA:					 return os << "AddRGBA";
-		case AddAlpha:					 return os << "AddAlpha";
-		case PremultipliedAddRGB:		 return os << "PremultipliedAddRGB";
-		case PremultipliedAddRGBA:		 return os << "PremultipliedAddRGBA";
-		case MultiplyRGB:				 return os << "MultiplyRGB";
-		case MultiplyRGBA:				 return os << "MultiplyRGBA";
-		case MultiplyAlpha:				 return os << "MultiplyAlpha";
-		case MultiplyRGBWithAlphaBlend:	 return os << "MultiplyRGBWithAlphaBlend";
-		case MultiplyRGBAWithAlphaBlend: return os << "MultiplyRGBAWithAlphaBlend";
-		default:						 PTGN_ERROR("Unknown BlendMode: ", std::to_underlying(blend_mode));
-	}
-}
-
-PTGN_SERIALIZE_ENUM(
-	BlendMode, { { BlendMode::Blend, "blend" },
-				 { BlendMode::PremultipliedBlend, "premultiplied_blend" },
-				 { BlendMode::ReplaceRGBA, "replace_rgba" },
-				 { BlendMode::ReplaceRGB, "replace_rgb" },
-				 { BlendMode::ReplaceAlpha, "replace_alpha" },
-				 { BlendMode::AddRGB, "add_rgb" },
-				 { BlendMode::AddRGBA, "add_rgba" },
-				 { BlendMode::AddAlpha, "add_alpha" },
-				 { BlendMode::PremultipliedAddRGB, "premultiplied_add_rgb" },
-				 { BlendMode::PremultipliedAddRGBA, "premultiplied_add_rgba" },
-				 { BlendMode::MultiplyRGB, "multiply_rgb" },
-				 { BlendMode::MultiplyRGBA, "multiply_rgba" },
-				 { BlendMode::MultiplyAlpha, "multiply_alpha" },
-				 { BlendMode::MultiplyRGBWithAlphaBlend, "multiply_rgb_with_alpha_blend" },
-				 { BlendMode::MultiplyRGBAWithAlphaBlend, "multiply_rgba_with_alpha_blend" } }
-);
+PTGN_SERIALIZE_ENUM(BlendMode);
 
 } // namespace ptgn

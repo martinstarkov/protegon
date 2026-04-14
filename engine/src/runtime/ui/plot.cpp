@@ -15,10 +15,10 @@
 // #include "math/math_utils.h"
 // #include "math/vector2.h"
 // #include "renderer/api/color.h"
-// #include "runtime/graphics/font.h"
+// #include "runtime/graphics/text/font.h"
 // #include "renderer/api/origin.h"
-// #include "runtime/graphics/text.h"
-// #include "runtime/graphics/fonts.h"
+// #include "runtime/graphics/text/text.h"
+// #include "runtime/graphics/text/fonts.h"
 // #include "ui/button.h"
 // #include "core/assert.h"
 //

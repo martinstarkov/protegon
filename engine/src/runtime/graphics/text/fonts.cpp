@@ -1,7 +1,7 @@
-#include "runtime/graphics/fonts.h"
+#include "runtime/graphics/text/fonts.h"
 
 #include "fonts/LiberationSans-Regular.h"
-#include "runtime/graphics/font.h"
+#include "runtime/graphics/text/font.h"
 
 namespace ptgn::impl {
 

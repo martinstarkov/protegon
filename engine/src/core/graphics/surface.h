@@ -1,13 +1,16 @@
 #pragma once
 
 #include <cstdint>
+#include <expected>
+#include <span>
+#include <string>
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "core/util/file.h"
-#include "core/graphics/color.h"
 
 namespace ptgn {
 
@@ -17,7 +20,9 @@ namespace impl {
 
 class Surface {
 public:
-	explicit Surface(const path& filepath);
+	Surface(V2_int size, std::span<const std::uint8_t> pixels, std::size_t channels = 4);
+
+	explicit Surface(const path& filepath, std::size_t desired_channels = 4);
 
 	/// @brief Mirrors the surface vertically.
 	void FlipVertically();
@@ -48,14 +53,18 @@ public:
 
 	[[nodiscard]] bool IsEmpty() const;
 
+	[[nodiscard("Check if png save succeeded")]] std::expected<void, std::string> SavePNG(
+		const path& filepath
+	) const;
+
 private:
 	friend class ptgn::FontSystem;
 
 	/// @param pixel_index One dimensionalized index into the data array.
 	Color GetPixel(std::size_t pixel_index) const;
 
-	/// @brief Surface pixel data is currently always stored as RGBA32.
-	static constexpr std::size_t kBytesPerPixel{ 4 };
+	/// @brief Number of channels in the pixel data.
+	std::size_t channels_{ 4 };
 
 	/// @brief The row major one dimensionalized array of pixel values that makes up the surface.
 	std::vector<std::uint8_t> pixels_;

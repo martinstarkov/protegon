@@ -1,4 +1,4 @@
-#include "runtime/ui/interactive.h"
+#include "runtime/interaction/interactive.h"
 
 #include <algorithm>
 #include <optional>

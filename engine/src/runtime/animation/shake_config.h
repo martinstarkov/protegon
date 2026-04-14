@@ -3,7 +3,7 @@
 #include "core/math/angle.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 

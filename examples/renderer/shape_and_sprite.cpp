@@ -16,7 +16,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
 
 using namespace ptgn;

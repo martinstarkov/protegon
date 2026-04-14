@@ -2,13 +2,15 @@
 
 #include <cstdint>
 #include <optional>
-#include <ostream>
 #include <vector>
 
+#include "core/graphics/color.h"
+#include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture_format.h"
+#include "serialization/serialize.h"
 
 namespace ptgn::impl::gl {
 
@@ -21,10 +23,7 @@ struct ActiveTexture {
 
 	bool operator==(const ActiveTexture&) const = default;
 
-	friend std::ostream& operator<<(std::ostream& os, const ActiveTexture& active_texture) {
-		os << "{ slot: " << active_texture.slot << " }";
-		return os;
-	}
+	PTGN_SERIALIZE(ActiveTexture, slot)
 };
 
 struct TextureUnitState {
@@ -36,6 +35,8 @@ struct TextureUnitState {
 	std::optional<TextureWrap> wrap_t{ TextureWrap::Repeat };
 
 	bool operator==(const TextureUnitState&) const = default;
+
+	PTGN_SERIALIZE(TextureUnitState, id, min_filter, mag_filter, wrap_s, wrap_t)
 };
 
 using TextureUnits = std::vector<TextureUnitState>;
@@ -51,13 +52,14 @@ struct State {
 
 	std::optional<Viewport> viewport;
 
-	std::optional<DepthState> depth;
-
-	std::optional<BlendState> blend;
+	std::optional<bool> depth_testing;
+	std::optional<bool> blend;
+	std::optional<DepthMaskState> depth_mask;
+	std::optional<BlendMode> blend_mode;
 
 	std::optional<ColorMaskState> color_mask;
 
-	std::optional<ActiveTexture> active_texture;
+	ActiveTexture active_texture;
 	TextureUnits texture_units;
 
 	std::optional<ScissorState> scissor;
@@ -67,7 +69,7 @@ struct State {
 
 	std::optional<StencilState> stencil;
 
-	std::optional<double> clear_depth;
+	std::optional<ClearDepth> clear_depth;
 	std::optional<int> clear_stencil;
 	std::optional<Color> clear_color;
 
@@ -80,6 +82,13 @@ struct State {
 
 		texture_units.resize(max_texture_slots, {});
 	}
+
+	PTGN_SERIALIZE(
+		State, framebuffer, renderbuffer, vertex_buffer, uniform_buffer, shader_program,
+		vertex_array, viewport, depth_testing, blend, depth_mask, blend_mode, color_mask,
+		active_texture, texture_units, scissor, raster, stencil, clear_depth, clear_stencil,
+		clear_color
+	)
 };
 
 } // namespace ptgn::impl::gl

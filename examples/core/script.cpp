@@ -4,10 +4,10 @@
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "platform/events.h"
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"

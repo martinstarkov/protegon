@@ -1,16 +1,16 @@
 #pragma once
 
-#include "core/event/event.h"
+
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/time/timer.h"
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/move_direction.h"
 #include "runtime/physics/rigid_body.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 

@@ -12,7 +12,7 @@
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio.h"
-#include "runtime/graphics/font.h"
+#include "runtime/graphics/text/font.h"
 #include "runtime/scene/scene.h"
 
 #include "serialization/json/fwd.h"

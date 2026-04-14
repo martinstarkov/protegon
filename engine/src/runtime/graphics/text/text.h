@@ -16,9 +16,9 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/font.h"
-#include "serialization/json/enum.h"
-#include "serialization/json/serialize.h"
+#include "runtime/graphics/text/font.h"
+#include "serialization/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 

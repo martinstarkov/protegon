@@ -2,6 +2,8 @@
 
 #include <cstdint>
 
+#include "serialization/serialize.h"
+
 namespace ptgn::impl {
 
 template <typename Tag>
@@ -15,6 +17,8 @@ struct Id {
 	constexpr operator std::uint32_t() const { // NOSONAR
 		return value;
 	}
+
+	PTGN_SERIALIZE(Id, value)
 };
 
 struct TextureTag {};

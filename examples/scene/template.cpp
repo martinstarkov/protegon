@@ -6,7 +6,7 @@
 #include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/shape.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/ui/menu_template.h"
 

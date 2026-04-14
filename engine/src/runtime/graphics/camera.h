@@ -9,7 +9,7 @@
 #include "core/graphics/color.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/scripting/script.h"
 
 namespace ptgn {

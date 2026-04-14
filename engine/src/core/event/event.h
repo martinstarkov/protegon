@@ -1,86 +1,177 @@
 #pragma once
 
-#include <concepts>
 #include <memory>
 #include <type_traits>
-#include <variant>
 
-#include "core/util/hash.h"
+#include "core/assert.h"
+#include "core/util/concepts.h"
 
 namespace ptgn {
 
-class EventDispatcher;
+class Scene;
 
 namespace impl {
 
-struct EventBase {
-public:
-	bool operator==(const EventBase&) const = default;
+class TweenData;
 
-	virtual ~EventBase() = default;
-
-private:
-	friend class ptgn::EventDispatcher;
-
-	bool event_handled_{ false };
-
-	constexpr virtual std::size_t Type() const = 0;
+struct EventData {
+	std::size_t type_hash{ 0 };
+	bool handled{ false };
+	std::unique_ptr<void> payload;
 };
+
+template <typename F, typename T>
+concept EventFunctionWithArg = InvocableR<F, void, T&> || InvocableR<F, bool, T&> ||
+							   InvocableR<F, void, const T&> || InvocableR<F, bool, const T&>;
+
+template <typename F>
+concept EventFunctionNoArg = InvocableR<F, void> || InvocableR<F, bool>;
+
+template <typename TVariant, typename... TArgs>
+void VisitAndInvoke(TVariant&& callback_variant, TArgs&&... args) {
+	std::visit(
+		[&]<typename TCallback>(const TCallback& callback) {
+			if constexpr (std::is_invocable_v<TCallback, TArgs...>) {
+				callback(std::forward<TArgs>(args)...);
+			} else if constexpr (std::is_invocable_v<TCallback>) {
+				callback();
+			} else {
+				static_assert(false, "Callback cannot be invoked with these arguments");
+			}
+		},
+		std::forward<TVariant>(callback_variant)
+	);
+}
+
+template <typename F, typename T>
+concept EventFunctionType = impl::EventFunctionWithArg<F, T> || impl::EventFunctionNoArg<F>;
 
 } // namespace impl
 
-/// @brief CRTP base class for strongly-typed events.
-template <typename Derived>
-struct Event : public impl::EventBase {
+/// @brief Object for routing events to matching handlers.
+///
+/// If a handler returns true, the event is marked as handled, otherwise the event keeps
+/// propagating.
+///
+/// Example:
+/// @code
+/// void OnEvent(Event e) {
+///     e.Dispatch<WindowResized>([](const auto& event) {
+///         DoStuff(event.size);
+///     });
+/// }
+/// @endcode
+class Event {
 public:
-	static constexpr std::size_t TypeId() {
-		return event_id_;
-	}
+	/// @brief Dispatches the event to the given callable if types match.
+	///
+	/// If the callback returns `true`, the event is marked handled.
+	/// If the callback does not return a bool, the event keeps propagating.
+	template <typename T, typename TEventFn>
+	void Dispatch(TEventFn&& fn) {
+		if (event_.handled) {
+			return;
+		}
 
-private:
-	friend class EventDispatcher;
+		if (!IsType<T>()) {
+			return;
+		}
 
-	static constexpr std::size_t event_id_{ Hash<Derived>() };
-
-	constexpr std::size_t Type() const override {
-		return event_id_;
-	}
-};
-
-template <typename T>
-concept EventType = std::derived_from<T, Event<T>> && std::is_base_of_v<impl::EventBase, T>;
-
-namespace impl {
-
-struct TagEvent {
-	bool operator==(const TagEvent&) const = default;
-
-	std::size_t type_id{ 0 };
-};
-
-struct PayloadEvent {
-	bool operator==(const PayloadEvent&) const = default;
-
-	std::unique_ptr<EventBase> event;
-};
-
-struct EventData {
-	template <EventType T>
-	explicit EventData(T&& event) {
-		using U = std::remove_cvref_t<T>;
-		if constexpr (std::is_empty_v<U>) {
-			storage = TagEvent{ Hash<U>() };
+		if constexpr (!std::is_empty_v<T>) {
+			PTGN_ASSERT(event_.payload, "Payload for non empty event must be set");
+			T& value{ static_cast<T&>(*event_.payload) };
+			InvokeHandler<T>(std::forward<TEventFn>(fn), value);
 		} else {
-			storage = PayloadEvent{ std::make_unique<U>(std::forward<T>(event)) };
+			if constexpr (std::is_invocable_r_v<bool, TEventFn>) {
+				if (std::forward<TEventFn>(fn)()) {
+					event_.handled = true;
+				}
+			} else if constexpr (std::is_invocable_r_v<void, TEventFn>) {
+				std::forward<TEventFn>(fn)();
+			} else {
+				static_assert(
+					false, "Dispatch handler for empty event must be callable with no args fn(), "
+						   "returning void or bool"
+				);
+			}
 		}
 	}
 
-	std::variant<TagEvent, PayloadEvent> storage;
-	bool handled{ false };
+	/// @brief Dispatches to a member functions.
+	template <typename T, typename TObject, typename TMemFn>
+	void Dispatch(TMemFn memfn, TObject* obj) {
+		Dispatch<T>([obj, memfn]<typename... TArgs>(TArgs&&... args) -> decltype(auto) {
+			if constexpr (std::is_invocable_v<TMemFn, TObject*, TArgs...>) {
+				return std::invoke(memfn, obj, std::forward<TArgs>(args)...);
+			} else if constexpr (std::is_invocable_v<TMemFn, TObject*>) {
+				return std::invoke(memfn, obj);
+			} else {
+				static_assert(false, "Member function cannot be invoked with these arguments");
+			}
+		});
+	}
 
-	bool operator==(const EventData&) const = default;
+	template <typename T, typename TVariant>
+	void DispatchVariant(TVariant&& callback_variant) {
+		Dispatch<T>([callback = std::forward<TVariant>(callback_variant
+					 )]<typename... TEventArgs>(TEventArgs&&... event_args) mutable {
+			impl::VisitAndInvoke(callback, std::forward<TEventArgs>(event_args)...);
+		});
+	}
+
+	template <typename T, typename TVariant, typename... TBoundArgs>
+	void DispatchVariantBound(TVariant&& callback_variant, TBoundArgs&&... bound_args) {
+		Dispatch<T>([callback = std::forward<TVariant>(callback_variant),
+					 ... args = std::forward<TBoundArgs>(bound_args)]() mutable {
+			impl::VisitAndInvoke(callback, args...);
+		});
+	}
+
+	/// @return True if the event has been handled.
+	[[nodiscard]] bool IsHandled() const {
+		return event_.handled;
+	}
+
+	/// @return True if the stored event has the same type hash as the given type hash.
+	[[nodiscard]] constexpr bool IsType(std::size_t type_hash) const {
+		return event_.type_hash == type_hash;
+	}
+
+	/// @return True if the stored event is of type `T`.
+	template <typename T>
+	[[nodiscard]] constexpr bool IsType() const {
+		return event_.type_hash == Hash<T>();
+	}
+
+private:
+	friend class Scene;
+	friend class impl::TweenData;
+
+	explicit Event(impl::EventData& event) : event_{ event } {}
+
+	template <typename T, impl::EventFunctionType<T> TEventFn>
+	void InvokeHandler(TEventFn&& fn, T& value) {
+		if constexpr (std::is_invocable_r_v<bool, TEventFn, T&>) {
+			if (std::forward<TEventFn>(fn)(value)) {
+				event_.handled = true;
+			}
+		} else if constexpr (std::is_invocable_r_v<void, TEventFn, T&> ||
+							 std::is_invocable_r_v<void, TEventFn, const T&>) {
+			std::forward<TEventFn>(fn)(value);
+		} else if constexpr (std::is_invocable_r_v<bool, TEventFn>) {
+			if (std::forward<TEventFn>(fn)()) {
+				event_.handled = true;
+			}
+		} else if constexpr (std::is_invocable_r_v<void, TEventFn>) {
+			std::forward<TEventFn>(fn)();
+		} else {
+			static_assert(
+				false, "Dispatch handler must be callable as fn(T&) or fn(), returning void or bool"
+			);
+		}
+	}
+
+	impl::EventData& event_;
 };
-
-} // namespace impl
 
 } // namespace ptgn

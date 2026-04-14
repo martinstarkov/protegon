@@ -1,5 +1,5 @@
 
-#include "runtime/ui/interactive.h"
+#include "runtime/interaction/interactive.h"
 
 #include <chrono>
 #include <optional>
@@ -11,13 +11,13 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "platform/key.h"
-#include "platform/mouse.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"

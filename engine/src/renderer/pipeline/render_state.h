@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "core/math/tolerance.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "serialization/serialize.h"
@@ -56,8 +57,7 @@ struct StencilState {
 	PTGN_SERIALIZE(StencilState, enabled, func, ref, mask, fail_op, zfail_op, zpass_op, write_mask)
 };
 
-struct DepthState {
-	bool test{ false };
+struct DepthMaskState {
 	bool write{ true };
 
 	CompareFunc func{ CompareFunc::Less };
@@ -65,9 +65,22 @@ struct DepthState {
 	float range_near{ 0.0f };
 	float range_far{ 1.0f };
 
-	bool operator==(const DepthState&) const = default;
+	bool operator==(const DepthMaskState& other) const {
+		return write == other.write && func == other.func &&
+			   NearlyEqual(range_near, other.range_near) && NearlyEqual(range_far, other.range_far);
+	}
 
-	PTGN_SERIALIZE(DepthState, test, write, func, range_near, range_far)
+	PTGN_SERIALIZE(DepthMaskState, write, func, range_near, range_far)
+};
+
+struct ClearDepth {
+	double value{ 1.0 };
+
+	bool operator==(const ClearDepth& other) const {
+		return NearlyEqual(value, other.value);
+	}
+
+	PTGN_SERIALIZE(ClearDepth, value)
 };
 
 struct ColorMaskState {
@@ -130,22 +143,11 @@ struct RasterState {
 	CullState cull;
 	float line_width{ 1.0f };
 
-	bool operator==(const RasterState&) const = default;
+	bool operator==(const RasterState& other) const {
+		return cull == other.cull && NearlyEqual(line_width, other.line_width);
+	}
 
 	PTGN_SERIALIZE(RasterState, cull, line_width)
-};
-
-struct BlendState {
-	BlendState() = default;
-
-	BlendState(BlendMode mode, bool enabled) : mode{ mode }, enabled{ enabled } {}
-
-	BlendMode mode{ BlendMode::ReplaceRGBA };
-	bool enabled{ false };
-
-	bool operator==(const BlendState&) const = default;
-
-	PTGN_SERIALIZE(BlendState, enabled, mode)
 };
 
 } // namespace ptgn

@@ -8,8 +8,8 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
-#include "serialization/json/enum.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 

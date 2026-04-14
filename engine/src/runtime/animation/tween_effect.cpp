@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/event.h"
+
 #include "core/math/angle.h"
 #include "core/math/easing.h"
 #include "core/math/math_utils.h"
@@ -28,7 +28,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"

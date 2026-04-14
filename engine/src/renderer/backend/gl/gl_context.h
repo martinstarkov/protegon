@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 #include "core/graphics/color.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
@@ -47,15 +48,20 @@ public:
 
 	const State& GetBoundState() const;
 	State& GetBoundState();
-	VertexBufferId GetBoundVertexBuffer() const;
-	ElementBufferId GetBoundElementBuffer() const;
-	UniformBufferId GetBoundUniformBuffer() const;
-	ShaderId GetBoundShader() const;
-	TextureId GetBoundTexture() const;
-	RenderbufferId GetBoundRenderbuffer() const;
-	FramebufferId GetBoundFramebuffer() const;
-	VertexArrayId GetBoundVertexArray() const;
+	std::optional<VertexBufferId> GetBoundVertexBuffer() const;
+	/// @brief One important assumption in this being correct is that a protegon VertexArray's
+	/// element buffer is never modified by an external library / application.
+	std::optional<ElementBufferId> GetBoundElementBuffer() const;
+	std::optional<UniformBufferId> GetBoundUniformBuffer() const;
+	std::optional<ShaderId> GetBoundShader() const;
+	std::optional<TextureId> GetBoundTexture() const;
+	std::optional<RenderbufferId> GetBoundRenderbuffer() const;
+	std::optional<FramebufferId> GetBoundFramebuffer() const;
+	std::optional<VertexArrayId> GetBoundVertexArray() const;
 
+	/// @brief Note, this only checks if the state things the given id is bound, so it may be
+	/// incorrect if the state is out of sync with the actual OpenGL state. As is this case in the
+	/// beginning of each frame.
 	[[nodiscard]] bool IsBound(VertexBufferId id) const;
 	[[nodiscard]] bool IsBound(ElementBufferId id) const;
 	[[nodiscard]] bool IsBound(UniformBufferId id) const;
@@ -76,22 +82,16 @@ public:
 	void Destroy(RenderTargetId id);
 
 	/// @brief Enabling blending will disable depth testing.
-	void SetBlending(bool enabled);
-	void SetBlend(const BlendState& blend_state);
+	void SetBlend(bool enabled);
 	/// @brief Will disable depth testing.
-	void SetBlendMode(BlendMode mode);
+	void SetBlendMode(BlendMode blend);
 
 	/// @brief Enabling depth testing will disable blending.
 	void SetDepthTesting(bool enabled);
+	void SetDepthMask(const DepthMaskState& mask);
 
-	void SetDepth(const DepthState& state);
-	void SetDepthMask(bool enabled);
-	void SetDepthFunc(CompareFunc depth_func);
-	void SetDepthRange(float near_val, float far_val);
-	void SetLineWidth(float width);
 	void SetColorMask(const ColorMaskState& mask);
 	void SetScissor(const ScissorState& scissor);
-	void SetCull(const CullState& cull);
 	void SetRaster(const RasterState& raster);
 	void SetStencil(const StencilState& stencil);
 	void SetClearColor(Color color);
@@ -99,7 +99,7 @@ public:
 	void SetClearStencil(int stencil);
 
 	void SetViewport(Viewport viewport);
-	Viewport GetViewport() const;
+	std::optional<Viewport> GetViewport() const;
 
 	void SetActiveTextureSlot(std::uint32_t slot);
 
@@ -114,7 +114,7 @@ public:
 	VertexArrays vertex_arrays;
 
 	int GetInteger(std::uint32_t pname) const;
-	std::optional<std::uint32_t> GetActiveTextureSlot() const;
+	std::uint32_t GetActiveTextureSlot() const;
 
 	void InvalidateState();
 

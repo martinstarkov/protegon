@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "core/log.h"
-#include "serialization/json/enum.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 

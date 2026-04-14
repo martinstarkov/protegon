@@ -1,4 +1,4 @@
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/text.h"
 
 #include <string>
 #include <string_view>
@@ -11,7 +11,7 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/font.h"
+#include "runtime/graphics/text/font.h"
 #include "runtime/scene/scene.h"
 
 using namespace ptgn;

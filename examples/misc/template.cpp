@@ -1,6 +1,6 @@
 
 #include "app/application.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/scene/scene.h"
 
 using namespace ptgn;

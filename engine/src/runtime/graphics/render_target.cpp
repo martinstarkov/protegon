@@ -13,7 +13,7 @@
 #include "renderer/renderer.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"

@@ -10,12 +10,12 @@
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "ecs/ecs.h"
-#include "renderer/image/surface.h"
+#include "core/graphics/surface.h"
 #include "core/graphics/color.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/graphics/font.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/font.h"
+#include "runtime/graphics/text/text.h"
 
 #ifdef CreateFont
 #undef CreateFont

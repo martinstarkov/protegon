@@ -1,4 +1,4 @@
-#include "runtime/scene/resolution.h"
+#include "runtime/graphics/frame_context.h"
 
 #include <utility>
 

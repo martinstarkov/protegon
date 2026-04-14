@@ -3,7 +3,7 @@
 #include "core/time/time.h"
 #include "core/time/timer.h"
 #include "runtime/ecs/entity.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 

@@ -2,7 +2,7 @@
 
 #include "app/application.h"
 #include "core/math/vector2.h"
-#include "platform/mouse.h"
+#include "core/input/mouse.h"
 #include "core/graphics/color.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/follow_config.h"

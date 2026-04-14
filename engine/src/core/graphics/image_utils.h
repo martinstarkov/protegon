@@ -1,10 +1,10 @@
 #pragma once
 
+#include "core/graphics/color.h"
+#include "core/graphics/surface.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "core/util/file.h"
-#include "renderer/image/surface.h"
-#include "core/graphics/color.h"
 
 namespace ptgn {
 

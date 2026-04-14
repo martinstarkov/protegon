@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <ostream>
 #include <utility>
 
 #include "core/log.h"
@@ -9,6 +8,7 @@
 #include "core/util/id_map.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture_format.h"
+#include "serialization/serialize.h"
 
 namespace ptgn::impl::gl {
 
@@ -30,8 +30,7 @@ enum class PixelDataFormat : std::uint32_t {
 	Luminance	   = 0x1909, // GL_LUMINANCE
 	Alpha		   = 0x1906	 // GL_ALPHA
 };
-
-std::ostream& operator<<(std::ostream& os, PixelDataFormat fmt);
+PTGN_SERIALIZE_ENUM(PixelDataFormat);
 
 enum class PixelDataType : std::uint32_t {
 	UnsignedByte	 = 0x1401, // GL_UNSIGNED_BYTE
@@ -44,8 +43,7 @@ enum class PixelDataType : std::uint32_t {
 	Float			 = 0x1406, // GL_FLOAT
 	UnsignedInt_24_8 = 0x84FA  // GL_UNSIGNED_INT_24_8
 };
-
-std::ostream& operator<<(std::ostream& os, PixelDataType type);
+PTGN_SERIALIZE_ENUM(PixelDataType);
 
 enum class TextureParameter : std::uint32_t {
 	MinFilter = 0x2801, // GL_TEXTURE_MIN_FILTER
@@ -53,8 +51,7 @@ enum class TextureParameter : std::uint32_t {
 	WrapS	  = 0x2802, // GL_TEXTURE_WRAP_S
 	WrapT	  = 0x2803, // GL_TEXTURE_WRAP_T
 };
-
-std::ostream& operator<<(std::ostream& os, TextureParameter param);
+PTGN_SERIALIZE_ENUM(TextureParameter);
 
 struct TextureCache {
 	V2_int size;

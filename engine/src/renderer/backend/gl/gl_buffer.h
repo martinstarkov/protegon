@@ -1,11 +1,11 @@
 #pragma once
 
 #include <cstdint>
-#include <ostream>
 
 #include "core/util/concepts.h"
 #include "core/util/id_map.h"
 #include "renderer/resources/id.h"
+#include "serialization/serialize.h"
 
 namespace ptgn::impl::gl {
 
@@ -24,8 +24,7 @@ enum class BufferUsage : std::uint32_t {
 	DynamicCopy = 0x88EA, // GL_DYNAMIC_COPY
 	StreamCopy	= 0x88E2  // GL_STREAM_COPY
 };
-
-std::ostream& operator<<(std::ostream& os, BufferUsage usage);
+PTGN_SERIALIZE_ENUM(BufferUsage);
 
 enum class BufferTarget : std::uint32_t {
 	ArrayBuffer				= 0x8892, // GL_ARRAY_BUFFER
@@ -43,8 +42,7 @@ enum class BufferTarget : std::uint32_t {
 	TransformFeedbackBuffer = 0x8C8E, // GL_TRANSFORM_FEEDBACK_BUFFER
 	UniformBuffer			= 0x8A11  // GL_UNIFORM_BUFFER
 };
-
-std::ostream& operator<<(std::ostream& os, BufferTarget target);
+PTGN_SERIALIZE_ENUM(BufferTarget);
 
 enum class BufferParameter : std::uint32_t {
 	Access			 = 0x88BB, // GL_BUFFER_ACCESS
@@ -57,8 +55,7 @@ enum class BufferParameter : std::uint32_t {
 	StorageFlags	 = 0x8220, // GL_BUFFER_STORAGE_FLAGS
 	Usage			 = 0x8765  // GL_BUFFER_USAGE
 };
-
-std::ostream& operator<<(std::ostream& os, BufferParameter parameter);
+PTGN_SERIALIZE_ENUM(BufferParameter);
 
 struct BufferCache {
 	BufferUsage usage{ BufferUsage::StaticDraw };

@@ -28,17 +28,18 @@ EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
 #include <vector>
 
 #include "core/assert.h"
+
+#include "core/event/window_event.h"
+#include "core/graphics/color.h"
+#include "core/graphics/surface.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/file.h"
-#include "platform/events.h"
 #include "platform/glfw.h"
-#include "platform/key.h"
-#include "platform/mouse.h"
 #include "renderer/backend/gl/gl.h"
-#include "renderer/image/surface.h"
-#include "core/graphics/color.h"
 #include "renderer/renderer.h"
 #include "runtime/event/event_handler.h"
 
@@ -87,7 +88,8 @@ void Window::SetCallbacks() {
 		if (glfwGetWindowMonitor(window) == nullptr) {
 			self->windowed_pos_ = pos;
 		}
-		self->events_.Push<event::WindowMoved>(pos);
+		PTGN_ASSERT(self->event_sink_);
+		self->event_sink_(impl::EventData::Create<event::WindowMoved>(pos));
 	});
 
 	glfwSetWindowMaximizeCallback(win, [](GLFWwindow* window, int maximized) {
@@ -344,7 +346,9 @@ void Window::SwapBuffers() const {
 	glfwSwapBuffers(instance_.get());
 }
 
-bool Window::Update() {
+bool Window::PollEvents() {
+	PTGN_ASSERT(event_sink_, "Cannot poll window events before setting an event sink");
+
 	glfwPollEvents();
 
 	auto context{ glfwGetCurrentContext() };
@@ -368,7 +372,7 @@ bool Window::Update() {
 		mouse_position_ = raw_mouse_position_ - half_window_size;
 		auto delta{ mouse_position_ - previous_mouse_position_ };
 		if (focused) {
-			events_.Push<event::MouseMove>(mouse_position_, delta);
+			event_sink_(event::MouseMove{ mouse_position_, delta });
 		}
 		raw_mouse_position_ = {};
 		mouse_set_			= true;
@@ -377,14 +381,14 @@ bool Window::Update() {
 		double y{ 0.0 };
 		glfwGetCursorPos(instance_.get(), &x, &y);
 
-		V2_float new_mouse_position{ V2_float{ x, y } - half_window_size };
+		auto new_mouse_position{ V2_float{ x, y } - half_window_size };
 
-		V2_float difference{ new_mouse_position - mouse_position_ };
+		auto delta{ new_mouse_position - mouse_position_ };
 
-		if (!difference.IsZero()) {
+		if (!delta.IsZero()) {
 			mouse_position_ = new_mouse_position;
 			if (mouse_set_) {
-				events_.Push<event::MouseMove>(mouse_position_, difference);
+				event_sink_(event::MouseMove{ mouse_position_, delta });
 			}
 			mouse_set_ = true;
 		}
@@ -397,7 +401,7 @@ bool Window::Update() {
 	raw_scroll_accum_ = {};
 
 	if (focused && !mouse_scroll_.IsZero()) {
-		events_.Push<event::MouseScroll>(mouse_scroll_, mouse_position_);
+		event_sink_(event::MouseScroll{ mouse_scroll_, mouse_position_ });
 	}
 
 	for (std::size_t i = 0; i < mouse_states_.size(); ++i) {
@@ -409,19 +413,19 @@ bool Window::Update() {
 			mouse_states_[i]	 = Pressed;
 			mouse_timestamps_[i] = glfwGetTime();
 			if (focused) {
-				events_.Push<event::MousePressed>(static_cast<Mouse>(i), mouse_position_);
-				events_.Push<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
+				event_sink_(event::MousePressed{ static_cast<Mouse>(i), mouse_position_ });
+				event_sink_(event::MouseHeld{ static_cast<Mouse>(i), mouse_position_ });
 			}
 		} else if (was_down && is_down) {
 			mouse_states_[i] = Held;
 			if (focused) {
-				events_.Push<event::MouseHeld>(static_cast<Mouse>(i), mouse_position_);
+				event_sink_(event::MouseHeld{ static_cast<Mouse>(i), mouse_position_ });
 			}
 		} else if (was_down && !is_down) {
 			mouse_states_[i]	 = Released;
 			mouse_timestamps_[i] = glfwGetTime();
 			if (focused) {
-				events_.Push<event::MouseReleased>(static_cast<Mouse>(i), mouse_position_);
+				event_sink_(event::MouseReleased{ static_cast<Mouse>(i), mouse_position_ });
 			}
 		} else {
 			mouse_states_[i] = Idle;
@@ -437,19 +441,19 @@ bool Window::Update() {
 			key_states_[i]	   = Pressed;
 			key_timestamps_[i] = glfwGetTime();
 			if (focused) {
-				events_.Push<event::KeyPressed>(static_cast<Key>(i));
-				events_.Push<event::KeyHeld>(static_cast<Key>(i));
+				event_sink_(event::KeyPressed{ static_cast<Key>(i) });
+				event_sink_(event::KeyHeld{ static_cast<Key>(i) });
 			}
 		} else if (was_down && is_down) {
 			key_states_[i] = Held;
 			if (focused) {
-				events_.Push<event::KeyHeld>(static_cast<Key>(i));
+				event_sink_(event::KeyHeld{ static_cast<Key>(i) });
 			}
 		} else if (was_down && !is_down) {
 			key_states_[i]	   = Released;
 			key_timestamps_[i] = glfwGetTime();
 			if (focused) {
-				events_.Push<event::KeyReleased>(static_cast<Key>(i));
+				event_sink_(event::KeyReleased{ static_cast<Key>(i) });
 			}
 		} else {
 			key_states_[i] = Idle;

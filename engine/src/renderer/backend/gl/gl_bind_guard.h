@@ -1,5 +1,10 @@
 #pragma once
 
+#include <functional>
+#include <optional>
+
+#include "core/assert.h"
+
 namespace ptgn::impl::gl {
 
 class GLContext;
@@ -7,8 +12,15 @@ class GLContext;
 template <typename T>
 class BindGuard {
 public:
-	BindGuard(GLContext& gl, T id, bool restore_bind) :
-		gl_{ gl }, id_{ id }, restore_bind_{ restore_bind } {}
+	BindGuard(GLContext& gl, std::optional<T> id, bool restore_bind) :
+		gl_{ gl },
+		id_{ std::invoke([&id, restore_bind]() {
+			if (restore_bind) {
+				PTGN_ASSERT(id.has_value(), "Cannot restore bind without a previous bind");
+			}
+			return *id;
+		}) },
+		restore_bind_{ restore_bind } {}
 
 	~BindGuard() noexcept;
 

@@ -11,14 +11,14 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/event.h"
+
 #include "core/math/easing.h"
 #include "core/time/time.h"
 #include "runtime/ecs/entity.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
-#include "serialization/json/enum.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 

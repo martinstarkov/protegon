@@ -218,7 +218,7 @@ void SceneManager::UpdateReEnteredSceneKeys() {
 
 void SceneManager::Draw() const {
 	for (const auto& scene : scenes_) {
-		if (scene->IsTransitioning()) {
+		if (scene->transition_ && !scene->transition_->started_) {
 			continue;
 		}
 		scene->InternalDraw();

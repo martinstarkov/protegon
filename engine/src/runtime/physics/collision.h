@@ -3,7 +3,7 @@
 #include <ostream>
 #include <vector>
 
-#include "core/event/event.h"
+
 #include "core/math/raycast.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"

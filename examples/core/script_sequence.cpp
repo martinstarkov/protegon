@@ -5,10 +5,10 @@
 
 #include "app/application.h"
 #include "core/log.h"
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"

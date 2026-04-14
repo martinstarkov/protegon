@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include "core/math/math_utils.h"
 #include "core/graphics/color.h"
+#include "core/math/math_utils.h"
 
 namespace ptgn {
 

@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "serialization/json/enum.h"
+#include "serialization/serialize.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {

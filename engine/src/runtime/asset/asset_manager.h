@@ -10,16 +10,16 @@
 #include <variant>
 #include <vector>
 
+#include "core/graphics/color.h"
 #include "core/util/file.h"
 #include "ecs/ecs.h"
-#include "core/graphics/color.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio.h"
-#include "runtime/graphics/font.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/font.h"
+#include "runtime/graphics/text/text.h"
 #include "serialization/json/json.h"
 
 #ifdef CreateFont
@@ -30,13 +30,14 @@ namespace ptgn {
 
 class Application;
 class RenderContext;
-class Renderer;
 class AudioSystem;
 class FontSystem;
 class Text;
 class DebugContext;
 
 namespace impl {
+
+class Renderer;
 
 class FontSystem;
 
@@ -207,7 +208,7 @@ private:
 	friend class AssetOrKey;
 
 	AssetManager() = delete;
-	AssetManager(Renderer& renderer, AudioSystem& audio, FontSystem& font);
+	AssetManager(impl::Renderer& renderer, AudioSystem& audio, FontSystem& font);
 	~AssetManager() noexcept						 = default;
 	AssetManager(const AssetManager&)				 = delete;
 	AssetManager& operator=(const AssetManager&)	 = delete;
@@ -250,7 +251,7 @@ private:
 
 	[[nodiscard]] ecs::Entity CreateAsset();
 
-	Renderer& renderer_;
+	impl::Renderer& renderer_;
 	AudioSystem& audio_;
 	FontSystem& font_;
 

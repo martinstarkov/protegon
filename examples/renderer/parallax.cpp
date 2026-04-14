@@ -1,7 +1,7 @@
 #include "app/application.h"
 #include "core/math/vector2.h"
 
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "platform/window.h"
 #include "renderer/renderer.h"
 #include "runtime/scene/scene.h"

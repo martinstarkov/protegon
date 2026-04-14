@@ -14,8 +14,8 @@
 #include "runtime/asset/asset.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/font.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/font.h"
+#include "runtime/graphics/text/text.h"
 #include "tools/debug/allocation.h"
 #include "tools/debug/stats.h"
 

@@ -22,6 +22,7 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 
 #include "app/layer.h"
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -104,13 +105,15 @@ ApplicationLibrary::~ApplicationLibrary() noexcept {
 } // namespace impl
 
 Application::Application(const ApplicationConfig& config) :
-	window_{ events_, renderer_, config.window },
+	window_{ config.window },
 	renderer_{ window_, events_ },
 	events_{ scene_manager_ },
 	assets_{ renderer_, audio_, font_ },
 	font_{ assets_ },
 	audio_{ assets_ },
-	debug_{} {}
+	debug_{} {
+	window_.event_sink_ = std::function([this](impl::EventData&& event) { events_.Push(event); });
+}
 
 Application::Application(const std::string& title) :
 	Application{ ApplicationConfig{ .window = { .title = title } } } {}

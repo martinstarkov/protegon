@@ -13,9 +13,9 @@
 
 #include "core/log.h"
 #include "platform/events.h"
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "runtime/ecs/manager.h"
-#include "core/event/event_dispatcher.h"
+
 
 using namespace ptgn;
 

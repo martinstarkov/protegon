@@ -1,11 +1,9 @@
 #include "renderer/backend/gl/gl_buffer.h"
 
 #include <cstdint>
-#include <ostream>
 #include <utility>
 
 #include "core/assert.h"
-#include "core/log.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
@@ -156,59 +154,6 @@ int Buffers::GetBufferParameter(BufferTarget target, BufferParameter parameter) 
 	);
 	PTGN_ASSERT(value >= 0, "Failed to query buffer parameter");
 	return value;
-}
-
-std::ostream& operator<<(std::ostream& os, BufferUsage usage) {
-	switch (usage) {
-		using enum BufferUsage;
-		case StaticDraw:  return os << "StaticDraw";
-		case DynamicDraw: return os << "DynamicDraw";
-		case StreamDraw:  return os << "StreamDraw";
-		case StaticRead:  return os << "StaticRead";
-		case DynamicRead: return os << "DynamicRead";
-		case StreamRead:  return os << "StreamRead";
-		case StaticCopy:  return os << "StaticCopy";
-		case DynamicCopy: return os << "DynamicCopy";
-		case StreamCopy:  return os << "StreamCopy";
-		default:		  PTGN_ERROR("Unknown BufferUsage: ", std::to_underlying(usage));
-	}
-}
-
-std::ostream& operator<<(std::ostream& os, BufferTarget target) {
-	switch (target) {
-		using enum BufferTarget;
-		case ArrayBuffer:			  return os << "VertexBuffer";
-		case AtomicCounterBuffer:	  return os << "AtomicCounterBuffer";
-		case CopyReadBuffer:		  return os << "CopyReadBuffer";
-		case CopyWriteBuffer:		  return os << "CopyWriteBuffer";
-		case DispatchIndirectBuffer:  return os << "DispatchIndirectBuffer";
-		case DrawIndirectBuffer:	  return os << "DrawIndirectBuffer";
-		case ElementArrayBuffer:	  return os << "ElementBuffer";
-		case PixelPackBuffer:		  return os << "PixelPackBuffer";
-		case PixelUnpackBuffer:		  return os << "PixelUnpackBuffer";
-		case QueryBuffer:			  return os << "QueryBuffer";
-		case ShaderStorageBuffer:	  return os << "ShaderStorageBuffer";
-		case TextureBuffer:			  return os << "TextureBuffer";
-		case TransformFeedbackBuffer: return os << "TransformFeedbackBuffer";
-		case UniformBuffer:			  return os << "UniformBuffer";
-		default:					  PTGN_ERROR("Unknown BufferTarget: ", std::to_underlying(target));
-	}
-}
-
-std::ostream& operator<<(std::ostream& os, BufferParameter parameter) {
-	switch (parameter) {
-		using enum BufferParameter;
-		case Access:		   return os << "Access";
-		case AccessFlags:	   return os << "AccessFlags";
-		case ImmutableStorage: return os << "ImmutableStorage";
-		case Mapped:		   return os << "Mapped";
-		case MapLength:		   return os << "MapLength";
-		case MapOffset:		   return os << "MapOffset";
-		case Size:			   return os << "Size";
-		case StorageFlags:	   return os << "StorageFlags";
-		case Usage:			   return os << "Usage";
-		default:			   PTGN_ERROR("Unknown BufferParameter: ", std::to_underlying(parameter));
-	}
 }
 
 } // namespace ptgn::impl::gl

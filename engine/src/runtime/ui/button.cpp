@@ -17,7 +17,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
-#include "platform/mouse.h"
+#include "core/input/mouse.h"
 #include "core/graphics/color.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/animation.h"
@@ -27,19 +27,19 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/font.h"
+#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 #include "runtime/ui/dropdown.h"
-#include "runtime/ui/interactive.h"
+#include "runtime/interaction/interactive.h"
 
 namespace ptgn {
 

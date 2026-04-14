@@ -1,11 +1,9 @@
 #include "renderer/backend/gl/gl_vertex_array.h"
 
 #include <cstdint>
-#include <ostream>
 #include <utility>
 
 #include "core/assert.h"
-#include "core/log.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
@@ -111,30 +109,6 @@ BindGuard<VertexArrayId> VertexArrays::BindVertexArray(
 
 bool VertexArrays::IsBound(VertexArrayId vertex_array) const {
 	return gl_.IsBound(vertex_array);
-}
-
-std::ostream& operator<<(std::ostream& os, PrimitiveMode mode) {
-	switch (mode) {
-		using enum PrimitiveMode;
-		case Points:		return os << "Points";
-		case Lines:			return os << "Lines";
-		case LineLoop:		return os << "LineLoop";
-		case LineStrip:		return os << "LineStrip";
-		case Triangles:		return os << "Triangles";
-		case TriangleStrip: return os << "TriangleStrip";
-		case TriangleFan:	return os << "TriangleFan";
-		default:			PTGN_ERROR("Unknown PrimitiveMode: ", std::to_underlying(mode));
-	}
-}
-
-std::ostream& operator<<(std::ostream& os, IndexType type) {
-	switch (type) {
-		using enum IndexType;
-		case UnsignedByte:	return os << "UnsignedByte";
-		case UnsignedShort: return os << "UnsignedShort";
-		case UnsignedInt:	return os << "UnsignedInt";
-		default:			PTGN_ERROR("Unknown IndexType: ", std::to_underlying(type));
-	}
 }
 
 } // namespace ptgn::impl::gl

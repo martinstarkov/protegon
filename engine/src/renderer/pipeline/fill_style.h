@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/event.h"
+
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/vector2.h"

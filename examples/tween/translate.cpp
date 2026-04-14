@@ -1,7 +1,7 @@
 #include "app/application.h"
 #include "core/math/easing.h"
 #include "core/time/time.h"
-#include "platform/mouse.h"
+#include "core/input/mouse.h"
 #include "core/graphics/color.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"

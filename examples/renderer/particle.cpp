@@ -8,7 +8,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "ecs/ecs.h"
-#include "platform/mouse.h"
+#include "core/input/mouse.h"
 #include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"

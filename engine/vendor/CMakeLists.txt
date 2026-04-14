@@ -66,10 +66,10 @@ target_link_libraries(ptgn_miniaudio
     vorbisfile
 )
 
-# stb_image
-add_library(ptgn_stb_image STATIC ${CMAKE_CURRENT_SOURCE_DIR}/stb_image/stb_image.cpp)
+# stb
+add_library(ptgn_stb STATIC ${CMAKE_CURRENT_SOURCE_DIR}/stb/stb.cpp)
 
-target_include_directories(ptgn_stb_image PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/stb_image)
+target_include_directories(ptgn_stb PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/stb)
 
 # nlohmann_json
 add_subdirectory(json)
@@ -139,7 +139,7 @@ set_folder_if_target("vendor"
   ptgn_glad
   ptgn_imgui
   ptgn_miniaudio
-  ptgn_stb_image
+  ptgn_stb
   ptgn_imgui_obj
   vorbis
   vorbisenc

@@ -15,7 +15,7 @@
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/manager.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/camera.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/scripts.h"

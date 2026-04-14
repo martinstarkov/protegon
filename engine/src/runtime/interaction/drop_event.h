@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/event/event.h"
+
 #include "core/math/vector2.h"
 
 namespace ptgn {

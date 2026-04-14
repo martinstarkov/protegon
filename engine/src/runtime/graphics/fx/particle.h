@@ -7,7 +7,7 @@
 #include <variant>
 #include <vector>
 
-#include "core/event/event.h"
+
 #include "core/math/angle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
@@ -18,7 +18,7 @@
 #include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"

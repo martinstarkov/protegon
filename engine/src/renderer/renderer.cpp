@@ -23,7 +23,6 @@
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
 #include "platform/window.h"
-#include "primitives/event.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
@@ -50,31 +49,33 @@
 
 namespace ptgn {
 
-Renderer::Renderer(Window& window, EventHandler& events) :
-	window_{ window }, events_{ events }, gl_{ std::make_unique<impl::gl::GLContext>(window) } {
-	ebo_ = impl::ElementBufferObject{ this, gl_->buffers.CreateElementBuffer(
-												nullptr, impl::kIndexCapacity, sizeof(impl::Index),
-												impl::gl::BufferUsage::DynamicDraw
-											) };
+namespace impl {
 
-	vbo_ = impl::VertexBufferObject{ this, gl_->buffers.CreateVertexBuffer(
-											   nullptr, impl::kVertexCapacity, sizeof(impl::Vertex),
-											   impl::gl::BufferUsage::DynamicDraw
-										   ) };
+Renderer::Renderer(Window& window) :
+	window_{ window }, gl_{ std::make_unique<gl::GLContext>(window) } {
+	ebo_ = ElementBufferObject{ this, gl_->buffers.CreateElementBuffer(
+										  nullptr, kIndexCapacity, sizeof(Index),
+										  gl::BufferUsage::DynamicDraw
+									  ) };
 
-	vao_ = impl::VertexArrayObject{
-		this, gl_->vertex_arrays.CreateVertexArray(vbo_, impl::Vertex::GetLayout(), ebo_)
-	};
+	vbo_ = VertexBufferObject{ this, gl_->buffers.CreateVertexBuffer(
+										 nullptr, kVertexCapacity, sizeof(Vertex),
+										 gl::BufferUsage::DynamicDraw
+									 ) };
+
+	vao_ =
+		VertexArrayObject{ this,
+						   gl_->vertex_arrays.CreateVertexArray(vbo_, Vertex::GetLayout(), ebo_) };
 
 	// Important to use unsigned byte for the white texture as color::White is stored in
 	// std::uint8_t.
-	constexpr impl::gl::PixelDataType pixel_type{ impl::gl::PixelDataType::UnsignedByte };
+	constexpr gl::PixelDataType pixel_type{ gl::PixelDataType::UnsignedByte };
 
-	white_texture_ = impl::TextureObject{ this, gl_->textures.CreateTexture(
-													static_cast<const void*>(&color::White),
-													impl::gl::PixelDataFormat::RGBA, pixel_type,
-													V2_int{ 1, 1 }, TextureFormat::RGBA8
-												) };
+	white_texture_ =
+		TextureObject{ this, gl_->textures.CreateTexture(
+								 static_cast<const void*>(&color::White), gl::PixelDataFormat::RGBA,
+								 pixel_type, V2_int{ 1, 1 }, TextureFormat::RGBA8
+							 ) };
 
 	auto viewport{ window.GetSize() };
 
@@ -112,28 +113,28 @@ Renderer::Renderer(Window& window, EventHandler& events) :
 }
 
 Renderer::~Renderer() noexcept {
-	// Destructor access to impl::gl::GLContext is needed.
+	// Destructor access to gl::GLContext is needed.
 }
 
-impl::RenderTargetObject Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
+RenderTargetObject Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
 	auto color = gl_->textures.CreateTexture(size, format);
 
-	std::optional<impl::RenderbufferId> depth;
+	std::optional<RenderbufferId> depth;
 
 	if (!IsColorFormat(format)) {
 		depth = gl_->renderbuffers.CreateRenderbuffer(size, format);
 	}
 
 	auto framebuffer = gl_->framebuffers.CreateFramebuffer(
-		color, impl::gl::Attachment::Color0, depth,
-		IsDepthOnlyFormat(format) ? impl::gl::Attachment::Depth : impl::gl::Attachment::DepthStencil
+		color, gl::Attachment::Color0, depth,
+		IsDepthOnlyFormat(format) ? gl::Attachment::Depth : gl::Attachment::DepthStencil
 	);
 
-	return impl::RenderTargetObject{ this, impl::RenderTargetId{ framebuffer } };
+	return RenderTargetObject{ this, RenderTargetId{ framebuffer } };
 }
 
-impl::RenderPass Renderer::BeginPass(impl::RenderTargetId scene_render_target) {
-	impl::RenderPass p;
+RenderPass Renderer::BeginPass(RenderTargetId scene_render_target) {
+	RenderPass p;
 	p.source_			= scene_render_target;
 	p.ping_				= AcquirePooledTargetCopy(scene_render_target);
 	p.has_ping_			= true;
@@ -143,17 +144,17 @@ impl::RenderPass Renderer::BeginPass(impl::RenderTargetId scene_render_target) {
 	return p;
 }
 
-impl::RenderTargetId Renderer::AcquirePooledTargetCopy(impl::RenderTargetId render_target) {
+RenderTargetId Renderer::AcquirePooledTargetCopy(RenderTargetId render_target) {
 	auto size{ GetRenderTargetSize(render_target) };
 	auto format{ GetRenderTargetTextureFormat(render_target) };
 
 	return AcquirePooledTarget(size, format);
 }
 
-impl::RenderTargetId Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
+RenderTargetId Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
 	++pool_tick_;
 
-	auto claim = [&](impl::PooledTarget& e) {
+	auto claim = [&](PooledTarget& e) {
 		if (e.target.GetSize() != size) {
 			ResizeRenderTarget(e.target.resource_, size);
 		}
@@ -165,8 +166,8 @@ impl::RenderTargetId Renderer::AcquirePooledTarget(V2_int size, TextureFormat fo
 	// Find a free candidate:
 	//  - Prefer exact size+format
 	//  - Otherwise pick least-recently-used with same format
-	impl::PooledTarget* exact			= nullptr;
-	impl::PooledTarget* lru_same_format = nullptr;
+	PooledTarget* exact			  = nullptr;
+	PooledTarget* lru_same_format = nullptr;
 
 	for (auto& e : rt_pool_) {
 		if (e.in_use) {
@@ -196,13 +197,13 @@ impl::RenderTargetId Renderer::AcquirePooledTarget(V2_int size, TextureFormat fo
 	// No compatible free target available.
 	// If we have room in the pool, create one.
 	// Pool is at/over the limit and no compatible spare existed:
-	impl::PooledTarget entry{ CreateRenderTarget(size, format), pool_tick_, true };
+	PooledTarget entry{ CreateRenderTarget(size, format), pool_tick_, true };
 	const auto& rt{ rt_pool_.emplace_back(std::move(entry)) };
 
 	return rt.target.resource_;
 }
 
-void Renderer::ReleasePooledTarget(impl::RenderTargetId render_target) {
+void Renderer::ReleasePooledTarget(RenderTargetId render_target) {
 	++pool_tick_;
 
 	std::erase_if(rt_pool_, [render_target](auto& e) {
@@ -214,10 +215,10 @@ void Renderer::ReleasePooledTarget(impl::RenderTargetId render_target) {
 }
 
 void Renderer::DrawTexture(
-	impl::ShaderId shader, impl::RenderPass& p, impl::RenderTargetId scene_render_target,
+	ShaderId shader, RenderPass& p, RenderTargetId scene_render_target,
 	const std::function<void()>& shader_setup
 ) {
-	impl::RenderTargetId input;
+	RenderTargetId input;
 
 	// Input = latest output, or source before first draw
 	if (!p.has_written_once_) {
@@ -241,12 +242,12 @@ void Renderer::DrawTexture(
 	bool flip_y = input_is_offscreen && !output_is_offscreen;
 
 	auto texture_size{ GetRenderTargetSize(input) };
-	auto points{ impl::GetCenteredQuadPoints(texture_size) };
-	auto tex_coords{ impl::GetDefaultTextureCoordinates(flip_y) };
+	auto points{ GetCenteredQuadPoints(texture_size) };
+	auto tex_coords{ GetDefaultTextureCoordinates(flip_y) };
 
 	// Only ping-pong if we're writing into the pass
 	if (writing_to_pass) {
-		impl::RenderTargetId write;
+		RenderTargetId write;
 
 		if (!p.has_written_once_) {
 			write = p.ping_;
@@ -274,66 +275,66 @@ void Renderer::DrawTexture(
 	}
 }
 
-void Renderer::Destroy(impl::VertexBufferId id) {
+void Renderer::Destroy(VertexBufferId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(impl::ElementBufferId id) {
+void Renderer::Destroy(ElementBufferId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(impl::UniformBufferId id) {
+void Renderer::Destroy(UniformBufferId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(impl::ShaderId id) {
+void Renderer::Destroy(ShaderId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(impl::TextureId id) {
+void Renderer::Destroy(TextureId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(impl::RenderbufferId id) {
+void Renderer::Destroy(RenderbufferId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(impl::FramebufferId id) {
+void Renderer::Destroy(FramebufferId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(impl::VertexArrayId id) {
+void Renderer::Destroy(VertexArrayId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(impl::RenderTargetId id) {
+void Renderer::Destroy(RenderTargetId id) {
 	gl_->Destroy(id);
 };
 
-V2_int Renderer::GetTextureSize(impl::TextureId texture) const {
+V2_int Renderer::GetTextureSize(TextureId texture) const {
 	return gl_->textures.GetTextureSize(texture);
 }
 
-TextureFormat Renderer::GetTextureFormat(impl::TextureId texture) const {
+TextureFormat Renderer::GetTextureFormat(TextureId texture) const {
 	return gl_->textures.GetTextureFormat(texture);
 }
 
-void Renderer::ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size) {
-	gl_->framebuffers.ResizeFramebuffer(impl::FramebufferId{ render_target }, new_size);
+void Renderer::ResizeRenderTarget(RenderTargetId render_target, V2_int new_size) {
+	gl_->framebuffers.ResizeFramebuffer(FramebufferId{ render_target }, new_size);
 }
 
-impl::TextureId Renderer::GetRenderTargetTexture(impl::RenderTargetId render_target) const {
+TextureId Renderer::GetRenderTargetTexture(RenderTargetId render_target) const {
 	const auto& color_attachment{ gl_->framebuffers.GetFramebufferAttachment(
-		impl::FramebufferId{ render_target }, impl::gl::Attachment::Color0
+		FramebufferId{ render_target }, gl::Attachment::Color0
 	) };
 	PTGN_ASSERT(
 		color_attachment.id,
 		"Render target must have a valid color attachment for its texture to be retrieved"
 	);
-	return impl::TextureId{ color_attachment.id };
+	return TextureId{ color_attachment.id };
 }
 
-V2_int Renderer::GetRenderTargetSize(impl::RenderTargetId render_target) const {
+V2_int Renderer::GetRenderTargetSize(RenderTargetId render_target) const {
 	auto id{ GetRenderTargetTexture(render_target) };
 
 	auto size{ gl_->textures.GetTextureSize(id) };
@@ -341,7 +342,7 @@ V2_int Renderer::GetRenderTargetSize(impl::RenderTargetId render_target) const {
 	return size;
 }
 
-TextureFormat Renderer::GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const {
+TextureFormat Renderer::GetRenderTargetTextureFormat(RenderTargetId render_target) const {
 	auto id{ GetRenderTargetTexture(render_target) };
 
 	auto texture_format{ gl_->textures.GetTextureFormat(id) };
@@ -349,9 +350,9 @@ TextureFormat Renderer::GetRenderTargetTextureFormat(impl::RenderTargetId render
 	return texture_format;
 }
 
-void Renderer::ClearRenderTarget(impl::RenderTargetId render_target, Color color, bool set_viewport)
+void Renderer::ClearRenderTarget(RenderTargetId render_target, Color color, bool set_viewport)
 	const {
-	auto bind_guard = gl_->Bind(impl::FramebufferId{ render_target }, true);
+	auto bind_guard = gl_->Bind(FramebufferId{ render_target }, true);
 
 	std::optional<Viewport> viewport;
 	if (set_viewport) {
@@ -362,20 +363,20 @@ void Renderer::ClearRenderTarget(impl::RenderTargetId render_target, Color color
 		gl_->SetViewport({ {}, render_target_size });
 	}
 
-	gl_->framebuffers.ClearToColor(impl::FramebufferId{ render_target }, color);
+	gl_->framebuffers.ClearToColor(FramebufferId{ render_target }, color);
 
 	if (set_viewport && viewport.has_value()) {
 		gl_->SetViewport(*viewport);
 	}
 }
 
-void Renderer::BindRenderTarget(impl::RenderTargetId render_target) {
-	SetFramebuffer(impl::FramebufferId{ render_target });
+void Renderer::BindRenderTarget(RenderTargetId render_target) {
+	SetFramebuffer(FramebufferId{ render_target });
 }
 
-void Renderer::BindRenderPass(impl::RenderPass& render_pass) {
+void Renderer::BindRenderPass(RenderPass& render_pass) {
 	// Bind the next write target (opposite of latest output; ping for first write)
-	impl::RenderTargetId write;
+	RenderTargetId write;
 
 	if (!render_pass.has_written_once_) {
 		write = render_pass.ping_;
@@ -398,15 +399,15 @@ void Renderer::FlushBatch() {
 	auto _vao = gl_->Bind(vao_, false);
 
 	// Upload vertex data
-	gl_->buffers.SetBufferSubData<impl::VertexBufferId>(
-		vbo_, impl::gl::BufferTarget::ArrayBuffer, batch_vertices_.data(), 0,
-		static_cast<std::uint32_t>(batch_vertices_.size()), sizeof(impl::Vertex)
+	gl_->buffers.SetBufferSubData<VertexBufferId>(
+		vbo_, gl::BufferTarget::ArrayBuffer, batch_vertices_.data(), 0,
+		static_cast<std::uint32_t>(batch_vertices_.size()), sizeof(Vertex)
 	);
 
 	// Upload index data
-	gl_->buffers.SetBufferSubData<impl::ElementBufferId>(
-		ebo_, impl::gl::BufferTarget::ElementArrayBuffer, batch_indices_.data(), 0,
-		static_cast<std::uint32_t>(batch_indices_.size()), sizeof(impl::Index)
+	gl_->buffers.SetBufferSubData<ElementBufferId>(
+		ebo_, gl::BufferTarget::ElementArrayBuffer, batch_indices_.data(), 0,
+		static_cast<std::uint32_t>(batch_indices_.size()), sizeof(Index)
 	);
 
 	// Bind all textures
@@ -416,8 +417,8 @@ void Renderer::FlushBatch() {
 	}
 
 	gl_->vertex_arrays.DrawElements(
-		vao_, static_cast<std::uint32_t>(batch_indices_.size()), impl::gl::IndexType::UnsignedInt,
-		impl::gl::PrimitiveMode::Triangles
+		vao_, static_cast<std::uint32_t>(batch_indices_.size()), gl::IndexType::UnsignedInt,
+		gl::PrimitiveMode::Triangles
 	);
 
 	// Clear batch (keep white texture)
@@ -427,8 +428,8 @@ void Renderer::FlushBatch() {
 	batch_textures_[0] = white_texture_;
 }
 
-std::pair<std::uint32_t, bool> Renderer::GetTextureSlot(impl::TextureId tex) {
-	if (tex == white_texture_.operator impl::TextureId()) {
+std::pair<std::uint32_t, bool> Renderer::GetTextureSlot(TextureId tex) {
+	if (tex == white_texture_.operator TextureId()) {
 		return { 0, false }; // always slot 0
 	}
 
@@ -452,7 +453,9 @@ namespace impl {
 
 template <typename State, typename F>
 	requires std::same_as<std::invoke_result_t<F&>, void>
-void UpdateStateIfChanged(Renderer& r, const State& cached, const State& desired, F&& func) {
+void UpdateStateIfChanged(
+	Renderer& r, const std::optional<State>& cached, const State& desired, F&& func
+) {
 	if (cached != desired) {
 		r.FlushBatch();
 		std::invoke(std::forward<F>(func));
@@ -462,7 +465,7 @@ void UpdateStateIfChanged(Renderer& r, const State& cached, const State& desired
 } // namespace impl
 
 void Renderer::SetViewport(Viewport viewport) {
-	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().viewport, viewport, [this, viewport] {
+	UpdateStateIfChanged(*this, gl_->GetBoundState().viewport, viewport, [this, viewport] {
 		gl_->SetViewport(viewport);
 	});
 }
@@ -479,72 +482,78 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	}
 }
 
-void Renderer::SetShader(impl::ShaderId shader) {
-	if (gl_->GetBoundState().shader_program != shader) {
-		FlushBatch();
+void Renderer::SetShader(ShaderId shader) {
+	UpdateStateIfChanged(*this, gl_->GetBoundState().shader_program, shader, [this, shader] {
 		auto _ = gl_->Bind(shader, false);
 		gl_->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
-	}
-}
-
-void Renderer::SetBlend(BlendMode mode, bool enabled) {
-	BlendState desired{ mode, enabled };
-
-	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().blend, desired, [this, desired] {
-		gl_->SetBlend(desired);
 	});
 }
 
-void Renderer::SetFramebuffer(impl::FramebufferId framebuffer) {
-	if (gl_->GetBoundState().framebuffer != framebuffer) {
-		FlushBatch();
-		auto _ = gl_->Bind(framebuffer, false);
-	}
+void Renderer::SetBlend(bool enabled) {
+	UpdateStateIfChanged(*this, gl_->GetBoundState().blend, enabled, [this, enabled] {
+		gl_->SetBlend(enabled);
+	});
 }
 
-void Renderer::SetDepth(const DepthState& depth) {
-	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().depth, depth, [this, depth] {
-		gl_->SetDepth(depth);
+void Renderer::SetBlendMode(BlendMode mode) {
+	UpdateStateIfChanged(*this, gl_->GetBoundState().blend_mode, mode, [this, mode] {
+		gl_->SetBlendMode(mode);
+	});
+}
+
+void Renderer::SetFramebuffer(FramebufferId framebuffer) {
+	UpdateStateIfChanged(*this, gl_->GetBoundState().framebuffer, framebuffer, [this, framebuffer] {
+		auto _ = gl_->Bind(framebuffer, false);
+	});
+}
+
+void Renderer::SetDepthTesting(bool enabled) {
+	UpdateStateIfChanged(*this, gl_->GetBoundState().depth_testing, enabled, [this, enabled] {
+		gl_->SetDepthTesting(enabled);
+	});
+}
+
+void Renderer::SetDepthMask(const DepthMaskState& mask) {
+	UpdateStateIfChanged(*this, gl_->GetBoundState().depth_mask, mask, [this, mask] {
+		gl_->SetDepthMask(mask);
 	});
 }
 
 void Renderer::SetStencil(const StencilState& stencil) {
-	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().stencil, stencil, [this, stencil] {
+	UpdateStateIfChanged(*this, gl_->GetBoundState().stencil, stencil, [this, stencil] {
 		gl_->SetStencil(stencil);
 	});
 }
 
 void Renderer::SetRaster(const RasterState& raster) {
-	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().raster, raster, [this, raster] {
+	UpdateStateIfChanged(*this, gl_->GetBoundState().raster, raster, [this, raster] {
 		gl_->SetRaster(raster);
 	});
 }
 
 void Renderer::SetScissor(const ScissorState& scissor) {
-	impl::UpdateStateIfChanged(*this, gl_->GetBoundState().scissor, scissor, [this, scissor] {
+	UpdateStateIfChanged(*this, gl_->GetBoundState().scissor, scissor, [this, scissor] {
 		gl_->SetScissor(scissor);
 	});
 }
 
 void Renderer::SetColorMask(const ColorMaskState& color_mask) {
-	impl::UpdateStateIfChanged(
-		*this, gl_->GetBoundState().color_mask, color_mask,
-		[this, color_mask] { gl_->SetColorMask(color_mask); }
-	);
+	UpdateStateIfChanged(*this, gl_->GetBoundState().color_mask, color_mask, [this, color_mask] {
+		gl_->SetColorMask(color_mask);
+	});
 }
 
 void Renderer::FlushIfExceedsCapacity(std::size_t vertices, std::size_t indices) {
-	if (batch_vertices_.size() + vertices > impl::kVertexCapacity ||
-		batch_indices_.size() + indices > impl::kIndexCapacity) {
+	if (batch_vertices_.size() + vertices > kVertexCapacity ||
+		batch_indices_.size() + indices > kIndexCapacity) {
 		FlushBatch();
 	}
 }
 
 void Renderer::DrawQuad(
-	impl::ShaderId shader, const impl::QuadParams& params,
-	const std::function<bool(impl::ShaderId, impl::QuadDesc&)>& setup
+	ShaderId shader, const QuadParams& params, const std::function<bool(ShaderId, QuadDesc&)>& setup
 ) {
-	impl::QuadDesc quad;
+	QuadDesc quad;
 	quad.quad = params.quad;
 
 	bool push_texture{ false };
@@ -560,11 +569,11 @@ void Renderer::DrawQuad(
 
 	bool flush_after{ setup(shader, quad) };
 
-	auto vertices{ impl::Vertex::GetQuad(
+	auto vertices{ Vertex::GetQuad(
 		quad.quad.positions, quad.quad.color, quad.quad.depth, quad.user_data, quad.quad.tex_coords
 	) };
 
-	constexpr std::array<impl::Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
+	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
 
 	FlushIfExceedsCapacity(vertices.size(), indices.size());
 
@@ -587,11 +596,11 @@ void Renderer::DrawQuad(
 }
 
 void Renderer::DrawTriangle(
-	impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
+	ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
 ) {
 	SetShader(shader);
 
-	auto vertices{ impl::Vertex::GetTriangle(positions, tint, depth) };
+	auto vertices{ Vertex::GetTriangle(positions, tint, depth) };
 
 	constexpr std::size_t triangle_indices{ 3 };
 
@@ -603,24 +612,23 @@ void Renderer::DrawTriangle(
 	batch_indices_.insert(batch_indices_.end(), { start_index, start_index + 1, start_index + 2 });
 }
 
-impl::ShaderId Renderer::GetShader(std::string_view name) const {
+ShaderId Renderer::GetShader(std::string_view name) const {
 	return gl_->shaders.GetProgram(name);
 }
 
-bool Renderer::IsTextureAttachedToCurrentFramebuffer(impl::TextureId texture) const {
+bool Renderer::IsTextureAttachedToCurrentFramebuffer(TextureId texture) const {
 	auto bound{ gl_->GetBoundFramebuffer() };
 
-	if (bound == impl::FramebufferId{ 0 }) {
+	if (bound == FramebufferId{ 0 }) {
 		return false;
 	}
 
-	return gl_->framebuffers.GetFramebufferAttachment(bound, impl::gl::Attachment::Color0).id ==
-		   texture;
+	return gl_->framebuffers.GetFramebufferAttachment(bound, gl::Attachment::Color0).id == texture;
 }
 
 void Renderer::DrawTexture(
-	impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
-	Color tint, float depth, const std::array<V2_float, 4>& tex_coords,
+	ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, Color tint,
+	float depth, const std::array<V2_float, 4>& tex_coords,
 	const std::function<void()>& shader_setup
 ) {
 	PTGN_ASSERT(
@@ -628,7 +636,7 @@ void Renderer::DrawTexture(
 		"Cannot draw a texture that is attached to the currently set framebuffer"
 	);
 
-	impl::QuadParams p;
+	QuadParams p;
 	p.quad.positions  = positions;
 	p.quad.depth	  = depth;
 	p.quad.color	  = tint;
@@ -656,15 +664,15 @@ void Renderer::DrawTexture(
 }
 
 void Renderer::DrawQuad(
-	impl::ShaderId shader, const std::array<V2_float, 4>& positions,
+	ShaderId shader, const std::array<V2_float, 4>& positions,
 	const std::array<float, 4>& user_data, Color tint, float depth,
 	const std::function<void()>& shader_setup
 ) {
-	impl::QuadParams p;
+	QuadParams p;
 	p.quad.positions  = positions;
 	p.quad.depth	  = depth;
 	p.quad.color	  = tint;
-	p.quad.tex_coords = impl::GetDefaultTextureCoordinates<false>();
+	p.quad.tex_coords = GetDefaultTextureCoordinates<false>();
 
 	DrawQuad(shader, p, [this, user_data, shader_setup](auto, auto& q) {
 		q.user_data = user_data;
@@ -676,14 +684,14 @@ void Renderer::DrawQuad(
 	});
 }
 
-impl::TextureId Renderer::GetWhiteTexture() const {
+TextureId Renderer::GetWhiteTexture() const {
 	return white_texture_;
 }
 
 void Renderer::OnWindowResize(V2_int size) {
 	if (!game_size_.has_value()) {
 		// PTGN_LOG("Emitting game resized: ", size);
-		events_.Push<impl::event::InternalGameResized>(size);
+		events_.Push<event::InternalGameResized>(size);
 		events_.Push<event::GameResized>(size);
 	}
 
@@ -716,7 +724,7 @@ void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_
 	auto size{ GetGameSize() };
 
 	// PTGN_LOG("Emitting game resized: ", size);
-	events_.Push<impl::event::InternalGameResized>(size);
+	events_.Push<event::InternalGameResized>(size);
 	events_.Push<event::GameResized>(size);
 
 	UpdateDisplayViewport(window_.GetSize());
@@ -833,13 +841,13 @@ void Renderer::UpdateDisplayViewport(V2_int window_size, bool emit_events) {
 
 			if (emit_events) {
 				// PTGN_LOG("Emitting display resized: ", display_viewport_.size);
-				events_.Push<impl::event::InternalDisplayResized>(display_viewport_.size);
+				events_.Push<event::InternalDisplayResized>(display_viewport_.size);
 			}
 		}
 
 		if (emit_events) {
 			// PTGN_LOG("Emitting viewport changed: ", display_viewport_);
-			events_.Push<impl::event::InternalDisplayViewportChanged>(display_viewport_);
+			events_.Push<event::InternalDisplayViewportChanged>(display_viewport_);
 		}
 	}
 }
@@ -865,7 +873,7 @@ void Renderer::BeginFrame() {
 	V2_int window_size{ window_.GetSize() };
 	Color window_background_color{ window_.GetBackgroundColor() };
 
-	auto _1 = gl_->Bind(impl::FramebufferId{ 0 }, false);
+	auto _1 = gl_->Bind(FramebufferId{ 0 }, false);
 	gl_->SetClearColor(window_background_color);
 	SetViewport({ {}, window_size });
 	gl_->framebuffers.Clear();
@@ -873,7 +881,7 @@ void Renderer::BeginFrame() {
 	BindScreenTarget();
 	SetViewport({ {}, screen_target_.GetSize() });
 	gl_->framebuffers.ClearToColor(
-		impl::FramebufferId{ screen_target_.resource_ }, background_color_.value
+		FramebufferId{ screen_target_.resource_ }, background_color_.value
 	);
 }
 
@@ -893,8 +901,8 @@ void Renderer::EndFrame() {
 		"Screen target texture size must match display viewport size"
 	);
 	auto quad_shader{ GetShader("quad") };
-	auto points{ impl::GetCenteredQuadPoints(display_viewport_.size) };
-	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+	auto points{ GetCenteredQuadPoints(display_viewport_.size) };
+	auto tex_coords{ GetDefaultTextureCoordinates<true>() };
 
 	auto screen_texture{ GetRenderTargetTexture(screen_target_.resource_) };
 
@@ -903,75 +911,71 @@ void Renderer::EndFrame() {
 	FlushBatch();
 }
 
-impl::ShaderObject Renderer::CreateShader(
+ShaderObject Renderer::CreateShader(
 	const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 ) {
-	return impl::ShaderObject{ this, gl_->shaders.CreateProgram(source, shader_name) };
+	return ShaderObject{ this, gl_->shaders.CreateProgram(source, shader_name) };
 }
 
-impl::TextureObject Renderer::CreateTexture(
+TextureObject Renderer::CreateTexture(
 	const std::uint8_t* pixel_data, V2_int size, TextureFormat format
 ) {
-	auto [pixel_format, pixel_type] = impl::gl::GetPixelDataFormat(format);
+	auto [pixel_format, pixel_type] = gl::GetPixelDataFormat(format);
 	PTGN_ASSERT(
-		pixel_type == impl::gl::PixelDataType::UnsignedByte,
-		"Texture format must have a type of bytes"
+		pixel_type == gl::PixelDataType::UnsignedByte, "Texture format must have a type of bytes"
 	);
-	return impl::TextureObject{
+	return TextureObject{
 		this, gl_->textures.CreateTexture(pixel_data, pixel_format, pixel_type, size, format)
 	};
 }
 
-void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, const Matrix4& v) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, const Matrix4& v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, float v) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, float v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V2_float v) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V2_float v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V3_float v) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V3_float v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V4_float v) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V4_float v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(
-	impl::ShaderId shader, const char* uniform_name, const std::vector<float>& v
-) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, const std::vector<float>& v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, int v) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, int v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V2_int v) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V2_int v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V3_int v) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V3_int v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V4_int v) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V4_int v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(
-	impl::ShaderId shader, const char* uniform_name, const std::vector<int>& v
-) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, const std::vector<int>& v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, bool v) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, bool v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
+} // namespace impl
 } // namespace ptgn

@@ -10,11 +10,12 @@
 #include <variant>
 #include <vector>
 
+#include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "core/util/id_map.h"
-#include "core/graphics/color.h"
 #include "renderer/resources/id.h"
+#include "serialization/serialize.h"
 
 namespace ptgn::impl::gl {
 
@@ -27,8 +28,7 @@ enum class AttachmentObject : std::uint32_t {
 	Texture2D	 = 0x0DE1, // GL_TEXTURE_2D
 	Renderbuffer = 0x8D41  // GL_RENDERBUFFER
 };
-
-std::ostream& operator<<(std::ostream& os, AttachmentObject object);
+PTGN_SERIALIZE_ENUM(AttachmentObject);
 
 enum class Attachment : std::uint32_t {
 	// Color attachments
@@ -47,8 +47,7 @@ enum class Attachment : std::uint32_t {
 	Stencil		 = 0x8D20, // GL_STENCIL_ATTACHMENT
 	DepthStencil = 0x821A  // GL_DEPTH_STENCIL_ATTACHMENT
 };
-
-std::ostream& operator<<(std::ostream& os, Attachment attachment);
+PTGN_SERIALIZE_ENUM(Attachment);
 
 struct AttachmentSpec {
 	std::uint32_t id{ 0 };
@@ -70,6 +69,8 @@ enum class ClearBufferBit : std::uint32_t {
 	Depth	= 0x00000100, // GL_DEPTH_BUFFER_BIT
 	Stencil = 0x00000400  // GL_STENCIL_BUFFER_BIT
 };
+PTGN_SERIALIZE_ENUM_NOSTREAM(ClearBufferBit);
+std::ostream& operator<<(std::ostream& os, ClearBufferBit bits);
 
 constexpr ClearBufferBit operator|(ClearBufferBit a, ClearBufferBit b) {
 	return static_cast<ClearBufferBit>(std::to_underlying(a) | std::to_underlying(b));
@@ -83,15 +84,12 @@ constexpr ClearBufferBit& operator|=(ClearBufferBit& a, ClearBufferBit b) {
 	return a = a | b;
 }
 
-std::ostream& operator<<(std::ostream& os, ClearBufferBit clear_buffer_bit);
-
 enum class ClearBufferType : std::uint32_t {
 	Color	= 0x1800, // GL_COLOR
 	Depth	= 0x1801, // GL_DEPTH
 	Stencil = 0x1802  // GL_STENCIL
 };
-
-std::ostream& operator<<(std::ostream& os, ClearBufferType clear_buffer_type);
+PTGN_SERIALIZE_ENUM(ClearBufferType);
 
 class Framebuffers {
 public:

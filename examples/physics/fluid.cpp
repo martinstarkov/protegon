@@ -6,8 +6,8 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 
-#include "platform/key.h"
-#include "platform/mouse.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "core/graphics/color.h"
 #include "renderer/renderer.h"
 #include "runtime/graphics/draw.h"

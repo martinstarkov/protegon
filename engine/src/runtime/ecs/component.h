@@ -8,7 +8,7 @@
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "core/graphics/color.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 

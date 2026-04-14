@@ -1,23 +1,23 @@
 #pragma once
 
-#include "core/math/vector2.h"
 #include "core/graphics/color.h"
+#include "core/math/vector2.h"
 #include "renderer/primitives/id.h"
 #include "renderer/primitives/resource.h"
 #include "renderer/primitives/texture_format.h"
 
 namespace ptgn {
 
-class Renderer;
-
 namespace impl {
+
+class Renderer;
 
 class RenderPass {
 public:
 	void Bind();
 
 private:
-	friend class ptgn::Renderer;
+	friend class Renderer;
 
 	RenderTargetId source_;
 
@@ -51,7 +51,7 @@ public:
 	impl::TextureId GetTextureId() const;
 
 private:
-	friend class ptgn::Renderer;
+	friend class Renderer;
 
 	RenderTargetObject() = default;
 	RenderTargetObject(Renderer* renderer, V2_int size, TextureFormat format);

@@ -34,7 +34,6 @@
 namespace ptgn {
 
 class Application;
-class EventHandler;
 class RenderContext;
 class DrawContext;
 class DebugContext;
@@ -42,11 +41,35 @@ class Window;
 class Scene;
 class AssetManager;
 class RenderTarget;
-class Renderer;
 class Window;
+
+namespace event {
+
+struct GameResized {
+	V2_int size;
+};
+
+} // namespace event
 
 namespace impl {
 
+namespace event {
+
+struct InternalGameResized {
+	V2_int size;
+};
+
+struct InternalDisplayResized {
+	V2_int size;
+};
+
+} // namespace event
+
+} // namespace impl
+
+namespace impl {
+
+class Renderer;
 class ShaderObject;
 class TextureObject;
 
@@ -55,7 +78,7 @@ class Resource;
 
 template <typename State, typename F>
 	requires std::same_as<std::invoke_result_t<F&>, void>
-void UpdateStateIfChanged(Renderer&, const State&, const State&, F&&);
+void UpdateStateIfChanged(Renderer&, const std::optional<State>&, const State&, F&&);
 
 struct QuadInfo {
 	std::array<V2_float, 4> positions;
@@ -101,7 +124,7 @@ inline constexpr std::size_t kIndexCapacity{ kBatchCapacity * 6 };
 class Renderer {
 public:
 	Renderer() = delete;
-	explicit Renderer(Window& window, EventHandler& events);
+	explicit Renderer(Window& window);
 	~Renderer() noexcept;
 	Renderer(const Renderer&)				 = delete;
 	Renderer(Renderer&&) noexcept			 = delete;
@@ -110,6 +133,8 @@ public:
 
 	void BeginFrame();
 	void EndFrame();
+
+	ShaderId GetShader(std::string_view name) const;
 
 private:
 	/// @param game_size Setting to {} will use dynamic window size.
@@ -138,54 +163,51 @@ private:
 
 	template <typename State, typename F>
 		requires std::same_as<std::invoke_result_t<F&>, void>
-	friend void impl::UpdateStateIfChanged(Renderer&, const State&, const State&, F&&);
+	friend void UpdateStateIfChanged(Renderer&, const std::optional<State>&, const State&, F&&);
 
-	impl::ShaderObject CreateShader(
+	ShaderObject CreateShader(
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 	);
 
-	impl::TextureObject CreateTexture(
-		const std::uint8_t* pixel_data, V2_int size, TextureFormat format
-	);
+	TextureObject CreateTexture(const std::uint8_t* pixel_data, V2_int size, TextureFormat format);
 
-	void SetUniform(impl::ShaderId id, const char* uniform_name, const Matrix4& v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, float v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, V2_float v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, V3_float v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, V4_float v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, const std::vector<float>& v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, int v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, V2_int v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, V3_int v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, V4_int v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, const std::vector<int>& v);
-	void SetUniform(impl::ShaderId id, const char* uniform_name, bool v);
+	void SetUniform(ShaderId id, const char* uniform_name, const Matrix4& v);
+	void SetUniform(ShaderId id, const char* uniform_name, float v);
+	void SetUniform(ShaderId id, const char* uniform_name, V2_float v);
+	void SetUniform(ShaderId id, const char* uniform_name, V3_float v);
+	void SetUniform(ShaderId id, const char* uniform_name, V4_float v);
+	void SetUniform(ShaderId id, const char* uniform_name, const std::vector<float>& v);
+	void SetUniform(ShaderId id, const char* uniform_name, int v);
+	void SetUniform(ShaderId id, const char* uniform_name, V2_int v);
+	void SetUniform(ShaderId id, const char* uniform_name, V3_int v);
+	void SetUniform(ShaderId id, const char* uniform_name, V4_int v);
+	void SetUniform(ShaderId id, const char* uniform_name, const std::vector<int>& v);
+	void SetUniform(ShaderId id, const char* uniform_name, bool v);
 
 	/// @return The texture slot the given texture is bound to, and whether it should be pushed to
 	/// batch_textures.
-	std::pair<std::uint32_t, bool> GetTextureSlot(impl::TextureId tex);
+	std::pair<std::uint32_t, bool> GetTextureSlot(TextureId tex);
 
-	V2_int GetTextureSize(impl::TextureId id) const;
-	TextureFormat GetTextureFormat(impl::TextureId id) const;
+	V2_int GetTextureSize(TextureId id) const;
+	TextureFormat GetTextureFormat(TextureId id) const;
 
-	void Destroy(impl::VertexBufferId id);
-	void Destroy(impl::ElementBufferId id);
-	void Destroy(impl::UniformBufferId id);
-	void Destroy(impl::ShaderId id);
-	void Destroy(impl::TextureId id);
-	void Destroy(impl::RenderbufferId id);
-	void Destroy(impl::FramebufferId id);
-	void Destroy(impl::VertexArrayId id);
-	void Destroy(impl::RenderTargetId id);
+	void Destroy(VertexBufferId id);
+	void Destroy(ElementBufferId id);
+	void Destroy(UniformBufferId id);
+	void Destroy(ShaderId id);
+	void Destroy(TextureId id);
+	void Destroy(RenderbufferId id);
+	void Destroy(FramebufferId id);
+	void Destroy(VertexArrayId id);
+	void Destroy(RenderTargetId id);
 
-	impl::TextureId GetRenderTargetTexture(impl::RenderTargetId render_target) const;
-	V2_int GetRenderTargetSize(impl::RenderTargetId render_target) const;
-	TextureFormat GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const;
-	void ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size);
-	void ClearRenderTarget(impl::RenderTargetId render_target, Color color, bool set_viewport)
-		const;
-	void BindRenderTarget(impl::RenderTargetId render_target);
-	void BindRenderPass(impl::RenderPass& render_pass);
+	TextureId GetRenderTargetTexture(RenderTargetId render_target) const;
+	V2_int GetRenderTargetSize(RenderTargetId render_target) const;
+	TextureFormat GetRenderTargetTextureFormat(RenderTargetId render_target) const;
+	void ResizeRenderTarget(RenderTargetId render_target, V2_int new_size);
+	void ClearRenderTarget(RenderTargetId render_target, Color color, bool set_viewport) const;
+	void BindRenderTarget(RenderTargetId render_target);
+	void BindRenderPass(RenderPass& render_pass);
 
 	/// @brief Flushes the batch if adding the given number of vertices and indices would exceed
 	/// batch.
@@ -193,99 +215,96 @@ private:
 	void FlushBatch();
 
 	void SetViewport(Viewport viewport);
-	void SetShader(impl::ShaderId shader);
+	void SetShader(ShaderId shader);
 	void SetViewProjection(const Matrix4& view_projection);
-	void SetFramebuffer(impl::FramebufferId framebuffer);
-	void SetBlend(BlendMode mode, bool enabled);
-	void SetDepth(const DepthState& depth);
+	void SetFramebuffer(FramebufferId framebuffer);
+	void SetBlend(bool enabled);
+	void SetBlendMode(BlendMode mode);
+	void SetDepthTesting(bool enabled);
+	void SetDepthMask(const DepthMaskState& mask);
 	void SetStencil(const StencilState& stencil);
 	void SetRaster(const RasterState& raster);
 	void SetScissor(const ScissorState& scissor);
 	void SetColorMask(const ColorMaskState& color_mask);
 
-	impl::TextureId GetWhiteTexture() const;
-
-	impl::ShaderId GetShader(std::string_view name) const;
+	TextureId GetWhiteTexture() const;
 
 	void DrawTriangle(
-		impl::ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
+		ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
 	);
 
 	void DrawQuad(
-		impl::ShaderId shader, const std::array<V2_float, 4>& positions,
+		ShaderId shader, const std::array<V2_float, 4>& positions,
 		const std::array<float, 4>& user_data, Color tint, float depth,
 		const std::function<void()>& shader_setup
 	);
 
 	void DrawTexture(
-		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
-		Color tint, float depth, const std::array<V2_float, 4>& tex_coords,
+		ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, Color tint,
+		float depth, const std::array<V2_float, 4>& tex_coords,
 		const std::function<void()>& shader_setup
 	);
 
 	void DrawTexture(
-		impl::ShaderId shader, impl::RenderPass& pass, impl::RenderTargetId scene_render_target,
+		ShaderId shader, RenderPass& pass, RenderTargetId scene_render_target,
 		const std::function<void()>& shader_setup
 	);
 
 	/// @param setup Returns true if the renderer should flush the batch after adding the quad
 	/// params. This allows shader uniforms to be applied to each unique quad in the batch.
 	void DrawQuad(
-		impl::ShaderId shader, const impl::QuadParams& p,
-		const std::function<bool(impl::ShaderId, impl::QuadDesc&)>& setup
+		ShaderId shader, const QuadParams& p, const std::function<bool(ShaderId, QuadDesc&)>& setup
 	);
 
 	/// @return True if the given texture is currently attached to the framebuffer that is currently
 	/// bound.
-	bool IsTextureAttachedToCurrentFramebuffer(impl::TextureId texture) const;
+	bool IsTextureAttachedToCurrentFramebuffer(TextureId texture) const;
 
 	void BindScreenTarget();
 	void ResizeScreenTarget(V2_int size);
 
 	void OnWindowResize(V2_int size);
 
-	impl::RenderPass BeginPass(impl::RenderTargetId scene_render_target);
+	RenderPass BeginPass(RenderTargetId scene_render_target);
 
-	impl::RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
+	RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
 
-	impl::RenderTargetId AcquirePooledTargetCopy(impl::RenderTargetId render_target);
-	impl::RenderTargetId AcquirePooledTarget(V2_int size, TextureFormat format);
+	RenderTargetId AcquirePooledTargetCopy(RenderTargetId render_target);
+	RenderTargetId AcquirePooledTarget(V2_int size, TextureFormat format);
 
-	void ReleasePooledTarget(impl::RenderTargetId render_target);
+	void ReleasePooledTarget(RenderTargetId render_target);
 
 	void InvalidateState();
 
 	Window& window_;
 
-	// TODO: Figure out a way to decouple event emission (specifically with the user accessible
-	// SetGameSize function, which can trigger DisplayResize events) from the renderer.
-	EventHandler& events_;
+	std::function<void(EventData&&)> event_sink_;
 
-	std::unique_ptr<impl::gl::GLContext> gl_;
+	std::unique_ptr<gl::GLContext> gl_;
 
 	// emit_events = false is used to prevent emitting events when initializing the window and
 	// scene.
 	void UpdateDisplayViewport(V2_int window_size, bool emit_events = true);
 
-	impl::VertexBufferObject vbo_;
-	impl::ElementBufferObject ebo_;
-	impl::VertexArrayObject vao_;
-	impl::TextureObject white_texture_;
+	VertexBufferObject vbo_;
+	ElementBufferObject ebo_;
+	VertexArrayObject vao_;
+	TextureObject white_texture_;
 
-	std::vector<impl::Vertex> batch_vertices_;
-	std::vector<impl::Index> batch_indices_;
-	std::vector<impl::TextureId> batch_textures_;
+	std::vector<Vertex> batch_vertices_;
+	std::vector<Index> batch_indices_;
+	std::vector<TextureId> batch_textures_;
 
 	Matrix4 view_projection_;
 
-	ClearColor background_color_;
-	impl::RenderTargetObject screen_target_;
+	Color background_color_;
+	RenderTargetObject screen_target_;
 
 	std::optional<V2_int> game_size_;
 	Viewport display_viewport_;
 	ScalingMode scaling_mode_{ ScalingMode::Letterbox };
 
-	std::vector<impl::PooledTarget> rt_pool_;
+	std::vector<PooledTarget> rt_pool_;
 	std::uint64_t pool_tick_{ 0 };
 	std::size_t max_pool_size_{ 16 };
 };

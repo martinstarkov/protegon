@@ -4,9 +4,9 @@
 
 namespace ptgn {
 
-class Renderer;
-
 namespace impl {
+
+class Renderer;
 
 template <typename T>
 concept ResourceType = std::is_copy_constructible_v<T>;
@@ -32,7 +32,7 @@ public:
 	explicit operator bool() const;
 
 protected:
-	friend class ptgn::Renderer;
+	friend class Renderer;
 
 	void Reset() noexcept;
 

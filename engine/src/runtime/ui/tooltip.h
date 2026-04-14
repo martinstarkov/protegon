@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include "core/event/event_dispatcher.h"
+
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
@@ -13,7 +13,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/sprite.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {

@@ -40,7 +40,7 @@ target_link_libraries(protegon
     ptgn_glad
     glfw
     ptgn_miniaudio
-    ptgn_stb_image
+    ptgn_stb
     Freetype::Freetype
     msdf-atlas-gen::msdf-atlas-gen
 )

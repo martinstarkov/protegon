@@ -7,7 +7,7 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/scripting/script.h"

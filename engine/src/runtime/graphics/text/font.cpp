@@ -1,4 +1,4 @@
-#include "runtime/graphics/font.h"
+#include "runtime/graphics/text/font.h"
 
 #include <ostream>
 #include <utility>

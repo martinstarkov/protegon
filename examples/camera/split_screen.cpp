@@ -6,7 +6,7 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "platform/window.h"
 #include "core/graphics/color.h"
 #include "renderer/pipeline/scaling_mode.h"
@@ -14,7 +14,7 @@
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
@@ -25,7 +25,7 @@
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
-#include "runtime/ui/interactive.h"
+#include "runtime/interaction/interactive.h"
 
 using namespace ptgn;
 

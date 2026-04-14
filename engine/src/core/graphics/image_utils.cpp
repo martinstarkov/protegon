@@ -1,9 +1,9 @@
-#include "renderer/image/image_utils.h"
+#include "core/graphics/image_utils.h"
 
+#include "core/graphics/color.h"
+#include "core/graphics/surface.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
-#include "renderer/image/surface.h"
-#include "core/graphics/color.h"
 
 namespace ptgn {
 

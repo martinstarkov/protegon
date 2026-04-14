@@ -1,6 +1,6 @@
 #pragma once
 
-#include "runtime/graphics/font.h"
+#include "runtime/graphics/text/font.h"
 
 namespace ptgn::impl {
 

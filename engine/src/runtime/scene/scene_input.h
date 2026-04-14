@@ -5,19 +5,18 @@
 #include <unordered_set>
 #include <vector>
 
-#include "core/event/event.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "platform/key.h"
-#include "platform/mouse.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
-#include "runtime/scene/resolution.h"
-#include "runtime/ui/interactive.h"
-#include "serialization/json/serialize.h"
+#include "runtime/graphics/frame_context.h"
+#include "runtime/interaction/interactive.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -28,23 +27,13 @@ class Window;
 
 namespace event {
 
-struct MouseEnter : public Event<MouseEnter> {
-	MouseEnter() = default;
-};
+struct MouseEnter {};
 
-struct MouseLeave : public Event<MouseLeave> {
-	MouseLeave() = default;
-};
+struct MouseLeave {};
 
-struct MouseMoveOver : public Event<MouseMoveOver> {
-	MouseMoveOver() = default;
-};
+struct MouseMoveOver {};
 
-struct MousePressedOver : public Event<MousePressedOver> {
-	MousePressedOver() = default;
-
-	explicit MousePressedOver(Mouse button) : button{ button } {}
-
+struct MousePressedOver {
 	operator Mouse() const { // NOSONAR
 		return button;
 	}
@@ -52,11 +41,7 @@ struct MousePressedOver : public Event<MousePressedOver> {
 	Mouse button;
 };
 
-struct MouseHeldOver : public Event<MouseHeldOver> {
-	MouseHeldOver() = default;
-
-	explicit MouseHeldOver(Mouse button) : button{ button } {}
-
+struct MouseHeldOver {
 	operator Mouse() const { // NOSONAR
 		return button;
 	}
@@ -64,11 +49,7 @@ struct MouseHeldOver : public Event<MouseHeldOver> {
 	Mouse button;
 };
 
-struct MouseReleasedOver : public Event<MouseReleasedOver> {
-	MouseReleasedOver() = default;
-
-	explicit MouseReleasedOver(Mouse button) : button{ button } {}
-
+struct MouseReleasedOver {
 	operator Mouse() const { // NOSONAR
 		return button;
 	}
@@ -76,11 +57,7 @@ struct MouseReleasedOver : public Event<MouseReleasedOver> {
 	Mouse button;
 };
 
-struct MouseScrollOver : public Event<MouseScrollOver> {
-	MouseScrollOver() = default;
-
-	explicit MouseScrollOver(V2_float scroll_delta) : scroll_delta{ scroll_delta } {}
-
+struct MouseScrollOver {
 	operator V2_float() const { // NOSONAR
 		return scroll_delta;
 	}
@@ -88,15 +65,9 @@ struct MouseScrollOver : public Event<MouseScrollOver> {
 	V2_float scroll_delta;
 };
 
-struct MouseMoveOut : public Event<MouseMoveOut> {
-	MouseMoveOut() = default;
-};
+struct MouseMoveOut {};
 
-struct MousePressedOut : public Event<MousePressedOut> {
-	MousePressedOut() = default;
-
-	explicit MousePressedOut(Mouse button) : button{ button } {}
-
+struct MousePressedOut {
 	operator Mouse() const { // NOSONAR
 		return button;
 	}
@@ -104,11 +75,7 @@ struct MousePressedOut : public Event<MousePressedOut> {
 	Mouse button;
 };
 
-struct MouseHeldOut : public Event<MouseHeldOut> {
-	MouseHeldOut() = default;
-
-	explicit MouseHeldOut(Mouse button) : button{ button } {}
-
+struct MouseHeldOut {
 	operator Mouse() const { // NOSONAR
 		return button;
 	}
@@ -116,11 +83,7 @@ struct MouseHeldOut : public Event<MouseHeldOut> {
 	Mouse button;
 };
 
-struct MouseReleasedOut : public Event<MouseReleasedOut> {
-	MouseReleasedOut() = default;
-
-	explicit MouseReleasedOut(Mouse button) : button{ button } {}
-
+struct MouseReleasedOut {
 	operator Mouse() const { // NOSONAR
 		return button;
 	}
@@ -128,11 +91,7 @@ struct MouseReleasedOut : public Event<MouseReleasedOut> {
 	Mouse button;
 };
 
-struct MouseScrollOut : public Event<MouseScrollOut> {
-	MouseScrollOut() = default;
-
-	explicit MouseScrollOut(V2_float scroll_delta) : scroll_delta{ scroll_delta } {}
-
+struct MouseScrollOut {
 	operator V2_float() const { // NOSONAR
 		return scroll_delta;
 	}
@@ -140,11 +99,7 @@ struct MouseScrollOut : public Event<MouseScrollOut> {
 	V2_float scroll_delta;
 };
 
-struct DragStart : public Event<DragStart> {
-	DragStart() = default;
-
-	explicit DragStart(V2_float start_position) : start_position{ start_position } {}
-
+struct DragStart {
 	operator V2_float() const { // NOSONAR
 		return start_position;
 	}
@@ -153,11 +108,7 @@ struct DragStart : public Event<DragStart> {
 	V2_float start_position;
 };
 
-struct DragStop : public Event<DragStop> {
-	DragStop() = default;
-
-	explicit DragStop(V2_float stop_position) : stop_position{ stop_position } {}
-
+struct DragStop {
 	operator V2_float() const { // NOSONAR
 		return stop_position;
 	}
@@ -166,11 +117,7 @@ struct DragStop : public Event<DragStop> {
 	V2_float stop_position;
 };
 
-struct PickupFromDropzone : public Event<PickupFromDropzone> {
-	PickupFromDropzone() = default;
-
-	explicit PickupFromDropzone(Entity draggable) : draggable{ draggable } {}
-
+struct PickupFromDropzone {
 	operator Entity() const { // NOSONAR
 		return draggable;
 	}
@@ -179,11 +126,7 @@ struct PickupFromDropzone : public Event<PickupFromDropzone> {
 	Entity draggable;
 };
 
-struct PickupDraggable : public Event<PickupDraggable> {
-	PickupDraggable() = default;
-
-	explicit PickupDraggable(Entity dropzone) : dropzone{ dropzone } {}
-
+struct PickupDraggable {
 	operator Entity() const { // NOSONAR
 		return dropzone;
 	}
@@ -192,11 +135,7 @@ struct PickupDraggable : public Event<PickupDraggable> {
 	Entity dropzone;
 };
 
-struct Dragging : public Event<Dragging> {
-	Dragging() = default;
-
-	Dragging(V2_float position, V2_float offset) : position{ position }, offset{ offset } {}
-
+struct Dragging {
 	operator V2_float() const { // NOSONAR
 		return position;
 	}
@@ -210,11 +149,7 @@ struct Dragging : public Event<Dragging> {
 	V2_float offset;
 };
 
-struct DropDraggable : public Event<DropDraggable> {
-	DropDraggable() = default;
-
-	explicit DropDraggable(Entity dropzone) : dropzone{ dropzone } {}
-
+struct DropDraggable {
 	operator Entity() const { // NOSONAR
 		return dropzone;
 	}
@@ -223,11 +158,7 @@ struct DropDraggable : public Event<DropDraggable> {
 	Entity dropzone;
 };
 
-struct DropIntoDropzone : public Event<DropIntoDropzone> {
-	DropIntoDropzone() = default;
-
-	explicit DropIntoDropzone(Entity draggable) : draggable{ draggable } {}
-
+struct DropIntoDropzone {
 	operator Entity() const { // NOSONAR
 		return draggable;
 	}
@@ -236,11 +167,7 @@ struct DropIntoDropzone : public Event<DropIntoDropzone> {
 	Entity draggable;
 };
 
-struct EnterDropzone : public Event<EnterDropzone> {
-	EnterDropzone() = default;
-
-	explicit EnterDropzone(Entity draggable) : draggable{ draggable } {}
-
+struct EnterDropzone {
 	operator Entity() const { // NOSONAR
 		return draggable;
 	}
@@ -249,11 +176,7 @@ struct EnterDropzone : public Event<EnterDropzone> {
 	Entity draggable;
 };
 
-struct LeaveDropzone : public Event<LeaveDropzone> {
-	LeaveDropzone() = default;
-
-	explicit LeaveDropzone(Entity draggable) : draggable{ draggable } {}
-
+struct LeaveDropzone {
 	operator Entity() const { // NOSONAR
 		return draggable;
 	}
@@ -262,11 +185,7 @@ struct LeaveDropzone : public Event<LeaveDropzone> {
 	Entity draggable;
 };
 
-struct MoveOverDropzone : public Event<MoveOverDropzone> {
-	MoveOverDropzone() = default;
-
-	explicit MoveOverDropzone(Entity draggable) : draggable{ draggable } {}
-
+struct MoveOverDropzone {
 	operator Entity() const { // NOSONAR
 		return draggable;
 	}
@@ -275,11 +194,7 @@ struct MoveOverDropzone : public Event<MoveOverDropzone> {
 	Entity draggable;
 };
 
-struct MoveOutsideDropzone : public Event<MoveOutsideDropzone> {
-	MoveOutsideDropzone() = default;
-
-	explicit MoveOutsideDropzone(Entity draggable) : draggable{ draggable } {}
-
+struct MoveOutsideDropzone {
 	operator Entity() const { // NOSONAR
 		return draggable;
 	}
@@ -288,11 +203,7 @@ struct MoveOutsideDropzone : public Event<MoveOutsideDropzone> {
 	Entity draggable;
 };
 
-struct DragEnter : public Event<DragEnter> {
-	DragEnter() = default;
-
-	explicit DragEnter(Entity dropzone) : dropzone{ dropzone } {}
-
+struct DragEnter {
 	operator Entity() const { // NOSONAR
 		return dropzone;
 	}
@@ -301,11 +212,7 @@ struct DragEnter : public Event<DragEnter> {
 	Entity dropzone;
 };
 
-struct DragLeave : public Event<DragLeave> {
-	DragLeave() = default;
-
-	explicit DragLeave(Entity last_dropzone) : last_dropzone{ last_dropzone } {}
-
+struct DragLeave {
 	operator Entity() const { // NOSONAR
 		return last_dropzone;
 	}
@@ -314,11 +221,7 @@ struct DragLeave : public Event<DragLeave> {
 	Entity last_dropzone;
 };
 
-struct DragOver : public Event<DragOver> {
-	DragOver() = default;
-
-	explicit DragOver(Entity dropzone) : dropzone{ dropzone } {}
-
+struct DragOver {
 	operator Entity() const { // NOSONAR
 		return dropzone;
 	}
@@ -327,11 +230,7 @@ struct DragOver : public Event<DragOver> {
 	Entity dropzone;
 };
 
-struct DragOut : public Event<DragOut> {
-	DragOut() = default;
-
-	explicit DragOut(Entity dropzone) : dropzone{ dropzone } {}
-
+struct DragOut {
 	operator Entity() const { // NOSONAR
 		return dropzone;
 	}
@@ -366,9 +265,7 @@ struct SceneInputSettings {
 	Color debug_draw_color{ color::Magenta };
 	float debug_draw_line_width{ 1.0f };
 
-	PTGN_SERIALIZER_REGISTER(
-		SceneInputSettings, debug_draw_enabled, debug_draw_color, debug_draw_line_width
-	)
+	PTGN_SERIALIZE(SceneInputSettings, debug_draw_enabled, debug_draw_color, debug_draw_line_width)
 };
 
 class SceneInput {

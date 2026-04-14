@@ -18,7 +18,7 @@
 #include "renderer/pipeline/viewport.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene.h"

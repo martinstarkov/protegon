@@ -6,7 +6,7 @@
 
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn::impl {
 

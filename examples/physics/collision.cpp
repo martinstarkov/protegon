@@ -12,10 +12,10 @@
 #include "core/math/math_utils.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/collision_handler.h"

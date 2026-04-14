@@ -6,7 +6,7 @@
 
 #include "core/util/hash.h"
 #include "runtime/graphics/camera.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 // The reason for this instead of a virtual Draw() function in the entity class is because when
 // using entity looping functions, the manager constructs Entity objects, which disables

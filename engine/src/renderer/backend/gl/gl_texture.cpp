@@ -1,10 +1,8 @@
 #include "renderer/backend/gl/gl_texture.h"
 
-#include <ostream>
 #include <utility>
 
 #include "core/assert.h"
-#include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
@@ -194,54 +192,6 @@ void Textures::DestroyTexture(TextureId id) {
 	}
 	GLCall(glDeleteTextures(1, &id.value));
 	cache_.Remove(id);
-}
-
-std::ostream& operator<<(std::ostream& os, PixelDataFormat fmt) {
-	switch (fmt) {
-		using enum PixelDataFormat;
-		case RED:			 return os << "RED";
-		case RED_INTEGER:	 return os << "RED_INTEGER";
-		case RG:			 return os << "RG";
-		case RG_INTEGER:	 return os << "RG_INTEGER";
-		case RGB:			 return os << "RGB";
-		case RGB_INTEGER:	 return os << "RGB_INTEGER";
-		case RGBA:			 return os << "RGBA";
-		case RGBA_INTEGER:	 return os << "RGBA_INTEGER";
-		case DepthComponent: return os << "DepthComponent";
-		case DepthStencil:	 return os << "DepthStencil";
-		case Stencil:		 return os << "Stencil";
-		case LuminanceAlpha: return os << "LuminanceAlpha";
-		case Luminance:		 return os << "Luminance";
-		case Alpha:			 return os << "Alpha";
-		default:			 PTGN_ERROR("Unknown PixelDataFormat: ", std::to_underlying(fmt));
-	}
-}
-
-std::ostream& operator<<(std::ostream& os, PixelDataType type) {
-	switch (type) {
-		using enum PixelDataType;
-		case UnsignedByte:	   return os << "UnsignedByte";
-		case Byte:			   return os << "Byte";
-		case UnsignedShort:	   return os << "UnsignedShort";
-		case Short:			   return os << "Short";
-		case UnsignedInt:	   return os << "UnsignedInt";
-		case Int:			   return os << "Int";
-		case HalfFloat:		   return os << "HalfFloat";
-		case Float:			   return os << "Float";
-		case UnsignedInt_24_8: return os << "UnsignedInt_24_8";
-		default:			   PTGN_ERROR("Unknown PixelDataType: ", std::to_underlying(type));
-	}
-}
-
-std::ostream& operator<<(std::ostream& os, TextureParameter param) {
-	switch (param) {
-		using enum TextureParameter;
-		case MinFilter: return os << "MinFilter";
-		case MagFilter: return os << "MagFilter";
-		case WrapS:		return os << "WrapS";
-		case WrapT:		return os << "WrapT";
-		default:		PTGN_ERROR("Unknown TextureParameter: ", std::to_underlying(param));
-	}
 }
 
 } // namespace ptgn::impl::gl

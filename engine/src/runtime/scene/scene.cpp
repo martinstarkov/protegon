@@ -10,7 +10,6 @@
 
 #include "app/application.h"
 #include "core/assert.h"
-#include "core/event/event_dispatcher.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -179,6 +178,10 @@ void Scene::InternalEnter() {
 
 bool Scene::IsTransitioning() const {
 	return state_ == impl::SceneState::TransitionIn || state_ == impl::SceneState::TransitionOut;
+}
+
+bool Scene::IsAwaitingTransitionDelay() const {
+	return transition_ && !transition_->started_;
 }
 
 static void InvokeDrawable(DrawContext& draw_context, Entity entity, Camera camera) {

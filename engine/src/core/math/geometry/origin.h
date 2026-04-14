@@ -5,7 +5,7 @@
 
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "serialization/json/enum.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 

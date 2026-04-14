@@ -7,9 +7,9 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/events.h"
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "core/graphics/color.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"

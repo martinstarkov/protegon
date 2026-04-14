@@ -8,11 +8,11 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "platform/events.h"
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "platform/window.h"
 #include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"

@@ -4,7 +4,7 @@
 #include "core/math/vector2.h"
 #include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/collision_handler.h"

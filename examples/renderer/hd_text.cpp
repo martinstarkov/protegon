@@ -8,10 +8,10 @@
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/font.h"
+#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 

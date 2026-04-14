@@ -2,28 +2,28 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
 
+
+#include "core/graphics/color.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/file.h"
 #include "platform/file_dialog.h"
-#include "platform/key.h"
-#include "platform/mouse.h"
-#include "core/graphics/color.h"
-#include "serialization/json/enum.h"
+#include "serialization/serialize.h"
 
 struct GLFWwindow;
 struct GLFWcursor;
 
 namespace ptgn {
 
-class EventHandler;
-class Renderer;
 class SceneInput;
 
 // TODO: Make it so these can be | together.
@@ -41,6 +41,7 @@ enum class WindowSetting {
 	Shown,
 	Hidden
 };
+PTGN_SERIALIZE_ENUM(WindowSetting);
 
 namespace impl {
 
@@ -66,6 +67,7 @@ enum class KeyState : std::uint8_t {
 	Held	 = 2, /// Every subsequent frame that the key is pressed.
 	Released = 3, /// First frame that the key is released.
 };
+PTGN_SERIALIZE_ENUM(KeyState);
 
 enum class MouseState : std::uint8_t {
 	Idle	 = 0, /// When the mouse button is not pressed.
@@ -73,18 +75,7 @@ enum class MouseState : std::uint8_t {
 	Held	 = 2, /// Every subsequent frame that the mouse button is pressed.
 	Released = 3, /// First frame that the mouse button is released.
 };
-
-PTGN_SERIALIZE_ENUM(
-	MouseState, { { MouseState::Idle, "idle" },
-				  { MouseState::Pressed, "pressed" },
-				  { MouseState::Released, "released" } }
-);
-
-PTGN_SERIALIZE_ENUM(
-	KeyState, { { KeyState::Idle, "idle" },
-				{ KeyState::Pressed, "pressed" },
-				{ KeyState::Released, "released" } }
-);
+PTGN_SERIALIZE_ENUM(MouseState);
 
 namespace gl {
 
@@ -102,8 +93,7 @@ enum class MouseMode {
 	/// @brief Locked to window, relative motion (FPS)
 	Disabled
 };
-
-std::ostream& operator<<(std::ostream& os, const MouseMode& mode);
+PTGN_SERIALIZE_ENUM(MouseMode);
 
 struct WindowConfig {
 	std::string title{ "Default Title" };
@@ -133,9 +123,12 @@ struct WindowConfig {
 
 	/// @brief If true window will be transparent in the areas with alpha of 0.
 	bool transparent{ false };
-};
 
-std::ostream& operator<<(std::ostream& os, const WindowConfig& config);
+	PTGN_SERIALIZE(
+		WindowConfig, title, size, resizable, x, y, minimized, maximized, fullscreen, mouse_mode,
+		always_on_top, borderless, transparent
+	)
+};
 
 class Window {
 public:
@@ -194,7 +187,7 @@ private:
 	friend class FileDialog;
 
 	Window() = delete;
-	explicit Window(EventHandler& events, Renderer& renderer, const WindowConfig& config);
+	explicit Window(const WindowConfig& config);
 	~Window();
 	Window(Window&&) noexcept			 = delete;
 	Window& operator=(Window&&) noexcept = delete;
@@ -211,9 +204,11 @@ private:
 	void SetMouseMode(MouseMode mode);
 	void SetAlwaysOnTop(bool on);
 
-	/// @brief Updates the window, processing events and input state. Returns true if the app should
-	/// stay open.
-	bool Update();
+	/// @brief Polls window events, passing them into the set event sink. Returns true if the app
+	/// should stay open.
+	bool PollEvents();
+
+	std::function<void(impl::EventData&&)> event_sink_;
 
 	/// @brief Potential custom cursor defined by the user or nullptr if the default cursor is being
 	/// used.
@@ -326,23 +321,6 @@ private:
 
 	/// @brief Set by window quit callback.
 	bool quit_{ false };
-
-	EventHandler& events_;
-	Renderer& renderer_;
 };
-
-PTGN_SERIALIZE_ENUM(
-	WindowSetting, { { WindowSetting::None, "none" },
-					 { WindowSetting::Windowed, "windowed" },
-					 { WindowSetting::Fullscreen, "fullscreen" },
-					 { WindowSetting::Borderless, "borderless" },
-					 { WindowSetting::Bordered, "bordered" },
-					 { WindowSetting::Resizable, "resizable" },
-					 { WindowSetting::FixedSize, "fixed_size" },
-					 { WindowSetting::Maximized, "maximized" },
-					 { WindowSetting::Minimized, "minimized" },
-					 { WindowSetting::Shown, "shown" },
-					 { WindowSetting::Hidden, "hidden" } }
-);
 
 } // namespace ptgn

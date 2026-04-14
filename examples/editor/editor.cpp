@@ -2,7 +2,7 @@
 #include "app/application.h"
 #include "protegon_editor/layer.h"
 #include "runtime/asset/asset_manager.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 

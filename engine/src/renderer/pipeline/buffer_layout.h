@@ -2,14 +2,12 @@
 
 #include <array>
 #include <cstdint>
-#include <ostream>
 #include <tuple>
 #include <type_traits>
-#include <utility>
 
-#include "core/log.h"
 #include "core/util/concepts.h"
-#include "renderer/primitives/glsl_types.h"
+#include "renderer/vertex/glsl_types.h"
+#include "serialization/serialize.h"
 
 namespace ptgn::impl::gl {
 
@@ -30,22 +28,7 @@ enum class BufferElementType : std::uint32_t {
 	UnsignedByte  = 0x1401, // GL_UNSIGNED_BYTE
 	Bool		  = 0x8B56	// GL_BOOL
 };
-
-inline std::ostream& operator<<(std::ostream& os, BufferElementType type) {
-	switch (type) {
-		using enum BufferElementType;
-		case Float:			return os << "Float";
-		case Double:		return os << "Double";
-		case Int:			return os << "Int";
-		case UnsignedInt:	return os << "UnsignedInt";
-		case Short:			return os << "Short";
-		case UnsignedShort: return os << "UnsignedShort";
-		case Byte:			return os << "Byte";
-		case UnsignedByte:	return os << "UnsignedByte";
-		case Bool:			return os << "Bool";
-		default:			PTGN_ERROR("Unknown BufferElementType: ", std::to_underlying(type));
-	}
-}
+PTGN_SERIALIZE_ENUM(BufferElementType);
 
 template <typename T>
 struct BufferTypeTrait {

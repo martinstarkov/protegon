@@ -9,6 +9,7 @@
 #include <variant>
 #include <vector>
 
+#include "core/graphics/color.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
@@ -25,31 +26,31 @@
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "core/graphics/color.h"
-#include "renderer/resources/id.h"
 #include "renderer/pipeline/render_pass.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/scaling_mode.h"
-#include "renderer/resources/shader.h"
-#include "renderer/resources/texture.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/font.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/font.h"
+#include "runtime/graphics/text/text.h"
 
 namespace ptgn {
 
 class Scene;
 class SceneContext;
-class Renderer;
 class RenderContext;
 class DebugContext;
 
 namespace impl {
+
+class Renderer;
 
 struct TriangleCommand {
 	TriangleCommand() = default;
@@ -217,7 +218,7 @@ public:
 	}
 
 private:
-	friend class Renderer;
+	friend class impl::Renderer;
 	friend class Scene;
 	friend class DebugContext;
 	friend class RenderContext;
@@ -296,9 +297,9 @@ private:
 	void Draw(const impl::ManualCommand& command, float depth);
 
 	DrawContext() = delete;
-	explicit DrawContext(Renderer& renderer);
+	explicit DrawContext(impl::Renderer& renderer);
 
-	Renderer& renderer_;
+	impl::Renderer& renderer_;
 };
 
 class RenderContext {
@@ -445,7 +446,7 @@ private:
 	friend class DebugContext;
 
 	RenderContext() = delete;
-	RenderContext(Scene& scene, Renderer& renderer);
+	RenderContext(Scene& scene, impl::Renderer& renderer);
 	~RenderContext() noexcept						   = default;
 	RenderContext(const RenderContext&)				   = delete;
 	RenderContext& operator=(const RenderContext&)	   = delete;
@@ -479,7 +480,7 @@ private:
 	);
 
 	Scene& scene_;
-	Renderer& renderer_;
+	impl::Renderer& renderer_;
 
 	std::vector<std::pair<Camera, std::vector<impl::DrawCommand>>> draw_commands_;
 	std::vector<std::pair<Camera, std::vector<impl::ManualDrawCommand>>> debug_commands_;

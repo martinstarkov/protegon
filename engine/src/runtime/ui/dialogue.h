@@ -10,17 +10,17 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/file.h"
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "core/graphics/color.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "core/event/event_dispatcher.h"
-#include "runtime/graphics/font.h"
+
+#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/sprite.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
-#include "serialization/json/enum.h"
+#include "serialization/serialize.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {

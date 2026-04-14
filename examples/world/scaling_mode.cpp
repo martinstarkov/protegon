@@ -3,7 +3,7 @@
 #include "app/application.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "platform/window.h"
 #include "core/graphics/color.h"
 #include "renderer/renderer.h"

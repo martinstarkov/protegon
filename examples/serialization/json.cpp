@@ -12,13 +12,13 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/font.h"
+#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/rigid_body.h"
-#include "runtime/ui/interactive.h"
+#include "runtime/interaction/interactive.h"
 #include "serialization/json/fwd.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 // TODO: Fix this demo.
 

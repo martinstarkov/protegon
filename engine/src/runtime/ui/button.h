@@ -11,7 +11,7 @@
 #include <variant>
 #include <vector>
 
-#include "core/event/event.h"
+
 #include "core/log.h"
 #include "core/math/easing.h"
 #include "core/math/geometry/circle.h"
@@ -19,7 +19,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "platform/mouse.h"
+#include "core/input/mouse.h"
 #include "core/graphics/color.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/animation.h"
@@ -28,16 +28,16 @@
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/font.h"
+#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/sprite.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
-#include "serialization/json/enum.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 

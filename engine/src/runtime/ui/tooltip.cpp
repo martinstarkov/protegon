@@ -20,15 +20,15 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
-#include "core/event/event_dispatcher.h"
+
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
-#include "runtime/graphics/text.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
-#include "runtime/ui/interactive.h"
+#include "runtime/interaction/interactive.h"
 
 namespace ptgn {
 

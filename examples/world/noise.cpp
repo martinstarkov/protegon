@@ -13,7 +13,7 @@
 #include "core/math/math_utils.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "platform/key.h"
+#include "core/input/key.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "core/graphics/color.h"
 #include "renderer/renderer.h"

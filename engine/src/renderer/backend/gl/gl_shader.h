@@ -2,7 +2,6 @@
 
 #include <cmrc/cmrc.hpp>
 #include <cstdint>
-#include <ostream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -37,8 +36,7 @@ enum class ShaderType : std::uint32_t {
 	TessEvaluation = 0x8E87, // GL_TESS_EVALUATION_SHADER
 	Compute		   = 0x91B9	 // GL_COMPUTE_SHADER
 };
-
-std::ostream& operator<<(std::ostream& os, ShaderType type);
+PTGN_SERIALIZE_ENUM(ShaderType);
 
 struct ShaderSpec {
 	ShaderType type{ ShaderType::Fragment };

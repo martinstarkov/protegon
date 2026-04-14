@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "core/util/concepts.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 #define PTGN_FLAGS_OPERATORS(EnumName)                                         \
 	inline EnumName operator|(EnumName a, EnumName b) {                        \

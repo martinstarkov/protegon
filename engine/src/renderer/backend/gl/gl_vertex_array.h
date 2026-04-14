@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <ostream>
 
 #include "core/assert.h"
 #include "core/util/concepts.h"
@@ -9,6 +8,7 @@
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/resources/id.h"
+#include "serialization/serialize.h"
 
 namespace ptgn::impl::gl {
 
@@ -28,16 +28,14 @@ enum class PrimitiveMode : std::uint32_t {
 	TriangleStrip = 0x0005, // GL_TRIANGLE_STRIP
 	TriangleFan	  = 0x0006	// GL_TRIANGLE_FAN
 };
-
-std::ostream& operator<<(std::ostream& os, PrimitiveMode mode);
+PTGN_SERIALIZE_ENUM(PrimitiveMode);
 
 enum class IndexType : std::uint32_t {
 	UnsignedByte  = 0x1401, // GL_UNSIGNED_BYTE
 	UnsignedShort = 0x1403, // GL_UNSIGNED_SHORT
 	UnsignedInt	  = 0x1405	// GL_UNSIGNED_INT
 };
-
-std::ostream& operator<<(std::ostream& os, IndexType type);
+PTGN_SERIALIZE_ENUM(IndexType);
 
 class VertexArrays {
 public:

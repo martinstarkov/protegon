@@ -1,58 +1,45 @@
 #pragma once
 
-#include "core/event/event.h"
 #include "core/math/vector2.h"
 
 namespace ptgn::event {
 
-/// @brief Fired once when the window is quit.
-struct WindowQuit : public Event<WindowQuit> {};
-
 /// @brief Fired one or more times after size change
 /// occurs or resizing is finished (window is released).
-struct WindowResized : public Event<WindowResized> {
-	WindowResized() = default;
-
-	explicit WindowResized(V2_int size) : size{ size } {}
-
+struct WindowResized {
 	V2_int size;
+
+	operator V2_int() const { // NOSONAR
+		return size;
+	}
 };
 
 /// @brief Fired every time the window is moved.
-struct WindowMoved : public Event<WindowMoved> {
-	WindowMoved() = default;
-
-	explicit WindowMoved(V2_int position) : position{ position } {}
-
+struct WindowMoved {
 	V2_int position;
+
+	operator V2_int() const { // NOSONAR
+		return position;
+	}
 };
 
 /// @brief Fired once when the window is maximized.
-struct WindowMaximized : public Event<WindowMaximized> {
-	WindowMaximized() = default;
-
-	explicit WindowMaximized(V2_int size) : size{ size } {}
-
+struct WindowMaximized {
 	V2_int size;
 };
 
 /// @brief Fired once when the window is minimized.
-struct WindowMinimized : public Event<WindowMinimized> {
-	WindowMinimized() = default;
-
-	explicit WindowMinimized(V2_int size) : size{ size } {}
-
+struct WindowMinimized {
 	V2_int size;
 };
 
+/// @brief Fired once when the window is quit.
+struct WindowQuit {};
+
 /// @brief Fired once when the window loses focus.
-struct WindowFocusLost : public Event<WindowFocusLost> {
-	WindowFocusLost() = default;
-};
+struct WindowFocusLost {};
 
 /// @brief Fired once when the window gains focus.
-struct WindowFocusGained : public Event<WindowFocusGained> {
-	WindowFocusGained() = default;
-};
+struct WindowFocusGained {};
 
 } // namespace ptgn::event

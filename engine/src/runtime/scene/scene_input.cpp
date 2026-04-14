@@ -18,8 +18,8 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/span.h"
-#include "platform/key.h"
-#include "platform/mouse.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "platform/window.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
@@ -28,10 +28,10 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/broadphase.h"
-#include "runtime/scene/resolution.h"
+#include "runtime/graphics/frame_context.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/scripts.h"
-#include "runtime/ui/interactive.h"
+#include "runtime/interaction/interactive.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {

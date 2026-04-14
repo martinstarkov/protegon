@@ -25,7 +25,6 @@
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "core/util/id_map.h"
-#include "core/util/span.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/resources/id.h"
@@ -978,19 +977,6 @@ ShaderId Shaders::GetProgram(std::string_view program_name) const {
 	auto hash{ Hash(program_name) };
 	PTGN_ASSERT(programs_.contains(hash), "No shader program with name '", program_name, "' found");
 	return programs_.find(hash)->second;
-}
-
-std::ostream& operator<<(std::ostream& os, ShaderType type) {
-	switch (type) {
-		using enum ShaderType;
-		case Vertex:		 return os << "Vertex";
-		case Fragment:		 return os << "Fragment";
-		case Geometry:		 return os << "Geometry";
-		case TessControl:	 return os << "TessControl";
-		case TessEvaluation: return os << "TessEvaluation";
-		case Compute:		 return os << "Compute";
-		default:			 PTGN_ERROR("Unknown ShaderType: ", std::to_underlying(type));
-	}
 }
 
 } // namespace ptgn::impl::gl
