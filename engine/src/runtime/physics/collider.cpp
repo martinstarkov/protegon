@@ -73,18 +73,18 @@ Collider& Collider::SetCollidesWith(const std::vector<ColliderMask>& masks) {
 	return *this;
 }
 
-static Collision GetIfExists(const std::vector<Collision>& collisions, Entity other) {
+static CollisionInfo GetIfExists(const std::vector<CollisionInfo>& collisions, Entity other) {
 	auto it{ std::ranges::find_if(collisions, [&other](auto& collision) {
 		return collision.entity == other;
 	}) };
-	return it != collisions.end() ? *it : Collision{};
+	return it != collisions.end() ? *it : CollisionInfo{};
 }
 
-Collision Collider::IntersectedWith(Entity other) const {
+CollisionInfo Collider::IntersectedWith(Entity other) const {
 	return GetIfExists(intersects_, other);
 }
 
-Collision Collider::SweptWith(Entity other) const {
+CollisionInfo Collider::SweptWith(Entity other) const {
 	return GetIfExists(sweeps_, other);
 }
 
@@ -120,14 +120,14 @@ void Collider::AddOverlap(Entity other) {
 	overlaps_.emplace_back(other);
 }
 
-void Collider::AddIntersect(const Collision& collision) {
+void Collider::AddIntersect(const CollisionInfo& collision) {
 	if (std::ranges::contains(intersects_, collision)) {
 		return;
 	}
 	intersects_.emplace_back(collision);
 }
 
-void Collider::AddSweep(const Collision& collision) {
+void Collider::AddSweep(const CollisionInfo& collision) {
 	if (std::ranges::contains(sweeps_, collision)) {
 		return;
 	}

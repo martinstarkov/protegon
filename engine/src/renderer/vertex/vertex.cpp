@@ -8,7 +8,7 @@
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "core/graphics/color.h"
-#include "renderer/pipeline/flip.h"
+#include "core/graphics/flip.h"
 
 namespace ptgn::impl {
 

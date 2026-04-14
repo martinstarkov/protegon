@@ -32,7 +32,7 @@ public:
 	std::string message;
 	float value;
 
-	PTGN_SERIALIZE(MyData, id, message, value)
+	PTGN_REFLECT(MyData, id, message, value)
 };
 
 int main(int, char**) {

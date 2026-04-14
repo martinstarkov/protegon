@@ -1,46 +1,58 @@
+#include "runtime/graphics/render_target.h"
+
 #include <optional>
 
 #include "core/assert.h"
+#include "core/event/event.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
-#include "renderer/event/event.h"
-#include "renderer/resources/id.h"
 #include "renderer/pipeline/render_pass.h"
-#include "renderer/pipeline/render_state.h"
-#include "renderer/resources/texture_format.h"
+#include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/viewport_event.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/texture_format.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
-
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
-#include "runtime/graphics/render_target.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/tint.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
-#include "runtime/scripting/scripts.h"
 
 namespace ptgn {
 
 namespace impl {
 
-void RenderTargetGameResizeScript::OnEvent(Event dispatcher) {
-	dispatcher.Dispatch<event::InternalGameResized>([this](const auto& resized) {
-		auto& rt{ entity.Get<RenderTargetObject>() };
-		// PTGN_LOG("Render target ", entity, " received game resize: ", resized.size);
-		rt.Resize(resized.size);
-	});
-}
+class RenderTargetGameResizeScript : public Script {
+public:
+	void OnEvent(Event event) {
+		event.Dispatch<ptgn::event::GameResized>([this](const auto& resized) {
+			auto& rt{ entity.Get<RenderTargetObject>() };
+			// PTGN_LOG("Render target ", entity, " received game resize: ", resized.size);
+			rt.Resize(resized.size);
+		});
+	}
+};
 
-void RenderTargetDisplayResizeScript::OnEvent(Event dispatcher) {
-	dispatcher.Dispatch<event::InternalDisplayResized>([this](const auto& resized) {
-		auto& rt{ entity.Get<RenderTargetObject>() };
-		// PTGN_LOG("Render target ", entity, " received display resize: ", resized.size);
-		rt.Resize(resized.size);
-	});
+class RenderTargetDisplayResizeScript : public Script {
+public:
+	void OnEvent(Event event) {
+		event.Dispatch<ptgn::event::DisplayResized>([this](const auto& resized) {
+			auto& rt{ entity.Get<RenderTargetObject>() };
+			// PTGN_LOG("Render target ", entity, " received display resize: ", resized.size);
+			rt.Resize(resized.size);
+		});
+	}
+};
+
+ClearColor::operator ptgn::Color() const {
+	return color;
 }
 
 } // namespace impl
@@ -52,20 +64,20 @@ void RenderTarget::Bind() {
 }
 
 void RenderTarget::Clear(std::optional<Color> color, bool set_viewport) {
-	Color clear{ color.value_or(GetOrDefault<ClearColor>().value) };
+	Color clear{ color.value_or(GetOrDefault<impl::ClearColor>()) };
 	Get<impl::RenderTargetObject>().Clear(clear, set_viewport);
 }
 
 void RenderTarget::SetClearColor(Color clear_color) {
-	if (clear_color == ClearColor{}.value) {
-		Remove<ClearColor>();
+	if (clear_color == impl::ClearColor{}) {
+		Remove<impl::ClearColor>();
 	} else {
-		Add<ClearColor>(clear_color);
+		Add<impl::ClearColor>(clear_color);
 	}
 }
 
 Color RenderTarget::GetClearColor() const {
-	return GetOrDefault<ClearColor>().value;
+	return GetOrDefault<impl::ClearColor>();
 }
 
 V2_float RenderTarget::GetScale() const {
@@ -139,17 +151,17 @@ void RenderTarget::AddRenderTargetComponents(
 }
 
 void RenderTarget::AddRenderTargetComponents(
-	RenderTarget render_target, SceneContext& ctx, ResizeMode resize_to_resolution,
+	RenderTarget render_target, SceneContext& ctx, ResizeType resize_to_resolution,
 	Color clear_color, TextureFormat texture_format
 ) {
 	PTGN_ASSERT(render_target, "Failed to create render target entity");
 
 	V2_int resolution;
 
-	if (resize_to_resolution == ResizeMode::DisplaySize) {
+	if (resize_to_resolution == ResizeType::Display) {
 		resolution = ctx.global_renderer_.GetDisplaySize();
 		AddScript<impl::RenderTargetDisplayResizeScript>(render_target);
-	} else if (resize_to_resolution == ResizeMode::GameSize) {
+	} else if (resize_to_resolution == ResizeType::Game) {
 		resolution = ctx.global_renderer_.GetGameSize();
 		AddScript<impl::RenderTargetGameResizeScript>(render_target);
 	} else {
@@ -166,7 +178,7 @@ void RenderTarget::AddRenderTargetComponents(
 }
 
 RenderTarget CreateRenderTarget(
-	Scene& scene, ResizeMode resize_to_resolution, Color clear_color, TextureFormat texture_format
+	Scene& scene, ResizeType resize_to_resolution, Color clear_color, TextureFormat texture_format
 ) {
 	RenderTarget render_target{ scene.CreateEntity() };
 	RenderTarget::AddRenderTargetComponents(

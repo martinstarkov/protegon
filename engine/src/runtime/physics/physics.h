@@ -22,7 +22,7 @@ enum class BoundaryBehavior {
 
 std::ostream& operator<<(std::ostream& os, BoundaryBehavior behavior);
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	BoundaryBehavior, { { BoundaryBehavior::StopVelocity, "stop_velocity" },
 						{ BoundaryBehavior::SlideVelocity, "slide_velocity" },
 						{ BoundaryBehavior::ReflectVelocity, "reflect_velocity" } }
@@ -64,7 +64,7 @@ public:
 	[[nodiscard]] bool IsEnabled() const;
 
 	// TODO: Fix serialization.
-	// PTGN_SERIALIZE_PRIV(
+	// PTGN_REFLECT_PRIV(
 	//	Physics, KeyValue("gravity", gravity_), KeyValue("bounds_top_left", bounds_top_left_),
 	//	KeyValue("bounds_size", bounds_size_), KeyValue("boundary_behavior", boundary_behavior_),
 	//	KeyValue("enabled", enabled_)

@@ -103,7 +103,7 @@ struct Transform {
 		return os;
 	}
 
-	PTGN_SERIALIZE_PRIV_IGNORE_DEFAULTS(
+	PTGN_REFLECT_PRIV_IGNORE_DEFAULTS(
 		Transform, KeyValue("position", position_), KeyValue("rotation", rotation_),
 		KeyValue("scale", scale_)
 	)

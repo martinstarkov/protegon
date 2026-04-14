@@ -2,15 +2,14 @@
 
 #include <optional>
 
-#include "core/math/vector2.h"
 #include "core/graphics/color.h"
+#include "core/math/vector2.h"
+#include "renderer/pipeline/scaling_mode.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
-
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/scripting/script.h"
 
 namespace ptgn {
 
@@ -19,27 +18,15 @@ class DrawContext;
 class SceneContext;
 class RenderTarget;
 
-/// @brief Determines which resolution the render target automatically resizes to when the game or
-/// display is resized. GameSize resizes to the current game size, while DisplaySize resizes to the
-/// current display size.
-enum class ResizeMode {
-	GameSize,
-	DisplaySize
-};
-
 RenderTarget CreateRenderTarget(Scene&, V2_int, Color, TextureFormat);
-RenderTarget CreateRenderTarget(Scene&, ResizeMode, Color, TextureFormat);
+RenderTarget CreateRenderTarget(Scene&, ResizeType, Color, TextureFormat);
 
 namespace impl {
 
-class RenderTargetGameResizeScript : public Script {
-public:
-	void OnEvent(Event dispatcher) override;
-};
+struct ClearColor {
+	Color color{ color::Transparent };
 
-class RenderTargetDisplayResizeScript : public Script {
-public:
-	void OnEvent(Event dispatcher) override;
+	operator Color() const; // NOSONAR
 };
 
 } // namespace impl
@@ -76,7 +63,7 @@ private:
 	operator impl::RenderTargetId() const; // NOSONAR
 
 	friend RenderTarget CreateRenderTarget(Scene&, V2_int, Color, TextureFormat);
-	friend RenderTarget CreateRenderTarget(Scene&, ResizeMode, Color, TextureFormat);
+	friend RenderTarget CreateRenderTarget(Scene&, ResizeType, Color, TextureFormat);
 
 	static void AddRenderTargetComponents(
 		RenderTarget render_target, SceneContext& ctx, V2_int size, Color clear_color,
@@ -84,7 +71,7 @@ private:
 	);
 
 	static void AddRenderTargetComponents(
-		RenderTarget render_target, SceneContext& ctx, ResizeMode resize_to_resolution,
+		RenderTarget render_target, SceneContext& ctx, ResizeType resize_to_resolution,
 		Color clear_color, TextureFormat texture_format
 	);
 };
@@ -111,7 +98,7 @@ RenderTarget CreateRenderTarget(
 /// @param clear_color The background color of the render target.
 /// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
 RenderTarget CreateRenderTarget(
-	Scene& scene, ResizeMode resize_to_resolution = ResizeMode::DisplaySize,
+	Scene& scene, ResizeType resize_to_resolution = ResizeType::Display,
 	Color clear_color = color::Transparent, TextureFormat texture_format = TextureFormat::RGBA8
 );
 

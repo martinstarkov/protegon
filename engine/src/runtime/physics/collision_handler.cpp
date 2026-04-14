@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/intersect.h"
 #include "core/math/math_utils.h"
@@ -17,7 +18,6 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/span.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/shape.h"
@@ -26,7 +26,7 @@
 #include "runtime/physics/collider.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scripting/scripts.h"
+#include "runtime/scripting/script.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -188,11 +188,11 @@ void CollisionHandler::Intersect(Entity entity1, secondsf dt) {
 			continue;
 		}
 
-		PushEvent<event::CollisionEvent>(entity1, Collision{ entity2, intersection.normal });
-		PushEvent<event::CollisionEvent>(entity2, Collision{ entity1, -intersection.normal });
+		PushEvent<event::Collision>(entity1, CollisionInfo{ entity2, intersection.normal });
+		PushEvent<event::Collision>(entity2, CollisionInfo{ entity1, -intersection.normal });
 
-		collider1.AddIntersect(Collision{ entity2, intersection.normal });
-		collider2.AddIntersect(Collision{ entity1, -intersection.normal });
+		collider1.AddIntersect(CollisionInfo{ entity2, intersection.normal });
+		collider2.AddIntersect(CollisionInfo{ entity1, -intersection.normal });
 
 		if (!entity1.Has<RigidBody>()) {
 			continue;
@@ -450,11 +450,11 @@ void CollisionHandler::AddEarliestCollisions(
 
 	PTGN_ASSERT(entity != first_sweep.entity, "Self collision not possible");
 
-	Collision first{ first_sweep.entity, first_sweep.collision.normal };
+	CollisionInfo first{ first_sweep.entity, first_sweep.collision.normal };
 
 	auto& collider{ entity.Get<Collider>() };
 
-	PushEvent<event::CollisionEvent>(entity, first);
+	PushEvent<event::Collision>(entity, first);
 
 	collider.AddSweep(first);
 
@@ -463,9 +463,9 @@ void CollisionHandler::AddEarliestCollisions(
 
 		if (sweep.collision.t == first_sweep.collision.t) {
 			PTGN_ASSERT(entity != sweep.entity, "Self collision not possible");
-			Collision matching{ sweep.entity, sweep.collision.normal };
+			CollisionInfo matching{ sweep.entity, sweep.collision.normal };
 
-			PushEvent<event::CollisionEvent>(entity, matching);
+			PushEvent<event::Collision>(entity, matching);
 
 			collider.AddSweep(matching);
 		}
@@ -595,7 +595,7 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 			if (!std::ranges::contains(collider.overlaps_, previous)) {
 				PushEvent<event::OverlapStop>(entity, previous);
 			} else {
-				PushEvent<event::OverlapContinue>(entity, previous);
+				PushEvent<event::Overlap>(entity, previous);
 			}
 		}
 	}

@@ -18,7 +18,7 @@ struct Id {
 		return value;
 	}
 
-	PTGN_SERIALIZE(Id, value)
+	PTGN_REFLECT(Id, value)
 };
 
 struct TextureTag {};

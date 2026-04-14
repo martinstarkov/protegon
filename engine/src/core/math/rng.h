@@ -169,7 +169,7 @@ private:
 template <typename T>
 using Gaussian = RNG<T, Distribution::Normal>;
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	Distribution, { { Distribution::Uniform, "uniform" }, { Distribution::Normal, "normal" } }
 );
 

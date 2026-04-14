@@ -3,14 +3,14 @@
 #include <optional>
 #include <vector>
 
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
 
 namespace ptgn {
 
@@ -33,8 +33,8 @@ std::optional<Shape> GetSpriteOrShape(Entity entity);
 /// @param origin      The origin of the rectangle position (e.g., center, top-left).
 /// @return Entity     A handle to the newly created rectangle entity.
 Entity CreateRect(
-	Scene& scene, V2_float position, V2_float size, Color color,
-	FillStyle fill_style = Solid{}, Origin origin = Origin::Center
+	Scene& scene, V2_float position, V2_float size, Color color, FillStyle fill_style = Solid{},
+	Origin origin = Origin::Center
 );
 
 /// @brief Creates a polygon entity in the scene at the specified position.
@@ -54,8 +54,7 @@ Entity CreatePolygon(
 /// @param color       The tint color of the circle.
 /// @return Entity     A handle to the newly created circle entity.
 Entity CreateCircle(
-	Scene& scene, V2_float position, float radius, Color color,
-	FillStyle fill_style = Solid{}
+	Scene& scene, V2_float position, float radius, Color color, FillStyle fill_style = Solid{}
 );
 
 Entity CreateArc(

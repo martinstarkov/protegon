@@ -5,9 +5,8 @@
 #include <string>
 #include <type_traits>
 #include <variant>
-#include <vector>
 
-
+#include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
@@ -15,14 +14,12 @@
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
-
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/scripting/script.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -35,6 +32,12 @@ namespace impl {
 struct ParticleEmitterComponent;
 
 } // namespace impl
+
+namespace event {
+
+struct ParticleDestroyed;
+
+} // namespace event
 
 template <typename T>
 struct Range {
@@ -194,6 +197,7 @@ enum class ParticleEmitterState {
 	Playing,
 	Paused
 };
+PTGN_REFLECT_ENUM(ParticleEmitterState);
 
 struct ParticleEmitterPlayback {
 	ParticleEmitterState state{ ParticleEmitterState::Stopped };
@@ -232,12 +236,6 @@ struct ParticleEmitterComponent {
 };
 
 } // namespace impl
-
-namespace event {
-
-struct ParticleDestroyed;
-
-} // namespace event
 
 class ParticleEmitter : public Entity {
 public:
@@ -304,35 +302,6 @@ private:
 	/// @brief Linearly interpolates the particle's properties based on its lifetime progress.
 	void Lerp(float t);
 };
-
-namespace event {
-
-/// @brief Triggered when a particle is destroyed after reaching the end of its lifetime.
-struct ParticleDestroyed : public Event<ParticleDestroyed> {
-	ParticleDestroyed() = default;
-
-	ParticleDestroyed(const ParticleEmitter& emitter, const Particle& particle);
-
-	ParticleEmitter emitter;
-	Particle particle;
-};
-
-} // namespace event
-
-namespace impl {
-
-struct ParticleDestroyScript : public Script {
-	ParticleDestroyScript() = default;
-
-	explicit ParticleDestroyScript(const ParticleEmitter::DestroyCallback& callback);
-
-	void OnEvent(Event dispatcher) override;
-
-private:
-	ParticleEmitter::DestroyCallback callback_;
-};
-
-} // namespace impl
 
 ParticleEmitter CreateParticleEmitter(
 	Scene& scene, V2_float position = {}, const ParticleConfig& config = {}

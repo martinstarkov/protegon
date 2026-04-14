@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "core/assert.h"
+#include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/math_utils.h"
 #include "core/math/tolerance.h"
@@ -14,14 +15,13 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/time/timer.h"
-#include "core/input/key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/move_direction.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
-#include "runtime/scripting/scripts.h"
+#include "runtime/scripting/script.h"
 
 namespace ptgn {
 
@@ -440,7 +440,9 @@ void PlatformerMovement::RunWithAcceleration(
 	rb.velocity.x = impl::MoveTowards(rb.velocity.x, desired_velocity.x, max_speed_change);
 }
 
-void PlatformerJump::Ground(Entity entity, const Collision& collision, ColliderMask ground_mask) {
+void PlatformerJump::Ground(
+	Entity entity, const CollisionInfo& collision, ColliderMask ground_mask
+) {
 	if (!entity.Has<PlatformerMovement>()) {
 		return;
 	}

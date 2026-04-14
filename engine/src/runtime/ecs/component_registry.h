@@ -30,7 +30,7 @@
 #include "core/math/geometry/origin.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "core/graphics/color.h"
-#include "renderer/pipeline/flip.h"
+#include "core/graphics/flip.h"
 // #include "renderer/render_target.h"
 // #include "runtime/graphics/text/font.h"
 // #include "runtime/graphics/text/text.h"

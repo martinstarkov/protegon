@@ -28,7 +28,7 @@ enum class AttachmentObject : std::uint32_t {
 	Texture2D	 = 0x0DE1, // GL_TEXTURE_2D
 	Renderbuffer = 0x8D41  // GL_RENDERBUFFER
 };
-PTGN_SERIALIZE_ENUM(AttachmentObject);
+PTGN_REFLECT_ENUM(AttachmentObject);
 
 enum class Attachment : std::uint32_t {
 	// Color attachments
@@ -47,7 +47,7 @@ enum class Attachment : std::uint32_t {
 	Stencil		 = 0x8D20, // GL_STENCIL_ATTACHMENT
 	DepthStencil = 0x821A  // GL_DEPTH_STENCIL_ATTACHMENT
 };
-PTGN_SERIALIZE_ENUM(Attachment);
+PTGN_REFLECT_ENUM(Attachment);
 
 struct AttachmentSpec {
 	std::uint32_t id{ 0 };
@@ -69,7 +69,7 @@ enum class ClearBufferBit : std::uint32_t {
 	Depth	= 0x00000100, // GL_DEPTH_BUFFER_BIT
 	Stencil = 0x00000400  // GL_STENCIL_BUFFER_BIT
 };
-PTGN_SERIALIZE_ENUM_NOSTREAM(ClearBufferBit);
+PTGN_REFLECT_ENUM_NOSTREAM(ClearBufferBit);
 std::ostream& operator<<(std::ostream& os, ClearBufferBit bits);
 
 constexpr ClearBufferBit operator|(ClearBufferBit a, ClearBufferBit b) {
@@ -89,7 +89,7 @@ enum class ClearBufferType : std::uint32_t {
 	Depth	= 0x1801, // GL_DEPTH
 	Stencil = 0x1802  // GL_STENCIL
 };
-PTGN_SERIALIZE_ENUM(ClearBufferType);
+PTGN_REFLECT_ENUM(ClearBufferType);
 
 class Framebuffers {
 public:

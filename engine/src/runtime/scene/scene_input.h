@@ -265,7 +265,7 @@ struct SceneInputSettings {
 	Color debug_draw_color{ color::Magenta };
 	float debug_draw_line_width{ 1.0f };
 
-	PTGN_SERIALIZE(SceneInputSettings, debug_draw_enabled, debug_draw_color, debug_draw_line_width)
+	PTGN_REFLECT(SceneInputSettings, debug_draw_enabled, debug_draw_color, debug_draw_line_width)
 };
 
 class SceneInput {

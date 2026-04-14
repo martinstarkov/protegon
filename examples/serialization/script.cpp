@@ -11,11 +11,10 @@
 #include <unordered_set>
 #include <vector>
 
-#include "core/log.h"
-#include "platform/events.h"
 #include "core/input/key.h"
+#include "core/log.h"
+#include "core/event/key_event.h"
 #include "runtime/ecs/manager.h"
-
 
 using namespace ptgn;
 
@@ -130,7 +129,7 @@ int main() {
 
 	std::unordered_map<ScriptType, std::vector<std::function<void()>>> queues;
 
-	queues[ScriptType::Collision].emplace_back([weak]() {
+	queues[ScriptType::CollisionInfo].emplace_back([weak]() {
 		if (auto script = weak.lock()) {
 			script->OnCollisionStart(...);
 		}

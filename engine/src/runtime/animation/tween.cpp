@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/log.h"
 #include "core/math/easing.h"
 #include "core/math/math_utils.h"
@@ -17,9 +18,8 @@
 #include "core/time/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-
 #include "runtime/scene/scene.h"
-#include "runtime/scripting/scripts.h"
+#include "runtime/scripting/script.h"
 
 namespace ptgn {
 
@@ -64,14 +64,11 @@ void TweenData::OnEvent() {
 		}
 
 		// Move pending events so they do not conflict.
-		auto current{ std::exchange(point.events_.pending_, {}) };
+		auto current{ std::exchange(point.events_, {}) };
 
-		for (auto& event : current) {
-			Event dispatcher{ event };
-
-			PTGN_ASSERT(!event.entity.has_value());
-
-			point.script_container_.OnEvent(dispatcher);
+		for (auto& e : current) {
+			Event event{ e };
+			point.script_container_.OnEvent(event);
 		}
 	}
 }
@@ -155,6 +152,14 @@ TweenPoint& TweenData::EmplaceTweenPoint() {
 	const auto& point{ points_.emplace_back(std::make_unique<TweenPoint>()) };
 	PTGN_ASSERT(point);
 	return *point;
+}
+
+bool TweenData::IsState(TweenState state) const {
+	return state_ == state;
+}
+
+void TweenData::SetState(TweenState new_state) {
+	state_ = new_state;
 }
 
 void TweenData::IncrementIndex() {
@@ -247,68 +252,68 @@ bool TweenPoint::IsInstant() const {
 
 Tween::Tween(Entity entity) : Entity{ entity } {}
 
-Tween& Tween::OnProgress(const Tween::Callback<event::TweenProgress>& callback) {
-	return AddScript<impl::TweenProgressScript>(callback);
+Tween& Tween::OnProgress(const EventCallback<event::TweenProgress>& callback) {
+	return AddScript<impl::EventScript<event::TweenProgress>>(callback);
 }
 
-Tween& Tween::OnStart(const Tween::Callback<event::TweenStart>& callback) {
-	return AddScript<impl::TweenStartScript>(callback);
+Tween& Tween::OnStart(const EventCallback<event::TweenStart>& callback) {
+	return AddScript<impl::EventScript<event::TweenStart>>(callback);
 }
 
-Tween& Tween::OnComplete(const Tween::Callback<event::TweenComplete>& callback) {
-	return AddScript<impl::TweenCompleteScript>(callback);
+Tween& Tween::OnComplete(const EventCallback<event::TweenComplete>& callback) {
+	return AddScript<impl::EventScript<event::TweenComplete>>(callback);
 }
 
-Tween& Tween::OnPointStart(const Tween::Callback<event::TweenPointStart>& callback) {
-	return AddScript<impl::TweenPointStartScript>(callback);
+Tween& Tween::OnPointStart(const EventCallback<event::TweenPointStart>& callback) {
+	return AddScript<impl::EventScript<event::TweenPointStart>>(callback);
 }
 
-Tween& Tween::OnPointComplete(const Tween::Callback<event::TweenPointComplete>& callback) {
-	return AddScript<impl::TweenPointCompleteScript>(callback);
+Tween& Tween::OnPointComplete(const EventCallback<event::TweenPointComplete>& callback) {
+	return AddScript<impl::EventScript<event::TweenPointComplete>>(callback);
 }
 
-Tween& Tween::OnReset(const Tween::Callback<event::TweenReset>& callback) {
-	return AddScript<impl::TweenResetScript>(callback);
+Tween& Tween::OnReset(const EventCallback<event::TweenReset>& callback) {
+	return AddScript<impl::EventScript<event::TweenReset>>(callback);
 }
 
-Tween& Tween::OnStop(const Tween::Callback<event::TweenStop>& callback) {
-	return AddScript<impl::TweenStopScript>(callback);
+Tween& Tween::OnStop(const EventCallback<event::TweenStop>& callback) {
+	return AddScript<impl::EventScript<event::TweenStop>>(callback);
 }
 
-Tween& Tween::OnPause(const Tween::Callback<event::TweenPause>& callback) {
-	return AddScript<impl::TweenPauseScript>(callback);
+Tween& Tween::OnPause(const EventCallback<event::TweenPause>& callback) {
+	return AddScript<impl::EventScript<event::TweenPause>>(callback);
 }
 
-Tween& Tween::OnResume(const Tween::Callback<event::TweenResume>& callback) {
-	return AddScript<impl::TweenResumeScript>(callback);
+Tween& Tween::OnResume(const EventCallback<event::TweenResume>& callback) {
+	return AddScript<impl::EventScript<event::TweenResume>>(callback);
 }
 
-Tween& Tween::OnYoyo(const Tween::Callback<event::TweenYoyo>& callback) {
-	return AddScript<impl::TweenYoyoScript>(callback);
+Tween& Tween::OnYoyo(const EventCallback<event::TweenYoyo>& callback) {
+	return AddScript<impl::EventScript<event::TweenYoyo>>(callback);
 }
 
-Tween& Tween::OnRepeat(const Tween::Callback<event::TweenRepeat>& callback) {
-	return AddScript<impl::TweenRepeatScript>(callback);
+Tween& Tween::OnRepeat(const EventCallback<event::TweenRepeat>& callback) {
+	return AddScript<impl::EventScript<event::TweenRepeat>>(callback);
 }
 
 bool Tween::IsCompleted() const {
 	const auto& tween{ Get<impl::TweenData>() };
-	return tween.state_ == impl::TweenState::Completed;
+	return tween.IsState(impl::TweenState::Completed);
 }
 
 bool Tween::IsRunning() const {
 	const auto& tween{ Get<impl::TweenData>() };
-	return tween.state_ == impl::TweenState::Started;
+	return tween.IsState(impl::TweenState::Started);
 }
 
 bool Tween::IsStarted() const {
 	const auto& tween{ Get<impl::TweenData>() };
-	return tween.state_ == impl::TweenState::Started || tween.state_ == impl::TweenState::Paused;
+	return tween.IsState(impl::TweenState::Started) || tween.IsState(impl::TweenState::Paused);
 }
 
 bool Tween::IsPaused() const {
 	const auto& tween{ Get<impl::TweenData>() };
-	return tween.state_ == impl::TweenState::Paused;
+	return tween.IsState(impl::TweenState::Paused);
 }
 
 Tween& Tween::During(milliseconds duration) {
@@ -327,7 +332,7 @@ Tween& Tween::Start(bool force) {
 	Reset();
 
 	auto& tween{ Get<impl::TweenData>() };
-	tween.state_ = impl::TweenState::Started;
+	tween.SetState(impl::TweenState::Started);
 
 	auto parent{ GetParent(*this) };
 

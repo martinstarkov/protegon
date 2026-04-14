@@ -9,7 +9,7 @@ struct Axis {
 	V2_float direction;
 	V2_float midpoint;
 
-	PTGN_SERIALIZE(Axis, direction, midpoint)
+	PTGN_REFLECT(Axis, direction, midpoint)
 };
 
 } // namespace ptgn

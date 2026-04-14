@@ -14,7 +14,7 @@
 #include "core/time/timer.h"
 #include "core/util/string.h"
 #include "nlohmann/json.hpp"
-#include "platform/events.h"
+#include "core/event/key_event.h"
 #include "core/input/mouse.h"
 #include "platform/window.h"
 #include "core/graphics/color.h"

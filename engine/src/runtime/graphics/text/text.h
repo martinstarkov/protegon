@@ -67,7 +67,7 @@ struct TextOutline {
 
 	bool operator==(const TextOutline&) const = default;
 
-	PTGN_SERIALIZE(TextOutline, width, color)
+	PTGN_REFLECT(TextOutline, width, color)
 };
 
 /// @brief Only influences multiline text.
@@ -79,7 +79,7 @@ enum class TextJustify {
 
 std::ostream& operator<<(std::ostream& os, TextJustify text_justify);
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	TextJustify, { { TextJustify::Left, "left" },
 				   { TextJustify::Center, "center" },
 				   { TextJustify::Right, "right" } }
@@ -105,7 +105,7 @@ struct TextLineSkip {
 	bool operator==(const TextLineSkip&) const = default;
 
 	// TODO: Fix serialization.
-	// PTGN_SERIALIZE_PRIV(TextLineSkip, value_.value_or(0))
+	// PTGN_REFLECT_PRIV(TextLineSkip, value_.value_or(0))
 
 private:
 	std::optional<std::int32_t> value_{};
@@ -122,7 +122,7 @@ struct TextProperties {
 	Color shading_color{ color::White };
 
 	// TODO: Serialize line_skip once that is fixed.
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		TextProperties, style, justify, wrap_after, render_mode, outline, shading_color // line_skip
 	)
 };

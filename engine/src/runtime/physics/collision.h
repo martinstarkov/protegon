@@ -3,11 +3,10 @@
 #include <ostream>
 #include <vector>
 
-
+#include "core/graphics/color.h"
 #include "core/math/raycast.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/broadphase.h"
@@ -21,16 +20,16 @@ class SceneContext;
 
 namespace event {
 
-struct CollisionEvent : public Event<CollisionEvent> {
-	CollisionEvent() = default;
+struct Collision : public Event<Collision> {
+	Collision() = default;
 
-	explicit CollisionEvent(const Collision& collision) : collision{ collision } {}
+	explicit Collision(const CollisionInfo& collision) : collision{ collision } {}
 
-	operator Collision() const { // NOSONAR
+	operator CollisionInfo() const { // NOSONAR
 		return collision;
 	}
 
-	Collision collision;
+	CollisionInfo collision;
 };
 
 struct OverlapStart : public Event<OverlapStart> {
@@ -45,10 +44,10 @@ struct OverlapStart : public Event<OverlapStart> {
 	Entity overlap_entity;
 };
 
-struct OverlapContinue : public Event<OverlapContinue> {
-	OverlapContinue() = default;
+struct Overlap : public Event<Overlap> {
+	Overlap() = default;
 
-	explicit OverlapContinue(Entity overlap_entity) : overlap_entity{ overlap_entity } {}
+	explicit Overlap(Entity overlap_entity) : overlap_entity{ overlap_entity } {}
 
 	operator Entity() const { // NOSONAR
 		return overlap_entity;
@@ -93,7 +92,7 @@ struct SweepCollision {
 		const RaycastResult& raycast_result, float distance_squared, Entity sweep_entity
 	);
 
-	/// @brief Collision entity.
+	/// @brief CollisionInfo entity.
 	Entity entity;
 	RaycastResult collision;
 	float dist2{ 0.0f };

@@ -44,7 +44,7 @@
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_state.h"
-#include "runtime/scripting/scripts.h"
+#include "runtime/scripting/script.h"
 #include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
 

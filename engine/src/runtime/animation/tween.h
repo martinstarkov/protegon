@@ -1,13 +1,8 @@
 #pragma once
 
-#include <chrono>
 #include <concepts>
-#include <cstdint>
-#include <functional>
 #include <memory>
 #include <optional>
-#include <ostream>
-#include <variant>
 #include <vector>
 
 #include "core/assert.h"
@@ -16,7 +11,6 @@
 #include "core/time/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
-#include "runtime/scripting/scripts.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -34,11 +28,11 @@ class TweenData;
 namespace event {
 
 struct TweenProgress;
+struct TweenStart;
 struct TweenComplete;
 struct TweenPointStart;
 struct TweenPointComplete;
 struct TweenReset;
-struct TweenStart;
 struct TweenStop;
 struct TweenPause;
 struct TweenResume;
@@ -60,20 +54,17 @@ public:
 	template <typename T, typename... TArgs>
 	Tween& AddScript(TArgs&&... args);
 
-	template <typename T>
-	using Callback = std::variant<std::function<void()>, std::function<void(T)>>;
-
-	Tween& OnProgress(const Callback<event::TweenProgress>& callback);
-	Tween& OnStart(const Callback<event::TweenStart>& callback);
-	Tween& OnComplete(const Callback<event::TweenComplete>& callback);
-	Tween& OnPointStart(const Callback<event::TweenPointStart>& callback);
-	Tween& OnPointComplete(const Callback<event::TweenPointComplete>& callback);
-	Tween& OnReset(const Callback<event::TweenReset>& callback);
-	Tween& OnStop(const Callback<event::TweenStop>& callback);
-	Tween& OnPause(const Callback<event::TweenPause>& callback);
-	Tween& OnResume(const Callback<event::TweenResume>& callback);
-	Tween& OnYoyo(const Callback<event::TweenYoyo>& callback);
-	Tween& OnRepeat(const Callback<event::TweenRepeat>& callback);
+	Tween& OnProgress(const EventCallback<event::TweenProgress>& callback);
+	Tween& OnStart(const EventCallback<event::TweenStart>& callback);
+	Tween& OnComplete(const EventCallback<event::TweenComplete>& callback);
+	Tween& OnPointStart(const EventCallback<event::TweenPointStart>& callback);
+	Tween& OnPointComplete(const EventCallback<event::TweenPointComplete>& callback);
+	Tween& OnReset(const EventCallback<event::TweenReset>& callback);
+	Tween& OnStop(const EventCallback<event::TweenStop>& callback);
+	Tween& OnPause(const EventCallback<event::TweenPause>& callback);
+	Tween& OnResume(const EventCallback<event::TweenResume>& callback);
+	Tween& OnYoyo(const EventCallback<event::TweenYoyo>& callback);
+	Tween& OnRepeat(const EventCallback<event::TweenRepeat>& callback);
 
 	/// @return True if the tween has completed all of its tween points.
 	[[nodiscard]] bool IsCompleted() const;
@@ -191,83 +182,6 @@ private:
 	static void Update(Scene& scene, secondsf dt);
 };
 
-namespace impl {
-
-template <typename T>
-struct TweenEventBase : public Event<T> {
-	TweenEventBase() = default;
-
-	TweenEventBase(Tween tween, Entity parent) : tween{ tween }, parent{ parent } {}
-
-	/// @brief Tween associated with the event.
-	Tween tween;
-
-	/// @brief Parent entity of the tween, or the tween itself if it has no parent.
-	Entity parent;
-};
-
-} // namespace impl
-
-namespace event {
-
-struct TweenProgress : public impl::TweenEventBase<TweenProgress> {
-	TweenProgress() = default;
-
-	TweenProgress(Tween tween, Entity parent, float progress) :
-		TweenEventBase{ tween, parent }, progress{ progress } {}
-
-	operator float() const { // NOSONAR
-		return progress;
-	}
-
-	/// @brief Value between [0.0f, 1.0f] indicating how much of the total duration the tween has
-	/// passed in the current repetition. Note: This value remains 0.0f to 1.0f even when the tween
-	/// is reversed or yoyoing.
-	float progress{ 0.0f };
-};
-
-struct TweenComplete : public impl::TweenEventBase<TweenComplete> {
-	using TweenEventBase::TweenEventBase;
-};
-
-struct TweenPointStart : public impl::TweenEventBase<TweenPointStart> {
-	using TweenEventBase::TweenEventBase;
-};
-
-struct TweenPointComplete : public impl::TweenEventBase<TweenPointComplete> {
-	using TweenEventBase::TweenEventBase;
-};
-
-struct TweenReset : public impl::TweenEventBase<TweenReset> {
-	using TweenEventBase::TweenEventBase;
-};
-
-struct TweenStart : public impl::TweenEventBase<TweenStart> {
-	using TweenEventBase::TweenEventBase;
-};
-
-struct TweenStop : public impl::TweenEventBase<TweenStop> {
-	using TweenEventBase::TweenEventBase;
-};
-
-struct TweenPause : public impl::TweenEventBase<TweenPause> {
-	using TweenEventBase::TweenEventBase;
-};
-
-struct TweenResume : public impl::TweenEventBase<TweenResume> {
-	using TweenEventBase::TweenEventBase;
-};
-
-struct TweenYoyo : public impl::TweenEventBase<TweenYoyo> {
-	using TweenEventBase::TweenEventBase;
-};
-
-struct TweenRepeat : public impl::TweenEventBase<TweenRepeat> {
-	using TweenEventBase::TweenEventBase;
-};
-
-} // namespace event
-
 class TweenPoint {
 public:
 	TweenPoint()		   = default;
@@ -318,7 +232,7 @@ private:
 	std::vector<impl::EventData> events_;
 
 	// TODO: Fix serialization.
-	// PTGN_SERIALIZE_PRIV(
+	// PTGN_REFLECT_PRIV(
 	//	TweenPoint, KeyValue("current_repeat", current_repeat_),
 	//	KeyValue("total_repeats", total_repeats_), KeyValue("yoyo", yoyo_),
 	//	KeyValue("currently_reversed", currently_reversed_),
@@ -335,13 +249,7 @@ enum class TweenState {
 	Paused,
 	Completed
 };
-
-PTGN_SERIALIZE_ENUM(
-	TweenState, { { TweenState::Stopped, "stopped" },
-				  { TweenState::Started, "started" },
-				  { TweenState::Paused, "paused" },
-				  { TweenState::Completed, "completed" } }
-);
+PTGN_REFLECT_ENUM(TweenState);
 
 class TweenData {
 public:
@@ -354,18 +262,9 @@ public:
 	TweenData(TweenData&&) noexcept			   = default;
 	TweenData& operator=(TweenData&&) noexcept = default;
 
-	/// @brief Value between [0.0f, 1.0f] indicating how much of the total duration the tween has
-	/// passed in the current repetition. Note: This value remains 0.0f to 1.0f even when the tween
-	/// is reversed or yoyoing.
-	float progress_{ 0.0f };
+	void SetState(TweenState new_state);
 
-	TweenState state_{ TweenState::Stopped };
-
-	// TODO: Fix serialization.
-	// PTGN_SERIALIZE_PRIV(
-	//	TweenData, KeyValue("progress", progress_), KeyValue("index", index_),
-	//	KeyValue("points", points_), KeyValue("state", state_)
-	//)
+	[[nodiscard]] bool IsState(TweenState state) const;
 
 	/// @return Index of the current tween point if there is a valid current tween point,
 	/// std::nullopt otherwise.
@@ -416,7 +315,19 @@ public:
 		requires std::constructible_from<T, TArgs...>
 	void PushEventToCurrentTweenPoint(TArgs&&... args);
 
+	// TODO: Fix serialization.
+	// PTGN_REFLECT_PRIV(
+	//	TweenData, KeyValue("progress", progress_), KeyValue("index", index_),
+	//	KeyValue("points", points_), KeyValue("state", state_)
+	//)
 private:
+	/// @brief Value between [0.0f, 1.0f] indicating how much of the total duration the tween has
+	/// passed in the current repetition. Note: This value remains 0.0f to 1.0f even when the tween
+	/// is reversed or yoyoing.
+	float progress_{ 0.0f };
+
+	TweenState state_{ TweenState::Stopped };
+
 	std::vector<std::unique_ptr<TweenPoint>> points_;
 
 	/// @brief Not a reliable indicator of what is the current tween point as tween points may be
@@ -424,32 +335,6 @@ private:
 	/// requests it.
 	mutable std::size_t index_{ 0 };
 };
-
-template <typename T>
-struct TweenScript : public Script {
-	TweenScript() = default;
-
-	explicit TweenScript(const Tween::Callback<T>& callback) : callback_{ callback } {}
-
-	void OnEvent(Event dispatcher) override {
-		dispatcher.DispatchVariant<T>(callback_);
-	}
-
-private:
-	Tween::Callback<T> callback_;
-};
-
-using TweenStartScript		   = TweenScript<ptgn::event::TweenStart>;
-using TweenCompleteScript	   = TweenScript<ptgn::event::TweenComplete>;
-using TweenPointStartScript	   = TweenScript<ptgn::event::TweenPointStart>;
-using TweenPointCompleteScript = TweenScript<ptgn::event::TweenPointComplete>;
-using TweenResetScript		   = TweenScript<ptgn::event::TweenReset>;
-using TweenStopScript		   = TweenScript<ptgn::event::TweenStop>;
-using TweenPauseScript		   = TweenScript<ptgn::event::TweenPause>;
-using TweenResumeScript		   = TweenScript<ptgn::event::TweenResume>;
-using TweenYoyoScript		   = TweenScript<ptgn::event::TweenYoyo>;
-using TweenRepeatScript		   = TweenScript<ptgn::event::TweenRepeat>;
-using TweenProgressScript	   = TweenScript<ptgn::event::TweenProgress>;
 
 template <typename T, typename... TArgs>
 	requires std::constructible_from<T, TArgs...>
@@ -459,7 +344,9 @@ void TweenData::PushEventToAllTweenPoints(TArgs&&... args) {
 		if (point->flagged_for_removal_) {
 			continue;
 		}
-		point->events_.Push<T>(std::nullopt, std::forward<TArgs>(args)...);
+		point->events_.emplace_back(
+			Hash<T>(), false, std::make_unique<T>(std::forward<TArgs>(args)...)
+		);
 	}
 }
 
@@ -471,12 +358,12 @@ void TweenData::PushEventToCurrentTweenPoint(TArgs&&... args) {
 		!points_[*current_index]) {
 		return;
 	}
-	points_[*current_index]->events_.Push<T>(std::nullopt, std::forward<TArgs>(args)...);
+	points_[*current_index]->events_.emplace_back(
+		Hash<T>(), false, std::make_unique<T>(std::forward<TArgs>(args)...)
+	);
 }
 
 } // namespace impl
-
-std::ostream& operator<<(std::ostream& os, impl::TweenState state);
 
 template <typename T, typename... TArgs>
 	requires std::constructible_from<T, TArgs...>

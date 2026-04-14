@@ -32,7 +32,7 @@ public:
 
 	bool operator==(const Ellipse&) const = default;
 
-	PTGN_SERIALIZE(Ellipse, radius_)
+	PTGN_REFLECT(Ellipse, radius_)
 
 private:
 	V2_float radius_;

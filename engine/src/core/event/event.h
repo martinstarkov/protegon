@@ -1,7 +1,9 @@
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <type_traits>
+#include <variant>
 
 #include "core/assert.h"
 #include "core/util/concepts.h"
@@ -173,5 +175,10 @@ private:
 
 	impl::EventData& event_;
 };
+
+template <typename T>
+using EventCallback = std::variant<
+	std::function<void()>, std::function<void(T)>, std::function<void(T&)>,
+	std::function<void(const T&)>>;
 
 } // namespace ptgn

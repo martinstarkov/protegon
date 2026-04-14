@@ -21,7 +21,7 @@ enum class CompareFunc : std::uint32_t {
 	Always	 = 0x0207  // GL_ALWAYS
 };
 
-PTGN_SERIALIZE_ENUM(CompareFunc);
+PTGN_REFLECT_ENUM(CompareFunc);
 
 /// @brief Stencil operations (glStencilOp / GL_STENCIL_FAIL, etc.)
 enum class StencilOp : std::uint32_t {
@@ -35,7 +35,7 @@ enum class StencilOp : std::uint32_t {
 	Invert	 = 0x150A  // GL_INVERT
 };
 
-PTGN_SERIALIZE_ENUM(StencilOp);
+PTGN_REFLECT_ENUM(StencilOp);
 
 struct StencilState {
 	bool enabled{ false };
@@ -54,7 +54,7 @@ struct StencilState {
 
 	bool operator==(const StencilState&) const = default;
 
-	PTGN_SERIALIZE(StencilState, enabled, func, ref, mask, fail_op, zfail_op, zpass_op, write_mask)
+	PTGN_REFLECT(StencilState, enabled, func, ref, mask, fail_op, zfail_op, zpass_op, write_mask)
 };
 
 struct DepthMaskState {
@@ -70,7 +70,7 @@ struct DepthMaskState {
 			   NearlyEqual(range_near, other.range_near) && NearlyEqual(range_far, other.range_far);
 	}
 
-	PTGN_SERIALIZE(DepthMaskState, write, func, range_near, range_far)
+	PTGN_REFLECT(DepthMaskState, write, func, range_near, range_far)
 };
 
 struct ClearDepth {
@@ -80,7 +80,7 @@ struct ClearDepth {
 		return NearlyEqual(value, other.value);
 	}
 
-	PTGN_SERIALIZE(ClearDepth, value)
+	PTGN_REFLECT(ClearDepth, value)
 };
 
 struct ColorMaskState {
@@ -91,7 +91,7 @@ struct ColorMaskState {
 
 	bool operator==(const ColorMaskState&) const = default;
 
-	PTGN_SERIALIZE(ColorMaskState, red, green, blue, alpha)
+	PTGN_REFLECT(ColorMaskState, red, green, blue, alpha)
 };
 
 struct ScissorState {
@@ -108,7 +108,7 @@ struct ScissorState {
 
 	bool operator==(const ScissorState&) const = default;
 
-	PTGN_SERIALIZE(ScissorState, enabled, viewport)
+	PTGN_REFLECT(ScissorState, enabled, viewport)
 };
 
 /// @brief Cull face selection (glCullFace)
@@ -118,7 +118,7 @@ enum class CullFace : std::uint32_t {
 	FrontAndBack = 0x0408  // GL_FRONT_AND_BACK
 };
 
-PTGN_SERIALIZE_ENUM(CullFace);
+PTGN_REFLECT_ENUM(CullFace);
 
 /// @brief Front face winding order (glFrontFace)
 enum class FrontFace : std::uint32_t {
@@ -126,7 +126,7 @@ enum class FrontFace : std::uint32_t {
 	CCW = 0x0901  // GL_CCW, Counter-clockwise
 };
 
-PTGN_SERIALIZE_ENUM(FrontFace);
+PTGN_REFLECT_ENUM(FrontFace);
 
 struct CullState {
 	bool enabled{ false };
@@ -136,7 +136,7 @@ struct CullState {
 
 	bool operator==(const CullState&) const = default;
 
-	PTGN_SERIALIZE(CullState, enabled, cull_face, front_face)
+	PTGN_REFLECT(CullState, enabled, cull_face, front_face)
 };
 
 struct RasterState {
@@ -147,7 +147,7 @@ struct RasterState {
 		return cull == other.cull && NearlyEqual(line_width, other.line_width);
 	}
 
-	PTGN_SERIALIZE(RasterState, cull, line_width)
+	PTGN_REFLECT(RasterState, cull, line_width)
 };
 
 } // namespace ptgn

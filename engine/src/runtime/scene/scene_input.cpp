@@ -30,7 +30,7 @@
 #include "runtime/physics/broadphase.h"
 #include "runtime/graphics/frame_context.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scripting/scripts.h"
+#include "runtime/scripting/script.h"
 #include "runtime/interaction/interactive.h"
 #include "tools/debug/debug_system.h"
 

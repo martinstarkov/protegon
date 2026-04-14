@@ -45,7 +45,7 @@ enum class TriggerCondition {
 
 std::ostream& operator<<(std::ostream& os, TriggerCondition condition);
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	TriggerCondition, { { TriggerCondition::None, nullptr },
 						{ TriggerCondition::MouseOverlaps, "mouse_overlaps" },
 						{ TriggerCondition::TransformOverlaps, "transform_overlaps" },
@@ -63,7 +63,7 @@ enum class DragEventPhase {
 
 std::ostream& operator<<(std::ostream& os, DragEventPhase phase);
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	DragEventPhase, { { DragEventPhase::MoveOver, "mouse_over" },
 					  { DragEventPhase::Drop, "drop" },
 					  { DragEventPhase::Pickup, "pickup" } }
@@ -94,7 +94,7 @@ struct Interactive {
 
 	bool enabled{ true };
 
-	PTGN_SERIALIZE(Interactive, enabled)
+	PTGN_REFLECT(Interactive, enabled)
 };
 
 struct Draggable {
@@ -124,7 +124,7 @@ struct Draggable {
 	TriggerCondition drop_condition{ TriggerCondition::MouseOverlaps };
 	TriggerCondition pickup_condition{ TriggerCondition::Overlaps };
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		Draggable, dropzones, hovered_dropzones, last_hovered_dropzones, offset, start, dragging,
 		move_condition, drop_condition, pickup_condition
 	)
@@ -140,7 +140,7 @@ struct Dropzone {
 
 	bool enabled{ true };
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		Dropzone, draggables, move_condition, drop_condition, pickup_condition
 	)
 };

@@ -1,17 +1,15 @@
 #include "runtime/scripting/script.h"
 
 #include "app/application.h"
+#include "core/event/key_event.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "platform/events.h"
-#include "core/input/key.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
-
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scripting/scripts.h"
 
 using namespace ptgn;
 

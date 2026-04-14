@@ -46,7 +46,7 @@ struct CameraData {
 
 class CameraResizeScript : public Script {
 public:
-	void OnEvent(Event dispatcher) override;
+	void OnEvent(Event event) override;
 };
 
 /// @brief If an entity has no RenderMask, we treat it as having

@@ -1,15 +1,9 @@
 #include "runtime/graphics/draw.h"
 
 #include <algorithm>
-#include <array>
-#include <optional>
-#include <string_view>
-#include <type_traits>
-#include <variant>
 #include <vector>
 
 #include "core/assert.h"
-#include "core/log.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
@@ -21,41 +15,19 @@
 #include "core/math/geometry/rounded_rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/geometry/triangle.h"
-#include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "core/graphics/color.h"
-#include "renderer/resources/texture.h"
-#include "renderer/vertex/vertex.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/render_context.h"
-#include "runtime/graphics/sprite.h"
-#include "runtime/scene/scene.h"
 
 namespace ptgn {
 
-float FillStyle::NormalizedToSDFThickness(float fade, V2_float radii) const {
-	return Visit([fade, radii]<typename T>(const T& s) {
-		if constexpr (std::is_same_v<T, Solid>) {
-			// Internally line width for a filled SDF is 1.0f.
-			return 1.0f;
-		} else if constexpr (std::is_same_v<T, Hollow>) {
-			PTGN_ASSERT(s.line_width >= kMinLineWidth, "Invalid line width for circle");
-
-			// Internally line width for a completely hollow ellipse is 0.0f.
-			return fade + s.line_width / std::min(radii.x, radii.y);
-		} else {
-			static_assert(false, "Incomplete visitor!");
-		}
-	});
-}
-
 namespace impl {
 
-void SetDraw(Entity entity, std::string_view drawable_name) {
-	entity.Add<IDrawable>(drawable_name);
+void SetDraw(Entity entity, std::size_t drawable_type_hash) {
+	entity.Add<IDrawable>(drawable_type_hash);
 }
 
 EntityDepthCompare::EntityDepthCompare(bool ascending) : ascending{ ascending } {}
@@ -142,38 +114,6 @@ Origin GetDrawOrigin(Entity entity) {
 	return entity.GetOrDefault<Origin>(Origin::Center);
 }
 
-void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
-	if (visible) {
-		if (entity.Has<impl::Visible>()) {
-			return;
-		}
-		entity.Add<impl::Visible>();
-		if (emit_visibility_event && entity.HasScene()) {
-			PushEvent<event::EntityShow>(entity);
-		}
-	} else {
-		if (!entity.Has<impl::Visible>()) {
-			return;
-		}
-		entity.Remove<impl::Visible>();
-		if (emit_visibility_event && entity.HasScene()) {
-			PushEvent<event::EntityHide>(entity);
-		}
-	}
-}
-
-void Show(Entity entity, bool emit_visibility_event) {
-	SetVisible(entity, true, emit_visibility_event);
-}
-
-void Hide(Entity entity, bool emit_visibility_event) {
-	SetVisible(entity, false, emit_visibility_event);
-}
-
-bool IsVisible(Entity entity) {
-	return entity.Has<impl::Visible>();
-}
-
 void SetDepth(Entity entity, Depth depth) {
 	entity.Add<Depth>(depth);
 }
@@ -198,86 +138,6 @@ void SetBlendMode(Entity entity, BlendMode blend_mode) {
 
 BlendMode GetBlendMode(Entity entity) {
 	return entity.GetOrDefault<BlendMode>(BlendMode::Blend);
-}
-
-void SetTint(Entity entity, Color color) {
-	if (color != impl::Tint{}) {
-		entity.Add<impl::Tint>(color);
-	} else {
-		entity.Remove<impl::Tint>();
-	}
-}
-
-Color GetTint(Entity entity) {
-	return entity.GetOrDefault<impl::Tint>();
-}
-
-std::optional<V2_int> GetTextureSize(Entity entity) {
-	if (auto texture{ entity.TryGet<Texture>() }) {
-		auto size{ texture->GetSize() };
-		PTGN_ASSERT(!size.IsZero(), "Texture does not have a valid size");
-		return size;
-	}
-	return std::nullopt;
-}
-
-std::optional<V2_int> GetCroppedTextureSize(Entity entity) {
-	if (auto crop{ entity.TryGet<impl::TextureCrop>() }) {
-		if (!crop->size.has_value()) {
-			return GetTextureSize(entity);
-		}
-		PTGN_ASSERT(!crop->size->IsZero(), "Cropped texture does not have a valid size");
-		if (crop->size.has_value()) {
-			return *crop->size;
-		}
-		return std::nullopt;
-	}
-	return GetTextureSize(entity);
-}
-
-void SetDisplaySize(Entity entity, V2_float display_size) {
-	entity.Add<impl::TextureSize>(display_size);
-}
-
-std::optional<V2_float> GetDisplaySize(Entity entity) {
-	if (auto texture_size{ entity.TryGet<impl::TextureSize>() }) {
-		return texture_size->GetValue();
-	}
-	auto cropped_size{ GetCroppedTextureSize(entity) };
-	if (cropped_size.has_value()) {
-		return *cropped_size * GetWorldScale(entity);
-	}
-	return std::nullopt;
-}
-
-std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically) {
-	if (!entity) {
-		return impl::GetDefaultTextureCoordinates(flip_vertically);
-	}
-
-	auto texture_size{ GetTextureSize(entity) };
-
-	if (!texture_size.has_value()) {
-		return impl::GetDefaultTextureCoordinates(flip_vertically);
-	}
-
-	std::array<V2_float, 4> tex_coords;
-
-	if (auto crop{ entity.TryGet<impl::TextureCrop>() }) {
-		auto crop_size{ crop->size.value_or(*texture_size) };
-		tex_coords = impl::GetTextureCoordinates(
-			crop->position, crop_size, *texture_size, flip_vertically, true
-		);
-	} else {
-		tex_coords =
-			impl::GetTextureCoordinates({}, *texture_size, *texture_size, flip_vertically, true);
-	}
-
-	auto scale{ GetWorldScale(entity) };
-
-	impl::FlipTextureCoordinates(tex_coords, scale);
-
-	return tex_coords;
 }
 
 Depth Depth::RelativeTo(Depth parent) const {

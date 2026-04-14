@@ -1,14 +1,11 @@
 #pragma once
 
 #include <chrono>
-#include <cstdint>
 #include <functional>
 #include <optional>
 #include <string_view>
-#include <type_traits>
 #include <unordered_map>
 #include <variant>
-
 
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
@@ -18,8 +15,6 @@
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-
-#include "runtime/scripting/script.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -48,58 +43,11 @@ struct AnimationConfig {
 	/// @brief Reset animation to frame 0 when it completes.
 	bool reset_on_complete{ false };
 
-	// TODO: Fix play count serialization.
-	PTGN_SERIALIZE(
-		AnimationConfig, frame_count, animation_duration, frame_size, start_pixel, reset_on_complete
+	PTGN_REFLECT(
+		AnimationConfig, frame_count, animation_duration, frame_size, play_count, start_pixel,
+		reset_on_complete
 	)
 };
-
-namespace event {
-
-/// @brief Triggered when an animation is started.
-struct AnimationStart : public Event<AnimationStart> {
-	AnimationStart() = default;
-};
-
-/// @brief Triggered when an animation is stopped, either by calling Stop() or Reset(), or when the
-/// animation completes.
-struct AnimationStop : public Event<AnimationStop> {
-	AnimationStop() = default;
-};
-
-/// @brief Triggered when an animation is paused.
-struct AnimationPause : public Event<AnimationPause> {
-	AnimationPause() = default;
-};
-
-/// @brief Triggered when an animation is resumed.
-struct AnimationResume : public Event<AnimationResume> {
-	AnimationResume() = default;
-};
-
-/// @brief Triggered any time the animation frame changes, including when the animation starts. Does
-/// not trigger when the animation is manually reset or if it completes and reset_on_complete is
-/// true.
-struct AnimationFrameChange : public Event<AnimationFrameChange> {
-	AnimationFrameChange() = default;
-};
-
-/// @brief Triggered every frame that an animation is playing.
-struct AnimationUpdate : public Event<AnimationUpdate> {
-	AnimationUpdate() = default;
-};
-
-/// @brief Triggered when all animation plays have completed.
-struct AnimationComplete : public Event<AnimationComplete> {
-	AnimationComplete() = default;
-};
-
-/// @brief Triggered every time an animation plays through all its frames.
-struct AnimationLoopComplete : public Event<AnimationLoopComplete> {
-	AnimationLoopComplete() = default;
-};
-
-} // namespace event
 
 struct Animation : public Entity {
 	Animation() = default;
@@ -194,30 +142,6 @@ namespace impl {
 struct AnimationMapKey : public HashComponent {
 	using HashComponent::HashComponent;
 };
-
-template <typename T>
-struct AnimationScript : public Script {
-	AnimationScript() = default;
-
-	explicit AnimationScript(const Animation::Callback& callback) : callback_{ callback } {}
-
-	void OnEvent(Event dispatcher) override {
-		dispatcher.DispatchVariantBound<T>(callback_, Animation{ entity });
-	}
-
-private:
-	Animation::Callback callback_;
-};
-
-using AnimationStartScript		  = AnimationScript<ptgn::event::AnimationStart>;
-using AnimationStopScript		  = AnimationScript<ptgn::event::AnimationStop>;
-using AnimationPauseScript		  = AnimationScript<ptgn::event::AnimationPause>;
-using AnimationResumeScript		  = AnimationScript<ptgn::event::AnimationResume>;
-using AnimationFrameChangeScript  = AnimationScript<ptgn::event::AnimationFrameChange>;
-using AnimationUpdateScript		  = AnimationScript<ptgn::event::AnimationUpdate>;
-using AnimationCompleteScript	  = AnimationScript<ptgn::event::AnimationComplete>;
-using AnimationLoopCompleteScript = AnimationScript<ptgn::event::AnimationLoopComplete>;
-
 } // namespace impl
 
 } // namespace ptgn
@@ -288,9 +212,7 @@ public:
 	void SetCurrentFrame(std::size_t new_frame);
 	void IncrementFrame();
 
-	PTGN_SERIALIZE(
-		AnimationData, config, frame_timer, current_frame, frames_played
-	)
+	PTGN_REFLECT(AnimationData, config, frame_timer, current_frame, frames_played)
 
 	AnimationConfig config;
 

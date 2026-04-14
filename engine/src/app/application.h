@@ -16,7 +16,7 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio_system.h"
-#include "runtime/event/event_handler.h"
+#include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_state.h"

@@ -4,9 +4,9 @@
 #include <string_view>
 #include <variant>
 
+#include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/component.h"
@@ -67,5 +67,19 @@ Sprite CreateSprite(
 );
 
 PTGN_REGISTER_DRAWABLE(Sprite);
+
+/// @return Unscaled size of the entire texture in pixels.
+std::optional<V2_int> GetTextureSize(Entity entity);
+
+/// @return Unscaled size of the cropped texture in pixels.
+std::optional<V2_int> GetCroppedTextureSize(Entity entity);
+
+/// @return Scaled size of the cropped texture in pixels.
+std::optional<V2_float> GetDisplaySize(Entity entity);
+
+/// @brief Overrides the scale of the entity.
+void SetDisplaySize(Entity entity, V2_float display_size);
+
+std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically);
 
 } // namespace ptgn

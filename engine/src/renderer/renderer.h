@@ -12,7 +12,6 @@
 #include <variant>
 #include <vector>
 
-#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
@@ -44,42 +43,28 @@ class AssetManager;
 class RenderTarget;
 class Window;
 
-namespace event {
-
-struct GameResized {
-	V2_int size;
-};
-
-} // namespace event
-
-namespace impl {
-
-namespace event {
-
-struct InternalGameResized {
-	V2_int size;
-};
-
-struct InternalDisplayResized {
-	V2_int size;
-};
-
-} // namespace event
-
-} // namespace impl
-
 namespace impl {
 
 class Renderer;
 class ShaderObject;
 class TextureObject;
-
 template <ResourceType T>
 class Resource;
-
 template <typename State, typename F>
 	requires std::same_as<std::invoke_result_t<F&>, void>
 void UpdateStateIfChanged(Renderer&, const std::optional<State>&, const State&, F&&);
+
+namespace gl {
+
+class GLContext;
+
+} // namespace gl
+
+using Index = std::uint32_t;
+
+inline constexpr std::size_t kBatchCapacity{ 10000 };
+inline constexpr std::size_t kVertexCapacity{ kBatchCapacity * 4 };
+inline constexpr std::size_t kIndexCapacity{ kBatchCapacity * 6 };
 
 struct QuadInfo {
 	std::array<V2_float, 4> positions;
@@ -110,21 +95,17 @@ struct PooledTarget {
 	bool in_use{ false };
 };
 
-namespace gl {
-
-class GLContext;
-
-} // namespace gl
-
-using Index = std::uint32_t;
-
-inline constexpr std::size_t kBatchCapacity{ 10000 };
-inline constexpr std::size_t kVertexCapacity{ kBatchCapacity * 4 };
-inline constexpr std::size_t kIndexCapacity{ kBatchCapacity * 6 };
-
 class Renderer {
 public:
 	ShaderId GetShader(std::string_view name) const;
+
+	RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
+
+	/// @return The display size of the renderer.
+	V2_int GetDisplaySize() const;
+
+	/// @return The game size of the renderer. Returns window size if unset.
+	V2_int GetGameSize() const;
 
 private:
 	friend class ptgn::Application;
@@ -147,16 +128,10 @@ private:
 
 	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
 
-	/// @return The display size of the renderer.
-	V2_int GetDisplaySize() const;
-
 	Viewport GetDisplayViewport() const;
 
 	/// @return The amount by which game size is scaled to achieve the display size.
 	V2_float GetScale() const;
-
-	/// @return The game size of the renderer. Returns window size if unset.
-	V2_int GetGameSize() const;
 
 	/// @return The game size scaling mode.
 	ScalingMode GetScalingMode() const;
@@ -270,8 +245,6 @@ private:
 
 	RenderPass BeginPass(RenderTargetId scene_render_target);
 
-	RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
-
 	RenderTargetId AcquirePooledTargetCopy(RenderTargetId render_target);
 	RenderTargetId AcquirePooledTarget(V2_int size, TextureFormat format);
 
@@ -281,7 +254,7 @@ private:
 
 	Window& window_;
 
-	std::function<void(EventData&&)> event_sink_;
+	std::function<void(V2_int, ResizeType)> event_sink_;
 
 	std::unique_ptr<gl::GLContext> gl_;
 

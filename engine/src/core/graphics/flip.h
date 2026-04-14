@@ -30,7 +30,7 @@ inline std::ostream& operator<<(std::ostream& os, Flip flip) {
 	}
 }
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	Flip, { { Flip::None, "none" },
 			{ Flip::Horizontal, "horizontal" },
 			{ Flip::Vertical, "vertical" },

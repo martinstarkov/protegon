@@ -54,7 +54,7 @@ std::ostream& operator<<(std::ostream& os, Ease ease);
 
 [[nodiscard]] float ApplyEase(float t, Ease ease);
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	Ease, { { Ease::None, "none" },
 			{ Ease::Linear, "linear" },
 			{ Ease::InOutSine, "in_out_sine" },

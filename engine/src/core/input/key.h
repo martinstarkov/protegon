@@ -137,6 +137,6 @@ enum class Key {
 	Menu	   = 348
 };
 
-PTGN_SERIALIZE_ENUM(Key);
+PTGN_REFLECT_ENUM(Key);
 
 } // namespace ptgn

@@ -36,7 +36,7 @@ public:
 
 	bool operator==(const Circle&) const = default;
 
-	PTGN_SERIALIZE(Circle, radius_)
+	PTGN_REFLECT(Circle, radius_)
 
 private:
 	float radius_{ 0.0f };

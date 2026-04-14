@@ -81,6 +81,6 @@ enum class BlendMode {
 	/// dstA   = srcA * dstA
 	MultiplyRGBAWithAlphaBlend
 };
-PTGN_SERIALIZE_ENUM(BlendMode);
+PTGN_REFLECT_ENUM(BlendMode);
 
 } // namespace ptgn

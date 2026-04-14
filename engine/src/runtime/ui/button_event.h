@@ -190,7 +190,7 @@ struct ButtonAnimationCompleteScript : public Script {
 
 	Entity button;
 
-	void OnEvent(Event dispatcher) override;
+	void OnEvent(Event event) override;
 };
 
 struct ToggleButtonInteractionStyle {
@@ -234,7 +234,7 @@ inline std::ostream& operator<<(std::ostream& os, ButtonState state) {
 	}
 }
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	ButtonState, { { ButtonState::Idle, "idle" },
 				   { ButtonState::Hover, "hover" },
 				   { ButtonState::Press, "press" },
@@ -273,7 +273,7 @@ inline std::ostream& operator<<(std::ostream& os, InternalButtonState state) {
 	}
 }
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	InternalButtonState, { { InternalButtonState::IdleUp, "idle_up" },
 						   { InternalButtonState::Hover, "hover" },
 						   { InternalButtonState::Pressed, "pressed" },
@@ -284,7 +284,7 @@ PTGN_SERIALIZE_ENUM(
 
 class InternalButtonScript : public Script {
 public:
-	void OnEvent(Event dispatcher) override;
+	void OnEvent(Event event) override;
 
 private:
 	void OnMouseMoveOver();
@@ -322,7 +322,7 @@ struct InternalButtonHover : public Event<InternalButtonHover> {
 
 class InternalToggleButtonScript : public Script {
 public:
-	void OnEvent(Event dispatcher) override;
+	void OnEvent(Event event) override;
 
 private:
 	void OnButtonPress() const;
@@ -370,7 +370,7 @@ struct ButtonEnabled {
 	bool press{ true };
 	bool hover{ true };
 
-	PTGN_SERIALIZER_REGISTER(ButtonEnabled, press, hover)
+	PTGN_REFLECTR_REGISTER(ButtonEnabled, press, hover)
 };
 
 template <typename Derived>
@@ -628,7 +628,7 @@ public:
 	ToggleButtonGroupScript() = default;
 	explicit ToggleButtonGroupScript(const ToggleButtonGroup& group);
 
-	void OnEvent(Event dispatcher) override;
+	void OnEvent(Event event) override;
 
 private:
 	void OnButtonPress();
@@ -642,8 +642,8 @@ struct ButtonScript : public Script {
 
 	explicit ButtonScript(const ButtonBase<Derived>::Callback& callback) : callback_{ callback } {}
 
-	void OnEvent(Event dispatcher) override {
-		dispatcher.DispatchVariantBound<T>(callback_, Derived{ entity });
+	void OnEvent(Event event) override {
+		event.DispatchVariantBound<T>(callback_, Derived{ entity });
 	}
 
 private:
@@ -664,7 +664,7 @@ struct ButtonToggleScript : public Script {
 
 	explicit ButtonToggleScript(const ToggleButton::Callback& callback);
 
-	void OnEvent(Event dispatcher) override;
+	void OnEvent(Event event) override;
 
 private:
 	ToggleButton::Callback callback_;

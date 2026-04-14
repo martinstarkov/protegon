@@ -1,11 +1,10 @@
 #pragma once
 
-
+#include "core/input/key.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/time/timer.h"
-#include "core/input/key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/move_direction.h"
@@ -183,7 +182,7 @@ struct TopDownMovement {
 
 	V2_float facing_direction;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		TopDownMovement, max_speed, max_acceleration, max_deceleration, max_turn_speed, friction,
 		use_acceleration, flip_vertically, keys_enabled, only_orthogonal_movement, up_key, left_key,
 		down_key, right_key, facing_direction, up_input, down_input, left_input, right_input, dir,
@@ -244,7 +243,7 @@ struct PlatformerMovement {
 
 	void Update(const Scene& scene, Transform& transform, RigidBody& rb, secondsf dt) const;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		PlatformerMovement, grounded, max_speed, max_acceleration, max_deceleration, max_turn_speed,
 		max_air_acceleration, max_air_deceleration, max_air_turn_speed, use_acceleration, friction,
 		left_key, right_key
@@ -266,7 +265,7 @@ public:
 	/// @brief  Duration of time after leaving the ground for which the player can jump.
 	milliseconds coyote_time{ 150 };
 
-	static void Ground(Entity entity, const Collision& collision, ColliderMask ground_mask);
+	static void Ground(Entity entity, const CollisionInfo& collision, ColliderMask ground_mask);
 
 	/// @brief  Gravity when grounded or near zero velocity.
 	float default_gravity_scale{ 5.0f };
@@ -287,7 +286,7 @@ public:
 	float jump_height{ 150.0f };
 	float time_to_jump_apex{ 1.0f };
 
-	PTGN_SERIALIZE_PRIV(
+	PTGN_REFLECT_PRIV(
 		PlatformerJump, KeyValue("jump_key", jump_key), KeyValue("down_key", down_key),
 		KeyValue("jump_buffer_time", jump_buffer_time), KeyValue("coyote_time", coyote_time),
 		KeyValue("default_gravity_scale", default_gravity_scale),

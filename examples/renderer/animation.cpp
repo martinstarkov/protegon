@@ -3,17 +3,15 @@
 #include <optional>
 
 #include "app/application.h"
+#include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "core/input/key.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
-#include "runtime/scripting/scripts.h"
 
 using namespace ptgn;
 

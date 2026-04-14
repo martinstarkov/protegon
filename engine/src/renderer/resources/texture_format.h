@@ -28,7 +28,7 @@ enum class TextureFormat : std::uint32_t {
 	SRGB8			  = 0x8C41, // GL_SRGB8
 	SRGB8_ALPHA8	  = 0x8C43	// GL_SRGB8_ALPHA8
 };
-PTGN_SERIALIZE_ENUM(TextureFormat);
+PTGN_REFLECT_ENUM(TextureFormat);
 
 inline bool IsDepthOnlyFormat(TextureFormat fmt) {
 	switch (fmt) {
@@ -94,14 +94,14 @@ enum class TextureMinFilter : std::int32_t {
 	NearestMipmapLinear	 = 0x2702, // GL_NEAREST_MIPMAP_LINEAR
 	LinearMipmapLinear	 = 0x2703  // GL_LINEAR_MIPMAP_LINEAR
 };
-PTGN_SERIALIZE_ENUM(TextureMinFilter);
+PTGN_REFLECT_ENUM(TextureMinFilter);
 
 // Texture Magnification Filter (GL_TEXTURE_MAG_FILTER)
 enum class TextureMagFilter : std::int32_t {
 	Nearest = 0x2600, // GL_NEAREST
 	Linear	= 0x2601  // GL_LINEAR
 };
-PTGN_SERIALIZE_ENUM(TextureMagFilter);
+PTGN_REFLECT_ENUM(TextureMagFilter);
 
 // Texture Wrap Mode (GL_TEXTURE_WRAP_S / GL_TEXTURE_WRAP_T)
 enum class TextureWrap : std::int32_t {
@@ -109,6 +109,6 @@ enum class TextureWrap : std::int32_t {
 	MirroredRepeat = 0x8370, // GL_MIRRORED_REPEAT
 	ClampToEdge	   = 0x812F	 // GL_CLAMP_TO_EDGE
 };
-PTGN_SERIALIZE_ENUM(TextureWrap);
+PTGN_REFLECT_ENUM(TextureWrap);
 
 } // namespace ptgn

@@ -11,7 +11,8 @@
 #include <variant>
 #include <vector>
 
-
+#include "core/graphics/color.h"
+#include "core/input/mouse.h"
 #include "core/log.h"
 #include "core/math/easing.h"
 #include "core/math/geometry/circle.h"
@@ -19,8 +20,6 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "core/input/mouse.h"
-#include "core/graphics/color.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset.h"
@@ -28,15 +27,13 @@
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
-#include "serialization/serialize.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -190,7 +187,7 @@ struct ButtonAnimationCompleteScript : public Script {
 
 	Entity button;
 
-	void OnEvent(Event dispatcher) override;
+	void OnEvent(Event event) override;
 };
 
 struct ToggleButtonInteractionStyle {
@@ -234,7 +231,7 @@ inline std::ostream& operator<<(std::ostream& os, ButtonState state) {
 	}
 }
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	ButtonState, { { ButtonState::Idle, "idle" },
 				   { ButtonState::Hover, "hover" },
 				   { ButtonState::Press, "press" },
@@ -273,7 +270,7 @@ inline std::ostream& operator<<(std::ostream& os, InternalButtonState state) {
 	}
 }
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	InternalButtonState, { { InternalButtonState::IdleUp, "idle_up" },
 						   { InternalButtonState::Hover, "hover" },
 						   { InternalButtonState::Pressed, "pressed" },
@@ -284,7 +281,7 @@ PTGN_SERIALIZE_ENUM(
 
 class InternalButtonScript : public Script {
 public:
-	void OnEvent(Event dispatcher) override;
+	void OnEvent(Event event) override;
 
 private:
 	void OnMouseMoveOver();
@@ -322,7 +319,7 @@ struct InternalButtonHover : public Event<InternalButtonHover> {
 
 class InternalToggleButtonScript : public Script {
 public:
-	void OnEvent(Event dispatcher) override;
+	void OnEvent(Event event) override;
 
 private:
 	void OnButtonPress() const;
@@ -370,7 +367,7 @@ struct ButtonEnabled {
 	bool press{ true };
 	bool hover{ true };
 
-	PTGN_SERIALIZER_REGISTER(ButtonEnabled, press, hover)
+	PTGN_REFLECTR_REGISTER(ButtonEnabled, press, hover)
 };
 
 template <typename Derived>
@@ -628,7 +625,7 @@ public:
 	ToggleButtonGroupScript() = default;
 	explicit ToggleButtonGroupScript(const ToggleButtonGroup& group);
 
-	void OnEvent(Event dispatcher) override;
+	void OnEvent(Event event) override;
 
 private:
 	void OnButtonPress();
@@ -642,8 +639,8 @@ struct ButtonScript : public Script {
 
 	explicit ButtonScript(const ButtonBase<Derived>::Callback& callback) : callback_{ callback } {}
 
-	void OnEvent(Event dispatcher) override {
-		dispatcher.DispatchVariantBound<T>(callback_, Derived{ entity });
+	void OnEvent(Event event) override {
+		event.DispatchVariantBound<T>(callback_, Derived{ entity });
 	}
 
 private:
@@ -664,7 +661,7 @@ struct ButtonToggleScript : public Script {
 
 	explicit ButtonToggleScript(const ToggleButton::Callback& callback);
 
-	void OnEvent(Event dispatcher) override;
+	void OnEvent(Event event) override;
 
 private:
 	ToggleButton::Callback callback_;

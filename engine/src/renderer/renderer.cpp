@@ -45,7 +45,7 @@
 #include "renderer/resources/texture_format.h"
 #include "renderer/resources/vertex_array.h"
 #include "renderer/vertex/vertex.h"
-#include "runtime/event/event_handler.h"
+#include "runtime/scene/scene_event.h"
 
 namespace ptgn {
 

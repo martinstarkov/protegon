@@ -5,6 +5,8 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
@@ -12,10 +14,7 @@
 #include "core/math/math_utils.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/input/key.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
-
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/collision_handler.h"
@@ -25,7 +24,6 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
-#include "runtime/scripting/scripts.h"
 #include "tools/debug/debug_system.h"
 
 using namespace ptgn;
@@ -55,7 +53,7 @@ struct TestOverlapScript : public Script {
 
 	void OnEvent(Event d) final {
 		d.Dispatch<event::OverlapStart>(&TestOverlapScript::OnOverlapStart, this);
-		d.Dispatch<event::OverlapContinue>(&TestOverlapScript::OnOverlap, this);
+		d.Dispatch<event::Overlap>(&TestOverlapScript::OnOverlap, this);
 		d.Dispatch<event::OverlapStop>(&TestOverlapScript::OnOverlapStop, this);
 	}
 
@@ -80,10 +78,10 @@ struct TestIntersectScript : public Script {
 	explicit TestIntersectScript(const std::string& name) : name{ name } {}
 
 	void OnEvent(Event d) final {
-		d.Dispatch<event::CollisionEvent>(&TestIntersectScript::OnCollision, this);
+		d.Dispatch<event::Collision>(&TestIntersectScript::OnCollision, this);
 	}
 
-	void OnCollision(Collision c) {
+	void OnCollision(CollisionInfo c) {
 		PTGN_LOG(name, " intersected with ", c.entity.GetId(), ", normal: ", c.normal);
 	}
 
@@ -96,10 +94,10 @@ struct TestRaycastScript : public Script {
 	explicit TestRaycastScript(const std::string& name) : name{ name } {}
 
 	void OnEvent(Event d) final {
-		d.Dispatch<event::CollisionEvent>(&TestRaycastScript::OnCollision, this);
+		d.Dispatch<event::Collision>(&TestRaycastScript::OnCollision, this);
 	}
 
-	void OnCollision(Collision c) {
+	void OnCollision(CollisionInfo c) {
 		PTGN_LOG(name, " ray collided with ", c.entity.GetId(), ", normal: ", c.normal);
 	}
 

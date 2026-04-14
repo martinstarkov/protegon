@@ -7,30 +7,28 @@
 #include <optional>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
 #include "renderer/event/event.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
-
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
-#include "runtime/scripting/scripts.h"
 
 namespace ptgn {
 
 namespace impl {
 
-void CameraResizeScript::OnEvent(Event dispatcher) {
-	dispatcher.Dispatch<event::InternalGameResized>([this](auto& resized) {
+void CameraResizeScript::OnEvent(Event event) {
+	event.Dispatch<ptgn::event::GameResized>([this](auto& resized) {
 		auto& camera{ entity.Get<CameraData>() };
 		camera.viewport = { {}, resized.size };
 		// PTGN_LOG("Camera ", entity, " received game resize: ", resized.size);

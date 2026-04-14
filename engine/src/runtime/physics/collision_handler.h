@@ -3,11 +3,10 @@
 #include <ostream>
 #include <vector>
 
-
+#include "core/graphics/color.h"
 #include "core/math/raycast.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/broadphase.h"
@@ -18,58 +17,6 @@ namespace ptgn {
 class Physics;
 class Scene;
 class SceneContext;
-
-namespace event {
-
-struct CollisionEvent : public Event<CollisionEvent> {
-	CollisionEvent() = default;
-
-	explicit CollisionEvent(const Collision& collision) : collision{ collision } {}
-
-	operator Collision() const { // NOSONAR
-		return collision;
-	}
-
-	Collision collision;
-};
-
-struct OverlapStart : public Event<OverlapStart> {
-	OverlapStart() = default;
-
-	explicit OverlapStart(Entity overlap_entity) : overlap_entity{ overlap_entity } {}
-
-	operator Entity() const { // NOSONAR
-		return overlap_entity;
-	}
-
-	Entity overlap_entity;
-};
-
-struct OverlapContinue : public Event<OverlapContinue> {
-	OverlapContinue() = default;
-
-	explicit OverlapContinue(Entity overlap_entity) : overlap_entity{ overlap_entity } {}
-
-	operator Entity() const { // NOSONAR
-		return overlap_entity;
-	}
-
-	Entity overlap_entity;
-};
-
-struct OverlapStop : public Event<OverlapStop> {
-	OverlapStop() = default;
-
-	explicit OverlapStop(Entity overlap_entity) : overlap_entity{ overlap_entity } {}
-
-	operator Entity() const { // NOSONAR
-		return overlap_entity;
-	}
-
-	Entity overlap_entity;
-};
-
-} // namespace event
 
 struct CollisionHandlerSettings {
 	/// @brief If true, draws continuous collision detection sweeps for debugging purposes.
@@ -93,7 +40,7 @@ struct SweepCollision {
 		const RaycastResult& raycast_result, float distance_squared, Entity sweep_entity
 	);
 
-	/// @brief Collision entity.
+	/// @brief collision entity.
 	Entity entity;
 	RaycastResult collision;
 	float dist2{ 0.0f };

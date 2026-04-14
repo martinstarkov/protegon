@@ -36,7 +36,7 @@ inline std::ostream& operator<<(std::ostream& os, MoveDirection direction) {
 	}
 }
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	MoveDirection, { { MoveDirection::None, "none" },
 					 { MoveDirection::Up, "up" },
 					 { MoveDirection::Right, "right" },

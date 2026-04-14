@@ -3,24 +3,21 @@
 
 #include "app/application.h"
 #include "core/assert.h"
-
-#include "core/log.h"
-#include "core/math/vector2.h"
-#include "platform/events.h"
+#include "core/event/key_event.h"
+#include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
+#include "core/log.h"
+#include "core/math/vector2.h"
 #include "platform/window.h"
-#include "core/graphics/color.h"
-#include "renderer/resources/texture.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
-#include "runtime/scripting/scripts.h"
 
 using namespace ptgn;
 

@@ -31,7 +31,7 @@ class IDrawable {
 public:
 	IDrawable() = default;
 
-	IDrawable(std::string_view name) : hash{ Hash(name) } {}
+	IDrawable(std::size_t type_hash) : hash{ type_hash } {}
 
 	using DrawFunc = void (*)(DrawContext&, Entity, Camera);
 
@@ -40,7 +40,7 @@ public:
 		return s;
 	}
 
-	PTGN_SERIALIZE_PRIV(IDrawable, hash)
+	PTGN_REFLECT_PRIV(IDrawable, hash)
 
 	std::size_t hash{ 0 };
 };

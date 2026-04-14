@@ -5,7 +5,7 @@
 
 #include "core/math/vector2.h"
 #include "renderer/pipeline/buffer_layout.h"
-#include "renderer/pipeline/flip.h"
+#include "core/graphics/flip.h"
 #include "renderer/vertex/glsl_types.h"
 
 namespace ptgn {

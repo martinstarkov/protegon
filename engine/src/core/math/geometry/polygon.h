@@ -68,7 +68,7 @@ public:
 
 	bool operator==(const Polygon&) const = default;
 
-	PTGN_SERIALIZE(Polygon, vertices_)
+	PTGN_REFLECT(Polygon, vertices_)
 
 private:
 	std::vector<V2_float> vertices_;

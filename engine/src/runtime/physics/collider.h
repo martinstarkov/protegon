@@ -9,16 +9,15 @@
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "serialization/serialize.h"
-#include "serialization/serialize.h"
 
 namespace ptgn {
 
 class CollisionHandler;
 
-struct Collision {
-	Collision() = default;
+struct CollisionInfo {
+	CollisionInfo() = default;
 
-	Collision(Entity other, V2_float collision_normal) :
+	CollisionInfo(Entity other, V2_float collision_normal) :
 		entity{ other }, normal{ collision_normal } {}
 
 	operator bool() const {
@@ -29,24 +28,24 @@ struct Collision {
 	/// @brief Normal set to {} for overlap only collisions.
 	V2_float normal;
 
-	friend bool operator==(const Collision& a, const Collision& b) {
+	friend bool operator==(const CollisionInfo& a, const CollisionInfo& b) {
 		return a.entity == b.entity;
 	}
 
-	friend std::ostream& operator<<(std::ostream& os, const Collision& collision) {
+	friend std::ostream& operator<<(std::ostream& os, const CollisionInfo& collision) {
 		os << "{ entity: " << collision.entity;
 		os << ", normal: " << collision.normal << " }";
 		return os;
 	}
 
-	PTGN_SERIALIZE(Collision, entity, normal)
+	PTGN_REFLECT(CollisionInfo, entity, normal)
 };
 
 } // namespace ptgn
 
 template <>
-struct std::hash<ptgn::Collision> {
-	std::size_t operator()(const ptgn::Collision& c) const noexcept {
+struct std::hash<ptgn::CollisionInfo> {
+	std::size_t operator()(const ptgn::CollisionInfo& c) const noexcept {
 		// Hashing combination algorithm from:
 		// https://stackoverflow.com/a/17017281
 		std::size_t value{ 17 };
@@ -69,7 +68,7 @@ enum class CollisionResponse {
 
 std::ostream& operator<<(std::ostream& os, CollisionResponse response);
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	CollisionResponse, { { CollisionResponse::Slide, "slide" },
 						 { CollisionResponse::Bounce, "bounce" },
 						 { CollisionResponse::Push, "push" },
@@ -85,7 +84,7 @@ enum class CollisionMode {
 
 std::ostream& operator<<(std::ostream& os, CollisionMode mode);
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	CollisionMode, { { CollisionMode::None, nullptr },
 					 { CollisionMode::Overlap, "overlap" },
 					 { CollisionMode::Discrete, "discrete" },
@@ -130,13 +129,13 @@ struct Collider {
 
 	// @return Empty collision if the entities have not collided during this frame, or the
 	// collision.
-	[[nodiscard]] Collision IntersectedWith(Entity other) const;
-	[[nodiscard]] Collision SweptWith(Entity other) const;
+	[[nodiscard]] CollisionInfo IntersectedWith(Entity other) const;
+	[[nodiscard]] CollisionInfo SweptWith(Entity other) const;
 	[[nodiscard]] bool OverlappedWith(Entity other) const;
 
 	// TODO: Fix collider shape serialization: KeyValue("shape", shape)
 
-	PTGN_SERIALIZE_PRIV(
+	PTGN_REFLECT_PRIV(
 		Collider, KeyValue("mode", mode), KeyValue("response", response), KeyValue("mask", mask_),
 		KeyValue("collides_with_masks_", collides_with_masks_)
 	)
@@ -159,8 +158,8 @@ private:
 	void ResetSweeps();
 
 	void AddOverlap(Entity other);
-	void AddIntersect(const Collision& collision);
-	void AddSweep(const Collision& collision);
+	void AddIntersect(const CollisionInfo& collision);
+	void AddSweep(const CollisionInfo& collision);
 
 	/// @brief  Which categories this collider collides with.
 	std::vector<ColliderMask> collides_with_masks_;
@@ -170,13 +169,13 @@ private:
 
 	/// @brief  Collisions from the current frame.
 	std::vector<Entity> overlaps_;
-	std::vector<Collision> intersects_;
-	std::vector<Collision> sweeps_;
+	std::vector<CollisionInfo> intersects_;
+	std::vector<CollisionInfo> sweeps_;
 
 	/// @brief  Collisions from the previous frame.
 	std::vector<Entity> previous_overlaps_;
-	std::vector<Collision> previous_intersects_;
-	std::vector<Collision> previous_sweeps_;
+	std::vector<CollisionInfo> previous_intersects_;
+	std::vector<CollisionInfo> previous_sweeps_;
 };
 
 } // namespace ptgn

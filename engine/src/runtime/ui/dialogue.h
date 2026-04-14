@@ -92,7 +92,7 @@ enum class DialogueBehavior {
 
 std::ostream& operator<<(std::ostream& os, DialogueBehavior behavior);
 
-PTGN_SERIALIZE_ENUM(
+PTGN_REFLECT_ENUM(
 	DialogueBehavior,
 	{
 		{ DialogueBehavior::Sequential, "sequential" },

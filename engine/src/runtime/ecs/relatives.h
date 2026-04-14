@@ -40,7 +40,7 @@ struct Children {
 	bool Has(Entity child) const;
 	bool Has(std::string_view name) const;
 
-	PTGN_SERIALIZE_PRIV(Children, KeyValue("children", children_))
+	PTGN_REFLECT_PRIV(Children, KeyValue("children", children_))
 
 	std::vector<Entity> children_;
 };

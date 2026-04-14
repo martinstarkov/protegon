@@ -6,18 +6,17 @@
 #include <utility>
 
 #include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/input/key.h"
-#include "core/input/mouse.h"
-#include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
@@ -26,7 +25,6 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
-#include "runtime/scripting/scripts.h"
 
 using namespace ptgn;
 

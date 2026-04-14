@@ -1,11 +1,10 @@
 #include "app/application.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
-
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/collider.h"
@@ -15,7 +14,6 @@
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
-#include "runtime/scripting/scripts.h"
 
 using namespace ptgn;
 

@@ -1,10 +1,9 @@
 #include "app/application.h"
+#include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
-
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/collision_handler.h"
@@ -13,7 +12,6 @@
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
-#include "runtime/scripting/scripts.h"
 
 using namespace ptgn;
 
@@ -24,10 +22,10 @@ constexpr ColliderMask ground_mask{ 1 };
 class GroundScript : public Script {
 public:
 	void OnEvent(Event d) override {
-		d.Dispatch<event::CollisionEvent>(&GroundScript::Ground, this);
+		d.Dispatch<event::Collision>(&GroundScript::Ground, this);
 	}
 
-	void Ground(const Collision& c) const {
+	void Ground(const CollisionInfo& c) const {
 		if (c.normal == V2_float{ 0.0f, -1.0f }) {
 			PlatformerJump::Ground(entity, c, ground_mask);
 		}

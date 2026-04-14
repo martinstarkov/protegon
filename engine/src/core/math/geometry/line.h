@@ -36,7 +36,7 @@ public:
 
 	bool operator==(const Line&) const = default;
 
-	PTGN_SERIALIZE(Line, start_, end_)
+	PTGN_REFLECT(Line, start_, end_)
 
 private:
 	V2_float start_;

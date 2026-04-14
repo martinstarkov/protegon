@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
@@ -23,16 +24,15 @@
 #include "core/time/time.h"
 #include "ecs/ecs.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "core/graphics/color.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/fx/particle_event.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scripting/scripts.h"
+#include "runtime/scripting/script.h"
 
 namespace ptgn {
 
@@ -239,8 +239,8 @@ void ParticleEmitterComponent::Update(const ParticleEmitter& emitter, secondsf d
 ParticleDestroyScript::ParticleDestroyScript(const ParticleEmitter::DestroyCallback& callback) :
 	callback_{ callback } {}
 
-void ParticleDestroyScript::OnEvent(Event dispatcher) {
-	dispatcher.DispatchVariant<event::ParticleDestroyed>(callback_);
+void ParticleDestroyScript::OnEvent(Event event) {
+	event.DispatchVariant<event::ParticleDestroyed>(callback_);
 }
 
 } // namespace impl
@@ -328,13 +328,6 @@ void Particle::Prewarm(float simulation_speed) {
 
 	Lerp(elapsed);
 }
-
-namespace event {
-
-ParticleDestroyed::ParticleDestroyed(const ParticleEmitter& emitter, const Particle& particle) :
-	emitter{ emitter }, particle{ particle } {}
-
-} // namespace event
 
 ParticleEmitter::ParticleEmitter(Entity entity) : Entity{ entity } {}
 

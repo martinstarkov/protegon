@@ -18,7 +18,7 @@
 
 #include "runtime/graphics/camera.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scripting/scripts.h"
+#include "runtime/scripting/script.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 

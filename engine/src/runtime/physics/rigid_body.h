@@ -32,7 +32,7 @@ struct RigidBody {
 	void Update(V2_float physics_gravity, secondsf dt);
 
 	// TODO: Fix max_speed and max_angular_speed serialization.
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		RigidBody, drag, angular_drag, gravity, immovable, velocity, angular_velocity
 	)
 

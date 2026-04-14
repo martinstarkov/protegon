@@ -16,7 +16,7 @@ struct Intersection {
 	float depth{ 0.0f };
 	V2_float normal;
 
-	PTGN_SERIALIZE(Intersection, depth, normal)
+	PTGN_REFLECT(Intersection, depth, normal)
 
 	[[nodiscard]] bool Occurred() const;
 

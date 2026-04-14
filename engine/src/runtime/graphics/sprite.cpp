@@ -1,20 +1,24 @@
 #include "runtime/graphics/sprite.h"
 
+#include <array>
 #include <optional>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
-#include "core/graphics/color.h"
 #include "renderer/resources/texture.h"
+#include "renderer/vertex/vertex.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset.h"
+#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
@@ -90,6 +94,74 @@ Sprite CreateSprite(Scene& scene, TextureOrKey texture, V2_float position, Origi
 	SetDrawOrigin(sprite, draw_origin);
 
 	return sprite;
+}
+
+std::optional<V2_int> GetTextureSize(Entity entity) {
+	if (auto texture{ entity.TryGet<Texture>() }) {
+		auto size{ texture->GetSize() };
+		PTGN_ASSERT(!size.IsZero(), "Texture does not have a valid size");
+		return size;
+	}
+	return std::nullopt;
+}
+
+std::optional<V2_int> GetCroppedTextureSize(Entity entity) {
+	if (auto crop{ entity.TryGet<impl::TextureCrop>() }) {
+		if (!crop->size.has_value()) {
+			return GetTextureSize(entity);
+		}
+		PTGN_ASSERT(!crop->size->IsZero(), "Cropped texture does not have a valid size");
+		if (crop->size.has_value()) {
+			return *crop->size;
+		}
+		return std::nullopt;
+	}
+	return GetTextureSize(entity);
+}
+
+void SetDisplaySize(Entity entity, V2_float display_size) {
+	entity.Add<impl::TextureSize>(display_size);
+}
+
+std::optional<V2_float> GetDisplaySize(Entity entity) {
+	if (auto texture_size{ entity.TryGet<impl::TextureSize>() }) {
+		return texture_size->GetValue();
+	}
+	auto cropped_size{ GetCroppedTextureSize(entity) };
+	if (cropped_size.has_value()) {
+		return *cropped_size * GetWorldScale(entity);
+	}
+	return std::nullopt;
+}
+
+std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically) {
+	if (!entity) {
+		return impl::GetDefaultTextureCoordinates(flip_vertically);
+	}
+
+	auto texture_size{ GetTextureSize(entity) };
+
+	if (!texture_size.has_value()) {
+		return impl::GetDefaultTextureCoordinates(flip_vertically);
+	}
+
+	std::array<V2_float, 4> tex_coords;
+
+	if (auto crop{ entity.TryGet<impl::TextureCrop>() }) {
+		auto crop_size{ crop->size.value_or(*texture_size) };
+		tex_coords = impl::GetTextureCoordinates(
+			crop->position, crop_size, *texture_size, flip_vertically, true
+		);
+	} else {
+		tex_coords =
+			impl::GetTextureCoordinates({}, *texture_size, *texture_size, flip_vertically, true);
+	}
+
+	auto scale{ GetWorldScale(entity) };
+
+	impl::FlipTextureCoordinates(tex_coords, scale);
+
+	return tex_coords;
 }
 
 } // namespace ptgn

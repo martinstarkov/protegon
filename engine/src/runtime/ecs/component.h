@@ -37,7 +37,7 @@ struct ArithmeticComponent {
 		return value_;
 	}
 
-	PTGN_SERIALIZE_PRIV(ArithmeticComponent, value_)
+	PTGN_REFLECT_VALUE(ArithmeticComponent, value_)
 
 protected:
 	T value_{};
@@ -61,7 +61,7 @@ struct Vector2Component {
 		return value_;
 	}
 
-	PTGN_SERIALIZE_PRIV(Vector2Component, value_)
+	PTGN_REFLECT_VALUE(Vector2Component, value_)
 
 protected:
 	Vector2<T> value_{ 0 };
@@ -96,7 +96,7 @@ struct StringComponent {
 		return value_;
 	}
 
-	PTGN_SERIALIZE_PRIV(StringComponent, value_)
+	PTGN_REFLECT_VALUE(StringComponent, value_)
 
 protected:
 	std::string value_;
@@ -125,7 +125,7 @@ struct HashComponent {
 		return value_;
 	}
 
-	PTGN_SERIALIZE_PRIV(HashComponent, value_)
+	PTGN_REFLECT_VALUE(HashComponent, value_)
 protected:
 	std::size_t value_{ 0 };
 };

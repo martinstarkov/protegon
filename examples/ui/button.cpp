@@ -6,7 +6,7 @@
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "platform/events.h"
+#include "core/event/key_event.h"
 #include "core/input/key.h"
 #include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"

@@ -26,7 +26,7 @@ inline std::ostream& operator<<(std::ostream& os, MoveMode mode) {
 	}
 }
 
-PTGN_SERIALIZE_ENUM(MoveMode, { { MoveMode::Lerp, "lerp" }, { MoveMode::Velocity, "velocity" } });
+PTGN_REFLECT_ENUM(MoveMode, { { MoveMode::Lerp, "lerp" }, { MoveMode::Velocity, "velocity" } });
 
 struct FollowConfig {
 	MoveMode move_mode{ MoveMode::Lerp };
@@ -61,7 +61,7 @@ struct FollowConfig {
 	bool operator==(const FollowConfig&) const = default;
 
 	// TODO: Fix stop distance serialization.
-	PTGN_SERIALIZER_REGISTER(
+	PTGN_REFLECTR_REGISTER(
 		FollowConfig, move_mode, follow_x, follow_y, teleport_on_start, lerp, deadzone, offset,
 		max_speed, max_acceleration
 	)

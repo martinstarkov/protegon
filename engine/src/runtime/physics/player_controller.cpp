@@ -13,7 +13,6 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
-
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/move_direction.h"
@@ -21,7 +20,6 @@
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
-#include "runtime/scripting/scripts.h"
 
 namespace ptgn {
 

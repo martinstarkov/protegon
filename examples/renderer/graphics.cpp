@@ -7,7 +7,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "platform/events.h"
+#include "core/event/key_event.h"
 #include "core/input/key.h"
 #include "platform/window.h"
 #include "core/graphics/color.h"
