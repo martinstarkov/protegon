@@ -42,7 +42,7 @@ static void EntityFollowStopImpl(Entity parent) {
 	parent.template Remove<RigidBody>();
 }
 
-template <EventType T>
+template <typename T>
 void EntityFollowStopImpl(const T& event) {
 	EntityFollowStopImpl(event.parent);
 }

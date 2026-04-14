@@ -110,7 +110,7 @@ void Entity::Invalidate() {
 	*this = {};
 }
 
-void Entity::OnEvent(EventDispatcher& dispatcher) {
+void Entity::OnEvent(Event& dispatcher) {
 	if (!*this) {
 		return;
 	}

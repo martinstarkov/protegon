@@ -52,7 +52,7 @@ struct EButtonPress : public Event<EButtonPress> {
 
 class PlayerInventoryUI : public Script {
 public:
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<EInventoryChanged>([this](const auto& e) {
 			if (e.who == entity) {
 				std::cout << "[UI] inventory now " << e.newCount << " (delta " << e.delta << ")\n";
@@ -88,7 +88,7 @@ private:
 
 class RestartButton : public Script {
 public:
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::MousePressed>([this](const auto& e) {
 			if (e == Mouse::Left) {
 				PushEvent<EAnnounceGlobal>({}, "Mouse down");
@@ -195,7 +195,7 @@ public:
 		// PTGN_INFO("Exiting test scene");
 	}
 
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::KeyPressed>([this](const auto& e) {
 			if (e == Key::Enter) {
 				PTGN_LOG("Pressed enter");

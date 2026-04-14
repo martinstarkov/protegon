@@ -26,7 +26,7 @@
 //
 //	friend bool operator==(const PostFX&, const PostFX&) = default;
 //
-//	PTGN_SERIALIZER_REGISTER_NAMED(PostFX, KeyValue("post_fx", post_fx_))
+//	PTGN_SERIALIZE_PRIV(PostFX, KeyValue("post_fx", post_fx_))
 // };
 //
 // struct PreFX {
@@ -36,7 +36,7 @@
 //
 //	friend bool operator==(const PreFX&, const PreFX&) = default;
 //
-//	PTGN_SERIALIZER_REGISTER_NAMED(PreFX, KeyValue("pre_fx", pre_fx_))
+//	PTGN_SERIALIZE_PRIV(PreFX, KeyValue("pre_fx", pre_fx_))
 // };
 //
 // } // namespace ptgn

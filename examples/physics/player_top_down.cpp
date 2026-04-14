@@ -24,7 +24,7 @@ constexpr V2_int game_size{ 960, 540 };
 constexpr ColliderMask ground_mask{ 1 };
 
 struct TopDownScript1 : public Script {
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::PlayerMoveStart>(&TopDownScript1::OnMoveStart, this);
 		d.Dispatch<event::PlayerMoveStop>(&TopDownScript1::OnMoveStop, this);
 		d.Dispatch<event::PlayerMoveHeld>(&TopDownScript1::OnMove, this);

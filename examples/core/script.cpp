@@ -30,7 +30,7 @@ public:
 
 class RemoveScript : public Script {
 public:
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::KeyPressed>(&RemoveScript::OnKeyPressed, this);
 	}
 

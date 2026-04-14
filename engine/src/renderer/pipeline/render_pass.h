@@ -2,9 +2,9 @@
 
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
-#include "renderer/primitives/id.h"
-#include "renderer/primitives/resource.h"
-#include "renderer/primitives/texture_format.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/resource.h"
+#include "renderer/resources/texture_format.h"
 
 namespace ptgn {
 

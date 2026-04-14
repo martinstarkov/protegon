@@ -71,7 +71,7 @@ struct TooltipHoverScript : public Script {
 
 	TooltipHoverScript(std::string_view tooltip_name, V2_float tooltip_offset);
 
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(Event d) override;
 
 	void OnCreate() override;
 

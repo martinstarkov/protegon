@@ -81,7 +81,7 @@ public:
 		bits_ = bits;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS(Flags<TEnum>, bits_)
+	PTGN_SERIALIZE_PRIV(Flags<TEnum>, bits_)
 
 private:
 	underlying bits_{ 0 };

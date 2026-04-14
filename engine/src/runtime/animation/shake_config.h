@@ -26,7 +26,7 @@ struct ShakeConfig {
 
 	bool operator==(const ShakeConfig&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+	PTGN_SERIALIZE(
 		ShakeConfig, maximum_translation, maximum_rotation, frequency, trauma_exponent,
 		recovery_speed
 	)

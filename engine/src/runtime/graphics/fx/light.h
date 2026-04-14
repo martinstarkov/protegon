@@ -60,7 +60,7 @@ struct LightData {
 	std::optional<Radians> cone_angle;
 
 	// TODO: Fix serialization of cone angle.
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+	PTGN_SERIALIZE(
 		LightData, intensity, ambient_intensity, ambient_color, falloff
 	)
 };

@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/log.h"
 #include "core/time/time.h"
 #include "runtime/scene/scene.h"
@@ -138,9 +139,36 @@ void SceneManager::ApplyCommands(std::unordered_map<std::size_t, Command>& top_p
 	}
 }
 
+void SceneManager::PreUpdate() {
+	for (const auto& scene : scenes_) {
+		if (scene->IsAwaitingTransitionDelay()) {
+			continue;
+		}
+		scene->InternalPreUpdate();
+	}
+}
+
+void SceneManager::OnEvent(std::vector<impl::EventData> events) {
+	for (const auto& global_event : events) {
+		for (const auto& scene : scenes_) {
+			if (scene->IsAwaitingTransitionDelay()) {
+				continue;
+			}
+			Event event{ global_event };
+			scene->InternalOnEvent(event);
+		}
+	}
+	for (const auto& scene : scenes_) {
+		if (scene->IsAwaitingTransitionDelay()) {
+			continue;
+		}
+		scene->InternalOnEvent();
+	}
+}
+
 void SceneManager::Update(secondsf dt) {
 	for (const auto& scene : scenes_) {
-		if (scene->transition_ && !scene->transition_->started_) {
+		if (scene->IsAwaitingTransitionDelay()) {
 			continue;
 		}
 		scene->InternalUpdate();
@@ -218,7 +246,7 @@ void SceneManager::UpdateReEnteredSceneKeys() {
 
 void SceneManager::Draw() const {
 	for (const auto& scene : scenes_) {
-		if (scene->transition_ && !scene->transition_->started_) {
+		if (scene->IsAwaitingTransitionDelay()) {
 			continue;
 		}
 		scene->InternalDraw();

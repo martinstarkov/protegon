@@ -12,7 +12,7 @@ namespace ptgn {
 
 namespace impl {
 
-void StateMachine::OnEvent(Entity entity, EventDispatcher dispatcher) {
+void StateMachine::OnEvent(Entity entity, Event dispatcher) {
 	for (const auto& transition : transitions) {
 		if (transition.from_state != current_state) {
 			continue;
@@ -34,7 +34,7 @@ void StateMachine::OnEvent(Entity entity, EventDispatcher dispatcher) {
 	}
 }
 
-void StateMachineScript::OnEvent(EventDispatcher dispatcher) {
+void StateMachineScript::OnEvent(Event dispatcher) {
 	auto* state_machines = entity.TryGet<StateMachines>();
 	if (!state_machines) {
 		return;

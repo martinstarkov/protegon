@@ -3,11 +3,11 @@
 #include <string>
 #include <string_view>
 
+#include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
-#include "core/graphics/color.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -37,7 +37,7 @@ struct ArithmeticComponent {
 		return value_;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(ArithmeticComponent, value_)
+	PTGN_SERIALIZE_PRIV(ArithmeticComponent, value_)
 
 protected:
 	T value_{};
@@ -61,7 +61,7 @@ struct Vector2Component {
 		return value_;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(Vector2Component, value_)
+	PTGN_SERIALIZE_PRIV(Vector2Component, value_)
 
 protected:
 	Vector2<T> value_{ 0 };
@@ -96,7 +96,7 @@ struct StringComponent {
 		return value_;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(StringComponent, value_)
+	PTGN_SERIALIZE_PRIV(StringComponent, value_)
 
 protected:
 	std::string value_;
@@ -125,7 +125,7 @@ struct HashComponent {
 		return value_;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(HashComponent, value_)
+	PTGN_SERIALIZE_PRIV(HashComponent, value_)
 protected:
 	std::size_t value_{ 0 };
 };

@@ -90,7 +90,7 @@ std::optional<Tooltip> Tooltip::Get(Scene& scene, std::string_view tooltip_name)
 TooltipHoverScript::TooltipHoverScript(std::string_view name, V2_float tooltip_offset) :
 	name{ name }, offset{ tooltip_offset } {}
 
-void TooltipHoverScript::OnEvent(EventDispatcher d) {
+void TooltipHoverScript::OnEvent(Event d) {
 	d.Dispatch<event::MouseEnter>(&TooltipHoverScript::OnMouseEnter, this);
 	d.Dispatch<event::MouseLeave>(&TooltipHoverScript::OnMouseLeave, this);
 }

@@ -19,7 +19,7 @@ namespace ptgn {
 
 class Manager;
 class Scene;
-class EventDispatcher;
+class Event;
 
 class UUID {
 public:
@@ -28,7 +28,7 @@ public:
 
 	operator std::uint64_t() const; // NOSONAR
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(UUID, uuid_)
+	PTGN_SERIALIZE_PRIV(UUID, uuid_)
 
 private:
 	std::uint64_t uuid_{ 0 };
@@ -205,7 +205,7 @@ private:
 	friend class Manager;
 	friend class Scene;
 
-	void OnEvent(EventDispatcher& dispatcher);
+	void OnEvent(Event& dispatcher);
 
 	template <JsonSerializable T>
 	void SerializeImpl(json& j) const {

@@ -33,21 +33,21 @@ using namespace ptgn;
 
 class TweenScriptA : public Script {
 public:
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::TweenComplete>([this](auto e) { PTGN_LOG("Completed tween A"); });
 	}
 };
 
 class TweenScriptB : public Script {
 public:
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::TweenPause>([this](auto e) { PTGN_LOG("Paused tween B"); });
 	}
 };
 
 class TweenScriptC : public Script {
 public:
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::TweenRepeat>([this]() {
 			PTGN_ERROR("This repeat should never be triggered for tween C");
 		});
@@ -74,7 +74,7 @@ public:
 
 class TweenScriptE : public Script {
 public:
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::TweenRepeat>([this]() {
 			PTGN_LOG("Repeating tween E (repeat #", Tween{ entity }.GetRepeats(), ")");
 		});
@@ -83,7 +83,7 @@ public:
 
 class TweenScriptG : public Script {
 public:
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::TweenYoyo>([this]() {
 			PTGN_LOG("Yoyoing tween G (repeat #", Tween{ entity }.GetRepeats(), ")");
 		});
@@ -92,7 +92,7 @@ public:
 
 class TweenScriptI : public Script {
 public:
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::TweenRepeat>([this]() {
 			PTGN_LOG("Infinitely repeating tween I (repeat #", Tween{ entity }.GetRepeats(), ")");
 		});
@@ -101,7 +101,7 @@ public:
 
 class TweenScriptCustom : public Script {
 public:
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::TweenPointComplete>([this]() {
 			SetTint(GetParent(entity), Color::RandomOpaque());
 		});

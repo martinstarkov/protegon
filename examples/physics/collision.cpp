@@ -53,7 +53,7 @@ struct TestOverlapScript : public Script {
 
 	explicit TestOverlapScript(const std::string& name) : name{ name } {}
 
-	void OnEvent(EventDispatcher d) final {
+	void OnEvent(Event d) final {
 		d.Dispatch<event::OverlapStart>(&TestOverlapScript::OnOverlapStart, this);
 		d.Dispatch<event::OverlapContinue>(&TestOverlapScript::OnOverlap, this);
 		d.Dispatch<event::OverlapStop>(&TestOverlapScript::OnOverlapStop, this);
@@ -79,7 +79,7 @@ struct TestIntersectScript : public Script {
 
 	explicit TestIntersectScript(const std::string& name) : name{ name } {}
 
-	void OnEvent(EventDispatcher d) final {
+	void OnEvent(Event d) final {
 		d.Dispatch<event::CollisionEvent>(&TestIntersectScript::OnCollision, this);
 	}
 
@@ -95,7 +95,7 @@ struct TestRaycastScript : public Script {
 
 	explicit TestRaycastScript(const std::string& name) : name{ name } {}
 
-	void OnEvent(EventDispatcher d) final {
+	void OnEvent(Event d) final {
 		d.Dispatch<event::CollisionEvent>(&TestRaycastScript::OnCollision, this);
 	}
 

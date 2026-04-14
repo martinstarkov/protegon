@@ -39,7 +39,7 @@ struct Collision {
 		return os;
 	}
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Collision, entity, normal)
+	PTGN_SERIALIZE(Collision, entity, normal)
 };
 
 } // namespace ptgn
@@ -136,7 +136,7 @@ struct Collider {
 
 	// TODO: Fix collider shape serialization: KeyValue("shape", shape)
 
-	PTGN_SERIALIZER_REGISTER_NAMED(
+	PTGN_SERIALIZE_PRIV(
 		Collider, KeyValue("mode", mode), KeyValue("response", response), KeyValue("mask", mask_),
 		KeyValue("collides_with_masks_", collides_with_masks_)
 	)

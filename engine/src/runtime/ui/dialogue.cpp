@@ -62,7 +62,7 @@ DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
 	return impl::GetDialogueComponent(entity);
 }
 
-void DialogueWaitScript::OnEvent(EventDispatcher d) {
+void DialogueWaitScript::OnEvent(Event d) {
 	d.Dispatch<event::KeyPressed>(&DialogueWaitScript::OnKeyPressed, this);
 }
 
@@ -113,7 +113,7 @@ void DialogueScrollScript::UpdateText(Entity text_entity, float elapsed_fraction
 	Text::SetParameter(t, revealed_text, true);
 }
 
-void DialogueScrollScript::OnEvent(EventDispatcher d) {
+void DialogueScrollScript::OnEvent(Event d) {
 	d.Dispatch<event::TweenPointComplete>(&DialogueScrollScript::OnPointComplete, this);
 	d.Dispatch<event::TweenProgress>(&DialogueScrollScript::OnProgress, this);
 }

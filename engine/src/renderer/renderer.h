@@ -12,6 +12,7 @@
 #include <variant>
 #include <vector>
 
+#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
@@ -123,6 +124,11 @@ inline constexpr std::size_t kIndexCapacity{ kBatchCapacity * 6 };
 
 class Renderer {
 public:
+	ShaderId GetShader(std::string_view name) const;
+
+private:
+	friend class ptgn::Application;
+
 	Renderer() = delete;
 	explicit Renderer(Window& window);
 	~Renderer() noexcept;
@@ -134,9 +140,6 @@ public:
 	void BeginFrame();
 	void EndFrame();
 
-	ShaderId GetShader(std::string_view name) const;
-
-private:
 	/// @param game_size Setting to {} will use dynamic window size.
 	void SetGameSize(
 		std::optional<V2_int> game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox

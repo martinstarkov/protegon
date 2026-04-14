@@ -49,7 +49,7 @@ struct AnimationConfig {
 	bool reset_on_complete{ false };
 
 	// TODO: Fix play count serialization.
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+	PTGN_SERIALIZE(
 		AnimationConfig, frame_count, animation_duration, frame_size, start_pixel, reset_on_complete
 	)
 };
@@ -195,13 +195,13 @@ struct AnimationMapKey : public HashComponent {
 	using HashComponent::HashComponent;
 };
 
-template <EventType T>
+template <typename T>
 struct AnimationScript : public Script {
 	AnimationScript() = default;
 
 	explicit AnimationScript(const Animation::Callback& callback) : callback_{ callback } {}
 
-	void OnEvent(EventDispatcher dispatcher) override {
+	void OnEvent(Event dispatcher) override {
 		dispatcher.DispatchVariantBound<T>(callback_, Animation{ entity });
 	}
 
@@ -288,7 +288,7 @@ public:
 	void SetCurrentFrame(std::size_t new_frame);
 	void IncrementFrame();
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+	PTGN_SERIALIZE(
 		AnimationData, config, frame_timer, current_frame, frames_played
 	)
 

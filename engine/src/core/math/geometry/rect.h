@@ -47,7 +47,7 @@ public:
 
 	bool operator==(const Rect&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Rect, min_, max_)
+	PTGN_SERIALIZE(Rect, min_, max_)
 
 private:
 	V2_float min_;

@@ -21,7 +21,7 @@ struct Lifetime {
 
 	milliseconds duration{ 0 };
 
-	PTGN_SERIALIZER_REGISTER_NAMED(
+	PTGN_SERIALIZE_PRIV(
 		Lifetime, KeyValue("duration", duration), KeyValue("timer", timer_)
 	)
 

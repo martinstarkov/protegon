@@ -63,7 +63,7 @@ class ToggleButtonGroupScene : public Scene {
 		// group2.SetActive("3");
 	}
 
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::KeyPressed>([this](const auto& key) {
 			if (key == Key::I) {
 				auto active1{ group1.GetActive() };

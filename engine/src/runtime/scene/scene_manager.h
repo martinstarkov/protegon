@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "core/event/event.h"
 #include "core/time/time.h"
 
 namespace ptgn {
@@ -53,6 +54,8 @@ public:
 	SceneManager(const SceneManager&)				 = delete;
 	SceneManager& operator=(const SceneManager&)	 = delete;
 
+	void PreUpdate();
+	void OnEvent(std::vector<impl::EventData> events);
 	void Update(secondsf dt);
 	void Draw() const;
 

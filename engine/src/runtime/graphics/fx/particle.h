@@ -326,7 +326,7 @@ struct ParticleDestroyScript : public Script {
 
 	explicit ParticleDestroyScript(const ParticleEmitter::DestroyCallback& callback);
 
-	void OnEvent(EventDispatcher dispatcher) override;
+	void OnEvent(Event dispatcher) override;
 
 private:
 	ParticleEmitter::DestroyCallback callback_;

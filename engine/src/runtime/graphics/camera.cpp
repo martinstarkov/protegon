@@ -29,7 +29,7 @@ namespace ptgn {
 
 namespace impl {
 
-void CameraResizeScript::OnEvent(EventDispatcher dispatcher) {
+void CameraResizeScript::OnEvent(Event dispatcher) {
 	dispatcher.Dispatch<event::InternalGameResized>([this](auto& resized) {
 		auto& camera{ entity.Get<CameraData>() };
 		camera.viewport = { {}, resized.size };

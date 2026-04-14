@@ -1,4 +1,4 @@
-#include "renderer/primitives/vertex.h"
+#include "renderer/resources/vertex.h"
 
 #include <array>
 #include <utility>

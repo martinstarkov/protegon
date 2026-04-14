@@ -25,7 +25,7 @@ struct RaycastResult {
 		return Occurred();
 	};
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(RaycastResult, t, normal)
+	PTGN_SERIALIZE(RaycastResult, t, normal)
 
 	/// @return True if the ray impacted the shape, false if it did not. Impact implies that t is in
 	/// the range [0.0, 1.0) and normal is not zero.

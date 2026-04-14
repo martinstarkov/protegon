@@ -32,7 +32,7 @@ public:
 	std::string message;
 	float value;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(MyData, id, message, value)
+	PTGN_SERIALIZE(MyData, id, message, value)
 };
 
 int main(int, char**) {

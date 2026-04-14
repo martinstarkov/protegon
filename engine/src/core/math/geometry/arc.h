@@ -47,7 +47,7 @@ public:
 
 	bool operator==(const Arc&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Arc, radius_, start_angle_, end_angle_, clockwise_)
+	PTGN_SERIALIZE(Arc, radius_, start_angle_, end_angle_, clockwise_)
 
 private:
 	float radius_{ 0.0f };

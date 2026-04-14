@@ -18,7 +18,7 @@
 using namespace ptgn;
 
 struct MyAnimationScript1 : public Script {
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::AnimationStart>(&MyAnimationScript1::OnAnimationStart, this);
 		d.Dispatch<event::AnimationUpdate>(&MyAnimationScript1::OnAnimationUpdate, this);
 		d.Dispatch<event::AnimationLoopComplete>(

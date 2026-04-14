@@ -11,12 +11,14 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/time/time.h"
 #include "core/util/hash.h"
 #include "ecs/ecs.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
+#include "runtime/event/event_handler.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
@@ -244,7 +246,7 @@ private:
 	friend class Scene;
 	friend class SceneContext;
 
-	explicit LocalSceneManager(SceneManager& scene_manager, Scene& scene);
+	explicit LocalSceneManager(impl::SceneManager& scene_manager, Scene& scene);
 
 	[[nodiscard]] bool CanIssueCommands(std::size_t target_key) const;
 
@@ -311,7 +313,6 @@ public:
 	SceneContext(SceneContext&&) noexcept			 = default;
 	SceneContext& operator=(SceneContext&&) noexcept = delete;
 
-	EventHandler& global_event;
 	Window& window;
 	AssetManager& asset;
 	FontSystem& font;
@@ -320,7 +321,7 @@ public:
 	LocalSceneManager scene;
 	RenderContext renderer;
 	DebugContext debug;
-	EventQueue event;
+	LocalEventHandler event;
 	SceneInput input;
 	Physics physics;
 	CollisionHandler collision;
@@ -384,7 +385,7 @@ public:
 	}
 
 	/// @brief Called an event is emitted by the event handler.
-	virtual void OnEvent(EventDispatcher) {
+	virtual void OnEvent(Event) {
 		/* user implementation */
 	}
 
@@ -522,8 +523,6 @@ private:
 	template <typename TComponent>
 	friend struct SceneHook;
 
-	void InternalEmit();
-
 	template <typename TScene, auto Member>
 	void HookThunk(ecs::impl::EntityHandle<JsonArchiver> handle) {
 		(static_cast<TScene*>(this)->*Member)(Entity{ handle, this });
@@ -534,6 +533,9 @@ private:
 	/// @brief Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
 	void InternalExit();
+	void InternalOnEvent(Event event);
+	void InternalOnEvent();
+	void InternalPreUpdate();
 
 	void InternalUpdate();
 	void InternalDraw();
@@ -567,12 +569,9 @@ struct MemberPointerClass<R (C::*)(Args...) const> {
 
 } // namespace impl
 
-template <EventType T, typename... TArgs>
+template <typename T, typename... TArgs>
 	requires std::constructible_from<T, TArgs...>
 void PushEvent(Entity entity, TArgs&&... args) {
-	if (!entity) {
-		return;
-	}
 	entity.GetScene().ctx().event.Push<T>(entity, std::forward<TArgs>(args)...);
 }
 

@@ -20,7 +20,7 @@ public:
 
 	void OnExit() override {}
 
-	void OnEvent(EventDispatcher d) override {}
+	void OnEvent(Event d) override {}
 };
 
 int main(int, char**) {

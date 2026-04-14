@@ -33,7 +33,7 @@ namespace impl {
 struct DialogueWaitScript : public Script {
 	DialogueComponent& GetDialogueComponent();
 
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(Event d) override;
 
 	void OnKeyPressed(Key k);
 };
@@ -43,7 +43,7 @@ struct DialogueScrollScript : public Script {
 
 	static void UpdateText(Entity text_entity, float elapsed_fraction);
 
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(Event d) override;
 
 	void OnPointComplete() const;
 	void OnProgress(float elapsed_fraction) const;

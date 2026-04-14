@@ -105,7 +105,7 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 			std::size_t walk_sound_frequency{ 1 };
 			std::string_view walk_sound_key;
 
-			void OnEvent(EventDispatcher d) override {
+			void OnEvent(Event d) override {
 				d.Dispatch<event::AnimationFrameChange>(
 					&AnimationRepeat::OnAnimationFrameChange, this
 				);
@@ -129,7 +129,7 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 		}
 
 		struct MovementScript : public Script {
-			void OnEvent(EventDispatcher d) override {
+			void OnEvent(Event d) override {
 				d.Dispatch<event::PlayerMoveStart>(&MovementScript::OnMoveStart, this);
 				d.Dispatch<event::PlayerMoveStop>(&MovementScript::OnMoveStop, this);
 				d.Dispatch<event::PlayerMoveDirectionChange>(

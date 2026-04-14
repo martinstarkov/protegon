@@ -11,11 +11,10 @@
 #include <vector>
 
 #include "core/assert.h"
-
+#include "core/event/event.h"
 #include "core/math/easing.h"
 #include "core/time/time.h"
 #include "runtime/ecs/entity.h"
-
 #include "runtime/scripting/script.h"
 #include "runtime/scripting/scripts.h"
 #include "serialization/serialize.h"
@@ -176,11 +175,11 @@ private:
 	/// @return Index of the current tween point, if a valid one exists.
 	std::optional<std::size_t> GetCurrentIndex() const;
 
-	template <EventType T, typename... TArgs>
+	template <typename T, typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	void PushEventToCurrentTweenPoint(TArgs&&... args);
 
-	template <EventType T, typename... TArgs>
+	template <typename T, typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	void PushEventToAllTweenPoints(TArgs&&... args);
 
@@ -316,10 +315,10 @@ private:
 
 	impl::Scripts script_container_;
 
-	LocalEventHandler events_;
+	std::vector<impl::EventData> events_;
 
 	// TODO: Fix serialization.
-	// PTGN_SERIALIZER_REGISTER_NAMED(
+	// PTGN_SERIALIZE_PRIV(
 	//	TweenPoint, KeyValue("current_repeat", current_repeat_),
 	//	KeyValue("total_repeats", total_repeats_), KeyValue("yoyo", yoyo_),
 	//	KeyValue("currently_reversed", currently_reversed_),
@@ -363,7 +362,7 @@ public:
 	TweenState state_{ TweenState::Stopped };
 
 	// TODO: Fix serialization.
-	// PTGN_SERIALIZER_REGISTER_NAMED(
+	// PTGN_SERIALIZE_PRIV(
 	//	TweenData, KeyValue("progress", progress_), KeyValue("index", index_),
 	//	KeyValue("points", points_), KeyValue("state", state_)
 	//)
@@ -408,12 +407,12 @@ public:
 
 	void ClearFlagged();
 
-	template <EventType T, typename... TArgs>
+	template <typename T, typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	void PushEventToAllTweenPoints(TArgs&&... args);
 
 	/// @brief Does nothing if there is no valid current tween point.
-	template <EventType T, typename... TArgs>
+	template <typename T, typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	void PushEventToCurrentTweenPoint(TArgs&&... args);
 
@@ -432,7 +431,7 @@ struct TweenScript : public Script {
 
 	explicit TweenScript(const Tween::Callback<T>& callback) : callback_{ callback } {}
 
-	void OnEvent(EventDispatcher dispatcher) override {
+	void OnEvent(Event dispatcher) override {
 		dispatcher.DispatchVariant<T>(callback_);
 	}
 
@@ -452,7 +451,7 @@ using TweenYoyoScript		   = TweenScript<ptgn::event::TweenYoyo>;
 using TweenRepeatScript		   = TweenScript<ptgn::event::TweenRepeat>;
 using TweenProgressScript	   = TweenScript<ptgn::event::TweenProgress>;
 
-template <EventType T, typename... TArgs>
+template <typename T, typename... TArgs>
 	requires std::constructible_from<T, TArgs...>
 void TweenData::PushEventToAllTweenPoints(TArgs&&... args) {
 	for (const auto& point : points_) {
@@ -464,7 +463,7 @@ void TweenData::PushEventToAllTweenPoints(TArgs&&... args) {
 	}
 }
 
-template <EventType T, typename... TArgs>
+template <typename T, typename... TArgs>
 	requires std::constructible_from<T, TArgs...>
 void TweenData::PushEventToCurrentTweenPoint(TArgs&&... args) {
 	auto current_index{ GetCurrentIndex() };
@@ -479,14 +478,14 @@ void TweenData::PushEventToCurrentTweenPoint(TArgs&&... args) {
 
 std::ostream& operator<<(std::ostream& os, impl::TweenState state);
 
-template <EventType T, typename... TArgs>
+template <typename T, typename... TArgs>
 	requires std::constructible_from<T, TArgs...>
 void Tween::PushEventToCurrentTweenPoint(TArgs&&... args) {
 	auto& tween{ Get<impl::TweenData>() };
 	tween.PushEventToCurrentTweenPoint<T>(std::forward<TArgs>(args)...);
 }
 
-template <EventType T, typename... TArgs>
+template <typename T, typename... TArgs>
 	requires std::constructible_from<T, TArgs...>
 void Tween::PushEventToAllTweenPoints(TArgs&&... args) {
 	auto& tween{ Get<impl::TweenData>() };

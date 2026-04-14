@@ -23,7 +23,7 @@ constexpr ColliderMask ground_mask{ 1 };
 
 class GroundScript : public Script {
 public:
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::CollisionEvent>(&GroundScript::Ground, this);
 	}
 

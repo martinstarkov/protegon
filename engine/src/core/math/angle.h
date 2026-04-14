@@ -4,7 +4,7 @@
 
 #include "core/math/math_utils.h"
 #include "core/math/tolerance.h"
-#include "serialization/json/serialize.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -40,7 +40,7 @@ struct Degrees {
 		return os;
 	}
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Degrees, value)
+	PTGN_SERIALIZE(Degrees, value)
 
 	float value{ 0.0f };
 };
@@ -75,7 +75,7 @@ struct Radians {
 		return os;
 	}
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Radians, value)
+	PTGN_SERIALIZE(Radians, value)
 
 	float value{ 0.0f };
 };

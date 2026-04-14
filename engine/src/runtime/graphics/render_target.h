@@ -34,12 +34,12 @@ namespace impl {
 
 class RenderTargetGameResizeScript : public Script {
 public:
-	void OnEvent(EventDispatcher dispatcher) override;
+	void OnEvent(Event dispatcher) override;
 };
 
 class RenderTargetDisplayResizeScript : public Script {
 public:
-	void OnEvent(EventDispatcher dispatcher) override;
+	void OnEvent(Event dispatcher) override;
 };
 
 } // namespace impl

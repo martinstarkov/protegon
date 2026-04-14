@@ -42,7 +42,7 @@ public:
 
 	bool operator==(const Capsule&) const = default;
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Capsule, start_, end_, radius_)
+	PTGN_SERIALIZE(Capsule, start_, end_, radius_)
 
 private:
 	V2_float start_;

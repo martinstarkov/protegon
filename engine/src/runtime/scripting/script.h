@@ -30,7 +30,7 @@ public:
 	/// @brief Called once per frame.
 	virtual void OnUpdate() { /* User implementation */ }
 
-	virtual void OnEvent(EventDispatcher) { /* User implementation */ }
+	virtual void OnEvent(Event) { /* User implementation */ }
 
 protected:
 	Entity entity;

@@ -105,7 +105,7 @@ private:
 
 	/// @brief Emits the given event to all scripts of the entity in the order they were added until
 	/// one of them handles it (or until all scripts have been tried).
-	void OnEvent(EventDispatcher dispatcher) const {
+	void OnEvent(Event dispatcher) const {
 		// Scripts wont be modified during dispatch because pending script changes are applied by
 		// ApplyPending.
 		for (const auto& s : scripts_) {

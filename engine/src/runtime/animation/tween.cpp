@@ -67,7 +67,7 @@ void TweenData::OnEvent() {
 		auto current{ std::exchange(point.events_.pending_, {}) };
 
 		for (auto& event : current) {
-			EventDispatcher dispatcher{ event };
+			Event dispatcher{ event };
 
 			PTGN_ASSERT(!event.entity.has_value());
 

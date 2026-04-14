@@ -16,7 +16,7 @@
 using namespace ptgn;
 
 struct ScriptSequence2 : public Script {
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::TweenProgress>(&ScriptSequence2::OnProgress, this);
 	}
 

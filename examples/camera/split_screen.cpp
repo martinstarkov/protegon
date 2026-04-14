@@ -36,7 +36,7 @@ constexpr Viewport camera_viewport{ { game_size.x / 2.0f, 0.0f },
 									{ game_size.x / 2.0f, game_size.y } };
 
 struct RectDragScript : public Script {
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::Dragging>(&RectDragScript::OnDrag, this);
 	}
 
@@ -47,7 +47,7 @@ struct RectDragScript : public Script {
 };
 
 struct CircleDragScript : public Script {
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::Dragging>(&CircleDragScript::OnDrag, this);
 	}
 

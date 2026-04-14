@@ -40,7 +40,7 @@ public:
 		return s;
 	}
 
-	PTGN_SERIALIZER_REGISTER_NAMELESS_IGNORE_DEFAULTS(IDrawable, hash)
+	PTGN_SERIALIZE_PRIV(IDrawable, hash)
 
 	std::size_t hash{ 0 };
 };

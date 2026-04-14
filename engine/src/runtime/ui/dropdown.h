@@ -40,14 +40,14 @@ class DropdownScript : public Script {
 public:
 	DropdownScript() = default;
 
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(Event d) override;
 };
 
 class DropdownItemScript : public Script {
 public:
 	DropdownItemScript() = default;
 
-	void OnEvent(EventDispatcher d) override;
+	void OnEvent(Event d) override;
 };
 
 } // namespace impl

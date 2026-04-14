@@ -63,7 +63,7 @@ public:
 		}
 	}
 
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::KeyPressed>([this](const auto& key) {
 			if (key == Key::Q) {
 				b1.Disable();

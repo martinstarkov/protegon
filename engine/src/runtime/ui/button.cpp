@@ -50,7 +50,7 @@ constexpr std::array<ButtonState, 3> kButtonStates{ ButtonState::Idle, ButtonSta
 
 ButtonAnimationCompleteScript::ButtonAnimationCompleteScript(Entity button) : button{ button } {}
 
-void ButtonAnimationCompleteScript::OnEvent(EventDispatcher dispatcher) {
+void ButtonAnimationCompleteScript::OnEvent(Event dispatcher) {
 	dispatcher.Dispatch<ptgn::event::AnimationComplete>([this]() mutable {
 		if (button) {
 			Button{ button }.PlayAnimation(ButtonState::Hover);
@@ -70,7 +70,7 @@ static void AddAnimationCompleteCallback(
 	}
 }
 
-void InternalButtonScript::OnEvent(EventDispatcher dispatcher) {
+void InternalButtonScript::OnEvent(Event dispatcher) {
 	using namespace ptgn::event;
 	dispatcher.Dispatch<MouseMoveOver>(&InternalButtonScript::OnMouseMoveOver, this);
 	dispatcher.Dispatch<MouseMoveOut>(&InternalButtonScript::OnMouseMoveOut, this);
@@ -178,7 +178,7 @@ void InternalButtonScript::OnMouseReleasedOut(Mouse mouse) {
 	}
 }
 
-void InternalToggleButtonScript::OnEvent(EventDispatcher dispatcher) {
+void InternalToggleButtonScript::OnEvent(Event dispatcher) {
 	dispatcher.Dispatch<event::InternalButtonPress>(
 		&InternalToggleButtonScript::OnButtonPress, this
 	);
@@ -195,7 +195,7 @@ void InternalToggleButtonScript::OnButtonPress() const {
 ToggleButtonGroupScript::ToggleButtonGroupScript(const ToggleButtonGroup& group) :
 	toggle_button_group_{ group } {}
 
-void ToggleButtonGroupScript::OnEvent(EventDispatcher dispatcher) {
+void ToggleButtonGroupScript::OnEvent(Event dispatcher) {
 	dispatcher.Dispatch<event::InternalButtonPress>(&ToggleButtonGroupScript::OnButtonPress, this);
 }
 
@@ -1101,7 +1101,7 @@ const Derived& ButtonBase<Derived>::Self() const {
 ButtonToggleScript::ButtonToggleScript(const ToggleButton::Callback& callback) :
 	callback_{ callback } {}
 
-void ButtonToggleScript::OnEvent(EventDispatcher dispatcher) {
+void ButtonToggleScript::OnEvent(Event dispatcher) {
 	dispatcher.DispatchVariant<ptgn::event::ButtonToggle>(callback_);
 }
 

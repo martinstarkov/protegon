@@ -20,7 +20,7 @@
 using namespace ptgn;
 
 struct TestScript : public Script {
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::KeyPressed>(&TestScript::OnKeyPressed, this);
 		d.Dispatch<event::MouseMove>(&TestScript::OnMouseMove, this);
 	}
@@ -35,7 +35,7 @@ struct TestScript : public Script {
 };
 
 struct TestScript2 : public Script {
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::MouseMove>(&TestScript2::OnMouseMove, this);
 	}
 

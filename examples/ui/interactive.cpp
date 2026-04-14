@@ -31,7 +31,7 @@
 using namespace ptgn;
 
 struct DragScript : public Script {
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::Dragging>([this](auto& e) { OnDrag(e.position); });
 	}
 
@@ -42,7 +42,7 @@ struct DragScript : public Script {
 };
 
 struct DropzoneScript : public Script {
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::DropIntoDropzone>([this](auto& e) { OnDrop(e.draggable); });
 		d.Dispatch<event::PickupFromDropzone>([this](auto& e) { OnPickup(e.draggable); });
 	}
@@ -57,7 +57,7 @@ struct DropzoneScript : public Script {
 };
 
 struct DraggableScript : public Script {
-	void OnEvent(EventDispatcher d) override {
+	void OnEvent(Event d) override {
 		d.Dispatch<event::Dragging>(&DraggableScript::OnDrag, this);
 		d.Dispatch<event::MousePressedOver>(&DraggableScript::OnMousePressedOver, this);
 		d.Dispatch<event::MousePressedOut>(&DraggableScript::OnMousePressedOut, this);

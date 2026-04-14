@@ -239,7 +239,7 @@ void ParticleEmitterComponent::Update(const ParticleEmitter& emitter, secondsf d
 ParticleDestroyScript::ParticleDestroyScript(const ParticleEmitter::DestroyCallback& callback) :
 	callback_{ callback } {}
 
-void ParticleDestroyScript::OnEvent(EventDispatcher dispatcher) {
+void ParticleDestroyScript::OnEvent(Event dispatcher) {
 	dispatcher.DispatchVariant<event::ParticleDestroyed>(callback_);
 }
 

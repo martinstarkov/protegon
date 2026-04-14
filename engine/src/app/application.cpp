@@ -17,8 +17,11 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "app/layer.h"
 #include "core/assert.h"
@@ -30,6 +33,7 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "platform/window.h"
 #include "renderer/renderer.h"
 #include "runtime/audio/audio_system.h"
+#include "runtime/event/event_handler.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
 
@@ -106,13 +110,17 @@ ApplicationLibrary::~ApplicationLibrary() noexcept {
 
 Application::Application(const ApplicationConfig& config) :
 	window_{ config.window },
-	renderer_{ window_, events_ },
-	events_{ scene_manager_ },
+	renderer_{ window_ },
 	assets_{ renderer_, audio_, font_ },
 	font_{ assets_ },
 	audio_{ assets_ },
 	debug_{} {
-	window_.event_sink_ = std::function([this](impl::EventData&& event) { events_.Push(event); });
+	window_.event_sink_	  = std::function([this](impl::EventData&& event) {
+		  event_handler_.global_event_queue_.emplace_back(event);
+	  });
+	renderer_.event_sink_ = std::function([this](impl::EventData&& event) {
+		event_handler_.global_event_queue_.emplace_back(event);
+	});
 }
 
 Application::Application(const std::string& title) :
@@ -123,10 +131,6 @@ Application::Application(const std::string& title, V2_int window_size) :
 
 Application::~Application() noexcept {
 	// Requires access to destructors.
-}
-
-std::uint32_t Application::GetScreenTargetId() const {
-	return renderer_.GetRenderTargetTexture(renderer_.screen_target_).operator std::uint32_t();
 }
 
 void Application::EnterMainLoop() {
@@ -168,11 +172,15 @@ void Application::Update() {
 
 	start = end;
 
-	running_ = window_.Update();
+	running_ = window_.PollEvents();
 
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
+
+	scene_manager_.PreUpdate();
+
+	scene_manager_.OnEvent(std::exchange(event_handler_.global_event_queue_, {}));
 
 	scene_manager_.Update(dt());
 

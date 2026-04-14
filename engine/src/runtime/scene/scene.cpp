@@ -10,6 +10,7 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -107,36 +108,44 @@ std::size_t SceneContext::GetFrameCount() const {
 	return app_.GetFrameCount();
 }
 
-void Scene::InternalEmit() {
+void Scene::InternalOnEvent(Event event) {
+	// Global event, dispatched to all entities in the scene.
+	for (auto [entity, scripts] : EntitiesWith<impl::Scripts>()) {
+		entity.OnEvent(event);
+		if (event.IsHandled()) {
+			break;
+		}
+	}
+
+	if (!event.IsHandled()) {
+		OnEvent(event);
+	}
+
+	for (auto [entity, scripts] : EntitiesWith<impl::Scripts>()) {
+		scripts.ApplyPending();
+	}
+}
+
+void Scene::InternalOnEvent() {
 	auto& events{ ctx().event };
 
 	auto current = std::exchange(events.queue_, {});
 
-	for (auto& event : current) {
-		EventDispatcher dispatcher{ event };
+	for (auto& entity_event : current) {
+		Event event{ entity_event };
 
-		if (event.entity.has_value()) {
+		if (entity_event.entity.has_value()) {
 			// Single entity event.
-			event.entity->OnEvent(dispatcher);
+			entity_event.entity->OnEvent(event);
 			continue;
 		}
 
-		// Global event, dispatched to all entities in the scene.
-		for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-			e.OnEvent(dispatcher);
-			if (dispatcher.IsHandled()) {
-				break;
-			}
-		}
-
-		if (!dispatcher.IsHandled()) {
-			OnEvent(dispatcher);
-		}
-
-		for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-			scripts.ApplyPending();
-		}
+		InternalOnEvent(event);
 	}
+}
+
+void Scene::InternalPreUpdate() {
+	ctx().input.Update();
 }
 
 void Scene::Init(Application& app) {
@@ -404,10 +413,6 @@ void Scene::InternalDraw() {
 }
 
 void Scene::InternalUpdate() {
-	ctx().input.Update();
-
-	InternalEmit();
-
 	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
 		scripts.Update();
 	}

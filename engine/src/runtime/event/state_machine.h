@@ -24,7 +24,7 @@ struct StateMachine {
 	std::size_t current_state{ 0 };
 	std::vector<Transition> transitions;
 
-	void OnEvent(Entity entity, EventDispatcher dispatcher);
+	void OnEvent(Entity entity, Event dispatcher);
 };
 
 struct StateMachines {
@@ -33,7 +33,7 @@ struct StateMachines {
 
 class StateMachineScript : public Script {
 public:
-	void OnEvent(EventDispatcher dispatcher) override;
+	void OnEvent(Event dispatcher) override;
 };
 
 } // namespace impl

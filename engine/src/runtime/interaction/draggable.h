@@ -94,7 +94,7 @@ struct Interactive {
 
 	bool enabled{ true };
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(Interactive, enabled)
+	PTGN_SERIALIZE(Interactive, enabled)
 };
 
 struct Draggable {
@@ -124,7 +124,7 @@ struct Draggable {
 	TriggerCondition drop_condition{ TriggerCondition::MouseOverlaps };
 	TriggerCondition pickup_condition{ TriggerCondition::Overlaps };
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+	PTGN_SERIALIZE(
 		Draggable, dropzones, hovered_dropzones, last_hovered_dropzones, offset, start, dragging,
 		move_condition, drop_condition, pickup_condition
 	)
@@ -140,7 +140,7 @@ struct Dropzone {
 
 	bool enabled{ true };
 
-	PTGN_SERIALIZER_REGISTER_IGNORE_DEFAULTS(
+	PTGN_SERIALIZE(
 		Dropzone, draggables, move_condition, drop_condition, pickup_condition
 	)
 };
