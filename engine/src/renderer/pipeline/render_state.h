@@ -20,8 +20,9 @@ enum class CompareFunc : std::uint32_t {
 	GEqual	 = 0x0206, // GL_GEQUAL
 	Always	 = 0x0207  // GL_ALWAYS
 };
-
-PTGN_REFLECT_ENUM(CompareFunc);
+PTGN_REFLECT_ENUM_MANUAL(
+	CompareFunc, Never, Less, Equal, LEqual, Greater, NotEqual, GEqual, Always
+);
 
 /// @brief Stencil operations (glStencilOp / GL_STENCIL_FAIL, etc.)
 enum class StencilOp : std::uint32_t {
@@ -34,8 +35,22 @@ enum class StencilOp : std::uint32_t {
 	DecrWrap = 0x8508, // GL_DECR_WRAP
 	Invert	 = 0x150A  // GL_INVERT
 };
+PTGN_REFLECT_ENUM_MANUAL(StencilOp, Keep, Zero, Replace, Incr, IncrWrap, Decr, DecrWrap, Invert);
 
-PTGN_REFLECT_ENUM(StencilOp);
+/// @brief Cull face selection (glCullFace)
+enum class CullFace : std::uint32_t {
+	Front		 = 0x0404, // GL_FRONT
+	Back		 = 0x0405, // GL_BACK
+	FrontAndBack = 0x0408  // GL_FRONT_AND_BACK
+};
+PTGN_REFLECT_ENUM_MANUAL(CullFace, Front, Back, FrontAndBack);
+
+/// @brief Front face winding order (glFrontFace)
+enum class FrontFace : std::uint32_t {
+	CW	= 0x0900, // GL_CW, Clockwise
+	CCW = 0x0901  // GL_CCW, Counter-clockwise
+};
+PTGN_REFLECT_ENUM_MANUAL(FrontFace, CW, CCW);
 
 struct StencilState {
 	bool enabled{ false };
@@ -110,23 +125,6 @@ struct ScissorState {
 
 	PTGN_REFLECT(ScissorState, enabled, viewport)
 };
-
-/// @brief Cull face selection (glCullFace)
-enum class CullFace : std::uint32_t {
-	Front		 = 0x0404, // GL_FRONT
-	Back		 = 0x0405, // GL_BACK
-	FrontAndBack = 0x0408  // GL_FRONT_AND_BACK
-};
-
-PTGN_REFLECT_ENUM(CullFace);
-
-/// @brief Front face winding order (glFrontFace)
-enum class FrontFace : std::uint32_t {
-	CW	= 0x0900, // GL_CW, Clockwise
-	CCW = 0x0901  // GL_CCW, Counter-clockwise
-};
-
-PTGN_REFLECT_ENUM(FrontFace);
 
 struct CullState {
 	bool enabled{ false };

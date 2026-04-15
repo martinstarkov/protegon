@@ -52,19 +52,96 @@ public:
 	Tween& During(milliseconds duration);
 
 	template <typename T, typename... TArgs>
+		requires BraceConstructible<T, TArgs...>
 	Tween& AddScript(TArgs&&... args);
 
-	Tween& OnProgress(const EventCallback<event::TweenProgress>& callback);
-	Tween& OnStart(const EventCallback<event::TweenStart>& callback);
-	Tween& OnComplete(const EventCallback<event::TweenComplete>& callback);
-	Tween& OnPointStart(const EventCallback<event::TweenPointStart>& callback);
-	Tween& OnPointComplete(const EventCallback<event::TweenPointComplete>& callback);
-	Tween& OnReset(const EventCallback<event::TweenReset>& callback);
-	Tween& OnStop(const EventCallback<event::TweenStop>& callback);
-	Tween& OnPause(const EventCallback<event::TweenPause>& callback);
-	Tween& OnResume(const EventCallback<event::TweenResume>& callback);
-	Tween& OnYoyo(const EventCallback<event::TweenYoyo>& callback);
-	Tween& OnRepeat(const EventCallback<event::TweenRepeat>& callback);
+	template <typename F>
+	Tween& OnProgress(F&& callback) {
+		AddScript<impl::EventScript<event::TweenProgress>>(
+			impl::MakeEventCallback<event::TweenProgress>(std::forward<F>(callback))
+		);
+		return *this;
+	}
+
+	template <typename F>
+	Tween& OnStart(F&& callback) {
+		AddScript<impl::EventScript<event::TweenStart>>(
+			impl::MakeEventCallback<event::TweenStart>(std::forward<F>(callback))
+		);
+		return *this;
+	}
+
+	template <typename F>
+	Tween& OnComplete(F&& callback) {
+		AddScript<impl::EventScript<event::TweenComplete>>(
+			impl::MakeEventCallback<event::TweenComplete>(std::forward<F>(callback))
+		);
+		return *this;
+	}
+
+	template <typename F>
+	Tween& OnPointStart(F&& callback) {
+		AddScript<impl::EventScript<event::TweenPointStart>>(
+			impl::MakeEventCallback<event::TweenPointStart>(std::forward<F>(callback))
+		);
+		return *this;
+	}
+
+	template <typename F>
+	Tween& OnPointComplete(F&& callback) {
+		AddScript<impl::EventScript<event::TweenPointComplete>>(
+			impl::MakeEventCallback<event::TweenPointComplete>(std::forward<F>(callback))
+		);
+		return *this;
+	}
+
+	template <typename F>
+	Tween& OnReset(F&& callback) {
+		AddScript<impl::EventScript<event::TweenReset>>(
+			impl::MakeEventCallback<event::TweenReset>(std::forward<F>(callback))
+		);
+		return *this;
+	}
+
+	template <typename F>
+	Tween& OnStop(F&& callback) {
+		AddScript<impl::EventScript<event::TweenStop>>(
+			impl::MakeEventCallback<event::TweenStop>(std::forward<F>(callback))
+		);
+		return *this;
+	}
+
+	template <typename F>
+	Tween& OnPause(F&& callback) {
+		AddScript<impl::EventScript<event::TweenPause>>(
+			impl::MakeEventCallback<event::TweenPause>(std::forward<F>(callback))
+		);
+		return *this;
+	}
+
+	template <typename F>
+	Tween& OnResume(F&& callback) {
+		AddScript<impl::EventScript<event::TweenResume>>(
+			impl::MakeEventCallback<event::TweenResume>(std::forward<F>(callback))
+		);
+		return *this;
+	}
+
+	template <typename F>
+	Tween& OnYoyo(F&& callback) {
+		AddScript<impl::EventScript<event::TweenYoyo>>(
+			impl::MakeEventCallback<event::TweenYoyo>(std::forward<F>(callback))
+		);
+		return *this;
+	}
+
+	template <typename F>
+	Tween& OnRepeat(F&& callback) {
+		AddScript<impl::EventScript<event::TweenRepeat>>(
+			impl::MakeEventCallback<event::TweenRepeat>(std::forward<F>(callback))
+		);
+		return *this;
+	}
 
 	/// @return True if the tween has completed all of its tween points.
 	[[nodiscard]] bool IsCompleted() const;
@@ -313,7 +390,8 @@ public:
 		requires BraceConstructible<T, TArgs...>
 	void PushEventToCurrentTweenPoint(TArgs&&... args);
 
-	PTGN_REFLECT(TweenData, progress_, index_, state_, points_)
+	// TODO: Fix serialization of points.
+	PTGN_REFLECT(TweenData, progress_, index_, state_)
 private:
 	/// @brief Value between [0.0f, 1.0f] indicating how much of the total duration the tween has
 	/// passed in the current repetition. Note: This value remains 0.0f to 1.0f even when the tween
@@ -372,6 +450,7 @@ void Tween::PushEventToAllTweenPoints(TArgs&&... args) {
 }
 
 template <typename T, typename... TArgs>
+	requires BraceConstructible<T, TArgs...>
 Tween& Tween::AddScript(TArgs&&... args) {
 	auto& container{ GetLastTweenPoint().script_container_ };
 	container.Add<T>(*this, std::forward<TArgs>(args)...);

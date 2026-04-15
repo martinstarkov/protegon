@@ -19,6 +19,7 @@
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/interactive.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
@@ -35,7 +36,7 @@ constexpr Viewport camera_viewport{ { game_size.x / 2.0f, 0.0f },
 
 struct RectDragScript : public Script {
 	void OnEvent(Event d) override {
-		d.Dispatch<event::Dragging>(&RectDragScript::OnDrag, this);
+		d.Dispatch<event::Drag>(&RectDragScript::OnDrag, this);
 	}
 
 	void OnDrag(V2_float pos) const {
@@ -46,7 +47,7 @@ struct RectDragScript : public Script {
 
 struct CircleDragScript : public Script {
 	void OnEvent(Event d) override {
-		d.Dispatch<event::Dragging>(&CircleDragScript::OnDrag, this);
+		d.Dispatch<event::Drag>(&CircleDragScript::OnDrag, this);
 	}
 
 	void OnDrag(V2_float pos) const {
@@ -73,7 +74,7 @@ struct ResolutionScene : public Scene {
 		camera0.SetViewport(camera0_viewport);
 		ctx().camera.SetViewport(camera_viewport);
 
-		ctx().input.SetSettings({ .debug_draw_enabled = true, .debug_draw_line_width = 10.0f });
+		ctx().interaction.SetDebugSettings({ .draw_enabled = true, .draw_line_width = 10.0f });
 
 		V2_int rect_size{ 100, 100 };
 		auto rect = CreateRect(*this, { 0, 0 }, rect_size, color::Green);

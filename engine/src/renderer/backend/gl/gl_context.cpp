@@ -41,7 +41,7 @@ GLContext::GLContext() :
 	vertex_arrays{ *this } {
 	auto max_texture_slots{ static_cast<std::size_t>(GetInteger(GL_MAX_TEXTURE_IMAGE_UNITS)) };
 	PTGN_ASSERT(max_texture_slots > 0);
-	bound_.texture_units.resize(max_texture_slots, {});
+	bound_.texture_units.resize(max_texture_slots, TextureUnitState{ true });
 
 	auto max_color_attachments{ static_cast<std::uint32_t>(GetInteger(GL_MAX_COLOR_ATTACHMENTS)) };
 	PTGN_ASSERT(max_color_attachments > 0);
@@ -201,7 +201,7 @@ std::optional<VertexBufferId> GLContext::GetBoundVertexBuffer() const {
 }
 
 std::optional<ElementBufferId> GLContext::GetBoundElementBuffer() const {
-	if (!bound_.vertex_array) {
+	if (!bound_.vertex_array.has_value() || !*bound_.vertex_array) {
 		return std::nullopt;
 	}
 	return vertex_arrays.cache_.Get(*bound_.vertex_array).element_buffer;
@@ -233,35 +233,37 @@ std::optional<VertexArrayId> GLContext::GetBoundVertexArray() const {
 }
 
 bool GLContext::IsBound(VertexBufferId id) const {
-	return GetBoundVertexBuffer() == id;
+	return bound_.vertex_buffer == id || !bound_.vertex_buffer.has_value();
 }
 
 bool GLContext::IsBound(ElementBufferId id) const {
-	return GetBoundElementBuffer() == id;
+	auto bound_id{ GetBoundElementBuffer() };
+	return bound_id == id || !bound_id.has_value();
 }
 
 bool GLContext::IsBound(UniformBufferId id) const {
-	return GetBoundUniformBuffer() == id;
+	return bound_.uniform_buffer == id || !bound_.uniform_buffer.has_value();
 }
 
 bool GLContext::IsBound(ShaderId id) const {
-	return GetBoundShader() == id;
+	return bound_.shader_program == id || !bound_.shader_program.has_value();
 }
 
 bool GLContext::IsBound(TextureId id) const {
-	return GetBoundTexture() == id;
+	auto bound_id{ GetBoundTexture() };
+	return bound_id == id || !bound_id.has_value();
 }
 
 bool GLContext::IsBound(RenderbufferId id) const {
-	return GetBoundRenderbuffer() == id;
+	return bound_.renderbuffer == id || !bound_.renderbuffer.has_value();
 }
 
 bool GLContext::IsBound(FramebufferId id) const {
-	return GetBoundFramebuffer() == id;
+	return bound_.framebuffer == id || !bound_.framebuffer.has_value();
 }
 
 bool GLContext::IsBound(VertexArrayId id) const {
-	return GetBoundVertexArray() == id;
+	return bound_.vertex_array == id || !bound_.vertex_array.has_value();
 }
 
 void GLContext::Destroy(VertexBufferId id) {

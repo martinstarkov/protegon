@@ -37,7 +37,9 @@ enum class ShaderType : std::uint32_t {
 	TessEvaluation = 0x8E87, // GL_TESS_EVALUATION_SHADER
 	Compute		   = 0x91B9	 // GL_COMPUTE_SHADER
 };
-PTGN_REFLECT_ENUM(ShaderType);
+PTGN_REFLECT_ENUM_MANUAL(
+	ShaderType, Vertex, Fragment, Geometry, TessControl, TessEvaluation, Compute
+);
 
 struct ShaderSpec {
 	ShaderType type{ ShaderType::Fragment };

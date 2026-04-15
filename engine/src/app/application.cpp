@@ -119,7 +119,7 @@ Application::Application(const ApplicationConfig& config) :
 	audio_{ assets_ },
 	debug_{} {
 	window_.event_sink_ = [this](impl::EventData&& event) {
-		event_handler_.global_event_queue_.emplace_back(event);
+		event_handler_.global_event_queue_.emplace_back(std::move(event));
 	};
 	renderer_.event_sink_ = [this](V2_int size, ResizeType type) {
 		switch (type) {

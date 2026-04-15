@@ -3,11 +3,11 @@
 #include <string_view>
 
 #include "app/application.h"
+#include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
-#include "renderer/resources/shader.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/shader.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -45,9 +45,9 @@ public:
 		ctx().asset.LoadShader("whirlpool", "assets/shader.glsl", "whirlpool");
 		ctx().asset.LoadTexture("noise", "assets/noise.png");
 
-		ctx().input.SetSettings({ .debug_draw_enabled = true });
+		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 
-		ctx().input.SetTopOnly(true);
+		ctx().interaction.SetTopOnly(true);
 		auto res{ ctx().renderer.GetGameSize() };
 
 		CreateRect(*this, -res * 0.5f + V2_float{ 500, 250 }, { 200, 50 }, color::Green);

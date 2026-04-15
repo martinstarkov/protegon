@@ -2,15 +2,14 @@
 
 #include <chrono>
 
+#include "core/graphics/color.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "core/graphics/color.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
-#include "runtime/graphics/render_target.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_transition.h"
 

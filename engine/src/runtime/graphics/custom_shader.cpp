@@ -7,13 +7,14 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/draw_context.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -35,7 +36,7 @@ void CustomShader::Draw(DrawContext& renderer, Entity entity, Camera) {
 	auto positions{ rect.GetWorldVertices(draw_transform, draw_origin) };
 	auto blend_mode{ GetBlendMode(entity) };
 
-	renderer.SetBlend(blend_mode);
+	renderer.SetBlendMode(blend_mode);
 
 	constexpr bool floor_positions{ true };
 

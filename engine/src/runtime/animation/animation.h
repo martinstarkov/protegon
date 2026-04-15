@@ -14,6 +14,7 @@
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/scripting/script.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -66,31 +67,79 @@ struct Animation : public Entity {
 	explicit Animation(Entity entity);
 
 	/// @brief Triggered when an animation is started.
-	Animation& OnStart(const EventCallback<event::AnimationStart>& callback);
+	template <typename F>
+	Animation& OnStart(F&& callback) {
+		AddScript<impl::EventScript<event::AnimationStart>>(
+			*this, impl::MakeEventCallback<event::AnimationStart>(std::forward<F>(callback))
+		);
+		return *this;
+	}
 
 	/// @brief Triggered when an animation is stopped, either by calling Stop() or Reset(), or when
 	/// the animation completes.
-	Animation& OnStop(const EventCallback<event::AnimationStop>& callback);
+	template <typename F>
+	Animation& OnStop(F&& callback) {
+		AddScript<impl::EventScript<event::AnimationStop>>(
+			*this, impl::MakeEventCallback<event::AnimationStop>(std::forward<F>(callback))
+		);
+		return *this;
+	}
 
 	/// @brief Triggered when an animation is paused.
-	Animation& OnPause(const EventCallback<event::AnimationPause>& callback);
+	template <typename F>
+	Animation& OnPause(F&& callback) {
+		AddScript<impl::EventScript<event::AnimationPause>>(
+			*this, impl::MakeEventCallback<event::AnimationPause>(std::forward<F>(callback))
+		);
+		return *this;
+	}
 
 	/// @brief Triggered when an animation is resumed.
-	Animation& OnResume(const EventCallback<event::AnimationResume>& callback);
+	template <typename F>
+	Animation& OnResume(F&& callback) {
+		AddScript<impl::EventScript<event::AnimationResume>>(
+			*this, impl::MakeEventCallback<event::AnimationResume>(std::forward<F>(callback))
+		);
+		return *this;
+	}
 
 	/// @brief Triggered any time the animation frame changes, including when the animation starts.
 	/// Does not trigger when the animation is manually reset or if it completes and
 	/// reset_on_complete is true.
-	Animation& OnFrameChange(const EventCallback<event::AnimationFrameChange>& callback);
+	template <typename F>
+	Animation& OnFrameChange(F&& callback) {
+		AddScript<impl::EventScript<event::AnimationFrameChange>>(
+			*this, impl::MakeEventCallback<event::AnimationFrameChange>(std::forward<F>(callback))
+		);
+		return *this;
+	}
 
 	/// @brief Triggered every frame that an animation is playing.
-	Animation& OnUpdate(const EventCallback<event::AnimationUpdate>& callback);
+	template <typename F>
+	Animation& OnUpdate(F&& callback) {
+		AddScript<impl::EventScript<event::AnimationUpdate>>(
+			*this, impl::MakeEventCallback<event::AnimationUpdate>(std::forward<F>(callback))
+		);
+		return *this;
+	}
 
 	/// @brief Triggered when all animation plays have completed.
-	Animation& OnComplete(const EventCallback<event::AnimationComplete>& callback);
+	template <typename F>
+	Animation& OnComplete(F&& callback) {
+		AddScript<impl::EventScript<event::AnimationComplete>>(
+			*this, impl::MakeEventCallback<event::AnimationComplete>(std::forward<F>(callback))
+		);
+		return *this;
+	}
 
 	/// @brief Triggered every time an animation plays through all its frames.
-	Animation& OnLoopComplete(const EventCallback<event::AnimationLoopComplete>& callback);
+	template <typename F>
+	Animation& OnLoopComplete(F&& callback) {
+		AddScript<impl::EventScript<event::AnimationLoopComplete>>(
+			*this, impl::MakeEventCallback<event::AnimationLoopComplete>(std::forward<F>(callback))
+		);
+		return *this;
+	}
 
 	Animation& SetTexture(TextureOrKey texture);
 

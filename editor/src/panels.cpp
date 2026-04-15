@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/util/string.h"
 #include "protegon_editor/layer.h"
 #include "runtime/ecs/entity.h"
 
@@ -58,7 +59,7 @@ static bool DrawInlineRenameField(Application& app, int id, bool is_entity) {
 	}
 
 	const bool submitted = ImGui::InputText(
-		"##RenameInline", app.rename_buffer_, sizeof(app.rename_buffer_),
+		"##RenameInline", layer.rename_buffer_, sizeof(app.rename_buffer_),
 		ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll
 	);
 
@@ -154,7 +155,7 @@ static bool EntityOrDescendantMatchesFilter(Application& app, int entity_id) {
 		return false;
 	}
 
-	if (EntityMatchesFilter(entity->name.c_str(), app.hierarchy_filter_)) {
+	if (EntityMatchesFilter(entity->name.c_str(), layer.hierarchy_filter_)) {
 		return true;
 	}
 
@@ -560,7 +561,7 @@ bool DrawComponentHeader(Application& app, const char* label, int id, bool non_r
 	return open;
 }
 
-void DrawDockspace(EditorLayer& layer, Application& app) {
+void DrawDockspace(EditorLayer& layer) {
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
 	ImGui::SetNextWindowPos(viewport->WorkPos);
 	ImGui::SetNextWindowSize(viewport->WorkSize);
@@ -598,7 +599,7 @@ void DrawDockspace(EditorLayer& layer, Application& app) {
 	ImGui::End();
 }
 
-void DrawHierarchyWindow(EditorLayer& layer, Application& app) {
+void DrawHierarchyWindow(EditorLayer& layer) {
 	// TODO: Fix.
 	std::string window_name = "Test Scene1" + std::string("###SceneHierarchyWindow");
 	// std::string window_name = app.CurrentScene().name + "###SceneHierarchyWindow";
@@ -644,12 +645,12 @@ void DrawHierarchyWindow(EditorLayer& layer, Application& app) {
 
 			for (std::size_t i = 0; i < visible_root_ids.size(); ++i) {
 				DrawEntityNodeRecursive(
-					app, visible_root_ids[i], static_cast<int>(i),
+					layer.app, visible_root_ids[i], static_cast<int>(i),
 					static_cast<int>(visible_root_ids.size())
 				);
 			}
 
-			DrawSiblingEndDropDivider(app, "EndRootDropTarget", -1);
+			DrawSiblingEndDropDivider(layer.app, "EndRootDropTarget", -1);
 			ImGui::Separator();
 
 			if (ImGui::BeginPopupContextWindow(
@@ -678,13 +679,13 @@ void DrawHierarchyWindow(EditorLayer& layer, Application& app) {
 	ImGui::End();
 }
 
-void DrawScenesWindow(EditorLayer& layer, Application& app) {
+void DrawScenesWindow(EditorLayer& layer) {
 	ImGui::Begin("Scenes");
 
 	// TODO: Fix.
 	for (int i = 0; i < static_cast<int>(1); ++i) {
 		if (layer.renaming_scene_index_ == i) {
-			DrawInlineRenameField(app, i + 100000, false);
+			DrawInlineRenameField(layer.app, i + 100000, false);
 			continue;
 		}
 
@@ -750,8 +751,8 @@ inline constexpr bool HasDrawComponentImplV = HasDrawComponentImpl<T>::value;
 
 } // namespace InspectorDetail
 
-static void DrawComponentImpl(EditorLayer& layer, Application& app, Transform& transform) {
-	(void)app;
+static void DrawComponentImpl(EditorLayer& layer, Transform& transform) {
+	(void)layer.app;
 
 	constexpr float kLabelWidth	 = 70.0f;
 	constexpr float kSpacing	 = 6.0f;
@@ -895,13 +896,13 @@ static void DrawComponentImpl(EditorLayer& layer, Application& app, Transform& t
 
 // TODO: Fix.
 /*
-static void DrawComponentImpl(EditorLayer& layer, Application& app, SpriteRendererComponent&
+static void DrawComponentImpl(EditorLayer& layer, SpriteRendererComponent&
 sprite_renderer) { ImGui::Checkbox("Enabled##SpriteRenderer", &sprite_renderer.enabled);
 	ImGui::ColorEdit4("Color", sprite_renderer.color);
 	ImGui::SliderInt("Order In Layer", &sprite_renderer.order_in_layer, -20, 20);
 }
 
-static void DrawComponentImpl(EditorLayer& layer, Application& app, Camera2DComponent& camera_2d) {
+static void DrawComponentImpl(EditorLayer& layer, Camera2DComponent& camera_2d) {
 	ImGui::Checkbox("Enabled##Camera2D", &camera_2d.enabled);
 	ImGui::Checkbox("Primary", &camera_2d.primary);
 	ImGui::SliderFloat("Size", &camera_2d.size, 1.0f, 20.0f);
@@ -920,7 +921,7 @@ static void DrawComponentImpl(EditorLayer& layer,Application& app, ScriptCompone
 }
 */
 
-void DrawInspectorWindow(EditorLayer& layer, Application& app) {
+void DrawInspectorWindow(EditorLayer& layer) {
 	ImGui::Begin("Inspector");
 
 	// TODO: Fix.
@@ -943,7 +944,7 @@ void DrawInspectorWindow(EditorLayer& layer, Application& app) {
 
 	ImGui::Spacing();
 	Transform test{ { 1, 2 }, 90.0f, { 2.0f, 2.0f } };
-	DrawComponentImpl(layer, app, test);
+	DrawComponentImpl(layer, test);
 	ImGui::Spacing();
 
 	ImGui::Separator();
@@ -951,7 +952,7 @@ void DrawInspectorWindow(EditorLayer& layer, Application& app) {
 		ImGui::OpenPopup("AddComponentPopupButton");
 	}
 	if (ImGui::BeginPopup("AddComponentPopupButton")) {
-		DrawAddComponentMenuItems(app);
+		DrawAddComponentMenuItems(layer.app);
 		ImGui::EndPopup();
 	}
 
@@ -982,10 +983,14 @@ static int FindMatchingResolutionPreset(int width, int height) {
 	return -1;
 }
 
-void DrawEngineSettingsWindow(EditorLayer& layer, Application& app) {
+void DrawEngineSettingsWindow(EditorLayer& layer) {
 	ImGui::Begin("Engine Settings");
 
 	ImGui::Checkbox("Use Logical Resolution", &layer.presentation_.use_logical_resolution);
+
+	std::string text = "Entity count: " + ToString(layer.GetEntityCount());
+
+	ImGui::Text(text.c_str());
 
 	if (layer.presentation_.use_logical_resolution) {
 		if (layer.presentation_.logical_width < 1) {
@@ -1086,7 +1091,7 @@ void DrawEngineSettingsWindow(EditorLayer& layer, Application& app) {
 	ImGui::End();
 }
 
-void DrawGameWindow(EditorLayer& layer, Application& app) {
+void DrawGameWindow(EditorLayer& layer) {
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 	ImGui::Begin(
 		"Game", nullptr,
@@ -1138,7 +1143,7 @@ void DrawGameWindow(EditorLayer& layer, Application& app) {
 	const ImVec2 view_max(view_min.x + view_w, view_min.y + view_h);
 
 	// Get your GL texture id from the renderer/screen target.
-	auto gl_tex = app.GetScreenTargetId();
+	auto gl_tex = layer.GetScreenTargetId();
 
 	//// FBO textures usually need flipped UVs in ImGui.
 	draw_list->AddImage(
@@ -1237,7 +1242,7 @@ struct PendingImportedAssetPaths {
 
 static PendingImportedAssetPaths g_pending_imports;
 
-static std::string GetCurrentSceneKey(EditorLayer& layer, const Application& app) {
+static std::string GetCurrentSceneKey(EditorLayer& layer) {
 	// TODO: Fix.
 	// if (layer.current_scene_index_ >= 0 &&
 	//	layer.current_scene_index_ < static_cast<int>(layer.scenes_.size())) {
@@ -1335,10 +1340,10 @@ static ImTextureID LoadFakeThumbnailForPath(Application& app, const std::string&
 	*/
 }
 
-void DrawAssetsWindow(EditorLayer& layer, Application& app) {
+void DrawAssetsWindow(EditorLayer& layer) {
 	ImGui::Begin("Assets", nullptr, ImGuiWindowFlags_NoCollapse);
 
-	const std::string current_scene_key = GetCurrentSceneKey(layer, app);
+	const std::string current_scene_key = GetCurrentSceneKey(layer);
 	if (current_scene_key.empty()) {
 		ImGui::TextUnformatted("No scene selected.");
 		ImGui::End();
@@ -1356,7 +1361,7 @@ void DrawAssetsWindow(EditorLayer& layer, Application& app) {
 		for (const std::string& path : imported_paths) {
 			ImTextureID thumb = static_cast<ImTextureID>(0);
 			if (FakeAssetManager::IsImageFile(path)) {
-				thumb = LoadFakeThumbnailForPath(app, path);
+				thumb = LoadFakeThumbnailForPath(layer.app, path);
 			}
 			g_fake_asset_manager.AddAssetToScene(current_scene_key, path, thumb);
 		}

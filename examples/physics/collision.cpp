@@ -16,7 +16,10 @@
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/tint.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/physics/collider.h"
+#include "runtime/physics/collision_event.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/physics.h"
@@ -167,18 +170,18 @@ public:
 		intersect.Add<Rect>(rect_size);
 		overlap.Add<Rect>(rect_size);
 		sweep.Add<Rect>(rect_size);
-		SetDraw<impl::RectDraw>(intersect);
-		SetDraw<impl::RectDraw>(overlap);
-		SetDraw<impl::RectDraw>(sweep);
+		SetDraw<RectDraw>(intersect);
+		SetDraw<RectDraw>(overlap);
+		SetDraw<RectDraw>(sweep);
 		intersect_circle.Add<Collider>(Circle{ circle_radius });
 		overlap_circle.Add<Collider>(Circle{ circle_radius });
 		sweep_circle.Add<Collider>(Circle{ circle_radius });
 		intersect_circle.Add<Circle>(circle_radius);
 		overlap_circle.Add<Circle>(circle_radius);
 		sweep_circle.Add<Circle>(circle_radius);
-		SetDraw<impl::CircleDraw>(intersect_circle);
-		SetDraw<impl::CircleDraw>(overlap_circle);
-		SetDraw<impl::CircleDraw>(sweep_circle);
+		SetDraw<CircleDraw>(intersect_circle);
+		SetDraw<CircleDraw>(overlap_circle);
+		SetDraw<CircleDraw>(sweep_circle);
 
 		auto& b1{ intersect.Get<Collider>() };
 		auto& b2{ overlap.Get<Collider>() };

@@ -447,8 +447,6 @@ std::pair<std::uint32_t, bool> Renderer::GetTextureSlot(TextureId tex) {
 	return { static_cast<std::uint32_t>(batch_textures_.size()), true };
 }
 
-namespace impl {
-
 template <typename State, typename F>
 	requires std::same_as<std::invoke_result_t<F&>, void>
 void UpdateStateIfChanged(
@@ -459,8 +457,6 @@ void UpdateStateIfChanged(
 		std::invoke(std::forward<F>(func));
 	}
 }
-
-} // namespace impl
 
 void Renderer::SetViewport(Viewport viewport) {
 	UpdateStateIfChanged(*this, gl_->GetBoundState().viewport, viewport, [this, viewport] {
@@ -855,6 +851,10 @@ void Renderer::ResizeScreenTarget(V2_int size) {
 
 void Renderer::BindScreenTarget() {
 	BindRenderTarget(screen_target_);
+}
+
+RenderTargetId Renderer::GetScreenTarget() const {
+	return screen_target_.resource_;
 }
 
 void Renderer::InvalidateState() {

@@ -10,6 +10,7 @@
 
 namespace ptgn {
 
+class Application;
 class Scene;
 class SceneTransition;
 
@@ -46,18 +47,6 @@ public:
 		std::unique_ptr<SceneTransition> transition_in;
 	};
 
-	SceneManager()									 = default;
-	~SceneManager() noexcept						 = default;
-	SceneManager(SceneManager&&) noexcept			 = delete;
-	SceneManager& operator=(SceneManager&&) noexcept = delete;
-	SceneManager(const SceneManager&)				 = delete;
-	SceneManager& operator=(const SceneManager&)	 = delete;
-
-	void PreUpdate();
-	void OnEvent();
-	void Update(secondsf dt);
-	void Draw() const;
-
 	template <typename... TArgs>
 		requires std::constructible_from<Command, TArgs...>
 	void PushCommand(TArgs&&... args) {
@@ -72,6 +61,20 @@ public:
 	Scene& GetScene(std::size_t scene_key);
 
 private:
+	friend class ptgn::Application;
+
+	SceneManager()									 = default;
+	~SceneManager() noexcept						 = default;
+	SceneManager(SceneManager&&) noexcept			 = delete;
+	SceneManager& operator=(SceneManager&&) noexcept = delete;
+	SceneManager(const SceneManager&)				 = delete;
+	SceneManager& operator=(const SceneManager&)	 = delete;
+
+	void PreUpdate();
+	void OnEvent();
+	void Update(secondsf dt);
+	void Draw() const;
+
 	struct ReEnteringScene {
 		std::size_t scene_key{ 0 };
 		std::size_t temporary_scene_key{ 0 };

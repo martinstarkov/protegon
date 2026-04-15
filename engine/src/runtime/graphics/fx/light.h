@@ -2,9 +2,9 @@
 
 #include <optional>
 
+#include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
@@ -37,6 +37,8 @@ struct LightProperties {
 
 	/// @brief Falloff of the light. The higher the value, the less light reaches the outer radius.
 	float falloff{ 2.0f };
+
+	PTGN_REFLECT(LightProperties, radius, color, cone_angle, direction_angle, intensity, falloff)
 };
 
 namespace impl {
@@ -59,10 +61,7 @@ struct LightData {
 	/// point light.
 	std::optional<Radians> cone_angle;
 
-	// TODO: Fix serialization of cone angle.
-	PTGN_REFLECT(
-		LightData, intensity, ambient_intensity, ambient_color, falloff
-	)
+	PTGN_REFLECT(LightData, intensity, ambient_intensity, ambient_color, falloff, cone_angle)
 };
 
 } // namespace impl

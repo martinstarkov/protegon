@@ -22,7 +22,7 @@ public:
 	Button b2;
 
 	void OnEnter() override {
-		ctx().input.SetSettings({ .debug_draw_enabled = true });
+		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 
 		ctx().asset.Load("idle", "assets/bell.png");
 		ctx().asset.Load("animation_hover", "assets/bell_hover_animation.png");

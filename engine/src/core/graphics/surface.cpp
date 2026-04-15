@@ -135,6 +135,8 @@ std::expected<void, std::string> Surface::SavePNG(const path& filepath) const {
 	if (!success) {
 		return std::unexpected("Failed to save PNG");
 	}
+
+	return {};
 }
 
 } // namespace ptgn::impl

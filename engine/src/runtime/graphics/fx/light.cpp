@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/math_utils.h"
@@ -11,11 +12,12 @@
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "core/graphics/color.h"
+#include "renderer/pipeline/draw_context.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/tint.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
@@ -78,7 +80,7 @@ void Light::Draw(DrawContext& renderer, Entity entity, Camera) {
 
 	constexpr bool floor_positions{ true };
 
-	renderer.SetBlend(blend_mode);
+	renderer.SetBlendMode(blend_mode);
 	renderer.DrawQuad(
 		light_shader, positions, user_data, tint, depth, shader_setup, floor_positions
 	);

@@ -2,11 +2,11 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
@@ -14,6 +14,7 @@
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/particle.h"
+#include "runtime/graphics/fx/particle_event.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
@@ -46,7 +47,7 @@ public:
 			  .color_over_lifetime = Color{ 120, 170, 255, 200 } }
 		);
 
-		rain.OnParticleDestroy([](auto p) {
+		rain.OnParticleDestroy([](auto& p) {
 			if (Chance(0.3f)) {
 				auto& scene{ p.emitter.GetScene() };
 

@@ -2,11 +2,13 @@
 
 #include <concepts>
 #include <functional>
+#include <memory>
 #include <ostream>
 #include <variant>
 #include <vector>
 
 #include "core/event/event.h"
+#include "core/util/concepts.h"
 #include "core/util/hash.h"
 #include "core/util/type_info.h"
 #include "runtime/ecs/entity.h"
@@ -57,10 +59,10 @@ template <typename T>
 struct EventScript : public Script {
 	EventScript() = default;
 
-	explicit EventScript(const EventCallback<T>& callback) : callback_{ callback } {}
+	explicit EventScript(EventCallback<T> callback) : callback_{ std::move(callback) } {}
 
 	void OnEvent(Event event) override {
-		event.DispatchVariant(callback_);
+		event.DispatchVariant<T>(callback_);
 	}
 
 private:
@@ -82,9 +84,10 @@ public:
 	/// exist), forwarding the given arguments to its constructor.
 	/// @return Reference to the added script instance.
 	template <ScriptType T, typename... TArgs>
-	T& Add(Entity e, TArgs&&... constructor_args) {
-		auto sp	   = std::make_unique<T>(std::forward<TArgs>(constructor_args)...);
-		sp->entity = e;
+		requires BraceConstructible<T, TArgs...>
+	T& Add(Entity entity, TArgs&&... constructor_args) {
+		auto sp	   = std::unique_ptr<T>(new T{ std::forward<TArgs>(constructor_args)... });
+		sp->entity = entity;
 		constexpr auto hash{ Hash<T>() };
 		sp->SetHash(hash);
 
@@ -109,8 +112,8 @@ public:
 		});
 	}
 
-	void from_json(const json& j, Scripts& scripts);
-	void to_json(json& j, const Scripts& scripts);
+	friend void from_json(const json& j, Scripts& scripts);
+	friend void to_json(json& j, const Scripts& scripts);
 
 	friend std::ostream& operator<<(std::ostream& os, const Scripts& scripts) {
 		os << "{ script_count: " << scripts.scripts_.size() << " }";
@@ -141,6 +144,7 @@ private:
 /// exist), forwarding the given arguments to its constructor.
 /// @return Reference to the added script instance.
 template <ScriptType T, typename... TArgs>
+	requires BraceConstructible<T, TArgs...>
 T& AddScript(Entity entity, TArgs&&... constructor_args) {
 	auto& sc = entity.TryAdd<impl::Scripts>();
 

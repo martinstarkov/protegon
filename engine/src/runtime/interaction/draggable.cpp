@@ -1,12 +1,13 @@
 #include "runtime/interaction/draggable.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/interaction/interaction_system.h"
 #include "runtime/interaction/trigger_condition.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
 
 namespace ptgn {
 
@@ -19,9 +20,9 @@ bool IsDraggable(Entity entity) {
 }
 
 bool IsDragging(Entity entity) {
-	const auto& dragging_entities{ entity.GetScene().ctx().input.dragging_entities_ };
+	const auto& dragging_entities{ entity.GetScene().ctx().interaction.dragging_entities_ };
 	for (const auto& [camera, entities] : dragging_entities) {
-		if (entities.contains(entity)) {
+		if (std::ranges::contains(entities, entity)) {
 			return true;
 		}
 	}

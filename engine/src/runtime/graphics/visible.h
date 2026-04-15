@@ -14,11 +14,23 @@ namespace event {
 
 /// @brief This event is emitted when an entity becomes visible, either through Show() or
 /// SetVisible(true).
-struct EntityShow {};
+struct EntityShow {
+	operator Entity() const { // NOSONAR
+		return entity;
+	}
+
+	Entity entity;
+};
 
 /// @brief This event is emitted when an entity becomes hidden, either through Hide() or
 /// SetVisible(false).
-struct EntityHide {};
+struct EntityHide {
+	operator Entity() const { // NOSONAR
+		return entity;
+	}
+
+	Entity entity;
+};
 
 } // namespace event
 

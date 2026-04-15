@@ -3,6 +3,7 @@
 #include <functional>
 #include <memory>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
 #include "core/assert.h"
@@ -19,19 +20,25 @@ namespace impl {
 class TweenData;
 
 struct EventData {
+	using Payload = std::unique_ptr<void, void (*)(void*)>;
+
 	std::size_t type_hash{ 0 };
 	bool handled{ false };
-	std::unique_ptr<void> payload;
+	Payload payload{ nullptr, +[](void*) {
+					} };
 
 	template <typename T, typename... TArgs>
 		requires BraceConstructible<T, TArgs...>
 	static EventData Create(TArgs&&... args) {
 		if constexpr (sizeof...(TArgs) == 0 && std::is_empty_v<T>) {
-			return EventData{ Hash<T>(), false, nullptr };
+			return EventData{ Hash<T>(), false, { nullptr, +[](void*) {
+												 } } };
+		} else {
+			auto payload{ new T{ std::forward<TArgs>(args)... } };
+			return EventData{ Hash<T>(), false, Payload{ payload, +[](void* ptr) {
+															delete static_cast<T*>(ptr);
+														} } };
 		}
-
-		return EventData{ Hash<T>(), false,
-						  std::make_unique<T>(new T{ std::forward<TArgs>(args)... }) };
 	}
 };
 
@@ -43,15 +50,23 @@ template <typename F>
 concept EventFunctionNoArg = InvocableR<F, void> || InvocableR<F, bool>;
 
 template <typename TVariant, typename... TArgs>
-void VisitAndInvoke(TVariant&& callback_variant, TArgs&&... args) {
-	std::visit(
-		[&]<typename TCallback>(const TCallback& callback) {
+bool VisitAndInvoke(TVariant&& callback_variant, TArgs&&... args) {
+	return std::visit(
+		[&]<typename TCallback>(TCallback& callback) -> bool {
 			if constexpr (std::is_invocable_v<TCallback, TArgs...>) {
-				callback(std::forward<TArgs>(args)...);
-			} else if constexpr (std::is_invocable_v<TCallback>) {
-				callback();
+				if constexpr (std::is_same_v<std::invoke_result_t<TCallback&, TArgs...>, bool>) {
+					return callback(std::forward<TArgs>(args)...);
+				} else {
+					callback(std::forward<TArgs>(args)...);
+					return false;
+				}
 			} else {
-				static_assert(false, "Callback cannot be invoked with these arguments");
+				if constexpr (std::is_same_v<std::invoke_result_t<TCallback&>, bool>) {
+					return callback();
+				} else {
+					callback();
+					return false;
+				}
 			}
 		},
 		std::forward<TVariant>(callback_variant)
@@ -94,7 +109,7 @@ public:
 
 		if constexpr (!std::is_empty_v<T>) {
 			PTGN_ASSERT(event_.payload, "Payload for non empty event must be set");
-			T& value{ static_cast<T&>(*event_.payload) };
+			T& value{ *static_cast<T*>(event_.payload.get()) };
 			InvokeHandler<T>(std::forward<TEventFn>(fn), value);
 		} else {
 			if constexpr (std::is_invocable_r_v<bool, TEventFn>) {
@@ -128,18 +143,22 @@ public:
 
 	template <typename T, typename TVariant>
 	void DispatchVariant(TVariant&& callback_variant) {
-		Dispatch<T>([callback = std::forward<TVariant>(callback_variant
-					 )]<typename... TEventArgs>(TEventArgs&&... event_args) mutable {
-			impl::VisitAndInvoke(callback, std::forward<TEventArgs>(event_args)...);
-		});
+		Dispatch<T>(
+			[callback = std::forward<TVariant>(callback_variant
+			 )]<typename... TEventArgs>(TEventArgs&&... event_args) mutable -> bool {
+				return impl::VisitAndInvoke(callback, std::forward<TEventArgs>(event_args)...);
+			}
+		);
 	}
 
 	template <typename T, typename TVariant, typename... TBoundArgs>
 	void DispatchVariantBound(TVariant&& callback_variant, TBoundArgs&&... bound_args) {
-		Dispatch<T>([callback = std::forward<TVariant>(callback_variant),
-					 ... args = std::forward<TBoundArgs>(bound_args)]() mutable {
-			impl::VisitAndInvoke(callback, args...);
-		});
+		Dispatch<T>(
+			[callback = std::forward<TVariant>(callback_variant),
+			 ... args = std::forward<TBoundArgs>(bound_args)]() mutable -> bool {
+				return impl::VisitAndInvoke(callback, args...);
+			}
+		);
 	}
 
 	/// @return True if the event has been handled.
@@ -191,6 +210,33 @@ private:
 };
 
 template <typename T>
-using EventCallback = std::variant<std::function<void()>, std::function<void(T&)>>;
+using EventCallback = std::variant<
+	std::function<void()>, std::function<void(T&)>, std::function<void(const T&)>,
+	std::function<bool()>, std::function<bool(T&)>, std::function<bool(const T&)> >;
+
+namespace impl {
+
+template <typename T, typename F>
+EventCallback<T> MakeEventCallback(F&& f) {
+	using Fn = std::remove_cvref_t<F>;
+
+	if constexpr (std::is_invocable_r_v<bool, Fn&, T&>) {
+		return std::function<bool(T&)>{ std::forward<F>(f) };
+	} else if constexpr (std::is_invocable_r_v<void, Fn&, T&>) {
+		return std::function<void(T&)>{ std::forward<F>(f) };
+	} else if constexpr (std::is_invocable_r_v<bool, Fn&, const T&>) {
+		return std::function<bool(const T&)>{ std::forward<F>(f) };
+	} else if constexpr (std::is_invocable_r_v<void, Fn&, const T&>) {
+		return std::function<void(const T&)>{ std::forward<F>(f) };
+	} else if constexpr (std::is_invocable_r_v<bool, Fn&>) {
+		return std::function<bool()>{ std::forward<F>(f) };
+	} else if constexpr (std::is_invocable_r_v<void, Fn&>) {
+		return std::function<void()>{ std::forward<F>(f) };
+	} else {
+		static_assert(false, "Unsupported event callback");
+	}
+}
+
+} // namespace impl
 
 } // namespace ptgn

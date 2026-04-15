@@ -103,7 +103,6 @@ struct Color {
 	bool operator==(const Color&) const = default;
 
 	friend void to_json(json& j, const Color& color);
-
 	friend void from_json(const json& j, Color& color);
 
 	friend std::ostream& operator<<(std::ostream& os, Color color) {

@@ -1,24 +1,26 @@
 #pragma once
 
-#include <functional>
+#include <array>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <variant>
 
+#include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
-#include "core/math/math_utils.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/camera.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/scripting/script.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -41,16 +43,23 @@ struct ParticleDestroyed;
 
 template <typename T>
 struct Range {
-	constexpr Range() = delete;
+	constexpr Range() = default;
 
 	constexpr Range(T min, T max) : min{ min }, max{ max } {}
 
-	T min;
-	T max;
+	T min{};
+	T max{};
+
+	PTGN_REFLECT(Range, min, max)
 };
 
+PTGN_VARIANT_NAMES_TEMPLATE(T, (std::variant<T, Range<T>>), "Constant", "Range");
+
 template <typename T>
+	requires std::is_default_constructible_v<T>
 struct ConstantOrRange {
+	constexpr ConstantOrRange() = default;
+
 	constexpr ConstantOrRange(const T& v) : value_{ v } {} // NOSONAR
 
 	constexpr ConstantOrRange(const T& min, const T& max) : value_{ Range<T>{ min, max } } {}
@@ -71,9 +80,29 @@ struct ConstantOrRange {
 		);
 	}
 
+	PTGN_REFLECT_VALUE(ConstantOrRange, value_)
 private:
-	std::variant<T, Range<T>> value_;
+	std::variant<T, Range<T>> value_{};
 };
+
+struct EmissionShapeArc {
+	Degrees arc_angle{ 360.0f };
+	float outer_radius{ 1.0f };
+	V2_float direction{ 1.0f, 0.0f };
+	float inner_radius{ 0.0f };
+
+	PTGN_REFLECT(EmissionShapeArc, arc_angle, outer_radius, direction, inner_radius)
+};
+
+struct EmissionShapeRect {
+	ptgn::Rect rect{ V2_float{ 1.0f } };
+	V2_float direction{ 0.0f, 1.0f };
+
+	PTGN_REFLECT(EmissionShapeRect, rect, direction)
+};
+
+using EmissionShapes = std::variant<EmissionShapeArc, EmissionShapeRect>;
+PTGN_VARIANT_NAMES((EmissionShapes), "Arc", "Rect");
 
 /// @brief The shape from which particles are emitted. Determines the initial position of emitted
 /// particles.
@@ -82,6 +111,8 @@ public:
 	struct EmissionSample {
 		V2_float position;
 		V2_float direction;
+
+		PTGN_REFLECT(EmissionSample, position, direction)
 	};
 
 	constexpr EmissionShape() = default;
@@ -91,7 +122,7 @@ public:
 		float inner_radius = 0.0f
 	) {
 		EmissionShape s;
-		s.type_ = ArcShape{ arc_angle, outer_radius, direction, inner_radius };
+		s.type_ = EmissionShapeArc{ arc_angle, outer_radius, direction, inner_radius };
 		return s;
 	}
 
@@ -99,26 +130,15 @@ public:
 		V2_float size, V2_float direction = V2_float{ 0.0f, 1.0f }
 	) {
 		EmissionShape s;
-		s.type_ = RectShape{ size, direction };
+		s.type_ = EmissionShapeRect{ size, direction };
 		return s;
 	}
 
 	[[nodiscard]] EmissionSample SampleEmission() const;
 
+	PTGN_REFLECT_VALUE(EmissionShape, type_)
 private:
-	struct ArcShape {
-		Degrees arc_angle{ 360.0f };
-		float outer_radius{ 1.0f };
-		V2_float direction{ 1.0f, 0.0f };
-		float inner_radius{ 0.0f };
-	};
-
-	struct RectShape {
-		ptgn::Rect rect{ V2_float{ 1.0f } };
-		V2_float direction{ 0.0f, 1.0f };
-	};
-
-	std::variant<ArcShape, RectShape> type_{};
+	EmissionShapes type_{};
 };
 
 /// @brief A rate of particle emission over time.
@@ -137,6 +157,8 @@ struct ParticleRate {
 
 	/// @brief The number of particles emitted per second.
 	float rate_over_time{ 10.0f };
+
+	PTGN_REFLECT(ParticleRate, duration, loop, prewarm, rate_over_time)
 };
 
 /// @brief A burst of particles emitted at once.
@@ -149,10 +171,18 @@ struct ParticleBurst {
 
 	/// @brief Time between consecutive cycles.
 	milliseconds interval{ 1000 };
+
+	PTGN_REFLECT(ParticleBurst, particle_count, cycles, interval)
 };
 
+using ParticleType = std::variant<Shape, std::string>;
+PTGN_VARIANT_NAMES((ParticleType), "Shape", "Texture");
+
+using ParticleRateOrBurst = std::variant<ParticleRate, ParticleBurst>;
+PTGN_VARIANT_NAMES((ParticleRateOrBurst), "Rate", "Burst");
+
 struct ParticleConfig {
-	std::variant<ParticleRate, ParticleBurst> rate_or_burst;
+	ParticleRateOrBurst rate_or_burst;
 
 	/// @brief Time after which a particle despawns. If nullopt defaults to duration.
 	std::optional<ConstantOrRange<milliseconds>> lifetime;
@@ -177,7 +207,7 @@ struct ParticleConfig {
 	/// @brief Simulation speed multiplier.
 	float simulation_speed{ 1.0f };
 
-	std::variant<Shape, std::string> particle_type{ Rect{ V2_float{ 1.0f } } };
+	ParticleType particle_type{ Rect{ V2_float{ 1.0f } } };
 
 	FillStyle particle_fill_style{ Solid{} };
 
@@ -188,6 +218,13 @@ struct ParticleConfig {
 	std::optional<ConstantOrRange<float>> size_over_lifetime;
 
 	std::optional<ConstantOrRange<Color>> color_over_lifetime;
+
+	PTGN_REFLECT(
+		ParticleConfig, rate_or_burst, lifetime, start_speed, start_size, start_rotation,
+		align_to_direction, start_color, start_gravity, max_particles, simulation_speed,
+		particle_type, particle_fill_style, emission_shape, velocity_over_lifetime,
+		size_over_lifetime, color_over_lifetime
+	)
 };
 
 namespace impl {
@@ -233,6 +270,8 @@ struct ParticleEmitterComponent {
 	void Start();
 
 	void Update(const ParticleEmitter& emitter, secondsf dt);
+
+	PTGN_REFLECT(ParticleEmitterComponent, config)
 };
 
 } // namespace impl
@@ -251,10 +290,13 @@ public:
 	ParticleEmitter& Toggle();
 	ParticleEmitter& Reset();
 
-	using DestroyCallback =
-		std::variant<std::function<void()>, std::function<void(event::ParticleDestroyed)>>;
-
-	ParticleEmitter& OnParticleDestroy(const DestroyCallback& callback);
+	template <typename F>
+	ParticleEmitter& OnParticleDestroy(F&& callback) {
+		AddScript<impl::EventScript<event::ParticleDestroyed>>(
+			*this, impl::MakeEventCallback<event::ParticleDestroyed>(std::forward<F>(callback))
+		);
+		return *this;
+	}
 
 	[[nodiscard]] bool IsPlaying() const;
 	[[nodiscard]] bool IsPaused() const;
@@ -288,6 +330,10 @@ struct Particle {
 	milliseconds age{ 0 };
 	milliseconds lifetime{ 1000 };
 
+	PTGN_REFLECT(
+		Particle, position, velocity, gravity, start_color, end_color, color, start_size, end_size,
+		size, rotation, age, lifetime
+	)
 private:
 	friend struct impl::ParticleEmitterComponent;
 

@@ -28,14 +28,16 @@ enum class PrimitiveMode : std::uint32_t {
 	TriangleStrip = 0x0005, // GL_TRIANGLE_STRIP
 	TriangleFan	  = 0x0006	// GL_TRIANGLE_FAN
 };
-PTGN_REFLECT_ENUM(PrimitiveMode);
+PTGN_REFLECT_ENUM_MANUAL(
+	PrimitiveMode, Points, Lines, LineLoop, LineStrip, Triangles, TriangleStrip, TriangleFan
+);
 
 enum class IndexType : std::uint32_t {
 	UnsignedByte  = 0x1401, // GL_UNSIGNED_BYTE
 	UnsignedShort = 0x1403, // GL_UNSIGNED_SHORT
 	UnsignedInt	  = 0x1405	// GL_UNSIGNED_INT
 };
-PTGN_REFLECT_ENUM(IndexType);
+PTGN_REFLECT_ENUM_MANUAL(IndexType, UnsignedByte, UnsignedShort, UnsignedInt);
 
 class VertexArrays {
 public:

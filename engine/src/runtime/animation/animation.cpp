@@ -37,7 +37,7 @@ Animation& Animation::Start(bool force) {
 	auto& crop{ Get<impl::TextureCrop>() };
 	crop.Update(anim);
 	if (bool started{ anim.frame_timer.Start(force) }; started) {
-		PushEvent<event::AnimationStart>(*this);
+		PushEvent<event::AnimationStart>(*this, *this);
 	}
 	return *this;
 }
@@ -51,7 +51,7 @@ Animation& Animation::Reset() {
 	auto& crop{ Get<impl::TextureCrop>() };
 	crop.Update(anim);
 	anim.frame_timer.Reset();
-	PushEvent<event::AnimationStop>(*this);
+	PushEvent<event::AnimationStop>(*this, *this);
 	return *this;
 }
 
@@ -63,7 +63,7 @@ Animation& Animation::Stop(bool reset) {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Stop();
-	PushEvent<event::AnimationStop>(*this);
+	PushEvent<event::AnimationStop>(*this, *this);
 	return *this;
 }
 
@@ -80,7 +80,7 @@ Animation& Animation::Pause() {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Pause();
-	PushEvent<event::AnimationPause>(*this);
+	PushEvent<event::AnimationPause>(*this, *this);
 	return *this;
 }
 
@@ -88,7 +88,7 @@ Animation& Animation::Resume() {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Resume();
-	PushEvent<event::AnimationResume>(*this);
+	PushEvent<event::AnimationResume>(*this, *this);
 	return *this;
 }
 
@@ -179,46 +179,6 @@ V2_int Animation::GetFrameSize() const {
 	return anim.config.frame_size;
 }
 
-Animation& Animation::OnStart(const EventCallback<event::AnimationStart>& callback) {
-	AddScript<impl::EventScript<event::AnimationStart>>(*this, callback);
-	return *this;
-}
-
-Animation& Animation::OnStop(const EventCallback<event::AnimationStop>& callback) {
-	AddScript<impl::EventScript<event::AnimationStop>>(*this, callback);
-	return *this;
-}
-
-Animation& Animation::OnPause(const EventCallback<event::AnimationPause>& callback) {
-	AddScript<impl::EventScript<event::AnimationPause>>(*this, callback);
-	return *this;
-}
-
-Animation& Animation::OnResume(const EventCallback<event::AnimationResume>& callback) {
-	AddScript<impl::EventScript<event::AnimationResume>>(*this, callback);
-	return *this;
-}
-
-Animation& Animation::OnFrameChange(const EventCallback<event::AnimationFrameChange>& callback) {
-	AddScript<impl::EventScript<event::AnimationFrameChange>>(*this, callback);
-	return *this;
-}
-
-Animation& Animation::OnUpdate(const EventCallback<event::AnimationUpdate>& callback) {
-	AddScript<impl::EventScript<event::AnimationUpdate>>(*this, callback);
-	return *this;
-}
-
-Animation& Animation::OnComplete(const EventCallback<event::AnimationComplete>& callback) {
-	AddScript<impl::EventScript<event::AnimationComplete>>(*this, callback);
-	return *this;
-}
-
-Animation& Animation::OnLoopComplete(const EventCallback<event::AnimationLoopComplete>& callback) {
-	AddScript<impl::EventScript<event::AnimationLoopComplete>>(*this, callback);
-	return *this;
-}
-
 namespace impl {
 
 AnimationData::AnimationData(const AnimationConfig& anim_config, V2_int texture_size) :
@@ -254,12 +214,14 @@ void AnimationData::IncrementFrame() {
 }
 
 void AnimationSystem::Update(Scene& scene) {
-	const auto frame_change = [](auto anim_entity, auto& crop, const auto& anim) {
-		PushEvent<event::AnimationFrameChange>(anim_entity);
+	const auto frame_change = [](Animation anim_entity, auto& crop, const auto& anim) {
+		PushEvent<event::AnimationFrameChange>(anim_entity, anim_entity);
 		crop.Update(anim);
 	};
 
 	for (auto [entity, anim, crop] : scene.EntitiesWith<AnimationData, TextureCrop>()) {
+		Animation anim_entity{ entity };
+
 		if (anim.frame_dirty) {
 			crop.Update(anim);
 
@@ -278,23 +240,23 @@ void AnimationSystem::Update(Scene& scene) {
 		if (anim.config.play_count.has_value()) {
 			if (std::size_t total_frames{ *anim.config.play_count * anim.config.frame_count };
 				next_frames_played >= total_frames) {
-				PushEvent<event::AnimationComplete>(entity);
+				PushEvent<event::AnimationComplete>(anim_entity, anim_entity);
 
 				if (anim.config.reset_on_complete) {
 					// Reset animation to start frame after it finishes.
 					anim.SetCurrentFrame(0);
 
-					frame_change(entity, crop, anim);
+					frame_change(anim_entity, crop, anim);
 				}
 
 				anim.frame_timer.Stop();
 
-				PushEvent<event::AnimationStop>(entity);
+				PushEvent<event::AnimationStop>(anim_entity, anim_entity);
 				continue;
 			}
 		}
 
-		PushEvent<event::AnimationUpdate>(entity);
+		PushEvent<event::AnimationUpdate>(anim_entity, anim_entity);
 
 		if (auto frame_duration{ anim.GetFrameDuration() };
 			!anim.frame_timer.Completed(frame_duration)) {
@@ -305,11 +267,11 @@ void AnimationSystem::Update(Scene& scene) {
 
 		anim.IncrementFrame();
 
-		frame_change(entity, crop, anim);
+		frame_change(anim_entity, crop, anim);
 
 		// Loop completed.
 		if (anim.frames_played % anim.config.frame_count == 0) {
-			PushEvent<event::AnimationLoopComplete>(entity);
+			PushEvent<event::AnimationLoopComplete>(anim_entity, anim_entity);
 		}
 
 		anim.frame_timer.Start(true);
@@ -424,7 +386,7 @@ Animation PlayTemporaryAnimation(
 	Animation anim{ CreateAnimation(scene, texture, position, config, draw_origin) };
 
 	if (destroy_delay == 0ms) {
-		anim.OnComplete([](auto a) { a.animation.Destroy(); });
+		anim.OnComplete([](auto& a) mutable { a.animation.Destroy(); });
 	} else {
 		auto script_sequence{ CreateScriptSequence(scene) };
 		script_sequence.Wait(destroy_delay);

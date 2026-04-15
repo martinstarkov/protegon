@@ -21,6 +21,7 @@
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/shake_config.h"
 #include "runtime/animation/tween.h"
+#include "runtime/animation/tween_event.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
@@ -169,10 +170,35 @@ void PathFollowImpl(
 	const std::vector<V2_float>& waypoints, const PathFollowConfig& config, Tween tween
 );
 
-Tween StartFollowImpl(
-	Entity entity, bool force, const EventCallback<ptgn::event::TweenStart>& start_func,
-	const EventCallback<ptgn::event::TweenProgress>& update_func
-);
+void EntityFollowStopImpl(Entity parent);
+
+template <typename T>
+void EntityFollowStopImpl(const T& event) {
+	EntityFollowStopImpl(event.parent);
+}
+
+template <typename F1, typename F2>
+Tween StartFollowImpl(Entity entity, bool force, F1&& start_func, F2&& update_func) {
+	auto tween{ GetOrCreateTween<FollowEffect>(entity) };
+
+	tween.TryAdd<FollowEffect>();
+
+	if (force || tween.IsCompleted()) {
+		tween.Clear();
+	}
+
+	tween.During(0ms)
+		.Repeat()
+		.OnStart(start_func)
+		.OnProgress(update_func)
+		.OnPointComplete(&EntityFollowStopImpl<ptgn::event::TweenPointComplete>)
+		.OnComplete(&EntityFollowStopImpl<ptgn::event::TweenComplete>)
+		.OnStop(&EntityFollowStopImpl<ptgn::event::TweenStop>)
+		.OnReset(&EntityFollowStopImpl<ptgn::event::TweenReset>);
+	tween.Start(force);
+
+	return tween;
+}
 
 void EntityFollowStartImpl(Entity parent, const FollowConfig& config);
 

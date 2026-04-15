@@ -6,6 +6,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/collider.h"
+#include "runtime/physics/collision_event.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/physics.h"
@@ -56,7 +57,7 @@ class PlatformingScene : public Scene {
 	}
 
 	void OnEnter() override {
-		ctx().collision.SetSettings({ .debug_draw_ccd = true, .debug_draw_enabled = true });
+		ctx().collision.SetDebugSettings({ .draw_ccd = true, .draw_enabled = true });
 
 		V2_float ws{ game_size };
 		ctx().physics.SetGravity({ 0.0f, 1.0f });

@@ -11,7 +11,9 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
@@ -24,13 +26,14 @@
 #include "core/time/time.h"
 #include "ecs/ecs.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/draw_context.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/particle_event.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 
@@ -39,7 +42,7 @@ namespace ptgn {
 EmissionShape::EmissionSample EmissionShape::SampleEmission() const {
 	return std::visit(
 		[]<typename V>(const V& s) -> EmissionSample {
-			if constexpr (std::is_same_v<V, EmissionShape::ArcShape>) {
+			if constexpr (std::is_same_v<V, EmissionShapeArc>) {
 				Radians half_arc{ s.arc_angle * 0.5f };
 				auto offset{ Radians::Random(-half_arc, half_arc) };
 
@@ -55,7 +58,7 @@ EmissionShape::EmissionSample EmissionShape::SampleEmission() const {
 				float r{ std::sqrt(RandomFloat(r0, r1)) };
 
 				return { dir * r, dir };
-			} else if constexpr (std::is_same_v<V, EmissionShape::RectShape>) {
+			} else if constexpr (std::is_same_v<V, EmissionShapeRect>) {
 				auto half{ s.rect.GetSize() * 0.5f };
 				V2_float direction{ s.direction.IsZero() ? V2_float{ 0.0f, 1.0f } : s.direction };
 				return { V2_float::Random(-half, half), direction.Normalized() };
@@ -236,13 +239,6 @@ void ParticleEmitterComponent::Update(const ParticleEmitter& emitter, secondsf d
 	manager.Refresh();
 }
 
-ParticleDestroyScript::ParticleDestroyScript(const ParticleEmitter::DestroyCallback& callback) :
-	callback_{ callback } {}
-
-void ParticleDestroyScript::OnEvent(Event event) {
-	event.DispatchVariant<event::ParticleDestroyed>(callback_);
-}
-
 } // namespace impl
 
 Particle::Particle(const ParticleConfig& config) {
@@ -387,12 +383,6 @@ ParticleEmitter& ParticleEmitter::Reset() {
 	emitter.playback = {};
 	emitter.manager.Clear();
 	emitter.live_particle_count = 0;
-	return *this;
-}
-
-ParticleEmitter& ParticleEmitter::OnParticleDestroy(const ParticleEmitter::DestroyCallback& callback
-) {
-	AddScript<impl::ParticleDestroyScript>(*this, callback);
 	return *this;
 }
 

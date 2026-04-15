@@ -47,7 +47,7 @@ public:
 	}
 
 	void OnEnter() override {
-		ctx().input.SetSettings({ .debug_draw_enabled = true });
+		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 
 		Dropdown dropdown  = CreateDropdown();
 		Dropdown dropdown2 = CreateDropdown(false);

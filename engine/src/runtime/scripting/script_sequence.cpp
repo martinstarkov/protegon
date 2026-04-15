@@ -9,6 +9,7 @@
 
 #include "core/time/time.h"
 #include "runtime/animation/tween.h"
+#include "runtime/animation/tween_event.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"

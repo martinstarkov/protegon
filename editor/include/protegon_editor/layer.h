@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "app/layer.h"
+#include "renderer/resources/id.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {
@@ -13,8 +14,14 @@ namespace editor {
 
 class EditorLayer : public Layer {
 public:
-	void OnUpdate(Application& app) override;
-	void OnRender(Application& app) override;
+	EditorLayer(Application& app);
+
+	void OnUpdate() override;
+	void OnRender() override;
+
+	std::size_t GetEntityCount() const;
+
+	impl::TextureId GetScreenTargetId() const;
 
 	Entity FindEntityById(int id) const;
 	std::vector<int> GetChildrenIds(int parent_id) const;
@@ -80,6 +87,8 @@ public:
 	};
 
 	PresentationSettings presentation_;
+
+	Application& app;
 };
 
 } // namespace editor

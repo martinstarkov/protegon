@@ -150,6 +150,7 @@ set_folder_if_target("vendor"
   msdf-atlas-gen
   msdfgen-core
   msdfgen-ext
+  nfd
 )
 
 set_folder_if_target("vendor/GLFW3" update_mappings)

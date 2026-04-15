@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -20,23 +22,31 @@
 
 namespace ptgn {
 
+using ShapeVariant = std::variant<
+	V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
+using ColliderShapeVariant	  = ShapeVariant;
+using InteractiveShapeVariant = std::variant<Rect, Circle>;
+
+PTGN_VARIANT_NAMES(
+	(ShapeVariant), "Point", "Rect", "Circle", "Ellipse", "Polygon", "RoundedRect", "Arc", "Line",
+	"Triangle", "Capsule"
+);
+PTGN_VARIANT_NAMES((InteractiveShapeVariant), "Rect", "Circle");
+
 class Shape {
 public:
-	using Variant = std::variant<
-		V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
-
 	constexpr Shape() = default;
 
-	template <VariantContains<Variant> T>
+	template <VariantContains<ShapeVariant> T>
 	constexpr Shape(const T& shape) : shape_{ shape } { // NOSONAR
 	}
 
-	template <VariantContains<Variant> T>
+	template <VariantContains<ShapeVariant> T>
 	[[nodiscard]] bool HoldsAlternative() const {
 		return std::holds_alternative<T>(shape_);
 	}
 
-	template <VariantContains<Variant> T>
+	template <VariantContains<ShapeVariant> T>
 	[[nodiscard]] const T& Get() const {
 		return std::get<T>(shape_);
 	}
@@ -50,26 +60,23 @@ public:
 
 	PTGN_REFLECT_VALUE(Shape, shape_)
 private:
-	Variant shape_;
+	ShapeVariant shape_;
 };
 
 class ColliderShape {
 public:
-	using Variant = std::variant<
-		V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
-
 	ColliderShape() = default;
 
-	template <VariantContains<Variant> T>
+	template <VariantContains<ColliderShapeVariant> T>
 	ColliderShape(const T& shape) : shape_{ shape } { // NOSONAR
 	}
 
-	template <VariantContains<Variant> T>
+	template <VariantContains<ColliderShapeVariant> T>
 	[[nodiscard]] bool HoldsAlternative() const {
 		return std::holds_alternative<T>(shape_);
 	}
 
-	template <VariantContains<Variant> T>
+	template <VariantContains<ColliderShapeVariant> T>
 	[[nodiscard]] const T& Get() const {
 		return std::get<T>(shape_);
 	}
@@ -90,25 +97,23 @@ public:
 
 	PTGN_REFLECT_VALUE(ColliderShape, shape_)
 private:
-	Variant shape_;
+	ColliderShapeVariant shape_;
 };
 
 class InteractiveShape {
 public:
-	using Variant = std::variant<Rect, Circle>;
-
 	InteractiveShape() = default;
 
-	template <VariantContains<Variant> T>
+	template <VariantContains<InteractiveShapeVariant> T>
 	InteractiveShape(const T& shape) : shape_{ shape } { // NOSONAR
 	}
 
-	template <VariantContains<Variant> T>
+	template <VariantContains<InteractiveShapeVariant> T>
 	[[nodiscard]] bool HoldsAlternative() const {
 		return std::holds_alternative<T>(shape_);
 	}
 
-	template <VariantContains<Variant> T>
+	template <VariantContains<InteractiveShapeVariant> T>
 	[[nodiscard]] const T& Get() const {
 		return std::get<T>(shape_);
 	}
@@ -133,17 +138,17 @@ public:
 
 	PTGN_REFLECT_VALUE(InteractiveShape, shape_)
 private:
-	Variant shape_;
+	InteractiveShapeVariant shape_;
 };
 
 template <typename T>
-concept ShapeType = VariantContains<T, Shape::Variant>;
+concept ShapeType = VariantContains<T, ShapeVariant>;
 
 template <typename T>
-concept InteractiveType = VariantContains<T, InteractiveShape::Variant>;
+concept InteractiveType = VariantContains<T, InteractiveShapeVariant>;
 
 template <typename T>
-concept ColliderType = VariantContains<T, ColliderShape::Variant>;
+concept ColliderType = VariantContains<T, ColliderShapeVariant>;
 
 /// @return The vertices that fully contain the shape.
 /// For a line, this is the start and end points.

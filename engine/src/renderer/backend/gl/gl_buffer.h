@@ -24,7 +24,10 @@ enum class BufferUsage : std::uint32_t {
 	DynamicCopy = 0x88EA, // GL_DYNAMIC_COPY
 	StreamCopy	= 0x88E2  // GL_STREAM_COPY
 };
-PTGN_REFLECT_ENUM(BufferUsage);
+PTGN_REFLECT_ENUM_MANUAL(
+	BufferUsage, StaticDraw, DynamicDraw, StreamDraw, StaticRead, DynamicRead, StreamRead,
+	StaticCopy, DynamicCopy, StreamCopy
+);
 
 enum class BufferTarget : std::uint32_t {
 	ArrayBuffer				= 0x8892, // GL_ARRAY_BUFFER
@@ -42,7 +45,12 @@ enum class BufferTarget : std::uint32_t {
 	TransformFeedbackBuffer = 0x8C8E, // GL_TRANSFORM_FEEDBACK_BUFFER
 	UniformBuffer			= 0x8A11  // GL_UNIFORM_BUFFER
 };
-PTGN_REFLECT_ENUM(BufferTarget);
+PTGN_REFLECT_ENUM_MANUAL(
+	BufferTarget, ArrayBuffer, AtomicCounterBuffer, CopyReadBuffer, CopyWriteBuffer,
+	DispatchIndirectBuffer, DrawIndirectBuffer, ElementArrayBuffer, PixelPackBuffer,
+	PixelUnpackBuffer, QueryBuffer, ShaderStorageBuffer, TextureBuffer, TransformFeedbackBuffer,
+	UniformBuffer
+);
 
 enum class BufferParameter : std::uint32_t {
 	Access			 = 0x88BB, // GL_BUFFER_ACCESS
@@ -55,7 +63,10 @@ enum class BufferParameter : std::uint32_t {
 	StorageFlags	 = 0x8220, // GL_BUFFER_STORAGE_FLAGS
 	Usage			 = 0x8765  // GL_BUFFER_USAGE
 };
-PTGN_REFLECT_ENUM(BufferParameter);
+PTGN_REFLECT_ENUM_MANUAL(
+	BufferParameter, Access, AccessFlags, ImmutableStorage, Mapped, MapLength, MapOffset, Size,
+	StorageFlags, Usage
+);
 
 struct BufferCache {
 	BufferUsage usage{ BufferUsage::StaticDraw };

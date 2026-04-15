@@ -27,6 +27,12 @@ class Application;
 class SceneContext;
 class SceneManager;
 
+namespace editor {
+
+class EditorLayer;
+
+} // namespace editor
+
 namespace impl {
 
 #ifdef __EMSCRIPTEN__
@@ -45,13 +51,6 @@ private:
 	ApplicationLibrary& operator=(const ApplicationLibrary&)	 = delete;
 	ApplicationLibrary(ApplicationLibrary&&) noexcept			 = delete;
 	ApplicationLibrary& operator=(ApplicationLibrary&&) noexcept = delete;
-};
-
-class ApplicationInternals {
-public:
-	ApplicationInternals(Application& application) : internals{ application } {}
-
-	Application& internals;
 };
 
 } // namespace impl
@@ -94,7 +93,7 @@ public:
 
 		auto first_scene = std::make_unique<TScene>(std::forward<TArgs>(args)...);
 
-		auto& scene = scenes_.scenes_.emplace_back(std::move(first_scene));
+		auto& scene = scene_manager_.scenes_.emplace_back(std::move(first_scene));
 
 		scene->state_ = impl::SceneState::Active;
 		scene->key_	  = Hash(scene_key);
@@ -110,13 +109,19 @@ public:
 		StartWith<TScene>("");
 	}
 
+	template <typename T, typename... TArgs>
+		requires std::constructible_from<T, TArgs...> && std::derived_from<T, Layer>
+	void PushLayer(TArgs&&... args) {
+		layers_.emplace_back(std::make_unique<T>(std::forward<TArgs>(args)...));
+	}
+
 private:
 #ifdef __EMSCRIPTEN__
 	friend void impl::EmscriptenMainLoop(void* application);
 #endif
 	friend class SceneContext;
 	friend class SceneManager;
-	friend class impl::ApplicationInternals;
+	friend class editor::EditorLayer;
 
 	impl::ApplicationLibrary app_library_;
 

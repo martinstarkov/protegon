@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
@@ -11,11 +13,11 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "core/graphics/color.h"
+#include "renderer/pipeline/draw_context.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {

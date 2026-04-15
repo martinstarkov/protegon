@@ -1,11 +1,11 @@
 #include <chrono>
 
 #include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/input/key.h"
-#include "core/graphics/color.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -24,7 +24,7 @@ class AnimationTemporaryScene : public Scene {
 
 	void OnEnter() override {
 		ctx().asset.Load("anim", "assets/animation_bubble.png");
-		ctx().collision.SetSettings({ .debug_draw_enabled = true });
+		ctx().collision.SetDebugSettings({ .draw_enabled = true });
 
 		player = CreateRect(
 			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::Orange, Solid{}, Origin::Center

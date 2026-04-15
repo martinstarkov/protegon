@@ -43,7 +43,7 @@ class ToggleButtonGroupScene : public Scene {
 	}
 
 	void OnEnter() override {
-		ctx().input.SetSettings({ .debug_draw_enabled = true });
+		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 
 		auto name1{ "Group 1" };
 		group1 = CreateToggleButtonGroup(*this);

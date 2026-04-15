@@ -9,6 +9,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/animation/animation.h"
+#include "runtime/animation/animation_event.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"

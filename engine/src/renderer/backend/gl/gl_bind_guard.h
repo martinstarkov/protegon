@@ -18,6 +18,9 @@ public:
 			if (restore_bind) {
 				PTGN_ASSERT(id.has_value(), "Cannot restore bind without a previous bind");
 			}
+			if (!id.has_value()) {
+				return T{ 0 };
+			}
 			return *id;
 		}) },
 		restore_bind_{ restore_bind } {}

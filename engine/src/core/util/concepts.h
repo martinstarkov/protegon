@@ -104,7 +104,7 @@ concept IterableType = requires(T value) {
 } && !std::is_convertible_v<T, std::string_view>;
 
 template <typename T>
-concept VariantType = impl::is_variant<std::remove_cvref_t<T>>::value;
+concept VariantType = SpecializationOf<std::remove_cvref_t<T>, std::variant>;
 
 template <typename Type, typename... Types>
 concept SameType = std::conjunction_v<std::is_same<Type, Types>...>;

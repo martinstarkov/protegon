@@ -399,11 +399,41 @@ public:
 
 	std::optional<Entity> GetSprite(ButtonStyleState state = {}) const;
 
-	/// @brief Set button callback scripts.
-	Derived& OnPress(const EventCallback<event::ButtonBasePress<Derived>>& callback);
-	Derived& OnHover(const EventCallback<event::ButtonBaseHover<Derived>>& callback);
-	Derived& OnHoverStart(const EventCallback<event::ButtonBaseHoverStart<Derived>>& callback);
-	Derived& OnHoverStop(const EventCallback<event::ButtonBaseHoverStop<Derived>>& callback);
+	template <typename F>
+	Derived& OnPress(F&& callback) {
+		AddScript<impl::EventScript<event::ButtonBasePress<Derived>>>(
+			*this,
+			impl::MakeEventCallback<event::ButtonBasePress<Derived>>(std::forward<F>(callback))
+		);
+		return Self();
+	}
+
+	template <typename F>
+	Derived& OnHover(F&& callback) {
+		AddScript<impl::EventScript<event::ButtonBaseHover<Derived>>>(
+			*this,
+			impl::MakeEventCallback<event::ButtonBaseHover<Derived>>(std::forward<F>(callback))
+		);
+		return Self();
+	}
+
+	template <typename F>
+	Derived& OnHoverStart(F&& callback) {
+		AddScript<impl::EventScript<event::ButtonBaseHoverStart<Derived>>>(
+			*this,
+			impl::MakeEventCallback<event::ButtonBaseHoverStart<Derived>>(std::forward<F>(callback))
+		);
+		return Self();
+	}
+
+	template <typename F>
+	Derived& OnHoverStop(F&& callback) {
+		AddScript<impl::EventScript<event::ButtonBaseHoverStop<Derived>>>(
+			*this,
+			impl::MakeEventCallback<event::ButtonBaseHoverStop<Derived>>(std::forward<F>(callback))
+		);
+		return Self();
+	}
 
 	Derived& Enable(bool enable_hover = true, bool reset_state = true);
 	Derived& Disable(bool disable_hover = true, bool reset_state = true);
@@ -536,7 +566,14 @@ public:
 
 	[[nodiscard]] bool IsToggled() const;
 
-	ToggleButton& OnToggle(const EventCallback<event::ToggleButtonToggle>& callback);
+	template <typename F>
+	ToggleButton& OnToggle(F&& callback) {
+		AddScript<impl::EventScript<event::ToggleButtonToggle>>(
+			*this, impl::MakeEventCallback<event::ToggleButtonToggle>(std::forward<F>(callback))
+		);
+		return *this;
+	}
+
 	ToggleButton& SetToggled(bool toggled);
 	ToggleButton& Toggle();
 };

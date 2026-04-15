@@ -8,25 +8,43 @@
 #include "app/application.h"
 #include "app/layer.h"
 #include "protegon_editor/panels.h"
+#include "renderer/renderer.h"
+#include "renderer/resources/id.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 
 namespace ptgn {
 
 namespace editor {
 
-void EditorLayer::OnUpdate(Application& app) {}
+void EditorLayer::OnUpdate() {}
 
-void EditorLayer::OnRender(Application& app) {
+void EditorLayer::OnRender() {
 	hierarchy_drag_active_ = false;
 
-	editor::DrawDockspace(*this, app);
-	editor::DrawHierarchyWindow(*this, app);
-	editor::DrawScenesWindow(*this, app);
-	editor::DrawInspectorWindow(*this, app);
-	editor::DrawEngineSettingsWindow(*this, app);
-	editor::DrawAssetsWindow(*this, app);
-	editor::DrawGameWindow(*this, app);
+	editor::DrawDockspace(*this);
+	editor::DrawHierarchyWindow(*this);
+	editor::DrawScenesWindow(*this);
+	editor::DrawInspectorWindow(*this);
+	editor::DrawEngineSettingsWindow(*this);
+	editor::DrawAssetsWindow(*this);
+	editor::DrawGameWindow(*this);
 }
+
+std::size_t EditorLayer::GetEntityCount() const {
+	std::size_t total{ 0 };
+	for (const auto& scene : app.scene_manager_.GetScenes()) {
+		total += scene->GetEntityCount();
+	}
+	return total;
+}
+
+impl::TextureId EditorLayer::GetScreenTargetId() const {
+	return app.renderer_.GetRenderTargetTexture(app.renderer_.GetScreenTarget());
+}
+
+EditorLayer::EditorLayer(Application& app) : app{ app } {}
 
 Entity EditorLayer::FindEntityById(int id) const {
 	// TODO: Fix.

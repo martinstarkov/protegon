@@ -98,7 +98,7 @@ void Window::SetCallbacks() {
 			return;
 		}
 		if (maximized) {
-			self->PushEvent<event::WindowMaximized>();
+			self->PushEvent<event::WindowMaximized>(self->windowed_size_);
 		}
 	});
 
@@ -108,7 +108,7 @@ void Window::SetCallbacks() {
 			return;
 		}
 		if (iconified) {
-			self->PushEvent<event::WindowMinimized>();
+			self->PushEvent<event::WindowMinimized>(self->windowed_size_);
 		}
 	});
 

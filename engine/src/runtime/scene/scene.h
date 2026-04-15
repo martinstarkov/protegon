@@ -628,7 +628,7 @@ bool LocalSceneManager::ReEnter(
 	}
 
 	scene_manager_.PushCommand(
-		impl::SceneCommandType::ReEnter, scene_.key_, scene_key_hash,
+		impl::SceneManager::CommandType::ReEnter, scene_.key_, scene_key_hash,
 		SceneTransitionPriority{ std::numeric_limits<std::size_t>::max() },
 		GetInitFunction<T>(std::forward<TArgs>(constructor_args)...), std::move(transition_out_ptr),
 		std::move(transition_in_ptr)
@@ -662,7 +662,7 @@ bool LocalSceneManager::Enter(
 	}
 
 	scene_manager_.PushCommand(
-		impl::SceneCommandType::Enter, scene_.key_, scene_key_hash, priority,
+		impl::SceneManager::CommandType::Enter, scene_.key_, scene_key_hash, priority,
 		GetInitFunction<T>(std::forward<TArgs>(constructor_args)...), nullptr,
 		std::move(transition_in_ptr)
 	);
@@ -691,7 +691,7 @@ bool LocalSceneManager::Exit(
 	}
 
 	scene_manager_.PushCommand(
-		impl::SceneCommandType::Exit, scene_.key_, scene_key_hash, priority, nullptr,
+		impl::SceneManager::CommandType::Exit, scene_.key_, scene_key_hash, priority, nullptr,
 		std::move(transition_out_ptr), nullptr
 	);
 

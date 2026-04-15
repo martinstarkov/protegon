@@ -1,7 +1,9 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <concepts>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -32,6 +34,8 @@ struct Hollow {
 
 	PTGN_REFLECT_VALUE(Hollow, line_width)
 };
+
+PTGN_VARIANT_NAMES((std::variant<Solid, Hollow>), "Solid", "Hollow");
 
 struct FillStyle {
 	constexpr FillStyle() = default;
@@ -98,7 +102,7 @@ struct FillStyle {
 
 	PTGN_REFLECT_VALUE(FillStyle, style_)
 private:
-	std::variant<Hollow, Solid> style_{ Solid{} };
+	std::variant<Solid, Hollow> style_{};
 };
 
 } // namespace ptgn

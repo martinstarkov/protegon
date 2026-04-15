@@ -4,12 +4,12 @@
 #include <filesystem>
 
 #include "app/application.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "platform/window.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
@@ -46,7 +46,7 @@ void LogFileDialogResult(const char* label, const FileDialog::Result<T>& result)
 class FileDialogDemoScene : public Scene {
 public:
 	void OnEnter() override {
-		ctx().input.SetSettings({ .debug_draw_enabled = true });
+		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 
 		const Origin button_origin{ Origin::Center };
 		const V2_int button_size{ 360, 72 };

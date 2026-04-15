@@ -3,15 +3,16 @@
 #include <chrono>
 #include <utility>
 
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/log.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "core/graphics/color.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/particle.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -22,6 +23,7 @@ enum class ParticlePreset {
 	Rain1,
 	Snow1,
 };
+PTGN_REFLECT_ENUM(ParticlePreset);
 
 namespace impl {
 

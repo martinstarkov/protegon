@@ -23,7 +23,6 @@ class GLContext;
 
 class GLContext {
 public:
-	GLContext() = delete;
 	explicit GLContext();
 	~GLContext() noexcept					   = default;
 	GLContext(const GLContext&)				   = delete;
@@ -113,7 +112,7 @@ public:
 	void InvalidateState();
 
 private:
-	State bound_;
+	State bound_{ true };
 };
 
 } // namespace ptgn::impl::gl

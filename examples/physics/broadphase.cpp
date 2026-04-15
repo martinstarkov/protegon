@@ -6,12 +6,12 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
-
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/physics.h"

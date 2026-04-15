@@ -259,50 +259,6 @@ bool TweenPoint::IsInstant() const {
 
 Tween::Tween(Entity entity) : Entity{ entity } {}
 
-Tween& Tween::OnProgress(const EventCallback<event::TweenProgress>& callback) {
-	return AddScript<impl::EventScript<event::TweenProgress>>(callback);
-}
-
-Tween& Tween::OnStart(const EventCallback<event::TweenStart>& callback) {
-	return AddScript<impl::EventScript<event::TweenStart>>(callback);
-}
-
-Tween& Tween::OnComplete(const EventCallback<event::TweenComplete>& callback) {
-	return AddScript<impl::EventScript<event::TweenComplete>>(callback);
-}
-
-Tween& Tween::OnPointStart(const EventCallback<event::TweenPointStart>& callback) {
-	return AddScript<impl::EventScript<event::TweenPointStart>>(callback);
-}
-
-Tween& Tween::OnPointComplete(const EventCallback<event::TweenPointComplete>& callback) {
-	return AddScript<impl::EventScript<event::TweenPointComplete>>(callback);
-}
-
-Tween& Tween::OnReset(const EventCallback<event::TweenReset>& callback) {
-	return AddScript<impl::EventScript<event::TweenReset>>(callback);
-}
-
-Tween& Tween::OnStop(const EventCallback<event::TweenStop>& callback) {
-	return AddScript<impl::EventScript<event::TweenStop>>(callback);
-}
-
-Tween& Tween::OnPause(const EventCallback<event::TweenPause>& callback) {
-	return AddScript<impl::EventScript<event::TweenPause>>(callback);
-}
-
-Tween& Tween::OnResume(const EventCallback<event::TweenResume>& callback) {
-	return AddScript<impl::EventScript<event::TweenResume>>(callback);
-}
-
-Tween& Tween::OnYoyo(const EventCallback<event::TweenYoyo>& callback) {
-	return AddScript<impl::EventScript<event::TweenYoyo>>(callback);
-}
-
-Tween& Tween::OnRepeat(const EventCallback<event::TweenRepeat>& callback) {
-	return AddScript<impl::EventScript<event::TweenRepeat>>(callback);
-}
-
 bool Tween::IsCompleted() const {
 	const auto& tween{ Get<impl::TweenData>() };
 	return tween.IsState(impl::TweenState::Completed);

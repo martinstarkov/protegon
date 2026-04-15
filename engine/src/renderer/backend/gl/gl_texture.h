@@ -30,7 +30,10 @@ enum class PixelDataFormat : std::uint32_t {
 	Luminance	   = 0x1909, // GL_LUMINANCE
 	Alpha		   = 0x1906	 // GL_ALPHA
 };
-PTGN_REFLECT_ENUM(PixelDataFormat);
+PTGN_REFLECT_ENUM_MANUAL(
+	PixelDataFormat, RED, RED_INTEGER, RG, RG_INTEGER, RGB, RGB_INTEGER, RGBA, RGBA_INTEGER,
+	DepthComponent, DepthStencil, Stencil, LuminanceAlpha, Luminance, Alpha
+);
 
 enum class PixelDataType : std::uint32_t {
 	UnsignedByte	 = 0x1401, // GL_UNSIGNED_BYTE
@@ -43,7 +46,10 @@ enum class PixelDataType : std::uint32_t {
 	Float			 = 0x1406, // GL_FLOAT
 	UnsignedInt_24_8 = 0x84FA  // GL_UNSIGNED_INT_24_8
 };
-PTGN_REFLECT_ENUM(PixelDataType);
+PTGN_REFLECT_ENUM_MANUAL(
+	PixelDataType, UnsignedByte, Byte, UnsignedShort, Short, UnsignedInt, Int, HalfFloat, Float,
+	UnsignedInt_24_8
+);
 
 enum class TextureParameter : std::uint32_t {
 	MinFilter = 0x2801, // GL_TEXTURE_MIN_FILTER
@@ -51,7 +57,7 @@ enum class TextureParameter : std::uint32_t {
 	WrapS	  = 0x2802, // GL_TEXTURE_WRAP_S
 	WrapT	  = 0x2803, // GL_TEXTURE_WRAP_T
 };
-PTGN_REFLECT_ENUM(TextureParameter);
+PTGN_REFLECT_ENUM_MANUAL(TextureParameter, MinFilter, MagFilter, WrapS, WrapT);
 
 struct TextureCache {
 	V2_int size;

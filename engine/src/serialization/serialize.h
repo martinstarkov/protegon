@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -16,7 +17,21 @@
 #include "core/util/macro.h"
 #include "core/util/macro_loop.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+template <typename TVariant>
+struct VariantNames;
+
+namespace impl {
+
+template <typename T, typename = void>
+struct has_variant_names : std::false_type {};
+
+template <typename T>
+struct has_variant_names<T, std::void_t<decltype(VariantNames<T>::names)>> : std::true_type {};
+
+template <typename T>
+concept HasVariantNames = has_variant_names<T>::value;
 
 constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 	return (!name.empty() && name.back() == '_') ? name.substr(0, name.size() - 1) : name;
@@ -26,13 +41,90 @@ template <typename T>
 concept OptionalType = SpecializationOf<T, std::optional>;
 
 template <typename T>
+void SerializeValue(nlohmann::json& j, const T& value);
+
+template <typename T>
+void DeserializeValue(const nlohmann::json& j, T& value);
+
+template <typename Variant, std::size_t... Is>
+constexpr std::string_view VariantTypeNameByIndex(std::size_t index, std::index_sequence<Is...>) {
+	std::string_view result{};
+
+	(
+		[&] {
+			if (index == Is) {
+				result = VariantNames<Variant>::names[Is];
+			}
+		}(),
+		...
+	);
+
+	return result;
+}
+
+template <std::size_t I = 0, typename... Ts>
+void DeserializeVariantByName(
+	const nlohmann::json& value_json, std::string_view type_name, std::variant<Ts...>& value
+) {
+	using Variant = std::variant<Ts...>;
+
+	if constexpr (I >= sizeof...(Ts)) {
+		PTGN_ASSERT(false, "Invalid variant type '{}'", type_name);
+	} else {
+		if (type_name == VariantNames<Variant>::names[I]) {
+			using Alt = std::variant_alternative_t<I, Variant>;
+
+			if constexpr (std::default_initializable<Alt>) {
+				Alt temp{};
+				DeserializeValue(value_json, temp);
+				value = std::move(temp);
+			} else {
+				value = value_json.template get<Alt>();
+			}
+		} else {
+			DeserializeVariantByName<I + 1>(value_json, type_name, value);
+		}
+	}
+}
+
+template <typename... Ts>
+void SerializeVariant(nlohmann::json& j, const std::variant<Ts...>& value) {
+	using Variant = std::variant<Ts...>;
+	static_assert(
+		HasVariantNames<Variant>, "VariantNames specialization is required for this variant type"
+	);
+
+	j		  = nlohmann::json::object();
+	j["type"] = std::string{
+		VariantTypeNameByIndex<Variant>(value.index(), std::make_index_sequence<sizeof...(Ts)>{})
+	};
+
+	std::visit([&]<typename TAlt>(const TAlt& alt) { SerializeValue(j["value"], alt); }, value);
+}
+
+template <typename... Ts>
+void DeserializeVariant(const nlohmann::json& j, std::variant<Ts...>& value) {
+	using Variant = std::variant<Ts...>;
+	static_assert(
+		HasVariantNames<Variant>, "VariantNames specialization is required for this variant type"
+	);
+
+	PTGN_ASSERT(j.is_object(), "Expected object for variant deserialization");
+
+	const auto type_name   = j.at("type").template get<std::string>();
+	const auto& value_json = j.at("value");
+
+	DeserializeVariantByName(value_json, type_name, value);
+}
+
+template <typename T>
 void SerializeField(nlohmann::json& j, std::string_view key, const T& value) {
 	if constexpr (OptionalType<T>) {
 		if (value.has_value()) {
-			j[std::string{ key }] = *value;
+			SerializeValue(j[std::string{ key }], *value);
 		}
 	} else {
-		j[std::string{ key }] = value;
+		SerializeValue(j[std::string{ key }], value);
 	}
 }
 
@@ -40,10 +132,12 @@ template <typename T>
 void SerializeValue(nlohmann::json& j, const T& value) {
 	if constexpr (OptionalType<T>) {
 		if (value.has_value()) {
-			j = *value;
+			SerializeValue(j, *value);
 		} else {
 			j = nlohmann::json::value_t::null;
 		}
+	} else if constexpr (VariantType<T>) {
+		SerializeVariant(j, value);
 	} else {
 		j = value;
 	}
@@ -56,10 +150,11 @@ void DeserializeField(const nlohmann::json& j, std::string_view key, T& value) {
 		if (it == j.end() || it->is_null()) {
 			value = std::nullopt;
 		} else {
-			value = it->template get<typename std::remove_cvref_t<T>::value_type>();
+			value.emplace();
+			DeserializeValue(*it, *value);
 		}
 	} else {
-		j.at(std::string{ key }).get_to(value);
+		DeserializeValue(j.at(std::string{ key }), value);
 	}
 }
 
@@ -69,8 +164,11 @@ void DeserializeValue(const nlohmann::json& j, T& value) {
 		if (j.is_null()) {
 			value = std::nullopt;
 		} else {
-			value = j.template get<typename std::remove_cvref_t<T>::value_type>();
+			value.emplace();
+			DeserializeValue(j, *value);
 		}
+	} else if constexpr (VariantType<T>) {
+		DeserializeVariant(j, value);
 	} else {
 		j.get_to(value);
 	}
@@ -138,7 +236,9 @@ void StreamValue(std::ostream& os, const T& value) {
 	}
 }
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn
 
 // Helpers
 
@@ -163,6 +263,27 @@ void StreamValue(std::ostream& os, const T& value) {
 	if (s == PTGN_STRINGIFY(EnumCase)) {                        \
 		value = Type::EnumCase;                                 \
 		return;                                                 \
+	}
+
+/// @brief Macro for defining a specialization of VariantNames for a specific variant type,
+/// providing the names of the variants in order.
+#define PTGN_VARIANT_NAMES(VariantType, ...)                                 \
+	template <>                                                              \
+	struct VariantNames<PTGN_UNPAREN VariantType> {                          \
+		static constexpr std::array<                                         \
+			std::string_view, std::variant_size_v<PTGN_UNPAREN VariantType>> \
+			names{ __VA_ARGS__ };                                            \
+	}
+
+/// @brief Macro for defining a specialization of VariantNames for a specific variant type,
+/// providing the names of the variants in order.
+/// Supports one template parameter.
+#define PTGN_VARIANT_NAMES_TEMPLATE(TParam, VariantType, ...)                \
+	template <typename TParam>                                               \
+	struct VariantNames<PTGN_UNPAREN VariantType> {                          \
+		static constexpr std::array<                                         \
+			std::string_view, std::variant_size_v<PTGN_UNPAREN VariantType>> \
+			names{ __VA_ARGS__ };                                            \
 	}
 
 /// @brief Use this OUTSIDE the enum declaration.
@@ -261,23 +382,22 @@ void StreamValue(std::ostream& os, const T& value) {
 			return;                                                                     \
 		}                                                                               \
 		PTGN_ERROR("Unknown " PTGN_STRINGIFY(Type) ": ", std::to_underlying(value));    \
+	}                                                                                   \
+	inline void from_json(const nlohmann::json& j, Type& value) {                       \
+		static_assert(                                                                  \
+			std::is_enum_v<Type>,                                                       \
+			"PTGN_SERIALIZE_ENUM must be used with an enum type: " PTGN_STRINGIFY(Type) \
+		);                                                                              \
+		if (j.is_string()) {                                                            \
+			const auto s{ j.get<std::string>() };                                       \
+			if (auto parsed{ magic_enum::enum_cast<Type>(s) }; parsed.has_value()) {    \
+				value = *parsed;                                                        \
+				return;                                                                 \
+			}                                                                           \
+			PTGN_ERROR("Invalid enum name in JSON: ", s);                               \
+		}                                                                               \
+		value = static_cast<Type>(j.get<std::underlying_type_t<Type>>());               \
 	}
-
-inline void from_json(const nlohmann::json& j, Type& value) {
-	static_assert(
-		std::is_enum_v<Type>,
-		"PTGN_SERIALIZE_ENUM must be used with an enum type: " PTGN_STRINGIFY(Type)
-	);
-	if (j.is_string()) {
-		const auto s{ j.get<std::string>() };
-		if (auto parsed{ magic_enum::enum_cast<Type>(s) }; parsed.has_value()) {
-			value = *parsed;
-			return;
-		}
-		PTGN_ERROR("Invalid enum name in JSON: ", s);
-	}
-	value = static_cast<Type>(j.get<std::underlying_type_t<Type>>());
-}
 
 /// @brief Use this OUTSIDE the enum declaration.
 /// Declares JSON serialization for an enum using an explicit list of enum cases.

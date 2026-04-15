@@ -27,6 +27,17 @@ struct ActiveTexture {
 };
 
 struct TextureUnitState {
+	TextureUnitState() = default;
+
+	/// @brief Constructs a default texture unit state with all values set to their OpenGL defaults.
+	TextureUnitState(bool) {
+		id		   = TextureId{ 0 };
+		min_filter = TextureMinFilter::Linear;
+		mag_filter = TextureMagFilter::Linear;
+		wrap_s	   = TextureWrap::Repeat;
+		wrap_t	   = TextureWrap::Repeat;
+	}
+
 	std::optional<TextureId> id;
 
 	std::optional<TextureMinFilter> min_filter{ TextureMinFilter::Linear };
@@ -42,6 +53,31 @@ struct TextureUnitState {
 using TextureUnits = std::vector<TextureUnitState>;
 
 struct State {
+	State() = default;
+
+	/// @brief Constructs a default state with all values set to their OpenGL defaults.
+	State(bool) {
+		framebuffer	   = FramebufferId{ 0 };
+		renderbuffer   = RenderbufferId{ 0 };
+		vertex_buffer  = VertexBufferId{ 0 };
+		uniform_buffer = UniformBufferId{ 0 };
+		shader_program = ShaderId{ 0 };
+		vertex_array   = VertexArrayId{ 0 };
+		viewport	   = Viewport{ { 0, 0 }, { 0, 0 } };
+		depth_testing  = false;
+		blend		   = false;
+		depth_mask	   = DepthMaskState{};
+		blend_mode	   = BlendMode::ReplaceRGBA;
+		color_mask	   = ColorMaskState{};
+		active_texture = ActiveTexture{ 0 };
+		scissor		   = ScissorState{ false };
+		raster		   = RasterState{};
+		stencil		   = StencilState{};
+		clear_depth	   = ClearDepth{ 1.0 };
+		clear_stencil  = 0;
+		clear_color	   = Color{ 0, 0, 0, 0 };
+	}
+
 	// Core object bindings
 	std::optional<FramebufferId> framebuffer;
 	std::optional<RenderbufferId> renderbuffer;

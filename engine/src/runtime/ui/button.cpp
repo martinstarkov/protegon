@@ -23,6 +23,7 @@
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/animation.h"
+#include "runtime/animation/animation_event.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset.h"
 #include "runtime/audio/audio.h"
@@ -422,36 +423,6 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 
 template <typename Derived>
 ButtonBase<Derived>::ButtonBase(Entity entity) : Entity{ entity } {}
-
-template <typename Derived>
-Derived& ButtonBase<Derived>::OnPress(const EventCallback<event::ButtonBasePress<Derived>>& callback
-) {
-	AddScript<impl::ButtonPressScript<Derived>>(*this, callback);
-	return Self();
-}
-
-template <typename Derived>
-Derived& ButtonBase<Derived>::OnHover(const EventCallback<event::ButtonBaseHover<Derived>>& callback
-) {
-	AddScript<impl::ButtonHoverScript<Derived>>(*this, callback);
-	return Self();
-}
-
-template <typename Derived>
-Derived& ButtonBase<Derived>::OnHoverStart(
-	const EventCallback<event::ButtonBaseHoverStart<Derived>>& callback
-) {
-	AddScript<impl::ButtonHoverStartScript<Derived>>(*this, callback);
-	return Self();
-}
-
-template <typename Derived>
-Derived& ButtonBase<Derived>::OnHoverStop(
-	const EventCallback<event::ButtonBaseHoverStop<Derived>>& callback
-) {
-	AddScript<impl::ButtonHoverStopScript<Derived>>(*this, callback);
-	return Self();
-}
 
 template <typename Derived>
 Derived& ButtonBase<Derived>::Enable(bool enable_hover, bool reset_state) {
@@ -1036,7 +1007,7 @@ Derived& ButtonBase<Derived>::Press() {
 
 	PlaySound(ButtonState::Press);
 
-	PushEvent<event::ButtonPress>(*this);
+	PushEvent<event::ButtonBasePress<Derived>>(*this, Derived{ *this });
 
 	return Self();
 }
@@ -1047,7 +1018,7 @@ Derived& ButtonBase<Derived>::StartHover() {
 		return Self();
 	}
 
-	PushEvent<event::ButtonHoverStart>(*this);
+	PushEvent<event::ButtonBaseHoverStart<Derived>>(*this, Derived{ *this });
 
 	PlaySound(ButtonState::Hover);
 	PlayAnimation(ButtonState::Hover);
@@ -1061,7 +1032,7 @@ Derived& ButtonBase<Derived>::ContinueHover() {
 		return Self();
 	}
 
-	PushEvent<event::ButtonHover>(*this);
+	PushEvent<event::ButtonBaseHover<Derived>>(*this, Derived{ *this });
 
 	return Self();
 }
@@ -1072,7 +1043,7 @@ Derived& ButtonBase<Derived>::StopHover() {
 		return Self();
 	}
 
-	PushEvent<event::ButtonHoverStop>(*this);
+	PushEvent<event::ButtonBaseHoverStop<Derived>>(*this, Derived{ *this });
 
 	PlaySound(ButtonState::Idle);
 	PlayAnimation(ButtonState::Idle);
@@ -1116,11 +1087,6 @@ ToggleButton::operator Button() const {
 
 bool ToggleButton::IsToggled() const {
 	return Has<impl::ButtonToggledState>();
-}
-
-ToggleButton& ToggleButton::OnToggle(const EventCallback<event::ToggleButtonToggle>& callback) {
-	AddScript<impl::EventScript<event::ToggleButtonToggle>>(*this, callback);
-	return *this;
 }
 
 ToggleButton& ToggleButton::SetToggled(bool toggled) {

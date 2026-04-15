@@ -21,6 +21,9 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/interaction/draggable_event.h"
+#include "runtime/interaction/dropzone_event.h"
+#include "runtime/interaction/interactive_event.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
@@ -30,7 +33,7 @@ using namespace ptgn;
 
 struct DragScript : public Script {
 	void OnEvent(Event d) override {
-		d.Dispatch<event::Dragging>([this](auto& e) { OnDrag(e.position); });
+		d.Dispatch<event::Drag>([this](auto& e) { OnDrag(e.position); });
 	}
 
 	void OnDrag(V2_float pos) {
@@ -56,7 +59,7 @@ struct DropzoneScript : public Script {
 
 struct DraggableScript : public Script {
 	void OnEvent(Event d) override {
-		d.Dispatch<event::Dragging>(&DraggableScript::OnDrag, this);
+		d.Dispatch<event::Drag>(&DraggableScript::OnDrag, this);
 		d.Dispatch<event::MousePressedOver>(&DraggableScript::OnMousePressedOver, this);
 		d.Dispatch<event::MousePressedOut>(&DraggableScript::OnMousePressedOut, this);
 		d.Dispatch<event::MouseHeldOver>(&DraggableScript::OnMouseHeldOver, this);
@@ -151,7 +154,7 @@ struct InteractiveScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::DarkGray);
 
-		ctx().input.SetSettings({ .debug_draw_enabled = true, .debug_draw_line_width = 3.0f });
+		ctx().interaction.SetDebugSettings({ .draw_enabled = true, .draw_line_width = 3.0f });
 
 		ctx().asset.LoadMany({ { "circle", "assets/circle.png" },
 							   { "drag", "assets/drag.png" },
@@ -229,8 +232,8 @@ struct InteractiveScene : public Scene {
 
 	void OnUpdate() override {
 		if (ctx().input.KeyPressed(Key::T)) {
-			bool desired{ !ctx().input.IsTopOnly() };
-			ctx().input.SetTopOnly(desired);
+			bool desired{ !ctx().interaction.IsTopOnly() };
+			ctx().interaction.SetTopOnly(desired);
 			PTGN_LOG("Top only input: ", desired);
 		}
 

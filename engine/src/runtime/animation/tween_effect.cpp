@@ -37,14 +37,9 @@ namespace ptgn {
 
 namespace impl {
 
-static void EntityFollowStopImpl(Entity parent) {
+void EntityFollowStopImpl(Entity parent) {
 	parent.template Remove<TopDownMovement>();
 	parent.template Remove<RigidBody>();
-}
-
-template <typename T>
-void EntityFollowStopImpl(const T& event) {
-	EntityFollowStopImpl(event.parent);
 }
 
 static float ApplyBounceEase(float t, bool symmetrical, Ease ease) {
@@ -222,31 +217,6 @@ void EntityFollowStartImpl(Entity parent, const FollowConfig& config) {
 	movement.max_speed				  = config.max_speed;
 	movement.keys_enabled			  = false;
 	movement.only_orthogonal_movement = false;
-}
-
-Tween StartFollowImpl(
-	Entity entity, bool force, const EventCallback<ptgn::event::TweenStart>& start_func,
-	const EventCallback<ptgn::event::TweenProgress>& update_func
-) {
-	auto tween{ GetOrCreateTween<FollowEffect>(entity) };
-
-	tween.TryAdd<FollowEffect>();
-
-	if (force || tween.IsCompleted()) {
-		tween.Clear();
-	}
-
-	tween.During(0ms)
-		.Repeat()
-		.OnStart(start_func)
-		.OnProgress(update_func)
-		.OnPointComplete(&EntityFollowStopImpl<event::TweenPointComplete>)
-		.OnComplete(&EntityFollowStopImpl<event::TweenComplete>)
-		.OnStop(&EntityFollowStopImpl<event::TweenStop>)
-		.OnReset(&EntityFollowStopImpl<event::TweenReset>);
-	tween.Start(force);
-
-	return tween;
 }
 
 Tween StartFollowPathImpl(
@@ -628,7 +598,7 @@ void StopFollow(Entity entity, bool force, bool reset_previous_waypoints) {
 
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
-		impl::EntityFollowStopImpl(tween);
+		impl::EntityFollowStopImpl(Entity{ tween });
 		if (reset_previous_waypoints) {
 			entity.Remove<impl::EffectObject<impl::FollowEffect>>();
 		}

@@ -17,7 +17,7 @@ using namespace ptgn;
 class ButtonTemplatesScene : public Scene {
 public:
 	void OnEnter() override {
-		ctx().input.SetSettings({ .debug_draw_enabled = true });
+		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 		SetBackgroundColor(color::LightGray);
 
 		ctx().asset.LoadMany({ { "hover", "assets/hover.ogg" },

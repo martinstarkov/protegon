@@ -127,7 +127,7 @@ Entity CreateRect(
 ) {
 	auto rect{ scene.CreateEntity() };
 
-	SetDraw<impl::RectDraw>(rect);
+	SetDraw<RectDraw>(rect);
 	Show(rect, false);
 
 	SetPosition(rect, position);
@@ -146,7 +146,7 @@ Entity CreatePolygon(
 ) {
 	auto polygon{ scene.CreateEntity() };
 
-	SetDraw<impl::PolygonDraw>(polygon);
+	SetDraw<PolygonDraw>(polygon);
 	Show(polygon, false);
 
 	SetPosition(polygon, position);
@@ -163,7 +163,7 @@ Entity CreateCircle(
 ) {
 	auto circle{ scene.CreateEntity() };
 
-	SetDraw<impl::CircleDraw>(circle);
+	SetDraw<CircleDraw>(circle);
 	Show(circle, false);
 
 	SetPosition(circle, position);
@@ -181,7 +181,7 @@ Entity CreateArc(
 ) {
 	auto arc{ scene.CreateEntity() };
 
-	SetDraw<impl::ArcDraw>(arc);
+	SetDraw<ArcDraw>(arc);
 	Show(arc, false);
 
 	SetPosition(arc, position);

@@ -22,7 +22,7 @@ public:
 	ToggleButton b2;
 
 	void OnEnter() override {
-		ctx().input.SetSettings({ .debug_draw_enabled = true });
+		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 
 		// ctx().asset.LoadAudio("idle", "assets/idle.ogg");
 		ctx().asset.LoadAudio("hover", "assets/hover.ogg");

@@ -8,6 +8,7 @@
 #include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/render_pass.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport_event.h"
@@ -122,7 +123,7 @@ void RenderTarget::Draw(DrawContext& renderer, Entity entity, Camera) {
 
 	constexpr bool floor_positions{ true };
 
-	renderer.SetBlend(blend_mode);
+	renderer.SetBlendMode(blend_mode);
 	renderer.DrawTexture(
 		texture, positions, tint, depth.GetValue(), texture_coordinates, floor_positions
 	);

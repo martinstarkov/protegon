@@ -181,6 +181,8 @@ public:
 	void BindRenderPass(RenderPass& render_pass);
 	void BindScreenTarget();
 
+	RenderTargetId GetScreenTarget() const;
+
 	RenderPass BeginPass(RenderTargetId scene_render_target);
 
 	V2_int GetTextureSize(TextureId id) const;
@@ -198,6 +200,16 @@ public:
 	void SetUniform(ShaderId id, const char* uniform_name, V4_int v);
 	void SetUniform(ShaderId id, const char* uniform_name, const std::vector<int>& v);
 	void SetUniform(ShaderId id, const char* uniform_name, bool v);
+
+	void Destroy(VertexBufferId id);
+	void Destroy(ElementBufferId id);
+	void Destroy(UniformBufferId id);
+	void Destroy(ShaderId id);
+	void Destroy(TextureId id);
+	void Destroy(RenderbufferId id);
+	void Destroy(FramebufferId id);
+	void Destroy(VertexArrayId id);
+	void Destroy(RenderTargetId id);
 
 private:
 	friend class ptgn::Application;
@@ -220,16 +232,6 @@ private:
 	/// @return The texture slot the given texture is bound to, and whether it should be pushed to
 	/// batch_textures.
 	std::pair<std::uint32_t, bool> GetTextureSlot(TextureId tex);
-
-	void Destroy(VertexBufferId id);
-	void Destroy(ElementBufferId id);
-	void Destroy(UniformBufferId id);
-	void Destroy(ShaderId id);
-	void Destroy(TextureId id);
-	void Destroy(RenderbufferId id);
-	void Destroy(FramebufferId id);
-	void Destroy(VertexArrayId id);
-	void Destroy(RenderTargetId id);
 
 	/// @brief Flushes the batch if adding the given number of vertices and indices would exceed
 	/// batch.

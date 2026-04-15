@@ -27,6 +27,7 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/geometry/triangle.h"
 #include "core/math/math_utils.h"
+#include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
@@ -457,6 +458,10 @@ void DrawContext::BindScreenTarget() {
 
 void DrawContext::SetViewport(Viewport viewport) {
 	renderer_.SetViewport(viewport);
+}
+
+void DrawContext::SetViewProjection(const Matrix4& view_projection) {
+	renderer_.SetViewProjection(view_projection);
 }
 
 void DrawContext::SetBlend(bool enabled) {

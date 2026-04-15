@@ -2,15 +2,15 @@
 
 #include <optional>
 #include <string_view>
-#include <variant>
 #include <vector>
 
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "core/graphics/color.h"
 #include "runtime/asset/asset.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"

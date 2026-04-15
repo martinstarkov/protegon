@@ -6,6 +6,7 @@
 
 namespace ptgn {
 
+/// @brief Texture storage format (GL_INTERNAL_FORMAT)
 enum class TextureFormat : std::uint32_t {
 	R8				  = 0x8229, // GL_R8
 	RG8				  = 0x822B, // GL_RG8
@@ -28,7 +29,39 @@ enum class TextureFormat : std::uint32_t {
 	SRGB8			  = 0x8C41, // GL_SRGB8
 	SRGB8_ALPHA8	  = 0x8C43	// GL_SRGB8_ALPHA8
 };
-PTGN_REFLECT_ENUM(ptgn::TextureFormat);
+PTGN_REFLECT_ENUM_MANUAL(
+	TextureFormat, R8, RG8, RGB8, RGBA8, R16F, RG16F, RGB16F, RGBA16F, R32F, RG32F, RGB32F, RGBA32F,
+	Depth16, Depth24, Depth32F, Depth24_Stencil8, Depth32F_Stencil8, Stencil8, SRGB8, SRGB8_ALPHA8
+);
+
+/// @brief Texture Minification Filter (GL_TEXTURE_MIN_FILTER)
+enum class TextureMinFilter : std::int32_t {
+	Nearest				 = 0x2600, // GL_NEAREST
+	Linear				 = 0x2601, // GL_LINEAR
+	NearestMipmapNearest = 0x2700, // GL_NEAREST_MIPMAP_NEAREST
+	LinearMipmapNearest	 = 0x2701, // GL_LINEAR_MIPMAP_NEAREST
+	NearestMipmapLinear	 = 0x2702, // GL_NEAREST_MIPMAP_LINEAR
+	LinearMipmapLinear	 = 0x2703  // GL_LINEAR_MIPMAP_LINEAR
+};
+PTGN_REFLECT_ENUM_MANUAL(
+	TextureMinFilter, Nearest, Linear, NearestMipmapNearest, LinearMipmapNearest,
+	NearestMipmapLinear, LinearMipmapLinear
+);
+
+/// @brief Texture Magnification Filter (GL_TEXTURE_MAG_FILTER)
+enum class TextureMagFilter : std::int32_t {
+	Nearest = 0x2600, // GL_NEAREST
+	Linear	= 0x2601  // GL_LINEAR
+};
+PTGN_REFLECT_ENUM_MANUAL(TextureMagFilter, Nearest, Linear);
+
+/// @brief Texture Wrap Mode (GL_TEXTURE_WRAP_S / GL_TEXTURE_WRAP_T)
+enum class TextureWrap : std::int32_t {
+	Repeat		   = 0x2901, // GL_REPEAT
+	MirroredRepeat = 0x8370, // GL_MIRRORED_REPEAT
+	ClampToEdge	   = 0x812F	 // GL_CLAMP_TO_EDGE
+};
+PTGN_REFLECT_ENUM_MANUAL(TextureWrap, Repeat, MirroredRepeat, ClampToEdge);
 
 inline bool IsDepthOnlyFormat(TextureFormat fmt) {
 	switch (fmt) {
@@ -84,31 +117,5 @@ inline bool IsHDRFormat(TextureFormat fmt) {
 		default:	  return false;
 	}
 }
-
-// Texture Minification Filter (GL_TEXTURE_MIN_FILTER)
-enum class TextureMinFilter : std::int32_t {
-	Nearest				 = 0x2600, // GL_NEAREST
-	Linear				 = 0x2601, // GL_LINEAR
-	NearestMipmapNearest = 0x2700, // GL_NEAREST_MIPMAP_NEAREST
-	LinearMipmapNearest	 = 0x2701, // GL_LINEAR_MIPMAP_NEAREST
-	NearestMipmapLinear	 = 0x2702, // GL_NEAREST_MIPMAP_LINEAR
-	LinearMipmapLinear	 = 0x2703  // GL_LINEAR_MIPMAP_LINEAR
-};
-PTGN_REFLECT_ENUM(TextureMinFilter);
-
-// Texture Magnification Filter (GL_TEXTURE_MAG_FILTER)
-enum class TextureMagFilter : std::int32_t {
-	Nearest = 0x2600, // GL_NEAREST
-	Linear	= 0x2601  // GL_LINEAR
-};
-PTGN_REFLECT_ENUM(TextureMagFilter);
-
-// Texture Wrap Mode (GL_TEXTURE_WRAP_S / GL_TEXTURE_WRAP_T)
-enum class TextureWrap : std::int32_t {
-	Repeat		   = 0x2901, // GL_REPEAT
-	MirroredRepeat = 0x8370, // GL_MIRRORED_REPEAT
-	ClampToEdge	   = 0x812F	 // GL_CLAMP_TO_EDGE
-};
-PTGN_REFLECT_ENUM(TextureWrap);
 
 } // namespace ptgn

@@ -32,7 +32,7 @@ void AudioEngineDeleter::operator()(ma_engine* engine) const noexcept {
 } // namespace impl
 
 AudioSystem::AudioSystem(AssetManager& assets) : assets_{ assets } {
-	engine_ = std::unique_ptr<ma_engine, impl::AudioEngineDeleter>(new ma_engine());
+	engine_ = std::unique_ptr<ma_engine, impl::AudioEngineDeleter>{ new ma_engine() };
 
 	auto result = ma_engine_init(nullptr, engine_.get());
 	PTGN_ASSERT(result == MA_SUCCESS, "ma_engine_init() failed");

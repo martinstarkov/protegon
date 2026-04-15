@@ -8,9 +8,11 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/collider.h"
+#include "runtime/physics/collision_event.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/move_direction.h"
 #include "runtime/physics/movement.h"
+#include "runtime/physics/movement_event.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
@@ -72,7 +74,7 @@ class TopDownMovementScene : public Scene {
 	}
 
 	void OnEnter() override {
-		ctx().collision.SetSettings({ .debug_draw_enabled = true });
+		ctx().collision.SetDebugSettings({ .draw_enabled = true });
 
 		V2_float ws{ game_size };
 
