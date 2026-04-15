@@ -8,7 +8,14 @@
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
 #include "core/editor_context.h"
+#include "core/math/vector2.h"
 #include "core/util/file.h"
+#include "panels/content_browser.h"
+#include "panels/engine_settings.h"
+#include "panels/inspector.h"
+#include "panels/scene_hierarchy.h"
+#include "panels/scene_list.h"
+#include "panels/viewport.h"
 
 namespace ptgn {
 
@@ -28,6 +35,9 @@ public:
 
 	Scene* GetActiveScene() const;
 
+	V2_int GetDisplaySize() const;
+	ImTextureID GetScreenTargetTexture() const;
+
 private:
 	Application& app;
 
@@ -40,6 +50,13 @@ private:
 	std::unique_ptr<EditorContext> context_;
 	UndoStack undo_stack_;
 	EditorCommands commands_;
+
+	ViewportPanel viewport_panel_;
+	ContentBrowserPanel content_browser_panel_;
+	EngineSettingsPanel engine_settings_panel_;
+	InspectorPanel inspector_panel_;
+	SceneHierarchyPanel scene_hierarchy_panel_;
+	SceneListPanel scene_list_panel_;
 
 	bool dock_layout_built_{ false };
 };

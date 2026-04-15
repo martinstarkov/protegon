@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/math/vector2.h"
 #include "core/util/file.h"
+#include "renderer/pipeline/viewport.h"
 
 namespace ptgn {
 
@@ -10,7 +10,7 @@ class Scene;
 namespace editor {
 
 struct ViewportState {
-	V2_int size{ 0, 0 };
+	Viewport viewport;
 	bool focused{ false };
 	bool hovered{ false };
 };

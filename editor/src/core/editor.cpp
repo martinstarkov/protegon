@@ -17,6 +17,14 @@
 #include "core/editor_state.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
+#include "panels/content_browser.h"
+#include "panels/engine_settings.h"
+#include "panels/inspector.h"
+#include "panels/scene_hierarchy.h"
+#include "panels/scene_list.h"
+#include "panels/viewport.h"
+#include "renderer/renderer.h"
+#include "renderer/resources/id.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -38,7 +46,7 @@ Editor::Editor(Application& app) : app{ app } {
 	state.is_playing		= false;
 	state.viewport.focused	= false;
 	state.viewport.hovered	= false;
-	state.viewport.size		= { 0, 0 };
+	state.viewport.viewport = {};
 
 	context_ = std::make_unique<EditorContext>(
 		*this, commands_, undo_stack_, std::move(selection), std::move(state)
@@ -82,29 +90,12 @@ void Editor::OnRender() {
 }
 
 void Editor::DrawPanels() {
-	ImGui::Begin("Scene Hierarchy###SceneHierarchyWindow");
-	ImGui::TextUnformatted("Scene hierarchy panel");
-	ImGui::End();
-
-	ImGui::Begin("Scenes");
-	ImGui::TextUnformatted("Scenes panel");
-	ImGui::End();
-
-	ImGui::Begin("Inspector");
-	ImGui::TextUnformatted("Inspector panel");
-	ImGui::End();
-
-	ImGui::Begin("Engine Settings");
-	ImGui::TextUnformatted("Engine settings panel");
-	ImGui::End();
-
-	ImGui::Begin("Game");
-	ImGui::TextUnformatted("Game / viewport panel");
-	ImGui::End();
-
-	ImGui::Begin("Assets");
-	ImGui::TextUnformatted("Assets panel");
-	ImGui::End();
+	viewport_panel_.OnRender(*context_);
+	scene_hierarchy_panel_.OnRender(*context_);
+	scene_list_panel_.OnRender(*context_);
+	inspector_panel_.OnRender(*context_);
+	engine_settings_panel_.OnRender(*context_);
+	content_browser_panel_.OnRender(*context_);
 }
 
 void Editor::SetActiveScene(Scene* scene, std::filesystem::path scene_path) {
@@ -123,6 +114,15 @@ void Editor::SetActiveScene(Scene* scene, std::filesystem::path scene_path) {
 Scene* Editor::GetActiveScene() const {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 	return context_->state.active_scene;
+}
+
+V2_int Editor::GetDisplaySize() const {
+	return app.renderer_.GetDisplaySize();
+}
+
+ImTextureID Editor::GetScreenTargetTexture() const {
+	auto texture{ app.renderer_.GetRenderTargetTexture(app.renderer_.GetScreenTarget()) };
+	return static_cast<ImTextureID>(texture.value);
 }
 
 void Editor::OnActiveSceneChanged() {
