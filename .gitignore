@@ -16,8 +16,6 @@
 # Mono auto generated files
 mono_crash.*
 
-engine/vendor/
-
 # Build results
 [Bb]uild/
 [Bb]uild-wasm/
