@@ -2,15 +2,46 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
+#include "core/event/event.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/scripting/script.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
 class Scene;
+
+namespace impl {
+
+struct TopDownMovementScript : public Script {
+	void OnEvent(Event d) override;
+
+	void OnMoveStart();
+
+	void OnMoveStop();
+
+	void OnDirectionChange();
+};
+
+struct TopDownAnimationRepeat : public Script {
+	TopDownAnimationRepeat() = default;
+
+	TopDownAnimationRepeat(std::size_t walk_frequency, std::string_view walk_sound);
+
+	std::size_t walk_sound_frequency{ 1 };
+	std::string_view walk_sound_key;
+
+	void OnEvent(Event d) override;
+
+	void OnAnimationFrameChange();
+};
+
+} // namespace impl
 
 struct TopDownPlayerConfig {
 	// Movement
@@ -44,6 +75,13 @@ struct TopDownPlayerConfig {
 	std::optional<std::string> walk_sound_key;
 	/// @brief Defaults to 1 if not provided.
 	std::optional<std::size_t> walk_sound_frequency;
+
+	PTGN_REFLECT(
+		TopDownPlayerConfig, max_speed, max_acceleration, max_deceleration, max_turn_speed,
+		friction, body_hitbox_size, body_hitbox_offset, interaction_hitbox_size,
+		interaction_hitbox_offset, animation_frame_count, animation_texture_key,
+		animation_frame_size, animation_duration, depth, walk_sound_key, walk_sound_frequency
+	)
 };
 
 Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerConfig& config = {});

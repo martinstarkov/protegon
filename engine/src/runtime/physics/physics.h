@@ -7,7 +7,6 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "serialization/serialize.h"
-#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -19,14 +18,7 @@ enum class BoundaryBehavior {
 	SlideVelocity,	// Clamp position and do not change velocity.
 	ReflectVelocity // Bounce off bounds by flipping velocity
 };
-
-std::ostream& operator<<(std::ostream& os, BoundaryBehavior behavior);
-
-PTGN_REFLECT_ENUM(
-	BoundaryBehavior, { { BoundaryBehavior::StopVelocity, "stop_velocity" },
-						{ BoundaryBehavior::SlideVelocity, "slide_velocity" },
-						{ BoundaryBehavior::ReflectVelocity, "reflect_velocity" } }
-);
+PTGN_REFLECT_ENUM(BoundaryBehavior);
 
 struct Bounds {
 	/// @brief Center position of the bounding box.
@@ -36,12 +28,7 @@ struct Bounds {
 
 	BoundaryBehavior behavior{ BoundaryBehavior::SlideVelocity };
 
-	friend std::ostream& operator<<(std::ostream& os, const Bounds& bounds) {
-		os << "{ position: " << bounds.position;
-		os << ", size: " << bounds.size;
-		os << ", behavior: " << bounds.behavior << " }";
-		return os;
-	}
+	PTGN_REFLECT(Bounds, position, size, behavior)
 };
 
 class Physics {
@@ -63,12 +50,7 @@ public:
 	/// @return True if physics is enabled, false otherwise.
 	[[nodiscard]] bool IsEnabled() const;
 
-	// TODO: Fix serialization.
-	// PTGN_REFLECT(
-	//	Physics, KeyValue("gravity", gravity_), KeyValue("bounds_top_left", bounds_top_left_),
-	//	KeyValue("bounds_size", bounds_size_), KeyValue("boundary_behavior", boundary_behavior_),
-	//	KeyValue("enabled", enabled_)
-	//)
+	PTGN_REFLECT(Physics, gravity_, bounds_, enabled_)
 
 private:
 	friend class Scene;

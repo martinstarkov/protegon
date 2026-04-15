@@ -25,6 +25,7 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "app/layer.h"
 #include "core/assert.h"
 #include "core/event/event.h"
+#include "core/event/event_handler.h"
 #include "core/event/window_event.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
@@ -36,7 +37,6 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "renderer/renderer.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
 

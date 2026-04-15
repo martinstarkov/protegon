@@ -10,6 +10,7 @@
 #include <utility>
 #include <variant>
 
+#include "core/assert.h"
 #include "core/log.h"
 #include "core/util/concepts.h"
 #include "core/util/macro.h"
@@ -132,7 +133,7 @@ void StreamValue(std::ostream& os, const T& value) {
 	} else if constexpr (VariantType<T>) {
 		StreamVariant(os, value);
 	} else {
-		static_assert(Streamable<T>, "Type must be streamable or iterable");
+		static_assert(StreamWritable<T>, "Type must be stream writable");
 		os << value;
 	}
 }
@@ -152,6 +153,18 @@ void StreamValue(std::ostream& os, const T& value) {
 #define PTGN_IMPL_SERIALIZE_FROM_JSON_FIELD(member) \
 	::ptgn::impl::DeserializeField(j, ::ptgn::impl::StripTrailingUnderscore(#member), value.member);
 
+#define PTGN_IMPL_OSTREAM_ENUM_CASE(EnumCase, Type) \
+	case Type::EnumCase: return os << PTGN_STRINGIFY(EnumCase);
+
+#define PTGN_IMPL_SERIALIZE_ENUM_TO_JSON_CASE(EnumCase, Type) \
+	case Type::EnumCase: j = PTGN_STRINGIFY(EnumCase); return;
+
+#define PTGN_IMPL_SERIALIZE_ENUM_FROM_JSON_CASE(EnumCase, Type) \
+	if (s == PTGN_STRINGIFY(EnumCase)) {                        \
+		value = Type::EnumCase;                                 \
+		return;                                                 \
+	}
+
 /// @brief Use this OUTSIDE the enum declaration.
 #define PTGN_OSTREAM_ENUM(Type)                                                       \
 	inline std::ostream& operator<<(std::ostream& os, Type value) {                   \
@@ -162,7 +175,21 @@ void StreamValue(std::ostream& os, const T& value) {
 		if (auto name{ magic_enum::enum_name(value) }; !name.empty()) {               \
 			return os << name;                                                        \
 		}                                                                             \
-		return os << std::to_underlying(value);                                       \
+		PTGN_ERROR("Unknown " PTGN_STRINGIFY(Type) ": ", std::to_underlying(value));  \
+	}
+
+/// @brief Use this OUTSIDE the enum declaration.
+/// Declares ostream operator for an enum using an explicit list of enum cases.
+#define PTGN_OSTREAM_ENUM_MANUAL(Type, ...)                                                       \
+	inline std::ostream& operator<<(std::ostream& os, Type value) {                               \
+		static_assert(                                                                            \
+			std::is_enum_v<Type>,                                                                 \
+			"PTGN_OSTREAM_ENUM_MANUAL must be used with an enum type: " PTGN_STRINGIFY(Type)      \
+		);                                                                                        \
+		switch (value) {                                                                          \
+			PTGN_MAP_DATA(PTGN_IMPL_OSTREAM_ENUM_CASE, Type, __VA_ARGS__)                         \
+			default: PTGN_ERROR("Unknown " PTGN_STRINGIFY(Type) ": ", std::to_underlying(value)); \
+		}                                                                                         \
 	}
 
 /// @brief Use this INSIDE the class/struct body.
@@ -233,22 +260,49 @@ void StreamValue(std::ostream& os, const T& value) {
 			j = std::string{ name };                                                    \
 			return;                                                                     \
 		}                                                                               \
-		j = std::to_underlying(value);                                                  \
-	}                                                                                   \
-	inline void from_json(const nlohmann::json& j, Type& value) {                       \
-		static_assert(                                                                  \
-			std::is_enum_v<Type>,                                                       \
-			"PTGN_SERIALIZE_ENUM must be used with an enum type: " PTGN_STRINGIFY(Type) \
-		);                                                                              \
-		if (j.is_string()) {                                                            \
-			const auto s{ j.get<std::string>() };                                       \
-			if (auto parsed{ magic_enum::enum_cast<Type>(s) }; parsed.has_value()) {    \
-				value = *parsed;                                                        \
-				return;                                                                 \
-			}                                                                           \
-			PTGN_ERROR("Invalid enum name in JSON: ", s);                               \
-		}                                                                               \
-		value = static_cast<Type>(j.get<std::underlying_type_t<Type>>());               \
+		PTGN_ERROR("Unknown " PTGN_STRINGIFY(Type) ": ", std::to_underlying(value));    \
+	}
+
+inline void from_json(const nlohmann::json& j, Type& value) {
+	static_assert(
+		std::is_enum_v<Type>,
+		"PTGN_SERIALIZE_ENUM must be used with an enum type: " PTGN_STRINGIFY(Type)
+	);
+	if (j.is_string()) {
+		const auto s{ j.get<std::string>() };
+		if (auto parsed{ magic_enum::enum_cast<Type>(s) }; parsed.has_value()) {
+			value = *parsed;
+			return;
+		}
+		PTGN_ERROR("Invalid enum name in JSON: ", s);
+	}
+	value = static_cast<Type>(j.get<std::underlying_type_t<Type>>());
+}
+
+/// @brief Use this OUTSIDE the enum declaration.
+/// Declares JSON serialization for an enum using an explicit list of enum cases.
+#define PTGN_SERIALIZE_ENUM_MANUAL(Type, ...)                                                     \
+	inline void to_json(nlohmann::json& j, Type value) {                                          \
+		static_assert(                                                                            \
+			std::is_enum_v<Type>,                                                                 \
+			"PTGN_SERIALIZE_ENUM_MANUAL must be used with an enum type: " PTGN_STRINGIFY(Type)    \
+		);                                                                                        \
+		switch (value) {                                                                          \
+			PTGN_MAP_DATA(PTGN_IMPL_SERIALIZE_ENUM_TO_JSON_CASE, Type, __VA_ARGS__)               \
+			default: PTGN_ERROR("Unknown " PTGN_STRINGIFY(Type) ": ", std::to_underlying(value)); \
+		}                                                                                         \
+	}                                                                                             \
+	inline void from_json(const nlohmann::json& j, Type& value) {                                 \
+		static_assert(                                                                            \
+			std::is_enum_v<Type>,                                                                 \
+			"PTGN_SERIALIZE_ENUM_MANUAL must be used with an enum type: " PTGN_STRINGIFY(Type)    \
+		);                                                                                        \
+		if (j.is_string()) {                                                                      \
+			const auto s{ j.get<std::string>() };                                                 \
+			PTGN_MAP_DATA(PTGN_IMPL_SERIALIZE_ENUM_FROM_JSON_CASE, Type, __VA_ARGS__)             \
+			PTGN_ERROR("Invalid enum name in JSON: ", s);                                         \
+		}                                                                                         \
+		value = static_cast<Type>(j.get<std::underlying_type_t<Type>>());                         \
 	}
 
 /// @brief Use this INSIDE the class/struct body.
@@ -319,6 +373,13 @@ void StreamValue(std::ostream& os, const T& value) {
 #define PTGN_REFLECT_ENUM(Type) \
 	PTGN_OSTREAM_ENUM(Type)     \
 	PTGN_SERIALIZE_ENUM(Type)
+
+/// @brief Use this OUTSIDE the enum declaration.
+/// Declares both ostream operator and JSON serialization for the enum
+/// using an explicit list of enum cases.
+#define PTGN_REFLECT_ENUM_MANUAL(Type, ...)     \
+	PTGN_OSTREAM_ENUM_MANUAL(Type, __VA_ARGS__) \
+	PTGN_SERIALIZE_ENUM_MANUAL(Type, __VA_ARGS__)
 
 /// @brief Use this INSIDE the class/struct body.
 /// Declares both ostream operator and JSON serialization for the class/struct.

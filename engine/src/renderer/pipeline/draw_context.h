@@ -5,11 +5,11 @@
 #include <optional>
 #include <span>
 #include <string_view>
-#include <utility>
 #include <variant>
 #include <vector>
 
 #include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
@@ -24,11 +24,9 @@
 #include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/concepts.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_pass.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
@@ -127,11 +125,6 @@ using ManualCommand = std::variant<TextureCommand, QuadCommand, QuadShapeCommand
 
 struct ManualDrawCommand {
 	ManualCommand payload;
-	float depth{ 0.0f };
-};
-
-struct DrawCommand {
-	std::variant<Entity, ManualCommand> payload;
 	float depth{ 0.0f };
 };
 

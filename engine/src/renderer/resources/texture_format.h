@@ -28,7 +28,7 @@ enum class TextureFormat : std::uint32_t {
 	SRGB8			  = 0x8C41, // GL_SRGB8
 	SRGB8_ALPHA8	  = 0x8C43	// GL_SRGB8_ALPHA8
 };
-PTGN_REFLECT_ENUM(TextureFormat);
+PTGN_REFLECT_ENUM(ptgn::TextureFormat);
 
 inline bool IsDepthOnlyFormat(TextureFormat fmt) {
 	switch (fmt) {

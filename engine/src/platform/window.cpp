@@ -43,7 +43,6 @@ EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
 #include "platform/glfw.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/renderer.h"
-#include "runtime/scene/scene_event.h"
 
 namespace ptgn {
 
@@ -127,7 +126,6 @@ void Window::SetCallbacks() {
 
 		V2_int size{ width, height };
 
-		self->renderer_.OnWindowResize(size);
 		self->PushEvent<event::WindowResized>(size);
 	});
 
@@ -725,8 +723,8 @@ V2_float Window::GetMouseDelta() const {
 	return GetMousePosition() - GetPreviousMousePosition();
 }
 
-float Window::GetMouseScroll() const {
-	return mouse_scroll_.y;
+V2_float Window::GetMouseScroll() const {
+	return mouse_scroll_;
 }
 
 bool Window::MousePressed(Mouse mouse_button) const {

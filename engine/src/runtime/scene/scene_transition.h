@@ -1,10 +1,12 @@
 #pragma once
 
+#include <chrono>
 #include <concepts>
 #include <type_traits>
 
 #include "core/math/easing.h"
 #include "core/time/time.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -36,6 +38,8 @@ public:
 	milliseconds GetDuration() const;
 	Ease GetEase() const;
 
+	[[nodiscard]] bool IsStarted() const;
+
 	virtual void OnDelayStart([[maybe_unused]] Scene& target_scene
 	) { /* Optional user implementation */ }
 
@@ -47,6 +51,9 @@ public:
 
 	virtual void OnStop([[maybe_unused]] Scene& target_scene) { /* Optional user implementation */ }
 
+	PTGN_REFLECT(
+		SceneTransition, elapsed_, duration_, delay_elapsed_, delay_duration_, started_, ease_
+	)
 private:
 	friend class impl::SceneManager;
 

@@ -3,12 +3,11 @@
 #include <array>
 #include <deque>
 #include <limits>
+#include <optional>
 #include <utility>
 
 #include "core/math/vector2.h"
 #include "runtime/world/grid.h"
-
-// TODO: Add serialization.
 
 namespace ptgn {
 
@@ -17,14 +16,17 @@ namespace impl {
 struct AStarNode {
 	bool obstacle{ false };
 	bool visited{ false };
+
 	float global_goal{ std::numeric_limits<float>::infinity() };
 	float local_goal{ std::numeric_limits<float>::infinity() };
+
 	std::pair<AStarNode*, V2_int> parent{ nullptr, V2_int{} };
+
 	void Reset();
 	void Destroy();
 };
 
-inline constexpr std::array<V2_int, 4> neighbors{
+inline constexpr std::array<V2_int, 4> kAStarNeighbors{
 	V2_int{ 0, 1 },
 	V2_int{ 0, -1 },
 	V2_int{ 1, 0 },

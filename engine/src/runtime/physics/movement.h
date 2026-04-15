@@ -7,6 +7,7 @@
 #include "core/time/timer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/physics/collider.h"
+#include "runtime/physics/collision.h"
 #include "runtime/physics/move_direction.h"
 #include "runtime/physics/rigid_body.h"
 #include "serialization/serialize.h"
@@ -14,96 +15,6 @@
 namespace ptgn {
 
 class Scene;
-
-namespace event {
-
-struct PlayerMoveStart : public Event<PlayerMoveStart> {
-	PlayerMoveStart() = default;
-
-	explicit PlayerMoveStart(MoveDirection direction) : direction{ direction } {}
-
-	MoveDirection direction;		 // Direction at start
-
-	operator MoveDirection() const { // NOSONAR
-		return direction;
-	}
-};
-
-struct PlayerMoveHeld : public Event<PlayerMoveHeld> {
-	PlayerMoveHeld() = default;
-
-	explicit PlayerMoveHeld(MoveDirection direction) : direction{ direction } {}
-
-	MoveDirection direction;		 // Current direction
-
-	operator MoveDirection() const { // NOSONAR
-		return direction;
-	}
-};
-
-struct PlayerMoveStop : public Event<PlayerMoveStop> {
-	PlayerMoveStop() = default;
-
-	explicit PlayerMoveStop(MoveDirection last_direction) : last_direction{ last_direction } {}
-
-	MoveDirection last_direction;	 // Direction before stopping
-
-	operator MoveDirection() const { // NOSONAR
-		return last_direction;
-	}
-};
-
-struct PlayerMoveDirectionChange : public Event<PlayerMoveDirectionChange> {
-	PlayerMoveDirectionChange() = default;
-
-	explicit PlayerMoveDirectionChange(V2_float difference, MoveDirection current_direction) :
-		difference{ difference }, current_direction{ current_direction } {}
-
-	V2_float difference;
-	MoveDirection current_direction; // Resulting direction
-
-	operator MoveDirection() const { // NOSONAR
-		return current_direction;
-	}
-};
-
-struct PlayerMoveDirectionStart : public Event<PlayerMoveDirectionStart> {
-	PlayerMoveDirectionStart() = default;
-
-	explicit PlayerMoveDirectionStart(MoveDirection direction) : direction{ direction } {}
-
-	MoveDirection direction;
-
-	operator MoveDirection() const { // NOSONAR
-		return direction;
-	}
-};
-
-struct PlayerMoveDirectionHeld : public Event<PlayerMoveDirectionHeld> {
-	PlayerMoveDirectionHeld() = default;
-
-	explicit PlayerMoveDirectionHeld(MoveDirection direction) : direction{ direction } {}
-
-	MoveDirection direction;
-
-	operator MoveDirection() const { // NOSONAR
-		return direction;
-	}
-};
-
-struct PlayerMoveDirectionStop : public Event<PlayerMoveDirectionStop> {
-	PlayerMoveDirectionStop() = default;
-
-	explicit PlayerMoveDirectionStop(MoveDirection direction) : direction{ direction } {}
-
-	MoveDirection direction;
-
-	operator MoveDirection() const { // NOSONAR
-		return direction;
-	}
-};
-
-} // namespace event
 
 namespace impl {
 
@@ -287,18 +198,10 @@ public:
 	float time_to_jump_apex{ 1.0f };
 
 	PTGN_REFLECT(
-		PlatformerJump, KeyValue("jump_key", jump_key), KeyValue("down_key", down_key),
-		KeyValue("jump_buffer_time", jump_buffer_time), KeyValue("coyote_time", coyote_time),
-		KeyValue("default_gravity_scale", default_gravity_scale),
-		KeyValue("upward_gravity_multiplier", upward_gravity_multiplier),
-		KeyValue("downward_gravity_multiplier", downward_gravity_multiplier),
-		KeyValue("jump_cut_off_gravity_multiplier", jump_cut_off_gravity_multiplier),
-		KeyValue("downward_speedup_gravity_multiplier", downward_speedup_gravity_multiplier),
-		KeyValue("downward_key_speedup", downward_key_speedup),
-		KeyValue("variable_jump_height", variable_jump_height),
-		KeyValue("terminal_velocity", terminal_velocity), KeyValue("jump_height", jump_height),
-		KeyValue("time_to_jump_apex", time_to_jump_apex), KeyValue("jumping", jumping_),
-		KeyValue("jump_buffer", jump_buffer_), KeyValue("coyote_timer", coyote_timer_)
+		PlatformerJump, jump_key, down_key, jump_buffer_time, coyote_time, default_gravity_scale,
+		upward_gravity_multiplier, downward_gravity_multiplier, jump_cut_off_gravity_multiplier,
+		downward_speedup_gravity_multiplier, downward_key_speedup, variable_jump_height,
+		terminal_velocity, jump_height, time_to_jump_apex, jumping_, jump_buffer_, coyote_timer_
 	)
 
 private:

@@ -24,6 +24,8 @@
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/broadphase.h"
 #include "runtime/physics/collider.h"
+#include "runtime/physics/collision.h"
+#include "runtime/physics/collision_event.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
@@ -414,7 +416,7 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, secondsf dt) {
 void CollisionHandler::TryDrawDebugCollider(
 	Scene& scene, Entity entity, V2_float offset, Color color
 ) const {
-	if (settings_.DrawCCD()) {
+	if (debug_settings_.DrawCCD()) {
 		auto transform{ GetWorldTransform(entity) };
 		transform.Translate(offset);
 		const auto& collider{ entity.Get<Collider>() };
@@ -425,7 +427,7 @@ void CollisionHandler::TryDrawDebugCollider(
 void CollisionHandler::TryDrawDebugLine(
 	Scene& scene, Entity entity, V2_float start_offset, V2_float end_offset, Color color
 ) const {
-	if (settings_.DrawCCD()) {
+	if (debug_settings_.DrawCCD()) {
 		auto transform{ GetWorldTransform(entity) };
 		auto position{ transform.GetPosition() };
 		scene.ctx().debug.DrawLine(position + start_offset, position + end_offset, color);
@@ -601,8 +603,8 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 	}
 }
 
-void CollisionHandler::SetSettings(const CollisionHandlerSettings& settings) {
-	settings_ = settings;
+void CollisionHandler::SetDebugSettings(const CollisionDebugSettings& settings) {
+	debug_settings_ = settings;
 }
 
 namespace impl {

@@ -2,8 +2,6 @@
 
 #include <chrono>
 #include <optional>
-#include <ostream>
-#include <utility>
 
 #include "core/assert.h"
 #include "core/log.h"
@@ -157,16 +155,6 @@ void Physics::Reset() {
 	enabled_ = true;
 	bounds_	 = {};
 	gravity_ = {};
-}
-
-std::ostream& operator<<(std::ostream& os, BoundaryBehavior behavior) {
-	switch (behavior) {
-		using enum BoundaryBehavior;
-		case StopVelocity:	  return os << "StopVelocity";
-		case SlideVelocity:	  return os << "SlideVelocity";
-		case ReflectVelocity: return os << "ReflectVelocity";
-		default:			  PTGN_ERROR("Unknown BoundaryBehavior: ", std::to_underlying(behavior));
-	}
 }
 
 } // namespace ptgn

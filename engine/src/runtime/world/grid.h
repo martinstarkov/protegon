@@ -11,8 +11,6 @@
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 
-// TODO: Add serialization.
-
 namespace ptgn {
 
 template <typename T>

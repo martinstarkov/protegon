@@ -6,6 +6,7 @@
 #include "core/util/entity_handle.h"
 #include "ecs/ecs.h"
 #include "runtime/ecs/component.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -33,8 +34,7 @@ enum class FontRenderMode : int {
 	Solid	= 1,
 	Shaded	= 2
 };
-
-std::ostream& operator<<(std::ostream& os, FontRenderMode mode);
+PTGN_REFLECT_ENUM(FontRenderMode);
 
 enum class FontStyle : int {
 	Normal		  = 0, // TTF_STYLE_NORMAL
@@ -43,7 +43,7 @@ enum class FontStyle : int {
 	Underline	  = 4, // TTF_STYLE_UNDERLINE
 	Strikethrough = 8  // TTF_STYLE_STRIKETHROUGH
 };
-
+PTGN_SERIALIZE_ENUM(FontStyle);
 std::ostream& operator<<(std::ostream& os, FontStyle style);
 
 [[nodiscard]] inline FontStyle operator&(FontStyle a, FontStyle b) {

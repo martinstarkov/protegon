@@ -96,15 +96,108 @@ struct PooledTarget {
 
 class Renderer {
 public:
-	ShaderId GetShader(std::string_view name) const;
-
+	ShaderObject CreateShader(
+		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
+	);
+	TextureObject CreateTexture(const std::uint8_t* pixel_data, V2_int size, TextureFormat format);
 	RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
+
+	ShaderId GetShader(std::string_view name) const;
+	TextureId GetWhiteTexture() const;
+
+	Viewport GetDisplayViewport() const;
 
 	/// @return The display size of the renderer.
 	V2_int GetDisplaySize() const;
 
 	/// @return The game size of the renderer. Returns full viewport size if unset.
 	V2_int GetGameSize() const;
+
+	/// @param game_size Setting to {} will use dynamic full viewport size.
+	void SetGameSize(
+		std::optional<V2_int> game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
+	);
+
+	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
+
+	/// @return The amount by which game size is scaled to achieve the display size.
+	V2_float GetScale() const;
+
+	/// @return The game size scaling mode.
+	ScalingMode GetScalingMode() const;
+
+	void SetBackgroundColor(Color background_color);
+	Color GetBackgroundColor() const;
+
+	void FlushBatch();
+
+	TextureId GetRenderTargetTexture(RenderTargetId render_target) const;
+
+	void SetViewport(Viewport viewport);
+	void SetShader(ShaderId shader);
+	void SetViewProjection(const Matrix4& view_projection);
+	void SetFramebuffer(FramebufferId framebuffer);
+	void SetBlend(bool enabled);
+	void SetBlendMode(BlendMode mode);
+	void SetDepthTesting(bool enabled);
+	void SetDepthMask(const DepthMaskState& mask);
+	void SetStencil(const StencilState& stencil);
+	void SetRaster(const RasterState& raster);
+	void SetScissor(const ScissorState& scissor);
+	void SetColorMask(const ColorMaskState& color_mask);
+
+	void DrawTriangle(
+		ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
+	);
+
+	void DrawQuad(
+		ShaderId shader, const std::array<V2_float, 4>& positions,
+		const std::array<float, 4>& user_data, Color tint, float depth,
+		const std::function<void()>& shader_setup
+	);
+
+	void DrawTexture(
+		ShaderId shader, RenderPass& pass, RenderTargetId scene_render_target,
+		const std::function<void()>& shader_setup
+	);
+
+	void DrawTexture(
+		ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, Color tint,
+		float depth, const std::array<V2_float, 4>& tex_coords,
+		const std::function<void()>& shader_setup
+	);
+
+	/// @param setup Returns true if the renderer should flush the batch after adding the quad
+	/// params. This allows shader uniforms to be applied to each unique quad in the batch.
+	void DrawQuad(
+		ShaderId shader, const QuadParams& p, const std::function<bool(ShaderId, QuadDesc&)>& setup
+	);
+
+	V2_int GetRenderTargetSize(RenderTargetId render_target) const;
+	TextureFormat GetRenderTargetTextureFormat(RenderTargetId render_target) const;
+	void ResizeRenderTarget(RenderTargetId render_target, V2_int new_size);
+	void ClearRenderTarget(RenderTargetId render_target, Color color, bool set_viewport) const;
+	void BindRenderTarget(RenderTargetId render_target);
+	void BindRenderPass(RenderPass& render_pass);
+	void BindScreenTarget();
+
+	RenderPass BeginPass(RenderTargetId scene_render_target);
+
+	V2_int GetTextureSize(TextureId id) const;
+	TextureFormat GetTextureFormat(TextureId id) const;
+
+	void SetUniform(ShaderId id, const char* uniform_name, const Matrix4& v);
+	void SetUniform(ShaderId id, const char* uniform_name, float v);
+	void SetUniform(ShaderId id, const char* uniform_name, V2_float v);
+	void SetUniform(ShaderId id, const char* uniform_name, V3_float v);
+	void SetUniform(ShaderId id, const char* uniform_name, V4_float v);
+	void SetUniform(ShaderId id, const char* uniform_name, const std::vector<float>& v);
+	void SetUniform(ShaderId id, const char* uniform_name, int v);
+	void SetUniform(ShaderId id, const char* uniform_name, V2_int v);
+	void SetUniform(ShaderId id, const char* uniform_name, V3_int v);
+	void SetUniform(ShaderId id, const char* uniform_name, V4_int v);
+	void SetUniform(ShaderId id, const char* uniform_name, const std::vector<int>& v);
+	void SetUniform(ShaderId id, const char* uniform_name, bool v);
 
 private:
 	friend class ptgn::Application;
@@ -120,53 +213,13 @@ private:
 	void BeginFrame();
 	void EndFrame();
 
-	/// @param game_size Setting to {} will use dynamic full viewport size.
-	void SetGameSize(
-		std::optional<V2_int> game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
-	);
-
-	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
-
-	Viewport GetDisplayViewport() const;
-
-	/// @return The amount by which game size is scaled to achieve the display size.
-	V2_float GetScale() const;
-
-	/// @return The game size scaling mode.
-	ScalingMode GetScalingMode() const;
-
-	void SetBackgroundColor(Color background_color);
-	Color GetBackgroundColor() const;
-
 	template <typename State, typename F>
 		requires std::same_as<std::invoke_result_t<F&>, void>
 	friend void UpdateStateIfChanged(Renderer&, const std::optional<State>&, const State&, F&&);
 
-	ShaderObject CreateShader(
-		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
-	);
-
-	TextureObject CreateTexture(const std::uint8_t* pixel_data, V2_int size, TextureFormat format);
-
-	void SetUniform(ShaderId id, const char* uniform_name, const Matrix4& v);
-	void SetUniform(ShaderId id, const char* uniform_name, float v);
-	void SetUniform(ShaderId id, const char* uniform_name, V2_float v);
-	void SetUniform(ShaderId id, const char* uniform_name, V3_float v);
-	void SetUniform(ShaderId id, const char* uniform_name, V4_float v);
-	void SetUniform(ShaderId id, const char* uniform_name, const std::vector<float>& v);
-	void SetUniform(ShaderId id, const char* uniform_name, int v);
-	void SetUniform(ShaderId id, const char* uniform_name, V2_int v);
-	void SetUniform(ShaderId id, const char* uniform_name, V3_int v);
-	void SetUniform(ShaderId id, const char* uniform_name, V4_int v);
-	void SetUniform(ShaderId id, const char* uniform_name, const std::vector<int>& v);
-	void SetUniform(ShaderId id, const char* uniform_name, bool v);
-
 	/// @return The texture slot the given texture is bound to, and whether it should be pushed to
 	/// batch_textures.
 	std::pair<std::uint32_t, bool> GetTextureSlot(TextureId tex);
-
-	V2_int GetTextureSize(TextureId id) const;
-	TextureFormat GetTextureFormat(TextureId id) const;
 
 	void Destroy(VertexBufferId id);
 	void Destroy(ElementBufferId id);
@@ -178,71 +231,17 @@ private:
 	void Destroy(VertexArrayId id);
 	void Destroy(RenderTargetId id);
 
-	TextureId GetRenderTargetTexture(RenderTargetId render_target) const;
-	V2_int GetRenderTargetSize(RenderTargetId render_target) const;
-	TextureFormat GetRenderTargetTextureFormat(RenderTargetId render_target) const;
-	void ResizeRenderTarget(RenderTargetId render_target, V2_int new_size);
-	void ClearRenderTarget(RenderTargetId render_target, Color color, bool set_viewport) const;
-	void BindRenderTarget(RenderTargetId render_target);
-	void BindRenderPass(RenderPass& render_pass);
-
 	/// @brief Flushes the batch if adding the given number of vertices and indices would exceed
 	/// batch.
 	void FlushIfExceedsCapacity(std::size_t vertices, std::size_t indices);
-	void FlushBatch();
-
-	void SetViewport(Viewport viewport);
-	void SetShader(ShaderId shader);
-	void SetViewProjection(const Matrix4& view_projection);
-	void SetFramebuffer(FramebufferId framebuffer);
-	void SetBlend(bool enabled);
-	void SetBlendMode(BlendMode mode);
-	void SetDepthTesting(bool enabled);
-	void SetDepthMask(const DepthMaskState& mask);
-	void SetStencil(const StencilState& stencil);
-	void SetRaster(const RasterState& raster);
-	void SetScissor(const ScissorState& scissor);
-	void SetColorMask(const ColorMaskState& color_mask);
-
-	TextureId GetWhiteTexture() const;
-
-	void DrawTriangle(
-		ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
-	);
-
-	void DrawQuad(
-		ShaderId shader, const std::array<V2_float, 4>& positions,
-		const std::array<float, 4>& user_data, Color tint, float depth,
-		const std::function<void()>& shader_setup
-	);
-
-	void DrawTexture(
-		ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, Color tint,
-		float depth, const std::array<V2_float, 4>& tex_coords,
-		const std::function<void()>& shader_setup
-	);
-
-	void DrawTexture(
-		ShaderId shader, RenderPass& pass, RenderTargetId scene_render_target,
-		const std::function<void()>& shader_setup
-	);
-
-	/// @param setup Returns true if the renderer should flush the batch after adding the quad
-	/// params. This allows shader uniforms to be applied to each unique quad in the batch.
-	void DrawQuad(
-		ShaderId shader, const QuadParams& p, const std::function<bool(ShaderId, QuadDesc&)>& setup
-	);
 
 	/// @return True if the given texture is currently attached to the framebuffer that is currently
 	/// bound.
 	bool IsTextureAttachedToCurrentFramebuffer(TextureId texture) const;
 
-	void BindScreenTarget();
 	void ResizeScreenTarget(V2_int size);
 
 	void OnFullViewportResize(V2_int size);
-
-	RenderPass BeginPass(RenderTargetId scene_render_target);
 
 	RenderTargetId AcquirePooledTargetCopy(RenderTargetId render_target);
 	RenderTargetId AcquirePooledTarget(V2_int size, TextureFormat format);

@@ -1,26 +1,4 @@
-// #include "ui/plot.h"
-//
-// #include <algorithm>
-// #include <array>
-// #include <cstdint>
-// #include <limits>
-// #include <utility>
-// #include <vector>
-//
-// #include "ecs/entity.h"
-// #include "core/input/input_handler.h"
-// #include "core/input/mouse.h"
-//
-// #include "math/geometry_utils.h"
-// #include "math/math_utils.h"
-// #include "math/vector2.h"
-// #include "renderer/api/color.h"
-// #include "runtime/graphics/text/font.h"
-// #include "renderer/api/origin.h"
-// #include "runtime/graphics/text/text.h"
-// #include "runtime/graphics/text/fonts.h"
-// #include "ui/button.h"
-// #include "core/assert.h"
+// #include "runtime/ui/plot.h"
 //
 // namespace ptgn {
 //

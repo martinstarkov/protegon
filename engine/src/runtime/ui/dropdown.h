@@ -4,7 +4,7 @@
 #include <variant>
 #include <vector>
 
-
+#include "core/event/event.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -40,14 +40,14 @@ class DropdownScript : public Script {
 public:
 	DropdownScript() = default;
 
-	void OnEvent(Event d) override;
+	void OnEvent(Event event) override;
 };
 
 class DropdownItemScript : public Script {
 public:
 	DropdownItemScript() = default;
 
-	void OnEvent(Event d) override;
+	void OnEvent(Event event) override;
 };
 
 } // namespace impl

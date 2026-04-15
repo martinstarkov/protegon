@@ -9,15 +9,15 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "nlohmann/json.hpp"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
@@ -81,7 +81,7 @@ TemplateMenuScene::TemplateMenuScene(const std::string& key, const json& scene_j
 	key{ key }, scene_json(scene_json_arg) {}
 
 void TemplateMenuScene::OnEnter() {
-	ctx().input.SetSettings({ .debug_draw_enabled = true });
+	ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 
 	PTGN_ASSERT(scene_json.contains(key));
 

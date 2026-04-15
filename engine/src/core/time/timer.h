@@ -1,8 +1,7 @@
 #pragma once
 
 #include <chrono>
-#include <concepts>
-#include <type_traits>
+#include <ostream>
 
 #include "core/assert.h"
 #include "core/math/math_utils.h"
@@ -91,10 +90,15 @@ public:
 		return elapsed;
 	}
 
+	bool operator==(const Timer&) const = default;
+
 	friend void to_json(json& j, const Timer& timer);
 	friend void from_json(const json& j, Timer& timer);
 
-	bool operator==(const Timer&) const = default;
+	friend std::ostream& operator<<(std::ostream& os, const Timer& timer) {
+		return os << "{ running: " << timer.running_ << ", paused: " << timer.paused_
+				  << ", elapsed: " << timer.ElapsedDuration<secondsf>() << "s }";
+	}
 
 private:
 	std::chrono::time_point<std::chrono::steady_clock> start_time_{};

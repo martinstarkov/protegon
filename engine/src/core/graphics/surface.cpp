@@ -19,16 +19,17 @@
 
 namespace ptgn::impl {
 
-Surface::Surface(V2_int size, std::span<const std::uint8_t> pixels, std::size_t channels) :
+Surface::Surface(V2_int size, std::span<const std::uint8_t> pixels, int channels) :
 	channels_{ channels }, pixels_(pixels.begin(), pixels.end()), size_{ size } {
-	PTGN_ASSERT(size.x > 0 && size.y > 0, "Invalid surface size");
+	PTGN_ASSERT(channels > 0 && channels <= 4, "Invalid channel count: ", channels);
+	PTGN_ASSERT(size.x > 0 && size.y > 0, "Invalid surface size: ", size);
 	PTGN_ASSERT(
 		pixels.size() == static_cast<std::size_t>(size.x) * size.y * channels,
 		"Pixel data size does not match expected size for given surface dimensions"
 	);
 }
 
-Surface::Surface(const path& filepath, std::size_t desired_channels) {
+Surface::Surface(const path& filepath, int desired_channels) {
 	PTGN_ASSERT(
 		FileExists(filepath),
 		"Cannot create surface from a nonexistent filepath: ", filepath.string()
@@ -40,10 +41,8 @@ Surface::Surface(const path& filepath, std::size_t desired_channels) {
 
 	auto abs_path{ GetAbsolutePath(filepath) };
 
-	auto data = stbi_load(
-		abs_path.string().c_str(), &width, &height, &channels_in_file,
-		static_cast<int>(desired_channels)
-	);
+	auto data =
+		stbi_load(abs_path.string().c_str(), &width, &height, &channels_in_file, desired_channels);
 
 	channels_ = desired_channels;
 
@@ -55,8 +54,7 @@ Surface::Surface(const path& filepath, std::size_t desired_channels) {
 
 	size_ = { width, height };
 
-	const std::size_t total_bytes =
-		static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * channels_;
+	std::size_t total_bytes{ static_cast<std::size_t>(width) * height * channels_ };
 
 	pixels_.resize(total_bytes);
 	std::memcpy(pixels_.data(), data, total_bytes);
@@ -128,7 +126,7 @@ std::expected<void, std::string> Surface::SavePNG(const path& filepath) const {
 	);
 #endif
 
-	int stride_in_bytes{ size_.x * channels_ };
+	auto stride_in_bytes{ size_.x * channels_ };
 
 	auto success{ stbi_write_png(
 		filepath.string().c_str(), size_.x, size_.y, channels_, pixels_.data(), stride_in_bytes

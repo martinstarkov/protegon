@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/math/easing.h"
 #include "core/math/geometry/origin.h"
@@ -20,12 +21,12 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/interaction/interactive.h"
+#include "runtime/interaction/interactive_event.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {
@@ -88,9 +89,9 @@ std::optional<Tooltip> Tooltip::Get(Scene& scene, std::string_view tooltip_name)
 TooltipHoverScript::TooltipHoverScript(std::string_view name, V2_float tooltip_offset) :
 	name{ name }, offset{ tooltip_offset } {}
 
-void TooltipHoverScript::OnEvent(Event d) {
-	d.Dispatch<event::MouseEnter>(&TooltipHoverScript::OnMouseEnter, this);
-	d.Dispatch<event::MouseLeave>(&TooltipHoverScript::OnMouseLeave, this);
+void TooltipHoverScript::OnEvent(Event event) {
+	event.Dispatch<event::MouseEnter>(&TooltipHoverScript::OnMouseEnter, this);
+	event.Dispatch<event::MouseLeave>(&TooltipHoverScript::OnMouseLeave, this);
 }
 
 void TooltipHoverScript::OnCreate() {

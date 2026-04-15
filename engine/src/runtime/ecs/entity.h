@@ -6,6 +6,7 @@
 #include <type_traits>
 
 #include "core/assert.h"
+#include "core/log.h"
 #include "core/math/angle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"

@@ -50,8 +50,7 @@ namespace ptgn {
 
 namespace impl {
 
-Renderer::Renderer(Window& window) :
-	window_{ window }, gl_{ std::make_unique<gl::GLContext>(window) } {
+Renderer::Renderer(Window& window) : window_{ window }, gl_{ std::make_unique<gl::GLContext>() } {
 	ebo_ = ElementBufferObject{ this, gl_->buffers.CreateElementBuffer(
 										  nullptr, kIndexCapacity, sizeof(Index),
 										  gl::BufferUsage::DynamicDraw
@@ -763,6 +762,7 @@ Viewport Renderer::GetDisplayViewport() const {
 }
 
 V2_int Renderer::GetFullViewportSize() const {
+	// TODO: Change this to match editor.
 	return window_.GetSize();
 }
 

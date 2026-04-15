@@ -37,6 +37,10 @@ Ease SceneTransition::GetEase() const {
 	return ease_;
 }
 
+bool SceneTransition::IsStarted() const {
+	return started_;
+}
+
 float SceneTransition::GetUneasedElapsedFraction() const {
 	PTGN_ASSERT(duration_ >= 0ms);
 	if (duration_.count() == 0) {

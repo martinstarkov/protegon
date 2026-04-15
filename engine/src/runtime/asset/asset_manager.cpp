@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <functional>
 #include <list>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -13,18 +14,18 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
+#include "core/graphics/surface.h"
 #include "core/log.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "core/util/string.h"
 #include "ecs/ecs.h"
-#include "core/graphics/surface.h"
-#include "core/graphics/color.h"
+#include "renderer/renderer.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
-#include "renderer/renderer.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio.h"
@@ -37,7 +38,6 @@
 #ifdef CreateFont
 #undef CreateFont
 #endif
-#include <ostream>
 
 namespace ptgn {
 
@@ -54,18 +54,6 @@ void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<pa
 	asset.Add<impl::AssetName>(key);
 	auto key_hash{ Hash(key) };
 	AddAssetKey(asset, key_hash, path);
-}
-
-std::ostream& operator<<(std::ostream& os, const AssetType& type) {
-	switch (type) {
-		using enum AssetType;
-		case Texture: return os << "Texture";
-		case Audio:	  return os << "Audio";
-		case Font:	  return os << "Font";
-		case Json:	  return os << "Json";
-		case Shader:  return os << "Shader";
-		default:	  return os << "Unknown";
-	}
 }
 
 AssetType GetAssetType(const std::string& ext) {
@@ -87,7 +75,7 @@ AssetType GetAssetType(const path& asset_path) {
 
 } // namespace impl
 
-AssetManager::AssetManager(Renderer& renderer, AudioSystem& audio, FontSystem& font) :
+AssetManager::AssetManager(impl::Renderer& renderer, AudioSystem& audio, FontSystem& font) :
 	renderer_{ renderer }, audio_{ audio }, font_{ font } {
 	// Note: Do not use audio or font here as they are constructed after asset manager.
 }

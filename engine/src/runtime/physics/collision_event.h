@@ -1,7 +1,7 @@
 #pragma once
 
 #include "runtime/ecs/entity.h"
-#include "runtime/physics/collider.h"
+#include "runtime/physics/collision.h"
 
 namespace ptgn::event {
 

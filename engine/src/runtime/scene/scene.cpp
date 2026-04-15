@@ -18,10 +18,11 @@
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/concepts.h"
-#include "core/util/span.h"
 #include "ecs/ecs.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture_format.h"
@@ -37,20 +38,23 @@
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
+#include "runtime/graphics/tint.h"
+#include "runtime/graphics/visible.h"
+#include "runtime/interaction/interaction_system.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/physics.h"
-#include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_event_handler.h"
 #include "runtime/scene/scene_manager.h"
-#include "runtime/scene/scene_state.h"
+#include "runtime/scene/scene_transition.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
-LocalSceneManager::LocalSceneManager(SceneManager& scene_manager, Scene& scene) :
+LocalSceneManager::LocalSceneManager(impl::SceneManager& scene_manager, Scene& scene) :
 	scene_manager_{ scene_manager }, scene_{ scene } {}
 
 bool LocalSceneManager::CanIssueCommands(std::size_t target_key) const {
@@ -71,14 +75,14 @@ bool LocalSceneManager::CanIssueCommands(std::size_t target_key) const {
 }
 
 SceneContext::SceneContext(Application& app, Scene& parent_scene) :
-	global_event{ app.events_ },
 	window{ app.window_ },
 	asset{ app.assets_ },
 	font{ app.font_ },
 	audio{ app.audio_ },
-	scene{ app.scenes_, parent_scene },
+	scene{ app.scene_manager_, parent_scene },
 	renderer{ parent_scene, app.renderer_ },
 	debug{ renderer },
+	event{ app.event_handler_ },
 	input{ parent_scene, app.window_ },
 	physics{ parent_scene },
 	global_renderer_{ app.renderer_ },
@@ -129,10 +133,10 @@ void Scene::InternalOnEvent(Event event) {
 void Scene::InternalOnEvent() {
 	auto& events{ ctx().event };
 
-	auto current = std::exchange(events.queue_, {});
+	auto current = std::exchange(events.entity_event_queue_, {});
 
 	for (auto& entity_event : current) {
-		Event event{ entity_event };
+		Event event{ entity_event.event };
 
 		if (entity_event.entity.has_value()) {
 			// Single entity event.
@@ -145,7 +149,7 @@ void Scene::InternalOnEvent() {
 }
 
 void Scene::InternalPreUpdate() {
-	ctx().input.Update();
+	ctx().interaction.Update(*this);
 }
 
 void Scene::Init(Application& app) {
@@ -156,9 +160,8 @@ void Scene::Init(Application& app) {
 	ctx_->fixed_camera_.SetMasks(kLayersNone, kLayersAll);
 	SetUI(ctx_->fixed_camera_, true);
 
-	render_target_ = CreateRenderTarget(
-		*this, ResizeMode::DisplaySize, color::Transparent, TextureFormat::RGBA8
-	);
+	render_target_ =
+		CreateRenderTarget(*this, ResizeType::Display, color::Transparent, TextureFormat::RGBA8);
 	render_target_.Remove<impl::IDrawable>();
 
 	// PTGN_LOG("[scene=", this, "]");
@@ -190,7 +193,7 @@ bool Scene::IsTransitioning() const {
 }
 
 bool Scene::IsAwaitingTransitionDelay() const {
-	return transition_ && !transition_->started_;
+	return transition_ && !transition_->IsStarted();
 }
 
 static void InvokeDrawable(DrawContext& draw_context, Entity entity, Camera camera) {
@@ -300,6 +303,8 @@ static void DrawCommands(
 }
 
 void Scene::InternalDraw() {
+	// TOOD: Move this logic elsewhere.
+
 	auto game_size{ ctx().renderer.GetGameSize() };
 
 	for (auto [c, _camera] : EntitiesWith<impl::CameraData>()) {
@@ -309,7 +314,7 @@ void Scene::InternalDraw() {
 		for (auto entity : Entities()) {
 			bool visible{ entity.Has<impl::Visible, impl::IDrawable>() };
 
-			if (!ctx().collision.settings_.debug_draw_enabled && !visible) {
+			if (!ctx().collision.debug_settings_.draw_enabled && !visible) {
 				continue;
 			}
 
@@ -328,19 +333,19 @@ void Scene::InternalDraw() {
 				draw_commands.emplace_back(entity, GetDepth(entity));
 			}
 
-			if (ctx().collision.settings_.debug_draw_enabled && entity.Has<Collider>()) {
+			if (ctx().collision.debug_settings_.draw_enabled && entity.Has<Collider>()) {
 				const auto& collider{ entity.Get<Collider>() };
 				auto transform{ GetDrawTransform(entity) };
 				auto draw_origin{ GetDrawOrigin(entity) };
 				ctx().debug.DrawShape(
-					collider.shape, transform, ctx().collision.settings_.debug_draw_color,
-					ctx().collision.settings_.debug_draw_fill_style, draw_origin, cam
+					collider.shape, transform, ctx().collision.debug_settings_.draw_color,
+					ctx().collision.debug_settings_.draw_fill_style, draw_origin, cam
 				);
 			}
 		}
 	}
 
-	ctx().input.DrawDebug();
+	ctx().interaction.DrawDebug(*this);
 
 	DrawContext draw_context{ ctx().global_renderer_ };
 
@@ -388,7 +393,7 @@ void Scene::InternalDraw() {
 	draw_context.BindScreenTarget();
 	draw_context.SetViewport(viewport);
 	draw_context.SetViewProjection(view_projection);
-	draw_context.SetBlend(BlendMode::Blend);
+	draw_context.SetBlendMode(BlendMode::Blend);
 
 	auto transform{ GetDrawTransform(render_target_) };
 	auto scene_target_size{ render_target_.GetSize() };

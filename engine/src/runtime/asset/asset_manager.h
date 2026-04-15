@@ -1,7 +1,6 @@
 #pragma once
 
 #include <functional>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -20,7 +19,7 @@
 #include "runtime/audio/audio.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
-#include "serialization/json/json.h"
+#include "serialization/serialize.h"
 
 #ifdef CreateFont
 #undef CreateFont
@@ -38,17 +37,20 @@ class DebugContext;
 namespace impl {
 
 class Renderer;
-
 class FontSystem;
 
 struct AssetName {
 	explicit AssetName(std::string_view name) : name{ name } {}
 
 	std::string name;
+
+	PTGN_REFLECT_VALUE(AssetName, name)
 };
 
 struct AssetKey {
 	std::size_t hash{ 0 };
+
+	PTGN_REFLECT_VALUE(AssetKey, hash)
 };
 
 void AddAssetKey(ecs::Entity asset, std::size_t key_hash, const std::optional<path>& path);
@@ -62,8 +64,7 @@ enum class AssetType {
 	Shader,
 	Unknown
 };
-
-std::ostream& operator<<(std::ostream& os, const AssetType& type);
+PTGN_REFLECT_ENUM(AssetType);
 
 static const std::unordered_map<std::string, AssetType> kExtensionToType{
 	{ ".png", AssetType::Texture }, { ".jpg", AssetType::Texture },

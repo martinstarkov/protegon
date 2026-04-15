@@ -5,8 +5,9 @@
 #include <cmath>
 #include <format>
 #include <list>
+#include <nlohmann/detail/iterators/iter_impl.hpp>
+#include <nlohmann/json.hpp>
 #include <optional>
-#include <ostream>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -16,6 +17,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/event/key_event.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
@@ -25,7 +27,6 @@
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
-#include "core/util/span.h"
 #include "runtime/animation/tween.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/font_system.h"
@@ -36,6 +37,7 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/fwd.h"
@@ -60,13 +62,13 @@ DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
 	return impl::GetDialogueComponent(entity);
 }
 
-void DialogueWaitScript::OnEvent(Event d) {
-	d.Dispatch<event::KeyPressed>(&DialogueWaitScript::OnKeyPressed, this);
+void DialogueWaitScript::OnEvent(Event event) {
+	event.Dispatch<event::KeyPressed>(&DialogueWaitScript::OnKeyPressed, this);
 }
 
-void DialogueWaitScript::OnKeyPressed(Key k) {
+void DialogueWaitScript::OnKeyPressed(Key key) {
 	auto& dialogue_component{ GetDialogueComponent() };
-	if (auto continue_key{ dialogue_component.GetContinueKey() }; k != continue_key) {
+	if (auto continue_key{ dialogue_component.GetContinueKey() }; key != continue_key) {
 		return;
 	}
 	PTGN_ASSERT(dialogue_component.tween_);
@@ -744,14 +746,6 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 	}
 
 	return pages;
-}
-
-std::ostream& operator<<(std::ostream& os, DialogueBehavior behavior) {
-	switch (behavior) {
-		case DialogueBehavior::Sequential: return os << "Sequential";
-		case DialogueBehavior::Random:	   return os << "Random";
-		default:						   PTGN_ERROR("Unknown DialogueBehavior: ", std::to_underlying(behavior));
-	}
 }
 
 } // namespace ptgn

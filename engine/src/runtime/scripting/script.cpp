@@ -62,6 +62,14 @@ void Scripts::OnEvent(Event event) const {
 	}
 }
 
+void Scripts::from_json(const json& j, Scripts& scripts) {
+	// TODO: Implement.
+}
+
+void Scripts::to_json(json& j, const Scripts& scripts) {
+	// TODO: Implement.
+}
+
 } // namespace impl
 
 } // namespace ptgn

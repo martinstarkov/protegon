@@ -88,27 +88,27 @@
 #define PTGN_MAP_LIST(f, ...) PTGN_EVAL(PTGN_MAP_LIST2(f, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 /// @brief Applies the function macro `f` to each of the remaining parameters and passes userdata as
-/// the second parameter to each invocation, e.g. PTGN_MAP_UD(f, x, a, b, c) evaluates to f(a, x)
+/// the second parameter to each invocation, e.g. PTGN_MAP_DATA(f, x, a, b, c) evaluates to f(a, x)
 /// f(b, x) f(c, x)
 #define PTGN_MAP_DATA(f, userdata, ...) \
 	PTGN_EVAL(PTGN_MAP1_UD(f, userdata, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 /// @brief Applies the function macro `f` to each of the remaining parameters, inserts commas
 /// between the results, and passes userdata as the second parameter to each invocation, e.g.
-/// PTGN_MAP_LIST_UD(f, x, a, b, c) evaluates to f(a, x), f(b, x), f(c, x)
+/// PTGN_MAP_LIST_DATA(f, x, a, b, c) evaluates to f(a, x), f(b, x), f(c, x)
 #define PTGN_MAP_LIST_DATA(f, userdata, ...) \
 	PTGN_EVAL(PTGN_MAP_LIST2_UD(f, userdata, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 /// @brief Applies the function macro `f` to each of the remaining parameters, passes userdata as
 /// the second parameter to each invocation, and the index of the invocation as the third parameter,
-/// e.g. PTGN_MAP_UD_I(f, x, a, b, c) evaluates to f(a, x, 0) f(b, x, 1) f(c, x, 2)
+/// e.g. PTGN_MAP_DATA_INDEX(f, x, a, b, c) evaluates to f(a, x, 0) f(b, x, 1) f(c, x, 2)
 #define PTGN_MAP_DATA_INDEX(f, userdata, ...) \
 	PTGN_EVAL(PTGN_MAP1_UD_I(f, userdata, 0, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 /// @brief Applies the function macro `f` to each of the remaining parameters, inserts commas
 /// between the results, passes userdata as the second parameter to each invocation, and the index
-/// of the invocation as the third parameter, e.g. PTGN_MAP_LIST_UD_I(f, x, a, b, c) evaluates to
-/// f(a, x, 0), f(b, x, 1), f(c, x, 2)
+/// of the invocation as the third parameter, e.g. PTGN_MAP_LIST_DATA_INDEX(f, x, a, b, c) evaluates
+/// to f(a, x, 0), f(b, x, 1), f(c, x, 2)
 #define PTGN_MAP_LIST_DATA_INDEX(f, userdata, ...) \
 	PTGN_EVAL(PTGN_MAP_LIST2_UD_I(f, userdata, 0, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 

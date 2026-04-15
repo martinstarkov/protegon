@@ -55,16 +55,22 @@ bool AStarGrid::IsVisited(V2_int coordinate) const {
 
 std::deque<V2_int> AStarGrid::FindWaypoints(V2_int start, V2_int end) {
 	std::deque<V2_int> waypoints;
+
 	if (!Has(end) || !Has(start)) {
 		return waypoints;
 	}
+
 	SolvePath(start, end);
+
 	std::pair<impl::AStarNode*, V2_int> p{ &Get(end), end };
+
 	while (p.first->parent.first != nullptr) {
 		waypoints.emplace_front(p.second);
 		p = p.first->parent;
 	}
+
 	waypoints.emplace_front(p.second);
+
 	return waypoints;
 }
 
@@ -82,6 +88,7 @@ std::optional<int> AStarGrid::FindWaypointIndex(
 void AStarGrid::SolvePath(V2_int start, V2_int end) {
 	PTGN_ASSERT(Has(start));
 	PTGN_ASSERT(Has(end));
+
 	impl::AStarNode* start_node{ &Get(start) };
 	const impl::AStarNode* end_node{ &Get(end) };
 
@@ -111,7 +118,7 @@ void AStarGrid::SolvePath(V2_int start, V2_int end) {
 		current_node				= node_candidates.front();
 		current_node.first->visited = true;
 
-		for (V2_int dir : impl::neighbors) {
+		for (V2_int dir : impl::kAStarNeighbors) {
 			auto coordinate = current_node.second + dir;
 			if (!Has(coordinate)) {
 				continue;

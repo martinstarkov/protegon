@@ -1,19 +1,17 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
 #include <optional>
-#include <ostream>
 #include <string>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
 
+#include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/input/mouse.h"
-#include "core/log.h"
 #include "core/math/easing.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
@@ -28,7 +26,6 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/camera.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
@@ -47,6 +44,8 @@ class Scene;
 struct ButtonTextFixedSize {
 	std::optional<float> x;
 	std::optional<float> y;
+
+	PTGN_REFLECT(ButtonTextFixedSize, x, y)
 };
 
 struct ButtonStyle {
@@ -124,12 +123,16 @@ struct MoveButtonConfig {
 	V2_float offset{ 20, 0 };
 	milliseconds duration{ 100 };
 	Ease ease{ Ease::Linear };
+
+	PTGN_REFLECT(MoveButtonConfig, offset, duration, ease)
 };
 
 struct ScaleButtonConfig {
 	float scale{ 1.25f };
 	milliseconds duration{ 100 };
 	Ease ease{ Ease::Linear };
+
+	PTGN_REFLECT(ScaleButtonConfig, scale, duration, ease)
 };
 
 struct ButtonConfig {
@@ -204,6 +207,7 @@ enum class ButtonState : std::uint8_t {
 	Press,
 	Current
 };
+PTGN_REFLECT_ENUM(ButtonState);
 
 struct ButtonStyleState {
 	ButtonStyleState() = default;
@@ -220,27 +224,9 @@ struct ButtonStyleState {
 	bool toggled{ false };
 };
 
-inline std::ostream& operator<<(std::ostream& os, ButtonState state) {
-	switch (state) {
-		using enum ButtonState;
-		case Idle:	  return os << "Idle";
-		case Hover:	  return os << "Hover";
-		case Press:	  return os << "Press";
-		case Current: return os << "Current";
-		default:	  PTGN_ERROR("Unknown ButtonState: ", std::to_underlying(state));
-	}
-}
-
-PTGN_REFLECT_ENUM(
-	ButtonState, { { ButtonState::Idle, "idle" },
-				   { ButtonState::Hover, "hover" },
-				   { ButtonState::Press, "press" },
-				   { ButtonState::Current, "current" } }
-);
-
 namespace event {
 
-struct ButtonToggle;
+struct ToggleButtonToggle;
 
 } // namespace event
 
@@ -256,30 +242,9 @@ enum class InternalButtonState {
 	IdleDown	 = 4,
 	HoverPressed = 5
 };
+PTGN_REFLECT_ENUM(InternalButtonState);
 
-inline std::ostream& operator<<(std::ostream& os, InternalButtonState state) {
-	switch (state) {
-		using enum InternalButtonState;
-		case IdleDown:	   return os << "IdleDown";
-		case IdleUp:	   return os << "IdleUp";
-		case Hover:		   return os << "Hover";
-		case HoverPressed: return os << "HoverPressed";
-		case Pressed:	   return os << "Pressed";
-		case HeldOutside:  return os << "HeldOutside";
-		default:		   PTGN_ERROR("Unknown InternalButtonState: ", std::to_underlying(state));
-	}
-}
-
-PTGN_REFLECT_ENUM(
-	InternalButtonState, { { InternalButtonState::IdleUp, "idle_up" },
-						   { InternalButtonState::Hover, "hover" },
-						   { InternalButtonState::Pressed, "pressed" },
-						   { InternalButtonState::HeldOutside, "held_outside" },
-						   { InternalButtonState::IdleDown, "idle_down" },
-						   { InternalButtonState::HoverPressed, "hover_pressed" } }
-);
-
-class InternalButtonScript : public Script {
+class ButtonScript : public Script {
 public:
 	void OnEvent(Event event) override;
 
@@ -297,27 +262,7 @@ private:
 	void OnMouseReleasedOut(Mouse mouse);
 };
 
-namespace event {
-
-struct InternalButtonPress : public Event<InternalButtonPress> {
-	InternalButtonPress() = default;
-};
-
-struct InternalButtonHoverStart : public Event<InternalButtonHoverStart> {
-	InternalButtonHoverStart() = default;
-};
-
-struct InternalButtonHoverStop : public Event<InternalButtonHoverStop> {
-	InternalButtonHoverStop() = default;
-};
-
-struct InternalButtonHover : public Event<InternalButtonHover> {
-	InternalButtonHover() = default;
-};
-
-} // namespace event
-
-class InternalToggleButtonScript : public Script {
+class ToggleButtonScript : public Script {
 public:
 	void OnEvent(Event event) override;
 
@@ -361,7 +306,7 @@ struct ToggleButtonGroupData {
 	std::vector<std::pair<ToggleButtonGroupKey, GameObject<>>> buttons;
 };
 
-struct ButtonToggled {};
+struct ButtonToggledState {};
 
 struct ButtonEnabled {
 	bool press{ true };
@@ -369,6 +314,30 @@ struct ButtonEnabled {
 
 	PTGN_REFLECT(ButtonEnabled, press, hover)
 };
+
+namespace event {
+
+template <typename T>
+struct ButtonBasePress {
+	T button;
+};
+
+template <typename T>
+struct ButtonBaseHoverStart {
+	T button;
+};
+
+template <typename T>
+struct ButtonBaseHover {
+	T button;
+};
+
+template <typename T>
+struct ButtonBaseHoverStop {
+	T button;
+};
+
+} // namespace event
 
 template <typename Derived>
 class ButtonBase : public Entity {
@@ -430,13 +399,11 @@ public:
 
 	std::optional<Entity> GetSprite(ButtonStyleState state = {}) const;
 
-	using Callback = std::variant<std::function<void()>, std::function<void(Derived)>>;
-
 	/// @brief Set button callback scripts.
-	Derived& OnPress(const Callback& callback);
-	Derived& OnHover(const Callback& callback);
-	Derived& OnHoverStart(const Callback& callback);
-	Derived& OnHoverStop(const Callback& callback);
+	Derived& OnPress(const EventCallback<event::ButtonBasePress<Derived>>& callback);
+	Derived& OnHover(const EventCallback<event::ButtonBaseHover<Derived>>& callback);
+	Derived& OnHoverStart(const EventCallback<event::ButtonBaseHoverStart<Derived>>& callback);
+	Derived& OnHoverStop(const EventCallback<event::ButtonBaseHoverStop<Derived>>& callback);
 
 	Derived& Enable(bool enable_hover = true, bool reset_state = true);
 	Derived& Disable(bool disable_hover = true, bool reset_state = true);
@@ -517,7 +484,7 @@ public:
 	Derived& SetExclusiveAudio(bool enabled);
 
 private:
-	friend class impl::InternalButtonScript;
+	friend class impl::ButtonScript;
 	friend struct impl::ButtonAnimationCompleteScript;
 
 	Derived& Self();
@@ -569,9 +536,7 @@ public:
 
 	[[nodiscard]] bool IsToggled() const;
 
-	using Callback = std::variant<std::function<void()>, std::function<void(event::ButtonToggle)>>;
-
-	ToggleButton& OnToggle(const Callback& callback);
+	ToggleButton& OnToggle(const EventCallback<event::ToggleButtonToggle>& callback);
 	ToggleButton& SetToggled(bool toggled);
 	ToggleButton& Toggle();
 };
@@ -605,19 +570,6 @@ private:
 	void SetActiveKey(impl::ToggleButtonGroupKey key);
 };
 
-namespace event {
-
-struct ButtonToggle : public Event<ButtonToggle> {
-	ButtonToggle() = default;
-
-	ButtonToggle(const ToggleButton& button, bool toggled) : button{ button }, toggled{ toggled } {}
-
-	ToggleButton button;
-	bool toggled{ false };
-};
-
-} // namespace event
-
 namespace impl {
 
 class ToggleButtonGroupScript : public Script {
@@ -631,40 +583,6 @@ private:
 	void OnButtonPress();
 
 	ToggleButtonGroup toggle_button_group_;
-};
-
-template <typename Derived, typename T>
-struct ButtonScript : public Script {
-	ButtonScript() = default;
-
-	explicit ButtonScript(const ButtonBase<Derived>::Callback& callback) : callback_{ callback } {}
-
-	void OnEvent(Event event) override {
-		event.DispatchVariantBound<T>(callback_, Derived{ entity });
-	}
-
-private:
-	ButtonBase<Derived>::Callback callback_;
-};
-
-template <typename Derived>
-using ButtonPressScript = ButtonScript<Derived, event::InternalButtonPress>;
-template <typename Derived>
-using ButtonHoverStartScript = ButtonScript<Derived, event::InternalButtonHoverStart>;
-template <typename Derived>
-using ButtonHoverStopScript = ButtonScript<Derived, event::InternalButtonHoverStop>;
-template <typename Derived>
-using ButtonHoverScript = ButtonScript<Derived, event::InternalButtonHover>;
-
-struct ButtonToggleScript : public Script {
-	ButtonToggleScript() = default;
-
-	explicit ButtonToggleScript(const ToggleButton::Callback& callback);
-
-	void OnEvent(Event event) override;
-
-private:
-	ToggleButton::Callback callback_;
 };
 
 } // namespace impl

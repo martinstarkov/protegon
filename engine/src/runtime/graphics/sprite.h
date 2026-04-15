@@ -1,8 +1,7 @@
 #pragma once
 
+#include <array>
 #include <optional>
-#include <string_view>
-#include <variant>
 
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"

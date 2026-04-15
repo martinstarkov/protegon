@@ -20,9 +20,9 @@ namespace impl {
 
 class Surface {
 public:
-	Surface(V2_int size, std::span<const std::uint8_t> pixels, std::size_t channels = 4);
+	Surface(V2_int size, std::span<const std::uint8_t> pixels, int channels = 4);
 
-	explicit Surface(const path& filepath, std::size_t desired_channels = 4);
+	explicit Surface(const path& filepath, int desired_channels = 4);
 
 	/// @brief Mirrors the surface vertically.
 	void FlipVertically();
@@ -37,11 +37,12 @@ public:
 	void ForEachPixel(F&& func) const {
 		PTGN_ASSERT(!pixels_.empty(), "Cannot loop through each pixel of an empty surface");
 		for (int j{ 0 }; j < size_.y; j++) {
-			auto row_index{ static_cast<std::size_t>(j) * static_cast<std::size_t>(size_.x) };
+			auto row_index{ j * size_.x };
 			for (int i{ 0 }; i < size_.x; i++) {
 				V2_int coordinate{ i, j };
-				auto index{ row_index + static_cast<std::size_t>(i) };
-				auto pixel{ GetPixel(index) };
+				auto index{ row_index + i };
+				PTGN_ASSERT(index >= 0);
+				auto pixel{ GetPixel(static_cast<std::size_t>(index)) };
 				std::invoke(std::forward<F>(func), coordinate, pixel);
 			}
 		}
@@ -64,7 +65,7 @@ private:
 	Color GetPixel(std::size_t pixel_index) const;
 
 	/// @brief Number of channels in the pixel data.
-	std::size_t channels_{ 4 };
+	int channels_{ 4 };
 
 	/// @brief The row major one dimensionalized array of pixel values that makes up the surface.
 	std::vector<std::uint8_t> pixels_;

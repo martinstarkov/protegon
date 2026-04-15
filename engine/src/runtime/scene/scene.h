@@ -4,16 +4,14 @@
 #include <functional>
 #include <limits>
 #include <memory>
-#include <optional>
 #include <string_view>
 #include <type_traits>
-#include <utility>
-#include <vector>
 
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/time/time.h"
+#include "core/util/concepts.h"
 #include "core/util/hash.h"
 #include "ecs/ecs.h"
 #include "runtime/ecs/entity.h"
@@ -21,27 +19,24 @@
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
+#include "runtime/interaction/interaction_system.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/physics.h"
-#include "runtime/scene/scene_event.h"
+#include "runtime/scene/scene_event_handler.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
-#include "runtime/scene/scene_state.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scene/scene_view.h"
 #include "runtime/scripting/script.h"
-#include "scene_event.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
+#include "serialization/serialize.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
 class Application;
 class Scene;
-class SceneTransition;
-class SceneEventHandler;
-class LocalSceneManager;
 class RenderTarget;
 class FontSystem;
 class AssetManager;
@@ -52,6 +47,13 @@ class AudioSystem;
 namespace impl {
 
 class Renderer;
+
+enum class SceneState {
+	Active,
+	TransitionIn,
+	TransitionOut
+};
+PTGN_REFLECT_ENUM(SceneState);
 
 } // namespace impl
 
@@ -323,6 +325,7 @@ public:
 	DebugContext debug;
 	LocalEventHandler event;
 	SceneInput input;
+	InteractionSystem interaction;
 	Physics physics;
 	CollisionHandler collision;
 
@@ -519,7 +522,7 @@ private:
 	friend class FrameContext;
 	friend class SceneInput;
 	friend class LocalSceneManager;
-	friend class SceneEventHandler;
+	friend class LocalEventHandler;
 	template <typename TComponent>
 	friend struct SceneHook;
 
@@ -549,6 +552,7 @@ private:
 
 	std::size_t key_{ 0 };
 	std::unique_ptr<SceneTransition> transition_;
+
 	impl::SceneState state_{ impl::SceneState::Active };
 };
 

@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -12,13 +11,16 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/input/mouse.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
+#include "renderer/pipeline/draw_context.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/tween_effect.h"
@@ -29,14 +31,16 @@
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/graphics/tint.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/interaction/interactive.h"
+#include "runtime/interaction/interactive_event.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
+#include "runtime/ui/button_event.h"
 #include "runtime/ui/dropdown.h"
 
 namespace ptgn {
@@ -62,23 +66,23 @@ static void AddAnimationCompleteCallback(
 	if (child.has_value()) {
 		PTGN_ASSERT(
 			!HasScript<ButtonAnimationCompleteScript>(*child),
-			"Button animation cannot have the internal animation complete script more than once"
+			"Button animation cannot have the button animation complete script more than once"
 		);
 		AddScript<ButtonAnimationCompleteScript>(*child, button);
 	}
 }
 
-void InternalButtonScript::OnEvent(Event event) {
+void ButtonScript::OnEvent(Event event) {
 	using namespace ptgn::event;
-	event.Dispatch<MouseMoveOver>(&InternalButtonScript::OnMouseMoveOver, this);
-	event.Dispatch<MouseMoveOut>(&InternalButtonScript::OnMouseMoveOut, this);
-	event.Dispatch<MousePressedOver>(&InternalButtonScript::OnMousePressedOver, this);
-	event.Dispatch<MousePressedOut>(&InternalButtonScript::OnMousePressedOut, this);
-	event.Dispatch<MouseReleasedOver>(&InternalButtonScript::OnMouseReleasedOver, this);
-	event.Dispatch<MouseReleasedOut>(&InternalButtonScript::OnMouseReleasedOut, this);
+	event.Dispatch<MouseMoveOver>(&ButtonScript::OnMouseMoveOver, this);
+	event.Dispatch<MouseMoveOut>(&ButtonScript::OnMouseMoveOut, this);
+	event.Dispatch<MousePressedOver>(&ButtonScript::OnMousePressedOver, this);
+	event.Dispatch<MousePressedOut>(&ButtonScript::OnMousePressedOut, this);
+	event.Dispatch<MouseReleasedOver>(&ButtonScript::OnMouseReleasedOver, this);
+	event.Dispatch<MouseReleasedOut>(&ButtonScript::OnMouseReleasedOut, this);
 }
 
-void InternalButtonScript::OnMouseMoveOver() {
+void ButtonScript::OnMouseMoveOver() {
 	using enum InternalButtonState;
 	const auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
@@ -98,7 +102,7 @@ void InternalButtonScript::OnMouseMoveOver() {
 	button.ContinueHover();
 }
 
-void InternalButtonScript::OnMouseMoveOut() {
+void ButtonScript::OnMouseMoveOut() {
 	const auto& state{ entity.Get<InternalButtonState>() };
 	Button button{ entity };
 	if (!button.IsEnabled(true)) {
@@ -117,7 +121,7 @@ void InternalButtonScript::OnMouseMoveOut() {
 	}
 }
 
-void InternalButtonScript::OnMousePressedOver(Mouse mouse) {
+void ButtonScript::OnMousePressedOver(Mouse mouse) {
 	Button button{ entity };
 	if (!button.IsEnabled(false)) {
 		return;
@@ -131,7 +135,7 @@ void InternalButtonScript::OnMousePressedOver(Mouse mouse) {
 	}
 }
 
-void InternalButtonScript::OnMousePressedOut(Mouse mouse) {
+void ButtonScript::OnMousePressedOut(Mouse mouse) {
 	Button button{ entity };
 	if (!button.IsEnabled(false)) {
 		return;
@@ -145,7 +149,7 @@ void InternalButtonScript::OnMousePressedOut(Mouse mouse) {
 	}
 }
 
-void InternalButtonScript::OnMouseReleasedOver(Mouse mouse) {
+void ButtonScript::OnMouseReleasedOver(Mouse mouse) {
 	Button button{ entity };
 	if (!button.IsEnabled(false)) {
 		return;
@@ -162,7 +166,7 @@ void InternalButtonScript::OnMouseReleasedOver(Mouse mouse) {
 	}
 }
 
-void InternalButtonScript::OnMouseReleasedOut(Mouse mouse) {
+void ButtonScript::OnMouseReleasedOut(Mouse mouse) {
 	Button button{ entity };
 	if (!button.IsEnabled(false)) {
 		return;
@@ -176,11 +180,11 @@ void InternalButtonScript::OnMouseReleasedOut(Mouse mouse) {
 	}
 }
 
-void InternalToggleButtonScript::OnEvent(Event event) {
-	event.Dispatch<event::InternalButtonPress>(&InternalToggleButtonScript::OnButtonPress, this);
+void ToggleButtonScript::OnEvent(Event event) {
+	event.Dispatch<ptgn::event::ToggleButtonPress>(&ToggleButtonScript::OnButtonPress, this);
 }
 
-void InternalToggleButtonScript::OnButtonPress() const {
+void ToggleButtonScript::OnButtonPress() const {
 	ToggleButton self{ entity };
 	if (!self.IsEnabled(false)) {
 		return;
@@ -192,7 +196,7 @@ ToggleButtonGroupScript::ToggleButtonGroupScript(const ToggleButtonGroup& group)
 	toggle_button_group_{ group } {}
 
 void ToggleButtonGroupScript::OnEvent(Event event) {
-	event.Dispatch<event::InternalButtonPress>(&ToggleButtonGroupScript::OnButtonPress, this);
+	event.Dispatch<ptgn::event::ToggleButtonPress>(&ToggleButtonGroupScript::OnButtonPress, this);
 }
 
 void ToggleButtonGroupScript::OnButtonPress() {
@@ -420,25 +424,31 @@ template <typename Derived>
 ButtonBase<Derived>::ButtonBase(Entity entity) : Entity{ entity } {}
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::OnPress(const ButtonBase<Derived>::Callback& callback) {
+Derived& ButtonBase<Derived>::OnPress(const EventCallback<event::ButtonBasePress<Derived>>& callback
+) {
 	AddScript<impl::ButtonPressScript<Derived>>(*this, callback);
 	return Self();
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::OnHover(const ButtonBase<Derived>::Callback& callback) {
+Derived& ButtonBase<Derived>::OnHover(const EventCallback<event::ButtonBaseHover<Derived>>& callback
+) {
 	AddScript<impl::ButtonHoverScript<Derived>>(*this, callback);
 	return Self();
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::OnHoverStart(const ButtonBase<Derived>::Callback& callback) {
+Derived& ButtonBase<Derived>::OnHoverStart(
+	const EventCallback<event::ButtonBaseHoverStart<Derived>>& callback
+) {
 	AddScript<impl::ButtonHoverStartScript<Derived>>(*this, callback);
 	return Self();
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::OnHoverStop(const ButtonBase<Derived>::Callback& callback) {
+Derived& ButtonBase<Derived>::OnHoverStop(
+	const EventCallback<event::ButtonBaseHoverStop<Derived>>& callback
+) {
 	AddScript<impl::ButtonHoverStopScript<Derived>>(*this, callback);
 	return Self();
 }
@@ -952,7 +962,7 @@ template <typename Derived>
 ButtonStyleState ButtonBase<Derived>::GetStyleState() const {
 	auto state{ GetState() };
 	auto disabled{ !IsEnabled(false) };
-	auto toggled{ Has<ButtonToggled>() && Has<ToggleButtonInteractionStyle>() };
+	auto toggled{ Has<ButtonToggledState>() && Has<ToggleButtonInteractionStyle>() };
 	return { state, disabled, toggled };
 }
 
@@ -1026,7 +1036,7 @@ Derived& ButtonBase<Derived>::Press() {
 
 	PlaySound(ButtonState::Press);
 
-	PushEvent<event::InternalButtonPress>(*this);
+	PushEvent<event::ButtonPress>(*this);
 
 	return Self();
 }
@@ -1037,7 +1047,7 @@ Derived& ButtonBase<Derived>::StartHover() {
 		return Self();
 	}
 
-	PushEvent<event::InternalButtonHoverStart>(*this);
+	PushEvent<event::ButtonHoverStart>(*this);
 
 	PlaySound(ButtonState::Hover);
 	PlayAnimation(ButtonState::Hover);
@@ -1051,7 +1061,7 @@ Derived& ButtonBase<Derived>::ContinueHover() {
 		return Self();
 	}
 
-	PushEvent<event::InternalButtonHover>(*this);
+	PushEvent<event::ButtonHover>(*this);
 
 	return Self();
 }
@@ -1062,7 +1072,7 @@ Derived& ButtonBase<Derived>::StopHover() {
 		return Self();
 	}
 
-	PushEvent<event::InternalButtonHoverStop>(*this);
+	PushEvent<event::ButtonHoverStop>(*this);
 
 	PlaySound(ButtonState::Idle);
 	PlayAnimation(ButtonState::Idle);
@@ -1094,13 +1104,6 @@ const Derived& ButtonBase<Derived>::Self() const {
 	return static_cast<const Derived&>(*this);
 }
 
-ButtonToggleScript::ButtonToggleScript(const ToggleButton::Callback& callback) :
-	callback_{ callback } {}
-
-void ButtonToggleScript::OnEvent(Event event) {
-	event.DispatchVariant<ptgn::event::ButtonToggle>(callback_);
-}
-
 template class ButtonBase<Button>;
 template class ButtonBase<ToggleButton>;
 template class ButtonBase<Dropdown>;
@@ -1112,11 +1115,11 @@ ToggleButton::operator Button() const {
 }
 
 bool ToggleButton::IsToggled() const {
-	return Has<impl::ButtonToggled>();
+	return Has<impl::ButtonToggledState>();
 }
 
-ToggleButton& ToggleButton::OnToggle(const ToggleButton::Callback& callback) {
-	AddScript<impl::ButtonToggleScript>(*this, callback);
+ToggleButton& ToggleButton::OnToggle(const EventCallback<event::ToggleButtonToggle>& callback) {
+	AddScript<impl::EventScript<event::ToggleButtonToggle>>(*this, callback);
 	return *this;
 }
 
@@ -1125,11 +1128,11 @@ ToggleButton& ToggleButton::SetToggled(bool toggled) {
 		return *this;
 	}
 	if (toggled) {
-		Add<impl::ButtonToggled>();
+		Add<impl::ButtonToggledState>();
 	} else {
-		Remove<impl::ButtonToggled>();
+		Remove<impl::ButtonToggledState>();
 	}
-	PushEvent<event::ButtonToggle>(*this, *this, toggled);
+	PushEvent<event::ToggleButtonToggle>(*this, *this, toggled);
 	return *this;
 }
 
@@ -1180,7 +1183,7 @@ ToggleButton ToggleButtonGroup::Add(std::string_view button_key, ToggleButton&& 
 
 	impl::ToggleButtonGroupKey key{ button_key };
 
-	RemoveScript<impl::InternalToggleButtonScript>(toggle_button);
+	RemoveScript<impl::ToggleButtonScript>(toggle_button);
 	toggle_button.Add<impl::ToggleButtonGroupKey>(key);
 
 	auto it = std::ranges::find(
@@ -1222,11 +1225,11 @@ void ToggleButtonGroup::Remove(std::string_view button_key) {
 
 	if (it != info.buttons.end()) {
 		PTGN_ASSERT(
-			!HasScript<impl::InternalToggleButtonScript>(it->second),
-			"When removing a toggle button from the group, it must not already have the internal "
+			!HasScript<impl::ToggleButtonScript>(it->second),
+			"When removing a toggle button from the group, it must not already have the  "
 			"toggle button script as it is part of a group: logic error somewhere"
 		);
-		AddScript<impl::InternalToggleButtonScript>(it->second);
+		AddScript<impl::ToggleButtonScript>(it->second);
 		info.buttons.erase(it);
 	}
 }
@@ -1346,8 +1349,8 @@ Button CreateButton(
 
 	button.Add<impl::InternalButtonState>(impl::InternalButtonState::IdleUp);
 
-	PTGN_ASSERT(!HasScript<impl::InternalButtonScript>(button));
-	AddScript<impl::InternalButtonScript>(button);
+	PTGN_ASSERT(!HasScript<impl::ButtonScript>(button));
+	AddScript<impl::ButtonScript>(button);
 	button.Enable();
 
 	return button;
@@ -1548,8 +1551,8 @@ ToggleButton CreateToggleButton(
 
 	toggle_button.Add<impl::ToggleButtonInteractionStyle>(std::move(toggle_style));
 
-	PTGN_ASSERT(!HasScript<impl::InternalToggleButtonScript>(toggle_button));
-	AddScript<impl::InternalToggleButtonScript>(toggle_button);
+	PTGN_ASSERT(!HasScript<impl::ToggleButtonScript>(toggle_button));
+	AddScript<impl::ToggleButtonScript>(toggle_button);
 	toggle_button.SetToggled(toggled);
 
 	return toggle_button;

@@ -6,18 +6,17 @@
 #include <string>
 #include <string_view>
 
+#include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
-#include "core/graphics/color.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/text/font.h"
-#include "serialization/serialize.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -33,6 +32,7 @@ std::optional<float> ApplyHDTextScaling(
 	bool hd, Transform& transform, const Scene& scene, const std::optional<Camera>& camera
 );
 
+// TODO: Get rid of this in favor of msdfgen text.
 struct HDText {};
 
 struct HDFontSize : public FontSize {
@@ -76,14 +76,7 @@ enum class TextJustify {
 	Center = 1, // TTF_HORIZONTAL_ALIGN_CENTER
 	Right  = 2	// TTF_HORIZONTAL_ALIGN_RIGHT
 };
-
-std::ostream& operator<<(std::ostream& os, TextJustify text_justify);
-
-PTGN_REFLECT_ENUM(
-	TextJustify, { { TextJustify::Left, "left" },
-				   { TextJustify::Center, "center" },
-				   { TextJustify::Right, "right" } }
-);
+PTGN_REFLECT_ENUM(TextJustify);
 
 struct TextLineSkip {
 	TextLineSkip() = default;
@@ -104,9 +97,7 @@ struct TextLineSkip {
 
 	bool operator==(const TextLineSkip&) const = default;
 
-	// TODO: Fix serialization.
-	// PTGN_REFLECT(TextLineSkip, value_.value_or(0))
-
+	PTGN_REFLECT(TextLineSkip, value_)
 private:
 	std::optional<std::int32_t> value_{};
 };
@@ -121,9 +112,8 @@ struct TextProperties {
 	TextOutline outline{};
 	Color shading_color{ color::White };
 
-	// TODO: Serialize line_skip once that is fixed.
 	PTGN_REFLECT(
-		TextProperties, style, justify, wrap_after, render_mode, outline, shading_color // line_skip
+		TextProperties, style, justify, line_skip, wrap_after, render_mode, outline, shading_color
 	)
 };
 

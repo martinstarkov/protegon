@@ -2,6 +2,7 @@
 
 #include <concepts>
 #include <functional>
+#include <ostream>
 #include <variant>
 #include <vector>
 
@@ -106,6 +107,13 @@ public:
 		return std::any_of(scripts_.begin(), scripts_.end(), [](const std::unique_ptr<Script>& s) {
 			return s->GetHash() == hash;
 		});
+	}
+
+	void from_json(const json& j, Scripts& scripts);
+	void to_json(json& j, const Scripts& scripts);
+
+	friend std::ostream& operator<<(std::ostream& os, const Scripts& scripts) {
+		os << "{ script_count: " << scripts.scripts_.size() << " }";
 	}
 
 private:

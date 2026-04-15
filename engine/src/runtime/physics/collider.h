@@ -2,60 +2,16 @@
 
 #include <cstdint>
 #include <functional>
-#include <ostream>
 #include <vector>
 
 #include "core/math/geometry/shape.h"
-#include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/physics/collision.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
 
 class CollisionHandler;
-
-struct CollisionInfo {
-	CollisionInfo() = default;
-
-	CollisionInfo(Entity other, V2_float collision_normal) :
-		entity{ other }, normal{ collision_normal } {}
-
-	operator bool() const {
-		return entity.operator bool();
-	}
-
-	Entity entity;
-	/// @brief Normal set to {} for overlap only collisions.
-	V2_float normal;
-
-	friend bool operator==(const CollisionInfo& a, const CollisionInfo& b) {
-		return a.entity == b.entity;
-	}
-
-	friend std::ostream& operator<<(std::ostream& os, const CollisionInfo& collision) {
-		os << "{ entity: " << collision.entity;
-		os << ", normal: " << collision.normal << " }";
-		return os;
-	}
-
-	PTGN_REFLECT(CollisionInfo, entity, normal)
-};
-
-} // namespace ptgn
-
-template <>
-struct std::hash<ptgn::CollisionInfo> {
-	std::size_t operator()(const ptgn::CollisionInfo& c) const noexcept {
-		// Hashing combination algorithm from:
-		// https://stackoverflow.com/a/17017281
-		std::size_t value{ 17 };
-		value = value * 31 + c.entity.GetHash();
-		value = value * 31 + std::hash<ptgn::V2_float>()(c.normal);
-		return value;
-	}
-};
-
-namespace ptgn {
 
 using ColliderMask = std::int64_t;
 
@@ -65,15 +21,7 @@ enum class CollisionResponse {
 	Push,	/// Velocity set perpendicular to collision normal at partial speed.
 	Stick	/// Velocity set to 0.
 };
-
-std::ostream& operator<<(std::ostream& os, CollisionResponse response);
-
-PTGN_REFLECT_ENUM(
-	CollisionResponse, { { CollisionResponse::Slide, "slide" },
-						 { CollisionResponse::Bounce, "bounce" },
-						 { CollisionResponse::Push, "push" },
-						 { CollisionResponse::Stick, "stick" } }
-);
+PTGN_REFLECT_ENUM(CollisionResponse);
 
 enum class CollisionMode {
 	None,		/// No collision checks.
@@ -81,15 +29,7 @@ enum class CollisionMode {
 	Discrete,	/// Discrete collision detection.
 	Continuous, /// Continuous collision detection for high velocity colliders.
 };
-
-std::ostream& operator<<(std::ostream& os, CollisionMode mode);
-
-PTGN_REFLECT_ENUM(
-	CollisionMode, { { CollisionMode::None, nullptr },
-					 { CollisionMode::Overlap, "overlap" },
-					 { CollisionMode::Discrete, "discrete" },
-					 { CollisionMode::Continuous, "continuous" } }
-);
+PTGN_REFLECT_ENUM(CollisionMode);
 
 struct Collider {
 	Collider() = default;
@@ -133,12 +73,7 @@ struct Collider {
 	[[nodiscard]] CollisionInfo SweptWith(Entity other) const;
 	[[nodiscard]] bool OverlappedWith(Entity other) const;
 
-	// TODO: Fix collider shape serialization: KeyValue("shape", shape)
-
-	PTGN_REFLECT(
-		Collider, KeyValue("mode", mode), KeyValue("response", response), KeyValue("mask", mask_),
-		KeyValue("collides_with_masks_", collides_with_masks_)
-	)
+	PTGN_REFLECT(Collider, shape, mode, response, mask_, collides_with_masks_)
 
 	/// @brief Optional function to check for early outs before performing collision checks. Should
 	/// return true if the collision check should be performed, false if it should be skipped.

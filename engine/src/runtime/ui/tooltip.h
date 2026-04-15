@@ -4,11 +4,11 @@
 #include <string>
 #include <string_view>
 
-
+#include "core/event/event.h"
+#include "core/graphics/color.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "core/graphics/color.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
@@ -71,7 +71,7 @@ struct TooltipHoverScript : public Script {
 
 	TooltipHoverScript(std::string_view tooltip_name, V2_float tooltip_offset);
 
-	void OnEvent(Event d) override;
+	void OnEvent(Event event) override;
 
 	void OnCreate() override;
 

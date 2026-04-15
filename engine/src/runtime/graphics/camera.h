@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"

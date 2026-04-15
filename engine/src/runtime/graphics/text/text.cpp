@@ -2,18 +2,16 @@
 
 #include <cstdint>
 #include <optional>
-#include <ostream>
 #include <string>
 #include <string_view>
-#include <utility>
 
 #include "core/assert.h"
-#include "core/log.h"
+#include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
-#include "core/graphics/color.h"
+#include "renderer/pipeline/draw_context.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
@@ -22,8 +20,10 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/tint.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
@@ -343,16 +343,6 @@ Text CreateText(
 	Text::SetParameter(text, font_size, false);
 	Text::SetProperties(text, properties, true);
 	return text;
-}
-
-std::ostream& operator<<(std::ostream& os, TextJustify text_justify) {
-	switch (text_justify) {
-		using enum TextJustify;
-		case Left:	 return os << "Left";
-		case Center: return os << "Center";
-		case Right:	 return os << "Right";
-		default:	 PTGN_ERROR("Unknown TextJustify: ", std::to_underlying(text_justify));
-	}
 }
 
 } // namespace ptgn

@@ -11,7 +11,6 @@
 #include "core/log.h"
 #include "core/time/time.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_state.h"
 #include "runtime/scene/scene_transition.h"
 
 namespace ptgn {

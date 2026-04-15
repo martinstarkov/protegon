@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "app/layer.h"
+#include "core/event/event_handler.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/hash.h"
@@ -17,9 +18,7 @@
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene_manager.h"
-#include "runtime/scene/scene_state.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {

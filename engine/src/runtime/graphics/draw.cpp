@@ -3,24 +3,11 @@
 #include <algorithm>
 #include <vector>
 
-#include "core/assert.h"
-#include "core/math/geometry/arc.h"
-#include "core/math/geometry/capsule.h"
-#include "core/math/geometry/circle.h"
-#include "core/math/geometry/ellipse.h"
-#include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/geometry/polygon.h"
-#include "core/math/geometry/rect.h"
-#include "core/math/geometry/rounded_rect.h"
-#include "core/math/geometry/shape.h"
-#include "core/math/geometry/triangle.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/render_context.h"
 
 namespace ptgn {
 
@@ -39,57 +26,6 @@ bool EntityDepthCompare::operator()(Entity a, Entity b) const {
 		return ascending ? a.WasCreatedBefore(b) : !a.WasCreatedBefore(b);
 	}
 	return ascending ? (depth_a < depth_b) : (depth_a > depth_b);
-}
-
-template <ShapeType T>
-void DrawShape(DrawContext& renderer, Entity entity, Camera) {
-	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
-
-	const auto& shape{ entity.Get<T>() };
-	auto draw_transform{ GetDrawTransform(entity) };
-	auto tint{ GetTint(entity) };
-	auto fill_style{ entity.GetOrDefault<FillStyle>() };
-	auto draw_origin{ GetDrawOrigin(entity) };
-	auto depth{ GetDepth(entity) };
-	auto blend_mode{ GetBlendMode(entity) };
-
-	renderer.DrawShape(shape, draw_transform, tint, fill_style, draw_origin, depth, blend_mode);
-}
-
-void CapsuleDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	DrawShape<Capsule>(renderer, entity, camera);
-}
-
-void CircleDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	DrawShape<Circle>(renderer, entity, camera);
-}
-
-void EllipseDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	DrawShape<Ellipse>(renderer, entity, camera);
-}
-
-void ArcDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	DrawShape<Arc>(renderer, entity, camera);
-}
-
-void PolygonDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	DrawShape<Polygon>(renderer, entity, camera);
-}
-
-void RectDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	DrawShape<Rect>(renderer, entity, camera);
-}
-
-void RoundedRectDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	DrawShape<RoundedRect>(renderer, entity, camera);
-}
-
-void TriangleDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	DrawShape<Triangle>(renderer, entity, camera);
-}
-
-void LineDraw::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	DrawShape<Line>(renderer, entity, camera);
 }
 
 } // namespace impl

@@ -2,14 +2,6 @@
 
 // TODO: Come back to this.
 /*
-#include "core/app/manager.h"
-#include "math/geometry_utils.h"
-#include "math/hash.h"
-#include "math/vector2.h"
-
-#include "world/tile/grid.h"
-#include "core/assert.h"
-#include "core/util/file.h"
 
 namespace ptgn {
 
@@ -25,8 +17,8 @@ class TileLayer : public Grid<impl::Tile> {
 public:
 	// TOOD: Change to take path.
 	TileLayer(
-		const path& tileset_path, const V2_int& tile_size, const V2_int& grid_size,
-		const V2_float& scale
+		const path& tileset_path, V2_int tile_size, V2_int grid_size,
+		V2_float scale
 	) :
 		Grid<impl::Tile>{ grid_size },
 		texture_key{ Hash(tileset_path) },

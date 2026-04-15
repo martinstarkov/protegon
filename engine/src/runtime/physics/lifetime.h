@@ -21,9 +21,7 @@ struct Lifetime {
 
 	milliseconds duration{ 0 };
 
-	PTGN_REFLECT(
-		Lifetime, KeyValue("duration", duration), KeyValue("timer", timer_)
-	)
+	PTGN_REFLECT(Lifetime, duration, timer_)
 
 private:
 	friend class Scene;

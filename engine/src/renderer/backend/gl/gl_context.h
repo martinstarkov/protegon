@@ -17,12 +17,6 @@
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 
-namespace ptgn {
-
-class Window;
-
-} // namespace ptgn
-
 namespace ptgn::impl::gl {
 
 class GLContext;
@@ -30,7 +24,7 @@ class GLContext;
 class GLContext {
 public:
 	GLContext() = delete;
-	explicit GLContext(const Window& window);
+	explicit GLContext();
 	~GLContext() noexcept					   = default;
 	GLContext(const GLContext&)				   = delete;
 	GLContext(GLContext&&) noexcept			   = delete;

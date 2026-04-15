@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -13,19 +14,21 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/button_event.h"
 
 namespace ptgn {
 
 namespace impl {
 
-void DropdownScript::OnEvent(Event d) {
-	d.Dispatch<event::InternalButtonPress>([this]() { Dropdown{ entity }.Toggle(); });
+void DropdownScript::OnEvent(Event event) {
+	event.Dispatch<ptgn::event::DropdownPress>([this]() { Dropdown{ entity }.Toggle(); });
 }
 
-void DropdownItemScript::OnEvent(Event d) {
-	d.Dispatch<event::InternalButtonPress>([this]() {
+void DropdownItemScript::OnEvent(Event event) {
+	event.Dispatch<ptgn::event::DropdownPress>([this]() {
 		if (!entity.Has<impl::DropdownData>()) {
 			PTGN_ASSERT(HasParent(entity));
 			Dropdown{ GetParent(entity) }.Close();

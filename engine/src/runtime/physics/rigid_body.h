@@ -31,11 +31,6 @@ struct RigidBody {
 
 	void Update(V2_float physics_gravity, secondsf dt);
 
-	// TODO: Fix max_speed and max_angular_speed serialization.
-	PTGN_REFLECT(
-		RigidBody, drag, angular_drag, gravity, immovable, velocity, angular_velocity
-	)
-
 	/// @brief nullopt means no enforcement of maximum speed.
 	std::optional<float> max_speed;
 	/// @brief nullopt means no enforcement of maximum angular speed.
@@ -51,6 +46,11 @@ struct RigidBody {
 
 	V2_float velocity;
 	Radians angular_velocity{ 0.0f };
+
+	PTGN_REFLECT(
+		RigidBody, max_speed, max_angular_speed, drag, angular_drag, gravity, immovable, velocity,
+		angular_velocity
+	)
 };
 
 [[nodiscard]] bool IsImmovable(Entity entity, bool check_parents = true);

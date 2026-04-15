@@ -7,16 +7,6 @@
 
 namespace ptgn {
 
-std::ostream& operator<<(std::ostream& os, FontRenderMode mode) {
-	switch (mode) {
-		using enum FontRenderMode;
-		case Solid:	  return os << "Solid";
-		case Shaded:  return os << "Shaded";
-		case Blended: return os << "Blended";
-		default:	  PTGN_ERROR("Unknown FontRenderMode: ", std::to_underlying(mode));
-	}
-}
-
 std::ostream& operator<<(std::ostream& os, FontStyle style) {
 	using enum FontStyle;
 

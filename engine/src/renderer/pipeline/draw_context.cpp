@@ -1,16 +1,17 @@
-#include <algorithm>
+#include "renderer/pipeline/draw_context.h"
+
 #include <array>
 #include <functional>
 #include <optional>
 #include <span>
 #include <string_view>
 #include <type_traits>
-#include <utility>
 #include <variant>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/log.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/arc.h"
@@ -26,29 +27,18 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/geometry/triangle.h"
 #include "core/math/math_utils.h"
-#include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_pass.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/vertex/vertex.h"
-#include "runtime/asset/asset.h"
-#include "runtime/asset/asset_manager.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
-#include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/text.h"
-#include "runtime/scene/scene.h"
 
 namespace ptgn {
 
@@ -453,7 +443,7 @@ void DrawContext::DrawTexture(
 	float depth, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode> blend_mode
 ) {
 	if (blend_mode.has_value()) {
-		SetBlend(*blend_mode);
+		SetBlendMode(*blend_mode);
 	}
 	Rect rect{ size };
 	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
@@ -523,7 +513,7 @@ void DrawContext::Draw(const impl::ManualCommand& command, float depth) {
 
 void DrawContext::Draw(const impl::TextureCommand& cmd, float depth) {
 	if (cmd.blend_mode.has_value()) {
-		SetBlend(*cmd.blend_mode);
+		SetBlendMode(*cmd.blend_mode);
 	}
 	DrawTexture(
 		cmd.shader, cmd.texture, cmd.positions, cmd.tint, depth, cmd.tex_coords, {},
@@ -533,7 +523,7 @@ void DrawContext::Draw(const impl::TextureCommand& cmd, float depth) {
 
 void DrawContext::Draw(const impl::QuadCommand& cmd, float depth) {
 	if (cmd.blend_mode.has_value()) {
-		SetBlend(*cmd.blend_mode);
+		SetBlendMode(*cmd.blend_mode);
 	}
 	DrawQuad(cmd.positions, cmd.color, depth, cmd.floor_positions);
 }
@@ -546,14 +536,14 @@ void DrawContext::Draw(const std::vector<impl::QuadCommand>& cmds, float depth) 
 
 void DrawContext::Draw(const impl::QuadShapeCommand& cmd, float depth) {
 	if (cmd.blend_mode.has_value()) {
-		SetBlend(*cmd.blend_mode);
+		SetBlendMode(*cmd.blend_mode);
 	}
 	DrawQuad(cmd.shader, cmd.positions, cmd.user_data, cmd.color, depth, {}, cmd.floor_positions);
 }
 
 void DrawContext::Draw(const impl::TriangleCommand& cmd, float depth) {
 	if (cmd.blend_mode.has_value()) {
-		SetBlend(*cmd.blend_mode);
+		SetBlendMode(*cmd.blend_mode);
 	}
 	auto color_shader{ GetShader("color") };
 	DrawTriangle(color_shader, cmd.positions, cmd.color, depth, cmd.floor_positions);

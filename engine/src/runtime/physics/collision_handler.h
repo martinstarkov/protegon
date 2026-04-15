@@ -1,6 +1,5 @@
 #pragma once
 
-#include <ostream>
 #include <vector>
 
 #include "core/graphics/color.h"
@@ -11,6 +10,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/physics/broadphase.h"
 #include "runtime/physics/collider.h"
+#include "runtime/physics/collision.h"
 
 namespace ptgn {
 
@@ -18,42 +18,18 @@ class Physics;
 class Scene;
 class SceneContext;
 
-struct CollisionHandlerSettings {
+struct CollisionDebugSettings {
 	/// @brief If true, draws continuous collision detection sweeps for debugging purposes.
-	bool debug_draw_ccd{ false };
+	bool draw_ccd{ false };
 
-	bool debug_draw_enabled{ false };
-	Color debug_draw_color{ color::Magenta };
-	FillStyle debug_draw_fill_style{ 1.0f };
+	bool draw_enabled{ false };
+	Color draw_color{ color::Magenta };
+	FillStyle draw_fill_style{ 1.0f };
 
 	[[nodiscard]] bool DrawCCD() const {
-		return debug_draw_enabled && debug_draw_ccd;
+		return draw_enabled && draw_ccd;
 	}
 };
-
-namespace impl {
-
-struct SweepCollision {
-	SweepCollision() = default;
-
-	SweepCollision(
-		const RaycastResult& raycast_result, float distance_squared, Entity sweep_entity
-	);
-
-	/// @brief collision entity.
-	Entity entity;
-	RaycastResult collision;
-	float dist2{ 0.0f };
-
-	friend std::ostream& operator<<(std::ostream& os, const SweepCollision& sweep_collision) {
-		os << "{ entity: " << sweep_collision.entity;
-		os << ", collision: " << sweep_collision.collision;
-		os << ", dist2: " << sweep_collision.dist2 << " }";
-		return os;
-	}
-};
-
-} // namespace impl
 
 class CollisionHandler {
 public:
@@ -61,7 +37,7 @@ public:
 		Entity entity1, const Collider& collider1, Entity entity2, const Collider& collider2
 	);
 
-	void SetSettings(const CollisionHandlerSettings& settings = {});
+	void SetDebugSettings(const CollisionDebugSettings& settings = {});
 
 private:
 	friend class Physics;
@@ -126,7 +102,7 @@ private:
 	impl::KDTree static_tree_{ 100 };
 	impl::KDTree dynamic_tree_{ 100 };
 
-	CollisionHandlerSettings settings_;
+	CollisionDebugSettings debug_settings_;
 
 	constexpr static float slop_{ 0.0005f };
 	constexpr static std::size_t max_sweep_iterations_{ 4 };

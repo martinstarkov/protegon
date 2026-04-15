@@ -11,10 +11,49 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/camera.h"
+#include "runtime/graphics/drawable.h"
 
 namespace ptgn {
 
 class Scene;
+class DrawContext;
+
+struct CapsuleDraw {
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+};
+
+struct CircleDraw {
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+};
+
+struct EllipseDraw {
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+};
+
+struct ArcDraw {
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+};
+
+struct PolygonDraw {
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+};
+
+struct RectDraw {
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+};
+
+struct RoundedRectDraw {
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+};
+
+struct TriangleDraw {
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+};
+
+struct LineDraw {
+	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+};
 
 [[nodiscard]] Transform OffsetByOrigin(const Shape& shape, Transform transform, Entity entity);
 
@@ -61,5 +100,15 @@ Entity CreateArc(
 	Scene& scene, V2_float position, float arc_radius, Degrees start_angle, Degrees end_angle,
 	bool clockwise, Color color, FillStyle fill_style = Solid{}
 );
+
+PTGN_REGISTER_DRAWABLE(CapsuleDraw);
+PTGN_REGISTER_DRAWABLE(CircleDraw);
+PTGN_REGISTER_DRAWABLE(EllipseDraw);
+PTGN_REGISTER_DRAWABLE(ArcDraw);
+PTGN_REGISTER_DRAWABLE(PolygonDraw);
+PTGN_REGISTER_DRAWABLE(RectDraw);
+PTGN_REGISTER_DRAWABLE(RoundedRectDraw);
+PTGN_REGISTER_DRAWABLE(TriangleDraw);
+PTGN_REGISTER_DRAWABLE(LineDraw);
 
 } // namespace ptgn

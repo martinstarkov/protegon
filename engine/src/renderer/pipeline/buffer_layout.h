@@ -28,7 +28,10 @@ enum class BufferElementType : std::uint32_t {
 	UnsignedByte  = 0x1401, // GL_UNSIGNED_BYTE
 	Bool		  = 0x8B56	// GL_BOOL
 };
-PTGN_REFLECT_ENUM(BufferElementType);
+PTGN_REFLECT_ENUM_MANUAL(
+	BufferElementType, Float, Double, Int, UnsignedInt, Short, UnsignedShort, Byte, UnsignedByte,
+	Bool
+);
 
 template <typename T>
 struct BufferTypeTrait {

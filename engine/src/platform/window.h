@@ -239,9 +239,9 @@ private:
 	/// window.
 	V2_float GetMouseDelta() const;
 
-	/// @return The amount scrolled by the mouse vertically in the current frame,
-	/// positive upward, negative downward. Zero if no scroll occurred.
-	float GetMouseScroll() const;
+	/// @return The amount scrolled by the mouse in the current frame,
+	/// positive upward right, negative downward left. Zero if no scroll occurred.
+	V2_float GetMouseScroll() const;
 
 	/// @param button The mouse button to check.
 	/// @return True the first frame that the mouse is pressed.

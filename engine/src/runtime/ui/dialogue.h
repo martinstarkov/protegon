@@ -1,27 +1,26 @@
 #pragma once
 
 #include <optional>
-#include <ostream>
 #include <string>
 #include <unordered_map>
 #include <variant>
 #include <vector>
 
+#include "core/event/event.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
 #include "core/util/file.h"
-#include "core/input/key.h"
-#include "core/graphics/color.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-
-#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
-#include "serialization/serialize.h"
 #include "serialization/json/fwd.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -33,9 +32,9 @@ namespace impl {
 struct DialogueWaitScript : public Script {
 	DialogueComponent& GetDialogueComponent();
 
-	void OnEvent(Event d) override;
+	void OnEvent(Event event) override;
 
-	void OnKeyPressed(Key k);
+	void OnKeyPressed(Key key);
 };
 
 struct DialogueScrollScript : public Script {
@@ -43,7 +42,7 @@ struct DialogueScrollScript : public Script {
 
 	static void UpdateText(Entity text_entity, float elapsed_fraction);
 
-	void OnEvent(Event d) override;
+	void OnEvent(Event event) override;
 
 	void OnPointComplete() const;
 	void OnProgress(float elapsed_fraction) const;
@@ -89,16 +88,7 @@ enum class DialogueBehavior {
 	Sequential,
 	Random
 };
-
-std::ostream& operator<<(std::ostream& os, DialogueBehavior behavior);
-
-PTGN_REFLECT_ENUM(
-	DialogueBehavior,
-	{
-		{ DialogueBehavior::Sequential, "sequential" },
-		{ DialogueBehavior::Random, "random" },
-	}
-)
+PTGN_REFLECT_ENUM(DialogueBehavior);
 
 struct Dialogue {
 	std::size_t index{ 0 };

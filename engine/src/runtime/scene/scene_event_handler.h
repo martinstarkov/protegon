@@ -1,10 +1,10 @@
 #pragma once
 
-#include <concepts>
 #include <optional>
 #include <vector>
 
 #include "core/event/event.h"
+#include "core/event/event_handler.h"
 #include "core/util/concepts.h"
 #include "runtime/ecs/entity.h"
 
@@ -12,7 +12,6 @@ namespace ptgn {
 
 class Scene;
 class SceneContext;
-class Application;
 
 namespace impl {
 
@@ -22,28 +21,6 @@ struct EntityEvent {
 };
 
 } // namespace impl
-
-class EventHandler {
-public:
-	template <typename T, typename... TArgs>
-		requires BraceConstructible<T, TArgs...>
-	void Push(TArgs&&... args) {
-		auto event{ impl::EventData::Create<T>(std::forward<TArgs>(args)...) };
-		global_event_queue_.emplace_back(std::move(event));
-	}
-
-private:
-	friend class Application;
-
-	EventHandler()									 = default;
-	~EventHandler() noexcept						 = default;
-	EventHandler(const EventHandler&)				 = delete;
-	EventHandler& operator=(const EventHandler&)	 = delete;
-	EventHandler(EventHandler&&) noexcept			 = delete;
-	EventHandler& operator=(EventHandler&&) noexcept = delete;
-
-	std::vector<impl::EventData> global_event_queue_;
-};
 
 class LocalEventHandler {
 public:
