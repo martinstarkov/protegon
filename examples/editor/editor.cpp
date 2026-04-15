@@ -1,4 +1,6 @@
 
+#include "core/editor.h"
+
 #include <chrono>
 
 #include "app/application.h"
@@ -9,7 +11,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
-#include "protegon_editor/layer.h"
+#include "protegon_editor/protegon_editor.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
@@ -78,6 +80,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "EditorScene" };
-	app.PushLayer<editor::EditorLayer>(app);
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<EditorScene>();
 }
