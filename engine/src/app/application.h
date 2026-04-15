@@ -1,6 +1,7 @@
 #pragma once
 
 #include <concepts>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -19,6 +20,7 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
+#include "serialization/serialize.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -29,17 +31,12 @@ class SceneManager;
 
 namespace editor {
 
-class EditorLayer;
+// TODO: Remove eventually.
+class Editor;
 
 } // namespace editor
 
 namespace impl {
-
-#ifdef __EMSCRIPTEN__
-
-void EmscriptenMainLoop(void* application);
-
-#endif
 
 class ApplicationLibrary {
 private:
@@ -58,9 +55,7 @@ private:
 /// @brief Configuration data used to initialize an Application.
 struct ApplicationConfig {
 	WindowConfig window;
-#ifdef PTGN_EDITOR
-	bool editor{ true };
-#endif
+	PTGN_REFLECT(ApplicationConfig, window)
 };
 
 /// @brief Core engine entry point coordinating windowing, rendering,
@@ -89,8 +84,6 @@ public:
 	template <SceneType TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
 	void StartWith(std::string_view scene_key, TArgs&&... args) {
-		renderer_.UpdateDisplayViewport(false);
-
 		auto first_scene = std::make_unique<TScene>(std::forward<TArgs>(args)...);
 
 		auto& scene = scene_manager_.scenes_.emplace_back(std::move(first_scene));
@@ -116,12 +109,10 @@ public:
 	}
 
 private:
-#ifdef __EMSCRIPTEN__
-	friend void impl::EmscriptenMainLoop(void* application);
-#endif
 	friend class SceneContext;
 	friend class SceneManager;
-	friend class editor::EditorLayer;
+	// TODO: Remove eventually.
+	friend class editor::Editor;
 
 	impl::ApplicationLibrary app_library_;
 

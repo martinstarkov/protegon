@@ -1,16 +1,5 @@
 #include "app/application.h"
 
-#ifdef __EMSCRIPTEN__
-
-#include <emscripten.h>
-#include <emscripten/html5.h>
-
-EM_JS(int, get_screen_width, (), { return window.screen.width; });
-EM_JS(int, get_screen_height, (), { return window.screen.height; });
-EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.0; });
-
-#endif
-
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -44,60 +33,6 @@ namespace ptgn {
 
 namespace impl {
 
-#ifdef __EMSCRIPTEN__
-
-static EM_BOOL EmscriptenResize(
-	int event_type, const EmscriptenUiEvent* ui_event, void* window_ptr
-) {
-	if (!window_ptr) {
-		return -1;
-	}
-	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
-	V2_int window_size{ ui_event->windowInnerWidth, ui_event->windowInnerHeight };
-	// TODO: Figure out how to deal with itch.io fullscreen button not changing status to
-	// fullscreen.
-	V2_int screen_size{ get_screen_width(), get_screen_height() };
-	if (window_size == screen_size) {
-		auto device_pixel_ratio{ get_device_pixel_ratio() };
-		window_size = window_size * device_pixel_ratio;
-	}
-	window.SetSize(window_size);
-	return 0;
-}
-
-static EM_BOOL EmscriptenResizeMouseLeave(
-	int event_type, const EmscriptenMouseEvent* mouse_event, void* window_ptr
-) {
-	if (!window_ptr) {
-		return -1;
-	}
-	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
-	window.ClearInputState();
-	return 0;
-}
-
-static void EmscriptenInit(Window& window) {
-	emscripten_set_resize_callback(
-		EMSCRIPTEN_EVENT_TARGET_WINDOW, static_cast<void*>(&window), 0, EmscriptenResize
-	);
-	emscripten_set_mouseleave_callback(
-		EMSCRIPTEN_EVENT_TARGET_WINDOW, static_cast<void*>(&window), EM_TRUE,
-		EmscriptenResizeMouseLeave
-	);
-}
-
-void EmscriptenMainLoop(void* application) {
-	auto& app{ *static_cast<Application*>(application) };
-
-	app.Update();
-
-	if (!app.running_) {
-		emscripten_cancel_main_loop();
-	}
-}
-
-#endif
-
 ApplicationLibrary::ApplicationLibrary() {
 	auto success{ glfwInit() };
 	PTGN_ASSERT(success, "glfwInit failed");
@@ -128,6 +63,10 @@ Application::Application(const ApplicationConfig& config) :
 			default:				  PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(type));
 		}
 	};
+
+	renderer_.UpdateDisplayViewport(false);
+
+	PTGN_INFO("Application Config: ", config);
 }
 
 Application::Application(const std::string& title) :
@@ -150,9 +89,17 @@ void Application::EnterMainLoop() {
 	renderer_.UpdateDisplayViewport(true);
 
 #ifdef __EMSCRIPTEN__
-	impl::EmscriptenInit(window_);
 	emscripten_set_main_loop_arg(
-		impl::EmscriptenMainLoop, this, /*fps=*/0, /*simulateInfiniteLoop=*/true
+		[](void* application) {
+			auto& app{ *static_cast<Application*>(application) };
+
+			app.Update();
+
+			if (!app.running_) {
+				emscripten_cancel_main_loop();
+			}
+		},
+		this, /*fps=*/0, /*simulateInfiniteLoop=*/true
 	);
 #else
 	while (running_) {
@@ -187,12 +134,13 @@ void Application::Update() {
 	dt_ = end - start;
 
 	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
-	/*constexpr const float fps{ 60.0f };
-	dt_ = 1.0f / fps;*/
+	constexpr float kFps{ 60.0f };
 
-	/*if (elapsed < dt_) {
-		Delay(duration_cast<milliseconds>(dt_ - elapsed));
-	}*/ // TODO: Add accumulator for when elapsed > dt (such as in Debug mode).
+	if (dt_ > secondsf{ 1.0f / kFps }) {
+		// TODO: Instead of clamping, consider using an accumulator to update multiple times if dt
+		// is large (such as in Debug mode).
+		dt_ = secondsf{ 1.0f / kFps };
+	}
 
 	start = end;
 

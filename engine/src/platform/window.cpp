@@ -7,6 +7,9 @@
 
 EM_JS(int, get_canvas_width, (), { return Module.canvas.width; });
 EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
+EM_JS(int, get_screen_width, (), { return window.screen.width; });
+EM_JS(int, get_screen_height, (), { return window.screen.height; });
+EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.0; });
 
 #endif
 
@@ -17,18 +20,13 @@ EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
 #include <array>
 #include <chrono>
 #include <cstdint>
-#include <expected>
-#include <ios>
 #include <memory>
 #include <optional>
-#include <ostream>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 #include "core/assert.h"
-#include "core/event/event.h"
 #include "core/event/key_event.h"
 #include "core/event/mouse_event.h"
 #include "core/event/window_event.h"
@@ -47,6 +45,36 @@ EM_JS(int, get_canvas_height, (), { return Module.canvas.height; });
 namespace ptgn {
 
 #ifdef __EMSCRIPTEN__
+
+static EM_BOOL EmscriptenResize(
+	int event_type, const EmscriptenUiEvent* ui_event, void* window_ptr
+) {
+	if (!window_ptr) {
+		return -1;
+	}
+	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
+	V2_int window_size{ ui_event->windowInnerWidth, ui_event->windowInnerHeight };
+	// TODO: Figure out how to deal with itch.io fullscreen button not changing status to
+	// fullscreen.
+	V2_int screen_size{ get_screen_width(), get_screen_height() };
+	if (window_size == screen_size) {
+		auto device_pixel_ratio{ get_device_pixel_ratio() };
+		window_size = window_size * device_pixel_ratio;
+	}
+	window.SetSize(window_size);
+	return 0;
+}
+
+static EM_BOOL EmscriptenResizeMouseLeave(
+	int event_type, const EmscriptenMouseEvent* mouse_event, void* window_ptr
+) {
+	if (!window_ptr) {
+		return -1;
+	}
+	auto& window{ *static_cast<::ptgn::Window*>(window_ptr) };
+	window.ClearInputState();
+	return 0;
+}
 
 void Window::SetCanvasSize(V2_int new_size) {
 	emscripten_set_element_css_size("#canvas", new_size.x, new_size.y);
@@ -260,6 +288,7 @@ Window::Window(const WindowConfig& config) : file{ *this }, title_{ config.title
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+
 #else
 	const char* glsl_version = "#version 330 core";
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -296,7 +325,15 @@ Window::Window(const WindowConfig& config) : file{ *this }, title_{ config.title
 	style.ScaleAllSizes(main_scale);
 	style.FontScaleDpi = main_scale;
 
-#ifndef __EMSCRIPTEN__
+#ifdef __EMSCRIPTEN__
+	emscripten_set_resize_callback(
+		EMSCRIPTEN_EVENT_TARGET_WINDOW, static_cast<void*>(this), EM_FALSE, EmscriptenResize
+	);
+	emscripten_set_mouseleave_callback(
+		EMSCRIPTEN_EVENT_TARGET_WINDOW, static_cast<void*>(this), EM_TRUE,
+		EmscriptenResizeMouseLeave
+	);
+#else
 	int status{ gladLoadGL(glfwGetProcAddress) };
 	PTGN_ASSERT(status, "Failed to load OpenGL functions");
 #endif
@@ -321,8 +358,6 @@ Window::Window(const WindowConfig& config) : file{ *this }, title_{ config.title
 	SetMouseMode(config.mouse_mode);
 
 	glfwSetWindowSizeLimits(instance_.get(), 1, 1, GLFW_DONT_CARE, GLFW_DONT_CARE);
-
-	PTGN_INFO("Created window with config: ", config);
 
 	// Callbacks should be set after window setup so they dont trigger initially.
 	SetCallbacks();
