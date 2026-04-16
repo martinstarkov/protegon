@@ -63,7 +63,8 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	};
 
 	draw_list->AddImage(
-		screen_texture, img_min, img_max, ImVec2{ 0.0f, 1.0f }, ImVec2{ 1.0f, 0.0f }
+		static_cast<ImTextureID>(screen_texture), img_min, img_max, ImVec2{ 0.0f, 1.0f },
+		ImVec2{ 1.0f, 0.0f }
 	);
 
 	ImGui::End();

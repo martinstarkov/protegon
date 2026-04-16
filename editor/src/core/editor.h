@@ -1,7 +1,6 @@
 #pragma once
 
-#include <imgui.h>
-
+#include <cstdint>
 #include <memory>
 
 #include "app/layer.h"
@@ -17,6 +16,7 @@
 #include "panels/scene_list.h"
 #include "panels/viewport.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/resources/id.h"
 
 namespace ptgn {
 
@@ -37,7 +37,7 @@ public:
 	Scene* GetActiveScene() const;
 
 	Viewport GetDisplayViewport() const;
-	ImTextureID GetScreenTargetTexture() const;
+	impl::TextureId GetScreenTargetTexture() const;
 	Color GetViewportPanelBackgroundColor() const;
 
 	void SetPresentationViewport(Viewport viewport);
@@ -49,7 +49,7 @@ private:
 
 	void DrawPanels();
 
-	void BuildDefaultDockLayout(ImGuiID dockspace_id);
+	void BuildDefaultDockLayout(std::uint32_t dockspace_id);
 
 	std::unique_ptr<EditorContext> context_;
 	UndoStack undo_stack_;

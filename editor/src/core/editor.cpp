@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <utility>
@@ -16,7 +17,6 @@
 #include "core/editor_selection.h"
 #include "core/editor_state.h"
 #include "core/graphics/color.h"
-#include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "panels/content_browser.h"
 #include "panels/engine_settings.h"
@@ -25,9 +25,9 @@
 #include "panels/scene_list.h"
 #include "panels/viewport.h"
 #include "platform/window.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
-#include "runtime/graphics/frame_context.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -131,9 +131,9 @@ Color Editor::GetViewportPanelBackgroundColor() const {
 	return app.window_.GetBackgroundColor();
 }
 
-ImTextureID Editor::GetScreenTargetTexture() const {
+impl::TextureId Editor::GetScreenTargetTexture() const {
 	auto texture{ app.renderer_.GetRenderTargetTexture(app.renderer_.GetScreenTarget()) };
-	return static_cast<ImTextureID>(texture.value);
+	return texture;
 }
 
 void Editor::OnActiveSceneChanged() {
@@ -145,7 +145,7 @@ void Editor::OnActiveSceneChanged() {
 	context_->state.is_dirty = false;
 }
 
-void Editor::BuildDefaultDockLayout(ImGuiID dockspace_id) {
+void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	if (dock_layout_built_) {
 		return;
 	}
