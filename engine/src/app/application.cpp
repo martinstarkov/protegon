@@ -7,8 +7,10 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "app/layer.h"
@@ -22,6 +24,7 @@
 #include "platform/glfw.h"
 #include "platform/window.h"
 #include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/pipeline/viewport_event.h"
 #include "renderer/renderer.h"
 #include "runtime/audio/audio_system.h"
@@ -56,13 +59,19 @@ Application::Application(const ApplicationConfig& config) :
 	window_.event_sink_ = [this](impl::EventData&& event) {
 		event_handler_.global_event_queue_.emplace_back(std::move(event));
 	};
-	renderer_.event_sink_ = [this](V2_int size, ResizeType type) {
-		switch (type) {
-			case ResizeType::Display: event_handler_.Push<event::GameResized>(size); break;
-			case ResizeType::Game:	  event_handler_.Push<event::DisplayResized>(size); break;
-			default:				  PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(type));
-		}
-	};
+	renderer_.event_sink_ =
+		[this](V2_int size, std::variant<ResizeType, impl::PresentationResizeType> type) {
+			if (std::holds_alternative<impl::PresentationResizeType>(type)) {
+				event_handler_.Push<event::PresentationResized>(size);
+				return;
+			}
+			auto resize_type{ std::get<ResizeType>(type) };
+			switch (resize_type) {
+				case ResizeType::Display: event_handler_.Push<event::DisplayResized>(size); break;
+				case ResizeType::Game:	  event_handler_.Push<event::GameResized>(size); break;
+				default:				  PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(resize_type));
+			}
+		};
 
 	renderer_.UpdateDisplayViewport(false);
 
@@ -114,7 +123,7 @@ void Application::HandleGlobalEvents() {
 	for (auto& global_event : global_events) {
 		Event event{ global_event };
 		event.Dispatch<event::WindowResized>([this](const auto& size) {
-			renderer_.OnFullViewportResize(size);
+			renderer_.OnWindowResize(size);
 		});
 		for (const auto& scene : scene_manager_.GetScenes()) {
 			if (scene->IsAwaitingTransitionDelay()) {
@@ -145,6 +154,17 @@ void Application::Update() {
 	start = end;
 
 	running_ = window_.PollEvents();
+
+	if (window_.GetSetting(WindowSetting::Minimized)) {
+		audio_.Update();
+		debug_.PostUpdate();
+
+		end = std::chrono::system_clock::now();
+		frame_count_++;
+		return;
+	}
+
+	renderer_.UpdateDisplayViewport();
 
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
@@ -180,7 +200,6 @@ void Application::Update() {
 	window_.SwapBuffers();
 
 	end = std::chrono::system_clock::now();
-
 	frame_count_++;
 }
 
