@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
@@ -242,10 +243,10 @@ struct InteractiveScene : public Scene {
 		MoveWASD(ctx().camera, speed * dt);
 
 		if (ctx().input.KeyHeld(Key::Q)) {
-			Rotate(ctx().camera, rotation_speed * dt);
+			Rotate(ctx().camera, Radians{ rotation_speed } * dt);
 		}
 		if (ctx().input.KeyHeld(Key::E)) {
-			Rotate(ctx().camera, -rotation_speed * dt);
+			Rotate(ctx().camera, Radians{ -rotation_speed } * dt);
 		}
 		if (ctx().input.KeyHeld(Key::Z)) {
 			ctx().camera.Zoom(zoom_speed * dt);
@@ -259,5 +260,6 @@ struct InteractiveScene : public Scene {
 int main(int, char**) {
 	Application app{ "InteractiveScene: T: Toggle Top Only Input, WASD/QE/ZC: "
 					 "Move/Rotate/Zoom Camera" };
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<InteractiveScene>();
 }

@@ -1,18 +1,18 @@
 #include "renderer/pipeline/scaling_mode.h"
 
 #include "app/application.h"
+#include "core/editor.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/input/key.h"
 #include "platform/window.h"
-#include "core/graphics/color.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
@@ -69,5 +69,6 @@ class ScalingModeScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "ScalingModeScene: QWERT: Switch Resolution Modes", game_size };
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<ScalingModeScene>();
 }
