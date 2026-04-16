@@ -12,51 +12,55 @@
 namespace ptgn::editor {
 
 void ViewportPanel::OnRender(EditorContext& ctx) {
-	// Remove padding.
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
-	ImGui::Begin(
-		"Game", nullptr,
-		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
-			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse
-	);
+
+	constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoScrollbar |
+										ImGuiWindowFlags_NoScrollWithMouse |
+										ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
+
+	ImGui::Begin("Game", nullptr, kFlags);
 	ImGui::PopStyleVar();
 
-	// Remove docking tab at the top.
 	if (ImGuiWindow* game_window = ImGui::FindWindowByName("Game")) {
 		if (game_window->DockNode) {
 			game_window->DockNode->LocalFlags |= ImGuiDockNodeFlags_HiddenTabBar;
 		}
 	}
 
-	ImVec2 min{ ImGui::GetCursorScreenPos() };
-	ImVec2 size{ ImGui::GetContentRegionAvail() };
-	ImVec2 max{ min.x + size.x, min.y + size.y };
-	ImVec2 center{ (min.x + max.x) / 2.0f, (min.y + max.y) / 2.0f };
+	const ImVec2 min   = ImGui::GetCursorScreenPos();
+	const ImVec2 avail = ImGui::GetContentRegionAvail();
+	const ImVec2 max{ min.x + avail.x, min.y + avail.y };
+	const ImVec2 center{ min.x + avail.x / 2.0f, min.y + avail.y / 2.0f };
 
-	if (size.x <= 0.0f || size.y <= 0.0f) {
+	const Viewport viewport{ .position = { min.x, min.y }, .size = { avail.x, avail.y } };
+
+	ctx.state.viewport.viewport = viewport;
+	ctx.state.viewport.focused	= ImGui::IsWindowFocused();
+	ctx.state.viewport.hovered	= ImGui::IsWindowHovered();
+
+	ctx.editor.SetPresentationViewport(viewport);
+
+	if (avail.x <= 0.0f || avail.y <= 0.0f) {
 		ImGui::End();
 		return;
 	}
 
-	ctx.state.viewport.viewport = { { min.x, min.y }, { size.x, size.y } };
-	ctx.state.viewport.focused	= ImGui::IsWindowFocused();
-	ctx.state.viewport.hovered	= ImGui::IsWindowHovered();
-
 	auto* draw_list = ImGui::GetWindowDrawList();
 
-	draw_list->AddRectFilled(
-		min, max,
-		// TODO: Use renderer clear color.
-		IM_COL32(255, 0, 0, 255)
-	);
+	auto bg{ ctx.editor.GetViewportPanelBackgroundColor() };
 
-	auto screen_texture{ ctx.editor.GetScreenTargetTexture() };
+	draw_list->AddRectFilled(min, max, IM_COL32(bg.r, bg.g, bg.b, bg.a));
 
-	auto display_size{ ctx.editor.GetDisplaySize() };
+	const auto display_viewport = ctx.editor.GetDisplayViewport();
+	const auto screen_texture	= ctx.editor.GetScreenTargetTexture();
 
-	auto half_display{ display_size / 2.0f };
-	ImVec2 img_min{ center.x - half_display.x, center.y - half_display.y };
-	ImVec2 img_max{ center.x + half_display.x, center.y + half_display.y };
+	const ImVec2 img_min{ min.x + static_cast<float>(display_viewport.position.x),
+						  min.y + static_cast<float>(display_viewport.position.y) };
+
+	const ImVec2 img_max{
+		min.x + static_cast<float>(display_viewport.position.x + display_viewport.size.x),
+		min.y + static_cast<float>(display_viewport.position.y + display_viewport.size.y)
+	};
 
 	draw_list->AddImage(
 		screen_texture, img_min, img_max, ImVec2{ 0.0f, 1.0f }, ImVec2{ 1.0f, 0.0f }

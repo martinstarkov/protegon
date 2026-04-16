@@ -8,7 +8,7 @@
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
 #include "core/editor_context.h"
-#include "core/math/vector2.h"
+#include "core/graphics/color.h"
 #include "core/util/file.h"
 #include "panels/content_browser.h"
 #include "panels/engine_settings.h"
@@ -16,6 +16,7 @@
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
 #include "panels/viewport.h"
+#include "renderer/pipeline/viewport.h"
 
 namespace ptgn {
 
@@ -35,8 +36,11 @@ public:
 
 	Scene* GetActiveScene() const;
 
-	V2_int GetDisplaySize() const;
+	Viewport GetDisplayViewport() const;
 	ImTextureID GetScreenTargetTexture() const;
+	Color GetViewportPanelBackgroundColor() const;
+
+	void SetPresentationViewport(Viewport viewport);
 
 private:
 	Application& app;

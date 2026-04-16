@@ -15,6 +15,7 @@
 #include "core/editor_context.h"
 #include "core/editor_selection.h"
 #include "core/editor_state.h"
+#include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "panels/content_browser.h"
@@ -23,8 +24,10 @@
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
 #include "panels/viewport.h"
+#include "platform/window.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
+#include "runtime/graphics/frame_context.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -98,6 +101,10 @@ void Editor::DrawPanels() {
 	content_browser_panel_.OnRender(*context_);
 }
 
+void Editor::SetPresentationViewport(Viewport presentation_viewport) {
+	app.renderer_.SetPresentationViewport(presentation_viewport);
+}
+
 void Editor::SetActiveScene(Scene* scene, std::filesystem::path scene_path) {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 
@@ -116,8 +123,12 @@ Scene* Editor::GetActiveScene() const {
 	return context_->state.active_scene;
 }
 
-V2_int Editor::GetDisplaySize() const {
-	return app.renderer_.GetDisplaySize();
+Viewport Editor::GetDisplayViewport() const {
+	return app.renderer_.GetDisplayViewport();
+}
+
+Color Editor::GetViewportPanelBackgroundColor() const {
+	return app.window_.GetBackgroundColor();
 }
 
 ImTextureID Editor::GetScreenTargetTexture() const {
