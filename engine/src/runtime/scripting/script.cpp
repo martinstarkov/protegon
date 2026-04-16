@@ -62,11 +62,11 @@ void Scripts::OnEvent(Event event) const {
 	}
 }
 
-void from_json(const json& j, Scripts& scripts) {
+void from_json(const json&, Scripts&) {
 	// TODO: Implement.
 }
 
-void to_json(json& j, const Scripts& scripts) {
+void to_json(json&, const Scripts&) {
 	// TODO: Implement.
 }
 

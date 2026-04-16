@@ -29,6 +29,8 @@ target_include_directories(protegon
 
 target_compile_features(protegon PUBLIC cxx_std_23)
 
+target_precompile_headers(protegon PRIVATE "${PTGN_SRC_DIR}/ptgn_pch.h")
+
 target_link_libraries(protegon
   PUBLIC
     assets::shader

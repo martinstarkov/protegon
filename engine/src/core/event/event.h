@@ -130,15 +130,17 @@ public:
 	/// @brief Dispatches to a member functions.
 	template <typename T, typename TObject, typename TMemFn>
 	void Dispatch(TMemFn memfn, TObject* obj) {
-		Dispatch<T>([obj, memfn]<typename... TArgs>(TArgs&&... args) -> decltype(auto) {
-			if constexpr (std::is_invocable_v<TMemFn, TObject*, TArgs...>) {
-				return std::invoke(memfn, obj, std::forward<TArgs>(args)...);
-			} else if constexpr (std::is_invocable_v<TMemFn, TObject*>) {
-				return std::invoke(memfn, obj);
-			} else {
-				static_assert(false, "Member function cannot be invoked with these arguments");
+		Dispatch<T>(
+			[obj, memfn]<typename... TArgs>([[maybe_unused]] TArgs&&... args) -> decltype(auto) {
+				if constexpr (std::is_invocable_v<TMemFn, TObject*, TArgs...>) {
+					return std::invoke(memfn, obj, std::forward<TArgs>(args)...);
+				} else if constexpr (std::is_invocable_v<TMemFn, TObject*>) {
+					return std::invoke(memfn, obj);
+				} else {
+					static_assert(false, "Member function cannot be invoked with these arguments");
+				}
 			}
-		});
+		);
 	}
 
 	template <typename T, typename TVariant>
@@ -185,7 +187,7 @@ private:
 	explicit Event(impl::EventData& event) : event_{ event } {}
 
 	template <typename T, impl::EventFunctionType<T> TEventFn>
-	void InvokeHandler(TEventFn&& fn, T& value) {
+	void InvokeHandler(TEventFn&& fn, [[maybe_unused]] T& value) {
 		if constexpr (std::is_invocable_r_v<bool, TEventFn, T&>) {
 			if (std::forward<TEventFn>(fn)(value)) {
 				event_.handled = true;
