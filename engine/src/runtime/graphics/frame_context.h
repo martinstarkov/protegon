@@ -11,8 +11,13 @@ namespace ptgn {
 class Scene;
 class RenderContext;
 
+struct PresentationFrame {
+	/// @brief Center of the presentation viewport in window frame coordinates.
+	V2_float presentation_center;
+};
+
 struct DisplayFrame {
-	/// @brief Pixels relative to window center in window frame of reference.
+	/// @brief Center of the display viewport in presentation frame coordinates.
 	V2_float display_center;
 };
 
@@ -41,6 +46,7 @@ struct WorldFrame {
 /// lower rank frames of reference for their definition.
 enum class Frame {
 	Window,
+	Presentation,
 	Display,
 	RenderTarget,
 	Camera,
@@ -54,6 +60,7 @@ public:
 	FrameContext(const RenderContext& renderer, RenderTarget render_target, Camera camera);
 	explicit FrameContext(const Scene& scene);
 
+	PresentationFrame presentation;
 	DisplayFrame display;
 	RenderTargetFrame render_target;
 	CameraFrame camera;
@@ -65,8 +72,19 @@ V2_float ConvertPoint(V2_float position, Frame from, Frame to, const FrameContex
 V2_float CenterToTopLeft(V2_float point_center, V2_float size);
 V2_float TopLeftToCenter(V2_float point_top_left, V2_float size);
 
-[[nodiscard]] V2_float WindowToDisplay(V2_float window_point, const DisplayFrame& display_frame);
-[[nodiscard]] V2_float DisplayToWindow(V2_float display_point, const DisplayFrame& display_frame);
+[[nodiscard]] V2_float WindowToPresentation(
+	V2_float window_point, const PresentationFrame& presentation_frame
+);
+[[nodiscard]] V2_float PresentationToWindow(
+	V2_float presentation_point, const PresentationFrame& presentation_frame
+);
+
+[[nodiscard]] V2_float PresentationToDisplay(
+	V2_float presentation_point, const DisplayFrame& display_frame
+);
+[[nodiscard]] V2_float DisplayToPresentation(
+	V2_float display_point, const DisplayFrame& display_frame
+);
 
 [[nodiscard]] V2_float DisplayToRenderTarget(
 	V2_float display_point, const RenderTargetFrame& render_target_frame

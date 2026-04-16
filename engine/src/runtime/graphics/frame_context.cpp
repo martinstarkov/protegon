@@ -19,12 +19,31 @@ FrameContext::FrameContext(const Scene& scene) :
 
 FrameContext::FrameContext(
 	const RenderContext& renderer, RenderTarget render_target_entity, Camera camera_entity
-) :
-	display{ renderer.GetDisplayViewport().position },
-	render_target{ GetTransform(render_target_entity) },
-	camera{ camera_entity.GetViewport(), render_target_entity.GetSize(),
-			render_target_entity.GetScale() },
-	world{ GetTransform(camera_entity) } {}
+) {
+	auto presentation_viewport{ renderer.GetPresentationViewport() };
+	auto display_viewport{ renderer.GetDisplayViewport() };
+
+	auto full_viewport_size{ renderer.GetFullViewportSize() };
+
+	auto presentation_center{ presentation_viewport.position + presentation_viewport.size / 2.0f -
+							  full_viewport_size / 2.0f };
+
+	auto display_center_window{ display_viewport.position + display_viewport.size / 2.0f -
+								presentation_viewport.size / 2.0f };
+
+	presentation = PresentationFrame{ .presentation_center = presentation_center };
+
+	display = DisplayFrame{ .display_center = display_center_window };
+
+	render_target =
+		RenderTargetFrame{ .render_target_transform = GetTransform(render_target_entity) };
+
+	camera = CameraFrame{ .camera_viewport	  = camera_entity.GetViewport(),
+						  .render_target_size = render_target_entity.GetSize(),
+						  .scale			  = render_target_entity.GetScale() };
+
+	world = WorldFrame{ .camera_transform = GetTransform(camera_entity) };
+}
 
 V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx) {
 	int a{ std::to_underlying(from) };
@@ -38,7 +57,11 @@ V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx)
 		switch (from) {
 			using enum Frame;
 			case Window:
-				p	 = WindowToDisplay(p, ctx.display);
+				p	 = WindowToPresentation(p, ctx.presentation);
+				from = Presentation;
+				break;
+			case Presentation:
+				p	 = PresentationToDisplay(p, ctx.display);
 				from = Display;
 				break;
 			case Display:
@@ -78,7 +101,11 @@ V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx)
 				from = Display;
 				break;
 			case Display:
-				p	 = DisplayToWindow(p, ctx.display);
+				p	 = DisplayToPresentation(p, ctx.display);
+				from = Presentation;
+				break;
+			case Presentation:
+				p	 = PresentationToWindow(p, ctx.presentation);
 				from = Window;
 				break;
 			case Window: break;
@@ -102,12 +129,20 @@ V2_float TopLeftToCenter(V2_float point_top_left, V2_float size) {
 	return point_top_left - size * 0.5f;
 }
 
-V2_float WindowToDisplay(V2_float window_point, const DisplayFrame&) {
-	return window_point;
+V2_float WindowToPresentation(V2_float window_point, const PresentationFrame& p) {
+	return window_point - p.presentation_center;
 }
 
-V2_float DisplayToWindow(V2_float display_point, const DisplayFrame&) {
-	return display_point;
+V2_float PresentationToWindow(V2_float presentation_point, const PresentationFrame& p) {
+	return presentation_point + p.presentation_center;
+}
+
+V2_float PresentationToDisplay(V2_float presentation_point, const DisplayFrame& display_frame) {
+	return presentation_point - display_frame.display_center;
+}
+
+V2_float DisplayToPresentation(V2_float display_point, const DisplayFrame& display_frame) {
+	return display_point + display_frame.display_center;
 }
 
 V2_float DisplayToRenderTarget(
