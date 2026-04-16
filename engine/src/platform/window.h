@@ -162,6 +162,8 @@ public:
 
 	void SetSetting(WindowSetting setting);
 
+	[[nodiscard]] bool IsFocused() const;
+
 	/// @brief Get the current state of a window setting.
 	bool GetSetting(WindowSetting setting) const;
 

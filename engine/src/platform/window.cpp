@@ -683,6 +683,12 @@ void Window::SetSetting(WindowSetting setting) {
 	}
 }
 
+bool Window::IsFocused() const {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win != nullptr, "Window is null");
+	return glfwGetWindowAttrib(win, GLFW_FOCUSED) == GLFW_TRUE;
+}
+
 bool Window::GetSetting(WindowSetting setting) const {
 	auto win = instance_.get();
 	PTGN_ASSERT(win != nullptr, "Window is null");
