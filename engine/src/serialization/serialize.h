@@ -227,7 +227,7 @@ void StreamValue(std::ostream& os, const T& value) {
 		} else {
 			os << "null";
 		}
-	} else if constexpr (std::ranges::range<T>) {
+	} else if constexpr (std::ranges::range<T> && !std::is_convertible_v<T, std::string_view>) {
 		StreamIterable(os, value);
 	} else if constexpr (VariantType<T>) {
 		StreamVariant(os, value);
