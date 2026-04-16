@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <ostream>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -226,7 +227,7 @@ void StreamValue(std::ostream& os, const T& value) {
 		} else {
 			os << "null";
 		}
-	} else if constexpr (IterableType<T>) {
+	} else if constexpr (std::ranges::range<T>) {
 		StreamIterable(os, value);
 	} else if constexpr (VariantType<T>) {
 		StreamVariant(os, value);

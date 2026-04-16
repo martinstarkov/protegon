@@ -2,7 +2,6 @@
 
 #include <concepts>
 #include <istream>
-#include <iterator>
 #include <ostream>
 #include <string_view>
 #include <type_traits>
@@ -13,10 +12,10 @@ namespace ptgn {
 
 namespace impl {
 
-template <typename Test, template <typename...> class Ref>
+template <typename Test, template <typename...> typename Ref>
 struct is_specialization : std::false_type {};
 
-template <template <typename...> class Ref, typename... Args>
+template <template <typename...> typename Ref, typename... Args>
 struct is_specialization<Ref<Args...>, Ref> : std::true_type {};
 
 template <typename T, typename Variant>
@@ -34,7 +33,7 @@ struct is_variant<std::variant<Ts...>> : std::true_type {};
 
 } // namespace impl
 
-template <typename T, template <typename...> class Ref>
+template <typename T, template <typename...> typename Ref>
 concept SpecializationOf = impl::is_specialization<T, Ref>::value;
 
 template <typename... Ts>
@@ -96,12 +95,6 @@ concept MapLike = requires(T t, typename T::key_type key) {
 	{ t.find(key) } -> std::same_as<typename T::iterator>;
 	{ t[key] } -> std::same_as<typename T::mapped_type&>;
 };
-
-template <typename T>
-concept IterableType = requires(T value) {
-	std::begin(value);
-	std::end(value);
-} && !std::is_convertible_v<T, std::string_view>;
 
 template <typename T>
 concept VariantType = SpecializationOf<std::remove_cvref_t<T>, std::variant>;

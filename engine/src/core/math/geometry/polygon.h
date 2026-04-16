@@ -1,6 +1,7 @@
 #pragma once
 
 #include <concepts>
+#include <iterator>
 #include <ranges>
 #include <vector>
 
@@ -14,16 +15,14 @@ class Polygon {
 public:
 	constexpr Polygon() = default;
 
-	template <typename Container> // NOSONAR
-		requires std::ranges::input_range<Container> &&
-				 std::convertible_to<std::ranges::range_value_t<Container>, V2_float>
-	constexpr Polygon(const Container& vertices) { // NOSONAR
-		vertices_.assign(vertices.begin(), vertices.end());
+	template <std::ranges::input_range Container>
+		requires std::convertible_to<std::ranges::range_reference_t<Container>, V2_float>
+	constexpr Polygon(const Container& vertices) {
+		vertices_.assign(std::ranges::begin(vertices), std::ranges::end(vertices));
 	}
 
-	template <typename Container> // NOSONAR
-		requires std::ranges::input_range<Container> &&
-				 std::convertible_to<std::ranges::range_value_t<Container>, V2_float>
+	template <std::ranges::input_range Container>
+		requires std::convertible_to<std::ranges::range_reference_t<Container>, V2_float>
 	void SetVertices(const Container& vertices) {
 		vertices_.assign(vertices.begin(), vertices.end());
 	}
