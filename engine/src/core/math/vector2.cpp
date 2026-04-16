@@ -28,9 +28,6 @@ bool StrictlyLess(V2_float a, V2_float b, float epsilon) {
 	return StrictlyLess(a.x, b.x, epsilon) && StrictlyLess(a.y, b.y, epsilon);
 }
 
-template struct Vector2<int>;
-template struct Vector2<float>;
-
 template void to_json<int>(json&, const Vector2<int>&);
 template void from_json<int>(const json&, Vector2<int>&);
 template void to_json<float>(json&, const Vector2<float>&);

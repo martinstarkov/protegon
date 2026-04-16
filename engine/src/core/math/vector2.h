@@ -51,7 +51,6 @@ struct Vector2 {
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
 
 	[[nodiscard]] constexpr Vector2 xx() {
-		x++;
 		return { x, x };
 	}
 
@@ -448,8 +447,8 @@ template <Arithmetic T>
 
 [[nodiscard]] bool StrictlyLess(V2_float a, V2_float b, float epsilon = kEpsilon<float>);
 
-extern template struct Vector2<int>;
-extern template struct Vector2<float>;
+template struct Vector2<int>;
+template struct Vector2<float>;
 
 } // namespace ptgn
 
