@@ -1,6 +1,6 @@
 #pragma once
 
-#include <string>
+#include <string_view>
 #include <vector>
 
 #include "core/graphics/color.h"
@@ -23,7 +23,7 @@ struct ColorStop {
 class Gradient {
 public:
 	Gradient() = default;
-	explicit Gradient(const std::string& css);
+	explicit Gradient(std::string_view css);
 
 	/// @brief Evaluates the gradient at a given position t in [0, 1].
 	/// @param t Position along the gradient, clamped to range [0, 1].

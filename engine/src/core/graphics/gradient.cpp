@@ -4,35 +4,31 @@
 #include <cstdint>
 #include <regex>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "core/graphics/color.h"
 #include "core/math/math_utils.h"
+#include "core/util/regex.h"
 
 namespace ptgn {
 
-Gradient::Gradient(const std::string& css) { // NOSONAR
-	std::regex stop_regex(R"(rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)\s*(\d+)%?)"
+Gradient::Gradient(std::string_view css) {
+	static const std::regex stop_regex(
+		R"(rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)\s*(\d+)%?)"
 	);
 
-	auto begin = std::sregex_iterator(css.begin(), css.end(), stop_regex);
-	auto end   = std::sregex_iterator();
-
-	for (auto it{ begin }; it != end; ++it) {
-		const std::smatch& match = *it;
-
-		int r		  = std::stoi(match[1]);
-		int g		  = std::stoi(match[2]);
-		int b		  = std::stoi(match[3]);
-		float a_float = std::stof(match[4]);
-		float percent = std::stof(match[5]);
+	for (const auto& match : RegexRange(css, stop_regex)) {
+		int r{ std::stoi(match[1].str()) };
+		int g{ std::stoi(match[2].str()) };
+		int b{ std::stoi(match[3].str()) };
+		float a_float{ std::stof(match[4].str()) };
+		float percent{ std::stof(match[5].str()) };
 
 		Color color{ static_cast<uint8_t>(r), static_cast<uint8_t>(g), static_cast<uint8_t>(b),
 					 static_cast<uint8_t>(a_float * 255.0f) };
 
-		float t = percent / 100.0f;
-
-		AddStop(t, color);
+		AddStop(percent / 100.0f, color);
 	}
 }
 
