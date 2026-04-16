@@ -6,6 +6,7 @@
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <string_view>
 
 #include "core/assert.h"
 #include "serialization/json/json.h"
@@ -31,7 +32,7 @@ path MergePaths(const path& pathA, const path& pathB) {
 	return pathA / pathB;
 }
 
-bool IsFilePath(const std::string& s) {
+bool IsFilePath(std::string_view s) {
 	if (s.empty()) {
 		return false;
 	}
@@ -56,7 +57,7 @@ bool IsFilePath(const std::string& s) {
 	return false;
 }
 
-bool IsDirectoryPath(const std::string& s) {
+bool IsDirectoryPath(std::string_view s) {
 	if (s.empty()) {
 		return false;
 	}

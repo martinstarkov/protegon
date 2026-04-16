@@ -1,9 +1,7 @@
 #pragma once
 
 #include <concepts>
-#include <functional>
 #include <memory>
-#include <string>
 #include <string_view>
 #include <type_traits>
 #include <vector>
@@ -67,8 +65,8 @@ public:
 	/// @brief Constructs the application using the provided configuration.
 	/// @param config Application initialization settings (window, etc.).
 	explicit Application(const ApplicationConfig& config = {});
-	explicit Application(const std::string& title);
-	explicit Application(const std::string& title, V2_int window_size);
+	explicit Application(std::string_view title);
+	explicit Application(std::string_view title, V2_int window_size);
 
 	~Application() noexcept;
 	Application(const Application&)				   = delete;

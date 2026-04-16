@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "commands/entity/create_entity.h"
@@ -21,13 +22,16 @@ namespace ptgn::editor {
 EditorCommands::EditorCommands(UndoStack* undo_stack, EditorState* state) :
 	state_{ state }, undo_stack_{ undo_stack } {}
 
-Entity EditorCommands::CreateEntity(const std::string& name) {
+Entity EditorCommands::CreateEntity(std::string_view name) {
 	PTGN_ASSERT(state_);
 	PTGN_ASSERT(undo_stack_);
 	auto command = std::make_unique<CreateEntityCommand>(state_->active_scene, name);
-	auto* raw	 = command.get();
+
+	auto raw{ command.get() };
 
 	undo_stack_->Execute(std::move(command));
+
+	PTGN_ASSERT(raw);
 
 	return raw->GetEntity();
 }
@@ -51,7 +55,7 @@ void EditorCommands::LoadScene(const path& path) {
 	undo_stack_->Execute(std::make_unique<LoadSceneCommand>(state_->active_scene, path));
 }
 
-void EditorCommands::RenameEntity(Entity entity, const std::string& new_name) {
+void EditorCommands::RenameEntity(Entity entity, std::string_view new_name) {
 	PTGN_ASSERT(undo_stack_);
 	undo_stack_->Execute(std::make_unique<RenameEntityCommand>(entity, new_name));
 }

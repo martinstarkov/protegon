@@ -3,6 +3,7 @@
 #include <concepts>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "commands/component/add_component.h"
 #include "commands/component/remove_component.h"
@@ -25,10 +26,10 @@ public:
 	EditorCommands() = default;
 	EditorCommands(UndoStack* undo_stack, EditorState* state);
 
-	Entity CreateEntity(const std::string& name);
+	Entity CreateEntity(std::string_view name);
 	void DeleteEntity(Entity entity);
 
-	void RenameEntity(Entity entity, const std::string& new_name);
+	void RenameEntity(Entity entity, std::string_view new_name);
 
 	void ReparentEntity(Entity child, Entity new_parent, bool ignore_parent_transform);
 

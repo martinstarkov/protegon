@@ -32,7 +32,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	const ImVec2 max{ min.x + avail.x, min.y + avail.y };
 	const ImVec2 center{ min.x + avail.x / 2.0f, min.y + avail.y / 2.0f };
 
-	const Viewport viewport{ .position = { min.x, min.y }, .size = { avail.x, avail.y } };
+	const Viewport viewport{ .position{ min.x, min.y }, .size{ avail.x, avail.y } };
 
 	ctx.state.viewport.viewport = viewport;
 	ctx.state.viewport.focused	= ImGui::IsWindowFocused();

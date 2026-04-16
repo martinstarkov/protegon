@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 #include "commands/editor_command.h"
 #include "runtime/ecs/entity.h"
@@ -9,7 +10,7 @@ namespace ptgn::editor {
 
 class RenameEntityCommand : public EditorCommand {
 public:
-	RenameEntityCommand(Entity entity, std::string new_name);
+	RenameEntityCommand(Entity entity, std::string_view new_name);
 
 	void Execute() override;
 	void Undo() override;

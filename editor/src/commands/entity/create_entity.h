@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 #include "commands/editor_command.h"
 #include "runtime/ecs/entity.h"
@@ -13,7 +14,7 @@ namespace editor {
 
 class CreateEntityCommand : public EditorCommand {
 public:
-	CreateEntityCommand(Scene* scene, std::string name);
+	CreateEntityCommand(Scene* scene, std::string_view name);
 
 	void Execute() override;
 	void Undo() override;

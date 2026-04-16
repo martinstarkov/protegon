@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -78,11 +79,11 @@ Application::Application(const ApplicationConfig& config) :
 	PTGN_INFO("Application Config: ", config);
 }
 
-Application::Application(const std::string& title) :
-	Application{ ApplicationConfig{ .window = { .title = title } } } {}
+Application::Application(std::string_view title) :
+	Application{ ApplicationConfig{ .window{ .title{ title } } } } {}
 
-Application::Application(const std::string& title, V2_int window_size) :
-	Application{ ApplicationConfig{ .window = { .title = title, .size = window_size } } } {}
+Application::Application(std::string_view title, V2_int window_size) :
+	Application{ ApplicationConfig{ .window{ .title{ title }, .size{ window_size } } } } {}
 
 Application::~Application() noexcept {
 	// Requires access to destructors.

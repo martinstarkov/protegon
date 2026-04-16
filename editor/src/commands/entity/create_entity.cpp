@@ -1,6 +1,7 @@
 #include "commands/entity/create_entity.h"
 
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "core/assert.h"
@@ -9,8 +10,8 @@
 
 namespace ptgn::editor {
 
-CreateEntityCommand::CreateEntityCommand(Scene* scene, std::string name) :
-	scene_{ scene }, name_{ std::move(name) } {}
+CreateEntityCommand::CreateEntityCommand(Scene* scene, std::string_view name) :
+	scene_{ scene }, name_{ name } {}
 
 void CreateEntityCommand::Execute() {
 	PTGN_ASSERT(scene_);
