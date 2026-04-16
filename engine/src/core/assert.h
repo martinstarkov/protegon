@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdlib>
-#include <format>
 #include <optional>
 #include <source_location>
 #include <sstream>
@@ -28,7 +27,7 @@ template <Loggable... Ts>
 	((oss << std::forward<Ts>(parts)), ...); // stream all extra parts (if any)
 	auto msg{ oss.str() };
 
-	auto composed{ msg.empty() ? std::string{ expr } : std::format("{} | {}", expr, msg) };
+	auto composed = msg.empty() ? std::string{ expr } : (std::string{ expr } + " | " + msg);
 
 	DebugMessage("ASSERTION FAILED: ", std::optional<std::string>{ composed }, where);
 
