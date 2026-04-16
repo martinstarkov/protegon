@@ -358,7 +358,7 @@ void Renderer::ClearRenderTarget(RenderTargetId render_target, Color color, bool
 
 		auto render_target_size{ GetRenderTargetSize(render_target) };
 
-		gl_->SetViewport({ .position = {}, .size = render_target_size });
+		gl_->SetViewport({ .position{}, .size{ render_target_size } });
 	}
 
 	gl_->framebuffers.ClearToColor(FramebufferId{ render_target }, color);
@@ -757,7 +757,7 @@ ScalingMode Renderer::GetScalingMode() const {
 }
 
 Viewport Renderer::GetPresentationViewport() const {
-	return { .position = GetPresentationPosition(), .size = GetPresentationSize() };
+	return { .position{ GetPresentationPosition() }, .size{ GetPresentationSize() } };
 }
 
 V2_int Renderer::GetPresentationPosition() const {
@@ -823,7 +823,7 @@ void Renderer::UpdateDisplayViewport(bool emit_events) {
 
 	PTGN_ASSERT(game_size.BothAboveZero());
 
-	Viewport viewport{ .position = {}, .size = presentation.size };
+	Viewport viewport{ .position{}, .size{ presentation.size } };
 
 	auto compute_aspect_fit = [&viewport, game_size, presentation](bool letterbox_mode) {
 		float presentation_aspect{ static_cast<float>(presentation.size.x) / presentation.size.y };
@@ -929,7 +929,7 @@ void Renderer::BeginFrame() {
 	}
 
 	BindScreenTarget();
-	SetViewport({ .position = {}, .size = screen_target_.GetSize() });
+	SetViewport({ .position{}, .size{ screen_target_.GetSize() } });
 	gl_->framebuffers.ClearToColor(FramebufferId{ screen_target_.resource_ }, background_color_);
 }
 
