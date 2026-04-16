@@ -112,6 +112,7 @@ struct adl_serializer<ptgn::duration<Rep, Period>> {
 		std::string s{ j.get<std::string>() };
 		std::smatch match;
 
+		// icase = ignore case
 		if (std::regex pattern{ R"(^\s*([\d.]+)\s*(ms|s|min|h)\s*$)", std::regex::icase };
 			!std::regex_match(s, match, pattern)) {
 			PTGN_ERROR("Invalid duration format: ", s);
