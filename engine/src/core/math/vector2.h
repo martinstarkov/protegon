@@ -463,3 +463,12 @@ struct std::hash<ptgn::Vector2<T>> {
 		return value;
 	}
 };
+
+namespace ptgn {
+
+template <Arithmetic T>
+std::size_t Hash(Vector2<T> vector) {
+	return std::hash<Vector2<T>>()(vector);
+}
+
+} // namespace ptgn

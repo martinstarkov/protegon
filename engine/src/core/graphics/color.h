@@ -6,9 +6,12 @@
 #include <type_traits>
 
 #include "core/assert.h"
+#include "core/math/math_utils.h"
+#include "core/math/rng.h"
 #include "core/math/vector4.h"
 #include "core/util/concepts.h"
 #include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 
@@ -78,17 +81,32 @@ struct Color {
 				 static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
 	}
 
-	explicit operator V4_float() const;
+	explicit operator V4_float() const {
+		return Normalized();
+	}
 
-	explicit operator std::array<float, 4>() const;
+	explicit operator std::array<float, 4>() const {
+		auto n{ Normalized() };
+		return { n.x, n.y, n.z, n.w };
+	}
 
-	explicit operator std::array<std::uint8_t, 4>() const;
+	explicit operator std::array<std::uint8_t, 4>() const {
+		return { r, g, b, a };
+	}
 
 	/// @brief Generates a random fully opaque color.
-	[[nodiscard]] static Color RandomOpaque();
+	[[nodiscard]] static Color RandomOpaque() {
+		static RNG<int> rng{ 0, 255 };
+		return { static_cast<std::uint8_t>(rng()), static_cast<std::uint8_t>(rng()),
+				 static_cast<std::uint8_t>(rng()), 255 };
+	}
 
 	/// @brief Generates a random color including a random alpha.
-	[[nodiscard]] static Color RandomTransparent();
+	[[nodiscard]] static Color RandomTransparent() {
+		static RNG<int> rng{ 0, 255 };
+		return { static_cast<std::uint8_t>(rng()), static_cast<std::uint8_t>(rng()),
+				 static_cast<std::uint8_t>(rng()), static_cast<std::uint8_t>(rng()) };
+	}
 
 	/// @return True if color is fully transparent.
 	[[nodiscard]] constexpr bool IsTransparent() const noexcept {
@@ -102,8 +120,31 @@ struct Color {
 
 	bool operator==(const Color&) const = default;
 
-	friend void to_json(json& j, const Color& color);
-	friend void from_json(const json& j, Color& color);
+	friend void to_json(json& j, const Color& color) {
+		j = json::array({ color.r, color.g, color.b, color.a });
+	}
+
+	friend void from_json(const json& j, Color& color) {
+		PTGN_ASSERT(j.is_array(), "Deserializing a Color from json requires an array");
+		PTGN_ASSERT(
+			j.size() == 4, "Deserializing a Color from json requires an array with four elements"
+		);
+
+		PTGN_ASSERT(j[0].is_number_unsigned(), "Color array elements must be unsigned integers");
+		PTGN_ASSERT(j[1].is_number_unsigned(), "Color array elements must be unsigned integers");
+		PTGN_ASSERT(j[2].is_number_unsigned(), "Color array elements must be unsigned integers");
+		PTGN_ASSERT(j[3].is_number_unsigned(), "Color array elements must be unsigned integers");
+
+		PTGN_ASSERT(j[0] >= 0 && j[0] <= 255, "Color value outside of range [0, 255]");
+		PTGN_ASSERT(j[1] >= 0 && j[1] <= 255, "Color value outside of range [0, 255]");
+		PTGN_ASSERT(j[2] >= 0 && j[2] <= 255, "Color value outside of range [0, 255]");
+		PTGN_ASSERT(j[3] >= 0 && j[3] <= 255, "Color value outside of range [0, 255]");
+
+		color.r = j[0];
+		color.g = j[1];
+		color.b = j[2];
+		color.a = j[3];
+	}
 
 	friend std::ostream& operator<<(std::ostream& os, Color color) {
 		os << "[";
@@ -118,11 +159,21 @@ struct Color {
 
 /// @brief Linearly interpolates between two colors.
 /// @param t Interpolation factor in range [0.0, 1.0].
-[[nodiscard]] Color Lerp(Color lhs, Color rhs, float t);
+[[nodiscard]] inline Color Lerp(Color lhs, Color rhs, float t) {
+	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t)),
+				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t)),
+				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t)),
+				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t)) };
+}
 
 /// @brief Linearly interpolates between two colors (per-channel).
 /// @param t Separate RGBA interpolation factors in range [0.0, 1.0]
-[[nodiscard]] Color Lerp(Color lhs, Color rhs, V4_float t);
+[[nodiscard]] inline Color Lerp(Color lhs, Color rhs, V4_float t) {
+	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t.x)),
+				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t.y)),
+				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t.z)),
+				  static_cast<std::uint8_t>(Lerp(lhs.a, rhs.a, t.w)) };
+}
 
 namespace color {
 

@@ -10,7 +10,10 @@ namespace ptgn {
 
 /// @param coordinate Pixel coordinate from [0, size).
 /// @return Color value of the given pixel.
-Color GetPixel(const path& texture_filepath, V2_int coordinate);
+Color GetPixel(const path& texture_filepath, V2_int coordinate) {
+	impl::Surface s{ texture_filepath };
+	return s.GetPixel(coordinate);
+}
 
 /// @brief Calls the given function for each pixel in the texture in row-major order.
 /// @param function The function must be callable as void(V2_int, Color).

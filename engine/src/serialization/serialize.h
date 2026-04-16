@@ -1,8 +1,12 @@
 #pragma once
 
 #include <array>
+#include <concepts>
 #include <magic_enum/magic_enum.hpp>
+#include <nlohmann/detail/iterators/iter_impl.hpp>
+#include <nlohmann/detail/value_t.hpp>
 #include <nlohmann/json.hpp>
+#include <nlohmann/json_fwd.hpp>
 #include <optional>
 #include <ostream>
 #include <ranges>
@@ -17,6 +21,7 @@
 #include "core/util/concepts.h"
 #include "core/util/macro.h"
 #include "core/util/macro_loop.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 
@@ -42,10 +47,10 @@ template <typename T>
 concept OptionalType = SpecializationOf<T, std::optional>;
 
 template <typename T>
-void SerializeValue(nlohmann::json& j, const T& value);
+void SerializeValue(json& j, const T& value);
 
 template <typename T>
-void DeserializeValue(const nlohmann::json& j, T& value);
+void DeserializeValue(const json& j, T& value);
 
 template <typename Variant, std::size_t... Is>
 constexpr std::string_view VariantTypeNameByIndex(std::size_t index, std::index_sequence<Is...>) {
@@ -65,14 +70,14 @@ constexpr std::string_view VariantTypeNameByIndex(std::size_t index, std::index_
 
 template <std::size_t I = 0, typename... Ts>
 void DeserializeVariantByName(
-	const nlohmann::json& value_json, std::string_view type_name, std::variant<Ts...>& value
+	const json& value_json, std::string_view type, std::variant<Ts...>& value
 ) {
 	using Variant = std::variant<Ts...>;
 
 	if constexpr (I >= sizeof...(Ts)) {
-		PTGN_ASSERT(false, "Invalid variant type '{}'", type_name);
+		PTGN_ASSERT(false, "Invalid variant type: ", type);
 	} else {
-		if (type_name == VariantNames<Variant>::names[I]) {
+		if (type == VariantNames<Variant>::names[I]) {
 			using Alt = std::variant_alternative_t<I, Variant>;
 
 			if constexpr (std::default_initializable<Alt>) {
@@ -83,19 +88,19 @@ void DeserializeVariantByName(
 				value = value_json.template get<Alt>();
 			}
 		} else {
-			DeserializeVariantByName<I + 1>(value_json, type_name, value);
+			DeserializeVariantByName<I + 1>(value_json, type, value);
 		}
 	}
 }
 
 template <typename... Ts>
-void SerializeVariant(nlohmann::json& j, const std::variant<Ts...>& value) {
+void SerializeVariant(json& j, const std::variant<Ts...>& value) {
 	using Variant = std::variant<Ts...>;
 	static_assert(
 		HasVariantNames<Variant>, "VariantNames specialization is required for this variant type"
 	);
 
-	j		  = nlohmann::json::object();
+	j		  = json::object();
 	j["type"] = std::string{
 		VariantTypeNameByIndex<Variant>(value.index(), std::make_index_sequence<sizeof...(Ts)>{})
 	};
@@ -104,7 +109,7 @@ void SerializeVariant(nlohmann::json& j, const std::variant<Ts...>& value) {
 }
 
 template <typename... Ts>
-void DeserializeVariant(const nlohmann::json& j, std::variant<Ts...>& value) {
+void DeserializeVariant(const json& j, std::variant<Ts...>& value) {
 	using Variant = std::variant<Ts...>;
 	static_assert(
 		HasVariantNames<Variant>, "VariantNames specialization is required for this variant type"
@@ -119,7 +124,7 @@ void DeserializeVariant(const nlohmann::json& j, std::variant<Ts...>& value) {
 }
 
 template <typename T>
-void SerializeField(nlohmann::json& j, std::string_view key, const T& value) {
+void SerializeField(json& j, std::string_view key, const T& value) {
 	if constexpr (OptionalType<T>) {
 		if (value.has_value()) {
 			SerializeValue(j[std::string{ key }], *value);
@@ -130,12 +135,12 @@ void SerializeField(nlohmann::json& j, std::string_view key, const T& value) {
 }
 
 template <typename T>
-void SerializeValue(nlohmann::json& j, const T& value) {
+void SerializeValue(json& j, const T& value) {
 	if constexpr (OptionalType<T>) {
 		if (value.has_value()) {
 			SerializeValue(j, *value);
 		} else {
-			j = nlohmann::json::value_t::null;
+			j = json::value_t::null;
 		}
 	} else if constexpr (VariantType<T>) {
 		SerializeVariant(j, value);
@@ -145,7 +150,7 @@ void SerializeValue(nlohmann::json& j, const T& value) {
 }
 
 template <typename T>
-void DeserializeField(const nlohmann::json& j, std::string_view key, T& value) {
+void DeserializeField(const json& j, std::string_view key, T& value) {
 	if constexpr (OptionalType<T>) {
 		auto it = j.find(std::string{ key });
 		if (it == j.end() || it->is_null()) {
@@ -160,7 +165,7 @@ void DeserializeField(const nlohmann::json& j, std::string_view key, T& value) {
 }
 
 template <typename T>
-void DeserializeValue(const nlohmann::json& j, T& value) {
+void DeserializeValue(const json& j, T& value) {
 	if constexpr (OptionalType<T>) {
 		if (j.is_null()) {
 			value = std::nullopt;
@@ -373,7 +378,7 @@ void StreamValue(std::ostream& os, const T& value) {
 
 /// @brief Use this OUTSIDE the enum declaration.
 #define PTGN_SERIALIZE_ENUM(Type)                                                       \
-	inline void to_json(nlohmann::json& j, Type value) {                                \
+	inline void to_json(json& j, Type value) {                                          \
 		static_assert(                                                                  \
 			std::is_enum_v<Type>,                                                       \
 			"PTGN_SERIALIZE_ENUM must be used with an enum type: " PTGN_STRINGIFY(Type) \
@@ -384,7 +389,7 @@ void StreamValue(std::ostream& os, const T& value) {
 		}                                                                               \
 		PTGN_ERROR("Unknown " PTGN_STRINGIFY(Type) ": ", std::to_underlying(value));    \
 	}                                                                                   \
-	inline void from_json(const nlohmann::json& j, Type& value) {                       \
+	inline void from_json(const json& j, Type& value) {                                 \
 		static_assert(                                                                  \
 			std::is_enum_v<Type>,                                                       \
 			"PTGN_SERIALIZE_ENUM must be used with an enum type: " PTGN_STRINGIFY(Type) \
@@ -403,7 +408,7 @@ void StreamValue(std::ostream& os, const T& value) {
 /// @brief Use this OUTSIDE the enum declaration.
 /// Declares JSON serialization for an enum using an explicit list of enum cases.
 #define PTGN_SERIALIZE_ENUM_MANUAL(Type, ...)                                                     \
-	inline void to_json(nlohmann::json& j, Type value) {                                          \
+	inline void to_json(json& j, Type value) {                                                    \
 		static_assert(                                                                            \
 			std::is_enum_v<Type>,                                                                 \
 			"PTGN_SERIALIZE_ENUM_MANUAL must be used with an enum type: " PTGN_STRINGIFY(Type)    \
@@ -413,7 +418,7 @@ void StreamValue(std::ostream& os, const T& value) {
 			default: PTGN_ERROR("Unknown " PTGN_STRINGIFY(Type) ": ", std::to_underlying(value)); \
 		}                                                                                         \
 	}                                                                                             \
-	inline void from_json(const nlohmann::json& j, Type& value) {                                 \
+	inline void from_json(const json& j, Type& value) {                                           \
 		static_assert(                                                                            \
 			std::is_enum_v<Type>,                                                                 \
 			"PTGN_SERIALIZE_ENUM_MANUAL must be used with an enum type: " PTGN_STRINGIFY(Type)    \
@@ -428,15 +433,15 @@ void StreamValue(std::ostream& os, const T& value) {
 
 /// @brief Use this INSIDE the class/struct body.
 #define PTGN_SERIALIZE(Type, ...)                                                      \
-	friend void to_json(nlohmann::json& j, const Type& value) {                        \
+	friend void to_json(json& j, const Type& value) {                                  \
 		static_assert(                                                                 \
 			!std::is_enum_v<Type>,                                                     \
 			"PTGN_SERIALIZE must not be used with an enum type: " PTGN_STRINGIFY(Type) \
 		);                                                                             \
-		j = nlohmann::json::object();                                                  \
+		j = json::object();                                                            \
 		PTGN_MAP(PTGN_IMPL_SERIALIZE_TO_JSON_FIELD, __VA_ARGS__)                       \
 	}                                                                                  \
-	friend void from_json(const nlohmann::json& j, Type& value) {                      \
+	friend void from_json(const json& j, Type& value) {                                \
 		static_assert(                                                                 \
 			!std::is_enum_v<Type>,                                                     \
 			"PTGN_SERIALIZE must not be used with an enum type: " PTGN_STRINGIFY(Type) \
@@ -447,14 +452,14 @@ void StreamValue(std::ostream& os, const T& value) {
 /// @brief Use this INSIDE the class/struct body.
 /// Serializes directly as that value, without a field name.
 #define PTGN_SERIALIZE_VALUE(Type, Field)                                                    \
-	friend void to_json(nlohmann::json& j, const Type& value) {                              \
+	friend void to_json(json& j, const Type& value) {                                        \
 		static_assert(                                                                       \
 			!std::is_enum_v<Type>,                                                           \
 			"PTGN_SERIALIZE_VALUE must not be used with an enum type: " PTGN_STRINGIFY(Type) \
 		);                                                                                   \
 		::ptgn::impl::SerializeValue(j, value.Field);                                        \
 	}                                                                                        \
-	friend void from_json(const nlohmann::json& j, Type& value) {                            \
+	friend void from_json(const json& j, Type& value) {                                      \
 		static_assert(                                                                       \
 			!std::is_enum_v<Type>,                                                           \
 			"PTGN_SERIALIZE_VALUE must not be used with an enum type: " PTGN_STRINGIFY(Type) \
@@ -463,14 +468,14 @@ void StreamValue(std::ostream& os, const T& value) {
 	}
 
 #define PTGN_SERIALIZE_EMPTY(Type)                                                                \
-	friend void to_json(nlohmann::json& j, const Type&) {                                         \
+	friend void to_json(json& j, const Type&) {                                                   \
 		static_assert(                                                                            \
 			!std::is_enum_v<Type> && std::is_empty_v<Type>,                                       \
 			"PTGN_SERIALIZE_EMPTY must be used with an empty class/struct: " PTGN_STRINGIFY(Type) \
 		);                                                                                        \
 		j = PTGN_STRINGIFY(Type);                                                                 \
 	}                                                                                             \
-	friend void from_json(const nlohmann::json& j, Type&) {                                       \
+	friend void from_json(const json& j, Type&) {                                                 \
 		static_assert(                                                                            \
 			!std::is_enum_v<Type> && std::is_empty_v<Type>,                                       \
 			"PTGN_SERIALIZE_EMPTY must be used with an empty class/struct: " PTGN_STRINGIFY(Type) \
@@ -480,11 +485,11 @@ void StreamValue(std::ostream& os, const T& value) {
 	}
 
 #define PTGN_SERIALIZE_DERIVED(Type, Base, ...)                    \
-	friend void to_json(nlohmann::json& j, const Type& value) {    \
+	friend void to_json(json& j, const Type& value) {              \
 		to_json(j, static_cast<const Base&>(value));               \
 		PTGN_MAP(PTGN_IMPL_SERIALIZE_TO_JSON_FIELD, __VA_ARGS__)   \
 	}                                                              \
-	friend void from_json(const nlohmann::json& j, Type& value) {  \
+	friend void from_json(const json& j, Type& value) {            \
 		from_json(j, static_cast<Base&>(value));                   \
 		PTGN_MAP(PTGN_IMPL_SERIALIZE_FROM_JSON_FIELD, __VA_ARGS__) \
 	}

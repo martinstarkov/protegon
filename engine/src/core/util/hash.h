@@ -2,13 +2,9 @@
 
 #include <string_view>
 
-#include "core/util/concepts.h"
 #include "core/util/type_info.h"
 
 namespace ptgn {
-
-template <Arithmetic T>
-struct Vector2;
 
 /// @brief Hash a string into a number.
 /// @param string The string to hash.
@@ -41,8 +37,5 @@ template <typename T>
 [[nodiscard]] constexpr std::size_t Hash() {
 	return Hash(type_name<T>());
 }
-
-template <Arithmetic T>
-[[nodiscard]] std::size_t Hash(Vector2<T> vector);
 
 } // namespace ptgn

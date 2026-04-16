@@ -90,4 +90,23 @@ template <std::floating_point T>
 	return result;
 }
 
+/// @return New string with just the content inside R"( ... )"
+/// This function does not handle delimeters such as R"delim( ... )delim"
+[[nodiscard]] constexpr std::string TrimRawStringLiteral(std::string_view content) {
+	constexpr std::string_view raw_start{ "R\"(" };
+	constexpr std::string_view raw_end{ ")\"" };
+
+	std::size_t start{ content.find(raw_start) };
+	std::size_t end{ content.rfind(raw_end) };
+
+	if (start != std::string_view::npos && end != std::string_view::npos &&
+		end > start + raw_start.size()) {
+		return std::string{
+			content.substr(start + raw_start.size(), end - (start + raw_start.size()))
+		};
+	}
+
+	return std::string{ content };
+}
+
 } // namespace ptgn

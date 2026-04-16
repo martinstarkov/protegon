@@ -6,7 +6,7 @@
 #include "core/assert.h"
 #include "core/math/math_utils.h"
 #include "core/time/time.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 
@@ -16,34 +16,85 @@ public:
 	Timer() = default;
 
 	/// @param start Whether to start the timer immediately upon construction or not.
-	explicit Timer(bool start);
+	explicit Timer(bool start) {
+		if (start) {
+			Start();
+		}
+	}
 
 	/// @brief Starts the timer. Can also be used to restart the timer.
 	/// @param force If false, only starts the timer if it is not already running.
 	/// @return True if the timer is newly started, false if it was already running.
-	bool Start(bool force = true);
+	bool Start(bool force = true) {
+		if (!force && IsRunning()) {
+			return false;
+		}
+		start_time_ = std::chrono::steady_clock::now();
+		running_	= true;
+		paused_		= false;
+		return true;
+	}
 
 	/// @brief Stops and resets the timer.
-	void Reset();
+	void Reset() {
+		start_time_ = std::chrono::steady_clock::now();
+		pause_time_ = std::chrono::steady_clock::now();
+		offset_		= std::chrono::steady_clock::duration::zero();
+		Stop();
+	}
 
-	void Stop();
+	void Stop() {
+		stop_time_ = std::chrono::steady_clock::now();
+		running_   = false;
+		paused_	   = false;
+	}
 
-	/// Toggles the pause state of the timer.
-	void Toggle();
+	/// @brief Toggles the pause state of the timer.
+	void Toggle() {
+		if (IsRunning()) {
+			Stop();
+		} else {
+			Start();
+		}
+	}
 
-	void Pause();
+	void Pause() {
+		if (running_ && !paused_) {
+			stop_time_	= std::chrono::steady_clock::now();
+			pause_time_ = std::chrono::steady_clock::now();
+			running_	= false;
+			paused_		= true;
+		}
+	}
 
-	void Resume();
+	void Resume() {
+		if (!running_ && paused_) {
+			// Calculate elapsed time during pause.
+			auto pause_duration = std::chrono::steady_clock::now() - pause_time_;
+			// Adjust start time to account for pause.
+			start_time_ += pause_duration;
+			running_	 = true;
+			paused_		 = false;
+			pause_time_	 = std::chrono::steady_clock::time_point(); // Reset paused time on unpause
+			stop_time_	 = start_time_;
+		}
+	}
 
 	/// @return True if the timer is currently paused, false otherwise.
-	[[nodiscard]] bool IsPaused() const;
+	[[nodiscard]] bool IsPaused() const {
+		return paused_;
+	}
 
 	/// @return True if the timer is currently running, false otherwise.
-	[[nodiscard]] bool IsRunning() const;
+	[[nodiscard]] bool IsRunning() const {
+		return running_;
+	}
 
 	/// @return True if the timer has run before (not necessarily now) without being reset, false
 	/// otherwise.
-	[[nodiscard]] bool HasRun() const;
+	[[nodiscard]] bool HasRun() const {
+		return start_time_ != stop_time_;
+	}
 
 	/// @tparam Duration The unit of time. Default: milliseconds.
 	/// @param Amount of time to add to the timer.
@@ -92,8 +143,25 @@ public:
 
 	bool operator==(const Timer&) const = default;
 
-	friend void to_json(json& j, const Timer& timer);
-	friend void from_json(const json& j, Timer& timer);
+	friend void to_json(json& j, const Timer& timer) {
+		j["running"] = timer.running_;
+		j["paused"]	 = timer.paused_;
+	}
+
+	friend void from_json(const json& j, Timer& timer) {
+		j.at("running").get_to(timer.running_);
+		j.at("paused").get_to(timer.paused_);
+		if (timer.running_) {
+			timer.Start(true);
+		} else {
+			timer.Stop();
+		}
+		if (timer.paused_) {
+			timer.Pause();
+		} else {
+			timer.Resume();
+		}
+	}
 
 	friend std::ostream& operator<<(std::ostream& os, const Timer& timer) {
 		return os << "{ running: " << timer.running_ << ", paused: " << timer.paused_

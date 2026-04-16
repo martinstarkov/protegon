@@ -166,12 +166,13 @@ static std::string InjectShaderPreamble(
 ) {
 	std::string result{ source };
 
-	std::regex version_regex(R"(#version\s+(\d+)(?:\s+(\w+))?)");
+	std::regex version_regex{ R"(#version\s+(\d+)(?:\s+(\w+))?)" };
 
 	if (std::smatch match; std::regex_search(source, match, version_regex)) {
-		std::string version_number{ match[1].str() };		  // e.g. "330" or "300"
-		std::string version_profile{ match.size() > 2 ? match[2].str()
-													  : "" }; // e.g. "core" or "es"
+		// e.g. "330" or "300"
+		std::string version_number{ match[1].str() };
+		// e.g. "core" or "es"
+		std::string version_profile{ match.size() > 2 ? match[2].str() : "" };
 
 #ifdef __EMSCRIPTEN__
 		PTGN_ASSERT(
@@ -194,9 +195,9 @@ static std::string InjectShaderPreamble(
 	}
 
 	// Insert after #version line
-	size_t version_line_end{ result.find('\n') };
-	size_t insert_pos{ (version_line_end != std::string::npos) ? version_line_end + 1
-															   : result.size() };
+	std::size_t version_line_end{ result.find('\n') };
+	std::size_t insert_pos{ (version_line_end != std::string::npos) ? version_line_end + 1
+																	: result.size() };
 
 #ifdef __EMSCRIPTEN__
 	// Inject precision (only for on Emscripten)
