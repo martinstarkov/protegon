@@ -31,4 +31,10 @@ enum class ResizeType {
 };
 PTGN_REFLECT_ENUM(ResizeType);
 
+namespace impl {
+
+struct PresentationResizeType {};
+
+} // namespace impl
+
 } // namespace ptgn

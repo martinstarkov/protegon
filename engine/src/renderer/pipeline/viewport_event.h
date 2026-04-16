@@ -14,4 +14,10 @@ struct DisplayResized {
 	V2_int size;
 };
 
+/// @brief Triggered when the presentation area (such as window or editor game panel) resizes.
+/// When running in the editor, this may be different from the window size.
+struct PresentationResized {
+	V2_int size;
+};
+
 } // namespace ptgn::event
