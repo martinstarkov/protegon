@@ -105,26 +105,34 @@ public:
 	ShaderId GetShader(std::string_view name) const;
 	TextureId GetWhiteTexture() const;
 
-	Viewport GetDisplayViewport() const;
-
-	/// @return The display size of the renderer.
-	V2_int GetDisplaySize() const;
-
-	/// @return The game size of the renderer. Returns full viewport size if unset.
-	V2_int GetGameSize() const;
-
-	/// @param game_size Setting to {} will use dynamic full viewport size.
 	void SetGameSize(
-		std::optional<V2_int> game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
+		std::optional<V2_int> game_size = std::nullopt,
+		ScalingMode scaling_mode		= ScalingMode::Letterbox
 	);
 
 	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
 
-	/// @return The amount by which game size is scaled to achieve the display size.
+	void SetPresentationViewport(std::optional<Viewport> presentation_viewport = std::nullopt);
+
+	V2_int GetGameSize() const;
+
+	ScalingMode GetScalingMode() const;
+
+	Viewport GetPresentationViewport() const;
+
+	V2_int GetPresentationPosition() const;
+
+	V2_int GetPresentationSize() const;
+
+	Viewport GetDisplayViewport() const;
+
+	V2_int GetDisplayPosition() const;
+
+	V2_int GetDisplaySize() const;
+
 	V2_float GetScale() const;
 
-	/// @return The game size scaling mode.
-	ScalingMode GetScalingMode() const;
+	V2_int GetFullViewportSize() const;
 
 	void SetBackgroundColor(Color background_color);
 	Color GetBackgroundColor() const;
@@ -225,6 +233,8 @@ private:
 	void BeginFrame();
 	void EndFrame();
 
+	[[nodiscard]] bool IsPresentationViewportVisible() const;
+
 	template <typename State, typename F>
 		requires std::same_as<std::invoke_result_t<F&>, void>
 	friend void UpdateStateIfChanged(Renderer&, const std::optional<State>&, const State&, F&&);
@@ -243,7 +253,7 @@ private:
 
 	void ResizeScreenTarget(V2_int size);
 
-	void OnFullViewportResize(V2_int size);
+	void OnWindowResize(V2_int size);
 
 	RenderTargetId AcquirePooledTargetCopy(RenderTargetId render_target);
 	RenderTargetId AcquirePooledTarget(V2_int size, TextureFormat format);
@@ -254,15 +264,13 @@ private:
 
 	Window& window_;
 
-	std::function<void(V2_int, ResizeType)> event_sink_;
+	std::function<void(V2_int, std::variant<ResizeType, impl::PresentationResizeType>)> event_sink_;
 
 	std::unique_ptr<gl::GLContext> gl_;
 
 	// emit_events = false is used to prevent emitting events when initializing the window and
 	// scene.
 	void UpdateDisplayViewport(bool emit_events = true);
-
-	V2_int GetFullViewportSize() const;
 
 	VertexBufferObject vbo_;
 	ElementBufferObject ebo_;
@@ -285,6 +293,14 @@ private:
 	std::vector<PooledTarget> rt_pool_;
 	std::uint64_t pool_tick_{ 0 };
 	std::size_t max_pool_size_{ 16 };
+
+	/// @brief The viewport used for presentation (i.e. the final output to the screen). This may be
+	/// different from the window if using the editor, which has a separate viewport for the game
+	/// view.
+	std::optional<Viewport> presentation_viewport_;
+
+	/// @brief Flag to indicate whether the display viewport needs to be recalculated.
+	bool display_viewport_dirty_{ true };
 };
 
 } // namespace impl

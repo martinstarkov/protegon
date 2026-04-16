@@ -319,16 +319,8 @@ void RenderContext::SetScalingMode(ScalingMode scaling_mode) {
 	renderer_.SetScalingMode(scaling_mode);
 }
 
-V2_int RenderContext::GetDisplaySize() const {
-	return renderer_.GetDisplaySize();
-}
-
-Viewport RenderContext::GetDisplayViewport() const {
-	return renderer_.GetDisplayViewport();
-}
-
-V2_float RenderContext::GetScale() const {
-	return renderer_.GetScale();
+void RenderContext::SetPresentationViewport(std::optional<Viewport> presentation_viewport) {
+	renderer_.SetPresentationViewport(presentation_viewport);
 }
 
 V2_int RenderContext::GetGameSize() const {
@@ -337,6 +329,38 @@ V2_int RenderContext::GetGameSize() const {
 
 ScalingMode RenderContext::GetScalingMode() const {
 	return renderer_.GetScalingMode();
+}
+
+Viewport RenderContext::GetPresentationViewport() const {
+	return renderer_.GetPresentationViewport();
+}
+
+V2_int RenderContext::GetPresentationPosition() const {
+	return renderer_.GetPresentationPosition();
+}
+
+V2_int RenderContext::GetPresentationSize() const {
+	return renderer_.GetPresentationSize();
+}
+
+Viewport RenderContext::GetDisplayViewport() const {
+	return renderer_.GetDisplayViewport();
+}
+
+V2_int RenderContext::GetDisplayPosition() const {
+	return renderer_.GetDisplayPosition();
+}
+
+V2_int RenderContext::GetDisplaySize() const {
+	return renderer_.GetDisplaySize();
+}
+
+V2_float RenderContext::GetScale() const {
+	return renderer_.GetScale();
+}
+
+V2_int RenderContext::GetFullViewportSize() const {
+	return renderer_.GetFullViewportSize();
 }
 
 void RenderContext::SetBackgroundColor(Color background_color) {

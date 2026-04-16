@@ -57,26 +57,56 @@ struct DrawCommand {
 
 class RenderContext {
 public:
-	/// @param game_size Setting to {} will use dynamic window size.
+	/// @param game_size Setting to nullopt will dynamically use the presentation viewport size.
 	void SetGameSize(
-		std::optional<V2_int> game_size = {}, ScalingMode scaling_mode = ScalingMode::Letterbox
+		std::optional<V2_int> game_size = std::nullopt,
+		ScalingMode scaling_mode		= ScalingMode::Letterbox
 	);
 
+	/// @param scaling_mode The method by which the game size is scaled to fit the presentation
+	/// viewport.
 	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
+
+	/// @param presentation_viewport Setting to nullopt will use full window size.
+	/// Viewport position should be relative to the window top left.
+	void SetPresentationViewport(std::optional<Viewport> presentation_viewport = std::nullopt);
+
+	/// @return The game size of the renderer. Returns presentation viewport size if unset.
+	V2_int GetGameSize() const;
+
+	/// @return The method by which the game size is scaled to fit the presentation
+	/// viewport.
+	ScalingMode GetScalingMode() const;
+
+	/// @return The presentation viewport with position relative to the window top left.
+	/// Returns a viewport covering the entire window if unset.
+	Viewport GetPresentationViewport() const;
+
+	/// @return The presentation viewport position relative to the window top left. Returns {0, 0}
+	/// if unset.
+	V2_int GetPresentationPosition() const;
+
+	/// @return The presentation viewport of the renderer. If unset, returns the window size.
+	V2_int GetPresentationSize() const;
+
+	/// @brief The display viewport is the area inside presentation rectangle that the game is
+	/// rendered to. It is defined by scaling the game size to fit inside the presentation viewport
+	/// according to the scaling mode.
+	/// The position of the display viewport is relative to the top left of the window.
+	Viewport GetDisplayViewport() const;
+
+	/// @return The display position of the renderer.
+	V2_int GetDisplayPosition() const;
 
 	/// @return The display size of the renderer.
 	V2_int GetDisplaySize() const;
 
-	Viewport GetDisplayViewport() const;
-
 	/// @return The amount by which game size is scaled to achieve the display size.
 	V2_float GetScale() const;
 
-	/// @return The game size of the renderer. Returns window size if unset.
-	V2_int GetGameSize() const;
-
-	/// @return The game size scaling mode.
-	ScalingMode GetScalingMode() const;
+	/// @return The size of the entire viewport that the presentation viewport is within. This is
+	/// always equal to the window size.
+	V2_int GetFullViewportSize() const;
 
 	void SetBackgroundColor(Color background_color);
 	Color GetBackgroundColor() const;

@@ -358,7 +358,7 @@ void Renderer::ClearRenderTarget(RenderTargetId render_target, Color color, bool
 
 		auto render_target_size{ GetRenderTargetSize(render_target) };
 
-		gl_->SetViewport({ {}, render_target_size });
+		gl_->SetViewport({ .position = {}, .size = render_target_size });
 	}
 
 	gl_->framebuffers.ClearToColor(FramebufferId{ render_target }, color);
@@ -682,22 +682,18 @@ TextureId Renderer::GetWhiteTexture() const {
 	return white_texture_;
 }
 
-void Renderer::OnFullViewportResize(V2_int size) {
+void Renderer::OnWindowResize(V2_int size) {
+	if (presentation_viewport_.has_value()) {
+		return;
+	}
+
 	if (!game_size_.has_value()) {
 		event_sink_(size, ResizeType::Game);
 	}
 
-	UpdateDisplayViewport();
-}
+	event_sink_(size, impl::PresentationResizeType{});
 
-void Renderer::SetScalingMode(ScalingMode scaling_mode) {
-	if (scaling_mode_ == scaling_mode) {
-		return;
-	}
-
-	scaling_mode_ = scaling_mode;
-
-	UpdateDisplayViewport();
+	display_viewport_dirty_ = true;
 }
 
 void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_mode) {
@@ -707,7 +703,7 @@ void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_
 
 	PTGN_ASSERT(
 		!game_size.has_value() || game_size.has_value() && game_size->BothAboveZero(),
-		"Game size cannot be negative or zero"
+		"Game size cannot be set to negative value or zero"
 	);
 
 	game_size_	  = game_size;
@@ -717,7 +713,73 @@ void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_
 
 	event_sink_(size, ResizeType::Game);
 
-	UpdateDisplayViewport();
+	display_viewport_dirty_ = true;
+}
+
+void Renderer::SetScalingMode(ScalingMode scaling_mode) {
+	if (scaling_mode_ == scaling_mode) {
+		return;
+	}
+
+	scaling_mode_ = scaling_mode;
+
+	display_viewport_dirty_ = true;
+}
+
+void Renderer::SetPresentationViewport(std::optional<Viewport> presentation_viewport) {
+	if (presentation_viewport_ == presentation_viewport) {
+		return;
+	}
+	presentation_viewport_ = presentation_viewport;
+
+	if (!presentation_viewport_.has_value()) {
+		OnWindowResize(GetFullViewportSize());
+		return;
+	}
+
+	if (!game_size_.has_value()) {
+		event_sink_(presentation_viewport_->size, ResizeType::Game);
+	}
+
+	event_sink_(presentation_viewport_->size, impl::PresentationResizeType{});
+	display_viewport_dirty_ = true;
+}
+
+V2_int Renderer::GetGameSize() const {
+	if (game_size_) {
+		return *game_size_;
+	}
+	return GetPresentationSize();
+}
+
+ScalingMode Renderer::GetScalingMode() const {
+	return scaling_mode_;
+}
+
+Viewport Renderer::GetPresentationViewport() const {
+	return { .position = GetPresentationPosition(), .size = GetPresentationSize() };
+}
+
+V2_int Renderer::GetPresentationPosition() const {
+	if (presentation_viewport_.has_value()) {
+		return presentation_viewport_->position;
+	}
+	return { 0, 0 };
+}
+
+V2_int Renderer::GetPresentationSize() const {
+	if (presentation_viewport_.has_value()) {
+		return presentation_viewport_->size;
+	}
+	return GetFullViewportSize();
+}
+
+Viewport Renderer::GetDisplayViewport() const {
+	return display_viewport_;
+}
+
+V2_int Renderer::GetDisplayPosition() const {
+	return display_viewport_.position;
 }
 
 V2_int Renderer::GetDisplaySize() const {
@@ -734,15 +796,8 @@ V2_float Renderer::GetScale() const {
 	return V2_float{ display_size } / game_size;
 }
 
-V2_int Renderer::GetGameSize() const {
-	if (game_size_) {
-		return *game_size_;
-	}
-	return GetFullViewportSize();
-}
-
-ScalingMode Renderer::GetScalingMode() const {
-	return scaling_mode_;
+V2_int Renderer::GetFullViewportSize() const {
+	return window_.GetSize();
 }
 
 void Renderer::SetBackgroundColor(Color background_color) {
@@ -753,48 +808,44 @@ Color Renderer::GetBackgroundColor() const {
 	return background_color_;
 }
 
-Viewport Renderer::GetDisplayViewport() const {
-	return display_viewport_;
-}
-
-V2_int Renderer::GetFullViewportSize() const {
-	// TODO: Change this to match editor.
-	return window_.GetSize();
-}
-
 void Renderer::UpdateDisplayViewport(bool emit_events) {
-	auto full_viewport_size{ GetFullViewportSize() };
+	if (!display_viewport_dirty_) {
+		return;
+	}
 
-	PTGN_ASSERT(full_viewport_size.BothAboveZero());
+	display_viewport_dirty_ = false;
 
-	auto game_size{ game_size_.value_or(full_viewport_size) };
+	const auto presentation{ GetPresentationViewport() };
+
+	PTGN_ASSERT(presentation.size.BothAboveZero());
+
+	auto game_size{ game_size_.value_or(presentation.size) };
 
 	PTGN_ASSERT(game_size.BothAboveZero());
 
-	Viewport viewport{ .position = { 0, 0 }, .size = full_viewport_size };
+	Viewport viewport{ .position = {}, .size = presentation.size };
 
-	auto compute_aspect_fit = [&viewport, game_size, full_viewport_size](bool letterbox_mode) {
-		float full_viewport_aspect{ static_cast<float>(full_viewport_size.x) /
-									full_viewport_size.y };
+	auto compute_aspect_fit = [&viewport, game_size, presentation](bool letterbox_mode) {
+		float presentation_aspect{ static_cast<float>(presentation.size.x) / presentation.size.y };
 		float game_aspect{ static_cast<float>(game_size.x) / game_size.y };
 
-		// In letterbox mode we need require full_viewport_aspect > game_aspect to fit height, and
-		// in overscan we require full_viewport_aspect > game_aspect to fit height.
-		bool fit_height{ (full_viewport_aspect > game_aspect) == letterbox_mode };
+		// In letterbox mode we need require presentation_aspect > game_aspect to fit height, and
+		// in overscan we require presentation_aspect > game_aspect to fit height.
+		bool fit_height{ (presentation_aspect > game_aspect) == letterbox_mode };
 
 		if (fit_height) {
-			viewport.size.y = full_viewport_size.y;
+			viewport.size.y = presentation.size.y;
 			viewport.size.x =
-				static_cast<int>(static_cast<float>(full_viewport_size.y) * game_aspect + 0.5f);
-			viewport.position.x = (full_viewport_size.x - viewport.size.x) / 2; // left edge.
+				static_cast<int>(static_cast<float>(presentation.size.y) * game_aspect + 0.5f);
+			viewport.position.x = (presentation.size.x - viewport.size.x) / 2; // left edge.
 			viewport.position.y = 0;
 		} else {
 			// Fit width.
-			viewport.size.x = full_viewport_size.x;
+			viewport.size.x = presentation.size.x;
 			viewport.size.y =
-				static_cast<int>(static_cast<float>(full_viewport_size.x) / game_aspect + 0.5f);
+				static_cast<int>(static_cast<float>(presentation.size.x) / game_aspect + 0.5f);
 			viewport.position.x = 0;
-			viewport.position.y = (full_viewport_size.y - viewport.size.y) / 2; // top edge.
+			viewport.position.y = (presentation.size.y - viewport.size.y) / 2; // top edge.
 		}
 	};
 
@@ -803,25 +854,25 @@ void Renderer::UpdateDisplayViewport(bool emit_events) {
 		case ScalingMode::Overscan:	 compute_aspect_fit(false); break;
 
 		case ScalingMode::Stretch:
+			PTGN_ASSERT(viewport.size == presentation.size);
 			PTGN_ASSERT(viewport.position == V2_int{});
-			PTGN_ASSERT(viewport.size == GetFullViewportSize());
-			// Viewport is full (default).
+			// Viewport is full presentation area (default).
 			break;
 
 		case ScalingMode::IntegerScale: {
-			V2_int ratio{ full_viewport_size / game_size };
+			V2_int ratio{ presentation.size / game_size };
 			// Find which dimension limits the scaling factor.
 			int scale{ std::max(1, std::min(ratio.x, ratio.y)) };
-			viewport.size = game_size * scale;			  // scale up.
+			viewport.size = game_size * scale;			 // scale up.
 			viewport.position =
-				(full_viewport_size - viewport.size) / 2; // center of full viewport.
+				(presentation.size - viewport.size) / 2; // center of presentation viewport.
 			break;
 		}
 
 		case ScalingMode::Disabled:
-			viewport.size = game_size;					  // no change.
+			viewport.size = game_size;					 // no change.
 			viewport.position =
-				(full_viewport_size - viewport.size) / 2; // center of full viewport.
+				(presentation.size - viewport.size) / 2; // center of presentation viewport.
 			break;
 
 		default: PTGN_ERROR("Unsupported resolution mode");
@@ -867,23 +918,31 @@ void Renderer::BeginFrame() {
 	PTGN_ASSERT(batch_vertices_.empty());
 	PTGN_ASSERT(batch_indices_.empty());
 
-	V2_int full_viewport_size{ GetFullViewportSize() };
-	Color window_background_color{ window_.GetBackgroundColor() };
+	if (!presentation_viewport_.has_value()) {
+		auto presentation{ GetPresentationViewport() };
+		Color window_background_color{ window_.GetBackgroundColor() };
 
-	auto _1 = gl_->Bind(FramebufferId{ 0 }, false);
-	gl_->SetClearColor(window_background_color);
-	SetViewport({ {}, full_viewport_size });
-	gl_->framebuffers.Clear();
+		auto _1 = gl_->Bind(FramebufferId{ 0 }, false);
+		gl_->SetClearColor(window_background_color);
+		SetViewport(presentation);
+		gl_->framebuffers.Clear();
+	}
 
 	BindScreenTarget();
-	SetViewport({ {}, screen_target_.GetSize() });
+	SetViewport({ .position = {}, .size = screen_target_.GetSize() });
 	gl_->framebuffers.ClearToColor(FramebufferId{ screen_target_.resource_ }, background_color_);
 }
 
 void Renderer::EndFrame() {
 	PTGN_ASSERT(display_viewport_.size.BothAboveZero());
 
+	FlushBatch();
+
 	SetFramebuffer({});
+
+	if (presentation_viewport_.has_value()) {
+		return;
+	}
 
 	V2_float half_viewport{ display_viewport_.size * 0.5f };
 	SetViewport(display_viewport_);
@@ -904,6 +963,10 @@ void Renderer::EndFrame() {
 	DrawTexture(quad_shader, screen_texture, points, color::White, 0.0f, tex_coords, {});
 
 	FlushBatch();
+}
+
+bool Renderer::IsPresentationViewportVisible() const {
+	return presentation_viewport_.has_value() && !presentation_viewport_->size.BothAboveZero();
 }
 
 ShaderObject Renderer::CreateShader(
