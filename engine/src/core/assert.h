@@ -28,8 +28,7 @@ template <Loggable... Ts>
 	((oss << std::forward<Ts>(parts)), ...); // stream all extra parts (if any)
 	auto msg{ oss.str() };
 
-	const std::string composed =
-		msg.empty() ? std::string{ expr } : std::format("{} | {}", expr, msg);
+	auto composed{ msg.empty() ? std::string{ expr } : std::format("{} | {}", expr, msg) };
 
 	DebugMessage("ASSERTION FAILED: ", std::optional<std::string>{ composed }, where);
 
