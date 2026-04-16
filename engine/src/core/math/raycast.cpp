@@ -21,37 +21,9 @@
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-
-#define PTGN_HANDLE_RAYCAST_LINE(TypeA, TypeB, PREFIX)                                    \
-	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) {               \
-		return impl::PREFIX##TypeB(V2_float{ s1 }, V2_float{ s1 } + ray, transform2, s2); \
-	} else
-
-#define PTGN_HANDLE_RAYCAST_SOLO_PAIR(TypeA, TypeB, PREFIX)                     \
-	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) {     \
-		return impl::PREFIX##TypeA##TypeB(ray, transform1, s1, transform2, s2); \
-	} else
-
-#define PTGN_RAYCAST_SHAPE_PAIR_TABLE                       \
-	PTGN_HANDLE_RAYCAST_LINE(Point, Line, Raycast)          \
-	PTGN_HANDLE_RAYCAST_LINE(Point, Circle, Raycast)        \
-	PTGN_HANDLE_RAYCAST_LINE(Point, Rect, Raycast)          \
-	PTGN_HANDLE_RAYCAST_LINE(Point, Capsule, Raycast)       \
-	PTGN_HANDLE_RAYCAST_LINE(Point, Polygon, Raycast)       \
-	PTGN_HANDLE_RAYCAST_SOLO_PAIR(Circle, Line, Raycast)    \
-	PTGN_HANDLE_RAYCAST_SOLO_PAIR(Circle, Circle, Raycast)  \
-	PTGN_HANDLE_RAYCAST_SOLO_PAIR(Circle, Rect, Raycast)    \
-	PTGN_HANDLE_RAYCAST_SOLO_PAIR(Circle, Capsule, Raycast) \
-	PTGN_HANDLE_RAYCAST_SOLO_PAIR(Circle, Polygon, Raycast) \
-	PTGN_HANDLE_RAYCAST_SOLO_PAIR(Rect, Circle, Raycast)    \
-	PTGN_HANDLE_RAYCAST_SOLO_PAIR(Rect, Rect, Raycast)      \
-	PTGN_HANDLE_RAYCAST_SOLO_PAIR(Rect, Polygon, Raycast)   \
-	PTGN_HANDLE_RAYCAST_SOLO_PAIR(Capsule, Circle, Raycast) \
-	PTGN_HANDLE_RAYCAST_SOLO_PAIR(Polygon, Polygon, Raycast)
+#include "core/util/type_info.h"
 
 namespace ptgn {
-
-using Point = V2_float;
 
 bool RaycastResult::Occurred() const {
 	PTGN_ASSERT(t >= 0.0f);
@@ -648,18 +620,55 @@ RaycastResult RaycastCapsuleCircle(
 
 } // namespace impl
 
+template <typename S1, typename S2>
+RaycastResult RaycastDispatch(
+	V2_float ray, Transform transform1, const S1& s1, Transform transform2, const S2& s2
+) {
+	if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Line>) {
+		return impl::RaycastLine(s1, s1 + ray, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Circle>) {
+		return impl::RaycastCircle(s1, s1 + ray, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Rect>) {
+		return impl::RaycastRect(s1, s1 + ray, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Capsule>) {
+		return impl::RaycastCapsule(s1, s1 + ray, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Polygon>) {
+		return impl::RaycastPolygon(s1, s1 + ray, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Line>) {
+		return impl::RaycastCircleLine(ray, transform1, s1, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Circle>) {
+		return impl::RaycastCircleCircle(ray, transform1, s1, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Rect>) {
+		return impl::RaycastCircleRect(ray, transform1, s1, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Capsule>) {
+		return impl::RaycastCircleCapsule(ray, transform1, s1, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Polygon>) {
+		return impl::RaycastCirclePolygon(ray, transform1, s1, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Circle>) {
+		return impl::RaycastRectCircle(ray, transform1, s1, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Rect>) {
+		return impl::RaycastRectRect(ray, transform1, s1, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Polygon>) {
+		return impl::RaycastRectPolygon(ray, transform1, s1, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Circle>) {
+		return impl::RaycastCapsuleCircle(ray, transform1, s1, transform2, s2);
+	} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Polygon>) {
+		return impl::RaycastPolygonPolygon(ray, transform1, s1, transform2, s2);
+	} else {
+		PTGN_ERROR(
+			"Cannot find raycast function for the given shapes: ", type_name<S1>(), " and ",
+			type_name<S2>()
+		);
+	}
+}
+
 RaycastResult Raycast(
 	V2_float ray, Transform transform1, const ColliderShape& shape1, Transform transform2,
 	const ColliderShape& shape2
 ) {
 	return shape1.Visit([&]<typename S1>(const S1& s1) -> RaycastResult {
 		return shape2.Visit([&]<typename S2>(const S2& s2) -> RaycastResult {
-			PTGN_RAYCAST_SHAPE_PAIR_TABLE {
-				PTGN_ERROR(
-					"Cannot find raycast function for the given shapes: ", type_name<S1>(), " and ",
-					type_name<S2>()
-				);
-			}
+			return RaycastDispatch(ray, transform1, s1, transform2, s2);
 		});
 	});
 }

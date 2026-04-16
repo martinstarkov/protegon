@@ -23,52 +23,9 @@
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-
-#define PTGN_HANDLE_OVERLAP_SOLO_PAIR(TypeA, TypeB, PREFIX)                 \
-	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) { \
-		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                  \
-	} else
-
-#define PTGN_HANDLE_OVERLAP_PAIR(TypeA, TypeB, PREFIX)                             \
-	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) {        \
-		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                         \
-	} else if constexpr (std::is_same_v<S1, TypeB> && std::is_same_v<S2, TypeA>) { \
-		return impl::PREFIX##TypeA##TypeB(t2, s2, t1, s1);                         \
-	} else
-
-#define PTGN_OVERLAP_SHAPE_PAIR_TABLE                          \
-	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Point, Point, Overlap)       \
-	PTGN_HANDLE_OVERLAP_PAIR(Point, Line, Overlap)             \
-	PTGN_HANDLE_OVERLAP_PAIR(Point, Triangle, Overlap)         \
-	PTGN_HANDLE_OVERLAP_PAIR(Point, Capsule, Overlap)          \
-	PTGN_HANDLE_OVERLAP_PAIR(Point, Rect, Overlap)             \
-	PTGN_HANDLE_OVERLAP_PAIR(Point, Circle, Overlap)           \
-	PTGN_HANDLE_OVERLAP_PAIR(Point, Polygon, Overlap)          \
-	PTGN_HANDLE_OVERLAP_PAIR(Line, Line, Overlap)              \
-	PTGN_HANDLE_OVERLAP_PAIR(Line, Triangle, Overlap)          \
-	PTGN_HANDLE_OVERLAP_PAIR(Line, Capsule, Overlap)           \
-	PTGN_HANDLE_OVERLAP_PAIR(Line, Rect, Overlap)              \
-	PTGN_HANDLE_OVERLAP_PAIR(Line, Circle, Overlap)            \
-	PTGN_HANDLE_OVERLAP_PAIR(Line, Polygon, Overlap)           \
-	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Circle, Circle, Overlap)     \
-	PTGN_HANDLE_OVERLAP_PAIR(Circle, Rect, Overlap)            \
-	PTGN_HANDLE_OVERLAP_PAIR(Circle, Polygon, Overlap)         \
-	PTGN_HANDLE_OVERLAP_PAIR(Circle, Triangle, Overlap)        \
-	PTGN_HANDLE_OVERLAP_PAIR(Circle, Capsule, Overlap)         \
-	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Triangle, Triangle, Overlap) \
-	PTGN_HANDLE_OVERLAP_PAIR(Triangle, Capsule, Overlap)       \
-	PTGN_HANDLE_OVERLAP_PAIR(Triangle, Rect, Overlap)          \
-	PTGN_HANDLE_OVERLAP_PAIR(Triangle, Polygon, Overlap)       \
-	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Rect, Rect, Overlap)         \
-	PTGN_HANDLE_OVERLAP_PAIR(Rect, Polygon, Overlap)           \
-	PTGN_HANDLE_OVERLAP_PAIR(Rect, Capsule, Overlap)           \
-	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Polygon, Polygon, Overlap)   \
-	PTGN_HANDLE_OVERLAP_PAIR(Polygon, Capsule, Overlap)        \
-	PTGN_HANDLE_OVERLAP_SOLO_PAIR(Capsule, Capsule, Overlap)
+#include "core/util/type_info.h"
 
 namespace ptgn {
-
-using Point = V2_float;
 
 namespace impl {
 
@@ -929,7 +886,107 @@ bool OverlapPolygonCapsule(Transform t1, const Polygon& A, Transform t2, const C
 bool Overlap(Transform t1, const ColliderShape& shape1, Transform t2, const ColliderShape& shape2) {
 	return shape1.Visit([&]<typename S1>(const S1& s1) -> bool {
 		return shape2.Visit([&]<typename S2>(const S2& s2) -> bool {
-			PTGN_OVERLAP_SHAPE_PAIR_TABLE {
+			if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointPoint(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Line>) {
+				return impl::OverlapPointLine(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointLine(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapPointTriangle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointTriangle(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapPointCapsule(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointCapsule(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapPointRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointRect(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapPointCircle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointCircle(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, V2_float> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapPointPolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, V2_float>) {
+				return impl::OverlapPointPolygon(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLineLine(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLineLine(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapLineTriangle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLineTriangle(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapLineCapsule(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLineCapsule(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapLineRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLineRect(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapLineCircle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLineCircle(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Line> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapLinePolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Line>) {
+				return impl::OverlapLinePolygon(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapCircleCircle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapCircleRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapCircleRect(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapCirclePolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapCirclePolygon(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapCircleTriangle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapCircleTriangle(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapCircleCapsule(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Circle>) {
+				return impl::OverlapCircleCapsule(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapTriangleTriangle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapTriangleCapsule(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapTriangleCapsule(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapTriangleRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapTriangleRect(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Triangle> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapTrianglePolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Triangle>) {
+				return impl::OverlapTrianglePolygon(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapRectRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapRectPolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapRectPolygon(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapRectCapsule(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Rect>) {
+				return impl::OverlapRectCapsule(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapPolygonPolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapPolygonCapsule(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Polygon>) {
+				return impl::OverlapPolygonCapsule(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Capsule> && std::is_same_v<S2, Capsule>) {
+				return impl::OverlapCapsuleCapsule(t1, s1, t2, s2);
+			} else {
 				PTGN_ERROR(
 					"Cannot find overlap function for the given shapes: ", type_name<S1>(), " and ",
 					type_name<S2>()

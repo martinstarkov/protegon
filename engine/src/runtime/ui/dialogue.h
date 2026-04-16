@@ -11,7 +11,6 @@
 #include "core/input/key.h"
 #include "core/math/vector2.h"
 #include "core/time/time.h"
-#include "core/util/file.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
@@ -112,7 +111,7 @@ public:
 	/// @param background Either the sprite that is used as the background or the size of the
 	/// background.
 	DialogueComponent(
-		Entity parent, const path& json_path, std::variant<GameObject<Sprite>, V2_float> background
+		Entity parent, const json& json, std::variant<GameObject<Sprite>, V2_float> background
 	);
 
 	Key GetContinueKey() const;

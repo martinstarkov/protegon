@@ -1,16 +1,13 @@
 #include "core/math/vector2.h"
 
+#include <nlohmann/json.hpp>
+
 #include "core/assert.h"
 #include "core/math/tolerance.h"
 #include "core/util/concepts.h"
-#include "serialization/json/json.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn {
-
-template <Arithmetic T>
-Vector2<T>::Vector2(const json& j) {
-	j.get_to(*this);
-}
 
 template <Arithmetic T>
 void to_json(json& j, const Vector2<T>& vector) {

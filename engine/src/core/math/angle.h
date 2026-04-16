@@ -4,7 +4,7 @@
 
 #include "core/math/math_utils.h"
 #include "core/math/tolerance.h"
-#include "serialization/serialize.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn {
 
@@ -40,8 +40,6 @@ struct Degrees {
 		return os;
 	}
 
-	PTGN_SERIALIZE_VALUE(Degrees, value)
-
 	float value{ 0.0f };
 };
 
@@ -75,10 +73,14 @@ struct Radians {
 		return os;
 	}
 
-	PTGN_SERIALIZE_VALUE(Radians, value)
-
 	float value{ 0.0f };
 };
+
+void to_json(json& j, const Degrees& angle);
+void from_json(const json& j, Degrees& angle);
+
+void to_json(json& j, const Radians& angle);
+void from_json(const json& j, Radians& angle);
 
 constexpr Degrees::Degrees(Radians r) : value{ r.value * 180.0f / kPi } {}
 

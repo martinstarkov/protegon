@@ -1,11 +1,29 @@
 #include "core/math/angle.h"
 
 #include <cmath>
+#include <nlohmann/json.hpp>
 
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn {
+
+void to_json(json& j, const Degrees& angle) {
+	j = angle.value;
+}
+
+void from_json(const json& j, Degrees& angle) {
+	j.get_to(angle.value);
+}
+
+void to_json(json& j, const Radians& angle) {
+	j = angle.value;
+}
+
+void from_json(const json& j, Radians& angle) {
+	j.get_to(angle.value);
+}
 
 float Degrees::Tan() const {
 	return ToRad().Tan();

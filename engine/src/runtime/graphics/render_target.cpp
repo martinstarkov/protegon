@@ -103,7 +103,7 @@ void RenderTarget::Draw(DrawContext& renderer, Entity entity, Camera) {
 	std::optional<V2_int> size;
 
 	if (entity.Has<impl::TextureSize>()) {
-		size = V2_int{ entity.Get<impl::TextureSize>() };
+		size = V2_int{ entity.Get<impl::TextureSize>().GetValue() };
 	} else {
 		size = entity.Get<impl::RenderTargetObject>().GetSize();
 	}

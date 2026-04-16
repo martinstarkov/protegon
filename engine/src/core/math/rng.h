@@ -7,12 +7,9 @@
 #include <numeric>
 #include <optional>
 #include <random>
+#include <stdexcept>
 #include <type_traits>
 #include <vector>
-
-#include "core/assert.h"
-#include "serialization/json/json.h"
-#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -31,7 +28,6 @@ enum class Distribution {
 	Uniform = 0,
 	Normal	= 1
 };
-PTGN_REFLECT_ENUM(Distribution);
 
 /// @brief Define RNG object by giving it a type to generate from
 /// and a range or seed for the distribution.
@@ -78,10 +74,6 @@ public:
 	/// @brief Generate a new random number in the specified range.
 	[[nodiscard]] T operator()() {
 		auto v = distribution_(generator_);
-		// TODO: Check if this assert triggers occasionally for normal distributions. I saw a
-		// PTGN_ASSERT(v <= min_ && v >= max_, "RNG failed to generate number in the correct
-		// negative value once when generating [0.0f, 1.0f]
-		// range");
 		if constexpr (D == Distribution::Normal) {
 			v = std::clamp(v, min_, max_);
 		}
@@ -113,24 +105,11 @@ public:
 		return max_;
 	}
 
-	// TODO: Add binary de/serialization.
-
-	friend void to_json(json& j, const RNG& rng) {
-		j["seed"] = rng.GetSeed();
-		j["min"]  = rng.GetMin();
-		j["max"]  = rng.GetMax();
-	}
-
-	friend void from_json(const json& j, RNG& rng) {
-		rng.min_ = j.at("min").get<T>();
-		rng.max_ = j.at("max").get<T>();
-		rng.SetSeed(j.at("seed").get<std::uint32_t>());
-		rng.SetupDistribution();
-	}
-
 private:
 	void SetupDistribution() {
-		PTGN_ASSERT(min_ <= max_);
+		if (min_ >= max_) {
+			throw std::invalid_argument("RNG: min must be less than or equal to max");
+		}
 		T a = min_;
 		T b = AdjustedMax(max_);
 		if constexpr (D == Distribution::Normal) {

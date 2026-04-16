@@ -12,11 +12,11 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/text/font.h"
+#include "runtime/interaction/interactive.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/rigid_body.h"
-#include "runtime/interaction/interactive.h"
 #include "serialization/json/fwd.h"
 #include "serialization/serialize.h"
 
@@ -86,7 +86,7 @@ int main(int, char**) {
 	}
 
 	{
-		auto j = LoadJson("assets/mydata.json");
+		auto j = ctx().asset.LoadJson("assets/mydata.json");
 
 		Entity e2{ m.CreateEntity(j) };
 
@@ -209,7 +209,7 @@ int main(int, char**) {
 		SaveJson(j, "assets/myscripts.json");
 	}
 	{
-		auto j = LoadJson("assets/myscripts.json");
+		auto j = ctx().asset.LoadJson("assets/myscripts.json");
 
 		std::unique_ptr<TweenScript> test2{ std::make_unique<TweenScript1>() };
 		j.get_to(*test2);

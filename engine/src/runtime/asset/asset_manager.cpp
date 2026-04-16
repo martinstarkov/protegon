@@ -38,6 +38,7 @@
 #ifdef CreateFont
 #undef CreateFont
 #endif
+#include <fstream>
 
 namespace ptgn {
 
@@ -188,11 +189,17 @@ Shader AssetManager::LoadShader(
 }
 
 json AssetManager::CreateJson(const path& asset_path) {
-	return ptgn::LoadJson(asset_path);
+	PTGN_ASSERT(
+		FileExists(asset_path),
+		"Cannot load json file from a nonexistent file path: ", asset_path.string()
+	);
+	std::ifstream json_file(asset_path);
+	json j = json::parse(json_file);
+	return j;
 }
 
 json& AssetManager::LoadJson(std::string_view key, const path& asset_path) {
-	auto [it, _] = jsons_.try_emplace(Hash(key), ptgn::LoadJson(asset_path));
+	auto [it, _] = jsons_.try_emplace(Hash(key), CreateJson(asset_path));
 	return it->second;
 }
 
@@ -248,7 +255,7 @@ void AssetManager::LoadMany(const path& asset_manifest_file) {
 		"Asset manifest file must be json file"
 	);
 
-	json assets = ptgn::LoadJson(asset_manifest_file);
+	json assets = CreateJson(asset_manifest_file);
 
 	PTGN_ASSERT(
 		assets.is_object(),

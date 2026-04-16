@@ -1,7 +1,6 @@
 #include "runtime/scene/scene.h"
 
 #include "app/application.h"
-
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -13,8 +12,8 @@ public:
 	void OnEnter() override {
 		ctx().asset.Load("anim", "assets/animation.png");
 		ctx().asset.Load("test", "assets/test1.jpg");
-		json j = LoadJson("assets/animation_scene.json");
-		j	   = LoadJson("assets/light_scene.json");
+		json j = ctx().asset.CreateJson("assets/animation_scene.json");
+		j	   = ctx().asset.CreateJson("assets/light_scene.json");
 		j.at("manager").get_to(*this);
 		// TODO: Figure this out: j.get_to(*this);
 	}

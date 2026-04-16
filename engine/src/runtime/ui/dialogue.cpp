@@ -26,7 +26,6 @@
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
-#include "core/util/file.h"
 #include "runtime/animation/tween.h"
 #include "runtime/animation/tween_event.h"
 #include "runtime/asset/asset_manager.h"
@@ -225,9 +224,8 @@ std::optional<int> Dialogue::GetNewDialogueLine() {
 }
 
 DialogueComponent::DialogueComponent(
-	Entity parent, const path& json_path, std::variant<GameObject<Sprite>, V2_float> background
+	Entity parent, const json& j, std::variant<GameObject<Sprite>, V2_float> background
 ) {
-	json j = LoadJson(json_path);
 	auto& scene{ parent.GetScene() };
 
 	DialoguePageProperties default_properties;

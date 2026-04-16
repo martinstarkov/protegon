@@ -20,25 +20,7 @@
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-
-#define PTGN_HANDLE_INTERSECT_SOLO_PAIR(TypeA, TypeB, PREFIX)               \
-	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) { \
-		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                  \
-	} else
-
-#define PTGN_HANDLE_INTERSECT_PAIR(TypeA, TypeB, PREFIX)                           \
-	if constexpr (std::is_same_v<S1, TypeA> && std::is_same_v<S2, TypeB>) {        \
-		return impl::PREFIX##TypeA##TypeB(t1, s1, t2, s2);                         \
-	} else if constexpr (std::is_same_v<S1, TypeB> && std::is_same_v<S2, TypeA>) { \
-		return impl::PREFIX##TypeA##TypeB(t2, s2, t1, s1);                         \
-	} else
-
-#define PTGN_INTERSECT_SHAPE_PAIR_TABLE                        \
-	PTGN_HANDLE_INTERSECT_SOLO_PAIR(Circle, Circle, Intersect) \
-	PTGN_HANDLE_INTERSECT_PAIR(Circle, Rect, Intersect)        \
-	PTGN_HANDLE_INTERSECT_PAIR(Circle, Polygon, Intersect)     \
-	PTGN_HANDLE_INTERSECT_SOLO_PAIR(Rect, Rect, Intersect)     \
-	PTGN_HANDLE_INTERSECT_SOLO_PAIR(Polygon, Polygon, Intersect)
+#include "core/util/type_info.h"
 
 namespace ptgn {
 
@@ -312,7 +294,21 @@ Intersection Intersect(
 ) {
 	return shape1.Visit([&]<typename S1>(const S1& s1) -> Intersection {
 		return shape2.Visit([&]<typename S2>(const S2& s2) -> Intersection {
-			PTGN_INTERSECT_SHAPE_PAIR_TABLE {
+			if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Circle>) {
+				return impl::IntersectCircleCircle(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Rect>) {
+				return impl::IntersectCircleRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Circle>) {
+				return impl::IntersectCircleRect(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Circle> && std::is_same_v<S2, Polygon>) {
+				return impl::IntersectCirclePolygon(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Circle>) {
+				return impl::IntersectCirclePolygon(t2, s2, t1, s1);
+			} else if constexpr (std::is_same_v<S1, Rect> && std::is_same_v<S2, Rect>) {
+				return impl::IntersectRectRect(t1, s1, t2, s2);
+			} else if constexpr (std::is_same_v<S1, Polygon> && std::is_same_v<S2, Polygon>) {
+				return impl::IntersectPolygonPolygon(t1, s1, t2, s2);
+			} else {
 				PTGN_ERROR(
 					"Cannot find intersect function for the given shapes: ", type_name<S1>(),
 					" and ", type_name<S2>()

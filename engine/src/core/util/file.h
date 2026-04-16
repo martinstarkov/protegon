@@ -4,8 +4,6 @@
 #include <string>
 #include <string_view>
 
-#include "serialization/json/fwd.h"
-
 namespace ptgn {
 
 namespace fs = std::filesystem;
@@ -21,8 +19,5 @@ path GetWorkingDirectory();
 path GetAbsolutePath(const path& relative_file_path);
 path GetRelativePath(const path& absolute_file_path);
 path GetAssetRoot();
-
-void to_json(json& j, const path& p);
-void from_json(const json& j, path& p);
 
 } // namespace ptgn

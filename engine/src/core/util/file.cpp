@@ -9,7 +9,6 @@
 #include <string_view>
 
 #include "core/assert.h"
-#include "serialization/json/json.h"
 
 namespace ptgn {
 
@@ -109,14 +108,6 @@ path GetRelativePath(const path& absolute_file_path) {
 path GetAssetRoot() {
 	path root{ PTGN_ASSET_ROOT };
 	return root.lexically_normal();
-}
-
-void to_json(json& j, const path& p) {
-	j = p.string();
-}
-
-void from_json(const json& j, path& p) {
-	p = j.template get<std::string>();
 }
 
 } // namespace ptgn

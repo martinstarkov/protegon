@@ -12,7 +12,6 @@
 #include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "core/util/file.h"
 #include "core/util/hash.h"
 #include "nlohmann/json.hpp"
 #include "runtime/ecs/entity.h"
@@ -194,15 +193,13 @@ std::function<void(Scene&)> SceneAction::Get(
 	PTGN_ERROR("Unknown action: ", action_name);
 }
 
-void EnterSceneConfig(Scene& scene, const path& template_json_path) {
-	json j = LoadJson(template_json_path);
+void EnterSceneConfig(Scene& scene, const json& template_json) {
+	PTGN_ASSERT(template_json.contains("scenes"), "Scene config must contain a scenes dictionary");
+	PTGN_ASSERT(template_json.contains("start_scene"), "Scene config must specify a start scene");
 
-	PTGN_ASSERT(j.contains("scenes"), "Scene config must contain a scenes dictionary");
-	PTGN_ASSERT(j.contains("start_scene"), "Scene config must specify a start scene");
+	const json& scene_json = template_json.at("scenes");
 
-	const json& scene_json = j.at("scenes");
-
-	std::string start_scene{ j.at("start_scene").get<std::string>() };
+	std::string start_scene{ template_json.at("start_scene").get<std::string>() };
 
 	PTGN_ASSERT(scene_json.contains(start_scene), "Start scene must be in the scenes dictionary");
 

@@ -35,12 +35,11 @@ struct Vector2 {
 	constexpr Vector2() = default;
 
 	template <Arithmetic U>
-	explicit constexpr Vector2(U all) : x{ static_cast<T>(all) }, y{ static_cast<T>(all) } {}
-
-	explicit Vector2(const json& j);
+	explicit constexpr Vector2(U both) : x{ static_cast<T>(both) }, y{ static_cast<T>(both) } {}
 
 	template <Arithmetic U>
-	constexpr Vector2(Vector2<U> o) : // NOSONAR
+	constexpr Vector2(Vector2<U> o) // NOSONAR
+		:
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
 	template <ConvertibleToArithmetic U, ConvertibleToArithmetic S>
@@ -51,7 +50,8 @@ struct Vector2 {
 	explicit constexpr Vector2(std::array<U, 2> o) :
 		x{ static_cast<T>(o[0]) }, y{ static_cast<T>(o[1]) } {}
 
-	[[nodiscard]] constexpr Vector2 xx() const {
+	[[nodiscard]] constexpr Vector2 xx() {
+		x++;
 		return { x, x };
 	}
 
@@ -447,6 +447,9 @@ template <Arithmetic T>
 }
 
 [[nodiscard]] bool StrictlyLess(V2_float a, V2_float b, float epsilon = kEpsilon<float>);
+
+extern template struct Vector2<int>;
+extern template struct Vector2<float>;
 
 } // namespace ptgn
 
