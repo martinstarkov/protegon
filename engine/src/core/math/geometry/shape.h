@@ -1,7 +1,5 @@
 #pragma once
 
-#include <array>
-#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -16,7 +14,7 @@
 #include "core/math/geometry/triangle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/concepts.h"
+#include "core/util/concepts_variant.h"
 #include "serialization/json/fwd.h"
 #include "serialization/serialize.h"
 
@@ -26,12 +24,6 @@ using ShapeVariant = std::variant<
 	V2_float, Rect, Circle, Ellipse, Polygon, RoundedRect, Arc, Line, Triangle, Capsule>;
 using ColliderShapeVariant	  = ShapeVariant;
 using InteractiveShapeVariant = std::variant<Rect, Circle>;
-
-PTGN_VARIANT_NAMES(
-	(ShapeVariant), "Point", "Rect", "Circle", "Ellipse", "Polygon", "RoundedRect", "Arc", "Line",
-	"Triangle", "Capsule"
-);
-PTGN_VARIANT_NAMES((InteractiveShapeVariant), "Rect", "Circle");
 
 class Shape {
 public:

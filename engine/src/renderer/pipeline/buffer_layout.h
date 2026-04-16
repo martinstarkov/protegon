@@ -107,7 +107,7 @@ struct BufferElement {
 };
 
 template <VertexDataType... Ts>
-	requires NonEmptyPack<Ts...>
+	requires(sizeof...(Ts) > 0)
 struct BufferLayout {
 	constexpr BufferLayout() {
 		CalculateOffsets();

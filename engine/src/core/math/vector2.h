@@ -305,7 +305,7 @@ using V2_int   = Vector2<int>;
 using V2_uint  = Vector2<unsigned int>;
 using V2_float = Vector2<float>;
 
-template <StreamWritable S>
+template <Arithmetic S>
 inline std::ostream& operator<<(std::ostream& os, Vector2<S> v) { // NOSONAR
 	os << "(" << v.x << ", " << v.y << ")";
 	return os;

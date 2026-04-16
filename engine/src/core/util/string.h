@@ -2,17 +2,12 @@
 
 #include <algorithm>
 #include <cctype>
-#include <concepts>
-#include <iomanip>
-#include <ios>
 #include <iterator>
-#include <ostream>
 #include <sstream>
 #include <string>
 #include <string_view>
 
-#include "core/assert.h"
-#include "core/util/concepts.h"
+#include "core/util/concepts_stream.h"
 
 namespace ptgn {
 
@@ -23,23 +18,16 @@ template <StreamWritable T>
 	return ss.str();
 }
 
+template <StreamWritable... Ts>
+[[nodiscard]] std::string ToString(Ts&&... parts) {
+	std::ostringstream oss;
+	((oss << std::forward<Ts>(parts)), ...);
+	return oss.str();
+}
+
 /// @param precision The number of decimal places of precision to have in numbers converted to
 /// string.
-template <std::floating_point T>
-[[nodiscard]] std::string ToString(T value, int precision) {
-	PTGN_ASSERT(precision >= 0);
-	std::ostringstream ss;
-	ss << std::fixed << std::setprecision(precision) << value;
-
-	std::string s{ ss.str() };
-
-	// Catch and remove -0s. As per: https://stackoverflow.com/a/21538723
-	if (!s.empty() && s[0] == '-' && s.find_first_of("123456789") == std::string::npos) {
-		s.erase(0, 1);
-	}
-
-	return s;
-}
+[[nodiscard]] std::string ToString(double value, int precision);
 
 [[nodiscard]] constexpr std::string ToLower(std::string_view str) {
 	std::string out;

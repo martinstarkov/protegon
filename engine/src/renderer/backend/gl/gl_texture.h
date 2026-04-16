@@ -87,7 +87,7 @@ constexpr int GetBitCount(TextureFormat fmt) {
 		case RG32F:
 		case Depth24_Stencil8:
 		case Depth32F_Stencil8: return 2;
-		default:				PTGN_ERROR("Unknown texture format: ", fmt);
+		default:				PTGN_ERROR("Unknown texture format: ", std::to_underlying(fmt));
 	}
 }
 
@@ -116,7 +116,7 @@ constexpr std::pair<PixelDataFormat, PixelDataType> GetPixelDataFormat(TextureFo
 		case RG8:				return { RG, UnsignedByte };
 		case RG16F:
 		case RG32F:				return { RG, Float };
-		default:				PTGN_ERROR("Unknown texture format: ", fmt);
+		default:				PTGN_ERROR("Unknown texture format: ", std::to_underlying(fmt));
 	}
 }
 

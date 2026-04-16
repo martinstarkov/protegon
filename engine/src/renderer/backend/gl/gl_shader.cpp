@@ -134,7 +134,9 @@ static std::pair<Header, std::vector<ShaderSpec>> ParseShaderSources(
 		std::string code{ input.substr(start, end - start) };
 		code = TrimWhitespace(code);
 
-		PTGN_ASSERT(!contains_type(type), "GLSL file can only contain one type of shader: ", type);
+		PTGN_ASSERT(
+			!contains_type(type), "GLSL file can only contain one type of shader: ", json(type)
+		);
 
 		sources.emplace_back(type, ShaderCode{ code }, std::string{ name_without_ext });
 	}
@@ -377,7 +379,7 @@ ShaderId Shaders::CompileShader(ShaderType type, const std::string& source) cons
 
 		DeleteShaderId(id, type);
 
-		PTGN_ERROR("Failed to compile ", type, " shader: \n", source, "\n", log);
+		PTGN_ERROR("Failed to compile ", json(type), " shader: \n", source, "\n", log);
 	}
 
 	return id;
@@ -726,7 +728,7 @@ ShaderInfo Shaders::GetShaderInfo(
 		return { GetShaderId(path_or_name, type), false };
 	}
 
-	PTGN_ERROR(path_or_name, " is not a valid shader path or loaded ", type, " shader name");
+	PTGN_ERROR(path_or_name, " is not a valid shader path or loaded ", json(type), " shader name");
 }
 
 ShaderInfo Shaders::GetShaderInfo(

@@ -76,7 +76,7 @@ Application::Application(const ApplicationConfig& config) :
 
 	renderer_.UpdateDisplayViewport(false);
 
-	PTGN_INFO("Application Config: ", config);
+	PTGN_INFO("Application Config: ", json(config));
 }
 
 Application::Application(std::string_view title) :

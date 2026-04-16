@@ -1,9 +1,7 @@
 #pragma once
 
-#include <array>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <type_traits>
 #include <variant>
 
@@ -53,8 +51,6 @@ struct Range {
 	PTGN_REFLECT(Range, min, max)
 };
 
-PTGN_VARIANT_NAMES_TEMPLATE(T, (std::variant<T, Range<T>>), "Constant", "Range");
-
 template <typename T>
 	requires std::is_default_constructible_v<T>
 struct ConstantOrRange {
@@ -102,7 +98,6 @@ struct EmissionShapeRect {
 };
 
 using EmissionShapes = std::variant<EmissionShapeArc, EmissionShapeRect>;
-PTGN_VARIANT_NAMES((EmissionShapes), "Arc", "Rect");
 
 /// @brief The shape from which particles are emitted. Determines the initial position of emitted
 /// particles.
@@ -176,10 +171,8 @@ struct ParticleBurst {
 };
 
 using ParticleType = std::variant<Shape, std::string>;
-PTGN_VARIANT_NAMES((ParticleType), "Shape", "Texture");
 
 using ParticleRateOrBurst = std::variant<ParticleRate, ParticleBurst>;
-PTGN_VARIANT_NAMES((ParticleRateOrBurst), "Rate", "Burst");
 
 struct ParticleConfig {
 	ParticleRateOrBurst rate_or_burst;

@@ -9,7 +9,7 @@
 namespace ptgn {
 
 namespace fs = std::filesystem;
-using path	 = std::filesystem::path;
+using path	 = fs::path;
 
 [[nodiscard]] std::string FileToString(const path& file);
 path GetWorkingDirectory();

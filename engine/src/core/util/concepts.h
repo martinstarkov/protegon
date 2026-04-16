@@ -1,12 +1,8 @@
 #pragma once
 
 #include <concepts>
-#include <istream>
-#include <ostream>
-#include <string_view>
 #include <type_traits>
 #include <utility>
-#include <variant>
 
 namespace ptgn {
 
@@ -18,26 +14,10 @@ struct is_specialization : std::false_type {};
 template <template <typename...> typename Ref, typename... Args>
 struct is_specialization<Ref<Args...>, Ref> : std::true_type {};
 
-template <typename T, typename Variant>
-struct variant_contains : std::false_type {};
-
-template <typename T, typename... Ts>
-struct variant_contains<T, std::variant<Ts...>> :
-	std::bool_constant<(std::same_as<std::remove_cvref_t<T>, Ts> || ...)> {};
-
-template <typename T>
-struct is_variant : std::false_type {};
-
-template <typename... Ts>
-struct is_variant<std::variant<Ts...>> : std::true_type {};
-
 } // namespace impl
 
 template <typename T, template <typename...> typename Ref>
 concept SpecializationOf = impl::is_specialization<T, Ref>::value;
-
-template <typename... Ts>
-concept NonEmptyPack = (sizeof...(Ts) > 0);
 
 template <typename T>
 concept Arithmetic = std::is_arithmetic_v<T>;
@@ -47,9 +27,6 @@ concept EnumType = std::is_enum_v<T>;
 
 template <typename T>
 concept ScopedEnum = EnumType<T> && !std::is_convertible_v<T, int>;
-
-template <typename T, typename BaseType>
-concept IsOrDerivedFrom = std::is_same_v<T, BaseType> || std::derived_from<T, BaseType>;
 
 template <typename From, typename To>
 concept Narrowing = !requires(From f) { To{ f }; };
@@ -67,24 +44,6 @@ template <typename T>
 concept ConvertibleToArithmetic = requires { static_cast<double>(std::declval<T>()); };
 
 template <typename T>
-concept StreamWritable = requires(std::ostream& os, T value) {
-	{ os << value } -> std::same_as<std::ostream&>;
-};
-
-template <typename T>
-concept StreamReadable = requires(std::istream& is, T& value) {
-	{ is >> value } -> std::same_as<std::istream&>;
-};
-
-template <typename T>
-concept Streamable = StreamWritable<T> && StreamReadable<T>;
-
-template <typename T>
-concept StringLike = requires(T a) {
-	{ std::string_view(a) }; // constructible from T (implicit or explicit)
-};
-
-template <typename T>
 concept MapLike = requires(T t, typename T::key_type key) {
 	typename T::key_type;
 	typename T::mapped_type;
@@ -96,30 +55,17 @@ concept MapLike = requires(T t, typename T::key_type key) {
 	{ t[key] } -> std::same_as<typename T::mapped_type&>;
 };
 
-template <typename T>
-concept VariantType = SpecializationOf<std::remove_cvref_t<T>, std::variant>;
-
-template <typename Type, typename... Types>
-concept SameType = std::conjunction_v<std::is_same<Type, Types>...>;
-
 template <typename T, typename... Ts>
 concept IsAnyOf = (std::is_same_v<T, Ts> || ...);
 
 /// @brief No return type specified.
+
 template <typename F, typename... Args>
-concept Invocable = std::invocable<F, Args...>;
+concept Invocable = std::invocable<std::remove_cvref_t<F>, Args...>;
 
 template <typename F, typename R, typename... Args>
-concept InvocableR =
-	std::regular_invocable<F, Args...> && std::same_as<std::invoke_result_t<F, Args...>, R>;
-
-template <typename T, typename Variant>
-concept VariantContains = impl::variant_contains<T, Variant>::value;
-
-template <typename T>
-concept Visitable = requires(const T& v) {
-	std::visit([](const auto&) { /**/ }, static_cast<const typename T::variant_type&>(v));
-};
+concept InvocableR = std::regular_invocable<std::remove_cvref_t<F>, Args...> &&
+					 std::same_as<std::invoke_result_t<std::remove_cvref_t<F>, Args...>, R>;
 
 template <typename T, typename... TArgs>
 concept BraceConstructible = requires(TArgs&&... args) { T{ std::forward<TArgs>(args)... }; };

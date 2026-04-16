@@ -2,6 +2,7 @@
 
 #include <array>
 #include <optional>
+#include <ranges>
 #include <string_view>
 #include <utility>
 #include <variant>
@@ -22,7 +23,6 @@
 #include "core/math/geometry/triangle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/concepts.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/scaling_mode.h"
@@ -246,7 +246,7 @@ private:
 
 	template <typename T, typename R>
 	static void AddDrawCommand(T& commands, const R& command, float depth) {
-		if constexpr (SpecializationOf<R, std::vector>) {
+		if constexpr (std::ranges::input_range<R>) {
 			for (const auto& c : command) {
 				commands.emplace_back(c, depth);
 			}

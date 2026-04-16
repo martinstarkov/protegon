@@ -1,9 +1,7 @@
 #pragma once
 
 #include <algorithm>
-#include <array>
 #include <concepts>
-#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -35,8 +33,6 @@ struct Hollow {
 	PTGN_REFLECT_VALUE(Hollow, line_width)
 };
 
-PTGN_VARIANT_NAMES((std::variant<Solid, Hollow>), "Solid", "Hollow");
-
 struct FillStyle {
 	constexpr FillStyle() = default;
 
@@ -50,10 +46,9 @@ struct FillStyle {
 		return std::visit(std::forward<F>(f), style_);
 	}
 
-	template <Invocable SolidFn, Invocable<float> HollowFn>
-	auto Apply(SolidFn&& solid_fn, HollowFn&& hollow_fn) {
-		using R1 = std::invoke_result_t<SolidFn>;
-		using R2 = std::invoke_result_t<HollowFn, float>;
+	auto Apply(Invocable auto&& solid_fn, Invocable<float> auto&& hollow_fn) {
+		using R1 = std::invoke_result_t<decltype(solid_fn)>;
+		using R2 = std::invoke_result_t<decltype(hollow_fn), float>;
 
 		if constexpr (std::same_as<R1, R2>) {
 			return Visit([&]<typename T>(const T& s) -> R1 {

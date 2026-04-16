@@ -1,11 +1,14 @@
 #include "renderer/backend/gl/gl.h"
 
+#include <cstdlib>
 #include <source_location>
 #include <string_view>
 #include <vector>
 
 #include "core/config.h"
 #include "core/log.h"
+#include "core/util/string.h"
+#include "platform/debug_break.h"
 
 #ifdef PTGN_DEBUG
 
@@ -37,9 +40,10 @@ void HandleErrors(std::source_location location) {
 	if (!errors.empty()) {
 		for (auto error : errors) {
 			auto error_string{ GetErrorString(error) };
-			ptgn::impl::DebugMessage("OPENGL ERROR: ", ToString(error_string), location);
+			::ptgn::impl::DebugPrint("OPENGL ERROR: ", ToString(error_string), location);
 		}
-		PTGN_ABORT();
+		PTGN_DEBUGBREAK();
+		std::abort();
 	}
 }
 

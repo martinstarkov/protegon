@@ -237,7 +237,7 @@ using V4_int   = Vector4<int>;
 using V4_uint  = Vector4<unsigned int>;
 using V4_float = Vector4<float>;
 
-template <StreamWritable V>
+template <Arithmetic V>
 inline std::ostream& operator<<(std::ostream& os, Vector4<V> v) { // NOSONAR
 	os << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
 	return os;

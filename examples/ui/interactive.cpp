@@ -83,11 +83,11 @@ struct DraggableScript : public Script {
 	}
 
 	void OnMousePressedOver(Mouse mouse) {
-		PTGN_LOG(entity, " Mouse pressed: ", mouse);
+		PTGN_LOG(entity, " Mouse pressed: ", json(mouse));
 	}
 
 	void OnMousePressedOut(Mouse mouse) {
-		PTGN_LOG(entity, " Mouse pressed outside: ", mouse);
+		PTGN_LOG(entity, " Mouse pressed outside: ", json(mouse));
 	}
 
 	void OnMouseHeldOver(Mouse mouse) {
@@ -99,11 +99,11 @@ struct DraggableScript : public Script {
 	}
 
 	void OnMouseReleasedOver(Mouse mouse) {
-		PTGN_LOG(entity, " Mouse released: ", mouse);
+		PTGN_LOG(entity, " Mouse released: ", json(mouse));
 	}
 
 	void OnMouseReleasedOut(Mouse mouse) {
-		PTGN_LOG(entity, " Mouse released outside: ", mouse);
+		PTGN_LOG(entity, " Mouse released outside: ", json(mouse));
 	}
 
 	void OnDragEnter(Entity dropzone) {

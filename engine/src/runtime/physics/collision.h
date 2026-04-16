@@ -3,7 +3,6 @@
 #include "core/math/raycast.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
-#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -20,8 +19,6 @@ struct SweepCollision {
 	Entity entity;
 	RaycastResult collision;
 	float dist2{ 0.0f };
-
-	PTGN_OSTREAM(SweepCollision, entity, collision, dist2)
 };
 
 } // namespace impl
@@ -44,8 +41,6 @@ struct CollisionInfo {
 	friend bool operator==(const CollisionInfo& a, const CollisionInfo& b) {
 		return a.entity == b.entity;
 	}
-
-	PTGN_OSTREAM(CollisionInfo, entity, normal)
 };
 
 } // namespace ptgn

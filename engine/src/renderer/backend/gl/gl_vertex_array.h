@@ -3,7 +3,6 @@
 #include <cstdint>
 
 #include "core/assert.h"
-#include "core/util/concepts.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/pipeline/buffer_layout.h"
@@ -64,7 +63,7 @@ public:
 	void SetElementBuffer(VertexArrayId vertex_array, ElementBufferId element_buffer);
 
 	template <VertexDataType... Ts>
-		requires NonEmptyPack<Ts...>
+		requires(sizeof...(Ts) > 0)
 	void SetBufferLayout(VertexArrayId vertex_array, const BufferLayout<Ts...>& layout) {
 		PTGN_ASSERT(
 			IsBound(vertex_array), "Vertex array must be bound before setting its buffer layout"

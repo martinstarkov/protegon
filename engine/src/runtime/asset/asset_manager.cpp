@@ -222,7 +222,7 @@ void AssetManager::LoadDirectory(const path& directory, bool recursive) {
 		auto type{ impl::GetAssetType(asset_path) };
 
 		PTGN_ASSERT(
-			taken_asset_keys[type].count(key_hash) == 0, "Duplicate ", type,
+			taken_asset_keys[type].count(key_hash) == 0, "Duplicate ", json(type),
 			" key detected while loading directory: ", key
 		);
 
@@ -288,7 +288,7 @@ void AssetManager::LoadMany(const path& asset_manifest_file) {
 		auto type{ impl::GetAssetType(asset_path) };
 
 		PTGN_ASSERT(
-			taken_asset_keys[type].count(key_hash) == 0, type,
+			taken_asset_keys[type].count(key_hash) == 0, json(type),
 			" key should not be repeated more than once: ", key
 		);
 
@@ -317,7 +317,8 @@ void AssetManager::Load(std::string_view key, const ShaderPair& shader_pair) {
 
 void AssetManager::Load(std::string_view key, const path& asset_path, impl::AssetType type) {
 	PTGN_ASSERT(
-		FileExists(asset_path), "Cannot get non-existent ", type, " file: ", asset_path.string()
+		FileExists(asset_path), "Cannot get non-existent ", json(type),
+		" file: ", asset_path.string()
 	);
 
 	switch (type) {
