@@ -25,6 +25,7 @@
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "core/util/id_map.h"
+#include "core/util/string.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/resources/id.h"
@@ -314,19 +315,6 @@ static std::string GenerateTextureSwitchBlock(std::size_t max_texture_slots) {
 		);
 	}
 	return oss.str();
-}
-
-static std::string ReplaceAll(std::string str, std::string_view from, std::string_view to) {
-	if (from.empty()) {
-		return str;
-	}
-
-	std::size_t start_pos{ 0 };
-	while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
-		str.replace(start_pos, from.length(), to);
-		start_pos += to.length(); // Move past the replacement
-	}
-	return str;
 }
 
 static std::vector<ShaderSpec> ParseShader(
