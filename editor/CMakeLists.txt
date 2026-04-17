@@ -20,6 +20,8 @@ target_compile_features(protegon_editor PUBLIC cxx_std_23)
 
 target_link_libraries(protegon_editor PUBLIC protegon)
 
+target_precompile_headers(protegon PRIVATE "${PTGN_EDITOR_SRC_DIR}/ptgn_editor_pch.h")
+
 if(NOT EMSCRIPTEN)
   set_project_warnings(protegon_editor "${PTGN_WARNINGS_AS_ERRORS}")
   set_compiler_settings(protegon_editor "${CMAKE_CURRENT_SOURCE_DIR}" ${PTGN_EDITOR_FILES})
