@@ -5,7 +5,7 @@
 #include <utility>
 
 #include "core/assert.h"
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
 
 namespace ptgn {
 

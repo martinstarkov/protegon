@@ -21,7 +21,7 @@
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "core/util/string.h"
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
 #include "renderer/renderer.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"

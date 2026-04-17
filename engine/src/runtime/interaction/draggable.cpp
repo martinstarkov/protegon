@@ -8,6 +8,7 @@
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/interaction/trigger_condition.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 

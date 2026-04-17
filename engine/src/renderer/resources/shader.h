@@ -13,7 +13,7 @@
 #include "core/util/concepts.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 

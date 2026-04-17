@@ -1,5 +1,7 @@
 #include "runtime/ui/tooltip.h"
 
+#include <ecs/ecs.h>
+
 #include <chrono>
 #include <optional>
 #include <string_view>
@@ -12,9 +14,8 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "core/util/time.h"
 #include "core/util/hash.h"
-#include "ecs/ecs.h"
+#include "core/util/time.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset.h"
@@ -27,6 +28,7 @@
 #include "runtime/interaction/interactive.h"
 #include "runtime/interaction/interactive_event.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {

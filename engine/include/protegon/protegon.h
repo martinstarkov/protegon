@@ -1,8 +1,15 @@
 #pragma once
 
+#include <ecs/ecs.h>
+
+#include <nlohmann/json.hpp>
+
 #include "app/application.h"
 #include "core/assert.h"
-
+#include "core/event/key_event.h"
+#include "core/graphics/color.h"
+#include "core/graphics/gradient.h"
+#include "core/input/mouse.h"
 #include "core/math/angle.h"
 #include "core/math/easing.h"
 #include "core/math/geometry/arc.h"
@@ -10,15 +17,10 @@
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
+#include "core/util/string.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
-#include "core/util/string.h"
-#include "nlohmann/json.hpp"
-#include "core/event/key_event.h"
-#include "core/input/mouse.h"
 #include "platform/window.h"
-#include "core/graphics/color.h"
-#include "core/graphics/gradient.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/tween.h"
 #include "runtime/animation/tween_effect.h"
@@ -33,10 +35,14 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/graphics/tint.h"
+#include "runtime/graphics/visible.h"
+#include "runtime/interaction/interactive.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_transitions.h"
 #include "runtime/scripting/script_sequence.h"
 #include "runtime/ui/button.h"
-#include "runtime/interaction/interactive.h"
 #include "serialization/json/fwd.h"

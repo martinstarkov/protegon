@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <functional>
 #include <list>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -13,13 +14,12 @@
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
-#include "nlohmann/json.hpp"
 #include "runtime/ecs/entity.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
 #include "serialization/json/fwd.h"
-#include "serialization/json/json.h"
 
 namespace ptgn {
 

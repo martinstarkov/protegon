@@ -24,6 +24,7 @@
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {
@@ -130,8 +131,7 @@ void RenderTarget::Draw(DrawContext& renderer, Entity entity, Camera) {
 }
 
 void RenderTarget::AddRenderTargetComponents(
-	RenderTarget render_target, SceneContext& ctx, V2_int size, Color clear_color,
-	TextureFormat format
+	RenderTarget render_target, Scene& scene, V2_int size, Color clear_color, TextureFormat format
 ) {
 	PTGN_ASSERT(render_target, "Failed to create render target entity");
 
@@ -140,24 +140,24 @@ void RenderTarget::AddRenderTargetComponents(
 	render_target.SetClearColor(clear_color);
 
 	render_target.Add<impl::RenderTargetObject>(
-		ctx.global_renderer_.CreateRenderTarget(size, format)
+		scene.ctx().global_renderer_.CreateRenderTarget(size, format)
 	);
 	render_target.Get<impl::RenderTargetObject>().Clear(clear_color, true);
 }
 
 void RenderTarget::AddRenderTargetComponents(
-	RenderTarget render_target, SceneContext& ctx, ResizeType resize_to_resolution,
-	Color clear_color, TextureFormat texture_format
+	RenderTarget render_target, Scene& scene, ResizeType resize_to_resolution, Color clear_color,
+	TextureFormat texture_format
 ) {
 	PTGN_ASSERT(render_target, "Failed to create render target entity");
 
 	V2_int resolution;
 
 	if (resize_to_resolution == ResizeType::Display) {
-		resolution = ctx.global_renderer_.GetDisplaySize();
+		resolution = scene.ctx().global_renderer_.GetDisplaySize();
 		AddScript<impl::RenderTargetDisplayResizeScript>(render_target);
 	} else if (resize_to_resolution == ResizeType::Game) {
-		resolution = ctx.global_renderer_.GetGameSize();
+		resolution = scene.ctx().global_renderer_.GetGameSize();
 		AddScript<impl::RenderTargetGameResizeScript>(render_target);
 	} else {
 		PTGN_ERROR("Unknown resize to resolution value");
@@ -167,7 +167,7 @@ void RenderTarget::AddRenderTargetComponents(
 		resolution.BothAboveZero(), "Cannot create render target with an invalid resolution"
 	);
 
-	AddRenderTargetComponents(render_target, ctx, resolution, clear_color, texture_format);
+	AddRenderTargetComponents(render_target, scene, resolution, clear_color, texture_format);
 
 	PTGN_ASSERT(render_target);
 }
@@ -177,7 +177,7 @@ RenderTarget CreateRenderTarget(
 ) {
 	RenderTarget render_target{ scene.CreateEntity() };
 	RenderTarget::AddRenderTargetComponents(
-		render_target, scene.ctx(), resize_to_resolution, clear_color, texture_format
+		render_target, scene, resize_to_resolution, clear_color, texture_format
 	);
 	return render_target;
 }
@@ -187,7 +187,7 @@ RenderTarget CreateRenderTarget(
 ) {
 	RenderTarget render_target{ scene.CreateEntity() };
 	RenderTarget::AddRenderTargetComponents(
-		render_target, scene.ctx(), size, clear_color, texture_format
+		render_target, scene, size, clear_color, texture_format
 	);
 	return render_target;
 }

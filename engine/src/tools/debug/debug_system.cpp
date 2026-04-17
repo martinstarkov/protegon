@@ -27,6 +27,7 @@
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "tools/debug/profiling.h"
 #include "tools/debug/stats.h"
 

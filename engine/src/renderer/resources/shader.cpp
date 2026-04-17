@@ -8,7 +8,7 @@
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
 #include "core/util/entity_handle.h"
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 #include "renderer/renderer.h"

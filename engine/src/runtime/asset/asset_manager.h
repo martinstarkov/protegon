@@ -11,7 +11,7 @@
 
 #include "core/graphics/color.h"
 #include "core/util/file.h"
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"

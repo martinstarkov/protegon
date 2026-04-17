@@ -17,7 +17,6 @@ namespace ptgn {
 
 class Scene;
 class DrawContext;
-class SceneContext;
 class RenderTarget;
 
 RenderTarget CreateRenderTarget(Scene&, V2_int, Color, TextureFormat);
@@ -78,12 +77,12 @@ private:
 	friend RenderTarget CreateRenderTarget(Scene&, ResizeType, Color, TextureFormat);
 
 	static void AddRenderTargetComponents(
-		RenderTarget render_target, SceneContext& ctx, V2_int size, Color clear_color,
+		RenderTarget render_target, Scene& scene, V2_int size, Color clear_color,
 		TextureFormat format
 	);
 
 	static void AddRenderTargetComponents(
-		RenderTarget render_target, SceneContext& ctx, ResizeType resize_to_resolution,
+		RenderTarget render_target, Scene& scene, ResizeType resize_to_resolution,
 		Color clear_color, TextureFormat texture_format
 	);
 };

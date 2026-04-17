@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <chrono>
 #include <functional>
-#include <ranges>
 #include <vector>
 
 #include "core/assert.h"
@@ -16,8 +15,8 @@
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/time.h"
 #include "core/util/span.h"
+#include "core/util/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/shape.h"
@@ -28,6 +27,8 @@
 #include "runtime/physics/collision_event.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
 #include "tools/debug/debug_system.h"
 

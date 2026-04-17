@@ -11,7 +11,7 @@
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/font.h"

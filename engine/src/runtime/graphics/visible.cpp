@@ -1,7 +1,7 @@
 #include "runtime/graphics/visible.h"
 
 #include "runtime/ecs/entity.h"
-#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_event.h"
 
 namespace ptgn {
 

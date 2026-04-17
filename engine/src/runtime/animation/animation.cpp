@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "core/assert.h"
-#include "core/event/event.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
@@ -21,7 +20,8 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scripting/script.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script_sequence.h"
 
 namespace ptgn {

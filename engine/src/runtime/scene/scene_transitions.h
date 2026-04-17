@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"

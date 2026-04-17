@@ -4,7 +4,7 @@
 #include <utility>
 
 #include "core/util/entity_handle.h"
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
 #include "runtime/ecs/component.h"
 #include "serialization/serialize.h"
 

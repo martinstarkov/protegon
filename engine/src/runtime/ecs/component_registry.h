@@ -4,33 +4,35 @@
 #include <string_view>
 #include <unordered_map>
 
-#include "runtime/ecs/manager.h"
-// #include "runtime/graphics/animation.h"
-// #include "runtime/graphics/draw.h"
-// #include "runtime/graphics/interactive.h"
-// #include "runtime/physics/lifetime.h"
-// #include "runtime/graphics/movement.h"
-// #include "runtime/graphics/offsets.h"
-// #include "runtime/ecs/relatives.h"
-// #include "runtime/graphics/sprite.h"
+#include "core/graphics/color.h"
+#include "core/graphics/flip.h"
 #include "core/log.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/line.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/geometry/polygon.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/triangle.h"
 #include "core/math/transform.h"
-#include "core/util/timer.h"
 #include "core/util/hash.h"
+#include "core/util/timer.h"
 #include "core/util/type_info.h"
-#include "runtime/ecs/entity.h"
-// #include "physics/collider.h"
-// #include "physics/rigid_body.h"
-#include "core/math/geometry/origin.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "core/graphics/color.h"
-#include "core/graphics/flip.h"
+#include "runtime/animation/animation.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/manager.h"
+#include "runtime/ecs/relatives.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/sprite.h"
+#include "runtime/graphics/tint.h"
+#include "runtime/graphics/visible.h"
+#include "runtime/interaction/draggable.h"
+#include "runtime/interaction/dropzone.h"
+#include "runtime/interaction/interactive.h"
+#include "runtime/physics/collider.h"
+#include "runtime/physics/lifetime.h"
+#include "runtime/physics/rigid_body.h"
 // #include "renderer/render_target.h"
 // #include "runtime/graphics/text/font.h"
 // #include "runtime/graphics/text/text.h"
@@ -42,6 +44,8 @@
 // #include "tween/tween_effect.h"
 // #include "ui/button.h"
 // #include "scene/camera.h"
+#include "runtime/ecs/tag.h"
+#include "runtime/ecs/uuid.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -88,30 +92,31 @@ public:
 	static TComponent##Registration global_##TComponent##Registration; \
 	}
 
-// PTGN_REGISTER_COMPONENT(Visible)
-// PTGN_REGISTER_COMPONENT(Tint)
-// PTGN_REGISTER_COMPONENT(Depth)
-//  PTGN_REGISTER_COMPONENT(LineWidth)
-//  PTGN_REGISTER_COMPONENT(TextureCrop)
-//  PTGN_REGISTER_COMPONENT(AnimationData)
+PTGN_REGISTER_COMPONENT(Visible)
+PTGN_REGISTER_COMPONENT(Tint)
+PTGN_REGISTER_COMPONENT(Depth)
+PTGN_REGISTER_COMPONENT(TextureCrop)
+PTGN_REGISTER_COMPONENT(AnimationData)
 // PTGN_REGISTER_COMPONENT(IDrawable)
 // PTGN_REGISTER_COMPONENT(IDrawFilter)
-// PTGN_REGISTER_COMPONENT(Draggable)
-// PTGN_REGISTER_COMPONENT(Lifetime)
-// PTGN_REGISTER_COMPONENT(Interactive)
-//  PTGN_REGISTER_COMPONENT(TopDownMovement)
-//  PTGN_REGISTER_COMPONENT(PlatformerMovement)
-//  PTGN_REGISTER_COMPONENT(PlatformerJump)
+PTGN_REGISTER_COMPONENT(Draggable)
+PTGN_REGISTER_COMPONENT(Dropzone)
+PTGN_REGISTER_COMPONENT(Lifetime)
+PTGN_REGISTER_COMPONENT(Interactive)
+// PTGN_REGISTER_COMPONENT(TopDownMovement)
+// PTGN_REGISTER_COMPONENT(PlatformerMovement)
+// PTGN_REGISTER_COMPONENT(PlatformerJump)
 // PTGN_REGISTER_COMPONENT(Offsets)
 PTGN_REGISTER_COMPONENT(Transform)
 PTGN_REGISTER_COMPONENT(UUID)
+PTGN_REGISTER_COMPONENT(Tag)
 // PTGN_REGISTER_COMPONENT(ChildKey)
 // PTGN_REGISTER_COMPONENT(SceneKey)
 // PTGN_REGISTER_COMPONENT(Parent)
 // PTGN_REGISTER_COMPONENT(Children)
 PTGN_REGISTER_COMPONENT(Timer)
-// PTGN_REGISTER_COMPONENT(Collider)
-// PTGN_REGISTER_COMPONENT(RigidBody)
+PTGN_REGISTER_COMPONENT(Collider)
+PTGN_REGISTER_COMPONENT(RigidBody)
 PTGN_REGISTER_COMPONENT(BlendMode)
 PTGN_REGISTER_COMPONENT(Color)
 PTGN_REGISTER_COMPONENT(Flip)

@@ -1,5 +1,7 @@
 #include "runtime/graphics/fx/particle.h"
 
+#include <ecs/ecs.h>
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -11,7 +13,6 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/angle.h"
@@ -24,7 +25,6 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
-#include "ecs/ecs.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/resources/texture.h"
@@ -35,7 +35,8 @@
 #include "runtime/graphics/fx/particle_event.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scripting/script.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
 
 namespace ptgn {
 

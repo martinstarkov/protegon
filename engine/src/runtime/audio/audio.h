@@ -2,7 +2,7 @@
 
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
 
 namespace ptgn {
 

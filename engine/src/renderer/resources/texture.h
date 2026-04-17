@@ -4,7 +4,7 @@
 
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 #include "renderer/resources/texture_format.h"
