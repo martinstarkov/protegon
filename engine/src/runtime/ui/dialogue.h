@@ -1,7 +1,9 @@
 #pragma once
 
+#include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -10,6 +12,7 @@
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/math/vector2.h"
+#include "core/util/string.h"
 #include "core/util/time.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
@@ -18,7 +21,7 @@
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -73,7 +76,7 @@ struct DialoguePageProperties {
 
 struct DialoguePage {
 	DialoguePage() = default;
-	DialoguePage(const std::string& text_content, const DialoguePageProperties& properties);
+	DialoguePage(std::string_view text_content, const DialoguePageProperties& properties);
 
 	std::string content;
 	DialoguePageProperties properties;
@@ -105,6 +108,8 @@ struct Dialogue {
 	std::vector<std::size_t> used_line_indices;
 };
 
+using DialogueMap = std::unordered_map<std::string, Dialogue, StringHash, std::equal_to<>>;
+
 class DialogueComponent {
 public:
 	DialogueComponent() = default;
@@ -119,13 +124,13 @@ public:
 
 	[[nodiscard]] bool IsOpen() const;
 
-	void Open(const std::string& dialogue_name = "");
+	void Open(std::string_view dialogue_name = "");
 	void Close();
 	void NextPage();
 	void SetNextDialogue();
-	void SetDialogue(const std::string& name = "");
+	void SetDialogue(std::string_view name = "");
 
-	const std::unordered_map<std::string, Dialogue>& GetDialogues() const;
+	const DialogueMap& GetDialogues() const;
 	Dialogue* GetCurrentDialogue();
 	DialogueLine* GetCurrentDialogueLine();
 	DialoguePage* GetCurrentDialoguePage();
@@ -142,8 +147,8 @@ private:
 	);
 
 	[[nodiscard]] std::vector<DialoguePage> SplitTextWithDuration(
-		const Scene& scene, const std::string& full_text, const DialoguePageProperties& properties,
-		const std::string& split_end, const std::string& split_begin
+		const Scene& scene, std::string_view full_text, const DialoguePageProperties& properties,
+		std::string_view split_end, std::string_view split_begin
 	);
 
 	[[nodiscard]] static std::string JoinLines(const std::vector<std::string>& lines);
@@ -158,7 +163,7 @@ private:
 	int current_page_{ 0 };
 	std::string current_dialogue_;
 
-	std::unordered_map<std::string, Dialogue> dialogues_;
+	DialogueMap dialogues_;
 };
 
 } // namespace ptgn

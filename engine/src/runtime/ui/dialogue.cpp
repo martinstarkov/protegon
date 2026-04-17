@@ -10,8 +10,8 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <type_traits>
-#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -26,6 +26,7 @@
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
+#include "core/util/string.h"
 #include "runtime/animation/tween.h"
 #include "runtime/animation/tween_event.h"
 #include "runtime/asset/asset_manager.h"
@@ -39,8 +40,8 @@
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
-#include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
 
@@ -163,7 +164,7 @@ void DialoguePageProperties::SetPadding(int top, int right, int bottom, int left
 }
 
 DialoguePage::DialoguePage(
-	const std::string& text_content, const DialoguePageProperties& properties
+	std::string_view text_content, const DialoguePageProperties& properties
 ) :
 	content(text_content), properties(properties) {}
 
@@ -279,7 +280,7 @@ bool DialogueComponent::IsOpen() const {
 	return IsVisible(text_);
 }
 
-void DialogueComponent::Open(const std::string& dialogue_name) {
+void DialogueComponent::Open(std::string_view dialogue_name) {
 	PTGN_ASSERT(!dialogues_.empty());
 	if (!dialogue_name.empty()) {
 		if (dialogue_name == current_dialogue_ && IsOpen()) {
@@ -351,14 +352,14 @@ void DialogueComponent::SetNextDialogue() {
 	current_dialogue_ = next_dialogue;
 }
 
-void DialogueComponent::SetDialogue(const std::string& name) {
+void DialogueComponent::SetDialogue(std::string_view name) {
 	PTGN_ASSERT(name.empty() || dialogues_.contains(name));
 	current_dialogue_ = name;
 	current_line_	  = 0;
 	current_page_	  = 0;
 }
 
-const std::unordered_map<std::string, Dialogue>& DialogueComponent::GetDialogues() const {
+const DialogueMap& DialogueComponent::GetDialogues() const {
 	return dialogues_;
 }
 
@@ -464,8 +465,8 @@ void DialogueComponent::LoadFromJson(
 	);
 
 	for (auto it = dialogues_json.begin(); it != dialogues_json.end(); ++it) {
-		const std::string& dialogue_name = it.key();
-		const auto& dialogue_json		 = it.value();
+		std::string_view dialogue_name = it.key();
+		const auto& dialogue_json	   = it.value();
 
 		Dialogue dialogue;
 
@@ -577,8 +578,8 @@ std::string DialogueComponent::JoinLines(const std::vector<std::string>& lines) 
 }
 
 std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
-	const Scene& scene, const std::string& full_text, const DialoguePageProperties& properties,
-	const std::string& split_end, const std::string& split_begin
+	const Scene& scene, std::string_view full_text, const DialoguePageProperties& properties,
+	std::string_view split_end, std::string_view split_begin
 ) {
 	const FontSystem& font{ scene.ctx().font };
 
@@ -604,9 +605,10 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 	const int line_height = font.GetHeight(properties.font_key, properties.font_size);
 	// const int line_height = font.GetSize(properties.font_key, "Ay", properties.font_size).y;
 
-	auto WrapTextToBox = [&](const std::string& text, int max_width, int max_lines,
+	auto WrapTextToBox = [&](std::string_view text_view, int max_width, int max_lines,
 							 int split_begin_width,
 							 int split_end_width) -> std::vector<std::string> {
+		std::string text{ text_view };
 		std::istringstream word_stream(text);
 		std::vector<std::string> lines;
 		std::string word, current_line;
@@ -693,10 +695,10 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 	std::size_t newline_pos{ 0 };
 
 	while ((newline_pos = full_text.find('\n', start)) != std::string::npos) {
-		newline_segments.push_back(full_text.substr(start, newline_pos - start));
+		newline_segments.emplace_back(full_text.substr(start, newline_pos - start));
 		start = newline_pos + 1;
 	}
-	newline_segments.push_back(full_text.substr(start));
+	newline_segments.emplace_back(full_text.substr(start));
 
 	for (const auto& segment : newline_segments) {
 		if (segment.empty()) {
@@ -720,7 +722,7 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 					page_text += split_end;
 				}
 				if (!is_first_page) {
-					page_text = split_begin + page_text;
+					page_text = std::string{ split_begin } + page_text;
 				}
 
 				auto page_properties{ properties };
@@ -736,7 +738,7 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 		if (!page_lines.empty()) {
 			std::string page_text = JoinLines(page_lines);
 			if (!is_first_page) {
-				page_text = split_begin + page_text;
+				page_text = std::string{ split_begin } + page_text;
 			}
 
 			auto page_properties{ properties };
