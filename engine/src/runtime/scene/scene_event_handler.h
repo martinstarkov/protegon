@@ -16,7 +16,7 @@ class SceneContext;
 namespace impl {
 
 struct EntityEvent {
-	std::optional<Entity> entity;
+	Entity entity;
 	impl::EventData event;
 };
 

@@ -397,7 +397,8 @@ public:
 
 	std::optional<float> GetBorderWidth(ButtonStyleState state = {}) const;
 
-	std::optional<Entity> GetSprite(ButtonStyleState state = {}) const;
+	/// @return Null entity if button has no sprite (or fallback option) for the given state.
+	Entity GetSprite(ButtonStyleState state = {}) const;
 
 	template <typename F>
 	Derived& OnPress(F&& callback) {

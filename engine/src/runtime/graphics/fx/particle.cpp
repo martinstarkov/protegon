@@ -109,7 +109,7 @@ void ParticleEmitterPlayback::Update(
 	spawn_accumulator = std::max(0.0f, spawn_accumulator);
 
 	for (std::size_t i{ 0 }; i < to_spawn; ++i) {
-		if (!emitter.TrySpawnParticle().has_value()) {
+		if (!emitter.TrySpawnParticle()) {
 			// Reached max particles, stop trying to spawn more this frame.
 			break;
 		}
@@ -130,7 +130,7 @@ void ParticleEmitterPlayback::Update(
 		burst_elapsed -= burst.interval;
 
 		for (std::size_t i{ 0 }; i < burst.particle_count; ++i) {
-			if (!emitter.TrySpawnParticle().has_value()) {
+			if (!emitter.TrySpawnParticle()) {
 				break;
 			}
 		}
@@ -146,9 +146,9 @@ void ParticleEmitterPlayback::Update(
 ParticleEmitterComponent::ParticleEmitterComponent(const ParticleConfig& config) :
 	config{ config } {}
 
-std::optional<Entity> ParticleEmitterComponent::TrySpawnParticle() {
+Entity ParticleEmitterComponent::TrySpawnParticle() {
 	if (live_particle_count >= config.max_particles) {
-		return std::nullopt;
+		return {};
 	}
 
 	auto particle_entity{ manager.CreateEntity() };
@@ -191,13 +191,13 @@ void ParticleEmitterComponent::Start() {
 	for (std::size_t i{ 0 }; i < prewarm_count; ++i) {
 		auto particle_entity{ TrySpawnParticle() };
 
-		if (!particle_entity.has_value()) {
+		if (!particle_entity) {
 			break;
 		}
 
-		PTGN_ASSERT(particle_entity->Has<Particle>());
+		PTGN_ASSERT(particle_entity.Has<Particle>());
 
-		auto& particle{ particle_entity->Get<Particle>() };
+		auto& particle{ particle_entity.Get<Particle>() };
 
 		particle.Prewarm(config.simulation_speed);
 	}

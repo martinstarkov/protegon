@@ -88,9 +88,9 @@ void Scene::InternalOnEvent() {
 	for (auto& entity_event : current) {
 		Event event{ entity_event.event };
 
-		if (entity_event.entity.has_value()) {
+		if (entity_event.entity) {
 			// Single entity event.
-			entity_event.entity->OnEvent(event);
+			entity_event.entity.OnEvent(event);
 			continue;
 		}
 
@@ -398,24 +398,24 @@ void Scene::InternalExit() {
 	Refresh();
 }
 
-std::optional<Entity> Scene::GetEntityByUUID(std::uint64_t uuid) const {
+Entity Scene::GetEntityByUUID(std::uint64_t uuid) const {
 	for (const Entity& e : Entities()) {
 		PTGN_ASSERT(e.Has<impl::UUID>(), "Entity does not have a valid UUID component");
 		if (e.Get<impl::UUID>() == uuid) {
 			return e;
 		}
 	}
-	return std::nullopt;
+	return {};
 }
 
-std::optional<Entity> Scene::GetEntityByTag(std::string_view tag) const {
+Entity Scene::GetEntityByTag(std::string_view tag) const {
 	for (const Entity& e : Entities()) {
 		PTGN_ASSERT(e.Has<impl::Tag>(), "Entity does not have a valid Tag component");
 		if (std::string_view{ e.Get<impl::Tag>() } == tag) {
 			return e;
 		}
 	}
-	return std::nullopt;
+	return {};
 }
 
 void Scene::AddMandatoryComponents(

@@ -309,8 +309,8 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 	// if (!button.Has<InteractionLock>() && sprite_state.state == ButtonState::Press) {
 	//	sprite_state.state = ButtonState::Hover;
 	//}
-	if (auto sprite{ button.GetSprite(sprite_state) }; sprite.has_value()) {
-		auto display_size{ GetDisplaySize(*sprite) };
+	if (auto sprite{ button.GetSprite(sprite_state) }; sprite) {
+		auto display_size{ GetDisplaySize(sprite) };
 		if (!button_size.has_value()) {
 			button_size = display_size;
 		}
@@ -320,7 +320,7 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 		if (texture_tint.has_value()) {
 			sprite_tint = Tint{ tint.Normalized() * texture_tint->Normalized() };
 		}
-		Sprite::Draw(renderer, *sprite, button_origin, *button_size, camera, sprite_tint);
+		Sprite::Draw(renderer, sprite, button_origin, *button_size, camera, sprite_tint);
 	}
 
 	auto background_shape{ button.GetBackgroundShape(style_state) };
@@ -753,25 +753,25 @@ Derived& ButtonBase<Derived>::SetFontSize(FontSize font_size, ButtonStyleState s
 }
 
 template <typename Derived>
-std::optional<Entity> ButtonBase<Derived>::GetSprite(ButtonStyleState state) const {
+Entity ButtonBase<Derived>::GetSprite(ButtonStyleState state) const {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
 	if (desired.sprite.has_value()) {
-		return desired.sprite;
+		return *desired.sprite;
 	} else if (idle.sprite.has_value()) {
-		return idle.sprite;
+		return *idle.sprite;
 	} else if (enabled_idle.sprite.has_value()) {
-		return enabled_idle.sprite;
+		return *enabled_idle.sprite;
 	} else {
-		return std::nullopt;
+		return Entity{};
 	}
 }
 
 template <typename Derived>
 std::optional<Texture> ButtonBase<Derived>::GetTexture(ButtonStyleState state) const {
 	auto sprite{ GetSprite(state) };
-	if (sprite.has_value()) {
-		PTGN_ASSERT(sprite->template Has<Texture>(), "Button sprite must have a texture");
-		return sprite->template Get<Texture>();
+	if (sprite) {
+		PTGN_ASSERT(sprite.template Has<Texture>(), "Button sprite must have a texture");
+		return sprite.template Get<Texture>();
 	} else {
 		return std::nullopt;
 	}
