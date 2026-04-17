@@ -1,9 +1,15 @@
 #include "runtime/scene/scene.h"
 
+#include <ecs/ecs.h>
+
 #include <algorithm>
+#include <cstdint>
 #include <list>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -16,10 +22,9 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
-#include "core/util/time.h"
 #include "core/util/concepts.h"
+#include "core/util/hash.h"
 #include "core/util/span.h"
-#include "ecs/ecs.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/render_state.h"
@@ -33,6 +38,8 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/manager.h"
+#include "runtime/ecs/tag.h"
+#include "runtime/ecs/uuid.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
@@ -46,72 +53,14 @@
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/physics.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event_handler.h"
-#include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
-
-LocalSceneManager::LocalSceneManager(impl::SceneManager& scene_manager, Scene& scene) :
-	scene_manager_{ scene_manager }, scene_{ scene } {}
-
-bool LocalSceneManager::CanIssueCommands(std::size_t target_key) const {
-	if (scene_.IsTransitioning()) {
-		return false;
-	}
-
-	if (!scene_manager_.HasScene(target_key)) {
-		return true;
-	}
-
-	if (const auto& target_scene{ scene_manager_.GetScene(target_key) };
-		target_scene.IsTransitioning()) {
-		return false;
-	}
-
-	return true;
-}
-
-SceneContext::SceneContext(Application& app, Scene& parent_scene) :
-	window{ app.window_ },
-	asset{ app.assets_ },
-	font{ app.font_ },
-	audio{ app.audio_ },
-	scene{ app.scene_manager_, parent_scene },
-	renderer{ parent_scene, app.renderer_ },
-	debug{ renderer },
-	event{ app.event_handler_ },
-	input{ parent_scene, app.window_ },
-	physics{ parent_scene },
-	global_renderer_{ app.renderer_ },
-	app_{ app } {}
-
-SceneContext::~SceneContext() noexcept {
-	// Needs access to destructors.
-}
-
-void SceneContext::Stop() {
-	app_.Stop();
-}
-
-secondsf SceneContext::dt() const {
-	return app_.dt();
-}
-
-milliseconds SceneContext::TimeSinceStart() const {
-	return app_.TimeSinceStart();
-}
-
-bool SceneContext::IsRunning() const {
-	return app_.IsRunning();
-}
-
-std::size_t SceneContext::GetFrameCount() const {
-	return app_.GetFrameCount();
-}
 
 void Scene::InternalOnEvent(Event event) {
 	// Global event, dispatched to all entities in the scene.
@@ -449,24 +398,36 @@ void Scene::InternalExit() {
 	Refresh();
 }
 
-Entity Scene::GetEntityByUUID(UUID uuid) const {
-	auto entities{ Entities() };
-	for (Entity e : entities) {
-		PTGN_ASSERT(e.Has<UUID>(), "Entity does not have a valid UUID component");
-		if (e.Get<UUID>() == uuid) {
+std::optional<Entity> Scene::GetEntityByUUID(std::uint64_t uuid) const {
+	for (const Entity& e : Entities()) {
+		PTGN_ASSERT(e.Has<impl::UUID>(), "Entity does not have a valid UUID component");
+		if (e.Get<impl::UUID>() == uuid) {
 			return e;
 		}
 	}
-	return {};
+	return std::nullopt;
 }
 
-Entity Scene::CreateEntity() {
-	return CreateEntity(UUID{});
+std::optional<Entity> Scene::GetEntityByTag(std::string_view tag) const {
+	for (const Entity& e : Entities()) {
+		PTGN_ASSERT(e.Has<impl::Tag>(), "Entity does not have a valid Tag component");
+		if (std::string_view{ e.Get<impl::Tag>() } == tag) {
+			return e;
+		}
+	}
+	return std::nullopt;
 }
 
-Entity Scene::CreateEntity(UUID uuid) {
+void Scene::AddMandatoryComponents(
+	Entity entity, std::optional<std::string_view> tag, std::optional<std::uint64_t> uuid
+) {
+	entity.Add<impl::Tag>(tag.value_or(impl::kDefaultTag));
+	entity.Add<impl::UUID>(uuid.value_or(impl::UUID{}));
+}
+
+Entity Scene::CreateEntity(std::optional<std::string_view> tag, std::optional<std::uint64_t> uuid) {
 	auto entity{ manager_.CreateEntity() };
-	entity.Add<UUID>(uuid);
+	AddMandatoryComponents(entity, tag, uuid);
 	return Entity{ entity, this };
 }
 
@@ -474,10 +435,14 @@ Entity Scene::CreateEntity(const json& j) {
 	auto entity{ manager_.CreateEntity() };
 	PTGN_ASSERT(entity, "Failed to create entity");
 	Entity e{ entity, this };
+	j.get_to(e);
 	e.Deserialize(j);
-	PTGN_ASSERT(e.Has<UUID>(), "Entity created from json must have a UUID");
+	PTGN_ASSERT(e.Has<impl::UUID>(), "Entity created from json must have a UUID component");
+	PTGN_ASSERT(e.Has<impl::Tag>(), "Entity created from json must have a Tag component");
 	return e;
 }
+
+Scene::~Scene() = default;
 
 void Scene::SetBackgroundColor(Color background_color) {
 	render_target_.SetClearColor(background_color);
@@ -485,6 +450,14 @@ void Scene::SetBackgroundColor(Color background_color) {
 
 Color Scene::GetBackgroundColor() const {
 	return render_target_.GetClearColor();
+}
+
+std::size_t Scene::GetTagHash() const {
+	return tag_hash_;
+}
+
+std::string Scene::GetTag() const {
+	return tag_;
 }
 
 RenderTarget Scene::GetRenderTarget() const {
@@ -501,13 +474,7 @@ std::size_t Scene::GetEntityCount() const {
 
 void to_json(json& j, const Scene& scene) {
 	to_json(j["manager"], scene.manager_);
-	/*
-	j["key"]				 = scene.key_;
-	j["physics"]			 = scene.physics;
-	j["input"]				 = scene.input;
-	j["collider_visibility"] = scene.collider_visibility_;
-	j["collider_color"]		 = scene.collider_color_;
-	*/
+	j["tag"] = scene.tag_;
 }
 
 void from_json(const json& j, Scene& scene) {
@@ -517,8 +484,8 @@ void from_json(const json& j, Scene& scene) {
 	// manager entities (such as the CameraManager).
 	from_json(j.at("manager"), scene.manager_);
 
-	// j.at("physics").get_to(scene.physics);
-	// j.at("input").get_to(scene.input);
+	j.at("tag").get_to(scene.tag_);
+	scene.tag_hash_ = Hash(scene.tag_);
 }
 
 SceneContext& Scene::ctx() {
