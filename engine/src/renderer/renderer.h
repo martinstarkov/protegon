@@ -222,8 +222,17 @@ public:
 private:
 	friend class ptgn::Application;
 
+	struct DisplayResizeInfo {
+		bool moved{ false };
+		bool resized{ false };
+		Viewport viewport;
+	};
+
+	using EventSink =
+		std::function<void(V2_int, std::variant<ResizeType, impl::PresentationResizeType>)>;
+
 	Renderer() = delete;
-	explicit Renderer(Window& window);
+	explicit Renderer(Window& window, EventSink&& event_sink);
 	~Renderer() noexcept;
 	Renderer(const Renderer&)				 = delete;
 	Renderer(Renderer&&) noexcept			 = delete;
@@ -264,13 +273,15 @@ private:
 
 	Window& window_;
 
-	std::function<void(V2_int, std::variant<ResizeType, impl::PresentationResizeType>)> event_sink_;
+	EventSink event_sink_;
 
 	std::unique_ptr<gl::GLContext> gl_;
 
 	// emit_events = false is used to prevent emitting events when initializing the window and
 	// scene.
 	void UpdateDisplayViewport(bool emit_events = true);
+
+	[[nodiscard]] DisplayResizeInfo RecalculateDisplayViewport() const;
 
 	VertexBufferObject vbo_;
 	ElementBufferObject ebo_;

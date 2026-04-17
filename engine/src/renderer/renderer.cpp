@@ -46,11 +46,12 @@
 #include "renderer/resources/vertex_array.h"
 #include "renderer/vertex/vertex.h"
 
-namespace ptgn {
+namespace ptgn::impl {
 
-namespace impl {
-
-Renderer::Renderer(Window& window) : window_{ window }, gl_{ std::make_unique<gl::GLContext>() } {
+Renderer::Renderer(Window& window, EventSink&& event_sink) :
+	window_{ window },
+	event_sink_{ std::move(event_sink) },
+	gl_{ std::make_unique<gl::GLContext>() } {
 	ebo_ = ElementBufferObject{ this, gl_->buffers.CreateElementBuffer(
 										  nullptr, kIndexCapacity, sizeof(Index),
 										  gl::BufferUsage::DynamicDraw
@@ -75,13 +76,20 @@ Renderer::Renderer(Window& window) : window_{ window }, gl_{ std::make_unique<gl
 								 pixel_type, V2_int{ 1, 1 }, TextureFormat::RGBA8
 							 ) };
 
-	auto viewport{ GetFullViewportSize() };
+	game_size_ = GetFullViewportSize();
 
-	PTGN_ASSERT(viewport.BothAboveZero(), "Viewport cannot be zero");
+	auto display{ RecalculateDisplayViewport() };
 
-	screen_target_ = CreateRenderTarget(viewport, TextureFormat::RGBA8);
+	display_viewport_		= display.viewport;
+	display_viewport_dirty_ = false;
+
+	auto display_size{ GetDisplaySize() };
+
+	PTGN_ASSERT(display_size.BothAboveZero(), "Display size cannot be zero");
+
+	screen_target_ = CreateRenderTarget(display_size, TextureFormat::RGBA8);
 	BindScreenTarget();
-	V2_float half_viewport{ viewport / 2.0f };
+	V2_float half_viewport{ display_size / 2.0f };
 	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
 	SetViewProjection(view_projection);
 
@@ -110,9 +118,7 @@ Renderer::Renderer(Window& window) : window_{ window }, gl_{ std::make_unique<gl
 	batch_textures_.push_back(white_texture_);
 }
 
-Renderer::~Renderer() noexcept {
-	// Destructor access to gl::GLContext is needed.
-}
+Renderer::~Renderer() noexcept = default;
 
 RenderTargetObject Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
 	auto color = gl_->textures.CreateTexture(size, format);
@@ -123,9 +129,10 @@ RenderTargetObject Renderer::CreateRenderTarget(V2_int size, TextureFormat forma
 		depth = gl_->renderbuffers.CreateRenderbuffer(size, format);
 	}
 
+	using enum gl::Attachment;
+
 	auto framebuffer = gl_->framebuffers.CreateFramebuffer(
-		color, gl::Attachment::Color0, depth,
-		IsDepthOnlyFormat(format) ? gl::Attachment::Depth : gl::Attachment::DepthStencil
+		color, Color0, depth, IsDepthOnlyFormat(format) ? Depth : DepthStencil
 	);
 
 	return RenderTargetObject{ this, RenderTargetId{ framebuffer } };
@@ -813,8 +820,26 @@ void Renderer::UpdateDisplayViewport(bool emit_events) {
 		return;
 	}
 
+	auto resize_info = RecalculateDisplayViewport();
+
 	display_viewport_dirty_ = false;
 
+	if (!resize_info.moved && !resize_info.resized) {
+		return;
+	}
+
+	display_viewport_ = resize_info.viewport;
+
+	if (resize_info.resized) {
+		ResizeScreenTarget(display_viewport_.size);
+
+		if (emit_events) {
+			event_sink_(display_viewport_.size, ResizeType::Display);
+		}
+	}
+}
+
+Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 	const auto presentation{ GetPresentationViewport() };
 
 	PTGN_ASSERT(presentation.size.BothAboveZero());
@@ -881,19 +906,9 @@ void Renderer::UpdateDisplayViewport(bool emit_events) {
 	bool resized{ viewport.size != display_viewport_.size };
 	bool moved{ viewport.position != display_viewport_.position };
 
-	if (resized || moved) {
-		PTGN_ASSERT(viewport.size.BothAboveZero());
+	PTGN_ASSERT(viewport.size.BothAboveZero());
 
-		display_viewport_ = viewport;
-
-		if (resized) {
-			ResizeScreenTarget(display_viewport_.size);
-
-			if (emit_events) {
-				event_sink_(display_viewport_.size, ResizeType::Display);
-			}
-		}
-	}
+	return { .moved{ moved }, .resized{ resized }, .viewport{ viewport } };
 }
 
 void Renderer::ResizeScreenTarget(V2_int size) {
@@ -1035,5 +1050,4 @@ void Renderer::SetUniform(ShaderId shader, const char* uniform_name, bool v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-} // namespace impl
-} // namespace ptgn
+} // namespace ptgn::impl
