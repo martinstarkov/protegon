@@ -2,6 +2,7 @@
 
 #include <concepts>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <vector>
@@ -9,14 +10,15 @@
 #include "app/layer.h"
 #include "core/event/event_handler.h"
 #include "core/math/vector2.h"
-#include "core/util/time.h"
 #include "core/util/hash.h"
+#include "core/util/time.h"
 #include "platform/window.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/asset/font_system.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_common.h"
 #include "runtime/scene/scene_manager.h"
 #include "serialization/serialize.h"
 #include "tools/debug/debug_system.h"
@@ -25,7 +27,6 @@ namespace ptgn {
 
 class Application;
 class SceneContext;
-class SceneManager;
 
 namespace editor {
 
@@ -77,17 +78,18 @@ public:
 	/// @brief Starts the application with the specified initial scene.
 	///
 	/// @tparam TScene Scene type to instantiate.
-	/// @param scene_key Unique identifier for the scene instance.
+	/// @param scene_tag Unique name for the scene instance.
 	/// @param args Arguments forwarded to the scene constructor.
 	template <SceneType TScene, typename... TArgs>
 		requires std::constructible_from<TScene, TArgs...>
-	void StartWith(std::string_view scene_key, TArgs&&... args) {
+	void StartWith(std::string_view scene_tag, TArgs&&... args) {
 		auto first_scene = std::make_unique<TScene>(std::forward<TArgs>(args)...);
 
 		auto& scene = scene_manager_.scenes_.emplace_back(std::move(first_scene));
 
-		scene->state_ = impl::SceneState::Active;
-		scene->key_	  = Hash(scene_key);
+		scene->state_	 = impl::SceneState::Active;
+		scene->tag_		 = std::string{ scene_tag };
+		scene->tag_hash_ = Hash(scene_tag);
 		scene->Init(*this);
 		scene->InternalEnter();
 
@@ -108,7 +110,6 @@ public:
 
 private:
 	friend class SceneContext;
-	friend class SceneManager;
 	// TODO: Remove eventually.
 	friend class editor::Editor;
 

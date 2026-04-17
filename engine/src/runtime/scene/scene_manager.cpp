@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -21,13 +22,14 @@ std::unordered_map<std::size_t, SceneManager::Command> SceneManager::GetTopPrior
 	std::unordered_map<std::size_t, std::vector<Command>> grouped;
 
 	for (auto& c : commands_) {
-		grouped[c.to_scene_key].emplace_back(std::move(c));
+		grouped[c.to_scene_tag_hash].emplace_back(std::move(c));
 	}
 	commands_.clear();
 
+	// Key: target scene tag hash, Value: top priority command for the scene.
 	std::unordered_map<std::size_t, Command> top_priority_commands;
 
-	for (auto& [target_key, cmds] : grouped) {
+	for (auto& [target_scene_tag_hash, cmds] : grouped) {
 		PTGN_ASSERT(!cmds.empty(), "Grouped scene commands cannot be empty");
 
 		std::ranges::stable_sort(cmds, [](const Command& a, const Command& b) {
@@ -58,18 +60,21 @@ std::unordered_map<std::size_t, SceneManager::Command> SceneManager::GetTopPrior
 			return a.priority.value > b.priority.value;
 		});
 
-		top_priority_commands[target_key] = std::move(cmds.front());
+		top_priority_commands[target_scene_tag_hash] = std::move(cmds.front());
 	}
 
 	return top_priority_commands;
 }
 
-void SceneManager::ApplyCommands(std::unordered_map<std::size_t, Command>& top_priority_commands) {
-	const auto enter = [this](auto target_key, auto& cmd) {
-		auto new_scene = cmd.scene_factory();
+void SceneManager::ApplyCommands(
+	Application& app, std::unordered_map<std::size_t, Command>& top_priority_commands
+) {
+	const auto enter = [this, &app](auto target_scene_tag_hash, auto& cmd) {
+		auto new_scene = cmd.scene_factory(app);
 
 		new_scene->state_	   = SceneState::TransitionIn;
-		new_scene->key_		   = target_key;
+		new_scene->tag_hash_   = target_scene_tag_hash;
+		new_scene->tag_		   = cmd.to_scene_tag;
 		new_scene->transition_ = std::move(cmd.transition_in);
 		if (!new_scene->transition_) {
 			new_scene->InternalEnter();
@@ -85,8 +90,8 @@ void SceneManager::ApplyCommands(std::unordered_map<std::size_t, Command>& top_p
 		scenes_.emplace_back(std::move(new_scene));
 	};
 
-	const auto exit = [this](auto target_key, auto& cmd) {
-		auto& target_scene{ GetScene(target_key) };
+	const auto exit = [this](auto target_scene_tag_hash, auto& cmd) {
+		auto& target_scene{ GetScene(target_scene_tag_hash) };
 		target_scene.state_		 = SceneState::TransitionOut;
 		target_scene.transition_ = std::move(cmd.transition_out);
 		if (target_scene.transition_) {
@@ -98,39 +103,40 @@ void SceneManager::ApplyCommands(std::unordered_map<std::size_t, Command>& top_p
 		}
 	};
 
-	for (auto& [target_key, cmd] : top_priority_commands) {
+	for (auto& [taget_scene_tag_hash, cmd] : top_priority_commands) {
 		switch (cmd.type) {
 			case CommandType::Enter: {
 				PTGN_ASSERT(
-					!HasScene(target_key),
+					!HasScene(taget_scene_tag_hash),
 					"Cannot enter a scene which is already in the scene manager"
 				);
 
-				enter(target_key, cmd);
+				enter(taget_scene_tag_hash, cmd);
 				break;
 			}
 
 			case CommandType::Exit: {
 				PTGN_ASSERT(
-					HasScene(target_key), "Cannot exit a scene which is not in the scene manager"
+					HasScene(taget_scene_tag_hash),
+					"Cannot exit a scene which is not in the scene manager"
 				);
 
-				exit(target_key, cmd);
+				exit(taget_scene_tag_hash, cmd);
 				break;
 			}
 
 			case CommandType::ReEnter: {
 				PTGN_ASSERT(
-					HasScene(target_key),
+					HasScene(taget_scene_tag_hash),
 					"Cannot re-enter a scene which is not in the scene manager"
 				);
 
-				std::size_t temporary_key{ GenerateTempKey() };
+				std::size_t temporary_tag_hash{ GenerateTempTagHash() };
 
-				exit(target_key, cmd);
-				enter(temporary_key, cmd);
+				exit(taget_scene_tag_hash, cmd);
+				enter(temporary_tag_hash, cmd);
 
-				reentering_scenes_.emplace_back(target_key, temporary_key);
+				reentering_scenes_.emplace_back(taget_scene_tag_hash, temporary_tag_hash);
 				break;
 			}
 		}
@@ -155,7 +161,7 @@ void SceneManager::OnEvent() {
 	}
 }
 
-void SceneManager::Update(secondsf dt) {
+void SceneManager::Update(Application& app, secondsf dt) {
 	for (const auto& scene : scenes_) {
 		if (scene->IsAwaitingTransitionDelay()) {
 			continue;
@@ -163,9 +169,9 @@ void SceneManager::Update(secondsf dt) {
 		scene->InternalUpdate();
 	}
 	auto top_priority_commands{ GetTopPriorityCommands() };
-	ApplyCommands(top_priority_commands);
+	ApplyCommands(app, top_priority_commands);
 	UpdateTransitions(dt);
-	UpdateReEnteredSceneKeys();
+	UpdateReEnteredSceneTagHashes();
 }
 
 void SceneManager::UpdateTransitions(secondsf dt) {
@@ -215,18 +221,18 @@ void SceneManager::UpdateTransitions(secondsf dt) {
 	}
 }
 
-void SceneManager::UpdateReEnteredSceneKeys() {
+void SceneManager::UpdateReEnteredSceneTagHashes() {
 	for (auto it = reentering_scenes_.begin(); it != reentering_scenes_.end();) {
-		if (!HasScene(it->temporary_scene_key)) {
+		if (!HasScene(it->temporary_scene_tag_hash)) {
 			it = reentering_scenes_.erase(it);
 			continue;
 		}
 
-		auto& scene{ GetScene(it->temporary_scene_key) };
+		auto& scene{ GetScene(it->temporary_scene_tag_hash) };
 
 		if (scene.state_ == SceneState::Active) {
-			scene.key_ = it->scene_key;
-			it		   = reentering_scenes_.erase(it);
+			scene.tag_hash_ = it->scene_tag_hash;
+			it				= reentering_scenes_.erase(it);
 		} else {
 			++it;
 		}
@@ -242,30 +248,30 @@ void SceneManager::Draw() const {
 	}
 }
 
-std::size_t SceneManager::GenerateTempKey() const {
-	static std::size_t next_temp_key{ 1 };
-	while (HasScene(next_temp_key)) {
-		++next_temp_key;
+std::size_t SceneManager::GenerateTempTagHash() const {
+	static std::size_t next_temp_tag_hash{ 1 };
+	while (HasScene(next_temp_tag_hash)) {
+		++next_temp_tag_hash;
 	}
-	return next_temp_key;
+	return next_temp_tag_hash;
 }
 
-bool SceneManager::HasScene(std::size_t scene_key) const {
-	return std::ranges::any_of(scenes_, [scene_key](const auto& scene) {
-		return scene->key_ == scene_key;
+bool SceneManager::HasScene(std::size_t scene_tag_hash) const {
+	return std::ranges::any_of(scenes_, [scene_tag_hash](const auto& scene) {
+		return scene->tag_hash_ == scene_tag_hash;
 	});
 }
 
-const Scene& SceneManager::GetScene(std::size_t scene_key) const {
-	auto it = std::ranges::find_if(scenes_, [scene_key](const auto& scene) {
-		return scene->key_ == scene_key;
+const Scene& SceneManager::GetScene(std::size_t scene_tag_hash) const {
+	auto it = std::ranges::find_if(scenes_, [scene_tag_hash](const auto& scene) {
+		return scene->tag_hash_ == scene_tag_hash;
 	});
-	PTGN_ASSERT(it != scenes_.end(), "Failed to retrieve scene with key: ", scene_key);
+	PTGN_ASSERT(it != scenes_.end(), "Failed to retrieve scene with tag hash: ", scene_tag_hash);
 	return *it->get();
 }
 
-Scene& SceneManager::GetScene(std::size_t scene_key) {
-	return const_cast<Scene&>(std::as_const(*this).GetScene(scene_key)); // NOSONAR
+Scene& SceneManager::GetScene(std::size_t scene_tag_hash) {
+	return const_cast<Scene&>(std::as_const(*this).GetScene(scene_tag_hash)); // NOSONAR
 }
 
 const std::vector<std::unique_ptr<Scene>>& SceneManager::GetScenes() const {
@@ -273,5 +279,25 @@ const std::vector<std::unique_ptr<Scene>>& SceneManager::GetScenes() const {
 }
 
 } // namespace impl
+
+LocalSceneManager::LocalSceneManager(impl::SceneManager& scene_manager, Scene& scene) :
+	scene_manager_{ scene_manager }, scene_{ scene } {}
+
+bool LocalSceneManager::CanIssueCommands(std::size_t target_scene_tag_hash) const {
+	if (scene_.IsTransitioning()) {
+		return false;
+	}
+
+	if (!scene_manager_.HasScene(target_scene_tag_hash)) {
+		return true;
+	}
+
+	if (const auto& target_scene{ scene_manager_.GetScene(target_scene_tag_hash) };
+		target_scene.IsTransitioning()) {
+		return false;
+	}
+
+	return true;
+}
 
 } // namespace ptgn

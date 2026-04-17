@@ -7,8 +7,6 @@
 #include <chrono>
 #include <functional>
 #include <memory>
-#include <optional>
-#include <string>
 #include <string_view>
 #include <utility>
 #include <variant>
@@ -25,12 +23,12 @@
 #include "platform/glfw.h"
 #include "platform/window.h"
 #include "renderer/pipeline/scaling_mode.h"
-#include "renderer/pipeline/viewport.h"
 #include "renderer/pipeline/viewport_event.h"
 #include "renderer/renderer.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
+#include "serialization/json/fwd.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -85,9 +83,7 @@ Application::Application(std::string_view title) :
 Application::Application(std::string_view title, V2_int window_size) :
 	Application{ ApplicationConfig{ .window{ .title{ title }, .size{ window_size } } } } {}
 
-Application::~Application() noexcept {
-	// Requires access to destructors.
-}
+Application::~Application() noexcept = default;
 
 void Application::EnterMainLoop() {
 	// Design decision: Latest possible point to show window is right before
@@ -177,7 +173,7 @@ void Application::Update() {
 
 	scene_manager_.OnEvent();
 
-	scene_manager_.Update(dt());
+	scene_manager_.Update(*this, dt());
 
 	for (const auto& layer : layers_) {
 		layer->OnUpdate();
