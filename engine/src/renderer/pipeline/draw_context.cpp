@@ -443,6 +443,10 @@ void DrawContext::DrawTexture(
 	Texture texture, Transform transform, V2_float size, Origin draw_origin, Color tint,
 	float depth, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode> blend_mode
 ) {
+	// TODO: Make this an assert once text is fixed.
+	if (!size.BothAboveZero()) {
+		return;
+	}
 	if (blend_mode.has_value()) {
 		SetBlendMode(*blend_mode);
 	}

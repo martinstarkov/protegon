@@ -21,6 +21,7 @@
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -100,7 +101,11 @@ Sprite CreateSprite(Scene& scene, TextureOrKey texture, V2_float position, Origi
 std::optional<V2_int> GetTextureSize(Entity entity) {
 	if (auto texture{ entity.TryGet<Texture>() }) {
 		auto size{ texture->GetSize() };
-		PTGN_ASSERT(!size.IsZero(), "Texture does not have a valid size");
+		// TODO: Re-enable when text is fixed.
+		// PTGN_ASSERT(!size.IsZero(), "Texture does not have a valid size");
+		if (size.IsZero()) {
+			return std::nullopt;
+		}
 		return size;
 	}
 	return std::nullopt;

@@ -1,12 +1,13 @@
 #include "renderer/resources/texture.h"
 
+#include <ecs/ecs.h>
+
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
-#include "ecs/ecs.h"
+#include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 #include "renderer/resources/texture_format.h"
-#include "renderer/renderer.h"
 
 namespace ptgn {
 
@@ -23,6 +24,10 @@ TextureFormat TextureObject::GetFormat() const {
 } // namespace impl
 
 V2_int Texture::GetSize() const {
+	auto entity{ GetEntity() };
+	if (!entity.Has<impl::TextureObject>()) {
+		return {};
+	}
 	return GetEntity().Get<impl::TextureObject>().GetSize();
 }
 
