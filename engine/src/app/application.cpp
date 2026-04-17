@@ -49,31 +49,30 @@ ApplicationLibrary::~ApplicationLibrary() noexcept {
 } // namespace impl
 
 Application::Application(const ApplicationConfig& config) :
-	window_{ config.window },
-	renderer_{ window_ },
+	event_handler_{},
+	window_{ config.window,
+			 [this](impl::EventData&& event) {
+				 event_handler_.global_event_queue_.emplace_back(std::move(event));
+			 } },
+	renderer_{ window_,
+			   [this](V2_int size, std::variant<ResizeType, impl::PresentationResizeType> type) {
+				   if (std::holds_alternative<impl::PresentationResizeType>(type)) {
+					   event_handler_.Push<event::PresentationResized>(size);
+					   return;
+				   }
+				   auto resize_type{ std::get<ResizeType>(type) };
+				   switch (resize_type) {
+					   case ResizeType::Display:
+						   event_handler_.Push<event::DisplayResized>(size);
+						   break;
+					   case ResizeType::Game: event_handler_.Push<event::GameResized>(size); break;
+					   default:				  PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(resize_type));
+				   }
+			   } },
 	assets_{ renderer_, audio_, font_ },
 	font_{ assets_ },
 	audio_{ assets_ },
 	debug_{} {
-	window_.event_sink_ = [this](impl::EventData&& event) {
-		event_handler_.global_event_queue_.emplace_back(std::move(event));
-	};
-	renderer_.event_sink_ =
-		[this](V2_int size, std::variant<ResizeType, impl::PresentationResizeType> type) {
-			if (std::holds_alternative<impl::PresentationResizeType>(type)) {
-				event_handler_.Push<event::PresentationResized>(size);
-				return;
-			}
-			auto resize_type{ std::get<ResizeType>(type) };
-			switch (resize_type) {
-				case ResizeType::Display: event_handler_.Push<event::DisplayResized>(size); break;
-				case ResizeType::Game:	  event_handler_.Push<event::GameResized>(size); break;
-				default:				  PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(resize_type));
-			}
-		};
-
-	renderer_.UpdateDisplayViewport(false);
-
 	PTGN_INFO("Application Config: ", json(config));
 }
 

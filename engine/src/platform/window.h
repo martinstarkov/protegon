@@ -7,7 +7,6 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 
 #include "core/assert.h"
 #include "core/event/event.h"
@@ -15,9 +14,9 @@
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/math/vector2.h"
-#include "core/util/time.h"
 #include "core/util/concepts.h"
 #include "core/util/file.h"
+#include "core/util/time.h"
 #include "platform/file_dialog.h"
 #include "serialization/serialize.h"
 
@@ -191,7 +190,9 @@ private:
 	friend class FileDialog;
 
 	Window() = delete;
-	explicit Window(const WindowConfig& config);
+	explicit Window(
+		const WindowConfig& config, std::function<void(impl::EventData&&)>&& event_sink
+	);
 	~Window();
 	Window(Window&&) noexcept			 = delete;
 	Window& operator=(Window&&) noexcept = delete;

@@ -115,13 +115,15 @@ private:
 
 	impl::ApplicationLibrary app_library_;
 
+	EventHandler event_handler_;
+
 	// Must be created before every other system and hence destroyed after every other system.
 	Window window_;
+
 	// Must be created after Window but before other systems that rely on it.
 	impl::Renderer renderer_;
 
 	impl::SceneManager scene_manager_;
-	EventHandler event_handler_;
 	AssetManager assets_;
 	FontSystem font_;
 	AudioSystem audio_;

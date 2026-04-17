@@ -20,6 +20,7 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -27,6 +28,7 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include <utility>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/event/key_event.h"
 #include "core/event/mouse_event.h"
 #include "core/event/window_event.h"
@@ -36,8 +38,8 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "core/input/mouse.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "core/util/time.h"
 #include "core/util/file.h"
+#include "core/util/time.h"
 #include "platform/glfw.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/renderer.h"
@@ -259,7 +261,10 @@ void Window::SetCallbacks() {
 	});
 }
 
-Window::Window(const WindowConfig& config) : file{ *this }, title_{ config.title } {
+Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)>&& event_sink) :
+	event_sink_{ std::move(event_sink) }, file{ *this }, title_{ config.title } {
+	PTGN_ASSERT(event_sink_, "Window event sink must be set to a function");
+
 	int exclusive_states = static_cast<int>(config.minimized) + static_cast<int>(config.maximized) +
 						   static_cast<int>(config.fullscreen);
 
