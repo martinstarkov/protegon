@@ -14,9 +14,9 @@ namespace impl {
 template <std::copy_constructible TPayload>
 struct StateMachine {
 	struct Transition {
-		std::size_t from_state;
-		std::size_t event_id;
-		std::size_t to_state;
+		std::size_t from_state{ 0 };
+		std::size_t event_id{ 0 };
+		std::size_t to_state{ 0 };
 		std::function<void(TPayload)> callback;
 	};
 
@@ -64,7 +64,7 @@ public:
 
 	template <typename FromState, typename TEvent, typename ToState>
 	auto Transition() {
-		impl::StateMachine<TPayload>::Transition transition;
+		typename impl::StateMachine<TPayload>::Transition transition{};
 
 		transition.from_state = Hash<FromState>();
 		transition.event_id	  = Hash<TEvent>();
