@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ecs/ecs.h>
+
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -13,10 +15,15 @@
 #include <istream>
 #include <iterator>
 #include <limits>
+#include <magic_enum/magic_enum.hpp>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <numbers>
 #include <optional>
 #include <ostream>
+#include <random>
+#include <ranges>
+#include <regex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -27,3 +34,8 @@
 #include <utility>
 #include <variant>
 #include <vector>
+
+#include "core/assert.h"
+#include "core/config.h"
+#include "core/log.h"
+#include "core/util/string.h"

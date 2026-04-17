@@ -1,7 +1,5 @@
 #pragma once
 
-#include "serialization/serialize.h"
-
 namespace ptgn {
 
 /// @brief Defines how a source pixel (src) is composited onto a destination pixel (dst).
@@ -81,6 +79,5 @@ enum class BlendMode {
 	/// dstA   = srcA * dstA
 	MultiplyRGBAWithAlphaBlend
 };
-PTGN_REFLECT_ENUM(BlendMode);
 
 } // namespace ptgn

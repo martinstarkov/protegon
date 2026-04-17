@@ -15,7 +15,7 @@
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "platform/file_dialog.h"

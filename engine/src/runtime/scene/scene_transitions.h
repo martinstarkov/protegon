@@ -2,7 +2,7 @@
 
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "runtime/scene/scene_transition.h"
 
 namespace ptgn {

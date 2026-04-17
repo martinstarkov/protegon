@@ -15,8 +15,7 @@
 #include <variant>
 
 #include "core/util/macro.h"
-#include "core/util/macro_loop.h"
-#include "serialization/json/json.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn::impl {
 
@@ -187,15 +186,6 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 #define PTGN_IMPL_EXTEND_JSON_FROM_VALUE(v1) \
 	::ptgn::impl::extended_from_json(nlohmann_json_j, nlohmann_json_t.v1);
 
-#define PTGN_IMPL_SERIALIZE_ENUM_FROM_JSON_CASE(EnumCase, Type) \
-	if (s == PTGN_STRINGIFY(EnumCase)) {                        \
-		value = Type::EnumCase;                                 \
-		return;                                                 \
-	}
-
-#define PTGN_IMPL_SERIALIZE_ENUM_TO_JSON_CASE(EnumCase, Type) \
-	case Type::EnumCase: j = PTGN_STRINGIFY(EnumCase); return;
-
 /// @brief Use this OUTSIDE the enum declaration.
 #define PTGN_SERIALIZE_ENUM(Type)                               \
 	inline void to_json(::ptgn::json& j, Type value) {          \
@@ -205,54 +195,30 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 		::ptgn::impl::enum_from_json(j, value);                 \
 	}
 
-/// @brief Use this OUTSIDE the enum declaration.
-/// Declares JSON serialization for an enum using an explicit list of enum cases.
-#define PTGN_SERIALIZE_ENUM_MANUAL(Type, ...)                                                 \
-	inline void to_json(::ptgn::json& j, Type value) {                                        \
-		static_assert(std::is_enum_v<Type>);                                                  \
-		switch (value) {                                                                      \
-			PTGN_MAP_DATA(PTGN_IMPL_SERIALIZE_ENUM_TO_JSON_CASE, Type, __VA_ARGS__)           \
-			default:                                                                          \
-				throw std::runtime_error(                                                     \
-					"Unknown " PTGN_STRINGIFY(Type) " enum value: " +                         \
-					std::to_string(std::to_underlying(value))                                 \
-				);                                                                            \
-		}                                                                                     \
-	}                                                                                         \
-	inline void from_json(const ::ptgn::json& j, Type& value) {                               \
-		static_assert(std::is_enum_v<Type>);                                                  \
-		if (j.is_string()) {                                                                  \
-			const auto s{ j.get<std::string>() };                                             \
-			PTGN_MAP_DATA(PTGN_IMPL_SERIALIZE_ENUM_FROM_JSON_CASE, Type, __VA_ARGS__)         \
-			throw std::runtime_error("Invalid enum name for " PTGN_STRINGIFY(Type) ": " + s); \
-		}                                                                                     \
-		value = static_cast<Type>(j.get<std::underlying_type_t<Type>>());                     \
-	}
-
 /// @brief Use this INSIDE the class/struct body.
-#define PTGN_SERIALIZE(Type, ...)                                                              \
-	friend inline void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {   \
-		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO, __VA_ARGS__))       \
-	}                                                                                          \
-	friend inline void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t) { \
-		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM, __VA_ARGS__))     \
+#define PTGN_SERIALIZE(Type, ...)                                                          \
+	friend void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {      \
+		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO, __VA_ARGS__))   \
+	}                                                                                      \
+	friend void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t) {    \
+		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM, __VA_ARGS__)) \
 	}
 
 /// @brief Use this INSIDE the class/struct body.
 /// Serializes directly as that value, without a field name.
 #define PTGN_SERIALIZE_VALUE(Type, ...)                                                          \
-	friend inline void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {     \
+	friend void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {            \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO_VALUE, __VA_ARGS__))   \
 	}                                                                                            \
-	friend inline void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t) {   \
+	friend void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t) {          \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM_VALUE, __VA_ARGS__)) \
 	}
 
 #define PTGN_SERIALIZE_EMPTY(Type)                                                              \
-	friend inline void to_json(::ptgn::json& j, const Type&) {                                  \
+	friend void to_json(::ptgn::json& j, const Type&) {                                         \
 		j = PTGN_STRINGIFY(Type);                                                               \
 	}                                                                                           \
-	friend inline void from_json(const ::ptgn::json& j, Type&) {                                \
+	friend void from_json(const ::ptgn::json& j, Type&) {                                       \
 		const auto s = j.get<std::string>();                                                    \
 		if (s != PTGN_STRINGIFY(Type)) {                                                        \
 			throw std::runtime_error(                                                           \
@@ -261,23 +227,19 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 		}                                                                                       \
 	}
 
-#define PTGN_SERIALIZE_DERIVED(Type, Base, ...)                                                \
-	friend inline void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {   \
-		to_json(nlohmann_json_j, static_cast<const Base&>(nlohmann_json_t));                   \
-		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO, __VA_ARGS__))       \
-	}                                                                                          \
-	friend inline void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t) { \
-		from_json(nlohmann_json_j, static_cast<Base&>(nlohmann_json_t));                       \
-		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM, __VA_ARGS__))     \
+#define PTGN_SERIALIZE_DERIVED(Type, Base, ...)                                            \
+	friend void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {      \
+		to_json(nlohmann_json_j, static_cast<const Base&>(nlohmann_json_t));               \
+		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO, __VA_ARGS__))   \
+	}                                                                                      \
+	friend void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t) {    \
+		from_json(nlohmann_json_j, static_cast<Base&>(nlohmann_json_t));                   \
+		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM, __VA_ARGS__)) \
 	}
 
 /// @brief Use this OUTSIDE the enum declaration.
 /// Declares JSON serialization for the enum.
 #define PTGN_REFLECT_ENUM(Type) PTGN_SERIALIZE_ENUM(Type)
-
-/// @brief Use this OUTSIDE the enum declaration.
-/// Declares JSON serialization for the enum using an explicit list of enum cases.
-#define PTGN_REFLECT_ENUM_MANUAL(Type, ...) PTGN_SERIALIZE_ENUM_MANUAL(Type, __VA_ARGS__)
 
 /// @brief Use this INSIDE the class/struct body.
 /// Declares JSON serialization for the class/struct.

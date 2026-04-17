@@ -1,7 +1,7 @@
 #include "runtime/physics/lifetime.h"
 
-#include "core/time/time.h"
-#include "core/time/timer.h"
+#include "core/util/time.h"
+#include "core/util/timer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
 

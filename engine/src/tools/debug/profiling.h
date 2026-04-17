@@ -7,8 +7,8 @@
 
 #include "core/assert.h"
 #include "core/log.h"
-#include "core/time/time.h"
-#include "core/time/timer.h"
+#include "core/util/time.h"
+#include "core/util/timer.h"
 #include "core/util/function.h"
 #include "core/util/macro.h"
 

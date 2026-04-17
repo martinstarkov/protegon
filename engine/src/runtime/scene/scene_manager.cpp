@@ -9,7 +9,7 @@
 
 #include "core/assert.h"
 #include "core/log.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_transition.h"
 

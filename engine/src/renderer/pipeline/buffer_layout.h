@@ -7,7 +7,6 @@
 
 #include "core/util/concepts.h"
 #include "renderer/vertex/glsl_types.h"
-#include "serialization/serialize.h"
 
 namespace ptgn::impl::gl {
 
@@ -28,10 +27,6 @@ enum class BufferElementType : std::uint32_t {
 	UnsignedByte  = 0x1401, // GL_UNSIGNED_BYTE
 	Bool		  = 0x8B56	// GL_BOOL
 };
-PTGN_REFLECT_ENUM_MANUAL(
-	BufferElementType, Float, Double, Int, UnsignedInt, Short, UnsignedShort, Byte, UnsignedByte,
-	Bool
-);
 
 template <typename T>
 struct BufferTypeTrait {

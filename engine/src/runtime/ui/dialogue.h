@@ -10,7 +10,7 @@
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"

@@ -16,7 +16,7 @@
 #include "core/math/angle.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "core/util/concepts.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/shake_config.h"

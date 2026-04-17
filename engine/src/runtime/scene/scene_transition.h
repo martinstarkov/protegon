@@ -5,7 +5,7 @@
 #include <type_traits>
 
 #include "core/math/easing.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {

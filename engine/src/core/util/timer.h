@@ -5,7 +5,7 @@
 
 #include "core/assert.h"
 #include "core/math/math_utils.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {

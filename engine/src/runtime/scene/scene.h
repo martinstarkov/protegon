@@ -10,7 +10,7 @@
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "core/util/concepts.h"
 #include "core/util/hash.h"
 #include "ecs/ecs.h"

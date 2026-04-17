@@ -10,7 +10,6 @@
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture_format.h"
-#include "serialization/serialize.h"
 
 namespace ptgn::impl::gl {
 
@@ -22,8 +21,6 @@ struct ActiveTexture {
 	std::uint32_t slot{ 0 };
 
 	bool operator==(const ActiveTexture&) const = default;
-
-	PTGN_REFLECT(ActiveTexture, slot)
 };
 
 struct TextureUnitState {
@@ -46,8 +43,6 @@ struct TextureUnitState {
 	std::optional<TextureWrap> wrap_t{ TextureWrap::Repeat };
 
 	bool operator==(const TextureUnitState&) const = default;
-
-	PTGN_REFLECT(TextureUnitState, id, min_filter, mag_filter, wrap_s, wrap_t)
 };
 
 using TextureUnits = std::vector<TextureUnitState>;
@@ -118,13 +113,6 @@ struct State {
 
 		texture_units.resize(max_texture_slots, {});
 	}
-
-	PTGN_REFLECT(
-		State, framebuffer, renderbuffer, vertex_buffer, uniform_buffer, shader_program,
-		vertex_array, viewport, depth_testing, blend, depth_mask, blend_mode, color_mask,
-		active_texture, texture_units, scissor, raster, stencil, clear_depth, clear_stencil,
-		clear_color
-	)
 };
 
 } // namespace ptgn::impl::gl

@@ -12,7 +12,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "core/util/hash.h"
 #include "ecs/ecs.h"
 #include "renderer/resources/texture.h"

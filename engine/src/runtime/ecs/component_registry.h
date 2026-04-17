@@ -21,7 +21,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/triangle.h"
 #include "core/math/transform.h"
-#include "core/time/timer.h"
+#include "core/util/timer.h"
 #include "core/util/hash.h"
 #include "core/util/type_info.h"
 #include "runtime/ecs/entity.h"

@@ -9,7 +9,6 @@
 #include <type_traits>
 
 #include "core/log.h"
-#include "core/math/rng.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
@@ -71,12 +70,6 @@ inline std::ostream& operator<<(std::ostream& os, const ptgn::duration<Rep, Peri
 template <DurationType T>
 [[nodiscard]] constexpr T Lerp(T a, T b, float t) {
 	return duration_cast<T>(a + t * (b - a));
-}
-
-template <DurationType T = milliseconds>
-[[nodiscard]] T RandomDuration(T min, T max) {
-	RNG<typename T::rep> rng{ min.count(), max.count() };
-	return T{ rng() };
 }
 
 } // namespace ptgn

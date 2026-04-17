@@ -21,7 +21,7 @@
 #include "core/event/window_event.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "platform/glfw.h"
 #include "platform/window.h"
 #include "renderer/pipeline/scaling_mode.h"

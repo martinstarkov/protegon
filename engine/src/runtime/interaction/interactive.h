@@ -6,7 +6,7 @@
 
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/interaction/trigger_condition.h"

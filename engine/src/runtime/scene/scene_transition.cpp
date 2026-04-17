@@ -4,7 +4,7 @@
 
 #include "core/assert.h"
 #include "core/math/easing.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 
 namespace ptgn {
 

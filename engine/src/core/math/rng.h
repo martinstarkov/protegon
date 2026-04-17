@@ -11,6 +11,8 @@
 #include <type_traits>
 #include <vector>
 
+#include "core/util/time.h"
+
 namespace ptgn {
 
 namespace impl {
@@ -181,6 +183,12 @@ template <impl::RNGType T = std::int32_t>
 /// @return True with the given probability, clamped to [0.0, 1.0]. 0.0 means never, 1.0 means
 /// always.
 [[nodiscard]] bool Chance(float probability);
+
+template <DurationType T = milliseconds>
+[[nodiscard]] T RandomDuration(T min, T max) {
+	RNG<typename T::rep> rng{ min.count(), max.count() };
+	return T{ rng() };
+}
 
 template <typename Container>
 [[nodiscard]] auto RandomSample(const Container& choices, std::size_t count, bool unique = true) {

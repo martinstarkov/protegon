@@ -13,7 +13,7 @@
 #include "core/math/easing.h"
 #include "core/math/math_utils.h"
 #include "core/math/tolerance.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "runtime/animation/tween_event.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"

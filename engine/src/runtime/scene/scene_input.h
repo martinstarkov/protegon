@@ -3,7 +3,7 @@
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "runtime/graphics/frame_context.h"
 
 namespace ptgn {

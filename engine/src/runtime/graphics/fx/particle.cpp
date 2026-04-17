@@ -23,7 +23,7 @@
 #include "core/math/rng.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "ecs/ecs.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"

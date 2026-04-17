@@ -15,7 +15,6 @@
 #include "core/util/file.h"
 #include "core/util/id_map.h"
 #include "renderer/resources/id.h"
-#include "serialization/serialize.h"
 
 namespace ptgn::impl::gl {
 
@@ -28,7 +27,6 @@ enum class AttachmentObject : std::uint32_t {
 	Texture2D	 = 0x0DE1, // GL_TEXTURE_2D
 	Renderbuffer = 0x8D41  // GL_RENDERBUFFER
 };
-PTGN_REFLECT_ENUM_MANUAL(AttachmentObject, None, Texture2D, Renderbuffer);
 
 enum class Attachment : std::uint32_t {
 	// Color attachments
@@ -47,10 +45,6 @@ enum class Attachment : std::uint32_t {
 	Stencil		 = 0x8D20, // GL_STENCIL_ATTACHMENT
 	DepthStencil = 0x821A  // GL_DEPTH_STENCIL_ATTACHMENT
 };
-PTGN_REFLECT_ENUM_MANUAL(
-	Attachment, Color0, Color1, Color2, Color3, Color4, Color5, Color6, Color7, Color8, Depth,
-	Stencil, DepthStencil
-);
 
 struct AttachmentSpec {
 	std::uint32_t id{ 0 };
@@ -72,7 +66,6 @@ enum class ClearBufferBit : std::uint32_t {
 	Depth	= 0x00000100, // GL_DEPTH_BUFFER_BIT
 	Stencil = 0x00000400  // GL_STENCIL_BUFFER_BIT
 };
-PTGN_SERIALIZE_ENUM_MANUAL(ClearBufferBit, None, Color, Depth, Stencil);
 
 std::ostream& operator<<(std::ostream& os, ClearBufferBit bits);
 
@@ -93,7 +86,6 @@ enum class ClearBufferType : std::uint32_t {
 	Depth	= 0x1801, // GL_DEPTH
 	Stencil = 0x1802  // GL_STENCIL
 };
-PTGN_REFLECT_ENUM_MANUAL(ClearBufferType, Color, Depth, Stencil);
 
 class Framebuffers {
 public:

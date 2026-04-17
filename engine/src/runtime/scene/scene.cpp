@@ -16,7 +16,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "core/util/concepts.h"
 #include "core/util/span.h"
 #include "ecs/ecs.h"

@@ -7,7 +7,7 @@
 #include "core/assert.h"
 #include "core/math/angle.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 

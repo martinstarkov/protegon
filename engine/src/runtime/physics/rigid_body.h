@@ -4,7 +4,7 @@
 
 #include "core/math/angle.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {

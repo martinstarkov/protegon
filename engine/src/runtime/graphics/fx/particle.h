@@ -13,7 +13,7 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/camera.h"

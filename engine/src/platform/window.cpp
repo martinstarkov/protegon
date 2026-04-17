@@ -36,7 +36,7 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 #include "core/input/mouse.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "core/util/file.h"
 #include "platform/glfw.h"
 #include "renderer/backend/gl/gl.h"

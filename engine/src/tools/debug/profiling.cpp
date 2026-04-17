@@ -7,8 +7,8 @@
 #include <utility>
 
 #include "core/assert.h"
-#include "core/time/time.h"
-#include "core/time/timer.h"
+#include "core/util/time.h"
+#include "core/util/timer.h"
 
 namespace ptgn::impl {
 

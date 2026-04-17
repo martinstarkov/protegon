@@ -66,6 +66,18 @@ static ShaderType GetShaderType(const std::string& type) {
 	PTGN_ERROR("Unknown shader type: ", type);
 }
 
+static std::string_view GetShaderName(ShaderType type) {
+	switch (type) {
+		case ShaderType::Vertex:		 return "vertex";
+		case ShaderType::Fragment:		 return "fragment";
+		case ShaderType::Geometry:		 return "geometry";
+		case ShaderType::TessControl:	 return "tess_control";
+		case ShaderType::TessEvaluation: return "tess_evaluation";
+		case ShaderType::Compute:		 return "compute";
+		default:						 PTGN_ERROR("Unknown shader type: ", std::to_underlying(type));
+	}
+}
+
 // Extract just the content inside R"( ... )"
 static void TrimRawStringLiteral(std::string& content) {
 	const std::string raw_start{ "R\"(" };
@@ -135,7 +147,8 @@ static std::pair<Header, std::vector<ShaderSpec>> ParseShaderSources(
 		code = TrimWhitespace(code);
 
 		PTGN_ASSERT(
-			!contains_type(type), "GLSL file can only contain one type of shader: ", json(type)
+			!contains_type(type),
+			"GLSL file can only contain one type of shader: ", GetShaderName(type)
 		);
 
 		sources.emplace_back(type, ShaderCode{ code }, std::string{ name_without_ext });
@@ -379,7 +392,7 @@ ShaderId Shaders::CompileShader(ShaderType type, const std::string& source) cons
 
 		DeleteShaderId(id, type);
 
-		PTGN_ERROR("Failed to compile ", json(type), " shader: \n", source, "\n", log);
+		PTGN_ERROR("Failed to compile ", GetShaderName(type), " shader: \n", source, "\n", log);
 	}
 
 	return id;
@@ -728,7 +741,9 @@ ShaderInfo Shaders::GetShaderInfo(
 		return { GetShaderId(path_or_name, type), false };
 	}
 
-	PTGN_ERROR(path_or_name, " is not a valid shader path or loaded ", json(type), " shader name");
+	PTGN_ERROR(
+		path_or_name, " is not a valid shader path or loaded ", GetShaderName(type), " shader name"
+	);
 }
 
 ShaderInfo Shaders::GetShaderInfo(
