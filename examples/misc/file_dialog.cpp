@@ -14,6 +14,7 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/button_event.h"
 
 using namespace ptgn;
 
@@ -52,9 +53,9 @@ public:
 		const V2_int button_size{ 360, 72 };
 
 		CreateButton(*this, V2_float{ 0, -220 }, button_size, button_origin)
-			.OnPress([](auto button) {
+			.OnPress([](auto e) {
 				const auto result =
-						button.GetScene().ctx().window.file.OpenFile({
+						e.button.GetScene().ctx().window.file.OpenFile({
 							.filters =
 								{
 									{ "Images", "png,jpg,jpeg,bmp,tga" },
@@ -73,9 +74,9 @@ public:
 			.SetBackgroundColor(color::DarkBlue, ButtonState::Press);
 
 		CreateButton(*this, V2_float{ 0, -110 }, button_size, button_origin)
-			.OnPress([](auto button) {
+			.OnPress([](auto e) {
 				const auto result =
-						button.GetScene().ctx().window.file.OpenFiles({
+						e.button.GetScene().ctx().window.file.OpenFiles({
 							.filters =
 								{
 									{ "Audio", "wav,ogg,mp3,flac" },
@@ -93,9 +94,9 @@ public:
 			.SetBackgroundColor(color::DarkRed, ButtonState::Press);
 
 		CreateButton(*this, V2_float{ 0, 0 }, button_size, button_origin)
-			.OnPress([](auto button) {
+			.OnPress([](auto e) {
 				const auto result =
-						button.GetScene().ctx().window.file.SaveFile({
+						e.button.GetScene().ctx().window.file.SaveFile({
 							.filters =
 								{
 									{ "Scene Files", "scene,ptgn,json" },
@@ -114,8 +115,8 @@ public:
 			.SetBackgroundColor(color::DarkGreen, ButtonState::Press);
 
 		CreateButton(*this, V2_float{ 0, 110 }, button_size, button_origin)
-			.OnPress([](auto button) {
-				const auto result = button.GetScene().ctx().window.file.OpenFolder({
+			.OnPress([](auto e) {
+				const auto result = e.button.GetScene().ctx().window.file.OpenFolder({
 					.default_path = "assets",
 				});
 
@@ -128,8 +129,8 @@ public:
 			.SetBackgroundColor(color::DarkRed, ButtonState::Press);
 
 		CreateButton(*this, V2_float{ 0, 220 }, button_size, button_origin)
-			.OnPress([](auto button) {
-				const auto result = button.GetScene().ctx().window.file.OpenFolders({
+			.OnPress([](auto e) {
+				const auto result = e.button.GetScene().ctx().window.file.OpenFolders({
 					.default_path = "default_path",
 				});
 

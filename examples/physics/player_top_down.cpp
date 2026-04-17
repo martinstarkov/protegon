@@ -1,5 +1,7 @@
 #include "app/application.h"
+#include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -8,7 +10,6 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/collider.h"
-#include "runtime/physics/collision_event.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/move_direction.h"
 #include "runtime/physics/movement.h"
@@ -16,6 +17,7 @@
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
+#include "serialization/json/fwd.h"
 
 using namespace ptgn;
 
@@ -32,21 +34,21 @@ struct TopDownScript1 : public Script {
 	}
 
 	void OnMoveStart(MoveDirection direction) {
-		PTGN_LOG("OnMoveStart: ", direction);
+		PTGN_LOG("OnMoveStart: ", json(direction));
 	}
 
 	void OnMove(MoveDirection direction) {
-		PTGN_LOG("OnMove: ", direction);
+		PTGN_LOG("OnMove: ", json(direction));
 	}
 
 	void OnMoveStop(MoveDirection last_direction) {
-		PTGN_LOG("OnMoveStop: ", last_direction);
+		PTGN_LOG("OnMoveStop: ", json(last_direction));
 	}
 
 	void OnDirectionChange(const event::PlayerMoveDirectionChange& change) {
 		PTGN_LOG(
-			"OnDirectionChange difference: ", change.difference,
-			", current dir: ", change.current_direction
+			"OnDirectionChange difference: ", json(change.difference),
+			", current dir: ", json(change.current_direction)
 		);
 	}
 };

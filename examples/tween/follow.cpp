@@ -1,18 +1,18 @@
+#include <optional>
 #include <vector>
 
 #include "app/application.h"
-#include "core/math/vector2.h"
-#include "core/input/mouse.h"
 #include "core/graphics/color.h"
-#include "renderer/renderer.h"
+#include "core/input/mouse.h"
+#include "core/math/vector2.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/scene/scene.h"
-
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;

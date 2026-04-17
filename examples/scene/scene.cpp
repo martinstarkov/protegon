@@ -1,14 +1,14 @@
 #include "runtime/scene/scene.h"
 
 #include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/input/key.h"
-#include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;

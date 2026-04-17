@@ -14,7 +14,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
 #include "ecs/ecs.h"
 #include "runtime/animation/tween_event.h"
 #include "runtime/ecs/entity.h"

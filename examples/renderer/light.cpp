@@ -4,11 +4,11 @@
 #include <optional>
 
 #include "app/application.h"
+#include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -88,9 +88,9 @@ public:
 
 		auto scroll{ ctx().input.GetMouseScroll() };
 
-		if (scroll > 0.0f) {
+		if (scroll.y > 0.0f) {
 			mouse_directional_light.SetConeAngle(*mouse_directional_light.GetConeAngle() + 5.0f);
-		} else if (scroll < 0.0f) {
+		} else if (scroll.y < 0.0f) {
 			mouse_directional_light.SetConeAngle(*mouse_directional_light.GetConeAngle() - 5.0f);
 		}
 	}

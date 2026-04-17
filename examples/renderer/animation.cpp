@@ -3,10 +3,12 @@
 #include <optional>
 
 #include "app/application.h"
+#include "core/event/event.h"
 #include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "core/time/time.h"
+#include "core/util/time.h"
+#include "runtime/animation/animation_event.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"

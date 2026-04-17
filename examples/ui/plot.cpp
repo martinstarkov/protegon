@@ -4,8 +4,8 @@
 #include "app/application.h"
 #include "core/assert.h"
 #include "core/math/rng.h"
-#include "core/time/time.h"
-#include "core/time/timer.h"
+#include "core/util/time.h"
+#include "core/util/timer.h"
 #include "runtime/scene/scene.h"
 
 using namespace ptgn;

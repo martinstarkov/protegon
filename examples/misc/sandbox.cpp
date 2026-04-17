@@ -3,7 +3,9 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/event/key_event.h"
+#include "core/event/mouse_event.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
@@ -21,7 +23,7 @@
 
 using namespace ptgn;
 
-struct EInventoryChanged : public Event<EInventoryChanged> {
+struct EInventoryChanged {
 	EInventoryChanged(Entity who, int delta, int newCount) :
 		who{ who }, delta{ delta }, newCount{ newCount } {}
 
@@ -30,13 +32,13 @@ struct EInventoryChanged : public Event<EInventoryChanged> {
 	int newCount = 0;
 };
 
-struct EAnnounceGlobal : public Event<EAnnounceGlobal> {
+struct EAnnounceGlobal {
 	explicit EAnnounceGlobal(const std::string& text) : text{ text } {}
 
 	std::string text{};
 };
 
-struct EButtonPress : public Event<EButtonPress> {
+struct EButtonPress {
 	EButtonPress() = default;
 
 	EButtonPress(Entity target, int mouseButton, int presses) :

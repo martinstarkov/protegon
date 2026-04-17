@@ -2,26 +2,19 @@
 
 #include "runtime/scripting/script.h"
 
-#include <array>
-#include <iostream>
-#include <memory>
-#include <string>
-#include <tuple>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
-
+#include "core/event/event.h"
+#include "core/event/key_event.h"
+#include "core/event/mouse_event.h"
 #include "core/input/key.h"
 #include "core/log.h"
-#include "core/event/key_event.h"
-#include "runtime/ecs/manager.h"
+#include "serialization/json/fwd.h"
 
 using namespace ptgn;
 
 struct TestScript : public Script {
-	void OnEvent(Event d) override {
-		d.Dispatch<event::KeyPressed>(&TestScript::OnKeyPressed, this);
-		d.Dispatch<event::MouseMove>(&TestScript::OnMouseMove, this);
+	void OnEvent(Event event) override {
+		event.Dispatch<event::KeyPressed>(&TestScript::OnKeyPressed, this);
+		event.Dispatch<event::MouseMove>(&TestScript::OnMouseMove, this);
 	}
 
 	void OnMouseMove() {
@@ -29,7 +22,7 @@ struct TestScript : public Script {
 	}
 
 	void OnKeyPressed(Key k) {
-		PTGN_LOG("Key down 1: ", k);
+		PTGN_LOG("Key down 1: ", json(k));
 	}
 };
 
