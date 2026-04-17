@@ -1,39 +1,27 @@
 #pragma once
 
+#include <ecs/ecs.h>
+
 #include <concepts>
 #include <cstdint>
 #include <ostream>
+#include <string>
 #include <type_traits>
 
 #include "core/assert.h"
-#include "core/log.h"
 #include "core/math/angle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "ecs/ecs.h"
+#include "core/util/type_info.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
-#include "serialization/serialize.h"
 
 namespace ptgn {
 
 class Manager;
 class Scene;
 class Event;
-
-class UUID {
-public:
-	UUID();
-	explicit UUID(std::uint64_t uuid);
-
-	operator std::uint64_t() const; // NOSONAR
-
-	PTGN_REFLECT(UUID, uuid_)
-
-private:
-	std::uint64_t uuid_{ 0 };
-};
 
 class Entity {
 public:
@@ -44,12 +32,10 @@ public:
 	Entity(ecs::impl::EntityHandle<JsonArchiver> entity) : entity_{ entity } {} // NOSONAR
 
 	Entity(ecs::impl::EntityHandle<JsonArchiver> entity, const Scene* scene) :
-		entity_{ entity }, scene_{ const_cast<Scene*>(scene) } {}
+		entity_{ entity }, scene_{ const_cast<Scene*>(scene) } {} // NOSONAR
 
 	Entity(Entity entity, const Scene* scene) :
-		entity_{ entity.entity_ }, scene_{ const_cast<Scene*>(scene) } {}
-
-	explicit Entity(Scene& scene);
+		entity_{ entity.entity_ }, scene_{ const_cast<Scene*>(scene) } {} // NOSONAR
 
 	explicit operator bool() const {
 		return entity_.operator bool() && entity_.IsAlive();
@@ -65,10 +51,7 @@ public:
 	}
 
 	friend std::ostream& operator<<(std::ostream& os, const Entity& entity) {
-		os << "{ id: " << entity.entity_.GetId() << " }";
-		// NOSONAR
-		// os << ", version: " << &entity.entity_.GetVersion() << " }";
-		// os << ", manager: " << &entity.entity_.GetManager() << " }";
+		os << "{ ecs_id: " << entity.GetECSId() << " }";
 		return os;
 	}
 
@@ -146,15 +129,14 @@ public:
 
 	bool IsIdenticalTo(Entity entity) const;
 
-	// Entity property functions.
+	std::uint64_t GetUUID() const;
 
-	UUID GetUUID() const;
+	std::string GetTag() const;
 
-	std::size_t GetId() const;
+	std::size_t GetECSId() const;
 
+	/// @brief Equivalent to GetUUID.
 	std::size_t GetHash() const;
-
-	// Serialization.
 
 	friend void to_json(json& j, const Entity& entity);
 	friend void from_json(const json& j, Entity& entity);
@@ -206,7 +188,7 @@ private:
 	friend class Manager;
 	friend class Scene;
 
-	void OnEvent(Event& dispatcher);
+	void OnEvent(const Event& event);
 
 	template <JsonSerializable T>
 	void SerializeImpl(json& j) const {
@@ -307,13 +289,6 @@ template <>
 struct hash<ptgn::Entity> {
 	std::size_t operator()(const ptgn::Entity& entity) const {
 		return entity.GetHash();
-	}
-};
-
-template <>
-struct hash<ptgn::UUID> {
-	std::size_t operator()(const ptgn::UUID& uuid) const {
-		return static_cast<std::uint64_t>(uuid);
 	}
 };
 

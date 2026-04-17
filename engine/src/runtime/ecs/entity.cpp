@@ -1,21 +1,25 @@
 #include "runtime/ecs/entity.h"
 
+#include <ecs/ecs.h>
+
 #include <cstdint>
 #include <memory>
+#include <nlohmann/json.hpp>
+#include <string>
 #include <utility>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/math/angle.h"
-#include "core/math/rng.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/type_info.h"
-#include "ecs/ecs.h"
 #include "runtime/animation/offsets.h"
+#include "runtime/ecs/component.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/manager.h"
-
+#include "runtime/ecs/tag.h"
+#include "runtime/ecs/uuid.h"
 #include "runtime/graphics/camera.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
@@ -23,20 +27,6 @@
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
-
-UUID::UUID() : uuid_{ RandomNumber<std::uint64_t>() } {}
-
-UUID::UUID(std::uint64_t uuid) : uuid_{ uuid } {}
-
-UUID::operator std::uint64_t() const {
-	return uuid_;
-}
-
-Entity::Entity(Scene& scene) : Entity{ scene.CreateEntity(), &scene } {}
-
-// void Entity::Clear() const {
-//	entity_.Clear();
-// }
 
 Entity& Entity::Destroy(bool orphan_children) {
 	if (*this == Entity{}) {
@@ -84,17 +74,22 @@ bool Entity::IsIdenticalTo(Entity entity) const {
 	return entity_.IsIdenticalTo(entity.entity_);
 }
 
-UUID Entity::GetUUID() const {
-	PTGN_ASSERT(Has<UUID>(), "Every entity must have a UUID");
-	return Get<UUID>();
+std::uint64_t Entity::GetUUID() const {
+	PTGN_ASSERT(Has<impl::UUID>(), "Every entity must have a UUID");
+	return Get<impl::UUID>();
 }
 
-std::size_t Entity::GetId() const {
+std::string Entity::GetTag() const {
+	PTGN_ASSERT(Has<impl::Tag>(), "Every entity must have a tag");
+	return Get<impl::Tag>();
+}
+
+std::size_t Entity::GetECSId() const {
 	return entity_.GetId();
 }
 
 std::size_t Entity::GetHash() const {
-	return std::hash<ecs::impl::EntityHandle<JsonArchiver>>()(entity_);
+	return GetUUID();
 }
 
 bool Entity::WasCreatedBefore(Entity other) const {
@@ -103,20 +98,20 @@ bool Entity::WasCreatedBefore(Entity other) const {
 	if (auto other_version{ other.entity_.GetVersion() }; version != other_version) {
 		return version < other_version;
 	}
-	return entity_.GetId() < other.entity_.GetId();
+	return GetECSId() < other.GetECSId();
 }
 
 void Entity::Invalidate() {
 	*this = {};
 }
 
-void Entity::OnEvent(Event& dispatcher) {
+void Entity::OnEvent(const Event& event) {
 	if (!*this) {
 		return;
 	}
 
 	if (auto scripts{ TryGet<impl::Scripts>() }) {
-		scripts->OnEvent(dispatcher);
+		scripts->OnEvent(event);
 	}
 
 	// OnEvent may have resulted in this entity being destroyed, or the scripts component being
@@ -169,36 +164,31 @@ void to_json(json& j, const Entity& entity) {
 		return;
 	}
 
-	constexpr auto uuid_name{ type_name_without_namespaces<UUID>() };
-
-	j[uuid_name] = entity.GetUUID();
-
-	// TODO: Fix scene key serialization.
+	j["uuid"]  = entity.GetUUID();
+	j["tag"]   = entity.GetTag();
+	j["scene"] = entity.GetScene().GetTag();
 }
 
 void from_json(const json& j, Entity& entity) {
-	// TODO: Consider being able to fetch a manager using either a JSON key or the current scene.
 	PTGN_ASSERT(entity, "Cannot read JSON into null entity");
 
-	constexpr auto uuid_name{ type_name_without_namespaces<UUID>() };
+	if (j.contains("uuid")) {
+		impl::UUID uuid;
+		j["uuid"].get_to(uuid);
+		entity.Add<impl::UUID>(uuid);
+	}
 
-	PTGN_ASSERT(
-		j.contains(uuid_name), "Cannot create entity from JSON which does not contain a UUID"
-	);
+	if (j.contains("tag")) {
+		impl::Tag tag;
+		j["tag"].get_to(tag.GetValue());
+		entity.Add<impl::Tag>(std::move(tag));
+	}
 
-	UUID uuid;
-
-	j[uuid_name].get_to(uuid);
-
-	const auto& scene{ entity.GetScene() };
-
-	auto found_entity{ scene.GetEntityByUUID(uuid) };
-
-	PTGN_ASSERT(!found_entity || (found_entity && found_entity == entity));
-
-	PTGN_ASSERT(entity, "Failed to find entity with UUID: ", uuid);
-
-	// TODO: Fix scene key serialization.
+	if (j.contains("scene")) {
+		std::string scene_tag{ 0 };
+		j["scene"].get_to(scene_tag);
+		PTGN_ASSERT(entity.GetScene().GetTag() == scene_tag, "Entity scene tag mismatch");
+	}
 }
 
 std::size_t Hash(Entity entity) {

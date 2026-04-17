@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
 #include "runtime/ecs/component_registry.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"

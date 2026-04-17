@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ecs/ecs.h"
+#include <ecs/ecs.h>
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 
