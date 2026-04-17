@@ -2,14 +2,14 @@
 #include <string_view>
 
 #include "app/application.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
-#include "renderer/renderer.h"
-#include "runtime/ecs/entity.h"
+#include "runtime/graphics/render_context.h"
+#include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/dropdown.h"
 

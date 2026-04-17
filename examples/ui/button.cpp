@@ -3,16 +3,19 @@
 #include <ios>
 
 #include "app/application.h"
+#include "core/event/event.h"
+#include "core/event/key_event.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/event/key_event.h"
-#include "core/input/key.h"
-#include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
-
+#include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/ui/button_event.h"
+#include "serialization/json/json.h"
 
 using namespace ptgn;
 
@@ -31,7 +34,7 @@ public:
 		Origin button_origin{ Origin::Center };
 
 		b1 = CreateButton(*this, V2_float{ 0, -150 - 50 }, V2_int{ 200, 100 }, button_origin)
-				 .OnPress([](Button) { PTGN_LOG("Pressed regular button!"); })
+				 .OnPress([]() { PTGN_LOG("Pressed regular button!"); })
 				 .SetBackgroundShape(V2_int{ 200, 100 })
 				 .SetBackgroundColor(color::Pink)
 				 .SetBackgroundColor(color::Red, ButtonState::Hover)
@@ -42,8 +45,8 @@ public:
 
 		b2 =
 			CreateToggleButton(*this, V2_float{ 0, 150 - 50 }, V2_int{ 200, 100 }, button_origin)
-				.OnPress([](ToggleButton) { PTGN_LOG("Pressed toggle button!"); })
-				.OnToggle([](auto t) {
+				.OnPress([]() { PTGN_LOG("Pressed toggle button!"); })
+				.OnToggle([](event::ToggleButtonToggle& t) {
 					PTGN_LOG("Toggled button: ", ": ", std::boolalpha, t.toggled, std::noboolalpha);
 				})
 				.SetBackgroundShape(V2_int{ 200, 100 })
@@ -59,7 +62,7 @@ public:
 		static impl::InternalButtonState state{ impl::InternalButtonState::IdleUp };
 		if (auto s{ b1.GetInternalState() }; state != s) {
 			state = s;
-			PTGN_LOG("Button 1 internal state: ", state);
+			PTGN_LOG("Button 1 internal state: ", json(state));
 		}
 	}
 

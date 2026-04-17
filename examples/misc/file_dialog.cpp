@@ -9,12 +9,10 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
-#include "platform/window.h"
-#include "runtime/ecs/entity.h"
+#include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
-#include "runtime/ui/button_event.h"
 
 using namespace ptgn;
 

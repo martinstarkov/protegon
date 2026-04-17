@@ -1,21 +1,22 @@
 #include "runtime/graphics/fx/particle.h"
 
+#include <ecs/ecs.h>
+
 #include <functional>
 #include <optional>
 #include <string_view>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
-#include "core/input/mouse.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "ecs/ecs.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/particle_presets.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
 #include "runtime/world/grid.h"
 
@@ -118,5 +119,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "ParticleScene" };
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<ParticleScene>();
 }

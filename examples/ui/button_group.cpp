@@ -3,16 +3,18 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/event/event.h"
+#include "core/event/key_event.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/event/key_event.h"
-#include "core/input/key.h"
-#include "core/graphics/color.h"
-
+#include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/button_event.h"
 
 using namespace ptgn;
 
@@ -33,7 +35,7 @@ class ToggleButtonGroupScene : public Scene {
 				.SetBackgroundColor(color::Blue, { ButtonState::Hover, false, true })
 				.SetBackgroundColor(color::DarkBlue, { ButtonState::Press, false, true })
 				.OnPress([number, group_name]() { PTGN_LOG(group_name, " pressed ", number); })
-				.OnToggle([number, group_name](auto t) {
+				.OnToggle([number, group_name](event::ToggleButtonToggle& t) {
 					PTGN_LOG(
 						group_name, " toggled ", number, ": ", std::boolalpha, t.toggled,
 						std::noboolalpha

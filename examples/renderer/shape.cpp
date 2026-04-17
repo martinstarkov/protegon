@@ -4,15 +4,17 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/ellipse.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/polygon.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 

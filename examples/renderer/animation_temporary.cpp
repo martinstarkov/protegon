@@ -2,6 +2,7 @@
 
 #include "app/application.h"
 #include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
@@ -15,6 +16,7 @@
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;

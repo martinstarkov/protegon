@@ -1,19 +1,18 @@
 #include "runtime/ui/dialogue.h"
 
 #include "app/application.h"
+#include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
-
-#include "core/input/key.h"
-#include "platform/window.h"
-#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
+#include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
-#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 

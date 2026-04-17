@@ -3,10 +3,11 @@
 #include <vector>
 
 #include "app/application.h"
-#include "core/log.h"
 #include "core/input/key.h"
+#include "core/log.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
 using namespace ptgn;

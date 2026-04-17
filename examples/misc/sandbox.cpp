@@ -1,5 +1,6 @@
 #include <iostream>
 #include <ostream>
+#include <string>
 
 #include "app/application.h"
 #include "core/assert.h"
@@ -12,13 +13,16 @@
 #include "core/log.h"
 #include "core/math/vector2.h"
 #include "platform/window.h"
-#include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_event.h"
+#include "runtime/scene/scene_event_handler.h"
 #include "runtime/scripting/script.h"
 
 using namespace ptgn;

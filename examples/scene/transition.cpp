@@ -2,16 +2,18 @@
 #include <string>
 
 #include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "core/util/string.h"
-#include "core/input/key.h"
-#include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_transitions.h"
 
 using namespace ptgn;
@@ -45,7 +47,7 @@ public:
 			color::Magenta, 30
 		);
 		if (ctx().input.KeyPressed(Key::A) &&
-			ReEnter<Scene2>(FadeTransition{ 3000ms }, scene2_reenter_count)) {
+			ctx().scene.ReEnter<Scene2>(GetTag(), FadeTransition{ 3000ms }, scene2_reenter_count)) {
 			++scene2_reenter_count;
 		}
 		if (ctx().input.KeyPressed(Key::N)) {

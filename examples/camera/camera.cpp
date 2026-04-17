@@ -1,27 +1,23 @@
 #include "runtime/graphics/camera.h"
 
-#include "app/application.h"
-#include "core/log.h"
-#include "core/math/vector2.h"
+#include <chrono>
+#include <string>
 
+#include "app/application.h"
+#include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
-#include "platform/window.h"
-#include "renderer/pipeline/blend_mode.h"
-#include "core/graphics/color.h"
-#include "renderer/resources/shader.h"
-#include "renderer/renderer.h"
-#include "runtime/animation/effects.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/vector2.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/tween_effect.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/drawable.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
-#include "runtime/scene/scene_manager.h"
-#include "tools/debug/debug_system.h"
 
 // TODO: Fix this demo.
 

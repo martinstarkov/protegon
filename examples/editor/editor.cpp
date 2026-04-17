@@ -7,23 +7,19 @@
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
-#include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
-#include "protegon_editor/protegon_editor.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/graphics/fx/particle_event.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 
@@ -53,7 +49,7 @@ public:
 			  .size_over_lifetime  = 3.0f,
 			  .color_over_lifetime = Color{ 120, 170, 255, 200 } }
 		)
-			.OnParticleDestroy([](auto& p) {
+			.OnParticleDestroy([](event::ParticleDestroyed& p) {
 				if (Chance(0.3f)) {
 					auto& scene{ p.emitter.GetScene() };
 

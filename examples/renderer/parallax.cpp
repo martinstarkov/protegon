@@ -1,12 +1,17 @@
+#include <chrono>
+#include <optional>
+
 #include "app/application.h"
-#include "core/math/vector2.h"
-
 #include "core/input/key.h"
-#include "platform/window.h"
-#include "renderer/renderer.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/vector2.h"
+#include "renderer/resources/texture.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/scene/scene.h"
-
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_input.h"
 
 // TODO: Fix this demo.
 

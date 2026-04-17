@@ -1,7 +1,11 @@
 #include "runtime/scene/scene.h"
 
+#include <nlohmann/json.hpp>
+
 #include "app/application.h"
-#include "runtime/scene/scene_manager.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/scene/scene_context.h"
+#include "serialization/json/json.h"
 
 using namespace ptgn;
 

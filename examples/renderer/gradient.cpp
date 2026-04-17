@@ -11,6 +11,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 
@@ -25,7 +26,7 @@ public:
 	void OnEnter() override {
 		auto rect{ CreateRect(*this, {}, { 200, 200 }, color::White, Solid{}, Origin::Center) };
 
-		auto tint_by_gradient = [this, rect](const auto& e) {
+		auto tint_by_gradient = [this, rect](const event::TweenProgress& e) {
 			SetTint(rect, gradient.Sample(e.progress));
 		};
 

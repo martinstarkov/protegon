@@ -1,19 +1,17 @@
+#include <cstdint>
 #include <string>
 
 #include "app/application.h"
+#include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "platform/window.h"
-#include "core/graphics/color.h"
-#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/graphics/text/font.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 

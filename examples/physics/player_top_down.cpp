@@ -16,6 +16,7 @@
 #include "runtime/physics/movement_event.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/fwd.h"
 

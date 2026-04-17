@@ -1,5 +1,7 @@
 #include "runtime/animation/tween.h"
 
+#include <ecs/ecs.h>
+
 #include <algorithm>
 #include <cstdint>
 #include <string>
@@ -7,7 +9,9 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/easing.h"
@@ -15,17 +19,16 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
-#include "ecs/ecs.h"
 #include "runtime/animation/tween_event.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/relatives.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_view.h"
 #include "runtime/scripting/script.h"
@@ -109,7 +112,7 @@ public:
 	}
 };
 
-void SetProgress(V2_float size, const event::TweenProgress& event) {
+static void SetProgress(V2_float size, const event::TweenProgress& event) {
 	V2_float res{ event.tween.GetScene().ctx().renderer.GetGameSize() };
 	auto width{ res.x - size.x };
 	SetPositionX(event.parent, size.x * 0.5f - res.x * 0.5f + width * event.progress);

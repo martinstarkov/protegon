@@ -1,22 +1,23 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/string.h"
-
-#include "core/input/key.h"
-#include "core/input/mouse.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "core/graphics/color.h"
-#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/world/grid.h"
 
 using namespace ptgn;

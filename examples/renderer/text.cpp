@@ -4,15 +4,14 @@
 #include <string_view>
 
 #include "app/application.h"
+#include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "core/graphics/color.h"
-#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 

@@ -1,15 +1,15 @@
 #include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "platform/window.h"
-#include "core/graphics/color.h"
-#include "renderer/renderer.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
-
-#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 
@@ -21,16 +21,15 @@ struct BlendModeScene : public Scene {
 		V2_float ws{ ctx().renderer.GetGameSize() };
 
 		CreateRect(
-			*this, -ws * 0.5f + V2_float{}, { ws.x, 100 }, color::Red, Solid{},
+			*this, -ws * 0.5f + V2_float{}, { ws.x, 100 }, color::Red, Solid{}, Origin::TopLeft
+		);
+		CreateRect(
+			*this, -ws * 0.5f + V2_float{ 0, 100 }, { ws.x, 100 }, Color{ 255, 0, 0, 128 }, Solid{},
 			Origin::TopLeft
 		);
 		CreateRect(
-			*this, -ws * 0.5f + V2_float{ 0, 100 }, { ws.x, 100 }, Color{ 255, 0, 0, 128 },
-			Solid{}, Origin::TopLeft
-		);
-		CreateRect(
-			*this, -ws * 0.5f + V2_float{}, { ws.x / 2.0f, ws.y }, Color{ 0, 0, 255, 128 },
-			Solid{}, Origin::TopLeft
+			*this, -ws * 0.5f + V2_float{}, { ws.x / 2.0f, ws.y }, Color{ 0, 0, 255, 128 }, Solid{},
+			Origin::TopLeft
 		);
 
 		auto s1 = CreateSprite(*this, "semitransparent", -ws * 0.5f + V2_float{ 100, 100 });

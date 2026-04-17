@@ -7,6 +7,7 @@
 #include "core/util/time.h"
 #include "core/util/timer.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 

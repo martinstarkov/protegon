@@ -29,6 +29,7 @@
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "tools/debug/debug_system.h"
@@ -65,15 +66,15 @@ struct TestOverlapScript : public Script {
 	}
 
 	void OnOverlapStart(Entity other) {
-		PTGN_LOG(name, " started overlap with ", other.GetId());
+		PTGN_LOG(name, " started overlap with ", other.GetECSId());
 	}
 
 	void OnOverlap(Entity other) {
-		PTGN_LOG(name, " continued overlap with ", other.GetId());
+		PTGN_LOG(name, " continued overlap with ", other.GetECSId());
 	}
 
 	void OnOverlapStop(Entity other) {
-		PTGN_LOG(name, " stopped overlap with ", other.GetId());
+		PTGN_LOG(name, " stopped overlap with ", other.GetECSId());
 	}
 
 	std::string name;
@@ -89,7 +90,7 @@ struct TestIntersectScript : public Script {
 	}
 
 	void OnCollision(CollisionInfo c) {
-		PTGN_LOG(name, " intersected with ", c.entity.GetId(), ", normal: ", c.normal);
+		PTGN_LOG(name, " intersected with ", c.entity.GetECSId(), ", normal: ", c.normal);
 	}
 
 	std::string name;
@@ -105,7 +106,7 @@ struct TestRaycastScript : public Script {
 	}
 
 	void OnCollision(CollisionInfo c) {
-		PTGN_LOG(name, " ray collided with ", c.entity.GetId(), ", normal: ", c.normal);
+		PTGN_LOG(name, " ray collided with ", c.entity.GetECSId(), ", normal: ", c.normal);
 	}
 
 	std::string name;

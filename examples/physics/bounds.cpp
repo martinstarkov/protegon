@@ -1,11 +1,11 @@
 
+#include <chrono>
+
 #include "app/application.h"
-#include "core/math/geometry/rect.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
-
-#include "core/input/key.h"
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
@@ -13,6 +13,8 @@
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
@@ -75,9 +77,9 @@ struct PhysicsBoundaryScene : public Scene {
 		SetPosition(player, pos);
 
 		if (ctx().input.KeyPressed(Key::Q)) {
-			ReEnter<PhysicsBoundaryScene>(BoundaryBehavior::StopVelocity);
+			ctx().scene.ReEnter<PhysicsBoundaryScene>(GetTag(), BoundaryBehavior::StopVelocity);
 		} else if (ctx().input.KeyPressed(Key::E)) {
-			ReEnter<PhysicsBoundaryScene>(BoundaryBehavior::ReflectVelocity);
+			ctx().scene.ReEnter<PhysicsBoundaryScene>(GetTag(), BoundaryBehavior::ReflectVelocity);
 		}
 	}
 };

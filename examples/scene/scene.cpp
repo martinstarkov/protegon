@@ -9,7 +9,9 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/tint.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_manager.h"
 
 using namespace ptgn;
 
