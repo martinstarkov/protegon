@@ -1,9 +1,12 @@
 #pragma once
 
-#include <utility>
+#include <concepts>
+#include <nlohmann/json.hpp>
 #include <vector>
 
 #include "core/util/type_info.h"
+#include <ecs/ecs.h>
+#include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
@@ -28,8 +31,8 @@ public:
 	template <typename T>
 	[[nodiscard]] bool HasComponent() const {
 		if constexpr (JsonDeserializable<T>) {
-			constexpr auto class_name{ type_name_without_namespaces<T>() };
-			if (!j.contains(class_name)) {
+			if (constexpr auto class_name{ type_name_without_namespaces<T>() };
+				!j.contains(class_name)) {
 				return false;
 			}
 			return true;
@@ -38,20 +41,15 @@ public:
 		}
 	}
 
-	template <typename T>
+	template <std::default_initializable T>
 	[[nodiscard]] T ReadComponent() const {
-		static_assert(
-			std::is_default_constructible_v<T>,
-			"Components retrieved from json must be default constructible"
-		);
 		if constexpr (JsonDeserializable<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			if (!j.contains(class_name)) {
 				return {};
 			}
 			T component{};
-			json json_component = j.at(class_name);
-			if (!json_component.empty()) {
+			if (json json_component = j.at(class_name); !json_component.empty()) {
 				json_component.get_to(component);
 			}
 			return component;
@@ -84,12 +82,8 @@ public:
 		}
 	}
 
-	template <typename T>
+	template <std::default_initializable T>
 	[[nodiscard]] std::vector<T> ReadComponents() const {
-		static_assert(
-			std::is_default_constructible_v<T>,
-			"Components retrieved from json must be default constructible"
-		);
 		if constexpr (JsonDeserializable<T>) {
 			constexpr auto class_name{ type_name_without_namespaces<T>() };
 			if (!j.contains(class_name)) {
