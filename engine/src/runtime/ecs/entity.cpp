@@ -29,7 +29,7 @@
 namespace ptgn {
 
 Entity& Entity::Destroy(bool orphan_children) {
-	if (*this == Entity{}) {
+	if (!*this) {
 		return *this;
 	}
 
@@ -51,14 +51,18 @@ Entity& Entity::Destroy(bool orphan_children) {
 }
 
 Manager& Entity::GetManager() {
+	PTGN_ASSERT(entity_, "Cannot get manager of a null entity");
 	return static_cast<Manager&>(entity_.GetManager());
 }
 
 const Manager& Entity::GetManager() const {
+	PTGN_ASSERT(entity_, "Cannot get manager of a null entity");
 	return static_cast<const Manager&>(entity_.GetManager());
 }
 
 const Scene& Entity::GetScene() const {
+	PTGN_ASSERT(entity_, "Cannot get scene of a null entity");
+	PTGN_ASSERT(HasScene(), "Scene of each valid entity must be set upon construction");
 	return *scene_;
 }
 

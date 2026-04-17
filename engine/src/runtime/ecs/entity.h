@@ -60,6 +60,7 @@ public:
 	/// Make sure to call manager.Refresh() after this function.
 	template <typename... TComponents>
 	[[nodiscard]] Entity Copy() {
+		PTGN_ASSERT(entity_, "Cannot copy a null entity");
 		return entity_.Copy<TComponents...>();
 	}
 
@@ -67,6 +68,7 @@ public:
 	/// @return Reference to the added or replaced component.
 	template <typename TComponent, typename... TArgs>
 	TComponent& Add(TArgs&&... constructor_args) {
+		PTGN_ASSERT(entity_, "Cannot add a component to a null entity");
 		return entity_.Add<TComponent, TArgs...>(std::forward<TArgs>(constructor_args)...);
 	}
 
@@ -74,41 +76,49 @@ public:
 	/// @return Reference to the added or existing component.
 	template <typename TComponent, typename... TArgs>
 	TComponent& TryAdd(TArgs&&... constructor_args) {
+		PTGN_ASSERT(entity_, "Cannot try add a component to a null entity");
 		return entity_.TryAdd<TComponent, TArgs...>(std::forward<TArgs>(constructor_args)...);
 	}
 
 	template <typename... TComponents>
 	void Remove() {
+		PTGN_ASSERT(entity_, "Cannot remove a component from a null entity");
 		entity_.Remove<TComponents...>();
 	}
 
 	template <typename... TComponents>
 	bool Has() const {
+		PTGN_ASSERT(entity_, "Cannot check if a null entity has a component");
 		return entity_.Has<TComponents...>();
 	}
 
 	template <typename... TComponents>
 	bool HasAny() const {
+		PTGN_ASSERT(entity_, "Cannot check if a null entity has any component");
 		return entity_.HasAny<TComponents...>();
 	}
 
 	template <typename... TComponents>
 	decltype(auto) Get() const {
+		PTGN_ASSERT(entity_, "Cannot get a component from a null entity");
 		return entity_.Get<TComponents...>();
 	}
 
 	template <typename... TComponents>
 	decltype(auto) Get() {
+		PTGN_ASSERT(entity_, "Cannot get a component from a null entity");
 		return entity_.Get<TComponents...>();
 	}
 
 	template <typename T>
 	const T* TryGet() const {
+		PTGN_ASSERT(entity_, "Cannot try get a component from a null entity");
 		return entity_.TryGet<T>();
 	}
 
 	template <typename T>
 	T* TryGet() {
+		PTGN_ASSERT(entity_, "Cannot try get a component from a null entity");
 		return entity_.TryGet<T>();
 	}
 
@@ -182,6 +192,7 @@ public:
 	bool WasCreatedBefore(Entity other) const;
 
 	/// @brief Equivalent of setting the entity handle to {}
+	/// Does not destroy the entity.
 	void Invalidate();
 
 private:
