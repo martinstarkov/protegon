@@ -43,6 +43,7 @@ public:
 	void SetPresentationViewport(Viewport viewport);
 
 	SceneHierarchyPanel& GetSceneHierarchyPanel();
+	SceneListPanel& GetSceneListPanel();
 
 private:
 	Application& app;

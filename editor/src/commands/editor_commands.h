@@ -2,14 +2,12 @@
 
 #include <concepts>
 #include <memory>
-#include <string>
 #include <string_view>
 
 #include "commands/component/add_component.h"
 #include "commands/component/remove_component.h"
 #include "commands/component/set_component.h"
 #include "commands/undo_stack.h"
-#include "core/editor_state.h"
 #include "core/util/file.h"
 #include "runtime/ecs/entity.h"
 
@@ -20,11 +18,12 @@ class Scene;
 namespace editor {
 
 class Editor;
+class SceneListPanel;
 
 class EditorCommands {
 public:
 	EditorCommands() = default;
-	EditorCommands(UndoStack* undo_stack, EditorState* state);
+	EditorCommands(UndoStack* undo_stack, SceneListPanel* scene_list);
 
 	Entity CreateEntity(std::string_view name);
 	void DeleteEntity(Entity entity);
@@ -54,7 +53,7 @@ public:
 private:
 	friend class Editor;
 
-	EditorState* state_{ nullptr };
+	SceneListPanel* scene_list_{ nullptr };
 	UndoStack* undo_stack_{ nullptr };
 };
 

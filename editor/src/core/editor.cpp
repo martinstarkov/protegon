@@ -47,7 +47,7 @@ Editor::Editor(Application& app) : app{ app } {
 		*this, commands_, undo_stack_, std::move(selection), std::move(state)
 	);
 
-	commands_ = EditorCommands{ &undo_stack_, &context_->state };
+	commands_ = EditorCommands{ &undo_stack_, &scene_list_panel_ };
 }
 
 void Editor::OnUpdate() {}
@@ -107,6 +107,10 @@ void Editor::SetPresentationViewport(Viewport presentation_viewport) {
 
 SceneHierarchyPanel& Editor::GetSceneHierarchyPanel() {
 	return scene_hierarchy_panel_;
+}
+
+SceneListPanel& Editor::GetSceneListPanel() {
+	return scene_list_panel_;
 }
 
 Viewport Editor::GetDisplayViewport() const {

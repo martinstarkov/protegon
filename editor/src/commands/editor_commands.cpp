@@ -15,17 +15,18 @@
 #include "core/assert.h"
 #include "core/editor_state.h"
 #include "core/util/file.h"
+#include "panels/scene_list.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn::editor {
 
-EditorCommands::EditorCommands(UndoStack* undo_stack, EditorState* state) :
-	state_{ state }, undo_stack_{ undo_stack } {}
+EditorCommands::EditorCommands(UndoStack* undo_stack, SceneListPanel* scene_list) :
+	scene_list_{ scene_list }, undo_stack_{ undo_stack } {}
 
 Entity EditorCommands::CreateEntity(std::string_view name) {
-	PTGN_ASSERT(state_);
+	PTGN_ASSERT(scene_list_);
 	PTGN_ASSERT(undo_stack_);
-	auto command = std::make_unique<CreateEntityCommand>(state_->active_scene, name);
+	auto command = std::make_unique<CreateEntityCommand>(scene_list_->GetSelectedScene(), name);
 
 	auto raw{ command.get() };
 
@@ -37,22 +38,24 @@ Entity EditorCommands::CreateEntity(std::string_view name) {
 }
 
 void EditorCommands::DeleteEntity(Entity entity) {
-	PTGN_ASSERT(state_);
+	PTGN_ASSERT(scene_list_);
 	PTGN_ASSERT(undo_stack_);
-	undo_stack_->Execute(std::make_unique<DeleteEntityCommand>(state_->active_scene, entity));
+	undo_stack_->Execute(
+		std::make_unique<DeleteEntityCommand>(scene_list_->GetSelectedScene(), entity)
+	);
 }
 
 void EditorCommands::SaveScene(const path& path) {
-	PTGN_ASSERT(state_);
+	PTGN_ASSERT(scene_list_);
 	// Do NOT push to undo stack
-	SaveSceneCommand command{ state_->active_scene, path };
+	SaveSceneCommand command{ scene_list_->GetSelectedScene(), path };
 	command.Execute();
 }
 
 void EditorCommands::LoadScene(const path& path) {
-	PTGN_ASSERT(state_);
+	PTGN_ASSERT(scene_list_);
 	PTGN_ASSERT(undo_stack_);
-	undo_stack_->Execute(std::make_unique<LoadSceneCommand>(state_->active_scene, path));
+	undo_stack_->Execute(std::make_unique<LoadSceneCommand>(scene_list_->GetSelectedScene(), path));
 }
 
 void EditorCommands::RenameEntity(Entity entity, std::string_view new_name) {
