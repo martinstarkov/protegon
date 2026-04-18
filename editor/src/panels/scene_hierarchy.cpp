@@ -28,6 +28,8 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 
 		auto label{ entity.GetTag() };
 
+		ImGui::PushID(static_cast<int>(entity.GetUUID()));
+
 		if (ImGui::Selectable(label.c_str(), selected)) {
 			selected_entity_ = entity;
 		}
@@ -41,6 +43,8 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			}
 			ImGui::EndPopup();
 		}
+
+		ImGui::PopID();
 	}
 
 	ImGui::End();
