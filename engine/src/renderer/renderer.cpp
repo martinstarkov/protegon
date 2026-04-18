@@ -703,8 +703,11 @@ void Renderer::OnWindowResize(V2_int size) {
 	display_viewport_dirty_ = true;
 }
 
-void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_mode) {
-	if (game_size_ == game_size && scaling_mode_ == scaling_mode) {
+void Renderer::SetGameSize(
+	std::optional<V2_int> game_size, std::optional<ScalingMode> scaling_mode
+) {
+	if (game_size_ == game_size &&
+		(!scaling_mode.has_value() || scaling_mode.has_value() && scaling_mode_ == scaling_mode)) {
 		return;
 	}
 
@@ -713,8 +716,10 @@ void Renderer::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_
 		"Game size cannot be set to negative value or zero"
 	);
 
-	game_size_	  = game_size;
-	scaling_mode_ = scaling_mode;
+	game_size_ = game_size;
+	if (scaling_mode.has_value()) {
+		scaling_mode_ = *scaling_mode;
+	}
 
 	auto size{ GetGameSize() };
 
@@ -752,8 +757,12 @@ void Renderer::SetPresentationViewport(std::optional<Viewport> presentation_view
 	display_viewport_dirty_ = true;
 }
 
+bool Renderer::HasGameSize() const {
+	return game_size_.has_value();
+}
+
 V2_int Renderer::GetGameSize() const {
-	if (game_size_) {
+	if (HasGameSize()) {
 		return *game_size_;
 	}
 	return GetPresentationSize();

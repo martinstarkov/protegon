@@ -106,13 +106,15 @@ public:
 	TextureId GetWhiteTexture() const;
 
 	void SetGameSize(
-		std::optional<V2_int> game_size = std::nullopt,
-		ScalingMode scaling_mode		= ScalingMode::Letterbox
+		std::optional<V2_int> game_size			= std::nullopt,
+		std::optional<ScalingMode> scaling_mode = ScalingMode::Letterbox
 	);
 
 	void SetScalingMode(ScalingMode scaling_mode = ScalingMode::Letterbox);
 
 	void SetPresentationViewport(std::optional<Viewport> presentation_viewport = std::nullopt);
+
+	bool HasGameSize() const;
 
 	V2_int GetGameSize() const;
 

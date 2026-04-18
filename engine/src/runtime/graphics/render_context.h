@@ -71,6 +71,9 @@ public:
 	/// Viewport position should be relative to the window top left.
 	void SetPresentationViewport(std::optional<Viewport> presentation_viewport = std::nullopt);
 
+	/// @return True if the game size is set, false otherwise.
+	bool HasGameSize() const;
+
 	/// @return The game size of the renderer. Returns presentation viewport size if unset.
 	V2_int GetGameSize() const;
 

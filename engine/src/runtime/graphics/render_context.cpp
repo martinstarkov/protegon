@@ -324,6 +324,10 @@ void RenderContext::SetPresentationViewport(std::optional<Viewport> presentation
 	renderer_.SetPresentationViewport(presentation_viewport);
 }
 
+bool RenderContext::HasGameSize() const {
+	return renderer_.HasGameSize();
+}
+
 V2_int RenderContext::GetGameSize() const {
 	return renderer_.GetGameSize();
 }
