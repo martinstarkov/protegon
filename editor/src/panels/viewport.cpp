@@ -47,7 +47,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	auto* draw_list = ImGui::GetWindowDrawList();
 
-	auto bg{ ctx.editor.GetViewportPanelBackgroundColor() };
+	auto bg{ ctx.editor.GetWindowBackgroundColor() };
 
 	draw_list->AddRectFilled(min, max, IM_COL32(bg.r, bg.g, bg.b, bg.a));
 

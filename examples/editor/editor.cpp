@@ -8,14 +8,11 @@
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/geometry/rect.h"
-#include "core/math/rng.h"
 #include "core/math/vector2.h"
-#include "runtime/animation/animation.h"
-#include "runtime/animation/tween_effect.h"
+#include "platform/window.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/graphics/fx/particle.h"
-#include "runtime/graphics/fx/particle_event.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
@@ -26,6 +23,8 @@ using namespace ptgn;
 class EditorScene : public Scene {
 public:
 	void OnEnter() override {
+		ctx().window.SetBackgroundColor(color::LightBlue);
+		ctx().renderer.SetBackgroundColor(color::Orange);
 		ctx().asset.Load("tree", "assets/jpg.jpg");
 		ctx().asset.Load("rain_anim", "assets/animation_rain_splash.png");
 
