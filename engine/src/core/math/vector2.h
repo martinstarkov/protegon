@@ -358,6 +358,26 @@ constexpr Vector2<S> operator/(Vector2<V> lhs, U rhs) { // NOSONAR
 			 static_cast<S>(lhs.y) / static_cast<S>(rhs) };
 }
 
+template <Arithmetic T>
+[[nodiscard]] inline float Dot(Vector2<T> a, Vector2<T> b) {
+	return a.Dot(b);
+}
+
+template <Arithmetic T>
+[[nodiscard]] inline float Length(Vector2<T> v) {
+	return v.Magnitude();
+}
+
+template <Arithmetic T>
+[[nodiscard]] inline Vector2<T> Normalize(Vector2<T> v) {
+	return v.Normalized();
+}
+
+template <Arithmetic T>
+[[nodiscard]] inline float Distance(Vector2<T> a, Vector2<T> b) {
+	return Length(a - b);
+}
+
 /// @brief Clamp both components of a vector between min and max (component specific).
 template <Arithmetic T>
 [[nodiscard]] inline Vector2<T> Clamp(Vector2<T> vector, Vector2<T> min, Vector2<T> max) {
