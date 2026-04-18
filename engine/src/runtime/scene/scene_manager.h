@@ -65,6 +65,7 @@ public:
 	[[nodiscard]] bool HasScene(std::size_t scene_tag_hash) const;
 
 	const std::vector<std::unique_ptr<Scene>>& GetScenes() const;
+	std::vector<std::unique_ptr<Scene>>& GetScenes();
 
 	const Scene& GetScene(std::size_t scene_tag_hash) const;
 	Scene& GetScene(std::size_t scene_tag_hash);

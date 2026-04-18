@@ -278,6 +278,10 @@ const std::vector<std::unique_ptr<Scene>>& SceneManager::GetScenes() const {
 	return scenes_;
 }
 
+std::vector<std::unique_ptr<Scene>>& SceneManager::GetScenes() {
+	return scenes_;
+}
+
 } // namespace impl
 
 LocalSceneManager::LocalSceneManager(impl::SceneManager& scene_manager, Scene& scene) :
