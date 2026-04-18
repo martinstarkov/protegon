@@ -40,7 +40,7 @@ enum class SceneState {
 template <typename TComponent>
 struct SceneHook {
 	Scene& scene;
-	ecs::Hook<void, ecs::impl::EntityHandle<JsonArchiver>>& hook;
+	ecs::Hook<void, ecs::impl::BaseEntity<JsonArchiver>>& hook;
 
 	template <auto Member>
 	void Connect();
@@ -203,7 +203,7 @@ private:
 	friend struct SceneHook;
 
 	template <typename TScene, auto Member>
-	void HookThunk(ecs::impl::EntityHandle<JsonArchiver> handle) {
+	void HookThunk(ecs::impl::BaseEntity<JsonArchiver> handle) {
 		(static_cast<TScene*>(this)->*Member)(Entity{ handle, this });
 	}
 

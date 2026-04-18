@@ -23,15 +23,21 @@ class Manager;
 class Scene;
 class Event;
 
+template <typename SceneT, typename EcsView>
+struct SceneEntityRange;
+
+template <typename SceneT, typename EcsView, typename... TComponents>
+struct SceneEntitiesWithRange;
+
 class Entity {
 public:
 	// Entity wrapper functionality.
 
 	Entity() = default;
 
-	Entity(ecs::impl::EntityHandle<JsonArchiver> entity) : entity_{ entity } {} // NOSONAR
+	Entity(ecs::impl::BaseEntity<JsonArchiver> entity) : entity_{ entity } {} // NOSONAR
 
-	Entity(ecs::impl::EntityHandle<JsonArchiver> entity, const Scene* scene) :
+	Entity(ecs::impl::BaseEntity<JsonArchiver> entity, const Scene* scene) :
 		entity_{ entity }, scene_{ const_cast<Scene*>(scene) } {} // NOSONAR
 
 	Entity(Entity entity, const Scene* scene) :
@@ -199,6 +205,12 @@ private:
 	friend class Manager;
 	friend class Scene;
 
+	template <typename SceneT, typename EcsView>
+	friend struct SceneEntityRange;
+
+	template <typename SceneT, typename EcsView, typename... TComponents>
+	friend struct SceneEntitiesWithRange;
+
 	void OnEvent(const Event& event);
 
 	template <JsonSerializable T>
@@ -219,7 +231,7 @@ private:
 
 	void DeserializeAllImpl(const json& j);
 
-	ecs::impl::EntityHandle<JsonArchiver> entity_;
+	ecs::impl::BaseEntity<JsonArchiver> entity_;
 	Scene* scene_{ nullptr };
 };
 

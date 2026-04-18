@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ecs/ecs.h>
+
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 
@@ -14,9 +15,9 @@ class RenderData;
 
 } // namespace impl
 
-class Manager : public ecs::impl::Manager<JsonArchiver> {
+class Manager : public ecs::impl::BaseManager<JsonArchiver> {
 private:
-	using ManagerBase = ecs::impl::Manager<JsonArchiver>;
+	using ManagerBase = ecs::impl::BaseManager<JsonArchiver>;
 
 public:
 	Manager()							   = default;
