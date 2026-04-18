@@ -1,12 +1,17 @@
 #pragma once
 
+#include <imgui.h>
+#include <imgui_internal.h>
+#include <imgui_stdlib.h>
+
 #include <algorithm>
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <concepts>
 #include <filesystem>
+#include <format>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -17,7 +22,3 @@
 #include <utility>
 #include <variant>
 #include <vector>
-#include <format>
-
-#include <imgui.h>
-#include <imgui_internal.h>
