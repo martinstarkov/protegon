@@ -6,6 +6,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "core/assert.h"
@@ -86,6 +87,15 @@ std::uint64_t Entity::GetUUID() const {
 std::string Entity::GetTag() const {
 	PTGN_ASSERT(Has<impl::Tag>(), "Every entity must have a tag");
 	return Get<impl::Tag>();
+}
+
+Entity& Entity::SetTag(std::string_view tag) {
+	if (Has<impl::Tag>()) {
+		Get<impl::Tag>().GetValue() = tag;
+	} else {
+		Add<impl::Tag>(tag);
+	}
+	return *this;
 }
 
 std::size_t Entity::GetECSId() const {

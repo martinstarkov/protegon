@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <type_traits>
 
 #include "core/assert.h"
@@ -148,6 +149,8 @@ public:
 	std::uint64_t GetUUID() const;
 
 	std::string GetTag() const;
+
+	Entity& SetTag(std::string_view tag);
 
 	std::size_t GetECSId() const;
 
