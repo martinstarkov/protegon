@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -16,6 +17,7 @@
 #include "core/editor_selection.h"
 #include "core/editor_state.h"
 #include "core/graphics/color.h"
+#include "core/math/vector2.h"
 #include "panels/content_browser.h"
 #include "panels/engine_settings.h"
 #include "panels/inspector.h"
@@ -23,6 +25,7 @@
 #include "panels/scene_list.h"
 #include "panels/viewport.h"
 #include "platform/window.h"
+#include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
@@ -113,12 +116,44 @@ SceneListPanel& Editor::GetSceneListPanel() {
 	return scene_list_panel_;
 }
 
+void Editor::SetScalingMode(ScalingMode scaling_mode) {
+	app.renderer_.SetScalingMode(scaling_mode);
+}
+
+void Editor::SetGameSize(std::optional<V2_int> game_size) {
+	app.renderer_.SetGameSize(game_size, std::nullopt);
+}
+
+ScalingMode Editor::GetScalingMode() const {
+	return app.renderer_.GetScalingMode();
+}
+
+bool Editor::HasGameSize() const {
+	return app.renderer_.HasGameSize();
+}
+
+V2_int Editor::GetGameSize() const {
+	return app.renderer_.GetGameSize();
+}
+
 Viewport Editor::GetDisplayViewport() const {
 	return app.renderer_.GetDisplayViewport();
 }
 
-Color Editor::GetViewportPanelBackgroundColor() const {
+void Editor::SetWindowBackgroundColor(Color color) {
+	app.window_.SetBackgroundColor(color);
+}
+
+Color Editor::GetWindowBackgroundColor() const {
 	return app.window_.GetBackgroundColor();
+}
+
+void Editor::SetRendererBackgroundColor(Color color) {
+	app.renderer_.SetBackgroundColor(color);
+}
+
+Color Editor::GetRendererBackgroundColor() const {
+	return app.renderer_.GetBackgroundColor();
 }
 
 impl::TextureId Editor::GetScreenTargetTexture() const {
@@ -156,8 +191,8 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	ImGuiID dock_right_bottom  = 0;
 	ImGuiID dock_center_bottom = 0;
 
-	const float left_ratio			= 0.20f;
-	const float right_ratio			= 0.22f;
+	const float left_ratio			= 0.3f;
+	const float right_ratio			= 0.3f;
 	const float left_bottom_ratio	= 0.35f;
 	const float right_bottom_ratio	= 0.35f;
 	const float center_bottom_ratio = 0.25f;

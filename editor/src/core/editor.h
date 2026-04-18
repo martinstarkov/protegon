@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "app/layer.h"
@@ -9,6 +10,7 @@
 #include "commands/undo_stack.h"
 #include "core/editor_context.h"
 #include "core/graphics/color.h"
+#include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "panels/content_browser.h"
 #include "panels/engine_settings.h"
@@ -16,6 +18,7 @@
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
 #include "panels/viewport.h"
+#include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 
@@ -33,9 +36,17 @@ public:
 	void OnUpdate() override;
 	void OnRender() override;
 
+	void SetScalingMode(ScalingMode scaling_mode);
+	void SetGameSize(std::optional<V2_int> game_size);
+	ScalingMode GetScalingMode() const;
+	V2_int GetGameSize() const;
+	bool HasGameSize() const;
 	Viewport GetDisplayViewport() const;
 	impl::TextureId GetScreenTargetTexture() const;
-	Color GetViewportPanelBackgroundColor() const;
+	void SetWindowBackgroundColor(Color color);
+	Color GetWindowBackgroundColor() const;
+	void SetRendererBackgroundColor(Color color);
+	Color GetRendererBackgroundColor() const;
 
 	const std::vector<std::unique_ptr<Scene>>& GetScenes() const;
 	std::vector<std::unique_ptr<Scene>>& GetScenes();
