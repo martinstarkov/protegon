@@ -50,9 +50,6 @@ add_library(ptgn_miniaudio STATIC
 target_include_directories(ptgn_miniaudio
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio
-)
-
-target_include_directories(ptgn_miniaudio
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/miniaudio/extras/decoders/libvorbis
     ${CMAKE_CURRENT_SOURCE_DIR}/ogg/include
