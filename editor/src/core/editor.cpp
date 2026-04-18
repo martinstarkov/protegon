@@ -4,7 +4,6 @@
 #include <imgui_internal.h>
 
 #include <cstdint>
-#include <filesystem>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -17,7 +16,6 @@
 #include "core/editor_selection.h"
 #include "core/editor_state.h"
 #include "core/graphics/color.h"
-#include "core/util/file.h"
 #include "panels/content_browser.h"
 #include "panels/engine_settings.h"
 #include "panels/inspector.h"
@@ -34,16 +32,10 @@
 namespace ptgn::editor {
 
 Editor::Editor(Application& app) : app{ app } {
-	auto active_scene{ app.scene_manager_.GetScenes().empty()
-						   ? nullptr
-						   : app.scene_manager_.GetScenes().front().get() };
-
 	EditorSelection selection;
 
 	EditorState state;
 
-	state.active_scene		= active_scene;
-	state.active_scene_path = path{};
 	state.is_dirty			= false;
 	state.is_paused			= false;
 	state.is_playing		= false;
@@ -101,26 +93,20 @@ void Editor::DrawPanels() {
 	content_browser_panel_.OnRender(*context_);
 }
 
+const std::vector<std::unique_ptr<Scene>>& Editor::GetScenes() const {
+	return app.scene_manager_.GetScenes();
+}
+
+std::vector<std::unique_ptr<Scene>>& Editor::GetScenes() {
+	return app.scene_manager_.GetScenes();
+}
+
 void Editor::SetPresentationViewport(Viewport presentation_viewport) {
 	app.renderer_.SetPresentationViewport(presentation_viewport);
 }
 
-void Editor::SetActiveScene(Scene* scene, std::filesystem::path scene_path) {
-	PTGN_ASSERT(context_, "Editor context must be initialized");
-
-	if (context_->state.active_scene == scene) {
-		return;
-	}
-
-	context_->state.active_scene	  = scene;
-	context_->state.active_scene_path = std::move(scene_path);
-
-	OnActiveSceneChanged();
-}
-
-Scene* Editor::GetActiveScene() const {
-	PTGN_ASSERT(context_, "Editor context must be initialized");
-	return context_->state.active_scene;
+SceneHierarchyPanel& Editor::GetSceneHierarchyPanel() {
+	return scene_hierarchy_panel_;
 }
 
 Viewport Editor::GetDisplayViewport() const {
@@ -136,7 +122,7 @@ impl::TextureId Editor::GetScreenTargetTexture() const {
 	return texture;
 }
 
-void Editor::OnActiveSceneChanged() {
+void Editor::OnProjectChanged() {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 	context_->selection.Clear();
 
@@ -152,8 +138,8 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 
 	dock_layout_built_ = true;
 
-	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImVec2 work_size		= viewport->WorkSize;
+	const ImGuiViewport* viewport{ ImGui::GetMainViewport() };
+	ImVec2 work_size = viewport->WorkSize;
 
 	ImGui::DockBuilderRemoveNode(dockspace_id);
 	ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);

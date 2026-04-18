@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #include "app/layer.h"
 #include "commands/editor_commands.h"
@@ -32,20 +33,21 @@ public:
 	void OnUpdate() override;
 	void OnRender() override;
 
-	void SetActiveScene(Scene* scene, path scene_path = {});
-
-	Scene* GetActiveScene() const;
-
 	Viewport GetDisplayViewport() const;
 	impl::TextureId GetScreenTargetTexture() const;
 	Color GetViewportPanelBackgroundColor() const;
 
+	const std::vector<std::unique_ptr<Scene>>& GetScenes() const;
+	std::vector<std::unique_ptr<Scene>>& GetScenes();
+
 	void SetPresentationViewport(Viewport viewport);
+
+	SceneHierarchyPanel& GetSceneHierarchyPanel();
 
 private:
 	Application& app;
 
-	void OnActiveSceneChanged();
+	void OnProjectChanged();
 
 	void DrawPanels();
 

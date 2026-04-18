@@ -12,4 +12,10 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 	ImGui::End();
 }
 
+Entity SceneHierarchyPanel::GetSelectedEntity() const {
+	return selected_entity_;
+}
+
+void SceneHierarchyPanel::SetSelectedEntity(Entity entity) {}
+
 } // namespace ptgn::editor

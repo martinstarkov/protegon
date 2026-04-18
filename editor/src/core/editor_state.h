@@ -19,8 +19,6 @@ struct EditorState {
 	bool is_playing{ false };
 	bool is_paused{ false };
 
-	Scene* active_scene{ nullptr };
-	path active_scene_path;
 	bool is_dirty{ false };
 
 	ViewportState viewport;
