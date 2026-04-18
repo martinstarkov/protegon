@@ -29,7 +29,7 @@ public:
 		ctx().asset.Load("tree", "assets/jpg.jpg");
 		ctx().asset.Load("rain_anim", "assets/animation_rain_splash.png");
 
-		CreateSprite(*this, "tree", {});
+		CreateSprite(*this, "tree", {}).SetTag("Tree");
 
 		CreateParticleEmitter(
 			*this, { 0.0f, static_cast<float>(-ctx().renderer.GetGameSize().y) / 2.0f },
@@ -49,22 +49,8 @@ public:
 			  .size_over_lifetime  = 3.0f,
 			  .color_over_lifetime = Color{ 120, 170, 255, 200 } }
 		)
-			.OnParticleDestroy([](event::ParticleDestroyed& p) {
-				if (Chance(0.3f)) {
-					auto& scene{ p.emitter.GetScene() };
-
-					auto duration{ 250ms };
-
-					auto anim = PlayTemporaryAnimation(
-						scene, "rain_anim", p.particle.position,
-						{ .frame_count = 3, .animation_duration = duration, .play_count = 1 }
-					);
-					SetScale(anim, 0.5f);
-					FadeOut(anim, duration * 2);
-					AddChild(p.emitter, anim);
-				}
-			})
-			.Start();
+			.Start()
+			.SetTag("Particle Emitter");
 	}
 
 	void OnUpdate() override {}
@@ -75,7 +61,7 @@ public:
 };
 
 int main(int, char**) {
-	Application app{ "EditorScene" };
+	Application app{ "EditorScene", { 1280, 720 } };
 	PTGN_WITH_EDITOR(app);
 	app.StartWith<EditorScene>();
 }
