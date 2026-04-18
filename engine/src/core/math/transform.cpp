@@ -110,8 +110,7 @@ Transform& Transform::SetScale(float scale) {
 }
 
 Transform& Transform::SetScale(V2_float scale) {
-	PTGN_ASSERT(!scale.HasZero(), "Cannot set transform scale to be zero");
-	scale_ = scale;
+	scale_ = Clamp(scale, kMinScale, kMaxScale);
 	return *this;
 }
 

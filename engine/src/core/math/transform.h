@@ -11,6 +11,9 @@
 
 namespace ptgn {
 
+constexpr float kMinScale{ 0.001f };
+constexpr float kMaxScale{ 10000.0f };
+
 struct Transform {
 	Transform() = default;
 
