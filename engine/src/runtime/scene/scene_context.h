@@ -1,12 +1,12 @@
 #pragma once
 
 #include "core/util/time.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/physics.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_event_handler.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
@@ -54,7 +54,7 @@ public:
 
 	/// @brief The default camera used by all objects in the scene. By default it resizes to the
 	/// game size.
-	Camera camera;
+	SceneCamera camera;
 
 	/// @brief Terminates the main application loop.
 	void Stop();
@@ -84,7 +84,7 @@ private:
 
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
 	/// size.
-	Camera fixed_camera_;
+	SceneCamera fixed_camera_;
 
 	impl::Renderer& global_renderer_;
 	Application& app_;

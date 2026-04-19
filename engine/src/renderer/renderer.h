@@ -18,6 +18,7 @@
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/render_pass.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/scaling_mode.h"
@@ -138,6 +139,10 @@ public:
 
 	void SetBackgroundColor(Color background_color);
 	Color GetBackgroundColor() const;
+
+	void SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera = std::nullopt);
+
+	const std::optional<Camera>& GetPrimaryWorldCamera() const;
 
 	void FlushBatch();
 
@@ -294,6 +299,7 @@ private:
 	std::vector<Index> batch_indices_;
 	std::vector<TextureId> batch_textures_;
 
+	/// @brief Currently set view projection.
 	Matrix4 view_projection_;
 
 	Color background_color_;
@@ -314,6 +320,8 @@ private:
 
 	/// @brief Flag to indicate whether the display viewport needs to be recalculated.
 	bool display_viewport_dirty_{ true };
+
+	std::optional<Camera> primary_world_camera_;
 };
 
 } // namespace impl

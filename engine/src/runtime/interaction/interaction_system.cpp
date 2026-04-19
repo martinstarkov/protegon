@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <chrono>
+#include <functional>
 #include <list>
+#include <optional>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -18,10 +20,11 @@
 #include "core/math/vector2.h"
 #include "core/util/span.h"
 #include "core/util/time.h"
+#include "renderer/pipeline/camera.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/frame_context.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/interaction/draggable.h"
@@ -34,6 +37,7 @@
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/broadphase.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene_input.h"
@@ -147,14 +151,14 @@ bool InteractionSystem::Overlap(Entity entityA, Entity entityB) {
 	return false;
 }
 
-bool InteractionSystem::IsAnyDragging(Camera camera) const {
-	auto it{ dragging_entities_.find(camera) };
+bool InteractionSystem::IsAnyDragging(SceneCamera camera) const {
+	auto it{ dragging_entities_.find(camera.GetUUID()) };
 
 	if (it == dragging_entities_.end()) {
 		return false;
 	}
 
-	return !it->second.empty();
+	return !it->second.entities.empty();
 }
 
 bool InteractionSystem::IsTopOnly() const {
@@ -169,6 +173,54 @@ void InteractionSystem::SetDebugSettings(const InteractiveDebugSettings& setting
 	debug_settings_ = settings;
 }
 
+void InteractionSystem::DrawDebugForCamera(
+	Scene& scene, const impl::MouseInfo& mouse_state, const impl::RenderCamera& camera,
+	const std::function<bool(Entity)>& filter
+) const {
+	if (!debug_settings_.draw_enabled) {
+		return;
+	}
+
+	auto render_target{ camera.render_target.value_or(scene.GetRenderTarget()) };
+
+	impl::MouseInfo mouse{ mouse_state };
+
+	mouse.position = ConvertPoint(
+		mouse.position, Frame::Window, Frame::Camera,
+		FrameContext{ scene.ctx().renderer, render_target, camera.camera }
+	);
+
+	if (debug_settings_.draw_enabled) {
+		scene.ctx().debug.DrawPoint(mouse.position, debug_settings_.draw_color, camera);
+	}
+
+	for (auto [entity, interactive] : scene.EntitiesWith<impl::Interactive>()) {
+		if (!interactive.enabled) {
+			continue;
+		}
+		if (filter(entity)) {
+			continue;
+		}
+
+		if (auto lock{ entity.TryGet<InteractionLock>() }; lock && lock->block_hover) {
+			continue;
+		}
+
+		std::vector<std::pair<InteractiveShape, Entity>> shapes;
+
+		GetShapes(entity, entity, shapes);
+
+		for (const auto& [shape, shape_entity] : shapes) {
+			auto draw_transform{ GetDrawTransform(shape_entity) };
+
+			scene.ctx().debug.DrawShape(
+				shape, draw_transform, debug_settings_.draw_color, debug_settings_.draw_line_width,
+				GetDrawOrigin(shape_entity), camera
+			);
+		}
+	}
+}
+
 void InteractionSystem::DrawDebug(Scene& scene) const {
 	if (!debug_settings_.draw_enabled) {
 		return;
@@ -176,62 +228,26 @@ void InteractionSystem::DrawDebug(Scene& scene) const {
 
 	const impl::MouseInfo mouse_state{ scene };
 
-	std::vector<Entity> cameras;
+	if (auto primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
+		primary_world_camera.has_value()) {
+		impl::RenderCamera render_camera{ *primary_world_camera };
+		DrawDebugForCamera(scene, mouse_state, render_camera, [](auto) { return false; });
+	} else {
+		std::vector<Entity> cameras;
 
-	for (auto [camera, _cam] : scene.EntitiesWith<impl::CameraData>()) {
-		cameras.emplace_back(camera);
-	}
-
-	SortByDepth(cameras, false);
-
-	for (const Entity& camera_entity : cameras) {
-		Camera camera{ camera_entity };
-
-		RenderTarget render_target;
-
-		if (auto rt{ camera.TryGet<impl::ParentRenderTarget>() }) {
-			render_target = rt->render_target;
-		} else {
-			render_target = scene.GetRenderTarget();
+		for (auto [camera, _cam] : scene.EntitiesWith<impl::CameraData>()) {
+			cameras.emplace_back(camera);
 		}
 
-		PTGN_ASSERT(render_target);
+		SortByDepth(cameras, false);
 
-		impl::MouseInfo mouse{ mouse_state };
+		for (const Entity& camera_entity : cameras) {
+			SceneCamera camera{ camera_entity };
+			impl::RenderCamera render_camera{ camera };
 
-		mouse.position = ConvertPoint(
-			mouse.position, Frame::Window, Frame::Camera,
-			FrameContext{ scene.ctx().renderer, render_target, camera }
-		);
-
-		if (debug_settings_.draw_enabled) {
-			scene.ctx().debug.DrawPoint(mouse.position, debug_settings_.draw_color, camera);
-		}
-
-		for (auto [entity, interactive] : scene.EntitiesWith<impl::Interactive>()) {
-			if (!interactive.enabled) {
-				continue;
-			}
-			if (!camera.IsVisible(entity)) {
-				continue;
-			}
-
-			if (auto lock{ entity.TryGet<InteractionLock>() }; lock && lock->block_hover) {
-				continue;
-			}
-
-			std::vector<std::pair<InteractiveShape, Entity>> shapes;
-
-			GetShapes(entity, entity, shapes);
-
-			for (const auto& [shape, shape_entity] : shapes) {
-				auto draw_transform{ GetDrawTransform(shape_entity) };
-
-				scene.ctx().debug.DrawShape(
-					shape, draw_transform, debug_settings_.draw_color,
-					debug_settings_.draw_line_width, GetDrawOrigin(shape_entity), camera
-				);
-			}
+			DrawDebugForCamera(scene, mouse_state, render_camera, [camera](auto entity) {
+				return !camera.IsVisible(entity);
+			});
 		}
 	}
 }
@@ -708,6 +724,70 @@ void InteractionSystem::DispatchMouseEvents(
 	}
 }
 
+void InteractionSystem::UpdateForCamera(
+	Scene& scene, const impl::MouseInfo& mouse_state, bool& handled_under_mouse,
+	const RenderTarget& render_target, const Camera& camera, std::size_t camera_uuid,
+	const std::function<bool(Entity)>& filter, const SceneCamera& scene_camera
+) {
+	impl::MouseInfo mouse{ mouse_state };
+
+	mouse.position = ConvertPoint(
+		mouse.position, Frame::Window, Frame::Camera,
+		FrameContext{ scene.ctx().renderer, render_target, camera }
+	);
+
+	std::vector<Entity> camera_entities;
+
+	for (auto [entity, interactive] : scene.EntitiesWith<impl::Interactive>()) {
+		if (!interactive.enabled) {
+			continue;
+		}
+		if (filter(entity)) {
+			continue;
+		}
+		camera_entities.emplace_back(entity);
+	}
+
+	auto entities = GetInteractiveEntities(mouse, camera_entities);
+
+	if (top_only_ && handled_under_mouse) {
+		entities.under_mouse	 = {};
+		entities.not_under_mouse = camera_entities;
+	}
+
+	if (!entities.under_mouse.empty()) {
+		handled_under_mouse = true;
+	}
+
+	auto dropzones{ GetDropzones(scene) };
+
+	dragging_entities_[camera_uuid].camera = scene_camera;
+	last_mouse_over_[camera_uuid].camera   = scene_camera;
+	auto& dragging_entities				   = dragging_entities_[camera_uuid].entities;
+	auto& last_mouse_over				   = last_mouse_over_[camera_uuid].entities;
+
+	UpdateMouseOverStates(entities.under_mouse, last_mouse_over);
+
+	DispatchMouseEvents(entities.under_mouse, entities.not_under_mouse, mouse);
+
+	HandleDragging(entities.under_mouse, dropzones, mouse, dragging_entities);
+
+	if (auto it{ dragging_entities_.find(camera_uuid) };
+		it != dragging_entities_.end() && !it->second.entities.empty()) {
+		HandleDropzones(dropzones, mouse, dragging_entities);
+	}
+
+	CleanupDropzones(dropzones);
+
+	std::erase_if(dragging_entities, [](const auto& entity) {
+		return !entity.template Has<impl::Draggable>() ||
+			   !entity.template Get<impl::Draggable>().enabled;
+	});
+
+	// Save for next frame.
+	last_mouse_over = entities.under_mouse;
+}
+
 void InteractionSystem::Update(Scene& scene) {
 	secondsf dt{ scene.ctx().dt() };
 
@@ -721,94 +801,59 @@ void InteractionSystem::Update(Scene& scene) {
 
 	const impl::MouseInfo mouse_state{ scene };
 
-	std::vector<Entity> cameras;
-
-	for (auto [camera, _cam] : scene.EntitiesWith<impl::CameraData>()) {
-		cameras.emplace_back(camera);
-	}
-
-	SortByDepth(cameras, false);
-
 	bool handled_under_mouse{ false };
 
-	for (const Entity& camera_entity : cameras) {
-		Camera camera{ camera_entity };
+	const auto& primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
 
-		RenderTarget render_target;
-
-		if (auto rt{ camera.TryGet<impl::ParentRenderTarget>() }) {
-			render_target = rt->render_target;
-		} else {
-			render_target = scene.GetRenderTarget();
-		}
-
+	if (primary_world_camera.has_value()) {
+		RenderTarget render_target{ scene.GetRenderTarget() };
 		PTGN_ASSERT(render_target);
 
-		impl::MouseInfo mouse{ mouse_state };
-
-		mouse.position = ConvertPoint(
-			mouse.position, Frame::Window, Frame::Camera,
-			FrameContext{ scene.ctx().renderer, render_target, camera }
+		UpdateForCamera(
+			scene, mouse_state, handled_under_mouse, render_target, *primary_world_camera, 0,
+			[](auto) { return false; }, {}
 		);
 
-		std::vector<Entity> camera_entities;
+		// Remove non primary world cameras.
+		std::erase_if(dragging_entities_, [](const auto& pair) { return pair.first != 0; });
+		std::erase_if(last_mouse_over_, [](const auto& pair) { return pair.first != 0; });
+	} else {
+		std::vector<Entity> cameras;
 
-		for (auto [entity, interactive] : scene.EntitiesWith<impl::Interactive>()) {
-			if (!interactive.enabled) {
-				continue;
+		for (auto [camera, _cam] : scene.EntitiesWith<impl::CameraData>()) {
+			cameras.emplace_back(camera);
+		}
+
+		SortByDepth(cameras, false);
+
+		for (const Entity& camera_entity : cameras) {
+			SceneCamera camera{ camera_entity };
+
+			RenderTarget render_target;
+
+			if (auto rt{ camera.TryGet<impl::ParentRenderTarget>() }) {
+				render_target = rt->render_target;
+			} else {
+				render_target = scene.GetRenderTarget();
 			}
-			if (!camera.IsVisible(entity)) {
-				continue;
-			}
-			camera_entities.emplace_back(entity);
+
+			PTGN_ASSERT(render_target);
+
+			UpdateForCamera(
+				scene, mouse_state, handled_under_mouse, render_target,
+				camera.operator ptgn::Camera(), camera.GetUUID(),
+				[camera](auto entity) { return !camera.IsVisible(entity); }, camera
+			);
 		}
 
-		auto entities = GetInteractiveEntities(mouse, camera_entities);
-
-		if (top_only_ && handled_under_mouse) {
-			entities.under_mouse	 = {};
-			entities.not_under_mouse = camera_entities;
-		}
-
-		if (!entities.under_mouse.empty()) {
-			handled_under_mouse = true;
-		}
-
-		auto dropzones{ GetDropzones(scene) };
-
-		auto& dragging_entities = dragging_entities_[camera];
-		auto& last_mouse_over	= last_mouse_over_[camera];
-
-		UpdateMouseOverStates(entities.under_mouse, last_mouse_over);
-
-		DispatchMouseEvents(entities.under_mouse, entities.not_under_mouse, mouse);
-
-		HandleDragging(entities.under_mouse, dropzones, mouse, dragging_entities);
-
-		if (IsAnyDragging(camera)) {
-			HandleDropzones(dropzones, mouse, dragging_entities);
-		}
-
-		CleanupDropzones(dropzones);
-
-		std::erase_if(dragging_entities, [](const auto& entity) {
-			return !entity.template Has<impl::Draggable>() ||
-				   !entity.template Get<impl::Draggable>().enabled;
+		// Remove deleted cameras or primary world cameras.
+		std::erase_if(dragging_entities_, [&cameras](const auto& pair) {
+			return !std::ranges::contains(cameras, pair.second.camera) || pair.first == 0;
 		});
-
-		// Save for next frame.
-		last_mouse_over = entities.under_mouse;
+		std::erase_if(last_mouse_over_, [&cameras](const auto& pair) {
+			return !std::ranges::contains(cameras, pair.second.camera) || pair.first == 0;
+		});
 	}
-
-	// Remove deleted cameras.
-
-	std::erase_if(dragging_entities_, [&cameras](const auto& pair) {
-		return !std::ranges::contains(cameras, Entity{ pair.first });
-	});
-
-	std::erase_if(last_mouse_over_, [&cameras](const auto& pair) {
-		return !std::ranges::contains(cameras, Entity{ pair.first });
-	});
 }
 
 } // namespace ptgn

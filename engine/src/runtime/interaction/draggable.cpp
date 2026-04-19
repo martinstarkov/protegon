@@ -23,7 +23,7 @@ bool IsDraggable(Entity entity) {
 bool IsDragging(Entity entity) {
 	const auto& dragging_entities{ entity.GetScene().ctx().interaction.dragging_entities_ };
 	for (const auto& [camera, entities] : dragging_entities) {
-		if (std::ranges::contains(entities, entity)) {
+		if (std::ranges::contains(entities.entities, entity)) {
 			return true;
 		}
 	}

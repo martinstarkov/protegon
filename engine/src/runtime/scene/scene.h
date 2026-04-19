@@ -3,6 +3,7 @@
 #include <ecs/ecs.h>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -29,6 +30,7 @@ class LocalSceneManager;
 namespace impl {
 
 class Renderer;
+struct RenderCamera;
 
 enum class SceneState {
 	Active,
@@ -222,6 +224,11 @@ private:
 	void InternalUpdate();
 	void InternalDraw();
 	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
+
+	void InvokeEntityDrawCommands(
+		Scene& scene, const impl::RenderCamera& render_camera,
+		const std::function<bool(Entity)>& filter
+	);
 
 	void AddMandatoryComponents(
 		Entity entity, std::optional<std::string_view> tag, std::optional<std::uint64_t> uuid

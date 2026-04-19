@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <ostream>
 #include <unordered_map>
 #include <vector>
@@ -8,17 +9,19 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/camera.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/interaction/draggable.h"
 #include "runtime/interaction/dropzone.h"
 #include "runtime/interaction/trigger_condition.h"
+#include "runtime/scene/scene_camera.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
 
 class Scene;
 class SceneContext;
+class RenderTarget;
 
 namespace impl {
 
@@ -35,6 +38,11 @@ struct MouseInfo {
 
 struct DragState {
 	V2_int drag_start_position;
+};
+
+struct InteractedEntities {
+	std::vector<Entity> entities;
+	SceneCamera camera;
 };
 
 } // namespace impl
@@ -60,7 +68,7 @@ public:
 	void SetDebugSettings(const InteractiveDebugSettings& settings = {});
 
 	/// @return True if any draggable entity is being dragged.
-	[[nodiscard]] bool IsAnyDragging(Camera camera) const;
+	[[nodiscard]] bool IsAnyDragging(SceneCamera camera) const;
 
 	[[nodiscard]] static bool Overlap(V2_float point, Entity interactive_entity);
 	[[nodiscard]] static bool Overlap(Entity entityA, Entity entityB);
@@ -86,6 +94,12 @@ private:
 			return os;
 		}
 	};
+
+	void UpdateForCamera(
+		Scene& scene, const impl::MouseInfo& mouse_state, bool& handled_under_mouse,
+		const RenderTarget& render_target, const Camera& camera, std::size_t camera_uuid,
+		const std::function<bool(Entity)>& filter, const SceneCamera& scene_camera
+	);
 
 	static Transform GetWorldOffsetTransform(const Shape& shape, Entity shape_entity);
 
@@ -177,14 +191,19 @@ private:
 	);
 
 	void DrawDebug(Scene& scene) const;
+	void DrawDebugForCamera(
+		Scene& scene, const impl::MouseInfo& mouse_state, const impl::RenderCamera& camera,
+		const std::function<bool(Entity)>& filter
+	) const;
 
-	/// @brief A set of entities currently being dragged per a given camera.
-	std::unordered_map<Camera, std::vector<Entity>> dragging_entities_;
+	using CameraUUID = std::size_t;
+
+	/// @brief A set of entities currently being dragged per a given camera uuid.
+	std::unordered_map<CameraUUID, impl::InteractedEntities> dragging_entities_;
 
 	/// @brief Stores the set of entities that were under the mouse cursor in the previous frame per
 	/// a given camera.
-	std::unordered_map<Camera, std::vector<Entity>> last_mouse_over_;
-
+	std::unordered_map<CameraUUID, impl::InteractedEntities> last_mouse_over_;
 	/// @brief Indicates whether only the top interactable entity should be processed or considered.
 	bool top_only_{ false };
 

@@ -33,6 +33,7 @@
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/buffer_layout.h"
+#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/render_pass.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/scaling_mode.h"
@@ -822,6 +823,14 @@ void Renderer::SetBackgroundColor(Color background_color) {
 
 Color Renderer::GetBackgroundColor() const {
 	return background_color_;
+}
+
+void Renderer::SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera) {
+	primary_world_camera_ = primary_world_camera;
+}
+
+const std::optional<Camera>& Renderer::GetPrimaryWorldCamera() const {
+	return primary_world_camera_;
 }
 
 void Renderer::UpdateDisplayViewport(bool emit_events) {
