@@ -282,26 +282,26 @@ std::vector<std::unique_ptr<Scene>>& SceneManager::GetScenes() {
 	return scenes_;
 }
 
-} // namespace impl
-
-LocalSceneManager::LocalSceneManager(impl::SceneManager& scene_manager, Scene& scene) :
-	scene_manager_{ scene_manager }, scene_{ scene } {}
-
-bool LocalSceneManager::CanIssueCommands(std::size_t target_scene_tag_hash) const {
-	if (scene_.IsTransitioning()) {
-		return false;
-	}
-
-	if (!scene_manager_.HasScene(target_scene_tag_hash)) {
+bool SceneManager::CanIssueCommands(std::size_t target_scene_tag_hash) const {
+	if (!HasScene(target_scene_tag_hash)) {
 		return true;
 	}
 
-	if (const auto& target_scene{ scene_manager_.GetScene(target_scene_tag_hash) };
+	if (const auto& target_scene{ GetScene(target_scene_tag_hash) };
 		target_scene.IsTransitioning()) {
 		return false;
 	}
 
 	return true;
+}
+
+} // namespace impl
+
+LocalSceneManager::LocalSceneManager(impl::SceneManager& scene_manager, Scene& scene) :
+	scene_manager_{ scene_manager }, scene_{ scene } {}
+
+bool LocalSceneManager::CanIssueCommands() const {
+	return !scene_.IsTransitioning();
 }
 
 } // namespace ptgn

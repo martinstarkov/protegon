@@ -43,8 +43,6 @@ public:
 	struct Command {
 		CommandType type{ CommandType::Enter };
 
-		std::string from_scene_tag;
-		std::size_t from_scene_tag_hash{ 0 };
 		std::string to_scene_tag;
 		std::size_t to_scene_tag_hash{ 0 };
 
@@ -70,49 +68,6 @@ public:
 	const Scene& GetScene(std::size_t scene_tag_hash) const;
 	Scene& GetScene(std::size_t scene_tag_hash);
 
-private:
-	friend class ptgn::Application;
-
-	SceneManager()									 = default;
-	~SceneManager() noexcept						 = default;
-	SceneManager(SceneManager&&) noexcept			 = delete;
-	SceneManager& operator=(SceneManager&&) noexcept = delete;
-	SceneManager(const SceneManager&)				 = delete;
-	SceneManager& operator=(const SceneManager&)	 = delete;
-
-	void PreUpdate();
-	void OnEvent();
-	void Update(Application& app, secondsf dt);
-	void Draw() const;
-
-	struct ReEnteringScene {
-		std::size_t scene_tag_hash{ 0 };
-		std::size_t temporary_scene_tag_hash{ 0 };
-	};
-
-	/// @return A map of scene tag hashes to the highest priority command for each scene (if a
-	/// command was issued).
-	std::unordered_map<std::size_t, Command> GetTopPriorityCommands();
-	void ApplyCommands(
-		Application& app, std::unordered_map<std::size_t, Command>& top_priority_commands
-	);
-	void UpdateTransitions(secondsf dt);
-	void UpdateReEnteredSceneTagHashes();
-
-	[[nodiscard]] std::size_t GenerateTempTagHash() const;
-
-	std::vector<std::unique_ptr<Scene>> scenes_;
-
-	std::vector<Command> commands_;
-
-	/// @brief Contains the scene tag hashes of currently re-entering scenes.
-	std::vector<ReEnteringScene> reentering_scenes_;
-};
-
-} // namespace impl
-
-class LocalSceneManager {
-public:
 	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	bool Enter(
@@ -124,7 +79,7 @@ public:
 			return false;
 		}
 
-		if (scene_manager_.HasScene(scene_tag_hash)) {
+		if (HasScene(scene_tag_hash)) {
 			return ReEnter<T>(
 				scene_tag, SceneTransitionPair{ {}, std::forward<TransitionIn>(transition_in) },
 				std::forward<TArgs>(constructor_args)...
@@ -139,10 +94,9 @@ public:
 			);
 		}
 
-		scene_manager_.PushCommand(
-			impl::SceneManager::CommandType::Enter, scene_.GetTag(), scene_.GetTagHash(),
-			std::string{ scene_tag }, scene_tag_hash, priority,
-			GetInitFunction<T>(std::forward<TArgs>(constructor_args)...), nullptr,
+		PushCommand(
+			impl::SceneManager::CommandType::Enter, std::string{ scene_tag }, scene_tag_hash,
+			priority, GetInitFunction<T>(std::forward<TArgs>(constructor_args)...), nullptr,
 			std::move(transition_in_ptr)
 		);
 
@@ -189,7 +143,7 @@ public:
 			return false;
 		}
 
-		if (!scene_manager_.HasScene(scene_tag_hash)) {
+		if (!HasScene(scene_tag_hash)) {
 			return false;
 		}
 
@@ -201,10 +155,9 @@ public:
 			);
 		}
 
-		scene_manager_.PushCommand(
-			impl::SceneManager::CommandType::Exit, scene_.GetTag(), scene_.GetTagHash(),
-			std::string{ scene_tag }, scene_tag_hash, priority, nullptr,
-			std::move(transition_out_ptr), nullptr
+		PushCommand(
+			impl::SceneManager::CommandType::Exit, std::string{ scene_tag }, scene_tag_hash,
+			priority, nullptr, std::move(transition_out_ptr), nullptr
 		);
 
 		return true;
@@ -231,8 +184,7 @@ public:
 		}
 
 		PTGN_ASSERT(
-			scene_manager_.HasScene(scene_tag_hash),
-			"Cannot re-enter a scene tag hash which has not been entered"
+			HasScene(scene_tag_hash), "Cannot re-enter a scene tag hash which has not been entered"
 		);
 
 		std::unique_ptr<SceneTransition> transition_out_ptr;
@@ -248,9 +200,8 @@ public:
 				std::make_unique<std::decay_t<TransitionIn>>(std::move(transition.in));
 		}
 
-		scene_manager_.PushCommand(
-			impl::SceneManager::CommandType::ReEnter, scene_.GetTag(), scene_.GetTagHash(),
-			std::string{ scene_tag }, scene_tag_hash,
+		PushCommand(
+			impl::SceneManager::CommandType::ReEnter, std::string{ scene_tag }, scene_tag_hash,
 			SceneTransitionPriority{ std::numeric_limits<std::size_t>::max() },
 			GetInitFunction<T>(std::forward<TArgs>(constructor_args)...),
 			std::move(transition_out_ptr), std::move(transition_in_ptr)
@@ -330,6 +281,195 @@ public:
 		);
 	}
 
+	template <SceneType T, typename... TArgs>
+	[[nodiscard]] static std::function<std::unique_ptr<Scene>(Application&)> GetInitFunction(
+		TArgs&&... constructor_args
+	) {
+		return [constructor_args...](Application& app) -> std::unique_ptr<Scene> {
+			auto scene{ std::make_unique<T>(constructor_args...) };
+			scene->Init(app);
+			return scene;
+		};
+	}
+
+private:
+	friend class ptgn::Application;
+
+	SceneManager()									 = default;
+	~SceneManager() noexcept						 = default;
+	SceneManager(SceneManager&&) noexcept			 = delete;
+	SceneManager& operator=(SceneManager&&) noexcept = delete;
+	SceneManager(const SceneManager&)				 = delete;
+	SceneManager& operator=(const SceneManager&)	 = delete;
+
+	void PreUpdate();
+	void OnEvent();
+	void Update(Application& app, secondsf dt);
+	void Draw() const;
+
+	struct ReEnteringScene {
+		std::size_t scene_tag_hash{ 0 };
+		std::size_t temporary_scene_tag_hash{ 0 };
+	};
+
+	/// @return A map of scene tag hashes to the highest priority command for each scene (if a
+	/// command was issued).
+	std::unordered_map<std::size_t, Command> GetTopPriorityCommands();
+	void ApplyCommands(
+		Application& app, std::unordered_map<std::size_t, Command>& top_priority_commands
+	);
+	void UpdateTransitions(secondsf dt);
+	void UpdateReEnteredSceneTagHashes();
+
+	[[nodiscard]] std::size_t GenerateTempTagHash() const;
+
+	[[nodiscard]] bool CanIssueCommands(std::size_t target_scene_tag_hash) const;
+
+	std::vector<std::unique_ptr<Scene>> scenes_;
+
+	std::vector<Command> commands_;
+
+	/// @brief Contains the scene tag hashes of currently re-entering scenes.
+	std::vector<ReEnteringScene> reentering_scenes_;
+};
+
+} // namespace impl
+
+class LocalSceneManager {
+public:
+	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	bool Enter(
+		std::string_view scene_tag, TransitionIn&& transition_in, SceneTransitionPriority priority,
+		TArgs&&... constructor_args
+	) {
+		return scene_manager_.Enter<T>(
+			scene_tag, std::forward<TransitionIn>(transition_in), priority,
+			std::forward<TArgs>(constructor_args)...
+		);
+	}
+
+	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	bool Enter(
+		std::string_view scene_tag, TransitionIn&& transition_in, TArgs&&... constructor_args
+	) {
+		return Enter<T>(
+			scene_tag, std::forward<TransitionIn>(transition_in), SceneTransitionPriority{},
+			std::forward<TArgs>(constructor_args)...
+		);
+	}
+
+	template <SceneType T, typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	bool Enter(
+		std::string_view scene_tag, SceneTransitionPriority priority, TArgs&&... constructor_args
+	) {
+		return Enter<T>(
+			scene_tag, NoTransition{}, priority, std::forward<TArgs>(constructor_args)...
+		);
+	}
+
+	template <SceneType T, typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	bool Enter(std::string_view scene_tag, TArgs&&... constructor_args) {
+		return Enter<T>(
+			scene_tag, NoTransition{}, SceneTransitionPriority{},
+			std::forward<TArgs>(constructor_args)...
+		);
+	}
+
+	template <SceneTransitionType TransitionOut>
+	bool Exit(
+		std::string_view scene_tag, TransitionOut&& transition_out,
+		SceneTransitionPriority priority = SceneTransitionPriority{ 0 }
+	) {
+		return scene_manager_.Exit(
+			scene_tag, std::forward<TransitionOut>(transition_out), priority
+		);
+	}
+
+	bool Exit(
+		std::string_view scene_tag, SceneTransitionPriority priority = SceneTransitionPriority{ 0 }
+	) {
+		return Exit(scene_tag, NoTransition{}, priority);
+	}
+
+	template <
+		SceneType T, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
+		typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	bool ReEnter(
+		std::string_view scene_tag, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
+		TArgs&&... constructor_args
+	) {
+		return scene_manager_.ReEnter<T>(
+			scene_tag, std::move(transition), std::forward<TArgs>(constructor_args)...
+		);
+	}
+
+	template <SceneType T, typename... TArgs>
+		requires std::constructible_from<T, TArgs...>
+	bool ReEnter(std::string_view scene_tag, TArgs&&... constructor_args) {
+		return ReEnter<T>(
+			scene_tag, SceneTransitionPair{}, std::forward<TArgs>(constructor_args)...
+		);
+	}
+
+	template <
+		SceneType ToScene, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
+		typename... TArgs>
+		requires std::constructible_from<ToScene, TArgs...>
+	bool Transition(
+		std::string_view from_scene_tag, std::string_view to_scene_tag,
+		SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
+		SceneTransitionPriority priority, TArgs&&... to_scene_constructor_args
+	) {
+		return scene_manager_.Transition<ToScene>(
+			from_scene_tag, to_scene_tag, std::move(transition), priority,
+			std::forward<TArgs>(to_scene_constructor_args)...
+		);
+	}
+
+	template <
+		SceneType ToScene, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
+		typename... TArgs>
+		requires std::constructible_from<ToScene, TArgs...>
+	bool Transition(
+		std::string_view from_scene_tag, std::string_view to_scene_tag,
+		SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
+		TArgs&&... to_scene_constructor_args
+	) {
+		return Transition<ToScene>(
+			from_scene_tag, to_scene_tag, std::move(transition), SceneTransitionPriority{},
+			std::forward<TArgs>(to_scene_constructor_args)...
+		);
+	}
+
+	template <SceneType ToScene, typename... TArgs>
+		requires std::constructible_from<ToScene, TArgs...>
+	bool Transition(
+		std::string_view from_scene_tag, std::string_view to_scene_tag,
+		SceneTransitionPriority priority, TArgs&&... to_scene_constructor_args
+	) {
+		return Transition<ToScene>(
+			from_scene_tag, to_scene_tag, SceneTransitionPair{}, priority,
+			std::forward<TArgs>(to_scene_constructor_args)...
+		);
+	}
+
+	template <SceneType ToScene, typename... TArgs>
+		requires std::constructible_from<ToScene, TArgs...>
+	bool Transition(
+		std::string_view from_scene_tag, std::string_view to_scene_tag,
+		TArgs&&... to_scene_constructor_args
+	) {
+		return Transition<ToScene>(
+			from_scene_tag, to_scene_tag, SceneTransitionPair{}, SceneTransitionPriority{},
+			std::forward<TArgs>(to_scene_constructor_args)...
+		);
+	}
+
 	template <
 		SceneType ToScene, SceneTransitionType TransitionOut, SceneTransitionType TransitionIn,
 		typename... TArgs>
@@ -338,6 +478,10 @@ public:
 		std::string_view scene_tag, SceneTransitionPair<TransitionOut, TransitionIn>&& transition,
 		SceneTransitionPriority priority, TArgs&&... constructor_args
 	) {
+		if (!CanIssueCommands()) {
+			return false;
+		}
+
 		return Transition<ToScene>(
 			scene_.GetTag(), scene_tag, std::move(transition), priority,
 			std::forward<TArgs>(constructor_args)...
@@ -383,18 +527,7 @@ private:
 
 	explicit LocalSceneManager(impl::SceneManager& scene_manager, Scene& scene);
 
-	[[nodiscard]] bool CanIssueCommands(std::size_t target_scene_tag_hash) const;
-
-	template <SceneType T, typename... TArgs>
-	[[nodiscard]] std::function<std::unique_ptr<Scene>(Application&)> GetInitFunction(
-		TArgs&&... constructor_args
-	) {
-		return [constructor_args...](Application& app) -> std::unique_ptr<Scene> {
-			auto scene{ std::make_unique<T>(constructor_args...) };
-			scene->Init(app);
-			return scene;
-		};
-	}
+	[[nodiscard]] bool CanIssueCommands() const;
 
 	impl::SceneManager& scene_manager_;
 	Scene& scene_;
