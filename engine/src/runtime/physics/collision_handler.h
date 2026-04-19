@@ -39,6 +39,8 @@ public:
 
 	void SetDebugSettings(const CollisionDebugSettings& settings = {});
 
+	const CollisionDebugSettings& GetDebugSettings() const;
+
 private:
 	friend class Physics;
 	friend class Scene;

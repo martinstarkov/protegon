@@ -608,6 +608,10 @@ void CollisionHandler::SetDebugSettings(const CollisionDebugSettings& settings) 
 	debug_settings_ = settings;
 }
 
+const CollisionDebugSettings& CollisionHandler::GetDebugSettings() const {
+	return debug_settings_;
+}
+
 namespace impl {
 
 SweepCollision::SweepCollision(
