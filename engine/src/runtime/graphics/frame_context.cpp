@@ -5,21 +5,23 @@
 #include "core/assert.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
 FrameContext::FrameContext(const Scene& scene) :
-	FrameContext{ scene.ctx().renderer, scene.render_target_, scene.ctx().camera } {}
+	FrameContext{ scene.ctx().renderer, scene.GetRenderTarget(), scene.ctx().camera } {}
 
 FrameContext::FrameContext(
-	const RenderContext& renderer, RenderTarget render_target_entity, Camera camera_entity
+	const RenderContext& renderer, RenderTarget render_target_entity, Transform camera_transform,
+	Viewport camera_viewport
 ) {
 	auto presentation_viewport{ renderer.GetPresentationViewport() };
 	auto display_viewport{ renderer.GetDisplayViewport() };
@@ -39,12 +41,22 @@ FrameContext::FrameContext(
 	render_target =
 		RenderTargetFrame{ .render_target_transform = GetTransform(render_target_entity) };
 
-	camera = CameraFrame{ .camera_viewport	  = camera_entity.GetViewport(),
+	camera = CameraFrame{ .camera_viewport	  = camera_viewport,
 						  .render_target_size = render_target_entity.GetSize(),
 						  .scale			  = render_target_entity.GetScale() };
 
-	world = WorldFrame{ .camera_transform = GetTransform(camera_entity) };
+	world = WorldFrame{ .camera_transform = camera_transform };
 }
+
+FrameContext::FrameContext(
+	const RenderContext& renderer, RenderTarget render_target_entity, SceneCamera cam
+) :
+	FrameContext{ renderer, render_target_entity, GetTransform(cam), cam.GetViewport() } {}
+
+FrameContext::FrameContext(
+	const RenderContext& renderer, RenderTarget render_target_entity, const Camera& cam
+) :
+	FrameContext{ renderer, render_target_entity, cam.transform, cam.viewport } {}
 
 V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx) {
 	int a{ std::to_underlying(from) };

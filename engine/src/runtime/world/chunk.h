@@ -6,8 +6,8 @@
 
 #include "core/math/noise.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/camera.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
@@ -71,7 +71,7 @@ public:
 	ChunkManager& operator=(ChunkManager&& other) noexcept;
 	~ChunkManager();
 
-	void Update(Scene& scene, Camera camera);
+	void Update(Scene& scene, const Camera& camera);
 
 	std::unordered_map<V2_int, Chunk> chunks;
 	V2_int tile_size{ 64, 64 };
@@ -89,7 +89,8 @@ private:
 
 	/// @param chunk_padding Number of additional chunks on each side that are loaded past the
 	/// camera view rectangle.
-	void GetBounds(V2_int& out_min, V2_int& out_max, Camera camera, V2_int chunk_padding) const;
+	void GetBounds(V2_int& out_min, V2_int& out_max, const Camera& camera, V2_int chunk_padding)
+		const;
 
 	[[nodiscard]] std::vector<Entity> GenerateEntities(V2_int chunk_coordinate) const;
 

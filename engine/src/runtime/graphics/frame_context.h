@@ -2,9 +2,10 @@
 
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/render_target.h"
+#include "runtime/scene/scene_camera.h"
 
 namespace ptgn {
 
@@ -57,8 +58,13 @@ class FrameContext {
 public:
 	FrameContext() = default;
 
-	FrameContext(const RenderContext& renderer, RenderTarget render_target, Camera camera);
 	explicit FrameContext(const Scene& scene);
+	FrameContext(
+		const RenderContext& renderer, RenderTarget render_target, Transform camera_transform,
+		Viewport camera_viewport
+	);
+	FrameContext(const RenderContext& renderer, RenderTarget render_target, SceneCamera cam);
+	FrameContext(const RenderContext& renderer, RenderTarget render_target, const Camera& cam);
 
 	PresentationFrame presentation;
 	DisplayFrame display;

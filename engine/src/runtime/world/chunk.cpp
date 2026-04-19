@@ -12,8 +12,8 @@
 #include "core/assert.h"
 #include "core/math/noise.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/camera.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/scene/scene.h"
 #include "serialization/json/json.h"
 
@@ -108,8 +108,9 @@ ChunkManager::~ChunkManager() {
 	*/
 }
 
-void ChunkManager::GetBounds(V2_int& out_min, V2_int& out_max, Camera camera, V2_int chunk_padding)
-	const {
+void ChunkManager::GetBounds(
+	V2_int& out_min, V2_int& out_max, const Camera& camera, V2_int chunk_padding
+) const {
 	auto cam_rect{ camera.GetWorldVertices() };
 
 	auto chunk_pixel_size{ tile_size * chunk_size };
@@ -127,7 +128,7 @@ void ChunkManager::GetBounds(V2_int& out_min, V2_int& out_max, Camera camera, V2
 	PTGN_ASSERT(out_min.y <= out_max.y, "Invalid camera rectangle chunk extents");
 }
 
-void ChunkManager::Update(Scene& scene, Camera camera) {
+void ChunkManager::Update(Scene& scene, const Camera& camera) {
 	V2_int chunk_padding{ 1, 1 };
 
 	V2_int min;
