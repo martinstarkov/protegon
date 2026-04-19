@@ -6,14 +6,98 @@
 #include <string>
 #include <vector>
 
+#include "app/application.h"
 #include "core/editor.h"
 #include "core/editor_context.h"
 #include "core/util/file.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_registry.h"
 #include "runtime/scene/scene_view.h"
 
 namespace ptgn::editor {
+
+SceneEditorState MakeSceneEditorState(std::string name) {
+	const auto& desc = GetSceneRegistry().at(name);
+	return { .scene_type_name = desc.display_name, .params = desc.default_params() };
+}
+
+// --------------------------------------------------
+// Generic ImGui JSON editor
+// --------------------------------------------------
+
+static void DrawJsonEditor(const char* label, json& value) {
+	if (value.is_boolean()) {
+		bool v = value.get<bool>();
+		if (ImGui::Checkbox(label, &v)) {
+			value = v;
+		}
+	} else if (value.is_number_integer()) {
+		int v = value.get<int>();
+		if (ImGui::InputInt(label, &v)) {
+			value = v;
+		}
+	} else if (value.is_number_float()) {
+		float v = value.get<float>();
+		if (ImGui::InputFloat(label, &v)) {
+			value = v;
+		}
+	} else if (value.is_string()) {
+		std::string s = value.get<std::string>();
+		char buf[256]{};
+		std::snprintf(buf, sizeof(buf), "%s", s.c_str());
+		if (ImGui::InputText(label, buf, sizeof(buf))) {
+			value = std::string(buf);
+		}
+	} else if (value.is_object()) {
+		if (ImGui::TreeNode(label)) {
+			for (auto it = value.begin(); it != value.end(); ++it) {
+				DrawJsonEditor(it.key().c_str(), it.value());
+			}
+			ImGui::TreePop();
+		}
+	} else if (value.is_array()) {
+		if (ImGui::TreeNode(label)) {
+			for (int i = 0; i < static_cast<int>(value.size()); ++i) {
+				std::string item = "[" + std::to_string(i) + "]";
+				DrawJsonEditor(item.c_str(), value[i]);
+			}
+			ImGui::TreePop();
+		}
+	} else {
+		ImGui::TextDisabled("%s: unsupported", label);
+	}
+}
+
+void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
+	if (!state_.has_value()) {
+		state_ = MakeSceneEditorState("EditorScene");
+	}
+
+	ImGui::TextUnformatted(state_->scene_type_name.c_str());
+	ImGui::Separator();
+
+	{
+		char buf[256]{};
+		std::snprintf(buf, sizeof(buf), "%s", "Title Hello");
+		if (ImGui::InputText("Title", buf, sizeof(buf))) {
+			// state_->title = std::string(buf);
+		}
+	}
+
+	for (auto it = state_->params.begin(); it != state_->params.end(); ++it) {
+		DrawJsonEditor(it.key().c_str(), it.value());
+	}
+
+	if (ImGui::Button("Enter Scene")) {
+		std::string scene_tag{ "" };
+		ctx.editor.GetSceneManager().PushCommand(
+			impl::SceneManager::CommandType::ReEnter, scene_tag, Hash(scene_tag),
+			SceneTransitionPriority{}, impl::GetSceneFactory("EditorScene", state_->params),
+			nullptr, nullptr
+		);
+	}
+}
 
 void SceneListPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Scenes");
@@ -66,6 +150,8 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 		}
 		ImGui::EndPopup();
 	}
+
+	DrawSceneParamUI(ctx);
 
 	ImGui::End();
 }

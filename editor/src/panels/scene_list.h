@@ -9,6 +9,11 @@ class Scene;
 
 namespace editor {
 
+struct SceneEditorState {
+	std::string scene_type_name;
+	json params;
+};
+
 class SceneListPanel {
 public:
 	void OnRender(EditorContext& ctx);
@@ -18,8 +23,11 @@ public:
 	Scene* GetSelectedScene() const;
 
 private:
+	void DrawSceneParamUI(EditorContext& ctx);
+
 	path selected_scene_path_;
 	Scene* selected_scene_{ nullptr };
+	std::optional<SceneEditorState> state_;
 };
 
 } // namespace editor
