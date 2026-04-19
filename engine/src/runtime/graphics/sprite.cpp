@@ -9,15 +9,14 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
+#include "renderer/pipeline/draw_context.h"
 #include "renderer/resources/texture.h"
 #include "renderer/vertex/vertex.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -37,7 +36,7 @@ void TextureCrop::Update(const AnimationData& anim) {
 Sprite::Sprite(Entity entity) : Entity{ entity } {}
 
 void Sprite::Draw(
-	DrawContext& renderer, Entity entity, Origin offset_origin, V2_float offset_size, Camera,
+	DrawContext& renderer, Entity entity, Origin offset_origin, V2_float offset_size,
 	Color additional_tint
 ) {
 	PTGN_ASSERT(entity.Has<Texture>());
@@ -70,8 +69,8 @@ void Sprite::Draw(
 	);
 }
 
-void Sprite::Draw(DrawContext& renderer, Entity entity, Camera camera) {
-	Sprite::Draw(renderer, entity, Origin::Center, {}, camera, impl::Tint{});
+void Sprite::Draw(DrawContext& renderer, Entity entity) {
+	Sprite::Draw(renderer, entity, Origin::Center, {}, impl::Tint{});
 }
 
 Sprite& Sprite::SetTexture(TextureOrKey texture) {

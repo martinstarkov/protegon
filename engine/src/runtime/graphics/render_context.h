@@ -24,6 +24,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
@@ -32,10 +33,10 @@
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/scene/scene_camera.h"
 
 namespace ptgn {
 
@@ -119,7 +120,7 @@ public:
 		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
 		std::optional<BlendMode> blend_mode								  = {},
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
-		const std::optional<Camera>& camera								  = {}
+		const std::optional<SceneCamera>& camera						  = {}
 	);
 
 	void DrawTexture(
@@ -127,7 +128,7 @@ public:
 		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
 		std::optional<BlendMode> blend_mode								  = {},
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
-		const std::optional<Camera>& camera								  = {}
+		const std::optional<SceneCamera>& camera						  = {}
 	);
 
 	/// @param size If size is {}, uses the entire game size.
@@ -136,7 +137,7 @@ public:
 	void DrawShader(
 		Shader shader, Transform transform, std::optional<V2_float> size = {},
 		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {},
+		std::optional<BlendMode> blend_mode = {}, const std::optional<SceneCamera>& camera = {},
 		const std::optional<std::array<float, 4>>& user_data = {}
 	);
 
@@ -144,13 +145,13 @@ public:
 		const std::vector<V2_float>& points, Color color, float line_width = kMinLineWidth,
 		bool connect_last_to_first = false, std::optional<Transform> transform = {},
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawShape(
 		const Shape& shape, Transform transform, Color color, FillStyle fill_style,
 		Origin draw_origin = Origin::Center, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
+		std::optional<BlendMode> blend_mode = {}, const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawText(
@@ -158,73 +159,75 @@ public:
 		FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {},
 		Origin draw_origin = Origin::Center, std::optional<V2_float> text_size = {},
 		bool hd_text = true, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawRect(
 		Transform transform, const Rect& rect, Color color, FillStyle fill_style = 1.0f,
 		Origin draw_origin = Origin::Center, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
+		std::optional<BlendMode> blend_mode = {}, const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawRoundedRect(
 		Transform transform, const RoundedRect& rounded_rect, Color color,
 		FillStyle fill_style = 1.0f, Origin draw_origin = Origin::Center, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<Camera>& camera = {}
+		std::optional<BlendMode> blend_mode = {}, const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawLine(
 		Transform transform, const Line& line, Color color, float line_width = kMinLineWidth,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawLine(
 		V2_float start, V2_float end, Color color, float line_width = kMinLineWidth,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawTriangle(
 		Transform transform, const Triangle& triangle, Color color, FillStyle fill_style = 1.0f,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawEllipse(
 		Transform transform, const Ellipse& ellipse, Color color, FillStyle fill_style = 1.0f,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawCircle(
 		Transform transform, const Circle& circle, Color color, FillStyle fill_style = 1.0f,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawCapsule(
 		Transform transform, const Capsule& capsule, Color color, FillStyle fill_style = 1.0f,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawArc(
 		Transform transform, const Arc& arc, Color color, FillStyle fill_style = 1.0f,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawPolygon(
 		Transform transform, const Polygon& polygon, Color color, FillStyle fill_style = 1.0f,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}
 	);
 
 	void DrawPoint(
 		V2_float point, Color color, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<Camera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}
 	);
+
+	const std::optional<Camera>& GetPrimaryWorldCamera() const;
 
 private:
 	friend class Scene;
@@ -239,12 +242,14 @@ private:
 	RenderContext(RenderContext&&) noexcept			   = default;
 	RenderContext& operator=(RenderContext&&) noexcept = delete;
 
+	void SetPrimaryWorldCamera(const std::optional<Camera>& camera = std::nullopt);
+
 	void DrawTexture(
 		impl::TextureId texture, V2_int texture_size, impl::ShaderId shader, Transform transform,
 		std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
 		std::optional<BlendMode> blend_mode,
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates,
-		const std::optional<Camera>& camera
+		const std::optional<SceneCamera>& camera
 	);
 
 	template <typename T, typename R>
@@ -260,16 +265,20 @@ private:
 
 	/// @brief If camera is {}, returns draw commands for the primary scene camera. If draw commands
 	/// do not exist for the camera, adds them to the vector.
-	std::vector<impl::DrawCommand>& GetDrawCommandsForCamera(const std::optional<Camera>& camera);
+	std::vector<impl::DrawCommand>& GetDrawCommandsForCamera(
+		const std::optional<impl::RenderCamera>& camera
+	);
 	std::vector<impl::ManualDrawCommand>& GetDebugCommandsForCamera(
-		const std::optional<Camera>& camera
+		const std::optional<impl::RenderCamera>& camera
 	);
 
 	Scene& scene_;
 	impl::Renderer& renderer_;
 
-	std::vector<std::pair<Camera, std::vector<impl::DrawCommand>>> draw_commands_;
-	std::vector<std::pair<Camera, std::vector<impl::ManualDrawCommand>>> debug_commands_;
+	/// @brief Keys are uuids of cameras.
+	std::vector<std::pair<impl::RenderCamera, std::vector<impl::DrawCommand>>> draw_commands_;
+	std::vector<std::pair<impl::RenderCamera, std::vector<impl::ManualDrawCommand>>>
+		debug_commands_;
 
 	std::vector<impl::TextureObject> temporary_textures_;
 };

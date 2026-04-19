@@ -12,7 +12,6 @@
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
@@ -24,7 +23,7 @@ namespace ptgn {
 
 CustomShader::CustomShader(Entity entity) : Entity{ entity } {}
 
-void CustomShader::Draw(DrawContext& renderer, Entity entity, Camera) {
+void CustomShader::Draw(DrawContext& renderer, Entity entity) {
 	PTGN_ASSERT((entity.Has<Rect, impl::ShaderData>()));
 
 	const auto& [shader, setup] = entity.Get<impl::ShaderData>();

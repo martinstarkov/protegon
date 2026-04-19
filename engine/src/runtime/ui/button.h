@@ -25,7 +25,6 @@
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
@@ -345,7 +344,7 @@ public:
 	ButtonBase() = default;
 	explicit ButtonBase(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 
 	/// @return In order of precedence: rect size, circle radius, texture size.
 	std::optional<std::variant<Rect, Circle>> GetShape() const;

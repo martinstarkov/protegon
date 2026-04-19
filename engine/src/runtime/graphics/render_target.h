@@ -9,7 +9,6 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/scripting/script.h"
 
@@ -47,7 +46,7 @@ public:
 	RenderTarget() = default;
 	explicit RenderTarget(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 
 	/// @brief Binds the render target's internal frame buffer as the current render target.
 	void Bind();

@@ -14,7 +14,6 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
@@ -54,7 +53,7 @@ void Light::SetUniform(DrawContext& renderer, Entity entity) {
 	renderer.SetUniform(light_shader, "u_LightAttenuation", light_attenuation);
 }
 
-void Light::Draw(DrawContext& renderer, Entity entity, Camera) {
+void Light::Draw(DrawContext& renderer, Entity entity) {
 	PTGN_ASSERT((entity.Has<Circle, impl::LightData>()));
 
 	if (const auto& light{ entity.Get<impl::LightData>() };

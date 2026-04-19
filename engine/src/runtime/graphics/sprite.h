@@ -10,7 +10,6 @@
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 
 namespace ptgn {
@@ -52,11 +51,11 @@ public:
 	explicit Sprite(Entity entity);
 
 	static void Draw(
-		DrawContext& renderer, Entity entity, Origin offset_origin, V2_float offset_size, Camera,
+		DrawContext& renderer, Entity entity, Origin offset_origin, V2_float offset_size,
 		Color additional_tint
 	);
 
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 
 	Sprite& SetTexture(TextureOrKey texture);
 };

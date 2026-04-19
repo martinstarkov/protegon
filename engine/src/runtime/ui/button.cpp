@@ -30,7 +30,6 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
@@ -267,7 +266,7 @@ ButtonBase<Derived>::ButtonStyleTuple ButtonBase<Derived>::GetStyle(ButtonStyleS
 }
 
 template <typename Derived>
-void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera camera) {
+void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 	Button button{ entity };
 	Color entity_tint{ ptgn::GetTint(button) };
 
@@ -320,7 +319,7 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 		if (texture_tint.has_value()) {
 			sprite_tint = Tint{ tint.Normalized() * texture_tint->Normalized() };
 		}
-		Sprite::Draw(renderer, sprite, button_origin, *button_size, camera, sprite_tint);
+		Sprite::Draw(renderer, sprite, button_origin, *button_size, sprite_tint);
 	}
 
 	auto background_shape{ button.GetBackgroundShape(style_state) };
@@ -419,7 +418,7 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity, Camera came
 		PTGN_ASSERT(button_size.has_value());
 		V2_float offset{ *button_size };
 
-		Text::Draw(renderer, *text, text_size, tint, button_origin, offset, camera);
+		Text::Draw(renderer, *text, text_size, tint, button_origin, offset);
 	}
 }
 

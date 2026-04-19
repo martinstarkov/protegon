@@ -30,7 +30,6 @@
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/particle_event.h"
 #include "runtime/graphics/visible.h"
@@ -467,7 +466,7 @@ static void DrawParticleType(
 	}
 }
 
-void ParticleEmitter::Draw(DrawContext& renderer, Entity entity, Camera) {
+void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
 	auto depth{ GetDepth(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
 

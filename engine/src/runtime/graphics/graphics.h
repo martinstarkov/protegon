@@ -13,7 +13,6 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 
@@ -49,7 +48,7 @@ public:
 	Graphics() = default;
 	explicit Graphics(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 
 	Graphics& Clear();
 

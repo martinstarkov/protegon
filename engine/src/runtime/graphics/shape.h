@@ -11,7 +11,6 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 
 namespace ptgn {
@@ -20,39 +19,39 @@ class Scene;
 class DrawContext;
 
 struct CapsuleDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 };
 
 struct CircleDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 };
 
 struct EllipseDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 };
 
 struct ArcDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 };
 
 struct PolygonDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 };
 
 struct RectDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 };
 
 struct RoundedRectDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 };
 
 struct TriangleDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 };
 
 struct LineDraw {
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
+	static void Draw(DrawContext& renderer, Entity entity);
 };
 
 [[nodiscard]] Transform OffsetByOrigin(const Shape& shape, Transform transform, Entity entity);

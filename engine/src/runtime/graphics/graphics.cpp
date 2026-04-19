@@ -15,7 +15,6 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -56,7 +55,7 @@ void GraphicsData::Draw(
 
 Graphics::Graphics(Entity entity) : Entity{ entity } {}
 
-void Graphics::Draw(DrawContext& renderer, Entity entity, Camera) {
+void Graphics::Draw(DrawContext& renderer, Entity entity) {
 	const auto& instance{ entity.Get<impl::GraphicsData>() };
 
 	const auto& transform{ GetDrawTransform(entity) };

@@ -17,7 +17,6 @@
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
@@ -98,7 +97,7 @@ RenderTarget::operator impl::RenderTargetId() const {
 	return Get<impl::RenderTargetObject>().operator impl::RenderTargetId();
 }
 
-void RenderTarget::Draw(DrawContext& renderer, Entity entity, Camera) {
+void RenderTarget::Draw(DrawContext& renderer, Entity entity) {
 	PTGN_ASSERT(entity.Has<impl::RenderTargetObject>());
 
 	std::optional<V2_int> size;
