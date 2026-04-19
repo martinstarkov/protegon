@@ -24,6 +24,7 @@ class Application;
 class Scene;
 class EventHandler;
 class SceneContext;
+class LocalSceneManager;
 
 namespace impl {
 
@@ -191,13 +192,17 @@ public:
 
 	std::string GetTag() const;
 
+	[[nodiscard]] bool IsTransitioning() const;
+
+	// TODO: Move to private:
+	void Init(Application& app);
+
 private:
 	friend class impl::SceneManager;
 	friend class EventHandler;
 	friend class Application;
 	friend class FrameContext;
 	friend class SceneInput;
-	friend class LocalSceneManager;
 	friend class LocalEventHandler;
 	template <typename TComponent>
 	friend struct SceneHook;
@@ -206,8 +211,6 @@ private:
 	void HookThunk(ecs::impl::BaseEntity<JsonArchiver> handle) {
 		(static_cast<TScene*>(this)->*Member)(Entity{ handle, this });
 	}
-
-	void Init(Application& app);
 
 	/// @brief Called by scene manager when a new scene is loaded and entered.
 	void InternalEnter();
@@ -218,8 +221,6 @@ private:
 
 	void InternalUpdate();
 	void InternalDraw();
-
-	[[nodiscard]] bool IsTransitioning() const;
 	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
 
 	void AddMandatoryComponents(
