@@ -20,13 +20,25 @@
 
 using namespace ptgn;
 
+struct MyNonSerializableType {};
+
 class EditorScene : public Scene {
 public:
+	EditorScene() = default;
+
+	EditorScene(int seed, std::string level) : seed{ seed }, level{ level } {}
+
+	int seed		  = 0;
+	std::string level = "level_0";
+	MyNonSerializableType ignored;
+
 	void OnEnter() override {
 		ctx().window.SetBackgroundColor(color::LightBlue);
 		ctx().renderer.SetBackgroundColor(color::Orange);
 		ctx().asset.Load("tree", "assets/jpg.jpg");
 		ctx().asset.Load("rain_anim", "assets/animation_rain_splash.png");
+
+		PTGN_LOG("Entered EditorScene with: seed: ", ToString(seed), ", level: ", level);
 
 		CreateSprite(*this, "tree", {}).SetTag("Tree");
 
@@ -58,6 +70,8 @@ public:
 
 	void OnEvent(Event d) override {}
 };
+
+PTGN_REGISTER_SCENE(EditorScene, "Editor Scene Name", level, seed);
 
 int main(int, char**) {
 	Application app{ "EditorScene", { 1280, 720 } };
