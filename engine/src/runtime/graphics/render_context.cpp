@@ -221,8 +221,8 @@ void RenderContext::DrawShape(
 void RenderContext::DrawText(
 	std::string_view text_content, Transform transform, Color text_color, FontSize font_size,
 	FontOrKey font, const TextProperties& properties, Origin draw_origin,
-	std::optional<V2_float> text_size, bool hd_text, Depth depth,
-	std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera
+	std::optional<V2_float> text_size, Depth depth, std::optional<BlendMode> blend_mode,
+	const std::optional<SceneCamera>& camera
 ) {
 	auto texture_object{ scene_.ctx().asset.CreateTextTextureObject(
 		text_content, text_color, font_size, font, properties
