@@ -116,6 +116,10 @@ SceneListPanel& Editor::GetSceneListPanel() {
 	return scene_list_panel_;
 }
 
+impl::SceneManager& Editor::GetSceneManager() {
+	return app.scene_manager_;
+}
+
 void Editor::SetScalingMode(ScalingMode scaling_mode) {
 	app.renderer_.SetScalingMode(scaling_mode);
 }

@@ -21,6 +21,7 @@
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
+#include "runtime/scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -55,6 +56,8 @@ public:
 
 	SceneHierarchyPanel& GetSceneHierarchyPanel();
 	SceneListPanel& GetSceneListPanel();
+
+	impl::SceneManager& GetSceneManager();
 
 private:
 	Application& app;
