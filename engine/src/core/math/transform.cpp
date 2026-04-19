@@ -131,7 +131,7 @@ Transform& Transform::TranslateX(float position_x_difference) {
 }
 
 Transform& Transform::TranslateY(float position_y_difference) {
-	return SetPositionX(position_.y + position_y_difference);
+	return SetPositionY(position_.y + position_y_difference);
 }
 
 Transform& Transform::Rotate(Radians angle_difference) {
