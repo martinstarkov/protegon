@@ -17,6 +17,7 @@
 #include "core/editor_selection.h"
 #include "core/editor_state.h"
 #include "core/graphics/color.h"
+#include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "panels/content_browser.h"
 #include "panels/engine_settings.h"
@@ -25,6 +26,7 @@
 #include "panels/scene_list.h"
 #include "panels/viewport.h"
 #include "platform/window.h"
+#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
@@ -118,6 +120,14 @@ SceneListPanel& Editor::GetSceneListPanel() {
 
 impl::SceneManager& Editor::GetSceneManager() {
 	return app.scene_manager_;
+}
+
+void Editor::SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera) {
+	app.renderer_.SetPrimaryWorldCamera(primary_world_camera);
+}
+
+const std::optional<Camera>& Editor::GetPrimaryWorldCamera() const {
+	return app.renderer_.GetPrimaryWorldCamera();
 }
 
 void Editor::SetScalingMode(ScalingMode scaling_mode) {

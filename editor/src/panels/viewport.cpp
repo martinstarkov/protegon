@@ -3,15 +3,36 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+#include <optional>
+
 #include "core/editor.h"
 #include "core/editor_context.h"
 #include "core/editor_state.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "panels/scene_hierarchy.h"
+#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
 
 namespace ptgn::editor {
+
+void UpdateEditorCameraPan(EditorCamera& editor_camera) {
+	ImGuiIO& io = ImGui::GetIO();
+
+	// Middle mouse held
+	if (ImGui::IsWindowHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
+		ImVec2 d = io.MouseDelta;
+
+		editor_camera.camera.transform.TranslateX(-d.x);
+		editor_camera.camera.transform.TranslateY(-d.y);
+
+		// ImGui::Text("Panning: %.2f, %.2f", d.x, d.y);
+		// ImGui::Text(
+		//	"Transform: %.2f, %.2f", editor_camera.camera.transform.GetPosition().x,
+		//	editor_camera.camera.transform.GetPosition().y
+		//);
+	}
+}
 
 void ViewportPanel::OnRender(EditorContext& ctx) {
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
@@ -67,6 +88,26 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	const auto display_viewport = ctx.editor.GetDisplayViewport();
 	const auto screen_texture	= ctx.editor.GetScreenTargetTexture();
+
+	ImGui::Checkbox("Use Editor Camera", &use_editor_camera);
+
+	if (use_editor_camera) {
+		UpdateEditorCameraPan(editor_camera_);
+
+		editor_camera_.camera.viewport.position = {};
+		editor_camera_.camera.viewport.size		= ctx.editor.GetGameSize();
+
+		editor_camera_.camera.view_projection =
+			GetOrthographicViewProjection(
+				editor_camera_.camera.transform, editor_camera_.camera.viewport.size,
+				editor_camera_.pixel_rounding
+			)
+				.view_projection;
+
+		ctx.editor.SetPrimaryWorldCamera(editor_camera_.camera);
+	} else {
+		ctx.editor.SetPrimaryWorldCamera(std::nullopt);
+	}
 
 	ImVec2 img_min{ min.x + static_cast<float>(display_viewport.position.x),
 					min.y + static_cast<float>(display_viewport.position.y) };

@@ -10,6 +10,7 @@
 #include "commands/undo_stack.h"
 #include "core/editor_context.h"
 #include "core/graphics/color.h"
+#include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "panels/content_browser.h"
@@ -18,6 +19,7 @@
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
 #include "panels/viewport.h"
+#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
@@ -58,6 +60,9 @@ public:
 	SceneListPanel& GetSceneListPanel();
 
 	impl::SceneManager& GetSceneManager();
+
+	void SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera);
+	const std::optional<Camera>& GetPrimaryWorldCamera() const;
 
 private:
 	Application& app;

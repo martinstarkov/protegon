@@ -3,6 +3,7 @@
 #include <imgui.h>
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -17,14 +18,17 @@
 
 namespace ptgn::editor {
 
-SceneEditorState MakeSceneEditorState(std::string_view name) {
+std::optional<SceneEditorState> MakeSceneEditorState(std::string_view name) {
 	auto& registry{ impl::GetSceneRegistry() };
 	auto it = registry.find(name);
 	if (it != registry.end()) {
 		const auto& desc{ it->second };
-		return { .scene_type_name = desc.display_name, .params = desc.default_params() };
+		return SceneEditorState{ .scene_type_name = desc.display_name,
+								 .params		  = desc.default_params() };
 	} else {
-		PTGN_ERROR("Scene not found in registry: ", name);
+		return std::nullopt;
+		// TODO: Re-enable.
+		// PTGN_ERROR("Scene not found in registry: ", name);
 	}
 }
 
@@ -78,6 +82,10 @@ static void DrawJsonEditor(const char* label, json& value) {
 void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
 	if (!state_.has_value()) {
 		state_ = MakeSceneEditorState("EditorScene");
+	}
+
+	if (!state_.has_value()) {
+		return;
 	}
 
 	ImGui::TextUnformatted(state_->scene_type_name.c_str());

@@ -1,6 +1,10 @@
 #pragma once
 
 #include "core/editor_context.h"
+#include "core/math/angle.h"
+#include "core/math/matrix4.h"
+#include "core/math/transform.h"
+#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
 
 namespace ptgn::editor {
@@ -37,6 +41,11 @@ struct GizmoState {
 	V2_float pivot_world{};
 };
 
+struct EditorCamera {
+	Camera camera;
+	bool pixel_rounding{ true };
+};
+
 class ViewportPanel {
 public:
 	void OnRender(EditorContext& ctx);
@@ -44,7 +53,11 @@ public:
 private:
 	void DrawSelectedEntityGizmo(EditorContext& ctx, Viewport viewport);
 
+	EditorCamera editor_camera_;
+
 	GizmoState gizmo_state_;
+
+	bool use_editor_camera = true;
 };
 
 } // namespace ptgn::editor
