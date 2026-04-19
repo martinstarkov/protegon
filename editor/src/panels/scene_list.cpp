@@ -17,9 +17,15 @@
 
 namespace ptgn::editor {
 
-SceneEditorState MakeSceneEditorState(std::string name) {
-	const auto& desc = GetSceneRegistry().at(name);
-	return { .scene_type_name = desc.display_name, .params = desc.default_params() };
+SceneEditorState MakeSceneEditorState(std::string_view name) {
+	auto& registry{ impl::GetSceneRegistry() };
+	auto it = registry.find(name);
+	if (it != registry.end()) {
+		const auto& desc{ it->second };
+		return { .scene_type_name = desc.display_name, .params = desc.default_params() };
+	} else {
+		PTGN_ERROR("Scene not found in registry: ", name);
+	}
 }
 
 // --------------------------------------------------

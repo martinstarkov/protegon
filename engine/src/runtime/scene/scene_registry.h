@@ -69,20 +69,28 @@ template <typename TScene, typename Factory, typename... FieldTs>
 void RegisterScene(
 	std::string_view display_name, std::tuple<FieldTs...> fields, Factory&& factory
 ) {
-	GetSceneRegistry()[type_name<TScene>()] = SceneRegistryEntry{
-		.display_name = std::string{ display_name },
-		.default_params =
-			[fields]() {
-				return BuildDefaultsImpl<TScene>(fields, std::index_sequence_for<FieldTs...>{});
-			},
-		.construct = std::forward<Factory>(factory)
-	};
+	GetSceneRegistry().emplace(
+		std::string{ type_name<TScene>() },
+		SceneRegistryEntry{
+			.display_name = std::string{ display_name },
+			.default_params =
+				[fields]() {
+					return BuildDefaultsImpl<TScene>(fields, std::index_sequence_for<FieldTs...>{});
+				},
+			.construct = std::forward<Factory>(factory) }
+	);
 }
 
-std::function<std::unique_ptr<Scene>(Application&)> GetSceneFactory(
+inline std::function<std::unique_ptr<Scene>(Application&)> GetSceneFactory(
 	std::string_view scene_name, const json& scene_params
 ) {
-	return GetSceneRegistry()[scene_name].construct(scene_params);
+	auto it = GetSceneRegistry().find(scene_name);
+	if (it != GetSceneRegistry().end()) {
+		auto& entry = it->second;
+		return entry.construct(scene_params);
+	} else {
+		PTGN_ERROR("Failed to find scene factory for scene: ", scene_name);
+	}
 }
 
 } // namespace impl
@@ -119,5 +127,5 @@ std::function<std::unique_ptr<Scene>(Application&)> GetSceneFactory(
 			}                                                                                      \
 		);                                                                                         \
 		return true;                                                                               \
-	}()                                                                                            \
+	}();                                                                                           \
 	}
