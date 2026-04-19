@@ -29,7 +29,7 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/graphics/camera.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/shape.h"

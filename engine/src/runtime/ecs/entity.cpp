@@ -21,8 +21,8 @@
 #include "runtime/ecs/manager.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/ecs/uuid.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
@@ -238,7 +238,9 @@ Transform GetWorldTransform(Entity entity) {
 
 Transform GetDrawTransform(Entity entity) {
 	auto offset_transform{ GetOffset(entity) };
-	PTGN_ASSERT(!entity.Has<impl::CameraData>(), "GetDrawTransform is not meant for cameras");
+	PTGN_ASSERT(
+		!entity.Has<impl::CameraData>(), "GetDrawTransform is not meant to be used on scene cameras"
+	);
 	auto transform{ GetWorldTransform(entity) };
 	transform = transform.RelativeTo(offset_transform);
 	return transform;
