@@ -3,6 +3,7 @@
 #include <string_view>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
@@ -110,6 +111,7 @@ public:
 };
 
 int main(int, char**) {
-	Application game{ "CameraShakeScene: WASD: Move" };
-	game.StartWith<CameraShakeScene>();
+	Application app{ "CameraShakeScene: WASD: Move" };
+	PTGN_WITH_EDITOR(app);
+	app.StartWith<CameraShakeScene>();
 }
