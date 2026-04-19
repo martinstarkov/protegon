@@ -12,10 +12,10 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "runtime/asset/asset.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/scene/scene_camera.h"
 #include "tools/debug/allocation.h"
 #include "tools/debug/stats.h"
 
@@ -31,28 +31,37 @@ public:
 	void DrawText(
 		std::string_view text_content, Transform transform, Color text_color,
 		FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {},
-		Origin draw_origin = Origin::Center, std::optional<V2_float> text_size = {},
-		bool hd_text = true, const std::optional<Camera>& camera = {}
+		Origin draw_origin = Origin::Center, std::optional<V2_float> text_size = std::nullopt,
+		const std::optional<SceneCamera>& camera = std::nullopt
 	);
 
 	/// @param origin only applicable to Rect and RoundedRect.
 	void DrawShape(
 		const Shape& shape, Transform transform, Color color, FillStyle fill_style = 1.0f,
-		Origin draw_origin = Origin::Center, const std::optional<Camera>& camera = {}
+		Origin draw_origin = Origin::Center, const std::optional<SceneCamera>& camera = std::nullopt
+	);
+
+	void DrawShape(
+		const Shape& shape, Transform transform, Color color, FillStyle fill_style,
+		Origin draw_origin, const std::optional<impl::RenderCamera>& camera
 	);
 
 	void DrawLines(
 		const std::vector<V2_float>& points, Color color, float line_width = kMinLineWidth,
-		bool connect_last_to_first = false, std::optional<Transform> transform = {},
-		const std::optional<Camera>& camera = {}
+		bool connect_last_to_first = false, std::optional<Transform> transform = std::nullopt,
+		const std::optional<SceneCamera>& camera = std::nullopt
 	);
 
 	void DrawLine(
 		V2_float start, V2_float end, Color color, float line_width = 1.0f,
-		const std::optional<Camera>& camera = {}
+		const std::optional<SceneCamera>& camera = std::nullopt
 	);
 
-	void DrawPoint(V2_float point, Color color, const std::optional<Camera>& camera = {});
+	void DrawPoint(
+		V2_float point, Color color, const std::optional<SceneCamera>& camera = std::nullopt
+	);
+
+	void DrawPoint(V2_float point, Color color, const std::optional<impl::RenderCamera>& camera);
 
 private:
 	friend class Scene;

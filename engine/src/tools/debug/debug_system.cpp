@@ -22,11 +22,11 @@
 #include "renderer/vertex/vertex.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "tools/debug/profiling.h"
 #include "tools/debug/stats.h"
@@ -38,12 +38,10 @@ DebugContext::DebugContext(RenderContext& render_context) : render_context_{ ren
 void DebugContext::DrawText(
 	std::string_view text_content, Transform transform, Color text_color, FontSize font_size,
 	FontOrKey font, const TextProperties& properties, Origin draw_origin,
-	std::optional<V2_float> text_size, bool hd_text, const std::optional<Camera>& camera
+	std::optional<V2_float> text_size, const std::optional<SceneCamera>& camera
 ) {
-	auto hd_scale{ impl::ApplyHDTextScaling(hd_text, transform, render_context_.scene_, camera) };
-
 	auto texture_object{ render_context_.scene_.ctx().asset.CreateTextTextureObject(
-		text_content, text_color, font_size, font, properties, hd_scale
+		text_content, text_color, font_size, font, properties
 	) };
 
 	if (!texture_object.has_value()) {
@@ -58,7 +56,9 @@ void DebugContext::DrawText(
 
 	auto quad_shader{ render_context_.renderer_.GetShader("quad") };
 
-	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
+	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(
+		camera.transform([](const auto& c) { return impl::RenderCamera{ c }; })
+	) };
 
 	Rect rect{ text_size.value_or(texture_size) };
 
@@ -77,7 +77,17 @@ void DebugContext::DrawText(
 
 void DebugContext::DrawShape(
 	const Shape& shape, Transform transform, Color color, FillStyle fill_style, Origin draw_origin,
-	const std::optional<Camera>& camera
+	const std::optional<SceneCamera>& camera
+) {
+	return DrawShape(
+		shape, transform, color, fill_style, draw_origin,
+		camera.transform([](auto& c) { return impl::RenderCamera{ c }; })
+	);
+}
+
+void DebugContext::DrawShape(
+	const Shape& shape, Transform transform, Color color, FillStyle fill_style, Origin draw_origin,
+	const std::optional<impl::RenderCamera>& camera
 ) {
 	auto shape_draw_commands{ DrawContext::GetDrawCommand(
 		render_context_.renderer_, shape, transform, color, fill_style, draw_origin,
@@ -98,9 +108,11 @@ void DebugContext::DrawShape(
 
 void DebugContext::DrawLines(
 	const std::vector<V2_float>& points, Color color, float line_width, bool connect_last_to_first,
-	std::optional<Transform> transform, const std::optional<Camera>& camera
+	std::optional<Transform> transform, const std::optional<SceneCamera>& camera
 ) {
-	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
+	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(
+		camera.transform([](const auto& c) { return impl::RenderCamera{ c }; })
+	) };
 
 	constexpr bool floor_positions{ false };
 
@@ -121,13 +133,22 @@ void DebugContext::DrawLines(
 }
 
 void DebugContext::DrawLine(
-	V2_float start, V2_float end, Color color, float line_width, const std::optional<Camera>& camera
+	V2_float start, V2_float end, Color color, float line_width,
+	const std::optional<SceneCamera>& camera
 ) {
 	PTGN_ASSERT(line_width >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
 	DrawShape(Line{ start, end }, {}, color, line_width, Origin::Center, camera);
 }
 
-void DebugContext::DrawPoint(V2_float point, Color color, const std::optional<Camera>& camera) {
+void DebugContext::DrawPoint(
+	V2_float point, Color color, const std::optional<SceneCamera>& camera
+) {
+	DrawShape(point, {}, color, 1.0f, Origin::Center, camera);
+}
+
+void DebugContext::DrawPoint(
+	V2_float point, Color color, const std::optional<impl::RenderCamera>& camera
+) {
 	DrawShape(point, {}, color, 1.0f, Origin::Center, camera);
 }
 
