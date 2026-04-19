@@ -16,6 +16,7 @@
 
 #include "core/util/macro.h"
 #include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn::impl {
 
@@ -92,7 +93,7 @@ template <typename T>
 void extended_to_json(std::string_view key, json& j, const T& value) {
 	if constexpr (is_optional<T>) {
 		optional_to_json(j, key, value);
-	} else {
+	} else if constexpr (JsonSerializable<T>) {
 		j[key] = value;
 	}
 }
@@ -101,7 +102,7 @@ template <typename T>
 void extended_from_json(std::string_view key, const json& j, T& value) {
 	if constexpr (is_optional<T>) {
 		optional_from_json(j, key, value);
-	} else {
+	} else if constexpr (JsonDeserializable<T>) {
 		j.at(key).get_to(value);
 	}
 }
@@ -110,7 +111,7 @@ template <typename T>
 void extended_to_json(json& j, const T& value) {
 	if constexpr (is_optional<T>) {
 		optional_to_json(j, value);
-	} else {
+	} else if constexpr (JsonSerializable<T>) {
 		j = value;
 	}
 }
@@ -119,7 +120,7 @@ template <typename T>
 void extended_from_json(const json& j, T& value) {
 	if constexpr (is_optional<T>) {
 		optional_from_json(j, value);
-	} else {
+	} else if constexpr (JsonDeserializable<T>) {
 		j.get_to(value);
 	}
 }
