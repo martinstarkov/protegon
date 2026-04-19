@@ -289,4 +289,14 @@ template <Arithmetic U>
 	return B * A;
 }
 
+struct ViewProjection {
+	Matrix4 view{ 1.0f };
+	Matrix4 projection{ 1.0f };
+	Matrix4 view_projection{ 1.0f };
+};
+
+[[nodiscard]] ViewProjection GetOrthographicViewProjection(
+	Transform transform, V2_float viewport_size, bool pixel_rounding
+);
+
 } // namespace ptgn
