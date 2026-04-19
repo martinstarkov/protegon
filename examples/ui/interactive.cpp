@@ -20,7 +20,7 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "runtime/graphics/camera.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/interaction/draggable.h"

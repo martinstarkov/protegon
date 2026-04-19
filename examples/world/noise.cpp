@@ -17,7 +17,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "runtime/graphics/camera.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/physics/movement.h"

@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
@@ -14,7 +15,6 @@
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
@@ -24,6 +24,7 @@
 #include "runtime/interaction/interactive.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
@@ -58,7 +59,7 @@ struct CircleDragScript : public Script {
 };
 
 struct ResolutionScene : public Scene {
-	Camera camera0;
+	SceneCamera camera0;
 
 	void OnEnter() override {
 		ctx().renderer.SetGameSize(game_size);
@@ -147,5 +148,6 @@ int main(int, char**) {
 	Application app{ "ResolutionScene: WASD/QE/ZC: Move/Rotate/Scale scene camera, Arrows/RT/FG: "
 					 "Move/Rotate/Scale scene target",
 					 window_size };
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<ResolutionScene>();
 }

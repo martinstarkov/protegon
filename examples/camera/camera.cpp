@@ -1,5 +1,3 @@
-#include "runtime/graphics/camera.h"
-
 #include <chrono>
 #include <string>
 
@@ -16,6 +14,7 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 

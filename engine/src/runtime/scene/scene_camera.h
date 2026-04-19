@@ -8,8 +8,11 @@
 #include "core/graphics/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {
@@ -40,9 +43,7 @@ struct CameraData {
 	/// @brief If nullopt, no bounds are enforced.
 	std::optional<Viewport> bounding_box;
 
-	Matrix4 view{ 1.0f };
-	Matrix4 projection{ 1.0f };
-	Matrix4 view_projection{ 1.0f };
+	ViewProjection view_projection_data;
 };
 
 class CameraResizeScript : public Script {
@@ -67,10 +68,12 @@ struct CameraMask {
 
 } // namespace impl
 
-class Camera : public Entity {
+class SceneCamera : public Entity {
 public:
-	Camera() = default;
-	explicit Camera(Entity entity);
+	SceneCamera() = default;
+	explicit SceneCamera(Entity entity);
+
+	explicit operator Camera() const;
 
 	std::array<V2_float, 4> GetWorldVertices() const;
 
@@ -91,56 +94,53 @@ public:
 	/// @return Bounding box viewport if set.
 	std::optional<Viewport> GetBounds() const;
 
-	Camera& SetViewport(Viewport viewport);
+	SceneCamera& SetViewport(Viewport viewport);
 
 	/// Camera bounds only apply along aligned axes. In other words: rotated cameras can see outside
 	/// the bounding box.
 	/// If bounds is {}, no bounds are enforced.
-	Camera& SetBounds(std::optional<Viewport> bounds);
+	SceneCamera& SetBounds(std::optional<Viewport> bounds);
 
-	Camera& SetScroll(V2_float new_scroll_position);
-	Camera& SetScrollX(float new_scroll_x_position);
-	Camera& SetScrollY(float new_scroll_y_position);
-	Camera& Scroll(V2_float scroll_amount);
-	Camera& ScrollX(float scroll_x_amount);
-	Camera& ScrollY(float scroll_y_amount);
+	SceneCamera& SetScroll(V2_float new_scroll_position);
+	SceneCamera& SetScrollX(float new_scroll_x_position);
+	SceneCamera& SetScrollY(float new_scroll_y_position);
+	SceneCamera& Scroll(V2_float scroll_amount);
+	SceneCamera& ScrollX(float scroll_x_amount);
+	SceneCamera& ScrollY(float scroll_y_amount);
 
-	Camera& SetZoom(V2_float new_zoom);
-	Camera& SetZoom(float new_xy_zoom);
-	Camera& SetZoomX(float new_x_zoom);
-	Camera& SetZoomY(float new_y_zoom);
-	Camera& Zoom(V2_float zoom_amount);
-	Camera& Zoom(float zoom_xy_amount);
-	Camera& ZoomX(float zoom_x_amount);
-	Camera& ZoomY(float zoom_y_amount);
-
-	Camera& SetPixelRounding(bool enabled);
+	SceneCamera& SetZoom(V2_float new_zoom);
+	SceneCamera& SetZoom(float new_xy_zoom);
+	SceneCamera& SetZoomX(float new_x_zoom);
+	SceneCamera& SetZoomY(float new_y_zoom);
+	SceneCamera& Zoom(V2_float zoom_amount);
+	SceneCamera& Zoom(float zoom_xy_amount);
+	SceneCamera& ZoomX(float zoom_x_amount);
+	SceneCamera& ZoomY(float zoom_y_amount);
+	SceneCamera& SetPixelRounding(bool enabled);
 
 	/// @brief Resets the camera's viewport and scroll and zoom to the default values.
-	Camera& Reset();
-
+	SceneCamera& Reset();
 	LayerMask GetIncludeMask() const;
 	LayerMask GetExcludeMask() const;
 
-	Camera& SetMasks(LayerMask include, LayerMask exclude = kLayersNone);
-	Camera& SetIncludeMask(LayerMask include);
-	Camera& SetExcludeMask(LayerMask exclude);
+	SceneCamera& SetMasks(LayerMask include, LayerMask exclude = kLayersNone);
+	SceneCamera& SetIncludeMask(LayerMask include);
+	SceneCamera& SetExcludeMask(LayerMask exclude);
 
-	Camera& AddIncludeMasks(LayerMask layers_to_add);
-	Camera& RemoveIncludeMasks(LayerMask layers_to_remove);
+	SceneCamera& AddIncludeMasks(LayerMask layers_to_add);
+	SceneCamera& RemoveIncludeMasks(LayerMask layers_to_remove);
+	SceneCamera& AddExcludeMasks(LayerMask layers_to_add);
+	SceneCamera& RemoveExcludeMasks(LayerMask layers_to_remove);
 
-	Camera& AddExcludeMasks(LayerMask layers_to_add);
-	Camera& RemoveExcludeMasks(LayerMask layers_to_remove);
-
-	Camera& ClearMasks();
+	SceneCamera& ClearMasks();
 
 	[[nodiscard]] bool IsVisible(Entity entity) const;
 
 	/// @brief Sets the camera's parent render target.
-	Camera& SetParentRenderTarget(const RenderTarget& render_target);
+	SceneCamera& SetParentRenderTarget(const RenderTarget& render_target);
 
 	/// @brief Sets the camera's parent render target to the default scene render target.
-	Camera& SetParentRenderTarget();
+	SceneCamera& SetParentRenderTarget();
 
 	/// @brief If clear_color is {}, uses the render target's clear color.
 	void SetClearColor(std::optional<Color> clear_color);
@@ -166,34 +166,47 @@ bool HasAllMasks(Entity entity, LayerMask test);
 
 namespace impl {
 
-/// @param camera If {}, uses the default scene camera.
-V2_float GetCameraParentRenderTargetScale(const Scene& scene, const std::optional<Camera>& camera);
+void AddCameraComponents(SceneCamera camera, const RenderContext& renderer);
 
-void AddCameraComponents(Camera camera, const RenderContext& renderer);
-
-void RecalculateCameraViewProjection(Camera camera);
+void RecalculateCameraViewProjection(SceneCamera camera);
 
 /// @return Scroll with bounds applied.
-[[nodiscard]] V2_float ApplyCameraBounds(Camera camera, V2_float scroll);
+[[nodiscard]] V2_float ApplyCameraBounds(SceneCamera camera, V2_float scroll);
 
 /// Apply bounds to the current scroll.
-void ApplyCameraBounds(Camera camera);
+void ApplyCameraBounds(SceneCamera camera);
+
+struct RenderCamera {
+	std::size_t uuid{ 0 };
+	Depth depth;
+	Camera camera;
+	std::optional<Color> clear_color;
+	std::optional<RenderTarget> render_target;
+
+	friend bool operator==(const RenderCamera& lhs, const RenderCamera& rhs) {
+		return lhs.uuid == rhs.uuid;
+	}
+
+	RenderCamera() = default;
+	explicit RenderCamera(const Camera& world_camera);
+	explicit RenderCamera(SceneCamera scene_camera);
+};
 
 } // namespace impl
 
 /// Create a default camera which has the same viewport as the game size (automatic resizing).
-Camera CreateCamera(Scene& scene);
+SceneCamera CreateCamera(Scene& scene);
 
 /// Create a camera with a custom viewport.
-Camera CreateCamera(Scene& scene, V2_float viewport_size);
+SceneCamera CreateCamera(Scene& scene, V2_float viewport_size);
 
 } // namespace ptgn
 
 namespace std {
 
 template <>
-struct hash<ptgn::Camera> {
-	std::size_t operator()(const ptgn::Camera& camera) const {
+struct hash<ptgn::SceneCamera> {
+	std::size_t operator()(const ptgn::SceneCamera& camera) const {
 		return camera.GetHash();
 	}
 };
