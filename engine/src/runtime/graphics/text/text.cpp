@@ -1,11 +1,9 @@
 #include "runtime/graphics/text/text.h"
 
 #include <cstdint>
-#include <optional>
 #include <string>
 #include <string_view>
 
-#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
@@ -18,7 +16,6 @@
 #include "runtime/asset/font_system.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
@@ -29,35 +26,11 @@
 
 namespace ptgn {
 
-namespace impl {
-
-float GetTextScale(const Scene& scene, const std::optional<Camera>& camera) {
-	return impl::GetCameraParentRenderTargetScale(scene, camera).y;
-}
-
-std::optional<float> ApplyHDTextScaling(
-	bool hd, Transform& transform, const Scene& scene, const std::optional<Camera>& camera
-) {
-	if (hd) {
-		auto scale{ impl::GetCameraParentRenderTargetScale(scene, camera) };
-
-		PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component");
-
-		transform.Scale(transform.GetScale() / scale);
-
-		return impl::GetTextScale(scene, camera);
-	}
-
-	return std::nullopt;
-}
-
-} // namespace impl
-
 Text::Text(Entity entity) : Entity{ entity } {}
 
 void Text::Draw(
 	DrawContext& renderer, Entity entity, V2_int text_size, Color additional_tint,
-	Origin offset_origin, V2_float offset_size, Camera camera
+	Origin offset_origin, V2_float offset_size
 ) {
 	Text text{ entity };
 
@@ -85,15 +58,6 @@ void Text::Draw(
 	auto scaled_offset{ offset_size * Abs(transform_scale) };
 	V2_float offset{ -GetOriginOffset(offset_origin, scaled_offset) };
 	transform.Translate(offset);
-
-	if (auto hd_scale{ impl::ApplyHDTextScaling(text.IsHD(), transform, text.GetScene(), camera) };
-		hd_scale.has_value()) {
-		auto font_size{ text.GetFontSize() };
-		auto hd_text_scale{ font_size * hd_scale.value() };
-		if (hd_text_scale != text.Get<impl::HDFontSize>()) {
-			Text::RecreateTexture(text, camera);
-		}
-	}
 
 	const auto& text_texture{ text.Get<Texture>() };
 
@@ -132,41 +96,30 @@ void Text::Draw(
 	);
 }
 
-void Text::Draw(DrawContext& renderer, Entity text, Camera camera) {
+void Text::Draw(DrawContext& renderer, Entity text) {
 	// This wrapper exists so that buttons can draw offset text.
-	Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{}, camera);
+	Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
 }
 
-void Text::RecreateTexture(Entity entity, const std::optional<Camera>& camera) {
+void Text::RecreateTexture(Entity entity) {
 	Text text{ entity };
 	auto content{ text.GetContent() };
 	auto color{ text.GetColor() };
-	std::optional<float> hd_scale;
-
-	if (text.IsHD()) {
-		hd_scale = impl::GetTextScale(text.GetScene(), camera);
-	}
 
 	auto font_size{ text.GetFontSize() };
 	auto font{ text.GetFont() };
 	auto properties{ text.GetProperties() };
 
-	RecreateTexture(text, content, color, font_size, font, properties, hd_scale);
+	RecreateTexture(text, content, color, font_size, font, properties);
 }
 
 void Text::RecreateTexture(
 	Entity text, std::string_view content, Color text_color, FontSize font_size, FontOrKey font,
-	const TextProperties& properties, std::optional<float> hd_scale
+	const TextProperties& properties
 ) {
-	// Cache the font size of the texture so that if HD resolution changes, the text is updated
-	// before drawing.
-	text.Add<impl::HDFontSize>(font_size * hd_scale.value_or(1.0f));
-
 	auto& asset{ text.GetScene().ctx().asset };
 
-	auto texture{
-		asset.CreateTextTexture(content, text_color, font_size, font, properties, hd_scale)
-	};
+	auto texture{ asset.CreateTextTexture(content, text_color, font_size, font, properties) };
 
 	text.Add<Texture>(texture);
 }
@@ -186,25 +139,8 @@ void Text::SetProperties(Entity text, const TextProperties& properties, bool rec
 	changed |= Text::SetParameter(text, impl::TextWrapAfter{ properties.wrap_after }, false);
 
 	if (changed && recreate_texture) {
-		Text::RecreateTexture(text, std::nullopt);
+		Text::RecreateTexture(text);
 	}
-}
-
-bool Text::IsHD() const {
-	return Has<impl::HDText>();
-}
-
-Text& Text::SetHD(bool hd) {
-	if (hd == IsHD()) {
-		return *this;
-	}
-	if (hd) {
-		Add<impl::HDText>();
-	} else {
-		Remove<impl::HDText>();
-	}
-	Text::RecreateTexture(*this, std::nullopt);
-	return *this;
 }
 
 Text& Text::SetFont(FontOrKey font) {
@@ -337,7 +273,6 @@ Text CreateText(
 	SetDrawOrigin(text, draw_origin);
 	SetDraw<Text>(text);
 	Show(text, false);
-	text.Add<impl::HDText>();
 	Text::SetParameter(text, impl::TextContent{ text_content }, false);
 	Text::SetParameter(text, impl::TextColor{ text_color }, false);
 	Text::SetParameter(text, resolved_font, false);

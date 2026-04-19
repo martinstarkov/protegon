@@ -4,10 +4,10 @@
 #include <optional>
 #include <string_view>
 
+#include "core/graphics/color.h"
+#include "core/graphics/surface.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
-#include "core/graphics/surface.h"
-#include "core/graphics/color.h"
 #include "runtime/asset/asset.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
@@ -62,7 +62,7 @@ private:
 
 	[[nodiscard]] static std::optional<impl::Surface> CreateTextSurface(
 		std::string_view text_content, Color color, FontSize font_size, Font font_asset,
-		const TextProperties& properties, std::optional<float> hd_scale
+		const TextProperties& properties
 	);
 
 	[[nodiscard]] static impl::FontObject CreateFont(const path& font_path, FontSize font_size);

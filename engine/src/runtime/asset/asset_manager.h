@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ecs/ecs.h>
+
 #include <functional>
 #include <optional>
 #include <string>
@@ -11,7 +13,6 @@
 
 #include "core/graphics/color.h"
 #include "core/util/file.h"
-#include <ecs/ecs.h>
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
@@ -240,12 +241,12 @@ private:
 
 	[[nodiscard]] std::optional<impl::TextureObject> CreateTextTextureObject(
 		std::string_view text_content, Color color, float font_size, FontOrKey font,
-		const TextProperties& properties, std::optional<float> hd_scale
+		const TextProperties& properties
 	);
 
 	[[nodiscard]] Texture CreateTextTexture(
 		std::string_view text_content, Color text_color, float font_size, FontOrKey font,
-		const TextProperties& properties, std::optional<float> hd_scale
+		const TextProperties& properties
 	);
 	[[nodiscard]] Font CreateFont(bool persistent, const path& asset_path, float pt_size);
 	[[nodiscard]] Audio CreateAudio(bool persistent, const path& asset_path);

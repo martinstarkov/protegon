@@ -158,7 +158,7 @@ public:
 		std::string_view text_content, Transform transform, Color text_color,
 		FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {},
 		Origin draw_origin = Origin::Center, std::optional<V2_float> text_size = {},
-		bool hd_text = true, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
+		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
 		const std::optional<SceneCamera>& camera = {}
 	);
 

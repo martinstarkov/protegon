@@ -14,7 +14,6 @@
 #include "runtime/asset/asset.h"
 #include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/camera.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/text/font.h"
 #include "serialization/serialize.h"
@@ -25,19 +24,6 @@ class DrawContext;
 class Scene;
 
 namespace impl {
-
-float GetTextScale(const Scene& scene, const std::optional<Camera>& camera);
-
-std::optional<float> ApplyHDTextScaling(
-	bool hd, Transform& transform, const Scene& scene, const std::optional<Camera>& camera
-);
-
-// TODO: Get rid of this in favor of msdfgen text.
-struct HDText {};
-
-struct HDFontSize : public FontSize {
-	using FontSize::FontSize;
-};
 
 struct TextContent : public StringComponent {
 	using StringComponent::StringComponent;
@@ -133,13 +119,10 @@ public:
 
 	static void Draw(
 		DrawContext& renderer, Entity text, V2_int text_size, Color additional_tint,
-		Origin offset_origin, V2_float offset_size, Camera camera
+		Origin offset_origin, V2_float offset_size
 	);
 
-	static void Draw(DrawContext& renderer, Entity entity, Camera camera);
-
-	/// @return True if the text is rendered in high definition, false otherwise.
-	[[nodiscard]] bool IsHD() const;
+	static void Draw(DrawContext& renderer, Entity entity);
 
 	Font GetFont() const;
 	std::string GetContent() const;
@@ -151,19 +134,16 @@ public:
 
 	FontSize GetFontSize() const;
 
-	/// @return Unscaled size of this text's texture.
+	/// @return Size of this text's texture.
 	V2_int GetSize() const;
 
-	/// @return Unscaled texture size for the given text content using this text's font and size.
+	/// @return Texture size for the given text content using this text's font and size.
 	V2_int GetSize(std::string_view text_content) const;
 
-	/// @return Unscaled texture size for the given text content using the specified font and size.
+	/// @return Texture size for the given text content using the specified font and size.
 	V2_int GetSize(std::string_view text_content, FontOrKey font, FontSize font_size = {}) const;
 
 	TextProperties GetProperties() const;
-
-	/// Set text to be rendered in high definition instead of natively scaling to its camera.
-	Text& SetHD(bool hd = true);
 
 	/// @param font Default {} corresponds to the default engine font.
 	Text& SetFont(FontOrKey font = {});
@@ -174,7 +154,7 @@ public:
 	/// FontStyle::Italic && FontStyle::Bold
 	Text& SetFontStyle(FontStyle font_style);
 
-	/// Set the unscaled font size of text. Default value will use default engine font.
+	/// Set the font size of text. Default value will use default engine font.
 	Text& SetFontSize(FontSize font_size = {});
 
 	/// Note: This function will implicitly set font render mode to Blended as it is required.
@@ -207,32 +187,32 @@ public:
 		if (!text.Has<T>()) {
 			text.Add<T>(value);
 			if (recreate_texture) {
-				RecreateTexture(text, std::nullopt);
+				RecreateTexture(text);
 			}
 			return true;
 		}
 		T& t{ text.Get<T>() };
 		if (t == value) {
 			if (recreate_texture) {
-				RecreateTexture(text, std::nullopt);
+				RecreateTexture(text);
 			}
 			return false;
 		}
 		t = value;
 		if (recreate_texture) {
-			RecreateTexture(text, std::nullopt);
+			RecreateTexture(text);
 		}
 		return true;
 	}
 
 private:
 	// Using own properties.
-	static void RecreateTexture(Entity text, const std::optional<Camera>& camera);
+	static void RecreateTexture(Entity text);
 
 	// Using custom properties.
 	static void RecreateTexture(
 		Entity text, std::string_view text_content, Color text_color, FontSize font_size,
-		FontOrKey font, const TextProperties& properties, std::optional<float> hd_scale
+		FontOrKey font, const TextProperties& properties
 	);
 
 	template <impl::TextParameter T>

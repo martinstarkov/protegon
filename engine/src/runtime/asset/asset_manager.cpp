@@ -1,5 +1,7 @@
 #include "runtime/asset/asset_manager.h"
 
+#include <ecs/ecs.h>
+
 #include <filesystem>
 #include <functional>
 #include <list>
@@ -21,7 +23,6 @@
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "core/util/string.h"
-#include <ecs/ecs.h>
 #include "renderer/renderer.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
@@ -665,13 +666,13 @@ std::size_t AssetManager::Size() const {
 
 std::optional<impl::TextureObject> AssetManager::CreateTextTextureObject(
 	std::string_view text_content, Color color, float font_size, FontOrKey font,
-	const TextProperties& properties, std::optional<float> hd_scale
+	const TextProperties& properties
 ) {
 	auto font_asset{ font.Get(*this) };
 
-	auto surface{ FontSystem::CreateTextSurface(
-		text_content, color, font_size, font_asset, properties, hd_scale
-	) };
+	auto surface{
+		FontSystem::CreateTextSurface(text_content, color, font_size, font_asset, properties)
+	};
 
 	if (!surface.has_value()) {
 		return {};
@@ -685,12 +686,12 @@ std::optional<impl::TextureObject> AssetManager::CreateTextTextureObject(
 
 Texture AssetManager::CreateTextTexture(
 	std::string_view text_content, Color color, float font_size, FontOrKey font,
-	const TextProperties& properties, std::optional<float> hd_scale
+	const TextProperties& properties
 ) {
 	Texture texture{ CreateAsset(), false };
 
 	auto texture_object{
-		CreateTextTextureObject(text_content, color, font_size, font, properties, hd_scale)
+		CreateTextTextureObject(text_content, color, font_size, font, properties)
 	};
 
 	if (!texture_object.has_value()) {

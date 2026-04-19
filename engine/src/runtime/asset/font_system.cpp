@@ -1,5 +1,7 @@
 #include "runtime/asset/font_system.h"
 
+#include <ecs/ecs.h>
+
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -11,7 +13,6 @@
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
-#include <ecs/ecs.h>
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/font.h"
@@ -119,7 +120,7 @@ V2_int FontSystem::GetSize(
 
 std::optional<impl::Surface> FontSystem::CreateTextSurface(
 	std::string_view text_content, Color color, FontSize font_size, Font font_asset,
-	const TextProperties& properties, std::optional<float> hd_scale
+	const TextProperties& properties
 ) {
 	if (text_content.empty()) {
 		return std::nullopt;

@@ -40,7 +40,6 @@ class HDTextScene : public Scene {
 			*this, -2 * stride, content, color, font_size, {}, Origin::Center,
 			TextProperties{ .wrap_after = wrap_after }
 		);
-		text.SetHD(false);
 
 		text_hd = CreateText(
 			*this, 2 * stride, content, color, font_size, {}, Origin::Center,
@@ -51,11 +50,11 @@ class HDTextScene : public Scene {
 	void OnUpdate() override {
 		ctx().renderer.DrawText(
 			content, -1 * stride, color, font_size, {}, TextProperties{ .wrap_after = wrap_after },
-			Origin::Center, {}, false
+			Origin::Center, {}
 		);
 		ctx().renderer.DrawText(
 			content, 1 * stride, color, font_size, {}, TextProperties{ .wrap_after = wrap_after },
-			Origin::Center, {}, true
+			Origin::Center, {}
 		);
 	}
 };
