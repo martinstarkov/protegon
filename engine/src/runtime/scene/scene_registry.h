@@ -100,11 +100,11 @@ inline std::function<std::unique_ptr<Scene>(Application&)> GetSceneFactory(
 #define PTGN_IMPL_FIELD_OF(X, SceneType) ::ptgn::impl::MakeField<SceneType>(#X, &SceneType::X)
 
 #define PTGN_REGISTER_SCENE(SceneType, DisplayName, ...)                                           \
-	static void to_json(::ptgn::json& nlohmann_json_j, const SceneType& nlohmann_json_t) {         \
+	inline void to_json(::ptgn::json& nlohmann_json_j, const SceneType& nlohmann_json_t) {         \
 		__VA_OPT__(NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO, __VA_ARGS__) \
 		))                                                                                         \
 	}                                                                                              \
-	static void from_json(const ::ptgn::json& nlohmann_json_j, SceneType& nlohmann_json_t) {       \
+	inline void from_json(const ::ptgn::json& nlohmann_json_j, SceneType& nlohmann_json_t) {       \
 		__VA_OPT__(                                                                                \
 			NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM, __VA_ARGS__))     \
 		)                                                                                          \
