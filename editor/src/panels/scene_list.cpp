@@ -123,7 +123,8 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 
 		bool selected{ scene.get() == selected_scene_ };
 
-		auto label{ scene->GetTag().empty() ? "Untitled Scene" : scene->GetTag().c_str() };
+		auto tag{ scene->GetTag() };
+		auto label{ tag.empty() ? "Untitled Scene" : tag.c_str() };
 
 		if (ImGui::Selectable(label, selected)) {
 			selected_scene_ = scene.get();
