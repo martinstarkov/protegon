@@ -83,14 +83,13 @@ public:
 			}
 
 			ctx().renderer.DrawShape(
-				Rect{ tile_size },
-				Transform{ -res * 0.5f + V2_int{ p.x * tile_size.x, p.y * tile_size.y } }, c,
-				Solid{}, Origin::TopLeft, Depth{}, BlendMode::Blend
+				Transform{ -res * 0.5f + V2_int{ p.x * tile_size.x, p.y * tile_size.y } },
+				Rect{ tile_size }, c, Solid{}, Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		});
 		if (grid.Has(mouse_tile)) {
 			ctx().renderer.DrawShape(
-				Rect{ tile_size }, Transform{ -res * 0.5f + mouse_tile * tile_size }, color::Yellow,
+				Transform{ -res * 0.5f + mouse_tile * tile_size }, Rect{ tile_size }, color::Yellow,
 				1.0f, Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		}

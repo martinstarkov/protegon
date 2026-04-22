@@ -84,14 +84,14 @@ class PathfindingScene : public Scene {
 			}
 
 			ctx().renderer.DrawShape(
-				Rect{ tile_size }, Transform{ -game_size * 0.5f + tile * tile_size }, c, Solid{},
+				Transform{ -game_size * 0.5f + tile * tile_size }, Rect{ tile_size }, c, Solid{},
 				Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		});
 
 		if (grid.Has(mouse_tile)) {
 			ctx().renderer.DrawShape(
-				Rect{ tile_size }, Transform{ -game_size * 0.5f + mouse_tile * tile_size },
+				Transform{ -game_size * 0.5f + mouse_tile * tile_size }, Rect{ tile_size },
 				color::Yellow, FillStyle{ 1.0f }, Origin::Center, Depth{}, BlendMode::Blend
 			);
 		}
@@ -139,22 +139,22 @@ class PathfindingScene : public Scene {
 					 ) };
 
 			ctx().renderer.DrawShape(
-				Rect{ tile_size }, Transform{ p }, color::Purple, Solid{}, Origin::TopLeft, Depth{},
+				Transform{ p }, Rect{ tile_size }, color::Purple, Solid{}, Origin::TopLeft, Depth{},
 				BlendMode::Blend
 			);
 		} else {
 			ctx().renderer.DrawShape(
-				Rect{ tile_size }, Transform{ -game_size * 0.5f + pos * tile_size }, color::Purple,
+				Transform{ -game_size * 0.5f + pos * tile_size }, Rect{ tile_size }, color::Purple,
 				Solid{}, Origin::TopLeft, Depth{}, BlendMode::Blend
 			);
 		}
 
 		const auto display_waypoints = [&](const auto& waypoints, const auto& color) {
 			for (std::size_t i = 0; i + 1 < waypoints.size(); ++i) {
-				ctx().renderer.DrawShape(
-					Line{ -game_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
-						  -game_size * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f },
-					Transform{}, color, 1.0f, Origin::Center, Depth{}, BlendMode::Blend
+				ctx().renderer.DrawLine(
+					-game_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
+					-game_size * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f, color,
+					1.0f, Depth{}, BlendMode::Blend
 				);
 			}
 		};

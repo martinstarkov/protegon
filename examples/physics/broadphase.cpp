@@ -168,9 +168,8 @@ struct BroadphaseScene : public Scene {
 			SetTint(candidate, color::Red);
 		}
 
-		ctx().renderer.DrawShape(
-			Line{ player_pos, mouse_pos }, Transform{}, color::Gold, 2.0f, Origin::Center, Depth{},
-			BlendMode::Blend
+		ctx().renderer.DrawLine(
+			player_pos, mouse_pos, color::Gold, 2.0f, Depth{}, BlendMode::Blend
 		);
 
 #else

@@ -106,7 +106,7 @@ public:
 	void SetBackgroundColor(Color background_color);
 	Color GetBackgroundColor() const;
 
-	void DrawTextureQuad(
+	void DrawTexture(
 		TextureOrKey texture, Transform transform, std::optional<V2_float> size = {},
 		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
 		std::optional<BlendMode> blend_mode								  = {},

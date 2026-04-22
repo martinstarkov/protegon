@@ -111,7 +111,7 @@ void RenderContext::DrawTexture(
 	draw_commands.emplace_back(texture_command, depth);
 }
 
-void RenderContext::DrawTextureQuad(
+void RenderContext::DrawTexture(
 	TextureOrKey texture, Transform transform, std::optional<V2_float> size, Origin draw_origin,
 	std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,

@@ -17,11 +17,11 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "runtime/scene/scene_camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
@@ -225,20 +225,20 @@ public:
 				}
 
 				ctx().renderer.DrawShape(
-					Rect{ pixel_size }, Transform{ p * pixel_size }, color, Solid{}, Origin::Center,
+					Transform{ p * pixel_size }, Rect{ pixel_size }, color, Solid{}, Origin::Center,
 					Depth{}, BlendMode::Blend
 				);
 			}
 		}
 
 		ctx().renderer.DrawShape(
-			Rect{ (max - min) * pixel_size },
-			Transform{ (min * pixel_size + max * pixel_size) * 0.5f }, color::Orange, 3.0f,
-			Origin::Center, Depth{}, BlendMode::Blend
+			Transform{ (min * pixel_size + max * pixel_size) * 0.5f },
+			Rect{ (max - min) * pixel_size }, color::Orange, 3.0f, Origin::Center, Depth{},
+			BlendMode::Blend
 		);
 
 		ctx().renderer.DrawShape(
-			Rect{ 30, 30 }, Transform{}, color::Red, Solid{}, Origin::TopLeft, Depth{},
+			Transform{}, Rect{ 30, 30 }, color::Red, Solid{}, Origin::TopLeft, Depth{},
 			BlendMode::Blend
 		);
 	}

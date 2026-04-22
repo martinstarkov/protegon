@@ -11,16 +11,17 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/noise.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/camera.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/scene/scene_camera.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
@@ -90,7 +91,7 @@ public:
 			ctx().camera.Zoom(zoom_speed * dt);
 		}
 
-		chunk_manager.Update(*this, ctx().camera);
+		chunk_manager.Update(*this, ctx().camera.operator Camera());
 	}
 };
 
