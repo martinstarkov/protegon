@@ -160,6 +160,13 @@ template <impl::RNGType T = std::int32_t>
 	return rng();
 }
 
+/// @brief Get a random number of type T in the range [1, max], inclusive.
+template <impl::RNGType T = std::int32_t>
+[[nodiscard]] T RandomPositiveNumber() {
+	static RNG<T> rng{ 1, std::numeric_limits<T>::max() };
+	return rng();
+}
+
 template <impl::RNGType T = std::int32_t>
 [[nodiscard]] T RandomNumber(T min, T max) {
 	RNG<T> rng{ min, max };

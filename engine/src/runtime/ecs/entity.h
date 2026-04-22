@@ -146,7 +146,7 @@ public:
 
 	bool IsIdenticalTo(Entity entity) const;
 
-	std::uint64_t GetUUID() const;
+	int GetUUID() const;
 
 	std::string GetTag() const;
 

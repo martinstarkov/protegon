@@ -8,7 +8,7 @@
 
 namespace ptgn::impl {
 
-UUID::UUID() : uuid_{ RandomNumber<std::uint64_t>() } {}
+UUID::UUID() : uuid_{ static_cast<std::uint64_t>(RandomPositiveNumber<int>()) } {}
 
 UUID::UUID(std::uint64_t uuid) : uuid_{ uuid } {}
 

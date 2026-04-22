@@ -79,9 +79,9 @@ bool Entity::IsIdenticalTo(Entity entity) const {
 	return entity_.IsIdenticalTo(entity.entity_);
 }
 
-std::uint64_t Entity::GetUUID() const {
+int Entity::GetUUID() const {
 	PTGN_ASSERT(Has<impl::UUID>(), "Every entity must have a UUID");
-	return Get<impl::UUID>();
+	return static_cast<int>(Get<impl::UUID>());
 }
 
 std::string Entity::GetTag() const {
