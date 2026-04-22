@@ -500,8 +500,10 @@ void Renderer::SetColorMask(const ColorMaskState& color_mask) {
 	});
 }
 
-void Renderer::FlushIfExceedsCapacity(std::size_t vertices, std::size_t indices) {
-	if (batch_vertices_.size() + vertices > kVertexCapacity ||
+void Renderer::FlushIfExceedsCapacity(
+	std::size_t vertex_bytes, std::size_t indices, std::size_t vertex_byte_capacity
+) {
+	if (batch_vertices_.size() + vertex_bytes > vertex_byte_capacity ||
 		batch_indices_.size() + indices > kIndexCapacity) {
 		FlushBatch();
 	}

@@ -250,9 +250,11 @@ private:
 	/// batch_textures.
 	std::pair<std::uint32_t, bool> GetTextureSlot(TextureId tex);
 
-	/// @brief Flushes the batch if adding the given number of vertices and indices would exceed
+	/// @brief Flushes the batch if adding the given number of vertex bytes and indices would exceed
 	/// batch.
-	void FlushIfExceedsCapacity(std::size_t vertices, std::size_t indices);
+	void FlushIfExceedsCapacity(
+		std::size_t vertex_bytes, std::size_t indices, std::size_t vertex_byte_capacity
+	);
 
 	/// @return True if the given texture is currently attached to the framebuffer that is currently
 	/// bound.
@@ -288,7 +290,10 @@ private:
 		static_assert(std::is_trivially_copyable_v<TVertex>);
 		static_assert(std::is_standard_layout_v<TVertex>);
 
-		FlushIfExceedsCapacity(vertices.size(), local_indices.size());
+		FlushIfExceedsCapacity(
+			vertices.size() * sizeof(TVertex), local_indices.size(),
+			kVertexCapacity * sizeof(TVertex)
+		);
 
 		auto base_vertex{ static_cast<std::uint32_t>(batch_vertices_.size() / sizeof(TVertex)) };
 
