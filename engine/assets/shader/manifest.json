@@ -53,7 +53,7 @@
     "fragment": "screen_sharpen"
   },
   "light": {
-    "vertex": "screen_default",
+    "vertex": "texture",
     "fragment": "light"
   },
   "tone_mapping": {
