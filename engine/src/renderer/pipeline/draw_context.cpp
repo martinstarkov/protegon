@@ -533,7 +533,7 @@ void DrawContext::Draw(const impl::QuadCommand& cmd, float depth) {
 	if (cmd.blend_mode.has_value()) {
 		SetBlendMode(*cmd.blend_mode);
 	}
-	DrawQuad(GetShader("color"), cmd.positions, depth, cmd.color, cmd.entity_id);
+	DrawQuad(cmd.shader, cmd.positions, depth, cmd.color, cmd.entity_id);
 }
 
 void DrawContext::Draw(const std::vector<impl::QuadCommand>& cmds, float depth) {
