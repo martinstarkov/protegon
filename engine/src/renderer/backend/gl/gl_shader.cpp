@@ -261,7 +261,7 @@ static void AddShaderLayout(std::string& source, [[maybe_unused]] ShaderType typ
 	// \r?                       - Match zero or one carriage return character
 	// $                         - Match string end
 	std::regex var_decl_regex(
-		R"(^\s*(in|out)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*;\r?$)"
+		R"(^\s*((?:flat|smooth|noperspective)\s+)?(in|out)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*;\r?$)"
 	);
 
 	std::smatch match;
@@ -291,23 +291,30 @@ static void AddShaderLayout(std::string& source, [[maybe_unused]] ShaderType typ
 
 		bool inject_layout{ true };
 
-		std::string qualifier{ match[1].str() }; // "in" or "out"
+		// "", "flat", "smooth"
+		auto interpolation{ match[1].str() };
+
+		// "in" or "out"
+		auto qualifier{ match[2].str() };
 
 #ifdef __EMSCRIPTEN__
-		// Only inject layout for Vertex ShaderId & 'in' variables on WebAssembly
-		if (!(type == ShaderType::Vertex && qualifier == "in")) {
+		//  Only inject layout for Vertex ShaderId & 'in' variables on WebAssembly or Fragment
+		//  shader out variables
+		if (!(type == ShaderType::Vertex && qualifier == "in" ||
+			  type == ShaderType::Fragment && qualifier == "out")) {
 			inject_layout = false;
 		}
 #endif
 
 		if (inject_layout) {
-			std::string variable_type{ match[2].str() }; // (e.g., vec3)
-			std::string variable_name{ match[3].str() }; // (e.g., a_Position)
+			std::string variable_type{ match[3].str() }; // (e.g., vec3, int)
+			std::string variable_name{ match[4].str() }; // (e.g., a_Position, v_EntityID)
 
 			int location{ (qualifier == "in") ? current_in_location++ : current_out_location++ };
 
 			std::string layout_line{ std::format(
-				"layout(location = {}) {} {} {};", location, qualifier, variable_type, variable_name
+				"layout(location = {}) {}{} {} {};", location, interpolation, qualifier,
+				variable_type, variable_name
 			) };
 
 			output << layout_line << "\n";
