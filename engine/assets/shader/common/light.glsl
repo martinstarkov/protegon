@@ -3,9 +3,11 @@
 #type fragment
 
 out vec4 o_Color;
+out int o_EntityID;
 
 in vec4 v_Color;
 in vec2 v_TexCoord;
+flat in int v_EntityID;
 
 uniform float u_UseCone;
 uniform float u_ConeAngle;
@@ -90,4 +92,5 @@ void main() {
     vec4 total_light = vec4(u_Color.rgb * attenuation + u_AmbientColor.rgb * u_AmbientIntensity, (attenuation + u_AmbientIntensity) * alpha);
     
     o_Color = total_light * v_Color;
+    o_EntityID = v_EntityID;
 }

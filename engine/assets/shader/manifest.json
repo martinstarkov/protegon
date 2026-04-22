@@ -2,26 +2,26 @@
   "color": {
     "source": "color"
   },
-  "quad": {
-    "source": "quad"
+  "texture": {
+    "source": "texture"
   },
   "screen_default": {
     "source": "screen_default"
   },
-  "circle": {
-    "vertex": "quad",
-    "fragment": "circle"
+  "ellipse": {
+    "vertex": "shape",
+    "fragment": "ellipse"
   },
   "capsule": {
-    "vertex": "quad",
+    "vertex": "shape",
     "fragment": "capsule"
   },
   "rounded_rect": {
-    "vertex": "quad",
+    "vertex": "shape",
     "fragment": "rounded_rect"
   },
   "arc": {
-    "vertex": "quad",
+    "vertex": "shape",
     "fragment": "arc"
   },
   "blur": {

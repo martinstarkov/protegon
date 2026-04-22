@@ -3,10 +3,12 @@
 #type fragment
 
 out vec4 o_Color;
+out int o_EntityID;
 
 in vec4 v_Color;
-in vec2 v_TexCoord;
-in vec4 v_Data; // x = thickness, y = fade, z = aperture, w = direction (positive = CW, negative = CCW)
+in vec2 v_LocalCoord;
+in vec4 v_ShapeData; // x = thickness, y = fade, z = aperture, w = direction (positive = CW, negative = CCW)
+flat in int v_EntityID;
 
 const float PI = 3.14159265359f;
 
@@ -15,14 +17,12 @@ float ArcDistance(vec2 point) {
 }
 
 void main() {
-    float thickness = v_Data.x; // 0.0f = hollow, 1.0f = filled
-    float fade = v_Data.y;
-    float aperture = v_Data.z;
-    float direction = v_Data.w;
-    
-    vec2 uv = v_TexCoord * 2.0f - 1.0f; // Normalize to: [-1, 1]
+    float thickness = v_ShapeData.x; // 0.0f = hollow, 1.0f = filled
+    float fade = v_ShapeData.y;
+    float aperture = v_ShapeData.z;
+    float direction = v_ShapeData.w;
 
-    float angle = atan(uv.y, uv.x);
+    float angle = atan(v_LocalCoord.y, v_LocalCoord.x);
     if (angle < 0.0f) angle += 2.0f * PI;
 
     if (direction < 0.0f)
@@ -31,7 +31,7 @@ void main() {
     if (aperture < 2.0 * PI && angle > aperture)
         discard;
 
-    float distance = ArcDistance(uv);
+    float distance = ArcDistance(v_LocalCoord);
 
     float alpha = smoothstep(0.0f, fade, distance);
     alpha *= smoothstep(thickness + fade, thickness, distance);
@@ -40,4 +40,5 @@ void main() {
         discard;
 
     o_Color = vec4(v_Color.rgb, v_Color.a * alpha);
+    o_EntityID = v_EntityID;
 }
