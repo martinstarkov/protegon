@@ -313,7 +313,10 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 	PTGN_ASSERT(instance_ != nullptr, "glfwCreateWindow failed");
 
 	glfwMakeContextCurrent(instance_.get());
+
+#ifndef __EMSCRIPTEN__
 	glfwSwapInterval(1); // Enable vsync
+#endif
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
