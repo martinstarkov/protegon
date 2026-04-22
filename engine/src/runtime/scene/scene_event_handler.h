@@ -49,7 +49,7 @@ private:
 	~LocalEventHandler() noexcept							   = default;
 	LocalEventHandler(const LocalEventHandler&)				   = delete;
 	LocalEventHandler& operator=(const LocalEventHandler&)	   = delete;
-	LocalEventHandler(LocalEventHandler&&) noexcept			   = delete;
+	LocalEventHandler(LocalEventHandler&&) noexcept			   = default;
 	LocalEventHandler& operator=(LocalEventHandler&&) noexcept = delete;
 
 	EventHandler& event_handler_;

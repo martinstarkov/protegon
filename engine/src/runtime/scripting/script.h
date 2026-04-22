@@ -117,6 +117,7 @@ public:
 
 	friend std::ostream& operator<<(std::ostream& os, const Scripts& scripts) {
 		os << "{ script_count: " << scripts.scripts_.size() << " }";
+		return os;
 	}
 
 private:

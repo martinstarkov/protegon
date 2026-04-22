@@ -25,8 +25,8 @@ private:
 	~EventHandler() noexcept						 = default;
 	EventHandler(const EventHandler&)				 = delete;
 	EventHandler& operator=(const EventHandler&)	 = delete;
-	EventHandler(EventHandler&&) noexcept			 = delete;
-	EventHandler& operator=(EventHandler&&) noexcept = delete;
+	EventHandler(EventHandler&&) noexcept			 = default;
+	EventHandler& operator=(EventHandler&&) noexcept = default;
 
 	std::vector<impl::EventData> global_event_queue_;
 };

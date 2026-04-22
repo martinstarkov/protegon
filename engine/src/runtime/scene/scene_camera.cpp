@@ -33,7 +33,7 @@ namespace impl {
 RenderCamera::RenderCamera(const Camera& world_camera) : camera{ world_camera } {}
 
 RenderCamera::RenderCamera(SceneCamera scene_camera) :
-	uuid{ static_cast<std::uint64_t>(scene_camera.GetUUID()) },
+	uuid{ static_cast<std::size_t>(scene_camera.GetUUID()) },
 	depth{ GetDepth(scene_camera) },
 	camera{ scene_camera.operator ptgn::Camera() },
 	clear_color{ scene_camera.GetClearColor() } {

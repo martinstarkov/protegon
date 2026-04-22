@@ -895,7 +895,7 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 
 	PTGN_ASSERT(viewport.size.BothAboveZero());
 
-	return { .moved{ moved }, .resized{ resized }, .viewport{ viewport } };
+	return { .moved = moved, .resized = resized, .viewport{ viewport } };
 }
 
 void Renderer::ResizeScreenTarget(V2_int size) {
