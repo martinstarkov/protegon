@@ -90,78 +90,29 @@ std::array<V2_float, 4> GetCenteredQuadPoints(V2_float size) {
 	return { -half, V2_float{ half.x, -half.y }, half, V2_float{ -half.x, half.y } };
 }
 
-std::array<Vertex, 2> Vertex::GetLine(
-	const std::array<V2_float, 2>& line_points, Color color, float depth
-) {
-	constexpr std::array<V2_float, 2> line_coordinates{ V2_float{ 0.0f, 0.0f },
-														V2_float{ 1.0f, 0.0f } };
+ColorVertex::ColorVertex(V2_float position, float depth, V4_float color, int entity_id) :
+	position{ position.x, position.y, depth },
+	color{ color[0], color[1], color[2], color[3] },
+	entity_id{ entity_id } {}
 
-	std::array<Vertex, 2> vertices{};
+ShapeVertex::ShapeVertex(
+	V2_float position, float depth, V4_float color, V2_float local_coord,
+	const std::array<float, 4>& shape_data, int entity_id
+) :
+	position{ position.x, position.y, depth },
+	color{ color[0], color[1], color[2], color[3] },
+	local_coord{ local_coord.x, local_coord.y },
+	shape_data{ shape_data },
+	entity_id{ entity_id } {}
 
-	auto c{ color.Normalized() };
-
-	PTGN_ASSERT(vertices.size() == line_points.size());
-	PTGN_ASSERT(vertices.size() == line_coordinates.size());
-
-	for (std::size_t i{ 0 }; i < line_points.size(); i++) {
-		vertices[i].position  = { line_points[i].x, line_points[i].y, depth };
-		vertices[i].color	  = { c.x, c.y, c.z, c.w };
-		vertices[i].tex_coord = { line_coordinates[i].x, line_coordinates[i].y };
-	}
-
-	return vertices;
-}
-
-std::array<Vertex, 3> Vertex::GetTriangle(
-	const std::array<V2_float, 3>& triangle_points, Color color, float depth
-) {
-	constexpr std::array<V2_float, 3> texture_coordinates{
-		V2_float{ 0.0f, 0.0f }, // lower-left corner
-		V2_float{ 1.0f, 0.0f }, // lower-right corner
-		V2_float{ 0.5f, 1.0f }, // top-center corner
-	};
-
-	std::array<Vertex, 3> vertices{};
-
-	auto c{ color.Normalized() };
-
-	PTGN_ASSERT(vertices.size() == triangle_points.size());
-	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
-
-	for (std::size_t i{ 0 }; i < triangle_points.size(); i++) {
-		vertices[i].position  = { triangle_points[i].x, triangle_points[i].y, depth };
-		vertices[i].color	  = { c.x, c.y, c.z, c.w };
-		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
-	}
-
-	return vertices;
-}
-
-std::array<Vertex, 4> Vertex::GetQuad(
-	const std::array<V2_float, 4>& quad_points, Color color, float depth,
-	const std::array<float, 4>& data, std::array<V2_float, 4> texture_coordinates
-) {
-	std::array<Vertex, 4> vertices{};
-
-	auto c{ color.Normalized() };
-
-	PTGN_ASSERT(vertices.size() == quad_points.size());
-	PTGN_ASSERT(vertices.size() == texture_coordinates.size());
-
-	for (std::size_t i{ 0 }; i < vertices.size(); ++i) {
-		vertices[i].position  = { quad_points[i].x, quad_points[i].y, depth };
-		vertices[i].color	  = { c.x, c.y, c.z, c.w };
-		vertices[i].tex_coord = { texture_coordinates[i].x, texture_coordinates[i].y };
-		vertices[i].data	  = data;
-	}
-
-	return vertices;
-}
-
-void Vertex::SetTextureIndex(std::array<Vertex, 4>& vertices, float texture_index) {
-	for (auto& v : vertices) {
-		v.data = { texture_index };
-	}
-}
+TextureVertex::TextureVertex(
+	V2_float position, float depth, V4_float color, V2_float tex_coord, float tex_index,
+	int entity_id
+) :
+	position{ position.x, position.y, depth },
+	color{ color[0], color[1], color[2], color[3] },
+	tex_coord{ tex_coord.x, tex_coord.y },
+	tex_index{ tex_index },
+	entity_id{ entity_id } {}
 
 } // namespace ptgn::impl

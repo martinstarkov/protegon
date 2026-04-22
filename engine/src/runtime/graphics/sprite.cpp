@@ -64,8 +64,8 @@ void Sprite::Draw(
 	auto blend_mode{ GetBlendMode(entity) };
 
 	renderer.DrawTexture(
-		texture, draw_transform, *texture_size, draw_origin, final_tint, depth, tex_coords,
-		blend_mode
+		texture, draw_transform, depth, *texture_size, draw_origin, final_tint, tex_coords,
+		blend_mode, entity.GetUUID()
 	);
 }
 

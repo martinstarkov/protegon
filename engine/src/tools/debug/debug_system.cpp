@@ -54,7 +54,7 @@ void DebugContext::DrawText(
 
 	render_context_.temporary_textures_.emplace_back(std::move(*texture_object));
 
-	auto quad_shader{ render_context_.renderer_.GetShader("quad") };
+	auto texture_shader{ render_context_.renderer_.GetShader("texture") };
 
 	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(
 		camera.transform([](const auto& c) { return impl::RenderCamera{ c }; })
@@ -66,11 +66,8 @@ void DebugContext::DrawText(
 
 	auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
 
-	constexpr bool floor_positions{ true };
-
-	impl::TextureCommand texture_command{ quad_shader,	  texture_id, positions,
-										  color::White,	  tex_coords, debug_blend_mode,
-										  floor_positions };
+	impl::TextureCommand texture_command{ texture_shader, texture_id,		positions, color::White,
+										  tex_coords,	  debug_blend_mode, -1 };
 
 	debug_commands.emplace_back(texture_command, debug_depth);
 }
@@ -91,7 +88,7 @@ void DebugContext::DrawShape(
 ) {
 	auto shape_draw_commands{ DrawContext::GetDrawCommand(
 		render_context_.renderer_, shape, transform, color, fill_style, draw_origin,
-		debug_blend_mode
+		debug_blend_mode, -1
 	) };
 
 	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
@@ -114,11 +111,9 @@ void DebugContext::DrawLines(
 		camera.transform([](const auto& c) { return impl::RenderCamera{ c }; })
 	) };
 
-	constexpr bool floor_positions{ false };
-
 	auto draw_commands{ DrawContext::GetDrawCommand(
-		points, line_width, transform.value_or(Transform{}), color, debug_blend_mode,
-		connect_last_to_first, floor_positions
+		render_context_.renderer_.GetShader("color"), points, line_width,
+		transform.value_or(Transform{}), color, debug_blend_mode, connect_last_to_first, -1
 	) };
 
 	if (!draw_commands.has_value()) {
@@ -151,8 +146,6 @@ void DebugContext::DrawPoint(
 ) {
 	DrawShape(point, {}, color, 1.0f, Origin::Center, camera);
 }
-
-DebugSystem::DebugSystem() {}
 
 void DebugSystem::PreUpdate() {
 	impl::GetProfiler().timings_.clear();

@@ -1,6 +1,7 @@
 #include "renderer/backend/gl/gl_vertex_array.h"
 
 #include <cstdint>
+#include <span>
 #include <utility>
 
 #include "core/assert.h"
@@ -9,6 +10,7 @@
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/pipeline/buffer_layout.h"
+#include "renderer/pipeline/primitive_mode.h"
 #include "renderer/resources/id.h"
 
 namespace ptgn::impl::gl {
@@ -93,6 +95,48 @@ void VertexArrays::InvalidateElementBuffer(ElementBufferId element_buffer) {
 	}
 }
 
+VertexArrayId VertexArrays::CreateVertexArray(
+	VertexBufferId vertex_buffer, const BufferLayoutView& vertex_buffer_layout,
+	ElementBufferId element_buffer, bool restore_bind
+) {
+	auto vertex_array{ CreateVertexArray() };
+
+	auto _ = BindVertexArray(vertex_array, restore_bind);
+
+	SetVertexBuffer(vertex_array, vertex_buffer);
+	SetElementBuffer(vertex_array, element_buffer);
+	SetBufferLayout(vertex_array, vertex_buffer_layout);
+
+	return vertex_array;
+}
+
+void VertexArrays::SetBufferLayout(VertexArrayId vertex_array, const BufferLayoutView& layout) {
+	PTGN_ASSERT(
+		gl_.IsBound(vertex_array), "Vertex array must be bound before setting its buffer layout"
+	);
+
+	PTGN_ASSERT(
+		!layout.elements.empty(),
+		"Cannot add a vertex buffer with an empty (unset) layout to a vertex array"
+	);
+
+	const auto& elements{ layout.elements };
+	PTGN_ASSERT(
+		elements.size() < static_cast<std::uint32_t>(GetMaxVertexAttribs()),
+		"Vertex buffer layout cannot exceed maximum number of vertex array attributes"
+	);
+
+	auto stride{ layout.stride };
+
+	PTGN_ASSERT(stride > 0, "Failed to calculate buffer layout stride");
+
+	for (std::uint32_t i{ 0 }; i < elements.size(); ++i) {
+		SetupVertexAttrib(i, elements[i], stride);
+	}
+
+	cache_.Get(vertex_array).layout_set = true;
+}
+
 void VertexArrays::DestroyVertexArray(VertexArrayId id) {
 	if (!id) {
 		return;
@@ -105,10 +149,6 @@ BindGuard<VertexArrayId> VertexArrays::BindVertexArray(
 	VertexArrayId vertex_array, bool restore_bind
 ) {
 	return gl_.Bind(vertex_array, restore_bind);
-}
-
-bool VertexArrays::IsBound(VertexArrayId vertex_array) const {
-	return gl_.IsBound(vertex_array);
 }
 
 } // namespace ptgn::impl::gl

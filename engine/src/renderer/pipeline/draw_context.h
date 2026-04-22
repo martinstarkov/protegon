@@ -44,84 +44,79 @@ namespace impl {
 
 class Renderer;
 
-struct TriangleCommand {
+struct DrawCommandBase {
+	int entity_id{ -1 };
+};
+
+struct TriangleCommand : public DrawCommandBase {
 	TriangleCommand() = default;
 
 	TriangleCommand(
 		const std::array<V2_float, 3>& positions, Color color, std::optional<BlendMode> blend_mode,
-		bool floor_positions
+		int entity_id
 	) :
-		color{ color },
+		DrawCommandBase{ entity_id },
 		positions{ positions },
-		blend_mode{ blend_mode },
-		floor_positions{ floor_positions } {}
+		color{ color },
+		blend_mode{ blend_mode } {}
 
-	Color color = color::White;
 	std::array<V2_float, 3> positions;
+	Color color{ color::White };
 	std::optional<BlendMode> blend_mode;
-	bool floor_positions{ true };
 };
 
-struct QuadCommand {
+struct QuadCommand : public DrawCommandBase {
 	QuadCommand() = default;
 
 	QuadCommand(
-		const std::array<V2_float, 4>& positions, Color color, std::optional<BlendMode> blend_mode,
-		bool floor_positions
+		impl::ShaderId shader, const std::array<V2_float, 4>& positions, Color color,
+		std::optional<BlendMode> blend_mode, int entity_id
 	) :
-		color{ color },
-		positions{ positions },
-		blend_mode{ blend_mode },
-		floor_positions{ floor_positions } {}
-
-	Color color = color::White;
-	std::array<V2_float, 4> positions;
-	std::optional<BlendMode> blend_mode;
-	bool floor_positions{ true };
-};
-
-struct QuadShapeCommand : public QuadCommand {
-	QuadShapeCommand() = default;
-
-	QuadShapeCommand(
-		impl::ShaderId shader, const std::array<V2_float, 4>& positions,
-		const std::array<float, 4>& user_data, Color color, std::optional<BlendMode> blend_mode,
-		bool floor_positions
-	) :
-		QuadCommand{ positions, color, blend_mode, floor_positions },
+		DrawCommandBase{ entity_id },
 		shader{ shader },
-		user_data{ user_data } {}
+		positions{ positions },
+		color{ color },
+		blend_mode{ blend_mode } {}
 
 	impl::ShaderId shader;
-	std::array<float, 4> user_data;
+	std::array<V2_float, 4> positions;
+	Color color{ color::White };
+	std::optional<BlendMode> blend_mode;
 };
 
-struct TextureCommand {
+struct ShapeCommand : public QuadCommand {
+	ShapeCommand() = default;
+
+	ShapeCommand(
+		impl::ShaderId shader, const std::array<V2_float, 4>& positions, Color color,
+		const std::array<V2_float, 4>& tex_coords, const std::array<float, 4>& shape_data,
+		std::optional<BlendMode> blend_mode, int entity_id
+	) :
+		QuadCommand{ shader, positions, color, blend_mode, entity_id },
+		tex_coords{ tex_coords },
+		shape_data{ shape_data } {}
+
+	std::array<V2_float, 4> tex_coords;
+	std::array<float, 4> shape_data;
+};
+
+struct TextureCommand : public QuadCommand {
 	TextureCommand() = default;
 
 	TextureCommand(
 		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
 		Color tint, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode> blend_mode,
-		bool floor_positions
+		int entity_id
 	) :
-		shader{ shader },
+		QuadCommand{ shader, positions, tint, blend_mode, entity_id },
 		texture{ texture },
-		tint{ tint },
-		positions{ positions },
-		tex_coords{ tex_coords },
-		blend_mode{ blend_mode },
-		floor_positions{ floor_positions } {}
+		tex_coords{ tex_coords } {}
 
-	impl::ShaderId shader;
 	impl::TextureId texture;
-	Color tint = color::White;
-	std::array<V2_float, 4> positions;
 	std::array<V2_float, 4> tex_coords;
-	std::optional<BlendMode> blend_mode;
-	bool floor_positions{ true };
 };
 
-using ManualCommand = std::variant<TextureCommand, QuadCommand, QuadShapeCommand, TriangleCommand>;
+using ManualCommand = std::variant<TriangleCommand, QuadCommand, ShapeCommand, TextureCommand>;
 
 struct ManualDrawCommand {
 	ManualCommand payload;
@@ -129,7 +124,7 @@ struct ManualDrawCommand {
 };
 
 using DrawCommandType = std::variant<
-	impl::QuadCommand, impl::QuadShapeCommand, std::vector<impl::QuadCommand>,
+	impl::QuadCommand, impl::ShapeCommand, std::vector<impl::QuadCommand>,
 	std::vector<impl::TriangleCommand>>;
 
 } // namespace impl
@@ -138,34 +133,37 @@ class DrawContext {
 public:
 	void Flush();
 
+	void DrawTriangle(
+		impl::ShaderId shader, const std::array<V2_float, 3>& positions, float depth, Color tint,
+		int entity_id
+	);
+
+	void DrawQuad(
+		impl::ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
+		int entity_id
+	);
+
+	void DrawShape(
+		impl::ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
+		const std::array<V2_float, 4>& tex_coords, const std::array<float, 4>& shape_data,
+		int entity_id
+	);
+
+	void DrawShader(
+		impl::ShaderId shader, std::array<V2_float, 4> positions, float depth, Color tint,
+		const std::array<V2_float, 4>& tex_coords, const std::function<void()>& shader_setup,
+		int entity_id
+	);
+
 	void DrawTexture(
 		impl::ShaderId shader, impl::TextureId texture, std::array<V2_float, 4> positions,
-		Color tint, float depth, const std::array<V2_float, 4>& tex_coords,
-		const std::function<void()>& shader_setup, bool floor_positions
+		float depth, Color tint, const std::array<V2_float, 4>& tex_coords,
+		const std::function<void()>& shader_setup, int entity_id
 	);
 
 	void DrawTexture(
-		impl::TextureId texture, const std::array<V2_float, 4>& positions, Color tint, float depth,
-		const std::array<V2_float, 4>& tex_coords, bool floor_positions
-	);
-
-	void DrawQuad(
-		const std::array<V2_float, 4>& positions, Color tint, float depth, bool floor_positions
-	);
-	void DrawTriangle(
-		impl::ShaderId shader, std::array<V2_float, 3> positions, Color tint, float depth,
-		bool floor_positions
-	);
-	void DrawQuad(
-		impl::ShaderId shader, std::array<V2_float, 4> positions,
-		const std::array<float, 4>& user_data, Color tint, float depth,
-		const std::function<void()>& shader_setup, bool floor_positions
-	);
-
-	void DrawTexture(
-		Texture texture, Transform transform, V2_float size, Origin draw_origin, Color tint,
-		float depth, const std::array<V2_float, 4>& texture_coordinates,
-		std::optional<BlendMode> blend_mode
+		impl::TextureId texture, std::array<V2_float, 4> positions, float depth, Color tint,
+		const std::array<V2_float, 4>& tex_coords, int entity_id
 	);
 
 	void DrawLines(
@@ -173,12 +171,18 @@ public:
 		float depth, std::optional<BlendMode> blend_mode, bool connect_last_to_first
 	);
 
-	void DrawShape(
-		const Shape& shape, Transform transform, Color tint, FillStyle fill_style,
-		Origin draw_origin, float depth, std::optional<BlendMode> blend_mode
+	void DrawTexture(
+		Texture texture, Transform transform, float depth, V2_float size, Origin draw_origin,
+		Color tint, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode> blend_mode,
+		int entity_id
 	);
 
-	impl::TextureId GetWhiteTexture() const;
+	void DrawShape(
+		const Shape& shape, Transform transform, float depth, Color tint, FillStyle fill_style,
+		Origin draw_origin, std::optional<BlendMode> blend_mode, int entity_id
+	);
+
+	// impl::TextureId GetWhiteTexture() const;
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
@@ -216,70 +220,71 @@ private:
 	/// @param connect_last_to_first Whether to draw a line connecting the last point back to the
 	/// first.
 	static std::optional<impl::DrawCommandType> GetDrawCommand(
-		std::span<const V2_float> points, float line_width, Transform transform, Color tint,
-		std::optional<BlendMode> blend_mode, bool connect_last_to_first, bool floor_positions
+		impl::ShaderId quad_shader, std::span<const V2_float> points, float line_width,
+		Transform transform, Color tint, std::optional<BlendMode> blend_mode,
+		bool connect_last_to_first, int entity_id
 	);
 
 	static std::optional<impl::DrawCommandType> GetDrawCommand(
-		const Rect& rect, Transform transform, FillStyle fill_style, Origin draw_origin, Color tint,
-		std::optional<BlendMode> blend_mode, bool floor_positions
+		impl::ShaderId quad_shader, const Rect& rect, Transform transform, FillStyle fill_style,
+		Origin draw_origin, Color tint, std::optional<BlendMode> blend_mode, int entity_id
 	);
 
 	static std::optional<impl::DrawCommandType> GetDrawCommand(
-		const Triangle& triangle, Transform transform, FillStyle fill_style, Color tint,
-		std::optional<BlendMode> blend_mode, bool floor_positions
+		impl::ShaderId triangle_shader, const Triangle& triangle, Transform transform,
+		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, int entity_id
 	);
 
 	static std::optional<impl::DrawCommandType> GetDrawCommand(
-		V2_float point, Transform transform, Color tint, std::optional<BlendMode> blend_mode,
-		bool floor_positions
+		impl::ShaderId point_shader, V2_float point, Transform transform, Color tint,
+		std::optional<BlendMode> blend_mode, int entity_id
 	);
 
 	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		impl::ShaderId capsule_shader, const Capsule& capsule, Transform transform,
-		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
+		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, int entity_id
 	);
 
 	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		impl::ShaderId arc_shader, const Arc& arc, Transform transform, FillStyle fill_style,
-		Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
+		Color tint, std::optional<BlendMode> blend_mode, int entity_id
 	);
 
 	static std::optional<impl::DrawCommandType> GetDrawCommand(
-		impl::ShaderId circle_shader, const Ellipse& ellipse, Transform transform,
-		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
+		impl::ShaderId ellipse_shader, const Ellipse& ellipse, Transform transform,
+		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, int entity_id
 	);
 
 	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		impl::ShaderId circle_shader, const Circle& circle, Transform transform,
-		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, bool floor_positions
+		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, int entity_id
 	);
 
 	static std::optional<impl::DrawCommandType> GetDrawCommand(
-		impl::ShaderId rounded_rect_shader, const RoundedRect& rounded_rect, Transform transform,
-		FillStyle fill_style, Origin draw_origin, Color tint, std::optional<BlendMode> blend_mode,
-		bool floor_positions
+		impl::ShaderId rect_shader, impl::ShaderId rounded_rect_shader,
+		const RoundedRect& rounded_rect, Transform transform, FillStyle fill_style,
+		Origin draw_origin, Color tint, std::optional<BlendMode> blend_mode, int entity_id
 	);
 
 	static std::optional<impl::DrawCommandType> GetDrawCommand(
-		const Polygon& polygon, Transform transform, FillStyle fill_style, Color tint,
-		std::optional<BlendMode> blend_mode, bool floor_positions
+		impl::ShaderId polygon_shader, const Polygon& polygon, Transform transform,
+		FillStyle fill_style, Color tint, std::optional<BlendMode> blend_mode, int entity_id
 	);
 
 	static std::optional<impl::DrawCommandType> GetDrawCommand(
-		const Line& line, Transform transform, FillStyle fill_style, Color tint,
-		std::optional<BlendMode> blend_mode, bool floor_positions
+		impl::ShaderId quad_shader, const Line& line, Transform transform, FillStyle fill_style,
+		Color tint, std::optional<BlendMode> blend_mode, int entity_id
 	);
 
 	static std::optional<impl::DrawCommandType> GetDrawCommand(
 		const impl::Renderer& renderer, const Shape& shape, Transform transform, Color tint,
-		FillStyle fill_style, Origin draw_origin, std::optional<BlendMode> blend_mode
+		FillStyle fill_style, Origin draw_origin, std::optional<BlendMode> blend_mode, int entity_id
 	);
 
 	void Draw(const impl::TextureCommand& draw, float depth);
 	void Draw(const impl::QuadCommand& draw, float depth);
 	void Draw(const std::vector<impl::QuadCommand>& cmds, float depth);
-	void Draw(const impl::QuadShapeCommand& draw, float depth);
+	void Draw(const impl::ShapeCommand& draw, float depth);
 	void Draw(const impl::TriangleCommand& draw, float depth);
 	void Draw(const std::vector<impl::TriangleCommand>& cmds, float depth);
 	void Draw(const impl::ManualCommand& command, float depth);

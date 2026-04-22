@@ -52,9 +52,6 @@ public:
 	std::optional<FramebufferId> GetBoundFramebuffer() const;
 	std::optional<VertexArrayId> GetBoundVertexArray() const;
 
-	/// @brief Note, this only checks if the state things the given id is bound, so it may be
-	/// incorrect if the state is out of sync with the actual OpenGL state. As is this case in the
-	/// beginning of each frame.
 	[[nodiscard]] bool IsBound(VertexBufferId id) const;
 	[[nodiscard]] bool IsBound(ElementBufferId id) const;
 	[[nodiscard]] bool IsBound(UniformBufferId id) const;

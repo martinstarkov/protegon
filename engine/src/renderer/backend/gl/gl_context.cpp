@@ -233,37 +233,53 @@ std::optional<VertexArrayId> GLContext::GetBoundVertexArray() const {
 }
 
 bool GLContext::IsBound(VertexBufferId id) const {
-	return bound_.vertex_buffer == id || !bound_.vertex_buffer.has_value();
+	return bound_.vertex_buffer == id ||
+		   !bound_.vertex_buffer.has_value() &&
+			   static_cast<std::uint32_t>(GetInteger(GL_ARRAY_BUFFER_BINDING)) == id;
 }
 
 bool GLContext::IsBound(ElementBufferId id) const {
 	auto bound_id{ GetBoundElementBuffer() };
-	return bound_id == id || !bound_id.has_value();
+	return bound_id == id ||
+		   !bound_id.has_value() &&
+			   static_cast<std::uint32_t>(GetInteger(GL_ELEMENT_ARRAY_BUFFER_BINDING)) == id;
 }
 
 bool GLContext::IsBound(UniformBufferId id) const {
-	return bound_.uniform_buffer == id || !bound_.uniform_buffer.has_value();
+	return bound_.uniform_buffer == id ||
+		   !bound_.uniform_buffer.has_value() &&
+			   static_cast<std::uint32_t>(GetInteger(GL_UNIFORM_BUFFER_BINDING)) == id;
 }
 
 bool GLContext::IsBound(ShaderId id) const {
-	return bound_.shader_program == id || !bound_.shader_program.has_value();
+	return bound_.shader_program == id ||
+		   !bound_.shader_program.has_value() &&
+			   static_cast<std::uint32_t>(GetInteger(GL_CURRENT_PROGRAM)) == id;
 }
 
 bool GLContext::IsBound(TextureId id) const {
 	auto bound_id{ GetBoundTexture() };
-	return bound_id == id || !bound_id.has_value();
+	return bound_id == id ||
+		   !bound_id.has_value() &&
+			   static_cast<std::uint32_t>(GetInteger(GL_TEXTURE_BINDING_2D)) == id;
 }
 
 bool GLContext::IsBound(RenderbufferId id) const {
-	return bound_.renderbuffer == id || !bound_.renderbuffer.has_value();
+	return bound_.renderbuffer == id ||
+		   !bound_.renderbuffer.has_value() &&
+			   static_cast<std::uint32_t>(GetInteger(GL_RENDERBUFFER_BINDING)) == id;
 }
 
 bool GLContext::IsBound(FramebufferId id) const {
-	return bound_.framebuffer == id || !bound_.framebuffer.has_value();
+	return bound_.framebuffer == id ||
+		   !bound_.framebuffer.has_value() &&
+			   static_cast<std::uint32_t>(GetInteger(GL_FRAMEBUFFER_BINDING)) == id;
 }
 
 bool GLContext::IsBound(VertexArrayId id) const {
-	return bound_.vertex_array == id || !bound_.vertex_array.has_value();
+	return bound_.vertex_array == id ||
+		   !bound_.vertex_array.has_value() &&
+			   static_cast<std::uint32_t>(GetInteger(GL_VERTEX_ARRAY_BINDING)) == id;
 }
 
 void GLContext::Destroy(VertexBufferId id) {

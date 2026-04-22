@@ -65,9 +65,9 @@ Degrees Arc::GetAperture() const {
 	Radians delta;
 
 	if (clockwise_) {
-		delta = end - start;
-	} else {
 		delta = start - end;
+	} else {
+		delta = end - start;
 	}
 
 	delta = Clamp(delta);

@@ -22,7 +22,7 @@ public:
 
 	void OnEnter() override {
 		ctx().asset.LoadShader("whirlpool", "assets/shader.glsl");
-		ctx().asset.LoadShader("ripple", ShaderPair{ "quad", "assets/ripple.glsl" });
+		ctx().asset.LoadShader("ripple", ShaderPair{ "texture", "assets/ripple.glsl" });
 		ctx().asset.LoadTexture("noise", "assets/noise.png");
 
 		shader_entity = CreateCustomShader(

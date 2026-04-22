@@ -118,15 +118,12 @@ void RenderTarget::Draw(DrawContext& renderer, Entity entity) {
 	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
 	auto tint{ GetTint(entity) };
 	auto depth{ GetDepth(entity) };
-	auto texture_coordinates{ GetTextureCoordinates(entity, false) };
+	auto tex_coords{ GetTextureCoordinates(entity, false) };
 	auto texture{ entity.Get<impl::RenderTargetObject>().GetTextureId() };
-
-	constexpr bool floor_positions{ true };
+	auto entity_id{ entity.GetUUID() };
 
 	renderer.SetBlendMode(blend_mode);
-	renderer.DrawTexture(
-		texture, positions, tint, depth.GetValue(), texture_coordinates, floor_positions
-	);
+	renderer.DrawTexture(texture, positions, depth.GetValue(), tint, tex_coords, entity_id);
 }
 
 void RenderTarget::AddRenderTargetComponents(

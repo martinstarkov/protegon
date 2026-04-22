@@ -416,8 +416,8 @@ static void DrawParticleShape(DrawContext& renderer, const T& shape, const Parti
 	if constexpr (std::is_same_v<T, Circle>) {
 		Circle circle{ shape.GetRadius() * draw.size * 0.5f };
 		renderer.DrawShape(
-			circle, draw.transform, draw.color, draw.fill_style, draw.origin, draw.depth,
-			draw.blend_mode
+			circle, draw.transform, draw.depth, draw.color, draw.fill_style, draw.origin,
+			draw.blend_mode, -1
 		);
 	} else if constexpr (std::is_same_v<T, Rect>) {
 		Rect rect{ shape.GetSize() * V2_float{ draw.size } };
@@ -428,12 +428,13 @@ static void DrawParticleShape(DrawContext& renderer, const T& shape, const Parti
 		transform.Rotate(-Radians{ kHalfPi });
 
 		renderer.DrawShape(
-			rect, transform, draw.color, draw.fill_style, draw.origin, draw.depth, draw.blend_mode
+			rect, transform, draw.depth, draw.color, draw.fill_style, draw.origin, draw.blend_mode,
+			-1
 		);
 	} else {
 		renderer.DrawShape(
-			shape, draw.transform, draw.color, draw.fill_style, draw.origin, draw.depth,
-			draw.blend_mode
+			shape, draw.transform, draw.depth, draw.color, draw.fill_style, draw.origin,
+			draw.blend_mode, -1
 		);
 	}
 }
@@ -454,8 +455,8 @@ static void DrawParticleType(
 		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
 
 		renderer.DrawTexture(
-			texture, draw.transform, V2_float{ draw.size }, draw.origin, draw.color, draw.depth,
-			tex_coords, draw.blend_mode
+			texture, draw.transform, draw.depth, V2_float{ draw.size }, draw.origin, draw.color,
+			tex_coords, draw.blend_mode, -1
 		);
 	} else if constexpr (std::is_same_v<T, Shape>) {
 		particle_type.Visit([&renderer, &draw]<typename S>(const S& shape) {

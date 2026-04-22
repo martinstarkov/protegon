@@ -92,7 +92,8 @@ void Text::Draw(
 	//);
 
 	renderer.DrawTexture(
-		text_texture, transform, size, draw_origin, text_tint, depth, tex_coords, blend_mode
+		text_texture, transform, depth, size, draw_origin, text_tint, tex_coords, blend_mode,
+		text.GetUUID()
 	);
 }
 

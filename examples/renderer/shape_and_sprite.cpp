@@ -25,8 +25,8 @@ constexpr V2_int game_size{ 320, 180 };
 struct ShapeAndSpriteScene : public Scene {
 	Entity arc;
 
-	Degrees start_angle{ 252.0f };
-	Degrees end_angle{ 153.0f };
+	Degrees start_angle{ 180.0f - 72.0f };
+	Degrees end_angle{ 180.0f + 27.0f };
 
 	void OnEnter() override {
 		SetBackgroundColor(color::LightCyan);

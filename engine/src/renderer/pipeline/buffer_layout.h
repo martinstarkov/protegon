@@ -2,13 +2,14 @@
 
 #include <array>
 #include <cstdint>
+#include <span>
 #include <tuple>
 #include <type_traits>
 
 #include "core/util/concepts.h"
 #include "renderer/vertex/glsl_types.h"
 
-namespace ptgn::impl::gl {
+namespace ptgn::impl {
 
 template <typename T>
 concept VertexDataType = IsAnyOf<
@@ -101,8 +102,8 @@ struct BufferElement {
 	bool normalized{ false };
 };
 
-template <VertexDataType... Ts>
-	requires(sizeof...(Ts) > 0)
+template <VertexDataType... TElements>
+	requires(sizeof...(TElements) > 0)
 struct BufferLayout {
 	constexpr BufferLayout() {
 		CalculateOffsets();
@@ -127,11 +128,11 @@ struct BufferLayout {
 
 	std::int32_t stride_{ 0 };
 
-	std::array<BufferElement, sizeof...(Ts)> elements_{ BufferElement{
-		static_cast<std::uint16_t>(sizeof(Ts)),
-		static_cast<std::uint16_t>(std::tuple_size<Ts>::value),
-		IsInteger<Ts>(),
-		GetBufferElementType<Ts>(),
+	std::array<BufferElement, sizeof...(TElements)> elements_{ BufferElement{
+		static_cast<std::uint16_t>(sizeof(TElements)),
+		static_cast<std::uint16_t>(std::tuple_size<TElements>::value),
+		IsInteger<TElements>(),
+		GetBufferElementType<TElements>(),
 	}... };
 
 	constexpr void CalculateOffsets() {
@@ -144,16 +145,46 @@ struct BufferLayout {
 		stride_ = static_cast<std::int32_t>(offset);
 	}
 
-	constexpr const std::array<BufferElement, sizeof...(Ts)>& GetElements() const {
+	constexpr const std::array<BufferElement, sizeof...(TElements)>& GetElements() const {
 		return elements_;
 	}
 };
 
-template <typename Derived, typename... Elements>
+struct BufferLayoutView {
+	std::span<const BufferElement> elements;
+	std::int32_t stride{ 0 };
+};
+
+template <VertexDataType... TElements>
+constexpr BufferLayoutView ToBufferLayoutView(const BufferLayout<TElements...>& layout) {
+	return BufferLayoutView{
+		.elements = layout.GetElements(),
+		.stride	  = layout.GetStride(),
+	};
+}
+
+template <typename Derived, typename... TElements>
 struct VertexLayout {
-	static constexpr BufferLayout<Elements...> GetLayout() {
-		return {};
+	using VertexType = Derived;
+
+	inline static constexpr BufferLayout<TElements...> layout{};
+
+	static constexpr const auto& GetLayout() {
+		return layout;
+	}
+
+	static constexpr BufferLayoutView GetLayoutView() {
+		return ToBufferLayoutView(layout);
 	}
 };
 
-} // namespace ptgn::impl::gl
+template <typename D, typename... E>
+std::true_type is_vertex_layout(const VertexLayout<D, E...>*);
+
+std::false_type is_vertex_layout(...);
+
+template <typename T>
+concept VertexType =
+	decltype(is_vertex_layout(static_cast<std::remove_cvref_t<T>*>(nullptr)))::value;
+
+} // namespace ptgn::impl

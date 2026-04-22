@@ -13,6 +13,7 @@
 #include "core/math/vector4.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/vertex/vertex.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/tint.h"
@@ -71,17 +72,15 @@ void Light::Draw(DrawContext& renderer, Entity entity) {
 
 	auto light_shader{ renderer.GetShader("light") };
 
-	std::array<float, 4> user_data{};
-
 	auto shader_setup = [&renderer, entity]() {
 		SetUniform(renderer, entity);
 	};
 
-	constexpr bool floor_positions{ true };
+	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
 
 	renderer.SetBlendMode(blend_mode);
-	renderer.DrawQuad(
-		light_shader, positions, user_data, tint, depth, shader_setup, floor_positions
+	renderer.DrawShader(
+		light_shader, positions, depth, tint, tex_coords, shader_setup, entity.GetUUID()
 	);
 }
 

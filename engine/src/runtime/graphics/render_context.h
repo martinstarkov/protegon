@@ -10,17 +10,8 @@
 
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
-#include "core/math/geometry/arc.h"
-#include "core/math/geometry/capsule.h"
-#include "core/math/geometry/circle.h"
-#include "core/math/geometry/ellipse.h"
-#include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/geometry/polygon.h"
-#include "core/math/geometry/rect.h"
-#include "core/math/geometry/rounded_rect.h"
 #include "core/math/geometry/shape.h"
-#include "core/math/geometry/triangle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
@@ -115,12 +106,12 @@ public:
 	void SetBackgroundColor(Color background_color);
 	Color GetBackgroundColor() const;
 
-	void DrawTexture(
+	void DrawTextureQuad(
 		TextureOrKey texture, Transform transform, std::optional<V2_float> size = {},
 		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
 		std::optional<BlendMode> blend_mode								  = {},
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
-		const std::optional<SceneCamera>& camera						  = {}
+		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
 	);
 
 	void DrawTexture(
@@ -128,30 +119,29 @@ public:
 		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
 		std::optional<BlendMode> blend_mode								  = {},
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
-		const std::optional<SceneCamera>& camera						  = {}
+		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
 	);
 
 	/// @param size If size is {}, uses the entire game size.
-	/// @param user_data Optional array of 4 floats that can be used to pass per vertex data to the
-	/// shader.
 	void DrawShader(
 		Shader shader, Transform transform, std::optional<V2_float> size = {},
 		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
 		std::optional<BlendMode> blend_mode = {}, const std::optional<SceneCamera>& camera = {},
-		const std::optional<std::array<float, 4>>& user_data = {}
+		int entity_id = -1
 	);
 
 	void DrawLines(
 		const std::vector<V2_float>& points, Color color, float line_width = kMinLineWidth,
 		bool connect_last_to_first = false, std::optional<Transform> transform = {},
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
 	);
 
 	void DrawShape(
-		const Shape& shape, Transform transform, Color color, FillStyle fill_style,
+		Transform transform, const Shape& shape, Color color, FillStyle fill_style,
 		Origin draw_origin = Origin::Center, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<SceneCamera>& camera = {}
+		std::optional<BlendMode> blend_mode = {}, const std::optional<SceneCamera>& camera = {},
+		int entity_id = -1
 	);
 
 	void DrawText(
@@ -159,72 +149,18 @@ public:
 		FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {},
 		Origin draw_origin = Origin::Center, std::optional<V2_float> text_size = {},
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}
-	);
-
-	void DrawRect(
-		Transform transform, const Rect& rect, Color color, FillStyle fill_style = 1.0f,
-		Origin draw_origin = Origin::Center, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<SceneCamera>& camera = {}
-	);
-
-	void DrawRoundedRect(
-		Transform transform, const RoundedRect& rounded_rect, Color color,
-		FillStyle fill_style = 1.0f, Origin draw_origin = Origin::Center, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<SceneCamera>& camera = {}
-	);
-
-	void DrawLine(
-		Transform transform, const Line& line, Color color, float line_width = kMinLineWidth,
-		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
 	);
 
 	void DrawLine(
 		V2_float start, V2_float end, Color color, float line_width = kMinLineWidth,
 		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}
-	);
-
-	void DrawTriangle(
-		Transform transform, const Triangle& triangle, Color color, FillStyle fill_style = 1.0f,
-		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}
-	);
-
-	void DrawEllipse(
-		Transform transform, const Ellipse& ellipse, Color color, FillStyle fill_style = 1.0f,
-		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}
-	);
-
-	void DrawCircle(
-		Transform transform, const Circle& circle, Color color, FillStyle fill_style = 1.0f,
-		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}
-	);
-
-	void DrawCapsule(
-		Transform transform, const Capsule& capsule, Color color, FillStyle fill_style = 1.0f,
-		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}
-	);
-
-	void DrawArc(
-		Transform transform, const Arc& arc, Color color, FillStyle fill_style = 1.0f,
-		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}
-	);
-
-	void DrawPolygon(
-		Transform transform, const Polygon& polygon, Color color, FillStyle fill_style = 1.0f,
-		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
 	);
 
 	void DrawPoint(
 		V2_float point, Color color, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}
+		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
 	);
 
 	const std::optional<Camera>& GetPrimaryWorldCamera() const;
@@ -249,7 +185,7 @@ private:
 		std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
 		std::optional<BlendMode> blend_mode,
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates,
-		const std::optional<SceneCamera>& camera
+		const std::optional<SceneCamera>& camera, int entity_id
 	);
 
 	template <typename T, typename R>

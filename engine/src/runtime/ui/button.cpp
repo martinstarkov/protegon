@@ -325,6 +325,8 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 	auto background_shape{ button.GetBackgroundShape(style_state) };
 	auto bg_fill_style{ button.GetBackgroundFillStyle(style_state) };
 
+	auto entity_id{ button.GetUUID() };
+
 	if (auto bg_color{ button.GetBackgroundColor(style_state) };
 		bg_color.has_value() || background_shape.has_value() || bg_fill_style.has_value()) {
 		FillStyle fill{ bg_fill_style.value_or(Solid{}) };
@@ -349,7 +351,7 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 						}
 					}
 					renderer.DrawShape(
-						shape, transform, color, fill, button_origin, depth, blend_mode
+						shape, transform, depth, color, fill, button_origin, blend_mode, entity_id
 					);
 				},
 				*background_shape
@@ -385,7 +387,8 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 				std::visit(
 					[&](const auto& shape) {
 						renderer.DrawShape(
-							shape, transform, color, fill, button_origin, depth, blend_mode
+							shape, transform, depth, color, fill, button_origin, blend_mode,
+							entity_id
 						);
 					},
 					*border_shape

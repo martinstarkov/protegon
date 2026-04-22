@@ -62,9 +62,7 @@ void Buffers::SetBufferSubData(
 
 	// This buffer size check must be done after the buffer is bound.
 	PTGN_ASSERT(
-		(size <= static_cast<std::uint32_t>(
-					 GetBufferParameter(BufferTarget::ArrayBuffer, BufferParameter::Size)
-				 )),
+		(size <= static_cast<std::uint32_t>(GetBufferParameter(target, BufferParameter::Size))),
 		"Attempting to bind data outside of allocated buffer size"
 	);
 
@@ -75,11 +73,12 @@ void Buffers::SetBufferSubData(
 			std::uint32_t buffer_size{ cache.count * element_size };
 			PTGN_ASSERT(buffer_size > 0);
 			PTGN_ASSERT(
-				(buffer_size <= static_cast<std::uint32_t>(GetBufferParameter(
-									BufferTarget::ArrayBuffer, BufferParameter::Size
-								))),
-				"Buffer element size does not appear to match the "
-				"originally allocated buffer element size"
+				(buffer_size <=
+				 static_cast<std::uint32_t>(GetBufferParameter(target, BufferParameter::Size))),
+				"Buffer size ", buffer_size,
+				" does not appear to match the "
+				"originally allocated buffer size: ",
+				GetBufferParameter(target, BufferParameter::Size)
 			);
 			GLCall(glBufferData(
 				std::to_underlying(target), buffer_size, nullptr, std::to_underlying(cache.usage)
@@ -119,6 +118,14 @@ T Buffers::CreateBuffer(
 	const std::uint32_t size = element_count * element_size;
 
 	GLCall(glBufferData(std::to_underlying(target), size, data, std::to_underlying(usage)));
+
+	PTGN_ASSERT(
+		(size == static_cast<std::uint32_t>(GetBufferParameter(target, BufferParameter::Size))),
+		"Buffer size ", size,
+		" does not appear to match the "
+		"allocated buffer size: ",
+		GetBufferParameter(target, BufferParameter::Size)
+	);
 
 	cache_.Add(id, BufferCache{ .usage = usage, .count = element_count });
 

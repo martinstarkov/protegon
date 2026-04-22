@@ -2,12 +2,15 @@
 
 #include <array>
 #include <concepts>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -17,8 +20,12 @@
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
+#include "core/util/concepts.h"
+#include "core/util/hash.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/primitive_mode.h"
 #include "renderer/pipeline/render_pass.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/scaling_mode.h"
@@ -50,8 +57,7 @@ class ShaderObject;
 class TextureObject;
 template <ResourceType T>
 class Resource;
-template <typename State, typename F>
-	requires std::same_as<std::invoke_result_t<F&>, void>
+template <typename State, InvocableR<void> F>
 void UpdateStateIfChanged(Renderer&, const std::optional<State>&, const State&, F&&);
 
 namespace gl {
@@ -62,32 +68,9 @@ class GLContext;
 
 using Index = std::uint32_t;
 
-inline constexpr std::size_t kBatchCapacity{ 10000 };
-inline constexpr std::size_t kVertexCapacity{ kBatchCapacity * 4 };
-inline constexpr std::size_t kIndexCapacity{ kBatchCapacity * 6 };
-
-struct QuadInfo {
-	std::array<V2_float, 4> positions;
-	std::array<V2_float, 4> tex_coords;
-	Color color{ color::White };
-	float depth{ 0.0f };
-};
-
-struct QuadDesc {
-	QuadInfo quad;
-	std::array<float, 4> user_data{};
-};
-
-struct TriangleParams {
-	std::array<V2_float, 3> positions;
-	Color tint{ color::White };
-	float depth{ 0.0f };
-};
-
-struct QuadParams {
-	QuadInfo quad;
-	std::optional<TextureId> texture;
-};
+inline constexpr std::uint32_t kBatchCapacity{ 10000 };
+inline constexpr std::uint32_t kVertexCapacity{ kBatchCapacity * 4 };
+inline constexpr std::uint32_t kIndexCapacity{ kBatchCapacity * 6 };
 
 struct PooledTarget {
 	RenderTargetObject target;
@@ -104,7 +87,6 @@ public:
 	RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
 
 	ShaderId GetShader(std::string_view name) const;
-	TextureId GetWhiteTexture() const;
 
 	void SetGameSize(
 		std::optional<V2_int> game_size			= std::nullopt,
@@ -162,30 +144,36 @@ public:
 	void SetColorMask(const ColorMaskState& color_mask);
 
 	void DrawTriangle(
-		ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
+		ShaderId shader, const std::array<V2_float, 3>& positions, float depth, Color tint,
+		int entity_id
 	);
 
 	void DrawQuad(
-		ShaderId shader, const std::array<V2_float, 4>& positions,
-		const std::array<float, 4>& user_data, Color tint, float depth,
-		const std::function<void()>& shader_setup
+		ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
+		int entity_id
+	);
+
+	void DrawShape(
+		ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
+		const std::array<V2_float, 4>& tex_coords, const std::array<float, 4>& shape_data,
+		int entity_id
+	);
+
+	void DrawShader(
+		ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
+		const std::array<V2_float, 4>& tex_coords, const std::function<void()>& shader_setup,
+		int entity_id
 	);
 
 	void DrawTexture(
+		ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, float depth,
+		Color tint, const std::array<V2_float, 4>& tex_coords,
+		const std::function<void()>& shader_setup, int entity_id
+	);
+
+	void DrawRenderPass(
 		ShaderId shader, RenderPass& pass, RenderTargetId scene_render_target,
 		const std::function<void()>& shader_setup
-	);
-
-	void DrawTexture(
-		ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, Color tint,
-		float depth, const std::array<V2_float, 4>& tex_coords,
-		const std::function<void()>& shader_setup
-	);
-
-	/// @param setup Returns true if the renderer should flush the batch after adding the quad
-	/// params. This allows shader uniforms to be applied to each unique quad in the batch.
-	void DrawQuad(
-		ShaderId shader, const QuadParams& p, const std::function<bool(ShaderId, QuadDesc&)>& setup
 	);
 
 	V2_int GetRenderTargetSize(RenderTargetId render_target) const;
@@ -235,6 +223,8 @@ private:
 		Viewport viewport;
 	};
 
+	using PipelineId = std::size_t;
+
 	using EventSink =
 		std::function<void(V2_int, std::variant<ResizeType, impl::PresentationResizeType>)>;
 
@@ -246,13 +236,14 @@ private:
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
+	void SetPipeline(std::string_view name);
+
 	void BeginFrame();
 	void EndFrame();
 
 	[[nodiscard]] bool IsPresentationViewportVisible() const;
 
-	template <typename State, typename F>
-		requires std::same_as<std::invoke_result_t<F&>, void>
+	template <typename State, InvocableR<void> F>
 	friend void UpdateStateIfChanged(Renderer&, const std::optional<State>&, const State&, F&&);
 
 	/// @return The texture slot the given texture is bound to, and whether it should be pushed to
@@ -290,12 +281,63 @@ private:
 
 	[[nodiscard]] DisplayResizeInfo RecalculateDisplayViewport() const;
 
-	VertexBufferObject vbo_;
-	ElementBufferObject ebo_;
-	VertexArrayObject vao_;
-	TextureObject white_texture_;
+	template <VertexType TVertex>
+	void SubmitVertices(
+		std::span<const TVertex> vertices, std::span<const std::uint32_t> local_indices
+	) {
+		static_assert(std::is_trivially_copyable_v<TVertex>);
+		static_assert(std::is_standard_layout_v<TVertex>);
 
-	std::vector<Vertex> batch_vertices_;
+		FlushIfExceedsCapacity(vertices.size(), local_indices.size());
+
+		auto base_vertex{ static_cast<std::uint32_t>(batch_vertices_.size() / sizeof(TVertex)) };
+
+		auto bytes{ std::as_bytes(vertices) };
+
+		batch_vertices_.insert(batch_vertices_.end(), bytes.begin(), bytes.end());
+
+		batch_indices_.reserve(batch_indices_.size() + local_indices.size());
+		for (auto idx : local_indices) {
+			batch_indices_.push_back(base_vertex + idx);
+		}
+	}
+
+	struct Pipeline {
+		VertexArrayObject vao;
+		VertexBufferObject vbo;
+		ElementBufferObject ebo;
+		std::uint32_t vertex_size{ 0 };
+		PrimitiveMode primitive_mode{ PrimitiveMode::Triangles };
+	};
+
+	[[nodiscard]] ElementBufferObject CreateElementBufferObject(std::uint32_t index_capacity);
+	[[nodiscard]] VertexBufferObject CreateVertexBufferObject(
+		std::uint32_t vertex_capacity, std::uint32_t vertex_size
+	);
+	[[nodiscard]] VertexArrayObject CreateVertexArrayObject(
+		VertexBufferId vertex_buffer, const BufferLayoutView& layout, ElementBufferId element_buffer
+	);
+
+	template <VertexType T>
+	void AddPipeline(
+		std::string_view name, std::uint32_t vertex_capacity, std::uint32_t index_capacity,
+		PrimitiveMode primitive_mode
+	) {
+		Pipeline pipeline;
+		pipeline.primitive_mode = primitive_mode;
+		pipeline.vertex_size	= sizeof(typename T::VertexType);
+		pipeline.ebo			= CreateElementBufferObject(index_capacity);
+		pipeline.vbo			= CreateVertexBufferObject(vertex_capacity, pipeline.vertex_size);
+		pipeline.vao = CreateVertexArrayObject(pipeline.vbo, T::GetLayoutView(), pipeline.ebo);
+
+		pipelines_.emplace_back(Hash(name), std::move(pipeline));
+	}
+
+	std::vector<std::pair<PipelineId, Pipeline>> pipelines_;
+
+	PipelineId current_pipeline_{ 0 };
+
+	std::vector<std::byte> batch_vertices_;
 	std::vector<Index> batch_indices_;
 	std::vector<TextureId> batch_textures_;
 
@@ -313,9 +355,9 @@ private:
 	std::uint64_t pool_tick_{ 0 };
 	std::size_t max_pool_size_{ 16 };
 
-	/// @brief The viewport used for presentation (i.e. the final output to the screen). This may be
-	/// different from the window if using the editor, which has a separate viewport for the game
-	/// view.
+	/// @brief The viewport used for presentation (i.e. the final output to the screen). This
+	/// may be different from the window if using the editor, which has a separate viewport for
+	/// the game view.
 	std::optional<Viewport> presentation_viewport_;
 
 	/// @brief Flag to indicate whether the display viewport needs to be recalculated.

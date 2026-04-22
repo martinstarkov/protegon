@@ -3,14 +3,12 @@
 
 #include <algorithm>
 #include <array>
-#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <numeric>
 #include <optional>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -22,6 +20,8 @@
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
+#include "core/util/concepts.h"
+#include "core/util/hash.h"
 #include "platform/window.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_context.h"
@@ -34,6 +34,7 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/primitive_mode.h"
 #include "renderer/pipeline/render_pass.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/scaling_mode.h"
@@ -53,29 +54,12 @@ Renderer::Renderer(Window& window, EventSink&& event_sink) :
 	window_{ window },
 	event_sink_{ std::move(event_sink) },
 	gl_{ std::make_unique<gl::GLContext>() } {
-	ebo_ = ElementBufferObject{ this, gl_->buffers.CreateElementBuffer(
-										  nullptr, kIndexCapacity, sizeof(Index),
-										  gl::BufferUsage::DynamicDraw
-									  ) };
-
-	vbo_ = VertexBufferObject{ this, gl_->buffers.CreateVertexBuffer(
-										 nullptr, kVertexCapacity, sizeof(Vertex),
-										 gl::BufferUsage::DynamicDraw
-									 ) };
-
-	vao_ =
-		VertexArrayObject{ this,
-						   gl_->vertex_arrays.CreateVertexArray(vbo_, Vertex::GetLayout(), ebo_) };
-
-	// Important to use unsigned byte for the white texture as color::White is stored in
-	// std::uint8_t.
-	constexpr gl::PixelDataType pixel_type{ gl::PixelDataType::UnsignedByte };
-
-	white_texture_ =
-		TextureObject{ this, gl_->textures.CreateTexture(
-								 static_cast<const void*>(&color::White), gl::PixelDataFormat::RGBA,
-								 pixel_type, V2_int{ 1, 1 }, TextureFormat::RGBA8
-							 ) };
+	AddPipeline<TextureVertex>(
+		"texture", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles
+	);
+	AddPipeline<ShapeVertex>("shape", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles);
+	AddPipeline<ColorVertex>("color", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles);
+	SetPipeline("texture");
 
 	game_size_ = GetFullViewportSize();
 
@@ -99,7 +83,7 @@ Renderer::Renderer(Window& window, EventSink&& event_sink) :
 	std::vector<std::int32_t> samplers(max_texture_slots);
 	std::iota(samplers.begin(), samplers.end(), 0);
 
-	auto quad{ gl_->shaders.GetProgram("quad") };
+	auto quad{ gl_->shaders.GetProgram("texture") };
 	auto _1 = gl_->Bind(quad, false);
 	SetUniform(quad, "u_Textures", samplers);
 
@@ -109,17 +93,15 @@ Renderer::Renderer(Window& window, EventSink&& event_sink) :
 	//  texture because texture unloadable."
 	for (std::uint32_t slot{ 0 }; slot < max_texture_slots; slot++) {
 		gl_->SetActiveTextureSlot(slot);
-		auto _3 = gl_->Bind(white_texture_, false);
+		auto _3 = gl_->Bind(TextureId{ 0 }, false);
 	}
 #endif
-	gl_->SetActiveTextureSlot(0);
-	auto _2 = gl_->Bind(white_texture_, false);
-
-	PTGN_ASSERT(batch_textures_.empty());
-	batch_textures_.push_back(white_texture_);
 }
 
-Renderer::~Renderer() noexcept = default;
+Renderer::~Renderer() noexcept {
+	// Guarantees that a vertex array object is bound before destroying any buffers.
+	auto _{ gl_->Bind(VertexArrayId{ 0 }, false) };
+}
 
 RenderTargetObject Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
 	auto color = gl_->textures.CreateTexture(size, format);
@@ -220,7 +202,7 @@ void Renderer::ReleasePooledTarget(RenderTargetId render_target) {
 	});
 }
 
-void Renderer::DrawTexture(
+void Renderer::DrawRenderPass(
 	ShaderId shader, RenderPass& p, RenderTargetId scene_render_target,
 	const std::function<void()>& shader_setup
 ) {
@@ -251,6 +233,8 @@ void Renderer::DrawTexture(
 	auto points{ GetCenteredQuadPoints(texture_size) };
 	auto tex_coords{ GetDefaultTextureCoordinates(flip_y) };
 
+	TextureId texture{ GetRenderTargetTexture(input) };
+
 	// Only ping-pong if we're writing into the pass
 	if (writing_to_pass) {
 		RenderTargetId write;
@@ -267,66 +251,14 @@ void Renderer::DrawTexture(
 
 		BindRenderTarget(write);
 
-		auto texture{ GetRenderTargetTexture(input) };
-
-		DrawTexture(shader, texture, points, color::White, 0.0f, tex_coords, shader_setup);
-
 		// Update pass state
 		p.has_written_once_ = true;
 		p.latest_is_ping_	= write == p.ping_;
 	} else {
-		auto texture{ GetRenderTargetTexture(input) };
 		// Read-only draw: no mutation, no flip
-		DrawTexture(shader, texture, points, color::White, 0.0f, tex_coords, shader_setup);
 	}
-}
 
-void Renderer::Destroy(VertexBufferId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(ElementBufferId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(UniformBufferId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(ShaderId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(TextureId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(RenderbufferId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(FramebufferId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(VertexArrayId id) {
-	gl_->Destroy(id);
-}
-
-void Renderer::Destroy(RenderTargetId id) {
-	gl_->Destroy(id);
-};
-
-V2_int Renderer::GetTextureSize(TextureId texture) const {
-	return gl_->textures.GetTextureSize(texture);
-}
-
-TextureFormat Renderer::GetTextureFormat(TextureId texture) const {
-	return gl_->textures.GetTextureFormat(texture);
-}
-
-void Renderer::ResizeRenderTarget(RenderTargetId render_target, V2_int new_size) {
-	gl_->framebuffers.ResizeFramebuffer(FramebufferId{ render_target }, new_size);
+	DrawTexture(shader, texture, points, 0.0f, color::White, tex_coords, shader_setup, -1);
 }
 
 TextureId Renderer::GetRenderTargetTexture(RenderTargetId render_target) const {
@@ -402,45 +334,55 @@ void Renderer::FlushBatch() {
 		return; // Nothing to draw
 	}
 
-	auto _vao = gl_->Bind(vao_, false);
+	PTGN_ASSERT(current_pipeline_ != 0, "Current pipeline must be set");
+
+	auto it{ std::ranges::find_if(pipelines_, [this](const auto& pair) {
+		return pair.first == current_pipeline_;
+	}) };
+
+	PTGN_ASSERT(
+		it != pipelines_.end(), "No matching current render pipeline found: ", current_pipeline_
+	);
+
+	const auto& pipeline{ it->second };
+
+	auto _0{ gl_->Bind(pipeline.vao, false) };
+	auto _1{ gl_->Bind(pipeline.vbo, false) };
+	auto _2{ gl_->Bind(pipeline.ebo, false) };
+
+	auto vertex_count{ static_cast<std::uint32_t>(batch_vertices_.size() / pipeline.vertex_size) };
 
 	// Upload vertex data
 	gl_->buffers.SetBufferSubData<VertexBufferId>(
-		vbo_, gl::BufferTarget::ArrayBuffer, batch_vertices_.data(), 0,
-		static_cast<std::uint32_t>(batch_vertices_.size()), sizeof(Vertex)
+		pipeline.vbo, gl::BufferTarget::ArrayBuffer, batch_vertices_.data(), 0, vertex_count,
+		pipeline.vertex_size
 	);
 
 	// Upload index data
 	gl_->buffers.SetBufferSubData<ElementBufferId>(
-		ebo_, gl::BufferTarget::ElementArrayBuffer, batch_indices_.data(), 0,
+		pipeline.ebo, gl::BufferTarget::ElementArrayBuffer, batch_indices_.data(), 0,
 		static_cast<std::uint32_t>(batch_indices_.size()), sizeof(Index)
 	);
 
 	// Bind all textures
-	for (std::uint32_t slot = 0; slot < batch_textures_.size(); ++slot) {
+	for (std::uint32_t slot{ 0 }; slot < batch_textures_.size(); ++slot) {
 		gl_->SetActiveTextureSlot(slot);
-		auto _ = gl_->Bind(batch_textures_[slot], false);
+		auto _3{ gl_->Bind(batch_textures_[slot], false) };
 	}
 
 	gl_->vertex_arrays.DrawElements(
-		vao_, static_cast<std::uint32_t>(batch_indices_.size()), gl::IndexType::UnsignedInt,
-		gl::PrimitiveMode::Triangles
+		pipeline.vao, static_cast<std::uint32_t>(batch_indices_.size()), gl::IndexType::UnsignedInt,
+		pipeline.primitive_mode
 	);
 
-	// Clear batch (keep white texture)
 	batch_vertices_.clear();
 	batch_indices_.clear();
-	batch_textures_.resize(1);
-	batch_textures_[0] = white_texture_;
+	batch_textures_.clear();
 }
 
 std::pair<std::uint32_t, bool> Renderer::GetTextureSlot(TextureId tex) {
-	if (tex == white_texture_.operator TextureId()) {
-		return { 0, false }; // always slot 0
-	}
-
 	// Check if texture already exists in batch
-	for (std::uint32_t i = 1; i < batch_textures_.size(); ++i) {
+	for (std::uint32_t i{ 0 }; i < batch_textures_.size(); ++i) {
 		if (batch_textures_[i] == tex) {
 			return { i, false };
 		}
@@ -455,8 +397,7 @@ std::pair<std::uint32_t, bool> Renderer::GetTextureSlot(TextureId tex) {
 	return { static_cast<std::uint32_t>(batch_textures_.size()), true };
 }
 
-template <typename State, typename F>
-	requires std::same_as<std::invoke_result_t<F&>, void>
+template <typename State, InvocableR<void> F>
 void UpdateStateIfChanged(
 	Renderer& r, const std::optional<State>& cached, const State& desired, F&& func
 ) {
@@ -464,6 +405,20 @@ void UpdateStateIfChanged(
 		r.FlushBatch();
 		std::invoke(std::forward<F>(func));
 	}
+}
+
+void Renderer::SetPipeline(std::string_view name) {
+	auto id{ Hash(name) };
+	if (id == current_pipeline_) {
+		return;
+	}
+	PTGN_ASSERT(
+		(std::ranges::find_if(pipelines_, [id](const auto& pair) { return pair.first == id; }) !=
+		 pipelines_.end()),
+		"No matching pipeline found: ", id
+	);
+	FlushBatch();
+	current_pipeline_ = id;
 }
 
 void Renderer::SetViewport(Viewport viewport) {
@@ -477,8 +432,8 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 		FlushBatch();
 		view_projection_ = view_projection;
 	}
-	// TODO: Find a better way to do this. This is needed to ensure that the shader's uniform is
-	// updated even if the shader itself doesn't change.
+	// TODO: Find a better way to do this. This is needed to ensure that the shader's
+	// uniform is updated even if the shader itself doesn't change.
 	if (auto shader{ gl_->GetBoundShader() }; shader.has_value() && *shader) {
 		gl_->shaders.SetUniform(*shader, "u_ViewProjection", view_projection_);
 	}
@@ -552,68 +507,6 @@ void Renderer::FlushIfExceedsCapacity(std::size_t vertices, std::size_t indices)
 	}
 }
 
-void Renderer::DrawQuad(
-	ShaderId shader, const QuadParams& params, const std::function<bool(ShaderId, QuadDesc&)>& setup
-) {
-	QuadDesc quad;
-	quad.quad = params.quad;
-
-	bool push_texture{ false };
-
-	// Texture -> user data slot 0 (convention)
-	if (params.texture.has_value()) {
-		auto [slot, push] = GetTextureSlot(*params.texture);
-		push_texture	  = push;
-		quad.user_data[0] = static_cast<float>(slot);
-	}
-
-	SetShader(shader);
-
-	bool flush_after{ setup(shader, quad) };
-
-	auto vertices{ Vertex::GetQuad(
-		quad.quad.positions, quad.quad.color, quad.quad.depth, quad.user_data, quad.quad.tex_coords
-	) };
-
-	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
-
-	FlushIfExceedsCapacity(vertices.size(), indices.size());
-
-	auto start_index = static_cast<std::uint32_t>(batch_vertices_.size());
-
-	batch_vertices_.insert(batch_vertices_.end(), vertices.begin(), vertices.end());
-
-	for (auto idx : indices) {
-		batch_indices_.push_back(idx + start_index);
-	}
-
-	if (push_texture) {
-		PTGN_ASSERT(params.texture.has_value(), "Texture must have a value for it to be pushed");
-		batch_textures_.push_back(*params.texture);
-	}
-
-	if (flush_after) {
-		FlushBatch();
-	}
-}
-
-void Renderer::DrawTriangle(
-	ShaderId shader, const std::array<V2_float, 3>& positions, Color tint, float depth
-) {
-	SetShader(shader);
-
-	auto vertices{ Vertex::GetTriangle(positions, tint, depth) };
-
-	constexpr std::size_t triangle_indices{ 3 };
-
-	FlushIfExceedsCapacity(vertices.size(), triangle_indices);
-
-	auto start_index = static_cast<std::uint32_t>(batch_vertices_.size());
-
-	batch_vertices_.insert(batch_vertices_.end(), vertices.begin(), vertices.end());
-	batch_indices_.insert(batch_indices_.end(), { start_index, start_index + 1, start_index + 2 });
-}
-
 ShaderId Renderer::GetShader(std::string_view name) const {
 	return gl_->shaders.GetProgram(name);
 }
@@ -628,66 +521,139 @@ bool Renderer::IsTextureAttachedToCurrentFramebuffer(TextureId texture) const {
 	return gl_->framebuffers.GetFramebufferAttachment(*bound, gl::Attachment::Color0).id == texture;
 }
 
-void Renderer::DrawTexture(
-	ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, Color tint,
-	float depth, const std::array<V2_float, 4>& tex_coords,
-	const std::function<void()>& shader_setup
+void Renderer::DrawTriangle(
+	ShaderId shader, const std::array<V2_float, 3>& positions, float depth, Color tint,
+	int entity_id
 ) {
+	SetPipeline("color");
+
+	SetShader(shader);
+
+	auto color_n{ tint.Normalized() };
+
+	auto vertices{ GetVertices<ColorVertex, 3>([&](std::size_t i) {
+		PTGN_ASSERT(i < positions.size());
+		return ColorVertex{ positions[i], depth, color_n, entity_id };
+	}) };
+
+	constexpr std::array<Index, 3> indices{ 0, 1, 2 };
+
+	SubmitVertices<ColorVertex>(vertices, indices);
+}
+
+void Renderer::DrawQuad(
+	ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
+	int entity_id
+) {
+	SetPipeline("color");
+
+	SetShader(shader);
+
+	auto color_n{ tint.Normalized() };
+
+	auto vertices{ GetVertices<ColorVertex, 4>([&](std::size_t i) {
+		PTGN_ASSERT(i < positions.size());
+		return ColorVertex{ positions[i], depth, color_n, entity_id };
+	}) };
+
+	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
+
+	SubmitVertices<ColorVertex>(vertices, indices);
+}
+
+void Renderer::DrawShape(
+	ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
+	const std::array<V2_float, 4>& tex_coords, const std::array<float, 4>& shape_data, int entity_id
+) {
+	SetPipeline("shape");
+
+	PTGN_ASSERT(shader != 0);
+
+	SetShader(shader);
+
+	auto color_n{ tint.Normalized() };
+
+	auto vertices{ GetVertices<ShapeVertex, 4>([&](std::size_t i) {
+		PTGN_ASSERT(i < positions.size() && i < tex_coords.size());
+		return ShapeVertex{ positions[i], depth, color_n, tex_coords[i], shape_data, entity_id };
+	}) };
+
+	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
+
+	SubmitVertices<ShapeVertex>(vertices, indices);
+}
+
+void Renderer::DrawShader(
+	ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
+	const std::array<V2_float, 4>& tex_coords, const std::function<void()>& shader_setup,
+	int entity_id
+) {
+	SetPipeline("texture");
+
+	PTGN_ASSERT(shader != 0);
+
+	SetShader(shader);
+
+	if (shader_setup) {
+		shader_setup();
+	}
+
+	auto color_n{ tint.Normalized() };
+
+	auto vertices{ GetVertices<TextureVertex, 4>([&](std::size_t i) {
+		PTGN_ASSERT(i < positions.size() && i < tex_coords.size());
+		return TextureVertex{ positions[i], depth, color_n, tex_coords[i], 0.0f, entity_id };
+	}) };
+
+	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
+
+	SubmitVertices<TextureVertex>(vertices, indices);
+
+	FlushBatch();
+}
+
+void Renderer::DrawTexture(
+	ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, float depth,
+	Color tint, const std::array<V2_float, 4>& tex_coords,
+	const std::function<void()>& shader_setup, int entity_id
+) {
+	SetPipeline("texture");
 	PTGN_ASSERT(
 		!IsTextureAttachedToCurrentFramebuffer(texture),
 		"Cannot draw a texture that is attached to the currently set framebuffer"
 	);
+	PTGN_ASSERT(shader != 0);
+	PTGN_ASSERT(texture != 0);
 
-	QuadParams p;
-	p.quad.positions  = positions;
-	p.quad.depth	  = depth;
-	p.quad.color	  = tint;
-	p.quad.tex_coords = tex_coords;
-	p.texture		  = texture;
+	auto [slot, push_texture] = GetTextureSlot(texture);
 
-	auto setup = [this, shader_setup](auto s, auto& q) {
-		// Only quad drawn textures are batchable.
-		bool batchable{ s == gl_->shaders.GetProgram("quad") };
+	SetShader(shader);
 
-		if (!batchable) {
-			gl_->shaders.SetUniform(s, "u_Texture", static_cast<std::int32_t>(q.user_data[0]));
-		} else {
-			PTGN_ASSERT(!shader_setup, "Quad shader should have no shader setup");
-		}
+	if (shader_setup) {
+		shader_setup();
+	}
 
-		if (!batchable && shader_setup) {
-			shader_setup();
-		}
+	bool flush_after{ shader_setup != nullptr };
 
-		return !batchable;
-	};
+	auto color_n{ tint.Normalized() };
 
-	DrawQuad(shader, p, setup);
-}
+	auto vertices{ GetVertices<TextureVertex, 4>([&](std::size_t i) {
+		PTGN_ASSERT(i < positions.size() && i < tex_coords.size());
+		return TextureVertex{ positions[i], depth, color_n, tex_coords[i], static_cast<float>(slot),
+							  entity_id };
+	}) };
 
-void Renderer::DrawQuad(
-	ShaderId shader, const std::array<V2_float, 4>& positions,
-	const std::array<float, 4>& user_data, Color tint, float depth,
-	const std::function<void()>& shader_setup
-) {
-	QuadParams p;
-	p.quad.positions  = positions;
-	p.quad.depth	  = depth;
-	p.quad.color	  = tint;
-	p.quad.tex_coords = GetDefaultTextureCoordinates<false>();
+	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
 
-	DrawQuad(shader, p, [this, user_data, shader_setup](auto, auto& q) {
-		q.user_data = user_data;
-		if (shader_setup) {
-			shader_setup();
-			return true;
-		}
-		return false;
-	});
-}
+	SubmitVertices<TextureVertex>(vertices, indices);
 
-TextureId Renderer::GetWhiteTexture() const {
-	return white_texture_;
+	if (push_texture) {
+		batch_textures_.push_back(texture);
+	}
+
+	if (flush_after) {
+		FlushBatch();
+	}
 }
 
 void Renderer::OnWindowResize(V2_int size) {
@@ -872,8 +838,9 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 		float presentation_aspect{ static_cast<float>(presentation.size.x) / presentation.size.y };
 		float game_aspect{ static_cast<float>(game_size.x) / game_size.y };
 
-		// In letterbox mode we need require presentation_aspect > game_aspect to fit height, and
-		// in overscan we require presentation_aspect > game_aspect to fit height.
+		// In letterbox mode we need require presentation_aspect > game_aspect to fit
+		// height, and in overscan we require presentation_aspect > game_aspect to fit
+		// height.
 		bool fit_height{ (presentation_aspect > game_aspect) == letterbox_mode };
 
 		if (fit_height) {
@@ -987,13 +954,13 @@ void Renderer::EndFrame() {
 		GetRenderTargetSize(screen_target_.resource_) == display_viewport_.size,
 		"Screen target texture size must match display viewport size"
 	);
-	auto quad_shader{ GetShader("quad") };
+	auto texture_shader{ GetShader("texture") };
 	auto points{ GetCenteredQuadPoints(display_viewport_.size) };
 	auto tex_coords{ GetDefaultTextureCoordinates<true>() };
 
 	auto screen_texture{ GetRenderTargetTexture(screen_target_.resource_) };
 
-	DrawTexture(quad_shader, screen_texture, points, color::White, 0.0f, tex_coords, {});
+	DrawTexture(texture_shader, screen_texture, points, 0.0f, color::White, tex_coords, {}, -1);
 
 	FlushBatch();
 }
@@ -1066,6 +1033,78 @@ void Renderer::SetUniform(ShaderId shader, const char* uniform_name, const std::
 
 void Renderer::SetUniform(ShaderId shader, const char* uniform_name, bool v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+ElementBufferObject Renderer::CreateElementBufferObject(std::uint32_t index_capacity) {
+	return ElementBufferObject{ this, gl_->buffers.CreateElementBuffer(
+										  nullptr, index_capacity, sizeof(Index),
+										  gl::BufferUsage::DynamicDraw
+									  ) };
+}
+
+VertexBufferObject Renderer::CreateVertexBufferObject(
+	std::uint32_t vertex_capacity, std::uint32_t vertex_size
+) {
+	return VertexBufferObject{ this, gl_->buffers.CreateVertexBuffer(
+										 nullptr, vertex_capacity, vertex_size,
+										 gl::BufferUsage::DynamicDraw
+									 ) };
+}
+
+VertexArrayObject Renderer::CreateVertexArrayObject(
+	VertexBufferId vertex_buffer, const BufferLayoutView& layout, ElementBufferId element_buffer
+) {
+	return VertexArrayObject{
+		this, gl_->vertex_arrays.CreateVertexArray(vertex_buffer, layout, element_buffer)
+	};
+}
+
+void Renderer::Destroy(VertexBufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(ElementBufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(UniformBufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(ShaderId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(TextureId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(RenderbufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(FramebufferId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(VertexArrayId id) {
+	gl_->Destroy(id);
+}
+
+void Renderer::Destroy(RenderTargetId id) {
+	gl_->Destroy(id);
+};
+
+V2_int Renderer::GetTextureSize(TextureId texture) const {
+	return gl_->textures.GetTextureSize(texture);
+}
+
+TextureFormat Renderer::GetTextureFormat(TextureId texture) const {
+	return gl_->textures.GetTextureFormat(texture);
+}
+
+void Renderer::ResizeRenderTarget(RenderTargetId render_target, V2_int new_size) {
+	gl_->framebuffers.ResizeFramebuffer(FramebufferId{ render_target }, new_size);
 }
 
 } // namespace ptgn::impl

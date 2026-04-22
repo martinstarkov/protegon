@@ -405,12 +405,12 @@ void Scene::InternalDraw() {
 	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 	auto rt_tint{ GetTint(render_target_) };
 
-	auto quad_shader{ ctx().global_renderer_.GetShader("quad") };
+	auto texture_shader{ ctx().global_renderer_.GetShader("texture") };
 
 	auto render_target_texture{ ctx().global_renderer_.GetRenderTargetTexture(render_target_) };
 
 	ctx().global_renderer_.DrawTexture(
-		quad_shader, render_target_texture, positions, rt_tint, 0.0f, tex_coords, {}
+		texture_shader, render_target_texture, positions, 0.0f, rt_tint, tex_coords, {}, -1
 	);
 
 	ctx().global_renderer_.FlushBatch();

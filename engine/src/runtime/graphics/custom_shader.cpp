@@ -38,16 +38,14 @@ void CustomShader::Draw(DrawContext& renderer, Entity entity) {
 
 	renderer.SetBlendMode(blend_mode);
 
-	constexpr bool floor_positions{ true };
+	auto entity_id{ entity.GetUUID() };
+	auto tex_coords{ GetTextureCoordinates(entity, false) };
 
 	if (entity.Has<Texture>()) {
 		auto texture{ entity.Get<Texture>() };
-		auto tex_coords{ GetTextureCoordinates(entity, false) };
-		renderer.DrawTexture(
-			shader, texture, positions, tint, depth, tex_coords, setup, floor_positions
-		);
+		renderer.DrawTexture(shader, texture, positions, depth, tint, tex_coords, setup, entity_id);
 	} else {
-		renderer.DrawQuad(shader, positions, {}, tint, depth, setup, floor_positions);
+		renderer.DrawShader(shader, positions, depth, tint, tex_coords, setup, entity_id);
 	}
 }
 

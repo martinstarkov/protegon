@@ -90,7 +90,7 @@ void RenderContext::DrawTexture(
 	std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
 	std::optional<BlendMode> blend_mode,
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
-	const std::optional<SceneCamera>& camera
+	const std::optional<SceneCamera>& camera, int entity_id
 ) {
 	auto& draw_commands{ GetDrawCommandsForCamera(camera.transform([](const auto& c) {
 		return impl::RenderCamera{ c };
@@ -104,31 +104,28 @@ void RenderContext::DrawTexture(
 		texture_coordinates.value_or(impl::GetDefaultTextureCoordinates<false>())
 	};
 
-	constexpr bool floor_positions{ true };
-
-	impl::TextureCommand texture_command{ shader,		  texture,
-										  positions,	  tint.value_or(color::White),
-										  tex_coords,	  blend_mode,
-										  floor_positions };
+	impl::TextureCommand texture_command{
+		shader, texture, positions, tint.value_or(color::White), tex_coords, blend_mode, entity_id
+	};
 
 	draw_commands.emplace_back(texture_command, depth);
 }
 
-void RenderContext::DrawTexture(
+void RenderContext::DrawTextureQuad(
 	TextureOrKey texture, Transform transform, std::optional<V2_float> size, Origin draw_origin,
 	std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
-	const std::optional<SceneCamera>& camera
+	const std::optional<SceneCamera>& camera, int entity_id
 ) {
-	auto quad_shader{ renderer_.GetShader("quad") };
+	auto texture_shader{ renderer_.GetShader("texture") };
 
 	const auto& assets{ scene_.ctx().asset };
 	auto resolved_texture{ texture.Get(assets) };
 	auto texture_size{ resolved_texture.GetSize() };
 
 	DrawTexture(
-		resolved_texture, texture_size, quad_shader, transform, size, draw_origin, tint, depth,
-		blend_mode, texture_coordinates, camera
+		resolved_texture, texture_size, texture_shader, transform, size, draw_origin, tint, depth,
+		blend_mode, texture_coordinates, camera, entity_id
 	);
 }
 
@@ -136,7 +133,7 @@ void RenderContext::DrawTexture(
 	TextureOrKey texture, Shader shader, Transform transform, std::optional<V2_float> size,
 	Origin draw_origin, std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
-	const std::optional<SceneCamera>& camera
+	const std::optional<SceneCamera>& camera, int entity_id
 ) {
 	const auto& assets{ scene_.ctx().asset };
 	auto resolved_texture{ texture.Get(assets) };
@@ -144,14 +141,14 @@ void RenderContext::DrawTexture(
 
 	DrawTexture(
 		resolved_texture, texture_size, shader, transform, size, draw_origin, tint, depth,
-		blend_mode, texture_coordinates, camera
+		blend_mode, texture_coordinates, camera, entity_id
 	);
 }
 
 void RenderContext::DrawShader(
 	Shader shader, Transform transform, std::optional<V2_float> size, Origin draw_origin,
 	std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
-	const std::optional<SceneCamera>& camera, const std::optional<std::array<float, 4>>& user_data
+	const std::optional<SceneCamera>& camera, int entity_id
 ) {
 	auto& draw_commands{ GetDrawCommandsForCamera(camera.transform([](const auto& c) {
 		return impl::RenderCamera{ c };
@@ -161,31 +158,24 @@ void RenderContext::DrawShader(
 
 	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
 
-	auto data{ user_data.value_or(std::array<float, 4>{}) };
+	impl::QuadCommand quad_command{ shader, positions, tint.value_or(color::White), blend_mode,
+									entity_id };
 
-	constexpr bool floor_positions{ true };
-
-	impl::QuadShapeCommand quad_shape_command{ shader,	   positions,
-											   data,	   tint.value_or(color::White),
-											   blend_mode, floor_positions };
-
-	draw_commands.emplace_back(quad_shape_command, depth);
+	draw_commands.emplace_back(quad_command, depth);
 }
 
 void RenderContext::DrawLines(
 	const std::vector<V2_float>& points, Color color, float line_width, bool connect_last_to_first,
 	std::optional<Transform> transform, Depth depth, std::optional<BlendMode> blend_mode,
-	const std::optional<SceneCamera>& camera
+	const std::optional<SceneCamera>& camera, int entity_id
 ) {
 	auto& camera_commands{ GetDrawCommandsForCamera(camera.transform([](const auto& c) {
 		return impl::RenderCamera{ c };
 	})) };
 
-	constexpr bool floor_positions{ false };
-
 	auto draw_commands{ DrawContext::GetDrawCommand(
-		points, line_width, transform.value_or(Transform{}), color, blend_mode,
-		connect_last_to_first, floor_positions
+		renderer_.GetShader("color"), points, line_width, transform.value_or(Transform{}), color,
+		blend_mode, connect_last_to_first, entity_id
 	) };
 
 	PTGN_ASSERT(std::holds_alternative<std::vector<impl::QuadCommand>>(*draw_commands));
@@ -198,15 +188,16 @@ void RenderContext::DrawLines(
 }
 
 void RenderContext::DrawShape(
-	const Shape& shape, Transform transform, Color color, FillStyle fill_style, Origin draw_origin,
-	Depth depth, std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera
+	Transform transform, const Shape& shape, Color color, FillStyle fill_style, Origin draw_origin,
+	Depth depth, std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera,
+	int entity_id
 ) {
 	auto& draw_commands{ GetDrawCommandsForCamera(camera.transform([](const auto& c) {
 		return impl::RenderCamera{ c };
 	})) };
 
 	auto shape_draw_commands{ DrawContext::GetDrawCommand(
-		renderer_, shape, transform, color, fill_style, draw_origin, blend_mode
+		renderer_, shape, transform, color, fill_style, draw_origin, blend_mode, entity_id
 	) };
 
 	if (!shape_draw_commands.has_value()) {
@@ -218,11 +209,30 @@ void RenderContext::DrawShape(
 	);
 }
 
+void RenderContext::DrawLine(
+	V2_float start, V2_float end, Color color, float line_width, Depth depth,
+	std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera, int entity_id
+) {
+	DrawShape(
+		Transform{}, Line{ start, end }, color, line_width, Origin::Center, depth, blend_mode,
+		camera, entity_id
+	);
+}
+
+void RenderContext::DrawPoint(
+	V2_float point, Color color, Depth depth, std::optional<BlendMode> blend_mode,
+	const std::optional<SceneCamera>& camera, int entity_id
+) {
+	DrawShape(
+		Transform{}, point, color, Solid{}, Origin::Center, depth, blend_mode, camera, entity_id
+	);
+}
+
 void RenderContext::DrawText(
 	std::string_view text_content, Transform transform, Color text_color, FontSize font_size,
 	FontOrKey font, const TextProperties& properties, Origin draw_origin,
 	std::optional<V2_float> text_size, Depth depth, std::optional<BlendMode> blend_mode,
-	const std::optional<SceneCamera>& camera
+	const std::optional<SceneCamera>& camera, int entity_id
 ) {
 	auto texture_object{ scene_.ctx().asset.CreateTextTextureObject(
 		text_content, text_color, font_size, font, properties
@@ -238,92 +248,12 @@ void RenderContext::DrawText(
 
 	temporary_textures_.emplace_back(std::move(*texture_object));
 
-	auto quad_shader{ renderer_.GetShader("quad") };
+	auto texture_shader{ renderer_.GetShader("texture") };
 
 	DrawTexture(
-		texture_id, texture_size, quad_shader, transform, text_size, draw_origin, color::White,
-		depth, blend_mode, {}, camera
+		texture_id, texture_size, texture_shader, transform, text_size, draw_origin, color::White,
+		depth, blend_mode, {}, camera, entity_id
 	);
-}
-
-void RenderContext::DrawRect(
-	Transform transform, const Rect& rect, Color color, FillStyle fill_style, Origin draw_origin,
-	Depth depth, std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera
-) {
-	DrawShape(rect, transform, color, fill_style, draw_origin, depth, blend_mode, camera);
-}
-
-void RenderContext::DrawRoundedRect(
-	Transform transform, const RoundedRect& rounded_rect, Color color, FillStyle fill_style,
-	Origin draw_origin, Depth depth, std::optional<BlendMode> blend_mode,
-	const std::optional<SceneCamera>& camera
-) {
-	DrawShape(rounded_rect, transform, color, fill_style, draw_origin, depth, blend_mode, camera);
-}
-
-void RenderContext::DrawLine(
-	Transform transform, const Line& line, Color color, float line_width, Depth depth,
-	std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera
-) {
-	PTGN_ASSERT(line_width >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
-	DrawShape(line, transform, color, line_width, Origin::Center, depth, blend_mode, camera);
-}
-
-void RenderContext::DrawLine(
-	V2_float start, V2_float end, Color color, float line_width, Depth depth,
-	std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera
-) {
-	PTGN_ASSERT(line_width >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
-	DrawShape(Line{ start, end }, {}, color, line_width, Origin::Center, depth, blend_mode, camera);
-}
-
-void RenderContext::DrawTriangle(
-	Transform transform, const Triangle& triangle, Color color, FillStyle fill_style, Depth depth,
-	std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera
-) {
-	DrawShape(triangle, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
-}
-
-void RenderContext::DrawEllipse(
-	Transform transform, const Ellipse& ellipse, Color color, FillStyle fill_style, Depth depth,
-	std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera
-) {
-	DrawShape(ellipse, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
-}
-
-void RenderContext::DrawCircle(
-	Transform transform, const Circle& circle, Color color, FillStyle fill_style, Depth depth,
-	std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera
-) {
-	DrawShape(circle, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
-}
-
-void RenderContext::DrawCapsule(
-	Transform transform, const Capsule& capsule, Color color, FillStyle fill_style, Depth depth,
-	std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera
-) {
-	DrawShape(capsule, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
-}
-
-void RenderContext::DrawArc(
-	Transform transform, const Arc& arc, Color color, FillStyle fill_style, Depth depth,
-	std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera
-) {
-	DrawShape(arc, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
-}
-
-void RenderContext::DrawPolygon(
-	Transform transform, const Polygon& polygon, Color color, FillStyle fill_style, Depth depth,
-	std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera
-) {
-	DrawShape(polygon, transform, color, fill_style, Origin::Center, depth, blend_mode, camera);
-}
-
-void RenderContext::DrawPoint(
-	V2_float point, Color color, Depth depth, std::optional<BlendMode> blend_mode,
-	const std::optional<SceneCamera>& camera
-) {
-	DrawShape(point, {}, color, Solid{}, Origin::Center, depth, blend_mode, camera);
 }
 
 void RenderContext::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_mode) {

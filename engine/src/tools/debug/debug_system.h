@@ -83,7 +83,7 @@ private:
 
 class DebugSystem {
 public:
-	DebugSystem();
+	DebugSystem()								   = default;
 	~DebugSystem() noexcept						   = default;
 	DebugSystem(const DebugSystem&)				   = delete;
 	DebugSystem& operator=(const DebugSystem&)	   = delete;

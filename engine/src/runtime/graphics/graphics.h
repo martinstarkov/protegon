@@ -33,8 +33,6 @@ struct GraphicsData {
 
 	void AddCommand(Transform transform, const Shape& shape, bool fill);
 
-	void Draw(DrawContext& renderer, Transform transform, Depth depth, BlendMode blend_mode) const;
-
 	std::vector<Command> commands_;
 	Color fill_color_{ color::White };
 	Color stroke_color_{ color::White };
