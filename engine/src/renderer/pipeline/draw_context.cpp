@@ -590,7 +590,7 @@ void DrawContext::DrawLines(
 }
 
 void DrawContext::DrawTexture(
-	Texture texture, Transform transform, float depth, V2_float size, Origin draw_origin,
+	impl::TextureId texture, Transform transform, float depth, V2_float size, Origin draw_origin,
 	Color tint, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode> blend_mode,
 	int entity_id
 ) {
