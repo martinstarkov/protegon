@@ -16,9 +16,9 @@
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
-#include "runtime/asset/font_system.h"
 #include "runtime/audio/audio.h"
 #include "runtime/graphics/text/font.h"
+#include "runtime/graphics/text/font_system.h"
 #include "runtime/graphics/text/text.h"
 #include "serialization/serialize.h"
 

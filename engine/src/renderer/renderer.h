@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -10,7 +9,6 @@
 #include <span>
 #include <string_view>
 #include <type_traits>
-#include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -176,6 +174,20 @@ public:
 		const std::function<void()>& shader_setup
 	);
 
+	using BatchSetup = std::function<void(Renderer&)>;
+
+	template <VertexType TVertex>
+	void DrawVertices(
+		std::string_view pipeline_name, ShaderId shader, std::span<const TVertex> vertices,
+		std::span<const std::uint32_t> indices,
+		std::optional<std::size_t> batch_state_hash = std::nullopt,
+		const BatchSetup& batch_setup				= nullptr
+	) {
+		SetShader(shader);
+		SetPipeline(pipeline_name, batch_state_hash, batch_setup);
+		SubmitVertices(vertices, indices);
+	}
+
 	V2_int GetRenderTargetSize(RenderTargetId render_target) const;
 	TextureFormat GetRenderTargetTextureFormat(RenderTargetId render_target) const;
 	void ResizeRenderTarget(RenderTargetId render_target, V2_int new_size);
@@ -228,6 +240,16 @@ private:
 	using EventSink =
 		std::function<void(V2_int, std::variant<ResizeType, impl::PresentationResizeType>)>;
 
+	struct Pipeline {
+		VertexArrayObject vao;
+		VertexBufferObject vbo;
+		ElementBufferObject ebo;
+		std::uint32_t vertex_size{ 0 };
+		std::optional<std::size_t> batch_state_hash_;
+		BatchSetup batch_setup_;
+		PrimitiveMode primitive_mode{ PrimitiveMode::Triangles };
+	};
+
 	Renderer() = delete;
 	explicit Renderer(Window& window, EventSink&& event_sink);
 	~Renderer() noexcept;
@@ -236,7 +258,10 @@ private:
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
-	void SetPipeline(std::string_view name);
+	void SetPipeline(
+		std::string_view name, std::optional<std::size_t> batch_state_hash = std::nullopt,
+		const BatchSetup& batch_setup = nullptr
+	);
 
 	void BeginFrame();
 	void EndFrame();
@@ -270,6 +295,12 @@ private:
 	void ReleasePooledTarget(RenderTargetId render_target);
 
 	void InvalidateState();
+
+	Pipeline& GetCurrentPipeline();
+
+	void SetCurrentPipelineBatchState(
+		std::optional<std::size_t> batch_state_hash, const BatchSetup& batch_setup
+	);
 
 	Window& window_;
 
@@ -307,14 +338,6 @@ private:
 		}
 	}
 
-	struct Pipeline {
-		VertexArrayObject vao;
-		VertexBufferObject vbo;
-		ElementBufferObject ebo;
-		std::uint32_t vertex_size{ 0 };
-		PrimitiveMode primitive_mode{ PrimitiveMode::Triangles };
-	};
-
 	[[nodiscard]] ElementBufferObject CreateElementBufferObject(std::uint32_t index_capacity);
 	[[nodiscard]] VertexBufferObject CreateVertexBufferObject(
 		std::uint32_t vertex_capacity, std::uint32_t vertex_size
@@ -338,9 +361,8 @@ private:
 		pipelines_.emplace_back(Hash(name), std::move(pipeline));
 	}
 
-	std::vector<std::pair<PipelineId, Pipeline>> pipelines_;
-
 	PipelineId current_pipeline_{ 0 };
+	std::vector<std::pair<PipelineId, Pipeline>> pipelines_;
 
 	std::vector<std::byte> batch_vertices_;
 	std::vector<Index> batch_indices_;

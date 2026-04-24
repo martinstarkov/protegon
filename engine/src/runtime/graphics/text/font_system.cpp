@@ -1,4 +1,4 @@
-#include "runtime/asset/font_system.h"
+#include "runtime/graphics/text/font_system.h"
 
 #include <ecs/ecs.h>
 

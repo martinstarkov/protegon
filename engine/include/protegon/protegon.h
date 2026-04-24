@@ -25,7 +25,7 @@
 #include "runtime/animation/tween.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/asset/font_system.h"
+#include "runtime/graphics/text/font_system.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"

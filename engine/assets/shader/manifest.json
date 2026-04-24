@@ -24,6 +24,10 @@
     "vertex": "shape",
     "fragment": "arc"
   },
+  "text": {
+    "vertex": "texture",
+    "fragment": "text"
+  },
   "blur": {
     "vertex": "screen_default",
     "fragment": "screen_blur"

@@ -59,6 +59,7 @@ Renderer::Renderer(Window& window, EventSink&& event_sink) :
 	);
 	AddPipeline<ShapeVertex>("shape", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles);
 	AddPipeline<ColorVertex>("color", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles);
+	AddPipeline<TextureVertex>("text", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles);
 	SetPipeline("texture");
 
 	game_size_ = GetFullViewportSize();
@@ -329,11 +330,7 @@ void Renderer::BindRenderPass(RenderPass& render_pass) {
 	BindRenderTarget(write);
 }
 
-void Renderer::FlushBatch() {
-	if (batch_indices_.empty()) {
-		return; // Nothing to draw
-	}
-
+Renderer::Pipeline& Renderer::GetCurrentPipeline() {
 	PTGN_ASSERT(current_pipeline_ != 0, "Current pipeline must be set");
 
 	auto it{ std::ranges::find_if(pipelines_, [this](const auto& pair) {
@@ -344,7 +341,19 @@ void Renderer::FlushBatch() {
 		it != pipelines_.end(), "No matching current render pipeline found: ", current_pipeline_
 	);
 
-	const auto& pipeline{ it->second };
+	return it->second;
+}
+
+void Renderer::FlushBatch() {
+	if (batch_indices_.empty()) {
+		return; // Nothing to draw
+	}
+
+	const auto& pipeline{ GetCurrentPipeline() };
+
+	if (pipeline.batch_setup_) {
+		pipeline.batch_setup_(*this);
+	}
 
 	auto _0{ gl_->Bind(pipeline.vao, false) };
 	auto _1{ gl_->Bind(pipeline.vbo, false) };
@@ -407,9 +416,13 @@ void UpdateStateIfChanged(
 	}
 }
 
-void Renderer::SetPipeline(std::string_view name) {
+void Renderer::SetPipeline(
+	std::string_view name, std::optional<std::size_t> batch_state_hash,
+	const BatchSetup& batch_setup
+) {
 	auto id{ Hash(name) };
 	if (id == current_pipeline_) {
+		SetCurrentPipelineBatchState(batch_state_hash, batch_setup);
 		return;
 	}
 	PTGN_ASSERT(
@@ -419,6 +432,7 @@ void Renderer::SetPipeline(std::string_view name) {
 	);
 	FlushBatch();
 	current_pipeline_ = id;
+	SetCurrentPipelineBatchState(batch_state_hash, batch_setup);
 }
 
 void Renderer::SetViewport(Viewport viewport) {
@@ -912,6 +926,19 @@ RenderTargetId Renderer::GetScreenTarget() const {
 
 void Renderer::InvalidateState() {
 	gl_->InvalidateState();
+}
+
+void Renderer::SetCurrentPipelineBatchState(
+	std::optional<std::size_t> batch_state_hash, const BatchSetup& batch_setup
+) {
+	auto& pipeline{ GetCurrentPipeline() };
+
+	if (pipeline.batch_state_hash_ != batch_state_hash) {
+		FlushBatch();
+
+		pipeline.batch_state_hash_ = batch_state_hash;
+		pipeline.batch_setup_	   = batch_setup;
+	}
 }
 
 void Renderer::BeginFrame() {
