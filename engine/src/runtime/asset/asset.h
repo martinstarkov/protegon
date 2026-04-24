@@ -4,9 +4,11 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <variant>
 
 #include "core/util/concepts.h"
+#include "core/util/hash.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/audio/audio.h"
@@ -64,49 +66,30 @@ private:
 	std::variant<std::size_t, T> value_{ std::size_t{ 0 } };
 };
 
+/// @brief Defaults to default engine font.
+using FontOrKey	   = AssetOrKey<Font>;
 using TextureOrKey = AssetOrKey<Texture>;
 using AudioOrKey   = AssetOrKey<Audio>;
 using ShaderOrKey  = AssetOrKey<Shader>;
 using JsonOrKey	   = AssetOrKey<std::reference_wrapper<const json>>;
 
-/// @brief Defaults to default engine font.
-using FontOrKey = AssetOrKey<Font>;
-
-[[nodiscard]] std::size_t HashAsset(TextureOrKey texture);
-[[nodiscard]] std::size_t HashAsset(AudioOrKey audio);
-[[nodiscard]] std::size_t HashAsset(ShaderOrKey shader);
-[[nodiscard]] std::size_t HashAsset(FontOrKey font);
-
 } // namespace ptgn
 
-namespace std {
-
-template <>
-struct hash<ptgn::TextureOrKey> {
-	std::size_t operator()(const ptgn::TextureOrKey& texture) const {
-		return ptgn::HashAsset(texture);
+template <typename T>
+	requires(ptgn::AssetType<T> && !std::is_same_v<T, ptgn::json> && !std::is_same_v<T, std::reference_wrapper<const ptgn::json>>)
+struct std::hash<ptgn::AssetOrKey<T>> {
+	std::size_t operator()(const ptgn::AssetOrKey<T>& asset) const {
+		return std::visit(
+			[]<typename S>(const S& value) -> std::size_t {
+				if constexpr (std::is_same_v<S, T>) {
+					return ptgn::Hash(value);
+				} else if constexpr (std::is_same_v<S, std::size_t>) {
+					return value;
+				} else {
+					static_assert(false, "Incomplete visitor!");
+				}
+			},
+			asset.GetVariant()
+		);
 	}
 };
-
-template <>
-struct hash<ptgn::ShaderOrKey> {
-	std::size_t operator()(const ptgn::ShaderOrKey& shader) const {
-		return ptgn::HashAsset(shader);
-	}
-};
-
-template <>
-struct hash<ptgn::AudioOrKey> {
-	std::size_t operator()(const ptgn::AudioOrKey& audio) const {
-		return ptgn::HashAsset(audio);
-	}
-};
-
-template <>
-struct hash<ptgn::FontOrKey> {
-	std::size_t operator()(const ptgn::FontOrKey& font) const {
-		return ptgn::HashAsset(font);
-	}
-};
-
-} // namespace std

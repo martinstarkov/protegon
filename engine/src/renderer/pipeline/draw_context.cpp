@@ -508,10 +508,6 @@ impl::RenderPass DrawContext::BeginPass(impl::RenderTargetId scene_render_target
 	return renderer_.BeginPass(scene_render_target);
 }
 
-// impl::TextureId DrawContext::GetWhiteTexture() const {
-//	return renderer_.GetWhiteTexture();
-// }
-
 impl::ShaderId DrawContext::GetShader(std::string_view name) const {
 	return renderer_.GetShader(name);
 }

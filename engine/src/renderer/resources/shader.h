@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ecs/ecs.h>
+
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -13,7 +15,7 @@
 #include "core/util/concepts.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
-#include <ecs/ecs.h>
+#include "core/util/hash.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 
@@ -101,13 +103,9 @@ public:
 
 } // namespace ptgn
 
-namespace std {
-
 template <>
-struct hash<ptgn::Shader> {
+struct std::hash<ptgn::Shader> {
 	std::size_t operator()(const ptgn::Shader& shader) const {
-		return std::hash<ecs::Entity>()(shader.GetEntity());
+		return ptgn::Hash(shader.GetEntity());
 	}
 };
-
-} // namespace std

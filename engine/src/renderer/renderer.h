@@ -81,7 +81,9 @@ public:
 	ShaderObject CreateShader(
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 	);
-	TextureObject CreateTexture(const std::uint8_t* pixel_data, V2_int size, TextureFormat format);
+	TextureObject CreateTexture(
+		const std::uint8_t* pixel_data, V2_int size, TextureFormat format, bool restore_bind = true
+	);
 	RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
 
 	ShaderId GetShader(std::string_view name) const;

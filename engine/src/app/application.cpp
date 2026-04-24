@@ -178,6 +178,7 @@ void Application::Update() {
 
 	scene_manager_.OnEvent();
 
+	renderer_.BeginFrame();
 	scene_manager_.Update(*this, dt());
 
 	for (const auto& layer : layers_) {
@@ -188,7 +189,6 @@ void Application::Update() {
 
 	debug_.PostUpdate();
 
-	renderer_.BeginFrame();
 	scene_manager_.Draw();
 	renderer_.EndFrame();
 

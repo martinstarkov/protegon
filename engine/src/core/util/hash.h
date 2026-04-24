@@ -1,10 +1,19 @@
 #pragma once
 
+#include <concepts>
+#include <functional>
+#include <string>
 #include <string_view>
+#include <type_traits>
+#include <vector>
 
 #include "core/util/type_info.h"
 
 namespace ptgn {
+
+template <typename T>
+concept StringLikeHashInput =
+	requires(const std::remove_cvref_t<T>& value) { std::string_view{ value }; };
 
 /// @brief Hash a string into a number.
 /// @param string The string to hash.
@@ -32,10 +41,65 @@ namespace ptgn {
 	// return hash;
 }
 
+[[nodiscard]] constexpr std::size_t Hash(const char* string) {
+	return string == nullptr ? 0 : Hash(std::string_view{ string });
+}
+
+template <std::size_t N>
+[[nodiscard]] constexpr std::size_t Hash(const char (&string)[N]) {
+	return Hash(std::string_view{ string, N - 1 });
+}
+
+[[nodiscard]] inline std::size_t Hash(const std::string& string) {
+	return Hash(std::string_view{ string });
+}
+
 /// @brief Hash a type into a number.
 template <typename T>
 [[nodiscard]] constexpr std::size_t Hash() {
 	return Hash(type_name<T>());
+}
+
+template <typename T>
+concept Hashable = requires(const std::remove_cvref_t<T>& value) {
+	{ std::hash<std::remove_cvref_t<T>>{}(value) } -> std::convertible_to<std::size_t>;
+};
+
+template <Hashable T>
+	requires(!StringLikeHashInput<T>)
+inline std::size_t Hash(const T& value) {
+	using U = std::remove_cvref_t<T>;
+	return std::hash<U>{}(value);
+}
+
+namespace impl {
+
+inline void HashCombine(std::size_t& hash, std::size_t other_hash) {
+	hash ^= other_hash + 0x9e3779b97f4a7c15ULL + (hash << 6) + (hash >> 2);
+}
+
+template <Hashable T>
+inline void HashValue(std::size_t& hash, const T& value) {
+	return impl::HashCombine(hash, Hash(value));
+}
+
+} // namespace impl
+
+template <Hashable T>
+inline std::size_t Hash(const std::vector<T>& value) {
+	std::size_t hash{ 0 };
+	for (const auto& element : value) {
+		impl::HashCombine(hash, Hash(element));
+	}
+	return hash;
+}
+
+template <Hashable... Ts>
+	requires(sizeof...(Ts) > 1)
+inline std::size_t Hash(const Ts&... values) {
+	std::size_t hash{ 0 };
+	(impl::HashValue(hash, values), ...);
+	return hash;
 }
 
 } // namespace ptgn

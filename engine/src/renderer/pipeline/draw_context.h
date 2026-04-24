@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <span>
@@ -25,13 +26,13 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/render_pass.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
-#include "renderer/resources/texture.h"
 
 namespace ptgn {
 
@@ -39,6 +40,8 @@ class Scene;
 class SceneContext;
 class RenderContext;
 class DebugContext;
+// TODO: Remove.
+class TextSystem;
 
 namespace impl {
 
@@ -182,7 +185,17 @@ public:
 		Origin draw_origin, std::optional<BlendMode> blend_mode, int entity_id
 	);
 
-	// impl::TextureId GetWhiteTexture() const;
+	template <impl::VertexType TVertex>
+	void DrawVertices(
+		std::string_view pipeline_name, impl::ShaderId shader, std::span<const TVertex> vertices,
+		std::span<const std::uint32_t> indices,
+		std::optional<std::size_t> batch_state_hash	  = std::nullopt,
+		const impl::Renderer::BatchSetup& batch_setup = nullptr
+	) {
+		renderer_.DrawVertices(
+			pipeline_name, shader, vertices, indices, batch_state_hash, batch_setup
+		);
+	}
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
@@ -210,10 +223,15 @@ public:
 		renderer_.SetUniform(GetShaderId(shader), uniform_name, value);
 	}
 
+	// TODO: Move to private:
+	explicit DrawContext(impl::Renderer& renderer);
+
 private:
 	friend class Scene;
 	friend class DebugContext;
 	friend class RenderContext;
+	// TODO: Remove.
+	friend class TextSystem;
 
 	impl::ShaderId GetShaderId(ShaderVariant shader) const;
 
@@ -290,7 +308,6 @@ private:
 	void Draw(const impl::ManualCommand& command, float depth);
 
 	DrawContext() = delete;
-	explicit DrawContext(impl::Renderer& renderer);
 
 	impl::Renderer& renderer_;
 };

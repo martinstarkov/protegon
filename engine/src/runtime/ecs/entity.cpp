@@ -102,10 +102,6 @@ std::size_t Entity::GetECSId() const {
 	return entity_.GetId();
 }
 
-std::size_t Entity::GetHash() const {
-	return GetUUID();
-}
-
 bool Entity::WasCreatedBefore(Entity other) const {
 	PTGN_ASSERT(other != *this, "Cannot check if an entity was created before itself");
 	auto version{ entity_.GetVersion() };
@@ -203,10 +199,6 @@ void from_json(const json& j, Entity& entity) {
 		j["scene"].get_to(scene_tag);
 		PTGN_ASSERT(entity.GetScene().GetTag() == scene_tag, "Entity scene tag mismatch");
 	}
-}
-
-std::size_t Hash(Entity entity) {
-	return std::hash<Entity>()(entity);
 }
 
 Transform GetTransform(Entity entity) {

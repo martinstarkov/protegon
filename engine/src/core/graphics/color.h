@@ -10,6 +10,7 @@
 #include "core/math/rng.h"
 #include "core/math/vector4.h"
 #include "core/util/concepts.h"
+#include "core/util/hash.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 
@@ -245,3 +246,10 @@ inline constexpr Color KhakiTan{ 240, 230, 140, 255 };
 } // namespace color
 
 } // namespace ptgn
+
+template <>
+struct std::hash<ptgn::Color> {
+	std::size_t operator()(const ptgn::Color& color) const {
+		return ptgn::Hash(color.r, color.g, color.b, color.a);
+	}
+};

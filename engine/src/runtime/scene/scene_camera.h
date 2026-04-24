@@ -8,6 +8,7 @@
 #include "core/graphics/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
+#include "core/util/hash.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
@@ -202,13 +203,9 @@ SceneCamera CreateCamera(Scene& scene, V2_float viewport_size);
 
 } // namespace ptgn
 
-namespace std {
-
 template <>
-struct hash<ptgn::SceneCamera> {
+struct std::hash<ptgn::SceneCamera> {
 	std::size_t operator()(const ptgn::SceneCamera& camera) const {
-		return camera.GetHash();
+		return ptgn::Hash(camera);
 	}
 };
-
-} // namespace std

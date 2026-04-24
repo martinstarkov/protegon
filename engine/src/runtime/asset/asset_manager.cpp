@@ -432,7 +432,7 @@ std::optional<Texture> AssetManager::GetTexture(std::size_t key_hash) const {
 
 std::optional<Font> AssetManager::GetFont(std::size_t key_hash) const {
 	if (key_hash == 0) {
-		key_hash = HashAsset(font_.default_font_);
+		key_hash = Hash(font_.default_font_);
 	}
 	return GetAssetImpl<impl::FontObject, Font>(manager_, key_hash);
 }
@@ -635,7 +635,7 @@ bool AssetManager::Has<Audio>(std::size_t key_hash) const {
 template <>
 bool AssetManager::Has<Font>(std::size_t key_hash) const {
 	if (key_hash == 0) {
-		key_hash = HashAsset(font_.default_font_);
+		key_hash = Hash(font_.default_font_);
 	}
 	return HasAssetImpl<impl::FontObject>(manager_, key_hash);
 }

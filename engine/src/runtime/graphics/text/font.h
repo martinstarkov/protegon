@@ -1,10 +1,12 @@
 #pragma once
 
+#include <ecs/ecs.h>
+
 #include <ostream>
 #include <utility>
 
 #include "core/util/entity_handle.h"
-#include <ecs/ecs.h>
+#include "core/util/hash.h"
 #include "runtime/ecs/component.h"
 #include "serialization/serialize.h"
 
@@ -61,13 +63,9 @@ public:
 
 } // namespace ptgn
 
-namespace std {
-
 template <>
-struct hash<ptgn::Font> {
+struct std::hash<ptgn::Font> {
 	std::size_t operator()(const ptgn::Font& font) const {
-		return std::hash<ecs::Entity>()(font.GetEntity());
+		return ptgn::Hash(font.GetEntity());
 	}
 };
-
-} // namespace std

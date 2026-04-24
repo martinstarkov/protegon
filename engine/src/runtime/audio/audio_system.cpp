@@ -1,5 +1,6 @@
 #include "runtime/audio/audio_system.h"
 
+#include <ecs/ecs.h>
 #include <miniaudio.h>
 
 #include <algorithm>
@@ -11,8 +12,7 @@
 
 #include "core/assert.h"
 #include "core/util/entity_handle.h"
-#include "core/util/file.h"
-#include <ecs/ecs.h>
+#include "core/util/hash.h"
 #include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio.h"
@@ -55,7 +55,7 @@ void AudioSystem::Play(
 
 	PTGN_ASSERT(engine_);
 
-	auto id{ HashAsset(audio) };
+	auto id{ Hash(audio) };
 
 	impl::Track track{ id, engine_.get(), audio_path, loops };
 
@@ -69,13 +69,13 @@ void AudioSystem::Play(
 }
 
 void AudioSystem::Stop(AudioOrKey audio) {
-	auto id{ HashAsset(audio) };
+	auto id{ Hash(audio) };
 
 	std::erase_if(tracks_, [id](auto& track) { return track.GetId() == id; });
 }
 
 void AudioSystem::Pause(AudioOrKey audio) {
-	auto id{ HashAsset(audio) };
+	auto id{ Hash(audio) };
 
 	auto it =
 		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
@@ -86,7 +86,7 @@ void AudioSystem::Pause(AudioOrKey audio) {
 }
 
 void AudioSystem::Resume(AudioOrKey audio) {
-	auto id{ HashAsset(audio) };
+	auto id{ Hash(audio) };
 
 	auto it =
 		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
@@ -105,7 +105,7 @@ void AudioSystem::TogglePause(AudioOrKey audio) {
 }
 
 bool AudioSystem::IsPaused(AudioOrKey audio) {
-	auto id{ HashAsset(audio) };
+	auto id{ Hash(audio) };
 
 	auto it =
 		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
@@ -114,7 +114,7 @@ bool AudioSystem::IsPaused(AudioOrKey audio) {
 }
 
 bool AudioSystem::IsPlaying(AudioOrKey audio) {
-	auto id{ HashAsset(audio) };
+	auto id{ Hash(audio) };
 
 	auto it =
 		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });
@@ -123,7 +123,7 @@ bool AudioSystem::IsPlaying(AudioOrKey audio) {
 }
 
 void AudioSystem::SetVolume(AudioOrKey audio, float volume) {
-	auto id{ HashAsset(audio) };
+	auto id{ Hash(audio) };
 	volume = std::clamp(volume, kMinVolume, kMaxVolume);
 
 	auto it =
@@ -135,7 +135,7 @@ void AudioSystem::SetVolume(AudioOrKey audio, float volume) {
 }
 
 float AudioSystem::GetVolume(AudioOrKey audio) {
-	auto id{ HashAsset(audio) };
+	auto id{ Hash(audio) };
 
 	auto it =
 		std::ranges::find_if(tracks_, [id](const auto& track) { return track.GetId() == id; });

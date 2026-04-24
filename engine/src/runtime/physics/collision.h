@@ -2,6 +2,7 @@
 
 #include "core/math/raycast.h"
 #include "core/math/vector2.h"
+#include "core/util/hash.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {
@@ -48,11 +49,6 @@ struct CollisionInfo {
 template <>
 struct std::hash<ptgn::CollisionInfo> {
 	std::size_t operator()(const ptgn::CollisionInfo& c) const noexcept {
-		// Hashing combination algorithm from:
-		// https://stackoverflow.com/a/17017281
-		std::size_t value{ 17 };
-		value = value * 31 + c.entity.GetHash();
-		value = value * 31 + std::hash<ptgn::V2_float>()(c.normal);
-		return value;
+		return ptgn::Hash(c.entity, c.normal);
 	}
 };

@@ -154,9 +154,6 @@ public:
 
 	std::size_t GetECSId() const;
 
-	/// @brief Equivalent to GetUUID.
-	std::size_t GetHash() const;
-
 	friend void to_json(json& j, const Entity& entity);
 	friend void from_json(const json& j, Entity& entity);
 
@@ -241,8 +238,6 @@ private:
 template <typename T>
 concept EntityType = std::same_as<std::remove_cvref_t<T>, Entity> || std::derived_from<T, Entity>;
 
-[[nodiscard]] std::size_t Hash(Entity entity);
-
 namespace impl {
 
 struct IgnoreParentTransform {};
@@ -309,13 +304,9 @@ void ScaleY(Entity entity, float scale_y_multiplier);
 
 } // namespace ptgn
 
-namespace std {
-
 template <>
-struct hash<ptgn::Entity> {
+struct std::hash<ptgn::Entity> {
 	std::size_t operator()(const ptgn::Entity& entity) const {
-		return entity.GetHash();
+		return entity.GetUUID();
 	}
 };
-
-} // namespace std

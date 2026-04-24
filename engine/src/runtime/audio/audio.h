@@ -1,8 +1,10 @@
 #pragma once
 
+#include <ecs/ecs.h>
+
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
-#include <ecs/ecs.h>
+#include "core/util/hash.h"
 
 namespace ptgn {
 
@@ -28,13 +30,9 @@ private:
 
 } // namespace ptgn
 
-namespace std {
-
 template <>
-struct hash<ptgn::Audio> {
+struct std::hash<ptgn::Audio> {
 	std::size_t operator()(const ptgn::Audio& audio) const {
-		return std::hash<ecs::Entity>()(audio.GetEntity());
+		return ptgn::Hash(audio.GetEntity());
 	}
 };
-
-} // namespace std

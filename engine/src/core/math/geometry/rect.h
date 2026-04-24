@@ -29,6 +29,11 @@ public:
 
 	V2_float GetSize() const;
 
+	V2_float GetMin() const;
+	V2_float GetMax() const;
+	V2_float& GetMin();
+	V2_float& GetMax();
+
 	/// @return Size scaled relative to the transform.
 	V2_float GetSize(Transform transform) const;
 

@@ -22,6 +22,22 @@ V2_float Rect::GetSize() const {
 	return max_ - min_;
 }
 
+V2_float Rect::GetMin() const {
+	return min_;
+}
+
+V2_float Rect::GetMax() const {
+	return max_;
+}
+
+V2_float& Rect::GetMin() {
+	return min_;
+}
+
+V2_float& Rect::GetMax() {
+	return max_;
+}
+
 V2_float Rect::GetSize(Transform transform) const {
 	auto size{ GetSize() };
 	auto scale{ transform.GetScale() };

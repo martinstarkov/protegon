@@ -153,3 +153,10 @@ set_folder_if_target("vendor"
 )
 
 set_folder_if_target("vendor/GLFW3" update_mappings)
+
+foreach(tgt msdfgen-core msdfgen-ext msdf-atlas-gen)
+  if(TARGET ${tgt})
+    set_property(TARGET ${tgt} PROPERTY
+      MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+  endif()
+endforeach()

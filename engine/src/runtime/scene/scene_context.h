@@ -77,6 +77,9 @@ public:
 	/// @brief Returns the total number of frames that the application has run for.
 	std::size_t GetFrameCount() const;
 
+	// TODO: Move back to private.
+	impl::Renderer& global_renderer_;
+
 private:
 	friend class RenderTarget;
 	friend class Scene;
@@ -86,7 +89,6 @@ private:
 	/// size.
 	SceneCamera fixed_camera_;
 
-	impl::Renderer& global_renderer_;
 	Application& app_;
 };
 

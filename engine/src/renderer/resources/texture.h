@@ -1,10 +1,12 @@
 #pragma once
 
+#include <ecs/ecs.h>
+
 #include <ostream>
 
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
-#include <ecs/ecs.h>
+#include "core/util/hash.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 #include "renderer/resources/texture_format.h"
@@ -44,13 +46,9 @@ public:
 
 } // namespace ptgn
 
-namespace std {
-
 template <>
-struct hash<ptgn::Texture> {
+struct std::hash<ptgn::Texture> {
 	std::size_t operator()(const ptgn::Texture& texture) const {
-		return std::hash<ecs::Entity>()(texture.GetEntity());
+		return ptgn::Hash(texture.GetEntity());
 	}
 };
-
-} // namespace std

@@ -99,7 +99,7 @@ void Text::Draw(
 
 void Text::Draw(DrawContext& renderer, Entity text) {
 	// This wrapper exists so that buttons can draw offset text.
-	Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
+	// Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
 }
 
 void Text::RecreateTexture(Entity entity) {

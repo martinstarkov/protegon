@@ -67,38 +67,6 @@ T AssetOrKey<T>::Get(const Scene& scene) const {
 	return Get(context.asset);
 }
 
-template <AssetType T>
-static std::size_t HashImpl(AssetOrKey<T> asset) {
-	return std::visit(
-		[]<typename S>(const S& value) -> std::size_t {
-			if constexpr (std::is_same_v<S, T>) {
-				return std::hash<T>()(value);
-			} else if constexpr (std::is_same_v<S, std::size_t>) {
-				return value;
-			} else {
-				static_assert(false, "Incomplete visitor!");
-			}
-		},
-		asset.GetVariant()
-	);
-}
-
-std::size_t HashAsset(TextureOrKey texture) {
-	return HashImpl(texture);
-}
-
-std::size_t HashAsset(AudioOrKey audio) {
-	return HashImpl(audio);
-}
-
-std::size_t HashAsset(ShaderOrKey shader) {
-	return HashImpl(shader);
-}
-
-std::size_t HashAsset(FontOrKey font) {
-	return HashImpl(font);
-}
-
 template class AssetOrKey<Texture>;
 template class AssetOrKey<Audio>;
 template class AssetOrKey<Shader>;

@@ -9,6 +9,7 @@
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/util/concepts.h"
+#include "core/util/hash.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
@@ -292,18 +293,9 @@ template <Arithmetic T>
 
 } // namespace ptgn
 
-/// Custom hashing function for Vector4 class.
-/// This allows for use of unordered maps and sets with Vector2s as keys.
 template <ptgn::Arithmetic T>
 struct std::hash<ptgn::Vector4<T>> {
-	std::size_t operator()(const ptgn::Vector4<T>& v) const noexcept {
-		// Hashing combination algorithm from:
-		// https://stackoverflow.com/a/17017281
-		std::size_t value{ 17 };
-		value = value * 31 + std::hash<T>()(v.x);
-		value = value * 31 + std::hash<T>()(v.y);
-		value = value * 31 + std::hash<T>()(v.z);
-		value = value * 31 + std::hash<T>()(v.w);
-		return value;
+	std::size_t operator()(ptgn::Vector4<T> v) const noexcept {
+		return ptgn::Hash(v.x, v.y, v.z, v.w);
 	}
 };

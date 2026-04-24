@@ -7,9 +7,11 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/draw_context.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/text/font.h"
+#include "runtime/graphics/text/text_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 
@@ -18,6 +20,8 @@ using namespace ptgn;
 constexpr V2_int game_size{ 800, 800 };
 
 struct TextScene : public Scene {
+	TextSystem text_system;
+
 	static constexpr std::string_view font{ "arial" };
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
 
@@ -72,6 +76,12 @@ struct TextScene : public Scene {
 			)
 			.SetFontRenderMode(FontRenderMode::Shaded)
 			.SetShadingColor(color::Cyan);
+	}
+
+	void OnUpdate() override {
+		DrawContext draw_context{ ctx().global_renderer_ };
+
+		text_system.DrawText(draw_context, {});
 	}
 };
 
