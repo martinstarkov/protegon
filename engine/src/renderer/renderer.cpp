@@ -8,6 +8,7 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <utility>
 #include <variant>
@@ -15,6 +16,7 @@
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/graphics/surface.h"
 #include "core/log.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
@@ -79,10 +81,14 @@ Renderer::Renderer(Window& window, EventSink&& event_sink) :
 	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
 	SetViewProjection(view_projection);
 
-	auto max_texture_slots{ gl_->GetMaxTextureSlots() };
+	auto max_texture_slots{ GetMaxTextureSlots() };
 
 	std::vector<std::int32_t> samplers(max_texture_slots);
 	std::iota(samplers.begin(), samplers.end(), 0);
+
+	auto text{ gl_->shaders.GetProgram("text") };
+	auto _2 = gl_->Bind(text, false);
+	SetUniform(text, "u_Textures", samplers);
 
 	auto quad{ gl_->shaders.GetProgram("texture") };
 	auto _1 = gl_->Bind(quad, false);
@@ -389,21 +395,21 @@ void Renderer::FlushBatch() {
 	batch_textures_.clear();
 }
 
-std::pair<std::uint32_t, bool> Renderer::GetTextureSlot(TextureId tex) {
+Renderer::TextureSlotInfo Renderer::GetTextureSlot(TextureId tex) {
 	// Check if texture already exists in batch
 	for (std::uint32_t i{ 0 }; i < batch_textures_.size(); ++i) {
 		if (batch_textures_[i] == tex) {
-			return { i, false };
+			return { .slot = i, .push_to_batch = false };
 		}
 	}
 
 	// Flush if we would exceed GPU texture slots
-	if (batch_textures_.size() >= gl_->GetMaxTextureSlots()) {
+	if (batch_textures_.size() >= GetMaxTextureSlots()) {
 		FlushBatch();
 	}
 
 	// Its slot is index in the vector
-	return { static_cast<std::uint32_t>(batch_textures_.size()), true };
+	return { .slot = static_cast<std::uint32_t>(batch_textures_.size()), .push_to_batch = true };
 }
 
 template <typename State, InvocableR<void> F>
@@ -514,13 +520,11 @@ void Renderer::SetColorMask(const ColorMaskState& color_mask) {
 	});
 }
 
-void Renderer::FlushIfExceedsCapacity(
+bool Renderer::ExceedsCapacity(
 	std::size_t vertex_bytes, std::size_t indices, std::size_t vertex_byte_capacity
-) {
-	if (batch_vertices_.size() + vertex_bytes > vertex_byte_capacity ||
-		batch_indices_.size() + indices > kIndexCapacity) {
-		FlushBatch();
-	}
+) const {
+	return batch_vertices_.size() + vertex_bytes > vertex_byte_capacity ||
+		   batch_indices_.size() + indices > kIndexCapacity;
 }
 
 ShaderId Renderer::GetShader(std::string_view name) const {
@@ -641,8 +645,6 @@ void Renderer::DrawTexture(
 	PTGN_ASSERT(shader != 0);
 	PTGN_ASSERT(texture != 0);
 
-	auto [slot, push_texture] = GetTextureSlot(texture);
-
 	SetShader(shader);
 
 	if (shader_setup) {
@@ -653,18 +655,22 @@ void Renderer::DrawTexture(
 
 	auto color_n{ tint.Normalized() };
 
+	auto slot_info{ GetTextureSlot(texture) };
+
 	auto vertices{ GetVertices<TextureVertex, 4>([&](std::size_t i) {
 		PTGN_ASSERT(i < positions.size() && i < tex_coords.size());
-		return TextureVertex{ positions[i], depth, color_n, tex_coords[i], static_cast<float>(slot),
-							  entity_id };
+		return TextureVertex{
+			positions[i], depth, color_n, tex_coords[i], static_cast<float>(slot_info.slot),
+			entity_id
+		};
 	}) };
 
 	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
 
 	SubmitVertices<TextureVertex>(vertices, indices);
 
-	if (push_texture) {
-		batch_textures_.push_back(texture);
+	if (slot_info.push_to_batch) {
+		batch_textures_.emplace_back(texture);
 	}
 
 	if (flush_after) {
@@ -1004,16 +1010,24 @@ ShaderObject Renderer::CreateShader(
 	return ShaderObject{ this, gl_->shaders.CreateProgram(source, shader_name) };
 }
 
+TextureObject Renderer::CreateTexture(const Surface& surface, TextureFormat format) {
+	PTGN_ASSERT(
+		surface.GetChannelCount() == GetChannelCount(format),
+		"Surface and texture format channel count must match"
+	);
+	return CreateTexture(surface.Data(), surface.GetSize(), format);
+}
+
 TextureObject Renderer::CreateTexture(
-	const std::uint8_t* pixel_data, V2_int size, TextureFormat format, bool restore_bind
+	const std::uint8_t* pixel_data, V2_int size, TextureFormat format
 ) {
 	auto [pixel_format, pixel_type] = gl::GetPixelDataFormat(format);
 	PTGN_ASSERT(
 		pixel_type == gl::PixelDataType::UnsignedByte, "Texture format must have a type of bytes"
 	);
-	return TextureObject{ this, gl_->textures.CreateTexture(
-									pixel_data, pixel_format, pixel_type, size, format, restore_bind
-								) };
+	return TextureObject{
+		this, gl_->textures.CreateTexture(pixel_data, pixel_format, pixel_type, size, format)
+	};
 }
 
 void Renderer::SetUniform(ShaderId shader, const char* uniform_name, const Matrix4& v) {
@@ -1135,5 +1149,9 @@ TextureFormat Renderer::GetTextureFormat(TextureId texture) const {
 void Renderer::ResizeRenderTarget(RenderTargetId render_target, V2_int new_size) {
 	gl_->framebuffers.ResizeFramebuffer(FramebufferId{ render_target }, new_size);
 }
+
+std::size_t Renderer::GetMaxTextureSlots() const {
+	return gl_->GetMaxTextureSlots();
+};
 
 } // namespace ptgn::impl

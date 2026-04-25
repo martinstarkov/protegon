@@ -13,6 +13,7 @@
 #include <variant>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
@@ -50,6 +51,7 @@ class RenderTarget;
 
 namespace impl {
 
+class Surface;
 class Renderer;
 class ShaderObject;
 class TextureObject;
@@ -81,9 +83,8 @@ public:
 	ShaderObject CreateShader(
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 	);
-	TextureObject CreateTexture(
-		const std::uint8_t* pixel_data, V2_int size, TextureFormat format, bool restore_bind = true
-	);
+	TextureObject CreateTexture(const Surface& surface, TextureFormat format);
+	TextureObject CreateTexture(const std::uint8_t* pixel_data, V2_int size, TextureFormat format);
 	RenderTargetObject CreateRenderTarget(V2_int size, TextureFormat format);
 
 	ShaderId GetShader(std::string_view name) const;
@@ -178,16 +179,23 @@ public:
 
 	using BatchSetup = std::function<void(Renderer&)>;
 
-	template <VertexType TVertex>
-	void DrawVertices(
-		std::string_view pipeline_name, ShaderId shader, std::span<const TVertex> vertices,
-		std::span<const std::uint32_t> indices,
+	template <typename TVertex>
+	struct DefaultTextureIndexAccessor {
+		constexpr float& operator()(TVertex& vertex) const noexcept {
+			return vertex.tex_index[0];
+		}
+	};
+
+	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
+	void DrawTexturedQuads(
+		std::string_view pipeline_name, ShaderId shader, std::span<TVertex> vertices,
+		std::span<const std::uint32_t> local_indices, std::span<const TextureId> textures = {},
 		std::optional<std::size_t> batch_state_hash = std::nullopt,
-		const BatchSetup& batch_setup				= nullptr
+		const BatchSetup& batch_setup = {}, TAccessor get_tex_index = {}
 	) {
 		SetShader(shader);
 		SetPipeline(pipeline_name, batch_state_hash, batch_setup);
-		SubmitVertices(vertices, indices);
+		SubmitTexturedQuads<TVertex>(vertices, local_indices, textures, get_tex_index);
 	}
 
 	V2_int GetRenderTargetSize(RenderTargetId render_target) const;
@@ -273,15 +281,22 @@ private:
 	template <typename State, InvocableR<void> F>
 	friend void UpdateStateIfChanged(Renderer&, const std::optional<State>&, const State&, F&&);
 
+	struct TextureSlotInfo {
+		std::uint32_t slot{ 0 };
+		bool push_to_batch{ false };
+	};
+
+	std::size_t GetMaxTextureSlots() const;
+
 	/// @return The texture slot the given texture is bound to, and whether it should be pushed to
 	/// batch_textures.
-	std::pair<std::uint32_t, bool> GetTextureSlot(TextureId tex);
+	[[nodiscard]] TextureSlotInfo GetTextureSlot(TextureId tex);
 
-	/// @brief Flushes the batch if adding the given number of vertex bytes and indices would exceed
-	/// batch.
-	void FlushIfExceedsCapacity(
+	/// @brief True if adding the given number of vertex bytes and indices would exceed
+	/// batch capacity.
+	[[nodiscard]] bool ExceedsCapacity(
 		std::size_t vertex_bytes, std::size_t indices, std::size_t vertex_byte_capacity
-	);
+	) const;
 
 	/// @return True if the given texture is currently attached to the framebuffer that is currently
 	/// bound.
@@ -316,6 +331,117 @@ private:
 
 	[[nodiscard]] DisplayResizeInfo RecalculateDisplayViewport() const;
 
+	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
+	void SubmitTexturedQuads(
+		std::span<TVertex> vertices, std::span<const std::uint32_t> local_indices,
+		std::span<const TextureId> local_textures = {}, TAccessor get_tex_index = {}
+	) {
+		static_assert(std::is_trivially_copyable_v<TVertex>);
+		static_assert(std::is_standard_layout_v<TVertex>);
+
+		constexpr std::size_t kVerticesPerQuad{ 4 };
+		constexpr std::size_t kIndicesPerQuad{ 6 };
+
+		PTGN_ASSERT(
+			vertices.size() % kVerticesPerQuad == 0,
+			"Textured quad submission expects 4 vertices per quad"
+		);
+		PTGN_ASSERT(
+			local_indices.size() % kIndicesPerQuad == 0,
+			"Textured quad submission expects 6 indices per quad"
+		);
+
+		std::vector<TVertex> chunk_vertices;
+		std::vector<std::uint32_t> chunk_indices;
+
+		chunk_vertices.reserve(std::min<std::size_t>(vertices.size(), kVertexCapacity));
+		chunk_indices.reserve(std::min<std::size_t>(local_indices.size(), kIndexCapacity));
+
+		auto flush_chunk = [&]() {
+			if (chunk_vertices.empty()) {
+				return;
+			}
+
+			SubmitVertices<TVertex>(chunk_vertices, chunk_indices);
+			chunk_vertices.clear();
+			chunk_indices.clear();
+		};
+
+		std::size_t quad_count{ vertices.size() / kVerticesPerQuad };
+
+		for (std::size_t quad{ 0 }; quad < quad_count; ++quad) {
+			std::size_t vertex_begin{ quad * kVerticesPerQuad };
+			std::size_t index_begin{ quad * kIndicesPerQuad };
+
+			TextureId texture{ 0 };
+			float batch_texture_slot{ 0.0f };
+
+			if (!local_textures.empty()) {
+				auto local_texture_index{
+					static_cast<std::size_t>(get_tex_index(vertices[vertex_begin]))
+				};
+
+				PTGN_ASSERT(
+					local_texture_index < local_textures.size(),
+					"Invalid local texture index in submitted vertex"
+				);
+
+				texture = local_textures[local_texture_index];
+
+				const bool texture_already_bound{ std::ranges::find(batch_textures_, texture) !=
+												  batch_textures_.end() };
+
+				if (!texture_already_bound && batch_textures_.size() >= GetMaxTextureSlots()) {
+					flush_chunk();
+					FlushBatch();
+				}
+
+				auto slot_info{ GetTextureSlot(texture) };
+
+				if (slot_info.push_to_batch) {
+					batch_textures_.push_back(texture);
+				}
+
+				batch_texture_slot = static_cast<float>(slot_info.slot);
+			}
+
+			const bool quad_would_exceed_chunk{ ExceedsCapacity(
+				(chunk_vertices.size() + kVerticesPerQuad) * sizeof(TVertex),
+				chunk_indices.size() + kIndicesPerQuad, kVertexCapacity * sizeof(TVertex)
+			) };
+
+			if (quad_would_exceed_chunk) {
+				flush_chunk();
+			}
+
+			PTGN_ASSERT(
+				!ExceedsCapacity(
+					kVerticesPerQuad * sizeof(TVertex), kIndicesPerQuad,
+					kVertexCapacity * sizeof(TVertex)
+				),
+				"Single quad exceeds renderer batch capacity"
+			);
+
+			auto base_vertex{ static_cast<std::uint32_t>(chunk_vertices.size()) };
+
+			for (std::size_t i{ 0 }; i < kVerticesPerQuad; ++i) {
+				TVertex vertex{ vertices[vertex_begin + i] };
+
+				if (!local_textures.empty()) {
+					get_tex_index(vertex) = batch_texture_slot;
+				}
+
+				chunk_vertices.push_back(vertex);
+			}
+
+			for (std::size_t i{ 0 }; i < kIndicesPerQuad; ++i) {
+				chunk_indices.push_back(base_vertex + local_indices[index_begin + i]);
+			}
+		}
+
+		flush_chunk();
+	}
+
 	template <VertexType TVertex>
 	void SubmitVertices(
 		std::span<const TVertex> vertices, std::span<const std::uint32_t> local_indices
@@ -323,9 +449,16 @@ private:
 		static_assert(std::is_trivially_copyable_v<TVertex>);
 		static_assert(std::is_standard_layout_v<TVertex>);
 
-		FlushIfExceedsCapacity(
-			vertices.size() * sizeof(TVertex), local_indices.size(),
-			kVertexCapacity * sizeof(TVertex)
+		auto vertex_bytes{ vertices.size() * sizeof(TVertex) };
+		auto vertex_byte_capacity{ kVertexCapacity * sizeof(TVertex) };
+
+		if (ExceedsCapacity(vertex_bytes, local_indices.size(), vertex_byte_capacity)) {
+			FlushBatch();
+		}
+
+		PTGN_ASSERT(
+			!ExceedsCapacity(vertex_bytes, local_indices.size(), vertex_byte_capacity),
+			"Attempting to batch too many vertices or indices in one call"
 		);
 
 		auto base_vertex{ static_cast<std::uint32_t>(batch_vertices_.size() / sizeof(TVertex)) };

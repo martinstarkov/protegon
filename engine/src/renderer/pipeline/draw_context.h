@@ -40,8 +40,6 @@ class Scene;
 class SceneContext;
 class RenderContext;
 class DebugContext;
-// TODO: Remove.
-class TextSystem;
 
 namespace impl {
 
@@ -185,15 +183,19 @@ public:
 		Origin draw_origin, std::optional<BlendMode> blend_mode, int entity_id
 	);
 
-	template <impl::VertexType TVertex>
-	void DrawVertices(
-		std::string_view pipeline_name, impl::ShaderId shader, std::span<const TVertex> vertices,
-		std::span<const std::uint32_t> indices,
+	template <
+		impl::VertexType TVertex,
+		typename TAccessor = impl::Renderer::DefaultTextureIndexAccessor<TVertex>>
+	void DrawTexturedQuads(
+		std::string_view pipeline_name, impl::ShaderId shader, std::span<TVertex> vertices,
+		std::span<const std::uint32_t> local_indices,
+		std::span<const impl::TextureId> textures	  = {},
 		std::optional<std::size_t> batch_state_hash	  = std::nullopt,
-		const impl::Renderer::BatchSetup& batch_setup = nullptr
+		const impl::Renderer::BatchSetup& batch_setup = {}, TAccessor get_tex_index = {}
 	) {
-		renderer_.DrawVertices(
-			pipeline_name, shader, vertices, indices, batch_state_hash, batch_setup
+		renderer_.DrawTexturedQuads(
+			pipeline_name, shader, vertices, local_indices, textures, batch_state_hash, batch_setup,
+			get_tex_index
 		);
 	}
 
@@ -230,8 +232,6 @@ private:
 	friend class Scene;
 	friend class DebugContext;
 	friend class RenderContext;
-	// TODO: Remove.
-	friend class TextSystem;
 
 	impl::ShaderId GetShaderId(ShaderVariant shader) const;
 
