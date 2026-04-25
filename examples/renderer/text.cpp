@@ -39,6 +39,8 @@ struct TextScene : public Scene {
 		return text;
 	}
 
+	float scale{ 40.0f };
+
 	void OnEnter() override {
 		ctx().renderer.SetGameSize(game_size);
 		SetBackgroundColor(color::LightGray);
@@ -86,19 +88,22 @@ struct TextScene : public Scene {
 	void OnUpdate() override {
 		MoveWASD(ctx().camera, V2_float{ 300 } * ctx().dt().count());
 		if (ctx().input.KeyHeld(Key::Q)) {
+			scale += -10.0f * ctx().dt().count();
 			ctx().camera.Zoom(V2_float{ 10.0f } * ctx().dt().count());
 		} else if (ctx().input.KeyHeld(Key::E)) {
+			scale += 10.0f * ctx().dt().count();
 			ctx().camera.Zoom(-V2_float{ 10.0f } * ctx().dt().count());
 		}
+		scale = std::clamp(scale, 0.0001f, 10000.0f);
 	}
 
 	void OnRender() override {
 		DrawContext draw_context{ ctx().global_renderer_ };
 
-		// draw_context.DrawTexture(
-		//	msdf_font.GetAtlasTexture(), {}, 0.0f, msdf_font.GetAtlasSize(), Origin::Center,
-		//	color::White, impl::GetDefaultTextureCoordinates<false>(), std::nullopt, -1
-		//);
+		/*draw_context.DrawTexture(
+			msdf_font.GetAtlasTexture(), {}, 0.0f, msdf_font.GetAtlasSize(), Origin::Center,
+			color::White, impl::GetDefaultTextureCoordinates<false>(), std::nullopt, -1
+		);*/
 
 		text_system.DrawText(draw_context, {}, &msdf_font);
 	}
