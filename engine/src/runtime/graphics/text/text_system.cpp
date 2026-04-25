@@ -831,8 +831,8 @@ void TextSystem::EmitGlyphQuad(
 		quad_max		= center + (quad_max - center) * scale;
 	}
 
-	quad_min = FastFloor(quad_min);
-	quad_max = FastFloor(quad_max);
+	/*quad_min = FastFloor(quad_min);
+	quad_max = FastFloor(quad_max);*/
 
 	auto color_n{ glyph.render_style.color.Normalized() };
 
