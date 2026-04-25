@@ -20,7 +20,10 @@ namespace impl {
 
 class Surface {
 public:
-	Surface(V2_int size, std::span<const std::uint8_t> pixels, int channels = 4);
+	Surface(
+		V2_int size, std::span<const std::uint8_t> pixels, int channels = 4,
+		bool flip_vertically = false
+	);
 
 	explicit Surface(const path& filepath, int desired_channels = 4);
 
@@ -47,6 +50,8 @@ public:
 			}
 		}
 	}
+
+	int GetChannelCount() const;
 
 	V2_int GetSize() const;
 

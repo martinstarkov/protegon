@@ -19,14 +19,32 @@
 
 namespace ptgn::impl {
 
-Surface::Surface(V2_int size, std::span<const std::uint8_t> pixels, int channels) :
-	channels_{ channels }, pixels_(pixels.begin(), pixels.end()), size_{ size } {
+Surface::Surface(
+	V2_int size, std::span<const std::uint8_t> pixels, int channels, bool flip_vertically
+) :
+	channels_{ channels }, size_{ size } {
 	PTGN_ASSERT(channels > 0 && channels <= 4, "Invalid channel count: ", channels);
 	PTGN_ASSERT(size.x > 0 && size.y > 0, "Invalid surface size: ", size);
 	PTGN_ASSERT(
 		pixels.size() == static_cast<std::size_t>(size.x) * size.y * channels,
 		"Pixel data size does not match expected size for given surface dimensions"
 	);
+	if (!flip_vertically) {
+		pixels_ = std::vector<std::uint8_t>(pixels.begin(), pixels.end());
+	} else {
+		auto row_bytes{ static_cast<std::size_t>(size.x) * static_cast<std::size_t>(channels) };
+
+		pixels_.resize(pixels.size());
+
+		for (std::size_t dst_row{ 0 }; dst_row < static_cast<std::size_t>(size.y); ++dst_row) {
+			std::size_t src_row{ static_cast<std::size_t>(size.y) - dst_row - 1 };
+
+			std::copy_n(
+				pixels.begin() + static_cast<std::ptrdiff_t>(src_row * row_bytes), row_bytes,
+				pixels_.begin() + static_cast<std::ptrdiff_t>(dst_row * row_bytes)
+			);
+		}
+	}
 }
 
 Surface::Surface(const path& filepath, int desired_channels) {
@@ -105,6 +123,10 @@ Color Surface::GetPixel(std::size_t pixel_index) const {
 
 	return { pixels_[byte_index + 0], pixels_[byte_index + 1], pixels_[byte_index + 2],
 			 pixels_[byte_index + 3] };
+}
+
+int Surface::GetChannelCount() const {
+	return channels_;
 }
 
 V2_int Surface::GetSize() const {
