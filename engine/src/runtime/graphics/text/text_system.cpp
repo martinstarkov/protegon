@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <iterator>
 #include <list>
 #include <optional>
 #include <string>
@@ -18,6 +19,7 @@
 #include "core/util/hash.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/id.h"
 #include "renderer/vertex/vertex.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
@@ -175,7 +177,7 @@ TextMeasurement TextSystem::Measure(
 
 void TextSystem::BuildVertices(
 	TextLayout& layout, TextVertexBuildParams params, std::vector<impl::TextureVertex>& vertices,
-	std::vector<std::uint32_t>& indices
+	std::vector<std::uint32_t>& local_indices, std::vector<impl::TextureId>& local_textures
 ) const {
 	for (GlyphInstance& glyph : layout.glyphs) {
 		if (!glyph.visible) {
@@ -195,7 +197,17 @@ void TextSystem::BuildVertices(
 			}
 		}
 
-		EmitGlyphQuad(glyph, params, vertices, indices);
+		auto it{ std::ranges::find(local_textures, glyph.texture) };
+
+		if (it == local_textures.end()) {
+			local_textures.push_back(glyph.texture);
+			glyph.texture_index = static_cast<std::uint32_t>(local_textures.size() - 1);
+		} else {
+			glyph.texture_index =
+				static_cast<std::uint32_t>(std::distance(local_textures.begin(), it));
+		}
+
+		EmitGlyphQuad(glyph, params, vertices, local_indices);
 	}
 }
 
@@ -410,12 +422,13 @@ std::optional<TextSystem::ResolvedGlyph> TextSystem::ResolveGlyph(
 		return std::nullopt;
 	}
 
-	ResolvedGlyph resolved{};
+	ResolvedGlyph resolved;
 	resolved.codepoint				= codepoint;
 	resolved.metrics				= *metrics;
 	resolved.texture_index			= font->GetAtlasTextureIndex();
 	resolved.source_run_index		= source_run_index;
 	resolved.source_codepoint_index = source_codepoint_index;
+	resolved.texture				= font->GetAtlasTexture();
 
 	resolved.render_style.color			   = run.style.color;
 	resolved.render_style.effect.type	   = run.style.effect.type;
@@ -487,7 +500,7 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 		float justify_extra{ 0.0f };
 		for (GlyphInstance& glyph : current_line_glyphs) {
 			glyph.position.x	+= x_offset + justify_extra;
-			glyph.position.y	+= box.rect.GetMax().y;
+			glyph.position.y	+= box.rect.GetMin().y;
 			glyph.line_index	 = layout.lines.size();
 			glyph.visible_order	 = visible_order++;
 
@@ -508,7 +521,7 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 
 		current_line_glyphs.clear();
 		current_line_size  = {};
-		y				  -= line.size.y;
+		y				  += line.size.y;
 	};
 
 	for (RichTextToken& token : tokens) {
@@ -544,6 +557,7 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 				glyph.source_run_index		 = token.run_index;
 				glyph.source_codepoint_index = 0;
 				glyph.render_style			 = space_glyph->render_style;
+				glyph.texture				 = space_glyph->texture;
 				current_line_glyphs.push_back(glyph);
 			}
 
@@ -578,6 +592,7 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 				glyph.source_run_index		 = resolved->source_run_index;
 				glyph.source_codepoint_index = resolved->source_codepoint_index;
 				glyph.render_style			 = resolved->render_style;
+				glyph.texture				 = resolved->texture;
 				current_line_glyphs.push_back(glyph);
 
 				current_line_size.x += resolved->metrics.advance;
@@ -605,6 +620,7 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 			glyph.source_run_index		 = resolved->source_run_index;
 			glyph.source_codepoint_index = resolved->source_codepoint_index;
 			glyph.render_style			 = resolved->render_style;
+			glyph.texture				 = resolved->texture;
 			current_line_glyphs.push_back(glyph);
 
 			x += resolved->metrics.advance;
@@ -771,6 +787,7 @@ void TextSystem::ApplyEllipsisForMaxLines(
 		glyph.render_style			 = resolved->render_style;
 		glyph.line_index			 = last_visible_line_index;
 		glyph.visible_order			 = layout->glyphs.size();
+		glyph.texture				 = resolved->texture;
 		layout->glyphs.push_back(glyph);
 
 		start_x += resolved->metrics.advance;
@@ -801,7 +818,7 @@ void TextSystem::ApplyClipVisibility(Rect clip_rect, TextLayout* layout) {
 
 void TextSystem::EmitGlyphQuad(
 	GlyphInstance& glyph, const TextVertexBuildParams& params,
-	std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& indices
+	std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& local_indices
 ) {
 	V2_float effect_offset{ glyph.GetEffectOffset(params.time) };
 
@@ -814,59 +831,39 @@ void TextSystem::EmitGlyphQuad(
 		quad_max		= center + (quad_max - center) * scale;
 	}
 
+	quad_min = FastFloor(quad_min);
+	quad_max = FastFloor(quad_max);
+
 	auto color_n{ glyph.render_style.color.Normalized() };
 
-	auto base_index{ static_cast<std::uint32_t>(vertices.size()) };
+	vertices.emplace_back(
+		quad_min, params.depth, color_n, glyph.uv.GetMin(), static_cast<float>(glyph.texture_index),
+		params.entity_id
+	);
 
-	impl::TextureVertex v0{
-		{ quad_min.x, quad_min.y },
-		params.depth,
-		color_n,
-		glyph.uv.GetMin(),
-		static_cast<float>(glyph.texture_index),
-		params.entity_id,
-	};
+	vertices.emplace_back(
+		V2_float{ quad_max.x, quad_min.y }, params.depth, color_n,
+		V2_float{ glyph.uv.GetMax().x, glyph.uv.GetMin().y },
+		static_cast<float>(glyph.texture_index), params.entity_id
+	);
 
-	impl::TextureVertex v1{
-		{ quad_min.x, quad_max.y },
-		params.depth,
-		color_n,
-		{ glyph.uv.GetMin().x, glyph.uv.GetMax().y },
-		static_cast<float>(glyph.texture_index),
-		params.entity_id,
-	};
+	vertices.emplace_back(
+		quad_max, params.depth, color_n, glyph.uv.GetMax(), static_cast<float>(glyph.texture_index),
+		params.entity_id
+	);
 
-	impl::TextureVertex v2{
-		{ quad_max.x, quad_max.y },
-		params.depth,
-		color_n,
-		glyph.uv.GetMax(),
-		static_cast<float>(glyph.texture_index),
-		params.entity_id,
-	};
+	vertices.emplace_back(
+		V2_float{ quad_min.x, quad_max.y }, params.depth, color_n,
+		V2_float{ glyph.uv.GetMin().x, glyph.uv.GetMax().y },
+		static_cast<float>(glyph.texture_index), params.entity_id
+	);
 
-	impl::TextureVertex v3{
-		{ quad_max.x, quad_min.y },
-		params.depth,
-		color_n,
-		{ glyph.uv.GetMax().x, glyph.uv.GetMin().y },
-		static_cast<float>(glyph.texture_index),
-		params.entity_id,
-	};
-
-	vertices.emplace_back(v0);
-	vertices.emplace_back(v1);
-	vertices.emplace_back(v2);
-	vertices.emplace_back(v0);
-	vertices.emplace_back(v2);
-	vertices.emplace_back(v3);
-
-	indices.push_back(base_index + 0);
-	indices.push_back(base_index + 1);
-	indices.push_back(base_index + 2);
-	indices.push_back(base_index + 2);
-	indices.push_back(base_index + 3);
-	indices.push_back(base_index + 0);
+	local_indices.push_back(0);
+	local_indices.push_back(1);
+	local_indices.push_back(2);
+	local_indices.push_back(2);
+	local_indices.push_back(3);
+	local_indices.push_back(0);
 }
 
 void TextSystem::RenderText(
@@ -889,16 +886,17 @@ void TextSystem::RenderText(
 	params.reveal_glyph_count = reveal_glyph_count;
 
 	std::vector<impl::TextureVertex> text_vertices;
-	std::vector<std::uint32_t> text_indices;
+	std::vector<std::uint32_t> local_text_indices;
+	std::vector<impl::TextureId> text_textures;
 
-	BuildVertices(layout, params, text_vertices, text_indices);
+	BuildVertices(layout, params, text_vertices, local_text_indices, text_textures);
 
 	if (text_vertices.empty()) {
 		return;
 	}
 
-	renderer.DrawVertices<impl::TextureVertex>(
-		"text", text_shader, text_vertices, text_indices, style_hash,
+	renderer.DrawTexturedQuads<impl::TextureVertex>(
+		"text", text_shader, text_vertices, local_text_indices, text_textures, style_hash,
 		[style](impl::Renderer& renderer) {
 			auto text_shader{ renderer.GetShader("text") };
 			renderer.SetUniform(text_shader, "u_Weight", style.weight);
@@ -913,44 +911,36 @@ void TextSystem::RenderText(
 	);
 }
 
-void TextSystem::DrawText(DrawContext& renderer, Entity entity) {
+void TextSystem::DrawText(DrawContext& renderer, Entity entity, impl::FontData* font) {
 	// TODO: Pull this info from text entity.
 
 	std::optional<Rect> clip_rect{ std::nullopt };
-	std::size_t reveal_glyph_count{ std::numeric_limits<size_t>::max() };
+	constexpr std::size_t reveal_glyph_count{ std::numeric_limits<size_t>::max() };
 
-	static impl::MsdfFontData font{
-		renderer.renderer_, "assets/fonts/LiberationSans-Regular.ttf", 0, {}
-	};
+	// TextRunStyle base;
+	// base.font  = font;
+	// base.color = color::Black;
+	// base.scale = 32.0f;
 
-	TextRunStyle base{};
-	base.font  = &font;
-	base.color = { 1, 1, 1, 1 };
-	base.scale = 32.0f;
+	// TextLayoutRequest request;
+	// request.styled_text =
+	//	StyledTextBuilder{ base }.Text("Hello ").Color(color::Black).Bold().Text("world").Build();
 
-	TextLayoutRequest request{};
-	request.styled_text =
-		StyledTextBuilder{ base }.Text("Hello ").Color(color::Black).Bold().Text("world").Build();
+	// request.box = TextBox{ .rect  = { { 0.0f, 0.0f }, { 400.0f, 100.0f } },
+	//					   .style = {
+	//						   .horizontal_align = HorizontalAlign::Center,
+	//						   .vertical_align	 = VerticalAlign::Center,
+	//						   .wrap_mode		 = WrapMode::Word,
+	//					   } };
 
-	request.box = TextBox{ .rect  = { { 0.0f, 0.0f }, { 400.0f, 100.0f } },
-						   .style = {
-							   .horizontal_align = HorizontalAlign::Center,
-							   .vertical_align	 = VerticalAlign::Center,
-							   .wrap_mode		 = WrapMode::Word,
-						   } };
+	auto request = MakeTextRequest(
+		"HELPME", *font, { { 0, 0 }, { 400, 100 } }, 48.0f, color::Black,
+		{ .horizontal_align = HorizontalAlign::Center,
+		  .vertical_align	= VerticalAlign::Center,
+		  .wrap_mode		= WrapMode::Word }
+	);
 
-	// auto request = text::MakeTextRequest(
-	//   "Hello world",
-	//   font,
-	//   {{0, 0}, {400, 100}},
-	//   32.0f,
-	//   {1, 1, 1, 1},
-	//   { .horizontal_align = text::HorizontalAlign::kCenter,
-	//     .vertical_align = text::VerticalAlign::kCenter,
-	//     .wrap_mode = text::WrapMode::kWord }
-	//);
-
-	auto depth{ 0 /*GetDepth(entity)*/ };
+	auto depth{ 0.0f /*GetDepth(entity)*/ };
 	auto entity_id{ 1 /*entity.GetUUID()*/ };
 
 	RenderText(renderer, request, depth, entity_id, clip_rect, reveal_glyph_count);

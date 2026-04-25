@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <list>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -15,6 +16,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/surface.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/util/file.h"
@@ -99,14 +101,19 @@ MsdfFontData::MsdfFontData(
 	generator.setThreadCount(static_cast<int>(create_info.thread_count));
 	generator.generate(glyphs.data(), static_cast<int>(glyphs.size()));
 
-	msdfgen::BitmapConstRef<std::uint8_t, 3> bitmap{ generator.atlasStorage() };
+	constexpr int channel_count{ 3 };
+
+	msdfgen::BitmapConstRef<std::uint8_t, channel_count> bitmap{ generator.atlasStorage() };
 
 	atlas_size_ = { bitmap.width, bitmap.height };
 
-	// TODO: Change restore bind to true.
-	TextureObject texture{ renderer.CreateTexture(
-		bitmap.pixels, { bitmap.width, bitmap.height }, TextureFormat::RGB8, false
-	) };
+	auto count{ static_cast<std::size_t>(bitmap.width) * static_cast<std::size_t>(bitmap.height) *
+				channel_count };
+
+	Surface surface{ atlas_size_, std::span<const std::uint8_t>{ bitmap.pixels, count },
+					 channel_count, true };
+
+	TextureObject texture{ renderer.CreateTexture(surface, TextureFormat::RGB8) };
 
 	atlas_texture_ = std::move(texture);
 
@@ -134,13 +141,14 @@ MsdfFontData::MsdfFontData(
 		out.codepoint = glyph.getCodepoint();
 		out.advance	  = static_cast<float>(glyph.getAdvance());
 
-		out.plane = Rect{ { static_cast<float>(plane_left), static_cast<float>(plane_bottom) },
-						  { static_cast<float>(plane_right), static_cast<float>(plane_top) } };
+		out.plane = Rect{ { static_cast<float>(plane_left), -static_cast<float>(plane_top) },
+						  { static_cast<float>(plane_right), -static_cast<float>(plane_bottom) } };
 
-		out.uv = Rect{ { static_cast<float>(atlas_left) / static_cast<float>(bitmap.width),
-						 static_cast<float>(atlas_bottom) / static_cast<float>(bitmap.height) },
-					   { static_cast<float>(atlas_right) / static_cast<float>(bitmap.width),
-						 static_cast<float>(atlas_top) / static_cast<float>(bitmap.height) } };
+		out.uv =
+			Rect{ { static_cast<float>(atlas_left) / static_cast<float>(bitmap.width),
+					1.0f - static_cast<float>(atlas_top) / static_cast<float>(bitmap.height) },
+				  { static_cast<float>(atlas_right) / static_cast<float>(bitmap.width),
+					1.0f - static_cast<float>(atlas_bottom) / static_cast<float>(bitmap.height) } };
 
 		glyphs_[out.codepoint] = out;
 	}

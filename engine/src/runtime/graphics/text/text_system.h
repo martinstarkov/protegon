@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "core/math/geometry/rect.h"
+#include "renderer/resources/id.h"
 #include "renderer/vertex/vertex.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/text/font_data.h"
@@ -70,7 +71,8 @@ public:
 
 	void BuildVertices(
 		TextLayout& layout, TextVertexBuildParams params,
-		std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& indices
+		std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& local_indices,
+		std::vector<impl::TextureId>& local_textures
 	) const;
 
 	[[nodiscard]] static StyledText MakePlainText(
@@ -84,7 +86,7 @@ public:
 		std::optional<Rect> clip_rect, std::size_t reveal_glyph_count
 	);
 
-	void DrawText(DrawContext& renderer, Entity text);
+	void DrawText(DrawContext& renderer, Entity text, impl::FontData* font);
 
 private:
 	struct ResolvedGlyph {
@@ -94,6 +96,7 @@ private:
 		std::size_t source_run_index{ 0 };
 		std::size_t source_codepoint_index{ 0 };
 		std::uint32_t texture_index{ 0 };
+		impl::TextureId texture{ 0 };
 	};
 
 	struct CandidateLayout {
@@ -132,7 +135,7 @@ private:
 
 	static void EmitGlyphQuad(
 		GlyphInstance& glyph, const TextVertexBuildParams& params,
-		std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& indices
+		std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& local_indices
 	);
 
 	TextLayoutCache cache_;

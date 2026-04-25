@@ -21,14 +21,44 @@ uniform vec4 u_GlowColor;     // alpha <= 0 disables
 uniform float u_GlowOuterWidth; 
 uniform float u_GlowSoftness;
 
+// TODO: Get from font. Should be the same as the value used when creating the font atlas.
+uniform float u_PixelRange = 4.0f; // same value as create_info.pixel_range
+
 float Median(float r, float g, float b) {
 	return max(min(r, g), min(max(r, g), b));
 }
 
-float Coverage(float distance, float weight, float softness) {
-	float sd = distance - weight;
-	float px = max(fwidth(sd), 0.0001f);
-	return clamp((sd / px) / max(softness, 0.0001f) + 0.5f, 0.0f, 1.0f);
+//float Coverage(float distance, float weight, float softness) {
+//	float sd = distance - weight;
+//	float px = max(fwidth(sd), 0.0001f);
+//	return clamp((sd / px) / max(softness, 0.0001f) + 0.5f, 0.0f, 1.0f);
+//}
+
+//float ScreenPxRange() {
+//	vec2 texture_size = vec2(textureSize(u_Textures[int(v_TexIndex)], 0));
+//	vec2 unit_range = vec2(u_PixelRange) / texture_size;
+//	vec2 screen_tex_size = vec2(1.0f) / fwidth(v_TexCoord);
+//	return max(0.5f * dot(unit_range, screen_tex_size), 1.0f);
+//}
+//
+//float Coverage(float distance, float weight, float softness) {
+//	float screen_px_distance = ScreenPxRange() * (distance - weight);
+//	float coverage = clamp(screen_px_distance + 0.5f, 0.0f, 1.0f);
+//
+//	// softness > 1 softens, softness < 1 sharpens. Default should be 1.0.
+//	return smoothstep(0.0f, max(softness, 0.0001f), coverage);
+//}
+
+float ScreenPxRange() {
+	vec2 texture_size = vec2(textureSize(u_Textures[int(v_TexIndex)], 0));
+	vec2 unit_range = vec2(u_PixelRange) / texture_size;
+	vec2 screen_tex_size = vec2(1.0) / fwidth(v_TexCoord);
+	return max(0.5 * dot(unit_range, screen_tex_size), 1.0);
+}
+
+float Coverage(float distance, float weight) {
+	float screen_px_distance = ScreenPxRange() * (distance - weight);
+	return clamp(screen_px_distance + 0.5, 0.0, 1.0);
 }
 
 void main() {
@@ -38,11 +68,14 @@ void main() {
 
 	float distance = Median(texColor.r, texColor.g, texColor.b);
 
-	float fill = Coverage(distance, u_Weight, u_Softness);
+	float fill = Coverage(distance, u_Weight);
 	vec4 color = vec4(v_Color.rgb, v_Color.a * fill);
 
+	//float fill = Coverage(distance, u_Weight, u_Softness);
+	//vec4 color = vec4(v_Color.rgb, v_Color.a * fill);
+
     if (u_OutlineWidth > 0.0f && u_OutlineColor.a > 0.0f) {
-        float outline = Coverage(distance, u_Weight - u_OutlineWidth, u_OutlineSoftness);
+        float outline = Coverage(distance, u_Weight - u_OutlineWidth);//, u_OutlineSoftness);
         float ring = max(outline - fill, 0.0f);
 
         vec4 outline_color = vec4(u_OutlineColor.rgb, u_OutlineColor.a * v_Color.a * ring);
@@ -51,7 +84,7 @@ void main() {
     }
 
     if (u_GlowOuterWidth > 0.0f && u_GlowColor.a > 0.0f) {
-        float glow = Coverage(distance, u_Weight - u_GlowOuterWidth, u_GlowSoftness);
+        float glow = Coverage(distance, u_Weight - u_GlowOuterWidth);//, u_GlowSoftness);
         glow = max(glow - fill, 0.0f);
 
         vec4 glow_color = vec4(u_GlowColor.rgb, u_GlowColor.a * v_Color.a * glow);

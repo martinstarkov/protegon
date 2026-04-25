@@ -5,6 +5,7 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "renderer/resources/id.h"
 
 namespace ptgn {
 
@@ -24,17 +25,9 @@ struct GlyphEffectStyle {
 	float phase{ 0.0f };
 };
 
-struct GlyphEffectInstance {
-	GlyphEffectType type{ GlyphEffectType::None };
-	float amplitude{};
-	float frequency{};
-	float speed{};
-	float phase{};
-};
-
 struct GlyphRenderStyle {
 	Color color{ color::White };
-	GlyphEffectInstance effect;
+	GlyphEffectStyle effect;
 };
 
 struct GlyphInstance {
@@ -43,13 +36,14 @@ struct GlyphInstance {
 	Rect plane;
 	Rect uv;
 	std::uint32_t texture_index{ 0 };
+	impl::TextureId texture{ 0 };
 
 	std::size_t source_run_index{ 0 };
 	std::size_t source_codepoint_index{ 0 };
 	std::size_t line_index{ 0 };
 	std::size_t visible_order{ 0 };
 
-	GlyphRenderStyle render_style{};
+	GlyphRenderStyle render_style;
 	bool visible{ true };
 
 	V2_float GetEffectOffset(float time) const;

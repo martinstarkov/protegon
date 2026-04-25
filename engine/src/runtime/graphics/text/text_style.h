@@ -61,11 +61,11 @@ inline bool HasFlag(FontStyleFlags value, FontStyleFlags flag) {
 
 struct DistanceFieldStyle {
 	float weight{ 0.5f };
-	float softness{ 0.1f };
+	float softness{ 1.0f };
 
 	Color outline_color{ color::Black.WithAlpha(0) };
 	float outline_width{ 0.0f };
-	float outline_softness{ 0.1f };
+	float outline_softness{ 1.0f };
 
 	Color shadow_color{ color::Black.WithAlpha(0) };
 	V2_float shadow_offset;
@@ -73,7 +73,7 @@ struct DistanceFieldStyle {
 
 	Color glow_color{ color::White.WithAlpha(0) };
 	float glow_outer_width{ 0.0f };
-	float glow_softness{ 0.3f };
+	float glow_softness{ 1.0f };
 
 	bool operator==(const DistanceFieldStyle&) const = default;
 };

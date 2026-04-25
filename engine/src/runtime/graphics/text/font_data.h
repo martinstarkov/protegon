@@ -40,18 +40,21 @@ public:
 	virtual FontMetrics GetFontMetrics() const		   = 0;
 	virtual std::uint64_t GetFontId() const			   = 0;
 	virtual std::uint32_t GetAtlasTextureIndex() const = 0;
+	virtual TextureId GetAtlasTexture() const		   = 0;
 };
 
 class MsdfFontData final : public FontData {
 public:
 	struct CreateInfo {
-		float em_size{ 40.0f };
-		float pixel_range{ 2.0f };
+		float em_size{ 48.0f };
+		float pixel_range{ 4.0f };
 		double max_corner_angle{ 3.0 };
 		std::uint32_t charset_begin{ 0x20 };
 		std::uint32_t charset_end{ 0xFF };
 		std::uint32_t thread_count{ 8 };
 	};
+
+	MsdfFontData() = default;
 
 	MsdfFontData(
 		Renderer& renderer, const path& font_path, std::uint32_t atlas_texture_index,
@@ -68,8 +71,8 @@ public:
 	FontMetrics GetFontMetrics() const override;
 	std::uint64_t GetFontId() const override;
 	std::uint32_t GetAtlasTextureIndex() const override;
+	TextureId GetAtlasTexture() const override;
 
-	TextureId GetAtlasTexture() const;
 	V2_int GetAtlasSize() const;
 	float GetPixelRange() const;
 	float GetEmSize() const;
