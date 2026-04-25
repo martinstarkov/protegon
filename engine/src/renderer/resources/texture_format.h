@@ -1,6 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <utility>
+
+#include "core/log.h"
 
 namespace ptgn {
 
@@ -51,11 +54,38 @@ enum class TextureWrap : std::int32_t {
 	ClampToEdge	   = 0x812F	 // GL_CLAMP_TO_EDGE
 };
 
+inline int GetChannelCount(TextureFormat format) {
+	switch (format) {
+		using enum TextureFormat;
+		case R8:				[[fallthrough]];
+		case R16F:				[[fallthrough]];
+		case R32F:				return 1;
+		case RG8:				[[fallthrough]];
+		case RG16F:				[[fallthrough]];
+		case RG32F:				return 2;
+		case RGB8:				[[fallthrough]];
+		case RGB16F:			[[fallthrough]];
+		case RGB32F:			[[fallthrough]];
+		case SRGB8:				return 3;
+		case RGBA8:				[[fallthrough]];
+		case RGBA16F:			[[fallthrough]];
+		case RGBA32F:			[[fallthrough]];
+		case Depth24_Stencil8:	[[fallthrough]];
+		case Depth32F_Stencil8: [[fallthrough]];
+		case SRGB8_ALPHA8:		return 4;
+		case Depth16:			[[fallthrough]];
+		case Depth24:			[[fallthrough]];
+		case Depth32F:			return 0; // Depth formats don't have color channels.
+		case Stencil8:			return 0; // Stencil formats don't have color channels.
+		default:				PTGN_ERROR("Unknown TextureFormat: ", std::to_underlying(format));
+	}
+}
+
 inline bool IsDepthOnlyFormat(TextureFormat fmt) {
 	switch (fmt) {
 		using enum TextureFormat;
-		case Depth16:
-		case Depth24:
+		case Depth16:  [[fallthrough]];
+		case Depth24:  [[fallthrough]];
 		case Depth32F: return true;
 		default:	   return false;
 	}
@@ -68,10 +98,10 @@ inline bool IsStencilOnlyFormat(TextureFormat fmt) {
 inline bool IsDepthFormat(TextureFormat fmt) {
 	switch (fmt) {
 		using enum TextureFormat;
-		case Depth16:
-		case Depth24:
-		case Depth32F:
-		case Depth24_Stencil8:
+		case Depth16:			[[fallthrough]];
+		case Depth24:			[[fallthrough]];
+		case Depth32F:			[[fallthrough]];
+		case Depth24_Stencil8:	[[fallthrough]];
 		case Depth32F_Stencil8: return true;
 		default:				return false;
 	}
@@ -80,8 +110,8 @@ inline bool IsDepthFormat(TextureFormat fmt) {
 inline bool IsStencilFormat(TextureFormat fmt) {
 	switch (fmt) {
 		using enum TextureFormat;
-		case Stencil8:
-		case Depth24_Stencil8:
+		case Stencil8:			[[fallthrough]];
+		case Depth24_Stencil8:	[[fallthrough]];
 		case Depth32F_Stencil8: return true;
 		default:				return false;
 	}
@@ -94,13 +124,13 @@ inline bool IsColorFormat(TextureFormat fmt) {
 inline bool IsHDRFormat(TextureFormat fmt) {
 	switch (fmt) {
 		using enum TextureFormat;
-		case RGBA16F:
-		case RGBA32F:
-		case RGB16F:
-		case RGB32F:
-		case RG16F:
-		case RG32F:
-		case R16F:
+		case RGBA16F: [[fallthrough]];
+		case RGBA32F: [[fallthrough]];
+		case RGB16F:  [[fallthrough]];
+		case RGB32F:  [[fallthrough]];
+		case RG16F:	  [[fallthrough]];
+		case RG32F:	  [[fallthrough]];
+		case R16F:	  [[fallthrough]];
 		case R32F:	  return true;
 		default:	  return false;
 	}
