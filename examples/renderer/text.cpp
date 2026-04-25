@@ -12,6 +12,7 @@
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text_system.h"
+#include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 
@@ -24,6 +25,8 @@ struct TextScene : public Scene {
 
 	static constexpr std::string_view font{ "arial" };
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
+
+	impl::MsdfFontData msdf_font;
 
 	Text CreateText(const Color& color, int index, std::string_view font_key = font) {
 		constexpr float stride{ 44.0f };
@@ -76,12 +79,28 @@ struct TextScene : public Scene {
 			)
 			.SetFontRenderMode(FontRenderMode::Shaded)
 			.SetShadingColor(color::Cyan);
+
+		msdf_font = { ctx().global_renderer_, "assets/fonts/LiberationSans-Regular.ttf", 0, {} };
 	}
 
 	void OnUpdate() override {
+		MoveWASD(ctx().camera, V2_float{ 300 } * ctx().dt().count());
+		if (ctx().input.KeyHeld(Key::Q)) {
+			ctx().camera.Zoom(V2_float{ 10.0f } * ctx().dt().count());
+		} else if (ctx().input.KeyHeld(Key::E)) {
+			ctx().camera.Zoom(-V2_float{ 10.0f } * ctx().dt().count());
+		}
+	}
+
+	void OnRender() override {
 		DrawContext draw_context{ ctx().global_renderer_ };
 
-		text_system.DrawText(draw_context, {});
+		// draw_context.DrawTexture(
+		//	msdf_font.GetAtlasTexture(), {}, 0.0f, msdf_font.GetAtlasSize(), Origin::Center,
+		//	color::White, impl::GetDefaultTextureCoordinates<false>(), std::nullopt, -1
+		//);
+
+		text_system.DrawText(draw_context, {}, &msdf_font);
 	}
 };
 
