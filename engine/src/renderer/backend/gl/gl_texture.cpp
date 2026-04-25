@@ -30,8 +30,8 @@ TextureId Textures::CreateTexture(
 
 	SetTextureData(texture, pixel_data, pixel_data_format, pixel_data_type, size, format);
 
-	constexpr TextureMinFilter min_filter{ TextureMinFilter::Nearest };
-	constexpr TextureMagFilter mag_filter{ TextureMagFilter::Nearest };
+	constexpr TextureMinFilter min_filter{ TextureMinFilter::Linear };
+	constexpr TextureMagFilter mag_filter{ TextureMagFilter::Linear };
 	constexpr TextureWrap wrap_s{ TextureWrap::Repeat };
 	constexpr TextureWrap wrap_t{ TextureWrap::Repeat };
 
