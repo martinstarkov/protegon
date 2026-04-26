@@ -313,7 +313,7 @@ static void CombineDebugCommands(
 }
 
 void Scene::InternalDraw() {
-	// TOOD: Move this logic elsewhere.
+	// TODO: Move this logic elsewhere.
 
 	auto game_size{ ctx().renderer.GetGameSize() };
 

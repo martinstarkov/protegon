@@ -101,7 +101,7 @@ struct BroadphaseScene : public Scene {
 #ifdef KDTREE
 
 		if (KDTREE) {
-			// TOOD: Fix.
+			// TODO: Fix.
 			// PTGN_PROFILE_FUNCTION();
 			// Check only collisions with relevant k-d tree nodes.
 
@@ -114,7 +114,7 @@ struct BroadphaseScene : public Scene {
 			// }
 			tree.EndFrameUpdate();
 		} else {
-			// TOOD: Fix.
+			// TODO: Fix.
 			// PTGN_PROFILE_FUNCTION();
 			std::vector<impl::KDObject> objects;
 			objects.reserve(GetEntityCount());

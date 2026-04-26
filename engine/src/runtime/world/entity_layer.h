@@ -15,7 +15,7 @@ private:
 
 class TileLayer : public Grid<impl::Tile> {
 public:
-	// TOOD: Change to take path.
+	// TODO: Change to take path.
 	TileLayer(
 		const path& tileset_path, V2_int tile_size, V2_int grid_size,
 		V2_float scale
