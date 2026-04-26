@@ -50,7 +50,7 @@ public:
 
 	bool operator==(const Shape&) const = default;
 
-	PTGN_REFLECT_VALUE(Shape, shape_)
+	PTGN_SERIALIZE_VALUE(Shape, shape_)
 private:
 	ShapeVariant shape_;
 };
@@ -87,7 +87,7 @@ public:
 	// friend void to_json(json& j, const ColliderShape& shape);
 	// friend void from_json(const json& j, ColliderShape& shape);
 
-	PTGN_REFLECT_VALUE(ColliderShape, shape_)
+	PTGN_SERIALIZE_VALUE(ColliderShape, shape_)
 private:
 	ColliderShapeVariant shape_;
 };
@@ -128,7 +128,7 @@ public:
 	// friend void to_json(json& j, const InteractiveShape& shape);
 	// friend void from_json(const json& j, InteractiveShape& shape);
 
-	PTGN_REFLECT_VALUE(InteractiveShape, shape_)
+	PTGN_SERIALIZE_VALUE(InteractiveShape, shape_)
 private:
 	InteractiveShapeVariant shape_;
 };

@@ -22,7 +22,7 @@ enum class TriggerCondition {
 	/// @brief Event triggered if the object is entirely contained within the dropzone.
 	Contains
 };
-PTGN_REFLECT_ENUM(TriggerCondition);
+PTGN_SERIALIZE_ENUM(TriggerCondition);
 
 /// @brief Represents the different phases of a drag event, which can be used to specify when
 /// certain conditions or callbacks should be evaluated for draggable and dropzone entities.
@@ -31,7 +31,7 @@ enum class DragEventPhase {
 	Drop,
 	Pickup
 };
-PTGN_REFLECT_ENUM(DragEventPhase);
+PTGN_SERIALIZE_ENUM(DragEventPhase);
 
 /// @brief Controls the lifecycle state of a behavior/component on an entity.
 enum class ComponentState {
@@ -42,7 +42,7 @@ enum class ComponentState {
 	/// @brief Component is removed entirely from the entity.
 	Removed
 };
-PTGN_REFLECT_ENUM(ComponentState);
+PTGN_SERIALIZE_ENUM(ComponentState);
 
 namespace impl {
 

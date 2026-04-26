@@ -47,7 +47,7 @@ public:
 
 	bool operator==(const RoundedRect&) const = default;
 
-	PTGN_REFLECT(RoundedRect, min_, max_, radius_)
+	PTGN_SERIALIZE(RoundedRect, min_, max_, radius_)
 
 private:
 	V2_float min_;

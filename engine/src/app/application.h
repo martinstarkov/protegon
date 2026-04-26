@@ -54,7 +54,7 @@ private:
 /// @brief Configuration data used to initialize an Application.
 struct ApplicationConfig {
 	WindowConfig window;
-	PTGN_REFLECT(ApplicationConfig, window)
+	PTGN_SERIALIZE(ApplicationConfig, window)
 };
 
 /// @brief Core engine entry point coordinating windowing, rendering,

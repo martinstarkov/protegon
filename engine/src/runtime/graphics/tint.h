@@ -8,10 +8,10 @@ namespace ptgn {
 
 namespace impl {
 
-struct Tint : public ColorComponent {
-	using ColorComponent::ColorComponent;
+struct Tint {
+	Color color{ color::White };
 
-	Tint() : ColorComponent{ color::White } {}
+	PTGN_SERIALIZE_VALUE(Tint, color);
 };
 
 } // namespace impl

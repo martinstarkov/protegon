@@ -26,7 +26,7 @@
 //
 //	friend bool operator==(const PostFX&, const PostFX&) = default;
 //
-//	PTGN_REFLECT(PostFX, post_fx_)
+//	PTGN_SERIALIZE(PostFX, post_fx_)
 // };
 //
 // struct PreFX {
@@ -36,7 +36,7 @@
 //
 //	friend bool operator==(const PreFX&, const PreFX&) = default;
 //
-//	PTGN_REFLECT(PreFX, pre_fx_)
+//	PTGN_SERIALIZE(PreFX, pre_fx_)
 // };
 //
 // } // namespace ptgn

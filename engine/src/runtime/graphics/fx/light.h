@@ -37,7 +37,7 @@ struct LightProperties {
 	/// @brief Falloff of the light. The higher the value, the less light reaches the outer radius.
 	float falloff{ 2.0f };
 
-	PTGN_REFLECT(LightProperties, radius, color, cone_angle, direction_angle, intensity, falloff)
+	PTGN_SERIALIZE(LightProperties, radius, color, cone_angle, direction_angle, intensity, falloff)
 };
 
 namespace impl {
@@ -60,7 +60,7 @@ struct LightData {
 	/// point light.
 	std::optional<Radians> cone_angle;
 
-	PTGN_REFLECT(LightData, intensity, ambient_intensity, ambient_color, falloff, cone_angle)
+	PTGN_SERIALIZE(LightData, intensity, ambient_intensity, ambient_color, falloff, cone_angle)
 };
 
 } // namespace impl

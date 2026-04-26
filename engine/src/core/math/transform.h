@@ -98,7 +98,7 @@ struct Transform {
 		return transformed_points;
 	}
 
-	PTGN_REFLECT(Transform, position_, rotation_, scale_)
+	PTGN_SERIALIZE(Transform, position_, rotation_, scale_)
 private:
 	void Apply(std::span<const V2_float> points, std::span<V2_float> out_transformed_points) const;
 

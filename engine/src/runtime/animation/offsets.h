@@ -29,7 +29,7 @@ struct Offsets {
 	/// @brief User applied offset.
 	Transform custom;
 
-	PTGN_REFLECT(Offsets, shake, bounce, custom)
+	PTGN_SERIALIZE(Offsets, shake, bounce, custom)
 };
 
 } // namespace impl

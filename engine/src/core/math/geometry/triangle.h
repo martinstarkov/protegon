@@ -26,7 +26,7 @@ public:
 
 	bool operator==(const Triangle&) const = default;
 
-	PTGN_REFLECT(Triangle, vertices_)
+	PTGN_SERIALIZE(Triangle, vertices_)
 
 private:
 	std::array<V2_float, 3> vertices_;

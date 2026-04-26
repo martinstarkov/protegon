@@ -21,7 +21,7 @@ enum class CollisionResponse {
 	Push,	/// Velocity set perpendicular to collision normal at partial speed.
 	Stick	/// Velocity set to 0.
 };
-PTGN_REFLECT_ENUM(CollisionResponse);
+PTGN_SERIALIZE_ENUM(CollisionResponse);
 
 enum class CollisionMode {
 	None,		/// No collision checks.
@@ -29,7 +29,7 @@ enum class CollisionMode {
 	Discrete,	/// Discrete collision detection.
 	Continuous, /// Continuous collision detection for high velocity colliders.
 };
-PTGN_REFLECT_ENUM(CollisionMode);
+PTGN_SERIALIZE_ENUM(CollisionMode);
 
 struct Collider {
 	Collider() = default;
@@ -73,7 +73,7 @@ struct Collider {
 	[[nodiscard]] CollisionInfo SweptWith(Entity other) const;
 	[[nodiscard]] bool OverlappedWith(Entity other) const;
 
-	PTGN_REFLECT(Collider, shape, mode, response, mask_, collides_with_masks_)
+	PTGN_SERIALIZE(Collider, shape, mode, response, mask_, collides_with_masks_)
 
 	/// @brief Optional function to check for early outs before performing collision checks. Should
 	/// return true if the collision check should be performed, false if it should be skipped.

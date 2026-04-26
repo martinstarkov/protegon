@@ -23,7 +23,7 @@ enum class ParticlePreset {
 	Rain1,
 	Snow1,
 };
-PTGN_REFLECT_ENUM(ParticlePreset);
+PTGN_SERIALIZE_ENUM(ParticlePreset);
 
 namespace impl {
 

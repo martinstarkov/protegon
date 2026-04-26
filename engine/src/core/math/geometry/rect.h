@@ -52,7 +52,7 @@ public:
 
 	bool operator==(const Rect&) const = default;
 
-	PTGN_REFLECT(Rect, min_, max_)
+	PTGN_SERIALIZE(Rect, min_, max_)
 
 private:
 	V2_float min_;

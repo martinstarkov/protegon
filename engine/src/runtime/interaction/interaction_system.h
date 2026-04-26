@@ -52,7 +52,7 @@ struct InteractiveDebugSettings {
 	Color draw_color{ color::Magenta };
 	float draw_line_width{ 1.0f };
 
-	PTGN_REFLECT(InteractiveDebugSettings, draw_enabled, draw_color, draw_line_width)
+	PTGN_SERIALIZE(InteractiveDebugSettings, draw_enabled, draw_color, draw_line_width)
 };
 
 class InteractionSystem {

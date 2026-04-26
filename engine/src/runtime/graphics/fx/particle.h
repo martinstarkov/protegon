@@ -47,7 +47,7 @@ struct Range {
 	T min{};
 	T max{};
 
-	PTGN_REFLECT(Range, min, max)
+	PTGN_SERIALIZE(Range, min, max)
 };
 
 template <typename T>
@@ -75,7 +75,7 @@ struct ConstantOrRange {
 		);
 	}
 
-	PTGN_REFLECT_VALUE(ConstantOrRange, value_)
+	PTGN_SERIALIZE_VALUE(ConstantOrRange, value_)
 private:
 	std::variant<T, Range<T>> value_{};
 };
@@ -86,14 +86,14 @@ struct EmissionShapeArc {
 	V2_float direction{ 1.0f, 0.0f };
 	float inner_radius{ 0.0f };
 
-	PTGN_REFLECT(EmissionShapeArc, arc_angle, outer_radius, direction, inner_radius)
+	PTGN_SERIALIZE(EmissionShapeArc, arc_angle, outer_radius, direction, inner_radius)
 };
 
 struct EmissionShapeRect {
 	ptgn::Rect rect{ V2_float{ 1.0f } };
 	V2_float direction{ 0.0f, 1.0f };
 
-	PTGN_REFLECT(EmissionShapeRect, rect, direction)
+	PTGN_SERIALIZE(EmissionShapeRect, rect, direction)
 };
 
 using EmissionShapes = std::variant<EmissionShapeArc, EmissionShapeRect>;
@@ -106,7 +106,7 @@ public:
 		V2_float position;
 		V2_float direction;
 
-		PTGN_REFLECT(EmissionSample, position, direction)
+		PTGN_SERIALIZE(EmissionSample, position, direction)
 	};
 
 	constexpr EmissionShape() = default;
@@ -130,7 +130,7 @@ public:
 
 	[[nodiscard]] EmissionSample SampleEmission() const;
 
-	PTGN_REFLECT_VALUE(EmissionShape, type_)
+	PTGN_SERIALIZE_VALUE(EmissionShape, type_)
 private:
 	EmissionShapes type_{};
 };
@@ -152,7 +152,7 @@ struct ParticleRate {
 	/// @brief The number of particles emitted per second.
 	float rate_over_time{ 10.0f };
 
-	PTGN_REFLECT(ParticleRate, duration, loop, prewarm, rate_over_time)
+	PTGN_SERIALIZE(ParticleRate, duration, loop, prewarm, rate_over_time)
 };
 
 /// @brief A burst of particles emitted at once.
@@ -166,7 +166,7 @@ struct ParticleBurst {
 	/// @brief Time between consecutive cycles.
 	milliseconds interval{ 1000 };
 
-	PTGN_REFLECT(ParticleBurst, particle_count, cycles, interval)
+	PTGN_SERIALIZE(ParticleBurst, particle_count, cycles, interval)
 };
 
 using ParticleType = std::variant<Shape, std::string>;
@@ -211,7 +211,7 @@ struct ParticleConfig {
 
 	std::optional<ConstantOrRange<Color>> color_over_lifetime;
 
-	PTGN_REFLECT(
+	PTGN_SERIALIZE(
 		ParticleConfig, rate_or_burst, lifetime, start_speed, start_size, start_rotation,
 		align_to_direction, start_color, start_gravity, max_particles, simulation_speed,
 		particle_type, particle_fill_style, emission_shape, velocity_over_lifetime,
@@ -226,7 +226,7 @@ enum class ParticleEmitterState {
 	Playing,
 	Paused
 };
-PTGN_REFLECT_ENUM(ParticleEmitterState);
+PTGN_SERIALIZE_ENUM(ParticleEmitterState);
 
 struct ParticleEmitterPlayback {
 	ParticleEmitterState state{ ParticleEmitterState::Stopped };
@@ -264,7 +264,7 @@ struct ParticleEmitterComponent {
 
 	void Update(const ParticleEmitter& emitter, secondsf dt);
 
-	PTGN_REFLECT(ParticleEmitterComponent, config)
+	PTGN_SERIALIZE(ParticleEmitterComponent, config)
 };
 
 } // namespace impl
@@ -323,7 +323,7 @@ struct Particle {
 	milliseconds age{ 0 };
 	milliseconds lifetime{ 1000 };
 
-	PTGN_REFLECT(
+	PTGN_SERIALIZE(
 		Particle, position, velocity, gravity, start_color, end_color, color, start_size, end_size,
 		size, rotation, age, lifetime
 	)

@@ -42,7 +42,7 @@ enum class WindowSetting {
 	Shown,
 	Hidden
 };
-PTGN_REFLECT_ENUM(WindowSetting);
+PTGN_SERIALIZE_ENUM(WindowSetting);
 
 namespace impl {
 
@@ -68,7 +68,7 @@ enum class KeyState : std::uint8_t {
 	Held	 = 2, /// Every subsequent frame that the key is pressed.
 	Released = 3, /// First frame that the key is released.
 };
-PTGN_REFLECT_ENUM(KeyState);
+PTGN_SERIALIZE_ENUM(KeyState);
 
 enum class MouseState : std::uint8_t {
 	Idle	 = 0, /// When the mouse button is not pressed.
@@ -76,7 +76,7 @@ enum class MouseState : std::uint8_t {
 	Held	 = 2, /// Every subsequent frame that the mouse button is pressed.
 	Released = 3, /// First frame that the mouse button is released.
 };
-PTGN_REFLECT_ENUM(MouseState);
+PTGN_SERIALIZE_ENUM(MouseState);
 
 namespace gl {
 
@@ -94,7 +94,7 @@ enum class MouseMode {
 	/// @brief Locked to window, relative motion (FPS)
 	Disabled
 };
-PTGN_REFLECT_ENUM(MouseMode);
+PTGN_SERIALIZE_ENUM(MouseMode);
 
 struct WindowConfig {
 	std::string title{ "Default Title" };
@@ -125,7 +125,7 @@ struct WindowConfig {
 	/// @brief If true window will be transparent in the areas with alpha of 0.
 	bool transparent{ false };
 
-	PTGN_REFLECT(
+	PTGN_SERIALIZE(
 		WindowConfig, title, size, resizable, x, y, minimized, maximized, fullscreen, mouse_mode,
 		always_on_top, borderless, transparent
 	)

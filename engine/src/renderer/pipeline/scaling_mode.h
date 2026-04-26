@@ -19,7 +19,7 @@ enum class ScalingMode {
 	/// @brief The rendered content is scaled up by integer multiples to fit the window size
 	IntegerScale,
 };
-PTGN_REFLECT_ENUM(ScalingMode);
+PTGN_SERIALIZE_ENUM(ScalingMode);
 
 /// @brief Determines which resolution the render target automatically resizes to when the game or
 /// display is resized.
@@ -29,7 +29,7 @@ enum class ResizeType {
 	/// @brief Resizes to the current game size.
 	Game
 };
-PTGN_REFLECT_ENUM(ResizeType);
+PTGN_SERIALIZE_ENUM(ResizeType);
 
 namespace impl {
 

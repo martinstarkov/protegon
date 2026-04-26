@@ -46,7 +46,7 @@ struct Effect {
 
 	bool operator==(const Effect&) const = default;
 
-	PTGN_REFLECT(Effect, start)
+	PTGN_SERIALIZE(Effect, start)
 };
 
 struct TranslateEffect : public Effect<V2_float> {};
@@ -68,7 +68,7 @@ struct FollowEffect {
 	bool operator==(const FollowEffect&) const = default;
 
 	// TODO: Fix serialization.
-	// PTGN_REFLECT(FollowEffect, current_waypoint, waypoints)
+	// PTGN_SERIALIZE(FollowEffect, current_waypoint, waypoints)
 };
 
 struct BounceEffect {
@@ -86,7 +86,7 @@ struct ShakeEffect {
 	bool operator==(const ShakeEffect&) const = default;
 
 	// TODO: Fix serialization.
-	// PTGN_REFLECT(ShakeEffect, trauma, previous_target)
+	// PTGN_SERIALIZE(ShakeEffect, trauma, previous_target)
 };
 
 template <typename TComponent>

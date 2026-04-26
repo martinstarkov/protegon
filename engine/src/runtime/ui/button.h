@@ -44,7 +44,7 @@ struct ButtonTextFixedSize {
 	std::optional<float> x;
 	std::optional<float> y;
 
-	PTGN_REFLECT(ButtonTextFixedSize, x, y)
+	PTGN_SERIALIZE(ButtonTextFixedSize, x, y)
 };
 
 struct ButtonStyle {
@@ -123,7 +123,7 @@ struct MoveButtonConfig {
 	milliseconds duration{ 100 };
 	Ease ease{ Ease::Linear };
 
-	PTGN_REFLECT(MoveButtonConfig, offset, duration, ease)
+	PTGN_SERIALIZE(MoveButtonConfig, offset, duration, ease)
 };
 
 struct ScaleButtonConfig {
@@ -131,7 +131,7 @@ struct ScaleButtonConfig {
 	milliseconds duration{ 100 };
 	Ease ease{ Ease::Linear };
 
-	PTGN_REFLECT(ScaleButtonConfig, scale, duration, ease)
+	PTGN_SERIALIZE(ScaleButtonConfig, scale, duration, ease)
 };
 
 struct ButtonConfig {
@@ -206,7 +206,7 @@ enum class ButtonState : std::uint8_t {
 	Press,
 	Current
 };
-PTGN_REFLECT_ENUM(ButtonState);
+PTGN_SERIALIZE_ENUM(ButtonState);
 
 struct ButtonStyleState {
 	ButtonStyleState() = default;
@@ -241,7 +241,7 @@ enum class InternalButtonState {
 	IdleDown	 = 4,
 	HoverPressed = 5
 };
-PTGN_REFLECT_ENUM(InternalButtonState);
+PTGN_SERIALIZE_ENUM(InternalButtonState);
 
 class ButtonScript : public Script {
 public:
@@ -292,7 +292,7 @@ struct ButtonEnabled {
 	bool press{ true };
 	bool hover{ true };
 
-	PTGN_REFLECT(ButtonEnabled, press, hover)
+	PTGN_SERIALIZE(ButtonEnabled, press, hover)
 };
 
 namespace event {

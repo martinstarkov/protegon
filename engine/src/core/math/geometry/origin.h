@@ -16,7 +16,7 @@ enum class Origin {
 	BottomLeft,
 	CenterLeft,
 };
-PTGN_REFLECT_ENUM(Origin);
+PTGN_SERIALIZE_ENUM(Origin);
 
 namespace impl {
 

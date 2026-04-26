@@ -17,7 +17,7 @@ struct Intersection {
 	[[nodiscard]] bool Occurred() const;
 	operator bool() const;
 
-	PTGN_REFLECT(Intersection, depth, normal)
+	PTGN_SERIALIZE(Intersection, depth, normal)
 };
 
 namespace impl {

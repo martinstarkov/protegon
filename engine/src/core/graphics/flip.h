@@ -14,6 +14,6 @@ enum class Flip {
 	Vertical   = 2,
 	Both	   = 3
 };
-PTGN_REFLECT_ENUM(Flip);
+PTGN_SERIALIZE_ENUM(Flip);
 
 } // namespace ptgn

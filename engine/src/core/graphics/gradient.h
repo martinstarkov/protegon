@@ -15,7 +15,7 @@ struct ColorStop {
 	float t{ 0.5f };
 	Color color;
 
-	PTGN_REFLECT(ColorStop, t, color)
+	PTGN_SERIALIZE(ColorStop, t, color)
 };
 
 } // namespace impl
@@ -33,7 +33,7 @@ public:
 	/// @param t Position along the gradient, clamped to range [0, 1].
 	void AddStop(float t, Color color);
 
-	PTGN_REFLECT_VALUE(Gradient, stops_)
+	PTGN_SERIALIZE_VALUE(Gradient, stops_)
 private:
 	std::vector<impl::ColorStop> stops_;
 };

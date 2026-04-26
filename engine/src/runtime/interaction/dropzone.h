@@ -20,7 +20,7 @@ struct Dropzone {
 	/// @brief Draggables currently on the dropzone.
 	std::vector<Entity> draggables;
 
-	PTGN_REFLECT(Dropzone, move_condition, drop_condition, pickup_condition, enabled)
+	PTGN_SERIALIZE(Dropzone, move_condition, drop_condition, pickup_condition, enabled)
 };
 
 } // namespace impl

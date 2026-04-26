@@ -43,7 +43,7 @@ struct AnimationConfig {
 	/// @brief Reset animation to frame 0 when it completes.
 	bool reset_on_complete{ false };
 
-	PTGN_REFLECT(
+	PTGN_SERIALIZE(
 		AnimationConfig, frame_count, animation_duration, frame_size, play_count, start_pixel,
 		reset_on_complete
 	)
@@ -267,7 +267,7 @@ public:
 	/// @brief If the current frame has been changed externally.
 	bool frame_dirty{ false };
 
-	PTGN_REFLECT(AnimationData, config, frame_timer, current_frame, frames_played)
+	PTGN_SERIALIZE(AnimationData, config, frame_timer, current_frame, frames_played)
 };
 
 class AnimationSystem {

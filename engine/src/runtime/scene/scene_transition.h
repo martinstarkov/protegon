@@ -51,7 +51,7 @@ public:
 
 	virtual void OnStop([[maybe_unused]] Scene& target_scene) { /* Optional user implementation */ }
 
-	PTGN_REFLECT(
+	PTGN_SERIALIZE(
 		SceneTransition, elapsed_, duration_, delay_elapsed_, delay_duration_, started_, ease_
 	)
 private:

@@ -90,7 +90,7 @@ enum class DialogueBehavior {
 	Sequential,
 	Random
 };
-PTGN_REFLECT_ENUM(DialogueBehavior);
+PTGN_SERIALIZE_ENUM(DialogueBehavior);
 
 struct Dialogue {
 	std::size_t index{ 0 };

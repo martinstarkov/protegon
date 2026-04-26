@@ -18,7 +18,7 @@ struct Viewport {
 
 	bool operator==(const Viewport&) const = default;
 
-	PTGN_REFLECT(Viewport, position, size)
+	PTGN_SERIALIZE(Viewport, position, size)
 };
 
 } // namespace ptgn

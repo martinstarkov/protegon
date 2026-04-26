@@ -76,7 +76,7 @@ struct TopDownPlayerConfig {
 	/// @brief Defaults to 1 if not provided.
 	std::optional<std::size_t> walk_sound_frequency;
 
-	PTGN_REFLECT(
+	PTGN_SERIALIZE(
 		TopDownPlayerConfig, max_speed, max_acceleration, max_deceleration, max_turn_speed,
 		friction, body_hitbox_size, body_hitbox_offset, interaction_hitbox_size,
 		interaction_hitbox_offset, animation_frame_count, animation_texture_key,

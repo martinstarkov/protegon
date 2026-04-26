@@ -39,7 +39,7 @@ public:
 		return s;
 	}
 
-	PTGN_REFLECT(IDrawable, hash)
+	PTGN_SERIALIZE(IDrawable, hash)
 
 	std::size_t hash{ 0 };
 };

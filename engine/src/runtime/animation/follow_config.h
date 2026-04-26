@@ -11,7 +11,7 @@ enum class MoveMode {
 	Lerp,
 	Velocity
 };
-PTGN_REFLECT_ENUM(MoveMode);
+PTGN_SERIALIZE_ENUM(MoveMode);
 
 struct FollowConfig {
 	MoveMode move_mode{ MoveMode::Lerp };
@@ -49,7 +49,7 @@ struct FollowConfig {
 
 	bool operator==(const FollowConfig&) const = default;
 
-	PTGN_REFLECT(
+	PTGN_SERIALIZE(
 		FollowConfig, move_mode, follow_x, follow_y, teleport_on_start, stop_distance, lerp,
 		deadzone, offset, max_speed, max_acceleration
 	)
@@ -70,7 +70,7 @@ struct PathFollowConfig : public FollowConfig {
 
 	bool operator==(const PathFollowConfig&) const = default;
 
-	PTGN_REFLECT_DERIVED(PathFollowConfig, FollowConfig, loop_path)
+	PTGN_SERIALIZE_DERIVED(PathFollowConfig, FollowConfig, loop_path)
 };
 
 } // namespace ptgn

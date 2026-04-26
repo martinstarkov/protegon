@@ -38,7 +38,7 @@ struct Draggable {
 	/// callbacks).
 	std::vector<Entity> last_hovered_dropzones;
 
-	PTGN_REFLECT(
+	PTGN_SERIALIZE(
 		Draggable, offset, start, dragging, enabled, move_condition, drop_condition,
 		pickup_condition
 	)

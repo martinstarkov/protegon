@@ -47,7 +47,7 @@ struct RigidBody {
 	V2_float velocity;
 	Radians angular_velocity{ 0.0f };
 
-	PTGN_REFLECT(
+	PTGN_SERIALIZE(
 		RigidBody, max_speed, max_angular_speed, drag, angular_drag, gravity, immovable, velocity,
 		angular_velocity
 	)

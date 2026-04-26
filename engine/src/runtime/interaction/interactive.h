@@ -39,7 +39,7 @@ struct Interactive {
 
 	bool enabled{ true };
 
-	PTGN_REFLECT(Interactive, enabled)
+	PTGN_SERIALIZE(Interactive, enabled)
 };
 
 } // namespace impl

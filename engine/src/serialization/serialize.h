@@ -188,6 +188,7 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 	::ptgn::impl::extended_from_json(nlohmann_json_j, nlohmann_json_t.v1);
 
 /// @brief Use this OUTSIDE the enum declaration.
+/// Declares JSON serialization for the enum.
 #define PTGN_SERIALIZE_ENUM(Type)                               \
 	inline void to_json(::ptgn::json& j, Type value) {          \
 		::ptgn::impl::enum_to_json(j, value);                   \
@@ -197,6 +198,7 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 	}
 
 /// @brief Use this INSIDE the class/struct body.
+/// Declares JSON serialization for the class/struct.
 #define PTGN_SERIALIZE(Type, ...)                                                          \
 	friend void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {      \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO, __VA_ARGS__))   \
@@ -206,6 +208,7 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 	}
 
 /// @brief Use this INSIDE the class/struct body.
+/// Declares JSON serialization for the class/struct.
 /// Serializes directly as that value, without a field name.
 #define PTGN_SERIALIZE_VALUE(Type, ...)                                                          \
 	friend void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {            \
@@ -215,6 +218,9 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM_VALUE, __VA_ARGS__)) \
 	}
 
+/// @brief Use this INSIDE the class/struct body.
+/// Declares JSON serialization for the class/struct.
+/// Serializes directly as the name of the class/struct.
 #define PTGN_SERIALIZE_EMPTY(Type)                                                              \
 	friend void to_json(::ptgn::json& j, const Type&) {                                         \
 		j = PTGN_STRINGIFY(Type);                                                               \
@@ -228,6 +234,8 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 		}                                                                                       \
 	}
 
+/// @brief Use this INSIDE the class/struct body.
+/// Declares JSON serialization for the class/struct and its base class.
 #define PTGN_SERIALIZE_DERIVED(Type, Base, ...)                                            \
 	friend void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {      \
 		to_json(nlohmann_json_j, static_cast<const Base&>(nlohmann_json_t));               \
@@ -237,25 +245,3 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 		from_json(nlohmann_json_j, static_cast<Base&>(nlohmann_json_t));                   \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM, __VA_ARGS__)) \
 	}
-
-/// @brief Use this OUTSIDE the enum declaration.
-/// Declares JSON serialization for the enum.
-#define PTGN_REFLECT_ENUM(Type) PTGN_SERIALIZE_ENUM(Type)
-
-/// @brief Use this INSIDE the class/struct body.
-/// Declares JSON serialization for the class/struct.
-#define PTGN_REFLECT(Type, ...) PTGN_SERIALIZE(Type, __VA_ARGS__)
-
-/// @brief Use this INSIDE the class/struct body.
-/// Declares JSON serialization for the class/struct.
-/// Serializes directly as that value, without a field name.
-#define PTGN_REFLECT_VALUE(Type, Field) PTGN_SERIALIZE_VALUE(Type, Field)
-
-/// @brief Use this INSIDE the class/struct body.
-/// Declares JSON serialization for the class/struct.
-/// Serializes directly as the name of the class/struct.
-#define PTGN_REFLECT_EMPTY(Type) PTGN_SERIALIZE_EMPTY(Type)
-
-/// @brief Use this INSIDE the class/struct body.
-/// Declares JSON serialization for the class/struct and its base class.
-#define PTGN_REFLECT_DERIVED(Type, Base, ...) PTGN_SERIALIZE_DERIVED(Type, Base, __VA_ARGS__)

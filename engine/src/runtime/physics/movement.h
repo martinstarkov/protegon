@@ -93,7 +93,7 @@ struct TopDownMovement {
 
 	V2_float facing_direction;
 
-	PTGN_REFLECT(
+	PTGN_SERIALIZE(
 		TopDownMovement, max_speed, max_acceleration, max_deceleration, max_turn_speed, friction,
 		use_acceleration, flip_vertically, keys_enabled, only_orthogonal_movement, up_key, left_key,
 		down_key, right_key, facing_direction, up_input, down_input, left_input, right_input, dir,
@@ -154,7 +154,7 @@ struct PlatformerMovement {
 
 	void Update(const Scene& scene, Transform& transform, RigidBody& rb, secondsf dt) const;
 
-	PTGN_REFLECT(
+	PTGN_SERIALIZE(
 		PlatformerMovement, grounded, max_speed, max_acceleration, max_deceleration, max_turn_speed,
 		max_air_acceleration, max_air_deceleration, max_air_turn_speed, use_acceleration, friction,
 		left_key, right_key
@@ -197,7 +197,7 @@ public:
 	float jump_height{ 150.0f };
 	float time_to_jump_apex{ 1.0f };
 
-	PTGN_REFLECT(
+	PTGN_SERIALIZE(
 		PlatformerJump, jump_key, down_key, jump_buffer_time, coyote_time, default_gravity_scale,
 		upward_gravity_multiplier, downward_gravity_multiplier, jump_cut_off_gravity_multiplier,
 		downward_speedup_gravity_multiplier, downward_key_speedup, variable_jump_height,

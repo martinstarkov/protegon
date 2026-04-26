@@ -44,13 +44,13 @@ struct AssetName {
 
 	std::string name;
 
-	PTGN_REFLECT_VALUE(AssetName, name)
+	PTGN_SERIALIZE_VALUE(AssetName, name)
 };
 
 struct AssetKey {
 	std::size_t hash{ 0 };
 
-	PTGN_REFLECT_VALUE(AssetKey, hash)
+	PTGN_SERIALIZE_VALUE(AssetKey, hash)
 };
 
 void AddAssetKey(ecs::Entity asset, std::size_t key_hash, const std::optional<path>& path);
@@ -64,7 +64,7 @@ enum class AssetType {
 	Shader,
 	Unknown
 };
-PTGN_REFLECT_ENUM(AssetType);
+PTGN_SERIALIZE_ENUM(AssetType);
 
 static const std::unordered_map<std::string, AssetType> kExtensionToType{
 	{ ".png", AssetType::Texture }, { ".jpg", AssetType::Texture },
