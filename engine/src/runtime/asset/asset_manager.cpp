@@ -32,7 +32,6 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/font_system.h"
-#include "runtime/graphics/text/text.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 
@@ -662,45 +661,6 @@ bool AssetManager::HasFont(std::string_view key) const {
 
 std::size_t AssetManager::Size() const {
 	return manager_.Size() + jsons_.size();
-}
-
-std::optional<impl::TextureObject> AssetManager::CreateTextTextureObject(
-	std::string_view text_content, Color color, float font_size, FontOrKey font,
-	const TextProperties& properties
-) {
-	auto font_asset{ font.Get(*this) };
-
-	auto surface{
-		FontSystem::CreateTextSurface(text_content, color, font_size, font_asset, properties)
-	};
-
-	if (!surface.has_value()) {
-		return {};
-	}
-
-	const auto pixel_data{ surface->Data() };
-	auto size{ surface->GetSize() };
-
-	return renderer_.CreateTexture(pixel_data, size, TextureFormat::RGBA8);
-}
-
-Texture AssetManager::CreateTextTexture(
-	std::string_view text_content, Color color, float font_size, FontOrKey font,
-	const TextProperties& properties
-) {
-	Texture texture{ CreateAsset(), false };
-
-	auto texture_object{
-		CreateTextTextureObject(text_content, color, font_size, font, properties)
-	};
-
-	if (!texture_object.has_value()) {
-		return texture;
-	}
-
-	texture.GetEntity().Add<impl::TextureObject>(std::move(*texture_object));
-
-	return texture;
 }
 
 } // namespace ptgn

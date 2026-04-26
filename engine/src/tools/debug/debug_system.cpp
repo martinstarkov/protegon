@@ -35,42 +35,43 @@ namespace ptgn {
 
 DebugContext::DebugContext(RenderContext& render_context) : render_context_{ render_context } {}
 
-void DebugContext::DrawText(
-	std::string_view text_content, Transform transform, Color text_color, FontSize font_size,
-	FontOrKey font, const TextProperties& properties, Origin draw_origin,
-	std::optional<V2_float> text_size, const std::optional<SceneCamera>& camera
-) {
-	auto texture_object{ render_context_.scene_.ctx().asset.CreateTextTextureObject(
-		text_content, text_color, font_size, font, properties
-	) };
-
-	if (!texture_object.has_value()) {
-		return;
-	}
-
-	auto texture_size{ texture_object->GetSize() };
-
-	auto texture_id{ texture_object->operator impl::TextureId() };
-
-	render_context_.temporary_textures_.emplace_back(std::move(*texture_object));
-
-	auto texture_shader{ render_context_.renderer_.GetShader("texture") };
-
-	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(
-		camera.transform([](const auto& c) { return impl::RenderCamera{ c }; })
-	) };
-
-	Rect rect{ text_size.value_or(texture_size) };
-
-	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
-
-	auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
-
-	impl::TextureCommand texture_command{ texture_shader, texture_id,		positions, color::White,
-										  tex_coords,	  debug_blend_mode, -1 };
-
-	debug_commands.emplace_back(texture_command, debug_depth);
-}
+// TODO: Fix.
+// void DebugContext::DrawText(
+//	std::string_view text_content, Transform transform, Color text_color, FontSize font_size,
+//	FontOrKey font, const TextProperties& properties, Origin draw_origin,
+//	std::optional<V2_float> text_size, const std::optional<SceneCamera>& camera
+//) {
+//	auto texture_object{ render_context_.scene_.ctx().asset.CreateTextTextureObject(
+//		text_content, text_color, font_size, font, properties
+//	) };
+//
+//	if (!texture_object.has_value()) {
+//		return;
+//	}
+//
+//	auto texture_size{ texture_object->GetSize() };
+//
+//	auto texture_id{ texture_object->operator impl::TextureId() };
+//
+//	render_context_.temporary_textures_.emplace_back(std::move(*texture_object));
+//
+//	auto texture_shader{ render_context_.renderer_.GetShader("texture") };
+//
+//	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(
+//		camera.transform([](const auto& c) { return impl::RenderCamera{ c }; })
+//	) };
+//
+//	Rect rect{ text_size.value_or(texture_size) };
+//
+//	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
+//
+//	auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
+//
+//	impl::TextureCommand texture_command{ texture_shader, texture_id,		positions, color::White,
+//										  tex_coords,	  debug_blend_mode, -1 };
+//
+//	debug_commands.emplace_back(texture_command, debug_depth);
+//}
 
 void DebugContext::DrawShape(
 	const Shape& shape, Transform transform, Color color, FillStyle fill_style, Origin draw_origin,

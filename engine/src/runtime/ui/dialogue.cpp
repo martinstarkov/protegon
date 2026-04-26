@@ -30,13 +30,13 @@
 #include "runtime/animation/tween.h"
 #include "runtime/animation/tween_event.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/graphics/text/font_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
+#include "runtime/graphics/text/font_system.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -86,32 +86,33 @@ DialogueComponent& DialogueScrollScript::GetDialogueComponent() {
 }
 
 void DialogueScrollScript::UpdateText(Entity text_entity, float elapsed_fraction) {
-	PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
-	auto& dialogue_component{ impl::GetDialogueComponent(text_entity) };
-	auto page{ dialogue_component.GetCurrentDialoguePage() };
-	if (!page) {
-		return;
-	}
-	const auto& text{ page->content };
-	std::size_t char_count{ static_cast<std::size_t>(std::round(elapsed_fraction * text.size())) };
-	TextContent revealed_text{ text.substr(0, char_count) };
-	TextColor text_color{ page->properties.color };
+	// TODO: Fix.
+	// PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
+	// auto& dialogue_component{ impl::GetDialogueComponent(text_entity) };
+	// auto page{ dialogue_component.GetCurrentDialoguePage() };
+	// if (!page) {
+	//	return;
+	//}
+	// const auto& text{ page->content };
+	// std::size_t char_count{ static_cast<std::size_t>(std::round(elapsed_fraction * text.size()))
+	// }; TextContent revealed_text{ text.substr(0, char_count) }; TextColor text_color{
+	// page->properties.color };
 
-	const auto& scene{ text_entity.GetScene() };
-	PTGN_ASSERT(
-		scene.ctx().asset.HasFont(page->properties.font_key),
-		"Font key for dialogue must be loaded in the asset manager before use: ",
-		page->properties.font_key
-	);
+	// const auto& scene{ text_entity.GetScene() };
+	// PTGN_ASSERT(
+	//	scene.ctx().asset.HasFont(page->properties.font_key),
+	//	"Font key for dialogue must be loaded in the asset manager before use: ",
+	//	page->properties.font_key
+	//);
 
-	auto font{ *scene.ctx().asset.GetFont(page->properties.font_key) };
-	FontSize font_size{ page->properties.font_size };
-	Text t{ text_entity };
-	// Do not recreate texture more than once.
-	Text::SetParameter(t, font_size, false);
-	Text::SetParameter(t, font, false);
-	Text::SetParameter(t, text_color, false);
-	Text::SetParameter(t, revealed_text, true);
+	// auto font{ *scene.ctx().asset.GetFont(page->properties.font_key) };
+	// FontSize font_size{ page->properties.font_size };
+	// Text t{ text_entity };
+	//// Do not recreate texture more than once.
+	// Text::SetParameter(t, font_size, false);
+	// Text::SetParameter(t, font, false);
+	// Text::SetParameter(t, text_color, false);
+	// Text::SetParameter(t, revealed_text, true);
 }
 
 void DialogueScrollScript::OnEvent(Event d) {
@@ -398,18 +399,19 @@ DialoguePage* DialogueComponent::GetCurrentDialoguePage() {
 
 void DialogueComponent::DrawInfo(Scene& scene, V2_float position) {
 	constexpr float font_size{ 32 };
-	scene.ctx().debug.DrawText(
-		std::format("Dialogue: {}", current_dialogue_), position + V2_float{ 0, 0 }, color::White,
-		font_size, {}, {}, Origin::TopLeft
-	);
-	scene.ctx().debug.DrawText(
-		std::format("Line: {}", std::to_string(current_line_)), position + V2_float{ 0, 50 },
-		color::White, font_size, {}, {}, Origin::TopLeft
-	);
-	scene.ctx().debug.DrawText(
-		std::format("Page: {}", std::to_string(current_page_)), position + V2_float{ 0, 100 },
-		color::White, font_size, {}, {}, Origin::TopLeft
-	);
+	// TODO: Fix.
+	// scene.ctx().debug.DrawText(
+	//	std::format("Dialogue: {}", current_dialogue_), position + V2_float{ 0, 0 }, color::White,
+	//	font_size, {}, {}, Origin::TopLeft
+	//);
+	// scene.ctx().debug.DrawText(
+	//	std::format("Line: {}", std::to_string(current_line_)), position + V2_float{ 0, 50 },
+	//	color::White, font_size, {}, {}, Origin::TopLeft
+	//);
+	// scene.ctx().debug.DrawText(
+	//	std::format("Page: {}", std::to_string(current_page_)), position + V2_float{ 0, 100 },
+	//	color::White, font_size, {}, {}, Origin::TopLeft
+	//);
 }
 
 void DialogueComponent::AlignToTopLeft(const DialoguePageProperties& default_properties) const {

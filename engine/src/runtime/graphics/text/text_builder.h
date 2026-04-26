@@ -37,14 +37,14 @@ public:
 
 	StyledTextBuilder& Bold(bool enabled = true) {
 		if (enabled) {
-			current_style_.flags = current_style_.flags | FontStyleFlags::Bold;
+			current_style_.flags = current_style_.flags | FontStyle::Bold;
 		}
 		return *this;
 	}
 
 	StyledTextBuilder& Italic(bool enabled = true) {
 		if (enabled) {
-			current_style_.flags = current_style_.flags | FontStyleFlags::Italic;
+			current_style_.flags = current_style_.flags | FontStyle::Italic;
 		}
 		return *this;
 	}

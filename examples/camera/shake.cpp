@@ -33,7 +33,8 @@ public:
 
 	Button CreateButton(std::string_view content, const std::function<void()>& on_press) {
 		Button b{ ptgn::CreateButton(*this) };
-		b.SetText(content, color::Black);
+		// TODO: Fix.
+		// b.SetText(content, color::Black);
 		b.SetBackgroundColor(color::Gold);
 		b.SetBackgroundColor(color::Gray, ButtonState::Hover);
 		b.SetBackgroundColor(color::DarkGray, ButtonState::Press);

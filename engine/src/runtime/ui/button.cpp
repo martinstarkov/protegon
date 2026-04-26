@@ -595,45 +595,46 @@ Derived& ButtonBase<Derived>::SetBackgroundColor(
 	return Self();
 }
 
-template <typename Derived>
-void ButtonBase<Derived>::SetText(
-	GameObject<Text>& text, std::string_view text_content, std::optional<Color> text_color,
-	FontSize font_size, FontOrKey font, const TextProperties& text_properties
-) {
-	auto& scene{ GetScene() };
+// template <typename Derived>
+// void ButtonBase<Derived>::SetText(
+//	GameObject<Text>& text, std::string_view text_content, std::optional<Color> text_color,
+//	FontSize font_size, FontOrKey font, const TextProperties& text_properties
+//) {
+//	auto& scene{ GetScene() };
+//
+//	text = GameObject<Text>{ CreateText(
+//		scene, {}, text_content, text_color.value_or(kDefaultButtonTextColor), font_size, font,
+//		Origin::Center, text_properties
+//	) };
+//
+//	Hide(text);
+//	SetParent(text, *this);
+// }
 
-	text = GameObject<Text>{ CreateText(
-		scene, {}, text_content, text_color.value_or(kDefaultButtonTextColor), font_size, font,
-		Origin::Center, text_properties
-	) };
-
-	Hide(text);
-	SetParent(text, *this);
-}
-
-template <typename Derived>
-Derived& ButtonBase<Derived>::SetText(
-	std::string_view text_content, Color text_color, FontSize font_size, FontOrKey font,
-	const TextProperties& text_properties, ButtonStyleState state
-) {
-	auto [enabled_idle, idle, desired] = GetStyle(state);
-	if (desired.text.has_value()) {
-		const auto& scene{ GetScene() };
-		const auto& assets{ scene.ctx().asset };
-
-		Font resolved_font{ font.Get(assets) };
-
-		Text::SetParameter(*desired.text, TextColor{ text_color }, false);
-		Text::SetParameter(*desired.text, TextContent{ text_content }, false);
-		Text::SetParameter(*desired.text, resolved_font, false);
-		Text::SetParameter(*desired.text, font_size, false);
-		Text::SetProperties(*desired.text, text_properties, true);
-	} else {
-		desired.text = GameObject<Text>{};
-		SetText(*desired.text, text_content, text_color, font_size, font, text_properties);
-	}
-	return Self();
-}
+// TODO: Fix.
+// template <typename Derived>
+// Derived& ButtonBase<Derived>::SetText(
+//	std::string_view text_content, Color text_color, FontSize font_size, FontOrKey font,
+//	const TextProperties& text_properties, ButtonStyleState state
+//) {
+//	auto [enabled_idle, idle, desired] = GetStyle(state);
+//	if (desired.text.has_value()) {
+//		const auto& scene{ GetScene() };
+//		const auto& assets{ scene.ctx().asset };
+//
+//		Font resolved_font{ font.Get(assets) };
+//
+//		Text::SetParameter(*desired.text, TextColor{ text_color }, false);
+//		Text::SetParameter(*desired.text, TextContent{ text_content }, false);
+//		Text::SetParameter(*desired.text, resolved_font, false);
+//		Text::SetParameter(*desired.text, font_size, false);
+//		Text::SetProperties(*desired.text, text_properties, true);
+//	} else {
+//		desired.text = GameObject<Text>{};
+//		SetText(*desired.text, text_content, text_color, font_size, font, text_properties);
+//	}
+//	return Self();
+//}
 
 template <typename Derived>
 std::optional<Text> ButtonBase<Derived>::GetText(ButtonStyleState state) const {
@@ -658,17 +659,17 @@ std::optional<Color> ButtonBase<Derived>::GetTextColor(ButtonStyleState state) c
 	}
 }
 
-template <typename Derived>
-Derived& ButtonBase<Derived>::SetTextColor(Color text_color, ButtonStyleState state) {
-	auto [enabled_idle, idle, desired] = GetStyle(state);
-	if (desired.text.has_value()) {
-		desired.text->SetColor(text_color);
-	} else {
-		desired.text = GameObject<Text>{};
-		SetText(*desired.text, {}, text_color);
-	}
-	return Self();
-}
+// template <typename Derived>
+// Derived& ButtonBase<Derived>::SetTextColor(Color text_color, ButtonStyleState state) {
+//	auto [enabled_idle, idle, desired] = GetStyle(state);
+//	if (desired.text.has_value()) {
+//		desired.text->SetColor(text_color);
+//	} else {
+//		desired.text = GameObject<Text>{};
+//		SetText(*desired.text, {}, text_color);
+//	}
+//	return Self();
+// }
 
 template <typename Derived>
 std::optional<std::string> ButtonBase<Derived>::GetTextContent(ButtonStyleState state) const {
@@ -679,42 +680,42 @@ std::optional<std::string> ButtonBase<Derived>::GetTextContent(ButtonStyleState 
 	}
 }
 
-template <typename Derived>
-Derived& ButtonBase<Derived>::SetTextContent(
-	std::string_view text_content, ButtonStyleState state
-) {
-	auto [enabled_idle, idle, desired] = GetStyle(state);
-	if (desired.text.has_value()) {
-		desired.text->SetContent(text_content);
-	} else {
-		desired.text = GameObject<Text>{};
-		SetText(*desired.text, text_content);
-	}
-	return Self();
-}
+// template <typename Derived>
+// Derived& ButtonBase<Derived>::SetTextContent(
+//	std::string_view text_content, ButtonStyleState state
+//) {
+//	auto [enabled_idle, idle, desired] = GetStyle(state);
+//	if (desired.text.has_value()) {
+//		desired.text->SetContent(text_content);
+//	} else {
+//		desired.text = GameObject<Text>{};
+//		SetText(*desired.text, text_content);
+//	}
+//	return Self();
+// }
 
-template <typename Derived>
-std::optional<TextJustify> ButtonBase<Derived>::GetTextJustify(ButtonStyleState state) const {
-	if (auto text{ GetText(state) }) {
-		return text->GetJustify();
-	} else {
-		return std::nullopt;
-	}
-}
+// template <typename Derived>
+// std::optional<TextJustify> ButtonBase<Derived>::GetTextJustify(ButtonStyleState state) const {
+//	if (auto text{ GetText(state) }) {
+//		return text->GetJustify();
+//	} else {
+//		return std::nullopt;
+//	}
+// }
 
-template <typename Derived>
-Derived& ButtonBase<Derived>::SetTextJustify(TextJustify justify, ButtonStyleState state) {
-	auto [enabled_idle, idle, desired] = GetStyle(state);
-	if (desired.text.has_value()) {
-		desired.text->SetJustify(justify);
-	} else {
-		TextProperties text_properties;
-		text_properties.justify = justify;
-		desired.text			= GameObject<Text>{};
-		SetText(*desired.text, {}, {}, {}, {}, text_properties);
-	}
-	return Self();
-}
+// template <typename Derived>
+// Derived& ButtonBase<Derived>::SetTextJustify(TextJustify justify, ButtonStyleState state) {
+//	auto [enabled_idle, idle, desired] = GetStyle(state);
+//	if (desired.text.has_value()) {
+//		desired.text->SetJustify(justify);
+//	} else {
+//		TextProperties text_properties;
+//		text_properties.justify = justify;
+//		desired.text			= GameObject<Text>{};
+//		SetText(*desired.text, {}, {}, {}, {}, text_properties);
+//	}
+//	return Self();
+// }
 
 template <typename Derived>
 std::optional<ButtonTextFixedSize> ButtonBase<Derived>::GetTextFixedSize(ButtonStyleState state
@@ -742,17 +743,17 @@ std::optional<FontSize> ButtonBase<Derived>::GetFontSize(ButtonStyleState state)
 	}
 }
 
-template <typename Derived>
-Derived& ButtonBase<Derived>::SetFontSize(FontSize font_size, ButtonStyleState state) {
-	auto [enabled_idle, idle, desired] = GetStyle(state);
-	if (desired.text.has_value()) {
-		desired.text->SetFontSize(font_size);
-	} else {
-		desired.text = GameObject<Text>{};
-		SetText(*desired.text, {}, {}, font_size);
-	}
-	return Self();
-}
+// template <typename Derived>
+// Derived& ButtonBase<Derived>::SetFontSize(FontSize font_size, ButtonStyleState state) {
+//	auto [enabled_idle, idle, desired] = GetStyle(state);
+//	if (desired.text.has_value()) {
+//		desired.text->SetFontSize(font_size);
+//	} else {
+//		desired.text = GameObject<Text>{};
+//		SetText(*desired.text, {}, {}, font_size);
+//	}
+//	return Self();
+// }
 
 template <typename Derived>
 Entity ButtonBase<Derived>::GetSprite(ButtonStyleState state) const {
@@ -1380,6 +1381,8 @@ Button CreateButton(
 		button.SetTextureTint(tint, ButtonState::Press);
 	}
 
+	// TODO: Fix.
+	/*
 	if (config.content.has_value()) {
 		TextProperties text_properties;
 		if (config.text_outline_width.has_value()) {
@@ -1403,6 +1406,7 @@ Button CreateButton(
 			config.font, text_properties, ButtonState::Press
 		);
 	}
+	*/
 
 	button.SetSound(config.sound_hover, ButtonState::Hover);
 	button.SetSound(config.sound_press, ButtonState::Press);

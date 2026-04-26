@@ -118,169 +118,115 @@ void Text::Draw(DrawContext& renderer, Entity text) {
 	Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
 }
 
-void Text::RecreateTexture(Entity entity) {
-	Text text{ entity };
-	auto content{ text.GetContent() };
-	auto color{ text.GetColor() };
-
-	auto font_size{ text.GetFontSize() };
-	auto font{ text.GetFont() };
-	auto properties{ text.GetProperties() };
-
-	RecreateTexture(text, content, color, font_size, font, properties);
-}
-
-void Text::RecreateTexture(
-	Entity text, std::string_view content, Color text_color, FontSize font_size, FontOrKey font,
-	const TextProperties& properties
-) {
-	auto& asset{ text.GetScene().ctx().asset };
-
-	auto texture{ asset.CreateTextTexture(content, text_color, font_size, font, properties) };
-
-	text.Add<Texture>(texture);
-}
-
-void Text::SetProperties(Entity text, const TextProperties& properties) {
-	SetProperties(text, properties, true);
-}
-
-void Text::SetProperties(Entity text, const TextProperties& properties, bool recreate_texture) {
-	bool changed  = false;
-	changed		 |= Text::SetParameter(text, properties.justify, false);
-	changed		 |= Text::SetParameter(text, properties.line_skip, false);
-	changed		 |= Text::SetParameter(text, properties.outline, false);
-	changed		 |= Text::SetParameter(text, properties.render_mode, false);
-	changed |= Text::SetParameter(text, impl::TextShadingColor{ properties.shading_color }, false);
-	changed |= Text::SetParameter(text, properties.style, false);
-	changed |= Text::SetParameter(text, impl::TextWrapAfter{ properties.wrap_after }, false);
-
-	if (changed && recreate_texture) {
-		Text::RecreateTexture(text);
-	}
-}
-
 Text& Text::SetFont(FontOrKey font) {
-	const auto& scene{ GetScene() };
-	auto resolved_font{ font.Get(scene.ctx().asset) };
-	Text::SetParameter(*this, resolved_font);
+	// const auto& scene{ GetScene() };
+	// auto resolved_font{ font.Get(scene.ctx().asset) };
+	//  TODO: fix.
 	return *this;
 }
 
 Text& Text::SetContent(std::string_view content) {
-	Text::SetParameter(*this, impl::TextContent{ content });
+	// TODO: fix.
 	return *this;
 }
 
 Text& Text::SetColor(Color color) {
-	Text::SetParameter(*this, impl::TextColor{ color });
+	// TODO: fix.
 	return *this;
 }
 
 Text& Text::SetFontStyle(FontStyle font_style) {
-	Text::SetParameter(*this, font_style);
+	// TODO: fix.
 	return *this;
 }
 
 Text& Text::SetFontSize(FontSize font_size) {
-	Text::SetParameter(*this, font_size);
+	// TODO: fix.
 	return *this;
 }
 
-Text& Text::SetOutline(TextOutline outline) {
-	Text::SetParameter(*this, FontRenderMode::Blended, false);
-	Text::SetParameter(*this, outline, true);
+Text& Text::SetWrapMode(WrapMode wrap_mode) {
+	// TODO: fix.
 	return *this;
 }
 
-Text& Text::SetFontRenderMode(FontRenderMode render_mode) {
-	Text::SetParameter(*this, render_mode);
+Text& Text::SetHorizontalAlign(HorizontalAlign horizontal_align) {
+	// TODO: fix.
 	return *this;
 }
 
-Text& Text::SetShadingColor(Color shading_color) {
-	Text::SetParameter(*this, FontRenderMode::Shaded, false);
-	Text::SetParameter(*this, impl::TextShadingColor{ shading_color }, true);
+Text& Text::SetVerticalAlign(VerticalAlign vertical_align) {
+	// TODO: fix.
 	return *this;
 }
 
-Text& Text::SetWrapAfter(std::uint32_t pixels) {
-	Text::SetParameter(*this, impl::TextWrapAfter{ pixels });
-	return *this;
-}
-
-Text& Text::SetLineSkip(TextLineSkip pixels) {
-	Text::SetParameter(*this, pixels);
-	return *this;
-}
-
-Text& Text::SetJustify(TextJustify text_justify) {
-	Text::SetParameter(*this, text_justify);
+Text& Text::SetOverflowMode(OverflowMode overflow_mode) {
+	// TODO: fix.
 	return *this;
 }
 
 Font Text::GetFont() const {
-	return Text::GetParameter(*this, Font{});
+	// TODO: fix.
+	return {};
 }
 
 std::string Text::GetContent() const {
-	return Text::GetParameter(*this, impl::TextContent{});
+	// TODO: fix.
+	return {};
 }
 
 Color Text::GetColor() const {
-	return Text::GetParameter(*this, impl::TextColor{});
+	// TODO: fix.
+	return {};
 }
 
 FontStyle Text::GetFontStyle() const {
-	return Text::GetParameter(*this, FontStyle{});
+	// TODO: fix.
+	return {};
 }
 
-FontRenderMode Text::GetFontRenderMode() const {
-	return Text::GetParameter(*this, FontRenderMode{});
+WrapMode Text::GetWrapMode() const {
+	// TODO: fix.
+	return {};
 }
 
-Color Text::GetShadingColor() const {
-	return Text::GetParameter(*this, impl::TextShadingColor{});
+HorizontalAlign Text::GetHorizontalAlign() const {
+	// TODO: fix.
+	return {};
 }
 
-TextJustify Text::GetJustify() const {
-	return Text::GetParameter(*this, TextJustify{});
+VerticalAlign Text::GetVerticalAlign() const {
+	// TODO: fix.
+	return {};
+}
+
+OverflowMode Text::GetOverflowMode() const {
+	// TODO: fix.
+	return {};
 }
 
 FontSize Text::GetFontSize() const {
-	return Text::GetParameter(*this, FontSize{});
+	// TODO: fix.
+	return {};
 }
 
 V2_int Text::GetSize() const {
-	return GetSize(
-		Text::GetParameter(*this, impl::TextContent{}), Text::GetParameter(*this, Font{}),
-		GetFontSize()
-	);
-}
-
-V2_int Text::GetSize(std::string_view text_content, FontOrKey font, FontSize font_size) const {
-	return GetScene().ctx().font.GetSize(font, text_content, font_size);
+	return GetSize(GetContent(), GetFont(), GetFontSize());
 }
 
 V2_int Text::GetSize(std::string_view text_content) const {
 	return GetSize(text_content, GetFont(), GetFontSize());
 }
 
-TextProperties Text::GetProperties() const {
-	TextProperties properties;
-	properties.justify		 = Text::GetParameter(*this, TextJustify{});
-	properties.line_skip	 = Text::GetParameter(*this, TextLineSkip{});
-	properties.outline		 = Text::GetParameter(*this, TextOutline{});
-	properties.render_mode	 = Text::GetParameter(*this, FontRenderMode{});
-	properties.shading_color = Text::GetParameter(*this, impl::TextShadingColor{});
-	properties.style		 = Text::GetParameter(*this, FontStyle{});
-	properties.wrap_after	 = Text::GetParameter(*this, impl::TextWrapAfter{});
-	return properties;
+V2_int Text::GetSize(std::string_view text_content, FontOrKey font, FontSize font_size) const {
+	// TODO: Fix.
+	// return GetScene().ctx().font.GetSize(font, text_content, font_size);
+	return {};
 }
 
 Text CreateText(
 	Scene& scene, V2_float position, std::string_view text_content, Color text_color,
-	FontSize font_size, FontOrKey font, Origin draw_origin, const TextProperties& properties
+	FontSize font_size, FontOrKey font, Origin draw_origin
 ) {
 	auto resolved_font{ font.Get(scene.ctx().asset) };
 
@@ -290,11 +236,6 @@ Text CreateText(
 	SetDrawOrigin(text, draw_origin);
 	SetDraw<Text>(text);
 	Show(text, false);
-	Text::SetParameter(text, impl::TextContent{ text_content }, false);
-	Text::SetParameter(text, impl::TextColor{ text_color }, false);
-	Text::SetParameter(text, resolved_font, false);
-	Text::SetParameter(text, font_size, false);
-	Text::SetProperties(text, properties, true);
 	return text;
 }
 

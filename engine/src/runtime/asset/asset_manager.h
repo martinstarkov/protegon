@@ -38,7 +38,6 @@ class DebugContext;
 namespace impl {
 
 class Renderer;
-class FontSystem;
 
 struct AssetName {
 	explicit AssetName(std::string_view name) : name{ name } {}
@@ -238,16 +237,6 @@ private:
 	);
 
 	[[nodiscard]] Texture CreateTexture(bool persistent, const path& asset_path);
-
-	[[nodiscard]] std::optional<impl::TextureObject> CreateTextTextureObject(
-		std::string_view text_content, Color color, float font_size, FontOrKey font,
-		const TextProperties& properties
-	);
-
-	[[nodiscard]] Texture CreateTextTexture(
-		std::string_view text_content, Color text_color, float font_size, FontOrKey font,
-		const TextProperties& properties
-	);
 	[[nodiscard]] Font CreateFont(bool persistent, const path& asset_path, float pt_size);
 	[[nodiscard]] Audio CreateAudio(bool persistent, const path& asset_path);
 

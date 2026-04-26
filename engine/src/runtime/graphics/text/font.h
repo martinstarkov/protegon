@@ -31,31 +31,6 @@ struct FontBinary {
 	unsigned int length{ 0 };
 };
 
-enum class FontRenderMode : int {
-	Blended = 0,
-	Solid	= 1,
-	Shaded	= 2
-};
-PTGN_REFLECT_ENUM(FontRenderMode);
-
-enum class FontStyle : int {
-	Normal		  = 0, // TTF_STYLE_NORMAL
-	Bold		  = 1, // TTF_STYLE_BOLD
-	Italic		  = 2, // TTF_STYLE_ITALIC
-	Underline	  = 4, // TTF_STYLE_UNDERLINE
-	Strikethrough = 8  // TTF_STYLE_STRIKETHROUGH
-};
-PTGN_SERIALIZE_ENUM(FontStyle);
-std::ostream& operator<<(std::ostream& os, FontStyle style);
-
-[[nodiscard]] inline FontStyle operator&(FontStyle a, FontStyle b) {
-	return static_cast<FontStyle>(std::to_underlying(a) | std::to_underlying(b));
-}
-
-[[nodiscard]] inline FontStyle operator|(FontStyle a, FontStyle b) {
-	return static_cast<FontStyle>(std::to_underlying(a) | std::to_underlying(b));
-}
-
 class Font : public EntityHandle {
 public:
 	using EntityHandle::EntityHandle;

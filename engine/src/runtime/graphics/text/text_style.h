@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <ostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -43,19 +44,21 @@ enum class OverflowMode : std::uint8_t {
 	ShrinkToFit,
 };
 
-enum class FontStyleFlags : std::uint32_t {
-	None		  = 0,
+enum class FontStyle : std::uint32_t {
+	Normal		  = 0,
 	Bold		  = 1 << 0,
 	Italic		  = 1 << 1,
 	Underline	  = 1 << 2,
 	Strikethrough = 1 << 3,
 };
 
-inline FontStyleFlags operator|(FontStyleFlags a, FontStyleFlags b) {
-	return static_cast<FontStyleFlags>(std::to_underlying(a) | std::to_underlying(b));
+std::ostream& operator<<(std::ostream& os, FontStyle style);
+
+inline FontStyle operator|(FontStyle a, FontStyle b) {
+	return static_cast<FontStyle>(std::to_underlying(a) | std::to_underlying(b));
 }
 
-inline bool HasFlag(FontStyleFlags value, FontStyleFlags flag) {
+inline bool HasFlag(FontStyle value, FontStyle flag) {
 	return (std::to_underlying(value) & std::to_underlying(flag)) != 0u;
 }
 
@@ -93,7 +96,7 @@ struct TextRunStyle {
 	float tracking{ 0.0f };
 	float line_spacing{ 0.0f };
 
-	FontStyleFlags flags{ FontStyleFlags::None };
+	FontStyle flags{ FontStyle::Normal };
 
 	DistanceFieldStyle sdf;
 	GlyphEffectStyle effect;
@@ -116,7 +119,7 @@ struct TextStyle {
 	impl::FontData* font{ nullptr };
 	Color color{ color::White };
 	float scale{ 1.0f };
-	FontStyleFlags flags{ FontStyleFlags::None };
+	FontStyle flags{ FontStyle::Normal };
 	DistanceFieldStyle sdf;
 
 	[[nodiscard]] TextRunStyle ToRunStyle() const;

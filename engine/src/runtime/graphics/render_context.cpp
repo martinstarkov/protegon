@@ -228,33 +228,34 @@ void RenderContext::DrawPoint(
 	);
 }
 
-void RenderContext::DrawText(
-	std::string_view text_content, Transform transform, Color text_color, FontSize font_size,
-	FontOrKey font, const TextProperties& properties, Origin draw_origin,
-	std::optional<V2_float> text_size, Depth depth, std::optional<BlendMode> blend_mode,
-	const std::optional<SceneCamera>& camera, int entity_id
-) {
-	auto texture_object{ scene_.ctx().asset.CreateTextTextureObject(
-		text_content, text_color, font_size, font, properties
-	) };
-
-	if (!texture_object.has_value()) {
-		return;
-	}
-
-	auto texture_size{ texture_object->GetSize() };
-
-	auto texture_id{ texture_object->operator impl::TextureId() };
-
-	temporary_textures_.emplace_back(std::move(*texture_object));
-
-	auto texture_shader{ renderer_.GetShader("texture") };
-
-	DrawTexture(
-		texture_id, texture_size, texture_shader, transform, text_size, draw_origin, color::White,
-		depth, blend_mode, {}, camera, entity_id
-	);
-}
+// TODO: Fix.
+// void RenderContext::DrawText(
+//	std::string_view text_content, Transform transform, Color text_color, FontSize font_size,
+//	FontOrKey font, const TextProperties& properties, Origin draw_origin,
+//	std::optional<V2_float> text_size, Depth depth, std::optional<BlendMode> blend_mode,
+//	const std::optional<SceneCamera>& camera, int entity_id
+//) {
+//	auto texture_object{ scene_.ctx().asset.CreateTextTextureObject(
+//		text_content, text_color, font_size, font, properties
+//	) };
+//
+//	if (!texture_object.has_value()) {
+//		return;
+//	}
+//
+//	auto texture_size{ texture_object->GetSize() };
+//
+//	auto texture_id{ texture_object->operator impl::TextureId() };
+//
+//	temporary_textures_.emplace_back(std::move(*texture_object));
+//
+//	auto texture_shader{ renderer_.GetShader("texture") };
+//
+//	DrawTexture(
+//		texture_id, texture_size, texture_shader, transform, text_size, draw_origin, color::White,
+//		depth, blend_mode, {}, camera, entity_id
+//	);
+// }
 
 void RenderContext::SetGameSize(std::optional<V2_int> game_size, ScalingMode scaling_mode) {
 	renderer_.SetGameSize(game_size, scaling_mode);

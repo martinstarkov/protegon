@@ -144,13 +144,14 @@ public:
 		int entity_id = -1
 	);
 
-	void DrawText(
-		std::string_view text_content, Transform transform, Color text_color,
-		FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {},
-		Origin draw_origin = Origin::Center, std::optional<V2_float> text_size = {},
-		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
-	);
+	// TODO: Fix.
+	// void DrawText(
+	//	std::string_view text_content, Transform transform, Color text_color,
+	//	FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {},
+	//	Origin draw_origin = Origin::Center, std::optional<V2_float> text_size = {},
+	//	Depth depth = {}, std::optional<BlendMode> blend_mode = {},
+	//	const std::optional<SceneCamera>& camera = {}, int entity_id = -1
+	//);
 
 	void DrawLine(
 		V2_float start, V2_float end, Color color, float line_width = kMinLineWidth,

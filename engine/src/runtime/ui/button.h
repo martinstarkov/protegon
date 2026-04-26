@@ -373,7 +373,8 @@ public:
 
 	std::optional<std::string> GetTextContent(ButtonStyleState state = {}) const;
 
-	std::optional<TextJustify> GetTextJustify(ButtonStyleState state = {}) const;
+	// TODO: Fix.
+	// std::optional<TextJustify> GetTextJustify(ButtonStyleState state = {}) const;
 
 	/// @return A pair of (x, y) fixed text size, or {} if the text size is not fixed. If either
 	/// axis is
@@ -482,23 +483,29 @@ public:
 		std::optional<Color> texture_tint, ButtonStyleState state = ButtonStyleState::Idle()
 	);
 	Derived& SetTint(std::optional<Color> tint, ButtonStyleState state = ButtonStyleState::Idle());
-	Derived& SetTextColor(Color text_color, ButtonStyleState state = ButtonStyleState::Idle());
-	Derived& SetTextContent(
-		std::string_view text_content, ButtonStyleState state = ButtonStyleState::Idle()
-	);
-	Derived& SetTextJustify(TextJustify justify, ButtonStyleState state = ButtonStyleState::Idle());
+	// TODO: Fix.
+	// Derived& SetTextColor(Color text_color, ButtonStyleState state = ButtonStyleState::Idle());
+	// TODO: Fix.
+	// Derived& SetTextContent(
+	//	std::string_view text_content, ButtonStyleState state = ButtonStyleState::Idle()
+	//);
+	// TODO: Fix.
+	// Derived& SetTextJustify(TextJustify justify, ButtonStyleState state =
+	// ButtonStyleState::Idle());
 	/// If either axis of the text size is {}, it is stretched to fit the entire size of the button
 	/// rectangle (along that axis).
 	Derived& SetTextFixedSize(
 		std::optional<ButtonTextFixedSize> size = {},
 		ButtonStyleState state					= ButtonStyleState::Idle()
 	);
-	Derived& SetFontSize(FontSize font_size, ButtonStyleState state = ButtonStyleState::Idle());
-	Derived& SetText(
-		std::string_view text_content, Color text_color = color::Black, FontSize font_size = {},
-		FontOrKey font = {}, const TextProperties& text_properties = {},
-		ButtonStyleState state = ButtonStyleState::Idle()
-	);
+	// TODO: Fix.
+	// Derived& SetFontSize(FontSize font_size, ButtonStyleState state = ButtonStyleState::Idle());
+	// TODO: Fix.
+	// Derived& SetText(
+	//	std::string_view text_content, Color text_color = color::Black, FontSize font_size = {},
+	//	FontOrKey font = {}, const TextProperties& text_properties = {},
+	//	ButtonStyleState state = ButtonStyleState::Idle()
+	//);
 	Derived& SetBorderShape(
 		std::optional<std::variant<Rect, Circle>> shape,
 		ButtonStyleState state = ButtonStyleState::Idle()
@@ -536,11 +543,12 @@ private:
 
 	ButtonStyleTuple GetStyle(ButtonStyleState state);
 
-	void SetText(
-		GameObject<Text>& text, std::string_view text_content = {},
-		std::optional<Color> text_color = {}, FontSize font_size = {}, FontOrKey font = {},
-		const TextProperties& text_properties = {}
-	);
+	// TODO: Fix.
+	// void SetText(
+	//	GameObject<Text>& text, std::string_view text_content = {},
+	//	std::optional<Color> text_color = {}, FontSize font_size = {}, FontOrKey font = {},
+	//	const TextProperties& text_properties = {}
+	//);
 
 	void SetState(InternalButtonState new_state);
 

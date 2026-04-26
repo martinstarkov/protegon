@@ -28,12 +28,13 @@ class SceneContext;
 class DebugContext {
 public:
 	/// @param text_size {} results in unscaled size of text based on font.
-	void DrawText(
-		std::string_view text_content, Transform transform, Color text_color,
-		FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {},
-		Origin draw_origin = Origin::Center, std::optional<V2_float> text_size = std::nullopt,
-		const std::optional<SceneCamera>& camera = std::nullopt
-	);
+	// TODO: Fix.
+	// void DrawText(
+	//	std::string_view text_content, Transform transform, Color text_color,
+	//	FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {},
+	//	Origin draw_origin = Origin::Center, std::optional<V2_float> text_size = std::nullopt,
+	//	const std::optional<SceneCamera>& camera = std::nullopt
+	//);
 
 	/// @param origin only applicable to Rect and RoundedRect.
 	void DrawShape(

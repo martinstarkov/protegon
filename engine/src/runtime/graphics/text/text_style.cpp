@@ -1,8 +1,10 @@
 #include "runtime/graphics/text/text_style.h"
 
+#include <ostream>
 #include <utility>
 
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/util/hash.h"
 #include "runtime/graphics/text/font_data.h"
 #include "runtime/graphics/text/text_effect.h"
@@ -10,8 +12,8 @@
 namespace ptgn {
 
 bool TextRunStyle::IsUsingFakeBold() const {
-	const bool wants_bold	= HasFlag(flags, FontStyleFlags::Bold);
-	const bool wants_italic = HasFlag(flags, FontStyleFlags::Italic);
+	const bool wants_bold	= HasFlag(flags, FontStyle::Bold);
+	const bool wants_italic = HasFlag(flags, FontStyle::Italic);
 
 	if (!wants_bold || !fake_bold_if_missing) {
 		return false;
@@ -25,8 +27,8 @@ bool TextRunStyle::IsUsingFakeBold() const {
 }
 
 impl::FontData* TextRunStyle::GetFont() const {
-	const bool bold	  = HasFlag(flags, FontStyleFlags::Bold);
-	const bool italic = HasFlag(flags, FontStyleFlags::Italic);
+	const bool bold	  = HasFlag(flags, FontStyle::Bold);
+	const bool italic = HasFlag(flags, FontStyle::Italic);
 
 	if (bold && italic && bold_italic_font != nullptr) {
 		return bold_italic_font;
@@ -48,6 +50,38 @@ TextRunStyle TextStyle::ToRunStyle() const {
 	run.flags = flags;
 	run.sdf	  = sdf;
 	return run;
+}
+
+std::ostream& operator<<(std::ostream& os, FontStyle style) {
+	using enum FontStyle;
+
+	if (style == Normal) {
+		return os << "Normal";
+	}
+
+	bool first = true;
+
+	auto print = [&](FontStyle flag, const char* name) {
+		if ((style | flag) == flag) {
+			if (!first) {
+				os << " | ";
+			}
+			os << name;
+			first = false;
+		}
+	};
+
+	print(Bold, "Bold");
+	print(Italic, "Italic");
+	print(Underline, "Underline");
+	print(Strikethrough, "Strikethrough");
+
+	if (first) {
+		// No known flags matched
+		PTGN_ERROR("Unknown FontStyle: ", std::to_underlying(style));
+	}
+
+	return os;
 }
 
 } // namespace ptgn

@@ -60,11 +60,6 @@ private:
 	friend class Texture;
 	friend class AssetManager;
 
-	[[nodiscard]] static std::optional<impl::Surface> CreateTextSurface(
-		std::string_view text_content, Color color, FontSize font_size, Font font_asset,
-		const TextProperties& properties
-	);
-
 	[[nodiscard]] static impl::FontObject CreateFont(const path& font_path, FontSize font_size);
 
 	impl::FontObject GetFont(FontOrKey font, FontSize font_size) const;
