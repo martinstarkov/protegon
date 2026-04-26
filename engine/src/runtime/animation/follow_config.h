@@ -33,6 +33,10 @@ struct FollowConfig {
 	/// applicable when move mode is set to lerp.
 	V2_float lerp{ 0.9f, 0.9f };
 
+	/// @brief Distance below which the entity snaps to the target position instead of lerping. Only
+	/// applicable when move mode is set to lerp.
+	float snap_distance{ 0.1f };
+
 	/// @brief Area around target within which no following occurs.
 	V2_float deadzone;
 

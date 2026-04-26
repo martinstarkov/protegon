@@ -341,6 +341,16 @@ V2_float GetFollowPosition(
 		new_pos.y = position.y;
 	}
 
+	if (config.snap_distance > 0.0f) {
+		if (config.follow_x && std::abs(target_position.x - new_pos.x) <= config.snap_distance) {
+			new_pos.x = target_position.x;
+		}
+
+		if (config.follow_y && std::abs(target_position.y - new_pos.y) <= config.snap_distance) {
+			new_pos.y = target_position.y;
+		}
+	}
+
 	return new_pos;
 }
 
