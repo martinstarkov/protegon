@@ -17,19 +17,6 @@ class Renderer;
 
 namespace impl {
 
-struct GlyphMetrics {
-	std::uint32_t codepoint{ 0 };
-	float advance{ 0.0f };
-	Rect plane;
-	Rect uv;
-};
-
-struct FontMetrics {
-	float ascender{ 0.0f };
-	float descender{ 0.0f };
-	float line_height{ 0.0f };
-};
-
 class FontData {
 public:
 	virtual ~FontData() = default;
@@ -74,18 +61,11 @@ public:
 	TextureId GetAtlasTexture() const override;
 
 	V2_int GetAtlasSize() const;
-	float GetPixelRange() const;
-	float GetEmSize() const;
 
 private:
 	static std::uint64_t KerningKey(std::uint32_t current_codepoint, std::uint32_t next_codepoint);
 
-	std::uint64_t font_id_{ 0 };
 	TextureObject atlas_texture_;
-	std::uint32_t atlas_texture_index_{ 0 };
-	V2_int atlas_size_;
-	float pixel_range_{ 2.0f };
-	float em_size_{ 40.0f };
 	FontMetrics metrics_;
 
 	std::unordered_map<std::uint32_t, GlyphMetrics> glyphs_;

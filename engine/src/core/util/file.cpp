@@ -89,20 +89,20 @@ bool DirectoryExists(const path& directory_path) {
 	return fs::is_directory(directory_path) || fs::is_directory(GetAbsolutePath(directory_path));
 }
 
-path GetAbsolutePath(const path& relative_file_path) {
-	auto combined{ GetAssetRoot() / relative_file_path };
+path GetAbsolutePath(const path& relative_path) {
+	auto combined{ GetAssetRoot() / relative_path };
 
 	if (fs::exists(combined)) {
 		return combined.lexically_normal();
 	}
 
-	auto absolute_path{ GetWorkingDirectory() / relative_file_path };
+	auto absolute_path{ GetWorkingDirectory() / relative_path };
 
 	return absolute_path.lexically_normal();
 }
 
-path GetRelativePath(const path& absolute_file_path) {
-	return absolute_file_path.relative_path();
+path GetRelativePath(const path& absolute_path) {
+	return absolute_path.relative_path();
 }
 
 path GetAssetRoot() {

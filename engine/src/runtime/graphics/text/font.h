@@ -1,7 +1,14 @@
 #pragma once
 
+#include <cstdint>
+#include <optional>
+
+#include "core/math/geometry/rect.h"
 #include "core/util/entity_handle.h"
+#include "core/util/file.h"
 #include "core/util/hash.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/texture.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -35,7 +42,61 @@ struct FontBinary {
 
 namespace impl {
 
-struct FontObject {};
+class Renderer;
+
+struct FontAtlasInfo {
+	float em_size{ 48.0f };
+	float pixel_range{ 4.0f };
+	float max_corner_angle{ 3.0f };
+	float miter_limit{ 1.0f };
+	std::uint32_t charset_begin{ 0x20 };
+	std::uint32_t charset_end{ 0xFF };
+};
+
+struct GlyphMetrics {
+	std::uint32_t codepoint{ 0 };
+	float advance{ 0.0f };
+	Rect plane;
+	Rect uv;
+};
+
+struct FontMetrics {
+	float ascender{ 0.0f };
+	float descender{ 0.0f };
+	float line_height{ 0.0f };
+};
+
+struct FontData {
+	path font_path;
+	FontMetrics metrics;
+	std::unordered_map<std::uint32_t, GlyphMetrics> glyphs;
+	std::unordered_map<std::uint64_t, float> kerning;
+};
+
+class FontObject {
+public:
+	FontObject() = default;
+
+	FontObject(
+		Renderer& renderer, path font_path, path cache_directory, std::string_view cache_name,
+		const FontAtlasInfo& atlas_info = {}
+	);
+
+	FontObject(Renderer& renderer, path cache_directory, std::string_view cache_name);
+
+	[[nodiscard]] std::optional<GlyphMetrics> GetGlyph(std::uint32_t codepoint) const;
+	[[nodiscard]] float GetAdvance(std::uint32_t current_codepoint, std::uint32_t next_codepoint)
+		const;
+
+	[[nodiscard]] const FontData& GetFontData() const;
+
+	[[nodiscard]] TextureId GetAtlasTexture() const;
+
+private:
+	TextureObject atlas_texture_;
+
+	FontData data_;
+};
 
 } // namespace impl
 
