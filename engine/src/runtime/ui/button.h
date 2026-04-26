@@ -17,12 +17,12 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "core/util/hash.h"
 #include "core/util/time.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset.h"
 #include "runtime/audio/audio.h"
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/drawable.h"
@@ -272,25 +272,6 @@ private:
 struct ToggleButtonGroupKey : public HashComponent {
 	using HashComponent::HashComponent;
 };
-
-} // namespace impl
-
-} // namespace ptgn
-
-namespace std {
-
-template <>
-struct hash<ptgn::impl::ToggleButtonGroupKey> {
-	std::size_t operator()(const ptgn::impl::ToggleButtonGroupKey& key) const {
-		return key.GetHash();
-	}
-};
-
-} // namespace std
-
-namespace ptgn {
-
-namespace impl {
 
 struct ToggleButtonGroupData {
 	ToggleButtonGroupData()											   = default;

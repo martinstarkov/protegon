@@ -102,4 +102,24 @@ inline std::size_t Hash(const Ts&... values) {
 	return hash;
 }
 
+class KeyHash {
+public:
+	KeyHash() = default;
+
+	KeyHash(std::string_view key) : value_{ Hash(key) } {}	 // NOSONAR
+
+	KeyHash(const char* key) : value_{ Hash(key) } {}		 // NOSONAR
+
+	KeyHash(const std::string& key) : value_{ Hash(key) } {} // NOSONAR
+
+	KeyHash(std::size_t hash) : value_{ hash } {}			 // NOSONAR
+
+	operator std::size_t() const {							 // NOSONAR
+		return value_;
+	}
+
+private:
+	std::size_t value_{ 0 };
+};
+
 } // namespace ptgn

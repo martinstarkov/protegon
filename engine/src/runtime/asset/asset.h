@@ -21,23 +21,20 @@ class Scene;
 class AssetManager;
 
 template <typename T>
-concept AssetType =
-	IsAnyOf<T, Texture, Font, Audio, Shader, json, std::reference_wrapper<const json>>;
+concept AssetType = IsAnyOf<T, Texture, Font, Audio, Shader, json>;
 
 template <AssetType T>
-class AssetOrKey {
+class AssetKey {
 public:
-	AssetOrKey() = default;
+	AssetKey() = default;
 
-	AssetOrKey(const T& asset);			// NOSONAR
+	AssetKey(const char* key);		  // NOSONAR
 
-	AssetOrKey(const char* key);		// NOSONAR
+	AssetKey(std::string_view key);	  // NOSONAR
 
-	AssetOrKey(std::string_view key);	// NOSONAR
+	AssetKey(const std::string& key); // NOSONAR
 
-	AssetOrKey(const std::string& key); // NOSONAR
-
-	AssetOrKey(std::size_t key_hash);	// NOSONAR
+	AssetKey(std::size_t key_hash);	  // NOSONAR
 
 	[[nodiscard]] constexpr bool IsHashKey() const {
 		return std::holds_alternative<std::size_t>(value_);
@@ -67,18 +64,18 @@ private:
 };
 
 /// @brief Defaults to default engine font.
-using FontOrKey	   = AssetOrKey<Font>;
-using TextureOrKey = AssetOrKey<Texture>;
-using AudioOrKey   = AssetOrKey<Audio>;
-using ShaderOrKey  = AssetOrKey<Shader>;
-using JsonOrKey	   = AssetOrKey<std::reference_wrapper<const json>>;
+using FontOrKey	   = AssetKey<Font>;
+using TextureOrKey = AssetKey<Texture>;
+using AudioOrKey   = AssetKey<Audio>;
+using ShaderOrKey  = AssetKey<Shader>;
+using JsonOrKey	   = AssetKey<std::reference_wrapper<const json>>;
 
 } // namespace ptgn
 
 template <typename T>
 	requires(ptgn::AssetType<T> && !std::is_same_v<T, ptgn::json> && !std::is_same_v<T, std::reference_wrapper<const ptgn::json>>)
-struct std::hash<ptgn::AssetOrKey<T>> {
-	std::size_t operator()(const ptgn::AssetOrKey<T>& asset) const {
+struct std::hash<ptgn::AssetKey<T>> {
+	std::size_t operator()(const ptgn::AssetKey<T>& asset) const {
 		return std::visit(
 			[]<typename S>(const S& value) -> std::size_t {
 				if constexpr (std::is_same_v<S, T>) {

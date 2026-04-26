@@ -8,10 +8,10 @@
 #include "core/event/event.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
+#include "core/util/hash.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
 #include "runtime/asset/asset.h"
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/scripting/script.h"
@@ -201,24 +201,6 @@ namespace impl {
 struct AnimationMapKey : public HashComponent {
 	using HashComponent::HashComponent;
 };
-} // namespace impl
-
-} // namespace ptgn
-
-namespace std {
-
-template <>
-struct hash<ptgn::impl::AnimationMapKey> {
-	std::size_t operator()(const ptgn::impl::AnimationMapKey& key) const {
-		return key.GetHash();
-	}
-};
-
-} // namespace std
-
-namespace ptgn {
-
-namespace impl {
 
 struct AnimationMapData {
 public:
