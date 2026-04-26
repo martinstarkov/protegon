@@ -21,12 +21,8 @@ using namespace ptgn;
 constexpr V2_int game_size{ 800, 800 };
 
 struct TextScene : public Scene {
-	TextSystem text_system;
-
 	static constexpr std::string_view font{ "arial" };
 	std::string content{ "The quick brown fox jumps over the lazy dog" };
-
-	impl::MsdfFontData msdf_font;
 
 	Text CreateText(const Color& color, int index, std::string_view font_key = font) {
 		constexpr float stride{ 44.0f };
@@ -81,8 +77,6 @@ struct TextScene : public Scene {
 			)
 			.SetFontRenderMode(FontRenderMode::Shaded)
 			.SetShadingColor(color::Cyan);
-
-		msdf_font = { ctx().global_renderer_, "assets/fonts/LiberationSans-Regular.ttf", 0, {} };
 	}
 
 	void OnUpdate() override {
@@ -95,17 +89,6 @@ struct TextScene : public Scene {
 			ctx().camera.Zoom(-V2_float{ 10.0f } * ctx().dt().count());
 		}
 		scale = std::clamp(scale, 0.0001f, 10000.0f);
-	}
-
-	void OnRender() override {
-		DrawContext draw_context{ ctx().global_renderer_ };
-
-		/*draw_context.DrawTexture(
-			msdf_font.GetAtlasTexture(), {}, 0.0f, msdf_font.GetAtlasSize(), Origin::Center,
-			color::White, impl::GetDefaultTextureCoordinates<false>(), std::nullopt, -1
-		);*/
-
-		text_system.DrawText(draw_context, {}, &msdf_font);
 	}
 };
 

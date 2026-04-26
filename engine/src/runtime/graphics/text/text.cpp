@@ -9,6 +9,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
+#include "font_data.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset.h"
@@ -23,6 +24,7 @@
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "text_system.h"
 
 namespace ptgn {
 
@@ -32,6 +34,19 @@ void Text::Draw(
 	DrawContext& renderer, Entity entity, V2_int text_size, Color additional_tint,
 	Origin offset_origin, V2_float offset_size
 ) {
+	// TODO: Move out.
+	static TextSystem text_system;
+	static impl::MsdfFontData msdf_font = {
+		renderer.renderer_, "assets/fonts/LiberationSans-Regular.ttf", 0, {}
+	};
+	/*draw_context.DrawTexture(
+		msdf_font.GetAtlasTexture(), {}, 0.0f, msdf_font.GetAtlasSize(), Origin::Center,
+		color::White, impl::GetDefaultTextureCoordinates<false>(), std::nullopt, -1
+	);*/
+
+	text_system.DrawText(renderer, {}, &msdf_font);
+
+	/*
 	Text text{ entity };
 
 	if (!text.Has<impl::TextContent>()) {
@@ -95,11 +110,12 @@ void Text::Draw(
 		text_texture, transform, depth, size, draw_origin, text_tint, tex_coords, blend_mode,
 		text.GetUUID()
 	);
+	*/
 }
 
 void Text::Draw(DrawContext& renderer, Entity text) {
 	// This wrapper exists so that buttons can draw offset text.
-	// Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
+	Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
 }
 
 void Text::RecreateTexture(Entity entity) {
