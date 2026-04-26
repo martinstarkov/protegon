@@ -225,13 +225,12 @@ public:
 		renderer_.SetUniform(GetShaderId(shader), uniform_name, value);
 	}
 
-	// TODO: Move to private:
-	explicit DrawContext(impl::Renderer& renderer);
-
 private:
 	friend class Scene;
 	friend class DebugContext;
 	friend class RenderContext;
+
+	explicit DrawContext(impl::Renderer& renderer);
 
 	impl::ShaderId GetShaderId(ShaderVariant shader) const;
 
