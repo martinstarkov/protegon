@@ -20,9 +20,7 @@
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
-#include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
-#include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/text/font.h"
@@ -107,7 +105,7 @@ public:
 	Color GetBackgroundColor() const;
 
 	void DrawTexture(
-		TextureOrKey texture, Transform transform, std::optional<V2_float> size = {},
+		std::string_view texture_key, Transform transform, std::optional<V2_float> size = {},
 		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
 		std::optional<BlendMode> blend_mode								  = {},
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
@@ -115,16 +113,16 @@ public:
 	);
 
 	void DrawTexture(
-		TextureOrKey texture, Shader shader, Transform transform, std::optional<V2_float> size = {},
-		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
-		std::optional<BlendMode> blend_mode								  = {},
+		std::string_view texture_key, std::string_view shader_key, Transform transform,
+		std::optional<V2_float> size = {}, Origin draw_origin = Origin::Center,
+		std::optional<Color> tint = {}, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
 		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
 		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
 	);
 
 	/// @param size If size is {}, uses the entire game size.
 	void DrawShader(
-		Shader shader, Transform transform, std::optional<V2_float> size = {},
+		std::string_view shader_key, Transform transform, std::optional<V2_float> size = {},
 		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
 		std::optional<BlendMode> blend_mode = {}, const std::optional<SceneCamera>& camera = {},
 		int entity_id = -1

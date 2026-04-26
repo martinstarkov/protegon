@@ -2,9 +2,9 @@
 
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <vector>
 
-#include "runtime/asset/asset.h"
 #include "runtime/audio/track.h"
 
 struct ma_engine;
@@ -46,7 +46,7 @@ public:
 	/// @brief Toggles the master volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new master volume to this value
 	/// in range [kMinVolume, kMaxVolume]. Volume clamped if outside of range.
-	void ToggleVolume(float new_volume);
+	void ToggleVolume(float new_volume) const;
 
 	/// @brief Stops all audio tracks.
 	void StopAll();
@@ -74,51 +74,51 @@ public:
 	/// will stop the currently playing track and start a new one. If false, when exclusive is true
 	/// and the audio is already playing, it will do nothing.
 	void Play(
-		AudioOrKey audio, float volume = 1.0f, std::optional<int> loops = 0,
+		std::string_view audio_key, float volume = 1.0f, std::optional<int> loops = 0,
 		float frequency_ratio = 1.0f, bool exclusive = false, bool force_restart = true
 	);
 
 	/// @brief Stop the audio.
-	void Stop(AudioOrKey audio);
+	void Stop(std::string_view audio_key);
 
 	/// @brief Pauses the audio.
-	void Pause(AudioOrKey audio);
+	void Pause(std::string_view audio_key);
 
 	/// @brief Resumes the audio.
-	void Resume(AudioOrKey audio);
+	void Resume(std::string_view audio_key);
 
 	/// @brief Toggles the pause state of the audio.
-	void TogglePause(AudioOrKey audio);
+	void TogglePause(std::string_view audio_key);
 
 	/// @brief Only sets the volume of the specific audio if it's currently playing; otherwise, does
 	/// nothing.
 	/// @param volume Volume of the specific audio in range [kMinVolume, kMaxVolume]. Volume clamped
 	/// if outside of range.
-	void SetVolume(AudioOrKey audio, float volume);
+	void SetVolume(std::string_view audio_key, float volume);
 
 	/// @brief Only gets the volume of the specific audio if it's currently playing; otherwise,
 	/// returns 0
 	/// @return Volume of the specific audio in range [kMinVolume, kMaxVolume].
-	float GetVolume(AudioOrKey audio);
+	float GetVolume(std::string_view audio_key);
 
 	/// @brief Toggles the volume between kMinVolume and new_volume.
 	/// @param new_volume When toggle unmutes, it will set the new volume of the audio to this value
 	/// in range [kMinVolume, kMaxVolume]. Volume clamped if outside of range.
-	void ToggleVolume(AudioOrKey audio, float new_volume = 1.0f);
+	void ToggleVolume(std::string_view audio_key, float new_volume = 1.0f);
 
 	/// @return True if the audio is currently, false otherwise.
-	[[nodiscard]] bool IsPlaying(AudioOrKey audio);
+	[[nodiscard]] bool IsPlaying(std::string_view audio_key);
 
 	/// @return True if the audio is currently paused, false otherwise.
-	[[nodiscard]] bool IsPaused(AudioOrKey audio);
+	[[nodiscard]] bool IsPaused(std::string_view audio_key);
 
 	///// @return True if the audio is currently fading in OR out, false otherwise.
-	//[[nodiscard]] bool IsFading(AudioOrKey audio);
+	//[[nodiscard]] bool IsFading(std::string_view audio_key);
 	///// @param fade_time How long to fade the audio in for.
 	///// @param loops The number of loops to play the audio for, nullopt for infinite looping.
-	// void FadeIn(AudioOrKey audio, milliseconds fade_time, std::optional<int> loops);
+	// void FadeIn(std::string_view audio_key, milliseconds fade_time, std::optional<int> loops);
 	///// @param fade_time Time over which to fade the audio out.
-	// void FadeOut(AudioOrKey audio, milliseconds fade_time);
+	// void FadeOut(std::string_view audio_key, milliseconds fade_time);
 
 private:
 	friend class AssetManager;

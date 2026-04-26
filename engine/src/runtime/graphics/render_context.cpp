@@ -10,17 +10,10 @@
 #include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
-#include "core/math/geometry/arc.h"
-#include "core/math/geometry/capsule.h"
-#include "core/math/geometry/circle.h"
-#include "core/math/geometry/ellipse.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/geometry/polygon.h"
 #include "core/math/geometry/rect.h"
-#include "core/math/geometry/rounded_rect.h"
 #include "core/math/geometry/shape.h"
-#include "core/math/geometry/triangle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
@@ -33,11 +26,8 @@
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/vertex/vertex.h"
-#include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
@@ -112,44 +102,50 @@ void RenderContext::DrawTexture(
 }
 
 void RenderContext::DrawTexture(
-	TextureOrKey texture, Transform transform, std::optional<V2_float> size, Origin draw_origin,
-	std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
+	std::string_view texture_key, Transform transform, std::optional<V2_float> size,
+	Origin draw_origin, std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
 	const std::optional<SceneCamera>& camera, int entity_id
 ) {
 	auto texture_shader{ renderer_.GetShader("texture") };
 
 	const auto& assets{ scene_.ctx().asset };
-	auto resolved_texture{ texture.Get(assets) };
-	auto texture_size{ resolved_texture.GetSize() };
+
+	auto texture{ assets.Get<Texture>(texture_key) };
+	auto texture_size{ texture.GetSize() };
 
 	DrawTexture(
-		resolved_texture, texture_size, texture_shader, transform, size, draw_origin, tint, depth,
+		texture, texture_size, texture_shader, transform, size, draw_origin, tint, depth,
 		blend_mode, texture_coordinates, camera, entity_id
 	);
 }
 
 void RenderContext::DrawTexture(
-	TextureOrKey texture, Shader shader, Transform transform, std::optional<V2_float> size,
-	Origin draw_origin, std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
+	std::string_view texture_key, std::string_view shader_key, Transform transform,
+	std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
+	std::optional<BlendMode> blend_mode,
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
 	const std::optional<SceneCamera>& camera, int entity_id
 ) {
 	const auto& assets{ scene_.ctx().asset };
-	auto resolved_texture{ texture.Get(assets) };
-	auto texture_size{ resolved_texture.GetSize() };
+	auto texture{ assets.Get<Texture>(texture_key) };
+	auto shader{ assets.Get<Shader>(shader_key) };
+	auto texture_size{ texture.GetSize() };
 
 	DrawTexture(
-		resolved_texture, texture_size, shader, transform, size, draw_origin, tint, depth,
-		blend_mode, texture_coordinates, camera, entity_id
+		texture, texture_size, shader, transform, size, draw_origin, tint, depth, blend_mode,
+		texture_coordinates, camera, entity_id
 	);
 }
 
 void RenderContext::DrawShader(
-	Shader shader, Transform transform, std::optional<V2_float> size, Origin draw_origin,
-	std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
+	std::string_view shader_key, Transform transform, std::optional<V2_float> size,
+	Origin draw_origin, std::optional<Color> tint, Depth depth, std::optional<BlendMode> blend_mode,
 	const std::optional<SceneCamera>& camera, int entity_id
 ) {
+	const auto& assets{ scene_.ctx().asset };
+	auto shader{ assets.Get<Shader>(shader_key) };
+
 	auto& draw_commands{ GetDrawCommandsForCamera(camera.transform([](const auto& c) {
 		return impl::RenderCamera{ c };
 	})) };

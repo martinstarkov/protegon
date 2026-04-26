@@ -15,7 +15,6 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture_format.h"
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_context.h"
@@ -103,7 +102,7 @@ void RenderTarget::Draw(DrawContext& renderer, Entity entity) {
 	std::optional<V2_int> size;
 
 	if (entity.Has<impl::TextureSize>()) {
-		size = V2_int{ entity.Get<impl::TextureSize>().GetValue() };
+		size = V2_float{ entity.Get<impl::TextureSize>() };
 	} else {
 		size = entity.Get<impl::RenderTargetObject>().GetSize();
 	}
@@ -123,7 +122,7 @@ void RenderTarget::Draw(DrawContext& renderer, Entity entity) {
 	auto entity_id{ entity.GetUUID() };
 
 	renderer.SetBlendMode(blend_mode);
-	renderer.DrawTexture(texture, positions, depth.GetValue(), tint, tex_coords, entity_id);
+	renderer.DrawTexture(texture, positions, depth, tint, tex_coords, entity_id);
 }
 
 void RenderTarget::AddRenderTargetComponents(

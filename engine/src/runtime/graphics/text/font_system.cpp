@@ -13,14 +13,10 @@
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
-#include "runtime/asset/asset.h"
+#include "core/util/hash.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
-
-#ifdef CreateFont
-#undef CreateFont
-#endif
 
 namespace ptgn {
 
@@ -33,7 +29,7 @@ FontSystem::FontSystem(AssetManager& assets) : assets_{ assets } {
 		Font font{ assets_.CreateAsset(), true };
 		font.GetEntity().Add<FontSize>(kDefaultFontSize);
 		font.GetEntity().Add<impl::FontObject>(f);
-		impl::AddAssetKey(font.GetEntity(), 0, std::nullopt);
+		impl::AddAssetKey(font.GetEntity(), "", std::nullopt);
 	}
 }
 
@@ -44,28 +40,27 @@ FontSystem::~FontSystem() noexcept {
 }
 
 Font FontSystem::GetDefault() const {
-	return default_font_.Get(assets_);
+	return assets_.Get<Font>(default_font_);
 }
 
-void FontSystem::SetDefault(FontOrKey font) {
+void FontSystem::SetDefault(std::string_view font_key) {
 	PTGN_ASSERT(
-		font.IsAsset() || font.IsHashKey() && assets_.Has<Font>(font.GetHashKey()),
-		"Font key must be loaded before setting it as default"
+		assets_.Has<Font>(font_key), "Font key must be loaded before setting it as default"
 	);
-	default_font_ = font;
+	default_font_ = font_key;
 }
 
-impl::FontObject FontSystem::GetFont(FontOrKey font, FontSize font_size) const {
-	auto font_asset{ font.Get(assets_) };
+impl::FontObject FontSystem::GetFont(std::string_view font_key, FontSize font_size) const {
+	auto font{ assets_.Get<Font>(font_key) };
 
-	auto font_entity{ font_asset.GetEntity() };
+	auto font_asset{ font.GetEntity() };
 
-	if (font_entity.Get<FontSize>() == font_size) {
-		return font_entity.Get<impl::FontObject>();
+	if (font_asset.Get<FontSize>() == font_size) {
+		return font_asset.Get<impl::FontObject>();
 	}
 
-	if (font_entity.Has<path>()) {
-		auto path_string{ font_entity.Get<path>().string() };
+	if (font_asset.Has<path>()) {
+		auto path_string{ font_asset.Get<path>().string() };
 		PTGN_ASSERT(!path_string.empty(), "Invalid font path");
 		// TODO: Fix.
 		// return std::shared_ptr<TTF_Font>{ TTF_OpenFont(path_string.c_str(), font_size),
@@ -75,7 +70,7 @@ impl::FontObject FontSystem::GetFont(FontOrKey font, FontSize font_size) const {
 
 	// Font has no path defined.
 	PTGN_ASSERT(
-		font_entity.Get<impl::AssetKey>().hash == 0,
+		font_asset.Get<impl::AssetKey>() == Hash(""),
 		"Font key must have a valid path unless it is the default font"
 	);
 
@@ -85,26 +80,26 @@ impl::FontObject FontSystem::GetFont(FontOrKey font, FontSize font_size) const {
 	return impl::FontObject{};
 }
 
-int FontSystem::GetLineSkip(FontOrKey font, FontSize font_size) const {
+int FontSystem::GetLineSkip(std::string_view font_key, FontSize font_size) const {
 	// TODO: Fix.
 	// return TTF_GetFontLineSkip(GetFont(font, font_size).get());
 	return 0;
 }
 
-int FontSystem::GetHeight(FontOrKey font, FontSize font_size) const {
+int FontSystem::GetHeight(std::string_view font_key, FontSize font_size) const {
 	// TODO: Fix.
 	// return TTF_GetFontHeight(GetFont(font, font_size).get());
 	return 0;
 }
 
 V2_int FontSystem::GetSize(
-	FontOrKey font, std::string_view text_content, FontSize font_size, int max_wrap_width
+	std::string_view font_key, std::string_view text_content, FontSize font_size, int max_wrap_width
 ) const {
 	V2_int size;
 
 	if (text_content.empty()) {
 		size.x = 0;
-		size.y = GetHeight(font, font_size);
+		size.y = GetHeight(font_key, font_size);
 		return size;
 	}
 

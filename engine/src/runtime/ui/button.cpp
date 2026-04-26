@@ -25,7 +25,7 @@
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
 #include "runtime/animation/tween_effect.h"
-#include "runtime/asset/asset.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
@@ -280,10 +280,10 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 		style_state.state = ButtonState::Press;
 	}
 
-	Tint tint{ entity_tint };
+	Color tint{ entity_tint };
 
 	if (auto button_tint{ button.GetTint(style_state) }; button_tint.has_value()) {
-		tint = Tint{ entity_tint.Normalized() * button_tint->Normalized() };
+		tint = Color{ entity_tint.Normalized() * button_tint->Normalized() };
 	}
 
 	if (tint.a == 0) {
@@ -315,9 +315,9 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 		}
 		PTGN_ASSERT(button_size.has_value());
 		auto texture_tint{ button.GetTextureTint(sprite_state) };
-		Tint sprite_tint{ tint };
+		Color sprite_tint{ tint };
 		if (texture_tint.has_value()) {
-			sprite_tint = Tint{ tint.Normalized() * texture_tint->Normalized() };
+			sprite_tint = Color{ tint.Normalized() * texture_tint->Normalized() };
 		}
 		Sprite::Draw(renderer, sprite, button_origin, *button_size, sprite_tint);
 	}
@@ -330,7 +330,7 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 	if (auto bg_color{ button.GetBackgroundColor(style_state) };
 		bg_color.has_value() || background_shape.has_value() || bg_fill_style.has_value()) {
 		FillStyle fill{ bg_fill_style.value_or(Solid{}) };
-		Tint color{ bg_color.value_or(color::Transparent).Normalized() * tint.Normalized() };
+		Color color{ bg_color.value_or(color::Transparent).Normalized() * tint.Normalized() };
 		if (!background_shape.has_value()) {
 			if (button.Has<Rect>()) {
 				background_shape = button.Get<Rect>();
@@ -374,8 +374,8 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 		PTGN_ASSERT(border_width.has_value());
 		if (*border_width >= kMinLineWidth) {
 			FillStyle fill{ *border_width };
-			Tint color{ border_color.value_or(color::Transparent).Normalized() *
-						tint.Normalized() };
+			Color color{ border_color.value_or(color::Transparent).Normalized() *
+						 tint.Normalized() };
 			if (!border_shape.has_value()) {
 				if (button.Has<Rect>()) {
 					border_shape = button.Get<Rect>();
@@ -533,10 +533,12 @@ std::optional<Audio> ButtonBase<Derived>::GetSound(ButtonStyleState state) const
 }
 
 template <typename Derived>
-Derived& ButtonBase<Derived>::SetSound(std::optional<AudioOrKey> sound, ButtonStyleState state) {
+Derived& ButtonBase<Derived>::SetSound(
+	std::optional<std::string_view> sound_key, ButtonStyleState state
+) {
 	auto [_1, _2, desired] = GetStyle(state);
 
-	if (!sound.has_value()) {
+	if (!sound_key.has_value()) {
 		desired.sound = std::nullopt;
 		return Self();
 	}
@@ -544,9 +546,9 @@ Derived& ButtonBase<Derived>::SetSound(std::optional<AudioOrKey> sound, ButtonSt
 	const auto& scene{ GetScene() };
 
 	const auto& assets{ scene.ctx().asset };
-	Audio resolved_sound{ sound->Get(assets) };
+	auto sound{ assets.Get<Audio>(*sound_key) };
 
-	desired.sound = resolved_sound;
+	desired.sound = sound;
 
 	return Self();
 }
@@ -622,7 +624,7 @@ Derived& ButtonBase<Derived>::SetBackgroundColor(
 //		const auto& scene{ GetScene() };
 //		const auto& assets{ scene.ctx().asset };
 //
-//		Font resolved_font{ font.Get(assets) };
+//		auto font{ assets.Get<Font>(font_key) };
 //
 //		Text::SetParameter(*desired.text, TextColor{ text_color }, false);
 //		Text::SetParameter(*desired.text, TextContent{ text_content }, false);
@@ -782,18 +784,18 @@ std::optional<Texture> ButtonBase<Derived>::GetTexture(ButtonStyleState state) c
 
 template <typename Derived>
 Derived& ButtonBase<Derived>::SetTexture(
-	std::optional<TextureOrKey> texture, ButtonStyleState state
+	std::optional<std::string_view> texture_key, ButtonStyleState state
 ) {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
-	if (!texture.has_value()) {
+	if (!texture_key.has_value()) {
 		desired.sprite = std::nullopt;
 		return Self();
 	}
 	if (desired.sprite.has_value()) {
-		desired.sprite->SetTexture(*texture);
+		desired.sprite->SetTexture(*texture_key);
 	} else {
 		auto& scene{ GetScene() };
-		desired.sprite = GameObject{ CreateSprite(scene, *texture) };
+		desired.sprite = GameObject{ CreateSprite(scene, *texture_key) };
 		Hide(*desired.sprite);
 		SetParent(*desired.sprite, *this);
 	}
@@ -966,9 +968,9 @@ void ButtonBase<Derived>::PlaySound(ButtonState active) {
 		}
 
 		if (state == active) {
-			audio_system.Play(*sound);
+			audio_system.Play(sound->GetEntity().Get<impl::AssetName>().value);
 		} else if (stop_others) {
-			audio_system.Stop(*sound);
+			audio_system.Stop(sound->GetEntity().Get<impl::AssetName>().value);
 		}
 	}
 }

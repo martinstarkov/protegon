@@ -6,13 +6,9 @@
 #include <vector>
 
 #include "core/log.h"
-#include "core/util/hash.h"
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn::impl {
-
-ChildKey::ChildKey(std::string_view key) : ArithmeticComponent{ Hash(key) } {}
 
 Parent::Parent(Entity entity) : Entity{ entity } {}
 

@@ -11,20 +11,14 @@
 #include <variant>
 #include <vector>
 
-#include "core/graphics/color.h"
 #include "core/util/file.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
-#include "runtime/asset/asset.h"
 #include "runtime/audio/audio.h"
+#include "runtime/ecs/key_hash.h"
 #include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/font_system.h"
-#include "runtime/graphics/text/text.h"
+#include "serialization/json/fwd.h"
 #include "serialization/serialize.h"
-
-#ifdef CreateFont
-#undef CreateFont
-#endif
 
 namespace ptgn {
 
@@ -39,24 +33,27 @@ namespace impl {
 
 class Renderer;
 
+struct AssetKey : public KeyHash {
+	using KeyHash::KeyHash;
+};
+
 struct AssetName {
-	explicit AssetName(std::string_view name) : name{ name } {}
+	explicit AssetName(std::string_view name) : value{ name } {}
 
-	std::string name;
+	std::string value;
 
-	PTGN_SERIALIZE_VALUE(AssetName, name)
+	PTGN_SERIALIZE_VALUE(AssetName, value)
 };
 
-struct AssetKey {
-	std::size_t hash{ 0 };
+struct AssetPath {
+	explicit AssetPath(const path& asset_path) : value{ asset_path } {}
 
-	PTGN_SERIALIZE_VALUE(AssetKey, hash)
+	path value;
+
+	PTGN_SERIALIZE_VALUE(AssetPath, value)
 };
 
-void AddAssetKey(ecs::Entity asset, std::size_t key_hash, const std::optional<path>& path);
-void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<path>& path);
-
-enum class AssetType {
+enum class AssetKind {
 	Texture,
 	Audio,
 	Font,
@@ -64,25 +61,111 @@ enum class AssetType {
 	Shader,
 	Unknown
 };
-PTGN_SERIALIZE_ENUM(AssetType);
 
-static const std::unordered_map<std::string, AssetType> kExtensionToType{
-	{ ".png", AssetType::Texture }, { ".jpg", AssetType::Texture },
-	{ ".bmp", AssetType::Texture }, { ".gif", AssetType::Texture },
+PTGN_SERIALIZE_ENUM(AssetKind);
 
-	{ ".ogg", AssetType::Audio },	{ ".mp3", AssetType::Audio },
-	{ ".wav", AssetType::Audio },	{ ".opus", AssetType::Audio },
+template <typename>
+struct AssetInfo;
 
-	{ ".ttf", AssetType::Font },	{ ".otf", AssetType::Font },
+template <>
+struct AssetInfo<Texture> {
+	static constexpr AssetKind kind = AssetKind::Texture;
+	using Object					= impl::TextureObject;
+	using Get						= Texture;
+	using ConstGet					= Texture;
 
-	{ ".json", AssetType::Json },
-
-	{ ".glsl", AssetType::Shader }
+	static constexpr std::array extensions{
+		std::string_view{ ".png" },
+		std::string_view{ ".jpg" },
+		std::string_view{ ".bmp" },
+		std::string_view{ ".gif" },
+	};
 };
 
-AssetType GetAssetType(const std::string& ext);
+template <>
+struct AssetInfo<Audio> {
+	static constexpr AssetKind kind = AssetKind::Audio;
+	using Object					= impl::AudioObject;
+	using Get						= Audio;
+	using ConstGet					= Audio;
 
-AssetType GetAssetType(const path& asset_path);
+	static constexpr std::array extensions{
+		std::string_view{ ".ogg" },
+		std::string_view{ ".mp3" },
+		std::string_view{ ".wav" },
+		std::string_view{ ".opus" },
+	};
+};
+
+template <>
+struct AssetInfo<Font> {
+	static constexpr AssetKind kind = AssetKind::Font;
+	using Object					= impl::FontObject;
+	using Get						= Font;
+	using ConstGet					= Font;
+
+	static constexpr std::array extensions{
+		std::string_view{ ".ttf" },
+		std::string_view{ ".otf" },
+	};
+};
+
+template <>
+struct AssetInfo<Shader> {
+	static constexpr AssetKind kind = AssetKind::Shader;
+	using Object					= impl::ShaderObject;
+	using Get						= Shader;
+	using ConstGet					= Shader;
+
+	static constexpr std::array extensions{
+		std::string_view{ ".glsl" },
+	};
+};
+
+template <>
+struct AssetInfo<json> {
+	static constexpr AssetKind kind = AssetKind::Json;
+	using Object					= json;
+	using Get						= std::reference_wrapper<json>;
+	using ConstGet					= std::reference_wrapper<const json>;
+
+	static constexpr std::array extensions{
+		std::string_view{ ".json" },
+	};
+};
+
+} // namespace impl
+
+template <typename T>
+concept AssetType = requires {
+	typename impl::AssetInfo<T>::Object;
+	typename impl::AssetInfo<T>::Get;
+	typename impl::AssetInfo<T>::ConstGet;
+	impl::AssetInfo<T>::kind;
+	impl::AssetInfo<T>::extensions;
+};
+
+template <AssetType T>
+using Asset = typename impl::AssetInfo<T>::Get;
+
+template <AssetType T>
+using ConstAsset = typename impl::AssetInfo<T>::ConstGet;
+
+namespace impl {
+
+template <AssetType T>
+constexpr bool MatchesExtension(std::string_view extension) {
+	for (auto candidate : AssetInfo<T>::extensions) {
+		if (candidate == extension) {
+			return true;
+		}
+	}
+	return false;
+}
+
+AssetKind GetAssetKind(const path& path);
+
+void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<path>& path);
 
 } // namespace impl
 
@@ -165,33 +248,20 @@ public:
 	template <AssetType T>
 	bool Unload(std::string_view key);
 
-	bool UnloadAudio(std::string_view key);
-	bool UnloadJson(std::string_view key);
-	bool UnloadShader(std::string_view key);
-	bool UnloadTexture(std::string_view key);
-	bool UnloadFont(std::string_view key);
+	/// @brief Note: Do not brace initialize JSON objects.
+	template <AssetType T>
+	std::optional<ConstAsset<T>> TryGet(std::string_view key) const;
+	template <AssetType T>
+	std::optional<Asset<T>> TryGet(std::string_view key);
 
 	template <AssetType T>
-	std::optional<T> Get(std::string_view key) const;
+	ConstAsset<T> Get(std::string_view key) const;
 
-	/// @brief Note: Do not brace initialize JSON objects.
-	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
-	std::optional<std::reference_wrapper<json>> GetJson(std::string_view key);
-	std::optional<std::reference_wrapper<const json>> GetJson(std::string_view key) const;
-
-	std::optional<Audio> GetAudio(std::string_view key) const;
-	std::optional<Shader> GetShader(std::string_view key) const;
-	std::optional<Texture> GetTexture(std::string_view key) const;
-	std::optional<Font> GetFont(std::string_view key) const;
+	template <AssetType T>
+	Asset<T> Get(std::string_view key);
 
 	template <AssetType T>
 	[[nodiscard]] bool Has(std::string_view key) const;
-
-	[[nodiscard]] bool HasJson(std::string_view key) const;
-	[[nodiscard]] bool HasAudio(std::string_view key) const;
-	[[nodiscard]] bool HasShader(std::string_view key) const;
-	[[nodiscard]] bool HasTexture(std::string_view key) const;
-	[[nodiscard]] bool HasFont(std::string_view key) const;
 
 	/// @return The total number of assets currently loaded in the manager. Never below 1 (default
 	/// font is always loaded).
@@ -205,8 +275,6 @@ private:
 	friend class FontSystem;
 	friend class Text;
 	friend class DebugContext;
-	template <AssetType T>
-	friend class AssetOrKey;
 
 	AssetManager() = delete;
 	AssetManager(impl::Renderer& renderer, AudioSystem& audio, FontSystem& font);
@@ -216,29 +284,16 @@ private:
 	AssetManager(AssetManager&&) noexcept			 = delete;
 	AssetManager& operator=(AssetManager&&) noexcept = delete;
 
-	void Load(std::string_view key, const path& asset_path, impl::AssetType type);
-
-	template <AssetType T>
-	[[nodiscard]] bool Has(std::size_t key_hash) const;
-
-	template <AssetType T>
-	std::optional<T> Get(std::size_t key_hash) const;
-
-	std::optional<std::reference_wrapper<json>> GetJson(std::size_t key_hash);
-	std::optional<std::reference_wrapper<const json>> GetJson(std::size_t key_hash) const;
-	std::optional<Font> GetFont(std::size_t key_hash) const;
-	std::optional<Audio> GetAudio(std::size_t key_hash) const;
-	std::optional<Texture> GetTexture(std::size_t key_hash) const;
-	std::optional<Shader> GetShader(std::size_t key_hash) const;
+	void Load(std::string_view key, const path& asset_path, impl::AssetKind kind);
 
 	[[nodiscard]] Shader CreateShader(
 		bool persistent, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 		std::string_view shader_name
 	);
 
+	[[nodiscard]] Audio CreateAudio(bool persistent, const path& asset_path);
 	[[nodiscard]] Texture CreateTexture(bool persistent, const path& asset_path);
 	[[nodiscard]] Font CreateFont(bool persistent, const path& asset_path, float pt_size);
-	[[nodiscard]] Audio CreateAudio(bool persistent, const path& asset_path);
 
 	[[nodiscard]] ecs::Entity CreateAsset();
 

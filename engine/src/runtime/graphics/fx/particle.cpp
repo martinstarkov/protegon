@@ -445,12 +445,7 @@ static void DrawParticleType(
 	const ParticleDrawInfo& draw
 ) {
 	if constexpr (std::is_same_v<T, std::string>) {
-		PTGN_ASSERT(
-			assets.HasTexture(particle_type),
-			"Texture key must be loaded in the asset manager before drawing a particle"
-		);
-
-		Texture texture{ *assets.GetTexture(particle_type) };
+		Texture texture{ assets.Get<Texture>(particle_type) };
 
 		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
 

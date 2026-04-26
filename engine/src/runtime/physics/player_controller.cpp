@@ -11,6 +11,7 @@
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -126,19 +127,13 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 	movement.friction		  = config.friction;
 
 	if (config.animation_texture_key.has_value() && config.animation_frame_count.has_value()) {
-		PTGN_ASSERT(
-			scene.ctx().asset.HasTexture(*config.animation_texture_key),
-			"Cannot create player with animation key which has not been loaded"
-		);
-
-		auto texture{ *scene.ctx().asset.GetTexture(*config.animation_texture_key) };
 		V2_float anim_position;
 		auto duration{ config.animation_duration.value_or(1000ms) };
 
 		AnimationMap anim_map{ player.Add<GameObject<AnimationMap>>(CreateAnimationMap(scene)) };
 		auto a0 = anim_map.Add(
 			"down", CreateAnimation(
-						scene, texture, anim_position,
+						scene, *config.animation_texture_key, anim_position,
 						{ config.animation_frame_count->x, duration,
 						  config.animation_frame_size.value_or(V2_int{}) }
 					)
@@ -146,7 +141,7 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 		anim_map.SetActive("down");
 		auto a1 = anim_map.Add(
 			"right", CreateAnimation(
-						 scene, texture, anim_position,
+						 scene, *config.animation_texture_key, anim_position,
 						 { config.animation_frame_count->x, duration,
 						   config.animation_frame_size.value_or(V2_int{}), std::nullopt,
 						   V2_float{ 0, config.animation_frame_size->y } }
@@ -154,7 +149,7 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 		);
 		auto a2 = anim_map.Add(
 			"up", CreateAnimation(
-					  scene, texture, anim_position,
+					  scene, *config.animation_texture_key, anim_position,
 					  { config.animation_frame_count->x, duration,
 						config.animation_frame_size.value_or(V2_int{}), std::nullopt,
 						V2_float{ 0, 2 * config.animation_frame_size->y } }
@@ -166,7 +161,7 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 		SetParent(a2, player);
 
 		if (config.walk_sound_key.has_value()) {
-			PTGN_ASSERT(scene.ctx().asset.HasAudio(*config.walk_sound_key));
+			PTGN_ASSERT(scene.ctx().asset.Has<Audio>(*config.walk_sound_key));
 			auto frequency{ config.walk_sound_frequency.value_or(1) };
 
 			AddScript<impl::TopDownAnimationRepeat>(a0, frequency, *config.walk_sound_key);

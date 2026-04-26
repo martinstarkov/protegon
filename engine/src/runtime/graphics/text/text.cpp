@@ -12,9 +12,7 @@
 #include "font_data.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/resources/texture.h"
-#include "runtime/asset/asset.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
@@ -35,16 +33,16 @@ void Text::Draw(
 	Origin offset_origin, V2_float offset_size
 ) {
 	// TODO: Move out.
-	static TextSystem text_system;
-	static impl::MsdfFontData msdf_font = {
-		renderer.renderer_, "assets/fonts/LiberationSans-Regular.ttf", 0, {}
-	};
+	// static TextSystem text_system;
+	// static impl::MsdfFontData msdf_font = {
+	//	renderer.renderer_, "assets/fonts/LiberationSans-Regular.ttf", 0, {}
+	//};
 	/*draw_context.DrawTexture(
 		msdf_font.GetAtlasTexture(), {}, 0.0f, msdf_font.GetAtlasSize(), Origin::Center,
 		color::White, impl::GetDefaultTextureCoordinates<false>(), std::nullopt, -1
 	);*/
 
-	text_system.DrawText(renderer, {}, &msdf_font);
+	// text_system.DrawText(renderer, {}, &msdf_font);
 
 	/*
 	Text text{ entity };
@@ -118,9 +116,11 @@ void Text::Draw(DrawContext& renderer, Entity text) {
 	Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
 }
 
-Text& Text::SetFont(FontOrKey font) {
-	// const auto& scene{ GetScene() };
-	// auto resolved_font{ font.Get(scene.ctx().asset) };
+Text& Text::SetFont(std::string_view font_key) {
+	const auto& scene{ GetScene() };
+	const auto& assets{ scene.ctx().asset };
+	auto font{ assets.Get<Font>(font_key) };
+	Add<Font>(font);
 	//  TODO: fix.
 	return *this;
 }
@@ -170,6 +170,11 @@ Font Text::GetFont() const {
 	return {};
 }
 
+std::string Text::GetFontKey() const {
+	// TODO: fix.
+	return {};
+}
+
 std::string Text::GetContent() const {
 	// TODO: fix.
 	return {};
@@ -211,31 +216,31 @@ FontSize Text::GetFontSize() const {
 }
 
 V2_int Text::GetSize() const {
-	return GetSize(GetContent(), GetFont(), GetFontSize());
+	return GetSize(GetContent(), GetFontKey(), GetFontSize());
 }
 
 V2_int Text::GetSize(std::string_view text_content) const {
-	return GetSize(text_content, GetFont(), GetFontSize());
+	return GetSize(text_content, GetFontKey(), GetFontSize());
 }
 
-V2_int Text::GetSize(std::string_view text_content, FontOrKey font, FontSize font_size) const {
+V2_int Text::GetSize(std::string_view text_content, std::string_view font_key, FontSize font_size)
+	const {
 	// TODO: Fix.
-	// return GetScene().ctx().font.GetSize(font, text_content, font_size);
+	// return GetScene().ctx().font.GetSize(font_key, text_content, font_size);
 	return {};
 }
 
 Text CreateText(
 	Scene& scene, V2_float position, std::string_view text_content, Color text_color,
-	FontSize font_size, FontOrKey font, Origin draw_origin
+	FontSize font_size, std::string_view font_key, Origin draw_origin
 ) {
-	auto resolved_font{ font.Get(scene.ctx().asset) };
-
 	Text text{ scene.CreateEntity() };
 	text.Add<Texture>();
 	SetPosition(text, position);
 	SetDrawOrigin(text, draw_origin);
 	SetDraw<Text>(text);
 	Show(text, false);
+	text.SetFont(font_key);
 	return text;
 }
 

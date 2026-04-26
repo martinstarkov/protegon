@@ -2,6 +2,7 @@
 
 #include <array>
 #include <optional>
+#include <string_view>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
@@ -13,8 +14,7 @@
 #include "renderer/resources/texture.h"
 #include "renderer/vertex/vertex.h"
 #include "runtime/animation/animation.h"
-#include "runtime/asset/asset.h"
-#include "runtime/ecs/component.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/tint.h"
@@ -56,7 +56,7 @@ void Sprite::Draw(
 	draw_transform.SetScale(scale / Abs(scale));
 
 	auto tint{ GetTint(entity) };
-	impl::Tint final_tint{ tint.Normalized() * additional_tint.Normalized() };
+	Color final_tint{ tint.Normalized() * additional_tint.Normalized() };
 
 	auto draw_origin{ GetDrawOrigin(entity) };
 	auto depth{ GetDepth(entity) };
@@ -73,23 +73,25 @@ void Sprite::Draw(DrawContext& renderer, Entity entity) {
 	Sprite::Draw(renderer, entity, Origin::Center, {}, impl::Tint{});
 }
 
-Sprite& Sprite::SetTexture(TextureOrKey texture) {
+Sprite& Sprite::SetTexture(std::string_view texture_key) {
 	const auto& scene{ GetScene() };
 	const auto& assets{ scene.ctx().asset };
 
-	Texture resolved_texture{ texture.Get(assets) };
+	auto resolved_texture{ assets.Get<Texture>(texture_key) };
 
 	Add<Texture>(resolved_texture);
 	return *this;
 }
 
-Sprite CreateSprite(Scene& scene, TextureOrKey texture, V2_float position, Origin draw_origin) {
+Sprite CreateSprite(
+	Scene& scene, std::string_view texture_key, V2_float position, Origin draw_origin
+) {
 	Sprite sprite{ scene.CreateEntity() };
 
 	SetDraw<Sprite>(sprite);
 	Show(sprite, false);
 
-	sprite.SetTexture(texture);
+	sprite.SetTexture(texture_key);
 
 	SetPosition(sprite, position);
 	SetDrawOrigin(sprite, draw_origin);
@@ -130,7 +132,7 @@ void SetDisplaySize(Entity entity, V2_float display_size) {
 
 std::optional<V2_float> GetDisplaySize(Entity entity) {
 	if (auto texture_size{ entity.TryGet<impl::TextureSize>() }) {
-		return texture_size->GetValue();
+		return *texture_size;
 	}
 	auto cropped_size{ GetCroppedTextureSize(entity) };
 	if (cropped_size.has_value()) {

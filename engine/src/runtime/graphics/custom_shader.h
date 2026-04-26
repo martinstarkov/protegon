@@ -2,11 +2,11 @@
 
 #include <functional>
 #include <optional>
+#include <string_view>
 
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/shader.h"
-#include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 
@@ -35,8 +35,8 @@ public:
 void SetShaderSetup(CustomShader entity, const std::function<void(Entity, Shader)>& shader_setup);
 
 CustomShader CreateCustomShader(
-	Scene& scene, ShaderOrKey shader, std::optional<TextureOrKey> texture, V2_float position,
-	V2_float size, const std::function<void(Entity, Shader)>& shader_setup = {},
+	Scene& scene, std::string_view shader_key, std::optional<std::string_view> texture_key,
+	V2_float position, V2_float size, const std::function<void(Entity, Shader)>& shader_setup = {},
 	Origin draw_origin = Origin::Center
 );
 

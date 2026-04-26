@@ -1,17 +1,21 @@
 #pragma once
 
 #include "core/graphics/color.h"
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
 namespace impl {
 
 struct Tint {
-	Color color{ color::White };
+	Color value{ color::White };
 
-	PTGN_SERIALIZE_VALUE(Tint, color);
+	operator Color() const { // NOSONAR
+		return value;
+	}
+
+	PTGN_SERIALIZE_VALUE(Tint, value)
 };
 
 } // namespace impl

@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <optional>
+#include <string_view>
 
 #include "core/assert.h"
 #include "core/math/geometry/origin.h"
@@ -10,7 +11,7 @@
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
-#include "runtime/asset/asset.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
@@ -62,22 +63,23 @@ void SetShaderSetup(CustomShader entity, const std::function<void(Entity, Shader
 }
 
 CustomShader CreateCustomShader(
-	Scene& scene, ShaderOrKey shader, std::optional<TextureOrKey> texture, V2_float position,
-	V2_float size, const std::function<void(Entity, Shader)>& shader_setup, Origin draw_origin
+	Scene& scene, std::string_view shader_key, std::optional<std::string_view> texture_key,
+	V2_float position, V2_float size, const std::function<void(Entity, Shader)>& shader_setup,
+	Origin draw_origin
 ) {
 	CustomShader custom_shader{ scene.CreateEntity() };
 
 	const auto& assets{ scene.ctx().asset };
 
-	auto resolved_shader{ shader.Get(assets) };
+	auto shader{ assets.Get<Shader>(shader_key) };
 
-	if (texture.has_value()) {
-		auto resolved_texture{ texture->Get(assets) };
-		custom_shader.Add<Texture>(resolved_texture);
+	if (texture_key.has_value()) {
+		auto texture{ assets.Get<Texture>(*texture_key) };
+		custom_shader.Add<Texture>(texture);
 	}
 
 	auto& shader_data{ custom_shader.Add<impl::ShaderData>() };
-	shader_data.shader = resolved_shader;
+	shader_data.shader = shader;
 
 	SetShaderSetup(custom_shader, shader_setup);
 

@@ -2,6 +2,7 @@
 
 #include <ecs/ecs.h>
 
+#include <compare>
 #include <concepts>
 #include <cstdint>
 #include <ostream>
@@ -14,6 +15,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/type_info.h"
+#include "runtime/graphics/draw.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
@@ -50,11 +52,13 @@ public:
 
 	bool operator==(const Entity&) const = default;
 
-	friend bool operator<(const Entity& lhs, const Entity& rhs) {
+	friend std::strong_ordering operator<=>(const Entity& lhs, const Entity& rhs) {
 		if (lhs == rhs) {
-			return false;
+			return std::strong_ordering::equal;
 		}
-		return lhs.WasCreatedBefore(rhs);
+
+		return lhs.WasCreatedBefore(rhs) ? std::strong_ordering::less
+										 : std::strong_ordering::greater;
 	}
 
 	friend std::ostream& operator<<(std::ostream& os, const Entity& entity) {

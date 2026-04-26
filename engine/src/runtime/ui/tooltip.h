@@ -9,7 +9,6 @@
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
-#include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/sprite.h"
@@ -25,7 +24,7 @@ struct TooltipProperties {
 
 	Color text_color{ color::White };
 
-	std::optional<TextureOrKey> texture;
+	std::optional<std::string> texture;
 
 	milliseconds fade_in_duration{ 250 };
 	milliseconds fade_out_duration{ 250 };

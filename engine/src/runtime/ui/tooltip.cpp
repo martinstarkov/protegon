@@ -18,7 +18,6 @@
 #include "core/util/time.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/tween_effect.h"
-#include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
@@ -132,13 +131,6 @@ Tooltip CreateTooltip(
 		" already exists in the manager"
 	);
 
-	std::optional<Texture> resolved_texture;
-
-	if (tooltip_properties.texture.has_value()) {
-		const auto& assets{ scene.ctx().asset };
-		resolved_texture = tooltip_properties.texture->Get(assets);
-	}
-
 	Tooltip tooltip{ scene.CreateEntity() };
 
 	auto& instance{ tooltip.Add<impl::TooltipData>() };
@@ -149,8 +141,9 @@ Tooltip CreateTooltip(
 	instance.fade_in_ease	   = tooltip_properties.fade_in_ease;
 	instance.fade_out_ease	   = tooltip_properties.fade_out_ease;
 
-	if (resolved_texture.has_value()) {
-		instance.bg = GameObject{ CreateSprite(scene, *resolved_texture, {}, Origin::Center) };
+	if (tooltip_properties.texture.has_value()) {
+		instance.bg =
+			GameObject{ CreateSprite(scene, *tooltip_properties.texture, {}, Origin::Center) };
 		SetTint(*instance.bg, color::Transparent);
 		AddChild(tooltip, *instance.bg);
 	}

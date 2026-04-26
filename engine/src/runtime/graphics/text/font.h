@@ -1,13 +1,7 @@
 #pragma once
 
-#include <ecs/ecs.h>
-
-#include <ostream>
-#include <utility>
-
 #include "core/util/entity_handle.h"
 #include "core/util/hash.h"
-#include "runtime/ecs/component.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -15,10 +9,18 @@ namespace ptgn {
 inline constexpr float kDefaultFontSize{ 18.0f };
 
 /// @brief Defaults to default engine font size.
-struct FontSize : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
+struct FontSize {
+	FontSize() = default;
 
-	FontSize() : ArithmeticComponent{ kDefaultFontSize } {}
+	FontSize(float value) : value{ value } {}
+
+	float value{ kDefaultFontSize };
+
+	operator float() const { // NOSONAR
+		return value;
+	}
+
+	PTGN_SERIALIZE_VALUE(FontSize, value)
 };
 
 struct FontBinary {
@@ -30,6 +32,12 @@ struct FontBinary {
 	unsigned char* buffer{ nullptr };
 	unsigned int length{ 0 };
 };
+
+namespace impl {
+
+struct FontObject {};
+
+} // namespace impl
 
 class Font : public EntityHandle {
 public:

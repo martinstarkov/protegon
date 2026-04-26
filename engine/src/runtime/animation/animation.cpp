@@ -14,7 +14,7 @@
 #include "core/util/timer.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/animation_event.h"
-#include "runtime/asset/asset.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/sprite.h"
@@ -142,8 +142,8 @@ Animation& Animation::SetCurrentFrame(std::size_t new_frame) {
 	return *this;
 }
 
-Animation& Animation::SetTexture(TextureOrKey texture) {
-	Sprite{ *this }.SetTexture(texture);
+Animation& Animation::SetTexture(std::string_view texture_key) {
+	Sprite{ *this }.SetTexture(texture_key);
 	return *this;
 }
 
@@ -360,16 +360,16 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 }
 
 Animation CreateAnimation(
-	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config,
+	Scene& scene, std::string_view texture_key, V2_float position, const AnimationConfig& config,
 	Origin draw_origin
 ) {
 	const auto& assets{ scene.ctx().asset };
 
-	Texture resolved_texture{ texture.Get(assets) };
+	Animation animation{ CreateSprite(scene, texture_key, position, draw_origin) };
 
-	Animation animation{ CreateSprite(scene, resolved_texture, position, draw_origin) };
+	auto texture{ assets.Get<Texture>(texture_key) };
 
-	auto texture_size{ resolved_texture.GetSize() };
+	auto texture_size{ texture.GetSize() };
 
 	const auto& anim{ animation.Add<impl::AnimationData>(config, texture_size) };
 
@@ -380,10 +380,10 @@ Animation CreateAnimation(
 }
 
 Animation PlayTemporaryAnimation(
-	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config,
+	Scene& scene, std::string_view texture_key, V2_float position, const AnimationConfig& config,
 	milliseconds destroy_delay, Origin draw_origin
 ) {
-	Animation anim{ CreateAnimation(scene, texture, position, config, draw_origin) };
+	Animation anim{ CreateAnimation(scene, texture_key, position, config, draw_origin) };
 
 	if (destroy_delay == 0ms) {
 		anim.OnComplete([](auto& a) mutable { a.animation.Destroy(); });

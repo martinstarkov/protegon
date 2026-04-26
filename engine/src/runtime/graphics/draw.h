@@ -1,19 +1,51 @@
 #pragma once
 
+#include <compare>
 #include <vector>
 
 #include "core/math/geometry/origin.h"
+#include "core/math/tolerance.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
-struct Depth : public ArithmeticComponent<float> {
-	using ArithmeticComponent::ArithmeticComponent;
+struct Depth {
+	Depth() = default;
+
+	Depth(float value) : value{ value } {} // NOSONAR
 
 	[[nodiscard]] Depth RelativeTo(Depth parent) const;
+
+	friend bool operator==(const Depth& lhs, const Depth& rhs) {
+		return NearlyEqual(lhs.value, rhs.value);
+	}
+
+	friend std::partial_ordering operator<=>(const Depth& lhs, const Depth& rhs) {
+		if (NearlyEqual(lhs.value, rhs.value)) {
+			return std::partial_ordering::equivalent;
+		}
+
+		if (lhs.value < rhs.value) {
+			return std::partial_ordering::less;
+		}
+
+		if (lhs.value > rhs.value) {
+			return std::partial_ordering::greater;
+		}
+
+		return std::partial_ordering::unordered;
+	}
+
+	operator float() const { // NOSONAR
+		return value;
+	}
+
+	float value{ 0.0f };
+
+	PTGN_SERIALIZE_VALUE(Depth, value)
 };
 
 namespace impl {

@@ -11,7 +11,6 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "runtime/asset/asset.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"

@@ -1,11 +1,11 @@
 #include "runtime/graphics/draw.h"
 
 #include <algorithm>
+#include <compare>
 #include <vector>
 
 #include "core/math/geometry/origin.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 
@@ -77,7 +77,7 @@ BlendMode GetBlendMode(Entity entity) {
 }
 
 Depth Depth::RelativeTo(Depth parent) const {
-	parent.value_ += *this;
+	parent.value += value;
 	return parent;
 }
 

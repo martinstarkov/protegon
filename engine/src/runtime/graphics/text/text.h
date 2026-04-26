@@ -6,7 +6,6 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/text/font.h"
@@ -29,6 +28,7 @@ public:
 
 	static void Draw(DrawContext& renderer, Entity entity);
 
+	std::string GetFontKey() const;
 	Font GetFont() const;
 	std::string GetContent() const;
 	Color GetColor() const;
@@ -47,10 +47,12 @@ public:
 	V2_int GetSize(std::string_view text_content) const;
 
 	/// @return Texture size for the given text content using the specified font and size.
-	V2_int GetSize(std::string_view text_content, FontOrKey font, FontSize font_size = {}) const;
+	V2_int GetSize(
+		std::string_view text_content, std::string_view font_key, FontSize font_size = {}
+	) const;
 
-	/// @param font Default {} corresponds to the default engine font.
-	Text& SetFont(FontOrKey font = {});
+	/// @param font_key Default {} corresponds to the default engine font.
+	Text& SetFont(std::string_view font_key = {});
 	Text& SetContent(std::string_view content);
 	Text& SetColor(Color color);
 
@@ -69,7 +71,7 @@ public:
 
 Text CreateText(
 	Scene& scene, V2_float position, std::string_view text_content, Color text_color = color::White,
-	FontSize font_size = {}, FontOrKey font = {}, Origin draw_origin = Origin::Center
+	FontSize font_size = {}, std::string_view font_key = {}, Origin draw_origin = Origin::Center
 );
 
 PTGN_REGISTER_DRAWABLE(Text);

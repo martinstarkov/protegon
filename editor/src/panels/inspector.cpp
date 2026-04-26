@@ -92,10 +92,10 @@ static void DrawComponentImpl(impl::Tint& tint) {
 
 	ImGui::BeginGroup();
 
-	int r = static_cast<int>(tint.r);
-	int g = static_cast<int>(tint.g);
-	int b = static_cast<int>(tint.b);
-	int a = static_cast<int>(tint.a);
+	int r = static_cast<int>(tint.value.r);
+	int g = static_cast<int>(tint.value.g);
+	int b = static_cast<int>(tint.value.b);
+	int a = static_cast<int>(tint.value.a);
 
 	float color[4]{ static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f,
 					static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
@@ -155,15 +155,15 @@ static void DrawComponentImpl(impl::Tint& tint) {
 		b = ClampByte(b);
 		a = ClampByte(a);
 
-		tint.r = static_cast<std::uint8_t>(r);
-		tint.g = static_cast<std::uint8_t>(g);
-		tint.b = static_cast<std::uint8_t>(b);
-		tint.a = static_cast<std::uint8_t>(a);
+		tint.value.r = static_cast<std::uint8_t>(r);
+		tint.value.g = static_cast<std::uint8_t>(g);
+		tint.value.b = static_cast<std::uint8_t>(b);
+		tint.value.a = static_cast<std::uint8_t>(a);
 	} else if (changed_from_picker) {
-		tint.r = static_cast<std::uint8_t>(std::round(color[0] * 255.0f));
-		tint.g = static_cast<std::uint8_t>(std::round(color[1] * 255.0f));
-		tint.b = static_cast<std::uint8_t>(std::round(color[2] * 255.0f));
-		tint.a = static_cast<std::uint8_t>(std::round(color[3] * 255.0f));
+		tint.value.r = static_cast<std::uint8_t>(std::round(color[0] * 255.0f));
+		tint.value.g = static_cast<std::uint8_t>(std::round(color[1] * 255.0f));
+		tint.value.b = static_cast<std::uint8_t>(std::round(color[2] * 255.0f));
+		tint.value.a = static_cast<std::uint8_t>(std::round(color[3] * 255.0f));
 	}
 
 	ImGui::EndGroup();

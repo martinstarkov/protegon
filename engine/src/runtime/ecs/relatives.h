@@ -4,16 +4,14 @@
 #include <string_view>
 #include <vector>
 
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/key_hash.h"
 #include "serialization/serialize.h"
 
 namespace ptgn::impl {
 
-struct ChildKey : public ArithmeticComponent<std::size_t> {
-	using ArithmeticComponent::ArithmeticComponent;
-
-	explicit ChildKey(std::string_view key);
+struct ChildKey : public KeyHash {
+	using KeyHash::KeyHash;
 };
 
 struct Parent : public Entity {
@@ -32,17 +30,17 @@ struct Children {
 	void Remove(Entity child);
 	void Remove(std::string_view name);
 
-	// @return Entity with given name. Assertion called if no such entity exists.
+	/// @return Entity with given name. Assertion called if no such entity exists.
 	Entity Get(std::string_view name) const;
 
-	bool IsEmpty() const;
+	[[nodiscard]] bool IsEmpty() const;
 
 	bool Has(Entity child) const;
 	bool Has(std::string_view name) const;
 
-	PTGN_SERIALIZE(Children, children_)
-
 	std::vector<Entity> children_;
+
+	PTGN_SERIALIZE(Children, children_)
 };
 
 } // namespace ptgn::impl

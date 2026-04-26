@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <iterator>
 #include <list>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -53,6 +54,7 @@
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/physics.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event_handler.h"
 #include "runtime/scene/scene_transition.h"
@@ -463,7 +465,7 @@ Entity Scene::GetEntityByUUID(std::uint64_t uuid) const {
 Entity Scene::GetEntityByTag(std::string_view tag) const {
 	for (const Entity& e : Entities()) {
 		PTGN_ASSERT(e.Has<impl::Tag>(), "Entity does not have a valid Tag component");
-		if (std::string_view{ e.Get<impl::Tag>() } == tag) {
+		if (e.Get<impl::Tag>() == tag) {
 			return e;
 		}
 	}

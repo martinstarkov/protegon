@@ -15,7 +15,6 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/animation/offsets.h"
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/manager.h"
@@ -86,12 +85,12 @@ int Entity::GetUUID() const {
 
 std::string Entity::GetTag() const {
 	PTGN_ASSERT(Has<impl::Tag>(), "Every entity must have a tag");
-	return Get<impl::Tag>();
+	return Get<impl::Tag>().value;
 }
 
 Entity& Entity::SetTag(std::string_view tag) {
 	if (Has<impl::Tag>()) {
-		Get<impl::Tag>().GetValue() = tag;
+		Get<impl::Tag>() = tag;
 	} else {
 		Add<impl::Tag>(tag);
 	}
@@ -190,7 +189,7 @@ void from_json(const json& j, Entity& entity) {
 
 	if (j.contains("tag")) {
 		impl::Tag tag;
-		j["tag"].get_to(tag.GetValue());
+		j["tag"].get_to(tag.value);
 		entity.Add<impl::Tag>(std::move(tag));
 	}
 

@@ -2,15 +2,14 @@
 
 #include <array>
 #include <optional>
+#include <string_view>
 
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "renderer/resources/texture.h"
-#include "runtime/asset/asset.h"
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -23,8 +22,14 @@ class AnimationData;
 
 /// Component for a custom texture size to be used instead of the actual texture size. This can be
 /// used for example to render a texture at a larger size.
-struct TextureSize : public Vector2Component<float> {
-	using Vector2Component::Vector2Component;
+struct TextureSize {
+	V2_float value;
+
+	operator V2_float() const { // NOSONAR
+		return value;
+	}
+
+	PTGN_SERIALIZE_VALUE(TextureSize, value)
 };
 
 struct TextureCrop {
@@ -57,11 +62,12 @@ public:
 
 	static void Draw(DrawContext& renderer, Entity entity);
 
-	Sprite& SetTexture(TextureOrKey texture);
+	Sprite& SetTexture(std::string_view texture_key);
 };
 
 Sprite CreateSprite(
-	Scene& scene, TextureOrKey texture, V2_float position = {}, Origin draw_origin = Origin::Center
+	Scene& scene, std::string_view texture_key, V2_float position = {},
+	Origin draw_origin = Origin::Center
 );
 
 PTGN_REGISTER_DRAWABLE(Sprite);

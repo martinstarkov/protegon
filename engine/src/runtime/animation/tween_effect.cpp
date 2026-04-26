@@ -24,7 +24,6 @@
 #include "runtime/animation/shake_config.h"
 #include "runtime/animation/tween.h"
 #include "runtime/animation/tween_event.h"
-#include "runtime/ecs/component.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/text/text.h"
@@ -643,7 +642,7 @@ Tween ScaleTo(Entity entity, V2_float target_scale, milliseconds duration, Ease 
 }
 
 static TweenProperty<float> TextSizeProperty() {
-	return { [](Entity e) { return Text{ e }.GetFontSize().GetValue(); },
+	return { [](Entity e) -> float { return Text{ e }.GetFontSize(); },
 			 [](Entity e, const float& v) {
 				 Text{ e }.SetFontSize(v);
 			 } };

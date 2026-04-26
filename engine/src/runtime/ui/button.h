@@ -17,14 +17,13 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "core/util/hash.h"
 #include "core/util/time.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/animation.h"
-#include "runtime/asset/asset.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/ecs/key_hash.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
@@ -143,11 +142,11 @@ struct ButtonConfig {
 	std::optional<Color> text_outline_color;
 
 	FontSize font_size;
-	FontOrKey font;
+	std::string font;
 
-	std::optional<TextureOrKey> texture;
-	std::optional<TextureOrKey> texture_hover;
-	std::optional<TextureOrKey> texture_press;
+	std::optional<std::string> texture;
+	std::optional<std::string> texture_hover;
+	std::optional<std::string> texture_press;
 
 	std::optional<Color> texture_tint;
 	std::optional<Color> texture_tint_hover;
@@ -159,23 +158,23 @@ struct ButtonConfig {
 
 	std::optional<V2_float> background_size;
 
-	std::optional<AudioOrKey> sound_hover;
-	std::optional<AudioOrKey> sound_press;
+	std::optional<std::string> sound_hover;
+	std::optional<std::string> sound_press;
 
 	std::optional<MoveButtonConfig> move;
 	std::optional<ScaleButtonConfig> scale;
 };
 
 struct AnimatedButtonConfig {
-	TextureOrKey texture;
-	TextureOrKey texture_hover;
-	std::optional<TextureOrKey> texture_press;
+	std::string texture;
+	std::string texture_hover;
+	std::optional<std::string> texture_press;
 
 	AnimationConfig animation_hover;
 	std::optional<AnimationConfig> animation_press;
 
-	std::optional<AudioOrKey> sound_hover;
-	std::optional<AudioOrKey> sound_press;
+	std::optional<std::string> sound_hover;
+	std::optional<std::string> sound_press;
 };
 
 namespace impl {
@@ -269,8 +268,8 @@ private:
 	void OnButtonPress() const;
 };
 
-struct ToggleButtonGroupKey : public HashComponent {
-	using HashComponent::HashComponent;
+struct ToggleButtonGroupKey : public KeyHash {
+	using KeyHash::KeyHash;
 };
 
 struct ToggleButtonGroupData {
@@ -443,7 +442,7 @@ public:
 
 	/// @param sound If nullopt, removes the button sound.
 	Derived& SetSound(
-		std::optional<AudioOrKey> sound, ButtonStyleState state = ButtonStyleState::Idle()
+		std::optional<std::string_view> sound, ButtonStyleState state = ButtonStyleState::Idle()
 	);
 
 	Derived& SetAnimation(Animation&& animation, ButtonStyleState state = ButtonStyleState::Idle());
@@ -457,8 +456,10 @@ public:
 	Derived& SetBackgroundColor(
 		std::optional<Color> color, ButtonStyleState state = ButtonStyleState::Idle()
 	);
+	/// @param texture_key If nullopt, removes the texture from the specified button state.
 	Derived& SetTexture(
-		std::optional<TextureOrKey> texture, ButtonStyleState state = ButtonStyleState::Idle()
+		std::optional<std::string_view> texture_key,
+		ButtonStyleState state = ButtonStyleState::Idle()
 	);
 	Derived& SetTextureTint(
 		std::optional<Color> texture_tint, ButtonStyleState state = ButtonStyleState::Idle()

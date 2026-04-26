@@ -11,9 +11,9 @@
 #include "core/util/hash.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
-#include "runtime/asset/asset.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/ecs/key_hash.h"
 #include "runtime/scripting/script.h"
 #include "serialization/serialize.h"
 
@@ -141,7 +141,7 @@ struct Animation : public Entity {
 		return *this;
 	}
 
-	Animation& SetTexture(TextureOrKey texture);
+	Animation& SetTexture(std::string_view texture_key);
 
 	/// @brief Starts the animation. Can also be used to restart the animation.
 	/// @param force If false, only starts the animation if it is not already playing.
@@ -198,8 +198,8 @@ struct Animation : public Entity {
 
 namespace impl {
 
-struct AnimationMapKey : public HashComponent {
-	using HashComponent::HashComponent;
+struct AnimationMapKey : public KeyHash {
+	using KeyHash::KeyHash;
 };
 
 struct AnimationMapData {
@@ -212,7 +212,7 @@ public:
 	AnimationMapData& operator=(const AnimationMapData&)	 = delete;
 
 	AnimationMapKey active;
-	std::unordered_map<AnimationMapKey, GameObject<Animation>> animations;
+	std::unordered_map<AnimationMapKey, GameObject<Animation>, KeyHasher> animations;
 };
 
 } // namespace impl
@@ -278,20 +278,20 @@ public:
 } // namespace impl
 
 /// @param manager Which manager the entity is added to.
-/// @param texture Texture or texture key to be used for the animation.
+/// @param texture Texture key to be used for the animation.
 /// @param position Where on the screen to place the animation object.
 Animation CreateAnimation(
-	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config,
+	Scene& scene, std::string_view texture_key, V2_float position, const AnimationConfig& config,
 	Origin draw_origin = Origin::Center
 );
 
 /// @brief Creates and starts an animation that will automatically destroy itself once it finishes.
-/// @param texture Texture or texture key to be used for the animation.
+/// @param texture Texture key to be used for the animation.
 /// @param position Where on the screen to place the animation object.
 /// @param destroy_delay If 0ms, the animation is destroyed immediately after finishing. Otherwise,
 /// the animation is destroyed after the specified delay once it finishes.
 Animation PlayTemporaryAnimation(
-	Scene& scene, TextureOrKey texture, V2_float position, const AnimationConfig& config,
+	Scene& scene, std::string_view texture_key, V2_float position, const AnimationConfig& config,
 	milliseconds destroy_delay = 0ms, Origin draw_origin = Origin::Center
 );
 
