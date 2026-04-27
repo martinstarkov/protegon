@@ -90,9 +90,10 @@ void RenderContext::DrawTexture(
 
 	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
 
-	std::array<V2_float, 4> tex_coords{
-		texture_coordinates.value_or(impl::GetDefaultTextureCoordinates<false>())
-	};
+	std::array<V2_float, 4> tex_coords{ texture_coordinates.value_or(
+		// impl::GetDefaultTextureCoordinates<false>()
+		impl::GetTextureCoordinates({}, texture_size, texture_size, false, true)
+	) };
 
 	impl::TextureCommand texture_command{
 		shader, texture, positions, tint.value_or(color::White), tex_coords, blend_mode, entity_id
@@ -323,6 +324,10 @@ void RenderContext::SetPrimaryWorldCamera(const std::optional<Camera>& primary_w
 
 const std::optional<Camera>& RenderContext::GetPrimaryWorldCamera() const {
 	return renderer_.GetPrimaryWorldCamera();
+}
+
+impl::ShaderId RenderContext::GetShader(std::string_view shader_key) const {
+	return renderer_.GetShader(shader_key);
 }
 
 } // namespace ptgn
