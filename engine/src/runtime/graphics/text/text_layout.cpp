@@ -4,7 +4,6 @@
 
 #include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
-#include "runtime/graphics/text/font_data.h"
 #include "runtime/graphics/text/text_style.h"
 #include "runtime/graphics/text/text_system.h"
 

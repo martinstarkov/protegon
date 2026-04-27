@@ -9,7 +9,6 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
-#include "font_data.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
@@ -18,11 +17,11 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/font_system.h"
+#include "runtime/graphics/text/text_system.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
-#include "text_system.h"
 
 namespace ptgn {
 

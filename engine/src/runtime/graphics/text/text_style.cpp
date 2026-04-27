@@ -6,7 +6,6 @@
 #include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/util/hash.h"
-#include "runtime/graphics/text/font_data.h"
 #include "runtime/graphics/text/text_effect.h"
 
 namespace ptgn {

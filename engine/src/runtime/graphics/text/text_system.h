@@ -13,7 +13,6 @@
 #include "renderer/vertex/vertex.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/font_data.h"
 #include "runtime/graphics/text/text_effect.h"
 #include "runtime/graphics/text/text_layout.h"
 #include "runtime/graphics/text/text_style.h"
