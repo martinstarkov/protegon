@@ -15,7 +15,6 @@
 #include <optional>
 #include <ostream>
 #include <span>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -30,7 +29,6 @@
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
-#include "core/util/hash.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
@@ -299,8 +297,7 @@ FontObject::FontObject(
 
 	AtlasGenerator generator{ atlas_size.x, atlas_size.y };
 	generator.setAttributes(attributes);
-	auto thread_count{ std::thread::hardware_concurrency() };
-	generator.setThreadCount(static_cast<int>(thread_count));
+	generator.setThreadCount(atlas_info.thread_count);
 	generator.generate(glyphs.data(), static_cast<int>(glyphs.size()));
 
 	msdfgen::BitmapConstRef<FontAtlasDataType, kFontAtlasChannelCount> bitmap{
@@ -316,15 +313,6 @@ FontObject::FontObject(
 					 kFontAtlasChannelCount, true };
 
 	cache_directory = GetAbsolutePath(cache_directory);
-
-	auto cache_png_path{ cache_directory / (std::string(cache_name) + ".png") };
-	auto cache_data_path{ cache_directory / (std::string(cache_name) + ".data") };
-
-	auto success{ surface.SavePNG(cache_png_path) };
-
-	PTGN_ASSERT(
-		success.has_value(), "Failed to cache font atlas as png to path: ", cache_png_path.string()
-	);
 
 	atlas_texture_ = renderer.CreateTexture(surface, kFontAtlasFormat, kFontAtlasTextureParams);
 
@@ -382,14 +370,26 @@ FontObject::FontObject(
 		}
 	}
 
+#ifndef __EMSCRIPTEN__
+	auto cache_png_path{ cache_directory / (std::string(cache_name) + ".png") };
+	auto cache_data_path{ cache_directory / (std::string(cache_name) + ".data") };
+
+	auto success{ surface.SavePNG(cache_png_path) };
+
+	PTGN_ASSERT(
+		success.has_value(), "Failed to cache font atlas as png to path: ", cache_png_path.string()
+	);
+
 	auto cache_write{ WriteFontCache(cache_data_path, data_) };
 	PTGN_ASSERT(
 		cache_write.has_value(),
 		"Failed to write font data to cache path: ", cache_data_path.string(),
 		" with error: ", magic_enum::enum_name(cache_write.error())
 	);
+#endif
 }
 
+#ifndef __EMSCRIPTEN__
 FontObject::FontObject(Renderer& renderer, path cache_directory, std::string_view cache_name) {
 	cache_directory = GetAbsolutePath(cache_directory);
 
@@ -410,6 +410,7 @@ FontObject::FontObject(Renderer& renderer, path cache_directory, std::string_vie
 
 	data_ = std::move(cache_read.value());
 }
+#endif
 
 std::optional<GlyphMetrics> FontObject::GetGlyph(std::uint32_t codepoint) const {
 	auto it{ data_.glyphs.find(codepoint) };

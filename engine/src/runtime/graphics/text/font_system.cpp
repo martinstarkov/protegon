@@ -214,12 +214,15 @@ impl::FontObject FontSystem::CreateFont(
 
 	auto cache_directory{ GetWorkingDirectory() / "cache/fonts" };
 
+#ifndef __EMSCRIPTEN__
+
 	auto cache_png_file{ cache_directory / (std::string(name) + ".png") };
 	auto cache_data_file{ cache_directory / (std::string(name) + ".data") };
 
 	if (FileExists(cache_png_file) && FileExists(cache_data_file)) {
 		return impl::FontObject{ renderer, cache_directory, name };
 	}
+#endif
 
 	return impl::FontObject{ renderer, font_path, cache_directory, name };
 }

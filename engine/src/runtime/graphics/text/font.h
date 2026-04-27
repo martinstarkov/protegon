@@ -48,10 +48,13 @@ namespace impl {
 class Renderer;
 
 struct FontAtlasInfo {
+	constexpr FontAtlasInfo() = default;
+
 	float em_size{ 48.0f };
 	float pixel_range{ 4.0f };
 	float max_corner_angle{ 3.0f };
 	float miter_limit{ 1.0f };
+	int thread_count{ 8 };
 	std::uint32_t charset_begin{ 0x20 };
 	std::uint32_t charset_end{ 0xFF };
 };
@@ -85,7 +88,9 @@ public:
 		const FontAtlasInfo& atlas_info = {}
 	);
 
+#ifndef __EMSCRIPTEN__
 	FontObject(Renderer& renderer, path cache_directory, std::string_view cache_name);
+#endif
 
 	std::optional<GlyphMetrics> GetGlyph(std::uint32_t codepoint) const;
 
