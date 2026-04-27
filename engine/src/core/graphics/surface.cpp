@@ -150,6 +150,8 @@ std::expected<void, std::string> Surface::SavePNG(const path& filepath) const {
 
 	auto stride_in_bytes{ size_.x * channels_ };
 
+	EnsureDirectory(filepath.parent_path());
+
 	auto success{ stbi_write_png(
 		filepath.string().c_str(), size_.x, size_.y, channels_, pixels_.data(), stride_in_bytes
 	) };

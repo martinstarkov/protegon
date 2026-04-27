@@ -9,6 +9,7 @@ namespace ptgn {
 namespace fs = std::filesystem;
 using path	 = fs::path;
 
+void EnsureDirectory(const path& path);
 [[nodiscard]] std::string FileToString(const path& file);
 path GetWorkingDirectory();
 [[nodiscard]] path MergePaths(const path& path_A, const path& path_B);

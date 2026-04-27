@@ -7,10 +7,19 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <system_error>
 
 #include "core/assert.h"
 
 namespace ptgn {
+
+void EnsureDirectory(const path& path) {
+	std::error_code ec;
+
+	fs::create_directories(path, ec);
+
+	PTGN_ASSERT(!ec, "Could not create directory ", path.string(), ": ", ec.message());
+}
 
 std::string FileToString(const path& file) {
 	PTGN_ASSERT(FileExists(file), "Cannot convert non-existent file to string: ", file.string());
