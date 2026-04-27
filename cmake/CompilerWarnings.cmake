@@ -91,5 +91,5 @@ function(set_project_warnings project_name warnings_as_errors)
     return()
   endif()
 
-  target_compile_options(${project_name} PUBLIC ${PROJECT_WARNINGS})
+  target_compile_options(${project_name} PRIVATE ${PROJECT_WARNINGS})
 endfunction()

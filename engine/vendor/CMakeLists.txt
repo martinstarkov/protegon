@@ -125,6 +125,22 @@ set(MSDF_ATLAS_DYNAMIC_RUNTIME OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(msdf-atlas-gen)
 
+function(mark_target_includes_as_system tgt)
+  if(TARGET ${tgt})
+    get_target_property(_includes ${tgt} INTERFACE_INCLUDE_DIRECTORIES)
+
+    if(_includes)
+      set_target_properties(${tgt} PROPERTIES
+        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${_includes}"
+      )
+    endif()
+  endif()
+endfunction()
+
+mark_target_includes_as_system(msdf-atlas-gen)
+mark_target_includes_as_system(msdfgen-core)
+mark_target_includes_as_system(msdfgen-ext)
+
 function(set_folder_if_target folder)
   foreach(t IN LISTS ARGN)
     if(TARGET "${t}")
