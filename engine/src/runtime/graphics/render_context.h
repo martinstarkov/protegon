@@ -105,41 +105,44 @@ public:
 	Color GetBackgroundColor() const;
 
 	void DrawTexture(
-		std::string_view texture_key, Transform transform, std::optional<V2_float> size = {},
-		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
-		std::optional<BlendMode> blend_mode								  = {},
-		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
-		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
+		std::string_view texture_key, Transform transform,
+		std::optional<V2_float> size = std::nullopt, Origin draw_origin = Origin::Center,
+		std::optional<Color> tint = std::nullopt, Depth depth = {},
+		std::optional<BlendMode> blend_mode								  = std::nullopt,
+		const std::optional<std::array<V2_float, 4>>& texture_coordinates = std::nullopt,
+		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
 	);
 
 	void DrawTexture(
 		std::string_view texture_key, std::string_view shader_key, Transform transform,
-		std::optional<V2_float> size = {}, Origin draw_origin = Origin::Center,
-		std::optional<Color> tint = {}, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<std::array<V2_float, 4>>& texture_coordinates = {},
-		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
+		std::optional<V2_float> size = std::nullopt, Origin draw_origin = Origin::Center,
+		std::optional<Color> tint = std::nullopt, Depth depth = {},
+		std::optional<BlendMode> blend_mode								  = std::nullopt,
+		const std::optional<std::array<V2_float, 4>>& texture_coordinates = std::nullopt,
+		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
 	);
 
-	/// @param size If size is {}, uses the entire game size.
+	/// @param size If size is nullopt, uses the entire game size.
 	void DrawShader(
-		std::string_view shader_key, Transform transform, std::optional<V2_float> size = {},
-		Origin draw_origin = Origin::Center, std::optional<Color> tint = {}, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<SceneCamera>& camera = {},
-		int entity_id = -1
+		std::string_view shader_key, Transform transform,
+		std::optional<V2_float> size = std::nullopt, Origin draw_origin = Origin::Center,
+		std::optional<Color> tint = std::nullopt, Depth depth = {},
+		std::optional<BlendMode> blend_mode		 = std::nullopt,
+		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
 	);
 
 	void DrawLines(
 		const std::vector<V2_float>& points, Color color, float line_width = kMinLineWidth,
-		bool connect_last_to_first = false, std::optional<Transform> transform = {},
-		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
+		bool connect_last_to_first = false, std::optional<Transform> transform = std::nullopt,
+		Depth depth = {}, std::optional<BlendMode> blend_mode = std::nullopt,
+		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
 	);
 
 	void DrawShape(
 		Transform transform, const Shape& shape, Color color, FillStyle fill_style,
 		Origin draw_origin = Origin::Center, Depth depth = {},
-		std::optional<BlendMode> blend_mode = {}, const std::optional<SceneCamera>& camera = {},
-		int entity_id = -1
+		std::optional<BlendMode> blend_mode		 = std::nullopt,
+		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
 	);
 
 	// TODO: Fix.
@@ -153,16 +156,28 @@ public:
 
 	void DrawLine(
 		V2_float start, V2_float end, Color color, float line_width = kMinLineWidth,
-		Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
+		Depth depth = {}, std::optional<BlendMode> blend_mode = std::nullopt,
+		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
 	);
 
 	void DrawPoint(
-		V2_float point, Color color, Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-		const std::optional<SceneCamera>& camera = {}, int entity_id = -1
+		V2_float point, Color color, Depth depth = {},
+		std::optional<BlendMode> blend_mode		 = std::nullopt,
+		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
 	);
 
 	const std::optional<Camera>& GetPrimaryWorldCamera() const;
+
+	void DrawTexture(
+		impl::TextureId texture, V2_int texture_size, impl::ShaderId shader, Transform transform,
+		std::optional<V2_float> size = std::nullopt, Origin draw_origin = Origin::Center,
+		std::optional<Color> tint = std::nullopt, Depth depth = {},
+		std::optional<BlendMode> blend_mode								  = std::nullopt,
+		const std::optional<std::array<V2_float, 4>>& texture_coordinates = std::nullopt,
+		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
+	);
+
+	impl::ShaderId GetShader(std::string_view shader_key) const;
 
 private:
 	friend class Scene;
@@ -178,14 +193,6 @@ private:
 	RenderContext& operator=(RenderContext&&) noexcept = delete;
 
 	void SetPrimaryWorldCamera(const std::optional<Camera>& camera = std::nullopt);
-
-	void DrawTexture(
-		impl::TextureId texture, V2_int texture_size, impl::ShaderId shader, Transform transform,
-		std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
-		std::optional<BlendMode> blend_mode,
-		const std::optional<std::array<V2_float, 4>>& texture_coordinates,
-		const std::optional<SceneCamera>& camera, int entity_id
-	);
 
 	template <typename T, typename R>
 	static void AddDrawCommand(T& commands, const R& command, float depth) {
