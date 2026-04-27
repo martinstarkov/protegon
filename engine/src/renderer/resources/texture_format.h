@@ -68,8 +68,8 @@ struct TextureParameters {
 
 	TextureMinFilter min_filter{ TextureMinFilter::Nearest };
 	TextureMagFilter mag_filter{ TextureMagFilter::Nearest };
-	TextureWrap wrap_s{ TextureWrap::Repeat };
-	TextureWrap wrap_t{ TextureWrap::Repeat };
+	TextureWrap wrap_s{ TextureWrap::ClampToEdge };
+	TextureWrap wrap_t{ TextureWrap::ClampToEdge };
 };
 
 inline int GetChannelCount(TextureFormat format) {
