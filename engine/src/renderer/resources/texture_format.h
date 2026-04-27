@@ -54,6 +54,24 @@ enum class TextureWrap : std::int32_t {
 	ClampToEdge	   = 0x812F	 // GL_CLAMP_TO_EDGE
 };
 
+struct TextureParameters {
+	constexpr TextureParameters() = default;
+
+	constexpr TextureParameters(TextureMinFilter min_filter, TextureMagFilter mag_filter) :
+		min_filter{ min_filter }, mag_filter{ mag_filter } {}
+
+	constexpr TextureParameters(
+		TextureMinFilter min_filter, TextureMagFilter mag_filter, TextureWrap wrap_s,
+		TextureWrap wrap_t
+	) :
+		min_filter{ min_filter }, mag_filter{ mag_filter }, wrap_s{ wrap_s }, wrap_t{ wrap_t } {}
+
+	TextureMinFilter min_filter{ TextureMinFilter::Nearest };
+	TextureMagFilter mag_filter{ TextureMagFilter::Nearest };
+	TextureWrap wrap_s{ TextureWrap::Repeat };
+	TextureWrap wrap_t{ TextureWrap::Repeat };
+};
+
 inline int GetChannelCount(TextureFormat format) {
 	switch (format) {
 		using enum TextureFormat;

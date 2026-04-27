@@ -113,11 +113,12 @@ constexpr std::pair<PixelDataFormat, PixelDataType> GetPixelDataFormat(TextureFo
 class Textures {
 public:
 	/// @brief Creates an empty texture with the given size and format.
-	TextureId CreateTexture(V2_int size, TextureFormat format);
+	TextureId CreateTexture(V2_int size, TextureFormat format, TextureParameters params);
 
 	TextureId CreateTexture(
 		const void* pixel_data, PixelDataFormat pixel_data_format, PixelDataType pixel_data_type,
-		V2_int size, TextureFormat texture_format, bool restore_bind = true
+		V2_int size, TextureFormat texture_format, TextureParameters params,
+		bool restore_bind = true
 	);
 
 	void DestroyTexture(TextureId id);

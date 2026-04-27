@@ -110,8 +110,10 @@ Renderer::~Renderer() noexcept {
 	auto _{ gl_->Bind(VertexArrayId{ 0 }, false) };
 }
 
-RenderTargetObject Renderer::CreateRenderTarget(V2_int size, TextureFormat format) {
-	auto color = gl_->textures.CreateTexture(size, format);
+RenderTargetObject Renderer::CreateRenderTarget(
+	V2_int size, TextureFormat format, TextureParameters params
+) {
+	auto color = gl_->textures.CreateTexture(size, format, params);
 
 	std::optional<RenderbufferId> depth;
 
@@ -1010,24 +1012,26 @@ ShaderObject Renderer::CreateShader(
 	return ShaderObject{ this, gl_->shaders.CreateProgram(source, shader_name) };
 }
 
-TextureObject Renderer::CreateTexture(const Surface& surface, TextureFormat format) {
+TextureObject Renderer::CreateTexture(
+	const Surface& surface, TextureFormat format, TextureParameters params
+) {
 	PTGN_ASSERT(
 		surface.GetChannelCount() == GetChannelCount(format),
 		"Surface and texture format channel count must match"
 	);
-	return CreateTexture(surface.Data(), surface.GetSize(), format);
+	return CreateTexture(surface.Data(), surface.GetSize(), format, params);
 }
 
 TextureObject Renderer::CreateTexture(
-	const std::uint8_t* pixel_data, V2_int size, TextureFormat format
+	const std::uint8_t* pixel_data, V2_int size, TextureFormat format, TextureParameters params
 ) {
 	auto [pixel_format, pixel_type] = gl::GetPixelDataFormat(format);
 	PTGN_ASSERT(
 		pixel_type == gl::PixelDataType::UnsignedByte, "Texture format must have a type of bytes"
 	);
-	return TextureObject{
-		this, gl_->textures.CreateTexture(pixel_data, pixel_format, pixel_type, size, format)
-	};
+	return TextureObject{ this, gl_->textures.CreateTexture(
+									pixel_data, pixel_format, pixel_type, size, format, params
+								) };
 }
 
 void Renderer::SetUniform(ShaderId shader, const char* uniform_name, const Matrix4& v) {

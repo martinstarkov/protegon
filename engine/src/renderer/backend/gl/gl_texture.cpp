@@ -15,14 +15,14 @@ namespace ptgn::impl::gl {
 
 Textures::Textures(GLContext& gl) : gl_{ gl } {}
 
-TextureId Textures::CreateTexture(V2_int size, TextureFormat format) {
+TextureId Textures::CreateTexture(V2_int size, TextureFormat format, TextureParameters params) {
 	auto [pixel_format, pixel_type] = GetPixelDataFormat(format);
-	return CreateTexture(nullptr, pixel_format, pixel_type, size, format);
+	return CreateTexture(nullptr, pixel_format, pixel_type, size, format, params);
 }
 
 TextureId Textures::CreateTexture(
 	const void* pixel_data, PixelDataFormat pixel_data_format, PixelDataType pixel_data_type,
-	V2_int size, TextureFormat format, bool restore_bind
+	V2_int size, TextureFormat format, TextureParameters params, bool restore_bind
 ) {
 	auto texture{ CreateTexture() };
 
@@ -30,17 +30,12 @@ TextureId Textures::CreateTexture(
 
 	SetTextureData(texture, pixel_data, pixel_data_format, pixel_data_type, size, format);
 
-	constexpr TextureMinFilter min_filter{ TextureMinFilter::Linear };
-	constexpr TextureMagFilter mag_filter{ TextureMagFilter::Linear };
-	constexpr TextureWrap wrap_s{ TextureWrap::Repeat };
-	constexpr TextureWrap wrap_t{ TextureWrap::Repeat };
-
 	using enum TextureParameter;
 
-	SetTextureParameter(texture, MinFilter, std::to_underlying(min_filter));
-	SetTextureParameter(texture, MagFilter, std::to_underlying(mag_filter));
-	SetTextureParameter(texture, WrapS, std::to_underlying(wrap_s));
-	SetTextureParameter(texture, WrapT, std::to_underlying(wrap_t));
+	SetTextureParameter(texture, MinFilter, std::to_underlying(params.min_filter));
+	SetTextureParameter(texture, MagFilter, std::to_underlying(params.mag_filter));
+	SetTextureParameter(texture, WrapS, std::to_underlying(params.wrap_s));
+	SetTextureParameter(texture, WrapT, std::to_underlying(params.wrap_t));
 
 	return texture;
 }
