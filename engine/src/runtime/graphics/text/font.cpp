@@ -1,5 +1,6 @@
 #include "runtime/graphics/text/font.h"
 
+#include <ecs/ecs.h>
 #include <msdf-atlas-gen/msdf-atlas-gen.h>
 #include <msdfgen.h>
 #include <msdfgen-ext.h>
@@ -10,11 +11,13 @@
 #include <fstream>
 #include <istream>
 #include <list>
+#include <magic_enum/magic_enum.hpp>
 #include <optional>
 #include <ostream>
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <type_traits>
 #include <unordered_map>
@@ -25,6 +28,7 @@
 #include "core/graphics/surface.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "renderer/renderer.h"
@@ -32,11 +36,16 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+namespace impl {
 
 constexpr std::array<char, 8> kExpectedFontCacheMagic{ 'F', 'O', 'N', 'T', 'C', 'A', 'C', 'H' };
+constexpr std::uint32_t kExpectedFontCacheVersion{ 1 };
 constexpr int kFontAtlasChannelCount{ 3 };
 constexpr TextureFormat kFontAtlasFormat{ TextureFormat::RGB8 };
+constexpr TextureParameters kFontAtlasTextureParams{ TextureMinFilter::Linear,
+													 TextureMagFilter::Linear };
 
 using FontAtlasDataType = std::uint8_t;
 
@@ -93,7 +102,7 @@ enum class FontCacheError {
 
 struct FontCacheHeader {
 	std::array<char, 8> magic{ kExpectedFontCacheMagic };
-	std::uint32_t version{ 1 };
+	std::uint32_t version{ kExpectedFontCacheVersion };
 	std::uint32_t glyph_count{ 0 };
 	std::uint32_t kerning_count{ 0 };
 };
@@ -113,9 +122,39 @@ bool ReadRaw(std::ifstream& in, T& value) {
 	return static_cast<bool>(in);
 }
 
+static bool WriteString(std::ofstream& out, std::string_view s) {
+	std::uint64_t size = s.size();
+	WriteRaw(out, size);
+	out.write(s.data(), static_cast<std::streamsize>(size));
+	return static_cast<bool>(out);
+}
+
+static bool ReadString(std::ifstream& in, std::string& s) {
+	std::uint64_t size{};
+	ReadRaw(in, size);
+	s.resize(size);
+	in.read(s.data(), static_cast<std::streamsize>(size));
+	return static_cast<bool>(in);
+}
+
+static bool WritePath(std::ofstream& out, const path& p) {
+	return WriteString(out, p.string());
+}
+
+static bool ReadPath(std::ifstream& in, path& p) {
+	std::string s;
+	if (!ReadString(in, s)) {
+		return false;
+	}
+	p = path{ s };
+	return true;
+}
+
 [[nodiscard]] static std::expected<void, FontCacheError> WriteFontCache(
 	const path& cache_path, const FontData& font
 ) {
+	EnsureDirectory(cache_path.parent_path());
+
 	std::ofstream out(cache_path, std::ios::binary);
 	if (!out) {
 		return std::unexpected(FontCacheError::CannotOpen);
@@ -126,8 +165,7 @@ bool ReadRaw(std::ifstream& in, T& value) {
 		!WriteRaw(out, header)) {
 		return std::unexpected(FontCacheError::WriteFailed);
 	}
-	// TODO: Fix.
-	if (!WriteRaw(out, font.font_path.string())) {
+	if (!WritePath(out, font.font_path)) {
 		return std::unexpected(FontCacheError::WriteFailed);
 	}
 	if (!WriteRaw(out, font.metrics)) {
@@ -152,9 +190,7 @@ bool ReadRaw(std::ifstream& in, T& value) {
 	return {};
 }
 
-[[nodiscard]] static std::expected<FontData, FontCacheError> ReadFontCache(
-	const fs::path& cache_path
-) {
+[[nodiscard]] static std::expected<FontData, FontCacheError> ReadFontCache(const path& cache_path) {
 	std::ifstream in(cache_path, std::ios::binary);
 	if (!in) {
 		return std::unexpected(FontCacheError::CannotOpen);
@@ -169,14 +205,13 @@ bool ReadRaw(std::ifstream& in, T& value) {
 		return std::unexpected(FontCacheError::InvalidMagic);
 	}
 
-	if (header.version != 1) {
+	if (header.version != kExpectedFontCacheVersion) {
 		return std::unexpected(FontCacheError::UnsupportedVersion);
 	}
 
 	FontData font;
 
-	// TODO: Fix.
-	if (!ReadRaw(in, font.font_path)) {
+	if (!ReadPath(in, font.font_path)) {
 		return std::unexpected(FontCacheError::WriteFailed);
 	}
 	if (!ReadRaw(in, font.metrics)) {
@@ -280,15 +315,20 @@ FontObject::FontObject(
 	Surface surface{ atlas_size, std::span<const FontAtlasDataType>{ bitmap.pixels, byte_count },
 					 kFontAtlasChannelCount, true };
 
-	auto success{ surface.SavePNG(cache_path) };
+	cache_directory = GetAbsolutePath(cache_directory);
+
+	auto cache_png_path{ cache_directory / (std::string(cache_name) + ".png") };
+	auto cache_data_path{ cache_directory / (std::string(cache_name) + ".data") };
+
+	auto success{ surface.SavePNG(cache_png_path) };
 
 	PTGN_ASSERT(
-		success.has_value(), "Failed to cache font atlas as png to path: ", cache_path.string()
+		success.has_value(), "Failed to cache font atlas as png to path: ", cache_png_path.string()
 	);
 
-	auto texture{ renderer.CreateTexture(surface, kFontAtlasFormat) };
+	atlas_texture_ = renderer.CreateTexture(surface, kFontAtlasFormat, kFontAtlasTextureParams);
 
-	atlas_texture_ = std::move(texture);
+	data_.font_path = std::move(font_path);
 
 	const auto& msdf_metrics{ font_geometry.getMetrics() };
 	data_.metrics.ascender	  = static_cast<float>(msdf_metrics.ascenderY);
@@ -341,13 +381,39 @@ FontObject::FontObject(
 			}
 		}
 	}
+
+	auto cache_write{ WriteFontCache(cache_data_path, data_) };
+	PTGN_ASSERT(
+		cache_write.has_value(),
+		"Failed to write font data to cache path: ", cache_data_path.string(),
+		" with error: ", magic_enum::enum_name(cache_write.error())
+	);
 }
 
-FontObject::FontObject(Renderer& renderer, path cache_directory, std::string_view cache_name) {}
+FontObject::FontObject(Renderer& renderer, path cache_directory, std::string_view cache_name) {
+	cache_directory = GetAbsolutePath(cache_directory);
+
+	auto cache_png_path{ cache_directory / (std::string(cache_name) + ".png") };
+
+	Surface surface{ cache_png_path, kFontAtlasChannelCount };
+
+	atlas_texture_ = renderer.CreateTexture(surface, kFontAtlasFormat, kFontAtlasTextureParams);
+
+	auto cache_data_path{ cache_directory / (std::string(cache_name) + ".data") };
+
+	auto cache_read{ ReadFontCache(cache_data_path) };
+	PTGN_ASSERT(
+		cache_read.has_value(),
+		"Failed to read font data from cache path: ", cache_data_path.string(),
+		" with error: ", magic_enum::enum_name(cache_read.error())
+	);
+
+	data_ = std::move(cache_read.value());
+}
 
 std::optional<GlyphMetrics> FontObject::GetGlyph(std::uint32_t codepoint) const {
-	auto it{ glyphs_.find(codepoint) };
-	if (it == glyphs_.end()) {
+	auto it{ data_.glyphs.find(codepoint) };
+	if (it == data_.glyphs.end()) {
 		return std::nullopt;
 	}
 	return it->second;
@@ -361,8 +427,8 @@ float FontObject::GetAdvance(std::uint32_t current_codepoint, std::uint32_t next
 
 	float advance{ glyph->advance };
 
-	if (auto it{ kerning_.find(KerningKey(current_codepoint, next_codepoint)) };
-		it != kerning_.end()) {
+	if (auto it{ data_.kerning.find(KerningKey(current_codepoint, next_codepoint)) };
+		it != data_.kerning.end()) {
 		advance += it->second;
 	}
 
@@ -377,4 +443,30 @@ TextureId FontObject::GetAtlasTexture() const {
 	return atlas_texture_;
 }
 
-} // namespace ptgn::impl
+V2_int FontObject::GetAtlasSize() const {
+	return atlas_texture_.GetSize();
+}
+
+} // namespace impl
+
+std::optional<impl::GlyphMetrics> Font::GetGlyph(std::uint32_t codepoint) const {
+	return GetEntity().Get<impl::FontObject>().GetGlyph(codepoint);
+}
+
+float Font::GetAdvance(std::uint32_t current_codepoint, std::uint32_t next_codepoint) const {
+	return GetEntity().Get<impl::FontObject>().GetAdvance(current_codepoint, next_codepoint);
+}
+
+const impl::FontData& Font::GetFontData() const {
+	return GetEntity().Get<impl::FontObject>().GetFontData();
+}
+
+impl::TextureId Font::GetAtlasTexture() const {
+	return GetEntity().Get<impl::FontObject>().GetAtlasTexture();
+}
+
+V2_int Font::GetAtlasSize() const {
+	return GetEntity().Get<impl::FontObject>().GetAtlasSize();
+}
+
+} // namespace ptgn

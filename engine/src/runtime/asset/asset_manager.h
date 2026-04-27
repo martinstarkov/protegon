@@ -242,8 +242,8 @@ public:
 	Texture CreateTexture(const path& texture_path);
 	Texture LoadTexture(std::string_view key, const path& texture_path);
 
-	Font CreateFont(const path& font_path, float font_size);
-	Font LoadFont(std::string_view key, const path& font_path, float font_size = kDefaultFontSize);
+	Font CreateFont(const path& font_path, std::string_view name);
+	Font LoadFont(std::string_view key, const path& font_path);
 
 	template <AssetType T>
 	bool Unload(std::string_view key);
@@ -293,7 +293,7 @@ private:
 
 	[[nodiscard]] Audio CreateAudio(bool persistent, const path& asset_path);
 	[[nodiscard]] Texture CreateTexture(bool persistent, const path& asset_path);
-	[[nodiscard]] Font CreateFont(bool persistent, const path& asset_path, float pt_size);
+	[[nodiscard]] Font CreateFont(bool persistent, const path& asset_path, std::string_view name);
 
 	[[nodiscard]] ecs::Entity CreateAsset();
 

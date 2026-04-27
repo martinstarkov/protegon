@@ -14,6 +14,7 @@
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
+#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
@@ -22,13 +23,14 @@ namespace ptgn {
 
 FontSystem::FontSystem(AssetManager& assets) : assets_{ assets } {
 	if (!raw_default_font_) {
+		// TODO: Fix.
 		// raw_default_font_ = GetRawBuffer(impl::GetLiberationSansRegular());
 		// auto default_font{ LoadFromBinary(raw_default_font_, kDefaultFontSize, false) };
 		impl::FontObject f{};
 
 		Font font{ assets_.CreateAsset(), true };
 		font.GetEntity().Add<FontSize>(kDefaultFontSize);
-		font.GetEntity().Add<impl::FontObject>(f);
+		font.GetEntity().Add<impl::FontObject>(std::move(f));
 		impl::AddAssetKey(font.GetEntity(), "", std::nullopt);
 	}
 }
@@ -48,36 +50,6 @@ void FontSystem::SetDefault(std::string_view font_key) {
 		assets_.Has<Font>(font_key), "Font key must be loaded before setting it as default"
 	);
 	default_font_ = font_key;
-}
-
-impl::FontObject FontSystem::GetFont(std::string_view font_key, FontSize font_size) const {
-	auto font{ assets_.Get<Font>(font_key) };
-
-	auto font_asset{ font.GetEntity() };
-
-	if (font_asset.Get<FontSize>() == font_size) {
-		return font_asset.Get<impl::FontObject>();
-	}
-
-	if (font_asset.Has<path>()) {
-		auto path_string{ font_asset.Get<path>().string() };
-		PTGN_ASSERT(!path_string.empty(), "Invalid font path");
-		// TODO: Fix.
-		// return std::shared_ptr<TTF_Font>{ TTF_OpenFont(path_string.c_str(), font_size),
-		//								  impl::TTF_FontDeleter{} };
-		return impl::FontObject{};
-	}
-
-	// Font has no path defined.
-	PTGN_ASSERT(
-		font_asset.Get<impl::AssetKey>() == Hash(""),
-		"Font key must have a valid path unless it is the default font"
-	);
-
-	// TODO: Fix.
-	// return std::shared_ptr<TTF_Font>{ LoadFromBinary(raw_default_font_, font_size, false),
-	//								  impl::TTF_FontDeleter{} };
-	return impl::FontObject{};
 }
 
 int FontSystem::GetLineSkip(std::string_view font_key, FontSize font_size) const {
@@ -233,17 +205,23 @@ return impl::Surface{ surface };
 */
 //}
 
-impl::FontObject FontSystem::CreateFont(const path& font_path, FontSize font_size) {
+impl::FontObject FontSystem::CreateFont(
+	impl::Renderer& renderer, const path& font_path, std::string_view name
+) {
 	PTGN_ASSERT(
 		FileExists(font_path), "Cannot create font from invalid path: ", font_path.string()
 	);
 
-	// TODO: Fix.
-	// auto ttf_font = TTF_OpenFont(font_path.string().c_str(), font_size);
-	// PTGN_ASSERT(ttf_font, SDL_GetError());
-	// return std::shared_ptr<TTF_Font>{ ttf_font, impl::TTF_FontDeleter{} };
+	auto cache_directory{ GetWorkingDirectory() / "cache/fonts" };
 
-	return impl::FontObject{};
+	auto cache_png_file{ cache_directory / (std::string(name) + ".png") };
+	auto cache_data_file{ cache_directory / (std::string(name) + ".data") };
+
+	if (FileExists(cache_png_file) && FileExists(cache_data_file)) {
+		return impl::FontObject{ renderer, cache_directory, name };
+	}
+
+	return impl::FontObject{ renderer, font_path, cache_directory, name };
 }
 
 } // namespace ptgn

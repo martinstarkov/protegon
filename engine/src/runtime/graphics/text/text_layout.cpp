@@ -11,11 +11,11 @@
 namespace ptgn {
 
 TextLayoutRequest MakeTextRequest(
-	std::string_view content, impl::FontData& font, Rect rect, float scale, Color color,
+	std::string_view content, std::string_view font_key, Rect rect, float scale, Color color,
 	const TextLayoutStyle& layout_style
 ) {
 	TextRunStyle run;
-	run.font  = &font;
+	run.font  = font_key;
 	run.scale = scale;
 	run.color = color;
 

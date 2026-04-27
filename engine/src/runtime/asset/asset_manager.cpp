@@ -107,27 +107,25 @@ Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) 
 	return texture;
 }
 
-Font AssetManager::CreateFont(bool persistent, const path& asset_path, float font_size) {
+Font AssetManager::CreateFont(bool persistent, const path& asset_path, std::string_view name) {
 	Font font{ CreateAsset(), persistent };
 
-	font.GetEntity().Add<FontSize>(font_size);
+	auto f{ FontSystem::CreateFont(renderer_, asset_path, name) };
 
-	auto f{ FontSystem::CreateFont(asset_path, font_size) };
-
-	font.GetEntity().Add<impl::FontObject>(f);
+	font.GetEntity().Add<impl::FontObject>(std::move(f));
 
 	return font;
 }
 
-Font AssetManager::CreateFont(const path& asset_path, float font_size) {
-	return CreateFont(false, asset_path, font_size);
+Font AssetManager::CreateFont(const path& asset_path, std::string_view name) {
+	return CreateFont(false, asset_path, name);
 }
 
-Font AssetManager::LoadFont(std::string_view key, const path& asset_path, float font_size) {
+Font AssetManager::LoadFont(std::string_view key, const path& asset_path) {
 	if (auto existing{ TryGet<Font>(key) }; existing.has_value()) {
 		return *existing;
 	}
-	auto font{ CreateFont(true, asset_path, font_size) };
+	auto font{ CreateFont(true, asset_path, key) };
 	impl::AddAssetKey(font.GetEntity(), key, asset_path);
 	return font;
 }

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <iterator>
+#include <limits>
 #include <list>
 #include <optional>
 #include <string>
@@ -21,10 +22,9 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/vertex/vertex.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/text/font_data.h"
-#include "runtime/graphics/text/text_builder.h"
+#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text_effect.h"
 #include "runtime/graphics/text/text_layout.h"
 #include "runtime/graphics/text/text_style.h"
@@ -90,7 +90,7 @@ TextLayoutKey TextSystem::MakeKey(TextLayoutRequest request) {
 	return key;
 }
 
-TextLayout TextSystem::BuildLayout(TextLayoutRequest request) {
+TextLayout TextSystem::BuildLayout(AssetManager& asset_manager, TextLayoutRequest request) {
 	TextLayoutKey key{ MakeKey(request) };
 	TextLayout cached;
 	if (cache_.TryGet(key, &cached)) {
@@ -99,17 +99,21 @@ TextLayout TextSystem::BuildLayout(TextLayoutRequest request) {
 
 	float shrink{ 1.0f };
 	if (request.box.style.overflow_mode == OverflowMode::ShrinkToFit) {
-		shrink = FindBestShrinkScale(request.styled_text, request.box);
+		shrink = FindBestShrinkScale(asset_manager, request.styled_text, request.box);
 	}
 
-	CandidateLayout candidate{ BuildSinglePassLayout(request.styled_text, request.box, shrink) };
+	CandidateLayout candidate{
+		BuildSinglePassLayout(asset_manager, request.styled_text, request.box, shrink)
+	};
 	TextLayout layout{ std::move(candidate.layout) };
 	layout.used_shrink_scale = candidate.used_shrink_scale;
 
 	if (request.box.style.max_lines > 0 && layout.lines.size() > request.box.style.max_lines) {
 		layout.truncated_by_max_lines = true;
 		if (request.box.style.ellipsis_on_max_lines) {
-			ApplyEllipsisForMaxLines(request.styled_text, request.box, shrink, &layout);
+			ApplyEllipsisForMaxLines(
+				asset_manager, request.styled_text, request.box, shrink, &layout
+			);
 		} else {
 			std::size_t last_line_index{ request.box.style.max_lines - 1 };
 			std::size_t hide_from{ layout.lines[last_line_index].glyph_end };
@@ -135,19 +139,19 @@ TextLayout TextSystem::BuildLayout(TextLayoutRequest request) {
 }
 
 TextLayout TextSystem::BuildLayout(
-	std::string_view text, impl::FontData& font, Rect rect, TextLayoutStyle style,
-	TextRunStyle run_style
+	AssetManager& asset_manager, std::string_view text, std::string_view font_key, Rect rect,
+	TextLayoutStyle style, TextRunStyle run_style
 ) {
-	run_style.font = &font;
+	run_style.font = font_key;
 	TextLayoutRequest request;
 	request.styled_text = MakePlainText(text, run_style);
 	request.box.rect	= rect;
 	request.box.style	= style;
-	return BuildLayout(std::move(request));
+	return BuildLayout(asset_manager, std::move(request));
 }
 
-TextMeasurement TextSystem::Measure(TextLayoutRequest request) {
-	TextLayout layout{ BuildLayout(std::move(request)) };
+TextMeasurement TextSystem::Measure(AssetManager& asset_manager, TextLayoutRequest request) {
+	TextLayout layout{ BuildLayout(asset_manager, std::move(request)) };
 
 	TextMeasurement result;
 	result.size				 = layout.measured_size;
@@ -164,15 +168,15 @@ TextMeasurement TextSystem::Measure(TextLayoutRequest request) {
 }
 
 TextMeasurement TextSystem::Measure(
-	std::string_view text, impl::FontData& font, Rect rect, TextLayoutStyle style,
-	TextRunStyle run_style
+	AssetManager& asset_manager, std::string_view text, std::string_view font_key, Rect rect,
+	TextLayoutStyle style, TextRunStyle run_style
 ) {
-	run_style.font = &font;
+	run_style.font = font_key;
 	TextLayoutRequest request;
 	request.styled_text = MakePlainText(text, run_style);
 	request.box.rect	= rect;
 	request.box.style	= style;
-	return Measure(std::move(request));
+	return Measure(asset_manager, std::move(request));
 }
 
 void TextSystem::BuildVertices(
@@ -209,6 +213,10 @@ void TextSystem::BuildVertices(
 
 		EmitGlyphQuad(glyph, params, vertices, local_indices);
 	}
+}
+
+Font TextSystem::GetFont(AssetManager& asset_manager, std::string_view font_key) {
+	return asset_manager.Get<Font>(font_key);
 }
 
 std::u32string TextSystem::DecodeUtf8(std::string_view text) {
@@ -293,7 +301,9 @@ int32_t TextSystem::QuantizeSigned(float value, float scale) {
 	return static_cast<int32_t>(std::lround(value * scale));
 }
 
-std::vector<RichTextToken> TextSystem::Tokenize(StyledText& styled_text, float global_shrink) {
+std::vector<RichTextToken> TextSystem::Tokenize(
+	AssetManager& asset_manager, StyledText& styled_text, float global_shrink
+) {
 	std::vector<RichTextToken> tokens{};
 
 	for (std::size_t run_index{}; run_index < styled_text.runs.size(); ++run_index) {
@@ -328,7 +338,7 @@ std::vector<RichTextToken> TextSystem::Tokenize(StyledText& styled_text, float g
 				token.type		= RichTextToken::Type::Space;
 				token.run_index = run_index;
 				token.text		= decoded.substr(begin, i - begin);
-				token.width		= MeasureTokenWidth(token, styled_text, global_shrink);
+				token.width = MeasureTokenWidth(asset_manager, token, styled_text, global_shrink);
 				tokens.push_back(std::move(token));
 				continue;
 			}
@@ -338,7 +348,7 @@ std::vector<RichTextToken> TextSystem::Tokenize(StyledText& styled_text, float g
 				token.type		= RichTextToken::Type::Tab;
 				token.run_index = run_index;
 				token.text.push_back(U'\t');
-				token.width = MeasureTokenWidth(token, styled_text, global_shrink);
+				token.width = MeasureTokenWidth(asset_manager, token, styled_text, global_shrink);
 				tokens.push_back(std::move(token));
 				++i;
 				continue;
@@ -353,7 +363,7 @@ std::vector<RichTextToken> TextSystem::Tokenize(StyledText& styled_text, float g
 			token.type		= RichTextToken::Type::Word;
 			token.run_index = run_index;
 			token.text		= decoded.substr(begin, i - begin);
-			token.width		= MeasureTokenWidth(token, styled_text, global_shrink);
+			token.width		= MeasureTokenWidth(asset_manager, token, styled_text, global_shrink);
 			tokens.push_back(std::move(token));
 		}
 	}
@@ -361,33 +371,26 @@ std::vector<RichTextToken> TextSystem::Tokenize(StyledText& styled_text, float g
 	return tokens;
 }
 
-float TextSystem::MeasureLineHeight(TextRunStyle& style) {
-	auto font{ style.GetFont() };
-	if (font == nullptr) {
-		return 0.0f;
-	}
-
-	impl::FontMetrics metrics{ font->GetFontMetrics() };
+float TextSystem::MeasureLineHeight(AssetManager& asset_manager, TextRunStyle& style) {
+	auto font{ GetFont(asset_manager, style.font) };
+	impl::FontMetrics metrics{ font.GetFontData().metrics };
 	return (metrics.line_height + style.line_spacing) * style.scale;
 }
 
 float TextSystem::MeasureTokenWidth(
-	RichTextToken& token, StyledText& styled_text, float global_shrink
+	AssetManager& asset_manager, RichTextToken& token, StyledText& styled_text, float global_shrink
 ) {
 	if (token.run_index >= styled_text.runs.size()) {
 		return 0.0f;
 	}
 
 	const TextRun& run{ styled_text.runs[token.run_index] };
-	auto font{ run.style.GetFont() };
-	if (font == nullptr) {
-		return 0.0f;
-	}
+	auto font{ GetFont(asset_manager, run.style.font) };
 
 	float scale{ run.style.scale * global_shrink };
 
 	if (token.type == RichTextToken::Type::Tab) {
-		float space_adv{ font->GetAdvance(U' ', 0) };
+		float space_adv{ font.GetAdvance(U' ', 0) };
 		return (space_adv + run.style.kerning + run.style.tracking) * scale * 4.0f;
 	}
 
@@ -395,7 +398,7 @@ float TextSystem::MeasureTokenWidth(
 	for (std::size_t i{ 0 }; i < token.text.size(); ++i) {
 		std::uint32_t cp{ token.text[i] };
 		std::uint32_t next_cp{ GetNextCodepoint(token.text, i) };
-		width += (font->GetAdvance(cp, next_cp) + run.style.kerning + run.style.tracking) * scale;
+		width += (font.GetAdvance(cp, next_cp) + run.style.kerning + run.style.tracking) * scale;
 	}
 
 	return width;
@@ -406,17 +409,15 @@ bool TextSystem::FitsInBox(TextLayout& layout, Rect box) {
 }
 
 std::optional<TextSystem::ResolvedGlyph> TextSystem::ResolveGlyph(
-	TextRun& run, std::uint32_t codepoint, std::uint32_t next_codepoint,
-	std::size_t source_run_index, std::size_t source_codepoint_index, float global_shrink
+	AssetManager& asset_manager, TextRun& run, std::uint32_t codepoint,
+	std::uint32_t next_codepoint, std::size_t source_run_index, std::size_t source_codepoint_index,
+	float global_shrink
 ) {
-	auto font{ run.style.GetFont() };
-	if (font == nullptr) {
-		return std::nullopt;
-	}
+	auto font{ GetFont(asset_manager, run.style.font) };
 
-	std::optional<impl::GlyphMetrics> metrics{ font->GetGlyph(codepoint) };
+	std::optional<impl::GlyphMetrics> metrics{ font.GetGlyph(codepoint) };
 	if (!metrics.has_value()) {
-		metrics = font->GetGlyph(U'?');
+		metrics = font.GetGlyph(U'?');
 	}
 	if (!metrics.has_value()) {
 		return std::nullopt;
@@ -425,10 +426,9 @@ std::optional<TextSystem::ResolvedGlyph> TextSystem::ResolveGlyph(
 	ResolvedGlyph resolved;
 	resolved.codepoint				= codepoint;
 	resolved.metrics				= *metrics;
-	resolved.texture_index			= font->GetAtlasTextureIndex();
 	resolved.source_run_index		= source_run_index;
 	resolved.source_codepoint_index = source_codepoint_index;
-	resolved.texture				= font->GetAtlasTexture();
+	resolved.texture				= font.GetAtlasTexture();
 
 	resolved.render_style.color			   = run.style.color;
 	resolved.render_style.effect.type	   = run.style.effect.type;
@@ -440,16 +440,16 @@ std::optional<TextSystem::ResolvedGlyph> TextSystem::ResolveGlyph(
 	resolved.metrics.plane.GetMin() *= run.style.scale * global_shrink;
 	resolved.metrics.plane.GetMax() *= run.style.scale * global_shrink;
 	resolved.metrics.advance =
-		(font->GetAdvance(codepoint, next_codepoint) + run.style.kerning + run.style.tracking) *
+		(font.GetAdvance(codepoint, next_codepoint) + run.style.kerning + run.style.tracking) *
 		(run.style.scale * global_shrink);
 
 	return resolved;
 }
 
 TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
-	StyledText& styled_text, TextBox box, float global_shrink
+	AssetManager& asset_manager, StyledText& styled_text, TextBox box, float global_shrink
 ) {
-	std::vector<RichTextToken> tokens{ Tokenize(styled_text, global_shrink) };
+	std::vector<RichTextToken> tokens{ Tokenize(asset_manager, styled_text, global_shrink) };
 
 	TextLayout layout;
 	layout.used_shrink_scale = global_shrink;
@@ -539,12 +539,12 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 		}
 
 		TextRun& run{ styled_text.runs[token.run_index] };
-		float line_h{ MeasureLineHeight(run.style) * global_shrink };
+		float line_h{ MeasureLineHeight(asset_manager, run.style) * global_shrink };
 		current_line_size.y = std::max(current_line_size.y, line_h);
 
 		if (token.type == RichTextToken::Type::Space || token.type == RichTextToken::Type::Tab) {
 			if (std::optional<ResolvedGlyph> space_glyph{ ResolveGlyph(
-					run, token.type == RichTextToken::Type::Space ? U' ' : U'\t', 0,
+					asset_manager, run, token.type == RichTextToken::Type::Space ? U' ' : U'\t', 0,
 					token.run_index, 0, global_shrink
 				) };
 				space_glyph.has_value()) {
@@ -553,7 +553,6 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 				glyph.position				 = { current_line_size.x, y };
 				glyph.plane					 = space_glyph->metrics.plane;
 				glyph.uv					 = space_glyph->metrics.uv;
-				glyph.texture_index			 = space_glyph->texture_index;
 				glyph.source_run_index		 = token.run_index;
 				glyph.source_codepoint_index = 0;
 				glyph.render_style			 = space_glyph->render_style;
@@ -571,7 +570,7 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 				std::uint32_t cp{ token.text[i] };
 				std::uint32_t next_cp{ GetNextCodepoint(token.text, i) };
 				std::optional<ResolvedGlyph> resolved{
-					ResolveGlyph(run, cp, next_cp, token.run_index, i, global_shrink)
+					ResolveGlyph(asset_manager, run, cp, next_cp, token.run_index, i, global_shrink)
 				};
 				if (!resolved.has_value()) {
 					continue;
@@ -588,7 +587,6 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 				glyph.position				 = { current_line_size.x, y };
 				glyph.plane					 = resolved->metrics.plane;
 				glyph.uv					 = resolved->metrics.uv;
-				glyph.texture_index			 = resolved->texture_index;
 				glyph.source_run_index		 = resolved->source_run_index;
 				glyph.source_codepoint_index = resolved->source_codepoint_index;
 				glyph.render_style			 = resolved->render_style;
@@ -605,7 +603,7 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 			std::uint32_t cp{ token.text[i] };
 			std::uint32_t next_cp{ GetNextCodepoint(token.text, i) };
 			std::optional<ResolvedGlyph> resolved{
-				ResolveGlyph(run, cp, next_cp, token.run_index, i, global_shrink)
+				ResolveGlyph(asset_manager, run, cp, next_cp, token.run_index, i, global_shrink)
 			};
 			if (!resolved.has_value()) {
 				continue;
@@ -616,7 +614,6 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 			glyph.position				 = { x, y };
 			glyph.plane					 = resolved->metrics.plane;
 			glyph.uv					 = resolved->metrics.uv;
-			glyph.texture_index			 = resolved->texture_index;
 			glyph.source_run_index		 = resolved->source_run_index;
 			glyph.source_codepoint_index = resolved->source_codepoint_index;
 			glyph.render_style			 = resolved->render_style;
@@ -634,7 +631,7 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 	if (!styled_text.runs.empty()) {
 		layout.batch_style = styled_text.runs.front().style.sdf;
 
-		if (styled_text.runs.front().style.IsUsingFakeBold()) {
+		if (HasFlag(styled_text.runs.front().style.flags, FontStyle::Bold)) {
 			layout.batch_style.weight += styled_text.runs.front().style.fake_bold_weight;
 		}
 	}
@@ -645,14 +642,16 @@ TextSystem::CandidateLayout TextSystem::BuildSinglePassLayout(
 	return result;
 }
 
-float TextSystem::FindBestShrinkScale(StyledText& styled_text, TextBox box) {
+float TextSystem::FindBestShrinkScale(
+	AssetManager& asset_manager, StyledText& styled_text, TextBox box
+) {
 	float lo{ box.style.min_shrink_scale };
 	float hi{ box.style.max_shrink_scale };
 	float best{ lo };
 
 	for (int i{ 0 }; i < 16; ++i) {
 		float mid{ 0.5f * (lo + hi) };
-		CandidateLayout candidate{ BuildSinglePassLayout(styled_text, box, mid) };
+		CandidateLayout candidate{ BuildSinglePassLayout(asset_manager, styled_text, box, mid) };
 		if (FitsInBox(candidate.layout, box.rect)) {
 			best = mid;
 			lo	 = mid;
@@ -686,7 +685,8 @@ void TextSystem::ApplyVerticalAlignment(TextBox box, TextLayout* layout) {
 }
 
 void TextSystem::ApplyEllipsisForMaxLines(
-	StyledText& styled_text, TextBox box, float global_shrink, TextLayout* layout
+	AssetManager& asset_manager, StyledText& styled_text, TextBox box, float global_shrink,
+	TextLayout* layout
 ) {
 	if (layout == nullptr) {
 		return;
@@ -720,20 +720,20 @@ void TextSystem::ApplyEllipsisForMaxLines(
 		return;
 	}
 
-	auto font{ source_run->style.GetFont() };
-	if (font == nullptr) {
-		layout->lines.resize(keep_lines);
-		layout->ellipsized			   = true;
-		layout->truncated_by_max_lines = true;
-		return;
-	}
+	auto font{ GetFont(asset_manager, source_run->style.font) };
+	// if (font == nullptr) {
+	//	layout->lines.resize(keep_lines);
+	//	layout->ellipsized			   = true;
+	//	layout->truncated_by_max_lines = true;
+	//	return;
+	// }
 
 	std::u32string dots{ U"..." };
 	float dots_width{ 0.0f };
 	for (std::size_t i{ 0 }; i < dots.size(); ++i) {
 		std::uint32_t cp{ dots[i] };
 		std::uint32_t next_cp{ GetNextCodepoint(dots, i) };
-		dots_width += (font->GetAdvance(cp, next_cp) + source_run->style.kerning +
+		dots_width += (font.GetAdvance(cp, next_cp) + source_run->style.kerning +
 					   source_run->style.tracking) *
 					  (source_run->style.scale * global_shrink);
 	}
@@ -766,7 +766,7 @@ void TextSystem::ApplyEllipsisForMaxLines(
 		std::uint32_t cp{ dots[i] };
 		std::uint32_t next_cp{ GetNextCodepoint(dots, i) };
 		std::optional<ResolvedGlyph> resolved{ ResolveGlyph(
-			*source_run, cp, next_cp,
+			asset_manager, *source_run, cp, next_cp,
 			last_line.glyph_begin < layout->glyphs.size()
 				? layout->glyphs[last_line.glyph_begin].source_run_index
 				: 0,
@@ -781,7 +781,6 @@ void TextSystem::ApplyEllipsisForMaxLines(
 		glyph.position				 = { start_x, y };
 		glyph.plane					 = resolved->metrics.plane;
 		glyph.uv					 = resolved->metrics.uv;
-		glyph.texture_index			 = resolved->texture_index;
 		glyph.source_run_index		 = resolved->source_run_index;
 		glyph.source_codepoint_index = resolved->source_codepoint_index;
 		glyph.render_style			 = resolved->render_style;
@@ -867,10 +866,10 @@ void TextSystem::EmitGlyphQuad(
 }
 
 void TextSystem::RenderText(
-	DrawContext& renderer, const TextLayoutRequest& request, float depth, int entity_id,
-	std::optional<Rect> clip_rect, std::size_t reveal_glyph_count
+	AssetManager& asset_manager, DrawContext& renderer, const TextLayoutRequest& request,
+	float depth, int entity_id, std::optional<Rect> clip_rect, std::size_t reveal_glyph_count
 ) {
-	TextLayout layout = BuildLayout(request);
+	TextLayout layout = BuildLayout(asset_manager, request);
 
 	const DistanceFieldStyle& style{ layout.batch_style };
 
@@ -911,7 +910,9 @@ void TextSystem::RenderText(
 	);
 }
 
-void TextSystem::DrawText(DrawContext& renderer, Entity entity, impl::FontData* font) {
+void TextSystem::DrawText(
+	AssetManager& asset_manager, DrawContext& renderer, Entity entity, std::string_view font_key
+) {
 	// TODO: Pull this info from text entity.
 
 	std::optional<Rect> clip_rect{ std::nullopt };
@@ -934,7 +935,7 @@ void TextSystem::DrawText(DrawContext& renderer, Entity entity, impl::FontData* 
 	//					   } };
 
 	auto request = MakeTextRequest(
-		"HELPME", *font, { { 0, 0 }, { 400, 100 } }, 48.0f, color::Black,
+		"HELPME", font_key, { { 0, 0 }, { 400, 100 } }, 48.0f, color::Black,
 		{ .horizontal_align = HorizontalAlign::Center,
 		  .vertical_align	= VerticalAlign::Center,
 		  .wrap_mode		= WrapMode::Word }
@@ -943,7 +944,7 @@ void TextSystem::DrawText(DrawContext& renderer, Entity entity, impl::FontData* 
 	auto depth{ 0.0f /*GetDepth(entity)*/ };
 	auto entity_id{ 1 /*entity.GetUUID()*/ };
 
-	RenderText(renderer, request, depth, entity_id, clip_rect, reveal_glyph_count);
+	RenderText(asset_manager, renderer, request, depth, entity_id, clip_rect, reveal_glyph_count);
 }
 
 } // namespace ptgn

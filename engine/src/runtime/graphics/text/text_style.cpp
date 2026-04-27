@@ -11,37 +11,6 @@
 
 namespace ptgn {
 
-bool TextRunStyle::IsUsingFakeBold() const {
-	const bool wants_bold	= HasFlag(flags, FontStyle::Bold);
-	const bool wants_italic = HasFlag(flags, FontStyle::Italic);
-
-	if (!wants_bold || !fake_bold_if_missing) {
-		return false;
-	}
-
-	if (wants_italic) {
-		return bold_italic_font == nullptr;
-	}
-
-	return bold_font == nullptr;
-}
-
-impl::FontData* TextRunStyle::GetFont() const {
-	const bool bold	  = HasFlag(flags, FontStyle::Bold);
-	const bool italic = HasFlag(flags, FontStyle::Italic);
-
-	if (bold && italic && bold_italic_font != nullptr) {
-		return bold_italic_font;
-	}
-	if (bold && bold_font != nullptr) {
-		return bold_font;
-	}
-	if (italic && italic_font != nullptr) {
-		return italic_font;
-	}
-	return font;
-}
-
 TextRunStyle TextStyle::ToRunStyle() const {
 	TextRunStyle run;
 	run.font  = font;
@@ -96,14 +65,10 @@ std::size_t std::hash<ptgn::DistanceFieldStyle>::operator()(const ptgn::Distance
 
 std::size_t std::hash<ptgn::TextRunStyle>::operator()(const ptgn::TextRunStyle& style) const {
 	return ptgn::Hash(
-		style.font != nullptr ? style.font->GetFontId() : 0ULL,
-		style.bold_font != nullptr ? style.bold_font->GetFontId() : 0ULL,
-		style.italic_font != nullptr ? style.italic_font->GetFontId() : 0ULL,
-		style.bold_italic_font != nullptr ? style.bold_italic_font->GetFontId() : 0ULL, style.color,
-		style.scale, style.kerning, style.tracking, style.line_spacing, style.fake_bold_if_missing,
-		style.fake_bold_weight, std::to_underlying(style.flags), style.sdf,
-		std::to_underlying(style.effect.type), style.effect.amplitude, style.effect.frequency,
-		style.effect.speed, style.effect.phase
+		style.font, style.color, style.scale, style.kerning, style.tracking, style.line_spacing,
+		style.fake_bold_if_missing, style.fake_bold_weight, std::to_underlying(style.flags),
+		style.sdf, std::to_underlying(style.effect.type), style.effect.amplitude,
+		style.effect.frequency, style.effect.speed, style.effect.phase
 	);
 }
 

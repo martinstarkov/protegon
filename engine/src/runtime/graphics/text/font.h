@@ -2,8 +2,11 @@
 
 #include <cstdint>
 #include <optional>
+#include <string_view>
+#include <unordered_map>
 
 #include "core/math/geometry/rect.h"
+#include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
@@ -84,13 +87,15 @@ public:
 
 	FontObject(Renderer& renderer, path cache_directory, std::string_view cache_name);
 
-	[[nodiscard]] std::optional<GlyphMetrics> GetGlyph(std::uint32_t codepoint) const;
-	[[nodiscard]] float GetAdvance(std::uint32_t current_codepoint, std::uint32_t next_codepoint)
-		const;
+	std::optional<GlyphMetrics> GetGlyph(std::uint32_t codepoint) const;
 
-	[[nodiscard]] const FontData& GetFontData() const;
+	float GetAdvance(std::uint32_t current_codepoint, std::uint32_t next_codepoint) const;
 
-	[[nodiscard]] TextureId GetAtlasTexture() const;
+	const FontData& GetFontData() const;
+
+	TextureId GetAtlasTexture() const;
+
+	V2_int GetAtlasSize() const;
 
 private:
 	TextureObject atlas_texture_;
@@ -103,6 +108,16 @@ private:
 class Font : public EntityHandle {
 public:
 	using EntityHandle::EntityHandle;
+
+	std::optional<impl::GlyphMetrics> GetGlyph(std::uint32_t codepoint) const;
+
+	float GetAdvance(std::uint32_t current_codepoint, std::uint32_t next_codepoint) const;
+
+	const impl::FontData& GetFontData() const;
+
+	impl::TextureId GetAtlasTexture() const;
+
+	[[nodiscard]] V2_int GetAtlasSize() const;
 };
 
 } // namespace ptgn

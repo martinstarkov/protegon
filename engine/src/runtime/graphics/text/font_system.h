@@ -16,6 +16,12 @@ namespace ptgn {
 
 class AssetManager;
 
+namespace impl {
+
+class Renderer;
+
+} // namespace impl
+
 class FontSystem {
 public:
 	explicit FontSystem(AssetManager& assets);
@@ -50,9 +56,9 @@ private:
 	friend class Texture;
 	friend class AssetManager;
 
-	[[nodiscard]] static impl::FontObject CreateFont(const path& font_path, FontSize font_size);
-
-	impl::FontObject GetFont(std::string_view font_key, FontSize font_size) const;
+	[[nodiscard]] static impl::FontObject CreateFont(
+		impl::Renderer& renderer, const path& font_path, std::string_view name
+	);
 
 	AssetManager& assets_;
 

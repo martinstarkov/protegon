@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -11,12 +12,6 @@
 #include "runtime/graphics/text/text_effect.h"
 
 namespace ptgn {
-
-namespace impl {
-
-class FontData;
-
-} // namespace impl
 
 enum class HorizontalAlign : std::uint8_t {
 	Left,
@@ -82,10 +77,7 @@ struct DistanceFieldStyle {
 };
 
 struct TextRunStyle {
-	impl::FontData* font{ nullptr };
-	impl::FontData* bold_font{ nullptr };
-	impl::FontData* italic_font{ nullptr };
-	impl::FontData* bold_italic_font{ nullptr };
+	std::string_view font;
 	Color color{ color::White };
 
 	bool fake_bold_if_missing{ true };
@@ -100,10 +92,6 @@ struct TextRunStyle {
 
 	DistanceFieldStyle sdf;
 	GlyphEffectStyle effect;
-
-	[[nodiscard]] bool IsUsingFakeBold() const;
-
-	impl::FontData* GetFont() const;
 };
 
 struct TextRun {
@@ -116,7 +104,7 @@ struct StyledText {
 };
 
 struct TextStyle {
-	impl::FontData* font{ nullptr };
+	std::string_view font;
 	Color color{ color::White };
 	float scale{ 1.0f };
 	FontStyle flags{ FontStyle::Normal };

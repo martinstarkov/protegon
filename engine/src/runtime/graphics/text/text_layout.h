@@ -14,12 +14,6 @@
 
 namespace ptgn {
 
-namespace impl {
-
-class FontData;
-
-} // namespace impl
-
 struct TextLayoutStyle {
 	HorizontalAlign horizontal_align{ HorizontalAlign::Left };
 	VerticalAlign vertical_align{ VerticalAlign::Top };
@@ -123,7 +117,7 @@ struct TextLayoutRequest {
 };
 
 TextLayoutRequest MakeTextRequest(
-	std::string_view content, impl::FontData& font, Rect rect, float scale = 1.0f,
+	std::string_view content, std::string_view font_key, Rect rect, float scale = 1.0f,
 	Color color = color::White, const TextLayoutStyle& layout_style = {}
 );
 
