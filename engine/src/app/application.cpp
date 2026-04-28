@@ -11,76 +11,31 @@
 #include <imgui_impl_opengl3.h>
 
 #include <chrono>
-#include <functional>
 #include <memory>
 #include <string_view>
 #include <utility>
-#include <variant>
-#include <vector>
 
-#include "app/layer.h"
+#include "app/application_config.h"
+#include "app/application_context.h"
+#include "app/application_layer.h"
+#include "application_context.h"
+#include "application_state.h"
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/event/event_handler.h"
 #include "core/event/window_event.h"
-#include "core/log.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
-#include "platform/glfw.h"
 #include "platform/window.h"
-#include "renderer/pipeline/scaling_mode.h"
-#include "renderer/pipeline/viewport_event.h"
 #include "renderer/renderer.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
-#include "serialization/json/fwd.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
-namespace impl {
-
-ApplicationLibrary::ApplicationLibrary() {
-	auto success{ glfwInit() };
-	PTGN_ASSERT(success, "glfwInit failed");
-	PTGN_INFO("Initialized GLFW");
-}
-
-ApplicationLibrary::~ApplicationLibrary() noexcept {
-	glfwTerminate();
-	PTGN_INFO("Deinitialized GLFW");
-}
-
-} // namespace impl
-
-Application::Application(const ApplicationConfig& config) :
-	event_handler_{},
-	window_{ config.window,
-			 [this](impl::EventData&& event) {
-				 event_handler_.global_event_queue_.emplace_back(std::move(event));
-			 } },
-	renderer_{ window_,
-			   [this](V2_int size, std::variant<ResizeType, impl::PresentationResizeType> type) {
-				   if (std::holds_alternative<impl::PresentationResizeType>(type)) {
-					   event_handler_.Push<event::PresentationResized>(size);
-					   return;
-				   }
-				   auto resize_type{ std::get<ResizeType>(type) };
-				   switch (resize_type) {
-					   case ResizeType::Display:
-						   event_handler_.Push<event::DisplayResized>(size);
-						   break;
-					   case ResizeType::Game: event_handler_.Push<event::GameResized>(size); break;
-					   default:				  PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(resize_type));
-				   }
-			   } },
-	assets_{ renderer_, audio_, font_ },
-	font_{ assets_ },
-	audio_{ assets_ },
-	debug_{} {
-	PTGN_INFO("Application Config: ", json(config));
-}
+Application::Application(const ApplicationConfig& config) : ctx_{ config } {}
 
 Application::Application(std::string_view title) :
 	Application{ ApplicationConfig{ .window{ .title{ title } } } } {}
@@ -94,10 +49,10 @@ void Application::EnterMainLoop() {
 	// Design decision: Latest possible point to show window is right before
 	// loop starts. Comment this if you wish the window to appear hidden for an
 	// indefinite period of time.
-	window_.SetSetting(WindowSetting::Shown);
-	running_ = true;
+	ctx_.window.SetSetting(WindowSetting::Shown);
+	ctx_.running = true;
 
-	renderer_.UpdateDisplayViewport(true);
+	ctx_.renderer.UpdateDisplayViewport(true);
 
 #ifdef __EMSCRIPTEN__
 	emscripten_set_main_loop_arg(
@@ -113,21 +68,24 @@ void Application::EnterMainLoop() {
 		this, /*fps=*/0, /*simulateInfiniteLoop=*/true
 	);
 #else
-	while (running_) {
+	while (ctx_.running) {
 		Update();
 	}
 #endif
 }
 
-void Application::HandleGlobalEvents() {
-	auto global_events{ std::exchange(event_handler_.global_event_queue_, {}) };
+void Application::HandleGlobalEvents(bool dispatch_scene_events) {
+	auto global_events{ std::exchange(ctx_.event_handler.global_event_queue_, {}) };
 
 	for (auto& global_event : global_events) {
 		Event event{ global_event };
 		event.Dispatch<event::WindowResized>([this](const auto& size) {
-			renderer_.OnWindowResize(size);
+			ctx_.renderer.OnWindowResize(size);
 		});
-		for (const auto& scene : scene_manager_.GetScenes()) {
+		if (!dispatch_scene_events) {
+			continue;
+		}
+		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
 			if (scene->IsAwaitingTransitionDelay()) {
 				continue;
 			}
@@ -137,91 +95,99 @@ void Application::HandleGlobalEvents() {
 }
 
 void Application::Update() {
-	debug_.PreUpdate();
+	bool step_requested{ ctx_.step_requested };
 
-	static auto start{ std::chrono::system_clock::now() };
-	static auto end{ std::chrono::system_clock::now() };
+	bool update_scenes{ Can(impl::ApplicationFeature::UpdateScenes) || step_requested };
+	bool scene_events{ Can(impl::ApplicationFeature::DispatchSceneEvents) || step_requested };
+	bool scene_rendering{ Can(impl::ApplicationFeature::RenderScenes) || step_requested };
+
+	ctx_.step_requested = false;
+
+	ctx_.debug.PreUpdate();
+
+	static auto start{ std::chrono::steady_clock::now() };
+	static auto end{ std::chrono::steady_clock::now() };
 	// Calculate time elapsed during previous frame.
-	dt_ = end - start;
+	ctx_.dt = end - start;
 
 	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
-	constexpr float kFps{ 60.0f };
 
-	if (dt_ > secondsf{ 1.0f / kFps }) {
+	secondsf max_dt{ 1.0f / ctx_.fps };
+
+	if (ctx_.dt > max_dt) {
 		// TODO: Instead of clamping, consider using an accumulator to update multiple times if dt
 		// is large (such as in Debug mode).
-		dt_ = secondsf{ 1.0f / kFps };
+		ctx_.dt = max_dt;
+	}
+
+	PTGN_ASSERT(ctx_.time_scale >= 0.0f, "Time scale cannot be negative");
+
+	if (step_requested) {
+		ctx_.dt = max_dt * ctx_.time_scale;
+	} else if (ctx_.state == ApplicationState::Paused) {
+		ctx_.dt = 0s;
+	} else {
+		ctx_.dt *= ctx_.time_scale;
 	}
 
 	start = end;
 
-	running_ = window_.PollEvents();
+	using enum ApplicationState;
 
-	if (window_.GetSetting(WindowSetting::Minimized)) {
-		audio_.Update();
-		debug_.PostUpdate();
+	ctx_.running = ctx_.window.PollEvents();
 
-		end = std::chrono::system_clock::now();
-		frame_count_++;
+	if (ctx_.window.GetSetting(WindowSetting::Minimized)) {
+		ctx_.audio.Update();
+		ctx_.debug.PostUpdate();
+		end = std::chrono::steady_clock::now();
+		ctx_.frame_count++;
 		return;
 	}
 
-	renderer_.UpdateDisplayViewport();
+	ctx_.renderer.UpdateDisplayViewport();
 
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	scene_manager_.PreUpdate();
+	if (update_scenes) {
+		ctx_.scene_manager.PreUpdate();
+	}
 
-	HandleGlobalEvents();
+	HandleGlobalEvents(scene_events);
 
-	scene_manager_.OnEvent();
-	scene_manager_.Update(*this, dt());
+	if (scene_events) {
+		ctx_.scene_manager.OnEvent();
+	}
+	if (update_scenes) {
+		ctx_.scene_manager.Update(*this, ctx_.dt);
+	}
 
-	for (const auto& layer : layers_) {
+	for (const auto& layer : ctx_.layers) {
 		layer->OnUpdate();
 	}
 
-	audio_.Update();
+	ctx_.audio.Update();
 
-	debug_.PostUpdate();
+	ctx_.debug.PostUpdate();
 
-	renderer_.BeginFrame();
-	scene_manager_.Draw();
-	renderer_.EndFrame();
+	if (scene_rendering) {
+		ctx_.renderer.BeginFrame();
+		ctx_.scene_manager.Draw();
+		ctx_.renderer.EndFrame();
+	}
 
-	for (const auto& layer : layers_) {
+	for (const auto& layer : ctx_.layers) {
 		layer->OnRender();
 	}
 
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-	window_.SwapBuffers();
+	ctx_.window.SwapBuffers();
 
-	end = std::chrono::system_clock::now();
-	frame_count_++;
-}
-
-milliseconds Application::TimeSinceStart() const {
-	return duration_cast<milliseconds>(duration<double>{ glfwGetTime() });
-}
-
-void Application::Stop() {
-	running_ = false;
-}
-
-secondsf Application::dt() const {
-	return dt_;
-}
-
-bool Application::IsRunning() const {
-	return running_;
-}
-
-std::size_t Application::GetFrameCount() const {
-	return frame_count_;
+	end = std::chrono::steady_clock::now();
+	ctx_.frame_count++;
 }
 
 } // namespace ptgn

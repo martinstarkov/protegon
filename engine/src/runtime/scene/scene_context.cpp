@@ -7,39 +7,39 @@
 namespace ptgn {
 
 SceneContext::SceneContext(Application& app, Scene& parent_scene) :
-	window{ app.window_ },
-	asset{ app.assets_ },
-	font{ app.font_ },
-	audio{ app.audio_ },
-	scene{ app.scene_manager_, parent_scene },
-	renderer{ parent_scene, app.renderer_ },
+	window{ impl::ApplicationAccessor::ctx(app).window },
+	asset{ impl::ApplicationAccessor::ctx(app).assets },
+	font{ impl::ApplicationAccessor::ctx(app).font },
+	audio{ impl::ApplicationAccessor::ctx(app).audio },
+	scene{ impl::ApplicationAccessor::ctx(app).scene_manager, parent_scene },
+	renderer{ parent_scene, impl::ApplicationAccessor::ctx(app).renderer },
 	debug{ renderer },
-	event{ app.event_handler_ },
-	input{ parent_scene, app.window_ },
+	event{ impl::ApplicationAccessor::ctx(app).event_handler },
+	input{ parent_scene, impl::ApplicationAccessor::ctx(app).window },
 	physics{ parent_scene },
-	global_renderer_{ app.renderer_ },
+	global_renderer_{ impl::ApplicationAccessor::ctx(app).renderer },
 	app_{ app } {}
 
 SceneContext::~SceneContext() noexcept = default;
 
 void SceneContext::Stop() {
-	app_.Stop();
+	impl::ApplicationAccessor::ctx(app_).running = false;
 }
 
 secondsf SceneContext::dt() const {
-	return app_.dt();
+	return impl::ApplicationAccessor::ctx(app_).dt;
 }
 
 milliseconds SceneContext::TimeSinceStart() const {
-	return app_.TimeSinceStart();
+	return impl::ApplicationAccessor::ctx(app_).TimeSinceStart();
 }
 
 bool SceneContext::IsRunning() const {
-	return app_.IsRunning();
+	return impl::ApplicationAccessor::ctx(app_).running;
 }
 
 std::size_t SceneContext::GetFrameCount() const {
-	return app_.GetFrameCount();
+	return impl::ApplicationAccessor::ctx(app_).frame_count;
 }
 
 } // namespace ptgn
