@@ -214,11 +214,19 @@ private:
 template <typename T>
 using EventCallback = std::variant<
 	std::function<void()>, std::function<void(T&)>, std::function<void(const T&)>,
-	std::function<bool()>, std::function<bool(T&)>, std::function<bool(const T&)> >;
+	std::function<bool()>, std::function<bool(T&)>, std::function<bool(const T&)>>;
+
+template <typename F, typename T>
+concept EventCallbackInvocable =
+	InvocableR<std::remove_cvref_t<F>&, bool, T&> ||
+	InvocableR<std::remove_cvref_t<F>&, void, T&> ||
+	InvocableR<std::remove_cvref_t<F>&, bool, const T&> ||
+	InvocableR<std::remove_cvref_t<F>&, void, const T&> ||
+	InvocableR<std::remove_cvref_t<F>&, bool> || InvocableR<std::remove_cvref_t<F>&, void>;
 
 namespace impl {
 
-template <typename T, typename F>
+template <typename T, EventCallbackInvocable<T> F>
 EventCallback<T> MakeEventCallback(F&& f) {
 	using Fn = std::remove_cvref_t<F>;
 

@@ -380,40 +380,24 @@ public:
 	/// @return Null entity if button has no sprite (or fallback option) for the given state.
 	Entity GetSprite(ButtonStyleState state = {}) const;
 
-	template <typename F>
+	template <EventCallbackInvocable<event::ButtonBasePress<Derived>> F>
 	Derived& OnPress(F&& callback) {
-		AddScript<impl::EventScript<event::ButtonBasePress<Derived>>>(
-			*this,
-			impl::MakeEventCallback<event::ButtonBasePress<Derived>>(std::forward<F>(callback))
-		);
-		return Self();
+		return OnEvent<event::ButtonBasePress<Derived>>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::ButtonBaseHover<Derived>> F>
 	Derived& OnHover(F&& callback) {
-		AddScript<impl::EventScript<event::ButtonBaseHover<Derived>>>(
-			*this,
-			impl::MakeEventCallback<event::ButtonBaseHover<Derived>>(std::forward<F>(callback))
-		);
-		return Self();
+		return OnEvent<event::ButtonBaseHover<Derived>>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::ButtonBaseHoverStart<Derived>> F>
 	Derived& OnHoverStart(F&& callback) {
-		AddScript<impl::EventScript<event::ButtonBaseHoverStart<Derived>>>(
-			*this,
-			impl::MakeEventCallback<event::ButtonBaseHoverStart<Derived>>(std::forward<F>(callback))
-		);
-		return Self();
+		return OnEvent<event::ButtonBaseHoverStart<Derived>>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::ButtonBaseHoverStop<Derived>> F>
 	Derived& OnHoverStop(F&& callback) {
-		AddScript<impl::EventScript<event::ButtonBaseHoverStop<Derived>>>(
-			*this,
-			impl::MakeEventCallback<event::ButtonBaseHoverStop<Derived>>(std::forward<F>(callback))
-		);
-		return Self();
+		return OnEvent<event::ButtonBaseHoverStop<Derived>>(std::forward<F>(callback));
 	}
 
 	Derived& Enable(bool enable_hover = true, bool reset_state = true);
@@ -502,6 +486,16 @@ public:
 
 	Derived& SetExclusiveAudio(bool enabled);
 
+protected:
+	/// @brief Adds a callback for a specific event.
+	template <typename E, EventCallbackInvocable<E> F>
+	Derived& OnEvent(F&& callback) {
+		AddScript<impl::EventScript<E>>(
+			*this, impl::MakeEventCallback<E>(std::forward<F>(callback))
+		);
+		return Self();
+	}
+
 private:
 	friend class impl::ButtonScript;
 	friend struct impl::ButtonAnimationCompleteScript;
@@ -556,12 +550,9 @@ public:
 
 	[[nodiscard]] bool IsToggled() const;
 
-	template <typename F>
+	template <EventCallbackInvocable<event::ToggleButtonToggle> F>
 	ToggleButton& OnToggle(F&& callback) {
-		AddScript<impl::EventScript<event::ToggleButtonToggle>>(
-			*this, impl::MakeEventCallback<event::ToggleButtonToggle>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::ToggleButtonToggle>(std::forward<F>(callback));
 	}
 
 	ToggleButton& SetToggled(bool toggled);

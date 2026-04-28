@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "core/util/concepts.h"
 #include "core/util/time.h"
 
 namespace ptgn {
@@ -269,10 +270,17 @@ public:
 		return items_.size();
 	}
 
-	template <typename Func>
-	void ForEach(Func func) {
-		for (auto i = 0; i < Size(); i++) {
-			func(items_[i]);
+	template <InvocableR<void, T&> F>
+	void ForEach(F&& func) {
+		for (auto i{ 0 }; i < Size(); i++) {
+			std::invoke(std::forward<F>(func), items_[i]);
+		}
+	}
+
+	template <InvocableR<void, const T&> F>
+	void ForEach(F&& func) const {
+		for (auto i{ 0 }; i < Size(); i++) {
+			std::invoke(std::forward<F>(func), items_[i]);
 		}
 	}
 

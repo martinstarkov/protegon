@@ -283,12 +283,9 @@ public:
 	ParticleEmitter& Toggle();
 	ParticleEmitter& Reset();
 
-	template <typename F>
+	template <EventCallbackInvocable<event::ParticleDestroyed> F>
 	ParticleEmitter& OnParticleDestroy(F&& callback) {
-		AddScript<impl::EventScript<event::ParticleDestroyed>>(
-			*this, impl::MakeEventCallback<event::ParticleDestroyed>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::ParticleDestroyed>(std::forward<F>(callback));
 	}
 
 	[[nodiscard]] bool IsPlaying() const;
@@ -297,6 +294,15 @@ public:
 
 private:
 	friend class Scene;
+
+	/// @brief Adds a callback for a specific event.
+	template <typename E, EventCallbackInvocable<E> F>
+	ParticleEmitter& OnEvent(F&& callback) {
+		AddScript<impl::EventScript<E>>(
+			*this, impl::MakeEventCallback<E>(std::forward<F>(callback))
+		);
+		return *this;
+	}
 
 	static void Update(Scene& scene);
 };

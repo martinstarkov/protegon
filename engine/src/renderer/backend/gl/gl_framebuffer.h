@@ -12,6 +12,7 @@
 
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "core/util/id_map.h"
 #include "renderer/resources/id.h"
@@ -156,25 +157,21 @@ public:
 
 	/// @brief WARNING: This function is slow and should be primarily used for debugging
 	/// framebuffers.
-	template <typename F>
-		requires std::same_as<std::invoke_result_t<F&, V2_int, PixelValue>, void>
-	void ForEachPixel(
-		const PixelBuffer& buffer, F&& func /* (V2_int, PixelValue) */
-	) const {
+	template <InvocableR<void, V2_int, PixelValue> F>
+	void ForEachPixel(const PixelBuffer& buffer, F&& func) const {
 		for (int y = 0; y < buffer.size.y; ++y) {
 			int flipped = buffer.size.y - 1 - y;
 			for (int x = 0; x < buffer.size.x; ++x) {
 				int idx = flipped * buffer.size.x + x;
 				PixelValue px{ DecodePixel(buffer.data, idx, buffer.type) };
-				func(V2_int{ x, y }, px);
+				std::invoke(std::forward<F>(func), V2_int{ x, y }, px);
 			}
 		}
 	}
 
 	/// @brief WARNING: This function is slow and should be primarily used for debugging
 	/// framebuffers.
-	template <typename F>
-		requires std::same_as<std::invoke_result_t<F&, V2_int, PixelValue>, void>
+	template <InvocableR<void, V2_int, PixelValue> F>
 	void ForEachPixel(
 		FramebufferId framebuffer, F&& func, Attachment attachment = Attachment::Color0
 	) {

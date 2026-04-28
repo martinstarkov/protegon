@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/physics/bounding_aabb.h"
 
@@ -90,21 +91,21 @@ private:
 	std::size_t max_objects_per_node{ 64 };
 	float rebuild_threshold{ 0.25f };
 
-	template <typename Func>
-	void Traverse(const KDNode* node, Func&& visit) const {
+	template <InvocableR<void, const KDObject&> F>
+	void Traverse(const KDNode* node, F&& func) const {
 		if (!node) {
 			return;
 		}
 		for (const auto& obj : node->objects) {
 			if (!obj.deleted) {
-				visit(obj);
+				std::invoke(std::forward<F>(func), obj);
 			}
 		}
 		if (node->left) {
-			Traverse(node->left.get(), visit);
+			Traverse(node->left.get(), std::forward<F>(func));
 		}
 		if (node->right) {
-			Traverse(node->right.get(), visit);
+			Traverse(node->right.get(), std::forward<F>(func));
 		}
 	}
 

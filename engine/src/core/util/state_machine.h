@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/event/event.h"
+#include "core/util/concepts.h"
 #include "core/util/hash.h"
 
 namespace ptgn {
@@ -88,9 +89,9 @@ private:
 			return parent_.Transition<FromState, TEvent, ToState>();
 		}
 
-		template <typename Fn>
-		StateMachineBuilder& Action(Fn fn) {
-			transition_.callback = fn;
+		template <InvocableR<void, TPayload> F>
+		StateMachineBuilder& Action(F&& fn) {
+			transition_.callback = std::forward<F>(fn);
 			return parent_;
 		}
 

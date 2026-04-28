@@ -16,8 +16,8 @@
 #include "core/math/angle.h"
 #include "core/math/easing.h"
 #include "core/math/vector2.h"
-#include "core/util/time.h"
 #include "core/util/concepts.h"
+#include "core/util/time.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/shake_config.h"
 #include "runtime/animation/tween.h"
@@ -177,8 +177,9 @@ void EntityFollowStopImpl(const T& event) {
 	EntityFollowStopImpl(event.parent);
 }
 
-template <typename F1, typename F2>
-Tween StartFollowImpl(Entity entity, bool force, F1&& start_func, F2&& update_func) {
+template <
+	EventCallbackInvocable<event::TweenStart> F1, EventCallbackInvocable<event::TweenProgress> F2>
+Tween StartFollowImpl(Entity entity, bool force, F1&& start_func, F2&& progress_func) {
 	auto tween{ GetOrCreateTween<FollowEffect>(entity) };
 
 	tween.TryAdd<FollowEffect>();
@@ -189,8 +190,8 @@ Tween StartFollowImpl(Entity entity, bool force, F1&& start_func, F2&& update_fu
 
 	tween.During(0ms)
 		.Repeat()
-		.OnStart(start_func)
-		.OnProgress(update_func)
+		.OnStart(std::forward<F1>(start_func))
+		.OnProgress(std::forward<F2>(progress_func))
 		.OnPointComplete(&EntityFollowStopImpl<ptgn::event::TweenPointComplete>)
 		.OnComplete(&EntityFollowStopImpl<ptgn::event::TweenComplete>)
 		.OnStop(&EntityFollowStopImpl<ptgn::event::TweenStop>)

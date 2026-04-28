@@ -67,78 +67,54 @@ struct Animation : public Entity {
 	explicit Animation(Entity entity);
 
 	/// @brief Triggered when an animation is started.
-	template <typename F>
+	template <EventCallbackInvocable<event::AnimationStart> F>
 	Animation& OnStart(F&& callback) {
-		AddScript<impl::EventScript<event::AnimationStart>>(
-			*this, impl::MakeEventCallback<event::AnimationStart>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::AnimationStart>(std::forward<F>(callback));
 	}
 
 	/// @brief Triggered when an animation is stopped, either by calling Stop() or Reset(), or when
 	/// the animation completes.
-	template <typename F>
+	template <EventCallbackInvocable<event::AnimationStop> F>
 	Animation& OnStop(F&& callback) {
-		AddScript<impl::EventScript<event::AnimationStop>>(
-			*this, impl::MakeEventCallback<event::AnimationStop>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::AnimationStop>(std::forward<F>(callback));
 	}
 
 	/// @brief Triggered when an animation is paused.
-	template <typename F>
+	template <EventCallbackInvocable<event::AnimationPause> F>
 	Animation& OnPause(F&& callback) {
-		AddScript<impl::EventScript<event::AnimationPause>>(
-			*this, impl::MakeEventCallback<event::AnimationPause>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::AnimationPause>(std::forward<F>(callback));
 	}
 
 	/// @brief Triggered when an animation is resumed.
-	template <typename F>
+	template <EventCallbackInvocable<event::AnimationResume> F>
 	Animation& OnResume(F&& callback) {
-		AddScript<impl::EventScript<event::AnimationResume>>(
-			*this, impl::MakeEventCallback<event::AnimationResume>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::AnimationResume>(std::forward<F>(callback));
 	}
 
 	/// @brief Triggered any time the animation frame changes, including when the animation starts.
 	/// Does not trigger when the animation is manually reset or if it completes and
 	/// reset_on_complete is true.
-	template <typename F>
+	template <EventCallbackInvocable<event::AnimationFrameChange> F>
 	Animation& OnFrameChange(F&& callback) {
-		AddScript<impl::EventScript<event::AnimationFrameChange>>(
-			*this, impl::MakeEventCallback<event::AnimationFrameChange>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::AnimationFrameChange>(std::forward<F>(callback));
 	}
 
 	/// @brief Triggered every frame that an animation is playing.
-	template <typename F>
+	template <EventCallbackInvocable<event::AnimationUpdate> F>
 	Animation& OnUpdate(F&& callback) {
-		AddScript<impl::EventScript<event::AnimationUpdate>>(
-			*this, impl::MakeEventCallback<event::AnimationUpdate>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::AnimationUpdate>(std::forward<F>(callback));
 	}
 
 	/// @brief Triggered when all animation plays have completed.
-	template <typename F>
+	template <EventCallbackInvocable<event::AnimationComplete> F>
 	Animation& OnComplete(F&& callback) {
-		AddScript<impl::EventScript<event::AnimationComplete>>(
-			*this, impl::MakeEventCallback<event::AnimationComplete>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::AnimationComplete>(std::forward<F>(callback));
 	}
 
 	/// @brief Triggered every time an animation plays through all its frames.
-	template <typename F>
+	template <EventCallbackInvocable<event::AnimationLoopComplete> F>
 	Animation& OnLoopComplete(F&& callback) {
-		AddScript<impl::EventScript<event::AnimationLoopComplete>>(
-			*this, impl::MakeEventCallback<event::AnimationLoopComplete>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::AnimationLoopComplete>(std::forward<F>(callback));
 	}
 
 	Animation& SetTexture(std::string_view texture_key);
@@ -194,6 +170,16 @@ struct Animation : public Entity {
 	V2_int GetCurrentFramePosition() const;
 
 	V2_int GetFrameSize() const;
+
+private:
+	/// @brief Adds a callback for a specific event.
+	template <typename E, EventCallbackInvocable<E> F>
+	Animation& OnEvent(F&& callback) {
+		AddScript<impl::EventScript<E>>(
+			*this, impl::MakeEventCallback<E>(std::forward<F>(callback))
+		);
+		return *this;
+	}
 };
 
 namespace impl {

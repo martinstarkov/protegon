@@ -7,8 +7,8 @@
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/math/easing.h"
-#include "core/util/time.h"
 #include "core/util/concepts.h"
+#include "core/util/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
 #include "serialization/serialize.h"
@@ -55,92 +55,59 @@ public:
 		requires BraceConstructible<T, TArgs...>
 	Tween& AddScript(TArgs&&... args);
 
-	template <typename F>
+	template <EventCallbackInvocable<event::TweenProgress> F>
 	Tween& OnProgress(F&& callback) {
-		AddScript<impl::EventScript<event::TweenProgress>>(
-			impl::MakeEventCallback<event::TweenProgress>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::TweenProgress>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::TweenStart> F>
 	Tween& OnStart(F&& callback) {
-		AddScript<impl::EventScript<event::TweenStart>>(
-			impl::MakeEventCallback<event::TweenStart>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::TweenStart>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::TweenComplete> F>
 	Tween& OnComplete(F&& callback) {
-		AddScript<impl::EventScript<event::TweenComplete>>(
-			impl::MakeEventCallback<event::TweenComplete>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::TweenComplete>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::TweenPointStart> F>
 	Tween& OnPointStart(F&& callback) {
-		AddScript<impl::EventScript<event::TweenPointStart>>(
-			impl::MakeEventCallback<event::TweenPointStart>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::TweenPointStart>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::TweenPointComplete> F>
 	Tween& OnPointComplete(F&& callback) {
-		AddScript<impl::EventScript<event::TweenPointComplete>>(
-			impl::MakeEventCallback<event::TweenPointComplete>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::TweenPointComplete>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::TweenReset> F>
 	Tween& OnReset(F&& callback) {
-		AddScript<impl::EventScript<event::TweenReset>>(
-			impl::MakeEventCallback<event::TweenReset>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::TweenReset>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::TweenStop> F>
 	Tween& OnStop(F&& callback) {
-		AddScript<impl::EventScript<event::TweenStop>>(
-			impl::MakeEventCallback<event::TweenStop>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::TweenStop>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::TweenPause> F>
 	Tween& OnPause(F&& callback) {
-		AddScript<impl::EventScript<event::TweenPause>>(
-			impl::MakeEventCallback<event::TweenPause>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::TweenPause>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::TweenResume> F>
 	Tween& OnResume(F&& callback) {
-		AddScript<impl::EventScript<event::TweenResume>>(
-			impl::MakeEventCallback<event::TweenResume>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::TweenResume>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::TweenYoyo> F>
 	Tween& OnYoyo(F&& callback) {
-		AddScript<impl::EventScript<event::TweenYoyo>>(
-			impl::MakeEventCallback<event::TweenYoyo>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::TweenYoyo>(std::forward<F>(callback));
 	}
 
-	template <typename F>
+	template <EventCallbackInvocable<event::TweenRepeat> F>
 	Tween& OnRepeat(F&& callback) {
-		AddScript<impl::EventScript<event::TweenRepeat>>(
-			impl::MakeEventCallback<event::TweenRepeat>(std::forward<F>(callback))
-		);
-		return *this;
+		return OnEvent<event::TweenRepeat>(std::forward<F>(callback));
 	}
 
 	/// @return True if the tween has completed all of its tween points.
@@ -239,6 +206,13 @@ private:
 	friend class Scene;
 	friend class ScriptSequence;
 	friend class SceneManager;
+
+	/// @brief Adds a callback for a specific event.
+	template <typename E, EventCallbackInvocable<E> F>
+	Tween& OnEvent(F&& callback) {
+		AddScript<impl::EventScript<E>>(impl::MakeEventCallback<E>(std::forward<F>(callback)));
+		return *this;
+	}
 
 	/// @return Index of the current tween point, if a valid one exists.
 	std::optional<std::size_t> GetCurrentIndex() const;

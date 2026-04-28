@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "core/util/concepts.h"
 #include "core/util/macro_loop.h"
 #include "core/util/string.h"
 #include "serialization/json/fwd.h"
@@ -42,10 +43,12 @@ json BuildDefaultsImpl(const Tuple& fields, std::index_sequence<I...>) {
 	return out;
 }
 
+using SceneConstructor = std::function<std::unique_ptr<Scene>(Application&)>;
+
 struct SceneRegistryEntry {
 	std::string display_name;
 	std::function<json()> default_params;
-	std::function<std::function<std::unique_ptr<Scene>(Application&)>(const json&)> construct;
+	std::function<SceneConstructor(const json&)> construct;
 };
 
 inline std::unordered_map<std::string, SceneRegistryEntry, StringHash, std::equal_to<>>&
@@ -65,9 +68,9 @@ constexpr auto MakeField(const char* name, MemberT SceneT::* member) {
 	return FieldDesc<SceneT, MemberT>{ name, member };
 }
 
-template <typename TScene, typename Factory, typename... FieldTs>
+template <typename TScene, InvocableR<SceneConstructor, const json&> F, typename... FieldTs>
 void RegisterScene(
-	std::string_view display_name, std::tuple<FieldTs...> fields, Factory&& factory
+	std::string_view display_name, std::tuple<FieldTs...> fields, F&& scene_factory
 ) {
 	GetSceneRegistry().emplace(
 		std::string{ type_name<TScene>() },
@@ -77,13 +80,11 @@ void RegisterScene(
 				[fields]() {
 					return BuildDefaultsImpl<TScene>(fields, std::index_sequence_for<FieldTs...>{});
 				},
-			.construct = std::forward<Factory>(factory) }
+			.construct = std::forward<F>(scene_factory) }
 	);
 }
 
-inline std::function<std::unique_ptr<Scene>(Application&)> GetSceneFactory(
-	std::string_view scene_name, const json& scene_params
-) {
+inline SceneConstructor GetSceneFactory(std::string_view scene_name, const json& scene_params) {
 	auto it = GetSceneRegistry().find(scene_name);
 	if (it != GetSceneRegistry().end()) {
 		auto& entry = it->second;
@@ -116,8 +117,7 @@ inline std::function<std::unique_ptr<Scene>(Application&)> GetSceneFactory(
 			std::make_tuple(                                                                       \
 				__VA_OPT__(PTGN_MAP_LIST_DATA(PTGN_IMPL_FIELD_OF, SceneType, __VA_ARGS__))         \
 			),                                                                                     \
-			[](const ::ptgn::json& j                                                               \
-			) -> std::function<std::unique_ptr<::ptgn::Scene>(::ptgn::Application&)> {             \
+			[](const ::ptgn::json& j) -> ::ptgn::impl::SceneConstructor {                          \
 				return [j](::ptgn::Application& app) -> std::unique_ptr<::ptgn::Scene> {           \
 					auto scene{ std::make_unique<SceneType>() };                                   \
 					from_json(j, *scene);                                                          \
