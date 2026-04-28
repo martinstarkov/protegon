@@ -59,7 +59,6 @@ template <typename T, typename... Ts>
 concept IsAnyOf = (std::is_same_v<T, Ts> || ...);
 
 /// @brief No return type specified.
-
 template <typename F, typename... Args>
 concept Invocable = std::invocable<std::remove_cvref_t<F>, Args...>;
 

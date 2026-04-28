@@ -47,7 +47,7 @@ public:
 		stars_pos	 = ctx().renderer.GetGameSize() * 0.5f;
 
 		size			= ctx().renderer.GetGameSize() * scale;
-		background_size = ctx().asset.GetTexture("background")->GetSize();
+		background_size = ctx().asset.Get<Texture>("background").GetSize();
 		bg_aspect_ratio = background_size.x / background_size.y;
 
 		ResetPositions();
@@ -97,11 +97,11 @@ public:
 		);
 		Translate(ctx().camera, star_cam);
 		ctx().renderer.DrawTexture(
-			"planet_b", planet_b_pos, ctx().asset.GetTexture("planet_b")->GetSize() * scale,
+			"planet_b", planet_b_pos, ctx().asset.Get<Texture>("planet_b").GetSize() * scale,
 			Origin::Center
 		);
 		ctx().renderer.DrawTexture(
-			"planet_s", planet_s_pos, ctx().asset.GetTexture("planet_s")->GetSize() * scale,
+			"planet_s", planet_s_pos, ctx().asset.Get<Texture>("planet_s").GetSize() * scale,
 			Origin::Center
 		);
 		Translate(ctx().camera, foreground_cam);

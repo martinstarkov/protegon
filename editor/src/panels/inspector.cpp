@@ -170,9 +170,9 @@ static void DrawComponentImpl(impl::Tint& tint) {
 }
 
 static void DrawComponentImpl(Transform& transform, Depth& depth) {
-	constexpr float kLabelWidth	 = 70.0f;
-	constexpr float kSpacing	 = 6.0f;
-	constexpr float kMinScaleAbs = 0.001f;
+	constexpr float kLabelWidth{ 70.0f };
+	constexpr float kSpacing{ 6.0f };
+	constexpr float kMinScaleAbs{ 0.001f };
 
 	auto ClampScaleAwayFromZero = [](float& value) {
 		constexpr float kMin = 0.001f;
@@ -198,10 +198,10 @@ static void DrawComponentImpl(Transform& transform, Depth& depth) {
 
 	// Position
 	{
-		float available_width = ImGui::GetContentRegionAvail().x;
-		float right_width	  = available_width - kLabelWidth;
-		float field_width	  = (right_width - 2.0f * kSpacing) / 3.0f;
-		float sublabel_height = ImGui::GetTextLineHeight();
+		float available_width{ ImGui::GetContentRegionAvail().x };
+		float right_width{ available_width - kLabelWidth };
+		float field_width{ (right_width - 2.0f * kSpacing) / 3.0f };
+		float sublabel_height{ ImGui::GetTextLineHeight() };
 
 		ImGui::BeginGroup();
 		ImGui::Dummy(ImVec2(0.0f, sublabel_height));
@@ -248,10 +248,10 @@ static void DrawComponentImpl(Transform& transform, Depth& depth) {
 
 	// Scale
 	{
-		float available_width = ImGui::GetContentRegionAvail().x;
-		float right_width	  = available_width - kLabelWidth;
-		float field_width	  = (right_width - kSpacing) / 2.0f;
-		float sublabel_height = ImGui::GetTextLineHeight();
+		float available_width{ ImGui::GetContentRegionAvail().x };
+		float right_width{ available_width - kLabelWidth };
+		float field_width{ (right_width - kSpacing) / 2.0f };
+		float sublabel_height{ ImGui::GetTextLineHeight() };
 
 		ImGui::BeginGroup();
 		ImGui::Dummy(ImVec2(0.0f, sublabel_height));
@@ -300,7 +300,7 @@ static void DrawComponentImpl(Transform& transform, Depth& depth) {
 	ImGui::SameLine(kLabelWidth);
 
 	{
-		float available_width = ImGui::GetContentRegionAvail().x;
+		float available_width{ ImGui::GetContentRegionAvail().x };
 		ImGui::SetNextItemWidth(available_width - kLabelWidth);
 		float r{ transform.GetRotation().value };
 		ImGui::DragFloat(
@@ -322,7 +322,7 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 		return;
 	}
 
-	std::string name = selected_entity.GetTag();
+	std::string name{ selected_entity.GetTag() };
 
 	if (ImGui::InputText("Name", &name)) {
 		selected_entity.SetTag(name);
