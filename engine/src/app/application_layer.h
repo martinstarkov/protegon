@@ -2,9 +2,9 @@
 
 namespace ptgn {
 
-class Layer {
+class ApplicationLayer {
 public:
-	virtual ~Layer() = default;
+	virtual ~ApplicationLayer() = default;
 
 	virtual void OnUpdate() { /* User implementation */ }
 
