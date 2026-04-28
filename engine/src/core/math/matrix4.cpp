@@ -360,7 +360,7 @@ bool Matrix4::ExactlyEquals(const Matrix4& o) const {
 	return true;
 }
 
-Matrix4 Matrix4::operator+(const Matrix4& rhs) {
+Matrix4 Matrix4::operator+(const Matrix4& rhs) const {
 	Matrix4 result;
 	for (std::size_t i{ 0 }; i < result.length; i++) { // NOSONAR
 		result[i] = m_[i] + rhs[i];
@@ -368,7 +368,7 @@ Matrix4 Matrix4::operator+(const Matrix4& rhs) {
 	return result;
 }
 
-Matrix4 Matrix4::operator-(const Matrix4& rhs) {
+Matrix4 Matrix4::operator-(const Matrix4& rhs) const {
 	Matrix4 result;
 	for (std::size_t i{ 0 }; i < result.length; i++) { // NOSONAR
 		result[i] = m_[i] - rhs[i];
@@ -376,7 +376,7 @@ Matrix4 Matrix4::operator-(const Matrix4& rhs) {
 	return result;
 }
 
-Matrix4 Matrix4::operator*(const Matrix4& rhs) {
+Matrix4 Matrix4::operator*(const Matrix4& rhs) const {
 	Matrix4 res;
 
 	for (std::size_t col = 0; col < static_cast<std::size_t>(rhs.size.y); ++col) { // NOSONAR

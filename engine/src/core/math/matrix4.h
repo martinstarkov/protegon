@@ -245,40 +245,39 @@ public:
 		return true;
 	}
 
-	[[nodiscard]] Matrix4 operator+(const Matrix4& rhs);
+	[[nodiscard]] Matrix4 operator+(const Matrix4& rhs) const;
 
-	[[nodiscard]] Matrix4 operator-(const Matrix4& rhs);
+	[[nodiscard]] Matrix4 operator-(const Matrix4& rhs) const;
 
-	[[nodiscard]] Matrix4 operator*(const Matrix4& rhs);
+	[[nodiscard]] Matrix4 operator*(const Matrix4& rhs) const;
 
-	template <Arithmetic U>
-	[[nodiscard]] inline V4_float operator*(Vector4<U> rhs) {
+	[[nodiscard]] friend V4_float operator*(const Matrix4& lhs, const V4_float& rhs) {
 		V4_float res;
 
 		for (std::size_t row{ 0 }; row < static_cast<std::size_t>(size.x); ++row) {
 			for (std::size_t i{ 0 }; i < static_cast<std::size_t>(size.y); ++i) {
-				res[row] += m_[row + i * static_cast<std::size_t>(size.x)] * rhs[i];
+				res[row] += lhs.m_[row + i * static_cast<std::size_t>(size.x)] * rhs[i];
 			}
 		}
 		return res;
 	}
 
 	template <Arithmetic U>
-	[[nodiscard]] inline Matrix4 operator*(U rhs) {
+	[[nodiscard]] friend Matrix4 operator*(const Matrix4& lhs, U rhs) {
 		Matrix4 res;
 
 		for (std::size_t i{ 0 }; i < res.length; ++i) {
-			res[i] = m_[i] * rhs;
+			res[i] = lhs.m_[i] * rhs;
 		}
 		return res;
 	}
 
 	template <Arithmetic U>
-	[[nodiscard]] inline Matrix4 operator/(U rhs) {
+	[[nodiscard]] friend Matrix4 operator/(const Matrix4& lhs, U rhs) {
 		Matrix4 res;
 
 		for (std::size_t i{ 0 }; i < res.length; ++i) { // NOSONAR
-			res[i] = m_[i] / static_cast<float>(rhs);
+			res[i] = lhs.m_[i] / static_cast<float>(rhs);
 		}
 		return res;
 	}
