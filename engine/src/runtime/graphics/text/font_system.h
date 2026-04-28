@@ -18,19 +18,13 @@ class AssetManager;
 
 namespace impl {
 
+class ApplicationContext;
 class Renderer;
 
 } // namespace impl
 
 class FontSystem {
 public:
-	explicit FontSystem(AssetManager& assets);
-	~FontSystem() noexcept;
-	FontSystem(const FontSystem&)				 = delete;
-	FontSystem& operator=(const FontSystem&)	 = delete;
-	FontSystem(FontSystem&&) noexcept			 = delete;
-	FontSystem& operator=(FontSystem&&) noexcept = delete;
-
 	Font GetDefault() const;
 
 	/// @param font Default ({}) key corresponds to the engine default font.
@@ -55,6 +49,14 @@ private:
 	friend class Shader;
 	friend class Texture;
 	friend class AssetManager;
+	friend class impl::ApplicationContext;
+
+	explicit FontSystem(AssetManager& assets);
+	~FontSystem() noexcept;
+	FontSystem(const FontSystem&)				 = delete;
+	FontSystem& operator=(const FontSystem&)	 = delete;
+	FontSystem(FontSystem&&) noexcept			 = delete;
+	FontSystem& operator=(FontSystem&&) noexcept = delete;
 
 	[[nodiscard]] static impl::FontObject CreateFont(
 		impl::Renderer& renderer, const path& font_path, std::string_view name

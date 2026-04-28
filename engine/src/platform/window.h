@@ -46,6 +46,8 @@ PTGN_SERIALIZE_ENUM(WindowSetting);
 
 namespace impl {
 
+class ApplicationContext;
+
 struct WindowDeleter {
 	void operator()(GLFWwindow* window) const;
 };
@@ -186,6 +188,7 @@ public:
 private:
 	friend class impl::gl::GLContext;
 	friend class Application;
+	friend class impl::ApplicationContext;
 	friend class SceneInput;
 	friend class FileDialog;
 

@@ -51,6 +51,7 @@ class RenderTarget;
 
 namespace impl {
 
+class ApplicationContext;
 class Surface;
 class Renderer;
 class ShaderObject;
@@ -245,6 +246,7 @@ public:
 
 private:
 	friend class ptgn::Application;
+	friend class ApplicationContext;
 
 	struct DisplayResizeInfo {
 		bool moved{ false };

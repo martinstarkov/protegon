@@ -24,6 +24,12 @@ class RenderContext;
 class Application;
 class SceneContext;
 
+namespace impl {
+
+class ApplicationContext;
+
+} // namespace impl
+
 class DebugContext {
 public:
 	/// @param text_size {} results in unscaled size of text based on font.
@@ -83,18 +89,21 @@ private:
 
 class DebugSystem {
 public:
+	// TODO: Eventually get rid of this and move it to the editor.
+
+	impl::Allocations allocations;
+	impl::Stats stats;
+
+private:
+	friend class Application;
+	friend class impl::ApplicationContext;
+
 	DebugSystem()								   = default;
 	~DebugSystem() noexcept						   = default;
 	DebugSystem(const DebugSystem&)				   = delete;
 	DebugSystem& operator=(const DebugSystem&)	   = delete;
 	DebugSystem(DebugSystem&&) noexcept			   = delete;
 	DebugSystem& operator=(DebugSystem&&) noexcept = delete;
-
-	impl::Allocations allocations;
-	impl::Stats stats;
-
-private:
-	friend class ptgn::Application;
 
 	void PreUpdate();
 	void PostUpdate();

@@ -9,6 +9,12 @@ namespace ptgn {
 
 class Application;
 
+namespace impl {
+
+class ApplicationContext;
+
+} // namespace impl
+
 class EventHandler {
 public:
 	template <typename T, typename... TArgs>
@@ -20,6 +26,7 @@ public:
 
 private:
 	friend class Application;
+	friend class impl::ApplicationContext;
 
 	EventHandler()									 = default;
 	~EventHandler() noexcept						 = default;

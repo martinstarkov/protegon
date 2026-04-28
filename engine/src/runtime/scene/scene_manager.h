@@ -33,6 +33,8 @@ struct SceneTransitionPriority {
 
 namespace impl {
 
+class ApplicationContext;
+
 class SceneManager {
 public:
 	enum class CommandType {
@@ -284,6 +286,7 @@ public:
 
 private:
 	friend class ptgn::Application;
+	friend class ApplicationContext;
 
 	SceneManager()									 = default;
 	~SceneManager() noexcept						 = default;

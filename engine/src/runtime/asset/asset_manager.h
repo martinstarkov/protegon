@@ -22,7 +22,6 @@
 
 namespace ptgn {
 
-class Application;
 class RenderContext;
 class AudioSystem;
 class FontSystem;
@@ -32,6 +31,7 @@ class DebugContext;
 namespace impl {
 
 class Renderer;
+class ApplicationContext;
 
 struct AssetKey : public KeyHash {
 	using KeyHash::KeyHash;
@@ -268,7 +268,7 @@ public:
 	[[nodiscard]] std::size_t Size() const;
 
 private:
-	friend class Application;
+	friend class impl::ApplicationContext;
 	friend class Shader;
 	friend class Texture;
 	friend class RenderContext;

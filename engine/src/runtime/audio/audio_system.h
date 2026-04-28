@@ -11,15 +11,17 @@ struct ma_engine;
 
 namespace ptgn {
 
+class AssetManager;
+class Application;
+
 inline constexpr float kMinVolume{ 0.0f };
 inline constexpr float kMaxVolume{ 5.0f };
 inline constexpr float kMinFrequencyRatio{ 0.01f };
 inline constexpr float kMaxFrequencyRatio{ 100.0f };
 
-class AssetManager;
-class Application;
-
 namespace impl {
+
+class ApplicationContext;
 
 struct AudioEngineDeleter {
 	void operator()(ma_engine* engine) const noexcept;
@@ -29,13 +31,6 @@ struct AudioEngineDeleter {
 
 class AudioSystem {
 public:
-	explicit AudioSystem(AssetManager& assets);
-	~AudioSystem() noexcept						   = default;
-	AudioSystem(const AudioSystem&)				   = delete;
-	AudioSystem& operator=(const AudioSystem&)	   = delete;
-	AudioSystem(AudioSystem&&) noexcept			   = delete;
-	AudioSystem& operator=(AudioSystem&&) noexcept = delete;
-
 	/// @param volume Volume of the master audio in range [kMinVolume, kMaxVolume].  Volume clamped
 	/// if outside of range.
 	void SetVolume(float volume) const;
@@ -123,6 +118,14 @@ public:
 private:
 	friend class AssetManager;
 	friend class Application;
+	friend class impl::ApplicationContext;
+
+	explicit AudioSystem(AssetManager& assets);
+	~AudioSystem() noexcept						   = default;
+	AudioSystem(const AudioSystem&)				   = delete;
+	AudioSystem& operator=(const AudioSystem&)	   = delete;
+	AudioSystem(AudioSystem&&) noexcept			   = delete;
+	AudioSystem& operator=(AudioSystem&&) noexcept = delete;
 
 	void Update();
 
