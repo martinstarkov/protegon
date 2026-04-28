@@ -104,8 +104,9 @@ void Scene::InternalPreUpdate() {
 	ctx().interaction.Update(*this);
 }
 
-void Scene::Init(Application& app) {
-	ctx_ = std::make_unique<SceneContext>(app, *this);
+void Scene::Init(Application& app, impl::SceneData&& scene_data) {
+	data_ = std::move(scene_data);
+	ctx_  = std::make_unique<SceneContext>(app, *this);
 
 	ctx_->camera = CreateCamera(*this);
 	ctx_->camera.SetTag("Main Camera");
@@ -144,11 +145,12 @@ void Scene::InternalEnter() {
 }
 
 bool Scene::IsTransitioning() const {
-	return state_ == impl::SceneState::TransitionIn || state_ == impl::SceneState::TransitionOut;
+	return data_.state == impl::SceneState::TransitionIn ||
+		   data_.state == impl::SceneState::TransitionOut;
 }
 
 bool Scene::IsAwaitingTransitionDelay() const {
-	return transition_ && !transition_->IsStarted();
+	return data_.transition && !data_.transition->IsStarted();
 }
 
 static void InvokeDrawable(DrawContext& draw_context, Entity entity) {
@@ -507,11 +509,11 @@ Color Scene::GetBackgroundColor() const {
 }
 
 std::size_t Scene::GetTagHash() const {
-	return tag_hash_;
+	return data_.tag_hash;
 }
 
 std::string Scene::GetTag() const {
-	return tag_;
+	return data_.tag;
 }
 
 RenderTarget Scene::GetRenderTarget() const {
@@ -528,7 +530,7 @@ std::size_t Scene::GetEntityCount() const {
 
 void to_json(json& j, const Scene& scene) {
 	to_json(j["manager"], scene.manager_);
-	j["tag"] = scene.tag_;
+	j["tag"] = scene.data_.tag;
 }
 
 void from_json(const json& j, Scene& scene) {
@@ -538,8 +540,8 @@ void from_json(const json& j, Scene& scene) {
 	// manager entities (such as the CameraManager).
 	from_json(j.at("manager"), scene.manager_);
 
-	j.at("tag").get_to(scene.tag_);
-	scene.tag_hash_ = Hash(scene.tag_);
+	j.at("tag").get_to(scene.data_.tag);
+	scene.data_.tag_hash = Hash(scene.data_.tag);
 }
 
 SceneContext& Scene::ctx() {

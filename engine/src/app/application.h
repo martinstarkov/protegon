@@ -85,12 +85,12 @@ public:
 	void StartWith(std::string_view scene_tag, TArgs&&... args) {
 		auto first_scene = std::make_unique<TScene>(std::forward<TArgs>(args)...);
 
-		auto& scene = scene_manager_.scenes_.emplace_back(std::move(first_scene));
-
-		scene->state_	 = impl::SceneState::Active;
-		scene->tag_		 = std::string{ scene_tag };
-		scene->tag_hash_ = Hash(scene_tag);
-		scene->Init(*this);
+		auto& scene{ scene_manager_.scenes_.emplace_back(std::move(first_scene)) };
+		scene->Init(
+			*this, impl::SceneData{ .tag{ scene_tag },
+									.tag_hash{ Hash(scene_tag) },
+									.state{ impl::SceneState::Active } }
+		);
 		scene->InternalEnter();
 
 		EnterMainLoop();

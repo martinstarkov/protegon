@@ -1,24 +1,28 @@
 #include "panels/scene_list.h"
 
 #include <imgui.h>
+#include <imgui_stdlib.h>
 
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "app/application.h"
 #include "core/editor.h"
 #include "core/editor_context.h"
 #include "core/util/file.h"
+#include "core/util/hash.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scene/scene_view.h"
 
 namespace ptgn::editor {
 
-std::optional<SceneEditorState> MakeSceneEditorState(std::string_view name) {
+static std::optional<SceneEditorState> MakeSceneEditorState(std::string_view name) {
 	auto& registry{ impl::GetSceneRegistry() };
 	auto it = registry.find(name);
 	if (it != registry.end()) {
@@ -53,11 +57,9 @@ static void DrawJsonEditor(const char* label, json& value) {
 			value = v;
 		}
 	} else if (value.is_string()) {
-		std::string s = value.get<std::string>();
-		char buf[256]{};
-		std::snprintf(buf, sizeof(buf), "%s", s.c_str());
-		if (ImGui::InputText(label, buf, sizeof(buf))) {
-			value = std::string(buf);
+		std::string s{ value.get<std::string>() };
+		if (ImGui::InputText(label, &s)) {
+			value = s;
 		}
 	} else if (value.is_object()) {
 		if (ImGui::TreeNode(label)) {
@@ -68,8 +70,8 @@ static void DrawJsonEditor(const char* label, json& value) {
 		}
 	} else if (value.is_array()) {
 		if (ImGui::TreeNode(label)) {
-			for (int i = 0; i < static_cast<int>(value.size()); ++i) {
-				std::string item = "[" + std::to_string(i) + "]";
+			for (int i{ 0 }; i < static_cast<int>(value.size()); ++i) {
+				std::string item{ "[" + std::to_string(i) + "]" };
 				DrawJsonEditor(item.c_str(), value[i]);
 			}
 			ImGui::TreePop();
@@ -88,14 +90,13 @@ void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
 		return;
 	}
 
-	ImGui::TextUnformatted(state_->scene_type_name.c_str());
-	ImGui::Separator();
+	// TODO: Fetch this for existing scenes.
+	std::string scene_tag{ "" };
 
 	{
-		char buf[256]{};
-		std::snprintf(buf, sizeof(buf), "%s", "Title Hello");
-		if (ImGui::InputText("Title", buf, sizeof(buf))) {
-			// state_->title = std::string(buf);
+		std::string scene_title{ state_->scene_type_name };
+		if (ImGui::InputText("Scene Name", &scene_title)) {
+			state_->scene_type_name = scene_title;
 		}
 	}
 
@@ -103,8 +104,9 @@ void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
 		DrawJsonEditor(it.key().c_str(), it.value());
 	}
 
-	if (ImGui::Button("Enter Scene")) {
-		std::string scene_tag{ "" };
+	std::string enter_text{ "Enter " + state_->scene_type_name };
+
+	if (ImGui::Button(enter_text.c_str())) {
 		ctx.editor.GetSceneManager().PushCommand(
 			impl::SceneManager::CommandType::ReEnter, scene_tag, Hash(scene_tag),
 			SceneTransitionPriority{}, impl::GetSceneFactory("EditorScene", state_->params),

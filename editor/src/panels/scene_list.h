@@ -1,7 +1,11 @@
 #pragma once
 
+#include <optional>
+#include <string>
+
 #include "core/editor_context.h"
 #include "core/util/file.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn {
 

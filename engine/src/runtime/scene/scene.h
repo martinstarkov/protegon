@@ -14,6 +14,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/render_target.h"
+#include "runtime/scene/scene_common.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scene/scene_view.h"
 #include "serialization/json/archiver.h"
@@ -37,6 +38,16 @@ enum class SceneState {
 	TransitionIn,
 	TransitionOut
 };
+
+struct SceneData {
+	std::string tag;
+	std::size_t tag_hash{ 0 };
+	impl::SceneState state{ impl::SceneState::Active };
+	std::unique_ptr<SceneTransition> transition;
+};
+
+template <SceneType TScene>
+void InitScene(TScene& scene, Application& app, SceneData&& scene_data);
 
 } // namespace impl
 
@@ -196,9 +207,6 @@ public:
 
 	[[nodiscard]] bool IsTransitioning() const;
 
-	// TODO: Move to private:
-	void Init(Application& app);
-
 private:
 	friend class impl::SceneManager;
 	friend class EventHandler;
@@ -208,6 +216,11 @@ private:
 	friend class LocalEventHandler;
 	template <typename TComponent>
 	friend struct SceneHook;
+
+	template <SceneType TScene>
+	friend void impl::InitScene(TScene& scene, Application& app, impl::SceneData&& scene_data);
+
+	void Init(Application& app, impl::SceneData&& scene_data);
 
 	template <typename TScene, auto Member>
 	void HookThunk(ecs::impl::BaseEntity<JsonArchiver> handle) {
@@ -235,14 +248,11 @@ private:
 	);
 
 	std::unique_ptr<SceneContext> ctx_;
+
 	Manager manager_;
 	RenderTarget render_target_;
 
-	std::string tag_;
-	std::size_t tag_hash_{ 0 };
-	std::unique_ptr<SceneTransition> transition_;
-
-	impl::SceneState state_{ impl::SceneState::Active };
+	impl::SceneData data_;
 };
 
 namespace impl {
@@ -259,6 +269,11 @@ template <typename C, typename R, typename... Args>
 struct MemberPointerClass<R (C::*)(Args...) const> {
 	using type = C;
 };
+
+template <SceneType TScene>
+void InitScene(TScene& scene, Application& app, SceneData&& scene_data) {
+	scene.Init(app, std::move(scene_data));
+}
 
 } // namespace impl
 

@@ -70,19 +70,20 @@ void SceneManager::ApplyCommands(
 	Application& app, std::unordered_map<std::size_t, Command>& top_priority_commands
 ) {
 	const auto enter = [this, &app](auto target_scene_tag_hash, auto& cmd) {
-		auto new_scene = cmd.scene_factory(app);
-
-		new_scene->state_	   = SceneState::TransitionIn;
-		new_scene->tag_hash_   = target_scene_tag_hash;
-		new_scene->tag_		   = cmd.to_scene_tag;
-		new_scene->transition_ = std::move(cmd.transition_in);
-		if (!new_scene->transition_) {
+		auto new_scene{ std::invoke(
+			cmd.scene_factory, app,
+			SceneData{ .tag{ cmd.to_scene_tag },
+					   .tag_hash{ target_scene_tag_hash },
+					   .state{ SceneState::TransitionIn },
+					   .transition{ std::move(cmd.transition_in) } }
+		) };
+		if (!new_scene->data_.transition) {
 			new_scene->InternalEnter();
 		} else {
-			new_scene->transition_->OnDelayStart(*new_scene);
-			if (!new_scene->transition_->IsInDelay()) {
-				new_scene->transition_->started_ = true;
-				new_scene->transition_->OnStart(*new_scene);
+			new_scene->data_.transition->OnDelayStart(*new_scene);
+			if (!new_scene->data_.transition->IsInDelay()) {
+				new_scene->data_.transition->started_ = true;
+				new_scene->data_.transition->OnStart(*new_scene);
 				new_scene->InternalEnter();
 			}
 		}
@@ -92,13 +93,13 @@ void SceneManager::ApplyCommands(
 
 	const auto exit = [this](auto target_scene_tag_hash, auto& cmd) {
 		auto& target_scene{ GetScene(target_scene_tag_hash) };
-		target_scene.state_		 = SceneState::TransitionOut;
-		target_scene.transition_ = std::move(cmd.transition_out);
-		if (target_scene.transition_) {
-			target_scene.transition_->OnDelayStart(target_scene);
-			if (!target_scene.transition_->IsInDelay()) {
-				target_scene.transition_->started_ = true;
-				target_scene.transition_->OnStart(target_scene);
+		target_scene.data_.state	  = SceneState::TransitionOut;
+		target_scene.data_.transition = std::move(cmd.transition_out);
+		if (target_scene.data_.transition) {
+			target_scene.data_.transition->OnDelayStart(target_scene);
+			if (!target_scene.data_.transition->IsInDelay()) {
+				target_scene.data_.transition->started_ = true;
+				target_scene.data_.transition->OnStart(target_scene);
 			}
 		}
 	};
@@ -179,23 +180,23 @@ void SceneManager::UpdateTransitions(secondsf dt) {
 		using enum SceneState;
 
 		const auto& scene = *it;
-		if (scene->transition_) {
-			if (scene->transition_->IsInDelay()) {
-				scene->transition_->UpdateDelayTime(dt);
+		if (scene->data_.transition) {
+			if (scene->data_.transition->IsInDelay()) {
+				scene->data_.transition->UpdateDelayTime(dt);
 				++it;
 				continue;
-			} else if (!scene->transition_->started_) {
-				scene->transition_->started_ = true;
-				scene->transition_->OnStart(*scene);
-				if (scene->state_ == TransitionIn) {
+			} else if (!scene->data_.transition->started_) {
+				scene->data_.transition->started_ = true;
+				scene->data_.transition->OnStart(*scene);
+				if (scene->data_.state == TransitionIn) {
 					scene->InternalEnter();
 				}
 			}
 
-			scene->transition_->UpdateTime(dt);
-			scene->transition_->OnUpdate(*scene);
+			scene->data_.transition->UpdateTime(dt);
+			scene->data_.transition->OnUpdate(*scene);
 
-			if (!scene->transition_->IsFinished()) {
+			if (!scene->data_.transition->IsFinished()) {
 				++it;
 				continue;
 			}
@@ -203,16 +204,16 @@ void SceneManager::UpdateTransitions(secondsf dt) {
 
 		// Scene has no transition or transition is finished.
 
-		if (scene->transition_) {
-			scene->transition_->OnStop(*scene);
+		if (scene->data_.transition) {
+			scene->data_.transition->OnStop(*scene);
 		}
 
-		if (scene->state_ == TransitionIn) {
-			scene->transition_.reset();
-			scene->state_ = Active;
+		if (scene->data_.state == TransitionIn) {
+			scene->data_.transition.reset();
+			scene->data_.state = Active;
 			++it;
-		} else if (scene->state_ == TransitionOut) {
-			scene->transition_.reset();
+		} else if (scene->data_.state == TransitionOut) {
+			scene->data_.transition.reset();
 			scene->InternalExit();
 			it = scenes_.erase(it);
 		} else {
@@ -230,9 +231,9 @@ void SceneManager::UpdateReEnteredSceneTagHashes() {
 
 		auto& scene{ GetScene(it->temporary_scene_tag_hash) };
 
-		if (scene.state_ == SceneState::Active) {
-			scene.tag_hash_ = it->scene_tag_hash;
-			it				= reentering_scenes_.erase(it);
+		if (scene.data_.state == SceneState::Active) {
+			scene.data_.tag_hash = it->scene_tag_hash;
+			it					 = reentering_scenes_.erase(it);
 		} else {
 			++it;
 		}
@@ -258,13 +259,13 @@ std::size_t SceneManager::GenerateTempTagHash() const {
 
 bool SceneManager::HasScene(std::size_t scene_tag_hash) const {
 	return std::ranges::any_of(scenes_, [scene_tag_hash](const auto& scene) {
-		return scene->tag_hash_ == scene_tag_hash;
+		return scene->data_.tag_hash == scene_tag_hash;
 	});
 }
 
 const Scene& SceneManager::GetScene(std::size_t scene_tag_hash) const {
 	auto it = std::ranges::find_if(scenes_, [scene_tag_hash](const auto& scene) {
-		return scene->tag_hash_ == scene_tag_hash;
+		return scene->data_.tag_hash == scene_tag_hash;
 	});
 	PTGN_ASSERT(it != scenes_.end(), "Failed to retrieve scene with tag hash: ", scene_tag_hash);
 	return *it->get();

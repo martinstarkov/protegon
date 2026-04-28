@@ -15,6 +15,7 @@
 #include "core/util/time.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_common.h"
+#include "runtime/scene/scene_registry.h"
 #include "runtime/scene/scene_transition.h"
 
 namespace ptgn {
@@ -48,7 +49,7 @@ public:
 
 		SceneTransitionPriority priority;
 
-		std::function<std::unique_ptr<Scene>(Application&)> scene_factory;
+		SceneFactory scene_factory;
 
 		std::unique_ptr<SceneTransition> transition_out;
 		std::unique_ptr<SceneTransition> transition_in;
@@ -96,7 +97,7 @@ public:
 
 		PushCommand(
 			impl::SceneManager::CommandType::Enter, std::string{ scene_tag }, scene_tag_hash,
-			priority, GetInitFunction<T>(std::forward<TArgs>(constructor_args)...), nullptr,
+			priority, GetFactory<T>(std::forward<TArgs>(constructor_args)...), nullptr,
 			std::move(transition_in_ptr)
 		);
 
@@ -203,8 +204,8 @@ public:
 		PushCommand(
 			impl::SceneManager::CommandType::ReEnter, std::string{ scene_tag }, scene_tag_hash,
 			SceneTransitionPriority{ std::numeric_limits<std::size_t>::max() },
-			GetInitFunction<T>(std::forward<TArgs>(constructor_args)...),
-			std::move(transition_out_ptr), std::move(transition_in_ptr)
+			GetFactory<T>(std::forward<TArgs>(constructor_args)...), std::move(transition_out_ptr),
+			std::move(transition_in_ptr)
 		);
 
 		return true;
@@ -281,17 +282,6 @@ public:
 		);
 	}
 
-	template <SceneType T, typename... TArgs>
-	[[nodiscard]] static std::function<std::unique_ptr<Scene>(Application&)> GetInitFunction(
-		TArgs&&... constructor_args
-	) {
-		return [constructor_args...](Application& app) -> std::unique_ptr<Scene> {
-			auto scene{ std::make_unique<T>(constructor_args...) };
-			scene->Init(app);
-			return scene;
-		};
-	}
-
 private:
 	friend class ptgn::Application;
 
@@ -301,6 +291,17 @@ private:
 	SceneManager& operator=(SceneManager&&) noexcept = delete;
 	SceneManager(const SceneManager&)				 = delete;
 	SceneManager& operator=(const SceneManager&)	 = delete;
+
+	template <SceneType T, typename... TArgs>
+	[[nodiscard]] static SceneFactory GetFactory(TArgs&&... constructor_args) {
+		return [constructor_args...](
+				   Application& app, SceneData&& scene_data
+			   ) -> std::unique_ptr<Scene> {
+			auto scene{ std::make_unique<T>(constructor_args...) };
+			scene->Init(app, std::move(scene_data));
+			return scene;
+		};
+	}
 
 	void PreUpdate();
 	void OnEvent();
