@@ -53,11 +53,13 @@ public:
 private:
 	void DrawSelectedEntityGizmo(EditorContext& ctx, Viewport viewport);
 
+	void DrawSceneCameraOutlines(EditorContext& ctx, Viewport image_viewport);
+
 	EditorCamera editor_camera_;
 
 	GizmoState gizmo_state_;
 
-	bool use_editor_camera = true;
+	bool use_editor_camera_{ true };
 };
 
 } // namespace ptgn::editor

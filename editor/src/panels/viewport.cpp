@@ -10,11 +10,102 @@
 #include "core/editor_state.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
+#include "core/math/vector4.h"
 #include "panels/scene_hierarchy.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
+#include "runtime/scene/scene_camera.h"
 
 namespace ptgn::editor {
+
+static ImVec2 WorldToScreen(V2_float world, const Matrix4& view_projection, Viewport viewport) {
+	auto clip{ view_projection * V4_float{ world.x, world.y, 0.0f, 1.0f } };
+
+	if (std::abs(clip.w) <= 1e-6f) {
+		return ImVec2{ -100000.0f, -100000.0f };
+	}
+
+	auto inv_w{ 1.0f / clip.w };
+
+	auto ndc{ V2_float{ clip.x * inv_w, clip.y * inv_w } };
+
+	float screen_x{ static_cast<float>(viewport.position.x) +
+					(ndc.x * 0.5f + 0.5f) * viewport.size.x };
+
+	float screen_y{ static_cast<float>(viewport.position.y) +
+					(-ndc.y * 0.5f + 0.5f) * viewport.size.y };
+
+	return ImVec2{ screen_x, screen_y };
+}
+
+static void DrawCenteredText(ImDrawList* draw_list, ImVec2 center, ImU32 color, const char* text) {
+	auto text_size{ ImGui::CalcTextSize(text) };
+
+	draw_list->AddText(
+		ImVec2{ center.x - text_size.x * 0.5f, center.y - text_size.y * 0.5f }, color, text
+	);
+}
+
+static void DrawSceneCameraOutline(
+	ImDrawList* draw_list, const SceneCamera& camera, const Matrix4& editor_view_projection,
+	Viewport image_viewport, ImU32 color, float thickness
+) {
+	auto world_vertices{ camera.GetWorldVertices() };
+
+	std::array<ImVec2, 5> points{
+		WorldToScreen(world_vertices[0], editor_view_projection, image_viewport),
+		WorldToScreen(world_vertices[1], editor_view_projection, image_viewport),
+		WorldToScreen(world_vertices[2], editor_view_projection, image_viewport),
+		WorldToScreen(world_vertices[3], editor_view_projection, image_viewport),
+		WorldToScreen(world_vertices[0], editor_view_projection, image_viewport)
+	};
+
+	auto center{ ImVec2{ (points[0].x + points[2].x) * 0.5f, (points[0].y + points[2].y) * 0.5f } };
+
+	draw_list->AddPolyline(points.data(), static_cast<int>(points.size()), color, 0, thickness);
+
+	// DrawCenteredText(draw_list, center, color, camera.GetTag().c_str());
+}
+
+void ViewportPanel::DrawSceneCameraOutlines(EditorContext& ctx, Viewport image_viewport) {
+	if (!use_editor_camera_) {
+		return;
+	}
+
+	auto* draw_list{ ImGui::GetWindowDrawList() };
+
+	draw_list->PushClipRect(
+		ImVec2{ static_cast<float>(image_viewport.position.x),
+				static_cast<float>(image_viewport.position.y) },
+		ImVec2{ static_cast<float>(image_viewport.position.x + image_viewport.size.x),
+				static_cast<float>(image_viewport.position.y + image_viewport.size.y) },
+		true
+	);
+
+	auto color{ IM_COL32(80, 180, 255, 255) };
+	float thickness{ 2.0f };
+
+	auto scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
+
+	if (!scene) {
+		return;
+	}
+
+	for (auto [c, _camera] : scene->EntitiesWith<impl::CameraData>()) {
+		SceneCamera camera{ c };
+
+		if (IsUI(camera)) {
+			continue;
+		}
+
+		DrawSceneCameraOutline(
+			draw_list, camera, editor_camera_.camera.view_projection, image_viewport, color,
+			thickness
+		);
+	}
+
+	draw_list->PopClipRect();
+}
 
 static void DrawViewportToolbar(EditorContext& ctx) {
 	auto app_state{ ctx.editor.GetApplicationState() };
@@ -159,9 +250,9 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	auto display_viewport{ ctx.editor.GetDisplayViewport() };
 	auto screen_texture{ ctx.editor.GetScreenTargetTexture() };
 
-	ImGui::Checkbox("Use Editor Camera", &use_editor_camera);
+	ImGui::Checkbox("Use Editor Camera", &use_editor_camera_);
 
-	if (use_editor_camera) {
+	if (use_editor_camera_) {
 		UpdateEditorCameraPan(editor_camera_);
 
 		editor_camera_.camera.viewport.position = {};
@@ -193,6 +284,8 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 										min.y + static_cast<float>(display_viewport.position.y) },
 							 .size{ static_cast<float>(display_viewport.size.x),
 									static_cast<float>(display_viewport.size.y) } };
+
+	DrawSceneCameraOutlines(ctx, gizmo_viewport);
 
 	DrawSelectedEntityGizmo(ctx, gizmo_viewport);
 

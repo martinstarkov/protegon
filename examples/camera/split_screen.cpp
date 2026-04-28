@@ -71,6 +71,8 @@ struct ResolutionScene : public Scene {
 
 		camera0 = CreateCamera(*this);
 
+		camera0.SetTag("Secondary Camera");
+
 		camera0.SetClearColor(color::LightPink.WithAlpha(0.5f));
 		ctx().camera.SetClearColor(color::LightGold.WithAlpha(0.5f));
 

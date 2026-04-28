@@ -330,11 +330,11 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 
 	ImGui::Separator();
 
-	// if (DrawComponentHeader<Transform>(selected_entity, true)) {
-	//	ImGui::Spacing();
-	//	DrawComponentImpl(selected_entity.TryAdd<Transform>(), selected_entity.TryAdd<Depth>());
-	//	ImGui::Spacing();
-	// }
+	if (DrawComponentHeader<Transform>(selected_entity, true)) {
+		ImGui::Spacing();
+		DrawComponentImpl(selected_entity.TryAdd<Transform>(), selected_entity.TryAdd<Depth>());
+		ImGui::Spacing();
+	}
 
 	if (selected_entity.Has<impl::Tint>()) {
 		if (DrawComponentHeader<impl::Tint>(selected_entity, false)) {
