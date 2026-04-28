@@ -463,7 +463,12 @@ void PlatformerJump::Ground(
 	}
 }
 
-void PlatformerJump::Update(const Scene& scene, RigidBody& rb, bool grounded, V2_float gravity) {
+void PlatformerJump::Update(
+	const Scene& scene, RigidBody& rb, bool grounded, V2_float gravity, secondsf dt
+) {
+	coyote_timer_.Update(dt);
+	jump_buffer_.Update(dt);
+
 	const auto& input{ scene.ctx().input };
 
 	bool pressed_jump{ input.KeyPressed(jump_key) };

@@ -17,15 +17,16 @@ void Lifetime::Start() {
 	timer_.Start();
 }
 
-void Lifetime::Update(Entity entity) const {
+void Lifetime::Update(Entity entity, secondsf dt) {
+	timer_.Update(dt);
 	if (timer_.Completed(duration)) {
 		entity.Destroy();
 	}
 }
 
-void Lifetime::Update(Scene& scene) {
+void Lifetime::Update(Scene& scene, secondsf dt) {
 	for (auto [entity, lifetime] : scene.EntitiesWith<Lifetime>()) {
-		lifetime.Update(entity);
+		lifetime.Update(entity, dt);
 	}
 }
 

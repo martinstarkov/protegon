@@ -430,12 +430,14 @@ void Scene::InternalUpdate() {
 
 	OnUpdate();
 
-	ParticleEmitter::Update(*this);
-	Tween::Update(*this, ctx().dt());
-	impl::AnimationSystem::Update(*this);
-	Lifetime::Update(*this);
+	auto dt{ ctx().dt() };
+
+	ParticleEmitter::Update(*this, dt);
+	Tween::Update(*this, dt);
+	impl::AnimationSystem::Update(*this, dt);
+	Lifetime::Update(*this, dt);
 	ctx().physics.PreCollisionUpdate();
-	ctx().collision.Update(*this, ctx().dt());
+	ctx().collision.Update(*this, dt);
 	ctx().physics.PostCollisionUpdate();
 
 	Refresh();

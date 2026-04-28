@@ -167,7 +167,7 @@ private:
 
 struct PlatformerJump {
 public:
-	void Update(const Scene& scene, RigidBody& rb, bool grounded, V2_float gravity);
+	void Update(const Scene& scene, RigidBody& rb, bool grounded, V2_float gravity, secondsf dt);
 
 	Key jump_key{ Key::W };
 	Key down_key{ Key::S };
@@ -207,8 +207,8 @@ public:
 private:
 	bool jumping_{ false };
 
-	Timer jump_buffer_;
-	Timer coyote_timer_;
+	ManualTimer jump_buffer_;
+	ManualTimer coyote_timer_;
 
 	void Jump(RigidBody& rb, V2_float gravity);
 	void CalculateGravity(const Scene& scene, RigidBody& rb, bool grounded, V2_float gravity) const;

@@ -213,13 +213,15 @@ void AnimationData::IncrementFrame() {
 	SetCurrentFrame(current_frame + 1);
 }
 
-void AnimationSystem::Update(Scene& scene) {
+void AnimationSystem::Update(Scene& scene, secondsf dt) {
 	const auto frame_change = [](Animation anim_entity, auto& crop, const auto& anim) {
 		PushEvent<event::AnimationFrameChange>(anim_entity, anim_entity);
 		crop.Update(anim);
 	};
 
 	for (auto [entity, anim, crop] : scene.EntitiesWith<AnimationData, TextureCrop>()) {
+		anim.frame_timer.Update(dt);
+
 		Animation anim_entity{ entity };
 
 		if (anim.frame_dirty) {

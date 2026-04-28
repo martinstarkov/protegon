@@ -80,14 +80,15 @@ void ParticleEmitterPlayback::Start() {
 }
 
 void ParticleEmitterPlayback::Update(
-	ParticleEmitterComponent& emitter, const ParticleRate& rate, milliseconds dt
+	ParticleEmitterComponent& emitter, const ParticleRate& rate, secondsf dt
 ) {
 	elapsed		  += dt;
 	cycle_elapsed += dt;
 
-	if (cycle_elapsed >= rate.duration) {
+	if (auto duration{ duration_cast<secondsf>(rate.duration) }; cycle_elapsed >= duration) {
 		if (rate.loop) {
-			cycle_elapsed %= rate.duration;
+			cycle_elapsed -= duration * static_cast<int>(cycle_elapsed / duration);
+
 		} else {
 			state = ParticleEmitterState::Stopped;
 			return;
@@ -98,7 +99,7 @@ void ParticleEmitterPlayback::Update(
 		return;
 	}
 
-	spawn_accumulator += rate.rate_over_time * duration_cast<secondsf>(dt).count();
+	spawn_accumulator += rate.rate_over_time * dt.count();
 
 	PTGN_ASSERT(spawn_accumulator >= 0.0f);
 
@@ -116,7 +117,7 @@ void ParticleEmitterPlayback::Update(
 }
 
 void ParticleEmitterPlayback::Update(
-	ParticleEmitterComponent& emitter, const ParticleBurst& burst, milliseconds dt
+	ParticleEmitterComponent& emitter, const ParticleBurst& burst, secondsf dt
 ) {
 	if (state != ParticleEmitterState::Playing) {
 		return;
@@ -206,9 +207,7 @@ void ParticleEmitterComponent::Update(const ParticleEmitter& emitter, secondsf d
 	if (playback.state == impl::ParticleEmitterState::Playing) {
 		// Update emission (spawn new particles).
 		std::visit(
-			[&](const auto& rate_or_burst) {
-				playback.Update(*this, rate_or_burst, duration_cast<milliseconds>(dt));
-			},
+			[&](const auto& rate_or_burst) { playback.Update(*this, rate_or_burst, dt); },
 			config.rate_or_burst
 		);
 	}
@@ -281,7 +280,7 @@ float Particle::GetProgress() const {
 	if (lifetime.count() <= 0) {
 		return 1.0f;
 	}
-	return Clamp01(static_cast<float>(age.count()) / static_cast<float>(lifetime.count()));
+	return Clamp01(age.count() / static_cast<float>(lifetime.count()));
 }
 
 void Particle::Lerp(float t) {
@@ -290,7 +289,7 @@ void Particle::Lerp(float t) {
 }
 
 bool Particle::Update(secondsf dt) {
-	age += duration_cast<milliseconds>(dt);
+	age += dt;
 
 	if (age >= lifetime) {
 		return true;
@@ -315,7 +314,7 @@ void Particle::Prewarm(float simulation_speed) {
 
 	auto elapsed{ GetProgress() };
 
-	float time{ duration_cast<secondsf>(age).count() * simulation_speed };
+	float time{ age.count() * simulation_speed };
 
 	auto initial_velocity{ velocity };
 
@@ -496,9 +495,7 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
 	}
 }
 
-void ParticleEmitter::Update(Scene& scene) {
-	auto dt{ scene.ctx().dt<milliseconds>() };
-
+void ParticleEmitter::Update(Scene& scene, secondsf dt) {
 	for (auto [entity, emitter] : scene.EntitiesWith<impl::ParticleEmitterComponent>()) {
 		emitter.Update(ParticleEmitter{ entity }, dt);
 	}

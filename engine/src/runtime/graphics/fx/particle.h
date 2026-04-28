@@ -231,20 +231,20 @@ PTGN_SERIALIZE_ENUM(ParticleEmitterState);
 struct ParticleEmitterPlayback {
 	ParticleEmitterState state{ ParticleEmitterState::Stopped };
 
-	milliseconds elapsed{ 0 };
-	milliseconds cycle_elapsed{ 0 };
+	secondsf elapsed{ 0 };
+	secondsf cycle_elapsed{ 0 };
 
 	float spawn_accumulator{ 0.0f };
 
-	milliseconds burst_elapsed{ 0 };
+	secondsf burst_elapsed{ 0 };
 	std::size_t burst_cycles_emitted{ 0 };
 
 	bool initialized{ false };
 
 	void Start();
 
-	void Update(ParticleEmitterComponent& emitter, const ParticleBurst& burst, milliseconds dt);
-	void Update(ParticleEmitterComponent& emitter, const ParticleRate& rate, milliseconds dt);
+	void Update(ParticleEmitterComponent& emitter, const ParticleBurst& burst, secondsf dt);
+	void Update(ParticleEmitterComponent& emitter, const ParticleRate& rate, secondsf dt);
 };
 
 struct ParticleEmitterComponent {
@@ -304,7 +304,7 @@ private:
 		return *this;
 	}
 
-	static void Update(Scene& scene);
+	static void Update(Scene& scene, secondsf dt);
 };
 
 struct Particle {
@@ -326,7 +326,7 @@ struct Particle {
 
 	Radians rotation{ 0.0f };
 
-	milliseconds age{ 0 };
+	secondsf age{ 0 };
 	milliseconds lifetime{ 1000 };
 
 	PTGN_SERIALIZE(

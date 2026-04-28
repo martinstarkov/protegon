@@ -17,7 +17,7 @@ struct Lifetime {
 	/// @brief Will restart if lifetime is already running.
 	void Start();
 
-	void Update(Entity entity) const;
+	void Update(Entity entity, secondsf dt);
 
 	milliseconds duration{ 0 };
 
@@ -26,9 +26,9 @@ struct Lifetime {
 private:
 	friend class Scene;
 
-	static void Update(Scene& scene);
+	static void Update(Scene& scene, secondsf dt);
 
-	Timer timer_;
+	ManualTimer timer_;
 };
 
 } // namespace ptgn

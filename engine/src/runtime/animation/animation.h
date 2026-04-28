@@ -241,7 +241,7 @@ public:
 
 	AnimationConfig config;
 
-	Timer frame_timer;
+	ManualTimer frame_timer;
 
 	/// @brief Current frame of the animation.
 	std::size_t current_frame{ 0 };
@@ -258,7 +258,7 @@ public:
 
 class AnimationSystem {
 public:
-	static void Update(Scene& scene);
+	static void Update(Scene& scene, secondsf dt);
 };
 
 } // namespace impl
