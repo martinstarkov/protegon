@@ -15,6 +15,12 @@ struct ViewportState {
 	bool hovered{ false };
 };
 
+enum class PlayState {
+	Stopped,
+	Playing,
+	Paused
+};
+
 struct EditorState {
 	bool is_playing{ false };
 	bool is_paused{ false };
@@ -22,6 +28,9 @@ struct EditorState {
 	bool is_dirty{ false };
 
 	ViewportState viewport;
+
+	PlayState play_state{ PlayState::Stopped };
+	float time_scale{ 1.0f };
 };
 
 } // namespace editor

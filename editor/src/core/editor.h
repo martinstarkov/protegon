@@ -5,7 +5,8 @@
 #include <optional>
 #include <vector>
 
-#include "app/layer.h"
+#include "app/application_layer.h"
+#include "app/application_state.h"
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
 #include "core/editor_context.h"
@@ -32,7 +33,7 @@ class Scene;
 
 namespace editor {
 
-class Editor : public Layer {
+class Editor : public ApplicationLayer {
 public:
 	explicit Editor(Application& app);
 
@@ -50,6 +51,13 @@ public:
 	Color GetWindowBackgroundColor() const;
 	void SetRendererBackgroundColor(Color color);
 	Color GetRendererBackgroundColor() const;
+
+	void SetTimeScale(float time_scale);
+	float GetTimeScale() const;
+	void RequestStep();
+
+	void SetApplicationState(ApplicationState state);
+	ApplicationState GetApplicationState() const;
 
 	const std::vector<std::unique_ptr<Scene>>& GetScenes() const;
 	std::vector<std::unique_ptr<Scene>>& GetScenes();

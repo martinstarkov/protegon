@@ -3,13 +3,16 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+#include <algorithm>
 #include <cstdint>
+#include <magic_enum/magic_enum.hpp>
 #include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
 
 #include "app/application.h"
+#include "app/application_state.h"
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
 #include "core/assert.h"
@@ -99,15 +102,15 @@ void Editor::DrawPanels() {
 }
 
 const std::vector<std::unique_ptr<Scene>>& Editor::GetScenes() const {
-	return app.scene_manager_.GetScenes();
+	return impl::ApplicationAccessor::ctx(app).scene_manager.GetScenes();
 }
 
 std::vector<std::unique_ptr<Scene>>& Editor::GetScenes() {
-	return app.scene_manager_.GetScenes();
+	return impl::ApplicationAccessor::ctx(app).scene_manager.GetScenes();
 }
 
 void Editor::SetPresentationViewport(Viewport presentation_viewport) {
-	app.renderer_.SetPresentationViewport(presentation_viewport);
+	impl::ApplicationAccessor::ctx(app).renderer.SetPresentationViewport(presentation_viewport);
 }
 
 SceneHierarchyPanel& Editor::GetSceneHierarchyPanel() {
@@ -119,59 +122,80 @@ SceneListPanel& Editor::GetSceneListPanel() {
 }
 
 impl::SceneManager& Editor::GetSceneManager() {
-	return app.scene_manager_;
+	return impl::ApplicationAccessor::ctx(app).scene_manager;
 }
 
 void Editor::SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera) {
-	app.renderer_.SetPrimaryWorldCamera(primary_world_camera);
+	impl::ApplicationAccessor::ctx(app).renderer.SetPrimaryWorldCamera(primary_world_camera);
 }
 
 const std::optional<Camera>& Editor::GetPrimaryWorldCamera() const {
-	return app.renderer_.GetPrimaryWorldCamera();
+	return impl::ApplicationAccessor::ctx(app).renderer.GetPrimaryWorldCamera();
 }
 
 void Editor::SetScalingMode(ScalingMode scaling_mode) {
-	app.renderer_.SetScalingMode(scaling_mode);
+	impl::ApplicationAccessor::ctx(app).renderer.SetScalingMode(scaling_mode);
 }
 
 void Editor::SetGameSize(std::optional<V2_int> game_size) {
-	app.renderer_.SetGameSize(game_size, std::nullopt);
+	impl::ApplicationAccessor::ctx(app).renderer.SetGameSize(game_size, std::nullopt);
 }
 
 ScalingMode Editor::GetScalingMode() const {
-	return app.renderer_.GetScalingMode();
+	return impl::ApplicationAccessor::ctx(app).renderer.GetScalingMode();
 }
 
 bool Editor::HasGameSize() const {
-	return app.renderer_.HasGameSize();
+	return impl::ApplicationAccessor::ctx(app).renderer.HasGameSize();
 }
 
 V2_int Editor::GetGameSize() const {
-	return app.renderer_.GetGameSize();
+	return impl::ApplicationAccessor::ctx(app).renderer.GetGameSize();
 }
 
 Viewport Editor::GetDisplayViewport() const {
-	return app.renderer_.GetDisplayViewport();
+	return impl::ApplicationAccessor::ctx(app).renderer.GetDisplayViewport();
 }
 
 void Editor::SetWindowBackgroundColor(Color color) {
-	app.window_.SetBackgroundColor(color);
+	impl::ApplicationAccessor::ctx(app).window.SetBackgroundColor(color);
 }
 
 Color Editor::GetWindowBackgroundColor() const {
-	return app.window_.GetBackgroundColor();
+	return impl::ApplicationAccessor::ctx(app).window.GetBackgroundColor();
 }
 
 void Editor::SetRendererBackgroundColor(Color color) {
-	app.renderer_.SetBackgroundColor(color);
+	impl::ApplicationAccessor::ctx(app).renderer.SetBackgroundColor(color);
 }
 
 Color Editor::GetRendererBackgroundColor() const {
-	return app.renderer_.GetBackgroundColor();
+	return impl::ApplicationAccessor::ctx(app).renderer.GetBackgroundColor();
+}
+
+void Editor::SetTimeScale(float time_scale) {
+	impl::ApplicationAccessor::ctx(app).time_scale = std::max(0.0f, time_scale);
+}
+
+float Editor::GetTimeScale() const {
+	return impl::ApplicationAccessor::ctx(app).time_scale;
+}
+
+void Editor::RequestStep() {
+	impl::ApplicationAccessor::ctx(app).step_requested = true;
+}
+
+void Editor::SetApplicationState(ApplicationState state) {
+	impl::ApplicationAccessor::ctx(app).state = state;
+}
+
+ApplicationState Editor::GetApplicationState() const {
+	return impl::ApplicationAccessor::ctx(app).state;
 }
 
 impl::TextureId Editor::GetScreenTargetTexture() const {
-	auto texture{ app.renderer_.GetRenderTargetTexture(app.renderer_.GetScreenTarget()) };
+	const auto& renderer{ impl::ApplicationAccessor::ctx(app).renderer };
+	auto texture{ renderer.GetRenderTargetTexture(renderer.GetScreenTarget()) };
 	return texture;
 }
 

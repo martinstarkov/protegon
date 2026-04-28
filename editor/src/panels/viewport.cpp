@@ -16,6 +16,67 @@
 
 namespace ptgn::editor {
 
+static void DrawViewportToolbar(EditorContext& ctx) {
+	auto app_state{ ctx.editor.GetApplicationState() };
+
+	bool running{ app_state == ApplicationState::Running };
+	bool paused{ app_state == ApplicationState::Paused };
+	bool playing{ running || paused };
+
+	if (ImGui::Button(playing ? "Stop" : "Play")) {
+		if (playing) {
+			ctx.editor.SetApplicationState(ApplicationState::RenderOnly);
+		} else {
+			ctx.editor.SetApplicationState(ApplicationState::Running);
+		}
+	}
+
+	ImGui::SameLine();
+
+	if (!playing) {
+		ImGui::BeginDisabled();
+	}
+
+	if (ImGui::Button(paused ? "Resume" : "Pause")) {
+		ctx.editor.SetApplicationState(
+			paused ? ApplicationState::Running : ApplicationState::Paused
+		);
+	}
+
+	if (!playing) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::SameLine();
+
+	if (!paused) {
+		ImGui::BeginDisabled();
+	}
+
+	ImGui::PushButtonRepeat(true);
+
+	if (ImGui::Button("Step")) {
+		ctx.editor.RequestStep();
+	}
+
+	ImGui::PopButtonRepeat();
+
+	if (!paused) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::SameLine();
+
+	float speed = ctx.editor.GetTimeScale();
+
+	ImGui::SetNextItemWidth(120.0f);
+	if (ImGui::DragFloat(
+			"Speed", &speed, 0.05f, 0.0f, 100.0f, "%.2fx", ImGuiSliderFlags_AlwaysClamp
+		)) {
+		ctx.editor.SetTimeScale(speed);
+	}
+}
+
 void UpdateEditorCameraPan(EditorCamera& editor_camera) {
 	ImGuiIO& io = ImGui::GetIO();
 
@@ -50,12 +111,21 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		}
 	}
 
-	const ImVec2 min   = ImGui::GetCursorScreenPos();
-	const ImVec2 avail = ImGui::GetContentRegionAvail();
-	const ImVec2 max{ min.x + avail.x, min.y + avail.y };
-	const ImVec2 center{ min.x + avail.x / 2.0f, min.y + avail.y / 2.0f };
+	// Add some horizontal padding for the toolbar only.
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f, 4.0f });
+	ImGui::Indent(8.0f);
+	DrawViewportToolbar(ctx);
+	ImGui::Unindent(8.0f);
+	ImGui::PopStyleVar();
 
-	const Viewport viewport{ .position{ min.x, min.y }, .size{ avail.x, avail.y } };
+	ImGui::Separator();
+
+	ImVec2 min	 = ImGui::GetCursorScreenPos();
+	ImVec2 avail = ImGui::GetContentRegionAvail();
+	ImVec2 max{ min.x + avail.x, min.y + avail.y };
+	ImVec2 center{ min.x + avail.x / 2.0f, min.y + avail.y / 2.0f };
+
+	Viewport viewport{ .position{ min.x, min.y }, .size{ avail.x, avail.y } };
 
 	ctx.state.viewport.viewport = viewport;
 	ctx.state.viewport.focused	= ImGui::IsWindowFocused();
@@ -80,14 +150,14 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		}
 	}
 
-	auto* draw_list = ImGui::GetWindowDrawList();
+	auto* draw_list{ ImGui::GetWindowDrawList() };
 
 	auto bg{ ctx.editor.GetWindowBackgroundColor() };
 
 	draw_list->AddRectFilled(min, max, IM_COL32(bg.r, bg.g, bg.b, bg.a));
 
-	const auto display_viewport = ctx.editor.GetDisplayViewport();
-	const auto screen_texture	= ctx.editor.GetScreenTargetTexture();
+	auto display_viewport{ ctx.editor.GetDisplayViewport() };
+	auto screen_texture{ ctx.editor.GetScreenTargetTexture() };
 
 	ImGui::Checkbox("Use Editor Camera", &use_editor_camera);
 
@@ -132,7 +202,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 struct ViewportView2D {
 	V2_float center{ 0.0f, 0.0f };
 	float zoom{ 1.0f };
-	Viewport viewport{};
+	Viewport viewport;
 
 	[[nodiscard]] V2_float WorldToScreen(V2_float world) const {
 		V2_float local = (world - center) * zoom;
@@ -150,8 +220,8 @@ struct ViewportView2D {
 };
 
 static float SignedAngle(V2_float from, V2_float to) {
-	float cross = from.x * to.y - from.y * to.x;
-	float dot	= Dot(from, to);
+	float cross{ from.x * to.y - from.y * to.x };
+	float dot{ Dot(from, to) };
 	return std::atan2(cross, dot);
 }
 

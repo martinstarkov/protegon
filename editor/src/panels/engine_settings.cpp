@@ -7,6 +7,8 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/scaling_mode.h"
 
+// TODO: Add fps modification.
+
 namespace ptgn::editor {
 
 struct ResolutionPreset {
