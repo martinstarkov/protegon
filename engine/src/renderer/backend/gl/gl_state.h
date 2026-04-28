@@ -4,6 +4,7 @@
 #include <optional>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_state.h"
@@ -51,26 +52,28 @@ struct State {
 	State() = default;
 
 	/// @brief Constructs a default state with all values set to their OpenGL defaults.
-	State(bool) {
-		framebuffer	   = FramebufferId{ 0 };
-		renderbuffer   = RenderbufferId{ 0 };
-		vertex_buffer  = VertexBufferId{ 0 };
-		uniform_buffer = UniformBufferId{ 0 };
-		shader_program = ShaderId{ 0 };
-		vertex_array   = VertexArrayId{ 0 };
-		viewport	   = Viewport{ { 0, 0 }, { 0, 0 } };
-		depth_testing  = false;
-		blend		   = false;
-		depth_mask	   = DepthMaskState{};
-		blend_mode	   = BlendMode::ReplaceRGBA;
-		color_mask	   = ColorMaskState{};
-		active_texture = ActiveTexture{ 0 };
-		scissor		   = ScissorState{ false };
-		raster		   = RasterState{};
-		stencil		   = StencilState{};
-		clear_depth	   = ClearDepth{ 1.0 };
-		clear_stencil  = 0;
-		clear_color	   = Color{ 0, 0, 0, 0 };
+	explicit State(std::size_t max_texture_slots) :
+		framebuffer{ FramebufferId{ 0 } },
+		renderbuffer{ RenderbufferId{ 0 } },
+		vertex_buffer{ VertexBufferId{ 0 } },
+		uniform_buffer{ UniformBufferId{ 0 } },
+		shader_program{ ShaderId{ 0 } },
+		vertex_array{ VertexArrayId{ 0 } },
+		viewport{ Viewport{ { 0, 0 }, { 0, 0 } } },
+		depth_testing{ false },
+		blend{ false },
+		depth_mask{ DepthMaskState{} },
+		blend_mode{ BlendMode::ReplaceRGBA },
+		color_mask{ ColorMaskState{} },
+		active_texture{ ActiveTexture{ 0 } },
+		texture_units(max_texture_slots, TextureUnitState{ true }),
+		scissor{ ScissorState{ false } },
+		raster{ RasterState{} },
+		stencil{ StencilState{} },
+		clear_depth{ ClearDepth{ 1.0 } },
+		clear_stencil{ 0 },
+		clear_color{ Color{ 0, 0, 0, 0 } } {
+		PTGN_ASSERT(max_texture_slots > 0);
 	}
 
 	// Core object bindings

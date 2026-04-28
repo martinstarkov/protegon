@@ -40,10 +40,9 @@ Attachment ColorAttachment(std::size_t i) {
 	return Attachment(std::to_underlying(Attachment::Color0) + i);
 }
 
-Framebuffers::Framebuffers(GLContext& gl) : gl_{ gl } {}
-
-void Framebuffers::Init(std::uint32_t max_color_attachments) {
-	max_color_attachments_ = max_color_attachments;
+Framebuffers::Framebuffers(GLContext& gl, std::uint32_t max_color_attachments) :
+	gl_{ gl }, max_color_attachments_{ max_color_attachments } {
+	PTGN_ASSERT(max_color_attachments > 0);
 }
 
 FramebufferId Framebuffers::CreateFramebuffer(

@@ -653,7 +653,18 @@ void Shaders::CompileProgram(
 	}
 }
 
-Shaders::Shaders(GLContext& gl) : gl_{ gl } {}
+Shaders::Shaders(GLContext& gl, std::size_t max_texture_slots) :
+	gl_{ gl }, max_texture_slots_{ max_texture_slots } {
+	PTGN_ASSERT(max_texture_slots > 0, "Platform must support at least one texture slot");
+
+	auto fs{ cmrc::shader::get_filesystem() };
+
+	PopulateShaderCache(fs);
+
+	auto manifest(GetShaderManifest(fs));
+
+	PopulateShadersFromCache(manifest);
+}
 
 Shaders::~Shaders() noexcept {
 	const auto delete_shaders = [](const auto& container, auto type) {
@@ -678,19 +689,6 @@ ShaderId Shaders::CreateProgram(ShaderId vertex, ShaderId fragment, std::string_
 	LinkProgram(shader, vertex, fragment);
 
 	return shader;
-}
-
-void Shaders::Populate(std::size_t max_texture_slots) {
-	PTGN_ASSERT(max_texture_slots > 0, "Platform must support at least one texture slot");
-	max_texture_slots_ = max_texture_slots;
-
-	auto fs{ cmrc::shader::get_filesystem() };
-
-	PopulateShaderCache(fs);
-
-	auto manifest(GetShaderManifest(fs));
-
-	PopulateShadersFromCache(manifest);
 }
 
 bool Shaders::ShaderExists(std::string_view shader_name, ShaderType type) const {

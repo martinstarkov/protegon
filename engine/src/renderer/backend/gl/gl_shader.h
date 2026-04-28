@@ -92,7 +92,7 @@ public:
 private:
 	friend class GLContext;
 
-	explicit Shaders(GLContext& gl);
+	explicit Shaders(GLContext& gl, std::size_t max_texture_slots);
 	~Shaders() noexcept;
 	Shaders(const Shaders&)				   = delete;
 	Shaders(Shaders&&) noexcept			   = delete;
@@ -109,8 +109,6 @@ private:
 		const;
 
 	void CompileShaders(const std::vector<ShaderSpec>& sources);
-
-	void Populate(std::size_t max_texture_slots);
 
 	void PopulateShadersFromCache(const json& manifest);
 

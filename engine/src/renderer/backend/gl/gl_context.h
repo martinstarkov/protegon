@@ -22,6 +22,10 @@ namespace ptgn::impl::gl {
 class GLContext;
 
 class GLContext {
+private:
+	// Must be constructed before shaders, because it fetches max texture slots.
+	State bound_;
+
 public:
 	explicit GLContext();
 	~GLContext() noexcept					   = default;
@@ -107,9 +111,6 @@ public:
 	std::uint32_t GetActiveTextureSlot() const;
 
 	void InvalidateState();
-
-private:
-	State bound_{ true };
 };
 
 } // namespace ptgn::impl::gl

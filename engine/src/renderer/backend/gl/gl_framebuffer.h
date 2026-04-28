@@ -193,14 +193,12 @@ public:
 private:
 	friend class GLContext;
 
-	explicit Framebuffers(GLContext& gl);
+	explicit Framebuffers(GLContext& gl, std::uint32_t max_color_attachments);
 	~Framebuffers() noexcept						 = default;
 	Framebuffers(const Framebuffers&)				 = delete;
 	Framebuffers(Framebuffers&&) noexcept			 = delete;
 	Framebuffers& operator=(const Framebuffers&)	 = delete;
 	Framebuffers& operator=(Framebuffers&&) noexcept = delete;
-
-	void Init(std::uint32_t max_color_attachments);
 
 	[[nodiscard]] bool FramebufferIsComplete(FramebufferId framebuffer) const;
 

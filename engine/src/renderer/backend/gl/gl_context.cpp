@@ -33,23 +33,13 @@
 namespace ptgn::impl::gl {
 
 GLContext::GLContext() :
+	bound_{ static_cast<std::size_t>(GetInteger(GL_MAX_TEXTURE_IMAGE_UNITS)) },
 	buffers{ *this },
-	shaders{ *this },
+	shaders{ *this, GetMaxTextureSlots() },
 	textures{ *this },
 	renderbuffers{ *this },
-	framebuffers{ *this },
-	vertex_arrays{ *this } {
-	auto max_texture_slots{ static_cast<std::size_t>(GetInteger(GL_MAX_TEXTURE_IMAGE_UNITS)) };
-	PTGN_ASSERT(max_texture_slots > 0);
-	bound_.texture_units.resize(max_texture_slots, TextureUnitState{ true });
-
-	auto max_color_attachments{ static_cast<std::uint32_t>(GetInteger(GL_MAX_COLOR_ATTACHMENTS)) };
-	PTGN_ASSERT(max_color_attachments > 0);
-
-	framebuffers.Init(max_color_attachments);
-
-	shaders.Populate(max_texture_slots);
-}
+	framebuffers{ *this, static_cast<std::uint32_t>(GetInteger(GL_MAX_COLOR_ATTACHMENTS)) },
+	vertex_arrays{ *this } {}
 
 BindGuard<VertexBufferId> GLContext::Bind(VertexBufferId id, bool restore_bind) {
 	auto previous{ GetBoundVertexBuffer() };
