@@ -36,11 +36,16 @@ public:
 	void OnEnter() override {
 		ctx().window.SetBackgroundColor(color::LightBlue);
 		ctx().renderer.SetBackgroundColor(color::Orange);
+		ctx().asset.Load("fontA", "assets/Arial.ttf");
 		ctx().asset.Load("tree", "assets/jpg.jpg");
 		ctx().asset.Load("rain_anim", "assets/animation_rain_splash.png");
 
 		PTGN_LOG("Entered EditorScene with: seed: ", ToString(seed), ", level: ", level);
 
+		CreateText(*this, {}, "Hello World", color::Black, {}, "fontA", Origin::Center)
+			.SetTag("Text");
+
+		/*
 		CreateSprite(*this, "tree", {}).SetTag("Tree");
 
 		CreateParticleEmitter(
@@ -63,6 +68,7 @@ public:
 		)
 			.Start()
 			.SetTag("Particle Emitter");
+			*/
 	}
 
 	void OnUpdate() override {}

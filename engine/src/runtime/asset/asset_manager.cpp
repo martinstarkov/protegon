@@ -38,6 +38,7 @@ namespace ptgn {
 namespace impl {
 
 void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<path>& path) {
+	asset.Add<impl::AssetName>(key);
 	asset.Add<impl::AssetKey>(key);
 	if (path.has_value()) {
 		asset.Add<impl::AssetPath>(*path);

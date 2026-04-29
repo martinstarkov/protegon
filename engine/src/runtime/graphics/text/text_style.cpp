@@ -1,6 +1,7 @@
 #include "runtime/graphics/text/text_style.h"
 
 #include <ostream>
+#include <string_view>
 #include <utility>
 
 #include "core/graphics/color.h"

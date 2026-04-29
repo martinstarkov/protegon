@@ -77,7 +77,7 @@ struct DistanceFieldStyle {
 };
 
 struct TextRunStyle {
-	std::string_view font;
+	std::string font;
 	Color color{ color::White };
 
 	bool fake_bold_if_missing{ true };
@@ -104,7 +104,7 @@ struct StyledText {
 };
 
 struct TextStyle {
-	std::string_view font;
+	std::string font;
 	Color color{ color::White };
 	float scale{ 1.0f };
 	FontStyle flags{ FontStyle::Normal };

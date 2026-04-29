@@ -187,7 +187,7 @@ public:
 
 	using BatchSetup = std::function<void(Renderer&)>;
 
-	template <typename TVertex>
+	template <VertexType TVertex>
 	struct DefaultTextureIndexAccessor {
 		constexpr float& operator()(TVertex& vertex) const noexcept {
 			return vertex.tex_index[0];

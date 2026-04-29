@@ -1,18 +1,24 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
+#include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
-#include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "core/util/hash.h"
+#include "renderer/resources/id.h"
+#include "renderer/vertex/vertex.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text_effect.h"
 #include "runtime/graphics/text/text_style.h"
 
 namespace ptgn {
+
+class DrawContext;
+class AssetManager;
 
 struct TextLayoutStyle {
 	HorizontalAlign horizontal_align{ HorizontalAlign::Left };
@@ -70,55 +76,96 @@ struct TextLayout {
 	bool clipped{ false };
 	bool ellipsized{ false };
 	bool truncated_by_max_lines{ false };
+
+	std::size_t hash{ 0 };
 };
 
-struct TextLayoutKey {
-	std::uint64_t rich_text_hash{ 0 };
+namespace impl {
 
-	std::uint32_t box_width_q{ 0 };
-	std::uint32_t box_height_q{ 0 };
-	std::uint32_t min_shrink_scale_q{ 0 };
-	std::uint32_t max_shrink_scale_q{ 0 };
+struct RichTextToken {
+	enum class Type : std::uint8_t {
+		Word,
+		Space,
+		Tab,
+		Newline,
+	};
 
-	HorizontalAlign horizontal_align{ HorizontalAlign::Left };
-	VerticalAlign vertical_align{ VerticalAlign::Top };
-	WrapMode wrap_mode{ WrapMode::None };
-	OverflowMode overflow_mode{ OverflowMode::Overflow };
-
-	bool collapse_spaces{ false };
-	bool justify_last_line{ false };
-	bool allow_word_break_in_overflow{ false };
-	std::uint32_t max_lines_q{ 0 };
-	bool ellipsis_on_max_lines{ false };
-
-	bool operator==(const TextLayoutKey&) const = default;
+	Type type{ Type::Word };
+	std::u32string text;
+	std::size_t run_index{ 0 };
+	float width{ 0.0f };
 };
 
-} // namespace ptgn
-
-template <>
-struct std::hash<ptgn::TextLayoutKey> {
-	std::size_t operator()(const ptgn::TextLayoutKey& key) const {
-		return ptgn::Hash(
-			key.rich_text_hash, key.box_width_q, key.box_height_q, key.min_shrink_scale_q,
-			key.max_shrink_scale_q, std::to_underlying(key.horizontal_align),
-			std::to_underlying(key.vertical_align), std::to_underlying(key.wrap_mode),
-			std::to_underlying(key.overflow_mode), key.collapse_spaces, key.justify_last_line,
-			key.allow_word_break_in_overflow, key.max_lines_q, key.ellipsis_on_max_lines
-		);
-	}
+struct ResolvedGlyph {
+	std::uint32_t codepoint{ 0 };
+	impl::GlyphMetrics metrics;
+	GlyphRenderStyle render_style;
+	std::size_t source_run_index{ 0 };
+	std::size_t source_codepoint_index{ 0 };
+	impl::TextureId texture{ 0 };
 };
 
-namespace ptgn {
-
-struct TextLayoutRequest {
-	StyledText styled_text;
-	TextBox box;
+struct CandidateLayout {
+	TextLayout layout;
+	float used_shrink_scale{ 1.0f };
 };
 
-TextLayoutRequest MakeTextRequest(
-	std::string_view content, std::string_view font_key, Rect rect, float scale = 1.0f,
-	Color color = color::White, const TextLayoutStyle& layout_style = {}
+void UpdateLayout(
+	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
 );
+
+[[nodiscard]] TextLayout BuildLayout(
+	AssetManager& asset_manager, StyledText styled_text, const TextBox& box
+);
+
+[[nodiscard]] TextMeasurement Measure(
+	AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
+);
+
+void BuildVertices(
+	const TextLayout& layout, float depth, int entity_id, std::optional<Rect> clip_rect,
+	std::size_t reveal_glyph_count, float time, std::vector<impl::TextureVertex>& vertices,
+	std::vector<std::uint32_t>& local_indices, std::vector<impl::TextureId>& local_textures
+);
+
+void DrawText(AssetManager& asset_manager, DrawContext& renderer, Entity text);
+
+[[nodiscard]] Font GetFont(AssetManager& asset_manager, std::string_view font_key);
+
+[[nodiscard]] std::u32string DecodeUtf8(std::string_view text);
+
+[[nodiscard]] std::vector<RichTextToken> Tokenize(
+	AssetManager& asset_manager, StyledText& styled_text, float global_shrink
+);
+[[nodiscard]] float MeasureLineHeight(AssetManager& asset_manager, const TextRunStyle& style);
+[[nodiscard]] float MeasureTokenWidth(
+	AssetManager& asset_manager, RichTextToken& token, StyledText& styled_text, float global_shrink
+);
+[[nodiscard]] bool FitsInBox(const TextLayout& layout, Rect box);
+[[nodiscard]] CandidateLayout BuildSinglePassLayout(
+	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box, float global_shrink
+);
+[[nodiscard]] float FindBestShrinkScale(
+	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box
+);
+
+void ApplyVerticalAlignment(const TextBox& box, TextLayout* layout);
+void ApplyEllipsisForMaxLines(
+	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box, float global_shrink,
+	TextLayout* layout
+);
+void ApplyClipVisibility(Rect clip_rect, TextLayout* layout);
+
+[[nodiscard]] std::optional<ResolvedGlyph> ResolveGlyph(
+	AssetManager& asset_manager, const TextRun& run, uint32_t codepoint, uint32_t next_codepoint,
+	size_t source_run_index, size_t source_codepoint_index, float global_shrink
+);
+
+void EmitGlyphQuad(
+	const GlyphInstance& glyph, float depth, int entity_id, float time,
+	std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& local_indices
+);
+
+} // namespace impl
 
 } // namespace ptgn

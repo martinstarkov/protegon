@@ -17,6 +17,7 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/font_system.h"
+#include "runtime/graphics/text/text_layout.h"
 #include "runtime/graphics/text/text_system.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
@@ -31,6 +32,10 @@ void Text::Draw(
 	DrawContext& renderer, Entity entity, V2_int text_size, Color additional_tint,
 	Origin offset_origin, V2_float offset_size
 ) {
+	auto& scene{ entity.GetScene() };
+	auto& assets{ scene.ctx().asset };
+
+	impl::DrawText(assets, renderer, entity);
 	// TODO: Move out.
 	// static TextSystem text_system;
 	// static impl::MsdfFontData msdf_font = {
