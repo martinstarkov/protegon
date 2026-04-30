@@ -55,12 +55,15 @@ struct TextScene : public Scene {
 		CreateText(color::Black, 4).SetFontStyle(FontStyle::Italic);
 		CreateText(color::Black, 5).SetFontStyle(FontStyle::Strikethrough);
 		CreateText(color::Black, 6).SetFontStyle(FontStyle::Underline);
+
 		CreateText(color::Black, 7)
 			.SetFontStyle(
-				FontStyle::Bold & FontStyle::Italic & FontStyle::Strikethrough &
+				FontStyle::Bold | FontStyle::Italic | FontStyle::Strikethrough |
 				FontStyle::Underline
 			);
 
+		// TODO: Fix.
+		/*
 		// Shading.
 		CreateText(color::Black, 8)
 			.SetFontRenderMode(FontRenderMode::Shaded)
@@ -77,6 +80,7 @@ struct TextScene : public Scene {
 			)
 			.SetFontRenderMode(FontRenderMode::Shaded)
 			.SetShadingColor(color::Cyan);
+		*/
 	}
 
 	void OnUpdate() override {

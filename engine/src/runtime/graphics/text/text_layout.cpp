@@ -3,6 +3,7 @@
 #include <ecs/ecs.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <iterator>
@@ -16,6 +17,7 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/tolerance.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "core/util/hash.h"
@@ -81,6 +83,38 @@ void UpdateLayout(
 	entity.Add<TextLayout>(layout);
 }
 
+static std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
+	bool found{ false };
+	V2_float min;
+	V2_float max;
+
+	for (const auto& glyph : layout.glyphs) {
+		if (!glyph.visible) {
+			continue;
+		}
+
+		V2_float glyph_min{ glyph.position + glyph.plane.GetMin() };
+		V2_float glyph_max{ glyph.position + glyph.plane.GetMax() };
+
+		if (!found) {
+			min	  = glyph_min;
+			max	  = glyph_max;
+			found = true;
+		} else {
+			min.x = std::min(min.x, glyph_min.x);
+			min.y = std::min(min.y, glyph_min.y);
+			max.x = std::max(max.x, glyph_max.x);
+			max.y = std::max(max.y, glyph_max.y);
+		}
+	}
+
+	if (!found) {
+		return std::nullopt;
+	}
+
+	return Rect{ min, max };
+}
+
 TextLayout BuildLayout(AssetManager& asset_manager, StyledText styled_text, const TextBox& box) {
 	float shrink{ 1.0f };
 	if (box.style.overflow_mode == OverflowMode::ShrinkToFit) {
@@ -114,6 +148,14 @@ TextLayout BuildLayout(AssetManager& asset_manager, StyledText styled_text, cons
 
 	ApplyVerticalAlignment(box, &layout);
 
+	if (auto bounds{ GetVisibleGlyphBounds(layout) }) {
+		V2_float visual_center{ (bounds->GetMin() + bounds->GetMax()) * 0.5f };
+
+		for (auto& glyph : layout.glyphs) {
+			glyph.position -= visual_center;
+		}
+	}
+
 	return layout;
 }
 
@@ -137,9 +179,10 @@ TextMeasurement Measure(
 }
 
 void BuildVertices(
-	const TextLayout& layout, float depth, int entity_id, std::optional<Rect> clip_rect,
-	std::size_t reveal_glyph_count, float time, std::vector<impl::TextureVertex>& vertices,
-	std::vector<std::uint32_t>& local_indices, std::vector<impl::TextureId>& local_textures
+	const TextLayout& layout, Transform transform, float depth, int entity_id,
+	std::optional<Rect> clip_rect, std::size_t reveal_glyph_count, float time,
+	std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& local_indices,
+	std::vector<impl::TextureId>& local_textures
 ) {
 	for (GlyphInstance glyph : layout.glyphs) {
 		if (!glyph.visible) {
@@ -168,7 +211,7 @@ void BuildVertices(
 				static_cast<std::uint32_t>(std::distance(local_textures.begin(), it));
 		}
 
-		EmitGlyphQuad(glyph, depth, entity_id, time, vertices, local_indices);
+		EmitGlyphQuad(glyph, transform, depth, entity_id, time, vertices, local_indices);
 	}
 }
 
@@ -622,8 +665,8 @@ void ApplyVerticalAlignment(const TextBox& box, TextLayout* layout) {
 	switch (box.style.vertical_align) {
 		using enum VerticalAlign;
 		case Top:	 offset_y = 0.0f; break;
-		case Center: offset_y = -(box.rect.GetSize().y - layout->measured_size.y) * 0.5f; break;
-		case Bottom: offset_y = -(box.rect.GetSize().y - layout->measured_size.y); break;
+		case Center: offset_y = (box.rect.GetSize().y - layout->measured_size.y) * 0.5f; break;
+		case Bottom: offset_y = box.rect.GetSize().y - layout->measured_size.y; break;
 	}
 
 	for (GlyphInstance& glyph : layout->glyphs) {
@@ -759,7 +802,7 @@ void ApplyClipVisibility(Rect clip_rect, TextLayout* layout) {
 }
 
 void EmitGlyphQuad(
-	const GlyphInstance& glyph, float depth, int entity_id, float time,
+	const GlyphInstance& glyph, Transform transform, float depth, int entity_id, float time,
 	std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& local_indices
 ) {
 	auto effect_offset{ glyph.GetEffectOffset(time) };
@@ -773,27 +816,32 @@ void EmitGlyphQuad(
 		quad_max = center + (quad_max - center) * scale;
 	}
 
+	std::array<V2_float, 4> positions{ quad_min, V2_float{ quad_max.x, quad_min.y }, quad_max,
+									   V2_float{ quad_min.x, quad_max.y } };
+
+	for (auto& position : positions) {
+		position = transform.Apply(position);
+	}
+
 	auto color_n{ glyph.render_style.color.Normalized() };
 
 	vertices.emplace_back(
-		quad_min, depth, color_n, glyph.uv.GetMin(), static_cast<float>(glyph.texture_index),
+		positions[0], depth, color_n, glyph.uv.GetMin(), static_cast<float>(glyph.texture_index),
 		entity_id
 	);
 
 	vertices.emplace_back(
-		V2_float{ quad_max.x, quad_min.y }, depth, color_n,
-		V2_float{ glyph.uv.GetMax().x, glyph.uv.GetMin().y },
+		positions[1], depth, color_n, V2_float{ glyph.uv.GetMax().x, glyph.uv.GetMin().y },
 		static_cast<float>(glyph.texture_index), entity_id
 	);
 
 	vertices.emplace_back(
-		quad_max, depth, color_n, glyph.uv.GetMax(), static_cast<float>(glyph.texture_index),
+		positions[2], depth, color_n, glyph.uv.GetMax(), static_cast<float>(glyph.texture_index),
 		entity_id
 	);
 
 	vertices.emplace_back(
-		V2_float{ quad_min.x, quad_max.y }, depth, color_n,
-		V2_float{ glyph.uv.GetMin().x, glyph.uv.GetMax().y },
+		positions[3], depth, color_n, V2_float{ glyph.uv.GetMin().x, glyph.uv.GetMax().y },
 		static_cast<float>(glyph.texture_index), entity_id
 	);
 
@@ -811,17 +859,30 @@ void DrawText(AssetManager& asset_manager, DrawContext& renderer, Entity entity)
 	std::optional<Rect> clip_rect{ std::nullopt };
 	constexpr std::size_t reveal_glyph_count{ std::numeric_limits<size_t>::max() };
 
-	auto font_key{ entity.Get<Font>().GetEntity().Get<AssetName>() };
+	auto font{ entity.Get<Font>() };
+
+	auto font_key{ font.GetEntity().Get<AssetName>() };
+
+	const auto& font_data{ font.GetFontData() };
+
+	PTGN_ASSERT(font_data.metrics.em_size > 0, "Invalid font em size");
+	PTGN_ASSERT(font_data.metrics.pixel_range > 0, "Invalid font pixel range");
 
 	StyledText styled_text;
 	TextRun run;
-	run.text		= std::string{ "HELPME" };
-	run.style.font	= font_key.value;
-	run.style.scale = 48.0f / 1.0f;
+	run.text				  = std::string{ "HELPME" };
+	run.style.sdf.pixel_range = font_data.metrics.pixel_range;
+	run.style.font			  = font_key.value;
+	// TODO: Get font size from text entity.
+	run.style.scale = 48.0f;
 	run.style.color = color::Black;
 	styled_text.runs.push_back(std::move(run));
 
-	TextBox box{ .rect{ { 0, 0 }, { 400, 100 } },
+	auto transform{ GetDrawTransform(entity) };
+
+	V2_float text_size{ 400, 100 };
+
+	TextBox box{ .rect{ text_size },
 				 .style{ .horizontal_align = HorizontalAlign::Center,
 						 .vertical_align   = VerticalAlign::Center,
 						 .wrap_mode		   = WrapMode::Word } };
@@ -844,13 +905,15 @@ void DrawText(AssetManager& asset_manager, DrawContext& renderer, Entity entity)
 	std::vector<std::uint32_t> local_indices;
 
 	BuildVertices(
-		layout, depth, entity_id, clip_rect, reveal_glyph_count, time, text_vertices, local_indices,
-		text_textures
+		layout, transform, depth, entity_id, clip_rect, reveal_glyph_count, time, text_vertices,
+		local_indices, text_textures
 	);
 
 	if (text_vertices.empty()) {
 		return;
 	}
+
+	renderer.SetBlendMode(BlendMode::Blend);
 
 	renderer.DrawTexturedQuads<impl::TextureVertex>(
 		"text", text_shader, text_vertices, local_indices, text_textures, style_hash,
@@ -864,6 +927,8 @@ void DrawText(AssetManager& asset_manager, DrawContext& renderer, Entity entity)
 			renderer.SetUniform(text_shader, "u_GlowColor", style.glow_color.Normalized());
 			renderer.SetUniform(text_shader, "u_GlowOuterWidth", style.glow_outer_width);
 			renderer.SetUniform(text_shader, "u_GlowSoftness", style.glow_softness);
+			PTGN_ASSERT(style.pixel_range > 0.0f, "Invalid font pixel range");
+			renderer.SetUniform(text_shader, "u_PixelRange", style.pixel_range);
 		}
 	);
 }

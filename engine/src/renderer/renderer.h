@@ -397,10 +397,8 @@ private:
 
 				texture = local_textures[local_texture_index];
 
-				const bool texture_already_bound{ std::ranges::find(batch_textures_, texture) !=
-												  batch_textures_.end() };
-
-				if (!texture_already_bound && batch_textures_.size() >= GetMaxTextureSlots()) {
+				if (bool texture_already_bound{ std::ranges::contains(batch_textures_, texture) };
+					!texture_already_bound && batch_textures_.size() >= GetMaxTextureSlots()) {
 					flush_chunk();
 					FlushBatch();
 				}
@@ -414,12 +412,10 @@ private:
 				batch_texture_slot = static_cast<float>(slot_info.slot);
 			}
 
-			const bool quad_would_exceed_chunk{ ExceedsCapacity(
-				(chunk_vertices.size() + kVerticesPerQuad) * sizeof(TVertex),
-				chunk_indices.size() + kIndicesPerQuad, kVertexCapacity * sizeof(TVertex)
-			) };
-
-			if (quad_would_exceed_chunk) {
+			if (ExceedsCapacity(
+					(chunk_vertices.size() + kVerticesPerQuad) * sizeof(TVertex),
+					chunk_indices.size() + kIndicesPerQuad, kVertexCapacity * sizeof(TVertex)
+				)) {
 				flush_chunk();
 			}
 

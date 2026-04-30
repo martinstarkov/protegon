@@ -1,6 +1,7 @@
 #include "runtime/graphics/text/text_style.h"
 
 #include <ostream>
+#include <string>
 #include <string_view>
 #include <utility>
 
@@ -57,13 +58,16 @@ std::ostream& operator<<(std::ostream& os, FontStyle style) {
 
 std::size_t std::hash<ptgn::DistanceFieldStyle>::operator()(const ptgn::DistanceFieldStyle& style
 ) const {
+	// TODO: Quantize floats.
 	return ptgn::Hash(
 		style.weight, style.softness, style.outline_color, style.outline_width,
-		style.outline_softness, style.glow_color, style.glow_outer_width, style.glow_softness
+		style.outline_softness, style.glow_color, style.glow_outer_width, style.glow_softness,
+		style.pixel_range
 	);
 }
 
 std::size_t std::hash<ptgn::TextRunStyle>::operator()(const ptgn::TextRunStyle& style) const {
+	// TODO: Quantize floats.
 	return ptgn::Hash(
 		style.font, style.color, style.scale, style.kerning, style.tracking, style.line_spacing,
 		style.fake_bold_if_missing, style.fake_bold_weight, std::to_underlying(style.flags),

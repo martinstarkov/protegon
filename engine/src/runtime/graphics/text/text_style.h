@@ -73,6 +73,8 @@ struct DistanceFieldStyle {
 	float glow_outer_width{ 0.0f };
 	float glow_softness{ 1.0f };
 
+	float pixel_range{ 0.0f };
+
 	bool operator==(const DistanceFieldStyle&) const = default;
 };
 

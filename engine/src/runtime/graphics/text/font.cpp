@@ -322,6 +322,12 @@ FontObject::FontObject(
 	data_.metrics.ascender	  = static_cast<float>(msdf_metrics.ascenderY);
 	data_.metrics.descender	  = static_cast<float>(msdf_metrics.descenderY);
 	data_.metrics.line_height = static_cast<float>(msdf_metrics.lineHeight);
+	data_.metrics.em_size	  = static_cast<float>(packer.getScale());
+	data_.metrics.pixel_range = atlas_info.pixel_range;
+	PTGN_ASSERT(
+		data_.metrics.em_size == atlas_info.em_size,
+		"Failed to create font with em size: ", atlas_info.em_size
+	);
 
 	data_.glyphs.reserve(glyphs.size());
 
@@ -346,8 +352,11 @@ FontObject::FontObject(
 
 		out.plane = Rect{ { plane_left, -plane_top }, { plane_right, -plane_bottom } };
 
-		out.uv = Rect{ { atlas_left / bitmap.width, (1.0 - atlas_top) / bitmap.height },
-					   { atlas_right / bitmap.width, (1.0 - atlas_bottom) / bitmap.height } };
+		out.uv = Rect{ { atlas_left / bitmap.width, atlas_top / bitmap.height },
+					   { atlas_right / bitmap.width, atlas_bottom / bitmap.height } };
+
+		out.uv.GetMin().y = 1.0f - out.uv.GetMin().y;
+		out.uv.GetMax().y = 1.0f - out.uv.GetMax().y;
 
 		data_.glyphs[out.codepoint] = out;
 	}

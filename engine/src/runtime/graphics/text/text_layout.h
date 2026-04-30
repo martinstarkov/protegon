@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/id.h"
 #include "renderer/vertex/vertex.h"
@@ -123,9 +124,10 @@ void UpdateLayout(
 );
 
 void BuildVertices(
-	const TextLayout& layout, float depth, int entity_id, std::optional<Rect> clip_rect,
-	std::size_t reveal_glyph_count, float time, std::vector<impl::TextureVertex>& vertices,
-	std::vector<std::uint32_t>& local_indices, std::vector<impl::TextureId>& local_textures
+	const TextLayout& layout, Transform transform, float depth, int entity_id,
+	std::optional<Rect> clip_rect, std::size_t reveal_glyph_count, float time,
+	std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& local_indices,
+	std::vector<impl::TextureId>& local_textures
 );
 
 void DrawText(AssetManager& asset_manager, DrawContext& renderer, Entity text);
@@ -162,7 +164,7 @@ void ApplyClipVisibility(Rect clip_rect, TextLayout* layout);
 );
 
 void EmitGlyphQuad(
-	const GlyphInstance& glyph, float depth, int entity_id, float time,
+	const GlyphInstance& glyph, Transform transform, float depth, int entity_id, float time,
 	std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& local_indices
 );
 

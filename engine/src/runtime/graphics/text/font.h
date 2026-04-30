@@ -50,8 +50,8 @@ class Renderer;
 struct FontAtlasInfo {
 	constexpr FontAtlasInfo() = default;
 
-	float em_size{ 48.0f };
-	float pixel_range{ 4.0f };
+	float em_size{ 40.0f };
+	float pixel_range{ 2.0f };
 	float max_corner_angle{ 3.0f };
 	float miter_limit{ 1.0f };
 	int thread_count{ 8 };
@@ -70,6 +70,8 @@ struct FontMetrics {
 	float ascender{ 0.0f };
 	float descender{ 0.0f };
 	float line_height{ 0.0f };
+	float em_size{ 0.0f };
+	float pixel_range{ 0.0f };
 };
 
 struct FontData {
