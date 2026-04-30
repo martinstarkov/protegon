@@ -28,13 +28,7 @@ struct TextureUnitState {
 	TextureUnitState() = default;
 
 	/// @brief Constructs a default texture unit state with all values set to their OpenGL defaults.
-	TextureUnitState(bool) {
-		id		   = TextureId{ 0 };
-		min_filter = TextureMinFilter::Linear;
-		mag_filter = TextureMagFilter::Linear;
-		wrap_s	   = TextureWrap::Repeat;
-		wrap_t	   = TextureWrap::Repeat;
-	}
+	explicit TextureUnitState(bool) : id{ TextureId{ 0 } } {}
 
 	std::optional<TextureId> id;
 
@@ -114,7 +108,7 @@ struct State {
 
 		*this = {};
 
-		texture_units.resize(max_texture_slots, { true });
+		texture_units.resize(max_texture_slots, {});
 	}
 };
 
