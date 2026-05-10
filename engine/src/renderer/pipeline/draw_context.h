@@ -220,7 +220,7 @@ public:
 
 	using ShaderVariant = std::variant<Shader, impl::ShaderId, std::string_view>;
 
-	template <impl::UniformType T>
+	template <typename T>
 	void SetUniform(const ShaderVariant& shader, const char* uniform_name, const T& value) {
 		renderer_.SetUniform(GetShaderId(shader), uniform_name, value);
 	}

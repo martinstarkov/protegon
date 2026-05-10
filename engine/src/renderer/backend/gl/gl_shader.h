@@ -83,7 +83,7 @@ public:
 	void SetUniform(ShaderId id, const char* uniform_name, V3_int v);
 	void SetUniform(ShaderId id, const char* uniform_name, V4_int v);
 	void SetUniform(ShaderId id, const char* uniform_name, std::span<const int> v);
-	/// @brief Behaves identically to SetUniform(name, std::int32_t).
+	/// @brief Behaves identically to int overload.
 	void SetUniform(ShaderId id, const char* uniform_name, bool v);
 
 	ShaderId GetProgram(std::string_view program_name) const;

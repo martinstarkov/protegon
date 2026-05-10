@@ -226,12 +226,12 @@ public:
 	void SetUniform(ShaderId id, const char* uniform_name, V2_float v);
 	void SetUniform(ShaderId id, const char* uniform_name, V3_float v);
 	void SetUniform(ShaderId id, const char* uniform_name, V4_float v);
-	void SetUniform(ShaderId id, const char* uniform_name, const std::vector<float>& v);
+	void SetUniform(ShaderId id, const char* uniform_name, std::span<const float> v);
 	void SetUniform(ShaderId id, const char* uniform_name, int v);
 	void SetUniform(ShaderId id, const char* uniform_name, V2_int v);
 	void SetUniform(ShaderId id, const char* uniform_name, V3_int v);
 	void SetUniform(ShaderId id, const char* uniform_name, V4_int v);
-	void SetUniform(ShaderId id, const char* uniform_name, const std::vector<int>& v);
+	void SetUniform(ShaderId id, const char* uniform_name, std::span<const int> v);
 	void SetUniform(ShaderId id, const char* uniform_name, bool v);
 
 	void Destroy(VertexBufferId id);

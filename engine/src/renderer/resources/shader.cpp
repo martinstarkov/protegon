@@ -1,6 +1,10 @@
 #include "renderer/resources/shader.h"
 
-#include <vector>
+#include <ecs/ecs.h>
+
+#include <span>
+#include <string_view>
+#include <variant>
 
 #include "core/assert.h"
 #include "core/math/matrix4.h"
@@ -8,40 +12,131 @@
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
 #include "core/util/entity_handle.h"
-#include <ecs/ecs.h>
+#include "core/util/hash.h"
+#include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
-#include "renderer/renderer.h"
 
 namespace ptgn {
 
 namespace impl {
 
-template <impl::UniformType T>
-void ShaderObject::SetUniform(const char* uniform_name, const T& value) {
-	PTGN_ASSERT(renderer_ != nullptr, "Renderer must be initialized before setting uniform");
-	Renderer& renderer{ *renderer_ }; // Trick MSVC into not excluding header.
-	renderer.SetUniform(resource_, uniform_name, value);
+template <typename T>
+concept ShaderUniformSettable = requires(ShaderObject& object, const char* name, T&& value) {
+	object.SetUniform(name, std::forward<T>(value));
+};
+
+template <ShaderUniformSettable T>
+void SetUniformImpl(Renderer* renderer, ShaderId id, const char* uniform_name, T&& v) {
+	PTGN_ASSERT(renderer, "Renderer must be initialized before setting uniform");
+	renderer->SetUniform(id, uniform_name, std::forward<T>(v));
 }
 
-template void ShaderObject::SetUniform<float>(const char* uniform_name, const float& value);
-template void ShaderObject::SetUniform<V2_float>(const char* uniform_name, const V2_float& value);
-template void ShaderObject::SetUniform<V3_float>(const char* uniform_name, const V3_float& value);
-template void ShaderObject::SetUniform<V4_float>(const char* uniform_name, const V4_float& value);
-template void ShaderObject::SetUniform<std::vector<float>>(
-	const char* uniform_name, const std::vector<float>& value
-);
-template void ShaderObject::SetUniform<int>(const char* uniform_name, const int& value);
-template void ShaderObject::SetUniform<V2_int>(const char* uniform_name, const V2_int& value);
-template void ShaderObject::SetUniform<V3_int>(const char* uniform_name, const V3_int& value);
-template void ShaderObject::SetUniform<V4_int>(const char* uniform_name, const V4_int& value);
-template void ShaderObject::SetUniform<std::vector<int>>(
-	const char* uniform_name, const std::vector<int>& value
-);
-template void ShaderObject::SetUniform<bool>(const char* uniform_name, const bool& value);
-template void ShaderObject::SetUniform<Matrix4>(const char* uniform_name, const Matrix4& value);
+void ShaderObject::SetUniform(const char* uniform_name, const Matrix4& v) {
+	SetUniformImpl(renderer_, resource_, uniform_name, v);
+}
+
+void ShaderObject::SetUniform(const char* uniform_name, float v) {
+	SetUniformImpl(renderer_, resource_, uniform_name, v);
+}
+
+void ShaderObject::SetUniform(const char* uniform_name, V2_float v) {
+	SetUniformImpl(renderer_, resource_, uniform_name, v);
+}
+
+void ShaderObject::SetUniform(const char* uniform_name, V3_float v) {
+	SetUniformImpl(renderer_, resource_, uniform_name, v);
+}
+
+void ShaderObject::SetUniform(const char* uniform_name, V4_float v) {
+	SetUniformImpl(renderer_, resource_, uniform_name, v);
+}
+
+void ShaderObject::SetUniform(const char* uniform_name, std::span<const float> v) {
+	SetUniformImpl(renderer_, resource_, uniform_name, v);
+}
+
+void ShaderObject::SetUniform(const char* uniform_name, bool v) {
+	SetUniformImpl(renderer_, resource_, uniform_name, v);
+}
+
+void ShaderObject::SetUniform(const char* uniform_name, int v) {
+	SetUniformImpl(renderer_, resource_, uniform_name, v);
+}
+
+void ShaderObject::SetUniform(const char* uniform_name, V2_int v) {
+	SetUniformImpl(renderer_, resource_, uniform_name, v);
+}
+
+void ShaderObject::SetUniform(const char* uniform_name, V3_int v) {
+	SetUniformImpl(renderer_, resource_, uniform_name, v);
+}
+
+void ShaderObject::SetUniform(const char* uniform_name, V4_int v) {
+	SetUniformImpl(renderer_, resource_, uniform_name, v);
+}
+
+void ShaderObject::SetUniform(const char* uniform_name, std::span<const int> v) {
+	SetUniformImpl(renderer_, resource_, uniform_name, v);
+}
 
 } // namespace impl
+
+bool HasVertexAndFragmentShader(std::string_view source) {
+	return source.contains("#type vertex") && source.contains("#type fragment");
+}
+
+std::size_t Hash(const UniformValue& value) {
+	return std::visit([](const auto& v) { return Hash(v); }, value);
+}
+
+void Shader::SetUniform(const char* uniform_name, const Matrix4& v) {
+	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+}
+
+void Shader::SetUniform(const char* uniform_name, float v) {
+	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+}
+
+void Shader::SetUniform(const char* uniform_name, V2_float v) {
+	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+}
+
+void Shader::SetUniform(const char* uniform_name, V3_float v) {
+	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+}
+
+void Shader::SetUniform(const char* uniform_name, V4_float v) {
+	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+}
+
+void Shader::SetUniform(const char* uniform_name, std::span<const float> v) {
+	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+}
+
+void Shader::SetUniform(const char* uniform_name, int v) {
+	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+}
+
+void Shader::SetUniform(const char* uniform_name, V2_int v) {
+	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+}
+
+void Shader::SetUniform(const char* uniform_name, V3_int v) {
+	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+}
+
+void Shader::SetUniform(const char* uniform_name, V4_int v) {
+	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+}
+
+void Shader::SetUniform(const char* uniform_name, std::span<const int> v) {
+	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+}
+
+void Shader::SetUniform(const char* uniform_name, bool v) {
+	GetEntity().Get<impl::ShaderObject>().SetUniform(uniform_name, v);
+}
 
 Shader::operator impl::ShaderId() const {
 	return GetEntity().Get<impl::ShaderObject>();

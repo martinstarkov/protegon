@@ -1054,7 +1054,7 @@ void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V4_float v)
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, const std::vector<float>& v) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, std::span<const float> v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
@@ -1074,7 +1074,7 @@ void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V4_int v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, const std::vector<int>& v) {
+void Renderer::SetUniform(ShaderId shader, const char* uniform_name, std::span<const int> v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
