@@ -328,12 +328,6 @@ private:
 		std::optional<std::size_t> batch_state_hash, const BatchSetup& batch_setup
 	);
 
-	Window& window_;
-
-	EventSink event_sink_;
-
-	std::unique_ptr<gl::GLContext> gl_;
-
 	// emit_events = false is used to prevent emitting events when initializing the window and
 	// scene.
 	void UpdateDisplayViewport(bool emit_events = true);
@@ -500,6 +494,12 @@ private:
 
 		pipelines_.emplace_back(Hash(name), std::move(pipeline));
 	}
+
+	Window& window_;
+
+	EventSink event_sink_;
+
+	std::unique_ptr<gl::GLContext> gl_;
 
 	PipelineId current_pipeline_{ 0 };
 	std::vector<std::pair<PipelineId, Pipeline>> pipelines_;
