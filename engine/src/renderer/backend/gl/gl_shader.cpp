@@ -8,6 +8,7 @@
 #include <list>
 #include <ostream>
 #include <regex>
+#include <span>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -915,7 +916,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V4_float v) {
 	}
 }
 
-void Shaders::SetUniform(ShaderId id, const char* uniform_name, const std::vector<float>& values) {
+void Shaders::SetUniform(ShaderId id, const char* uniform_name, std::span<const float> values) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(glUniform1fv(location, static_cast<std::int32_t>(values.size()), values.data()));
@@ -950,7 +951,7 @@ void Shaders::SetUniform(ShaderId id, const char* uniform_name, V4_int v) {
 	}
 }
 
-void Shaders::SetUniform(ShaderId id, const char* uniform_name, const std::vector<int>& v) {
+void Shaders::SetUniform(ShaderId id, const char* uniform_name, std::span<const int> v) {
 	std::int32_t location{ GetUniform(id, uniform_name) };
 	if (location != -1) {
 		GLCall(glUniform1iv(location, static_cast<std::int32_t>(v.size()), v.data()));
