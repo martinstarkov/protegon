@@ -1,11 +1,12 @@
 #pragma once
 
+#include <algorithm>
 #include <concepts>
 #include <functional>
+#include <ranges>
 #include <string>
 #include <string_view>
 #include <type_traits>
-#include <vector>
 
 #include "core/util/type_info.h"
 
@@ -85,12 +86,15 @@ inline void HashValue(std::size_t& hash, const T& value) {
 
 } // namespace impl
 
-template <Hashable T>
-inline std::size_t Hash(const std::vector<T>& value) {
+template <std::ranges::input_range R>
+	requires Hashable<std::ranges::range_value_t<R>>
+inline std::size_t Hash(const R& value) {
 	std::size_t hash{ 0 };
-	for (const auto& element : value) {
+
+	std::ranges::for_each(value, [&](const auto& element) {
 		impl::HashCombine(hash, Hash(element));
-	}
+	});
+
 	return hash;
 }
 
