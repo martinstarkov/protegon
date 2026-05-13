@@ -328,13 +328,26 @@ static void AddShaderLayout(std::string& source, [[maybe_unused]] ShaderType typ
 	source = output.str();
 }
 
-static std::string GenerateTextureSwitchBlock(std::size_t max_texture_slots) {
+static std::string GenerateTextureColorSwitchBlock(std::size_t max_texture_slots) {
 	std::ostringstream oss;
 	for (std::size_t i{ 0 }; i < max_texture_slots; ++i) {
 		oss << std::format(
 			"    if (v_TexIndex == {}.0f) {{\n"
-			"        texColor *= texture(u_Textures[{}], v_TexCoord);\n"
+			"        texture_color *= texture(u_Textures[{}], v_TexCoord);\n"
 			"    }}\n",
+			i, i
+		);
+	}
+	return oss.str();
+}
+
+static std::string GenerateTextureSizeSwitchBlock(std::size_t max_texture_slots) {
+	std::ostringstream oss;
+	for (std::size_t i{ 0 }; i < max_texture_slots; ++i) {
+		oss << std::format(
+			"	if (v_TexIndex == {}.0f) {{\n"
+			"		texture_size = vec2(textureSize(u_Textures[{}], 0));\n"
+			"	}}\n",
 			i, i
 		);
 	}
@@ -438,17 +451,21 @@ static void SubstituteShaderTokens(
 
 	PTGN_ASSERT(max_texture_slots > 0, "Cannot substitute shader tokens for 0 texture slots");
 
-	std::string switch_block{ GenerateTextureSwitchBlock(max_texture_slots) };
-	auto slots{ std::to_string(max_texture_slots) };
+	std::string color_switch_block{ GenerateTextureColorSwitchBlock(max_texture_slots) };
+	std::string size_switch_block{ GenerateTextureSizeSwitchBlock(max_texture_slots) };
+	auto slots{ ToString(max_texture_slots) };
 
 	for (auto& sts : sources) {
 		sts.code.content = ReplaceAll(sts.code.content, "{MAX_TEXTURE_SLOTS}", slots);
-		sts.code.content = ReplaceAll(sts.code.content, "{TEXTURE_SWITCH_BLOCK}", switch_block);
+		sts.code.content =
+			ReplaceAll(sts.code.content, "{TEXTURE_COLOR_SWITCH_BLOCK}", color_switch_block);
+		sts.code.content =
+			ReplaceAll(sts.code.content, "{TEXTURE_SIZE_SWITCH_BLOCK}", size_switch_block);
 	}
 }
 
 void Shaders::PopulateShaderCache(const cmrc::embedded_filesystem& filesystem) {
-	path subdir{ "common/" };
+	path subdir{ "" };
 	auto dir{ filesystem.iterate_directory(subdir.string()) };
 
 	std::vector<ShaderSpec> sources;
@@ -459,6 +476,11 @@ void Shaders::PopulateShaderCache(const cmrc::embedded_filesystem& filesystem) {
 		}
 
 		path filename{ resource.filename() };
+
+		if (ToLower(filename.extension().string()) != ".glsl") {
+			continue;
+		}
+
 		auto file{ filesystem.open((subdir / filename).string()) };
 		std::string shader_src(file.begin(), file.end());
 		std::string name_without_ext{ filename.stem().string() };
@@ -658,7 +680,7 @@ Shaders::Shaders(GLContext& gl, std::size_t max_texture_slots) :
 	gl_{ gl }, max_texture_slots_{ max_texture_slots } {
 	PTGN_ASSERT(max_texture_slots > 0, "Platform must support at least one texture slot");
 
-	auto fs{ cmrc::shader::get_filesystem() };
+	auto fs{ cmrc::shaders::get_filesystem() };
 
 	PopulateShaderCache(fs);
 

@@ -19,7 +19,7 @@
 #include "renderer/resources/shader.h"
 #include "serialization/json/fwd.h"
 
-CMRC_DECLARE(shader);
+CMRC_DECLARE(shaders);
 
 namespace ptgn::impl::gl {
 

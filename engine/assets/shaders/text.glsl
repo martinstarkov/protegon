@@ -28,8 +28,10 @@ float Median(float r, float g, float b) {
 }
 
 float ScreenPxRange() {
-	// TODO: Use switch block here for emscripten to work.
-	vec2 texture_size = vec2(textureSize(u_Textures[int(v_TexIndex)], 0));
+	vec2 texture_size = vec2(1.0f);
+
+	{TEXTURE_SIZE_SWITCH_BLOCK}
+
 	vec2 unit_range = vec2(u_PixelRange) / texture_size;
 	vec2 screen_tex_size = vec2(1.0f) / fwidth(v_TexCoord);
 	return max(0.5f * dot(unit_range, screen_tex_size), 1.0f);
@@ -44,11 +46,11 @@ float Coverage(float distance, float weight, float softness) {
 }
 
 void main() {
-	vec4 texColor = vec4(1.0f);
+	vec4 texture_color = vec4(1.0f);
 
-	{TEXTURE_SWITCH_BLOCK}
+	{TEXTURE_COLOR_SWITCH_BLOCK}
 
-	float distance = Median(texColor.r, texColor.g, texColor.b);
+	float distance = Median(texture_color.r, texture_color.g, texture_color.b);
 
 	float fill = Coverage(distance, u_Weight, u_Softness);
 	vec4 color = vec4(v_Color.rgb, v_Color.a * fill);
