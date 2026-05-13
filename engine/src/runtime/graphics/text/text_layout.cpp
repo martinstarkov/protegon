@@ -892,8 +892,6 @@ void DrawText(AssetManager& asset_manager, DrawContext& renderer, Entity entity)
 
 	const DistanceFieldStyle& style{ layout.batch_style };
 
-	auto text_shader{ renderer.GetShader("text") };
-
 	auto style_hash{ Hash(style) };
 
 	auto depth{ GetDepth(entity) };
@@ -913,6 +911,10 @@ void DrawText(AssetManager& asset_manager, DrawContext& renderer, Entity entity)
 		return;
 	}
 
+	// TODO: Fix.
+	/*
+	auto text_shader{ renderer.GetShader("text") };
+
 	renderer.SetBlendMode(BlendMode::Blend);
 
 	renderer.DrawTexturedQuads<impl::TextureVertex>(
@@ -931,6 +933,7 @@ void DrawText(AssetManager& asset_manager, DrawContext& renderer, Entity entity)
 			renderer.SetUniform(text_shader, "u_PixelRange", style.pixel_range);
 		}
 	);
+	*/
 }
 
 } // namespace impl

@@ -38,15 +38,18 @@ namespace impl {
 
 class Renderer;
 
-struct DrawCommand {
-	std::variant<Entity, ManualCommand> payload;
-	float depth{ 0.0f };
-};
+// TODO: Fix.
+// struct DrawCommand {
+//	std::variant<Entity, ManualCommand> payload;
+//	float depth{ 0.0f };
+// };
 
 } // namespace impl
 
 class RenderContext {
 public:
+	// TODO: Fix.
+	/*
 	/// @param game_size Setting to nullopt will dynamically use the presentation viewport size.
 	void SetGameSize(
 		std::optional<V2_int> game_size = std::nullopt,
@@ -179,10 +182,12 @@ public:
 
 	impl::ShaderId GetShader(std::string_view shader_key) const;
 
+*/
 private:
 	friend class Scene;
 	friend class SceneContext;
-	friend class DebugContext;
+
+	// friend class DebugContext;
 
 	RenderContext() = delete;
 	RenderContext(Scene& scene, impl::Renderer& renderer);
@@ -192,6 +197,7 @@ private:
 	RenderContext(RenderContext&&) noexcept			   = default;
 	RenderContext& operator=(RenderContext&&) noexcept = delete;
 
+	/*
 	void SetPrimaryWorldCamera(const std::optional<Camera>& camera = std::nullopt);
 
 	template <typename T, typename R>
@@ -214,15 +220,16 @@ private:
 		const std::optional<impl::RenderCamera>& camera
 	);
 
-	Scene& scene_;
-	impl::Renderer& renderer_;
-
 	/// @brief Keys are uuids of cameras.
 	std::vector<std::pair<impl::RenderCamera, std::vector<impl::DrawCommand>>> draw_commands_;
 	std::vector<std::pair<impl::RenderCamera, std::vector<impl::ManualDrawCommand>>>
 		debug_commands_;
 
 	std::vector<impl::TextureObject> temporary_textures_;
+	*/
+
+	Scene& scene_;
+	impl::Renderer& renderer_;
 };
 
 } // namespace ptgn

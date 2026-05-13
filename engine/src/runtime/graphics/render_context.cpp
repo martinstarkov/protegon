@@ -37,6 +37,7 @@ namespace ptgn {
 RenderContext::RenderContext(Scene& scene, impl::Renderer& renderer) :
 	scene_{ scene }, renderer_{ renderer } {}
 
+/*
 std::vector<impl::DrawCommand>& RenderContext::GetDrawCommandsForCamera(
 	const std::optional<impl::RenderCamera>& camera
 ) {
@@ -329,5 +330,6 @@ const std::optional<Camera>& RenderContext::GetPrimaryWorldCamera() const {
 impl::ShaderId RenderContext::GetShader(std::string_view shader_key) const {
 	return renderer_.GetShader(shader_key);
 }
+*/
 
 } // namespace ptgn
