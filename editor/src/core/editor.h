@@ -31,6 +31,12 @@ namespace ptgn {
 class Application;
 class Scene;
 
+namespace impl {
+
+struct DebugRenderGraphSnapshot;
+
+} // namespace impl
+
 namespace editor {
 
 class Editor : public ApplicationLayer {
@@ -51,6 +57,8 @@ public:
 	Color GetWindowBackgroundColor() const;
 	void SetRendererBackgroundColor(Color color);
 	Color GetRendererBackgroundColor() const;
+
+	[[nodiscard]] const impl::DebugRenderGraphSnapshot& GetRenderGraphSnapshot() const;
 
 	void SetTimeScale(float time_scale);
 	float GetTimeScale() const;

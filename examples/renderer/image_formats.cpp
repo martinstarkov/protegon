@@ -1,6 +1,7 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
@@ -37,7 +38,7 @@ class TextureFormatScene : public Scene {
 							   { "png10", "assets/png10.png" },
 							   { "png11", "assets/png11.png" } });
 
-		V2_float ws{ ctx().renderer.GetGameSize() };
+		V2_float ws{ ctx().global_renderer_.GetGameSize() };
 
 		SetScale(
 			sprites.emplace_back(CreateSprite(*this, "jpg", -ws * 0.5f + V2_float{ 0, 0 })), 1.0f
@@ -111,5 +112,6 @@ class TextureFormatScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "TextureFormatScene" };
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<TextureFormatScene>();
 }
