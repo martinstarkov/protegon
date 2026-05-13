@@ -1,9 +1,16 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
+#include <string>
+#include <vector>
 
+#include "core/math/matrix4.h"
 #include "core/math/tolerance.h"
+#include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/shader.h"
 
 namespace ptgn {
 
@@ -125,5 +132,84 @@ struct RasterState {
 		return cull == other.cull && NearlyEqual(line_width, other.line_width);
 	}
 };
+
+namespace impl {
+
+enum class TextureBindingKind {
+	NamedSampler,
+	BatchSamplerArray
+};
+
+struct ResolvedTextureBinding {
+	TextureBindingKind kind{ TextureBindingKind::NamedSampler };
+
+	TextureId texture;
+	std::string uniform_name{ "u_Texture" };
+
+	std::uint32_t texture_unit{ 0 };
+	std::uint32_t array_index{ 0 };
+
+	bool operator==(const ResolvedTextureBinding&) const = default;
+};
+
+struct MaterialState {
+	ShaderId shader;
+	std::vector<UniformWrite> uniforms;
+
+	bool operator==(const MaterialState&) const = default;
+};
+
+struct RenderState {
+	std::optional<FramebufferId> framebuffer;
+	std::optional<Viewport> viewport;
+	std::optional<Matrix4> view_projection;
+
+	std::optional<BlendMode> blend_mode;
+
+	std::optional<bool> depth_testing;
+	std::optional<DepthMaskState> depth_mask;
+	std::optional<StencilState> stencil;
+	std::optional<RasterState> raster;
+	std::optional<ScissorState> scissor;
+	std::optional<ColorMaskState> color_mask;
+
+	bool operator==(const RenderState&) const = default;
+};
+
+} // namespace impl
+
+inline impl::RenderState ApplyDelta(impl::RenderState base, const impl::RenderState& delta) {
+	if (delta.framebuffer.has_value()) {
+		base.framebuffer = *delta.framebuffer;
+	}
+	if (delta.view_projection.has_value()) {
+		base.view_projection = *delta.view_projection;
+	}
+	if (delta.viewport.has_value()) {
+		base.viewport = *delta.viewport;
+	}
+	if (delta.blend_mode.has_value()) {
+		base.blend_mode = *delta.blend_mode;
+	}
+	if (delta.depth_testing.has_value()) {
+		base.depth_testing = *delta.depth_testing;
+	}
+	if (delta.depth_mask.has_value()) {
+		base.depth_mask = *delta.depth_mask;
+	}
+	if (delta.stencil.has_value()) {
+		base.stencil = *delta.stencil;
+	}
+	if (delta.raster.has_value()) {
+		base.raster = *delta.raster;
+	}
+	if (delta.scissor.has_value()) {
+		base.scissor = *delta.scissor;
+	}
+	if (delta.color_mask.has_value()) {
+		base.color_mask = *delta.color_mask;
+	}
+	return base;
+}
 
 } // namespace ptgn

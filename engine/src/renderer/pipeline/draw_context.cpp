@@ -1,48 +1,147 @@
 #include "renderer/pipeline/draw_context.h"
 
 #include <array>
-#include <functional>
 #include <optional>
-#include <span>
-#include <string_view>
-#include <type_traits>
-#include <variant>
+#include <utility>
 #include <vector>
 
-#include "core/assert.h"
-#include "core/graphics/color.h"
-#include "core/graphics/fill_style.h"
 #include "core/log.h"
-#include "core/math/angle.h"
-#include "core/math/geometry/arc.h"
-#include "core/math/geometry/capsule.h"
-#include "core/math/geometry/circle.h"
-#include "core/math/geometry/ellipse.h"
-#include "core/math/geometry/geometry_utils.h"
-#include "core/math/geometry/line.h"
-#include "core/math/geometry/origin.h"
-#include "core/math/geometry/polygon.h"
 #include "core/math/geometry/rect.h"
-#include "core/math/geometry/rounded_rect.h"
 #include "core/math/geometry/shape.h"
-#include "core/math/geometry/triangle.h"
-#include "core/math/math_utils.h"
-#include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/concepts.h"
-#include "renderer/pipeline/blend_mode.h"
-#include "renderer/pipeline/render_pass.h"
+#include "core/util/hash.h"
+#include "renderer/pipeline/render_packet.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
-#include "renderer/resources/shader.h"
-#include "renderer/resources/texture.h"
 #include "renderer/vertex/vertex.h"
+// TODO: Fix dependency on runtime.
+#include "runtime/scene/scene_render_graph.h"
 
 namespace ptgn {
 
+DrawContext::DrawContext(impl::Renderer& renderer, impl::SceneGraphBuilder& graph_builder) :
+	renderer_{ renderer }, graph_builder_{ graph_builder } {}
+
+void DrawContext::DrawTexture(
+	impl::TextureId texture, Transform transform, V2_float size, DrawOptions options
+) {
+	Rect rect{ size };
+
+	auto positions{ rect.GetWorldVertices(transform, options.origin) };
+	auto tex_coords{ options.tex_coords.value_or(std::array<V2_float, 4>{
+		V2_float{ 0.0f, 0.0f }, V2_float{ 1.0f, 0.0f }, V2_float{ 1.0f, 1.0f },
+		V2_float{ 0.0f, 1.0f } }) };
+
+	impl::IndexedPrimitiveGeometry<impl::TextureVertex> result;
+
+	// TODO: Use user entity id.
+	auto entity_id{ -1 };
+
+	result.vertices.reserve(4);
+	result.indices.reserve(6);
+	result.primitives.reserve(1);
+
+	auto tint_n{ options.tint.Normalized() };
+
+	auto tex_index{ 0.0f };
+
+	result.vertices.emplace_back(
+		positions[0], options.depth, tint_n, tex_coords[0], tex_index, entity_id
+	);
+
+	result.vertices.emplace_back(
+		positions[1], options.depth, tint_n, tex_coords[1], tex_index, entity_id
+	);
+
+	result.vertices.emplace_back(
+		positions[2], options.depth, tint_n, tex_coords[2], tex_index, entity_id
+	);
+
+	result.vertices.emplace_back(
+		positions[3], options.depth, tint_n, tex_coords[3], tex_index, entity_id
+	);
+
+	result.indices = { 0, 1, 2, 2, 3, 0 };
+
+	result.primitives.push_back(impl::PrimitiveRange{ .first_vertex = 0,
+													  .vertex_count = 4,
+													  .first_index	= 0,
+													  .index_count	= 6,
+													  .texture		= texture });
+
+	impl::MaterialState material{ .shader = renderer_.GetShader("texture") };
+
+	auto packet{ MakeTexturedRenderPacket<impl::TextureVertex>(
+		Hash("texture"), std::move(material), result.vertices, result.indices, result.primitives
+	) };
+
+	if (options.blend_mode.has_value()) {
+		packet.state_delta.blend_mode = options.blend_mode;
+	}
+
+	SubmitRenderPacket(std::move(packet));
+}
+
+void DrawContext::DrawShape(const Shape& shape, Transform transform, ShapeDrawOptions options) {
+	impl::IndexedPrimitiveGeometry<impl::ShapeVertex> result;
+
+	PTGN_ERROR("Unimplemented result");
+	// TODO: Fix.
+	// Real implementation:
+	// - tessellate g.shape
+	// - transform vertices by g.transform / g.origin
+	// - assign g.color, g.fill_style, g.depth
+	// - push indices
+	// - push one or more PrimitiveRange entries with texture = std::nullopt
+
+	impl::MaterialState material{ .shader = renderer_.GetShader("shape") };
+
+	auto packet{ MakeRenderPacket<impl::ShapeVertex>(
+		Hash("shape"), std::move(material), result.vertices, result.indices, result.primitives
+	) };
+
+	if (options.blend_mode) {
+		packet.state_delta.blend_mode = options.blend_mode;
+	}
+
+	SubmitRenderPacket(std::move(packet));
+}
+
+void DrawContext::SubmitRenderPacket(impl::RenderPacket packet) {
+	packet.state_delta = ApplyDelta(pending_state_, packet.state_delta);
+	graph_builder_.Append(std::move(packet));
+}
+
+// TODO: Fix.
+// void DrawContext::DrawText(const TextLayout& layout, Depth depth) {
+//	impl::IndexedPrimitiveGeometry<impl::TextureVertex> result;
+//    PTGN_ERROR("Unimplemented result");
+//	impl::MaterialState material{
+//		.shader = renderer_.GetShader("text")
+//	};
+//	auto packet{
+//		MakeTexturedRenderPacket<impl::TextureVertex>(
+//			Hash("text"),
+//			std::move(material),
+//			result.vertices,
+//			result.indices,
+//			result.primitives
+//		)
+//	};
+//	SubmitRenderPacket(std::move(packet));
+//}
+
+impl::SceneGraphBuilder& DrawContext::GetGraphBuilder() {
+	return graph_builder_;
+}
+
+const impl::SceneGraphBuilder& DrawContext::GetGraphBuilder() const {
+	return graph_builder_;
+}
+
+/*
 static float GetFade(float diameter_y) {
 	PTGN_ASSERT(diameter_y > 0.0f, "Diameter cannot be negative or zero");
 	constexpr float fade_scaling_constant{ 0.12f };
@@ -616,5 +715,6 @@ void DrawContext::DrawShape(
 
 	std::visit([&](const auto& cmd) { Draw(cmd, depth); }, *shape_draw_commands);
 }
+*/
 
 } // namespace ptgn

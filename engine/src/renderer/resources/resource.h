@@ -7,6 +7,7 @@ namespace ptgn {
 namespace impl {
 
 class Renderer;
+class RenderPipelineManager;
 
 template <typename T>
 concept ResourceType = std::is_copy_constructible_v<T>;
@@ -33,6 +34,7 @@ public:
 
 protected:
 	friend class Renderer;
+	friend class RenderPipelineManager;
 
 	void Reset() noexcept;
 

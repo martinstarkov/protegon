@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <span>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -25,10 +26,15 @@
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/primitive_mode.h"
+#include "renderer/pipeline/render_batch.h"
 #include "renderer/pipeline/render_pass.h"
+#include "renderer/pipeline/render_pipeline.h"
+#include "renderer/pipeline/render_resource.h"
 #include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/render_graph.h"
 #include "renderer/resources/buffer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
@@ -51,6 +57,8 @@ class RenderTarget;
 
 namespace impl {
 
+struct RenderPacket;
+class RenderPipelineManager;
 class ApplicationContext;
 class Surface;
 class Renderer;
@@ -58,8 +66,6 @@ class ShaderObject;
 class TextureObject;
 template <ResourceType T>
 class Resource;
-template <typename State, InvocableR<void> F>
-void UpdateStateIfChanged(Renderer&, const std::optional<State>&, const State&, F&&);
 
 namespace gl {
 
@@ -67,31 +73,92 @@ class GLContext;
 
 } // namespace gl
 
-using Index = std::uint32_t;
-
 inline constexpr std::uint32_t kBatchCapacity{ 10000 };
 inline constexpr std::uint32_t kVertexCapacity{ kBatchCapacity * 4 };
 inline constexpr std::uint32_t kIndexCapacity{ kBatchCapacity * 6 };
 
-struct PooledTarget {
-	RenderTargetObject target;
-	std::uint64_t last_used_tick{ 0 };
-	bool in_use{ false };
+struct DebugRenderResourceSnapshot {
+	RenderResourceId id{ 0 };
+	std::string name;
+
+	V2_int size;
+	TextureFormat format{ TextureFormat::RGBA8 };
+
+	bool imported{ false };
+
+	std::optional<RenderTargetId> imported_target;
+	std::optional<RenderTargetId> physical_target;
+
+	bool used{ false };
+	std::size_t first_use{ 0 };
+	std::size_t last_use{ 0 };
+};
+
+struct DebugTextureReadSnapshot {
+	RenderResourceId resource{ 0 };
+	std::string uniform_name;
+};
+
+struct DebugRenderNodeSnapshot {
+	RenderNodeId id{ 0 };
+	RenderNodeType type{ RenderNodeType::FullscreenPass };
+	std::string name;
+
+	std::vector<DebugTextureReadSnapshot> reads;
+
+	bool has_output{ false };
+	RenderResourceId output{ 0 };
+
+	PipelineId pipeline{ 0 };
+	ShaderId shader;
+
+	std::size_t uniform_count{ 0 };
+	std::size_t draw_item_count{ 0 };
+
+	RenderState state;
+};
+
+struct DebugRenderGraphEdge {
+	RenderNodeId from{ 0 };
+	RenderNodeId to{ 0 };
+	RenderResourceId resource{ 0 };
+	std::string label;
+};
+
+struct DebugRenderGraphSnapshot {
+	bool valid{ false };
+	std::uint64_t frame_index{ 0 };
+
+	std::vector<DebugRenderResourceSnapshot> resources;
+	std::vector<DebugRenderNodeSnapshot> nodes;
+	std::vector<DebugRenderGraphEdge> edges;
 };
 
 class Renderer {
 public:
-	ShaderObject CreateShader(
+	void SetViewProjection(const Matrix4& view_projection);
+	void SetFramebuffer(FramebufferId framebuffer);
+	void SetViewport(Viewport viewport);
+	void SetBlendMode(BlendMode blend_mode);
+	void SetShader(ShaderId shader);
+	void SetDepthTesting(bool enabled);
+	void SetDepthMask(const DepthMaskState& mask);
+	void SetStencil(const StencilState& stencil);
+	void SetRaster(const RasterState& raster);
+	void SetScissor(const ScissorState& scissor);
+	void SetColorMask(const ColorMaskState& color_mask);
+
+	[[nodiscard]] ShaderObject CreateShader(
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 	);
-	TextureObject CreateTexture(
+	[[nodiscard]] TextureObject CreateTexture(
 		const Surface& surface, TextureFormat format, TextureParameters params = {}
 	);
-	TextureObject CreateTexture(
+	[[nodiscard]] TextureObject CreateTexture(
 		const std::uint8_t* pixel_data, V2_int size, TextureFormat format,
 		TextureParameters params = {}
 	);
-	RenderTargetObject CreateRenderTarget(
+	[[nodiscard]] RenderTargetObject CreateRenderTarget(
 		V2_int size, TextureFormat format, TextureParameters params = {}
 	);
 
@@ -106,7 +173,7 @@ public:
 
 	void SetPresentationViewport(std::optional<Viewport> presentation_viewport = std::nullopt);
 
-	bool HasGameSize() const;
+	[[nodiscard]] bool HasGameSize() const;
 
 	V2_int GetGameSize() const;
 
@@ -135,88 +202,16 @@ public:
 
 	const std::optional<Camera>& GetPrimaryWorldCamera() const;
 
-	void FlushBatch();
-
 	TextureId GetRenderTargetTexture(RenderTargetId render_target) const;
-
-	void SetViewport(Viewport viewport);
-	void SetShader(ShaderId shader);
-	void SetViewProjection(const Matrix4& view_projection);
-	void SetFramebuffer(FramebufferId framebuffer);
-	void SetBlend(bool enabled);
-	void SetBlendMode(BlendMode mode);
-	void SetDepthTesting(bool enabled);
-	void SetDepthMask(const DepthMaskState& mask);
-	void SetStencil(const StencilState& stencil);
-	void SetRaster(const RasterState& raster);
-	void SetScissor(const ScissorState& scissor);
-	void SetColorMask(const ColorMaskState& color_mask);
-
-	void DrawTriangle(
-		ShaderId shader, const std::array<V2_float, 3>& positions, float depth, Color tint,
-		int entity_id
-	);
-
-	void DrawQuad(
-		ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
-		int entity_id
-	);
-
-	void DrawShape(
-		ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
-		const std::array<V2_float, 4>& tex_coords, const std::array<float, 4>& shape_data,
-		int entity_id
-	);
-
-	void DrawShader(
-		ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
-		const std::array<V2_float, 4>& tex_coords, const std::function<void()>& shader_setup,
-		int entity_id
-	);
-
-	void DrawTexture(
-		ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, float depth,
-		Color tint, const std::array<V2_float, 4>& tex_coords,
-		const std::function<void()>& shader_setup, int entity_id
-	);
-
-	void DrawRenderPass(
-		ShaderId shader, RenderPass& pass, RenderTargetId scene_render_target,
-		const std::function<void()>& shader_setup
-	);
-
-	using BatchSetup = std::function<void(Renderer&)>;
-
-	template <VertexType TVertex>
-	struct DefaultTextureIndexAccessor {
-		constexpr float& operator()(TVertex& vertex) const noexcept {
-			return vertex.tex_index[0];
-		}
-	};
-
-	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
-	void DrawTexturedQuads(
-		std::string_view pipeline_name, ShaderId shader, std::span<TVertex> vertices,
-		std::span<const std::uint32_t> local_indices, std::span<const TextureId> textures = {},
-		std::optional<std::size_t> batch_state_hash = std::nullopt,
-		const BatchSetup& batch_setup = {}, TAccessor get_tex_index = {}
-	) {
-		SetShader(shader);
-		SetPipeline(pipeline_name, batch_state_hash, batch_setup);
-		SubmitTexturedQuads<TVertex>(vertices, local_indices, textures, get_tex_index);
-	}
 
 	V2_int GetRenderTargetSize(RenderTargetId render_target) const;
 	TextureFormat GetRenderTargetTextureFormat(RenderTargetId render_target) const;
 	void ResizeRenderTarget(RenderTargetId render_target, V2_int new_size);
 	void ClearRenderTarget(RenderTargetId render_target, Color color, bool set_viewport) const;
 	void BindRenderTarget(RenderTargetId render_target);
-	void BindRenderPass(RenderPass& render_pass);
 	void BindScreenTarget();
 
 	RenderTargetId GetScreenTarget() const;
-
-	RenderPass BeginPass(RenderTargetId scene_render_target);
 
 	V2_int GetTextureSize(TextureId id) const;
 	TextureFormat GetTextureFormat(TextureId id) const;
@@ -244,9 +239,90 @@ public:
 	void Destroy(VertexArrayId id);
 	void Destroy(RenderTargetId id);
 
+	// TODO: Move to private.
+	void Execute(RenderGraph& graph);
+
+	const DebugRenderGraphSnapshot& GetLastRenderGraphSnapshot() const {
+		return last_graph_snapshot_;
+	}
+
 private:
 	friend class ptgn::Application;
 	friend class ApplicationContext;
+	friend class RenderPipelineManager;
+
+	void Compile(RenderGraph& graph);
+
+	void DrawPacketImmediate(
+		const RenderPacket& packet, const RenderState& state,
+		std::span<const ResolvedTextureBinding> texture_bindings
+	);
+
+	void ExecuteFullscreenNode(const RenderGraph& graph, const RenderNode& node);
+
+	void ExecuteClearNode(const RenderGraph& graph, const RenderNode& node);
+
+	[[nodiscard]] IndexedPrimitiveGeometry<TextureVertex> MakeFullscreenTextureGeometry(
+		V2_int size, bool flip_y
+	) const;
+
+	TextureId GetResourceTexture(const RenderGraph& graph, TextureNode texture) const;
+
+	[[nodiscard]] TextureId ResolveTextureSource(
+		const RenderGraph& graph, const TextureSource& source
+	) const;
+
+	[[nodiscard]] std::vector<ResolvedTextureBinding> ResolveTextureBindings(
+		const RenderGraph& graph, std::span<const TextureBinding> bindings
+	) const;
+
+	std::uint32_t GetBatchTextureCount() const;
+
+	[[nodiscard]] bool HasBatchTexture(TextureId texture) const;
+
+	std::uint32_t GetCurrentVertexSize() const;
+
+	std::uint32_t GetCurrentVertexCount() const;
+
+	void AppendPrimitiveToBatch(const RenderPacket& packet, const PrimitiveRange& primitive);
+
+	void EnsureBatchCanFit(
+		PipelineId pipeline, const MaterialState& material, const RenderState& state,
+		std::uint32_t vertex_size, bool has_texture_index_offset,
+		const PrimitiveRequirements& requirements
+	);
+
+	[[nodiscard]] bool CanFitInCurrentBatch(const PrimitiveRequirements& requirements) const;
+
+	void SubmitRenderPacket(const RenderPacket& packet, const RenderState& state);
+
+	RenderTargetId GetResourceTarget(const RenderGraph& graph, TargetNode target) const;
+
+	[[nodiscard]] std::uint32_t AddBatchTexture(TextureId texture);
+
+	[[nodiscard]] RenderTargetId AcquirePooledTarget(V2_int size, TextureFormat format);
+
+	void ReleasePooledTarget(RenderTargetId render_target);
+
+	void TrimRenderTargetPool();
+
+	// This figures out when each graph resource is first and last used.
+	// The result tells Compile() how long each resource needs to keep its physical target.
+	[[nodiscard]] std::vector<ResourceLifetime> ComputeResourceLifetimes(const RenderGraph& graph
+	) const;
+
+	// This runs after graph execution.
+	// It releases all physical targets that were assigned to transient resources back into the
+	// pool.
+	void ReleaseCompiledTransients(RenderGraph& graph);
+
+	void ExecuteNode(const RenderGraph& graph, const RenderNode& node);
+
+	void ExecuteDrawLayerNode(const RenderGraph& graph, const RenderNode& node);
+
+	void ApplyRenderStateToBackend(const RenderState& render_state);
+
+	void SetUniformValue(ShaderId id, const char* uniform_name, const UniformValue& v);
 
 	struct DisplayResizeInfo {
 		bool moved{ false };
@@ -254,20 +330,8 @@ private:
 		Viewport viewport;
 	};
 
-	using PipelineId = std::size_t;
-
 	using EventSink =
 		std::function<void(V2_int, std::variant<ResizeType, impl::PresentationResizeType>)>;
-
-	struct Pipeline {
-		VertexArrayObject vao;
-		VertexBufferObject vbo;
-		ElementBufferObject ebo;
-		std::uint32_t vertex_size{ 0 };
-		std::optional<std::size_t> batch_state_hash_;
-		BatchSetup batch_setup_;
-		PrimitiveMode primitive_mode{ PrimitiveMode::Triangles };
-	};
 
 	Renderer() = delete;
 	explicit Renderer(Window& window, EventSink&& event_sink);
@@ -277,56 +341,42 @@ private:
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
-	void SetPipeline(
-		std::string_view name, std::optional<std::size_t> batch_state_hash = std::nullopt,
-		const BatchSetup& batch_setup = nullptr
+	void FlushBatch();
+
+	void BindTextureUnit(TextureId texture, std::uint32_t texture_unit);
+
+	void ApplyTextureBindings(
+		ShaderId shader, const RenderPipeline& pipeline,
+		std::span<const ResolvedTextureBinding> bindings
 	);
+
+	void UploadVertices(const RenderPipeline& pipeline, std::span<const std::byte> vertices);
+	void UploadIndices(const RenderPipeline& pipeline, std::span<const Index> indices);
+	void DrawElements(const RenderPipeline& pipeline, std::uint32_t index_count);
+
+	void ApplyMaterialUniforms(const MaterialState& material);
+
+	void ApplyMaterial(const MaterialState& material);
 
 	void BeginFrame();
 	void EndFrame();
 
+	void SetCurrentPipeline(std::size_t id);
+	void SetCurrentPipeline(std::string_view name);
+
 	[[nodiscard]] bool IsPresentationViewportVisible() const;
-
-	template <typename State, InvocableR<void> F>
-	friend void UpdateStateIfChanged(Renderer&, const std::optional<State>&, const State&, F&&);
-
-	struct TextureSlotInfo {
-		std::uint32_t slot{ 0 };
-		bool push_to_batch{ false };
-	};
 
 	std::size_t GetMaxTextureSlots() const;
 
-	/// @return The texture slot the given texture is bound to, and whether it should be pushed to
-	/// batch_textures.
-	[[nodiscard]] TextureSlotInfo GetTextureSlot(TextureId tex);
-
-	/// @brief True if adding the given number of vertex bytes and indices would exceed
-	/// batch capacity.
-	[[nodiscard]] bool ExceedsCapacity(
-		std::size_t vertex_bytes, std::size_t indices, std::size_t vertex_byte_capacity
-	) const;
-
 	/// @return True if the given texture is currently attached to the framebuffer that is currently
 	/// bound.
-	bool IsTextureAttachedToCurrentFramebuffer(TextureId texture) const;
+	[[nodiscard]] bool IsTextureAttachedToCurrentFramebuffer(TextureId texture) const;
 
 	void ResizeScreenTarget(V2_int size);
 
 	void OnWindowResize(V2_int size);
 
-	RenderTargetId AcquirePooledTargetCopy(RenderTargetId render_target);
-	RenderTargetId AcquirePooledTarget(V2_int size, TextureFormat format);
-
-	void ReleasePooledTarget(RenderTargetId render_target);
-
 	void InvalidateState();
-
-	Pipeline& GetCurrentPipeline();
-
-	void SetCurrentPipelineBatchState(
-		std::optional<std::size_t> batch_state_hash, const BatchSetup& batch_setup
-	);
 
 	// emit_events = false is used to prevent emitting events when initializing the window and
 	// scene.
@@ -334,166 +384,8 @@ private:
 
 	[[nodiscard]] DisplayResizeInfo RecalculateDisplayViewport() const;
 
-	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
-	void SubmitTexturedQuads(
-		std::span<TVertex> vertices, std::span<const std::uint32_t> local_indices,
-		std::span<const TextureId> local_textures = {}, TAccessor get_tex_index = {}
-	) {
-		static_assert(std::is_trivially_copyable_v<TVertex>);
-		static_assert(std::is_standard_layout_v<TVertex>);
-
-		constexpr std::size_t kVerticesPerQuad{ 4 };
-		constexpr std::size_t kIndicesPerQuad{ 6 };
-
-		PTGN_ASSERT(
-			vertices.size() % kVerticesPerQuad == 0,
-			"Textured quad submission expects 4 vertices per quad"
-		);
-		PTGN_ASSERT(
-			local_indices.size() % kIndicesPerQuad == 0,
-			"Textured quad submission expects 6 indices per quad"
-		);
-
-		std::vector<TVertex> chunk_vertices;
-		std::vector<std::uint32_t> chunk_indices;
-
-		chunk_vertices.reserve(std::min<std::size_t>(vertices.size(), kVertexCapacity));
-		chunk_indices.reserve(std::min<std::size_t>(local_indices.size(), kIndexCapacity));
-
-		auto flush_chunk = [&]() {
-			if (chunk_vertices.empty()) {
-				return;
-			}
-
-			SubmitVertices<TVertex>(chunk_vertices, chunk_indices);
-			chunk_vertices.clear();
-			chunk_indices.clear();
-		};
-
-		std::size_t quad_count{ vertices.size() / kVerticesPerQuad };
-
-		for (std::size_t quad{ 0 }; quad < quad_count; ++quad) {
-			std::size_t vertex_begin{ quad * kVerticesPerQuad };
-			std::size_t index_begin{ quad * kIndicesPerQuad };
-
-			TextureId texture{ 0 };
-			float batch_texture_slot{ 0.0f };
-
-			if (!local_textures.empty()) {
-				auto local_texture_index{
-					static_cast<std::size_t>(get_tex_index(vertices[vertex_begin]))
-				};
-
-				PTGN_ASSERT(
-					local_texture_index < local_textures.size(),
-					"Invalid local texture index in submitted vertex"
-				);
-
-				texture = local_textures[local_texture_index];
-
-				if (bool texture_already_bound{ std::ranges::contains(batch_textures_, texture) };
-					!texture_already_bound && batch_textures_.size() >= GetMaxTextureSlots()) {
-					flush_chunk();
-					FlushBatch();
-				}
-
-				auto slot_info{ GetTextureSlot(texture) };
-
-				if (slot_info.push_to_batch) {
-					batch_textures_.push_back(texture);
-				}
-
-				batch_texture_slot = static_cast<float>(slot_info.slot);
-			}
-
-			if (ExceedsCapacity(
-					(chunk_vertices.size() + kVerticesPerQuad) * sizeof(TVertex),
-					chunk_indices.size() + kIndicesPerQuad, kVertexCapacity * sizeof(TVertex)
-				)) {
-				flush_chunk();
-			}
-
-			PTGN_ASSERT(
-				!ExceedsCapacity(
-					kVerticesPerQuad * sizeof(TVertex), kIndicesPerQuad,
-					kVertexCapacity * sizeof(TVertex)
-				),
-				"Single quad exceeds renderer batch capacity"
-			);
-
-			auto base_vertex{ static_cast<std::uint32_t>(chunk_vertices.size()) };
-
-			for (std::size_t i{ 0 }; i < kVerticesPerQuad; ++i) {
-				TVertex vertex{ vertices[vertex_begin + i] };
-
-				if (!local_textures.empty()) {
-					get_tex_index(vertex) = batch_texture_slot;
-				}
-
-				chunk_vertices.push_back(vertex);
-			}
-
-			for (std::size_t i{ 0 }; i < kIndicesPerQuad; ++i) {
-				chunk_indices.push_back(base_vertex + local_indices[index_begin + i]);
-			}
-		}
-
-		flush_chunk();
-	}
-
-	template <VertexType TVertex>
-	void SubmitVertices(
-		std::span<const TVertex> vertices, std::span<const std::uint32_t> local_indices
-	) {
-		static_assert(std::is_trivially_copyable_v<TVertex>);
-		static_assert(std::is_standard_layout_v<TVertex>);
-
-		auto vertex_bytes{ vertices.size() * sizeof(TVertex) };
-		auto vertex_byte_capacity{ kVertexCapacity * sizeof(TVertex) };
-
-		if (ExceedsCapacity(vertex_bytes, local_indices.size(), vertex_byte_capacity)) {
-			FlushBatch();
-		}
-
-		PTGN_ASSERT(
-			!ExceedsCapacity(vertex_bytes, local_indices.size(), vertex_byte_capacity),
-			"Attempting to batch too many vertices or indices in one call"
-		);
-
-		auto base_vertex{ static_cast<std::uint32_t>(batch_vertices_.size() / sizeof(TVertex)) };
-
-		auto bytes{ std::as_bytes(vertices) };
-
-		batch_vertices_.insert(batch_vertices_.end(), bytes.begin(), bytes.end());
-
-		batch_indices_.reserve(batch_indices_.size() + local_indices.size());
-		for (auto idx : local_indices) {
-			batch_indices_.push_back(base_vertex + idx);
-		}
-	}
-
-	[[nodiscard]] ElementBufferObject CreateElementBufferObject(std::uint32_t index_capacity);
-	[[nodiscard]] VertexBufferObject CreateVertexBufferObject(
-		std::uint32_t vertex_capacity, std::uint32_t vertex_size
-	);
-	[[nodiscard]] VertexArrayObject CreateVertexArrayObject(
-		VertexBufferId vertex_buffer, const BufferLayoutView& layout, ElementBufferId element_buffer
-	);
-
-	template <VertexType T>
-	void AddPipeline(
-		std::string_view name, std::uint32_t vertex_capacity, std::uint32_t index_capacity,
-		PrimitiveMode primitive_mode
-	) {
-		Pipeline pipeline;
-		pipeline.primitive_mode = primitive_mode;
-		pipeline.vertex_size	= sizeof(typename T::VertexType);
-		pipeline.ebo			= CreateElementBufferObject(index_capacity);
-		pipeline.vbo			= CreateVertexBufferObject(vertex_capacity, pipeline.vertex_size);
-		pipeline.vao = CreateVertexArrayObject(pipeline.vbo, T::GetLayoutView(), pipeline.ebo);
-
-		pipelines_.emplace_back(Hash(name), std::move(pipeline));
-	}
+	void BuildDebugEdges(DebugRenderGraphSnapshot& snapshot, const RenderGraph& graph) const;
+	[[nodiscard]] DebugRenderGraphSnapshot BuildDebugSnapshot(const RenderGraph& graph) const;
 
 	Window& window_;
 
@@ -501,15 +393,13 @@ private:
 
 	std::unique_ptr<gl::GLContext> gl_;
 
-	PipelineId current_pipeline_{ 0 };
-	std::vector<std::pair<PipelineId, Pipeline>> pipelines_;
-
-	std::vector<std::byte> batch_vertices_;
-	std::vector<Index> batch_indices_;
-	std::vector<TextureId> batch_textures_;
-
 	/// @brief Currently set view projection.
 	Matrix4 view_projection_;
+
+	Batch batch_;
+
+	DebugRenderGraphSnapshot last_graph_snapshot_;
+	std::uint64_t graph_debug_frame_index_{ 0 };
 
 	Color background_color_;
 	RenderTargetObject screen_target_;
@@ -518,9 +408,10 @@ private:
 	Viewport display_viewport_;
 	ScalingMode scaling_mode_{ ScalingMode::Letterbox };
 
+	// TODO: Move these to pool manager class.
+	std::size_t max_pool_size_{ 32 };
 	std::vector<PooledTarget> rt_pool_;
 	std::uint64_t pool_tick_{ 0 };
-	std::size_t max_pool_size_{ 16 };
 
 	/// @brief The viewport used for presentation (i.e. the final output to the screen). This
 	/// may be different from the window if using the editor, which has a separate viewport for
@@ -531,6 +422,8 @@ private:
 	bool display_viewport_dirty_{ true };
 
 	std::optional<Camera> primary_world_camera_;
+
+	RenderPipelineManager pipeline_manager_;
 };
 
 } // namespace impl

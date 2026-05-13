@@ -3,12 +3,17 @@
 
 #include <algorithm>
 #include <array>
+#include <concepts>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <optional>
 #include <span>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <variant>
@@ -22,7 +27,6 @@
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
-#include "core/util/concepts.h"
 #include "core/util/hash.h"
 #include "platform/window.h"
 #include "renderer/backend/gl/gl_buffer.h"
@@ -34,20 +38,23 @@
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/primitive_mode.h"
+#include "renderer/pipeline/render_batch.h"
+#include "renderer/pipeline/render_packet.h"
 #include "renderer/pipeline/render_pass.h"
+#include "renderer/pipeline/render_pipeline.h"
+#include "renderer/pipeline/render_resource.h"
 #include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
-#include "renderer/resources/buffer.h"
+#include "renderer/render_graph.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
-#include "renderer/resources/vertex_array.h"
 #include "renderer/vertex/vertex.h"
 
 namespace ptgn::impl {
@@ -55,14 +62,21 @@ namespace ptgn::impl {
 Renderer::Renderer(Window& window, EventSink&& event_sink) :
 	window_{ window },
 	event_sink_{ std::move(event_sink) },
-	gl_{ std::make_unique<gl::GLContext>() } {
-	AddPipeline<TextureVertex>(
+	gl_{ std::make_unique<gl::GLContext>() },
+	pipeline_manager_{ *this } {
+	pipeline_manager_.AddPipeline<TextureVertex>(
 		"texture", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles
 	);
-	AddPipeline<ShapeVertex>("shape", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles);
-	AddPipeline<ColorVertex>("color", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles);
-	AddPipeline<TextureVertex>("text", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles);
-	SetPipeline("texture");
+	pipeline_manager_.AddPipeline<ShapeVertex>(
+		"shape", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles
+	);
+	pipeline_manager_.AddPipeline<ColorVertex>(
+		"color", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles
+	);
+	pipeline_manager_.AddPipeline<TextureVertex>(
+		"text", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles
+	);
+	SetCurrentPipeline("texture");
 
 	game_size_ = GetFullViewportSize();
 
@@ -130,146 +144,6 @@ RenderTargetObject Renderer::CreateRenderTarget(
 	return RenderTargetObject{ this, RenderTargetId{ framebuffer } };
 }
 
-RenderPass Renderer::BeginPass(RenderTargetId scene_render_target) {
-	RenderPass p;
-	p.source_			= scene_render_target;
-	p.ping_				= AcquirePooledTargetCopy(scene_render_target);
-	p.has_ping_			= true;
-	p.has_written_once_ = false; // latest = source initially
-	p.latest_is_ping_	= true;	 // irrelevant until has_written_once==true
-
-	return p;
-}
-
-RenderTargetId Renderer::AcquirePooledTargetCopy(RenderTargetId render_target) {
-	auto size{ GetRenderTargetSize(render_target) };
-	auto format{ GetRenderTargetTextureFormat(render_target) };
-
-	return AcquirePooledTarget(size, format);
-}
-
-RenderTargetId Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
-	++pool_tick_;
-
-	auto claim = [&](PooledTarget& e) {
-		if (e.target.GetSize() != size) {
-			ResizeRenderTarget(e.target.resource_, size);
-		}
-		e.in_use		 = true;
-		e.last_used_tick = pool_tick_;
-		return e.target.resource_;
-	};
-
-	// Find a free candidate:
-	//  - Prefer exact size+format
-	//  - Otherwise pick least-recently-used with same format
-	PooledTarget* exact			  = nullptr;
-	PooledTarget* lru_same_format = nullptr;
-
-	for (auto& e : rt_pool_) {
-		if (e.in_use) {
-			continue;
-		}
-		if (e.target.GetFormat() != format) {
-			continue;
-		}
-
-		if (e.target.GetSize() == size) {
-			exact = &e;
-			break; // can't beat an exact match
-		}
-
-		if (!lru_same_format || e.last_used_tick < lru_same_format->last_used_tick) {
-			lru_same_format = &e;
-		}
-	}
-
-	if (exact) {
-		return claim(*exact);
-	}
-	if (lru_same_format) {
-		return claim(*lru_same_format);
-	}
-
-	// No compatible free target available.
-	// If we have room in the pool, create one.
-	// Pool is at/over the limit and no compatible spare existed:
-	PooledTarget entry{ CreateRenderTarget(size, format), pool_tick_, true };
-	const auto& rt{ rt_pool_.emplace_back(std::move(entry)) };
-
-	return rt.target.resource_;
-}
-
-void Renderer::ReleasePooledTarget(RenderTargetId render_target) {
-	++pool_tick_;
-
-	std::erase_if(rt_pool_, [render_target](auto& e) {
-		if (e.target.resource_ == render_target) {
-			return true; // remove from pool
-		}
-		return false;
-	});
-}
-
-void Renderer::DrawRenderPass(
-	ShaderId shader, RenderPass& p, RenderTargetId scene_render_target,
-	const std::function<void()>& shader_setup
-) {
-	RenderTargetId input;
-
-	// Input = latest output, or source before first draw
-	if (!p.has_written_once_) {
-		input = p.source_;
-	} else if (p.latest_is_ping_) {
-		input = p.ping_;
-	} else {
-		input = p.pong_;
-	}
-
-	auto bound_frame_buffer{ gl_->GetBoundFramebuffer() };
-
-	// Are we rendering *into this pass*?
-	bool writing_to_pass =
-		bound_frame_buffer == p.ping_ || (p.has_pong_ && bound_frame_buffer == p.pong_);
-
-	bool input_is_offscreen = input != scene_render_target;
-
-	bool output_is_offscreen = bound_frame_buffer != scene_render_target;
-
-	bool flip_y = input_is_offscreen && !output_is_offscreen;
-
-	auto texture_size{ GetRenderTargetSize(input) };
-	auto points{ GetCenteredQuadPoints(texture_size) };
-	auto tex_coords{ GetDefaultTextureCoordinates(flip_y) };
-
-	TextureId texture{ GetRenderTargetTexture(input) };
-
-	// Only ping-pong if we're writing into the pass
-	if (writing_to_pass) {
-		RenderTargetId write;
-
-		if (!p.has_written_once_) {
-			write = p.ping_;
-		} else {
-			if (!p.has_pong_ && p.latest_is_ping_) {
-				p.pong_		= AcquirePooledTargetCopy(p.source_);
-				p.has_pong_ = true;
-			}
-			write = p.latest_is_ping_ ? p.pong_ : p.ping_;
-		}
-
-		BindRenderTarget(write);
-
-		// Update pass state
-		p.has_written_once_ = true;
-		p.latest_is_ping_	= write == p.ping_;
-	} else {
-		// Read-only draw: no mutation, no flip
-	}
-
-	DrawTexture(shader, texture, points, 0.0f, color::White, tex_coords, shader_setup, -1);
-}
-
 TextureId Renderer::GetRenderTargetTexture(RenderTargetId render_target) const {
 	const auto& color_attachment{ gl_->framebuffers.GetFramebufferAttachment(
 		FramebufferId{ render_target }, gl::Attachment::Color0
@@ -321,132 +195,42 @@ void Renderer::BindRenderTarget(RenderTargetId render_target) {
 	SetFramebuffer(FramebufferId{ render_target });
 }
 
-void Renderer::BindRenderPass(RenderPass& render_pass) {
-	// Bind the next write target (opposite of latest output; ping for first write)
-	RenderTargetId write;
-
-	if (!render_pass.has_written_once_) {
-		write = render_pass.ping_;
-	} else {
-		if (!render_pass.has_pong_ && render_pass.latest_is_ping_) {
-			render_pass.pong_	  = AcquirePooledTargetCopy(render_pass.source_);
-			render_pass.has_pong_ = true;
-		}
-		write = render_pass.latest_is_ping_ ? render_pass.pong_ : render_pass.ping_;
-	}
-
-	BindRenderTarget(write);
+void Renderer::SetCurrentPipeline(std::string_view name) {
+	SetCurrentPipeline(Hash(name));
 }
 
-Renderer::Pipeline& Renderer::GetCurrentPipeline() {
-	PTGN_ASSERT(current_pipeline_ != 0, "Current pipeline must be set");
-
-	auto it{ std::ranges::find_if(pipelines_, [this](const auto& pair) {
-		return pair.first == current_pipeline_;
-	}) };
-
-	PTGN_ASSERT(
-		it != pipelines_.end(), "No matching current render pipeline found: ", current_pipeline_
-	);
-
-	return it->second;
-}
-
-void Renderer::FlushBatch() {
-	if (batch_indices_.empty()) {
-		return; // Nothing to draw
-	}
-
-	const auto& pipeline{ GetCurrentPipeline() };
-
-	if (pipeline.batch_setup_) {
-		pipeline.batch_setup_(*this);
-	}
-
-	auto _0{ gl_->Bind(pipeline.vao, false) };
-	auto _1{ gl_->Bind(pipeline.vbo, false) };
-	auto _2{ gl_->Bind(pipeline.ebo, false) };
-
-	auto vertex_count{ static_cast<std::uint32_t>(batch_vertices_.size() / pipeline.vertex_size) };
-
-	// Upload vertex data
-	gl_->buffers.SetBufferSubData<VertexBufferId>(
-		pipeline.vbo, gl::BufferTarget::ArrayBuffer, batch_vertices_.data(), 0, vertex_count,
-		pipeline.vertex_size
-	);
-
-	// Upload index data
-	gl_->buffers.SetBufferSubData<ElementBufferId>(
-		pipeline.ebo, gl::BufferTarget::ElementArrayBuffer, batch_indices_.data(), 0,
-		static_cast<std::uint32_t>(batch_indices_.size()), sizeof(Index)
-	);
-
-	// Bind all textures
-	for (std::uint32_t slot{ 0 }; slot < batch_textures_.size(); ++slot) {
-		gl_->SetActiveTextureSlot(slot);
-		auto _3{ gl_->Bind(batch_textures_[slot], false) };
-	}
-
-	gl_->vertex_arrays.DrawElements(
-		pipeline.vao, static_cast<std::uint32_t>(batch_indices_.size()), gl::IndexType::UnsignedInt,
-		pipeline.primitive_mode
-	);
-
-	batch_vertices_.clear();
-	batch_indices_.clear();
-	batch_textures_.clear();
-}
-
-Renderer::TextureSlotInfo Renderer::GetTextureSlot(TextureId tex) {
-	// Check if texture already exists in batch
-	for (std::uint32_t i{ 0 }; i < batch_textures_.size(); ++i) {
-		if (batch_textures_[i] == tex) {
-			return { .slot = i, .push_to_batch = false };
-		}
-	}
-
-	// Flush if we would exceed GPU texture slots
-	if (batch_textures_.size() >= GetMaxTextureSlots()) {
-		FlushBatch();
-	}
-
-	// Its slot is index in the vector
-	return { .slot = static_cast<std::uint32_t>(batch_textures_.size()), .push_to_batch = true };
-}
-
-template <typename State, InvocableR<void> F>
-void UpdateStateIfChanged(
-	Renderer& r, const std::optional<State>& cached, const State& desired, F&& func
-) {
-	if (cached != desired) {
-		r.FlushBatch();
-		std::invoke(std::forward<F>(func));
-	}
-}
-
-void Renderer::SetPipeline(
-	std::string_view name, std::optional<std::size_t> batch_state_hash,
-	const BatchSetup& batch_setup
-) {
-	auto id{ Hash(name) };
-	if (id == current_pipeline_) {
-		SetCurrentPipelineBatchState(batch_state_hash, batch_setup);
+void Renderer::SetCurrentPipeline(std::size_t id) {
+	if (pipeline_manager_.IsCurrentPipeline(id)) {
 		return;
 	}
-	PTGN_ASSERT(
-		(std::ranges::find_if(pipelines_, [id](const auto& pair) { return pair.first == id; }) !=
-		 pipelines_.end()),
-		"No matching pipeline found: ", id
-	);
+	PTGN_ASSERT(pipeline_manager_.HasPipeline(id), "No matching pipeline found: ", id);
 	FlushBatch();
-	current_pipeline_ = id;
-	SetCurrentPipelineBatchState(batch_state_hash, batch_setup);
+	pipeline_manager_.SetCurrentPipeline(id);
 }
 
 void Renderer::SetViewport(Viewport viewport) {
-	UpdateStateIfChanged(*this, gl_->GetBoundState().viewport, viewport, [this, viewport] {
-		gl_->SetViewport(viewport);
-	});
+	if (viewport == gl_->GetViewport()) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetViewport(viewport);
+}
+
+void Renderer::SetShader(ShaderId shader) {
+	if (shader == gl_->GetBoundState().shader_program) {
+		return;
+	}
+	FlushBatch();
+	auto _ = gl_->Bind(shader, false);
+	gl_->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+}
+
+void Renderer::SetBlendMode(BlendMode blend_mode) {
+	if (blend_mode == gl_->GetBoundState().blend_mode) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetBlendMode(blend_mode);
 }
 
 void Renderer::SetViewProjection(const Matrix4& view_projection) {
@@ -461,72 +245,60 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	}
 }
 
-void Renderer::SetShader(ShaderId shader) {
-	UpdateStateIfChanged(*this, gl_->GetBoundState().shader_program, shader, [this, shader] {
-		auto _ = gl_->Bind(shader, false);
-		gl_->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
-	});
-}
-
-void Renderer::SetBlend(bool enabled) {
-	UpdateStateIfChanged(*this, gl_->GetBoundState().blend, enabled, [this, enabled] {
-		gl_->SetBlend(enabled);
-	});
-}
-
-void Renderer::SetBlendMode(BlendMode mode) {
-	UpdateStateIfChanged(*this, gl_->GetBoundState().blend_mode, mode, [this, mode] {
-		gl_->SetBlendMode(mode);
-	});
-}
-
 void Renderer::SetFramebuffer(FramebufferId framebuffer) {
-	UpdateStateIfChanged(*this, gl_->GetBoundState().framebuffer, framebuffer, [this, framebuffer] {
-		auto _ = gl_->Bind(framebuffer, false);
-	});
+	if (framebuffer == gl_->GetBoundFramebuffer()) {
+		return;
+	}
+	FlushBatch();
+	auto _ = gl_->Bind(framebuffer, false);
 }
 
 void Renderer::SetDepthTesting(bool enabled) {
-	UpdateStateIfChanged(*this, gl_->GetBoundState().depth_testing, enabled, [this, enabled] {
-		gl_->SetDepthTesting(enabled);
-	});
+	if (enabled == gl_->GetBoundState().depth_testing) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetDepthTesting(enabled);
 }
 
 void Renderer::SetDepthMask(const DepthMaskState& mask) {
-	UpdateStateIfChanged(*this, gl_->GetBoundState().depth_mask, mask, [this, mask] {
-		gl_->SetDepthMask(mask);
-	});
+	if (mask == gl_->GetBoundState().depth_mask) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetDepthMask(mask);
 }
 
 void Renderer::SetStencil(const StencilState& stencil) {
-	UpdateStateIfChanged(*this, gl_->GetBoundState().stencil, stencil, [this, stencil] {
-		gl_->SetStencil(stencil);
-	});
+	if (stencil == gl_->GetBoundState().stencil) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetStencil(stencil);
 }
 
 void Renderer::SetRaster(const RasterState& raster) {
-	UpdateStateIfChanged(*this, gl_->GetBoundState().raster, raster, [this, raster] {
-		gl_->SetRaster(raster);
-	});
+	if (raster == gl_->GetBoundState().raster) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetRaster(raster);
 }
 
 void Renderer::SetScissor(const ScissorState& scissor) {
-	UpdateStateIfChanged(*this, gl_->GetBoundState().scissor, scissor, [this, scissor] {
-		gl_->SetScissor(scissor);
-	});
+	if (scissor == gl_->GetBoundState().scissor) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetScissor(scissor);
 }
 
 void Renderer::SetColorMask(const ColorMaskState& color_mask) {
-	UpdateStateIfChanged(*this, gl_->GetBoundState().color_mask, color_mask, [this, color_mask] {
-		gl_->SetColorMask(color_mask);
-	});
-}
-
-bool Renderer::ExceedsCapacity(
-	std::size_t vertex_bytes, std::size_t indices, std::size_t vertex_byte_capacity
-) const {
-	return batch_vertices_.size() + vertex_bytes > vertex_byte_capacity ||
-		   batch_indices_.size() + indices > kIndexCapacity;
+	if (color_mask == gl_->GetBoundState().color_mask) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetColorMask(color_mask);
 }
 
 ShaderId Renderer::GetShader(std::string_view name) const {
@@ -541,143 +313,6 @@ bool Renderer::IsTextureAttachedToCurrentFramebuffer(TextureId texture) const {
 	}
 
 	return gl_->framebuffers.GetFramebufferAttachment(*bound, gl::Attachment::Color0).id == texture;
-}
-
-void Renderer::DrawTriangle(
-	ShaderId shader, const std::array<V2_float, 3>& positions, float depth, Color tint,
-	int entity_id
-) {
-	SetPipeline("color");
-
-	SetShader(shader);
-
-	auto color_n{ tint.Normalized() };
-
-	auto vertices{ GetVertices<ColorVertex, 3>([&](std::size_t i) {
-		PTGN_ASSERT(i < positions.size());
-		return ColorVertex{ positions[i], depth, color_n, entity_id };
-	}) };
-
-	constexpr std::array<Index, 3> indices{ 0, 1, 2 };
-
-	SubmitVertices<ColorVertex>(vertices, indices);
-}
-
-void Renderer::DrawQuad(
-	ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
-	int entity_id
-) {
-	SetPipeline("color");
-
-	SetShader(shader);
-
-	auto color_n{ tint.Normalized() };
-
-	auto vertices{ GetVertices<ColorVertex, 4>([&](std::size_t i) {
-		PTGN_ASSERT(i < positions.size());
-		return ColorVertex{ positions[i], depth, color_n, entity_id };
-	}) };
-
-	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
-
-	SubmitVertices<ColorVertex>(vertices, indices);
-}
-
-void Renderer::DrawShape(
-	ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
-	const std::array<V2_float, 4>& tex_coords, const std::array<float, 4>& shape_data, int entity_id
-) {
-	SetPipeline("shape");
-
-	PTGN_ASSERT(shader != 0);
-
-	SetShader(shader);
-
-	auto color_n{ tint.Normalized() };
-
-	auto vertices{ GetVertices<ShapeVertex, 4>([&](std::size_t i) {
-		PTGN_ASSERT(i < positions.size() && i < tex_coords.size());
-		return ShapeVertex{ positions[i], depth, color_n, tex_coords[i], shape_data, entity_id };
-	}) };
-
-	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
-
-	SubmitVertices<ShapeVertex>(vertices, indices);
-}
-
-void Renderer::DrawShader(
-	ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
-	const std::array<V2_float, 4>& tex_coords, const std::function<void()>& shader_setup,
-	int entity_id
-) {
-	SetPipeline("texture");
-
-	PTGN_ASSERT(shader != 0);
-
-	SetShader(shader);
-
-	if (shader_setup) {
-		shader_setup();
-	}
-
-	auto color_n{ tint.Normalized() };
-
-	auto vertices{ GetVertices<TextureVertex, 4>([&](std::size_t i) {
-		PTGN_ASSERT(i < positions.size() && i < tex_coords.size());
-		return TextureVertex{ positions[i], depth, color_n, tex_coords[i], 0.0f, entity_id };
-	}) };
-
-	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
-
-	SubmitVertices<TextureVertex>(vertices, indices);
-
-	FlushBatch();
-}
-
-void Renderer::DrawTexture(
-	ShaderId shader, TextureId texture, const std::array<V2_float, 4>& positions, float depth,
-	Color tint, const std::array<V2_float, 4>& tex_coords,
-	const std::function<void()>& shader_setup, int entity_id
-) {
-	SetPipeline("texture");
-	PTGN_ASSERT(
-		!IsTextureAttachedToCurrentFramebuffer(texture),
-		"Cannot draw a texture that is attached to the currently set framebuffer"
-	);
-	PTGN_ASSERT(shader != 0);
-	PTGN_ASSERT(texture != 0);
-
-	SetShader(shader);
-
-	if (shader_setup) {
-		shader_setup();
-	}
-
-	bool flush_after{ shader_setup != nullptr };
-
-	auto color_n{ tint.Normalized() };
-
-	auto slot_info{ GetTextureSlot(texture) };
-
-	auto vertices{ GetVertices<TextureVertex, 4>([&](std::size_t i) {
-		PTGN_ASSERT(i < positions.size() && i < tex_coords.size());
-		return TextureVertex{
-			positions[i], depth, color_n, tex_coords[i], static_cast<float>(slot_info.slot),
-			entity_id
-		};
-	}) };
-
-	constexpr std::array<Index, 6> indices{ 0, 1, 2, 2, 3, 0 };
-
-	SubmitVertices<TextureVertex>(vertices, indices);
-
-	if (slot_info.push_to_batch) {
-		batch_textures_.emplace_back(texture);
-	}
-
-	if (flush_after) {
-		FlushBatch();
-	}
 }
 
 void Renderer::OnWindowResize(V2_int size) {
@@ -936,24 +571,11 @@ void Renderer::InvalidateState() {
 	gl_->InvalidateState();
 }
 
-void Renderer::SetCurrentPipelineBatchState(
-	std::optional<std::size_t> batch_state_hash, const BatchSetup& batch_setup
-) {
-	auto& pipeline{ GetCurrentPipeline() };
-
-	if (pipeline.batch_state_hash_ != batch_state_hash) {
-		FlushBatch();
-
-		pipeline.batch_state_hash_ = batch_state_hash;
-		pipeline.batch_setup_	   = batch_setup;
-	}
-}
-
 void Renderer::BeginFrame() {
 	InvalidateState();
 
-	PTGN_ASSERT(batch_vertices_.empty());
-	PTGN_ASSERT(batch_indices_.empty());
+	PTGN_ASSERT(batch_.vertices.empty());
+	PTGN_ASSERT(batch_.indices.empty());
 
 	if (!presentation_viewport_.has_value()) {
 		auto presentation{ GetPresentationViewport() };
@@ -970,6 +592,475 @@ void Renderer::BeginFrame() {
 	gl_->framebuffers.ClearToColor(FramebufferId{ screen_target_.resource_ }, background_color_);
 }
 
+void Renderer::DrawPacketImmediate(
+	const RenderPacket& packet, const RenderState& state,
+	std::span<const ResolvedTextureBinding> texture_bindings
+) {
+	PTGN_ASSERT(packet.pipeline, "Immediate packet must have a pipeline");
+	PTGN_ASSERT(packet.material.shader, "Immediate packet must have a shader");
+
+	ApplyMaterial(packet.material);
+	ApplyRenderStateToBackend(state);
+
+	pipeline_manager_.SetCurrentPipeline(packet.pipeline);
+	const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
+
+	PTGN_ASSERT(
+		pipeline.vertex_size == packet.vertex_size,
+		"Submitted packet vertex size does not match pipeline vertex size"
+	);
+
+	PTGN_ASSERT(
+		packet.vertices.size() <=
+			static_cast<std::size_t>(pipeline.vertex_capacity) * pipeline.vertex_size,
+		"Immediate packet exceeds pipeline vertex capacity"
+	);
+
+	PTGN_ASSERT(
+		packet.indices.size() <= pipeline.index_capacity,
+		"Immediate packet exceeds pipeline index capacity"
+	);
+
+	ApplyTextureBindings(packet.material.shader, pipeline, texture_bindings);
+
+	UploadVertices(pipeline, packet.vertices);
+	UploadIndices(pipeline, packet.indices);
+
+	DrawElements(pipeline, static_cast<std::uint32_t>(packet.indices.size()));
+}
+
+void Renderer::ExecuteFullscreenNode(const RenderGraph& graph, const RenderNode& node) {
+	FlushBatch();
+
+	PTGN_ASSERT(node.output.has_value(), "Fullscreen node must have an output target");
+	PTGN_ASSERT(node.pipeline, "Fullscreen node must have a pipeline");
+	PTGN_ASSERT(node.material.shader, "Fullscreen node must have a shader");
+
+	auto target{ GetResourceTarget(graph, *node.output) };
+	const auto& resource{ graph.Resource(TextureNode{ node.output->id }) };
+
+	const auto& bound{ gl_->GetBoundState() };
+
+	RenderState base{ .framebuffer{ target },
+					  .viewport{ Viewport{ .position{}, .size = resource.size } },
+					  .view_projection{ Matrix4::Orthographic(
+						  V2_float{ -static_cast<float>(resource.size.x) * 0.5f,
+									-static_cast<float>(resource.size.y) * 0.5f },
+						  V2_float{ static_cast<float>(resource.size.x) * 0.5f,
+									static_cast<float>(resource.size.y) * 0.5f }
+					  ) },
+					  .blend_mode{ node.state.blend_mode },
+					  .depth_testing{ false },
+					  .depth_mask{ bound.depth_mask },
+					  .stencil{ bound.stencil },
+					  .raster{ bound.raster },
+					  .scissor{ node.state.scissor },
+					  .color_mask{ bound.color_mask } };
+
+	auto geometry{ MakeFullscreenTextureGeometry(resource.size, false) };
+
+	auto packet{ MakeTexturedRenderPacket<TextureVertex>(
+		node.pipeline, node.material, geometry.vertices, geometry.indices, geometry.primitives
+	) };
+
+	auto texture_bindings{ ResolveTextureBindings(graph, node.texture_bindings) };
+
+	DrawPacketImmediate(packet, base, texture_bindings);
+}
+
+void Renderer::ExecuteClearNode(const RenderGraph& graph, const RenderNode& node) {
+	PTGN_ASSERT(node.output.has_value(), "Render node must have output when executing clear");
+	FlushBatch();
+	auto target{ GetResourceTarget(graph, *node.output) };
+	// TODO: Check if viewport should be set here?
+	ClearRenderTarget(target, node.clear_color.value_or(color::Transparent), true);
+}
+
+IndexedPrimitiveGeometry<TextureVertex> Renderer::MakeFullscreenTextureGeometry(
+	V2_int size, bool flip_y
+) const {
+	IndexedPrimitiveGeometry<TextureVertex> result;
+
+	result.vertices.reserve(4);
+	result.indices.reserve(6);
+	result.primitives.reserve(1);
+
+	auto half_width{ static_cast<float>(size.x) * 0.5f };
+	auto half_height{ static_cast<float>(size.y) * 0.5f };
+
+	auto depth{ 0.0f };
+	auto color{ color::White };
+	auto tex_index_placeholder{ 0.0f };
+	auto entity_id{ -1 };
+
+	auto tex_coords{ GetDefaultTextureCoordinates(flip_y) };
+
+	auto color_n{ color.Normalized() };
+
+	result.vertices.emplace_back(
+		V2_float{ -half_width, -half_height }, depth, color_n, tex_coords[0], tex_index_placeholder,
+		entity_id
+	);
+
+	result.vertices.emplace_back(
+		V2_float{ half_width, -half_height }, depth, color_n, tex_coords[1], tex_index_placeholder,
+		entity_id
+	);
+
+	result.vertices.emplace_back(
+		V2_float{ half_width, half_height }, depth, color_n, tex_coords[2], tex_index_placeholder,
+		entity_id
+	);
+
+	result.vertices.emplace_back(
+		V2_float{ -half_width, half_height }, depth, color_n, tex_coords[3], tex_index_placeholder,
+		entity_id
+	);
+
+	result.indices = { 0, 1, 2, 2, 3, 0 };
+
+	result.primitives.push_back(PrimitiveRange{ .first_vertex = 0,
+												.vertex_count = 4,
+												.first_index  = 0,
+												.index_count  = 6,
+												.texture	  = std::nullopt });
+
+	return result;
+}
+
+TextureId Renderer::GetResourceTexture(const RenderGraph& graph, TextureNode texture) const {
+	return GetRenderTargetTexture(graph.Resource(texture).GetTarget());
+}
+
+TextureId Renderer::ResolveTextureSource(const RenderGraph& graph, const TextureSource& source)
+	const {
+	return std::visit(
+		[&]<typename T>(const T& value) -> TextureId {
+			if constexpr (std::same_as<T, TextureId>) {
+				return value;
+			} else {
+				return GetResourceTexture(graph, value);
+			}
+		},
+		source
+	);
+}
+
+std::vector<ResolvedTextureBinding> Renderer::ResolveTextureBindings(
+	const RenderGraph& graph, std::span<const TextureBinding> bindings
+) const {
+	std::vector<ResolvedTextureBinding> resolved;
+	resolved.reserve(bindings.size());
+
+	std::uint32_t next_texture_unit{ 0 };
+	std::uint32_t next_array_index{ 0 };
+
+	auto max_texture_units{ GetMaxTextureSlots() };
+
+	for (const auto& binding : bindings) {
+		PTGN_ASSERT(
+			next_texture_unit < max_texture_units,
+			"Pass uses more texture samplers than the backend supports"
+		);
+
+		std::uint32_t array_index{ 0 };
+		if (binding.kind == TextureBindingKind::BatchSamplerArray) {
+			array_index = next_array_index++;
+		}
+
+		resolved.push_back(ResolvedTextureBinding{ .kind = binding.kind,
+												   .texture =
+													   ResolveTextureSource(graph, binding.source),
+												   .uniform_name = binding.uniform_name,
+												   .texture_unit = next_texture_unit,
+												   .array_index	 = array_index });
+
+		++next_texture_unit;
+	}
+
+	return resolved;
+}
+
+std::uint32_t Renderer::GetBatchTextureCount() const {
+	std::uint32_t count{ 0 };
+
+	for (const auto& binding : batch_.texture_bindings) {
+		if (binding.kind == TextureBindingKind::BatchSamplerArray) {
+			++count;
+		}
+	}
+
+	return count;
+}
+
+bool Renderer::HasBatchTexture(TextureId texture) const {
+	return std::ranges::any_of(batch_.texture_bindings, [&](const auto& binding) {
+		return binding.kind == TextureBindingKind::BatchSamplerArray && binding.texture == texture;
+	});
+}
+
+std::uint32_t Renderer::GetCurrentVertexSize() const {
+	PTGN_ASSERT(batch_.pipeline, "Cannot get vertex size without a current batch pipeline");
+	return pipeline_manager_.GetPipeline(batch_.pipeline).vertex_size;
+}
+
+std::uint32_t Renderer::GetCurrentVertexCount() const {
+	const auto& pipeline{ pipeline_manager_.GetPipeline(batch_.pipeline) };
+
+	PTGN_ASSERT(pipeline.vertex_size > 0);
+	PTGN_ASSERT(batch_.vertices.size() % pipeline.vertex_size == 0);
+
+	return static_cast<std::uint32_t>(batch_.vertices.size() / pipeline.vertex_size);
+}
+
+void Renderer::AppendPrimitiveToBatch(const RenderPacket& packet, const PrimitiveRange& primitive) {
+	auto vertex_size{ packet.vertex_size };
+
+	PTGN_ASSERT(vertex_size > 0);
+	PTGN_ASSERT(GetCurrentVertexSize() == vertex_size);
+
+	PTGN_ASSERT(
+		primitive.first_vertex + primitive.vertex_count <=
+			static_cast<std::uint32_t>(packet.vertices.size() / vertex_size),
+		"Primitive vertex range is out of bounds"
+	);
+
+	PTGN_ASSERT(
+		primitive.first_index + primitive.index_count <= packet.indices.size(),
+		"Primitive index range is out of bounds"
+	);
+
+	auto source_vertex_byte_offset{ static_cast<std::size_t>(primitive.first_vertex) *
+									vertex_size };
+
+	auto source_vertex_byte_count{ static_cast<std::size_t>(primitive.vertex_count) * vertex_size };
+
+	auto old_batch_vertex_byte_size{ batch_.vertices.size() };
+
+	batch_.vertices.insert(
+		batch_.vertices.end(), packet.vertices.begin() + source_vertex_byte_offset,
+		packet.vertices.begin() + source_vertex_byte_offset + source_vertex_byte_count
+	);
+
+	if (primitive.texture.has_value()) {
+		PTGN_ASSERT(
+			packet.texture_index_offset.has_value(),
+			"Textured primitive submitted without texture-index offset"
+		);
+
+		auto texture_index{ static_cast<float>(AddBatchTexture(*primitive.texture)) };
+
+		auto texture_index_offset{ *packet.texture_index_offset };
+
+		PTGN_ASSERT(
+			texture_index_offset + sizeof(float) <= vertex_size,
+			"Texture index offset is outside the vertex"
+		);
+
+		for (std::uint32_t i{ 0 }; i < primitive.vertex_count; ++i) {
+			auto destination_byte_offset{ old_batch_vertex_byte_size +
+										  static_cast<std::size_t>(i) * vertex_size +
+										  texture_index_offset };
+
+			std::memcpy(
+				batch_.vertices.data() + destination_byte_offset, &texture_index, sizeof(float)
+			);
+		}
+	}
+
+	auto base_vertex{ static_cast<std::uint32_t>(old_batch_vertex_byte_size / vertex_size) };
+
+	for (std::uint32_t i{ 0 }; i < primitive.index_count; ++i) {
+		auto source_index{ static_cast<std::uint32_t>(packet.indices[primitive.first_index + i]) };
+
+		PTGN_ASSERT(
+			source_index >= primitive.first_vertex &&
+				source_index < primitive.first_vertex + primitive.vertex_count,
+			"Primitive index refers to a vertex outside its primitive range"
+		);
+
+		auto local_index{ source_index - primitive.first_vertex };
+		auto batch_index{ base_vertex + local_index };
+
+		PTGN_ASSERT(
+			batch_index <= static_cast<std::uint32_t>(std::numeric_limits<Index>::max()),
+			"Batch index exceeds Index storage type"
+		);
+
+		batch_.indices.emplace_back(batch_index);
+	}
+}
+
+void Renderer::EnsureBatchCanFit(
+	PipelineId pipeline, const MaterialState& material, const RenderState& state,
+	std::uint32_t vertex_size, bool has_texture_index_offset,
+	const PrimitiveRequirements& requirements
+) {
+	PTGN_ASSERT(pipeline, "Pipeline must be non-zero");
+
+	auto key_changed{ batch_.pipeline != pipeline || batch_.material != material ||
+					  batch_.state != state };
+
+	if (key_changed) {
+		FlushBatch();
+
+		batch_.pipeline = pipeline;
+		batch_.material = material;
+		batch_.state	= state;
+	}
+
+	auto& pipeline_object{ pipeline_manager_.GetPipeline(batch_.pipeline) };
+
+	PTGN_ASSERT(
+		pipeline_object.vertex_size == vertex_size,
+		"Submitted packet vertex size does not match pipeline vertex size"
+	);
+
+	PTGN_ASSERT(
+		requirements.vertex_count <= pipeline_object.vertex_capacity,
+		"Single primitive exceeds pipeline vertex batch capacity"
+	);
+
+	PTGN_ASSERT(
+		requirements.index_count <= pipeline_object.index_capacity,
+		"Single primitive exceeds pipeline index batch capacity"
+	);
+
+	if (requirements.texture.has_value()) {
+		PTGN_ASSERT(
+			has_texture_index_offset, "Textured primitive submitted without texture-index offset"
+		);
+	}
+
+	if (!CanFitInCurrentBatch(requirements)) {
+		FlushBatch();
+
+		batch_.pipeline = pipeline;
+		batch_.material = material;
+		batch_.state	= state;
+	}
+}
+
+bool Renderer::CanFitInCurrentBatch(const PrimitiveRequirements& requirements) const {
+	const auto& pipeline{ pipeline_manager_.GetPipeline(batch_.pipeline) };
+
+	if (GetCurrentVertexCount() + requirements.vertex_count > pipeline.vertex_capacity) {
+		return false;
+	}
+
+	if (batch_.indices.size() + requirements.index_count > pipeline.index_capacity) {
+		return false;
+	}
+
+	if (requirements.texture.has_value() && !HasBatchTexture(*requirements.texture)) {
+		if (GetBatchTextureCount() + 1 > GetMaxTextureSlots()) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void Renderer::SubmitRenderPacket(const RenderPacket& packet, const RenderState& state) {
+	for (auto primitive : packet.primitives) {
+		auto requirements{ PrimitiveRequirements{ .vertex_count = primitive.vertex_count,
+												  .index_count	= primitive.index_count,
+												  .texture		= primitive.texture } };
+
+		EnsureBatchCanFit(
+			packet.pipeline, packet.material, state, packet.vertex_size,
+			packet.texture_index_offset.has_value(), requirements
+		);
+
+		AppendPrimitiveToBatch(packet, primitive);
+	}
+}
+
+RenderTargetId Renderer::GetResourceTarget(const RenderGraph& graph, TargetNode target) const {
+	return graph.Resource(TextureNode{ target.id }).GetTarget();
+}
+
+std::uint32_t Renderer::AddBatchTexture(TextureId texture) {
+	auto it{ std::ranges::find_if(batch_.texture_bindings, [&](const auto& binding) {
+		return binding.kind == TextureBindingKind::BatchSamplerArray && binding.texture == texture;
+	}) };
+
+	if (it != batch_.texture_bindings.end()) {
+		return it->array_index;
+	}
+
+	auto batch_texture_count{ GetBatchTextureCount() };
+
+	PTGN_ASSERT(batch_texture_count < GetMaxTextureSlots(), "Exceeded maximum batch texture count");
+
+	auto array_index{ batch_texture_count };
+	auto texture_unit{ batch_texture_count };
+
+	batch_.texture_bindings.push_back(ResolvedTextureBinding{
+		.kind		  = TextureBindingKind::BatchSamplerArray,
+		.texture	  = texture,
+		.uniform_name = pipeline_manager_.GetPipeline(batch_.pipeline).batch_sampler_uniform,
+		.texture_unit = texture_unit,
+		.array_index  = array_index });
+
+	return array_index;
+}
+
+RenderTargetId Renderer::AcquirePooledTarget(V2_int size, TextureFormat format) {
+	++pool_tick_;
+
+	for (auto& target : rt_pool_) {
+		if (target.in_use) {
+			continue;
+		}
+		if (target.size == size && target.format == format) {
+			target.in_use		  = true;
+			target.last_used_tick = pool_tick_;
+			return target.target;
+		}
+	}
+
+	RenderTargetObject created{ CreateRenderTarget(size, format) };
+
+	RenderTargetId render_target_id{ created };
+
+	rt_pool_.emplace_back(PooledTarget{ .target			= std::move(created),
+										.size			= size,
+										.format			= format,
+										.last_used_tick = pool_tick_,
+										.in_use			= true });
+	return render_target_id;
+}
+
+void Renderer::ReleasePooledTarget(RenderTargetId render_target) {
+	++pool_tick_;
+
+	for (auto& e : rt_pool_) {
+		if (e.target.operator RenderTargetId() == render_target) {
+			e.in_use		 = false;
+			e.last_used_tick = pool_tick_;
+			TrimRenderTargetPool();
+			return;
+		}
+	}
+
+	PTGN_ERROR("Attempted to release a render target that is not in the pool");
+}
+
+void Renderer::TrimRenderTargetPool() {
+	while (rt_pool_.size() > max_pool_size_) {
+		auto victim = std::ranges::min_element(rt_pool_, {}, [](const PooledTarget& e) {
+			return e.in_use ? std::numeric_limits<std::uint64_t>::max() : e.last_used_tick;
+		});
+
+		if (victim == rt_pool_.end() || victim->in_use) {
+			return;
+		}
+
+		rt_pool_.erase(victim);
+	}
+}
+
 void Renderer::EndFrame() {
 	PTGN_ASSERT(display_viewport_.size.BothAboveZero());
 
@@ -982,24 +1073,41 @@ void Renderer::EndFrame() {
 	}
 
 	V2_float half_viewport{ display_viewport_.size * 0.5f };
-	SetViewport(display_viewport_);
 	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
-	SetViewProjection(view_projection);
-	SetBlendMode(BlendMode::ReplaceRGBA);
 
 	PTGN_ASSERT(
 		GetRenderTargetSize(screen_target_.resource_) == display_viewport_.size,
 		"Screen target texture size must match display viewport size"
 	);
-	auto texture_shader{ GetShader("texture") };
-	auto points{ GetCenteredQuadPoints(display_viewport_.size) };
-	auto tex_coords{ GetDefaultTextureCoordinates<true>() };
 
+	auto texture_shader{ GetShader("texture") };
 	auto screen_texture{ GetRenderTargetTexture(screen_target_.resource_) };
 
-	DrawTexture(texture_shader, screen_texture, points, 0.0f, color::White, tex_coords, {}, -1);
+	MaterialState material;
+	material.shader = texture_shader;
 
-	FlushBatch();
+	auto geometry{ MakeFullscreenTextureGeometry(display_viewport_.size, true) };
+
+	auto packet{ MakeTexturedRenderPacket<TextureVertex>(
+		Hash("texture"), material, geometry.vertices, geometry.indices, geometry.primitives
+	) };
+
+	RenderState state{ .framebuffer		= FramebufferId{},
+					   .viewport		= display_viewport_,
+					   .view_projection = view_projection,
+					   .blend_mode		= BlendMode::ReplaceRGBA,
+					   .depth_testing	= false,
+					   .scissor			= ScissorState{ false },
+					   .color_mask		= ColorMaskState{} };
+
+	std::array texture_bindings{ ResolvedTextureBinding{ .kind =
+															 TextureBindingKind::BatchSamplerArray,
+														 .texture	   = screen_texture,
+														 .uniform_name = "u_Textures",
+														 .texture_unit = 0,
+														 .array_index  = 0 } };
+
+	DrawPacketImmediate(packet, state, texture_bindings);
 }
 
 bool Renderer::IsPresentationViewportVisible() const {
@@ -1082,30 +1190,6 @@ void Renderer::SetUniform(ShaderId shader, const char* uniform_name, bool v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-ElementBufferObject Renderer::CreateElementBufferObject(std::uint32_t index_capacity) {
-	return ElementBufferObject{ this, gl_->buffers.CreateElementBuffer(
-										  nullptr, index_capacity, sizeof(Index),
-										  gl::BufferUsage::DynamicDraw
-									  ) };
-}
-
-VertexBufferObject Renderer::CreateVertexBufferObject(
-	std::uint32_t vertex_capacity, std::uint32_t vertex_size
-) {
-	return VertexBufferObject{ this, gl_->buffers.CreateVertexBuffer(
-										 nullptr, vertex_capacity, vertex_size,
-										 gl::BufferUsage::DynamicDraw
-									 ) };
-}
-
-VertexArrayObject Renderer::CreateVertexArrayObject(
-	VertexBufferId vertex_buffer, const BufferLayoutView& layout, ElementBufferId element_buffer
-) {
-	return VertexArrayObject{
-		this, gl_->vertex_arrays.CreateVertexArray(vertex_buffer, layout, element_buffer)
-	};
-}
-
 void Renderer::Destroy(VertexBufferId id) {
 	gl_->Destroy(id);
 }
@@ -1140,6 +1224,10 @@ void Renderer::Destroy(VertexArrayId id) {
 
 void Renderer::Destroy(RenderTargetId id) {
 	gl_->Destroy(id);
+}
+
+void Renderer::SetUniformValue(ShaderId id, const char* uniform_name, const UniformValue& v) {
+	std::visit([&]<typename T>(T&& s) { SetUniform(id, uniform_name, std::forward<T>(s)); }, v);
 };
 
 V2_int Renderer::GetTextureSize(TextureId texture) const {
@@ -1156,6 +1244,512 @@ void Renderer::ResizeRenderTarget(RenderTargetId render_target, V2_int new_size)
 
 std::size_t Renderer::GetMaxTextureSlots() const {
 	return gl_->GetMaxTextureSlots();
-};
+}
+
+void Renderer::Compile(RenderGraph& graph) {
+	auto lifetimes = ComputeResourceLifetimes(graph);
+
+	std::vector<RenderResourceId> transient_resources;
+
+	const auto& resources{ graph.Resources() };
+
+	transient_resources.reserve(resources.size());
+
+	// This skips imported resources like the real scene target or screen target.
+	// It also skips unused temporary resources.
+	for (RenderResourceId id{ 0 }; id < resources.size(); ++id) {
+		if (const auto& resource{ resources[id] }; !resource.IsTransient()) {
+			continue;
+		}
+		if (!lifetimes[id].used) {
+			continue;
+		}
+
+		transient_resources.push_back(id);
+	}
+
+	// This makes allocation happen in graph execution order. This matters because the compiler will
+	// reuse targets as soon as earlier resources are no longer needed.
+	std::ranges::sort(transient_resources, [&](RenderResourceId a, RenderResourceId b) {
+		return lifetimes[a].first_use < lifetimes[b].first_use;
+	});
+
+	// Physical render targets that are no longer used by any active logical resource and can be
+	// reused.
+	std::vector<PhysicalTransient> free_targets;
+	// Physical render targets currently assigned to logical resources that are still needed by
+	// future nodes.
+	std::vector<LiveTransient> live_targets;
+
+	// This function checks each live target.
+	// If its last_use is before the current node, the logical resource no longer needs that
+	// physical target. So it moves that physical target into free_targets.
+	auto expire_targets_before = [&](std::size_t node_index) {
+		std::erase_if(live_targets, [&](const LiveTransient& live) {
+			// This means a target cannot be reused on the exact same node where it is last used.
+			// If a node reads Bright and writes BlurX, Bright must stay valid for that whole node.
+			// So its target cannot be reused by BlurX in the same node. Only after that node
+			// finishes can Bright’s target be reused.
+			if (live.last_use < node_index) {
+				free_targets.push_back(live.physical);
+				return true;
+			}
+			return false;
+		});
+	};
+
+	// This tries to find a render target that is:
+	// same size, same texture format, currently free
+	// If it finds one, reuse it.
+	// If not, ask the renderer pool for a new physical render target.
+	auto acquire_physical = [&](const RenderResource& resource) {
+		if (auto compatible{ std::ranges::find_if(
+				free_targets, [&](const PhysicalTransient& p
+							  ) { return p.size == resource.size && p.format == resource.format; }
+			) };
+			compatible != free_targets.end()) {
+			PhysicalTransient result = *compatible;
+			free_targets.erase(compatible);
+			return result;
+		}
+
+		return PhysicalTransient{ .target = AcquirePooledTarget(resource.size, resource.format),
+								  .size	  = resource.size,
+								  .format = resource.format };
+	};
+
+	// For each logical transient resource:
+	// Free any targets whose resources are no longer needed.
+	// Reuse a free compatible target, or allocate one from the pool.
+	// Store that physical target inside the logical resource.
+	// Mark it live until its last_use.
+	for (RenderResourceId id : transient_resources) {
+		auto& resource		 = graph.Resources()[id];
+		const auto& lifetime = lifetimes[id];
+
+		expire_targets_before(lifetime.first_use);
+
+		PhysicalTransient physical = acquire_physical(resource);
+		resource.AssignTransientTarget(physical.target);
+
+		live_targets.push_back(LiveTransient{
+			.resource = id, .physical = physical, .last_use = lifetime.last_use });
+	}
+}
+
+std::vector<ResourceLifetime> Renderer::ComputeResourceLifetimes(const RenderGraph& graph) const {
+	std::vector<ResourceLifetime> lifetimes(graph.Resources().size());
+
+	// Every time a node reads or writes a resource, this updates the resource’s lifetime.
+	auto mark_use = [&](RenderResourceId id, std::size_t node_index) {
+		auto& lifetime	   = lifetimes[id];
+		lifetime.used	   = true;
+		lifetime.first_use = std::min(lifetime.first_use, node_index);
+		lifetime.last_use  = std::max(lifetime.last_use, node_index);
+	};
+
+	const auto& nodes = graph.Nodes();
+
+	// The graph nodes are assumed to be in execution order.
+	// So node index also means time/order.
+	for (std::size_t node_index = 0; node_index < nodes.size(); ++node_index) {
+		const auto& node = nodes[node_index];
+
+		// If a node samples a texture, that texture is in use at that node.
+		for (const auto& binding : node.texture_bindings) {
+			auto texture_node{ std::get_if<TextureNode>(&binding.source) };
+
+			if (texture_node == nullptr) {
+				continue;
+			}
+
+			mark_use(texture_node->id, node_index);
+		}
+
+		// If a node writes a target, that target is also used at that node.
+		if (node.output.has_value()) {
+			mark_use(node.output->id, node_index);
+		}
+	}
+
+	return lifetimes;
+}
+
+void Renderer::ReleaseCompiledTransients(RenderGraph& graph) {
+	std::vector<RenderTargetId> released;
+
+	for (auto& resource : graph.Resources()) {
+		if (!resource.IsTransient()) {
+			continue;
+		}
+
+		auto& transient = std::get<TransientRenderTargetResource>(resource.storage);
+
+		if (!transient.assigned_target.has_value()) {
+			continue;
+		}
+
+		if (auto target{ *transient.assigned_target }; !std::ranges::contains(released, target)) {
+			ReleasePooledTarget(target);
+			released.push_back(target);
+		}
+
+		transient.assigned_target = std::nullopt;
+	}
+}
+
+void Renderer::ExecuteNode(const RenderGraph& graph, const RenderNode& node) {
+	switch (node.type) {
+		case RenderNodeType::DrawLayer:		 ExecuteDrawLayerNode(graph, node); break;
+		case RenderNodeType::FullscreenPass: ExecuteFullscreenNode(graph, node); break;
+		case RenderNodeType::Clear:			 ExecuteClearNode(graph, node); break;
+		case RenderNodeType::Present:		 ExecuteFullscreenNode(graph, node); break;
+		default:							 PTGN_ERROR("Unsupported render node"); break;
+	}
+}
+
+void Renderer::ExecuteDrawLayerNode(const RenderGraph& graph, const RenderNode& node) {
+	PTGN_ASSERT(node.output.has_value(), "Render node must have output when executing draw layer");
+	auto target{ GetResourceTarget(graph, *node.output) };
+	const auto& resource{ graph.Resource(TextureNode{ node.output->id }) };
+
+	const auto& bound{ gl_->GetBoundState() };
+
+	auto viewport{ node.state.viewport.transform([&resource](auto& v) {
+		if (v.size.IsZero()) {
+			return Viewport{ {}, resource.size };
+		}
+		return v;
+	}) };
+
+	RenderState base{ .framebuffer{ target },
+					  .viewport{ viewport },
+					  .view_projection{ node.state.view_projection },
+					  .blend_mode{ bound.blend_mode },
+					  .depth_testing{ false },
+					  .depth_mask{ bound.depth_mask },
+					  .stencil{ bound.stencil },
+					  .raster{ bound.raster },
+					  .scissor{ bound.scissor },
+					  .color_mask{ bound.color_mask } };
+
+	for (const auto& packet : node.draw_packets) {
+		auto state{ ApplyDelta(base, packet.state_delta) };
+		SubmitRenderPacket(packet, state);
+	}
+
+	FlushBatch();
+}
+
+void Renderer::Execute(RenderGraph& graph) {
+	Compile(graph);
+
+	++graph_debug_frame_index_;
+	last_graph_snapshot_ = BuildDebugSnapshot(graph);
+
+	for (const auto& node : graph.Nodes()) {
+		ExecuteNode(graph, node);
+	}
+
+	FlushBatch();
+	ReleaseCompiledTransients(graph);
+}
+
+void Renderer::ApplyRenderStateToBackend(const RenderState& render_state) {
+	if (render_state.framebuffer.has_value()) {
+		auto _ = gl_->Bind(*render_state.framebuffer, false);
+	}
+	if (render_state.viewport.has_value()) {
+		gl_->SetViewport(*render_state.viewport);
+	}
+	if (render_state.blend_mode.has_value()) {
+		gl_->SetBlendMode(*render_state.blend_mode);
+	}
+	if (render_state.depth_testing.has_value()) {
+		gl_->SetDepthTesting(*render_state.depth_testing);
+	}
+	if (render_state.depth_mask.has_value()) {
+		gl_->SetDepthMask(*render_state.depth_mask);
+	}
+	if (render_state.view_projection.has_value()) {
+		view_projection_ = *render_state.view_projection;
+		if (auto shader{ gl_->GetBoundShader() }; shader.has_value() && *shader) {
+			gl_->shaders.SetUniform(*shader, "u_ViewProjection", view_projection_);
+		}
+	}
+	if (render_state.stencil.has_value()) {
+		gl_->SetStencil(*render_state.stencil);
+	}
+	if (render_state.raster.has_value()) {
+		gl_->SetRaster(*render_state.raster);
+	}
+	if (render_state.scissor.has_value()) {
+		gl_->SetScissor(*render_state.scissor);
+	}
+	if (render_state.color_mask.has_value()) {
+		gl_->SetColorMask(*render_state.color_mask);
+	}
+}
+
+void Renderer::UploadVertices(const RenderPipeline& pipeline, std::span<const std::byte> vertices) {
+	auto _0{ gl_->Bind(pipeline.vao, false) };
+	auto _{ gl_->Bind(pipeline.vbo, false) };
+
+	auto vertex_count{ static_cast<std::uint32_t>(vertices.size() / pipeline.vertex_size) };
+
+	gl_->buffers.SetBufferSubData<VertexBufferId>(
+		pipeline.vbo, gl::BufferTarget::ArrayBuffer, vertices.data(), 0, vertex_count,
+		pipeline.vertex_size
+	);
+}
+
+void Renderer::UploadIndices(const RenderPipeline& pipeline, std::span<const Index> indices) {
+	auto _0{ gl_->Bind(pipeline.vao, false) };
+	auto _{ gl_->Bind(pipeline.ebo, false) };
+
+	gl_->buffers.SetBufferSubData<ElementBufferId>(
+		pipeline.ebo, gl::BufferTarget::ElementArrayBuffer, indices.data(), 0,
+		static_cast<std::uint32_t>(indices.size()), sizeof(Index)
+	);
+}
+
+void Renderer::DrawElements(const RenderPipeline& pipeline, std::uint32_t index_count) {
+	auto _0{ gl_->Bind(pipeline.vao, false) };
+
+	gl_->vertex_arrays.DrawElements(
+		pipeline.vao, index_count, gl::IndexType::UnsignedInt, pipeline.primitive_mode
+	);
+}
+
+void Renderer::FlushBatch() {
+	if (batch_.indices.empty()) {
+		return;
+	}
+
+	PTGN_ASSERT(batch_.pipeline, "Batch must have a non-zero pipeline");
+
+	ApplyMaterial(batch_.material);
+	ApplyRenderStateToBackend(batch_.state);
+
+	pipeline_manager_.SetCurrentPipeline(batch_.pipeline);
+	const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
+
+	ApplyTextureBindings(batch_.material.shader, pipeline, batch_.texture_bindings);
+
+	UploadVertices(pipeline, batch_.vertices);
+	UploadIndices(pipeline, batch_.indices);
+
+	DrawElements(pipeline, static_cast<std::uint32_t>(batch_.indices.size()));
+
+	batch_.vertices.clear();
+	batch_.indices.clear();
+	batch_.texture_bindings.clear();
+}
+
+void Renderer::BindTextureUnit(TextureId texture, std::uint32_t texture_unit) {
+	gl_->SetActiveTextureSlot(texture_unit);
+	auto _3{ gl_->Bind(texture, false) };
+}
+
+void Renderer::ApplyTextureBindings(
+	ShaderId shader, const RenderPipeline& pipeline,
+	std::span<const ResolvedTextureBinding> bindings
+) {
+	std::vector<int> batch_texture_units;
+	std::string batch_sampler_uniform{ pipeline.batch_sampler_uniform };
+
+	auto max_texture_slots{ GetMaxTextureSlots() };
+
+	for (const auto& binding : bindings) {
+		PTGN_ASSERT(binding.texture != TextureId{}, "Cannot bind an empty texture");
+
+		PTGN_ASSERT(
+			binding.texture_unit < max_texture_slots, "Texture unit is outside backend limit"
+		);
+
+		BindTextureUnit(binding.texture, binding.texture_unit);
+
+		if (binding.kind == TextureBindingKind::NamedSampler) {
+			SetUniform(
+				shader, binding.uniform_name.c_str(), static_cast<int>(binding.texture_unit)
+			);
+			continue;
+		}
+
+		if (binding.kind == TextureBindingKind::BatchSamplerArray) {
+			if (!binding.uniform_name.empty()) {
+				batch_sampler_uniform = binding.uniform_name;
+			}
+
+			if (batch_texture_units.size() <= binding.array_index) {
+				batch_texture_units.resize(binding.array_index + 1);
+			}
+
+			batch_texture_units[binding.array_index] = static_cast<int>(binding.texture_unit);
+		}
+	}
+
+	if (!batch_texture_units.empty()) {
+		SetUniform(shader, batch_sampler_uniform.c_str(), batch_texture_units);
+	}
+}
+
+void Renderer::ApplyMaterialUniforms(const MaterialState& material) {
+	for (const auto& uniform : material.uniforms) {
+		SetUniformValue(material.shader, uniform.name.c_str(), uniform.value);
+	}
+}
+
+void Renderer::ApplyMaterial(const MaterialState& material) {
+	auto _ = gl_->Bind(material.shader, false);
+	gl_->shaders.SetUniform(material.shader, "u_ViewProjection", view_projection_);
+	ApplyMaterialUniforms(material);
+}
+
+static std::optional<RenderResourceId> TryGetResourceId(const TextureSource& source) {
+	return std::visit(
+		[]<typename T>(const T& value) -> std::optional<RenderResourceId> {
+			using U = std::remove_cvref_t<T>;
+
+			if constexpr (std::is_same_v<U, TextureNode>) {
+				return value.id;
+			} else if constexpr (std::is_same_v<U, TargetNode>) {
+				return value.id;
+			} else {
+				// Raw TextureId or other external texture source.
+				return std::nullopt;
+			}
+		},
+		source
+	);
+}
+
+static std::string GetResourceDebugName(
+	const DebugRenderGraphSnapshot& snapshot, RenderResourceId id
+) {
+	auto resource_it =
+		std::ranges::find_if(snapshot.resources, [&](const auto& r) { return r.id == id; });
+
+	if (resource_it != snapshot.resources.end()) {
+		return resource_it->name;
+	}
+
+	return "resource " + std::to_string(id);
+}
+
+void Renderer::BuildDebugEdges(DebugRenderGraphSnapshot& snapshot, const RenderGraph& graph) const {
+	const auto& nodes = graph.Nodes();
+
+	for (std::size_t to_index = 0; to_index < nodes.size(); ++to_index) {
+		const auto& to_node = nodes[to_index];
+
+		for (const auto& binding : to_node.texture_bindings) {
+			auto read_resource = TryGetResourceId(binding.source);
+
+			// Raw TextureId/external texture bindings do not represent graph edges.
+			if (!read_resource.has_value()) {
+				continue;
+			}
+
+			std::optional<RenderNodeId> producer;
+
+			for (std::size_t from_index = to_index; from_index > 0; --from_index) {
+				const auto& candidate = nodes[from_index - 1];
+
+				if (!candidate.output.has_value()) {
+					continue;
+				}
+
+				if (candidate.output->id == *read_resource) {
+					producer = candidate.id;
+					break;
+				}
+			}
+
+			if (!producer.has_value()) {
+				continue;
+			}
+
+			snapshot.edges.push_back(DebugRenderGraphEdge{
+				.from	  = *producer,
+				.to		  = to_node.id,
+				.resource = *read_resource,
+				.label	  = GetResourceDebugName(snapshot, *read_resource) });
+		}
+	}
+}
+
+DebugRenderGraphSnapshot Renderer::BuildDebugSnapshot(const RenderGraph& graph) const {
+	DebugRenderGraphSnapshot snapshot;
+	snapshot.valid		 = true;
+	snapshot.frame_index = graph_debug_frame_index_;
+
+	auto lifetimes = ComputeResourceLifetimes(graph);
+
+	snapshot.resources.reserve(graph.Resources().size());
+
+	for (RenderResourceId id = 0; id < graph.Resources().size(); ++id) {
+		const auto& resource = graph.Resources()[id];
+		const auto& lifetime = lifetimes[id];
+
+		DebugRenderResourceSnapshot out;
+		out.id		  = id;
+		out.name	  = resource.name;
+		out.size	  = resource.size;
+		out.format	  = resource.format;
+		out.imported  = resource.IsImported();
+		out.used	  = lifetime.used;
+		out.first_use = lifetime.used ? lifetime.first_use : 0;
+		out.last_use  = lifetime.used ? lifetime.last_use : 0;
+
+		if (auto imported = std::get_if<ImportedRenderTargetResource>(&resource.storage)) {
+			out.imported_target = imported->target;
+			out.physical_target = imported->target;
+		} else if (auto transient = std::get_if<TransientRenderTargetResource>(&resource.storage)) {
+			out.physical_target = transient->assigned_target;
+		}
+
+		snapshot.resources.push_back(std::move(out));
+	}
+
+	snapshot.nodes.reserve(graph.Nodes().size());
+
+	for (const auto& node : graph.Nodes()) {
+		DebugRenderNodeSnapshot out;
+		out.id	 = node.id;
+		out.type = node.type;
+		out.name = node.name;
+
+		out.has_output = node.output.has_value();
+		out.output	   = node.output.has_value() ? node.output->id : 0;
+
+		out.pipeline = node.pipeline;
+		out.shader	 = node.material.shader;
+
+		out.uniform_count	= node.material.uniforms.size();
+		out.draw_item_count = node.draw_packets.size();
+
+		out.state = node.state;
+
+		for (const auto& binding : node.texture_bindings) {
+			auto read_resource = TryGetResourceId(binding.source);
+
+			// The graph visualizer's edge/read display is graph-resource based.
+			// Raw TextureId bindings are not graph resources, so skip them here.
+			if (!read_resource.has_value()) {
+				continue;
+			}
+
+			out.reads.push_back(DebugTextureReadSnapshot{ .resource		= *read_resource,
+														  .uniform_name = binding.uniform_name });
+		}
+
+		snapshot.nodes.push_back(std::move(out));
+	}
+
+	BuildDebugEdges(snapshot, graph);
+
+	return snapshot;
+}
 
 } // namespace ptgn::impl

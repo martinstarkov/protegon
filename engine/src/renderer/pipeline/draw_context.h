@@ -27,6 +27,7 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/buffer_layout.h"
+#include "renderer/pipeline/render_packet.h"
 #include "renderer/pipeline/render_pass.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
@@ -44,94 +45,51 @@ class DebugContext;
 namespace impl {
 
 class Renderer;
-
-struct DrawCommandBase {
-	int entity_id{ -1 };
-};
-
-struct TriangleCommand : public DrawCommandBase {
-	TriangleCommand() = default;
-
-	TriangleCommand(
-		const std::array<V2_float, 3>& positions, Color color, std::optional<BlendMode> blend_mode,
-		int entity_id
-	) :
-		DrawCommandBase{ entity_id },
-		positions{ positions },
-		color{ color },
-		blend_mode{ blend_mode } {}
-
-	std::array<V2_float, 3> positions;
-	Color color{ color::White };
-	std::optional<BlendMode> blend_mode;
-};
-
-struct QuadCommand : public DrawCommandBase {
-	QuadCommand() = default;
-
-	QuadCommand(
-		impl::ShaderId shader, const std::array<V2_float, 4>& positions, Color color,
-		std::optional<BlendMode> blend_mode, int entity_id
-	) :
-		DrawCommandBase{ entity_id },
-		shader{ shader },
-		positions{ positions },
-		color{ color },
-		blend_mode{ blend_mode } {}
-
-	impl::ShaderId shader;
-	std::array<V2_float, 4> positions;
-	Color color{ color::White };
-	std::optional<BlendMode> blend_mode;
-};
-
-struct ShapeCommand : public QuadCommand {
-	ShapeCommand() = default;
-
-	ShapeCommand(
-		impl::ShaderId shader, const std::array<V2_float, 4>& positions, Color color,
-		const std::array<V2_float, 4>& tex_coords, const std::array<float, 4>& shape_data,
-		std::optional<BlendMode> blend_mode, int entity_id
-	) :
-		QuadCommand{ shader, positions, color, blend_mode, entity_id },
-		tex_coords{ tex_coords },
-		shape_data{ shape_data } {}
-
-	std::array<V2_float, 4> tex_coords;
-	std::array<float, 4> shape_data;
-};
-
-struct TextureCommand : public QuadCommand {
-	TextureCommand() = default;
-
-	TextureCommand(
-		impl::ShaderId shader, impl::TextureId texture, const std::array<V2_float, 4>& positions,
-		Color tint, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode> blend_mode,
-		int entity_id
-	) :
-		QuadCommand{ shader, positions, tint, blend_mode, entity_id },
-		texture{ texture },
-		tex_coords{ tex_coords } {}
-
-	impl::TextureId texture;
-	std::array<V2_float, 4> tex_coords;
-};
-
-using ManualCommand = std::variant<TriangleCommand, QuadCommand, ShapeCommand, TextureCommand>;
-
-struct ManualDrawCommand {
-	ManualCommand payload;
-	float depth{ 0.0f };
-};
-
-using DrawCommandType = std::variant<
-	impl::QuadCommand, impl::ShapeCommand, std::vector<impl::QuadCommand>,
-	std::vector<impl::TriangleCommand>>;
+class SceneGraphBuilder;
 
 } // namespace impl
 
+struct DrawOptions {
+	Origin origin{ Origin::Center };
+	Color tint{ color::White };
+	float depth{ 0.0f };
+	std::optional<BlendMode> blend_mode;
+	std::optional<std::array<V2_float, 4>> tex_coords;
+	// TODO: Add entity id.
+};
+
+struct ShapeDrawOptions {
+	Color color{ color::White };
+	FillStyle fill_style;
+	Origin origin{ Origin::Center };
+	float depth{ 0.0f };
+	std::optional<BlendMode> blend_mode;
+	// TODO: Add entity id.
+};
+
 class DrawContext {
 public:
+	void DrawTexture(
+		impl::TextureId texture, Transform transform, V2_float size, DrawOptions options = {}
+	);
+	void DrawShape(const Shape& shape, Transform transform, ShapeDrawOptions options = {});
+
+	// TODO: Fix.
+	// void DrawText(const impl::TextLayout& layout, Depth depth);
+
+	impl::SceneGraphBuilder& GetGraphBuilder();
+	const impl::SceneGraphBuilder& GetGraphBuilder() const;
+
+	template <typename F>
+	void WithState(impl::RenderState delta, F&& f) {
+		auto previous  = pending_state_;
+		pending_state_ = ApplyDelta(pending_state_, delta);
+		std::forward<F>(f)();
+		pending_state_ = previous;
+	}
+
+	// TODO: Fix.
+	/*
 	void Flush();
 
 	void DrawTriangle(
@@ -225,7 +183,16 @@ public:
 		renderer_.SetUniform(GetShaderId(shader), uniform_name, value);
 	}
 
+	*/
 private:
+	friend class impl::SceneGraphBuilder;
+
+	DrawContext(impl::Renderer& renderer, impl::SceneGraphBuilder& graph_builder);
+
+	void SubmitRenderPacket(impl::RenderPacket packet);
+
+	impl::RenderState pending_state_;
+	/*
 	friend class Scene;
 	friend class DebugContext;
 	friend class RenderContext;
@@ -309,6 +276,10 @@ private:
 	DrawContext() = delete;
 
 	impl::Renderer& renderer_;
+	*/
+
+	impl::Renderer& renderer_;
+	impl::SceneGraphBuilder& graph_builder_;
 };
 
 } // namespace ptgn
