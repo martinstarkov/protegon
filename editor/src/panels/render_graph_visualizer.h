@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_map>
+
 #include "core/editor_context.h"
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
@@ -14,15 +16,24 @@ namespace ptgn::editor {
 
 class RenderGraphVisualizer {
 public:
-	static void Draw(const impl::DebugRenderGraphSnapshot& snapshot, bool* open = nullptr);
+	void Draw(const impl::DebugRenderGraphSnapshot& snapshot, bool* open = nullptr);
 
-	static void DrawContents(const impl::DebugRenderGraphSnapshot& snapshot);
+	void DrawContents(const impl::DebugRenderGraphSnapshot& snapshot);
+
+	static float GetNodeHeight(const impl::DebugRenderNodeSnapshot& node);
 
 private:
 	struct NodeLayout {
 		V2_float min;
 		V2_float max;
 	};
+
+	std::unordered_map<impl::RenderNodeId, V2_float> node_positions_;
+	V2_float graph_pan_{ 0.0f, 0.0f };
+
+	void EnsureGraphLayout(const impl::DebugRenderGraphSnapshot& snapshot);
+	void AutoLayoutGraph(const impl::DebugRenderGraphSnapshot& snapshot, bool reset_existing);
+	void PruneMissingNodePositions(const impl::DebugRenderGraphSnapshot& snapshot);
 
 	static const impl::DebugRenderResourceSnapshot* FindResource(
 		const impl::DebugRenderGraphSnapshot& snapshot, impl::RenderResourceId id
@@ -36,14 +47,14 @@ private:
 
 	static void DrawResourceTable(const impl::DebugRenderGraphSnapshot& snapshot);
 
-	static void DrawGraphCanvas(const impl::DebugRenderGraphSnapshot& snapshot);
+	void DrawGraphCanvas(const impl::DebugRenderGraphSnapshot& snapshot);
 
-	static void DrawNode(
+	void DrawNode(
 		const impl::DebugRenderGraphSnapshot& snapshot, const impl::DebugRenderNodeSnapshot& node,
 		const NodeLayout& layout
 	);
 
-	static void DrawNodeTooltip(
+	void DrawNodeTooltip(
 		const impl::DebugRenderGraphSnapshot& snapshot, const impl::DebugRenderNodeSnapshot& node
 	);
 };

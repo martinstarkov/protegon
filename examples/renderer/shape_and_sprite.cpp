@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/arc.h"
@@ -34,11 +35,12 @@ struct ShapeAndSpriteScene : public Scene {
 		ctx().asset.Load("combo_meter_arc", "assets/combo_meter_arc.png");
 
 		V2_float combo_meter_pos{ V2_float{ 6, 6 } - game_size / 2.0f };
-		CreateText(*this, { 100, 0 }, "1", color::Black);
+		// TODO: Fix.
+		// CreateText(*this, { 100, 0 }, "1", color::Black);
 		auto arc_meter = CreateSprite(*this, "combo_meter_arc", combo_meter_pos, Origin::TopLeft);
 		arc			   = CreateArc(*this, {}, 17.0f, start_angle, end_angle, false, color::Red);
 		auto meter	   = CreateSprite(*this, "combo_meter", combo_meter_pos, Origin::TopLeft);
-		CreateText(*this, { 200, 0 }, "2", color::Black);
+		// CreateText(*this, { 200, 0 }, "2", color::Black);
 
 		float scale{ 4.0f };
 
@@ -63,5 +65,6 @@ struct ShapeAndSpriteScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "ShapeAndSpriteScene", game_size * 2.0f };
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<ShapeAndSpriteScene>();
 }
