@@ -31,6 +31,34 @@ enum class TextureFormat : std::uint32_t {
 	SRGB8_ALPHA8	  = 0x8C43	// GL_SRGB8_ALPHA8
 };
 
+[[nodiscard]] inline std::string_view ToString(TextureFormat format) {
+	switch (format) {
+		using enum TextureFormat;
+		case R8:				return "R8";
+		case RG8:				return "RG8";
+		case RGB8:				return "RGB8";
+		case RGBA8:				return "RGBA8";
+		case R16F:				return "R16F";
+		case RG16F:				return "RG16F";
+		case RGB16F:			return "RGB16F";
+		case RGBA16F:			return "RGBA16F";
+		case R32F:				return "R32F";
+		case RG32F:				return "RG32F";
+		case RGB32F:			return "RGB32F";
+		case RGBA32F:			return "RGBA32F";
+		case Depth16:			return "Depth16";
+		case Depth24:			return "Depth24";
+		case Depth32F:			return "Depth32F";
+		case Depth24_Stencil8:	return "Depth24_Stencil8";
+		case Depth32F_Stencil8: return "Depth32F_Stencil8";
+		case Stencil8:			return "Stencil8";
+		case SRGB8:				return "SRGB8";
+		case SRGB8_ALPHA8:		return "SRGB8_ALPHA8";
+	}
+
+	return "UnknownTextureFormat";
+}
+
 /// @brief Texture Minification Filter (GL_TEXTURE_MIN_FILTER)
 enum class TextureMinFilter : std::int32_t {
 	Nearest				 = 0x2600, // GL_NEAREST
