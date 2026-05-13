@@ -20,7 +20,7 @@ file(
   LIST_DIRECTORIES false
   "${PTGN_SHADER_DIR}/*.glsl")
 
-set(PTGN_FILES ${PTGN_SOURCES} ${PTGN_HEADERS} ${PTGN_SHADERS})
+set(PTGN_FILES ${PTGN_SOURCES} ${PTGN_HEADERS} ${PTGN_SHADERS} "${PTGN_SHADER_DIR}/manifest.json")
 
 add_library(protegon STATIC ${PTGN_FILES})
 
