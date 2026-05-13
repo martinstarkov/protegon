@@ -410,6 +410,8 @@ struct ParticleDrawInfo {
 	Origin origin{ Origin::Center };
 };
 
+// TODO: Fix.
+/*
 template <ShapeType T>
 static void DrawParticleShape(DrawContext& renderer, const T& shape, const ParticleDrawInfo& draw) {
 	if constexpr (std::is_same_v<T, Circle>) {
@@ -460,6 +462,7 @@ static void DrawParticleType(
 		static_assert(false, "Incomplete visitor");
 	}
 }
+*/
 
 void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
 	auto depth{ GetDepth(entity) };
@@ -480,7 +483,8 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
 
 		std::visit(
 			[&]<typename T>(const T& type) {
-				DrawParticleType(
+				// TODO: Fix.
+				/*DrawParticleType(
 					assets, renderer, type,
 					{ .transform  = transform,
 					  .size		  = particle.size,
@@ -488,7 +492,7 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
 					  .fill_style = emitter.config.particle_fill_style,
 					  .depth	  = depth,
 					  .blend_mode = blend_mode }
-				);
+				);*/
 			},
 			emitter.config.particle_type
 		);

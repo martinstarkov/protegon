@@ -37,10 +37,12 @@ void CustomShader::Draw(DrawContext& renderer, Entity entity) {
 	auto positions{ rect.GetWorldVertices(draw_transform, draw_origin) };
 	auto blend_mode{ GetBlendMode(entity) };
 
-	renderer.SetBlendMode(blend_mode);
-
 	auto entity_id{ entity.GetUUID() };
 	auto tex_coords{ GetTextureCoordinates(entity, false) };
+
+	// TODO: Fix.
+	/*
+	renderer.SetBlendMode(blend_mode);
 
 	if (entity.Has<Texture>()) {
 		auto texture{ entity.Get<Texture>() };
@@ -48,6 +50,7 @@ void CustomShader::Draw(DrawContext& renderer, Entity entity) {
 	} else {
 		renderer.DrawShader(shader, positions, depth, tint, tex_coords, setup, entity_id);
 	}
+	*/
 }
 
 void SetShaderSetup(CustomShader entity, const std::function<void(Entity, Shader)>& shader_setup) {

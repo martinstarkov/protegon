@@ -52,12 +52,13 @@ void Graphics::Draw(DrawContext& renderer, Entity entity) {
 	auto blend_mode{ GetBlendMode(entity) };
 	auto entity_id{ entity.GetUUID() };
 
-	for (const auto& cmd : instance.commands_) {
-		renderer.DrawShape(
-			cmd.shape, cmd.transform.RelativeTo(transform), depth, cmd.color, cmd.line_width,
-			Origin::Center, blend_mode, entity_id
-		);
-	}
+	// TODO: Fix.
+	// for (const auto& cmd : instance.commands_) {
+	//	renderer.DrawShape(
+	//		cmd.shape, cmd.transform.RelativeTo(transform), depth, cmd.color, cmd.line_width,
+	//		Origin::Center, blend_mode, entity_id
+	//	);
+	//}
 }
 
 Graphics& Graphics::Clear() {

@@ -75,7 +75,7 @@ Color RenderTarget::GetClearColor() const {
 }
 
 V2_float RenderTarget::GetScale() const {
-	const auto& renderer{ GetScene().ctx().renderer };
+	const auto& renderer{ GetScene().ctx().global_renderer_ };
 	V2_float game_size{ renderer.GetGameSize() };
 	PTGN_ASSERT(game_size.BothAboveZero(), "Game size cannot be negative or zero");
 	V2_float rt_size{ GetSize() };
@@ -121,8 +121,9 @@ void RenderTarget::Draw(DrawContext& renderer, Entity entity) {
 	auto texture{ entity.Get<impl::RenderTargetObject>().GetTextureId() };
 	auto entity_id{ entity.GetUUID() };
 
-	renderer.SetBlendMode(blend_mode);
-	renderer.DrawTexture(texture, positions, depth, tint, tex_coords, entity_id);
+	// TODO: Fix.
+	/*renderer.SetBlendMode(blend_mode);
+	renderer.DrawTexture(texture, positions, depth, tint, tex_coords, entity_id);*/
 }
 
 void RenderTarget::AddRenderTargetComponents(

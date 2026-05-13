@@ -12,6 +12,12 @@ namespace ptgn {
 class Scene;
 class RenderContext;
 
+namespace impl {
+
+class Renderer;
+
+} // namespace impl
+
 struct PresentationFrame {
 	/// @brief Center of the presentation viewport in window frame coordinates.
 	V2_float presentation_center;
@@ -60,11 +66,11 @@ public:
 
 	explicit FrameContext(const Scene& scene);
 	FrameContext(
-		const RenderContext& renderer, RenderTarget render_target, Transform camera_transform,
+		const impl::Renderer& renderer, RenderTarget render_target, Transform camera_transform,
 		Viewport camera_viewport
 	);
-	FrameContext(const RenderContext& renderer, RenderTarget render_target, SceneCamera cam);
-	FrameContext(const RenderContext& renderer, RenderTarget render_target, const Camera& cam);
+	FrameContext(const impl::Renderer& renderer, RenderTarget render_target, SceneCamera cam);
+	FrameContext(const impl::Renderer& renderer, RenderTarget render_target, const Camera& cam);
 
 	PresentationFrame presentation;
 	DisplayFrame display;

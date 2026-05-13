@@ -267,6 +267,8 @@ ButtonBase<Derived>::ButtonStyleTuple ButtonBase<Derived>::GetStyle(ButtonStyleS
 
 template <typename Derived>
 void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
+	// TODO: Fix.
+	/*
 	Button button{ entity };
 	Color entity_tint{ ptgn::GetTint(button) };
 
@@ -423,6 +425,7 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 
 		Text::Draw(renderer, *text, text_size, tint, button_origin, offset);
 	}
+	*/
 }
 
 template <typename Derived>

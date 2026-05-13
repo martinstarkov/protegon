@@ -63,10 +63,15 @@ void Sprite::Draw(
 	auto tex_coords{ GetTextureCoordinates(entity, false) };
 	auto blend_mode{ GetBlendMode(entity) };
 
-	renderer.DrawTexture(
-		texture, draw_transform, depth, *texture_size, draw_origin, final_tint, tex_coords,
-		blend_mode, entity.GetUUID()
-	);
+	DrawOptions draw_options;
+	draw_options.depth		= depth;
+	draw_options.blend_mode = blend_mode;
+	draw_options.origin		= draw_origin;
+	draw_options.tex_coords = tex_coords;
+	draw_options.tint		= final_tint;
+
+	// TODO: Add entity.GetUUID().
+	renderer.DrawTexture(texture, draw_transform, *texture_size, draw_options);
 }
 
 void Sprite::Draw(DrawContext& renderer, Entity entity) {

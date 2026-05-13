@@ -45,9 +45,10 @@ void DrawShape(DrawContext& renderer, Entity entity) {
 	auto blend_mode{ GetBlendMode(entity) };
 	auto entity_id{ entity.GetUUID() };
 
-	renderer.DrawShape(
-		shape, draw_transform, depth, tint, fill_style, draw_origin, blend_mode, entity_id
-	);
+	// TODO: Fix.
+	// renderer.DrawShape(
+	//	shape, draw_transform, depth, tint, fill_style, draw_origin, blend_mode, entity_id
+	//);
 }
 
 void CapsuleDraw::Draw(DrawContext& renderer, Entity entity) {

@@ -19,8 +19,13 @@
 namespace ptgn {
 
 class Scene;
-class RenderContext;
 class RenderTarget;
+
+namespace impl {
+
+class Renderer;
+
+} // namespace impl
 
 using LayerMask = std::uint64_t;
 
@@ -167,7 +172,7 @@ bool HasAllMasks(Entity entity, LayerMask test);
 
 namespace impl {
 
-void AddCameraComponents(SceneCamera camera, const RenderContext& renderer);
+void AddCameraComponents(SceneCamera camera, const Renderer& renderer);
 
 void RecalculateCameraViewProjection(SceneCamera camera);
 

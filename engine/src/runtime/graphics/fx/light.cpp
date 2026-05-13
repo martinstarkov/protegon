@@ -34,6 +34,8 @@ void Light::SetUniform(DrawContext& renderer, Entity entity) {
 	V3_float ambient_color{ ambient_light_n.xyz() };
 	constexpr V3_float light_attenuation{ 1.0f, 0.0f, 0.1f };
 
+	// TODO: Fix.
+	/*
 	auto light_shader{ renderer.GetShader("light") };
 
 	renderer.SetUniform(light_shader, "u_LightIntensity", light.intensity);
@@ -52,6 +54,7 @@ void Light::SetUniform(DrawContext& renderer, Entity entity) {
 	renderer.SetUniform(light_shader, "u_AmbientColor", ambient_color);
 	renderer.SetUniform(light_shader, "u_AmbientIntensity", light.ambient_intensity);
 	renderer.SetUniform(light_shader, "u_LightAttenuation", light_attenuation);
+	*/
 }
 
 void Light::Draw(DrawContext& renderer, Entity entity) {
@@ -70,18 +73,21 @@ void Light::Draw(DrawContext& renderer, Entity entity) {
 	auto positions{ circle.GetWorldQuadVertices(draw_transform) };
 	auto blend_mode{ GetBlendMode(entity) };
 
-	auto light_shader{ renderer.GetShader("light") };
-
 	auto shader_setup = [&renderer, entity]() {
 		SetUniform(renderer, entity);
 	};
 
 	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
 
+	// TODO: Fix.
+	/*
+	auto light_shader{ renderer.GetShader("light") };
+
 	renderer.SetBlendMode(blend_mode);
 	renderer.DrawShader(
 		light_shader, positions, depth, tint, tex_coords, shader_setup, entity.GetUUID()
 	);
+	*/
 }
 
 Light& Light::SetIntensity(float intensity) {

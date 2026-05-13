@@ -40,37 +40,7 @@ DebugContext::DebugContext(RenderContext& render_context) : render_context_{ ren
 //	FontOrKey font, const TextProperties& properties, Origin draw_origin,
 //	std::optional<V2_float> text_size, const std::optional<SceneCamera>& camera
 //) {
-//	auto texture_object{ render_context_.scene_.ctx().asset.CreateTextTextureObject(
-//		text_content, text_color, font_size, font, properties
-//	) };
-//
-//	if (!texture_object.has_value()) {
-//		return;
-//	}
-//
-//	auto texture_size{ texture_object->GetSize() };
-//
-//	auto texture_id{ texture_object->operator impl::TextureId() };
-//
-//	render_context_.temporary_textures_.emplace_back(std::move(*texture_object));
-//
-//	auto texture_shader{ render_context_.renderer_.GetShader("texture") };
-//
-//	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(
-//		camera.transform([](const auto& c) { return impl::RenderCamera{ c }; })
-//	) };
-//
-//	Rect rect{ text_size.value_or(texture_size) };
-//
-//	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
-//
-//	auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
-//
-//	impl::TextureCommand texture_command{ texture_shader, texture_id,		positions, color::White,
-//										  tex_coords,	  debug_blend_mode, -1 };
-//
-//	debug_commands.emplace_back(texture_command, debug_depth);
-//}
+// }
 
 void DebugContext::DrawShape(
 	const Shape& shape, Transform transform, Color color, FillStyle fill_style, Origin draw_origin,
@@ -86,45 +56,14 @@ void DebugContext::DrawShape(
 	const Shape& shape, Transform transform, Color color, FillStyle fill_style, Origin draw_origin,
 	const std::optional<impl::RenderCamera>& camera
 ) {
-	auto shape_draw_commands{ DrawContext::GetDrawCommand(
-		render_context_.renderer_, shape, transform, color, fill_style, draw_origin,
-		debug_blend_mode, -1
-	) };
-
-	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(camera) };
-
-	if (!shape_draw_commands.has_value()) {
-		return;
-	}
-
-	std::visit(
-		[&](const auto& cmd) { RenderContext::AddDrawCommand(debug_commands, cmd, debug_depth); },
-		*shape_draw_commands
-	);
+	// TODO: Fix.
 }
 
 void DebugContext::DrawLines(
 	const std::vector<V2_float>& points, Color color, float line_width, bool connect_last_to_first,
 	std::optional<Transform> transform, const std::optional<SceneCamera>& camera
 ) {
-	auto& debug_commands{ render_context_.GetDebugCommandsForCamera(
-		camera.transform([](const auto& c) { return impl::RenderCamera{ c }; })
-	) };
-
-	auto draw_commands{ DrawContext::GetDrawCommand(
-		render_context_.renderer_.GetShader("color"), points, line_width,
-		transform.value_or(Transform{}), color, debug_blend_mode, connect_last_to_first, -1
-	) };
-
-	if (!draw_commands.has_value()) {
-		return;
-	}
-
-	PTGN_ASSERT(std::holds_alternative<std::vector<impl::QuadCommand>>(*draw_commands));
-
-	const auto& line_draw_commands{ std::get<std::vector<impl::QuadCommand>>(*draw_commands) };
-
-	RenderContext::AddDrawCommand(debug_commands, line_draw_commands, debug_depth);
+	// TODO: Fix.
 }
 
 void DebugContext::DrawLine(
