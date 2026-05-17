@@ -57,7 +57,7 @@
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event_handler.h"
-#include "runtime/scene/scene_render_graph.h"
+#include "runtime/scene/scene_renderer.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/json.h"
@@ -154,24 +154,175 @@ bool Scene::IsAwaitingTransitionDelay() const {
 	return data_.transition && !data_.transition->IsStarted();
 }
 
-void Scene::InternalDraw() {
-	auto screen{ ctx().global_renderer_.GetScreenTarget() };
+static void InvokeDrawable(DrawContext& draw_context, Entity entity) {
+	PTGN_ASSERT(entity.Has<impl::IDrawable>(), "Cannot render entity without drawable component");
+	PTGN_ASSERT(entity.Has<impl::Visible>(), "Cannot render entity without visible component");
 
-	std::vector<Entity> scene_attached_effects;
-	std::vector<Entity> screen_effects;
+	const auto& drawable{ entity.Get<impl::IDrawable>() };
 
-	impl::RenderSceneWithGraph(
-		ctx().global_renderer_, *this, render_target_, render_target_.GetSize(),
-		render_target_.GetFormat(), screen, ctx().global_renderer_.GetRenderTargetSize(screen),
-		scene_attached_effects, screen_effects
+	const auto& drawable_functions{ impl::IDrawable::data() };
+
+	PTGN_ASSERT(drawable_functions.contains(drawable.hash), "Failed to identify drawable hash");
+
+	const auto& draw_function{ drawable_functions.find(drawable.hash)->second };
+
+	draw_function(draw_context, entity);
+}
+
+static void SortDrawCommands(std::vector<impl::DrawCommand>& draw_commands) {
+	std::ranges::stable_sort(
+		draw_commands,
+		[&](const impl::DrawCommand& a, const impl::DrawCommand& b) {
+			const bool a_is_entity = std::holds_alternative<Entity>(a.payload);
+			const bool b_is_entity = std::holds_alternative<Entity>(b.payload);
+
+			// If only one is an Entity, it comes first
+			if (a_is_entity != b_is_entity) {
+				return !a_is_entity; // false -> a comes first
+			}
+
+			// For consecutive entity draw commands with the same depth, we sort them by
+			// reverse creation order (logic explained below).
+			if (a_is_entity && b_is_entity && a.depth == b.depth) {
+				return !std::get<Entity>(a.payload).WasCreatedBefore(std::get<Entity>(b.payload));
+			}
+
+			// Sorting in reverse depth order so that we can iterate backwards and
+			// prioritize entities drawing before manual draw commands.
+			return a.depth >= b.depth;
+		}
 	);
+}
 
-	/*
+struct ClearedEntities {
+	std::vector<RenderTarget>& render_targets;
+	std::vector<std::size_t>& cameras;
+};
+
+template <
+	typename T, InvocableR<void, std::vector<T>&> F,
+	InvocableR<void, DrawContext&, const std::vector<T>&> D>
+static void DrawCommands(
+	std::vector<std::pair<impl::RenderCamera, std::vector<T>>>& commands, DrawContext& draw_context,
+	const RenderTarget& scene_render_target, ClearedEntities cleared, V2_int game_size,
+	F&& sort_func, D&& draw_func
+) {
+	PTGN_ASSERT((!VectorContainsDuplicates(commands, [](const auto& c1, const auto& c2) {
+		return c1.first == c2.first;
+	})));
+
+	std::ranges::stable_sort(commands, [&](const auto& a, const auto& b) {
+		// TODO: Incorporate creation order of cameras.
+		return a.first.depth < b.first.depth;
+	});
+
+	for (auto& [cam, cmds] : commands) {
+		RenderTarget render_target{ cam.render_target.value_or(scene_render_target) };
+
+		render_target.Bind();
+
+		if (bool clear_render_target{
+				!std::ranges::contains(cleared.render_targets, render_target) };
+			clear_render_target) {
+			render_target.Clear();
+			cleared.render_targets.emplace_back(render_target);
+		}
+
+		auto rt_size{ render_target.GetSize() };
+		V2_float scale{ V2_float{ rt_size } / game_size };
+
+		auto viewport{ cam.camera.viewport };
+		viewport.position = viewport.position * scale;
+		viewport.size	  = viewport.size * scale;
+		draw_context.SetViewport(viewport);
+		draw_context.SetViewProjection(cam.camera.view_projection);
+
+		if (bool clear_camera{ !std::ranges::contains(cleared.cameras, cam.uuid) }; clear_camera) {
+			if (cam.clear_color.has_value()) {
+				draw_context.SetScissor(ScissorState{ viewport });
+				render_target.Clear(*cam.clear_color, false);
+				draw_context.SetScissor(ScissorState{ false });
+				cleared.cameras.emplace_back(cam.uuid);
+			}
+		}
+
+		sort_func(cmds);
+
+		draw_func(draw_context, cmds);
+	}
+	commands.clear();
+}
+
+void Scene::InvokeEntityDrawCommands(
+	Scene& scene, const impl::RenderCamera& render_camera, const std::function<bool(Entity)>& filter
+) {
+	const auto& collision_debug{ scene.ctx().collision.GetDebugSettings() };
+
+	for (auto entity : scene.Entities()) {
+		bool visible{ entity.Has<impl::Visible, impl::IDrawable>() };
+
+		if (!collision_debug.draw_enabled && !visible) {
+			continue;
+		}
+
+		// Mask test (entity layers vs camera include/exclude).
+		if (filter(entity)) {
+			continue;
+		}
+
+		// Frustum culling.
+		/*if (!std::ranges::contains(frustum_objects, drawable)) {
+			continue;
+		}*/
+
+		if (visible) {
+			auto& draw_commands{ scene.ctx().renderer.GetDrawCommandsForCamera(render_camera) };
+			draw_commands.emplace_back(entity, GetDepth(entity));
+		}
+
+		if (collision_debug.draw_enabled && entity.Has<Collider>()) {
+			const auto& collider{ entity.Get<Collider>() };
+			auto transform{ GetDrawTransform(entity) };
+			auto draw_origin{ GetDrawOrigin(entity) };
+			scene.ctx().debug.DrawShape(
+				collider.shape, transform, collision_debug.draw_color,
+				collision_debug.draw_fill_style, draw_origin, render_camera
+			);
+		}
+	}
+}
+
+static void CombineDebugCommands(
+	std::vector<std::pair<impl::RenderCamera, std::vector<impl::ManualDrawCommand>>>&
+		debug_commands,
+	const impl::RenderCamera& camera
+) {
+	std::vector<impl::ManualDrawCommand> combined;
+
+	std::size_t total = 0;
+	for (auto& [_, cmds] : debug_commands) {
+		total += cmds.size();
+	}
+
+	combined.reserve(total);
+
+	for (auto& [_, cmds] : debug_commands) {
+		combined.insert(
+			combined.end(), std::make_move_iterator(cmds.begin()),
+			std::make_move_iterator(cmds.end())
+		);
+	}
+
+	debug_commands.clear();
+	debug_commands.emplace_back(camera, std::move(combined));
+}
+
+void Scene::InternalDraw() {
 	// TODO: Move this logic elsewhere.
 
-	auto game_size{ ctx().global_renderer_.GetGameSize() };
+	auto game_size{ ctx().renderer.GetGameSize() };
 
-	const auto& primary_world_camera{ ctx().global_renderer_.GetPrimaryWorldCamera() };
+	const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
 
 	impl::RenderCamera render_camera;
 
@@ -231,7 +382,7 @@ void Scene::InternalDraw() {
 		ctx().renderer.debug_commands_, draw_context, render_target_,
 		{ cleared_render_targets, cleared_cameras }, game_size,
 		[](auto&) {
-			// No-op, debug commands are not sorted by depth
+			/* No-op, debug commands are not sorted by depth */
 		},
 		[](auto& draw_context, const auto& cmds) {
 			for (const auto& draw_cmd : cmds) {
@@ -271,7 +422,6 @@ void Scene::InternalDraw() {
 
 	// Must be cleared after BindScreenTarget, as that flushes the batch.
 	ctx().renderer.temporary_textures_.clear();
-	*/
 }
 
 void Scene::InternalUpdate() {

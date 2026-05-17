@@ -18,7 +18,7 @@
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scene/scene_view.h"
 #include "serialization/json/archiver.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 

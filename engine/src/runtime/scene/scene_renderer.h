@@ -11,7 +11,7 @@
 #include "core/util/string.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
-#include "renderer/pipeline/render_packet.h"
+
 #include "renderer/pipeline/render_state.h"
 
 #include "renderer/resources/id.h"

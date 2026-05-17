@@ -10,6 +10,9 @@
 
 namespace ptgn::impl {
 
+RenderTargetObject::RenderTargetObject(Renderer* renderer, const RenderTargetDesc& desc) :
+	Base{ renderer, renderer->CreateRenderTarget(desc) } {}
+
 void RenderTargetObject::Resize(V2_int new_size) {
 	PTGN_ASSERT(renderer_ && *this);
 	renderer_->ResizeRenderTarget(resource_, new_size);

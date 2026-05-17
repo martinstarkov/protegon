@@ -1,20 +1,25 @@
 #pragma once
 
 #include <cstdint>
-#include <limits>
+#include <vector>
 
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
-
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 #include "renderer/resources/texture_format.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 class Renderer;
+
+struct RenderTargetDesc {
+	V2_int size;
+	TextureFormat format{ TextureFormat::RGBA8 };
+	TextureParameters params;
+
+	bool operator==(const RenderTargetDesc&) const = default;
+};
 
 class RenderTargetObject : public Resource<RenderTargetId> {
 public:
@@ -36,7 +41,7 @@ private:
 	friend class Renderer;
 
 	RenderTargetObject() = default;
-	RenderTargetObject(Renderer* renderer, V2_int size, TextureFormat format);
+	RenderTargetObject(Renderer* renderer, const RenderTargetDesc& desc);
 };
 
 struct PooledRenderTarget {
@@ -45,6 +50,12 @@ struct PooledRenderTarget {
 	bool in_use{ false };
 };
 
-} // namespace impl
+class RenderTargetPool {
+public:
+private:
+	std::vector<PooledRenderTarget> rt_pool_;
+	std::uint64_t pool_tick_{ 0 };
+	std::size_t max_pool_size_{ 32 };
+};
 
-} // namespace ptgn
+} // namespace ptgn::impl

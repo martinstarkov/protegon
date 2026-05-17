@@ -31,18 +31,10 @@ namespace ptgn {
 
 class Scene;
 class SceneContext;
-class RenderContext;
-class DebugContext;
 
 namespace impl {
 
 class Renderer;
-
-// TODO: Fix.
-// struct DrawCommand {
-//	std::variant<Entity, ManualCommand> payload;
-//	float depth{ 0.0f };
-// };
 
 } // namespace impl
 
@@ -186,8 +178,6 @@ public:
 private:
 	friend class Scene;
 	friend class SceneContext;
-
-	// friend class DebugContext;
 
 	RenderContext() = delete;
 	RenderContext(Scene& scene, impl::Renderer& renderer);

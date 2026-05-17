@@ -1,4 +1,4 @@
-#include "runtime/scene/scene_render_graph.h"
+#include "runtime/scene/scene_renderer.h"
 
 #include <compare>
 #include <functional>

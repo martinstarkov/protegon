@@ -1,36 +1,7 @@
 #include "runtime/graphics/render_context.h"
 
-#include <array>
-#include <optional>
-#include <string_view>
-#include <utility>
-#include <variant>
-#include <vector>
-
-#include "core/assert.h"
-#include "core/graphics/color.h"
-#include "core/graphics/fill_style.h"
-#include "core/math/geometry/line.h"
-#include "core/math/geometry/origin.h"
-#include "core/math/geometry/rect.h"
-#include "core/math/geometry/shape.h"
-#include "core/math/transform.h"
-#include "core/math/vector2.h"
-#include "renderer/pipeline/blend_mode.h"
-#include "renderer/pipeline/camera.h"
-#include "renderer/pipeline/draw_context.h"
-#include "renderer/pipeline/scaling_mode.h"
-#include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
-#include "renderer/resources/id.h"
-#include "renderer/resources/shader.h"
-#include "renderer/resources/texture.h"
-#include "renderer/vertex/vertex.h"
-#include "runtime/asset/asset_manager.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_camera.h"
-#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
