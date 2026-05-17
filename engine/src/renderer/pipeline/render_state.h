@@ -160,7 +160,6 @@ struct MaterialState {
 };
 
 struct RenderState {
-	std::optional<FramebufferId> framebuffer;
 	std::optional<Viewport> viewport;
 	std::optional<Matrix4> view_projection;
 
@@ -179,9 +178,6 @@ struct RenderState {
 } // namespace impl
 
 inline impl::RenderState ApplyDelta(impl::RenderState base, const impl::RenderState& delta) {
-	if (delta.framebuffer.has_value()) {
-		base.framebuffer = *delta.framebuffer;
-	}
 	if (delta.view_projection.has_value()) {
 		base.view_projection = *delta.view_projection;
 	}

@@ -9,7 +9,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/draw_context.h"
-#include "renderer/pipeline/render_pass.h"
+
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport_event.h"
 #include "renderer/renderer.h"

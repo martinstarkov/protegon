@@ -17,9 +17,7 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/vertex_array.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 RenderPipelineManager::RenderPipelineManager(Renderer& renderer) : renderer_{ renderer } {}
 
@@ -77,6 +75,4 @@ RenderPipeline& RenderPipelineManager::GetPipeline(std::size_t id) {
 	return it->second;
 }
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

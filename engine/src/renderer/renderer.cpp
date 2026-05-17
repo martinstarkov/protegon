@@ -42,14 +42,14 @@
 #include "renderer/pipeline/primitive_mode.h"
 #include "renderer/pipeline/render_batch.h"
 #include "renderer/pipeline/render_packet.h"
-#include "renderer/pipeline/render_pass.h"
+
 #include "renderer/pipeline/render_pipeline.h"
-#include "renderer/pipeline/render_resource.h"
+
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
-#include "renderer/render_graph.h"
+
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 #include "renderer/resources/shader.h"

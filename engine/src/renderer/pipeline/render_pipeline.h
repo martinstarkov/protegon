@@ -13,9 +13,7 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/vertex_array.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 class Renderer;
 
@@ -30,7 +28,6 @@ struct RenderPipeline {
 	std::uint32_t vertex_capacity{ 0 };
 	std::uint32_t index_capacity{ 0 };
 
-	std::string batch_sampler_uniform{ "u_Textures" };
 	PrimitiveMode primitive_mode{ PrimitiveMode::Triangles };
 };
 
@@ -52,7 +49,7 @@ public:
 	template <VertexType T>
 	void AddPipeline(
 		std::string_view name, std::uint32_t vertex_capacity, std::uint32_t index_capacity,
-		PrimitiveMode primitive_mode, std::string_view batch_sampler_uniform = "u_Textures"
+		PrimitiveMode primitive_mode
 	) {
 		std::uint32_t vertex_size{ sizeof(typename T::VertexType) };
 
@@ -60,14 +57,13 @@ public:
 		auto vbo{ CreateVertexBufferObject(vertex_capacity, vertex_size) };
 		auto vao{ CreateVertexArrayObject(vbo, T::GetLayoutView(), ebo) };
 
-		RenderPipeline pipeline{ .ebo					= std::move(ebo),
-								 .vbo					= std::move(vbo),
-								 .vao					= std::move(vao),
-								 .vertex_size			= vertex_size,
-								 .vertex_capacity		= vertex_capacity,
-								 .index_capacity		= index_capacity,
-								 .batch_sampler_uniform = std::string{ batch_sampler_uniform },
-								 .primitive_mode		= primitive_mode };
+		RenderPipeline pipeline{ .ebo			  = std::move(ebo),
+								 .vbo			  = std::move(vbo),
+								 .vao			  = std::move(vao),
+								 .vertex_size	  = vertex_size,
+								 .vertex_capacity = vertex_capacity,
+								 .index_capacity  = index_capacity,
+								 .primitive_mode  = primitive_mode };
 
 		pipelines_.emplace_back(Hash(name), std::move(pipeline));
 	}
@@ -92,6 +88,4 @@ private:
 	std::vector<std::pair<PipelineId, RenderPipeline>> pipelines_;
 };
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

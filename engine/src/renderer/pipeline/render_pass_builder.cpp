@@ -1,20 +1,8 @@
 #include "renderer/pipeline/render_pass_builder.h"
 
-#include <string>
-#include <string_view>
-#include <utility>
-
-#include "core/util/hash.h"
-#include "render_state.h"
-#include "renderer/pipeline/blend_mode.h"
-#include "renderer/pipeline/render_resource.h"
-#include "renderer/render_graph.h"
-#include "renderer/renderer.h"
-#include "renderer/resources/id.h"
-#include "renderer/resources/resource.h"
-
 namespace ptgn {
 
+/*
 PassBuilder::PassBuilder(
 	impl::Renderer& renderer, impl::RenderGraph& graph, std::string name,
 	impl::TargetNode scene_target
@@ -42,5 +30,6 @@ PassBuilder& PassBuilder::Shader(std::string_view name) {
 	node_.material.shader = renderer_.GetShader(name);
 	return *this;
 }
+*/
 
 } // namespace ptgn

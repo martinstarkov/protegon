@@ -17,9 +17,9 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
-#include "renderer/pipeline/render_resource.h"
+
 #include "renderer/pipeline/render_state.h"
-#include "renderer/render_graph.h"
+
 #include "renderer/render_graph_builder.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"

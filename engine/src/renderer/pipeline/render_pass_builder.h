@@ -1,22 +1,8 @@
 #pragma once
 
-#include <optional>
-#include <string>
-#include <string_view>
-#include <utility>
-#include <variant>
-#include <vector>
-
-#include "core/assert.h"
-#include "core/graphics/color.h"
-#include "renderer/pipeline/blend_mode.h"
-#include "renderer/pipeline/render_resource.h"
-#include "renderer/pipeline/render_state.h"
-#include "renderer/render_graph.h"
-#include "renderer/resources/id.h"
-#include "renderer/resources/shader.h"
-
 namespace ptgn {
+
+/*
 
 namespace impl {
 
@@ -179,5 +165,6 @@ private:
 
 	bool finalized_{ false };
 };
+*/
 
 } // namespace ptgn

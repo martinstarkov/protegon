@@ -28,7 +28,6 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/render_packet.h"
-#include "renderer/pipeline/render_pass.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
@@ -69,6 +68,84 @@ struct ShapeDrawOptions {
 
 class DrawContext {
 public:
+	explicit DrawContext(impl::Renderer& renderer) : renderer_{ renderer } {}
+
+	impl::TextureRef BoundTarget() const {
+		return renderer_.BoundTarget();
+	}
+
+	template <
+		impl::VertexType TVertex,
+		typename TAccessor = impl::Renderer::DefaultTextureIndexAccessor<TVertex>>
+	void DrawTexturedGeometry(
+		std::string_view pipeline_name, const impl::MaterialState& material,
+		std::span<const TVertex> vertices, std::span<const std::uint32_t> local_indices,
+		std::span<const impl::TextureId> local_textures = {}, impl::RenderState render_state = {},
+		TAccessor texture_index = {}
+	) {
+		renderer_.DrawTexturedGeometry<TVertex>(
+			pipeline_name, material, vertices, local_indices, local_textures, render_state,
+			texture_index
+		);
+	}
+
+	void DrawTexture(
+		const impl::MaterialState& material, impl::TextureRef texture,
+		const std::array<V2_float, 4>& positions, float depth, Color tint,
+		const std::array<V2_float, 4>& tex_coords, const impl::DrawTextureOptions& options = {},
+		int entity_id = -1
+	) {
+		renderer_.DrawTexture(
+			material, texture, positions, depth, tint, tex_coords, options, entity_id
+		);
+	}
+
+	void Release(impl::TextureRef texture) {
+		renderer_.Release(texture);
+	}
+
+	class PassBuilder {
+	public:
+		explicit PassBuilder(impl::Renderer& renderer) : renderer_{ renderer } {}
+
+		PassBuilder& Read(impl::TextureRef input) {
+			input_ = input;
+			return *this;
+		}
+
+		PassBuilder& Output(impl::RenderTargetDesc desc) {
+			output_ = desc;
+			return *this;
+		}
+
+		PassBuilder& ExtraTexture(std::string name, impl::TextureRef texture) {
+			options_.extra_textures.push_back(impl::TextureBinding{
+				.name	 = std::move(name),
+				.texture = texture,
+			});
+			return *this;
+		}
+
+		PassBuilder& RenderState(const impl::RenderState& state) {
+			options_.render_state = state;
+			return *this;
+		}
+
+		impl::TextureRef Draw(const impl::MaterialState& material) {
+			return renderer_.DrawPassToTransient(material, input_, output_, options_);
+		}
+
+	private:
+		impl::Renderer& renderer_;
+		impl::TextureRef input_ = impl::TextureRef::BoundTarget();
+		impl::RenderTargetDesc output_{};
+		impl::PassDrawOptions options_{};
+	};
+
+	PassBuilder Pass() {
+		return PassBuilder{ renderer_ };
+	}
+
 	void DrawTexture(
 		impl::TextureId texture, Transform transform, V2_float size, DrawOptions options = {}
 	);
