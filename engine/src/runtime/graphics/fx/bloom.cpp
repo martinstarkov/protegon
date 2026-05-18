@@ -3,10 +3,11 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_pass_builder.h"
-#include "renderer/render_graph_builder.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn {
+
+/*
 
 void BloomEffect::Apply(RenderGraphBuilder& g, Entity effect) {
 	const auto& bloom = effect.Get<BloomEffect>();
@@ -47,5 +48,7 @@ void BloomEffect::Apply(RenderGraphBuilder& g, Entity effect) {
 		.BlendMode(BlendMode::AddRGB)
 		.WriteScene();
 }
+
+*/
 
 } // namespace ptgn

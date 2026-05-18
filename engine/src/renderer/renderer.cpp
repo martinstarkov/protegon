@@ -2,6 +2,7 @@
 #include "renderer/renderer.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -11,6 +12,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -35,8 +37,10 @@
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/primitive_mode.h"
-#include "renderer/pipeline/render_batch.h"
+#include "renderer/pipeline/render_batcher.h"
+#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
@@ -55,6 +59,8 @@ Renderer::Renderer(Window& window, EventSink&& event_sink) :
 	window_{ window },
 	event_sink_{ std::move(event_sink) },
 	gl_{ std::make_unique<gl::GLContext>() },
+	batcher_{ *this },
+	target_pool_{ *this },
 	pipeline_manager_{ *this } {
 	pipeline_manager_.AddPipeline<TextureVertex>(
 		"texture", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles
@@ -65,9 +71,7 @@ Renderer::Renderer(Window& window, EventSink&& event_sink) :
 	pipeline_manager_.AddPipeline<ColorVertex>(
 		"color", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles
 	);
-	pipeline_manager_.AddPipeline<TextureVertex>(
-		"text", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles
-	);
+
 	SetCurrentPipeline("texture");
 
 	game_size_ = GetFullViewportSize();
@@ -114,6 +118,36 @@ Renderer::Renderer(Window& window, EventSink&& event_sink) :
 Renderer::~Renderer() noexcept {
 	// Guarantees that a vertex array object is bound before destroying any buffers.
 	auto _{ gl_->Bind(VertexArrayId{ 0 }, false) };
+}
+
+void Renderer::BeginScene(RenderTargetObject& scene_target, Color clear_color) {
+	FlushBatch();
+
+	scene_target.Bind();
+	SetViewport({ .position{}, .size = scene_target.GetSize() });
+	scene_target.Clear(clear_color, false);
+
+	current_target_is_transient_ = false;
+}
+
+void Renderer::EndScene() {
+	FlushBatch();
+}
+
+void Renderer::FlushBatch() {
+	batcher_.Flush();
+}
+
+RenderTargetPool& Renderer::GetTargetPool() {
+	return target_pool_;
+}
+
+RenderPipeline& Renderer::GetPipeline(PipelineId id) {
+	return pipeline_manager_.GetPipeline(id);
+}
+
+const RenderPipeline& Renderer::GetPipeline(PipelineId id) const {
+	return pipeline_manager_.GetPipeline(id);
 }
 
 RenderTargetObject Renderer::CreateRenderTarget(const RenderTargetDesc& desc) {
@@ -564,23 +598,20 @@ void Renderer::InvalidateState() {
 void Renderer::BeginFrame() {
 	InvalidateState();
 
-	// TODO: Fix.
-	// PTGN_ASSERT(batch_.vertices.empty());
-	// PTGN_ASSERT(batch_.indices.empty());
+	current_target_is_transient_ = false;
 
 	if (!presentation_viewport_.has_value()) {
 		auto presentation{ GetPresentationViewport() };
 		Color window_background_color{ window_.GetBackgroundColor() };
 
-		auto _1 = gl_->Bind(FramebufferId{ 0 }, false);
+		auto _ = gl_->Bind(FramebufferId{ 0 }, false);
 		gl_->SetClearColor(window_background_color);
 		SetViewport(presentation);
 		gl_->framebuffers.Clear();
 	}
 
-	BindScreenTarget();
-	SetViewport({ .position{}, .size{ screen_target_.GetSize() } });
-	gl_->framebuffers.ClearToColor(FramebufferId{ screen_target_.resource_ }, background_color_);
+	screen_target_.Bind();
+	screen_target_.Clear(background_color_, false);
 }
 
 void Renderer::EndFrame() {
@@ -588,30 +619,44 @@ void Renderer::EndFrame() {
 
 	FlushBatch();
 
-	SetFramebuffer({});
+	SetFramebuffer(FramebufferId{ 0 });
 
 	if (presentation_viewport_.has_value()) {
 		return;
 	}
 
 	V2_float half_viewport{ display_viewport_.size * 0.5f };
+
 	SetViewport(display_viewport_);
-	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
-	SetViewProjection(view_projection);
+	SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
 	SetBlendMode(BlendMode::ReplaceRGBA);
 
 	PTGN_ASSERT(
-		GetRenderTargetSize(screen_target_.resource_) == display_viewport_.size,
+		screen_target_.GetSize() == display_viewport_.size,
 		"Screen target texture size must match display viewport size"
 	);
-	auto texture_shader{ GetShader("texture") };
-	auto points{ GetCenteredQuadPoints(display_viewport_.size) };
-	auto tex_coords{ GetDefaultTextureCoordinates<true>() };
 
-	auto screen_texture{ GetRenderTargetTexture(screen_target_.resource_) };
+	const auto texture_shader{ GetShader("texture") };
+	const auto points{ GetCenteredQuadPoints(display_viewport_.size) };
+	const auto tex_coords{ GetDefaultTextureCoordinates<true>() };
+	const auto color_n{ color::White };
 
-	// TODO: Fix.
-	// DrawTexture(texture_shader, screen_texture, points, 0.0f, color::White, tex_coords, {}, -1);
+	const TextureId screen_texture{ screen_target_.GetTextureId() };
+
+	SetCurrentPipeline("texture");
+	SetMaterial(MaterialState{
+		.shader	  = texture_shader,
+		.uniforms = {},
+	});
+	gl_->SetBlendMode(BlendMode::ReplaceRGBA);
+
+	// Important: current_target_ cannot be screen_target_ here, because we are drawing
+	// screen_target_'s texture to the default framebuffer. If your new batching path
+	// requires a RenderTargetObject& target, use DrawImmediateTexturedQuad() instead,
+	// or support a ScreenTarget/default-framebuffer target in the batcher.
+	DrawImmediateTexturedQuad(
+		TextureSource{ screen_texture }, points, 0.0f, color_n, tex_coords, {}
+	);
 
 	FlushBatch();
 }
@@ -782,16 +827,419 @@ void Renderer::DrawElements(const RenderPipeline& pipeline, std::uint32_t index_
 	);
 }
 
-void Renderer::FlushBatch() {
-	// TODO: Implement.
+void Renderer::ApplyRenderTarget(FramebufferId id) {
+	auto _ = gl_->Bind(id, false);
+}
+
+void Renderer::SetMaterial(const MaterialState& material) {
+	SetShader(material.shader);
+
+	if (current_uniforms_ == material.uniforms) {
+		return;
+	}
+	FlushBatch();
+	current_uniforms_ = material.uniforms;
+}
+
+void Renderer::ApplyRenderState(const RenderState& state) {
+	if (state.blend_mode.has_value()) {
+		gl_->SetBlendMode(*state.blend_mode);
+	}
+	if (state.color_mask.has_value()) {
+		gl_->SetColorMask(*state.color_mask);
+	}
+	if (state.depth_mask.has_value()) {
+		gl_->SetDepthMask(*state.depth_mask);
+	}
+	if (state.depth_testing.has_value()) {
+		gl_->SetDepthTesting(*state.depth_testing);
+	}
+	if (state.raster.has_value()) {
+		gl_->SetRaster(*state.raster);
+	}
+	if (state.scissor.has_value()) {
+		gl_->SetScissor(*state.scissor);
+	}
+	if (state.stencil.has_value()) {
+		gl_->SetStencil(*state.stencil);
+	}
+	if (state.viewport.has_value()) {
+		gl_->SetViewport(*state.viewport);
+	}
+	if (state.view_projection.has_value()) {
+		view_projection_ = *state.view_projection;
+		if (auto shader{ gl_->GetBoundShader() }; shader.has_value() && *shader) {
+			gl_->shaders.SetUniform(*shader, "u_ViewProjection", view_projection_);
+		}
+	}
 }
 
 void Renderer::ApplyMaterial(const MaterialState& material) {
 	auto _ = gl_->Bind(material.shader, false);
-	gl_->shaders.SetUniform(material.shader, "u_ViewProjection", view_projection_);
-	for (const auto& uniform : material.uniforms) {
-		SetUniformValue(material.shader, uniform.name.c_str(), uniform.value);
+
+	SetUniform(material.shader, "u_ViewProjection", view_projection_);
+
+	for (const UniformWrite& write : material.uniforms) {
+		std::visit(
+			[&]<typename T>(const T& value) {
+				SetUniform(material.shader, write.name.c_str(), value);
+			},
+			write.value
+		);
 	}
+}
+
+void Renderer::DrawTexture(
+	const MaterialState& material, TextureSource texture, const std::array<V2_float, 4>& positions,
+	float depth, Color tint, const std::array<V2_float, 4>& tex_coords, const EffectParams& effects,
+	std::span<const TextureBinding> extra_textures, int entity_id
+) {
+	SetCurrentPipeline("texture");
+	SetMaterial(material);
+
+	if (effects.draw_callback) {
+		DrawTextureWithEffects(texture, positions, depth, tint, tex_coords, effects, entity_id);
+		return;
+	}
+
+	if (std::holds_alternative<BoundTarget>(texture)) {
+		DrawBoundTargetEffect(positions, depth, tint, tex_coords, extra_textures);
+		return;
+	}
+
+	if (!extra_textures.empty()) {
+		DrawImmediateTexturedQuad(texture, positions, depth, tint, tex_coords, extra_textures);
+		return;
+	}
+
+	const TextureId texture_id = ResolveTexture(texture);
+
+	const auto color_n = tint.Normalized();
+
+	const RenderQuad<TextureVertex> quad{
+		TextureVertex{ positions[0], depth, color_n, tex_coords[0], 0.0f, entity_id },
+		TextureVertex{ positions[1], depth, color_n, tex_coords[1], 0.0f, entity_id },
+		TextureVertex{ positions[2], depth, color_n, tex_coords[2], 0.0f, entity_id },
+		TextureVertex{ positions[3], depth, color_n, tex_coords[3], 0.0f, entity_id },
+	};
+
+	const std::array<TextureId, 1> textures{ texture_id };
+
+	DrawQuads<TextureVertex>(std::span{ &quad, 1 }, textures);
+}
+
+RenderPassBuilder Renderer::Pass() {
+	return RenderPassBuilder{ *this };
+}
+
+TextureSource Renderer::DrawPass(
+	const MaterialState& material, TextureSource input, const RenderTargetDesc& output_desc,
+	const RenderState& state, std::span<const TextureBinding> extra_textures
+) {
+	FlushBatch();
+
+	auto input_target		   = ResolveTarget(input);
+	RenderTargetObject& output = target_pool_.Acquire(output_desc, input_target);
+
+	current_target_is_transient_ = true;
+	output.Bind();
+	output.Clear(color::Transparent, false);
+
+	SetCurrentPipeline("texture");
+	SetMaterial(material);
+	ApplyRenderState(state);
+
+	DrawImmediateTexturedQuad(
+		input, FullscreenQuad(output_desc.size), 0.0f, color::White,
+		GetDefaultTextureCoordinates<false>(), extra_textures
+	);
+
+	return FramebufferId{ output.operator RenderTargetId() };
+}
+
+RenderState Renderer::GetCurrentState() const {
+	return { .viewport		  = gl_->GetViewport(),
+			 .view_projection = view_projection_,
+			 .blend_mode	  = gl_->GetBoundState().blend_mode,
+			 .depth_testing	  = gl_->GetBoundState().depth_testing,
+			 .depth_mask	  = gl_->GetBoundState().depth_mask,
+			 .stencil		  = gl_->GetBoundState().stencil,
+			 .raster		  = gl_->GetBoundState().raster,
+			 .scissor		  = gl_->GetBoundState().scissor,
+			 .color_mask	  = gl_->GetBoundState().color_mask };
+}
+
+FramebufferId Renderer::GetCurrentTarget() const {
+	return gl_->GetBoundFramebuffer().value();
+}
+
+MaterialState Renderer::GetCurrentMaterial() const {
+	return MaterialState{ .shader	= gl_->GetBoundState().shader_program.value(),
+						  .uniforms = current_uniforms_ };
+}
+
+Renderer::TargetSave Renderer::SaveTarget() const {
+	return {
+		.target	   = gl_->GetBoundFramebuffer().value(),
+		.transient = current_target_is_transient_,
+	};
+}
+
+void Renderer::RestoreTarget(TargetSave save) {
+	FlushBatch();
+
+	current_target_is_transient_ = save.transient;
+
+	if (save.target) {
+		auto _ = gl_->Bind(save.target, false);
+		gl_->SetViewport({ .position{}, .size = GetRenderTargetSize(RenderTargetId{ save.target }) }
+		);
+	}
+}
+
+void Renderer::DrawBoundTargetEffect(
+	const std::array<V2_float, 4>& positions, float depth, Color tint,
+	const std::array<V2_float, 4>& tex_coords, std::span<const TextureBinding> extra_textures
+) {
+	FlushBatch();
+
+	auto input = GetCurrentTarget();
+
+	RenderTargetDesc desc{
+		.size	= GetRenderTargetSize(RenderTargetId{ input }),
+		.format = GetRenderTargetTextureFormat(RenderTargetId{ input }),
+	};
+
+	RenderTargetObject& output = target_pool_.Acquire(desc, FramebufferId{ input });
+
+	output.Bind();
+	SetViewport({ .position{}, .size = desc.size });
+	output.Clear(color::Transparent, false);
+
+	DrawImmediateTexturedQuad(std::ref(input), positions, depth, tint, tex_coords, extra_textures);
+
+	if (current_target_is_transient_) {
+		target_pool_.Release(input);
+	}
+
+	current_target_is_transient_ = true;
+}
+
+void Renderer::DrawTextureWithEffects(
+	TextureSource source, const std::array<V2_float, 4>& world_positions, float depth, Color tint,
+	const std::array<V2_float, 4>& tex_coords, const EffectParams& effects, int entity_id
+) {
+	FlushBatch();
+
+	const RenderTargetDesc source_desc = GetTextureDesc(source);
+
+	RenderTargetDesc local_desc	 = source_desc;
+	local_desc.size.x			+= effects.margin * 2;
+	local_desc.size.y			+= effects.margin * 2;
+
+	RenderTargetObject& local_target = target_pool_.Acquire(local_desc, FramebufferId{ 0 });
+
+	local_target.Bind();
+	SetViewport({ .position{}, .size = local_desc.size });
+	local_target.Clear(color::Transparent, false);
+
+	DrawImmediateTexturedQuad(
+		source, QuadInsidePaddedTarget(source_desc.size), 0.0f, tint, tex_coords, {}
+	);
+
+	TargetSave previous = SaveTarget();
+
+	current_target_is_transient_ = true;
+
+	DrawContext effect_ctx{ *this };
+
+	effects.draw_callback(effect_ctx);
+
+	RestoreTarget(previous);
+
+	SetCurrentPipeline("texture");
+	SetMaterial(MaterialState{
+		.shader	  = GetShader("texture"),
+		.uniforms = {},
+	});
+
+	const auto color_n = color::White.Normalized();
+
+	const auto expanded_positions =
+		ExpandQuadByPixels(world_positions, source_desc.size, effects.margin);
+
+	const RenderQuad<TextureVertex> quad{
+		TextureVertex{ expanded_positions[0], depth, color_n,
+					   GetDefaultTextureCoordinates<false>()[0], 0.0f, entity_id },
+		TextureVertex{ expanded_positions[1], depth, color_n,
+					   GetDefaultTextureCoordinates<false>()[1], 0.0f, entity_id },
+		TextureVertex{ expanded_positions[2], depth, color_n,
+					   GetDefaultTextureCoordinates<false>()[2], 0.0f, entity_id },
+		TextureVertex{ expanded_positions[3], depth, color_n,
+					   GetDefaultTextureCoordinates<false>()[3], 0.0f, entity_id },
+	};
+
+	const std::array<TextureId, 1> textures{ GetRenderTargetTexture(RenderTargetId{
+		GetCurrentTarget() }) };
+
+	DrawQuads<TextureVertex>(std::span{ &quad, 1 }, textures);
+
+	batcher_.HoldUntilFlush(local_target);
+}
+
+void Renderer::DrawImmediateTexturedQuad(
+	TextureSource primary, const std::array<V2_float, 4>& positions, float depth, Color tint,
+	const std::array<V2_float, 4>& tex_coords, std::span<const TextureBinding> extra_textures
+) {
+	FlushBatch();
+
+	ApplyMaterial(GetCurrentMaterial());
+
+	auto shader = gl_->GetBoundState().shader_program.value();
+
+	BindTextureSlot(0, ResolveTexture(primary));
+	SetUniform(shader, "u_Texture", 0);
+
+	std::uint32_t slot = 1;
+
+	for (const TextureBinding& binding : extra_textures) {
+		BindTextureSlot(slot, ResolveTexture(binding.source));
+		SetUniform(shader, binding.name.c_str(), static_cast<int>(slot));
+		++slot;
+	}
+
+	const RenderPipeline& pipeline = pipeline_manager_.GetCurrentPipeline();
+
+	const auto color_n = tint.Normalized();
+
+	const std::array<TextureVertex, 4> vertices{
+		TextureVertex{ positions[0], depth, color_n, tex_coords[0], 0.0f, -1 },
+		TextureVertex{ positions[1], depth, color_n, tex_coords[1], 0.0f, -1 },
+		TextureVertex{ positions[2], depth, color_n, tex_coords[2], 0.0f, -1 },
+		TextureVertex{ positions[3], depth, color_n, tex_coords[3], 0.0f, -1 },
+	};
+
+	UploadVertices(pipeline, std::as_bytes(std::span{ vertices }));
+
+	UploadIndices(pipeline, kQuadIndices);
+
+	DrawElements(pipeline, static_cast<std::uint32_t>(kQuadIndices.size()));
+}
+
+TextureId Renderer::ResolveTexture(TextureSource source) const {
+	return std::visit(
+		[&]<typename T>(const T& value) -> TextureId {
+			if constexpr (std::is_same_v<T, TextureId>) {
+				return value;
+			} else if constexpr (std::is_same_v<T, FramebufferId>) {
+				return GetRenderTargetTexture(RenderTargetId{ value });
+			} else if constexpr (std::is_same_v<T, BoundTarget>) {
+				return GetRenderTargetTexture(RenderTargetId{ GetCurrentTarget() });
+			} else {
+				static_assert(false, "Unhandled TextureSource alternative");
+			}
+		},
+		source
+	);
+}
+
+FramebufferId Renderer::ResolveTarget(TextureSource source) const {
+	return std::visit(
+		[&]<typename T>(const T& value) {
+			if constexpr (std::is_same_v<T, TextureId>) {
+				return FramebufferId{ 0 };
+			} else if constexpr (std::is_same_v<T, FramebufferId>) {
+				return value;
+			} else if constexpr (std::is_same_v<T, BoundTarget>) {
+				return gl_->GetBoundFramebuffer().value();
+			} else {
+				static_assert(false, "Unhandled TextureSource alternative");
+			}
+		},
+		source
+	);
+}
+
+RenderTargetDesc Renderer::GetTextureDesc(TextureSource source) const {
+	return std::visit(
+		[&]<typename T>(const T& value) -> RenderTargetDesc {
+			if constexpr (std::is_same_v<T, TextureId>) {
+				return {
+					.size	= GetTextureSize(value),
+					.format = GetTextureFormat(value),
+				};
+			} else if constexpr (std::is_same_v<T, FramebufferId>) {
+				return {
+					.size	= GetRenderTargetSize(RenderTargetId{ value }),
+					.format = GetRenderTargetTextureFormat(RenderTargetId{ value }),
+				};
+			} else if constexpr (std::is_same_v<T, BoundTarget>) {
+				return {
+					.size	= GetRenderTargetSize(RenderTargetId{ GetCurrentTarget() }),
+					.format = GetRenderTargetTextureFormat(RenderTargetId{ GetCurrentTarget() }),
+				};
+			} else {
+				static_assert(false, "Unhandled TextureSource alternative");
+			}
+		},
+		source
+	);
+}
+
+std::array<V2_float, 4> Renderer::FullscreenQuad(V2_int size) {
+	const V2_float half{ V2_float{ size } / 2.0f };
+
+	return {
+		V2_float{ -half.x, -half.y },
+		V2_float{ half.x, -half.y },
+		V2_float{ half.x, half.y },
+		V2_float{ -half.x, half.y },
+	};
+}
+
+std::array<V2_float, 4> Renderer::QuadInsidePaddedTarget(V2_int source_size) {
+	const V2_float half{ V2_float{ source_size } / 2.0f };
+
+	return {
+		V2_float{ -half.x, -half.y },
+		V2_float{ half.x, -half.y },
+		V2_float{ half.x, half.y },
+		V2_float{ -half.x, half.y },
+	};
+}
+
+std::array<V2_float, 4> Renderer::ExpandQuadByPixels(
+	std::array<V2_float, 4> quad, V2_int source_size, int margin
+) {
+	if (margin <= 0) {
+		return quad;
+	}
+
+	const float sx =
+		static_cast<float>(source_size.x + margin * 2) / static_cast<float>(source_size.x);
+
+	const float sy =
+		static_cast<float>(source_size.y + margin * 2) / static_cast<float>(source_size.y);
+
+	V2_float center{};
+
+	for (const V2_float& point : quad) {
+		center += point;
+	}
+
+	center /= 4.0f;
+
+	for (V2_float& point : quad) {
+		point.x = center.x + (point.x - center.x) * sx;
+		point.y = center.y + (point.y - center.y) * sy;
+	}
+
+	return quad;
+}
+
+void Renderer::BindTextureSlot(std::uint32_t slot, TextureId texture) {
+	gl_->SetActiveTextureSlot(slot);
+	auto _3{ gl_->Bind(texture, false) };
 }
 
 } // namespace ptgn::impl

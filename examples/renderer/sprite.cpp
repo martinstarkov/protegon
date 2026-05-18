@@ -33,6 +33,6 @@ class SpriteScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "SpriteScene" };
-	PTGN_WITH_EDITOR(app);
+	// PTGN_WITH_EDITOR(app);
 	app.StartWith<SpriteScene>();
 }

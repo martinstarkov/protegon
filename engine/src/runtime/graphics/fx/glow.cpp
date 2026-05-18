@@ -5,6 +5,7 @@
 
 namespace ptgn {
 
+/*
 void GlowEffect::Draw(DrawContext& ctx, Entity effect) {
 	// TODO: Get properties from effect entity.
 
@@ -83,5 +84,6 @@ void GlowEffect::Draw(DrawContext& ctx, Entity effect) {
 
 	ctx.Release(blurred);
 }
+*/
 
 } // namespace ptgn

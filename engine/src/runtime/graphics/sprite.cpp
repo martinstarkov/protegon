@@ -2,6 +2,7 @@
 
 #include <array>
 #include <optional>
+#include <span>
 #include <string_view>
 
 #include "core/assert.h"
@@ -11,6 +12,10 @@
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/render_target_pool.h"
+#include "renderer/renderer.h"
+#include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
 #include "renderer/vertex/vertex.h"
 #include "runtime/animation/animation.h"
@@ -62,16 +67,23 @@ void Sprite::Draw(
 	auto depth{ GetDepth(entity) };
 	auto tex_coords{ GetTextureCoordinates(entity, false) };
 	auto blend_mode{ GetBlendMode(entity) };
+	auto entity_id{ entity.GetUUID() };
 
-	DrawOptions draw_options;
-	draw_options.depth		= depth;
-	draw_options.blend_mode = blend_mode;
-	draw_options.origin		= draw_origin;
-	draw_options.tex_coords = tex_coords;
-	draw_options.tint		= final_tint;
+	MaterialState material;
+	material.shader = renderer.GetShader("texture");
 
-	// TODO: Add entity.GetUUID().
-	renderer.DrawTexture(texture, draw_transform, *texture_size, draw_options);
+	Rect rect{ *texture_size };
+	auto positions{ rect.GetWorldVertices(draw_transform, draw_origin) };
+
+	impl::EffectParams effects;
+
+	std::span<const impl::TextureBinding> extra_textures{};
+
+	renderer.SetBlendMode(blend_mode);
+	renderer.DrawTexture(
+		material, texture, positions, depth, final_tint, tex_coords, effects, extra_textures,
+		entity_id
+	);
 }
 
 void Sprite::Draw(DrawContext& renderer, Entity entity) {

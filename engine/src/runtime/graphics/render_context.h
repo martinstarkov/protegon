@@ -1,30 +1,18 @@
 #pragma once
 
-#include <array>
 #include <optional>
 #include <ranges>
-#include <string_view>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include "core/graphics/color.h"
-#include "core/graphics/fill_style.h"
-#include "core/math/geometry/origin.h"
-#include "core/math/geometry/shape.h"
-#include "core/math/transform.h"
-#include "core/math/vector2.h"
-#include "renderer/pipeline/blend_mode.h"
-#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
-#include "renderer/pipeline/scaling_mode.h"
-#include "renderer/pipeline/viewport.h"
+#include "renderer/pipeline/render_batcher.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
+#include "renderer/vertex/vertex.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene_camera.h"
 
 namespace ptgn {
@@ -35,6 +23,11 @@ class SceneContext;
 namespace impl {
 
 class Renderer;
+
+struct DrawCommand {
+	std::variant<Entity, ManualCommand> payload;
+	float depth{ 0.0f };
+};
 
 } // namespace impl
 
@@ -187,8 +180,7 @@ private:
 	RenderContext(RenderContext&&) noexcept			   = default;
 	RenderContext& operator=(RenderContext&&) noexcept = delete;
 
-	/*
-	void SetPrimaryWorldCamera(const std::optional<Camera>& camera = std::nullopt);
+	// void SetPrimaryWorldCamera(const std::optional<Camera>& camera = std::nullopt);
 
 	template <typename T, typename R>
 	static void AddDrawCommand(T& commands, const R& command, float depth) {
@@ -206,17 +198,15 @@ private:
 	std::vector<impl::DrawCommand>& GetDrawCommandsForCamera(
 		const std::optional<impl::RenderCamera>& camera
 	);
-	std::vector<impl::ManualDrawCommand>& GetDebugCommandsForCamera(
+	std::vector<impl::ManualCommand>& GetDebugCommandsForCamera(
 		const std::optional<impl::RenderCamera>& camera
 	);
 
 	/// @brief Keys are uuids of cameras.
 	std::vector<std::pair<impl::RenderCamera, std::vector<impl::DrawCommand>>> draw_commands_;
-	std::vector<std::pair<impl::RenderCamera, std::vector<impl::ManualDrawCommand>>>
-		debug_commands_;
+	std::vector<std::pair<impl::RenderCamera, std::vector<impl::ManualCommand>>> debug_commands_;
 
 	std::vector<impl::TextureObject> temporary_textures_;
-	*/
 
 	Scene& scene_;
 	impl::Renderer& renderer_;

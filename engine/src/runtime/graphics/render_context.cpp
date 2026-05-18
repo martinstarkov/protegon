@@ -1,14 +1,19 @@
 #include "runtime/graphics/render_context.h"
 
+#include <optional>
+#include <utility>
+#include <vector>
+
 #include "renderer/renderer.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
 RenderContext::RenderContext(Scene& scene, impl::Renderer& renderer) :
 	scene_{ scene }, renderer_{ renderer } {}
 
-/*
 std::vector<impl::DrawCommand>& RenderContext::GetDrawCommandsForCamera(
 	const std::optional<impl::RenderCamera>& camera
 ) {
@@ -28,7 +33,7 @@ std::vector<impl::DrawCommand>& RenderContext::GetDrawCommandsForCamera(
 	return draw_commands_.emplace_back(cam, std::vector<impl::DrawCommand>{}).second;
 }
 
-std::vector<impl::ManualDrawCommand>& RenderContext::GetDebugCommandsForCamera(
+std::vector<impl::ManualCommand>& RenderContext::GetDebugCommandsForCamera(
 	const std::optional<impl::RenderCamera>& camera
 ) {
 	impl::RenderCamera cam;
@@ -44,9 +49,10 @@ std::vector<impl::ManualDrawCommand>& RenderContext::GetDebugCommandsForCamera(
 			return commands;
 		}
 	}
-	return debug_commands_.emplace_back(cam, std::vector<impl::ManualDrawCommand>{}).second;
+	return debug_commands_.emplace_back(cam, std::vector<impl::ManualCommand>{}).second;
 }
 
+/*
 void RenderContext::DrawTexture(
 	impl::TextureId texture, V2_int texture_size, impl::ShaderId shader, Transform transform,
 	std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,

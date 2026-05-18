@@ -1,10 +1,92 @@
 #include "renderer/pipeline/draw_context.h"
 
+#include <array>
+#include <span>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+#include <variant>
+
+#include "blend_mode.h"
+#include "core/graphics/color.h"
+#include "core/math/vector2.h"
+#include "renderer/pipeline/render_batcher.h"
+#include "renderer/pipeline/render_pass_builder.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/id.h"
+#include "renderer/vertex/vertex.h"
 
 namespace ptgn {
 
 DrawContext::DrawContext(impl::Renderer& renderer) : renderer_{ renderer } {}
+
+void DrawContext::Flush() {
+	renderer_.FlushBatch();
+}
+
+TextureSource DrawContext::BoundTarget() const {
+	return impl::BoundTarget{};
+}
+
+RenderPassBuilder DrawContext::Pass() {
+	return renderer_.Pass();
+}
+
+void DrawContext::SetBlendMode(BlendMode mode) {
+	renderer_.SetBlendMode(mode);
+}
+
+void DrawContext::DrawTexture(
+	const MaterialState& material, TextureSource texture, const std::array<V2_float, 4>& positions,
+	float depth, Color tint, const std::array<V2_float, 4>& tex_coords,
+	const impl::EffectParams& effects, std::span<const impl::TextureBinding> extra_textures,
+	int entity_id
+) {
+	renderer_.DrawTexture(
+		material, texture, positions, depth, tint, tex_coords, effects, extra_textures, entity_id
+	);
+}
+
+void DrawContext::Draw(const impl::ManualCommand& cmd) {
+	std::visit(
+		[&]<typename T>(const T& arg) {
+			if constexpr (std::is_same_v<T, impl::TriangleCommand>) {
+				renderer_.SetCurrentPipeline("color");
+				renderer_.SetMaterial({ .shader{ GetShader("color") } });
+				renderer_.DrawTriangles<impl::ColorVertex>(
+					arg.triangles, {}, impl::NoTextureIndexAccessor{}
+				);
+			} else if constexpr (std::is_same_v<T, impl::QuadCommand>) {
+				renderer_.SetCurrentPipeline("color");
+				renderer_.SetMaterial({ .shader{ GetShader("color") } });
+				renderer_.DrawQuads<impl::ColorVertex>(
+					arg.quads, {}, impl::NoTextureIndexAccessor{}
+				);
+			} else if constexpr (std::is_same_v<T, impl::ShapeCommand>) {
+				renderer_.SetCurrentPipeline("shape");
+				renderer_.SetMaterial({ .shader{ arg.shader } });
+				renderer_.DrawQuads<impl::ShapeVertex>(
+					arg.shapes, {}, impl::NoTextureIndexAccessor{}
+				);
+			} else if constexpr (std::is_same_v<T, impl::TextureCommand>) {
+				renderer_.SetCurrentPipeline("texture");
+				renderer_.SetMaterial(arg.material);
+				renderer_.DrawQuads<impl::TextureVertex>(
+					arg.quads, arg.textures, impl::NoTextureIndexAccessor{}
+				);
+			} else {
+				static_assert(false, "Incomplete visitor!");
+			}
+		},
+		cmd
+	);
+}
+
+impl::ShaderId DrawContext::GetShader(std::string_view name) const {
+	return renderer_.GetShader(name);
+}
 
 /*
 static float GetFade(float diameter_y) {
@@ -470,10 +552,6 @@ void DrawContext::SetColorMask(const ColorMaskState& color_mask) {
 
 impl::RenderPass DrawContext::BeginPass(impl::RenderTargetId scene_render_target) {
 	return renderer_.BeginPass(scene_render_target);
-}
-
-impl::ShaderId DrawContext::GetShader(std::string_view name) const {
-	return renderer_.GetShader(name);
 }
 
 void DrawContext::Draw(const impl::ManualCommand& command, float depth) {

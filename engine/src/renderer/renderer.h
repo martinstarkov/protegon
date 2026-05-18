@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -11,14 +12,18 @@
 #include <variant>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
+#include "core/util/hash.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/camera.h"
-#include "renderer/pipeline/render_batch.h"
+#include "renderer/pipeline/render_batcher.h"
+#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
@@ -27,40 +32,26 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 #include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 
 namespace ptgn {
 
 class Application;
-class RenderContext;
 class DrawContext;
-class DebugContext;
 class Window;
-class Scene;
-class AssetManager;
-class RenderTarget;
 
 namespace impl {
 
-struct RenderPacket;
-class RenderPipelineManager;
 class ApplicationContext;
 class Surface;
-class Renderer;
-class ShaderObject;
-class TextureObject;
-template <ResourceType T>
-class Resource;
+class RenderPipelineManager;
 
 namespace gl {
 
 class GLContext;
 
 } // namespace gl
-
-inline constexpr std::uint32_t kBatchCapacity{ 10000 };
-inline constexpr std::uint32_t kVertexCapacity{ kBatchCapacity * 4 };
-inline constexpr std::uint32_t kIndexCapacity{ kBatchCapacity * 6 };
 
 struct EffectParams {
 	std::function<void(DrawContext&)> draw_callback;
@@ -69,6 +60,109 @@ struct EffectParams {
 };
 
 class Renderer {
+public:
+	void SetMaterial(const MaterialState& material);
+
+	void BeginScene(RenderTargetObject& scene_target, Color clear_color);
+
+	void EndScene();
+
+	void FlushBatch();
+
+	RenderTargetPool& GetTargetPool();
+
+	RenderPipeline& GetPipeline(PipelineId id);
+
+	const RenderPipeline& GetPipeline(PipelineId id) const;
+
+	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
+	void DrawQuads(
+		std::span<const RenderQuad<TVertex>> quads, std::span<const TextureId> local_textures = {},
+		TAccessor texture_index = {}
+	) {
+		PTGN_ASSERT(pipeline_manager_.GetCurrentPipelineId() != 0);
+
+		RenderState current_state{ GetCurrentState() };
+
+		batcher_.SubmitQuads<TVertex>(
+			pipeline_manager_.GetCurrentPipelineId(), GetCurrentTarget(), GetCurrentMaterial(),
+			current_state, quads, local_textures, texture_index
+		);
+	}
+
+	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
+	void DrawTriangles(
+		std::span<const RenderTriangle<TVertex>> triangles,
+		std::span<const TextureId> local_textures = {}, TAccessor texture_index = {}
+	) {
+		PTGN_ASSERT(pipeline_manager_.GetCurrentPipelineId() != 0);
+
+		RenderState current_state{ GetCurrentState() };
+
+		batcher_.SubmitTriangles<TVertex>(
+			pipeline_manager_.GetCurrentPipelineId(), GetCurrentTarget(), GetCurrentMaterial(),
+			current_state, triangles, local_textures, texture_index
+		);
+	}
+
+	void DrawTexture(
+		const MaterialState& material, TextureSource texture,
+		const std::array<V2_float, 4>& positions, float depth, Color tint,
+		const std::array<V2_float, 4>& tex_coords, const EffectParams& effects = {},
+		std::span<const TextureBinding> extra_textures = {}, int entity_id = -1
+	);
+
+	RenderPassBuilder Pass();
+
+	TextureSource DrawPass(
+		const MaterialState& material, TextureSource input, const RenderTargetDesc& output_desc,
+		const RenderState& state, std::span<const TextureBinding> extra_textures
+	);
+
+private:
+	RenderState GetCurrentState() const;
+	FramebufferId GetCurrentTarget() const;
+	MaterialState GetCurrentMaterial() const;
+
+	struct TargetSave {
+		FramebufferId target{ 0 };
+		bool transient{ false };
+	};
+
+	TargetSave SaveTarget() const;
+
+	void RestoreTarget(TargetSave save);
+
+	void DrawBoundTargetEffect(
+		const std::array<V2_float, 4>& positions, float depth, Color tint,
+		const std::array<V2_float, 4>& tex_coords, std::span<const TextureBinding> extra_textures
+	);
+
+	void DrawTextureWithEffects(
+		TextureSource source, const std::array<V2_float, 4>& world_positions, float depth,
+		Color tint, const std::array<V2_float, 4>& tex_coords, const EffectParams& effects,
+		int entity_id
+	);
+
+	void DrawImmediateTexturedQuad(
+		TextureSource primary, const std::array<V2_float, 4>& positions, float depth, Color tint,
+		const std::array<V2_float, 4>& tex_coords, std::span<const TextureBinding> extra_textures
+	);
+
+	TextureId ResolveTexture(TextureSource source) const;
+
+	FramebufferId ResolveTarget(TextureSource source) const;
+
+	RenderTargetDesc GetTextureDesc(TextureSource source) const;
+
+	static std::array<V2_float, 4> FullscreenQuad(V2_int size);
+
+	static std::array<V2_float, 4> QuadInsidePaddedTarget(V2_int source_size);
+
+	static std::array<V2_float, 4> ExpandQuadByPixels(
+		std::array<V2_float, 4> quad, V2_int source_size, int margin
+	);
+
 public:
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetFramebuffer(FramebufferId framebuffer);
@@ -171,9 +265,14 @@ public:
 	void Destroy(VertexArrayId id);
 	void Destroy(RenderTargetId id);
 
+	void SetCurrentPipeline(std::size_t id);
+	void SetCurrentPipeline(std::string_view name);
+
 private:
 	friend class ptgn::Application;
 	friend class ApplicationContext;
+	friend class RenderPipelineManager;
+	friend class RenderBatcher;
 
 	struct DisplayResizeInfo {
 		bool moved{ false };
@@ -192,19 +291,18 @@ private:
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
-	void FlushBatch();
-
 	void UploadVertices(const RenderPipeline& pipeline, std::span<const std::byte> vertices);
 	void UploadIndices(const RenderPipeline& pipeline, std::span<const Index> indices);
 	void DrawElements(const RenderPipeline& pipeline, std::uint32_t index_count);
+
+	void ApplyRenderTarget(FramebufferId id);
+
+	void ApplyRenderState(const RenderState& state);
 
 	void ApplyMaterial(const MaterialState& material);
 
 	void BeginFrame();
 	void EndFrame();
-
-	void SetCurrentPipeline(std::size_t id);
-	void SetCurrentPipeline(std::string_view name);
 
 	void SetUniformValue(ShaderId id, const char* uniform_name, const UniformValue& v);
 
@@ -226,6 +324,8 @@ private:
 	// scene.
 	void UpdateDisplayViewport(bool emit_events = true);
 
+	void BindTextureSlot(std::uint32_t slot, TextureId texture);
+
 	[[nodiscard]] DisplayResizeInfo RecalculateDisplayViewport() const;
 
 	Window& window_;
@@ -240,21 +340,23 @@ private:
 	Color background_color_;
 	RenderTargetObject screen_target_;
 
-	Batch batch_;
-	RenderTargetPool render_target_pool_;
+	std::vector<UniformWrite> current_uniforms_;
+	bool current_target_is_transient_{ false };
+
+	RenderBatcher batcher_;
+	RenderTargetPool target_pool_;
 	RenderPipelineManager pipeline_manager_;
 
 	std::optional<V2_int> game_size_;
 	Viewport display_viewport_;
+	/// @brief Flag to indicate whether the display viewport needs to be recalculated.
+	bool display_viewport_dirty_{ true };
 	ScalingMode scaling_mode_{ ScalingMode::Letterbox };
 
 	/// @brief The viewport used for presentation (i.e. the final output to the screen). This
 	/// may be different from the window if using the editor, which has a separate viewport for
 	/// the game view.
 	std::optional<Viewport> presentation_viewport_;
-
-	/// @brief Flag to indicate whether the display viewport needs to be recalculated.
-	bool display_viewport_dirty_{ true };
 
 	std::optional<Camera> primary_world_camera_;
 };

@@ -11,6 +11,7 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/util/time.h"
+#include "renderer/pipeline/draw_context.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_transition.h"
 
@@ -240,12 +241,12 @@ void SceneManager::UpdateReEnteredSceneTagHashes() {
 	}
 }
 
-void SceneManager::Draw() const {
+void SceneManager::Draw(DrawContext& draw_context) const {
 	for (const auto& scene : scenes_) {
 		if (scene->IsAwaitingTransitionDelay()) {
 			continue;
 		}
-		scene->InternalDraw();
+		scene->InternalDraw(draw_context);
 	}
 }
 

@@ -26,6 +26,7 @@
 
 namespace ptgn::editor {
 
+/*
 constexpr float kNodeW		   = 280.0f;
 constexpr float kBaseNodeH	   = 150.0f;
 constexpr float kNodeGapX	   = 120.0f;
@@ -686,5 +687,6 @@ void RenderGraphVisualizer::DrawNodeTooltip(
 
 	ImGui::EndTooltip();
 }
+*/
 
 } // namespace ptgn::editor

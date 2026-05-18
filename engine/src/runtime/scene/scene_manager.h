@@ -21,6 +21,7 @@
 namespace ptgn {
 
 class Application;
+class DrawContext;
 
 struct SceneTransitionPriority {
 	explicit SceneTransitionPriority() = default;
@@ -309,7 +310,7 @@ private:
 	void PreUpdate();
 	void OnEvent();
 	void Update(Application& app, secondsf dt);
-	void Draw() const;
+	void Draw(DrawContext& draw_context) const;
 
 	struct ReEnteringScene {
 		std::size_t scene_tag_hash{ 0 };

@@ -11,7 +11,7 @@
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/pipeline/buffer_layout.h"
-#include "renderer/pipeline/render_batch.h"
+#include "renderer/pipeline/render_batcher.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/buffer.h"
 #include "renderer/resources/id.h"
@@ -52,6 +52,10 @@ bool RenderPipelineManager::IsCurrentPipeline(std::size_t id) const {
 bool RenderPipelineManager::HasPipeline(std::size_t id) const {
 	return std::ranges::find_if(pipelines_, [id](const auto& pair) { return pair.first == id; }) !=
 		   pipelines_.end();
+}
+
+std::size_t RenderPipelineManager::GetCurrentPipelineId() const {
+	return current_pipeline_;
 }
 
 void RenderPipelineManager::SetCurrentPipeline(std::size_t id) {

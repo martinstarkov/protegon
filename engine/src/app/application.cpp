@@ -18,8 +18,7 @@
 #include "app/application_config.h"
 #include "app/application_context.h"
 #include "app/application_layer.h"
-#include "application_context.h"
-#include "application_state.h"
+#include "app/application_state.h"
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/event/event_handler.h"
@@ -27,6 +26,7 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "platform/window.h"
+#include "renderer/pipeline/draw_context.h"
 #include "renderer/renderer.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/scene/scene.h"
@@ -173,7 +173,8 @@ void Application::Update() {
 
 	if (scene_rendering) {
 		ctx_.renderer.BeginFrame();
-		ctx_.scene_manager.Draw();
+		DrawContext draw_context{ ctx_.renderer };
+		ctx_.scene_manager.Draw(draw_context);
 		ctx_.renderer.EndFrame();
 	}
 

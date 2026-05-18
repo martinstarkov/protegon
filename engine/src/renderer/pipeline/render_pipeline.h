@@ -33,6 +33,8 @@ struct RenderPipeline {
 
 class RenderPipelineManager {
 public:
+	std::size_t GetCurrentPipelineId() const;
+
 	void SetCurrentPipeline(std::size_t id);
 
 	/// @return True if a pipeline with the given name exists.

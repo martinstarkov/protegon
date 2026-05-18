@@ -1,6 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
+#include <string>
+#include <variant>
 #include <vector>
 
 #include "core/graphics/color.h"
@@ -9,9 +12,7 @@
 #include "renderer/resources/resource.h"
 #include "renderer/resources/texture_format.h"
 
-namespace ptgn::impl {
-
-class Renderer;
+namespace ptgn {
 
 struct RenderTargetDesc {
 	V2_int size;
@@ -20,6 +21,10 @@ struct RenderTargetDesc {
 
 	bool operator==(const RenderTargetDesc&) const = default;
 };
+
+namespace impl {
+
+class Renderer;
 
 class RenderTargetObject : public Resource<RenderTargetId> {
 public:
@@ -44,18 +49,44 @@ private:
 	RenderTargetObject(Renderer* renderer, const RenderTargetDesc& desc);
 };
 
-struct PooledRenderTarget {
-	RenderTargetObject target;
-	std::uint64_t last_used_tick{ 0 };
-	bool in_use{ false };
-};
-
 class RenderTargetPool {
 public:
+	explicit RenderTargetPool(Renderer& renderer);
+
+	RenderTargetObject& Acquire(RenderTargetDesc desc, FramebufferId exclude);
+
+	RenderTargetObject& AcquireLike(const RenderTargetObject& target, int margin = 0);
+
+	void Release(FramebufferId id);
+	void Release(RenderTargetObject& target);
+
+	[[nodiscard]] bool Owns(const RenderTargetObject& target) const;
+
 private:
-	std::vector<PooledRenderTarget> rt_pool_;
-	std::uint64_t pool_tick_{ 0 };
-	std::size_t max_pool_size_{ 32 };
+	struct PooledTarget {
+		RenderTargetObject target;
+		std::uint64_t last_used_tick{ 0 };
+		bool in_use{ false };
+	};
+
+	Renderer& renderer_;
+	std::vector<PooledTarget> pool_;
+	std::uint64_t tick_{ 0 };
 };
 
-} // namespace ptgn::impl
+struct BoundTarget {};
+
+} // namespace impl
+
+using TextureSource = std::variant<impl::TextureId, impl::FramebufferId, impl::BoundTarget>;
+
+namespace impl {
+
+struct TextureBinding {
+	std::string name;
+	TextureSource source;
+};
+
+} // namespace impl
+
+} // namespace ptgn

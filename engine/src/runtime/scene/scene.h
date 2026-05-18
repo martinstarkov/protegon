@@ -27,6 +27,7 @@ class Scene;
 class EventHandler;
 class SceneContext;
 class LocalSceneManager;
+class DrawContext;
 
 namespace impl {
 
@@ -235,7 +236,7 @@ private:
 	void InternalPreUpdate();
 
 	void InternalUpdate();
-	void InternalDraw();
+	void InternalDraw(DrawContext& draw_context);
 	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
 
 	void InvokeEntityDrawCommands(

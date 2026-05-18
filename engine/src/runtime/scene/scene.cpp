@@ -33,6 +33,7 @@
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/id.h"
 #include "renderer/resources/texture_format.h"
 #include "renderer/vertex/vertex.h"
 #include "runtime/animation/animation.h"
@@ -57,7 +58,6 @@
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event_handler.h"
-#include "runtime/scene/scene_renderer.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/json.h"
@@ -203,9 +203,9 @@ template <
 	typename T, InvocableR<void, std::vector<T>&> F,
 	InvocableR<void, DrawContext&, const std::vector<T>&> D>
 static void DrawCommands(
-	std::vector<std::pair<impl::RenderCamera, std::vector<T>>>& commands, DrawContext& draw_context,
-	const RenderTarget& scene_render_target, ClearedEntities cleared, V2_int game_size,
-	F&& sort_func, D&& draw_func
+	std::vector<std::pair<impl::RenderCamera, std::vector<T>>>& commands, impl::Renderer& renderer,
+	DrawContext& draw_context, const RenderTarget& scene_render_target, ClearedEntities cleared,
+	V2_int game_size, F&& sort_func, D&& draw_func
 ) {
 	PTGN_ASSERT((!VectorContainsDuplicates(commands, [](const auto& c1, const auto& c2) {
 		return c1.first == c2.first;
@@ -234,14 +234,14 @@ static void DrawCommands(
 		auto viewport{ cam.camera.viewport };
 		viewport.position = viewport.position * scale;
 		viewport.size	  = viewport.size * scale;
-		draw_context.SetViewport(viewport);
-		draw_context.SetViewProjection(cam.camera.view_projection);
+		renderer.SetViewport(viewport);
+		renderer.SetViewProjection(cam.camera.view_projection);
 
 		if (bool clear_camera{ !std::ranges::contains(cleared.cameras, cam.uuid) }; clear_camera) {
 			if (cam.clear_color.has_value()) {
-				draw_context.SetScissor(ScissorState{ viewport });
+				renderer.SetScissor(ScissorState{ viewport });
 				render_target.Clear(*cam.clear_color, false);
-				draw_context.SetScissor(ScissorState{ false });
+				renderer.SetScissor(ScissorState{ false });
 				cleared.cameras.emplace_back(cam.uuid);
 			}
 		}
@@ -293,11 +293,10 @@ void Scene::InvokeEntityDrawCommands(
 }
 
 static void CombineDebugCommands(
-	std::vector<std::pair<impl::RenderCamera, std::vector<impl::ManualDrawCommand>>>&
-		debug_commands,
+	std::vector<std::pair<impl::RenderCamera, std::vector<impl::ManualCommand>>>& debug_commands,
 	const impl::RenderCamera& camera
 ) {
-	std::vector<impl::ManualDrawCommand> combined;
+	std::vector<impl::ManualCommand> combined;
 
 	std::size_t total = 0;
 	for (auto& [_, cmds] : debug_commands) {
@@ -317,12 +316,12 @@ static void CombineDebugCommands(
 	debug_commands.emplace_back(camera, std::move(combined));
 }
 
-void Scene::InternalDraw() {
+void Scene::InternalDraw(DrawContext& draw_context) {
 	// TODO: Move this logic elsewhere.
 
-	auto game_size{ ctx().renderer.GetGameSize() };
+	auto game_size{ ctx().global_renderer_.GetGameSize() };
 
-	const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
+	const auto& primary_world_camera{ ctx().global_renderer_.GetPrimaryWorldCamera() };
 
 	impl::RenderCamera render_camera;
 
@@ -343,8 +342,6 @@ void Scene::InternalDraw() {
 
 	ctx().interaction.DrawDebug(*this);
 
-	DrawContext draw_context{ ctx().global_renderer_ };
-
 	std::vector<std::size_t> cleared_cameras;
 	std::vector<RenderTarget> cleared_render_targets;
 
@@ -353,7 +350,7 @@ void Scene::InternalDraw() {
 	}
 
 	DrawCommands(
-		ctx().renderer.draw_commands_, draw_context, render_target_,
+		ctx().renderer.draw_commands_, ctx().global_renderer_, draw_context, render_target_,
 		{ cleared_render_targets, cleared_cameras }, game_size, &SortDrawCommands,
 		[](auto& draw_context, const auto& cmds) {
 			for (std::size_t i{ 0 }; i < cmds.size(); i++) {
@@ -363,9 +360,7 @@ void Scene::InternalDraw() {
 				if (std::holds_alternative<Entity>(draw_cmd.payload)) {
 					InvokeDrawable(draw_context, std::get<Entity>(draw_cmd.payload));
 				} else {
-					draw_context.Draw(
-						std::get<impl::ManualCommand>(draw_cmd.payload), draw_cmd.depth
-					);
+					draw_context.Draw(std::get<impl::ManualCommand>(draw_cmd.payload));
 				}
 			}
 		}
@@ -379,28 +374,28 @@ void Scene::InternalDraw() {
 	}
 
 	DrawCommands(
-		ctx().renderer.debug_commands_, draw_context, render_target_,
+		ctx().renderer.debug_commands_, ctx().global_renderer_, draw_context, render_target_,
 		{ cleared_render_targets, cleared_cameras }, game_size,
 		[](auto&) {
 			/* No-op, debug commands are not sorted by depth */
 		},
 		[](auto& draw_context, const auto& cmds) {
 			for (const auto& draw_cmd : cmds) {
-				draw_context.Draw(draw_cmd.payload, draw_cmd.depth);
+				draw_context.Draw(draw_cmd);
 			}
 		}
 	);
 
 	ctx().global_renderer_.FlushBatch();
 
-	Viewport viewport{ {}, ctx().renderer.GetDisplayViewport().size };
+	Viewport viewport{ {}, ctx().global_renderer_.GetDisplayViewport().size };
 	V2_float half_viewport{ viewport.size * 0.5f };
 
 	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
-	draw_context.BindScreenTarget();
-	draw_context.SetViewport(viewport);
-	draw_context.SetViewProjection(view_projection);
-	draw_context.SetBlendMode(BlendMode::Blend);
+	ctx().global_renderer_.BindScreenTarget();
+	ctx().global_renderer_.SetViewport(viewport);
+	ctx().global_renderer_.SetViewProjection(view_projection);
+	ctx().global_renderer_.SetBlendMode(BlendMode::Blend);
 
 	auto transform{ GetDrawTransform(render_target_) };
 	auto scene_target_size{ render_target_.GetSize() };
@@ -414,14 +409,16 @@ void Scene::InternalDraw() {
 
 	auto render_target_texture{ ctx().global_renderer_.GetRenderTargetTexture(render_target_) };
 
+	MaterialState material;
+	material.shader = texture_shader;
+
+	impl::EffectParams effects;
+
 	ctx().global_renderer_.DrawTexture(
-		texture_shader, render_target_texture, positions, 0.0f, rt_tint, tex_coords, {}, -1
+		material, render_target_texture, positions, 0.0f, rt_tint, tex_coords, effects, {}, -1
 	);
 
 	ctx().global_renderer_.FlushBatch();
-
-	// Must be cleared after BindScreenTarget, as that flushes the batch.
-	ctx().renderer.temporary_textures_.clear();
 }
 
 void Scene::InternalUpdate() {

@@ -208,10 +208,6 @@ void Editor::OnProjectChanged() {
 	context_->state.is_dirty = false;
 }
 
-const impl::DebugRenderGraphSnapshot& Editor::GetRenderGraphSnapshot() const {
-	return impl::ApplicationAccessor::ctx(app).renderer.GetLastRenderGraphSnapshot();
-}
-
 void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	if (dock_layout_built_) {
 		return;

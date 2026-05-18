@@ -133,27 +133,8 @@ struct RasterState {
 	}
 };
 
-namespace impl {
-
-enum class TextureBindingKind {
-	NamedSampler,
-	BatchSamplerArray
-};
-
-struct ResolvedTextureBinding {
-	TextureBindingKind kind{ TextureBindingKind::NamedSampler };
-
-	TextureId texture;
-	std::string uniform_name{ "u_Texture" };
-
-	std::uint32_t texture_unit{ 0 };
-	std::uint32_t array_index{ 0 };
-
-	bool operator==(const ResolvedTextureBinding&) const = default;
-};
-
 struct MaterialState {
-	ShaderId shader;
+	impl::ShaderId shader;
 	std::vector<UniformWrite> uniforms;
 
 	bool operator==(const MaterialState&) const = default;
@@ -175,9 +156,7 @@ struct RenderState {
 	bool operator==(const RenderState&) const = default;
 };
 
-} // namespace impl
-
-inline impl::RenderState ApplyDelta(impl::RenderState base, const impl::RenderState& delta) {
+inline RenderState ApplyDelta(RenderState base, const RenderState& delta) {
 	if (delta.view_projection.has_value()) {
 		base.view_projection = *delta.view_projection;
 	}

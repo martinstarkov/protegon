@@ -21,7 +21,7 @@ void ContentBrowserPanel::OnRender(EditorContext& ctx) {
 		}
 
 		if (ImGui::BeginTabItem("Render Graph")) {
-			render_graph_visualizer_.DrawContents(ctx.editor.GetRenderGraphSnapshot());
+			// render_graph_visualizer_.DrawContents(ctx.editor.GetRenderGraphSnapshot());
 			ImGui::EndTabItem();
 		}
 

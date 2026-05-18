@@ -9,7 +9,6 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/draw_context.h"
-
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport_event.h"
 #include "renderer/renderer.h"
@@ -136,7 +135,7 @@ void RenderTarget::AddRenderTargetComponents(
 	render_target.SetClearColor(clear_color);
 
 	render_target.Add<impl::RenderTargetObject>(
-		scene.ctx().global_renderer_.CreateRenderTarget(size, format)
+		scene.ctx().global_renderer_.CreateRenderTarget({ .size{ size }, .format{ format } })
 	);
 	render_target.Get<impl::RenderTargetObject>().Clear(clear_color, true);
 }
