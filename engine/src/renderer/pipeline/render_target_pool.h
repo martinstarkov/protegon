@@ -58,9 +58,10 @@ public:
 	RenderTargetObject& AcquireLike(const RenderTargetObject& target, int margin = 0);
 
 	void Release(RenderTargetId id);
-	void Release(const RenderTargetObject& target);
 
-	[[nodiscard]] bool Owns(const RenderTargetObject& target) const;
+	[[nodiscard]] bool Owns(RenderTargetId target) const;
+
+	void TrimUnused(std::size_t max_unused);
 
 private:
 	struct PooledTarget {
@@ -71,6 +72,7 @@ private:
 
 	Renderer& renderer_;
 	std::vector<PooledTarget> pool_;
+	std::vector<RenderTargetObject> temp_;
 	std::uint64_t tick_{ 0 };
 };
 

@@ -537,15 +537,17 @@ void Framebuffers::InvalidateRenderbuffer(RenderbufferId renderbuffer) {
 }
 
 void Framebuffers::DestroyFramebufferOwning(FramebufferId id) {
-	auto attachments{ GetAttachments(id) };
+	if (cache_.Has(id)) {
+		auto attachments{ GetAttachments(id) };
 
-	for (const auto& attachment : attachments) {
-		PTGN_ASSERT(attachment.id != 0);
+		for (const auto& attachment : attachments) {
+			PTGN_ASSERT(attachment.id != 0);
 
-		if (attachment.object == AttachmentObject::Texture2D) {
-			gl_.textures.DestroyTexture(TextureId{ attachment.id });
-		} else if (attachment.object == AttachmentObject::Renderbuffer) {
-			gl_.renderbuffers.DestroyRenderbuffer(RenderbufferId{ attachment.id });
+			if (attachment.object == AttachmentObject::Texture2D) {
+				gl_.textures.DestroyTexture(TextureId{ attachment.id });
+			} else if (attachment.object == AttachmentObject::Renderbuffer) {
+				gl_.renderbuffers.DestroyRenderbuffer(RenderbufferId{ attachment.id });
+			}
 		}
 	}
 

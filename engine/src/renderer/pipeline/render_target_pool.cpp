@@ -51,6 +51,7 @@ TextureFormat RenderTargetObject::GetFormat() const {
 RenderTargetPool::RenderTargetPool(Renderer& renderer) : renderer_{ renderer } {}
 
 RenderTargetObject& RenderTargetPool::Acquire(RenderTargetDesc desc, FramebufferId exclude) {
+	/*
 	++tick_;
 
 	PooledTarget* exact			  = nullptr;
@@ -100,7 +101,6 @@ RenderTargetObject& RenderTargetPool::Acquire(RenderTargetDesc desc, Framebuffer
 	if (lru_same_format) {
 		return claim(*lru_same_format);
 	}
-
 	PooledTarget created{
 		.target			= renderer_.CreateRenderTarget(desc),
 		.last_used_tick = tick_,
@@ -109,10 +109,14 @@ RenderTargetObject& RenderTargetPool::Acquire(RenderTargetDesc desc, Framebuffer
 
 	auto& result = pool_.emplace_back(std::move(created));
 
-	result.target.Bind();
-	result.target.Clear(color::Transparent, false);
+	*/
 
-	return result.target;
+	auto& result = temp_.emplace_back(renderer_.CreateRenderTarget(desc));
+
+	result.Bind();
+	result.Clear(color::Transparent, false);
+
+	return result;
 }
 
 RenderTargetObject& RenderTargetPool::AcquireLike(const RenderTargetObject& target, int margin) {
@@ -128,41 +132,41 @@ RenderTargetObject& RenderTargetPool::AcquireLike(const RenderTargetObject& targ
 }
 
 void RenderTargetPool::Release(RenderTargetId id) {
-	for (auto& entry : pool_) {
-		if (entry.target.operator RenderTargetId() != id) {
-			continue;
-		}
-
-		PTGN_ASSERT(entry.in_use, "Pooled render target released twice");
-
-		entry.in_use		 = false;
-		entry.last_used_tick = ++tick_;
-		return;
-	}
-
-	PTGN_ERROR("Tried to release a render target not owned by RenderTargetPool");
+	// for (auto& entry : pool_) {
+	//	if (entry.target.operator RenderTargetId() != id) {
+	//		continue;
+	//	}
+	//	PTGN_ASSERT(entry.in_use, "Pooled render target released twice");
+	//	entry.in_use		 = false;
+	//	entry.last_used_tick = ++tick_;
+	//	return;
+	//}
+	// PTGN_ERROR("Tried to release a render target not owned by RenderTargetPool");
 }
 
-void RenderTargetPool::Release(const RenderTargetObject& target) {
-	for (auto& entry : pool_) {
-		if (&entry.target != &target) {
-			continue;
-		}
-
-		PTGN_ASSERT(entry.in_use, "Pooled render target released twice");
-
-		entry.in_use		 = false;
-		entry.last_used_tick = ++tick_;
-		return;
-	}
-
-	PTGN_ERROR("Tried to release a render target not owned by RenderTargetPool");
-}
-
-bool RenderTargetPool::Owns(const RenderTargetObject& target) const {
-	return std::ranges::any_of(pool_, [&target](const PooledTarget& entry) {
-		return &entry.target == &target;
+bool RenderTargetPool::Owns(RenderTargetId target) const {
+	return std::ranges::any_of(temp_, [target](const RenderTargetObject& entry) {
+		return entry.operator RenderTargetId() == target;
 	});
+
+	// return std::ranges::any_of(pool_, [target](const PooledTarget& entry) {
+	//	return entry.target.operator RenderTargetId() == target;
+	// });
+}
+
+void RenderTargetPool::TrimUnused(std::size_t max_unused) {
+	temp_.clear();
+
+	// std::erase_if(pool_, [&](PooledTarget& entry) {
+	//	if (entry.in_use) {
+	//		return false;
+	//	}
+	//	if (pool_.size() <= max_unused) {
+	//		return false;
+	//	}
+	//	renderer_.Destroy(entry.target.operator RenderTargetId());
+	//	return true;
+	// });
 }
 
 } // namespace ptgn::impl

@@ -86,19 +86,19 @@ void RenderBatcher::Flush() {
 	ReleaseTargetsAfterFlush();
 }
 
-void RenderBatcher::HoldUntilFlush(const RenderTargetObject& target) {
+void RenderBatcher::HoldUntilFlush(RenderTargetId target) {
 	if (!renderer_.GetTargetPool().Owns(target)) {
 		return;
 	}
 
-	if (!std::ranges::contains(release_after_flush_, &target)) {
-		release_after_flush_.push_back(&target);
+	if (!std::ranges::contains(release_after_flush_, target)) {
+		release_after_flush_.push_back(target);
 	}
 }
 
 void RenderBatcher::ReleaseTargetsAfterFlush() {
-	for (const RenderTargetObject* target : release_after_flush_) {
-		renderer_.GetTargetPool().Release(*target);
+	for (const auto& target : release_after_flush_) {
+		renderer_.GetTargetPool().Release(target);
 	}
 
 	release_after_flush_.clear();

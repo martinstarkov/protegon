@@ -53,7 +53,7 @@ public:
 	void Flush();
 
 	[[nodiscard]] V2_int BoundTargetSize() const;
-	[[nodiscard]] impl::TextureId BoundTarget() const;
+	[[nodiscard]] TextureSource BoundTarget() const;
 
 	[[nodiscard]] RenderPassBuilder Pass();
 

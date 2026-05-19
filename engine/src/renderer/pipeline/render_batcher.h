@@ -82,7 +82,7 @@ public:
 
 	void Flush();
 
-	void HoldUntilFlush(const RenderTargetObject& target);
+	void HoldUntilFlush(RenderTargetId target);
 
 	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
 	void SubmitQuads(
@@ -290,7 +290,7 @@ private:
 	std::vector<Index> indices_;
 	std::vector<TextureId> textures_;
 
-	std::vector<const RenderTargetObject*> release_after_flush_;
+	std::vector<RenderTargetId> release_after_flush_;
 };
 
 } // namespace ptgn::impl

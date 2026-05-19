@@ -29,8 +29,8 @@ V2_int DrawContext::BoundTargetSize() const {
 	return renderer_.GetRenderTargetSize(renderer_.GetCurrentTarget());
 }
 
-impl::TextureId DrawContext::BoundTarget() const {
-	return renderer_.GetCurrentTargetTexture();
+TextureSource DrawContext::BoundTarget() const {
+	return impl::BoundTarget{};
 }
 
 RenderPassBuilder DrawContext::Pass() {

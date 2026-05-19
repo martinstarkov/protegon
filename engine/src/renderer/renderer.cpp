@@ -1,4 +1,3 @@
-
 #include "renderer/renderer.h"
 
 #include <algorithm>
@@ -627,6 +626,8 @@ void Renderer::EndFrame() {
 
 	SetFramebuffer(FramebufferId{ 0 });
 
+	target_pool_.TrimUnused(0);
+
 	if (presentation_viewport_.has_value()) {
 		return;
 	}
@@ -940,6 +941,12 @@ TextureSource Renderer::DrawPass(
 	FlushBatch();
 
 	auto input_target{ ResolveTarget(input) };
+	auto input_texture{ ResolveTexture(input) };
+
+	const bool release_input_after_draw{ current_target_is_transient_ &&
+										 input_target != FramebufferId{ 0 } &&
+										 target_pool_.Owns(RenderTargetId{ input_target }) };
+
 	const auto& output{ target_pool_.Acquire(output_desc, input_target) };
 
 	current_target_is_transient_ = true;
@@ -954,7 +961,11 @@ TextureSource Renderer::DrawPass(
 
 	auto quad{ CreateRenderQuad(positions) };
 
-	DrawImmediateTexturedQuad(ResolveTexture(input), quad, extra_textures);
+	DrawImmediateTexturedQuad(input_texture, quad, extra_textures);
+
+	if (release_input_after_draw) {
+		target_pool_.Release(RenderTargetId{ input_target });
+	}
 
 	return FramebufferId{ output.operator RenderTargetId() };
 }
@@ -1049,7 +1060,8 @@ void Renderer::DrawTextureWithEffects(
 	local_desc.size.x += effects.margin * 2;
 	local_desc.size.y += effects.margin * 2;
 
-	auto& local_target{ target_pool_.Acquire(local_desc, FramebufferId{ 0 }) };
+	const auto& local_target{ target_pool_.Acquire(local_desc, FramebufferId{ 0 }) };
+	auto local_target_id{ local_target.operator RenderTargetId() };
 
 	local_target.Bind();
 	SetViewport({ .position{}, .size = local_desc.size });
@@ -1100,7 +1112,7 @@ void Renderer::DrawTextureWithEffects(
 
 	DrawQuads<TextureVertex>(std::span{ &world_quad, 1 }, textures);
 
-	batcher_.HoldUntilFlush(local_target);
+	batcher_.HoldUntilFlush(local_target_id);
 }
 
 void Renderer::DrawImmediateTexturedQuad(
