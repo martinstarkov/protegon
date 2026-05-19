@@ -981,9 +981,11 @@ MaterialState Renderer::GetCurrentMaterial() const {
 }
 
 Renderer::TargetSave Renderer::SaveTarget() const {
-	return {
-		.target	   = GetCurrentTarget(),
-		.transient = current_target_is_transient_,
+	return TargetSave{
+		.target			 = GetCurrentTarget(),
+		.viewport		 = gl_->GetViewport(),
+		.view_projection = view_projection_,
+		.transient		 = current_target_is_transient_,
 	};
 }
 
@@ -992,10 +994,13 @@ void Renderer::RestoreTarget(TargetSave save) {
 
 	current_target_is_transient_ = save.transient;
 
-	if (save.target) {
-		ApplyRenderTarget(save.target);
-		gl_->SetViewport({ .position{}, .size = GetRenderTargetSize(save.target) });
+	ApplyRenderTarget(save.target);
+
+	if (save.viewport.has_value()) {
+		gl_->SetViewport(*save.viewport);
 	}
+
+	SetViewProjection(save.view_projection);
 }
 
 void Renderer::DrawBoundTargetEffect(
@@ -1026,38 +1031,54 @@ void Renderer::DrawBoundTargetEffect(
 }
 
 void Renderer::DrawTextureWithEffects(
-	TextureId source, RenderQuad<TextureVertex> quad, const EffectParams& effects
+	TextureId source, RenderQuad<TextureVertex> world_quad, const EffectParams& effects
 ) {
 	FlushBatch();
 
-	TargetSave destination{ SaveTarget() };
+	PTGN_ASSERT(effects.draw_callback);
+	PTGN_ASSERT(effects.margin >= 0);
 
-	RenderTargetDesc source_desc{
+	auto destination{ SaveTarget() };
+
+	auto source_desc{ RenderTargetDesc{
 		.size	= GetTextureSize(source),
 		.format = GetTextureFormat(source),
-	};
+	} };
 
-	RenderTargetDesc local_desc{ source_desc };
+	auto local_desc{ source_desc };
 	local_desc.size.x += effects.margin * 2;
 	local_desc.size.y += effects.margin * 2;
 
-	const auto& local_target{ target_pool_.Acquire(local_desc, FramebufferId{ 0 }) };
+	auto& local_target{ target_pool_.Acquire(local_desc, FramebufferId{ 0 }) };
 
 	local_target.Bind();
 	SetViewport({ .position{}, .size = local_desc.size });
+
+	V2_float half{ V2_float{ local_desc.size } / 2.0f };
+	SetViewProjection(Matrix4::Orthographic(-half, half));
+
 	local_target.Clear(color::Transparent, false);
 
-	auto positions{ QuadInsidePaddedTarget(source_desc.size) };
+	SetCurrentPipeline("texture");
+	SetMaterial(MaterialState{
+		.shader	  = GetShader("texture"),
+		.uniforms = {},
+	});
 
-	DrawImmediateTexturedQuad(source, quad, {});
+	auto local_quad{ CreateRenderQuad(
+		QuadInsidePaddedTarget(source_desc.size), 0.0f, V4_float{ world_quad[0].color },
+		GetDefaultTextureCoordinates<false>()
+	) };
+
+	DrawImmediateTexturedQuad(source, local_quad, {});
 
 	current_target_is_transient_ = true;
 
 	DrawContext effect_ctx{ *this };
-
 	effects.draw_callback(effect_ctx);
 
-	TextureId final_effect_texture{ GetCurrentTargetTexture() };
+	auto final_effect_target{ GetCurrentTarget() };
+	auto final_effect_texture{ GetRenderTargetTexture(final_effect_target) };
 
 	RestoreTarget(destination);
 
@@ -1067,25 +1088,19 @@ void Renderer::DrawTextureWithEffects(
 		.uniforms = {},
 	});
 
-	ExpandQuadByPixels(quad, source_desc.size, effects.margin);
+	ExpandQuadByPixels(world_quad, source_desc.size, effects.margin);
 
-	constexpr auto expanded_tex_coords{ GetDefaultTextureCoordinates<false>() };
+	auto expanded_tex_coords{ GetDefaultTextureCoordinates<false>() };
 
-	static_assert(expanded_tex_coords.size() == quad.size());
-
-	for (auto i{ 0 }; i < quad.size(); ++i) {
-		// TODO: Check if this makes sense.
-		// Margin is added in the texture space, so we may need to expand the texture coordinates
-		// accordingly.
-		quad[i].tex_coord = { expanded_tex_coords[i].x, expanded_tex_coords[i].y };
+	for (auto i{ 0 }; i < world_quad.size(); ++i) {
+		world_quad[i].tex_coord = { expanded_tex_coords[i].x, expanded_tex_coords[i].y };
 	}
 
-	const std::array<TextureId, 1> textures{ final_effect_texture };
+	std::array<TextureId, 1> textures{ final_effect_texture };
 
-	DrawQuads<TextureVertex>(std::span{ &quad, 1 }, textures);
+	DrawQuads<TextureVertex>(std::span{ &world_quad, 1 }, textures);
 
-	// TODO: Fix or remove.
-	// batcher_.HoldUntilFlush(final_effect_target);
+	batcher_.HoldUntilFlush(local_target);
 }
 
 void Renderer::DrawImmediateTexturedQuad(
@@ -1101,7 +1116,7 @@ void Renderer::DrawImmediateTexturedQuad(
 	BindTextureSlot(0, primary);
 	SetUniform(shader, "u_Texture", 0);
 
-	std::uint32_t slot{ 0 };
+	std::uint32_t slot{ 1 };
 
 	for (const TextureBinding& binding : extra_textures) {
 		BindTextureSlot(slot, binding.source);

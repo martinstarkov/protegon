@@ -75,12 +75,12 @@ void Sprite::Draw(
 
 	impl::EffectParams effects;
 
+	// TODO: Fix memory leak.
 	// effects.draw_callback = [](DrawContext& renderer) {
 	//	RenderTargetDesc desc{
 	//		.size	= renderer.BoundTargetSize(),
 	//		.format = TextureFormat::RGBA8,
 	//	};
-
 	//	renderer.Pass()
 	//		.Read(renderer.BoundTarget())
 	//		.Output(desc)

@@ -127,6 +127,8 @@ private:
 
 	struct TargetSave {
 		RenderTargetId target{ 0 };
+		std::optional<Viewport> viewport;
+		Matrix4 view_projection;
 		bool transient{ false };
 	};
 
