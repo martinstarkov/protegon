@@ -24,7 +24,7 @@ public:
 
 	RenderPassBuilder& State(const RenderState& state);
 
-	RenderPassBuilder& ExtraTexture(std::string_view name, TextureSource texture);
+	RenderPassBuilder& ExtraTexture(std::string_view name, impl::TextureId texture);
 
 	TextureSource Draw(const MaterialState& material);
 

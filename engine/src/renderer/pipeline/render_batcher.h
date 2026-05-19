@@ -11,12 +11,16 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/log.h"
+#include "core/math/vector2.h"
+#include "core/math/vector4.h"
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
 #include "renderer/resources/id.h"
+#include "renderer/vertex/vertex.h"
 
 namespace ptgn::impl {
 
@@ -30,6 +34,20 @@ inline constexpr std::uint32_t kIndexCapacity{ kBatchCapacity * 6 };
 
 template <VertexType TVertex>
 using RenderQuad = std::array<TVertex, 4>;
+
+inline RenderQuad<TextureVertex> CreateRenderQuad(
+	const std::array<V2_float, 4>& positions, float depth = 0.0f,
+	V4_float color_n						  = color::White.Normalized(),
+	const std::array<V2_float, 4>& tex_coords = GetDefaultTextureCoordinates<false>(),
+	float tex_index = 0.0f, int entity_id = -1
+) {
+	return {
+		TextureVertex{ positions[0], depth, color_n, tex_coords[0], tex_index, entity_id },
+		TextureVertex{ positions[1], depth, color_n, tex_coords[1], tex_index, entity_id },
+		TextureVertex{ positions[2], depth, color_n, tex_coords[2], tex_index, entity_id },
+		TextureVertex{ positions[3], depth, color_n, tex_coords[3], tex_index, entity_id },
+	};
+}
 
 template <VertexType TVertex>
 using RenderTriangle = std::array<TVertex, 3>;
@@ -64,11 +82,11 @@ public:
 
 	void Flush();
 
-	void HoldUntilFlush(RenderTargetObject& target);
+	void HoldUntilFlush(const RenderTargetObject& target);
 
 	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
 	void SubmitQuads(
-		PipelineId pipeline_id, FramebufferId target, const MaterialState& material,
+		PipelineId pipeline_id, RenderTargetId target, const MaterialState& material,
 		const RenderState& render_state, std::span<const RenderQuad<TVertex>> quads,
 		std::span<const TextureId> local_textures = {}, TAccessor texture_index = {}
 	) {
@@ -80,7 +98,7 @@ public:
 
 	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
 	void SubmitTriangles(
-		PipelineId pipeline_id, FramebufferId target, const MaterialState& material,
+		PipelineId pipeline_id, RenderTargetId target, const MaterialState& material,
 		const RenderState& render_state, std::span<const RenderTriangle<TVertex>> triangles,
 		std::span<const TextureId> local_textures = {}, TAccessor texture_index = {}
 	) {
@@ -92,7 +110,7 @@ public:
 
 private:
 	void EnsureActiveBatchState(
-		PipelineId pipeline_id, FramebufferId target, const MaterialState& material,
+		PipelineId pipeline_id, RenderTargetId target, const MaterialState& material,
 		const RenderState& render_state
 	);
 
@@ -107,7 +125,7 @@ private:
 		VertexType TVertex, std::size_t VertexCount, std::size_t IndexCount, typename TPrimitive,
 		typename TAccessor>
 	void SubmitPrimitives(
-		PipelineId pipeline_id, FramebufferId target, const MaterialState& material,
+		PipelineId pipeline_id, RenderTargetId target, const MaterialState& material,
 		const RenderState& render_state, std::span<const TPrimitive> primitives,
 		const std::array<Index, IndexCount>& index_pattern,
 		std::span<const TextureId> local_textures, TAccessor texture_index
@@ -264,7 +282,7 @@ private:
 	Renderer& renderer_;
 
 	std::optional<PipelineId> active_pipeline_id_;
-	FramebufferId active_target_{ 0 };
+	RenderTargetId active_target_{ 0 };
 	MaterialState active_material_;
 	RenderState active_render_state_;
 
@@ -272,7 +290,7 @@ private:
 	std::vector<Index> indices_;
 	std::vector<TextureId> textures_;
 
-	std::vector<RenderTargetObject*> release_after_flush_;
+	std::vector<const RenderTargetObject*> release_after_flush_;
 };
 
 } // namespace ptgn::impl

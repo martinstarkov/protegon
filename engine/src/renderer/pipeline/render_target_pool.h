@@ -57,8 +57,8 @@ public:
 
 	RenderTargetObject& AcquireLike(const RenderTargetObject& target, int margin = 0);
 
-	void Release(FramebufferId id);
-	void Release(RenderTargetObject& target);
+	void Release(RenderTargetId id);
+	void Release(const RenderTargetObject& target);
 
 	[[nodiscard]] bool Owns(const RenderTargetObject& target) const;
 
@@ -84,7 +84,7 @@ namespace impl {
 
 struct TextureBinding {
 	std::string name;
-	TextureSource source;
+	impl::TextureId source;
 };
 
 } // namespace impl

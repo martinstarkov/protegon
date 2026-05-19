@@ -52,15 +52,17 @@ class DrawContext {
 public:
 	void Flush();
 
-	TextureSource BoundTarget() const;
+	[[nodiscard]] V2_int BoundTargetSize() const;
+	[[nodiscard]] impl::TextureId BoundTarget() const;
 
-	RenderPassBuilder Pass();
+	[[nodiscard]] RenderPassBuilder Pass();
 
+	void SetShader(std::string_view shader);
+	void SetShader(impl::ShaderId shader);
 	void SetBlendMode(BlendMode mode);
 
 	void DrawTexture(
-		const MaterialState& material, TextureSource texture,
-		const std::array<V2_float, 4>& positions, float depth, Color tint,
+		impl::TextureId texture, const std::array<V2_float, 4>& positions, float depth, Color tint,
 		const std::array<V2_float, 4>& tex_coords, const impl::EffectParams& effects = {},
 		std::span<const impl::TextureBinding> extra_textures = {}, int entity_id = -1
 	);

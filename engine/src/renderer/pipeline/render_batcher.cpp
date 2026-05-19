@@ -7,6 +7,7 @@
 
 #include "core/assert.h"
 #include "renderer/pipeline/render_pipeline.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
@@ -16,14 +17,12 @@ namespace ptgn::impl {
 RenderBatcher::RenderBatcher(Renderer& renderer) : renderer_{ renderer } {}
 
 void RenderBatcher::EnsureActiveBatchState(
-	PipelineId pipeline_id, FramebufferId target, const MaterialState& material,
+	PipelineId pipeline_id, RenderTargetId target, const MaterialState& material,
 	const RenderState& render_state
 ) {
-	const bool same = active_pipeline_id_.has_value() && *active_pipeline_id_ == pipeline_id &&
-					  active_target_ == target && active_material_ == material &&
-					  active_render_state_ == render_state;
-
-	if (same) {
+	if (active_pipeline_id_.has_value() && *active_pipeline_id_ == pipeline_id &&
+		active_target_ == target && active_material_ == material &&
+		active_render_state_ == render_state) {
 		return;
 	}
 
@@ -60,7 +59,7 @@ void RenderBatcher::Flush() {
 	PTGN_ASSERT(active_pipeline_id_.has_value());
 	PTGN_ASSERT(active_target_);
 
-	RenderPipeline& pipeline = GetPipeline(*active_pipeline_id_);
+	const RenderPipeline& pipeline{ GetPipeline(*active_pipeline_id_) };
 
 	renderer_.ApplyRenderTarget(active_target_);
 
@@ -87,7 +86,7 @@ void RenderBatcher::Flush() {
 	ReleaseTargetsAfterFlush();
 }
 
-void RenderBatcher::HoldUntilFlush(RenderTargetObject& target) {
+void RenderBatcher::HoldUntilFlush(const RenderTargetObject& target) {
 	if (!renderer_.GetTargetPool().Owns(target)) {
 		return;
 	}
@@ -98,7 +97,7 @@ void RenderBatcher::HoldUntilFlush(RenderTargetObject& target) {
 }
 
 void RenderBatcher::ReleaseTargetsAfterFlush() {
-	for (RenderTargetObject* target : release_after_flush_) {
+	for (const RenderTargetObject* target : release_after_flush_) {
 		renderer_.GetTargetPool().Release(*target);
 	}
 

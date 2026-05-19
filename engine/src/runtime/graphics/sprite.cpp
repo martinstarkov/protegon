@@ -17,6 +17,7 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
+#include "renderer/resources/texture_format.h"
 #include "renderer/vertex/vertex.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
@@ -69,20 +70,29 @@ void Sprite::Draw(
 	auto blend_mode{ GetBlendMode(entity) };
 	auto entity_id{ entity.GetUUID() };
 
-	MaterialState material;
-	material.shader = renderer.GetShader("texture");
-
 	Rect rect{ *texture_size };
 	auto positions{ rect.GetWorldVertices(draw_transform, draw_origin) };
 
 	impl::EffectParams effects;
 
+	// effects.draw_callback = [](DrawContext& renderer) {
+	//	RenderTargetDesc desc{
+	//		.size	= renderer.BoundTargetSize(),
+	//		.format = TextureFormat::RGBA8,
+	//	};
+
+	//	renderer.Pass()
+	//		.Read(renderer.BoundTarget())
+	//		.Output(desc)
+	//		.Draw({ .shader{ renderer.GetShader("blur") } });
+	//};
+
 	std::span<const impl::TextureBinding> extra_textures{};
 
 	renderer.SetBlendMode(blend_mode);
+	renderer.SetShader("texture");
 	renderer.DrawTexture(
-		material, texture, positions, depth, final_tint, tex_coords, effects, extra_textures,
-		entity_id
+		texture, positions, depth, final_tint, tex_coords, effects, extra_textures, entity_id
 	);
 }
 

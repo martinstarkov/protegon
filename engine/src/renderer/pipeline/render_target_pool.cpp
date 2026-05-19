@@ -127,9 +127,9 @@ RenderTargetObject& RenderTargetPool::AcquireLike(const RenderTargetObject& targ
 	return Acquire(desc, FramebufferId{ target.operator RenderTargetId() });
 }
 
-void RenderTargetPool::Release(FramebufferId id) {
+void RenderTargetPool::Release(RenderTargetId id) {
 	for (auto& entry : pool_) {
-		if (FramebufferId{ entry.target.operator RenderTargetId() } != id) {
+		if (entry.target.operator RenderTargetId() != id) {
 			continue;
 		}
 
@@ -143,7 +143,7 @@ void RenderTargetPool::Release(FramebufferId id) {
 	PTGN_ERROR("Tried to release a render target not owned by RenderTargetPool");
 }
 
-void RenderTargetPool::Release(RenderTargetObject& target) {
+void RenderTargetPool::Release(const RenderTargetObject& target) {
 	for (auto& entry : pool_) {
 		if (&entry.target != &target) {
 			continue;

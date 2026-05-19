@@ -34,6 +34,7 @@
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
+#include "renderer/vertex/vertex.h"
 
 namespace ptgn {
 
@@ -63,7 +64,7 @@ class Renderer {
 public:
 	void SetMaterial(const MaterialState& material);
 
-	void BeginScene(RenderTargetObject& scene_target, Color clear_color);
+	void BeginScene(const RenderTargetObject& scene_target, Color clear_color);
 
 	void EndScene();
 
@@ -105,11 +106,9 @@ public:
 		);
 	}
 
-	void DrawTexture(
-		const MaterialState& material, TextureSource texture,
-		const std::array<V2_float, 4>& positions, float depth, Color tint,
-		const std::array<V2_float, 4>& tex_coords, const EffectParams& effects = {},
-		std::span<const TextureBinding> extra_textures = {}, int entity_id = -1
+	void DrawTextures(
+		std::span<const RenderQuad<TextureVertex>> quads, std::span<const TextureId> local_textures,
+		const EffectParams& effects = {}, std::span<const TextureBinding> extra_textures = {}
 	);
 
 	RenderPassBuilder Pass();
@@ -119,13 +118,15 @@ public:
 		const RenderState& state, std::span<const TextureBinding> extra_textures
 	);
 
+	impl::TextureId GetCurrentTargetTexture() const;
+	RenderTargetId GetCurrentTarget() const;
+
 private:
 	RenderState GetCurrentState() const;
-	FramebufferId GetCurrentTarget() const;
 	MaterialState GetCurrentMaterial() const;
 
 	struct TargetSave {
-		FramebufferId target{ 0 };
+		RenderTargetId target{ 0 };
 		bool transient{ false };
 	};
 
@@ -134,34 +135,26 @@ private:
 	void RestoreTarget(TargetSave save);
 
 	void DrawBoundTargetEffect(
-		const std::array<V2_float, 4>& positions, float depth, Color tint,
-		const std::array<V2_float, 4>& tex_coords, std::span<const TextureBinding> extra_textures
+		const RenderQuad<TextureVertex>& quad, std::span<const TextureBinding> extra_textures
 	);
 
 	void DrawTextureWithEffects(
-		TextureSource source, const std::array<V2_float, 4>& world_positions, float depth,
-		Color tint, const std::array<V2_float, 4>& tex_coords, const EffectParams& effects,
-		int entity_id
+		TextureId source, RenderQuad<TextureVertex> quad, const EffectParams& effects
 	);
 
 	void DrawImmediateTexturedQuad(
-		TextureSource primary, const std::array<V2_float, 4>& positions, float depth, Color tint,
-		const std::array<V2_float, 4>& tex_coords, std::span<const TextureBinding> extra_textures
+		TextureId primary, const RenderQuad<TextureVertex>& quad,
+		std::span<const TextureBinding> extra_textures
 	);
 
-	TextureId ResolveTexture(TextureSource source) const;
-
 	FramebufferId ResolveTarget(TextureSource source) const;
-
-	RenderTargetDesc GetTextureDesc(TextureSource source) const;
+	TextureId ResolveTexture(TextureSource source) const;
 
 	static std::array<V2_float, 4> FullscreenQuad(V2_int size);
 
 	static std::array<V2_float, 4> QuadInsidePaddedTarget(V2_int source_size);
 
-	static std::array<V2_float, 4> ExpandQuadByPixels(
-		std::array<V2_float, 4> quad, V2_int source_size, int margin
-	);
+	static void ExpandQuadByPixels(RenderQuad<TextureVertex>& quad, V2_int source_size, int margin);
 
 public:
 	void SetViewProjection(const Matrix4& view_projection);
@@ -295,7 +288,7 @@ private:
 	void UploadIndices(const RenderPipeline& pipeline, std::span<const Index> indices);
 	void DrawElements(const RenderPipeline& pipeline, std::uint32_t index_count);
 
-	void ApplyRenderTarget(FramebufferId id);
+	void ApplyRenderTarget(RenderTargetId id);
 
 	void ApplyRenderState(const RenderState& state);
 

@@ -108,7 +108,7 @@ struct State {
 
 		*this = {};
 
-		texture_units.resize(max_texture_slots, {});
+		texture_units.resize(max_texture_slots, TextureUnitState{ true });
 	}
 };
 

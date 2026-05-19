@@ -4,12 +4,11 @@
 #include <span>
 #include <string_view>
 #include <type_traits>
-#include <utility>
 #include <variant>
 
-#include "blend_mode.h"
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_batcher.h"
 #include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_state.h"
@@ -26,8 +25,12 @@ void DrawContext::Flush() {
 	renderer_.FlushBatch();
 }
 
-TextureSource DrawContext::BoundTarget() const {
-	return impl::BoundTarget{};
+V2_int DrawContext::BoundTargetSize() const {
+	return renderer_.GetRenderTargetSize(renderer_.GetCurrentTarget());
+}
+
+impl::TextureId DrawContext::BoundTarget() const {
+	return renderer_.GetCurrentTargetTexture();
 }
 
 RenderPassBuilder DrawContext::Pass() {
@@ -38,15 +41,24 @@ void DrawContext::SetBlendMode(BlendMode mode) {
 	renderer_.SetBlendMode(mode);
 }
 
+void DrawContext::SetShader(std::string_view shader) {
+	SetShader(renderer_.GetShader(shader));
+}
+
+void DrawContext::SetShader(impl::ShaderId shader) {
+	renderer_.SetShader(shader);
+}
+
 void DrawContext::DrawTexture(
-	const MaterialState& material, TextureSource texture, const std::array<V2_float, 4>& positions,
-	float depth, Color tint, const std::array<V2_float, 4>& tex_coords,
-	const impl::EffectParams& effects, std::span<const impl::TextureBinding> extra_textures,
-	int entity_id
+	impl::TextureId texture, const std::array<V2_float, 4>& positions, float depth, Color tint,
+	const std::array<V2_float, 4>& tex_coords, const impl::EffectParams& effects,
+	std::span<const impl::TextureBinding> extra_textures, int entity_id
 ) {
-	renderer_.DrawTexture(
-		material, texture, positions, depth, tint, tex_coords, effects, extra_textures, entity_id
-	);
+	auto quad{
+		impl::CreateRenderQuad(positions, depth, tint.Normalized(), tex_coords, 0.0f, entity_id)
+	};
+
+	renderer_.DrawTextures({ &quad, 1 }, { &texture, 1 }, effects, extra_textures);
 }
 
 void DrawContext::Draw(const impl::ManualCommand& cmd) {

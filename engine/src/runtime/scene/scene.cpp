@@ -409,13 +409,12 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 
 	auto render_target_texture{ ctx().global_renderer_.GetRenderTargetTexture(render_target_) };
 
-	MaterialState material;
-	material.shader = texture_shader;
+	ctx().global_renderer_.SetShader(texture_shader);
 
 	impl::EffectParams effects;
 
-	ctx().global_renderer_.DrawTexture(
-		material, render_target_texture, positions, 0.0f, rt_tint, tex_coords, effects, {}, -1
+	draw_context.DrawTexture(
+		render_target_texture, positions, 0.0f, rt_tint, tex_coords, effects, {}, -1
 	);
 
 	ctx().global_renderer_.FlushBatch();

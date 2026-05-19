@@ -28,7 +28,7 @@ RenderPassBuilder& RenderPassBuilder::State(const RenderState& state) {
 	return *this;
 }
 
-RenderPassBuilder& RenderPassBuilder::ExtraTexture(std::string_view name, TextureSource texture) {
+RenderPassBuilder& RenderPassBuilder::ExtraTexture(std::string_view name, impl::TextureId texture) {
 	extra_textures_.emplace_back(impl::TextureBinding{
 		.name	= std::string{ name },
 		.source = texture,
