@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <span>
 
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
@@ -27,6 +28,8 @@ public:
 	void SetSize(V2_float size);
 	void SetSize(V2_float min, V2_float max);
 
+	[[nodiscard]] Rect Expanded(V2_float margin) const;
+
 	V2_float GetSize() const;
 
 	V2_float GetMin() const;
@@ -49,6 +52,10 @@ public:
 
 	/// @return Center relative to the world.
 	V2_float GetCenter(Transform transform) const;
+
+	/// @return A Rect that bounds the given points, where the min and max are axis-aligned with the
+	/// world axes.
+	[[nodiscard]] static Rect FromPoints(std::span<const V2_float> points);
 
 	bool operator==(const Rect&) const = default;
 

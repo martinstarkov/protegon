@@ -1,6 +1,8 @@
 #include "core/math/geometry/rect.h"
 
+#include <algorithm>
 #include <array>
+#include <span>
 
 #include "core/assert.h"
 #include "core/math/geometry/origin.h"
@@ -16,6 +18,13 @@ void Rect::SetSize(V2_float size) {
 void Rect::SetSize(V2_float min, V2_float max) {
 	min_ = min;
 	max_ = max;
+}
+
+Rect Rect::Expanded(V2_float margin) const {
+	return {
+		min_ - margin,
+		max_ + margin,
+	};
 }
 
 V2_float Rect::GetSize() const {
@@ -74,6 +83,24 @@ V2_float Rect::GetCenter(Transform transform) const {
 	auto position{ transform.GetPosition() };
 	auto center{ (max_ + min_) * 0.5f };
 	return position + center;
+}
+
+Rect Rect::FromPoints(std::span<const V2_float> points) {
+	PTGN_ASSERT(!points.empty(), "Cannot compute bounds of empty point list");
+
+	auto bounds = Rect{
+		points.front(),
+		points.front(),
+	};
+
+	for (const auto& point : points) {
+		bounds.min_.x = std::min(bounds.min_.x, point.x);
+		bounds.min_.y = std::min(bounds.min_.y, point.y);
+		bounds.max_.x = std::max(bounds.max_.x, point.x);
+		bounds.max_.y = std::max(bounds.max_.y, point.y);
+	}
+
+	return bounds;
 }
 
 } // namespace ptgn
