@@ -139,6 +139,14 @@ impl::TextureId Renderer::GetCurrentTargetTexture() const {
 
 void Renderer::FlushBatch() {
 	batcher_.Flush();
+
+	// TODO: Fix or move to batcher.
+	// for (auto& transient : retained_transients) {
+	//	if (transient) {
+	//		ReleaseTransient(std::move(transient));
+	//	}
+	//}
+	// retained_transients.clear();
 }
 
 RenderTargetPool& Renderer::GetTargetPool() {
@@ -906,6 +914,24 @@ void Renderer::DrawTextures(
 
 	SetCurrentPipeline("texture");
 
+	// TODO: Fix.
+
+	// if (ReferencesBoundTarget(...)) {
+	//	PTGN_ASSERT(
+	//		IsFullscreenCompatible(...),
+	//		"Sampling the bound target implies a fullscreen effect pass. "
+	//		"Use a copied/snapshot texture if you want to draw the scene target as normal geometry."
+	//	);
+	//	DrawFullscreenTextureEffects(...);
+	//	return;
+	// }
+	// if (effects.draw_callback) {
+	//	DrawTextureGeometryEffects(...);
+	//	return;
+	// }
+	// DrawTexturesNormally(...);
+
+	/*
 	if (effects.draw_callback) {
 		PTGN_ASSERT(local_textures.size() == 1);
 		PTGN_ASSERT(quads.size() == 1);
@@ -928,6 +954,7 @@ void Renderer::DrawTextures(
 	}
 
 	DrawQuads<TextureVertex>(quads, local_textures);
+	*/
 }
 
 RenderPassBuilder Renderer::Pass() {

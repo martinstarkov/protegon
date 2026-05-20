@@ -60,7 +60,709 @@ struct EffectParams {
 	int margin{ 0 };
 };
 
+// struct DrawPlacement {
+//	std::span<const RenderQuad<TextureVertex>> vertices;
+//	std::array<V2_float, 4> final_quad;
+//	std::array<V2_float, 4> final_tex_coords;
+//	float depth;
+//	Color tint;
+//	int entity_id;
+// };
+
 class Renderer {
+public:
+	/*
+	class RenderTargetTemp {
+	public:
+		RenderTargetTemp() = default;
+
+		RenderTargetTemp(RenderTargetId id, TextureId texture, RenderTargetDesc desc) :
+			id_{ id }, texture_{ texture }, desc_{ desc } {}
+
+		RenderTargetId GetId() const {
+			return id_;
+		}
+
+		TextureId GetTextureRef() const {
+			return texture_;
+		}
+
+		V2_int GetSize() const {
+			return desc_.size;
+		}
+
+		TextureFormat GetFormat() const {
+			return desc_.format;
+		}
+
+		RenderTargetDesc GetDesc() const {
+			return desc_;
+		}
+
+		bool IsValid() const {
+			return id_ != 0 && texture_ != 0;
+		}
+
+	private:
+		RenderTargetId id_{};
+		TextureId texture_{};
+		RenderTargetDesc desc_{};
+	};
+
+	struct RenderTargetHandle {
+		RenderTargetTemp target{};
+		bool valid{};
+
+		RenderTargetHandle() = default;
+
+		explicit RenderTargetHandle(RenderTargetTemp target_object) :
+			target{ target_object }, valid{ target_object.IsValid() } {}
+
+		RenderTargetHandle(const RenderTargetHandle&)			 = delete;
+		RenderTargetHandle& operator=(const RenderTargetHandle&) = delete;
+
+		RenderTargetHandle(RenderTargetHandle&& other) noexcept :
+			target{ other.target }, valid{ other.valid } {
+			other.target = {};
+			other.valid	 = false;
+		}
+
+		RenderTargetHandle& operator=(RenderTargetHandle&& other) noexcept {
+			if (this == &other) {
+				return *this;
+			}
+
+			target = other.target;
+			valid  = other.valid;
+
+			other.target = {};
+			other.valid	 = false;
+
+			return *this;
+		}
+
+		explicit operator bool() const {
+			return valid;
+		}
+
+		TextureId GetTextureRef() const {
+			return target.GetTextureRef();
+		}
+
+		V2_int GetSize() const {
+			return target.GetSize();
+		}
+
+		RenderTargetId GetId() const {
+			return target.GetId();
+		}
+
+		RenderTargetDesc GetDesc() const {
+			return target.GetDesc();
+		}
+	};
+
+	struct ImageRef {
+		TextureId texture{};
+		V2_int size{};
+
+		bool IsValid() const {
+			return texture != 0 && size.BothAboveZero();
+		}
+	};
+
+	struct ImageHandle {
+		ImageRef image{};
+		RenderTargetHandle transient{};
+
+		bool OwnsTransient() const {
+			return static_cast<bool>(transient);
+		}
+	};
+
+	RenderTargetHandle AcquireTransient(RenderTargetDesc desc) {
+		const auto& output{ target_pool_.Acquire(desc, FramebufferId{ 0 }) };
+		auto o{ output.operator RenderTargetId() };
+		return RenderTargetHandle{ RenderTargetTemp{ o,
+													 GetRenderTargetTexture(o),
+													 {
+														 .size	 = GetRenderTargetSize(o),
+														 .format = GetRenderTargetTextureFormat(o),
+													 } } };
+	}
+
+	void ReleaseTransient(RenderTargetHandle handle) {
+		target_pool_.Release(handle.GetId());
+	}
+
+	ImageRef CurrentEffectImage() const {
+		return ActiveEffectChain().current.image;
+	}
+
+	ImageHandle EffectPass(
+		std::span<const ImageRef> inputs, RenderTargetDesc output_desc, MaterialState material
+	) {
+		PTGN_ASSERT(!inputs.empty(), "Effect pass requires at least one input image");
+		PTGN_ASSERT(output_desc.size.BothAboveZero(), "Effect pass output size must be valid");
+
+		auto output = AcquireTransient(output_desc);
+
+		FlushBatch();
+		RenderFullscreenPass(inputs, output.target, material);
+
+		// TODO: Fix.
+		// WithState(material.state_delta, [&]() {
+		//	FlushBatch();
+		//	// Immediate fullscreen pass.
+		//	// This is where your Pass().Read(...).Output(...).Draw(...) implementation goes.
+		//	RenderFullscreenPass(inputs, output.target, material);
+		//});
+
+		return ImageHandle{
+			.image =
+				ImageRef{
+					.texture = output.GetTextureRef(),
+					.size	 = output_desc.size,
+				},
+			.transient = std::move(output),
+		};
+	}
+
+	RenderTargetTemp BoundTarget() const {
+		auto bound{ GetCurrentTarget() };
+		return RenderTargetTemp{ bound, GetRenderTargetTexture(bound),
+								 RenderTargetDesc{
+									 .size	 = GetRenderTargetSize(bound),
+									 .format = GetRenderTargetTextureFormat(bound),
+								 } };
+	}
+
+	V2_int BoundTargetSize() const {
+		auto bound{ GetCurrentTarget() };
+		return GetRenderTargetSize(bound);
+	}
+
+	TextureId BoundTargetTexture() const {
+		auto bound{ GetCurrentTarget() };
+		return GetRenderTargetTexture(bound);
+	}
+
+	ImageRef EffectScratchPass(
+		std::span<const ImageRef> inputs, RenderTargetDesc output_desc, MaterialState material
+	) {
+		auto image = EffectPass(inputs, output_desc, material);
+		auto ref   = image.image;
+
+		ActiveEffectChain().scratch.push_back(std::move(image));
+
+		return ref;
+	}
+
+	void ReplaceCurrentEffectImage(ImageHandle image) {
+		auto& chain = ActiveEffectChain();
+
+		if (chain.current.transient) {
+			ReleaseTransient(std::move(chain.current.transient));
+		}
+
+		for (auto& scratch : chain.scratch) {
+			if (scratch.transient) {
+				ReleaseTransient(std::move(scratch.transient));
+			}
+		}
+
+		chain.scratch.clear();
+		chain.current = std::move(image);
+	}
+
+	void EffectApplyFullscreenPass(std::string_view shader_name) {
+		auto input = CurrentEffectImage();
+
+		auto output = EffectPass(
+			std::array{ input },
+			RenderTargetDesc{
+				.size	= input.size,
+				.format = TextureFormat::RGBA8,
+			},
+			MaterialState{
+				.shader = GetShader(shader_name),
+			}
+		);
+
+		ReplaceCurrentEffectImage(std::move(output));
+	}
+
+	void EffectApplyFullscreenPass(std::string_view shader_name, TextureFormat format) {
+		auto input = CurrentEffectImage();
+
+		auto output = EffectPass(
+			std::array{ input },
+			RenderTargetDesc{
+				.size	= input.size,
+				.format = format,
+			},
+			MaterialState{
+				.shader = GetShader(shader_name),
+			}
+		);
+
+		ReplaceCurrentEffectImage(std::move(output));
+	}
+
+	std::vector<RenderTargetHandle> retained_transients{};
+
+	struct EffectChainState {
+		ImageHandle current{};
+		std::vector<ImageHandle> scratch{};
+	};
+
+	struct PreparedEffectSeed {
+		ImageHandle seed{};
+		DrawPlacement placement{};
+	};
+
+	// --------------------------------------------------------
+	// Top-level draw paths
+	// --------------------------------------------------------
+
+	void DrawFullscreenTextureEffects(
+		std::span<const RenderQuad<TextureVertex>> quads, std::span<const TextureId> local_textures,
+		const EffectParams& effects, std::span<const TextureBinding> extra_textures
+	) {
+		FlushBatch();
+
+		auto seed = ImageHandle{
+			.image =
+				ImageRef{
+					.texture = BoundTargetTexture(),
+					.size	 = BoundTargetSize(),
+				},
+			.transient = {},
+		};
+
+		BeginEffectChain(std::move(seed));
+
+		DrawContext ctx{ *this };
+
+		if (effects.draw_callback) {
+			effects.draw_callback(ctx);
+		} else {
+			auto input = ctx.CurrentImage();
+
+			auto output = ctx.Pass(
+				std::array{ input },
+				RenderTargetDesc{
+					.size	= input.size,
+					.format = TextureFormat::RGBA8,
+				},
+				request.material
+			);
+
+			ctx.ReplaceCurrent(std::move(output));
+		}
+
+		auto final_image = EndEffectChain();
+
+		ReplaceBoundTarget(std::move(final_image));
+	}
+
+	void DrawTextureGeometryEffects(
+		std::span<const RenderQuad<TextureVertex>> quads, std::span<const TextureId> local_textures,
+		const EffectParams& effects, std::span<const TextureBinding> extra_textures
+	) {
+		auto prepared = PrepareTextureEffectSeed(quads, local_textures, effects, extra_textures);
+
+		BeginEffectChain(std::move(prepared.seed));
+
+		DrawContext ctx{ *this };
+
+		PTGN_ASSERT(effects.draw_callback, "Geometry effects require a draw callback");
+
+		effects.draw_callback(ctx);
+
+		auto final_image = EndEffectChain();
+
+		BatchEffectResult(std::move(final_image), prepared.placement);
+	}
+
+	void DrawTexturesNormally(
+		std::span<const RenderQuad<TextureVertex>> quads, std::span<const TextureId> local_textures,
+		const EffectParams& effects, std::span<const TextureBinding> extra_textures
+	) {
+		// TODO: Fix.
+		// WithState(request.material.state_delta, [&]() { AddVerticesToBatch(request.vertices); });
+	}
+
+	// --------------------------------------------------------
+	// Bound-target detection
+	// --------------------------------------------------------
+
+	bool ReferencesBoundTarget(
+		std::span<const RenderQuad<TextureVertex>> quads, std::span<const TextureId> local_textures,
+		const EffectParams& effects, std::span<const TextureBinding> extra_textures
+	) const {
+		auto bound_texture = BoundTargetTexture();
+
+		if (bound_texture == 0) {
+			return false;
+		}
+
+		if (std::ranges::contains(local_textures, bound_texture)) {
+			return true;
+		}
+
+		if (std::ranges::any_of(extra_textures, [bound_texture](const auto& entry) {
+				return entry.source == bound_texture;
+			})) {
+			return true;
+		}
+
+		return false;
+	}
+
+	bool IsFullscreenCompatible(
+		std::span<const RenderQuad<TextureVertex>> quads, std::span<const TextureId> local_textures,
+		const EffectParams& effects, std::span<const TextureBinding> extra_textures
+	) const {
+		if (quads.empty()) {
+			return true;
+		}
+
+		return IsFullscreenQuad(quads);
+	}
+
+	bool IsFullscreenQuad(std::span<const RenderQuad<TextureVertex>> quads) const {
+		if (quads.size() != 1) {
+			return false;
+		}
+
+		auto bounds		 = ComputeVertexBounds(quads.front()).bounds;
+		auto target_size = BoundTargetSize();
+
+		auto expected = Rect{
+			V2_float{ 0.0f, 0.0f },
+			V2_float{
+				static_cast<float>(target_size.x),
+				static_cast<float>(target_size.y),
+			},
+		};
+
+		auto epsilon = 0.5f;
+
+		return std::abs(bounds.GetMin().x - expected.GetMin().x) <= epsilon &&
+			   std::abs(bounds.GetMin().y - expected.GetMin().y) <= epsilon &&
+			   std::abs(bounds.GetMax().x - expected.GetMax().x) <= epsilon &&
+			   std::abs(bounds.GetMax().y - expected.GetMax().y) <= epsilon;
+	}
+
+	// --------------------------------------------------------
+	// Effect seed preparation
+	// --------------------------------------------------------
+
+	struct BoundsInfo {
+		Rect bounds{};
+		Rect expanded_bounds{};
+		V2_int target_size{};
+	};
+
+	V2_int CeilToInt(V2_float value) const {
+		return {
+			std::max(1, static_cast<int>(std::ceil(value.x))),
+			std::max(1, static_cast<int>(std::ceil(value.y))),
+		};
+	}
+
+	BoundsInfo ComputeVertexBounds(
+		std::span<const RenderQuad<TextureVertex>> vertices, float margin_px = 0.0f
+	) const {
+		PTGN_ASSERT(!vertices.empty(), "Cannot compute bounds for empty vertices");
+
+		std::vector<V2_float> points{};
+		points.reserve(vertices.size());
+
+		for (auto& quad : vertices) {
+			for (auto& vertex : quad) {
+				points.emplace_back(vertex.position[0], vertex.position[1]);
+			}
+		}
+
+		auto bounds	  = Rect::FromPoints(points);
+		auto expanded = bounds.Expanded(V2_float{ std::max(0.0f, margin_px) });
+		auto size	  = CeilToInt(expanded.GetSize());
+
+		return {
+			.bounds			 = bounds,
+			.expanded_bounds = expanded,
+			.target_size	 = size,
+		};
+	}
+
+	BoundsInfo ComputeVertexBounds(std::span<const TextureVertex> vertices, float margin_px = 0.0f)
+		const {
+		PTGN_ASSERT(!vertices.empty(), "Cannot compute bounds for empty vertices");
+
+		std::vector<V2_float> points{};
+		points.reserve(vertices.size());
+
+		for (auto& vertex : vertices) {
+			points.emplace_back(vertex.position[0], vertex.position[1]);
+		}
+
+		auto bounds	  = Rect::FromPoints(points);
+		auto expanded = bounds.Expanded(V2_float{ std::max(0.0f, margin_px) });
+		auto size	  = CeilToInt(expanded.GetSize());
+
+		return {
+			.bounds			 = bounds,
+			.expanded_bounds = expanded,
+			.target_size	 = size,
+		};
+	}
+
+	PreparedEffectSeed PrepareTextureEffectSeed(
+		std::span<const RenderQuad<TextureVertex>> quads, std::span<const TextureId> local_textures,
+		const EffectParams& effects, std::span<const TextureBinding> extra_textures
+	) {
+		if (CanUseTextureDirectlyAsEffectSeed(quads, local_textures, effects, extra_textures)) {
+			return PrepareDirectTextureSeed(quads, local_textures, effects, extra_textures);
+		}
+
+		return RasterizeGeometryToEffectSeed(quads, local_textures, effects, extra_textures);
+	}
+
+	bool CanUseTextureDirectlyAsEffectSeed(
+		std::span<const RenderQuad<TextureVertex>> quads, std::span<const TextureId> local_textures,
+		const EffectParams& effects, std::span<const TextureBinding> extra_textures
+	) const {
+		if (effects.margin > 0.0f) {
+			return false;
+		}
+
+		if (quads.size() != 1) {
+			return false;
+		}
+
+		if (!extra_textures.empty()) {
+			return false;
+		}
+
+		if (!UsesWholeTextureQuad(quads.front())) {
+			return false;
+		}
+
+		return true;
+	}
+
+	bool UsesWholeTextureQuad(std::span<const TextureVertex> vertices) const {
+		if (vertices.size() != 4) {
+			return false;
+		}
+
+		auto min_uv = V2_float{
+			vertices.front().tex_coord[0],
+			vertices.front().tex_coord[1],
+		};
+
+		auto max_uv = min_uv;
+
+		for (auto& vertex : vertices) {
+			min_uv.x = std::min(min_uv.x, vertex.tex_coord[0]);
+			min_uv.y = std::min(min_uv.y, vertex.tex_coord[1]);
+			max_uv.x = std::max(max_uv.x, vertex.tex_coord[0]);
+			max_uv.y = std::max(max_uv.y, vertex.tex_coord[1]);
+		}
+
+		auto epsilon = 0.0001f;
+
+		return std::abs(min_uv.x - 0.0f) <= epsilon && std::abs(min_uv.y - 0.0f) <= epsilon &&
+			   std::abs(max_uv.x - 1.0f) <= epsilon && std::abs(max_uv.y - 1.0f) <= epsilon;
+	}
+
+	PreparedEffectSeed PrepareDirectTextureSeed(
+		std::span<const RenderQuad<TextureVertex>> quads, std::span<const TextureId> local_textures,
+		const EffectParams& effects, std::span<const TextureBinding> extra_textures
+	) {
+		PTGN_ASSERT(local_textures.size() == 1);
+		auto texture_size = GetTextureSize(local_textures.front());
+		auto bounds		  = ComputeVertexBounds(quads);
+
+		return {
+			.seed =
+				ImageHandle{
+					.image =
+						ImageRef{
+							.texture = local_textures.front(),
+							.size	 = texture_size,
+						},
+					.transient = {},
+				},
+			.placement =
+				DrawPlacement{
+					.vertices		  = quads,
+					.final_quad		  = MakeQuadPositions(bounds.bounds),
+					.final_tex_coords = FullQuadTexCoords(),
+					.depth			  = quads.front().at(0).position[2],
+					// TODO: Fix.
+					.tint	   = color::White,
+					.entity_id = -1,
+				},
+		};
+	}
+
+	PreparedEffectSeed RasterizeGeometryToEffectSeed(
+		std::span<const RenderQuad<TextureVertex>> quads, std::span<const TextureId> local_textures,
+		const EffectParams& effects, std::span<const TextureBinding> extra_textures
+	) {
+		auto bounds = ComputeVertexBounds(request.vertices, request.effect_margin_px);
+
+		auto desc = RenderTargetDesc{
+			.size	= bounds.target_size,
+			.format = TextureFormat::RGBA8,
+		};
+
+		auto target = AcquireTransient(desc);
+
+		auto local_vertices = BuildLocalVertices(request.vertices, bounds.expanded_bounds.GetMin());
+
+		FlushBatch();
+
+		// TODO: Fix.
+		// WithState(request.material.state_delta, [&]() {
+		RenderGeometryToTarget(
+			local_vertices, request.texture, request.extra_textures, target.target,
+			request.material, color::Transparent
+		);
+		//});
+
+		return {
+			.seed =
+				ImageHandle{
+					.image =
+						ImageRef{
+							.texture = target.GetTextureRef(),
+							.size	 = bounds.target_size,
+						},
+					.transient = std::move(target),
+				},
+			.placement =
+				DrawPlacement{
+					.positions	= MakeQuadPositions(bounds.expanded_bounds),
+					.tex_coords = FullQuadTexCoords(),
+					.depth		= request.vertices.front().depth,
+					.tint		= request.tint,
+					.entity_id	= request.entity_id,
+				},
+		};
+	}
+
+	std::vector<TextureVertex> BuildLocalVertices(
+		std::span<const TextureVertex> vertices, V2_float origin
+	) const {
+		std::vector<TextureVertex> result{};
+		result.reserve(vertices.size());
+
+		for (auto vertex : vertices) {
+			vertex.position = vertex.position - origin;
+			result.push_back(vertex);
+		}
+
+		return result;
+	}
+
+	std::array<V2_float, 4> MakeQuadPositions(Rect rect) const {
+		return {
+			V2_float{ rect.GetMin().x, rect.GetMin().y },
+			V2_float{ rect.GetMax().x, rect.GetMin().y },
+			V2_float{ rect.GetMax().x, rect.GetMax().y },
+			V2_float{ rect.GetMin().x, rect.GetMax().y },
+		};
+	}
+
+	std::array<V2_float, 4> FullQuadTexCoords() const {
+		return {
+			V2_float{ 0.0f, 0.0f },
+			V2_float{ 1.0f, 0.0f },
+			V2_float{ 1.0f, 1.0f },
+			V2_float{ 0.0f, 1.0f },
+		};
+	}
+
+	// --------------------------------------------------------
+	// Effect-chain state
+	// --------------------------------------------------------
+
+	void BeginEffectChain(ImageHandle seed) {
+		effect_stack_.push_back(EffectChainState{
+			.current = std::move(seed),
+			.scratch = {},
+		});
+	}
+
+	ImageHandle EndEffectChain() {
+		auto& chain = ActiveEffectChain();
+
+		for (auto& scratch : chain.scratch) {
+			if (scratch.transient) {
+				ReleaseTransient(std::move(scratch.transient));
+			}
+		}
+
+		chain.scratch.clear();
+
+		auto final_image = std::move(chain.current);
+
+		effect_stack_.pop_back();
+
+		return final_image;
+	}
+
+	EffectChainState& ActiveEffectChain() {
+		PTGN_ASSERT(!effect_stack_.empty(), "No active effect chain");
+		return effect_stack_.back();
+	}
+
+	const EffectChainState& ActiveEffectChain() const {
+		PTGN_ASSERT(!effect_stack_.empty(), "No active effect chain");
+		return effect_stack_.back();
+	}
+
+	// --------------------------------------------------------
+	// Final consumers
+	// --------------------------------------------------------
+
+	void BatchEffectResult(ImageHandle image, DrawPlacement placement) {
+		auto vertices = MakeQuadVertices(
+			placement.positions, placement.tex_coords, placement.depth, placement.tint,
+			placement.entity_id
+		);
+
+		AddTexturedQuadToBatch(image.image.texture, vertices);
+
+		if (image.transient) {
+			current_batch_.retained_transients.push_back(std::move(image.transient));
+		}
+	}
+
+	void ReplaceBoundTarget(ImageHandle image) {
+		FlushBatch();
+
+		// Old scene target release policy depends on how you own your main scene target.
+		// If scene targets are also transient ping-pong targets, release the previous one here.
+		// In this sketch, scene_target_ becomes the transient output target.
+		PTGN_ASSERT(image.transient, "Fullscreen effect output should be a transient target");
+
+		scene_target_ = image.transient.target;
+
+		// Ownership transfer note:
+		// We intentionally do not release image.transient here, because scene_target_
+		// now represents the active target. In a real implementation, store a proper
+		// owning SceneTarget handle instead of copying RenderTargetObject.
+		image.transient.valid = false;
+	}
+
+	std::vector<EffectChainState> effect_stack_{};
+	*/
+
 public:
 	void SetMaterial(const MaterialState& material);
 

@@ -50,6 +50,54 @@ using ManualCommand = std::variant<TriangleCommand, QuadCommand, ShapeCommand, T
 
 class DrawContext {
 public:
+	// TODO: Fix.
+	// template <class Fn>
+	// decltype(auto) WithState(const RenderStateDelta& delta, Fn&& fn) {
+	//	//return renderer_.WithState(delta, [&]() -> decltype(auto) {
+	//	//	return std::forward<Fn>(fn)(*this);
+	//	//});
+	//}
+	/*
+	void DrawTextures(
+		std::span<const impl::RenderQuad<impl::TextureVertex>> quads,
+		std::span<const impl::TextureId> local_textures, const impl::EffectParams& effects,
+		std::span<const impl::TextureBinding> extra_textures
+	) {
+		renderer_.DrawTextures(quads, local_textures, effects, extra_textures);
+	}
+
+	impl::Renderer::ImageRef CurrentImage() const {
+		return renderer_.CurrentEffectImage();
+	}
+
+	impl::Renderer::ImageHandle Pass(
+		std::span<const impl::Renderer::ImageRef> inputs, RenderTargetDesc output_desc,
+		MaterialState material
+	) {
+		return renderer_.EffectPass(inputs, output_desc, material);
+	}
+
+	impl::Renderer::ImageRef ScratchPass(
+		std::span<const impl::Renderer::ImageRef> inputs, RenderTargetDesc output_desc,
+		MaterialState material
+	) {
+		return renderer_.EffectScratchPass(inputs, output_desc, material);
+	}
+
+	void ReplaceCurrent(impl::Renderer::ImageHandle image) {
+		renderer_.ReplaceCurrentEffectImage(std::move(image));
+	}
+
+	void ApplyFullscreenPass(std::string_view shader_name) {
+		renderer_.EffectApplyFullscreenPass(shader_name);
+	}
+
+	void ApplyFullscreenPass(std::string_view shader_name, TextureFormat format) {
+		renderer_.EffectApplyFullscreenPass(shader_name, format);
+	}
+	*/
+
+public:
 	void Flush();
 
 	[[nodiscard]] V2_int BoundTargetSize() const;
