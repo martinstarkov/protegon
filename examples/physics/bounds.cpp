@@ -64,7 +64,7 @@ struct PhysicsBoundaryScene : public Scene {
 		player = AddEntity({}, player_size, color::Purple, false);
 		SetDepth(player, 1);
 
-		for (std::size_t i{ 0 }; i < entity_count; ++i) {
+		for (auto i{ 0uz }; i < entity_count; ++i) {
 			AddEntity({ rngx(), rngy() }, { rngsize(), rngsize() }, Color::RandomTransparent());
 		}
 	}

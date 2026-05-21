@@ -3,12 +3,14 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
@@ -63,7 +65,7 @@ public:
 		std::fill(obstacles.begin(), obstacles.end(), false); // Reset obstacles if needed
 	}
 
-	void DecreaseDensity(float fraction = 0.999) {
+	void DecreaseDensity(float fraction = 0.999f) {
 		for (auto& d : density) {
 			d *= fraction;
 		}
@@ -74,23 +76,25 @@ public:
 			return;
 		}
 
-		if (radius > 0) {
-			auto ycoordsize{ ycoord * size.x };
-			for (int j{ -radius }; j <= radius; ++j) {
-				int row = ycoordsize + j * size.x;
-				for (int i{ -radius }; i <= radius; ++i) {
-					if (i * i + j * j <= radius * radius) {
-						int index = xcoord + i + row;
-						if (index >= 0 && index < length && !obstacles[index]) {
-							this->density[index] += amount;
-						}
-					}
-				}
-			}
-		} else {
-			int index = xcoord + ycoord * size.x;
-			if (!obstacles[index]) {
+		if (radius <= 0) {
+			if (auto index{ xcoord + ycoord * size.x }; !obstacles[index]) {
 				this->density[index] += amount;
+			}
+			return;
+		}
+
+		auto ycoordsize{ ycoord * size.x };
+		for (auto j{ -radius }; j <= radius; ++j) {
+			int row = ycoordsize + j * size.x;
+			for (auto i{ -radius }; i <= radius; ++i) {
+				if (i * i + j * j > radius * radius) {
+					continue;
+				}
+
+				auto index{ xcoord + i + row };
+				if (index >= 0 && index < length && !obstacles[index]) {
+					this->density[index] += amount;
+				}
 			}
 		}
 	}
@@ -108,9 +112,9 @@ public:
 	}
 
 	void SetBoundaries(int b, std::vector<float>& xs) const {
-		for (int j = 1; j < size.y - 1; ++j) {
-			for (int i = 1; i < size.x - 1; ++i) {
-				int index = i + j * size.x;
+		for (auto j{ 1uz }; j < size.y - 1uz; ++j) {
+			for (auto i{ 1uz }; i < size.x - 1uz; ++i) {
+				auto index{ i + j * size.x };
 				if (obstacles[index]) {
 					xs[index] = 0.0f;
 					continue;
@@ -129,35 +133,39 @@ public:
 		}
 
 		// Container edges
-		for (int i = 1; i < size.x - 1; ++i) {
+		for (auto i{ 1uz }; i < size.x - 1uz; ++i) {
 			xs[i] = (b == 2 ? -xs[i + size.x] : xs[i + size.x]);
-			xs[(size.y - 1) * size.x + i] =
-				(b == 2 ? -xs[(size.y - 2) * size.x + i] : xs[(size.y - 2) * size.x + i]);
+			xs[(size.y - 1uz) * size.x + i] =
+				(b == 2 ? -xs[(size.y - 2uz) * size.x + i] : xs[(size.y - 2uz) * size.x + i]);
 		}
-		for (int j = 1; j < size.y - 1; ++j) {
+		for (auto j{ 1uz }; j < size.y - 1uz; ++j) {
 			xs[j * size.x] = (b == 1 ? -xs[j * size.x + 1] : xs[j * size.x + 1]);
-			xs[j * size.x + size.x - 1] =
+			xs[j * size.x + size.x - 1uz] =
 				(b == 1 ? -xs[j * size.x + size.x - 2] : xs[j * size.x + size.x - 2]);
 		}
 
+		auto offset{ length - size.x };
+
 		// Corners
-		xs[0]		   = 0.33f * (xs[1] + xs[size.x] + xs[0]);
-		xs[size.x - 1] = 0.33f * (xs[size.x - 2] + xs[2 * size.x - 1] + xs[size.x - 1]);
-		xs[length - size.x] =
-			0.33f * (xs[length - size.x + 1] + xs[length - 2 * size.x] + xs[length - size.x]);
-		xs[length - 1] = 0.33f * (xs[length - 2] + xs[length - size.x - 1] + xs[length - 1]);
+		xs[0]			 = 0.33f * (xs[1] + xs[size.x] + xs[0]);
+		xs[size.x - 1uz] = 0.33f * (xs[size.x - 2uz] + xs[2uz * size.x - 1uz] + xs[size.x - 1uz]);
+		xs[offset]		 = 0.33f * (xs[offset + 1uz] + xs[length - 2uz * size.x] + xs[offset]);
+		xs[length - 1uz] = 0.33f * (xs[length - 2uz] + xs[offset - 1uz] + xs[length - 1uz]);
 	}
 
 	void LinSolve(
 		int b, std::vector<float>& xs, std::vector<float>& x0, float a, float c,
 		std::size_t iterations
 	) const {
-		float c_reciprocal = 1.0f / c;
-		for (std::size_t iteration = 0; iteration < iterations; ++iteration) {
-			for (int j = 1; j < size.y - 1; ++j) {
-				int row = j * size.x;
-				for (int i = 1; i < size.x - 1; ++i) {
-					int index = row + i;
+		PTGN_ASSERT(!NearlyEqual(c, 0.0f));
+
+		auto c_reciprocal{ 1.0f / c };
+
+		for (auto iteration{ 0uz }; iteration < iterations; ++iteration) {
+			for (auto j{ 1uz }; j < size.y - 1uz; ++j) {
+				auto row{ j * size.x };
+				for (auto i{ 1uz }; i < size.x - 1uz; ++i) {
+					auto index{ row + i };
 					if (obstacles[index]) {
 						xs[index] = 0.0f; // zero inside obstacle
 						continue;
@@ -175,26 +183,29 @@ public:
 		int b, std::vector<float>& xs, std::vector<float>& x0, float diffusion, float delta_time,
 		std::size_t iterations
 	) {
-		float a = delta_time * diffusion * (size.x - 2) * (size.y - 2);
-		LinSolve(b, xs, x0, a, 1 + 4 * a, iterations);
+		float a{ delta_time * diffusion * (static_cast<float>(size.x) - 2.0f) *
+				 (static_cast<float>(size.y) - 2.0f) };
+		LinSolve(b, xs, x0, a, 1.0f + 4.0f * a, iterations);
 	}
 
 	void Project(
 		std::vector<float>& vx, std::vector<float>& vy, std::vector<float>& p,
 		std::vector<float>& div, std::size_t iterations
 	) {
-		for (int j = 1; j < size.y - 1; ++j) {
-			int row = j * size.x;
-			for (int i = 1; i < size.x - 1; ++i) {
-				int index = row + i;
+		for (auto j{ 1z }; j < size.y - 1uz; ++j) {
+			auto row{ j * size.x };
+			for (auto i{ 1z }; i < size.x - 1uz; ++i) {
+				auto index{ row + i };
 				if (obstacles[index]) {
 					div[index] = 0.0f;
 					p[index]   = 0.0f;
 					continue;
 				}
-				div[index] = -0.5f * ((vx[index + 1] - vx[index - 1]) / size.x +
-									  (vy[index + size.x] - vy[index - size.x]) / size.y);
-				p[index]   = 0.0f;
+				div[index] =
+					-0.5f *
+					((vx[index + 1uz] - vx[index - 1uz]) / static_cast<float>(size.x) +
+					 (vy[index + size.x] - vy[index - size.x]) / static_cast<float>(size.y));
+				p[index] = 0.0f;
 			}
 		}
 
@@ -203,17 +214,18 @@ public:
 
 		LinSolve(0, p, div, 1, 4, iterations);
 
-		for (int j = 1; j < size.y - 1; ++j) {
-			int row = j * size.x;
-			for (int i = 1; i < size.x - 1; ++i) {
-				int index = row + i;
+		for (auto j{ 1z }; j < size.y - 1uz; ++j) {
+			auto row{ j * size.x };
+			for (auto i{ 1z }; i < size.x - 1uz; ++i) {
+				auto index{ row + i };
 				if (obstacles[index]) {
 					vx[index] = 0.0f;
 					vy[index] = 0.0f;
 					continue;
 				}
-				vx[index] -= 0.5f * (p[index + 1] - p[index - 1]) * size.x;
-				vy[index] -= 0.5f * (p[index + size.x] - p[index - size.x]) * size.y;
+				vx[index] -= 0.5f * (p[index + 1uz] - p[index - 1uz]) * static_cast<float>(size.x);
+				vy[index] -=
+					0.5f * (p[index + size.x] - p[index - size.x]) * static_cast<float>(size.y);
 			}
 		}
 
@@ -225,44 +237,44 @@ public:
 		int b, std::vector<float>& d, std::vector<float>& d0, std::vector<float>& u,
 		std::vector<float>& v, float delta_time
 	) {
-		float dt0x = delta_time * size.x;
-		float dt0y = delta_time * size.y;
-		for (int j = 1; j < size.y - 1; ++j) {
-			int row = j * size.x;
-			for (int i = 1; i < size.x - 1; ++i) {
-				int index = row + i;
+		auto dt0x{ delta_time * static_cast<float>(size.x) };
+		auto dt0y{ delta_time * static_cast<float>(size.y) };
+		for (auto j{ 1z }; j < size.y - 1uz; ++j) {
+			auto row{ j * size.x };
+			for (auto i{ 1z }; i < size.x - 1uz; ++i) {
+				auto index{ row + i };
 
 				if (obstacles[index]) {
 					d[index] = 0.0f;
 					continue;
 				}
 
-				float xs = i - dt0x * u[index];
-				float ys = j - dt0y * v[index];
+				auto xs{ static_cast<float>(i) - dt0x * u[index] };
+				auto ys{ static_cast<float>(j) - dt0y * v[index] };
 
-				xs = std::clamp(xs, 0.5f, size.x - 1.5f);
-				ys = std::clamp(ys, 0.5f, size.y - 1.5f);
+				xs = std::clamp(xs, 0.5f, static_cast<float>(size.x) - 1.0f, 0.5f);
+				ys = std::clamp(ys, 0.5f, static_cast<float>(size.y) - 1.0f, 0.5f);
 
-				int i0 = (int)xs;
-				int i1 = i0 + 1;
-				int j0 = (int)ys;
-				int j1 = j0 + 1;
+				auto i0{ static_cast<int>(xs) };
+				auto i1{ i0 + 1 };
+				auto j0{ static_cast<int>(ys) };
+				auto j1{ j0 + 1 };
 
 				// Avoid sampling inside obstacles:
-				int i0j0 = i0 + j0 * size.x;
-				int i0j1 = i0 + j1 * size.x;
-				int i1j0 = i1 + j0 * size.x;
-				int i1j1 = i1 + j1 * size.x;
+				auto i0j0{ i0 + j0 * size.x };
+				auto i0j1{ i0 + j1 * size.x };
+				auto i1j0{ i1 + j0 * size.x };
+				auto i1j1{ i1 + j1 * size.x };
 
 				if (obstacles[i0j0] || obstacles[i0j1] || obstacles[i1j0] || obstacles[i1j1]) {
 					d[index] = 0.0f;
 					continue;
 				}
 
-				float s1 = xs - i0;
-				float s0 = 1 - s1;
-				float t1 = ys - j0;
-				float t0 = 1 - t1;
+				auto s1{ xs - static_cast<float>(i0) };
+				auto s0{ 1.0f - s1 };
+				auto t1{ ys - static_cast<float>(j0) };
+				auto t0{ 1.0f - t1 };
 
 				d[index] =
 					s0 * (t0 * d0[i0j0] + t1 * d0[i0j1]) + s1 * (t0 * d0[i1j0] + t1 * d0[i1j1]);
@@ -285,9 +297,9 @@ public:
 
 class FluidScene : public Scene {
 public:
-	const V2_float scale{ 6, 6 };
+	V2_float scale{ 6, 6 };
 	FluidContainer fluid{ game_size / scale, 0.1f, 0.0001f, 0.000001f };
-	V2_float gravity{};
+	V2_float gravity;
 	float gravity_increment{ 1.0f };
 
 	bool initialized{ false };
@@ -330,7 +342,7 @@ public:
 			auto mouse_position = ctx().input.GetMousePosition() + game_size * 0.5f;
 			V2_int pos			= mouse_position / scale;
 			// Make a small brush radius to draw obstacles
-			int brush_radius = static_cast<int>(3.0f / scale.x);
+			auto brush_radius{ static_cast<int>(3.0f / scale.x) };
 			if (brush_radius < 1) {
 				brush_radius = 1;
 			}
@@ -341,7 +353,7 @@ public:
 					int y = pos.y + dy;
 					if (x >= 0 && x < fluid.size.x && y >= 0 && y < fluid.size.y) {
 						if (dx * dx + dy * dy <= brush_radius * brush_radius) {
-							fluid.obstacles[x + y * fluid.size.x] = true;
+							fluid.obstacles[x + static_cast<std::size_t>(y) * fluid.size.x] = true;
 						}
 					}
 				}
@@ -360,11 +372,11 @@ public:
 			density_graph = !density_graph;
 		}
 
-		for (int j = 0; j < fluid.size.y; ++j) {
-			for (int i = 0; i < fluid.size.x; ++i) {
+		for (auto j{ 0uz }; j < static_cast<std::size_t>(fluid.size.y); ++j) {
+			for (auto i{ 0uz }; i < static_cast<std::size_t>(fluid.size.x); ++i) {
 				V2_int position{ i, j };
 				Color color{ 0, 0, 0, 255 };
-				int index = i + j * fluid.size.x;
+				auto index{ i + j * fluid.size.x };
 
 				if (fluid.obstacles[index]) {
 					color = Color{ 255, 255, 255, 255 }; // White for obstacles

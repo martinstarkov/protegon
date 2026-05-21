@@ -69,7 +69,7 @@ struct BroadphaseScene : public Scene {
 		player = AddEntity(*this, {}, player_size, color::Purple, false);
 		SetDepth(player, 1);
 
-		for (std::size_t i{ 0 }; i < entity_count; ++i) {
+		for (auto i{ 0uz }; i < entity_count; ++i) {
 			AddEntity(
 				*this, { rngx(), rngy() }, { rngsize(), rngsize() }, color::Green,
 				FlipCoin() // false

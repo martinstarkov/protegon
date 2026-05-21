@@ -1413,8 +1413,8 @@ struct SweepTest : public CollisionTest {
 
 		V2_int grid_size = game.renderer.GetGameSize() / size;
 
-		for (std::size_t i = 0; i < grid_size.x; i++) {
-			for (std::size_t j = 0; j < grid_size.y; j++) {
+		for (auto i{ 0uz }; i < grid_size.x; i++) {
+			for (auto j{ 0uz }; j < grid_size.y; j++) {
 				V2_float pos{ i * size.x, j * size.y };
 				game.draw.Rect(pos, size, color::Black, Origin::Center, 1.0f);
 			}
@@ -1549,7 +1549,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 	void OnEnter() override {
 
 
-		for (std::size_t i = 0; i < entity_data.size(); ++i) {
+		for (auto i{ 0uz }; i < entity_data.size(); ++i) {
 			ecs::Entity entity = manager.CreateEntity();
 			const auto& data   = entity_data[i];
 			auto& t			   = entity.SetPosition({});
