@@ -1,6 +1,7 @@
 #include "renderer/pipeline/render_target_pool.h"
 
 #include <algorithm>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -50,7 +51,9 @@ TextureFormat RenderTargetObject::GetFormat() const {
 
 RenderTargetPool::RenderTargetPool(Renderer& renderer) : renderer_{ renderer } {}
 
-RenderTargetObject& RenderTargetPool::Acquire(RenderTargetDesc desc, FramebufferId exclude) {
+RenderTargetObject RenderTargetPool::Acquire(
+	RenderTargetDesc desc, std::optional<FramebufferId> exclude
+) {
 	/*
 	++tick_;
 
@@ -62,8 +65,8 @@ RenderTargetObject& RenderTargetPool::Acquire(RenderTargetDesc desc, Framebuffer
 			continue;
 		}
 
-		if (FramebufferId{ entry.target.operator RenderTargetId() } == exclude) {
-			continue;
+		if (exclude.has_value() && FramebufferId{ entry.target.operator RenderTargetId() } ==
+	*exclude) { continue;
 		}
 
 		if (entry.target.GetFormat() != desc.format) {
@@ -111,12 +114,14 @@ RenderTargetObject& RenderTargetPool::Acquire(RenderTargetDesc desc, Framebuffer
 
 	*/
 
-	auto& result = temp_.emplace_back(renderer_.CreateRenderTarget(desc));
+	// auto& result = temp_.emplace_back();
+
+	auto result = renderer_.CreateRenderTarget(desc);
 
 	result.Bind();
 	result.Clear(color::Transparent, false);
 
-	return result;
+	return std::move(result);
 }
 
 RenderTargetObject& RenderTargetPool::AcquireLike(const RenderTargetObject& target, int margin) {
@@ -132,6 +137,8 @@ RenderTargetObject& RenderTargetPool::AcquireLike(const RenderTargetObject& targ
 }
 
 void RenderTargetPool::Release(RenderTargetId id) {
+	auto current{ renderer_.GetCurrentTarget() };
+	PTGN_ASSERT(id != current, "Cannot release currently bound render target");
 	// for (auto& entry : pool_) {
 	//	if (entry.target.operator RenderTargetId() != id) {
 	//		continue;

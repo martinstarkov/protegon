@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -53,7 +54,9 @@ class RenderTargetPool {
 public:
 	explicit RenderTargetPool(Renderer& renderer);
 
-	RenderTargetObject& Acquire(RenderTargetDesc desc, FramebufferId exclude);
+	RenderTargetObject Acquire(
+		RenderTargetDesc desc, std::optional<FramebufferId> exclude = std::nullopt
+	);
 
 	RenderTargetObject& AcquireLike(const RenderTargetObject& target, int margin = 0);
 
