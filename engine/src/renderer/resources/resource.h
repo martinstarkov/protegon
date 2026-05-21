@@ -32,6 +32,8 @@ public:
 
 	explicit operator bool() const;
 
+	bool operator==(const Resource& other) const = default;
+
 protected:
 	friend class Renderer;
 	friend class RenderPipelineManager;
