@@ -1,18 +1,28 @@
 #pragma once
 
+#include <array>
 #include <optional>
 #include <ranges>
+#include <string_view>
 #include <utility>
 #include <variant>
 #include <vector>
 
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/shape.h"
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
-#include "renderer/pipeline/render_batcher.h"
-#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
-#include "renderer/vertex/vertex.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/scene/scene_camera.h"
 
 namespace ptgn {
@@ -33,8 +43,6 @@ struct DrawCommand {
 
 class RenderContext {
 public:
-	// TODO: Fix.
-	/*
 	/// @param game_size Setting to nullopt will dynamically use the presentation viewport size.
 	void SetGameSize(
 		std::optional<V2_int> game_size = std::nullopt,
@@ -119,6 +127,18 @@ public:
 		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
 	);
 
+	void DrawPoint(
+		V2_float point, Color color, Depth depth = {},
+		std::optional<BlendMode> blend_mode		 = std::nullopt,
+		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
+	);
+
+	void DrawLine(
+		V2_float start, V2_float end, Color color, float line_width = kMinLineWidth,
+		Depth depth = {}, std::optional<BlendMode> blend_mode = std::nullopt,
+		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
+	);
+
 	void DrawLines(
 		const std::vector<V2_float>& points, Color color, float line_width = kMinLineWidth,
 		bool connect_last_to_first = false, std::optional<Transform> transform = std::nullopt,
@@ -142,18 +162,6 @@ public:
 	//	const std::optional<SceneCamera>& camera = {}, int entity_id = -1
 	//);
 
-	void DrawLine(
-		V2_float start, V2_float end, Color color, float line_width = kMinLineWidth,
-		Depth depth = {}, std::optional<BlendMode> blend_mode = std::nullopt,
-		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
-	);
-
-	void DrawPoint(
-		V2_float point, Color color, Depth depth = {},
-		std::optional<BlendMode> blend_mode		 = std::nullopt,
-		const std::optional<SceneCamera>& camera = std::nullopt, int entity_id = -1
-	);
-
 	const std::optional<Camera>& GetPrimaryWorldCamera() const;
 
 	void DrawTexture(
@@ -167,7 +175,6 @@ public:
 
 	impl::ShaderId GetShader(std::string_view shader_key) const;
 
-*/
 private:
 	friend class Scene;
 	friend class SceneContext;
@@ -180,7 +187,7 @@ private:
 	RenderContext(RenderContext&&) noexcept			   = default;
 	RenderContext& operator=(RenderContext&&) noexcept = delete;
 
-	// void SetPrimaryWorldCamera(const std::optional<Camera>& camera = std::nullopt);
+	void SetPrimaryWorldCamera(const std::optional<Camera>& camera = std::nullopt);
 
 	template <typename T, typename R>
 	static void AddDrawCommand(T& commands, const R& command, float depth) {

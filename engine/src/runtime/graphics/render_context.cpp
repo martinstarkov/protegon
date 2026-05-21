@@ -1,10 +1,31 @@
 #include "runtime/graphics/render_context.h"
 
+#include <array>
 #include <optional>
+#include <string_view>
 #include <utility>
 #include <vector>
 
+#include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
+#include "core/math/geometry/line.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/shape.h"
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
+#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
+#include "renderer/vertex/vertex.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
@@ -52,7 +73,6 @@ std::vector<impl::ManualCommand>& RenderContext::GetDebugCommandsForCamera(
 	return debug_commands_.emplace_back(cam, std::vector<impl::ManualCommand>{}).second;
 }
 
-/*
 void RenderContext::DrawTexture(
 	impl::TextureId texture, V2_int texture_size, impl::ShaderId shader, Transform transform,
 	std::optional<V2_float> size, Origin draw_origin, std::optional<Color> tint, Depth depth,
@@ -73,11 +93,11 @@ void RenderContext::DrawTexture(
 		impl::GetTextureCoordinates({}, texture_size, texture_size, false, true)
 	) };
 
-	impl::TextureCommand texture_command{
-		shader, texture, positions, tint.value_or(color::White), tex_coords, blend_mode, entity_id
-	};
-
-	draw_commands.emplace_back(texture_command, depth);
+	// TODO: Fix.
+	// impl::TextureCommand texture_command{
+	//	shader, texture, positions, tint.value_or(color::White), tex_coords, blend_mode, entity_id
+	//};
+	// draw_commands.emplace_back(texture_command, depth);
 }
 
 void RenderContext::DrawTexture(
@@ -133,10 +153,10 @@ void RenderContext::DrawShader(
 
 	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
 
-	impl::QuadCommand quad_command{ shader, positions, tint.value_or(color::White), blend_mode,
-									entity_id };
-
-	draw_commands.emplace_back(quad_command, depth);
+	// TODO: Fix.
+	// impl::QuadCommand quad_command{ shader, positions, tint.value_or(color::White), blend_mode,
+	//								entity_id };
+	// draw_commands.emplace_back(quad_command, depth);
 }
 
 void RenderContext::DrawLines(
@@ -148,18 +168,16 @@ void RenderContext::DrawLines(
 		return impl::RenderCamera{ c };
 	})) };
 
-	auto draw_commands{ DrawContext::GetDrawCommand(
-		renderer_.GetShader("color"), points, line_width, transform.value_or(Transform{}), color,
-		blend_mode, connect_last_to_first, entity_id
-	) };
-
-	PTGN_ASSERT(std::holds_alternative<std::vector<impl::QuadCommand>>(*draw_commands));
-
-	const auto& line_draw_commands{ std::get<std::vector<impl::QuadCommand>>(*draw_commands) };
-
-	for (const auto& line_command : line_draw_commands) {
-		camera_commands.emplace_back(line_command, depth);
-	}
+	// TODO: Fix.
+	// auto draw_commands{ DrawContext::GetDrawCommand(
+	//	renderer_.GetShader("color"), points, line_width, transform.value_or(Transform{}), color,
+	//	blend_mode, connect_last_to_first, entity_id
+	//) };
+	// PTGN_ASSERT(std::holds_alternative<std::vector<impl::QuadCommand>>(*draw_commands));
+	// const auto& line_draw_commands{ std::get<std::vector<impl::QuadCommand>>(*draw_commands) };
+	// for (const auto& line_command : line_draw_commands) {
+	//	camera_commands.emplace_back(line_command, depth);
+	//}
 }
 
 void RenderContext::DrawShape(
@@ -171,17 +189,16 @@ void RenderContext::DrawShape(
 		return impl::RenderCamera{ c };
 	})) };
 
-	auto shape_draw_commands{ DrawContext::GetDrawCommand(
-		renderer_, shape, transform, color, fill_style, draw_origin, blend_mode, entity_id
-	) };
-
-	if (!shape_draw_commands.has_value()) {
-		return;
-	}
-
-	std::visit(
-		[&](const auto& cmd) { AddDrawCommand(draw_commands, cmd, depth); }, *shape_draw_commands
-	);
+	// TODO: Fix.
+	// auto shape_draw_commands{ DrawContext::GetDrawCommand(
+	//	renderer_, shape, transform, color, fill_style, draw_origin, blend_mode, entity_id
+	//) };
+	// if (!shape_draw_commands.has_value()) {
+	//	return;
+	//}
+	// std::visit(
+	//	[&](const auto& cmd) { AddDrawCommand(draw_commands, cmd, depth); }, *shape_draw_commands
+	//);
 }
 
 void RenderContext::DrawLine(
@@ -307,6 +324,5 @@ const std::optional<Camera>& RenderContext::GetPrimaryWorldCamera() const {
 impl::ShaderId RenderContext::GetShader(std::string_view shader_key) const {
 	return renderer_.GetShader(shader_key);
 }
-*/
 
 } // namespace ptgn
