@@ -47,9 +47,9 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace {
 
-static DialogueComponent& GetDialogueComponent(Entity entity) {
+DialogueComponent& GetDialogueComponent(Entity entity) {
 	Entity dialogue_entity{ GetParent(entity) };
 
 	PTGN_ASSERT(dialogue_entity);
@@ -59,8 +59,12 @@ static DialogueComponent& GetDialogueComponent(Entity entity) {
 	return dialogue_entity.Get<DialogueComponent>();
 }
 
+} // namespace
+
+namespace impl {
+
 DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
-	return impl::GetDialogueComponent(entity);
+	return ptgn::GetDialogueComponent(entity);
 }
 
 void DialogueWaitScript::OnEvent(Event event) {
@@ -82,13 +86,13 @@ void DialogueWaitScript::OnKeyPressed(Key key) {
 }
 
 DialogueComponent& DialogueScrollScript::GetDialogueComponent() {
-	return impl::GetDialogueComponent(entity);
+	return ptgn::GetDialogueComponent(entity);
 }
 
 void DialogueScrollScript::UpdateText(Entity text_entity, float elapsed_fraction) {
 	// TODO: Fix.
 	// PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
-	// auto& dialogue_component{ impl::GetDialogueComponent(text_entity) };
+	// auto& dialogue_component{ ptgn::GetDialogueComponent(text_entity) };
 	// auto page{ dialogue_component.GetCurrentDialoguePage() };
 	// if (!page) {
 	//	return;
@@ -595,8 +599,8 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 
 	std::vector<DialoguePage> pages;
 
-	const int text_area_width = static_cast<int>(properties.box_size.x) - properties.padding_left -
-								properties.padding_right;
+	const int text_area_width  = static_cast<int>(properties.box_size.x) - properties.padding_left -
+								 properties.padding_right;
 	const int text_area_height = static_cast<int>(properties.box_size.y) - properties.padding_top -
 								 properties.padding_bottom;
 
@@ -715,7 +719,7 @@ std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
 		std::vector<std::string> page_lines;
 		bool is_first_page = true;
 
-		for (std::size_t i = 0; i < wrapped_lines.size(); ++i) {
+		for (auto i{ 0uz }; i < wrapped_lines.size(); ++i) {
 			page_lines.push_back(wrapped_lines[i]);
 
 			if (page_lines.size() == static_cast<std::size_t>(max_lines)) {

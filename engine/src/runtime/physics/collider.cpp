@@ -10,6 +10,17 @@
 
 namespace ptgn {
 
+namespace {
+
+CollisionInfo GetIfExists(const std::vector<CollisionInfo>& collisions, Entity other) {
+	auto it{ std::ranges::find_if(collisions, [&other](auto& collision) {
+		return collision.entity == other;
+	}) };
+	return it != collisions.end() ? *it : CollisionInfo{};
+}
+
+} // namespace
+
 Collider::Collider(const ColliderShape& shape) : shape{ shape } {}
 
 Collider& Collider::SetOverlapMode() {
@@ -69,13 +80,6 @@ Collider& Collider::SetCollidesWith(const std::vector<ColliderMask>& masks) {
 		AddCollidesWith(mask);
 	}
 	return *this;
-}
-
-static CollisionInfo GetIfExists(const std::vector<CollisionInfo>& collisions, Entity other) {
-	auto it{ std::ranges::find_if(collisions, [&other](auto& collision) {
-		return collision.entity == other;
-	}) };
-	return it != collisions.end() ? *it : CollisionInfo{};
 }
 
 CollisionInfo Collider::IntersectedWith(Entity other) const {

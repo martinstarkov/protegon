@@ -27,6 +27,9 @@
 namespace ptgn::editor {
 
 /*
+
+namespace {
+
 constexpr float kNodeW		   = 280.0f;
 constexpr float kBaseNodeH	   = 150.0f;
 constexpr float kNodeGapX	   = 120.0f;
@@ -47,7 +50,7 @@ struct GraphBounds {
 	V2_float max;
 };
 
-static float ClampPanAxis(float pan, float viewport_size, float bounds_min, float bounds_max) {
+float ClampPanAxis(float pan, float viewport_size, float bounds_min, float bounds_max) {
 	const float content_size = bounds_max - bounds_min;
 
 	if (content_size <= viewport_size) {
@@ -60,14 +63,14 @@ static float ClampPanAxis(float pan, float viewport_size, float bounds_min, floa
 	return std::clamp(pan, min_pan, max_pan);
 }
 
-static V2_float ClampGraphPan(V2_float pan, V2_float viewport_size, const GraphBounds& bounds) {
+V2_float ClampGraphPan(V2_float pan, V2_float viewport_size, const GraphBounds& bounds) {
 	return {
 		ClampPanAxis(pan.x, viewport_size.x, bounds.min.x, bounds.max.x),
 		ClampPanAxis(pan.y, viewport_size.y, bounds.min.y, bounds.max.y),
 	};
 }
 
-static GraphBounds CalculateGraphBounds(
+GraphBounds CalculateGraphBounds(
 	const impl::DebugRenderGraphSnapshot& snapshot,
 	const std::unordered_map<impl::RenderNodeId, V2_float>& node_positions
 ) {
@@ -108,10 +111,12 @@ static GraphBounds CalculateGraphBounds(
 	return bounds;
 }
 
-static float NodeHeight(const impl::DebugRenderNodeSnapshot& node) {
+float NodeHeight(const impl::DebugRenderNodeSnapshot& node) {
 	return kBaseNodeH + static_cast<float>(node.reads.size()) * 18.0f +
 		   static_cast<float>(node.uniform_count > 0 ? 18.0f : 0.0f);
 }
+
+} // namespace
 
 void RenderGraphVisualizer::Draw(const impl::DebugRenderGraphSnapshot& snapshot, bool* open) {
 	if (!ImGui::Begin("Render Graph", open)) {
@@ -516,7 +521,7 @@ void RenderGraphVisualizer::AutoLayoutGraph(
 	std::unordered_map<impl::RenderNodeId, std::size_t> node_index;
 	node_index.reserve(snapshot.nodes.size());
 
-	for (std::size_t i{ 0 }; i < snapshot.nodes.size(); ++i) {
+	for (auto i{ 0uz }; i < snapshot.nodes.size(); ++i) {
 		node_index.emplace(snapshot.nodes[i].id, i);
 	}
 
@@ -543,7 +548,7 @@ void RenderGraphVisualizer::AutoLayoutGraph(
 	}
 
 	if (snapshot.edges.empty()) {
-		for (std::size_t i{ 0 }; i < snapshot.nodes.size(); ++i) {
+		for (auto i{ 0uz }; i < snapshot.nodes.size(); ++i) {
 			level[snapshot.nodes[i].id] = static_cast<int>(i);
 		}
 	} else {
@@ -584,7 +589,7 @@ void RenderGraphVisualizer::AutoLayoutGraph(
 	}
 
 	std::vector<std::vector<const impl::DebugRenderNodeSnapshot*>> columns(
-		static_cast<std::size_t>(max_level + 1)
+		max_level + 1uz
 	);
 
 	for (const auto& node : snapshot.nodes) {
@@ -600,14 +605,14 @@ void RenderGraphVisualizer::AutoLayoutGraph(
 	const float x_pitch = kNodeW + kNodeGapX;
 	const float y_pitch = max_node_h + kNodeGapY;
 
-	for (std::size_t column_index{ 0 }; column_index < columns.size(); ++column_index) {
+	for (auto column_index{ 0uz }; column_index < columns.size(); ++column_index) {
 		auto& column = columns[column_index];
 
 		std::ranges::sort(column, [&](const auto* a, const auto* b) {
 			return node_index[a->id] < node_index[b->id];
 		});
 
-		for (std::size_t row_index{ 0 }; row_index < column.size(); ++row_index) {
+		for (auto row_index{ 0uz }; row_index < column.size(); ++row_index) {
 			const auto& node = *column[row_index];
 
 			if (!reset_existing && node_positions_.contains(node.id)) {

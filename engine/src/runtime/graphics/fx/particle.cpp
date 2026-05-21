@@ -39,6 +39,74 @@
 
 namespace ptgn {
 
+namespace {
+
+struct ParticleDrawInfo {
+	Transform transform;
+	float size{ 0.0f };
+	Color color;
+	FillStyle fill_style;
+	float depth{ 0.0f };
+	std::optional<BlendMode> blend_mode;
+	Origin origin{ Origin::Center };
+};
+
+// TODO: Fix.
+/*
+template <ShapeType T>
+ void DrawParticleShape(DrawContext& renderer, const T& shape, const ParticleDrawInfo& draw) {
+	if constexpr (std::is_same_v<T, Circle>) {
+		Circle circle{ shape.GetRadius() * draw.size * 0.5f };
+		renderer.DrawShape(
+			circle, draw.transform, draw.depth, draw.color, draw.fill_style, draw.origin,
+			draw.blend_mode, -1
+		);
+	} else if constexpr (std::is_same_v<T, Rect>) {
+		Rect rect{ shape.GetSize() * V2_float{ draw.size } };
+
+		Transform transform{ draw.transform };
+		// We rotate rectangle particle -90 degrees because the default direction of the rectangle
+		// shape is down (90 degrees).
+		transform.Rotate(-Radians{ kHalfPi });
+
+		renderer.DrawShape(
+			rect, transform, draw.depth, draw.color, draw.fill_style, draw.origin, draw.blend_mode,
+			-1
+		);
+	} else {
+		renderer.DrawShape(
+			shape, draw.transform, draw.depth, draw.color, draw.fill_style, draw.origin,
+			draw.blend_mode, -1
+		);
+	}
+}
+
+template <typename T>
+void DrawParticleType(
+	const AssetManager& assets, DrawContext& renderer, const T& particle_type,
+	const ParticleDrawInfo& draw
+) {
+	if constexpr (std::is_same_v<T, std::string>) {
+		Texture texture{ assets.Get<Texture>(particle_type) };
+
+		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
+
+		renderer.DrawTexture(
+			texture, draw.transform, draw.depth, V2_float{ draw.size }, draw.origin, draw.color,
+			tex_coords, draw.blend_mode, -1
+		);
+	} else if constexpr (std::is_same_v<T, Shape>) {
+		particle_type.Visit([&renderer, &draw]<typename S>(const S& shape) {
+			DrawParticleShape(renderer, shape, draw);
+		});
+	} else {
+		static_assert(false, "Incomplete visitor");
+	}
+}
+*/
+
+} // namespace
+
 EmissionShape::EmissionSample EmissionShape::SampleEmission() const {
 	return std::visit(
 		[]<typename V>(const V& s) -> EmissionSample {
@@ -108,7 +176,7 @@ void ParticleEmitterPlayback::Update(
 
 	spawn_accumulator = std::max(0.0f, spawn_accumulator);
 
-	for (std::size_t i{ 0 }; i < to_spawn; ++i) {
+	for (auto i{ 0uz }; i < to_spawn; ++i) {
 		if (!emitter.TrySpawnParticle()) {
 			// Reached max particles, stop trying to spawn more this frame.
 			break;
@@ -129,7 +197,7 @@ void ParticleEmitterPlayback::Update(
 	while (burst_cycles_emitted < burst.cycles && burst_elapsed >= burst.interval) {
 		burst_elapsed -= burst.interval;
 
-		for (std::size_t i{ 0 }; i < burst.particle_count; ++i) {
+		for (auto i{ 0uz }; i < burst.particle_count; ++i) {
 			if (!emitter.TrySpawnParticle()) {
 				break;
 			}
@@ -188,7 +256,7 @@ void ParticleEmitterComponent::Start() {
 
 	auto prewarm_count{ static_cast<std::size_t>(cycle_particles) };
 
-	for (std::size_t i{ 0 }; i < prewarm_count; ++i) {
+	for (auto i{ 0uz }; i < prewarm_count; ++i) {
 		auto particle_entity{ TrySpawnParticle() };
 
 		if (!particle_entity) {
@@ -399,70 +467,6 @@ bool ParticleEmitter::IsStopped() const {
 	return Get<impl::ParticleEmitterComponent>().playback.state ==
 		   impl::ParticleEmitterState::Stopped;
 }
-
-struct ParticleDrawInfo {
-	Transform transform;
-	float size{ 0.0f };
-	Color color;
-	FillStyle fill_style;
-	float depth{ 0.0f };
-	std::optional<BlendMode> blend_mode;
-	Origin origin{ Origin::Center };
-};
-
-// TODO: Fix.
-/*
-template <ShapeType T>
-static void DrawParticleShape(DrawContext& renderer, const T& shape, const ParticleDrawInfo& draw) {
-	if constexpr (std::is_same_v<T, Circle>) {
-		Circle circle{ shape.GetRadius() * draw.size * 0.5f };
-		renderer.DrawShape(
-			circle, draw.transform, draw.depth, draw.color, draw.fill_style, draw.origin,
-			draw.blend_mode, -1
-		);
-	} else if constexpr (std::is_same_v<T, Rect>) {
-		Rect rect{ shape.GetSize() * V2_float{ draw.size } };
-
-		Transform transform{ draw.transform };
-		// We rotate rectangle particle -90 degrees because the default direction of the rectangle
-		// shape is down (90 degrees).
-		transform.Rotate(-Radians{ kHalfPi });
-
-		renderer.DrawShape(
-			rect, transform, draw.depth, draw.color, draw.fill_style, draw.origin, draw.blend_mode,
-			-1
-		);
-	} else {
-		renderer.DrawShape(
-			shape, draw.transform, draw.depth, draw.color, draw.fill_style, draw.origin,
-			draw.blend_mode, -1
-		);
-	}
-}
-
-template <typename T>
-static void DrawParticleType(
-	const AssetManager& assets, DrawContext& renderer, const T& particle_type,
-	const ParticleDrawInfo& draw
-) {
-	if constexpr (std::is_same_v<T, std::string>) {
-		Texture texture{ assets.Get<Texture>(particle_type) };
-
-		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
-
-		renderer.DrawTexture(
-			texture, draw.transform, draw.depth, V2_float{ draw.size }, draw.origin, draw.color,
-			tex_coords, draw.blend_mode, -1
-		);
-	} else if constexpr (std::is_same_v<T, Shape>) {
-		particle_type.Visit([&renderer, &draw]<typename S>(const S& shape) {
-			DrawParticleShape(renderer, shape, draw);
-		});
-	} else {
-		static_assert(false, "Incomplete visitor");
-	}
-}
-*/
 
 void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
 	auto depth{ GetDepth(entity) };

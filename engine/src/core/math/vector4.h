@@ -239,7 +239,7 @@ using V4_uint  = Vector4<unsigned int>;
 using V4_float = Vector4<float>;
 
 template <Arithmetic V>
-inline std::ostream& operator<<(std::ostream& os, Vector4<V> v) { // NOSONAR
+std::ostream& operator<<(std::ostream& os, Vector4<V> v) { // NOSONAR
 	os << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
 	return os;
 }
@@ -286,7 +286,7 @@ constexpr Vector4<S> operator/(Vector4<V> lhs, U rhs) { // NOSONAR
 
 /// @brief Clamp all components of the vector between min and max (component specific).
 template <Arithmetic T>
-[[nodiscard]] inline Vector4<T> Clamp(Vector4<T> vector, Vector4<T> min, Vector4<T> max) {
+[[nodiscard]] Vector4<T> Clamp(Vector4<T> vector, Vector4<T> min, Vector4<T> max) {
 	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y),
 			 std::clamp(vector.z, min.z, max.z), std::clamp(vector.w, min.w, max.w) };
 }

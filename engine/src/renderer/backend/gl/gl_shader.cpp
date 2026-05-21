@@ -35,21 +35,23 @@
 
 namespace ptgn::impl::gl {
 
+namespace {
+
 using Header = std::string;
 
-static void DeleteShaderId(ShaderId id, [[maybe_unused]] ShaderType type) {
+void DeleteShaderId(ShaderId id, [[maybe_unused]] ShaderType type) {
 	GLCall(glDeleteShader(id));
 }
 
-static void DeleteProgramId(ShaderId id) {
+void DeleteProgramId(ShaderId id) {
 	GLCall(glDeleteProgram(id));
 }
 
-static void LinkProgramId(ShaderId id) {
+void LinkProgramId(ShaderId id) {
 	GLCall(glLinkProgram(id));
 }
 
-static std::string_view TrimWhitespace(std::string_view s) {
+std::string_view TrimWhitespace(std::string_view s) {
 	std::size_t start{ s.find_first_not_of(" \n\r\t") };
 	if (start == std::string::npos) {
 		return "";
@@ -58,7 +60,7 @@ static std::string_view TrimWhitespace(std::string_view s) {
 	return s.substr(start, end - start + 1);
 }
 
-static ShaderType GetShaderType(const std::string& type) {
+ShaderType GetShaderType(const std::string& type) {
 	if (type == "fragment") {
 		return ShaderType::Fragment;
 	} else if (type == "vertex") {
@@ -67,20 +69,21 @@ static ShaderType GetShaderType(const std::string& type) {
 	PTGN_ERROR("Unknown shader type: ", type);
 }
 
-static std::string_view GetShaderName(ShaderType type) {
+std::string_view GetShaderName(ShaderType type) {
 	switch (type) {
-		case ShaderType::Vertex:		 return "vertex";
-		case ShaderType::Fragment:		 return "fragment";
-		case ShaderType::Geometry:		 return "geometry";
-		case ShaderType::TessControl:	 return "tess_control";
-		case ShaderType::TessEvaluation: return "tess_evaluation";
-		case ShaderType::Compute:		 return "compute";
-		default:						 PTGN_ERROR("Unknown shader type: ", std::to_underlying(type));
+		using enum ShaderType;
+		case Vertex:		 return "vertex";
+		case Fragment:		 return "fragment";
+		case Geometry:		 return "geometry";
+		case TessControl:	 return "tess_control";
+		case TessEvaluation: return "tess_evaluation";
+		case Compute:		 return "compute";
+		default:			 PTGN_ERROR("Unknown shader type: ", std::to_underlying(type));
 	}
 }
 
-// Extract just the content inside R"( ... )"
-static void TrimRawStringLiteral(std::string& content) {
+/// @brief Extract just the content inside R"( ... )"
+void TrimRawStringLiteral(std::string& content) {
 	const std::string raw_start{ "R\"(" };
 	const std::string raw_end{ ")\"" };
 
@@ -93,7 +96,7 @@ static void TrimRawStringLiteral(std::string& content) {
 	}
 }
 
-static std::pair<Header, std::vector<ShaderSpec>> ParseShaderSources(
+std::pair<Header, std::vector<ShaderSpec>> ParseShaderSources(
 	const std::string& source, std::string_view name_without_ext
 ) {
 	Header header;
@@ -118,7 +121,7 @@ static std::pair<Header, std::vector<ShaderSpec>> ParseShaderSources(
 	for (auto i{ words_begin }; i != words_end; ++i) {
 		std::smatch match{ *i };
 		std::string type{ match[1].str() };
-		std::size_t pos{ static_cast<std::size_t>(match.position()) };
+		auto pos{ static_cast<std::size_t>(match.position()) };
 		found_types.emplace_back(type, pos);
 	}
 
@@ -132,7 +135,7 @@ static std::pair<Header, std::vector<ShaderSpec>> ParseShaderSources(
 	header = TrimWhitespace(header_code);
 
 	// Extract blocks between #type markers
-	for (std::size_t i = 0; i < found_types.size(); i++) {
+	for (auto i{ 0uz }; i < found_types.size(); ++i) {
 		auto type_string{ found_types[i].first };
 		auto type{ GetShaderType(type_string) };
 		std::size_t start{ found_types[i].second + std::string("#type ").size() +
@@ -158,11 +161,11 @@ static std::pair<Header, std::vector<ShaderSpec>> ParseShaderSources(
 	return { header, sources };
 }
 
-static bool HasOption(std::string_view string, const std::string& option_name) {
+bool HasOption(std::string_view string, const std::string& option_name) {
 	return string.contains("#option " + option_name);
 }
 
-static void RemoveOption(std::string& source, const std::string& option = "") {
+void RemoveOption(std::string& source, const std::string& option = "") {
 	// @param option Default: Removes all options in source.
 	std::regex pattern;
 
@@ -177,9 +180,7 @@ static void RemoveOption(std::string& source, const std::string& option = "") {
 	source = std::regex_replace(source, pattern, "");
 }
 
-static std::string InjectShaderPreamble(
-	const std::string& source, [[maybe_unused]] ShaderType type
-) {
+std::string InjectShaderPreamble(const std::string& source, [[maybe_unused]] ShaderType type) {
 	std::string result{ source };
 
 	std::regex version_regex{ R"(#version\s+(\d+)(?:\s+(\w+))?)" };
@@ -235,7 +236,7 @@ static std::string InjectShaderPreamble(
 	return result;
 }
 
-static void AddShaderLayout(std::string& source, [[maybe_unused]] ShaderType type) {
+void AddShaderLayout(std::string& source, [[maybe_unused]] ShaderType type) {
 	std::string result;
 
 	std::istringstream input{ source };
@@ -328,35 +329,33 @@ static void AddShaderLayout(std::string& source, [[maybe_unused]] ShaderType typ
 	source = output.str();
 }
 
-static std::string GenerateTextureColorSwitchBlock(std::size_t max_texture_slots) {
+std::string GenerateTextureColorSwitchBlock(std::size_t max_texture_slots) {
 	std::ostringstream oss;
-	for (std::size_t i{ 0 }; i < max_texture_slots; ++i) {
+	for (auto i{ 0uz }; i < max_texture_slots; ++i) {
 		oss << std::format(
-			"    if (v_TexIndex == {}.0f) {{\n"
-			"        texture_color *= texture(u_Textures[{}], v_TexCoord);\n"
-			"    }}\n",
+			"\tif (v_TexIndex == {}.0f) {{\n"
+			"\t\ttexture_color *= texture(u_Textures[{}], v_TexCoord);\n"
+			"\t}}\n",
 			i, i
 		);
 	}
 	return oss.str();
 }
 
-static std::string GenerateTextureSizeSwitchBlock(std::size_t max_texture_slots) {
+std::string GenerateTextureSizeSwitchBlock(std::size_t max_texture_slots) {
 	std::ostringstream oss;
-	for (std::size_t i{ 0 }; i < max_texture_slots; ++i) {
+	for (auto i{ 0uz }; i < max_texture_slots; ++i) {
 		oss << std::format(
-			"	if (v_TexIndex == {}.0f) {{\n"
-			"		texture_size = vec2(textureSize(u_Textures[{}], 0));\n"
-			"	}}\n",
+			"\tif (v_TexIndex == {}.0f) {{\n"
+			"\t\ttexture_size = vec2(textureSize(u_Textures[{}], 0));\n"
+			"\t}}\n",
 			i, i
 		);
 	}
 	return oss.str();
 }
 
-static std::vector<ShaderSpec> ParseShader(
-	const std::string& source, std::string_view name_without_ext
-) {
+std::vector<ShaderSpec> ParseShader(const std::string& source, std::string_view name_without_ext) {
 	std::vector<ShaderSpec> output;
 
 	auto [header, sources] = ParseShaderSources(source, name_without_ext);
@@ -369,7 +368,7 @@ static std::vector<ShaderSpec> ParseShader(
 	ShaderOptions global_options;
 	global_options.auto_layout = HasOption(header, "auto_layout");
 
-	for (std::size_t i{ 0 }; i < sources.size(); i++) {
+	for (auto i{ 0uz }; i < sources.size(); ++i) {
 		auto& sts{ sources[i] };
 		sts.options = global_options;
 
@@ -391,6 +390,46 @@ static std::vector<ShaderSpec> ParseShader(
 	}
 	return output;
 }
+
+void SubstituteShaderTokens(std::vector<ShaderSpec>& sources, std::size_t max_texture_slots) {
+	// This is primarily for the quad shader, which requires a block of if-statements based on
+	// how many texture slots there are.
+
+	PTGN_ASSERT(max_texture_slots > 0, "Cannot substitute shader tokens for 0 texture slots");
+
+	std::string color_switch_block{ GenerateTextureColorSwitchBlock(max_texture_slots) };
+	std::string size_switch_block{ GenerateTextureSizeSwitchBlock(max_texture_slots) };
+	auto slots{ ToString(max_texture_slots) };
+
+	for (auto& sts : sources) {
+		sts.code.content = ReplaceAll(sts.code.content, "{MAX_TEXTURE_SLOTS}", slots);
+		sts.code.content =
+			ReplaceAll(sts.code.content, "{TEXTURE_COLOR_SWITCH_BLOCK}", color_switch_block);
+		sts.code.content =
+			ReplaceAll(sts.code.content, "{TEXTURE_SIZE_SWITCH_BLOCK}", size_switch_block);
+	}
+}
+
+json GetShaderManifest(const cmrc::embedded_filesystem& fs) {
+	std::string manifest_name{ "manifest.json" };
+
+	PTGN_ASSERT(
+		fs.exists(manifest_name), "Could not find shader manifest file with name: ", manifest_name
+	);
+	auto manifest_file{ fs.open(manifest_name) };
+
+	std::string_view manifest_data(manifest_file.begin(), manifest_file.end());
+
+	json manifest = json::parse(manifest_data);
+
+	// PTGN_LOG("--------- Manifest Name ----------");
+	// PTGN_LOG(manifest_name);
+	// PTGN_LOG("-------- Manifest Content -------");
+	// PTGN_LOG(manifest.dump(4));
+	return manifest;
+}
+
+} // namespace
 
 ShaderId Shaders::CompileShader(ShaderType type, const std::string& source) const {
 	ShaderId id{ GLCallReturn(glCreateShader(std::to_underlying(type))) };
@@ -443,27 +482,6 @@ void Shaders::CompileShaders(const std::vector<ShaderSpec>& sources) {
 	}
 }
 
-static void SubstituteShaderTokens(
-	std::vector<ShaderSpec>& sources, std::size_t max_texture_slots
-) {
-	// This is primarily for the quad shader, which requires a block of if-statements based on
-	// how many texture slots there are.
-
-	PTGN_ASSERT(max_texture_slots > 0, "Cannot substitute shader tokens for 0 texture slots");
-
-	std::string color_switch_block{ GenerateTextureColorSwitchBlock(max_texture_slots) };
-	std::string size_switch_block{ GenerateTextureSizeSwitchBlock(max_texture_slots) };
-	auto slots{ ToString(max_texture_slots) };
-
-	for (auto& sts : sources) {
-		sts.code.content = ReplaceAll(sts.code.content, "{MAX_TEXTURE_SLOTS}", slots);
-		sts.code.content =
-			ReplaceAll(sts.code.content, "{TEXTURE_COLOR_SWITCH_BLOCK}", color_switch_block);
-		sts.code.content =
-			ReplaceAll(sts.code.content, "{TEXTURE_SIZE_SWITCH_BLOCK}", size_switch_block);
-	}
-}
-
 void Shaders::PopulateShaderCache(const cmrc::embedded_filesystem& filesystem) {
 	path subdir{ "" };
 	auto dir{ filesystem.iterate_directory(subdir.string()) };
@@ -490,25 +508,6 @@ void Shaders::PopulateShaderCache(const cmrc::embedded_filesystem& filesystem) {
 
 	SubstituteShaderTokens(sources, max_texture_slots_);
 	CompileShaders(sources);
-}
-
-static json GetShaderManifest(const cmrc::embedded_filesystem& fs) {
-	std::string manifest_name{ "manifest.json" };
-
-	PTGN_ASSERT(
-		fs.exists(manifest_name), "Could not find shader manifest file with name: ", manifest_name
-	);
-	auto manifest_file{ fs.open(manifest_name) };
-
-	std::string_view manifest_data(manifest_file.begin(), manifest_file.end());
-
-	json manifest = json::parse(manifest_data);
-
-	// PTGN_LOG("--------- Manifest Name ----------");
-	// PTGN_LOG(manifest_name);
-	// PTGN_LOG("-------- Manifest Content -------");
-	// PTGN_LOG(manifest.dump(4));
-	return manifest;
 }
 
 void Shaders::PopulateShadersFromCache(const json& manifest) {
@@ -580,8 +579,9 @@ ShaderId Shaders::CompileShaderSource(
 	return CompileShader(type, front.code.content);
 }
 
-ShaderId Shaders::CompileShaderPath(const path& shader_path, ShaderType type, std::string_view name)
-	const {
+ShaderId Shaders::CompileShaderPath(
+	const path& shader_path, ShaderType type, std::string_view name
+) const {
 	PTGN_ASSERT(
 		FileExists(shader_path),
 		"Cannot create shader from nonexistent shader path: ", shader_path.string()
@@ -786,8 +786,9 @@ ShaderInfo Shaders::GetShaderInfo(
 	);
 }
 
-ProgramInfo Shaders::GetProgramInfo(const ShaderPair& shader_pair, std::string_view program_name)
-	const {
+ProgramInfo Shaders::GetProgramInfo(
+	const ShaderPair& shader_pair, std::string_view program_name
+) const {
 	auto vertex{ GetShaderInfo(shader_pair.vertex, ShaderType::Vertex, program_name) };
 	auto fragment{ GetShaderInfo(shader_pair.fragment, ShaderType::Fragment, program_name) };
 

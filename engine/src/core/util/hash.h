@@ -68,7 +68,7 @@ concept Hashable = requires(const std::remove_cvref_t<T>& value) {
 
 template <Hashable T>
 	requires(!StringLikeHashInput<T>)
-inline std::size_t Hash(const T& value) {
+std::size_t Hash(const T& value) {
 	using U = std::remove_cvref_t<T>;
 	return std::hash<U>{}(value);
 }
@@ -80,7 +80,7 @@ inline void HashCombine(std::size_t& hash, std::size_t other_hash) {
 }
 
 template <Hashable T>
-inline void HashValue(std::size_t& hash, const T& value) {
+void HashValue(std::size_t& hash, const T& value) {
 	return impl::HashCombine(hash, Hash(value));
 }
 
@@ -88,7 +88,7 @@ inline void HashValue(std::size_t& hash, const T& value) {
 
 template <std::ranges::input_range R>
 	requires Hashable<std::ranges::range_value_t<R>>
-inline std::size_t Hash(const R& value) {
+std::size_t Hash(const R& value) {
 	std::size_t hash{ 0 };
 
 	std::ranges::for_each(value, [&](const auto& element) {
@@ -100,7 +100,7 @@ inline std::size_t Hash(const R& value) {
 
 template <Hashable... Ts>
 	requires(sizeof...(Ts) > 1)
-inline std::size_t Hash(const Ts&... values) {
+std::size_t Hash(const Ts&... values) {
 	std::size_t hash{ 0 };
 	(impl::HashValue(hash, values), ...);
 	return hash;

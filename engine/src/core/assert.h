@@ -21,7 +21,7 @@
 namespace ptgn::impl {
 
 template <StreamWritable... Ts>
-[[noreturn]] inline void AssertFail(
+[[noreturn]] void AssertFail(
 	std::string_view expr, const std::source_location& where, Ts&&... parts
 ) noexcept {
 	auto msg{ ToString(std::forward<Ts>(parts)...) };

@@ -54,21 +54,10 @@ FileDialog::Result<std::vector<path>> FileDialog::OpenFolders(const Options&) co
 
 namespace ptgn {
 
-FileDialog::FileDialog(Window& window) : window_{ window } {
-	if (NFD::Init() != NFD_OKAY) {
-		PTGN_ERROR("NFD Init failed: ", NFD::GetError());
-	}
-	if (!NFD_SetDisplayPropertiesFromGLFW()) {
-		PTGN_ERROR("NFD_SetDisplayPropertiesFromGLFW failed");
-	}
-}
-
-FileDialog::~FileDialog() {
-	NFD::Quit();
-}
+namespace {
 
 template <typename From, typename Into, typename F, typename FTransform>
-static std::expected<std::optional<Into>, std::string> GetResult(
+std::expected<std::optional<Into>, std::string> GetResult(
 	GLFWwindow* glfw_window, const FileDialog::Options& options, F&& func,
 	FTransform&& transform_func
 ) {
@@ -111,7 +100,7 @@ static std::expected<std::optional<Into>, std::string> GetResult(
 	}
 }
 
-static std::vector<path> ToPaths(NFD::UniquePathSet path_set) {
+std::vector<path> ToPaths(NFD::UniquePathSet path_set) {
 	std::vector<path> paths;
 	nfdpathsetsize_t count{ 0 };
 	NFD::PathSet::Count(path_set, count);
@@ -122,6 +111,21 @@ static std::vector<path> ToPaths(NFD::UniquePathSet path_set) {
 		paths.emplace_back(path.get());
 	}
 	return paths;
+}
+
+} // namespace
+
+FileDialog::FileDialog(Window& window) : window_{ window } {
+	if (NFD::Init() != NFD_OKAY) {
+		PTGN_ERROR("NFD Init failed: ", NFD::GetError());
+	}
+	if (!NFD_SetDisplayPropertiesFromGLFW()) {
+		PTGN_ERROR("NFD_SetDisplayPropertiesFromGLFW failed");
+	}
+}
+
+FileDialog::~FileDialog() {
+	NFD::Quit();
 }
 
 FileDialog::Result<path> FileDialog::OpenFile(const Options& options) const {

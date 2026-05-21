@@ -46,9 +46,9 @@
 
 namespace ptgn {
 
-// TODO: Move these static functions elsewhere.
+namespace {
 
-static void GetShapes(
+void GetShapes(
 	Entity entity, Entity root_entity, std::vector<std::pair<InteractiveShape, Entity>>& vector
 ) {
 	bool is_parent{ entity == root_entity };
@@ -88,6 +88,8 @@ static void GetShapes(
 		);
 	}
 }
+
+} // namespace
 
 namespace impl {
 

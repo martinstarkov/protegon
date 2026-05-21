@@ -2,6 +2,8 @@
 
 #include <imgui.h>
 
+#include <array>
+
 #include "core/editor.h"
 #include "core/editor_context.h"
 #include "core/math/vector2.h"
@@ -11,29 +13,43 @@
 
 namespace ptgn::editor {
 
+namespace {
+
 struct ResolutionPreset {
 	const char* label;
-	int width;
-	int height;
+	int width{ 0 };
+	int height{ 0 };
 };
 
-static constexpr ResolutionPreset kResolutionPresets[] = {
-	{ "320 x 180 (16:9)", 320, 180 },		 { "640 x 360 (16:9)", 640, 360 },
-	{ "800 x 450 (16:9)", 800, 450 },		 { "960 x 540 (16:9)", 960, 540 },
-	{ "1280 x 720 (HD)", 1280, 720 },		 { "1600 x 900", 1600, 900 },
-	{ "1920 x 1080 (Full HD)", 1920, 1080 }, { "256 x 224 (SNES)", 256, 224 },
-	{ "320 x 240 (4:3)", 320, 240 },		 { "640 x 480 (VGA)", 640, 480 },
-	{ "800 x 600 (SVGA)", 800, 600 },		 { "1024 x 768 (XGA)", 1024, 768 },
+constexpr std::array<ResolutionPreset, 12> kResolutionPresets{
+	{ { "320 x 180 (16:9)", 320, 180 },
+	  { "640 x 360 (16:9)", 640, 360 },
+	  { "800 x 450 (16:9)", 800, 450 },
+	  { "960 x 540 (16:9)", 960, 540 },
+	  { "1280 x 720 (HD)", 1280, 720 },
+	  { "1600 x 900", 1600, 900 },
+	  { "1920 x 1080 (Full HD)", 1920, 1080 },
+	  { "256 x 224 (SNES)", 256, 224 },
+	  { "320 x 240 (4:3)", 320, 240 },
+	  { "640 x 480 (VGA)", 640, 480 },
+	  { "800 x 600 (SVGA)", 800, 600 },
+	  { "1024 x 768 (XGA)", 1024, 768 } }
 };
 
-static int FindMatchingResolutionPreset(V2_int size) {
-	for (int i = 0; i < IM_ARRAYSIZE(kResolutionPresets); ++i) {
+constexpr std::array scaling_mode_names{
+	"Disabled", "Stretch", "Letterbox", "Overscan", "IntegerScale",
+};
+
+int FindMatchingResolutionPreset(V2_int size) {
+	for (int i = 0; i < kResolutionPresets.size(); ++i) {
 		if (kResolutionPresets[i].width == size.x && kResolutionPresets[i].height == size.y) {
 			return i;
 		}
 	}
 	return -1;
 }
+
+} // namespace
 
 void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Engine Settings");
@@ -69,17 +85,6 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 		ImGui::DragInt(id_h, h, 1.0f, h_min, h_max, "H: %d", ImGuiSliderFlags_AlwaysClamp);
 
 		ImGui::EndDisabled();
-	};
-
-	struct ResolutionPreset {
-		const char* label;
-		int width;
-		int height;
-	};
-
-	// TODO: Use magic enum instead of this.
-	constexpr std::array scaling_mode_names{
-		"Disabled", "Stretch", "Letterbox", "Overscan", "IntegerScale",
 	};
 
 	const auto draw_centered_label = [](const char* text, float width) {
@@ -229,11 +234,12 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 
 				full_width();
 				if (ImGui::BeginCombo("##GameSizePreset", preview)) {
-					for (int i = 0; i < static_cast<int>(IM_ARRAYSIZE(kResolutionPresets)); ++i) {
+					for (int i = 0; i < static_cast<int>(kResolutionPresets.size()); ++i) {
 						const bool selected = (i == preset_index);
 						if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
-							ctx.editor.SetGameSize(V2_int{ kResolutionPresets[i].width,
-														   kResolutionPresets[i].height });
+							ctx.editor.SetGameSize(
+								V2_int{ kResolutionPresets[i].width, kResolutionPresets[i].height }
+							);
 						}
 						if (selected) {
 							ImGui::SetItemDefaultFocus();

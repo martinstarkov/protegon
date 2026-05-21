@@ -32,7 +32,7 @@ struct PresetParticleConfigEntry {
 	ParticleConfig config;
 };
 
-static constexpr std::array kParticlePresets{
+inline constexpr std::array kParticlePresets{
 	PresetParticleConfigEntry{
 		ParticlePreset::Smoke1,
 		ParticleConfig{ .rate_or_burst		 = ParticleRate{ .duration		 = 1s,

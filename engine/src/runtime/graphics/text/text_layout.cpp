@@ -30,60 +30,32 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text_effect.h"
-#include "runtime/graphics/text/text_layout.h"
 #include "runtime/graphics/text/text_style.h"
 
 namespace ptgn {
 
-namespace impl {
+namespace {
 
-[[nodiscard]] static bool IsWhitespace(std::uint32_t cp) {
+[[nodiscard]] bool IsWhitespace(std::uint32_t cp) {
 	return cp == U' ' || cp == U'\t' || cp == U'\n' || cp == U'\r';
 }
 
-[[nodiscard]] static std::uint32_t GetNextCodepoint(std::u32string_view text, std::size_t index) {
+[[nodiscard]] std::uint32_t GetNextCodepoint(std::u32string_view text, std::size_t index) {
 	if (index + 1 < text.size()) {
 		return text[index + 1];
 	}
 	return 0;
 }
 
-static std::uint32_t QuantizeUnsigned(float value, float scale = 64.0f) {
+std::uint32_t QuantizeUnsigned(float value, float scale = 64.0f) {
 	return static_cast<std::uint32_t>(std::lround(value * scale));
 }
 
-static std::int32_t QuantizeSigned(float value, float scale = 64.0f) {
+std::int32_t QuantizeSigned(float value, float scale = 64.0f) {
 	return static_cast<int32_t>(std::lround(value * scale));
 }
 
-void UpdateLayout(
-	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
-) {
-	std::size_t hash{ ptgn::Hash(
-		Hash(styled_text), QuantizeUnsigned(box.rect.GetSize().x),
-		QuantizeUnsigned(box.rect.GetSize().y), QuantizeUnsigned(box.style.min_shrink_scale),
-		QuantizeUnsigned(box.style.max_shrink_scale),
-		std::to_underlying(box.style.horizontal_align),
-		std::to_underlying(box.style.vertical_align), std::to_underlying(box.style.wrap_mode),
-		std::to_underlying(box.style.overflow_mode), box.style.collapse_spaces,
-		box.style.justify_last_line, box.style.allow_word_break_in_overflow, box.style.max_lines,
-		box.style.ellipsis_on_max_lines
-	) };
-
-	if (auto cached{ entity.TryGet<TextLayout>() }) {
-		if (cached->hash == hash) {
-			return;
-		}
-	}
-
-	auto layout{ BuildLayout(asset_manager, styled_text, box) };
-
-	layout.hash = hash;
-
-	entity.Add<TextLayout>(layout);
-}
-
-static std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
+std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 	bool found{ false };
 	V2_float min;
 	V2_float max;
@@ -115,13 +87,44 @@ static std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 	return Rect{ min, max };
 }
 
+} // namespace
+
+namespace impl {
+
+void UpdateLayout(
+	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
+) {
+	std::size_t hash{ ptgn::Hash(
+		Hash(styled_text), QuantizeUnsigned(box.rect.GetSize().x),
+		QuantizeUnsigned(box.rect.GetSize().y), QuantizeUnsigned(box.style.min_shrink_scale),
+		QuantizeUnsigned(box.style.max_shrink_scale),
+		std::to_underlying(box.style.horizontal_align),
+		std::to_underlying(box.style.vertical_align), std::to_underlying(box.style.wrap_mode),
+		std::to_underlying(box.style.overflow_mode), box.style.collapse_spaces,
+		box.style.justify_last_line, box.style.allow_word_break_in_overflow, box.style.max_lines,
+		box.style.ellipsis_on_max_lines
+	) };
+
+	if (auto cached{ entity.TryGet<TextLayout>() }) {
+		if (cached->hash == hash) {
+			return;
+		}
+	}
+
+	auto layout{ BuildLayout(asset_manager, styled_text, box) };
+
+	layout.hash = hash;
+
+	entity.Add<TextLayout>(layout);
+}
+
 TextLayout BuildLayout(AssetManager& asset_manager, StyledText styled_text, const TextBox& box) {
 	float shrink{ 1.0f };
 	if (box.style.overflow_mode == OverflowMode::ShrinkToFit) {
 		shrink = FindBestShrinkScale(asset_manager, styled_text, box);
 	}
 
-	CandidateLayout candidate{ BuildSinglePassLayout(asset_manager, styled_text, box, shrink) };
+	auto candidate{ BuildSinglePassLayout(asset_manager, styled_text, box, shrink) };
 	TextLayout layout{ std::move(candidate.layout) };
 	layout.used_shrink_scale = candidate.used_shrink_scale;
 
@@ -130,9 +133,9 @@ TextLayout BuildLayout(AssetManager& asset_manager, StyledText styled_text, cons
 		if (box.style.ellipsis_on_max_lines) {
 			ApplyEllipsisForMaxLines(asset_manager, styled_text, box, shrink, &layout);
 		} else {
-			std::size_t last_line_index{ box.style.max_lines - 1 };
-			std::size_t hide_from{ layout.lines[last_line_index].glyph_end };
-			for (std::size_t i{ hide_from }; i < layout.glyphs.size(); ++i) {
+			auto last_line_index{ box.style.max_lines - 1 };
+			auto hide_from{ layout.lines[last_line_index].glyph_end };
+			for (auto i{ hide_from }; i < layout.glyphs.size(); ++i) {
 				layout.glyphs[i].visible = false;
 			}
 			layout.lines.resize(box.style.max_lines);
@@ -243,7 +246,7 @@ std::u32string DecodeUtf8(std::string_view text) {
 	std::u32string out;
 	out.reserve(text.size());
 
-	std::size_t i{ 0 };
+	auto i{ 0uz };
 	while (i < text.size()) {
 		unsigned char c{ static_cast<unsigned char>(text[i]) };
 
@@ -298,11 +301,11 @@ std::vector<RichTextToken> Tokenize(
 ) {
 	std::vector<RichTextToken> tokens{};
 
-	for (std::size_t run_index{}; run_index < styled_text.runs.size(); ++run_index) {
+	for (auto run_index{ 0uz }; run_index < styled_text.runs.size(); ++run_index) {
 		const auto& run{ styled_text.runs[run_index] };
 		std::u32string decoded{ DecodeUtf8(run.text) };
 
-		std::size_t i{ 0 };
+		auto i{ 0uz };
 		while (i < decoded.size()) {
 			std::uint32_t cp{ decoded[i] };
 
@@ -387,7 +390,7 @@ float MeasureTokenWidth(
 	}
 
 	float width{ 0.0f };
-	for (std::size_t i{ 0 }; i < token.text.size(); ++i) {
+	for (auto i{ 0uz }; i < token.text.size(); ++i) {
 		std::uint32_t cp{ token.text[i] };
 		std::uint32_t next_cp{ GetNextCodepoint(token.text, i) };
 		width += (font.GetAdvance(cp, next_cp) + run.style.kerning + run.style.tracking) * scale;
@@ -558,7 +561,7 @@ CandidateLayout BuildSinglePassLayout(
 
 		if (token.type == RichTextToken::Type::Word && token.width > box.rect.GetSize().x &&
 			box.style.wrap_mode == WrapMode::Character && box.style.allow_word_break_in_overflow) {
-			for (std::size_t i{ 0 }; i < token.text.size(); ++i) {
+			for (auto i{ 0uz }; i < token.text.size(); ++i) {
 				std::uint32_t cp{ token.text[i] };
 				std::uint32_t next_cp{ GetNextCodepoint(token.text, i) };
 				std::optional<ResolvedGlyph> resolved{
@@ -591,7 +594,7 @@ CandidateLayout BuildSinglePassLayout(
 		}
 
 		float x{ current_line_size.x };
-		for (std::size_t i{ 0 }; i < token.text.size(); ++i) {
+		for (auto i{ 0uz }; i < token.text.size(); ++i) {
 			std::uint32_t cp{ token.text[i] };
 			std::uint32_t next_cp{ GetNextCodepoint(token.text, i) };
 			std::optional<ResolvedGlyph> resolved{
@@ -688,18 +691,18 @@ void ApplyEllipsisForMaxLines(
 		return;
 	}
 
-	std::size_t keep_lines{ box.style.max_lines };
-	std::size_t last_visible_line_index{ keep_lines - 1 };
+	auto keep_lines{ box.style.max_lines };
+	auto last_visible_line_index{ keep_lines - 1 };
 	const LineLayout& last_line{ layout->lines[last_visible_line_index] };
 
-	std::size_t hide_from{ last_line.glyph_end };
-	for (std::size_t i{ hide_from }; i < layout->glyphs.size(); ++i) {
+	auto hide_from{ last_line.glyph_end };
+	for (auto i{ hide_from }; i < layout->glyphs.size(); ++i) {
 		layout->glyphs[i].visible = false;
 	}
 
 	const TextRun* source_run{ nullptr };
 	if (last_line.glyph_begin < layout->glyphs.size()) {
-		const GlyphInstance& anchor{ layout->glyphs[last_line.glyph_begin] };
+		const auto& anchor{ layout->glyphs[last_line.glyph_begin] };
 		if (anchor.source_run_index < styled_text.runs.size()) {
 			source_run = &styled_text.runs[anchor.source_run_index];
 		}
@@ -716,7 +719,7 @@ void ApplyEllipsisForMaxLines(
 
 	std::u32string dots{ U"..." };
 	float dots_width{ 0.0f };
-	for (std::size_t i{ 0 }; i < dots.size(); ++i) {
+	for (auto i{ 0uz }; i < dots.size(); ++i) {
 		std::uint32_t cp{ dots[i] };
 		std::uint32_t next_cp{ GetNextCodepoint(dots, i) };
 		dots_width += (font.GetAdvance(cp, next_cp) + source_run->style.kerning +
@@ -724,11 +727,11 @@ void ApplyEllipsisForMaxLines(
 					  (source_run->style.scale * global_shrink);
 	}
 
-	std::size_t cutoff{ last_line.glyph_end };
+	auto cutoff{ last_line.glyph_end };
 	float usable_x{ box.rect.GetMin().x + box.rect.GetSize().x - dots_width };
 
-	for (std::size_t i{ last_line.glyph_begin }; i < last_line.glyph_end; ++i) {
-		GlyphInstance& glyph{ layout->glyphs[i] };
+	for (auto i{ last_line.glyph_begin }; i < last_line.glyph_end; ++i) {
+		auto& glyph{ layout->glyphs[i] };
 		float right{ glyph.position.x + glyph.plane.GetMax().x };
 		if (right > usable_x) {
 			cutoff = i;
@@ -736,7 +739,7 @@ void ApplyEllipsisForMaxLines(
 		}
 	}
 
-	for (std::size_t i{ cutoff }; i < last_line.glyph_end; ++i) {
+	for (auto i{ cutoff }; i < last_line.glyph_end; ++i) {
 		layout->glyphs[i].visible = false;
 	}
 
@@ -748,7 +751,7 @@ void ApplyEllipsisForMaxLines(
 
 	float y{ layout->glyphs[last_line.glyph_begin].position.y };
 
-	for (std::size_t i{ 0 }; i < dots.size(); ++i) {
+	for (auto i{ 0uz }; i < dots.size(); ++i) {
 		std::uint32_t cp{ dots[i] };
 		std::uint32_t next_cp{ GetNextCodepoint(dots, i) };
 		std::optional<ResolvedGlyph> resolved{ ResolveGlyph(
@@ -816,8 +819,8 @@ void EmitGlyphQuad(
 		quad_max = center + (quad_max - center) * scale;
 	}
 
-	std::array<V2_float, 4> positions{ quad_min, V2_float{ quad_max.x, quad_min.y }, quad_max,
-									   V2_float{ quad_min.x, quad_max.y } };
+	std::array positions{ quad_min, V2_float{ quad_max.x, quad_min.y }, quad_max,
+						  V2_float{ quad_min.x, quad_max.y } };
 
 	for (auto& position : positions) {
 		position = transform.Apply(position);

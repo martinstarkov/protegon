@@ -38,7 +38,7 @@ void Text::Draw(
 	impl::DrawText(assets, renderer, entity);
 	// TODO: Move out.
 	// static TextSystem text_system;
-	// static impl::MsdfFontData msdf_font = {
+	// static impl::MsdfFontData msdf_font{
 	//	renderer.renderer_, "assets/fonts/LiberationSans-Regular.ttf", 0, {}
 	//};
 	/*draw_context.DrawTexture(
@@ -227,8 +227,9 @@ V2_int Text::GetSize(std::string_view text_content) const {
 	return GetSize(text_content, GetFontKey(), GetFontSize());
 }
 
-V2_int Text::GetSize(std::string_view text_content, std::string_view font_key, FontSize font_size)
-	const {
+V2_int Text::GetSize(
+	std::string_view text_content, std::string_view font_key, FontSize font_size
+) const {
 	// TODO: Fix.
 	// return GetScene().ctx().font.GetSize(font_key, text_content, font_size);
 	return {};

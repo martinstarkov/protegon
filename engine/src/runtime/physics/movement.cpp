@@ -29,6 +29,25 @@
 
 namespace ptgn {
 
+namespace {
+
+template <typename StartEvent, typename ContinueEvent, typename StopEvent, typename... Args>
+void InvokeMoveCallbacks(Entity entity, bool was_moving, bool is_moving, Args&&... args) {
+	if (!was_moving && is_moving) {
+		PushEvent<StartEvent>(entity, std::forward<Args>(args)...);
+	}
+
+	if (is_moving) {
+		PushEvent<ContinueEvent>(entity, std::forward<Args>(args)...);
+	}
+
+	if (was_moving && !is_moving) {
+		PushEvent<StopEvent>(entity, std::forward<Args>(args)...);
+	}
+}
+
+} // namespace
+
 namespace impl {
 
 void MoveImpl(
@@ -192,21 +211,6 @@ MoveDirection TopDownMovement::GetDirectionState(V2_float d) {
 	}
 }
 
-template <typename StartEvent, typename ContinueEvent, typename StopEvent, typename... Args>
-static void InvokeMoveCallbacks(Entity entity, bool was_moving, bool is_moving, Args&&... args) {
-	if (!was_moving && is_moving) {
-		PushEvent<StartEvent>(entity, std::forward<Args>(args)...);
-	}
-
-	if (is_moving) {
-		PushEvent<ContinueEvent>(entity, std::forward<Args>(args)...);
-	}
-
-	if (was_moving && !is_moving) {
-		PushEvent<StopEvent>(entity, std::forward<Args>(args)...);
-	}
-}
-
 void TopDownMovement::InvokeCallbacks(Entity entity) const {
 	using enum MoveDirection;
 
@@ -332,8 +336,9 @@ void TopDownMovement::Move(MoveDirection direction) {
 	}
 }
 
-void TopDownMovement::RunWithAcceleration(V2_float desired_velocity, RigidBody& rb, secondsf dt)
-	const {
+void TopDownMovement::RunWithAcceleration(
+	V2_float desired_velocity, RigidBody& rb, secondsf dt
+) const {
 	// In the future one could include a state machine based choice here.
 	float acceleration{ max_acceleration };
 	float deceleration{ max_deceleration };

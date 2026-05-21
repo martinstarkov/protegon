@@ -51,11 +51,11 @@ protected:
 		return xd * xg + yd * yg;
 	}
 
-	static constexpr std::int32_t prime_x = 501125321;
-	static constexpr std::int32_t prime_y = 1136930381;
-	static constexpr std::int32_t prime_z = 1720413743;
+	static constexpr std::int32_t prime_x{ 501125321 };
+	static constexpr std::int32_t prime_y{ 1136930381 };
+	static constexpr std::int32_t prime_z{ 1720413743 };
 
-	static constexpr float default_y = 0.12345f; /* default y for 1D noise */
+	static constexpr float default_y{ 0.12345f }; /* default y for 1D noise */
 
 	PTGN_SERIALIZE(Noise, seed_, frequency_)
 

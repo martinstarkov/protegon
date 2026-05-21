@@ -4,25 +4,33 @@
 #include <imgui_stdlib.h>
 
 #include <filesystem>
+#include <functional>
+#include <list>
+#include <memory>
+#include <nlohmann/detail/iterators/iter_impl.hpp>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
-#include "app/application.h"
 #include "core/editor.h"
 #include "core/editor_context.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
-#include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scene/scene_view.h"
+#include "scene_hierarchy.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn::editor {
 
-static std::optional<SceneEditorState> MakeSceneEditorState(std::string_view name) {
+namespace {
+
+std::optional<SceneEditorState> MakeSceneEditorState(std::string_view name) {
 	auto& registry{ impl::GetSceneRegistry() };
 	auto it = registry.find(name);
 	if (it != registry.end()) {
@@ -40,7 +48,7 @@ static std::optional<SceneEditorState> MakeSceneEditorState(std::string_view nam
 // Generic ImGui JSON editor
 // --------------------------------------------------
 
-static void DrawJsonEditor(const char* label, json& value) {
+void DrawJsonEditor(const char* label, json& value) {
 	if (value.is_boolean()) {
 		bool v = value.get<bool>();
 		if (ImGui::Checkbox(label, &v)) {
@@ -81,6 +89,8 @@ static void DrawJsonEditor(const char* label, json& value) {
 	}
 }
 
+} // namespace
+
 void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
 	if (!state_.has_value()) {
 		state_ = MakeSceneEditorState("EditorScene");
@@ -120,7 +130,7 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 
 	auto& scenes{ ctx.editor.GetScenes() };
 
-	for (std::size_t i{ 0 }; i < scenes.size(); i++) {
+	for (auto i{ 0uz }; i < scenes.size(); ++i) {
 		const auto& scene{ scenes[i] };
 
 		bool selected{ scene.get() == selected_scene_ };

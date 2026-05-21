@@ -46,11 +46,19 @@ EM_JS(double, get_device_pixel_ratio, (), { return window.devicePixelRatio || 1.
 
 namespace ptgn {
 
+namespace {
+
+duration<double> GetTimeSince(impl::Timestamp timestamp) {
+	return duration<double>{ glfwGetTime() - timestamp };
+}
+
+} // namespace
+
 #ifdef __EMSCRIPTEN__
 
-static EM_BOOL EmscriptenResize(
-	int event_type, const EmscriptenUiEvent* ui_event, void* window_ptr
-) {
+namespace {
+
+EM_BOOL EmscriptenResize(int event_type, const EmscriptenUiEvent* ui_event, void* window_ptr) {
 	if (!window_ptr) {
 		return -1;
 	}
@@ -67,7 +75,7 @@ static EM_BOOL EmscriptenResize(
 	return 0;
 }
 
-static EM_BOOL EmscriptenResizeMouseLeave(
+EM_BOOL EmscriptenResizeMouseLeave(
 	int event_type, const EmscriptenMouseEvent* mouse_event, void* window_ptr
 ) {
 	if (!window_ptr) {
@@ -77,6 +85,8 @@ static EM_BOOL EmscriptenResizeMouseLeave(
 	window.ClearInputState();
 	return 0;
 }
+
+} // namespace
 
 void Window::SetCanvasSize(V2_int new_size) {
 	emscripten_set_element_css_size("#canvas", new_size.x, new_size.y);
@@ -445,7 +455,7 @@ bool Window::PollEvents() {
 		PushEvent<event::MouseScroll>(mouse_scroll_, mouse_position_);
 	}
 
-	for (std::size_t i = 0; i < mouse_states_.size(); ++i) {
+	for (auto i{ 0uz }; i < mouse_states_.size(); ++i) {
 		bool was_down = prev_mouse_down_[i];
 		bool is_down  = mouse_down_[i];
 
@@ -473,7 +483,7 @@ bool Window::PollEvents() {
 		}
 	}
 
-	for (std::size_t i = 0; i < key_states_.size(); ++i) {
+	for (auto i{ 0uz }; i < key_states_.size(); ++i) {
 		bool was_down = prev_key_down_[i];
 		bool is_down  = key_down_[i];
 
@@ -756,10 +766,6 @@ void Window::SetFullscreen(bool on) {
 	}
 }
 
-static duration<double> GetTimeSince(impl::Timestamp timestamp) {
-	return duration<double>{ glfwGetTime() - timestamp };
-}
-
 V2_float Window::GetMousePosition() const {
 	return mouse_position_;
 }
@@ -819,11 +825,11 @@ milliseconds Window::GetKeyHeldTime(Key key) const {
 }
 
 void Window::ClearInputState() {
-	for (std::size_t i = 0; i < key_states_.size(); ++i) {
+	for (auto i{ 0uz }; i < key_states_.size(); ++i) {
 		key_down_[i] = false;
 	}
 
-	for (std::size_t i = 0; i < mouse_states_.size(); ++i) {
+	for (auto i{ 0uz }; i < mouse_states_.size(); ++i) {
 		mouse_down_[i] = false;
 	}
 

@@ -47,10 +47,31 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace {
 
-constexpr std::array<ButtonState, 3> kButtonStates{ ButtonState::Idle, ButtonState::Hover,
-													ButtonState::Press };
+constexpr std::array kButtonStates{ ButtonState::Idle, ButtonState::Hover, ButtonState::Press };
+
+void AddAnimationCompleteCallback(const Button& button, std::optional<GameObject<Sprite>>& child) {
+	if (child.has_value()) {
+		PTGN_ASSERT(
+			!HasScript<impl::ButtonAnimationCompleteScript>(*child),
+			"Button animation cannot have the button animation complete script more than once"
+		);
+		AddScript<impl::ButtonAnimationCompleteScript>(*child, button);
+	}
+}
+
+template <EntityType T>
+void ProcessButtonChild(Button button, std::optional<GameObject<T>>& child) {
+	if (child.has_value()) {
+		Hide(*child);
+		SetParent(*child, button);
+	}
+}
+
+} // namespace
+
+namespace impl {
 
 ButtonAnimationCompleteScript::ButtonAnimationCompleteScript(Entity button) : button{ button } {}
 
@@ -60,18 +81,6 @@ void ButtonAnimationCompleteScript::OnEvent(Event event) {
 			Button{ button }.PlayAnimation(ButtonState::Hover);
 		}
 	});
-}
-
-static void AddAnimationCompleteCallback(
-	const Button& button, std::optional<GameObject<Sprite>>& child
-) {
-	if (child.has_value()) {
-		PTGN_ASSERT(
-			!HasScript<ButtonAnimationCompleteScript>(*child),
-			"Button animation cannot have the button animation complete script more than once"
-		);
-		AddScript<ButtonAnimationCompleteScript>(*child, button);
-	}
 }
 
 void ButtonScript::OnEvent(Event event) {
@@ -214,7 +223,8 @@ void ToggleButtonGroupScript::OnButtonPress() {
 }
 
 template <typename Derived>
-ButtonBase<Derived>::ConstButtonStyleTuple ButtonBase<Derived>::GetStyle(ButtonStyleState state
+ButtonBase<Derived>::ConstButtonStyleTuple ButtonBase<Derived>::GetStyle(
+	ButtonStyleState state
 ) const {
 	PTGN_ASSERT(Has<ButtonStyles>(), "Button must have a valid style");
 
@@ -587,7 +597,8 @@ std::optional<Animation> ButtonBase<Derived>::GetAnimation(ButtonStyleState stat
 template <typename Derived>
 std::optional<Color> ButtonBase<Derived>::GetBackgroundColor(ButtonStyleState state) const {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
-	return desired.background_color.or_else([&idle] { return idle.background_color; }
+	return desired.background_color.or_else(
+									   [&idle] { return idle.background_color; }
 	).or_else([&enabled_idle] { return enabled_idle.background_color; });
 }
 
@@ -723,10 +734,12 @@ std::optional<std::string> ButtonBase<Derived>::GetTextContent(ButtonStyleState 
 // }
 
 template <typename Derived>
-std::optional<ButtonTextFixedSize> ButtonBase<Derived>::GetTextFixedSize(ButtonStyleState state
+std::optional<ButtonTextFixedSize> ButtonBase<Derived>::GetTextFixedSize(
+	ButtonStyleState state
 ) const {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
-	return desired.text_fixed_size.or_else([&idle] { return idle.text_fixed_size; }
+	return desired.text_fixed_size.or_else(
+									  [&idle] { return idle.text_fixed_size; }
 	).or_else([&enabled_idle] { return enabled_idle.text_fixed_size; });
 }
 
@@ -808,14 +821,16 @@ Derived& ButtonBase<Derived>::SetTexture(
 template <typename Derived>
 std::optional<Color> ButtonBase<Derived>::GetTint(ButtonStyleState state) const {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
-	return desired.tint.or_else([&idle] { return idle.tint; }
-	).or_else([&enabled_idle] { return enabled_idle.tint; });
+	return desired.tint.or_else([&idle] { return idle.tint; }).or_else([&enabled_idle] {
+		return enabled_idle.tint;
+	});
 }
 
 template <typename Derived>
 std::optional<Color> ButtonBase<Derived>::GetTextureTint(ButtonStyleState state) const {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
-	return desired.sprite_tint.or_else([&idle] { return idle.sprite_tint; }
+	return desired.sprite_tint.or_else(
+								  [&idle] { return idle.sprite_tint; }
 	).or_else([&enabled_idle] { return enabled_idle.sprite_tint; });
 }
 
@@ -836,7 +851,8 @@ Derived& ButtonBase<Derived>::SetTextureTint(std::optional<Color> color, ButtonS
 template <typename Derived>
 std::optional<Color> ButtonBase<Derived>::GetBorderColor(ButtonStyleState state) const {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
-	return desired.border_color.or_else([&idle] { return idle.border_color; }
+	return desired.border_color.or_else(
+								   [&idle] { return idle.border_color; }
 	).or_else([&enabled_idle] { return enabled_idle.border_color; });
 }
 
@@ -850,7 +866,8 @@ Derived& ButtonBase<Derived>::SetBorderColor(std::optional<Color> color, ButtonS
 template <typename Derived>
 std::optional<FillStyle> ButtonBase<Derived>::GetBackgroundFillStyle(ButtonStyleState state) const {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
-	return desired.background_fill.or_else([&idle] { return idle.background_fill; }
+	return desired.background_fill.or_else(
+									  [&idle] { return idle.background_fill; }
 	).or_else([&enabled_idle] { return enabled_idle.background_fill; });
 }
 
@@ -864,7 +881,8 @@ Derived& ButtonBase<Derived>::SetBackgroundFillStyle(FillStyle fill_style, Butto
 template <typename Derived>
 std::optional<float> ButtonBase<Derived>::GetBorderWidth(ButtonStyleState state) const {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
-	return desired.border_width.or_else([&idle] { return idle.border_width; }
+	return desired.border_width.or_else(
+								   [&idle] { return idle.border_width; }
 	).or_else([&enabled_idle] { return enabled_idle.border_width; });
 }
 
@@ -895,7 +913,8 @@ std::optional<std::variant<Rect, Circle>> ButtonBase<Derived>::GetBackgroundShap
 	ButtonStyleState state
 ) const {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
-	return desired.background_shape.or_else([&idle] { return idle.background_shape; }
+	return desired.background_shape.or_else(
+									   [&idle] { return idle.background_shape; }
 	).or_else([&enabled_idle] { return enabled_idle.background_shape; });
 }
 
@@ -909,10 +928,12 @@ Derived& ButtonBase<Derived>::SetBackgroundShape(
 }
 
 template <typename Derived>
-std::optional<std::variant<Rect, Circle>> ButtonBase<Derived>::GetBorderShape(ButtonStyleState state
+std::optional<std::variant<Rect, Circle>> ButtonBase<Derived>::GetBorderShape(
+	ButtonStyleState state
 ) const {
 	auto [enabled_idle, idle, desired] = GetStyle(state);
-	return desired.border_shape.or_else([&idle] { return idle.border_shape; }
+	return desired.border_shape.or_else(
+								   [&idle] { return idle.border_shape; }
 	).or_else([&enabled_idle] { return enabled_idle.border_shape; });
 }
 
@@ -1279,14 +1300,6 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	}
 }
 
-template <EntityType T>
-static void ProcessButtonChild(Button button, std::optional<GameObject<T>>& child) {
-	if (child.has_value()) {
-		Hide(*child);
-		SetParent(*child, button);
-	}
-}
-
 Button CreateButton(
 	Scene& scene, V2_float position, const std::optional<std::variant<Rect, Circle>>& shape,
 	Origin draw_origin, ButtonStyles styles, bool ui_layer
@@ -1306,8 +1319,8 @@ Button CreateButton(
 	ProcessButtonChild(button, styles.disabled.press.sprite);
 	ProcessButtonChild(button, styles.disabled.press.text);
 
-	impl::AddAnimationCompleteCallback(button, styles.enabled.press.sprite);
-	impl::AddAnimationCompleteCallback(button, styles.disabled.press.sprite);
+	AddAnimationCompleteCallback(button, styles.enabled.press.sprite);
+	AddAnimationCompleteCallback(button, styles.disabled.press.sprite);
 
 	button.Add<ButtonStyles>(std::move(styles));
 
@@ -1380,7 +1393,8 @@ Button CreateButton(
 
 	if (config.texture_tint_press.has_value() || config.texture_tint_hover.has_value()) {
 		Color tint{
-			config.texture_tint_press.or_else([&config]() { return config.texture_tint_hover; }
+			config.texture_tint_press.or_else(
+										 [&config]() { return config.texture_tint_hover; }
 			).value()
 		};
 		button.SetTextureTint(tint, ButtonState::Press);
@@ -1478,11 +1492,12 @@ Button CreateAnimatedButton(
 		CreateAnimation(scene, config.texture_hover, {}, config.animation_hover)
 	};
 
-	V2_float button_size{ size.or_else([&hover_animation]() {
-								  auto display_size{ GetDisplaySize(hover_animation) };
-								  PTGN_ASSERT(display_size.has_value());
-								  return display_size;
-							  }
+	V2_float button_size{ size.or_else(
+								  [&hover_animation]() {
+									  auto display_size{ GetDisplaySize(hover_animation) };
+									  PTGN_ASSERT(display_size.has_value());
+									  return display_size;
+								  }
 	).value() };
 
 	auto button = CreateButton(scene, position, button_size, draw_origin);
@@ -1526,7 +1541,7 @@ ToggleButton CreateToggleButton(
 	ProcessButtonChild(toggle_button, toggle_style.press.sprite);
 	ProcessButtonChild(toggle_button, toggle_style.press.text);
 
-	impl::AddAnimationCompleteCallback(button, toggle_style.press.sprite);
+	AddAnimationCompleteCallback(button, toggle_style.press.sprite);
 
 	toggle_button.Add<impl::ToggleButtonInteractionStyle>(std::move(toggle_style));
 

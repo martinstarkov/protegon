@@ -6,7 +6,9 @@
 #include <type_traits>
 #include <variant>
 
+#include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_batcher.h"
@@ -18,6 +20,31 @@
 #include "renderer/vertex/vertex.h"
 
 namespace ptgn {
+
+namespace {
+
+float GetFade(float diameter_y) {
+	PTGN_ASSERT(diameter_y > 0.0f, "Diameter cannot be negative or zero");
+	constexpr float fade_scaling_constant{ 0.12f };
+	return fade_scaling_constant / diameter_y;
+}
+
+float GetFade(V2_float diameter) {
+	return GetFade(diameter.y);
+}
+
+float GetAspectRatio(V2_float size) {
+	PTGN_ASSERT(size.x > 0.0f);
+	return size.y / size.x;
+}
+
+float GetNormalizedRadius(float diameter, float size_x) {
+	PTGN_ASSERT(size_x > 0.0f);
+	float normalized_radius{ diameter / size_x };
+	return Clamp01(normalized_radius);
+}
+
+} // namespace
 
 DrawContext::DrawContext(impl::Renderer& renderer) : renderer_{ renderer } {}
 
@@ -101,26 +128,6 @@ impl::ShaderId DrawContext::GetShader(std::string_view name) const {
 }
 
 /*
-static float GetFade(float diameter_y) {
-	PTGN_ASSERT(diameter_y > 0.0f, "Diameter cannot be negative or zero");
-	constexpr float fade_scaling_constant{ 0.12f };
-	return fade_scaling_constant / diameter_y;
-}
-
-static float GetFade(V2_float diameter) {
-	return GetFade(diameter.y);
-}
-
-static float GetAspectRatio(V2_float size) {
-	PTGN_ASSERT(size.x > 0.0f);
-	return size.y / size.x;
-}
-
-static float GetNormalizedRadius(float diameter, float size_x) {
-	PTGN_ASSERT(size_x > 0.0f);
-	float normalized_radius{ diameter / size_x };
-	return Clamp01(normalized_radius);
-}
 
 DrawContext::DrawContext(impl::Renderer& renderer) : renderer_{ renderer } {}
 
@@ -164,7 +171,7 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 
 	std::vector<impl::QuadCommand> cmds;
 
-	for (std::size_t i = 0; i < count; ++i) {
+	for (auto i{ 0uz }; i < count; ++i) {
 		Line l{ points[i], points[(i + 1) % vertex_modulo] };
 		auto line_points{ l.GetWorldQuadVertices(transform, line_width) };
 

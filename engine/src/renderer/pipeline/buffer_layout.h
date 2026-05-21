@@ -167,7 +167,7 @@ template <typename Derived, typename... TElements>
 struct VertexLayout {
 	using VertexType = Derived;
 
-	inline static constexpr BufferLayout<TElements...> layout{};
+	static constexpr BufferLayout<TElements...> layout{};
 
 	static constexpr const auto& GetLayout() {
 		return layout;

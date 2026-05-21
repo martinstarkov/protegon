@@ -2,13 +2,16 @@
 
 #include <algorithm>
 #include <array>
+#include <concepts>
+#include <functional>
+#include <span>
 #include <vector>
 
 namespace ptgn {
 
 /// @return How many bits the contents of the vector take up.
 template <typename T>
-inline std::size_t Sizeof(const std::vector<T>& vector) {
+std::size_t Sizeof(const std::vector<T>& vector) {
 	return sizeof(T) * vector.size();
 }
 
@@ -21,7 +24,7 @@ constexpr std::size_t Sizeof(const std::array<T, I>& array) {
 /// @brief Combine any number of arrays into one.
 /// @return A new array containing the elements of all array.
 template <typename Type, std::size_t... sizes>
-[[nodiscard]] inline auto ArrayConcat(const std::array<Type, sizes>&... arrays) {
+[[nodiscard]] auto ArrayConcat(const std::array<Type, sizes>&... arrays) {
 	std::array<Type, (sizes + ...)> result;
 	std::size_t index{ 0 };
 
@@ -33,7 +36,7 @@ template <typename Type, std::size_t... sizes>
 /// @brief Combine more than two vectors into one.
 /// @return A new vector containing the elements of all vectors.
 template <typename T, typename... TArgs> // NOSONAR
-[[nodiscard]] inline auto VectorConcat(
+[[nodiscard]] auto VectorConcat(
 	const std::vector<T>& v1, const std::vector<T>& v2, const TArgs&... vectors
 ) {
 	std::vector<T> result;
@@ -47,7 +50,7 @@ template <typename T, typename... TArgs> // NOSONAR
 /// @brief Combine two vectors into one.
 /// @return A new vector containing the elements of both vectors.
 template <typename T>
-[[nodiscard]] inline auto VectorConcat(const std::vector<T>& v1, const std::vector<T>& v2) {
+[[nodiscard]] auto VectorConcat(const std::vector<T>& v1, const std::vector<T>& v2) {
 	std::vector<T> result;
 	result.reserve(v1.size() + v2.size());
 	result.insert(result.end(), v1.begin(), v1.end());
@@ -56,27 +59,31 @@ template <typename T>
 }
 
 template <typename T>
-inline void VectorRemoveDuplicates(std::vector<T>& v) {
+void VectorRemoveDuplicates(std::vector<T>& v) {
 	std::sort(v.begin(), v.end()); // NOSONAR
 	auto last{ std::ranges::unique(v) };
 	v.erase(last.begin(), last.end());
 }
 
 template <typename T, typename Pred>
-inline bool VectorContainsDuplicates(const std::vector<T>& v, Pred pred) {
-	for (std::size_t i = 0; i < v.size(); ++i) {
-		for (std::size_t j = i + 1; j < v.size(); ++j) {
-			if (pred(v[i], v[j])) {
+	requires std::predicate<Pred&, const T&, const T&>
+bool ContainsDuplicates(std::span<const T> values, Pred pred) {
+	auto count{ values.size() };
+
+	for (auto i{ 0uz }; i < count; ++i) {
+		for (auto j{ i + 1 }; j < count; ++j) {
+			if (std::invoke(pred, values[i], values[j])) {
 				return true;
 			}
 		}
 	}
+
 	return false;
 }
 
 /// @brief Swaps vector elements if they both exist in the vector.
 template <typename T>
-inline void VectorSwapElements(std::vector<T>& v, const T& e1, const T& e2) {
+void VectorSwapElements(std::vector<T>& v, const T& e1, const T& e2) {
 	auto it1{ std::ranges::find(v, e1) };
 	auto it2{ std::ranges::find(v, e2) };
 	if (it1 == v.end() || it2 == v.end()) {

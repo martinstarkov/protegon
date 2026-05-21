@@ -13,12 +13,12 @@
 namespace ptgn {
 
 template <StreamWritable... Ts>
-inline void Print(Ts&&... items) {
+void Print(Ts&&... items) {
 	((std::cout << std::forward<Ts>(items)), ...);
 }
 
 template <StreamWritable... Ts>
-inline void PrintLine(Ts&&... items) {
+void PrintLine(Ts&&... items) {
 	Print(std::forward<Ts>(items)...);
 	std::cout << '\n';
 }
@@ -31,19 +31,19 @@ void DebugPrint(
 );
 
 template <StreamWritable... Ts>
-inline void Info(Ts&&... parts) {
+void Info(Ts&&... parts) {
 	Print("INFO: ");
 	PrintLine(std::forward<Ts>(parts)...);
 }
 
 template <StreamWritable... Ts>
-inline void Warn(Ts&&... parts) {
+void Warn(Ts&&... parts) {
 	Print("WARN: ");
 	PrintLine(std::forward<Ts>(parts)...);
 }
 
 template <StreamWritable... Ts>
-[[noreturn]] inline void Error(Ts&&... parts) {
+[[noreturn]] void Error(Ts&&... parts) {
 	DebugPrint("ERROR: ", ToString(std::forward<Ts>(parts)...));
 	PTGN_DEBUGBREAK();
 	std::abort();

@@ -186,8 +186,7 @@ AnimationData::AnimationData(const AnimationConfig& anim_config, V2_int texture_
 	PTGN_ASSERT(config.frame_count > 0, "Cannot create an animation with 0 frames");
 
 	if (config.frame_size.IsZero()) {
-		config.frame_size = { static_cast<std::size_t>(texture_size.x) / config.frame_count,
-							  texture_size.y };
+		config.frame_size = { texture_size.x / config.frame_count, texture_size.y };
 	}
 }
 

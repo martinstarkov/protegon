@@ -45,7 +45,7 @@ using nanoseconds	= std::chrono::nanoseconds;
 using nanosecondsf	= duration<float, nanoseconds::period>;
 
 template <typename Rep, typename Period>
-inline std::ostream& operator<<(std::ostream& os, const ptgn::duration<Rep, Period>& d) {
+std::ostream& operator<<(std::ostream& os, const ptgn::duration<Rep, Period>& d) {
 	os << d.count();
 
 	if constexpr (std::is_same_v<Period, std::milli>) {

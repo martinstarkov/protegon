@@ -306,7 +306,7 @@ using V2_uint  = Vector2<unsigned int>;
 using V2_float = Vector2<float>;
 
 template <Arithmetic S>
-inline std::ostream& operator<<(std::ostream& os, Vector2<S> v) { // NOSONAR
+std::ostream& operator<<(std::ostream& os, Vector2<S> v) { // NOSONAR
 	os << "(" << v.x << ", " << v.y << ")";
 	return os;
 }
@@ -360,35 +360,35 @@ constexpr Vector2<S> operator/(Vector2<V> lhs, U rhs) { // NOSONAR
 }
 
 template <Arithmetic T>
-[[nodiscard]] inline float Dot(Vector2<T> a, Vector2<T> b) {
+[[nodiscard]] float Dot(Vector2<T> a, Vector2<T> b) {
 	return a.Dot(b);
 }
 
 template <Arithmetic T>
-[[nodiscard]] inline float Length(Vector2<T> v) {
+[[nodiscard]] float Length(Vector2<T> v) {
 	return v.Magnitude();
 }
 
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Normalize(Vector2<T> v) {
+[[nodiscard]] Vector2<T> Normalize(Vector2<T> v) {
 	return v.Normalized();
 }
 
 template <Arithmetic T>
-[[nodiscard]] inline float Distance(Vector2<T> a, Vector2<T> b) {
+[[nodiscard]] float Distance(Vector2<T> a, Vector2<T> b) {
 	return Length(a - b);
 }
 
 /// @brief Clamp both components of a vector between min and max (component specific).
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Clamp(Vector2<T> vector, Vector2<T> min, Vector2<T> max) {
+[[nodiscard]] Vector2<T> Clamp(Vector2<T> vector, Vector2<T> min, Vector2<T> max) {
 	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y) };
 }
 
 /// @brief Clamp the magnitude of the vector between min and max. This means that a (1, 1) vector
 /// clamped between -1 and 1 will be (0.7, 0.7)
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Clamp(Vector2<T> vector, T min, T max) {
+[[nodiscard]] Vector2<T> Clamp(Vector2<T> vector, T min, T max) {
 	Vector2<T> dir{ vector.Normalized() };
 	Vector2<T> dir_min{ dir * Vector2<T>{ min, min } };
 	Vector2<T> dir_max{ dir * Vector2<T>{ max, max } };
@@ -401,68 +401,68 @@ template <Arithmetic T>
 
 /// @return True if both the components of a and b are within margin of each other.
 template <Arithmetic T>
-[[nodiscard]] inline bool WithinMargin(Vector2<T> a, Vector2<T> b, Vector2<T> margin) {
+[[nodiscard]] bool WithinMargin(Vector2<T> a, Vector2<T> b, Vector2<T> margin) {
 	return std::abs(a.x - b.x) <= margin.x && std::abs(a.y - b.y) <= margin.y;
 }
 
 /// @return Ceil both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> FastCeil(Vector2<T> vector) {
+[[nodiscard]] Vector2<T> FastCeil(Vector2<T> vector) {
 	return { FastCeil(vector.x), FastCeil(vector.y) };
 }
 
 /// @return Floor both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> FastFloor(Vector2<T> vector) {
+[[nodiscard]] Vector2<T> FastFloor(Vector2<T> vector) {
 	return { FastFloor(vector.x), FastFloor(vector.y) };
 }
 
 /// @return Round both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> FastRound(Vector2<T> vector) {
+[[nodiscard]] Vector2<T> FastRound(Vector2<T> vector) {
 	return { FastRound(vector.x), FastRound(vector.y) };
 }
 
 /// @return Absolute value for both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Abs(Vector2<T> vector) {
+[[nodiscard]] Vector2<T> Abs(Vector2<T> vector) {
 	return { std::abs(vector.x), std::abs(vector.y) };
 }
 
 /// @brief Swap both components of vectors a and b.
 template <Arithmetic T>
-inline void Swap(Vector2<T>& a, Vector2<T>& b) {
+void Swap(Vector2<T>& a, Vector2<T>& b) {
 	std::swap(a.x, b.x);
 	std::swap(a.y, b.y);
 }
 
 /// @return Linearly interpolate both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, T t) {
+[[nodiscard]] Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, T t) {
 	return Vector2<T>{ Lerp(lhs.x, rhs.x, t), Lerp(lhs.y, rhs.y, t) };
 }
 
 /// @return Linearly interpolate both components of a vector by their respective t values.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, Vector2<T> t) {
+[[nodiscard]] Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, Vector2<T> t) {
 	return Vector2<T>{ Lerp(lhs.x, rhs.x, t.x), Lerp(lhs.y, rhs.y, t.y) };
 }
 
 /// @return The midpoint between vectors a and b.
 template <Arithmetic T>
-[[nodiscard]] inline Vector2<T> Midpoint(Vector2<T> a, Vector2<T> b) {
+[[nodiscard]] Vector2<T> Midpoint(Vector2<T> a, Vector2<T> b) {
 	return Vector2<T>{ (a + b) / 2.0f };
 }
 
 /// @return The larger component of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline T Max(Vector2<T> vector) {
+[[nodiscard]] T Max(Vector2<T> vector) {
 	return std::max(vector.x, vector.y);
 }
 
 /// @return The smaller component of a vector.
 template <Arithmetic T>
-[[nodiscard]] inline T Min(Vector2<T> vector) {
+[[nodiscard]] T Min(Vector2<T> vector) {
 	return std::min(vector.x, vector.y);
 }
 

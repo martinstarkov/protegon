@@ -17,8 +17,10 @@
 
 namespace ptgn::editor {
 
+namespace {
+
 template <typename T>
-inline constexpr int type_id_value = 0;
+constexpr int type_id_value{ 0 };
 
 template <typename T>
 bool DrawComponentHeader(Entity selected_entity, bool non_removable) {
@@ -56,7 +58,7 @@ bool DrawComponentHeader(Entity selected_entity, bool non_removable) {
 	return open;
 }
 
-static void DrawComponentImpl(impl::Tint& tint) {
+void DrawComponentImpl(impl::Tint& tint) {
 	constexpr float kLabelWidth = 70.0f;
 	constexpr float kSpacing	= 6.0f;
 
@@ -169,7 +171,7 @@ static void DrawComponentImpl(impl::Tint& tint) {
 	ImGui::EndGroup();
 }
 
-static void DrawComponentImpl(Transform& transform, Depth& depth) {
+void DrawComponentImpl(Transform& transform, Depth& depth) {
 	constexpr float kLabelWidth{ 70.0f };
 	constexpr float kSpacing{ 6.0f };
 	constexpr float kMinScaleAbs{ 0.001f };
@@ -309,6 +311,8 @@ static void DrawComponentImpl(Transform& transform, Depth& depth) {
 		transform.SetRotation(Degrees{ r });
 	}
 }
+
+} // namespace
 
 void InspectorPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Inspector");

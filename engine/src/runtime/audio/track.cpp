@@ -12,16 +12,17 @@
 
 #include "core/assert.h"
 #include "core/util/file.h"
+#include "core/util/string.h"
 
 namespace ptgn::impl {
 
-static bool IsOggFile(const path& p) {
-	auto ext = p.extension().string();
-	std::ranges::transform(ext, ext.begin(), [](unsigned char c) {
-		return static_cast<char>(std::tolower(c));
-	});
-	return ext == ".ogg";
+namespace {
+
+bool IsOggFile(const path& p) {
+	return ToLower(p.extension().string()) == ".ogg";
 }
+
+} // namespace
 
 struct Track::OggDecoder {
 	ma_libvorbis vorbis{};

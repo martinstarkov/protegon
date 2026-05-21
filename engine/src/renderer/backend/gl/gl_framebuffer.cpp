@@ -27,13 +27,15 @@
 
 namespace ptgn::impl::gl {
 
-static void ReadPixels(
-	V2_int coord, V2_int size, PixelDataFormat format, PixelDataType type, void* data
-) {
+namespace {
+
+void ReadPixels(V2_int coord, V2_int size, PixelDataFormat format, PixelDataType type, void* data) {
 	GLCall(glReadPixels(
 		coord.x, coord.y, size.x, size.y, std::to_underlying(format), std::to_underlying(type), data
 	));
 }
+
+} // namespace
 
 Attachment ColorAttachment(std::size_t i) {
 	PTGN_ASSERT(i <= 8, "Color attachment out of range");
@@ -478,7 +480,7 @@ void InvalidateAttachment(
 		std::array<Attachment, kMaxAttachments> pending{};
 		std::size_t count = 0;
 
-		for (std::size_t i = 0; i < item.value.color.size(); ++i) {
+		for (auto i{ 0uz }; i < item.value.color.size(); ++i) {
 			auto& a = item.value.color[i];
 
 			if (a.id == resource && a.object == type) {

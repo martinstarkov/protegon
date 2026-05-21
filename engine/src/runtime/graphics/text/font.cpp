@@ -5,6 +5,7 @@
 #include <msdfgen.h>
 #include <msdfgen-ext.h>
 
+#include <array>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
@@ -36,9 +37,9 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace {
 
-constexpr std::array<char, 8> kExpectedFontCacheMagic{ 'F', 'O', 'N', 'T', 'C', 'A', 'C', 'H' };
+constexpr std::array kExpectedFontCacheMagic{ 'F', 'O', 'N', 'T', 'C', 'A', 'C', 'H' };
 constexpr std::uint32_t kExpectedFontCacheVersion{ 1 };
 constexpr int kFontAtlasChannelCount{ 3 };
 constexpr TextureFormat kFontAtlasFormat{ TextureFormat::RGB8 };
@@ -51,7 +52,7 @@ using AtlasGenerator = msdf_atlas::ImmediateAtlasGenerator<
 	float, kFontAtlasChannelCount, msdf_atlas::msdfGenerator,
 	msdf_atlas::BitmapAtlasStorage<FontAtlasDataType, kFontAtlasChannelCount> >;
 
-static auto InitFreetype() {
+auto InitFreetype() {
 	auto freetype{ msdfgen::initializeFreetype() };
 	PTGN_ASSERT(freetype, "Failed to initialize FreeType for MSDF font generation");
 	return std::unique_ptr<msdfgen::FreetypeHandle, void (*)(msdfgen::FreetypeHandle*)>{
@@ -64,7 +65,7 @@ static auto InitFreetype() {
 	};
 }
 
-static auto LoadFont(auto& freetype, const path& font_path) {
+auto LoadFont(auto& freetype, const path& font_path) {
 	auto font{ msdfgen::loadFont(freetype.get(), font_path.string().c_str()) };
 	PTGN_ASSERT(font, "Failed to load font from: ", font_path.string());
 	return std::unique_ptr<msdfgen::FontHandle, void (*)(msdfgen::FontHandle*)>{
@@ -77,7 +78,7 @@ static auto LoadFont(auto& freetype, const path& font_path) {
 	};
 }
 
-static msdf_atlas::Charset MakeCharset(std::uint32_t begin, std::uint32_t end) {
+auto MakeCharset(std::uint32_t begin, std::uint32_t end) {
 	msdf_atlas::Charset charset;
 	for (std::uint32_t c{ begin }; c <= end; ++c) {
 		charset.add(c);
@@ -85,7 +86,7 @@ static msdf_atlas::Charset MakeCharset(std::uint32_t begin, std::uint32_t end) {
 	return charset;
 }
 
-static std::uint64_t KerningKey(std::uint32_t current_codepoint, std::uint32_t next_codepoint) {
+std::uint64_t KerningKey(std::uint32_t current_codepoint, std::uint32_t next_codepoint) {
 	return (static_cast<std::uint64_t>(current_codepoint) << 32ULL) |
 		   static_cast<std::uint64_t>(next_codepoint);
 }
@@ -120,14 +121,14 @@ bool ReadRaw(std::ifstream& in, T& value) {
 	return static_cast<bool>(in);
 }
 
-static bool WriteString(std::ofstream& out, std::string_view s) {
+bool WriteString(std::ofstream& out, std::string_view s) {
 	std::uint64_t size = s.size();
 	WriteRaw(out, size);
 	out.write(s.data(), static_cast<std::streamsize>(size));
 	return static_cast<bool>(out);
 }
 
-static bool ReadString(std::ifstream& in, std::string& s) {
+bool ReadString(std::ifstream& in, std::string& s) {
 	std::uint64_t size{};
 	ReadRaw(in, size);
 	s.resize(size);
@@ -135,11 +136,11 @@ static bool ReadString(std::ifstream& in, std::string& s) {
 	return static_cast<bool>(in);
 }
 
-static bool WritePath(std::ofstream& out, const path& p) {
+bool WritePath(std::ofstream& out, const path& p) {
 	return WriteString(out, p.string());
 }
 
-static bool ReadPath(std::ifstream& in, path& p) {
+bool ReadPath(std::ifstream& in, path& p) {
 	std::string s;
 	if (!ReadString(in, s)) {
 		return false;
@@ -148,8 +149,8 @@ static bool ReadPath(std::ifstream& in, path& p) {
 	return true;
 }
 
-[[nodiscard]] static std::expected<void, FontCacheError> WriteFontCache(
-	const path& cache_path, const FontData& font
+std::expected<void, FontCacheError> WriteFontCache(
+	const path& cache_path, const impl::FontData& font
 ) {
 	EnsureDirectory(cache_path.parent_path());
 
@@ -188,7 +189,7 @@ static bool ReadPath(std::ifstream& in, path& p) {
 	return {};
 }
 
-[[nodiscard]] static std::expected<FontData, FontCacheError> ReadFontCache(const path& cache_path) {
+std::expected<impl::FontData, FontCacheError> ReadFontCache(const path& cache_path) {
 	std::ifstream in(cache_path, std::ios::binary);
 	if (!in) {
 		return std::unexpected(FontCacheError::CannotOpen);
@@ -207,7 +208,7 @@ static bool ReadPath(std::ifstream& in, path& p) {
 		return std::unexpected(FontCacheError::UnsupportedVersion);
 	}
 
-	FontData font;
+	impl::FontData font;
 
 	if (!ReadPath(in, font.font_path)) {
 		return std::unexpected(FontCacheError::WriteFailed);
@@ -219,7 +220,7 @@ static bool ReadPath(std::ifstream& in, path& p) {
 	font.glyphs.reserve(header.glyph_count);
 
 	for (std::uint32_t i{ 0 }; i < header.glyph_count; ++i) {
-		GlyphMetrics glyph;
+		impl::GlyphMetrics glyph;
 		if (!ReadRaw(in, glyph)) {
 			return std::unexpected(FontCacheError::ReadFailed);
 		}
@@ -246,6 +247,10 @@ static bool ReadPath(std::ifstream& in, path& p) {
 
 	return font;
 }
+
+} // namespace
+
+namespace impl {
 
 FontObject::FontObject(
 	Renderer& renderer, path font_path, path cache_directory, std::string_view cache_name,
@@ -306,8 +311,8 @@ FontObject::FontObject(
 
 	atlas_size = { bitmap.width, bitmap.height };
 
-	auto byte_count{ static_cast<std::size_t>(bitmap.width) *
-					 static_cast<std::size_t>(bitmap.height) * kFontAtlasChannelCount };
+	auto byte_count{ static_cast<std::size_t>(bitmap.width) * bitmap.height *
+					 kFontAtlasChannelCount };
 
 	Surface surface{ atlas_size, std::span<const FontAtlasDataType>{ bitmap.pixels, byte_count },
 					 kFontAtlasChannelCount, true };

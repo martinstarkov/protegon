@@ -35,14 +35,16 @@
 
 namespace ptgn {
 
-namespace impl {
+namespace {
 
-void EntityFollowStopImpl(Entity parent) {
-	parent.template Remove<TopDownMovement>();
-	parent.template Remove<RigidBody>();
-}
+TweenProperty<float> TextSizeProperty() {
+	return { [](Entity e) -> float { return Text{ e }.GetFontSize(); },
+			 [](Entity e, const float& v) {
+				 Text{ e }.SetFontSize(v);
+			 } };
+};
 
-static float ApplyBounceEase(float t, bool symmetrical, Ease ease) {
+float ApplyBounceEase(float t, bool symmetrical, Ease ease) {
 	if (!symmetrical) {
 		// Standard up-down bounce.
 
@@ -75,23 +77,23 @@ static float ApplyBounceEase(float t, bool symmetrical, Ease ease) {
 	return 2.0f * eased_t - 1.0f;
 }
 
-static Tween BounceImpl(
+Tween BounceImpl(
 	Entity entity, V2_float amplitude, milliseconds duration,
 	std::optional<std::size_t> total_periods, Ease ease, V2_float static_offset, bool force,
 	bool symmetrical
 ) {
 	PTGN_ASSERT(duration > 0ms, "Tween effect must have a positive duration");
 
-	auto tween{ GetOrCreateTween<BounceEffect>(entity) };
+	auto tween{ GetOrCreateTween<impl::BounceEffect>(entity) };
 
-	entity.TryAdd<Offsets>();
+	entity.TryAdd<impl::Offsets>();
 
 	if (force || tween.IsCompleted()) {
 		tween.Clear();
 	}
 
 	auto reset_bounce = [](auto& p) mutable {
-		auto& offsets{ p.parent.template Get<Offsets>() };
+		auto& offsets{ p.parent.template Get<impl::Offsets>() };
 		offsets.bounce = {};
 	};
 
@@ -105,7 +107,7 @@ static Tween BounceImpl(
 
 			float t{ ApplyBounceEase(linear_progress, symmetrical, current_ease) };
 
-			auto& offsets{ p.parent.template Get<Offsets>() };
+			auto& offsets{ p.parent.template Get<impl::Offsets>() };
 			offsets.bounce.SetPosition(static_offset + amplitude * t);
 		})
 		.OnPointComplete(reset_bounce)
@@ -116,6 +118,15 @@ static Tween BounceImpl(
 	tween.Start(force);
 
 	return tween;
+}
+
+} // namespace
+
+namespace impl {
+
+void EntityFollowStopImpl(Entity parent) {
+	parent.template Remove<TopDownMovement>();
+	parent.template Remove<RigidBody>();
 }
 
 void TargetFollowImpl(Entity target, const TargetFollowConfig& config, Tween tween) {
@@ -408,7 +419,7 @@ Tween Bounce(
 	Entity entity, V2_float amplitude, milliseconds duration,
 	std::optional<std::size_t> total_periods, Ease ease, V2_float static_offset, bool force
 ) {
-	return impl::BounceImpl(
+	return BounceImpl(
 		entity, amplitude, duration, total_periods, ease, static_offset, force, false
 	);
 }
@@ -417,9 +428,7 @@ Tween SymmetricalBounce(
 	Entity entity, V2_float amplitude, milliseconds duration,
 	std::optional<std::size_t> total_periods, Ease ease, V2_float static_offset, bool force
 ) {
-	return impl::BounceImpl(
-		entity, amplitude, duration, total_periods, ease, static_offset, force, true
-	);
+	return BounceImpl(entity, amplitude, duration, total_periods, ease, static_offset, force, true);
 }
 
 void StopBounce(Entity entity, bool force) {
@@ -640,13 +649,6 @@ Tween ScaleTo(Entity entity, V2_float target_scale, milliseconds duration, Ease 
 		[](Entity e, V2_float v) { SetScale(e, v); }
 	);
 }
-
-static TweenProperty<float> TextSizeProperty() {
-	return { [](Entity e) -> float { return Text{ e }.GetFontSize(); },
-			 [](Entity e, const float& v) {
-				 Text{ e }.SetFontSize(v);
-			 } };
-};
 
 Tween ScaleTextSize(
 	Text entity, float target_font_size, milliseconds duration, Ease ease, bool force

@@ -230,7 +230,7 @@ using V3_uint  = Vector3<unsigned int>;
 using V3_float = Vector3<float>;
 
 template <Arithmetic V>
-inline std::ostream& operator<<(std::ostream& os, Vector3<V> v) { // NOSONAR
+std::ostream& operator<<(std::ostream& os, Vector3<V> v) { // NOSONAR
 	os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
 	return os;
 }

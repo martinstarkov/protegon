@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+#include <array>
 #include <optional>
 
 #include "core/editor.h"
@@ -18,7 +19,29 @@
 
 namespace ptgn::editor {
 
-static ImVec2 WorldToScreen(V2_float world, const Matrix4& view_projection, Viewport viewport) {
+namespace {
+
+struct ViewportView2D {
+	V2_float center{ 0.0f, 0.0f };
+	float zoom{ 1.0f };
+	Viewport viewport;
+
+	[[nodiscard]] V2_float WorldToScreen(V2_float world) const {
+		V2_float local = (world - center) * zoom;
+		return { static_cast<float>(viewport.position.x) + viewport.size.x * 0.5f + local.x,
+				 static_cast<float>(viewport.position.y) + viewport.size.y * 0.5f + local.y };
+	}
+
+	[[nodiscard]] V2_float ScreenToWorld(V2_float screen) const {
+		V2_float local{
+			screen.x - (static_cast<float>(viewport.position.x) + viewport.size.x * 0.5f),
+			(screen.y - (static_cast<float>(viewport.position.y) + viewport.size.y * 0.5f))
+		};
+		return center + local / zoom;
+	}
+};
+
+ImVec2 WorldToScreen(V2_float world, const Matrix4& view_projection, Viewport viewport) {
 	auto clip{ view_projection * V4_float{ world.x, world.y, 0.0f, 1.0f } };
 
 	if (std::abs(clip.w) <= 1e-6f) {
@@ -38,7 +61,7 @@ static ImVec2 WorldToScreen(V2_float world, const Matrix4& view_projection, View
 	return ImVec2{ screen_x, screen_y };
 }
 
-static void DrawCenteredText(ImDrawList* draw_list, ImVec2 center, ImU32 color, const char* text) {
+void DrawCenteredText(ImDrawList* draw_list, ImVec2 center, ImU32 color, const char* text) {
 	auto text_size{ ImGui::CalcTextSize(text) };
 
 	draw_list->AddText(
@@ -46,19 +69,17 @@ static void DrawCenteredText(ImDrawList* draw_list, ImVec2 center, ImU32 color, 
 	);
 }
 
-static void DrawSceneCameraOutline(
+void DrawSceneCameraOutline(
 	ImDrawList* draw_list, const SceneCamera& camera, const Matrix4& editor_view_projection,
 	Viewport image_viewport, ImU32 color, float thickness
 ) {
 	auto world_vertices{ camera.GetWorldVertices() };
 
-	std::array<ImVec2, 5> points{
-		WorldToScreen(world_vertices[0], editor_view_projection, image_viewport),
-		WorldToScreen(world_vertices[1], editor_view_projection, image_viewport),
-		WorldToScreen(world_vertices[2], editor_view_projection, image_viewport),
-		WorldToScreen(world_vertices[3], editor_view_projection, image_viewport),
-		WorldToScreen(world_vertices[0], editor_view_projection, image_viewport)
-	};
+	std::array points{ WorldToScreen(world_vertices[0], editor_view_projection, image_viewport),
+					   WorldToScreen(world_vertices[1], editor_view_projection, image_viewport),
+					   WorldToScreen(world_vertices[2], editor_view_projection, image_viewport),
+					   WorldToScreen(world_vertices[3], editor_view_projection, image_viewport),
+					   WorldToScreen(world_vertices[0], editor_view_projection, image_viewport) };
 
 	auto center{ ImVec2{ (points[0].x + points[2].x) * 0.5f, (points[0].y + points[2].y) * 0.5f } };
 
@@ -67,47 +88,7 @@ static void DrawSceneCameraOutline(
 	// DrawCenteredText(draw_list, center, color, camera.GetTag().c_str());
 }
 
-void ViewportPanel::DrawSceneCameraOutlines(EditorContext& ctx, Viewport image_viewport) {
-	if (!use_editor_camera_) {
-		return;
-	}
-
-	auto* draw_list{ ImGui::GetWindowDrawList() };
-
-	draw_list->PushClipRect(
-		ImVec2{ static_cast<float>(image_viewport.position.x),
-				static_cast<float>(image_viewport.position.y) },
-		ImVec2{ static_cast<float>(image_viewport.position.x + image_viewport.size.x),
-				static_cast<float>(image_viewport.position.y + image_viewport.size.y) },
-		true
-	);
-
-	auto color{ IM_COL32(80, 180, 255, 255) };
-	float thickness{ 2.0f };
-
-	auto scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
-
-	if (!scene) {
-		return;
-	}
-
-	for (auto [c, _camera] : scene->EntitiesWith<impl::CameraData>()) {
-		SceneCamera camera{ c };
-
-		if (IsUI(camera)) {
-			continue;
-		}
-
-		DrawSceneCameraOutline(
-			draw_list, camera, editor_camera_.camera.view_projection, image_viewport, color,
-			thickness
-		);
-	}
-
-	draw_list->PopClipRect();
-}
-
-static void DrawViewportToolbar(EditorContext& ctx) {
+void DrawViewportToolbar(EditorContext& ctx) {
 	auto app_state{ ctx.editor.GetApplicationState() };
 
 	bool running{ app_state == ApplicationState::Running };
@@ -186,145 +167,19 @@ void UpdateEditorCameraPan(EditorCamera& editor_camera) {
 	}
 }
 
-void ViewportPanel::OnRender(EditorContext& ctx) {
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
-
-	constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoScrollbar |
-										ImGuiWindowFlags_NoScrollWithMouse |
-										ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
-
-	ImGui::Begin("Game", nullptr, kFlags);
-	ImGui::PopStyleVar();
-
-	if (ImGuiWindow* game_window = ImGui::FindWindowByName("Game")) {
-		if (game_window->DockNode) {
-			game_window->DockNode->LocalFlags |= ImGuiDockNodeFlags_HiddenTabBar;
-		}
-	}
-
-	// Add some horizontal padding for the toolbar only.
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f, 4.0f });
-	ImGui::Indent(8.0f);
-	DrawViewportToolbar(ctx);
-	ImGui::Unindent(8.0f);
-	ImGui::PopStyleVar();
-
-	ImGui::Separator();
-
-	ImVec2 min	 = ImGui::GetCursorScreenPos();
-	ImVec2 avail = ImGui::GetContentRegionAvail();
-	ImVec2 max{ min.x + avail.x, min.y + avail.y };
-	ImVec2 center{ min.x + avail.x / 2.0f, min.y + avail.y / 2.0f };
-
-	Viewport viewport{ .position{ min.x, min.y }, .size{ avail.x, avail.y } };
-
-	ctx.state.viewport.viewport = viewport;
-	ctx.state.viewport.focused	= ImGui::IsWindowFocused();
-	ctx.state.viewport.hovered	= ImGui::IsWindowHovered();
-
-	ctx.editor.SetPresentationViewport(viewport);
-
-	if (avail.x <= 0.0f || avail.y <= 0.0f) {
-		ImGui::End();
-		return;
-	}
-
-	bool hovered = ImGui::IsWindowHovered();
-
-	if (hovered) {
-		// zoom
-		// ctx.editor.camera.Zoom(ImGui::GetIO().MouseWheel);
-
-		// pan
-		if (ImGui::IsMouseDragging(ImGuiMouseButton_Middle)) {
-			// ctx.editor.camera.Pan(ImGui::GetIO().MouseDelta);
-		}
-	}
-
-	auto* draw_list{ ImGui::GetWindowDrawList() };
-
-	auto bg{ ctx.editor.GetWindowBackgroundColor() };
-
-	draw_list->AddRectFilled(min, max, IM_COL32(bg.r, bg.g, bg.b, bg.a));
-
-	auto display_viewport{ ctx.editor.GetDisplayViewport() };
-	auto screen_texture{ ctx.editor.GetScreenTargetTexture() };
-
-	ImGui::Checkbox("Use Editor Camera", &use_editor_camera_);
-
-	if (use_editor_camera_) {
-		UpdateEditorCameraPan(editor_camera_);
-
-		editor_camera_.camera.viewport.position = {};
-		editor_camera_.camera.viewport.size		= ctx.editor.GetGameSize();
-
-		editor_camera_.camera.view_projection =
-			GetOrthographicViewProjection(
-				editor_camera_.camera.transform, editor_camera_.camera.viewport.size,
-				editor_camera_.pixel_rounding
-			)
-				.view_projection;
-
-		ctx.editor.SetPrimaryWorldCamera(editor_camera_.camera);
-	} else {
-		ctx.editor.SetPrimaryWorldCamera(std::nullopt);
-	}
-
-	ImVec2 img_min{ min.x + static_cast<float>(display_viewport.position.x),
-					min.y + static_cast<float>(display_viewport.position.y) };
-	ImVec2 img_max{ img_min.x + static_cast<float>(display_viewport.size.x),
-					img_min.y + static_cast<float>(display_viewport.size.y) };
-
-	draw_list->AddImage(
-		static_cast<ImTextureID>(screen_texture), img_min, img_max, ImVec2{ 0.0f, 1.0f },
-		ImVec2{ 1.0f, 0.0f }
-	);
-
-	Viewport gizmo_viewport{ .position{ min.x + static_cast<float>(display_viewport.position.x),
-										min.y + static_cast<float>(display_viewport.position.y) },
-							 .size{ static_cast<float>(display_viewport.size.x),
-									static_cast<float>(display_viewport.size.y) } };
-
-	DrawSceneCameraOutlines(ctx, gizmo_viewport);
-
-	DrawSelectedEntityGizmo(ctx, gizmo_viewport);
-
-	ImGui::End();
-}
-
-struct ViewportView2D {
-	V2_float center{ 0.0f, 0.0f };
-	float zoom{ 1.0f };
-	Viewport viewport;
-
-	[[nodiscard]] V2_float WorldToScreen(V2_float world) const {
-		V2_float local = (world - center) * zoom;
-		return { static_cast<float>(viewport.position.x) + viewport.size.x * 0.5f + local.x,
-				 static_cast<float>(viewport.position.y) + viewport.size.y * 0.5f + local.y };
-	}
-
-	[[nodiscard]] V2_float ScreenToWorld(V2_float screen) const {
-		V2_float local{
-			screen.x - (static_cast<float>(viewport.position.x) + viewport.size.x * 0.5f),
-			(screen.y - (static_cast<float>(viewport.position.y) + viewport.size.y * 0.5f))
-		};
-		return center + local / zoom;
-	}
-};
-
-static float SignedAngle(V2_float from, V2_float to) {
+float SignedAngle(V2_float from, V2_float to) {
 	float cross{ from.x * to.y - from.y * to.x };
 	float dot{ Dot(from, to) };
 	return std::atan2(cross, dot);
 }
 
-static V2_float GizmoLocalToScreen(
+V2_float GizmoLocalToScreen(
 	V2_float pivot_screen, V2_float axisX_screen, V2_float axisY_screen, V2_float local
 ) {
 	return pivot_screen + axisX_screen * local.x + axisY_screen * local.y;
 }
 
-static float DistanceToSegmentLocal(V2_float p, V2_float a, V2_float b) {
+float DistanceToSegmentLocal(V2_float p, V2_float a, V2_float b) {
 	V2_float ab		= b - a;
 	float ab_len_sq = Dot(ab, ab);
 	if (ab_len_sq <= 1e-6f) {
@@ -443,8 +298,10 @@ void DrawSimple2DGizmo(
 			}
 
 			case GizmoHandle::MoveX: {
-				V2_float axis = Normalize(V2_float{ std::cos(gizmo.drag_start_rotation.value),
-													std::sin(gizmo.drag_start_rotation.value) });
+				V2_float axis = Normalize(
+					V2_float{ std::cos(gizmo.drag_start_rotation.value),
+							  std::sin(gizmo.drag_start_rotation.value) }
+				);
 				V2_float screen_delta = mouse_screen - gizmo.drag_start_mouse_screen;
 				V2_float world_delta  = screen_delta / view.zoom;
 				// maybe flip Y depending on your world convention
@@ -454,8 +311,10 @@ void DrawSimple2DGizmo(
 			}
 
 			case GizmoHandle::MoveY: {
-				V2_float axis = Normalize(V2_float{ -std::sin(gizmo.drag_start_rotation.value),
-													std::cos(gizmo.drag_start_rotation.value) });
+				V2_float axis = Normalize(
+					V2_float{ -std::sin(gizmo.drag_start_rotation.value),
+							  std::cos(gizmo.drag_start_rotation.value) }
+				);
 				V2_float screen_delta = mouse_screen - gizmo.drag_start_mouse_screen;
 				V2_float world_delta  = screen_delta / view.zoom;
 				// maybe flip Y depending on your world convention
@@ -477,8 +336,10 @@ void DrawSimple2DGizmo(
 			}
 
 			case GizmoHandle::ScaleX: {
-				V2_float axis  = Normalize(V2_float{ std::cos(gizmo.drag_start_rotation.value),
-													 std::sin(gizmo.drag_start_rotation.value) });
+				V2_float axis = Normalize(
+					V2_float{ std::cos(gizmo.drag_start_rotation.value),
+							  std::sin(gizmo.drag_start_rotation.value) }
+				);
 				V2_float delta = mouse_world - gizmo.drag_start_mouse_world;
 				float amount   = Dot(delta, axis);
 
@@ -489,8 +350,10 @@ void DrawSimple2DGizmo(
 			}
 
 			case GizmoHandle::ScaleY: {
-				V2_float axis  = Normalize(V2_float{ -std::sin(gizmo.drag_start_rotation.value),
-													 std::cos(gizmo.drag_start_rotation.value) });
+				V2_float axis = Normalize(
+					V2_float{ -std::sin(gizmo.drag_start_rotation.value),
+							  std::cos(gizmo.drag_start_rotation.value) }
+				);
 				V2_float delta = mouse_world - gizmo.drag_start_mouse_world;
 				float amount   = Dot(delta, axis);
 
@@ -606,6 +469,154 @@ void DrawSimple2DGizmo(
 				: col_center
 		);
 	}
+}
+
+} // namespace
+
+void ViewportPanel::DrawSceneCameraOutlines(EditorContext& ctx, Viewport image_viewport) {
+	if (!use_editor_camera_) {
+		return;
+	}
+
+	auto* draw_list{ ImGui::GetWindowDrawList() };
+
+	draw_list->PushClipRect(
+		ImVec2{ static_cast<float>(image_viewport.position.x),
+				static_cast<float>(image_viewport.position.y) },
+		ImVec2{ static_cast<float>(image_viewport.position.x + image_viewport.size.x),
+				static_cast<float>(image_viewport.position.y + image_viewport.size.y) },
+		true
+	);
+
+	auto color{ IM_COL32(80, 180, 255, 255) };
+	float thickness{ 2.0f };
+
+	auto scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
+
+	if (!scene) {
+		return;
+	}
+
+	for (auto [c, _camera] : scene->EntitiesWith<impl::CameraData>()) {
+		SceneCamera camera{ c };
+
+		if (IsUI(camera)) {
+			continue;
+		}
+
+		DrawSceneCameraOutline(
+			draw_list, camera, editor_camera_.camera.view_projection, image_viewport, color,
+			thickness
+		);
+	}
+
+	draw_list->PopClipRect();
+}
+
+void ViewportPanel::OnRender(EditorContext& ctx) {
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
+
+	constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoScrollbar |
+										ImGuiWindowFlags_NoScrollWithMouse |
+										ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
+
+	ImGui::Begin("Game", nullptr, kFlags);
+	ImGui::PopStyleVar();
+
+	if (ImGuiWindow* game_window = ImGui::FindWindowByName("Game")) {
+		if (game_window->DockNode) {
+			game_window->DockNode->LocalFlags |= ImGuiDockNodeFlags_HiddenTabBar;
+		}
+	}
+
+	// Add some horizontal padding for the toolbar only.
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 8.0f, 4.0f });
+	ImGui::Indent(8.0f);
+	DrawViewportToolbar(ctx);
+	ImGui::Unindent(8.0f);
+	ImGui::PopStyleVar();
+
+	ImGui::Separator();
+
+	ImVec2 min	 = ImGui::GetCursorScreenPos();
+	ImVec2 avail = ImGui::GetContentRegionAvail();
+	ImVec2 max{ min.x + avail.x, min.y + avail.y };
+	ImVec2 center{ min.x + avail.x / 2.0f, min.y + avail.y / 2.0f };
+
+	Viewport viewport{ .position{ min.x, min.y }, .size{ avail.x, avail.y } };
+
+	ctx.state.viewport.viewport = viewport;
+	ctx.state.viewport.focused	= ImGui::IsWindowFocused();
+	ctx.state.viewport.hovered	= ImGui::IsWindowHovered();
+
+	ctx.editor.SetPresentationViewport(viewport);
+
+	if (avail.x <= 0.0f || avail.y <= 0.0f) {
+		ImGui::End();
+		return;
+	}
+
+	bool hovered = ImGui::IsWindowHovered();
+
+	if (hovered) {
+		// zoom
+		// ctx.editor.camera.Zoom(ImGui::GetIO().MouseWheel);
+
+		// pan
+		if (ImGui::IsMouseDragging(ImGuiMouseButton_Middle)) {
+			// ctx.editor.camera.Pan(ImGui::GetIO().MouseDelta);
+		}
+	}
+
+	auto* draw_list{ ImGui::GetWindowDrawList() };
+
+	auto bg{ ctx.editor.GetWindowBackgroundColor() };
+
+	draw_list->AddRectFilled(min, max, IM_COL32(bg.r, bg.g, bg.b, bg.a));
+
+	auto display_viewport{ ctx.editor.GetDisplayViewport() };
+	auto screen_texture{ ctx.editor.GetScreenTargetTexture() };
+
+	ImGui::Checkbox("Use Editor Camera", &use_editor_camera_);
+
+	if (use_editor_camera_) {
+		UpdateEditorCameraPan(editor_camera_);
+
+		editor_camera_.camera.viewport.position = {};
+		editor_camera_.camera.viewport.size		= ctx.editor.GetGameSize();
+
+		editor_camera_.camera.view_projection =
+			GetOrthographicViewProjection(
+				editor_camera_.camera.transform, editor_camera_.camera.viewport.size,
+				editor_camera_.pixel_rounding
+			)
+				.view_projection;
+
+		ctx.editor.SetPrimaryWorldCamera(editor_camera_.camera);
+	} else {
+		ctx.editor.SetPrimaryWorldCamera(std::nullopt);
+	}
+
+	ImVec2 img_min{ min.x + static_cast<float>(display_viewport.position.x),
+					min.y + static_cast<float>(display_viewport.position.y) };
+	ImVec2 img_max{ img_min.x + static_cast<float>(display_viewport.size.x),
+					img_min.y + static_cast<float>(display_viewport.size.y) };
+
+	draw_list->AddImage(
+		static_cast<ImTextureID>(screen_texture), img_min, img_max, ImVec2{ 0.0f, 1.0f },
+		ImVec2{ 1.0f, 0.0f }
+	);
+
+	Viewport gizmo_viewport{ .position{ min.x + static_cast<float>(display_viewport.position.x),
+										min.y + static_cast<float>(display_viewport.position.y) },
+							 .size{ static_cast<float>(display_viewport.size.x),
+									static_cast<float>(display_viewport.size.y) } };
+
+	DrawSceneCameraOutlines(ctx, gizmo_viewport);
+
+	DrawSelectedEntityGizmo(ctx, gizmo_viewport);
+
+	ImGui::End();
 }
 
 void ViewportPanel::DrawSelectedEntityGizmo(EditorContext& ctx, Viewport viewport) {
