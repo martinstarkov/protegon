@@ -1,16 +1,28 @@
 #pragma once
 
 #include <string_view>
+#include <utility>
 #include <vector>
 
+#include "core/math/vector2.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/shader.h"
+#include "renderer/resources/texture_format.h"
 
 namespace ptgn {
 
 namespace impl {
 
 class Renderer;
+
+struct PassDesc {
+	std::vector<TextureId> inputs;
+	RenderTargetDesc output;
+	MaterialState material;
+	RenderState render_state;
+};
 
 } // namespace impl
 
@@ -32,28 +44,6 @@ public:
 		return *this;
 	}
 
-	PassBuilder& SameSize(TextureFormat format = TextureFormat::RGBA8) {
-		auto first = desc_.inputs.front();
-
-		desc_.output = RenderTargetDesc{
-			.size	= renderer_.GetTextureSize(first),
-			.format = format,
-		};
-
-		return *this;
-	}
-
-	PassBuilder& HalfSize(TextureFormat format = TextureFormat::RGBA16F) {
-		auto first = desc_.inputs.front();
-
-		desc_.output = RenderTargetDesc{
-			.size	= renderer_.GetTextureSize(first) / 2,
-			.format = format,
-		};
-
-		return *this;
-	}
-
 	PassBuilder& Material(MaterialState material) {
 		desc_.material = std::move(material);
 		return *this;
@@ -64,10 +54,7 @@ public:
 		return *this;
 	}
 
-	PassBuilder& Shader(std::string_view name) {
-		desc_.material.shader = renderer_.GetShader(name);
-		return *this;
-	}
+	PassBuilder& Shader(std::string_view name);
 
 	PassBuilder& Uniform(UniformWrite uniform) {
 		desc_.material.uniforms.push_back(std::move(uniform));

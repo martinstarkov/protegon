@@ -49,12 +49,12 @@ inline RenderQuad<TextureVertex> CreateRenderQuad(
 template <VertexType TVertex>
 using RenderTriangle = std::array<TVertex, 3>;
 
-inline constexpr std::array kQuadIndices{
-	0u, 1, 2, 2, 3, 0,
+inline constexpr std::array<Index, 6> kQuadIndices{
+	0, 1, 2, 2, 3, 0,
 };
 
-inline constexpr std::array kTriangleIndices{
-	0u,
+inline constexpr std::array<Index, 3> kTriangleIndices{
+	0,
 	1,
 	2,
 };

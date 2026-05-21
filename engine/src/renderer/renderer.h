@@ -94,13 +94,6 @@ struct DrawTriangleRequest {
 	TAccessor texture_index_accessor;
 };
 
-struct PassDesc {
-	std::vector<TextureId> inputs;
-	RenderTargetDesc output;
-	MaterialState material;
-	RenderState render_state;
-};
-
 class Renderer {
 public:
 	PipelineId GetTexturePipeline() const;
