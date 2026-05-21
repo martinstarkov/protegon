@@ -219,13 +219,13 @@ template <typename Container>
 
 		count = std::min(count, indices.size());
 
-		for (std::size_t i = 0; i < count; ++i) {
+		for (auto i{ 0uz }; i < count; ++i) {
 			result.push_back(choices[indices[i]]);
 		}
 	} else {
 		std::uniform_int_distribution<std::size_t> dist(0, choices.size() - 1);
 
-		for (std::size_t i = 0; i < count; ++i) {
+		for (auto i{ 0uz }; i < count; ++i) {
 			result.push_back(choices[dist(rng)]);
 		}
 	}
@@ -272,14 +272,14 @@ public:
 
 	template <InvocableR<void, T&> F>
 	void ForEach(F&& func) {
-		for (auto i{ 0 }; i < Size(); i++) {
+		for (auto i{ 0 }; i < Size(); ++i) {
 			std::invoke(std::forward<F>(func), items_[i]);
 		}
 	}
 
 	template <InvocableR<void, const T&> F>
 	void ForEach(F&& func) const {
-		for (auto i{ 0 }; i < Size(); i++) {
+		for (auto i{ 0 }; i < Size(); ++i) {
 			std::invoke(std::forward<F>(func), items_[i]);
 		}
 	}

@@ -26,7 +26,7 @@ struct AStarNode {
 	void Destroy();
 };
 
-inline constexpr std::array<V2_int, 4> kAStarNeighbors{
+inline constexpr std::array kAStarNeighbors{
 	V2_int{ 0, 1 },
 	V2_int{ 0, -1 },
 	V2_int{ 1, 0 },

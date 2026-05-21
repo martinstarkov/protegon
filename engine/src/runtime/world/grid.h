@@ -35,8 +35,8 @@ public:
 
 	template <InvocableR<void, V2_int> F>
 	void ForEachCoordinate(F&& func) const {
-		for (int i{ 0 }; i < size.x; i++) {
-			for (int j{ 0 }; j < size.y; j++) {
+		for (auto i{ 0 }; i < size.x; ++i) {
+			for (auto j{ 0 }; j < size.y; ++j) {
 				func(V2_int{ i, j });
 			}
 		}
@@ -44,8 +44,8 @@ public:
 
 	template <InvocableR<void, V2_int, const T&> F>
 	void ForEach(F&& func) const {
-		for (int i{ 0 }; i < size.x; i++) {
-			for (int j{ 0 }; j < size.y; j++) {
+		for (auto i{ 0 }; i < size.x; ++i) {
+			for (auto j{ 0 }; j < size.y; ++j) {
 				V2_int coordinate{ i, j };
 				func(coordinate, Get(coordinate));
 			}
@@ -54,8 +54,8 @@ public:
 
 	template <InvocableR<void, V2_int, T&> F>
 	void ForEach(F&& func) {
-		for (int i{ 0 }; i < size.x; i++) {
-			for (int j{ 0 }; j < size.y; j++) {
+		for (auto i{ 0 }; i < size.x; ++i) {
+			for (auto j{ 0 }; j < size.y; ++j) {
 				V2_int coordinate{ i, j };
 				func(coordinate, Get(coordinate));
 			}
@@ -64,7 +64,7 @@ public:
 
 	template <InvocableR<void, int> F>
 	void ForEachIndex(F&& func) const {
-		for (int i{ 0 }; i < length; i++) {
+		for (auto i{ 0 }; i < length; ++i) {
 			func(i);
 		}
 	}

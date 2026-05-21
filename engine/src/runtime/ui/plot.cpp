@@ -411,7 +411,7 @@
 //				}
 //			}
 //		}
-//		for (std::size_t i = 0; i < series.data.points.size(); ++i) {
+//		for (auto i{ 0uz }; i < series.data.points.size(); ++i) {
 //			const auto& point{ series.data.points[i] };
 //			bool final_point{ i + 1 == series.data.points.size() };
 //			if (!final_point) {

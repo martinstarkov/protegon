@@ -79,9 +79,8 @@ void KDTree::EndFrameUpdate() {
 	}
 
 	// If too many changed, rebuild fully from entity_map (fast, cache-friendly)
-	if (moved >= std::max<std::size_t>(
-					 1, static_cast<std::size_t>(rebuild_threshold * static_cast<float>(total))
-				 )) {
+	if (moved >=
+		std::max(1uz, static_cast<std::size_t>(rebuild_threshold * static_cast<float>(total)))) {
 		std::vector<KDObject> all;
 		all.reserve(entity_map.size());
 		for (const auto& [_, object] : entity_map) {
@@ -172,7 +171,7 @@ std::unique_ptr<KDNode> KDTree::BuildRecursive(const std::vector<KDObject>& obje
 
 	// Get the centers of all the KDObjects.
 	std::vector<float> centers(objects.size());
-	for (std::size_t i{ 0 }; i < objects.size(); ++i) {
+	for (auto i{ 0uz }; i < objects.size(); ++i) {
 		centers[i] = objects[i].GetCenter(node->split_axis);
 	}
 
@@ -275,7 +274,7 @@ bool KDTree::RemoveFromTree(
 	// If leaf, search its vector and mark deleted if found
 	if (!node->left && !node->right) {
 		auto& vec = node->objects;
-		for (std::size_t i = 0; i < vec.size(); ++i) {
+		for (auto i{ 0uz }; i < vec.size(); ++i) {
 			if (vec[i].entity == e) {
 				vec[i].deleted = true; // Lazy delete
 				touched_leaves.push_back(node);

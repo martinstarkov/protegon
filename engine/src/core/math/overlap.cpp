@@ -35,22 +35,18 @@ std::vector<Axis> GetPolygonAxes(
 	std::vector<Axis> axes;
 
 	const auto parallel_axis_exists = [&axes](const Axis& o_axis) {
-		for (const auto& axis : axes) {
-			if (NearlyEqual(o_axis.direction.Cross(axis.direction), 0.0f)) {
-				return true;
-			}
-		}
-		return false;
+		return std::ranges::any_of(axes, [&](const auto& axis) {
+			return NearlyEqual(o_axis.direction.Cross(axis.direction), 0.0f);
+		});
 	};
 
 	axes.reserve(vertices.size());
 
-	for (std::size_t a{ 0 }; a < vertices.size(); a++) {
-		std::size_t b{ a + 1 == vertices.size() ? 0 : a + 1 };
+	for (auto i{ 0uz }; i < vertices.size(); ++i) {
+		auto n{ (i + 1) % vertices.size() };
 
-		Axis axis;
-		axis.midpoint  = Midpoint(vertices[a], vertices[b]);
-		axis.direction = vertices[a] - vertices[b];
+		Axis axis{ .direction = vertices[i] - vertices[n],
+				   .midpoint  = Midpoint(vertices[i], vertices[n]) };
 
 		// Skip coinciding points with no axis.
 		if (axis.direction.IsZero()) {
@@ -86,8 +82,8 @@ std::pair<float, float> GetPolygonProjectionMinMax(
 
 	float min{ axis.direction.Dot(vertices[0]) };
 	float max{ min };
-	for (std::size_t i{ 1 }; i < vertices.size(); i++) {
-		float p{ vertices[i].Dot(axis.direction) };
+	for (const auto& vertex : vertices) {
+		float p{ vertex.Dot(axis.direction) };
 		if (p < min) {
 			min = p;
 		} else if (p > max) {
@@ -103,9 +99,9 @@ bool PolygonsHaveOverlapAxis(Transform t1, const Polygon& A, Transform t2, const
 	auto world_pointsB{ B.GetWorldVertices(t2) };
 
 	const auto axes{ impl::GetPolygonAxes(world_pointsA, false) };
-	for (const Axis& a : axes) {
-		auto [min1, max1] = impl::GetPolygonProjectionMinMax(world_pointsA, a);
-		auto [min2, max2] = impl::GetPolygonProjectionMinMax(world_pointsB, a);
+	for (const auto& axis : axes) {
+		auto [min1, max1] = impl::GetPolygonProjectionMinMax(world_pointsA, axis);
+		auto [min2, max2] = impl::GetPolygonProjectionMinMax(world_pointsB, axis);
 
 		if (!impl::IntervalsOverlap(min1, max1, min2, max2)) {
 			return false;
@@ -121,9 +117,9 @@ bool GetPolygonMinimumOverlap(
 	Polygon world_polygonB{ B.GetWorldVertices(t2) };
 
 	const auto axes{ impl::GetPolygonAxes(world_polygonA, true) };
-	for (const Axis& a : axes) {
-		auto [min1, max1] = impl::GetPolygonProjectionMinMax(world_polygonA, a);
-		auto [min2, max2] = impl::GetPolygonProjectionMinMax(world_polygonB, a);
+	for (const auto& axis2 : axes) {
+		auto [min1, max1] = impl::GetPolygonProjectionMinMax(world_polygonA, axis2);
+		auto [min2, max2] = impl::GetPolygonProjectionMinMax(world_polygonB, axis2);
 
 		if (!impl::IntervalsOverlap(min1, max1, min2, max2)) {
 			return false;
@@ -133,11 +129,13 @@ bool GetPolygonMinimumOverlap(
 			PolygonContainsPolygon(Transform{}, world_polygonB, Transform{}, world_polygonA)
 		};
 
-		float o{ impl::GetIntervalOverlap(min1, max1, min2, max2, contained, axis.direction) };
+		float overlap{
+			impl::GetIntervalOverlap(min1, max1, min2, max2, contained, axis.direction)
+		};
 
-		if (o < depth) {
-			depth = o;
-			axis  = a;
+		if (overlap < depth) {
+			depth = overlap;
+			axis  = axis2;
 		}
 	}
 	return true;
@@ -147,16 +145,17 @@ bool LineContainsLine(Transform t1, const Line& A, Transform t2, const Line& B) 
 	auto [lineA_start, lineA_end] = A.GetWorldVertices(t1);
 	auto [lineB_start, lineB_end] = B.GetWorldVertices(t2);
 
-	if (auto d{ (lineA_end - lineA_start).Cross(lineB_end - lineB_start) }; !NearlyEqual(d, 0.0f)) {
+	if (auto distance{ (lineA_end - lineA_start).Cross(lineB_end - lineB_start) };
+		!NearlyEqual(distance, 0.0f)) {
 		return false;
 	}
 
-	float a1{
+	float area1{
 		impl::ParallelogramArea(lineA_start, lineA_end, lineB_end)
 	}; // Compute winding of abd (+ or -)
-	float a2{ impl::ParallelogramArea(lineA_start, lineA_end, lineB_start) };
+	float area2{ impl::ParallelogramArea(lineA_start, lineA_end, lineB_start) };
 
-	if (bool collinear{ NearlyEqual(a1, 0.0f) || NearlyEqual(a2, 0.0f) }; !collinear) {
+	if (bool collinear{ NearlyEqual(area1, 0.0f) || NearlyEqual(area2, 0.0f) }; !collinear) {
 		return false;
 	}
 
@@ -172,12 +171,9 @@ bool PolygonContainsPolygon(Transform t1, const Polygon& A, Transform t2, const 
 	Polygon world_polygonA{ A.GetWorldVertices(t1) };
 	Polygon world_polygonB{ B.GetWorldVertices(t2) };
 
-	for (const auto& vertexB : world_polygonB) {
-		if (!OverlapPointPolygon(Transform{}, vertexB, Transform{}, world_polygonA)) {
-			return false;
-		}
-	}
-	return true;
+	return std::ranges::all_of(world_polygonB, [&](const auto& vertexB) {
+		return impl::OverlapPointPolygon(Transform{}, vertexB, Transform{}, world_polygonA);
+	});
 }
 
 bool TriangleContainsTriangle(Transform t1, const Triangle& A, Transform t2, const Triangle& B) {
@@ -317,10 +313,10 @@ bool OverlapPointPolygon(Transform t1, V2_float A, Transform t2, const Polygon& 
 	const auto& v{ world_points };
 
 	bool c{ false };
-	std::size_t i{ 0 };
+	auto i{ 0uz };
 	std::size_t j{ count - 1 };
 	// Algorithm from: https://wrfranklin.org/Research/Short_Notes/pnpoly.html
-	for (; i < count; j = i++) {
+	for (; i < count; j = ++i) {
 		bool a{ (v[i].y > point.y) != (v[j].y > point.y) };
 		auto vji{ v[j] - v[i] };
 		auto d{ (point.y - v[i].y) * vji.x / vji.y };
@@ -524,7 +520,7 @@ bool OverlapLinePolygon(Transform t1, const Line& A, Transform t2, const Polygon
 
 	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices));
 
-	for (std::size_t i{ 0 }; i < polygon_vertices.size(); ++i) {
+	for (auto i{ 0uz }; i < polygon_vertices.size(); ++i) {
 		if (OverlapLineLine(
 				Transform{}, { line_start, line_end }, Transform{},
 				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertices.size()] }
@@ -600,7 +596,7 @@ bool OverlapCirclePolygon(Transform t1, const Circle& A, Transform t2, const Pol
 
 	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices));
 
-	for (std::size_t i{ 0 }; i < polygon_vertices.size(); ++i) {
+	for (auto i{ 0uz }; i < polygon_vertices.size(); ++i) {
 		if (OverlapLineCircle(
 				Transform{},
 				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertices.size()] },
@@ -671,7 +667,7 @@ bool OverlapTrianglePolygon(Transform t1, const Triangle& A, Transform t2, const
 
 	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices));
 
-	for (std::size_t i{ 0 }; i < polygon_vertices.size(); ++i) {
+	for (auto i{ 0uz }; i < polygon_vertices.size(); ++i) {
 		if (OverlapLineTriangle(
 				Transform{},
 				Line{ polygon_vertices[i], polygon_vertices[(i + 1) % polygon_vertices.size()] },
@@ -870,7 +866,7 @@ bool OverlapPolygonCapsule(Transform t1, const Polygon& A, Transform t2, const C
 
 	std::size_t vertex_count{ world_polygon.size() };
 
-	for (std::size_t i{ 0 }; i < vertex_count; ++i) {
+	for (auto i{ 0uz }; i < vertex_count; ++i) {
 		if (OverlapLineCapsule(
 				Transform{}, Line{ world_polygon[i], world_polygon[(i + 1) % vertex_count] },
 				Transform{}, Capsule{ capsule_start, capsule_end, capsule_radius }

@@ -29,9 +29,7 @@ V2_float Polygon::GetCenter() const {
 	const V2_float* prev = &(vertices_[lastdex]);
 	const V2_float* next{ nullptr };
 
-	// For all vertices in a loop
-	for (std::size_t i{ 0 }; i < vertices_.size(); i++) {
-		const auto& vertex{ vertices_[i] };
+	for (const auto& vertex : vertices_) {
 		next		 = &vertex;
 		v0			 = *prev;
 		v1			 = *next;

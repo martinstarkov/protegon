@@ -269,7 +269,7 @@
 //	void DrawAxis(const std::array<Line, 4>& edges, std::size_t component_index) {
 //		static_assert(tt::is_any_of_v<TAxis, VerticalAxis, HorizontalAxis>, "Invalid axis type");
 //		const auto& axis{ entity_.Get<TAxis>() };
-//		auto edge{ edges[component_index + static_cast<std::size_t>(axis.regular_align * 2)] };
+//		auto edge{ edges[component_index + axis.regular_align * 2uz] };
 //		edge.Draw(axis.line_color, axis.line_thickness);
 //
 //		// Since the rect.GetEdges() function goes in clockwise direction starting from top left,
@@ -307,7 +307,7 @@
 //
 //		PTGN_ASSERT(division_number_offset > 0.0f);
 //
-//		for (std::size_t i{ 0 }; i <= axis.divisions; i++) {
+//		for (auto i{ 0uz }; i <= axis.divisions; ++i) {
 //			// Offset of each division along the axis with respect to the start of the axis.
 //			V2_float offset{ axis_dir * i * division_offset };
 //

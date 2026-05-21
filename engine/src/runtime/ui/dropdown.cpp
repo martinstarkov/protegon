@@ -117,7 +117,7 @@ void Dropdown::RecalculateButtonPositions() {
 
 	V2_float offset{ parent_edge + GetOriginOffset(info.origin_, size) };
 
-	for (std::size_t i{ 0 }; i < info.buttons_.size(); ++i) {
+	for (auto i{ 0uz }; i < info.buttons_.size(); ++i) {
 		auto& button{ info.buttons_[i] };
 		shape = get_shape(button);
 		size  = get_shape_size(shape);

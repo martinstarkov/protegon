@@ -296,7 +296,7 @@ std::vector<Tween> TweenTo(
 					target_value.size() == entities.size(),
 					"Target vector size must match entities size"
 				);
-				for (std::size_t i = 0; i < entities.size(); ++i) {
+				for (auto i{ 0uz }; i < entities.size(); ++i) {
 					tweens.emplace_back(TweenTo<TComponent, T>(
 						entities[i], target_value[i], duration, ease, property, force
 					));
@@ -343,7 +343,7 @@ std::vector<Tween> TranslateTo(
 					target_value.size() == entities.size(),
 					"Target vector size must match entities size"
 				);
-				for (std::size_t i = 0; i < entities.size(); ++i) {
+				for (auto i{ 0uz }; i < entities.size(); ++i) {
 					tweens.emplace_back(
 						TranslateTo(entities[i], target_value[i], duration, ease, force)
 					);
@@ -389,7 +389,7 @@ std::vector<Tween> RotateTo(
 					target_value.size() == entities.size(),
 					"Target vector size must match entities size"
 				);
-				for (std::size_t i = 0; i < entities.size(); ++i) {
+				for (auto i{ 0uz }; i < entities.size(); ++i) {
 					tweens.emplace_back(
 						RotateTo(entities[i], target_value[i], duration, ease, force)
 					);
@@ -436,7 +436,7 @@ std::vector<Tween> ScaleTo(
 					target_value.size() == entities.size(),
 					"Target vector size must match entities size"
 				);
-				for (std::size_t i = 0; i < entities.size(); ++i) {
+				for (auto i{ 0uz }; i < entities.size(); ++i) {
 					tweens.emplace_back(ScaleTo(entities[i], target_value[i], duration, ease, force)
 					);
 				}
@@ -492,7 +492,7 @@ std::vector<Tween> TintTo(
 					target_value.size() == entities.size(),
 					"Target vector size must match entities size"
 				);
-				for (std::size_t i = 0; i < entities.size(); ++i) {
+				for (auto i{ 0uz }; i < entities.size(); ++i) {
 					tweens.emplace_back(TintTo(entities[i], target_value[i], duration, ease, force)
 					);
 				}

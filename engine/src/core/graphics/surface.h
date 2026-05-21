@@ -2,8 +2,10 @@
 
 #include <cstdint>
 #include <expected>
+#include <functional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "core/assert.h"
@@ -39,9 +41,9 @@ public:
 	template <InvocableR<void, V2_int, Color> F>
 	void ForEachPixel(F&& func) const {
 		PTGN_ASSERT(!pixels_.empty(), "Cannot loop through each pixel of an empty surface");
-		for (int j{ 0 }; j < size_.y; j++) {
+		for (int j{ 0 }; j < size_.y; ++j) {
 			auto row_index{ j * size_.x };
-			for (int i{ 0 }; i < size_.x; i++) {
+			for (int i{ 0 }; i < size_.x; ++i) {
 				V2_int coordinate{ i, j };
 				auto index{ row_index + i };
 				PTGN_ASSERT(index >= 0);

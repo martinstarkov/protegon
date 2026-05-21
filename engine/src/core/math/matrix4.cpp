@@ -1,8 +1,10 @@
 #include "core/math/matrix4.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <functional>
+#include <nlohmann/json.hpp>
 
 #include "core/assert.h"
 #include "core/math/angle.h"
@@ -12,7 +14,6 @@
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
 #include "serialization/json/fwd.h"
-#include "serialization/json/json.h"
 
 namespace ptgn {
 
@@ -234,8 +235,8 @@ Matrix4 Matrix4::Orthographic(
 
 	PTGN_ASSERT(
 		std::invoke([&]() -> bool {
-			for (std::size_t i{ 0 }; i < ortho.length; i++) {
-				if (std::isnan(ortho[i]) || std::isinf(ortho[i])) {
+			for (auto v : ortho) {
+				if (std::isnan(v) || std::isinf(v)) {
 					return false;
 				}
 			}
@@ -277,7 +278,7 @@ Matrix4 Matrix4::Perspective(Degrees fov_x, float aspect_ratio, float front, flo
 
 Matrix4 Matrix4::Translate(const Matrix4& m, V3_float axes) {
 	Matrix4 result{ m };
-	for (std::size_t i{ 0 }; i < static_cast<std::size_t>(result.size.x); i++) { // NOSONAR
+	for (auto i{ 0uz }; i < static_cast<std::size_t>(result.size.x); ++i) { // NOSONAR
 		result[i + 12] = m[i] * axes.x + m[i + 4] * axes.y + m[i + 8] * axes.z + m[i + 12];
 	}
 	return result;
@@ -315,7 +316,7 @@ Matrix4 Matrix4::Rotate(const Matrix4& matrix, Radians rotation, V3_float axes) 
 
 	Matrix4 result;
 
-	for (std::size_t i{ 0 }; i < static_cast<std::size_t>(result.size.x); i++) { // NOSONAR
+	for (auto i{ 0uz }; i < static_cast<std::size_t>(result.size.x); ++i) { // NOSONAR
 		result[i + 0] =
 			matrix[i + 0] * rotate[0] + matrix[i + 4] * rotate[4] + matrix[i + 8] * rotate[8];
 		result[i + 4] =
@@ -333,7 +334,7 @@ Matrix4 Matrix4::Rotate(const Matrix4& matrix, Degrees rotation, V3_float axes) 
 
 Matrix4 Matrix4::Scale(const Matrix4& m, V3_float axes) {
 	Matrix4 result;
-	for (std::size_t i{ 0 }; i < static_cast<std::size_t>(result.size.x); i++) { // NOSONAR
+	for (auto i{ 0uz }; i < static_cast<std::size_t>(result.size.x); ++i) { // NOSONAR
 		result[i + 0]  = m[i + 0] * axes.x;
 		result[i + 4]  = m[i + 4] * axes.y;
 		result[i + 8]  = m[i + 8] * axes.z;
@@ -343,26 +344,16 @@ Matrix4 Matrix4::Scale(const Matrix4& m, V3_float axes) {
 }
 
 bool Matrix4::IsZero() const {
-	for (std::size_t i{ 0 }; i < length; i++) {
-		if (!NearlyEqual(m_[i], 0.0f)) {
-			return false;
-		}
-	}
-	return true;
+	return std::ranges::all_of(m_, [](float f) { return NearlyEqual(f, 0.0f); });
 }
 
 bool Matrix4::ExactlyEquals(const Matrix4& o) const {
-	for (std::size_t i{ 0 }; i < length; i++) {
-		if (m_[i] != o[i]) {
-			return false;
-		}
-	}
-	return true;
+	return std::ranges::equal(m_, o.m_);
 }
 
 Matrix4 Matrix4::operator+(const Matrix4& rhs) const {
 	Matrix4 result;
-	for (std::size_t i{ 0 }; i < result.length; i++) { // NOSONAR
+	for (auto i{ 0uz }; i < result.length; ++i) { // NOSONAR
 		result[i] = m_[i] + rhs[i];
 	}
 	return result;
@@ -370,7 +361,7 @@ Matrix4 Matrix4::operator+(const Matrix4& rhs) const {
 
 Matrix4 Matrix4::operator-(const Matrix4& rhs) const {
 	Matrix4 result;
-	for (std::size_t i{ 0 }; i < result.length; i++) { // NOSONAR
+	for (auto i{ 0uz }; i < result.length; ++i) { // NOSONAR
 		result[i] = m_[i] - rhs[i];
 	}
 	return result;
@@ -379,14 +370,13 @@ Matrix4 Matrix4::operator-(const Matrix4& rhs) const {
 Matrix4 Matrix4::operator*(const Matrix4& rhs) const {
 	Matrix4 res;
 
-	for (std::size_t col = 0; col < static_cast<std::size_t>(rhs.size.y); ++col) { // NOSONAR
-		std::size_t res_stride{ col * static_cast<std::size_t>(res.size.x) };	   // NOSONAR
-		std::size_t B_stride{ col * static_cast<std::size_t>(rhs.size.x) };		   // NOSONAR
-		for (std::size_t row = 0; row < static_cast<std::size_t>(size.x); ++row) {
-			std::size_t res_index{ row + res_stride };
-			for (std::size_t i{ 0 }; i < static_cast<std::size_t>(rhs.size.x); ++i) { // NOSONAR
-				res[res_index] +=
-					m_[row + i * static_cast<std::size_t>(size.x)] * rhs[i + B_stride];
+	for (auto col{ 0uz }; col < static_cast<std::size_t>(rhs.size.y); ++col) { // NOSONAR
+		auto res_stride{ col * res.size.x };								   // NOSONAR
+		auto B_stride{ col * rhs.size.x };									   // NOSONAR
+		for (auto row{ 0uz }; row < static_cast<std::size_t>(size.x); ++row) {
+			auto res_index{ row + res_stride };
+			for (auto i{ 0uz }; i < static_cast<std::size_t>(rhs.size.x); ++i) { // NOSONAR
+				res[res_index] += m_[row + i * size.x] * rhs[i + B_stride];
 			}
 		}
 	}

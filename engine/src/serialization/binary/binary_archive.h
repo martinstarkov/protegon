@@ -57,7 +57,7 @@
 //		} else if constexpr (tt::is_map_like_v<T>) {
 //			std::size_t size{ 0 };
 //			ReadRaw(size);
-//			for (std::size_t i{ 0 }; i < size; i++) {
+//			for (auto i{ 0uz }; i < size; ++i) {
 //				typename T::key_type key;
 //				Read(key);
 //				Read(type[key]);
@@ -65,14 +65,14 @@
 //		} else if constexpr (tt::is_std_array_v<T>) {
 //			std::size_t size{ 0 };
 //			ReadRaw(size);
-//			for (std::size_t i{ 0 }; i < size; i++) {
+//			for (auto i{ 0uz }; i < size; ++i) {
 //				Read(type[i]);
 //			}
 //		} else if constexpr (tt::is_std_vector_v<T>) {
 //			std::size_t size{ 0 };
 //			ReadRaw(size);
 //			type.resize(size);
-//			for (std::size_t i{ 0 }; i < size; i++) {
+//			for (auto i{ 0uz }; i < size; ++i) {
 //				Read(type[i]);
 //			}
 //		} else if constexpr (std::is_same_v<T, std::string>) {

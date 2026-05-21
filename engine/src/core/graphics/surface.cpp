@@ -36,8 +36,8 @@ Surface::Surface(
 
 		pixels_.resize(pixels.size());
 
-		for (std::size_t dst_row{ 0 }; dst_row < static_cast<std::size_t>(size.y); ++dst_row) {
-			std::size_t src_row{ static_cast<std::size_t>(size.y) - dst_row - 1 };
+		for (auto dst_row{ 0uz }; dst_row < static_cast<std::size_t>(size.y); ++dst_row) {
+			auto src_row{ size.y - dst_row - 1uz };
 
 			std::copy_n(
 				pixels.begin() + static_cast<std::ptrdiff_t>(src_row * row_bytes), row_bytes,
@@ -72,7 +72,7 @@ Surface::Surface(const path& filepath, int desired_channels) {
 
 	size_ = { width, height };
 
-	std::size_t total_bytes{ static_cast<std::size_t>(width) * height * channels_ };
+	auto total_bytes{ static_cast<std::size_t>(width) * height * channels_ };
 
 	pixels_.resize(total_bytes);
 	std::memcpy(pixels_.data(), data, total_bytes);
@@ -83,14 +83,13 @@ Surface::Surface(const path& filepath, int desired_channels) {
 void Surface::FlipVertically() {
 	PTGN_ASSERT(!IsEmpty(), "Cannot vertically flip an empty surface");
 
-	const std::size_t row_bytes = static_cast<std::size_t>(size_.x) * channels_;
+	auto row_bytes{ static_cast<std::size_t>(size_.x) * channels_ };
 
-	for (std::size_t row = 0; row < static_cast<std::size_t>(size_.y) / 2; ++row) {
-		auto top_begin = pixels_.begin() + static_cast<std::ptrdiff_t>(row * row_bytes);
-		auto top_end   = top_begin + static_cast<std::ptrdiff_t>(row_bytes);
-		auto bot_begin =
-			pixels_.begin() +
-			static_cast<std::ptrdiff_t>((static_cast<std::size_t>(size_.y) - row - 1) * row_bytes);
+	for (auto row{ 0uz }; row < size_.y / 2uz; ++row) {
+		auto top_begin{ pixels_.begin() + static_cast<std::ptrdiff_t>(row * row_bytes) };
+		auto top_end{ top_begin + static_cast<std::ptrdiff_t>(row_bytes) };
+		auto bot_begin{ pixels_.begin() +
+						static_cast<std::ptrdiff_t>((size_.y - row - 1uz) * row_bytes) };
 
 		std::swap_ranges(top_begin, top_end, bot_begin);
 	}
@@ -106,9 +105,7 @@ Color Surface::GetPixel(V2_int coordinate) const {
 		"' outside of surface height: ", size_.y
 	);
 
-	const auto pixel_index =
-		static_cast<std::size_t>(coordinate.y) * static_cast<std::size_t>(size_.x) +
-		static_cast<std::size_t>(coordinate.x);
+	auto pixel_index{ static_cast<std::size_t>(coordinate.y) * size_.x + coordinate.x };
 
 	return GetPixel(pixel_index);
 }
@@ -152,11 +149,10 @@ std::expected<void, std::string> Surface::SavePNG(const path& filepath) const {
 
 	EnsureDirectory(filepath.parent_path());
 
-	auto success{ stbi_write_png(
-		filepath.string().c_str(), size_.x, size_.y, channels_, pixels_.data(), stride_in_bytes
-	) };
-
-	if (!success) {
+	if (auto success{ stbi_write_png(
+			filepath.string().c_str(), size_.x, size_.y, channels_, pixels_.data(), stride_in_bytes
+		) };
+		!success) {
 		return std::unexpected("Failed to save PNG");
 	}
 

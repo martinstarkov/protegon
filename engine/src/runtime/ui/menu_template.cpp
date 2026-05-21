@@ -35,7 +35,7 @@ void ApplyVerticalLayout(
 		start_y = origin.y - (total_height - spacing) / 2.0f;
 	}
 
-	for (std::size_t i = 0; i < entities.size(); ++i) {
+	for (auto i{ 0uz }; i < entities.size(); ++i) {
 		SetPosition(entities[i], { origin.x, start_y + static_cast<float>(i) * spacing });
 	}
 }
@@ -50,7 +50,7 @@ void ApplyHorizontalLayout(
 		start_x = origin.x - (total_width - spacing) / 2.0f;
 	}
 
-	for (std::size_t i = 0; i < entities.size(); ++i) {
+	for (auto i{ 0uz }; i < entities.size(); ++i) {
 		SetPosition(entities[i], { start_x + static_cast<float>(i) * spacing, origin.y });
 	}
 }
@@ -69,7 +69,7 @@ void ApplyGridLayout(
 
 	V2_float start{ origin - (total - spacing) / 2.0f };
 
-	for (std::size_t i = 0; i < entities.size(); ++i) {
+	for (auto i{ 0uz }; i < entities.size(); ++i) {
 		int r = static_cast<int>(i) / cols; // entities[i].row.value_or
 		int c = static_cast<int>(i) % cols; // entities[i].col.value_or
 		SetPosition(entities[i], { start + V2_float{ c, r } * spacing });

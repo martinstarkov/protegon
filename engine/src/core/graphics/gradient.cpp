@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <ranges>
 #include <regex>
 #include <string>
 #include <string_view>
@@ -55,10 +56,7 @@ Color Gradient::Sample(float t) const {
 		return stops_.back().color;
 	}
 
-	for (std::size_t i = 0; i < stops_.size() - 1; ++i) {
-		const auto& a = stops_[i];
-		const auto& b = stops_[i + 1];
-
+	for (auto&& [a, b] : stops_ | std::views::adjacent<2>) {
 		if (t >= a.t && t <= b.t) {
 			float local = (t - a.t) / (b.t - a.t);
 			return Lerp(a.color, b.color, local);

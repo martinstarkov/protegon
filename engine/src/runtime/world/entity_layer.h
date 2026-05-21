@@ -27,8 +27,8 @@ public:
 		scaled_tile_size{ scale * tile_size } {
 		PTGN_ASSERT(FileExists(tileset_path));
 		Application::Get().texture.Load(texture_key, tileset_path);
-		for (int i = 0; i < size.x; i++) {
-			for (int j = 0; j < size.y; j++) {
+		for (auto i{ 0 }; i < size.x; ++i) {
+			for (auto j{ 0 }; j < size.y; ++j) {
 				V2_int tile{ i, j };
 				Rect rect{ tile * grid_size * scaled_tile_size, scaled_tile_size };
 				Set(tile, impl::Tile{ rect });

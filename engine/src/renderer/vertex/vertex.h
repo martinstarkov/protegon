@@ -107,7 +107,7 @@ struct TextureVertex :
 template <VertexType T, std::size_t I, InvocableR<T, std::size_t> F>
 std::array<T, I> GetVertices(F&& transform) {
 	std::array<T, I> vertices{};
-	for (std::size_t i{ 0 }; i < I; ++i) {
+	for (auto i{ 0uz }; i < I; ++i) {
 		vertices[i] = std::invoke(std::forward<F>(transform), i);
 	}
 	return vertices;

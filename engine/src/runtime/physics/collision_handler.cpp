@@ -461,7 +461,7 @@ void CollisionHandler::AddEarliestCollisions(
 
 	collider.AddSweep(first);
 
-	for (std::size_t i{ 1 }; i < sweep_collisions.size(); ++i) {
+	for (auto i{ 1uz }; i < sweep_collisions.size(); ++i) {
 		const auto& sweep{ sweep_collisions[i] };
 
 		if (sweep.collision.t == first_sweep.collision.t) {

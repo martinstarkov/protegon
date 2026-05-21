@@ -133,16 +133,16 @@ Intersection IntersectCirclePolygon(Transform t1, const Circle& A, Transform t2,
 	float min_penetration{ std::numeric_limits<float>::infinity() };
 	V2_float collision_normal;
 
-	auto polygon_vertices{ B.GetWorldVertices(t2) };
-	std::size_t polygon_vertex_count{ polygon_vertices.size() };
+	auto vertices{ B.GetWorldVertices(t2) };
+	auto count{ vertices.size() };
 
 	auto circle_radius{ A.GetRadius(t1) };
 	auto circle_center{ A.GetCenter(t1) };
 
 	// Check each edge of the polygon
-	for (std::size_t i{ 0 }; i < polygon_vertex_count; ++i) {
-		V2_float a{ polygon_vertices[i] };
-		V2_float b{ polygon_vertices[(i + 1) % polygon_vertex_count] };
+	for (auto i{ 0uz }; i < count; ++i) {
+		V2_float a{ vertices[i] };
+		V2_float b{ vertices[(i + 1) % count] };
 		V2_float edge{ b - a };
 		V2_float edge_normal{ edge.Skewed().Normalized() }; // outward normal
 
@@ -165,8 +165,10 @@ Intersection IntersectCirclePolygon(Transform t1, const Circle& A, Transform t2,
 	// If we got here, the circle intersects or is inside the polygon
 	PTGN_ASSERT(min_penetration != std::numeric_limits<float>::infinity());
 	PTGN_ASSERT(!collision_normal.IsZero());
+
 	c.depth	 = min_penetration;
 	c.normal = collision_normal;
+
 	return c;
 }
 

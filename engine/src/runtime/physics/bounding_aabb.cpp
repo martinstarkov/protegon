@@ -1,19 +1,9 @@
 #include "runtime/physics/bounding_aabb.h"
 
 #include <algorithm>
-#include <type_traits>
-#include <variant>
 #include <vector>
 
-#include "core/math/geometry/capsule.h"
-#include "core/math/geometry/circle.h"
-#include "core/math/geometry/ellipse.h"
-#include "core/math/geometry/line.h"
-#include "core/math/geometry/polygon.h"
-#include "core/math/geometry/rect.h"
-#include "core/math/geometry/rounded_rect.h"
 #include "core/math/geometry/shape.h"
-#include "core/math/geometry/triangle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 

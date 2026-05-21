@@ -106,7 +106,7 @@ private:
 
 	CollisionDebugSettings debug_settings_;
 
-	constexpr static float slop_{ 0.0005f };
+	constexpr static auto slop_{ 0.0005f };
 	constexpr static std::size_t max_sweep_iterations_{ 4 };
 };
 

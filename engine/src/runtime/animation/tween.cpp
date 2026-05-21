@@ -50,7 +50,7 @@ TweenPoint& TweenData::GetLastTweenPoint() {
 
 void TweenData::OnEvent() {
 	auto point_count{ points_.size() };
-	for (std::size_t i{ 0 }; i < point_count; ++i) {
+	for (auto i{ 0uz }; i < point_count; ++i) {
 		PTGN_ASSERT(i < points_.size(), "Tween points cannot be shrunk while looping through them");
 
 		PTGN_ASSERT(points_[i]);
@@ -223,7 +223,7 @@ std::optional<std::size_t> TweenData::GetCurrentIndex() const {
 }
 
 std::optional<std::size_t> TweenData::GetLastIndex() const {
-	for (std::size_t i{ points_.size() }; i > 0; --i) {
+	for (auto i{ points_.size() }; i > 0; --i) {
 		PTGN_ASSERT(points_[i - 1]);
 		if (!points_[i - 1]->flagged_for_removal_) {
 			return i - 1;

@@ -145,8 +145,8 @@ void ChunkManager::Update(Scene& scene, const Camera& camera) {
 
 	std::unordered_set<V2_int> visible_chunks;
 
-	for (int i{ min.x }; i < max.x; i++) {
-		for (int j{ min.y }; j < max.y; j++) {
+	for (auto i{ min.x }; i < max.x; ++i) {
+		for (auto j{ min.y }; j < max.y; ++j) {
 			V2_int coordinate{ i, j };
 			visible_chunks.emplace(coordinate);
 
@@ -213,8 +213,8 @@ void ChunkManager::DrawDebugChunkBorders() const {
 std::vector<Entity> ChunkManager::GenerateEntities(V2_int chunk_coordinate) const {
 	std::vector<Entity> entities;
 	for (const auto& layer : noise_layers_) {
-		for (int i{ 0 }; i < chunk_size.x; i++) {
-			for (int j{ 0 }; j < chunk_size.y; j++) {
+		for (auto i{ 0 }; i < chunk_size.x; ++i) {
+			for (auto j{ 0 }; j < chunk_size.y; ++j) {
 				auto tile_coordinate{ chunk_coordinate * chunk_size + V2_int{ i, j } };
 				auto entity{ layer.GetEntity(tile_coordinate, tile_size) };
 				if (!entity) {

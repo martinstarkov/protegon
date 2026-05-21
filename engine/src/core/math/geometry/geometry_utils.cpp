@@ -1,7 +1,6 @@
 #include "core/math/geometry/geometry_utils.h"
 
 #include <algorithm>
-#include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
@@ -35,9 +34,7 @@ std::vector<V2_float> GetArcVertices(
 
 	// Resolution indicates the number of vertices the arc is made up of. Each consecutive vertex,
 	// alongside the center of the arc, makes up a triangle which is used to draw solid arcs.
-	std::size_t resolution{
-		std::max(static_cast<std::size_t>(360), static_cast<std::size_t>(30.0f * radius))
-	};
+	auto resolution{ std::max(360uz, static_cast<std::size_t>(30.0f * radius)) };
 
 	PTGN_ASSERT(
 		resolution > 1, "Arc must be made up of at least two vertices (forming one triangle with "
@@ -48,16 +45,12 @@ std::vector<V2_float> GetArcVertices(
 
 	std::vector<V2_float> vertices(resolution);
 
-	for (std::size_t i{ 0 }; i < vertices.size(); i++) {
-		auto angle{ start_angle };
-		auto delta{ static_cast<float>(i) * delta_angle };
-		if (clockwise) {
-			angle -= delta;
-		} else {
-			angle += delta;
-		}
+	auto step{ clockwise ? -delta_angle : delta_angle };
+	auto angle{ start_angle };
 
-		vertices[i] = center + radius * V2_float{ angle.Cos(), angle.Sin() };
+	for (auto& vertex : vertices) {
+		vertex	= center + radius * V2_float{ angle.Cos(), angle.Sin() };
+		angle  += step;
 	}
 
 	return vertices;
@@ -72,9 +65,9 @@ float TriangulateArea(std::span<const V2_float> vertices) {
 
 	float area{ 0.0f };
 
-	for (std::size_t i{ 0 }; i < count; ++i) {
-		V2_float current{ vertices[i] };
-		V2_float next{ vertices[(i + 1) % count] };
+	for (auto i{ 0uz }; i < count; ++i) {
+		auto current{ vertices[i] };
+		auto next{ vertices[(i + 1) % count] };
 
 		area += current.Cross(next);
 	}
@@ -104,11 +97,11 @@ bool TriangulateSnip(
 		return false;
 	}
 
-	for (std::size_t p{ 0 }; p < n; p++) {
-		if ((p == u) || (p == v) || (p == w)) {
+	for (auto i{ 0uz }; i < n; ++i) {
+		if ((i == u) || (i == v) || (i == w)) {
 			continue;
 		}
-		auto P{ contour[V[p]] };
+		auto P{ contour[V[i]] };
 		if (TriangulateInsideTriangle(A, B, C, P)) {
 			return false;
 		}
@@ -117,10 +110,10 @@ bool TriangulateSnip(
 	return true;
 }
 
-std::vector<std::array<V2_float, 3>> Triangulate(std::span<const V2_float> vertices) {
+std::vector<Triangle> Triangulate(std::span<const V2_float> vertices) {
 	// From: https://www.flipcode.com/archives/Efficient_Polygon_Triangulation.shtml
 
-	std::vector<std::array<V2_float, 3>> result;
+	std::vector<Triangle> result;
 
 	auto n{ vertices.size() };
 
@@ -131,63 +124,61 @@ std::vector<std::array<V2_float, 3>> Triangulate(std::span<const V2_float> verti
 	std::vector<std::size_t> V(n);
 
 	if (impl::TriangulateArea(vertices) > 0) {
-		for (std::size_t v{ 0 }; v < n; v++) {
-			V[v] = v;
+		for (auto i{ 0uz }; i < n; ++i) {
+			V[i] = i;
 		}
 	} else {
-		for (std::size_t v{ 0 }; v < n; v++) {
-			V[v] = (n - 1) - v;
+		for (auto i{ 0uz }; i < n; ++i) {
+			V[i] = (n - 1) - i;
 		}
 	}
 
 	std::size_t nv{ n };
 
-	/*  remove nv-2 Vertices, creating 1 triangle every time */
-	std::int64_t r_count{ 2 * static_cast<std::int64_t>(nv) }; /* error detection */
+	// Remove nv-2 Vertices, creating 1 triangle every time
+	std::int64_t r_count{ 2 * static_cast<std::int64_t>(nv) }; // Error detection
 
-	for ([[maybe_unused]] std::size_t m{ 0 }, v = nv - 1; nv > 2;) {
-		/* if we loop, it is probably a non-simple polygon */
+	for ([[maybe_unused]] auto m{ 0uz }, v = nv - 1; nv > 2;) {
+		// If we loop, it is probably a non-simple polygon
 		if ((r_count--) < 0) {
-			//** Triangulate: ERROR - probable bad polygon!
+			// Triangulate: ERROR - probable bad polygon
 			return result;
 		}
 
-		/* three consecutive vertices in current polygon, <u,v,w> */
+		// Three consecutive vertices in current polygon, <u,v,w>
 		auto u{ v };
 		if (nv <= u) {
-			u = 0; /* previous */
+			u = 0; // previous
 		}
 		v = u + 1;
 		if (nv <= v) {
-			v = 0; /* new v    */
+			v = 0; // new v
 		}
 		auto w{ v + 1 };
 		if (nv <= w) {
-			w = 0; /* next     */
+			w = 0; // next
 		}
 
 		if (TriangulateSnip(vertices.data(), u, v, w, nv, V)) {
-			/* true names of the vertices */
+			// True names of the vertices
 			auto a{ V[u] };
 			auto b{ V[v] };
 			auto c{ V[w] };
 
-			std::array<V2_float, 3> triangle{ vertices[a], vertices[b], vertices[c] };
-
-			result.emplace_back(triangle);
+			result.emplace_back(vertices[a], vertices[b], vertices[c]);
 
 			m++;
 
-			/* remove v from remaining polygon */
-			for (auto t{ v + 1 }; t < nv; t++) {
-				auto s{ t - 1 };
+			// Remove v from remaining polygon
+			for (auto i{ v + 1 }; i < nv; ++i) {
+				auto s{ i - 1 };
 				PTGN_ASSERT(s < V.size());
-				PTGN_ASSERT(t < V.size());
-				V[s] = V[t];
+				PTGN_ASSERT(i < V.size());
+				V[s] = V[i];
 			}
 			nv--;
 
-			/* resest error detection counter */
+			// Reset error detection counter
 			r_count = 2 * static_cast<std::int64_t>(nv);
 		}
 	}
@@ -250,15 +241,15 @@ std::vector<V2_float> GetVisibilityPolygon(
 ) {
 	using namespace ptgn::impl;
 
-	/* Compare 2 line segments based on their distance from given point.
-	 * Assumes: (1) The line segments are intersected by some ray from the origin.
-	 *          (2) The line segments do not intersect except at their endpoints.
-	 *          (3) No line segment is Collinear with the origin.
-	 * Check whether the line segment x is closer to the origin than the line segment y.
-	 * @param x Line segment: Left hand side of the comparison operator.
-	 * @param y Line segment: Right hand side of the comparison operator.
-	 * @return True if x < y (x is closer than y).
-	 */
+	// Compare 2 line segments based on their distance from given point.
+	// Assumes: (1) The line segments are intersected by some ray from the origin.
+	//          (2) The line segments do not intersect except at their endpoints.
+	//          (3) No line segment is Collinear with the origin.
+	// Check whether the line segment x is closer to the origin than the line segment y.
+	// @param x Line segment: Left hand side of the comparison operator.
+	// @param y Line segment: Right hand side of the comparison operator.
+	// @return True if x < y (x is closer than y).
+	//
 	const auto cmp_dist = [origin = point](const Line& x, const Line& y) {
 		auto [a, b] = x.GetLocalVertices();
 		auto [c, d] = y.GetLocalVertices();
@@ -313,15 +304,15 @@ std::vector<V2_float> GetVisibilityPolygon(
 			pab == Orientation::Collinear) {
 			continue;
 		} else if (pab == Orientation::RightTurn) {
-			events.emplace_back(VisibilityEvent::StartVertex, segment);
+			events.emplace_back(VisibilityEvent::Type::StartVertex, segment);
 			events.emplace_back(
-				VisibilityEvent::EndVertex, Line{ segment.GetEnd(), segment.GetStart() }
+				VisibilityEvent::Type::EndVertex, Line{ segment.GetEnd(), segment.GetStart() }
 			);
 		} else {
 			events.emplace_back(
-				VisibilityEvent::StartVertex, Line{ segment.GetEnd(), segment.GetStart() }
+				VisibilityEvent::Type::StartVertex, Line{ segment.GetEnd(), segment.GetStart() }
 			);
-			events.emplace_back(VisibilityEvent::EndVertex, segment);
+			events.emplace_back(VisibilityEvent::Type::EndVertex, segment);
 		}
 
 		// Initialize state by adding line segments that are intersected
@@ -369,7 +360,8 @@ std::vector<V2_float> GetVisibilityPolygon(
 	std::sort(events.begin(), events.end(), [&angle_comparer](const auto& a, const auto& b) {
 		// If the points are equal, sort end vertices first.
 		if (a.segment.GetStart() == b.segment.GetStart()) {
-			return a.type == VisibilityEvent::EndVertex && b.type == VisibilityEvent::StartVertex;
+			return a.type == VisibilityEvent::Type::EndVertex &&
+				   b.type == VisibilityEvent::Type::StartVertex;
 		}
 		return angle_comparer(a.segment.GetStart(), b.segment.GetStart());
 	});
@@ -378,7 +370,7 @@ std::vector<V2_float> GetVisibilityPolygon(
 	std::vector<V2_float> vertices;
 
 	for (const auto& event : events) {
-		if (event.type == VisibilityEvent::EndVertex) {
+		if (event.type == VisibilityEvent::Type::EndVertex) {
 			state.erase(event.segment);
 		}
 
@@ -396,7 +388,7 @@ std::vector<V2_float> GetVisibilityPolygon(
 			// TODO: Readd this assert once the resolution change no longer crashes the algorithm.
 			// PTGN_ASSERT(intersects, "Ray intersects line segment L if L is in the state");
 
-			if (event.type == VisibilityEvent::StartVertex) {
+			if (event.type == VisibilityEvent::Type::StartVertex) {
 				vertices.emplace_back(intersection);
 				vertices.emplace_back(event.segment.GetStart());
 			} else {
@@ -405,7 +397,7 @@ std::vector<V2_float> GetVisibilityPolygon(
 			}
 		}
 
-		if (event.type == VisibilityEvent::StartVertex) {
+		if (event.type == VisibilityEvent::Type::StartVertex) {
 			state.insert(event.segment);
 		}
 	}
@@ -430,17 +422,19 @@ std::vector<Triangle> GetVisibilityTriangles(
 ) {
 	auto polygon{ GetVisibilityPolygon(origin, shadow_segments) };
 
+	auto count{ polygon.size() };
+
 	// We need at least 3 points to form a triangle.
-	if (polygon.size() < 3) {
+	if (count < 3) {
 		return {};
 	}
 
 	std::vector<Triangle> triangles;
-	triangles.reserve(polygon.size());
+	triangles.reserve(count);
 
-	for (std::size_t i = 0; i < polygon.size(); ++i) {
+	for (auto i{ 0uz }; i < count; ++i) {
 		V2_float a{ polygon[i] };
-		V2_float b{ polygon[(i + 1) % polygon.size()] };
+		V2_float b{ polygon[(i + 1) % count] };
 
 		triangles.emplace_back(origin, a, b);
 	}
@@ -460,7 +454,7 @@ std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connec
 	std::vector<Line> lines;
 	lines.reserve(end);
 
-	for (std::size_t i{ 0 }; i < end; ++i) {
+	for (auto i{ 0uz }; i < end; ++i) {
 		// Wraps around if connect_last_to_first is true.
 		lines.emplace_back(points[i], points[(i + 1) % count]);
 	}
@@ -503,9 +497,11 @@ std::vector<V2_float> ClipPolygons(
 ) {
 	std::vector<V2_float> output_list{ subject_polygon };
 
-	for (std::size_t i{ 0 }; i < clip_polygon.size(); ++i) {
+	auto count{ clip_polygon.size() };
+
+	for (auto i{ 0uz }; i < count; ++i) {
 		V2_float clip_start = clip_polygon[i];
-		V2_float clip_end	= clip_polygon[(i + 1) % clip_polygon.size()];
+		V2_float clip_end	= clip_polygon[(i + 1) % count];
 
 		Line clip_edge{ clip_start, clip_end };
 
@@ -640,7 +636,7 @@ float SquareDistancePointLine(V2_float point, V2_float start, V2_float end) {
 
 float SquareDistancePointRect(V2_float point, V2_float rect_min, V2_float rect_max) {
 	float dist2{ 0.0f };
-	for (std::size_t i{ 0 }; i < 2; ++i) {
+	for (auto i{ 0uz }; i < 2; ++i) {
 		const float v{ point[i] };
 		if (v < rect_min[i]) {
 			dist2 += (rect_min[i] - v) * (rect_min[i] - v);
@@ -705,7 +701,9 @@ float GetIntervalOverlap(
 }
 
 bool IsConvexPolygon(std::span<const V2_float> vertices) {
-	PTGN_ASSERT(vertices.size() >= 3, "Line or point convexity check is redundant");
+	auto count{ vertices.size() };
+
+	PTGN_ASSERT(count >= 3, "Line or point convexity check is redundant");
 
 	const auto get_cross = [](V2_float a, V2_float b, V2_float c) {
 		return (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
@@ -720,12 +718,12 @@ bool IsConvexPolygon(std::span<const V2_float> vertices) {
 	// https://stackoverflow.com/a/40739079
 
 	// Skip first point since that is the established reference.
-	for (std::size_t i = 1; i < vertices.size(); i++) {
-		V2_float a{ vertices[i + 0] };
-		V2_float b{ vertices[(i + 1) % vertices.size()] };
-		V2_float c{ vertices[(i + 2) % vertices.size()] };
+	for (auto i{ 1uz }; i < count; ++i) {
+		auto a{ vertices[i + 0] };
+		auto b{ vertices[(i + 1) % count] };
+		auto c{ vertices[(i + 2) % count] };
 
-		int new_sign{ static_cast<int>(Sign(get_cross(a, b, c))) };
+		auto new_sign{ static_cast<int>(Sign(get_cross(a, b, c))) };
 
 		if (new_sign != sign) {
 			// Polygon is concave.

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <iomanip>
 #include <ios>
@@ -32,23 +33,23 @@ public:
 
 	friend std::ostream& operator<<(std::ostream& os, const Matrix4& m) {
 		os << "\n";
-		os << std::fixed << std::right											// NOSONAR
-		   << std::setprecision(static_cast<std::streamsize>(3))				// NOSONAR
-		   << std::setfill(' ') << "[";											// NOSONAR
-		for (std::size_t i{ 0 }; i < static_cast<std::size_t>(m.size.x); ++i) { // NOSONAR
-			if (i != 0) {
+		os << std::fixed << std::right									   // NOSONAR
+		   << std::setprecision(static_cast<std::streamsize>(3))		   // NOSONAR
+		   << std::setfill(' ') << "[";									   // NOSONAR
+		for (auto i{ 0uz }; i < static_cast<std::size_t>(m.size.x); ++i) { // NOSONAR
+			if (i) {
 				os << " ";
 			}
 			os << "[";
-			for (std::size_t j = 0; j < static_cast<std::size_t>(m.size.y); ++j) { // NOSONAR
+			for (auto j{ 0uz }; j < static_cast<std::size_t>(m.size.y); ++j) { // NOSONAR
 				os << std::setw(9);
 				os << m(i, j);
-				if (j != static_cast<std::size_t>(m.size.y) - 1) { // NOSONAR
+				if (j != m.size.y - 1uz) { // NOSONAR
 					os << ",";
 				}
 			}
 			os << "]";
-			if (i != static_cast<std::size_t>(m.size.x) - 1) { // NOSONAR
+			if (i != m.size.x - 1uz) { // NOSONAR
 				// os << ",";
 				os << "\n";
 			}
@@ -103,21 +104,21 @@ public:
 	}
 
 	explicit constexpr Matrix4(float diag) {
-		for (std::size_t x{ 0 }; x < static_cast<std::size_t>(size.x); x++) {
-			m_[x + x * static_cast<std::size_t>(size.x)] = diag;
+		for (auto i{ 0uz }; i < static_cast<std::size_t>(size.x); ++i) {
+			m_[i + i * size.x] = diag;
 		}
 	}
 
 	[[nodiscard]] constexpr float& operator()(std::size_t x, std::size_t y) {
 		PTGN_ASSERT(x < static_cast<std::size_t>(size.x));
 		PTGN_ASSERT(y < static_cast<std::size_t>(size.y));
-		return m_[x + y * static_cast<std::size_t>(size.x)];
+		return m_[x + y * size.x];
 	}
 
 	[[nodiscard]] constexpr const float& operator()(std::size_t x, std::size_t y) const {
 		PTGN_ASSERT(x < static_cast<std::size_t>(size.x));
 		PTGN_ASSERT(y < static_cast<std::size_t>(size.y));
-		return m_[x + y * static_cast<std::size_t>(size.x)];
+		return m_[x + y * size.x];
 	}
 
 	[[nodiscard]] constexpr float& operator[](std::size_t col_major_index) {
@@ -237,12 +238,9 @@ public:
 	[[nodiscard]] bool ExactlyEquals(const Matrix4& o) const;
 
 	friend bool operator==(const Matrix4& a, const Matrix4& b) {
-		for (std::size_t i{ 0 }; i < length; i++) {
-			if (!NearlyEqual(a.m_[i], b.m_[i])) {
-				return false;
-			}
-		}
-		return true;
+		return std::ranges::equal(a.m_, b.m_, [](float lhs, float rhs) {
+			return NearlyEqual(lhs, rhs);
+		});
 	}
 
 	[[nodiscard]] Matrix4 operator+(const Matrix4& rhs) const;
@@ -254,9 +252,9 @@ public:
 	[[nodiscard]] friend V4_float operator*(const Matrix4& lhs, const V4_float& rhs) {
 		V4_float res;
 
-		for (std::size_t row{ 0 }; row < static_cast<std::size_t>(size.x); ++row) {
-			for (std::size_t i{ 0 }; i < static_cast<std::size_t>(size.y); ++i) {
-				res[row] += lhs.m_[row + i * static_cast<std::size_t>(size.x)] * rhs[i];
+		for (auto row{ 0uz }; row < static_cast<std::size_t>(size.x); ++row) {
+			for (auto i{ 0uz }; i < static_cast<std::size_t>(size.y); ++i) {
+				res[row] += lhs.m_[row + i * size.x] * rhs[i];
 			}
 		}
 		return res;
@@ -266,7 +264,7 @@ public:
 	[[nodiscard]] friend Matrix4 operator*(const Matrix4& lhs, U rhs) {
 		Matrix4 res;
 
-		for (std::size_t i{ 0 }; i < res.length; ++i) {
+		for (auto i{ 0uz }; i < res.length; ++i) { // NOSONAR
 			res[i] = lhs.m_[i] * rhs;
 		}
 		return res;
@@ -276,7 +274,7 @@ public:
 	[[nodiscard]] friend Matrix4 operator/(const Matrix4& lhs, U rhs) {
 		Matrix4 res;
 
-		for (std::size_t i{ 0 }; i < res.length; ++i) { // NOSONAR
+		for (auto i{ 0uz }; i < res.length; ++i) { // NOSONAR
 			res[i] = lhs.m_[i] / static_cast<float>(rhs);
 		}
 		return res;
@@ -284,7 +282,7 @@ public:
 };
 
 template <Arithmetic U>
-[[nodiscard]] inline Matrix4 operator*(U A, const Matrix4& B) { // NOSONAR
+[[nodiscard]] Matrix4 operator*(U A, const Matrix4& B) { // NOSONAR
 	return B * A;
 }
 

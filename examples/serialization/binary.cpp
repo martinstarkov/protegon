@@ -60,7 +60,7 @@ public:
 			NonTrivial serializable{ std::vector<int>{ 1, 2, 3 } };
 			std::string string{ "Hello world!" };
 			std::vector<int> vector{ 4, 5, 6 };
-			std::array<int, 3> array{ 7, 8, 9 };
+			std::array array{ 7, 8, 9 };
 			std::map<int, int> map{ { 10, 11 }, { 12, 13 }, { 14, 15 } };
 			std::unordered_map<int, int> unordered_map{ { 16, 17 }, { 18, 19 }, { 20, 21 } };
 

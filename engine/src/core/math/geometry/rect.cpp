@@ -88,7 +88,7 @@ V2_float Rect::GetCenter(Transform transform) const {
 Rect Rect::FromPoints(std::span<const V2_float> points) {
 	PTGN_ASSERT(!points.empty(), "Cannot compute bounds of empty point list");
 
-	auto bounds = Rect{
+	Rect bounds{
 		points.front(),
 		points.front(),
 	};

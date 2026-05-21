@@ -43,7 +43,7 @@ public:
 		std::vector<int> cells_without;
 		cells_without.resize(static_cast<std::size_t>(outer_grid.GetLength()), -1);
 		outer_grid.ForEachIndex([&](int index) {
-			int value = outer_grid.Get(index);
+			int value{ outer_grid.Get(index) };
 			if (value != 1) {
 				cells_without[static_cast<std::size_t>(index)] = value;
 			}

@@ -375,7 +375,7 @@ RaycastResult RaycastPolygon(
 
 	RaycastResult closest;
 
-	for (std::size_t i{ 0 }; i < count; ++i) {
+	for (auto i{ 0uz }; i < count; ++i) {
 		std::size_t j{ (i + 1) % count }; // wrap around to form a closed loop
 
 		Line edge{ world_points[i], world_points[j] };
@@ -412,7 +412,7 @@ RaycastResult RaycastCirclePolygon(
 
 	RaycastResult closest;
 
-	for (std::size_t i{ 0 }; i < count; ++i) {
+	for (auto i{ 0uz }; i < count; ++i) {
 		std::size_t j{ (i + 1) % count }; // wrap around to form a closed loop
 
 		Line edge{ world_points[i], world_points[j] };
@@ -575,9 +575,9 @@ RaycastResult RaycastPolygonPolygon(
 
 	const auto sweep = [&](const std::vector<V2_float>& verts, const std::vector<Line>& edges,
 						   V2_float swep_vel) {
-		for (const auto& v : verts) {
+		for (const auto& vertex : verts) {
 			for (const auto& edge : edges) {
-				RaycastResult res{ RaycastLine(v, v + swep_vel, Transform{}, edge) };
+				RaycastResult res{ RaycastLine(vertex, vertex + swep_vel, Transform{}, edge) };
 				if (!res.Occurred()) {
 					continue;
 				}
@@ -591,12 +591,12 @@ RaycastResult RaycastPolygonPolygon(
 	// Build edges of polygons
 	auto get_edges = [](const std::vector<V2_float>& pts) {
 		std::vector<Line> edges;
-		std::size_t n = pts.size();
+		std::size_t n{ pts.size() };
 		if (n < 2) {
 			return edges;
 		}
 		edges.reserve(n);
-		for (std::size_t i = 0; i < n; ++i) {
+		for (auto i{ 0uz }; i < n; ++i) {
 			edges.push_back({ pts[i], pts[(i + 1) % n] });
 		}
 		return edges;

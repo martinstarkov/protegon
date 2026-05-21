@@ -1,7 +1,5 @@
 #pragma once
 
-#include <array>
-#include <limits>
 #include <optional>
 #include <span>
 #include <vector>
@@ -35,7 +33,7 @@ std::vector<V2_float> GetArcVertices(
 );
 
 /// @return A vector of triangles which make up the polygon contour.
-[[nodiscard]] std::vector<std::array<V2_float, 3>> Triangulate(std::span<const V2_float> vertices);
+[[nodiscard]] std::vector<Triangle> Triangulate(std::span<const V2_float> vertices);
 
 enum class Orientation {
 	LeftTurn  = 1,
@@ -57,7 +55,7 @@ bool VisibilityRayIntersects(
 
 struct VisibilityEvent {
 	/// @brief Events used in the visibility polygon algorithm
-	enum Type {
+	enum class Type {
 		StartVertex,
 		EndVertex
 	};

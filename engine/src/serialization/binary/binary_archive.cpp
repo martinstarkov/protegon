@@ -71,7 +71,7 @@
 //
 // void BinaryOutputArchive::WriteZeroByte(std::size_t count) {
 //	char zero{ 0 };
-//	for (std::size_t i{ 0 }; i < count; i++) {
+//	for (auto i{ 0uz }; i < count; ++i) {
 //		WriteData(&zero, 1);
 //	}
 // }
