@@ -11,33 +11,13 @@
 
 namespace ptgn {
 
-RenderPassBuilder::RenderPassBuilder(impl::Renderer& renderer) : renderer_{ renderer } {}
-
-RenderPassBuilder& RenderPassBuilder::Read(TextureSource input) {
-	input_ = input;
-	return *this;
+PassBuilder::PassBuilder(impl::Renderer& renderer, std::vector<impl::TextureId> inputs) :
+	renderer_{ renderer } {
+	desc_.inputs = std::move(inputs);
 }
 
-RenderPassBuilder& RenderPassBuilder::Output(const RenderTargetDesc& output) {
-	output_ = output;
-	return *this;
-}
-
-RenderPassBuilder& RenderPassBuilder::State(const RenderState& state) {
-	state_ = state;
-	return *this;
-}
-
-RenderPassBuilder& RenderPassBuilder::ExtraTexture(std::string_view name, impl::TextureId texture) {
-	extra_textures_.emplace_back(impl::TextureBinding{
-		.name	= std::string{ name },
-		.source = texture,
-	});
-	return *this;
-}
-
-TextureSource RenderPassBuilder::Draw(const MaterialState& material) {
-	return renderer_.DrawPass(material, input_, output_, state_, extra_textures_);
+impl::TextureId PassBuilder::Submit() {
+	return renderer_.SubmitEffectPass(std::move(desc_));
 }
 
 } // namespace ptgn
