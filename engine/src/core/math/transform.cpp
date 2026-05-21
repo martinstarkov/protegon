@@ -1,6 +1,7 @@
 #include "core/math/transform.h"
 
 #include <algorithm>
+#include <ranges>
 #include <span>
 #include <vector>
 
@@ -37,7 +38,7 @@ Transform Transform::InverseRelativeTo(Transform parent) const {
 	V2_float inv_scale{ parent.scale_.x != 0 ? 1.0f / parent.scale_.x : 0.0f,
 						parent.scale_.y != 0 ? 1.0f / parent.scale_.y : 0.0f };
 
-	V2_float delta{ position_ - parent.position_ };
+	auto delta{ position_ - parent.position_ };
 
 	// Unrotate and unscale the position.
 	local.position_	 = delta.Rotated(inv_rotation);
@@ -196,24 +197,25 @@ V2_float Transform::ApplyInverse(V2_float point) const {
 	return point;
 }
 
-void Transform::Apply(std::span<const V2_float> points, std::span<V2_float> out_transformed_points)
-	const {
+void Transform::Apply(
+	std::span<const V2_float> points, std::span<V2_float> out_transformed_points
+) const {
 	PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
 	if (HasRotation()) {
 		float cos{ rotation_.Cos() };
 		float sin{ rotation_.Sin() };
 
-		for (std::size_t i{ 0 }; i < points.size(); ++i) {
-			out_transformed_points[i] = ApplyWithRotation(points[i], cos, sin);
-		}
+		std::ranges::transform(points, out_transformed_points.begin(), [&](const auto& point) {
+			return ApplyWithRotation(point, cos, sin);
+		});
 		return;
 	}
 
 	if (*this != Transform{}) {
-		for (std::size_t i{ 0 }; i < points.size(); ++i) {
-			out_transformed_points[i] = ApplyWithoutRotation(points[i]);
-		}
+		std::ranges::transform(points, out_transformed_points.begin(), [&](const auto& point) {
+			return ApplyWithoutRotation(point);
+		});
 		return;
 	}
 
@@ -229,16 +231,16 @@ void Transform::ApplyInverse(
 		float cos{ rotation_.Cos() };
 		float sin{ rotation_.Sin() };
 
-		for (std::size_t i{ 0 }; i < points.size(); ++i) {
-			out_transformed_points[i] = ApplyInverseWithRotation(points[i], cos, sin);
-		}
+		std::ranges::transform(points, out_transformed_points.begin(), [&](const auto& point) {
+			return ApplyInverseWithRotation(point, cos, sin);
+		});
 		return;
 	}
 
 	if (*this != Transform{}) {
-		for (std::size_t i{ 0 }; i < points.size(); ++i) {
-			out_transformed_points[i] = ApplyInverseWithoutRotation(points[i]);
-		}
+		std::ranges::transform(points, out_transformed_points.begin(), [&](const auto& point) {
+			return ApplyInverseWithoutRotation(point);
+		});
 		return;
 	}
 

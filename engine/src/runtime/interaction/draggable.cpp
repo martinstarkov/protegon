@@ -1,6 +1,7 @@
 #include "runtime/interaction/draggable.h"
 
 #include <algorithm>
+#include <utility>
 #include <vector>
 
 #include "core/math/vector2.h"
@@ -22,12 +23,9 @@ bool IsDraggable(Entity entity) {
 
 bool IsDragging(Entity entity) {
 	const auto& dragging_entities{ entity.GetScene().ctx().interaction.dragging_entities_ };
-	for (const auto& [camera, entities] : dragging_entities) {
-		if (std::ranges::contains(entities.entities, entity)) {
-			return true;
-		}
-	}
-	return false;
+	return std::ranges::any_of(dragging_entities, [entity](const auto& entry) {
+		return std::ranges::contains(entry.second.entities, entity);
+	});
 }
 
 V2_float GetDragOffset(Entity draggable) {
