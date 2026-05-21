@@ -6,7 +6,6 @@
 #include "core/math/vector2.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
 

@@ -23,8 +23,6 @@
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 800, 800 };
-
 struct ShapeScene : public Scene {
 	std::vector<V2_float> GetStarVertices(int count, float outer_radius, float inner_radius) const {
 		std::vector<V2_float> vertices;
@@ -43,6 +41,11 @@ struct ShapeScene : public Scene {
 	}
 
 	void OnUpdate() override {
+		ctx().renderer.DrawPoint({ -350, -300 }, color::Red);
+
+		ctx().renderer.DrawLine({ -300, -300 }, { -250, -325 }, color::Orange, 1.0f);
+		ctx().renderer.DrawLine({ -200, -325 }, { -150, -300 }, color::Yellow, 5.0f);
+
 		ctx().renderer.DrawLines(
 			{ { -375, -375 }, { -350, -350 }, { -325, -375 } }, color::Beige, 1.0f, false
 		);
@@ -52,9 +55,7 @@ struct ShapeScene : public Scene {
 		ctx().renderer.DrawLines(
 			{ { -225, -375 }, { -200, -350 }, { -175, -375 } }, color::Beige, 1.0f, true
 		);
-		ctx().renderer.DrawPoint({ -350, -300 }, color::Red);
-		ctx().renderer.DrawLine({ -300, -300 }, { -250, -325 }, color::Orange, 1.0f);
-		ctx().renderer.DrawLine({ -200, -325 }, { -150, -300 }, color::Yellow, 5.0f);
+
 		ctx().renderer.DrawShape(
 			{}, Capsule{ { -275, -250 }, { -175, -250 }, 12.0f }, color::Yellow, 1.0f
 		);
@@ -273,6 +274,6 @@ struct ShapeScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "ShapeScene", game_size };
+	Application app{ "ShapeScene" };
 	app.StartWith<ShapeScene>();
 }

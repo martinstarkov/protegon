@@ -18,7 +18,15 @@ namespace ptgn {
 class Scene;
 class DrawContext;
 
-struct CapsuleDraw {
+struct RectDraw {
+	static void Draw(DrawContext& renderer, Entity entity);
+};
+
+struct RoundedRectDraw {
+	static void Draw(DrawContext& renderer, Entity entity);
+};
+
+struct PolygonDraw {
 	static void Draw(DrawContext& renderer, Entity entity);
 };
 
@@ -34,23 +42,15 @@ struct ArcDraw {
 	static void Draw(DrawContext& renderer, Entity entity);
 };
 
-struct PolygonDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
-};
-
-struct RectDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
-};
-
-struct RoundedRectDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
-};
-
 struct TriangleDraw {
 	static void Draw(DrawContext& renderer, Entity entity);
 };
 
 struct LineDraw {
+	static void Draw(DrawContext& renderer, Entity entity);
+};
+
+struct CapsuleDraw {
 	static void Draw(DrawContext& renderer, Entity entity);
 };
 
@@ -63,36 +63,32 @@ std::optional<Shape> GetShape(Entity entity);
 /// has one.
 std::optional<Shape> GetSpriteOrShape(Entity entity);
 
-/// @brief Creates a rectangle entity in the manager.
-///
-/// @param position    The position of the rectangle relative to its parent camera.
-/// @param size        The width and height of the rectangle.
-/// @param color       The tint color of the rectangle.
-/// @param origin      The origin of the rectangle position (e.g., center, top-left).
-/// @return Entity     A handle to the newly created rectangle entity.
 Entity CreateRect(
 	Scene& scene, V2_float position, V2_float size, Color color, FillStyle fill_style = Solid{},
 	Origin origin = Origin::Center
 );
 
-/// @brief Creates a polygon entity in the scene at the specified position.
-/// @param scene The scene in which to create the polygon entity.
-/// @param position The position of the polygon in 2D space.
-/// @param vertices A collection of 2D vertices that define the polygon's shape.
-/// @param color The color of the polygon.
-/// @return The newly created polygon entity.
+Entity CreateRoundedRect(
+	Scene& scene, V2_float position, V2_float size, float radius, Color color,
+	FillStyle fill_style = Solid{}, Origin origin = Origin::Center
+);
+
 Entity CreatePolygon(
 	Scene& scene, V2_float position, const std::vector<V2_float>& vertices, Color color,
 	FillStyle fill_style = Solid{}
 );
 
-/// @brief Creates a circle entity in the manager.
-/// @param position    The position of the circle relative to its parent camera.
-/// @param radius        The radius of the circle.
-/// @param color       The tint color of the circle.
-/// @return Entity     A handle to the newly created circle entity.
+Entity CreateTriangle(
+	Scene& scene, V2_float position, V2_float a, V2_float b, V2_float c, Color color,
+	FillStyle fill_style = Solid{}
+);
+
 Entity CreateCircle(
 	Scene& scene, V2_float position, float radius, Color color, FillStyle fill_style = Solid{}
+);
+
+Entity CreateEllipse(
+	Scene& scene, V2_float position, V2_float radii, Color color, FillStyle fill_style = Solid{}
 );
 
 Entity CreateArc(
@@ -100,14 +96,23 @@ Entity CreateArc(
 	bool clockwise, Color color, FillStyle fill_style = Solid{}
 );
 
-PTGN_REGISTER_DRAWABLE(CapsuleDraw);
+Entity CreateLine(
+	Scene& scene, V2_float position, V2_float start, V2_float end, Color color, float width = 1.0f
+);
+
+Entity CreateCapsule(
+	Scene& scene, V2_float position, V2_float start, V2_float end, float radius, Color color,
+	FillStyle fill_style = Solid{}
+);
+
+PTGN_REGISTER_DRAWABLE(RectDraw);
+PTGN_REGISTER_DRAWABLE(RoundedRectDraw);
+PTGN_REGISTER_DRAWABLE(PolygonDraw);
+PTGN_REGISTER_DRAWABLE(TriangleDraw);
 PTGN_REGISTER_DRAWABLE(CircleDraw);
 PTGN_REGISTER_DRAWABLE(EllipseDraw);
 PTGN_REGISTER_DRAWABLE(ArcDraw);
-PTGN_REGISTER_DRAWABLE(PolygonDraw);
-PTGN_REGISTER_DRAWABLE(RectDraw);
-PTGN_REGISTER_DRAWABLE(RoundedRectDraw);
-PTGN_REGISTER_DRAWABLE(TriangleDraw);
 PTGN_REGISTER_DRAWABLE(LineDraw);
+PTGN_REGISTER_DRAWABLE(CapsuleDraw);
 
 } // namespace ptgn
