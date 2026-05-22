@@ -122,12 +122,9 @@ void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
 
 	auto effects{ impl::GetEffectParams(entity) };
 
-	std::span<const impl::TextureBinding> extra_textures{};
-
 	ctx.WithBlendMode(blend_mode, [&]() {
 		ctx.DrawTexture(
-			texture, draw_transform, depth, *size, draw_origin, tint, tex_coords, effects,
-			extra_textures, entity_id
+			texture, draw_transform, depth, *size, draw_origin, tint, tex_coords, effects, entity_id
 		);
 	});
 }

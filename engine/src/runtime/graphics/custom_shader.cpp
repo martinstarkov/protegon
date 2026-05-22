@@ -45,8 +45,6 @@ void CustomShader::Draw(DrawContext& ctx, Entity entity) {
 	auto entity_id{ entity.GetUUID() };
 	auto tex_coords{ GetTextureCoordinates(entity, false) };
 
-	std::span<const impl::TextureBinding> extra_textures{};
-
 	auto effects{ impl::GetEffectParams(entity) };
 
 	ctx.WithBlendMode(blend_mode, [&]() {
@@ -54,12 +52,12 @@ void CustomShader::Draw(DrawContext& ctx, Entity entity) {
 			auto texture{ entity.Get<Texture>() };
 			ctx.DrawTexture(
 				material, texture, draw_transform, depth, size, draw_origin, tint, tex_coords,
-				effects, extra_textures, entity_id
+				effects, entity_id
 			);
 		} else {
 			ctx.DrawShader(
 				material, draw_transform, depth, size, draw_origin, tint, tex_coords, effects,
-				extra_textures, entity_id
+				entity_id
 			);
 		}
 	});

@@ -73,12 +73,10 @@ void Sprite::Draw(
 	auto entity_id{ entity.GetUUID() };
 	auto effects{ impl::GetEffectParams(entity) };
 
-	std::span<const impl::TextureBinding> extra_textures{};
-
 	ctx.WithBlendMode(blend_mode, [&]() {
 		ctx.DrawTexture(
 			texture, draw_transform, depth, *texture_size, draw_origin, tint, tex_coords, effects,
-			extra_textures, entity_id
+			entity_id
 		);
 	});
 }

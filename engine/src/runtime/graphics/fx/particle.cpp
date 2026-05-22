@@ -97,14 +97,12 @@ void DrawParticleType(
 		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
 		impl::EffectParams effects{};
 
-		std::span<const impl::TextureBinding> extra_textures{};
-
 		constexpr auto entity_id{ -1 };
 
 		ctx.WithBlendMode(draw.blend_mode, [&]() {
 			ctx.DrawTexture(
 				texture, draw.transform, draw.depth, V2_float{ draw.size }, draw.origin, draw.color,
-				tex_coords, effects, extra_textures, entity_id
+				tex_coords, effects, entity_id
 			);
 		});
 	} else if constexpr (std::is_same_v<T, Shape>) {

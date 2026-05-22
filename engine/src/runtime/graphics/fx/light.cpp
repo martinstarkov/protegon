@@ -74,8 +74,6 @@ void Light::Draw(DrawContext& ctx, Entity entity) {
 	auto entity_id{ entity.GetUUID() };
 	auto effects{ impl::GetEffectParams(entity) };
 
-	std::span<const impl::TextureBinding> extra_textures{};
-
 	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
 
 	MaterialState material;
@@ -85,8 +83,7 @@ void Light::Draw(DrawContext& ctx, Entity entity) {
 
 	ctx.WithBlendMode(blend_mode, [&]() {
 		ctx.DrawShader(
-			material, draw_transform, depth, size, draw_origin, tint, tex_coords, effects,
-			extra_textures, entity_id
+			material, draw_transform, depth, size, draw_origin, tint, tex_coords, effects, entity_id
 		);
 	});
 }

@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <functional>
 #include <iterator>
-#include <list>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -409,11 +408,9 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 	constexpr auto entity_id{ -1 };
 	constexpr auto depth{ 0.0f };
 
-	std::span<const impl::TextureBinding> extra_textures{};
-
 	draw_context.DrawTexture(
 		render_target_texture, draw_transform, depth, scene_target_size, draw_origin, rt_tint,
-		tex_coords, effects, extra_textures, entity_id
+		tex_coords, effects, entity_id
 	);
 
 	ctx().global_renderer_.FlushBatch();
