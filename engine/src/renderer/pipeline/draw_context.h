@@ -94,22 +94,19 @@ public:
 	void DrawTexture(
 		impl::TextureId texture, Transform transform, float depth, V2_float size,
 		Origin draw_origin, Color tint, const std::array<V2_float, 4>& tex_coords,
-		const impl::EffectParams& effects, std::span<const impl::TextureBinding> extra_textures,
-		int entity_id
+		const impl::EffectParams& effects, int entity_id
 	);
 
 	void DrawTexture(
-		const MaterialState& shader, impl::TextureId texture, Transform transform, float depth,
+		const MaterialState& material, impl::TextureId texture, Transform transform, float depth,
 		V2_float size, Origin draw_origin, Color tint, const std::array<V2_float, 4>& tex_coords,
-		const impl::EffectParams& effects, std::span<const impl::TextureBinding> extra_textures,
-		int entity_id
+		const impl::EffectParams& effects, int entity_id
 	);
 
 	void DrawShader(
-		const MaterialState& shader, Transform transform, float depth, V2_float size,
+		const MaterialState& material, Transform transform, float depth, V2_float size,
 		Origin draw_origin, Color tint, const std::array<V2_float, 4>& tex_coords,
-		const impl::EffectParams& effects, std::span<const impl::TextureBinding> extra_textures,
-		int entity_id
+		const impl::EffectParams& effects, int entity_id
 	);
 
 	void DrawShape(

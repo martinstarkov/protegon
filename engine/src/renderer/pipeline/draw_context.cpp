@@ -1,6 +1,7 @@
 #include "renderer/pipeline/draw_context.h"
 
 #include <array>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <type_traits>
@@ -90,22 +91,45 @@ void DrawContext::SetRenderState(const RenderState& state) {
 void DrawContext::DrawTexture(
 	impl::TextureId texture, Transform transform, float depth, V2_float size, Origin draw_origin,
 	Color tint, const std::array<V2_float, 4>& tex_coords, const impl::EffectParams& effects,
-	std::span<const impl::TextureBinding> extra_textures, int entity_id
-) {}
+	int entity_id
+) {
+	MaterialState material;
+	material.shader = renderer_.GetShader("texture");
+
+	DrawTexture(
+		material, texture, transform, depth, size, draw_origin, tint, tex_coords, effects, entity_id
+	);
+}
 
 void DrawContext::DrawTexture(
-	const MaterialState& shader, impl::TextureId texture, Transform transform, float depth,
+	const MaterialState& material, impl::TextureId texture, Transform transform, float depth,
 	V2_float size, Origin draw_origin, Color tint, const std::array<V2_float, 4>& tex_coords,
-	const impl::EffectParams& effects, std::span<const impl::TextureBinding> extra_textures,
-	int entity_id
-) {}
+	const impl::EffectParams& effects, int entity_id
+) {
+	impl::DrawTextureRequest request;
+
+	request.texture = texture;
+	auto quad{ impl::CreateRenderQuad(
+		transform, size, draw_origin, depth, tint.Normalized(), tex_coords, 0.0f, entity_id
+	) };
+	request.vertices	  = { &quad, 1 };
+	request.effect_params = effects;
+
+	renderer_.SetCurrentPipeline("texture");
+	renderer_.SetMaterial(material);
+	renderer_.DrawTexture(request);
+}
 
 void DrawContext::DrawShader(
-	const MaterialState& shader, Transform transform, float depth, V2_float size,
+	const MaterialState& material, Transform transform, float depth, V2_float size,
 	Origin draw_origin, Color tint, const std::array<V2_float, 4>& tex_coords,
-	const impl::EffectParams& effects, std::span<const impl::TextureBinding> extra_textures,
-	int entity_id
-) {}
+	const impl::EffectParams& effects, int entity_id
+) {
+	DrawTexture(
+		material, impl::TextureId{}, transform, depth, size, draw_origin, tint, tex_coords, effects,
+		entity_id
+	);
+}
 
 void DrawContext::DrawShape(
 	const Shape& shape, Transform transform, float depth, Color tint, FillStyle fill_style,
