@@ -1,10 +1,10 @@
 #pragma once
 
 #include <concepts>
-#include <string_view>
 #include <unordered_map>
 
 #include "core/util/hash.h"
+#include "renderer/resources/shader.h"
 #include "serialization/serialize.h"
 
 // The reason for this instead of a virtual Draw() function in the entity class is because when
@@ -16,7 +16,6 @@
 namespace ptgn {
 
 class DrawContext;
-
 class Entity;
 
 template <typename T>
@@ -30,7 +29,7 @@ class IDrawable {
 public:
 	IDrawable() = default;
 
-	IDrawable(std::size_t type_hash) : hash{ type_hash } {}
+	explicit IDrawable(std::size_t type_hash) : hash{ type_hash } {}
 
 	using DrawFunc = void (*)(DrawContext&, Entity);
 
@@ -64,6 +63,8 @@ class DrawableRegistrar {
 
 template <DrawableType T>
 bool DrawableRegistrar<T>::registered_draw = DrawableRegistrar<T>::RegisterDrawFunction();
+
+void InvokeDrawable(DrawContext& ctx, const Entity& entity);
 
 } // namespace impl
 
