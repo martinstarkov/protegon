@@ -175,9 +175,9 @@ TextureFormat Renderer::GetRenderTargetTextureFormat(RenderTargetId render_targe
 }
 
 void Renderer::ClearRenderTarget(
-	RenderTargetId render_target, Color color, bool set_viewport
+	RenderTargetId render_target, Color color, bool set_viewport, bool restore_bind
 ) const {
-	auto bind_guard = gl_->Bind(FramebufferId{ render_target }, true);
+	auto bind_guard = gl_->Bind(FramebufferId{ render_target }, restore_bind);
 
 	std::optional<Viewport> viewport;
 	if (set_viewport) {
@@ -193,10 +193,6 @@ void Renderer::ClearRenderTarget(
 	if (set_viewport && viewport.has_value()) {
 		gl_->SetViewport(*viewport);
 	}
-}
-
-void Renderer::BindRenderTarget(RenderTargetId render_target) {
-	SetFramebuffer(FramebufferId{ render_target });
 }
 
 void Renderer::SetCurrentPipeline(std::string_view name) {
@@ -251,6 +247,13 @@ void Renderer::SetBlendMode(BlendMode blend_mode) {
 
 PipelineId Renderer::GetTexturePipeline() const {
 	return Hash("texture");
+}
+
+void Renderer::SetRenderTarget(const RenderTargetObject* target) {
+	if (target) {
+		SetFramebuffer(FramebufferId{ target->operator RenderTargetId() });
+	}
+	current_target_ = target;
 }
 
 void Renderer::SetViewProjection(const Matrix4& view_projection) {
@@ -580,7 +583,7 @@ void Renderer::ResizeScreenTarget(V2_int size) {
 }
 
 void Renderer::BindScreenTarget() {
-	BindRenderTarget(screen_target_);
+	SetRenderTarget(&screen_target_);
 }
 
 RenderTargetId Renderer::GetScreenTarget() const {
@@ -605,7 +608,7 @@ void Renderer::BeginFrame() {
 	}
 
 	screen_target_.Bind();
-	screen_target_.Clear(background_color_, false);
+	screen_target_.Clear(background_color_, false, false);
 }
 
 void Renderer::EndFrame() {

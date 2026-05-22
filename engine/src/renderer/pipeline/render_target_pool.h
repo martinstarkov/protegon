@@ -39,7 +39,7 @@ public:
 
 	void Bind() const;
 
-	void Clear(Color color, bool set_viewport) const;
+	void Clear(Color color, bool set_viewport, bool restore_bind) const;
 
 	impl::TextureId GetTextureId() const;
 

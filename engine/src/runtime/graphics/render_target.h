@@ -56,7 +56,8 @@ public:
 	/// @param color If {}, uses the render target's clear color (default to color::Transparent).
 	/// @param set_viewport If true, also sets the renderer viewport to match the render target
 	/// size (previous viewport will be restored after the clear).
-	void Clear(std::optional<Color> color = {}, bool set_viewport = true);
+	/// @param restore_bind If true, restores the previously bound render target after clearing.
+	void Clear(std::optional<Color> color = {}, bool set_viewport = true, bool restore_bind = true);
 
 	void SetClearColor(Color clear_color);
 	Color GetClearColor() const;

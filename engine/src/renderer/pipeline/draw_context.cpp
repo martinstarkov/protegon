@@ -12,12 +12,10 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_batcher.h"
-#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
-#include "renderer/vertex/vertex.h"
 
 namespace ptgn {
 

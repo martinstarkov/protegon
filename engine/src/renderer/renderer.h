@@ -133,36 +133,28 @@ public:
 
 	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
 	void DrawQuads(DrawQuadRequest<TVertex, TAccessor> request) {
-		PTGN_ASSERT(pipeline_manager_.GetCurrentPipelineId() != 0);
+		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
 
-		// TODO: Fix.
-		// batcher_.SubmitQuads<TVertex>(
-		//	pipeline_manager_.GetCurrentPipelineId(), BoundTargetId(), request.material,
-		//	request.render_state, request.quads, request.textures, request.texture_index_accessor
-		//);
+		batcher_.SubmitQuads<TVertex>(
+			request.quads, pipeline.vertex_capacity, pipeline.index_capacity, pipeline.vertex_size,
+			request.textures, request.texture_index_accessor
+		);
 	}
 
 	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
 	void DrawTriangles(DrawTriangleRequest<TVertex, TAccessor> request) {
-		PTGN_ASSERT(pipeline_manager_.GetCurrentPipelineId() != 0);
+		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
 
-		// TODO: Fix.
-		// batcher_.SubmitTriangles<TVertex>(
-		//	pipeline_manager_.GetCurrentPipelineId(), BoundTargetId(), request.material,
-		//	request.render_state, request.triangles, request.textures,
-		//	request.texture_index_accessor
-		//);
+		batcher_.SubmitTriangles<TVertex>(
+			request.quads, pipeline.vertex_capacity, pipeline.index_capacity, pipeline.vertex_size,
+			request.textures, request.texture_index_accessor
+		);
 	}
 
-	void SetRenderTarget(RenderTargetObject* target) {
-		if (target) {
-			target->Bind();
-		}
-		current_target_ = target;
-	}
+	void SetRenderTarget(const RenderTargetObject* target);
 
 private:
-	RenderTargetObject* current_target_{ nullptr };
+	const RenderTargetObject* current_target_{ nullptr };
 
 public:
 	void SetViewProjection(const Matrix4& view_projection);
@@ -234,8 +226,9 @@ public:
 	V2_int GetRenderTargetSize(RenderTargetId render_target) const;
 	TextureFormat GetRenderTargetTextureFormat(RenderTargetId render_target) const;
 	void ResizeRenderTarget(RenderTargetId render_target, V2_int new_size);
-	void ClearRenderTarget(RenderTargetId render_target, Color color, bool set_viewport) const;
-	void BindRenderTarget(RenderTargetId render_target);
+	void ClearRenderTarget(
+		RenderTargetId render_target, Color color, bool set_viewport, bool restore_bind
+	) const;
 	void BindScreenTarget();
 
 	RenderTargetId GetScreenTarget() const;

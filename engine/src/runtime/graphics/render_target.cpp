@@ -56,9 +56,9 @@ void RenderTarget::Bind() {
 	Get<impl::RenderTargetObject>().Bind();
 }
 
-void RenderTarget::Clear(std::optional<Color> color, bool set_viewport) {
+void RenderTarget::Clear(std::optional<Color> color, bool set_viewport, bool restore_bind) {
 	Color clear{ color.value_or(GetOrDefault<impl::ClearColor>()) };
-	Get<impl::RenderTargetObject>().Clear(clear, set_viewport);
+	Get<impl::RenderTargetObject>().Clear(clear, set_viewport, restore_bind);
 }
 
 void RenderTarget::SetClearColor(Color clear_color) {
@@ -137,7 +137,7 @@ void RenderTarget::AddRenderTargetComponents(
 	render_target.Add<impl::RenderTargetObject>(
 		scene.ctx().global_renderer_.CreateRenderTarget({ .size{ size }, .format{ format } })
 	);
-	render_target.Get<impl::RenderTargetObject>().Clear(clear_color, true);
+	render_target.Clear(clear_color, true, true);
 }
 
 void RenderTarget::AddRenderTargetComponents(

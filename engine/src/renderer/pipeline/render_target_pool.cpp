@@ -24,9 +24,9 @@ void RenderTargetObject::Resize(V2_int new_size) {
 	renderer_->ResizeRenderTarget(resource_, new_size);
 }
 
-void RenderTargetObject::Clear(Color color, bool set_viewport) const {
+void RenderTargetObject::Clear(Color color, bool set_viewport, bool restore_bind) const {
 	PTGN_ASSERT(renderer_ && *this);
-	renderer_->ClearRenderTarget(resource_, color, set_viewport);
+	renderer_->ClearRenderTarget(resource_, color, set_viewport, restore_bind);
 }
 
 impl::TextureId RenderTargetObject::GetTextureId() const {
@@ -36,7 +36,7 @@ impl::TextureId RenderTargetObject::GetTextureId() const {
 
 void RenderTargetObject::Bind() const {
 	PTGN_ASSERT(renderer_ && *this);
-	renderer_->BindRenderTarget(resource_);
+	renderer_->SetRenderTarget(this);
 }
 
 V2_int RenderTargetObject::GetSize() const {
@@ -119,8 +119,7 @@ RenderTargetObject RenderTargetPool::Acquire(
 
 	auto result = renderer_.CreateRenderTarget(desc);
 
-	result.Bind();
-	result.Clear(color::Transparent, false);
+	result.Clear(color::Transparent, false, true);
 
 	return std::move(result);
 }
