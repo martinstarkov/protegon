@@ -130,7 +130,7 @@ void BuildVertices(
 	std::vector<impl::TextureId>& local_textures
 );
 
-void DrawText(AssetManager& asset_manager, DrawContext& renderer, Entity text);
+void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity text);
 
 [[nodiscard]] Font GetFont(AssetManager& asset_manager, std::string_view font_key);
 

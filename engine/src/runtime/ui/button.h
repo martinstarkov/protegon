@@ -324,7 +324,7 @@ public:
 	ButtonBase() = default;
 	explicit ButtonBase(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 
 	/// @return In order of precedence: rect size, circle radius, texture size.
 	std::optional<std::variant<Rect, Circle>> GetShape() const;

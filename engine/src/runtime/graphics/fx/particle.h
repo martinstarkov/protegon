@@ -274,7 +274,7 @@ public:
 	ParticleEmitter() = default;
 	explicit ParticleEmitter(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 
 	ParticleEmitter& Start();
 	ParticleEmitter& Stop();

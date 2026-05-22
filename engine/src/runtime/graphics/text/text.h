@@ -22,11 +22,11 @@ public:
 	explicit Text(Entity entity);
 
 	static void Draw(
-		DrawContext& renderer, Entity text, V2_int text_size, Color additional_tint,
+		DrawContext& ctx, Entity text, V2_int text_size, Color additional_tint,
 		Origin offset_origin, V2_float offset_size
 	);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 
 	std::string GetFontKey() const;
 	Font GetFont() const;

@@ -241,12 +241,12 @@ void SceneManager::UpdateReEnteredSceneTagHashes() {
 	}
 }
 
-void SceneManager::Draw(DrawContext& draw_context) const {
+void SceneManager::Draw(DrawContext& ctx) const {
 	for (const auto& scene : scenes_) {
 		if (scene->IsAwaitingTransitionDelay()) {
 			continue;
 		}
-		scene->InternalDraw(draw_context);
+		scene->InternalDraw(ctx);
 	}
 }
 

@@ -29,13 +29,13 @@ namespace ptgn {
 Text::Text(Entity entity) : Entity{ entity } {}
 
 void Text::Draw(
-	DrawContext& renderer, Entity entity, V2_int text_size, Color additional_tint,
-	Origin offset_origin, V2_float offset_size
+	DrawContext& ctx, Entity entity, V2_int text_size, Color additional_tint, Origin offset_origin,
+	V2_float offset_size
 ) {
 	auto& scene{ entity.GetScene() };
 	auto& assets{ scene.ctx().asset };
 
-	impl::DrawText(assets, renderer, entity);
+	impl::DrawText(assets, ctx, entity);
 	// TODO: Move out.
 	// static TextSystem text_system;
 	// static impl::MsdfFontData msdf_font{
@@ -115,9 +115,9 @@ void Text::Draw(
 	*/
 }
 
-void Text::Draw(DrawContext& renderer, Entity text) {
+void Text::Draw(DrawContext& ctx, Entity text) {
 	// This wrapper exists so that buttons can draw offset text.
-	Draw(renderer, text, V2_float{}, color::White, Origin::Center, V2_float{});
+	Draw(ctx, text, V2_float{}, color::White, Origin::Center, V2_float{});
 }
 
 Text& Text::SetFont(std::string_view font_key) {

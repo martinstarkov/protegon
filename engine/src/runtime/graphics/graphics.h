@@ -46,7 +46,7 @@ public:
 	Graphics() = default;
 	explicit Graphics(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 
 	Graphics& Clear();
 

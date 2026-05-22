@@ -19,39 +19,39 @@ class Scene;
 class DrawContext;
 
 struct RectDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 };
 
 struct RoundedRectDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 };
 
 struct PolygonDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 };
 
 struct CircleDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 };
 
 struct EllipseDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 };
 
 struct ArcDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 };
 
 struct TriangleDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 };
 
 struct LineDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 };
 
 struct CapsuleDraw {
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 };
 
 [[nodiscard]] Transform OffsetByOrigin(const Shape& shape, Transform transform, Entity entity);

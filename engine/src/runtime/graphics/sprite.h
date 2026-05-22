@@ -56,11 +56,11 @@ public:
 	explicit Sprite(Entity entity);
 
 	static void Draw(
-		DrawContext& renderer, Entity entity, Origin offset_origin, V2_float offset_size,
+		DrawContext& ctx, Entity entity, Origin offset_origin, V2_float offset_size,
 		Color additional_tint
 	);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 
 	Sprite& SetTexture(std::string_view texture_key);
 };

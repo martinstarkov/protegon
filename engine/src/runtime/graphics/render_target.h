@@ -46,7 +46,7 @@ public:
 	RenderTarget() = default;
 	explicit RenderTarget(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 
 	/// @brief Binds the render target's internal frame buffer as the current render target.
 	void Bind();

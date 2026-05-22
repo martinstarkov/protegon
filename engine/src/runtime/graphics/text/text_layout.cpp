@@ -856,7 +856,7 @@ void EmitGlyphQuad(
 	local_indices.emplace_back(0);
 }
 
-void DrawText(AssetManager& asset_manager, DrawContext& renderer, Entity entity) {
+void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity entity) {
 	// TODO: Pull this info from text entity.
 
 	std::optional<Rect> clip_rect{ std::nullopt };
