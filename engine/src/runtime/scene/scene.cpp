@@ -324,7 +324,7 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 
 	auto game_size{ ctx().global_renderer_.GetGameSize() };
 
-	const auto& primary_world_camera{ ctx().global_renderer_.GetPrimaryWorldCamera() };
+	const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
 
 	impl::RenderCamera render_camera;
 
@@ -499,6 +499,10 @@ Entity Scene::CreateEntity(const json& j) {
 	PTGN_ASSERT(e.Has<impl::Tag>(), "Entity created from json must have a Tag component");
 	return e;
 }
+
+Scene::Scene(Scene&&) noexcept = default;
+
+Scene& Scene::operator=(Scene&&) noexcept = default;
 
 Scene::~Scene() = default;
 

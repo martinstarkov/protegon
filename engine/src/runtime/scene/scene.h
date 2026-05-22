@@ -64,6 +64,13 @@ struct SceneHook {
 class Scene {
 public:
 	Scene() = default;
+
+	Scene(Scene&&) noexcept;
+	Scene& operator=(Scene&&) noexcept;
+
+	Scene(const Scene&)			   = delete;
+	Scene& operator=(const Scene&) = delete;
+
 	virtual ~Scene();
 
 	/// @brief Called when the scene is added to active scenes.
