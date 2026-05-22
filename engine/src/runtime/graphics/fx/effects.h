@@ -1,9 +1,12 @@
 #pragma once
 
 #include <concepts>
+#include <functional>
 #include <utility>
 #include <vector>
 
+#include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/effect_params.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
@@ -29,6 +32,8 @@ namespace impl {
 struct Effects {
 	std::vector<Entity> effects;
 };
+
+impl::EffectParams GetEffectParams(Entity entity);
 
 } // namespace impl
 

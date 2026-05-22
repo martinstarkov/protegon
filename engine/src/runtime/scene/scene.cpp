@@ -3,6 +3,7 @@
 #include <ecs/ecs.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <iterator>
@@ -10,8 +11,10 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -29,7 +32,9 @@
 #include "core/util/span.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
@@ -45,6 +50,7 @@
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
@@ -66,21 +72,6 @@
 namespace ptgn {
 
 namespace {
-
-void InvokeDrawable(DrawContext& draw_context, Entity entity) {
-	PTGN_ASSERT(entity.Has<impl::IDrawable>(), "Cannot render entity without drawable component");
-	PTGN_ASSERT(entity.Has<impl::Visible>(), "Cannot render entity without visible component");
-
-	const auto& drawable{ entity.Get<impl::IDrawable>() };
-
-	const auto& drawable_functions{ impl::IDrawable::data() };
-
-	PTGN_ASSERT(drawable_functions.contains(drawable.hash), "Failed to identify drawable hash");
-
-	const auto& draw_function{ drawable_functions.find(drawable.hash)->second };
-
-	draw_function(draw_context, entity);
-}
 
 void SortDrawCommands(std::vector<impl::DrawCommand>& draw_commands) {
 	std::ranges::stable_sort(
@@ -116,7 +107,7 @@ template <
 	InvocableR<void, DrawContext&, const std::vector<T>&> D>
 void DrawCommands(
 	std::vector<std::pair<impl::RenderCamera, std::vector<T>>>& commands, impl::Renderer& renderer,
-	DrawContext& draw_context, const RenderTarget& scene_render_target, ClearedEntities cleared,
+	DrawContext& ctx, const RenderTarget& scene_render_target, ClearedEntities cleared,
 	V2_int game_size, F&& sort_func, D&& draw_func
 ) {
 	PTGN_ASSERT((!ContainsDuplicates(commands, [](const auto& c1, const auto& c2) {
@@ -131,7 +122,7 @@ void DrawCommands(
 	for (auto& [cam, cmds] : commands) {
 		RenderTarget render_target{ cam.render_target.value_or(scene_render_target) };
 
-		render_target.Bind();
+		ctx.SetRenderTarget(&render_target.Get<impl::RenderTargetObject>());
 
 		if (bool clear_render_target{
 				!std::ranges::contains(cleared.render_targets, render_target) };
@@ -146,21 +137,21 @@ void DrawCommands(
 		auto viewport{ cam.camera.viewport };
 		viewport.position = viewport.position * scale;
 		viewport.size	  = viewport.size * scale;
-		renderer.SetViewport(viewport);
-		renderer.SetViewProjection(cam.camera.view_projection);
+		ctx.SetViewport(viewport);
+		ctx.SetViewProjection(cam.camera.view_projection);
 
 		if (bool clear_camera{ !std::ranges::contains(cleared.cameras, cam.uuid) }; clear_camera) {
 			if (cam.clear_color.has_value()) {
-				renderer.SetScissor(ScissorState{ viewport });
+				ctx.SetScissor(ScissorState{ viewport });
 				render_target.Clear(*cam.clear_color, false);
-				renderer.SetScissor(ScissorState{ false });
+				ctx.SetScissor(ScissorState{ false });
 				cleared.cameras.emplace_back(cam.uuid);
 			}
 		}
 
 		sort_func(cmds);
 
-		draw_func(draw_context, cmds);
+		draw_func(ctx, cmds);
 	}
 	commands.clear();
 }
@@ -361,7 +352,11 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 				// last. This prioritizes drawing entities first followed by manual draw commands.
 				const auto& draw_cmd{ cmds[cmds.size() - 1 - i] };
 				if (std::holds_alternative<Entity>(draw_cmd.payload)) {
-					InvokeDrawable(draw_context, std::get<Entity>(draw_cmd.payload));
+					const auto& entity{ std::get<Entity>(draw_cmd.payload) };
+					PTGN_ASSERT(
+						IsVisible(entity), "Cannot render entity without visible component"
+					);
+					impl::InvokeDrawable(draw_context, entity);
 				} else {
 					draw_context.Draw(std::get<impl::ManualCommand>(draw_cmd.payload));
 				}
@@ -400,24 +395,25 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 	ctx().global_renderer_.SetViewProjection(view_projection);
 	ctx().global_renderer_.SetBlendMode(BlendMode::Blend);
 
-	auto transform{ GetDrawTransform(render_target_) };
+	auto draw_transform{ GetDrawTransform(render_target_) };
 	auto scene_target_size{ render_target_.GetSize() };
-	Rect scene_rect{ V2_float{ scene_target_size } };
-	auto positions{ scene_rect.GetWorldVertices(transform, Origin::Center) };
+	constexpr auto draw_origin{ Origin::Center };
 
 	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 	auto rt_tint{ GetTint(render_target_) };
 
-	auto texture_shader{ ctx().global_renderer_.GetShader("texture") };
-
 	auto render_target_texture{ ctx().global_renderer_.GetRenderTargetTexture(render_target_) };
 
-	ctx().global_renderer_.SetShader(texture_shader);
+	impl::EffectParams effects{ impl::GetEffectParams(GetRenderTarget()) };
 
-	impl::EffectParams effects;
+	constexpr auto entity_id{ -1 };
+	constexpr auto depth{ 0.0f };
+
+	std::span<const impl::TextureBinding> extra_textures{};
 
 	draw_context.DrawTexture(
-		render_target_texture, positions, 0.0f, rt_tint, tex_coords, effects, {}, -1
+		render_target_texture, draw_transform, depth, scene_target_size, draw_origin, rt_tint,
+		tex_coords, effects, extra_textures, entity_id
 	);
 
 	ctx().global_renderer_.FlushBatch();
