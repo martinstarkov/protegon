@@ -4,7 +4,7 @@
 #include <array>
 #include <concepts>
 #include <functional>
-#include <span>
+#include <ranges>
 #include <vector>
 
 namespace ptgn {
@@ -65,14 +65,13 @@ void VectorRemoveDuplicates(std::vector<T>& v) {
 	v.erase(last.begin(), last.end());
 }
 
-template <typename T, typename Pred>
-	requires std::predicate<Pred&, const T&, const T&>
-bool ContainsDuplicates(std::span<const T> values, Pred pred) {
-	auto count{ values.size() };
-
-	for (auto i{ 0uz }; i < count; ++i) {
-		for (auto j{ i + 1 }; j < count; ++j) {
-			if (std::invoke(pred, values[i], values[j])) {
+template <std::ranges::forward_range R, typename Pred>
+	requires std::predicate<
+		Pred&, std::ranges::range_reference_t<R>, std::ranges::range_reference_t<R>>
+bool ContainsDuplicates(R&& values, Pred pred) {
+	for (auto it{ std::ranges::begin(values) }; it != std::ranges::end(values); ++it) {
+		for (auto other{ std::next(it) }; other != std::ranges::end(values); ++other) {
+			if (std::invoke(pred, *it, *other)) {
 				return true;
 			}
 		}
