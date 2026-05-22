@@ -77,13 +77,12 @@ public:
 	/// @brief Returns the total number of frames that the application has run for.
 	std::size_t GetFrameCount() const;
 
-	// TODO: Move to private.
-	impl::Renderer& global_renderer_;
-
 private:
 	friend class RenderTarget;
 	friend class Scene;
 	friend class LocalSceneManager;
+
+	impl::Renderer& global_renderer_;
 
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
 	/// size.

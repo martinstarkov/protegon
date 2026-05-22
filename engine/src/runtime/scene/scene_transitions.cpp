@@ -62,7 +62,7 @@ SlideInTransition::SlideInTransition(
 	SceneTransition{ duration, delay, ease }, direction{ from_direction.Normalized() } {}
 
 void SlideInTransition::OnDelayStart(Scene& scene) {
-	auto size{ scene.ctx().global_renderer_.GetGameSize() };
+	auto size{ scene.ctx().renderer.GetGameSize() };
 	auto start_position{ size * direction };
 	SetPosition(scene.GetRenderTarget(), start_position);
 }
@@ -88,13 +88,13 @@ void SlideOutTransition::OnDelayStart(Scene& scene) {
 }
 
 void SlideOutTransition::OnStart(Scene& scene) {
-	auto size{ scene.ctx().global_renderer_.GetGameSize() };
+	auto size{ scene.ctx().renderer.GetGameSize() };
 	auto destination{ size * direction };
 	TranslateTo(scene.GetRenderTarget(), destination, GetDuration(), GetEase(), true);
 }
 
 void SlideOutTransition::OnStop(Scene& scene) {
-	auto size{ scene.ctx().global_renderer_.GetGameSize() };
+	auto size{ scene.ctx().renderer.GetGameSize() };
 	auto destination{ size * direction };
 	SetPosition(scene.GetRenderTarget(), destination);
 }

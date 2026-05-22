@@ -189,7 +189,7 @@ void InteractionSystem::DrawDebugForCamera(
 
 	mouse.position = ConvertPoint(
 		mouse.position, Frame::Window, Frame::Camera,
-		FrameContext{ scene.ctx().global_renderer_, render_target, camera.camera }
+		FrameContext{ scene.ctx().renderer, render_target, camera.camera }
 	);
 
 	if (debug_settings_.draw_enabled) {
@@ -230,7 +230,7 @@ void InteractionSystem::DrawDebug(Scene& scene) const {
 
 	const impl::MouseInfo mouse_state{ scene };
 
-	if (auto primary_world_camera{ scene.ctx().global_renderer_.GetPrimaryWorldCamera() };
+	if (auto primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
 		primary_world_camera.has_value()) {
 		impl::RenderCamera render_camera{ *primary_world_camera };
 		DrawDebugForCamera(scene, mouse_state, render_camera, [](auto) { return false; });
@@ -735,7 +735,7 @@ void InteractionSystem::UpdateForCamera(
 
 	mouse.position = ConvertPoint(
 		mouse.position, Frame::Window, Frame::Camera,
-		FrameContext{ scene.ctx().global_renderer_, render_target, camera }
+		FrameContext{ scene.ctx().renderer, render_target, camera }
 	);
 
 	std::vector<Entity> camera_entities;
@@ -805,7 +805,7 @@ void InteractionSystem::Update(Scene& scene) {
 
 	bool handled_under_mouse{ false };
 
-	const auto& primary_world_camera{ scene.ctx().global_renderer_.GetPrimaryWorldCamera() };
+	const auto& primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
 
 	if (primary_world_camera.has_value()) {
 		RenderTarget render_target{ scene.GetRenderTarget() };
