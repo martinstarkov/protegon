@@ -67,9 +67,6 @@ struct DrawTextureRequest {
 	TextureId texture;
 	std::span<const RenderQuad<TextureVertex>> vertices;
 
-	MaterialState material;
-	RenderState render_state;
-
 	std::optional<EffectParams> effect_params;
 };
 
@@ -78,9 +75,6 @@ struct DrawQuadRequest {
 	std::span<const RenderQuad<TVertex>> quads;
 	std::span<const TextureId> textures;
 
-	MaterialState material;
-	RenderState render_state;
-
 	TAccessor texture_index_accessor;
 };
 
@@ -88,9 +82,6 @@ template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<T
 struct DrawTriangleRequest {
 	std::span<const RenderTriangle<TVertex>> triangles;
 	std::span<const TextureId> textures;
-
-	MaterialState material;
-	RenderState render_state;
 
 	TAccessor texture_index_accessor;
 };
@@ -146,8 +137,8 @@ public:
 		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
 
 		batcher_.SubmitTriangles<TVertex>(
-			request.quads, pipeline.vertex_capacity, pipeline.index_capacity, pipeline.vertex_size,
-			request.textures, request.texture_index_accessor
+			request.triangles, pipeline.vertex_capacity, pipeline.index_capacity,
+			pipeline.vertex_size, request.textures, request.texture_index_accessor
 		);
 	}
 

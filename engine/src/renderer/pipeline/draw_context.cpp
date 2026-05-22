@@ -16,6 +16,7 @@
 #include "renderer/pipeline/render_target_pool.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
+#include "renderer/vertex/vertex.h"
 
 namespace ptgn {
 
@@ -89,24 +90,19 @@ void DrawContext::Draw(const impl::ManualCommand& cmd) {
 			if constexpr (std::is_same_v<T, impl::TriangleCommand>) {
 				renderer_.SetCurrentPipeline("color");
 				renderer_.SetMaterial({ .shader{ GetShader("color") } });
-				// TODO: Fix.
-				// renderer_.DrawTriangles<impl::ColorVertex>(
-				//	arg.triangles, {}, impl::NoTextureIndexAccessor{}
-				//);
+				renderer_.DrawTriangles<impl::ColorVertex, impl::NoTextureIndexAccessor>(
+					{ .triangles{ arg.triangles } }
+				);
 			} else if constexpr (std::is_same_v<T, impl::QuadCommand>) {
 				renderer_.SetCurrentPipeline("color");
 				renderer_.SetMaterial({ .shader{ GetShader("color") } });
-				// TODO: Fix.
-				// renderer_.DrawQuads<impl::ColorVertex>(
-				//	arg.quads, {}, impl::NoTextureIndexAccessor{}
-				//);
+				renderer_.DrawQuads<impl::ColorVertex, impl::NoTextureIndexAccessor>({ .quads{
+					arg.quads } });
 			} else if constexpr (std::is_same_v<T, impl::ShapeCommand>) {
 				renderer_.SetCurrentPipeline("shape");
 				renderer_.SetMaterial({ .shader{ arg.shader } });
-				// TODO: Fix.
-				// renderer_.DrawQuads<impl::ShapeVertex>(
-				//	arg.shapes, {}, impl::NoTextureIndexAccessor{}
-				//);
+				renderer_.DrawQuads<impl::ShapeVertex, impl::NoTextureIndexAccessor>({ .quads{
+					arg.shapes } });
 			} else if constexpr (std::is_same_v<T, impl::TextureCommand>) {
 				renderer_.SetCurrentPipeline("texture");
 				renderer_.SetMaterial(arg.material);
@@ -158,8 +154,8 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 
 	PTGN_ASSERT(
 		(connect_last_to_first && count >= 3) || (!connect_last_to_first && count >= 2),
-		"There must be at least two points to draw a line, and three to connect back to the first "
-		"point"
+		"There must be at least two points to draw a line, and three to connect back to the
+first " "point"
 	);
 
 	std::size_t vertex_modulo{ count };
@@ -196,7 +192,8 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 		},
 		[&](float line_width) {
 			return GetDrawCommand(
-				quad_shader, vertices, line_width, Transform{}, tint, blend_mode, true, entity_id
+				quad_shader, vertices, line_width, Transform{}, tint, blend_mode, true,
+entity_id
 			);
 		}
 	);
@@ -209,12 +206,14 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 	return fill_style.Apply(
 		[&]() -> std::optional<impl::DrawCommandType> {
 			auto vertices{ triangle.GetWorldQuadVertices(transform) };
-			return impl::QuadCommand{ triangle_shader, vertices, tint, blend_mode, entity_id };
+			return impl::QuadCommand{ triangle_shader, vertices, tint, blend_mode, entity_id
+};
 		},
 		[&](float line_width) {
 			auto vertices{ triangle.GetLocalVertices() };
 			return GetDrawCommand(
-				triangle_shader, vertices, line_width, transform, tint, blend_mode, true, entity_id
+				triangle_shader, vertices, line_width, transform, tint, blend_mode, true,
+entity_id
 			);
 		}
 	);
@@ -276,7 +275,8 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 	float thickness{ fill_style.NormalizedToSDFThickness(fade, V2_float{ radius }) };
 
 	float start_angle	  = arc.GetStartAngle().ToRad().value;
-	float signed_aperture = arc.GetAperture().ToRad().value * (arc.IsClockwise() ? -1.0f : 1.0f);
+	float signed_aperture = arc.GetAperture().ToRad().value * (arc.IsClockwise() ? -1.0f
+: 1.0f);
 
 	std::array<float, 4> data{ thickness, fade, start_angle, signed_aperture };
 
@@ -314,18 +314,16 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 }
 
 std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
-	impl::ShaderId circle_shader, const Circle& circle, Transform transform, FillStyle fill_style,
-	Color tint, std::optional<BlendMode> blend_mode, int entity_id
-) {
-	Ellipse ellipse{ V2_float{ circle.GetRadius() } };
-	return GetDrawCommand(
-		circle_shader, ellipse, transform, fill_style, tint, blend_mode, entity_id
+	impl::ShaderId circle_shader, const Circle& circle, Transform transform, FillStyle
+fill_style, Color tint, std::optional<BlendMode> blend_mode, int entity_id ) { Ellipse
+ellipse{ V2_float{ circle.GetRadius() } }; return GetDrawCommand( circle_shader, ellipse,
+transform, fill_style, tint, blend_mode, entity_id
 	);
 }
 
 std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
-	impl::ShaderId rect_shader, impl::ShaderId rounded_rect_shader, const RoundedRect& rounded_rect,
-	Transform transform, FillStyle fill_style, Origin draw_origin, Color tint,
+	impl::ShaderId rect_shader, impl::ShaderId rounded_rect_shader, const RoundedRect&
+rounded_rect, Transform transform, FillStyle fill_style, Origin draw_origin, Color tint,
 	std::optional<BlendMode> blend_mode, int entity_id
 ) {
 	V2_float size{ rounded_rect.GetSize(transform) };
@@ -338,8 +336,8 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 
 	if (radius <= 0.0f) {
 		return GetDrawCommand(
-			rect_shader, Rect{ rounded_rect.GetSize() }, transform, fill_style, draw_origin, tint,
-			blend_mode, entity_id
+			rect_shader, Rect{ rounded_rect.GetSize() }, transform, fill_style, draw_origin,
+tint, blend_mode, entity_id
 		);
 	}
 
@@ -349,8 +347,8 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 	float aspect_ratio{ GetAspectRatio(size) };
 	float thickness{ fill_style.NormalizedToSDFThickness(fade, V2_float{ radius }) };
 
-	std::array<float, 4> data{ thickness * aspect_ratio, fade, normalized_radius * aspect_ratio,
-							   aspect_ratio };
+	std::array<float, 4> data{ thickness * aspect_ratio, fade, normalized_radius *
+aspect_ratio, aspect_ratio };
 
 	auto vertices{ rounded_rect.GetWorldQuadVertices(transform, draw_origin) };
 
@@ -402,7 +400,8 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 		},
 		[&](float line_width) {
 			return GetDrawCommand(
-				polygon_shader, vertices, line_width, transform, tint, blend_mode, true, entity_id
+				polygon_shader, vertices, line_width, transform, tint, blend_mode, true,
+entity_id
 			);
 		}
 	);
@@ -413,11 +412,13 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 	Color tint, std::optional<BlendMode> blend_mode, int entity_id
 ) {
 	return fill_style.Apply(
-		[]() -> std::optional<impl::DrawCommandType> { PTGN_ERROR("Cannot draw solid line"); },
+		[]() -> std::optional<impl::DrawCommandType> { PTGN_ERROR("Cannot draw solid line");
+},
 		[&](float line_width) {
 			auto vertices{ line.GetLocalVertices() };
 			return GetDrawCommand(
-				quad_shader, vertices, line_width, transform, tint, blend_mode, false, entity_id
+				quad_shader, vertices, line_width, transform, tint, blend_mode, false,
+entity_id
 			);
 		}
 	);
@@ -425,17 +426,16 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 
 std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 	const impl::Renderer& renderer, const Shape& shape, Transform transform, Color tint,
-	FillStyle fill_style, Origin draw_origin, std::optional<BlendMode> blend_mode, int entity_id
-) {
-	return shape.Visit([&]<typename T>(const T& s) -> std::optional<impl::DrawCommandType> {
-		if constexpr (std::is_same_v<T, Rect>) {
-			return GetDrawCommand(
-				renderer.GetShader("color"), s, transform, fill_style, draw_origin, tint,
+	FillStyle fill_style, Origin draw_origin, std::optional<BlendMode> blend_mode, int
+entity_id ) { return shape.Visit([&]<typename T>(const T& s) ->
+std::optional<impl::DrawCommandType> { if constexpr (std::is_same_v<T, Rect>) { return
+GetDrawCommand( renderer.GetShader("color"), s, transform, fill_style, draw_origin, tint,
 				blend_mode, entity_id
 			);
 		} else if constexpr (IsAnyOf<T, Polygon, Line, Triangle>) {
 			return GetDrawCommand(
-				renderer.GetShader("color"), s, transform, fill_style, tint, blend_mode, entity_id
+				renderer.GetShader("color"), s, transform, fill_style, tint, blend_mode,
+entity_id
 			);
 		} else if constexpr (std::is_same_v<T, V2_float>) {
 			return GetDrawCommand(
@@ -443,20 +443,23 @@ std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 			);
 		} else if constexpr (IsAnyOf<T, Circle, Ellipse>) {
 			return GetDrawCommand(
-				renderer.GetShader("ellipse"), s, transform, fill_style, tint, blend_mode, entity_id
+				renderer.GetShader("ellipse"), s, transform, fill_style, tint, blend_mode,
+entity_id
 			);
 		} else if constexpr (std::is_same_v<T, Capsule>) {
 			return GetDrawCommand(
-				renderer.GetShader("capsule"), s, transform, fill_style, tint, blend_mode, entity_id
+				renderer.GetShader("capsule"), s, transform, fill_style, tint, blend_mode,
+entity_id
 			);
 		} else if constexpr (std::is_same_v<T, Arc>) {
 			return GetDrawCommand(
-				renderer.GetShader("arc"), s, transform, fill_style, tint, blend_mode, entity_id
+				renderer.GetShader("arc"), s, transform, fill_style, tint, blend_mode,
+entity_id
 			);
 		} else if constexpr (std::is_same_v<T, RoundedRect>) {
 			return GetDrawCommand(
-				renderer.GetShader("color"), renderer.GetShader("rounded_rect"), s, transform,
-				fill_style, draw_origin, tint, blend_mode, entity_id
+				renderer.GetShader("color"), renderer.GetShader("rounded_rect"), s,
+transform, fill_style, draw_origin, tint, blend_mode, entity_id
 			);
 		} else {
 			static_assert(false, "Incomplete visitor!");
@@ -469,24 +472,20 @@ void DrawContext::Flush() {
 }
 
 void DrawContext::DrawTriangle(
-	impl::ShaderId shader, const std::array<V2_float, 3>& positions, float depth, Color tint,
-	int entity_id
-) {
-	renderer_.DrawTriangle(shader, positions, depth, tint, entity_id);
+	impl::ShaderId shader, const std::array<V2_float, 3>& positions, float depth, Color
+tint, int entity_id ) { renderer_.DrawTriangle(shader, positions, depth, tint, entity_id);
 }
 
 void DrawContext::DrawQuad(
-	impl::ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
-	int entity_id
-) {
-	renderer_.DrawQuad(shader, positions, depth, tint, entity_id);
+	impl::ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color
+tint, int entity_id ) { renderer_.DrawQuad(shader, positions, depth, tint, entity_id);
 }
 
 void DrawContext::DrawShape(
-	impl::ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color tint,
-	const std::array<V2_float, 4>& tex_coords, const std::array<float, 4>& shape_data, int entity_id
-) {
-	renderer_.DrawShape(shader, positions, depth, tint, tex_coords, shape_data, entity_id);
+	impl::ShaderId shader, const std::array<V2_float, 4>& positions, float depth, Color
+tint, const std::array<V2_float, 4>& tex_coords, const std::array<float, 4>& shape_data, int
+entity_id ) { renderer_.DrawShape(shader, positions, depth, tint, tex_coords, shape_data,
+entity_id);
 }
 
 void DrawContext::DrawShader(
@@ -497,23 +496,22 @@ void DrawContext::DrawShader(
 	for (auto& pos : positions) {
 		pos = FastFloor(pos);
 	}
-	renderer_.DrawShader(shader, positions, depth, tint, tex_coords, shader_setup, entity_id);
+	renderer_.DrawShader(shader, positions, depth, tint, tex_coords, shader_setup,
+entity_id);
 }
 
 void DrawContext::DrawTexture(
 	impl::TextureId texture, std::array<V2_float, 4> positions, float depth, Color tint,
 	const std::array<V2_float, 4>& tex_coords, int entity_id
 ) {
-	DrawTexture(GetShader("texture"), texture, positions, depth, tint, tex_coords, {}, entity_id);
+	DrawTexture(GetShader("texture"), texture, positions, depth, tint, tex_coords, {},
+entity_id);
 }
 
 void DrawContext::DrawTexture(
-	impl::ShaderId shader, impl::TextureId texture, std::array<V2_float, 4> positions, float depth,
-	Color tint, const std::array<V2_float, 4>& tex_coords,
-	const std::function<void()>& shader_setup, int entity_id
-) {
-	for (auto& pos : positions) {
-		pos = FastFloor(pos);
+	impl::ShaderId shader, impl::TextureId texture, std::array<V2_float, 4> positions, float
+depth, Color tint, const std::array<V2_float, 4>& tex_coords, const std::function<void()>&
+shader_setup, int entity_id ) { for (auto& pos : positions) { pos = FastFloor(pos);
 	}
 	renderer_.DrawTexture(
 		shader, texture, positions, depth, tint, tex_coords, shader_setup, entity_id
@@ -581,7 +579,8 @@ void DrawContext::Draw(const impl::TextureCommand& cmd, float depth) {
 		SetBlendMode(*cmd.blend_mode);
 	}
 	DrawTexture(
-		cmd.shader, cmd.texture, cmd.positions, depth, cmd.color, cmd.tex_coords, {}, cmd.entity_id
+		cmd.shader, cmd.texture, cmd.positions, depth, cmd.color, cmd.tex_coords, {},
+cmd.entity_id
 	);
 }
 
@@ -603,7 +602,8 @@ void DrawContext::Draw(const impl::ShapeCommand& cmd, float depth) {
 		SetBlendMode(*cmd.blend_mode);
 	}
 	DrawShape(
-		cmd.shader, cmd.positions, depth, cmd.color, cmd.tex_coords, cmd.shape_data, cmd.entity_id
+		cmd.shader, cmd.positions, depth, cmd.color, cmd.tex_coords, cmd.shape_data,
+cmd.entity_id
 	);
 }
 
@@ -628,9 +628,8 @@ void DrawContext::DrawLines(
 	constexpr bool floor_positions{ false };
 
 	auto draw_commands{ GetDrawCommand(
-		GetShader("color"), points, line_width, transform, tint, blend_mode, connect_last_to_first,
-		floor_positions
-	) };
+		GetShader("color"), points, line_width, transform, tint, blend_mode,
+connect_last_to_first, floor_positions ) };
 
 	if (!draw_commands.has_value()) {
 		return;
@@ -638,7 +637,8 @@ void DrawContext::DrawLines(
 
 	PTGN_ASSERT(std::holds_alternative<std::vector<impl::QuadCommand>>(*draw_commands));
 
-	const auto& line_draw_commands{ std::get<std::vector<impl::QuadCommand>>(*draw_commands) };
+	const auto& line_draw_commands{ std::get<std::vector<impl::QuadCommand>>(*draw_commands)
+};
 
 	for (const auto& line : line_draw_commands) {
 		Draw(line, depth);
@@ -646,10 +646,9 @@ void DrawContext::DrawLines(
 }
 
 void DrawContext::DrawTexture(
-	impl::TextureId texture, Transform transform, float depth, V2_float size, Origin draw_origin,
-	Color tint, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode> blend_mode,
-	int entity_id
-) {
+	impl::TextureId texture, Transform transform, float depth, V2_float size, Origin
+draw_origin, Color tint, const std::array<V2_float, 4>& tex_coords, std::optional<BlendMode>
+blend_mode, int entity_id ) {
 	// TODO: Make this an assert once text is fixed.
 	if (!size.BothAboveZero()) {
 		return;
