@@ -10,6 +10,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -99,8 +100,8 @@ public:
 	PipelineId GetTexturePipeline() const;
 
 	template <class Fn>
-	decltype(auto) WithState(RenderState delta, Fn&& fn) {
-		auto previous_state{ GetCurrentState() };
+	decltype(auto) WithState(const RenderState& delta, Fn&& fn) {
+		auto previous_state{ GetRenderState() };
 		auto next_state = ApplyDelta(previous_state, delta);
 
 		SetRenderState(next_state);
@@ -115,6 +116,8 @@ public:
 			return result;
 		}
 	}
+
+	RenderState GetRenderState() const;
 
 	void SetRenderState(const RenderState& render_state);
 
@@ -132,26 +135,30 @@ public:
 	void DrawQuads(DrawQuadRequest<TVertex, TAccessor> request) {
 		PTGN_ASSERT(pipeline_manager_.GetCurrentPipelineId() != 0);
 
-		batcher_.SubmitQuads<TVertex>(
-			pipeline_manager_.GetCurrentPipelineId(), BoundTargetId(), request.material,
-			request.render_state, request.quads, request.textures, request.texture_index_accessor
-		);
+		// TODO: Fix.
+		// batcher_.SubmitQuads<TVertex>(
+		//	pipeline_manager_.GetCurrentPipelineId(), BoundTargetId(), request.material,
+		//	request.render_state, request.quads, request.textures, request.texture_index_accessor
+		//);
 	}
 
 	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
 	void DrawTriangles(DrawTriangleRequest<TVertex, TAccessor> request) {
 		PTGN_ASSERT(pipeline_manager_.GetCurrentPipelineId() != 0);
 
-		batcher_.SubmitTriangles<TVertex>(
-			pipeline_manager_.GetCurrentPipelineId(), BoundTargetId(), request.material,
-			request.render_state, request.triangles, request.textures,
-			request.texture_index_accessor
-		);
+		// TODO: Fix.
+		// batcher_.SubmitTriangles<TVertex>(
+		//	pipeline_manager_.GetCurrentPipelineId(), BoundTargetId(), request.material,
+		//	request.render_state, request.triangles, request.textures,
+		//	request.texture_index_accessor
+		//);
 	}
 
-	void SetRenderTarget(RenderTargetObject& target) {
-		target.Bind();
-		current_target_ = &target;
+	void SetRenderTarget(RenderTargetObject* target) {
+		if (target) {
+			target->Bind();
+		}
+		current_target_ = target;
 	}
 
 private:

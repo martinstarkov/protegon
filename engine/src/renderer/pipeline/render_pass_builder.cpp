@@ -25,8 +25,8 @@ PassBuilder& PassBuilder::Shader(std::string_view name) {
 
 impl::TextureId PassBuilder::Submit() {
 	// TODO: Fix.
-	return {};
 	// return renderer_.SubmitEffectPass(std::move(desc_));
+	return {};
 }
 
 } // namespace ptgn

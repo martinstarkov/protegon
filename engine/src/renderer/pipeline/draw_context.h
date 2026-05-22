@@ -10,7 +10,6 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_batcher.h"
-#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
 #include "renderer/renderer.h"
@@ -98,12 +97,7 @@ public:
 	*/
 
 public:
-	void Flush();
-
-	[[nodiscard]] V2_int BoundTargetSize() const;
-	[[nodiscard]] TextureSource BoundTarget() const;
-
-	[[nodiscard]] RenderPassBuilder Pass();
+	//[[nodiscard]] RenderPassBuilder Pass();
 
 	void SetShader(std::string_view shader);
 	void SetShader(impl::ShaderId shader);

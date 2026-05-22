@@ -54,6 +54,7 @@ RenderTargetPool::RenderTargetPool(Renderer& renderer) : renderer_{ renderer } {
 RenderTargetObject RenderTargetPool::Acquire(
 	RenderTargetDesc desc, std::optional<FramebufferId> exclude
 ) {
+	// TODO: Fix.
 	/*
 	++tick_;
 
@@ -124,7 +125,7 @@ RenderTargetObject RenderTargetPool::Acquire(
 	return std::move(result);
 }
 
-RenderTargetObject& RenderTargetPool::AcquireLike(const RenderTargetObject& target, int margin) {
+RenderTargetObject RenderTargetPool::AcquireLike(const RenderTargetObject& target, int margin) {
 	RenderTargetDesc desc{
 		.size	= target.GetSize(),
 		.format = target.GetFormat(),
@@ -137,8 +138,9 @@ RenderTargetObject& RenderTargetPool::AcquireLike(const RenderTargetObject& targ
 }
 
 void RenderTargetPool::Release(RenderTargetId id) {
-	auto current{ renderer_.GetCurrentTarget() };
-	PTGN_ASSERT(id != current, "Cannot release currently bound render target");
+	// TODO: Fix.
+	// auto current{ renderer_.GetCurrentTarget() };
+	// PTGN_ASSERT(id != current, "Cannot release currently bound render target");
 	// for (auto& entry : pool_) {
 	//	if (entry.target.operator RenderTargetId() != id) {
 	//		continue;
@@ -156,6 +158,7 @@ bool RenderTargetPool::Owns(RenderTargetId target) const {
 		return entry.operator RenderTargetId() == target;
 	});
 
+	// TODO: Fix.
 	// return std::ranges::any_of(pool_, [target](const PooledTarget& entry) {
 	//	return entry.target.operator RenderTargetId() == target;
 	// });
@@ -164,6 +167,7 @@ bool RenderTargetPool::Owns(RenderTargetId target) const {
 void RenderTargetPool::TrimUnused(std::size_t max_unused) {
 	temp_.clear();
 
+	// TODO: Fix.
 	// std::erase_if(pool_, [&](PooledTarget& entry) {
 	//	if (entry.in_use) {
 	//		return false;

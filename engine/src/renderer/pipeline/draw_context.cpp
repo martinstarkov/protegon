@@ -48,21 +48,17 @@ float GetNormalizedRadius(float diameter, float size_x) {
 
 DrawContext::DrawContext(impl::Renderer& renderer) : renderer_{ renderer } {}
 
-void DrawContext::Flush() {
-	renderer_.FlushBatch();
-}
+// V2_int DrawContext::BoundTargetSize() const {
+//	return renderer_.GetRenderTargetSize(renderer_.GetCurrentTarget());
+// }
 
-V2_int DrawContext::BoundTargetSize() const {
-	return renderer_.GetRenderTargetSize(renderer_.GetCurrentTarget());
-}
+// TextureSource DrawContext::BoundTarget() const {
+//	return impl::BoundTarget{};
+// }
 
-TextureSource DrawContext::BoundTarget() const {
-	return impl::BoundTarget{};
-}
-
-RenderPassBuilder DrawContext::Pass() {
-	return renderer_.Pass();
-}
+// RenderPassBuilder DrawContext::Pass() {
+//	return renderer_.Pass();
+// }
 
 void DrawContext::SetBlendMode(BlendMode mode) {
 	renderer_.SetBlendMode(mode);
@@ -85,7 +81,8 @@ void DrawContext::DrawTexture(
 		impl::CreateRenderQuad(positions, depth, tint.Normalized(), tex_coords, 0.0f, entity_id)
 	};
 
-	renderer_.DrawTextures({ &quad, 1 }, { &texture, 1 }, effects, extra_textures);
+	// TODO: Fix.
+	// renderer_.DrawTextures({ &quad, 1 }, { &texture, 1 }, effects, extra_textures);
 }
 
 void DrawContext::Draw(const impl::ManualCommand& cmd) {
@@ -94,27 +91,31 @@ void DrawContext::Draw(const impl::ManualCommand& cmd) {
 			if constexpr (std::is_same_v<T, impl::TriangleCommand>) {
 				renderer_.SetCurrentPipeline("color");
 				renderer_.SetMaterial({ .shader{ GetShader("color") } });
-				renderer_.DrawTriangles<impl::ColorVertex>(
-					arg.triangles, {}, impl::NoTextureIndexAccessor{}
-				);
+				// TODO: Fix.
+				// renderer_.DrawTriangles<impl::ColorVertex>(
+				//	arg.triangles, {}, impl::NoTextureIndexAccessor{}
+				//);
 			} else if constexpr (std::is_same_v<T, impl::QuadCommand>) {
 				renderer_.SetCurrentPipeline("color");
 				renderer_.SetMaterial({ .shader{ GetShader("color") } });
-				renderer_.DrawQuads<impl::ColorVertex>(
-					arg.quads, {}, impl::NoTextureIndexAccessor{}
-				);
+				// TODO: Fix.
+				// renderer_.DrawQuads<impl::ColorVertex>(
+				//	arg.quads, {}, impl::NoTextureIndexAccessor{}
+				//);
 			} else if constexpr (std::is_same_v<T, impl::ShapeCommand>) {
 				renderer_.SetCurrentPipeline("shape");
 				renderer_.SetMaterial({ .shader{ arg.shader } });
-				renderer_.DrawQuads<impl::ShapeVertex>(
-					arg.shapes, {}, impl::NoTextureIndexAccessor{}
-				);
+				// TODO: Fix.
+				// renderer_.DrawQuads<impl::ShapeVertex>(
+				//	arg.shapes, {}, impl::NoTextureIndexAccessor{}
+				//);
 			} else if constexpr (std::is_same_v<T, impl::TextureCommand>) {
 				renderer_.SetCurrentPipeline("texture");
 				renderer_.SetMaterial(arg.material);
-				renderer_.DrawQuads<impl::TextureVertex>(
-					arg.quads, arg.textures, impl::NoTextureIndexAccessor{}
-				);
+				// TODO: Fix.
+				// renderer_.DrawQuads<impl::TextureVertex>(
+				//	arg.quads, arg.textures, impl::NoTextureIndexAccessor{}
+				//);
 			} else {
 				static_assert(false, "Incomplete visitor!");
 			}

@@ -8,6 +8,7 @@
 #include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
@@ -75,16 +76,17 @@ void Sprite::Draw(
 
 	impl::EffectParams effects;
 
-	effects.draw_callback = [](DrawContext& renderer) {
-		RenderTargetDesc desc{
-			.size	= renderer.BoundTargetSize(),
-			.format = TextureFormat::RGBA8,
-		};
-		renderer.Pass()
-			.Read(renderer.BoundTarget())
-			.Output(desc)
-			.Draw({ .shader{ renderer.GetShader("grayscale") } });
-	};
+	// TODO: Fix.
+	// effects.draw_callback = [](DrawContext& renderer) {
+	//	RenderTargetDesc desc{
+	//		.size	= renderer.BoundTargetSize(),
+	//		.format = TextureFormat::RGBA8,
+	//	};
+	//	renderer.Pass()
+	//		.Read(renderer.BoundTarget())
+	//		.Output(desc)
+	//		.Draw({ .shader{ renderer.GetShader("grayscale") } });
+	//};
 
 	std::span<const impl::TextureBinding> extra_textures{};
 

@@ -572,7 +572,7 @@ Derived& ButtonBase<Derived>::SetAnimation(Animation&& animation, ButtonStyleSta
 	Hide(animation);
 	SetParent(animation, *this);
 	desired.sprite = GameObject<Sprite>{ std::move(animation) };
-	impl::AddAnimationCompleteCallback(Button{ *this }, desired.sprite);
+	AddAnimationCompleteCallback(Button{ *this }, desired.sprite);
 	return Self();
 }
 

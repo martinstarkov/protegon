@@ -13,6 +13,7 @@
 #include "core/util/hash.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_common.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 
 namespace ptgn {

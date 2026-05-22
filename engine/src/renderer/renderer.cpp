@@ -1,7 +1,6 @@
 #include "renderer/renderer.h"
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -11,7 +10,6 @@
 #include <span>
 #include <string>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -36,10 +34,8 @@
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
-#include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/primitive_mode.h"
 #include "renderer/pipeline/render_batcher.h"
-#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
@@ -119,20 +115,8 @@ Renderer::~Renderer() noexcept {
 	auto _{ gl_->Bind(VertexArrayId{ 0 }, false) };
 }
 
-impl::TextureId Renderer::GetCurrentTargetTexture() const {
-	return GetRenderTargetTexture(BoundTargetId());
-}
-
-V2_int Renderer::GetCurrentTargetSize() const {
-	return GetRenderTargetSize(BoundTargetId());
-}
-
 void Renderer::FlushBatch() {
 	batcher_.Flush();
-}
-
-RenderTargetPool& Renderer::GetTargetPool() {
-	return target_pool_;
 }
 
 RenderPipeline& Renderer::GetPipeline(PipelineId id) {
@@ -253,44 +237,20 @@ void Renderer::SetBlendMode(BlendMode blend_mode) {
 	gl_->SetBlendMode(blend_mode);
 }
 
-void Renderer::DrawTextureNormally(DrawTextureRequest request) {
-	auto textures = std::array<TextureId, 1>{
-		request.texture,
-	};
-
-	batcher_.SubmitQuads<TextureVertex>(
-		GetTexturePipeline(), BoundTargetId(), request.material, request.render_state,
-		request.vertices, std::span{ textures }
-	);
-}
+// TODO: Fix.
+// void Renderer::DrawTextureNormally(DrawTextureRequest request) {
+//	auto textures = std::array<TextureId, 1>{
+//		request.texture,
+//	};
+//
+//	 batcher_.SubmitQuads<TextureVertex>(
+//		GetTexturePipeline(), BoundTargetId(), request.material, request.render_state,
+//		request.vertices, std::span{ textures }
+//	);
+//}
 
 PipelineId Renderer::GetTexturePipeline() const {
 	return Hash("texture");
-}
-
-RenderTargetId Renderer::BoundTargetId() const {
-	return RenderTargetId{ gl_->GetBoundFramebuffer().value() };
-}
-
-TextureId Renderer::BoundTargetTexture() const {
-	return GetRenderTargetTexture(BoundTargetId());
-}
-
-V2_int Renderer::BoundTargetSize() const {
-	return GetRenderTargetSize(BoundTargetId());
-}
-
-bool Renderer::EnsureQuadsWithTextureIndexZero(
-	std::span<const RenderQuad<TextureVertex>> quads
-) const {
-	for (const auto& quad : quads) {
-		for (const auto& vertex : quad) {
-			if (!NearlyEqual(vertex.tex_index[0], 0.0f)) {
-				return false;
-			}
-		}
-	}
-	return true;
 }
 
 void Renderer::SetViewProjection(const Matrix4& view_projection) {
@@ -691,7 +651,8 @@ void Renderer::EndFrame() {
 
 	TextureId screen_texture{ screen_target_.GetTextureId() };
 
-	DrawImmediateTexturedQuad(screen_texture, quad, {});
+	// TODO: Fix.
+	// DrawImmediateTexturedQuad(screen_texture, quad, {});
 
 	FlushBatch();
 }
@@ -876,6 +837,21 @@ void Renderer::SetMaterial(const MaterialState& material) {
 	current_uniforms_ = material.uniforms;
 }
 
+RenderState Renderer::GetRenderState() const {
+	const auto& state{ gl_->GetBoundState() };
+	return RenderState{
+		.viewport		 = gl_->GetViewport(),
+		.view_projection = view_projection_,
+		.blend_mode		 = state.blend_mode,
+		.depth_testing	 = state.depth_testing,
+		.depth_mask		 = state.depth_mask,
+		.stencil		 = state.stencil,
+		.raster			 = state.raster,
+		.scissor		 = state.scissor,
+		.color_mask		 = state.color_mask,
+	};
+}
+
 void Renderer::SetRenderState(const RenderState& state) {
 	if (state.viewport.has_value()) {
 		SetViewport(*state.viewport);
@@ -957,251 +933,35 @@ void Renderer::ApplyMaterial(const MaterialState& material) {
 void Renderer::DrawTexture(DrawTextureRequest request) {
 	PTGN_ASSERT(request.texture, "DrawTexture requires a valid texture");
 
-	if (ReferencesBoundTarget(request)) {
-		PTGN_ASSERT(
-			IsFullscreenCompatible(request),
-			"Sampling the bound target implies a fullscreen effect pass"
-		);
+	// TODO: Fix.
+	// if (ReferencesBoundTarget(request)) {
+	//	PTGN_ASSERT(
+	//		IsFullscreenCompatible(request),
+	//		"Sampling the bound target implies a fullscreen effect pass"
+	//	);
 
-		DrawFullscreenEffect(request);
-		return;
-	}
+	//	DrawFullscreenEffect(request);
+	//	return;
+	//}
 
-	if (request.effect_params.has_value()) {
-		DrawTextureEffect(request);
-		return;
-	}
+	// if (request.effect_params.has_value()) {
+	//	DrawTextureEffect(request);
+	//	return;
+	// }
 
-	DrawTextureNormally(request);
+	// DrawTextureNormally(request);
 }
 
-void Renderer::DrawTextureEffect(DrawTextureRequest request) {
-	auto prepared = PrepareDirectTextureSeed(request);
-
-	auto result = RunEffectChain(
-		prepared.seed_texture, std::move(prepared.seed_transient), *request.effect_params
-	);
-
-	BatchEffectResult(std::move(result), std::span{ prepared.final_quads }, request.render_state);
-}
-
-Renderer::PreparedEffectSeed Renderer::PrepareDirectTextureSeed(DrawTextureRequest request) {
-	PTGN_ASSERT(EnsureQuadsWithTextureIndexZero(request.vertices));
-
-	return {
-		.seed_texture	= request.texture,
-		.seed_transient = {},
-		.final_quads	= request.vertices,
-	};
-}
-
-void Renderer::BatchEffectResult(
-	EffectChainResult result, std::span<const RenderQuad<TextureVertex>> quads,
-	RenderState render_state
-) {
-	auto textures = std::array<TextureId, 1>{
-		result.texture,
-	};
-
-	auto material = MaterialState{
-		.shader	  = GetShader("texture"),
-		.uniforms = {},
-	};
-
-	batcher_.SubmitQuads<TextureVertex>(
-		GetTexturePipeline(), BoundTargetId(), material, render_state, quads, std::span{ textures }
-	);
-
-	if (result.transient) {
-		batcher_.HoldUntilFlush(std::move(result.transient));
-	}
-}
-
-void Renderer::DrawFullscreenEffect(DrawTextureRequest request) {
-	FlushBatch();
-
-	EffectChainResult result =
-		RunEffectChain(BoundTargetTexture(), RenderTargetObject{}, *request.effect_params);
-
-	ReplaceBoundTarget(std::move(result));
-}
-
-void Renderer::ReplaceBoundTarget(EffectChainResult result) {
-	FlushBatch();
-
-	PTGN_ASSERT(result.texture != 0, "Cannot replace bound target with invalid texture");
-	PTGN_ASSERT(result.transient, "Fullscreen effect output must be transient-owned");
-	PTGN_ASSERT(
-		result.texture == result.transient.GetTextureId(),
-		"Effect result texture does not match its owning render target"
-	);
-
-	result.transient.Bind();
-
-	// Ownership transfer:
-	// The result target now becomes the current render target owner.
-	//
-	// If your current scene/render target is owned somewhere else, move it there instead.
-	screen_target_ = std::move(result.transient);
-}
-
-bool Renderer::ReferencesBoundTarget(DrawTextureRequest request) const {
-	auto bound_texture = BoundTargetTexture();
-
-	if (!bound_texture) {
-		return false;
-	}
-
-	return request.texture == bound_texture;
-}
-
-Renderer::EffectChainResult Renderer::RunEffectChain(
-	TextureId seed_texture, RenderTargetObject seed_transient, const EffectParams& params
-) {
-	BeginEffectChain(seed_texture, std::move(seed_transient), params.margin);
-
-	DrawContext ctx{ *this };
-
-	if (params.draw_callback) {
-		params.draw_callback(ctx);
-	}
-
-	return EndEffectChain();
-}
-
-void Renderer::BeginEffectChain(
-	TextureId seed_texture, RenderTargetObject seed_transient, int margin
-) {
-	PTGN_ASSERT(!active_effect_chain_, "Nested effect chains are not supported");
-	PTGN_ASSERT(seed_texture != 0, "Effect chain requires a valid seed texture");
-
-	active_effect_chain_ = EffectChainState{
-		.current_texture   = seed_texture,
-		.current_transient = std::move(seed_transient),
-		.margin			   = margin,
-	};
-}
-
-Renderer::EffectChainResult Renderer::EndEffectChain() {
-	PTGN_ASSERT(active_effect_chain_, "No active effect chain");
-
-	auto result = EffectChainResult{
-		.texture   = active_effect_chain_->current_texture,
-		.transient = std::move(active_effect_chain_->current_transient),
-	};
-
-	active_effect_chain_.reset();
-
-	return result;
-}
-
-Renderer::EffectChainState& Renderer::ActiveEffectChain() {
-	PTGN_ASSERT(active_effect_chain_, "No active effect chain");
-	return *active_effect_chain_;
-}
-
-const Renderer::EffectChainState& Renderer::ActiveEffectChain() const {
-	PTGN_ASSERT(active_effect_chain_, "No active effect chain");
-	return *active_effect_chain_;
-}
-
-TextureId Renderer::CurrentEffectTexture() const {
-	return ActiveEffectChain().current_texture;
-}
-
-RenderTargetId Renderer::CurrentEffectTransient() const {
-	return ActiveEffectChain().current_transient;
-}
-
-int Renderer::CurrentEffectMargin() const {
-	return ActiveEffectChain().margin;
-}
-
-void Renderer::ReplaceCurrentEffectTexture(TextureId texture, RenderTargetObject transient_owner) {
-	PTGN_ASSERT(texture != 0, "Cannot replace current effect texture with invalid texture");
-
-	auto& chain = ActiveEffectChain();
-
-	if (chain.current_transient) {
-		ReleaseTransient(std::move(chain.current_transient));
-	}
-
-	chain.current_texture	= texture;
-	chain.current_transient = std::move(transient_owner);
-}
-
-// --------------------------------------------------------
-// Effect scopes
-// --------------------------------------------------------
-
-Renderer::EffectScope::EffectScope(Renderer& renderer, std::string_view name) :
-	renderer_{ renderer } {
-	renderer_.BeginEffectScope(name);
-}
-
-Renderer::EffectScope::EffectScope(EffectScope&& other) noexcept :
-	renderer_{ other.renderer_ }, committed_{ other.committed_ } {
-	other.committed_ = true;
-}
-
-Renderer::EffectScope::~EffectScope() {
-	if (!committed_) {
-		renderer_.CancelEffectScope();
-	}
-}
-
-void Renderer::EffectScope::Commit(TextureId final_texture) {
-	PTGN_ASSERT(!committed_, "Effect scope already committed");
-	renderer_.CommitEffectScope(final_texture);
-	committed_ = true;
-}
-
-Renderer::EffectScope Renderer::BeginScopedEffect(std::string_view name) {
-	return EffectScope{ *this, name };
-}
-
-void Renderer::BeginEffectScope(std::string_view name) {
-	PTGN_ASSERT(active_effect_chain_, "Effect scope requires active effect chain");
-	PTGN_ASSERT(!active_effect_scope_, "Nested effect scopes are not supported");
-
-	active_effect_scope_ = EffectScopeState{
-		.name		 = std::string{ name },
-		.temporaries = {},
-	};
-}
-
-void Renderer::CancelEffectScope() {
-	if (!active_effect_scope_) {
-		return;
-	}
-
-	for (auto& target : active_effect_scope_->temporaries) {
-		ReleaseTransient(std::move(target));
-	}
-
-	active_effect_scope_.reset();
-}
-
-RenderState Renderer::GetCurrentState() const {
-	return { .viewport		  = gl_->GetViewport(),
-			 .view_projection = view_projection_,
-			 .blend_mode	  = gl_->GetBoundState().blend_mode,
-			 .depth_testing	  = gl_->GetBoundState().depth_testing,
-			 .depth_mask	  = gl_->GetBoundState().depth_mask,
-			 .stencil		  = gl_->GetBoundState().stencil,
-			 .raster		  = gl_->GetBoundState().raster,
-			 .scissor		  = gl_->GetBoundState().scissor,
-			 .color_mask	  = gl_->GetBoundState().color_mask };
-}
-
-RenderTargetId Renderer::GetCurrentTarget() const {
-	return BoundTargetId();
-}
-
-MaterialState Renderer::GetCurrentMaterial() const {
-	return MaterialState{ .shader	= gl_->GetBoundState().shader_program.value(),
-						  .uniforms = current_uniforms_ };
-}
+// TODO: Fix.
+// void Renderer::DrawTextureEffect(DrawTextureRequest request) {
+//	auto prepared = PrepareDirectTextureSeed(request);
+//
+//	auto result = RunEffectChain(
+//		prepared.seed_texture, std::move(prepared.seed_transient), *request.effect_params
+//	);
+//
+//	BatchEffectResult(std::move(result), std::span{ prepared.final_quads }, request.render_state);
+//}
 
 void Renderer::BindTextureSlot(std::uint32_t slot, TextureId texture) {
 	gl_->SetActiveTextureSlot(slot);

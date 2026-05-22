@@ -58,7 +58,7 @@ public:
 		RenderTargetDesc desc, std::optional<FramebufferId> exclude = std::nullopt
 	);
 
-	RenderTargetObject& AcquireLike(const RenderTargetObject& target, int margin = 0);
+	RenderTargetObject AcquireLike(const RenderTargetObject& target, int margin = 0);
 
 	void Release(RenderTargetId id);
 

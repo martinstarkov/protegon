@@ -55,21 +55,23 @@ void RenderBatcher::Flush() {
 }
 
 void RenderBatcher::HoldUntilFlush(RenderTargetObject target) {
-	if (!renderer_.GetTargetPool().Owns(target)) {
-		return;
-	}
+	// TODO: Fix.
+	// if (!renderer_.GetTargetPool().Owns(target)) {
+	//	return;
+	//}
 
-	if (!std::ranges::contains(release_after_flush_, target)) {
-		release_after_flush_.emplace_back(std::move(target));
-	}
+	// if (!std::ranges::contains(release_after_flush_, target)) {
+	//	release_after_flush_.emplace_back(std::move(target));
+	// }
 }
 
 void RenderBatcher::ReleaseTargetsAfterFlush() {
-	for (const auto& target : release_after_flush_) {
-		renderer_.GetTargetPool().Release(target);
-	}
+	// TODO: Fix.
+	// for (const auto& target : release_after_flush_) {
+	//	renderer_.GetTargetPool().Release(target);
+	//}
 
-	release_after_flush_.clear();
+	// release_after_flush_.clear();
 }
 
 bool RenderBatcher::IsTextureAttachedToCurrentFramebuffer(TextureId texture) const {
