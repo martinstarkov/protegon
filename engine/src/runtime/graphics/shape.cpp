@@ -54,7 +54,7 @@ std::optional<Variant> GetFirstMatchingVariant(Entity entity) {
 } // namespace
 
 template <ShapeType T>
-void DrawShape(DrawContext& renderer, Entity entity) {
+void DrawShape(DrawContext& ctx, Entity entity) {
 	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
 
 	const auto& shape{ entity.Get<T>() };
@@ -66,46 +66,45 @@ void DrawShape(DrawContext& renderer, Entity entity) {
 	auto blend_mode{ GetBlendMode(entity) };
 	auto entity_id{ entity.GetUUID() };
 
-	// TODO: Fix.
-	// renderer.DrawShape(
-	//	shape, draw_transform, depth, tint, fill_style, draw_origin, blend_mode, entity_id
-	//);
+	ctx.WithBlendMode(blend_mode, [&]() {
+		ctx.DrawShape(shape, draw_transform, depth, tint, fill_style, draw_origin, entity_id);
+	});
 }
 
-void RectDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Rect>(renderer, entity);
+void RectDraw::Draw(DrawContext& ctx, Entity entity) {
+	DrawShape<Rect>(ctx, entity);
 }
 
-void RoundedRectDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<RoundedRect>(renderer, entity);
+void RoundedRectDraw::Draw(DrawContext& ctx, Entity entity) {
+	DrawShape<RoundedRect>(ctx, entity);
 }
 
-void PolygonDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Polygon>(renderer, entity);
+void PolygonDraw::Draw(DrawContext& ctx, Entity entity) {
+	DrawShape<Polygon>(ctx, entity);
 }
 
-void TriangleDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Triangle>(renderer, entity);
+void TriangleDraw::Draw(DrawContext& ctx, Entity entity) {
+	DrawShape<Triangle>(ctx, entity);
 }
 
-void CircleDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Circle>(renderer, entity);
+void CircleDraw::Draw(DrawContext& ctx, Entity entity) {
+	DrawShape<Circle>(ctx, entity);
 }
 
-void EllipseDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Ellipse>(renderer, entity);
+void EllipseDraw::Draw(DrawContext& ctx, Entity entity) {
+	DrawShape<Ellipse>(ctx, entity);
 }
 
-void ArcDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Arc>(renderer, entity);
+void ArcDraw::Draw(DrawContext& ctx, Entity entity) {
+	DrawShape<Arc>(ctx, entity);
 }
 
-void LineDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Line>(renderer, entity);
+void LineDraw::Draw(DrawContext& ctx, Entity entity) {
+	DrawShape<Line>(ctx, entity);
 }
 
-void CapsuleDraw::Draw(DrawContext& renderer, Entity entity) {
-	DrawShape<Capsule>(renderer, entity);
+void CapsuleDraw::Draw(DrawContext& ctx, Entity entity) {
+	DrawShape<Capsule>(ctx, entity);
 }
 
 Transform OffsetByOrigin(const Shape& shape, Transform transform, Entity entity) {

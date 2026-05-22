@@ -8,12 +8,18 @@
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/shape.h"
 #include "core/math/math_utils.h"
+#include "core/math/matrix4.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_batcher.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/vertex/vertex.h"
@@ -47,42 +53,69 @@ float GetNormalizedRadius(float diameter, float size_x) {
 
 DrawContext::DrawContext(impl::Renderer& renderer) : renderer_{ renderer } {}
 
-// V2_int DrawContext::BoundTargetSize() const {
-//	return renderer_.GetRenderTargetSize(renderer_.GetCurrentTarget());
-// }
-
-// TextureSource DrawContext::BoundTarget() const {
-//	return impl::BoundTarget{};
-// }
-
-// RenderPassBuilder DrawContext::Pass() {
-//	return renderer_.Pass();
-// }
-
-void DrawContext::SetBlendMode(BlendMode mode) {
-	renderer_.SetBlendMode(mode);
+DrawContext::StateScope::StateScope(DrawContext& ctx, const RenderState& delta_state) :
+	ctx_{ ctx }, previous_state_{ ctx_.GetRenderState() } {
+	auto next_state{ impl::ApplyDeltaRenderState(previous_state_, delta_state) };
+	ctx_.SetRenderState(next_state);
 }
 
-void DrawContext::SetShader(std::string_view shader) {
-	SetShader(renderer_.GetShader(shader));
+DrawContext::StateScope::~StateScope() {
+	ctx_.SetRenderState(previous_state_);
 }
 
-void DrawContext::SetShader(impl::ShaderId shader) {
-	renderer_.SetShader(shader);
+void DrawContext::SetViewport(Viewport viewport) {
+	renderer_.SetViewport(viewport);
+}
+
+void DrawContext::SetViewProjection(const Matrix4& view_projection) {
+	renderer_.SetViewProjection(view_projection);
+}
+
+void DrawContext::SetScissor(const ScissorState& scissor) {
+	renderer_.SetScissor(scissor);
+}
+
+void DrawContext::SetRenderTarget(const impl::RenderTargetObject* target) {
+	renderer_.SetRenderTarget(target);
+}
+
+RenderState DrawContext::GetRenderState() const {
+	return renderer_.GetRenderState();
+}
+
+void DrawContext::SetRenderState(const RenderState& state) {
+	renderer_.SetRenderState(state);
 }
 
 void DrawContext::DrawTexture(
-	impl::TextureId texture, const std::array<V2_float, 4>& positions, float depth, Color tint,
-	const std::array<V2_float, 4>& tex_coords, const impl::EffectParams& effects,
+	impl::TextureId texture, Transform transform, float depth, V2_float size, Origin draw_origin,
+	Color tint, const std::array<V2_float, 4>& tex_coords, const impl::EffectParams& effects,
 	std::span<const impl::TextureBinding> extra_textures, int entity_id
-) {
-	auto quad{
-		impl::CreateRenderQuad(positions, depth, tint.Normalized(), tex_coords, 0.0f, entity_id)
-	};
+) {}
 
-	// TODO: Fix.
-	// renderer_.DrawTextures({ &quad, 1 }, { &texture, 1 }, effects, extra_textures);
-}
+void DrawContext::DrawTexture(
+	const MaterialState& shader, impl::TextureId texture, Transform transform, float depth,
+	V2_float size, Origin draw_origin, Color tint, const std::array<V2_float, 4>& tex_coords,
+	const impl::EffectParams& effects, std::span<const impl::TextureBinding> extra_textures,
+	int entity_id
+) {}
+
+void DrawContext::DrawShader(
+	const MaterialState& shader, Transform transform, float depth, V2_float size,
+	Origin draw_origin, Color tint, const std::array<V2_float, 4>& tex_coords,
+	const impl::EffectParams& effects, std::span<const impl::TextureBinding> extra_textures,
+	int entity_id
+) {}
+
+void DrawContext::DrawShape(
+	const Shape& shape, Transform transform, float depth, Color tint, FillStyle fill_style,
+	Origin draw_origin, int entity_id
+) {}
+
+void DrawContext::DrawLines(
+	std::span<const V2_float> points, Transform transform, float depth, Color tint,
+	float line_width, bool connect_last_to_first
+) {}
 
 void DrawContext::Draw(const impl::ManualCommand& cmd) {
 	std::visit(

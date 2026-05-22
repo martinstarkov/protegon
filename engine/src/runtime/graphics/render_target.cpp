@@ -1,6 +1,7 @@
 #include "runtime/graphics/render_target.h"
 
 #include <optional>
+#include <span>
 
 #include "core/assert.h"
 #include "core/event/event.h"
@@ -17,6 +18,7 @@
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
@@ -95,7 +97,7 @@ RenderTarget::operator impl::RenderTargetId() const {
 	return Get<impl::RenderTargetObject>().operator impl::RenderTargetId();
 }
 
-void RenderTarget::Draw(DrawContext& renderer, Entity entity) {
+void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
 	PTGN_ASSERT(entity.Has<impl::RenderTargetObject>());
 
 	std::optional<V2_int> size;
@@ -111,18 +113,23 @@ void RenderTarget::Draw(DrawContext& renderer, Entity entity) {
 
 	auto blend_mode{ GetBlendMode(entity) };
 	auto draw_origin{ GetDrawOrigin(entity) };
-	auto transform{ GetDrawTransform(entity) };
-	Rect rect{ V2_float{ *size } };
-	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
+	auto draw_transform{ GetDrawTransform(entity) };
 	auto tint{ GetTint(entity) };
 	auto depth{ GetDepth(entity) };
 	auto tex_coords{ GetTextureCoordinates(entity, false) };
 	auto texture{ entity.Get<impl::RenderTargetObject>().GetTextureId() };
 	auto entity_id{ entity.GetUUID() };
 
-	// TODO: Fix.
-	/*renderer.SetBlendMode(blend_mode);
-	renderer.DrawTexture(texture, positions, depth, tint, tex_coords, entity_id);*/
+	auto effects{ impl::GetEffectParams(entity) };
+
+	std::span<const impl::TextureBinding> extra_textures{};
+
+	ctx.WithBlendMode(blend_mode, [&]() {
+		ctx.DrawTexture(
+			texture, draw_transform, depth, *size, draw_origin, tint, tex_coords, effects,
+			extra_textures, entity_id
+		);
+	});
 }
 
 void RenderTarget::AddRenderTargetComponents(

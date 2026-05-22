@@ -276,9 +276,7 @@ ButtonBase<Derived>::ButtonStyleTuple ButtonBase<Derived>::GetStyle(ButtonStyleS
 }
 
 template <typename Derived>
-void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
-	// TODO: Fix.
-	/*
+void ButtonBase<Derived>::Draw(DrawContext& ctx, Entity entity) {
 	Button button{ entity };
 	Color entity_tint{ ptgn::GetTint(button) };
 
@@ -331,7 +329,7 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 		if (texture_tint.has_value()) {
 			sprite_tint = Color{ tint.Normalized() * texture_tint->Normalized() };
 		}
-		Sprite::Draw(renderer, sprite, button_origin, *button_size, sprite_tint);
+		Sprite::Draw(ctx, sprite, button_origin, *button_size, sprite_tint);
 	}
 
 	auto background_shape{ button.GetBackgroundShape(style_state) };
@@ -362,9 +360,11 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 							static_assert(false, "Unsupported button shape type");
 						}
 					}
-					renderer.DrawShape(
-						shape, transform, depth, color, fill, button_origin, blend_mode, entity_id
-					);
+					ctx.WithBlendMode(blend_mode, [&]() {
+						ctx.DrawShape(
+							shape, transform, depth, color, fill, button_origin, entity_id
+						);
+					});
 				},
 				*background_shape
 			);
@@ -398,10 +398,11 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 			if (border_shape.has_value()) {
 				std::visit(
 					[&](const auto& shape) {
-						renderer.DrawShape(
-							shape, transform, depth, color, fill, button_origin, blend_mode,
-							entity_id
-						);
+						ctx.WithBlendMode(blend_mode, [&]() {
+							ctx.DrawShape(
+								shape, transform, depth, color, fill, button_origin, entity_id
+							);
+						});
 					},
 					*border_shape
 				);
@@ -433,9 +434,8 @@ void ButtonBase<Derived>::Draw(DrawContext& renderer, Entity entity) {
 		PTGN_ASSERT(button_size.has_value());
 		V2_float offset{ *button_size };
 
-		Text::Draw(renderer, *text, text_size, tint, button_origin, offset);
+		Text::Draw(ctx, *text, text_size, tint, button_origin, offset);
 	}
-	*/
 }
 
 template <typename Derived>

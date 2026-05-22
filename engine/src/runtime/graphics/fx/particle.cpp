@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cmath>
 #include <optional>
+#include <span>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -27,7 +28,10 @@
 #include "core/util/time.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/effect_params.h"
+#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/resources/texture.h"
+#include "renderer/vertex/vertex.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
@@ -47,63 +51,70 @@ struct ParticleDrawInfo {
 	Color color;
 	FillStyle fill_style;
 	float depth{ 0.0f };
-	std::optional<BlendMode> blend_mode;
+	BlendMode blend_mode{ BlendMode::Blend };
 	Origin origin{ Origin::Center };
 };
 
-// TODO: Fix.
-/*
 template <ShapeType T>
- void DrawParticleShape(DrawContext& renderer, const T& shape, const ParticleDrawInfo& draw) {
-	if constexpr (std::is_same_v<T, Circle>) {
-		Circle circle{ shape.GetRadius() * draw.size * 0.5f };
-		renderer.DrawShape(
-			circle, draw.transform, draw.depth, draw.color, draw.fill_style, draw.origin,
-			draw.blend_mode, -1
-		);
-	} else if constexpr (std::is_same_v<T, Rect>) {
-		Rect rect{ shape.GetSize() * V2_float{ draw.size } };
+void DrawParticleShape(DrawContext& ctx, const T& shape, const ParticleDrawInfo& draw) {
+	ctx.WithBlendMode(draw.blend_mode, [&]() {
+		constexpr auto entity_id{ -1 };
 
-		Transform transform{ draw.transform };
-		// We rotate rectangle particle -90 degrees because the default direction of the rectangle
-		// shape is down (90 degrees).
-		transform.Rotate(-Radians{ kHalfPi });
+		if constexpr (std::is_same_v<T, Circle>) {
+			Circle circle{ shape.GetRadius() * draw.size * 0.5f };
+			ctx.DrawShape(
+				circle, draw.transform, draw.depth, draw.color, draw.fill_style, draw.origin,
+				entity_id
+			);
+		} else if constexpr (std::is_same_v<T, Rect>) {
+			Rect rect{ shape.GetSize() * V2_float{ draw.size } };
 
-		renderer.DrawShape(
-			rect, transform, draw.depth, draw.color, draw.fill_style, draw.origin, draw.blend_mode,
-			-1
-		);
-	} else {
-		renderer.DrawShape(
-			shape, draw.transform, draw.depth, draw.color, draw.fill_style, draw.origin,
-			draw.blend_mode, -1
-		);
-	}
+			Transform transform{ draw.transform };
+			// We rotate rectangle particle -90 degrees because the default direction of the
+			// rectangle shape is down (90 degrees).
+			transform.Rotate(-Radians{ kHalfPi });
+
+			ctx.DrawShape(
+				rect, transform, draw.depth, draw.color, draw.fill_style, draw.origin, entity_id
+			);
+		} else {
+			ctx.DrawShape(
+				shape, draw.transform, draw.depth, draw.color, draw.fill_style, draw.origin,
+				entity_id
+			);
+		}
+	});
 }
 
 template <typename T>
 void DrawParticleType(
-	const AssetManager& assets, DrawContext& renderer, const T& particle_type,
+	const AssetManager& assets, DrawContext& ctx, const T& particle_type,
 	const ParticleDrawInfo& draw
 ) {
 	if constexpr (std::is_same_v<T, std::string>) {
 		Texture texture{ assets.Get<Texture>(particle_type) };
 
 		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
+		impl::EffectParams effects{};
 
-		renderer.DrawTexture(
-			texture, draw.transform, draw.depth, V2_float{ draw.size }, draw.origin, draw.color,
-			tex_coords, draw.blend_mode, -1
-		);
+		std::span<const impl::TextureBinding> extra_textures{};
+
+		constexpr auto entity_id{ -1 };
+
+		ctx.WithBlendMode(draw.blend_mode, [&]() {
+			ctx.DrawTexture(
+				texture, draw.transform, draw.depth, V2_float{ draw.size }, draw.origin, draw.color,
+				tex_coords, effects, extra_textures, entity_id
+			);
+		});
 	} else if constexpr (std::is_same_v<T, Shape>) {
-		particle_type.Visit([&renderer, &draw]<typename S>(const S& shape) {
-			DrawParticleShape(renderer, shape, draw);
+		particle_type.Visit([&ctx, &draw]<typename S>(const S& shape) {
+			DrawParticleShape(ctx, shape, draw);
 		});
 	} else {
 		static_assert(false, "Incomplete visitor");
 	}
 }
-*/
 
 } // namespace
 
@@ -468,7 +479,7 @@ bool ParticleEmitter::IsStopped() const {
 		   impl::ParticleEmitterState::Stopped;
 }
 
-void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
+void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
 	auto depth{ GetDepth(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
 
@@ -487,16 +498,15 @@ void ParticleEmitter::Draw(DrawContext& renderer, Entity entity) {
 
 		std::visit(
 			[&]<typename T>(const T& type) {
-				// TODO: Fix.
-				/*DrawParticleType(
-					assets, renderer, type,
+				DrawParticleType(
+					assets, ctx, type,
 					{ .transform  = transform,
 					  .size		  = particle.size,
 					  .color	  = particle.color,
 					  .fill_style = emitter.config.particle_fill_style,
 					  .depth	  = depth,
 					  .blend_mode = blend_mode }
-				);*/
+				);
 			},
 			emitter.config.particle_type
 		);

@@ -7,12 +7,19 @@
 #include <vector>
 
 #include "core/graphics/color.h"
+#include "core/graphics/fill_style.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/shape.h"
+#include "core/math/matrix4.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_batcher.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
-#include "renderer/renderer.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/vertex/vertex.h"
 
@@ -48,74 +55,89 @@ using ManualCommand = std::variant<TriangleCommand, QuadCommand, ShapeCommand, T
 } // namespace impl
 
 class DrawContext {
-public:
-	// TODO: Fix.
-	// template <class Fn>
-	// decltype(auto) WithState(const RenderStateDelta& delta, Fn&& fn) {
-	//	//return renderer_.WithState(delta, [&]() -> decltype(auto) {
-	//	//	return std::forward<Fn>(fn)(*this);
-	//	//});
-	//}
-	/*
-	void DrawTextures(
-		std::span<const impl::RenderQuad<impl::TextureVertex>> quads,
-		std::span<const impl::TextureId> local_textures, const impl::EffectParams& effects,
-		std::span<const impl::TextureBinding> extra_textures
-	) {
-		renderer_.DrawTextures(quads, local_textures, effects, extra_textures);
-	}
+private:
+	class StateScope {
+	private:
+		StateScope() = delete;
 
-	impl::Renderer::ImageRef CurrentImage() const {
-		return renderer_.CurrentEffectImage();
-	}
+		StateScope(DrawContext& ctx, const RenderState& delta_state);
 
-	impl::Renderer::ImageHandle Pass(
-		std::span<const impl::Renderer::ImageRef> inputs, RenderTargetDesc output_desc,
-		MaterialState material
-	) {
-		return renderer_.EffectPass(inputs, output_desc, material);
-	}
+		StateScope(const StateScope&)			 = delete;
+		StateScope& operator=(const StateScope&) = delete;
 
-	impl::Renderer::ImageRef ScratchPass(
-		std::span<const impl::Renderer::ImageRef> inputs, RenderTargetDesc output_desc,
-		MaterialState material
-	) {
-		return renderer_.EffectScratchPass(inputs, output_desc, material);
-	}
+		StateScope(StateScope&&) noexcept			 = delete;
+		StateScope& operator=(StateScope&&) noexcept = delete;
 
-	void ReplaceCurrent(impl::Renderer::ImageHandle image) {
-		renderer_.ReplaceCurrentEffectImage(std::move(image));
-	}
+		~StateScope();
 
-	void ApplyFullscreenPass(std::string_view shader_name) {
-		renderer_.EffectApplyFullscreenPass(shader_name);
-	}
+		friend class DrawContext;
 
-	void ApplyFullscreenPass(std::string_view shader_name, TextureFormat format) {
-		renderer_.EffectApplyFullscreenPass(shader_name, format);
-	}
-	*/
+		DrawContext& ctx_;
+		RenderState previous_state_;
+	};
 
 public:
-	//[[nodiscard]] RenderPassBuilder Pass();
+	void WithState(const RenderState& delta, InvocableR<void> auto&& function) {
+		StateScope scope{ *this, delta };
 
-	void SetShader(std::string_view shader);
-	void SetShader(impl::ShaderId shader);
-	void SetBlendMode(BlendMode mode);
+		function();
+	}
+
+	void WithBlendMode(BlendMode blend_mode, InvocableR<void> auto&& function) {
+		StateScope scope{ *this, RenderState{ .blend_mode{ blend_mode } } };
+
+		function();
+	}
+
+	RenderState GetRenderState() const;
 
 	void DrawTexture(
-		impl::TextureId texture, const std::array<V2_float, 4>& positions, float depth, Color tint,
-		const std::array<V2_float, 4>& tex_coords, const impl::EffectParams& effects = {},
-		std::span<const impl::TextureBinding> extra_textures = {}, int entity_id = -1
+		impl::TextureId texture, Transform transform, float depth, V2_float size,
+		Origin draw_origin, Color tint, const std::array<V2_float, 4>& tex_coords,
+		const impl::EffectParams& effects, std::span<const impl::TextureBinding> extra_textures,
+		int entity_id
+	);
+
+	void DrawTexture(
+		const MaterialState& shader, impl::TextureId texture, Transform transform, float depth,
+		V2_float size, Origin draw_origin, Color tint, const std::array<V2_float, 4>& tex_coords,
+		const impl::EffectParams& effects, std::span<const impl::TextureBinding> extra_textures,
+		int entity_id
+	);
+
+	void DrawShader(
+		const MaterialState& shader, Transform transform, float depth, V2_float size,
+		Origin draw_origin, Color tint, const std::array<V2_float, 4>& tex_coords,
+		const impl::EffectParams& effects, std::span<const impl::TextureBinding> extra_textures,
+		int entity_id
+	);
+
+	void DrawShape(
+		const Shape& shape, Transform transform, float depth, Color tint, FillStyle fill_style,
+		Origin draw_origin, int entity_id
+	);
+
+	void DrawLines(
+		std::span<const V2_float> points, Transform transform, float depth, Color tint,
+		float line_width, bool connect_last_to_first
 	);
 
 	void Draw(const impl::ManualCommand& cmd);
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
+	// TODO: Possibly move these to private.
+	void SetViewport(Viewport viewport);
+	void SetViewProjection(const Matrix4& view_projection);
+	void SetScissor(const ScissorState& scissor);
+	void SetRenderTarget(const impl::RenderTargetObject* target);
+
 private:
+	friend class StateScope;
 	friend class impl::Renderer;
 	friend class Application;
+
+	void SetRenderState(const RenderState& state);
 
 	explicit DrawContext(impl::Renderer& renderer);
 

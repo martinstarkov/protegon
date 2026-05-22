@@ -24,6 +24,7 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -43,7 +44,7 @@ void TextureCrop::Update(const AnimationData& anim) {
 Sprite::Sprite(Entity entity) : Entity{ entity } {}
 
 void Sprite::Draw(
-	DrawContext& renderer, Entity entity, Origin offset_origin, V2_float offset_size,
+	DrawContext& ctx, Entity entity, Origin offset_origin, V2_float offset_size,
 	Color additional_tint
 ) {
 	PTGN_ASSERT(entity.Has<Texture>());
@@ -70,35 +71,20 @@ void Sprite::Draw(
 	auto tex_coords{ GetTextureCoordinates(entity, false) };
 	auto blend_mode{ GetBlendMode(entity) };
 	auto entity_id{ entity.GetUUID() };
-
-	Rect rect{ *texture_size };
-	auto positions{ rect.GetWorldVertices(draw_transform, draw_origin) };
-
-	impl::EffectParams effects;
-
-	// TODO: Fix.
-	// effects.draw_callback = [](DrawContext& renderer) {
-	//	RenderTargetDesc desc{
-	//		.size	= renderer.BoundTargetSize(),
-	//		.format = TextureFormat::RGBA8,
-	//	};
-	//	renderer.Pass()
-	//		.Read(renderer.BoundTarget())
-	//		.Output(desc)
-	//		.Draw({ .shader{ renderer.GetShader("grayscale") } });
-	//};
+	auto effects{ impl::GetEffectParams(entity) };
 
 	std::span<const impl::TextureBinding> extra_textures{};
 
-	renderer.SetBlendMode(blend_mode);
-	renderer.SetShader("texture");
-	renderer.DrawTexture(
-		texture, positions, depth, final_tint, tex_coords, effects, extra_textures, entity_id
-	);
+	ctx.WithBlendMode(blend_mode, [&]() {
+		ctx.DrawTexture(
+			texture, draw_transform, depth, *texture_size, draw_origin, tint, tex_coords, effects,
+			extra_textures, entity_id
+		);
+	});
 }
 
-void Sprite::Draw(DrawContext& renderer, Entity entity) {
-	Sprite::Draw(renderer, entity, Origin::Center, {}, impl::Tint{});
+void Sprite::Draw(DrawContext& ctx, Entity entity) {
+	Sprite::Draw(ctx, entity, Origin::Center, {}, impl::Tint{});
 }
 
 Sprite& Sprite::SetTexture(std::string_view texture_key) {

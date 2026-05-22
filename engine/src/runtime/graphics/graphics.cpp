@@ -44,21 +44,23 @@ void GraphicsData::AddCommand(Transform transform, const Shape& shape, bool fill
 
 Graphics::Graphics(Entity entity) : Entity{ entity } {}
 
-void Graphics::Draw(DrawContext& renderer, Entity entity) {
+void Graphics::Draw(DrawContext& ctx, Entity entity) {
 	const auto& instance{ entity.Get<impl::GraphicsData>() };
 
 	auto transform{ GetDrawTransform(entity) };
 	auto depth{ GetDepth(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
 	auto entity_id{ entity.GetUUID() };
+	constexpr auto draw_origin{ Origin::Center };
 
-	// TODO: Fix.
-	// for (const auto& cmd : instance.commands_) {
-	//	renderer.DrawShape(
-	//		cmd.shape, cmd.transform.RelativeTo(transform), depth, cmd.color, cmd.line_width,
-	//		Origin::Center, blend_mode, entity_id
-	//	);
-	//}
+	ctx.WithBlendMode(blend_mode, [&]() {
+		for (const auto& cmd : instance.commands_) {
+			ctx.DrawShape(
+				cmd.shape, cmd.transform.RelativeTo(transform), depth, cmd.color, cmd.line_width,
+				draw_origin, entity_id
+			);
+		}
+	});
 }
 
 Graphics& Graphics::Clear() {
