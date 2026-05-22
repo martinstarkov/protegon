@@ -13,6 +13,10 @@
 namespace ptgn::impl {
 
 impl::EffectParams GetEffectParams(Entity entity) {
+	if (!entity.Has<Effects>()) {
+		return {};
+	}
+
 	impl::EffectParams params;
 
 	params.draw_callback = [entity](DrawContext& ctx) {
