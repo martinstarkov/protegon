@@ -18,12 +18,11 @@ using namespace ptgn;
 class CustomShaderScene : public Scene {
 public:
 	CustomShader shader_entity;
-	CustomShader shader_entity2;
 
 	void OnEnter() override {
-		ctx().asset.LoadShader("whirlpool", "assets/shader.glsl");
-		ctx().asset.LoadShader("ripple", ShaderPair{ "texture", "assets/ripple.glsl" });
-		ctx().asset.LoadTexture("noise", "assets/noise.png");
+		ctx().asset.Load("whirlpool", "assets/shader.glsl");
+		ctx().asset.Load("ripple", ShaderPair{ "texture", "assets/ripple.glsl" });
+		ctx().asset.Load("noise", "assets/noise.png");
 
 		shader_entity = CreateCustomShader(
 			*this, "whirlpool", "noise", V2_float{}, V2_float{ 150 }, {}, Origin::Center
@@ -42,11 +41,11 @@ public:
 			);
 		});
 
-		shader_entity2 = CreateCustomShader(
+		auto shader_entity2{ CreateCustomShader(
 			*this, "ripple", {}, V2_float{ 200 }, V2_float{ 300 }, {}, Origin::Center
-		);
+		) };
 
-		SetMaterialUpdate(shader_entity, [](auto entity) mutable {
+		SetMaterialUpdate(shader_entity2, [](auto entity) mutable {
 			float timescale{ 1.0f };
 			float time{ static_cast<float>(entity.GetScene().ctx().TimeSinceStart().count()) };
 
