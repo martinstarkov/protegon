@@ -12,6 +12,8 @@
 #include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "renderer/pipeline/buffer_layout.h"
@@ -32,19 +34,19 @@ inline constexpr std::uint32_t kIndexCapacity{ kBatchCapacity * 6 };
 template <VertexType TVertex>
 using RenderQuad = std::array<TVertex, 4>;
 
-inline RenderQuad<TextureVertex> CreateRenderQuad(
+RenderQuad<TextureVertex> CreateRenderQuad(
 	const std::array<V2_float, 4>& positions, float depth = 0.0f,
 	V4_float color_n						  = color::White.Normalized(),
 	const std::array<V2_float, 4>& tex_coords = GetDefaultTextureCoordinates<false>(),
 	float tex_index = 0.0f, int entity_id = -1
-) {
-	return {
-		TextureVertex{ positions[0], depth, color_n, tex_coords[0], tex_index, entity_id },
-		TextureVertex{ positions[1], depth, color_n, tex_coords[1], tex_index, entity_id },
-		TextureVertex{ positions[2], depth, color_n, tex_coords[2], tex_index, entity_id },
-		TextureVertex{ positions[3], depth, color_n, tex_coords[3], tex_index, entity_id },
-	};
-}
+);
+
+RenderQuad<TextureVertex> CreateRenderQuad(
+	Transform transform, V2_float size, Origin draw_origin = Origin::Center, float depth = 0.0f,
+	V4_float color_n						  = color::White.Normalized(),
+	const std::array<V2_float, 4>& tex_coords = GetDefaultTextureCoordinates<false>(),
+	float tex_index = 0.0f, int entity_id = -1
+);
 
 template <VertexType TVertex>
 using RenderTriangle = std::array<TVertex, 3>;

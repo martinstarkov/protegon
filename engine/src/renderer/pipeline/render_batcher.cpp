@@ -1,16 +1,50 @@
 #include "renderer/pipeline/render_batcher.h"
 
-#include <algorithm>
+#include <array>
 #include <cstdint>
-#include <utility>
 #include <vector>
 
+#include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
+#include "core/math/vector2.h"
+#include "core/math/vector4.h"
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_target_pool.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
+#include "renderer/vertex/vertex.h"
 
 namespace ptgn::impl {
+
+RenderQuad<TextureVertex> CreateRenderQuad(
+	const std::array<V2_float, 4>& positions, float depth, V4_float color_n,
+	const std::array<V2_float, 4>& tex_coords, float tex_index, int entity_id
+) {
+	return {
+		TextureVertex{ positions[0], depth, color_n, tex_coords[0], tex_index, entity_id },
+		TextureVertex{ positions[1], depth, color_n, tex_coords[1], tex_index, entity_id },
+		TextureVertex{ positions[2], depth, color_n, tex_coords[2], tex_index, entity_id },
+		TextureVertex{ positions[3], depth, color_n, tex_coords[3], tex_index, entity_id },
+	};
+}
+
+RenderQuad<TextureVertex> CreateRenderQuad(
+	Transform transform, V2_float size, Origin draw_origin, float depth, V4_float color_n,
+	const std::array<V2_float, 4>& tex_coords, float tex_index, int entity_id
+) {
+	Rect rect{ size };
+
+	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
+
+	return {
+		TextureVertex{ positions[0], depth, color_n, tex_coords[0], tex_index, entity_id },
+		TextureVertex{ positions[1], depth, color_n, tex_coords[1], tex_index, entity_id },
+		TextureVertex{ positions[2], depth, color_n, tex_coords[2], tex_index, entity_id },
+		TextureVertex{ positions[3], depth, color_n, tex_coords[3], tex_index, entity_id },
+	};
+}
 
 RenderBatcher::RenderBatcher(Renderer& renderer) : renderer_{ renderer } {}
 
@@ -41,8 +75,8 @@ void RenderBatcher::Flush() {
 	renderer_.UploadVertices(pipeline, vertices_);
 	renderer_.UploadIndices(pipeline, indices_);
 
-	for (std::uint32_t slot = 0; slot < textures_.size(); ++slot) {
-		renderer_.BindTextureSlot(slot, textures_[slot]);
+	for (auto i{ 0u }; i < textures_.size(); ++i) {
+		renderer_.BindTextureSlot(i, textures_[i]);
 	}
 
 	renderer_.DrawElements(pipeline, static_cast<std::uint32_t>(indices_.size()));
