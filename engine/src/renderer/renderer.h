@@ -60,8 +60,8 @@ class GLContext;
 struct DrawTextureRequest {
 	TextureId texture;
 	std::span<const RenderQuad<TextureVertex>> vertices;
-
-	std::optional<EffectParams> effect_params;
+	std::span<const TextureBinding> extra_textures;
+	EffectParams effect_params;
 };
 
 template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
@@ -92,7 +92,7 @@ public:
 
 	void FlushBatch();
 
-	void DrawTexture(DrawTextureRequest request);
+	void DrawTexture(const DrawTextureRequest& request);
 
 	RenderPipeline& GetPipeline(PipelineId id);
 
@@ -122,6 +122,8 @@ public:
 
 private:
 	const RenderTargetObject* current_target_{ nullptr };
+
+	void DrawTextureNormally(const DrawTextureRequest& request);
 
 public:
 	void SetViewProjection(const Matrix4& view_projection);

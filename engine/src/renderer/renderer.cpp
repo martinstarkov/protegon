@@ -1,6 +1,7 @@
 #include "renderer/renderer.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -232,18 +233,6 @@ void Renderer::SetBlendMode(BlendMode blend_mode) {
 	FlushBatch();
 	gl_->SetBlendMode(blend_mode);
 }
-
-// TODO: Fix.
-// void Renderer::DrawTextureNormally(DrawTextureRequest request) {
-//	auto textures = std::array<TextureId, 1>{
-//		request.texture,
-//	};
-//
-//	 batcher_.SubmitQuads<TextureVertex>(
-//		GetTexturePipeline(), BoundTargetId(), request.material, request.render_state,
-//		request.vertices, std::span{ textures }
-//	);
-//}
 
 PipelineId Renderer::GetTexturePipeline() const {
 	return Hash("texture");
@@ -616,6 +605,7 @@ void Renderer::EndFrame() {
 
 	FlushBatch();
 
+	SetRenderTarget(nullptr);
 	SetFramebuffer(FramebufferId{ 0 });
 
 	target_pool_.TrimUnused(0);
@@ -644,18 +634,25 @@ void Renderer::EndFrame() {
 			.uniforms = {},
 		}
 	);
-	gl_->SetBlendMode(BlendMode::ReplaceRGBA);
 
 	const auto positions{ GetCenteredQuadPoints(display_viewport_.size) };
 
-	auto quad{ CreateRenderQuad(
-		positions, 0.0f, color::White.Normalized(), GetDefaultTextureCoordinates<true>()
-	) };
+	constexpr auto depth{ 0.0f };
+	constexpr auto tint{ color::White };
+	constexpr auto tex_coords{ GetDefaultTextureCoordinates<true>() };
+
+	auto quad{ CreateRenderQuad(positions, depth, tint.Normalized(), tex_coords) };
 
 	TextureId screen_texture{ screen_target_.GetTextureId() };
 
-	// TODO: Fix.
-	// DrawImmediateTexturedQuad(screen_texture, quad, {});
+	DrawTextureRequest request;
+	request.vertices = { &quad, 1 };
+	request.texture	 = screen_texture;
+
+	// TODO: Add screen texture effects.
+	// request.effect_params = ...;
+
+	DrawTexture(request);
 
 	FlushBatch();
 }
@@ -933,26 +930,37 @@ void Renderer::ApplyMaterial(const MaterialState& material) {
 	}
 }
 
-void Renderer::DrawTexture(DrawTextureRequest request) {
-	PTGN_ASSERT(request.texture, "DrawTexture requires a valid texture");
-
+void Renderer::DrawTexture(const DrawTextureRequest& request) {
 	// TODO: Fix.
 	// if (ReferencesBoundTarget(request)) {
 	//	PTGN_ASSERT(
 	//		IsFullscreenCompatible(request),
 	//		"Sampling the bound target implies a fullscreen effect pass"
 	//	);
-
 	//	DrawFullscreenEffect(request);
 	//	return;
 	//}
-
 	// if (request.effect_params.has_value()) {
 	//	DrawTextureEffect(request);
 	//	return;
 	// }
+	PTGN_ASSERT(
+		request.extra_textures.empty(), "Cannot batch draw texture request with extra textures"
+	);
+	DrawTextureNormally(request);
+}
 
-	// DrawTextureNormally(request);
+void Renderer::DrawTextureNormally(const DrawTextureRequest& request) {
+	std::span<const TextureId> textures;
+
+	if (request.texture) {
+		textures = { &request.texture, 1 };
+	}
+
+	DrawQuads(
+		DrawQuadRequest<TextureVertex, DefaultTextureIndexAccessor<TextureVertex>>{
+			.quads{ request.vertices }, .textures{ textures } }
+	);
 }
 
 // TODO: Fix.
