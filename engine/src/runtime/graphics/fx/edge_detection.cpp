@@ -1,10 +1,10 @@
-#include "runtime/graphics/fx/grayscale.h"
+#include "runtime/graphics/fx/edge_detection.h"
 
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 
 namespace ptgn {
 
-void Grayscale::Draw(DrawContext& ctx, Entity entity) {}
+void EdgeDetection::Draw(DrawContext& ctx, Entity entity) {}
 
 } // namespace ptgn

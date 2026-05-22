@@ -1,3 +1,10 @@
 #include "runtime/graphics/fx/blur.h"
 
-namespace ptgn {} // namespace ptgn
+#include "runtime/ecs/entity.h"
+#include "runtime/graphics/drawable.h"
+
+namespace ptgn {
+
+void Blur::Draw(DrawContext& ctx, Entity entity) {}
+
+} // namespace ptgn
