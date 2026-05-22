@@ -156,7 +156,9 @@ struct RenderState {
 	bool operator==(const RenderState&) const = default;
 };
 
-inline RenderState ApplyDelta(RenderState base, const RenderState& delta) {
+namespace impl {
+
+inline RenderState ApplyDeltaRenderState(RenderState base, const RenderState& delta) {
 	if (delta.view_projection.has_value()) {
 		base.view_projection = *delta.view_projection;
 	}
@@ -186,5 +188,7 @@ inline RenderState ApplyDelta(RenderState base, const RenderState& delta) {
 	}
 	return base;
 }
+
+} // namespace impl
 
 } // namespace ptgn
