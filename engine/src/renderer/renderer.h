@@ -24,6 +24,7 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_batcher.h"
 #include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_pipeline.h"
@@ -41,7 +42,6 @@
 namespace ptgn {
 
 class Application;
-class DrawContext;
 class Window;
 class PassBuilder;
 
@@ -56,12 +56,6 @@ namespace gl {
 class GLContext;
 
 } // namespace gl
-
-struct EffectParams {
-	std::function<void(DrawContext&)> draw_callback;
-
-	int margin{ 0 };
-};
 
 struct DrawTextureRequest {
 	TextureId texture;
@@ -89,24 +83,6 @@ struct DrawTriangleRequest {
 class Renderer {
 public:
 	PipelineId GetTexturePipeline() const;
-
-	template <class Fn>
-	decltype(auto) WithState(const RenderState& delta, Fn&& fn) {
-		auto previous_state{ GetRenderState() };
-		auto next_state = ApplyDelta(previous_state, delta);
-
-		SetRenderState(next_state);
-
-		if constexpr (std::is_void_v<std::invoke_result_t<Fn>>) {
-			std::forward<Fn>(fn)();
-			SetRenderState(previous_state);
-			return;
-		} else {
-			auto result = std::forward<Fn>(fn)();
-			SetRenderState(previous_state);
-			return result;
-		}
-	}
 
 	RenderState GetRenderState() const;
 
