@@ -18,6 +18,7 @@
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_manager.h"
 #include "runtime/ui/button.h"
 #include "serialization/json/fwd.h"
 
@@ -149,9 +150,7 @@ void SceneAction::Register(const std::string& name, const std::function<void(Sce
 }
 
 SceneAction::SceneAction() {
-	actions_ = { { Hash("quit"), [](Scene& scene) mutable {
-					  scene.ctx().Stop();
-				  } } };
+	actions_ = { { Hash("quit"), [](Scene& scene) mutable { scene.ctx().Stop(); } } };
 
 	prefix_handlers_ = {
 		{ "enter:",
@@ -159,10 +158,9 @@ SceneAction::SceneAction() {
 			  scene.ctx().scene.Switch<impl::TemplateMenuScene>(to, scenes, scenes);
 		  } },
 		{ "transition:",
-		  [](const std::string& from, const json& scenes, const std::string& to,
-			 Scene& scene) mutable {
-			  scene.ctx().scene.Switch<impl::TemplateMenuScene>(from, to, scenes);
-		  } }
+		  [](
+			  const std::string& from, const json& scenes, const std::string& to, Scene& scene
+		  ) mutable { scene.ctx().scene.Switch<impl::TemplateMenuScene>(from, to, scenes); } }
 	};
 }
 
