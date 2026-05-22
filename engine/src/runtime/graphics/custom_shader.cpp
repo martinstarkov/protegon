@@ -2,18 +2,23 @@
 
 #include <functional>
 #include <optional>
+#include <span>
 #include <string_view>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
@@ -24,51 +29,59 @@ namespace ptgn {
 
 CustomShader::CustomShader(Entity entity) : Entity{ entity } {}
 
-void CustomShader::Draw(DrawContext& renderer, Entity entity) {
-	PTGN_ASSERT((entity.Has<Rect, impl::ShaderData>()));
+void CustomShader::Draw(DrawContext& ctx, Entity entity) {
+	PTGN_ASSERT((entity.Has<Rect, MaterialState>()));
 
-	const auto& [shader, setup] = entity.Get<impl::ShaderData>();
+	const auto& material{ entity.Get<MaterialState>() };
 
 	auto draw_transform{ GetDrawTransform(entity) };
 	const auto& rect{ entity.Get<Rect>() };
+	auto size{ rect.GetSize() };
 	auto draw_origin{ GetDrawOrigin(entity) };
 	auto tint{ GetTint(entity) };
 	auto depth{ GetDepth(entity) };
-	auto positions{ rect.GetWorldVertices(draw_transform, draw_origin) };
 	auto blend_mode{ GetBlendMode(entity) };
 
 	auto entity_id{ entity.GetUUID() };
 	auto tex_coords{ GetTextureCoordinates(entity, false) };
 
-	// TODO: Fix.
-	/*
-	renderer.SetBlendMode(blend_mode);
+	std::span<const impl::TextureBinding> extra_textures{};
 
-	if (entity.Has<Texture>()) {
-		auto texture{ entity.Get<Texture>() };
-		renderer.DrawTexture(shader, texture, positions, depth, tint, tex_coords, setup, entity_id);
-	} else {
-		renderer.DrawShader(shader, positions, depth, tint, tex_coords, setup, entity_id);
-	}
-	*/
+	auto effects{ impl::GetEffectParams(entity) };
+
+	ctx.WithBlendMode(blend_mode, [&]() {
+		if (entity.Has<Texture>()) {
+			auto texture{ entity.Get<Texture>() };
+			ctx.DrawTexture(
+				material, texture, draw_transform, depth, size, draw_origin, tint, tex_coords,
+				effects, extra_textures, entity_id
+			);
+		} else {
+			ctx.DrawShader(
+				material, draw_transform, depth, size, draw_origin, tint, tex_coords, effects,
+				extra_textures, entity_id
+			);
+		}
+	});
 }
 
-void SetShaderSetup(CustomShader entity, const std::function<void(Entity, Shader)>& shader_setup) {
-	PTGN_ASSERT(entity.Has<impl::ShaderData>(), "Shader entity must have shader data component");
-	auto& shader_data{ entity.Get<impl::ShaderData>() };
-	if (shader_setup) {
-		shader_data.shader_setup = [shader_setup, s = shader_data.shader, entity]() mutable {
-			shader_setup(entity, s);
-		};
-	} else {
-		shader_data.shader_setup = {};
-	}
+void SetMaterialUpdate(Entity entity, const std::function<void(Entity)>& update) {
+	entity.Add<impl::MaterialUpdate>(update);
+}
+
+void SetMaterialUniforms(Entity entity, const std::vector<UniformWrite>& material_uniforms) {
+	PTGN_ASSERT(entity.Has<MaterialState>(), "Shader entity must have a material component");
+	entity.Get<MaterialState>().uniforms = material_uniforms;
+}
+
+void SetMaterial(Entity entity, const MaterialState& material) {
+	PTGN_ASSERT(entity.Has<MaterialState>(), "Shader entity must have a material component");
+	entity.Get<MaterialState>() = material;
 }
 
 CustomShader CreateCustomShader(
 	Scene& scene, std::string_view shader_key, std::optional<std::string_view> texture_key,
-	V2_float position, V2_float size, const std::function<void(Entity, Shader)>& shader_setup,
-	Origin draw_origin
+	V2_float position, V2_float size, const std::vector<UniformWrite>& uniforms, Origin draw_origin
 ) {
 	CustomShader custom_shader{ scene.CreateEntity() };
 
@@ -81,10 +94,7 @@ CustomShader CreateCustomShader(
 		custom_shader.Add<Texture>(texture);
 	}
 
-	auto& shader_data{ custom_shader.Add<impl::ShaderData>() };
-	shader_data.shader = shader;
-
-	SetShaderSetup(custom_shader, shader_setup);
+	custom_shader.Add<MaterialState>(shader, uniforms);
 
 	SetDraw<CustomShader>(custom_shader);
 

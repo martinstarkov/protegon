@@ -2,20 +2,29 @@
 
 #include <array>
 #include <optional>
+#include <ranges>
+#include <span>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/render_target_pool.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/shader.h"
 #include "renderer/vertex/vertex.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -24,40 +33,29 @@ namespace ptgn {
 
 Light::Light(Entity entity) : Entity{ entity } {}
 
-void Light::SetUniform(DrawContext& renderer, Entity entity) {
-	const auto& light{ entity.Get<impl::LightData>() };
+std::array<UniformWrite, 9> Light::GetUniforms() const {
+	const auto& light{ Get<impl::LightData>() };
 
-	auto color{ GetTint(entity) };
+	auto color{ GetTint(*this) };
 	V4_float color_n{ color.Normalized() };
 
 	auto ambient_light_n{ light.ambient_color.Normalized() };
 	V3_float ambient_color{ ambient_light_n.xyz() };
 	constexpr V3_float light_attenuation{ 1.0f, 0.0f, 0.1f };
 
-	// TODO: Fix.
-	/*
-	auto light_shader{ renderer.GetShader("light") };
-
-	renderer.SetUniform(light_shader, "u_LightIntensity", light.intensity);
-	renderer.SetUniform(light_shader, "u_LightRadius", 0.5f);
-	renderer.SetUniform(light_shader, "u_Falloff", light.falloff);
-
-	if (light.cone_angle.has_value()) {
-		renderer.SetUniform(light_shader, "u_UseCone", 1.0f);
-		renderer.SetUniform(light_shader, "u_ConeAngle", (*light.cone_angle / 2.0f).value);
-	} else {
-		renderer.SetUniform(light_shader, "u_UseCone", 0.0f);
-		renderer.SetUniform(light_shader, "u_ConeAngle", kTwoPi);
-	}
-
-	renderer.SetUniform(light_shader, "u_Color", color_n);
-	renderer.SetUniform(light_shader, "u_AmbientColor", ambient_color);
-	renderer.SetUniform(light_shader, "u_AmbientIntensity", light.ambient_intensity);
-	renderer.SetUniform(light_shader, "u_LightAttenuation", light_attenuation);
-	*/
+	return { { { "u_LightIntensity", light.intensity },
+			   { "u_LightRadius", 0.5f },
+			   { "u_Falloff", light.falloff },
+			   { "u_UseCone", light.cone_angle.has_value() ? 1.0f : 0.0f },
+			   { "u_ConeAngle",
+				 light.cone_angle.has_value() ? (*light.cone_angle / 2.0f).value : kTwoPi },
+			   { "u_Color", color_n },
+			   { "u_AmbientColor", ambient_color },
+			   { "u_AmbientIntensity", light.ambient_intensity },
+			   { "u_LightAttenuation", light_attenuation } } };
 }
 
-void Light::Draw(DrawContext& renderer, Entity entity) {
+void Light::Draw(DrawContext& ctx, Entity entity) {
 	PTGN_ASSERT((entity.Has<Circle, impl::LightData>()));
 
 	if (const auto& light{ entity.Get<impl::LightData>() };
@@ -68,26 +66,29 @@ void Light::Draw(DrawContext& renderer, Entity entity) {
 
 	auto draw_transform{ GetDrawTransform(entity) };
 	const auto& circle{ entity.Get<Circle>() };
+	auto size{ circle.GetSize() };
+	constexpr auto draw_origin{ Origin::Center };
 	auto tint{ GetTint(entity) };
 	auto depth{ GetDepth(entity) };
-	auto positions{ circle.GetWorldQuadVertices(draw_transform) };
 	auto blend_mode{ GetBlendMode(entity) };
+	auto entity_id{ entity.GetUUID() };
+	auto effects{ impl::GetEffectParams(entity) };
 
-	auto shader_setup = [&renderer, entity]() {
-		SetUniform(renderer, entity);
-	};
+	std::span<const impl::TextureBinding> extra_textures{};
 
 	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
 
-	// TODO: Fix.
-	/*
-	auto light_shader{ renderer.GetShader("light") };
+	MaterialState material;
 
-	renderer.SetBlendMode(blend_mode);
-	renderer.DrawShader(
-		light_shader, positions, depth, tint, tex_coords, shader_setup, entity.GetUUID()
-	);
-	*/
+	material.shader	  = ctx.GetShader("light");
+	material.uniforms = std::ranges::to<std::vector<UniformWrite>>(Light{ entity }.GetUniforms());
+
+	ctx.WithBlendMode(blend_mode, [&]() {
+		ctx.DrawShader(
+			material, draw_transform, depth, size, draw_origin, tint, tex_coords, effects,
+			extra_textures, entity_id
+		);
+	});
 }
 
 Light& Light::SetIntensity(float intensity) {

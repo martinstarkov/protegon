@@ -1,10 +1,12 @@
 #pragma once
 
+#include <array>
 #include <optional>
 
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/vector2.h"
+#include "renderer/resources/shader.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
@@ -70,7 +72,7 @@ public:
 	Light() = default;
 	explicit Light(Entity entity);
 
-	static void Draw(DrawContext& renderer, Entity entity);
+	static void Draw(DrawContext& ctx, Entity entity);
 
 	Light& SetIntensity(float intensity);
 	float GetIntensity() const;
@@ -102,7 +104,7 @@ public:
 	LightProperties GetLightProperties() const;
 
 private:
-	static void SetUniform(DrawContext& renderer, Entity entity);
+	std::array<UniformWrite, 9> GetUniforms() const;
 };
 
 PTGN_REGISTER_DRAWABLE(Light);

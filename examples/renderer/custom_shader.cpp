@@ -26,29 +26,32 @@ public:
 		ctx().asset.LoadTexture("noise", "assets/noise.png");
 
 		shader_entity = CreateCustomShader(
-			*this, "whirlpool", "noise", V2_float{}, V2_float{ 150 },
-			[this](auto, auto s) mutable {
-				float timescale{ 1.0f };
-				float scale{ 0.5f };
-				float opacity{ 0.5f };
-
-				float time{ static_cast<float>(ctx().TimeSinceStart().count()) };
-				s.SetUniform("u_Time", time / 1000.0f * timescale);
-				s.SetUniform("u_Scale", scale);
-				s.SetUniform("u_Opacity", opacity);
-			},
-			Origin::Center
+			*this, "whirlpool", "noise", V2_float{}, V2_float{ 150 }, {}, Origin::Center
 		);
+
+		SetMaterialUpdate(shader_entity, [](auto entity) mutable {
+			float timescale{ 1.0f };
+			float scale{ 0.5f };
+			float opacity{ 0.5f };
+			float time{ static_cast<float>(entity.GetScene().ctx().TimeSinceStart().count()) };
+
+			SetMaterialUniforms(
+				entity, { { "u_Time", time / 1000.0f * timescale },
+						  { "u_Scale", scale },
+						  { "u_Opacity", opacity } }
+			);
+		});
 
 		shader_entity2 = CreateCustomShader(
-			*this, "ripple", {}, V2_float{ 200 }, V2_float{ 300 },
-			[this](auto, auto s) mutable {
-				float timescale{ 1.0f };
-				float time{ static_cast<float>(ctx().TimeSinceStart().count()) };
-				s.SetUniform("u_Time", time / 1000.0f * timescale);
-			},
-			Origin::Center
+			*this, "ripple", {}, V2_float{ 200 }, V2_float{ 300 }, {}, Origin::Center
 		);
+
+		SetMaterialUpdate(shader_entity, [](auto entity) mutable {
+			float timescale{ 1.0f };
+			float time{ static_cast<float>(entity.GetScene().ctx().TimeSinceStart().count()) };
+
+			SetMaterialUniforms(entity, { { "u_Time", time / 1000.0f * timescale } });
+		});
 	}
 
 	void OnUpdate() override {
