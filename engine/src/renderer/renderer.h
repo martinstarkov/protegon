@@ -58,10 +58,12 @@ class GLContext;
 
 } // namespace gl
 
+void ApplyTransform(Transform transform, std::span<RenderQuad<TextureVertex>> local_quads);
+
 struct DrawTextureRequest {
 	TextureId texture;
-	std::optional<Transform> transform;
-	std::span<RenderQuad<TextureVertex>> quads;
+	Transform transform;
+	std::span<RenderQuad<TextureVertex>> local_quads;
 	std::span<const TextureBinding> extra_textures;
 	EffectParams effect_params;
 };
@@ -136,6 +138,7 @@ public:
 	void SetViewport(Viewport viewport);
 	void SetBlendMode(BlendMode blend_mode);
 	void SetShader(ShaderId shader);
+	void SetShader(std::string_view shader);
 	void SetDepthTesting(bool enabled);
 	void SetDepthMask(const DepthMaskState& mask);
 	void SetStencil(const StencilState& stencil);

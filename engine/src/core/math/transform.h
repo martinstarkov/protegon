@@ -206,32 +206,23 @@ private:
 
 	template <TransformDirection Direction, typename TFunction>
 	void WithPointTransform(TFunction&& function) const {
-		if (HasRotation()) {
+		if (IsIdentity()) {
+			std::invoke(std::forward<TFunction>(function), [](V2_float point) { return point; });
+			return;
+		}
+
+		if (!HasRotation()) {
+			std::invoke(std::forward<TFunction>(function), [this](V2_float point) {
+				return ApplyWithoutRotationImpl<Direction>(point);
+			});
+		} else {
 			float cos{ rotation_.Cos() };
 			float sin{ rotation_.Sin() };
 
-			auto transform = [this, cos, sin](V2_float point) {
+			std::invoke(std::forward<TFunction>(function), [this, cos, sin](V2_float point) {
 				return ApplyWithRotationImpl<Direction>(point, cos, sin);
-			};
-
-			std::invoke(std::forward<TFunction>(function), transform);
-			return;
+			});
 		}
-
-		if (!IsIdentity()) {
-			auto transform = [this](V2_float point) {
-				return ApplyWithoutRotationImpl<Direction>(point);
-			};
-
-			std::invoke(std::forward<TFunction>(function), transform);
-			return;
-		}
-
-		auto transform = [](V2_float point) {
-			return point;
-		};
-
-		std::invoke(std::forward<TFunction>(function), transform);
 	}
 
 	template <

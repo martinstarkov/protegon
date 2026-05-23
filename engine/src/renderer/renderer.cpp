@@ -218,6 +218,10 @@ void Renderer::SetViewport(Viewport viewport) {
 	gl_->SetViewport(viewport);
 }
 
+void Renderer::SetShader(std::string_view shader) {
+	SetShader(GetShader(shader));
+}
+
 void Renderer::SetShader(ShaderId shader) {
 	if (shader == gl_->GetBoundState().shader_program) {
 		return;
@@ -619,14 +623,14 @@ void Renderer::EndFrame() {
 		return;
 	}
 
-	SetViewport(display_viewport_);
-	SetViewProjection(display_viewport_.size);
-	SetBlendMode(BlendMode::ReplaceRGBA);
-
 	PTGN_ASSERT(
 		screen_target_.GetSize() == display_viewport_.size,
 		"Screen target texture size must match display viewport size"
 	);
+
+	SetBlendMode(BlendMode::ReplaceRGBA);
+	SetViewport(display_viewport_);
+	SetViewProjection(display_viewport_.size);
 
 	SetCurrentPipeline("texture");
 	SetMaterial(
@@ -640,13 +644,13 @@ void Renderer::EndFrame() {
 	constexpr auto tint{ color::White };
 	constexpr auto tex_coords{ GetDefaultTextureCoordinates<true>() };
 
-	auto quad{
+	auto local_quad{
 		CreateLocalRenderQuad(display_viewport_.size, depth, tint.Normalized(), tex_coords)
 	};
 
 	DrawTextureRequest request;
-	request.quads	= { &quad, 1 };
-	request.texture = screen_target_.GetTextureId();
+	request.local_quads = { &local_quad, 1 };
+	request.texture		= screen_target_.GetTextureId();
 
 	// TODO: Add screen texture effects.
 	// request.effect_params = ...;
@@ -956,22 +960,11 @@ void Renderer::DrawTextureNormally(const DrawTextureRequest& request) {
 		textures = { &request.texture, 1 };
 	}
 
-	if (request.transform.has_value()) {
-		request.transform->ApplyTo(
-			request.quads | std::views::join,
-			[](const TextureVertex& vertex) {
-				return V2_float{ vertex.position[0], vertex.position[1] };
-			},
-			[](TextureVertex& vertex, V2_float position) {
-				vertex.position[0] = position.x;
-				vertex.position[1] = position.y;
-			}
-		);
-	}
+	ApplyTransform(request.transform, request.local_quads);
 
 	DrawQuads(
 		DrawQuadRequest<TextureVertex, DefaultTextureIndexAccessor<TextureVertex>>{
-			.quads{ request.quads }, .textures{ textures } }
+			.quads{ request.local_quads }, .textures{ textures } }
 	);
 }
 
@@ -989,6 +982,19 @@ void Renderer::DrawTextureNormally(const DrawTextureRequest& request) {
 void Renderer::BindTextureSlot(std::uint32_t slot, TextureId texture) {
 	gl_->SetActiveTextureSlot(slot);
 	auto _3{ gl_->Bind(texture, false) };
+}
+
+void ApplyTransform(Transform transform, std::span<RenderQuad<TextureVertex>> local_quads) {
+	transform.ApplyTo(
+		local_quads | std::views::join,
+		[](const TextureVertex& vertex) {
+			return V2_float{ vertex.position[0], vertex.position[1] };
+		},
+		[](TextureVertex& vertex, V2_float position) {
+			vertex.position[0] = position.x;
+			vertex.position[1] = position.y;
+		}
+	);
 }
 
 } // namespace ptgn::impl
