@@ -26,7 +26,7 @@ class CombinedEffectsSecondScene : public Scene {
 		// This sprite belongs to a different scene.
 		// It should not receive the first scene's scene effect,
 		// but it should receive the final screen effect.
-		auto sprite{ CreateSprite(*this, "sprite", { 0.0f, -280.0f }) };
+		CreateSprite(*this, "sprite", { 0.0f, -280.0f });
 	}
 };
 
@@ -67,7 +67,7 @@ private:
 		// The right one has a local grayscale effect.
 		// ---------------------------------------------------------------------
 
-		auto normal_sprite{ CreateSprite(*this, "sprite", { -180.0f, 140.0f }) };
+		CreateSprite(*this, "sprite", { -180.0f, 140.0f });
 		auto local_effect_sprite{ CreateSprite(*this, "sprite", { 180.0f, 140.0f }) };
 
 		AddEffect(local_effect_sprite, CreateEffect<Grayscale>(*this));
@@ -81,11 +81,11 @@ private:
 		// effect entity.
 		// ---------------------------------------------------------------------
 
-		auto before_effect_entity{ CreateSprite(*this, "sprite", { -180.0f, -140.0f }) };
+		CreateSprite(*this, "sprite", { -180.0f, -140.0f });
 
 		CreateEffect<InverseColor>(*this);
 
-		auto after_effect_entity{ CreateSprite(*this, "sprite", { 180.0f, -140.0f }) };
+		CreateSprite(*this, "sprite", { 180.0f, -140.0f });
 
 		// ---------------------------------------------------------------------
 		// 3. Camera effect.
