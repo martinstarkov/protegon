@@ -8,7 +8,7 @@ in vec2 v_TexCoord;
 in float v_TexIndex;
 flat in int v_EntityID;
 
-uniform sampler2D u_Textures[{MAX_TEXTURE_SLOTS}];
+uniform sampler2D u_Texture;
 
 uniform float u_Weight;
 uniform float u_Softness;
@@ -28,9 +28,7 @@ float Median(float r, float g, float b) {
 }
 
 float ScreenPxRange() {
-	vec2 texture_size = vec2(1.0f);
-
-	{TEXTURE_SIZE_SWITCH_BLOCK}
+	vec2 texture_size = vec2(textureSize(u_Texture, 0));
 
 	vec2 unit_range = vec2(u_PixelRange) / texture_size;
 	vec2 screen_tex_size = vec2(1.0f) / fwidth(v_TexCoord);
@@ -46,17 +44,12 @@ float Coverage(float distance, float weight, float softness) {
 }
 
 void main() {
-	vec4 texture_color = vec4(1.0f);
-
-	{TEXTURE_COLOR_SWITCH_BLOCK}
+	vec4 texture_color = texture(u_Texture, v_TexCoord);
 
 	float distance = Median(texture_color.r, texture_color.g, texture_color.b);
 
 	float fill = Coverage(distance, u_Weight, u_Softness);
 	vec4 color = vec4(v_Color.rgb, v_Color.a * fill);
-
-	//float fill = Coverage(distance, u_Weight, u_Softness);
-	//vec4 color = vec4(v_Color.rgb, v_Color.a * fill);
 
     if (u_OutlineWidth > 0.0f && u_OutlineColor.a > 0.0f) {
         float outline = Coverage(distance, u_Weight - u_OutlineWidth, u_OutlineSoftness);
