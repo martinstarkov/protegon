@@ -134,6 +134,7 @@ void DrawCommands(
 		V2_float scale{ V2_float{ rt_size } / game_size };
 
 		auto viewport{ cam.camera.viewport };
+		// Not *= because we want float multiplication followed by flooring.
 		viewport.position = viewport.position * scale;
 		viewport.size	  = viewport.size * scale;
 		ctx.SetViewport(viewport);
@@ -386,27 +387,23 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 	ctx().global_renderer_.FlushBatch();
 
 	Viewport viewport{ {}, ctx().global_renderer_.GetDisplayViewport().size };
-	V2_float half_viewport{ viewport.size * 0.5f };
 
-	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
 	ctx().global_renderer_.BindScreenTarget();
 	ctx().global_renderer_.SetViewport(viewport);
-	ctx().global_renderer_.SetViewProjection(view_projection);
+	ctx().global_renderer_.SetViewProjection(viewport.size);
 	ctx().global_renderer_.SetBlendMode(BlendMode::Blend);
 
+	auto render_target_texture{ ctx().global_renderer_.GetRenderTargetTexture(render_target_) };
 	auto draw_transform{ GetDrawTransform(render_target_) };
 	auto scene_target_size{ render_target_.GetSize() };
-	constexpr auto draw_origin{ Origin::Center };
-
-	auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 	auto rt_tint{ GetTint(render_target_) };
 
-	auto render_target_texture{ ctx().global_renderer_.GetRenderTargetTexture(render_target_) };
-
-	impl::EffectParams effects{ impl::GetEffectParams(GetRenderTarget()) };
-
+	constexpr auto draw_origin{ Origin::Center };
 	constexpr auto entity_id{ -1 };
 	constexpr auto depth{ 0.0f };
+	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+
+	auto effects{ impl::GetEffectParams(GetRenderTarget()) };
 
 	draw_context.DrawTexture(
 		render_target_texture, draw_transform, depth, scene_target_size, draw_origin, rt_tint,

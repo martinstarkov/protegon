@@ -188,6 +188,13 @@ public:
 		float far = std::numeric_limits<float>::infinity()
 	);
 
+	/// @brief Creates an orthographic projection matrix with the given view size, centered at the
+	/// origin.
+	[[nodiscard]] static Matrix4 Orthographic(
+		V2_float view_size, float near = -std::numeric_limits<float>::infinity(),
+		float far = std::numeric_limits<float>::infinity()
+	);
+
 	[[nodiscard]] static Matrix4 MakeTransform(
 		V3_float position, Radians rotation, V3_float rotation_axis, V3_float scale
 	);

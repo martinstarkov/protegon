@@ -252,6 +252,11 @@ Matrix4 Matrix4::Orthographic(V2_float min, V2_float max, float near, float far)
 	return Orthographic(min.x, max.x, max.y, min.y, near, far);
 }
 
+Matrix4 Matrix4::Orthographic(V2_float view_size, float near, float far) {
+	auto half_size{ view_size * 0.5f };
+	return Orthographic(-half_size, half_size, near, far);
+}
+
 Matrix4 Matrix4::Perspective(Radians fov_x, float aspect_ratio, float front, float back) {
 	float tangent{ (fov_x / 2.0f).Tan() }; // tangent of half fovX
 	float right{ front * tangent };		   // half width of near plane
