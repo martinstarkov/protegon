@@ -17,6 +17,10 @@ Transform::Transform(V2_float position, Radians rotation, V2_float scale) :
 Transform::Transform(V2_float position, Degrees rotation, V2_float scale) :
 	Transform{ position, rotation.ToRad(), scale } {}
 
+bool Transform::IsIdentity() const {
+	return *this == Transform{};
+}
+
 Transform Transform::Inverse() const {
 	PTGN_ASSERT(!scale_.HasZero(), "Cannot get inverse of transform with zero");
 	return { -position_, -rotation_, 1.0f / scale_ };
@@ -177,23 +181,49 @@ V2_float Transform::ApplyInverseWithoutRotation(V2_float point) const {
 	return (point - position_) / scale_;
 }
 
-V2_float Transform::Apply(V2_float point) const {
+void Transform::ApplyTo(V2_float& point) const {
 	if (HasRotation()) {
-		return ApplyWithRotation(point, rotation_.Cos(), rotation_.Sin());
+		point = ApplyWithRotation(point, rotation_.Cos(), rotation_.Sin());
+		return;
 	}
-	if (*this != Transform{}) {
-		return ApplyWithoutRotation(point);
+	if (!IsIdentity()) {
+		point = ApplyWithoutRotation(point);
 	}
+}
+
+void Transform::ApplyInverseTo(V2_float& point) const {
+	if (HasRotation()) {
+		point = ApplyInverseWithRotation(point, rotation_.Cos(), rotation_.Sin());
+		return;
+	}
+	if (!IsIdentity()) {
+		point = ApplyInverseWithoutRotation(point);
+	}
+}
+
+void Transform::ApplyTo(std::span<V2_float> points) const {
+	WithPointTransform<TransformDirection::Forward>([&](auto&& transform) {
+		std::ranges::transform(points, points.begin(), transform);
+	});
+}
+
+void Transform::ApplyInverseTo(std::span<V2_float> points) const {
+	WithPointTransform<TransformDirection::Inverse>([&](auto&& transform) {
+		std::ranges::transform(points, points.begin(), transform);
+	});
+}
+
+V2_float Transform::Apply(V2_float point) const {
+	WithPointTransform<TransformDirection::Forward>([&](auto&& transform) {
+		point = transform(point);
+	});
 	return point;
 }
 
 V2_float Transform::ApplyInverse(V2_float point) const {
-	if (HasRotation()) {
-		return ApplyInverseWithRotation(point, rotation_.Cos(), rotation_.Sin());
-	}
-	if (*this != Transform{}) {
-		return ApplyInverseWithoutRotation(point);
-	}
+	WithPointTransform<TransformDirection::Inverse>([&](auto&& transform) {
+		point = transform(point);
+	});
 	return point;
 }
 
@@ -202,24 +232,9 @@ void Transform::Apply(
 ) const {
 	PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
-	if (HasRotation()) {
-		float cos{ rotation_.Cos() };
-		float sin{ rotation_.Sin() };
-
-		std::ranges::transform(points, out_transformed_points.begin(), [&](const auto& point) {
-			return ApplyWithRotation(point, cos, sin);
-		});
-		return;
-	}
-
-	if (*this != Transform{}) {
-		std::ranges::transform(points, out_transformed_points.begin(), [&](const auto& point) {
-			return ApplyWithoutRotation(point);
-		});
-		return;
-	}
-
-	std::ranges::copy(points, out_transformed_points.begin());
+	WithPointTransform<TransformDirection::Forward>([&](auto&& transform) {
+		std::ranges::transform(points, out_transformed_points.begin(), transform);
+	});
 }
 
 void Transform::ApplyInverse(
@@ -227,24 +242,9 @@ void Transform::ApplyInverse(
 ) const {
 	PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
-	if (HasRotation()) {
-		float cos{ rotation_.Cos() };
-		float sin{ rotation_.Sin() };
-
-		std::ranges::transform(points, out_transformed_points.begin(), [&](const auto& point) {
-			return ApplyInverseWithRotation(point, cos, sin);
-		});
-		return;
-	}
-
-	if (*this != Transform{}) {
-		std::ranges::transform(points, out_transformed_points.begin(), [&](const auto& point) {
-			return ApplyInverseWithoutRotation(point);
-		});
-		return;
-	}
-
-	std::ranges::copy(points, out_transformed_points.begin());
+	WithPointTransform<TransformDirection::Inverse>([&](auto&& transform) {
+		std::ranges::transform(points, out_transformed_points.begin(), transform);
+	});
 }
 
 std::vector<V2_float> Transform::Apply(const std::vector<V2_float>& points) const {
