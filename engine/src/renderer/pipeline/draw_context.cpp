@@ -112,11 +112,11 @@ void DrawContext::DrawTexture(
 	Rect rect{ size };
 
 	request.texture = texture;
-	auto quad{
+	auto local_quad{
 		impl::CreateLocalRenderQuad(rect, depth, tint.Normalized(), tex_coords, 0.0f, entity_id)
 	};
 	request.transform	  = rect.Offset(transform, draw_origin);
-	request.quads		  = { &quad, 1 };
+	request.local_quads	  = { &local_quad, 1 };
 	request.effect_params = effects;
 
 	renderer_.SetCurrentPipeline("texture");
@@ -148,29 +148,29 @@ void DrawContext::DrawLines(
 void DrawContext::Draw(const impl::ManualCommand& cmd) {
 	std::visit(
 		[&]<typename T>(const T& arg) {
-			if constexpr (std::is_same_v<T, impl::TriangleCommand>) {
+			if constexpr (std::is_same_v<T, impl::TextureCommand>) {
+				renderer_.SetCurrentPipeline("texture");
+				renderer_.SetShader(arg.shader);
+				renderer_.DrawQuads(
+					impl::DrawQuadRequest<impl::TextureVertex>{ .quads{ arg.quads },
+																.textures{ &arg.texture, 1 } }
+				);
+			} else if constexpr (std::is_same_v<T, impl::ShapeCommand>) {
+				renderer_.SetCurrentPipeline("shape");
+				renderer_.SetShader(arg.shader);
+				renderer_.DrawQuads<impl::ShapeVertex, impl::NoTextureIndexAccessor>({ .quads{
+					arg.quads } });
+			} else if constexpr (std::is_same_v<T, impl::QuadCommand>) {
 				renderer_.SetCurrentPipeline("color");
-				renderer_.SetMaterial({ .shader{ GetShader("color") } });
+				renderer_.SetShader("color");
+				renderer_.DrawQuads<impl::ColorVertex, impl::NoTextureIndexAccessor>({ .quads{
+					arg.quads } });
+			} else if constexpr (std::is_same_v<T, impl::TriangleCommand>) {
+				renderer_.SetCurrentPipeline("color");
+				renderer_.SetShader("color");
 				renderer_.DrawTriangles<impl::ColorVertex, impl::NoTextureIndexAccessor>(
 					{ .triangles{ arg.triangles } }
 				);
-			} else if constexpr (std::is_same_v<T, impl::QuadCommand>) {
-				renderer_.SetCurrentPipeline("color");
-				renderer_.SetMaterial({ .shader{ GetShader("color") } });
-				renderer_.DrawQuads<impl::ColorVertex, impl::NoTextureIndexAccessor>({ .quads{
-					arg.quads } });
-			} else if constexpr (std::is_same_v<T, impl::ShapeCommand>) {
-				renderer_.SetCurrentPipeline("shape");
-				renderer_.SetMaterial({ .shader{ arg.shader } });
-				renderer_.DrawQuads<impl::ShapeVertex, impl::NoTextureIndexAccessor>({ .quads{
-					arg.shapes } });
-			} else if constexpr (std::is_same_v<T, impl::TextureCommand>) {
-				renderer_.SetCurrentPipeline("texture");
-				renderer_.SetMaterial(arg.material);
-				// TODO: Fix.
-				// renderer_.DrawQuads<impl::TextureVertex>(
-				//	arg.quads, arg.textures, impl::NoTextureIndexAccessor{}
-				//);
 			} else {
 				static_assert(false, "Incomplete visitor!");
 			}
@@ -184,25 +184,6 @@ impl::ShaderId DrawContext::GetShader(std::string_view name) const {
 }
 
 /*
-
-DrawContext::DrawContext(impl::Renderer& renderer) : renderer_{ renderer } {}
-
-impl::ShaderId DrawContext::GetShaderId(ShaderVariant shader) const {
-	return std::visit(
-		[&]<typename T>(const T& arg) -> impl::ShaderId {
-			if constexpr (std::is_same_v<T, Shader>) {
-				return arg;
-			} else if constexpr (std::is_same_v<T, impl::ShaderId>) {
-				return arg;
-			} else if constexpr (std::is_same_v<T, std::string_view>) {
-				return renderer_.GetShader(arg);
-			} else {
-				static_assert(false, "Incomplete visitor!");
-			}
-		},
-		shader
-	);
-}
 
 std::optional<impl::DrawCommandType> DrawContext::GetDrawCommand(
 	impl::ShaderId quad_shader, std::span<const V2_float> points, float line_width,

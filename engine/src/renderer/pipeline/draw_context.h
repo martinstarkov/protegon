@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <span>
 #include <string_view>
 #include <variant>
@@ -41,13 +42,13 @@ struct QuadCommand {
 
 struct ShapeCommand {
 	ShaderId shader;
-	std::vector<RenderQuad<ShapeVertex>> shapes;
+	std::vector<RenderQuad<ShapeVertex>> quads;
 };
 
 struct TextureCommand {
-	MaterialState material;
+	ShaderId shader;
+	TextureId texture;
 	std::vector<RenderQuad<TextureVertex>> quads;
-	std::vector<TextureId> textures;
 };
 
 using ManualCommand = std::variant<TriangleCommand, QuadCommand, ShapeCommand, TextureCommand>;
@@ -123,7 +124,7 @@ public:
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
-	// TODO: Possibly move these to private.
+	// TODO: Move these to private once Scene renderer is added.
 	void SetViewport(Viewport viewport);
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetScissor(const ScissorState& scissor);
