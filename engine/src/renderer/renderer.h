@@ -17,6 +17,7 @@
 #include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/matrix4.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
@@ -59,7 +60,8 @@ class GLContext;
 
 struct DrawTextureRequest {
 	TextureId texture;
-	std::span<const RenderQuad<TextureVertex>> vertices;
+	std::optional<Transform> transform;
+	std::span<RenderQuad<TextureVertex>> quads;
 	std::span<const TextureBinding> extra_textures;
 	EffectParams effect_params;
 };
@@ -126,6 +128,9 @@ private:
 	void DrawTextureNormally(const DrawTextureRequest& request);
 
 public:
+	/// @brief Set the view projection to an orthographic projection matrix with the given size,
+	/// centered at the origin.
+	void SetViewProjection(V2_float size);
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetFramebuffer(FramebufferId framebuffer);
 	void SetViewport(Viewport viewport);

@@ -13,6 +13,7 @@
 #include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
@@ -41,9 +42,8 @@ RenderQuad<TextureVertex> CreateRenderQuad(
 	float tex_index = 0.0f, int entity_id = -1
 );
 
-RenderQuad<TextureVertex> CreateRenderQuad(
-	Transform transform, V2_float size, Origin draw_origin = Origin::Center, float depth = 0.0f,
-	V4_float color_n						  = color::White.Normalized(),
+RenderQuad<TextureVertex> CreateLocalRenderQuad(
+	Rect rect, float depth = 0.0f, V4_float color_n = color::White.Normalized(),
 	const std::array<V2_float, 4>& tex_coords = GetDefaultTextureCoordinates<false>(),
 	float tex_index = 0.0f, int entity_id = -1
 );

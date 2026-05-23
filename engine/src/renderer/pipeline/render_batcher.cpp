@@ -30,13 +30,11 @@ RenderQuad<TextureVertex> CreateRenderQuad(
 	};
 }
 
-RenderQuad<TextureVertex> CreateRenderQuad(
-	Transform transform, V2_float size, Origin draw_origin, float depth, V4_float color_n,
-	const std::array<V2_float, 4>& tex_coords, float tex_index, int entity_id
+RenderQuad<TextureVertex> CreateLocalRenderQuad(
+	Rect rect, float depth, V4_float color_n, const std::array<V2_float, 4>& tex_coords,
+	float tex_index, int entity_id
 ) {
-	Rect rect{ size };
-
-	auto positions{ rect.GetWorldVertices(transform, draw_origin) };
+	auto positions{ rect.GetLocalVertices() };
 
 	return {
 		TextureVertex{ positions[0], depth, color_n, tex_coords[0], tex_index, entity_id },

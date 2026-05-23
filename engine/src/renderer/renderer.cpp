@@ -8,6 +8,7 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
@@ -19,7 +20,9 @@
 #include "core/graphics/color.h"
 #include "core/graphics/surface.h"
 #include "core/log.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
@@ -83,9 +86,7 @@ Renderer::Renderer(Window& window, EventSink&& event_sink) :
 
 	screen_target_ = CreateRenderTarget({ .size{ display_size }, .format{ TextureFormat::RGBA8 } });
 	BindScreenTarget();
-	V2_float half_viewport{ display_size / 2.0f };
-	auto view_projection{ Matrix4::Orthographic(-half_viewport, half_viewport) };
-	SetViewProjection(view_projection);
+	SetViewProjection(display_size);
 
 	auto max_texture_slots{ GetMaxTextureSlots() };
 
@@ -243,6 +244,10 @@ void Renderer::SetRenderTarget(const RenderTargetObject* target) {
 		SetFramebuffer(FramebufferId{ target->operator RenderTargetId() });
 	}
 	current_target_ = target;
+}
+
+void Renderer::SetViewProjection(V2_float size) {
+	SetViewProjection(Matrix4::Orthographic(size));
 }
 
 void Renderer::SetViewProjection(const Matrix4& view_projection) {
@@ -614,10 +619,8 @@ void Renderer::EndFrame() {
 		return;
 	}
 
-	V2_float half_viewport{ display_viewport_.size * 0.5f };
-
 	SetViewport(display_viewport_);
-	SetViewProjection(Matrix4::Orthographic(-half_viewport, half_viewport));
+	SetViewProjection(display_viewport_.size);
 	SetBlendMode(BlendMode::ReplaceRGBA);
 
 	PTGN_ASSERT(
@@ -625,29 +628,25 @@ void Renderer::EndFrame() {
 		"Screen target texture size must match display viewport size"
 	);
 
-	const auto texture_shader{ GetShader("texture") };
-
 	SetCurrentPipeline("texture");
 	SetMaterial(
 		MaterialState{
-			.shader	  = texture_shader,
+			.shader	  = GetShader("texture"),
 			.uniforms = {},
 		}
 	);
-
-	const auto positions{ GetCenteredQuadPoints(display_viewport_.size) };
 
 	constexpr auto depth{ 0.0f };
 	constexpr auto tint{ color::White };
 	constexpr auto tex_coords{ GetDefaultTextureCoordinates<true>() };
 
-	auto quad{ CreateRenderQuad(positions, depth, tint.Normalized(), tex_coords) };
-
-	TextureId screen_texture{ screen_target_.GetTextureId() };
+	auto quad{
+		CreateLocalRenderQuad(display_viewport_.size, depth, tint.Normalized(), tex_coords)
+	};
 
 	DrawTextureRequest request;
-	request.vertices = { &quad, 1 };
-	request.texture	 = screen_texture;
+	request.quads	= { &quad, 1 };
+	request.texture = screen_target_.GetTextureId();
 
 	// TODO: Add screen texture effects.
 	// request.effect_params = ...;
@@ -957,9 +956,22 @@ void Renderer::DrawTextureNormally(const DrawTextureRequest& request) {
 		textures = { &request.texture, 1 };
 	}
 
+	if (request.transform.has_value()) {
+		request.transform->ApplyTo(
+			request.quads | std::views::join,
+			[](const TextureVertex& vertex) {
+				return V2_float{ vertex.position[0], vertex.position[1] };
+			},
+			[](TextureVertex& vertex, V2_float position) {
+				vertex.position[0] = position.x;
+				vertex.position[1] = position.y;
+			}
+		);
+	}
+
 	DrawQuads(
 		DrawQuadRequest<TextureVertex, DefaultTextureIndexAccessor<TextureVertex>>{
-			.quads{ request.vertices }, .textures{ textures } }
+			.quads{ request.quads }, .textures{ textures } }
 	);
 }
 

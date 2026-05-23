@@ -11,6 +11,7 @@
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/math_utils.h"
 #include "core/math/matrix4.h"
@@ -108,11 +109,14 @@ void DrawContext::DrawTexture(
 ) {
 	impl::DrawTextureRequest request;
 
+	Rect rect{ size };
+
 	request.texture = texture;
-	auto quad{ impl::CreateRenderQuad(
-		transform, size, draw_origin, depth, tint.Normalized(), tex_coords, 0.0f, entity_id
-	) };
-	request.vertices	  = { &quad, 1 };
+	auto quad{
+		impl::CreateLocalRenderQuad(rect, depth, tint.Normalized(), tex_coords, 0.0f, entity_id)
+	};
+	request.transform	  = rect.Offset(transform, draw_origin);
+	request.quads		  = { &quad, 1 };
 	request.effect_params = effects;
 
 	renderer_.SetCurrentPipeline("texture");
