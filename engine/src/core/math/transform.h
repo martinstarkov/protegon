@@ -239,9 +239,9 @@ private:
 		InvocableR<V2_float, std::ranges::range_reference_t<TRange>> TGetPosition,
 		InvocableR<void, std::ranges::range_reference_t<TRange>, V2_float> TSetPosition>
 	void ApplyToElements(
-		TRange&& elements, TGetPosition&& get_position, TSetPosition&& set_position
+		TRange&& elements, TGetPosition get_position, TSetPosition set_position
 	) const {
-		WithPointTransform<Direction>([&](auto&& transform) {
+		WithPointTransform<Direction>([&elements, &get_position, &set_position](auto&& transform) {
 			for (auto&& element : elements) {
 				auto position{ std::invoke(get_position, element) };
 				std::invoke(set_position, element, transform(position));
