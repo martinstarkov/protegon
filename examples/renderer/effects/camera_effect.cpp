@@ -42,11 +42,11 @@ private:
 		left_camera.SetViewport(kLeftViewport);
 		ctx().camera.SetViewport(kRightViewport);
 
-		left_camera.SetClearColor(color::LightGray.WithAlpha(0.8f));
-		ctx().camera.SetClearColor(color::LightGray.WithAlpha(0.8f));
+		left_camera.SetClearColor(color::LightBlue.WithAlpha(0.8f));
+		ctx().camera.SetClearColor(color::LightRed.WithAlpha(0.8f));
 
-		CreateSprite(*this, "sprite", { -50.0f, 0.0f });
-		CreateSprite(*this, "sprite", { 50.0f, 0.0f });
+		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
+		CreateSprite(*this, "sprite", { 180.0f, 0.0f });
 
 		AddEffect(ctx().camera, CreateEffect<Grayscale>(*this));
 	}

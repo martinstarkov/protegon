@@ -26,14 +26,14 @@ class CombinedEffectsSecondScene : public Scene {
 		// This sprite belongs to a different scene.
 		// It should not receive the first scene's scene effect,
 		// but it should receive the final screen effect.
-		auto sprite{ CreateSprite(*this, "sprite", { 0.0f, -70.0f }) };
+		auto sprite{ CreateSprite(*this, "sprite", { 0.0f, -280.0f }) };
 	}
 };
 
 class CombinedEffectsScene : public Scene {
 public:
 	static constexpr V2_int kWindowSize{ 1280, 720 };
-	static constexpr V2_int kGameSize{ 320, 180 };
+	static constexpr V2_int kGameSize{ kWindowSize };
 
 	static constexpr Viewport kLeftViewport{ { 0.0f, 0.0f }, { kGameSize.x / 2.0f, kGameSize.y } };
 
@@ -67,8 +67,8 @@ private:
 		// The right one has a local grayscale effect.
 		// ---------------------------------------------------------------------
 
-		auto normal_sprite{ CreateSprite(*this, "sprite", { -60.0f, 55.0f }) };
-		auto local_effect_sprite{ CreateSprite(*this, "sprite", { 60.0f, 55.0f }) };
+		auto normal_sprite{ CreateSprite(*this, "sprite", { -180.0f, 140.0f }) };
+		auto local_effect_sprite{ CreateSprite(*this, "sprite", { 180.0f, 140.0f }) };
 
 		AddEffect(local_effect_sprite, CreateEffect<Grayscale>(*this));
 
@@ -81,11 +81,11 @@ private:
 		// effect entity.
 		// ---------------------------------------------------------------------
 
-		auto before_effect_entity{ CreateSprite(*this, "sprite", { -60.0f, -15.0f }) };
+		auto before_effect_entity{ CreateSprite(*this, "sprite", { -180.0f, -140.0f }) };
 
 		CreateEffect<InverseColor>(*this);
 
-		auto after_effect_entity{ CreateSprite(*this, "sprite", { 60.0f, -15.0f }) };
+		auto after_effect_entity{ CreateSprite(*this, "sprite", { 180.0f, -140.0f }) };
 
 		// ---------------------------------------------------------------------
 		// 3. Camera effect.

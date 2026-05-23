@@ -13,7 +13,7 @@ class ScreenEffectSecondScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		CreateSprite(*this, "sprite", { 60.0f, 0.0f });
+		CreateSprite(*this, "sprite", { 180.0f, 0.0f });
 	}
 };
 
@@ -21,7 +21,7 @@ class ScreenEffectFirstScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		CreateSprite(*this, "sprite", { -60.0f, 0.0f });
+		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
 
 		AddScreenEffect<Grayscale>(*this);
 

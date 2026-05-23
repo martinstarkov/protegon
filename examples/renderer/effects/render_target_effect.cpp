@@ -14,8 +14,8 @@ class RenderTargetEffectScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		auto sprite1{ CreateSprite(*this, "sprite", { -60.0f, 0.0f }) };
-		auto sprite2{ CreateSprite(*this, "sprite", { 60.0f, 0.0f }) };
+		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
+		auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
 
 		AddEffect(sprite2, CreateEffect<Grayscale>(*this));
 	}
