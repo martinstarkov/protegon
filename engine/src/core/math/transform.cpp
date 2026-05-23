@@ -1,8 +1,8 @@
 #include "core/math/transform.h"
 
-#include <algorithm>
 #include <ranges>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include "core/assert.h"
@@ -202,26 +202,26 @@ void Transform::ApplyInverseTo(V2_float& point) const {
 }
 
 void Transform::ApplyTo(std::span<V2_float> points) const {
-	WithPointTransform<TransformDirection::Forward>([&](auto&& transform) {
-		std::ranges::transform(points, points.begin(), transform);
+	WithPointTransform<TransformDirection::Forward>([&points]<typename T>(T&& transform) {
+		std::ranges::transform(points, points.begin(), std::forward<T>(transform));
 	});
 }
 
 void Transform::ApplyInverseTo(std::span<V2_float> points) const {
-	WithPointTransform<TransformDirection::Inverse>([&](auto&& transform) {
-		std::ranges::transform(points, points.begin(), transform);
+	WithPointTransform<TransformDirection::Inverse>([&points]<typename T>(T&& transform) {
+		std::ranges::transform(points, points.begin(), std::forward<T>(transform));
 	});
 }
 
 V2_float Transform::Apply(V2_float point) const {
-	WithPointTransform<TransformDirection::Forward>([&](auto&& transform) {
+	WithPointTransform<TransformDirection::Forward>([&point](auto&& transform) {
 		point = transform(point);
 	});
 	return point;
 }
 
 V2_float Transform::ApplyInverse(V2_float point) const {
-	WithPointTransform<TransformDirection::Inverse>([&](auto&& transform) {
+	WithPointTransform<TransformDirection::Inverse>([&point](auto&& transform) {
 		point = transform(point);
 	});
 	return point;
@@ -232,8 +232,10 @@ void Transform::Apply(
 ) const {
 	PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
-	WithPointTransform<TransformDirection::Forward>([&](auto&& transform) {
-		std::ranges::transform(points, out_transformed_points.begin(), transform);
+	WithPointTransform<TransformDirection::Forward>([&points, &out_transformed_points]<typename T>(
+														T&& transform
+													) {
+		std::ranges::transform(points, out_transformed_points.begin(), std::forward<T>(transform));
 	});
 }
 
@@ -242,18 +244,20 @@ void Transform::ApplyInverse(
 ) const {
 	PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
-	WithPointTransform<TransformDirection::Inverse>([&](auto&& transform) {
-		std::ranges::transform(points, out_transformed_points.begin(), transform);
+	WithPointTransform<TransformDirection::Inverse>([&points, &out_transformed_points]<typename T>(
+														T&& transform
+													) {
+		std::ranges::transform(points, out_transformed_points.begin(), std::forward<T>(transform));
 	});
 }
 
-std::vector<V2_float> Transform::Apply(const std::vector<V2_float>& points) const {
+std::vector<V2_float> Transform::Apply(std::span<const V2_float> points) const {
 	std::vector<V2_float> transformed_points(points.size());
 	Apply(points, transformed_points);
 	return transformed_points;
 }
 
-std::vector<V2_float> Transform::ApplyInverse(const std::vector<V2_float>& points) const {
+std::vector<V2_float> Transform::ApplyInverse(std::span<const V2_float> points) const {
 	std::vector<V2_float> transformed_points(points.size());
 	ApplyInverse(points, transformed_points);
 	return transformed_points;

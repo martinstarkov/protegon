@@ -115,7 +115,7 @@ struct Transform {
 
 	[[nodiscard]] V2_float Apply(V2_float point) const;
 
-	[[nodiscard]] std::vector<V2_float> Apply(const std::vector<V2_float>& points) const;
+	[[nodiscard]] std::vector<V2_float> Apply(std::span<const V2_float> points) const;
 
 	template <std::size_t N>
 	[[nodiscard]] std::array<V2_float, N> Apply(const std::array<V2_float, N>& points) const {
@@ -140,7 +140,7 @@ struct Transform {
 
 	[[nodiscard]] V2_float ApplyInverse(V2_float point) const;
 
-	[[nodiscard]] std::vector<V2_float> ApplyInverse(const std::vector<V2_float>& points) const;
+	[[nodiscard]] std::vector<V2_float> ApplyInverse(std::span<const V2_float> points) const;
 
 	template <std::size_t N>
 	[[nodiscard]] std::array<V2_float, N> ApplyInverse(
