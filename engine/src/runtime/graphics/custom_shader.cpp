@@ -2,7 +2,6 @@
 
 #include <functional>
 #include <optional>
-#include <span>
 #include <string_view>
 #include <vector>
 
@@ -12,7 +11,6 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
@@ -30,6 +28,8 @@ namespace ptgn {
 CustomShader::CustomShader(Entity entity) : Entity{ entity } {}
 
 void CustomShader::Draw(DrawContext& ctx, Entity entity) {
+	// TODO: Can this be replaced almost fully with Sprite::Draw?
+
 	PTGN_ASSERT((entity.Has<Rect, MaterialState>()));
 
 	const auto& material{ entity.Get<MaterialState>() };

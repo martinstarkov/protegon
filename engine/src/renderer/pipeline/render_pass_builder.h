@@ -6,8 +6,8 @@
 
 #include "core/math/vector2.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/render_target_object.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture_format.h"
 

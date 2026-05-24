@@ -10,46 +10,17 @@
 #include <vector>
 
 #include "core/assert.h"
-#include "core/graphics/color.h"
 #include "core/log.h"
-#include "core/math/geometry/origin.h"
-#include "core/math/geometry/rect.h"
-#include "core/math/transform.h"
-#include "core/math/vector2.h"
-#include "core/math/vector4.h"
 #include "renderer/pipeline/buffer_layout.h"
-#include "renderer/pipeline/render_target_pool.h"
+#include "renderer/pipeline/vertex.h"
 #include "renderer/resources/id.h"
-#include "renderer/vertex/vertex.h"
+#include "renderer/resources/render_target_object.h"
 
 namespace ptgn::impl {
 
 class Renderer;
 
 using Index = std::uint32_t;
-
-inline constexpr std::uint32_t kBatchCapacity{ 10000 };
-inline constexpr std::uint32_t kVertexCapacity{ kBatchCapacity * 4 };
-inline constexpr std::uint32_t kIndexCapacity{ kBatchCapacity * 6 };
-
-template <VertexType TVertex>
-using RenderQuad = std::array<TVertex, 4>;
-
-RenderQuad<TextureVertex> CreateRenderQuad(
-	const std::array<V2_float, 4>& positions, float depth = 0.0f,
-	V4_float color_n						  = color::White.Normalized(),
-	const std::array<V2_float, 4>& tex_coords = GetDefaultTextureCoordinates<false>(),
-	float tex_index = 0.0f, int entity_id = -1
-);
-
-RenderQuad<TextureVertex> CreateLocalRenderQuad(
-	Rect rect, float depth = 0.0f, V4_float color_n = color::White.Normalized(),
-	const std::array<V2_float, 4>& tex_coords = GetDefaultTextureCoordinates<false>(),
-	float tex_index = 0.0f, int entity_id = -1
-);
-
-template <VertexType TVertex>
-using RenderTriangle = std::array<TVertex, 3>;
 
 inline constexpr std::array<Index, 6> kQuadIndices{
 	0, 1, 2, 2, 3, 0,
@@ -74,6 +45,10 @@ struct NoTextureIndexAccessor {
 		return dummy;
 	}
 };
+
+inline constexpr std::uint32_t kBatchCapacity{ 10000 };
+inline constexpr std::uint32_t kVertexCapacity{ kBatchCapacity * 4 };
+inline constexpr std::uint32_t kIndexCapacity{ kBatchCapacity * 6 };
 
 class RenderBatcher {
 public:

@@ -1,20 +1,18 @@
 #include "runtime/graphics/render_target.h"
 
 #include <optional>
-#include <span>
 
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
-#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/draw_context.h"
-#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport_event.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/render_target_object.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
@@ -110,6 +108,8 @@ void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
 
 	PTGN_ASSERT(size.has_value(), "Render target does not have a texture");
 	PTGN_ASSERT(!(*size).IsZero(), "Render target texture does not have a valid size");
+
+	// TODO: Can this be replaced almost fully with Sprite::Draw?
 
 	auto blend_mode{ GetBlendMode(entity) };
 	auto draw_origin{ GetDrawOrigin(entity) };
