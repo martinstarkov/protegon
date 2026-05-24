@@ -7,7 +7,7 @@
 #include <type_traits>
 
 #include "core/util/concepts.h"
-#include "renderer/vertex/glsl_types.h"
+#include "renderer/pipeline/glsl_types.h"
 
 namespace ptgn::impl {
 

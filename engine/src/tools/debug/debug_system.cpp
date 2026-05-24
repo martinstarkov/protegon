@@ -19,7 +19,7 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
-#include "renderer/vertex/vertex.h"
+#include "renderer/pipeline/vertex.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/render_context.h"
 #include "runtime/graphics/text/font.h"

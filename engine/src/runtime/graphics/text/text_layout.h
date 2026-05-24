@@ -10,7 +10,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/id.h"
-#include "renderer/vertex/vertex.h"
+#include "renderer/pipeline/vertex.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text_effect.h"

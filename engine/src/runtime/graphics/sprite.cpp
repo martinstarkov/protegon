@@ -2,24 +2,17 @@
 
 #include <array>
 #include <optional>
-#include <span>
 #include <string_view>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "renderer/pipeline/draw_context.h"
-#include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/render_target_pool.h"
-#include "renderer/renderer.h"
-#include "renderer/resources/id.h"
+#include "renderer/pipeline/vertex.h"
 #include "renderer/resources/texture.h"
-#include "renderer/resources/texture_format.h"
-#include "renderer/vertex/vertex.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -61,6 +54,7 @@ void Sprite::Draw(
 
 	// GetDisplaySize already handles the scaling.
 	PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component");
+	// Maintain scale sign as this is used to flip the direction of a sprite.
 	draw_transform.SetScale(scale / Abs(scale));
 
 	auto tint{ GetTint(entity) };

@@ -6,10 +6,10 @@
 #include <chrono>
 #include <cmath>
 #include <optional>
-#include <span>
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <valarray>
 #include <variant>
 #include <vector>
 
@@ -29,9 +29,8 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
-#include "renderer/pipeline/render_target_pool.h"
+#include "renderer/pipeline/vertex.h"
 #include "renderer/resources/texture.h"
-#include "renderer/vertex/vertex.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"

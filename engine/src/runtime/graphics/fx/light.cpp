@@ -3,7 +3,6 @@
 #include <array>
 #include <optional>
 #include <ranges>
-#include <span>
 #include <vector>
 
 #include "core/assert.h"
@@ -18,10 +17,9 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/render_target_pool.h"
+#include "renderer/pipeline/vertex.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
-#include "renderer/vertex/vertex.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/effects.h"
