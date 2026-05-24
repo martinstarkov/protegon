@@ -177,12 +177,15 @@ void RecalculateCameraViewProjection(SceneCamera camera);
 /// Apply bounds to the current scroll.
 void ApplyCameraBounds(SceneCamera camera);
 
+using CameraUUID = std::size_t;
+
 struct RenderCamera {
-	std::size_t uuid{ 0 };
+	CameraUUID uuid{ 0 };
 	Depth depth;
 	Camera camera;
 	std::optional<Color> clear_color;
-	std::optional<RenderTarget> render_target;
+	SceneCamera scene_camera;
+	RenderTarget render_target;
 
 	friend bool operator==(const RenderCamera& lhs, const RenderCamera& rhs) {
 		return lhs.uuid == rhs.uuid;

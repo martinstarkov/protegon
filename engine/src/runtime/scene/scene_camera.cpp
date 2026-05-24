@@ -36,7 +36,8 @@ RenderCamera::RenderCamera(SceneCamera scene_camera) :
 	uuid{ static_cast<std::size_t>(scene_camera.GetUUID()) },
 	depth{ GetDepth(scene_camera) },
 	camera{ scene_camera.operator ptgn::Camera() },
-	clear_color{ scene_camera.GetClearColor() } {
+	clear_color{ scene_camera.GetClearColor() },
+	scene_camera{ scene_camera } {
 	if (auto parent_rt{ scene_camera.template TryGet<impl::ParentRenderTarget>() }) {
 		render_target = parent_rt->render_target;
 	}

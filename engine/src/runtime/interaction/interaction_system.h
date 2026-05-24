@@ -193,17 +193,15 @@ private:
 	void DrawDebug(Scene& scene) const;
 	void DrawDebugForCamera(
 		Scene& scene, const impl::MouseInfo& mouse_state, const impl::RenderCamera& camera,
-		const std::function<bool(Entity)>& filter
+		const impl::EntityFilterFunc& filter
 	) const;
 
-	using CameraUUID = std::size_t;
-
 	/// @brief A set of entities currently being dragged per a given camera uuid.
-	std::unordered_map<CameraUUID, impl::InteractedEntities> dragging_entities_;
+	std::unordered_map<impl::CameraUUID, impl::InteractedEntities> dragging_entities_;
 
 	/// @brief Stores the set of entities that were under the mouse cursor in the previous frame per
 	/// a given camera.
-	std::unordered_map<CameraUUID, impl::InteractedEntities> last_mouse_over_;
+	std::unordered_map<impl::CameraUUID, impl::InteractedEntities> last_mouse_over_;
 	/// @brief Indicates whether only the top interactable entity should be processed or considered.
 	bool top_only_{ false };
 
