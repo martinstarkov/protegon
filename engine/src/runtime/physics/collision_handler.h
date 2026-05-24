@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <vector>
 
 #include "core/graphics/color.h"
@@ -17,6 +18,12 @@ namespace ptgn {
 class Physics;
 class Scene;
 class SceneContext;
+
+namespace impl {
+
+struct RenderCamera;
+
+} // namespace impl
 
 struct CollisionDebugSettings {
 	/// @brief If true, draws continuous collision detection sweeps for debugging purposes.
@@ -100,6 +107,12 @@ private:
 	) const;
 
 	void Update(Scene& scene, secondsf dt);
+
+	void DrawDebugForCamera(
+		Scene& scene, const impl::RenderCamera& camera, const impl::EntityFilterFunc& filter
+	) const;
+
+	void DrawDebug(Scene& scene) const;
 
 	impl::KDTree static_tree_{ 100 };
 	impl::KDTree dynamic_tree_{ 100 };

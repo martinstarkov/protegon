@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <functional>
+#include <optional>
 #include <vector>
 
 #include "core/assert.h"
@@ -19,7 +20,11 @@
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/drawable.h"
+#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/shape.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/broadphase.h"
 #include "runtime/physics/collider.h"
@@ -27,6 +32,7 @@
 #include "runtime/physics/collision_event.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
@@ -602,6 +608,41 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 			}
 		}
 	}
+}
+
+void CollisionHandler::DrawDebugForCamera(
+	Scene& scene, const impl::RenderCamera& camera, const impl::EntityFilterFunc& filter
+) const {
+	PTGN_ASSERT(debug_settings_.draw_enabled);
+
+	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
+		// Mask test (entity layers vs camera include/exclude).
+		if (filter(entity)) {
+			continue;
+		}
+
+		auto transform{ GetDrawTransform(entity) };
+		auto draw_origin{ GetDrawOrigin(entity) };
+
+		scene.ctx().debug.DrawShape(
+			collider.shape, transform, debug_settings_.draw_color, debug_settings_.draw_fill_style,
+			draw_origin, camera
+		);
+	}
+}
+
+void CollisionHandler::DrawDebug(Scene& scene) const {
+	if (!debug_settings_.draw_enabled) {
+		return;
+	}
+
+	const auto& primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
+
+	impl::ForDrawableSceneEntities(
+		scene, primary_world_camera, [this](auto& scene, const auto& camera, const auto& filter) {
+			DrawDebugForCamera(scene, camera, filter);
+		}
+	);
 }
 
 void CollisionHandler::SetDebugSettings(const CollisionDebugSettings& settings) {

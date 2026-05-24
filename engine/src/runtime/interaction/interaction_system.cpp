@@ -177,13 +177,11 @@ void InteractionSystem::SetDebugSettings(const InteractiveDebugSettings& setting
 
 void InteractionSystem::DrawDebugForCamera(
 	Scene& scene, const impl::MouseInfo& mouse_state, const impl::RenderCamera& camera,
-	const std::function<bool(Entity)>& filter
+	const impl::EntityFilterFunc& filter
 ) const {
-	if (!debug_settings_.draw_enabled) {
-		return;
-	}
+	PTGN_ASSERT(debug_settings_.draw_enabled);
 
-	auto render_target{ camera.render_target.value_or(scene.GetRenderTarget()) };
+	auto render_target{ camera.render_target ? camera.render_target : scene.GetRenderTarget() };
 
 	impl::MouseInfo mouse{ mouse_state };
 
@@ -200,6 +198,7 @@ void InteractionSystem::DrawDebugForCamera(
 		if (!interactive.enabled) {
 			continue;
 		}
+
 		if (filter(entity)) {
 			continue;
 		}
@@ -228,30 +227,16 @@ void InteractionSystem::DrawDebug(Scene& scene) const {
 		return;
 	}
 
-	const impl::MouseInfo mouse_state{ scene };
+	const auto& primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
 
-	if (auto primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
-		primary_world_camera.has_value()) {
-		impl::RenderCamera render_camera{ *primary_world_camera };
-		DrawDebugForCamera(scene, mouse_state, render_camera, [](auto) { return false; });
-	} else {
-		std::vector<Entity> cameras;
+	impl::MouseInfo mouse_state{ scene };
 
-		for (auto [camera, _cam] : scene.EntitiesWith<impl::CameraData>()) {
-			cameras.emplace_back(camera);
+	impl::ForDrawableSceneEntities(
+		scene, primary_world_camera,
+		[this, &mouse_state](auto& scene, const auto& camera, const auto& filter) {
+			DrawDebugForCamera(scene, mouse_state, camera, filter);
 		}
-
-		SortByDepth(cameras, false);
-
-		for (const Entity& camera_entity : cameras) {
-			SceneCamera camera{ camera_entity };
-			impl::RenderCamera render_camera{ camera };
-
-			DrawDebugForCamera(scene, mouse_state, render_camera, [camera](auto entity) {
-				return !camera.IsVisible(entity);
-			});
-		}
-	}
+	);
 }
 
 InteractionSystem::InteractiveEntities InteractionSystem::GetInteractiveEntities(
