@@ -1,6 +1,7 @@
 #include "renderer/pipeline/render_command.h"
 
 #include <algorithm>
+#include <iterator>
 #include <optional>
 #include <span>
 #include <utility>
@@ -16,23 +17,50 @@
 
 namespace ptgn::impl {
 
-void RenderCommands::CombineWith(const RenderCommands& other) {
-	commands_.reserve(other.commands_.size());
+void RenderCommands::CombineWith(RenderCommands&& other) {
+	auto color_quad_offset{ color_quads_.size() };
+	auto color_triangle_offset{ color_triangles_.size() };
+	auto shape_quad_offset{ shape_quads_.size() };
+	auto texture_quad_offset{ texture_quads_.size() };
 
-	color_quads_.reserve(other.color_quads_.size());
-	color_triangles_.reserve(other.color_triangles_.size());
-	shape_quads_.reserve(other.shape_quads_.size());
-	texture_quads_.reserve(other.texture_quads_.size());
+	commands_.reserve(commands_.size() + other.commands_.size());
+	color_quads_.reserve(color_quad_offset + other.color_quads_.size());
+	color_triangles_.reserve(color_triangle_offset + other.color_triangles_.size());
+	shape_quads_.reserve(shape_quad_offset + other.shape_quads_.size());
+	texture_quads_.reserve(texture_quad_offset + other.texture_quads_.size());
 
-	commands_.insert(commands_.end(), other.commands_.begin(), other.commands_.end());
-	color_quads_.insert(color_quads_.end(), other.color_quads_.begin(), other.color_quads_.end());
+	color_quads_.insert(
+		color_quads_.end(), std::make_move_iterator(other.color_quads_.begin()),
+		std::make_move_iterator(other.color_quads_.end())
+	);
+
 	color_triangles_.insert(
-		color_triangles_.end(), other.color_triangles_.begin(), other.color_triangles_.end()
+		color_triangles_.end(), std::make_move_iterator(other.color_triangles_.begin()),
+		std::make_move_iterator(other.color_triangles_.end())
 	);
-	shape_quads_.insert(shape_quads_.end(), other.shape_quads_.begin(), other.shape_quads_.end());
+
+	shape_quads_.insert(
+		shape_quads_.end(), std::make_move_iterator(other.shape_quads_.begin()),
+		std::make_move_iterator(other.shape_quads_.end())
+	);
+
 	texture_quads_.insert(
-		texture_quads_.end(), other.texture_quads_.begin(), other.texture_quads_.end()
+		texture_quads_.end(), std::make_move_iterator(other.texture_quads_.begin()),
+		std::make_move_iterator(other.texture_quads_.end())
 	);
+
+	for (auto& command : other.commands_) {
+		switch (command.kind) {
+			using enum RenderCommandKind;
+			case ColorQuads:	 command.range.first += color_quad_offset; break;
+			case ColorTriangles: command.range.first += color_triangle_offset; break;
+			case ShapeQuads:	 command.range.first += shape_quad_offset; break;
+			case TextureQuads:	 command.range.first += texture_quad_offset; break;
+			default:			 PTGN_ERROR("Unknown RenderCommandKind: ", std::to_underlying(command.kind));
+		}
+
+		commands_.emplace_back(std::move(command));
+	}
 }
 
 std::size_t RenderCommands::Count() const {

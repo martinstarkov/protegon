@@ -50,7 +50,7 @@ struct RenderCommand {
 class RenderCommands {
 public:
 	/// @brief Combines other render commands into this one.
-	void CombineWith(const RenderCommands& other);
+	void CombineWith(RenderCommands&& other);
 
 	[[nodiscard]] std::size_t Count() const;
 

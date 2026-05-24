@@ -341,8 +341,8 @@ Color RenderContext::GetBackgroundColor() const {
 void RenderContext::CombineDebugCommands(const impl::RenderCamera& camera) {
 	impl::CameraRenderCommands combined{ .camera = camera };
 
-	for (const auto& bucket : debug_commands_) {
-		combined.commands.CombineWith(bucket.commands);
+	for (auto& bucket : debug_commands_) {
+		combined.commands.CombineWith(std::move(bucket.commands));
 	}
 
 	debug_commands_.clear();
