@@ -4,8 +4,6 @@
 #include <optional>
 #include <ranges>
 #include <string_view>
-#include <utility>
-#include <variant>
 #include <vector>
 
 #include "core/graphics/color.h"
@@ -16,27 +14,51 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/render_command.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene_camera.h"
 
 namespace ptgn {
 
 class Scene;
 class SceneContext;
+class DrawContext;
 
 namespace impl {
 
 class Renderer;
 
-struct DrawCommand {
-	std::variant<Entity, ManualCommand> payload;
+struct CameraRenderCommands {
+	RenderCamera camera;
+	RenderCommands commands;
+};
+
+struct EntityRenderCommand {
+	Entity entity;
 	float depth{ 0.0f };
+};
+
+struct CameraEntityCommands {
+	RenderCamera camera;
+	std::vector<EntityRenderCommand> commands;
+};
+
+struct CameraRenderBucket {
+	const RenderCamera* camera{ nullptr };
+
+	std::vector<EntityRenderCommand>* entity_commands{ nullptr };
+	RenderCommands* manual_commands{ nullptr };
+};
+
+struct ClearedEntities {
+	std::vector<RenderTarget> render_targets;
+	std::vector<CameraUUID> cameras;
 };
 
 } // namespace impl
@@ -187,10 +209,34 @@ private:
 	RenderContext(RenderContext&&) noexcept			   = default;
 	RenderContext& operator=(RenderContext&&) noexcept = delete;
 
+	/// @brief If a primary world camera is set, we combine all debug commands into a single command
+	/// list for that camera.
+	void CombineDebugCommands(const impl::RenderCamera& camera);
+
+	void Draw(
+		DrawContext& ctx, const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
+		V2_int game_size, const std::vector<impl::CameraRenderBucket>& buckets
+	);
+
+	void Draw(
+		DrawContext& ctx, const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
+		V2_int game_size, const impl::CameraRenderBucket& bucket
+	);
+
+	void SetupCamera(
+		const RenderTarget& scene_render_target, impl::ClearedEntities& cleared, V2_int game_size,
+		const impl::RenderCamera& render_camera
+	);
+
+	static std::vector<impl::CameraRenderBucket> GetRenderBuckets(
+		std::vector<impl::CameraRenderCommands>& manual_commands,
+		std::vector<impl::CameraEntityCommands>& entity_commands
+	);
+
 	void SetPrimaryWorldCamera(const std::optional<Camera>& camera = std::nullopt);
 
 	template <typename T, typename R>
-	static void AddDrawCommand(T& commands, const R& command, float depth) {
+	static void AddRenderCommand(T& commands, const R& command, float depth) {
 		if constexpr (std::ranges::input_range<R>) {
 			for (const auto& c : command) {
 				commands.emplace_back(c, depth);
@@ -202,16 +248,11 @@ private:
 
 	/// @brief If camera is {}, returns draw commands for the primary scene camera. If draw commands
 	/// do not exist for the camera, adds them to the vector.
-	std::vector<impl::DrawCommand>& GetDrawCommandsForCamera(
-		const std::optional<impl::RenderCamera>& camera
-	);
-	std::vector<impl::ManualCommand>& GetDebugCommandsForCamera(
-		const std::optional<impl::RenderCamera>& camera
-	);
+	impl::RenderCommands& GetRenderCommands(const std::optional<impl::RenderCamera>& camera);
+	impl::RenderCommands& GetDebugRenderCommands(const std::optional<impl::RenderCamera>& camera);
 
-	/// @brief Keys are uuids of cameras.
-	std::vector<std::pair<impl::RenderCamera, std::vector<impl::DrawCommand>>> draw_commands_;
-	std::vector<std::pair<impl::RenderCamera, std::vector<impl::ManualCommand>>> debug_commands_;
+	std::vector<impl::CameraRenderCommands> draw_commands_;
+	std::vector<impl::CameraRenderCommands> debug_commands_;
 
 	std::vector<impl::TextureObject> temporary_textures_;
 

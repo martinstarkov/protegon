@@ -1,41 +1,66 @@
 #include "runtime/graphics/render_context.h"
 
+#include <algorithm>
 #include <array>
 #include <optional>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
+#include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/span.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/render_command.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/render_target_object.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
-#include "renderer/vertex/vertex.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/drawable.h"
+#include "runtime/graphics/render_target.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
+namespace {
+
+void SortEntityDrawCommands(std::vector<impl::EntityRenderCommand>& commands) {
+	std::ranges::stable_sort(commands, [](const auto& a, const auto& b) {
+		if (a.depth != b.depth) {
+			return a.depth < b.depth;
+		}
+
+		return a.entity.WasCreatedBefore(b.entity);
+	});
+}
+
+} // namespace
+
 RenderContext::RenderContext(Scene& scene, impl::Renderer& renderer) :
 	scene_{ scene }, renderer_{ renderer } {}
 
-std::vector<impl::DrawCommand>& RenderContext::GetDrawCommandsForCamera(
+impl::RenderCommands& RenderContext::GetRenderCommands(
 	const std::optional<impl::RenderCamera>& camera
 ) {
 	impl::RenderCamera cam;
@@ -51,10 +76,10 @@ std::vector<impl::DrawCommand>& RenderContext::GetDrawCommandsForCamera(
 			return commands;
 		}
 	}
-	return draw_commands_.emplace_back(cam, std::vector<impl::DrawCommand>{}).second;
+	return draw_commands_.emplace_back(cam, impl::RenderCommands{}).commands;
 }
 
-std::vector<impl::ManualCommand>& RenderContext::GetDebugCommandsForCamera(
+impl::RenderCommands& RenderContext::GetDebugRenderCommands(
 	const std::optional<impl::RenderCamera>& camera
 ) {
 	impl::RenderCamera cam;
@@ -70,7 +95,7 @@ std::vector<impl::ManualCommand>& RenderContext::GetDebugCommandsForCamera(
 			return commands;
 		}
 	}
-	return debug_commands_.emplace_back(cam, std::vector<impl::ManualCommand>{}).second;
+	return debug_commands_.emplace_back(cam, impl::RenderCommands{}).commands;
 }
 
 void RenderContext::DrawTexture(
@@ -80,9 +105,9 @@ void RenderContext::DrawTexture(
 	const std::optional<std::array<V2_float, 4>>& texture_coordinates,
 	const std::optional<SceneCamera>& camera, int entity_id
 ) {
-	auto& draw_commands{ GetDrawCommandsForCamera(camera.transform([](const auto& c) {
-		return impl::RenderCamera{ c };
-	})) };
+	auto& draw_commands{
+		GetRenderCommands(camera.transform([](const auto& c) { return impl::RenderCamera{ c }; }))
+	};
 
 	Rect rect{ size.value_or(V2_float{ texture_size }) };
 
@@ -145,9 +170,9 @@ void RenderContext::DrawShader(
 	const auto& assets{ scene_.ctx().asset };
 	auto shader{ assets.Get<Shader>(shader_key) };
 
-	auto& draw_commands{ GetDrawCommandsForCamera(camera.transform([](const auto& c) {
-		return impl::RenderCamera{ c };
-	})) };
+	auto& draw_commands{
+		GetRenderCommands(camera.transform([](const auto& c) { return impl::RenderCamera{ c }; }))
+	};
 
 	Rect rect{ size.value_or(renderer_.GetGameSize()) };
 
@@ -164,9 +189,9 @@ void RenderContext::DrawLines(
 	std::optional<Transform> transform, Depth depth, std::optional<BlendMode> blend_mode,
 	const std::optional<SceneCamera>& camera, int entity_id
 ) {
-	auto& camera_commands{ GetDrawCommandsForCamera(camera.transform([](const auto& c) {
-		return impl::RenderCamera{ c };
-	})) };
+	auto& camera_commands{
+		GetRenderCommands(camera.transform([](const auto& c) { return impl::RenderCamera{ c }; }))
+	};
 
 	// TODO: Fix.
 	// auto draw_commands{ DrawContext::GetDrawCommand(
@@ -185,9 +210,9 @@ void RenderContext::DrawShape(
 	Depth depth, std::optional<BlendMode> blend_mode, const std::optional<SceneCamera>& camera,
 	int entity_id
 ) {
-	auto& draw_commands{ GetDrawCommandsForCamera(camera.transform([](const auto& c) {
-		return impl::RenderCamera{ c };
-	})) };
+	auto& draw_commands{
+		GetRenderCommands(camera.transform([](const auto& c) { return impl::RenderCamera{ c }; }))
+	};
 
 	// TODO: Fix.
 	// auto shape_draw_commands{ DrawContext::GetDrawCommand(
@@ -311,6 +336,196 @@ void RenderContext::SetBackgroundColor(Color background_color) {
 
 Color RenderContext::GetBackgroundColor() const {
 	return renderer_.GetBackgroundColor();
+}
+
+void RenderContext::CombineDebugCommands(const impl::RenderCamera& camera) {
+	impl::CameraRenderCommands combined{ .camera = camera };
+
+	for (const auto& bucket : debug_commands_) {
+		combined.commands.CombineWith(bucket.commands);
+	}
+
+	debug_commands_.clear();
+	debug_commands_.emplace_back(std::move(combined));
+}
+
+void RenderContext::SetupCamera(
+	const RenderTarget& scene_render_target, impl::ClearedEntities& cleared, V2_int game_size,
+	const impl::RenderCamera& render_camera
+) {
+	auto render_target{ render_camera.render_target ? render_camera.render_target
+													: scene_render_target };
+
+	renderer_.SetRenderTarget(&render_target.Get<impl::RenderTargetObject>());
+
+	if (bool clear_render_target{ !std::ranges::contains(cleared.render_targets, render_target) };
+		clear_render_target) {
+		render_target.Clear();
+		cleared.render_targets.emplace_back(render_target);
+	}
+
+	PTGN_ASSERT(game_size.BothAboveZero(), "Game size dimensions must be above 0");
+
+	auto rt_size{ render_target.GetSize() };
+	V2_float scale{ V2_float{ rt_size } / game_size };
+
+	auto viewport{ render_camera.camera.viewport };
+	// Not *= because we want float multiplication followed by flooring.
+	viewport.position = viewport.position * scale;
+	viewport.size	  = viewport.size * scale;
+	renderer_.SetViewport(viewport);
+	renderer_.SetViewProjection(render_camera.camera.view_projection);
+
+	if (bool clear_camera{ !std::ranges::contains(cleared.cameras, render_camera.uuid) };
+		clear_camera && render_camera.clear_color.has_value()) {
+		renderer_.SetScissor(ScissorState{ viewport });
+		render_target.Clear(*render_camera.clear_color, false);
+		renderer_.SetScissor(ScissorState{ false });
+		cleared.cameras.emplace_back(render_camera.uuid);
+	}
+}
+
+void RenderContext::Draw(
+	DrawContext& ctx, const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
+	V2_int game_size, const std::vector<impl::CameraRenderBucket>& buckets
+) {
+	for (const auto& bucket : buckets) {
+		Draw(ctx, scene_render_target, cleared, game_size, bucket);
+	}
+}
+
+void RenderContext::Draw(
+	DrawContext& ctx, const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
+	V2_int game_size, const impl::CameraRenderBucket& bucket
+) {
+	PTGN_ASSERT(bucket.camera);
+
+	SetupCamera(scene_render_target, cleared, game_size, *bucket.camera);
+
+	std::size_t entity_index{ 0 };
+	std::size_t manual_index{ 0 };
+
+	if (bucket.entity_commands) {
+		SortEntityDrawCommands(*bucket.entity_commands);
+	}
+
+	if (bucket.manual_commands) {
+		bucket.manual_commands->Sort();
+	}
+
+	auto entity_count{ bucket.entity_commands ? bucket.entity_commands->size() : 0 };
+	auto manual_count{ bucket.manual_commands ? bucket.manual_commands->Count() : 0 };
+
+	while (entity_index < entity_count || manual_index < manual_count) {
+		if (manual_index >= manual_count) {
+			PTGN_ASSERT(bucket.entity_commands);
+			const auto& entity_cmd{ (*bucket.entity_commands)[entity_index] };
+			PTGN_ASSERT(
+				IsVisible(entity_cmd.entity), "Cannot render entity without visible component"
+			);
+			impl::InvokeDrawable(ctx, entity_cmd.entity);
+			entity_index++;
+			continue;
+		}
+
+		if (entity_index >= entity_count) {
+			PTGN_ASSERT(bucket.manual_commands);
+			bucket.manual_commands->Draw(renderer_, manual_index);
+			manual_index++;
+			continue;
+		}
+
+		auto entity_cmd_depth{ (*bucket.entity_commands)[entity_index].depth };
+		auto manual_cmd_depth{ bucket.manual_commands->GetDepth(manual_index) };
+
+		if (NearlyEqual(entity_cmd_depth, manual_cmd_depth) ||
+			entity_cmd_depth < manual_cmd_depth) {
+			PTGN_ASSERT(bucket.entity_commands);
+			const auto& entity_cmd{ (*bucket.entity_commands)[entity_index] };
+			PTGN_ASSERT(
+				IsVisible(entity_cmd.entity), "Cannot render entity without visible component"
+			);
+			impl::InvokeDrawable(ctx, entity_cmd.entity);
+			entity_index++;
+		} else {
+			PTGN_ASSERT(bucket.manual_commands);
+			bucket.manual_commands->Draw(renderer_, manual_index);
+			manual_index++;
+		}
+	}
+
+	if (bucket.entity_commands) {
+		bucket.entity_commands->clear();
+	}
+
+	if (bucket.manual_commands) {
+		bucket.manual_commands->Clear();
+	}
+}
+
+std::vector<impl::CameraRenderBucket> RenderContext::GetRenderBuckets(
+	std::vector<impl::CameraRenderCommands>& manual_commands,
+	std::vector<impl::CameraEntityCommands>& entity_commands
+) {
+	PTGN_ASSERT((!ContainsDuplicates(manual_commands, [](const auto& c1, const auto& c2) {
+		return c1.camera == c2.camera;
+	})));
+
+	PTGN_ASSERT((!ContainsDuplicates(entity_commands, [](const auto& c1, const auto& c2) {
+		return c1.camera == c2.camera;
+	})));
+
+	std::vector<impl::CameraRenderBucket> buckets;
+	buckets.reserve(entity_commands.size() + manual_commands.size());
+
+	auto find_or_create_bucket = [&](const auto& camera) -> impl::CameraRenderBucket& {
+		if (auto it{ std::ranges::find_if(
+				buckets,
+				[&](const impl::CameraRenderBucket& bucket) { return *bucket.camera == camera; }
+			) };
+			it != buckets.end()) {
+			return *it;
+		}
+
+		buckets.push_back(
+			impl::CameraRenderBucket{
+				.camera = &camera,
+			}
+		);
+
+		return buckets.back();
+	};
+
+	for (auto& entity_camera_commands : entity_commands) {
+		auto& bucket{ find_or_create_bucket(entity_camera_commands.camera) };
+		bucket.entity_commands = &entity_camera_commands.commands;
+	}
+
+	for (auto& manual_camera_commands : manual_commands) {
+		auto& bucket{ find_or_create_bucket(manual_camera_commands.camera) };
+		bucket.manual_commands = &manual_camera_commands.commands;
+	}
+
+	std::ranges::stable_sort(buckets, [](const auto& a, const auto& b) {
+		if (a.camera->depth < b.camera->depth) {
+			return true;
+		}
+
+		if (b.camera->depth < a.camera->depth) {
+			return false;
+		}
+
+		bool a_has_entities{ a.entity_commands && !a.entity_commands->empty() };
+		bool b_has_entities{ b.entity_commands && !b.entity_commands->empty() };
+
+		if (a_has_entities != b_has_entities) {
+			return a_has_entities;
+		}
+
+		return a.camera->uuid < b.camera->uuid;
+	});
+
+	return buckets;
 }
 
 void RenderContext::SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera) {
