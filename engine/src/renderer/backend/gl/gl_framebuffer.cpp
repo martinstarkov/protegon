@@ -583,7 +583,7 @@ void Framebuffers::SavePNG(const path& path, FramebufferId framebuffer, Attachme
 	// Convert PixelBuffer -> tightly packed RGBA8
 	ForEachPixel(pb, [&rgba, size](V2_int pos, const PixelValue& px) {
 		const Color* c = std::get_if<Color>(&px);
-		PTGN_ASSERT(c != nullptr);
+		PTGN_ASSERT(c);
 
 		const std::size_t idx = static_cast<std::size_t>(pos.y * size.x + pos.x) * channels;
 

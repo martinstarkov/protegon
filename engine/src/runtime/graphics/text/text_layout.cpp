@@ -22,9 +22,9 @@
 #include "core/util/entity_handle.h"
 #include "core/util/hash.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/vertex.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
-#include "renderer/vertex/vertex.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
@@ -659,7 +659,7 @@ float FindBestShrinkScale(
 }
 
 void ApplyVerticalAlignment(const TextBox& box, TextLayout* layout) {
-	if (layout == nullptr) {
+	if (!layout) {
 		return;
 	}
 
@@ -683,7 +683,7 @@ void ApplyEllipsisForMaxLines(
 	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box, float global_shrink,
 	TextLayout* layout
 ) {
-	if (layout == nullptr) {
+	if (!layout) {
 		return;
 	}
 
@@ -708,7 +708,7 @@ void ApplyEllipsisForMaxLines(
 		}
 	}
 
-	if (source_run == nullptr) {
+	if (!source_run) {
 		layout->lines.resize(keep_lines);
 		layout->ellipsized			   = true;
 		layout->truncated_by_max_lines = true;
@@ -789,11 +789,11 @@ void ApplyEllipsisForMaxLines(
 }
 
 void ApplyClipVisibility(Rect clip_rect, TextLayout* layout) {
-	if (layout == nullptr) {
+	if (!layout) {
 		return;
 	}
 
-	for (GlyphInstance& glyph : layout->glyphs) {
+	for (auto& glyph : layout->glyphs) {
 		V2_float gmin{ glyph.position + glyph.plane.GetMin() };
 		V2_float gmax{ glyph.position + glyph.plane.GetMax() };
 

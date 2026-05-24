@@ -64,7 +64,7 @@ std::deque<V2_int> AStarGrid::FindWaypoints(V2_int start, V2_int end) {
 
 	std::pair<impl::AStarNode*, V2_int> p{ &Get(end), end };
 
-	while (p.first->parent.first != nullptr) {
+	while (p.first->parent.first) {
 		waypoints.emplace_front(p.second);
 		p = p.first->parent;
 	}

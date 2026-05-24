@@ -130,7 +130,7 @@ public:
 	V2_float speed{ 300.0f };
 
 	void OnEnter() override {
-		PTGN_ASSERT(scene != nullptr);
+		PTGN_ASSERT(scene);
 		intersect		 = scene->CreateEntity();
 		sweep			 = scene->CreateEntity();
 		overlap			 = scene->CreateEntity();
@@ -216,7 +216,7 @@ public:
 	}
 
 	void CreateObstacle(const V2_float& pos, const V2_float& size, Origin origin) {
-		PTGN_ASSERT(scene != nullptr);
+		PTGN_ASSERT(scene);
 		auto obstacle = scene->CreateEntity();
 		SetPosition(obstacle, pos);
 		obstacle.Add<Collider>(Rect{ size });
@@ -248,7 +248,7 @@ public:
 			vel = &sweep_circle.Get<RigidBody>().velocity;
 		}
 
-		PTGN_ASSERT(vel != nullptr);
+		PTGN_ASSERT(vel);
 
 		MoveWASD(*scene, *vel, speed * scene->ctx().physics.dt().count());
 	}

@@ -27,7 +27,7 @@ public:
 
 	float GetValue() {
 		sampling.Start();
-		PTGN_ASSERT(scene != nullptr);
+		PTGN_ASSERT(scene);
 		return amplitude_rng() *
 			   std::sin(sine_frequency * static_cast<float>(scene->ctx().TimeSinceStart().count()));
 	}

@@ -64,9 +64,7 @@ Surface::Surface(const path& filepath, int desired_channels) {
 
 	channels_ = desired_channels;
 
-	PTGN_ASSERT(
-		data != nullptr, "Failed to load image '", filepath.string(), "': ", stbi_failure_reason()
-	);
+	PTGN_ASSERT(data, "Failed to load image '", filepath.string(), "': ", stbi_failure_reason());
 
 	PTGN_ASSERT(width > 0 && height > 0, "Loaded image has invalid size");
 

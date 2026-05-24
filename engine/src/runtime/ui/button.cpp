@@ -241,7 +241,7 @@ ButtonBase<Derived>::ConstButtonStyleTuple ButtonBase<Derived>::GetStyle(
 		style = state.disabled ? &Get<ButtonStyles>().disabled : &backup_style;
 	}
 
-	PTGN_ASSERT(style != nullptr, "Failed to find button style style");
+	PTGN_ASSERT(style, "Failed to find button style style");
 
 	switch (state.state) {
 		using enum ButtonState;

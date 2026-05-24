@@ -43,7 +43,7 @@ concept StringLikeHashInput =
 }
 
 [[nodiscard]] constexpr std::size_t Hash(const char* string) {
-	return string == nullptr ? 0 : Hash(std::string_view{ string });
+	return string ? Hash(std::string_view{ string }) : 0;
 }
 
 template <std::size_t N>

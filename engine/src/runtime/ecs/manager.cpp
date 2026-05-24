@@ -1,5 +1,7 @@
 #include "runtime/ecs/manager.h"
 
+#include <ecs/ecs.h>
+
 #include <cstdint>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -7,7 +9,6 @@
 #include <vector>
 
 #include "core/assert.h"
-#include <ecs/ecs.h>
 #include "runtime/ecs/component_registry.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/fwd.h"
@@ -34,7 +35,7 @@ void to_json(json& j, const Manager& manager) {
 	JsonArchiver archiver;
 
 	for (const auto& pool : manager.pools_) {
-		if (pool == nullptr) {
+		if (!pool) {
 			continue;
 		}
 		pool->Serialize(archiver);
@@ -60,7 +61,7 @@ void from_json(const json& j, Manager& manager) {
 	PTGN_ASSERT(!manager.pools_.empty(), "Failed to create any valid manager component pool types");
 
 	for (const auto& pool : manager.pools_) {
-		if (pool == nullptr) {
+		if (!pool) {
 			continue;
 		}
 		pool->Deserialize(archiver);

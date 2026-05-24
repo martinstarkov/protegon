@@ -56,7 +56,7 @@ void Buffers::SetBufferSubData(
 	PTGN_ASSERT(element_count > 0, "Number of buffer elements must be greater than 0");
 	PTGN_ASSERT(element_size > 0, "Byte size of a buffer element must be greater than 0");
 
-	PTGN_ASSERT(data != nullptr);
+	PTGN_ASSERT(data);
 
 	std::uint32_t size{ element_count * element_size };
 
@@ -157,7 +157,8 @@ template void Buffers::DestroyBuffer<UniformBufferId>(UniformBufferId);
 
 int Buffers::GetBufferParameter(BufferTarget target, BufferParameter parameter) const {
 	int value{ -1 };
-	GLCall(glGetBufferParameteriv(std::to_underlying(target), std::to_underlying(parameter), &value)
+	GLCall(
+		glGetBufferParameteriv(std::to_underlying(target), std::to_underlying(parameter), &value)
 	);
 	PTGN_ASSERT(value >= 0, "Failed to query buffer parameter");
 	return value;

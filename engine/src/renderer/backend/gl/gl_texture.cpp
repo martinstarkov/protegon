@@ -102,7 +102,7 @@ void Textures::SetTextureSubData(
 	PixelDataType pixel_data_type, V2_int subdata_size, V2_int subdata_offset
 ) const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its subdata");
-	PTGN_ASSERT(pixel_subdata != nullptr, "Cannot set texture subdata to nullptr");
+	PTGN_ASSERT(pixel_subdata, "Cannot set texture subdata to nullptr");
 
 	constexpr GLint mipmap_level{ 0 };
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
@@ -114,18 +114,20 @@ void Textures::SetTextureSubData(
 	));
 }
 
-void Textures::SetTextureParameter(TextureId texture, TextureParameter param, const float* values)
-	const {
+void Textures::SetTextureParameter(
+	TextureId texture, TextureParameter param, const float* values
+) const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its parameters");
-	PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
+	PTGN_ASSERT(values, "Cannot set texture parameter values to nullptr");
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 	GLCall(glTexParameterfv(std::to_underlying(target), std::to_underlying(param), values));
 }
 
-void Textures::SetTextureParameter(TextureId texture, TextureParameter param, const int* values)
-	const {
+void Textures::SetTextureParameter(
+	TextureId texture, TextureParameter param, const int* values
+) const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its parameters");
-	PTGN_ASSERT(values != nullptr, "Cannot set texture parameter values to nullptr");
+	PTGN_ASSERT(values, "Cannot set texture parameter values to nullptr");
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 	GLCall(glTexParameteriv(std::to_underlying(target), std::to_underlying(param), values));
 }

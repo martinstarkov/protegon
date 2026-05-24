@@ -117,7 +117,7 @@ void CursorDeleter::operator()(GLFWcursor* cursor) const {
 
 void Window::SetCallbacks() {
 	auto win{ instance_.get() };
-	PTGN_ASSERT(win != nullptr);
+	PTGN_ASSERT(win);
 
 	glfwSetWindowPosCallback(win, [](GLFWwindow* window, int x, int y) {
 		auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
@@ -126,7 +126,7 @@ void Window::SetCallbacks() {
 		}
 
 		V2_int pos{ x, y };
-		if (glfwGetWindowMonitor(window) == nullptr) {
+		if (!glfwGetWindowMonitor(window)) {
 			self->windowed_pos_ = pos;
 		}
 		self->PushEvent<event::WindowMoved>(pos);
@@ -158,7 +158,7 @@ void Window::SetCallbacks() {
 			return;
 		}
 
-		if (glfwGetWindowMonitor(window) == nullptr) {
+		if (!glfwGetWindowMonitor(window)) {
 			self->windowed_size_ = { width, height };
 			self->windowed_was_maximized_ =
 				glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE;
@@ -195,9 +195,8 @@ void Window::SetCallbacks() {
 	});
 
 	glfwSetKeyCallback(
-		win,
-		[](GLFWwindow* window, int key, [[maybe_unused]] int scancode, int action,
-		   [[maybe_unused]] int mods) {
+		win, [](GLFWwindow* window, int key, [[maybe_unused]] int scancode, int action,
+				[[maybe_unused]] int mods) {
 			auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
 			if (!self || key < 0 || static_cast<std::size_t>(key) >= self->key_states_.size()) {
 				return;
@@ -230,8 +229,7 @@ void Window::SetCallbacks() {
 	//});
 
 	glfwSetMouseButtonCallback(
-		win,
-		[](GLFWwindow* window, int button, int action, [[maybe_unused]] int mods) {
+		win, [](GLFWwindow* window, int button, int action, [[maybe_unused]] int mods) {
 			auto self{ static_cast<Window*>(glfwGetWindowUserPointer(window)) };
 			if (!self || button < 0 ||
 				static_cast<std::size_t>(button) >= self->mouse_states_.size()) {
@@ -295,7 +293,7 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 	GLFWmonitor* monitor{ nullptr };
 	if (config.fullscreen) {
 		monitor = glfwGetPrimaryMonitor();
-		PTGN_ASSERT(monitor != nullptr, "glfwGetPrimaryMonitor failed");
+		PTGN_ASSERT(monitor, "glfwGetPrimaryMonitor failed");
 	}
 
 #ifdef __EMSCRIPTEN__
@@ -316,11 +314,11 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 
 	float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor());
 	instance_		 = std::unique_ptr<GLFWwindow, impl::WindowDeleter>{
-		   glfwCreateWindow(config.size.x, config.size.y, title_.c_str(), monitor, nullptr),
-		   impl::WindowDeleter{}
+		glfwCreateWindow(config.size.x, config.size.y, title_.c_str(), monitor, nullptr),
+		impl::WindowDeleter{}
 	};
 
-	PTGN_ASSERT(instance_ != nullptr, "glfwCreateWindow failed");
+	PTGN_ASSERT(instance_, "glfwCreateWindow failed");
 
 	glfwMakeContextCurrent(instance_.get());
 
@@ -404,7 +402,7 @@ bool Window::PollEvents() {
 
 	auto context{ glfwGetCurrentContext() };
 	PTGN_ASSERT(context == instance_.get());
-	PTGN_ASSERT(instance_.get() != nullptr);
+	PTGN_ASSERT(instance_.get());
 
 	bool focused{ focused_ };
 
@@ -518,12 +516,12 @@ bool Window::PollEvents() {
 }
 
 void Window::CacheWindowedRect() {
-	auto win = instance_.get();
+	auto win{ instance_.get() };
 	if (!win) {
 		return;
 	}
 
-	if (glfwGetWindowMonitor(win) != nullptr) {
+	if (glfwGetWindowMonitor(win)) {
 		return; // fullscreen, do not overwrite cached windowed rect
 	}
 
@@ -568,7 +566,7 @@ void Window::SetOSCursor(const path& img_filepath, V2_int cursor_hotspot) {
 	image.pixels = const_cast<std::uint8_t*>(surface.Data()); // NOSONAR
 
 	auto cursor = glfwCreateCursor(&image, cursor_hotspot.x, cursor_hotspot.y);
-	PTGN_ASSERT(cursor != nullptr, "glfwCreateCursor failed");
+	PTGN_ASSERT(cursor, "glfwCreateCursor failed");
 
 	custom_cursor_.reset(cursor);
 	glfwSetCursor(instance_.get(), custom_cursor_.get());
@@ -608,10 +606,10 @@ V2_int Window::GetMaximumSize() const {
 }
 
 void Window::SetPosition(V2_int new_origin) {
-	auto win = instance_.get();
-	PTGN_ASSERT(win != nullptr, "Window is null");
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
 
-	if (glfwGetWindowMonitor(win) == nullptr) {
+	if (!glfwGetWindowMonitor(win)) {
 		glfwSetWindowPos(win, new_origin.x, new_origin.y);
 	}
 }
@@ -623,12 +621,12 @@ V2_int Window::GetPosition() const {
 }
 
 void Window::SetSize(V2_int new_size, bool centered) {
-	auto win = instance_.get();
-	PTGN_ASSERT(win != nullptr, "Window is null");
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
 
 	glfwSetWindowSize(win, new_size.x, new_size.y);
 
-	if (centered && glfwGetWindowMonitor(win) == nullptr) {
+	if (centered && !glfwGetWindowMonitor(win)) {
 		Center();
 	}
 }
@@ -649,8 +647,8 @@ Color Window::GetBackgroundColor() const {
 }
 
 void Window::Center() {
-	auto monitor = glfwGetPrimaryMonitor();
-	PTGN_ASSERT(monitor != nullptr, "glfwGetPrimaryMonitor failed");
+	auto monitor{ glfwGetPrimaryMonitor() };
+	PTGN_ASSERT(monitor, "glfwGetPrimaryMonitor failed");
 
 	V2_int monitor_pos;
 	V2_int monitor_size;
@@ -676,8 +674,8 @@ std::string_view Window::GetTitle() const {
 }
 
 void Window::SetSetting(WindowSetting setting) {
-	auto win = instance_.get();
-	PTGN_ASSERT(win != nullptr, "Window is null");
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
 
 	switch (setting) {
 		using enum WindowSetting;
@@ -692,7 +690,7 @@ void Window::SetSetting(WindowSetting setting) {
 		case FixedSize:	 glfwSetWindowAttrib(win, GLFW_RESIZABLE, GLFW_FALSE); break;
 		case Minimized:	 glfwIconifyWindow(win); break;
 		case Maximized:
-			if (glfwGetWindowMonitor(win) == nullptr) {
+			if (!glfwGetWindowMonitor(win)) {
 				glfwMaximizeWindow(win);
 				windowed_was_maximized_ = true;
 			}
@@ -703,27 +701,27 @@ void Window::SetSetting(WindowSetting setting) {
 
 bool Window::IsFocused() const {
 	auto win{ instance_.get() };
-	PTGN_ASSERT(win != nullptr, "Window is null");
+	PTGN_ASSERT(win, "Window is null");
 	return glfwGetWindowAttrib(win, GLFW_FOCUSED) == GLFW_TRUE;
 }
 
 bool Window::GetSetting(WindowSetting setting) const {
-	auto win = instance_.get();
-	PTGN_ASSERT(win != nullptr, "Window is null");
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
 
 	switch (setting) {
 		using enum WindowSetting;
 		case None:		 return false;
-		case Shown:		 return glfwGetWindowAttrib(win, GLFW_VISIBLE) == GLFW_TRUE;
-		case Hidden:	 return glfwGetWindowAttrib(win, GLFW_VISIBLE) == GLFW_FALSE;
-		case Windowed:	 return glfwGetWindowMonitor(win) == nullptr;
-		case Fullscreen: return glfwGetWindowMonitor(win) != nullptr;
-		case Borderless: return glfwGetWindowAttrib(win, GLFW_DECORATED) == GLFW_FALSE;
-		case Bordered:	 return glfwGetWindowAttrib(win, GLFW_DECORATED) == GLFW_TRUE;
-		case Resizable:	 return glfwGetWindowAttrib(win, GLFW_RESIZABLE) == GLFW_TRUE;
-		case FixedSize:	 return glfwGetWindowAttrib(win, GLFW_RESIZABLE) == GLFW_FALSE;
-		case Maximized:	 return glfwGetWindowAttrib(win, GLFW_MAXIMIZED) == GLFW_TRUE;
-		case Minimized:	 return glfwGetWindowAttrib(win, GLFW_ICONIFIED) == GLFW_TRUE;
+		case Shown:		 return glfwGetWindowAttrib(win, GLFW_VISIBLE);
+		case Hidden:	 return !glfwGetWindowAttrib(win, GLFW_VISIBLE);
+		case Windowed:	 return !glfwGetWindowMonitor(win);
+		case Fullscreen: return glfwGetWindowMonitor(win);
+		case Borderless: return !glfwGetWindowAttrib(win, GLFW_DECORATED);
+		case Bordered:	 return glfwGetWindowAttrib(win, GLFW_DECORATED);
+		case Resizable:	 return glfwGetWindowAttrib(win, GLFW_RESIZABLE);
+		case FixedSize:	 return !glfwGetWindowAttrib(win, GLFW_RESIZABLE);
+		case Maximized:	 return glfwGetWindowAttrib(win, GLFW_MAXIMIZED);
+		case Minimized:	 return glfwGetWindowAttrib(win, GLFW_ICONIFIED);
 		default:		 PTGN_ERROR("Unknown WindowSetting: ", std::to_underlying(setting));
 	}
 }
@@ -737,21 +735,21 @@ void Window::SetFixedSize() {
 }
 
 void Window::SetFullscreen(bool on) {
-	auto win = instance_.get();
-	PTGN_ASSERT(win != nullptr, "Window is null");
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
 
-	if (bool is_fullscreen = (glfwGetWindowMonitor(win) != nullptr); on == is_fullscreen) {
+	if (bool is_fullscreen{ glfwGetWindowMonitor(win) != nullptr }; on == is_fullscreen) {
 		return;
 	}
 
 	if (on) {
 		CacheWindowedRect();
 
-		auto monitor = glfwGetPrimaryMonitor();
-		PTGN_ASSERT(monitor != nullptr, "glfwGetPrimaryMonitor failed");
+		auto monitor{ glfwGetPrimaryMonitor() };
+		PTGN_ASSERT(monitor, "glfwGetPrimaryMonitor failed");
 
-		const auto mode = glfwGetVideoMode(monitor);
-		PTGN_ASSERT(mode != nullptr, "glfwGetVideoMode failed");
+		auto mode{ glfwGetVideoMode(monitor) };
+		PTGN_ASSERT(mode, "glfwGetVideoMode failed");
 
 		glfwSetWindowMonitor(win, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
 	} else {

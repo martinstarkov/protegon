@@ -52,7 +52,7 @@ Track::Track(
 	if (IsOggFile(abs_path)) {
 		vorbis_ = std::make_unique<OggDecoder>();
 
-		PTGN_ASSERT(vorbis_ != nullptr);
+		PTGN_ASSERT(vorbis_);
 
 		result = ma_libvorbis_init_file(file_path.c_str(), nullptr, nullptr, &vorbis_->vorbis);
 		PTGN_ASSERT(

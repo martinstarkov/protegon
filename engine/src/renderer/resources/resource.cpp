@@ -2,8 +2,8 @@
 
 #include <utility>
 
-#include "renderer/resources/id.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/id.h"
 
 namespace ptgn {
 
@@ -40,7 +40,7 @@ Resource<T>::operator T() const {
 
 template <ResourceType T>
 Resource<T>::operator bool() const {
-	return renderer_ != nullptr && resource_ != T{};
+	return renderer_ && resource_ != T{};
 }
 
 template <ResourceType T>

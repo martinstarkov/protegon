@@ -104,7 +104,7 @@ auto ttf_font{ font_asset.GetEntity().Get<std::shared_ptr<TTF_Font>>().get() };
 
 font_size.GetValue() *= scale;
 
-PTGN_ASSERT(ttf_font != nullptr, "Cannot create texture for text with nullptr font");
+PTGN_ASSERT(ttf_font, "Cannot create texture for text with nullptr font");
 
 TTF_SetFontStyle(ttf_font, std::to_underlying(properties.style));
 
@@ -155,7 +155,7 @@ if (outline_width != 0 && properties.outline.color != color::Transparent) {
 		ttf_font, text_content.data(), text_content.length(), outline_color, wrap_after
 	);
 
-	PTGN_ASSERT(outline_surface != nullptr, "Failed to create text outline");
+	PTGN_ASSERT(outline_surface, "Failed to create text outline");
 
 	TTF_SetFontOutline(ttf_font, 0);
 }
@@ -187,7 +187,7 @@ switch (properties.render_mode) {
 		);
 }
 
-PTGN_ASSERT(surface != nullptr, "Failed to create surface for given font information");
+PTGN_ASSERT(surface, "Failed to create surface for given font information");
 
 if (outline_surface) {
 	SDL_Rect rect{ outline_width, outline_width, surface->w, surface->h };
@@ -199,7 +199,7 @@ if (outline_surface) {
 	surface = outline_surface;
 }
 
-PTGN_ASSERT(surface != nullptr, "Failed to blit text surface to text outline surface");
+PTGN_ASSERT(surface, "Failed to blit text surface to text outline surface");
 
 return impl::Surface{ surface };
 */
