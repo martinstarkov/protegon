@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -27,6 +28,17 @@
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
+
+namespace impl {
+
+void AddMandatoryComponents(
+	Entity entity, std::optional<std::string_view> tag, std::optional<std::uint64_t> uuid
+) {
+	entity.Add<impl::Tag>(tag.value_or(impl::kDefaultTag));
+	entity.Add<impl::UUID>(uuid.value_or(impl::UUID{}));
+}
+
+} // namespace impl
 
 Entity& Entity::Destroy(bool orphan_children) {
 	if (!*this) {
@@ -71,7 +83,7 @@ Scene& Entity::GetScene() {
 }
 
 bool Entity::HasScene() const {
-	return scene_ != nullptr;
+	return scene_;
 }
 
 bool Entity::IsIdenticalTo(Entity entity) const {

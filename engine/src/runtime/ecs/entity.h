@@ -5,6 +5,8 @@
 #include <compare>
 #include <concepts>
 #include <cstdint>
+#include <functional>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -251,6 +253,12 @@ struct IgnoreParentPosition {};
 struct IgnoreParentRotation {};
 
 struct IgnoreParentScale {};
+
+using EntityFilterFunc = std::function<bool(Entity)>;
+
+void AddMandatoryComponents(
+	Entity entity, std::optional<std::string_view> tag, std::optional<std::uint64_t> uuid
+);
 
 } // namespace impl
 
