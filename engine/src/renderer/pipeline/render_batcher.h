@@ -4,6 +4,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <ranges>
 #include <span>
 #include <type_traits>
 #include <utility>
@@ -214,13 +215,11 @@ private:
 
 		auto bytes{ std::as_bytes(vertices) };
 
-		vertices_.insert(vertices_.end(), bytes.begin(), bytes.end());
+		vertices_.append_range(bytes);
 
-		indices_.reserve(indices_.size() + local_indices.size());
-
-		for (auto index : local_indices) {
-			indices_.push_back(base_vertex + index);
-		}
+		indices_.append_range(local_indices | std::views::transform([base_vertex](auto index) {
+								  return base_vertex + index;
+							  }));
 	}
 
 	template <VertexType TVertex>

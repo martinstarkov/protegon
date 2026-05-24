@@ -87,7 +87,7 @@ private:
 	[[nodiscard]] RenderRange Append(std::vector<T>& dst, std::span<const T> src) const {
 		auto first{ dst.size() };
 
-		dst.insert(dst.end(), src.begin(), src.end());
+		dst.append_range(src);
 
 		return RenderRange{ .first = first, .count = src.size() };
 	}

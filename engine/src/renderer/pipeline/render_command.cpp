@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iterator>
 #include <optional>
+#include <ranges>
 #include <span>
 #include <utility>
 #include <vector>
@@ -24,30 +25,11 @@ void RenderCommands::CombineWith(RenderCommands&& other) {
 	auto texture_quad_offset{ texture_quads_.size() };
 
 	commands_.reserve(commands_.size() + other.commands_.size());
-	color_quads_.reserve(color_quad_offset + other.color_quads_.size());
-	color_triangles_.reserve(color_triangle_offset + other.color_triangles_.size());
-	shape_quads_.reserve(shape_quad_offset + other.shape_quads_.size());
-	texture_quads_.reserve(texture_quad_offset + other.texture_quads_.size());
 
-	color_quads_.insert(
-		color_quads_.end(), std::make_move_iterator(other.color_quads_.begin()),
-		std::make_move_iterator(other.color_quads_.end())
-	);
-
-	color_triangles_.insert(
-		color_triangles_.end(), std::make_move_iterator(other.color_triangles_.begin()),
-		std::make_move_iterator(other.color_triangles_.end())
-	);
-
-	shape_quads_.insert(
-		shape_quads_.end(), std::make_move_iterator(other.shape_quads_.begin()),
-		std::make_move_iterator(other.shape_quads_.end())
-	);
-
-	texture_quads_.insert(
-		texture_quads_.end(), std::make_move_iterator(other.texture_quads_.begin()),
-		std::make_move_iterator(other.texture_quads_.end())
-	);
+	color_quads_.append_range(other.color_quads_ | std::views::as_rvalue);
+	color_triangles_.append_range(other.color_triangles_ | std::views::as_rvalue);
+	shape_quads_.append_range(other.shape_quads_ | std::views::as_rvalue);
+	texture_quads_.append_range(other.texture_quads_ | std::views::as_rvalue);
 
 	for (auto& command : other.commands_) {
 		switch (command.kind) {

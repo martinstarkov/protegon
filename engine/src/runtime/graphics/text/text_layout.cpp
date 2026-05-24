@@ -506,9 +506,7 @@ CandidateLayout BuildSinglePassLayout(
 			}
 		}
 
-		layout.glyphs.insert(
-			layout.glyphs.end(), current_line_glyphs.begin(), current_line_glyphs.end()
-		);
+		layout.glyphs.append_range(current_line_glyphs);
 		layout.lines.push_back(line);
 
 		layout.measured_size.x	= std::max(layout.measured_size.x, line.size.x);

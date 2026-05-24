@@ -7,6 +7,7 @@
 #include <format>
 #include <list>
 #include <ostream>
+#include <ranges>
 #include <regex>
 #include <span>
 #include <sstream>
@@ -503,7 +504,7 @@ void Shaders::PopulateShaderCache(const cmrc::embedded_filesystem& filesystem) {
 		std::string shader_src(file.begin(), file.end());
 		std::string name_without_ext{ filename.stem().string() };
 		auto srcs{ ParseShader(shader_src, name_without_ext) };
-		sources.insert(sources.end(), srcs.begin(), srcs.end());
+		sources.append_range(srcs | std::views::as_rvalue);
 	}
 
 	SubstituteShaderTokens(sources, max_texture_slots_);

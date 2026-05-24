@@ -41,9 +41,9 @@ template <typename T, typename... TArgs> // NOSONAR
 ) {
 	std::vector<T> result;
 	result.reserve(v1.size() + v2.size() + (vectors.size() + ...));
-	result.insert(result.end(), v1.begin(), v1.end());
-	result.insert(result.end(), v2.begin(), v2.end());
-	(result.insert(result.end(), vectors.begin(), vectors.end()), ...);
+	result.append_range(v1);
+	result.append_range(v2);
+	(result.append_range(vectors), ...);
 	return result;
 }
 
@@ -53,8 +53,8 @@ template <typename T>
 [[nodiscard]] auto VectorConcat(const std::vector<T>& v1, const std::vector<T>& v2) {
 	std::vector<T> result;
 	result.reserve(v1.size() + v2.size());
-	result.insert(result.end(), v1.begin(), v1.end());
-	result.insert(result.end(), v2.begin(), v2.end());
+	result.append_range(v1);
+	result.append_range(v2);
 	return result;
 }
 

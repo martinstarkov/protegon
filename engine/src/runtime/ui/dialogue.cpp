@@ -497,7 +497,7 @@ void DialogueComponent::LoadFromJson(
 			auto pages = SplitTextWithDuration(
 				scene, lines_json.get<std::string>(), dialogue_properties, split_end, split_begin
 			);
-			line.pages.insert(line.pages.end(), pages.begin(), pages.end());
+			line.pages.append_range(pages);
 			dialogue.lines.push_back(std::move(line));
 		} else if (lines_json.is_array()) {
 			for (const auto& line_json : lines_json) {
@@ -508,7 +508,7 @@ void DialogueComponent::LoadFromJson(
 						scene, line_json.get<std::string>(), dialogue_properties, split_end,
 						split_begin
 					);
-					line.pages.insert(line.pages.end(), pages.begin(), pages.end());
+					line.pages.append_range(pages);
 				} else if (line_json.is_object()) {
 					const auto line_properties = dialogue_properties.InheritProperties(line_json);
 
@@ -521,7 +521,7 @@ void DialogueComponent::LoadFromJson(
 							scene, pages_json.get<std::string>(), line_properties, split_end,
 							split_begin
 						);
-						line.pages.insert(line.pages.end(), pages.begin(), pages.end());
+						line.pages.append_range(pages);
 					} else if (pages_json.is_array()) {
 						for (const auto& page_json : pages_json) {
 							if (page_json.is_string()) {
@@ -529,7 +529,7 @@ void DialogueComponent::LoadFromJson(
 									scene, page_json.get<std::string>(), line_properties, split_end,
 									split_begin
 								);
-								line.pages.insert(line.pages.end(), pages.begin(), pages.end());
+								line.pages.append_range(pages);
 							} else if (page_json.is_object()) {
 								PTGN_ASSERT(page_json.contains("content"));
 								const std::string content = page_json.at("content");
@@ -538,10 +538,10 @@ void DialogueComponent::LoadFromJson(
 									line_properties.InheritProperties(page_json)
 								};
 
-								auto pages = SplitTextWithDuration(
+								auto pages{ SplitTextWithDuration(
 									scene, content, page_properties, split_end, split_begin
-								);
-								line.pages.insert(line.pages.end(), pages.begin(), pages.end());
+								) };
+								line.pages.append_range(pages);
 							}
 						}
 					}
