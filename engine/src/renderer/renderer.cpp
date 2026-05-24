@@ -44,13 +44,13 @@
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
-#include "renderer/vertex/vertex.h"
 
 namespace ptgn::impl {
 
@@ -229,6 +229,10 @@ void Renderer::SetShader(ShaderId shader) {
 	FlushBatch();
 	auto _ = gl_->Bind(shader, false);
 	gl_->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+}
+
+BlendMode Renderer::GetBlendMode() const {
+	return gl_->GetBoundState().blend_mode.value();
 }
 
 void Renderer::SetBlendMode(BlendMode blend_mode) {
@@ -643,10 +647,11 @@ void Renderer::EndFrame() {
 	constexpr auto depth{ 0.0f };
 	constexpr auto tint{ color::White };
 	constexpr auto tex_coords{ GetDefaultTextureCoordinates<true>() };
+	constexpr auto entity_id{ -1 };
 
-	auto local_quad{
-		CreateLocalRenderQuad(display_viewport_.size, depth, tint.Normalized(), tex_coords)
-	};
+	auto local_quad{ CreateLocalRenderQuad(
+		display_viewport_.size, depth, tint.Normalized(), tex_coords, entity_id
+	) };
 
 	DrawTextureRequest request;
 	request.local_quads = { &local_quad, 1 };
@@ -947,9 +952,6 @@ void Renderer::DrawTexture(const DrawTextureRequest& request) {
 	//	DrawTextureEffect(request);
 	//	return;
 	// }
-	PTGN_ASSERT(
-		request.extra_textures.empty(), "Cannot batch draw texture request with extra textures"
-	);
 	DrawTextureNormally(request);
 }
 
@@ -962,10 +964,7 @@ void Renderer::DrawTextureNormally(const DrawTextureRequest& request) {
 
 	ApplyTransform(request.transform, request.local_quads);
 
-	DrawQuads(
-		DrawQuadRequest<TextureVertex, DefaultTextureIndexAccessor<TextureVertex>>{
-			.quads{ request.local_quads }, .textures{ textures } }
-	);
+	DrawQuads<TextureVertex>(request.local_quads, textures);
 }
 
 // TODO: Fix.

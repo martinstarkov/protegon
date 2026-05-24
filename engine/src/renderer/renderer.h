@@ -14,31 +14,28 @@
 #include <variant>
 #include <vector>
 
-#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
-#include "core/util/hash.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_batcher.h"
-#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
-#include "renderer/resources/resource.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
-#include "renderer/vertex/vertex.h"
+#include "resources/render_target_object.h"
 
 namespace ptgn {
 
@@ -64,24 +61,7 @@ struct DrawTextureRequest {
 	TextureId texture;
 	Transform transform;
 	std::span<RenderQuad<TextureVertex>> local_quads;
-	std::span<const TextureBinding> extra_textures;
 	EffectParams effect_params;
-};
-
-template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
-struct DrawQuadRequest {
-	std::span<const RenderQuad<TVertex>> quads;
-	std::span<const TextureId> textures;
-
-	TAccessor texture_index_accessor;
-};
-
-template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
-struct DrawTriangleRequest {
-	std::span<const RenderTriangle<TVertex>> triangles;
-	std::span<const TextureId> textures;
-
-	TAccessor texture_index_accessor;
 };
 
 class Renderer {
@@ -103,22 +83,28 @@ public:
 	const RenderPipeline& GetPipeline(PipelineId id) const;
 
 	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
-	void DrawQuads(DrawQuadRequest<TVertex, TAccessor> request) {
+	void DrawQuads(
+		std::span<const RenderQuad<TVertex>> quads, std::span<const TextureId> textures = {},
+		TAccessor texture_index_accessor = {}
+	) {
 		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
 
 		batcher_.SubmitQuads<TVertex>(
-			request.quads, pipeline.vertex_capacity, pipeline.index_capacity, pipeline.vertex_size,
-			request.textures, request.texture_index_accessor
+			quads, pipeline.vertex_capacity, pipeline.index_capacity, pipeline.vertex_size,
+			textures, texture_index_accessor
 		);
 	}
 
 	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
-	void DrawTriangles(DrawTriangleRequest<TVertex, TAccessor> request) {
+	void DrawTriangles(
+		std::span<const RenderTriangle<TVertex>> triangles,
+		std::span<const TextureId> textures = {}, TAccessor texture_index_accessor = {}
+	) {
 		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
 
 		batcher_.SubmitTriangles<TVertex>(
-			request.triangles, pipeline.vertex_capacity, pipeline.index_capacity,
-			pipeline.vertex_size, request.textures, request.texture_index_accessor
+			triangles, pipeline.vertex_capacity, pipeline.index_capacity, pipeline.vertex_size,
+			textures, texture_index_accessor
 		);
 	}
 
@@ -145,6 +131,8 @@ public:
 	void SetRaster(const RasterState& raster);
 	void SetScissor(const ScissorState& scissor);
 	void SetColorMask(const ColorMaskState& color_mask);
+
+	BlendMode GetBlendMode() const;
 
 	[[nodiscard]] ShaderObject CreateShader(
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
