@@ -1,28 +1,20 @@
 #pragma once
 
 #include <array>
-#include <cstdint>
 #include <span>
 #include <string_view>
-#include <variant>
-#include <vector>
 
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/shape.h"
-#include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/effect_params.h"
-#include "renderer/pipeline/render_batcher.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/render_target_pool.h"
-#include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
-#include "renderer/vertex/vertex.h"
 
 namespace ptgn {
 
@@ -32,44 +24,23 @@ namespace impl {
 
 class Renderer;
 
-struct TriangleCommand {
-	std::vector<RenderTriangle<ColorVertex>> triangles;
-};
-
-struct QuadCommand {
-	std::vector<RenderQuad<ColorVertex>> quads;
-};
-
-struct ShapeCommand {
-	ShaderId shader;
-	std::vector<RenderQuad<ShapeVertex>> quads;
-};
-
-struct TextureCommand {
-	ShaderId shader;
-	TextureId texture;
-	std::vector<RenderQuad<TextureVertex>> quads;
-};
-
-using ManualCommand = std::variant<TriangleCommand, QuadCommand, ShapeCommand, TextureCommand>;
-
 } // namespace impl
 
 class DrawContext {
 private:
-	class StateScope {
+	class RenderStateScope {
 	private:
-		StateScope() = delete;
+		RenderStateScope() = delete;
 
-		StateScope(DrawContext& ctx, const RenderState& delta_state);
+		RenderStateScope(DrawContext& ctx, const RenderState& delta_state);
 
-		StateScope(const StateScope&)			 = delete;
-		StateScope& operator=(const StateScope&) = delete;
+		RenderStateScope(const RenderStateScope&)			 = delete;
+		RenderStateScope& operator=(const RenderStateScope&) = delete;
 
-		StateScope(StateScope&&) noexcept			 = delete;
-		StateScope& operator=(StateScope&&) noexcept = delete;
+		RenderStateScope(RenderStateScope&&) noexcept			 = delete;
+		RenderStateScope& operator=(RenderStateScope&&) noexcept = delete;
 
-		~StateScope();
+		~RenderStateScope();
 
 		friend class DrawContext;
 
@@ -78,14 +49,14 @@ private:
 	};
 
 public:
-	void WithState(const RenderState& delta, InvocableR<void> auto&& function) {
-		StateScope scope{ *this, delta };
+	void WithRenderState(const RenderState& delta, InvocableR<void> auto&& function) {
+		RenderStateScope scope{ *this, delta };
 
 		function();
 	}
 
 	void WithBlendMode(BlendMode blend_mode, InvocableR<void> auto&& function) {
-		StateScope scope{ *this, RenderState{ .blend_mode{ blend_mode } } };
+		RenderStateScope scope{ *this, RenderState{ .blend_mode{ blend_mode } } };
 
 		function();
 	}
@@ -120,18 +91,10 @@ public:
 		float line_width, bool connect_last_to_first
 	);
 
-	void Draw(const impl::ManualCommand& cmd);
-
 	impl::ShaderId GetShader(std::string_view name) const;
 
-	// TODO: Move these to private once Scene renderer is added.
-	void SetViewport(Viewport viewport);
-	void SetViewProjection(const Matrix4& view_projection);
-	void SetScissor(const ScissorState& scissor);
-	void SetRenderTarget(const impl::RenderTargetObject* target);
-
 private:
-	friend class StateScope;
+	friend class RenderStateScope;
 	friend class impl::Renderer;
 	friend class Application;
 

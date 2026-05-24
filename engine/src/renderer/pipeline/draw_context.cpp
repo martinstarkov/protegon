@@ -1,11 +1,9 @@
 #include "renderer/pipeline/draw_context.h"
 
 #include <array>
-#include <optional>
 #include <span>
 #include <string_view>
 #include <type_traits>
-#include <variant>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
@@ -20,11 +18,11 @@
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_batcher.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/render_target_pool.h"
+#include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
-#include "renderer/vertex/vertex.h"
+#include "renderer/resources/render_target_object.h"
 
 namespace ptgn {
 
@@ -55,30 +53,14 @@ float GetNormalizedRadius(float diameter, float size_x) {
 
 DrawContext::DrawContext(impl::Renderer& renderer) : renderer_{ renderer } {}
 
-DrawContext::StateScope::StateScope(DrawContext& ctx, const RenderState& delta_state) :
+DrawContext::RenderStateScope::RenderStateScope(DrawContext& ctx, const RenderState& delta_state) :
 	ctx_{ ctx }, previous_state_{ ctx_.GetRenderState() } {
 	auto next_state{ impl::ApplyDeltaRenderState(previous_state_, delta_state) };
 	ctx_.SetRenderState(next_state);
 }
 
-DrawContext::StateScope::~StateScope() {
+DrawContext::RenderStateScope::~RenderStateScope() {
 	ctx_.SetRenderState(previous_state_);
-}
-
-void DrawContext::SetViewport(Viewport viewport) {
-	renderer_.SetViewport(viewport);
-}
-
-void DrawContext::SetViewProjection(const Matrix4& view_projection) {
-	renderer_.SetViewProjection(view_projection);
-}
-
-void DrawContext::SetScissor(const ScissorState& scissor) {
-	renderer_.SetScissor(scissor);
-}
-
-void DrawContext::SetRenderTarget(const impl::RenderTargetObject* target) {
-	renderer_.SetRenderTarget(target);
 }
 
 RenderState DrawContext::GetRenderState() const {
@@ -113,7 +95,7 @@ void DrawContext::DrawTexture(
 
 	request.texture = texture;
 	auto local_quad{
-		impl::CreateLocalRenderQuad(rect, depth, tint.Normalized(), tex_coords, 0.0f, entity_id)
+		impl::CreateLocalRenderQuad(rect, depth, tint.Normalized(), tex_coords, entity_id)
 	};
 	request.transform	  = rect.Offset(transform, draw_origin);
 	request.local_quads	  = { &local_quad, 1 };
@@ -144,40 +126,6 @@ void DrawContext::DrawLines(
 	std::span<const V2_float> points, Transform transform, float depth, Color tint,
 	float line_width, bool connect_last_to_first
 ) {}
-
-void DrawContext::Draw(const impl::ManualCommand& cmd) {
-	std::visit(
-		[&]<typename T>(const T& arg) {
-			if constexpr (std::is_same_v<T, impl::TextureCommand>) {
-				renderer_.SetCurrentPipeline("texture");
-				renderer_.SetShader(arg.shader);
-				renderer_.DrawQuads(
-					impl::DrawQuadRequest<impl::TextureVertex>{ .quads{ arg.quads },
-																.textures{ &arg.texture, 1 } }
-				);
-			} else if constexpr (std::is_same_v<T, impl::ShapeCommand>) {
-				renderer_.SetCurrentPipeline("shape");
-				renderer_.SetShader(arg.shader);
-				renderer_.DrawQuads<impl::ShapeVertex, impl::NoTextureIndexAccessor>({ .quads{
-					arg.quads } });
-			} else if constexpr (std::is_same_v<T, impl::QuadCommand>) {
-				renderer_.SetCurrentPipeline("color");
-				renderer_.SetShader("color");
-				renderer_.DrawQuads<impl::ColorVertex, impl::NoTextureIndexAccessor>({ .quads{
-					arg.quads } });
-			} else if constexpr (std::is_same_v<T, impl::TriangleCommand>) {
-				renderer_.SetCurrentPipeline("color");
-				renderer_.SetShader("color");
-				renderer_.DrawTriangles<impl::ColorVertex, impl::NoTextureIndexAccessor>(
-					{ .triangles{ arg.triangles } }
-				);
-			} else {
-				static_assert(false, "Incomplete visitor!");
-			}
-		},
-		cmd
-	);
-}
 
 impl::ShaderId DrawContext::GetShader(std::string_view name) const {
 	return renderer_.GetShader(name);
