@@ -104,8 +104,8 @@ void Text::Draw(
 
 	// NOSONAR
 	// Enable to see outline of text:
-	// entity.GetScene().ctx().debug.DrawShape(
-	//	Rect{ size }, transform, color::Purple, {}, draw_origin
+	// entity.GetScene().ctx().render_queue.DrawShape(
+	//	transform, Rect{ size }, color::Purple, { .origin = draw_origin }
 	//);
 
 	renderer.DrawTexture(

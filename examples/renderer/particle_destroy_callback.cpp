@@ -15,7 +15,7 @@
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/graphics/fx/particle_event.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"

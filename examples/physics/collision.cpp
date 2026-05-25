@@ -258,13 +258,21 @@ public:
 		for (auto [e, collider] : scene->EntitiesWith<Collider>()) {
 			auto transform{ GetWorldTransform(e) };
 			if (collider.mode == CollisionMode::Discrete) {
-				scene->ctx().debug.DrawText("Intersect", transform.GetPosition(), text_color);
+				scene->ctx().render_queue.DrawText(
+					transform, "Intersect", text_color, { .debug = true }
+				);
 			} else if (collider.mode == CollisionMode::Overlap) {
-				scene->ctx().debug.DrawText("Overlap", transform.GetPosition(), text_color);
+				scene->ctx().render_queue.DrawText(
+					transform, "Overlap", text_color, { .debug = true }
+				);
 			} else if (collider.mode == CollisionMode::Continuous) {
-				scene->ctx().debug.DrawText("Sweep", transform.GetPosition(), text_color);
+				scene->ctx().render_queue.DrawText(
+					transform, "Sweep", text_color, { .debug = true }
+				);
 			} else if (collider.mode == CollisionMode::None) {
-				scene->ctx().debug.DrawText("None", transform.GetPosition(), text_color);
+				scene->ctx().render_queue.DrawText(
+					transform, "None", text_color, { .debug = true }
+				);
 			}
 		}
 	}

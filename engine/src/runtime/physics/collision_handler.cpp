@@ -18,11 +18,12 @@
 #include "core/math/vector2.h"
 #include "core/util/span.h"
 #include "core/util/time.h"
+#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/physics/bounding_aabb.h"
@@ -427,7 +428,7 @@ void CollisionHandler::TryDrawDebugCollider(
 		auto transform{ GetWorldTransform(entity) };
 		transform.Translate(offset);
 		const auto& collider{ entity.Get<Collider>() };
-		scene.ctx().debug.DrawShape(collider.shape, transform, color);
+		scene.ctx().render_queue.DrawShape(transform, collider.shape, color, { .debug = true });
 	}
 }
 
@@ -437,7 +438,9 @@ void CollisionHandler::TryDrawDebugLine(
 	if (debug_settings_.DrawCCD()) {
 		auto transform{ GetWorldTransform(entity) };
 		auto position{ transform.GetPosition() };
-		scene.ctx().debug.DrawLine(position + start_offset, position + end_offset, color);
+		scene.ctx().render_queue.DrawLine(
+			position + start_offset, position + end_offset, color, { .debug = true }
+		);
 	}
 }
 
@@ -624,9 +627,12 @@ void CollisionHandler::DrawDebugForCamera(
 		auto transform{ GetDrawTransform(entity) };
 		auto draw_origin{ GetDrawOrigin(entity) };
 
-		scene.ctx().debug.DrawShape(
-			collider.shape, transform, debug_settings_.draw_color, debug_settings_.draw_fill_style,
-			draw_origin, camera
+		scene.ctx().render_queue.DrawShape(
+			transform, collider.shape, debug_settings_.draw_color,
+			ShapeRenderParams{ .fill_style = debug_settings_.draw_fill_style,
+							   .origin	   = draw_origin,
+							   .camera	   = camera,
+							   .debug	   = true }
 		);
 	}
 }

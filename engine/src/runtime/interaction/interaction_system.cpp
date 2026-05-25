@@ -21,10 +21,11 @@
 #include "core/util/span.h"
 #include "core/util/time.h"
 #include "renderer/pipeline/camera.h"
+#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/frame_context.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/interaction/draggable.h"
@@ -191,7 +192,9 @@ void InteractionSystem::DrawDebugForCamera(
 	);
 
 	if (debug_settings_.draw_enabled) {
-		scene.ctx().debug.DrawPoint(mouse.position, debug_settings_.draw_color, camera);
+		scene.ctx().render_queue.DrawPoint(
+			mouse.position, debug_settings_.draw_color, { .camera = camera, .debug = true }
+		);
 	}
 
 	for (auto [entity, interactive] : scene.EntitiesWith<impl::Interactive>()) {
@@ -214,9 +217,12 @@ void InteractionSystem::DrawDebugForCamera(
 		for (const auto& [shape, shape_entity] : shapes) {
 			auto draw_transform{ GetDrawTransform(shape_entity) };
 
-			scene.ctx().debug.DrawShape(
-				shape, draw_transform, debug_settings_.draw_color, debug_settings_.draw_line_width,
-				GetDrawOrigin(shape_entity), camera
+			scene.ctx().render_queue.DrawShape(
+				draw_transform, shape, debug_settings_.draw_color,
+				{ .fill_style = debug_settings_.draw_line_width,
+				  .origin	  = GetDrawOrigin(shape_entity),
+				  .camera	  = camera,
+				  .debug	  = true }
 			);
 		}
 	}

@@ -14,7 +14,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/particle_presets.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"

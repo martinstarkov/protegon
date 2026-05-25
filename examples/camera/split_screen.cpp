@@ -15,7 +15,7 @@
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/interaction/draggable.h"

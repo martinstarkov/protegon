@@ -7,7 +7,7 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"

@@ -13,7 +13,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/custom_shader.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/physics/movement.h"

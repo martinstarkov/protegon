@@ -404,17 +404,17 @@ DialoguePage* DialogueComponent::GetCurrentDialoguePage() {
 void DialogueComponent::DrawInfo(Scene& scene, V2_float position) {
 	constexpr float font_size{ 32 };
 	// TODO: Fix.
-	// scene.ctx().debug.DrawText(
-	//	std::format("Dialogue: {}", current_dialogue_), position + V2_float{ 0, 0 }, color::White,
-	//	font_size, {}, {}, Origin::TopLeft
+	// scene.ctx().render_queue.DrawText(
+	//	position + V2_float{ 0, 0 }, std::format("Dialogue: {}", current_dialogue_), color::White,
+	//	font_size, {}, {}, Origin::TopLeft, .debug = true
 	//);
-	// scene.ctx().debug.DrawText(
-	//	std::format("Line: {}", std::to_string(current_line_)), position + V2_float{ 0, 50 },
-	//	color::White, font_size, {}, {}, Origin::TopLeft
+	// scene.ctx().render_queue.DrawText(
+	//	position + V2_float{ 0, 50 }, std::format("Line: {}", std::to_string(current_line_)),
+	//	color::White, font_size, {}, {}, Origin::TopLeft, .debug = true
 	//);
-	// scene.ctx().debug.DrawText(
-	//	std::format("Page: {}", std::to_string(current_page_)), position + V2_float{ 0, 100 },
-	//	color::White, font_size, {}, {}, Origin::TopLeft
+	// scene.ctx().render_queue.DrawText(
+	//	position + V2_float{ 0, 100 }, std::format("Page: {}", std::to_string(current_page_)),
+	//	color::White, font_size, {}, {}, Origin::TopLeft, .debug = true
 	//);
 }
 

@@ -23,7 +23,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/relatives.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/tint.h"

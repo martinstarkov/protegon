@@ -10,7 +10,7 @@
 #include "runtime/graphics/fx/grayscale.h"
 #include "runtime/graphics/fx/inverse_color.h"
 #include "runtime/graphics/fx/sharpen.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"

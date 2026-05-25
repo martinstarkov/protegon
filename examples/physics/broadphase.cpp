@@ -14,7 +14,7 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/physics/bounding_aabb.h"
