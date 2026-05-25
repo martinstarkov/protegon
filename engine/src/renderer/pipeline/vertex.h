@@ -1,6 +1,8 @@
 #pragma once
 
 #include <array>
+#include <concepts>
+#include <type_traits>
 
 #include "core/graphics/flip.h"
 #include "core/math/vector2.h"
@@ -10,8 +12,6 @@
 
 namespace ptgn {
 
-class Rect;
-
 namespace impl {
 
 template <VertexType TVertex>
@@ -19,6 +19,30 @@ using RenderQuad = std::array<TVertex, 4>;
 
 template <VertexType TVertex>
 using RenderTriangle = std::array<TVertex, 3>;
+
+template <typename T>
+struct RenderPrimitiveInfo {
+	static constexpr bool valid{ false };
+};
+
+template <VertexType TVertex>
+struct RenderPrimitiveInfo<RenderTriangle<TVertex>> {
+	static constexpr bool valid{ true };
+	static constexpr std::size_t vertex_count{ 3 };
+
+	using Vertex = TVertex;
+};
+
+template <VertexType TVertex>
+struct RenderPrimitiveInfo<RenderQuad<TVertex>> {
+	static constexpr bool valid{ true };
+	static constexpr std::size_t vertex_count{ 4 };
+
+	using Vertex = TVertex;
+};
+
+template <typename T>
+concept RenderPrimitive = RenderPrimitiveInfo<std::remove_cvref_t<T>>::valid;
 
 template <bool kFlipY>
 constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
@@ -63,6 +87,14 @@ struct ColorVertex : public VertexLayout<ColorVertex, glsl::vec3, glsl::vec4, gl
 
 	ColorVertex(V2_float position, float depth, V4_float color, int entity_id);
 
+	[[nodiscard]] static RenderQuad<ColorVertex> CreateTriangle(
+		const std::array<V2_float, 3>& vertices, float depth, V4_float color_n, int entity_id
+	);
+
+	[[nodiscard]] static RenderQuad<ColorVertex> CreateQuad(
+		const std::array<V2_float, 4>& vertices, float depth, V4_float color_n, int entity_id
+	);
+
 	glsl::vec3 position{};
 	glsl::vec4 color{};
 	glsl::int_ entity_id{ -1 };
@@ -75,6 +107,12 @@ struct ShapeVertex :
 	ShapeVertex(
 		V2_float position, float depth, V4_float color, V2_float local_coord,
 		const std::array<float, 4>& shape_data, int entity_id
+	);
+
+	[[nodiscard]] static RenderQuad<ShapeVertex> CreateQuad(
+		const std::array<V2_float, 4>& vertices, float depth, V4_float color_n,
+		const std::array<V2_float, 4>& local_coords, const std::array<float, 4>& shape_data,
+		int entity_id
 	);
 
 	glsl::vec3 position{};
@@ -101,6 +139,11 @@ struct TextureVertex :
 		int entity_id
 	);
 
+	[[nodiscard]] static RenderQuad<TextureVertex> CreateQuad(
+		const std::array<V2_float, 4>& positions, float depth, V4_float color_n,
+		const std::array<V2_float, 4>& tex_coords, int entity_id
+	);
+
 	glsl::vec3 position{};
 	glsl::vec4 color{};
 	glsl::vec2 tex_coord{};
@@ -108,15 +151,50 @@ struct TextureVertex :
 	glsl::int_ entity_id{ -1 };
 };
 
-RenderQuad<TextureVertex> CreateRenderQuad(
-	const std::array<V2_float, 4>& positions, float depth, V4_float color_n,
-	const std::array<V2_float, 4>& tex_coords, int entity_id
-);
+struct TextureIndexTag {};
 
-RenderQuad<TextureVertex> CreateLocalRenderQuad(
-	const Rect& rect, float depth, V4_float color_n, const std::array<V2_float, 4>& tex_coords,
-	int entity_id
-);
+template <typename T>
+concept GlslFloatRef = requires(T& value) {
+	{ value[0] } -> std::same_as<float&>;
+};
+
+template <GlslFloatRef T>
+constexpr float& TextureIndexFloatRef(T& value) noexcept {
+	return value[0];
+}
+
+template <typename TVertex>
+concept HasRegisteredTextureIndex = requires(TVertex& vertex) {
+	{ TextureIndex(TextureIndexTag{}, vertex) } -> std::same_as<float&>;
+};
+
+template <typename TVertex>
+concept HasConventionalTextureIndex = requires(TVertex& vertex) {
+	{ TextureIndexFloatRef(vertex.tex_index) } -> std::same_as<float&>;
+};
+
+template <typename TVertex>
+struct TextureIndexAccessor {
+	static constexpr bool has_texture_index{ impl::HasRegisteredTextureIndex<TVertex> ||
+											 impl::HasConventionalTextureIndex<TVertex> };
+
+	static constexpr float& Get(TVertex& vertex) noexcept
+		requires has_texture_index
+	{
+		if constexpr (impl::HasRegisteredTextureIndex<TVertex>) {
+			return TextureIndex(TextureIndexTag{}, vertex);
+		} else {
+			return impl::TextureIndexFloatRef(vertex.tex_index);
+		}
+	}
+};
+
+#define PTGN_TEXTURE_INDEX_MEMBER(VertexType, Member)             \
+	friend constexpr float& TextureIndex(                         \
+		::ptgn::impl::TextureIndexTag, VertexType& vertex         \
+	) noexcept {                                                  \
+		return ::ptgn::impl::TextureIndexFloatRef(vertex.Member); \
+	}
 
 } // namespace impl
 

@@ -94,9 +94,10 @@ void DrawContext::DrawTexture(
 	Rect rect{ size };
 
 	request.texture = texture;
-	auto local_quad{
-		impl::CreateLocalRenderQuad(rect, depth, tint.Normalized(), tex_coords, entity_id)
-	};
+	auto local_vertices{ rect.GetLocalVertices() };
+	impl::RenderQuad<impl::TextureVertex> local_quad{ impl::TextureVertex::CreateQuad(
+		local_vertices, depth, tint.Normalized(), tex_coords, entity_id
+	) };
 	request.transform	  = rect.Offset(transform, draw_origin);
 	request.local_quads	  = { &local_quad, 1 };
 	request.effect_params = effects;
