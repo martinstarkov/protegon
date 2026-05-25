@@ -47,6 +47,7 @@
 #include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/render_target_object.h"
 #include "renderer/resources/resource.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
@@ -232,7 +233,9 @@ void Renderer::SetShader(ShaderId shader) {
 }
 
 BlendMode Renderer::GetBlendMode() const {
-	return gl_->GetBoundState().blend_mode.value();
+	const auto& blend_mode{ gl_->GetBoundState().blend_mode };
+	PTGN_ASSERT(blend_mode.has_value(), "No blend mode is currently set");
+	return blend_mode.value();
 }
 
 void Renderer::SetBlendMode(BlendMode blend_mode) {
@@ -649,9 +652,10 @@ void Renderer::EndFrame() {
 	constexpr auto tex_coords{ GetDefaultTextureCoordinates<true>() };
 	constexpr auto entity_id{ -1 };
 
-	auto local_quad{ CreateLocalRenderQuad(
-		display_viewport_.size, depth, tint.Normalized(), tex_coords, entity_id
-	) };
+	auto local_vertices{ Rect{ display_viewport_.size }.GetLocalVertices() };
+	RenderQuad<TextureVertex> local_quad{
+		TextureVertex::CreateQuad(local_vertices, depth, tint.Normalized(), tex_coords, entity_id)
+	};
 
 	DrawTextureRequest request;
 	request.local_quads = { &local_quad, 1 };
@@ -801,15 +805,16 @@ std::size_t Renderer::GetMaxTextureSlots() const {
 	return gl_->GetMaxTextureSlots();
 }
 
-void Renderer::UploadVertices(const RenderPipeline& pipeline, std::span<const std::byte> vertices) {
+void Renderer::UploadVertices(
+	const RenderPipeline& pipeline, std::span<const std::byte> vertices, std::uint32_t vertex_size
+) {
 	auto _0{ gl_->Bind(pipeline.vao, false) };
 	auto _{ gl_->Bind(pipeline.vbo, false) };
 
-	auto vertex_count{ static_cast<std::uint32_t>(vertices.size() / pipeline.vertex_size) };
+	auto vertex_count{ static_cast<std::uint32_t>(vertices.size() / vertex_size) };
 
 	gl_->buffers.SetBufferSubData<VertexBufferId>(
-		pipeline.vbo, gl::BufferTarget::ArrayBuffer, vertices.data(), 0, vertex_count,
-		pipeline.vertex_size
+		pipeline.vbo, gl::BufferTarget::ArrayBuffer, vertices.data(), 0, vertex_count, vertex_size
 	);
 }
 
@@ -964,7 +969,7 @@ void Renderer::DrawTextureNormally(const DrawTextureRequest& request) {
 
 	ApplyTransform(request.transform, request.local_quads);
 
-	DrawQuads<TextureVertex>(request.local_quads, textures);
+	DrawQuads(request.local_quads, textures);
 }
 
 // TODO: Fix.

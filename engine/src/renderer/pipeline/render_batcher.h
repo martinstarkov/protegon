@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <ranges>
 #include <span>
 #include <type_traits>
@@ -33,20 +35,6 @@ inline constexpr std::array<Index, 3> kTriangleIndices{
 	2,
 };
 
-template <VertexType TVertex>
-struct DefaultTextureIndexAccessor {
-	constexpr float& operator()(TVertex& vertex) const noexcept {
-		return vertex.tex_index[0];
-	}
-};
-
-struct NoTextureIndexAccessor {
-	constexpr float& operator()(auto&) const noexcept {
-		static float dummy{ 0.0f };
-		return dummy;
-	}
-};
-
 inline constexpr std::uint32_t kBatchCapacity{ 10000 };
 inline constexpr std::uint32_t kVertexCapacity{ kBatchCapacity * 4 };
 inline constexpr std::uint32_t kIndexCapacity{ kBatchCapacity * 6 };
@@ -59,28 +47,24 @@ public:
 
 	void HoldUntilFlush(RenderTargetObject target);
 
-	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
+	template <VertexType TVertex>
 	void SubmitQuads(
-		std::span<const RenderQuad<TVertex>> quads, std::size_t vertex_capacity,
-		std::size_t index_capacity, std::size_t vertex_size,
-		std::span<const TextureId> local_textures = {}, TAccessor texture_index = {}
+		std::span<RenderQuad<TVertex>> quads, std::size_t vertex_capacity,
+		std::size_t index_capacity, std::span<const TextureId> local_textures = {}
 	) {
 		SubmitPrimitives<TVertex, std::tuple_size_v<RenderQuad<TVertex>>, kQuadIndices.size()>(
-			quads, kQuadIndices, local_textures, texture_index, vertex_capacity, index_capacity,
-			vertex_size
+			quads, kQuadIndices, local_textures, vertex_capacity, index_capacity
 		);
 	}
 
-	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
+	template <VertexType TVertex>
 	void SubmitTriangles(
-		std::span<const RenderTriangle<TVertex>> triangles, std::size_t vertex_capacity,
-		std::size_t index_capacity, std::size_t vertex_size,
-		std::span<const TextureId> local_textures = {}, TAccessor texture_index = {}
+		std::span<RenderTriangle<TVertex>> triangles, std::size_t vertex_capacity,
+		std::size_t index_capacity, std::span<const TextureId> local_textures = {}
 	) {
 		SubmitPrimitives<
 			TVertex, std::tuple_size_v<RenderTriangle<TVertex>>, kTriangleIndices.size()>(
-			triangles, kTriangleIndices, local_textures, texture_index, vertex_capacity,
-			index_capacity, vertex_size
+			triangles, kTriangleIndices, local_textures, vertex_capacity, index_capacity
 		);
 	}
 
@@ -95,139 +79,124 @@ private:
 	TextureSlotInfo GetTextureSlotNoFlush(TextureId texture) const;
 
 	template <
-		VertexType TVertex, std::size_t VertexCount, std::size_t IndexCount, typename TPrimitive,
-		typename TAccessor>
+		VertexType TVertex, std::size_t VertexCount, std::size_t IndexCount, typename TPrimitive>
 	void SubmitPrimitives(
-		std::span<const TPrimitive> primitives, const std::array<Index, IndexCount>& index_pattern,
-		std::span<const TextureId> local_textures, TAccessor texture_index,
-		std::size_t vertex_capacity, std::size_t index_capacity, std::size_t vertex_size
+		std::span<TPrimitive> primitives, const std::array<Index, IndexCount>& index_pattern,
+		std::span<const TextureId> local_textures, std::size_t vertex_capacity,
+		std::size_t index_capacity
 	) {
-		static_assert(std::is_trivially_copyable_v<TVertex>);
 		static_assert(std::is_standard_layout_v<TVertex>);
 		static_assert(std::tuple_size_v<TPrimitive> == VertexCount);
+
+		static_assert(std::ranges::contiguous_range<TPrimitive>);
+		static_assert(std::same_as<std::ranges::range_value_t<TPrimitive>, TVertex>);
 
 		if (primitives.empty()) {
 			return;
 		}
 
-		std::vector<TVertex> chunk_vertices;
-		std::vector<Index> chunk_indices;
+		PTGN_ASSERT(VertexCount <= vertex_capacity, "Single primitive exceeds vertex capacity");
+		PTGN_ASSERT(IndexCount <= index_capacity, "Single primitive exceeds index capacity");
 
-		chunk_vertices.reserve(
-			std::min<std::size_t>(primitives.size() * VertexCount, kVertexCapacity)
-		);
-
-		chunk_indices.reserve(
-			std::min<std::size_t>(primitives.size() * IndexCount, kIndexCapacity)
-		);
-
-		auto flush_chunk = [&]() {
-			if (chunk_vertices.empty()) {
-				return;
-			}
-
-			SubmitVertices<TVertex>(
-				chunk_vertices, chunk_indices, vertex_capacity, index_capacity, vertex_size
-			);
-
-			chunk_vertices.clear();
-			chunk_indices.clear();
-		};
-
-		for (const auto& primitive : primitives) {
-			TPrimitive copied{ primitive };
-
-			auto batch_texture_slot{ 0.0f };
-
-			if (!local_textures.empty()) {
-				auto local_texture_index{ static_cast<std::size_t>(texture_index(copied[0])) };
-
-				PTGN_ASSERT(
-					local_texture_index < local_textures.size(), "Invalid local texture index"
-				);
-
-				TextureId texture{ local_textures[local_texture_index] };
-
-				PTGN_ASSERT(texture);
-
-				if (IsTextureAttachedToCurrentFramebuffer(texture)) {
-					PTGN_ERROR("Cannot sample from a texture attached to the current framebuffer");
-				}
-
-				if (bool already_bound{ std::ranges::contains(textures_, texture) };
-					!already_bound && textures_.size() >= GetMaxTextureSlots()) {
-					flush_chunk();
-					Flush();
-				}
-
-				auto slot{ GetTextureSlotNoFlush(texture) };
-
-				if (slot.push_to_batch) {
-					textures_.push_back(texture);
-				}
-
-				batch_texture_slot = static_cast<float>(slot.slot);
-
-				for (auto& vertex : copied) {
-					texture_index(vertex) = batch_texture_slot;
-				}
-			}
-
-			if (ChunkExceedsCapacity<TVertex>(
-					chunk_vertices.size() + VertexCount, chunk_indices.size() + IndexCount,
-					vertex_capacity, index_capacity
+		for (auto& primitive : primitives) {
+			if (BatchWouldExceedCapacity<TVertex>(
+					VertexCount, IndexCount, vertex_capacity, index_capacity
 				)) {
-				flush_chunk();
+				Flush();
 			}
 
-			auto base_vertex{ static_cast<Index>(chunk_vertices.size()) };
+			auto batch_texture_slot{
+				ResolveTextureSlotForPrimitive<TVertex>(primitive, local_textures)
+			};
 
-			for (const auto& vertex : copied) {
-				chunk_vertices.push_back(vertex);
+			if constexpr (TextureIndexAccessor<TVertex>::has_texture_index) {
+				if (!local_textures.empty()) {
+					for (auto& vertex : primitive) {
+						TextureIndexAccessor<TVertex>::Get(vertex) = batch_texture_slot;
+					}
+				}
 			}
 
-			for (auto index : index_pattern) {
-				chunk_indices.push_back(base_vertex + index);
-			}
+			SubmitPrimitiveUnchecked<TVertex, VertexCount, IndexCount>(primitive, index_pattern);
+		}
+	}
+
+	template <VertexType TVertex, typename TPrimitive>
+	float ResolveTextureSlotForPrimitive(
+		TPrimitive& primitive, std::span<const TextureId> local_textures
+	) {
+		if (local_textures.empty()) {
+			return 0.0f;
 		}
 
-		flush_chunk();
+		if constexpr (TextureIndexAccessor<TVertex>::has_texture_index) {
+			auto local_texture_index{
+				static_cast<std::size_t>(TextureIndexAccessor<TVertex>::Get(primitive[0]))
+			};
+
+			PTGN_ASSERT(local_texture_index < local_textures.size(), "Invalid local texture index");
+
+			TextureId texture{ local_textures[local_texture_index] };
+
+			PTGN_ASSERT(texture);
+
+			if (IsTextureAttachedToCurrentFramebuffer(texture)) {
+				PTGN_ERROR("Cannot sample from a texture attached to the current framebuffer");
+			}
+
+			if (bool already_bound{ std::ranges::contains(textures_, texture) };
+				!already_bound && textures_.size() >= GetMaxTextureSlots()) {
+				Flush();
+			}
+
+			auto slot{ GetTextureSlotNoFlush(texture) };
+
+			if (slot.push_to_batch) {
+				textures_.push_back(texture);
+			}
+
+			return static_cast<float>(slot.slot);
+		} else {
+			PTGN_ERROR("Vertex type must have a texture index when submitting with textures");
+		}
 	}
 
 	template <VertexType TVertex>
-	void SubmitVertices(
-		std::span<const TVertex> vertices, std::span<const Index> local_indices,
-		std::size_t vertex_capacity, std::size_t index_capacity, std::size_t vertex_size
+	bool BatchWouldExceedCapacity(
+		std::size_t additional_vertex_count, std::size_t additional_index_count,
+		std::size_t vertex_capacity, std::size_t index_capacity
+	) const {
+		auto additional_vertex_bytes{ additional_vertex_count * sizeof(TVertex) };
+		auto vertex_capacity_bytes{ vertex_capacity * sizeof(TVertex) };
+
+		return vertices_.size() + additional_vertex_bytes > vertex_capacity_bytes ||
+			   indices_.size() + additional_index_count > index_capacity;
+	}
+
+	template <
+		VertexType TVertex, std::size_t VertexCount, std::size_t IndexCount, typename TPrimitive>
+	void SubmitPrimitiveUnchecked(
+		const TPrimitive& primitive, const std::array<Index, IndexCount>& index_pattern
 	) {
-		std::size_t vertex_bytes{ vertices.size() * sizeof(TVertex) };
-		std::size_t vertex_capacity_bytes{ vertex_capacity * vertex_size };
-
-		PTGN_ASSERT(vertex_bytes <= vertex_capacity_bytes, "Single submit exceeds vertex capacity");
-
-		PTGN_ASSERT(local_indices.size() <= index_capacity, "Single submit exceeds index capacity");
-
-		if (vertices_.size() + vertex_bytes > vertex_capacity_bytes ||
-			indices_.size() + local_indices.size() > index_capacity) {
-			Flush();
-		}
-
 		auto base_vertex{ static_cast<Index>(vertices_.size() / sizeof(TVertex)) };
 
-		auto bytes{ std::as_bytes(vertices) };
+		std::span<const TVertex, VertexCount> primitive_vertices{ std::data(primitive),
+																  VertexCount };
+
+		auto bytes{ std::as_bytes(primitive_vertices) };
+
+		PTGN_ASSERT(
+			vertex_size_ == 0 || vertex_size_ == sizeof(TVertex),
+			"Inconsistent vertex size in batch"
+		);
+
+		vertex_size_ = sizeof(TVertex);
 
 		vertices_.append_range(bytes);
 
-		indices_.append_range(local_indices | std::views::transform([base_vertex](auto index) {
+		indices_.append_range(index_pattern | std::views::transform([base_vertex](auto index) {
 								  return base_vertex + index;
 							  }));
-	}
-
-	template <VertexType TVertex>
-	bool ChunkExceedsCapacity(
-		std::size_t vertex_count, std::size_t index_count, std::size_t vertex_capacity,
-		std::size_t index_capacity
-	) const {
-		return vertex_count > vertex_capacity || index_count > index_capacity;
 	}
 
 	void ReleaseTargetsAfterFlush();
@@ -238,6 +207,7 @@ private:
 
 	Renderer& renderer_;
 
+	std::uint32_t vertex_size_{ 0 };
 	std::vector<std::byte> vertices_;
 	std::vector<Index> indices_;
 	std::vector<TextureId> textures_;

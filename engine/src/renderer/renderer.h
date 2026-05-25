@@ -82,30 +82,48 @@ public:
 
 	const RenderPipeline& GetPipeline(PipelineId id) const;
 
-	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
-	void DrawQuads(
-		std::span<const RenderQuad<TVertex>> quads, std::span<const TextureId> textures = {},
-		TAccessor texture_index_accessor = {}
+	template <VertexType TVertex>
+	void DrawQuads(std::span<RenderQuad<TVertex>> quads, std::span<const TextureId> textures = {}) {
+		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
+
+		batcher_.SubmitQuads(quads, pipeline.vertex_capacity, pipeline.index_capacity, textures);
+	}
+
+	template <VertexType TVertex>
+	void DrawTriangles(
+		std::span<RenderTriangle<TVertex>> triangles, std::span<const TextureId> textures = {}
 	) {
 		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
 
-		batcher_.SubmitQuads<TVertex>(
-			quads, pipeline.vertex_capacity, pipeline.index_capacity, pipeline.vertex_size,
-			textures, texture_index_accessor
+		batcher_.SubmitTriangles(
+			triangles, pipeline.vertex_capacity, pipeline.index_capacity, textures
 		);
 	}
 
-	template <VertexType TVertex, typename TAccessor = DefaultTextureIndexAccessor<TVertex>>
-	void DrawTriangles(
-		std::span<const RenderTriangle<TVertex>> triangles,
-		std::span<const TextureId> textures = {}, TAccessor texture_index_accessor = {}
-	) {
-		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
+	template <RenderPrimitive TPrimitive>
+	void Draw(std::span<TPrimitive> primitives, std::span<const TextureId> textures = {}) {
+		using Info = RenderPrimitiveInfo<TPrimitive>;
 
-		batcher_.SubmitTriangles<TVertex>(
-			triangles, pipeline.vertex_capacity, pipeline.index_capacity, pipeline.vertex_size,
-			textures, texture_index_accessor
-		);
+		if constexpr (Info::vertex_count == 3) {
+			DrawTriangles(primitives, textures);
+		} else if constexpr (Info::vertex_count == 4) {
+			DrawQuads(primitives, textures);
+		} else {
+			static_assert(
+				false, "Cannot use Draw for primitives other than RenderQuad and RenderTriangle"
+			);
+		}
+	}
+
+	template <RenderPrimitive TPrimitive>
+	void Draw(std::span<TPrimitive> primitives, TextureId texture = {}) {
+		std::span<const TextureId> textures;
+
+		if (texture) {
+			textures = { &texture, 1 };
+		}
+
+		Draw(primitives, textures);
 	}
 
 	void SetRenderTarget(const RenderTargetObject* target);
@@ -251,7 +269,10 @@ private:
 	Renderer& operator=(const Renderer&)	 = delete;
 	Renderer& operator=(Renderer&&) noexcept = delete;
 
-	void UploadVertices(const RenderPipeline& pipeline, std::span<const std::byte> vertices);
+	void UploadVertices(
+		const RenderPipeline& pipeline, std::span<const std::byte> vertices,
+		std::uint32_t vertex_size
+	);
 	void UploadIndices(const RenderPipeline& pipeline, std::span<const Index> indices);
 	void DrawElements(const RenderPipeline& pipeline, std::uint32_t index_count);
 
