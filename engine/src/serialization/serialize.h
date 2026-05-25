@@ -15,7 +15,6 @@
 #include <variant>
 
 #include "core/util/macro.h"
-#include "serialization/json/fwd.h"
 #include "serialization/json/json.h"
 
 namespace ptgn::impl {
@@ -25,7 +24,8 @@ template <typename T, typename... Ts>
 void variant_from_json(const json& j, std::variant<Ts...>& data) {
 	try {
 		data = j.get<T>();
-	} catch (...) { /* Ignore */
+	} catch (...) {
+		/* Ignore */
 	}
 }
 
@@ -84,10 +84,10 @@ void optional_from_json(const json& j, std::optional<T>& value) {
 }
 
 template <typename>
-constexpr bool is_optional = false;
+inline constexpr bool is_optional{ false };
 
 template <typename T>
-constexpr bool is_optional<std::optional<T>> = true;
+inline constexpr bool is_optional<std::optional<T>>{ true };
 
 template <typename T>
 void extended_to_json(std::string_view key, json& j, const T& value) {
