@@ -1,16 +1,19 @@
 #include "renderer/pipeline/render_command.h"
 
 #include <algorithm>
-#include <iterator>
+#include <array>
 #include <optional>
 #include <ranges>
 #include <span>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/log.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/render_batcher.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/renderer.h"
@@ -64,7 +67,7 @@ void RenderCommands::Sort() {
 	});
 }
 
-void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) const {
+void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
 	const auto& command{ commands_[command_index] };
 
 	auto prev_blend_mode{ renderer.GetBlendMode() };
@@ -73,53 +76,28 @@ void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) const {
 		renderer.SetBlendMode(*command.blend_mode);
 	}
 
+	auto get_span = [&command](auto& container) {
+		return std::span{ container.data() + command.range.first, command.range.count };
+	};
+
+	auto draw_primitive = [&renderer, &get_span,
+						   &command](std::string_view pipeline, auto& container) {
+		renderer.SetCurrentPipeline(pipeline);
+
+		auto primitives{ get_span(container) };
+
+		renderer.Draw(primitives, command.texture);
+	};
+
 	renderer.SetShader(command.shader);
 
 	switch (command.kind) {
-		case RenderCommandKind::TextureQuads: {
-			renderer.SetCurrentPipeline("texture");
-
-			std::span quads{ texture_quads_.data() + command.range.first, command.range.count };
-
-			std::span textures{ &command.texture, 1 };
-
-			renderer.DrawQuads<TextureVertex>(quads, textures);
-
-			break;
-		}
-
-		case RenderCommandKind::ShapeQuads: {
-			renderer.SetCurrentPipeline("shape");
-
-			std::span quads{ shape_quads_.data() + command.range.first, command.range.count };
-
-			renderer.DrawQuads<ShapeVertex, NoTextureIndexAccessor>(quads);
-
-			break;
-		}
-
-		case RenderCommandKind::ColorQuads: {
-			renderer.SetCurrentPipeline("color");
-
-			std::span quads{ color_quads_.data() + command.range.first, command.range.count };
-
-			renderer.DrawQuads<ColorVertex, NoTextureIndexAccessor>(quads);
-
-			break;
-		}
-
-		case RenderCommandKind::ColorTriangles: {
-			renderer.SetCurrentPipeline("color");
-
-			std::span triangles{ color_triangles_.data() + command.range.first,
-								 command.range.count };
-
-			renderer.DrawTriangles<ColorVertex, NoTextureIndexAccessor>(triangles);
-
-			break;
-		}
-
-		default: PTGN_ERROR("Unknown RenderCommandKind: ", std::to_underlying(command.kind));
+		using enum RenderCommandKind;
+		case TextureQuads:	 draw_primitive("texture", texture_quads_); break;
+		case ShapeQuads:	 draw_primitive("shape", shape_quads_); break;
+		case ColorQuads:	 draw_primitive("color", color_quads_); break;
+		case ColorTriangles: draw_primitive("color", color_triangles_); break;
+		default:			 PTGN_ERROR("Unknown RenderCommandKind: ", std::to_underlying(command.kind));
 	}
 
 	renderer.SetBlendMode(prev_blend_mode);

@@ -58,7 +58,7 @@ public:
 
 	void Sort();
 
-	void Draw(Renderer& renderer, std::size_t command_index) const;
+	void Draw(Renderer& renderer, std::size_t command_index);
 
 	void Clear();
 
