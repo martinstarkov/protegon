@@ -83,13 +83,13 @@ enum class TextureWrap : std::int32_t {
 	ClampToEdge	   = 0x812F	 // GL_CLAMP_TO_EDGE
 };
 
-struct TextureParameters {
-	constexpr TextureParameters() = default;
+struct TextureParams {
+	constexpr TextureParams() = default;
 
-	constexpr TextureParameters(TextureMinFilter min_filter, TextureMagFilter mag_filter) :
+	constexpr TextureParams(TextureMinFilter min_filter, TextureMagFilter mag_filter) :
 		min_filter{ min_filter }, mag_filter{ mag_filter } {}
 
-	constexpr TextureParameters(
+	constexpr TextureParams(
 		TextureMinFilter min_filter, TextureMagFilter mag_filter, TextureWrap wrap_s,
 		TextureWrap wrap_t
 	) :

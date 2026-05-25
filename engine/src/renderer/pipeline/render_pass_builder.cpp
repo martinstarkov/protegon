@@ -10,7 +10,7 @@
 
 namespace ptgn {
 
-PassBuilder::PassBuilder(impl::Renderer& renderer, std::vector<impl::TextureId> inputs) :
+PassBuilder::PassBuilder(Renderer& renderer, std::vector<impl::TextureId> inputs) :
 	renderer_{ renderer } {
 	desc_.inputs = std::move(inputs);
 }

@@ -48,16 +48,17 @@ void Graphics::Draw(DrawContext& ctx, Entity entity) {
 	const auto& instance{ entity.Get<impl::GraphicsData>() };
 
 	auto transform{ GetDrawTransform(entity) };
-	auto depth{ GetDepth(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
-	auto entity_id{ entity.GetUUID() };
-	constexpr auto draw_origin{ Origin::Center };
 
 	ctx.WithBlendMode(blend_mode, [&]() {
 		for (const auto& cmd : instance.commands_) {
+			auto cmd_transform{ cmd.transform.RelativeTo(transform) };
+
 			ctx.DrawShape(
-				cmd.shape, cmd.transform.RelativeTo(transform), depth, cmd.color, cmd.line_width,
-				draw_origin, entity_id
+				cmd_transform, cmd.shape, cmd.color,
+				{ .depth	  = GetDepth(entity),
+				  .fill_style = cmd.line_width,
+				  .entity_id  = entity.GetUUID() }
 			);
 		}
 	});

@@ -17,15 +17,12 @@
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
-#include "core/math/geometry/origin.h"
 #include "core/util/hash.h"
-#include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/scaling_mode.h"
-#include "renderer/pipeline/vertex.h"
-#include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/tween.h"
@@ -38,7 +35,7 @@
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/fx/particle.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
@@ -202,56 +199,53 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 
 	impl::ClearedEntities cleared;
 
-	auto game_size{ ctx().global_renderer_.GetGameSize() };
+	auto game_size{ ctx().renderer.GetGameSize() };
 
-	auto buckets{ ctx().renderer.GetRenderBuckets(ctx().renderer.draw_commands_, entity_commands) };
+	auto buckets{
+		RenderQueue::GetRenderBuckets(ctx().render_queue.render_commands_, entity_commands)
+	};
 
-	ctx().renderer.Draw(draw_context, render_target_, cleared, game_size, buckets);
+	ctx().render_queue.Draw(draw_context, render_target_, cleared, game_size, buckets);
 
 	if (primary_world_camera.has_value()) {
 		impl::RenderCamera render_camera{ *primary_world_camera };
-		ctx().renderer.CombineDebugCommands(render_camera);
+		ctx().render_queue.CombineDebugCommands(render_camera);
 
-		PTGN_ASSERT(ctx().renderer.draw_commands_.size() == 1);
-		PTGN_ASSERT(ctx().renderer.debug_commands_.size() == 1);
+		PTGN_ASSERT(ctx().render_queue.render_commands_.size() == 1);
+		PTGN_ASSERT(ctx().render_queue.debug_commands_.size() == 1);
 	}
 
 	// Currently always empty.
 	std::vector<impl::CameraEntityCommands> debug_entity_commands;
 
 	auto debug_buckets{
-		ctx().renderer.GetRenderBuckets(ctx().renderer.debug_commands_, debug_entity_commands)
+		RenderQueue::GetRenderBuckets(ctx().render_queue.debug_commands_, debug_entity_commands)
 	};
 
-	ctx().renderer.Draw(draw_context, render_target_, cleared, game_size, debug_buckets);
+	ctx().render_queue.Draw(draw_context, render_target_, cleared, game_size, debug_buckets);
 
-	ctx().global_renderer_.FlushBatch();
+	impl::RendererAccessor renderer{ ctx().renderer };
 
-	Viewport viewport{ {}, ctx().global_renderer_.GetDisplayViewport().size };
+	renderer.FlushBatch();
 
-	ctx().global_renderer_.BindScreenTarget();
-	ctx().global_renderer_.SetViewport(viewport);
-	ctx().global_renderer_.SetViewProjection(viewport.size);
-	ctx().global_renderer_.SetBlendMode(BlendMode::Blend);
+	renderer.SetupPresentationTarget();
 
-	auto render_target_texture{ ctx().global_renderer_.GetRenderTargetTexture(render_target_) };
+	DrawSceneTarget(draw_context);
+
+	renderer.FlushBatch();
+}
+
+void Scene::DrawSceneTarget(DrawContext& draw_context) const {
+	auto texture{ render_target_.GetTextureId() };
 	auto draw_transform{ GetDrawTransform(render_target_) };
-	auto scene_target_size{ render_target_.GetSize() };
-	auto rt_tint{ GetTint(render_target_) };
-
-	constexpr auto draw_origin{ Origin::Center };
-	constexpr auto depth{ 0.0f };
-	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
-	constexpr auto entity_id{ -1 };
-
-	auto effects{ impl::GetEffectParams(render_target_) };
 
 	draw_context.DrawTexture(
-		render_target_texture, draw_transform, depth, scene_target_size, draw_origin, rt_tint,
-		tex_coords, effects, entity_id
+		draw_transform, texture,
+		{ .size				   = render_target_.GetSize(),
+		  .tint				   = GetTint(render_target_),
+		  .texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
+		  .effects			   = impl::GetEffectParams(render_target_) }
 	);
-
-	ctx().global_renderer_.FlushBatch();
 }
 
 void Scene::InternalUpdate() {

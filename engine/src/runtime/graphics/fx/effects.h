@@ -72,6 +72,7 @@ template <typename T, typename... TArgs>
 	requires std::constructible_from<T, TArgs...>
 EffectEntity<T> AddScreenEffect(Scene& scene, TArgs&&... args) {
 	// TODO: Fix.
+	// TODO: Add EffectParams to renderer and reset it here based on effects.
 	auto effect{ CreateEffect<T>(scene, std::forward<TArgs>(args)...) };
 	AddEffect(scene, effect);
 	return effect;

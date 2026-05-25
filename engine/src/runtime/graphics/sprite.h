@@ -7,6 +7,7 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/draw_context.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
@@ -19,6 +20,10 @@ class DrawContext;
 namespace impl {
 
 class AnimationData;
+
+TextureDrawParams GetTextureDrawParams(
+	Entity entity, V2_float size, bool flip_y, Color additional_tint
+);
 
 /// Component for a custom texture size to be used instead of the actual texture size. This can be
 /// used for example to render a texture at a larger size.

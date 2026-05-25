@@ -140,6 +140,13 @@ struct MaterialState {
 	bool operator==(const MaterialState&) const = default;
 };
 
+struct Material {
+	std::string shader;
+	std::vector<UniformWrite> uniforms;
+
+	bool operator==(const Material&) const = default;
+};
+
 struct RenderState {
 	std::optional<Viewport> viewport;
 	std::optional<Matrix4> view_projection;

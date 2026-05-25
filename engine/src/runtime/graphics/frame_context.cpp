@@ -7,8 +7,8 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
@@ -20,7 +20,7 @@ FrameContext::FrameContext(const Scene& scene) :
 	FrameContext{ scene.ctx().renderer, scene.GetRenderTarget(), scene.ctx().camera } {}
 
 FrameContext::FrameContext(
-	const RenderContext& renderer, RenderTarget render_target_entity, Transform camera_transform,
+	const Renderer& renderer, RenderTarget render_target_entity, Transform camera_transform,
 	Viewport camera_viewport
 ) {
 	auto presentation_viewport{ renderer.GetPresentationViewport() };
@@ -49,12 +49,12 @@ FrameContext::FrameContext(
 }
 
 FrameContext::FrameContext(
-	const RenderContext& renderer, RenderTarget render_target_entity, SceneCamera cam
+	const Renderer& renderer, RenderTarget render_target_entity, SceneCamera cam
 ) :
 	FrameContext{ renderer, render_target_entity, GetTransform(cam), cam.GetViewport() } {}
 
 FrameContext::FrameContext(
-	const RenderContext& renderer, RenderTarget render_target_entity, const Camera& cam
+	const Renderer& renderer, RenderTarget render_target_entity, const Camera& cam
 ) :
 	FrameContext{ renderer, render_target_entity, cam.transform, cam.viewport } {}
 

@@ -17,12 +17,13 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/vertex.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
+#include "renderer/resources/texture.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/effects.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -65,25 +66,16 @@ void Light::Draw(DrawContext& ctx, Entity entity) {
 	auto draw_transform{ GetDrawTransform(entity) };
 	const auto& circle{ entity.Get<Circle>() };
 	auto size{ circle.GetSize() };
-	constexpr auto draw_origin{ Origin::Center };
-	auto tint{ GetTint(entity) };
-	auto depth{ GetDepth(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
-	auto entity_id{ entity.GetUUID() };
-	auto effects{ impl::GetEffectParams(entity) };
 
-	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
+	Material material{
+		.shader	  = "light",
+		.uniforms = std::ranges::to<std::vector<UniformWrite>>(Light{ entity }.GetUniforms())
+	};
 
-	MaterialState material;
+	auto params{ impl::GetTextureDrawParams(entity, size, false, color::White) };
 
-	material.shader	  = ctx.GetShader("light");
-	material.uniforms = std::ranges::to<std::vector<UniformWrite>>(Light{ entity }.GetUniforms());
-
-	ctx.WithBlendMode(blend_mode, [&]() {
-		ctx.DrawShader(
-			material, draw_transform, depth, size, draw_origin, tint, tex_coords, effects, entity_id
-		);
-	});
+	ctx.WithBlendMode(blend_mode, [&]() { ctx.DrawShader(draw_transform, material, params); });
 }
 
 Light& Light::SetIntensity(float intensity) {

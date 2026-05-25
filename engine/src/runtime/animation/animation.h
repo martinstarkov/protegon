@@ -265,7 +265,7 @@ public:
 
 /// @param manager Which manager the entity is added to.
 /// @param texture Texture key to be used for the animation.
-/// @param position Where on the screen to place the animation object.
+/// @param position Where to place the animation object.
 Animation CreateAnimation(
 	Scene& scene, std::string_view texture_key, V2_float position, const AnimationConfig& config,
 	Origin draw_origin = Origin::Center
@@ -273,7 +273,7 @@ Animation CreateAnimation(
 
 /// @brief Creates and starts an animation that will automatically destroy itself once it finishes.
 /// @param texture Texture key to be used for the animation.
-/// @param position Where on the screen to place the animation object.
+/// @param position Where to place the animation object.
 /// @param destroy_delay If 0ms, the animation is destroyed immediately after finishing. Otherwise,
 /// the animation is destroyed after the specified delay once it finishes.
 Animation PlayTemporaryAnimation(

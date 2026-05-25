@@ -575,7 +575,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	draw_list->AddRectFilled(min, max, IM_COL32(bg.r, bg.g, bg.b, bg.a));
 
 	auto display_viewport{ ctx.editor.GetDisplayViewport() };
-	auto screen_texture{ ctx.editor.GetScreenTargetTexture() };
+	auto presentation_texture{ ctx.editor.GetPresentationTexture() };
 
 	ImGui::Checkbox("Use Editor Camera", &use_editor_camera_);
 
@@ -603,7 +603,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 					img_min.y + static_cast<float>(display_viewport.size.y) };
 
 	draw_list->AddImage(
-		static_cast<ImTextureID>(screen_texture), img_min, img_max, ImVec2{ 0.0f, 1.0f },
+		static_cast<ImTextureID>(presentation_texture), img_min, img_max, ImVec2{ 0.0f, 1.0f },
 		ImVec2{ 1.0f, 0.0f }
 	);
 

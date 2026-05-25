@@ -16,6 +16,8 @@
 
 namespace ptgn {
 
+class AssetManager;
+
 inline constexpr float kDefaultFontSize{ 18.0f };
 
 /// @brief Defaults to default engine font size.
@@ -44,8 +46,6 @@ struct FontBinary {
 };
 
 namespace impl {
-
-class Renderer;
 
 struct FontAtlasInfo {
 	constexpr FontAtlasInfo() = default;
@@ -86,12 +86,14 @@ public:
 	FontObject() = default;
 
 	FontObject(
-		Renderer& renderer, path font_path, path cache_directory, std::string_view cache_name,
-		const FontAtlasInfo& atlas_info = {}
+		const AssetManager& asset_manager, path font_path, path cache_directory,
+		std::string_view cache_name, const FontAtlasInfo& atlas_info = {}
 	);
 
 #ifndef __EMSCRIPTEN__
-	FontObject(Renderer& renderer, path cache_directory, std::string_view cache_name);
+	FontObject(
+		const AssetManager& asset_manager, path cache_directory, std::string_view cache_name
+	);
 #endif
 
 	std::optional<GlyphMetrics> GetGlyph(std::uint32_t codepoint) const;

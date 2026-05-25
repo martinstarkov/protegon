@@ -2,6 +2,7 @@
 
 #include <ecs/ecs.h>
 
+#include <cstdint>
 #include <functional>
 #include <optional>
 #include <string>
@@ -11,9 +12,11 @@
 #include <variant>
 #include <vector>
 
+#include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
+#include "renderer/resources/texture_format.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/key_hash.h"
 #include "runtime/graphics/text/font.h"
@@ -22,15 +25,15 @@
 
 namespace ptgn {
 
-class RenderContext;
 class AudioSystem;
 class FontSystem;
 class Text;
-class DebugContext;
+class Renderer;
 
 namespace impl {
 
-class Renderer;
+class Surface;
+class FontObject;
 class ApplicationContext;
 
 struct AssetKey : public KeyHash {
@@ -271,13 +274,12 @@ private:
 	friend class impl::ApplicationContext;
 	friend class Shader;
 	friend class Texture;
-	friend class RenderContext;
 	friend class FontSystem;
 	friend class Text;
-	friend class DebugContext;
+	friend class impl::FontObject;
 
 	AssetManager() = delete;
-	AssetManager(impl::Renderer& renderer, AudioSystem& audio, FontSystem& font);
+	AssetManager(Renderer& renderer, AudioSystem& audio, FontSystem& font);
 	~AssetManager() noexcept						 = default;
 	AssetManager(const AssetManager&)				 = delete;
 	AssetManager& operator=(const AssetManager&)	 = delete;
@@ -291,13 +293,21 @@ private:
 		std::string_view shader_name
 	);
 
+	[[nodiscard]] impl::TextureObject CreateTexture(
+		const impl::Surface& surface, TextureFormat format, TextureParams params = {}
+	) const;
+
+	[[nodiscard]] impl::TextureObject CreateTexture(
+		const std::uint8_t* pixel_data, V2_int size, TextureFormat format, TextureParams params
+	) const;
+
 	[[nodiscard]] Audio CreateAudio(bool persistent, const path& asset_path);
 	[[nodiscard]] Texture CreateTexture(bool persistent, const path& asset_path);
 	[[nodiscard]] Font CreateFont(bool persistent, const path& asset_path, std::string_view name);
 
 	[[nodiscard]] ecs::Entity CreateAsset();
 
-	impl::Renderer& renderer_;
+	Renderer& renderer_;
 	AudioSystem& audio_;
 	FontSystem& font_;
 

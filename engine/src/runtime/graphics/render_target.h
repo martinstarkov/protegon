@@ -71,6 +71,8 @@ public:
 private:
 	friend class Scene;
 
+	impl::TextureId GetTextureId() const;
+
 	operator impl::RenderTargetId() const; // NOSONAR
 
 	friend RenderTarget CreateRenderTarget(Scene&, V2_int, Color, TextureFormat);

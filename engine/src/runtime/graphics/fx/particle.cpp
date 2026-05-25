@@ -54,17 +54,26 @@ struct ParticleDrawInfo {
 	Origin origin{ Origin::Center };
 };
 
+ShapeDrawParams ConvertToShapeDrawParams(const ParticleDrawInfo& draw) {
+	return { .depth = draw.depth, .fill_style = draw.fill_style, .origin = draw.origin };
+}
+
+TextureDrawParams ConvertToTextureDrawParams(const ParticleDrawInfo& draw) {
+	return { .depth				  = draw.depth,
+			 .size				  = V2_float{ draw.size },
+			 .origin			  = draw.origin,
+			 .tint				  = draw.color,
+			 .texture_coordinates = impl::GetDefaultTextureCoordinates<false>() };
+}
+
 template <ShapeType T>
 void DrawParticleShape(DrawContext& ctx, const T& shape, const ParticleDrawInfo& draw) {
-	ctx.WithBlendMode(draw.blend_mode, [&]() {
-		constexpr auto entity_id{ -1 };
+	auto params{ ConvertToShapeDrawParams(draw) };
 
+	ctx.WithBlendMode(draw.blend_mode, [&]() {
 		if constexpr (std::is_same_v<T, Circle>) {
 			Circle circle{ shape.GetRadius() * draw.size * 0.5f };
-			ctx.DrawShape(
-				circle, draw.transform, draw.depth, draw.color, draw.fill_style, draw.origin,
-				entity_id
-			);
+			ctx.DrawShape(draw.transform, circle, draw.color, params);
 		} else if constexpr (std::is_same_v<T, Rect>) {
 			Rect rect{ shape.GetSize() * V2_float{ draw.size } };
 
@@ -73,14 +82,9 @@ void DrawParticleShape(DrawContext& ctx, const T& shape, const ParticleDrawInfo&
 			// rectangle shape is down (90 degrees).
 			transform.Rotate(-Radians{ kHalfPi });
 
-			ctx.DrawShape(
-				rect, transform, draw.depth, draw.color, draw.fill_style, draw.origin, entity_id
-			);
+			ctx.DrawShape(transform, rect, draw.color, params);
 		} else {
-			ctx.DrawShape(
-				shape, draw.transform, draw.depth, draw.color, draw.fill_style, draw.origin,
-				entity_id
-			);
+			ctx.DrawShape(draw.transform, shape, draw.color, params);
 		}
 	});
 }
@@ -93,16 +97,10 @@ void DrawParticleType(
 	if constexpr (std::is_same_v<T, std::string>) {
 		Texture texture{ assets.Get<Texture>(particle_type) };
 
-		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
-		impl::EffectParams effects{};
-
-		constexpr auto entity_id{ -1 };
+		auto params{ ConvertToTextureDrawParams(draw) };
 
 		ctx.WithBlendMode(draw.blend_mode, [&]() {
-			ctx.DrawTexture(
-				texture, draw.transform, draw.depth, V2_float{ draw.size }, draw.origin, draw.color,
-				tex_coords, effects, entity_id
-			);
+			ctx.DrawTexture(draw.transform, texture, params);
 		});
 	} else if constexpr (std::is_same_v<T, Shape>) {
 		particle_type.Visit([&ctx, &draw]<typename S>(const S& shape) {

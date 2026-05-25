@@ -193,9 +193,9 @@ ApplicationState Editor::GetApplicationState() const {
 	return impl::ApplicationAccessor::ctx(app).state;
 }
 
-impl::TextureId Editor::GetScreenTargetTexture() const {
-	const auto& renderer{ impl::ApplicationAccessor::ctx(app).renderer };
-	auto texture{ renderer.GetRenderTargetTexture(renderer.GetScreenTarget()) };
+impl::TextureId Editor::GetPresentationTexture() const {
+	impl::RendererAccessor renderer{ impl::ApplicationAccessor::ctx(app).renderer };
+	auto texture{ renderer.GetPresentationTexture() };
 	return texture;
 }
 

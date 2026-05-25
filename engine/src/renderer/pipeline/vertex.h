@@ -2,98 +2,21 @@
 
 #include <array>
 #include <concepts>
-#include <type_traits>
 
-#include "core/graphics/flip.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/glsl_types.h"
 
-namespace ptgn {
-
-namespace impl {
-
-template <VertexType TVertex>
-using RenderQuad = std::array<TVertex, 4>;
-
-template <VertexType TVertex>
-using RenderTriangle = std::array<TVertex, 3>;
-
-template <typename T>
-struct RenderPrimitiveInfo {
-	static constexpr bool valid{ false };
-};
-
-template <VertexType TVertex>
-struct RenderPrimitiveInfo<RenderTriangle<TVertex>> {
-	static constexpr bool valid{ true };
-	static constexpr std::size_t vertex_count{ 3 };
-
-	using Vertex = TVertex;
-};
-
-template <VertexType TVertex>
-struct RenderPrimitiveInfo<RenderQuad<TVertex>> {
-	static constexpr bool valid{ true };
-	static constexpr std::size_t vertex_count{ 4 };
-
-	using Vertex = TVertex;
-};
-
-template <typename T>
-concept RenderPrimitive = RenderPrimitiveInfo<std::remove_cvref_t<T>>::valid;
-
-template <bool kFlipY>
-constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates() {
-	if constexpr (kFlipY) {
-		return { V2_float{ 0.0f, 1.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 1.0f, 0.0f },
-				 V2_float{ 0.0f, 0.0f } };
-
-	} else {
-		return {
-			V2_float{ 0.0f, 0.0f },
-			V2_float{ 1.0f, 0.0f },
-			V2_float{ 1.0f, 1.0f },
-			V2_float{ 0.0f, 1.0f },
-		};
-	}
-}
-
-/// @brief Values from [-1, 1]
-constexpr std::array<V2_float, 4> GetNDCTextureCoordinates() {
-	return { V2_float{ -1.0f, 1.0f }, V2_float{ 1.0f, 1.0f }, V2_float{ 1.0f, -1.0f },
-			 V2_float{ -1.0f, -1.0f } };
-}
-
-constexpr std::array<V2_float, 4> GetDefaultTextureCoordinates(bool flip_y) {
-	if (flip_y) {
-		return GetDefaultTextureCoordinates<true>();
-	} else {
-		return GetDefaultTextureCoordinates<false>();
-	}
-}
-
-std::array<V2_float, 4> GetTextureCoordinates(
-	V2_float source_position, V2_float source_size, V2_float texture_size, bool flip_vertically,
-	bool offset_texels
-);
-
-void FlipTextureCoordinates(std::array<V2_float, 4>& tex_coords, V2_float scale);
-void FlipTextureCoordinates(std::array<V2_float, 4>& tex_coords, Flip flip);
+namespace ptgn::impl {
 
 struct ColorVertex : public VertexLayout<ColorVertex, glsl::vec3, glsl::vec4, glsl::int_> {
 	ColorVertex() = default;
 
-	ColorVertex(V2_float position, float depth, V4_float color, int entity_id);
-
-	[[nodiscard]] static RenderQuad<ColorVertex> CreateTriangle(
-		const std::array<V2_float, 3>& vertices, float depth, V4_float color_n, int entity_id
-	);
-
-	[[nodiscard]] static RenderQuad<ColorVertex> CreateQuad(
-		const std::array<V2_float, 4>& vertices, float depth, V4_float color_n, int entity_id
-	);
+	ColorVertex(V2_float position, float depth, V4_float color, int entity_id) :
+		position{ position.x, position.y, depth },
+		color{ color[0], color[1], color[2], color[3] },
+		entity_id{ entity_id } {}
 
 	glsl::vec3 position{};
 	glsl::vec4 color{};
@@ -107,13 +30,12 @@ struct ShapeVertex :
 	ShapeVertex(
 		V2_float position, float depth, V4_float color, V2_float local_coord,
 		const std::array<float, 4>& shape_data, int entity_id
-	);
-
-	[[nodiscard]] static RenderQuad<ShapeVertex> CreateQuad(
-		const std::array<V2_float, 4>& vertices, float depth, V4_float color_n,
-		const std::array<V2_float, 4>& local_coords, const std::array<float, 4>& shape_data,
-		int entity_id
-	);
+	) :
+		position{ position.x, position.y, depth },
+		color{ color[0], color[1], color[2], color[3] },
+		local_coord{ local_coord.x, local_coord.y },
+		shape_data{ shape_data },
+		entity_id{ entity_id } {}
 
 	glsl::vec3 position{};
 	glsl::vec4 color{};
@@ -137,12 +59,12 @@ struct TextureVertex :
 	TextureVertex(
 		V2_float position, float depth, V4_float color, V2_float tex_coord, float tex_index,
 		int entity_id
-	);
-
-	[[nodiscard]] static RenderQuad<TextureVertex> CreateQuad(
-		const std::array<V2_float, 4>& positions, float depth, V4_float color_n,
-		const std::array<V2_float, 4>& tex_coords, int entity_id
-	);
+	) :
+		position{ position.x, position.y, depth },
+		color{ color[0], color[1], color[2], color[3] },
+		tex_coord{ tex_coord.x, tex_coord.y },
+		tex_index{ tex_index },
+		entity_id{ entity_id } {}
 
 	glsl::vec3 position{};
 	glsl::vec4 color{};
@@ -175,19 +97,21 @@ concept HasConventionalTextureIndex = requires(TVertex& vertex) {
 
 template <typename TVertex>
 struct TextureIndexAccessor {
-	static constexpr bool has_texture_index{ impl::HasRegisteredTextureIndex<TVertex> ||
-											 impl::HasConventionalTextureIndex<TVertex> };
+	static constexpr bool has_texture_index{ HasRegisteredTextureIndex<TVertex> ||
+											 HasConventionalTextureIndex<TVertex> };
 
 	static constexpr float& Get(TVertex& vertex) noexcept
 		requires has_texture_index
 	{
-		if constexpr (impl::HasRegisteredTextureIndex<TVertex>) {
+		if constexpr (HasRegisteredTextureIndex<TVertex>) {
 			return TextureIndex(TextureIndexTag{}, vertex);
 		} else {
-			return impl::TextureIndexFloatRef(vertex.tex_index);
+			return TextureIndexFloatRef(vertex.tex_index);
 		}
 	}
 };
+
+} // namespace ptgn::impl
 
 #define PTGN_TEXTURE_INDEX_MEMBER(VertexType, Member)             \
 	friend constexpr float& TextureIndex(                         \
@@ -195,7 +119,3 @@ struct TextureIndexAccessor {
 	) noexcept {                                                  \
 		return ::ptgn::impl::TextureIndexFloatRef(vertex.Member); \
 	}
-
-} // namespace impl
-
-} // namespace ptgn

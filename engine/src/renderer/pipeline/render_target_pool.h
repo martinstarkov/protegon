@@ -7,9 +7,11 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/render_target_object.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
 class Renderer;
+
+namespace impl {
 
 class RenderTargetPool {
 public:
@@ -40,4 +42,6 @@ private:
 	std::uint64_t tick_{ 0 };
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

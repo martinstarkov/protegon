@@ -206,7 +206,7 @@ return impl::Surface{ surface };
 //}
 
 impl::FontObject FontSystem::CreateFont(
-	impl::Renderer& renderer, const path& font_path, std::string_view name
+	const AssetManager& asset_manager, const path& font_path, std::string_view name
 ) {
 	PTGN_ASSERT(
 		FileExists(font_path), "Cannot create font from invalid path: ", font_path.string()
@@ -220,11 +220,11 @@ impl::FontObject FontSystem::CreateFont(
 	auto cache_data_file{ cache_directory / (std::string(name) + ".data") };
 
 	if (FileExists(cache_png_file) && FileExists(cache_data_file)) {
-		return impl::FontObject{ renderer, cache_directory, name };
+		return impl::FontObject{ asset_manager, cache_directory, name };
 	}
 #endif
 
-	return impl::FontObject{ renderer, font_path, cache_directory, name };
+	return impl::FontObject{ asset_manager, font_path, cache_directory, name };
 }
 
 } // namespace ptgn

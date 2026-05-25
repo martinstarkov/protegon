@@ -8,17 +8,17 @@
 
 namespace ptgn {
 
+class Renderer;
+
 struct RenderTargetDesc {
 	V2_int size;
 	TextureFormat format{ TextureFormat::RGBA8 };
-	TextureParameters params;
+	TextureParams params;
 
 	bool operator==(const RenderTargetDesc&) const = default;
 };
 
 namespace impl {
-
-class Renderer;
 
 class RenderTargetObject : public Resource<RenderTargetId> {
 public:
@@ -37,7 +37,7 @@ public:
 	impl::TextureId GetTextureId() const;
 
 private:
-	friend class Renderer;
+	friend class ptgn::Renderer;
 
 	RenderTargetObject() = default;
 	RenderTargetObject(Renderer* renderer, const RenderTargetDesc& desc);

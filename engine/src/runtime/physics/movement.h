@@ -40,8 +40,6 @@ void MoveWASD(Entity entity, V2_float speed);
 void MoveArrowKeys(Entity entity, V2_float speed);
 
 struct TopDownMovement {
-	// Parameters:
-
 	/// @brief Maximum movement speed.
 	float max_speed{ 4.0f * 60.0f };
 	/// @brief How fast to reach max speed.
@@ -126,8 +124,6 @@ struct PlatformerMovement {
 	/// @brief Whether or not the player is currently on the ground. Determines their acceleration
 	/// (air or ground) and if they can jump or not.
 	bool grounded{ false };
-
-	// Parameters:
 
 	/// @brief Maximum movement speed.
 	float max_speed{ 4.0f * 60.0f };

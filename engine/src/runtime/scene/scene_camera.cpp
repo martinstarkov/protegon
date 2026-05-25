@@ -17,10 +17,10 @@
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/pipeline/viewport_event.h"
+#include "renderer/renderer.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_context.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -437,7 +437,7 @@ V2_float GetCameraParentRenderTargetScale(
 	return render_target.GetScale() * zoom;
 }
 
-void AddCameraComponents(SceneCamera camera, const RenderContext& renderer) {
+void AddCameraComponents(SceneCamera camera, const Renderer& renderer) {
 	camera.Add<Transform>();
 	camera.Add<impl::CameraData>();
 	camera.SetViewport({ {}, renderer.GetGameSize() });

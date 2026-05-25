@@ -196,26 +196,26 @@ void Transform::ApplyInverseTo(V2_float& point) const {
 }
 
 void Transform::ApplyTo(std::span<V2_float> points) const {
-	WithPointTransform<TransformDirection::Forward>([&points]<typename T>(T&& transform) {
+	WithPointTransform<Direction::Forward>([&points]<typename T>(T&& transform) {
 		std::ranges::transform(points, points.begin(), std::forward<T>(transform));
 	});
 }
 
 void Transform::ApplyInverseTo(std::span<V2_float> points) const {
-	WithPointTransform<TransformDirection::Inverse>([&points]<typename T>(T&& transform) {
+	WithPointTransform<Direction::Inverse>([&points]<typename T>(T&& transform) {
 		std::ranges::transform(points, points.begin(), std::forward<T>(transform));
 	});
 }
 
 V2_float Transform::Apply(V2_float point) const {
-	WithPointTransform<TransformDirection::Forward>([&point](auto&& transform) {
+	WithPointTransform<Direction::Forward>([&point](auto&& transform) {
 		point = transform(point);
 	});
 	return point;
 }
 
 V2_float Transform::ApplyInverse(V2_float point) const {
-	WithPointTransform<TransformDirection::Inverse>([&point](auto&& transform) {
+	WithPointTransform<Direction::Inverse>([&point](auto&& transform) {
 		point = transform(point);
 	});
 	return point;
@@ -226,9 +226,8 @@ void Transform::Apply(
 ) const {
 	PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
-	WithPointTransform<TransformDirection::Forward>([&points, &out_transformed_points]<typename T>(
-														T&& transform
-													) {
+	WithPointTransform<Direction::Forward>([&points,
+											&out_transformed_points]<typename T>(T&& transform) {
 		std::ranges::transform(points, out_transformed_points.begin(), std::forward<T>(transform));
 	});
 }
@@ -238,9 +237,8 @@ void Transform::ApplyInverse(
 ) const {
 	PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
-	WithPointTransform<TransformDirection::Inverse>([&points, &out_transformed_points]<typename T>(
-														T&& transform
-													) {
+	WithPointTransform<Direction::Inverse>([&points,
+											&out_transformed_points]<typename T>(T&& transform) {
 		std::ranges::transform(points, out_transformed_points.begin(), std::forward<T>(transform));
 	});
 }

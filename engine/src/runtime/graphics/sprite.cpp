@@ -32,6 +32,18 @@ void TextureCrop::Update(const AnimationData& anim) {
 	size	 = anim.config.frame_size;
 }
 
+TextureDrawParams GetTextureDrawParams(
+	Entity entity, V2_float size, bool flip_y, Color additional_tint
+) {
+	return { .depth{ GetDepth(entity) },
+			 .size{ size },
+			 .origin{ GetDrawOrigin(entity) },
+			 .tint{ GetTint(entity).Normalized() * additional_tint.Normalized() },
+			 .texture_coordinates{ GetTextureCoordinates(entity, flip_y) },
+			 .effects{ impl::GetEffectParams(entity) },
+			 .entity_id{ entity.GetUUID() } };
+}
+
 } // namespace impl
 
 Sprite::Sprite(Entity entity) : Entity{ entity } {}
@@ -57,22 +69,11 @@ void Sprite::Draw(
 	// Maintain scale sign as this is used to flip the direction of a sprite.
 	draw_transform.SetScale(scale / Abs(scale));
 
-	auto tint{ GetTint(entity) };
-	Color final_tint{ tint.Normalized() * additional_tint.Normalized() };
-
-	auto draw_origin{ GetDrawOrigin(entity) };
-	auto depth{ GetDepth(entity) };
-	auto tex_coords{ GetTextureCoordinates(entity, false) };
 	auto blend_mode{ GetBlendMode(entity) };
-	auto entity_id{ entity.GetUUID() };
-	auto effects{ impl::GetEffectParams(entity) };
 
-	ctx.WithBlendMode(blend_mode, [&]() {
-		ctx.DrawTexture(
-			texture, draw_transform, depth, *texture_size, draw_origin, tint, tex_coords, effects,
-			entity_id
-		);
-	});
+	auto params{ impl::GetTextureDrawParams(entity, *texture_size, false, additional_tint) };
+
+	ctx.WithBlendMode(blend_mode, [&]() { ctx.DrawTexture(draw_transform, texture, params); });
 }
 
 void Sprite::Draw(DrawContext& ctx, Entity entity) {

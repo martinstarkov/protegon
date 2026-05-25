@@ -13,9 +13,11 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/vertex_array.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
 class Renderer;
+
+namespace impl {
 
 using PipelineId = std::size_t;
 
@@ -67,7 +69,7 @@ public:
 	}
 
 private:
-	friend class Renderer;
+	friend class ptgn::Renderer;
 
 	explicit RenderPipelineManager(Renderer& renderer);
 
@@ -86,4 +88,6 @@ private:
 	std::vector<std::pair<PipelineId, RenderPipeline>> pipelines_;
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

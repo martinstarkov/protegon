@@ -94,7 +94,7 @@ struct Transform {
 	void ApplyTo(
 		TRange&& elements, TGetPosition&& get_position, TSetPosition&& set_position
 	) const {
-		ApplyToElements<TransformDirection::Forward>(
+		ApplyToElements<Direction::Forward>(
 			std::forward<TRange>(elements), std::forward<TGetPosition>(get_position),
 			std::forward<TSetPosition>(set_position)
 		);
@@ -110,7 +110,7 @@ struct Transform {
 	void ApplyInverseTo(
 		TRange&& elements, TGetPosition&& get_position, TSetPosition&& set_position
 	) const {
-		ApplyToElements<TransformDirection::Inverse>(
+		ApplyToElements<Direction::Inverse>(
 			std::forward<TRange>(elements), std::forward<TGetPosition>(get_position),
 			std::forward<TSetPosition>(set_position)
 		);
@@ -168,6 +168,32 @@ struct Transform {
 		return elements;
 	}
 
+	enum class Direction {
+		Forward,
+		Inverse
+	};
+
+	template <Direction Dir, typename TFunction>
+	void WithPointTransform(TFunction&& function) const {
+		if (IsIdentity()) {
+			std::invoke(std::forward<TFunction>(function), [](V2_float point) { return point; });
+			return;
+		}
+
+		if (!HasRotation()) {
+			std::invoke(std::forward<TFunction>(function), [this](V2_float point) {
+				return ApplyWithoutRotationImpl<Dir>(point);
+			});
+		} else {
+			float cos{ rotation_.Cos() };
+			float sin{ rotation_.Sin() };
+
+			std::invoke(std::forward<TFunction>(function), [this, cos, sin](V2_float point) {
+				return ApplyWithRotationImpl<Dir>(point, cos, sin);
+			});
+		}
+	}
+
 	PTGN_SERIALIZE(Transform, position_, rotation_, scale_)
 private:
 	void Apply(std::span<const V2_float> points, std::span<V2_float> out_transformed_points) const;
@@ -175,11 +201,6 @@ private:
 	void ApplyInverse(
 		std::span<const V2_float> points, std::span<V2_float> out_transformed_points
 	) const;
-
-	enum class TransformDirection {
-		Forward,
-		Inverse
-	};
 
 	[[nodiscard]] V2_float ApplyWithRotation(V2_float point, float cos, float sin) const;
 
@@ -189,53 +210,32 @@ private:
 
 	[[nodiscard]] V2_float ApplyInverseWithoutRotation(V2_float point) const;
 
-	template <TransformDirection Direction>
+	template <Direction Dir>
 	[[nodiscard]] V2_float ApplyWithRotationImpl(V2_float point, float cos, float sin) const {
-		if constexpr (Direction == TransformDirection::Forward) {
+		if constexpr (Dir == Direction::Forward) {
 			return ApplyWithRotation(point, cos, sin);
 		} else {
 			return ApplyInverseWithRotation(point, cos, sin);
 		}
 	}
 
-	template <TransformDirection Direction>
+	template <Direction Dir>
 	[[nodiscard]] V2_float ApplyWithoutRotationImpl(V2_float point) const {
-		if constexpr (Direction == TransformDirection::Forward) {
+		if constexpr (Dir == Direction::Forward) {
 			return ApplyWithoutRotation(point);
 		} else {
 			return ApplyInverseWithoutRotation(point);
 		}
 	}
 
-	template <TransformDirection Direction, typename TFunction>
-	void WithPointTransform(TFunction&& function) const {
-		if (IsIdentity()) {
-			std::invoke(std::forward<TFunction>(function), [](V2_float point) { return point; });
-			return;
-		}
-
-		if (!HasRotation()) {
-			std::invoke(std::forward<TFunction>(function), [this](V2_float point) {
-				return ApplyWithoutRotationImpl<Direction>(point);
-			});
-		} else {
-			float cos{ rotation_.Cos() };
-			float sin{ rotation_.Sin() };
-
-			std::invoke(std::forward<TFunction>(function), [this, cos, sin](V2_float point) {
-				return ApplyWithRotationImpl<Direction>(point, cos, sin);
-			});
-		}
-	}
-
 	template <
-		TransformDirection Direction, std::ranges::input_range TRange,
+		Direction Dir, std::ranges::input_range TRange,
 		InvocableR<V2_float, std::ranges::range_reference_t<TRange>> TGetPosition,
 		InvocableR<void, std::ranges::range_reference_t<TRange>, V2_float> TSetPosition>
 	void ApplyToElements(
 		TRange&& elements, TGetPosition get_position, TSetPosition set_position
 	) const {
-		WithPointTransform<Direction>([&elements, &get_position, &set_position](auto&& transform) {
+		WithPointTransform<Dir>([&elements, &get_position, &set_position](auto&& transform) {
 			for (auto&& element : elements) {
 				auto position{ std::invoke(get_position, element) };
 				std::invoke(set_position, element, transform(position));

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
@@ -28,8 +29,6 @@ namespace ptgn {
 CustomShader::CustomShader(Entity entity) : Entity{ entity } {}
 
 void CustomShader::Draw(DrawContext& ctx, Entity entity) {
-	// TODO: Can this be replaced almost fully with Sprite::Draw?
-
 	PTGN_ASSERT((entity.Has<Rect, MaterialState>()));
 
 	const auto& material{ entity.Get<MaterialState>() };
@@ -37,28 +36,16 @@ void CustomShader::Draw(DrawContext& ctx, Entity entity) {
 	auto draw_transform{ GetDrawTransform(entity) };
 	const auto& rect{ entity.Get<Rect>() };
 	auto size{ rect.GetSize() };
-	auto draw_origin{ GetDrawOrigin(entity) };
-	auto tint{ GetTint(entity) };
-	auto depth{ GetDepth(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
 
-	auto entity_id{ entity.GetUUID() };
-	auto tex_coords{ GetTextureCoordinates(entity, false) };
-
-	auto effects{ impl::GetEffectParams(entity) };
+	auto params{ impl::GetTextureDrawParams(entity, size, false, color::White) };
 
 	ctx.WithBlendMode(blend_mode, [&]() {
 		if (entity.Has<Texture>()) {
 			auto texture{ entity.Get<Texture>() };
-			ctx.DrawTexture(
-				material, texture, draw_transform, depth, size, draw_origin, tint, tex_coords,
-				effects, entity_id
-			);
+			ctx.DrawTexture(draw_transform, texture, material, params);
 		} else {
-			ctx.DrawShader(
-				material, draw_transform, depth, size, draw_origin, tint, tex_coords, effects,
-				entity_id
-			);
+			ctx.DrawShader(draw_transform, material, params);
 		}
 	});
 }

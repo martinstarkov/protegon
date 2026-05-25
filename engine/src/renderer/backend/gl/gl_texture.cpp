@@ -15,14 +15,14 @@ namespace ptgn::impl::gl {
 
 Textures::Textures(GLContext& gl) : gl_{ gl } {}
 
-TextureId Textures::CreateTexture(V2_int size, TextureFormat format, TextureParameters params) {
+TextureId Textures::CreateTexture(V2_int size, TextureFormat format, TextureParams params) {
 	auto [pixel_format, pixel_type] = GetPixelDataFormat(format);
 	return CreateTexture(nullptr, pixel_format, pixel_type, size, format, params);
 }
 
 TextureId Textures::CreateTexture(
 	const void* pixel_data, PixelDataFormat pixel_data_format, PixelDataType pixel_data_type,
-	V2_int size, TextureFormat format, TextureParameters params, bool restore_bind
+	V2_int size, TextureFormat format, TextureParams params, bool restore_bind
 ) {
 	auto texture{ CreateTexture() };
 

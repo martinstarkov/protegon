@@ -14,7 +14,7 @@
 #include "core/math/geometry/triangle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/concepts_variant.h"
+#include "core/util/concepts.h"
 #include "serialization/json/fwd.h"
 #include "serialization/serialize.h"
 

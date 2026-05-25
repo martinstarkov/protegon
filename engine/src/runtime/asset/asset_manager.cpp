@@ -2,6 +2,7 @@
 
 #include <ecs/ecs.h>
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <list>
@@ -19,6 +20,7 @@
 #include "core/assert.h"
 #include "core/graphics/surface.h"
 #include "core/log.h"
+#include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
@@ -71,9 +73,25 @@ AssetKind GetAssetKind(const path& path) {
 
 } // namespace impl
 
-AssetManager::AssetManager(impl::Renderer& renderer, AudioSystem& audio, FontSystem& font) :
+AssetManager::AssetManager(Renderer& renderer, AudioSystem& audio, FontSystem& font) :
 	renderer_{ renderer }, audio_{ audio }, font_{ font } {
 	// Note: Do not use audio or font here as they are constructed after asset manager.
+}
+
+impl::TextureObject AssetManager::CreateTexture(
+	const impl::Surface& surface, TextureFormat format, TextureParams params
+) const {
+	PTGN_ASSERT(
+		surface.GetChannelCount() == GetChannelCount(format),
+		"Surface and texture format channel count must match"
+	);
+	return CreateTexture(surface.Data(), surface.GetSize(), format, params);
+}
+
+impl::TextureObject AssetManager::CreateTexture(
+	const std::uint8_t* pixel_data, V2_int size, TextureFormat format, TextureParams params
+) const {
+	return impl::RendererAccessor{ renderer_ }.CreateTexture(pixel_data, size, format, params);
 }
 
 Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
@@ -89,7 +107,7 @@ Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
 	Texture texture{ CreateAsset(), persistent };
 
 	texture.GetEntity().Add<impl::TextureObject>(
-		renderer_.CreateTexture(data, size, TextureFormat::RGBA8)
+		CreateTexture(data, size, TextureFormat::RGBA8, TextureParams{})
 	);
 
 	return texture;
@@ -111,7 +129,7 @@ Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) 
 Font AssetManager::CreateFont(bool persistent, const path& asset_path, std::string_view name) {
 	Font font{ CreateAsset(), persistent };
 
-	auto f{ FontSystem::CreateFont(renderer_, asset_path, name) };
+	auto f{ FontSystem::CreateFont(*this, asset_path, name) };
 
 	font.GetEntity().Add<impl::FontObject>(std::move(f));
 
@@ -158,7 +176,9 @@ Shader AssetManager::CreateShader(
 ) {
 	Shader shader{ CreateAsset(), persistent };
 
-	shader.GetEntity().Add<impl::ShaderObject>(renderer_.CreateShader(source, shader_name));
+	shader.GetEntity().Add<impl::ShaderObject>(
+		impl::RendererAccessor{ renderer_ }.CreateShader(source, shader_name)
+	);
 
 	return shader;
 }

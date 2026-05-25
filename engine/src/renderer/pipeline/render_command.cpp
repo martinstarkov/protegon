@@ -67,8 +67,42 @@ void RenderCommands::Sort() {
 	});
 }
 
+void RenderCommands::Add(
+	ShaderId shader, std::span<RenderQuad<TextureVertex>> primitives,
+	std::optional<BlendMode> blend_mode, float depth, TextureId texture
+) {
+	auto range{ Append(texture_quads_, primitives) };
+	Push(RenderCommandKind::TextureQuads, range, shader, texture, blend_mode, depth);
+}
+
+void RenderCommands::Add(
+	ShaderId shader, std::span<RenderQuad<ShapeVertex>> primitives,
+	std::optional<BlendMode> blend_mode, float depth, TextureId
+) {
+	auto range{ Append(shape_quads_, primitives) };
+	Push(RenderCommandKind::ShapeQuads, range, shader, TextureId{}, blend_mode, depth);
+}
+
+void RenderCommands::Add(
+	ShaderId shader, std::span<RenderQuad<ColorVertex>> primitives,
+	std::optional<BlendMode> blend_mode, float depth, TextureId
+) {
+	auto range{ Append(color_quads_, primitives) };
+	Push(RenderCommandKind::ColorQuads, range, shader, TextureId{}, blend_mode, depth);
+}
+
+void RenderCommands::Add(
+	ShaderId shader, std::span<RenderTriangle<ColorVertex>> primitives,
+	std::optional<BlendMode> blend_mode, float depth, TextureId
+) {
+	auto range{ Append(color_triangles_, primitives) };
+	Push(RenderCommandKind::ColorTriangles, range, shader, TextureId{}, blend_mode, depth);
+}
+
 void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
 	const auto& command{ commands_[command_index] };
+
+	PTGN_ASSERT(command.range.count, "Cannot draw a command with zero range");
 
 	auto prev_blend_mode{ renderer.GetBlendMode() };
 
@@ -112,38 +146,6 @@ void RenderCommands::Clear() {
 	texture_quads_.clear();
 
 	next_sequence_ = 0;
-}
-
-void RenderCommands::AddColorQuads(
-	ShaderId shader, std::span<const RenderQuad<ColorVertex>> quads,
-	std::optional<BlendMode> blend_mode, float depth
-) {
-	auto range{ Append(color_quads_, quads) };
-	Push(RenderCommandKind::ColorQuads, range, shader, TextureId{}, blend_mode, depth);
-}
-
-void RenderCommands::AddColorTriangles(
-	ShaderId shader, std::span<const RenderTriangle<ColorVertex>> triangles,
-	std::optional<BlendMode> blend_mode, float depth
-) {
-	auto range{ Append(color_triangles_, triangles) };
-	Push(RenderCommandKind::ColorTriangles, range, shader, TextureId{}, blend_mode, depth);
-}
-
-void RenderCommands::AddShapeQuads(
-	ShaderId shader, std::span<const RenderQuad<ShapeVertex>> quads,
-	std::optional<BlendMode> blend_mode, float depth
-) {
-	auto range{ Append(shape_quads_, quads) };
-	Push(RenderCommandKind::ShapeQuads, range, shader, TextureId{}, blend_mode, depth);
-}
-
-void RenderCommands::AddTextureQuads(
-	ShaderId shader, TextureId texture, std::span<const RenderQuad<TextureVertex>> quads,
-	std::optional<BlendMode> blend_mode, float depth
-) {
-	auto range{ Append(texture_quads_, quads) };
-	Push(RenderCommandKind::TextureQuads, range, shader, texture, blend_mode, depth);
 }
 
 void RenderCommands::Push(

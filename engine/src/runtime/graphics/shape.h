@@ -10,6 +10,7 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/draw_context.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 
@@ -17,6 +18,12 @@ namespace ptgn {
 
 class Scene;
 class DrawContext;
+
+namespace impl {
+
+ShapeDrawParams GetShapeDrawParams(Entity entity);
+
+} // namespace impl
 
 struct RectDraw {
 	static void Draw(DrawContext& ctx, Entity entity);

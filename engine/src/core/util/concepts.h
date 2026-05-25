@@ -1,8 +1,10 @@
 #pragma once
 
 #include <concepts>
+#include <optional>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace ptgn {
 
@@ -14,10 +16,29 @@ struct is_specialization : std::false_type {};
 template <template <typename...> typename Ref, typename... Args>
 struct is_specialization<Ref<Args...>, Ref> : std::true_type {};
 
+template <typename T, typename Variant>
+struct variant_contains : std::false_type {};
+
+template <typename T, typename... Ts>
+struct variant_contains<T, std::variant<Ts...>> :
+	std::bool_constant<(std::is_same_v<std::remove_cvref_t<T>, Ts> || ...)> {};
+
 } // namespace impl
 
 template <typename T, template <typename...> typename Ref>
 concept SpecializationOf = impl::is_specialization<T, Ref>::value;
+
+template <typename T>
+concept VariantType = SpecializationOf<T, std::variant>;
+
+template <typename T, typename Variant>
+concept VariantContains = impl::variant_contains<T, std::remove_cvref_t<Variant>>::value;
+
+template <typename F, typename Variant>
+concept VariantVisitor = requires(F&& f, Variant&& variant) { std::visit(f, variant); };
+
+template <typename T>
+concept OptionalType = SpecializationOf<T, std::optional>;
 
 template <typename T>
 concept Arithmetic = std::is_arithmetic_v<T>;

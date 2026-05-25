@@ -18,6 +18,8 @@ public:
 
 	void SetVertices(V2_float a, V2_float b, V2_float c);
 
+	std::array<V2_float, 3>& GetLocalVertices();
+
 	std::array<V2_float, 3> GetLocalVertices() const;
 
 	std::array<V2_float, 3> GetWorldVertices(Transform transform) const;

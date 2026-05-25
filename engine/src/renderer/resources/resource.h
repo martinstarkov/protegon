@@ -4,9 +4,10 @@
 
 namespace ptgn {
 
+class Renderer;
+
 namespace impl {
 
-class Renderer;
 class RenderPipelineManager;
 
 template <typename T>
@@ -35,7 +36,7 @@ public:
 	bool operator==(const Resource& other) const = default;
 
 protected:
-	friend class Renderer;
+	friend class ptgn::Renderer;
 	friend class RenderPipelineManager;
 
 	void Reset() noexcept;

@@ -18,7 +18,6 @@
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
-#include "core/graphics/surface.h"
 #include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
@@ -41,6 +40,7 @@
 #include "renderer/pipeline/primitive_mode.h"
 #include "renderer/pipeline/render_batcher.h"
 #include "renderer/pipeline/render_pipeline.h"
+#include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/scaling_mode.h"
@@ -53,23 +53,40 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 
-namespace ptgn::impl {
+namespace ptgn {
+
+namespace impl {
+
+void ApplyTransform(Transform transform, std::span<RenderQuad<TextureVertex>> local_quads) {
+	transform.ApplyTo(
+		local_quads | std::views::join,
+		[](const TextureVertex& vertex) {
+			return V2_float{ vertex.position[0], vertex.position[1] };
+		},
+		[](TextureVertex& vertex, V2_float position) {
+			vertex.position[0] = position.x;
+			vertex.position[1] = position.y;
+		}
+	);
+}
+
+} // namespace impl
 
 Renderer::Renderer(Window& window, EventSink&& event_sink) :
 	window_{ window },
 	event_sink_{ std::move(event_sink) },
-	gl_{ std::make_unique<gl::GLContext>() },
+	gl_{ std::make_unique<impl::gl::GLContext>() },
 	batcher_{ *this },
 	target_pool_{ *this },
 	pipeline_manager_{ *this } {
-	pipeline_manager_.AddPipeline<TextureVertex>(
-		"texture", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles
+	pipeline_manager_.AddPipeline<impl::TextureVertex>(
+		"texture", impl::kVertexCapacity, impl::kIndexCapacity, impl::PrimitiveMode::Triangles
 	);
-	pipeline_manager_.AddPipeline<ShapeVertex>(
-		"shape", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles
+	pipeline_manager_.AddPipeline<impl::ShapeVertex>(
+		"shape", impl::kVertexCapacity, impl::kIndexCapacity, impl::PrimitiveMode::Triangles
 	);
-	pipeline_manager_.AddPipeline<ColorVertex>(
-		"color", kVertexCapacity, kIndexCapacity, PrimitiveMode::Triangles
+	pipeline_manager_.AddPipeline<impl::ColorVertex>(
+		"color", impl::kVertexCapacity, impl::kIndexCapacity, impl::PrimitiveMode::Triangles
 	);
 
 	SetCurrentPipeline("texture");
@@ -85,8 +102,9 @@ Renderer::Renderer(Window& window, EventSink&& event_sink) :
 
 	PTGN_ASSERT(display_size.BothAboveZero(), "Display size cannot be zero");
 
-	screen_target_ = CreateRenderTarget({ .size{ display_size }, .format{ TextureFormat::RGBA8 } });
-	BindScreenTarget();
+	presentation_target_ =
+		CreateRenderTarget({ .size{ display_size }, .format{ TextureFormat::RGBA8 } });
+	BindPresentationTarget();
 	SetViewProjection(display_size);
 
 	auto max_texture_slots{ GetMaxTextureSlots() };
@@ -115,53 +133,53 @@ Renderer::Renderer(Window& window, EventSink&& event_sink) :
 
 Renderer::~Renderer() noexcept {
 	// Guarantees that a vertex array object is bound before destroying any buffers.
-	auto _{ gl_->Bind(VertexArrayId{ 0 }, false) };
+	auto _{ gl_->Bind(impl::VertexArrayId{ 0 }, false) };
 }
 
 void Renderer::FlushBatch() {
 	batcher_.Flush();
 }
 
-RenderPipeline& Renderer::GetPipeline(PipelineId id) {
+impl::RenderPipeline& Renderer::GetPipeline(impl::PipelineId id) {
 	return pipeline_manager_.GetPipeline(id);
 }
 
-const RenderPipeline& Renderer::GetPipeline(PipelineId id) const {
+const impl::RenderPipeline& Renderer::GetPipeline(impl::PipelineId id) const {
 	return pipeline_manager_.GetPipeline(id);
 }
 
-RenderTargetObject Renderer::CreateRenderTarget(const RenderTargetDesc& desc) {
+impl::RenderTargetObject Renderer::CreateRenderTarget(const RenderTargetDesc& desc) {
 	PTGN_ASSERT(desc.size.BothAboveZero(), "Cannot create render target with zero size");
 
 	auto color = gl_->textures.CreateTexture(desc.size, desc.format, desc.params);
 
-	std::optional<RenderbufferId> depth;
+	std::optional<impl::RenderbufferId> depth;
 
 	if (!IsColorFormat(desc.format)) {
 		depth = gl_->renderbuffers.CreateRenderbuffer(desc.size, desc.format);
 	}
 
-	using enum gl::Attachment;
+	using enum impl::gl::Attachment;
 
 	auto framebuffer = gl_->framebuffers.CreateFramebuffer(
 		color, Color0, depth, IsDepthOnlyFormat(desc.format) ? Depth : DepthStencil
 	);
 
-	return RenderTargetObject{ this, RenderTargetId{ framebuffer } };
+	return impl::RenderTargetObject{ this, impl::RenderTargetId{ framebuffer } };
 }
 
-TextureId Renderer::GetRenderTargetTexture(RenderTargetId render_target) const {
+impl::TextureId Renderer::GetRenderTargetTexture(impl::RenderTargetId render_target) const {
 	const auto& color_attachment{ gl_->framebuffers.GetFramebufferAttachment(
-		FramebufferId{ render_target }, gl::Attachment::Color0
+		impl::FramebufferId{ render_target }, impl::gl::Attachment::Color0
 	) };
 	PTGN_ASSERT(
 		color_attachment.id,
 		"Render target must have a valid color attachment for its texture to be retrieved"
 	);
-	return TextureId{ color_attachment.id };
+	return impl::TextureId{ color_attachment.id };
 }
 
-V2_int Renderer::GetRenderTargetSize(RenderTargetId render_target) const {
+V2_int Renderer::GetRenderTargetSize(impl::RenderTargetId render_target) const {
 	auto id{ GetRenderTargetTexture(render_target) };
 
 	auto size{ gl_->textures.GetTextureSize(id) };
@@ -169,7 +187,7 @@ V2_int Renderer::GetRenderTargetSize(RenderTargetId render_target) const {
 	return size;
 }
 
-TextureFormat Renderer::GetRenderTargetTextureFormat(RenderTargetId render_target) const {
+TextureFormat Renderer::GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const {
 	auto id{ GetRenderTargetTexture(render_target) };
 
 	auto texture_format{ gl_->textures.GetTextureFormat(id) };
@@ -178,9 +196,9 @@ TextureFormat Renderer::GetRenderTargetTextureFormat(RenderTargetId render_targe
 }
 
 void Renderer::ClearRenderTarget(
-	RenderTargetId render_target, Color color, bool set_viewport, bool restore_bind
+	impl::RenderTargetId render_target, Color color, bool set_viewport, bool restore_bind
 ) const {
-	auto bind_guard = gl_->Bind(FramebufferId{ render_target }, restore_bind);
+	auto bind_guard = gl_->Bind(impl::FramebufferId{ render_target }, restore_bind);
 
 	std::optional<Viewport> viewport;
 	if (set_viewport) {
@@ -191,7 +209,7 @@ void Renderer::ClearRenderTarget(
 		gl_->SetViewport({ .position{}, .size{ render_target_size } });
 	}
 
-	gl_->framebuffers.ClearToColor(FramebufferId{ render_target }, color);
+	gl_->framebuffers.ClearToColor(impl::FramebufferId{ render_target }, color);
 
 	if (set_viewport && viewport.has_value()) {
 		gl_->SetViewport(*viewport);
@@ -223,7 +241,7 @@ void Renderer::SetShader(std::string_view shader) {
 	SetShader(GetShader(shader));
 }
 
-void Renderer::SetShader(ShaderId shader) {
+void Renderer::SetShader(impl::ShaderId shader) {
 	if (shader == gl_->GetBoundState().shader_program) {
 		return;
 	}
@@ -246,13 +264,13 @@ void Renderer::SetBlendMode(BlendMode blend_mode) {
 	gl_->SetBlendMode(blend_mode);
 }
 
-PipelineId Renderer::GetTexturePipeline() const {
+impl::PipelineId Renderer::GetTexturePipeline() const {
 	return Hash("texture");
 }
 
-void Renderer::SetRenderTarget(const RenderTargetObject* target) {
+void Renderer::SetRenderTarget(const impl::RenderTargetObject* target) {
 	if (target) {
-		SetFramebuffer(FramebufferId{ target->operator RenderTargetId() });
+		SetFramebuffer(impl::FramebufferId{ target->operator impl::RenderTargetId() });
 	}
 	current_target_ = target;
 }
@@ -273,7 +291,7 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	}
 }
 
-void Renderer::SetFramebuffer(FramebufferId framebuffer) {
+void Renderer::SetFramebuffer(impl::FramebufferId framebuffer) {
 	if (framebuffer == gl_->GetBoundFramebuffer()) {
 		return;
 	}
@@ -329,18 +347,19 @@ void Renderer::SetColorMask(const ColorMaskState& color_mask) {
 	gl_->SetColorMask(color_mask);
 }
 
-ShaderId Renderer::GetShader(std::string_view name) const {
+impl::ShaderId Renderer::GetShader(std::string_view name) const {
 	return gl_->shaders.GetProgram(name);
 }
 
-bool Renderer::IsTextureAttachedToCurrentFramebuffer(TextureId texture) const {
+bool Renderer::IsTextureAttachedToCurrentFramebuffer(impl::TextureId texture) const {
 	auto bound{ gl_->GetBoundFramebuffer() };
 
-	if (!bound.has_value() || *bound == FramebufferId{ 0 }) {
+	if (!bound.has_value() || *bound == impl::FramebufferId{ 0 }) {
 		return false;
 	}
 
-	return gl_->framebuffers.GetFramebufferAttachment(*bound, gl::Attachment::Color0).id == texture;
+	return gl_->framebuffers.GetFramebufferAttachment(*bound, impl::gl::Attachment::Color0).id ==
+		   texture;
 }
 
 void Renderer::OnWindowResize(V2_int size) {
@@ -502,7 +521,7 @@ void Renderer::UpdateDisplayViewport(bool emit_events) {
 	display_viewport_ = resize_info.viewport;
 
 	if (resize_info.resized) {
-		ResizeScreenTarget(display_viewport_.size);
+		ResizePresentationTarget(display_viewport_.size);
 
 		if (emit_events) {
 			event_sink_(display_viewport_.size, ResizeType::Display);
@@ -583,16 +602,16 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 	return { .moved = moved, .resized = resized, .viewport{ viewport } };
 }
 
-void Renderer::ResizeScreenTarget(V2_int size) {
-	ResizeRenderTarget(screen_target_.resource_, size);
+void Renderer::ResizePresentationTarget(V2_int size) {
+	ResizeRenderTarget(presentation_target_.resource_, size);
 }
 
-void Renderer::BindScreenTarget() {
-	SetRenderTarget(&screen_target_);
+void Renderer::BindPresentationTarget() {
+	SetRenderTarget(&presentation_target_);
 }
 
-RenderTargetId Renderer::GetScreenTarget() const {
-	return screen_target_.resource_;
+impl::RenderTargetId Renderer::GetPresentationTarget() const {
+	return presentation_target_.resource_;
 }
 
 void Renderer::InvalidateState() {
@@ -606,14 +625,14 @@ void Renderer::BeginFrame() {
 		auto presentation{ GetPresentationViewport() };
 		Color window_background_color{ window_.GetBackgroundColor() };
 
-		auto _ = gl_->Bind(FramebufferId{ 0 }, false);
+		auto _ = gl_->Bind(impl::FramebufferId{ 0 }, false);
 		gl_->SetClearColor(window_background_color);
 		SetViewport(presentation);
 		gl_->framebuffers.Clear();
 	}
 
-	screen_target_.Bind();
-	screen_target_.Clear(background_color_, false, false);
+	presentation_target_.Bind();
+	presentation_target_.Clear(background_color_, false, false);
 }
 
 void Renderer::EndFrame() {
@@ -622,7 +641,7 @@ void Renderer::EndFrame() {
 	FlushBatch();
 
 	SetRenderTarget(nullptr);
-	SetFramebuffer(FramebufferId{ 0 });
+	SetFramebuffer(impl::FramebufferId{ 0 });
 
 	target_pool_.TrimUnused(0);
 
@@ -631,7 +650,7 @@ void Renderer::EndFrame() {
 	}
 
 	PTGN_ASSERT(
-		screen_target_.GetSize() == display_viewport_.size,
+		presentation_target_.GetSize() == display_viewport_.size,
 		"Screen target texture size must match display viewport size"
 	);
 
@@ -649,19 +668,19 @@ void Renderer::EndFrame() {
 
 	constexpr auto depth{ 0.0f };
 	constexpr auto tint{ color::White };
-	constexpr auto tex_coords{ GetDefaultTextureCoordinates<true>() };
+	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 	constexpr auto entity_id{ -1 };
 
 	auto local_vertices{ Rect{ display_viewport_.size }.GetLocalVertices() };
-	RenderQuad<TextureVertex> local_quad{
-		TextureVertex::CreateQuad(local_vertices, depth, tint.Normalized(), tex_coords, entity_id)
+	auto local_quad{
+		impl::CreateTextureQuad(local_vertices, depth, tint.Normalized(), tex_coords, entity_id)
 	};
 
-	DrawTextureRequest request;
+	impl::DrawTextureRequest request;
 	request.local_quads = { &local_quad, 1 };
-	request.texture		= screen_target_.GetTextureId();
+	request.texture		= presentation_target_.GetTextureId();
 
-	// TODO: Add screen texture effects.
+	// TODO: Add presentation texture effects.
 	// request.effect_params = ...;
 
 	DrawTexture(request);
@@ -673,132 +692,127 @@ bool Renderer::IsPresentationViewportVisible() const {
 	return presentation_viewport_.has_value() && !presentation_viewport_->size.BothAboveZero();
 }
 
-ShaderObject Renderer::CreateShader(
+impl::ShaderObject Renderer::CreateShader(
 	const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 ) {
-	return ShaderObject{ this, gl_->shaders.CreateProgram(source, shader_name) };
+	return impl::ShaderObject{ this, gl_->shaders.CreateProgram(source, shader_name) };
 }
 
-TextureObject Renderer::CreateTexture(
-	const Surface& surface, TextureFormat format, TextureParameters params
+impl::TextureObject Renderer::CreateTexture(
+	const std::uint8_t* pixel_data, V2_int size, TextureFormat format, TextureParams params
 ) {
+	auto [pixel_format, pixel_type] = impl::gl::GetPixelDataFormat(format);
 	PTGN_ASSERT(
-		surface.GetChannelCount() == GetChannelCount(format),
-		"Surface and texture format channel count must match"
+		pixel_type == impl::gl::PixelDataType::UnsignedByte,
+		"Texture format must have a type of bytes"
 	);
-	return CreateTexture(surface.Data(), surface.GetSize(), format, params);
+	return impl::TextureObject{ this, gl_->textures.CreateTexture(
+										  pixel_data, pixel_format, pixel_type, size, format, params
+									  ) };
 }
 
-TextureObject Renderer::CreateTexture(
-	const std::uint8_t* pixel_data, V2_int size, TextureFormat format, TextureParameters params
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, const Matrix4& v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, float v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V2_float v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V3_float v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V4_float v) {
+	gl_->shaders.SetUniform(shader, uniform_name, v);
+}
+
+void Renderer::SetUniform(
+	impl::ShaderId shader, const char* uniform_name, std::span<const float> v
 ) {
-	auto [pixel_format, pixel_type] = gl::GetPixelDataFormat(format);
-	PTGN_ASSERT(
-		pixel_type == gl::PixelDataType::UnsignedByte, "Texture format must have a type of bytes"
-	);
-	return TextureObject{ this, gl_->textures.CreateTexture(
-									pixel_data, pixel_format, pixel_type, size, format, params
-								) };
-}
-
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, const Matrix4& v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, float v) {
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, int v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V2_float v) {
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V2_int v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V3_float v) {
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V3_int v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V4_float v) {
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, V4_int v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, std::span<const float> v) {
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, std::span<const int> v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, int v) {
+void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, bool v) {
 	gl_->shaders.SetUniform(shader, uniform_name, v);
 }
 
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V2_int v) {
-	gl_->shaders.SetUniform(shader, uniform_name, v);
+void Renderer::SetUniformValue(
+	impl::ShaderId shader, const char* uniform_name, const UniformValue& v
+) {
+	std::visit([&]<typename T>(T&& s) { SetUniform(shader, uniform_name, std::forward<T>(s)); }, v);
 }
 
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V3_int v) {
-	gl_->shaders.SetUniform(shader, uniform_name, v);
-}
-
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, V4_int v) {
-	gl_->shaders.SetUniform(shader, uniform_name, v);
-}
-
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, std::span<const int> v) {
-	gl_->shaders.SetUniform(shader, uniform_name, v);
-}
-
-void Renderer::SetUniform(ShaderId shader, const char* uniform_name, bool v) {
-	gl_->shaders.SetUniform(shader, uniform_name, v);
-}
-
-void Renderer::SetUniformValue(ShaderId id, const char* uniform_name, const UniformValue& v) {
-	std::visit([&]<typename T>(T&& s) { SetUniform(id, uniform_name, std::forward<T>(s)); }, v);
-}
-
-void Renderer::Destroy(VertexBufferId id) {
+void Renderer::Destroy(impl::VertexBufferId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(ElementBufferId id) {
+void Renderer::Destroy(impl::ElementBufferId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(UniformBufferId id) {
+void Renderer::Destroy(impl::UniformBufferId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(ShaderId id) {
+void Renderer::Destroy(impl::ShaderId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(TextureId id) {
+void Renderer::Destroy(impl::TextureId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(RenderbufferId id) {
+void Renderer::Destroy(impl::RenderbufferId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(FramebufferId id) {
+void Renderer::Destroy(impl::FramebufferId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(VertexArrayId id) {
+void Renderer::Destroy(impl::VertexArrayId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(RenderTargetId id) {
+void Renderer::Destroy(impl::RenderTargetId id) {
 	gl_->Destroy(id);
 }
 
-V2_int Renderer::GetTextureSize(TextureId texture) const {
+V2_int Renderer::GetTextureSize(impl::TextureId texture) const {
 	return gl_->textures.GetTextureSize(texture);
 }
 
-TextureFormat Renderer::GetTextureFormat(TextureId texture) const {
+TextureFormat Renderer::GetTextureFormat(impl::TextureId texture) const {
 	return gl_->textures.GetTextureFormat(texture);
 }
 
-void Renderer::ResizeRenderTarget(RenderTargetId render_target, V2_int new_size) {
-	gl_->framebuffers.ResizeFramebuffer(FramebufferId{ render_target }, new_size);
+void Renderer::ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size) {
+	gl_->framebuffers.ResizeFramebuffer(impl::FramebufferId{ render_target }, new_size);
 }
 
 std::size_t Renderer::GetMaxTextureSlots() const {
@@ -806,38 +820,42 @@ std::size_t Renderer::GetMaxTextureSlots() const {
 }
 
 void Renderer::UploadVertices(
-	const RenderPipeline& pipeline, std::span<const std::byte> vertices, std::uint32_t vertex_size
+	const impl::RenderPipeline& pipeline, std::span<const std::byte> vertices,
+	std::uint32_t vertex_size
 ) {
 	auto _0{ gl_->Bind(pipeline.vao, false) };
 	auto _{ gl_->Bind(pipeline.vbo, false) };
 
 	auto vertex_count{ static_cast<std::uint32_t>(vertices.size() / vertex_size) };
 
-	gl_->buffers.SetBufferSubData<VertexBufferId>(
-		pipeline.vbo, gl::BufferTarget::ArrayBuffer, vertices.data(), 0, vertex_count, vertex_size
+	gl_->buffers.SetBufferSubData<impl::VertexBufferId>(
+		pipeline.vbo, impl::gl::BufferTarget::ArrayBuffer, vertices.data(), 0, vertex_count,
+		vertex_size
 	);
 }
 
-void Renderer::UploadIndices(const RenderPipeline& pipeline, std::span<const Index> indices) {
+void Renderer::UploadIndices(
+	const impl::RenderPipeline& pipeline, std::span<const impl::Index> indices
+) {
 	auto _0{ gl_->Bind(pipeline.vao, false) };
 	auto _{ gl_->Bind(pipeline.ebo, false) };
 
-	gl_->buffers.SetBufferSubData<ElementBufferId>(
-		pipeline.ebo, gl::BufferTarget::ElementArrayBuffer, indices.data(), 0,
-		static_cast<std::uint32_t>(indices.size()), sizeof(Index)
+	gl_->buffers.SetBufferSubData<impl::ElementBufferId>(
+		pipeline.ebo, impl::gl::BufferTarget::ElementArrayBuffer, indices.data(), 0,
+		static_cast<std::uint32_t>(indices.size()), sizeof(impl::Index)
 	);
 }
 
-void Renderer::DrawElements(const RenderPipeline& pipeline, std::uint32_t index_count) {
+void Renderer::DrawElements(const impl::RenderPipeline& pipeline, std::uint32_t index_count) {
 	auto _0{ gl_->Bind(pipeline.vao, false) };
 
 	gl_->vertex_arrays.DrawElements(
-		pipeline.vao, index_count, gl::IndexType::UnsignedInt, pipeline.primitive_mode
+		pipeline.vao, index_count, impl::gl::IndexType::UnsignedInt, pipeline.primitive_mode
 	);
 }
 
-void Renderer::ApplyRenderTarget(RenderTargetId id) {
-	auto _ = gl_->Bind(FramebufferId{ id }, false);
+void Renderer::ApplyRenderTarget(impl::RenderTargetId id) {
+	auto _ = gl_->Bind(impl::FramebufferId{ id }, false);
 }
 
 void Renderer::SetMaterial(const MaterialState& material) {
@@ -943,14 +961,18 @@ void Renderer::ApplyMaterial(const MaterialState& material) {
 	}
 }
 
-void Renderer::DrawTexture(const DrawTextureRequest& request) {
+void Renderer::DrawTexture(const impl::DrawTextureRequest& request) {
+	if (request.local_quads.empty()) {
+		return;
+	}
+
 	// TODO: Fix.
 	// if (ReferencesBoundTarget(request)) {
 	//	PTGN_ASSERT(
-	//		IsFullscreenCompatible(request),
-	//		"Sampling the bound target implies a fullscreen effect pass"
+	//		IsPresentationCompatible(request),
+	//		"Sampling the bound target implies a presentation effect pass"
 	//	);
-	//	DrawFullscreenEffect(request);
+	//	DrawPresentationEffect(request);
 	//	return;
 	//}
 	// if (request.effect_params.has_value()) {
@@ -960,8 +982,8 @@ void Renderer::DrawTexture(const DrawTextureRequest& request) {
 	DrawTextureNormally(request);
 }
 
-void Renderer::DrawTextureNormally(const DrawTextureRequest& request) {
-	std::span<const TextureId> textures;
+void Renderer::DrawTextureNormally(const impl::DrawTextureRequest& request) {
+	std::span<const impl::TextureId> textures;
 
 	if (request.texture) {
 		textures = { &request.texture, 1 };
@@ -983,22 +1005,68 @@ void Renderer::DrawTextureNormally(const DrawTextureRequest& request) {
 //	BatchEffectResult(std::move(result), std::span{ prepared.final_quads }, request.render_state);
 //}
 
-void Renderer::BindTextureSlot(std::uint32_t slot, TextureId texture) {
+void Renderer::BindTextureSlot(std::uint32_t slot, impl::TextureId texture) {
 	gl_->SetActiveTextureSlot(slot);
 	auto _3{ gl_->Bind(texture, false) };
 }
 
-void ApplyTransform(Transform transform, std::span<RenderQuad<TextureVertex>> local_quads) {
-	transform.ApplyTo(
-		local_quads | std::views::join,
-		[](const TextureVertex& vertex) {
-			return V2_float{ vertex.position[0], vertex.position[1] };
-		},
-		[](TextureVertex& vertex, V2_float position) {
-			vertex.position[0] = position.x;
-			vertex.position[1] = position.y;
-		}
-	);
+namespace impl {
+
+RendererAccessor::RendererAccessor(Renderer& renderer) : renderer_{ renderer } {}
+
+TextureObject RendererAccessor::CreateTexture(
+	const std::uint8_t* pixel_data, V2_int size, TextureFormat format, TextureParams params
+) {
+	return renderer_.CreateTexture(pixel_data, size, format, params);
 }
 
-} // namespace ptgn::impl
+ShaderObject RendererAccessor::CreateShader(
+	const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
+) {
+	return renderer_.CreateShader(source, shader_name);
+}
+
+RenderTargetObject RendererAccessor::CreateRenderTarget(const RenderTargetDesc& desc) {
+	return renderer_.CreateRenderTarget(desc);
+}
+
+TextureId RendererAccessor::GetPresentationTexture() const {
+	return renderer_.GetRenderTargetTexture(renderer_.GetPresentationTarget());
+}
+
+void RendererAccessor::FlushBatch() {
+	renderer_.FlushBatch();
+}
+
+void RendererAccessor::SetupPresentationTarget() {
+	Viewport viewport{ {}, renderer_.GetDisplayViewport().size };
+
+	renderer_.BindPresentationTarget();
+	renderer_.SetViewport(viewport);
+	renderer_.SetViewProjection(viewport.size);
+	renderer_.SetBlendMode(BlendMode::Blend);
+}
+
+ShaderId RendererAccessor::GetShader(std::string_view name) const {
+	return renderer_.GetShader(name);
+}
+
+void RendererAccessor::SetRenderTarget(const RenderTargetObject* target) {
+	renderer_.SetRenderTarget(target);
+}
+
+void RendererAccessor::SetScissor(const ScissorState& scissor) {
+	renderer_.SetScissor(scissor);
+}
+
+void RendererAccessor::SetViewProjection(const Matrix4& view_projection) {
+	renderer_.SetViewProjection(view_projection);
+}
+
+void RendererAccessor::SetViewport(Viewport viewport) {
+	renderer_.SetViewport(viewport);
+}
+
+} // namespace impl
+
+} // namespace ptgn

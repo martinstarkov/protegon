@@ -13,9 +13,9 @@
 
 namespace ptgn {
 
-namespace impl {
-
 class Renderer;
+
+namespace impl {
 
 struct PassDesc {
 	std::vector<TextureId> inputs;
@@ -28,7 +28,7 @@ struct PassDesc {
 
 class PassBuilder {
 public:
-	PassBuilder(impl::Renderer& renderer, std::vector<impl::TextureId> inputs);
+	PassBuilder(Renderer& renderer, std::vector<impl::TextureId> inputs);
 
 	PassBuilder& Output(RenderTargetDesc desc) {
 		desc_.output = desc;
@@ -61,7 +61,7 @@ public:
 		return *this;
 	}
 
-	PassBuilder& State(RenderState state) {
+	PassBuilder& State(const RenderState& state) {
 		desc_.render_state = state;
 		return *this;
 	}
@@ -69,7 +69,7 @@ public:
 	impl::TextureId Submit();
 
 private:
-	impl::Renderer& renderer_;
+	Renderer& renderer_;
 	impl::PassDesc desc_{};
 };
 

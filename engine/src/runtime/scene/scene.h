@@ -38,7 +38,6 @@ class CollisionHandler;
 
 namespace impl {
 
-class Renderer;
 struct RenderCamera;
 
 enum class SceneState {
@@ -251,6 +250,7 @@ private:
 
 	void InternalUpdate();
 	void InternalDraw(DrawContext& draw_context);
+	void DrawSceneTarget(DrawContext& draw_context) const;
 	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
 
 	std::unique_ptr<SceneContext> ctx_;

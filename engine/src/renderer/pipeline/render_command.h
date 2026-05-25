@@ -2,16 +2,20 @@
 
 #include <cstdint>
 #include <optional>
+#include <ranges>
 #include <span>
 #include <vector>
 
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/resources/id.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
 class Renderer;
+
+namespace impl {
 
 enum class RenderCommandKind : std::uint8_t {
 	ColorQuads,
@@ -62,32 +66,34 @@ public:
 
 	void Clear();
 
-	void AddColorQuads(
-		ShaderId shader, std::span<const RenderQuad<ColorVertex>> quads,
-		std::optional<BlendMode> blend_mode, float depth
+	void Add(
+		ShaderId shader, std::span<RenderQuad<TextureVertex>> primitives,
+		std::optional<BlendMode> blend_mode, float depth, TextureId texture
 	);
 
-	void AddColorTriangles(
-		ShaderId shader, std::span<const RenderTriangle<ColorVertex>> triangles,
-		std::optional<BlendMode> blend_mode, float depth
+	void Add(
+		ShaderId shader, std::span<RenderQuad<ShapeVertex>> primitives,
+		std::optional<BlendMode> blend_mode, float depth, TextureId
 	);
 
-	void AddShapeQuads(
-		ShaderId shader, std::span<const RenderQuad<ShapeVertex>> quads,
-		std::optional<BlendMode> blend_mode, float depth
+	void Add(
+		ShaderId shader, std::span<RenderQuad<ColorVertex>> primitives,
+		std::optional<BlendMode> blend_mode, float depth, TextureId
 	);
 
-	void AddTextureQuads(
-		ShaderId shader, TextureId texture, std::span<const RenderQuad<TextureVertex>> quads,
-		std::optional<BlendMode> blend_mode, float depth
+	void Add(
+		ShaderId shader, std::span<RenderTriangle<ColorVertex>> primitives,
+		std::optional<BlendMode> blend_mode, float depth, TextureId
 	);
 
 private:
-	template <typename T>
-	[[nodiscard]] RenderRange Append(std::vector<T>& dst, std::span<const T> src) const {
+	template <RenderPrimitive TPrimitive>
+	[[nodiscard]] RenderRange Append(
+		std::vector<TPrimitive>& dst, std::span<TPrimitive> src
+	) const {
 		auto first{ dst.size() };
 
-		dst.append_range(src);
+		dst.append_range(src | std::views::as_rvalue);
 
 		return RenderRange{ .first = first, .count = src.size() };
 	}
@@ -107,4 +113,6 @@ private:
 	std::uint64_t next_sequence_{ 0 };
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

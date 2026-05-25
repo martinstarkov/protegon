@@ -8,14 +8,6 @@
 
 namespace ptgn {
 
-const std::vector<V2_float>& Polygon::GetVertices() const {
-	return vertices_;
-}
-
-std::vector<V2_float>& Polygon::GetVertices() {
-	return vertices_;
-}
-
 V2_float Polygon::GetCenter() const {
 	PTGN_ASSERT(vertices_.size() >= 3);
 	// Source: https://stackoverflow.com/a/63901131
@@ -49,7 +41,11 @@ std::vector<V2_float> Polygon::GetWorldVertices(Transform transform) const {
 	return transform.Apply(vertices_);
 }
 
-std::vector<V2_float> Polygon::GetLocalVertices() const {
+std::vector<V2_float>& Polygon::GetLocalVertices() {
+	return vertices_;
+}
+
+const std::vector<V2_float>& Polygon::GetLocalVertices() const {
 	return vertices_;
 }
 

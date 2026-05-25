@@ -74,8 +74,7 @@ Color RenderTarget::GetClearColor() const {
 }
 
 V2_float RenderTarget::GetScale() const {
-	const auto& renderer{ GetScene().ctx().global_renderer_ };
-	V2_float game_size{ renderer.GetGameSize() };
+	V2_float game_size{ GetScene().ctx().renderer.GetGameSize() };
 	PTGN_ASSERT(game_size.BothAboveZero(), "Game size cannot be negative or zero");
 	V2_float rt_size{ GetSize() };
 	V2_float scale{ rt_size / game_size };
@@ -89,6 +88,10 @@ V2_int RenderTarget::GetSize() const {
 
 TextureFormat RenderTarget::GetFormat() const {
 	return Get<impl::RenderTargetObject>().GetFormat();
+}
+
+impl::TextureId RenderTarget::GetTextureId() const {
+	return Get<impl::RenderTargetObject>().GetTextureId();
 }
 
 RenderTarget::operator impl::RenderTargetId() const {
@@ -109,24 +112,13 @@ void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
 	PTGN_ASSERT(size.has_value(), "Render target does not have a texture");
 	PTGN_ASSERT(!(*size).IsZero(), "Render target texture does not have a valid size");
 
-	// TODO: Can this be replaced almost fully with Sprite::Draw?
-
-	auto blend_mode{ GetBlendMode(entity) };
-	auto draw_origin{ GetDrawOrigin(entity) };
 	auto draw_transform{ GetDrawTransform(entity) };
-	auto tint{ GetTint(entity) };
-	auto depth{ GetDepth(entity) };
-	auto tex_coords{ GetTextureCoordinates(entity, false) };
 	auto texture{ entity.Get<impl::RenderTargetObject>().GetTextureId() };
-	auto entity_id{ entity.GetUUID() };
+	auto blend_mode{ GetBlendMode(entity) };
 
-	auto effects{ impl::GetEffectParams(entity) };
+	auto params{ impl::GetTextureDrawParams(entity, *size, false, color::White) };
 
-	ctx.WithBlendMode(blend_mode, [&]() {
-		ctx.DrawTexture(
-			texture, draw_transform, depth, *size, draw_origin, tint, tex_coords, effects, entity_id
-		);
-	});
+	ctx.WithBlendMode(blend_mode, [&]() { ctx.DrawTexture(draw_transform, texture, params); });
 }
 
 void RenderTarget::AddRenderTargetComponents(
@@ -139,7 +131,9 @@ void RenderTarget::AddRenderTargetComponents(
 	render_target.SetClearColor(clear_color);
 
 	render_target.Add<impl::RenderTargetObject>(
-		scene.ctx().global_renderer_.CreateRenderTarget({ .size{ size }, .format{ format } })
+		impl::RendererAccessor{ scene.ctx().renderer }.CreateRenderTarget(
+			{ .size{ size }, .format{ format } }
+		)
 	);
 	render_target.Clear(clear_color, true, true);
 }
@@ -153,10 +147,10 @@ void RenderTarget::AddRenderTargetComponents(
 	V2_int resolution;
 
 	if (resize_to_resolution == ResizeType::Display) {
-		resolution = scene.ctx().global_renderer_.GetDisplaySize();
+		resolution = scene.ctx().renderer.GetDisplaySize();
 		AddScript<impl::RenderTargetDisplayResizeScript>(render_target);
 	} else if (resize_to_resolution == ResizeType::Game) {
-		resolution = scene.ctx().global_renderer_.GetGameSize();
+		resolution = scene.ctx().renderer.GetGameSize();
 		AddScript<impl::RenderTargetGameResizeScript>(render_target);
 	} else {
 		PTGN_ERROR("Unknown resize to resolution value");

@@ -15,13 +15,16 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "renderer/pipeline/buffer_layout.h"
+#include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/render_target_object.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
 class Renderer;
+
+namespace impl {
 
 using Index = std::uint32_t;
 
@@ -69,7 +72,7 @@ public:
 	}
 
 private:
-	friend class Renderer;
+	friend class ptgn::Renderer;
 
 	struct TextureSlotInfo {
 		std::uint32_t slot{ 0 };
@@ -178,10 +181,11 @@ private:
 	void SubmitPrimitiveUnchecked(
 		const TPrimitive& primitive, const std::array<Index, IndexCount>& index_pattern
 	) {
+		static_assert(std::size(primitive) == VertexCount);
+
 		auto base_vertex{ static_cast<Index>(vertices_.size() / sizeof(TVertex)) };
 
-		std::span<const TVertex, VertexCount> primitive_vertices{ std::data(primitive),
-																  VertexCount };
+		std::span primitive_vertices{ std::data(primitive), VertexCount };
 
 		auto bytes{ std::as_bytes(primitive_vertices) };
 
@@ -215,4 +219,6 @@ private:
 	std::vector<RenderTargetObject> release_after_flush_;
 };
 
-} // namespace ptgn::impl
+} // namespace impl
+
+} // namespace ptgn

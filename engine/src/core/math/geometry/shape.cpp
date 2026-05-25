@@ -55,7 +55,8 @@ std::vector<V2_float> GetWorldVertices(const Shape& shape, Transform transform) 
 		} else if constexpr (IsAnyOf<T, RoundedRect, Ellipse, Circle, Arc, Capsule>) {
 			return std::ranges::to<std::vector>(s.GetWorldQuadVertices(transform));
 		} else if constexpr (std::is_same_v<T, V2_float>) {
-			return std::ranges::to<std::vector>(Rect{ V2_float{ 1.0f } }.GetWorldVertices(transform)
+			return std::ranges::to<std::vector>(
+				Rect{ V2_float{ 1.0f } }.GetWorldVertices(transform)
 			);
 		} else {
 			static_assert(false, "Incomplete visitor!");

@@ -308,7 +308,7 @@ bool OverlapPointCapsule(Transform t1, V2_float A, Transform t2, const Capsule& 
 bool OverlapPointPolygon(Transform t1, V2_float A, Transform t2, const Polygon& B) {
 	auto point{ t1.Apply(A) };
 
-	auto world_points{ t2.Apply(B.GetVertices()) };
+	auto world_points{ B.GetWorldVertices(t2) };
 	std::size_t count{ world_points.size() };
 	const auto& v{ world_points };
 

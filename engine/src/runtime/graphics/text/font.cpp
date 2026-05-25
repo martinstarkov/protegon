@@ -34,6 +34,7 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
+#include "runtime/asset/asset_manager.h"
 
 namespace ptgn {
 
@@ -43,8 +44,8 @@ constexpr std::array kExpectedFontCacheMagic{ 'F', 'O', 'N', 'T', 'C', 'A', 'C',
 constexpr std::uint32_t kExpectedFontCacheVersion{ 1 };
 constexpr int kFontAtlasChannelCount{ 3 };
 constexpr TextureFormat kFontAtlasFormat{ TextureFormat::RGB8 };
-constexpr TextureParameters kFontAtlasTextureParams{ TextureMinFilter::Linear,
-													 TextureMagFilter::Linear };
+constexpr TextureParams kFontAtlasTextureParams{ TextureMinFilter::Linear,
+												 TextureMagFilter::Linear };
 
 using FontAtlasDataType = std::uint8_t;
 
@@ -253,8 +254,8 @@ std::expected<impl::FontData, FontCacheError> ReadFontCache(const path& cache_pa
 namespace impl {
 
 FontObject::FontObject(
-	Renderer& renderer, path font_path, path cache_directory, std::string_view cache_name,
-	const FontAtlasInfo& atlas_info
+	const AssetManager& asset_manager, path font_path, path cache_directory,
+	std::string_view cache_name, const FontAtlasInfo& atlas_info
 ) {
 	auto freetype{ InitFreetype() };
 
@@ -319,7 +320,8 @@ FontObject::FontObject(
 
 	cache_directory = GetAbsolutePath(cache_directory);
 
-	atlas_texture_ = renderer.CreateTexture(surface, kFontAtlasFormat, kFontAtlasTextureParams);
+	atlas_texture_ =
+		asset_manager.CreateTexture(surface, kFontAtlasFormat, kFontAtlasTextureParams);
 
 	data_.font_path = std::move(font_path);
 
@@ -404,14 +406,17 @@ FontObject::FontObject(
 }
 
 #ifndef __EMSCRIPTEN__
-FontObject::FontObject(Renderer& renderer, path cache_directory, std::string_view cache_name) {
+FontObject::FontObject(
+	const AssetManager& asset_manager, path cache_directory, std::string_view cache_name
+) {
 	cache_directory = GetAbsolutePath(cache_directory);
 
 	auto cache_png_path{ cache_directory / (std::string(cache_name) + ".png") };
 
 	Surface surface{ cache_png_path, kFontAtlasChannelCount };
 
-	atlas_texture_ = renderer.CreateTexture(surface, kFontAtlasFormat, kFontAtlasTextureParams);
+	atlas_texture_ =
+		asset_manager.CreateTexture(surface, kFontAtlasFormat, kFontAtlasTextureParams);
 
 	auto cache_data_path{ cache_directory / (std::string(cache_name) + ".data") };
 

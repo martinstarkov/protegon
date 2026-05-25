@@ -12,6 +12,10 @@ void Triangle::SetVertices(V2_float a, V2_float b, V2_float c) {
 	vertices_ = { a, b, c };
 }
 
+std::array<V2_float, 3>& Triangle::GetLocalVertices() {
+	return vertices_;
+}
+
 std::array<V2_float, 3> Triangle::GetLocalVertices() const {
 	return vertices_;
 }

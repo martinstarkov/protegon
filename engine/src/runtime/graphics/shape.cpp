@@ -53,22 +53,29 @@ std::optional<Variant> GetFirstMatchingVariant(Entity entity) {
 
 } // namespace
 
+namespace impl {
+
+ShapeDrawParams GetShapeDrawParams(Entity entity) {
+	return { .depth{ GetDepth(entity) },
+			 .fill_style{ entity.GetOrDefault<FillStyle>() },
+			 .origin{ GetDrawOrigin(entity) },
+			 .entity_id{ entity.GetUUID() } };
+}
+
+} // namespace impl
+
 template <ShapeType T>
 void DrawShape(DrawContext& ctx, Entity entity) {
 	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
 
 	const auto& shape{ entity.Get<T>() };
 	auto draw_transform{ GetDrawTransform(entity) };
-	auto tint{ GetTint(entity) };
-	auto fill_style{ entity.GetOrDefault<FillStyle>() };
-	auto draw_origin{ GetDrawOrigin(entity) };
-	auto depth{ GetDepth(entity) };
+	auto color{ GetTint(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
-	auto entity_id{ entity.GetUUID() };
 
-	ctx.WithBlendMode(blend_mode, [&]() {
-		ctx.DrawShape(shape, draw_transform, depth, tint, fill_style, draw_origin, entity_id);
-	});
+	auto params{ impl::GetShapeDrawParams(entity) };
+
+	ctx.WithBlendMode(blend_mode, [&]() { ctx.DrawShape(draw_transform, shape, color, params); });
 }
 
 void RectDraw::Draw(DrawContext& ctx, Entity entity) {

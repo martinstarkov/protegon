@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/util/time.h"
-#include "runtime/graphics/render_context.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/physics.h"
@@ -21,12 +21,7 @@ class Window;
 class AudioSystem;
 class RenderTarget;
 class LocalSceneManager;
-
-namespace impl {
-
 class Renderer;
-
-} // namespace impl
 
 class SceneContext {
 public:
@@ -39,13 +34,14 @@ public:
 	SceneContext& operator=(SceneContext&&) noexcept = delete;
 
 	Window& window;
+	Renderer& renderer;
 	AssetManager& asset;
 	FontSystem& font;
 	AudioSystem& audio;
+	DebugSystem& debug;
 
 	LocalSceneManager scene;
-	RenderContext renderer;
-	DebugContext debug;
+	RenderQueue render_queue;
 	LocalEventHandler event;
 	SceneInput input;
 	InteractionSystem interaction;
@@ -81,8 +77,6 @@ private:
 	friend class RenderTarget;
 	friend class Scene;
 	friend class LocalSceneManager;
-
-	impl::Renderer& global_renderer_;
 
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
 	/// size.

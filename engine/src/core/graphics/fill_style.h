@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <concepts>
+#include <optional>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -33,7 +34,11 @@ struct Hollow {
 	PTGN_SERIALIZE_VALUE(Hollow, line_width)
 };
 
-struct FillStyle {
+class FillStyle {
+private:
+	using Variant = std::variant<Solid, Hollow>;
+
+public:
 	constexpr FillStyle() = default;
 
 	constexpr FillStyle(float line_width) : style_{ Hollow{ line_width } } { // NOSONAR
@@ -41,12 +46,31 @@ struct FillStyle {
 
 	constexpr FillStyle(Solid) : style_{ Solid{} } {} // NOSONAR
 
+	[[nodiscard]] constexpr bool IsHollow() const {
+		return std::holds_alternative<Hollow>(style_);
+	}
+
+	[[nodiscard]] constexpr bool IsSolid() const {
+		return std::holds_alternative<Solid>(style_);
+	}
+
+	/// @brief GetLineWidth() returns the line width if this FillStyle is hollow,
+	/// and std::nullopt otherwise.
+	[[nodiscard]] constexpr std::optional<float> GetLineWidth() const {
+		if (auto hollow{ std::get_if<Hollow>(&style_) }) {
+			return hollow->line_width;
+		}
+		return std::nullopt;
+	}
+
 	template <typename F>
+		requires VariantVisitor<F, Variant>
 	decltype(auto) Visit(F&& f) const {
 		return std::visit(std::forward<F>(f), style_);
 	}
 
-	auto Apply(Invocable auto&& solid_fn, Invocable<float> auto&& hollow_fn) {
+	template <Invocable FSolid, Invocable<float> FHollow>
+	auto Apply(FSolid solid_fn, FHollow hollow_fn) {
 		using R1 = std::invoke_result_t<decltype(solid_fn)>;
 		using R2 = std::invoke_result_t<decltype(hollow_fn), float>;
 
@@ -96,8 +120,9 @@ struct FillStyle {
 	}
 
 	PTGN_SERIALIZE_VALUE(FillStyle, style_)
+
 private:
-	std::variant<Solid, Hollow> style_{};
+	Variant style_{};
 };
 
 } // namespace ptgn

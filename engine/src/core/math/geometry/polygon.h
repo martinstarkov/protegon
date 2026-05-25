@@ -27,9 +27,6 @@ public:
 		vertices_.assign(vertices.begin(), vertices.end());
 	}
 
-	const std::vector<V2_float>& GetVertices() const;
-	std::vector<V2_float>& GetVertices();
-
 	constexpr V2_float* Data() noexcept {
 		return vertices_.data();
 	}
@@ -60,7 +57,8 @@ public:
 
 	std::vector<V2_float> GetWorldVertices(Transform transform) const;
 
-	std::vector<V2_float> GetLocalVertices() const;
+	std::vector<V2_float>& GetLocalVertices();
+	const std::vector<V2_float>& GetLocalVertices() const;
 
 	/// @return Centroid of the polygon.
 	V2_float GetCenter() const;

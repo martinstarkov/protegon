@@ -362,7 +362,11 @@ void ButtonBase<Derived>::Draw(DrawContext& ctx, Entity entity) {
 					}
 					ctx.WithBlendMode(blend_mode, [&]() {
 						ctx.DrawShape(
-							shape, transform, depth, color, fill, button_origin, entity_id
+							transform, shape, color,
+							{ .depth	  = depth,
+							  .fill_style = fill,
+							  .origin	  = button_origin,
+							  .entity_id  = entity_id }
 						);
 					});
 				},
@@ -400,7 +404,11 @@ void ButtonBase<Derived>::Draw(DrawContext& ctx, Entity entity) {
 					[&](const auto& shape) {
 						ctx.WithBlendMode(blend_mode, [&]() {
 							ctx.DrawShape(
-								shape, transform, depth, color, fill, button_origin, entity_id
+								transform, shape, color,
+								{ .depth	  = depth,
+								  .fill_style = fill,
+								  .origin	  = button_origin,
+								  .entity_id  = entity_id }
 							);
 						});
 					},

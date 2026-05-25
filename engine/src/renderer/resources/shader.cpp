@@ -21,64 +21,59 @@ namespace ptgn {
 
 namespace impl {
 
-template <typename T>
-concept ShaderUniformSettable = requires(ShaderObject& object, const char* name, T&& value) {
-	object.SetUniform(name, std::forward<T>(value));
-};
-
-template <ShaderUniformSettable T>
-void SetUniformImpl(Renderer* renderer, ShaderId id, const char* uniform_name, T&& v) {
-	PTGN_ASSERT(renderer, "Renderer must be initialized before setting uniform");
-	renderer->SetUniform(id, uniform_name, std::forward<T>(v));
-}
+#define PTGN_SET_UNIFORM                                                           \
+	PTGN_ASSERT(renderer_, "Renderer must be initialized before setting uniform"); \
+	renderer_->SetUniform(resource_, uniform_name, v);
 
 void ShaderObject::SetUniform(const char* uniform_name, const Matrix4& v) {
-	SetUniformImpl(renderer_, resource_, uniform_name, v);
+	PTGN_SET_UNIFORM
 }
 
 void ShaderObject::SetUniform(const char* uniform_name, float v) {
-	SetUniformImpl(renderer_, resource_, uniform_name, v);
+	PTGN_SET_UNIFORM
 }
 
 void ShaderObject::SetUniform(const char* uniform_name, V2_float v) {
-	SetUniformImpl(renderer_, resource_, uniform_name, v);
+	PTGN_SET_UNIFORM
 }
 
 void ShaderObject::SetUniform(const char* uniform_name, V3_float v) {
-	SetUniformImpl(renderer_, resource_, uniform_name, v);
+	PTGN_SET_UNIFORM
 }
 
 void ShaderObject::SetUniform(const char* uniform_name, V4_float v) {
-	SetUniformImpl(renderer_, resource_, uniform_name, v);
+	PTGN_SET_UNIFORM
 }
 
 void ShaderObject::SetUniform(const char* uniform_name, std::span<const float> v) {
-	SetUniformImpl(renderer_, resource_, uniform_name, v);
+	PTGN_SET_UNIFORM
 }
 
 void ShaderObject::SetUniform(const char* uniform_name, bool v) {
-	SetUniformImpl(renderer_, resource_, uniform_name, v);
+	PTGN_SET_UNIFORM
 }
 
 void ShaderObject::SetUniform(const char* uniform_name, int v) {
-	SetUniformImpl(renderer_, resource_, uniform_name, v);
+	PTGN_SET_UNIFORM
 }
 
 void ShaderObject::SetUniform(const char* uniform_name, V2_int v) {
-	SetUniformImpl(renderer_, resource_, uniform_name, v);
+	PTGN_SET_UNIFORM
 }
 
 void ShaderObject::SetUniform(const char* uniform_name, V3_int v) {
-	SetUniformImpl(renderer_, resource_, uniform_name, v);
+	PTGN_SET_UNIFORM
 }
 
 void ShaderObject::SetUniform(const char* uniform_name, V4_int v) {
-	SetUniformImpl(renderer_, resource_, uniform_name, v);
+	PTGN_SET_UNIFORM
 }
 
 void ShaderObject::SetUniform(const char* uniform_name, std::span<const int> v) {
-	SetUniformImpl(renderer_, resource_, uniform_name, v);
+	PTGN_SET_UNIFORM
 }
+
+#undef PTGN_SET_UNIFORM
 
 } // namespace impl
 

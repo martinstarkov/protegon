@@ -19,7 +19,6 @@ class AssetManager;
 namespace impl {
 
 class ApplicationContext;
-class Renderer;
 
 } // namespace impl
 
@@ -59,7 +58,7 @@ private:
 	FontSystem& operator=(FontSystem&&) noexcept = delete;
 
 	[[nodiscard]] static impl::FontObject CreateFont(
-		impl::Renderer& renderer, const path& font_path, std::string_view name
+		const AssetManager& asset_manager, const path& font_path, std::string_view name
 	);
 
 	AssetManager& assets_;
