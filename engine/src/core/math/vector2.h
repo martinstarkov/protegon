@@ -59,7 +59,7 @@ struct Vector2 {
 		return { y, y };
 	}
 
-	friend bool operator==(Vector2 lhs, Vector2 rhs) {
+	constexpr friend bool operator==(Vector2 lhs, Vector2 rhs) {
 		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y);
 	}
 

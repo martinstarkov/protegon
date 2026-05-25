@@ -11,12 +11,6 @@
 
 namespace ptgn {
 
-Transform::Transform(V2_float position, Radians rotation, V2_float scale) :
-	position_{ position }, rotation_{ rotation }, scale_{ scale } {}
-
-Transform::Transform(V2_float position, Degrees rotation, V2_float scale) :
-	Transform{ position, rotation.ToRad(), scale } {}
-
 bool Transform::IsIdentity() const {
 	return *this == Transform{};
 }

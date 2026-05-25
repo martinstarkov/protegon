@@ -45,7 +45,7 @@ public:
 	/// @return Center relative to the world.
 	V2_float GetCenter(Transform transform) const;
 
-	bool operator==(const RoundedRect&) const = default;
+	constexpr bool operator==(const RoundedRect&) const = default;
 
 	PTGN_SERIALIZE(RoundedRect, min_, max_, radius_)
 

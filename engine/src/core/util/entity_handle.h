@@ -1,11 +1,12 @@
 #pragma once
 
+#include <ecs/ecs.h>
+
 #include <cstdint>
 #include <ostream>
 #include <utility>
 
 #include "core/assert.h"
-#include <ecs/ecs.h>
 
 namespace ptgn {
 

@@ -244,7 +244,7 @@ public:
 
 	[[nodiscard]] bool ExactlyEquals(const Matrix4& o) const;
 
-	friend bool operator==(const Matrix4& a, const Matrix4& b) {
+	constexpr friend bool operator==(const Matrix4& a, const Matrix4& b) {
 		return std::ranges::equal(a.m_, b.m_, [](float lhs, float rhs) {
 			return NearlyEqual(lhs, rhs);
 		});

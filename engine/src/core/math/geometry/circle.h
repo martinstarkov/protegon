@@ -34,7 +34,7 @@ public:
 
 	std::array<V2_float, 4> GetLocalQuadVertices() const;
 
-	bool operator==(const Circle&) const = default;
+	constexpr bool operator==(const Circle&) const = default;
 
 	PTGN_SERIALIZE(Circle, radius_)
 

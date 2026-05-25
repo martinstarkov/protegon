@@ -24,7 +24,7 @@ struct ShakeConfig {
 	/// @brief Amount of trauma per second that is recovered.
 	float recovery_speed{ 0.5f };
 
-	bool operator==(const ShakeConfig&) const = default;
+	constexpr bool operator==(const ShakeConfig&) const = default;
 
 	PTGN_SERIALIZE(
 		ShakeConfig, maximum_translation, maximum_rotation, frequency, trauma_exponent,

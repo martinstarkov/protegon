@@ -34,7 +34,7 @@ public:
 	/// @brief Get direction from start to end.
 	V2_float GetDirection() const;
 
-	bool operator==(const Line&) const = default;
+	constexpr bool operator==(const Line&) const = default;
 
 	PTGN_SERIALIZE(Line, start_, end_)
 

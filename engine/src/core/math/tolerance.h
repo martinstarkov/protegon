@@ -20,8 +20,10 @@ inline constexpr T kEpsilon{ std::numeric_limits<T>::epsilon() };
 /// relative tolerance test fails when x and y become small.
 /// Source: https://stackoverflow.com/a/65015333
 template <typename T>
-[[nodiscard]] constexpr bool
-NearlyEqual(T a, T b, T abs_tol = static_cast<T>(10) * kEpsilon<T>, T rel_tol = static_cast<T>(10) * kEpsilon<T>) noexcept {
+[[nodiscard]] constexpr bool NearlyEqual(
+	T a, T b, T abs_tol = static_cast<T>(10) * kEpsilon<T>,
+	T rel_tol = static_cast<T>(10) * kEpsilon<T>
+) noexcept {
 	if constexpr (std::is_floating_point_v<T>) {
 		if (std::isnan(a) || std::isnan(b)) {
 			return false;

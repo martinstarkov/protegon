@@ -22,8 +22,9 @@ public:
 	/// @param out_size Optional parameter for the unrotated size of the quad.
 	/// @return Quad vertices relative to the given transform for this line with a given a line
 	/// width.
-	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform, V2_float* out_size = nullptr)
-		const;
+	std::array<V2_float, 4> GetWorldQuadVertices(
+		Transform transform, V2_float* out_size = nullptr
+	) const;
 
 	std::array<V2_float, 2> GetWorldVertices(Transform transform) const;
 
@@ -40,7 +41,7 @@ public:
 	/// @brief Get direction from start to end.
 	V2_float GetDirection() const;
 
-	bool operator==(const Capsule&) const = default;
+	constexpr bool operator==(const Capsule&) const = default;
 
 	PTGN_SERIALIZE(Capsule, start_, end_, radius_)
 

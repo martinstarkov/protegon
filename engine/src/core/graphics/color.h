@@ -119,7 +119,7 @@ struct Color {
 		return a == 255;
 	}
 
-	bool operator==(const Color&) const = default;
+	constexpr bool operator==(const Color&) const = default;
 
 	friend void to_json(json& j, const Color& color) {
 		j = json::array({ color.r, color.g, color.b, color.a });

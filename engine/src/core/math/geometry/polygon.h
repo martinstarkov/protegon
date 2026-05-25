@@ -65,7 +65,7 @@ public:
 	/// @return Centroid of the polygon.
 	V2_float GetCenter() const;
 
-	bool operator==(const Polygon&) const = default;
+	constexpr bool operator==(const Polygon&) const = default;
 
 	PTGN_SERIALIZE(Polygon, vertices_)
 

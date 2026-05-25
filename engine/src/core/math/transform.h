@@ -21,10 +21,13 @@ struct Transform {
 	Transform() = default;
 
 	template <Arithmetic T>
-	Transform(Vector2<T> position) : position_{ position } {} // NOSONAR
+	constexpr Transform(Vector2<T> position) : position_{ position } {} // NOSONAR
 
-	Transform(V2_float position, Radians rotation, V2_float scale = { 1.0f, 1.0f });
-	Transform(V2_float position, Degrees rotation, V2_float scale = { 1.0f, 1.0f });
+	constexpr Transform(V2_float position, Radians rotation, V2_float scale = { 1.0f, 1.0f }) :
+		position_{ position }, rotation_{ rotation }, scale_{ scale } {}
+
+	constexpr Transform(V2_float position, Degrees rotation, V2_float scale = { 1.0f, 1.0f }) :
+		Transform{ position, rotation.ToRad(), scale } {}
 
 	[[nodiscard]] bool IsIdentity() const;
 
@@ -34,7 +37,7 @@ struct Transform {
 
 	[[nodiscard]] Transform InverseRelativeTo(Transform parent) const;
 
-	bool operator==(const Transform&) const = default;
+	constexpr bool operator==(const Transform&) const = default;
 
 	V2_float GetPosition() const;
 

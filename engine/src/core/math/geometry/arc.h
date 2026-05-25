@@ -45,7 +45,7 @@ public:
 
 	std::array<V2_float, 4> GetLocalQuadVertices() const;
 
-	bool operator==(const Arc&) const = default;
+	constexpr bool operator==(const Arc&) const = default;
 
 	PTGN_SERIALIZE(Arc, radius_, start_angle_, end_angle_, clockwise_)
 

@@ -31,7 +31,7 @@ struct Degrees {
 	/// @return Random angle in the range [min, max].
 	[[nodiscard]] static Degrees Random(Degrees min, Degrees max);
 
-	friend bool operator==(const Degrees& a, const Degrees& b) {
+	constexpr friend bool operator==(const Degrees& a, const Degrees& b) {
 		return NearlyEqual(a.value, b.value);
 	}
 
@@ -64,7 +64,7 @@ struct Radians {
 	/// @return Random angle in the range [min, max].
 	[[nodiscard]] static Radians Random(Radians min, Radians max);
 
-	friend bool operator==(const Radians& a, const Radians& b) {
+	constexpr friend bool operator==(const Radians& a, const Radians& b) {
 		return NearlyEqual(a.value, b.value);
 	}
 

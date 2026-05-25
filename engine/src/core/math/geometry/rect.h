@@ -57,7 +57,7 @@ public:
 	/// world axes.
 	[[nodiscard]] static Rect FromPoints(std::span<const V2_float> points);
 
-	bool operator==(const Rect&) const = default;
+	constexpr bool operator==(const Rect&) const = default;
 
 	PTGN_SERIALIZE(Rect, min_, max_)
 

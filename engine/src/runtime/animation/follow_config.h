@@ -47,7 +47,7 @@ struct FollowConfig {
 	float max_speed{ 4.0f * 60.0f };
 	float max_acceleration{ 20.0f * 60.0f };
 
-	bool operator==(const FollowConfig&) const = default;
+	constexpr bool operator==(const FollowConfig&) const = default;
 
 	PTGN_SERIALIZE(
 		FollowConfig, move_mode, follow_x, follow_y, teleport_on_start, stop_distance, lerp,
@@ -56,19 +56,20 @@ struct FollowConfig {
 };
 
 struct TargetFollowConfig : public FollowConfig {
-	explicit TargetFollowConfig(const FollowConfig& config) : FollowConfig{ config } {}
+	constexpr explicit TargetFollowConfig(const FollowConfig& config) : FollowConfig{ config } {}
 
 	using FollowConfig::FollowConfig;
 
-	bool operator==(const TargetFollowConfig&) const = default;
+	constexpr bool operator==(const TargetFollowConfig&) const = default;
 };
 
 struct PathFollowConfig : public FollowConfig {
 	bool loop_path{ true };
 
-	PathFollowConfig() : FollowConfig{ .move_mode = MoveMode::Velocity, .stop_distance = 10.0f } {}
+	constexpr PathFollowConfig() :
+		FollowConfig{ .move_mode = MoveMode::Velocity, .stop_distance = 10.0f } {}
 
-	bool operator==(const PathFollowConfig&) const = default;
+	constexpr bool operator==(const PathFollowConfig&) const = default;
 
 	PTGN_SERIALIZE_DERIVED(PathFollowConfig, FollowConfig, loop_path)
 };

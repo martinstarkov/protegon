@@ -48,7 +48,7 @@ public:
 		return std::visit(std::forward<F>(f), shape_);
 	}
 
-	bool operator==(const Shape&) const = default;
+	constexpr bool operator==(const Shape&) const = default;
 
 	PTGN_SERIALIZE_VALUE(Shape, shape_)
 private:
@@ -82,7 +82,7 @@ public:
 		return std::visit([](const auto& s) { return Shape{ s }; }, shape_);
 	}
 
-	bool operator==(const ColliderShape&) const = default;
+	constexpr bool operator==(const ColliderShape&) const = default;
 
 	// friend void to_json(json& j, const ColliderShape& shape);
 	// friend void from_json(const json& j, ColliderShape& shape);
@@ -123,7 +123,7 @@ public:
 		return std::visit([](const auto& s) { return ColliderShape{ s }; }, shape_);
 	}
 
-	bool operator==(const InteractiveShape&) const = default;
+	constexpr bool operator==(const InteractiveShape&) const = default;
 
 	// friend void to_json(json& j, const InteractiveShape& shape);
 	// friend void from_json(const json& j, InteractiveShape& shape);

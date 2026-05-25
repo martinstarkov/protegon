@@ -6,6 +6,7 @@
 #include <ostream>
 #include <type_traits>
 
+#include "core/math/tolerance.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/util/concepts.h"
@@ -88,7 +89,7 @@ struct Vector4 {
 		return { x, y, z };
 	}
 
-	friend bool operator==(const Vector4& lhs, const Vector4& rhs) {
+	constexpr friend bool operator==(const Vector4& lhs, const Vector4& rhs) {
 		return NearlyEqual(lhs.x, rhs.x) && NearlyEqual(lhs.y, rhs.y) &&
 			   NearlyEqual(lhs.z, rhs.z) && NearlyEqual(lhs.w, rhs.w);
 	}

@@ -30,7 +30,7 @@ public:
 
 	std::array<V2_float, 4> GetLocalQuadVertices() const;
 
-	bool operator==(const Ellipse&) const = default;
+	constexpr bool operator==(const Ellipse&) const = default;
 
 	PTGN_SERIALIZE(Ellipse, radius_)
 

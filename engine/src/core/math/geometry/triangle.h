@@ -24,7 +24,7 @@ public:
 
 	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
 
-	bool operator==(const Triangle&) const = default;
+	constexpr bool operator==(const Triangle&) const = default;
 
 	PTGN_SERIALIZE(Triangle, vertices_)
 
