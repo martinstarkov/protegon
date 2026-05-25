@@ -1,7 +1,7 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
-#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -24,7 +24,6 @@ struct RenderPipeline {
 	VertexBufferObject vbo;
 	VertexArrayObject vao;
 
-	std::uint32_t vertex_size{ 0 };
 	std::uint32_t vertex_capacity{ 0 };
 	std::uint32_t index_capacity{ 0 };
 
@@ -48,21 +47,18 @@ public:
 	const RenderPipeline& GetPipeline(std::size_t id) const;
 	RenderPipeline& GetPipeline(std::size_t id);
 
-	template <VertexType T>
+	template <VertexType TVertex>
 	void AddPipeline(
 		std::string_view name, std::uint32_t vertex_capacity, std::uint32_t index_capacity,
 		PrimitiveMode primitive_mode
 	) {
-		std::uint32_t vertex_size{ sizeof(typename T::VertexType) };
-
 		auto ebo{ CreateElementBufferObject(index_capacity) };
-		auto vbo{ CreateVertexBufferObject(vertex_capacity, vertex_size) };
-		auto vao{ CreateVertexArrayObject(vbo, T::GetLayoutView(), ebo) };
+		auto vbo{ CreateVertexBufferObject(vertex_capacity, sizeof(typename TVertex::VertexType)) };
+		auto vao{ CreateVertexArrayObject(vbo, TVertex::GetLayoutView(), ebo) };
 
 		RenderPipeline pipeline{ .ebo			  = std::move(ebo),
 								 .vbo			  = std::move(vbo),
 								 .vao			  = std::move(vao),
-								 .vertex_size	  = vertex_size,
 								 .vertex_capacity = vertex_capacity,
 								 .index_capacity  = index_capacity,
 								 .primitive_mode  = primitive_mode };

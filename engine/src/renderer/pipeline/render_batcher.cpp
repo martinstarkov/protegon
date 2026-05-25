@@ -13,7 +13,7 @@ namespace ptgn::impl {
 RenderBatcher::RenderBatcher(Renderer& renderer) : renderer_{ renderer } {}
 
 RenderBatcher::TextureSlotInfo RenderBatcher::GetTextureSlotNoFlush(TextureId texture) const {
-	for (std::uint32_t i = 0; i < textures_.size(); ++i) {
+	for (auto i{ 0u }; i < textures_.size(); ++i) {
 		if (textures_[i] == texture) {
 			return {
 				.slot		   = i,
@@ -36,7 +36,7 @@ void RenderBatcher::Flush() {
 
 	const RenderPipeline& pipeline{ renderer_.pipeline_manager_.GetCurrentPipeline() };
 
-	renderer_.UploadVertices(pipeline, vertices_);
+	renderer_.UploadVertices(pipeline, vertices_, vertex_size_);
 	renderer_.UploadIndices(pipeline, indices_);
 
 	for (auto i{ 0u }; i < textures_.size(); ++i) {
@@ -45,6 +45,7 @@ void RenderBatcher::Flush() {
 
 	renderer_.DrawElements(pipeline, static_cast<std::uint32_t>(indices_.size()));
 
+	vertex_size_ = 0;
 	vertices_.clear();
 	indices_.clear();
 	textures_.clear();
