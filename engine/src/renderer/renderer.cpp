@@ -112,11 +112,7 @@ Renderer::Renderer(Window& window, EventSink&& event_sink) :
 	std::vector<std::int32_t> samplers(max_texture_slots);
 	std::iota(samplers.begin(), samplers.end(), 0);
 
-	auto text{ gl_->shaders.GetProgram("text") };
-	auto _2 = gl_->Bind(text, false);
-	SetUniform(text, "u_Textures", samplers);
-
-	auto quad{ gl_->shaders.GetProgram("texture") };
+	auto quad{ GetShader("texture") };
 	auto _1 = gl_->Bind(quad, false);
 	SetUniform(quad, "u_Textures", samplers);
 
@@ -250,10 +246,8 @@ void Renderer::SetShader(impl::ShaderId shader) {
 	gl_->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
 }
 
-BlendMode Renderer::GetBlendMode() const {
-	const auto& blend_mode{ gl_->GetBoundState().blend_mode };
-	PTGN_ASSERT(blend_mode.has_value(), "No blend mode is currently set");
-	return blend_mode.value();
+std::optional<BlendMode> Renderer::GetBlendMode() const {
+	return gl_->GetBoundState().blend_mode;
 }
 
 void Renderer::SetBlendMode(BlendMode blend_mode) {

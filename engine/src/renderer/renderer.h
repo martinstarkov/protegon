@@ -256,7 +256,7 @@ private:
 	void SetScissor(const ScissorState& scissor);
 	void SetColorMask(const ColorMaskState& color_mask);
 
-	BlendMode GetBlendMode() const;
+	std::optional<BlendMode> GetBlendMode() const;
 
 	[[nodiscard]] impl::ShaderObject CreateShader(
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name

@@ -134,7 +134,9 @@ void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
 		default:			 PTGN_ERROR("Unknown RenderCommandKind: ", std::to_underlying(command.kind));
 	}
 
-	renderer.SetBlendMode(prev_blend_mode);
+	if (prev_blend_mode.has_value()) {
+		renderer.SetBlendMode(*prev_blend_mode);
+	}
 }
 
 void RenderCommands::Clear() {

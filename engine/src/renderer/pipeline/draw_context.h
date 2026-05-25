@@ -36,7 +36,7 @@ struct TextureDrawParams {
 	V2_float size;
 	Origin origin{ Origin::Center };
 	Color tint{ color::White };
-	const std::array<V2_float, 4>& texture_coordinates;
+	std::array<V2_float, 4> texture_coordinates;
 	impl::EffectParams effects;
 	int entity_id{ -1 };
 };

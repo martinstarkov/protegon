@@ -211,7 +211,6 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 		impl::RenderCamera render_camera{ *primary_world_camera };
 		ctx().render_queue.CombineDebugCommands(render_camera);
 
-		PTGN_ASSERT(ctx().render_queue.render_commands_.size() == 1);
 		PTGN_ASSERT(ctx().render_queue.debug_commands_.size() == 1);
 	}
 
