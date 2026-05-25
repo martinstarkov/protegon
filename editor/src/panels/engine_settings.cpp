@@ -2,12 +2,22 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <array>
+#include <cfloat>
+#include <cmath>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <utility>
 
 #include "core/editor.h"
 #include "core/editor_context.h"
+#include "core/graphics/color.h"
 #include "core/math/vector2.h"
+#include "core/util/span.h"
 #include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/viewport.h"
 
 // TODO: Add fps modification.
 
@@ -16,38 +26,33 @@ namespace ptgn::editor {
 namespace {
 
 struct ResolutionPreset {
-	const char* label;
-	int width{ 0 };
-	int height{ 0 };
+	const char* label{ "" };
+	V2_int size;
 };
 
 constexpr std::array<ResolutionPreset, 12> kResolutionPresets{
-	{ { "320 x 180 (16:9)", 320, 180 },
-	  { "640 x 360 (16:9)", 640, 360 },
-	  { "800 x 450 (16:9)", 800, 450 },
-	  { "960 x 540 (16:9)", 960, 540 },
-	  { "1280 x 720 (HD)", 1280, 720 },
-	  { "1600 x 900", 1600, 900 },
-	  { "1920 x 1080 (Full HD)", 1920, 1080 },
-	  { "256 x 224 (SNES)", 256, 224 },
-	  { "320 x 240 (4:3)", 320, 240 },
-	  { "640 x 480 (VGA)", 640, 480 },
-	  { "800 x 600 (SVGA)", 800, 600 },
-	  { "1024 x 768 (XGA)", 1024, 768 } }
+	{ { "320 x 180 (16:9)", { 320, 180 } },
+	  { "640 x 360 (16:9)", { 640, 360 } },
+	  { "800 x 450 (16:9)", { 800, 450 } },
+	  { "960 x 540 (16:9)", { 960, 540 } },
+	  { "1280 x 720 (HD)", { 1280, 720 } },
+	  { "1600 x 900", { 1600, 900 } },
+	  { "1920 x 1080 (Full HD)", { 1920, 1080 } },
+	  { "256 x 224 (SNES)", { 256, 224 } },
+	  { "320 x 240 (4:3)", { 320, 240 } },
+	  { "640 x 480 (VGA)", { 640, 480 } },
+	  { "800 x 600 (SVGA)", { 800, 600 } },
+	  { "1024 x 768 (XGA)", { 1024, 768 } } }
 };
 
-constexpr std::array scaling_mode_names{
+static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::size));
+static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label));
+
+constexpr std::array kScalingModeNames{
 	"Disabled", "Stretch", "Letterbox", "Overscan", "IntegerScale",
 };
 
-int FindMatchingResolutionPreset(V2_int size) {
-	for (int i = 0; i < kResolutionPresets.size(); ++i) {
-		if (kResolutionPresets[i].width == size.x && kResolutionPresets[i].height == size.y) {
-			return i;
-		}
-	}
-	return -1;
-}
+static_assert(!ContainsDuplicates(kScalingModeNames));
 
 } // namespace
 
@@ -208,7 +213,7 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 				"Use Game Size",
 			};
 
-			int resolution_mode = static_cast<int>(ctx.editor.HasGameSize());
+			auto resolution_mode{ static_cast<int>(ctx.editor.HasGameSize()) };
 
 			full_width();
 			if (ImGui::Combo(
@@ -227,19 +232,19 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 			if (use_game_size) {
 				auto game_size{ ctx.editor.GetGameSize() };
 
-				const int preset_index = FindMatchingResolutionPreset(game_size);
+				auto selected_it{
+					std::ranges::find(kResolutionPresets, game_size, &ResolutionPreset::size)
+				};
 
-				const char* preview =
-					(preset_index >= 0) ? kResolutionPresets[preset_index].label : "Custom";
+				auto preview{ selected_it != kResolutionPresets.end() ? selected_it->label
+																	  : "Custom" };
 
 				full_width();
 				if (ImGui::BeginCombo("##GameSizePreset", preview)) {
-					for (int i = 0; i < static_cast<int>(kResolutionPresets.size()); ++i) {
-						const bool selected = (i == preset_index);
-						if (ImGui::Selectable(kResolutionPresets[i].label, selected)) {
-							ctx.editor.SetGameSize(
-								V2_int{ kResolutionPresets[i].width, kResolutionPresets[i].height }
-							);
+					for (const auto& preset : kResolutionPresets) {
+						bool selected{ preset.size == game_size };
+						if (ImGui::Selectable(preset.label, selected)) {
+							ctx.editor.SetGameSize(preset.size);
 						}
 						if (selected) {
 							ImGui::SetItemDefaultFocus();
@@ -250,7 +255,7 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 
 				ImGui::Spacing();
 
-				V2_int size{ ctx.editor.GetGameSize() };
+				auto size{ ctx.editor.GetGameSize() };
 				drag_int_pair("##GameWidth", &size.x, 1, 4096, "##GameHeight", &size.y, 1, 2160);
 				ctx.editor.SetGameSize(size);
 			} else {
@@ -267,12 +272,12 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 			table_row_label("Scaling Mode");
 
 			{
-				int scaling_mode = static_cast<int>(ctx.editor.GetScalingMode());
+				auto scaling_mode{ std::to_underlying(ctx.editor.GetScalingMode()) };
 
 				full_width();
 				if (ImGui::Combo(
-						"##ScalingMode", &scaling_mode, scaling_mode_names.data(),
-						static_cast<int>(scaling_mode_names.size())
+						"##ScalingMode", &scaling_mode, kScalingModeNames.data(),
+						static_cast<int>(kScalingModeNames.size())
 					)) {
 					ctx.editor.SetScalingMode(static_cast<ScalingMode>(scaling_mode));
 				}
