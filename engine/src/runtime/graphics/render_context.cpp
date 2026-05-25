@@ -467,13 +467,8 @@ std::vector<impl::CameraRenderBucket> RenderContext::GetRenderBuckets(
 	std::vector<impl::CameraRenderCommands>& manual_commands,
 	std::vector<impl::CameraEntityCommands>& entity_commands
 ) {
-	PTGN_ASSERT((!ContainsDuplicates(manual_commands, [](const auto& c1, const auto& c2) {
-		return c1.camera == c2.camera;
-	})));
-
-	PTGN_ASSERT((!ContainsDuplicates(entity_commands, [](const auto& c1, const auto& c2) {
-		return c1.camera == c2.camera;
-	})));
+	PTGN_ASSERT((!ContainsDuplicates(manual_commands, &impl::CameraRenderCommands::camera)));
+	PTGN_ASSERT((!ContainsDuplicates(entity_commands, &impl::CameraEntityCommands::camera)));
 
 	std::vector<impl::CameraRenderBucket> buckets;
 	buckets.reserve(entity_commands.size() + manual_commands.size());

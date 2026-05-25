@@ -5,20 +5,15 @@
 #include <concepts>
 #include <functional>
 #include <ranges>
+#include <span>
 #include <vector>
 
 namespace ptgn {
 
-/// @return How many bits the contents of the vector take up.
+/// @return How many bits the contents of the span take up.
 template <typename T>
-std::size_t Sizeof(const std::vector<T>& vector) {
-	return sizeof(T) * vector.size();
-}
-
-/// @return How many bits the contents of the array take up.
-template <typename T, std::size_t I>
-constexpr std::size_t Sizeof(const std::array<T, I>& array) {
-	return sizeof(T) * array.size();
+std::size_t Sizeof(std::span<const T> container) {
+	return sizeof(T) * container.size();
 }
 
 /// @brief Combine any number of arrays into one.
@@ -65,15 +60,15 @@ void VectorRemoveDuplicates(std::vector<T>& v) {
 	v.erase(last.begin(), last.end());
 }
 
-template <std::ranges::forward_range R, typename Pred>
-	requires std::predicate<
-		Pred&, std::ranges::range_reference_t<R>, std::ranges::range_reference_t<R>>
-bool ContainsDuplicates(R&& values, Pred pred) {
-	for (auto it{ std::ranges::begin(values) }; it != std::ranges::end(values); ++it) {
-		for (auto other{ std::next(it) }; other != std::ranges::end(values); ++other) {
-			if (std::invoke(pred, *it, *other)) {
-				return true;
-			}
+template <std::ranges::forward_range TRange, typename TProj = std::identity>
+constexpr bool ContainsDuplicates(TRange&& range, TProj proj = {}) {
+	for (auto [i, item] : range | std::views::enumerate) {
+		auto rest{ range | std::views::drop(i + 1) };
+
+		if (std::ranges::any_of(rest, [&](const auto& other) {
+				return std::invoke(proj, item) == std::invoke(proj, other);
+			})) {
+			return true;
 		}
 	}
 
