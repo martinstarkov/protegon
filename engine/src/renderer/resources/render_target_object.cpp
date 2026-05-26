@@ -28,7 +28,7 @@ impl::TextureId RenderTargetObject::GetTextureId() const {
 	return renderer_->GetRenderTargetTexture(resource_);
 }
 
-void RenderTargetObject::Bind() const {
+void RenderTargetObject::Bind() {
 	PTGN_ASSERT(renderer_ && *this);
 	renderer_->SetRenderTarget(this);
 }

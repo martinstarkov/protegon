@@ -237,7 +237,8 @@ private:
 		Draw(primitives, textures);
 	}
 
-	void SetRenderTarget(const impl::RenderTargetObject* target);
+	void SetRenderTarget(impl::RenderTargetObject* target);
+	void UpdateRenderTarget(impl::RenderTargetObject&& replacing_target);
 
 	void DrawTextureNormally(const impl::DrawTextureRequest& request);
 
@@ -245,7 +246,6 @@ private:
 	/// centered at the origin.
 	void SetViewProjection(V2_float size);
 	void SetViewProjection(const Matrix4& view_projection);
-	void SetFramebuffer(impl::FramebufferId framebuffer);
 	void SetViewport(Viewport viewport);
 	void SetBlendMode(BlendMode blend_mode);
 	void SetShader(impl::ShaderId shader);
@@ -365,7 +365,7 @@ private:
 	impl::RenderTargetObject presentation_target_;
 
 	std::vector<UniformWrite> current_uniforms_;
-	const impl::RenderTargetObject* current_target_{ nullptr };
+	impl::RenderTargetObject* current_target_{ nullptr };
 
 	impl::RenderBatcher batcher_;
 	impl::RenderTargetPool target_pool_;
@@ -409,7 +409,7 @@ public:
 
 	ShaderId GetShader(std::string_view name) const;
 
-	void SetRenderTarget(const RenderTargetObject* target);
+	void SetRenderTarget(RenderTargetObject* target);
 
 	void SetScissor(const ScissorState& scissor);
 

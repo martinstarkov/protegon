@@ -30,7 +30,7 @@ public:
 
 	void Resize(V2_int new_size);
 
-	void Bind() const;
+	void Bind();
 
 	void Clear(Color color, bool set_viewport, bool restore_bind) const;
 

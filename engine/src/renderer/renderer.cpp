@@ -263,11 +263,23 @@ impl::PipelineId Renderer::GetTexturePipeline() const {
 	return Hash("texture");
 }
 
-void Renderer::SetRenderTarget(const impl::RenderTargetObject* target) {
-	if (target) {
-		SetFramebuffer(impl::FramebufferId{ target->operator impl::RenderTargetId() });
+void Renderer::SetRenderTarget(impl::RenderTargetObject* target) {
+	impl::FramebufferId framebuffer{ target ? target->operator impl::RenderTargetId() : 0 };
+
+	if (framebuffer == gl_->GetBoundFramebuffer()) {
+		current_target_ = target;
+		return;
 	}
+
+	FlushBatch();
+	auto _ = gl_->Bind(framebuffer, false);
+
 	current_target_ = target;
+}
+
+void Renderer::UpdateRenderTarget(impl::RenderTargetObject&& replacing_target) {
+	PTGN_ASSERT(current_target_, "No current render target to update");
+	*current_target_ = std::move(replacing_target);
 }
 
 void Renderer::SetViewProjection(V2_float size) {
@@ -284,14 +296,6 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	if (auto shader{ gl_->GetBoundShader() }; shader.has_value() && *shader) {
 		gl_->shaders.SetUniform(*shader, "u_ViewProjection", view_projection_);
 	}
-}
-
-void Renderer::SetFramebuffer(impl::FramebufferId framebuffer) {
-	if (framebuffer == gl_->GetBoundFramebuffer()) {
-		return;
-	}
-	FlushBatch();
-	auto _ = gl_->Bind(framebuffer, false);
 }
 
 void Renderer::SetDepthTesting(bool enabled) {
@@ -635,8 +639,10 @@ void Renderer::EndFrame() {
 
 	FlushBatch();
 
+	// TODO: Run presentation texture effect chain.
+	// effect_params = ...;
+
 	SetRenderTarget(nullptr);
-	SetFramebuffer(impl::FramebufferId{ 0 });
 
 	target_pool_.TrimUnused(0);
 
@@ -674,9 +680,6 @@ void Renderer::EndFrame() {
 	impl::DrawTextureRequest request;
 	request.local_quads = { &local_quad, 1 };
 	request.texture		= presentation_target_.GetTextureId();
-
-	// TODO: Add presentation texture effects.
-	// request.effect_params = ...;
 
 	DrawTexture(request);
 
@@ -1046,7 +1049,7 @@ ShaderId RendererAccessor::GetShader(std::string_view name) const {
 	return renderer_.GetShader(name);
 }
 
-void RendererAccessor::SetRenderTarget(const RenderTargetObject* target) {
+void RendererAccessor::SetRenderTarget(RenderTargetObject* target) {
 	renderer_.SetRenderTarget(target);
 }
 
