@@ -8,9 +8,9 @@ using namespace ptgn;
 
 class EllipseEntityScene : public Scene {
 	void OnEnter() override {
-		CreateEllipse(*this, { -100, 0 }, { 45, 25 }, color::Purple, 1.0f);
+		CreateEllipse(*this, { -150, 0 }, { 45, 25 }, color::Purple, 1.0f);
 		CreateEllipse(*this, { 0, 0 }, { 45, 25 }, color::LightPurple, Solid{});
-		CreateEllipse(*this, { 100, 0 }, { 45, 25 }, color::Magenta, 5.0f);
+		CreateEllipse(*this, { 150, 0 }, { 45, 25 }, color::Magenta, 5.0f);
 	}
 };
 

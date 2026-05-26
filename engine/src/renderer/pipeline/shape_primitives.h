@@ -90,7 +90,9 @@ std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
 	std::span<const V2_float> points, bool closed, const CommonShapeParams& params
 );
 
-RenderQuadArray<ColorVertex> GetHollowPrimitives(const Rect& rect, const CommonShapeParams& params);
+std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
+	const Rect& rect, const CommonShapeParams& params
+);
 
 std::optional<RenderQuadArray<ShapeVertex>> GetHollowPrimitives(
 	const RoundedRect& rounded_rect, const CommonShapeParams& params

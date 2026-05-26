@@ -8,9 +8,9 @@ using namespace ptgn;
 
 class CapsuleEntityScene : public Scene {
 	void OnEnter() override {
-		CreateCapsule(*this, { -120, 0 }, { -50, 0 }, { 50, 0 }, 16.0f, color::Yellow, 1.0f);
+		CreateCapsule(*this, { -180, 0 }, { -50, 0 }, { 50, 0 }, 16.0f, color::Yellow, 1.0f);
 		CreateCapsule(*this, { 0, 0 }, { -50, 0 }, { 50, 0 }, 16.0f, color::LightGold, Solid{});
-		CreateCapsule(*this, { 120, 0 }, { -50, 0 }, { 50, 0 }, 16.0f, color::Orange, 5.0f);
+		CreateCapsule(*this, { 180, 0 }, { -50, 0 }, { 50, 0 }, 16.0f, color::Orange, 5.0f);
 	}
 };
 

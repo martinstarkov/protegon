@@ -332,10 +332,11 @@ std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
 	return primitives;
 }
 
-RenderQuadArray<ColorVertex> GetHollowPrimitives(
+std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
 	const Rect& rect, const CommonShapeParams& params
 ) {
-	return GetSolidPrimitives(rect, params);
+	auto points{ rect.GetLocalVertices() };
+	return GetHollowPrimitives(points, true, params);
 }
 
 std::optional<RenderQuadArray<ShapeVertex>> GetHollowPrimitives(

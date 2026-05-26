@@ -10,12 +10,12 @@ using namespace ptgn;
 
 class RoundedRectEntityScene : public Scene {
 	void OnEnter() override {
-		CreateRoundedRect(*this, { -100, 0 }, { 90, 45 }, 12.0f, color::Blue, 1.0f, Origin::Center);
+		CreateRoundedRect(*this, { -140, 0 }, { 90, 45 }, 18.0f, color::Blue, 1.0f, Origin::Center);
 		CreateRoundedRect(
-			*this, { 0, 0 }, { 90, 45 }, 12.0f, color::LightBlue, Solid{}, Origin::Center
+			*this, { 0, 0 }, { 90, 45 }, 18.0f, color::LightBlue, Solid{}, Origin::Center
 		);
 		CreateRoundedRect(
-			*this, { 100, 0 }, { 90, 45 }, 12.0f, color::DarkBlue, 5.0f, Origin::Center
+			*this, { 140, 0 }, { 90, 45 }, 18.0f, color::DarkBlue, 5.0f, Origin::Center
 		);
 	}
 };
