@@ -173,22 +173,22 @@ struct Transform {
 		Inverse
 	};
 
-	template <Direction Dir, typename TFunction>
-	void WithPointTransform(TFunction&& function) const {
+	template <Direction Dir, typename F>
+	void WithPointTransform(F&& function) const {
 		if (IsIdentity()) {
-			std::invoke(std::forward<TFunction>(function), [](V2_float point) { return point; });
+			std::invoke(std::forward<F>(function), [](V2_float point) { return point; });
 			return;
 		}
 
 		if (!HasRotation()) {
-			std::invoke(std::forward<TFunction>(function), [this](V2_float point) {
+			std::invoke(std::forward<F>(function), [this](V2_float point) {
 				return ApplyWithoutRotationImpl<Dir>(point);
 			});
 		} else {
 			float cos{ rotation_.Cos() };
 			float sin{ rotation_.Sin() };
 
-			std::invoke(std::forward<TFunction>(function), [this, cos, sin](V2_float point) {
+			std::invoke(std::forward<F>(function), [this, cos, sin](V2_float point) {
 				return ApplyWithRotationImpl<Dir>(point, cos, sin);
 			});
 		}

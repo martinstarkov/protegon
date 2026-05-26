@@ -3,6 +3,7 @@
 #include <functional>
 #include <ostream>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "core/graphics/color.h"
@@ -121,11 +122,10 @@ private:
 	/// @brief This function basically determines whether or not the the callback condition of the
 	/// entity is met (since they can be different), and if so it calls the respective provided
 	/// function.
-	template <
-		DropzoneAction action, typename DropzoneFunc, typename DraggableFunc, typename OverlapFunc>
+	template <DropzoneAction action, typename FDropzone, typename FDraggable, typename FOverlap>
 	static void AddDropzoneActions(
-		Entity& dragging, Entity& dropzone, const V2_float& mouse_position,
-		DropzoneFunc&& dropzone_func, DraggableFunc&& draggable_func, OverlapFunc&& overlap_func
+		Entity& dragging, Entity& dropzone, const V2_float& mouse_position, FDropzone&& dropzone_fn,
+		FDraggable&& draggable_fn, FOverlap&& overlap_fn
 	) {
 		auto draggable_trigger{ dragging.Has<impl::Draggable>()
 									? GetTriggerCondition<action>(dragging.Get<impl::Draggable>())
@@ -135,24 +135,25 @@ private:
 
 		if (draggable_trigger == dropzone_trigger) {
 			if (IsOverlappingDropzone(mouse_position, dragging, dropzone, draggable_trigger)) {
-				overlap_func();
-				dropzone_func();
-				draggable_func();
+				std::invoke(std::forward<FOverlap>(overlap_fn));
+				std::invoke(std::forward<FDropzone>(dropzone_fn));
+				std::invoke(std::forward<FDraggable>(draggable_fn));
 			}
-		} else {
-			// Only condition overlap func once.
-			bool overlap{ false };
-			if (IsOverlappingDropzone(mouse_position, dragging, dropzone, dropzone_trigger)) {
-				overlap_func();
-				overlap = true;
-				dropzone_func();
+			return;
+		}
+
+		// Only condition overlap fn once.
+		bool overlap{ false };
+		if (IsOverlappingDropzone(mouse_position, dragging, dropzone, dropzone_trigger)) {
+			std::invoke(overlap_fn);
+			overlap = true;
+			std::invoke(std::forward<FDropzone>(dropzone_fn));
+		}
+		if (IsOverlappingDropzone(mouse_position, dragging, dropzone, draggable_trigger)) {
+			if (!overlap) {
+				std::invoke(std::forward<FOverlap>(overlap_fn));
 			}
-			if (IsOverlappingDropzone(mouse_position, dragging, dropzone, draggable_trigger)) {
-				if (!overlap) {
-					overlap_func();
-				}
-				draggable_func();
-			}
+			std::invoke(std::forward<FDraggable>(draggable_fn));
 		}
 	}
 

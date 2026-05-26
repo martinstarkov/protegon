@@ -132,23 +132,23 @@ std::optional<RenderQuadArray<ShapeVertex>> GetHollowPrimitives(
 
 /// @return True if the shape has primitives to render, and the function was invoked with them.
 /// False if the shape has no primitives to render and the function was not invoked.
-template <typename TShape, typename TFunction>
-bool VisitPrimitives(const TShape& shape, const CommonShapeParams& params, TFunction&& function) {
-	auto to_span = [](auto& container) {
-		using TElement = std::remove_pointer_t<decltype(container.data())>;
+template <typename TShape, typename F>
+bool VisitPrimitives(const TShape& shape, const CommonShapeParams& params, F&& function) {
+	auto to_span = [](auto& primitives) {
+		using TElement = std::remove_pointer_t<decltype(primitives.data())>;
 
-		return std::span<TElement>{ container.data(), container.size() };
+		return std::span<TElement>{ primitives.data(), primitives.size() };
 	};
 
 	auto visit_container =
-		[&to_span]<typename TPrimitives>(TPrimitives& primitives, auto function) {
+		[&to_span]<typename TPrimitives, typename F>(TPrimitives& primitives, F&& function) {
 			if constexpr (OptionalType<TPrimitives>) {
 				if (!primitives || primitives->empty()) {
 					return false;
 				}
 
 				auto span{ to_span(*primitives) };
-				std::invoke(function, span);
+				std::invoke(std::forward<F>(function), span);
 				return true;
 			} else {
 				if (primitives.empty()) {
@@ -156,18 +156,18 @@ bool VisitPrimitives(const TShape& shape, const CommonShapeParams& params, TFunc
 				}
 
 				auto span{ to_span(primitives) };
-				std::invoke(function, span);
+				std::invoke(std::forward<F>(function), span);
 				return true;
 			}
 		};
 
 	if (params.fill_style.IsHollow()) {
 		auto primitives{ GetHollowPrimitives(shape, params) };
-		return visit_container(primitives, std::forward<TFunction>(function));
+		return visit_container(primitives, std::forward<F>(function));
 	}
 
 	auto primitives{ GetSolidPrimitives(shape, params) };
-	return visit_container(primitives, std::forward<TFunction>(function));
+	return visit_container(primitives, std::forward<F>(function));
 }
 
 } // namespace impl

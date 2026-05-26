@@ -2,6 +2,7 @@
 
 #include <ecs/ecs.h>
 
+#include <functional>
 #include <iterator>
 #include <tuple>
 #include <type_traits>
@@ -51,16 +52,17 @@ auto WrapValue(SceneT* scene, T&& value) {
 }
 
 template <typename SceneT, typename F>
-auto WrapCallable(SceneT* scene, F&& func) {
-	return [scene, func = std::forward<F>(func)](auto&& native_value) mutable -> decltype(auto) {
-		if constexpr (is_tuple_v<decltype(native_value)>) {
-			auto wrapped = WrapTuple(scene, std::forward<decltype(native_value)>(native_value));
-			return ecs::impl::tt::InvokePredicate(func, wrapped);
-		} else {
-			auto wrapped = Entity{ std::forward<decltype(native_value)>(native_value), scene };
-			return func(wrapped);
-		}
-	};
+auto WrapCallable(SceneT* scene, F&& fn) {
+	return
+		[scene, fn = std::forward<F>(fn)]<typename V>(V&& native_value) mutable -> decltype(auto) {
+			if constexpr (is_tuple_v<V>) {
+				auto wrapped{ WrapTuple(scene, std::forward<V>(native_value)) };
+				return ecs::impl::tt::InvokePredicate(fn, wrapped);
+			} else {
+				auto wrapped{ Entity{ std::forward<V>(native_value), scene } };
+				return std::invoke(fn, wrapped);
+			}
+		};
 }
 
 } // namespace impl

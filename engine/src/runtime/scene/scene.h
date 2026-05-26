@@ -281,9 +281,9 @@ void InitScene(TScene& scene, Application& app, SceneData&& scene_data) {
 	scene.Init(app, std::move(scene_data));
 }
 
-template <InvocableR<void, Scene&, const RenderCamera&, EntityFilterFunc> TFunc>
+template <InvocableR<void, Scene&, const RenderCamera&, EntityFilterFunc> F>
 void ForDrawableSceneEntities(
-	Scene& scene, const std::optional<Camera>& primary_world_camera, TFunc per_camera_draw_func
+	Scene& scene, const std::optional<Camera>& primary_world_camera, F&& per_camera_draw_func
 ) {
 	if (primary_world_camera.has_value()) {
 		// If a primary world camera is set, we draw all entities in a single pass using that
@@ -299,7 +299,7 @@ void ForDrawableSceneEntities(
 			return false;
 		};
 
-		per_camera_draw_func(scene, render_camera, filter);
+		std::invoke(std::forward<F>(per_camera_draw_func), scene, render_camera, filter);
 
 	} else {
 		std::vector<Entity> camera_entities;
@@ -323,7 +323,7 @@ void ForDrawableSceneEntities(
 				return !scene_camera.IsVisible(entity);
 			};
 
-			per_camera_draw_func(scene, render_camera, filter);
+			std::invoke(std::forward<F>(per_camera_draw_func), scene, render_camera, filter);
 		}
 	}
 }

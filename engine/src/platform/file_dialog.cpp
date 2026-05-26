@@ -43,6 +43,7 @@ FileDialog::Result<std::vector<path>> FileDialog::OpenFolders(const Options&) co
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <nfd.hpp>
 #include <optional>
@@ -58,8 +59,7 @@ namespace {
 
 template <typename From, typename Into, typename F, typename FTransform>
 std::expected<std::optional<Into>, std::string> GetResult(
-	GLFWwindow* glfw_window, const FileDialog::Options& options, F&& func,
-	FTransform&& transform_func
+	GLFWwindow* glfw_window, const FileDialog::Options& options, F&& fn, FTransform&& transform_func
 ) {
 	PTGN_ASSERT(glfw_window, "Window must be initialized before opening a file dialog");
 
@@ -87,12 +87,13 @@ std::expected<std::optional<Into>, std::string> GetResult(
 	const nfdu8char_t* name{ options.default_name.has_value() ? options.default_name->c_str()
 															  : nullptr };
 
-	auto result{ func(
-		out, filters.data(), static_cast<std::uint32_t>(filters.size()), path, name, native_window
+	auto result{ std::invoke(
+		std::forward<F>(fn), out, filters.data(), static_cast<std::uint32_t>(filters.size()), path,
+		name, native_window
 	) };
 
 	if (result == NFD_OKAY) {
-		return transform_func(std::move(out));
+		return std::invoke(std::forward<FTransform>(transform_func), std::move(out));
 	} else if (result == NFD_CANCEL) {
 		return std::nullopt;
 	} else {

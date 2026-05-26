@@ -74,8 +74,8 @@ public:
 
 	static void AddTypes(Manager& manager) {
 		const auto& registry{ GetData() };
-		for (const auto& [type_name, component_func] : registry) {
-			component_func(manager);
+		for (const auto& [type_name, fn] : registry) {
+			fn(manager);
 		}
 	}
 };

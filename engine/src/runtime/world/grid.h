@@ -33,53 +33,47 @@ public:
 		PTGN_ASSERT(static_cast<std::size_t>(length) == cells.size(), "Failed to construct grid");
 	}
 
-	template <InvocableR<void, V2_int> F>
-	void ForEachCoordinate(F&& func) const {
+	void ForEachCoordinate(InvocableR<void, V2_int> auto&& fn) const {
 		for (auto i{ 0 }; i < size.x; ++i) {
 			for (auto j{ 0 }; j < size.y; ++j) {
-				func(V2_int{ i, j });
+				fn(V2_int{ i, j });
 			}
 		}
 	}
 
-	template <InvocableR<void, V2_int, const T&> F>
-	void ForEach(F&& func) const {
-		for (auto i{ 0 }; i < size.x; ++i) {
-			for (auto j{ 0 }; j < size.y; ++j) {
-				V2_int coordinate{ i, j };
-				func(coordinate, Get(coordinate));
-			}
-		}
-	}
-
-	template <InvocableR<void, V2_int, T&> F>
-	void ForEach(F&& func) {
+	void ForEach(InvocableR<void, V2_int, const T&> auto&& fn) const {
 		for (auto i{ 0 }; i < size.x; ++i) {
 			for (auto j{ 0 }; j < size.y; ++j) {
 				V2_int coordinate{ i, j };
-				func(coordinate, Get(coordinate));
+				fn(coordinate, Get(coordinate));
 			}
 		}
 	}
 
-	template <InvocableR<void, int> F>
-	void ForEachIndex(F&& func) const {
+	void ForEach(InvocableR<void, V2_int, T&> auto&& fn) {
+		for (auto i{ 0 }; i < size.x; ++i) {
+			for (auto j{ 0 }; j < size.y; ++j) {
+				V2_int coordinate{ i, j };
+				fn(coordinate, Get(coordinate));
+			}
+		}
+	}
+
+	void ForEachIndex(InvocableR<void, int> auto&& fn) const {
 		for (auto i{ 0 }; i < length; ++i) {
-			func(i);
+			fn(i);
 		}
 	}
 
-	template <InvocableR<void, T&> F>
-	void ForEachElement(F&& func) {
+	void ForEachElement(InvocableR<void, T&> auto&& fn) {
 		for (auto& cell : cells) {
-			func(cell);
+			fn(cell);
 		}
 	}
 
-	template <InvocableR<void, const T&> F>
-	void ForEachElement(F&& func) const {
+	void ForEachElement(InvocableR<void, const T&> auto&& fn) const {
 		for (auto& cell : cells) {
-			func(cell);
+			fn(cell);
 		}
 	}
 
