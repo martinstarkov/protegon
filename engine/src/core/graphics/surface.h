@@ -37,9 +37,8 @@ public:
 	Color GetPixel(V2_int coordinate) const;
 
 	/// @brief Calls the given function for each pixel in the surface in row-major order.
-	/// @param func The function must be callable as void(V2_int, Color).
-	template <InvocableR<void, V2_int, Color> F>
-	void ForEachPixel(F&& func) const {
+	/// @param fn The function must be callable as void(V2_int, Color).
+	void ForEachPixel(InvocableR<void, V2_int, Color> auto fn) const {
 		PTGN_ASSERT(!pixels_.empty(), "Cannot loop through each pixel of an empty surface");
 		for (int j{ 0 }; j < size_.y; ++j) {
 			auto row_index{ j * size_.x };
@@ -48,7 +47,7 @@ public:
 				auto index{ row_index + i };
 				PTGN_ASSERT(index >= 0);
 				auto pixel{ GetPixel(static_cast<std::size_t>(index)) };
-				std::invoke(std::forward<F>(func), coordinate, pixel);
+				std::invoke(fn, coordinate, pixel);
 			}
 		}
 	}
