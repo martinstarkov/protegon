@@ -30,6 +30,7 @@
 #include "renderer/pipeline/vertex.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/render_target_object.h"
 
 namespace ptgn {
 
@@ -76,8 +77,16 @@ RenderState DrawContext::GetRenderState() const {
 	return renderer_.GetRenderState();
 }
 
+const impl::RenderTargetObject& DrawContext::GetRenderTarget() const {
+	return renderer_.GetRenderTarget();
+}
+
 void DrawContext::SetRenderState(const RenderState& state) {
 	renderer_.SetRenderState(state);
+}
+
+void DrawContext::UpdateRenderTarget(impl::RenderTargetObject&& replacing_target) {
+	renderer_.UpdateRenderTarget(std::move(replacing_target));
 }
 
 void DrawContext::DrawTexture(

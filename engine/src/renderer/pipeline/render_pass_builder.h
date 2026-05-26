@@ -1,76 +1,136 @@
 #pragma once
 
+#include <cstdint>
+#include <functional>
+#include <optional>
+#include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include "core/math/vector2.h"
-#include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/render_target_object.h"
-#include "renderer/resources/shader.h"
-#include "renderer/resources/texture_format.h"
 
 namespace ptgn {
 
-class Renderer;
+class RenderPassBuilder;
 
-namespace impl {
+class RenderPassHandle {
+private:
+	RenderPassHandle() = default;
 
-struct PassDesc {
-	std::vector<TextureId> inputs;
-	RenderTargetDesc output;
-	MaterialState material;
-	RenderState render_state;
+	RenderPassHandle(std::size_t id) : id{ id } {}
+
+	friend class RenderPassBuilder;
+
+	std::size_t id{ 0 };
+
+	explicit operator bool() const {
+		return id;
+	}
+
+	bool operator==(const RenderPassHandle&) const = default;
 };
 
-} // namespace impl
+struct TextureBinding {
+	std::uint32_t slot{ 0 };
+	std::string uniform{ "u_Texture" };
+};
 
-class PassBuilder {
+class RenderPass {
 public:
-	PassBuilder(Renderer& renderer, std::vector<impl::TextureId> inputs);
+	RenderPass(
+		RenderPassBuilder& render_pass_builder, std::size_t pass_index, RenderPassHandle output
+	);
 
-	PassBuilder& Output(RenderTargetDesc desc) {
-		desc_.output = desc;
-		return *this;
-	}
+	RenderPass& Read(
+		RenderPassHandle handle, std::uint32_t slot = 0, std::string_view uniform = "u_Texture"
+	);
 
-	PassBuilder& Output(V2_int size, TextureFormat format) {
-		desc_.output = RenderTargetDesc{
-			.size	= size,
-			.format = format,
-		};
-
-		return *this;
-	}
-
-	PassBuilder& Material(MaterialState material) {
-		desc_.material = std::move(material);
-		return *this;
-	}
-
-	PassBuilder& Shader(impl::ShaderId shader) {
-		desc_.material.shader = shader;
-		return *this;
-	}
-
-	PassBuilder& Shader(std::string_view name);
-
-	PassBuilder& Uniform(UniformWrite uniform) {
-		desc_.material.uniforms.push_back(std::move(uniform));
-		return *this;
-	}
-
-	PassBuilder& State(const RenderState& state) {
-		desc_.render_state = state;
-		return *this;
-	}
-
-	impl::TextureId Submit();
+	operator RenderPassHandle() const;
 
 private:
-	Renderer& renderer_;
-	impl::PassDesc desc_{};
+	RenderPassBuilder& render_pass_builder_;
+	std::size_t pass_index_{ 0 };
+	RenderPassHandle output_;
+};
+
+class RenderPassBuilder {
+public:
+	explicit RenderPassBuilder(DrawContext& ctx) : ctx_{ ctx } {}
+
+	RenderPassHandle BoundTarget();
+
+	RenderPass CreateLike(RenderTargetDesc desc, std::string_view shader);
+
+	RenderPass CreateLike(RenderPassHandle like, std::string_view shader);
+
+	/// @param input Optional input to the shader. If nullopt, uses the currently bound target as
+	/// input.
+	RenderPassHandle Apply(
+		std::string_view shader, std::optional<RenderPassHandle> input = std::nullopt
+	);
+
+private:
+	friend class DrawContext;
+	friend class RenderPass;
+
+	struct HandleInput {
+		RenderPassHandle handle;
+		TextureBinding binding;
+	};
+
+	struct BoundInput {
+		impl::RenderTargetId id;
+		TextureBinding binding;
+	};
+
+	struct Resource {
+		RenderPassHandle handle;
+		RenderTargetDesc desc;
+
+		impl::RenderTargetId id;
+
+		std::optional<std::size_t> writer;
+		std::optional<std::size_t> last_use;
+		bool used{ false };
+	};
+
+	struct PassData {
+		impl::ShaderId shader;
+		std::vector<HandleInput> reads;
+		RenderPassHandle output;
+		RenderTargetDesc output_desc;
+		bool used{ false };
+	};
+
+	RenderPassHandle NextTargetHandle();
+
+	Resource& GetResource(RenderPassHandle target);
+
+	const Resource& GetResource(RenderPassHandle target) const;
+
+	void MarkUsed(RenderPassHandle target);
+
+	void PruneTo(RenderPassHandle final_handle);
+
+	void ComputeLastUses(RenderPassHandle final_handle);
+
+	impl::RenderTargetObject Execute(RenderPassHandle final_handle);
+
+	impl::RenderTargetId Physical(RenderPassHandle target) const;
+
+	void ReleaseIfLastUse(RenderPassHandle target, std::size_t pass_index);
+
+	DrawContext& ctx_;
+
+	std::vector<Resource> resources_;
+	std::vector<PassData> passes_;
+	std::unordered_map<std::size_t, impl::RenderTargetId> physical_by_logical_;
+
+	std::optional<RenderPassHandle> bound_;
+	std::size_t next_target_handle_{ 0 };
 };
 
 } // namespace ptgn

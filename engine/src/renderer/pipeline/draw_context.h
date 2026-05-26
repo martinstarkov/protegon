@@ -1,10 +1,13 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string_view>
+#include <utility>
 
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
@@ -13,8 +16,10 @@
 #include "core/util/concepts.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/effect_params.h"
+#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/render_target_object.h"
 
 namespace ptgn {
 
@@ -30,6 +35,7 @@ class Ellipse;
 class Capsule;
 class Arc;
 class Shape;
+class RenderPassBuilder;
 
 struct TextureDrawParams {
 	float depth{ 0.0f };
@@ -137,12 +143,30 @@ public:
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
+	template <InvocableR<RenderTargetHandle, RenderPassBuilder&> F>
+	void Pass(F&& fn) {
+		RenderPassBuilder render_pass_builder{ *this };
+
+		auto final_handle{ std::invoke(std::forward<F>(fn), render_pass_builder) };
+
+		auto final_target{ render_pass_builder.Execute(final_handle) };
+
+		PTGN_ASSERT(final_target, "Final target must be a valid render target");
+
+		UpdateRenderTarget(std::move(final_target));
+	}
+
 private:
 	friend class RenderStateScope;
 	friend class Renderer;
 	friend class Application;
+	friend class RenderPassBuilder;
+
+	const impl::RenderTargetObject& GetRenderTarget() const;
 
 	void SetRenderState(const RenderState& state);
+
+	void UpdateRenderTarget(impl::RenderTargetObject&& replacing_target);
 
 	explicit DrawContext(Renderer& renderer);
 
