@@ -91,7 +91,7 @@ void DrawSceneCameraOutline(
 }
 
 void UpdateEditorCameraPan(EditorCamera& editor_camera) {
-	ImGuiIO& io = ImGui::GetIO();
+	ImGuiIO& io{ ImGui::GetIO() };
 
 	// Middle mouse held
 	if (ImGui::IsWindowHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
@@ -564,9 +564,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		return;
 	}
 
-	bool hovered = ImGui::IsWindowHovered();
-
-	if (hovered) {
+	if (ImGui::IsWindowHovered()) {
 		// zoom
 		// ctx.editor.camera.Zoom(ImGui::GetIO().MouseWheel);
 
@@ -576,7 +574,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		}
 	}
 
-	auto* draw_list{ ImGui::GetWindowDrawList() };
+	auto draw_list{ ImGui::GetWindowDrawList() };
 
 	auto bg{ ctx.editor.GetWindowBackgroundColor() };
 
