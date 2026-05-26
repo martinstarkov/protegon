@@ -74,6 +74,7 @@ void ApplyTransform(Transform transform, std::span<RenderQuad<TextureVertex>> lo
 
 Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	window_{ window },
+	stats_{ stats },
 	event_sink_{ std::move(event_sink) },
 	gl_{ std::make_unique<impl::gl::GLContext>(stats) },
 	batcher_{ *this },

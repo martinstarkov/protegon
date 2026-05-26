@@ -352,6 +352,8 @@ private:
 
 	Window& window_;
 
+	Stats& stats_;
+
 	EventSink event_sink_;
 
 	std::unique_ptr<impl::gl::GLContext> gl_;
