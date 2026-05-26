@@ -65,14 +65,14 @@ public:
 
 	template <typename F>
 		requires VariantVisitor<F, Variant>
-	decltype(auto) Visit(F&& f) const {
-		return std::visit(std::forward<F>(f), style_);
+	decltype(auto) Visit(F&& fn) const {
+		return std::visit(std::forward<F>(fn), style_);
 	}
 
 	template <Invocable FSolid, Invocable<float> FHollow>
 	auto Apply(FSolid solid_fn, FHollow hollow_fn) {
-		using R1 = std::invoke_result_t<decltype(solid_fn)>;
-		using R2 = std::invoke_result_t<decltype(hollow_fn), float>;
+		using R1 = std::invoke_result_t<FSolid>;
+		using R2 = std::invoke_result_t<FHollow, float>;
 
 		if constexpr (std::same_as<R1, R2>) {
 			return Visit([&]<typename T>(const T& s) -> R1 {
