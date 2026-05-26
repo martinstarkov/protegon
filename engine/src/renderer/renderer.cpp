@@ -192,6 +192,14 @@ TextureFormat Renderer::GetRenderTargetTextureFormat(impl::RenderTargetId render
 	return texture_format;
 }
 
+TextureParams Renderer::GetRenderTargetTextureParams(impl::RenderTargetId render_target) const {
+	auto id{ GetRenderTargetTexture(render_target) };
+
+	auto texture_params{ gl_->textures.GetTextureParams(id) };
+
+	return texture_params;
+}
+
 void Renderer::ClearRenderTarget(
 	impl::RenderTargetId render_target, Color color, bool set_viewport, bool restore_bind
 ) const {
@@ -879,6 +887,11 @@ RenderState Renderer::GetRenderState() const {
 		.scissor		 = state.scissor,
 		.color_mask		 = state.color_mask,
 	};
+}
+
+const impl::RenderTargetObject& Renderer::GetRenderTarget() const {
+	PTGN_ASSERT(current_target_, "No current render target has been set");
+	return *current_target_;
 }
 
 void Renderer::SetRenderState(const RenderState& state) {

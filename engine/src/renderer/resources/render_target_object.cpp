@@ -43,4 +43,13 @@ TextureFormat RenderTargetObject::GetFormat() const {
 	return renderer_->GetRenderTargetTextureFormat(resource_);
 }
 
+TextureParams RenderTargetObject::GetParams() const {
+	PTGN_ASSERT(renderer_ && *this);
+	return renderer_->GetRenderTargetTextureParams(resource_);
+}
+
+RenderTargetDesc RenderTargetObject::GetDesc() const {
+	return { GetSize(), GetFormat(), GetParams() };
+}
+
 } // namespace ptgn::impl

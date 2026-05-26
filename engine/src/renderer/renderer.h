@@ -273,6 +273,7 @@ private:
 
 	V2_int GetRenderTargetSize(impl::RenderTargetId render_target) const;
 	TextureFormat GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const;
+	TextureParams GetRenderTargetTextureParams(impl::RenderTargetId render_target) const;
 	void ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size);
 	void ClearRenderTarget(
 		impl::RenderTargetId render_target, Color color, bool set_viewport, bool restore_bind
@@ -349,6 +350,8 @@ private:
 	void BindTextureSlot(std::uint32_t slot, impl::TextureId texture);
 
 	[[nodiscard]] DisplayResizeInfo RecalculateDisplayViewport() const;
+
+	const impl::RenderTargetObject& GetRenderTarget() const;
 
 	Window& window_;
 

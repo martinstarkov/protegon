@@ -37,6 +37,13 @@ TextureId Textures::CreateTexture(
 	SetTextureParameter(texture, WrapS, std::to_underlying(params.wrap_s));
 	SetTextureParameter(texture, WrapT, std::to_underlying(params.wrap_t));
 
+	PTGN_ASSERT(cache_.Get(texture).format == format);
+	PTGN_ASSERT(cache_.Get(texture).size == size);
+	PTGN_ASSERT(cache_.Get(texture).params.min_filter == params.min_filter);
+	PTGN_ASSERT(cache_.Get(texture).params.mag_filter == params.mag_filter);
+	PTGN_ASSERT(cache_.Get(texture).params.wrap_s == params.wrap_s);
+	PTGN_ASSERT(cache_.Get(texture).params.wrap_t == params.wrap_t);
+
 	return texture;
 }
 
@@ -48,6 +55,11 @@ V2_int Textures::GetTextureSize(TextureId texture) const {
 TextureFormat Textures::GetTextureFormat(TextureId texture) const {
 	PTGN_ASSERT(cache_.Has(texture), "TextureId not in cache");
 	return cache_.Get(texture).format;
+}
+
+TextureParams Textures::GetTextureParams(TextureId texture) const {
+	PTGN_ASSERT(cache_.Has(texture), "TextureId not in cache");
+	return cache_.Get(texture).params;
 }
 
 void Textures::ResizeTexture(TextureId texture, V2_int new_size) {
@@ -139,11 +151,19 @@ void Textures::SetTextureParameter(TextureId texture, TextureParameter param, fl
 	GLCall(glTexParameterf(std::to_underlying(target), std::to_underlying(param), value));
 }
 
-void Textures::SetTextureParameter(TextureId texture, TextureParameter param, int value) const {
+void Textures::SetTextureParameter(TextureId texture, TextureParameter param, int value) {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its parameters");
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 	GLCall(glTexParameteri(std::to_underlying(target), std::to_underlying(param), value));
+	auto& cache{ cache_.Get(texture) };
+	switch (param) {
+		using enum TextureParameter;
+		case MinFilter: cache.params.min_filter = static_cast<TextureMinFilter>(value); break;
+		case MagFilter: cache.params.mag_filter = static_cast<TextureMagFilter>(value); break;
+		case WrapS:		cache.params.wrap_s = static_cast<TextureWrap>(value); break;
+		case WrapT:		cache.params.wrap_t = static_cast<TextureWrap>(value); break;
+	}
 }
 
 int Textures::GetTextureParameter(TextureId texture, TextureParameter param) const {

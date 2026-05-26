@@ -52,6 +52,7 @@ enum class TextureParameter : std::uint32_t {
 struct TextureCache {
 	V2_int size;
 	TextureFormat format{ TextureFormat::RGBA8 };
+	TextureParams params;
 };
 
 constexpr int GetBitCount(TextureFormat fmt) {
@@ -117,14 +118,14 @@ public:
 
 	TextureId CreateTexture(
 		const void* pixel_data, PixelDataFormat pixel_data_format, PixelDataType pixel_data_type,
-		V2_int size, TextureFormat texture_format, TextureParams params,
-		bool restore_bind = true
+		V2_int size, TextureFormat texture_format, TextureParams params, bool restore_bind = true
 	);
 
 	void DestroyTexture(TextureId id);
 
 	V2_int GetTextureSize(TextureId texture) const;
 	TextureFormat GetTextureFormat(TextureId texture) const;
+	TextureParams GetTextureParams(TextureId texture) const;
 
 	void ResizeTexture(TextureId texture, V2_int new_size);
 
@@ -154,7 +155,7 @@ private:
 	void SetTextureParameter(TextureId texture, TextureParameter param, const float* values) const;
 	void SetTextureParameter(TextureId texture, TextureParameter param, const int* values) const;
 	void SetTextureParameter(TextureId texture, TextureParameter param, float value) const;
-	void SetTextureParameter(TextureId texture, TextureParameter param, int value) const;
+	void SetTextureParameter(TextureId texture, TextureParameter param, int value);
 
 	int GetTextureParameter(TextureId texture, TextureParameter param) const;
 

@@ -27,6 +27,9 @@ public:
 
 	V2_int GetSize() const;
 	TextureFormat GetFormat() const;
+	TextureParams GetParams() const;
+
+	RenderTargetDesc GetDesc() const;
 
 	void Resize(V2_int new_size);
 
