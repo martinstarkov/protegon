@@ -139,8 +139,10 @@ void RenderPassBuilder::MarkUsed(RenderPassHandle target) {
 		return;
 	}
 
-	auto& pass = passes_[*resource.writer];
-	pass.used  = true;
+	PTGN_ASSERT(*resource.writer < passes_.size(), "Writer index out of range");
+
+	auto& pass{ passes_[*resource.writer] };
+	pass.used = true;
 
 	for (const auto& input : pass.reads) {
 		MarkUsed(input.handle);
