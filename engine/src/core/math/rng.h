@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <concepts>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <numeric>
 #include <optional>
 #include <random>
+#include <ranges>
 #include <stdexcept>
 #include <type_traits>
 #include <vector>
@@ -270,18 +272,12 @@ public:
 		return items_.size();
 	}
 
-	template <InvocableR<void, T&> F>
-	void ForEach(F&& func) {
-		for (auto i{ 0 }; i < Size(); ++i) {
-			std::invoke(std::forward<F>(func), items_[i]);
-		}
+	void ForEach(InvocableR<void, T&> auto fn) {
+		std::ranges::for_each(items_, fn);
 	}
 
-	template <InvocableR<void, const T&> F>
-	void ForEach(F&& func) const {
-		for (auto i{ 0 }; i < Size(); ++i) {
-			std::invoke(std::forward<F>(func), items_[i]);
-		}
+	void ForEach(InvocableR<void, const T&> auto fn) const {
+		std::ranges::for_each(items_, fn);
 	}
 
 private:
