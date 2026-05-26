@@ -36,6 +36,8 @@
 #include "renderer/resources/id.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
+#include "tools/debug/debug_system.h"
+#include "tools/debug/stats.h"
 
 namespace ptgn::editor {
 
@@ -93,6 +95,8 @@ void Editor::OnRender() {
 }
 
 void Editor::DrawPanels() {
+	// Needs to be rendered first so that the additional draw call can be displayed in the render
+	// stats.
 	viewport_panel_.OnRender(*context_);
 	scene_hierarchy_panel_.OnRender(*context_);
 	scene_list_panel_.OnRender(*context_);
@@ -131,6 +135,14 @@ void Editor::SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_ca
 
 const std::optional<Camera>& Editor::GetPrimaryWorldCamera() const {
 	return impl::ApplicationAccessor::ctx(app).renderer.GetPrimaryWorldCamera();
+}
+
+const Stats& Editor::GetStats() const {
+	return impl::ApplicationAccessor::ctx(app).debug.stats;
+}
+
+Stats& Editor::GetStats() {
+	return impl::ApplicationAccessor::ctx(app).debug.stats;
 }
 
 void Editor::SetScalingMode(ScalingMode scaling_mode) {
@@ -260,7 +272,9 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	ImGui::DockBuilderDockWindow("Engine Settings", dock_right_bottom);
 
 	ImGui::DockBuilderDockWindow("Game", dock_main);
-	ImGui::DockBuilderDockWindow("Assets", dock_center_bottom);
+	ImGui::DockBuilderDockWindow("Render Stats", dock_center_bottom);
+	ImGui::DockBuilderDockWindow("Render Graph", dock_center_bottom);
+	ImGui::DockBuilderDockWindow("Content Browser", dock_center_bottom);
 
 	ImGui::DockBuilderFinish(dockspace_id);
 }

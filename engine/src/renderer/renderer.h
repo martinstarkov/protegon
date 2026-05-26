@@ -45,6 +45,7 @@ class Application;
 class Window;
 class PassBuilder;
 class DrawContext;
+class Stats;
 
 namespace impl {
 
@@ -158,7 +159,7 @@ private:
 		std::function<void(V2_int, std::variant<ResizeType, impl::PresentationResizeType>)>;
 
 	Renderer() = delete;
-	explicit Renderer(Window& window, EventSink&& event_sink);
+	explicit Renderer(Window& window, Stats& stats, EventSink&& event_sink);
 	~Renderer() noexcept;
 	Renderer(const Renderer&)				 = delete;
 	Renderer(Renderer&&) noexcept			 = delete;

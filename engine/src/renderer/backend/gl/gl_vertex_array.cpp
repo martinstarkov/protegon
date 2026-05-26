@@ -12,6 +12,7 @@
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/primitive_mode.h"
 #include "renderer/resources/id.h"
+#include "tools/debug/stats.h"
 
 namespace ptgn::impl::gl {
 
@@ -60,6 +61,7 @@ void VertexArrays::DrawElements(
 	GLCall(glDrawElements(
 		std::to_underlying(primitive_mode), index_count, std::to_underlying(index_type), nullptr
 	));
+	gl_.stats.Increment("draw_calls");
 }
 
 void VertexArrays::DrawArrays(
@@ -70,6 +72,7 @@ void VertexArrays::DrawArrays(
 
 	constexpr GLint starting_index{ 0 };
 	GLCall(glDrawArrays(std::to_underlying(primitive_mode), starting_index, vertex_count));
+	gl_.stats.Increment("draw_calls");
 }
 
 VertexArrayId VertexArrays::CreateVertexArray() {

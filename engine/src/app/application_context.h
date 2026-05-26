@@ -44,6 +44,7 @@ public:
 
 class ApplicationContext {
 public:
+	DebugSystem debug;
 	ApplicationLibrary app_library;
 	EventHandler event_handler;
 	Window window;
@@ -53,7 +54,6 @@ public:
 	FontSystem font;
 	AudioSystem audio;
 
-	DebugSystem debug;
 	float fps{ 60.0f };
 	secondsf dt{ 0.0f };
 	bool running{ false };

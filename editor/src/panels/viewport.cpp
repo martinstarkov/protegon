@@ -6,6 +6,7 @@
 #include <array>
 #include <optional>
 
+#include "app/application_state.h"
 #include "core/editor.h"
 #include "core/editor_context.h"
 #include "core/editor_state.h"
@@ -16,6 +17,7 @@
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/scene/scene_camera.h"
+#include "tools/debug/stats.h"
 
 namespace ptgn::editor {
 
@@ -86,67 +88,6 @@ void DrawSceneCameraOutline(
 	draw_list->AddPolyline(points.data(), static_cast<int>(points.size()), color, 0, thickness);
 
 	// DrawCenteredText(draw_list, center, color, camera.GetTag().c_str());
-}
-
-void DrawViewportToolbar(EditorContext& ctx) {
-	auto app_state{ ctx.editor.GetApplicationState() };
-
-	bool running{ app_state == ApplicationState::Running };
-	bool paused{ app_state == ApplicationState::Paused };
-	bool playing{ running || paused };
-
-	if (ImGui::Button(playing ? "Stop" : "Play")) {
-		if (playing) {
-			ctx.editor.SetApplicationState(ApplicationState::RenderOnly);
-		} else {
-			ctx.editor.SetApplicationState(ApplicationState::Running);
-		}
-	}
-
-	ImGui::SameLine();
-
-	if (!playing) {
-		ImGui::BeginDisabled();
-	}
-
-	if (ImGui::Button(paused ? "Resume" : "Pause")) {
-		ctx.editor.SetApplicationState(
-			paused ? ApplicationState::Running : ApplicationState::Paused
-		);
-	}
-
-	if (!playing) {
-		ImGui::EndDisabled();
-	}
-
-	ImGui::SameLine();
-
-	if (!paused) {
-		ImGui::BeginDisabled();
-	}
-
-	ImGui::PushButtonRepeat(true);
-
-	if (ImGui::Button("Step")) {
-		ctx.editor.RequestStep();
-	}
-
-	ImGui::PopButtonRepeat();
-
-	if (!paused) {
-		ImGui::EndDisabled();
-	}
-
-	ImGui::SameLine();
-
-	float speed = ctx.editor.GetTimeScale();
-
-	ImGui::SetNextItemWidth(120.0f);
-	if (ImGui::DragFloat(
-			"Speed", &speed, 0.05f, 0.0f, 100.0f, "%.2fx", ImGuiSliderFlags_AlwaysClamp
-		)) {
-		ctx.editor.SetTimeScale(speed);
-	}
 }
 
 void UpdateEditorCameraPan(EditorCamera& editor_camera) {
@@ -513,6 +454,73 @@ void ViewportPanel::DrawSceneCameraOutlines(EditorContext& ctx, Viewport image_v
 	draw_list->PopClipRect();
 }
 
+void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
+	auto app_state{ ctx.editor.GetApplicationState() };
+
+	bool running{ app_state == ApplicationState::Running };
+	bool paused{ app_state == ApplicationState::Paused };
+	bool playing{ running || paused };
+
+	if (ImGui::Button(playing ? "Stop" : "Play")) {
+		if (playing) {
+			ctx.editor.SetApplicationState(ApplicationState::RenderOnly);
+		} else {
+			ctx.editor.SetApplicationState(ApplicationState::Running);
+		}
+	}
+
+	ImGui::SameLine();
+
+	if (!playing) {
+		ImGui::BeginDisabled();
+	}
+
+	if (ImGui::Button(paused ? "Resume" : "Pause")) {
+		ctx.editor.SetApplicationState(
+			paused ? ApplicationState::Running : ApplicationState::Paused
+		);
+	}
+
+	if (!playing) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::SameLine();
+
+	if (!paused) {
+		ImGui::BeginDisabled();
+	}
+
+	ImGui::PushButtonRepeat(true);
+
+	if (ImGui::Button("Step")) {
+		ctx.editor.RequestStep();
+	}
+
+	ImGui::PopButtonRepeat();
+
+	if (!paused) {
+		ImGui::EndDisabled();
+	}
+
+	ImGui::SameLine();
+
+	float speed = ctx.editor.GetTimeScale();
+
+	ImGui::SetNextItemWidth(120.0f);
+	if (ImGui::DragFloat(
+			"Speed", &speed, 0.05f, 0.0f, 100.0f, "%.2fx", ImGuiSliderFlags_AlwaysClamp
+		)) {
+		ctx.editor.SetTimeScale(speed);
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::Button(use_editor_camera_ ? "Use Scene Cameras" : "Use Editor Camera")) {
+		use_editor_camera_ = !use_editor_camera_;
+	}
+}
+
 void ViewportPanel::OnRender(EditorContext& ctx) {
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
 
@@ -577,8 +585,6 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	auto display_viewport{ ctx.editor.GetDisplayViewport() };
 	auto presentation_texture{ ctx.editor.GetPresentationTexture() };
 
-	ImGui::Checkbox("Use Editor Camera", &use_editor_camera_);
-
 	if (use_editor_camera_) {
 		UpdateEditorCameraPan(editor_camera_);
 
@@ -606,6 +612,8 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		static_cast<ImTextureID>(presentation_texture), img_min, img_max, ImVec2{ 0.0f, 1.0f },
 		ImVec2{ 1.0f, 0.0f }
 	);
+	// We count this draw call so that draw call counts match with and without the editor.
+	ctx.editor.GetStats().Increment("draw_calls");
 
 	Viewport gizmo_viewport{ .position{ min.x + static_cast<float>(display_viewport.position.x),
 										min.y + static_cast<float>(display_viewport.position.y) },

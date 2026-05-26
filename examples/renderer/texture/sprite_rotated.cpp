@@ -1,4 +1,5 @@
 #include "app/application.h"
+#include "core/editor.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/sprite.h"
@@ -19,6 +20,6 @@ class SpriteRotatedScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "SpriteRotatedScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<SpriteRotatedScene>();
 }

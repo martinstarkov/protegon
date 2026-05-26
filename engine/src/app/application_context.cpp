@@ -17,6 +17,7 @@
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport_event.h"
 #include "serialization/json/json.h"
+#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
@@ -46,12 +47,13 @@ const ApplicationContext& ApplicationAccessor::ctx(const Application& app) {
 }
 
 ApplicationContext::ApplicationContext(const ApplicationConfig& config) :
+	debug{},
 	event_handler{},
 	window{ config.window,
 			[this](impl::EventData&& event) {
 				event_handler.global_event_queue_.emplace_back(std::move(event));
 			} },
-	renderer{ window,
+	renderer{ window, debug.stats,
 			  [this](V2_int size, std::variant<ResizeType, impl::PresentationResizeType> type) {
 				  if (std::holds_alternative<impl::PresentationResizeType>(type)) {
 					  event_handler.Push<event::PresentationResized>(size);
@@ -68,8 +70,7 @@ ApplicationContext::ApplicationContext(const ApplicationConfig& config) :
 			  } },
 	assets{ renderer, audio, font },
 	font{ assets },
-	audio{ assets },
-	debug{} {
+	audio{ assets } {
 	PTGN_INFO("Application Config: ", json(config));
 }
 

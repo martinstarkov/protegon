@@ -9,7 +9,7 @@ void DebugSystem::PreUpdate() {
 	impl::GetProfiler().timings_.clear();
 }
 
-void DebugSystem::PostUpdate() {
+void DebugSystem::PostRender() {
 	stats.Reset();
 }
 

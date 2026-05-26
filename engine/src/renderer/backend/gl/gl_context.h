@@ -17,17 +17,24 @@
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 
-namespace ptgn::impl::gl {
+namespace ptgn {
+
+class Stats;
+
+namespace impl::gl {
 
 class GLContext;
 
 class GLContext {
+public:
+	Stats& stats;
+
 private:
 	// Must be constructed before shaders, because it fetches max texture slots.
 	State bound_;
 
 public:
-	explicit GLContext();
+	explicit GLContext(Stats& stats);
 	~GLContext() noexcept					   = default;
 	GLContext(const GLContext&)				   = delete;
 	GLContext(GLContext&&) noexcept			   = delete;
@@ -113,4 +120,6 @@ public:
 	void InvalidateState();
 };
 
-} // namespace ptgn::impl::gl
+} // namespace impl::gl
+
+} // namespace ptgn

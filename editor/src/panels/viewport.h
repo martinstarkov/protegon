@@ -55,6 +55,8 @@ private:
 
 	void DrawSceneCameraOutlines(EditorContext& ctx, Viewport image_viewport);
 
+	void DrawViewportToolbar(EditorContext& ctx);
+
 	EditorCamera editor_camera_;
 
 	GizmoState gizmo_state_;

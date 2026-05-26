@@ -138,7 +138,7 @@ void Application::Update() {
 
 	if (ctx_.window.GetSetting(WindowSetting::Minimized)) {
 		ctx_.audio.Update();
-		ctx_.debug.PostUpdate();
+		ctx_.debug.PostRender();
 		end = std::chrono::steady_clock::now();
 		ctx_.frame_count++;
 		return;
@@ -169,8 +169,6 @@ void Application::Update() {
 
 	ctx_.audio.Update();
 
-	ctx_.debug.PostUpdate();
-
 	if (scene_rendering) {
 		ctx_.renderer.BeginFrame();
 		DrawContext draw_context{ ctx_.renderer };
@@ -186,6 +184,8 @@ void Application::Update() {
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 	ctx_.window.SwapBuffers();
+
+	ctx_.debug.PostRender();
 
 	end = std::chrono::steady_clock::now();
 	ctx_.frame_count++;

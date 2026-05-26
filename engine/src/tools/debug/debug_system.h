@@ -30,7 +30,7 @@ private:
 	DebugSystem& operator=(DebugSystem&&) noexcept = delete;
 
 	void PreUpdate();
-	void PostUpdate();
+	void PostRender();
 };
 
 } // namespace ptgn

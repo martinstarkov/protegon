@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/log.h"
@@ -78,5 +79,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "ParticleDestroyCallbackScene" };
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<ParticleDestroyCallbackScene>();
 }

@@ -1,4 +1,5 @@
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/scaling_mode.h"
@@ -122,6 +123,6 @@ private:
 
 int main(int, char**) {
 	Application app{ "CombinedEffectsScene", CombinedEffectsScene::kWindowSize };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<CombinedEffectsScene>();
 }

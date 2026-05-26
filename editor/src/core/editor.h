@@ -30,6 +30,7 @@ namespace ptgn {
 
 class Application;
 class Scene;
+class Stats;
 
 namespace editor {
 
@@ -71,6 +72,9 @@ public:
 
 	void SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera);
 	const std::optional<Camera>& GetPrimaryWorldCamera() const;
+
+	const Stats& GetStats() const;
+	Stats& GetStats();
 
 private:
 	Application& app;

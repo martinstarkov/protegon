@@ -72,10 +72,10 @@ void ApplyTransform(Transform transform, std::span<RenderQuad<TextureVertex>> lo
 
 } // namespace impl
 
-Renderer::Renderer(Window& window, EventSink&& event_sink) :
+Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	window_{ window },
 	event_sink_{ std::move(event_sink) },
-	gl_{ std::make_unique<impl::gl::GLContext>() },
+	gl_{ std::make_unique<impl::gl::GLContext>(stats) },
 	batcher_{ *this },
 	target_pool_{ *this },
 	pipeline_manager_{ *this } {

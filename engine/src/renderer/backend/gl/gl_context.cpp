@@ -32,7 +32,8 @@
 
 namespace ptgn::impl::gl {
 
-GLContext::GLContext() :
+GLContext::GLContext(Stats& stats) :
+	stats{ stats },
 	bound_{ static_cast<std::size_t>(GetInteger(GL_MAX_TEXTURE_IMAGE_UNITS)) },
 	buffers{ *this },
 	shaders{ *this, GetMaxTextureSlots() },
