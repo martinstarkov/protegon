@@ -201,18 +201,19 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 
 	auto game_size{ ctx().renderer.GetGameSize() };
 
+	if (primary_world_camera.has_value()) {
+		impl::RenderCamera render_camera{ *primary_world_camera };
+		ctx().render_queue.CombineCommands(render_camera);
+
+		PTGN_ASSERT(ctx().render_queue.render_commands_.size() == 1);
+		PTGN_ASSERT(ctx().render_queue.debug_commands_.size() == 1);
+	}
+
 	auto buckets{
 		RenderQueue::GetRenderBuckets(ctx().render_queue.render_commands_, entity_commands)
 	};
 
 	ctx().render_queue.Draw(draw_context, render_target_, cleared, game_size, buckets);
-
-	if (primary_world_camera.has_value()) {
-		impl::RenderCamera render_camera{ *primary_world_camera };
-		ctx().render_queue.CombineDebugCommands(render_camera);
-
-		PTGN_ASSERT(ctx().render_queue.debug_commands_.size() == 1);
-	}
 
 	// Currently always empty.
 	std::vector<impl::CameraEntityCommands> debug_entity_commands;

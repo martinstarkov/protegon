@@ -191,9 +191,9 @@ private:
 	RenderQueue(RenderQueue&&) noexcept			   = default;
 	RenderQueue& operator=(RenderQueue&&) noexcept = delete;
 
-	/// @brief If a primary world camera is set, we combine all debug commands into a single command
+	/// @brief If a primary world camera is set, we combine all commands into a single command
 	/// list for that camera.
-	void CombineDebugCommands(const impl::RenderCamera& camera);
+	void CombineCommands(const impl::RenderCamera& camera);
 
 	void Draw(
 		DrawContext& ctx, const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,

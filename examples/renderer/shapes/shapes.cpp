@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/angle.h"
@@ -298,5 +299,6 @@ struct ShapeScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "ShapeScene" };
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<ShapeScene>();
 }

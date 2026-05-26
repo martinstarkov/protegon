@@ -328,15 +328,21 @@ impl::ShaderId RenderQueue::GetShader(std::string_view shader_key) const {
 //	);
 // }
 
-void RenderQueue::CombineDebugCommands(const impl::RenderCamera& camera) {
-	impl::CameraRenderCommands combined{ .camera = camera };
+void RenderQueue::CombineCommands(const impl::RenderCamera& camera) {
+	impl::CameraRenderCommands combined_debug{ .camera = camera };
+	impl::CameraRenderCommands combined_render{ .camera = camera };
 
-	for (auto& bucket : debug_commands_) {
-		combined.commands.CombineWith(std::move(bucket.commands));
-	}
+	auto combine = [](auto& commands, auto& combined) {
+		for (auto& bucket : commands) {
+			combined.commands.CombineWith(std::move(bucket.commands));
+		}
 
-	debug_commands_.clear();
-	debug_commands_.emplace_back(std::move(combined));
+		commands.clear();
+		commands.emplace_back(std::move(combined));
+	};
+
+	combine(debug_commands_, combined_debug);
+	combine(render_commands_, combined_render);
 }
 
 void RenderQueue::SetupCamera(
