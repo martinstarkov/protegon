@@ -99,6 +99,8 @@ struct TextureParams {
 	TextureMagFilter mag_filter{ TextureMagFilter::Nearest };
 	TextureWrap wrap_s{ TextureWrap::ClampToEdge };
 	TextureWrap wrap_t{ TextureWrap::ClampToEdge };
+
+	constexpr bool operator==(const TextureParams&) const = default;
 };
 
 inline int GetChannelCount(TextureFormat format) {
