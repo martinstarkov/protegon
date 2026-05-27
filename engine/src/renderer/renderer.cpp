@@ -37,8 +37,11 @@
 #include "renderer/backend/gl/gl_vertex_array.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/primitive_mode.h"
 #include "renderer/pipeline/render_batcher.h"
+#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
@@ -178,26 +181,17 @@ impl::TextureId Renderer::GetRenderTargetTexture(impl::RenderTargetId render_tar
 
 V2_int Renderer::GetRenderTargetSize(impl::RenderTargetId render_target) const {
 	auto id{ GetRenderTargetTexture(render_target) };
-
-	auto size{ gl_->textures.GetTextureSize(id) };
-
-	return size;
+	return GetTextureSize(id);
 }
 
 TextureFormat Renderer::GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const {
 	auto id{ GetRenderTargetTexture(render_target) };
-
-	auto texture_format{ gl_->textures.GetTextureFormat(id) };
-
-	return texture_format;
+	return GetTextureFormat(id);
 }
 
 TextureParams Renderer::GetRenderTargetTextureParams(impl::RenderTargetId render_target) const {
 	auto id{ GetRenderTargetTexture(render_target) };
-
-	auto texture_params{ gl_->textures.GetTextureParams(id) };
-
-	return texture_params;
+	return GetTextureParams(id);
 }
 
 void Renderer::ClearRenderTarget(
@@ -272,7 +266,7 @@ impl::PipelineId Renderer::GetTexturePipeline() const {
 }
 
 void Renderer::SetRenderTarget(impl::RenderTargetObject* target) {
-	impl::FramebufferId framebuffer{ target ? target->operator impl::RenderTargetId() : 0 };
+	impl::FramebufferId framebuffer{ target ? target->operator impl::RenderTargetId() : 0u };
 
 	if (framebuffer == gl_->GetBoundFramebuffer()) {
 		current_target_ = target;
@@ -652,9 +646,8 @@ void Renderer::EndFrame() {
 
 	SetRenderTarget(nullptr);
 
-	target_pool_.TrimUnused(0);
-
 	if (presentation_viewport_.has_value()) {
+		target_pool_.Update();
 		return;
 	}
 
@@ -692,6 +685,8 @@ void Renderer::EndFrame() {
 	DrawTexture(request);
 
 	FlushBatch();
+
+	target_pool_.Update();
 }
 
 bool Renderer::IsPresentationViewportVisible() const {
@@ -715,6 +710,16 @@ impl::TextureObject Renderer::CreateTexture(
 	return impl::TextureObject{ this, gl_->textures.CreateTexture(
 										  pixel_data, pixel_format, pixel_type, size, format, params
 									  ) };
+}
+
+void Renderer::SetBoundShaderUniform(const char* uniform_name, int value) {
+	auto shader{ gl_->GetBoundShader() };
+
+	PTGN_ASSERT(
+		shader.has_value() && *shader, "Shader must be bound before calling SetBoundShaderUniform"
+	);
+
+	gl_->shaders.SetUniform(*shader, uniform_name, value);
 }
 
 void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, const Matrix4& v) {
@@ -817,8 +822,20 @@ TextureFormat Renderer::GetTextureFormat(impl::TextureId texture) const {
 	return gl_->textures.GetTextureFormat(texture);
 }
 
+TextureParams Renderer::GetTextureParams(impl::TextureId texture) const {
+	return gl_->textures.GetTextureParams(texture);
+}
+
 void Renderer::ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size) {
 	gl_->framebuffers.ResizeFramebuffer(impl::FramebufferId{ render_target }, new_size);
+}
+
+void Renderer::SetTextureParams(impl::TextureId texture, TextureParams params) {
+	using enum impl::gl::TextureParameter;
+	gl_->textures.SetTextureParameter(texture, MinFilter, std::to_underlying(params.min_filter));
+	gl_->textures.SetTextureParameter(texture, MagFilter, std::to_underlying(params.mag_filter));
+	gl_->textures.SetTextureParameter(texture, WrapS, std::to_underlying(params.wrap_s));
+	gl_->textures.SetTextureParameter(texture, WrapT, std::to_underlying(params.wrap_t));
 }
 
 std::size_t Renderer::GetMaxTextureSlots() const {
@@ -892,6 +909,66 @@ RenderState Renderer::GetRenderState() const {
 const impl::RenderTargetObject& Renderer::GetRenderTarget() const {
 	PTGN_ASSERT(current_target_, "No current render target has been set");
 	return *current_target_;
+}
+
+void Renderer::DrawRenderPass(
+	impl::ShaderId shader, std::size_t pipeline_name, std::span<const impl::BoundInput> inputs,
+	impl::RenderTargetId output
+) {
+	FlushBatch();
+
+	auto size{ GetRenderTargetSize(output) };
+
+	PTGN_ASSERT(size.BothAboveZero(), "Render pass output size must be non-zero");
+
+	ApplyRenderTarget(output);
+
+	SetViewport(Viewport{ .position{}, .size{ size } });
+	SetViewProjection(size);
+	SetBlendMode(BlendMode::ReplaceRGBA);
+
+	SetCurrentPipeline(pipeline_name);
+
+	SetMaterial(
+		MaterialState{
+			.shader	  = shader,
+			.uniforms = {},
+		}
+	);
+
+	std::vector<TextureBinding> bindings;
+	std::vector<impl::TextureId> textures;
+
+	bindings.reserve(inputs.size());
+	textures.reserve(inputs.size());
+
+	for (const auto& input : inputs) {
+		auto texture{ GetRenderTargetTexture(input.render_target) };
+
+		PTGN_ASSERT(texture, "Render pass input must have a valid color texture");
+
+		bindings.emplace_back(input.binding);
+
+		textures.emplace_back(texture);
+	}
+
+	constexpr auto depth{ 0.0f };
+	constexpr auto tint{ color::White };
+	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+	constexpr auto entity_id{ -1 };
+
+	auto local_vertices{ Rect{ size }.GetLocalVertices() };
+	auto local_quad{
+		impl::CreateTextureQuad(local_vertices, depth, tint.Normalized(), tex_coords, entity_id)
+	};
+
+	std::span quads{ &local_quad, 1 };
+
+	const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
+
+	batcher_.SubmitQuadsWithTextureBindings<impl::TextureVertex>(
+		quads, pipeline.vertex_capacity, pipeline.index_capacity, bindings, textures
+	);
 }
 
 void Renderer::SetRenderState(const RenderState& state) {
@@ -986,14 +1063,16 @@ void Renderer::DrawTexture(const impl::DrawTextureRequest& request) {
 	//	DrawPresentationEffect(request);
 	//	return;
 	//}
-	// if (request.effect_params.has_value()) {
-	//	DrawTextureEffect(request);
-	//	return;
-	// }
+	if (request.effect_params.draw_callback) {
+		DrawTextureEffect(request);
+		return;
+	}
 	DrawTextureNormally(request);
 }
 
 void Renderer::DrawTextureNormally(const impl::DrawTextureRequest& request) {
+	PTGN_ASSERT(!request.effect_params.draw_callback);
+
 	std::span<const impl::TextureId> textures;
 
 	if (request.texture) {
@@ -1005,16 +1084,100 @@ void Renderer::DrawTextureNormally(const impl::DrawTextureRequest& request) {
 	DrawQuads(request.local_quads, textures);
 }
 
-// TODO: Fix.
-// void Renderer::DrawTextureEffect(DrawTextureRequest request) {
-//	auto prepared = PrepareDirectTextureSeed(request);
-//
-//	auto result = RunEffectChain(
-//		prepared.seed_texture, std::move(prepared.seed_transient), *request.effect_params
-//	);
-//
-//	BatchEffectResult(std::move(result), std::span{ prepared.final_quads }, request.render_state);
-//}
+void Renderer::DrawTextureEffect(const impl::DrawTextureRequest& request) {
+	if (request.local_quads.empty()) {
+		return;
+	}
+
+	auto get_bounds = [&]() {
+		const auto& first_vertex{ request.local_quads.front().front() };
+		V2_float first{ first_vertex.position[0], first_vertex.position[1] };
+
+		auto min{ first };
+		auto max{ first };
+
+		for (auto& quad : request.local_quads) {
+			for (auto& vertex : quad) {
+				V2_float point{ vertex.position[0], vertex.position[1] };
+
+				min.x = std::min(min.x, point.x);
+				min.y = std::min(min.y, point.y);
+				max.x = std::max(max.x, point.x);
+				max.y = std::max(max.y, point.y);
+			}
+		}
+
+		return std::pair{ min, max };
+	};
+
+	auto format{ GetTextureFormat(request.texture) };
+	auto params{ GetTextureParams(request.texture) };
+
+	auto [min, max] = get_bounds();
+
+	PTGN_ASSERT(max.x > min.x);
+	PTGN_ASSERT(max.y > min.y);
+
+	V2_float size{ max - min };
+
+	PTGN_ASSERT(size.BothAboveZero());
+
+	size += V2_float{ request.effect_params.margin * 2 };
+
+	RenderTargetDesc desc{ .size = size, .format = format, .params = params };
+
+	auto prepared{ CreateRenderTarget(desc) };
+
+	auto previous{ current_target_ };
+
+	SetRenderTarget(&prepared);
+
+	SetViewport({ .position{}, .size{ size } });
+	SetViewProjection(size);
+
+	impl::DrawTextureRequest local_request;
+
+	local_request.local_quads = request.local_quads;
+	local_request.texture	  = request.texture;
+
+	DrawTextureNormally(local_request);
+
+	FlushBatch();
+
+	DrawContext ctx{ *this };
+
+	request.effect_params.draw_callback(ctx);
+
+	SetRenderTarget(previous);
+
+	impl::DrawTextureRequest new_request;
+
+	auto positions{ Rect{ GetRenderTargetSize(prepared) }.GetLocalVertices() };
+
+	PTGN_ASSERT(!request.local_quads.empty());
+
+	const auto& first_quad{ request.local_quads.front() };
+
+	PTGN_ASSERT(!first_quad.empty());
+
+	const auto& first_vertex{ first_quad.front() };
+
+	auto depth{ first_vertex.position[2] };
+
+	V4_float color_n{ first_vertex.color };
+
+	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+
+	auto entity_id{ first_vertex.entity_id[0] };
+
+	auto local_quad{ impl::CreateTextureQuad(positions, depth, color_n, tex_coords, entity_id) };
+
+	new_request.local_quads = { &local_quad, 1 };
+	new_request.transform	= request.transform;
+	new_request.texture		= GetRenderTargetTexture(prepared);
+
+	DrawTextureNormally(new_request);
+}
 
 void Renderer::BindTextureSlot(std::uint32_t slot, impl::TextureId texture) {
 	gl_->SetActiveTextureSlot(slot);

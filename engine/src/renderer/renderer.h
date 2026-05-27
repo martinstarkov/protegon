@@ -25,6 +25,7 @@
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_batcher.h"
+#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
@@ -240,6 +241,7 @@ private:
 	void SetRenderTarget(impl::RenderTargetObject* target);
 	void UpdateRenderTarget(impl::RenderTargetObject&& replacing_target);
 
+	void DrawTextureEffect(const impl::DrawTextureRequest& request);
 	void DrawTextureNormally(const impl::DrawTextureRequest& request);
 
 	/// @brief Set the view projection to an orthographic projection matrix with the given size,
@@ -274,6 +276,7 @@ private:
 	V2_int GetRenderTargetSize(impl::RenderTargetId render_target) const;
 	TextureFormat GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const;
 	TextureParams GetRenderTargetTextureParams(impl::RenderTargetId render_target) const;
+	void SetTextureParams(impl::TextureId texture, TextureParams params);
 	void ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size);
 	void ClearRenderTarget(
 		impl::RenderTargetId render_target, Color color, bool set_viewport, bool restore_bind
@@ -284,7 +287,10 @@ private:
 
 	V2_int GetTextureSize(impl::TextureId id) const;
 	TextureFormat GetTextureFormat(impl::TextureId id) const;
+	TextureParams GetTextureParams(impl::TextureId texture) const;
 
+	/// @brief For binding textures to shader uniforms.
+	void SetBoundShaderUniform(const char* uniform_name, int value);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, const Matrix4& v);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, float v);
 	void SetUniform(impl::ShaderId id, const char* uniform_name, V2_float v);
@@ -352,6 +358,11 @@ private:
 	[[nodiscard]] DisplayResizeInfo RecalculateDisplayViewport() const;
 
 	const impl::RenderTargetObject& GetRenderTarget() const;
+
+	void DrawRenderPass(
+		impl::ShaderId shader, std::size_t pipeline, std::span<const impl::BoundInput> inputs,
+		impl::RenderTargetId output
+	);
 
 	Window& window_;
 
