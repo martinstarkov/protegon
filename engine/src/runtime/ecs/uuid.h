@@ -22,13 +22,9 @@ private:
 
 } // namespace ptgn::impl
 
-namespace std {
-
 template <>
-struct hash<ptgn::impl::UUID> {
+struct std::hash<ptgn::impl::UUID> {
 	std::size_t operator()(const ptgn::impl::UUID& uuid) const {
 		return static_cast<std::uint64_t>(uuid);
 	}
 };
-
-} // namespace std
