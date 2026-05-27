@@ -27,7 +27,7 @@ impl::EffectParams GetEffectParams(Entity entity) {
 		const auto& effects{ entity.Get<Effects>().effects };
 
 		for (const auto& effect : effects) {
-			PTGN_ASSERT(!IsVisible(entity), "Effects attached to entities must be invisible");
+			PTGN_ASSERT(!IsVisible(effect), "Effects attached to entities must be invisible");
 			InvokeDrawable(ctx, effect);
 		}
 	};
