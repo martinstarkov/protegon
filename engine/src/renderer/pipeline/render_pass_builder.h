@@ -1,26 +1,30 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "renderer/resources/id.h"
 #include "renderer/resources/render_target_object.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn {
 
 class RenderPassBuilder;
+class DrawContext;
 
 class RenderPassHandle {
+public:
+	explicit operator std::size_t() const {
+		return id;
+	}
+
 private:
 	RenderPassHandle() = default;
 
-	RenderPassHandle(std::size_t id) : id{ id } {}
+	RenderPassHandle(std::size_t id) : id{ id } {} // NOSONAR
 
 	friend class RenderPassBuilder;
 
@@ -33,10 +37,25 @@ private:
 	bool operator==(const RenderPassHandle&) const = default;
 };
 
-struct TextureBinding {
-	std::uint32_t slot{ 0 };
-	std::string uniform{ "u_Texture" };
+} // namespace ptgn
+
+template <>
+struct std::hash<ptgn::RenderPassHandle> {
+	std::size_t operator()(const ptgn::RenderPassHandle& handle) const noexcept {
+		return static_cast<std::size_t>(handle);
+	}
 };
+
+namespace ptgn {
+
+namespace impl {
+
+struct BoundInput {
+	impl::RenderTargetId render_target;
+	TextureBinding binding;
+};
+
+} // namespace impl
 
 class RenderPass {
 public:
@@ -58,13 +77,13 @@ private:
 
 class RenderPassBuilder {
 public:
-	explicit RenderPassBuilder(DrawContext& ctx) : ctx_{ ctx } {}
+	explicit RenderPassBuilder(DrawContext& ctx);
 
 	RenderPassHandle BoundTarget();
 
 	RenderPass CreateLike(RenderTargetDesc desc, std::string_view shader);
 
-	RenderPass CreateLike(RenderPassHandle like, std::string_view shader);
+	RenderPass CreateLike(RenderPassHandle handle, std::string_view shader);
 
 	/// @param input Optional input to the shader. If nullopt, uses the currently bound target as
 	/// input.
@@ -81,16 +100,13 @@ private:
 		TextureBinding binding;
 	};
 
-	struct BoundInput {
-		impl::RenderTargetId id;
-		TextureBinding binding;
-	};
-
 	struct Resource {
 		RenderPassHandle handle;
 		RenderTargetDesc desc;
 
-		impl::RenderTargetId id;
+		/// @brief The render target ID if this resource is imported from the context, or nullopt if
+		/// it is created by a pass in this builder.
+		std::optional<impl::RenderTargetId> render_target;
 
 		std::optional<std::size_t> writer;
 		std::optional<std::size_t> last_use;
@@ -107,29 +123,27 @@ private:
 
 	RenderPassHandle NextTargetHandle();
 
-	Resource& GetResource(RenderPassHandle target);
+	Resource& GetResource(RenderPassHandle handle);
 
-	const Resource& GetResource(RenderPassHandle target) const;
+	const Resource& GetResource(RenderPassHandle handle) const;
 
-	void MarkUsed(RenderPassHandle target);
+	void MarkUsed(RenderPassHandle handle);
 
-	void PruneTo(RenderPassHandle final_handle);
-
-	void ComputeLastUses(RenderPassHandle final_handle);
+	[[nodiscard]] bool IsImported(const Resource& resource) const;
 
 	impl::RenderTargetObject Execute(RenderPassHandle final_handle);
 
-	impl::RenderTargetId Physical(RenderPassHandle target) const;
+	impl::RenderTargetId GetRenderTargetId(RenderPassHandle handle) const;
 
-	void ReleaseIfLastUse(RenderPassHandle target, std::size_t pass_index);
+	void ReleaseIfLastUse(RenderPassHandle handle, std::size_t pass_index);
 
 	DrawContext& ctx_;
 
 	std::vector<Resource> resources_;
 	std::vector<PassData> passes_;
-	std::unordered_map<std::size_t, impl::RenderTargetId> physical_by_logical_;
 
 	std::optional<RenderPassHandle> bound_;
+
 	std::size_t next_target_handle_{ 0 };
 };
 

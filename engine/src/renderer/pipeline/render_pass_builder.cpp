@@ -2,15 +2,14 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <list>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "core/assert.h"
+#include "core/util/hash.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/render_target_object.h"
@@ -23,7 +22,7 @@ RenderPass::RenderPass(
 	render_pass_builder_{ render_pass_builder }, pass_index_{ pass_index }, output_{ output } {}
 
 RenderPass& RenderPass::Read(
-	RenderPassHandle handle, std::uint32_t slot = 0, std::string_view uniform = "u_Texture"
+	RenderPassHandle handle, std::uint32_t slot, std::string_view uniform
 ) {
 	PTGN_ASSERT(
 		pass_index_ < render_pass_builder_.passes_.size(),
@@ -59,9 +58,9 @@ RenderPassHandle RenderPassBuilder::BoundTarget() {
 
 	resources_.emplace_back(
 		Resource{
-			.handle = handle,
-			.desc	= std::move(desc),
-			.id		= current_target,
+			.handle		   = handle,
+			.desc		   = std::move(desc),
+			.render_target = current_target,
 		}
 	);
 
@@ -149,19 +148,18 @@ void RenderPassBuilder::MarkUsed(RenderPassHandle target) {
 	}
 }
 
-void RenderPassBuilder::PruneTo(RenderPassHandle final_handle) {
+bool RenderPassBuilder::IsImported(const Resource& resource) const {
+	return resource.render_target.has_value() && ctx_.RenderTargetPoolHas(*resource.render_target);
+}
+
+impl::RenderTargetObject RenderPassBuilder::Execute(RenderPassHandle final_handle) {
 	MarkUsed(final_handle);
 
 	for (auto& resource : resources_) {
-		if (resource.imported && resource.releasable_import && !resource.used) {
-			ctx_.Release(resource.imported_physical);
-			resource.releasable_import = false;
+		if (!resource.used && IsImported(resource)) {
+			PTGN_ASSERT(resource.render_target.has_value());
+			ctx_.ReleaseRenderTarget(*resource.render_target);
 		}
-	}
-}
-
-void RenderPassBuilder::ComputeLastUses(RenderPassHandle final_handle) {
-	for (auto& resource : resources_) {
 		resource.last_use = std::nullopt;
 	}
 
@@ -178,11 +176,6 @@ void RenderPassBuilder::ComputeLastUses(RenderPassHandle final_handle) {
 	}
 
 	GetResource(final_handle).last_use = passes_.size();
-}
-
-impl::RenderTargetObject RenderPassBuilder::Execute(RenderPassHandle final_handle) {
-	PruneTo(final_handle);
-	ComputeLastUses(final_handle);
 
 	for (auto i{ 0uz }; i < passes_.size(); ++i) {
 		auto& pass{ passes_[i] };
@@ -191,42 +184,44 @@ impl::RenderTargetObject RenderPassBuilder::Execute(RenderPassHandle final_handl
 			continue;
 		}
 
-		std::vector<BoundInput> bound_inputs;
+		std::vector<impl::BoundInput> bound_inputs;
 
 		for (const auto& input : pass.reads) {
-			auto id{ Physical(input.handle) };
+			auto render_target{ GetRenderTargetId(input.handle) };
 
 			bound_inputs.emplace_back(
-				BoundInput{
-					.id		 = id,
-					.binding = input.binding,
+				impl::BoundInput{
+					.render_target = render_target,
+					.binding	   = input.binding,
 				}
 			);
 		}
 
-		auto output{ ctx_.Acquire(pass.output_desc) };
-		physical_by_logical_[pass.output.id] = output;
+		auto output{ ctx_.AcquireRenderTarget(pass.output_desc) };
 
-		ctx_.DrawFullscreen(pass.shader, bound_inputs, output, pass.output_desc);
+		GetResource(pass.output).render_target = output;
+
+		// TODO: Consider making pipeline customizable in the future.
+		constexpr auto pipeline{ Hash("texture") };
+
+		ctx_.DrawRenderPass(pass.shader, pipeline, bound_inputs, output);
 
 		for (const auto& input : pass.reads) {
 			ReleaseIfLastUse(input.handle, i);
 		}
 	}
+
+	return ctx_.ExtractRenderTarget(GetRenderTargetId(final_handle));
 }
 
-impl::RenderTargetId RenderPassBuilder::Physical(RenderPassHandle target) const {
-	if (const auto& resource{ GetResource(target) }; resource.imported) {
-		return resource.imported_physical;
-	}
-
-	auto it{ physical_by_logical_.find(target.id) };
+impl::RenderTargetId RenderPassBuilder::GetRenderTargetId(RenderPassHandle handle) const {
+	const auto& resource{ GetResource(handle) };
 
 	PTGN_ASSERT(
-		it != physical_by_logical_.end(), "RenderPassHandle has no physical allocation yet"
+		resource.render_target.has_value(), "RenderPassHandle has no assigned render target yet"
 	);
 
-	return it->second;
+	return *resource.render_target;
 }
 
 void RenderPassBuilder::ReleaseIfLastUse(RenderPassHandle target, std::size_t pass_index) {
@@ -236,16 +231,11 @@ void RenderPassBuilder::ReleaseIfLastUse(RenderPassHandle target, std::size_t pa
 		return;
 	}
 
-	if (resource.imported && !resource.releasable_import) {
-		return;
-	}
+	PTGN_ASSERT(
+		resource.render_target.has_value(), "RenderPassHandle has no assigned render target yet"
+	);
 
-	auto physical{ Physical(target) };
-	ctx_.Release(physical);
-
-	if (resource.imported) {
-		resource.releasable_import = false;
-	}
+	ctx_.ReleaseRenderTarget(*resource.render_target);
 }
 
 } // namespace ptgn
