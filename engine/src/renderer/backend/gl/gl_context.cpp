@@ -139,6 +139,8 @@ BindGuard<TextureId> GLContext::Bind(TextureId id, bool restore_bind) {
 
 	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 
+	PTGN_ASSERT(!id || textures.cache_.Has(id), "Texture ", id, " not found in texture cache");
+
 	GLCall(glBindTexture(std::to_underlying(target), id));
 	bound_.texture_units[slot].id = id;
 
