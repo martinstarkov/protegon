@@ -1,16 +1,12 @@
 #include "renderer/pipeline/draw_context.h"
 
 #include <algorithm>
-#include <array>
 #include <optional>
 #include <span>
-#include <string>
 #include <string_view>
 #include <utility>
 
-#include "core/assert.h"
 #include "core/graphics/color.h"
-#include "core/graphics/fill_style.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
@@ -24,8 +20,10 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/effect_params.h"
+#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/shape_primitives.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/renderer.h"
@@ -249,6 +247,29 @@ void DrawContext::DrawShape(
 
 impl::ShaderId DrawContext::GetShader(std::string_view name) const {
 	return renderer_.GetShader(name);
+}
+
+bool DrawContext::RenderTargetPoolHas(impl::RenderTargetId id) const {
+	return renderer_.target_pool_.Owns(id);
+}
+
+impl::RenderTargetId DrawContext::AcquireRenderTarget(RenderTargetDesc desc) {
+	return renderer_.target_pool_.Acquire(desc);
+}
+
+void DrawContext::ReleaseRenderTarget(impl::RenderTargetId id) {
+	return renderer_.target_pool_.Release(id);
+}
+
+impl::RenderTargetObject DrawContext::ExtractRenderTarget(impl::RenderTargetId id) {
+	return renderer_.target_pool_.Extract(id);
+}
+
+void DrawContext::DrawRenderPass(
+	impl::ShaderId shader, std::size_t pipeline, std::span<const impl::BoundInput> inputs,
+	impl::RenderTargetId output
+) {
+	renderer_.DrawRenderPass(shader, pipeline, inputs, output);
 }
 
 } // namespace ptgn

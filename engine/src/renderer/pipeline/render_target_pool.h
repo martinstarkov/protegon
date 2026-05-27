@@ -13,33 +13,38 @@ class Renderer;
 
 namespace impl {
 
+inline constexpr std::size_t kMaxUnusedRenderTargets{ 10 };
+/// @brief After this many frames of being unused, a render target will be destroyed.
+inline constexpr std::uint64_t kPooledRenderTargetFrameLifetime{ 10 };
+
 class RenderTargetPool {
 public:
 	explicit RenderTargetPool(Renderer& renderer);
 
-	RenderTargetObject Acquire(
-		RenderTargetDesc desc, std::optional<FramebufferId> exclude = std::nullopt
-	);
+	/// @return True if the render target pool owns the target, false otherwise.
+	[[nodiscard]] bool Owns(impl::RenderTargetId id) const;
+	[[nodiscard]] impl::RenderTargetId Acquire(RenderTargetDesc desc);
 
-	RenderTargetObject AcquireLike(const RenderTargetObject& target, int margin = 0);
+	/// @brief Does nothing if the target is not owned by the pool or is already released.
+	void Release(impl::RenderTargetId);
 
-	void Release(RenderTargetId id);
+	/// @brief Destroys all unused render targets that have been unused for at least
+	/// kPooledRenderTargetFrameLifetime frames, and removes them from the pool. Should be called
+	/// once per frame.
+	void Update();
 
-	[[nodiscard]] bool Owns(RenderTargetId target) const;
-
-	void TrimUnused(std::size_t max_unused);
+	RenderTargetObject Extract(RenderTargetId id);
 
 private:
 	struct PooledTarget {
 		RenderTargetObject target;
-		std::uint64_t last_used_tick{ 0 };
-		bool in_use{ false };
+		std::uint64_t last_used_frame{ 0 };
+		bool used{ false };
 	};
 
+	std::uint64_t render_frame_{ 0 };
 	Renderer& renderer_;
 	std::vector<PooledTarget> pool_;
-	std::vector<RenderTargetObject> temp_;
-	std::uint64_t tick_{ 0 };
 };
 
 } // namespace impl

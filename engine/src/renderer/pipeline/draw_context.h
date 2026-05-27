@@ -143,7 +143,7 @@ public:
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
-	template <InvocableR<RenderTargetHandle, RenderPassBuilder&> F>
+	template <InvocableR<RenderPassHandle, RenderPassBuilder&> F>
 	void Pass(F&& fn) {
 		RenderPassBuilder render_pass_builder{ *this };
 
@@ -162,13 +162,24 @@ private:
 	friend class Application;
 	friend class RenderPassBuilder;
 
+	explicit DrawContext(Renderer& renderer);
+
+	[[nodiscard]] bool RenderTargetPoolHas(impl::RenderTargetId id) const;
+	[[nodiscard]] impl::RenderTargetId AcquireRenderTarget(RenderTargetDesc desc);
+	void ReleaseRenderTarget(impl::RenderTargetId);
+
 	const impl::RenderTargetObject& GetRenderTarget() const;
 
 	void SetRenderState(const RenderState& state);
 
 	void UpdateRenderTarget(impl::RenderTargetObject&& replacing_target);
 
-	explicit DrawContext(Renderer& renderer);
+	impl::RenderTargetObject ExtractRenderTarget(impl::RenderTargetId id);
+
+	void DrawRenderPass(
+		impl::ShaderId shader, std::size_t pipeline, std::span<const impl::BoundInput> inputs,
+		impl::RenderTargetId output
+	);
 
 	Renderer& renderer_;
 };
