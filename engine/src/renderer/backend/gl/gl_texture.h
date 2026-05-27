@@ -132,6 +132,8 @@ public:
 	TextureCache& GetCache(TextureId texture);
 	const TextureCache& GetCache(TextureId texture) const;
 
+	void SetTextureParameter(TextureId texture, TextureParameter param, int value);
+
 private:
 	friend class GLContext;
 
@@ -155,7 +157,6 @@ private:
 	void SetTextureParameter(TextureId texture, TextureParameter param, const float* values) const;
 	void SetTextureParameter(TextureId texture, TextureParameter param, const int* values) const;
 	void SetTextureParameter(TextureId texture, TextureParameter param, float value) const;
-	void SetTextureParameter(TextureId texture, TextureParameter param, int value);
 
 	int GetTextureParameter(TextureId texture, TextureParameter param) const;
 

@@ -15,7 +15,7 @@ struct RenderTargetDesc {
 	TextureFormat format{ TextureFormat::RGBA8 };
 	TextureParams params;
 
-	bool operator==(const RenderTargetDesc&) const = default;
+	constexpr bool operator==(const RenderTargetDesc&) const = default;
 };
 
 namespace impl {
@@ -32,6 +32,8 @@ public:
 	RenderTargetDesc GetDesc() const;
 
 	void Resize(V2_int new_size);
+
+	void SetParams(TextureParams params);
 
 	void Bind();
 

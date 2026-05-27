@@ -18,6 +18,11 @@ void RenderTargetObject::Resize(V2_int new_size) {
 	renderer_->ResizeRenderTarget(resource_, new_size);
 }
 
+void RenderTargetObject::SetParams(TextureParams params) {
+	PTGN_ASSERT(renderer_ && *this);
+	renderer_->SetTextureParams(renderer_->GetRenderTargetTexture(resource_), params);
+}
+
 void RenderTargetObject::Clear(Color color, bool set_viewport, bool restore_bind) const {
 	PTGN_ASSERT(renderer_ && *this);
 	renderer_->ClearRenderTarget(resource_, color, set_viewport, restore_bind);
