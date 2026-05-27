@@ -166,7 +166,7 @@ void RenderPassBuilder::ComputeLastUses(RenderPassHandle final_handle) {
 	}
 
 	for (auto i{ 0uz }; i < passes_.size(); ++i) {
-		const auto& pass = passes_[i];
+		const auto& pass{ passes_[i] };
 
 		if (!pass.used) {
 			continue;
@@ -185,7 +185,7 @@ impl::RenderTargetObject RenderPassBuilder::Execute(RenderPassHandle final_handl
 	ComputeLastUses(final_handle);
 
 	for (auto i{ 0uz }; i < passes_.size(); ++i) {
-		auto& pass = passes_[i];
+		auto& pass{ passes_[i] };
 
 		if (!pass.used) {
 			continue;
