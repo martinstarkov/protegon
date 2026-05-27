@@ -3,7 +3,9 @@
 #include <ecs/ecs.h>
 
 #include <array>
+#include <cstdint>
 #include <ostream>
+#include <string>
 
 #include "core/graphics/flip.h"
 #include "core/math/vector2.h"
@@ -14,6 +16,11 @@
 #include "renderer/resources/texture_format.h"
 
 namespace ptgn {
+
+struct TextureBinding {
+	std::uint32_t slot{ 0 };
+	std::string uniform{ "u_Texture" };
+};
 
 namespace impl {
 

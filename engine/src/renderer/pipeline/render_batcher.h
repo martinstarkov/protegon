@@ -19,6 +19,7 @@
 #include "renderer/pipeline/vertex.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/render_target_object.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn {
 
@@ -48,8 +49,6 @@ public:
 
 	void Flush();
 
-	void HoldUntilFlush(RenderTargetObject target);
-
 	template <VertexType TVertex>
 	void SubmitQuads(
 		std::span<RenderQuad<TVertex>> quads, std::size_t vertex_capacity,
@@ -71,6 +70,18 @@ public:
 		);
 	}
 
+	template <VertexType TVertex>
+	void SubmitQuadsWithTextureBindings(
+		std::span<const RenderQuad<TVertex>> quads, std::size_t vertex_capacity,
+		std::size_t index_capacity, std::span<const TextureBinding> bindings,
+		std::span<const TextureId> textures
+	) {
+		SubmitPrimitivesWithTextureBindings<
+			TVertex, std::tuple_size_v<RenderQuad<TVertex>>, kQuadIndices.size()>(
+			quads, kQuadIndices, vertex_capacity, index_capacity, bindings, textures
+		);
+	}
+
 private:
 	friend class ptgn::Renderer;
 
@@ -80,6 +91,50 @@ private:
 	};
 
 	TextureSlotInfo GetTextureSlotNoFlush(TextureId texture) const;
+
+	void BindTextureUniforms(
+		std::span<const TextureBinding> bindings, std::span<const TextureId> textures
+	);
+
+	template <
+		VertexType TVertex, std::size_t VertexCount, std::size_t IndexCount, typename TPrimitive>
+	void SubmitPrimitivesWithTextureBindings(
+		std::span<const TPrimitive> primitives, const std::array<Index, IndexCount>& index_pattern,
+		std::size_t vertex_capacity, std::size_t index_capacity,
+		std::span<const TextureBinding> bindings, std::span<const TextureId> textures
+	) {
+		static_assert(std::is_standard_layout_v<TVertex>);
+		static_assert(std::tuple_size_v<TPrimitive> == VertexCount);
+
+		static_assert(std::ranges::contiguous_range<TPrimitive>);
+		static_assert(std::same_as<std::ranges::range_value_t<TPrimitive>, TVertex>);
+
+		if (primitives.empty()) {
+			return;
+		}
+
+		PTGN_ASSERT(VertexCount <= vertex_capacity, "Single primitive exceeds vertex capacity");
+		PTGN_ASSERT(IndexCount <= index_capacity, "Single primitive exceeds index capacity");
+
+		Flush();
+
+		BindTextureUniforms(bindings, textures);
+
+		for (const auto& primitive : primitives) {
+			if (BatchWouldExceedCapacity<TVertex>(
+					VertexCount, IndexCount, vertex_capacity, index_capacity
+				)) {
+				Flush();
+
+				// Rebind defensively in case Flush/apply-material logic changes later.
+				BindTextureUniforms(bindings, textures);
+			}
+
+			SubmitPrimitiveUnchecked<TVertex, VertexCount, IndexCount>(primitive, index_pattern);
+		}
+
+		Flush();
+	}
 
 	template <
 		VertexType TVertex, std::size_t VertexCount, std::size_t IndexCount, typename TPrimitive>
@@ -203,8 +258,6 @@ private:
 							  }));
 	}
 
-	void ReleaseTargetsAfterFlush();
-
 	[[nodiscard]] bool IsTextureAttachedToCurrentFramebuffer(TextureId texture) const;
 
 	std::size_t GetMaxTextureSlots() const;
@@ -215,8 +268,6 @@ private:
 	std::vector<std::byte> vertices_;
 	std::vector<Index> indices_;
 	std::vector<TextureId> textures_;
-
-	std::vector<RenderTargetObject> release_after_flush_;
 };
 
 } // namespace impl
