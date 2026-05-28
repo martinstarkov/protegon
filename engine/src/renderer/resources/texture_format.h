@@ -32,7 +32,7 @@ enum class TextureFormat : std::uint32_t {
 	SRGB8_ALPHA8	  = 0x8C43	// GL_SRGB8_ALPHA8
 };
 
-[[nodiscard]] inline std::string_view ToString(TextureFormat format) {
+[[nodiscard]] constexpr std::string_view ToString(TextureFormat format) {
 	switch (format) {
 		using enum TextureFormat;
 		case R8:				return "R8";
