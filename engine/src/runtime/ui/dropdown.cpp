@@ -107,15 +107,15 @@ void Dropdown::RecalculateButtonPositions() {
 		return *parent_shape;
 	};
 
-	V2_float parent_center{ -GetOriginOffset(GetDrawOrigin(*this), parent_size) };
-	V2_float parent_edge{ parent_center + GetOriginOffset(info.origin_, parent_size) };
+	V2_float parent_center{ GetOffset(GetDrawOrigin(*this), parent_size) };
+	V2_float parent_edge{ parent_center - GetOffset(info.origin_, parent_size) };
 
 	PTGN_ASSERT(info.buttons_.size() >= 1);
 	const auto& first_button{ info.buttons_.front() };
 	auto shape{ get_shape(first_button) };
 	auto size{ get_shape_size(shape) };
 
-	V2_float offset{ parent_edge + GetOriginOffset(info.origin_, size) };
+	V2_float offset{ parent_edge - GetOffset(info.origin_, size) };
 
 	for (auto i{ 0uz }; i < info.buttons_.size(); ++i) {
 		auto& button{ info.buttons_[i] };
@@ -124,13 +124,13 @@ void Dropdown::RecalculateButtonPositions() {
 		// First button offset goes in the direction of the dropdown origin, the rest go in the
 		// direction of dropdown.
 		if (i != 0) {
-			offset += GetOriginOffset(info.direction_, size);
+			offset -= GetOffset(info.direction_, size);
 		}
 		SetPosition(button, offset);
 		std::visit([&](const auto& s) { button.SetShape(s); }, shape);
 		SetDrawOrigin(button, Origin::Center);
 		// Offset is added separately while moving through dropdown buttons.
-		offset += GetOriginOffset(info.direction_, size);
+		offset -= GetOffset(info.direction_, size);
 	}
 }
 

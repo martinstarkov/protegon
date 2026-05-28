@@ -226,7 +226,7 @@ public:
 			e.Get<Rect>() = Rect{ size };
 			auto position{ GetNextPosition() };
 			SetPosition(e, position);
-			SetPosition(GetChild(e, "text"), -GetOriginOffset(Origin::CenterTop, size));
+			SetPosition(GetChild(e, "text"), GetOffset(Origin::CenterTop, size));
 			Tween{ GetChild(e, "tween") }.Start();
 		}
 

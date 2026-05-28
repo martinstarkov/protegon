@@ -73,7 +73,7 @@ void Text::Draw(
 	// Offset text so it is centered on the offset origin and size.
 	const auto transform_scale{ transform.GetScale() };
 	auto scaled_offset{ offset_size * Abs(transform_scale) };
-	V2_float offset{ -GetOriginOffset(offset_origin, scaled_offset) };
+	V2_float offset{ GetOffset(offset_origin, scaled_offset) };
 	transform.Translate(offset);
 
 	const auto& text_texture{ text.Get<Texture>() };
