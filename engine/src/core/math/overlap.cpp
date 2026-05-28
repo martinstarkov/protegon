@@ -116,10 +116,10 @@ bool GetPolygonMinimumOverlap(
 	Polygon world_polygonA{ A.GetWorldVertices(t1) };
 	Polygon world_polygonB{ B.GetWorldVertices(t2) };
 
-	const auto axes{ impl::GetPolygonAxes(world_polygonA, true) };
+	const auto axes{ impl::GetPolygonAxes(world_polygonA.vertices, true) };
 	for (const auto& axis2 : axes) {
-		auto [min1, max1] = impl::GetPolygonProjectionMinMax(world_polygonA, axis2);
-		auto [min2, max2] = impl::GetPolygonProjectionMinMax(world_polygonB, axis2);
+		auto [min1, max1] = impl::GetPolygonProjectionMinMax(world_polygonA.vertices, axis2);
+		auto [min2, max2] = impl::GetPolygonProjectionMinMax(world_polygonB.vertices, axis2);
 
 		if (!impl::IntervalsOverlap(min1, max1, min2, max2)) {
 			return false;
@@ -171,7 +171,7 @@ bool PolygonContainsPolygon(Transform t1, const Polygon& A, Transform t2, const 
 	Polygon world_polygonA{ A.GetWorldVertices(t1) };
 	Polygon world_polygonB{ B.GetWorldVertices(t2) };
 
-	return std::ranges::all_of(world_polygonB, [&](const auto& vertexB) {
+	return std::ranges::all_of(world_polygonB.vertices, [&](const auto& vertexB) {
 		return impl::OverlapPointPolygon(Transform{}, vertexB, Transform{}, world_polygonA);
 	});
 }
@@ -247,7 +247,7 @@ bool OverlapPointCircle(Transform t1, V2_float A, Transform t2, const Circle& B)
 		return false;
 	}
 	auto point{ t1.Apply(A) };
-	auto circle_center{ B.GetCenter(t2) };
+	auto circle_center{ t2.position };
 
 	V2_float dist{ circle_center - point };
 	return impl::WithinPerimeter(circle_radius, dist.Dot(dist));
@@ -295,7 +295,7 @@ bool OverlapPointCapsule(Transform t1, V2_float A, Transform t2, const Capsule& 
 	}
 
 	auto point{ t1.Apply(A) };
-	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
+	auto [capsule_start, capsule_end] = B.line.GetWorldVertices(t2);
 
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
@@ -405,7 +405,7 @@ bool OverlapLineCircle(Transform t1, const Line& A, Transform t2, const Circle& 
 
 	float min_dist2{ std::numeric_limits<float>::infinity() };
 
-	auto circle_center{ B.GetCenter(t2) };
+	auto circle_center{ t2.position };
 
 	// O is the circle center, P is the line start, Q is the line end.
 	V2_float OP{ line_start - circle_center };
@@ -496,7 +496,7 @@ bool OverlapLineCapsule(Transform t1, const Line& A, Transform t2, const Capsule
 		return false;
 	}
 	auto [line_start, line_end]		  = A.GetWorldVertices(t1);
-	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
+	auto [capsule_start, capsule_end] = B.line.GetWorldVertices(t2);
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 114-115.
@@ -518,7 +518,7 @@ bool OverlapLinePolygon(Transform t1, const Line& A, Transform t2, const Polygon
 		return true;
 	}
 
-	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices));
+	PTGN_ASSERT(B.IsConvex());
 
 	for (auto i{ 0uz }; i < polygon_vertices.size(); ++i) {
 		if (OverlapLineLine(
@@ -532,8 +532,8 @@ bool OverlapLinePolygon(Transform t1, const Line& A, Transform t2, const Polygon
 }
 
 bool OverlapCircleCircle(Transform t1, const Circle& A, Transform t2, const Circle& B) {
-	auto circleA_center{ A.GetCenter(t1) };
-	auto circleB_center{ B.GetCenter(t2) };
+	auto circleA_center{ t1.position };
+	auto circleB_center{ t2.position };
 	auto circleA_radius{ A.GetRadius(t1) };
 	auto circleB_radius{ B.GetRadius(t2) };
 	// Source:
@@ -548,7 +548,7 @@ bool OverlapCircleTriangle(Transform t1, const Circle& A, Transform t2, const Tr
 	if (auto circle_radius{ A.GetRadius(t1) }; circle_radius <= 0.0f) {
 		return false;
 	}
-	auto circle_center{ A.GetCenter(t1) };
+	auto circle_center{ t1.position };
 	auto [a, b, c] = B.GetWorldVertices(t2);
 	return OverlapPointTriangle(Transform{}, circle_center, Transform{}, Triangle{ a, b, c }) ||
 		   OverlapLineCircle(Transform{}, Line{ a, b }, t1, A) ||
@@ -568,7 +568,7 @@ bool OverlapCircleRect(Transform t1, const Circle& A, Transform t2, const Rect& 
 	if (t2.HasRotation()) {
 		return OverlapCirclePolygon(t1, A, t2, Polygon{ B.GetLocalVertices() });
 	}
-	auto circle_center{ A.GetCenter(t1) };
+	auto circle_center{ t1.position };
 	auto rect_center{ B.GetCenter(t2) };
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
@@ -587,14 +587,13 @@ bool OverlapCirclePolygon(Transform t1, const Circle& A, Transform t2, const Pol
 		return false;
 	}
 
-	if (auto circle_center{ A.GetCenter(t1) };
-		OverlapPointPolygon(Transform{}, circle_center, t2, B)) {
+	if (auto circle_center{ t1.position }; OverlapPointPolygon(Transform{}, circle_center, t2, B)) {
 		return true;
 	}
 
-	auto polygon_vertices{ B.GetWorldVertices(t2) };
+	PTGN_ASSERT(B.IsConvex());
 
-	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices));
+	auto polygon_vertices{ B.GetWorldVertices(t2) };
 
 	for (auto i{ 0uz }; i < polygon_vertices.size(); ++i) {
 		if (OverlapLineCircle(
@@ -618,8 +617,8 @@ bool OverlapCircleCapsule(Transform t1, const Circle& A, Transform t2, const Cap
 	if (capsule_radius <= 0.0f) {
 		return false;
 	}
-	auto circle_center{ A.GetCenter(t1) };
-	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
+	auto circle_center{ t1.position };
+	auto [capsule_start, capsule_end] = B.line.GetWorldVertices(t2);
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 114.
@@ -652,9 +651,7 @@ bool OverlapTriangleRect(
 	if (auto rect_size{ B.GetSize(t2) }; rect_size.IsZero()) {
 		return false;
 	}
-	return OverlapPolygonPolygon(
-		t1, Polygon{ A.GetLocalVertices() }, t2, Polygon{ B.GetLocalVertices() }
-	);
+	return OverlapPolygonPolygon(t1, Polygon{ A.vertices }, t2, Polygon{ B.GetLocalVertices() });
 }
 
 bool OverlapTrianglePolygon(Transform t1, const Triangle& A, Transform t2, const Polygon& B) {
@@ -663,9 +660,9 @@ bool OverlapTrianglePolygon(Transform t1, const Triangle& A, Transform t2, const
 		return true;
 	}
 
-	auto polygon_vertices{ B.GetWorldVertices(t2) };
+	PTGN_ASSERT(B.IsConvex());
 
-	PTGN_ASSERT(impl::IsConvexPolygon(polygon_vertices));
+	auto polygon_vertices{ B.GetWorldVertices(t2) };
 
 	for (auto i{ 0uz }; i < polygon_vertices.size(); ++i) {
 		if (OverlapLineTriangle(
@@ -686,7 +683,7 @@ bool OverlapTriangleCapsule(Transform t1, const Triangle& A, Transform t2, const
 		return false;
 	}
 
-	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
+	auto [capsule_start, capsule_end] = B.line.GetWorldVertices(t2);
 
 	auto triangle_polygon{ A.GetWorldVertices(t1) };
 
@@ -756,7 +753,7 @@ bool OverlapRectCapsule(Transform t1, const Rect& A, Transform t2, const Capsule
 		return false;
 	}
 
-	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
+	auto [capsule_start, capsule_end] = B.line.GetWorldVertices(t2);
 
 	if (OverlapPointRect(Transform{}, capsule_start, t1, A)) {
 		return true;
@@ -830,8 +827,8 @@ bool OverlapCapsuleCapsule(Transform t1, const Capsule& A, Transform t2, const C
 	auto capsuleA_radius{ A.GetRadius(t1) };
 	auto capsuleB_radius{ B.GetRadius(t2) };
 
-	auto [capsuleA_start, capsuleA_end] = A.GetWorldVertices(t1);
-	auto [capsuleB_start, capsuleB_end] = B.GetWorldVertices(t2);
+	auto [capsuleA_start, capsuleA_end] = A.line.GetWorldVertices(t1);
+	auto [capsuleB_start, capsuleB_end] = B.line.GetWorldVertices(t2);
 
 	return impl::WithinPerimeter(
 		capsuleA_radius + capsuleB_radius,
@@ -843,12 +840,10 @@ bool OverlapCapsuleCapsule(Transform t1, const Capsule& A, Transform t2, const C
 
 bool OverlapPolygonPolygon(Transform t1, const Polygon& A, Transform t2, const Polygon& B) {
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(A),
-		"PolygonPolygon overlap check only works if both polygons are convex"
+		A.IsConvex(), "PolygonPolygon overlap check only works if both polygons are convex"
 	);
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(B),
-		"PolygonPolygon overlap check only works if both polygons are convex"
+		B.IsConvex(), "PolygonPolygon overlap check only works if both polygons are convex"
 	);
 	return impl::PolygonsHaveOverlapAxis(t1, A, t2, B) &&
 		   impl::PolygonsHaveOverlapAxis(t2, B, t1, A);
@@ -862,9 +857,9 @@ bool OverlapPolygonCapsule(Transform t1, const Polygon& A, Transform t2, const C
 	}
 
 	auto world_polygon{ A.GetWorldVertices(t1) };
-	auto [capsule_start, capsule_end] = B.GetWorldVertices(t2);
+	auto [capsule_start, capsule_end] = B.line.GetWorldVertices(t2);
 
-	std::size_t vertex_count{ world_polygon.size() };
+	auto vertex_count{ world_polygon.size() };
 
 	for (auto i{ 0uz }; i < vertex_count; ++i) {
 		if (OverlapLineCapsule(

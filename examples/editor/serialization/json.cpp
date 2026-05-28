@@ -81,8 +81,8 @@ int main(int, char**) {
 		j2.get_to(rng2);
 
 		PTGN_ASSERT(rng2.GetSeed() == 3);
-		PTGN_ASSERT(rng2.GetMin() == 0.5f);
-		PTGN_ASSERT(rng2.GetMax() == 1.5f);
+		PTGN_ASSERT(rng2.min == 0.5f);
+		PTGN_ASSERT(rng2.max == 1.5f);
 	}
 
 	{

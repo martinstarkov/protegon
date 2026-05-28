@@ -58,16 +58,16 @@ void Sprite::Draw(
 	PTGN_ASSERT(texture_size.has_value(), "Sprite texture does not have a valid texture size");
 
 	auto draw_transform{ GetDrawTransform(entity) };
-	auto scale{ draw_transform.GetScale() };
+	auto scale{ draw_transform.scale };
 
 	auto scaled_offset{ offset_size * Abs(scale) };
-	V2_float offset{ -GetOriginOffset(offset_origin, scaled_offset) };
+	V2_float offset{ GetOffset(offset_origin, scaled_offset) };
 	draw_transform.Translate(offset);
 
 	// GetDisplaySize already handles the scaling.
 	PTGN_ASSERT(!scale.HasZero(), "Scale cannot have a zero component");
 	// Maintain scale sign as this is used to flip the direction of a sprite.
-	draw_transform.SetScale(scale / Abs(scale));
+	draw_transform.Scale(1.0f / Abs(scale));
 
 	auto blend_mode{ GetBlendMode(entity) };
 

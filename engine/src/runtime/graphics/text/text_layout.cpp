@@ -65,8 +65,8 @@ std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 			continue;
 		}
 
-		V2_float glyph_min{ glyph.position + glyph.plane.GetMin() };
-		V2_float glyph_max{ glyph.position + glyph.plane.GetMax() };
+		V2_float glyph_min{ glyph.position + glyph.plane.min };
+		V2_float glyph_max{ glyph.position + glyph.plane.max };
 
 		if (!found) {
 			min	  = glyph_min;
@@ -152,7 +152,7 @@ TextLayout BuildLayout(AssetManager& asset_manager, StyledText styled_text, cons
 	ApplyVerticalAlignment(box, &layout);
 
 	if (auto bounds{ GetVisibleGlyphBounds(layout) }) {
-		V2_float visual_center{ (bounds->GetMin() + bounds->GetMax()) * 0.5f };
+		V2_float visual_center{ (bounds->min + bounds->max) * 0.5f };
 
 		for (auto& glyph : layout.glyphs) {
 			glyph.position -= visual_center;
@@ -196,11 +196,11 @@ void BuildVertices(
 		}
 
 		if (clip_rect.has_value()) {
-			V2_float gmin{ glyph.position + glyph.plane.GetMin() };
-			V2_float gmax{ glyph.position + glyph.plane.GetMax() };
+			V2_float gmin{ glyph.position + glyph.plane.min };
+			V2_float gmax{ glyph.position + glyph.plane.max };
 
-			if (gmax.x <= clip_rect->GetMin().x || gmin.x >= clip_rect->GetMax().x ||
-				gmax.y <= clip_rect->GetMin().y || gmin.y >= clip_rect->GetMax().y) {
+			if (gmax.x <= clip_rect->min.x || gmin.x >= clip_rect->max.x ||
+				gmax.y <= clip_rect->min.y || gmin.y >= clip_rect->max.y) {
 				continue;
 			}
 		}
@@ -432,8 +432,8 @@ std::optional<ResolvedGlyph> ResolveGlyph(
 	resolved.render_style.effect.speed	   = run.style.effect.speed;
 	resolved.render_style.effect.phase	   = run.style.effect.phase;
 
-	resolved.metrics.plane.GetMin() *= run.style.scale * global_shrink;
-	resolved.metrics.plane.GetMax() *= run.style.scale * global_shrink;
+	resolved.metrics.plane.min *= run.style.scale * global_shrink;
+	resolved.metrics.plane.max *= run.style.scale * global_shrink;
 	resolved.metrics.advance =
 		(font.GetAdvance(codepoint, next_codepoint) + run.style.kerning + run.style.tracking) *
 		(run.style.scale * global_shrink);
@@ -475,15 +475,13 @@ CandidateLayout BuildSinglePassLayout(
 		float x_offset{ 0.0f };
 		switch (box.style.horizontal_align) {
 			using enum HorizontalAlign;
-			case Left: x_offset = box.rect.GetMin().x; break;
+			case Left: x_offset = box.rect.min.x; break;
 			case Center:
-				x_offset = box.rect.GetMin().x + (box.rect.GetSize().x - line.size.x) * 0.5f;
+				x_offset = box.rect.min.x + (box.rect.GetSize().x - line.size.x) * 0.5f;
 				break;
-			case Right:
-				x_offset = box.rect.GetMin().x + (box.rect.GetSize().x - line.size.x);
-				break;
+			case Right: x_offset = box.rect.min.x + (box.rect.GetSize().x - line.size.x); break;
 			case Justify:
-				x_offset = box.rect.GetMin().x;
+				x_offset = box.rect.min.x;
 				if (line.justify_space_count > 0 &&
 					(!ends_with_explicit_newline || box.style.justify_last_line)) {
 					line.justify_extra_per_space = (box.rect.GetSize().x - line.size.x) /
@@ -495,7 +493,7 @@ CandidateLayout BuildSinglePassLayout(
 		float justify_extra{ 0.0f };
 		for (GlyphInstance& glyph : current_line_glyphs) {
 			glyph.position.x	+= x_offset + justify_extra;
-			glyph.position.y	+= box.rect.GetMin().y;
+			glyph.position.y	+= box.rect.min.y;
 			glyph.line_index	 = layout.lines.size();
 			glyph.visible_order	 = visible_order++;
 
@@ -726,11 +724,11 @@ void ApplyEllipsisForMaxLines(
 	}
 
 	auto cutoff{ last_line.glyph_end };
-	float usable_x{ box.rect.GetMin().x + box.rect.GetSize().x - dots_width };
+	float usable_x{ box.rect.min.x + box.rect.GetSize().x - dots_width };
 
 	for (auto i{ last_line.glyph_begin }; i < last_line.glyph_end; ++i) {
 		auto& glyph{ layout->glyphs[i] };
-		float right{ glyph.position.x + glyph.plane.GetMax().x };
+		float right{ glyph.position.x + glyph.plane.max.x };
 		if (right > usable_x) {
 			cutoff = i;
 			break;
@@ -741,10 +739,10 @@ void ApplyEllipsisForMaxLines(
 		layout->glyphs[i].visible = false;
 	}
 
-	float start_x{ box.rect.GetMin().x };
+	float start_x{ box.rect.min.x };
 	if (cutoff > last_line.glyph_begin) {
 		GlyphInstance& prev{ layout->glyphs[cutoff - 1] };
-		start_x = prev.position.x + prev.plane.GetMax().x;
+		start_x = prev.position.x + prev.plane.max.x;
 	}
 
 	float y{ layout->glyphs[last_line.glyph_begin].position.y };
@@ -792,11 +790,11 @@ void ApplyClipVisibility(Rect clip_rect, TextLayout* layout) {
 	}
 
 	for (auto& glyph : layout->glyphs) {
-		V2_float gmin{ glyph.position + glyph.plane.GetMin() };
-		V2_float gmax{ glyph.position + glyph.plane.GetMax() };
+		V2_float gmin{ glyph.position + glyph.plane.min };
+		V2_float gmax{ glyph.position + glyph.plane.max };
 
-		if (gmax.x <= clip_rect.GetMin().x || gmin.x >= clip_rect.GetMax().x ||
-			gmax.y <= clip_rect.GetMin().y || gmin.y >= clip_rect.GetMax().y) {
+		if (gmax.x <= clip_rect.min.x || gmin.x >= clip_rect.max.x || gmax.y <= clip_rect.min.y ||
+			gmin.y >= clip_rect.max.y) {
 			glyph.visible = false;
 		}
 	}
@@ -808,8 +806,8 @@ void EmitGlyphQuad(
 ) {
 	auto effect_offset{ glyph.GetEffectOffset(time) };
 
-	auto quad_min{ glyph.position + glyph.plane.GetMin() + effect_offset };
-	auto quad_max{ glyph.position + glyph.plane.GetMax() + effect_offset };
+	auto quad_min{ glyph.position + glyph.plane.min + effect_offset };
+	auto quad_max{ glyph.position + glyph.plane.max + effect_offset };
 
 	if (float scale{ glyph.GetEffectScale(time) }; !NearlyEqual(scale, 1.0f)) {
 		auto center{ (quad_min + quad_max) * 0.5f };
@@ -827,22 +825,22 @@ void EmitGlyphQuad(
 	auto color_n{ glyph.render_style.color.Normalized() };
 
 	vertices.emplace_back(
-		positions[0], depth, color_n, glyph.uv.GetMin(), static_cast<float>(glyph.texture_index),
+		positions[0], depth, color_n, glyph.uv.min, static_cast<float>(glyph.texture_index),
 		entity_id
 	);
 
 	vertices.emplace_back(
-		positions[1], depth, color_n, V2_float{ glyph.uv.GetMax().x, glyph.uv.GetMin().y },
+		positions[1], depth, color_n, V2_float{ glyph.uv.max.x, glyph.uv.min.y },
 		static_cast<float>(glyph.texture_index), entity_id
 	);
 
 	vertices.emplace_back(
-		positions[2], depth, color_n, glyph.uv.GetMax(), static_cast<float>(glyph.texture_index),
+		positions[2], depth, color_n, glyph.uv.max, static_cast<float>(glyph.texture_index),
 		entity_id
 	);
 
 	vertices.emplace_back(
-		positions[3], depth, color_n, V2_float{ glyph.uv.GetMin().x, glyph.uv.GetMax().y },
+		positions[3], depth, color_n, V2_float{ glyph.uv.min.x, glyph.uv.max.y },
 		static_cast<float>(glyph.texture_index), entity_id
 	);
 

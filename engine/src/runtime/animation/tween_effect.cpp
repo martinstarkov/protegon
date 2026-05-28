@@ -39,9 +39,7 @@ namespace {
 
 TweenProperty<float> TextSizeProperty() {
 	return { [](Entity e) -> float { return Text{ e }.GetFontSize(); },
-			 [](Entity e, const float& v) {
-				 Text{ e }.SetFontSize(v);
-			 } };
+			 [](Entity e, const float& v) { Text{ e }.SetFontSize(v); } };
 };
 
 float ApplyBounceEase(float t, bool symmetrical, Ease ease) {
@@ -108,7 +106,7 @@ Tween BounceImpl(
 			float t{ ApplyBounceEase(linear_progress, symmetrical, current_ease) };
 
 			auto& offsets{ p.parent.template Get<impl::Offsets>() };
-			offsets.bounce.SetPosition(static_offset + amplitude * t);
+			offsets.bounce.position = static_offset + amplitude * t;
 		})
 		.OnPointComplete(reset_bounce)
 		.OnComplete(reset_bounce)
@@ -308,8 +306,8 @@ void ApplyShake(
 
 	float rotation_noise{ PerlinNoise::GetValue(x, 0.0f, seed + 3) * 2.0f - 1.0f };
 
-	offsets.shake.SetPosition(shake_value * config.maximum_translation * position_noise);
-	offsets.shake.SetRotation(shake_value * config.maximum_rotation * rotation_noise);
+	offsets.shake.position = shake_value * config.maximum_translation * position_noise;
+	offsets.shake.rotation = Radians{ shake_value * config.maximum_rotation * rotation_noise };
 }
 
 V2_float GetFollowPosition(

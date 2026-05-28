@@ -28,8 +28,6 @@
 #include "core/util/time.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
-#include "renderer/pipeline/effect_params.h"
-#include "renderer/pipeline/vertex.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -72,7 +70,7 @@ void DrawParticleShape(DrawContext& ctx, const T& shape, const ParticleDrawInfo&
 
 	ctx.WithBlendMode(draw.blend_mode, [&]() {
 		if constexpr (std::is_same_v<T, Circle>) {
-			Circle circle{ shape.GetRadius() * draw.size * 0.5f };
+			Circle circle{ shape.radius * draw.size * 0.5f };
 			ctx.DrawShape(draw.transform, circle, draw.color, params);
 		} else if constexpr (std::is_same_v<T, Rect>) {
 			Rect rect{ shape.GetSize() * V2_float{ draw.size } };

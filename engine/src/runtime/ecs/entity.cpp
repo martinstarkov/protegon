@@ -228,13 +228,14 @@ Transform GetWorldTransform(Entity entity) {
 	}
 	auto world_transform{ transform.RelativeTo(relative_to) };
 	if (entity.Has<impl::IgnoreParentPosition>()) {
-		world_transform.SetPosition(transform.GetPosition());
+		world_transform.position = transform.position;
 	}
 	if (entity.Has<impl::IgnoreParentScale>()) {
-		world_transform.SetScale(transform.GetScale());
+		world_transform.scale = transform.scale;
+		world_transform.ClampScale();
 	}
 	if (entity.Has<impl::IgnoreParentRotation>()) {
-		world_transform.SetRotation(transform.GetRotation());
+		world_transform.rotation = transform.rotation;
 	}
 	return world_transform;
 }
@@ -250,27 +251,27 @@ Transform GetDrawTransform(Entity entity) {
 }
 
 V2_float GetPosition(Entity entity) {
-	return GetTransform(entity).GetPosition();
+	return GetTransform(entity).position;
 }
 
 V2_float GetWorldPosition(Entity entity) {
-	return GetWorldTransform(entity).GetPosition();
+	return GetWorldTransform(entity).position;
 }
 
 Degrees GetRotation(Entity entity) {
-	return GetTransform(entity).GetRotation();
+	return GetTransform(entity).rotation.ToDeg();
 }
 
 Degrees GetWorldRotation(Entity entity) {
-	return GetWorldTransform(entity).GetRotation();
+	return GetWorldTransform(entity).rotation.ToDeg();
 }
 
 V2_float GetScale(Entity entity) {
-	return GetTransform(entity).GetScale();
+	return GetTransform(entity).scale;
 }
 
 V2_float GetWorldScale(Entity entity) {
-	return GetWorldTransform(entity).GetScale();
+	return GetWorldTransform(entity).scale;
 }
 
 void SetTransform(Entity entity, Transform transform) {
@@ -279,7 +280,7 @@ void SetTransform(Entity entity, Transform transform) {
 
 void SetPosition(Entity entity, V2_float position) {
 	auto transform{ GetTransform(entity) };
-	transform.SetPosition(position);
+	transform.position = position;
 	SetTransform(entity, transform);
 }
 
@@ -305,7 +306,7 @@ void TranslateY(Entity entity, float position_y_difference) {
 
 void SetRotation(Entity entity, Radians rotation) {
 	auto transform{ GetTransform(entity) };
-	transform.SetRotation(rotation);
+	transform.rotation = rotation;
 	SetTransform(entity, transform);
 }
 
@@ -323,7 +324,8 @@ void Rotate(Entity entity, Degrees angle_difference) {
 
 void SetScale(Entity entity, V2_float scale) {
 	auto transform{ GetTransform(entity) };
-	transform.SetScale(scale);
+	transform.scale = scale;
+	transform.ClampScale();
 	SetTransform(entity, transform);
 }
 

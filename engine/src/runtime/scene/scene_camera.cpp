@@ -115,10 +115,10 @@ void RecalculateCameraViewProjection(SceneCamera camera) {
 
 	auto current_offsets{ GetOffset(camera) };
 
-	camera_transform.Translate(current_offsets.GetPosition());
-	camera_transform.Rotate(current_offsets.GetRotation());
+	camera_transform.Translate(current_offsets.position);
+	camera_transform.Rotate(current_offsets.rotation);
 
-	camera_transform.SetPosition(ApplyCameraBounds(camera, camera_transform.GetPosition()));
+	camera_transform.position = ApplyCameraBounds(camera, camera_transform.position);
 
 	c.view_projection_data =
 		GetOrthographicViewProjection(camera_transform, viewport_size, c.pixel_rounding);
@@ -171,7 +171,7 @@ SceneCamera& SceneCamera::SetZoom(V2_float new_zoom) {
 	if (GetZoom() == clamped) {
 		return *this;
 	}
-	PTGN_ASSERT(clamped.BothAboveZero(), "Cannot set negative or zero zoom");
+	PTGN_ASSERT(clamped.IsPositive(), "Cannot set negative or zero zoom");
 	SetScale(*this, 1.0f / clamped);
 	impl::ApplyCameraBounds(*this);
 	return *this;
@@ -213,7 +213,7 @@ V2_float SceneCamera::GetScroll() const {
 
 V2_float SceneCamera::GetZoom() const {
 	auto scale{ GetScale(*this) };
-	PTGN_ASSERT(scale.BothAboveZero(), "Cannot divide by negative or zero camera scale");
+	PTGN_ASSERT(scale.IsPositive(), "Cannot divide by negative or zero camera scale");
 	return 1.0f / scale;
 }
 
@@ -241,7 +241,7 @@ Viewport SceneCamera::GetViewport() const {
 }
 
 V2_float SceneCamera::GetDisplaySize() const {
-	PTGN_ASSERT(GetZoom().BothAboveZero(), "Cannot get display size of camera with zero zoom");
+	PTGN_ASSERT(GetZoom().IsPositive(), "Cannot get display size of camera with zero zoom");
 	return Get<impl::CameraData>().viewport.size / GetZoom();
 }
 
@@ -433,7 +433,7 @@ V2_float GetCameraParentRenderTargetScale(
 	}
 	PTGN_ASSERT(render_target, "Failed to find a valid render target when calculating scale");
 	auto zoom{ cam.GetZoom() };
-	PTGN_ASSERT(zoom.BothAboveZero(), "SceneCamera zoom cannot be negative or zero");
+	PTGN_ASSERT(zoom.IsPositive(), "SceneCamera zoom cannot be negative or zero");
 	return render_target.GetScale() * zoom;
 }
 

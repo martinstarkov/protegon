@@ -122,13 +122,13 @@ Color Light::GetAmbientColor() const {
 
 Light& Light::SetRadius(float radius) {
 	PTGN_ASSERT(radius > 0.0f, "Light radius must be above 0");
-	Add<Circle>().SetRadius(radius);
+	Add<Circle>().radius = radius;
 	return *this;
 }
 
 float Light::GetRadius() const {
 	PTGN_ASSERT(Has<Circle>(), "Light must have Circle component");
-	return Get<Circle>().GetRadius();
+	return Get<Circle>().radius;
 }
 
 Light& Light::SetFalloff(float falloff) {

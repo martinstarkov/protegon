@@ -362,7 +362,7 @@ void RenderQueue::SetupCamera(
 		cleared.render_targets.emplace_back(render_target);
 	}
 
-	PTGN_ASSERT(game_size.BothAboveZero(), "Game size dimensions must be above 0");
+	PTGN_ASSERT(game_size.IsPositive(), "Game size dimensions must be above 0");
 
 	auto rt_size{ render_target.GetSize() };
 	V2_float scale{ V2_float{ rt_size } / game_size };

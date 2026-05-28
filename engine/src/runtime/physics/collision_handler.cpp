@@ -331,8 +331,8 @@ std::vector<impl::SweepCollision> CollisionHandler::GetSortedCollisions(
 			continue;
 		}
 
-		auto center1{ transform1.GetPosition() };
-		auto center2{ transform2.GetPosition() };
+		auto center1{ transform1.position };
+		auto center2{ transform2.position };
 		V2_float center_dist{ center1 - center2 };
 		float dist2{ center_dist.MagnitudeSquared() };
 		collisions.emplace_back(raycast, dist2, entity2);
@@ -437,7 +437,7 @@ void CollisionHandler::TryDrawDebugLine(
 ) const {
 	if (debug_settings_.DrawCCD()) {
 		auto transform{ GetWorldTransform(entity) };
-		auto position{ transform.GetPosition() };
+		auto position{ transform.position };
 		scene.ctx().render_queue.DrawLine(
 			position + start_offset, position + end_offset, color, { .debug = true }
 		);

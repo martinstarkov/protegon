@@ -1393,7 +1393,7 @@ struct SweepTest : public CollisionTest {
 		}
 
 		if (ctx().input.KeyDown(Key::Space)) {
-			transform.position += rb.velocity * game.dt();
+			transform.Translate(rb.velocity * game.dt());
 		}
 
 		const auto edge_exclusive_overlap = [](const Rect& a, const Rect& b) {
@@ -1600,7 +1600,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 			 manager.EntitiesWith<BoxCollider, RigidBody, Id, NextVel>()) {
 			 auto& t{ GetTransform(e) };
 			if (space_down) {
-				t.position += rb.velocity * game.dt();
+				t.Translate(rb.velocity * game.dt());
 			}
 			for (auto [e2, b2, rb2] :
 				 manager.EntitiesWith<BoxCollider, RigidBody>()) {
@@ -1612,7 +1612,7 @@ struct DynamicRectCollisionTest : public CollisionTest {
 				Rect r2{ t2.position + b2.offset, b2.size, b2.origin };
 				Intersection c{ r1.Intersects(r2) };
 				if (c.Occurred()) {
-					t.position += c.normal * c.depth;
+					t.Translate(c.normal * c.depth);
 				}
 				if (r1.Overlaps(r2)) {
 					PTGN_LOG("Intersection after sweep | normal: ", c.normal, ", depth: ", c.depth);

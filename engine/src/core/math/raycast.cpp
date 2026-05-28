@@ -102,7 +102,7 @@ RaycastResult RaycastCircle(
 	}
 
 	float circle_radius{ B.GetRadius(transform2) };
-	auto circle_center{ B.GetCenter(transform2) };
+	auto circle_center{ transform2.position };
 
 	V2_float d{ -(ray_end - ray_start) };
 	V2_float f{ circle_center - ray_start };
@@ -304,7 +304,7 @@ RaycastResult RaycastCapsule(
 	RaycastResult c;
 
 	// TODO: Add early exit if overlap test fails.
-	auto world_points{ B.GetWorldVertices(transform2) };
+	auto world_points{ B.line.GetWorldVertices(transform2) };
 
 	V2_float cv{ world_points[1] - world_points[0] };
 	float mag2{ cv.Dot(cv) };
@@ -366,7 +366,7 @@ RaycastResult RaycastCapsule(
 RaycastResult RaycastPolygon(
 	V2_float ray_start, V2_float ray_end, Transform transform2, const Polygon& B
 ) {
-	PTGN_ASSERT(impl::IsConvexPolygon(B));
+	PTGN_ASSERT(B.IsConvex());
 	// Convert polygon to world space
 	auto world_points{ B.GetWorldVertices(transform2) };
 	std::size_t count{ world_points.size() };
@@ -393,17 +393,17 @@ RaycastResult RaycastPolygon(
 RaycastResult RaycastCircleLine(
 	V2_float ray, Transform transform1, const Circle& A, Transform transform2, const Line& B
 ) {
-	auto circle_center{ A.GetCenter(transform1) };
+	auto circle_center{ transform1.position };
 	return RaycastCapsule(
 		circle_center, circle_center + ray, transform2,
-		Capsule{ B.GetStart(), B.GetEnd(), A.GetRadius(transform1) }
+		Capsule{ B.start, B.end, A.GetRadius(transform1) }
 	);
 }
 
 RaycastResult RaycastCirclePolygon(
 	V2_float ray, Transform transform1, const Circle& A, Transform transform2, const Polygon& B
 ) {
-	PTGN_ASSERT(impl::IsConvexPolygon(B));
+	PTGN_ASSERT(B.IsConvex());
 	// Convert polygon to world space
 	auto world_points{ B.GetWorldVertices(transform2) };
 	std::size_t count{ world_points.size() };
@@ -430,10 +430,10 @@ RaycastResult RaycastCirclePolygon(
 RaycastResult RaycastCircleCircle(
 	V2_float ray, Transform transform1, const Circle& A, Transform transform2, const Circle& B
 ) {
-	auto circleA_center{ A.GetCenter(transform1) };
-	auto circleB_center{ B.GetCenter(transform2) };
+	auto circleA_center{ transform1.position };
+	auto circleB_center{ transform2.position };
 	return RaycastCircle(
-		circleA_center, circleA_center + ray, Transform{ circleB_center, transform2.GetRotation() },
+		circleA_center, circleA_center + ray, Transform{ circleB_center, transform2.rotation },
 		Circle{ A.GetRadius(transform1) + B.GetRadius(transform2) }
 	);
 }
@@ -462,7 +462,7 @@ RaycastResult RaycastCircleRect(
 
 	RaycastResult c;
 
-	auto circle_center{ A.GetCenter(transform1) };
+	auto circle_center{ transform1.position };
 	auto circle_radius{ A.GetRadius(transform1) };
 	auto rect_size{ B.GetSize(transform2) };
 	auto rect_center{ B.GetCenter(transform2) };
@@ -519,11 +519,11 @@ RaycastResult RaycastCircleRect(
 RaycastResult RaycastCircleCapsule(
 	V2_float ray, Transform transform1, const Circle& A, Transform transform2, const Capsule& B
 ) {
-	auto circle_center{ A.GetCenter(transform1) };
-	auto capsule_center{ transform2.GetPosition() };
+	auto circle_center{ transform1.position };
+	auto capsule_center{ transform2.position };
 	return RaycastCapsule(
-		circle_center, circle_center + ray, Transform{ capsule_center, transform2.GetRotation() },
-		Capsule{ B.GetStart(), B.GetEnd(), A.GetRadius(transform1) + B.GetRadius(transform2) }
+		circle_center, circle_center + ray, Transform{ capsule_center, transform2.rotation },
+		Capsule{ B.line.start, B.line.end, A.GetRadius(transform1) + B.GetRadius(transform2) }
 	);
 }
 
@@ -543,7 +543,7 @@ RaycastResult RaycastRectRect(
 		auto rectA_center{ A.GetCenter(transform1) };
 		auto rectB_center{ B.GetCenter(transform2) };
 		return RaycastRect(
-			rectA_center, rectA_center + ray, Transform{ rectB_center, transform2.GetRotation() },
+			rectA_center, rectA_center + ray, Transform{ rectB_center, transform2.rotation },
 			Rect{ A.GetSize(transform1) + B.GetSize(transform2) }
 		);
 	} else if (rotated1 && !rotated2) {
@@ -565,8 +565,8 @@ RaycastResult RaycastRectPolygon(
 RaycastResult RaycastPolygonPolygon(
 	V2_float ray, Transform transform1, const Polygon& A, Transform transform2, const Polygon& B
 ) {
-	PTGN_ASSERT(impl::IsConvexPolygon(A));
-	PTGN_ASSERT(impl::IsConvexPolygon(B));
+	PTGN_ASSERT(A.IsConvex());
+	PTGN_ASSERT(B.IsConvex());
 
 	RaycastResult best;
 

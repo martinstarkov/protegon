@@ -133,12 +133,12 @@ V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx)
 }
 
 V2_float CenterToTopLeft(V2_float point_center, V2_float size) {
-	PTGN_ASSERT(size.BothAboveZero());
+	PTGN_ASSERT(size.IsPositive());
 	return point_center + size * 0.5f;
 }
 
 V2_float TopLeftToCenter(V2_float point_top_left, V2_float size) {
-	PTGN_ASSERT(size.BothAboveZero());
+	PTGN_ASSERT(size.IsPositive());
 	return point_top_left - size * 0.5f;
 }
 
@@ -171,13 +171,13 @@ V2_float RenderTargetToDisplay(
 }
 
 V2_float RenderTargetToCamera(V2_float render_target_point, const CameraFrame& camera_frame) {
-	PTGN_ASSERT(camera_frame.scale.BothAboveZero(), "Display scale cannot be negative or zero");
+	PTGN_ASSERT(camera_frame.scale.IsPositive(), "Display scale cannot be negative or zero");
 	return (render_target_point + camera_frame.render_target_size / 2.0f) / camera_frame.scale -
 		   (camera_frame.camera_viewport.position + camera_frame.camera_viewport.size / 2.0f);
 }
 
 V2_float CameraToRenderTarget(V2_float camera_point, const CameraFrame& camera_frame) {
-	PTGN_ASSERT(camera_frame.scale.BothAboveZero(), "Display scale cannot be negative or zero");
+	PTGN_ASSERT(camera_frame.scale.IsPositive(), "Display scale cannot be negative or zero");
 	return (camera_point + camera_frame.camera_viewport.position +
 			camera_frame.camera_viewport.size / 2.0f) *
 			   camera_frame.scale -

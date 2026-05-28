@@ -362,8 +362,8 @@ FontObject::FontObject(
 		out.uv = Rect{ { atlas_left / bitmap.width, atlas_top / bitmap.height },
 					   { atlas_right / bitmap.width, atlas_bottom / bitmap.height } };
 
-		out.uv.GetMin().y = 1.0f - out.uv.GetMin().y;
-		out.uv.GetMax().y = 1.0f - out.uv.GetMax().y;
+		out.uv.min.y = 1.0f - out.uv.min.y;
+		out.uv.max.y = 1.0f - out.uv.max.y;
 
 		data_.glyphs[out.codepoint] = out;
 	}

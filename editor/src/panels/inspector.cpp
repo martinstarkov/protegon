@@ -218,9 +218,9 @@ void DrawComponentImpl(Transform& transform, Depth& depth) {
 		ImGui::BeginGroup();
 		DrawCenteredLabel("X", field_width);
 		ImGui::SetNextItemWidth(field_width);
-		float x{ transform.GetPosition().x };
+		float x{ transform.position.x };
 		ImGui::DragFloat("##PositionX", &x, 1.0f, 0.0f, 0.0f, "%.0f");
-		transform.SetPositionX(x);
+		transform.position.x = x;
 		ImGui::EndGroup();
 
 		ImGui::SameLine(0.0f, kSpacing);
@@ -228,9 +228,7 @@ void DrawComponentImpl(Transform& transform, Depth& depth) {
 		ImGui::BeginGroup();
 		DrawCenteredLabel("Y", field_width);
 		ImGui::SetNextItemWidth(field_width);
-		float y{ transform.GetPosition().y };
-		ImGui::DragFloat("##PositionY", &y, 1.0f, 0.0f, 0.0f, "%.0f");
-		transform.SetPositionY(y);
+		ImGui::DragFloat("##PositionY", &transform.position.y, 1.0f, 0.0f, 0.0f, "%.0f");
 		ImGui::EndGroup();
 
 		ImGui::SameLine(0.0f, kSpacing);
@@ -238,9 +236,7 @@ void DrawComponentImpl(Transform& transform, Depth& depth) {
 		ImGui::BeginGroup();
 		DrawCenteredLabel("Depth", field_width);
 		ImGui::SetNextItemWidth(field_width);
-		float d{ depth };
-		ImGui::DragFloat("##PositionDepth", &d, 0.05f, -1000.0f, 1000.0f, "%.0f");
-		depth = d;
+		ImGui::DragFloat("##PositionDepth", &depth.value, 0.05f, -1000.0f, 1000.0f, "%.0f");
 		ImGui::EndGroup();
 
 		ImGui::EndGroup();
@@ -268,13 +264,14 @@ void DrawComponentImpl(Transform& transform, Depth& depth) {
 		ImGui::BeginGroup();
 		DrawCenteredLabel("X", field_width);
 		ImGui::SetNextItemWidth(field_width);
-		float x{ transform.GetScale().x };
+		float x{ transform.scale.x };
 		if (ImGui::DragFloat(
 				"##ScaleX", &x, 0.01f, -1000.0f, 1000.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp
 			)) {
 			ClampScaleAwayFromZero(x);
 		}
-		transform.SetScaleX(x);
+		transform.scale.x = x;
+		transform.ClampScale();
 		ImGui::EndGroup();
 
 		ImGui::SameLine(0.0f, kSpacing);
@@ -282,13 +279,14 @@ void DrawComponentImpl(Transform& transform, Depth& depth) {
 		ImGui::BeginGroup();
 		DrawCenteredLabel("Y", field_width);
 		ImGui::SetNextItemWidth(field_width);
-		float y{ transform.GetScale().y };
+		float y{ transform.scale.y };
 		if (ImGui::DragFloat(
 				"##ScaleY", &y, 0.01f, -1000.0f, 1000.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp
 			)) {
 			ClampScaleAwayFromZero(y);
 		}
-		transform.SetScaleY(y);
+		transform.scale.y = y;
+		transform.ClampScale();
 		ImGui::EndGroup();
 
 		ImGui::EndGroup();
@@ -304,11 +302,11 @@ void DrawComponentImpl(Transform& transform, Depth& depth) {
 	{
 		float available_width{ ImGui::GetContentRegionAvail().x };
 		ImGui::SetNextItemWidth(available_width - kLabelWidth);
-		float r{ transform.GetRotation().value };
+		float r{ transform.rotation.ToDeg().value };
 		ImGui::DragFloat(
 			"##Rotation", &r, 1.0f, 0.0f, 360.0f, "%.1f deg", ImGuiSliderFlags_AlwaysClamp
 		);
-		transform.SetRotation(Degrees{ r });
+		transform.rotation = Degrees{ r }.ToRad();
 	}
 }
 

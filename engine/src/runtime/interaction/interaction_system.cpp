@@ -391,7 +391,7 @@ bool InteractionSystem::IsOverlappingDropzone(
 				"Dropzone entity and drag entity must share the same camera"
 			);
 			// Origin not accounted for because this is about TransformOverlaps, not center.
-			auto position{ GetWorldTransform(draggable).GetPosition() };
+			auto position{ GetWorldTransform(draggable).position };
 			is_overlapping = Overlap(position, dropzone);
 			break;
 		}
@@ -473,7 +473,7 @@ void InteractionSystem::HandleDragging(
 			draggable.start	   = mouse.position;
 			// Origin does not need to be accounted for here because offset will be used to set
 			// the position (most often).
-			draggable.offset = GetWorldTransform(dragging).GetPosition() - draggable.start;
+			draggable.offset = GetWorldTransform(dragging).position - draggable.start;
 		}
 	}
 

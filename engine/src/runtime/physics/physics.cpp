@@ -25,7 +25,7 @@ std::optional<Bounds> Physics::GetBounds() const {
 
 void Physics::SetBounds(std::optional<Bounds> bounds) {
 	PTGN_ASSERT(
-		bounds.has_value() ? bounds->size.BothAboveZero() : true, "Bounds size cannot be negative"
+		bounds.has_value() ? bounds->size.IsPositive() : true, "Bounds size cannot be negative"
 	);
 
 	bounds_ = bounds;
@@ -117,35 +117,34 @@ void Physics::PostCollisionUpdate() const {
 }
 
 void Physics::HandleBoundary(Transform& transform, V2_float& velocity, const Bounds& bounds) {
-	const V2_float position{ transform.GetPosition() };
-
+	auto position{ transform.position };
 	auto half_size{ bounds.size / 2.0f };
-	auto min_bound{ bounds.position - half_size };
-	auto max_bound{ bounds.position + half_size };
+	auto min{ bounds.position - half_size };
+	auto max{ bounds.position + half_size };
 
 	switch (bounds.behavior) {
 		case BoundaryBehavior::StopVelocity: {
-			V2_float clamped_position{ Clamp(position, min_bound, max_bound) };
-			if (clamped_position != position) {
+			auto clamped{ Clamp(position, min, max) };
+			if (clamped != position) {
 				velocity = {};
 			}
-			transform.SetPosition(clamped_position);
+			transform.position = clamped;
 			break;
 		}
 		case BoundaryBehavior::SlideVelocity: {
-			V2_float clamped_position{ Clamp(position, min_bound, max_bound) };
-			transform.SetPosition(clamped_position);
+			auto clamped{ Clamp(position, min, max) };
+			transform.position = clamped;
 			break;
 		}
 		case BoundaryBehavior::ReflectVelocity: {
-			V2_float clamped_position{ Clamp(position, min_bound, max_bound) };
-			if (clamped_position.x != position.x) {
+			auto clamped{ Clamp(position, min, max) };
+			if (clamped.x != position.x) {
 				velocity.x *= -1.0f;
 			}
-			if (clamped_position.y != position.y) {
+			if (clamped.y != position.y) {
 				velocity.y *= -1.0f;
 			}
-			transform.SetPosition(clamped_position);
+			transform.position = clamped;
 			break;
 		}
 		default: PTGN_ERROR("Unknown physics boundary behavior specified");

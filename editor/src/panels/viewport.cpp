@@ -97,13 +97,12 @@ void UpdateEditorCameraPan(EditorCamera& editor_camera) {
 	if (ImGui::IsWindowHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
 		ImVec2 d = io.MouseDelta;
 
-		editor_camera.camera.transform.TranslateX(-d.x);
-		editor_camera.camera.transform.TranslateY(-d.y);
+		editor_camera.camera.transform.Translate(-V2_float{ d.x, d.y });
 
 		// ImGui::Text("Panning: %.2f, %.2f", d.x, d.y);
 		// ImGui::Text(
-		//	"Transform: %.2f, %.2f", editor_camera.camera.transform.GetPosition().x,
-		//	editor_camera.camera.transform.GetPosition().y
+		//	"Transform: %.2f, %.2f", editor_camera.camera.transform.position.x,
+		//	editor_camera.camera.transform.position.y
 		//);
 	}
 }
@@ -145,9 +144,9 @@ void DrawSimple2DGizmo(
 		}
 	}
 
-	V2_float pos   = transform.GetPosition();
-	Radians rot	   = transform.GetRotation().ToRad();
-	V2_float scale = transform.GetScale();
+	V2_float pos   = transform.position;
+	Radians rot	   = transform.rotation;
+	V2_float scale = transform.scale;
 
 	gizmo.pivot_world = pos;
 
@@ -157,16 +156,16 @@ void DrawSimple2DGizmo(
 	const float rotate_ring_radius_px	 = 48.0f;
 	const float rotate_ring_thickness_px = 8.0f;
 
-	V2_float pivot_screen = view.WorldToScreen(transform.GetPosition());
+	V2_float pivot_screen = view.WorldToScreen(transform.position);
 	V2_float mouse_screen{ io.MousePos.x, io.MousePos.y };
 	V2_float mouse_world = view.ScreenToWorld(mouse_screen);
 
 	ImGui::Text("Mouse screen: %.2f %.2f", mouse_screen.x, mouse_screen.y);
 	ImGui::Text("Mouse world:  %.2f %.2f", mouse_world.x, mouse_world.y);
-	ImGui::Text("Obj pos:      %.2f %.2f", transform.GetPosition().x, transform.GetPosition().y);
+	ImGui::Text("Obj pos:      %.2f %.2f", transform.position.x, transform.position.y);
 	ImGui::Text("Pivot screen: %.2f %.2f", pivot_screen.x, pivot_screen.y);
 
-	float angle = transform.GetRotation().value;
+	float angle = transform.rotation.value;
 
 	V2_float axisX_screen{ std::cos(angle), -std::sin(angle) };
 
@@ -218,9 +217,9 @@ void DrawSimple2DGizmo(
 		gizmo.active				  = gizmo.hot;
 		gizmo.drag_start_mouse_world  = mouse_world;
 		gizmo.drag_start_mouse_screen = mouse_screen;
-		gizmo.drag_start_position	  = transform.GetPosition();
-		gizmo.drag_start_scale		  = transform.GetScale();
-		gizmo.drag_start_rotation	  = transform.GetRotation().ToRad();
+		gizmo.drag_start_position	  = transform.position;
+		gizmo.drag_start_scale		  = transform.scale;
+		gizmo.drag_start_rotation	  = transform.rotation;
 	}
 
 	if (gizmo.active != GizmoHandle::None && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
@@ -234,7 +233,7 @@ void DrawSimple2DGizmo(
 				// if your world uses negative Y up, flip Y here as needed
 				// world_delta.y = -world_delta.y;
 
-				transform.SetPosition(gizmo.drag_start_position + world_delta);
+				transform.position = gizmo.drag_start_position + world_delta;
 				break;
 			}
 
@@ -246,8 +245,8 @@ void DrawSimple2DGizmo(
 				V2_float screen_delta = mouse_screen - gizmo.drag_start_mouse_screen;
 				V2_float world_delta  = screen_delta / view.zoom;
 				// maybe flip Y depending on your world convention
-				float amount = Dot(world_delta, axis);
-				transform.SetPosition(gizmo.drag_start_position + axis * amount);
+				float amount	   = Dot(world_delta, axis);
+				transform.position = gizmo.drag_start_position + axis * amount;
 				break;
 			}
 
@@ -259,8 +258,8 @@ void DrawSimple2DGizmo(
 				V2_float screen_delta = mouse_screen - gizmo.drag_start_mouse_screen;
 				V2_float world_delta  = screen_delta / view.zoom;
 				// maybe flip Y depending on your world convention
-				float amount = Dot(world_delta, axis);
-				transform.SetPosition(gizmo.drag_start_position + axis * amount);
+				float amount	   = Dot(world_delta, axis);
+				transform.position = gizmo.drag_start_position + axis * amount;
 				break;
 			}
 
@@ -270,8 +269,8 @@ void DrawSimple2DGizmo(
 				V2_float current_dir = Normalize(mouse_world - gizmo.drag_start_position);
 
 				if (Length(start_dir) > 0.0f && Length(current_dir) > 0.0f) {
-					float delta = SignedAngle(start_dir, current_dir);
-					transform.SetRotation(Radians{ gizmo.drag_start_rotation.value + delta });
+					float delta		   = SignedAngle(start_dir, current_dir);
+					transform.rotation = Radians{ gizmo.drag_start_rotation.value + delta };
 				}
 				break;
 			}
@@ -284,9 +283,10 @@ void DrawSimple2DGizmo(
 				V2_float delta = mouse_world - gizmo.drag_start_mouse_world;
 				float amount   = Dot(delta, axis);
 
-				V2_float s = gizmo.drag_start_scale;
-				s.x		   = std::max(0.01f, gizmo.drag_start_scale.x + amount);
-				transform.SetScale(s);
+				V2_float s		= gizmo.drag_start_scale;
+				s.x				= std::max(0.01f, gizmo.drag_start_scale.x + amount);
+				transform.scale = s;
+				transform.ClampScale();
 				break;
 			}
 
@@ -298,9 +298,10 @@ void DrawSimple2DGizmo(
 				V2_float delta = mouse_world - gizmo.drag_start_mouse_world;
 				float amount   = Dot(delta, axis);
 
-				V2_float s = gizmo.drag_start_scale;
-				s.y		   = std::max(0.01f, gizmo.drag_start_scale.y + amount);
-				transform.SetScale(s);
+				V2_float s		= gizmo.drag_start_scale;
+				s.y				= std::max(0.01f, gizmo.drag_start_scale.y + amount);
+				transform.scale = s;
+				transform.ClampScale();
 				break;
 			}
 
@@ -309,11 +310,12 @@ void DrawSimple2DGizmo(
 				float current_dist = Length(mouse_world - gizmo.drag_start_position);
 
 				if (start_dist > 1e-6f) {
-					float factor = current_dist / start_dist;
-					V2_float s	 = gizmo.drag_start_scale * factor;
-					s.x			 = std::max(0.01f, s.x);
-					s.y			 = std::max(0.01f, s.y);
-					transform.SetScale(s);
+					float factor	= current_dist / start_dist;
+					V2_float s		= gizmo.drag_start_scale * factor;
+					s.x				= std::max(0.01f, s.x);
+					s.y				= std::max(0.01f, s.y);
+					transform.scale = s;
+					transform.ClampScale();
 				}
 				break;
 			}
@@ -333,17 +335,13 @@ void DrawSimple2DGizmo(
 	const ImU32 col_rotate = IM_COL32(80, 160, 255, 255);
 	const ImU32 col_hot	   = IM_COL32(255, 255, 255, 255);
 
-	pivot_screen = view.WorldToScreen(transform.GetPosition());
+	pivot_screen = view.WorldToScreen(transform.position);
 
-	V2_float x_end_screen = {
-		pivot_screen.x + std::cos(transform.GetRotation().value) * axis_len_px,
-		pivot_screen.y - std::sin(transform.GetRotation().value) * axis_len_px
-	};
+	V2_float x_end_screen = { pivot_screen.x + std::cos(transform.rotation.value) * axis_len_px,
+							  pivot_screen.y - std::sin(transform.rotation.value) * axis_len_px };
 
-	V2_float y_end_screen = {
-		pivot_screen.x - std::sin(transform.GetRotation().value) * axis_len_px,
-		pivot_screen.y - std::cos(transform.GetRotation().value) * axis_len_px
-	};
+	V2_float y_end_screen = { pivot_screen.x - std::sin(transform.rotation.value) * axis_len_px,
+							  pivot_screen.y - std::cos(transform.rotation.value) * axis_len_px };
 
 	if (gizmo.tool == GizmoTool::Translate) {
 		draw_list->AddLine(

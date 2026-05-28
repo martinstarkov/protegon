@@ -41,8 +41,8 @@ namespace impl {
 Intersection IntersectCircleCircle(Transform t1, const Circle& A, Transform t2, const Circle& B) {
 	Intersection c;
 
-	auto circleA_center{ A.GetCenter(t1) };
-	auto circleB_center{ B.GetCenter(t2) };
+	auto circleA_center{ t1.position };
+	auto circleB_center{ t2.position };
 
 	auto circleA_radius{ A.GetRadius(t1) };
 	auto circleB_radius{ B.GetRadius(t2) };
@@ -81,7 +81,7 @@ Intersection IntersectCircleRect(Transform t1, const Circle& A, Transform t2, co
 	// https://steamcdn-a.akamaihd.net/apps/valve/2015/DirkGregorius_Contacts.pdf
 	Intersection c;
 
-	auto circle_center{ A.GetCenter(t1) };
+	auto circle_center{ t1.position };
 	auto circle_radius{ A.GetRadius(t1) };
 
 	auto rect_center{ B.GetCenter(t2) };
@@ -137,7 +137,7 @@ Intersection IntersectCirclePolygon(Transform t1, const Circle& A, Transform t2,
 	auto count{ vertices.size() };
 
 	auto circle_radius{ A.GetRadius(t1) };
-	auto circle_center{ A.GetCenter(t1) };
+	auto circle_center{ t1.position };
 
 	// Check each edge of the polygon
 	for (auto i{ 0uz }; i < count; ++i) {
@@ -222,12 +222,12 @@ Intersection IntersectPolygonPolygon(
 	Polygon polygon_B{ B.GetWorldVertices(t2) };
 
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(polygon_A),
+		polygon_A.IsConvex(),
 		"PolygonPolygon intersection check only works if both polygons are convex"
 	);
 
 	PTGN_ASSERT(
-		impl::IsConvexPolygon(polygon_B),
+		polygon_B.IsConvex(),
 		"PolygonPolygon intersection check only works if both polygons are convex"
 	);
 

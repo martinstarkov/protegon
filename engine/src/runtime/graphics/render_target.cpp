@@ -75,10 +75,10 @@ Color RenderTarget::GetClearColor() const {
 
 V2_float RenderTarget::GetScale() const {
 	V2_float game_size{ GetScene().ctx().renderer.GetGameSize() };
-	PTGN_ASSERT(game_size.BothAboveZero(), "Game size cannot be negative or zero");
+	PTGN_ASSERT(game_size.IsPositive(), "Game size cannot be negative or zero");
 	V2_float rt_size{ GetSize() };
 	V2_float scale{ rt_size / game_size };
-	PTGN_ASSERT(scale.BothAboveZero(), "Render target scale cannot be negative or zero");
+	PTGN_ASSERT(scale.IsPositive(), "Render target scale cannot be negative or zero");
 	return scale;
 }
 
@@ -157,7 +157,7 @@ void RenderTarget::AddRenderTargetComponents(
 	}
 
 	PTGN_ASSERT(
-		resolution.BothAboveZero(), "Cannot create render target with an invalid resolution"
+		resolution.IsPositive(), "Cannot create render target with an invalid resolution"
 	);
 
 	AddRenderTargetComponents(render_target, scene, resolution, clear_color, texture_format);

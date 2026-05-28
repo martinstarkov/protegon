@@ -26,7 +26,7 @@ Transform GetOffset(Entity entity) {
 }
 
 void SetDrawOffset(Entity entity, V2_float offset) {
-	entity.TryAdd<impl::Offsets>().custom.SetPosition(offset);
+	entity.TryAdd<impl::Offsets>().custom.position = offset;
 }
 
 } // namespace ptgn
