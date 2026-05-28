@@ -80,7 +80,7 @@ void Framebuffers::AttachTexture(
 
 	if (texture) {
 		PTGN_ASSERT(
-			gl_.textures.GetCache(texture).size.BothAboveZero(),
+			gl_.textures.GetCache(texture).size.IsPositive(),
 			"Cannot attach a texture with no size"
 		);
 	}
@@ -105,7 +105,7 @@ void Framebuffers::AttachRenderbuffer(
 
 	if (renderbuffer) {
 		PTGN_ASSERT(
-			gl_.renderbuffers.GetCache(renderbuffer).size.BothAboveZero(),
+			gl_.renderbuffers.GetCache(renderbuffer).size.IsPositive(),
 			"Cannot attach a renderbuffer with no size"
 		);
 	}
