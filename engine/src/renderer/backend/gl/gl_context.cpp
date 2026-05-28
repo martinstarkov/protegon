@@ -8,6 +8,7 @@
 #include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
+#include "core/math/matrix4.h"
 #include "core/math/tolerance.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
@@ -342,13 +343,13 @@ void GLContext::SetBlend(bool enabled) {
 		SetDepthTesting(false);
 	}
 
-	if (bound_.blend == enabled) {
+	if (bound_.render_state.blending == enabled) {
 		return;
 	}
 
 	GLCall(enabled ? glEnable(GL_BLEND) : glDisable(GL_BLEND));
 
-	bound_.blend = enabled;
+	bound_.render_state.blending = enabled;
 }
 
 void GLContext::SetDepthTesting(bool enabled) {
@@ -356,19 +357,19 @@ void GLContext::SetDepthTesting(bool enabled) {
 		SetBlend(false);
 	}
 
-	if (bound_.depth_testing == enabled) {
+	if (bound_.render_state.depth_testing == enabled) {
 		return;
 	}
 
 	GLCall(enabled ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST));
 
-	bound_.depth_testing = enabled;
+	bound_.render_state.depth_testing = enabled;
 }
 
 void GLContext::SetBlendMode(BlendMode blend) {
 	SetBlend(true);
 
-	if (bound_.blend_mode == blend) {
+	if (bound_.render_state.blend_mode == blend) {
 		return;
 	}
 
@@ -401,42 +402,52 @@ void GLContext::SetBlendMode(BlendMode blend) {
 		default: PTGN_ERROR("Unknown BlendMode: ", std::to_underlying(blend));
 	}
 
-	bound_.blend_mode = blend;
+	bound_.render_state.blend_mode = blend;
 }
 
 void GLContext::SetDepthMask(const DepthMaskState& mask) {
-	if (bound_.depth_mask == mask) {
+	if (bound_.render_state.depth_mask == mask) {
 		return;
 	}
 
-	if (!bound_.depth_mask.has_value() ||
-		bound_.depth_mask.has_value() && bound_.depth_mask->func != mask.func) {
+	if (!bound_.render_state.depth_mask.has_value() ||
+		bound_.render_state.depth_mask.has_value() &&
+			bound_.render_state.depth_mask->func != mask.func) {
 		GLCall(glDepthFunc(std::to_underlying(mask.func)));
 	}
-	if (!bound_.depth_mask.has_value() ||
-		bound_.depth_mask.has_value() && bound_.depth_mask->write != mask.write) {
+	if (!bound_.render_state.depth_mask.has_value() ||
+		bound_.render_state.depth_mask.has_value() &&
+			bound_.render_state.depth_mask->write != mask.write) {
 		GLCall(glDepthMask(mask.write));
 	}
-	if (!bound_.depth_mask.has_value() ||
-		bound_.depth_mask.has_value() &&
-			(!NearlyEqual(bound_.depth_mask->range_near, mask.range_near) ||
-			 !NearlyEqual(bound_.depth_mask->range_far, mask.range_far))) {
+	if (!bound_.render_state.depth_mask.has_value() ||
+		bound_.render_state.depth_mask.has_value() &&
+			(!NearlyEqual(bound_.render_state.depth_mask->range_near, mask.range_near) ||
+			 !NearlyEqual(bound_.render_state.depth_mask->range_far, mask.range_far))) {
 		GLCall(glDepthRange(mask.range_near, mask.range_far));
 	}
 
-	bound_.depth_mask = mask;
+	bound_.render_state.depth_mask = mask;
 }
 
 void GLContext::SetViewport(Viewport viewport) {
-	if (bound_.viewport == viewport) {
+	if (bound_.render_state.viewport == viewport) {
 		return;
 	}
 	GLCall(glViewport(viewport.position.x, viewport.position.y, viewport.size.x, viewport.size.y));
-	bound_.viewport = viewport;
+	bound_.render_state.viewport = viewport;
 }
 
 std::optional<Viewport> GLContext::GetViewport() const {
-	return bound_.viewport;
+	return bound_.render_state.viewport;
+}
+
+void GLContext::SetViewProjection(const Matrix4& view_projection) {
+	bound_.render_state.view_projection = view_projection;
+}
+
+const std::optional<Matrix4>& GLContext::GetViewProjection() const {
+	return bound_.render_state.view_projection;
 }
 
 void GLContext::SetClearColor(Color color) {
@@ -467,110 +478,121 @@ void GLContext::SetClearStencil(int stencil) {
 }
 
 void GLContext::SetColorMask(const ColorMaskState& mask) {
-	if (bound_.color_mask == mask) {
+	if (bound_.render_state.color_mask == mask) {
 		return;
 	}
 	GLCall(glColorMask(mask.red, mask.green, mask.blue, mask.alpha));
-	bound_.color_mask = mask;
+	bound_.render_state.color_mask = mask;
 }
 
 void GLContext::SetScissor(const ScissorState& scissor) {
-	if (bound_.scissor == scissor) {
+	if (bound_.render_state.scissor == scissor) {
 		return;
 	}
 
 	if (scissor.enabled) {
-		if (!bound_.scissor.has_value() || bound_.scissor.has_value() && !bound_.scissor->enabled) {
+		if (!bound_.render_state.scissor.has_value() ||
+			bound_.render_state.scissor.has_value() && !bound_.render_state.scissor->enabled) {
 			GLCall(glEnable(GL_SCISSOR_TEST));
 		}
-		if (!bound_.scissor.has_value() ||
-			bound_.scissor.has_value() && bound_.scissor->viewport != scissor.viewport) {
+		if (!bound_.render_state.scissor.has_value() ||
+			bound_.render_state.scissor.has_value() &&
+				bound_.render_state.scissor->viewport != scissor.viewport) {
 			GLCall(glScissor(
 				scissor.viewport.position.x, scissor.viewport.position.y, scissor.viewport.size.x,
 				scissor.viewport.size.y
 			));
 		}
 	} else {
-		if (!bound_.scissor.has_value() || bound_.scissor.has_value() && bound_.scissor->enabled) {
+		if (!bound_.render_state.scissor.has_value() ||
+			bound_.render_state.scissor.has_value() && bound_.render_state.scissor->enabled) {
 			GLCall(glDisable(GL_SCISSOR_TEST));
 		}
 	}
 
-	bound_.scissor = scissor;
+	bound_.render_state.scissor = scissor;
 }
 
 void GLContext::SetRaster(const RasterState& raster) {
-	if (bound_.raster == raster) {
+	if (bound_.render_state.raster == raster) {
 		return;
 	}
 
 	PTGN_ASSERT(raster.line_width >= 1.0f, "Only line widths >= 1.0 are supported");
 
-	if (!bound_.raster.has_value() ||
-		bound_.raster.has_value() && !NearlyEqual(bound_.raster->line_width, raster.line_width)) {
+	if (!bound_.render_state.raster.has_value() ||
+		bound_.render_state.raster.has_value() &&
+			!NearlyEqual(bound_.render_state.raster->line_width, raster.line_width)) {
 		GLCall(glLineWidth(raster.line_width));
 	}
 
 	if (raster.cull.enabled) {
-		if (!bound_.raster.has_value() ||
-			bound_.raster.has_value() && !bound_.raster->cull.enabled) {
+		if (!bound_.render_state.raster.has_value() ||
+			bound_.render_state.raster.has_value() && !bound_.render_state.raster->cull.enabled) {
 			GLCall(glEnable(GL_CULL_FACE));
 		}
 	} else {
-		if (!bound_.raster.has_value() ||
-			bound_.raster.has_value() && bound_.raster->cull.enabled) {
+		if (!bound_.render_state.raster.has_value() ||
+			bound_.render_state.raster.has_value() && bound_.render_state.raster->cull.enabled) {
 			GLCall(glDisable(GL_CULL_FACE));
 		}
 	}
 
-	if (!bound_.raster.has_value() ||
-		bound_.raster.has_value() && bound_.raster->cull.cull_face != raster.cull.cull_face) {
+	if (!bound_.render_state.raster.has_value() ||
+		bound_.render_state.raster.has_value() &&
+			bound_.render_state.raster->cull.cull_face != raster.cull.cull_face) {
 		GLCall(glCullFace(std::to_underlying(raster.cull.cull_face)));
 	}
-	if (!bound_.raster.has_value() ||
-		bound_.raster.has_value() && bound_.raster->cull.front_face != raster.cull.front_face) {
+	if (!bound_.render_state.raster.has_value() ||
+		bound_.render_state.raster.has_value() &&
+			bound_.render_state.raster->cull.front_face != raster.cull.front_face) {
 		GLCall(glFrontFace(std::to_underlying(raster.cull.front_face)));
 	}
 
-	bound_.raster = raster;
+	bound_.render_state.raster = raster;
 }
 
 void GLContext::SetStencil(const StencilState& stencil) {
-	if (bound_.stencil == stencil) {
+	if (bound_.render_state.stencil == stencil) {
 		return;
 	}
 
 	if (stencil.enabled) {
-		if (!bound_.stencil.has_value() || bound_.stencil.has_value() && !bound_.stencil->enabled) {
+		if (!bound_.render_state.stencil.has_value() ||
+			bound_.render_state.stencil.has_value() && !bound_.render_state.stencil->enabled) {
 			GLCall(glEnable(GL_STENCIL_TEST));
 		}
 	} else {
-		if (!bound_.stencil.has_value() || bound_.stencil.has_value() && bound_.stencil->enabled) {
+		if (!bound_.render_state.stencil.has_value() ||
+			bound_.render_state.stencil.has_value() && bound_.render_state.stencil->enabled) {
 			GLCall(glDisable(GL_STENCIL_TEST));
 		}
 	}
 
-	if (!bound_.stencil.has_value() ||
-		bound_.stencil.has_value() &&
-			(bound_.stencil->func != stencil.func || bound_.stencil->ref != stencil.ref ||
-			 bound_.stencil->mask != stencil.mask)) {
+	if (!bound_.render_state.stencil.has_value() ||
+		bound_.render_state.stencil.has_value() &&
+			(bound_.render_state.stencil->func != stencil.func ||
+			 bound_.render_state.stencil->ref != stencil.ref ||
+			 bound_.render_state.stencil->mask != stencil.mask)) {
 		GLCall(glStencilFunc(std::to_underlying(stencil.func), stencil.ref, stencil.mask));
 	}
-	if (!bound_.stencil.has_value() ||
-		bound_.stencil.has_value() && (bound_.stencil->fail_op != stencil.fail_op ||
-									   bound_.stencil->zfail_op != stencil.zfail_op ||
-									   bound_.stencil->zpass_op != stencil.zpass_op)) {
+	if (!bound_.render_state.stencil.has_value() ||
+		bound_.render_state.stencil.has_value() &&
+			(bound_.render_state.stencil->fail_op != stencil.fail_op ||
+			 bound_.render_state.stencil->zfail_op != stencil.zfail_op ||
+			 bound_.render_state.stencil->zpass_op != stencil.zpass_op)) {
 		GLCall(glStencilOp(
 			std::to_underlying(stencil.fail_op), std::to_underlying(stencil.zfail_op),
 			std::to_underlying(stencil.zpass_op)
 		));
 	}
-	if (!bound_.stencil.has_value() ||
-		bound_.stencil.has_value() && bound_.stencil->write_mask != stencil.write_mask) {
+	if (!bound_.render_state.stencil.has_value() ||
+		bound_.render_state.stencil.has_value() &&
+			bound_.render_state.stencil->write_mask != stencil.write_mask) {
 		GLCall(glStencilMask(stencil.write_mask));
 	}
 
-	bound_.stencil = stencil;
+	bound_.render_state.stencil = stencil;
 }
 
 void GLContext::SetActiveTextureSlot(std::uint32_t slot) {

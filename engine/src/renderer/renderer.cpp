@@ -265,24 +265,34 @@ void Renderer::SetShader(std::string_view shader) {
 }
 
 void Renderer::SetShader(impl::ShaderId shader) {
+	const auto& bound{ gl_->GetBoundState() };
 	if (shader == gl_->GetBoundState().shader_program) {
 		return;
 	}
 	FlushBatch();
 	auto _ = gl_->Bind(shader, false);
-	gl_->shaders.SetUniform(shader, "u_ViewProjection", view_projection_);
+	PTGN_ASSERT(bound.render_state.view_projection.has_value());
+	gl_->shaders.SetUniform(shader, "u_ViewProjection", *bound.render_state.view_projection);
 }
 
 std::optional<BlendMode> Renderer::GetBlendMode() const {
-	return gl_->GetBoundState().blend_mode;
+	return gl_->GetBoundState().render_state.blend_mode;
 }
 
 void Renderer::SetBlendMode(BlendMode blend_mode) {
-	if (blend_mode == gl_->GetBoundState().blend_mode) {
+	if (blend_mode == gl_->GetBoundState().render_state.blend_mode) {
 		return;
 	}
 	FlushBatch();
 	gl_->SetBlendMode(blend_mode);
+}
+
+void Renderer::SetBlending(bool enabled) {
+	if (enabled == gl_->GetBoundState().render_state.blending) {
+		return;
+	}
+	FlushBatch();
+	gl_->SetBlend(enabled);
 }
 
 impl::PipelineId Renderer::GetTexturePipeline() const {
@@ -313,19 +323,21 @@ void Renderer::SetViewProjection(V2_float size) {
 }
 
 void Renderer::SetViewProjection(const Matrix4& view_projection) {
-	if (view_projection_ != view_projection) {
+	if (view_projection != gl_->GetBoundState().render_state.view_projection) {
 		FlushBatch();
-		view_projection_ = view_projection;
+		gl_->SetViewProjection(view_projection);
 	}
 	// TODO: Find a better way to do this. This is needed to ensure that the shader's
 	// uniform is updated even if the shader itself doesn't change.
+	const auto& bound{ gl_->GetBoundState().render_state };
+	PTGN_ASSERT(bound.view_projection.has_value());
 	if (auto shader{ gl_->GetBoundShader() }; shader.has_value() && *shader) {
-		gl_->shaders.SetUniform(*shader, "u_ViewProjection", view_projection_);
+		gl_->shaders.SetUniform(*shader, "u_ViewProjection", *bound.view_projection);
 	}
 }
 
 void Renderer::SetDepthTesting(bool enabled) {
-	if (enabled == gl_->GetBoundState().depth_testing) {
+	if (enabled == gl_->GetBoundState().render_state.depth_testing) {
 		return;
 	}
 	FlushBatch();
@@ -333,7 +345,7 @@ void Renderer::SetDepthTesting(bool enabled) {
 }
 
 void Renderer::SetDepthMask(const DepthMaskState& mask) {
-	if (mask == gl_->GetBoundState().depth_mask) {
+	if (mask == gl_->GetBoundState().render_state.depth_mask) {
 		return;
 	}
 	FlushBatch();
@@ -341,7 +353,7 @@ void Renderer::SetDepthMask(const DepthMaskState& mask) {
 }
 
 void Renderer::SetStencil(const StencilState& stencil) {
-	if (stencil == gl_->GetBoundState().stencil) {
+	if (stencil == gl_->GetBoundState().render_state.stencil) {
 		return;
 	}
 	FlushBatch();
@@ -349,7 +361,7 @@ void Renderer::SetStencil(const StencilState& stencil) {
 }
 
 void Renderer::SetRaster(const RasterState& raster) {
-	if (raster == gl_->GetBoundState().raster) {
+	if (raster == gl_->GetBoundState().render_state.raster) {
 		return;
 	}
 	FlushBatch();
@@ -357,7 +369,7 @@ void Renderer::SetRaster(const RasterState& raster) {
 }
 
 void Renderer::SetScissor(const ScissorState& scissor) {
-	if (scissor == gl_->GetBoundState().scissor) {
+	if (scissor == gl_->GetBoundState().render_state.scissor) {
 		return;
 	}
 	FlushBatch();
@@ -365,7 +377,7 @@ void Renderer::SetScissor(const ScissorState& scissor) {
 }
 
 void Renderer::SetColorMask(const ColorMaskState& color_mask) {
-	if (color_mask == gl_->GetBoundState().color_mask) {
+	if (color_mask == gl_->GetBoundState().render_state.color_mask) {
 		return;
 	}
 	FlushBatch();
@@ -680,10 +692,6 @@ void Renderer::EndFrame() {
 		"Screen target texture size must match display viewport size"
 	);
 
-	SetBlendMode(BlendMode::ReplaceRGBA);
-	SetViewport(display_viewport_);
-	SetViewProjection(display_viewport_.size);
-
 	SetCurrentPipeline("texture");
 	SetMaterial(
 		MaterialState{
@@ -691,6 +699,9 @@ void Renderer::EndFrame() {
 			.uniforms = {},
 		}
 	);
+	SetBlendMode(BlendMode::ReplaceRGBA);
+	SetViewport(display_viewport_);
+	SetViewProjection(display_viewport_.size);
 
 	constexpr auto depth{ 0.0f };
 	constexpr auto tint{ color::White };
@@ -901,10 +912,6 @@ void Renderer::DrawElements(const impl::RenderPipeline& pipeline, std::uint32_t 
 	);
 }
 
-void Renderer::ApplyRenderTarget(impl::RenderTargetId id) {
-	auto _ = gl_->Bind(impl::FramebufferId{ id }, false);
-}
-
 void Renderer::SetMaterial(const MaterialState& material) {
 	SetShader(material.shader);
 
@@ -917,17 +924,7 @@ void Renderer::SetMaterial(const MaterialState& material) {
 
 RenderState Renderer::GetRenderState() const {
 	const auto& state{ gl_->GetBoundState() };
-	return RenderState{
-		.viewport		 = gl_->GetViewport(),
-		.view_projection = view_projection_,
-		.blend_mode		 = state.blend_mode,
-		.depth_testing	 = state.depth_testing,
-		.depth_mask		 = state.depth_mask,
-		.stencil		 = state.stencil,
-		.raster			 = state.raster,
-		.scissor		 = state.scissor,
-		.color_mask		 = state.color_mask,
-	};
+	return state.render_state;
 }
 
 const impl::RenderTargetObject& Renderer::GetRenderTarget() const {
@@ -945,20 +942,18 @@ void Renderer::DrawRenderPass(
 
 	PTGN_ASSERT(size.IsPositive(), "Render pass output size must be non-zero");
 
-	ApplyRenderTarget(output);
-
-	SetViewport(Viewport{ .position{}, .size{ size } });
-	SetViewProjection(size);
-	SetBlendMode(BlendMode::ReplaceRGBA);
+	auto _ = gl_->Bind(impl::FramebufferId{ output }, false);
 
 	SetCurrentPipeline(pipeline_name);
-
 	SetMaterial(
 		MaterialState{
 			.shader	  = shader,
 			.uniforms = {},
 		}
 	);
+	SetViewport(Viewport{ .position{}, .size{ size } });
+	SetViewProjection(size);
+	SetBlendMode(BlendMode::ReplaceRGBA);
 
 	std::vector<TextureBinding> bindings;
 	std::vector<impl::TextureId> textures;
@@ -1002,6 +997,9 @@ void Renderer::SetRenderState(const RenderState& state) {
 	if (state.view_projection.has_value()) {
 		SetViewProjection(*state.view_projection);
 	}
+	if (state.blending.has_value()) {
+		SetBlending(*state.blending);
+	}
 	if (state.blend_mode.has_value()) {
 		SetBlendMode(*state.blend_mode);
 	}
@@ -1025,73 +1023,16 @@ void Renderer::SetRenderState(const RenderState& state) {
 	}
 }
 
-void Renderer::ApplyRenderState(const RenderState& state) {
-	if (state.blend_mode.has_value()) {
-		gl_->SetBlendMode(*state.blend_mode);
-	}
-	if (state.color_mask.has_value()) {
-		gl_->SetColorMask(*state.color_mask);
-	}
-	if (state.depth_mask.has_value()) {
-		gl_->SetDepthMask(*state.depth_mask);
-	}
-	if (state.depth_testing.has_value()) {
-		gl_->SetDepthTesting(*state.depth_testing);
-	}
-	if (state.raster.has_value()) {
-		gl_->SetRaster(*state.raster);
-	}
-	if (state.scissor.has_value()) {
-		gl_->SetScissor(*state.scissor);
-	}
-	if (state.stencil.has_value()) {
-		gl_->SetStencil(*state.stencil);
-	}
-	if (state.viewport.has_value()) {
-		gl_->SetViewport(*state.viewport);
-	}
-	if (state.view_projection.has_value()) {
-		view_projection_ = *state.view_projection;
-		if (auto shader{ gl_->GetBoundShader() }; shader.has_value() && *shader) {
-			gl_->shaders.SetUniform(*shader, "u_ViewProjection", view_projection_);
-		}
-	}
-}
-
-void Renderer::ApplyMaterial(const MaterialState& material) {
-	auto _ = gl_->Bind(material.shader, false);
-
-	SetUniform(material.shader, "u_ViewProjection", view_projection_);
-
-	for (const UniformWrite& write : material.uniforms) {
-		std::visit(
-			[&]<typename T>(const T& value) {
-				SetUniform(material.shader, write.name.c_str(), value);
-			},
-			write.value
-		);
-	}
-}
-
 void Renderer::DrawTexture(const impl::DrawTextureRequest& request) {
 	if (request.local_quads.empty()) {
 		return;
 	}
 
-	// TODO: Fix.
-	// if (ReferencesBoundTarget(request)) {
-	//	PTGN_ASSERT(
-	//		IsPresentationCompatible(request),
-	//		"Sampling the bound target implies a presentation effect pass"
-	//	);
-	//	DrawPresentationEffect(request);
-	//	return;
-	//}
 	if (request.effect_params.draw_callback) {
 		DrawTextureEffect(request);
-		return;
+	} else {
+		DrawTextureNormally(request);
 	}
-	DrawTextureNormally(request);
 }
 
 void Renderer::DrawTextureNormally(const impl::DrawTextureRequest& request) {
@@ -1137,16 +1078,17 @@ void Renderer::DrawTextureEffect(const impl::DrawTextureRequest& request) {
 
 	RenderTargetDesc desc{ .size = size, .format = format, .params = params };
 
-	auto prepared{ CreateRenderTarget(desc) };
+	auto expanded_target{ CreateRenderTarget(desc) };
 
-	PTGN_ASSERT(prepared.GetSize() == V2_int{ size });
+	PTGN_ASSERT(expanded_target.GetSize() == V2_int{ size });
 
-	auto previous{ current_target_ };
+	auto previous_target{ current_target_ };
 
-	SetRenderTarget(&prepared);
+	SetRenderTarget(&expanded_target);
 
-	auto prev_viewport{ gl_->GetViewport() };
-	auto prev_view_projection{ view_projection_ };
+	auto previous_pipeline{ pipeline_manager_.GetCurrentPipelineId() };
+	auto previous_shader{ gl_->GetBoundShader() };
+	auto previous_state{ GetRenderState() };
 
 	SetViewport({ .position{}, .size{ size } });
 	SetViewProjection(size);
@@ -1164,11 +1106,12 @@ void Renderer::DrawTextureEffect(const impl::DrawTextureRequest& request) {
 
 	request.effect_params.draw_callback(ctx);
 
-	SetRenderTarget(previous);
-	if (prev_viewport.has_value()) {
-		SetViewport(*prev_viewport);
+	SetCurrentPipeline(previous_pipeline);
+	SetRenderTarget(previous_target);
+	if (previous_shader.has_value()) {
+		SetShader(*previous_shader);
 	}
-	SetViewProjection(prev_view_projection);
+	SetRenderState(previous_state);
 
 	impl::DrawTextureRequest new_request;
 
@@ -1194,11 +1137,11 @@ void Renderer::DrawTextureEffect(const impl::DrawTextureRequest& request) {
 
 	new_request.local_quads = { &local_quad, 1 };
 	new_request.transform	= request.transform;
-	new_request.texture		= GetRenderTargetTexture(prepared);
+	new_request.texture		= GetRenderTargetTexture(expanded_target);
 
 	DrawTextureNormally(new_request);
 
-	temp_render_targets_.emplace_back(std::move(prepared));
+	temp_render_targets_.emplace_back(std::move(expanded_target));
 }
 
 void Renderer::BindTextureSlot(std::uint32_t slot, impl::TextureId texture) {

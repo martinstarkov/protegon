@@ -2,13 +2,12 @@
 
 #include <cstdint>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
-#include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture_format.h"
 
@@ -47,30 +46,23 @@ struct State {
 
 	/// @brief Constructs a default state with all values set to their OpenGL defaults.
 	explicit State(std::size_t max_texture_slots) :
+		render_state{ RenderState::StartingDefaults() },
 		framebuffer{ FramebufferId{ 0 } },
 		renderbuffer{ RenderbufferId{ 0 } },
 		vertex_buffer{ VertexBufferId{ 0 } },
 		uniform_buffer{ UniformBufferId{ 0 } },
 		shader_program{ ShaderId{ 0 } },
 		vertex_array{ VertexArrayId{ 0 } },
-		viewport{ Viewport{ { 0, 0 }, { 0, 0 } } },
-		depth_testing{ false },
-		blend{ false },
-		depth_mask{ DepthMaskState{} },
-		blend_mode{ BlendMode::ReplaceRGBA },
-		color_mask{ ColorMaskState{} },
 		active_texture{ ActiveTexture{ 0 } },
 		texture_units(max_texture_slots, TextureUnitState{ true }),
-		scissor{ ScissorState{ false } },
-		raster{ RasterState{} },
-		stencil{ StencilState{} },
 		clear_depth{ ClearDepth{ 1.0 } },
 		clear_stencil{ 0 },
 		clear_color{ Color{ 0, 0, 0, 0 } } {
 		PTGN_ASSERT(max_texture_slots > 0);
 	}
 
-	// Core object bindings
+	RenderState render_state;
+
 	std::optional<FramebufferId> framebuffer;
 	std::optional<RenderbufferId> renderbuffer;
 	std::optional<VertexBufferId> vertex_buffer;
@@ -78,24 +70,8 @@ struct State {
 	std::optional<ShaderId> shader_program;
 	std::optional<VertexArrayId> vertex_array;
 
-	std::optional<Viewport> viewport;
-
-	std::optional<bool> depth_testing;
-	std::optional<bool> blend;
-	std::optional<DepthMaskState> depth_mask;
-	std::optional<BlendMode> blend_mode;
-
-	std::optional<ColorMaskState> color_mask;
-
 	ActiveTexture active_texture;
 	TextureUnits texture_units;
-
-	std::optional<ScissorState> scissor;
-
-	// Polygon rasterization
-	std::optional<RasterState> raster;
-
-	std::optional<StencilState> stencil;
 
 	std::optional<ClearDepth> clear_depth;
 	std::optional<int> clear_stencil;
@@ -106,7 +82,9 @@ struct State {
 	void Invalidate() {
 		std::size_t max_texture_slots{ texture_units.size() };
 
-		*this = {};
+		auto view_projection{ render_state.view_projection };
+		*this						 = {};
+		render_state.view_projection = std::move(view_projection);
 
 		texture_units.resize(max_texture_slots, TextureUnitState{ true });
 	}

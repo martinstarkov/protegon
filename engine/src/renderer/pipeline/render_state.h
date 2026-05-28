@@ -151,16 +151,34 @@ struct RenderState {
 	std::optional<Viewport> viewport;
 	std::optional<Matrix4> view_projection;
 
+	std::optional<bool> blending;
 	std::optional<BlendMode> blend_mode;
 
 	std::optional<bool> depth_testing;
 	std::optional<DepthMaskState> depth_mask;
-	std::optional<StencilState> stencil;
-	std::optional<RasterState> raster;
-	std::optional<ScissorState> scissor;
 	std::optional<ColorMaskState> color_mask;
+	std::optional<StencilState> stencil;
+	std::optional<ScissorState> scissor;
+	std::optional<RasterState> raster;
 
 	bool operator==(const RenderState&) const = default;
+
+	[[nodiscard]] static RenderState StartingDefaults() {
+		return {
+			.viewport		 = Viewport{ { 0, 0 }, { 0, 0 } },
+			.view_projection = std::nullopt,
+
+			.blending	= false,
+			.blend_mode = BlendMode::ReplaceRGBA,
+
+			.depth_testing = false,
+			.depth_mask	   = DepthMaskState{},
+			.color_mask	   = ColorMaskState{},
+			.stencil	   = StencilState{},
+			.scissor	   = ScissorState{ false },
+			.raster		   = RasterState{},
+		};
+	}
 };
 
 namespace impl {

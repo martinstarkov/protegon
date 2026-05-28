@@ -252,6 +252,7 @@ private:
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetViewport(Viewport viewport);
 	void SetBlendMode(BlendMode blend_mode);
+	void SetBlending(bool enabled);
 	void SetShader(impl::ShaderId shader);
 	void SetShader(std::string_view shader);
 	void SetDepthTesting(bool enabled);
@@ -326,12 +327,6 @@ private:
 	void UploadIndices(const impl::RenderPipeline& pipeline, std::span<const impl::Index> indices);
 	void DrawElements(const impl::RenderPipeline& pipeline, std::uint32_t index_count);
 
-	void ApplyRenderTarget(impl::RenderTargetId id);
-
-	void ApplyRenderState(const RenderState& state);
-
-	void ApplyMaterial(const MaterialState& material);
-
 	void BeginFrame();
 	void EndFrame();
 
@@ -373,9 +368,6 @@ private:
 	EventSink event_sink_;
 
 	std::unique_ptr<impl::gl::GLContext> gl_;
-
-	/// @brief Currently set view projection.
-	Matrix4 view_projection_;
 
 	Color background_color_;
 	impl::RenderTargetObject presentation_target_;

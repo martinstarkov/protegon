@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "core/graphics/color.h"
+#include "core/math/matrix4.h"
 #include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_buffer.h"
 #include "renderer/backend/gl/gl_framebuffer.h"
@@ -101,6 +102,10 @@ public:
 
 	void SetViewport(Viewport viewport);
 	std::optional<Viewport> GetViewport() const;
+
+	void SetViewProjection(const Matrix4& view_projection);
+
+	const std::optional<Matrix4>& GetViewProjection() const;
 
 	void SetActiveTextureSlot(std::uint32_t slot);
 
