@@ -65,12 +65,12 @@ public:
 
 	template <typename F>
 		requires VariantVisitor<F, Variant>
-	decltype(auto) Visit(F&& fn) const {
+	constexpr decltype(auto) Visit(F&& fn) const {
 		return std::visit(std::forward<F>(fn), style_);
 	}
 
 	template <Invocable FSolid, Invocable<float> FHollow>
-	auto Apply(FSolid solid_fn, FHollow hollow_fn) {
+	constexpr auto Apply(FSolid solid_fn, FHollow hollow_fn) {
 		using R1 = std::invoke_result_t<FSolid>;
 		using R2 = std::invoke_result_t<FHollow, float>;
 
@@ -103,7 +103,7 @@ public:
 
 	/// @brief Converts a fill style to a SDF line thickness for shaders to draw hollow and solid
 	/// shapes.
-	[[nodiscard]] float NormalizedToSDFThickness(float fade, V2_float radii) const {
+	[[nodiscard]] constexpr float NormalizedToSDFThickness(float fade, V2_float radii) const {
 		return Visit([fade, radii]<typename T>(const T& s) {
 			if constexpr (std::is_same_v<T, Solid>) {
 				// Internally line width for a filled SDF is 1.0f.

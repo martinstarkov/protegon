@@ -175,23 +175,23 @@ struct Vector2 {
 		return { rng_x(), rng_y() };
 	}
 
-	[[nodiscard]] static Vector2 Right() {
+	[[nodiscard]] constexpr static Vector2 Right() {
 		return { T{ 1 }, T{ 0 } };
 	}
 
-	[[nodiscard]] static Vector2 Up() {
+	[[nodiscard]] constexpr static Vector2 Up() {
 		return { T{ 0 }, T{ 1 } };
 	}
 
-	[[nodiscard]] static Vector2 Left() {
+	[[nodiscard]] constexpr static Vector2 Left() {
 		return { T{ -1 }, T{ 0 } };
 	}
 
-	[[nodiscard]] static Vector2 Down() {
+	[[nodiscard]] constexpr static Vector2 Down() {
 		return { T{ 0 }, T{ -1 } };
 	}
 
-	[[nodiscard]] static Vector2 Infinity() {
+	[[nodiscard]] constexpr static Vector2 Infinity() {
 		return { std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity() };
 	}
 
@@ -209,7 +209,7 @@ struct Vector2 {
 	}
 
 	/// @return Unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
-	[[nodiscard]] Vector2<float> Normalized() const {
+	[[nodiscard]] constexpr Vector2<float> Normalized() const {
 		T m{ MagnitudeSquared() };
 		if (NearlyEqual(m, T{ 0 })) {
 			return *this;
@@ -218,7 +218,7 @@ struct Vector2 {
 	}
 
 	/// @return Normalized (unit) direction vector toward a target position.
-	[[nodiscard]] Vector2<float> DirectionTowards(Vector2 target) const {
+	[[nodiscard]] constexpr Vector2<float> DirectionTowards(Vector2 target) const {
 		Vector2<float> dir{ target - *this };
 		return dir.Normalized();
 	}
@@ -226,7 +226,7 @@ struct Vector2 {
 	/// @brief See https://en.wikipedia.org/wiki/Rotation_matrix for details.
 	/// Positive clockwise.
 	/// @return New vector rotated by the given angle.
-	[[nodiscard]] Vector2<float> Rotated(Radians angle) const {
+	[[nodiscard]] constexpr Vector2<float> Rotated(Radians angle) const {
 		if (NearlyEqual(angle.value, 0.0f)) {
 			return { x, y };
 		}
@@ -238,13 +238,14 @@ struct Vector2 {
 	/// @brief See https://en.wikipedia.org/wiki/Rotation_matrix for details.
 	/// Positive clockwise.
 	/// @return New vector rotated by the given angle.
-	[[nodiscard]] Vector2<float> Rotated(Degrees angle) const {
+	[[nodiscard]] constexpr Vector2<float> Rotated(Degrees angle) const {
 		return Rotated(angle.ToRad());
 	}
 
 	/// @brief Provide cached std::cos(angle) and std::sin(angle) values.
-	[[nodiscard]] Vector2<float> Rotated(float cos, float sin) const {
-		return { x * cos - y * sin, x * sin + y * cos };
+	[[nodiscard]] constexpr Vector2<float> Rotated(float cos, float sin) const {
+		return { static_cast<float>(x) * cos - static_cast<float>(y) * sin,
+				 static_cast<float>(x) * sin + static_cast<float>(y) * cos };
 	}
 
 	/// @return Angle in degrees between vector x and y components in radians.
@@ -256,12 +257,12 @@ struct Vector2 {
 	///    180 ---o--- 0
 	///           |
 	///           90
-	[[nodiscard]] Degrees Angle() const {
+	[[nodiscard]] constexpr Degrees Angle() const {
 		return Radians{ std::atan2(static_cast<float>(y), static_cast<float>(x)) }.ToDeg();
 	}
 
 	/// @brief Angle between this vector and a target vector in degrees.
-	[[nodiscard]] Degrees Angle(Vector2 target) const {
+	[[nodiscard]] constexpr Degrees Angle(Vector2 target) const {
 		float mag1{ static_cast<float>(MagnitudeSquared()) };
 		float mag2{ static_cast<float>(target.MagnitudeSquared()) };
 
@@ -279,18 +280,18 @@ struct Vector2 {
 	}
 
 	/// @return True if both components are zero (or very close to zero within a small epsilon).
-	[[nodiscard]] bool IsZero() const {
+	constexpr bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 });
 	}
 
 	/// @return True if either component are zero (or very close to zero within a small epsilon).
-	[[nodiscard]] bool HasZero() const {
+	constexpr bool HasZero() const {
 		return NearlyEqual(x, T{ 0 }) || NearlyEqual(y, T{ 0 });
 	}
 
 	/// @return True if both components are greater than zero. Returns false if either component is
 	/// zero (or very close to zero within a small epsilon).
-	[[nodiscard]] bool BothAboveZero() const {
+	constexpr bool IsPositive() const {
 		return x > 0 && y > 0 && !HasZero();
 	}
 };
@@ -360,35 +361,35 @@ constexpr Vector2<S> operator/(Vector2<V> lhs, U rhs) { // NOSONAR
 }
 
 template <Arithmetic T>
-[[nodiscard]] float Dot(Vector2<T> a, Vector2<T> b) {
+[[nodiscard]] constexpr float Dot(Vector2<T> a, Vector2<T> b) {
 	return a.Dot(b);
 }
 
 template <Arithmetic T>
-[[nodiscard]] float Length(Vector2<T> v) {
+[[nodiscard]] constexpr float Length(Vector2<T> v) {
 	return v.Magnitude();
 }
 
 template <Arithmetic T>
-[[nodiscard]] Vector2<T> Normalize(Vector2<T> v) {
+[[nodiscard]] constexpr Vector2<T> Normalize(Vector2<T> v) {
 	return v.Normalized();
 }
 
 template <Arithmetic T>
-[[nodiscard]] float Distance(Vector2<T> a, Vector2<T> b) {
+[[nodiscard]] constexpr float Distance(Vector2<T> a, Vector2<T> b) {
 	return Length(a - b);
 }
 
 /// @brief Clamp both components of a vector between min and max (component specific).
 template <Arithmetic T>
-[[nodiscard]] Vector2<T> Clamp(Vector2<T> vector, Vector2<T> min, Vector2<T> max) {
+[[nodiscard]] constexpr Vector2<T> Clamp(Vector2<T> vector, Vector2<T> min, Vector2<T> max) {
 	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y) };
 }
 
 /// @brief Clamp the magnitude of the vector between min and max. This means that a (1, 1) vector
 /// clamped between -1 and 1 will be (0.7, 0.7)
 template <Arithmetic T>
-[[nodiscard]] Vector2<T> Clamp(Vector2<T> vector, T min, T max) {
+[[nodiscard]] constexpr Vector2<T> Clamp(Vector2<T> vector, T min, T max) {
 	Vector2<T> dir{ vector.Normalized() };
 	Vector2<T> dir_min{ dir * Vector2<T>{ min, min } };
 	Vector2<T> dir_max{ dir * Vector2<T>{ max, max } };
@@ -401,72 +402,86 @@ template <Arithmetic T>
 
 /// @return True if both the components of a and b are within margin of each other.
 template <Arithmetic T>
-[[nodiscard]] bool WithinMargin(Vector2<T> a, Vector2<T> b, Vector2<T> margin) {
+[[nodiscard]] constexpr bool WithinMargin(Vector2<T> a, Vector2<T> b, Vector2<T> margin) {
 	return std::abs(a.x - b.x) <= margin.x && std::abs(a.y - b.y) <= margin.y;
 }
 
 /// @return Ceil both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] Vector2<T> FastCeil(Vector2<T> vector) {
+[[nodiscard]] constexpr Vector2<T> FastCeil(Vector2<T> vector) {
 	return { FastCeil(vector.x), FastCeil(vector.y) };
 }
 
 /// @return Floor both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] Vector2<T> FastFloor(Vector2<T> vector) {
+[[nodiscard]] constexpr Vector2<T> FastFloor(Vector2<T> vector) {
 	return { FastFloor(vector.x), FastFloor(vector.y) };
 }
 
 /// @return Round both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] Vector2<T> FastRound(Vector2<T> vector) {
+[[nodiscard]] constexpr Vector2<T> FastRound(Vector2<T> vector) {
 	return { FastRound(vector.x), FastRound(vector.y) };
 }
 
 /// @return Absolute value for both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] Vector2<T> Abs(Vector2<T> vector) {
+[[nodiscard]] constexpr Vector2<T> Abs(Vector2<T> vector) {
 	return { std::abs(vector.x), std::abs(vector.y) };
 }
 
 /// @brief Swap both components of vectors a and b.
 template <Arithmetic T>
-void Swap(Vector2<T>& a, Vector2<T>& b) {
+constexpr void Swap(Vector2<T>& a, Vector2<T>& b) {
 	std::swap(a.x, b.x);
 	std::swap(a.y, b.y);
 }
 
 /// @return Linearly interpolate both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, T t) {
+[[nodiscard]] constexpr Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, T t) {
 	return Vector2<T>{ Lerp(lhs.x, rhs.x, t), Lerp(lhs.y, rhs.y, t) };
 }
 
 /// @return Linearly interpolate both components of a vector by their respective t values.
 template <Arithmetic T>
-[[nodiscard]] Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, Vector2<T> t) {
+[[nodiscard]] constexpr Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, Vector2<T> t) {
 	return Vector2<T>{ Lerp(lhs.x, rhs.x, t.x), Lerp(lhs.y, rhs.y, t.y) };
 }
 
 /// @return The midpoint between vectors a and b.
 template <Arithmetic T>
-[[nodiscard]] Vector2<T> Midpoint(Vector2<T> a, Vector2<T> b) {
+[[nodiscard]] constexpr Vector2<T> Midpoint(Vector2<T> a, Vector2<T> b) {
 	return Vector2<T>{ (a + b) / 2.0f };
 }
 
 /// @return The larger component of a vector.
 template <Arithmetic T>
-[[nodiscard]] T Max(Vector2<T> vector) {
+[[nodiscard]] constexpr T Max(Vector2<T> vector) {
 	return std::max(vector.x, vector.y);
 }
 
 /// @return The smaller component of a vector.
 template <Arithmetic T>
-[[nodiscard]] T Min(Vector2<T> vector) {
+[[nodiscard]] constexpr T Min(Vector2<T> vector) {
 	return std::min(vector.x, vector.y);
 }
 
-[[nodiscard]] bool StrictlyLess(V2_float a, V2_float b, float epsilon = kEpsilon<float>);
+/// @return Element wise maximum of two vectors.
+template <Arithmetic T>
+[[nodiscard]] constexpr Vector2<T> Max(Vector2<T> a, Vector2<T> b) {
+	return { std::max(a.x, b.x), std::max(a.y, b.y) };
+}
+
+/// @return Element wise minimum of two vectors.
+template <Arithmetic T>
+[[nodiscard]] constexpr Vector2<T> Min(Vector2<T> a, Vector2<T> b) {
+	return { std::min(a.x, b.x), std::min(a.y, b.y) };
+}
+
+[[nodiscard]] constexpr bool StrictlyLess(V2_float a, V2_float b, float epsilon = kEpsilon<float>) {
+	return StrictlyLess(a.x, b.x, epsilon) && StrictlyLess(a.y, b.y, epsilon);
+}
 
 template struct Vector2<int>;
 template struct Vector2<float>;

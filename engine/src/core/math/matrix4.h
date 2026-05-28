@@ -109,24 +109,24 @@ public:
 		}
 	}
 
-	[[nodiscard]] constexpr float& operator()(std::size_t x, std::size_t y) {
+	constexpr float& operator()(std::size_t x, std::size_t y) {
 		PTGN_ASSERT(x < static_cast<std::size_t>(size.x));
 		PTGN_ASSERT(y < static_cast<std::size_t>(size.y));
 		return m_[x + y * size.x];
 	}
 
-	[[nodiscard]] constexpr const float& operator()(std::size_t x, std::size_t y) const {
+	constexpr const float& operator()(std::size_t x, std::size_t y) const {
 		PTGN_ASSERT(x < static_cast<std::size_t>(size.x));
 		PTGN_ASSERT(y < static_cast<std::size_t>(size.y));
 		return m_[x + y * size.x];
 	}
 
-	[[nodiscard]] constexpr float& operator[](std::size_t col_major_index) {
+	constexpr float& operator[](std::size_t col_major_index) {
 		PTGN_ASSERT(col_major_index < length);
 		return m_[col_major_index];
 	}
 
-	[[nodiscard]] constexpr const float& operator[](std::size_t col_major_index) const {
+	constexpr const float& operator[](std::size_t col_major_index) const {
 		PTGN_ASSERT(col_major_index < length);
 		return m_[col_major_index];
 	}

@@ -164,7 +164,7 @@ struct Vector3 {
 		return { y * o.z - z * o.y, z * o.x - x * o.z, x * o.y - y * o.z };
 	}
 
-	[[nodiscard]] constexpr float Magnitude() const {
+	[[nodiscard]] float Magnitude() const {
 		return std::sqrt(static_cast<float>(MagnitudeSquared()));
 	}
 
@@ -204,18 +204,18 @@ struct Vector3 {
 	}
 
 	/// @return True if all components are zero (or very close to zero within a small epsilon).
-	[[nodiscard]] bool IsZero() const {
+	constexpr bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 }) && NearlyEqual(z, T{ 0 });
 	}
 
 	/// @return True if any component is zero (or very close to zero within a small epsilon).
-	[[nodiscard]] bool HasZero() const {
+	constexpr bool HasZero() const {
 		return NearlyEqual(x, T{ 0 }) || NearlyEqual(y, T{ 0 }) || NearlyEqual(z, T{ 0 });
 	}
 
 	/// @return True if all components are greater than zero. Returns false if any component is
 	/// zero (or very close to zero within a small epsilon).
-	[[nodiscard]] bool AllAboveZero() const {
+	constexpr bool IsPositive() const {
 		return x > 0 && y > 0 && z > 0 && !HasZero();
 	}
 };

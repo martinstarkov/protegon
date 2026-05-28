@@ -4,6 +4,7 @@
 #include <cmath>
 #include <concepts>
 #include <cstdint>
+#include <cstdlib>
 #include <numbers>
 #include <tuple>
 #include <type_traits>
@@ -31,7 +32,7 @@ template <Arithmetic T>
 /// @brief Modulo operator which supports wrapping negative numbers.
 /// e.g. Mod(-1, 2) returns 1.
 template <std::integral T>
-[[nodiscard]] T Mod(T a, T b) {
+[[nodiscard]] constexpr T Mod(T a, T b) {
 	return (a % b + b) % b;
 }
 
@@ -91,7 +92,14 @@ template <typename T>
 
 /// @brief Triangle wave mimicking the typical sine wave. y values in range [-1, 1], x values in
 /// domain [0, 1]. Starts from y=0 going toward y=1.
-[[nodiscard]] float TriangleWave(float t, float period = 1.0f, float phase_shift = 0.0f);
+[[nodiscard]] constexpr float TriangleWave(float t, float period = 1.0f, float phase_shift = 0.0f) {
+	PTGN_ASSERT(period != 0.0f, "Triangle wave period can not be 0");
+
+	t += phase_shift + 0.25f;
+	t /= period;
+
+	return 2.0f * std::abs(2.0f * (t - FastRound(t))) - 1.0f;
+}
 
 /// @brief Linearly interpolate between a and b by t.
 template <Arithmetic T>
@@ -116,15 +124,24 @@ template <Arithmetic T>
 	return (a0 * t * mu2 + a1 * mu2 + a2 * t + a3);
 }
 
-[[nodiscard]] float Quintic(float t);
+[[nodiscard]] constexpr float Quintic(float t) {
+	return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);
+}
 
 /// @brief Quintic interpolate between a and b by t.
-[[nodiscard]] float QuinticInterpolate(float a, float b, float t);
+[[nodiscard]] constexpr float QuinticInterpolate(float a, float b, float t) {
+	return Lerp(a, b, Quintic(t));
+}
 
-[[nodiscard]] float Smoothstep(float t);
+[[nodiscard]] constexpr float Smoothstep(float t) {
+	return t * t * (3.0f - 2.0f * t);
+}
 
 /// @brief Smoothstep interpolate between a and b by t.
 /// From: https://en.wikipedia.org/wiki/Smoothstep
-[[nodiscard]] float SmoothstepInterpolate(float a, float b, float t);
+[[nodiscard]] constexpr float SmoothstepInterpolate(float a, float b, float t) {
+	/// From: https://en.wikipedia.org/wiki/Smoothstep
+	return Lerp(a, b, Smoothstep(t));
+}
 
 } // namespace ptgn

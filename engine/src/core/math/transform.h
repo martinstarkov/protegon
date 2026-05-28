@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/math/angle.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
@@ -18,80 +19,129 @@ constexpr float kMinScale{ 0.001f };
 constexpr float kMaxScale{ 10000.0f };
 
 struct Transform {
-	Transform() = default;
+	V2_float position;
+
+	/// @brief Positive clockwise.
+	Radians rotation{ 0.0f };
+
+	/// @brief Can be negative but not zero. Negative scale will flip the transform across the
+	/// corresponding axis.
+	V2_float scale{ 1.0f, 1.0f };
+
+	constexpr Transform() = default;
 
 	template <Arithmetic T>
-	constexpr Transform(Vector2<T> position) : position_{ position } {} // NOSONAR
+	constexpr Transform(Vector2<T> position) : position{ position } {} // NOSONAR
 
 	constexpr Transform(V2_float position, Radians rotation, V2_float scale = { 1.0f, 1.0f }) :
-		position_{ position }, rotation_{ rotation }, scale_{ scale } {}
+		position{ position }, rotation{ rotation }, scale{ scale } {}
 
 	constexpr Transform(V2_float position, Degrees rotation, V2_float scale = { 1.0f, 1.0f }) :
 		Transform{ position, rotation.ToRad(), scale } {}
 
-	[[nodiscard]] bool IsIdentity() const;
+	constexpr bool IsIdentity() const {
+		return *this == Transform{};
+	}
 
-	[[nodiscard]] Transform Inverse() const;
+	[[nodiscard]] constexpr Transform Inverse() const {
+		PTGN_ASSERT(!scale.HasZero(), "Cannot get inverse of transform with zero");
+		return { -position, -rotation, 1.0f / scale };
+	}
 
-	[[nodiscard]] Transform RelativeTo(Transform parent) const;
+	constexpr Transform& Translate(V2_float delta) {
+		position += delta;
+		return *this;
+	}
 
-	[[nodiscard]] Transform InverseRelativeTo(Transform parent) const;
+	constexpr Transform& Scale(V2_float delta) {
+		scale *= delta;
+		ClampScale();
+		return *this;
+	}
+
+	constexpr Transform& Rotate(Radians delta) {
+		rotation += delta;
+		return *this;
+	}
+
+	constexpr Transform& Rotate(Degrees delta) {
+		return Rotate(delta.ToRad());
+	}
+
+	[[nodiscard]] constexpr Transform RelativeTo(Transform parent) const {
+		Transform result;
+		// Order is important.
+		result.scale	= parent.scale * scale;
+		result.rotation = parent.rotation + rotation;
+		result.position = parent.position + (parent.scale * position).Rotated(parent.rotation);
+		return result;
+	}
+
+	[[nodiscard]] constexpr Transform InverseRelativeTo(Transform parent) const {
+		Transform local;
+
+		auto inv_rotation{ -parent.rotation };
+		V2_float inv_scale{ parent.scale.x != 0 ? 1.0f / parent.scale.x : 0.0f,
+							parent.scale.y != 0 ? 1.0f / parent.scale.y : 0.0f };
+
+		auto delta{ position - parent.position };
+
+		// Unrotate and unscale the position.
+		local.position	= delta.Rotated(inv_rotation);
+		local.position *= inv_scale;
+
+		local.rotation = rotation - parent.rotation;
+		local.scale	   = scale * inv_scale;
+
+		return local;
+	}
 
 	constexpr bool operator==(const Transform&) const = default;
 
-	V2_float GetPosition() const;
-
-	Transform& SetPosition(V2_float position);
-	/// @brief Set position along a particular axis: x == 0, y == 1.
-	Transform& SetPosition(std::size_t index, float position);
-	Transform& SetPositionX(float x);
-	Transform& SetPositionY(float y);
-
-	/// @brief position += position_difference
-	Transform& Translate(V2_float position_difference);
-	Transform& TranslateX(float position_x_difference);
-	Transform& TranslateY(float position_y_difference);
-
-	/// @return Direction: Clockwise positive.
-	Degrees GetRotation() const;
-
-	[[nodiscard]] bool HasRotation() const;
-
-	/// @param rotation Direction: Clockwise positive.
-	Transform& SetRotation(Radians rotation);
-	Transform& SetRotation(Degrees rotation);
-
-	/// @brief rotation += angle_difference
-	/// @param angle_difference Direction: Clockwise positive.
-	Transform& Rotate(Radians angle_difference);
-	Transform& Rotate(Degrees angle_difference);
+	constexpr bool HasRotation() const {
+		return rotation.value != 0.0f;
+	}
 
 	/// @brief Clamps rotation between [0, 360 deg).
-	Transform& ClampRotation();
+	constexpr Transform& ClampRotation() {
+		rotation = Clamp(rotation);
+		return *this;
+	}
+
+	/// @brief Clamps scale between [kMinScale, kMaxScale].
+	constexpr Transform& ClampScale() {
+		scale = Clamp(scale, kMinScale, kMaxScale);
+		return *this;
+	}
 
 	/// @return abs(scale_x + scale_y) / 2
-	float GetAverageScale() const;
+	constexpr float GetAverageScale() const {
+		// Absolute value applied because negative scale is used for flip.
+		auto abs_scale{ Abs(scale) };
+		return (abs_scale.x + abs_scale.y) * 0.5f;
+	}
 
-	V2_float GetScale() const;
+	constexpr void ApplyTo(V2_float& point) const {
+		if (HasRotation()) {
+			point = ApplyWithRotation(point, rotation.Cos(), rotation.Sin());
+			return;
+		}
+		if (!IsIdentity()) {
+			point = ApplyWithoutRotation(point);
+		}
+	}
 
-	Transform& SetScale(float scale);
-	Transform& SetScale(V2_float scale);
-	Transform& SetScaleX(float x);
-	Transform& SetScaleY(float y);
-
-	/// @brief scale *= scale_multiplier
-	Transform& Scale(V2_float scale_multiplier);
-	Transform& ScaleX(float scale_x_multiplier);
-	Transform& ScaleY(float scale_y_multiplier);
-
-	void ApplyTo(V2_float& point) const;
-	void ApplyTo(std::span<V2_float> points) const;
+	constexpr void ApplyTo(std::span<V2_float> points) const {
+		WithPointTransform<Direction::Forward>([&points]<typename T>(T&& transform) {
+			std::ranges::transform(points, points.begin(), std::forward<T>(transform));
+		});
+	}
 
 	template <
 		std::ranges::input_range TRange,
 		InvocableR<V2_float, std::ranges::range_const_reference_t<TRange>> TGetPosition,
 		InvocableR<void, std::ranges::range_reference_t<TRange>, V2_float> TSetPosition>
-	void ApplyTo(
+	constexpr void ApplyTo(
 		TRange&& elements, TGetPosition&& get_position, TSetPosition&& set_position
 	) const {
 		ApplyToElements<Direction::Forward>(
@@ -100,14 +150,27 @@ struct Transform {
 		);
 	}
 
-	void ApplyInverseTo(V2_float& point) const;
-	void ApplyInverseTo(std::span<V2_float> points) const;
+	constexpr void ApplyInverseTo(V2_float& point) const {
+		if (HasRotation()) {
+			point = ApplyInverseWithRotation(point, rotation.Cos(), rotation.Sin());
+			return;
+		}
+		if (!IsIdentity()) {
+			point = ApplyInverseWithoutRotation(point);
+		}
+	}
+
+	constexpr void ApplyInverseTo(std::span<V2_float> points) const {
+		WithPointTransform<Direction::Inverse>([&points]<typename T>(T&& transform) {
+			std::ranges::transform(points, points.begin(), std::forward<T>(transform));
+		});
+	}
 
 	template <
 		std::ranges::input_range TRange,
 		InvocableR<V2_float, std::ranges::range_reference_t<TRange>> TGetPosition,
 		InvocableR<void, std::ranges::range_reference_t<TRange>, V2_float> TSetPosition>
-	void ApplyInverseTo(
+	constexpr void ApplyInverseTo(
 		TRange&& elements, TGetPosition&& get_position, TSetPosition&& set_position
 	) const {
 		ApplyToElements<Direction::Inverse>(
@@ -116,12 +179,23 @@ struct Transform {
 		);
 	}
 
-	[[nodiscard]] V2_float Apply(V2_float point) const;
+	[[nodiscard]] constexpr V2_float Apply(V2_float point) const {
+		WithPointTransform<Direction::Forward>([&point](auto&& transform) {
+			point = transform(point);
+		});
+		return point;
+	}
 
-	[[nodiscard]] std::vector<V2_float> Apply(std::span<const V2_float> points) const;
+	[[nodiscard]] constexpr std::vector<V2_float> Apply(std::span<const V2_float> points) const {
+		std::vector<V2_float> transformed_points(points.size());
+		Apply(points, transformed_points);
+		return transformed_points;
+	}
 
 	template <std::size_t N>
-	[[nodiscard]] std::array<V2_float, N> Apply(const std::array<V2_float, N>& points) const {
+	[[nodiscard]] constexpr std::array<V2_float, N> Apply(
+		const std::array<V2_float, N>& points
+	) const {
 		std::array<V2_float, N> transformed_points;
 		Apply(points, transformed_points);
 		return transformed_points;
@@ -131,7 +205,7 @@ struct Transform {
 		typename TContainer,
 		InvocableR<V2_float, std::ranges::range_reference_t<TContainer&>> TGetPosition,
 		InvocableR<void, std::ranges::range_reference_t<TContainer&>, V2_float> TSetPosition>
-	[[nodiscard]] TContainer Apply(
+	[[nodiscard]] constexpr TContainer Apply(
 		TContainer elements, TGetPosition&& get_position, TSetPosition&& set_position
 	) const {
 		ApplyTo(
@@ -141,12 +215,23 @@ struct Transform {
 		return elements;
 	}
 
-	[[nodiscard]] V2_float ApplyInverse(V2_float point) const;
+	[[nodiscard]] constexpr V2_float ApplyInverse(V2_float point) const {
+		WithPointTransform<Direction::Inverse>([&point](auto&& transform) {
+			point = transform(point);
+		});
+		return point;
+	}
 
-	[[nodiscard]] std::vector<V2_float> ApplyInverse(std::span<const V2_float> points) const;
+	[[nodiscard]] constexpr std::vector<V2_float> ApplyInverse(
+		std::span<const V2_float> points
+	) const {
+		std::vector<V2_float> transformed_points(points.size());
+		ApplyInverse(points, transformed_points);
+		return transformed_points;
+	}
 
 	template <std::size_t N>
-	[[nodiscard]] std::array<V2_float, N> ApplyInverse(
+	[[nodiscard]] constexpr std::array<V2_float, N> ApplyInverse(
 		const std::array<V2_float, N>& points
 	) const {
 		std::array<V2_float, N> transformed_points;
@@ -158,7 +243,7 @@ struct Transform {
 		typename TContainer,
 		InvocableR<V2_float, std::ranges::range_reference_t<TContainer&>> TGetPosition,
 		InvocableR<void, std::ranges::range_reference_t<TContainer&>, V2_float> TSetPosition>
-	[[nodiscard]] TContainer ApplyInverse(
+	[[nodiscard]] constexpr TContainer ApplyInverse(
 		TContainer elements, TGetPosition&& get_position, TSetPosition&& set_position
 	) const {
 		ApplyInverseTo(
@@ -174,7 +259,7 @@ struct Transform {
 	};
 
 	template <Direction Dir, typename F>
-	void WithPointTransform(F&& function) const {
+	constexpr void WithPointTransform(F&& function) const {
 		if (IsIdentity()) {
 			std::invoke(std::forward<F>(function), [](V2_float point) { return point; });
 			return;
@@ -185,8 +270,8 @@ struct Transform {
 				return ApplyWithoutRotationImpl<Dir>(point);
 			});
 		} else {
-			float cos{ rotation_.Cos() };
-			float sin{ rotation_.Sin() };
+			float cos{ rotation.Cos() };
+			float sin{ rotation.Sin() };
 
 			std::invoke(std::forward<F>(function), [this, cos, sin](V2_float point) {
 				return ApplyWithRotationImpl<Dir>(point, cos, sin);
@@ -194,24 +279,64 @@ struct Transform {
 		}
 	}
 
-	PTGN_SERIALIZE(Transform, position_, rotation_, scale_)
+	PTGN_SERIALIZE(Transform, position, rotation, scale)
 private:
-	void Apply(std::span<const V2_float> points, std::span<V2_float> out_transformed_points) const;
-
-	void ApplyInverse(
+	constexpr void Apply(
 		std::span<const V2_float> points, std::span<V2_float> out_transformed_points
-	) const;
+	) const {
+		PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
-	[[nodiscard]] V2_float ApplyWithRotation(V2_float point, float cos, float sin) const;
+		WithPointTransform<Direction::Forward>(
+			[&points, &out_transformed_points]<typename T>(T&& transform) {
+				std::ranges::transform(
+					points, out_transformed_points.begin(), std::forward<T>(transform)
+				);
+			}
+		);
+	}
 
-	[[nodiscard]] V2_float ApplyWithoutRotation(V2_float point) const;
+	constexpr void ApplyInverse(
+		std::span<const V2_float> points, std::span<V2_float> out_transformed_points
+	) const {
+		PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
-	[[nodiscard]] V2_float ApplyInverseWithRotation(V2_float point, float cos, float sin) const;
+		WithPointTransform<Direction::Inverse>(
+			[&points, &out_transformed_points]<typename T>(T&& transform) {
+				std::ranges::transform(
+					points, out_transformed_points.begin(), std::forward<T>(transform)
+				);
+			}
+		);
+	}
 
-	[[nodiscard]] V2_float ApplyInverseWithoutRotation(V2_float point) const;
+	[[nodiscard]] constexpr V2_float ApplyWithRotation(V2_float point, float cos, float sin) const {
+		PTGN_ASSERT(!scale.HasZero(), "Cannot transform point for an object with zero ");
+		return position + (scale * point).Rotated(cos, sin);
+	}
+
+	[[nodiscard]] constexpr V2_float ApplyWithoutRotation(V2_float point) const {
+		PTGN_ASSERT(!scale.HasZero(), "Cannot transform point for an object with zero");
+		return position + scale * point;
+	}
+
+	[[nodiscard]] constexpr V2_float ApplyInverseWithRotation(
+		V2_float point, float cos, float sin
+	) const {
+		PTGN_ASSERT(!scale.HasZero(), "Cannot inverse transform point for an object with zero");
+
+		return (point - position).Rotated(cos, -sin) / scale;
+	}
+
+	[[nodiscard]] constexpr V2_float ApplyInverseWithoutRotation(V2_float point) const {
+		PTGN_ASSERT(!scale.HasZero(), "Cannot inverse transform point for an object with zero");
+
+		return (point - position) / scale;
+	}
 
 	template <Direction Dir>
-	[[nodiscard]] V2_float ApplyWithRotationImpl(V2_float point, float cos, float sin) const {
+	[[nodiscard]] constexpr V2_float ApplyWithRotationImpl(
+		V2_float point, float cos, float sin
+	) const {
 		if constexpr (Dir == Direction::Forward) {
 			return ApplyWithRotation(point, cos, sin);
 		} else {
@@ -220,7 +345,7 @@ private:
 	}
 
 	template <Direction Dir>
-	[[nodiscard]] V2_float ApplyWithoutRotationImpl(V2_float point) const {
+	[[nodiscard]] constexpr V2_float ApplyWithoutRotationImpl(V2_float point) const {
 		if constexpr (Dir == Direction::Forward) {
 			return ApplyWithoutRotation(point);
 		} else {
@@ -232,7 +357,7 @@ private:
 		Direction Dir, std::ranges::input_range TRange,
 		InvocableR<V2_float, std::ranges::range_reference_t<TRange>> TGetPosition,
 		InvocableR<void, std::ranges::range_reference_t<TRange>, V2_float> TSetPosition>
-	void ApplyToElements(
+	constexpr void ApplyToElements(
 		TRange&& elements, TGetPosition get_position, TSetPosition set_position
 	) const {
 		WithPointTransform<Dir>([&elements, &get_position, &set_position](auto&& transform) {
@@ -242,15 +367,6 @@ private:
 			}
 		});
 	}
-
-	V2_float position_;
-
-	/// @brief Positive clockwise.
-	Radians rotation_{ 0.0f };
-
-	/// @brief Can be negative but not zero. Negative scale will flip the transform across the
-	/// corresponding axis.
-	V2_float scale_{ 1.0f, 1.0f };
 };
 
 } // namespace ptgn

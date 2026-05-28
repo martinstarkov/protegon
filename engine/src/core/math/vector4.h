@@ -187,7 +187,7 @@ struct Vector4 {
 		return x * o.x + y * o.y + z * o.z + w * o.w;
 	}
 
-	[[nodiscard]] constexpr float Magnitude() const {
+	[[nodiscard]] float Magnitude() const {
 		return std::sqrt(static_cast<float>(MagnitudeSquared()));
 	}
 
@@ -205,26 +205,26 @@ struct Vector4 {
 	}
 
 	/// @return True if all components are in range [0.0, 1.0].
-	[[nodiscard]] constexpr bool IsNormalized() const {
+	constexpr bool IsNormalized() const {
 		return x >= 0.0f && x <= 1.0f && y >= 0.0f && y <= 1.0f && z >= 0.0f && z <= 1.0f &&
 			   w >= 0.0f && w <= 1.0f;
 	}
 
 	/// @return True if all components are zero (or very close to zero within a small epsilon).
-	[[nodiscard]] bool IsZero() const {
+	constexpr bool IsZero() const {
 		return NearlyEqual(x, T{ 0 }) && NearlyEqual(y, T{ 0 }) && NearlyEqual(z, T{ 0 }) &&
 			   NearlyEqual(w, T{ 0 });
 	}
 
 	/// @return True if any component is zero (or very close to zero within a small epsilon).
-	[[nodiscard]] bool HasZero() const {
+	constexpr bool HasZero() const {
 		return NearlyEqual(x, T{ 0 }) || NearlyEqual(y, T{ 0 }) || NearlyEqual(z, T{ 0 }) ||
 			   NearlyEqual(w, T{ 0 });
 	}
 
 	/// @return True if all components are greater than zero. Returns false if any component is
 	/// zero (or very close to zero within a small epsilon).
-	[[nodiscard]] bool AllAboveZero() const {
+	constexpr bool IsPositive() const {
 		return x > 0 && y > 0 && z > 0 && w > 0 && !HasZero();
 	}
 };
@@ -287,7 +287,7 @@ constexpr Vector4<S> operator/(Vector4<V> lhs, U rhs) { // NOSONAR
 
 /// @brief Clamp all components of the vector between min and max (component specific).
 template <Arithmetic T>
-[[nodiscard]] Vector4<T> Clamp(Vector4<T> vector, Vector4<T> min, Vector4<T> max) {
+[[nodiscard]] constexpr Vector4<T> Clamp(Vector4<T> vector, Vector4<T> min, Vector4<T> max) {
 	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y),
 			 std::clamp(vector.z, min.z, max.z), std::clamp(vector.w, min.w, max.w) };
 }

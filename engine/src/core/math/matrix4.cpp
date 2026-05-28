@@ -32,7 +32,7 @@ ViewProjection GetOrthographicViewProjection(
 	out.projection = Matrix4::Orthographic(min, max);
 
 	if (pixel_rounding) {
-		transform.SetPosition(FastRound(transform.GetPosition()));
+		transform.position = FastRound(transform.position);
 	}
 
 	auto view{ Matrix4::MakeInverseTransform(transform) };
@@ -167,7 +167,7 @@ Matrix4 Matrix4::MakeTransform(V2_float position, Degrees rotation, V2_float sca
 }
 
 Matrix4 Matrix4::MakeTransform(Transform transform) {
-	return MakeTransform(transform.GetPosition(), transform.GetRotation(), transform.GetScale());
+	return MakeTransform(transform.position, transform.rotation, transform.scale);
 }
 
 Matrix4 Matrix4::MakeInverseTransform(
@@ -201,9 +201,7 @@ Matrix4 Matrix4::MakeInverseTransform(V2_float position, Degrees rotation, V2_fl
 }
 
 Matrix4 Matrix4::MakeInverseTransform(Transform transform) {
-	return MakeInverseTransform(
-		transform.GetPosition(), transform.GetRotation(), transform.GetScale()
-	);
+	return MakeInverseTransform(transform.position, transform.rotation, transform.scale);
 }
 
 Matrix4 Matrix4::Orthographic(

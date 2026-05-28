@@ -82,16 +82,16 @@ struct Color {
 				 static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
 	}
 
-	explicit operator V4_float() const {
+	constexpr explicit operator V4_float() const {
 		return Normalized();
 	}
 
-	explicit operator std::array<float, 4>() const {
+	constexpr explicit operator std::array<float, 4>() const {
 		auto n{ Normalized() };
 		return { n.x, n.y, n.z, n.w };
 	}
 
-	explicit operator std::array<std::uint8_t, 4>() const {
+	constexpr explicit operator std::array<std::uint8_t, 4>() const {
 		return { r, g, b, a };
 	}
 
@@ -110,12 +110,12 @@ struct Color {
 	}
 
 	/// @return True if color is fully transparent.
-	[[nodiscard]] constexpr bool IsTransparent() const noexcept {
+	constexpr bool IsTransparent() const {
 		return a == 0;
 	}
 
 	/// @return True if color is fully opaque.
-	[[nodiscard]] constexpr bool IsOpaque() const noexcept {
+	constexpr bool IsOpaque() const {
 		return a == 255;
 	}
 
@@ -160,7 +160,7 @@ struct Color {
 
 /// @brief Linearly interpolates between two colors.
 /// @param t Interpolation factor in range [0.0, 1.0].
-[[nodiscard]] inline Color Lerp(Color lhs, Color rhs, float t) {
+[[nodiscard]] constexpr Color Lerp(Color lhs, Color rhs, float t) {
 	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t)),
 				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t)),
 				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t)),
@@ -169,7 +169,7 @@ struct Color {
 
 /// @brief Linearly interpolates between two colors (per-channel).
 /// @param t Separate RGBA interpolation factors in range [0.0, 1.0]
-[[nodiscard]] inline Color Lerp(Color lhs, Color rhs, V4_float t) {
+[[nodiscard]] constexpr Color Lerp(Color lhs, Color rhs, V4_float t) {
 	return Color{ static_cast<std::uint8_t>(Lerp(lhs.r, rhs.r, t.x)),
 				  static_cast<std::uint8_t>(Lerp(lhs.g, rhs.g, t.y)),
 				  static_cast<std::uint8_t>(Lerp(lhs.b, rhs.b, t.z)),

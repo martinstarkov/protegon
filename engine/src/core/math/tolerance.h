@@ -11,7 +11,7 @@ namespace ptgn {
 template <typename T>
 inline constexpr T kEpsilon{ std::numeric_limits<T>::epsilon() };
 
-[[nodiscard]] inline bool StrictlyLess(float a, float b, float epsilon = kEpsilon<float>) {
+[[nodiscard]] constexpr bool StrictlyLess(float a, float b, float epsilon = kEpsilon<float>) {
 	return (b - a) > std::max(std::abs(a), std::abs(b)) * epsilon;
 }
 
