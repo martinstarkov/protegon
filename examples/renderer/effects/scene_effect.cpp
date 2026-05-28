@@ -22,6 +22,7 @@ class SceneEffectFirstScene : public Scene {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
 		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
+		CreateSprite(*this, "sprite", { 0.0f, -250.0f });
 
 		AddEffect(*this, CreateEffect<Grayscale>(*this));
 

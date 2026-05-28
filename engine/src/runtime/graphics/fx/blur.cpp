@@ -1,10 +1,13 @@
 #include "runtime/graphics/fx/blur.h"
 
+#include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/render_pass_builder.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/drawable.h"
 
 namespace ptgn {
 
-void Blur::Draw(DrawContext& ctx, Entity entity) {}
+void Blur::Draw(DrawContext& ctx, Entity) {
+	ctx.Pass([](auto& pass) { return pass.Apply("blur"); });
+}
 
 } // namespace ptgn
