@@ -7,6 +7,7 @@
 
 #include "core/editor.h"
 #include "core/editor_context.h"
+#include "core/math/angle.h"
 #include "core/math/transform.h"
 #include "core/util/hash.h"
 #include "core/util/type_info.h"
