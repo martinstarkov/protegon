@@ -1,4 +1,5 @@
 #include "app/application.h"
+#include "core/editor.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/fx/grayscale.h"
@@ -21,6 +22,6 @@ class TextureEffectScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "TextureEffectScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<TextureEffectScene>();
 }

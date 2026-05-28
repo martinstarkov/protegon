@@ -21,6 +21,7 @@
 #include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
+#include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
@@ -60,7 +61,7 @@ namespace ptgn {
 
 namespace impl {
 
-void ApplyTransform(Transform transform, std::span<RenderQuad<TextureVertex>> local_quads) {
+void ApplyTransform(Transform transform, std::span<TextureQuad> local_quads) {
 	transform.ApplyTo(
 		local_quads | std::views::join,
 		[](const TextureVertex& vertex) {
@@ -71,6 +72,28 @@ void ApplyTransform(Transform transform, std::span<RenderQuad<TextureVertex>> lo
 			vertex.position[1] = position.y;
 		}
 	);
+}
+
+/// @return True if all vertices in all quads have the same depth and entity ID, false otherwise.
+bool HaveUniformDepthAndEntityId(const std::span<const impl::TextureQuad> quads) {
+	PTGN_ASSERT(!quads.empty());
+
+	const auto& first_quad{ quads.front() };
+	const auto& first_vertex{ first_quad.front() };
+
+	auto first_depth{ first_vertex.position[2] };
+	auto first_entity_id{ first_vertex.entity_id[0] };
+
+	for (auto& quad : quads) {
+		for (auto& vertex : quad) {
+			if (!NearlyEqual(vertex.position[2], first_depth) ||
+				vertex.entity_id[0] != first_entity_id) {
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 } // namespace impl
@@ -104,7 +127,7 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 
 	auto display_size{ GetDisplaySize() };
 
-	PTGN_ASSERT(display_size.BothAboveZero(), "Display size cannot be zero");
+	PTGN_ASSERT(display_size.IsPositive(), "Display size cannot be zero");
 
 	presentation_target_ =
 		CreateRenderTarget({ .size{ display_size }, .format{ TextureFormat::RGBA8 } });
@@ -138,6 +161,7 @@ Renderer::~Renderer() noexcept {
 
 void Renderer::FlushBatch() {
 	batcher_.Flush();
+	temp_render_targets_.clear();
 }
 
 impl::RenderPipeline& Renderer::GetPipeline(impl::PipelineId id) {
@@ -149,7 +173,7 @@ const impl::RenderPipeline& Renderer::GetPipeline(impl::PipelineId id) const {
 }
 
 impl::RenderTargetObject Renderer::CreateRenderTarget(const RenderTargetDesc& desc) {
-	PTGN_ASSERT(desc.size.BothAboveZero(), "Cannot create render target with zero size");
+	PTGN_ASSERT(desc.size.IsPositive(), "Cannot create render target with zero size");
 
 	auto color = gl_->textures.CreateTexture(desc.size, desc.format, desc.params);
 
@@ -386,7 +410,7 @@ void Renderer::SetGameSize(
 	}
 
 	PTGN_ASSERT(
-		!game_size.has_value() || game_size.has_value() && game_size->BothAboveZero(),
+		!game_size.has_value() || game_size.has_value() && game_size->IsPositive(),
 		"Game size cannot be set to negative value or zero"
 	);
 
@@ -480,8 +504,8 @@ V2_float Renderer::GetScale() const {
 	auto display_size{ GetDisplaySize() };
 	auto game_size{ GetGameSize() };
 
-	PTGN_ASSERT(display_size.BothAboveZero());
-	PTGN_ASSERT(game_size.BothAboveZero());
+	PTGN_ASSERT(display_size.IsPositive());
+	PTGN_ASSERT(game_size.IsPositive());
 
 	return V2_float{ display_size } / game_size;
 }
@@ -533,11 +557,11 @@ void Renderer::UpdateDisplayViewport(bool emit_events) {
 Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 	const auto presentation{ GetPresentationViewport() };
 
-	PTGN_ASSERT(presentation.size.BothAboveZero());
+	PTGN_ASSERT(presentation.size.IsPositive());
 
 	auto game_size{ game_size_.value_or(presentation.size) };
 
-	PTGN_ASSERT(game_size.BothAboveZero());
+	PTGN_ASSERT(game_size.IsPositive());
 
 	Viewport viewport{ .position{}, .size{ presentation.size } };
 
@@ -598,7 +622,7 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 	bool resized{ viewport.size != display_viewport_.size };
 	bool moved{ viewport.position != display_viewport_.position };
 
-	PTGN_ASSERT(viewport.size.BothAboveZero());
+	PTGN_ASSERT(viewport.size.IsPositive());
 
 	return { .moved = moved, .resized = resized, .viewport{ viewport } };
 }
@@ -637,7 +661,7 @@ void Renderer::BeginFrame() {
 }
 
 void Renderer::EndFrame() {
-	PTGN_ASSERT(display_viewport_.size.BothAboveZero());
+	PTGN_ASSERT(display_viewport_.size.IsPositive());
 
 	FlushBatch();
 
@@ -690,7 +714,7 @@ void Renderer::EndFrame() {
 }
 
 bool Renderer::IsPresentationViewportVisible() const {
-	return presentation_viewport_.has_value() && !presentation_viewport_->size.BothAboveZero();
+	return presentation_viewport_.has_value() && !presentation_viewport_->size.IsPositive();
 }
 
 impl::ShaderObject Renderer::CreateShader(
@@ -919,7 +943,7 @@ void Renderer::DrawRenderPass(
 
 	auto size{ GetRenderTargetSize(output) };
 
-	PTGN_ASSERT(size.BothAboveZero(), "Render pass output size must be non-zero");
+	PTGN_ASSERT(size.IsPositive(), "Render pass output size must be non-zero");
 
 	ApplyRenderTarget(output);
 
@@ -1071,6 +1095,7 @@ void Renderer::DrawTexture(const impl::DrawTextureRequest& request) {
 }
 
 void Renderer::DrawTextureNormally(const impl::DrawTextureRequest& request) {
+	PTGN_ASSERT(!request.local_quads.empty());
 	PTGN_ASSERT(!request.effect_params.draw_callback);
 
 	std::span<const impl::TextureId> textures;
@@ -1085,42 +1110,28 @@ void Renderer::DrawTextureNormally(const impl::DrawTextureRequest& request) {
 }
 
 void Renderer::DrawTextureEffect(const impl::DrawTextureRequest& request) {
-	if (request.local_quads.empty()) {
-		return;
-	}
+	PTGN_ASSERT(!request.local_quads.empty());
 
-	auto get_bounds = [&]() {
-		const auto& first_vertex{ request.local_quads.front().front() };
-		V2_float first{ first_vertex.position[0], first_vertex.position[1] };
+	PTGN_ASSERT(
+		HaveUniformDepthAndEntityId(request.local_quads),
+		"Batched effect vertices must have uniform depth and entity ID"
+	);
 
-		auto min{ first };
-		auto max{ first };
+	auto bounds{ Rect::FromPoints(
+		request.local_quads | std::views::join |
+		std::views::transform([](const impl::TextureVertex& vertex) {
+			return V2_float{ vertex.position[0], vertex.position[1] };
+		})
+	) };
 
-		for (auto& quad : request.local_quads) {
-			for (auto& vertex : quad) {
-				V2_float point{ vertex.position[0], vertex.position[1] };
-
-				min.x = std::min(min.x, point.x);
-				min.y = std::min(min.y, point.y);
-				max.x = std::max(max.x, point.x);
-				max.y = std::max(max.y, point.y);
-			}
-		}
-
-		return std::pair{ min, max };
-	};
+	PTGN_ASSERT(bounds.HasPositiveArea());
 
 	auto format{ GetTextureFormat(request.texture) };
 	auto params{ GetTextureParams(request.texture) };
 
-	auto [min, max] = get_bounds();
+	V2_float size{ bounds.GetSize() };
 
-	PTGN_ASSERT(max.x > min.x);
-	PTGN_ASSERT(max.y > min.y);
-
-	V2_float size{ max - min };
-
-	PTGN_ASSERT(size.BothAboveZero());
+	PTGN_ASSERT(size.IsPositive());
 
 	size += V2_float{ request.effect_params.margin * 2 };
 
@@ -1128,9 +1139,14 @@ void Renderer::DrawTextureEffect(const impl::DrawTextureRequest& request) {
 
 	auto prepared{ CreateRenderTarget(desc) };
 
+	PTGN_ASSERT(prepared.GetSize() == V2_int{ size });
+
 	auto previous{ current_target_ };
 
 	SetRenderTarget(&prepared);
+
+	auto prev_viewport{ gl_->GetViewport() };
+	auto prev_view_projection{ view_projection_ };
 
 	SetViewport({ .position{}, .size{ size } });
 	SetViewProjection(size);
@@ -1149,10 +1165,14 @@ void Renderer::DrawTextureEffect(const impl::DrawTextureRequest& request) {
 	request.effect_params.draw_callback(ctx);
 
 	SetRenderTarget(previous);
+	if (prev_viewport.has_value()) {
+		SetViewport(*prev_viewport);
+	}
+	SetViewProjection(prev_view_projection);
 
 	impl::DrawTextureRequest new_request;
 
-	auto positions{ Rect{ GetRenderTargetSize(prepared) }.GetLocalVertices() };
+	auto positions{ Rect{ size }.GetLocalVertices() };
 
 	PTGN_ASSERT(!request.local_quads.empty());
 
@@ -1164,7 +1184,7 @@ void Renderer::DrawTextureEffect(const impl::DrawTextureRequest& request) {
 
 	auto depth{ first_vertex.position[2] };
 
-	V4_float color_n{ first_vertex.color };
+	constexpr auto color_n{ color::White.Normalized() };
 
 	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 
@@ -1177,6 +1197,8 @@ void Renderer::DrawTextureEffect(const impl::DrawTextureRequest& request) {
 	new_request.texture		= GetRenderTargetTexture(prepared);
 
 	DrawTextureNormally(new_request);
+
+	temp_render_targets_.emplace_back(std::move(prepared));
 }
 
 void Renderer::BindTextureSlot(std::uint32_t slot, impl::TextureId texture) {
