@@ -154,7 +154,7 @@ void DrawContext::DrawLines(
 		points, closed, ConvertToCommonShapeParams(transform.value_or(Transform{}), color, params)
 	) };
 
-	renderer_.Draw<impl::RenderQuad<impl::ColorVertex>>(primitives, impl::TextureId{});
+	renderer_.Draw<impl::ColorQuad>(primitives, impl::TextureId{});
 }
 
 void DrawContext::DrawShape(

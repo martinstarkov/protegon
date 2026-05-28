@@ -17,21 +17,26 @@ using RenderQuad = std::array<TVertex, 4>;
 template <VertexType TVertex>
 using RenderTriangle = std::array<TVertex, 3>;
 
-[[nodiscard]] RenderTriangle<ColorVertex> CreateColorTriangle(
+using ColorTriangle = RenderTriangle<ColorVertex>;
+using ColorQuad		= RenderQuad<ColorVertex>;
+using ShapeQuad		= RenderQuad<ShapeVertex>;
+using TextureQuad	= RenderQuad<TextureVertex>;
+
+[[nodiscard]] ColorTriangle CreateColorTriangle(
 	const std::array<V2_float, 3>& vertices, float depth, V4_float color_n, int entity_id
 );
 
-[[nodiscard]] RenderQuad<ColorVertex> CreateColorQuad(
+[[nodiscard]] ColorQuad CreateColorQuad(
 	const std::array<V2_float, 4>& vertices, float depth, V4_float color_n, int entity_id
 );
 
-[[nodiscard]] RenderQuad<ShapeVertex> CreateShapeQuad(
+[[nodiscard]] ShapeQuad CreateShapeQuad(
 	const std::array<V2_float, 4>& vertices, float depth, V4_float color_n,
 	const std::array<V2_float, 4>& local_coords, const std::array<float, 4>& shape_data,
 	int entity_id
 );
 
-[[nodiscard]] RenderQuad<TextureVertex> CreateTextureQuad(
+[[nodiscard]] TextureQuad CreateTextureQuad(
 	const std::array<V2_float, 4>& positions, float depth, V4_float color_n,
 	const std::array<V2_float, 4>& tex_coords, int entity_id
 );

@@ -67,22 +67,22 @@ public:
 	void Clear();
 
 	void Add(
-		ShaderId shader, std::span<RenderQuad<TextureVertex>> primitives,
+		ShaderId shader, std::span<TextureQuad> primitives,
 		std::optional<BlendMode> blend_mode, float depth, TextureId texture
 	);
 
 	void Add(
-		ShaderId shader, std::span<RenderQuad<ShapeVertex>> primitives,
+		ShaderId shader, std::span<ShapeQuad> primitives,
 		std::optional<BlendMode> blend_mode, float depth, TextureId
 	);
 
 	void Add(
-		ShaderId shader, std::span<RenderQuad<ColorVertex>> primitives,
+		ShaderId shader, std::span<ColorQuad> primitives,
 		std::optional<BlendMode> blend_mode, float depth, TextureId
 	);
 
 	void Add(
-		ShaderId shader, std::span<RenderTriangle<ColorVertex>> primitives,
+		ShaderId shader, std::span<ColorTriangle> primitives,
 		std::optional<BlendMode> blend_mode, float depth, TextureId
 	);
 
@@ -105,10 +105,10 @@ private:
 
 	std::vector<RenderCommand> commands_;
 
-	std::vector<RenderQuad<ColorVertex>> color_quads_;
-	std::vector<RenderTriangle<ColorVertex>> color_triangles_;
-	std::vector<RenderQuad<ShapeVertex>> shape_quads_;
-	std::vector<RenderQuad<TextureVertex>> texture_quads_;
+	std::vector<ColorQuad> color_quads_;
+	std::vector<ColorTriangle> color_triangles_;
+	std::vector<ShapeQuad> shape_quads_;
+	std::vector<TextureQuad> texture_quads_;
 
 	std::uint64_t next_sequence_{ 0 };
 };

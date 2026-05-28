@@ -60,12 +60,14 @@ class GLContext;
 
 } // namespace gl
 
-void ApplyTransform(Transform transform, std::span<RenderQuad<TextureVertex>> local_quads);
+void ApplyTransform(Transform transform, std::span<TextureQuad> local_quads);
 
 struct DrawTextureRequest {
 	TextureId texture;
+	/// @brief Center of the texture in world space. Origin should be accounted for in this
+	/// transform.
 	Transform transform;
-	std::span<RenderQuad<TextureVertex>> local_quads;
+	std::span<TextureQuad> local_quads;
 	EffectParams effect_params;
 };
 
@@ -384,6 +386,7 @@ private:
 	impl::RenderBatcher batcher_;
 	impl::RenderTargetPool target_pool_;
 	impl::RenderPipelineManager pipeline_manager_;
+	std::vector<impl::RenderTargetObject> temp_render_targets_;
 
 	std::optional<V2_int> game_size_;
 	Viewport display_viewport_;

@@ -68,7 +68,7 @@ void RenderCommands::Sort() {
 }
 
 void RenderCommands::Add(
-	ShaderId shader, std::span<RenderQuad<TextureVertex>> primitives,
+	ShaderId shader, std::span<TextureQuad> primitives,
 	std::optional<BlendMode> blend_mode, float depth, TextureId texture
 ) {
 	auto range{ Append(texture_quads_, primitives) };
@@ -76,7 +76,7 @@ void RenderCommands::Add(
 }
 
 void RenderCommands::Add(
-	ShaderId shader, std::span<RenderQuad<ShapeVertex>> primitives,
+	ShaderId shader, std::span<ShapeQuad> primitives,
 	std::optional<BlendMode> blend_mode, float depth, TextureId
 ) {
 	auto range{ Append(shape_quads_, primitives) };
@@ -84,7 +84,7 @@ void RenderCommands::Add(
 }
 
 void RenderCommands::Add(
-	ShaderId shader, std::span<RenderQuad<ColorVertex>> primitives,
+	ShaderId shader, std::span<ColorQuad> primitives,
 	std::optional<BlendMode> blend_mode, float depth, TextureId
 ) {
 	auto range{ Append(color_quads_, primitives) };
@@ -92,7 +92,7 @@ void RenderCommands::Add(
 }
 
 void RenderCommands::Add(
-	ShaderId shader, std::span<RenderTriangle<ColorVertex>> primitives,
+	ShaderId shader, std::span<ColorTriangle> primitives,
 	std::optional<BlendMode> blend_mode, float depth, TextureId
 ) {
 	auto range{ Append(color_triangles_, primitives) };

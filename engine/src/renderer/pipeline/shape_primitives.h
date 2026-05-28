@@ -58,11 +58,11 @@ RenderTriangleArray<ColorVertex> GetSolidPrimitives(
 	const Triangle& triangle, const CommonShapeParams& params
 );
 
-std::vector<RenderTriangle<ColorVertex>> GetSolidPrimitives(
+std::vector<ColorTriangle> GetSolidPrimitives(
 	const Polygon& polygon, const CommonShapeParams& params
 );
 
-std::vector<RenderQuad<ColorVertex>> GetSolidPrimitives(
+std::vector<ColorQuad> GetSolidPrimitives(
 	const Line& line, const CommonShapeParams& params
 );
 
@@ -86,11 +86,11 @@ std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
 	const Arc& arc, const CommonShapeParams& params
 );
 
-std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
+std::vector<ColorQuad> GetHollowPrimitives(
 	std::span<const V2_float> points, bool closed, const CommonShapeParams& params
 );
 
-std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
+std::vector<ColorQuad> GetHollowPrimitives(
 	const Rect& rect, const CommonShapeParams& params
 );
 
@@ -98,15 +98,15 @@ std::optional<RenderQuadArray<ShapeVertex>> GetHollowPrimitives(
 	const RoundedRect& rounded_rect, const CommonShapeParams& params
 );
 
-std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
+std::vector<ColorQuad> GetHollowPrimitives(
 	const Triangle& triangle, const CommonShapeParams& params
 );
 
-std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
+std::vector<ColorQuad> GetHollowPrimitives(
 	const Polygon& polygon, const CommonShapeParams& params
 );
 
-std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
+std::vector<ColorQuad> GetHollowPrimitives(
 	const Line& line, const CommonShapeParams& params
 );
 

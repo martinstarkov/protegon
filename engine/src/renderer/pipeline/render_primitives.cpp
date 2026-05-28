@@ -8,7 +8,7 @@
 
 namespace ptgn::impl {
 
-RenderTriangle<ColorVertex> CreateColorTriangle(
+ColorTriangle CreateColorTriangle(
 	const std::array<V2_float, 3>& vertices, float depth, V4_float color_n, int entity
 ) {
 	return { ColorVertex{ vertices[0], depth, color_n, entity },
@@ -16,7 +16,7 @@ RenderTriangle<ColorVertex> CreateColorTriangle(
 			 ColorVertex{ vertices[2], depth, color_n, entity } };
 }
 
-RenderQuad<ColorVertex> CreateColorQuad(
+ColorQuad CreateColorQuad(
 	const std::array<V2_float, 4>& vertices, float depth, V4_float color_n, int entity
 ) {
 	return { ColorVertex{ vertices[0], depth, color_n, entity },
@@ -25,7 +25,7 @@ RenderQuad<ColorVertex> CreateColorQuad(
 			 ColorVertex{ vertices[3], depth, color_n, entity } };
 }
 
-RenderQuad<ShapeVertex> CreateShapeQuad(
+ShapeQuad CreateShapeQuad(
 	const std::array<V2_float, 4>& vertices, float depth, V4_float color_n,
 	const std::array<V2_float, 4>& local_coords, const std::array<float, 4>& data, int entity
 ) {
@@ -35,7 +35,7 @@ RenderQuad<ShapeVertex> CreateShapeQuad(
 			 ShapeVertex{ vertices[3], depth, color_n, local_coords[3], data, entity } };
 }
 
-RenderQuad<TextureVertex> CreateTextureQuad(
+TextureQuad CreateTextureQuad(
 	const std::array<V2_float, 4>& vertices, float depth, V4_float color_n,
 	const std::array<V2_float, 4>& tex_coords, int entity
 ) {

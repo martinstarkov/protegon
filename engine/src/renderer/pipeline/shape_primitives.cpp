@@ -125,9 +125,9 @@ RenderQuadArray<ColorVertex> GetSolidPrimitives(const Rect& rect, const CommonSh
 std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
 	const RoundedRect& rounded_rect, const CommonShapeParams& params
 ) {
-	V2_float size{ rounded_rect.GetSize(params.transform) };
+	V2_float size{ rounded_rect.rect.GetSize(params.transform) };
 
-	if (!size.BothAboveZero()) {
+	if (!size.IsPositive()) {
 		return std::nullopt;
 	}
 
@@ -137,7 +137,7 @@ std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
 		return std::nullopt;
 	}
 
-	auto vertices{ rounded_rect.GetWorldQuadVertices(params.transform, params.draw_origin) };
+	auto vertices{ rounded_rect.rect.GetWorldVertices(params.transform, params.draw_origin) };
 	auto sdf{ GetSDFRoundData(radius, size, params.fill_style) };
 
 	std::array<float, 4> data{ sdf.thickness * sdf.aspect_ratio, sdf.fade,
@@ -155,33 +155,30 @@ RenderTriangleArray<ColorVertex> GetSolidPrimitives(
 	return CreateColorTrianglePrimitive(vertices, params);
 }
 
-std::vector<RenderTriangle<ColorVertex>> GetSolidPrimitives(
+std::vector<ColorTriangle> GetSolidPrimitives(
 	const Polygon& polygon, const CommonShapeParams& params
 ) {
-	const auto& points{ polygon.GetLocalVertices() };
-
-	if (points.size() < 3) {
+	if (polygon.vertices.size() < 3) {
 		return {};
 	}
 
-	auto triangles{ Triangulate(points) };
+	auto triangles{ Triangulate(polygon.vertices) };
 
 	if (triangles.empty()) {
 		return {};
 	}
 
-	std::vector<RenderTriangle<ColorVertex>> primitives;
+	std::vector<ColorTriangle> primitives;
 	primitives.reserve(triangles.size());
 
 	params.transform.WithPointTransform<Transform::Direction::Forward>([&primitives, &triangles,
 																		&params](auto&& transform) {
 		for (auto& triangle : triangles) {
-			auto& vertices{ triangle.GetLocalVertices() };
-			for (auto& vertex : vertices) {
+			for (auto& vertex : triangle.vertices) {
 				vertex = transform(vertex);
 			}
 			primitives.emplace_back(
-				CreateColorTriangle(vertices, params.depth, params.color, params.entity_id)
+				CreateColorTriangle(triangle.vertices, params.depth, params.color, params.entity_id)
 			);
 		}
 	});
@@ -191,9 +188,7 @@ std::vector<RenderTriangle<ColorVertex>> GetSolidPrimitives(
 	return primitives;
 }
 
-std::vector<RenderQuad<ColorVertex>> GetSolidPrimitives(
-	const Line& line, const CommonShapeParams& params
-) {
+std::vector<ColorQuad> GetSolidPrimitives(const Line& line, const CommonShapeParams& params) {
 	auto points{ line.GetLocalVertices() };
 
 	return GetHollowPrimitives(points, false, params);
@@ -215,7 +210,7 @@ RenderQuadArray<ColorVertex> GetSolidPrimitives(
 std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
 	const Circle& circle, const CommonShapeParams& params
 ) {
-	return GetSolidPrimitives(Ellipse{ V2_float{ circle.GetRadius() } }, params);
+	return GetSolidPrimitives(Ellipse{ circle.radius }, params);
 }
 
 std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
@@ -223,7 +218,7 @@ std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
 ) {
 	V2_float radius{ ellipse.GetRadius(params.transform) };
 
-	if (!radius.BothAboveZero()) {
+	if (!radius.IsPositive()) {
 		return std::nullopt;
 	}
 
@@ -251,7 +246,7 @@ std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
 	V2_float size;
 	auto vertices{ capsule.GetWorldQuadVertices(params.transform, &size) };
 
-	if (!size.BothAboveZero()) {
+	if (!size.IsPositive()) {
 		return std::nullopt;
 	}
 
@@ -277,8 +272,8 @@ std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
 	float fade{ GetFade(diameter) };
 	float thickness{ params.fill_style.NormalizedToSDFThickness(fade, V2_float{ radius }) };
 
-	float start_angle{ arc.GetStartAngle().ToRad().value };
-	float signed_aperture{ arc.GetAperture().ToRad().value * (arc.IsClockwise() ? -1.0f : 1.0f) };
+	float start_angle{ arc.start_angle.value };
+	float signed_aperture{ arc.GetAperture().ToRad().value * (arc.clockwise ? -1.0f : 1.0f) };
 
 	std::array<float, 4> data{ thickness, fade, start_angle, signed_aperture };
 
@@ -288,7 +283,7 @@ std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
 	return CreateShapeQuadPrimitive(vertices, local_coords, data, params);
 }
 
-std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
+std::vector<ColorQuad> GetHollowPrimitives(
 	std::span<const V2_float> points, bool closed, const CommonShapeParams& params
 ) {
 	auto line_width{ params.fill_style.GetLineWidth() };
@@ -315,7 +310,7 @@ std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
 
 	auto segment_count{ closed ? count : count - 1 };
 
-	std::vector<RenderQuad<ColorVertex>> primitives;
+	std::vector<ColorQuad> primitives;
 	primitives.reserve(segment_count);
 
 	for (auto i{ 0uz }; i < segment_count; ++i) {
@@ -332,9 +327,7 @@ std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
 	return primitives;
 }
 
-std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
-	const Rect& rect, const CommonShapeParams& params
-) {
+std::vector<ColorQuad> GetHollowPrimitives(const Rect& rect, const CommonShapeParams& params) {
 	auto points{ rect.GetLocalVertices() };
 	return GetHollowPrimitives(points, true, params);
 }
@@ -345,7 +338,7 @@ std::optional<RenderQuadArray<ShapeVertex>> GetHollowPrimitives(
 	return GetSolidPrimitives(rounded_rect, params);
 }
 
-std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
+std::vector<ColorQuad> GetHollowPrimitives(
 	const Triangle& triangle, const CommonShapeParams& params
 ) {
 	auto vertices{ triangle.GetWorldVertices(params.transform) };
@@ -356,21 +349,17 @@ std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
 	return GetHollowPrimitives(vertices, true, stroke_params);
 }
 
-std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
+std::vector<ColorQuad> GetHollowPrimitives(
 	const Polygon& polygon, const CommonShapeParams& params
 ) {
-	const auto& points{ polygon.GetLocalVertices() };
-
-	if (points.size() < 3) {
+	if (polygon.vertices.size() < 3) {
 		return {};
 	}
 
-	return GetHollowPrimitives(points, true, params);
+	return GetHollowPrimitives(polygon.vertices, true, params);
 }
 
-std::vector<RenderQuad<ColorVertex>> GetHollowPrimitives(
-	const Line& line, const CommonShapeParams& params
-) {
+std::vector<ColorQuad> GetHollowPrimitives(const Line& line, const CommonShapeParams& params) {
 	return GetSolidPrimitives(line, params);
 }
 
