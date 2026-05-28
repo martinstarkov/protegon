@@ -1,8 +1,12 @@
 #pragma once
 
 #include <array>
+#include <cstdlib>
 
+#include "core/assert.h"
 #include "core/math/angle.h"
+#include "core/math/math_utils.h"
+#include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "serialization/serialize.h"
@@ -11,51 +15,68 @@ namespace ptgn {
 
 class Arc {
 public:
+	float radius{ 0.0f };
+	Radians start_angle{ 0.0f };
+	Radians end_angle{ 0.0f };
+
+	/// @brief Direction of arc.
+	bool clockwise{ true };
+
 	constexpr Arc() = default;
 
 	constexpr Arc(float arc_radius, Radians start_angle, Radians end_angle, bool clockwise = true) :
-		radius_{ arc_radius },
-		start_angle_{ start_angle },
-		end_angle_{ end_angle },
-		clockwise_{ clockwise } {}
+		radius{ arc_radius },
+		start_angle{ start_angle },
+		end_angle{ end_angle },
+		clockwise{ clockwise } {}
 
 	constexpr Arc(float arc_radius, Degrees start_angle, Degrees end_angle, bool clockwise = true) :
 		Arc{ arc_radius, start_angle.ToRad(), end_angle.ToRad(), clockwise } {}
 
-	void SetRadius(float radius);
-	void SetStartAngle(Radians start_angle);
-	void SetEndAngle(Radians end_angle);
-	void SetStartAngle(Degrees start_angle);
-	void SetEndAngle(Degrees end_angle);
-	void SetClockwise(bool clockwise = true);
+	constexpr Degrees GetAperture() const {
+		auto start = start_angle;
+		auto end   = end_angle;
 
-	/// @return Center relative to the world.
-	V2_float GetCenter(Transform transform) const;
+		Radians delta;
 
-	float GetRadius() const;
-	Degrees GetStartAngle() const;
-	Degrees GetEndAngle() const;
-	Degrees GetAperture() const;
-	[[nodiscard]] bool IsClockwise() const;
+		if (clockwise) {
+			delta = start - end;
+		} else {
+			delta = end - start;
+		}
+
+		delta = Clamp(delta);
+
+		// Handle full circle edge case
+		if (NearlyEqual(delta.value, 0.0f) && start != end) {
+			return Radians{ kTwoPi }.ToDeg();
+		}
+
+		return delta.ToDeg();
+	}
 
 	/// @return Radius scaled relative to the transform.
-	float GetRadius(Transform transform) const;
+	constexpr float GetRadius(Transform transform) const {
+		auto avg_scale{ transform.GetAverageScale() };
+		auto abs_scale{ std::abs(avg_scale) };
+		return radius * abs_scale;
+	}
 
-	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
+	constexpr std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const {
+		auto vertices{ GetLocalQuadVertices() };
+		return transform.Apply(vertices);
+	}
 
-	std::array<V2_float, 4> GetLocalQuadVertices() const;
+	constexpr std::array<V2_float, 4> GetLocalQuadVertices() const {
+		V2_float min{ -radius };
+		V2_float max{ radius };
+		PTGN_ASSERT(min != max, "Cannot get local vertices for an arc with size zero");
+		return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
+	}
 
 	constexpr bool operator==(const Arc&) const = default;
 
-	PTGN_SERIALIZE(Arc, radius_, start_angle_, end_angle_, clockwise_)
-
-private:
-	float radius_{ 0.0f };
-	Radians start_angle_{ 0.0f };
-	Radians end_angle_{ 0.0f };
-
-	/// @brief Direction of arc.
-	bool clockwise_{ true };
+	PTGN_SERIALIZE(Arc, radius, start_angle, end_angle, clockwise)
 };
 
 } // namespace ptgn

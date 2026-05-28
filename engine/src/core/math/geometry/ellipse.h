@@ -2,6 +2,7 @@
 
 #include <array>
 
+#include "core/assert.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
@@ -11,31 +12,37 @@ namespace ptgn {
 
 class Ellipse {
 public:
+	V2_float radius;
+
 	constexpr Ellipse() = default;
 
 	template <Arithmetic T>
-	constexpr explicit Ellipse(Vector2<T> ellipse_radius) : radius_{ ellipse_radius } {}
+	constexpr explicit Ellipse(T radius) : radius{ radius } {}
 
-	void SetRadius(V2_float radius);
-
-	/// @return Center relative to the world.
-	V2_float GetCenter(Transform transform) const;
-
-	V2_float GetRadius() const;
+	template <Arithmetic T>
+	constexpr explicit Ellipse(Vector2<T> radius) : radius{ radius } {}
 
 	/// @return Radius scaled relative to the transform.
-	V2_float GetRadius(Transform transform) const;
+	constexpr V2_float GetRadius(Transform transform) const {
+		auto abs_scale{ Abs(transform.scale) };
+		return radius * abs_scale;
+	}
 
-	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
+	constexpr std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const {
+		auto vertices{ GetLocalQuadVertices() };
+		return transform.Apply(vertices);
+	}
 
-	std::array<V2_float, 4> GetLocalQuadVertices() const;
+	constexpr std::array<V2_float, 4> GetLocalQuadVertices() const {
+		auto min{ -radius };
+		auto max{ radius };
+		PTGN_ASSERT(min != max, "Cannot get local vertices for a ellipse with size zero");
+		return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
+	}
 
 	constexpr bool operator==(const Ellipse&) const = default;
 
-	PTGN_SERIALIZE(Ellipse, radius_)
-
-private:
-	V2_float radius_;
+	PTGN_SERIALIZE(Ellipse, radius)
 };
 
 } // namespace ptgn

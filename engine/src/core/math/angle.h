@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <ostream>
 
 #include "core/math/math_utils.h"
@@ -19,11 +20,11 @@ struct Degrees {
 
 	[[nodiscard]] constexpr Radians ToRad() const;
 
-	[[nodiscard]] float Tan() const;
+	[[nodiscard]] constexpr float Tan() const;
 
-	[[nodiscard]] float Sin() const;
+	[[nodiscard]] constexpr float Sin() const;
 
-	[[nodiscard]] float Cos() const;
+	[[nodiscard]] constexpr float Cos() const;
 
 	/// @return Random angle in the range [0.0, 360.0].
 	[[nodiscard]] static Degrees Random();
@@ -48,15 +49,23 @@ struct Radians {
 
 	explicit constexpr Radians(float value) : value{ value } {}
 
-	explicit constexpr Radians(Degrees d);
+	explicit constexpr Radians(Degrees d) : value{ d.value * kPi / 180.0f } {}
 
-	[[nodiscard]] constexpr Degrees ToDeg() const;
+	[[nodiscard]] constexpr Degrees ToDeg() const {
+		return Degrees{ *this };
+	}
 
-	[[nodiscard]] float Tan() const;
+	[[nodiscard]] constexpr float Tan() const {
+		return std::tan(value);
+	}
 
-	[[nodiscard]] float Sin() const;
+	[[nodiscard]] constexpr float Sin() const {
+		return std::sin(value);
+	}
 
-	[[nodiscard]] float Cos() const;
+	[[nodiscard]] constexpr float Cos() const {
+		return std::cos(value);
+	}
 
 	/// @return Random angle in the range [0.0, kTwoPi].
 	[[nodiscard]] static Radians Random();
@@ -76,23 +85,29 @@ struct Radians {
 	float value{ 0.0f };
 };
 
-void to_json(json& j, const Degrees& angle);
-void from_json(const json& j, Degrees& angle);
-
-void to_json(json& j, const Radians& angle);
-void from_json(const json& j, Radians& angle);
-
 constexpr Degrees::Degrees(Radians r) : value{ r.value * 180.0f / kPi } {}
-
-constexpr Radians::Radians(Degrees d) : value{ d.value * kPi / 180.0f } {}
 
 constexpr Radians Degrees::ToRad() const {
 	return Radians{ *this };
 }
 
-constexpr Degrees Radians::ToDeg() const {
-	return Degrees{ *this };
+constexpr float Degrees::Tan() const {
+	return ToRad().Tan();
 }
+
+constexpr float Degrees::Sin() const {
+	return ToRad().Sin();
+}
+
+constexpr float Degrees::Cos() const {
+	return ToRad().Cos();
+}
+
+void to_json(json& j, const Degrees& angle);
+void from_json(const json& j, Degrees& angle);
+
+void to_json(json& j, const Radians& angle);
+void from_json(const json& j, Radians& angle);
 
 constexpr Degrees operator+(Degrees a, Degrees b) { // NOSONAR
 	return Degrees{ a.value + b.value };
@@ -183,10 +198,26 @@ constexpr Radians operator-(Radians a) {
 }
 
 /// @brief Clamp angle in degrees from [0, 360).
-[[nodiscard]] Degrees Clamp(Degrees d);
+[[nodiscard]] constexpr Degrees Clamp(Degrees d) {
+	float clamped{ std::fmod(d.value, 360.0f) };
+
+	if (clamped < 0.0f) {
+		clamped += 360.0f;
+	}
+
+	return Degrees{ clamped };
+}
 
 /// @return Clamp angle in radians in range [0, 2 pi).
-[[nodiscard]] Radians Clamp(Radians r);
+[[nodiscard]] constexpr Radians Clamp(Radians r) {
+	float clamped{ std::fmod(r.value, kTwoPi) };
+
+	if (clamped < 0.0f) {
+		clamped += kTwoPi;
+	}
+
+	return Radians{ clamped };
+}
 
 /// @brief Linearly interpolate between a and b by t.
 [[nodiscard]] constexpr Degrees Lerp(Degrees a, Degrees b, float t) {

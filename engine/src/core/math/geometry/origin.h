@@ -1,5 +1,8 @@
 #pragma once
 
+#include <utility>
+
+#include "core/log.h"
 #include "core/math/vector2.h"
 #include "serialization/serialize.h"
 
@@ -18,13 +21,23 @@ enum class Origin {
 };
 PTGN_SERIALIZE_ENUM(Origin);
 
-namespace impl {
-
-V2_float GetOriginOffsetHalf(Origin origin, V2_float half);
-
-} // namespace impl
-
 /// @return Vector to be added to a position to get the object center given an origin and size.
-V2_float GetOriginOffset(Origin origin, V2_float size);
+constexpr V2_float GetOffset(Origin origin, V2_float size) {
+	auto half{ size * 0.5f };
+
+	switch (origin) {
+		using enum Origin;
+		case Center:	   return {};
+		case TopLeft:	   return half;
+		case CenterBottom: return V2_float{ 0.0f, -half.y };
+		case CenterTop:	   return { 0.0f, half.y };
+		case BottomRight:  return -half;
+		case BottomLeft:   return V2_float{ half.x, -half.y };
+		case TopRight:	   return V2_float{ -half.x, half.y };
+		case CenterLeft:   return { half.x, 0.0f };
+		case CenterRight:  return { -half.x, 0.0f };
+		default:		   PTGN_ERROR("Unknown Origin: ", std::to_underlying(origin));
+	}
+}
 
 } // namespace ptgn

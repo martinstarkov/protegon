@@ -135,12 +135,6 @@ float GetIntervalOverlap(
 	V2_float& out_axis_direction
 );
 
-/// @return True if all the interior angles are less than 180 degrees.
-[[nodiscard]] bool IsConvexPolygon(std::span<const V2_float> vertices);
-
-/// @return True if any of the interior angles are above 180 degrees.
-[[nodiscard]] bool IsConcavePolygon(std::span<const V2_float> vertices);
-
 } // namespace impl
 
 } // namespace ptgn

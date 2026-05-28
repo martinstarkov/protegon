@@ -10,28 +10,21 @@ namespace ptgn {
 
 class Triangle {
 public:
+	std::array<V2_float, 3> vertices;
+
 	constexpr Triangle() = default;
 
-	constexpr Triangle(V2_float a, V2_float b, V2_float c) : vertices_{ a, b, c } {}
+	constexpr Triangle(V2_float a, V2_float b, V2_float c) : vertices{ a, b, c } {}
 
-	constexpr explicit Triangle(const std::array<V2_float, 3>& vertices) : vertices_{ vertices } {}
+	constexpr explicit Triangle(const std::array<V2_float, 3>& vertices) : vertices{ vertices } {}
 
-	void SetVertices(V2_float a, V2_float b, V2_float c);
-
-	std::array<V2_float, 3>& GetLocalVertices();
-
-	std::array<V2_float, 3> GetLocalVertices() const;
-
-	std::array<V2_float, 3> GetWorldVertices(Transform transform) const;
-
-	std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const;
+	constexpr std::array<V2_float, 3> GetWorldVertices(Transform transform) const {
+		return transform.Apply(vertices);
+	}
 
 	constexpr bool operator==(const Triangle&) const = default;
 
-	PTGN_SERIALIZE(Triangle, vertices_)
-
-private:
-	std::array<V2_float, 3> vertices_;
+	PTGN_SERIALIZE(Triangle, vertices)
 };
 
 } // namespace ptgn

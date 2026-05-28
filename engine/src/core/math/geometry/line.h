@@ -2,6 +2,8 @@
 
 #include <array>
 
+#include "core/assert.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "serialization/serialize.h"
@@ -10,37 +12,57 @@ namespace ptgn {
 
 class Line {
 public:
+	V2_float start;
+	V2_float end;
+
 	constexpr Line() = default;
 
-	constexpr Line(V2_float start, V2_float end) : start_{ start }, end_{ end } {}
-
-	void SetStart(V2_float start);
-	void SetEnd(V2_float end);
+	constexpr Line(V2_float start, V2_float end) : start{ start }, end{ end } {}
 
 	/// @param out_size Optional parameter for the unrotated size of the quad.
 	/// @return Quad vertices relative to the given transform for this line with a given a line
 	/// width.
-	std::array<V2_float, 4> GetWorldQuadVertices(
+	constexpr std::array<V2_float, 4> GetWorldQuadVertices(
 		Transform transform, float line_width = 1.0f, V2_float* out_size = nullptr
-	) const;
+	) const {
+		PTGN_ASSERT(line_width >= 1.0f);
 
-	std::array<V2_float, 2> GetWorldVertices(Transform transform) const;
+		auto dir{ GetDirection() };
 
-	std::array<V2_float, 2> GetLocalVertices() const;
+		auto local_center{ start + dir * 0.5f };
 
-	V2_float GetStart() const;
-	V2_float GetEnd() const;
+		V2_float center{ transform.Apply(local_center) };
+
+		auto rotation{ dir.Angle() };
+
+		Rect rect{ V2_float{ dir.Magnitude() + line_width, line_width } };
+
+		if (out_size) {
+			*out_size = rect.GetSize(transform);
+		}
+
+		Transform rect_transform{ center, rotation, transform.scale };
+
+		return rect.GetWorldVertices(rect_transform);
+	}
+
+	constexpr std::array<V2_float, 2> GetWorldVertices(Transform transform) const {
+		auto local_vertices{ GetLocalVertices() };
+		return transform.Apply(local_vertices);
+	}
+
+	constexpr std::array<V2_float, 2> GetLocalVertices() const {
+		return { start, end };
+	}
 
 	/// @brief Get direction from start to end.
-	V2_float GetDirection() const;
+	constexpr V2_float GetDirection() const {
+		return end - start;
+	}
 
 	constexpr bool operator==(const Line&) const = default;
 
-	PTGN_SERIALIZE(Line, start_, end_)
-
-private:
-	V2_float start_;
-	V2_float end_;
+	PTGN_SERIALIZE(Line, start, end)
 };
 
 } // namespace ptgn
