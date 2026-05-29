@@ -55,8 +55,12 @@ RenderBatcher::TextureSlotInfo RenderBatcher::GetTextureSlotNoFlush(TextureId te
 	};
 }
 
+bool RenderBatcher::IsEmpty() const {
+	return indices_.empty();
+}
+
 void RenderBatcher::Flush() {
-	if (indices_.empty()) {
+	if (IsEmpty()) {
 		return;
 	}
 

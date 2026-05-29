@@ -85,6 +85,8 @@ public:
 private:
 	friend class ptgn::Renderer;
 
+	bool IsEmpty() const;
+
 	struct TextureSlotInfo {
 		std::uint32_t slot{ 0 };
 		bool push_to_batch{ false };
