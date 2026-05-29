@@ -294,6 +294,10 @@ struct Vector2 {
 	constexpr bool IsPositive() const {
 		return x > 0 && y > 0 && !HasZero();
 	}
+
+	constexpr bool IsNegative() const {
+		return x < 0 && y < 0 && !HasZero();
+	}
 };
 
 template <Arithmetic T>

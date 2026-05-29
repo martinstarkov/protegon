@@ -227,6 +227,10 @@ struct Vector4 {
 	constexpr bool IsPositive() const {
 		return x > 0 && y > 0 && z > 0 && w > 0 && !HasZero();
 	}
+
+	constexpr bool IsNegative() const {
+		return x < 0 && y < 0 && z < 0 && w < 0 && !HasZero();
+	}
 };
 
 template <Arithmetic T>
