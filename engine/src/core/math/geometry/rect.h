@@ -127,10 +127,8 @@ public:
 		PTGN_ASSERT(it != end, "Must provide at least two points to form bounds from");
 
 		auto expand_to_include = [&](V2_float point) {
-			bounds.min.x = std::min(bounds.min.x, point.x);
-			bounds.min.y = std::min(bounds.min.y, point.y);
-			bounds.max.x = std::max(bounds.max.x, point.x);
-			bounds.max.y = std::max(bounds.max.y, point.y);
+			bounds.min = Min(bounds.min, point);
+			bounds.max = Max(bounds.max, point);
 		};
 
 		std::ranges::for_each(std::ranges::subrange{ it, end }, expand_to_include);
