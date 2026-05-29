@@ -145,6 +145,10 @@ Stats& Editor::GetStats() {
 	return impl::ApplicationAccessor::ctx(app).debug.stats;
 }
 
+Renderer& Editor::GetRenderer() {
+	return impl::ApplicationAccessor::ctx(app).renderer;
+}
+
 void Editor::SetScalingMode(ScalingMode scaling_mode) {
 	impl::ApplicationAccessor::ctx(app).renderer.SetScalingMode(scaling_mode);
 }

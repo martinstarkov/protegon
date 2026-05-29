@@ -31,6 +31,7 @@ namespace ptgn {
 class Application;
 class Scene;
 class Stats;
+class Renderer;
 
 namespace editor {
 
@@ -75,6 +76,8 @@ public:
 
 	const Stats& GetStats() const;
 	Stats& GetStats();
+
+	Renderer& GetRenderer();
 
 private:
 	Application& app;

@@ -7,6 +7,7 @@
 #include <optional>
 
 #include "app/application_state.h"
+#include "core/assert.h"
 #include "core/editor.h"
 #include "core/editor_context.h"
 #include "core/editor_state.h"
@@ -14,8 +15,10 @@
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "panels/scene_hierarchy.h"
+#include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/renderer.h"
 #include "runtime/scene/scene_camera.h"
 #include "tools/debug/stats.h"
 
@@ -519,6 +522,15 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	}
 }
 
+void SetImageBlendMode(const ImDrawList*, const ImDrawCmd* cmd) {
+	auto* renderer_ptr{ static_cast<Renderer*>(cmd->UserCallbackData) };
+	PTGN_ASSERT(renderer_ptr);
+
+	impl::RendererAccessor renderer{ *renderer_ptr };
+
+	renderer.SetBlendMode(BlendMode::ReplaceRGBA, true);
+}
+
 void ViewportPanel::OnRender(EditorContext& ctx) {
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2{ 0.0f, 0.0f });
 
@@ -604,10 +616,15 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	ImVec2 img_max{ img_min.x + static_cast<float>(display_viewport.size.x),
 					img_min.y + static_cast<float>(display_viewport.size.y) };
 
+	draw_list->AddCallback(SetImageBlendMode, &ctx.editor.GetRenderer());
+
 	draw_list->AddImage(
 		static_cast<ImTextureID>(presentation_texture), img_min, img_max, ImVec2{ 0.0f, 1.0f },
 		ImVec2{ 1.0f, 0.0f }
 	);
+
+	draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+
 	// We count this draw call so that draw call counts match with and without the editor.
 	ctx.editor.GetStats().Increment("draw_calls");
 
