@@ -251,7 +251,10 @@ private:
 	void SetViewProjection(V2_float size);
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetViewport(Viewport viewport);
-	void SetBlendMode(BlendMode blend_mode);
+	/// @param force If true, will set the blend mode even if it is the same as the current blend
+	/// mode. This is useful for resetting blend mode state that may have been changed by external
+	/// code.
+	void SetBlendMode(BlendMode blend_mode, bool force = false);
 	void SetBlending(bool enabled);
 	void SetShader(impl::ShaderId shader);
 	void SetShader(std::string_view shader);
@@ -354,11 +357,17 @@ private:
 
 	[[nodiscard]] DisplayResizeInfo RecalculateDisplayViewport() const;
 
-	const impl::RenderTargetObject& GetRenderTarget() const;
+	const impl::RenderTargetObject& GetBoundRenderTarget() const;
 
-	void DrawRenderPass(
-		impl::ShaderId shader, std::size_t pipeline, std::span<const impl::BoundInput> inputs,
-		impl::RenderTargetId output
+	void DrawRenderPass(impl::DrawPassRequest request);
+
+	void CopyRenderTargetRegion(
+		impl::RenderTargetId source, impl::RenderTargetId destination, Viewport source_region,
+		V2_int destination_position
+	);
+
+	void CompositeRenderPassResult(
+		impl::RenderTargetId source, impl::RenderTargetId destination, Viewport destination_region
 	);
 
 	Window& window_;
@@ -426,10 +435,14 @@ public:
 
 	void SetViewport(Viewport viewport);
 
+	void SetBlendMode(BlendMode blend_mode, bool force = false);
+
 	template <RenderPrimitive TPrimitive>
 	void Draw(std::span<TPrimitive> primitives, TextureId texture = {}) {
 		renderer_.Draw(primitives, texture);
 	}
+
+	const RenderTargetObject& GetBoundRenderTarget() const;
 
 private:
 	Renderer& renderer_;

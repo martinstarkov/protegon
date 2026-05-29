@@ -18,6 +18,7 @@
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/render_target_object.h"
 
@@ -149,11 +150,7 @@ public:
 
 		auto final_handle{ std::invoke(std::forward<F>(fn), render_pass_builder) };
 
-		auto final_target{ render_pass_builder.Execute(final_handle) };
-
-		PTGN_ASSERT(final_target, "Final target must be a valid render target");
-
-		UpdateRenderTarget(std::move(final_target));
+		render_pass_builder.Execute(final_handle);
 	}
 
 private:
@@ -168,7 +165,7 @@ private:
 	[[nodiscard]] impl::RenderTargetId AcquireRenderTarget(RenderTargetDesc desc);
 	void ReleaseRenderTarget(impl::RenderTargetId);
 
-	const impl::RenderTargetObject& GetRenderTarget() const;
+	const impl::RenderTargetObject& GetBoundRenderTarget() const;
 
 	void SetRenderState(const RenderState& state);
 
@@ -176,9 +173,17 @@ private:
 
 	impl::RenderTargetObject ExtractRenderTarget(impl::RenderTargetId id);
 
-	void DrawRenderPass(
-		impl::ShaderId shader, std::size_t pipeline, std::span<const impl::BoundInput> inputs,
-		impl::RenderTargetId output
+	V2_int GetRenderTargetSize(impl::RenderTargetId render_target) const;
+
+	void DrawRenderPass(impl::DrawPassRequest request);
+
+	void CopyRenderTargetRegion(
+		impl::RenderTargetId source, impl::RenderTargetId destination, Viewport source_region,
+		V2_int destination_position
+	);
+
+	void CompositeRenderPassResult(
+		impl::RenderTargetId source, impl::RenderTargetId destination, Viewport destination_region
 	);
 
 	Renderer& renderer_;

@@ -228,13 +228,12 @@ void Renderer::ClearRenderTarget(
 		viewport = gl_->GetViewport();
 
 		auto render_target_size{ GetRenderTargetSize(render_target) };
-
 		gl_->SetViewport({ .position{}, .size{ render_target_size } });
 	}
 
 	gl_->framebuffers.ClearToColor(impl::FramebufferId{ render_target }, color);
 
-	if (set_viewport && viewport.has_value()) {
+	if (set_viewport && viewport.has_value() && viewport->size.IsPositive()) {
 		gl_->SetViewport(*viewport);
 	}
 }
@@ -271,16 +270,14 @@ void Renderer::SetShader(impl::ShaderId shader) {
 	}
 	FlushBatch();
 	auto _ = gl_->Bind(shader, false);
-	PTGN_ASSERT(bound.render_state.view_projection.has_value());
-	gl_->shaders.SetUniform(shader, "u_ViewProjection", *bound.render_state.view_projection);
 }
 
 std::optional<BlendMode> Renderer::GetBlendMode() const {
 	return gl_->GetBoundState().render_state.blend_mode;
 }
 
-void Renderer::SetBlendMode(BlendMode blend_mode) {
-	if (blend_mode == gl_->GetBoundState().render_state.blend_mode) {
+void Renderer::SetBlendMode(BlendMode blend_mode, bool force) {
+	if (!force && blend_mode == gl_->GetBoundState().render_state.blend_mode) {
 		return;
 	}
 	FlushBatch();
@@ -314,6 +311,10 @@ void Renderer::SetRenderTarget(impl::RenderTargetObject* target) {
 }
 
 void Renderer::UpdateRenderTarget(impl::RenderTargetObject&& replacing_target) {
+	PTGN_ASSERT(
+		gl_->IsBound(impl::FramebufferId{ replacing_target.operator impl::RenderTargetId() }),
+		"Render target that is replacing current render target must be bound"
+	);
 	PTGN_ASSERT(current_target_, "No current render target to update");
 	*current_target_ = std::move(replacing_target);
 }
@@ -684,6 +685,10 @@ void Renderer::EndFrame() {
 
 	if (presentation_viewport_.has_value()) {
 		target_pool_.Update();
+		PTGN_ASSERT(
+			batcher_.IsEmpty(),
+			"No indices should be left in the batcher after finishing the render frame"
+		);
 		return;
 	}
 
@@ -722,6 +727,10 @@ void Renderer::EndFrame() {
 	FlushBatch();
 
 	target_pool_.Update();
+	PTGN_ASSERT(
+		batcher_.IsEmpty(),
+		"No indices should be left in the batcher after finishing the render frame"
+	);
 }
 
 bool Renderer::IsPresentationViewportVisible() const {
@@ -927,59 +936,81 @@ RenderState Renderer::GetRenderState() const {
 	return state.render_state;
 }
 
-const impl::RenderTargetObject& Renderer::GetRenderTarget() const {
+const impl::RenderTargetObject& Renderer::GetBoundRenderTarget() const {
 	PTGN_ASSERT(current_target_, "No current render target has been set");
 	return *current_target_;
 }
 
-void Renderer::DrawRenderPass(
-	impl::ShaderId shader, std::size_t pipeline_name, std::span<const impl::BoundInput> inputs,
-	impl::RenderTargetId output
-) {
+void Renderer::DrawRenderPass(impl::DrawPassRequest request) {
 	FlushBatch();
 
-	auto size{ GetRenderTargetSize(output) };
+	PTGN_ASSERT(request.output, "Render pass output must be valid");
 
-	PTGN_ASSERT(size.IsPositive(), "Render pass output size must be non-zero");
+	auto output_size{ GetRenderTargetSize(request.output) };
 
-	auto _ = gl_->Bind(impl::FramebufferId{ output }, false);
+	PTGN_ASSERT(output_size.IsPositive(), "Render pass output size must be non-zero");
+	PTGN_ASSERT(request.viewport.size.IsPositive(), "Render pass viewport size must be non-zero");
 
-	SetCurrentPipeline(pipeline_name);
+	auto previous_state{ GetRenderState() };
+	auto previous_shader{ gl_->GetBoundShader() };
+	auto previous_pipeline{ pipeline_manager_.GetCurrentPipelineId() };
+
+	auto _ = gl_->Bind(impl::FramebufferId{ request.output }, false);
+
+	SetCurrentPipeline(request.pipeline);
 	SetMaterial(
 		MaterialState{
-			.shader	  = shader,
+			.shader	  = request.shader,
 			.uniforms = {},
 		}
 	);
-	SetViewport(Viewport{ .position{}, .size{ size } });
-	SetViewProjection(size);
+
+	// TODO: Somewhere in here the viewport is not being set correctly and right camera does not get
+	// grayscale.
+
+	if (request.scissor_to_viewport) {
+		SetScissor(ScissorState{ request.viewport });
+	} else {
+		SetScissor(ScissorState{ false });
+	}
+
+	SetViewport(request.viewport);
+	SetViewProjection(request.viewport.size);
 	SetBlendMode(BlendMode::ReplaceRGBA);
 
 	std::vector<TextureBinding> bindings;
 	std::vector<impl::TextureId> textures;
 
-	bindings.reserve(inputs.size());
-	textures.reserve(inputs.size());
+	bindings.reserve(request.inputs.size());
+	textures.reserve(request.inputs.size());
 
-	for (const auto& input : inputs) {
+	for (const auto& input : request.inputs) {
 		auto texture{ GetRenderTargetTexture(input.render_target) };
 
 		PTGN_ASSERT(texture, "Render pass input must have a valid color texture");
 
-		bindings.emplace_back(input.binding);
+		auto input_size{ GetRenderTargetSize(input.render_target) };
 
+		PTGN_ASSERT(input_size.IsPositive(), "Render pass input size must be non-zero");
+
+		PTGN_ASSERT(
+			input_size == request.viewport.size,
+			"Render pass input size must match the draw viewport size"
+		);
+
+		bindings.emplace_back(input.binding);
 		textures.emplace_back(texture);
 	}
 
 	constexpr auto depth{ 0.0f };
-	constexpr auto tint{ color::White };
 	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 	constexpr auto entity_id{ -1 };
 
-	auto local_vertices{ Rect{ size }.GetLocalVertices() };
-	auto local_quad{
-		impl::CreateTextureQuad(local_vertices, depth, tint.Normalized(), tex_coords, entity_id)
-	};
+	auto local_vertices{ Rect{ request.viewport.size }.GetLocalVertices() };
+
+	auto local_quad{ impl::CreateTextureQuad(
+		local_vertices, depth, request.tint.Normalized(), tex_coords, entity_id
+	) };
 
 	std::span quads{ &local_quad, 1 };
 
@@ -987,6 +1018,61 @@ void Renderer::DrawRenderPass(
 
 	batcher_.SubmitQuadsWithTextureBindings<impl::TextureVertex>(
 		quads, pipeline.vertex_capacity, pipeline.index_capacity, bindings, textures
+	);
+
+	FlushBatch();
+
+	SetCurrentPipeline(previous_pipeline);
+
+	if (previous_shader.has_value()) {
+		SetShader(*previous_shader);
+	}
+
+	SetRenderState(previous_state);
+}
+
+void Renderer::CopyRenderTargetRegion(
+	impl::RenderTargetId source, impl::RenderTargetId destination, Viewport source_region,
+	V2_int destination_position
+) {
+	// Batch must be flushed before copying framebuffer regions to ensure that all rendering
+	// commands that may affect the source or destination regions are completed.
+	FlushBatch();
+
+	gl_->framebuffers.CopyRegion(
+		impl::FramebufferId{ source }, impl::FramebufferId{ destination }, source_region,
+		destination_position
+	);
+}
+
+void Renderer::CompositeRenderPassResult(
+	impl::RenderTargetId source, impl::RenderTargetId destination, Viewport destination_region
+) {
+	PTGN_ASSERT(source, "Render pass source must be valid");
+	PTGN_ASSERT(destination, "Render pass destination must be valid");
+	PTGN_ASSERT(destination_region.size.IsPositive(), "Composite region must be valid");
+
+	auto source_size{ GetRenderTargetSize(source) };
+
+	PTGN_ASSERT(
+		source_size == V2_int{ destination_region.size },
+		"Composite source size must match destination region size"
+	);
+
+	auto input{ impl::BoundInput{
+		.render_target = source,
+		.binding	   = TextureBinding{ 0, "u_Texture" },
+	} };
+
+	DrawRenderPass(
+		impl::DrawPassRequest{
+			.shader				 = GetShader("texture"),
+			.pipeline			 = Hash("texture"),
+			.inputs				 = std::span{ &input, 1 },
+			.output				 = destination,
+			.viewport			 = destination_region,
+			.scissor_to_viewport = true,
+		}
 	);
 }
 
@@ -1028,7 +1114,8 @@ void Renderer::DrawTexture(const impl::DrawTextureRequest& request) {
 		return;
 	}
 
-	if (request.effect_params.draw_callback) {
+	if (request.effect_params.draw_callback ||
+		IsTextureAttachedToCurrentFramebuffer(request.texture)) {
 		DrawTextureEffect(request);
 	} else {
 		DrawTextureNormally(request);
@@ -1090,7 +1177,9 @@ void Renderer::DrawTextureEffect(const impl::DrawTextureRequest& request) {
 	auto previous_shader{ gl_->GetBoundShader() };
 	auto previous_state{ GetRenderState() };
 
-	SetViewport({ .position{}, .size{ size } });
+	Viewport viewport{ .position{}, .size{ size } };
+	SetScissor(ScissorState{ viewport });
+	SetViewport(viewport);
 	SetViewProjection(size);
 
 	impl::DrawTextureRequest local_request;
@@ -1104,7 +1193,9 @@ void Renderer::DrawTextureEffect(const impl::DrawTextureRequest& request) {
 
 	DrawContext ctx{ *this };
 
-	request.effect_params.draw_callback(ctx);
+	if (request.effect_params.draw_callback) {
+		request.effect_params.draw_callback(ctx);
+	}
 
 	SetCurrentPipeline(previous_pipeline);
 	SetRenderTarget(previous_target);
@@ -1204,6 +1295,14 @@ void RendererAccessor::SetViewProjection(const Matrix4& view_projection) {
 
 void RendererAccessor::SetViewport(Viewport viewport) {
 	renderer_.SetViewport(viewport);
+}
+
+void RendererAccessor::SetBlendMode(BlendMode blend_mode, bool force) {
+	renderer_.SetBlendMode(blend_mode, force);
+}
+
+const RenderTargetObject& RendererAccessor::GetBoundRenderTarget() const {
+	return renderer_.GetBoundRenderTarget();
 }
 
 } // namespace impl

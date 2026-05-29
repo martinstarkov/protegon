@@ -2,10 +2,13 @@
 
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
 
+#include "core/graphics/color.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/render_target_object.h"
 #include "renderer/resources/texture.h"
@@ -55,6 +58,30 @@ struct BoundInput {
 	TextureBinding binding;
 };
 
+struct HandleInput {
+	RenderPassHandle handle;
+	TextureBinding binding;
+};
+
+struct RenderPassData {
+	impl::ShaderId shader;
+	Color tint{ color::White };
+	std::vector<HandleInput> reads;
+	RenderPassHandle output;
+	RenderTargetDesc output_desc;
+	bool used{ false };
+};
+
+struct DrawPassRequest {
+	impl::ShaderId shader;
+	std::size_t pipeline{ 0 };
+	std::span<const impl::BoundInput> inputs;
+	impl::RenderTargetId output;
+	Viewport viewport;
+	Color tint{ color::White };
+	bool scissor_to_viewport{ false };
+};
+
 } // namespace impl
 
 class RenderPass {
@@ -67,9 +94,13 @@ public:
 		RenderPassHandle handle, std::uint32_t slot = 0, std::string_view uniform = "u_Texture"
 	);
 
+	RenderPass& Tint(Color tint);
+
 	operator RenderPassHandle() const;
 
 private:
+	impl::RenderPassData& GetPassData();
+
 	RenderPassBuilder& render_pass_builder_;
 	std::size_t pass_index_{ 0 };
 	RenderPassHandle output_;
@@ -87,41 +118,27 @@ public:
 
 	/// @param input Optional input to the shader. If nullopt, uses the currently bound target as
 	/// input.
-	RenderPassHandle Apply(
-		std::string_view shader, std::optional<RenderPassHandle> input = std::nullopt
-	);
+	RenderPass Apply(std::string_view shader, std::optional<RenderPassHandle> input = std::nullopt);
 
 private:
 	friend class DrawContext;
 	friend class RenderPass;
 
-	struct HandleInput {
-		RenderPassHandle handle;
-		TextureBinding binding;
-	};
-
 	struct Resource {
 		RenderPassHandle handle;
 		RenderTargetDesc desc;
 
-		/// @brief The render target ID if this resource is imported from the context, or nullopt if
-		/// it is created by a pass in this builder.
-		std::optional<impl::RenderTargetId> render_target;
+		bool imported{ false };
 
 		std::optional<std::size_t> writer;
 		std::optional<std::size_t> last_use;
-		bool used{ false };
-	};
-
-	struct PassData {
-		impl::ShaderId shader;
-		std::vector<HandleInput> reads;
-		RenderPassHandle output;
-		RenderTargetDesc output_desc;
+		std::optional<impl::RenderTargetId> render_target;
 		bool used{ false };
 	};
 
 	RenderPassHandle NextTargetHandle();
+
+	void Materialize(RenderPassHandle handle);
 
 	Resource& GetResource(RenderPassHandle handle);
 
@@ -129,9 +146,7 @@ private:
 
 	void MarkUsed(RenderPassHandle handle);
 
-	[[nodiscard]] bool IsImported(const Resource& resource) const;
-
-	impl::RenderTargetObject Execute(RenderPassHandle final_handle);
+	void Execute(RenderPassHandle final_handle);
 
 	impl::RenderTargetId GetRenderTargetId(RenderPassHandle handle) const;
 
@@ -139,8 +154,12 @@ private:
 
 	DrawContext& ctx_;
 
+	impl::RenderTargetId destination_id_;
+	Viewport destination_;
+	RenderTargetDesc destination_desc_;
+
 	std::vector<Resource> resources_;
-	std::vector<PassData> passes_;
+	std::vector<impl::RenderPassData> passes_;
 
 	std::optional<RenderPassHandle> bound_;
 

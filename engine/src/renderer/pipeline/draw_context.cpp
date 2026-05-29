@@ -6,6 +6,7 @@
 #include <string_view>
 #include <utility>
 
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
@@ -25,7 +26,7 @@
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/shape_primitives.h"
-#include "renderer/pipeline/vertex.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/render_target_object.h"
@@ -75,8 +76,8 @@ RenderState DrawContext::GetRenderState() const {
 	return renderer_.GetRenderState();
 }
 
-const impl::RenderTargetObject& DrawContext::GetRenderTarget() const {
-	return renderer_.GetRenderTarget();
+const impl::RenderTargetObject& DrawContext::GetBoundRenderTarget() const {
+	return renderer_.GetBoundRenderTarget();
 }
 
 void DrawContext::SetRenderState(const RenderState& state) {
@@ -97,6 +98,12 @@ void DrawContext::DrawTexture(
 	Transform transform, impl::TextureId texture, MaterialState material, TextureDrawParams params
 ) {
 	impl::DrawTextureRequest request;
+
+	if (params.size.IsZero()) {
+		params.size = renderer_.GetTextureSize(texture);
+	}
+
+	PTGN_ASSERT(params.size.IsPositive());
 
 	Rect rect{ params.size };
 
@@ -265,11 +272,25 @@ impl::RenderTargetObject DrawContext::ExtractRenderTarget(impl::RenderTargetId i
 	return renderer_.target_pool_.Extract(id);
 }
 
-void DrawContext::DrawRenderPass(
-	impl::ShaderId shader, std::size_t pipeline, std::span<const impl::BoundInput> inputs,
-	impl::RenderTargetId output
+V2_int DrawContext::GetRenderTargetSize(impl::RenderTargetId render_target) const {
+	return renderer_.GetRenderTargetSize(render_target);
+}
+
+void DrawContext::DrawRenderPass(impl::DrawPassRequest request) {
+	renderer_.DrawRenderPass(std::move(request));
+}
+
+void DrawContext::CopyRenderTargetRegion(
+	impl::RenderTargetId source, impl::RenderTargetId destination, Viewport source_region,
+	V2_int destination_position
 ) {
-	renderer_.DrawRenderPass(shader, pipeline, inputs, output);
+	renderer_.CopyRenderTargetRegion(source, destination, source_region, destination_position);
+}
+
+void DrawContext::CompositeRenderPassResult(
+	impl::RenderTargetId source, impl::RenderTargetId destination, Viewport destination_region
+) {
+	renderer_.CompositeRenderPassResult(source, destination, destination_region);
 }
 
 } // namespace ptgn

@@ -9,10 +9,15 @@
 #include <vector>
 
 #include "core/assert.h"
+#include "core/graphics/color.h"
+#include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/render_target_object.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn {
 
@@ -21,16 +26,20 @@ RenderPass::RenderPass(
 ) :
 	render_pass_builder_{ render_pass_builder }, pass_index_{ pass_index }, output_{ output } {}
 
-RenderPass& RenderPass::Read(
-	RenderPassHandle handle, std::uint32_t slot, std::string_view uniform
-) {
+impl::RenderPassData& RenderPass::GetPassData() {
 	PTGN_ASSERT(
 		pass_index_ < render_pass_builder_.passes_.size(),
 		"Pass index must be in range of builder passes"
 	);
 
-	render_pass_builder_.passes_[pass_index_].reads.emplace_back(
-		RenderPassBuilder::HandleInput{
+	return render_pass_builder_.passes_[pass_index_];
+}
+
+RenderPass& RenderPass::Read(
+	RenderPassHandle handle, std::uint32_t slot, std::string_view uniform
+) {
+	GetPassData().reads.emplace_back(
+		impl::HandleInput{
 			.handle	 = handle,
 			.binding = TextureBinding{ .slot = slot, .uniform = std::string{ uniform } },
 		}
@@ -39,11 +48,30 @@ RenderPass& RenderPass::Read(
 	return *this;
 }
 
+RenderPass& RenderPass::Tint(Color tint) {
+	GetPassData().tint = tint;
+	return *this;
+}
+
 RenderPass::operator RenderPassHandle() const {
 	return output_;
 }
 
-RenderPassBuilder::RenderPassBuilder(DrawContext& ctx) : ctx_{ ctx } {}
+RenderPassBuilder::RenderPassBuilder(DrawContext& ctx) : ctx_{ ctx } {
+	const auto& bound{ ctx_.GetBoundRenderTarget() };
+
+	auto viewport{ ctx_.GetRenderState().viewport };
+
+	PTGN_ASSERT(viewport.has_value(), "Viewport must be set before building render passes");
+
+	destination_	  = *viewport;
+	destination_desc_ = bound.GetDesc();
+	destination_id_	  = bound;
+
+	PTGN_ASSERT(
+		destination_id_, "A non-zero render target must be bound before building render passes"
+	);
+}
 
 RenderPassHandle RenderPassBuilder::BoundTarget() {
 	if (bound_) {
@@ -52,15 +80,14 @@ RenderPassHandle RenderPassBuilder::BoundTarget() {
 
 	auto handle{ NextTargetHandle() };
 
-	const auto& current_target{ ctx_.GetRenderTarget() };
-
-	auto desc{ current_target.GetDesc() };
+	auto desc{ destination_desc_ };
+	desc.size = destination_.size;
 
 	resources_.emplace_back(
 		Resource{
-			.handle		   = handle,
-			.desc		   = std::move(desc),
-			.render_target = current_target,
+			.handle	  = handle,
+			.desc	  = desc,
+			.imported = true,
 		}
 	);
 
@@ -82,7 +109,7 @@ RenderPass RenderPassBuilder::CreateLike(RenderTargetDesc desc, std::string_view
 	);
 
 	passes_.emplace_back(
-		PassData{
+		impl::RenderPassData{
 			.shader		 = ctx_.GetShader(shader),
 			.output		 = handle,
 			.output_desc = desc,
@@ -96,12 +123,14 @@ RenderPass RenderPassBuilder::CreateLike(RenderPassHandle like, std::string_view
 	return CreateLike(GetResource(like).desc, shader);
 }
 
-RenderPassHandle RenderPassBuilder::Apply(
+RenderPass RenderPassBuilder::Apply(
 	std::string_view shader, std::optional<RenderPassHandle> input
 ) {
 	auto input_handle{ input.has_value() ? *input : BoundTarget() };
 
-	auto output{ CreateLike(input_handle, shader).Read(input_handle).operator RenderPassHandle() };
+	auto output{ CreateLike(input_handle, shader) };
+
+	output.Read(input_handle);
 
 	return output;
 }
@@ -148,15 +177,29 @@ void RenderPassBuilder::MarkUsed(RenderPassHandle target) {
 	}
 }
 
-bool RenderPassBuilder::IsImported(const Resource& resource) const {
-	return resource.render_target.has_value() && ctx_.RenderTargetPoolHas(*resource.render_target);
+void RenderPassBuilder::Materialize(RenderPassHandle handle) {
+	auto& resource{ GetResource(handle) };
+
+	if (resource.render_target.has_value()) {
+		return;
+	}
+
+	PTGN_ASSERT(resource.imported, "Only imported regions can be materialized without a writer");
+
+	auto scratch{ ctx_.AcquireRenderTarget(resource.desc) };
+
+	constexpr V2_int offset{};
+
+	ctx_.CopyRenderTargetRegion(destination_id_, scratch, destination_, offset);
+
+	resource.render_target = scratch;
 }
 
-impl::RenderTargetObject RenderPassBuilder::Execute(RenderPassHandle final_handle) {
+void RenderPassBuilder::Execute(RenderPassHandle final_handle) {
 	MarkUsed(final_handle);
 
 	for (auto& resource : resources_) {
-		if (!resource.used && IsImported(resource)) {
+		if (!resource.used && resource.imported) {
 			PTGN_ASSERT(resource.render_target.has_value());
 			ctx_.ReleaseRenderTarget(*resource.render_target);
 		}
@@ -185,8 +228,11 @@ impl::RenderTargetObject RenderPassBuilder::Execute(RenderPassHandle final_handl
 		}
 
 		std::vector<impl::BoundInput> bound_inputs;
+		bound_inputs.reserve(pass.reads.size());
 
 		for (const auto& input : pass.reads) {
+			Materialize(input.handle);
+
 			auto render_target{ GetRenderTargetId(input.handle) };
 
 			bound_inputs.emplace_back(
@@ -204,14 +250,32 @@ impl::RenderTargetObject RenderPassBuilder::Execute(RenderPassHandle final_handl
 		// TODO: Consider making pipeline customizable in the future.
 		constexpr auto pipeline{ Hash("texture") };
 
-		ctx_.DrawRenderPass(pass.shader, pipeline, bound_inputs, output);
+		auto output_size{ ctx_.GetRenderTargetSize(output) };
+
+		ctx_.DrawRenderPass(
+			impl::DrawPassRequest{
+				.shader	  = pass.shader,
+				.pipeline = pipeline,
+				.inputs	  = bound_inputs,
+				.output	  = output,
+				.viewport = Viewport{ .position{}, .size{ V2_float{ output_size } } },
+				.tint	  = pass.tint,
+			}
+		);
 
 		for (const auto& input : pass.reads) {
 			ReleaseIfLastUse(input.handle, i);
 		}
 	}
 
-	return ctx_.ExtractRenderTarget(GetRenderTargetId(final_handle));
+	// Needed in case passes_ is empty, e.g. if pass returns pass.BoundTarget() immediately.
+	Materialize(final_handle);
+
+	auto final_target{ GetRenderTargetId(final_handle) };
+
+	ctx_.CompositeRenderPassResult(final_target, destination_id_, destination_);
+
+	ctx_.ReleaseRenderTarget(final_target);
 }
 
 impl::RenderTargetId RenderPassBuilder::GetRenderTargetId(RenderPassHandle handle) const {
