@@ -21,7 +21,9 @@
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
+#include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture_format.h"
 
@@ -69,6 +71,9 @@ FramebufferId Framebuffers::CreateFramebuffer(
 	}
 
 	PTGN_ASSERT(FramebufferIsComplete(framebuffer));
+	PTGN_ASSERT(
+		GLCallReturn(glIsFramebuffer(framebuffer)), "Failed to create a valid OpenGL framebuffer"
+	);
 
 	return framebuffer;
 }
@@ -80,10 +85,18 @@ void Framebuffers::AttachTexture(
 
 	if (texture) {
 		PTGN_ASSERT(
-			gl_.textures.GetCache(texture).size.IsPositive(),
-			"Cannot attach a texture with no size"
+			gl_.textures.GetCache(texture).size.IsPositive(), "Cannot attach a texture with no size"
 		);
 	}
+
+	PTGN_ASSERT(
+		GLCallReturn(glIsFramebuffer(framebuffer)),
+		"FramebufferId is not a valid OpenGL framebuffer"
+	);
+	PTGN_ASSERT(
+		texture == TextureId{} || GLCallReturn(glIsTexture(texture)),
+		"TextureId is not a valid OpenGL texture"
+	);
 
 	constexpr AttachmentObject texture_target{ AttachmentObject::Texture2D };
 	constexpr std::int32_t mipmap_level{ 0 };
@@ -395,6 +408,51 @@ void Framebuffers::UpdateFramebufferCache(
 	spec.object = object_id ? object_type : AttachmentObject::None;
 }
 
+void Framebuffers::CopyRegion(
+	FramebufferId source, FramebufferId destination, Viewport source_region,
+	V2_int destination_position
+) const {
+	PTGN_ASSERT(source, "Source framebuffer must be valid");
+	PTGN_ASSERT(destination, "Destination framebuffer must be valid");
+	PTGN_ASSERT(
+		!source_region.position.IsNegative() && source_region.size.IsPositive(),
+		"Source framebuffer copy region must be valid"
+	);
+
+	PTGN_ASSERT(
+		GLCallReturn(glIsFramebuffer(source)),
+		"Source FramebufferId is not a valid OpenGL framebuffer"
+	);
+
+	PTGN_ASSERT(
+		GLCallReturn(glIsFramebuffer(destination)),
+		"Destination FramebufferId is not a valid OpenGL framebuffer"
+	);
+
+	auto previous_framebuffer{ gl_.GetBoundFramebuffer() };
+
+	GLCall(glBindFramebuffer(GL_READ_FRAMEBUFFER, source));
+	GLCall(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, destination));
+
+	auto src_min{ source_region.position };
+	auto src_max{ source_region.position + source_region.size };
+
+	auto dst_min{ destination_position };
+	auto dst_max{ destination_position + source_region.size };
+
+	GLCall(glBlitFramebuffer(
+		src_min.x, src_min.y, src_max.x, src_max.y, dst_min.x, dst_min.y, dst_max.x, dst_max.y,
+		GL_COLOR_BUFFER_BIT, GL_NEAREST
+	));
+
+	if (previous_framebuffer.has_value()) {
+		// Guarantee that a new framebuffer is bound after, since gl_.Bind won't recognize
+		// GL_READ_FRAMEBUFFER or GL_DRAW_FRAMEBUFFER changes.
+		gl_.bound_.framebuffer = std::nullopt;
+		auto _				   = gl_.Bind(*previous_framebuffer, false);
+	}
+}
+
 void Framebuffers::ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size) {
 	const auto& cache = cache_.Get(framebuffer);
 
@@ -560,6 +618,8 @@ void Framebuffers::DestroyFramebuffer(FramebufferId id) {
 	if (!id) {
 		return;
 	}
+	gl_.ForgetId(id);
+	PTGN_ASSERT(!gl_.IsBound(id), "FramebufferId must not be bound when destroying it");
 	GLCall(glDeleteFramebuffers(1, &id.value));
 	cache_.Remove(id);
 }
