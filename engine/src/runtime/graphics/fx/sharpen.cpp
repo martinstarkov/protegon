@@ -7,7 +7,7 @@
 namespace ptgn {
 
 void Sharpen::Draw(DrawContext& ctx, Entity) {
-	ctx.Pass([](auto& pass) { return pass.Apply("sharpen"); });
+	ctx.Pass([](auto& pass) -> RenderPassHandle { return pass.Apply("sharpen"); });
 }
 
 } // namespace ptgn

@@ -7,7 +7,7 @@
 namespace ptgn {
 
 void Grayscale::Draw(DrawContext& ctx, Entity) {
-	ctx.Pass([](auto& pass) { return pass.Apply("grayscale"); });
+	ctx.Pass([](auto& pass) -> RenderPassHandle { return pass.Apply("grayscale"); });
 }
 
 } // namespace ptgn

@@ -7,7 +7,7 @@
 namespace ptgn {
 
 void EdgeDetection::Draw(DrawContext& ctx, Entity) {
-	ctx.Pass([](auto& pass) { return pass.Apply("edge_detection"); });
+	ctx.Pass([](auto& pass) -> RenderPassHandle { return pass.Apply("edge_detection"); });
 }
 
 } // namespace ptgn

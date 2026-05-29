@@ -7,7 +7,7 @@
 namespace ptgn {
 
 void Blur::Draw(DrawContext& ctx, Entity) {
-	ctx.Pass([](auto& pass) { return pass.Apply("blur"); });
+	ctx.Pass([](auto& pass) -> RenderPassHandle { return pass.Apply("blur"); });
 }
 
 } // namespace ptgn

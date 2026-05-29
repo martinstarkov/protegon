@@ -7,7 +7,7 @@
 namespace ptgn {
 
 void InverseColor::Draw(DrawContext& ctx, Entity) {
-	ctx.Pass([](auto& pass) { return pass.Apply("inverse_color"); });
+	ctx.Pass([](auto& pass) -> RenderPassHandle { return pass.Apply("inverse_color"); });
 }
 
 } // namespace ptgn
