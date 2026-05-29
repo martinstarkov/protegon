@@ -10,6 +10,7 @@
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
@@ -186,6 +187,8 @@ struct RenderCamera {
 	std::optional<Color> clear_color;
 	SceneCamera scene_camera;
 	RenderTarget render_target;
+	EffectParams effect_params;
+	Color tint{ color::White };
 
 	friend bool operator==(const RenderCamera& lhs, const RenderCamera& rhs) {
 		return lhs.uuid == rhs.uuid;

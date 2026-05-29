@@ -21,7 +21,9 @@
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/render_target.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
@@ -37,7 +39,9 @@ RenderCamera::RenderCamera(SceneCamera scene_camera) :
 	depth{ GetDepth(scene_camera) },
 	camera{ scene_camera.operator ptgn::Camera() },
 	clear_color{ scene_camera.GetClearColor() },
-	scene_camera{ scene_camera } {
+	scene_camera{ scene_camera },
+	effect_params{ GetEffectParams(scene_camera) },
+	tint{ GetTint(scene_camera) } {
 	if (auto parent_rt{ scene_camera.template TryGet<impl::ParentRenderTarget>() }) {
 		render_target = parent_rt->render_target;
 	}
