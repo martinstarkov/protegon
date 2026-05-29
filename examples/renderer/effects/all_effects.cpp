@@ -34,20 +34,17 @@ class CombinedEffectsSecondScene : public Scene {
 class CombinedEffectsScene : public Scene {
 public:
 	static constexpr V2_int kWindowSize{ 1280, 720 };
-	static constexpr V2_int kGameSize{ kWindowSize };
 
-	static constexpr Viewport kLeftViewport{ { 0.0f, 0.0f }, { kGameSize.x / 2.0f, kGameSize.y } };
+	static constexpr Viewport kLeftViewport{ { 0.0f, 0.0f },
+											 { kWindowSize.x / 2.0f, kWindowSize.y } };
 
-	static constexpr Viewport kRightViewport{ { kGameSize.x / 2.0f, 0.0f },
-											  { kGameSize.x / 2.0f, kGameSize.y } };
+	static constexpr Viewport kRightViewport{ { kWindowSize.x / 2.0f, 0.0f },
+											  { kWindowSize.x / 2.0f, kWindowSize.y } };
 
 private:
 	SceneCamera left_camera;
 
 	void OnEnter() override {
-		ctx().renderer.SetGameSize(kGameSize);
-		ctx().renderer.SetScalingMode(ScalingMode::Letterbox);
-
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
 		left_camera = CreateCamera(*this);
@@ -58,8 +55,8 @@ private:
 		left_camera.SetViewport(kLeftViewport);
 		ctx().camera.SetViewport(kRightViewport);
 
-		left_camera.SetClearColor(color::LightGray.WithAlpha(0.8f));
-		ctx().camera.SetClearColor(color::LightGray.WithAlpha(0.8f));
+		left_camera.SetClearColor(color::LightBlue.WithAlpha(0.5f));
+		ctx().camera.SetClearColor(color::LightRed.WithAlpha(0.5f));
 
 		// ---------------------------------------------------------------------
 		// 1. Texture/entity-local effect.
@@ -68,10 +65,10 @@ private:
 		// The right one has a local grayscale effect.
 		// ---------------------------------------------------------------------
 
-		CreateSprite(*this, "sprite", { -180.0f, 140.0f });
-		auto local_effect_sprite{ CreateSprite(*this, "sprite", { 180.0f, 140.0f }) };
+		// CreateSprite(*this, "sprite", { -180.0f, 140.0f });
+		// auto local_effect_sprite{ CreateSprite(*this, "sprite", { 180.0f, 140.0f }) };
 
-		AddEffect(local_effect_sprite, CreateEffect<Grayscale>(*this));
+		// AddEffect(local_effect_sprite, CreateEffect<Sharpen>(*this));
 
 		// ---------------------------------------------------------------------
 		// 2. Effect entity.
@@ -82,11 +79,14 @@ private:
 		// effect entity.
 		// ---------------------------------------------------------------------
 
-		CreateSprite(*this, "sprite", { -180.0f, -140.0f });
+		// CreateSprite(*this, "sprite", { -180.0f, -140.0f });
 
-		CreateEffect<InverseColor>(*this);
+		// TODO: Remove.
+		CreateSprite(*this, "sprite", { 0.0f, 0.0f });
 
-		CreateSprite(*this, "sprite", { 180.0f, -140.0f });
+		CreateEffect<Grayscale>(*this);
+
+		// CreateSprite(*this, "sprite", { 180.0f, -140.0f });
 
 		// ---------------------------------------------------------------------
 		// 3. Camera effect.
@@ -95,7 +95,7 @@ private:
 		// camera is the comparison view.
 		// ---------------------------------------------------------------------
 
-		AddEffect(ctx().camera, CreateEffect<Blur>(*this));
+		// AddEffect(ctx().camera, CreateEffect<InverseColor>(*this));
 
 		// ---------------------------------------------------------------------
 		// 4. Scene effect.
@@ -104,7 +104,7 @@ private:
 		// CombinedEffectsSecondScene should not receive this scene effect.
 		// ---------------------------------------------------------------------
 
-		AddEffect(*this, CreateEffect<Sharpen>(*this));
+		// AddEffect(*this, CreateEffect<Blur>(*this));
 
 		// ---------------------------------------------------------------------
 		// 5. Screen effect.
@@ -113,7 +113,7 @@ private:
 		// both this scene and CombinedEffectsSecondScene.
 		// ---------------------------------------------------------------------
 
-		AddScreenEffect<Grayscale>(*this);
+		// AddScreenEffect<Grayscale>(*this);
 
 		// Enter a second scene so the screen effect can be distinguished from
 		// the scene effect.

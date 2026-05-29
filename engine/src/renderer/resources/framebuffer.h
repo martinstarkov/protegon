@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/math/vector2.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
 

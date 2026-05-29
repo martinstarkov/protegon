@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <compare>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -21,13 +22,17 @@
 #include "core/math/geometry/rounded_rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/geometry/triangle.h"
+#include "core/math/matrix4.h"
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/span.h"
+#include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_command.h"
+#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/shape_primitives.h"
@@ -41,6 +46,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -345,44 +351,6 @@ void RenderQueue::CombineCommands(const impl::RenderCamera& camera) {
 	combine(render_commands_, combined_render);
 }
 
-void RenderQueue::SetupCamera(
-	const RenderTarget& scene_render_target, impl::ClearedEntities& cleared, V2_int game_size,
-	const impl::RenderCamera& render_camera
-) {
-	auto render_target{ render_camera.render_target ? render_camera.render_target
-													: scene_render_target };
-
-	impl::RendererAccessor renderer{ renderer_ };
-
-	renderer.SetRenderTarget(&render_target.Get<impl::RenderTargetObject>());
-
-	if (bool clear_render_target{ !std::ranges::contains(cleared.render_targets, render_target) };
-		clear_render_target) {
-		render_target.Clear();
-		cleared.render_targets.emplace_back(render_target);
-	}
-
-	PTGN_ASSERT(game_size.IsPositive(), "Game size dimensions must be above 0");
-
-	auto rt_size{ render_target.GetSize() };
-	V2_float scale{ V2_float{ rt_size } / game_size };
-
-	auto viewport{ render_camera.camera.viewport };
-	// Not *= because we want float multiplication followed by flooring.
-	viewport.position = viewport.position * scale;
-	viewport.size	  = viewport.size * scale;
-	renderer.SetViewport(viewport);
-	renderer.SetViewProjection(render_camera.camera.view_projection);
-
-	if (bool clear_camera{ !std::ranges::contains(cleared.cameras, render_camera.uuid) };
-		clear_camera && render_camera.clear_color.has_value()) {
-		renderer.SetScissor(ScissorState{ viewport });
-		render_target.Clear(*render_camera.clear_color, false);
-		renderer.SetScissor(ScissorState{ false });
-		cleared.cameras.emplace_back(render_camera.uuid);
-	}
-}
-
 void RenderQueue::Draw(
 	DrawContext& ctx, const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
 	V2_int game_size, const std::vector<impl::CameraRenderBucket>& buckets
@@ -398,7 +366,42 @@ void RenderQueue::Draw(
 ) {
 	PTGN_ASSERT(bucket.camera);
 
-	SetupCamera(scene_render_target, cleared, game_size, *bucket.camera);
+	auto render_camera{ *bucket.camera };
+
+	auto render_target{ render_camera.render_target ? render_camera.render_target
+													: scene_render_target };
+
+	impl::RendererAccessor renderer{ renderer_ };
+
+	renderer.SetRenderTarget(&render_target.Get<impl::RenderTargetObject>());
+
+	if (bool clear_render_target{ !std::ranges::contains(cleared.render_targets, render_target) };
+		clear_render_target) {
+		render_target.Clear();
+		cleared.render_targets.emplace_back(render_target);
+	}
+
+	PTGN_ASSERT(game_size.IsPositive(), "Game size dimensions must be above 0");
+
+	// TODO: Move to RenderCamera initialization.
+	auto rt_size{ render_target.GetSize() };
+	V2_float scale{ V2_float{ rt_size } / game_size };
+
+	// TODO: Move to RenderCamera initialization.
+	auto viewport{ render_camera.camera.viewport };
+	// Not *= because we want float multiplication followed by flooring.
+	viewport.position = viewport.position * scale;
+	viewport.size	  = viewport.size * scale;
+	renderer.SetViewport(viewport);
+	renderer.SetViewProjection(render_camera.camera.view_projection);
+	renderer.SetScissor(ScissorState{ viewport });
+
+	if (bool clear_camera{ !std::ranges::contains(cleared.cameras, render_camera.uuid) };
+		clear_camera && render_camera.clear_color.has_value()) {
+		// TODO: Move to RenderCamera initialization.
+		render_target.Clear(*render_camera.clear_color, false);
+		cleared.cameras.emplace_back(render_camera.uuid);
+	}
 
 	std::size_t entity_index{ 0 };
 	std::size_t manual_index{ 0 };
@@ -459,6 +462,43 @@ void RenderQueue::Draw(
 	if (bucket.manual_commands) {
 		bucket.manual_commands->Clear();
 	}
+
+	PTGN_ASSERT(bucket.camera);
+
+	auto camera_tint{ bucket.camera->tint };
+
+	if (camera_tint != color::White || bucket.camera->effect_params.draw_callback) {
+		auto texture{ renderer.GetBoundRenderTarget().GetTextureId() };
+
+		PTGN_ASSERT(viewport == ctx.GetRenderState().viewport);
+		PTGN_ASSERT(render_camera.camera.view_projection == ctx.GetRenderState().view_projection);
+		PTGN_ASSERT(
+			ctx.GetRenderState().scissor.has_value() &&
+			viewport == ctx.GetRenderState().scissor->viewport &&
+			ctx.GetRenderState().scissor->enabled
+		);
+
+		renderer.FlushBatch();
+
+		TextureDrawParams params{ .size{ viewport.size },
+								  .tint{ bucket.camera->tint },
+								  .texture_coordinates{ impl::GetTextureCoordinates(
+									  viewport.position, viewport.size, rt_size, true, true
+								  ) },
+								  .effects{ bucket.camera->effect_params } };
+
+		ctx.WithRenderState(
+			{ .view_projection = Matrix4::Orthographic(viewport.size),
+			  .blend_mode	   = BlendMode::ReplaceRGBA },
+			[&]() {
+				ctx.DrawTexture({}, texture, std::move(params));
+
+				renderer.FlushBatch();
+			}
+		);
+	}
+
+	renderer.SetScissor(ScissorState{ false });
 }
 
 std::vector<impl::CameraRenderBucket> RenderQueue::GetRenderBuckets(
@@ -490,32 +530,29 @@ std::vector<impl::CameraRenderBucket> RenderQueue::GetRenderBuckets(
 	};
 
 	for (auto& entity_camera_commands : entity_commands) {
+		if (entity_camera_commands.commands.empty()) {
+			continue;
+		}
 		auto& bucket{ find_or_create_bucket(entity_camera_commands.camera) };
 		bucket.entity_commands = &entity_camera_commands.commands;
 	}
 
 	for (auto& manual_camera_commands : manual_commands) {
+		if (!manual_camera_commands.commands.Count()) {
+			continue;
+		}
 		auto& bucket{ find_or_create_bucket(manual_camera_commands.camera) };
 		bucket.manual_commands = &manual_camera_commands.commands;
 	}
 
 	std::ranges::stable_sort(buckets, [](const auto& a, const auto& b) {
-		if (a.camera->depth < b.camera->depth) {
-			return true;
+		if (NearlyEqual(a.camera->depth, b.camera->depth)) {
+			PTGN_ASSERT(a.camera->scene_camera);
+			PTGN_ASSERT(b.camera->scene_camera);
+
+			return a.camera->scene_camera.WasCreatedBefore(b.camera->scene_camera);
 		}
-
-		if (b.camera->depth < a.camera->depth) {
-			return false;
-		}
-
-		bool a_has_entities{ a.entity_commands && !a.entity_commands->empty() };
-		bool b_has_entities{ b.entity_commands && !b.entity_commands->empty() };
-
-		if (a_has_entities != b_has_entities) {
-			return a_has_entities;
-		}
-
-		return a.camera->uuid < b.camera->uuid;
+		return a.camera->depth < b.camera->depth;
 	});
 
 	return buckets;
