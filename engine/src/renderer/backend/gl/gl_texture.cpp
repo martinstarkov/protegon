@@ -43,6 +43,7 @@ TextureId Textures::CreateTexture(
 	PTGN_ASSERT(cache_.Get(texture).params.mag_filter == params.mag_filter);
 	PTGN_ASSERT(cache_.Get(texture).params.wrap_s == params.wrap_s);
 	PTGN_ASSERT(cache_.Get(texture).params.wrap_t == params.wrap_t);
+	PTGN_ASSERT(GLCallReturn(glIsTexture(texture)), "Failed to create a valid OpenGL texture");
 
 	return texture;
 }
@@ -207,6 +208,8 @@ void Textures::DestroyTexture(TextureId id) {
 	if (!id) {
 		return;
 	}
+	gl_.ForgetId(id);
+	PTGN_ASSERT(!gl_.IsBound(id), "TextureId must not be bound when destroying it");
 	GLCall(glDeleteTextures(1, &id.value));
 	cache_.Remove(id);
 }

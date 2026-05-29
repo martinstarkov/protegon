@@ -15,6 +15,7 @@
 #include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "core/util/id_map.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 
 namespace ptgn::impl::gl {
@@ -185,10 +186,16 @@ public:
 
 	AttachmentSpec& GetFramebufferAttachment(FramebufferId framebuffer, Attachment attachment);
 
-	const AttachmentSpec& GetFramebufferAttachment(FramebufferId framebuffer, Attachment attachment)
-		const;
+	const AttachmentSpec& GetFramebufferAttachment(
+		FramebufferId framebuffer, Attachment attachment
+	) const;
 
 	void ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size);
+
+	void CopyRegion(
+		FramebufferId source, FramebufferId destination, Viewport source_region,
+		V2_int destination_position
+	) const;
 
 private:
 	friend class GLContext;

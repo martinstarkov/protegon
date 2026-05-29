@@ -81,6 +81,8 @@ void Renderbuffers::DestroyRenderbuffer(RenderbufferId id) {
 	if (!id) {
 		return;
 	}
+	gl_.ForgetId(id);
+	PTGN_ASSERT(!gl_.IsBound(id), "RenderbufferId must not be bound when destroying it");
 	GLCall(glDeleteRenderbuffers(1, &id.value));
 	cache_.Remove(id);
 }

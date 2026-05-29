@@ -31,6 +31,8 @@ public:
 	Stats& stats;
 
 private:
+	friend class Framebuffers;
+
 	// Must be constructed before shaders, because it fetches max texture slots.
 	State bound_;
 
@@ -82,6 +84,14 @@ public:
 	void Destroy(FramebufferId id);
 	void Destroy(VertexArrayId id);
 	void Destroy(RenderTargetId id);
+
+	void ForgetId(VertexBufferId id);
+	void ForgetId(UniformBufferId id);
+	void ForgetId(ShaderId id);
+	void ForgetId(TextureId id);
+	void ForgetId(RenderbufferId id);
+	void ForgetId(FramebufferId id);
+	void ForgetId(VertexArrayId id);
 
 	/// @brief Enabling blending will disable depth testing.
 	void SetBlend(bool enabled);

@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "core/assert.h"
+#include "core/util/concepts.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
@@ -146,6 +147,10 @@ template <BufferType T>
 void Buffers::DestroyBuffer(T id) {
 	if (!id) {
 		return;
+	}
+	if constexpr (IsAnyOf<VertexBufferId, UniformBufferId>) {
+		gl_.ForgetId(id);
+		PTGN_ASSERT(!gl_.IsBound(id), "Buffer must not be bound when destroying it");
 	}
 	GLCall(glDeleteBuffers(1, &id.value));
 	cache_.Remove(id);

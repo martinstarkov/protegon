@@ -251,6 +251,84 @@ bool GLContext::IsBound(ShaderId id) const {
 			   static_cast<std::uint32_t>(GetInteger(GL_CURRENT_PROGRAM)) == id;
 }
 
+void GLContext::ForgetId(VertexBufferId id) {
+	if (bound_.vertex_buffer == id) {
+		GLCall(glBindBuffer(GL_ARRAY_BUFFER, 0));
+		bound_.vertex_buffer = VertexBufferId{ 0 };
+	}
+}
+
+void GLContext::ForgetId(UniformBufferId id) {
+	if (bound_.uniform_buffer == id) {
+		GLCall(glBindBuffer(GL_UNIFORM_BUFFER, 0));
+		bound_.uniform_buffer = UniformBufferId{ 0 };
+	}
+}
+
+void GLContext::ForgetId(ShaderId id) {
+	if (bound_.shader_program == id) {
+		GLCall(glUseProgram(0));
+		bound_.shader_program = ShaderId{ 0 };
+	}
+}
+
+void GLContext::ForgetId(TextureId id) {
+	if (!id) {
+		return;
+	}
+
+	auto previous_active_texture{ bound_.active_texture };
+
+	for (auto slot{ 0u }; slot < bound_.texture_units.size(); ++slot) {
+		auto& unit{ bound_.texture_units[slot] };
+
+		if (unit.id != id) {
+			continue;
+		}
+
+		if (bound_.active_texture.slot != slot) {
+			GLCall(glActiveTexture(GL_TEXTURE0 + slot));
+			bound_.active_texture = ActiveTexture{ slot };
+		}
+
+		GLCall(glBindTexture(GL_TEXTURE_2D, 0));
+
+		unit.id = TextureId{ 0 };
+
+		// These belong to the deleted texture object, so they are no longer known.
+		unit.min_filter.reset();
+		unit.mag_filter.reset();
+		unit.wrap_s.reset();
+		unit.wrap_t.reset();
+	}
+
+	if (bound_.active_texture != previous_active_texture) {
+		GLCall(glActiveTexture(GL_TEXTURE0 + previous_active_texture.slot));
+		bound_.active_texture = previous_active_texture;
+	}
+}
+
+void GLContext::ForgetId(RenderbufferId id) {
+	if (bound_.renderbuffer == id) {
+		GLCall(glBindRenderbuffer(GL_RENDERBUFFER, 0));
+		bound_.renderbuffer = RenderbufferId{ 0 };
+	}
+}
+
+void GLContext::ForgetId(FramebufferId id) {
+	if (bound_.framebuffer == id) {
+		GLCall(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+		bound_.framebuffer = FramebufferId{ 0 };
+	}
+}
+
+void GLContext::ForgetId(VertexArrayId id) {
+	if (bound_.vertex_array == id) {
+		GLCall(glBindVertexArray(0));
+		bound_.vertex_array = VertexArrayId{ 0 };
+	}
+}
+
 bool GLContext::IsBound(TextureId id) const {
 	auto bound_id{ GetBoundTexture() };
 	return bound_id == id ||
@@ -431,6 +509,8 @@ void GLContext::SetDepthMask(const DepthMaskState& mask) {
 }
 
 void GLContext::SetViewport(Viewport viewport) {
+	PTGN_ASSERT(viewport.size.IsPositive(), "Cannot set viewport with non-positive size");
+
 	if (bound_.render_state.viewport == viewport) {
 		return;
 	}

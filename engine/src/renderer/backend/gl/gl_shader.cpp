@@ -899,6 +899,8 @@ void Shaders::DestroyProgram(ShaderId id) {
 	if (!id) {
 		return;
 	}
+	gl_.ForgetId(id);
+	PTGN_ASSERT(!gl_.IsBound(id), "ShaderId must not be bound when destroying it");
 	DeleteProgramId(id);
 	cache_.Remove(id);
 }

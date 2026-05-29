@@ -144,6 +144,8 @@ void VertexArrays::DestroyVertexArray(VertexArrayId id) {
 	if (!id) {
 		return;
 	}
+	gl_.ForgetId(id);
+	PTGN_ASSERT(!gl_.IsBound(id), "VertexArrayId must not be bound when destroying it");
 	GLCall(glDeleteVertexArrays(1, &id.value));
 	cache_.Remove(id);
 }
