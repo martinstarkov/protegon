@@ -51,7 +51,8 @@ public:
 		scene->Init(
 			*this, impl::SceneData{ .tag{ scene_tag },
 									.tag_hash{ Hash(scene_tag) },
-									.state{ impl::SceneState::Active } }
+									.state{ impl::SceneState::Active },
+									.first_scene{ true } }
 		);
 		scene->InternalEnter();
 

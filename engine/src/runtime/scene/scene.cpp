@@ -18,6 +18,7 @@
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/util/hash.h"
+#include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/scaling_mode.h"
@@ -156,6 +157,10 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	render_target_.SetTag("Scene Target");
 	render_target_.Remove<impl::IDrawable>();
 
+	if (data_.first_scene) {
+		SetBlendMode(GetRenderTarget(), BlendMode::ReplaceRGBA);
+	}
+
 	// PTGN_LOG("[scene=", this, "]");
 	// PTGN_LOG("[rt=", render_target_, "]");
 	// PTGN_LOG("[camera=", camera, "]");
@@ -238,14 +243,17 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 void Scene::DrawSceneTarget(DrawContext& draw_context) const {
 	auto texture{ render_target_.GetTextureId() };
 	auto draw_transform{ GetDrawTransform(render_target_) };
+	auto blend_mode{ GetBlendMode(render_target_) };
 
-	draw_context.DrawTexture(
-		draw_transform, texture,
-		{ .size				   = render_target_.GetSize(),
-		  .tint				   = GetTint(render_target_),
-		  .texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
-		  .effects			   = impl::GetEffectParams(render_target_) }
-	);
+	draw_context.WithBlendMode(blend_mode, [&]() {
+		draw_context.DrawTexture(
+			draw_transform, texture,
+			{ .size				   = render_target_.GetSize(),
+			  .tint				   = GetTint(render_target_),
+			  .texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
+			  .effects			   = impl::GetEffectParams(render_target_) }
+		);
+	});
 }
 
 void Scene::InternalUpdate() {

@@ -51,6 +51,7 @@ struct SceneData {
 	std::size_t tag_hash{ 0 };
 	impl::SceneState state{ impl::SceneState::Active };
 	std::unique_ptr<SceneTransition> transition;
+	bool first_scene{ false };
 };
 
 template <SceneType TScene>
