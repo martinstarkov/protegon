@@ -7,7 +7,6 @@
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_framebuffer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture_format.h"
 
@@ -97,12 +96,10 @@ void Textures::SetTextureData(
 
 	constexpr int mipmap_level{ 0 };
 	constexpr int border{ 0 };
-	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 
 	GLCall(glTexImage2D(
-		std::to_underlying(target), mipmap_level, std::to_underlying(format), size.x, size.y,
-		border, std::to_underlying(pixel_data_format), std::to_underlying(pixel_data_type),
-		pixel_data
+		GL_TEXTURE_2D, mipmap_level, std::to_underlying(format), size.x, size.y, border,
+		std::to_underlying(pixel_data_format), std::to_underlying(pixel_data_type), pixel_data
 	));
 
 	auto& cache	 = cache_.Get(texture);
@@ -118,12 +115,11 @@ void Textures::SetTextureSubData(
 	PTGN_ASSERT(pixel_subdata, "Cannot set texture subdata to nullptr");
 
 	constexpr GLint mipmap_level{ 0 };
-	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
 
 	GLCall(glTexSubImage2D(
-		std::to_underlying(target), mipmap_level, subdata_offset.x, subdata_offset.y,
-		subdata_size.x, subdata_size.y, std::to_underlying(pixel_data_format),
-		std::to_underlying(pixel_data_type), pixel_subdata
+		GL_TEXTURE_2D, mipmap_level, subdata_offset.x, subdata_offset.y, subdata_size.x,
+		subdata_size.y, std::to_underlying(pixel_data_format), std::to_underlying(pixel_data_type),
+		pixel_subdata
 	));
 }
 
@@ -132,8 +128,7 @@ void Textures::SetTextureParameter(
 ) const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its parameters");
 	PTGN_ASSERT(values, "Cannot set texture parameter values to nullptr");
-	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-	GLCall(glTexParameterfv(std::to_underlying(target), std::to_underlying(param), values));
+	GLCall(glTexParameterfv(GL_TEXTURE_2D, std::to_underlying(param), values));
 }
 
 void Textures::SetTextureParameter(
@@ -141,22 +136,19 @@ void Textures::SetTextureParameter(
 ) const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its parameters");
 	PTGN_ASSERT(values, "Cannot set texture parameter values to nullptr");
-	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-	GLCall(glTexParameteriv(std::to_underlying(target), std::to_underlying(param), values));
+	GLCall(glTexParameteriv(GL_TEXTURE_2D, std::to_underlying(param), values));
 }
 
 void Textures::SetTextureParameter(TextureId texture, TextureParameter param, float value) const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its parameters");
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
-	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-	GLCall(glTexParameterf(std::to_underlying(target), std::to_underlying(param), value));
+	GLCall(glTexParameterf(GL_TEXTURE_2D, std::to_underlying(param), value));
 }
 
 void Textures::SetTextureParameter(TextureId texture, TextureParameter param, int value) {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to setting its parameters");
 	PTGN_ASSERT(value != -1, "Cannot set texture parameter value to -1");
-	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-	GLCall(glTexParameteri(std::to_underlying(target), std::to_underlying(param), value));
+	GLCall(glTexParameteri(GL_TEXTURE_2D, std::to_underlying(param), value));
 	auto& cache{ cache_.Get(texture) };
 	switch (param) {
 		using enum TextureParameter;
@@ -170,8 +162,7 @@ void Textures::SetTextureParameter(TextureId texture, TextureParameter param, in
 int Textures::GetTextureParameter(TextureId texture, TextureParameter param) const {
 	PTGN_ASSERT(gl_.IsBound(texture), "TextureId must be bound prior to getting its parameters");
 	GLint value{ -1 };
-	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-	GLCall(glGetTexParameteriv(std::to_underlying(target), std::to_underlying(param), &value));
+	GLCall(glGetTexParameteriv(GL_TEXTURE_2D, std::to_underlying(param), &value));
 	PTGN_ASSERT(value != -1, "Failed to retrieve texture parameter");
 	return value;
 }
@@ -192,8 +183,7 @@ void Textures::GenerateMipmaps(TextureId texture) const {
 		"Set texture minifying scaling to mipmap type before generating mipmaps"
 	);
 #endif
-	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-	GLCall(glGenerateMipmap(std::to_underlying(target)));
+	GLCall(glGenerateMipmap(GL_TEXTURE_2D));
 }
 
 TextureId Textures::CreateTexture() {

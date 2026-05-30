@@ -3,6 +3,7 @@
 #include <array>
 #include <concepts>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <ostream>
 #include <type_traits>
@@ -10,6 +11,7 @@
 #include <variant>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
@@ -22,51 +24,63 @@ namespace ptgn::impl::gl {
 
 class GLContext;
 
-inline constexpr std::uint32_t kFrameBufferTarget{ 0x8D40 }; // GL_FRAMEBUFFER
-
-enum class AttachmentObject : std::uint32_t {
-	None		 = 0,
-	Texture2D	 = 0x0DE1, // GL_TEXTURE_2D
-	Renderbuffer = 0x8D41  // GL_RENDERBUFFER
-};
+inline constexpr std::uint32_t kMaxColorAttachments{ 8 };
 
 enum class Attachment : std::uint32_t {
-	// Color attachments
-	Color0 = 0x8CE0, // GL_COLOR_ATTACHMENT0
-	Color1 = 0x8CE1, // GL_COLOR_ATTACHMENT1
-	Color2 = 0x8CE2, // GL_COLOR_ATTACHMENT2
-	Color3 = 0x8CE3, // GL_COLOR_ATTACHMENT3
-	Color4 = 0x8CE4, // GL_COLOR_ATTACHMENT4
-	Color5 = 0x8CE5, // GL_COLOR_ATTACHMENT5
-	Color6 = 0x8CE6, // GL_COLOR_ATTACHMENT6
-	Color7 = 0x8CE7, // GL_COLOR_ATTACHMENT7
-	Color8 = 0x8CE8, // GL_COLOR_ATTACHMENT8
+	Color0,
+	Color1,
+	Color2,
+	Color3,
+	Color4,
+	Color5,
+	Color6,
+	Color7,
 
-	// Depth / Stencil attachments
-	Depth		 = 0x8D00, // GL_DEPTH_ATTACHMENT
-	Stencil		 = 0x8D20, // GL_STENCIL_ATTACHMENT
-	DepthStencil = 0x821A  // GL_DEPTH_STENCIL_ATTACHMENT
+	Depth,
+	Stencil,
+	DepthStencil
 };
 
-struct AttachmentSpec {
+constexpr bool IsColorAttachment(Attachment attachment) noexcept {
+	return attachment >= Attachment::Color0 && attachment <= Attachment::Color7;
+}
+
+[[nodiscard]] Attachment ColorAttachment(std::size_t index);
+
+enum class AttachmentStorage : std::uint8_t {
+	None,
+	Texture,
+	Renderbuffer
+};
+
+template <Attachment A>
+struct AttachmentInfo {
+	static constexpr bool is_color{ IsColorAttachment(A) };
+
+	using Id = std::conditional_t<is_color, TextureId, RenderbufferId>;
+
+	static constexpr AttachmentStorage storage{ is_color ? AttachmentStorage::Texture
+														 : AttachmentStorage::Renderbuffer };
+};
+
+template <Attachment A>
+using AttachmentIdType = typename AttachmentInfo<A>::Id;
+
+struct FramebufferAttachment {
+	Attachment attachment{ Attachment::Color0 };
+	AttachmentStorage storage{ AttachmentStorage::None };
 	std::uint32_t id{ 0 };
-	AttachmentObject object{ AttachmentObject::None };
-};
 
-struct FramebufferCache {
-	std::array<AttachmentSpec, 8> color;
-	AttachmentSpec depth;
-	AttachmentSpec stencil;
-	AttachmentSpec depth_stencil;
+	explicit operator bool() const noexcept {
+		return id != 0 && storage != AttachmentStorage::None;
+	}
 };
-
-[[nodiscard]] Attachment ColorAttachment(std::size_t i);
 
 enum class ClearBufferBit : std::uint32_t {
 	None	= 0,
-	Color	= 0x00004000, // GL_COLOR_BUFFER_BIT
-	Depth	= 0x00000100, // GL_DEPTH_BUFFER_BIT
-	Stencil = 0x00000400  // GL_STENCIL_BUFFER_BIT
+	Color	= 1 << 0,
+	Depth	= 1 << 1,
+	Stencil = 1 << 2
 };
 
 std::ostream& operator<<(std::ostream& os, ClearBufferBit bits);
@@ -83,45 +97,107 @@ constexpr ClearBufferBit& operator|=(ClearBufferBit& a, ClearBufferBit b) {
 	return a = a | b;
 }
 
-enum class ClearBufferType : std::uint32_t {
-	Color	= 0x1800, // GL_COLOR
-	Depth	= 0x1801, // GL_DEPTH
-	Stencil = 0x1802  // GL_STENCIL
-};
-
 class Framebuffers {
 public:
-	FramebufferId CreateFramebuffer(
-		std::optional<TextureId> texture = {}, Attachment texture_attachment = Attachment::Color0,
-		std::optional<RenderbufferId> renderbuffer = {},
-		Attachment renderbuffer_attachment = Attachment::DepthStencil, bool restore_bind = true
-	);
+	/// Color attachments are texture-backed by convention.
+	template <Attachment A = Attachment::Color0>
+	[[nodiscard]] FramebufferId Create(TextureId texture, bool restore_bind = true) {
+		static_assert(
+			IsColorAttachment(A), "Texture framebuffer attachments must be color attachments"
+		);
+		return CreateImpl(
+			std::optional<TextureId>{ texture }, A, std::nullopt, Attachment::DepthStencil,
+			restore_bind
+		);
+	}
 
-	void DestroyFramebuffer(FramebufferId id);
+	/// Depth, stencil, and depth-stencil attachments are renderbuffer-backed by convention.
+	template <Attachment A = Attachment::DepthStencil>
+	[[nodiscard]] FramebufferId Create(RenderbufferId renderbuffer, bool restore_bind = true) {
+		static_assert(
+			!IsColorAttachment(A),
+			"Renderbuffer framebuffer attachments must not be color attachments"
+		);
+		return CreateImpl(
+			std::nullopt, Attachment::Color0, std::optional<RenderbufferId>{ renderbuffer }, A,
+			restore_bind
+		);
+	}
+
+	template <
+		Attachment TextureAttachment	  = Attachment::Color0,
+		Attachment RenderbufferAttachment = Attachment::DepthStencil>
+	[[nodiscard]] FramebufferId Create(
+		TextureId texture, RenderbufferId renderbuffer, bool restore_bind = true
+	) {
+		static_assert(
+			IsColorAttachment(TextureAttachment),
+			"Texture framebuffer attachments must be color attachments"
+		);
+		static_assert(
+			!IsColorAttachment(RenderbufferAttachment),
+			"Renderbuffer framebuffer attachments must not be color attachments"
+		);
+		return CreateImpl(
+			texture, TextureAttachment, renderbuffer, RenderbufferAttachment, restore_bind
+		);
+	}
+
+	void Destroy(FramebufferId id);
 
 	/// @brief Destroys the framebuffer and any color, depth, or stencil attachments that are
 	/// attached to it.
-	void DestroyFramebufferOwning(FramebufferId id);
+	void DestroyOwning(FramebufferId id);
 
-	void AttachTexture(FramebufferId framebuffer, TextureId texture, Attachment attachment);
+	template <Attachment A>
+	void Attach(FramebufferId framebuffer, AttachmentIdType<A> image) {
+		if constexpr (AttachmentInfo<A>::storage == AttachmentStorage::Texture) {
+			AttachTextureImpl(framebuffer, image, A);
+		} else {
+			AttachRenderbufferImpl(framebuffer, image, A);
+		}
+	}
 
-	void AttachRenderbuffer(
-		FramebufferId framebuffer, RenderbufferId renderbuffer, Attachment attachment
-	);
+	template <Attachment A>
+	void Detach(FramebufferId framebuffer) {
+		Attach<A>(framebuffer, AttachmentIdType<A>{ 0 });
+	}
 
-	/// Clear buffer bits to preset values
+	template <Attachment A = Attachment::Color0>
+	void AttachTexture(FramebufferId framebuffer, TextureId texture) {
+		static_assert(
+			IsColorAttachment(A), "Texture framebuffer attachments must be color attachments"
+		);
+		Attach<A>(framebuffer, texture);
+	}
+
+	template <Attachment A = Attachment::DepthStencil>
+	void AttachRenderbuffer(FramebufferId framebuffer, RenderbufferId renderbuffer) {
+		static_assert(
+			!IsColorAttachment(A),
+			"Renderbuffer framebuffer attachments must not be color attachments"
+		);
+		Attach<A>(framebuffer, renderbuffer);
+	}
+
+	/// Clear currently bound framebuffer buffers to their current OpenGL clear values.
 	void Clear(
 		ClearBufferBit buffers = ClearBufferBit::Color | ClearBufferBit::Stencil |
 								 ClearBufferBit::Depth
 	) const;
 
-	/// Clear individual buffers of a framebuffer.
-	/// @param buffer Specify the type of buffer to clear.
-	/// @param drawbuffer Specify a particular index of draw buffer to clear. Must be 0 for depth
-	/// and stencil buffers and within max color attachments for color buffers.
-	void ClearToColor(
-		FramebufferId framebuffer, Color color, ClearBufferType buffer = ClearBufferType::Color,
-		int drawbuffer = 0
+	template <Attachment A = Attachment::Color0>
+	void ClearColor(FramebufferId framebuffer, Color color) const {
+		static_assert(IsColorAttachment(A), "ClearColor only supports color attachments");
+		ClearColorImpl(framebuffer, A, color);
+	}
+
+	void ClearDepth(FramebufferId framebuffer, float depth = 1.0f) const;
+
+	void ClearStencil(FramebufferId framebuffer, std::int32_t stencil = 0) const;
+
+	void ClearDepthStencil(
+		FramebufferId framebuffer, float depth = 1.0f, std::int32_t stencil = 0
 	) const;
 
 	/// Color -> Color
@@ -132,106 +208,180 @@ public:
 
 	/// @brief WARNING: This function is slow and should be primarily used for debugging
 	/// framebuffers.
-	/// @param coordinate Pixel coordinate from [0, size).
-	[[nodiscard]] PixelValue ReadPixel(
-		FramebufferId framebuffer, V2_int coordinate, Attachment attachment = Attachment::Color0
-	);
-
-	std::vector<AttachmentSpec> GetAttachments(FramebufferId framebuffer) const;
-
-	enum class AttachmentType {
-		Color,
-		Depth,
-		Stencil,
-		DepthStencil
-	};
+	/// @param coordinate Pixel coordinate from [0, size), with {0, 0} at the top-left.
+	template <Attachment A = Attachment::Color0>
+	[[nodiscard]] PixelValue ReadPixel(FramebufferId framebuffer, V2_int coordinate) {
+		return ReadPixelImpl(framebuffer, coordinate, A);
+	}
 
 	struct PixelBuffer {
 		V2_int size{};
-		AttachmentType type{};
+		Attachment attachment{ Attachment::Color0 };
 		std::vector<std::uint8_t> data;
 	};
 
 	/// @brief WARNING: This function is slow and should be primarily used for debugging
 	/// framebuffers.
-	PixelBuffer ReadPixels(FramebufferId framebuffer, Attachment attachment = Attachment::Color0);
+	template <Attachment A = Attachment::Color0>
+	[[nodiscard]] PixelBuffer ReadPixels(FramebufferId framebuffer) {
+		return ReadPixelsImpl(framebuffer, A);
+	}
 
 	/// @brief WARNING: This function is slow and should be primarily used for debugging
 	/// framebuffers.
-	template <InvocableR<void, V2_int, PixelValue> F>
-	void ForEachPixel(const PixelBuffer& buffer, F&& func) const {
-		for (int y = 0; y < buffer.size.y; ++y) {
-			int flipped = buffer.size.y - 1 - y;
-			for (int x = 0; x < buffer.size.x; ++x) {
-				int idx = flipped * buffer.size.x + x;
-				PixelValue px{ DecodePixel(buffer.data, idx, buffer.type) };
-				std::invoke(std::forward<F>(func), V2_int{ x, y }, px);
+	void ForEachPixel(
+		const PixelBuffer& buffer, InvocableR<void, V2_int, PixelValue> auto func
+	) const {
+		for (int y{ 0 }; y < buffer.size.y; ++y) {
+			const int flipped_y{ buffer.size.y - 1 - y };
+
+			for (int x{ 0 }; x < buffer.size.x; ++x) {
+				const int index{ flipped_y * buffer.size.x + x };
+				PixelValue pixel{ DecodePixel(buffer.data, index, buffer.attachment) };
+
+				std::invoke(func, V2_int{ x, y }, pixel);
 			}
 		}
 	}
 
 	/// @brief WARNING: This function is slow and should be primarily used for debugging
 	/// framebuffers.
-	template <InvocableR<void, V2_int, PixelValue> F>
-	void ForEachPixel(
-		FramebufferId framebuffer, F&& func, Attachment attachment = Attachment::Color0
-	) {
-		PixelBuffer buffer{ ReadPixels(framebuffer, attachment) };
+	template <Attachment A = Attachment::Color0, InvocableR<void, V2_int, PixelValue> F>
+	void ForEachPixel(FramebufferId framebuffer, F&& func) {
+		PixelBuffer buffer{ ReadPixels<A>(framebuffer) };
 		ForEachPixel(buffer, std::forward<F>(func));
 	}
 
-	void SavePNG(
-		const path& path, FramebufferId framebuffer, Attachment attachment = Attachment::Color0
-	);
+	template <Attachment A = Attachment::Color0>
+	void SavePNG(const path& path, FramebufferId framebuffer) {
+		static_assert(IsColorAttachment(A), "SavePNG only supports color attachments");
+		SavePNGImpl(path, framebuffer, A);
+	}
 
-	AttachmentSpec& GetFramebufferAttachment(FramebufferId framebuffer, Attachment attachment);
-
-	const AttachmentSpec& GetFramebufferAttachment(
-		FramebufferId framebuffer, Attachment attachment
+	[[nodiscard]] std::vector<FramebufferAttachment> GetAttachments(
+		FramebufferId framebuffer
 	) const;
 
-	void ResizeFramebuffer(FramebufferId framebuffer, V2_int new_size);
+	template <Attachment A = Attachment::Color0>
+	[[nodiscard]] FramebufferAttachment GetAttachmentInfo(FramebufferId framebuffer) const {
+		auto info{ GetAttachmentInfoImpl(framebuffer, A) };
 
+		if (info.id != 0) {
+			PTGN_ASSERT(
+				info.storage == AttachmentInfo<A>::storage,
+				"Framebuffer attachment does not match the expected storage type"
+			);
+		}
+
+		return info;
+	}
+
+	template <Attachment A = Attachment::Color0>
+	[[nodiscard]] AttachmentIdType<A> GetAttachment(FramebufferId framebuffer) const {
+		auto info{ GetAttachmentInfo<A>(framebuffer) };
+
+		PTGN_ASSERT(info.id != 0, "Framebuffer attachment must be valid");
+
+		return AttachmentIdType<A>{ info.id };
+	}
+
+	template <Attachment A = Attachment::Color0>
+	[[nodiscard]] AttachmentIdType<A> GetAttachmentId(FramebufferId framebuffer) const {
+		return GetAttachment<A>(framebuffer);
+	}
+
+	void Resize(FramebufferId framebuffer, V2_int new_size);
+
+	template <Attachment A = Attachment::Color0>
 	void CopyRegion(
 		FramebufferId source, FramebufferId destination, Viewport source_region,
 		V2_int destination_position
-	) const;
+	) const {
+		CopyRegionImpl(source, destination, A, source_region, destination_position);
+	}
 
 private:
 	friend class GLContext;
 
-	explicit Framebuffers(GLContext& gl, std::uint32_t max_color_attachments);
+	struct AttachmentRecord {
+		std::uint32_t id{ 0 };
+		AttachmentStorage storage{ AttachmentStorage::None };
+	};
+
+	struct FramebufferCache {
+		std::array<AttachmentRecord, kMaxColorAttachments> color;
+		AttachmentRecord depth;
+		AttachmentRecord stencil;
+		AttachmentRecord depth_stencil;
+	};
+
+	explicit Framebuffers(GLContext& gl);
 	~Framebuffers() noexcept						 = default;
 	Framebuffers(const Framebuffers&)				 = delete;
 	Framebuffers(Framebuffers&&) noexcept			 = delete;
 	Framebuffers& operator=(const Framebuffers&)	 = delete;
 	Framebuffers& operator=(Framebuffers&&) noexcept = delete;
 
-	[[nodiscard]] bool FramebufferIsComplete(FramebufferId framebuffer) const;
-
-	const char* GetFramebufferStatus() const;
-
-	AttachmentType GetAttachmentType(Attachment attachment) const;
-
-	void UpdateFramebufferCache(
-		FramebufferId framebuffer, std::uint32_t object_id, Attachment attachment,
-		AttachmentObject object_type
+	[[nodiscard]] FramebufferId CreateImpl(
+		std::optional<TextureId> texture, Attachment texture_attachment,
+		std::optional<RenderbufferId> renderbuffer, Attachment renderbuffer_attachment,
+		bool restore_bind
 	);
 
-	[[nodiscard]] FramebufferId CreateFramebufferImpl();
+	void AttachTextureImpl(FramebufferId framebuffer, TextureId texture, Attachment attachment);
+
+	void AttachRenderbufferImpl(
+		FramebufferId framebuffer, RenderbufferId renderbuffer, Attachment attachment
+	);
+
+	void ClearColorImpl(FramebufferId framebuffer, Attachment attachment, Color color) const;
+
+	[[nodiscard]] PixelValue ReadPixelImpl(
+		FramebufferId framebuffer, V2_int coordinate, Attachment attachment
+	);
+
+	[[nodiscard]] PixelBuffer ReadPixelsImpl(FramebufferId framebuffer, Attachment attachment);
+
+	void SavePNGImpl(const path& path, FramebufferId framebuffer, Attachment attachment);
+
+	[[nodiscard]] FramebufferAttachment GetAttachmentInfoImpl(
+		FramebufferId framebuffer, Attachment attachment
+	) const;
+
+	[[nodiscard]] const AttachmentRecord& GetAttachmentRecord(
+		FramebufferId framebuffer, Attachment attachment
+	) const;
+
+	[[nodiscard]] AttachmentRecord& GetAttachmentRecord(
+		FramebufferId framebuffer, Attachment attachment
+	);
+
+	void UpdateCache(
+		FramebufferId framebuffer, Attachment attachment, std::uint32_t id,
+		AttachmentStorage storage
+	);
+
+	[[nodiscard]] V2_int GetAttachmentSize(const AttachmentRecord& record) const;
+
+	[[nodiscard]] bool IsComplete(FramebufferId framebuffer) const;
+
+	[[nodiscard]] const char* GetStatus() const;
+
+	void CopyRegionImpl(
+		FramebufferId source, FramebufferId destination, Attachment attachment,
+		Viewport source_region, V2_int destination_position
+	) const;
+
+	[[nodiscard]] FramebufferId CreateBareFramebuffer();
 
 	[[nodiscard]] static PixelValue DecodePixel(
-		const std::vector<std::uint8_t>& data, int index, AttachmentType type
+		const std::vector<std::uint8_t>& data, int index, Attachment attachment
 	);
 
 	void InvalidateTexture(TextureId texture);
 	void InvalidateRenderbuffer(RenderbufferId renderbuffer);
 
 	GLContext& gl_;
-
-	/// @brief Equivalent to GL_MAX_COLOR_ATTACHMENTS, or the number of color attachments a
-	/// framebuffer can have. This is set by the Init function and should not be modified afterward.
-	std::uint32_t max_color_attachments_{ 0 };
 
 	IdMap<FramebufferCache> cache_;
 };

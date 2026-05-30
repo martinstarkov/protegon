@@ -7,7 +7,6 @@
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
-#include "renderer/backend/gl/gl_framebuffer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture_format.h"
 
@@ -58,11 +57,7 @@ void Renderbuffers::SetRenderbufferStorage(
 		gl_.IsBound(renderbuffer), "RenderbufferId must be bound prior to setting its storage"
 	);
 
-	constexpr AttachmentObject target{ AttachmentObject::Renderbuffer };
-
-	GLCall(glRenderbufferStorage(
-		std::to_underlying(target), std::to_underlying(format), size.x, size.y
-	));
+	GLCall(glRenderbufferStorage(GL_RENDERBUFFER, std::to_underlying(format), size.x, size.y));
 
 	auto& cache	 = cache_.Get(renderbuffer);
 	cache.size	 = size;
