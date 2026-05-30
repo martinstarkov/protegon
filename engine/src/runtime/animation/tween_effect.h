@@ -37,25 +37,25 @@ namespace impl {
 struct Offsets;
 
 template <typename T>
-struct Effect {
-	Effect() = default;
+struct TweenEffect {
+	TweenEffect() = default;
 
-	explicit Effect(const T& start) : start{ start } {}
+	explicit TweenEffect(const T& start) : start{ start } {}
 
 	T start{};
 
-	bool operator==(const Effect&) const = default;
+	bool operator==(const TweenEffect&) const = default;
 
-	PTGN_SERIALIZE(Effect, start)
+	PTGN_SERIALIZE(TweenEffect, start)
 };
 
-struct TranslateEffect : public Effect<V2_float> {};
+struct TranslateEffect : public TweenEffect<V2_float> {};
 
-struct RotateEffect : public Effect<Radians> {};
+struct RotateEffect : public TweenEffect<Radians> {};
 
-struct ScaleEffect : public Effect<V2_float> {};
+struct ScaleEffect : public TweenEffect<V2_float> {};
 
-struct TintEffect : public Effect<Color> {};
+struct TintEffect : public TweenEffect<Color> {};
 
 struct FollowEffect {
 	FollowEffect() = default;
@@ -287,9 +287,11 @@ std::vector<Tween> TweenTo(
 		[&]<typename TType>(const TType& target_value) {
 			if constexpr (std::is_same_v<TType, T>) {
 				for (const auto& entity : entities) {
-					tweens.emplace_back(TweenTo<TComponent, T>(
-						entity, target_value, duration, ease, property, force
-					));
+					tweens.emplace_back(
+						TweenTo<TComponent, T>(
+							entity, target_value, duration, ease, property, force
+						)
+					);
 				}
 			} else if constexpr (std::is_same_v<TType, std::vector<T>>) {
 				PTGN_ASSERT(
@@ -297,9 +299,11 @@ std::vector<Tween> TweenTo(
 					"Target vector size must match entities size"
 				);
 				for (auto i{ 0uz }; i < entities.size(); ++i) {
-					tweens.emplace_back(TweenTo<TComponent, T>(
-						entities[i], target_value[i], duration, ease, property, force
-					));
+					tweens.emplace_back(
+						TweenTo<TComponent, T>(
+							entities[i], target_value[i], duration, ease, property, force
+						)
+					);
 				}
 			} else {
 				static_assert(false, "Unsupported target type for TweenTo");
@@ -437,7 +441,8 @@ std::vector<Tween> ScaleTo(
 					"Target vector size must match entities size"
 				);
 				for (auto i{ 0uz }; i < entities.size(); ++i) {
-					tweens.emplace_back(ScaleTo(entities[i], target_value[i], duration, ease, force)
+					tweens.emplace_back(
+						ScaleTo(entities[i], target_value[i], duration, ease, force)
 					);
 				}
 			} else {
@@ -493,7 +498,8 @@ std::vector<Tween> TintTo(
 					"Target vector size must match entities size"
 				);
 				for (auto i{ 0uz }; i < entities.size(); ++i) {
-					tweens.emplace_back(TintTo(entities[i], target_value[i], duration, ease, force)
+					tweens.emplace_back(
+						TintTo(entities[i], target_value[i], duration, ease, force)
 					);
 				}
 			} else {
