@@ -5,8 +5,8 @@
   "texture": {
     "source": "texture"
   },
-  "screen_default": {
-    "source": "screen_default"
+  "default": {
+    "source": "default"
   },
   "ellipse": {
     "vertex": "shape",
@@ -29,39 +29,43 @@
     "fragment": "text"
   },
   "blur": {
-    "vertex": "screen_default",
-    "fragment": "screen_blur"
+    "vertex": "default",
+    "fragment": "blur"
   },
   "gaussian_blur": {
-    "vertex": "screen_default",
-    "fragment": "screen_gaussian_blur"
+    "vertex": "default",
+    "fragment": "gaussian_blur"
+  },
+  "composite_additive": {
+    "vertex": "default",
+    "fragment": "composite_additive"
   },
   "edge_detection": {
-    "vertex": "screen_default",
-    "fragment": "screen_edge_detection"
+    "vertex": "default",
+    "fragment": "edge_detection"
   },
   "grayscale": {
-    "vertex": "screen_default",
-    "fragment": "screen_grayscale"
+    "vertex": "default",
+    "fragment": "grayscale"
   },
   "isolate_bright": {
-    "vertex": "screen_default",
-    "fragment": "screen_isolate_bright"
+    "vertex": "default",
+    "fragment": "isolate_bright"
   },
   "inverse_color": {
-    "vertex": "screen_default",
-    "fragment": "screen_inverse_color"
+    "vertex": "default",
+    "fragment": "inverse_color"
   },
   "sharpen": {
-    "vertex": "screen_default",
-    "fragment": "screen_sharpen"
+    "vertex": "default",
+    "fragment": "sharpen"
   },
   "light": {
     "vertex": "texture",
     "fragment": "light"
   },
   "tone_mapping": {
-    "vertex": "screen_default",
+    "vertex": "default",
     "fragment": "tone_mapping"
   }
 }

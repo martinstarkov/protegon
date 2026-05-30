@@ -66,6 +66,11 @@ using UniformValue = std::variant<
 	std::vector<int>, bool>;
 
 struct UniformWrite {
+	UniformWrite() = default;
+
+	UniformWrite(std::string_view name, UniformValue value) :
+		name{ std::string{ name } }, value{ std::move(value) } {}
+
 	std::string name;
 	UniformValue value;
 

@@ -14,9 +14,9 @@ class GlowEffectScene : public Scene {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
 		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
-		auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
+		CreateSprite(*this, "sprite", { 180.0f, 0.0f });
 
-		AddEffect(sprite2, CreateEffect<Glow>(*this));
+		CreateEffect<Glow>(*this);
 	}
 };
 
