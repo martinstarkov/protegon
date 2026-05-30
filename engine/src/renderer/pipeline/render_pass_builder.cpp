@@ -188,9 +188,16 @@ void RenderPassBuilder::Materialize(RenderPassHandle handle) {
 
 	auto scratch{ ctx_.AcquireRenderTarget(resource.desc) };
 
-	constexpr V2_int offset{};
+	ctx_.WithRenderState(
+		{
+			.scissor = ScissorState{ false },
+		},
+		[this, scratch]() {
+			constexpr V2_int offset{};
 
-	ctx_.CopyRenderTargetRegion(destination_id_, scratch, destination_, offset);
+			ctx_.CopyRenderTargetRegion(destination_id_, scratch, destination_, offset);
+		}
+	);
 
 	resource.render_target = scratch;
 }
