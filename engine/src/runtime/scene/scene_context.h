@@ -22,6 +22,17 @@ class AudioSystem;
 class RenderTarget;
 class LocalSceneManager;
 class Renderer;
+class SceneContext;
+
+namespace impl {
+
+class SceneContextAccessor {
+public:
+	[[nodiscard]] static Application& app(SceneContext& ctx);
+	[[nodiscard]] static const Application& app(const SceneContext& ctx);
+};
+
+} // namespace impl
 
 class SceneContext {
 public:
@@ -77,6 +88,7 @@ private:
 	friend class RenderTarget;
 	friend class Scene;
 	friend class LocalSceneManager;
+	friend class impl::SceneContextAccessor;
 
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
 	/// size.

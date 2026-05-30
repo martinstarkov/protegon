@@ -7,6 +7,18 @@
 
 namespace ptgn {
 
+namespace impl {
+
+Application& SceneContextAccessor::app(SceneContext& ctx) {
+	return ctx.app_;
+}
+
+const Application& SceneContextAccessor::app(const SceneContext& ctx) {
+	return ctx.app_;
+}
+
+} // namespace impl
+
 SceneContext::SceneContext(Application& app, Scene& parent_scene) :
 	window{ impl::ApplicationAccessor::ctx(app).window },
 	renderer{ impl::ApplicationAccessor::ctx(app).renderer },
