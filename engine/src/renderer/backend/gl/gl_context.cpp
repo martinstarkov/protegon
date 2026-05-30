@@ -40,7 +40,7 @@ GLContext::GLContext(Stats& stats) :
 	shaders{ *this, GetMaxTextureSlots() },
 	textures{ *this },
 	renderbuffers{ *this },
-	framebuffers{ *this, static_cast<std::uint32_t>(GetInteger(GL_MAX_COLOR_ATTACHMENTS)) },
+	framebuffers{ *this },
 	vertex_arrays{ *this } {}
 
 BindGuard<VertexBufferId> GLContext::Bind(VertexBufferId id, bool restore_bind) {
@@ -118,9 +118,7 @@ BindGuard<RenderbufferId> GLContext::Bind(RenderbufferId id, bool restore_bind) 
 		return BindGuard<RenderbufferId>{ *this, RenderbufferId{}, false };
 	}
 
-	constexpr AttachmentObject target{ AttachmentObject::Renderbuffer };
-
-	GLCall(glBindRenderbuffer(std::to_underlying(target), id));
+	GLCall(glBindRenderbuffer(GL_RENDERBUFFER, id));
 
 	bound_.renderbuffer = id;
 
@@ -138,11 +136,9 @@ BindGuard<TextureId> GLContext::Bind(TextureId id, bool restore_bind) {
 	PTGN_ASSERT(slot < GetMaxTextureSlots(), "Slot out of range of max slots");
 	PTGN_ASSERT(bound_.texture_units[slot].id != id);
 
-	constexpr AttachmentObject target{ AttachmentObject::Texture2D };
-
 	PTGN_ASSERT(!id || textures.cache_.Has(id), "Texture ", id, " not found in texture cache");
 
-	GLCall(glBindTexture(std::to_underlying(target), id));
+	GLCall(glBindTexture(GL_TEXTURE_2D, id));
 	bound_.texture_units[slot].id = id;
 
 	return BindGuard<TextureId>{ *this, previous, restore_bind };
@@ -155,7 +151,7 @@ BindGuard<FramebufferId> GLContext::Bind(FramebufferId id, bool restore_bind) {
 		return BindGuard<FramebufferId>{ *this, FramebufferId{}, false };
 	}
 
-	GLCall(glBindFramebuffer(kFrameBufferTarget, id));
+	GLCall(glBindFramebuffer(GL_FRAMEBUFFER, id));
 	bound_.framebuffer = id;
 
 	return BindGuard<FramebufferId>{ *this, previous, restore_bind };
@@ -402,7 +398,7 @@ void GLContext::Destroy(FramebufferId id) {
 	if (bound_.framebuffer == id) {
 		bound_.framebuffer = {};
 	}
-	framebuffers.DestroyFramebuffer(id);
+	framebuffers.Destroy(id);
 }
 
 void GLContext::Destroy(VertexArrayId id) {
@@ -413,7 +409,7 @@ void GLContext::Destroy(VertexArrayId id) {
 }
 
 void GLContext::Destroy(RenderTargetId id) {
-	framebuffers.DestroyFramebufferOwning(FramebufferId{ id });
+	framebuffers.DestroyOwning(FramebufferId{ id });
 }
 
 void GLContext::SetBlend(bool enabled) {
@@ -690,6 +686,32 @@ void GLContext::SetActiveTextureSlot(std::uint32_t slot) {
 
 std::size_t GLContext::GetMaxTextureSlots() const {
 	return bound_.texture_units.size();
+}
+
+bool GLContext::ViewportCoversFramebuffer(FramebufferId framebuffer) const {
+	PTGN_ASSERT(
+		bound_.render_state.viewport.has_value(),
+		"Viewport must be set to check that it covers the entire framebuffer"
+	);
+
+	return bound_.render_state.viewport->position == V2_int{} &&
+		   bound_.render_state.viewport->size ==
+			   textures.GetTextureSize(framebuffers.GetAttachmentId(framebuffer));
+}
+
+bool GLContext::ScissorCoversFramebuffer(FramebufferId framebuffer) const {
+	PTGN_ASSERT(
+		bound_.render_state.scissor.has_value(),
+		"Scissor state must be set to check that it covers the entire framebuffer"
+	);
+
+	if (!bound_.render_state.scissor->enabled) {
+		return true;
+	}
+
+	return bound_.render_state.scissor->viewport.position == V2_int{} &&
+		   bound_.render_state.scissor->viewport.size ==
+			   textures.GetTextureSize(framebuffers.GetAttachmentId(framebuffer));
 }
 
 std::uint32_t GLContext::GetActiveTextureSlot() const {

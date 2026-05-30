@@ -24,8 +24,6 @@ class Stats;
 
 namespace impl::gl {
 
-class GLContext;
-
 class GLContext {
 public:
 	Stats& stats;
@@ -121,6 +119,9 @@ public:
 
 	/// @return The maximum number of texture slots available on the current hardware.
 	std::size_t GetMaxTextureSlots() const;
+
+	[[nodiscard]] bool ViewportCoversFramebuffer(FramebufferId framebuffer) const;
+	[[nodiscard]] bool ScissorCoversFramebuffer(FramebufferId framebuffer) const;
 
 	Buffers buffers;
 	Shaders shaders;
