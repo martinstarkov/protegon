@@ -175,32 +175,27 @@ const impl::RenderPipeline& Renderer::GetPipeline(impl::PipelineId id) const {
 impl::RenderTargetObject Renderer::CreateRenderTarget(const RenderTargetDesc& desc) {
 	PTGN_ASSERT(desc.size.IsPositive(), "Cannot create render target with zero size");
 
-	auto color = gl_->textures.CreateTexture(desc.size, desc.format, desc.params);
+	impl::FramebufferId framebuffer{ 0 };
 
-	std::optional<impl::RenderbufferId> depth;
-
-	if (!IsColorFormat(desc.format)) {
-		depth = gl_->renderbuffers.CreateRenderbuffer(desc.size, desc.format);
+	if (IsColorFormat(desc.format)) {
+		auto color{ gl_->textures.CreateTexture(desc.size, desc.format, desc.params) };
+		framebuffer = gl_->framebuffers.Create(color);
+	} else {
+		auto depth{ gl_->renderbuffers.CreateRenderbuffer(desc.size, desc.format) };
+		if (IsDepthOnlyFormat(desc.format)) {
+			framebuffer = gl_->framebuffers.Create<impl::gl::Attachment::Depth>(depth);
+		} else {
+			framebuffer = gl_->framebuffers.Create<impl::gl::Attachment::DepthStencil>(depth);
+		}
 	}
 
-	using enum impl::gl::Attachment;
-
-	auto framebuffer = gl_->framebuffers.CreateFramebuffer(
-		color, Color0, depth, IsDepthOnlyFormat(desc.format) ? Depth : DepthStencil
-	);
+	PTGN_ASSERT(framebuffer, "Failed to create valid framebuffer for render target");
 
 	return impl::RenderTargetObject{ this, impl::RenderTargetId{ framebuffer } };
 }
 
 impl::TextureId Renderer::GetRenderTargetTexture(impl::RenderTargetId render_target) const {
-	const auto& color_attachment{ gl_->framebuffers.GetFramebufferAttachment(
-		impl::FramebufferId{ render_target }, impl::gl::Attachment::Color0
-	) };
-	PTGN_ASSERT(
-		color_attachment.id,
-		"Render target must have a valid color attachment for its texture to be retrieved"
-	);
-	return impl::TextureId{ color_attachment.id };
+	return gl_->framebuffers.GetAttachmentId(impl::FramebufferId{ render_target });
 }
 
 V2_int Renderer::GetRenderTargetSize(impl::RenderTargetId render_target) const {
@@ -231,7 +226,7 @@ void Renderer::ClearRenderTarget(
 		gl_->SetViewport({ .position{}, .size{ render_target_size } });
 	}
 
-	gl_->framebuffers.ClearToColor(impl::FramebufferId{ render_target }, color);
+	gl_->framebuffers.ClearColor(impl::FramebufferId{ render_target }, color);
 
 	if (set_viewport && viewport.has_value() && viewport->size.IsPositive()) {
 		gl_->SetViewport(*viewport);
@@ -396,8 +391,7 @@ bool Renderer::IsTextureAttachedToCurrentFramebuffer(impl::TextureId texture) co
 		return false;
 	}
 
-	return gl_->framebuffers.GetFramebufferAttachment(*bound, impl::gl::Attachment::Color0).id ==
-		   texture;
+	return gl_->framebuffers.GetAttachment(*bound) == texture;
 }
 
 void Renderer::OnWindowResize(V2_int size) {
@@ -673,13 +667,44 @@ void Renderer::BeginFrame() {
 	presentation_target_.Clear(background_color_, false, false);
 }
 
-void Renderer::EndFrame() {
+void Renderer::ApplyScreenEffects(const std::function<void(DrawContext&)>& screen_effect_callback) {
+	if (!screen_effect_callback) {
+		return;
+	}
+
+	FlushBatch();
+
+	PTGN_ASSERT(presentation_target_, "Presentation target must be valid");
+
+	auto size{ presentation_target_.GetSize() };
+
+	PTGN_ASSERT(size.IsPositive(), "Presentation target size must be valid");
+
+	SetRenderTarget(&presentation_target_);
+
+	Viewport viewport{
+		.position = {},
+		.size	  = size,
+	};
+
+	SetViewport(viewport);
+	SetViewProjection(viewport.size);
+	SetScissor(ScissorState{ false });
+	SetBlendMode(BlendMode::ReplaceRGBA);
+
+	DrawContext ctx{ *this };
+
+	screen_effect_callback(ctx);
+
+	FlushBatch();
+}
+
+void Renderer::EndFrame(const std::function<void(DrawContext&)>& screen_effect_callback) {
 	PTGN_ASSERT(display_viewport_.size.IsPositive());
 
 	FlushBatch();
 
-	// TODO: Run presentation texture effect chain.
-	// effect_params = ...;
+	ApplyScreenEffects(screen_effect_callback);
 
 	SetRenderTarget(nullptr);
 
@@ -871,7 +896,7 @@ TextureParams Renderer::GetTextureParams(impl::TextureId texture) const {
 }
 
 void Renderer::ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size) {
-	gl_->framebuffers.ResizeFramebuffer(impl::FramebufferId{ render_target }, new_size);
+	gl_->framebuffers.Resize(impl::FramebufferId{ render_target }, new_size);
 }
 
 void Renderer::SetTextureParams(impl::TextureId texture, TextureParams params) {

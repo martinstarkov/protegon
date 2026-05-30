@@ -331,7 +331,7 @@ private:
 	void DrawElements(const impl::RenderPipeline& pipeline, std::uint32_t index_count);
 
 	void BeginFrame();
-	void EndFrame();
+	void EndFrame(const std::function<void(DrawContext&)>& screen_effect_callback);
 
 	void SetUniformValue(impl::ShaderId id, const char* uniform_name, const UniformValue& v);
 
@@ -369,6 +369,8 @@ private:
 	void CompositeRenderPassResult(
 		impl::RenderTargetId source, impl::RenderTargetId destination, Viewport destination_region
 	);
+
+	void ApplyScreenEffects(const std::function<void(DrawContext&)>& screen_effect_callback);
 
 	Window& window_;
 

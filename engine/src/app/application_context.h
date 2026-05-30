@@ -12,6 +12,7 @@
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio_system.h"
+#include "runtime/ecs/manager.h"
 #include "runtime/graphics/text/font_system.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
@@ -53,6 +54,7 @@ public:
 	AssetManager assets;
 	FontSystem font;
 	AudioSystem audio;
+	Manager screen_effect_manager;
 
 	float fps{ 60.0f };
 	secondsf dt{ 0.0f };

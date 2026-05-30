@@ -6,11 +6,13 @@
 
 #endif
 
+#include <ecs/ecs.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
 #include <chrono>
+#include <functional>
 #include <memory>
 #include <string_view>
 #include <utility>
@@ -29,6 +31,7 @@
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/renderer.h"
 #include "runtime/audio/audio_system.h"
+#include "runtime/graphics/drawable.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
@@ -171,9 +174,24 @@ void Application::Update() {
 
 	if (scene_rendering) {
 		ctx_.renderer.BeginFrame();
+
 		DrawContext draw_context{ ctx_.renderer };
+
 		ctx_.scene_manager.Draw(draw_context);
-		ctx_.renderer.EndFrame();
+
+		std::function<void(DrawContext&)> screen_effect_callback;
+
+		ctx_.screen_effect_manager.Refresh();
+
+		if (!ctx_.screen_effect_manager.IsEmpty()) {
+			screen_effect_callback = [&](auto& draw_ctx) {
+				for (auto entity : ctx_.screen_effect_manager.Entities()) {
+					impl::InvokeDrawable(draw_ctx, entity);
+				}
+			};
+		};
+
+		ctx_.renderer.EndFrame(screen_effect_callback);
 	}
 
 	for (const auto& layer : ctx_.layers) {
