@@ -9,6 +9,7 @@
 #include <tuple>
 #include <type_traits>
 
+#include "core/assert.h"
 #include "core/util/concepts.h"
 
 namespace ptgn {

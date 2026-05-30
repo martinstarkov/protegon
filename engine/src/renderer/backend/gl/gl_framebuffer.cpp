@@ -96,8 +96,6 @@ struct ReadSpec {
 			return ReadSpec{ GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, sizeof(std::uint32_t) };
 		default: PTGN_ERROR("Unknown Attachment: ", std::to_underlying(attachment));
 	}
-
-	PTGN_ERROR("Unsupported framebuffer attachment");
 }
 
 void ReadPixelsRaw(V2_int coord, V2_int size, const ReadSpec& read_spec, void* data) {
