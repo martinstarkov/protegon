@@ -24,7 +24,7 @@ inline constexpr Viewport kLeftViewport{ { 0.0f, 0.0f }, { kWindowSize.x / 2.0f,
 inline constexpr Viewport kRightViewport{ { kWindowSize.x / 2.0f, 0.0f },
 										  { kWindowSize.x / 2.0f, kWindowSize.y } };
 
-class CameraEffectScene : public Scene {
+class EffectEntitySplitScreenScene : public Scene {
 private:
 	SceneCamera left_camera;
 
@@ -44,12 +44,12 @@ private:
 
 		CreateSprite(*this, "sprite", { 0.0f, 0.0f });
 
-		AddEffect(ctx().camera, CreateEffect<Grayscale>(*this));
+		CreateEffect<Grayscale>(*this);
 	}
 };
 
 int main(int, char**) {
-	Application app{ "CameraEffectScene", kWindowSize };
+	Application app{ "EffectEntitySplitScreenScene", kWindowSize };
 	// PTGN_WITH_EDITOR(app);
-	app.StartWith<CameraEffectScene>();
+	app.StartWith<EffectEntitySplitScreenScene>();
 }
