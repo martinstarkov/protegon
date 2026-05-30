@@ -16,9 +16,7 @@
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/sprite.h"
-#include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -156,9 +154,7 @@ void RenderTarget::AddRenderTargetComponents(
 		PTGN_ERROR("Unknown resize to resolution value");
 	}
 
-	PTGN_ASSERT(
-		resolution.IsPositive(), "Cannot create render target with an invalid resolution"
-	);
+	PTGN_ASSERT(resolution.IsPositive(), "Cannot create render target with an invalid resolution");
 
 	AddRenderTargetComponents(render_target, scene, resolution, clear_color, texture_format);
 

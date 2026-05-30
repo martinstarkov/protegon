@@ -1,17 +1,19 @@
 #pragma once
 
-#include <concepts>
-#include <functional>
-#include <utility>
-#include <vector>
+#include <ecs/ecs.h>
 
+#include <concepts>
+#include <utility>
+
+#include "app/application_context.h"
+#include "core/assert.h"
 #include "renderer/pipeline/draw_context.h"
-#include "renderer/pipeline/effect_params.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -29,18 +31,23 @@ public:
 
 namespace impl {
 
-struct Effects {
-	std::vector<Entity> effects;
-};
-
-impl::EffectParams GetEffectParams(Entity entity);
+template <typename T, typename... TArgs>
+	requires std::constructible_from<T, TArgs...>
+EffectEntity<T> CreateEffect(Entity effect, TArgs&&... args) {
+	effect.Add<T>(std::forward<TArgs>(args)...);
+	effect.Add<EffectTag>();
+	SetDraw<T>(effect);
+	Show(effect, false);
+	return EffectEntity<T>{ effect };
+}
 
 } // namespace impl
 
 template <typename T>
 void AddEffect(Entity entity, EffectEntity<T> effect) {
 	Hide(effect, false);
-	entity.TryAdd<impl::Effects>().effects.emplace_back(effect);
+	PTGN_ASSERT(effect.Has<impl::EffectTag>());
+	AddChild(entity, effect);
 }
 
 template <typename T>
@@ -52,11 +59,7 @@ template <typename T, typename... TArgs>
 	requires std::constructible_from<T, TArgs...>
 EffectEntity<T> CreateEffect(Scene& scene, TArgs&&... args) {
 	auto effect{ scene.CreateEntity() };
-
-	effect.Add<T>(std::forward<TArgs>(args)...);
-	SetDraw<T>(effect);
-	Show(effect, false);
-
+	impl::CreateEffect<T>(effect, std::forward<TArgs>(args)...);
 	return EffectEntity<T>{ effect };
 }
 
@@ -71,11 +74,32 @@ EffectEntity<T> AddEffect(Entity entity, TArgs&&... args) {
 template <typename T, typename... TArgs>
 	requires std::constructible_from<T, TArgs...>
 EffectEntity<T> AddScreenEffect(Scene& scene, TArgs&&... args) {
-	// TODO: Fix.
-	// TODO: Add EffectParams to renderer and reset it here based on effects.
-	auto effect{ CreateEffect<T>(scene, std::forward<TArgs>(args)...) };
-	AddEffect(scene, effect);
-	return effect;
+	auto effect{ impl::ApplicationAccessor::ctx(impl::SceneContextAccessor::app(scene.ctx()))
+					 .screen_effect_manager.CreateEntity() };
+	impl::CreateEffect<T>(effect, std::forward<TArgs>(args)...);
+	return EffectEntity<T>{ effect };
+}
+
+void ClearEffects(Entity entity) {
+	if (!HasChildren(entity)) {
+		return;
+	}
+
+	const auto& children{ GetChildren(entity) };
+	for (Entity child : children) {
+		if (child.Has<impl::EffectTag>()) {
+			child.Destroy();
+		}
+	}
+}
+
+void ClearEffects(const Scene& scene) {
+	ClearEffects(scene.GetRenderTarget());
+}
+
+void ClearScreenEffects(Scene& scene) {
+	impl::ApplicationAccessor::ctx(impl::SceneContextAccessor::app(scene.ctx()))
+		.screen_effect_manager.Reset();
 }
 
 } // namespace ptgn

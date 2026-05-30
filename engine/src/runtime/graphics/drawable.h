@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 #include "core/util/hash.h"
+#include "renderer/pipeline/effect_params.h"
 #include "renderer/resources/shader.h"
 #include "serialization/serialize.h"
 
@@ -65,6 +66,8 @@ template <DrawableType T>
 bool DrawableRegistrar<T>::registered_draw = DrawableRegistrar<T>::RegisterDrawFunction();
 
 void InvokeDrawable(DrawContext& ctx, const Entity& entity);
+
+EffectParams GetEffectParams(const Entity& entity);
 
 } // namespace impl
 

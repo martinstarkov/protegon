@@ -21,6 +21,7 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
@@ -34,7 +35,6 @@
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/render_target.h"
@@ -245,13 +245,17 @@ void Scene::DrawSceneTarget(DrawContext& draw_context) const {
 	auto draw_transform{ GetDrawTransform(render_target_) };
 	auto blend_mode{ GetBlendMode(render_target_) };
 
+	auto effects{ impl::GetEffectParams(render_target_) };
+	// No margin for scene effects so render targets do not exceed their sizes.
+	effects.margin = 0;
+
 	draw_context.WithBlendMode(blend_mode, [&]() {
 		draw_context.DrawTexture(
 			draw_transform, texture,
 			{ .size				   = render_target_.GetSize(),
 			  .tint				   = GetTint(render_target_),
 			  .texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
-			  .effects			   = impl::GetEffectParams(render_target_) }
+			  .effects			   = std::move(effects) }
 		);
 	});
 }

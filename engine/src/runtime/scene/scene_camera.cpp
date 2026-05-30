@@ -21,7 +21,7 @@
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/fx/effects.h"
+#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/scene/scene.h"

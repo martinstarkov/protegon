@@ -1,13 +1,13 @@
 #pragma once
 
 #include <compare>
-#include <functional>
 #include <vector>
 
 #include "core/math/geometry/origin.h"
 #include "core/math/tolerance.h"
 #include "core/util/hash.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/resources/shader.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
@@ -51,6 +51,8 @@ struct Depth {
 };
 
 namespace impl {
+
+struct EffectTag {};
 
 struct EntityDepthCompare {
 	EntityDepthCompare() = default;

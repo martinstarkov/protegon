@@ -1,9 +1,7 @@
 #include "runtime/graphics/render_queue.h"
 
 #include <algorithm>
-#include <array>
 #include <compare>
-#include <functional>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -32,7 +30,6 @@
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_command.h"
-#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/shape_primitives.h"
@@ -46,7 +43,6 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -480,12 +476,15 @@ void RenderQueue::Draw(
 
 		renderer.FlushBatch();
 
-		TextureDrawParams params{ .size{ viewport.size },
-								  .tint{ bucket.camera->tint },
-								  .texture_coordinates{ impl::GetTextureCoordinates(
-									  viewport.position, viewport.size, rt_size, true, true
-								  ) },
-								  .effects{ bucket.camera->effect_params } };
+		TextureDrawParams params{
+			.size{ viewport.size },
+			.tint{ bucket.camera->tint },
+			.texture_coordinates{ impl::GetTextureCoordinates(
+				viewport.position, viewport.size, rt_size, true, true
+			) },
+			/* No margin for camera effects so cameras do not exceed their viewports */
+			.effects{ .draw_callback{ bucket.camera->effect_params.draw_callback }, .margin{ 0 } }
+		};
 
 		ctx.WithRenderState(
 			{ .view_projection = Matrix4::Orthographic(viewport.size),
