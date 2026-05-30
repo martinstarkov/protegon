@@ -3,11 +3,12 @@
 #include <cstdint>
 #include <optional>
 #include <span>
-#include <string>
 #include <string_view>
 #include <vector>
 
 #include "core/graphics/color.h"
+#include "core/math/vector2.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/render_target_object.h"
@@ -64,7 +65,7 @@ struct HandleInput {
 };
 
 struct RenderPassData {
-	impl::ShaderId shader;
+	MaterialState material;
 	Color tint{ color::White };
 	std::vector<HandleInput> reads;
 	RenderPassHandle output;
@@ -73,7 +74,7 @@ struct RenderPassData {
 };
 
 struct DrawPassRequest {
-	impl::ShaderId shader;
+	MaterialState material;
 	std::size_t pipeline{ 0 };
 	std::span<const impl::BoundInput> inputs;
 	impl::RenderTargetId output;
@@ -93,6 +94,11 @@ public:
 	RenderPass& Read(
 		RenderPassHandle handle, std::uint32_t slot = 0, std::string_view uniform = "u_Texture"
 	);
+
+	RenderPass& Uniform(std::string_view name, float value);
+	RenderPass& Uniform(std::string_view name, int value);
+	RenderPass& Uniform(std::string_view name, V2_float value);
+	RenderPass& Uniform(std::string_view name, Color value);
 
 	RenderPass& Tint(Color tint);
 

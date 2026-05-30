@@ -17,6 +17,7 @@
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/render_target_object.h"
+#include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 
 namespace ptgn {
@@ -45,6 +46,46 @@ RenderPass& RenderPass::Read(
 		}
 	);
 
+	return *this;
+}
+
+RenderPass& RenderPass::Uniform(std::string_view name, int value) {
+	auto& pass{ GetPassData() };
+	PTGN_ASSERT(
+		!std::ranges::contains(pass.material.uniforms, name, &UniformWrite::name),
+		"Cannot set the same uniform more than once per pass"
+	);
+	pass.material.uniforms.emplace_back(name, value);
+	return *this;
+}
+
+RenderPass& RenderPass::Uniform(std::string_view name, float value) {
+	auto& pass{ GetPassData() };
+	PTGN_ASSERT(
+		!std::ranges::contains(pass.material.uniforms, name, &UniformWrite::name),
+		"Cannot set the same uniform more than once per pass"
+	);
+	pass.material.uniforms.emplace_back(name, value);
+	return *this;
+}
+
+RenderPass& RenderPass::Uniform(std::string_view name, V2_float value) {
+	auto& pass{ GetPassData() };
+	PTGN_ASSERT(
+		!std::ranges::contains(pass.material.uniforms, name, &UniformWrite::name),
+		"Cannot set the same uniform more than once per pass"
+	);
+	pass.material.uniforms.emplace_back(name, value);
+	return *this;
+}
+
+RenderPass& RenderPass::Uniform(std::string_view name, Color value) {
+	auto& pass{ GetPassData() };
+	PTGN_ASSERT(
+		!std::ranges::contains(pass.material.uniforms, name, &UniformWrite::name),
+		"Cannot set the same uniform more than once per pass"
+	);
+	pass.material.uniforms.emplace_back(name, value.Normalized());
 	return *this;
 }
 
@@ -110,7 +151,7 @@ RenderPass RenderPassBuilder::CreateLike(RenderTargetDesc desc, std::string_view
 
 	passes_.emplace_back(
 		impl::RenderPassData{
-			.shader		 = ctx_.GetShader(shader),
+			.material	 = { .shader = ctx_.GetShader(shader) },
 			.output		 = handle,
 			.output_desc = desc,
 		}
@@ -261,7 +302,7 @@ void RenderPassBuilder::Execute(RenderPassHandle final_handle) {
 
 		ctx_.DrawRenderPass(
 			impl::DrawPassRequest{
-				.shader	  = pass.shader,
+				.material = pass.material,
 				.pipeline = pipeline,
 				.inputs	  = bound_inputs,
 				.output	  = output,

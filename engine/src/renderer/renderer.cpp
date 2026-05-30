@@ -983,12 +983,7 @@ void Renderer::DrawRenderPass(impl::DrawPassRequest request) {
 	auto _ = gl_->Bind(impl::FramebufferId{ request.output }, false);
 
 	SetCurrentPipeline(request.pipeline);
-	SetMaterial(
-		MaterialState{
-			.shader	  = request.shader,
-			.uniforms = {},
-		}
-	);
+	SetMaterial(request.material);
 
 	// TODO: Somewhere in here the viewport is not being set correctly and right camera does not get
 	// grayscale.
@@ -1091,7 +1086,7 @@ void Renderer::CompositeRenderPassResult(
 
 	DrawRenderPass(
 		impl::DrawPassRequest{
-			.shader				 = GetShader("texture"),
+			.material			 = { .shader = GetShader("texture") },
 			.pipeline			 = Hash("texture"),
 			.inputs				 = std::span{ &input, 1 },
 			.output				 = destination,
