@@ -5,8 +5,8 @@
   "texture": {
     "source": "texture"
   },
-  "default": {
-    "source": "default"
+  "passthrough": {
+    "source": "passthrough"
   },
   "ellipse": {
     "vertex": "shape",
@@ -29,35 +29,35 @@
     "fragment": "text"
   },
   "blur": {
-    "vertex": "default",
+    "vertex": "passthrough",
     "fragment": "blur"
   },
   "gaussian_blur": {
-    "vertex": "default",
+    "vertex": "passthrough",
     "fragment": "gaussian_blur"
   },
   "composite_additive": {
-    "vertex": "default",
+    "vertex": "passthrough",
     "fragment": "composite_additive"
   },
   "edge_detection": {
-    "vertex": "default",
+    "vertex": "passthrough",
     "fragment": "edge_detection"
   },
   "grayscale": {
-    "vertex": "default",
+    "vertex": "passthrough",
     "fragment": "grayscale"
   },
   "isolate_bright": {
-    "vertex": "default",
+    "vertex": "passthrough",
     "fragment": "isolate_bright"
   },
   "inverse_color": {
-    "vertex": "default",
+    "vertex": "passthrough",
     "fragment": "inverse_color"
   },
   "sharpen": {
-    "vertex": "default",
+    "vertex": "passthrough",
     "fragment": "sharpen"
   },
   "light": {
@@ -65,7 +65,7 @@
     "fragment": "light"
   },
   "tone_mapping": {
-    "vertex": "default",
+    "vertex": "passthrough",
     "fragment": "tone_mapping"
   }
 }
