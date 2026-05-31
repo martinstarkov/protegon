@@ -4,6 +4,7 @@
 #include "core/editor.h"
 #include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
@@ -16,13 +17,13 @@ class BloomEffectScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		// CreateSprite(*this, "sprite", { -180.0f, 0.0f });
-		// CreateRect(*this, { 0.0f, -320.0f }, { 100.0f, 100.0f }, color::Blue);
+		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
+		CreateRect(*this, { 0.0f, -320.0f }, { 100.0f, 100.0f }, color::Blue);
 
 		auto rect2{ CreateRect(*this, { 0.0f, -200.0f }, { 100.0f, 100.0f }, color::Blue) };
-		// auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
+		auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
 
-		// AddEffect<Bloom>(sprite2, Bloom{ .threshold = 0.5f });
+		AddEffect<Bloom>(sprite2, Bloom{ .threshold = 0.5f }).Add<EffectMargin>(40);
 		AddEffect<Bloom>(
 			rect2, Bloom{ .threshold	   = 0.0f,
 						  .soft_knee	   = 0.01f,
