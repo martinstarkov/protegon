@@ -16,13 +16,21 @@ class BloomEffectScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
+		// CreateSprite(*this, "sprite", { -180.0f, 0.0f });
+		// CreateRect(*this, { 0.0f, -320.0f }, { 100.0f, 100.0f }, color::Blue);
 
-		auto rect{ CreateRect(*this, { 0.0f, -180.0f }, { 100.0f, 100.0f }, color::Blue) };
-		auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
+		auto rect2{ CreateRect(*this, { 0.0f, -200.0f }, { 100.0f, 100.0f }, color::Blue) };
+		// auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
 
-		AddEffect<Bloom>(sprite2, Bloom{ .threshold = 0.5f });
-		AddEffect<Bloom>(rect, Bloom{ .threshold = 0.1f });
+		// AddEffect<Bloom>(sprite2, Bloom{ .threshold = 0.5f });
+		AddEffect<Bloom>(
+			rect2, Bloom{ .threshold	   = 0.0f,
+						  .soft_knee	   = 0.01f,
+						  .radius		   = 5.0f,
+						  .intensity	   = 2.0f,
+						  .blur_iterations = 10 }
+		)
+			.Add<EffectMargin>(40);
 	}
 };
 

@@ -98,7 +98,7 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	auto max_texture_slots{ GetMaxTextureSlots() };
 
 	std::vector<std::int32_t> samplers(max_texture_slots);
-	std::iota(samplers.begin(), samplers.end(), 0);
+	std::ranges::iota(samplers, 0);
 
 	auto quad{ GetShader("texture") };
 	auto _1 = gl_->Bind(quad, false);
@@ -1078,7 +1078,7 @@ void Renderer::CompositeRenderPassResult(
 
 	DrawRenderPass(
 		impl::DrawPassRequest{
-			.material			 = { .shader = GetShader("texture") },
+			.material			 = { .shader = GetShader("passthrough") },
 			.pipeline			 = Hash("texture"),
 			.inputs				 = std::span{ &input, 1 },
 			.output				 = destination,

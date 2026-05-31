@@ -17,5 +17,5 @@ void main() {
 
 	vec3 added = additive.rgb * u_Tint.rgb * u_Tint.a * u_Intensity;
 
-	o_Color = vec4(scene.rgb + added, scene.a) * v_Color;
+	o_Color = vec4(scene.rgb + added, additive.a + scene.a) * v_Color;
 }
