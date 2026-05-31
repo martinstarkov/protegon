@@ -16,12 +16,12 @@ class TextureEffectScene : public Scene {
 		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
 		auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
 
-		AddEffect(sprite2, CreateEffect<Grayscale>(*this));
+		AddEffect<Grayscale>(sprite2);
 	}
 };
 
 int main(int, char**) {
 	Application app{ "TextureEffectScene" };
-	PTGN_WITH_EDITOR(app);
+	// PTGN_WITH_EDITOR(app);
 	app.StartWith<TextureEffectScene>();
 }

@@ -2,6 +2,7 @@
 
 #include "app/application.h"
 #include "core/editor.h"
+#include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/shape.h"
@@ -15,18 +16,13 @@ class BloomEffectScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		// CreateSprite(*this, "sprite", { -180.0f, 0.0f });
-		// CreateSprite(*this, "sprite", { 180.0f, 0.0f });
+		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
 
-		CreateRect(*this, { 0.0f, -200.0f }, { 50.0f, 50.0f }, { 255, 0, 0, 255 });
-		// CreateRect(*this, { 100.0f, -200.0f }, { 50.0f, 50.0f }, { 0, 255, 0, 255 });
-		// CreateRect(*this, { -100.0f, -200.0f }, { 50.0f, 50.0f }, { 0, 0, 255, 255 });
+		auto rect{ CreateRect(*this, { 0.0f, -180.0f }, { 100.0f, 100.0f }, color::Blue) };
+		auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
 
-		CreateEffect<Bloom>(*this);
-
-		// CreateRect(*this, { 0.0f, -300.0f }, { 50.0f, 50.0f }, { 255, 0, 0, 255 });
-		// CreateRect(*this, { 100.0f, -300.0f }, { 50.0f, 50.0f }, { 0, 255, 0, 255 });
-		// CreateRect(*this, { -100.0f, -300.0f }, { 50.0f, 50.0f }, { 0, 0, 255, 255 });
+		AddEffect<Bloom>(sprite2, Bloom{ .threshold = 0.5f });
+		AddEffect<Bloom>(rect, Bloom{ .threshold = 0.1f });
 	}
 };
 

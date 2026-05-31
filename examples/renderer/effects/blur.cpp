@@ -1,7 +1,10 @@
 #include "runtime/graphics/fx/blur.h"
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
@@ -14,9 +17,18 @@ class BlurEffectScene : public Scene {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
 		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
+
+		CreateEffect<Blur>(*this);
+
 		auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
 
-		AddEffect(sprite2, CreateEffect<Blur>(*this));
+		AddEffect<Blur>(sprite2);
+
+		CreateSprite(*this, "sprite", { 0.0f, -250.0f });
+
+		auto sprite4{ CreateSprite(*this, "sprite", { 0.0f, 250.0f }) };
+
+		AddEffect<Blur>(sprite4).Add<EffectMargin>(5);
 	}
 };
 

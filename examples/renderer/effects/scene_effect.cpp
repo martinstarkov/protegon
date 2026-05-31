@@ -23,7 +23,7 @@ class SceneEffectFirstScene : public Scene {
 
 		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
 
-		AddEffect(*this, CreateEffect<Grayscale>(*this));
+		AddEffect<Grayscale>(*this);
 
 		CreateSprite(*this, "sprite", { 180.0f, 0.0f });
 

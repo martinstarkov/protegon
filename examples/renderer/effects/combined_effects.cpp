@@ -57,15 +57,15 @@ private:
 		CreateSprite(*this, "sprite", { -180.0f, 140.0f });
 
 		auto texture_effect_sprite{ CreateSprite(*this, "sprite", { -180.0f, -140.0f }) };
-		AddEffect(texture_effect_sprite, CreateEffect<EdgeDetection>(*this));
+		AddEffect<EdgeDetection>(texture_effect_sprite);
 
 		CreateEffect<Sharpen>(*this);
 
 		CreateSprite(*this, "sprite", { 180.0f, 140.0f });
 
-		AddEffect(ctx().camera, CreateEffect<Grayscale>(*this));
+		AddEffect<Grayscale>(ctx().camera);
 
-		AddEffect(*this, CreateEffect<Blur>(*this));
+		AddEffect<Blur>(*this);
 
 		AddScreenEffect<InverseColor>(*this);
 
@@ -75,6 +75,6 @@ private:
 
 int main(int, char**) {
 	Application app{ "CombinedEffectsScene", CombinedEffectsScene::kWindowSize };
-	PTGN_WITH_EDITOR(app);
+	// PTGN_WITH_EDITOR(app);
 	app.StartWith<CombinedEffectsScene>();
 }

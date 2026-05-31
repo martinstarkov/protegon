@@ -16,7 +16,7 @@ class GrayscaleEffectScene : public Scene {
 		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
 		auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
 
-		AddEffect(sprite2, CreateEffect<Grayscale>(*this));
+		AddEffect<Grayscale>(sprite2);
 	}
 };
 

@@ -7,6 +7,7 @@
 
 #include "app/application_context.h"
 #include "core/assert.h"
+#include "core/util/concepts.h"
 #include "renderer/pipeline/draw_context.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -32,7 +33,7 @@ public:
 namespace impl {
 
 template <typename T, typename... TArgs>
-	requires std::constructible_from<T, TArgs...>
+	requires BraceConstructible<T, TArgs...>
 EffectEntity<T> CreateEffect(Entity effect, TArgs&&... args) {
 	effect.Add<T>(std::forward<TArgs>(args)...);
 	effect.Add<EffectTag>();
@@ -56,7 +57,7 @@ void AddEffect(const Scene& scene, EffectEntity<T> effect) {
 }
 
 template <typename T, typename... TArgs>
-	requires std::constructible_from<T, TArgs...>
+	requires BraceConstructible<T, TArgs...>
 EffectEntity<T> CreateEffect(Scene& scene, TArgs&&... args) {
 	auto effect{ scene.CreateEntity() };
 	impl::CreateEffect<T>(effect, std::forward<TArgs>(args)...);
@@ -64,7 +65,7 @@ EffectEntity<T> CreateEffect(Scene& scene, TArgs&&... args) {
 }
 
 template <typename T, typename... TArgs>
-	requires std::constructible_from<T, TArgs...>
+	requires BraceConstructible<T, TArgs...>
 EffectEntity<T> AddEffect(Entity entity, TArgs&&... args) {
 	auto effect{ CreateEffect<T>(entity.GetScene(), std::forward<TArgs>(args)...) };
 	AddEffect(entity, effect);
@@ -72,12 +73,26 @@ EffectEntity<T> AddEffect(Entity entity, TArgs&&... args) {
 }
 
 template <typename T, typename... TArgs>
-	requires std::constructible_from<T, TArgs...>
+	requires BraceConstructible<T, TArgs...>
+EffectEntity<T> AddEffect(Scene& scene, TArgs&&... args) {
+	auto effect{ CreateEffect<T>(scene, std::forward<TArgs>(args)...) };
+	AddEffect(scene, effect);
+	return effect;
+}
+
+template <typename T, typename... TArgs>
+	requires BraceConstructible<T, TArgs...>
 EffectEntity<T> AddScreenEffect(Scene& scene, TArgs&&... args) {
 	auto effect{ impl::ApplicationAccessor::ctx(impl::SceneContextAccessor::app(scene.ctx()))
 					 .screen_effect_manager.CreateEntity() };
 	impl::CreateEffect<T>(effect, std::forward<TArgs>(args)...);
 	return EffectEntity<T>{ effect };
+}
+
+template <typename T>
+EffectEntity<T> AddEffectMargin(EffectEntity<T> effect, int margin) {
+	effect.Add<EffectMargin>(margin);
+	return effect;
 }
 
 void ClearEffects(Entity entity) {
