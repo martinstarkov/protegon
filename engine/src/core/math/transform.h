@@ -296,10 +296,6 @@ private:
 	constexpr void Apply(
 		std::span<const V2_float> points, std::span<V2_float> out_transformed_points
 	) const {
-		if (IsIdentity()) {
-			return;
-		}
-
 		PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
 		WithPointTransform<Direction::Forward>(
@@ -314,10 +310,6 @@ private:
 	constexpr void ApplyInverse(
 		std::span<const V2_float> points, std::span<V2_float> out_transformed_points
 	) const {
-		if (IsIdentity()) {
-			return;
-		}
-
 		PTGN_ASSERT(out_transformed_points.size() >= points.size());
 
 		WithPointTransform<Direction::Inverse>(
@@ -380,9 +372,6 @@ private:
 	constexpr void ApplyToElements(
 		TRange&& elements, TGetPosition get_position, TSetPosition set_position
 	) const {
-		if (IsIdentity()) {
-			return;
-		}
 		WithPointTransform<Dir>([&elements, &get_position, &set_position](auto&& transform) {
 			for (auto&& element : elements) {
 				auto position{ std::invoke(get_position, element) };
