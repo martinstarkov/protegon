@@ -372,6 +372,8 @@ private:
 
 	void ApplyScreenEffects(const std::function<void(DrawContext&)>& screen_effect_callback);
 
+	void BindUniforms();
+
 	Window& window_;
 
 	Stats& stats_;

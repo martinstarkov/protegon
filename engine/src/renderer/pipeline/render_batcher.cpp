@@ -64,7 +64,9 @@ void RenderBatcher::Flush() {
 		return;
 	}
 
-	const RenderPipeline& pipeline{ renderer_.pipeline_manager_.GetCurrentPipeline() };
+	const auto& pipeline{ renderer_.pipeline_manager_.GetCurrentPipeline() };
+
+	renderer_.BindUniforms();
 
 	renderer_.UploadVertices(pipeline, vertices_, vertex_size_);
 	renderer_.UploadIndices(pipeline, indices_);

@@ -699,6 +699,16 @@ void Renderer::ApplyScreenEffects(const std::function<void(DrawContext&)>& scree
 	FlushBatch();
 }
 
+void Renderer::BindUniforms() {
+	auto shader{ gl_->GetBoundShader() };
+	if (!shader.has_value() || !*shader) {
+		return;
+	}
+	for (const auto& [name, value] : current_uniforms_) {
+		SetUniformValue(*shader, name.c_str(), value);
+	}
+}
+
 void Renderer::EndFrame(const std::function<void(DrawContext&)>& screen_effect_callback) {
 	PTGN_ASSERT(display_viewport_.size.IsPositive());
 
