@@ -8,6 +8,8 @@ namespace ptgn {
 class DrawContext;
 
 struct Blur {
+	std::size_t iterations{ 4 };
+
 	static void Draw(DrawContext& ctx, Entity entity);
 };
 
