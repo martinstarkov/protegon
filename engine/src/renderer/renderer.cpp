@@ -59,45 +59,6 @@
 
 namespace ptgn {
 
-namespace impl {
-
-void ApplyTransform(Transform transform, std::span<TextureQuad> local_quads) {
-	transform.ApplyTo(
-		local_quads | std::views::join,
-		[](const TextureVertex& vertex) {
-			return V2_float{ vertex.position[0], vertex.position[1] };
-		},
-		[](TextureVertex& vertex, V2_float position) {
-			vertex.position[0] = position.x;
-			vertex.position[1] = position.y;
-		}
-	);
-}
-
-/// @return True if all vertices in all quads have the same depth and entity ID, false otherwise.
-bool HaveUniformDepthAndEntityId(const std::span<const impl::TextureQuad> quads) {
-	PTGN_ASSERT(!quads.empty());
-
-	const auto& first_quad{ quads.front() };
-	const auto& first_vertex{ first_quad.front() };
-
-	auto first_depth{ first_vertex.position[2] };
-	auto first_entity_id{ first_vertex.entity_id[0] };
-
-	for (auto& quad : quads) {
-		for (auto& vertex : quad) {
-			if (!NearlyEqual(vertex.position[2], first_depth) ||
-				vertex.entity_id[0] != first_entity_id) {
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-} // namespace impl
-
 Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	window_{ window },
 	stats_{ stats },
@@ -238,11 +199,16 @@ void Renderer::SetCurrentPipeline(std::string_view name) {
 }
 
 void Renderer::SetCurrentPipeline(std::size_t id) {
+	PTGN_ASSERT(id, "Cannot set current pipeline to 0");
+
 	if (pipeline_manager_.IsCurrentPipeline(id)) {
 		return;
 	}
+
 	PTGN_ASSERT(pipeline_manager_.HasPipeline(id), "No matching pipeline found: ", id);
+
 	FlushBatch();
+
 	pipeline_manager_.SetCurrentPipeline(id);
 }
 
@@ -327,7 +293,7 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	// uniform is updated even if the shader itself doesn't change.
 	const auto& bound{ gl_->GetBoundState().render_state };
 	PTGN_ASSERT(bound.view_projection.has_value());
-	if (auto shader{ gl_->GetBoundShader() }; shader.has_value() && *shader) {
+	if (auto shader{ GetBoundShader() }; shader.has_value() && *shader) {
 		gl_->shaders.SetUniform(*shader, "u_ViewProjection", *bound.view_projection);
 	}
 }
@@ -700,13 +666,29 @@ void Renderer::ApplyScreenEffects(const std::function<void(DrawContext&)>& scree
 }
 
 void Renderer::BindUniforms() {
-	auto shader{ gl_->GetBoundShader() };
+	auto shader{ GetBoundShader() };
 	if (!shader.has_value() || !*shader) {
 		return;
 	}
 	for (const auto& [name, value] : current_uniforms_) {
 		SetUniformValue(*shader, name.c_str(), value);
 	}
+}
+
+std::optional<impl::ShaderId> Renderer::GetBoundShader() const {
+	return gl_->GetBoundShader();
+}
+
+void Renderer::ExecuteEffectCallbacks(const std::function<void(DrawContext&)>& effect_callback) {
+	DrawContext ctx{ *this };
+
+	if (effect_callback) {
+		effect_callback(ctx);
+	}
+}
+
+void Renderer::DrawTexture(const impl::DrawTextureRequest& request) {
+	Draw(request);
 }
 
 void Renderer::EndFrame(const std::function<void(DrawContext&)>& screen_effect_callback) {
@@ -754,8 +736,8 @@ void Renderer::EndFrame(const std::function<void(DrawContext&)>& screen_effect_c
 	};
 
 	impl::DrawTextureRequest request;
-	request.local_quads = { &local_quad, 1 };
-	request.texture		= presentation_target_.GetTextureId();
+	request.primitives = { &local_quad, 1 };
+	request.texture	   = presentation_target_.GetTextureId();
 
 	DrawTexture(request);
 
@@ -792,7 +774,7 @@ impl::TextureObject Renderer::CreateTexture(
 }
 
 void Renderer::SetBoundShaderUniform(const char* uniform_name, int value) {
-	auto shader{ gl_->GetBoundShader() };
+	auto shader{ GetBoundShader() };
 
 	PTGN_ASSERT(
 		shader.has_value() && *shader, "Shader must be bound before calling SetBoundShaderUniform"
@@ -976,7 +958,7 @@ const impl::RenderTargetObject& Renderer::GetBoundRenderTarget() const {
 	return *current_target_;
 }
 
-void Renderer::DrawRenderPass(impl::DrawPassRequest request) {
+void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	FlushBatch();
 
 	PTGN_ASSERT(request.output, "Render pass output must be valid");
@@ -987,7 +969,7 @@ void Renderer::DrawRenderPass(impl::DrawPassRequest request) {
 	PTGN_ASSERT(request.viewport.size.IsPositive(), "Render pass viewport size must be non-zero");
 
 	auto previous_state{ GetRenderState() };
-	auto previous_shader{ gl_->GetBoundShader() };
+	auto previous_shader{ GetBoundShader() };
 	auto previous_pipeline{ pipeline_manager_.GetCurrentPipelineId() };
 
 	auto _ = gl_->Bind(impl::FramebufferId{ request.output }, false);
@@ -1137,132 +1119,6 @@ void Renderer::SetRenderState(const RenderState& state) {
 	if (state.color_mask.has_value()) {
 		SetColorMask(*state.color_mask);
 	}
-}
-
-void Renderer::DrawTexture(const impl::DrawTextureRequest& request) {
-	if (request.local_quads.empty()) {
-		return;
-	}
-
-	if (request.effect_params.draw_callback ||
-		IsTextureAttachedToCurrentFramebuffer(request.texture)) {
-		DrawTextureEffect(request);
-	} else {
-		DrawTextureNormally(request);
-	}
-}
-
-void Renderer::DrawTextureNormally(const impl::DrawTextureRequest& request) {
-	PTGN_ASSERT(!request.local_quads.empty());
-	PTGN_ASSERT(!request.effect_params.draw_callback);
-
-	std::span<const impl::TextureId> textures;
-
-	if (request.texture) {
-		textures = { &request.texture, 1 };
-	}
-
-	ApplyTransform(request.transform, request.local_quads);
-
-	DrawQuads(request.local_quads, textures);
-}
-
-void Renderer::DrawTextureEffect(const impl::DrawTextureRequest& request) {
-	PTGN_ASSERT(!request.local_quads.empty());
-
-	PTGN_ASSERT(
-		HaveUniformDepthAndEntityId(request.local_quads),
-		"Batched effect vertices must have uniform depth and entity ID"
-	);
-
-	auto bounds{ Rect::FromPoints(
-		request.local_quads | std::views::join |
-		std::views::transform([](const impl::TextureVertex& vertex) {
-			return V2_float{ vertex.position[0], vertex.position[1] };
-		})
-	) };
-
-	PTGN_ASSERT(bounds.HasPositiveArea());
-
-	auto format{ GetTextureFormat(request.texture) };
-	auto params{ GetTextureParams(request.texture) };
-
-	V2_float size{ bounds.GetSize() };
-
-	PTGN_ASSERT(size.IsPositive());
-
-	size += V2_float{ request.effect_params.margin * 2 };
-
-	RenderTargetDesc desc{ .size = size, .format = format, .params = params };
-
-	auto expanded_target{ CreateRenderTarget(desc) };
-
-	PTGN_ASSERT(expanded_target.GetSize() == V2_int{ size });
-
-	auto previous_target{ current_target_ };
-
-	SetRenderTarget(&expanded_target);
-
-	auto previous_pipeline{ pipeline_manager_.GetCurrentPipelineId() };
-	auto previous_shader{ gl_->GetBoundShader() };
-	auto previous_state{ GetRenderState() };
-
-	Viewport viewport{ .position{}, .size{ size } };
-	SetScissor(ScissorState{ viewport });
-	SetViewport(viewport);
-	SetViewProjection(size);
-
-	impl::DrawTextureRequest local_request;
-
-	local_request.local_quads = request.local_quads;
-	local_request.texture	  = request.texture;
-
-	DrawTextureNormally(local_request);
-
-	FlushBatch();
-
-	DrawContext ctx{ *this };
-
-	if (request.effect_params.draw_callback) {
-		request.effect_params.draw_callback(ctx);
-	}
-
-	SetCurrentPipeline(previous_pipeline);
-	SetRenderTarget(previous_target);
-	if (previous_shader.has_value()) {
-		SetShader(*previous_shader);
-	}
-	SetRenderState(previous_state);
-
-	impl::DrawTextureRequest new_request;
-
-	auto positions{ Rect{ size }.GetLocalVertices() };
-
-	PTGN_ASSERT(!request.local_quads.empty());
-
-	const auto& first_quad{ request.local_quads.front() };
-
-	PTGN_ASSERT(!first_quad.empty());
-
-	const auto& first_vertex{ first_quad.front() };
-
-	auto depth{ first_vertex.position[2] };
-
-	constexpr auto color_n{ color::White.Normalized() };
-
-	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
-
-	auto entity_id{ first_vertex.entity_id[0] };
-
-	auto local_quad{ impl::CreateTextureQuad(positions, depth, color_n, tex_coords, entity_id) };
-
-	new_request.local_quads = { &local_quad, 1 };
-	new_request.transform	= request.transform;
-	new_request.texture		= GetRenderTargetTexture(expanded_target);
-
-	DrawTextureNormally(new_request);
-
-	temp_render_targets_.emplace_back(std::move(expanded_target));
 }
 
 void Renderer::BindTextureSlot(std::uint32_t slot, impl::TextureId texture) {

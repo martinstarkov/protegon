@@ -31,6 +31,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
@@ -336,6 +337,7 @@ void ButtonBase<Derived>::Draw(DrawContext& ctx, Entity entity) {
 	auto bg_fill_style{ button.GetBackgroundFillStyle(style_state) };
 
 	auto entity_id{ button.GetUUID() };
+	auto effects{ GetEffectParams(button) };
 
 	if (auto bg_color{ button.GetBackgroundColor(style_state) };
 		bg_color.has_value() || background_shape.has_value() || bg_fill_style.has_value()) {
@@ -366,7 +368,8 @@ void ButtonBase<Derived>::Draw(DrawContext& ctx, Entity entity) {
 							{ .depth	  = depth,
 							  .fill_style = fill,
 							  .origin	  = button_origin,
-							  .entity_id  = entity_id }
+							  .entity_id  = entity_id,
+							  .effects	  = effects }
 						);
 					});
 				},
@@ -408,7 +411,8 @@ void ButtonBase<Derived>::Draw(DrawContext& ctx, Entity entity) {
 								{ .depth	  = depth,
 								  .fill_style = fill,
 								  .origin	  = button_origin,
-								  .entity_id  = entity_id }
+								  .entity_id  = entity_id,
+								  .effects	  = effects }
 							);
 						});
 					},
@@ -719,7 +723,8 @@ std::optional<std::string> ButtonBase<Derived>::GetTextContent(ButtonStyleState 
 // }
 
 // template <typename Derived>
-// std::optional<TextJustify> ButtonBase<Derived>::GetTextJustify(ButtonStyleState state) const {
+// std::optional<TextJustify> ButtonBase<Derived>::GetTextJustify(ButtonStyleState state) const
+// {
 //	if (auto text{ GetText(state) }) {
 //		return text->GetJustify();
 //	} else {
@@ -987,7 +992,8 @@ void ButtonBase<Derived>::PlaySound(ButtonState active) {
 
 	s.state = active;
 
-	// Only stop other sounds if exclusive audio and there is a sound to play for the active state.
+	// Only stop other sounds if exclusive audio and there is a sound to play for the active
+	// state.
 	bool stop_others{ exclusive_audio && GetSound(s).has_value() };
 
 	for (auto state : kButtonStates) {

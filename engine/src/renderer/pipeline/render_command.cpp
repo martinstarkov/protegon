@@ -15,6 +15,7 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/render_batcher.h"
+#include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
@@ -68,32 +69,32 @@ void RenderCommands::Sort() {
 }
 
 void RenderCommands::Add(
-	ShaderId shader, std::span<TextureQuad> primitives,
-	std::optional<BlendMode> blend_mode, float depth, TextureId texture
+	ShaderId shader, std::span<TextureQuad> primitives, std::optional<BlendMode> blend_mode,
+	float depth, TextureId texture
 ) {
 	auto range{ Append(texture_quads_, primitives) };
 	Push(RenderCommandKind::TextureQuads, range, shader, texture, blend_mode, depth);
 }
 
 void RenderCommands::Add(
-	ShaderId shader, std::span<ShapeQuad> primitives,
-	std::optional<BlendMode> blend_mode, float depth, TextureId
+	ShaderId shader, std::span<ShapeQuad> primitives, std::optional<BlendMode> blend_mode,
+	float depth, TextureId
 ) {
 	auto range{ Append(shape_quads_, primitives) };
 	Push(RenderCommandKind::ShapeQuads, range, shader, TextureId{}, blend_mode, depth);
 }
 
 void RenderCommands::Add(
-	ShaderId shader, std::span<ColorQuad> primitives,
-	std::optional<BlendMode> blend_mode, float depth, TextureId
+	ShaderId shader, std::span<ColorQuad> primitives, std::optional<BlendMode> blend_mode,
+	float depth, TextureId
 ) {
 	auto range{ Append(color_quads_, primitives) };
 	Push(RenderCommandKind::ColorQuads, range, shader, TextureId{}, blend_mode, depth);
 }
 
 void RenderCommands::Add(
-	ShaderId shader, std::span<ColorTriangle> primitives,
-	std::optional<BlendMode> blend_mode, float depth, TextureId
+	ShaderId shader, std::span<ColorTriangle> primitives, std::optional<BlendMode> blend_mode,
+	float depth, TextureId
 ) {
 	auto range{ Append(color_triangles_, primitives) };
 	Push(RenderCommandKind::ColorTriangles, range, shader, TextureId{}, blend_mode, depth);
@@ -116,11 +117,21 @@ void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
 
 	auto draw_primitive = [&renderer, &get_span,
 						   &command](std::string_view pipeline, auto& container) {
-		renderer.SetCurrentPipeline(pipeline);
-
 		auto primitives{ get_span(container) };
 
-		renderer.Draw(primitives, command.texture);
+		if (primitives.empty()) {
+			return;
+		}
+
+		renderer.SetCurrentPipeline(pipeline);
+
+		using TPrimitive = std::remove_reference_t<decltype(primitives[0])>;
+
+		// Transform accounted for when forming primitives.
+		// Effects are currently not supported for queued render commands.
+		renderer.Draw(
+			impl::DrawRequest<TPrimitive>{ .texture = command.texture, .primitives = primitives }
+		);
 	};
 
 	renderer.SetShader(command.shader);

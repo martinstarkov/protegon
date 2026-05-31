@@ -4,6 +4,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 #include "core/assert.h"
@@ -35,10 +36,8 @@ namespace ptgn {
 
 namespace {
 
-impl::CommonShapeParams ConvertToCommonShapeParams(
-	Transform transform, Color color, const ShapeDrawParams& params
-) {
-	return { .transform{ transform },
+impl::CommonShapeParams ConvertToCommonShapeParams(Color color, const ShapeDrawParams& params) {
+	return { .transform{},
 			 .fill_style{ params.fill_style },
 			 .draw_origin{ params.origin },
 			 .color{ color },
@@ -51,11 +50,19 @@ void DrawShapeImpl(
 	Renderer& renderer, Transform transform, const TShape& shape, Color color,
 	const ShapeDrawParams& params
 ) {
-	impl::VisitPrimitives(
-		shape, ConvertToCommonShapeParams(transform, color, params), [&](auto& primitives) {
-			impl::RendererAccessor{ renderer }.Draw(primitives, impl::TextureId{});
+	impl::VisitPrimitives(shape, ConvertToCommonShapeParams(color, params), [&](auto& primitives) {
+		if (primitives.empty()) {
+			return;
 		}
-	);
+
+		using TPrimitive = std::remove_reference_t<decltype(primitives[0])>;
+
+		impl::DrawRequest<TPrimitive> request{ .transform	  = transform,
+											   .primitives	  = primitives,
+											   .effect_params = params.effects };
+
+		impl::RendererAccessor{ renderer }.Draw(request);
+	});
 }
 
 } // namespace
@@ -95,7 +102,8 @@ void DrawContext::DrawTexture(
 }
 
 void DrawContext::DrawTexture(
-	Transform transform, impl::TextureId texture, MaterialState material, TextureDrawParams params
+	Transform transform, impl::TextureId texture, const MaterialState& material,
+	TextureDrawParams params
 ) {
 	impl::DrawTextureRequest request;
 
@@ -116,7 +124,7 @@ void DrawContext::DrawTexture(
 	) };
 
 	request.transform	  = rect.Offset(transform, params.origin);
-	request.local_quads	  = { &local_quad, 1 };
+	request.primitives	  = { &local_quad, 1 };
 	request.effect_params = params.effects;
 
 	renderer_.SetCurrentPipeline("texture");
@@ -125,24 +133,25 @@ void DrawContext::DrawTexture(
 }
 
 void DrawContext::DrawTexture(
-	Transform transform, impl::TextureId texture, Material material, TextureDrawParams params
+	Transform transform, impl::TextureId texture, const Material& material, TextureDrawParams params
 ) {
 	DrawTexture(
 		transform, texture,
-		MaterialState{ .shader	 = GetShader(material.shader),
-					   .uniforms = std::move(material.uniforms) },
+		MaterialState{ .shader = GetShader(material.shader), .uniforms = material.uniforms },
 		std::move(params)
 	);
 }
 
 void DrawContext::DrawShader(
-	Transform transform, MaterialState material, TextureDrawParams params
+	Transform transform, const MaterialState& material, TextureDrawParams params
 ) {
-	DrawTexture(transform, impl::TextureId{}, std::move(material), std::move(params));
+	DrawTexture(transform, impl::TextureId{}, material, std::move(params));
 }
 
-void DrawContext::DrawShader(Transform transform, Material material, TextureDrawParams params) {
-	DrawTexture(transform, impl::TextureId{}, std::move(material), std::move(params));
+void DrawContext::DrawShader(
+	Transform transform, const Material& material, TextureDrawParams params
+) {
+	DrawTexture(transform, impl::TextureId{}, material, std::move(params));
 }
 
 void DrawContext::DrawPoint(V2_float point, Color color, ShapeDrawParams params) {
@@ -157,11 +166,16 @@ void DrawContext::DrawLines(
 	std::span<const V2_float> points, Color color, ShapeDrawParams params, bool closed,
 	std::optional<Transform> transform
 ) {
-	auto primitives{ impl::GetHollowPrimitives(
-		points, closed, ConvertToCommonShapeParams(transform.value_or(Transform{}), color, params)
-	) };
+	auto primitives{
+		impl::GetHollowPrimitives(points, closed, ConvertToCommonShapeParams(color, params))
+	};
 
-	renderer_.Draw<impl::ColorQuad>(primitives, impl::TextureId{});
+	impl::DrawRequest<impl::ColorQuad> request{
+		.transform	= transform.value_or(Transform{}),
+		.primitives = primitives,
+	};
+
+	renderer_.Draw(request);
 }
 
 void DrawContext::DrawShape(
@@ -276,8 +290,8 @@ V2_int DrawContext::GetRenderTargetSize(impl::RenderTargetId render_target) cons
 	return renderer_.GetRenderTargetSize(render_target);
 }
 
-void DrawContext::DrawRenderPass(impl::DrawPassRequest request) {
-	renderer_.DrawRenderPass(std::move(request));
+void DrawContext::DrawRenderPass(const impl::DrawPassRequest& request) {
+	renderer_.DrawRenderPass(request);
 }
 
 void DrawContext::CopyRenderTargetRegion(

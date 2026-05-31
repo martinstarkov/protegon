@@ -53,6 +53,7 @@ struct ShapeDrawParams {
 	FillStyle fill_style{ 1.0f };
 	Origin origin{ Origin::Center };
 	int entity_id{ -1 };
+	impl::EffectParams effects;
 };
 
 class DrawContext {
@@ -95,15 +96,16 @@ public:
 	void DrawTexture(Transform transform, impl::TextureId texture, TextureDrawParams params);
 
 	void DrawTexture(
-		Transform transform, impl::TextureId texture, MaterialState material,
+		Transform transform, impl::TextureId texture, const MaterialState& material,
 		TextureDrawParams params
 	);
 	void DrawTexture(
-		Transform transform, impl::TextureId texture, Material material, TextureDrawParams params
+		Transform transform, impl::TextureId texture, const Material& material,
+		TextureDrawParams params
 	);
 
-	void DrawShader(Transform transform, MaterialState material, TextureDrawParams params);
-	void DrawShader(Transform transform, Material material, TextureDrawParams params);
+	void DrawShader(Transform transform, const MaterialState& material, TextureDrawParams params);
+	void DrawShader(Transform transform, const Material& material, TextureDrawParams params);
 
 	void DrawPoint(V2_float point, Color color, ShapeDrawParams params);
 
@@ -175,7 +177,7 @@ private:
 
 	V2_int GetRenderTargetSize(impl::RenderTargetId render_target) const;
 
-	void DrawRenderPass(impl::DrawPassRequest request);
+	void DrawRenderPass(const impl::DrawPassRequest& request);
 
 	void CopyRenderTargetRegion(
 		impl::RenderTargetId source, impl::RenderTargetId destination, Viewport source_region,

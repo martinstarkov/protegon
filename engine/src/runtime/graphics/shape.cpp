@@ -27,6 +27,7 @@
 #include "renderer/resources/texture.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
@@ -59,7 +60,8 @@ ShapeDrawParams GetShapeDrawParams(Entity entity) {
 	return { .depth{ GetDepth(entity) },
 			 .fill_style{ entity.GetOrDefault<FillStyle>() },
 			 .origin{ GetDrawOrigin(entity) },
-			 .entity_id{ entity.GetUUID() } };
+			 .entity_id{ entity.GetUUID() },
+			 .effects{ impl::GetEffectParams(entity) } };
 }
 
 } // namespace impl

@@ -1,11 +1,13 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
@@ -14,7 +16,9 @@
 #include <variant>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
@@ -60,16 +64,79 @@ class GLContext;
 
 } // namespace gl
 
-void ApplyTransform(Transform transform, std::span<TextureQuad> local_quads);
+template <RenderPrimitive T>
+void ApplyTransform(Transform transform, std::span<T> primitives) {
+	using TVertex = typename RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
 
-struct DrawTextureRequest {
+	transform.ApplyTo(
+		primitives | std::views::join,
+		[](const TVertex& vertex) {
+			const auto& pos{ PositionAccessor<TVertex>::Get(vertex) };
+			return V2_float{ pos[0], pos[1] };
+		},
+		[](TVertex& vertex, V2_float position) {
+			auto& pos{ PositionAccessor<TVertex>::Get(vertex) };
+			pos[0] = position.x;
+			pos[1] = position.y;
+		}
+	);
+}
+
+/// @return True if all vertices in all primitives have the same depth and entity ID, false
+/// otherwise.
+template <RenderPrimitive T>
+bool HaveUniformDepthAndEntityId(std::span<T> primitives) {
+	PTGN_ASSERT(!primitives.empty());
+
+	const auto& first_primitive{ primitives.front() };
+	const auto& first_vertex{ first_primitive.front() };
+
+	using TVertex = typename RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
+
+	auto get_depth = [](const auto& vertex) -> float {
+		return impl::PositionAccessor<TVertex>::Get(vertex)[2];
+	};
+
+	auto get_entity_id = [](const auto& vertex) -> int {
+		return impl::EntityIdAccessor<TVertex>::Get(vertex);
+	};
+
+	auto first_depth{ get_depth(first_vertex) };
+	auto first_entity_id{ get_entity_id(first_vertex) };
+
+	for (const auto& primitive : primitives) {
+		for (const auto& vertex : primitive) {
+			if (!NearlyEqual(get_depth(vertex), first_depth) ||
+				get_entity_id(vertex) != first_entity_id) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+template <RenderPrimitive T>
+struct DrawRequest {
+	/// @brief Optional texture to apply to the primitive. If the pipeline does not support
+	/// texturing, this field will be ignored.
 	TextureId texture;
-	/// @brief Center of the texture in world space. Origin should be accounted for in this
+	/// @brief Center of the primitive in world space. Origin should be accounted for in this
 	/// transform.
 	Transform transform;
-	std::span<TextureQuad> local_quads;
+
+	std::span<T> primitives;
+
 	EffectParams effect_params;
 };
+
+using DrawTextureRequest = DrawRequest<TextureQuad>;
+
+template <VertexType TVertex>
+using DrawQuadsRequest = DrawRequest<RenderQuad<TVertex>>;
+
+template <VertexType TVertex>
+using DrawTrianglesRequest = DrawRequest<RenderTriangle<TVertex>>;
 
 } // namespace impl
 
@@ -181,74 +248,161 @@ private:
 
 	void DrawTexture(const impl::DrawTextureRequest& request);
 
+	template <impl::RenderPrimitive T>
+	void Draw(const impl::DrawRequest<T>& request) {
+		if (request.primitives.empty()) {
+			return;
+		}
+
+		if (request.effect_params.draw_callback ||
+			IsTextureAttachedToCurrentFramebuffer(request.texture)) {
+			DrawWithEffect(request);
+		} else {
+			DrawNormally(request);
+		}
+	}
+
 	impl::RenderPipeline& GetPipeline(impl::PipelineId id);
 
 	const impl::RenderPipeline& GetPipeline(impl::PipelineId id) const;
 
-	template <impl::VertexType TVertex>
-	void DrawQuads(
-		std::span<impl::RenderQuad<TVertex>> quads, std::span<const impl::TextureId> textures = {}
-	) {
-		if (quads.empty()) {
-			return;
-		}
-
-		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
-
-		batcher_.SubmitQuads(quads, pipeline.vertex_capacity, pipeline.index_capacity, textures);
-	}
-
-	template <impl::VertexType TVertex>
-	void DrawTriangles(
-		std::span<impl::RenderTriangle<TVertex>> triangles,
-		std::span<const impl::TextureId> textures = {}
-	) {
-		if (triangles.empty()) {
-			return;
-		}
-
-		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
-
-		batcher_.SubmitTriangles(
-			triangles, pipeline.vertex_capacity, pipeline.index_capacity, textures
-		);
-	}
-
-	template <impl::RenderPrimitive TPrimitive>
-	void Draw(std::span<TPrimitive> primitives, std::span<const impl::TextureId> textures = {}) {
-		using Info = impl::RenderPrimitiveInfo<TPrimitive>;
-
-		if constexpr (Info::vertex_count == 3) {
-			DrawTriangles(primitives, textures);
-		} else if constexpr (Info::vertex_count == 4) {
-			DrawQuads(primitives, textures);
-		} else {
-			static_assert(
-				false, "Cannot use Draw for primitives other than RenderQuad and RenderTriangle"
-			);
-		}
-	}
-
-	template <impl::RenderPrimitive TPrimitive>
-	void Draw(std::span<TPrimitive> primitives, impl::TextureId texture = {}) {
-		std::span<const impl::TextureId> textures;
-
-		if (texture) {
-			textures = { &texture, 1 };
-		}
-
-		Draw(primitives, textures);
-	}
-
 	void SetRenderTarget(impl::RenderTargetObject* target);
 	void UpdateRenderTarget(impl::RenderTargetObject&& replacing_target);
 
-	void DrawTextureEffect(const impl::DrawTextureRequest& request);
-	void DrawTextureNormally(const impl::DrawTextureRequest& request);
+	template <impl::RenderPrimitive T>
+	void DrawWithEffect(const impl::DrawRequest<T>& request) {
+		PTGN_ASSERT(!request.primitives.empty());
+
+		using TVertex = typename impl::RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
+
+		PTGN_ASSERT(
+			impl::HaveUniformDepthAndEntityId(request.primitives),
+			"Batched effect vertices must have uniform depth and entity ID"
+		);
+
+		auto bounds{ Rect::FromPoints(
+			request.primitives | std::views::join |
+			std::views::transform([](const TVertex& vertex) {
+				const auto& pos{ impl::PositionAccessor<TVertex>::Get(vertex) };
+				return V2_float{ pos[0], pos[1] };
+			})
+		) };
+
+		PTGN_ASSERT(bounds.HasPositiveArea());
+
+		V2_float size{ bounds.GetSize() };
+
+		PTGN_ASSERT(size.IsPositive());
+
+		size += V2_float{ request.effect_params.margin * 2 };
+
+		RenderTargetDesc desc{ .size = size };
+
+		if (request.texture) {
+			desc.format = GetTextureFormat(request.texture);
+			desc.params = GetTextureParams(request.texture);
+		}
+
+		auto expanded_target{ CreateRenderTarget(desc) };
+
+		PTGN_ASSERT(expanded_target.GetSize() == V2_int{ size });
+
+		auto previous_target{ current_target_ };
+
+		SetRenderTarget(&expanded_target);
+
+		auto previous_state{ GetRenderState() };
+
+		Viewport viewport{ .position{}, .size{ size } };
+		SetScissor(ScissorState{ viewport });
+		SetViewport(viewport);
+		SetViewProjection(size);
+
+		impl::DrawRequest<T> local_request;
+
+		local_request.primitives = request.primitives;
+		local_request.texture	 = request.texture;
+
+		DrawNormally(local_request);
+
+		FlushBatch();
+
+		ExecuteEffectCallbacks(request.effect_params.draw_callback);
+
+		FlushBatch();
+
+		SetCurrentPipeline("texture");
+		SetRenderTarget(previous_target);
+		SetShader("texture");
+		SetRenderState(previous_state);
+
+		auto positions{ Rect{ size }.GetLocalVertices() };
+
+		PTGN_ASSERT(!request.primitives.empty());
+
+		const auto& first_primitive{ request.primitives.front() };
+
+		PTGN_ASSERT(!first_primitive.empty());
+
+		const auto& first_vertex{ first_primitive.front() };
+
+		auto depth{ impl::PositionAccessor<TVertex>::Get(first_vertex)[2] };
+
+		constexpr auto color_n{ color::White.Normalized() };
+
+		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+
+		auto entity_id{ impl::EntityIdAccessor<TVertex>::Get(first_vertex) };
+
+		auto local_quad{
+			impl::CreateTextureQuad(positions, depth, color_n, tex_coords, entity_id)
+		};
+
+		impl::DrawTextureRequest new_request{ .texture	  = GetRenderTargetTexture(expanded_target),
+											  .transform  = request.transform,
+											  .primitives = { &local_quad, 1 } };
+
+		DrawNormally(new_request);
+
+		temp_render_targets_.emplace_back(std::move(expanded_target));
+	}
+
+	template <impl::RenderPrimitive T>
+	void DrawNormally(const impl::DrawRequest<T>& request) {
+		PTGN_ASSERT(!request.primitives.empty());
+		PTGN_ASSERT(!request.effect_params.draw_callback);
+
+		std::span<const impl::TextureId> textures;
+
+		if (request.texture) {
+			textures = { &request.texture, 1 };
+		}
+
+		impl::ApplyTransform(request.transform, request.primitives);
+
+		const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
+
+		constexpr auto vertex_count{
+			impl::RenderPrimitiveInfo<std::remove_cvref_t<T>>::vertex_count
+		};
+
+		if constexpr (vertex_count == 4) {
+			batcher_.SubmitQuads(
+				request.primitives, pipeline.vertex_capacity, pipeline.index_capacity, textures
+			);
+		} else if constexpr (vertex_count == 3) {
+			batcher_.SubmitTriangles(
+				request.primitives, pipeline.vertex_capacity, pipeline.index_capacity, textures
+			);
+		} else {
+			static_assert(false, "Unsupported vertex count");
+		}
+	}
 
 	/// @brief Set the view projection to an orthographic projection matrix with the given size,
 	/// centered at the origin.
 	void SetViewProjection(V2_float size);
+
 	void SetViewProjection(const Matrix4& view_projection);
 	void SetViewport(Viewport viewport);
 	/// @param force If true, will set the blend mode even if it is the same as the current blend
@@ -359,7 +513,7 @@ private:
 
 	const impl::RenderTargetObject& GetBoundRenderTarget() const;
 
-	void DrawRenderPass(impl::DrawPassRequest request);
+	void DrawRenderPass(const impl::DrawPassRequest& request);
 
 	void CopyRenderTargetRegion(
 		impl::RenderTargetId source, impl::RenderTargetId destination, Viewport source_region,
@@ -373,6 +527,10 @@ private:
 	void ApplyScreenEffects(const std::function<void(DrawContext&)>& screen_effect_callback);
 
 	void BindUniforms();
+
+	std::optional<impl::ShaderId> GetBoundShader() const;
+
+	void ExecuteEffectCallbacks(const std::function<void(DrawContext&)>& effect_callback);
 
 	Window& window_;
 
@@ -441,9 +599,9 @@ public:
 
 	void SetBlendMode(BlendMode blend_mode, bool force = false);
 
-	template <RenderPrimitive TPrimitive>
-	void Draw(std::span<TPrimitive> primitives, TextureId texture = {}) {
-		renderer_.Draw(primitives, texture);
+	template <impl::RenderPrimitive T>
+	void Draw(const impl::DrawRequest<T>& request) {
+		renderer_.Draw(request);
 	}
 
 	const RenderTargetObject& GetBoundRenderTarget() const;

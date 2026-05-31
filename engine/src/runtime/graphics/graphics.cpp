@@ -6,16 +6,15 @@
 #include "core/graphics/fill_style.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/line.h"
-#include "core/math/geometry/origin.h"
 #include "core/math/geometry/polygon.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 
@@ -58,7 +57,8 @@ void Graphics::Draw(DrawContext& ctx, Entity entity) {
 				cmd_transform, cmd.shape, cmd.color,
 				{ .depth	  = GetDepth(entity),
 				  .fill_style = cmd.line_width,
-				  .entity_id  = entity.GetUUID() }
+				  .entity_id  = entity.GetUUID(),
+				  .effects	  = impl::GetEffectParams(entity) }
 			);
 		}
 	});
