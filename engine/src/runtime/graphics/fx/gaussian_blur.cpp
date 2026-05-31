@@ -10,16 +10,14 @@ namespace ptgn {
 void GaussianBlur::Draw(DrawContext& ctx, Entity entity) {
 	const auto& gaussian_blur{ entity.Get<GaussianBlur>() };
 
-	if (!gaussian_blur.blur_iterations) {
+	if (!gaussian_blur.iterations) {
 		return;
 	}
 
 	ctx.Pass([&](auto& pass) {
-		auto scene{ pass.BoundTarget() };
+		RenderPassHandle blurred{ pass.BoundTarget() };
 
-		RenderPassHandle blurred{ scene };
-
-		for (auto i{ 0uz }; i < gaussian_blur.blur_iterations; ++i) {
+		for (auto i{ 0uz }; i < gaussian_blur.iterations; ++i) {
 			RenderPassHandle blur_x{ pass.CreateLike(blurred, "gaussian_blur")
 										 .Read(blurred)
 										 .Uniform("u_Direction", V2_float{ 1.0f, 0.0f })

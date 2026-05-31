@@ -10,7 +10,7 @@ class DrawContext;
 
 struct GaussianBlur {
 	float radius{ 1.0f };
-	std::size_t blur_iterations{ 4 };
+	std::size_t iterations{ 4 };
 
 	static void Draw(DrawContext& ctx, Entity entity);
 };
