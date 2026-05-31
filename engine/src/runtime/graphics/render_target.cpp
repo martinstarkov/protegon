@@ -114,7 +114,7 @@ void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
 	auto texture{ entity.Get<impl::RenderTargetObject>().GetTextureId() };
 	auto blend_mode{ GetBlendMode(entity) };
 
-	auto params{ impl::GetTextureDrawParams(entity, *size, false, color::White) };
+	auto params{ impl::GetTextureDrawParams(entity, *size, true, color::White) };
 
 	ctx.WithBlendMode(blend_mode, [&]() { ctx.DrawTexture(draw_transform, texture, params); });
 }
