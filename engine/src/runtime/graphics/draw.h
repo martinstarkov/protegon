@@ -50,6 +50,12 @@ struct Depth {
 	PTGN_SERIALIZE_VALUE(Depth, value)
 };
 
+struct EffectMargin {
+	/// @brief Number of pixels on all sides added to the effect render target.
+	/// Only applies to texture effects.
+	int value{ 0 };
+};
+
 namespace impl {
 
 struct EffectTag {};

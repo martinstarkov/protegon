@@ -1,5 +1,6 @@
 #include "runtime/graphics/drawable.h"
 
+#include <algorithm>
 #include <functional>
 #include <list>
 #include <utility>
@@ -43,7 +44,9 @@ EffectParams GetEffectParams(const Entity& entity) {
 	for (const auto& child : children) {
 		if (child.Has<EffectTag>()) {
 			effect_count += 1;
-			// TODO: Calculate margin from effect entities.
+		}
+		if (auto margin{ child.TryGet<EffectMargin>() }) {
+			params.margin = std::max(params.margin, margin->value);
 		}
 	}
 
