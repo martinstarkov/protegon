@@ -22,17 +22,17 @@ struct RenderTargetScene : public Scene {
 	SceneCamera rt_camera;
 
 	void OnEnter() override {
-		SetBackgroundColor(color::LightGray);
-
-		CreateRect(*this, { -300, -300 }, { 100, 100 }, color::Gray);
-
 		constexpr V2_float rt_size{ 200, 200 };
-
 		constexpr auto rt_layer{ GetLayer(3) };
+
+		SetBackgroundColor(color::LightBlue);
+
+		CreateRect(*this, { -300, -300 }, { 100, 100 }, color::Blue);
+
+		ctx().camera.SetExcludeMask(rt_layer);
 
 		rt = CreateRenderTarget(*this, rt_size, color::Red);
 		SetPosition(rt, { 200, 200 });
-		ctx().camera.SetExcludeMask(rt_layer);
 
 		rt_camera = CreateCamera(*this, rt.GetSize());
 		rt_camera.SetParentRenderTarget(rt);
