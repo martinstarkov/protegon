@@ -328,7 +328,7 @@ std::vector<ColorQuad> GetHollowPrimitives(
 }
 
 std::vector<ColorQuad> GetHollowPrimitives(const Rect& rect, const CommonShapeParams& params) {
-	auto points{ rect.GetLocalVertices() };
+	auto points{ rect.GetWorldVertices({}, params.draw_origin) };
 	return GetHollowPrimitives(points, true, params);
 }
 
