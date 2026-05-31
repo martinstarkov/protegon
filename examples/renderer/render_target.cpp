@@ -5,67 +5,52 @@
 
 #include "app/application.h"
 #include "core/graphics/color.h"
-#include "core/graphics/fill_style.h"
-#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
+#include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
-
-// TODO: Fix this demo.
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 800, 800 };
+constexpr V2_int kWindowSize{ 800, 800 };
 
 struct RenderTargetScene : public Scene {
-	RenderTarget rt1;
-	RenderTarget rt2;
+	RenderTarget rt;
+	SceneCamera rt_camera;
 
 	void OnEnter() override {
 		SetBackgroundColor(color::LightGray);
 
-		ctx().renderer.SetGameSize(game_size);
+		CreateRect(*this, { -300, -300 }, { 100, 100 }, color::Gray);
 
-		CreateRect(
-			*this, V2_float{ 200, -200 }, { 200, 200 }, color::Gray, Solid{}, Origin::Center
-		);
+		constexpr V2_float rt_size{ 200, 200 };
 
-		rt1 = CreateRenderTarget(*this, { 400, 400 }, color::Red);
-		SetDrawOrigin(rt1, Origin::TopLeft);
-		SetPosition(rt1, -game_size * 0.5f);
+		constexpr auto rt_layer{ GetLayer(3) };
 
-		auto rect1 = CreateRect(
-			*this, V2_float{ 0, 0 }, { 100, 100 }, color::Orange, Solid{}, Origin::Center
-		);
+		rt = CreateRenderTarget(*this, rt_size, color::Red);
+		SetPosition(rt, { 200, 200 });
+		ctx().camera.SetExcludeMask(rt_layer);
 
-		// rt1.AddToDisplayList(rect1);
+		rt_camera = CreateCamera(*this, rt.GetSize());
+		rt_camera.SetParentRenderTarget(rt);
+		rt_camera.SetIncludeMask(rt_layer);
 
-		rt2 = CreateRenderTarget(*this, { 400, 400 }, color::Cyan);
-		SetDrawOrigin(rt2, Origin::TopLeft);
-		SetPosition(rt2, -game_size * 0.5f + V2_float{ 400, 400 });
-
-		// Rect2 position is relative to rt position (0, 0 is center of rt).
-		auto rect2 = CreateRect(
-			*this, V2_float{ 0, 0 }, { 100, 100 }, color::White, Solid{}, Origin::Center
-		);
-
-		// rt2.AddToDisplayList(rect2);
+		auto rect2{ CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::Orange) };
+		SetMask(rect2, rt_layer);
 	}
 
 	void OnUpdate() override {
 		float dt{ ctx().dt().count() };
 		constexpr V2_float speed{ 300.0f };
-		// TODO: Fix.
-		// MoveArrowKeys(camera1, speed * dt);
-		// MoveWASD(camera2, speed * dt);
+		MoveArrowKeys(rt_camera, speed * dt);
+		MoveWASD(rt, speed * dt);
 	}
 };
 
 int main(int, char**) {
-	Application app{ "RenderTargetScene", game_size };
+	Application app{ "RenderTargetScene", kWindowSize };
 	app.StartWith<RenderTargetScene>();
 }
