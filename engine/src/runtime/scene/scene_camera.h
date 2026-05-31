@@ -20,17 +20,17 @@
 namespace ptgn {
 
 class Scene;
-class RenderTarget;
 class Renderer;
 
 using LayerMask = std::uint64_t;
 
-inline constexpr LayerMask kLayersAll  = ~LayerMask{ 0 };
-inline constexpr LayerMask kLayersNone = LayerMask{ 0 };
-
 constexpr LayerMask GetLayer(int i) {
 	return LayerMask{ 1 } << i;
 }
+
+inline constexpr LayerMask kLayersAll	 = ~LayerMask{ 0 }; // 0b11111111
+inline constexpr LayerMask kLayersNone	 = LayerMask{ 0 };	// 0b00000000
+inline constexpr LayerMask kLayerDefault = GetLayer(0);		// 0b00000001
 
 namespace impl {
 
@@ -56,9 +56,8 @@ public:
 /// @brief If an entity has no RenderMask, we treat it as having
 /// RenderMask{} (default ctor).
 struct RenderMask {
-	/// @brief Neutral engine default: entity belongs to all layers
-	/// (i.e. visible to any camera that includes anything).
-	LayerMask layers{ kLayersAll };
+	/// @brief Neutral engine default: entity belongs to default layer.
+	LayerMask layers{ kLayerDefault };
 };
 
 /// @brief If a camera has no CameraMask, we treat it as having
