@@ -379,22 +379,23 @@ void RenderQueue::Draw(
 
 	PTGN_ASSERT(game_size.IsPositive(), "Game size dimensions must be above 0");
 
-	// TODO: Move to RenderCamera initialization.
 	auto rt_size{ render_target.GetSize() };
-	V2_float scale{ V2_float{ rt_size } / game_size };
 
-	// TODO: Move to RenderCamera initialization.
 	auto viewport{ render_camera.camera.viewport };
-	// Not *= because we want float multiplication followed by flooring.
-	viewport.position = viewport.position * scale;
-	viewport.size	  = viewport.size * scale;
+
+	if (!render_camera.scene_camera || render_camera.scene_camera.Has<impl::CameraResizeScript>()) {
+		// Viewport is relative to game size, so scale it to render target size.
+		V2_float scale{ V2_float{ rt_size } / game_size };
+		// Not *= because we want float multiplication followed by flooring.
+		viewport.position = viewport.position * scale;
+		viewport.size	  = viewport.size * scale;
+	}
 	renderer.SetViewport(viewport);
 	renderer.SetViewProjection(render_camera.camera.view_projection);
 	renderer.SetScissor(ScissorState{ viewport });
 
 	if (bool clear_camera{ !std::ranges::contains(cleared.cameras, render_camera.uuid) };
 		clear_camera && render_camera.clear_color.has_value()) {
-		// TODO: Move to RenderCamera initialization.
 		render_target.Clear(*render_camera.clear_color, false);
 		cleared.cameras.emplace_back(render_camera.uuid);
 	}
