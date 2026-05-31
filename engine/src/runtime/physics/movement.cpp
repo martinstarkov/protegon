@@ -46,10 +46,6 @@ void InvokeMoveCallbacks(Entity entity, bool was_moving, bool is_moving, Args&&.
 	}
 }
 
-} // namespace
-
-namespace impl {
-
 void MoveImpl(
 	const Scene& scene, V2_float& vel, V2_float amount, Key left_key, Key right_key, Key up_key,
 	Key down_key, bool cancel_velocity_if_unpressed
@@ -82,20 +78,18 @@ float MoveTowards(float current, float target, float maxDelta) {
 	return current + Sign(target - current) * maxDelta;
 }
 
-} // namespace impl
+} // namespace
 
 void MoveWASD(
 	const Scene& scene, V2_float& vel, V2_float amount, bool cancel_velocity_if_unpressed
 ) {
-	impl::MoveImpl(
-		scene, vel, amount, Key::A, Key::D, Key::W, Key::S, cancel_velocity_if_unpressed
-	);
+	MoveImpl(scene, vel, amount, Key::A, Key::D, Key::W, Key::S, cancel_velocity_if_unpressed);
 }
 
 void MoveArrowKeys(
 	const Scene& scene, V2_float& vel, V2_float amount, bool cancel_velocity_if_unpressed
 ) {
-	impl::MoveImpl(
+	MoveImpl(
 		scene, vel, amount, Key::Left, Key::Right, Key::Up, Key::Down, cancel_velocity_if_unpressed
 	);
 }
@@ -364,7 +358,7 @@ void TopDownMovement::RunWithAcceleration(
 
 		// Move our velocity towards the desired velocity, at the rate of the number calculated
 		// above
-		rb.velocity[i] = impl::MoveTowards(rb.velocity[i], desired_velocity[i], max_speed_change);
+		rb.velocity[i] = MoveTowards(rb.velocity[i], desired_velocity[i], max_speed_change);
 	};
 
 	set_velocity(0);
@@ -446,7 +440,7 @@ void PlatformerMovement::RunWithAcceleration(
 
 	// Move our velocity towards the desired velocity, at the rate of the number calculated
 	// above
-	rb.velocity.x = impl::MoveTowards(rb.velocity.x, desired_velocity.x, max_speed_change);
+	rb.velocity.x = MoveTowards(rb.velocity.x, desired_velocity.x, max_speed_change);
 }
 
 void PlatformerJump::Ground(

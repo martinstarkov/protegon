@@ -16,17 +16,6 @@ namespace ptgn {
 
 class Scene;
 
-namespace impl {
-
-void MoveImpl(
-	const Scene& scene, V2_float& vel, V2_float amount, Key left_key, Key right_key, Key up_key,
-	Key down_key, bool cancel_velocity_if_unpressed
-);
-
-[[nodiscard]] float MoveTowards(float current, float target, float max_delta);
-
-} // namespace impl
-
 void MoveWASD(
 	const Scene& scene, V2_float& vel, V2_float amount, bool cancel_velocity_if_unpressed = true
 );
