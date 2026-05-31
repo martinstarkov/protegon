@@ -27,7 +27,7 @@ class BloomEffectScene : public Scene {
 			rect2, Bloom{ .threshold	   = 0.0f,
 						  .soft_knee	   = 0.01f,
 						  .radius		   = 5.0f,
-						  .intensity	   = 2.0f,
+						  .intensity	   = 5.0f,
 						  .blur_iterations = 10 }
 		)
 			.Add<EffectMargin>(40);
