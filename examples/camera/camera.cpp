@@ -339,14 +339,15 @@ public:
 			StartFollow(camera, mouse, follow_config);
 		}
 
-		ctx().renderer.DrawText(
-			content, center - 0 * V2_float{ 0.0f, font_size }, color, font_size, {}, {},
-			Origin::Center, {}, false
-		);
-		ctx().renderer.DrawText(
-			content, center + 1 * V2_float{ 0.0f, font_size }, color, font_size, {}, {},
-			Origin::Center, {}, true
-		);
+		// TODO: Fix text.
+		// ctx().renderer.DrawText(
+		//	content, center - 0 * V2_float{ 0.0f, font_size }, color, font_size, {}, {},
+		//	Origin::Center, {}, false
+		//);
+		// ctx().renderer.DrawText(
+		//	content, center + 1 * V2_float{ 0.0f, font_size }, color, font_size, {}, {},
+		//	Origin::Center, {}, true
+		//);
 	}
 };
 
