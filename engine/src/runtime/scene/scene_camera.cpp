@@ -386,7 +386,7 @@ void SetUI(Entity entity, bool ui_layer) {
 		SetMask(entity, kLayersNone);
 	} else {
 		entity.Remove<impl::UILayer>();
-		SetMask(entity, kLayersAll);
+		SetMask(entity, impl::RenderMask{}.layers);
 	}
 }
 
