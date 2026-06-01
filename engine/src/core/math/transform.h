@@ -12,6 +12,7 @@
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "serialization/serialize.h"
+#include "tolerance.h"
 
 namespace ptgn {
 
@@ -99,7 +100,7 @@ struct Transform {
 	constexpr bool operator==(const Transform&) const = default;
 
 	constexpr bool HasRotation() const {
-		return rotation.value != 0.0f;
+		return rotation != Radians{ 0.0f };
 	}
 
 	/// @brief Clamps rotation between [0, 360 deg).
