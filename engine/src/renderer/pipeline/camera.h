@@ -20,6 +20,12 @@ struct Camera {
 		auto world_vertices{ rect.GetWorldVertices(transform) };
 		return world_vertices;
 	}
+
+	friend bool operator==(const Camera& lhs, const Camera& rhs) {
+		// View projection omitted because it is derived from transform and viewport, so if those
+		// are equal, the view projection must be equal as well.
+		return lhs.transform == rhs.transform && lhs.viewport == rhs.viewport;
+	}
 };
 
 } // namespace ptgn
