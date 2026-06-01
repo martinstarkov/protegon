@@ -238,6 +238,9 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 	DrawSceneTarget(draw_context);
 
 	renderer.FlushBatch();
+
+	ctx().render_queue.render_commands_.clear();
+	ctx().render_queue.debug_commands_.clear();
 }
 
 void Scene::DrawSceneTarget(DrawContext& draw_context) const {
