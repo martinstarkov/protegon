@@ -1,255 +1,77 @@
-#include <vector>
 
+#include "app/application.h"
+#include "core/graphics/color.h"
+#include "core/input/mouse.h"
+#include "core/log.h"
+#include "core/math/math_utils.h"
+#include "core/math/vector2.h"
+#include "renderer/renderer.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/game_object.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/light.h"
-#include "runtime/graphics/render_target.h"
-
-// TODO: Fix this demo.
+#include "runtime/graphics/shape.h"
+#include "runtime/graphics/sprite.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_input.h"
 
 using namespace ptgn;
 
-namespace ptgn {
-
-namespace impl {
-
-struct LightMapInstance {
-	// Entities which will form the shadow segments.
-	std::vector<Entity> shadow_entities;
-	std::vector<Light> light_entities;
-	// TODO: Draw lights to this render target, and then draw shadows on top.
-	GameObject<RenderTarget> light_render_target;
-	bool hide_shadow_entities{ false };
-	bool shadow_layering{ true };
-};
-
-} // namespace impl
-
-struct ShadowDepth : public Depth {
-	using Depth::Depth;
-};
-
-/*
-class LightMap : public Entity {
-public:
-	LightMap() = default;
-
-	LightMap(const Entity& entity) : Entity{ entity } {}
-
-	void DisableShadowLayering(bool disable = true) {
-		auto& light_map{ Get<impl::LightMapInstance>() };
-		light_map.shadow_layering = !disable;
-	}
-
-	void HideShadowEntities(bool hide = true) {
-		auto& light_map{ Get<impl::LightMapInstance>() };
-		light_map.hide_shadow_entities = hide;
-	}
-
-	void AddShadow(const Entity& entity) {
-		auto& light_map{ Get<impl::LightMapInstance>() };
-
-		PTGN_ASSERT(
-			GetSpriteOrShape(entity).has_value(), "Cannot add shadow entity which has no shape"
-		);
-
-		light_map.shadow_entities.emplace_back(entity);
-	}
-
-	void AddLight(const Entity& entity) {
-		auto& light_map{ Get<impl::LightMapInstance>() };
-
-		PTGN_ASSERT(entity.Has<impl::LightData>(), "Cannot add light entity which is not a light");
-
-		light_map.light_entities.emplace_back(entity);
-	}
-
-	static void Draw(const Entity& entity) {
-		const auto& light_map{ entity.Get<impl::LightMapInstance>() };
-
-		ctx().renderer.EnableStencilMask();
-
-		const auto add_to_stencil_mask = [entity](const auto& shape, const Transform& transform) {
-			renderer.DrawShape(
-				transform, shape, color::Black, -1.0f, Origin::Center, GetDepth(entity) + 1,
-				BlendMode::ReplaceAlpha, entity.GetOrDefault<Camera>(),
-				entity.GetOrDefault<PostFX>()
-			);
-		};
-
-		auto shadows{ GetShadowInfo(light_map.shadow_entities) };
-
-		if (!light_map.hide_shadow_entities) {
-			for (const auto& [shape, transform] : shadows) {
-				add_to_stencil_mask(shape, transform);
-			}
-		}
-
-		auto shadow_segments{ GetShadowSegments(shadows) };
-
-		for (const auto& light : light_map.light_entities) {
-			if (!light.Has<impl::LightData>()) {
-				continue;
-			}
-
-			auto origin{ GetPosition(light) };
-
-			auto visibility_triangles{ GetVisibilityTriangles(origin, shadow_segments) };
-
-			for (const auto& triangle : visibility_triangles) {
-				add_to_stencil_mask(triangle, {});
-			}
-		}
-
-		renderer.DrawOutsideStencilMask();
-
-		renderer.DrawShape(
-			{}, Rect{ ctx().renderer.GetDisplaySize() }, color::Black.WithAlpha(0.5f),
-Solid{}, Origin::Center, {}, BlendMode::Blend, {}, {}, "color"
-		);
-
-		ctx().renderer.DisableStencilMask();
-	}
-
-private:
-	static void AddWorldBoundaries(std::vector<Line>& shadow_segments) {
-		auto size{ ctx().renderer.GetGameSize() };
-		auto half_size{ size * 0.5f };
-
-		shadow_segments.emplace_back(-half_size, V2_float{ half_size.x, -half_size.y });
-		shadow_segments.emplace_back(V2_float{ half_size.x, -half_size.y }, half_size);
-		shadow_segments.emplace_back(half_size, V2_float{ -half_size.x, half_size.y });
-		shadow_segments.emplace_back(V2_float{ -half_size.x, half_size.y }, -half_size);
-	}
-
-	struct ShadowInfo {
-		Shape shape;
-		Transform transform;
-	};
-
-	static std::vector<ShadowInfo> GetShadowInfo(const std::vector<Entity>& shadow_entities) {
-		std::vector<ShadowInfo> shadow_info;
-
-		for (const auto& entity : shadow_entities) {
-			if (auto shape{ GetSpriteOrShape(entity) }) {
-				auto transform{ GetWorldTransform(entity) };
-
-				transform = OffsetByOrigin(*shape, transform, entity);
-
-				shadow_info.emplace_back(*shape, transform);
-			}
-		}
-
-		return shadow_info;
-	}
-
-	static std::vector<Line> GetShadowSegments(const std::vector<ShadowInfo>& shadows) {
-		std::vector<Line> shadow_segments;
-
-		for (const auto& [shape, transform] : shadows) {
-			auto edge_info{ GetEdges(shape, transform) };
-
-			shadow_segments.insert(
-				shadow_segments.end(), edge_info.edges.begin(), edge_info.edges.end()
-			);
-		}
-
-		AddWorldBoundaries(shadow_segments);
-
-		return shadow_segments;
-	}
-};
-
-PTGN_DRAWABLE_REGISTER(LightMap);
-
-LightMap CreateLightMap(Manager& manager) {
-	LightMap light_map{ manager.CreateEntity() };
-
-	Show(light_map);
-	SetDraw<LightMap>(light_map);
-
-	auto& instance{ light_map.Add<impl::LightMapInstance>() };
-
-	// TODO: Fix.
-	// instance.light_render_target = CreateRenderTarget(manager, ResizeMode::DisplaySize, true,
-	// color::Transparent);
-
-	return light_map;
-}
-*/
-
-} // namespace ptgn
-
-/*
 class ShadowScene : public Scene {
 public:
-	PointLight mouse_light;
-	PointLight static_light;
+	Light light1;
+	Light light2;
+	Light light3;
 
-	LightMap light_map;
+	int mouse_light{ 0 };
 
 	void OnEnter() override {
-		ctx().renderer.SetBackgroundColor(color::White);
-		SetBackgroundColor(color::LightBlue.WithAlpha(1.0f));
-
-		ctx().asset.Load("test", "assets/test1.jpg");
-
-		auto sprite = CreateSprite(*this, "test", { -200, -200 });
-		SetDrawOrigin(sprite, Origin::TopLeft);
-
-		float intensity{ 0.5f };
-		float radius{ 30.0f };
-		float falloff{ 2.0f };
-
-		float step{ 80 };
-
-		const auto create_light = [&](const Color& color) {
-			static int i = 1;
-			auto light	 = CreatePointLight(
-				  *this, -ctx().renderer.GetGameSize() * 0.5f + V2_float{ i * step }, radius, color,
-				  intensity, falloff
-			  );
-			i++;
-			return light;
+		constexpr LightProperties properties{
+			.radius = 400.0f, .color = color::Cyan, .intensity = 0.5f, .falloff = 2.0f
 		};
+		constexpr V2_int light_starting_pos{ 400, -400 };
 
-		static_light = create_light(color::Cyan);
+		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		mouse_light = CreatePointLight(*this, { -300, 300 }, 50.0f, color::Red, 0.8f, 1.0f);
+		auto properties1{ properties };
+		properties1.color = color::Red;
+		light1			  = CreateLight(*this, light_starting_pos, properties1);
 
-		auto sprite2 = CreateSprite(*this, "test", { -200, 150 });
+		CreateSprite(*this, "sprite", { 200, -250 });
+		auto sprite2{ CreateSprite(*this, "sprite", { -200, -250 }) };
+		// SetOccluder(sprite2);
 
-		SetDrawOrigin(sprite2, Origin::TopLeft);
+		CreateRect(*this, { -300, 300 }, { 100, 100 }, color::LightGray);
+		auto rect2{ CreateRect(*this, { 0, 300 }, { 100, 100 }, color::Gray) };
+		// SetOccluder(rect2);
 
-		auto rect2 =
-			CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, Solid{},
-Origin::TopLeft);
+		auto properties2{ properties };
+		properties2.color = color::Green;
+		light2			  = CreateLight(*this, light_starting_pos, properties2);
 
-		light_map = CreateLightMap(*this);
+		auto rect3{ CreateRect(*this, { 300, 300 }, { 100, 100 }, color::DarkGray) };
+		// SetOccluder(rect3);
 
-		light_map.AddLight(static_light);
-		light_map.AddLight(mouse_light);
-
-		light_map.AddShadow(sprite);
-		light_map.AddShadow(sprite2);
-		light_map.AddShadow(rect2);
-
-		// light_map.HideShadowEntities();
+		auto properties3{ properties };
+		properties3.color = color::Blue;
+		light3			  = CreateLight(*this, light_starting_pos, properties3);
 	}
 
 	void OnUpdate() override {
-		auto pos{ ctx().input.GetMousePosition() };
-		SetPosition(mouse_light, pos);
-
-		if (ctx().input.MouseHeld(Mouse::Right)) {
-			SetPosition(static_light, pos);
+		if (ctx().input.MousePressed(Mouse::Left)) {
+			mouse_light++;
+			mouse_light = Mod(mouse_light, 3);
+		}
+		switch (mouse_light) {
+			case 0:	 SetPosition(light1, ctx().input.GetMousePosition()); break;
+			case 1:	 SetPosition(light2, ctx().input.GetMousePosition()); break;
+			case 2:	 SetPosition(light3, ctx().input.GetMousePosition()); break;
+			default: PTGN_ERROR("Mouse light index out of range");
 		}
 	}
 };
-*/
 
 int main(int, char**) {
-	/*Application app{ "ShadowScene: Right: Move static light" };
-	app.StartWith<ShadowScene>();*/
+	Application app{ "ShadowScene: Left click to switch mouse light" };
+	app.StartWith<ShadowScene>();
 }
