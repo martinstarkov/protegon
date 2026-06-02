@@ -78,6 +78,29 @@ private:
 		RenderState previous_state_;
 	};
 
+	class RenderTargetScope {
+	private:
+		RenderTargetScope() = delete;
+
+		RenderTargetScope(DrawContext& ctx, impl::RenderTargetObject& target, Viewport viewport);
+
+		RenderTargetScope(const RenderTargetScope&)			   = delete;
+		RenderTargetScope& operator=(const RenderTargetScope&) = delete;
+
+		RenderTargetScope(RenderTargetScope&&) noexcept			   = delete;
+		RenderTargetScope& operator=(RenderTargetScope&&) noexcept = delete;
+
+		~RenderTargetScope();
+
+		friend class DrawContext;
+
+		DrawContext& ctx_;
+		impl::RenderTargetObject* previous_target_{ nullptr };
+		RenderState previous_state_;
+		std::optional<impl::ShaderId> previous_shader_;
+		std::size_t previous_pipeline_{ 0 };
+	};
+
 public:
 	void WithRenderState(const RenderState& delta, InvocableR<void> auto&& function) {
 		RenderStateScope scope{ *this, delta };
@@ -90,6 +113,27 @@ public:
 
 		function();
 	}
+
+	void WithRenderTarget(
+		impl::RenderTargetObject& target, Viewport viewport, InvocableR<void> auto&& function
+	) {
+		RenderTargetScope scope{ *this, target, viewport };
+
+		function();
+	}
+
+	[[nodiscard]] impl::RenderTargetObject CreateTemporaryRenderTarget(RenderTargetDesc desc);
+
+	void PreserveTemporaryRenderTarget(impl::RenderTargetObject&& target);
+
+	void ClearRenderTarget(
+		impl::RenderTargetId render_target, Color color, bool set_viewport = false,
+		bool restore_bind = false
+	) const;
+
+	[[nodiscard]] impl::TextureId GetRenderTargetTexture(impl::RenderTargetId render_target) const;
+
+	void DrawRenderPass(const impl::DrawPassRequest& request);
 
 	RenderState GetRenderState() const;
 
@@ -176,8 +220,6 @@ private:
 	impl::RenderTargetObject ExtractRenderTarget(impl::RenderTargetId id);
 
 	V2_int GetRenderTargetSize(impl::RenderTargetId render_target) const;
-
-	void DrawRenderPass(const impl::DrawPassRequest& request);
 
 	void CopyRenderTargetRegion(
 		impl::RenderTargetId source, impl::RenderTargetId destination, Viewport source_region,

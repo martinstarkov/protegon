@@ -6,6 +6,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
@@ -19,10 +20,12 @@
 #include "core/math/geometry/rounded_rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/geometry/triangle.h"
+#include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_pass_builder.h"
+#include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/render_target_pool.h"
@@ -108,6 +111,7 @@ void DrawContext::DrawTexture(
 	impl::DrawTextureRequest request;
 
 	if (params.size.IsZero()) {
+		PTGN_ASSERT(texture, "Texture must be set if size is zero");
 		params.size = renderer_.GetTextureSize(texture);
 	}
 
@@ -305,6 +309,59 @@ void DrawContext::CompositeRenderPassResult(
 	impl::RenderTargetId source, impl::RenderTargetId destination, Viewport destination_region
 ) {
 	renderer_.CompositeRenderPassResult(source, destination, destination_region);
+}
+
+DrawContext::RenderTargetScope::RenderTargetScope(
+	DrawContext& ctx, impl::RenderTargetObject& target, Viewport viewport
+) :
+	ctx_{ ctx },
+	previous_target_{ ctx_.renderer_.current_target_ },
+	previous_state_{ ctx_.GetRenderState() },
+	previous_shader_{ ctx_.renderer_.GetBoundShader() },
+	previous_pipeline_{ ctx_.renderer_.pipeline_manager_.GetCurrentPipelineId() } {
+	ctx_.renderer_.SetRenderTarget(&target);
+
+	ctx_.SetRenderState(
+		RenderState{
+			.viewport		 = viewport,
+			.view_projection = Matrix4::Orthographic(viewport.size),
+			.scissor		 = ScissorState{ viewport },
+		}
+	);
+}
+
+DrawContext::RenderTargetScope::~RenderTargetScope() {
+	ctx_.renderer_.FlushBatch();
+
+	ctx_.renderer_.SetRenderTarget(previous_target_);
+
+	if (previous_pipeline_ != 0) {
+		ctx_.renderer_.SetCurrentPipeline(previous_pipeline_);
+	}
+
+	if (previous_shader_.has_value()) {
+		ctx_.renderer_.SetShader(*previous_shader_);
+	}
+
+	ctx_.SetRenderState(previous_state_);
+}
+
+impl::RenderTargetObject DrawContext::CreateTemporaryRenderTarget(RenderTargetDesc desc) {
+	return renderer_.CreateRenderTarget(desc);
+}
+
+void DrawContext::PreserveTemporaryRenderTarget(impl::RenderTargetObject&& target) {
+	renderer_.temp_render_targets_.emplace_back(std::move(target));
+}
+
+void DrawContext::ClearRenderTarget(
+	impl::RenderTargetId render_target, Color color, bool set_viewport, bool restore_bind
+) const {
+	renderer_.ClearRenderTarget(render_target, color, set_viewport, restore_bind);
+}
+
+impl::TextureId DrawContext::GetRenderTargetTexture(impl::RenderTargetId render_target) const {
+	return renderer_.GetRenderTargetTexture(render_target);
 }
 
 } // namespace ptgn

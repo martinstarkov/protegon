@@ -65,6 +65,30 @@ struct LightData {
 	PTGN_SERIALIZE(LightData, intensity, ambient_intensity, ambient_color, falloff, cone_angle)
 };
 
+struct ShadowCaster {
+	bool casts_shadows{ true };
+	bool masks_light_inside{ true };
+
+	PTGN_SERIALIZE(ShadowCaster, casts_shadows, masks_light_inside)
+};
+
+struct ShadowMaskInterior {
+	// Light-local vertices, in the same local coordinate space as the light quad.
+	std::vector<V2_float> vertices;
+
+	// If true, the occluder's own interior remains black in the light mask.
+	// If false, the occluder's interior is painted back into the mask.
+	bool masks_light_inside{ true };
+};
+
+struct VisibilityPolygon {
+	// Light-local visibility polygon vertices.
+	std::vector<V2_float> vertices;
+
+	// Light-local filled occluder bodies used by masks_light_inside.
+	std::vector<ShadowMaskInterior> occluder_interiors;
+};
+
 } // namespace impl
 
 class Light : public Entity {
