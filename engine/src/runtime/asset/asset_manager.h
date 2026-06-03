@@ -298,7 +298,7 @@ private:
 	) const;
 
 	[[nodiscard]] impl::TextureObject CreateTexture(
-		const std::uint8_t* pixel_data, V2_int size, TextureFormat format, TextureParams params
+		const std::uint8_t* pixel_data, TextureDesc desc
 	) const;
 
 	[[nodiscard]] Audio CreateAudio(bool persistent, const path& asset_path);

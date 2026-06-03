@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <list>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -20,7 +21,6 @@
 #include "core/assert.h"
 #include "core/graphics/surface.h"
 #include "core/log.h"
-#include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
@@ -85,13 +85,16 @@ impl::TextureObject AssetManager::CreateTexture(
 		surface.GetChannelCount() == GetChannelCount(format),
 		"Surface and texture format channel count must match"
 	);
-	return CreateTexture(surface.Data(), surface.GetSize(), format, params);
+	return CreateTexture(
+		surface.Data(),
+		TextureDesc{ .size{ surface.GetSize() }, .format{ format }, .params{ params } }
+	);
 }
 
 impl::TextureObject AssetManager::CreateTexture(
-	const std::uint8_t* pixel_data, V2_int size, TextureFormat format, TextureParams params
+	const std::uint8_t* pixel_data, TextureDesc desc
 ) const {
-	return impl::RendererAccessor{ renderer_ }.CreateTexture(pixel_data, size, format, params);
+	return impl::RendererAccessor{ renderer_ }.CreateTexture(pixel_data, desc);
 }
 
 Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
@@ -106,9 +109,10 @@ Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
 
 	Texture texture{ CreateAsset(), persistent };
 
-	texture.GetEntity().Add<impl::TextureObject>(
-		CreateTexture(data, size, TextureFormat::RGBA8, TextureParams{})
-	);
+	texture.GetEntity().Add<impl::TextureObject>(CreateTexture(
+		data,
+		TextureDesc{ .size{ size }, .format{ TextureFormat::RGBA8 }, .params{ TextureParams{} } }
+	));
 
 	return texture;
 }
