@@ -4,7 +4,6 @@
 #include <optional>
 #include <ranges>
 #include <span>
-#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -20,14 +19,11 @@
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
-#include "core/util/hash.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/viewport.h"
-#include "renderer/resources/id.h"
-#include "renderer/resources/render_target_object.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
@@ -42,14 +38,14 @@ namespace ptgn {
 
 namespace {
 
-constexpr std::string_view kMaskedLightShader{ "light_masked" };
+constexpr int kLightVisibleStencilRef{ 1 };
 
 bool IsInvisibleCone(Entity entity) {
 	const auto& light{ entity.Get<impl::LightData>() };
 	return light.cone_angle.has_value() && *light.cone_angle == Radians{ 0.0f };
 }
 
-void DrawMaskPolygon(DrawContext& ctx, std::span<const V2_float> vertices) {
+void DrawStencilPolygon(DrawContext& ctx, std::span<const V2_float> vertices) {
 	if (vertices.size() < 3) {
 		return;
 	}
@@ -66,60 +62,136 @@ void DrawMaskPolygon(DrawContext& ctx, std::span<const V2_float> vertices) {
 	);
 }
 
-void RenderVisibilityMask(
-	DrawContext& ctx, impl::RenderTargetObject& mask_target,
-	const impl::VisibilityPolygon& visibility_polygon, V2_int target_size
+RenderState ReplaceStencilState(int value) {
+	return RenderState{
+		.blending	   = false,
+		.depth_testing = false,
+		.color_mask =
+			ColorMaskState{
+				.red   = false,
+				.green = false,
+				.blue  = false,
+				.alpha = false,
+			},
+		.stencil =
+			StencilState{
+				.enabled	= true,
+				.func		= CompareFunc::Always,
+				.ref		= value,
+				.mask		= 0xFF,
+				.fail_op	= StencilOp::Keep,
+				.zfail_op	= StencilOp::Keep,
+				.zpass_op	= StencilOp::Replace,
+				.write_mask = 0xFF,
+			},
+	};
+}
+
+RenderState ReadStencilState(int value) {
+	return RenderState{
+		.blending	   = false,
+		.depth_testing = false,
+		.color_mask =
+			ColorMaskState{
+				.red   = true,
+				.green = true,
+				.blue  = true,
+				.alpha = true,
+			},
+		.stencil =
+			StencilState{
+				.enabled	= true,
+				.func		= CompareFunc::Equal,
+				.ref		= value,
+				.mask		= 0xFF,
+				.fail_op	= StencilOp::Keep,
+				.zfail_op	= StencilOp::Keep,
+				.zpass_op	= StencilOp::Keep,
+				.write_mask = 0x00,
+			},
+	};
+}
+
+void WriteLightVisibilityStencil(
+	DrawContext& ctx, const impl::VisibilityPolygon& visibility_polygon
 ) {
-	auto mask_id{ mask_target.operator impl::RenderTargetId() };
-	Viewport viewport{ .position{}, .size{ target_size } };
+	ctx.WithRenderState(ReplaceStencilState(kLightVisibleStencilRef), [&]() {
+		DrawStencilPolygon(ctx, visibility_polygon.vertices);
 
-	ctx.WithRenderTarget(mask_target, viewport, [&]() {
-		ctx.ClearRenderTarget(mask_id, color::Black, false, false);
-
-		ctx.WithBlendMode(BlendMode::ReplaceRGBA, [&]() {
-			DrawMaskPolygon(ctx, visibility_polygon.vertices);
-
-			for (const auto& interior : visibility_polygon.occluder_interiors) {
-				if (interior.masks_light_inside) {
-					continue;
-				}
-
-				DrawMaskPolygon(ctx, interior.vertices);
+		for (const auto& interior : visibility_polygon.occluder_interiors) {
+			if (interior.masks_light_inside) {
+				continue;
 			}
-		});
+
+			DrawStencilPolygon(ctx, interior.vertices);
+		}
+	});
+
+	// Optional, but useful if the visibility polygon includes blocker interiors.
+	// These interiors are forced back to stencil 0, so the light will not draw there.
+	ctx.WithRenderState(ReplaceStencilState(0), [&]() {
+		for (const auto& interior : visibility_polygon.occluder_interiors) {
+			if (!interior.masks_light_inside) {
+				continue;
+			}
+
+			DrawStencilPolygon(ctx, interior.vertices);
+		}
 	});
 }
 
-void RenderMaskedLight(
-	DrawContext& ctx, Entity entity, impl::RenderTargetObject& light_target,
-	const impl::RenderTargetObject& mask_target, V2_int target_size,
-	std::vector<UniformWrite> uniforms
+void DrawLightThroughStencil(
+	DrawContext& ctx, Entity entity, V2_float size, std::vector<UniformWrite> uniforms
 ) {
-	auto mask_id{ mask_target.operator impl::RenderTargetId() };
-	auto light_id{ light_target.operator impl::RenderTargetId() };
+	Material material{
+		.shader	  = "light",
+		.uniforms = std::move(uniforms),
+	};
 
-	auto mask_input{ impl::BoundInput{
-		.render_target = mask_id,
-		.binding	   = TextureBinding{ .slot = 0, .uniform = "u_ShadowMask" },
-	} };
+	auto params{ impl::GetTextureDrawParams(entity, size, false, color::White) };
 
-	Viewport viewport{ .position{}, .size{ target_size } };
+	// This draw happens into the local light target, not into the world scene.
+	params.depth   = 0.0f;
+	params.origin  = Origin::Center;
+	params.effects = {};
 
-	ctx.WithRenderTarget(light_target, viewport, [&]() {
-		ctx.DrawRenderPass(
-			impl::DrawPassRequest{
-				.material =
-					MaterialState{
-						.shader	  = ctx.GetShader(kMaskedLightShader),
-						.uniforms = std::move(uniforms),
-					},
-				.pipeline = Hash("texture"),
-				.inputs	  = std::span{ &mask_input, 1 },
-				.output	  = light_id,
-				.viewport = viewport,
-				.tint	  = color::White,
+	ctx.WithRenderState(ReadStencilState(kLightVisibleStencilRef), [&]() {
+		ctx.DrawShader({}, material, std::move(params));
+	});
+}
+
+void DrawShadowedLight(
+	DrawContext& ctx, Entity entity, Transform draw_transform, V2_float size, BlendMode blend_mode,
+	const impl::VisibilityPolygon& visibility_polygon, std::vector<UniformWrite> uniforms
+) {
+	auto target_size{ V2_int{ size } };
+
+	PTGN_ASSERT(target_size.IsPositive(), "Light shadow target size must be positive");
+
+	TextureDesc light_desc{
+		.size	= target_size,
+		.format = TextureFormat::RGBA8,
+	};
+
+	TextureDesc shadow_desc{ .size = target_size, .format = TextureFormat::Stencil8 };
+
+	auto composite_params{ impl::GetTextureDrawParams(entity, size, false, color::White) };
+
+	ctx.Pass([&](RenderPassBuilder& pass) -> RenderPassHandle {
+		pass.SetCompositeDraw(
+			draw_transform, std::move(composite_params),
+			RenderState{
+				.blend_mode = blend_mode,
 			}
 		);
+
+		return pass.CreateTarget(light_desc, shadow_desc)
+			.ClearColor(color::Transparent)
+			.ClearStencil(0)
+			.Draw([&visibility_polygon, entity, size, &uniforms](DrawContext& pass_ctx) {
+				WriteLightVisibilityStencil(pass_ctx, visibility_polygon);
+				DrawLightThroughStencil(pass_ctx, entity, size, std::move(uniforms));
+			});
 	});
 }
 
@@ -137,38 +209,6 @@ void DrawUnmaskedLight(
 	ctx.WithBlendMode(blend_mode, [&]() {
 		ctx.DrawShader(draw_transform, material, std::move(params));
 	});
-}
-
-void DrawShadowedLight(
-	DrawContext& ctx, Entity entity, Transform draw_transform, V2_float size, BlendMode blend_mode,
-	const impl::VisibilityPolygon& visibility_polygon, std::vector<UniformWrite> uniforms
-) {
-	auto target_size{ V2_int{ size } };
-
-	PTGN_ASSERT(target_size.IsPositive(), "Light shadow target size must be positive");
-
-	RenderTargetDesc desc{
-		.size	= target_size,
-		.format = TextureFormat::RGBA8,
-	};
-
-	auto mask_target{ ctx.CreateTemporaryRenderTarget(desc) };
-	auto light_target{ ctx.CreateTemporaryRenderTarget(desc) };
-
-	RenderVisibilityMask(ctx, mask_target, visibility_polygon, target_size);
-	RenderMaskedLight(ctx, entity, light_target, mask_target, target_size, std::move(uniforms));
-
-	auto light_id{ light_target.operator impl::RenderTargetId() };
-	auto light_texture{ ctx.GetRenderTargetTexture(light_id) };
-
-	auto params{ impl::GetTextureDrawParams(entity, size, false, color::White) };
-
-	ctx.WithBlendMode(blend_mode, [&]() {
-		ctx.DrawTexture(draw_transform, light_texture, std::move(params));
-	});
-
-	ctx.PreserveTemporaryRenderTarget(std::move(light_target));
-	ctx.PreserveTemporaryRenderTarget(std::move(mask_target));
 }
 
 } // namespace
