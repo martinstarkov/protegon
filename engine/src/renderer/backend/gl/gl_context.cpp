@@ -351,9 +351,6 @@ bool GLContext::IsBound(VertexArrayId id) const {
 }
 
 void GLContext::Destroy(VertexBufferId id) {
-	if (bound_.vertex_buffer == id) {
-		bound_.vertex_buffer = {};
-	}
 	buffers.DestroyVertexBuffer(id);
 }
 
@@ -363,53 +360,29 @@ void GLContext::Destroy(ElementBufferId id) {
 }
 
 void GLContext::Destroy(UniformBufferId id) {
-	if (bound_.uniform_buffer == id) {
-		bound_.uniform_buffer = {};
-	}
 	buffers.DestroyUniformBuffer(id);
 }
 
 void GLContext::Destroy(ShaderId id) {
-	if (bound_.shader_program == id) {
-		bound_.shader_program = {};
-	}
 	shaders.DestroyProgram(id);
 }
 
 void GLContext::Destroy(TextureId id) {
-	for (auto& unit : bound_.texture_units) {
-		if (unit.id == id) {
-			unit = {};
-		}
-	}
 	framebuffers.InvalidateTexture(id);
-	textures.DestroyTexture(id);
+	textures.Destroy(id);
 }
 
 void GLContext::Destroy(RenderbufferId id) {
-	if (bound_.renderbuffer == id) {
-		bound_.renderbuffer = {};
-	}
 	framebuffers.InvalidateRenderbuffer(id);
-	renderbuffers.DestroyRenderbuffer(id);
+	renderbuffers.Destroy(id);
 }
 
 void GLContext::Destroy(FramebufferId id) {
-	if (bound_.framebuffer == id) {
-		bound_.framebuffer = {};
-	}
 	framebuffers.Destroy(id);
 }
 
 void GLContext::Destroy(VertexArrayId id) {
-	if (bound_.vertex_array == id) {
-		bound_.vertex_array = {};
-	}
-	vertex_arrays.DestroyVertexArray(id);
-}
-
-void GLContext::Destroy(RenderTargetId id) {
-	framebuffers.DestroyOwning(FramebufferId{ id });
+	vertex_arrays.Destroy(id);
 }
 
 void GLContext::SetBlend(bool enabled) {
@@ -535,21 +508,23 @@ void GLContext::SetClearColor(Color color) {
 	bound_.clear_color = color;
 }
 
-void GLContext::SetClearDepth(double depth) {
-	if (bound_.clear_depth == ClearDepth{ depth }) {
+void GLContext::SetClearDepth(Depth depth) {
+	if (bound_.clear_depth == depth) {
 		return;
 	}
-	PTGN_ASSERT(depth >= 0.0 && depth <= 1.0, "Clear depth must be in range [0.0, 1.0]");
-	GLCall(glClearDepth(depth));
-	bound_.clear_depth = ClearDepth{ depth };
+	PTGN_ASSERT(
+		depth.value >= 0.0f && depth.value <= 1.0f, "Clear depth must be in range [0.0, 1.0]"
+	);
+	GLCall(glClearDepth(depth.value));
+	bound_.clear_depth = depth;
 }
 
-void GLContext::SetClearStencil(int stencil) {
+void GLContext::SetClearStencil(Stencil stencil) {
 	if (bound_.clear_stencil == stencil) {
 		return;
 	}
-	PTGN_ASSERT(stencil >= 0, "glClearStencil: stencil value must be non-negative");
-	GLCall(glClearStencil(stencil));
+	PTGN_ASSERT(stencil.value >= 0, "glClearStencil: stencil value must be non-negative");
+	GLCall(glClearStencil(stencil.value));
 	bound_.clear_stencil = stencil;
 }
 
@@ -696,7 +671,7 @@ bool GLContext::ViewportCoversFramebuffer(FramebufferId framebuffer) const {
 
 	return bound_.render_state.viewport->position == V2_int{} &&
 		   bound_.render_state.viewport->size ==
-			   textures.GetTextureSize(framebuffers.GetAttachmentId(framebuffer));
+			   textures.GetDesc(framebuffers.GetAttachmentId(framebuffer)).size;
 }
 
 bool GLContext::ScissorCoversFramebuffer(FramebufferId framebuffer) const {
@@ -711,7 +686,7 @@ bool GLContext::ScissorCoversFramebuffer(FramebufferId framebuffer) const {
 
 	return bound_.render_state.scissor->viewport.position == V2_int{} &&
 		   bound_.render_state.scissor->viewport.size ==
-			   textures.GetTextureSize(framebuffers.GetAttachmentId(framebuffer));
+			   textures.GetDesc(framebuffers.GetAttachmentId(framebuffer)).size;
 }
 
 std::uint32_t GLContext::GetActiveTextureSlot() const {

@@ -24,6 +24,7 @@
 #include "renderer/backend/gl/gl_renderbuffer.h"
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 
@@ -204,7 +205,7 @@ void Framebuffers::AttachTextureImpl(
 
 	if (texture) {
 		PTGN_ASSERT(
-			gl_.textures.GetCache(texture).size.IsPositive(), "Cannot attach a texture with no size"
+			gl_.textures.GetDesc(texture).size.IsPositive(), "Cannot attach a texture with no size"
 		);
 	}
 
@@ -272,9 +273,8 @@ void Framebuffers::Clear(ClearBufferBit buffers) const {
 void Framebuffers::ClearColorImpl(
 	FramebufferId framebuffer, Attachment attachment, Color color
 ) const {
+	PTGN_ASSERT(gl_.IsBound(framebuffer), "FramebufferId must be bound before clearing color");
 	PTGN_ASSERT(IsColorAttachment(attachment), "ClearColor only supports color attachments");
-
-	auto _{ gl_.Bind(framebuffer, true) };
 
 	std::optional<GLint> previous_draw_buffer;
 	SelectDrawBufferIfColor(attachment, previous_draw_buffer);
@@ -285,29 +285,30 @@ void Framebuffers::ClearColorImpl(
 	RestoreDrawBuffer(previous_draw_buffer);
 }
 
-void Framebuffers::ClearDepth(FramebufferId framebuffer, float depth) const {
-	auto _{ gl_.Bind(framebuffer, true) };
-	GLCall(glClearBufferfv(GL_DEPTH, 0, &depth));
+void Framebuffers::ClearDepth(FramebufferId framebuffer, Depth depth) const {
+	PTGN_ASSERT(gl_.IsBound(framebuffer), "FramebufferId must be bound before clearing depth");
+	GLCall(glClearBufferfv(GL_DEPTH, 0, &depth.value));
 }
 
-void Framebuffers::ClearStencil(FramebufferId framebuffer, std::int32_t stencil) const {
-	auto _{ gl_.Bind(framebuffer, true) };
+void Framebuffers::ClearStencil(FramebufferId framebuffer, Stencil stencil) const {
+	PTGN_ASSERT(gl_.IsBound(framebuffer), "FramebufferId must be bound before clearing stencil");
 
-	GLint value{ stencil };
-	GLCall(glClearBufferiv(GL_STENCIL, 0, &value));
+	GLCall(glClearBufferiv(GL_STENCIL, 0, &stencil.value));
 }
 
-void Framebuffers::ClearDepthStencil(
-	FramebufferId framebuffer, float depth, std::int32_t stencil
-) const {
-	auto _{ gl_.Bind(framebuffer, true) };
-	GLCall(glClearBufferfi(GL_DEPTH_STENCIL, 0, depth, stencil));
+void Framebuffers::ClearDepthStencil(FramebufferId framebuffer, DepthStencil depth_stencil) const {
+	PTGN_ASSERT(
+		gl_.IsBound(framebuffer), "FramebufferId must be bound before clearing depth stencil"
+	);
+	GLCall(
+		glClearBufferfi(GL_DEPTH_STENCIL, 0, depth_stencil.depth.value, depth_stencil.stencil.value)
+	);
 }
 
 Framebuffers::PixelValue Framebuffers::ReadPixelImpl(
 	FramebufferId framebuffer, V2_int coordinate, Attachment attachment
 ) {
-	auto _{ gl_.Bind(framebuffer, true) };
+	PTGN_ASSERT(gl_.IsBound(framebuffer), "FramebufferId must be bound before reading pixel");
 
 	const auto& record{ GetAttachmentRecord(framebuffer, attachment) };
 
@@ -347,7 +348,7 @@ Framebuffers::PixelValue Framebuffers::ReadPixelImpl(
 Framebuffers::PixelBuffer Framebuffers::ReadPixelsImpl(
 	FramebufferId framebuffer, Attachment attachment
 ) {
-	auto _{ gl_.Bind(framebuffer, true) };
+	PTGN_ASSERT(gl_.IsBound(framebuffer), "FramebufferId must be bound before reading pixels");
 
 	const auto& record{ GetAttachmentRecord(framebuffer, attachment) };
 
@@ -485,7 +486,7 @@ V2_int Framebuffers::GetAttachmentSize(const AttachmentRecord& record) const {
 
 	switch (record.storage) {
 		using enum AttachmentStorage;
-		case Texture:	   return gl_.textures.GetCache(TextureId{ record.id }).size;
+		case Texture:	   return gl_.textures.GetDesc(TextureId{ record.id }).size;
 		case Renderbuffer: return gl_.renderbuffers.GetCache(RenderbufferId{ record.id }).size;
 		case None:		   [[fallthrough]];
 		default:		   PTGN_ERROR("Cannot query the size of an empty framebuffer attachment");
@@ -605,9 +606,9 @@ void Framebuffers::Resize(FramebufferId framebuffer, V2_int new_size) {
 
 		switch (record.storage) {
 			using enum AttachmentStorage;
-			case Texture: gl_.textures.ResizeTexture(TextureId{ record.id }, new_size); return;
+			case Texture: gl_.textures.Resize(TextureId{ record.id }, new_size); return;
 			case Renderbuffer:
-				gl_.renderbuffers.ResizeRenderbuffer(RenderbufferId{ record.id }, new_size);
+				gl_.renderbuffers.Resize(RenderbufferId{ record.id }, new_size);
 				return;
 			case None: [[fallthrough]];
 			default:
@@ -663,7 +664,7 @@ Framebuffers::PixelValue Framebuffers::DecodePixel(
 			float depth{ 0.0f };
 			std::memcpy(&depth, data.data() + offset, sizeof(depth));
 
-			return depth;
+			return ptgn::Depth{ depth };
 		}
 
 		case Stencil: {
@@ -671,7 +672,7 @@ Framebuffers::PixelValue Framebuffers::DecodePixel(
 
 			PTGN_ASSERT(offset < data.size(), "Pixel buffer does not contain stencil");
 
-			return data[offset];
+			return ptgn::Stencil{ data[offset] };
 		}
 
 		case DepthStencil: {
@@ -691,7 +692,7 @@ Framebuffers::PixelValue Framebuffers::DecodePixel(
 			float depth{ static_cast<float>(depth_bits) / static_cast<float>(kDepthMax) };
 			auto stencil{ static_cast<std::uint8_t>(packed & 0xFFu) };
 
-			return std::make_pair(depth, stencil);
+			return ptgn::DepthStencil{ .depth{ depth }, .stencil{ stencil } };
 		}
 
 		default: PTGN_ERROR("Unknown framebuffer attachment: ", std::to_underlying(attachment));
@@ -765,9 +766,9 @@ void Framebuffers::InvalidateRenderbuffer(RenderbufferId renderbuffer) {
 	}
 }
 
-void Framebuffers::DestroyOwning(FramebufferId id) {
+void Framebuffers::Destroy(FramebufferId id) {
 	if (!cache_.Has(id)) {
-		Destroy(id);
+		DestroyOnlyFramebuffer(id);
 		return;
 	}
 
@@ -793,20 +794,16 @@ void Framebuffers::DestroyOwning(FramebufferId id) {
 
 		switch (attachment.storage) {
 			using enum AttachmentStorage;
-			case Texture: gl_.textures.DestroyTexture(TextureId{ attachment.id }); break;
-
-			case Renderbuffer:
-				gl_.renderbuffers.DestroyRenderbuffer(RenderbufferId{ attachment.id });
-				break;
-
-			case None: PTGN_ERROR("Cannot destroy an empty framebuffer attachment");
+			case Texture:	   gl_.textures.Destroy(TextureId{ attachment.id }); break;
+			case Renderbuffer: gl_.renderbuffers.Destroy(RenderbufferId{ attachment.id }); break;
+			case None:		   PTGN_ERROR("Cannot destroy an empty framebuffer attachment");
 		}
 	}
 
-	Destroy(id);
+	DestroyOnlyFramebuffer(id);
 }
 
-void Framebuffers::Destroy(FramebufferId id) {
+void Framebuffers::DestroyOnlyFramebuffer(FramebufferId id) {
 	if (!id) {
 		return;
 	}

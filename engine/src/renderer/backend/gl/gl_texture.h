@@ -7,6 +7,7 @@
 #include "core/math/vector2.h"
 #include "core/util/id_map.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 
 namespace ptgn::impl::gl {
@@ -50,9 +51,7 @@ enum class TextureParameter : std::uint32_t {
 };
 
 struct TextureCache {
-	V2_int size;
-	TextureFormat format{ TextureFormat::RGBA8 };
-	TextureParams params;
+	TextureDesc desc;
 };
 
 constexpr int GetBitCount(TextureFormat fmt) {
@@ -114,25 +113,23 @@ constexpr std::pair<PixelDataFormat, PixelDataType> GetPixelDataFormat(TextureFo
 class Textures {
 public:
 	/// @brief Creates an empty texture with the given size and format.
-	TextureId CreateTexture(V2_int size, TextureFormat format, TextureParams params);
+	TextureId Create(TextureDesc desc);
 
-	TextureId CreateTexture(
+	TextureId Create(
 		const void* pixel_data, PixelDataFormat pixel_data_format, PixelDataType pixel_data_type,
-		V2_int size, TextureFormat texture_format, TextureParams params, bool restore_bind = true
+		TextureDesc desc, bool restore_bind = true
 	);
 
-	void DestroyTexture(TextureId id);
+	void Destroy(TextureId id);
 
-	V2_int GetTextureSize(TextureId texture) const;
-	TextureFormat GetTextureFormat(TextureId texture) const;
-	TextureParams GetTextureParams(TextureId texture) const;
+	TextureDesc GetDesc(TextureId texture) const;
 
-	void ResizeTexture(TextureId texture, V2_int new_size);
+	void Resize(TextureId texture, V2_int new_size);
 
 	TextureCache& GetCache(TextureId texture);
 	const TextureCache& GetCache(TextureId texture) const;
 
-	void SetTextureParameter(TextureId texture, TextureParameter param, int value);
+	void SetParameter(TextureId texture, TextureParameter param, int value);
 
 private:
 	friend class GLContext;
@@ -144,21 +141,21 @@ private:
 	Textures& operator=(const Textures&)	 = delete;
 	Textures& operator=(Textures&&) noexcept = delete;
 
-	void SetTextureData(
+	void SetData(
 		TextureId texture, const void* pixel_data, PixelDataFormat pixel_data_format,
 		PixelDataType pixel_data_type, V2_int size, TextureFormat texture_format
 	);
 
-	void SetTextureSubData(
+	void SetSubData(
 		TextureId texture, const void* pixel_subdata, PixelDataFormat pixel_data_format,
 		PixelDataType pixel_data_type, V2_int subdata_size, V2_int subdata_offset
 	) const;
 
-	void SetTextureParameter(TextureId texture, TextureParameter param, const float* values) const;
-	void SetTextureParameter(TextureId texture, TextureParameter param, const int* values) const;
-	void SetTextureParameter(TextureId texture, TextureParameter param, float value) const;
+	void SetParameter(TextureId texture, TextureParameter param, const float* values) const;
+	void SetParameter(TextureId texture, TextureParameter param, const int* values) const;
+	void SetParameter(TextureId texture, TextureParameter param, float value) const;
 
-	int GetTextureParameter(TextureId texture, TextureParameter param) const;
+	int GetParameter(TextureId texture, TextureParameter param) const;
 
 	/// @return True if the texture scaling of the currently bound texture is valid for
 	/// generating mipmaps.
@@ -166,7 +163,7 @@ private:
 
 	void GenerateMipmaps(TextureId texture) const;
 
-	[[nodiscard]] TextureId CreateTexture();
+	[[nodiscard]] TextureId CreateImpl();
 
 	GLContext& gl_;
 

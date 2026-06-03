@@ -1,7 +1,6 @@
 #pragma once
 
 #include <array>
-#include <concepts>
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -17,6 +16,7 @@
 #include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "core/util/id_map.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 
@@ -101,7 +101,7 @@ class Framebuffers {
 public:
 	/// Color attachments are texture-backed by convention.
 	template <Attachment A = Attachment::Color0>
-	[[nodiscard]] FramebufferId Create(TextureId texture, bool restore_bind = true) {
+	[[nodiscard]] FramebufferId Create(TextureId texture, bool restore_bind) {
 		static_assert(
 			IsColorAttachment(A), "Texture framebuffer attachments must be color attachments"
 		);
@@ -113,7 +113,7 @@ public:
 
 	/// Depth, stencil, and depth-stencil attachments are renderbuffer-backed by convention.
 	template <Attachment A = Attachment::DepthStencil>
-	[[nodiscard]] FramebufferId Create(RenderbufferId renderbuffer, bool restore_bind = true) {
+	[[nodiscard]] FramebufferId Create(RenderbufferId renderbuffer, bool restore_bind) {
 		static_assert(
 			!IsColorAttachment(A),
 			"Renderbuffer framebuffer attachments must not be color attachments"
@@ -128,7 +128,7 @@ public:
 		Attachment TextureAttachment	  = Attachment::Color0,
 		Attachment RenderbufferAttachment = Attachment::DepthStencil>
 	[[nodiscard]] FramebufferId Create(
-		TextureId texture, RenderbufferId renderbuffer, bool restore_bind = true
+		TextureId texture, RenderbufferId renderbuffer, bool restore_bind
 	) {
 		static_assert(
 			IsColorAttachment(TextureAttachment),
@@ -143,11 +143,14 @@ public:
 		);
 	}
 
-	void Destroy(FramebufferId id);
-
 	/// @brief Destroys the framebuffer and any color, depth, or stencil attachments that are
 	/// attached to it.
-	void DestroyOwning(FramebufferId id);
+	void Destroy(FramebufferId id);
+
+	/// @brief Destroys the framebuffer without destroying any attachments.
+	/// WARNING: Use with caution, as this can lead to resource leaks if the caller does not
+	/// manually destroy or reuse the attachments.
+	void DestroyOnlyFramebuffer(FramebufferId id);
 
 	template <Attachment A>
 	void Attach(FramebufferId framebuffer, AttachmentIdType<A> image) {
@@ -186,25 +189,35 @@ public:
 								 ClearBufferBit::Depth
 	) const;
 
+	void Clear(FramebufferId framebuffer, Color color) const {
+		ClearColor(framebuffer, color);
+	}
+
+	void Clear(FramebufferId framebuffer, Depth depth) const {
+		ClearDepth(framebuffer, depth);
+	}
+
+	void Clear(FramebufferId framebuffer, Stencil stencil) const {
+		ClearStencil(framebuffer, stencil);
+	}
+
+	void Clear(FramebufferId framebuffer, DepthStencil depth_stencil) const {
+		ClearDepthStencil(framebuffer, depth_stencil);
+	}
+
 	template <Attachment A = Attachment::Color0>
 	void ClearColor(FramebufferId framebuffer, Color color) const {
 		static_assert(IsColorAttachment(A), "ClearColor only supports color attachments");
 		ClearColorImpl(framebuffer, A, color);
 	}
 
-	void ClearDepth(FramebufferId framebuffer, float depth = 1.0f) const;
+	void ClearDepth(FramebufferId framebuffer, Depth depth) const;
 
-	void ClearStencil(FramebufferId framebuffer, std::int32_t stencil = 0) const;
+	void ClearStencil(FramebufferId framebuffer, Stencil stencil) const;
 
-	void ClearDepthStencil(
-		FramebufferId framebuffer, float depth = 1.0f, std::int32_t stencil = 0
-	) const;
+	void ClearDepthStencil(FramebufferId framebuffer, DepthStencil depth_stencil) const;
 
-	/// Color -> Color
-	/// Depth -> float
-	/// Stencil -> uint8_t
-	/// Depth+Stencil -> {float depth, uint8_t stencil}
-	using PixelValue = std::variant<Color, float, std::uint8_t, std::pair<float, std::uint8_t>>;
+	using PixelValue = std::variant<Color, Depth, Stencil, DepthStencil>;
 
 	/// @brief WARNING: This function is slow and should be primarily used for debugging
 	/// framebuffers.
@@ -288,6 +301,12 @@ public:
 	template <Attachment A = Attachment::Color0>
 	[[nodiscard]] AttachmentIdType<A> GetAttachmentId(FramebufferId framebuffer) const {
 		return GetAttachment<A>(framebuffer);
+	}
+
+	template <Attachment A>
+	[[nodiscard]] bool HasAttachment(FramebufferId framebuffer) const {
+		auto info{ GetAttachmentInfo<A>(framebuffer) };
+		return info.id && info.storage != AttachmentStorage::None;
 	}
 
 	void Resize(FramebufferId framebuffer, V2_int new_size);

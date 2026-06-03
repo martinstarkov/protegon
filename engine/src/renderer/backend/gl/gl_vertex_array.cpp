@@ -7,7 +7,6 @@
 #include "core/assert.h"
 #include "core/util/id_map.h"
 #include "renderer/backend/gl/gl.h"
-#include "renderer/backend/gl/gl_bind_guard.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/primitive_mode.h"
@@ -23,7 +22,7 @@ void VertexArrays::SetVertexBuffer(VertexArrayId vertex_array, VertexBufferId ve
 		gl_.IsBound(vertex_array), "Vertex array must be bound before setting vertex buffer"
 	);
 
-	auto _ = gl_.Bind(vertex_buffer, false);
+	auto _{ gl_.Bind(vertex_buffer, false) };
 }
 
 void VertexArrays::SetElementBuffer(VertexArrayId vertex_array, ElementBufferId element_buffer) {
@@ -31,7 +30,7 @@ void VertexArrays::SetElementBuffer(VertexArrayId vertex_array, ElementBufferId 
 		gl_.IsBound(vertex_array), "Vertex array must be bound before setting element buffer"
 	);
 
-	auto _ = gl_.Bind(element_buffer, false);
+	auto _{ gl_.Bind(element_buffer, false) };
 }
 
 void VertexArrays::SetupVertexAttrib(
@@ -75,7 +74,7 @@ void VertexArrays::DrawArrays(
 	gl_.stats.Increment("draw_calls");
 }
 
-VertexArrayId VertexArrays::CreateVertexArray() {
+VertexArrayId VertexArrays::CreateImpl() {
 	VertexArrayId id{ 0 };
 	GLCall(glGenVertexArrays(1, &id.value));
 	PTGN_ASSERT(id, "Failed to create vertex array");
@@ -98,13 +97,13 @@ void VertexArrays::InvalidateElementBuffer(ElementBufferId element_buffer) {
 	}
 }
 
-VertexArrayId VertexArrays::CreateVertexArray(
+VertexArrayId VertexArrays::Create(
 	VertexBufferId vertex_buffer, const BufferLayoutView& vertex_buffer_layout,
 	ElementBufferId element_buffer, bool restore_bind
 ) {
-	auto vertex_array{ CreateVertexArray() };
+	auto vertex_array{ CreateImpl() };
 
-	auto _ = BindVertexArray(vertex_array, restore_bind);
+	auto _{ gl_.Bind(vertex_array, restore_bind) };
 
 	SetVertexBuffer(vertex_array, vertex_buffer);
 	SetElementBuffer(vertex_array, element_buffer);
@@ -140,7 +139,7 @@ void VertexArrays::SetBufferLayout(VertexArrayId vertex_array, const BufferLayou
 	cache_.Get(vertex_array).layout_set = true;
 }
 
-void VertexArrays::DestroyVertexArray(VertexArrayId id) {
+void VertexArrays::Destroy(VertexArrayId id) {
 	if (!id) {
 		return;
 	}
@@ -148,12 +147,6 @@ void VertexArrays::DestroyVertexArray(VertexArrayId id) {
 	PTGN_ASSERT(!gl_.IsBound(id), "VertexArrayId must not be bound when destroying it");
 	GLCall(glDeleteVertexArrays(1, &id.value));
 	cache_.Remove(id);
-}
-
-BindGuard<VertexArrayId> VertexArrays::BindVertexArray(
-	VertexArrayId vertex_array, bool restore_bind
-) {
-	return gl_.Bind(vertex_array, restore_bind);
 }
 
 } // namespace ptgn::impl::gl

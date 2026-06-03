@@ -14,22 +14,20 @@ namespace ptgn::impl::gl {
 
 Renderbuffers::Renderbuffers(GLContext& gl) : gl_{ gl } {}
 
-RenderbufferId Renderbuffers::CreateRenderbuffer(
-	V2_int size, TextureFormat format, bool restore_bind
-) {
-	auto renderbuffer{ CreateRenderbuffer() };
+RenderbufferId Renderbuffers::Create(V2_int size, TextureFormat format, bool restore_bind) {
+	auto renderbuffer{ CreateImpl() };
 
 	auto _ = gl_.Bind(renderbuffer, restore_bind);
 
-	SetRenderbufferStorage(renderbuffer, size, format);
+	SetStorage(renderbuffer, size, format);
 
 	return renderbuffer;
 }
 
-void Renderbuffers::ResizeRenderbuffer(RenderbufferId renderbuffer, V2_int new_size) {
+void Renderbuffers::Resize(RenderbufferId renderbuffer, V2_int new_size) {
 	PTGN_ASSERT(renderbuffer);
 
-	const auto& cache = cache_.Get(renderbuffer);
+	const auto& cache{ cache_.Get(renderbuffer) };
 
 	if (cache.size == new_size) {
 		return;
@@ -37,7 +35,7 @@ void Renderbuffers::ResizeRenderbuffer(RenderbufferId renderbuffer, V2_int new_s
 
 	auto _ = gl_.Bind(renderbuffer, true);
 
-	SetRenderbufferStorage(renderbuffer, new_size, cache.format);
+	SetStorage(renderbuffer, new_size, cache.format);
 }
 
 RenderbufferCache& Renderbuffers::GetCache(RenderbufferId renderbuffer) {
@@ -50,21 +48,24 @@ const RenderbufferCache& Renderbuffers::GetCache(RenderbufferId renderbuffer) co
 	return cache_.Get(renderbuffer);
 }
 
-void Renderbuffers::SetRenderbufferStorage(
-	RenderbufferId renderbuffer, V2_int size, TextureFormat format
-) {
+TextureFormat Renderbuffers::GetFormat(RenderbufferId renderbuffer) const {
+	return GetCache(renderbuffer).format;
+}
+
+void Renderbuffers::SetStorage(RenderbufferId renderbuffer, V2_int size, TextureFormat format) {
 	PTGN_ASSERT(
 		gl_.IsBound(renderbuffer), "RenderbufferId must be bound prior to setting its storage"
 	);
+	PTGN_ASSERT(size.IsPositive(), "Cannot create renderbuffer with zero size");
 
 	GLCall(glRenderbufferStorage(GL_RENDERBUFFER, std::to_underlying(format), size.x, size.y));
 
-	auto& cache	 = cache_.Get(renderbuffer);
+	auto& cache{ cache_.Get(renderbuffer) };
 	cache.size	 = size;
 	cache.format = format;
 }
 
-RenderbufferId Renderbuffers::CreateRenderbuffer() {
+RenderbufferId Renderbuffers::CreateImpl() {
 	RenderbufferId id{ 0 };
 	GLCall(glGenRenderbuffers(1, &id.value));
 	PTGN_ASSERT(id, "Failed to create renderbuffer");
@@ -72,7 +73,7 @@ RenderbufferId Renderbuffers::CreateRenderbuffer() {
 	return id;
 }
 
-void Renderbuffers::DestroyRenderbuffer(RenderbufferId id) {
+void Renderbuffers::Destroy(RenderbufferId id) {
 	if (!id) {
 		return;
 	}

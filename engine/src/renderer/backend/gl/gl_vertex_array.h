@@ -25,12 +25,12 @@ enum class IndexType : std::uint32_t {
 
 class VertexArrays {
 public:
-	[[nodiscard]] VertexArrayId CreateVertexArray(
+	[[nodiscard]] VertexArrayId Create(
 		VertexBufferId vertex_buffer, const BufferLayoutView& vertex_buffer_layout,
 		ElementBufferId element_buffer, bool restore_bind = true
 	);
 
-	void DestroyVertexArray(VertexArrayId id);
+	void Destroy(VertexArrayId id);
 
 	void SetVertexBuffer(VertexArrayId vertex_array, VertexBufferId vertex_buffer);
 
@@ -43,8 +43,9 @@ public:
 		PrimitiveMode primitive_mode
 	) const;
 
-	void DrawArrays(VertexArrayId vertex_array, int vertex_count, PrimitiveMode primitive_mode)
-		const;
+	void DrawArrays(
+		VertexArrayId vertex_array, int vertex_count, PrimitiveMode primitive_mode
+	) const;
 
 private:
 	friend class GLContext;
@@ -56,9 +57,7 @@ private:
 	VertexArrays& operator=(const VertexArrays&)	 = delete;
 	VertexArrays& operator=(VertexArrays&&) noexcept = delete;
 
-	[[nodiscard]] VertexArrayId CreateVertexArray();
-
-	BindGuard<VertexArrayId> BindVertexArray(VertexArrayId vertex_array, bool restore_bind);
+	[[nodiscard]] VertexArrayId CreateImpl();
 
 	static void SetupVertexAttrib(
 		std::uint32_t index, const BufferElement& element, std::int32_t stride

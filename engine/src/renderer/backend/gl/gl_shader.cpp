@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <format>
 #include <list>
+#include <nlohmann/json.hpp>
 #include <ostream>
 #include <ranges>
 #include <regex>
@@ -32,7 +33,7 @@
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
-#include "serialization/json/json.h"
+#include "serialization/json/fwd.h"
 
 namespace ptgn::impl::gl {
 

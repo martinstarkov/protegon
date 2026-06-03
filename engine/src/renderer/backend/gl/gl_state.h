@@ -55,9 +55,10 @@ struct State {
 		vertex_array{ VertexArrayId{ 0 } },
 		active_texture{ ActiveTexture{ 0 } },
 		texture_units(max_texture_slots, TextureUnitState{ true }),
-		clear_depth{ ClearDepth{ 1.0 } },
-		clear_stencil{ 0 },
-		clear_color{ Color{ 0, 0, 0, 0 } } {
+		// Important as Depth default constructs to 0.0, whereas OpenGL default value is 1.0.
+		clear_depth{ Depth{ 1.0f } },
+		clear_stencil{ Stencil{ 0 } },
+		clear_color{ color::Transparent } {
 		PTGN_ASSERT(max_texture_slots > 0);
 	}
 
@@ -73,8 +74,8 @@ struct State {
 	ActiveTexture active_texture;
 	TextureUnits texture_units;
 
-	std::optional<ClearDepth> clear_depth;
-	std::optional<int> clear_stencil;
+	std::optional<Depth> clear_depth;
+	std::optional<Stencil> clear_stencil;
 	std::optional<Color> clear_color;
 
 	bool operator==(const State&) const = default;

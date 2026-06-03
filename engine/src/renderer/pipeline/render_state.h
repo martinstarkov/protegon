@@ -1,5 +1,6 @@
 #pragma once
 
+#include <compare>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -11,6 +12,7 @@
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -83,12 +85,66 @@ struct DepthMaskState {
 	}
 };
 
-struct ClearDepth {
-	double value{ 1.0 };
+struct Stencil {
+	std::int32_t value{ 0 };
 
-	bool operator==(const ClearDepth& other) const {
-		return NearlyEqual(value, other.value);
+	Stencil() = default;
+
+	Stencil(std::int32_t value) : value{ value } {} // NOSONAR
+
+	std::strong_ordering operator<=>(const Stencil&) const = default;
+
+	operator std::int32_t() const { // NOSONAR
+		return value;
 	}
+
+	PTGN_SERIALIZE_VALUE(Stencil, value)
+};
+
+struct Depth {
+	Depth() = default;
+
+	Depth(float value) : value{ value } {} // NOSONAR
+
+	[[nodiscard]] Depth RelativeTo(Depth parent) const {
+		parent.value += value;
+		return parent;
+	}
+
+	friend bool operator==(const Depth& lhs, const Depth& rhs) {
+		return NearlyEqual(lhs.value, rhs.value);
+	}
+
+	friend std::partial_ordering operator<=>(const Depth& lhs, const Depth& rhs) {
+		if (NearlyEqual(lhs.value, rhs.value)) {
+			return std::partial_ordering::equivalent;
+		}
+
+		if (lhs.value < rhs.value) {
+			return std::partial_ordering::less;
+		}
+
+		if (lhs.value > rhs.value) {
+			return std::partial_ordering::greater;
+		}
+
+		return std::partial_ordering::unordered;
+	}
+
+	operator float() const { // NOSONAR
+		return value;
+	}
+
+	float value{ 0.0f };
+
+	PTGN_SERIALIZE_VALUE(Depth, value)
+};
+
+struct DepthStencil {
+	Depth depth;
+	Stencil stencil;
+
+	bool operator==(const DepthStencil&) const = default;
 };
 
 struct ColorMaskState {

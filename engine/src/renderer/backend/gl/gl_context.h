@@ -26,15 +26,6 @@ namespace impl::gl {
 
 class GLContext {
 public:
-	Stats& stats;
-
-private:
-	friend class Framebuffers;
-
-	// Must be constructed before shaders, because it fetches max texture slots.
-	State bound_;
-
-public:
 	explicit GLContext(Stats& stats);
 	~GLContext() noexcept					   = default;
 	GLContext(const GLContext&)				   = delete;
@@ -81,7 +72,6 @@ public:
 	void Destroy(RenderbufferId id);
 	void Destroy(FramebufferId id);
 	void Destroy(VertexArrayId id);
-	void Destroy(RenderTargetId id);
 
 	void ForgetId(VertexBufferId id);
 	void ForgetId(UniformBufferId id);
@@ -105,8 +95,8 @@ public:
 	void SetRaster(const RasterState& raster);
 	void SetStencil(const StencilState& stencil);
 	void SetClearColor(Color color);
-	void SetClearDepth(double depth);
-	void SetClearStencil(int stencil);
+	void SetClearDepth(Depth depth);
+	void SetClearStencil(Stencil stencil);
 
 	void SetViewport(Viewport viewport);
 	std::optional<Viewport> GetViewport() const;
@@ -123,6 +113,18 @@ public:
 	[[nodiscard]] bool ViewportCoversFramebuffer(FramebufferId framebuffer) const;
 	[[nodiscard]] bool ScissorCoversFramebuffer(FramebufferId framebuffer) const;
 
+	int GetInteger(std::uint32_t pname) const;
+	std::uint32_t GetActiveTextureSlot() const;
+
+	void InvalidateState();
+
+	Stats& stats;
+
+private:
+	// Must be constructed before shaders, because it fetches max texture slots.
+	State bound_;
+
+public:
 	Buffers buffers;
 	Shaders shaders;
 	Textures textures;
@@ -130,10 +132,8 @@ public:
 	Framebuffers framebuffers;
 	VertexArrays vertex_arrays;
 
-	int GetInteger(std::uint32_t pname) const;
-	std::uint32_t GetActiveTextureSlot() const;
-
-	void InvalidateState();
+private:
+	friend class Framebuffers;
 };
 
 } // namespace impl::gl
