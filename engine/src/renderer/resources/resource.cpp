@@ -5,25 +5,23 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 template <ResourceType T>
 Resource<T>::Resource(Renderer* renderer, T resource) noexcept :
-	renderer_{ renderer }, resource_{ resource } {}
+	renderer{ renderer }, resource{ resource } {}
 
 template <ResourceType T>
 Resource<T>::Resource(Resource&& other) noexcept :
-	renderer_{ std::exchange(other.renderer_, nullptr) },
-	resource_{ std::exchange(other.resource_, T{}) } {}
+	renderer{ std::exchange(other.renderer, nullptr) },
+	resource{ std::exchange(other.resource, T{}) } {}
 
 template <ResourceType T>
 Resource<T>& Resource<T>::operator=(Resource&& other) noexcept {
 	if (this != &other) {
 		Reset();
-		renderer_ = std::exchange(other.renderer_, nullptr);
-		resource_ = std::exchange(other.resource_, T{});
+		renderer = std::exchange(other.renderer, nullptr);
+		resource = std::exchange(other.resource, T{});
 	}
 	return *this;
 }
@@ -35,20 +33,20 @@ Resource<T>::~Resource() noexcept {
 
 template <ResourceType T>
 Resource<T>::operator T() const {
-	return resource_;
+	return resource;
 }
 
 template <ResourceType T>
 Resource<T>::operator bool() const {
-	return renderer_ && resource_ != T{};
+	return renderer && resource != T{};
 }
 
 template <ResourceType T>
 void Resource<T>::Reset() noexcept {
 	if (*this) {
-		renderer_->Destroy(resource_);
-		resource_ = T{};
-		renderer_ = nullptr;
+		renderer->Destroy(resource);
+		resource = T{};
+		renderer = nullptr;
 	}
 }
 
@@ -58,10 +56,7 @@ template class Resource<ElementBufferId>;
 template class Resource<UniformBufferId>;
 template class Resource<RenderbufferId>;
 template class Resource<FramebufferId>;
-template class Resource<RenderTargetId>;
 template class Resource<TextureId>;
 template class Resource<ShaderId>;
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

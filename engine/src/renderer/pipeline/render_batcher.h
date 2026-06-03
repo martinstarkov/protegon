@@ -18,7 +18,6 @@
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/resources/id.h"
-#include "renderer/resources/render_target_object.h"
 #include "renderer/resources/texture.h"
 
 namespace ptgn {
@@ -200,7 +199,7 @@ private:
 
 			PTGN_ASSERT(texture);
 
-			if (IsTextureAttachedToCurrentFramebuffer(texture)) {
+			if (IsAttachedToCurrentFramebuffer(texture)) {
 				PTGN_ERROR("Cannot sample from a texture attached to the current framebuffer");
 			}
 
@@ -260,7 +259,7 @@ private:
 							  }));
 	}
 
-	[[nodiscard]] bool IsTextureAttachedToCurrentFramebuffer(TextureId texture) const;
+	[[nodiscard]] bool IsAttachedToCurrentFramebuffer(TextureId texture) const;
 
 	std::size_t GetMaxTextureSlots() const;
 

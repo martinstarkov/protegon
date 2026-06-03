@@ -37,13 +37,10 @@ struct ElementBufferTag {};
 
 struct UniformBufferTag {};
 
-struct RenderTargetTag {};
-
 using TextureId		  = Id<TextureTag>;
 using ShaderId		  = Id<ShaderTag>;
 using VertexArrayId	  = Id<VertexArrayTag>;
 using FramebufferId	  = Id<FramebufferTag>;
-using RenderTargetId  = Id<RenderTargetTag>;
 using RenderbufferId  = Id<RenderbufferTag>;
 using VertexBufferId  = Id<VertexBufferTag>;
 using ElementBufferId = Id<ElementBufferTag>;

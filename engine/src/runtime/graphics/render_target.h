@@ -1,12 +1,16 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
+#include <utility>
 
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
@@ -25,8 +29,14 @@ namespace impl {
 
 struct ClearColor {
 	Color color{ color::Transparent };
+};
 
-	operator Color() const; // NOSONAR
+struct ClearDepth {
+	Depth depth{ 1.0f };
+};
+
+struct ClearStencil {
+	Stencil stencil{ 0 };
 };
 
 class RenderTargetGameResizeScript : public Script {
@@ -51,29 +61,50 @@ public:
 	/// @brief Binds the render target's internal frame buffer as the current render target.
 	void Bind();
 
-	/// @brief Clears the render target internal frame buffer color attachment.
-	/// Render target must be bound before calling this function.
-	/// @param color If {}, uses the render target's clear color (default to color::Transparent).
-	/// @param set_viewport If true, also sets the renderer viewport to match the render target
-	/// size (previous viewport will be restored after the clear).
+	/// @brief Clears the render target's color attachment.
+	/// @param color Clear color. If empty, uses the target's configured clear color.
 	/// @param restore_bind If true, restores the previously bound render target after clearing.
-	void Clear(std::optional<Color> color = {}, bool set_viewport = true, bool restore_bind = true);
+	void ClearColor(std::optional<Color> color = {}, bool restore_bind = true);
+
+	/// @brief Clears the render target's depth attachment.
+	/// @param depth Clear depth. If empty, uses the default depth clear value.
+	/// @param restore_bind If true, restores the previously bound render target after clearing.
+	void ClearDepth(std::optional<Depth> depth = {}, bool restore_bind = true);
+
+	/// @brief Clears the render target's stencil attachment.
+	/// @param stencil Clear stencil. If empty, uses the default stencil clear value.
+	/// @param restore_bind If true, restores the previously bound render target after clearing.
+	void ClearStencil(std::optional<Stencil> stencil = {}, bool restore_bind = true);
+
+	/// @brief Clears the render target's depth and stencil attachment.
+	/// @param depth_stencil Clear depth/stencil values. If empty, uses default clear values.
+	/// @param restore_bind If true, restores the previously bound render target after clearing.
+	void ClearDepthStencil(
+		std::optional<DepthStencil> depth_stencil = {}, bool restore_bind = true
+	);
 
 	void SetClearColor(Color clear_color);
-	Color GetClearColor() const;
+	std::optional<Color> GetClearColor() const;
+
+	void SetClearDepth(Depth clear_depth);
+	std::optional<Depth> GetClearDepth() const;
+
+	void SetClearStencil(Stencil clear_stencil);
+	std::optional<Stencil> GetClearStencil() const;
+
+	void SetClearDepthStencil(DepthStencil clear_depth_stencil);
+	std::optional<DepthStencil> GetClearDepthStencil() const;
 
 	/// @return The scale of the render target size relative to the game size.
 	V2_float GetScale() const;
 
 	V2_int GetSize() const;
 	TextureFormat GetFormat() const;
+	TextureParams GetParams() const;
+	TextureDesc GetDesc() const;
 
 private:
 	friend class Scene;
-
-	impl::TextureId GetTextureId() const;
-
-	operator impl::RenderTargetId() const; // NOSONAR
 
 	friend RenderTarget CreateRenderTarget(Scene&, V2_int, Color, TextureFormat);
 	friend RenderTarget CreateRenderTarget(Scene&, ResizeType, Color, TextureFormat);
@@ -87,6 +118,8 @@ private:
 		RenderTarget render_target, Scene& scene, ResizeType resize_to_resolution,
 		Color clear_color, TextureFormat texture_format
 	);
+
+	impl::TextureId GetTexture() const;
 };
 
 namespace impl {

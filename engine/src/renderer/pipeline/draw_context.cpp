@@ -1,12 +1,10 @@
 #include "renderer/pipeline/draw_context.h"
 
-#include <algorithm>
 #include <optional>
 #include <span>
 #include <string_view>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
@@ -20,20 +18,19 @@
 #include "core/math/geometry/rounded_rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/geometry/triangle.h"
-#include "core/math/matrix4.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/effect_params.h"
+#include "renderer/pipeline/framebuffer_pool.h"
 #include "renderer/pipeline/render_pass_builder.h"
-#include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/shape_primitives.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
-#include "renderer/resources/render_target_object.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn {
 
@@ -53,19 +50,22 @@ void DrawShapeImpl(
 	Renderer& renderer, Transform transform, const TShape& shape, Color color,
 	const ShapeDrawParams& params
 ) {
-	impl::VisitPrimitives(shape, ConvertToCommonShapeParams(color, params), [&](auto& primitives) {
-		if (primitives.empty()) {
-			return;
+	impl::VisitPrimitives(
+		shape, ConvertToCommonShapeParams(color, params),
+		[&renderer, transform, &shape, color, &params](auto& primitives) {
+			if (primitives.empty()) {
+				return;
+			}
+
+			using TPrimitive = std::remove_reference_t<decltype(primitives[0])>;
+
+			impl::DrawRequest<TPrimitive> request{ .transform	  = transform,
+												   .primitives	  = primitives,
+												   .effect_params = params.effects };
+
+			impl::RendererAccessor{ renderer }.Draw(request);
 		}
-
-		using TPrimitive = std::remove_reference_t<decltype(primitives[0])>;
-
-		impl::DrawRequest<TPrimitive> request{ .transform	  = transform,
-											   .primitives	  = primitives,
-											   .effect_params = params.effects };
-
-		impl::RendererAccessor{ renderer }.Draw(request);
-	});
+	);
 }
 
 } // namespace
@@ -86,16 +86,20 @@ RenderState DrawContext::GetRenderState() const {
 	return renderer_.GetRenderState();
 }
 
-const impl::RenderTargetObject& DrawContext::GetBoundRenderTarget() const {
-	return renderer_.GetBoundRenderTarget();
+const impl::FramebufferObject& DrawContext::GetBoundFramebuffer() const {
+	return renderer_.GetBoundFramebuffer();
+}
+
+impl::FramebufferObject& DrawContext::GetBoundFramebuffer() {
+	return renderer_.GetBoundFramebuffer();
 }
 
 void DrawContext::SetRenderState(const RenderState& state) {
 	renderer_.SetRenderState(state);
 }
 
-void DrawContext::UpdateRenderTarget(impl::RenderTargetObject&& replacing_target) {
-	renderer_.UpdateRenderTarget(std::move(replacing_target));
+void DrawContext::UpdateFramebuffer(impl::FramebufferObject&& replacing_framebuffer) {
+	renderer_.UpdateFramebuffer(std::move(replacing_framebuffer));
 }
 
 void DrawContext::DrawTexture(
@@ -112,7 +116,7 @@ void DrawContext::DrawTexture(
 
 	if (params.size.IsZero()) {
 		PTGN_ASSERT(texture, "Texture must be set if size is zero");
-		params.size = renderer_.GetTextureSize(texture);
+		params.size = renderer_.GetSize(texture);
 	}
 
 	PTGN_ASSERT(params.size.IsPositive());
@@ -158,16 +162,18 @@ void DrawContext::DrawShader(
 	DrawTexture(transform, impl::TextureId{}, material, std::move(params));
 }
 
-void DrawContext::DrawPoint(V2_float point, Color color, ShapeDrawParams params) {
-	DrawShape({}, point, color, std::move(params));
+void DrawContext::DrawPoint(V2_float point, Color color, const ShapeDrawParams& params) {
+	DrawShape({}, point, color, params);
 }
 
-void DrawContext::DrawLine(V2_float start, V2_float end, Color color, ShapeDrawParams params) {
-	DrawShape({}, Line{ start, end }, color, std::move(params));
+void DrawContext::DrawLine(
+	V2_float start, V2_float end, Color color, const ShapeDrawParams& params
+) {
+	DrawShape({}, Line{ start, end }, color, params);
 }
 
 void DrawContext::DrawLines(
-	std::span<const V2_float> points, Color color, ShapeDrawParams params, bool closed,
+	std::span<const V2_float> points, Color color, const ShapeDrawParams& params, bool closed,
 	std::optional<Transform> transform
 ) {
 	auto primitives{
@@ -183,7 +189,7 @@ void DrawContext::DrawLines(
 }
 
 void DrawContext::DrawShape(
-	Transform transform, const V2_float& shape, Color color, ShapeDrawParams params
+	Transform transform, const V2_float& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("color");
 	renderer_.SetShader("color");
@@ -191,7 +197,7 @@ void DrawContext::DrawShape(
 }
 
 void DrawContext::DrawShape(
-	Transform transform, const Rect& shape, Color color, ShapeDrawParams params
+	Transform transform, const Rect& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("color");
 	renderer_.SetShader("color");
@@ -199,7 +205,7 @@ void DrawContext::DrawShape(
 }
 
 void DrawContext::DrawShape(
-	Transform transform, const RoundedRect& shape, Color color, ShapeDrawParams params
+	Transform transform, const RoundedRect& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("shape");
 	renderer_.SetShader("rounded_rect");
@@ -207,7 +213,7 @@ void DrawContext::DrawShape(
 }
 
 void DrawContext::DrawShape(
-	Transform transform, const Polygon& shape, Color color, ShapeDrawParams params
+	Transform transform, const Polygon& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("color");
 	renderer_.SetShader("color");
@@ -215,7 +221,7 @@ void DrawContext::DrawShape(
 }
 
 void DrawContext::DrawShape(
-	Transform transform, const Triangle& shape, Color color, ShapeDrawParams params
+	Transform transform, const Triangle& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("color");
 	renderer_.SetShader("color");
@@ -223,7 +229,7 @@ void DrawContext::DrawShape(
 }
 
 void DrawContext::DrawShape(
-	Transform transform, const Capsule& shape, Color color, ShapeDrawParams params
+	Transform transform, const Capsule& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("shape");
 	renderer_.SetShader("capsule");
@@ -231,7 +237,7 @@ void DrawContext::DrawShape(
 }
 
 void DrawContext::DrawShape(
-	Transform transform, const Line& shape, Color color, ShapeDrawParams params
+	Transform transform, const Line& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("color");
 	renderer_.SetShader("color");
@@ -239,7 +245,7 @@ void DrawContext::DrawShape(
 }
 
 void DrawContext::DrawShape(
-	Transform transform, const Arc& shape, Color color, ShapeDrawParams params
+	Transform transform, const Arc& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("shape");
 	renderer_.SetShader("arc");
@@ -247,7 +253,7 @@ void DrawContext::DrawShape(
 }
 
 void DrawContext::DrawShape(
-	Transform transform, const Circle& shape, Color color, ShapeDrawParams params
+	Transform transform, const Circle& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("shape");
 	renderer_.SetShader("ellipse");
@@ -255,7 +261,7 @@ void DrawContext::DrawShape(
 }
 
 void DrawContext::DrawShape(
-	Transform transform, const Ellipse& shape, Color color, ShapeDrawParams params
+	Transform transform, const Ellipse& shape, Color color, const ShapeDrawParams& params
 ) {
 	renderer_.SetCurrentPipeline("shape");
 	renderer_.SetShader("ellipse");
@@ -263,10 +269,10 @@ void DrawContext::DrawShape(
 }
 
 void DrawContext::DrawShape(
-	Transform transform, const Shape& shape, Color color, ShapeDrawParams params
+	Transform transform, const Shape& shape, Color color, const ShapeDrawParams& params
 ) {
-	shape.Visit([&](const auto& specific_shape) {
-		DrawShape(transform, specific_shape, color, std::move(params));
+	shape.Visit([this, transform, color, &params](const auto& specific_shape) {
+		DrawShape(transform, specific_shape, color, params);
 	});
 }
 
@@ -274,94 +280,62 @@ impl::ShaderId DrawContext::GetShader(std::string_view name) const {
 	return renderer_.GetShader(name);
 }
 
-bool DrawContext::RenderTargetPoolHas(impl::RenderTargetId id) const {
-	return renderer_.target_pool_.Owns(id);
+bool DrawContext::FramebufferPoolHas(impl::FramebufferId framebuffer) const {
+	return renderer_.framebuffer_pool_.Owns(framebuffer);
 }
 
-impl::RenderTargetId DrawContext::AcquireRenderTarget(RenderTargetDesc desc) {
-	return renderer_.target_pool_.Acquire(desc);
+impl::FramebufferId DrawContext::AcquireFramebuffer(
+	TextureDesc desc, std::optional<TextureDesc> other_desc
+) {
+	return renderer_.framebuffer_pool_.Acquire(desc, other_desc);
 }
 
-void DrawContext::ReleaseRenderTarget(impl::RenderTargetId id) {
-	return renderer_.target_pool_.Release(id);
+void DrawContext::ReleaseFramebuffer(impl::FramebufferId framebuffer) {
+	return renderer_.framebuffer_pool_.Release(framebuffer);
 }
 
-impl::RenderTargetObject DrawContext::ExtractRenderTarget(impl::RenderTargetId id) {
-	return renderer_.target_pool_.Extract(id);
+V2_int DrawContext::GetSize(impl::FramebufferId framebuffer) const {
+	return renderer_.GetSize(framebuffer);
 }
 
-V2_int DrawContext::GetRenderTargetSize(impl::RenderTargetId render_target) const {
-	return renderer_.GetRenderTargetSize(render_target);
+TextureDesc DrawContext::GetDesc(impl::FramebufferId framebuffer) const {
+	return renderer_.GetDesc(framebuffer);
 }
 
 void DrawContext::DrawRenderPass(const impl::DrawPassRequest& request) {
 	renderer_.DrawRenderPass(request);
 }
 
-void DrawContext::CopyRenderTargetRegion(
-	impl::RenderTargetId source, impl::RenderTargetId destination, Viewport source_region,
+void DrawContext::CopyFramebufferRegion(
+	impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
 	V2_int destination_position
 ) {
-	renderer_.CopyRenderTargetRegion(source, destination, source_region, destination_position);
+	renderer_.CopyFramebufferRegion(source, destination, source_region, destination_position);
 }
 
 void DrawContext::CompositeRenderPassResult(
-	impl::RenderTargetId source, impl::RenderTargetId destination, Viewport destination_region
+	impl::FramebufferId source, impl::FramebufferId destination, Transform transform,
+	const TextureDrawParams& params, const RenderState& state
+) {
+	renderer_.CompositeRenderPassResult(source, destination, transform, params, state);
+}
+
+void DrawContext::CompositeRenderPassResult(
+	impl::FramebufferId source, impl::FramebufferId destination, Viewport destination_region
 ) {
 	renderer_.CompositeRenderPassResult(source, destination, destination_region);
 }
 
-DrawContext::RenderTargetScope::RenderTargetScope(
-	DrawContext& ctx, impl::RenderTargetObject& target, Viewport viewport
-) :
-	ctx_{ ctx },
-	previous_target_{ ctx_.renderer_.current_target_ },
-	previous_state_{ ctx_.GetRenderState() },
-	previous_shader_{ ctx_.renderer_.GetBoundShader() },
-	previous_pipeline_{ ctx_.renderer_.pipeline_manager_.GetCurrentPipelineId() } {
-	ctx_.renderer_.SetRenderTarget(&target);
-
-	ctx_.SetRenderState(
-		RenderState{
-			.viewport		 = viewport,
-			.view_projection = Matrix4::Orthographic(viewport.size),
-			.scissor		 = ScissorState{ viewport },
-		}
-	);
+impl::FramebufferObject& DrawContext::GetPoolFramebuffer(impl::FramebufferId framebuffer) {
+	return renderer_.framebuffer_pool_.GetFramebuffer(framebuffer);
 }
 
-DrawContext::RenderTargetScope::~RenderTargetScope() {
-	ctx_.renderer_.FlushBatch();
-
-	ctx_.renderer_.SetRenderTarget(previous_target_);
-
-	if (previous_pipeline_ != 0) {
-		ctx_.renderer_.SetCurrentPipeline(previous_pipeline_);
-	}
-
-	if (previous_shader_.has_value()) {
-		ctx_.renderer_.SetShader(*previous_shader_);
-	}
-
-	ctx_.SetRenderState(previous_state_);
+void DrawContext::SetFramebuffer(impl::FramebufferObject* framebuffer) {
+	renderer_.SetFramebuffer(framebuffer);
 }
 
-impl::RenderTargetObject DrawContext::CreateTemporaryRenderTarget(RenderTargetDesc desc) {
-	return renderer_.CreateRenderTarget(desc);
-}
-
-void DrawContext::PreserveTemporaryRenderTarget(impl::RenderTargetObject&& target) {
-	renderer_.temp_render_targets_.emplace_back(std::move(target));
-}
-
-void DrawContext::ClearRenderTarget(
-	impl::RenderTargetId render_target, Color color, bool set_viewport, bool restore_bind
-) const {
-	renderer_.ClearRenderTarget(render_target, color, set_viewport, restore_bind);
-}
-
-impl::TextureId DrawContext::GetRenderTargetTexture(impl::RenderTargetId render_target) const {
-	return renderer_.GetRenderTargetTexture(render_target);
+void DrawContext::SetViewport(Viewport viewport) {
+	renderer_.SetViewport(viewport);
 }
 
 } // namespace ptgn

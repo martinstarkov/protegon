@@ -10,7 +10,6 @@
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
-#include "renderer/resources/render_target_object.h"
 #include "renderer/resources/texture.h"
 
 namespace ptgn::impl {
@@ -30,7 +29,7 @@ void RenderBatcher::BindTextureUniforms(
 		PTGN_ASSERT(binding.slot < GetMaxTextureSlots(), "Texture slot is out of range");
 		PTGN_ASSERT(!binding.uniform.empty(), "Texture uniform name cannot be empty");
 
-		if (IsTextureAttachedToCurrentFramebuffer(texture)) {
+		if (IsAttachedToCurrentFramebuffer(texture)) {
 			PTGN_ERROR("Cannot sample from a texture attached to the current framebuffer");
 		}
 
@@ -83,8 +82,8 @@ void RenderBatcher::Flush() {
 	textures_.clear();
 }
 
-bool RenderBatcher::IsTextureAttachedToCurrentFramebuffer(TextureId texture) const {
-	return renderer_.IsTextureAttachedToCurrentFramebuffer(texture);
+bool RenderBatcher::IsAttachedToCurrentFramebuffer(TextureId texture) const {
+	return renderer_.IsAttachedToCurrentFramebuffer(texture);
 }
 
 std::size_t RenderBatcher::GetMaxTextureSlots() const {

@@ -1,17 +1,21 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string_view>
 #include <vector>
 
 #include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
-#include "renderer/resources/render_target_object.h"
 #include "renderer/resources/texture.h"
 
 namespace ptgn {
@@ -52,10 +56,20 @@ struct std::hash<ptgn::RenderPassHandle> {
 
 namespace ptgn {
 
+struct TextureDrawParams {
+	float depth{ 0.0f };
+	V2_float size;
+	Origin origin{ Origin::Center };
+	Color tint{ color::White };
+	std::array<V2_float, 4> texture_coordinates;
+	impl::EffectParams effects;
+	int entity_id{ -1 };
+};
+
 namespace impl {
 
 struct BoundInput {
-	impl::RenderTargetId render_target;
+	impl::FramebufferId framebuffer;
 	TextureBinding binding;
 };
 
@@ -69,18 +83,33 @@ struct RenderPassData {
 	Color tint{ color::White };
 	std::vector<HandleInput> reads;
 	RenderPassHandle output;
-	RenderTargetDesc output_desc;
+	TextureDesc output_desc;
+	std::optional<TextureDesc> output_other_desc;
 	bool used{ false };
+
+	std::optional<Color> clear_color;
+	std::optional<Stencil> clear_stencil;
+	std::optional<Depth> clear_depth;
+	std::optional<DepthStencil> clear_depth_stencil;
+	RenderState render_state;
+	std::function<void(DrawContext&)> draw_callback;
 };
 
 struct DrawPassRequest {
 	MaterialState material;
 	std::size_t pipeline{ 0 };
 	std::span<const impl::BoundInput> inputs;
-	impl::RenderTargetId output;
+	impl::FramebufferId output;
 	Viewport viewport;
 	Color tint{ color::White };
 	bool scissor_to_viewport{ false };
+	RenderState state;
+};
+
+struct CompositeDraw {
+	Transform transform;
+	TextureDrawParams params;
+	RenderState state;
 };
 
 } // namespace impl
@@ -102,9 +131,19 @@ public:
 
 	RenderPass& Tint(Color tint);
 
+	RenderPass& ClearColor(Color value);
+	RenderPass& ClearStencil(int value);
+	RenderPass& ClearDepth(float value);
+
+	RenderPass& State(RenderState state);
+
+	RenderPass& Draw(std::function<void(DrawContext&)> callback);
+
 	operator RenderPassHandle() const;
 
 private:
+	friend class RenderPassBuilder;
+
 	impl::RenderPassData& GetPassData();
 
 	RenderPassBuilder& render_pass_builder_;
@@ -118,7 +157,9 @@ public:
 
 	RenderPassHandle BoundTarget();
 
-	RenderPass CreateLike(RenderTargetDesc desc, std::string_view shader);
+	RenderPass CreateTarget(TextureDesc desc, std::optional<TextureDesc> other_desc);
+
+	RenderPass CreateLike(TextureDesc desc, std::string_view shader);
 
 	RenderPass CreateLike(RenderPassHandle handle, std::string_view shader);
 
@@ -126,19 +167,24 @@ public:
 	/// input.
 	RenderPass Apply(std::string_view shader, std::optional<RenderPassHandle> input = std::nullopt);
 
+	RenderPassBuilder& SetCompositeDraw(
+		Transform transform, TextureDrawParams params, RenderState state
+	);
+
 private:
 	friend class DrawContext;
 	friend class RenderPass;
 
 	struct Resource {
 		RenderPassHandle handle;
-		RenderTargetDesc desc;
+		TextureDesc desc;
+		std::optional<TextureDesc> other_desc;
 
 		bool imported{ false };
 
 		std::optional<std::size_t> writer;
 		std::optional<std::size_t> last_use;
-		std::optional<impl::RenderTargetId> render_target;
+		std::optional<impl::FramebufferId> framebuffer;
 		bool used{ false };
 	};
 
@@ -154,15 +200,17 @@ private:
 
 	void Execute(RenderPassHandle final_handle);
 
-	impl::RenderTargetId GetRenderTargetId(RenderPassHandle handle) const;
+	impl::FramebufferId GetFramebufferId(RenderPassHandle handle) const;
 
 	void ReleaseIfLastUse(RenderPassHandle handle, std::size_t pass_index);
 
 	DrawContext& ctx_;
 
-	impl::RenderTargetId destination_id_;
+	std::optional<impl::CompositeDraw> composite_draw_;
+
+	impl::FramebufferId destination_id_;
 	Viewport destination_;
-	RenderTargetDesc destination_desc_;
+	TextureDesc destination_desc_;
 
 	std::vector<Resource> resources_;
 	std::vector<impl::RenderPassData> passes_;

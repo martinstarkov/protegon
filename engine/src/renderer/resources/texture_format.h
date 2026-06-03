@@ -156,6 +156,15 @@ inline bool IsDepthFormat(TextureFormat fmt) {
 	}
 }
 
+inline bool IsDepthStencilOnlyFormat(TextureFormat fmt) {
+	switch (fmt) {
+		using enum TextureFormat;
+		case Depth24_Stencil8:	[[fallthrough]];
+		case Depth32F_Stencil8: return true;
+		default:				return false;
+	}
+}
+
 inline bool IsStencilFormat(TextureFormat fmt) {
 	switch (fmt) {
 		using enum TextureFormat;

@@ -8,8 +8,6 @@ class Renderer;
 
 namespace impl {
 
-class RenderPipelineManager;
-
 template <typename T>
 concept ResourceType = std::is_copy_constructible_v<T>;
 
@@ -33,16 +31,13 @@ public:
 
 	explicit operator bool() const;
 
-	bool operator==(const Resource& other) const = default;
+	bool operator==(const Resource&) const = default;
 
-protected:
-	friend class ptgn::Renderer;
-	friend class RenderPipelineManager;
+	Renderer* renderer{ nullptr };
+	T resource{};
 
+private:
 	void Reset() noexcept;
-
-	Renderer* renderer_{ nullptr };
-	T resource_{};
 };
 
 } // namespace impl

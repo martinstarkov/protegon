@@ -40,9 +40,9 @@ VertexBufferObject RenderPipelineManager::CreateVertexBufferObject(
 VertexArrayObject RenderPipelineManager::CreateVertexArrayObject(
 	VertexBufferId vertex_buffer, const BufferLayoutView& layout, ElementBufferId element_buffer
 ) {
-	return VertexArrayObject{ &renderer_, renderer_.gl_->vertex_arrays.CreateVertexArray(
-											  vertex_buffer, layout, element_buffer
-										  ) };
+	return VertexArrayObject{
+		&renderer_, renderer_.gl_->vertex_arrays.Create(vertex_buffer, layout, element_buffer)
+	};
 }
 
 bool RenderPipelineManager::IsCurrentPipeline(std::size_t id) const {

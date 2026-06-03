@@ -93,25 +93,38 @@ void FlipTextureCoordinates(std::array<V2_float, 4>& tex_coords, Flip flip) {
 }
 
 V2_int TextureObject::GetSize() const {
-	return renderer_->GetTextureSize(resource_);
+	return GetDesc().size;
 }
 
 TextureFormat TextureObject::GetFormat() const {
-	return renderer_->GetTextureFormat(resource_);
+	return GetDesc().format;
+}
+
+TextureParams TextureObject::GetParams() const {
+	return GetDesc().params;
+}
+
+TextureDesc TextureObject::GetDesc() const {
+	PTGN_ASSERT(*this);
+	return renderer->GetDesc(*this);
 }
 
 } // namespace impl
 
 V2_int Texture::GetSize() const {
-	auto entity{ GetEntity() };
-	if (!entity.Has<impl::TextureObject>()) {
-		return {};
-	}
 	return GetEntity().Get<impl::TextureObject>().GetSize();
 }
 
 TextureFormat Texture::GetFormat() const {
 	return GetEntity().Get<impl::TextureObject>().GetFormat();
+}
+
+TextureParams Texture::GetParams() const {
+	return GetEntity().Get<impl::TextureObject>().GetParams();
+}
+
+TextureDesc Texture::GetDesc() const {
+	return GetEntity().Get<impl::TextureObject>().GetDesc();
 }
 
 Texture::operator impl::TextureId() const {

@@ -1,13 +1,11 @@
 #pragma once
 
-#include <array>
 #include <functional>
 #include <optional>
 #include <span>
 #include <string_view>
 #include <utility>
 
-#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
@@ -19,8 +17,9 @@
 #include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
-#include "renderer/resources/render_target_object.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn {
 
@@ -37,16 +36,6 @@ class Capsule;
 class Arc;
 class Shape;
 class RenderPassBuilder;
-
-struct TextureDrawParams {
-	float depth{ 0.0f };
-	V2_float size;
-	Origin origin{ Origin::Center };
-	Color tint{ color::White };
-	std::array<V2_float, 4> texture_coordinates;
-	impl::EffectParams effects;
-	int entity_id{ -1 };
-};
 
 struct ShapeDrawParams {
 	float depth{ 0.0f };
@@ -78,29 +67,6 @@ private:
 		RenderState previous_state_;
 	};
 
-	class RenderTargetScope {
-	private:
-		RenderTargetScope() = delete;
-
-		RenderTargetScope(DrawContext& ctx, impl::RenderTargetObject& target, Viewport viewport);
-
-		RenderTargetScope(const RenderTargetScope&)			   = delete;
-		RenderTargetScope& operator=(const RenderTargetScope&) = delete;
-
-		RenderTargetScope(RenderTargetScope&&) noexcept			   = delete;
-		RenderTargetScope& operator=(RenderTargetScope&&) noexcept = delete;
-
-		~RenderTargetScope();
-
-		friend class DrawContext;
-
-		DrawContext& ctx_;
-		impl::RenderTargetObject* previous_target_{ nullptr };
-		RenderState previous_state_;
-		std::optional<impl::ShaderId> previous_shader_;
-		std::size_t previous_pipeline_{ 0 };
-	};
-
 public:
 	void WithRenderState(const RenderState& delta, InvocableR<void> auto&& function) {
 		RenderStateScope scope{ *this, delta };
@@ -108,32 +74,29 @@ public:
 		function();
 	}
 
+	void WithRenderTarget(
+		impl::FramebufferObject* framebuffer, Viewport viewport, InvocableR<void> auto&& function
+	) {
+		auto previous_framebuffer{ &GetBoundFramebuffer() };
+		auto previous_viewport{ GetRenderState().viewport };
+
+		SetFramebuffer(framebuffer);
+		SetViewport(viewport);
+
+		function();
+
+		SetFramebuffer(previous_framebuffer);
+
+		if (previous_viewport.has_value()) {
+			SetViewport(*previous_viewport);
+		}
+	}
+
 	void WithBlendMode(BlendMode blend_mode, InvocableR<void> auto&& function) {
 		RenderStateScope scope{ *this, RenderState{ .blend_mode{ blend_mode } } };
 
 		function();
 	}
-
-	void WithRenderTarget(
-		impl::RenderTargetObject& target, Viewport viewport, InvocableR<void> auto&& function
-	) {
-		RenderTargetScope scope{ *this, target, viewport };
-
-		function();
-	}
-
-	[[nodiscard]] impl::RenderTargetObject CreateTemporaryRenderTarget(RenderTargetDesc desc);
-
-	void PreserveTemporaryRenderTarget(impl::RenderTargetObject&& target);
-
-	void ClearRenderTarget(
-		impl::RenderTargetId render_target, Color color, bool set_viewport = false,
-		bool restore_bind = false
-	) const;
-
-	[[nodiscard]] impl::TextureId GetRenderTargetTexture(impl::RenderTargetId render_target) const;
-
-	void DrawRenderPass(const impl::DrawPassRequest& request);
 
 	RenderState GetRenderState() const;
 
@@ -151,42 +114,62 @@ public:
 	void DrawShader(Transform transform, const MaterialState& material, TextureDrawParams params);
 	void DrawShader(Transform transform, const Material& material, TextureDrawParams params);
 
-	void DrawPoint(V2_float point, Color color, ShapeDrawParams params);
+	void DrawPoint(V2_float point, Color color, const ShapeDrawParams& params);
 
 	void DrawLine(
 		V2_float start, V2_float end, Color color,
-		ShapeDrawParams params = ShapeDrawParams{ .fill_style{ 1.0f } }
+		const ShapeDrawParams& params = ShapeDrawParams{ .fill_style{ 1.0f } }
 	);
 
 	void DrawLines(
 		std::span<const V2_float> points, Color color,
-		ShapeDrawParams params = ShapeDrawParams{ .fill_style{ 1.0f } }, bool closed = false,
+		const ShapeDrawParams& params = ShapeDrawParams{ .fill_style{ 1.0f } }, bool closed = false,
 		std::optional<Transform> transform = std::nullopt
 	);
 
-	void DrawShape(Transform transform, const V2_float& shape, Color color, ShapeDrawParams params);
-
-	void DrawShape(Transform transform, const Rect& shape, Color color, ShapeDrawParams params);
-
 	void DrawShape(
-		Transform transform, const RoundedRect& shape, Color color, ShapeDrawParams params
+		Transform transform, const V2_float& shape, Color color, const ShapeDrawParams& params
 	);
 
-	void DrawShape(Transform transform, const Polygon& shape, Color color, ShapeDrawParams params);
+	void DrawShape(
+		Transform transform, const Rect& shape, Color color, const ShapeDrawParams& params
+	);
 
-	void DrawShape(Transform transform, const Triangle& shape, Color color, ShapeDrawParams params);
+	void DrawShape(
+		Transform transform, const RoundedRect& shape, Color color, const ShapeDrawParams& params
+	);
 
-	void DrawShape(Transform transform, const Capsule& shape, Color color, ShapeDrawParams params);
+	void DrawShape(
+		Transform transform, const Polygon& shape, Color color, const ShapeDrawParams& params
+	);
 
-	void DrawShape(Transform transform, const Line& shape, Color color, ShapeDrawParams params);
+	void DrawShape(
+		Transform transform, const Triangle& shape, Color color, const ShapeDrawParams& params
+	);
 
-	void DrawShape(Transform transform, const Arc& shape, Color color, ShapeDrawParams params);
+	void DrawShape(
+		Transform transform, const Capsule& shape, Color color, const ShapeDrawParams& params
+	);
 
-	void DrawShape(Transform transform, const Circle& shape, Color color, ShapeDrawParams params);
+	void DrawShape(
+		Transform transform, const Line& shape, Color color, const ShapeDrawParams& params
+	);
 
-	void DrawShape(Transform transform, const Ellipse& shape, Color color, ShapeDrawParams params);
+	void DrawShape(
+		Transform transform, const Arc& shape, Color color, const ShapeDrawParams& params
+	);
 
-	void DrawShape(Transform transform, const Shape& shape, Color color, ShapeDrawParams params);
+	void DrawShape(
+		Transform transform, const Circle& shape, Color color, const ShapeDrawParams& params
+	);
+
+	void DrawShape(
+		Transform transform, const Ellipse& shape, Color color, const ShapeDrawParams& params
+	);
+
+	void DrawShape(
+		Transform transform, const Shape& shape, Color color, const ShapeDrawParams& params
+	);
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
@@ -207,28 +190,45 @@ private:
 
 	explicit DrawContext(Renderer& renderer);
 
-	[[nodiscard]] bool RenderTargetPoolHas(impl::RenderTargetId id) const;
-	[[nodiscard]] impl::RenderTargetId AcquireRenderTarget(RenderTargetDesc desc);
-	void ReleaseRenderTarget(impl::RenderTargetId);
+	void DrawRenderPass(const impl::DrawPassRequest& request);
 
-	const impl::RenderTargetObject& GetBoundRenderTarget() const;
+	[[nodiscard]] bool FramebufferPoolHas(impl::FramebufferId id) const;
+
+	/// @brief NOTE: Caller is responsible for clearing the acquired framebuffer.
+	[[nodiscard]] impl::FramebufferId AcquireFramebuffer(
+		TextureDesc desc, std::optional<TextureDesc> other_desc
+	);
+
+	void ReleaseFramebuffer(impl::FramebufferId framebuffer);
+
+	const impl::FramebufferObject& GetBoundFramebuffer() const;
+	impl::FramebufferObject& GetBoundFramebuffer();
 
 	void SetRenderState(const RenderState& state);
 
-	void UpdateRenderTarget(impl::RenderTargetObject&& replacing_target);
+	void UpdateFramebuffer(impl::FramebufferObject&& replacing_framebuffer);
 
-	impl::RenderTargetObject ExtractRenderTarget(impl::RenderTargetId id);
+	V2_int GetSize(impl::FramebufferId framebuffer) const;
+	TextureDesc GetDesc(impl::FramebufferId framebuffer) const;
 
-	V2_int GetRenderTargetSize(impl::RenderTargetId render_target) const;
-
-	void CopyRenderTargetRegion(
-		impl::RenderTargetId source, impl::RenderTargetId destination, Viewport source_region,
+	void CopyFramebufferRegion(
+		impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
 		V2_int destination_position
 	);
 
 	void CompositeRenderPassResult(
-		impl::RenderTargetId source, impl::RenderTargetId destination, Viewport destination_region
+		impl::FramebufferId source, impl::FramebufferId destination, Transform transform,
+		const TextureDrawParams& params, const RenderState& state
 	);
+
+	void CompositeRenderPassResult(
+		impl::FramebufferId source, impl::FramebufferId destination, Viewport destination_region
+	);
+
+	impl::FramebufferObject& GetPoolFramebuffer(impl::FramebufferId framebuffer);
+
+	void SetFramebuffer(impl::FramebufferObject* framebuffer);
+	void SetViewport(Viewport viewport);
 
 	Renderer& renderer_;
 };

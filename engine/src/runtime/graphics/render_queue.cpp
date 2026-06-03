@@ -35,13 +35,12 @@
 #include "renderer/pipeline/shape_primitives.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
-#include "renderer/resources/render_target_object.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/visible.h"
@@ -370,11 +369,11 @@ void RenderQueue::Draw(
 
 	impl::RendererAccessor renderer{ renderer_ };
 
-	renderer.SetRenderTarget(&render_target.Get<impl::RenderTargetObject>());
+	renderer.SetFramebuffer(&render_target.Get<impl::FramebufferObject>());
 
 	if (bool clear_render_target{ !std::ranges::contains(cleared.render_targets, render_target) };
 		clear_render_target) {
-		render_target.Clear();
+		render_target.ClearColor(std::nullopt, false);
 		cleared.render_targets.emplace_back(render_target);
 	}
 
@@ -385,7 +384,8 @@ void RenderQueue::Draw(
 	auto viewport{ render_camera.camera.viewport };
 
 	if (!render_camera.scene_camera ||
-		HasScript<impl::CameraResizeScript>(render_camera.scene_camera)) {
+		HasScript<impl::CameraResizeScript>(render_camera.scene_camera) ||
+		render_target == scene_render_target) {
 		// Viewport is relative to game size, so scale it to render target size.
 		V2_float scale{ V2_float{ rt_size } / game_size };
 		// Not *= because we want float multiplication followed by flooring.
@@ -398,7 +398,7 @@ void RenderQueue::Draw(
 
 	if (bool clear_camera{ !std::ranges::contains(cleared.cameras, render_camera.uuid) };
 		clear_camera && render_camera.clear_color.has_value()) {
-		render_target.Clear(*render_camera.clear_color, false);
+		render_target.ClearColor(*render_camera.clear_color, false);
 		cleared.cameras.emplace_back(render_camera.uuid);
 	}
 
@@ -467,7 +467,7 @@ void RenderQueue::Draw(
 	auto camera_tint{ bucket.camera->tint };
 
 	if (camera_tint != color::White || bucket.camera->effect_params.draw_callback) {
-		auto texture{ renderer.GetBoundRenderTarget().GetTextureId() };
+		auto texture{ renderer.GetTexture(renderer.GetBoundFramebuffer()) };
 
 		PTGN_ASSERT(viewport == ctx.GetRenderState().viewport);
 		PTGN_ASSERT(render_camera.camera.view_projection == ctx.GetRenderState().view_projection);

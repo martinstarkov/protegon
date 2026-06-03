@@ -1,7 +1,5 @@
 #pragma once
 
-#include <ecs/ecs.h>
-
 #include <array>
 #include <cstdint>
 #include <ostream>
@@ -16,6 +14,14 @@
 #include "renderer/resources/texture_format.h"
 
 namespace ptgn {
+
+struct TextureDesc {
+	V2_int size;
+	TextureFormat format{ TextureFormat::RGBA8 };
+	TextureParams params;
+
+	constexpr bool operator==(const TextureDesc&) const = default;
+};
 
 struct TextureBinding {
 	std::uint32_t slot{ 0 };
@@ -68,8 +74,9 @@ public:
 	using Base::Base;
 
 	V2_int GetSize() const;
-
 	TextureFormat GetFormat() const;
+	TextureParams GetParams() const;
+	TextureDesc GetDesc() const;
 };
 
 } // namespace impl
@@ -80,6 +87,8 @@ public:
 
 	V2_int GetSize() const;
 	TextureFormat GetFormat() const;
+	TextureParams GetParams() const;
+	TextureDesc GetDesc() const;
 
 	friend std::ostream& operator<<(std::ostream& os, const Texture& t) {
 		os << "{ texture id: " << t.operator impl::TextureId();

@@ -1,14 +1,12 @@
 #include "renderer/renderer.h"
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <numeric>
 #include <optional>
-#include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
@@ -21,7 +19,6 @@
 #include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
-#include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
@@ -39,25 +36,92 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
-#include "renderer/pipeline/effect_params.h"
+#include "renderer/pipeline/framebuffer_pool.h"
 #include "renderer/pipeline/primitive_mode.h"
 #include "renderer/pipeline/render_batcher.h"
 #include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
-#include "renderer/resources/render_target_object.h"
-#include "renderer/resources/resource.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 
 namespace ptgn {
+
+namespace {
+
+enum class DepthStencilAttachment {
+	None,
+	Depth,
+	Stencil,
+	DepthStencil,
+};
+
+DepthStencilAttachment GetDepthStencilAttachment(TextureFormat format) {
+	if (IsDepthOnlyFormat(format)) {
+		return DepthStencilAttachment::Depth;
+	}
+	if (IsStencilOnlyFormat(format)) {
+		return DepthStencilAttachment::Stencil;
+	}
+	return DepthStencilAttachment::DepthStencil;
+}
+
+impl::FramebufferId CreateColorFramebuffer(impl::gl::GLContext& gl, impl::TextureId texture) {
+	return gl.framebuffers.Create<impl::gl::Attachment::Color0>(texture, true);
+}
+
+impl::FramebufferId CreateDepthStencilFramebuffer(
+	impl::gl::GLContext& gl, impl::RenderbufferId renderbuffer, DepthStencilAttachment attachment
+) {
+	switch (attachment) {
+		case DepthStencilAttachment::Depth:
+			return gl.framebuffers.Create<impl::gl::Attachment::Depth>(renderbuffer, true);
+
+		case DepthStencilAttachment::Stencil:
+			return gl.framebuffers.Create<impl::gl::Attachment::Stencil>(renderbuffer, true);
+
+		case DepthStencilAttachment::DepthStencil:
+			return gl.framebuffers.Create<impl::gl::Attachment::DepthStencil>(renderbuffer, true);
+
+		case DepthStencilAttachment::None: [[fallthrough]];
+		default:						   PTGN_ERROR("Invalid framebuffer depth/stencil attachment");
+	}
+}
+
+impl::FramebufferId CreateColorDepthStencilFramebuffer(
+	impl::gl::GLContext& gl, impl::TextureId texture, impl::RenderbufferId renderbuffer,
+	DepthStencilAttachment attachment
+) {
+	switch (attachment) {
+		case DepthStencilAttachment::Depth:
+			return gl.framebuffers
+				.Create<impl::gl::Attachment::Color0, impl::gl::Attachment::Depth>(
+					texture, renderbuffer, true
+				);
+		case DepthStencilAttachment::Stencil:
+			return gl.framebuffers
+				.Create<impl::gl::Attachment::Color0, impl::gl::Attachment::Stencil>(
+					texture, renderbuffer, true
+				);
+		case DepthStencilAttachment::DepthStencil:
+			return gl.framebuffers
+				.Create<impl::gl::Attachment::Color0, impl::gl::Attachment::DepthStencil>(
+					texture, renderbuffer, true
+				);
+
+		case DepthStencilAttachment::None: [[fallthrough]];
+		default:						   PTGN_ERROR("Invalid framebuffer depth/stencil attachment");
+	}
+}
+
+} // namespace
 
 Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	window_{ window },
@@ -65,7 +129,7 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	event_sink_{ std::move(event_sink) },
 	gl_{ std::make_unique<impl::gl::GLContext>(stats) },
 	batcher_{ *this },
-	target_pool_{ *this },
+	framebuffer_pool_{ *this },
 	pipeline_manager_{ *this } {
 	pipeline_manager_.AddPipeline<impl::TextureVertex>(
 		"texture", impl::kVertexCapacity, impl::kIndexCapacity, impl::PrimitiveMode::Triangles
@@ -90,9 +154,9 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 
 	PTGN_ASSERT(display_size.IsPositive(), "Display size cannot be zero");
 
-	presentation_target_ =
-		CreateRenderTarget({ .size{ display_size }, .format{ TextureFormat::RGBA8 } });
-	BindPresentationTarget();
+	presentation_framebuffer_ =
+		CreateFramebuffer({ .size{ display_size }, .format{ TextureFormat::RGBA8 } }, std::nullopt);
+	BindPresentationFramebuffer();
 	SetViewProjection(display_size);
 
 	auto max_texture_slots{ GetMaxTextureSlots() };
@@ -122,7 +186,7 @@ Renderer::~Renderer() noexcept {
 
 void Renderer::FlushBatch() {
 	batcher_.Flush();
-	temp_render_targets_.clear();
+	temp_framebuffers_.clear();
 }
 
 impl::RenderPipeline& Renderer::GetPipeline(impl::PipelineId id) {
@@ -133,65 +197,130 @@ const impl::RenderPipeline& Renderer::GetPipeline(impl::PipelineId id) const {
 	return pipeline_manager_.GetPipeline(id);
 }
 
-impl::RenderTargetObject Renderer::CreateRenderTarget(const RenderTargetDesc& desc) {
-	PTGN_ASSERT(desc.size.IsPositive(), "Cannot create render target with zero size");
+impl::FramebufferObject Renderer::CreateFramebuffer(
+	TextureDesc desc, std::optional<TextureDesc> other_desc
+) {
+	PTGN_ASSERT(
+		!other_desc.has_value() || desc != *other_desc,
+		"Other texture description cannot match the first one"
+	);
+
+	PTGN_ASSERT(desc.size.IsPositive(), "Cannot create framebuffer with zero size");
+
+	std::optional<impl::TextureId> texture;
+	std::optional<impl::RenderbufferId> renderbuffer;
+	auto attachment{ DepthStencilAttachment::None };
+
+	if (IsColorFormat(desc.format)) {
+		texture = gl_->textures.Create(desc);
+
+		if (other_desc.has_value()) {
+			PTGN_ASSERT(
+				other_desc->size == desc.size, "Framebuffer attachments must have matching sizes"
+			);
+			attachment	 = GetDepthStencilAttachment(other_desc->format);
+			renderbuffer = gl_->renderbuffers.Create(other_desc->size, other_desc->format);
+		}
+	} else {
+		PTGN_ASSERT(!other_desc.has_value(), "Cannot specify other_desc for non-color format");
+		attachment	 = GetDepthStencilAttachment(desc.format);
+		renderbuffer = gl_->renderbuffers.Create(desc.size, desc.format);
+	}
 
 	impl::FramebufferId framebuffer{ 0 };
 
-	if (IsColorFormat(desc.format)) {
-		auto color{ gl_->textures.CreateTexture(desc.size, desc.format, desc.params) };
-		framebuffer = gl_->framebuffers.Create(color);
-	} else {
-		auto depth{ gl_->renderbuffers.CreateRenderbuffer(desc.size, desc.format) };
-		if (IsDepthOnlyFormat(desc.format)) {
-			framebuffer = gl_->framebuffers.Create<impl::gl::Attachment::Depth>(depth);
-		} else {
-			framebuffer = gl_->framebuffers.Create<impl::gl::Attachment::DepthStencil>(depth);
-		}
+	if (texture.has_value() && renderbuffer.has_value()) {
+		framebuffer = CreateColorDepthStencilFramebuffer(*gl_, *texture, *renderbuffer, attachment);
+	} else if (texture.has_value()) {
+		framebuffer = CreateColorFramebuffer(*gl_, *texture);
+	} else if (renderbuffer.has_value()) {
+		framebuffer = CreateDepthStencilFramebuffer(*gl_, *renderbuffer, attachment);
 	}
 
-	PTGN_ASSERT(framebuffer, "Failed to create valid framebuffer for render target");
+	PTGN_ASSERT(framebuffer, "Failed to create valid framebuffer");
 
-	return impl::RenderTargetObject{ this, impl::RenderTargetId{ framebuffer } };
+	return impl::FramebufferObject{ this, framebuffer };
 }
 
-impl::TextureId Renderer::GetRenderTargetTexture(impl::RenderTargetId render_target) const {
-	return gl_->framebuffers.GetAttachmentId(impl::FramebufferId{ render_target });
+impl::TextureId Renderer::GetTexture(impl::FramebufferId framebuffer) const {
+	return gl_->framebuffers.GetAttachmentId(framebuffer);
 }
 
-V2_int Renderer::GetRenderTargetSize(impl::RenderTargetId render_target) const {
-	auto id{ GetRenderTargetTexture(render_target) };
-	return GetTextureSize(id);
+impl::RenderbufferId Renderer::GetDepthRenderbuffer(impl::FramebufferId framebuffer) const {
+	return gl_->framebuffers.GetAttachmentId<impl::gl::Attachment::Depth>(framebuffer);
 }
 
-TextureFormat Renderer::GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const {
-	auto id{ GetRenderTargetTexture(render_target) };
-	return GetTextureFormat(id);
+impl::RenderbufferId Renderer::GetStencilRenderbuffer(impl::FramebufferId framebuffer) const {
+	return gl_->framebuffers.GetAttachmentId<impl::gl::Attachment::Stencil>(framebuffer);
 }
 
-TextureParams Renderer::GetRenderTargetTextureParams(impl::RenderTargetId render_target) const {
-	auto id{ GetRenderTargetTexture(render_target) };
-	return GetTextureParams(id);
+impl::RenderbufferId Renderer::GetDepthStencilRenderbuffer(impl::FramebufferId framebuffer) const {
+	return gl_->framebuffers.GetAttachmentId<impl::gl::Attachment::DepthStencil>(framebuffer);
 }
 
-void Renderer::ClearRenderTarget(
-	impl::RenderTargetId render_target, Color color, bool set_viewport, bool restore_bind
+V2_int Renderer::GetSize(impl::FramebufferId framebuffer) const {
+	auto texture{ GetTexture(framebuffer) };
+	return GetSize(texture);
+}
+
+TextureFormat Renderer::GetFormat(impl::FramebufferId framebuffer) const {
+	auto texture{ GetTexture(framebuffer) };
+	return GetFormat(texture);
+}
+
+impl::TextureFormats Renderer::GetFormats(impl::FramebufferId framebuffer) const {
+	impl::TextureFormats formats;
+	if (gl_->framebuffers.HasAttachment<impl::gl::Attachment::Color0>(framebuffer)) {
+		auto texture{ GetTexture(framebuffer) };
+		formats.color0 = GetFormat(texture);
+	}
+	if (gl_->framebuffers.HasAttachment<impl::gl::Attachment::Depth>(framebuffer)) {
+		auto depth{ GetDepthRenderbuffer(framebuffer) };
+		formats.depth = GetFormat(depth);
+	}
+	if (gl_->framebuffers.HasAttachment<impl::gl::Attachment::Stencil>(framebuffer)) {
+		auto stencil{ GetStencilRenderbuffer(framebuffer) };
+		formats.stencil = GetFormat(stencil);
+	}
+	if (gl_->framebuffers.HasAttachment<impl::gl::Attachment::DepthStencil>(framebuffer)) {
+		auto depth_stencil{ GetDepthStencilRenderbuffer(framebuffer) };
+		formats.depth_stencil = GetFormat(depth_stencil);
+	}
+	return formats;
+}
+
+TextureParams Renderer::GetParams(impl::FramebufferId framebuffer) const {
+	auto texture{ GetTexture(framebuffer) };
+	return GetParams(texture);
+}
+
+TextureDesc Renderer::GetDesc(impl::FramebufferId framebuffer) const {
+	auto texture{ GetTexture(framebuffer) };
+	return GetDesc(texture);
+}
+
+void Renderer::Clear(impl::FramebufferId framebuffer, Color clear_color, bool restore_bind) const {
+	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
+	gl_->framebuffers.Clear(framebuffer, clear_color);
+}
+
+void Renderer::Clear(impl::FramebufferId framebuffer, Depth clear_depth, bool restore_bind) const {
+	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
+	gl_->framebuffers.Clear(framebuffer, clear_depth);
+}
+
+void Renderer::Clear(
+	impl::FramebufferId framebuffer, Stencil clear_stencil, bool restore_bind
 ) const {
-	auto bind_guard = gl_->Bind(impl::FramebufferId{ render_target }, restore_bind);
+	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
+	gl_->framebuffers.Clear(framebuffer, clear_stencil);
+}
 
-	std::optional<Viewport> viewport;
-	if (set_viewport) {
-		viewport = gl_->GetViewport();
-
-		auto render_target_size{ GetRenderTargetSize(render_target) };
-		gl_->SetViewport({ .position{}, .size{ render_target_size } });
-	}
-
-	gl_->framebuffers.ClearColor(impl::FramebufferId{ render_target }, color);
-
-	if (set_viewport && viewport.has_value() && viewport->size.IsPositive()) {
-		gl_->SetViewport(*viewport);
-	}
+void Renderer::Clear(
+	impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil, bool restore_bind
+) const {
+	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
+	gl_->framebuffers.Clear(framebuffer, clear_depth_stencil);
 }
 
 void Renderer::SetCurrentPipeline(std::string_view name) {
@@ -226,7 +355,7 @@ void Renderer::SetShader(std::string_view shader) {
 
 void Renderer::SetShader(impl::ShaderId shader) {
 	const auto& bound{ gl_->GetBoundState() };
-	if (shader == gl_->GetBoundState().shader_program) {
+	if (shader == bound.shader_program) {
 		return;
 	}
 	FlushBatch();
@@ -257,27 +386,27 @@ impl::PipelineId Renderer::GetTexturePipeline() const {
 	return Hash("texture");
 }
 
-void Renderer::SetRenderTarget(impl::RenderTargetObject* target) {
-	impl::FramebufferId framebuffer{ target ? target->operator impl::RenderTargetId() : 0u };
+void Renderer::SetFramebuffer(impl::FramebufferObject* framebuffer) {
+	impl::FramebufferId id{ framebuffer ? framebuffer->operator impl::FramebufferId() : 0u };
 
-	if (framebuffer == gl_->GetBoundFramebuffer()) {
-		current_target_ = target;
+	if (id == gl_->GetBoundFramebuffer()) {
+		current_framebuffer_ = framebuffer;
 		return;
 	}
 
 	FlushBatch();
-	auto _ = gl_->Bind(framebuffer, false);
+	auto _ = gl_->Bind(id, false);
 
-	current_target_ = target;
+	current_framebuffer_ = framebuffer;
 }
 
-void Renderer::UpdateRenderTarget(impl::RenderTargetObject&& replacing_target) {
+void Renderer::UpdateFramebuffer(impl::FramebufferObject&& replacing_framebuffer) {
 	PTGN_ASSERT(
-		gl_->IsBound(impl::FramebufferId{ replacing_target.operator impl::RenderTargetId() }),
-		"Render target that is replacing current render target must be bound"
+		gl_->IsBound(replacing_framebuffer),
+		"Framebuffer that is replacing current framebuffer must be bound"
 	);
-	PTGN_ASSERT(current_target_, "No current render target to update");
-	*current_target_ = std::move(replacing_target);
+	PTGN_ASSERT(current_framebuffer_, "No current framebuffer to update");
+	*current_framebuffer_ = std::move(replacing_framebuffer);
 }
 
 void Renderer::SetViewProjection(V2_float size) {
@@ -350,7 +479,7 @@ impl::ShaderId Renderer::GetShader(std::string_view name) const {
 	return gl_->shaders.GetProgram(name);
 }
 
-bool Renderer::IsTextureAttachedToCurrentFramebuffer(impl::TextureId texture) const {
+bool Renderer::IsAttachedToCurrentFramebuffer(impl::TextureId texture) const {
 	auto bound{ gl_->GetBoundFramebuffer() };
 
 	if (!bound.has_value() || *bound == impl::FramebufferId{ 0 }) {
@@ -519,7 +648,7 @@ void Renderer::UpdateDisplayViewport(bool emit_events) {
 	display_viewport_ = resize_info.viewport;
 
 	if (resize_info.resized) {
-		ResizePresentationTarget(display_viewport_.size);
+		ResizePresentationFramebuffer(display_viewport_.size);
 
 		if (emit_events) {
 			event_sink_(display_viewport_.size, ResizeType::Display);
@@ -600,16 +729,16 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 	return { .moved = moved, .resized = resized, .viewport{ viewport } };
 }
 
-void Renderer::ResizePresentationTarget(V2_int size) {
-	ResizeRenderTarget(presentation_target_.resource_, size);
+void Renderer::ResizePresentationFramebuffer(V2_int size) {
+	Resize(GetPresentationFramebuffer(), size);
 }
 
-void Renderer::BindPresentationTarget() {
-	SetRenderTarget(&presentation_target_);
+void Renderer::BindPresentationFramebuffer() {
+	SetFramebuffer(&presentation_framebuffer_);
 }
 
-impl::RenderTargetId Renderer::GetPresentationTarget() const {
-	return presentation_target_.resource_;
+impl::FramebufferId Renderer::GetPresentationFramebuffer() const {
+	return presentation_framebuffer_.operator impl::FramebufferId();
 }
 
 void Renderer::InvalidateState() {
@@ -629,8 +758,7 @@ void Renderer::BeginFrame() {
 		gl_->framebuffers.Clear();
 	}
 
-	presentation_target_.Bind();
-	presentation_target_.Clear(background_color_, false, false);
+	Clear(presentation_framebuffer_, background_color_, false);
 }
 
 void Renderer::ApplyScreenEffects(const std::function<void(DrawContext&)>& screen_effect_callback) {
@@ -640,13 +768,13 @@ void Renderer::ApplyScreenEffects(const std::function<void(DrawContext&)>& scree
 
 	FlushBatch();
 
-	PTGN_ASSERT(presentation_target_, "Presentation target must be valid");
+	PTGN_ASSERT(presentation_framebuffer_, "Presentation framebuffer must be valid");
 
-	auto size{ presentation_target_.GetSize() };
+	auto size{ GetSize(presentation_framebuffer_) };
 
-	PTGN_ASSERT(size.IsPositive(), "Presentation target size must be valid");
+	PTGN_ASSERT(size.IsPositive(), "Presentation framebuffer size must be valid");
 
-	SetRenderTarget(&presentation_target_);
+	SetFramebuffer(&presentation_framebuffer_);
 
 	Viewport viewport{
 		.position = {},
@@ -698,10 +826,10 @@ void Renderer::EndFrame(const std::function<void(DrawContext&)>& screen_effect_c
 
 	ApplyScreenEffects(screen_effect_callback);
 
-	SetRenderTarget(nullptr);
+	SetFramebuffer(nullptr);
 
 	if (presentation_viewport_.has_value()) {
-		target_pool_.Update();
+		framebuffer_pool_.Update();
 		PTGN_ASSERT(
 			batcher_.IsEmpty(),
 			"No indices should be left in the batcher after finishing the render frame"
@@ -710,8 +838,8 @@ void Renderer::EndFrame(const std::function<void(DrawContext&)>& screen_effect_c
 	}
 
 	PTGN_ASSERT(
-		presentation_target_.GetSize() == display_viewport_.size,
-		"Screen target texture size must match display viewport size"
+		GetSize(presentation_framebuffer_) == display_viewport_.size,
+		"Screen framebuffer size must match display viewport size"
 	);
 
 	SetCurrentPipeline("texture");
@@ -737,13 +865,13 @@ void Renderer::EndFrame(const std::function<void(DrawContext&)>& screen_effect_c
 
 	impl::DrawTextureRequest request;
 	request.primitives = { &local_quad, 1 };
-	request.texture	   = presentation_target_.GetTextureId();
+	request.texture	   = GetTexture(presentation_framebuffer_);
 
 	DrawTexture(request);
 
 	FlushBatch();
 
-	target_pool_.Update();
+	framebuffer_pool_.Update();
 	PTGN_ASSERT(
 		batcher_.IsEmpty(),
 		"No indices should be left in the batcher after finishing the render frame"
@@ -760,17 +888,14 @@ impl::ShaderObject Renderer::CreateShader(
 	return impl::ShaderObject{ this, gl_->shaders.CreateProgram(source, shader_name) };
 }
 
-impl::TextureObject Renderer::CreateTexture(
-	const std::uint8_t* pixel_data, V2_int size, TextureFormat format, TextureParams params
-) {
-	auto [pixel_format, pixel_type] = impl::gl::GetPixelDataFormat(format);
+impl::TextureObject Renderer::CreateTexture(const std::uint8_t* pixel_data, TextureDesc desc) {
+	auto [pixel_format, pixel_type] = impl::gl::GetPixelDataFormat(desc.format);
 	PTGN_ASSERT(
 		pixel_type == impl::gl::PixelDataType::UnsignedByte,
 		"Texture format must have a type of bytes"
 	);
-	return impl::TextureObject{ this, gl_->textures.CreateTexture(
-										  pixel_data, pixel_format, pixel_type, size, format, params
-									  ) };
+	return impl::TextureObject{ this,
+								gl_->textures.Create(pixel_data, pixel_format, pixel_type, desc) };
 }
 
 void Renderer::SetBoundShaderUniform(const char* uniform_name, int value) {
@@ -871,32 +996,41 @@ void Renderer::Destroy(impl::VertexArrayId id) {
 	gl_->Destroy(id);
 }
 
-void Renderer::Destroy(impl::RenderTargetId id) {
-	gl_->Destroy(id);
+V2_int Renderer::GetSize(impl::TextureId texture) const {
+	return GetDesc(texture).size;
 }
 
-V2_int Renderer::GetTextureSize(impl::TextureId texture) const {
-	return gl_->textures.GetTextureSize(texture);
+TextureFormat Renderer::GetFormat(impl::TextureId texture) const {
+	return GetDesc(texture).format;
 }
 
-TextureFormat Renderer::GetTextureFormat(impl::TextureId texture) const {
-	return gl_->textures.GetTextureFormat(texture);
+TextureParams Renderer::GetParams(impl::TextureId texture) const {
+	return GetDesc(texture).params;
 }
 
-TextureParams Renderer::GetTextureParams(impl::TextureId texture) const {
-	return gl_->textures.GetTextureParams(texture);
+TextureDesc Renderer::GetDesc(impl::TextureId texture) const {
+	return gl_->textures.GetDesc(texture);
 }
 
-void Renderer::ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size) {
-	gl_->framebuffers.Resize(impl::FramebufferId{ render_target }, new_size);
+TextureFormat Renderer::GetFormat(impl::RenderbufferId renderbuffer) const {
+	return gl_->renderbuffers.GetFormat(renderbuffer);
 }
 
-void Renderer::SetTextureParams(impl::TextureId texture, TextureParams params) {
+void Renderer::Resize(impl::FramebufferId framebuffer, V2_int new_size) {
+	gl_->framebuffers.Resize(framebuffer, new_size);
+}
+
+void Renderer::SetParams(impl::FramebufferId framebuffer, TextureParams params) {
+	auto texture{ GetTexture(framebuffer) };
+	SetParams(texture, params);
+}
+
+void Renderer::SetParams(impl::TextureId texture, TextureParams params) {
 	using enum impl::gl::TextureParameter;
-	gl_->textures.SetTextureParameter(texture, MinFilter, std::to_underlying(params.min_filter));
-	gl_->textures.SetTextureParameter(texture, MagFilter, std::to_underlying(params.mag_filter));
-	gl_->textures.SetTextureParameter(texture, WrapS, std::to_underlying(params.wrap_s));
-	gl_->textures.SetTextureParameter(texture, WrapT, std::to_underlying(params.wrap_t));
+	gl_->textures.SetParameter(texture, MinFilter, std::to_underlying(params.min_filter));
+	gl_->textures.SetParameter(texture, MagFilter, std::to_underlying(params.mag_filter));
+	gl_->textures.SetParameter(texture, WrapS, std::to_underlying(params.wrap_s));
+	gl_->textures.SetParameter(texture, WrapT, std::to_underlying(params.wrap_t));
 }
 
 std::size_t Renderer::GetMaxTextureSlots() const {
@@ -953,9 +1087,14 @@ RenderState Renderer::GetRenderState() const {
 	return state.render_state;
 }
 
-const impl::RenderTargetObject& Renderer::GetBoundRenderTarget() const {
-	PTGN_ASSERT(current_target_, "No current render target has been set");
-	return *current_target_;
+const impl::FramebufferObject& Renderer::GetBoundFramebuffer() const {
+	PTGN_ASSERT(current_framebuffer_, "No current framebuffer has been set");
+	return *current_framebuffer_;
+}
+
+impl::FramebufferObject& Renderer::GetBoundFramebuffer() {
+	PTGN_ASSERT(current_framebuffer_, "No current framebuffer has been set");
+	return *current_framebuffer_;
 }
 
 void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
@@ -963,7 +1102,7 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 
 	PTGN_ASSERT(request.output, "Render pass output must be valid");
 
-	auto output_size{ GetRenderTargetSize(request.output) };
+	auto output_size{ GetSize(request.output) };
 
 	PTGN_ASSERT(output_size.IsPositive(), "Render pass output size must be non-zero");
 	PTGN_ASSERT(request.viewport.size.IsPositive(), "Render pass viewport size must be non-zero");
@@ -972,13 +1111,10 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	auto previous_shader{ GetBoundShader() };
 	auto previous_pipeline{ pipeline_manager_.GetCurrentPipelineId() };
 
-	auto _ = gl_->Bind(impl::FramebufferId{ request.output }, false);
+	auto _ = gl_->Bind(request.output, false);
 
 	SetCurrentPipeline(request.pipeline);
 	SetMaterial(request.material);
-
-	// TODO: Somewhere in here the viewport is not being set correctly and right camera does not get
-	// grayscale.
 
 	if (request.scissor_to_viewport) {
 		SetScissor(ScissorState{ request.viewport });
@@ -989,6 +1125,7 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	SetViewport(request.viewport);
 	SetViewProjection(request.viewport.size);
 	SetBlendMode(BlendMode::ReplaceRGBA);
+	SetRenderState(request.state);
 
 	std::vector<TextureBinding> bindings;
 	std::vector<impl::TextureId> textures;
@@ -997,11 +1134,11 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	textures.reserve(request.inputs.size());
 
 	for (const auto& input : request.inputs) {
-		auto texture{ GetRenderTargetTexture(input.render_target) };
+		auto texture{ GetTexture(input.framebuffer) };
 
 		PTGN_ASSERT(texture, "Render pass input must have a valid color texture");
 
-		auto input_size{ GetRenderTargetSize(input.render_target) };
+		auto input_size{ GetSize(input.framebuffer) };
 
 		PTGN_ASSERT(input_size.IsPositive(), "Render pass input size must be non-zero");
 
@@ -1043,28 +1180,58 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	SetRenderState(previous_state);
 }
 
-void Renderer::CopyRenderTargetRegion(
-	impl::RenderTargetId source, impl::RenderTargetId destination, Viewport source_region,
+void Renderer::CopyFramebufferRegion(
+	impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
 	V2_int destination_position
 ) {
 	// Batch must be flushed before copying framebuffer regions to ensure that all rendering
 	// commands that may affect the source or destination regions are completed.
 	FlushBatch();
 
-	gl_->framebuffers.CopyRegion(
-		impl::FramebufferId{ source }, impl::FramebufferId{ destination }, source_region,
-		destination_position
-	);
+	gl_->framebuffers.CopyRegion(source, destination, source_region, destination_position);
 }
 
 void Renderer::CompositeRenderPassResult(
-	impl::RenderTargetId source, impl::RenderTargetId destination, Viewport destination_region
+	impl::FramebufferId source, impl::FramebufferId destination, Transform transform,
+	TextureDrawParams params, const RenderState& state
+) {
+	PTGN_ASSERT(source, "Render pass source must be valid");
+	PTGN_ASSERT(destination, "Render pass destination must be valid");
+
+	auto source_texture{ GetTexture(source) };
+
+	PTGN_ASSERT(source_texture, "Render pass source must have a valid color texture");
+
+	auto previous_state{ GetRenderState() };
+	auto previous_shader{ GetBoundShader() };
+	auto previous_pipeline{ pipeline_manager_.GetCurrentPipelineId() };
+
+	auto _ = gl_->Bind(destination, false);
+
+	SetRenderState(state);
+
+	DrawContext ctx{ *this };
+	ctx.DrawTexture(transform, source_texture, std::move(params));
+
+	FlushBatch();
+
+	SetCurrentPipeline(previous_pipeline);
+
+	if (previous_shader.has_value()) {
+		SetShader(*previous_shader);
+	}
+
+	SetRenderState(previous_state);
+}
+
+void Renderer::CompositeRenderPassResult(
+	impl::FramebufferId source, impl::FramebufferId destination, Viewport destination_region
 ) {
 	PTGN_ASSERT(source, "Render pass source must be valid");
 	PTGN_ASSERT(destination, "Render pass destination must be valid");
 	PTGN_ASSERT(destination_region.size.IsPositive(), "Composite region must be valid");
 
-	auto source_size{ GetRenderTargetSize(source) };
+	auto source_size{ GetSize(source) };
 
 	PTGN_ASSERT(
 		source_size == V2_int{ destination_region.size },
@@ -1072,19 +1239,17 @@ void Renderer::CompositeRenderPassResult(
 	);
 
 	auto input{ impl::BoundInput{
-		.render_target = source,
-		.binding	   = TextureBinding{ 0, "u_Texture" },
+		.framebuffer = source,
+		.binding	 = TextureBinding{ 0, "u_Texture" },
 	} };
 
 	DrawRenderPass(
-		impl::DrawPassRequest{
-			.material			 = { .shader = GetShader("passthrough") },
-			.pipeline			 = Hash("texture"),
-			.inputs				 = std::span{ &input, 1 },
-			.output				 = destination,
-			.viewport			 = destination_region,
-			.scissor_to_viewport = true,
-		}
+		impl::DrawPassRequest{ .material			= { .shader = GetShader("passthrough") },
+							   .pipeline			= Hash("texture"),
+							   .inputs				= std::span{ &input, 1 },
+							   .output				= destination,
+							   .viewport			= destination_region,
+							   .scissor_to_viewport = true }
 	);
 }
 
@@ -1130,10 +1295,8 @@ namespace impl {
 
 RendererAccessor::RendererAccessor(Renderer& renderer) : renderer_{ renderer } {}
 
-TextureObject RendererAccessor::CreateTexture(
-	const std::uint8_t* pixel_data, V2_int size, TextureFormat format, TextureParams params
-) {
-	return renderer_.CreateTexture(pixel_data, size, format, params);
+TextureObject RendererAccessor::CreateTexture(const std::uint8_t* pixel_data, TextureDesc desc) {
+	return renderer_.CreateTexture(pixel_data, desc);
 }
 
 ShaderObject RendererAccessor::CreateShader(
@@ -1142,22 +1305,28 @@ ShaderObject RendererAccessor::CreateShader(
 	return renderer_.CreateShader(source, shader_name);
 }
 
-RenderTargetObject RendererAccessor::CreateRenderTarget(const RenderTargetDesc& desc) {
-	return renderer_.CreateRenderTarget(desc);
+FramebufferObject RendererAccessor::CreateFramebuffer(
+	TextureDesc desc, std::optional<TextureDesc> other_desc
+) {
+	return renderer_.CreateFramebuffer(desc, other_desc);
 }
 
 TextureId RendererAccessor::GetPresentationTexture() const {
-	return renderer_.GetRenderTargetTexture(renderer_.GetPresentationTarget());
+	return GetTexture(renderer_.GetPresentationFramebuffer());
+}
+
+TextureId RendererAccessor::GetTexture(FramebufferId framebuffer) const {
+	return renderer_.GetTexture(framebuffer);
 }
 
 void RendererAccessor::FlushBatch() {
 	renderer_.FlushBatch();
 }
 
-void RendererAccessor::SetupPresentationTarget() {
+void RendererAccessor::SetupPresentationFramebuffer() {
 	Viewport viewport{ {}, renderer_.GetDisplayViewport().size };
 
-	renderer_.BindPresentationTarget();
+	renderer_.BindPresentationFramebuffer();
 	renderer_.SetViewport(viewport);
 	renderer_.SetViewProjection(viewport.size);
 	renderer_.SetBlendMode(BlendMode::Blend);
@@ -1167,8 +1336,8 @@ ShaderId RendererAccessor::GetShader(std::string_view name) const {
 	return renderer_.GetShader(name);
 }
 
-void RendererAccessor::SetRenderTarget(RenderTargetObject* target) {
-	renderer_.SetRenderTarget(target);
+void RendererAccessor::SetFramebuffer(FramebufferObject* framebuffer) {
+	renderer_.SetFramebuffer(framebuffer);
 }
 
 void RendererAccessor::SetScissor(const ScissorState& scissor) {
@@ -1187,8 +1356,8 @@ void RendererAccessor::SetBlendMode(BlendMode blend_mode, bool force) {
 	renderer_.SetBlendMode(blend_mode, force);
 }
 
-const RenderTargetObject& RendererAccessor::GetBoundRenderTarget() const {
-	return renderer_.GetBoundRenderTarget();
+const FramebufferObject& RendererAccessor::GetBoundFramebuffer() const {
+	return renderer_.GetBoundFramebuffer();
 }
 
 } // namespace impl

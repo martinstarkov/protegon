@@ -1,7 +1,6 @@
 #pragma once
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -9,7 +8,6 @@
 #include <optional>
 #include <ranges>
 #include <span>
-#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -20,6 +18,7 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
+#include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
@@ -27,18 +26,19 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/camera.h"
+#include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
+#include "renderer/pipeline/framebuffer_pool.h"
 #include "renderer/pipeline/render_batcher.h"
 #include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/render_target_pool.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
-#include "renderer/resources/render_target_object.h"
 #include "renderer/resources/resource.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
@@ -48,7 +48,7 @@ namespace ptgn {
 
 class Application;
 class Window;
-class PassBuilder;
+class RenderPassBuilder;
 class DrawContext;
 class Stats;
 
@@ -63,6 +63,20 @@ namespace gl {
 class GLContext;
 
 } // namespace gl
+
+struct TextureFormats {
+	std::optional<TextureFormat> color0;
+	std::optional<TextureFormat> depth;
+	std::optional<TextureFormat> stencil;
+	std::optional<TextureFormat> depth_stencil;
+
+	bool HasFormat(TextureFormat format) const {
+		return (color0.has_value() && *color0 == format) ||
+			   (depth.has_value() && *depth == format) ||
+			   (stencil.has_value() && *stencil == format) ||
+			   (depth_stencil.has_value() && *depth_stencil == format);
+	}
+};
 
 template <RenderPrimitive T>
 void ApplyTransform(Transform transform, std::span<T> primitives) {
@@ -208,13 +222,14 @@ private:
 	friend class impl::ApplicationContext;
 	friend class impl::RenderPipelineManager;
 	friend class impl::RenderBatcher;
-	friend class impl::RenderTargetPool;
-	friend class impl::RenderTargetObject;
+	friend class impl::FramebufferPool;
+	friend class impl::FramebufferObject;
 	friend class impl::TextureObject;
 	friend class impl::ShaderObject;
 	friend class impl::RenderCommands;
 	friend class impl::RendererAccessor;
-	friend class PassBuilder;
+	friend class Texture;
+	friend class RenderPassBuilder;
 	friend class DrawContext;
 	template <impl::ResourceType T>
 	friend class impl::Resource;
@@ -255,7 +270,7 @@ private:
 		}
 
 		if (request.effect_params.draw_callback ||
-			IsTextureAttachedToCurrentFramebuffer(request.texture)) {
+			IsAttachedToCurrentFramebuffer(request.texture)) {
 			DrawWithEffect(request);
 		} else {
 			DrawNormally(request);
@@ -266,8 +281,8 @@ private:
 
 	const impl::RenderPipeline& GetPipeline(impl::PipelineId id) const;
 
-	void SetRenderTarget(impl::RenderTargetObject* target);
-	void UpdateRenderTarget(impl::RenderTargetObject&& replacing_target);
+	void SetFramebuffer(impl::FramebufferObject* framebuffer);
+	void UpdateFramebuffer(impl::FramebufferObject&& replacing_framebuffer);
 
 	template <impl::RenderPrimitive T>
 	void DrawWithEffect(const impl::DrawRequest<T>& request) {
@@ -296,20 +311,20 @@ private:
 
 		size += V2_float{ request.effect_params.margin * 2 };
 
-		RenderTargetDesc desc{ .size = size };
+		TextureDesc desc{ .size = size };
 
 		if (request.texture) {
-			desc.format = GetTextureFormat(request.texture);
-			desc.params = GetTextureParams(request.texture);
+			desc.format = GetFormat(request.texture);
+			desc.params = GetParams(request.texture);
 		}
 
-		auto expanded_target{ CreateRenderTarget(desc) };
+		auto expanded_framebuffer{ CreateFramebuffer(desc, std::nullopt) };
 
-		PTGN_ASSERT(expanded_target.GetSize() == V2_int{ size });
+		PTGN_ASSERT(GetSize(expanded_framebuffer) == V2_int{ size });
 
-		auto previous_target{ current_target_ };
+		auto previous_framebuffer{ current_framebuffer_ };
 
-		SetRenderTarget(&expanded_target);
+		SetFramebuffer(&expanded_framebuffer);
 
 		auto previous_state{ GetRenderState() };
 
@@ -332,7 +347,7 @@ private:
 		FlushBatch();
 
 		SetCurrentPipeline("texture");
-		SetRenderTarget(previous_target);
+		SetFramebuffer(previous_framebuffer);
 		SetShader("texture");
 		SetRenderState(previous_state);
 
@@ -358,13 +373,13 @@ private:
 			impl::CreateTextureQuad(positions, depth, color_n, tex_coords, entity_id)
 		};
 
-		impl::DrawTextureRequest new_request{ .texture	  = GetRenderTargetTexture(expanded_target),
+		impl::DrawTextureRequest new_request{ .texture	  = GetTexture(expanded_framebuffer),
 											  .transform  = request.transform,
 											  .primitives = { &local_quad, 1 } };
 
 		DrawNormally(new_request);
 
-		temp_render_targets_.emplace_back(std::move(expanded_target));
+		temp_framebuffers_.emplace_back(std::move(expanded_framebuffer));
 	}
 
 	template <impl::RenderPrimitive T>
@@ -425,29 +440,42 @@ private:
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 	);
 	[[nodiscard]] impl::TextureObject CreateTexture(
-		const std::uint8_t* pixel_data, V2_int size, TextureFormat format, TextureParams params
+		const std::uint8_t* pixel_data, TextureDesc desc
 	);
-	[[nodiscard]] impl::RenderTargetObject CreateRenderTarget(const RenderTargetDesc& desc);
+	[[nodiscard]] impl::FramebufferObject CreateFramebuffer(
+		TextureDesc desc, std::optional<TextureDesc> other_desc
+	);
 
 	impl::ShaderId GetShader(std::string_view name) const;
 
-	impl::TextureId GetRenderTargetTexture(impl::RenderTargetId render_target) const;
+	impl::TextureId GetTexture(impl::FramebufferId framebuffer) const;
+	impl::RenderbufferId GetDepthRenderbuffer(impl::FramebufferId framebuffer) const;
+	impl::RenderbufferId GetStencilRenderbuffer(impl::FramebufferId framebuffer) const;
+	impl::RenderbufferId GetDepthStencilRenderbuffer(impl::FramebufferId framebuffer) const;
 
-	V2_int GetRenderTargetSize(impl::RenderTargetId render_target) const;
-	TextureFormat GetRenderTargetTextureFormat(impl::RenderTargetId render_target) const;
-	TextureParams GetRenderTargetTextureParams(impl::RenderTargetId render_target) const;
-	void SetTextureParams(impl::TextureId texture, TextureParams params);
-	void ResizeRenderTarget(impl::RenderTargetId render_target, V2_int new_size);
-	void ClearRenderTarget(
-		impl::RenderTargetId render_target, Color color, bool set_viewport, bool restore_bind
+	V2_int GetSize(impl::FramebufferId framebuffer) const;
+	TextureFormat GetFormat(impl::FramebufferId framebuffer) const;
+	impl::TextureFormats GetFormats(impl::FramebufferId framebuffer) const;
+	TextureParams GetParams(impl::FramebufferId framebuffer) const;
+	TextureDesc GetDesc(impl::FramebufferId framebuffer) const;
+	void SetParams(impl::FramebufferId framebuffer, TextureParams params);
+	void SetParams(impl::TextureId texture, TextureParams params);
+	void Resize(impl::FramebufferId framebuffer, V2_int new_size);
+	void Clear(impl::FramebufferId framebuffer, Color clear_color, bool restore_bind) const;
+	void Clear(impl::FramebufferId framebuffer, Depth clear_depth, bool restore_bind) const;
+	void Clear(impl::FramebufferId framebuffer, Stencil clear_stencil, bool restore_bind) const;
+	void Clear(
+		impl::FramebufferId framebuffer, DepthStencil clear_depth_stencil, bool restore_bind
 	) const;
-	void BindPresentationTarget();
+	void BindPresentationFramebuffer();
 
-	impl::RenderTargetId GetPresentationTarget() const;
+	impl::FramebufferId GetPresentationFramebuffer() const;
 
-	V2_int GetTextureSize(impl::TextureId id) const;
-	TextureFormat GetTextureFormat(impl::TextureId id) const;
-	TextureParams GetTextureParams(impl::TextureId texture) const;
+	V2_int GetSize(impl::TextureId texture) const;
+	TextureFormat GetFormat(impl::TextureId texture) const;
+	TextureFormat GetFormat(impl::RenderbufferId renderbuffer) const;
+	TextureParams GetParams(impl::TextureId texture) const;
+	TextureDesc GetDesc(impl::TextureId texture) const;
 
 	/// @brief For binding textures to shader uniforms.
 	void SetBoundShaderUniform(const char* uniform_name, int value);
@@ -472,7 +500,6 @@ private:
 	void Destroy(impl::RenderbufferId id);
 	void Destroy(impl::FramebufferId id);
 	void Destroy(impl::VertexArrayId id);
-	void Destroy(impl::RenderTargetId id);
 
 	void SetCurrentPipeline(std::size_t id);
 	void SetCurrentPipeline(std::string_view name);
@@ -495,9 +522,9 @@ private:
 
 	/// @return True if the given texture is currently attached to the framebuffer that is currently
 	/// bound.
-	[[nodiscard]] bool IsTextureAttachedToCurrentFramebuffer(impl::TextureId texture) const;
+	[[nodiscard]] bool IsAttachedToCurrentFramebuffer(impl::TextureId texture) const;
 
-	void ResizePresentationTarget(V2_int size);
+	void ResizePresentationFramebuffer(V2_int size);
 
 	void OnWindowResize(V2_int size);
 
@@ -511,17 +538,23 @@ private:
 
 	[[nodiscard]] DisplayResizeInfo RecalculateDisplayViewport() const;
 
-	const impl::RenderTargetObject& GetBoundRenderTarget() const;
+	const impl::FramebufferObject& GetBoundFramebuffer() const;
+	impl::FramebufferObject& GetBoundFramebuffer();
 
 	void DrawRenderPass(const impl::DrawPassRequest& request);
 
-	void CopyRenderTargetRegion(
-		impl::RenderTargetId source, impl::RenderTargetId destination, Viewport source_region,
+	void CopyFramebufferRegion(
+		impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
 		V2_int destination_position
 	);
 
 	void CompositeRenderPassResult(
-		impl::RenderTargetId source, impl::RenderTargetId destination, Viewport destination_region
+		impl::FramebufferId source, impl::FramebufferId destination, Transform transform,
+		TextureDrawParams params, const RenderState& state
+	);
+
+	void CompositeRenderPassResult(
+		impl::FramebufferId source, impl::FramebufferId destination, Viewport destination_region
 	);
 
 	void ApplyScreenEffects(const std::function<void(DrawContext&)>& screen_effect_callback);
@@ -541,15 +574,15 @@ private:
 	std::unique_ptr<impl::gl::GLContext> gl_;
 
 	Color background_color_;
-	impl::RenderTargetObject presentation_target_;
+	impl::FramebufferObject presentation_framebuffer_;
 
 	std::vector<UniformWrite> current_uniforms_;
-	impl::RenderTargetObject* current_target_{ nullptr };
+	impl::FramebufferObject* current_framebuffer_{ nullptr };
 
 	impl::RenderBatcher batcher_;
-	impl::RenderTargetPool target_pool_;
+	impl::FramebufferPool framebuffer_pool_;
 	impl::RenderPipelineManager pipeline_manager_;
-	std::vector<impl::RenderTargetObject> temp_render_targets_;
+	std::vector<impl::FramebufferObject> temp_framebuffers_;
 
 	std::optional<V2_int> game_size_;
 	Viewport display_viewport_;
@@ -571,25 +604,27 @@ class RendererAccessor {
 public:
 	explicit RendererAccessor(Renderer& renderer);
 
-	[[nodiscard]] TextureObject CreateTexture(
-		const std::uint8_t* pixel_data, V2_int size, TextureFormat format, TextureParams params
-	);
+	[[nodiscard]] TextureObject CreateTexture(const std::uint8_t* pixel_data, TextureDesc desc);
 
 	[[nodiscard]] ShaderObject CreateShader(
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 	);
 
-	[[nodiscard]] RenderTargetObject CreateRenderTarget(const RenderTargetDesc& desc);
+	[[nodiscard]] FramebufferObject CreateFramebuffer(
+		TextureDesc desc, std::optional<TextureDesc> other_desc
+	);
 
 	TextureId GetPresentationTexture() const;
 
+	TextureId GetTexture(FramebufferId framebuffer) const;
+
 	void FlushBatch();
 
-	void SetupPresentationTarget();
+	void SetupPresentationFramebuffer();
 
 	ShaderId GetShader(std::string_view name) const;
 
-	void SetRenderTarget(RenderTargetObject* target);
+	void SetFramebuffer(FramebufferObject* framebuffer);
 
 	void SetScissor(const ScissorState& scissor);
 
@@ -604,7 +639,7 @@ public:
 		renderer_.Draw(request);
 	}
 
-	const RenderTargetObject& GetBoundRenderTarget() const;
+	const FramebufferObject& GetBoundFramebuffer() const;
 
 private:
 	Renderer& renderer_;

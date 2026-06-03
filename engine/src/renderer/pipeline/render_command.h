@@ -8,7 +8,6 @@
 
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_primitives.h"
-#include "renderer/pipeline/vertex.h"
 #include "renderer/resources/id.h"
 
 namespace ptgn {
@@ -67,23 +66,23 @@ public:
 	void Clear();
 
 	void Add(
-		ShaderId shader, std::span<TextureQuad> primitives,
-		std::optional<BlendMode> blend_mode, float depth, TextureId texture
+		ShaderId shader, std::span<TextureQuad> primitives, std::optional<BlendMode> blend_mode,
+		float depth, TextureId texture
 	);
 
 	void Add(
-		ShaderId shader, std::span<ShapeQuad> primitives,
-		std::optional<BlendMode> blend_mode, float depth, TextureId
+		ShaderId shader, std::span<ShapeQuad> primitives, std::optional<BlendMode> blend_mode,
+		float depth, TextureId
 	);
 
 	void Add(
-		ShaderId shader, std::span<ColorQuad> primitives,
-		std::optional<BlendMode> blend_mode, float depth, TextureId
+		ShaderId shader, std::span<ColorQuad> primitives, std::optional<BlendMode> blend_mode,
+		float depth, TextureId
 	);
 
 	void Add(
-		ShaderId shader, std::span<ColorTriangle> primitives,
-		std::optional<BlendMode> blend_mode, float depth, TextureId
+		ShaderId shader, std::span<ColorTriangle> primitives, std::optional<BlendMode> blend_mode,
+		float depth, TextureId
 	);
 
 private:

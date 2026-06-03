@@ -21,9 +21,9 @@ namespace ptgn {
 
 namespace impl {
 
-#define PTGN_SET_UNIFORM                                                           \
-	PTGN_ASSERT(renderer_, "Renderer must be initialized before setting uniform"); \
-	renderer_->SetUniform(resource_, uniform_name, v);
+#define PTGN_SET_UNIFORM                                                          \
+	PTGN_ASSERT(renderer, "Renderer must be initialized before setting uniform"); \
+	renderer->SetUniform(resource, uniform_name, v);
 
 void ShaderObject::SetUniform(const char* uniform_name, const Matrix4& v) {
 	PTGN_SET_UNIFORM
