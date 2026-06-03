@@ -48,6 +48,7 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/scripting/script.h"
 
 namespace ptgn {
 
@@ -383,7 +384,8 @@ void RenderQueue::Draw(
 
 	auto viewport{ render_camera.camera.viewport };
 
-	if (!render_camera.scene_camera || render_camera.scene_camera.Has<impl::CameraResizeScript>()) {
+	if (!render_camera.scene_camera ||
+		HasScript<impl::CameraResizeScript>(render_camera.scene_camera)) {
 		// Viewport is relative to game size, so scale it to render target size.
 		V2_float scale{ V2_float{ rt_size } / game_size };
 		// Not *= because we want float multiplication followed by flooring.
