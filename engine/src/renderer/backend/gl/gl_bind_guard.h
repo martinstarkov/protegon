@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <optional>
 
 #include "core/assert.h"
@@ -14,9 +15,8 @@ public:
 	BindGuard(GLContext& gl, std::optional<T> id, bool restore_bind) :
 		gl_{ gl },
 		id_{ std::invoke([&id, restore_bind]() {
-			if (restore_bind) {
-				PTGN_ASSERT(id.has_value(), "Cannot restore bind without a previous bind");
-			}
+			// PTGN_ASSERT(!restore_bind || restore_bind && id.has_value(), "Cannot restore bind
+			// without a previous bind");
 			if (!id.has_value()) {
 				return T{ 0 };
 			}
