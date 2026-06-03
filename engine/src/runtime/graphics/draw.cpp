@@ -6,6 +6,7 @@
 
 #include "core/math/geometry/origin.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/render_state.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 
@@ -74,11 +75,6 @@ void SetBlendMode(Entity entity, BlendMode blend_mode) {
 
 BlendMode GetBlendMode(Entity entity) {
 	return entity.GetOrDefault<BlendMode>(BlendMode::Blend);
-}
-
-Depth Depth::RelativeTo(Depth parent) const {
-	parent.value += value;
-	return parent;
 }
 
 } // namespace ptgn
