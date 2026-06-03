@@ -60,10 +60,6 @@
     "vertex": "passthrough",
     "fragment": "sharpen"
   },
-  "light_masked": {
-    "vertex": "texture",
-    "fragment": "light_masked"
-  },
   "light": {
     "vertex": "texture",
     "fragment": "light"
