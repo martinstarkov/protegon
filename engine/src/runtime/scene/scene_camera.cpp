@@ -373,8 +373,8 @@ void SceneCamera::SetClearColor(std::optional<Color> clear_color) {
 }
 
 std::optional<Color> SceneCamera::GetClearColor() const {
-	if (auto color{ TryGet<impl::ClearColor>() }) {
-		return *color;
+	if (auto clear{ TryGet<impl::ClearColor>() }) {
+		return clear->color;
 	} else {
 		return {};
 	}

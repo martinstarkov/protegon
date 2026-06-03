@@ -22,6 +22,7 @@
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
+#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
@@ -233,7 +234,7 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 
 	renderer.FlushBatch();
 
-	renderer.SetupPresentationTarget();
+	renderer.SetupPresentationFramebuffer();
 
 	DrawSceneTarget(draw_context);
 
@@ -244,7 +245,7 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 }
 
 void Scene::DrawSceneTarget(DrawContext& draw_context) const {
-	auto texture{ render_target_.GetTextureId() };
+	auto texture{ render_target_.GetTexture() };
 	auto draw_transform{ GetDrawTransform(render_target_) };
 	auto blend_mode{ GetBlendMode(render_target_) };
 
@@ -344,7 +345,7 @@ void Scene::SetBackgroundColor(Color background_color) {
 }
 
 Color Scene::GetBackgroundColor() const {
-	return render_target_.GetClearColor();
+	return render_target_.GetClearColor().value_or(impl::ClearColor{}.color);
 }
 
 std::size_t Scene::GetTagHash() const {
