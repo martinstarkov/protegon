@@ -19,7 +19,6 @@
 #include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
@@ -53,75 +52,6 @@
 #include "renderer/resources/texture_format.h"
 
 namespace ptgn {
-
-namespace {
-
-enum class DepthStencilAttachment {
-	None,
-	Depth,
-	Stencil,
-	DepthStencil,
-};
-
-DepthStencilAttachment GetDepthStencilAttachment(TextureFormat format) {
-	if (IsDepthOnlyFormat(format)) {
-		return DepthStencilAttachment::Depth;
-	}
-	if (IsStencilOnlyFormat(format)) {
-		return DepthStencilAttachment::Stencil;
-	}
-	return DepthStencilAttachment::DepthStencil;
-}
-
-impl::FramebufferId CreateColorFramebuffer(impl::gl::GLContext& gl, impl::TextureId texture) {
-	return gl.framebuffers.Create<impl::gl::Attachment::Color0>(texture, true);
-}
-
-impl::FramebufferId CreateDepthStencilFramebuffer(
-	impl::gl::GLContext& gl, impl::RenderbufferId renderbuffer, DepthStencilAttachment attachment
-) {
-	switch (attachment) {
-		case DepthStencilAttachment::Depth:
-			return gl.framebuffers.Create<impl::gl::Attachment::Depth>(renderbuffer, true);
-
-		case DepthStencilAttachment::Stencil:
-			return gl.framebuffers.Create<impl::gl::Attachment::Stencil>(renderbuffer, true);
-
-		case DepthStencilAttachment::DepthStencil:
-			return gl.framebuffers.Create<impl::gl::Attachment::DepthStencil>(renderbuffer, true);
-
-		case DepthStencilAttachment::None: [[fallthrough]];
-		default:						   PTGN_ERROR("Invalid framebuffer depth/stencil attachment");
-	}
-}
-
-impl::FramebufferId CreateColorDepthStencilFramebuffer(
-	impl::gl::GLContext& gl, impl::TextureId texture, impl::RenderbufferId renderbuffer,
-	DepthStencilAttachment attachment
-) {
-	switch (attachment) {
-		case DepthStencilAttachment::Depth:
-			return gl.framebuffers
-				.Create<impl::gl::Attachment::Color0, impl::gl::Attachment::Depth>(
-					texture, renderbuffer, true
-				);
-		case DepthStencilAttachment::Stencil:
-			return gl.framebuffers
-				.Create<impl::gl::Attachment::Color0, impl::gl::Attachment::Stencil>(
-					texture, renderbuffer, true
-				);
-		case DepthStencilAttachment::DepthStencil:
-			return gl.framebuffers
-				.Create<impl::gl::Attachment::Color0, impl::gl::Attachment::DepthStencil>(
-					texture, renderbuffer, true
-				);
-
-		case DepthStencilAttachment::None: [[fallthrough]];
-		default:						   PTGN_ERROR("Invalid framebuffer depth/stencil attachment");
-	}
-}
-
-} // namespace
 
 Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	window_{ window },
@@ -207,34 +137,38 @@ impl::FramebufferObject Renderer::CreateFramebuffer(
 
 	PTGN_ASSERT(desc.size.IsPositive(), "Cannot create framebuffer with zero size");
 
-	std::optional<impl::TextureId> texture;
-	std::optional<impl::RenderbufferId> renderbuffer;
-	auto attachment{ DepthStencilAttachment::None };
-
-	if (IsColorFormat(desc.format)) {
-		texture = gl_->textures.Create(desc);
-
-		if (other_desc.has_value()) {
-			PTGN_ASSERT(
-				other_desc->size == desc.size, "Framebuffer attachments must have matching sizes"
-			);
-			attachment	 = GetDepthStencilAttachment(other_desc->format);
-			renderbuffer = gl_->renderbuffers.Create(other_desc->size, other_desc->format);
-		}
-	} else {
-		PTGN_ASSERT(!other_desc.has_value(), "Cannot specify other_desc for non-color format");
-		attachment	 = GetDepthStencilAttachment(desc.format);
-		renderbuffer = gl_->renderbuffers.Create(desc.size, desc.format);
+	if (other_desc.has_value()) {
+		PTGN_ASSERT(IsColorFormat(desc.format), "Cannot specify other_desc for non-color format");
+		PTGN_ASSERT(
+			other_desc->size == desc.size, "Framebuffer attachments must have matching sizes"
+		);
+		PTGN_ASSERT(
+			!IsColorFormat(other_desc->format),
+			"Other framebuffer attachment must be depth, stencil, or depth-stencil"
+		);
 	}
 
-	impl::FramebufferId framebuffer{ 0 };
+	impl::FramebufferId framebuffer{};
 
-	if (texture.has_value() && renderbuffer.has_value()) {
-		framebuffer = CreateColorDepthStencilFramebuffer(*gl_, *texture, *renderbuffer, attachment);
-	} else if (texture.has_value()) {
-		framebuffer = CreateColorFramebuffer(*gl_, *texture);
-	} else if (renderbuffer.has_value()) {
-		framebuffer = CreateDepthStencilFramebuffer(*gl_, *renderbuffer, attachment);
+	if (IsColorFormat(desc.format)) {
+		auto texture{ gl_->textures.Create(desc) };
+
+		std::optional<impl::RenderbufferId> renderbuffer;
+		auto attachment{ impl::gl::Attachment::DepthStencil };
+
+		if (other_desc.has_value()) {
+			attachment	 = impl::gl::GetDepthStencilAttachment(other_desc->format);
+			renderbuffer = gl_->renderbuffers.Create(other_desc->size, other_desc->format);
+		}
+
+		framebuffer = gl_->framebuffers.Create(texture, renderbuffer, attachment, true);
+	} else {
+		PTGN_ASSERT(!other_desc.has_value(), "Cannot specify other_desc for non-color format");
+
+		auto attachment{ impl::gl::GetDepthStencilAttachment(desc.format) };
+		auto renderbuffer{ gl_->renderbuffers.Create(desc.size, desc.format) };
+
+		framebuffer = gl_->framebuffers.Create(renderbuffer, attachment, true);
 	}
 
 	PTGN_ASSERT(framebuffer, "Failed to create valid framebuffer");
@@ -266,27 +200,6 @@ V2_int Renderer::GetSize(impl::FramebufferId framebuffer) const {
 TextureFormat Renderer::GetFormat(impl::FramebufferId framebuffer) const {
 	auto texture{ GetTexture(framebuffer) };
 	return GetFormat(texture);
-}
-
-impl::TextureFormats Renderer::GetFormats(impl::FramebufferId framebuffer) const {
-	impl::TextureFormats formats;
-	if (gl_->framebuffers.HasAttachment<impl::gl::Attachment::Color0>(framebuffer)) {
-		auto texture{ GetTexture(framebuffer) };
-		formats.color0 = GetFormat(texture);
-	}
-	if (gl_->framebuffers.HasAttachment<impl::gl::Attachment::Depth>(framebuffer)) {
-		auto depth{ GetDepthRenderbuffer(framebuffer) };
-		formats.depth = GetFormat(depth);
-	}
-	if (gl_->framebuffers.HasAttachment<impl::gl::Attachment::Stencil>(framebuffer)) {
-		auto stencil{ GetStencilRenderbuffer(framebuffer) };
-		formats.stencil = GetFormat(stencil);
-	}
-	if (gl_->framebuffers.HasAttachment<impl::gl::Attachment::DepthStencil>(framebuffer)) {
-		auto depth_stencil{ GetDepthStencilRenderbuffer(framebuffer) };
-		formats.depth_stencil = GetFormat(depth_stencil);
-	}
-	return formats;
 }
 
 TextureParams Renderer::GetParams(impl::FramebufferId framebuffer) const {
@@ -362,8 +275,8 @@ void Renderer::SetShader(impl::ShaderId shader) {
 	auto _ = gl_->Bind(shader, false);
 }
 
-std::optional<BlendMode> Renderer::GetBlendMode() const {
-	return gl_->GetBoundState().render_state.blend_mode;
+BlendMode Renderer::GetBlendMode() const {
+	return gl_->GetBoundState().render_state.blend_mode.value();
 }
 
 void Renderer::SetBlendMode(BlendMode blend_mode, bool force) {
@@ -422,8 +335,8 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	// uniform is updated even if the shader itself doesn't change.
 	const auto& bound{ gl_->GetBoundState().render_state };
 	PTGN_ASSERT(bound.view_projection.has_value());
-	if (auto shader{ GetBoundShader() }; shader.has_value() && *shader) {
-		gl_->shaders.SetUniform(*shader, "u_ViewProjection", *bound.view_projection);
+	if (auto shader{ GetBoundShader() }) {
+		gl_->shaders.SetUniform(shader, "u_ViewProjection", *bound.view_projection);
 	}
 }
 
@@ -482,11 +395,11 @@ impl::ShaderId Renderer::GetShader(std::string_view name) const {
 bool Renderer::IsAttachedToCurrentFramebuffer(impl::TextureId texture) const {
 	auto bound{ gl_->GetBoundFramebuffer() };
 
-	if (!bound.has_value() || *bound == impl::FramebufferId{ 0 }) {
+	if (!bound) {
 		return false;
 	}
 
-	return gl_->framebuffers.GetAttachment(*bound) == texture;
+	return gl_->framebuffers.GetAttachment(bound) == texture;
 }
 
 void Renderer::OnWindowResize(V2_int size) {
@@ -741,12 +654,12 @@ impl::FramebufferId Renderer::GetPresentationFramebuffer() const {
 	return presentation_framebuffer_.operator impl::FramebufferId();
 }
 
-void Renderer::InvalidateState() {
-	gl_->InvalidateState();
+void Renderer::ResetState() {
+	gl_->ResetState();
 }
 
 void Renderer::BeginFrame() {
-	InvalidateState();
+	ResetState();
 
 	if (!presentation_viewport_.has_value()) {
 		auto presentation{ GetPresentationViewport() };
@@ -795,15 +708,15 @@ void Renderer::ApplyScreenEffects(const std::function<void(DrawContext&)>& scree
 
 void Renderer::BindUniforms() {
 	auto shader{ GetBoundShader() };
-	if (!shader.has_value() || !*shader) {
+	if (!shader) {
 		return;
 	}
 	for (const auto& [name, value] : current_uniforms_) {
-		SetUniformValue(*shader, name.c_str(), value);
+		SetUniformValue(shader, name.c_str(), value);
 	}
 }
 
-std::optional<impl::ShaderId> Renderer::GetBoundShader() const {
+impl::ShaderId Renderer::GetBoundShader() const {
 	return gl_->GetBoundShader();
 }
 
@@ -901,11 +814,9 @@ impl::TextureObject Renderer::CreateTexture(const std::uint8_t* pixel_data, Text
 void Renderer::SetBoundShaderUniform(const char* uniform_name, int value) {
 	auto shader{ GetBoundShader() };
 
-	PTGN_ASSERT(
-		shader.has_value() && *shader, "Shader must be bound before calling SetBoundShaderUniform"
-	);
+	PTGN_ASSERT(shader, "Shader must be bound before calling SetBoundShaderUniform");
 
-	gl_->shaders.SetUniform(*shader, uniform_name, value);
+	gl_->shaders.SetUniform(shader, uniform_name, value);
 }
 
 void Renderer::SetUniform(impl::ShaderId shader, const char* uniform_name, const Matrix4& v) {
@@ -1010,6 +921,10 @@ TextureParams Renderer::GetParams(impl::TextureId texture) const {
 
 TextureDesc Renderer::GetDesc(impl::TextureId texture) const {
 	return gl_->textures.GetDesc(texture);
+}
+
+V2_int Renderer::GetSize(impl::RenderbufferId renderbuffer) const {
+	return gl_->renderbuffers.GetSize(renderbuffer);
 }
 
 TextureFormat Renderer::GetFormat(impl::RenderbufferId renderbuffer) const {
@@ -1125,7 +1040,6 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	SetViewport(request.viewport);
 	SetViewProjection(request.viewport.size);
 	SetBlendMode(BlendMode::ReplaceRGBA);
-	SetRenderState(request.state);
 
 	std::vector<TextureBinding> bindings;
 	std::vector<impl::TextureId> textures;
@@ -1172,11 +1086,7 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	FlushBatch();
 
 	SetCurrentPipeline(previous_pipeline);
-
-	if (previous_shader.has_value()) {
-		SetShader(*previous_shader);
-	}
-
+	SetShader(previous_shader);
 	SetRenderState(previous_state);
 }
 
@@ -1189,39 +1099,6 @@ void Renderer::CopyFramebufferRegion(
 	FlushBatch();
 
 	gl_->framebuffers.CopyRegion(source, destination, source_region, destination_position);
-}
-
-void Renderer::CompositeRenderPassResult(
-	impl::FramebufferId source, impl::FramebufferId destination, Transform transform,
-	TextureDrawParams params, const RenderState& state
-) {
-	PTGN_ASSERT(source, "Render pass source must be valid");
-	PTGN_ASSERT(destination, "Render pass destination must be valid");
-
-	auto source_texture{ GetTexture(source) };
-
-	PTGN_ASSERT(source_texture, "Render pass source must have a valid color texture");
-
-	auto previous_state{ GetRenderState() };
-	auto previous_shader{ GetBoundShader() };
-	auto previous_pipeline{ pipeline_manager_.GetCurrentPipelineId() };
-
-	auto _ = gl_->Bind(destination, false);
-
-	SetRenderState(state);
-
-	DrawContext ctx{ *this };
-	ctx.DrawTexture(transform, source_texture, std::move(params));
-
-	FlushBatch();
-
-	SetCurrentPipeline(previous_pipeline);
-
-	if (previous_shader.has_value()) {
-		SetShader(*previous_shader);
-	}
-
-	SetRenderState(previous_state);
 }
 
 void Renderer::CompositeRenderPassResult(
@@ -1289,6 +1166,69 @@ void Renderer::SetRenderState(const RenderState& state) {
 void Renderer::BindTextureSlot(std::uint32_t slot, impl::TextureId texture) {
 	gl_->SetActiveTextureSlot(slot);
 	auto _3{ gl_->Bind(texture, false) };
+}
+
+bool Renderer::FramebufferMatches(
+	impl::FramebufferId framebuffer, TextureDesc desc, std::optional<TextureDesc> other_desc
+) const {
+	using enum impl::gl::Attachment;
+	using enum impl::gl::AttachmentStorage;
+
+	if (IsColorFormat(desc.format)) {
+		if (auto expected_depth_stencil{
+				other_desc.has_value()
+					? std::optional{ impl::gl::GetDepthStencilAttachment(other_desc->format) }
+					: std::nullopt };
+			!gl_->framebuffers.HasOnlyAttachmentLayout(
+				framebuffer, Color0, expected_depth_stencil
+			)) {
+			return false;
+		}
+
+		auto color{ gl_->framebuffers.FindAttachment(framebuffer, Color0, Texture) };
+
+		PTGN_ASSERT(color.has_value());
+
+		auto color_texture{ impl::TextureId{ color->id } };
+
+		if (GetFormat(color_texture) != desc.format || GetSize(color_texture) != desc.size) {
+			return false;
+		}
+
+		if (!other_desc.has_value()) {
+			return true;
+		}
+
+		auto depth_stencil_attachment{ impl::gl::GetDepthStencilAttachment(other_desc->format) };
+		auto depth_stencil{
+			gl_->framebuffers.FindAttachment(framebuffer, depth_stencil_attachment, Renderbuffer)
+		};
+
+		PTGN_ASSERT(depth_stencil.has_value());
+
+		auto renderbuffer{ impl::RenderbufferId{ depth_stencil->id } };
+
+		return GetFormat(renderbuffer) == other_desc->format &&
+			   GetSize(renderbuffer) == other_desc->size;
+	}
+
+	auto expected_attachment{ impl::gl::GetDepthStencilAttachment(desc.format) };
+
+	if (!gl_->framebuffers.HasOnlyAttachmentLayout(
+			framebuffer, std::nullopt, expected_attachment
+		)) {
+		return false;
+	}
+
+	auto depth_stencil{
+		gl_->framebuffers.FindAttachment(framebuffer, expected_attachment, Renderbuffer)
+	};
+
+	PTGN_ASSERT(depth_stencil.has_value());
+
+	auto renderbuffer{ impl::RenderbufferId{ depth_stencil->id } };
+
+	return GetFormat(renderbuffer) == desc.format && GetSize(renderbuffer) == desc.size;
 }
 
 namespace impl {

@@ -64,20 +64,6 @@ class GLContext;
 
 } // namespace gl
 
-struct TextureFormats {
-	std::optional<TextureFormat> color0;
-	std::optional<TextureFormat> depth;
-	std::optional<TextureFormat> stencil;
-	std::optional<TextureFormat> depth_stencil;
-
-	bool HasFormat(TextureFormat format) const {
-		return (color0.has_value() && *color0 == format) ||
-			   (depth.has_value() && *depth == format) ||
-			   (stencil.has_value() && *stencil == format) ||
-			   (depth_stencil.has_value() && *depth_stencil == format);
-	}
-};
-
 template <RenderPrimitive T>
 void ApplyTransform(Transform transform, std::span<T> primitives) {
 	using TVertex = typename RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
@@ -434,7 +420,7 @@ private:
 	void SetScissor(const ScissorState& scissor);
 	void SetColorMask(const ColorMaskState& color_mask);
 
-	std::optional<BlendMode> GetBlendMode() const;
+	BlendMode GetBlendMode() const;
 
 	[[nodiscard]] impl::ShaderObject CreateShader(
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
@@ -455,7 +441,6 @@ private:
 
 	V2_int GetSize(impl::FramebufferId framebuffer) const;
 	TextureFormat GetFormat(impl::FramebufferId framebuffer) const;
-	impl::TextureFormats GetFormats(impl::FramebufferId framebuffer) const;
 	TextureParams GetParams(impl::FramebufferId framebuffer) const;
 	TextureDesc GetDesc(impl::FramebufferId framebuffer) const;
 	void SetParams(impl::FramebufferId framebuffer, TextureParams params);
@@ -473,6 +458,7 @@ private:
 
 	V2_int GetSize(impl::TextureId texture) const;
 	TextureFormat GetFormat(impl::TextureId texture) const;
+	V2_int GetSize(impl::RenderbufferId renderbuffer) const;
 	TextureFormat GetFormat(impl::RenderbufferId renderbuffer) const;
 	TextureParams GetParams(impl::TextureId texture) const;
 	TextureDesc GetDesc(impl::TextureId texture) const;
@@ -528,7 +514,7 @@ private:
 
 	void OnWindowResize(V2_int size);
 
-	void InvalidateState();
+	void ResetState();
 
 	// emit_events = false is used to prevent emitting events when initializing the window and
 	// scene.
@@ -549,11 +535,6 @@ private:
 	);
 
 	void CompositeRenderPassResult(
-		impl::FramebufferId source, impl::FramebufferId destination, Transform transform,
-		TextureDrawParams params, const RenderState& state
-	);
-
-	void CompositeRenderPassResult(
 		impl::FramebufferId source, impl::FramebufferId destination, Viewport destination_region
 	);
 
@@ -561,9 +542,13 @@ private:
 
 	void BindUniforms();
 
-	std::optional<impl::ShaderId> GetBoundShader() const;
+	impl::ShaderId GetBoundShader() const;
 
 	void ExecuteEffectCallbacks(const std::function<void(DrawContext&)>& effect_callback);
+
+	bool FramebufferMatches(
+		impl::FramebufferId framebuffer, TextureDesc desc, std::optional<TextureDesc> other_desc
+	) const;
 
 	Window& window_;
 
