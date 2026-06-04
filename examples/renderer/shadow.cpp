@@ -1,16 +1,14 @@
 
+#include <vector>
+
 #include "app/application.h"
 #include "core/graphics/color.h"
 #include "core/input/mouse.h"
-#include "core/log.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
-#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/fx/light.h"
-#include "runtime/graphics/shape.h"
-#include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"

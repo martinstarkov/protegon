@@ -219,6 +219,13 @@ struct RenderState {
 
 	bool operator==(const RenderState&) const = default;
 
+	bool HasUnknowns() const {
+		return !viewport.has_value() || !view_projection.has_value() || !blending.has_value() ||
+			   !blend_mode.has_value() || !depth_testing.has_value() || !depth_mask.has_value() ||
+			   !color_mask.has_value() || !stencil.has_value() || !scissor.has_value() ||
+			   !raster.has_value();
+	}
+
 	[[nodiscard]] static RenderState StartingDefaults() {
 		return {
 			.viewport		 = Viewport{ { 0, 0 }, { 0, 0 } },

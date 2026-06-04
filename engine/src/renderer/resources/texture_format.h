@@ -103,7 +103,7 @@ struct TextureParams {
 	constexpr bool operator==(const TextureParams&) const = default;
 };
 
-inline int GetChannelCount(TextureFormat format) {
+constexpr int GetChannelCount(TextureFormat format) {
 	switch (format) {
 		using enum TextureFormat;
 		case R8:				[[fallthrough]];
@@ -130,7 +130,7 @@ inline int GetChannelCount(TextureFormat format) {
 	}
 }
 
-inline bool IsDepthOnlyFormat(TextureFormat fmt) {
+constexpr bool IsDepthOnlyFormat(TextureFormat fmt) {
 	switch (fmt) {
 		using enum TextureFormat;
 		case Depth16:  [[fallthrough]];
@@ -140,11 +140,11 @@ inline bool IsDepthOnlyFormat(TextureFormat fmt) {
 	}
 }
 
-inline bool IsStencilOnlyFormat(TextureFormat fmt) {
+constexpr bool IsStencilOnlyFormat(TextureFormat fmt) {
 	return fmt == TextureFormat::Stencil8;
 }
 
-inline bool IsDepthFormat(TextureFormat fmt) {
+constexpr bool IsDepthFormat(TextureFormat fmt) {
 	switch (fmt) {
 		using enum TextureFormat;
 		case Depth16:			[[fallthrough]];
@@ -156,7 +156,7 @@ inline bool IsDepthFormat(TextureFormat fmt) {
 	}
 }
 
-inline bool IsDepthStencilOnlyFormat(TextureFormat fmt) {
+constexpr bool IsDepthStencilOnlyFormat(TextureFormat fmt) {
 	switch (fmt) {
 		using enum TextureFormat;
 		case Depth24_Stencil8:	[[fallthrough]];
@@ -165,7 +165,7 @@ inline bool IsDepthStencilOnlyFormat(TextureFormat fmt) {
 	}
 }
 
-inline bool IsStencilFormat(TextureFormat fmt) {
+constexpr bool IsStencilFormat(TextureFormat fmt) {
 	switch (fmt) {
 		using enum TextureFormat;
 		case Stencil8:			[[fallthrough]];
@@ -175,11 +175,11 @@ inline bool IsStencilFormat(TextureFormat fmt) {
 	}
 }
 
-inline bool IsColorFormat(TextureFormat fmt) {
+constexpr bool IsColorFormat(TextureFormat fmt) {
 	return !IsDepthFormat(fmt) && fmt != TextureFormat::Stencil8;
 }
 
-inline bool IsHDRFormat(TextureFormat fmt) {
+constexpr bool IsHDRFormat(TextureFormat fmt) {
 	switch (fmt) {
 		using enum TextureFormat;
 		case RGBA16F: [[fallthrough]];
