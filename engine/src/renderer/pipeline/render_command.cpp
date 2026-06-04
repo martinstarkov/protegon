@@ -123,7 +123,8 @@ void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
 
 		using TPrimitive = std::remove_reference_t<decltype(primitives[0])>;
 
-		// Transform accounted for when forming primitives.
+		renderer.SetShader(command.shader);
+
 		// Effects are currently not supported for queued render commands.
 		renderer.Draw(
 			impl::DrawRequest<TPrimitive>{ .texture = command.texture, .primitives = primitives }
