@@ -79,16 +79,6 @@ struct State {
 	std::optional<Color> clear_color;
 
 	bool operator==(const State&) const = default;
-
-	void Invalidate() {
-		std::size_t max_texture_slots{ texture_units.size() };
-
-		auto view_projection{ render_state.view_projection };
-		*this						 = {};
-		render_state.view_projection = std::move(view_projection);
-
-		texture_units.resize(max_texture_slots, TextureUnitState{ true });
-	}
 };
 
 } // namespace ptgn::impl::gl

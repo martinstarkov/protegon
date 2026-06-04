@@ -27,6 +27,7 @@
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/texture.h"
 
 namespace ptgn::impl::gl {
 
@@ -197,6 +198,43 @@ FramebufferId Framebuffers::CreateImpl(
 	return framebuffer;
 }
 
+FramebufferId Framebuffers::Create(
+	TextureId texture, std::optional<RenderbufferId> renderbuffer,
+	Attachment renderbuffer_attachment, bool restore_bind
+) {
+	PTGN_ASSERT(texture, "Color texture attachment must be valid");
+
+	if (!renderbuffer.has_value()) {
+		return CreateImpl(
+			std::optional<TextureId>{ texture }, Attachment::Color0, std::nullopt,
+			Attachment::DepthStencil, restore_bind
+		);
+	}
+
+	PTGN_ASSERT(*renderbuffer, "Renderbuffer attachment must be valid");
+	PTGN_ASSERT(
+		!IsColorAttachment(renderbuffer_attachment),
+		"Renderbuffer attachment must not be a color attachment"
+	);
+
+	return CreateImpl(
+		std::optional<TextureId>{ texture }, Attachment::Color0,
+		std::optional<RenderbufferId>{ *renderbuffer }, renderbuffer_attachment, restore_bind
+	);
+}
+
+FramebufferId Framebuffers::Create(
+	RenderbufferId renderbuffer, Attachment attachment, bool restore_bind
+) {
+	PTGN_ASSERT(renderbuffer, "Renderbuffer attachment must be valid");
+	PTGN_ASSERT(!IsColorAttachment(attachment), "Renderbuffer attachment must not be color");
+
+	return CreateImpl(
+		std::nullopt, Attachment::Color0, std::optional<RenderbufferId>{ renderbuffer }, attachment,
+		restore_bind
+	);
+}
+
 void Framebuffers::AttachTextureImpl(
 	FramebufferId framebuffer, TextureId texture, Attachment attachment
 ) {
@@ -264,6 +302,58 @@ void Framebuffers::AttachRenderbufferImpl(
 		framebuffer, attachment, renderbuffer.value,
 		renderbuffer ? AttachmentStorage::Renderbuffer : AttachmentStorage::None
 	);
+}
+
+std::optional<FramebufferAttachment> Framebuffers::FindAttachment(
+	FramebufferId framebuffer, Attachment attachment, AttachmentStorage storage
+) const {
+	auto info{ GetAttachmentInfoImpl(framebuffer, attachment) };
+
+	if (info.id == 0 || info.storage != storage) {
+		return std::nullopt;
+	}
+
+	return info;
+}
+
+bool Framebuffers::HasAttachment(
+	FramebufferId framebuffer, Attachment attachment, AttachmentStorage storage
+) const {
+	return FindAttachment(framebuffer, attachment, storage).has_value();
+}
+
+bool Framebuffers::HasOnlyAttachmentLayout(
+	FramebufferId framebuffer, std::optional<Attachment> color,
+	std::optional<Attachment> depth_stencil
+) const {
+	for (auto i{ 0uz }; i < kMaxColorAttachments; ++i) {
+		auto attachment{ ColorAttachment(i) };
+		auto has_attachment{ HasAttachment(framebuffer, attachment, AttachmentStorage::Texture) };
+		auto should_have_attachment{ color.has_value() && *color == attachment };
+
+		if (has_attachment != should_have_attachment) {
+			return false;
+		}
+	}
+
+	const auto depth_attachments{ std::array{
+		Attachment::Depth,
+		Attachment::Stencil,
+		Attachment::DepthStencil,
+	} };
+
+	for (auto attachment : depth_attachments) {
+		auto has_attachment{
+			HasAttachment(framebuffer, attachment, AttachmentStorage::Renderbuffer)
+		};
+		auto should_have_attachment{ depth_stencil.has_value() && *depth_stencil == attachment };
+
+		if (has_attachment != should_have_attachment) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 void Framebuffers::Clear(ClearBufferBit buffers) const {
@@ -588,12 +678,7 @@ void Framebuffers::CopyRegionImpl(
 	RestoreReadBuffer(previous_read_buffer);
 	RestoreDrawBuffer(previous_draw_buffer);
 
-	if (previous_framebuffer.has_value()) {
-		// Guarantee that a new framebuffer is bound after, since gl_.Bind will not recognize
-		// GL_READ_FRAMEBUFFER or GL_DRAW_FRAMEBUFFER changes.
-		gl_.bound_.framebuffer = std::nullopt;
-		auto _				   = gl_.Bind(*previous_framebuffer, false);
-	}
+	auto _ = gl_.Bind(previous_framebuffer, false);
 }
 
 void Framebuffers::Resize(FramebufferId framebuffer, V2_int new_size) {

@@ -19,6 +19,7 @@
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/texture_format.h"
 
 namespace ptgn::impl::gl {
 
@@ -40,6 +41,23 @@ enum class Attachment : std::uint32_t {
 	Stencil,
 	DepthStencil
 };
+
+constexpr Attachment GetDepthStencilAttachment(TextureFormat format) {
+	using enum Attachment;
+
+	if (IsDepthOnlyFormat(format)) {
+		return Depth;
+	}
+	if (IsStencilOnlyFormat(format)) {
+		return Stencil;
+	}
+
+	PTGN_ASSERT(
+		IsDepthStencilOnlyFormat(format), "Expected depth, stencil, or depth-stencil format"
+	);
+
+	return DepthStencil;
+}
 
 constexpr bool IsColorAttachment(Attachment attachment) noexcept {
 	return attachment >= Attachment::Color0 && attachment <= Attachment::Color7;
@@ -143,6 +161,15 @@ public:
 		);
 	}
 
+	[[nodiscard]] FramebufferId Create(
+		TextureId texture, std::optional<RenderbufferId> renderbuffer,
+		Attachment renderbuffer_attachment, bool restore_bind
+	);
+
+	[[nodiscard]] FramebufferId Create(
+		RenderbufferId renderbuffer, Attachment attachment, bool restore_bind
+	);
+
 	/// @brief Destroys the framebuffer and any color, depth, or stencil attachments that are
 	/// attached to it.
 	void Destroy(FramebufferId id);
@@ -182,6 +209,19 @@ public:
 		);
 		Attach<A>(framebuffer, renderbuffer);
 	}
+
+	[[nodiscard]] std::optional<FramebufferAttachment> FindAttachment(
+		FramebufferId framebuffer, Attachment attachment, AttachmentStorage storage
+	) const;
+
+	[[nodiscard]] bool HasAttachment(
+		FramebufferId framebuffer, Attachment attachment, AttachmentStorage storage
+	) const;
+
+	[[nodiscard]] bool HasOnlyAttachmentLayout(
+		FramebufferId framebuffer, std::optional<Attachment> color,
+		std::optional<Attachment> depth_stencil
+	) const;
 
 	/// Clear currently bound framebuffer buffers to their current OpenGL clear values.
 	void Clear(

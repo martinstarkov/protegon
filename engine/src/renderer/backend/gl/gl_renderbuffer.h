@@ -25,6 +25,7 @@ public:
 
 	const RenderbufferCache& GetCache(RenderbufferId renderbuffer) const;
 
+	V2_int GetSize(RenderbufferId renderbuffer) const;
 	TextureFormat GetFormat(RenderbufferId renderbuffer) const;
 
 private:

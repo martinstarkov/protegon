@@ -48,6 +48,10 @@ const RenderbufferCache& Renderbuffers::GetCache(RenderbufferId renderbuffer) co
 	return cache_.Get(renderbuffer);
 }
 
+V2_int Renderbuffers::GetSize(RenderbufferId renderbuffer) const {
+	return GetCache(renderbuffer).size;
+}
+
 TextureFormat Renderbuffers::GetFormat(RenderbufferId renderbuffer) const {
 	return GetCache(renderbuffer).format;
 }

@@ -50,7 +50,7 @@ public:
 private:
 	friend class GLContext;
 
-	explicit VertexArrays(GLContext& gl);
+	explicit VertexArrays(GLContext& gl, std::size_t max_vertex_attribs);
 	~VertexArrays() noexcept						 = default;
 	VertexArrays(const VertexArrays&)				 = delete;
 	VertexArrays(VertexArrays&&) noexcept			 = delete;
@@ -63,11 +63,11 @@ private:
 		std::uint32_t index, const BufferElement& element, std::int32_t stride
 	);
 
-	int GetMaxVertexAttribs() const;
-
 	void InvalidateElementBuffer(ElementBufferId element_buffer);
 
 	GLContext& gl_;
+
+	std::size_t max_vertex_attribs_{ 0 };
 
 	IdMap<VertexArrayCache> cache_;
 };

@@ -44,16 +44,16 @@ public:
 
 	const State& GetBoundState() const;
 	State& GetBoundState();
-	std::optional<VertexBufferId> GetBoundVertexBuffer() const;
+	VertexBufferId GetBoundVertexBuffer() const;
 	/// @brief One important assumption in this being correct is that a protegon VertexArray's
 	/// element buffer is never modified by an external library / application.
-	std::optional<ElementBufferId> GetBoundElementBuffer() const;
-	std::optional<UniformBufferId> GetBoundUniformBuffer() const;
-	std::optional<ShaderId> GetBoundShader() const;
-	std::optional<TextureId> GetBoundTexture() const;
-	std::optional<RenderbufferId> GetBoundRenderbuffer() const;
-	std::optional<FramebufferId> GetBoundFramebuffer() const;
-	std::optional<VertexArrayId> GetBoundVertexArray() const;
+	ElementBufferId GetBoundElementBuffer() const;
+	UniformBufferId GetBoundUniformBuffer() const;
+	ShaderId GetBoundShader() const;
+	TextureId GetBoundTexture() const;
+	RenderbufferId GetBoundRenderbuffer() const;
+	FramebufferId GetBoundFramebuffer() const;
+	VertexArrayId GetBoundVertexArray() const;
 
 	[[nodiscard]] bool IsBound(VertexBufferId id) const;
 	[[nodiscard]] bool IsBound(ElementBufferId id) const;
@@ -113,10 +113,9 @@ public:
 	[[nodiscard]] bool ViewportCoversFramebuffer(FramebufferId framebuffer) const;
 	[[nodiscard]] bool ScissorCoversFramebuffer(FramebufferId framebuffer) const;
 
-	int GetInteger(std::uint32_t pname) const;
 	std::uint32_t GetActiveTextureSlot() const;
 
-	void InvalidateState();
+	void ResetState();
 
 	Stats& stats;
 

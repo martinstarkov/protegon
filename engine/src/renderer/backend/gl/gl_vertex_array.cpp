@@ -15,7 +15,8 @@
 
 namespace ptgn::impl::gl {
 
-VertexArrays::VertexArrays(GLContext& gl) : gl_{ gl } {}
+VertexArrays::VertexArrays(GLContext& gl, std::size_t max_vertex_attribs) :
+	gl_{ gl }, max_vertex_attribs_{ max_vertex_attribs } {}
 
 void VertexArrays::SetVertexBuffer(VertexArrayId vertex_array, VertexBufferId vertex_buffer) {
 	PTGN_ASSERT(
@@ -82,10 +83,6 @@ VertexArrayId VertexArrays::CreateImpl() {
 	return id;
 }
 
-int VertexArrays::GetMaxVertexAttribs() const {
-	return gl_.GetInteger(GL_MAX_VERTEX_ATTRIBS);
-}
-
 void VertexArrays::InvalidateElementBuffer(ElementBufferId element_buffer) {
 	for (auto item : cache_.Items()) {
 		VertexArrayId vao{ static_cast<std::uint32_t>(item.id) };
@@ -124,7 +121,7 @@ void VertexArrays::SetBufferLayout(VertexArrayId vertex_array, const BufferLayou
 
 	const auto& elements{ layout.elements };
 	PTGN_ASSERT(
-		elements.size() < static_cast<std::uint32_t>(GetMaxVertexAttribs()),
+		max_vertex_attribs_ > 0 && elements.size() < max_vertex_attribs_,
 		"Vertex buffer layout cannot exceed maximum number of vertex array attributes"
 	);
 
