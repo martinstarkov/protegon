@@ -24,6 +24,8 @@
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/viewport.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
@@ -45,7 +47,9 @@ bool IsInvisibleCone(Entity entity) {
 	return light.cone_angle.has_value() && *light.cone_angle == Radians{ 0.0f };
 }
 
-void DrawStencilPolygon(DrawContext& ctx, std::span<const V2_float> vertices) {
+void DrawStencilPolygon(
+	DrawContext& ctx, Transform draw_transform, std::span<const V2_float> vertices
+) {
 	if (vertices.size() < 3) {
 		return;
 	}
@@ -53,7 +57,7 @@ void DrawStencilPolygon(DrawContext& ctx, std::span<const V2_float> vertices) {
 	Polygon polygon{ vertices };
 
 	ctx.DrawShape(
-		{}, polygon, color::White,
+		draw_transform.Inverse(), polygon, color::White,
 		ShapeDrawParams{
 			.depth		= 0.0f,
 			.fill_style = Solid{},
@@ -113,29 +117,32 @@ RenderState ReadStencilState(int value) {
 }
 
 void WriteLightVisibilityStencil(
-	DrawContext& ctx, const impl::VisibilityPolygon& visibility_polygon
+	DrawContext& ctx, Transform draw_transform, const impl::VisibilityPolygon& visibility_polygon
 ) {
-	ctx.WithRenderState(ReplaceStencilState(kLightVisibleStencilRef), [&]() {
-		DrawStencilPolygon(ctx, visibility_polygon.vertices);
+	ctx.WithRenderState(
+		ReplaceStencilState(kLightVisibleStencilRef),
+		[&ctx, &visibility_polygon, draw_transform]() {
+			DrawStencilPolygon(ctx, draw_transform, visibility_polygon.vertices);
 
-		for (const auto& interior : visibility_polygon.occluder_interiors) {
-			if (interior.masks_light_inside) {
-				continue;
+			for (const auto& interior : visibility_polygon.occluder_interiors) {
+				if (interior.masks_light_inside) {
+					continue;
+				}
+
+				DrawStencilPolygon(ctx, draw_transform, interior.vertices);
 			}
-
-			DrawStencilPolygon(ctx, interior.vertices);
 		}
-	});
+	);
 
 	// Optional, but useful if the visibility polygon includes blocker interiors.
 	// These interiors are forced back to stencil 0, so the light will not draw there.
-	ctx.WithRenderState(ReplaceStencilState(0), [&]() {
+	ctx.WithRenderState(ReplaceStencilState(0), [&ctx, &visibility_polygon, draw_transform]() {
 		for (const auto& interior : visibility_polygon.occluder_interiors) {
 			if (!interior.masks_light_inside) {
 				continue;
 			}
 
-			DrawStencilPolygon(ctx, interior.vertices);
+			DrawStencilPolygon(ctx, draw_transform, interior.vertices);
 		}
 	});
 }
@@ -155,7 +162,7 @@ void DrawLightThroughStencil(
 	params.origin  = Origin::Center;
 	params.effects = {};
 
-	ctx.WithRenderState(ReadStencilState(kLightVisibleStencilRef), [&]() {
+	ctx.WithRenderState(ReadStencilState(kLightVisibleStencilRef), [&ctx, &material, &params]() {
 		ctx.DrawShader({}, material, std::move(params));
 	});
 }
@@ -164,7 +171,7 @@ void DrawShadowedLight(
 	DrawContext& ctx, Entity entity, Transform draw_transform, V2_float size, BlendMode blend_mode,
 	const impl::VisibilityPolygon& visibility_polygon, std::vector<UniformWrite> uniforms
 ) {
-	auto target_size{ V2_int{ size } };
+	V2_int target_size{ size };
 
 	PTGN_ASSERT(target_size.IsPositive(), "Light shadow target size must be positive");
 
@@ -177,22 +184,34 @@ void DrawShadowedLight(
 
 	auto composite_params{ impl::GetTextureDrawParams(entity, size, false, color::White) };
 
-	ctx.Pass([&](RenderPassBuilder& pass) -> RenderPassHandle {
-		pass.SetCompositeDraw(
-			draw_transform, std::move(composite_params),
-			RenderState{
-				.blend_mode = blend_mode,
-			}
-		);
+	Viewport viewport{
+		.position{},
+		.size{ target_size },
+	};
 
-		return pass.CreateTarget(light_desc, shadow_desc)
-			.ClearColor(color::Transparent)
-			.ClearStencil(0)
-			.Draw([&visibility_polygon, entity, size, &uniforms](DrawContext& pass_ctx) {
-				WriteLightVisibilityStencil(pass_ctx, visibility_polygon);
-				DrawLightThroughStencil(pass_ctx, entity, size, std::move(uniforms));
+	ctx.WithTemporaryFramebuffer(
+		light_desc, shadow_desc,
+		[&ctx, viewport, &visibility_polygon, entity, size, &uniforms, blend_mode,
+		 draw_transform](impl::FramebufferObject& framebuffer) {
+			framebuffer.Clear(color::Transparent, true);
+			framebuffer.Clear(Stencil{ 0 }, true);
+
+			ctx.WithRenderTarget(
+				&framebuffer, viewport,
+				[&ctx, &visibility_polygon, entity, size, &uniforms, draw_transform]() {
+					WriteLightVisibilityStencil(ctx, draw_transform, visibility_polygon);
+					DrawLightThroughStencil(ctx, entity, size, std::move(uniforms));
+				}
+			);
+
+			auto texture{ framebuffer.GetTexture() };
+			auto composite_params{ impl::GetTextureDrawParams(entity, size, true, color::White) };
+
+			ctx.WithBlendMode(blend_mode, [&ctx, draw_transform, texture, &composite_params]() {
+				ctx.DrawTexture(draw_transform, texture, std::move(composite_params));
 			});
-	});
+		}
+	);
 }
 
 void DrawUnmaskedLight(
@@ -206,7 +225,7 @@ void DrawUnmaskedLight(
 
 	auto params{ impl::GetTextureDrawParams(entity, size, false, color::White) };
 
-	ctx.WithBlendMode(blend_mode, [&]() {
+	ctx.WithBlendMode(blend_mode, [&ctx, draw_transform, &material, &params]() {
 		ctx.DrawShader(draw_transform, material, std::move(params));
 	});
 }
