@@ -472,9 +472,8 @@ void RenderQueue::Draw(
 		PTGN_ASSERT(viewport == ctx.GetRenderState().viewport);
 		PTGN_ASSERT(render_camera.camera.view_projection == ctx.GetRenderState().view_projection);
 		PTGN_ASSERT(
-			ctx.GetRenderState().scissor.has_value() &&
-			viewport == ctx.GetRenderState().scissor->viewport &&
-			ctx.GetRenderState().scissor->enabled
+			viewport == ctx.GetRenderState().scissor.viewport &&
+			ctx.GetRenderState().scissor.enabled
 		);
 
 		renderer.FlushBatch();

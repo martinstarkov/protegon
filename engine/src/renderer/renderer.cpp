@@ -276,7 +276,7 @@ void Renderer::SetShader(impl::ShaderId shader) {
 }
 
 BlendMode Renderer::GetBlendMode() const {
-	return gl_->GetBoundState().render_state.blend_mode.value();
+	return gl_->GetBoundState().render_state.blend_mode;
 }
 
 void Renderer::SetBlendMode(BlendMode blend_mode, bool force) {
@@ -1131,35 +1131,50 @@ void Renderer::CompositeRenderPassResult(
 }
 
 void Renderer::SetRenderState(const RenderState& state) {
-	if (state.viewport.has_value()) {
-		SetViewport(*state.viewport);
-	}
+	SetViewport(state.viewport);
 	if (state.view_projection.has_value()) {
 		SetViewProjection(*state.view_projection);
 	}
-	if (state.blending.has_value()) {
-		SetBlending(*state.blending);
+	SetBlending(state.blending);
+	SetBlendMode(state.blend_mode);
+	SetDepthTesting(state.depth_testing);
+	SetDepthMask(state.depth_mask);
+	SetStencil(state.stencil);
+	SetRaster(state.raster);
+	SetScissor(state.scissor);
+	SetColorMask(state.color_mask);
+}
+
+void Renderer::SetRenderStateDelta(const RenderStateDelta& delta) {
+	if (delta.viewport.has_value()) {
+		SetViewport(*delta.viewport);
 	}
-	if (state.blend_mode.has_value()) {
-		SetBlendMode(*state.blend_mode);
+	if (delta.view_projection.has_value()) {
+		SetViewProjection(*delta.view_projection);
 	}
-	if (state.depth_testing.has_value()) {
-		SetDepthTesting(*state.depth_testing);
+	if (delta.blending.has_value()) {
+		SetBlending(*delta.blending);
 	}
-	if (state.depth_mask.has_value()) {
-		SetDepthMask(*state.depth_mask);
+	if (delta.blend_mode.has_value()) {
+		SetBlendMode(*delta.blend_mode);
 	}
-	if (state.stencil.has_value()) {
-		SetStencil(*state.stencil);
+	if (delta.depth_testing.has_value()) {
+		SetDepthTesting(*delta.depth_testing);
 	}
-	if (state.raster.has_value()) {
-		SetRaster(*state.raster);
+	if (delta.depth_mask.has_value()) {
+		SetDepthMask(*delta.depth_mask);
 	}
-	if (state.scissor.has_value()) {
-		SetScissor(*state.scissor);
+	if (delta.stencil.has_value()) {
+		SetStencil(*delta.stencil);
 	}
-	if (state.color_mask.has_value()) {
-		SetColorMask(*state.color_mask);
+	if (delta.raster.has_value()) {
+		SetRaster(*delta.raster);
+	}
+	if (delta.scissor.has_value()) {
+		SetScissor(*delta.scissor);
+	}
+	if (delta.color_mask.has_value()) {
+		SetColorMask(*delta.color_mask);
 	}
 }
 

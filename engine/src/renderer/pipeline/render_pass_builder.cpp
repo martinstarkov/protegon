@@ -107,9 +107,7 @@ RenderPassBuilder::RenderPassBuilder(DrawContext& ctx) : ctx_{ ctx } {
 
 	auto viewport{ ctx_.GetRenderState().viewport };
 
-	PTGN_ASSERT(viewport.has_value(), "Viewport must be set before building render passes");
-
-	destination_	  = *viewport;
+	destination_	  = viewport;
 	destination_desc_ = ctx_.GetDesc(bound);
 	destination_id_	  = bound;
 

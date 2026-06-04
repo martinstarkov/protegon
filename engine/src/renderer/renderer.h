@@ -241,7 +241,8 @@ private:
 
 	RenderState GetRenderState() const;
 
-	void SetRenderState(const RenderState& render_state);
+	void SetRenderState(const RenderState& state);
+	void SetRenderStateDelta(const RenderStateDelta& delta);
 
 	void SetMaterial(const MaterialState& material);
 

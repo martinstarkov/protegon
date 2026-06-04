@@ -22,7 +22,6 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
-#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/framebuffer.h"
@@ -66,8 +65,8 @@ void DrawStencilPolygon(
 	);
 }
 
-RenderState ReplaceStencilState(int value) {
-	return RenderState{
+RenderStateDelta ReplaceStencilState(int value) {
+	return RenderStateDelta{
 		.blending	   = false,
 		.depth_testing = false,
 		.color_mask =
@@ -91,8 +90,8 @@ RenderState ReplaceStencilState(int value) {
 	};
 }
 
-RenderState ReadStencilState(int value) {
-	return RenderState{
+RenderStateDelta ReadStencilState(int value) {
+	return RenderStateDelta{
 		.blending	   = false,
 		.depth_testing = false,
 		.color_mask =

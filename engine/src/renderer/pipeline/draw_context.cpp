@@ -72,12 +72,9 @@ void DrawShapeImpl(
 
 DrawContext::DrawContext(Renderer& renderer) : renderer_{ renderer } {}
 
-DrawContext::RenderStateScope::RenderStateScope(DrawContext& ctx, const RenderState& delta_state) :
+DrawContext::RenderStateScope::RenderStateScope(DrawContext& ctx, const RenderStateDelta& delta) :
 	ctx_{ ctx }, previous_state_{ ctx_.GetRenderState() } {
-	PTGN_ASSERT(!previous_state_.HasUnknowns(), "Previous render state must not have unknowns");
-
-	auto next_state{ impl::ApplyDeltaRenderState(previous_state_, delta_state) };
-	ctx_.SetRenderState(next_state);
+	ctx_.SetRenderStateDelta(delta);
 }
 
 DrawContext::RenderStateScope::~RenderStateScope() {
@@ -112,6 +109,10 @@ const impl::FramebufferObject& DrawContext::GetBoundFramebuffer() const {
 
 impl::FramebufferObject& DrawContext::GetBoundFramebuffer() {
 	return renderer_.GetBoundFramebuffer();
+}
+
+void DrawContext::SetRenderStateDelta(const RenderStateDelta& delta) {
+	renderer_.SetRenderStateDelta(delta);
 }
 
 void DrawContext::SetRenderState(const RenderState& state) {

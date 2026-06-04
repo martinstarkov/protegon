@@ -255,8 +255,8 @@ BindGuard<ElementBufferId> GLContext::Bind(ElementBufferId id, bool restore_bind
 
 	GLCall(glBindBuffer(std::to_underlying(target), id));
 
-	if (bound_.vertex_array.value()) {
-		vertex_arrays.cache_.Get(bound_.vertex_array.value()).element_buffer = id;
+	if (bound_.vertex_array) {
+		vertex_arrays.cache_.Get(bound_.vertex_array).element_buffer = id;
 	}
 
 	return BindGuard<ElementBufferId>{ *this, previous, restore_bind };
@@ -368,39 +368,39 @@ State& GLContext::GetBoundState() {
 }
 
 VertexBufferId GLContext::GetBoundVertexBuffer() const {
-	return bound_.vertex_buffer.value();
+	return bound_.vertex_buffer;
 }
 
 ElementBufferId GLContext::GetBoundElementBuffer() const {
-	if (!bound_.vertex_array.value()) {
+	if (!bound_.vertex_array) {
 		return ElementBufferId{ 0 };
 	}
-	return vertex_arrays.cache_.Get(bound_.vertex_array.value()).element_buffer;
+	return vertex_arrays.cache_.Get(bound_.vertex_array).element_buffer;
 }
 
 UniformBufferId GLContext::GetBoundUniformBuffer() const {
-	return bound_.uniform_buffer.value();
+	return bound_.uniform_buffer;
 }
 
 ShaderId GLContext::GetBoundShader() const {
-	return bound_.shader_program.value();
+	return bound_.shader_program;
 }
 
 TextureId GLContext::GetBoundTexture() const {
 	PTGN_ASSERT(bound_.active_texture.slot < GetMaxTextureSlots());
-	return bound_.texture_units[bound_.active_texture.slot].id.value();
+	return bound_.texture_units[bound_.active_texture.slot].id;
 }
 
 RenderbufferId GLContext::GetBoundRenderbuffer() const {
-	return bound_.renderbuffer.value();
+	return bound_.renderbuffer;
 }
 
 FramebufferId GLContext::GetBoundFramebuffer() const {
-	return bound_.framebuffer.value();
+	return bound_.framebuffer;
 }
 
 VertexArrayId GLContext::GetBoundVertexArray() const {
-	return bound_.vertex_array.value();
+	return bound_.vertex_array;
 }
 
 bool GLContext::IsBound(VertexBufferId id) const {
@@ -461,13 +461,7 @@ void GLContext::ForgetId(TextureId id) {
 
 		GLCall(glBindTexture(GL_TEXTURE_2D, 0));
 
-		unit.id = TextureId{ 0 };
-
-		// These belong to the deleted texture object, so they are no longer known.
-		unit.min_filter.reset();
-		unit.mag_filter.reset();
-		unit.wrap_s.reset();
-		unit.wrap_t.reset();
+		unit = {};
 	}
 
 	if (bound_.active_texture != previous_active_texture) {
@@ -606,14 +600,14 @@ void GLContext::SetDepthMask(const DepthMaskState& mask) {
 		return;
 	}
 
-	if (bound_.render_state.depth_mask.value().func != mask.func) {
+	if (bound_.render_state.depth_mask.func != mask.func) {
 		GLCall(glDepthFunc(std::to_underlying(mask.func)));
 	}
-	if (bound_.render_state.depth_mask.value().write != mask.write) {
+	if (bound_.render_state.depth_mask.write != mask.write) {
 		GLCall(glDepthMask(mask.write));
 	}
-	if (!NearlyEqual(bound_.render_state.depth_mask.value().range_near, mask.range_near) ||
-		!NearlyEqual(bound_.render_state.depth_mask.value().range_far, mask.range_far)) {
+	if (!NearlyEqual(bound_.render_state.depth_mask.range_near, mask.range_near) ||
+		!NearlyEqual(bound_.render_state.depth_mask.range_far, mask.range_far)) {
 		GLCall(glDepthRange(mask.range_near, mask.range_far));
 	}
 
@@ -685,17 +679,17 @@ void GLContext::SetScissor(const ScissorState& scissor) {
 	}
 
 	if (scissor.enabled) {
-		if (!bound_.render_state.scissor.value().enabled) {
+		if (!bound_.render_state.scissor.enabled) {
 			GLCall(glEnable(GL_SCISSOR_TEST));
 		}
-		if (bound_.render_state.scissor.value().viewport != scissor.viewport) {
+		if (bound_.render_state.scissor.viewport != scissor.viewport) {
 			GLCall(glScissor(
 				scissor.viewport.position.x, scissor.viewport.position.y, scissor.viewport.size.x,
 				scissor.viewport.size.y
 			));
 		}
 	} else {
-		if (bound_.render_state.scissor.value().enabled) {
+		if (bound_.render_state.scissor.enabled) {
 			GLCall(glDisable(GL_SCISSOR_TEST));
 		}
 	}
@@ -710,24 +704,24 @@ void GLContext::SetRaster(const RasterState& raster) {
 
 	PTGN_ASSERT(raster.line_width >= 1.0f, "Only line widths >= 1.0 are supported");
 
-	if (!NearlyEqual(bound_.render_state.raster.value().line_width, raster.line_width)) {
+	if (!NearlyEqual(bound_.render_state.raster.line_width, raster.line_width)) {
 		GLCall(glLineWidth(raster.line_width));
 	}
 
 	if (raster.cull.enabled) {
-		if (!bound_.render_state.raster.value().cull.enabled) {
+		if (!bound_.render_state.raster.cull.enabled) {
 			GLCall(glEnable(GL_CULL_FACE));
 		}
 	} else {
-		if (bound_.render_state.raster.value().cull.enabled) {
+		if (bound_.render_state.raster.cull.enabled) {
 			GLCall(glDisable(GL_CULL_FACE));
 		}
 	}
 
-	if (bound_.render_state.raster.value().cull.cull_face != raster.cull.cull_face) {
+	if (bound_.render_state.raster.cull.cull_face != raster.cull.cull_face) {
 		GLCall(glCullFace(std::to_underlying(raster.cull.cull_face)));
 	}
-	if (bound_.render_state.raster.value().cull.front_face != raster.cull.front_face) {
+	if (bound_.render_state.raster.cull.front_face != raster.cull.front_face) {
 		GLCall(glFrontFace(std::to_underlying(raster.cull.front_face)));
 	}
 
@@ -740,29 +734,29 @@ void GLContext::SetStencil(const StencilState& stencil) {
 	}
 
 	if (stencil.enabled) {
-		if (!bound_.render_state.stencil.value().enabled) {
+		if (!bound_.render_state.stencil.enabled) {
 			GLCall(glEnable(GL_STENCIL_TEST));
 		}
 	} else {
-		if (bound_.render_state.stencil.value().enabled) {
+		if (bound_.render_state.stencil.enabled) {
 			GLCall(glDisable(GL_STENCIL_TEST));
 		}
 	}
 
-	if (bound_.render_state.stencil.value().func != stencil.func ||
-		bound_.render_state.stencil.value().ref != stencil.ref ||
-		bound_.render_state.stencil.value().mask != stencil.mask) {
+	if (bound_.render_state.stencil.func != stencil.func ||
+		bound_.render_state.stencil.ref != stencil.ref ||
+		bound_.render_state.stencil.mask != stencil.mask) {
 		GLCall(glStencilFunc(std::to_underlying(stencil.func), stencil.ref, stencil.mask));
 	}
-	if (bound_.render_state.stencil.value().fail_op != stencil.fail_op ||
-		bound_.render_state.stencil.value().zfail_op != stencil.zfail_op ||
-		bound_.render_state.stencil.value().zpass_op != stencil.zpass_op) {
+	if (bound_.render_state.stencil.fail_op != stencil.fail_op ||
+		bound_.render_state.stencil.zfail_op != stencil.zfail_op ||
+		bound_.render_state.stencil.zpass_op != stencil.zpass_op) {
 		GLCall(glStencilOp(
 			std::to_underlying(stencil.fail_op), std::to_underlying(stencil.zfail_op),
 			std::to_underlying(stencil.zpass_op)
 		));
 	}
-	if (bound_.render_state.stencil.value().write_mask != stencil.write_mask) {
+	if (bound_.render_state.stencil.write_mask != stencil.write_mask) {
 		GLCall(glStencilMask(stencil.write_mask));
 	}
 
@@ -787,18 +781,18 @@ std::size_t GLContext::GetMaxTextureSlots() const {
 }
 
 bool GLContext::ViewportCoversFramebuffer(FramebufferId framebuffer) const {
-	return bound_.render_state.viewport.value().position == V2_int{} &&
-		   bound_.render_state.viewport.value().size ==
+	return bound_.render_state.viewport.position == V2_int{} &&
+		   bound_.render_state.viewport.size ==
 			   textures.GetDesc(framebuffers.GetAttachmentId(framebuffer)).size;
 }
 
 bool GLContext::ScissorCoversFramebuffer(FramebufferId framebuffer) const {
-	if (!bound_.render_state.scissor.value().enabled) {
+	if (!bound_.render_state.scissor.enabled) {
 		return true;
 	}
 
-	return bound_.render_state.scissor.value().viewport.position == V2_int{} &&
-		   bound_.render_state.scissor.value().viewport.size ==
+	return bound_.render_state.scissor.viewport.position == V2_int{} &&
+		   bound_.render_state.scissor.viewport.size ==
 			   textures.GetDesc(framebuffers.GetAttachmentId(framebuffer)).size;
 }
 

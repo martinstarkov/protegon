@@ -62,7 +62,7 @@ private:
 	private:
 		RenderStateScope() = delete;
 
-		RenderStateScope(DrawContext& ctx, const RenderState& delta_state);
+		RenderStateScope(DrawContext& ctx, const RenderStateDelta& delta);
 
 		RenderStateScope(const RenderStateScope&)			 = delete;
 		RenderStateScope& operator=(const RenderStateScope&) = delete;
@@ -102,7 +102,7 @@ private:
 	};
 
 public:
-	void WithRenderState(const RenderState& delta, InvocableR<void> auto&& function) {
+	void WithRenderState(const RenderStateDelta& delta, InvocableR<void> auto&& function) {
 		RenderStateScope scope{ *this, delta };
 
 		function();
@@ -136,14 +136,11 @@ public:
 		function();
 
 		SetFramebuffer(previous_framebuffer);
-
-		if (previous_viewport.has_value()) {
-			SetViewport(*previous_viewport);
-		}
+		SetViewport(previous_viewport);
 	}
 
 	void WithBlendMode(BlendMode blend_mode, InvocableR<void> auto&& function) {
-		RenderStateScope scope{ *this, RenderState{ .blend_mode{ blend_mode } } };
+		RenderStateScope scope{ *this, RenderStateDelta{ .blend_mode{ blend_mode } } };
 
 		function();
 	}
@@ -255,6 +252,7 @@ private:
 	impl::FramebufferObject& GetBoundFramebuffer();
 
 	void SetRenderState(const RenderState& state);
+	void SetRenderStateDelta(const RenderStateDelta& delta);
 
 	void UpdateFramebuffer(impl::FramebufferObject&& replacing_framebuffer);
 

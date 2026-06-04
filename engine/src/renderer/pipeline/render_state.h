@@ -204,6 +204,23 @@ struct Material {
 };
 
 struct RenderState {
+	Viewport viewport{ { 0, 0 }, { 0, 0 } };
+	std::optional<Matrix4> view_projection;
+
+	bool blending{ false };
+	BlendMode blend_mode{ BlendMode::ReplaceRGBA };
+
+	bool depth_testing{ false };
+	DepthMaskState depth_mask;
+	ColorMaskState color_mask;
+	StencilState stencil;
+	ScissorState scissor{ false };
+	RasterState raster;
+
+	bool operator==(const RenderState&) const = default;
+};
+
+struct RenderStateDelta {
 	std::optional<Viewport> viewport;
 	std::optional<Matrix4> view_projection;
 
@@ -217,36 +234,12 @@ struct RenderState {
 	std::optional<ScissorState> scissor;
 	std::optional<RasterState> raster;
 
-	bool operator==(const RenderState&) const = default;
-
-	bool HasUnknowns() const {
-		return !viewport.has_value() || !view_projection.has_value() || !blending.has_value() ||
-			   !blend_mode.has_value() || !depth_testing.has_value() || !depth_mask.has_value() ||
-			   !color_mask.has_value() || !stencil.has_value() || !scissor.has_value() ||
-			   !raster.has_value();
-	}
-
-	[[nodiscard]] static RenderState StartingDefaults() {
-		return {
-			.viewport		 = Viewport{ { 0, 0 }, { 0, 0 } },
-			.view_projection = std::nullopt,
-
-			.blending	= false,
-			.blend_mode = BlendMode::ReplaceRGBA,
-
-			.depth_testing = false,
-			.depth_mask	   = DepthMaskState{},
-			.color_mask	   = ColorMaskState{},
-			.stencil	   = StencilState{},
-			.scissor	   = ScissorState{ false },
-			.raster		   = RasterState{},
-		};
-	}
+	bool operator==(const RenderStateDelta&) const = default;
 };
 
 namespace impl {
 
-inline RenderState ApplyDeltaRenderState(RenderState base, const RenderState& delta) {
+inline RenderState ApplyDeltaRenderState(RenderState base, const RenderStateDelta& delta) {
 	if (delta.view_projection.has_value()) {
 		base.view_projection = *delta.view_projection;
 	}

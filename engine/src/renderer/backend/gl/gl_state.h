@@ -1,8 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <optional>
-#include <utility>
 #include <vector>
 
 #include "core/assert.h"
@@ -26,15 +24,12 @@ struct ActiveTexture {
 struct TextureUnitState {
 	TextureUnitState() = default;
 
-	/// @brief Constructs a default texture unit state with all values set to their OpenGL defaults.
-	explicit TextureUnitState(bool) : id{ TextureId{ 0 } } {}
+	TextureId id;
 
-	std::optional<TextureId> id;
-
-	std::optional<TextureMinFilter> min_filter{ TextureMinFilter::Linear };
-	std::optional<TextureMagFilter> mag_filter{ TextureMagFilter::Linear };
-	std::optional<TextureWrap> wrap_s{ TextureWrap::Repeat };
-	std::optional<TextureWrap> wrap_t{ TextureWrap::Repeat };
+	TextureMinFilter min_filter{ TextureMinFilter::Linear };
+	TextureMagFilter mag_filter{ TextureMagFilter::Linear };
+	TextureWrap wrap_s{ TextureWrap::Repeat };
+	TextureWrap wrap_t{ TextureWrap::Repeat };
 
 	bool operator==(const TextureUnitState&) const = default;
 };
@@ -46,37 +41,28 @@ struct State {
 
 	/// @brief Constructs a default state with all values set to their OpenGL defaults.
 	explicit State(std::size_t max_texture_slots) :
-		render_state{ RenderState::StartingDefaults() },
-		framebuffer{ FramebufferId{ 0 } },
-		renderbuffer{ RenderbufferId{ 0 } },
-		vertex_buffer{ VertexBufferId{ 0 } },
-		uniform_buffer{ UniformBufferId{ 0 } },
-		shader_program{ ShaderId{ 0 } },
-		vertex_array{ VertexArrayId{ 0 } },
-		active_texture{ ActiveTexture{ 0 } },
-		texture_units(max_texture_slots, TextureUnitState{ true }),
+		texture_units(max_texture_slots),
 		// Important as Depth default constructs to 0.0, whereas OpenGL default value is 1.0.
 		clear_depth{ Depth{ 1.0f } },
-		clear_stencil{ Stencil{ 0 } },
 		clear_color{ color::Transparent } {
 		PTGN_ASSERT(max_texture_slots > 0);
 	}
 
 	RenderState render_state;
 
-	std::optional<FramebufferId> framebuffer;
-	std::optional<RenderbufferId> renderbuffer;
-	std::optional<VertexBufferId> vertex_buffer;
-	std::optional<UniformBufferId> uniform_buffer;
-	std::optional<ShaderId> shader_program;
-	std::optional<VertexArrayId> vertex_array;
+	FramebufferId framebuffer;
+	RenderbufferId renderbuffer;
+	VertexBufferId vertex_buffer;
+	UniformBufferId uniform_buffer;
+	ShaderId shader_program;
+	VertexArrayId vertex_array;
 
 	ActiveTexture active_texture;
 	TextureUnits texture_units;
 
-	std::optional<Depth> clear_depth;
-	std::optional<Stencil> clear_stencil;
-	std::optional<Color> clear_color;
+	Depth clear_depth;
+	Stencil clear_stencil;
+	Color clear_color;
 
 	bool operator==(const State&) const = default;
 };
