@@ -80,8 +80,8 @@ void DrawShapeImpl(
 ) {
 	impl::VisitPrimitives(
 		shape, ConvertToCommonShapeParams(transform, color, params),
-		[&commands, shader, transform, &params](auto& primitives) {
-			commands.Add(shader, primitives, transform, params.blend_mode, params.depth, {});
+		[&commands, shader, &params](auto& primitives) {
+			commands.Add(shader, primitives, params.blend_mode, params.depth, {});
 		}
 	);
 }
@@ -125,7 +125,7 @@ void RenderQueue::DrawTexture(
 ) {
 	Rect rect{ params.size.value_or(V2_float{ texture_size }) };
 
-	auto positions{ rect.GetWorldVertices({}, params.origin) };
+	auto positions{ rect.GetWorldVertices(transform, params.origin) };
 
 	auto tex_coords{ params.texture_coordinates.value_or(
 		// impl::GetDefaultTextureCoordinates<false>()
@@ -140,7 +140,7 @@ void RenderQueue::DrawTexture(
 
 	auto& commands{ GetRenderCommands(params.camera, false) };
 
-	commands.Add(shader, primitives, transform, params.blend_mode, params.depth, texture);
+	commands.Add(shader, primitives, params.blend_mode, params.depth, texture);
 }
 
 void RenderQueue::DrawTexture(
@@ -197,9 +197,7 @@ void RenderQueue::DrawLines(
 
 	auto& commands{ GetRenderCommands(params.camera, params.debug) };
 
-	commands.Add(
-		GetShader("color"), primitives, resolved_transform, params.blend_mode, params.depth, {}
-	);
+	commands.Add(GetShader("color"), primitives, params.blend_mode, params.depth, {});
 }
 
 void RenderQueue::DrawShape(

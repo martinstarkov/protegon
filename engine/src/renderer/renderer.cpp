@@ -268,11 +268,22 @@ void Renderer::SetShader(std::string_view shader) {
 
 void Renderer::SetShader(impl::ShaderId shader) {
 	const auto& bound{ gl_->GetBoundState() };
+
+	auto update_view_projection_uniform = [&]() {
+		if (bound.render_state.view_projection.has_value()) {
+			gl_->shaders.SetUniform(
+				shader, "u_ViewProjection", *bound.render_state.view_projection
+			);
+		}
+	};
+
 	if (shader == bound.shader_program) {
+		update_view_projection_uniform();
 		return;
 	}
 	FlushBatch();
 	auto _ = gl_->Bind(shader, false);
+	update_view_projection_uniform();
 }
 
 BlendMode Renderer::GetBlendMode() const {
