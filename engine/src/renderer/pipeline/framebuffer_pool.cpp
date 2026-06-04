@@ -22,9 +22,10 @@ void FramebufferPool::Update() {
 			return false;
 		}
 
-		bool expired{ entry.last_used_frame + kPooledFramebufferFrameLifetime >= render_frame_ };
+		auto expired{ entry.last_used_frame + kPooledFramebufferFrameLifetime < render_frame_ };
+		auto pool_full{ pool_.size() >= kMaxUnusedFramebuffers };
 
-		if (bool pool_full{ pool_.size() >= kMaxUnusedFramebuffers }; !expired && !pool_full) {
+		if (!expired && !pool_full) {
 			return false;
 		}
 
@@ -42,21 +43,25 @@ bool FramebufferPool::Owns(FramebufferId framebuffer) const {
 }
 
 FramebufferId FramebufferPool::Acquire(TextureDesc desc, std::optional<TextureDesc> other_desc) {
-	PooledFramebuffer* acquired_pool{ nullptr };
+	PTGN_ASSERT(desc.size.IsPositive(), "Cannot acquire framebuffer with zero size");
 
 	PTGN_ASSERT(
-		!other_desc.has_value() || desc != *other_desc,
-		"Other texture description cannot match the first one"
+		!other_desc.has_value() ||
+			other_desc->size == desc.size && other_desc->format != desc.format,
+		"Framebuffer attachments must have matching sizes and mismatching formats"
 	);
 
+	PooledFramebuffer* acquired_pool{ nullptr };
+
 	for (auto& entry : pool_) {
-		if (entry.used || renderer_.GetFormat(entry.framebuffer) != desc.format) {
+		if (entry.used) {
 			continue;
 		}
-		if (other_desc.has_value() &&
-			!renderer_.GetFormats(entry.framebuffer).HasFormat(other_desc->format)) {
+
+		if (!renderer_.FramebufferMatches(entry.framebuffer, desc, other_desc)) {
 			continue;
 		}
+
 		acquired_pool = &entry;
 		break;
 	}
@@ -72,13 +77,13 @@ FramebufferId FramebufferPool::Acquire(TextureDesc desc, std::optional<TextureDe
 			}
 		);
 	} else {
-		// Resize and update params of the render target if necessary.
-
+		// No format/layout changes here. We only reuse framebuffers that already match.
 		if (renderer_.GetSize(acquired_pool->framebuffer) != desc.size) {
 			renderer_.Resize(acquired_pool->framebuffer, desc.size);
 		}
 
-		if (renderer_.GetParams(acquired_pool->framebuffer) != desc.params) {
+		if (IsColorFormat(desc.format) &&
+			renderer_.GetParams(acquired_pool->framebuffer) != desc.params) {
 			renderer_.SetParams(acquired_pool->framebuffer, desc.params);
 		}
 
