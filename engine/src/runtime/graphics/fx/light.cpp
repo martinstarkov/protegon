@@ -1,9 +1,14 @@
 #include "runtime/graphics/fx/light.h"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
+#include <cstdlib>
 #include <optional>
 #include <ranges>
 #include <span>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -12,9 +17,14 @@
 #include "core/graphics/fill_style.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
+#include "core/math/geometry/geometry_utils.h"
+#include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/polygon.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/geometry/shape.h"
 #include "core/math/math_utils.h"
+#include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
@@ -24,22 +34,322 @@
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/renderer.h"
 #include "renderer/resources/framebuffer.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
+#include "runtime/physics/bounding_aabb.h"
+#include "runtime/physics/broadphase.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
 namespace {
 
 constexpr int kLightVisibleStencilRef{ 1 };
+constexpr float kLightShadowQueryFactor{ 1.25f };
+constexpr int kCircleShadowSegments{ 24 };
+
+struct ShadowCasterEntry {
+	Entity entity;
+	float depth{ 0.0f };
+	std::size_t order{ 0 };
+	BoundingAABB aabb;
+	bool masks_light_inside{ true };
+};
+
+bool IsLightEntity(Entity entity) {
+	return entity.Has<Circle, impl::LightData>();
+}
+
+bool IsUsableShadowCaster(Entity entity) {
+	auto caster{ entity.TryGet<impl::ShadowCaster>() };
+	return caster && caster->casts_shadows;
+}
+
+BoundingAABB MakeAABB(V2_float center, float radius) {
+	auto r{ V2_float{ radius, radius } };
+
+	return BoundingAABB{
+		.min = center - r,
+		.max = center + r,
+	};
+}
+
+float GetScaledLightRadius(Entity entity) {
+	auto radius{ entity.Get<Circle>().radius };
+	auto scale{ GetWorldScale(entity) };
+
+	auto scale_x{ std::abs(scale.x) };
+	auto scale_y{ std::abs(scale.y) };
+
+	return radius * std::max(scale_x, scale_y);
+}
+
+BoundingAABB GetLightInfluenceAABB(Entity entity) {
+	auto position{ GetPosition(entity) };
+	auto radius{ GetScaledLightRadius(entity) * kLightShadowQueryFactor };
+
+	return MakeAABB(position, radius);
+}
+
+std::vector<V2_float> BuildCircleVertices(const Circle& circle, Transform transform) {
+	std::vector<V2_float> vertices;
+	vertices.reserve(kCircleShadowSegments);
+
+	for (auto i{ 0 }; i < kCircleShadowSegments; ++i) {
+		auto t{ kTwoPi * static_cast<float>(i) / static_cast<float>(kCircleShadowSegments) };
+		auto local{ V2_float{ std::cos(t), std::sin(t) } * circle.radius };
+
+		vertices.emplace_back(transform.Apply(local));
+	}
+
+	return vertices;
+}
+
+std::optional<V2_float> GetTextureCasterSize(Entity entity) {
+	auto texture_size{ GetTextureSize(entity) };
+
+	if (!texture_size.has_value() || !texture_size->IsPositive()) {
+		return std::nullopt;
+	}
+
+	return V2_float{ *texture_size };
+}
+
+std::optional<std::vector<V2_float>> GetShadowCasterWorldVertices(Entity entity) {
+	auto transform{ GetDrawTransform(entity) };
+	auto origin{ GetDrawOrigin(entity) };
+
+	if (entity.Has<Rect>()) {
+		auto vertices{ entity.Get<Rect>().GetWorldVertices(transform, origin) };
+		return std::vector<V2_float>{ vertices.begin(), vertices.end() };
+	}
+
+	if (entity.Has<Circle>()) {
+		return BuildCircleVertices(entity.Get<Circle>(), transform);
+	}
+
+	if (auto texture_size{ GetTextureCasterSize(entity) }) {
+		Rect rect{ *texture_size };
+		auto vertices{ rect.GetWorldVertices(transform, origin) };
+		return std::vector<V2_float>{ vertices.begin(), vertices.end() };
+	}
+
+	return std::nullopt;
+}
+
+std::optional<BoundingAABB> GetShadowCasterAABB(Entity entity) {
+	auto transform{ GetDrawTransform(entity) };
+
+	if (entity.Has<Rect>()) {
+		return GetBoundingAABB(ColliderShape{ entity.Get<Rect>() }, transform);
+	}
+
+	if (entity.Has<Circle>()) {
+		return GetBoundingAABB(ColliderShape{ entity.Get<Circle>() }, transform);
+	}
+
+	if (auto texture_size{ GetTextureCasterSize(entity) }) {
+		return GetBoundingAABB(ColliderShape{ Rect{ *texture_size } }, transform);
+	}
+
+	return std::nullopt;
+}
+
+void AddPolygonSegments(std::vector<Line>& segments, std::span<const V2_float> vertices) {
+	if (vertices.size() < 2) {
+		return;
+	}
+
+	for (auto i{ 0uz }; i < vertices.size(); ++i) {
+		auto next{ (i + 1) % vertices.size() };
+
+		segments.emplace_back(vertices[i], vertices[next]);
+	}
+}
+
+bool CasterIsBeforeLight(
+	const ShadowCasterEntry& caster, Entity light, float light_depth, std::size_t light_order
+) {
+	if (caster.depth < light_depth) {
+		return true;
+	}
+
+	if (NearlyEqual(caster.depth, light_depth)) {
+		return caster.order < light_order || caster.entity.WasCreatedBefore(light);
+	}
+
+	return false;
+}
+
+std::vector<V2_float> BuildFallbackFullLightPolygon(Entity light) {
+	auto center{ GetPosition(light) };
+	auto radius{ GetScaledLightRadius(light) };
+
+	return std::ranges::to<std::vector>(Rect{
+		V2_float{ radius } }.GetWorldVertices(center, Origin::Center));
+}
+
+std::vector<V2_float> RunVisibilitySolver(
+	V2_float light_position, BoundingAABB light_bounds, std::span<const Line> segments
+) {
+	if (segments.empty()) {
+		return {
+			light_bounds.min,
+			{ light_bounds.max.x, light_bounds.min.y },
+			light_bounds.max,
+			{ light_bounds.min.x, light_bounds.max.y },
+		};
+	}
+
+	return GetVisibilityPolygon(light_position, segments);
+}
+
+impl::VisibilityPolygon ComputeVisibilityPolygonForLight(
+	Entity light, float light_depth, std::size_t light_order,
+	std::span<const ShadowCasterEntry> casters, std::span<const Entity> candidate_entities
+) {
+	auto light_position{ GetPosition(light) };
+	auto light_bounds{ GetLightInfluenceAABB(light) };
+
+	std::unordered_set<Entity> candidate_set;
+	candidate_set.reserve(candidate_entities.size());
+
+	for (Entity entity : candidate_entities) {
+		candidate_set.emplace(entity);
+	}
+
+	std::vector<Line> segments;
+	std::vector<impl::ShadowMaskInterior> interiors;
+
+	for (const auto& caster : casters) {
+		if (!candidate_set.contains(caster.entity)) {
+			continue;
+		}
+
+		if (!CasterIsBeforeLight(caster, light, light_depth, light_order)) {
+			continue;
+		}
+
+		auto world_vertices{ GetShadowCasterWorldVertices(caster.entity) };
+
+		if (!world_vertices.has_value() || world_vertices->size() < 3) {
+			continue;
+		}
+
+		AddPolygonSegments(segments, *world_vertices);
+
+		interiors.emplace_back(
+			impl::ShadowMaskInterior{
+				.vertices			= *world_vertices,
+				.masks_light_inside = caster.masks_light_inside,
+			}
+		);
+	}
+
+	impl::VisibilityPolygon result;
+
+	if (segments.empty()) {
+		result.vertices = BuildFallbackFullLightPolygon(light);
+		return result;
+	}
+
+	auto world_visibility{ RunVisibilitySolver(light_position, light_bounds, segments) };
+
+	result.vertices			  = std::move(world_visibility);
+	result.occluder_interiors = std::move(interiors);
+
+	return result;
+}
+
+void ClearStaleVisibilityPolygon(Entity entity) {
+	if (entity.Has<impl::VisibilityPolygon>()) {
+		entity.Remove<impl::VisibilityPolygon>();
+	}
+}
+
+void BuildForBucket(std::vector<impl::EntityRenderCommand>& commands) {
+	impl::KDTree tree{ 20 };
+	std::vector<impl::KDObject> objects;
+	std::vector<ShadowCasterEntry> casters;
+	std::unordered_map<Entity, ShadowCasterEntry*> caster_lookup;
+
+	objects.reserve(commands.size());
+	casters.reserve(commands.size());
+
+	for (auto order{ 0uz }; order < commands.size(); ++order) {
+		auto entity{ commands[order].entity };
+
+		if (IsLightEntity(entity)) {
+			ClearStaleVisibilityPolygon(entity);
+		}
+
+		if (!IsUsableShadowCaster(entity)) {
+			continue;
+		}
+
+		auto aabb{ GetShadowCasterAABB(entity) };
+
+		if (!aabb.has_value()) {
+			continue;
+		}
+
+		const auto& caster{ entity.Get<impl::ShadowCaster>() };
+
+		auto& entry{ casters.emplace_back(
+			ShadowCasterEntry{
+				.entity				= entity,
+				.depth				= commands[order].depth,
+				.order				= order,
+				.aabb				= *aabb,
+				.masks_light_inside = caster.masks_light_inside,
+			}
+		) };
+
+		caster_lookup.emplace(entity, &entry);
+		objects.emplace_back(entity, *aabb);
+	}
+
+	if (objects.empty()) {
+		return;
+	}
+
+	tree.Build(objects);
+
+	for (auto order{ 0uz }; order < commands.size(); ++order) {
+		auto entity{ commands[order].entity };
+
+		if (!IsLightEntity(entity)) {
+			continue;
+		}
+
+		auto light_bounds{ GetLightInfluenceAABB(entity) };
+		auto candidates{ tree.Query(light_bounds) };
+
+		if (candidates.empty()) {
+			continue;
+		}
+
+		auto polygon{ ComputeVisibilityPolygonForLight(
+			entity, commands[order].depth, order, casters, candidates
+		) };
+
+		if (polygon.vertices.empty()) {
+			continue;
+		}
+
+		entity.Add<impl::VisibilityPolygon>(std::move(polygon));
+	}
+}
 
 bool IsInvisibleCone(Entity entity) {
 	const auto& light{ entity.Get<impl::LightData>() };
@@ -229,7 +539,109 @@ void DrawUnmaskedLight(
 	});
 }
 
+struct LightVisibilityDebugSettings {
+	bool draw_enabled{ true };
+	bool draw_interiors{ true };
+
+	Color polygon_color{ color::Yellow };
+	Color masks_inside_color{ color::Red };
+	Color does_not_mask_inside_color{ color::Green };
+
+	FillStyle draw_fill_style{ 2.0f };
+};
+
+void DrawPolygonLines(
+	Scene& scene, const impl::RenderCamera& camera, std::span<const V2_float> vertices, Color color,
+	const FillStyle& fill_style, float depth
+) {
+	if (vertices.size() < 2) {
+		return;
+	}
+
+	scene.ctx().render_queue.DrawLines(
+		vertices, color,
+		ShapeRenderParams{
+			.fill_style = fill_style,
+			.origin		= Origin::Center,
+			.depth		= depth,
+			.camera		= camera,
+			.debug		= true,
+		},
+		true, std::nullopt
+	);
+}
+
+void DrawDebugForCamera(
+	Scene& scene, const impl::RenderCamera& camera, const impl::EntityFilterFunc& filter,
+	const LightVisibilityDebugSettings& debug_settings
+) {
+	PTGN_ASSERT(debug_settings.draw_enabled);
+
+	for (auto [entity, _light, visibility_polygon] :
+		 scene.EntitiesWith<impl::LightData, impl::VisibilityPolygon>()) {
+		// Mask test: entity layers vs camera include/exclude.
+		if (filter(entity)) {
+			continue;
+		}
+
+		if (visibility_polygon.vertices.empty()) {
+			continue;
+		}
+
+		auto depth{ GetDepth(entity) };
+
+		DrawPolygonLines(
+			scene, camera, visibility_polygon.vertices, debug_settings.polygon_color,
+			debug_settings.draw_fill_style, depth
+		);
+
+		if (!debug_settings.draw_interiors) {
+			continue;
+		}
+
+		for (const auto& interior : visibility_polygon.occluder_interiors) {
+			auto color{ interior.masks_light_inside ? debug_settings.masks_inside_color
+													: debug_settings.does_not_mask_inside_color };
+
+			DrawPolygonLines(
+				scene, camera, interior.vertices, color, debug_settings.draw_fill_style, depth
+			);
+		}
+	}
+}
+
 } // namespace
+
+namespace impl {
+
+void BuildLightVisibilityPolygons(Scene&, std::span<const CameraRenderBucket> buckets) {
+	for (const auto& bucket : buckets) {
+		if (!bucket.entity_commands) {
+			continue;
+		}
+
+		BuildForBucket(*bucket.entity_commands);
+	}
+}
+
+void DrawLightVisibilityDebug(Scene& scene) {
+	constexpr LightVisibilityDebugSettings kLightDebugSettings{};
+
+	if (!kLightDebugSettings.draw_enabled) {
+		return;
+	}
+
+	const auto& primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
+
+	impl::ForDrawableSceneEntities(
+		scene, primary_world_camera,
+		[kLightDebugSettings](auto& scene, const auto& camera, const auto& filter) {
+			DrawDebugForCamera(scene, camera, filter, kLightDebugSettings);
+		}
+	);
+}
+
+} // namespace impl
 
 Light::Light(Entity entity) : Entity{ entity } {}
 
@@ -408,6 +820,17 @@ Light CreateLight(Scene& scene, V2_float position, const LightProperties& proper
 	SetBlendMode(light, BlendMode::PremultipliedAddRGBA);
 
 	return light;
+}
+
+Entity SetOccluder(Entity entity, bool casts_shadows, bool masks_light_inside) {
+	PTGN_ASSERT(entity, "Cannot set an invalid entity as an occluder");
+
+	auto& caster{ entity.Add<impl::ShadowCaster>() };
+
+	caster.casts_shadows	  = casts_shadows;
+	caster.masks_light_inside = masks_light_inside;
+
+	return entity;
 }
 
 } // namespace ptgn

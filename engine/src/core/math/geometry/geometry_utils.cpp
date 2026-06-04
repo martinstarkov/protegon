@@ -235,9 +235,7 @@ bool VisibilityRayIntersects(
 
 } // namespace impl
 
-std::vector<V2_float> GetVisibilityPolygon(
-	V2_float point, const std::vector<Line>& shadow_segments
-) {
+std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line> shadow_segments) {
 	using namespace ptgn::impl;
 
 	// Compare 2 line segments based on their distance from given point.
@@ -417,7 +415,7 @@ std::vector<V2_float> GetVisibilityPolygon(
 }
 
 std::vector<Triangle> GetVisibilityTriangles(
-	V2_float origin, const std::vector<Line>& shadow_segments
+	V2_float origin, std::span<const Line> shadow_segments
 ) {
 	auto polygon{ GetVisibilityPolygon(origin, shadow_segments) };
 
@@ -441,7 +439,7 @@ std::vector<Triangle> GetVisibilityTriangles(
 	return triangles;
 }
 
-std::vector<Line> PointsToLines(const std::vector<V2_float>& points, bool connect_last_to_first) {
+std::vector<Line> PointsToLines(std::span<const V2_float> points, bool connect_last_to_first) {
 	std::size_t count{ points.size() };
 
 	if (count < 2) {

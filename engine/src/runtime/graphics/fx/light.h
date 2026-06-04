@@ -2,6 +2,7 @@
 
 #include <array>
 #include <optional>
+#include <span>
 
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
@@ -9,6 +10,7 @@
 #include "renderer/resources/shader.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/graphics/render_queue.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -44,6 +46,10 @@ struct LightProperties {
 
 namespace impl {
 
+void BuildLightVisibilityPolygons(Scene&, std::span<const CameraRenderBucket> buckets);
+
+void DrawLightVisibilityDebug(Scene& scene);
+
 struct LightData {
 	/// @brief Intensity of the light. Range: [0, 1].
 	float intensity{ 1.0f };
@@ -73,7 +79,7 @@ struct ShadowCaster {
 };
 
 struct ShadowMaskInterior {
-	// Light-local vertices, in the same local coordinate space as the light quad.
+	// World-space vertices of the occluder's filled body.
 	std::vector<V2_float> vertices;
 
 	// If true, the occluder's own interior remains black in the light mask.
@@ -82,10 +88,10 @@ struct ShadowMaskInterior {
 };
 
 struct VisibilityPolygon {
-	// Light-local visibility polygon vertices.
+	// World-space visibility polygon vertices.
 	std::vector<V2_float> vertices;
 
-	// Light-local filled occluder bodies used by masks_light_inside.
+	// World-space filled occluder bodies used by masks_light_inside.
 	std::vector<ShadowMaskInterior> occluder_interiors;
 };
 
@@ -137,5 +143,12 @@ PTGN_REGISTER_DRAWABLE(Light);
 /// @param properties Optional properties of the light. If not provided, default properties will be
 /// used.
 Light CreateLight(Scene& scene, V2_float position = {}, const LightProperties& properties = {});
+
+/// @brief Marks an entity as a shadow occluder.
+/// @param entity Entity that should cast shadows.
+/// @param casts_shadows If false, the entity keeps the component but is ignored by visibility
+/// solving.
+/// @param masks_light_inside If true, the entity's own interior remains unlit in the light mask.
+Entity SetOccluder(Entity entity, bool casts_shadows = true, bool masks_light_inside = true);
 
 } // namespace ptgn

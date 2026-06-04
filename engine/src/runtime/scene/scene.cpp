@@ -35,6 +35,7 @@
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/graphics/fx/light.h"
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/render_target.h"
@@ -201,6 +202,7 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 
 	ctx().collision.DrawDebug(*this);
 	ctx().interaction.DrawDebug(*this);
+	impl::DrawLightVisibilityDebug(*this);
 
 	impl::ClearedEntities cleared;
 
@@ -217,6 +219,8 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 	auto buckets{
 		RenderQueue::GetRenderBuckets(ctx().render_queue.render_commands_, entity_commands)
 	};
+
+	impl::BuildLightVisibilityPolygons(*this, buckets);
 
 	ctx().render_queue.Draw(draw_context, render_target_, cleared, game_size, buckets);
 

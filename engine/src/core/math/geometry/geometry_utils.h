@@ -73,12 +73,12 @@ struct VisibilityEvent {
 /// @param begin iterator of the list of line segments (obstacles).
 /// @param end iterator of the list of line segments (obstacles).
 /// @return vector of vertices of the visibility polygon.
-std::vector<V2_float> GetVisibilityPolygon(V2_float origin, const std::vector<Line>& segments);
+std::vector<V2_float> GetVisibilityPolygon(V2_float origin, std::span<const Line> segments);
 
-std::vector<Triangle> GetVisibilityTriangles(V2_float origin, const std::vector<Line>& segments);
+std::vector<Triangle> GetVisibilityTriangles(V2_float origin, std::span<const Line> segments);
 
 [[nodiscard]] std::vector<Line> PointsToLines(
-	const std::vector<V2_float>& points, bool connect_last_to_first
+	std::span<const V2_float> points, bool connect_last_to_first
 );
 
 namespace impl {
