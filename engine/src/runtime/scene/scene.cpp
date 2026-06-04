@@ -22,7 +22,6 @@
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
-#include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"

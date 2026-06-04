@@ -13,6 +13,7 @@ namespace ptgn {
 struct Camera {
 	Transform transform;
 	Viewport viewport;
+	ViewportSpace viewport_space{ ViewportSpace::Game };
 	Matrix4 view_projection;
 
 	std::array<V2_float, 4> GetWorldVertices() const {

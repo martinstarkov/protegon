@@ -9,6 +9,7 @@
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/tolerance.h"
@@ -50,7 +51,8 @@ RenderCamera::RenderCamera(SceneCamera scene_camera) :
 void CameraResizeScript::OnEvent(Event event) {
 	event.Dispatch<ptgn::event::GameResized>([this](auto& resized) {
 		auto& camera{ entity.Get<CameraData>() };
-		camera.viewport = { {}, resized.size };
+		camera.viewport		  = { {}, resized.size };
+		camera.viewport_space = ViewportSpace::Game;
 		// PTGN_LOG("SceneCamera ", entity, " received game resize: ", resized.size);
 		ApplyCameraBounds(SceneCamera{ entity });
 	});
@@ -98,7 +100,28 @@ void ApplyCameraBounds(SceneCamera camera) {
 void RecalculateCameraViewProjection(SceneCamera camera) {
 	auto& c{ camera.Get<impl::CameraData>() };
 
-	auto viewport_size{ c.viewport.size };
+	auto get_projection_size = [&]() {
+		const auto& scene{ camera.GetScene() };
+		const auto& renderer{ scene.ctx().renderer };
+
+		auto game_size{ renderer.GetGameSize() };
+
+		auto render_target{ camera.GetParentRenderTarget() };
+
+		auto target_size{ render_target.GetSize() };
+
+		switch (c.viewport_space) {
+			using enum ViewportSpace;
+			case Game:		 return c.viewport.size;
+			case Normalized: return c.viewport.size * game_size;
+			case TargetPixels:
+				return c.viewport.Resolve(c.viewport_space, game_size, target_size).size;
+
+			default: PTGN_ERROR("Unsupported camera viewport space");
+		}
+	};
+
+	auto projection_size{ get_projection_size() };
 
 	// TODO: Consider adding flip in the future.
 	// V2_float flip_dir{ 1.0f, 1.0f };
@@ -113,7 +136,7 @@ void RecalculateCameraViewProjection(SceneCamera camera) {
 	//		break;
 	//	default: PTGN_ERROR("Unrecognized flip state");
 	//}
-	// viewport_size *= flip_dir;
+	// projection_size *= flip_dir;
 
 	Transform camera_transform{ GetTransform(camera) };
 
@@ -125,7 +148,7 @@ void RecalculateCameraViewProjection(SceneCamera camera) {
 	camera_transform.position = ApplyCameraBounds(camera, camera_transform.position);
 
 	c.view_projection_data =
-		GetOrthographicViewProjection(camera_transform, viewport_size, c.pixel_rounding);
+		GetOrthographicViewProjection(camera_transform, projection_size, c.pixel_rounding);
 }
 
 } // namespace impl
@@ -134,7 +157,8 @@ SceneCamera::SceneCamera(Entity entity) : Entity{ entity } {}
 
 SceneCamera::operator Camera() const {
 	return Camera{ .transform{ GetTransform(*this) },
-				   .viewport{ GetViewport() },
+				   .viewport{ GetViewport(true) },
+				   .viewport_space{ GetViewportSpace() },
 				   .view_projection{ GetViewProjection() } };
 }
 
@@ -222,7 +246,7 @@ V2_float SceneCamera::GetZoom() const {
 }
 
 std::array<V2_float, 4> SceneCamera::GetWorldVertices() const {
-	Rect rect{ GetViewport().size };
+	Rect rect{ GetViewport(true).size };
 	auto transform{ GetTransform(*this) };
 	auto world_vertices{ rect.GetWorldVertices(transform) };
 	return world_vertices;
@@ -240,8 +264,35 @@ SceneCamera& SceneCamera::SetViewport(Viewport viewport) {
 	return *this;
 }
 
-Viewport SceneCamera::GetViewport() const {
-	return Get<impl::CameraData>().viewport;
+SceneCamera& SceneCamera::SetViewportSpace(ViewportSpace viewport_space) {
+	auto& c{ Get<impl::CameraData>() };
+	c.viewport_space = viewport_space;
+	return *this;
+}
+
+Viewport SceneCamera::GetViewport(bool resolve) const {
+	if (!resolve) {
+		return Get<impl::CameraData>().viewport;
+	}
+
+	const auto& scene{ GetScene() };
+	const auto& renderer{ scene.ctx().renderer };
+
+	auto game_size{ renderer.GetGameSize() };
+
+	auto render_target{ GetParentRenderTarget() };
+
+	auto target_size{ render_target.GetSize() };
+
+	const auto& camera{ Get<impl::CameraData>() };
+
+	auto viewport{ camera.viewport.Resolve(camera.viewport_space, game_size, target_size) };
+
+	return viewport;
+}
+
+ViewportSpace SceneCamera::GetViewportSpace() const {
+	return Get<impl::CameraData>().viewport_space;
 }
 
 V2_float SceneCamera::GetDisplaySize() const {
@@ -355,13 +406,29 @@ SceneCamera& SceneCamera::SetParentRenderTarget(const RenderTarget& render_targe
 	PTGN_ASSERT(
 		render_target, "Cannot set camera parent render target to an invalid render target"
 	);
+	SetViewportSpace(ViewportSpace::TargetPixels);
 	Add<impl::ParentRenderTarget>(render_target);
 	return *this;
 }
 
 SceneCamera& SceneCamera::SetParentRenderTarget() {
+	SetViewportSpace(ViewportSpace::Game);
 	Add<impl::ParentRenderTarget>(GetScene().GetRenderTarget());
 	return *this;
+}
+
+RenderTarget SceneCamera::GetParentRenderTarget() const {
+	RenderTarget render_target;
+
+	if (auto parent_rt{ TryGet<impl::ParentRenderTarget>() }) {
+		render_target = parent_rt->render_target;
+	} else {
+		render_target = GetScene().GetRenderTarget();
+	}
+
+	PTGN_ASSERT(render_target, "Camera must have a valid render target");
+
+	return render_target;
 }
 
 void SceneCamera::SetClearColor(std::optional<Color> clear_color) {

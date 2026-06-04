@@ -11,6 +11,7 @@
 #include "core/util/hash.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/effect_params.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
@@ -38,6 +39,7 @@ struct UILayer {};
 
 struct CameraData {
 	Viewport viewport;
+	ViewportSpace viewport_space{ ViewportSpace::Game };
 
 	/// @brief If true, rounds camera position to pixel precision.
 	bool pixel_rounding{ false };
@@ -78,7 +80,10 @@ public:
 
 	std::array<V2_float, 4> GetWorldVertices() const;
 
-	Viewport GetViewport() const;
+	/// @param resolved If true, resolves the viewport using the current viewport space and render
+	/// target.
+	Viewport GetViewport(bool resolved = true) const;
+	ViewportSpace GetViewportSpace() const;
 	/// @return Viewport size scaled by the inverse of the zoom. In other words, the size of the
 	/// viewport in world units.
 	V2_float GetDisplaySize() const;
@@ -96,6 +101,7 @@ public:
 	std::optional<Viewport> GetBounds() const;
 
 	SceneCamera& SetViewport(Viewport viewport);
+	SceneCamera& SetViewportSpace(ViewportSpace viewport_space);
 
 	/// Camera bounds only apply along aligned axes. In other words: rotated cameras can see outside
 	/// the bounding box.
@@ -138,10 +144,15 @@ public:
 	[[nodiscard]] bool IsVisible(Entity entity) const;
 
 	/// @brief Sets the camera's parent render target.
+	/// Changes the viewport space to target pixels.
 	SceneCamera& SetParentRenderTarget(const RenderTarget& render_target);
 
 	/// @brief Sets the camera's parent render target to the default scene render target.
+	/// Changes the viewport space to game size.
 	SceneCamera& SetParentRenderTarget();
+
+	/// @return The camera's parent render target if set, otherwise the default scene render target.
+	RenderTarget GetParentRenderTarget() const;
 
 	/// @brief If clear_color is {}, uses the render target's clear color.
 	void SetClearColor(std::optional<Color> clear_color);

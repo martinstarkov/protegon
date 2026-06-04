@@ -47,7 +47,6 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
-#include "runtime/scripting/script.h"
 
 namespace ptgn {
 
@@ -80,8 +79,9 @@ void DrawShapeImpl(
 	Color color, const ShapeRenderParams& params
 ) {
 	impl::VisitPrimitives(
-		shape, ConvertToCommonShapeParams(transform, color, params), [&](auto& primitives) {
-			commands.Add(shader, primitives, params.blend_mode, params.depth, {});
+		shape, ConvertToCommonShapeParams(transform, color, params),
+		[&commands, shader, transform, &params](auto& primitives) {
+			commands.Add(shader, primitives, transform, params.blend_mode, params.depth, {});
 		}
 	);
 }
@@ -94,13 +94,12 @@ RenderQueue::RenderQueue(Scene& scene, Renderer& renderer) :
 impl::RenderCommands& RenderQueue::GetRenderCommands(
 	const std::optional<impl::RenderCamera>& camera, bool debug
 ) {
-	impl::RenderCamera cam;
-
-	if (camera.has_value()) {
-		cam = *camera;
-	} else {
-		cam = impl::RenderCamera{ scene_.ctx().camera };
-	}
+	impl::RenderCamera cam{ camera
+								.or_else([this]() {
+									return std::optional<impl::RenderCamera>{ std::in_place,
+																			  scene_.ctx().camera };
+								})
+								.value() };
 
 	std::vector<impl::CameraRenderCommands>* commands{ nullptr };
 
@@ -126,7 +125,7 @@ void RenderQueue::DrawTexture(
 ) {
 	Rect rect{ params.size.value_or(V2_float{ texture_size }) };
 
-	auto positions{ rect.GetWorldVertices(transform, params.origin) };
+	auto positions{ rect.GetWorldVertices({}, params.origin) };
 
 	auto tex_coords{ params.texture_coordinates.value_or(
 		// impl::GetDefaultTextureCoordinates<false>()
@@ -141,7 +140,7 @@ void RenderQueue::DrawTexture(
 
 	auto& commands{ GetRenderCommands(params.camera, false) };
 
-	commands.Add(shader, primitives, params.blend_mode, params.depth, texture);
+	commands.Add(shader, primitives, transform, params.blend_mode, params.depth, texture);
 }
 
 void RenderQueue::DrawTexture(
@@ -190,13 +189,17 @@ void RenderQueue::DrawLines(
 	std::span<const V2_float> points, Color color, ShapeRenderParams params, bool closed,
 	std::optional<Transform> transform
 ) {
+	auto resolved_transform{ transform.value_or(Transform{}) };
+
 	auto primitives{ impl::GetHollowPrimitives(
-		points, closed, ConvertToCommonShapeParams(transform.value_or(Transform{}), color, params)
+		points, closed, ConvertToCommonShapeParams(resolved_transform, color, params)
 	) };
 
 	auto& commands{ GetRenderCommands(params.camera, params.debug) };
 
-	commands.Add(GetShader("color"), primitives, params.blend_mode, params.depth, {});
+	commands.Add(
+		GetShader("color"), primitives, resolved_transform, params.blend_mode, params.depth, {}
+	);
 }
 
 void RenderQueue::DrawShape(
@@ -292,7 +295,7 @@ void RenderQueue::DrawShape(
 void RenderQueue::DrawShape(
 	Transform transform, const Shape& shape, Color color, ShapeRenderParams params
 ) {
-	shape.Visit([&](const auto& specific_shape) {
+	shape.Visit([this, transform, color, &params](const auto& specific_shape) {
 		DrawShape(transform, specific_shape, color, std::move(params));
 	});
 }
@@ -381,17 +384,12 @@ void RenderQueue::Draw(
 
 	auto rt_size{ render_target.GetSize() };
 
-	auto viewport{ render_camera.camera.viewport };
+	auto viewport{ render_camera.scene_camera
+					   ? render_camera.camera.viewport
+					   : render_camera.camera.viewport.Resolve(
+							 render_camera.camera.viewport_space, game_size, render_target.GetSize()
+						 ) };
 
-	if (!render_camera.scene_camera ||
-		HasScript<impl::CameraResizeScript>(render_camera.scene_camera) ||
-		render_target == scene_render_target) {
-		// Viewport is relative to game size, so scale it to render target size.
-		V2_float scale{ V2_float{ rt_size } / game_size };
-		// Not *= because we want float multiplication followed by flooring.
-		viewport.position = viewport.position * scale;
-		viewport.size	  = viewport.size * scale;
-	}
 	renderer.SetViewport(viewport);
 	renderer.SetViewProjection(render_camera.camera.view_projection);
 	renderer.SetScissor(ScissorState{ viewport });
@@ -463,40 +461,45 @@ void RenderQueue::Draw(
 	}
 
 	PTGN_ASSERT(bucket.camera);
+	if (auto camera_tint{ bucket.camera->tint };
+		camera_tint != color::White || bucket.camera->effect_params.draw_callback) {
+		auto apply_camera_effects = [&]() {
+			auto texture{ renderer.GetTexture(renderer.GetBoundFramebuffer()) };
 
-	auto camera_tint{ bucket.camera->tint };
+			PTGN_ASSERT(viewport == ctx.GetRenderState().viewport);
+			PTGN_ASSERT(
+				render_camera.camera.view_projection == ctx.GetRenderState().view_projection
+			);
+			PTGN_ASSERT(
+				viewport == ctx.GetRenderState().scissor.viewport &&
+				ctx.GetRenderState().scissor.enabled
+			);
 
-	if (camera_tint != color::White || bucket.camera->effect_params.draw_callback) {
-		auto texture{ renderer.GetTexture(renderer.GetBoundFramebuffer()) };
+			renderer.FlushBatch();
 
-		PTGN_ASSERT(viewport == ctx.GetRenderState().viewport);
-		PTGN_ASSERT(render_camera.camera.view_projection == ctx.GetRenderState().view_projection);
-		PTGN_ASSERT(
-			viewport == ctx.GetRenderState().scissor.viewport &&
-			ctx.GetRenderState().scissor.enabled
-		);
+			TextureDrawParams params{
+				.size{ viewport.size },
+				.tint{ bucket.camera->tint },
+				.texture_coordinates{ impl::GetTextureCoordinates(
+					viewport.position, viewport.size, rt_size, true, true
+				) },
+				/* No margin for camera effects so cameras do not exceed their viewports */
+				.effects{ .draw_callback{ bucket.camera->effect_params.draw_callback },
+						  .margin{ 0 } }
+			};
 
-		renderer.FlushBatch();
+			ctx.WithRenderState(
+				{ .view_projection = Matrix4::Orthographic(viewport.size),
+				  .blend_mode	   = BlendMode::ReplaceRGBA },
+				[&]() {
+					ctx.DrawTexture({}, texture, std::move(params));
 
-		TextureDrawParams params{
-			.size{ viewport.size },
-			.tint{ bucket.camera->tint },
-			.texture_coordinates{ impl::GetTextureCoordinates(
-				viewport.position, viewport.size, rt_size, true, true
-			) },
-			/* No margin for camera effects so cameras do not exceed their viewports */
-			.effects{ .draw_callback{ bucket.camera->effect_params.draw_callback }, .margin{ 0 } }
+					renderer.FlushBatch();
+				}
+			);
 		};
 
-		ctx.WithRenderState(
-			{ .view_projection = Matrix4::Orthographic(viewport.size),
-			  .blend_mode	   = BlendMode::ReplaceRGBA },
-			[&]() {
-				ctx.DrawTexture({}, texture, std::move(params));
-
-				renderer.FlushBatch();
-			}
-		);
+		apply_camera_effects();
 	}
 
 	renderer.SetScissor(ScissorState{ false });
