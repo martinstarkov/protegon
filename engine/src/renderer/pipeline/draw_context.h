@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <functional>
 #include <optional>
 #include <span>
@@ -45,6 +46,16 @@ struct ShapeDrawParams {
 	impl::EffectParams effects;
 };
 
+struct TextureDrawParams {
+	float depth{ 0.0f };
+	V2_float size;
+	Origin origin{ Origin::Center };
+	Color tint{ color::White };
+	std::array<V2_float, 4> texture_coordinates;
+	impl::EffectParams effects;
+	int entity_id{ -1 };
+};
+
 class DrawContext {
 private:
 	class RenderStateScope {
@@ -67,11 +78,50 @@ private:
 		RenderState previous_state_;
 	};
 
+	class TemporaryFramebufferScope {
+	public:
+		TemporaryFramebufferScope(
+			DrawContext& ctx, TextureDesc desc, std::optional<TextureDesc> other_desc
+		);
+
+		TemporaryFramebufferScope(const TemporaryFramebufferScope&)			   = delete;
+		TemporaryFramebufferScope& operator=(const TemporaryFramebufferScope&) = delete;
+
+		TemporaryFramebufferScope(TemporaryFramebufferScope&&) noexcept			   = delete;
+		TemporaryFramebufferScope& operator=(TemporaryFramebufferScope&&) noexcept = delete;
+
+		~TemporaryFramebufferScope();
+
+		impl::FramebufferObject& Get();
+
+		impl::FramebufferId GetId() const;
+
+	private:
+		DrawContext& ctx_;
+		impl::FramebufferId framebuffer_;
+	};
+
 public:
 	void WithRenderState(const RenderState& delta, InvocableR<void> auto&& function) {
 		RenderStateScope scope{ *this, delta };
 
 		function();
+	}
+
+	/// @brief User is responsible for ensuring that the framebuffer is cleared before use.
+	template <InvocableR<void, impl::FramebufferObject&> F>
+	void WithTemporaryFramebuffer(TextureDesc desc, F&& function) {
+		TemporaryFramebufferScope scope{ *this, desc };
+
+		std::invoke(std::forward<F>(function), scope.Get());
+	}
+
+	/// @brief User is responsible for ensuring that the framebuffer is cleared before use.
+	template <InvocableR<void, impl::FramebufferObject&> F>
+	void WithTemporaryFramebuffer(TextureDesc desc, TextureDesc other_desc, F&& function) {
+		TemporaryFramebufferScope scope{ *this, desc, other_desc };
+
+		std::invoke(std::forward<F>(function), scope.Get());
 	}
 
 	void WithRenderTarget(
@@ -214,11 +264,6 @@ private:
 	void CopyFramebufferRegion(
 		impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
 		V2_int destination_position
-	);
-
-	void CompositeRenderPassResult(
-		impl::FramebufferId source, impl::FramebufferId destination, Transform transform,
-		const TextureDrawParams& params, const RenderState& state
 	);
 
 	void CompositeRenderPassResult(

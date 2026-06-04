@@ -52,7 +52,7 @@ void DrawShapeImpl(
 ) {
 	impl::VisitPrimitives(
 		shape, ConvertToCommonShapeParams(color, params),
-		[&renderer, transform, &shape, color, &params](auto& primitives) {
+		[&renderer, transform, &params](auto& primitives) {
 			if (primitives.empty()) {
 				return;
 			}
@@ -74,12 +74,32 @@ DrawContext::DrawContext(Renderer& renderer) : renderer_{ renderer } {}
 
 DrawContext::RenderStateScope::RenderStateScope(DrawContext& ctx, const RenderState& delta_state) :
 	ctx_{ ctx }, previous_state_{ ctx_.GetRenderState() } {
+	PTGN_ASSERT(!previous_state_.HasUnknowns(), "Previous render state must not have unknowns");
+
 	auto next_state{ impl::ApplyDeltaRenderState(previous_state_, delta_state) };
 	ctx_.SetRenderState(next_state);
 }
 
 DrawContext::RenderStateScope::~RenderStateScope() {
 	ctx_.SetRenderState(previous_state_);
+}
+
+DrawContext::TemporaryFramebufferScope::TemporaryFramebufferScope(
+	DrawContext& ctx, TextureDesc desc, std::optional<TextureDesc> other_desc
+) :
+	ctx_{ ctx }, framebuffer_{ ctx_.AcquireFramebuffer(desc, other_desc) } {}
+
+DrawContext::TemporaryFramebufferScope::~TemporaryFramebufferScope() {
+	ctx_.renderer_.FlushBatch();
+	ctx_.ReleaseFramebuffer(framebuffer_);
+}
+
+impl::FramebufferObject& DrawContext::TemporaryFramebufferScope::Get() {
+	return ctx_.GetPoolFramebuffer(framebuffer_);
+}
+
+impl::FramebufferId DrawContext::TemporaryFramebufferScope::GetId() const {
+	return framebuffer_;
 }
 
 RenderState DrawContext::GetRenderState() const {
@@ -311,13 +331,6 @@ void DrawContext::CopyFramebufferRegion(
 	V2_int destination_position
 ) {
 	renderer_.CopyFramebufferRegion(source, destination, source_region, destination_position);
-}
-
-void DrawContext::CompositeRenderPassResult(
-	impl::FramebufferId source, impl::FramebufferId destination, Transform transform,
-	const TextureDrawParams& params, const RenderState& state
-) {
-	renderer_.CompositeRenderPassResult(source, destination, transform, params, state);
 }
 
 void DrawContext::CompositeRenderPassResult(
