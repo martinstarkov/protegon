@@ -2,17 +2,13 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
-#include "core/math/matrix4.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "renderer/pipeline/draw_context.h"
@@ -22,7 +18,6 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
-#include "renderer/resources/texture_format.h"
 
 namespace ptgn {
 
@@ -103,26 +98,6 @@ RenderPass& RenderPass::ClearColor(Color color) {
 	return *this;
 }
 
-RenderPass& RenderPass::ClearStencil(int value) {
-	GetPassData().clear_stencil = value;
-	return *this;
-}
-
-RenderPass& RenderPass::ClearDepth(float value) {
-	GetPassData().clear_depth = value;
-	return *this;
-}
-
-RenderPass& RenderPass::State(RenderState state) {
-	GetPassData().render_state = std::move(state);
-	return *this;
-}
-
-RenderPass& RenderPass::Draw(std::function<void(DrawContext&)> callback) {
-	GetPassData().draw_callback = std::move(callback);
-	return *this;
-}
-
 RenderPass::operator RenderPassHandle() const {
 	return output_;
 }
@@ -165,27 +140,23 @@ RenderPassHandle RenderPassBuilder::BoundTarget() {
 	return handle;
 }
 
-RenderPass RenderPassBuilder::CreateTarget(
-	TextureDesc desc, std::optional<TextureDesc> other_desc
-) {
+RenderPass RenderPassBuilder::CreateTarget(TextureDesc desc) {
 	auto handle{ NextTargetHandle() };
 
 	auto pass_index{ passes_.size() };
 
 	resources_.emplace_back(
 		Resource{
-			.handle		= handle,
-			.desc		= desc,
-			.other_desc = other_desc,
-			.writer		= pass_index,
+			.handle = handle,
+			.desc	= desc,
+			.writer = pass_index,
 		}
 	);
 
 	passes_.emplace_back(
 		impl::RenderPassData{
-			.output			   = handle,
-			.output_desc	   = desc,
-			.output_other_desc = other_desc,
+			.output		 = handle,
+			.output_desc = desc,
 		}
 	);
 
@@ -193,7 +164,7 @@ RenderPass RenderPassBuilder::CreateTarget(
 }
 
 RenderPass RenderPassBuilder::CreateLike(TextureDesc desc, std::string_view shader) {
-	auto pass{ CreateTarget(desc, std::nullopt) };
+	auto pass{ CreateTarget(desc) };
 	pass.GetPassData().material = { .shader = ctx_.GetShader(shader) };
 	return pass;
 }
@@ -212,18 +183,6 @@ RenderPass RenderPassBuilder::Apply(
 	output.Read(input_handle);
 
 	return output;
-}
-
-RenderPassBuilder& RenderPassBuilder::SetCompositeDraw(
-	Transform transform, TextureDrawParams params, RenderState state
-) {
-	composite_draw_ = impl::CompositeDraw{
-		.transform = transform,
-		.params	   = std::move(params),
-		.state	   = state,
-	};
-
-	return *this;
 }
 
 RenderPassHandle RenderPassBuilder::NextTargetHandle() {
@@ -277,7 +236,8 @@ void RenderPassBuilder::Materialize(RenderPassHandle handle) {
 
 	PTGN_ASSERT(resource.imported, "Only imported regions can be materialized without a writer");
 
-	auto scratch{ ctx_.AcquireFramebuffer(resource.desc, resource.other_desc) };
+	auto scratch{ ctx_.AcquireFramebuffer(resource.desc, std::nullopt) };
+	ctx_.renderer_.Clear(scratch, color::Transparent, true);
 
 	ctx_.WithRenderState(
 		{
@@ -341,77 +301,27 @@ void RenderPassBuilder::Execute(RenderPassHandle final_handle) {
 			);
 		}
 
-		auto output{ ctx_.AcquireFramebuffer(pass.output_desc, pass.output_other_desc) };
+		auto output{ ctx_.AcquireFramebuffer(pass.output_desc, std::nullopt) };
+		ctx_.renderer_.Clear(output, pass.clear_color.value_or(color::Transparent), true);
 
 		GetResource(pass.output).framebuffer = output;
 
 		auto output_size{ ctx_.GetSize(output) };
 		Viewport viewport{ .position{}, .size{ V2_float{ output_size } } };
 
-		PTGN_ASSERT(
-			pass.clear_depth.has_value() + pass.clear_stencil.has_value() +
-					pass.clear_depth_stencil.has_value() <=
-				1,
-			"Cannot specify more than one clear type for a stencil or depth pass"
-		);
+		// TODO: Consider making pipeline customizable in the future.
+		constexpr auto pipeline{ Hash("texture") };
 
-		if (pass.clear_color.has_value()) {
-			ctx_.renderer_.Clear(output, *pass.clear_color, true);
-		}
-
-		if (pass.clear_depth.has_value()) {
-			PTGN_ASSERT(
-				pass.output_other_desc.has_value() &&
-				IsDepthOnlyFormat(pass.output_other_desc->format)
-			);
-			ctx_.renderer_.Clear(output, *pass.clear_depth, true);
-		}
-
-		if (pass.clear_stencil.has_value()) {
-			PTGN_ASSERT(
-				pass.output_other_desc.has_value() &&
-				IsStencilOnlyFormat(pass.output_other_desc->format)
-			);
-			ctx_.renderer_.Clear(output, *pass.clear_stencil, true);
-		}
-
-		if (pass.clear_depth_stencil.has_value()) {
-			PTGN_ASSERT(
-				pass.output_other_desc.has_value() &&
-				IsDepthStencilOnlyFormat(pass.output_other_desc->format)
-			);
-			ctx_.renderer_.Clear(output, *pass.clear_depth_stencil, true);
-		}
-
-		if (pass.draw_callback) {
-			RenderState state{ .viewport = viewport, .scissor = ScissorState{ false } };
-
-			impl::ApplyDeltaRenderState(state, pass.render_state);
-
-			if (!state.view_projection.has_value()) {
-				state.view_projection = Matrix4::Orthographic(viewport.size);
+		ctx_.DrawRenderPass(
+			impl::DrawPassRequest{
+				.material = pass.material,
+				.pipeline = pipeline,
+				.inputs	  = bound_inputs,
+				.output	  = output,
+				.viewport = viewport,
+				.tint	  = pass.tint,
 			}
-
-			auto& framebuffer{ ctx_.GetPoolFramebuffer(output) };
-
-			ctx_.WithRenderTarget(&framebuffer, viewport, [this, &state, &pass]() {
-				ctx_.WithRenderState(state, [this, &pass]() { pass.draw_callback(ctx_); });
-			});
-		} else {
-			// TODO: Consider making pipeline customizable in the future.
-			constexpr auto pipeline{ Hash("texture") };
-
-			ctx_.DrawRenderPass(
-				impl::DrawPassRequest{
-					.material = pass.material,
-					.pipeline = pipeline,
-					.inputs	  = bound_inputs,
-					.output	  = output,
-					.viewport = viewport,
-					.tint	  = pass.tint,
-				}
-			);
-		}
+		);
 
 		for (const auto& input : pass.reads) {
 			ReleaseIfLastUse(input.handle, i);
@@ -423,14 +333,7 @@ void RenderPassBuilder::Execute(RenderPassHandle final_handle) {
 
 	auto final_framebuffer{ GetFramebufferId(final_handle) };
 
-	if (composite_draw_.has_value()) {
-		ctx_.CompositeRenderPassResult(
-			final_framebuffer, destination_id_, composite_draw_->transform,
-			std::move(composite_draw_->params), composite_draw_->state
-		);
-	} else {
-		ctx_.CompositeRenderPassResult(final_framebuffer, destination_id_, destination_);
-	}
+	ctx_.CompositeRenderPassResult(final_framebuffer, destination_id_, destination_);
 
 	ctx_.ReleaseFramebuffer(final_framebuffer);
 }

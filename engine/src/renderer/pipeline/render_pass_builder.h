@@ -1,18 +1,13 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
-#include <functional>
 #include <optional>
 #include <span>
 #include <string_view>
 #include <vector>
 
 #include "core/graphics/color.h"
-#include "core/math/geometry/origin.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/resources/id.h"
@@ -56,16 +51,6 @@ struct std::hash<ptgn::RenderPassHandle> {
 
 namespace ptgn {
 
-struct TextureDrawParams {
-	float depth{ 0.0f };
-	V2_float size;
-	Origin origin{ Origin::Center };
-	Color tint{ color::White };
-	std::array<V2_float, 4> texture_coordinates;
-	impl::EffectParams effects;
-	int entity_id{ -1 };
-};
-
 namespace impl {
 
 struct BoundInput {
@@ -84,15 +69,8 @@ struct RenderPassData {
 	std::vector<HandleInput> reads;
 	RenderPassHandle output;
 	TextureDesc output_desc;
-	std::optional<TextureDesc> output_other_desc;
 	bool used{ false };
-
 	std::optional<Color> clear_color;
-	std::optional<Stencil> clear_stencil;
-	std::optional<Depth> clear_depth;
-	std::optional<DepthStencil> clear_depth_stencil;
-	RenderState render_state;
-	std::function<void(DrawContext&)> draw_callback;
 };
 
 struct DrawPassRequest {
@@ -103,13 +81,6 @@ struct DrawPassRequest {
 	Viewport viewport;
 	Color tint{ color::White };
 	bool scissor_to_viewport{ false };
-	RenderState state;
-};
-
-struct CompositeDraw {
-	Transform transform;
-	TextureDrawParams params;
-	RenderState state;
 };
 
 } // namespace impl
@@ -132,12 +103,6 @@ public:
 	RenderPass& Tint(Color tint);
 
 	RenderPass& ClearColor(Color value);
-	RenderPass& ClearStencil(int value);
-	RenderPass& ClearDepth(float value);
-
-	RenderPass& State(RenderState state);
-
-	RenderPass& Draw(std::function<void(DrawContext&)> callback);
 
 	operator RenderPassHandle() const;
 
@@ -157,7 +122,7 @@ public:
 
 	RenderPassHandle BoundTarget();
 
-	RenderPass CreateTarget(TextureDesc desc, std::optional<TextureDesc> other_desc);
+	RenderPass CreateTarget(TextureDesc desc);
 
 	RenderPass CreateLike(TextureDesc desc, std::string_view shader);
 
@@ -167,10 +132,6 @@ public:
 	/// input.
 	RenderPass Apply(std::string_view shader, std::optional<RenderPassHandle> input = std::nullopt);
 
-	RenderPassBuilder& SetCompositeDraw(
-		Transform transform, TextureDrawParams params, RenderState state
-	);
-
 private:
 	friend class DrawContext;
 	friend class RenderPass;
@@ -178,7 +139,6 @@ private:
 	struct Resource {
 		RenderPassHandle handle;
 		TextureDesc desc;
-		std::optional<TextureDesc> other_desc;
 
 		bool imported{ false };
 
@@ -205,8 +165,6 @@ private:
 	void ReleaseIfLastUse(RenderPassHandle handle, std::size_t pass_index);
 
 	DrawContext& ctx_;
-
-	std::optional<impl::CompositeDraw> composite_draw_;
 
 	impl::FramebufferId destination_id_;
 	Viewport destination_;

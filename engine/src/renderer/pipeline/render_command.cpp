@@ -1,7 +1,6 @@
 #include "renderer/pipeline/render_command.h"
 
 #include <algorithm>
-#include <array>
 #include <optional>
 #include <ranges>
 #include <span>
@@ -13,10 +12,7 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "renderer/pipeline/buffer_layout.h"
-#include "renderer/pipeline/render_batcher.h"
 #include "renderer/pipeline/render_primitives.h"
-#include "renderer/pipeline/vertex.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 
@@ -145,9 +141,7 @@ void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
 		default:			 PTGN_ERROR("Unknown RenderCommandKind: ", std::to_underlying(command.kind));
 	}
 
-	if (prev_blend_mode.has_value()) {
-		renderer.SetBlendMode(*prev_blend_mode);
-	}
+	renderer.SetBlendMode(prev_blend_mode);
 }
 
 void RenderCommands::Clear() {
