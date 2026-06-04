@@ -328,8 +328,11 @@ std::vector<ColorQuad> GetHollowPrimitives(
 }
 
 std::vector<ColorQuad> GetHollowPrimitives(const Rect& rect, const CommonShapeParams& params) {
-	auto points{ rect.GetWorldVertices({}, params.draw_origin) };
-	return GetHollowPrimitives(points, true, params);
+	CommonShapeParams stroke_params{ params };
+	stroke_params.transform = Transform{};
+
+	auto points{ rect.GetWorldVertices(params.transform, params.draw_origin) };
+	return GetHollowPrimitives(points, true, stroke_params);
 }
 
 std::optional<RenderQuadArray<ShapeVertex>> GetHollowPrimitives(
