@@ -11,6 +11,6 @@ struct EdgeDetection {
 	static void Draw(DrawContext& ctx, Entity entity);
 };
 
-PTGN_REGISTER_DRAWABLE(EdgeDetection);
+PTGN_REGISTER_EFFECT(EdgeDetection);
 
 } // namespace ptgn

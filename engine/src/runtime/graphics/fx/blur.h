@@ -13,6 +13,6 @@ struct Blur {
 	static void Draw(DrawContext& ctx, Entity entity);
 };
 
-PTGN_REGISTER_DRAWABLE(Blur);
+PTGN_REGISTER_EFFECT(Blur);
 
 } // namespace ptgn

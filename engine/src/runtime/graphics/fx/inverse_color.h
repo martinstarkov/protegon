@@ -11,6 +11,6 @@ struct InverseColor {
 	static void Draw(DrawContext& ctx, Entity entity);
 };
 
-PTGN_REGISTER_DRAWABLE(InverseColor);
+PTGN_REGISTER_EFFECT(InverseColor);
 
 } // namespace ptgn

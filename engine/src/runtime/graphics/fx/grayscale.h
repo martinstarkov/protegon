@@ -11,6 +11,6 @@ struct Grayscale {
 	static void Draw(DrawContext& ctx, Entity entity);
 };
 
-PTGN_REGISTER_DRAWABLE(Grayscale);
+PTGN_REGISTER_EFFECT(Grayscale);
 
 } // namespace ptgn

@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 #include "core/util/hash.h"
+#include "core/util/macro.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/resources/shader.h"
 #include "serialization/serialize.h"
@@ -71,6 +72,19 @@ EffectParams GetEffectParams(const Entity& entity);
 
 } // namespace impl
 
-#define PTGN_REGISTER_DRAWABLE(Type) template class impl::DrawableRegistrar<Type>
-
 } // namespace ptgn
+
+#define PTGN_REGISTER_DRAWABLE(Type) template class ::ptgn::impl::DrawableRegistrar<Type>
+
+/// @param Type The effect type to register.
+/// @param ... Optional bool value indicating whether the effect requires HDR rendering. Defaults to
+/// false if not provided.
+#define PTGN_REGISTER_EFFECT(Type, ...)                                                       \
+	PTGN_REGISTER_DRAWABLE(Type);                                                             \
+	template <>                                                                               \
+	struct ::ptgn::impl::EffectTraits<Type> {                                                 \
+		static constexpr bool requires_hdr{ PTGN_IMPL_FIRST_OR_DEFAULT(false, __VA_ARGS__) }; \
+		static constexpr ::ptgn::impl::ColorRange color_range{                                \
+			requires_hdr ? ::ptgn::impl::ColorRange::HDR : ::ptgn::impl::ColorRange::SDR      \
+		};                                                                                    \
+	}

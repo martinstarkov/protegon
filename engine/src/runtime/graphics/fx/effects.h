@@ -2,13 +2,13 @@
 
 #include <ecs/ecs.h>
 
-#include <concepts>
 #include <utility>
 
 #include "app/application_context.h"
 #include "core/assert.h"
 #include "core/util/concepts.h"
 #include "renderer/pipeline/draw_context.h"
+#include "renderer/pipeline/effect_params.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
@@ -37,8 +37,14 @@ template <typename T, typename... TArgs>
 EffectEntity<T> CreateEffect(Entity effect, TArgs&&... args) {
 	effect.Add<T>(std::forward<TArgs>(args)...);
 	effect.Add<EffectTag>();
+
+	if constexpr (EffectTraits<T>::requires_hdr) {
+		effect.Add<HDREffectTag>();
+	}
+
 	SetDraw<T>(effect);
 	Show(effect, false);
+
 	return EffectEntity<T>{ effect };
 }
 

@@ -22,6 +22,8 @@ namespace impl {
 
 struct EffectTag {};
 
+struct HDREffectTag {};
+
 struct EntityDepthCompare {
 	EntityDepthCompare() = default;
 	explicit EntityDepthCompare(bool ascending);

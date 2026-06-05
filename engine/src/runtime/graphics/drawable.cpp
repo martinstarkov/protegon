@@ -48,6 +48,9 @@ EffectParams GetEffectParams(const Entity& entity) {
 		if (auto margin{ child.TryGet<EffectMargin>() }) {
 			params.margin = std::max(params.margin, margin->value);
 		}
+		if (child.Has<HDREffectTag>()) {
+			params.color_range = ColorRange::HDR;
+		}
 	}
 
 	if (!effect_count) {

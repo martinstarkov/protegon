@@ -19,6 +19,6 @@ struct Bloom {
 	static void Draw(DrawContext& ctx, Entity entity);
 };
 
-PTGN_REGISTER_DRAWABLE(Bloom);
+PTGN_REGISTER_EFFECT(Bloom, true);
 
 } // namespace ptgn

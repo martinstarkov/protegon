@@ -11,6 +11,6 @@ struct Sharpen {
 	static void Draw(DrawContext& ctx, Entity entity);
 };
 
-PTGN_REGISTER_DRAWABLE(Sharpen);
+PTGN_REGISTER_EFFECT(Sharpen);
 
 } // namespace ptgn

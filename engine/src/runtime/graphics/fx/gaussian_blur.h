@@ -1,6 +1,5 @@
 #pragma once
 
-#include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 
@@ -15,6 +14,6 @@ struct GaussianBlur {
 	static void Draw(DrawContext& ctx, Entity entity);
 };
 
-PTGN_REGISTER_DRAWABLE(GaussianBlur);
+PTGN_REGISTER_EFFECT(GaussianBlur);
 
 } // namespace ptgn
