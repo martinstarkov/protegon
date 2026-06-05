@@ -181,12 +181,10 @@ void Application::Update() {
 
 		ctx_.scene_manager.Draw(draw_context);
 
-		std::function<void(DrawContext&)> screen_effect_callback;
-
 		ctx_.screen_effect_manager.Refresh();
 
 		if (!ctx_.screen_effect_manager.IsEmpty()) {
-			screen_effect_callback = [&](auto& draw_ctx) {
+			ctx_.renderer.EndFrame([this](auto& draw_ctx) {
 				for (auto entity : ctx_.screen_effect_manager.Entities()) {
 					PTGN_ASSERT(
 						!entity.Has<impl::HDREffectTag>() ||
@@ -197,10 +195,10 @@ void Application::Update() {
 					);
 					impl::InvokeDrawable(draw_ctx, entity);
 				}
-			};
-		};
-
-		ctx_.renderer.EndFrame(screen_effect_callback);
+			});
+		} else {
+			ctx_.renderer.EndFrame(nullptr);
+		}
 	}
 
 	for (const auto& layer : ctx_.layers) {

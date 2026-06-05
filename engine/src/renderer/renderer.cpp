@@ -53,6 +53,13 @@
 
 namespace ptgn {
 
+namespace {
+
+constexpr TextureFormat kDefaultPresentationTargetFormat{ kDefaultHDRFormat };
+constexpr const char* kViewProjectionUniform{ "u_ViewProjection" };
+
+} // namespace
+
 Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	window_{ window },
 	stats_{ stats },
@@ -84,8 +91,9 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 
 	PTGN_ASSERT(display_size.IsPositive(), "Display size cannot be zero");
 
-	presentation_framebuffer_ =
-		CreateFramebuffer({ .size{ display_size }, .format{ TextureFormat::RGBA8 } }, std::nullopt);
+	presentation_framebuffer_ = CreateFramebuffer(
+		{ .size{ display_size }, .format{ kDefaultPresentationTargetFormat } }, std::nullopt
+	);
 	BindPresentationFramebuffer();
 	SetViewProjection(display_size);
 
@@ -96,7 +104,7 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 
 	auto quad{ GetShader("texture") };
 	auto _1 = gl_->Bind(quad, false);
-	SetUniform(quad, "u_Textures", samplers);
+	SetUniform(quad, impl::kTexturesUniform, samplers);
 
 #ifdef PTGN_PLATFORM_MACOS
 	//  Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
@@ -272,7 +280,7 @@ void Renderer::SetShader(impl::ShaderId shader) {
 	auto update_view_projection_uniform = [&]() {
 		if (bound.render_state.view_projection.has_value()) {
 			gl_->shaders.SetUniform(
-				shader, "u_ViewProjection", *bound.render_state.view_projection
+				shader, kViewProjectionUniform, *bound.render_state.view_projection
 			);
 		}
 	};
@@ -324,15 +332,6 @@ void Renderer::SetFramebuffer(impl::FramebufferObject* framebuffer) {
 	current_framebuffer_ = framebuffer;
 }
 
-void Renderer::UpdateFramebuffer(impl::FramebufferObject&& replacing_framebuffer) {
-	PTGN_ASSERT(
-		gl_->IsBound(replacing_framebuffer),
-		"Framebuffer that is replacing current framebuffer must be bound"
-	);
-	PTGN_ASSERT(current_framebuffer_, "No current framebuffer to update");
-	*current_framebuffer_ = std::move(replacing_framebuffer);
-}
-
 void Renderer::SetViewProjection(V2_float size) {
 	SetViewProjection(Matrix4::Orthographic(size));
 }
@@ -347,7 +346,7 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	const auto& bound{ gl_->GetBoundState().render_state };
 	PTGN_ASSERT(bound.view_projection.has_value());
 	if (auto shader{ GetBoundShader() }) {
-		gl_->shaders.SetUniform(shader, "u_ViewProjection", *bound.view_projection);
+		gl_->shaders.SetUniform(shader, kViewProjectionUniform, *bound.view_projection);
 	}
 }
 
@@ -685,38 +684,6 @@ void Renderer::BeginFrame() {
 	Clear(presentation_framebuffer_, background_color_, false);
 }
 
-void Renderer::ApplyScreenEffects(const std::function<void(DrawContext&)>& screen_effect_callback) {
-	if (!screen_effect_callback) {
-		return;
-	}
-
-	FlushBatch();
-
-	PTGN_ASSERT(presentation_framebuffer_, "Presentation framebuffer must be valid");
-
-	auto size{ GetSize(presentation_framebuffer_) };
-
-	PTGN_ASSERT(size.IsPositive(), "Presentation framebuffer size must be valid");
-
-	SetFramebuffer(&presentation_framebuffer_);
-
-	Viewport viewport{
-		.position = {},
-		.size	  = size,
-	};
-
-	SetViewport(viewport);
-	SetViewProjection(viewport.size);
-	SetScissor(ScissorState{ false });
-	SetBlendMode(BlendMode::ReplaceRGBA);
-
-	DrawContext ctx{ *this };
-
-	screen_effect_callback(ctx);
-
-	FlushBatch();
-}
-
 void Renderer::BindUniforms() {
 	auto shader{ GetBoundShader() };
 	if (!shader) {
@@ -741,65 +708,6 @@ void Renderer::ExecuteEffectCallbacks(const std::function<void(DrawContext&)>& e
 
 void Renderer::DrawTexture(const impl::DrawTextureRequest& request) {
 	Draw(request);
-}
-
-void Renderer::EndFrame(const std::function<void(DrawContext&)>& screen_effect_callback) {
-	PTGN_ASSERT(display_viewport_.size.IsPositive());
-
-	FlushBatch();
-
-	ApplyScreenEffects(screen_effect_callback);
-
-	SetFramebuffer(nullptr);
-
-	if (presentation_viewport_.has_value()) {
-		framebuffer_pool_.Update();
-		PTGN_ASSERT(
-			batcher_.IsEmpty(),
-			"No indices should be left in the batcher after finishing the render frame"
-		);
-		return;
-	}
-
-	PTGN_ASSERT(
-		GetSize(presentation_framebuffer_) == display_viewport_.size,
-		"Screen framebuffer size must match display viewport size"
-	);
-
-	SetCurrentPipeline("texture");
-	SetMaterial(
-		MaterialState{
-			.shader	  = GetShader("texture"),
-			.uniforms = {},
-		}
-	);
-	SetBlendMode(BlendMode::ReplaceRGBA);
-	SetViewport(display_viewport_);
-	SetViewProjection(display_viewport_.size);
-
-	constexpr auto depth{ 0.0f };
-	constexpr auto tint{ color::White };
-	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
-	constexpr auto entity_id{ -1 };
-
-	auto local_vertices{ Rect{ display_viewport_.size }.GetLocalVertices() };
-	auto local_quad{
-		impl::CreateTextureQuad(local_vertices, depth, tint.Normalized(), tex_coords, entity_id)
-	};
-
-	impl::DrawTextureRequest request;
-	request.primitives = { &local_quad, 1 };
-	request.texture	   = GetTexture(presentation_framebuffer_);
-
-	DrawTexture(request);
-
-	FlushBatch();
-
-	framebuffer_pool_.Update();
-	PTGN_ASSERT(
-		batcher_.IsEmpty(),
-		"No indices should be left in the batcher after finishing the render frame"
-	);
 }
 
 bool Renderer::IsPresentationViewportVisible() const {
@@ -1128,7 +1036,7 @@ void Renderer::CompositeRenderPassResult(
 
 	auto input{ impl::BoundInput{
 		.framebuffer = source,
-		.binding	 = TextureBinding{ 0, "u_Texture" },
+		.binding	 = TextureBinding{ 0, kTextureUniform },
 	} };
 
 	DrawRenderPass(

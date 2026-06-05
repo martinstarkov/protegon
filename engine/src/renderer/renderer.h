@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -24,6 +25,7 @@
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
+#include "core/util/concepts.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/camera.h"
@@ -503,7 +505,84 @@ private:
 	void DrawElements(const impl::RenderPipeline& pipeline, std::uint32_t index_count);
 
 	void BeginFrame();
-	void EndFrame(const std::function<void(DrawContext&)>& screen_effect_callback);
+
+	template <typename F>
+	void EndFrame(F&& presentation_effect_callback) {
+		PTGN_ASSERT(display_viewport_.size.IsPositive());
+
+		FlushBatch();
+
+		if constexpr (!std::same_as<std::remove_cvref_t<F>, std::nullptr_t>) {
+			static_assert(
+				InvocableR<F, void, DrawContext&>,
+				"Incorrect presentation effect callback signature"
+			);
+			ApplyPresentationEffect(std::forward<F>(presentation_effect_callback));
+		}
+
+		constexpr bool kToneMappingEnabled{ true };
+
+		if (kToneMappingEnabled && IsHDRFormat(GetFormat(presentation_framebuffer_))) {
+			ApplyPresentationEffect([this](DrawContext& ctx) {
+				ctx.Pass([](auto& pass) -> RenderPassHandle {
+					return pass.Apply("tone_mapping_exposure")
+						.Uniform("u_Gamma", 2.2f)
+						.Uniform("u_Exposure", 1.0f);
+				});
+			});
+		}
+
+		SetFramebuffer(nullptr);
+
+		if (presentation_viewport_.has_value()) {
+			framebuffer_pool_.Update();
+			PTGN_ASSERT(
+				batcher_.IsEmpty(),
+				"No indices should be left in the batcher after finishing the render frame"
+			);
+			return;
+		}
+
+		PTGN_ASSERT(
+			GetSize(presentation_framebuffer_) == display_viewport_.size,
+			"Screen framebuffer size must match display viewport size"
+		);
+
+		SetCurrentPipeline("texture");
+		SetMaterial(
+			MaterialState{
+				.shader	  = GetShader("texture"),
+				.uniforms = {},
+			}
+		);
+		SetBlendMode(BlendMode::ReplaceRGBA);
+		SetViewport(display_viewport_);
+		SetViewProjection(display_viewport_.size);
+
+		constexpr auto depth{ 0.0f };
+		constexpr auto tint{ color::White };
+		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
+		constexpr auto entity_id{ -1 };
+
+		auto local_vertices{ Rect{ display_viewport_.size }.GetLocalVertices() };
+		auto local_quad{
+			impl::CreateTextureQuad(local_vertices, depth, tint.Normalized(), tex_coords, entity_id)
+		};
+
+		impl::DrawTextureRequest request;
+		request.primitives = { &local_quad, 1 };
+		request.texture	   = GetTexture(presentation_framebuffer_);
+
+		DrawTexture(request);
+
+		FlushBatch();
+
+		framebuffer_pool_.Update();
+		PTGN_ASSERT(
+			batcher_.IsEmpty(),
+			"No indices should be left in the batcher after finishing the render frame"
+		);
+	}
 
 	void SetUniformValue(impl::ShaderId id, const char* uniform_name, const UniformValue& v);
 
@@ -543,8 +622,6 @@ private:
 		impl::FramebufferId source, impl::FramebufferId destination, Viewport destination_region
 	);
 
-	void ApplyScreenEffects(const std::function<void(DrawContext&)>& screen_effect_callback);
-
 	void BindUniforms();
 
 	impl::ShaderId GetBoundShader() const;
@@ -554,6 +631,35 @@ private:
 	bool FramebufferMatches(
 		impl::FramebufferId framebuffer, TextureDesc desc, std::optional<TextureDesc> other_desc
 	) const;
+
+	template <InvocableR<void, DrawContext&> F>
+	void ApplyPresentationEffect(F&& function) {
+		FlushBatch();
+
+		PTGN_ASSERT(presentation_framebuffer_, "Presentation framebuffer must be valid");
+
+		auto size{ GetSize(presentation_framebuffer_) };
+
+		PTGN_ASSERT(size.IsPositive(), "Presentation framebuffer size must be valid");
+
+		SetFramebuffer(&presentation_framebuffer_);
+
+		Viewport viewport{
+			.position = {},
+			.size	  = size,
+		};
+
+		SetViewport(viewport);
+		SetViewProjection(viewport.size);
+		SetScissor(ScissorState{ false });
+		SetBlendMode(BlendMode::ReplaceRGBA);
+
+		DrawContext ctx{ *this };
+
+		std::invoke(std::forward<F>(function), ctx);
+
+		FlushBatch();
+	}
 
 	Window& window_;
 
