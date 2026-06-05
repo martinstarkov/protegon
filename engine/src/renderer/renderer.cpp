@@ -426,6 +426,26 @@ void Renderer::OnWindowResize(V2_int size) {
 	display_viewport_dirty_ = true;
 }
 
+void Renderer::SetPresentationSettings(const PresentationSettings& settings) {
+	presentation_settings_ = settings;
+}
+
+PresentationSettings Renderer::GetPresentationSettings() const {
+	return presentation_settings_;
+}
+
+void Renderer::SetToneMappingOperator(ToneMappingOperator op) {
+	presentation_settings_.tone_mapping.op = op;
+}
+
+void Renderer::SetToneMappingExposure(float exposure) {
+	presentation_settings_.tone_mapping.exposure = exposure;
+}
+
+void Renderer::SetGamma(float gamma) {
+	presentation_settings_.gamma = gamma;
+}
+
 void Renderer::SetGameSize(
 	std::optional<V2_int> game_size, std::optional<ScalingMode> scaling_mode
 ) {

@@ -62,6 +62,8 @@ class RenderCommands;
 class RendererAccessor;
 
 inline constexpr Color kDefaultRendererBackgroundColor{ color::Transparent };
+inline constexpr const char* kGammaUniform{ "u_Gamma" };
+inline constexpr const char* kExposureUniform{ "u_Exposure" };
 
 namespace gl {
 
@@ -145,8 +147,66 @@ using DrawTrianglesRequest = DrawRequest<RenderTriangle<TVertex>>;
 
 } // namespace impl
 
+enum class ToneMappingOperator {
+	None, // No tone mapping.
+	Exposure,
+	Reinhard,
+	ACES
+};
+
+struct ToneMappingSettings {
+	ToneMappingOperator op{ ToneMappingOperator::None };
+	/// @brief Only used by Exposure and ACES operators. Higher values will result in a brighter
+	/// image.
+	float exposure{ 1.0f };
+};
+
+struct PresentationSettings {
+	ToneMappingSettings tone_mapping;
+	/// @brief Gamma value to use for gamma correction. This is applied after tone mapping and
+	/// should be set to 2.2 for correct sRGB output. Setting this to 1.0 will disable gamma
+	/// correction.
+	float gamma{ 2.2f };
+};
+
+/// @return The name of the shader to use for the given tone mapping operator. The shader will also
+/// apply gamma correction based on the presentation settings gamma value.
+constexpr std::string_view GetGammaAndToneMappingShader(ToneMappingOperator op) {
+	switch (op) {
+		using enum ToneMappingOperator;
+		case None:	   return "linear_to_srgb";
+		case Exposure: return "tone_mapping_exposure";
+		case Reinhard: return "tone_mapping_reinhard";
+		case ACES:	   return "tone_mapping_aces";
+		default:	   PTGN_ERROR("Unknown ToneMappingOperator: ", std::to_underlying(op));
+	}
+}
+
+constexpr bool RequiresHDRInput(ToneMappingOperator op) {
+	switch (op) {
+		using enum ToneMappingOperator;
+
+		case None:	   return false;
+
+		case Exposure: [[fallthrough]];
+		case Reinhard: [[fallthrough]];
+		case ACES:	   return true;
+
+		default:	   PTGN_ERROR("Unknown ToneMappingOperator: ", std::to_underlying(op));
+	}
+}
+
 class Renderer {
 public:
+	void SetPresentationSettings(const PresentationSettings& settings);
+	PresentationSettings GetPresentationSettings() const;
+
+	void SetToneMappingOperator(ToneMappingOperator op);
+
+	void SetToneMappingExposure(float exposure);
+
+	void SetGamma(float gamma);
+
 	/// @param game_size Setting to nullopt will dynamically use the presentation viewport size.
 	void SetGameSize(
 		std::optional<V2_int> game_size			= std::nullopt,
@@ -520,17 +580,30 @@ private:
 			ApplyPresentationEffect(std::forward<F>(presentation_effect_callback));
 		}
 
-		constexpr bool kToneMappingEnabled{ true };
+		auto op{ presentation_settings_.tone_mapping.op };
 
-		if (kToneMappingEnabled && IsHDRFormat(GetFormat(presentation_framebuffer_))) {
-			ApplyPresentationEffect([this](DrawContext& ctx) {
-				ctx.Pass([](auto& pass) -> RenderPassHandle {
-					return pass.Apply("tone_mapping_exposure")
-						.Uniform("u_Gamma", 2.2f)
-						.Uniform("u_Exposure", 1.0f);
-				});
+		PTGN_ASSERT(
+			!RequiresHDRInput(op) || IsHDRFormat(GetFormat(presentation_framebuffer_)),
+			"Presentation framebuffer format must support HDR if tone mapping is enabled"
+		);
+
+		ApplyPresentationEffect([this, op](DrawContext& ctx) {
+			ctx.Pass([this, op](auto& pass) -> RenderPassHandle {
+				auto gamma_and_tonemapping_shader{ GetGammaAndToneMappingShader(op) };
+
+				auto result{ pass.Apply(gamma_and_tonemapping_shader) };
+
+				result.Uniform(impl::kGammaUniform, presentation_settings_.gamma);
+
+				if (op == ToneMappingOperator::Exposure || op == ToneMappingOperator::ACES) {
+					result.Uniform(
+						impl::kExposureUniform, presentation_settings_.tone_mapping.exposure
+					);
+				}
+
+				return result;
 			});
-		}
+		});
 
 		SetFramebuffer(nullptr);
 
@@ -679,6 +752,8 @@ private:
 	impl::FramebufferPool framebuffer_pool_;
 	impl::RenderPipelineManager pipeline_manager_;
 	std::vector<impl::FramebufferObject> temp_framebuffers_;
+
+	PresentationSettings presentation_settings_;
 
 	std::optional<V2_int> game_size_;
 	Viewport display_viewport_;
