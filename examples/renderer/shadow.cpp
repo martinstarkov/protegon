@@ -8,6 +8,8 @@
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/fx/bloom.h"
+#include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/fx/light.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
@@ -57,6 +59,14 @@ public:
 		auto properties3{ properties };
 		properties3.color = color::Blue;
 		light3			  = CreateLight(*this, light_starting_pos, properties3);
+
+		AddScreenEffect<Bloom>(
+			*this, Bloom{ .threshold	   = 0.05f,
+						  .soft_knee	   = 0.01f,
+						  .radius		   = 1.0f,
+						  .intensity	   = 1.0f,
+						  .blur_iterations = 4 }
+		);
 	}
 
 	void OnUpdate() override {
