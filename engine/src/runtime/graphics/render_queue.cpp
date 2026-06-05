@@ -476,16 +476,15 @@ void RenderQueue::Draw(
 
 			renderer.FlushBatch();
 
-			TextureDrawParams params{
-				.size{ viewport.size },
-				.tint{ bucket.camera->tint },
-				.texture_coordinates{ impl::GetTextureCoordinates(
-					viewport.position, viewport.size, rt_size, true, true
-				) },
-				/* No margin for camera effects so cameras do not exceed their viewports */
-				.effects{ .draw_callback{ bucket.camera->effect_params.draw_callback },
-						  .margin{ 0 } }
-			};
+			TextureDrawParams params{ .size{ viewport.size },
+									  .tint{ bucket.camera->tint },
+									  .texture_coordinates{ impl::GetTextureCoordinates(
+										  viewport.position, viewport.size, rt_size, true, true
+									  ) },
+									  .effects{ bucket.camera->effect_params } };
+
+			// No margin for camera effects so cameras do not exceed their viewports
+			params.effects.margin = 0;
 
 			ctx.WithRenderState(
 				{ .view_projection = Matrix4::Orthographic(viewport.size),
