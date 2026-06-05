@@ -16,6 +16,7 @@
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/tolerance.h"
@@ -57,6 +58,8 @@ namespace impl {
 class ApplicationContext;
 class RenderCommands;
 class RendererAccessor;
+
+inline constexpr Color kDefaultRendererBackgroundColor{ color::Transparent };
 
 namespace gl {
 
@@ -269,7 +272,6 @@ private:
 	const impl::RenderPipeline& GetPipeline(impl::PipelineId id) const;
 
 	void SetFramebuffer(impl::FramebufferObject* framebuffer);
-	void UpdateFramebuffer(impl::FramebufferObject&& replacing_framebuffer);
 
 	template <impl::RenderPrimitive T>
 	void DrawWithEffect(const impl::DrawRequest<T>& request) {
@@ -298,10 +300,12 @@ private:
 
 		size += V2_float{ request.effect_params.margin * 2 };
 
-		TextureDesc desc{ .size = size };
+		TextureDesc desc{ .size	  = size,
+						  .format = impl::GetTextureFormat(request.effect_params.color_range) };
 
 		if (request.texture) {
-			desc.format = GetFormat(request.texture);
+			// Inherit texture parameters from the original texture if it exists, to ensure
+			// consistency of sampling behavior between the original and expanded framebuffer.
 			desc.params = GetParams(request.texture);
 		}
 
@@ -559,7 +563,7 @@ private:
 
 	std::unique_ptr<impl::gl::GLContext> gl_;
 
-	Color background_color_;
+	Color background_color_{ impl::kDefaultRendererBackgroundColor };
 	impl::FramebufferObject presentation_framebuffer_;
 
 	std::vector<UniformWrite> current_uniforms_;
