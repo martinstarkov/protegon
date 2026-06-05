@@ -31,6 +31,7 @@
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_state.h"
@@ -43,6 +44,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_queue.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
@@ -630,18 +632,35 @@ void DrawDebugForCamera(
 
 namespace impl {
 
-void BuildLightVisibilityPolygons(Scene&, std::span<const CameraRenderBucket> buckets) {
+void BuildLightVisibilityPolygons(
+	Scene&, std::span<const CameraRenderBucket> buckets, V2_int game_size,
+	const RenderTarget& scene_render_target
+) {
 	for (const auto& bucket : buckets) {
 		if (!bucket.entity_commands) {
 			continue;
 		}
 
-		PTGN_ASSERT(
-			bucket.camera->scene_camera,
-			"Scene camera must be set to calculate camera world vertices for light shadows"
-		);
+		PTGN_ASSERT(bucket.camera);
 
-		auto camera_vertices{ bucket.camera->scene_camera.GetWorldVertices() };
+		auto render_camera{ *bucket.camera };
+
+		auto render_target{ render_camera.render_target ? render_camera.render_target
+														: scene_render_target };
+
+		PTGN_ASSERT(render_target);
+
+		auto rt_size{ render_target.GetSize() };
+
+		auto viewport{ render_camera.scene_camera
+						   ? render_camera.camera.viewport
+						   : GetRenderViewport(
+								 render_camera.camera.viewport, render_camera.camera.viewport_space,
+								 game_size, rt_size
+							 ) };
+
+		Rect rect{ viewport.size };
+		auto camera_vertices{ rect.GetWorldVertices(bucket.camera->camera.transform) };
 
 		BuildForBucket(*bucket.entity_commands, camera_vertices);
 	}

@@ -5,6 +5,7 @@
 #include <array>
 #include <limits>
 #include <optional>
+#include <utility>
 
 #include "core/assert.h"
 #include "core/event/event.h"

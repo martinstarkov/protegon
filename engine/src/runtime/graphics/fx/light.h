@@ -11,11 +11,11 @@
 #include "renderer/resources/shader.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/render_queue.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
 
+class RenderTarget;
 class DrawContext;
 class Scene;
 
@@ -47,7 +47,12 @@ struct LightProperties {
 
 namespace impl {
 
-void BuildLightVisibilityPolygons(Scene&, std::span<const CameraRenderBucket> buckets);
+struct CameraRenderBucket;
+
+void BuildLightVisibilityPolygons(
+	Scene&, std::span<const CameraRenderBucket> buckets, V2_int game_size,
+	const RenderTarget& scene_render_target
+);
 
 void DrawLightVisibilityDebug(Scene& scene);
 
