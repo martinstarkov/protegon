@@ -22,7 +22,7 @@ class Scene;
 class DrawContext;
 class RenderTarget;
 
-inline constexpr TextureFormat kDefaultRenderTargetFormat{ TextureFormat::RGBA32F };
+inline constexpr TextureFormat kDefaultRenderTargetFormat{ kDefaultHDRFormat };
 inline constexpr Color kDefaultRenderTargetClearColor{ color::Transparent };
 
 RenderTarget CreateRenderTarget(Scene&, V2_int, Color, TextureFormat);

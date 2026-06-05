@@ -33,6 +33,8 @@ enum class TextureFormat : std::uint32_t {
 };
 
 inline constexpr TextureFormat kDefaultTextureStorageFormat{ TextureFormat::SRGB8_ALPHA8 };
+inline constexpr TextureFormat kDefaultHDRFormat{ TextureFormat::RGBA32F };
+inline constexpr TextureFormat kDefaultSDRFormat{ TextureFormat::RGBA8 };
 
 [[nodiscard]] constexpr std::string_view ToString(TextureFormat format) {
 	switch (format) {
@@ -193,6 +195,40 @@ constexpr bool IsHDRFormat(TextureFormat fmt) {
 		case R16F:	  [[fallthrough]];
 		case R32F:	  return true;
 		default:	  return false;
+	}
+}
+
+constexpr TextureFormat ToHDRFormat(TextureFormat format) {
+	switch (format) {
+		using enum TextureFormat;
+
+		// Already HDR.
+		case R16F:				[[fallthrough]];
+		case RG16F:				[[fallthrough]];
+		case RGB16F:			[[fallthrough]];
+		case RGBA16F:			[[fallthrough]];
+		case R32F:				[[fallthrough]];
+		case RG32F:				[[fallthrough]];
+		case RGB32F:			[[fallthrough]];
+		case RGBA32F:			return format;
+
+		// LDR color -> HDR linear float.
+		case R8:				return R32F;
+		case RG8:				return RG32F;
+		case RGB8:				[[fallthrough]];
+		case SRGB8:				return RGB32F;
+
+		case RGBA8:				[[fallthrough]];
+		case SRGB8_ALPHA8:		return RGBA32F;
+
+		// Non-color formats should not be promoted this way.
+		case Depth16:			[[fallthrough]];
+		case Depth24:			[[fallthrough]];
+		case Depth32F:			[[fallthrough]];
+		case Depth24_Stencil8:	[[fallthrough]];
+		case Depth32F_Stencil8: [[fallthrough]];
+		case Stencil8:			[[fallthrough]];
+		default:				PTGN_ERROR("Cannot upgrade non-color TextureFormat to HDR: ", ToString(format));
 	}
 }
 

@@ -30,7 +30,9 @@
 #include "platform/window.h"
 #include "renderer/pipeline/draw_context.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/texture_format.h"
 #include "runtime/audio/audio_system.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
@@ -186,6 +188,13 @@ void Application::Update() {
 		if (!ctx_.screen_effect_manager.IsEmpty()) {
 			screen_effect_callback = [&](auto& draw_ctx) {
 				for (auto entity : ctx_.screen_effect_manager.Entities()) {
+					PTGN_ASSERT(
+						!entity.Has<impl::HDREffectTag>() ||
+							IsHDRFormat(
+								ctx_.renderer.GetFormat(ctx_.renderer.presentation_framebuffer_)
+							),
+						"Presentation framebuffer must use HDR format if it has an HDR effect"
+					);
 					impl::InvokeDrawable(draw_ctx, entity);
 				}
 			};
