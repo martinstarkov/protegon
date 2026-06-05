@@ -3,16 +3,15 @@
 #include <ecs/ecs.h>
 
 #include <cstdint>
-#include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include "core/math/vector2.h"
 #include "core/util/file.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
@@ -20,7 +19,7 @@
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/key_hash.h"
 #include "runtime/graphics/text/font.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -242,8 +241,14 @@ public:
 		std::optional<std::string_view> shader_name = std::nullopt
 	);
 
-	Texture CreateTexture(const path& texture_path);
-	Texture LoadTexture(std::string_view key, const path& texture_path);
+	Texture CreateTexture(
+		const path& texture_path, TextureFormat storage_format = kDefaultTextureStorageFormat,
+		TextureParams params = {}
+	);
+	Texture LoadTexture(
+		std::string_view key, const path& texture_path,
+		TextureFormat storage_format = kDefaultTextureStorageFormat, TextureParams params = {}
+	);
 
 	Font CreateFont(const path& font_path, std::string_view name);
 	Font LoadFont(std::string_view key, const path& font_path);
@@ -294,7 +299,7 @@ private:
 	);
 
 	[[nodiscard]] impl::TextureObject CreateTexture(
-		const impl::Surface& surface, TextureFormat format, TextureParams params = {}
+		const impl::Surface& surface, TextureFormat storage_format, TextureParams params = {}
 	) const;
 
 	[[nodiscard]] impl::TextureObject CreateTexture(
@@ -302,7 +307,9 @@ private:
 	) const;
 
 	[[nodiscard]] Audio CreateAudio(bool persistent, const path& asset_path);
-	[[nodiscard]] Texture CreateTexture(bool persistent, const path& asset_path);
+	[[nodiscard]] Texture CreateTexture(
+		bool persistent, const path& asset_path, TextureFormat storage_format, TextureParams params
+	);
 	[[nodiscard]] Font CreateFont(bool persistent, const path& asset_path, std::string_view name);
 
 	[[nodiscard]] ecs::Entity CreateAsset();

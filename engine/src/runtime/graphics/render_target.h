@@ -22,6 +22,9 @@ class Scene;
 class DrawContext;
 class RenderTarget;
 
+inline constexpr TextureFormat kDefaultRenderTargetFormat{ TextureFormat::RGBA32F };
+inline constexpr Color kDefaultRenderTargetClearColor{ color::Transparent };
+
 RenderTarget CreateRenderTarget(Scene&, V2_int, Color, TextureFormat);
 RenderTarget CreateRenderTarget(Scene&, ResizeType, Color, TextureFormat);
 
@@ -132,20 +135,23 @@ struct ParentRenderTarget {
 
 /// Create a render target with a custom size.
 /// @param size The size of the render target and its camera viewport.
-/// @param clear_color The background color of the render target.
-/// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
+/// @param clear_color The color to which the render target is cleared.
+/// @param Texture format of the render target texture. Ensure this complies with possible HDR
+/// requirements.
 RenderTarget CreateRenderTarget(
-	Scene& scene, V2_int size, Color clear_color = color::Transparent,
-	TextureFormat texture_format = TextureFormat::RGBA8
+	Scene& scene, V2_int size, Color clear_color = kDefaultRenderTargetClearColor,
+	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
 
 /// Create a render target that is continuously sized to the specified resolution.
 /// @param resize_to_resolution Which resolution the render target automatically resizes to.
-/// @param clear_color The background color of the render target.
-/// @param Texture format of the render target texture. Mostly used for enabling HDR targets.
+/// @param clear_color The color to which the render target is cleared.
+/// @param Texture format of the render target texture. Ensure this complies with possible HDR
+/// requirements.
 RenderTarget CreateRenderTarget(
-	Scene& scene, ResizeType resize_to_resolution = ResizeType::Display,
-	Color clear_color = color::Transparent, TextureFormat texture_format = TextureFormat::RGBA8
+	Scene& scene, ResizeType resize_to_resolution,
+	Color clear_color			 = kDefaultRenderTargetClearColor,
+	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
 
 PTGN_REGISTER_DRAWABLE(RenderTarget);

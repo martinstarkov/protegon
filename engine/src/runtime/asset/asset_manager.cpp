@@ -75,19 +75,19 @@ AssetKind GetAssetKind(const path& path) {
 
 AssetManager::AssetManager(Renderer& renderer, AudioSystem& audio, FontSystem& font) :
 	renderer_{ renderer }, audio_{ audio }, font_{ font } {
-	// Note: Do not use audio or font here as they are constructed after asset manager.
+	// Note: Do not use audio or font systems here as they are constructed after asset manager.
 }
 
 impl::TextureObject AssetManager::CreateTexture(
-	const impl::Surface& surface, TextureFormat format, TextureParams params
+	const impl::Surface& surface, TextureFormat storage_format, TextureParams params
 ) const {
 	PTGN_ASSERT(
-		surface.GetChannelCount() == GetChannelCount(format),
-		"Surface and texture format channel count must match"
+		surface.GetChannelCount() == GetChannelCount(storage_format),
+		"Surface and texture storage format channel count must match"
 	);
 	return CreateTexture(
 		surface.Data(),
-		TextureDesc{ .size{ surface.GetSize() }, .format{ format }, .params{ params } }
+		TextureDesc{ .size{ surface.GetSize() }, .format{ storage_format }, .params{ params } }
 	);
 }
 
@@ -97,7 +97,9 @@ impl::TextureObject AssetManager::CreateTexture(
 	return impl::RendererAccessor{ renderer_ }.CreateTexture(pixel_data, desc);
 }
 
-Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
+Texture AssetManager::CreateTexture(
+	bool persistent, const path& asset_path, TextureFormat storage_format, TextureParams params
+) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot create texture from invalid path: ", asset_path.string()
 	);
@@ -110,22 +112,25 @@ Texture AssetManager::CreateTexture(bool persistent, const path& asset_path) {
 	Texture texture{ CreateAsset(), persistent };
 
 	texture.GetEntity().Add<impl::TextureObject>(CreateTexture(
-		data,
-		TextureDesc{ .size{ size }, .format{ TextureFormat::RGBA8 }, .params{ TextureParams{} } }
+		data, TextureDesc{ .size{ size }, .format{ storage_format }, .params{ params } }
 	));
 
 	return texture;
 }
 
-Texture AssetManager::CreateTexture(const path& asset_path) {
-	return CreateTexture(false, asset_path);
+Texture AssetManager::CreateTexture(
+	const path& asset_path, TextureFormat storage_format, TextureParams params
+) {
+	return CreateTexture(false, asset_path, storage_format, params);
 }
 
-Texture AssetManager::LoadTexture(std::string_view key, const path& asset_path) {
+Texture AssetManager::LoadTexture(
+	std::string_view key, const path& asset_path, TextureFormat storage_format, TextureParams params
+) {
 	if (auto existing{ TryGet<Texture>(key) }; existing.has_value()) {
 		return *existing;
 	}
-	auto texture{ CreateTexture(true, asset_path) };
+	auto texture{ CreateTexture(true, asset_path, storage_format, params) };
 	impl::AddAssetKey(texture.GetEntity(), key, asset_path);
 	return texture;
 }

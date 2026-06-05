@@ -56,6 +56,18 @@ namespace ptgn {
 
 namespace {
 
+constexpr TextureFormat kDefaultSceneTargetFormat{ kDefaultRenderTargetFormat };
+constexpr Color kDefaultSceneBackgroundColor{ kDefaultRenderTargetClearColor };
+
+constexpr BlendMode kDefaultFirstSceneBlendMode{ BlendMode::ReplaceRGBA };
+
+constexpr std::string_view kDefaultSceneTargetTag{ "Scene Target" };
+constexpr std::string_view kDefaultSceneCameraTag{ "Main Camera" };
+constexpr std::string_view kDefaultSceneFixedCameraTag{ "Fixed Camera" };
+
+constexpr LayerMask kDefaultFixedCameraIncludeLayerMask{ kLayersNone };
+constexpr LayerMask kDefaultFixedCameraExcludeLayerMask{ kLayersAll };
+
 std::vector<impl::CameraEntityCommands> GetEntityRenderCommands(
 	Scene& scene, const std::optional<Camera>& primary_world_camera
 ) {
@@ -102,6 +114,38 @@ std::vector<impl::CameraEntityCommands> GetEntityRenderCommands(
 
 } // namespace
 
+void Scene::Init(Application& app, impl::SceneData&& scene_data) {
+	data_ = std::move(scene_data);
+	ctx_  = std::make_unique<SceneContext>(app, *this);
+
+	ctx_->camera = CreateCamera(*this);
+	ctx_->camera.SetTag(kDefaultSceneCameraTag);
+	ctx_->fixed_camera_ = CreateCamera(*this);
+	ctx_->fixed_camera_.SetTag(kDefaultSceneFixedCameraTag);
+	ctx_->fixed_camera_.SetMasks(
+		kDefaultFixedCameraIncludeLayerMask, kDefaultFixedCameraExcludeLayerMask
+	);
+	SetUI(ctx_->fixed_camera_, true);
+
+	render_target_ = CreateRenderTarget(
+		*this, ResizeType::Display, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat
+	);
+	render_target_.SetTag(kDefaultSceneTargetTag);
+	render_target_.Remove<impl::IDrawable>();
+
+	if (data_.first_scene) {
+		SetBlendMode(GetRenderTarget(), kDefaultFirstSceneBlendMode);
+	}
+
+	Refresh();
+
+	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
+		scripts.ApplyPending();
+	}
+
+	Refresh();
+}
+
 void Scene::InternalOnEvent(Event event) {
 	// Global event, dispatched to all entities in the scene.
 	for (auto [entity, scripts] : EntitiesWith<impl::Scripts>()) {
@@ -140,39 +184,6 @@ void Scene::InternalOnEvent() {
 
 void Scene::InternalPreUpdate() {
 	ctx().interaction.Update(*this);
-}
-
-void Scene::Init(Application& app, impl::SceneData&& scene_data) {
-	data_ = std::move(scene_data);
-	ctx_  = std::make_unique<SceneContext>(app, *this);
-
-	ctx_->camera = CreateCamera(*this);
-	ctx_->camera.SetTag("Main Camera");
-	ctx_->fixed_camera_ = CreateCamera(*this);
-	ctx_->fixed_camera_.SetTag("Fixed Camera");
-	ctx_->fixed_camera_.SetMasks(kLayersNone, kLayersAll);
-	SetUI(ctx_->fixed_camera_, true);
-
-	render_target_ =
-		CreateRenderTarget(*this, ResizeType::Display, color::Transparent, TextureFormat::RGBA8);
-	render_target_.SetTag("Scene Target");
-	render_target_.Remove<impl::IDrawable>();
-
-	if (data_.first_scene) {
-		SetBlendMode(GetRenderTarget(), BlendMode::ReplaceRGBA);
-	}
-
-	// PTGN_LOG("[scene=", this, "]");
-	// PTGN_LOG("[rt=", render_target_, "]");
-	// PTGN_LOG("[camera=", camera, "]");
-	// PTGN_LOG("[fixed_camera=", fixed_camera, "]");
-	Refresh();
-
-	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-		scripts.ApplyPending();
-	}
-
-	Refresh();
 }
 
 void Scene::InternalEnter() {
@@ -220,7 +231,7 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 		RenderQueue::GetRenderBuckets(ctx().render_queue.render_commands_, entity_commands)
 	};
 
-	impl::BuildLightVisibilityPolygons(*this, buckets);
+	impl::BuildLightVisibilityPolygons(*this, buckets, game_size, render_target_);
 
 	ctx().render_queue.Draw(draw_context, render_target_, cleared, game_size, buckets);
 

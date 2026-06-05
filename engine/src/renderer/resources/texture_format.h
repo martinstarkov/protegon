@@ -32,6 +32,8 @@ enum class TextureFormat : std::uint32_t {
 	SRGB8_ALPHA8	  = 0x8C43	// GL_SRGB8_ALPHA8
 };
 
+inline constexpr TextureFormat kDefaultTextureStorageFormat{ TextureFormat::SRGB8_ALPHA8 };
+
 [[nodiscard]] constexpr std::string_view ToString(TextureFormat format) {
 	switch (format) {
 		using enum TextureFormat;
