@@ -18,6 +18,7 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
+#include "renderer/resources/texture_format.h"
 
 namespace ptgn {
 
@@ -234,6 +235,11 @@ void RenderPassBuilder::Materialize(RenderPassHandle handle) {
 
 	PTGN_ASSERT(resource.imported, "Only imported regions can be materialized without a writer");
 
+	PTGN_ASSERT(
+		!IsHDRFormat(destination_desc_.format) || IsHDRFormat(resource.desc.format),
+		"Resource format must be HDR if the destination uses HDR"
+	);
+
 	auto scratch{ ctx_.AcquireFramebuffer(resource.desc, std::nullopt) };
 	ctx_.renderer_.Clear(scratch, color::Transparent, true);
 
@@ -298,6 +304,11 @@ void RenderPassBuilder::Execute(RenderPassHandle final_handle) {
 				}
 			);
 		}
+
+		PTGN_ASSERT(
+			!IsHDRFormat(destination_desc_.format) || IsHDRFormat(pass.output_desc.format),
+			"Output format must be HDR if the destination uses HDR"
+		);
 
 		auto output{ ctx_.AcquireFramebuffer(pass.output_desc, std::nullopt) };
 		ctx_.renderer_.Clear(output, pass.clear_color.value_or(color::Transparent), true);
