@@ -263,6 +263,11 @@ impl::VisibilityPolygon ComputeVisibilityPolygonForLight(
 		return result;
 	}
 
+	segments.emplace_back(light_bounds.min, V2_float{ light_bounds.max.x, light_bounds.min.y });
+	segments.emplace_back(V2_float{ light_bounds.max.x, light_bounds.min.y }, light_bounds.max);
+	segments.emplace_back(light_bounds.max, V2_float{ light_bounds.min.x, light_bounds.max.y });
+	segments.emplace_back(V2_float{ light_bounds.min.x, light_bounds.max.y }, light_bounds.min);
+
 	auto world_visibility{ RunVisibilitySolver(light_position, light_bounds, segments) };
 
 	result.vertices			  = std::move(world_visibility);
