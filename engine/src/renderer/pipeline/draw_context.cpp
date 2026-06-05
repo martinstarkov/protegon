@@ -119,10 +119,6 @@ void DrawContext::SetRenderState(const RenderState& state) {
 	renderer_.SetRenderState(state);
 }
 
-void DrawContext::UpdateFramebuffer(impl::FramebufferObject&& replacing_framebuffer) {
-	renderer_.UpdateFramebuffer(std::move(replacing_framebuffer));
-}
-
 void DrawContext::DrawTexture(
 	Transform transform, impl::TextureId texture, TextureDrawParams params
 ) {
