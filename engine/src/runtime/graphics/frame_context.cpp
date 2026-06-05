@@ -51,7 +51,7 @@ FrameContext::FrameContext(
 FrameContext::FrameContext(
 	const Renderer& renderer, RenderTarget render_target_entity, SceneCamera cam
 ) :
-	FrameContext{ renderer, render_target_entity, GetTransform(cam), cam.GetViewport(true) } {}
+	FrameContext{ renderer, render_target_entity, GetTransform(cam), cam.GetLogicalViewport() } {}
 
 FrameContext::FrameContext(
 	const Renderer& renderer, RenderTarget render_target_entity, const Camera& cam

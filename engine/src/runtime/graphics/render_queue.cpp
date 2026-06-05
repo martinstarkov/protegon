@@ -384,8 +384,9 @@ void RenderQueue::Draw(
 
 	auto viewport{ render_camera.scene_camera
 					   ? render_camera.camera.viewport
-					   : render_camera.camera.viewport.Resolve(
-							 render_camera.camera.viewport_space, game_size, render_target.GetSize()
+					   : GetRenderViewport(
+							 render_camera.camera.viewport, render_camera.camera.viewport_space,
+							 game_size, rt_size
 						 ) };
 
 	renderer.SetViewport(viewport);

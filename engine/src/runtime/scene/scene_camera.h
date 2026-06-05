@@ -80,10 +80,22 @@ public:
 
 	std::array<V2_float, 4> GetWorldVertices() const;
 
-	/// @param resolved If true, resolves the viewport using the current viewport space and render
-	/// target.
-	Viewport GetViewport(bool resolved = true) const;
+	/// @return The viewport of the camera without applying any scaling.
+	Viewport GetRawViewport() const;
+
+	/// @return The viewport without applying render target scaling. In other
+	/// words, the raw viewport except if viewport space is normalized, in which case it is scaled
+	/// by the game size.
+	Viewport GetLogicalViewport() const;
+
+	/// @return The viewport scaled to the parent render target. If no parent render target is set,
+	/// it is scaled to the default scene render target.
+	Viewport GetRenderViewport() const;
+
+	/// @return The viewport space of the camera, which determines how the viewport is scaled to the
+	/// parent render target.
 	ViewportSpace GetViewportSpace() const;
+
 	/// @return Viewport size scaled by the inverse of the zoom. In other words, the size of the
 	/// viewport in world units.
 	V2_float GetDisplaySize() const;

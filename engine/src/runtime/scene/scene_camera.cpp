@@ -9,7 +9,6 @@
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
-#include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/tolerance.h"
@@ -100,28 +99,7 @@ void ApplyCameraBounds(SceneCamera camera) {
 void RecalculateCameraViewProjection(SceneCamera camera) {
 	auto& c{ camera.Get<impl::CameraData>() };
 
-	auto get_projection_size = [&]() {
-		const auto& scene{ camera.GetScene() };
-		const auto& renderer{ scene.ctx().renderer };
-
-		auto game_size{ renderer.GetGameSize() };
-
-		auto render_target{ camera.GetParentRenderTarget() };
-
-		auto target_size{ render_target.GetSize() };
-
-		switch (c.viewport_space) {
-			using enum ViewportSpace;
-			case Game:		 return c.viewport.size;
-			case Normalized: return c.viewport.size * game_size;
-			case TargetPixels:
-				return c.viewport.Resolve(c.viewport_space, game_size, target_size).size;
-
-			default: PTGN_ERROR("Unsupported camera viewport space");
-		}
-	};
-
-	auto projection_size{ get_projection_size() };
+	auto projection_size{ camera.GetLogicalViewport().size };
 
 	// TODO: Consider adding flip in the future.
 	// V2_float flip_dir{ 1.0f, 1.0f };
@@ -157,7 +135,7 @@ SceneCamera::SceneCamera(Entity entity) : Entity{ entity } {}
 
 SceneCamera::operator Camera() const {
 	return Camera{ .transform{ GetTransform(*this) },
-				   .viewport{ GetViewport(true) },
+				   .viewport{ GetRenderViewport() },
 				   .viewport_space{ GetViewportSpace() },
 				   .view_projection{ GetViewProjection() } };
 }
@@ -246,7 +224,7 @@ V2_float SceneCamera::GetZoom() const {
 }
 
 std::array<V2_float, 4> SceneCamera::GetWorldVertices() const {
-	Rect rect{ GetViewport(true).size };
+	Rect rect{ GetRenderViewport().size };
 	auto transform{ GetTransform(*this) };
 	auto world_vertices{ rect.GetWorldVertices(transform) };
 	return world_vertices;
@@ -270,10 +248,20 @@ SceneCamera& SceneCamera::SetViewportSpace(ViewportSpace viewport_space) {
 	return *this;
 }
 
-Viewport SceneCamera::GetViewport(bool resolve) const {
-	if (!resolve) {
-		return Get<impl::CameraData>().viewport;
-	}
+Viewport SceneCamera::GetRawViewport() const {
+	return Get<impl::CameraData>().viewport;
+}
+
+Viewport SceneCamera::GetLogicalViewport() const {
+	const auto& camera{ Get<impl::CameraData>() };
+
+	return ptgn::GetLogicalViewport(
+		camera.viewport, camera.viewport_space, GetScene().ctx().renderer.GetGameSize()
+	);
+}
+
+Viewport SceneCamera::GetRenderViewport() const {
+	const auto& camera{ Get<impl::CameraData>() };
 
 	const auto& scene{ GetScene() };
 	const auto& renderer{ scene.ctx().renderer };
@@ -284,11 +272,7 @@ Viewport SceneCamera::GetViewport(bool resolve) const {
 
 	auto target_size{ render_target.GetSize() };
 
-	const auto& camera{ Get<impl::CameraData>() };
-
-	auto viewport{ camera.viewport.Resolve(camera.viewport_space, game_size, target_size) };
-
-	return viewport;
+	return ptgn::GetRenderViewport(camera.viewport, camera.viewport_space, game_size, target_size);
 }
 
 ViewportSpace SceneCamera::GetViewportSpace() const {
