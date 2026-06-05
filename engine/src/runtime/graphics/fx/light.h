@@ -3,6 +3,7 @@
 #include <array>
 #include <optional>
 #include <span>
+#include <vector>
 
 #include "core/graphics/color.h"
 #include "core/math/angle.h"

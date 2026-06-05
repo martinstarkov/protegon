@@ -23,6 +23,7 @@
 #include "core/math/geometry/polygon.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
+#include "core/math/geometry/triangle.h"
 #include "core/math/math_utils.h"
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
@@ -191,24 +192,16 @@ bool CasterIsBeforeLight(
 	return false;
 }
 
-std::vector<V2_float> BuildFallbackFullLightPolygon(Entity light) {
-	auto center{ GetPosition(light) };
-	auto radius{ GetScaledLightRadius(light) };
-
-	return std::ranges::to<std::vector>(Rect{
-		V2_float{ radius } }.GetWorldVertices(center, Origin::Center));
+std::vector<V2_float> BuildFallbackCameraPolygon(std::span<const V2_float> camera_vertices) {
+	return std::vector<V2_float>{ camera_vertices.begin(), camera_vertices.end() };
 }
 
 std::vector<V2_float> RunVisibilitySolver(
-	V2_float light_position, BoundingAABB light_bounds, std::span<const Line> segments
+	V2_float light_position, std::span<const V2_float> camera_vertices,
+	std::span<const Line> segments
 ) {
 	if (segments.empty()) {
-		return {
-			light_bounds.min,
-			{ light_bounds.max.x, light_bounds.min.y },
-			light_bounds.max,
-			{ light_bounds.min.x, light_bounds.max.y },
-		};
+		return BuildFallbackCameraPolygon(camera_vertices);
 	}
 
 	return GetVisibilityPolygon(light_position, segments);
@@ -216,10 +209,10 @@ std::vector<V2_float> RunVisibilitySolver(
 
 impl::VisibilityPolygon ComputeVisibilityPolygonForLight(
 	Entity light, float light_depth, std::size_t light_order,
-	std::span<const ShadowCasterEntry> casters, std::span<const Entity> candidate_entities
+	std::span<const V2_float> camera_vertices, std::span<const ShadowCasterEntry> casters,
+	std::span<const Entity> candidate_entities
 ) {
 	auto light_position{ GetPosition(light) };
-	auto light_bounds{ GetLightInfluenceAABB(light) };
 
 	std::unordered_set<Entity> candidate_set;
 	candidate_set.reserve(candidate_entities.size());
@@ -259,16 +252,13 @@ impl::VisibilityPolygon ComputeVisibilityPolygonForLight(
 	impl::VisibilityPolygon result;
 
 	if (segments.empty()) {
-		result.vertices = BuildFallbackFullLightPolygon(light);
+		result.vertices = BuildFallbackCameraPolygon(camera_vertices);
 		return result;
 	}
 
-	segments.emplace_back(light_bounds.min, V2_float{ light_bounds.max.x, light_bounds.min.y });
-	segments.emplace_back(V2_float{ light_bounds.max.x, light_bounds.min.y }, light_bounds.max);
-	segments.emplace_back(light_bounds.max, V2_float{ light_bounds.min.x, light_bounds.max.y });
-	segments.emplace_back(V2_float{ light_bounds.min.x, light_bounds.max.y }, light_bounds.min);
+	AddPolygonSegments(segments, camera_vertices);
 
-	auto world_visibility{ RunVisibilitySolver(light_position, light_bounds, segments) };
+	auto world_visibility{ RunVisibilitySolver(light_position, camera_vertices, segments) };
 
 	result.vertices			  = std::move(world_visibility);
 	result.occluder_interiors = std::move(interiors);
@@ -282,7 +272,9 @@ void ClearStaleVisibilityPolygon(Entity entity) {
 	}
 }
 
-void BuildForBucket(std::vector<impl::EntityRenderCommand>& commands) {
+void BuildForBucket(
+	std::vector<impl::EntityRenderCommand>& commands, std::span<const V2_float> camera_vertices
+) {
 	impl::KDTree tree{ 20 };
 	std::vector<impl::KDObject> objects;
 	std::vector<ShadowCasterEntry> casters;
@@ -290,6 +282,8 @@ void BuildForBucket(std::vector<impl::EntityRenderCommand>& commands) {
 
 	objects.reserve(commands.size());
 	casters.reserve(commands.size());
+
+	auto camera_bounds{ GetBoundingAABB(camera_vertices) };
 
 	for (auto order{ 0uz }; order < commands.size(); ++order) {
 		auto entity{ commands[order].entity };
@@ -337,15 +331,14 @@ void BuildForBucket(std::vector<impl::EntityRenderCommand>& commands) {
 			continue;
 		}
 
-		auto light_bounds{ GetLightInfluenceAABB(entity) };
-		auto candidates{ tree.Query(light_bounds) };
+		auto candidates{ tree.Query(camera_bounds) };
 
 		if (candidates.empty()) {
 			continue;
 		}
 
 		auto polygon{ ComputeVisibilityPolygonForLight(
-			entity, commands[order].depth, order, casters, candidates
+			entity, commands[order].depth, order, camera_vertices, casters, candidates
 		) };
 
 		if (polygon.vertices.empty()) {
@@ -436,7 +429,25 @@ void WriteLightVisibilityStencil(
 	ctx.WithRenderState(
 		ReplaceStencilState(kLightVisibleStencilRef),
 		[&ctx, &visibility_polygon, draw_transform]() {
-			DrawStencilPolygon(ctx, draw_transform, visibility_polygon.vertices);
+			auto origin{ draw_transform.position };
+
+			if (auto count{ visibility_polygon.vertices.size() }; count >= 3) {
+				for (auto i{ 0uz }; i < count; ++i) {
+					V2_float a{ visibility_polygon.vertices[i] };
+					V2_float b{ visibility_polygon.vertices[(i + 1) % count] };
+
+					ctx.DrawShape(
+						draw_transform.Inverse(), Triangle{ origin, a, b }, color::White,
+						ShapeDrawParams{
+							.depth		= 0.0f,
+							.fill_style = Solid{},
+							.origin		= Origin::Center,
+						}
+					);
+				}
+			}
+
+			// DrawStencilPolygon(ctx, draw_transform, visibility_polygon.vertices);
 
 			for (const auto& interior : visibility_polygon.occluder_interiors) {
 				if (interior.masks_light_inside) {
@@ -625,7 +636,14 @@ void BuildLightVisibilityPolygons(Scene&, std::span<const CameraRenderBucket> bu
 			continue;
 		}
 
-		BuildForBucket(*bucket.entity_commands);
+		PTGN_ASSERT(
+			bucket.camera->scene_camera,
+			"Scene camera must be set to calculate camera world vertices for light shadows"
+		);
+
+		auto camera_vertices{ bucket.camera->scene_camera.GetWorldVertices() };
+
+		BuildForBucket(*bucket.entity_commands, camera_vertices);
 	}
 }
 

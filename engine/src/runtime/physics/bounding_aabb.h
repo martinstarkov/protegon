@@ -1,5 +1,7 @@
 #pragma once
 
+#include <span>
+
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 
@@ -17,6 +19,9 @@ struct BoundingAABB {
 
 	[[nodiscard]] BoundingAABB ExpandByVelocity(V2_float velocity) const;
 };
+
+/// @return Axis aligned bounding box which contains the given vertices (fully surrounding them).
+BoundingAABB GetBoundingAABB(std::span<const V2_float> vertices);
 
 /// @return Axis aligned bounding box which contains the given shape (fully surrounding it).
 BoundingAABB GetBoundingAABB(const ColliderShape& shape, Transform transform);

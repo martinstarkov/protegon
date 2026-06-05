@@ -1,14 +1,15 @@
 
-#include <vector>
 
 #include "app/application.h"
 #include "core/graphics/color.h"
 #include "core/input/mouse.h"
+#include "core/log.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/fx/light.h"
+#include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -32,31 +33,30 @@ public:
 
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		auto sprite2{ CreateSprite(*this, "sprite", { -200, -250 }) };
-		SetOccluder(sprite2);
-
 		auto properties1{ properties };
 		properties1.color = color::Red;
 		light1			  = CreateLight(*this, light_starting_pos, properties1);
 
-		// SetPosition(light1, light_starting_pos);
+		SetPosition(light1, light_starting_pos);
 
-		// CreateSprite(*this, "sprite", { 200, -250 });
+		CreateSprite(*this, "sprite", { -200, -250 });
+		auto sprite2{ CreateSprite(*this, "sprite", { 200, -250 }) };
+		SetOccluder(sprite2, true, false);
 
-		// CreateRect(*this, { -300, 300 }, { 100, 100 }, color::LightGray);
-		// auto rect2{ CreateRect(*this, { 0, 300 }, { 100, 100 }, color::Gray) };
-		//// SetOccluder(rect2);
+		CreateRect(*this, { -300, 300 }, { 100, 100 }, color::LightGray);
+		auto rect2{ CreateRect(*this, { 0, 300 }, { 100, 100 }, color::Gray) };
+		SetOccluder(rect2);
 
-		// auto properties2{ properties };
-		// properties2.color = color::Green;
-		// light2			  = CreateLight(*this, light_starting_pos, properties2);
+		auto properties2{ properties };
+		properties2.color = color::Green;
+		light2			  = CreateLight(*this, light_starting_pos, properties2);
 
-		// auto rect3{ CreateRect(*this, { 300, 300 }, { 100, 100 }, color::DarkGray) };
-		//// SetOccluder(rect3);
+		auto rect3{ CreateRect(*this, { 300, 300 }, { 100, 100 }, color::DarkGray) };
+		SetOccluder(rect3);
 
-		// auto properties3{ properties };
-		// properties3.color = color::Blue;
-		// light3			  = CreateLight(*this, light_starting_pos, properties3);
+		auto properties3{ properties };
+		properties3.color = color::Blue;
+		light3			  = CreateLight(*this, light_starting_pos, properties3);
 	}
 
 	void OnUpdate() override {
@@ -64,13 +64,12 @@ public:
 			mouse_light++;
 			mouse_light = Mod(mouse_light, 3);
 		}
-		SetPosition(light1, ctx().input.GetMousePosition());
-		// switch (mouse_light) {
-		//	case 0:	 SetPosition(light1, ctx().input.GetMousePosition()); break;
-		//	case 1:	 SetPosition(light2, ctx().input.GetMousePosition()); break;
-		//	case 2:	 SetPosition(light3, ctx().input.GetMousePosition()); break;
-		//	default: PTGN_ERROR("Mouse light index out of range");
-		// }
+		switch (mouse_light) {
+			case 0:	 SetPosition(light1, ctx().input.GetMousePosition()); break;
+			case 1:	 SetPosition(light2, ctx().input.GetMousePosition()); break;
+			case 2:	 SetPosition(light3, ctx().input.GetMousePosition()); break;
+			default: PTGN_ERROR("Mouse light index out of range");
+		}
 	}
 };
 

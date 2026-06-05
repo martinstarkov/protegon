@@ -1,6 +1,6 @@
 #include "runtime/physics/bounding_aabb.h"
 
-#include <algorithm>
+#include <span>
 #include <vector>
 
 #include "core/math/geometry/shape.h"
@@ -41,20 +41,22 @@ BoundingAABB BoundingAABB::ExpandByVelocity(V2_float velocity) const {
 	return expanded;
 }
 
-BoundingAABB GetBoundingAABB(const ColliderShape& shape, Transform transform) {
-	auto world_vertices{ GetWorldVertices(shape, transform) };
+BoundingAABB GetBoundingAABB(std::span<const V2_float> vertices) {
+	auto min{ vertices.front() };
+	auto max{ vertices.front() };
 
-	V2_float min{ world_vertices[0] };
-	V2_float max{ world_vertices[0] };
-
-	for (const auto& v : world_vertices) {
-		min.x = std::min(min.x, v.x);
-		min.y = std::min(min.y, v.y);
-		max.x = std::max(max.x, v.x);
-		max.y = std::max(max.y, v.y);
+	for (const auto& v : vertices.subspan(1)) {
+		min = Min(min, v);
+		max = Max(max, v);
 	}
 
 	return BoundingAABB{ min, max };
+}
+
+BoundingAABB GetBoundingAABB(const ColliderShape& shape, Transform transform) {
+	auto world_vertices{ GetWorldVertices(shape, transform) };
+
+	return GetBoundingAABB(world_vertices);
 }
 
 } // namespace ptgn
