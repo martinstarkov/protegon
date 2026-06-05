@@ -236,7 +236,42 @@ bool VisibilityRayIntersects(
 } // namespace impl
 
 std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line> shadow_segments) {
-	using namespace ptgn::impl;
+	const auto same_segment = [](const Line& x, const Line& y) {
+		return (x.start == y.start && x.end == y.end) || (x.start == y.end && x.end == y.start);
+	};
+
+	const auto point_less = [](V2_float a, V2_float b) {
+		if (a.x < b.x) {
+			return true;
+		}
+		if (b.x < a.x) {
+			return false;
+		}
+		return a.y < b.y;
+	};
+
+	const auto line_less = [&](const Line& x, const Line& y) {
+		auto [a, b] = x.GetLocalVertices();
+		auto [c, d] = y.GetLocalVertices();
+
+		// Canonicalize endpoint order so Line{A, B} and Line{B, A}
+		// do not get different tie-break order.
+		if (point_less(b, a)) {
+			std::swap(a, b);
+		}
+		if (point_less(d, c)) {
+			std::swap(c, d);
+		}
+
+		if (point_less(a, c)) {
+			return true;
+		}
+		if (point_less(c, a)) {
+			return false;
+		}
+
+		return point_less(b, d);
+	};
 
 	// Compare 2 line segments based on their distance from given point.
 	// Assumes: (1) The line segments are intersected by some ray from the origin.
@@ -247,16 +282,16 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 	// @param y Line segment: Right hand side of the comparison operator.
 	// @return True if x < y (x is closer than y).
 	//
-	const auto cmp_dist = [origin = point](const Line& x, const Line& y) {
+	const auto closer = [origin = point](const Line& x, const Line& y) {
 		auto [a, b] = x.GetLocalVertices();
 		auto [c, d] = y.GetLocalVertices();
 
 		PTGN_ASSERT(
-			GetOrientation(origin, a, b) != Orientation::Collinear,
+			impl::GetOrientation(origin, a, b) != impl::Orientation::Collinear,
 			"AB must not be Collinear with the origin."
 		);
 		PTGN_ASSERT(
-			GetOrientation(origin, c, d) != Orientation::Collinear,
+			impl::GetOrientation(origin, c, d) != impl::Orientation::Collinear,
 			"CD must not be Collinear with the origin."
 		);
 
@@ -270,46 +305,67 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 
 		// Cases with common endpoints.
 		if (a == c) {
-			if (b == d || GetOrientation(origin, a, d) != GetOrientation(origin, a, b)) {
+			if (b == d ||
+				impl::GetOrientation(origin, a, d) != impl::GetOrientation(origin, a, b)) {
 				return false;
 			}
-			return GetOrientation(a, b, d) != GetOrientation(a, b, origin);
+			return impl::GetOrientation(a, b, d) != impl::GetOrientation(a, b, origin);
 		}
 
 		// Cases without common endpoints.
-		auto cda{ GetOrientation(c, d, a) };
-		auto cdb{ GetOrientation(c, d, b) };
+		auto cda{ impl::GetOrientation(c, d, a) };
+		auto cdb{ impl::GetOrientation(c, d, b) };
 
-		if (cdb == Orientation::Collinear && cda == Orientation::Collinear) {
+		if (cdb == impl::Orientation::Collinear && cda == impl::Orientation::Collinear) {
 			return (origin - a).MagnitudeSquared() < (origin - c).MagnitudeSquared();
-		} else if (cda == cdb || cda == Orientation::Collinear || cdb == Orientation::Collinear) {
-			auto cdo = GetOrientation(c, d, origin);
+		} else if (
+			cda == cdb || cda == impl::Orientation::Collinear || cdb == impl::Orientation::Collinear
+		) {
+			auto cdo = impl::GetOrientation(c, d, origin);
 			return cdo == cda || cdo == cdb;
 		} else {
-			auto abo = GetOrientation(a, b, origin);
-			return abo != GetOrientation(a, b, c);
+			auto abo = impl::GetOrientation(a, b, origin);
+			return abo != impl::GetOrientation(a, b, c);
 		}
 	};
 
+	const auto cmp_dist = [&](const Line& x, const Line& y) {
+		if (same_segment(x, y)) {
+			return false;
+		}
+
+		auto xy{ closer(x, y) };
+		auto yx{ closer(y, x) };
+
+		if (xy != yx) {
+			return xy;
+		}
+
+		// Either both false or both true.
+		// Both false means geometrically ambiguous/equal for this comparison.
+		// In both cases, fall back to a stable strict ordering.
+		return line_less(x, y);
+	};
+
 	std::set<Line, decltype(cmp_dist)> state{ cmp_dist };
-	std::vector<VisibilityEvent> events;
+	std::vector<impl::VisibilityEvent> events;
 
 	for (const auto& segment : shadow_segments) {
 		// Sort line segment endpoints and add them as events.
 		// Skip line segments Collinear with the point.
-		if (auto pab{ GetOrientation(point, segment.start, segment.end) };
-			pab == Orientation::Collinear) {
+		if (auto pab{ impl::GetOrientation(point, segment.start, segment.end) };
+			pab == impl::Orientation::Collinear) {
 			continue;
-		} else if (pab == Orientation::RightTurn) {
-			events.emplace_back(VisibilityEvent::Type::StartVertex, segment);
+		} else if (pab == impl::Orientation::RightTurn) {
+			events.emplace_back(impl::VisibilityEvent::Type::StartVertex, segment);
 			events.emplace_back(
-				VisibilityEvent::Type::EndVertex, Line{ segment.end, segment.start }
+				impl::VisibilityEvent::Type::EndVertex, Line{ segment.end, segment.start }
 			);
 		} else {
 			events.emplace_back(
-				VisibilityEvent::Type::StartVertex, Line{ segment.end, segment.start }
+				impl::VisibilityEvent::Type::StartVertex, Line{ segment.end, segment.start }
 			);
-			events.emplace_back(VisibilityEvent::Type::EndVertex, segment);
+			events.emplace_back(impl::VisibilityEvent::Type::EndVertex, segment);
 		}
 
 		// Initialize state by adding line segments that are intersected
@@ -320,7 +376,7 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 			std::swap(a, b);
 		}
 
-		if (GetOrientation(a, b, point) == Orientation::RightTurn &&
+		if (impl::GetOrientation(a, b, point) == impl::Orientation::RightTurn &&
 			(NearlyEqual(b.x, point.x) || (a.x < point.x && point.x < b.x))) {
 			state.insert(segment);
 		}
@@ -357,8 +413,8 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 	std::sort(events.begin(), events.end(), [&angle_comparer](const auto& a, const auto& b) {
 		// If the points are equal, sort end vertices first.
 		if (a.segment.start == b.segment.start) {
-			return a.type == VisibilityEvent::Type::EndVertex &&
-				   b.type == VisibilityEvent::Type::StartVertex;
+			return a.type == impl::VisibilityEvent::Type::EndVertex &&
+				   b.type == impl::VisibilityEvent::Type::StartVertex;
 		}
 		return angle_comparer(a.segment.start, b.segment.start);
 	});
@@ -367,7 +423,7 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 	std::vector<V2_float> vertices;
 
 	for (const auto& event : events) {
-		if (event.type == VisibilityEvent::Type::EndVertex) {
+		if (event.type == impl::VisibilityEvent::Type::EndVertex) {
 			state.erase(event.segment);
 		}
 
@@ -378,14 +434,14 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 			// Compute the intersection point with this segment.
 			V2_float intersection;
 			Line nearest_segment{ *state.begin() };
-			[[maybe_unused]] auto intersects{ VisibilityRayIntersects(
+			[[maybe_unused]] auto intersects{ impl::VisibilityRayIntersects(
 				point, event.segment.start - point, nearest_segment, intersection
 			) };
 
 			// TODO: Readd this assert once the resolution change no longer crashes the algorithm.
 			// PTGN_ASSERT(intersects, "Ray intersects line segment L if L is in the state");
 
-			if (event.type == VisibilityEvent::Type::StartVertex) {
+			if (event.type == impl::VisibilityEvent::Type::StartVertex) {
 				vertices.emplace_back(intersection);
 				vertices.emplace_back(event.segment.start);
 			} else {
@@ -394,7 +450,7 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 			}
 		}
 
-		if (event.type == VisibilityEvent::Type::StartVertex) {
+		if (event.type == impl::VisibilityEvent::Type::StartVertex) {
 			state.insert(event.segment);
 		}
 	}
@@ -406,7 +462,7 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 		auto prev{ top == vertices.begin() ? vertices.end() - 1 : top - 1 };
 		auto next{ it + 1 == vertices.end() ? vertices.begin() : it + 1 };
 
-		if (GetOrientation(*prev, *it, *next) != Orientation::Collinear) {
+		if (impl::GetOrientation(*prev, *it, *next) != impl::Orientation::Collinear) {
 			*top++ = *it;
 		}
 	}
