@@ -64,8 +64,20 @@
     "vertex": "texture",
     "fragment": "light"
   },
-  "tone_mapping": {
+  "linear_to_srgb": {
     "vertex": "passthrough",
-    "fragment": "tone_mapping"
+    "fragment": "linear_to_srgb"
+  },
+  "tone_mapping_reinhard": {
+    "vertex": "passthrough",
+    "fragment": "tone_mapping_reinhard"
+  },
+  "tone_mapping_exposure": {
+    "vertex": "passthrough",
+    "fragment": "tone_mapping_exposure"
+  },
+  "tone_mapping_aces": {
+    "vertex": "passthrough",
+    "fragment": "tone_mapping_aces"
   }
 }
