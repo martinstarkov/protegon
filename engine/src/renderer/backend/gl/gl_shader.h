@@ -21,7 +21,11 @@
 
 CMRC_DECLARE(shaders);
 
-namespace ptgn::impl::gl {
+namespace ptgn::impl {
+
+inline constexpr const char* kTexturesUniform{ "u_Textures" };
+
+namespace gl {
 
 class GLContext;
 
@@ -100,14 +104,17 @@ private:
 	Shaders& operator=(const Shaders&)	   = delete;
 	Shaders& operator=(Shaders&&) noexcept = delete;
 
-	std::vector<ShaderSpec> ParseShaderSourceFile(const std::string& source, std::string_view name)
-		const;
+	std::vector<ShaderSpec> ParseShaderSourceFile(
+		const std::string& source, std::string_view name
+	) const;
 
-	ShaderId CompileShaderSource(const std::string& source, ShaderType type, std::string_view name)
-		const;
+	ShaderId CompileShaderSource(
+		const std::string& source, ShaderType type, std::string_view name
+	) const;
 
-	ShaderId CompileShaderPath(const path& shader_path, ShaderType type, std::string_view name)
-		const;
+	ShaderId CompileShaderPath(
+		const path& shader_path, ShaderType type, std::string_view name
+	) const;
 
 	void CompileShaders(const std::vector<ShaderSpec>& sources);
 
@@ -139,8 +146,9 @@ private:
 		std::string_view shader_name
 	) const;
 
-	ShaderInfo GetShaderInfo(const ShaderCode& code, ShaderType type, std::string_view shader_name)
-		const;
+	ShaderInfo GetShaderInfo(
+		const ShaderCode& code, ShaderType type, std::string_view shader_name
+	) const;
 
 	ShaderInfo GetShaderInfo(
 		const ShaderPathOrName& path_or_name, ShaderType type, std::string_view shader_name
@@ -170,4 +178,6 @@ private:
 	IdMap<ProgramCache> cache_;
 };
 
-} // namespace ptgn::impl::gl
+} // namespace gl
+
+} // namespace ptgn::impl

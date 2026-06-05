@@ -336,9 +336,9 @@ std::string GenerateTextureColorSwitchBlock(std::size_t max_texture_slots) {
 	for (auto i{ 0uz }; i < max_texture_slots; ++i) {
 		oss << std::format(
 			"\tif (v_TexIndex == {}.0f) {{\n"
-			"\t\ttexture_color *= texture(u_Textures[{}], v_TexCoord);\n"
+			"\t\ttexture_color *= texture({}[{}], v_TexCoord);\n"
 			"\t}}\n",
-			i, i
+			i, ptgn::impl::kTexturesUniform, i
 		);
 	}
 	return oss.str();
@@ -349,9 +349,9 @@ std::string GenerateTextureSizeSwitchBlock(std::size_t max_texture_slots) {
 	for (auto i{ 0uz }; i < max_texture_slots; ++i) {
 		oss << std::format(
 			"\tif (v_TexIndex == {}.0f) {{\n"
-			"\t\ttexture_size = vec2(textureSize(u_Textures[{}], 0));\n"
+			"\t\ttexture_size = vec2(textureSize({}[{}], 0));\n"
 			"\t}}\n",
-			i, i
+			i, ptgn::impl::kTexturesUniform, i
 		);
 	}
 	return oss.str();

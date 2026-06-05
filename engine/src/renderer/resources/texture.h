@@ -23,9 +23,11 @@ struct TextureDesc {
 	constexpr bool operator==(const TextureDesc&) const = default;
 };
 
+inline constexpr const char* kTextureUniform{ "u_Texture" };
+
 struct TextureBinding {
 	std::uint32_t slot{ 0 };
-	std::string uniform{ "u_Texture" };
+	std::string uniform{ kTextureUniform };
 };
 
 namespace impl {

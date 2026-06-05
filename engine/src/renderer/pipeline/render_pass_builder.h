@@ -92,7 +92,7 @@ public:
 	);
 
 	RenderPass& Read(
-		RenderPassHandle handle, std::uint32_t slot = 0, std::string_view uniform = "u_Texture"
+		RenderPassHandle handle, std::uint32_t slot = 0, std::string_view uniform = kTextureUniform
 	);
 
 	RenderPass& Uniform(std::string_view name, float value);
