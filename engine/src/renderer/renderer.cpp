@@ -32,9 +32,9 @@
 #include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/backend/gl/gl_vertex_array.h"
+#include "renderer/draw_context.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
-#include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/framebuffer_pool.h"
 #include "renderer/pipeline/primitive_mode.h"
 #include "renderer/pipeline/render_batcher.h"
@@ -426,24 +426,24 @@ void Renderer::OnWindowResize(V2_int size) {
 	display_viewport_dirty_ = true;
 }
 
-void Renderer::SetPresentationSettings(const PresentationSettings& settings) {
-	presentation_settings_ = settings;
+void Renderer::SetSettings(const RenderSettings& settings) {
+	render_settings_ = settings;
 }
 
-PresentationSettings Renderer::GetPresentationSettings() const {
-	return presentation_settings_;
+RenderSettings Renderer::GetSettings() const {
+	return render_settings_;
 }
 
 void Renderer::SetToneMappingOperator(ToneMappingOperator op) {
-	presentation_settings_.tone_mapping.op = op;
+	render_settings_.tone_mapping.op = op;
 }
 
 void Renderer::SetToneMappingExposure(float exposure) {
-	presentation_settings_.tone_mapping.exposure = exposure;
+	render_settings_.tone_mapping.exposure = exposure;
 }
 
 void Renderer::SetGamma(float gamma) {
-	presentation_settings_.gamma = gamma;
+	render_settings_.gamma = gamma;
 }
 
 void Renderer::SetGameSize(

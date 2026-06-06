@@ -17,29 +17,27 @@
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
-#include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
-#include "core/math/tolerance.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
 #include "core/util/concepts.h"
+#include "renderer/draw_context.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/camera.h"
-#include "renderer/pipeline/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/framebuffer_pool.h"
 #include "renderer/pipeline/render_batcher.h"
 #include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_primitives.h"
+#include "renderer/pipeline/render_request.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/render_settings.h"
 #include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
@@ -71,135 +69,12 @@ class GLContext;
 
 } // namespace gl
 
-template <RenderPrimitive T>
-void ApplyTransform(Transform transform, std::span<T> primitives) {
-	using TVertex = typename RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
-
-	transform.ApplyTo(
-		primitives | std::views::join,
-		[](const TVertex& vertex) {
-			const auto& pos{ PositionAccessor<TVertex>::Get(vertex) };
-			return V2_float{ pos[0], pos[1] };
-		},
-		[](TVertex& vertex, V2_float position) {
-			auto& pos{ PositionAccessor<TVertex>::Get(vertex) };
-			pos[0] = position.x;
-			pos[1] = position.y;
-		}
-	);
-}
-
-/// @return True if all vertices in all primitives have the same depth and entity ID, false
-/// otherwise.
-template <RenderPrimitive T>
-bool HaveUniformDepthAndEntityId(std::span<T> primitives) {
-	PTGN_ASSERT(!primitives.empty());
-
-	const auto& first_primitive{ primitives.front() };
-	const auto& first_vertex{ first_primitive.front() };
-
-	using TVertex = typename RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
-
-	auto get_depth = [](const auto& vertex) -> float {
-		return impl::PositionAccessor<TVertex>::Get(vertex)[2];
-	};
-
-	auto get_entity_id = [](const auto& vertex) -> int {
-		return impl::EntityIdAccessor<TVertex>::Get(vertex);
-	};
-
-	auto first_depth{ get_depth(first_vertex) };
-	auto first_entity_id{ get_entity_id(first_vertex) };
-
-	for (const auto& primitive : primitives) {
-		for (const auto& vertex : primitive) {
-			if (!NearlyEqual(get_depth(vertex), first_depth) ||
-				get_entity_id(vertex) != first_entity_id) {
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-template <RenderPrimitive T>
-struct DrawRequest {
-	/// @brief Optional texture to apply to the primitive. If the pipeline does not support
-	/// texturing, this field will be ignored.
-	TextureId texture;
-	/// @brief Center of the primitive in world space. Origin should be accounted for in this
-	/// transform.
-	Transform transform;
-
-	std::span<T> primitives;
-
-	EffectParams effect_params;
-};
-
-using DrawTextureRequest = DrawRequest<TextureQuad>;
-
-template <VertexType TVertex>
-using DrawQuadsRequest = DrawRequest<RenderQuad<TVertex>>;
-
-template <VertexType TVertex>
-using DrawTrianglesRequest = DrawRequest<RenderTriangle<TVertex>>;
-
 } // namespace impl
-
-enum class ToneMappingOperator {
-	None, // No tone mapping.
-	Exposure,
-	Reinhard,
-	ACES
-};
-
-struct ToneMappingSettings {
-	ToneMappingOperator op{ ToneMappingOperator::None };
-	/// @brief Only used by Exposure and ACES operators. Higher values will result in a brighter
-	/// image.
-	float exposure{ 1.0f };
-};
-
-struct PresentationSettings {
-	ToneMappingSettings tone_mapping;
-	/// @brief Gamma value to use for gamma correction. This is applied after tone mapping and
-	/// should be set to 2.2 for correct sRGB output. Setting this to 1.0 will disable gamma
-	/// correction.
-	float gamma{ 2.2f };
-};
-
-/// @return The name of the shader to use for the given tone mapping operator. The shader will also
-/// apply gamma correction based on the presentation settings gamma value.
-constexpr std::string_view GetGammaAndToneMappingShader(ToneMappingOperator op) {
-	switch (op) {
-		using enum ToneMappingOperator;
-		case None:	   return "linear_to_srgb";
-		case Exposure: return "tone_mapping_exposure";
-		case Reinhard: return "tone_mapping_reinhard";
-		case ACES:	   return "tone_mapping_aces";
-		default:	   PTGN_ERROR("Unknown ToneMappingOperator: ", std::to_underlying(op));
-	}
-}
-
-constexpr bool RequiresHDRInput(ToneMappingOperator op) {
-	switch (op) {
-		using enum ToneMappingOperator;
-
-		case None:	   return false;
-
-		case Exposure: [[fallthrough]];
-		case Reinhard: [[fallthrough]];
-		case ACES:	   return true;
-
-		default:	   PTGN_ERROR("Unknown ToneMappingOperator: ", std::to_underlying(op));
-	}
-}
 
 class Renderer {
 public:
-	void SetPresentationSettings(const PresentationSettings& settings);
-	PresentationSettings GetPresentationSettings() const;
+	void SetSettings(const RenderSettings& settings);
+	RenderSettings GetSettings() const;
 
 	void SetToneMappingOperator(ToneMappingOperator op);
 
@@ -580,25 +455,23 @@ private:
 			ApplyPresentationEffect(std::forward<F>(presentation_effect_callback));
 		}
 
-		auto op{ presentation_settings_.tone_mapping.op };
+		auto op{ render_settings_.tone_mapping.op };
 
 		PTGN_ASSERT(
-			!RequiresHDRInput(op) || IsHDRFormat(GetFormat(presentation_framebuffer_)),
+			!impl::RequiresHDRInput(op) || IsHDRFormat(GetFormat(presentation_framebuffer_)),
 			"Presentation framebuffer format must support HDR if tone mapping is enabled"
 		);
 
 		ApplyPresentationEffect([this, op](DrawContext& ctx) {
 			ctx.Pass([this, op](auto& pass) -> RenderPassHandle {
-				auto gamma_and_tonemapping_shader{ GetGammaAndToneMappingShader(op) };
+				auto gamma_and_tonemapping_shader{ impl::GetGammaAndToneMappingShader(op) };
 
 				auto result{ pass.Apply(gamma_and_tonemapping_shader) };
 
-				result.Uniform(impl::kGammaUniform, presentation_settings_.gamma);
+				result.Uniform(impl::kGammaUniform, render_settings_.gamma);
 
 				if (op == ToneMappingOperator::Exposure || op == ToneMappingOperator::ACES) {
-					result.Uniform(
-						impl::kExposureUniform, presentation_settings_.tone_mapping.exposure
-					);
+					result.Uniform(impl::kExposureUniform, render_settings_.tone_mapping.exposure);
 				}
 
 				return result;
@@ -753,7 +626,7 @@ private:
 	impl::RenderPipelineManager pipeline_manager_;
 	std::vector<impl::FramebufferObject> temp_framebuffers_;
 
-	PresentationSettings presentation_settings_;
+	RenderSettings render_settings_;
 
 	std::optional<V2_int> game_size_;
 	Viewport display_viewport_;

@@ -1,8 +1,13 @@
 #pragma once
 
 #include <array>
+#include <ranges>
+#include <span>
 #include <type_traits>
 
+#include "core/assert.h"
+#include "core/math/tolerance.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "core/util/concepts.h"
@@ -65,5 +70,57 @@ struct RenderPrimitiveInfo<RenderQuad<TVertex>> {
 
 template <typename T>
 concept RenderPrimitive = RenderPrimitiveInfo<std::remove_cvref_t<T>>::valid;
+
+template <RenderPrimitive T>
+void ApplyTransform(Transform transform, std::span<T> primitives) {
+	using TVertex = typename RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
+
+	transform.ApplyTo(
+		primitives | std::views::join,
+		[](const TVertex& vertex) {
+			const auto& pos{ PositionAccessor<TVertex>::Get(vertex) };
+			return V2_float{ pos[0], pos[1] };
+		},
+		[](TVertex& vertex, V2_float position) {
+			auto& pos{ PositionAccessor<TVertex>::Get(vertex) };
+			pos[0] = position.x;
+			pos[1] = position.y;
+		}
+	);
+}
+
+/// @return True if all vertices in all primitives have the same depth and entity ID, false
+/// otherwise.
+template <RenderPrimitive T>
+bool HaveUniformDepthAndEntityId(std::span<T> primitives) {
+	PTGN_ASSERT(!primitives.empty());
+
+	const auto& first_primitive{ primitives.front() };
+	const auto& first_vertex{ first_primitive.front() };
+
+	using TVertex = typename RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
+
+	auto get_depth = [](const auto& vertex) -> float {
+		return impl::PositionAccessor<TVertex>::Get(vertex)[2];
+	};
+
+	auto get_entity_id = [](const auto& vertex) -> int {
+		return impl::EntityIdAccessor<TVertex>::Get(vertex);
+	};
+
+	auto first_depth{ get_depth(first_vertex) };
+	auto first_entity_id{ get_entity_id(first_vertex) };
+
+	for (const auto& primitive : primitives) {
+		for (const auto& vertex : primitive) {
+			if (!NearlyEqual(get_depth(vertex), first_depth) ||
+				get_entity_id(vertex) != first_entity_id) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
 
 } // namespace ptgn::impl
