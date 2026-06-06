@@ -91,10 +91,6 @@ std::vector<impl::CameraEntityCommands> GetEntityRenderCommands(
 	impl::ForDrawableSceneEntities(
 		scene, primary_world_camera,
 		[&get_entity_commands_for_camera](auto& scene_ref, const auto& camera, const auto& filter) {
-			if (camera.scene_camera) {
-				impl::RecalculateCameraViewProjection(camera.scene_camera);
-			}
-
 			auto& camera_entity_commands{ get_entity_commands_for_camera(camera) };
 
 			for (auto [entity, _visible, _drawable] :
@@ -207,6 +203,10 @@ bool Scene::IsAwaitingTransitionDelay() const {
 }
 
 void Scene::InternalDraw(DrawContext& draw_context) {
+	for (auto [camera, _data] : EntitiesWith<impl::CameraData>()) {
+		impl::RecalculateCameraViewProjection(SceneCamera{ camera });
+	}
+
 	const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
 
 	auto entity_commands{ GetEntityRenderCommands(*this, primary_world_camera) };
