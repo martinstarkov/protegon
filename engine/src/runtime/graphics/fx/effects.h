@@ -7,7 +7,7 @@
 #include "app/application_context.h"
 #include "core/assert.h"
 #include "core/util/concepts.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"

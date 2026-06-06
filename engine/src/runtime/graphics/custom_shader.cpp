@@ -10,7 +10,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"

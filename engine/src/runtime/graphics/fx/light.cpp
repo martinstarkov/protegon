@@ -32,7 +32,7 @@
 #include "core/math/vector4.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"

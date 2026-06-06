@@ -27,7 +27,7 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "platform/window.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/audio/audio_system.h"

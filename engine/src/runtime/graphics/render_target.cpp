@@ -7,7 +7,7 @@
 #include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/vector2.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport_event.h"

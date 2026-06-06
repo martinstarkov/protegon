@@ -11,7 +11,7 @@
 #include "core/assert.h"
 #include "core/log.h"
 #include "core/util/time.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_transition.h"
 

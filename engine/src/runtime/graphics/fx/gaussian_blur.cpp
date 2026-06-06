@@ -1,7 +1,7 @@
 #include "runtime/graphics/fx/gaussian_blur.h"
 
 #include "core/math/vector2.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "renderer/pipeline/render_pass_builder.h"
 #include "runtime/ecs/entity.h"
 

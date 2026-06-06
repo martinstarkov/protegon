@@ -27,7 +27,7 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"

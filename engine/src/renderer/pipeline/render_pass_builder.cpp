@@ -11,7 +11,7 @@
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"

@@ -10,7 +10,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"

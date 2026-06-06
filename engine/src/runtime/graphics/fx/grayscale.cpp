@@ -1,6 +1,6 @@
 #include "runtime/graphics/fx/grayscale.h"
 
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "renderer/pipeline/render_pass_builder.h"
 #include "runtime/ecs/entity.h"
 

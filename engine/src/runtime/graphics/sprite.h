@@ -7,7 +7,7 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
