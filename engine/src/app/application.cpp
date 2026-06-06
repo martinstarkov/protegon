@@ -12,7 +12,6 @@
 #include <imgui_impl_opengl3.h>
 
 #include <chrono>
-#include <functional>
 #include <memory>
 #include <string_view>
 #include <utility>
@@ -52,17 +51,6 @@ Application::~Application() noexcept = default;
 
 void Application::EnterMainLoop() {
 	// Only show window after initialization has completed.
-	// This is required for the first frame render to work.
-	ctx_.window.SetSetting(WindowSetting::Shown);
-
-	// Render one frame before entering the main loop to ensure that the window is not blank for the
-	// first frame.
-	if (Can(impl::ApplicationFeature::RenderScenes)) {
-		RenderScenes();
-		ctx_.window.SwapBuffers();
-	}
-
-	// This call seems to be required to refresh the window so that it is not blank.
 	ctx_.window.SetSetting(WindowSetting::Shown);
 
 	ctx_.running = true;
@@ -175,7 +163,7 @@ void Application::Update() {
 
 	using enum ApplicationState;
 
-	ctx_.running = ctx_.window.PollEvents();
+	ctx_.running = ctx_.window.Update();
 
 	if (ctx_.window.GetSetting(WindowSetting::Minimized)) {
 		ctx_.audio.Update();
