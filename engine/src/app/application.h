@@ -81,6 +81,7 @@ private:
 
 	void EnterMainLoop();
 	void Update();
+	void RenderScenes();
 	void HandleGlobalEvents(bool dispatch_scene_events);
 
 	impl::ApplicationContext ctx_;

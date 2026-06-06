@@ -51,10 +51,20 @@ Application::Application(std::string_view title, V2_int window_size) :
 Application::~Application() noexcept = default;
 
 void Application::EnterMainLoop() {
-	// Design decision: Latest possible point to show window is right before
-	// loop starts. Comment this if you wish the window to appear hidden for an
-	// indefinite period of time.
+	// Only show window after initialization has completed.
+	// This is required for the first frame render to work.
 	ctx_.window.SetSetting(WindowSetting::Shown);
+
+	// Render one frame before entering the main loop to ensure that the window is not blank for the
+	// first frame.
+	if (Can(impl::ApplicationFeature::RenderScenes)) {
+		RenderScenes();
+		ctx_.window.SwapBuffers();
+	}
+
+	// This call seems to be required to refresh the window so that it is not blank.
+	ctx_.window.SetSetting(WindowSetting::Shown);
+
 	ctx_.running = true;
 
 	ctx_.renderer.UpdateDisplayViewport(true);
@@ -97,6 +107,32 @@ void Application::HandleGlobalEvents(bool dispatch_scene_events) {
 			scene->InternalOnEvent(event);
 		}
 	}
+}
+
+void Application::RenderScenes() {
+	ctx_.renderer.BeginFrame();
+
+	DrawContext draw_context{ ctx_.renderer };
+
+	ctx_.scene_manager.Draw(draw_context);
+
+	ctx_.screen_effect_manager.Refresh();
+
+	if (ctx_.screen_effect_manager.IsEmpty()) {
+		ctx_.renderer.EndFrame(nullptr);
+		return;
+	}
+
+	ctx_.renderer.EndFrame([this](auto& draw_ctx) {
+		for (auto entity : ctx_.screen_effect_manager.Entities()) {
+			PTGN_ASSERT(
+				!entity.Has<impl::HDREffectTag>() ||
+					IsHDRFormat(ctx_.renderer.GetFormat(ctx_.renderer.presentation_framebuffer_)),
+				"Presentation framebuffer must use HDR format if it has an HDR effect"
+			);
+			impl::InvokeDrawable(draw_ctx, entity);
+		}
+	});
 }
 
 void Application::Update() {
@@ -175,30 +211,7 @@ void Application::Update() {
 	ctx_.audio.Update();
 
 	if (scene_rendering) {
-		ctx_.renderer.BeginFrame();
-
-		DrawContext draw_context{ ctx_.renderer };
-
-		ctx_.scene_manager.Draw(draw_context);
-
-		ctx_.screen_effect_manager.Refresh();
-
-		if (!ctx_.screen_effect_manager.IsEmpty()) {
-			ctx_.renderer.EndFrame([this](auto& draw_ctx) {
-				for (auto entity : ctx_.screen_effect_manager.Entities()) {
-					PTGN_ASSERT(
-						!entity.Has<impl::HDREffectTag>() ||
-							IsHDRFormat(
-								ctx_.renderer.GetFormat(ctx_.renderer.presentation_framebuffer_)
-							),
-						"Presentation framebuffer must use HDR format if it has an HDR effect"
-					);
-					impl::InvokeDrawable(draw_ctx, entity);
-				}
-			});
-		} else {
-			ctx_.renderer.EndFrame(nullptr);
-		}
+		RenderScenes();
 	}
 
 	for (const auto& layer : ctx_.layers) {
