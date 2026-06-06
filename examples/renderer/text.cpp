@@ -1,17 +1,16 @@
 #include "runtime/graphics/text/text.h"
 
+#include <algorithm>
 #include <string>
 #include <string_view>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
-#include "renderer/pipeline/draw_context.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/text_system.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -22,20 +21,24 @@ constexpr V2_int game_size{ 800, 800 };
 
 struct TextScene : public Scene {
 	static constexpr std::string_view font{ "arial" };
-	std::string content{ "The quick brown fox jumps over the lazy dog" };
 
-	Text CreateText(const Color& color, int index, std::string_view font_key = font) {
-		constexpr float stride{ 44.0f };
+	std::string content{ "The quick brown fox jumps over the lazy dog" };
+	float scale{ 40.0f };
+
+	Text CreateLine(const Color& color, int index, std::string_view font_key = font) {
+		float stride{ 44.0f };
 		float font_size{ 30.0f };
 
-		auto text = ptgn::CreateText(
-			*this, { 0.0f, -game_size.y * 0.5f + stride * static_cast<float>(index) }, content,
-			color, font_size, font_key, Origin::CenterTop
-		);
+		auto text{ ptgn::CreateText(
+			*this,
+			{ 0.0f, -static_cast<float>(game_size.y) * 0.5f + stride * static_cast<float>(index) },
+			Origin::CenterTop
+		) };
+
+		text.Content(content).Font(font_key).Size(font_size).Color(color);
+
 		return text;
 	}
-
-	float scale{ 40.0f };
 
 	void OnEnter() override {
 		ctx().renderer.SetGameSize(game_size);
@@ -44,47 +47,41 @@ struct TextScene : public Scene {
 		ctx().asset.Load(font, "assets/Arial.ttf");
 
 		// Default font.
-		CreateText(color::Black, 0, {});
+		CreateLine(color::Black, 0, {});
 
 		// Colors.
-		CreateText(color::Black, 1);
-		CreateText(color::Green, 2);
+		CreateLine(color::Black, 1);
+		CreateLine(color::Green, 2);
 
 		// Styles.
-		CreateText(color::Green, 3).SetFontStyle(FontStyle::Bold);
-		CreateText(color::Black, 4).SetFontStyle(FontStyle::Italic);
-		CreateText(color::Black, 5).SetFontStyle(FontStyle::Strikethrough);
-		CreateText(color::Black, 6).SetFontStyle(FontStyle::Underline);
+		CreateLine(color::Green, 3).Bold();
+		CreateLine(color::Black, 4).Italic();
+		CreateLine(color::Black, 5).Strikethrough();
+		CreateLine(color::Black, 6).Underline();
 
-		CreateText(color::Black, 7)
-			.SetFontStyle(
+		CreateLine(color::Black, 7)
+			.Style(
 				FontStyle::Bold | FontStyle::Italic | FontStyle::Strikethrough |
 				FontStyle::Underline
 			);
 
-		// TODO: Fix.
-		/*
-		// Shading.
-		CreateText(color::Black, 8)
-			.SetFontRenderMode(FontRenderMode::Shaded)
-			.SetShadingColor(color::Gold);
+		// Examples for the new rich API:
+		CreateLine(color::Black, 8).Content(" rich red").Color(color::Red).Bold().Underline();
 
-		// Blending (visually this text should be bright blue but isnt due to alpha blending).
-		CreateText(Color{ 0, 0, 255, 50 }, 9).SetFontRenderMode(FontRenderMode::Blended);
+		CreateLine(color::Black, 9)
+			.Content(" glowing")
+			.Color(color::Blue)
+			.Glow(color::Blue, 0.35f, 1.0f);
 
-		// Everything at the same time.
-		CreateText(color::Red, 10)
-			.SetFontStyle(
-				FontStyle::Bold & FontStyle::Italic & FontStyle::Strikethrough &
-				FontStyle::Underline
-			)
-			.SetFontRenderMode(FontRenderMode::Shaded)
-			.SetShadingColor(color::Cyan);
-		*/
+		CreateLine(color::Black, 10)
+			.Content(" waving")
+			.Color(color::Purple)
+			.Effect(GlyphEffectType::Wave, 8.0f, 2.0f, 1.5f);
 	}
 
 	void OnUpdate() override {
-		MoveWASD(ctx().camera, V2_float{ 300 } * ctx().dt().count());
+		MoveWASD(ctx().camera, V2_float{ 300.0f } * ctx().dt().count());
+
 		if (ctx().input.KeyHeld(Key::Q)) {
 			scale += -10.0f * ctx().dt().count();
 			ctx().camera.Zoom(V2_float{ 10.0f } * ctx().dt().count());
@@ -92,11 +89,13 @@ struct TextScene : public Scene {
 			scale += 10.0f * ctx().dt().count();
 			ctx().camera.Zoom(-V2_float{ 10.0f } * ctx().dt().count());
 		}
+
 		scale = std::clamp(scale, 0.0001f, 10000.0f);
 	}
 };
 
 int main(int, char**) {
 	Application app{ "TextScene", game_size };
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<TextScene>();
 }

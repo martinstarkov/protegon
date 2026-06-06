@@ -20,7 +20,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
-#include "renderer/pipeline/draw_context.h"
+#include "renderer/draw_context.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
@@ -680,11 +680,13 @@ std::optional<Text> ButtonBase<Derived>::GetText(ButtonStyleState state) const {
 
 template <typename Derived>
 std::optional<Color> ButtonBase<Derived>::GetTextColor(ButtonStyleState state) const {
-	if (auto text{ GetText(state) }) {
-		return text->GetColor();
-	} else {
-		return std::nullopt;
-	}
+	// TODO: Fix.
+	// if (auto text{ GetText(state) }) {
+	//	return text->GetColor();
+	//} else {
+	//	return std::nullopt;
+	//}
+	return std::nullopt;
 }
 
 // template <typename Derived>
@@ -701,11 +703,13 @@ std::optional<Color> ButtonBase<Derived>::GetTextColor(ButtonStyleState state) c
 
 template <typename Derived>
 std::optional<std::string> ButtonBase<Derived>::GetTextContent(ButtonStyleState state) const {
-	if (auto text{ GetText(state) }) {
-		return text->GetContent();
-	} else {
-		return std::nullopt;
-	}
+	// TODO: Fix.
+	// if (auto text{ GetText(state) }) {
+	//	return text->GetContent();
+	//} else {
+	//	return std::nullopt;
+	//}
+	return std::nullopt;
 }
 
 // template <typename Derived>
@@ -767,11 +771,12 @@ Derived& ButtonBase<Derived>::SetTextFixedSize(
 
 template <typename Derived>
 std::optional<FontSize> ButtonBase<Derived>::GetFontSize(ButtonStyleState state) const {
-	if (auto text{ GetText(state) }) {
-		return text->GetFontSize();
-	} else {
-		return std::nullopt;
-	}
+	// TODO: Fix.
+	// if (auto text{ GetText(state) }) {
+	//	return text->GetFontSize();
+	//} else {
+	//}
+	return std::nullopt;
 }
 
 // template <typename Derived>

@@ -1,7 +1,5 @@
 #include "runtime/graphics/text/text_layout.h"
 
-#include <ecs/ecs.h>
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -14,23 +12,26 @@
 #include <utility>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/tolerance.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/entity_handle.h"
 #include "core/util/hash.h"
-#include "renderer/pipeline/draw_context.h"
-#include "renderer/pipeline/vertex.h"
+#include "renderer/draw_context.h"
+#include "renderer/pipeline/render_primitives.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text_effect.h"
 #include "runtime/graphics/text/text_style.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -182,9 +183,8 @@ TextMeasurement Measure(
 }
 
 void BuildVertices(
-	const TextLayout& layout, Transform transform, float depth, int entity_id,
-	std::optional<Rect> clip_rect, std::size_t reveal_glyph_count, float time,
-	std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& local_indices,
+	const TextLayout& layout, float depth, int entity_id, std::optional<Rect> clip_rect,
+	std::size_t reveal_glyph_count, float time, std::vector<impl::TextureQuad>& quads,
 	std::vector<impl::TextureId>& local_textures
 ) {
 	for (GlyphInstance glyph : layout.glyphs) {
@@ -205,16 +205,11 @@ void BuildVertices(
 			}
 		}
 
-		if (auto it{ std::ranges::find(local_textures, glyph.texture) };
-			it == local_textures.end()) {
-			local_textures.push_back(glyph.texture);
-			glyph.texture_index = static_cast<std::uint32_t>(local_textures.size() - 1);
-		} else {
-			glyph.texture_index =
-				static_cast<std::uint32_t>(std::distance(local_textures.begin(), it));
+		if (!std::ranges::contains(local_textures, glyph.texture)) {
+			local_textures.emplace_back(glyph.texture);
 		}
 
-		EmitGlyphQuad(glyph, transform, depth, entity_id, time, vertices, local_indices);
+		EmitGlyphQuad(glyph, depth, entity_id, time, quads);
 	}
 }
 
@@ -622,6 +617,10 @@ CandidateLayout BuildSinglePassLayout(
 	if (!styled_text.runs.empty()) {
 		layout.batch_style = styled_text.runs.front().style.sdf;
 
+		auto font{ GetFont(asset_manager, styled_text.runs.front().style.font) };
+
+		layout.batch_style.pixel_range = font.GetFontData().metrics.pixel_range;
+
 		if (HasFlag(styled_text.runs.front().style.flags, FontStyle::Bold)) {
 			layout.batch_style.weight += styled_text.runs.front().style.fake_bold_weight;
 		}
@@ -741,7 +740,7 @@ void ApplyEllipsisForMaxLines(
 
 	float start_x{ box.rect.min.x };
 	if (cutoff > last_line.glyph_begin) {
-		GlyphInstance& prev{ layout->glyphs[cutoff - 1] };
+		const auto& prev{ layout->glyphs[cutoff - 1] };
 		start_x = prev.position.x + prev.plane.max.x;
 	}
 
@@ -801,8 +800,8 @@ void ApplyClipVisibility(Rect clip_rect, TextLayout* layout) {
 }
 
 void EmitGlyphQuad(
-	const GlyphInstance& glyph, Transform transform, float depth, int entity_id, float time,
-	std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& local_indices
+	const GlyphInstance& glyph, float depth, int entity_id, float time,
+	std::vector<impl::TextureQuad>& quads
 ) {
 	auto effect_offset{ glyph.GetEffectOffset(time) };
 
@@ -818,121 +817,97 @@ void EmitGlyphQuad(
 	std::array positions{ quad_min, V2_float{ quad_max.x, quad_min.y }, quad_max,
 						  V2_float{ quad_min.x, quad_max.y } };
 
-	for (auto& position : positions) {
-		position = transform.Apply(position);
-	}
+	std::array tex_coords{ glyph.uv.min, V2_float{ glyph.uv.max.x, glyph.uv.min.y }, glyph.uv.max,
+						   V2_float{ glyph.uv.min.x, glyph.uv.max.y } };
 
 	auto color_n{ glyph.render_style.color.Normalized() };
 
-	vertices.emplace_back(
-		positions[0], depth, color_n, glyph.uv.min, static_cast<float>(glyph.texture_index),
-		entity_id
-	);
-
-	vertices.emplace_back(
-		positions[1], depth, color_n, V2_float{ glyph.uv.max.x, glyph.uv.min.y },
-		static_cast<float>(glyph.texture_index), entity_id
-	);
-
-	vertices.emplace_back(
-		positions[2], depth, color_n, glyph.uv.max, static_cast<float>(glyph.texture_index),
-		entity_id
-	);
-
-	vertices.emplace_back(
-		positions[3], depth, color_n, V2_float{ glyph.uv.min.x, glyph.uv.max.y },
-		static_cast<float>(glyph.texture_index), entity_id
-	);
-
-	local_indices.emplace_back(0);
-	local_indices.emplace_back(1);
-	local_indices.emplace_back(2);
-	local_indices.emplace_back(2);
-	local_indices.emplace_back(3);
-	local_indices.emplace_back(0);
+	quads.emplace_back(CreateTextureQuad(positions, depth, color_n, tex_coords, entity_id));
 }
 
 void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity entity) {
-	// TODO: Pull this info from text entity.
-
-	std::optional<Rect> clip_rect{ std::nullopt };
-	constexpr std::size_t reveal_glyph_count{ std::numeric_limits<size_t>::max() };
-
-	auto font{ entity.Get<Font>() };
-
-	auto font_key{ font.GetEntity().Get<AssetName>() };
-
-	const auto& font_data{ font.GetFontData() };
-
-	PTGN_ASSERT(font_data.metrics.em_size > 0, "Invalid font em size");
-	PTGN_ASSERT(font_data.metrics.pixel_range > 0, "Invalid font pixel range");
-
-	StyledText styled_text;
-	TextRun run;
-	run.text				  = std::string{ "HELPME" };
-	run.style.sdf.pixel_range = font_data.metrics.pixel_range;
-	run.style.font			  = font_key.value;
-	// TODO: Get font size from text entity.
-	run.style.scale = 48.0f;
-	run.style.color = color::Black;
-	styled_text.runs.push_back(std::move(run));
-
-	auto transform{ GetDrawTransform(entity) };
-
-	V2_float text_size{ 400, 100 };
-
-	TextBox box{ .rect{ text_size },
-				 .style{ .horizontal_align = HorizontalAlign::Center,
-						 .vertical_align   = VerticalAlign::Center,
-						 .wrap_mode		   = WrapMode::Word } };
-
-	UpdateLayout(entity, asset_manager, styled_text, box);
-	const TextLayout& layout = entity.Get<TextLayout>();
-
-	const DistanceFieldStyle& style{ layout.batch_style };
-
-	auto style_hash{ Hash(style) };
-
-	auto depth{ GetDepth(entity) };
-	auto entity_id{ entity.GetUUID() };
-	auto time{ 0.0f };
-
-	std::vector<impl::TextureVertex> text_vertices;
-	std::vector<impl::TextureId> text_textures;
-	std::vector<std::uint32_t> local_indices;
-
-	BuildVertices(
-		layout, transform, depth, entity_id, clip_rect, reveal_glyph_count, time, text_vertices,
-		local_indices, text_textures
-	);
-
-	if (text_vertices.empty()) {
+	if (!entity.Has<StyledText>() || !entity.Has<TextBox>()) {
 		return;
 	}
 
-	// TODO: Fix.
-	/*
-	auto text_shader{ renderer.GetShader("text") };
+	auto& styled_text{ entity.Get<StyledText>() };
+	auto& box{ entity.Get<TextBox>() };
 
-	renderer.SetBlendMode(BlendMode::Blend);
+	if (styled_text.runs.empty()) {
+		return;
+	}
 
-	renderer.DrawTexturedQuads<impl::TextureVertex>(
-		"text", text_shader, text_vertices, local_indices, text_textures, style_hash,
-		[style](impl::Renderer& renderer) {
-			auto text_shader{ renderer.GetShader("text") };
-			renderer.SetUniform(text_shader, "u_Weight", style.weight);
-			renderer.SetUniform(text_shader, "u_Softness", style.softness);
-			renderer.SetUniform(text_shader, "u_OutlineColor", style.outline_color.Normalized());
-			renderer.SetUniform(text_shader, "u_OutlineWidth", style.outline_width);
-			renderer.SetUniform(text_shader, "u_OutlineSoftness", style.outline_softness);
-			renderer.SetUniform(text_shader, "u_GlowColor", style.glow_color.Normalized());
-			renderer.SetUniform(text_shader, "u_GlowOuterWidth", style.glow_outer_width);
-			renderer.SetUniform(text_shader, "u_GlowSoftness", style.glow_softness);
-			PTGN_ASSERT(style.pixel_range > 0.0f, "Invalid font pixel range");
-			renderer.SetUniform(text_shader, "u_PixelRange", style.pixel_range);
-		}
+	bool has_content{ std::ranges::any_of(styled_text.runs, [](const TextRun& run) {
+		return !run.text.empty();
+	}) };
+
+	if (!has_content) {
+		return;
+	}
+
+	UpdateLayout(entity, asset_manager, styled_text, box);
+
+	auto& layout{ entity.Get<TextLayout>() };
+	auto& style{ layout.batch_style };
+
+	auto style_hash{ Hash(style) };
+
+	auto transform{ GetDrawTransform(entity) };
+	auto depth{ GetDepth(entity) };
+	auto entity_id{ entity.GetUUID() };
+
+	auto time{ duration_cast<secondsf>(entity.GetScene().ctx().TimeSinceStart()).count() };
+
+	std::optional<Rect> clip_rect{ std::nullopt };
+
+	if (auto clip{ entity.TryGet<TextClip>() }) {
+		clip_rect = clip->rect;
+	}
+
+	auto reveal_glyph_count{ std::numeric_limits<std::size_t>::max() };
+
+	if (auto reveal{ entity.TryGet<TextReveal>() }) {
+		reveal_glyph_count = reveal->glyph_count;
+	}
+
+	std::vector<TextureQuad> text_quads;
+	std::vector<TextureId> text_textures;
+	std::vector<std::uint32_t> local_indices;
+
+	BuildVertices(
+		layout, depth, entity_id, clip_rect, reveal_glyph_count, time, text_quads, text_textures
 	);
-	*/
+
+	if (text_quads.empty()) {
+		return;
+	}
+
+	PTGN_ASSERT(text_textures.size() == 1, "Text must have exactly one texture (font atlas)");
+
+	TextureDrawParams params;
+
+	PTGN_ASSERT(style.pixel_range > 0.0f, "Invalid font pixel range");
+
+	Material material{ .shader = "text",
+					   .uniforms{ { "u_Weight", style.weight },
+								  { "u_Softness", style.softness },
+								  { "u_OutlineColor", style.outline_color.Normalized() },
+								  { "u_OutlineWidth", style.outline_width },
+								  { "u_OutlineSoftness", style.outline_softness },
+								  { "u_GlowColor", style.glow_color.Normalized() },
+								  { "u_GlowOuterWidth", style.glow_outer_width },
+								  { "u_GlowSoftness", style.glow_softness },
+								  { "u_PixelRange", style.pixel_range } } };
+
+	DrawTextureRequest request{ .texture	   = text_textures.front(),
+								.transform	   = transform,
+								.primitives	   = text_quads,
+								.effect_params = GetEffectParams(entity) };
+
+	// TODO: Check if transform needs to be offset by text box size and draw origin.
+	// request.transform	  = rect.Offset(transform, GetDrawOrigin(entity));
+
+	ctx.WithBlendMode(GetBlendMode(entity), [&]() { ctx.DrawTexture(request, material); });
 }
 
 } // namespace impl

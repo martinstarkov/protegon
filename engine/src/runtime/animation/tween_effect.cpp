@@ -38,8 +38,8 @@ namespace ptgn {
 namespace {
 
 TweenProperty<float> TextSizeProperty() {
-	return { [](Entity e) -> float { return Text{ e }.GetFontSize(); },
-			 [](Entity e, const float& v) { Text{ e }.SetFontSize(v); } };
+	return { [](Entity e) { return GetTransform(e).GetAverageScale(); },
+			 [](Entity e, const float& v) { SetScale(e, v); } };
 };
 
 float ApplyBounceEase(float t, bool symmetrical, Ease ease) {

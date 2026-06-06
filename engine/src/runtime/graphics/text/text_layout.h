@@ -9,8 +9,9 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/resources/id.h"
+#include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/vertex.h"
+#include "renderer/resources/id.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text_effect.h"
@@ -124,9 +125,8 @@ void UpdateLayout(
 );
 
 void BuildVertices(
-	const TextLayout& layout, Transform transform, float depth, int entity_id,
-	std::optional<Rect> clip_rect, std::size_t reveal_glyph_count, float time,
-	std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& local_indices,
+	const TextLayout& layout, float depth, int entity_id, std::optional<Rect> clip_rect,
+	std::size_t reveal_glyph_count, float time, std::vector<impl::TextureQuad>& quads,
 	std::vector<impl::TextureId>& local_textures
 );
 
@@ -164,9 +164,17 @@ void ApplyClipVisibility(Rect clip_rect, TextLayout* layout);
 );
 
 void EmitGlyphQuad(
-	const GlyphInstance& glyph, Transform transform, float depth, int entity_id, float time,
-	std::vector<impl::TextureVertex>& vertices, std::vector<std::uint32_t>& local_indices
+	const GlyphInstance& glyph, float depth, int entity_id, float time,
+	std::vector<impl::TextureQuad>& quads
 );
+
+struct TextReveal {
+	std::size_t glyph_count{ std::numeric_limits<std::size_t>::max() };
+};
+
+struct TextClip {
+	std::optional<Rect> rect;
+};
 
 } // namespace impl
 

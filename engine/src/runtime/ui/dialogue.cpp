@@ -261,7 +261,7 @@ DialogueComponent::DialogueComponent(
 		"Dialogue component must have a non-zero default box size"
 	);
 
-	text_ = GameObject{ CreateText(scene, {}, "") };
+	text_ = GameObject{ CreateText(scene) };
 
 	tween_ = GameObject{ CreateTween(scene) };
 

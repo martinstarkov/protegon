@@ -148,8 +148,8 @@ Tooltip CreateTooltip(
 		AddChild(tooltip, *instance.bg);
 	}
 
-	instance.text = GameObject{
-		CreateText(scene, {}, tooltip_properties.content, tooltip_properties.text_color)
+	instance.text = GameObject<Text>{
+		CreateText(scene).Content(tooltip_properties.content).Color(tooltip_properties.text_color)
 	};
 	SetTint(instance.text, color::Transparent);
 	AddChild(tooltip, instance.text);

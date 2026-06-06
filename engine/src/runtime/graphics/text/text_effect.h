@@ -35,7 +35,6 @@ struct GlyphInstance {
 	V2_float position;
 	Rect plane;
 	Rect uv;
-	std::uint32_t texture_index{ 0 };
 	impl::TextureId texture{ 0 };
 
 	std::size_t source_run_index{ 0 };

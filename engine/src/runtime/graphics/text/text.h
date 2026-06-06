@@ -1,14 +1,14 @@
 #pragma once
 
-#include <string>
 #include <string_view>
 
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/text/font.h"
+#include "runtime/graphics/text/text_layout.h"
 #include "runtime/graphics/text/text_style.h"
 
 namespace ptgn {
@@ -16,63 +16,109 @@ namespace ptgn {
 class DrawContext;
 class Scene;
 
+namespace impl {
+
+struct TextEditState {
+	std::size_t current_run_index{ 0 };
+};
+
+} // namespace impl
+
 class Text : public Entity {
 public:
 	Text() = default;
 	explicit Text(Entity entity);
+
+	static void Draw(DrawContext& ctx, Entity entity);
 
 	static void Draw(
 		DrawContext& ctx, Entity text, V2_int text_size, Color additional_tint,
 		Origin offset_origin, V2_float offset_size
 	);
 
-	static void Draw(DrawContext& ctx, Entity entity);
+	StyledText& GetStyledText();
+	const StyledText& GetStyledText() const;
 
-	std::string GetFontKey() const;
-	Font GetFont() const;
-	std::string GetContent() const;
-	Color GetColor() const;
-	FontStyle GetFontStyle() const;
-	WrapMode GetWrapMode() const;
-	HorizontalAlign GetHorizontalAlign() const;
-	VerticalAlign GetVerticalAlign() const;
-	OverflowMode GetOverflowMode() const;
+	TextBox& GetTextBox();
+	const TextBox& GetTextBox() const;
 
-	FontSize GetFontSize() const;
+	Text& Clear();
 
-	/// @return Size of this text's texture.
-	V2_int GetSize() const;
+	// Appends/selects a text segment and makes it the current run.
+	Text& Content(std::string_view content);
 
-	/// @return Texture size for the given text content using this text's font and size.
-	V2_int GetSize(std::string_view text_content) const;
+	Text& Select(std::size_t index);
 
-	/// @return Texture size for the given text content using the specified font and size.
-	V2_int GetSize(
-		std::string_view text_content, std::string_view font_key, FontSize font_size = {}
-	) const;
+	Text& Box(Rect rect);
 
-	/// @param font_key Default {} corresponds to the default engine font.
-	Text& SetFont(std::string_view font_key = {});
-	Text& SetContent(std::string_view content);
-	Text& SetColor(Color color);
+	Text& Align(HorizontalAlign horizontal, VerticalAlign vertical);
+	Text& HorizontalAlign(HorizontalAlign align);
+	Text& VerticalAlign(VerticalAlign align);
 
-	/// To create text with multiple FontStyles, simply use &&, e.g.
-	/// FontStyle::Italic && FontStyle::Bold
-	Text& SetFontStyle(FontStyle font_style);
+	Text& Wrap(WrapMode mode);
+	Text& Overflow(OverflowMode mode);
 
-	/// Set the font size of text. Default value will use default engine font.
-	Text& SetFontSize(FontSize font_size = kDefaultFontSize);
+	Text& CollapseSpaces(bool collapse = true);
+	Text& JustifyLastLine(bool justify = true);
+	Text& AllowWordBreakInOverflow(bool allow = true);
 
-	Text& SetWrapMode(WrapMode wrap_mode);
-	Text& SetHorizontalAlign(HorizontalAlign horizontal_align);
-	Text& SetVerticalAlign(VerticalAlign vertical_align);
-	Text& SetOverflowMode(OverflowMode overflow_mode);
+	Text& MaxLines(std::size_t max_lines, bool ellipsis = true);
+	Text& Shrink(float min_scale, float max_scale = 1.0f);
+
+	Text& Font(std::string_view font_key = {});
+	Text& Color(ptgn::Color color);
+	Text& Size(float size);
+
+	Text& Kerning(float kerning);
+	Text& Tracking(float tracking);
+	Text& LineSpacing(float line_spacing);
+
+	Text& Style(FontStyle flags);
+	Text& Bold(bool enabled = true);
+	Text& Italic(bool enabled = true);
+	Text& Underline(bool enabled = true);
+	Text& Strikethrough(bool enabled = true);
+
+	Text& FakeBold(bool enabled = true, float weight = 0.08f);
+
+	Text& Sdf(float weight, float softness = 1.0f);
+	Text& Outline(ptgn::Color color, float width, float softness = 1.0f);
+	Text& Shadow(ptgn::Color color, V2_float offset, float softness = 0.2f);
+	Text& Glow(ptgn::Color color, float outer_width, float softness = 1.0f);
+
+	Text& Effect(
+		GlyphEffectType type, float amplitude, float frequency, float speed, float phase = 0.0f
+	);
+
+	std::size_t GetRunCount() const;
+	std::size_t GetCurrentRunIndex() const;
+
+	void InvalidateLayout();
+
+private:
+	StyledText& EnsureStyledText();
+	const StyledText& RequireStyledText() const;
+
+	TextBox& EnsureTextBox();
+	const TextBox& RequireTextBox() const;
+
+	impl::TextEditState& EnsureEditState();
+	const impl::TextEditState& RequireEditState() const;
+
+	void EnsureValidRuns();
+
+	TextRunStyle MakeDefaultRunStyle() const;
+
+	TextRun& CurrentRun();
+	const TextRun& CurrentRun() const;
+
+	TextRunStyle& CurrentStyle();
+	const TextRunStyle& CurrentStyle() const;
+
+	bool HasOnlyDefaultEmptyRun() const;
 };
 
-Text CreateText(
-	Scene& scene, V2_float position, std::string_view text_content, Color text_color = color::White,
-	FontSize font_size = {}, std::string_view font_key = {}, Origin draw_origin = Origin::Center
-);
+Text CreateText(Scene& scene, V2_float position = {}, Origin draw_origin = Origin::Center);
 
 PTGN_REGISTER_DRAWABLE(Text);
 
