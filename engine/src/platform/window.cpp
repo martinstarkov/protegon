@@ -395,10 +395,14 @@ void Window::SwapBuffers() const {
 	glfwSwapBuffers(instance_.get());
 }
 
-bool Window::PollEvents() {
+void Window::PollEvents() {
 	PTGN_ASSERT(event_sink_, "Cannot poll window events before setting an event sink");
 
 	glfwPollEvents();
+}
+
+bool Window::Update() {
+	PollEvents();
 
 	auto context{ glfwGetCurrentContext() };
 	PTGN_ASSERT(context == instance_.get());

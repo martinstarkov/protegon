@@ -212,9 +212,11 @@ private:
 	void SetMouseMode(MouseMode mode);
 	void SetAlwaysOnTop(bool on);
 
-	/// @brief Polls window events, passing them into the set event sink. Returns true if the app
-	/// should stay open.
-	bool PollEvents();
+	/// @brief Updates and polls window events, passing them into the set event sink. Returns true
+	/// if the app should stay open.
+	bool Update();
+
+	void PollEvents();
 
 	std::function<void(impl::EventData&&)> event_sink_;
 
