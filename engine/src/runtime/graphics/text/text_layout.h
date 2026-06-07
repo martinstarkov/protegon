@@ -104,6 +104,8 @@ struct TextLayout {
 	bool ellipsized{ false };
 	bool truncated_by_max_lines{ false };
 
+	Rect local_box;
+
 	std::size_t hash{ 0 };
 };
 

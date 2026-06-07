@@ -347,8 +347,20 @@ TextLayout BuildLayout(AssetManager& asset_manager, StyledText styled_text, cons
 
 	ApplyVerticalAlignment(box, &layout);
 
-	if (auto bounds{ GetVisibleGlyphBounds(layout) }) {
-		V2_float visual_center{ (bounds->min + bounds->max) * 0.5f };
+	auto visible_bounds{ GetVisibleGlyphBounds(layout) };
+
+	bool has_explicit_box{ box.rect.GetSize().IsPositive() };
+
+	if (has_explicit_box) {
+		layout.local_box = box.rect;
+	} else if (visible_bounds.has_value()) {
+		layout.local_box = *visible_bounds;
+	} else {
+		layout.local_box = {};
+	}
+
+	if (visible_bounds.has_value()) {
+		V2_float visual_center{ (visible_bounds->min + visible_bounds->max) * 0.5f };
 
 		for (auto& glyph : layout.glyphs) {
 			glyph.position -= visual_center;
@@ -358,6 +370,9 @@ TextLayout BuildLayout(AssetManager& asset_manager, StyledText styled_text, cons
 			decoration.rect.min -= visual_center;
 			decoration.rect.max -= visual_center;
 		}
+
+		layout.local_box.min -= visual_center;
+		layout.local_box.max -= visual_center;
 	}
 
 	return layout;
