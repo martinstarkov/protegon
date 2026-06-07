@@ -1,7 +1,6 @@
 #include "runtime/graphics/text/text.h"
 
 #include <algorithm>
-#include <string>
 #include <string_view>
 
 #include "app/application.h"
@@ -21,23 +20,23 @@ using namespace ptgn;
 
 constexpr V2_int game_size{ 800, 800 };
 
-struct TextScene : public Scene {
+struct TextEffectsScene : public Scene {
 	static constexpr std::string_view font{ "arial" };
 
-	std::string content{ "The quick brown fox jumps over the lazy dog" };
 	float scale{ 40.0f };
 
-	Text CreateLine(const Color& color, int index, std::string_view font_key = font) {
-		float stride{ 44.0f };
-		float font_size{ 30.0f };
+	Text CreateLine(
+		int index, std::string_view text_content, const Color& color = color::Black,
+		float font_size = 26.0f, std::string_view font_key = font
+	) {
+		float stride{ 34.0f };
+		float top{ -static_cast<float>(game_size.y) * 0.5f + 16.0f };
 
-		auto text{ ptgn::CreateText(
-			*this,
-			{ 0.0f, -static_cast<float>(game_size.y) * 0.5f + stride * static_cast<float>(index) },
-			Origin::CenterTop
-		) };
+		auto text{
+			CreateText(*this, { 0.0f, top + stride * static_cast<float>(index) }, Origin::CenterTop)
+		};
 
-		text.Content(content).Font(font_key).Size(font_size).Color(color);
+		text.Content(text_content).Font(font_key).Size(font_size).Color(color);
 
 		return text;
 	}
@@ -48,43 +47,64 @@ struct TextScene : public Scene {
 
 		ctx().asset.Load(font, "assets/Arial.ttf");
 
-		// Default font.
-		CreateLine(color::Black, 0, {});
+		CreateLine(0, "Text effects demo", color::Black, 30.0f).Bold(true, 0.2f);
 
-		// Colors.
-		CreateLine(color::Black, 1);
-		CreateLine(color::Green, 2);
+		CreateLine(1, "Default font fallback", color::Black, 24.0f, {});
+		CreateLine(2, "Plain black text", color::Black);
+		CreateLine(3, "Colored text", color::Green);
 
-		// Styles.
-		CreateLine(color::Green, 3).Bold();
-		CreateLine(color::Black, 4).Italic();
-		CreateLine(color::Black, 5).Strikethrough();
-		CreateLine(color::Black, 6).Underline();
+		CreateLine(4, "Fake bold", color::Black).Bold(true, 0.25f);
+		CreateLine(5, "Italic shear", color::Black).Italic();
+		CreateLine(6, "Underline", color::Black).Underline();
+		CreateLine(7, "Strikethrough", color::Black).Strikethrough();
 
-		CreateLine(color::Black, 7)
-			.Style(
-				FontStyle::Bold | FontStyle::Italic | FontStyle::Strikethrough |
-				FontStyle::Underline
-			);
-
-		CreateLine(color::Black, 8)
-			.Content(" ")
-			.Content("rich red")
-			.Color(color::Red)
+		CreateLine(8, "Bold + italic + underline + strikethrough", color::Black)
 			.Bold(true, 0.2f)
-			.Underline();
+			.Italic()
+			.Underline()
+			.Strikethrough();
 
-		CreateLine(color::Black, 9)
-			.Content(" ")
-			.Content("glowing")
-			.Color(color::Blue)
-			.Glow(color::Blue, 3.0f, 2.0f);
+		auto rich{ CreateLine(9, "Rich text: ", color::Black) };
 
-		CreateLine(color::Black, 10)
-			.Content(" ")
-			.Content("waving")
-			.Color(color::Purple)
-			.Effect(GlyphEffectType::Wave, 8.0f, 2.0f, 1.5f);
+		rich.Content("red bold ").Color(color::Red).Bold(true, 0.2f);
+
+		rich.Content("green italic ").Color(color::Green).Bold(false).Italic();
+
+		rich.Content("blue underline").Color(color::Blue).Italic(false).Underline();
+
+		CreateLine(10, "Black outline", color::White).Outline(color::Black, 1.5f, 1.0f);
+
+		CreateLine(11, "Soft red outline", color::White).Outline(color::Red, 2.5f, 2.0f);
+
+		CreateLine(12, "Drop shadow", color::Black)
+			.Shadow(color::Black.WithAlpha(120), { 3.0f, -3.0f }, 2.0f, 2.5f);
+
+		CreateLine(13, "Outline + shadow", color::White)
+			.Outline(color::Black, 1.5f, 1.0f)
+			.Shadow(color::Black.WithAlpha(130), { 3.0f, -3.0f }, 2.0f, 2.5f);
+
+		CreateLine(14, "Outer glow", color::Blue).OuterGlow(color::Blue.WithAlpha(160), 4.0f, 3.0f);
+
+		CreateLine(15, "Inner glow", color::Blue).InnerGlow(color::White.WithAlpha(45), 3.0f, 2.0f);
+
+		CreateLine(16, "Full glow", color::Blue).Glow(color::Blue.WithAlpha(150), 4.0f, 2.0f, 3.0f);
+
+		CreateLine(17, "Outline + outer glow", color::White)
+			.Outline(color::Black, 1.5f, 1.0f)
+			.OuterGlow(color::Purple.WithAlpha(150), 4.0f, 3.0f);
+
+		CreateLine(18, "Wobble effect", color::Purple)
+			.Effect(GlyphEffectType::Wobble, 4.0f, 2.5f, 2.0f);
+
+		CreateLine(19, "Wave effect", color::Purple)
+			.Effect(GlyphEffectType::Wave, 7.0f, 2.0f, 1.5f);
+
+		CreateLine(20, "Shake effect", color::Red).Effect(GlyphEffectType::Shake, 1.5f, 1.0f, 1.0f);
+
+		CreateLine(21, "Pulse effect", color::Green)
+			.Effect(GlyphEffectType::Pulse, 0.12f, 1.0f, 3.0f);
+
+		CreateLine(22, "Tracking + kerning", color::Black).Tracking(0.5f).Kerning(0.5f);
 	}
 
 	void OnUpdate() override {
@@ -103,7 +123,7 @@ struct TextScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "TextScene", game_size };
+	Application app{ "TextEffectsScene", game_size };
 	PTGN_WITH_EDITOR(app);
-	app.StartWith<TextScene>();
+	app.StartWith<TextEffectsScene>();
 }
