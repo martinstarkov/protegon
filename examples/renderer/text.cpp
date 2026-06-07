@@ -11,6 +11,8 @@
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/font.h"
+#include "runtime/graphics/text/font_style.h"
+#include "runtime/graphics/text/text_effect.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -65,12 +67,11 @@ struct TextScene : public Scene {
 				FontStyle::Underline
 			);
 
-		// Examples for the new rich API:
 		CreateLine(color::Black, 8)
 			.Content(" ")
 			.Content("rich red")
 			.Color(color::Red)
-			.Bold()
+			.Bold(true, 0.2f)
 			.Underline();
 
 		CreateLine(color::Black, 9)

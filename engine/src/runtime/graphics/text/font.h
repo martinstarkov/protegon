@@ -51,7 +51,8 @@ struct FontAtlasInfo {
 	constexpr FontAtlasInfo() = default;
 
 	float em_size{ 40.0f };
-	float pixel_range{ 2.0f };
+	float em_range{ 0.2f };
+	// float pixel_range{ 2.0f };
 	float max_corner_angle{ 3.0f };
 	float miter_limit{ 1.0f };
 	int thread_count{ 8 };

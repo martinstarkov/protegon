@@ -1,27 +1,21 @@
 #include "runtime/graphics/text/text.h"
 
-#include <cstdint>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/math/vector4.h"
 #include "renderer/draw_context.h"
-#include "renderer/resources/texture.h"
-#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/sprite.h"
-#include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/font_system.h"
+#include "runtime/graphics/text/text_effect.h"
 #include "runtime/graphics/text/text_layout.h"
-#include "runtime/graphics/text/text_system.h"
-#include "runtime/graphics/tint.h"
+#include "runtime/graphics/text/text_style.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -446,10 +440,12 @@ Text& Text::Style(FontStyle flags) {
 	return *this;
 }
 
-Text& Text::Bold(bool enabled) {
+Text& Text::Bold(bool enabled, float weight) {
 	auto& style{ CurrentStyle() };
 
-	style.flags = SetFlag(style.flags, FontStyle::Bold, enabled);
+	style.flags				   = SetFlag(style.flags, FontStyle::Bold, enabled);
+	style.fake_bold_if_missing = enabled;
+	style.fake_bold_weight	   = weight;
 
 	InvalidateLayout();
 
@@ -486,28 +482,6 @@ Text& Text::Strikethrough(bool enabled) {
 	return *this;
 }
 
-Text& Text::FakeBold(bool enabled, float weight) {
-	auto& style{ CurrentStyle() };
-
-	style.fake_bold_if_missing = enabled;
-	style.fake_bold_weight	   = weight;
-
-	InvalidateLayout();
-
-	return *this;
-}
-
-Text& Text::Sdf(float weight, float softness) {
-	auto& sdf{ CurrentStyle().sdf };
-
-	sdf.weight	 = weight;
-	sdf.softness = softness;
-
-	InvalidateLayout();
-
-	return *this;
-}
-
 Text& Text::Outline(ptgn::Color color, float width, float softness) {
 	auto& sdf{ CurrentStyle().sdf };
 
@@ -521,10 +495,15 @@ Text& Text::Outline(ptgn::Color color, float width, float softness) {
 }
 
 Text& Text::Shadow(ptgn::Color color, V2_float offset, float softness) {
+	return Shadow(color, offset, 0.0f, softness);
+}
+
+Text& Text::Shadow(ptgn::Color color, V2_float offset, float width, float softness) {
 	auto& sdf{ CurrentStyle().sdf };
 
 	sdf.shadow_color	= color;
 	sdf.shadow_offset	= offset;
+	sdf.shadow_width	= width;
 	sdf.shadow_softness = softness;
 
 	InvalidateLayout();
@@ -532,12 +511,81 @@ Text& Text::Shadow(ptgn::Color color, V2_float offset, float softness) {
 	return *this;
 }
 
-Text& Text::Glow(ptgn::Color color, float outer_width, float softness) {
+Text& Text::OuterGlow(ptgn::Color color, float width, float softness) {
 	auto& sdf{ CurrentStyle().sdf };
 
-	sdf.glow_color		 = color;
-	sdf.glow_outer_width = outer_width;
-	sdf.glow_softness	 = softness;
+	sdf.outer_glow_color	= color;
+	sdf.outer_glow_width	= width;
+	sdf.outer_glow_softness = softness;
+
+	InvalidateLayout();
+
+	return *this;
+}
+
+Text& Text::InnerGlow(ptgn::Color color, float width, float softness) {
+	auto& sdf{ CurrentStyle().sdf };
+
+	sdf.inner_glow_color	= color;
+	sdf.inner_glow_width	= width;
+	sdf.inner_glow_softness = softness;
+
+	InvalidateLayout();
+
+	return *this;
+}
+
+Text& Text::Glow(ptgn::Color color, float width, float softness) {
+	auto& sdf{ CurrentStyle().sdf };
+
+	sdf.outer_glow_color	= color;
+	sdf.outer_glow_width	= width;
+	sdf.outer_glow_softness = softness;
+
+	sdf.inner_glow_color	= color;
+	sdf.inner_glow_width	= width;
+	sdf.inner_glow_softness = softness;
+
+	InvalidateLayout();
+
+	return *this;
+}
+
+Text& Text::Glow(ptgn::Color color, float outer_width, float inner_width, float softness) {
+	auto& sdf{ CurrentStyle().sdf };
+
+	sdf.outer_glow_color	= color;
+	sdf.outer_glow_width	= outer_width;
+	sdf.outer_glow_softness = softness;
+
+	sdf.inner_glow_color	= color;
+	sdf.inner_glow_width	= inner_width;
+	sdf.inner_glow_softness = softness;
+
+	InvalidateLayout();
+
+	return *this;
+}
+
+Text& Text::ClearSdfEffects() {
+	auto& sdf{ CurrentStyle().sdf };
+
+	sdf.outline_color	 = color::Black.WithAlpha(0);
+	sdf.outline_width	 = 0.0f;
+	sdf.outline_softness = 1.0f;
+
+	sdf.shadow_color	= color::Black.WithAlpha(0);
+	sdf.shadow_offset	= {};
+	sdf.shadow_width	= 0.0f;
+	sdf.shadow_softness = 1.0f;
+
+	sdf.outer_glow_color	= color::White.WithAlpha(0);
+	sdf.outer_glow_width	= 0.0f;
+	sdf.outer_glow_softness = 1.0f;
+
+	sdf.inner_glow_color	= color::White.WithAlpha(0);
+	sdf.inner_glow_width	= 0.0f;
+	sdf.inner_glow_softness = 1.0f;
 
 	InvalidateLayout();
 

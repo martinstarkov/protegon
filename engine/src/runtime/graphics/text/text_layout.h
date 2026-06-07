@@ -65,15 +65,40 @@ struct TextMeasurement {
 	float used_shrink_scale{ 1.0f };
 };
 
+struct TextBatchStyle {
+	impl::TextureId texture{ 0 };
+	DistanceFieldStyle sdf;
+
+	bool operator==(const TextBatchStyle&) const = default;
+};
+
+enum class TextDecorationType : std::uint8_t {
+	Underline,
+	Strikethrough,
+};
+
+struct TextDecoration {
+	TextDecorationType type{ TextDecorationType::Underline };
+	Rect rect;
+	Color color{ color::White };
+
+	std::size_t source_run_index{ 0 };
+	std::size_t line_index{ 0 };
+
+	bool visible{ true };
+};
+
 struct TextLayout {
 	std::vector<GlyphInstance> glyphs;
+	std::vector<TextDecoration> decorations;
 	std::vector<LineLayout> lines;
+
+	// One style per StyledText run. GlyphInstance::source_run_index indexes this.
+	std::vector<TextBatchStyle> batch_styles;
 
 	V2_float measured_size;
 	V2_float content_offset;
 	float used_shrink_scale{ 1.0f };
-
-	DistanceFieldStyle batch_style;
 
 	bool clipped{ false };
 	bool ellipsized{ false };
@@ -83,6 +108,12 @@ struct TextLayout {
 };
 
 namespace impl {
+
+struct TextDrawBatch {
+	TextBatchStyle style;
+	bool decoration{ false };
+	std::vector<impl::TextureQuad> quads;
+};
 
 struct RichTextToken {
 	enum class Type : std::uint8_t {
@@ -126,8 +157,7 @@ void UpdateLayout(
 
 void BuildVertices(
 	const TextLayout& layout, float depth, int entity_id, std::optional<Rect> clip_rect,
-	std::size_t reveal_glyph_count, float time, std::vector<impl::TextureQuad>& quads,
-	std::vector<impl::TextureId>& local_textures
+	std::size_t reveal_glyph_count, float time, std::vector<TextDrawBatch>& batches
 );
 
 void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity text);

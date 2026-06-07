@@ -6,6 +6,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/id.h"
+#include "runtime/graphics/text/font_style.h"
 
 namespace ptgn {
 
@@ -28,6 +29,7 @@ struct GlyphEffectStyle {
 struct GlyphRenderStyle {
 	Color color{ color::White };
 	GlyphEffectStyle effect;
+	FontStyle flags{ FontStyle::Normal };
 };
 
 struct GlyphInstance {
@@ -44,6 +46,8 @@ struct GlyphInstance {
 
 	GlyphRenderStyle render_style;
 	bool visible{ true };
+
+	float advance{ 0.0f };
 
 	V2_float GetEffectOffset(float time) const;
 	float GetEffectScale(float time) const;

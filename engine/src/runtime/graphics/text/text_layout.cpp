@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <iterator>
@@ -18,8 +19,10 @@
 #include "core/math/tolerance.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
+#include "core/util/time.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/render_primitives.h"
+#include "renderer/pipeline/render_request.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
@@ -88,14 +91,8 @@ std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 	return Rect{ min, max };
 }
 
-} // namespace
-
-namespace impl {
-
-void UpdateLayout(
-	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
-) {
-	std::size_t hash{ ptgn::Hash(
+[[nodiscard]] std::size_t ComputeTextLayoutHash(const StyledText& styled_text, const TextBox& box) {
+	return ptgn::Hash(
 		Hash(styled_text), QuantizeUnsigned(box.rect.GetSize().x),
 		QuantizeUnsigned(box.rect.GetSize().y), QuantizeUnsigned(box.style.min_shrink_scale),
 		QuantizeUnsigned(box.style.max_shrink_scale),
@@ -104,7 +101,205 @@ void UpdateLayout(
 		std::to_underlying(box.style.overflow_mode), box.style.collapse_spaces,
 		box.style.justify_last_line, box.style.allow_word_break_in_overflow, box.style.max_lines,
 		box.style.ellipsis_on_max_lines
-	) };
+	);
+}
+
+[[nodiscard]] DistanceFieldStyle ResolveDistanceFieldStyle(
+	const Font& font, const TextRunStyle& style
+) {
+	auto sdf{ style.sdf };
+
+	sdf.pixel_range = font.GetFontData().metrics.pixel_range;
+
+	if (HasFlag(style.flags, FontStyle::Bold) && style.fake_bold_if_missing) {
+		sdf.weight -= style.fake_bold_weight;
+	}
+
+	sdf.weight = std::clamp(sdf.weight, 0.0f, 1.0f);
+
+	return sdf;
+}
+
+[[nodiscard]] std::vector<TextBatchStyle> BuildBatchStyles(
+	AssetManager& asset_manager, const StyledText& styled_text
+) {
+	std::vector<TextBatchStyle> styles;
+	styles.reserve(styled_text.runs.size());
+
+	for (const auto& run : styled_text.runs) {
+		auto font{ impl::GetFont(asset_manager, run.style.font) };
+
+		styles.emplace_back(
+			TextBatchStyle{
+				.texture = font.GetAtlasTexture(),
+				.sdf	 = ResolveDistanceFieldStyle(font, run.style),
+			}
+		);
+	}
+
+	return styles;
+}
+
+[[nodiscard]] TextBatchStyle GetGlyphBatchStyle(
+	const TextLayout& layout, const GlyphInstance& glyph
+) {
+	PTGN_ASSERT(
+		glyph.source_run_index < layout.batch_styles.size(),
+		"Glyph source run index does not have a matching text batch style"
+	);
+
+	auto style{ layout.batch_styles[glyph.source_run_index] };
+
+	PTGN_ASSERT(
+		style.texture == glyph.texture,
+		"Glyph texture does not match the texture resolved for its source run"
+	);
+
+	return style;
+}
+
+void ApplyItalicShear(std::array<V2_float, 4>& positions) {
+	constexpr float kItalicShear{ -0.25f };
+
+	float min_y{ positions[0].y };
+	float max_y{ positions[0].y };
+
+	for (const auto& position : positions) {
+		min_y = std::min(min_y, position.y);
+		max_y = std::max(max_y, position.y);
+	}
+
+	float center_y{ (min_y + max_y) * 0.5f };
+
+	for (auto& position : positions) {
+		position.x += (position.y - center_y) * kItalicShear;
+	}
+}
+
+void AddTextDecorationsForLine(
+	AssetManager& asset_manager, const StyledText& styled_text,
+	const std::vector<GlyphInstance>& line_glyphs, std::size_t line_index, float global_shrink,
+	std::vector<TextDecoration>& decorations
+) {
+	if (line_glyphs.empty()) {
+		return;
+	}
+
+	auto begin{ line_glyphs.begin() };
+
+	while (begin != line_glyphs.end()) {
+		auto run_index{ begin->source_run_index };
+
+		auto end{ begin };
+		while (end != line_glyphs.end() && end->source_run_index == run_index) {
+			++end;
+		}
+
+		if (run_index >= styled_text.runs.size()) {
+			begin = end;
+			continue;
+		}
+
+		const auto& run{ styled_text.runs[run_index] };
+		const auto& style{ run.style };
+
+		bool underline{ HasFlag(style.flags, FontStyle::Underline) };
+		bool strikethrough{ HasFlag(style.flags, FontStyle::Strikethrough) };
+
+		if (!underline && !strikethrough) {
+			begin = end;
+			continue;
+		}
+
+		auto font{ impl::GetFont(asset_manager, style.font) };
+
+		float scale{ style.scale * global_shrink };
+		float thickness{ std::max(1.0f, scale * 0.065f) };
+
+		float x_min{ begin->position.x };
+		float x_max{ begin->position.x };
+
+		for (auto it{ begin }; it != end; ++it) {
+			x_min = std::min(x_min, it->position.x);
+			x_max = std::max(x_max, it->position.x + it->advance);
+		}
+
+		float baseline_y{ begin->position.y };
+
+		if (underline) {
+			float y{ baseline_y + scale * 0.12f };
+
+			decorations.emplace_back(
+				TextDecoration{
+					.type			  = TextDecorationType::Underline,
+					.rect			  = Rect{ { x_min, y }, { x_max, y + thickness } },
+					.color			  = style.color,
+					.source_run_index = run_index,
+					.line_index		  = line_index,
+					.visible		  = true,
+				}
+			);
+		}
+
+		if (strikethrough) {
+			float y{ baseline_y - scale * 0.28f };
+
+			decorations.emplace_back(
+				TextDecoration{
+					.type			  = TextDecorationType::Strikethrough,
+					.rect			  = Rect{ { x_min, y }, { x_max, y + thickness } },
+					.color			  = style.color,
+					.source_run_index = run_index,
+					.line_index		  = line_index,
+					.visible		  = true,
+				}
+			);
+		}
+
+		begin = end;
+	}
+}
+
+void EmitDecorationQuad(
+	const TextDecoration& decoration, float depth, int entity_id,
+	std::vector<impl::TextureQuad>& quads
+) {
+	std::array positions{
+		decoration.rect.min,
+		V2_float{ decoration.rect.max.x, decoration.rect.min.y },
+		decoration.rect.max,
+		V2_float{ decoration.rect.min.x, decoration.rect.max.y },
+	};
+
+	std::array tex_coords{ impl::GetDefaultTextureCoordinates<false>() };
+
+	auto color_n{ decoration.color.Normalized() };
+
+	quads.emplace_back(impl::CreateTextureQuad(positions, depth, color_n, tex_coords, entity_id));
+}
+
+impl::TextDrawBatch& GetOrCreateTextBatch(
+	std::vector<impl::TextDrawBatch>& batches, const TextBatchStyle& style, bool decoration
+) {
+	if (batches.empty() || batches.back().style != style ||
+		batches.back().decoration != decoration) {
+		auto& batch{ batches.emplace_back() };
+		batch.style		 = style;
+		batch.decoration = decoration;
+		return batch;
+	}
+
+	return batches.back();
+}
+
+} // namespace
+
+namespace impl {
+
+void UpdateLayout(
+	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
+) {
+	auto hash{ ComputeTextLayoutHash(styled_text, box) };
 
 	if (auto cached{ entity.TryGet<TextLayout>() }) {
 		if (cached->hash == hash) {
@@ -158,6 +353,11 @@ TextLayout BuildLayout(AssetManager& asset_manager, StyledText styled_text, cons
 		for (auto& glyph : layout.glyphs) {
 			glyph.position -= visual_center;
 		}
+
+		for (auto& decoration : layout.decorations) {
+			decoration.rect.min -= visual_center;
+			decoration.rect.max -= visual_center;
+		}
 	}
 
 	return layout;
@@ -184,8 +384,7 @@ TextMeasurement Measure(
 
 void BuildVertices(
 	const TextLayout& layout, float depth, int entity_id, std::optional<Rect> clip_rect,
-	std::size_t reveal_glyph_count, float time, std::vector<impl::TextureQuad>& quads,
-	std::vector<impl::TextureId>& local_textures
+	std::size_t reveal_glyph_count, float time, std::vector<TextDrawBatch>& batches
 ) {
 	for (GlyphInstance glyph : layout.glyphs) {
 		if (!glyph.visible) {
@@ -205,11 +404,30 @@ void BuildVertices(
 			}
 		}
 
-		if (!std::ranges::contains(local_textures, glyph.texture)) {
-			local_textures.emplace_back(glyph.texture);
+		auto batch_style{ GetGlyphBatchStyle(layout, glyph) };
+
+		if (batches.empty() || batches.back().style != batch_style) {
+			auto& batch{ batches.emplace_back() };
+			batch.style = batch_style;
 		}
 
-		EmitGlyphQuad(glyph, depth, entity_id, time, quads);
+		EmitGlyphQuad(glyph, depth, entity_id, time, batches.back().quads);
+	}
+
+	for (const auto& decoration : layout.decorations) {
+		if (!decoration.visible) {
+			continue;
+		}
+
+		PTGN_ASSERT(
+			decoration.source_run_index < layout.batch_styles.size(),
+			"Decoration source run index does not have a matching text batch style"
+		);
+
+		auto batch_style{ layout.batch_styles[decoration.source_run_index] };
+		auto& batch{ GetOrCreateTextBatch(batches, batch_style, true) };
+
+		EmitDecorationQuad(decoration, depth, entity_id, batch.quads);
 	}
 }
 
@@ -421,6 +639,7 @@ std::optional<ResolvedGlyph> ResolveGlyph(
 	resolved.texture				= font.GetAtlasTexture();
 
 	resolved.render_style.color			   = run.style.color;
+	resolved.render_style.flags			   = run.style.flags;
 	resolved.render_style.effect.type	   = run.style.effect.type;
 	resolved.render_style.effect.amplitude = run.style.effect.amplitude;
 	resolved.render_style.effect.frequency = run.style.effect.frequency;
@@ -443,6 +662,7 @@ CandidateLayout BuildSinglePassLayout(
 
 	TextLayout layout;
 	layout.used_shrink_scale = global_shrink;
+	layout.batch_styles		 = BuildBatchStyles(asset_manager, styled_text);
 
 	std::vector<GlyphInstance> current_line_glyphs;
 	V2_float current_line_size;
@@ -499,6 +719,11 @@ CandidateLayout BuildSinglePassLayout(
 			}
 		}
 
+		AddTextDecorationsForLine(
+			asset_manager, styled_text, current_line_glyphs, layout.lines.size(), global_shrink,
+			layout.decorations
+		);
+
 		layout.glyphs.append_range(current_line_glyphs);
 		layout.lines.push_back(line);
 
@@ -540,6 +765,7 @@ CandidateLayout BuildSinglePassLayout(
 				glyph.plane					 = space_glyph->metrics.plane;
 				glyph.uv					 = space_glyph->metrics.uv;
 				glyph.source_run_index		 = token.run_index;
+				glyph.advance				 = space_glyph->metrics.advance;
 				glyph.source_codepoint_index = 0;
 				glyph.render_style			 = space_glyph->render_style;
 				glyph.texture				 = space_glyph->texture;
@@ -574,6 +800,7 @@ CandidateLayout BuildSinglePassLayout(
 				glyph.plane					 = resolved->metrics.plane;
 				glyph.uv					 = resolved->metrics.uv;
 				glyph.source_run_index		 = resolved->source_run_index;
+				glyph.advance				 = resolved->metrics.advance;
 				glyph.source_codepoint_index = resolved->source_codepoint_index;
 				glyph.render_style			 = resolved->render_style;
 				glyph.texture				 = resolved->texture;
@@ -601,6 +828,7 @@ CandidateLayout BuildSinglePassLayout(
 			glyph.plane					 = resolved->metrics.plane;
 			glyph.uv					 = resolved->metrics.uv;
 			glyph.source_run_index		 = resolved->source_run_index;
+			glyph.advance				 = resolved->metrics.advance;
 			glyph.source_codepoint_index = resolved->source_codepoint_index;
 			glyph.render_style			 = resolved->render_style;
 			glyph.texture				 = resolved->texture;
@@ -613,18 +841,6 @@ CandidateLayout BuildSinglePassLayout(
 	}
 
 	flush_line(false);
-
-	if (!styled_text.runs.empty()) {
-		layout.batch_style = styled_text.runs.front().style.sdf;
-
-		auto font{ GetFont(asset_manager, styled_text.runs.front().style.font) };
-
-		layout.batch_style.pixel_range = font.GetFontData().metrics.pixel_range;
-
-		if (HasFlag(styled_text.runs.front().style.flags, FontStyle::Bold)) {
-			layout.batch_style.weight += styled_text.runs.front().style.fake_bold_weight;
-		}
-	}
 
 	CandidateLayout result;
 	result.layout			 = std::move(layout);
@@ -669,6 +885,11 @@ void ApplyVerticalAlignment(const TextBox& box, TextLayout* layout) {
 
 	for (GlyphInstance& glyph : layout->glyphs) {
 		glyph.position.y += offset_y;
+	}
+
+	for (TextDecoration& decoration : layout->decorations) {
+		decoration.rect.min.y += offset_y;
+		decoration.rect.max.y += offset_y;
 	}
 
 	layout->content_offset = { 0.0f, offset_y };
@@ -766,6 +987,7 @@ void ApplyEllipsisForMaxLines(
 		glyph.plane					 = resolved->metrics.plane;
 		glyph.uv					 = resolved->metrics.uv;
 		glyph.source_run_index		 = resolved->source_run_index;
+		glyph.advance				 = resolved->metrics.advance;
 		glyph.source_codepoint_index = resolved->source_codepoint_index;
 		glyph.render_style			 = resolved->render_style;
 		glyph.line_index			 = last_visible_line_index;
@@ -797,6 +1019,13 @@ void ApplyClipVisibility(Rect clip_rect, TextLayout* layout) {
 			glyph.visible = false;
 		}
 	}
+
+	for (auto& decoration : layout->decorations) {
+		if (decoration.rect.max.x <= clip_rect.min.x || decoration.rect.min.x >= clip_rect.max.x ||
+			decoration.rect.max.y <= clip_rect.min.y || decoration.rect.min.y >= clip_rect.max.y) {
+			decoration.visible = false;
+		}
+	}
 }
 
 void EmitGlyphQuad(
@@ -816,6 +1045,10 @@ void EmitGlyphQuad(
 
 	std::array positions{ quad_min, V2_float{ quad_max.x, quad_min.y }, quad_max,
 						  V2_float{ quad_min.x, quad_max.y } };
+
+	if (HasFlag(glyph.render_style.flags, FontStyle::Italic)) {
+		ApplyItalicShear(positions);
+	}
 
 	std::array tex_coords{ glyph.uv.min, V2_float{ glyph.uv.max.x, glyph.uv.min.y }, glyph.uv.max,
 						   V2_float{ glyph.uv.min.x, glyph.uv.max.y } };
@@ -848,9 +1081,6 @@ void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity entity) {
 	UpdateLayout(entity, asset_manager, styled_text, box);
 
 	auto& layout{ entity.Get<TextLayout>() };
-	auto& style{ layout.batch_style };
-
-	auto style_hash{ Hash(style) };
 
 	auto transform{ GetDrawTransform(entity) };
 	auto depth{ GetDepth(entity) };
@@ -870,44 +1100,67 @@ void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity entity) {
 		reveal_glyph_count = reveal->glyph_count;
 	}
 
-	std::vector<TextureQuad> text_quads;
-	std::vector<TextureId> text_textures;
-	std::vector<std::uint32_t> local_indices;
+	std::vector<TextDrawBatch> text_batches;
 
-	BuildVertices(
-		layout, depth, entity_id, clip_rect, reveal_glyph_count, time, text_quads, text_textures
-	);
+	BuildVertices(layout, depth, entity_id, clip_rect, reveal_glyph_count, time, text_batches);
 
-	if (text_quads.empty()) {
+	if (text_batches.empty()) {
 		return;
 	}
 
-	PTGN_ASSERT(text_textures.size() == 1, "Text must have exactly one texture (font atlas)");
-
-	TextureDrawParams params;
-
-	PTGN_ASSERT(style.pixel_range > 0.0f, "Invalid font pixel range");
-
-	Material material{ .shader = "text",
-					   .uniforms{ { "u_Weight", style.weight },
-								  { "u_Softness", style.softness },
-								  { "u_OutlineColor", style.outline_color.Normalized() },
-								  { "u_OutlineWidth", style.outline_width },
-								  { "u_OutlineSoftness", style.outline_softness },
-								  { "u_GlowColor", style.glow_color.Normalized() },
-								  { "u_GlowOuterWidth", style.glow_outer_width },
-								  { "u_GlowSoftness", style.glow_softness },
-								  { "u_PixelRange", style.pixel_range } } };
-
-	DrawTextureRequest request{ .texture	   = text_textures.front(),
-								.transform	   = transform,
-								.primitives	   = text_quads,
-								.effect_params = GetEffectParams(entity) };
+	auto effects{ GetEffectParams(entity) };
 
 	// TODO: Check if transform needs to be offset by text box size and draw origin.
 	// request.transform	  = rect.Offset(transform, GetDrawOrigin(entity));
 
-	ctx.WithBlendMode(GetBlendMode(entity), [&]() { ctx.DrawTexture(request, material); });
+	ctx.WithBlendMode(GetBlendMode(entity), [&text_batches, transform, &effects, &ctx]() {
+		for (auto& batch : text_batches) {
+			if (batch.quads.empty()) {
+				continue;
+			}
+
+			const auto& style{ batch.style.sdf };
+
+			PTGN_ASSERT(style.pixel_range > 0.0f, "Invalid font pixel range");
+
+			Material material{
+				.shader = "text",
+				.uniforms{
+					{ "u_Weight", style.weight },
+					{ "u_Softness", style.softness },
+
+					{ "u_OutlineColor", style.outline_color.Normalized() },
+					{ "u_OutlineWidth", style.outline_width },
+					{ "u_OutlineSoftness", style.outline_softness },
+
+					{ "u_ShadowColor", style.shadow_color.Normalized() },
+					{ "u_ShadowOffset", style.shadow_offset },
+					{ "u_ShadowWidth", style.shadow_width },
+					{ "u_ShadowSoftness", style.shadow_softness },
+
+					{ "u_OuterGlowColor", style.outer_glow_color.Normalized() },
+					{ "u_OuterGlowWidth", style.outer_glow_width },
+					{ "u_OuterGlowSoftness", style.outer_glow_softness },
+
+					{ "u_InnerGlowColor", style.inner_glow_color.Normalized() },
+					{ "u_InnerGlowWidth", style.inner_glow_width },
+					{ "u_InnerGlowSoftness", style.inner_glow_softness },
+
+					{ "u_PixelRange", style.pixel_range },
+					{ "u_IsDecoration", batch.decoration ? 1.0f : 0.0f },
+				},
+			};
+
+			DrawTextureRequest request{
+				.texture	   = batch.style.texture,
+				.transform	   = transform,
+				.primitives	   = batch.quads,
+				.effect_params = effects,
+			};
+
+			ctx.DrawTexture(request, material);
+		}
+	});
 }
 
 } // namespace impl

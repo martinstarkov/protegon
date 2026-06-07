@@ -32,7 +32,7 @@ std::ostream& operator<<(std::ostream& os, FontStyle style) {
 	bool first = true;
 
 	auto print = [&](FontStyle flag, const char* name) {
-		if ((style | flag) == flag) {
+		if (HasFlag(style, flag)) {
 			if (!first) {
 				os << " | ";
 			}
@@ -56,12 +56,21 @@ std::ostream& operator<<(std::ostream& os, FontStyle style) {
 
 } // namespace ptgn
 
-std::size_t std::hash<ptgn::DistanceFieldStyle>::operator()(const ptgn::DistanceFieldStyle& style
+std::size_t std::hash<ptgn::DistanceFieldStyle>::operator()(
+	const ptgn::DistanceFieldStyle& style
 ) const {
 	// TODO: Quantize floats.
 	return ptgn::Hash(
-		style.weight, style.softness, style.outline_color, style.outline_width,
-		style.outline_softness, style.glow_color, style.glow_outer_width, style.glow_softness,
+		style.weight, style.softness,
+
+		style.outline_color, style.outline_width, style.outline_softness,
+
+		style.shadow_color, style.shadow_offset, style.shadow_width, style.shadow_softness,
+
+		style.outer_glow_color, style.outer_glow_width, style.outer_glow_softness,
+
+		style.inner_glow_color, style.inner_glow_width, style.inner_glow_softness,
+
 		style.pixel_range
 	);
 }

@@ -8,6 +8,8 @@
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/graphics/text/font_style.h"
+#include "runtime/graphics/text/text_effect.h"
 #include "runtime/graphics/text/text_layout.h"
 #include "runtime/graphics/text/text_style.h"
 
@@ -74,17 +76,24 @@ public:
 	Text& LineSpacing(float line_spacing);
 
 	Text& Style(FontStyle flags);
-	Text& Bold(bool enabled = true);
+	Text& Bold(bool enabled = true, float weight = kDefaultBoldWeight);
 	Text& Italic(bool enabled = true);
 	Text& Underline(bool enabled = true);
 	Text& Strikethrough(bool enabled = true);
 
-	Text& FakeBold(bool enabled = true, float weight = 0.08f);
-
-	Text& Sdf(float weight, float softness = 1.0f);
 	Text& Outline(ptgn::Color color, float width, float softness = 1.0f);
-	Text& Shadow(ptgn::Color color, V2_float offset, float softness = 0.2f);
-	Text& Glow(ptgn::Color color, float outer_width, float softness = 1.0f);
+
+	Text& Shadow(ptgn::Color color, V2_float offset, float softness = 1.0f);
+	Text& Shadow(ptgn::Color color, V2_float offset, float width, float softness);
+
+	Text& OuterGlow(ptgn::Color color, float width, float softness = 1.0f);
+	Text& InnerGlow(ptgn::Color color, float width, float softness = 1.0f);
+
+	// Full glow = outer + inner.
+	Text& Glow(ptgn::Color color, float width, float softness = 1.0f);
+	Text& Glow(ptgn::Color color, float outer_width, float inner_width, float softness);
+
+	Text& ClearSdfEffects();
 
 	Text& Effect(
 		GlyphEffectType type, float amplitude, float frequency, float speed, float phase = 0.0f

@@ -41,16 +41,16 @@ namespace ptgn {
 namespace {
 
 constexpr std::array kExpectedFontCacheMagic{ 'F', 'O', 'N', 'T', 'C', 'A', 'C', 'H' };
-constexpr std::uint32_t kExpectedFontCacheVersion{ 1 };
-constexpr int kFontAtlasChannelCount{ 3 };
-constexpr TextureFormat kFontAtlasFormat{ TextureFormat::RGB8 };
+constexpr std::uint32_t kExpectedFontCacheVersion{ 7 };
+constexpr int kFontAtlasChannelCount{ 4 };
+constexpr TextureFormat kFontAtlasFormat{ TextureFormat::RGBA8 };
 constexpr TextureParams kFontAtlasTextureParams{ TextureMinFilter::Linear,
 												 TextureMagFilter::Linear };
 
 using FontAtlasDataType = std::uint8_t;
 
 using AtlasGenerator = msdf_atlas::ImmediateAtlasGenerator<
-	float, kFontAtlasChannelCount, msdf_atlas::msdfGenerator,
+	float, kFontAtlasChannelCount, msdf_atlas::mtsdfGenerator,
 	msdf_atlas::BitmapAtlasStorage<FontAtlasDataType, kFontAtlasChannelCount> >;
 
 auto InitFreetype() {
@@ -285,7 +285,8 @@ FontObject::FontObject(
 	msdf_atlas::TightAtlasPacker packer;
 	packer.setDimensionsConstraint(msdf_atlas::DimensionsConstraint::SQUARE);
 	packer.setScale(atlas_info.em_size);
-	packer.setPixelRange(atlas_info.pixel_range);
+	packer.setUnitRange(atlas_info.em_range);
+	// packer.setPixelRange(atlas_info.pixel_range);
 	packer.setMiterLimit(atlas_info.miter_limit);
 
 	auto remaining_glyph_count{ packer.pack(glyphs.data(), static_cast<int>(glyphs.size())) };
@@ -330,7 +331,8 @@ FontObject::FontObject(
 	data_.metrics.descender	  = static_cast<float>(msdf_metrics.descenderY);
 	data_.metrics.line_height = static_cast<float>(msdf_metrics.lineHeight);
 	data_.metrics.em_size	  = static_cast<float>(packer.getScale());
-	data_.metrics.pixel_range = atlas_info.pixel_range;
+	data_.metrics.pixel_range = atlas_info.em_range * data_.metrics.em_size;
+	// data_.metrics.pixel_range = atlas_info.pixel_range;
 	PTGN_ASSERT(
 		data_.metrics.em_size == atlas_info.em_size,
 		"Failed to create font with em size: ", atlas_info.em_size

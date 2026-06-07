@@ -9,9 +9,12 @@
 
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
+#include "runtime/graphics/text/font_style.h"
 #include "runtime/graphics/text/text_effect.h"
 
 namespace ptgn {
+
+inline constexpr float kDefaultBoldWeight{ 0.04f };
 
 enum class HorizontalAlign : std::uint8_t {
 	Left,
@@ -39,24 +42,6 @@ enum class OverflowMode : std::uint8_t {
 	ShrinkToFit,
 };
 
-enum class FontStyle : std::uint32_t {
-	Normal		  = 0,
-	Bold		  = 1 << 0,
-	Italic		  = 1 << 1,
-	Underline	  = 1 << 2,
-	Strikethrough = 1 << 3,
-};
-
-std::ostream& operator<<(std::ostream& os, FontStyle style);
-
-inline FontStyle operator|(FontStyle a, FontStyle b) {
-	return static_cast<FontStyle>(std::to_underlying(a) | std::to_underlying(b));
-}
-
-inline bool HasFlag(FontStyle value, FontStyle flag) {
-	return (std::to_underlying(value) & std::to_underlying(flag)) != 0u;
-}
-
 struct DistanceFieldStyle {
 	float weight{ 0.5f };
 	float softness{ 1.0f };
@@ -67,11 +52,16 @@ struct DistanceFieldStyle {
 
 	Color shadow_color{ color::Black.WithAlpha(0) };
 	V2_float shadow_offset;
-	float shadow_softness{ 0.2f };
+	float shadow_width{ 0.0f };
+	float shadow_softness{ 1.0f };
 
-	Color glow_color{ color::White.WithAlpha(0) };
-	float glow_outer_width{ 0.0f };
-	float glow_softness{ 1.0f };
+	Color outer_glow_color{ color::White.WithAlpha(0) };
+	float outer_glow_width{ 0.0f };
+	float outer_glow_softness{ 1.0f };
+
+	Color inner_glow_color{ color::White.WithAlpha(0) };
+	float inner_glow_width{ 0.0f };
+	float inner_glow_softness{ 1.0f };
 
 	float pixel_range{ 0.0f };
 
@@ -83,7 +73,7 @@ struct TextRunStyle {
 	Color color{ color::White };
 
 	bool fake_bold_if_missing{ true };
-	float fake_bold_weight{ 0.08f };
+	float fake_bold_weight{ kDefaultBoldWeight };
 
 	float scale{ 1.0f };
 	float kerning{ 0.0f };
