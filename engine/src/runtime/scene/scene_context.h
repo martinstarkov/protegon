@@ -2,6 +2,7 @@
 
 #include "core/util/time.h"
 #include "runtime/graphics/render_queue.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/physics/collision_handler.h"
 #include "runtime/physics/physics.h"
@@ -34,6 +35,10 @@ public:
 
 } // namespace impl
 
+struct DebugContext {
+	TextDebugSettings text;
+};
+
 class SceneContext {
 public:
 	SceneContext() = delete;
@@ -58,6 +63,7 @@ public:
 	InteractionSystem interaction;
 	Physics physics;
 	CollisionHandler collision;
+	DebugContext debug_local;
 
 	/// @brief The default camera used by all objects in the scene. By default it resizes to the
 	/// game size.

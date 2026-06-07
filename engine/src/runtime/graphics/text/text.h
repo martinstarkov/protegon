@@ -24,6 +24,8 @@ struct TextEditState {
 	std::size_t current_run_index{ 0 };
 };
 
+void DrawTextLayoutDebug(Scene& scene);
+
 } // namespace impl
 
 class Text : public Entity {

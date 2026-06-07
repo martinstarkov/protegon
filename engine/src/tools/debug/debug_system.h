@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/graphics/color.h"
 #include "tools/debug/allocation.h"
 #include "tools/debug/stats.h"
 
@@ -13,10 +14,17 @@ class ApplicationContext;
 
 } // namespace impl
 
+struct TextDebugSettings {
+	bool draw_enabled{ false };
+	Color draw_color{ color::Magenta };
+	float draw_line_width{ 2.0f };
+};
+
 class DebugSystem {
 public:
 	impl::Allocations allocations;
 	Stats stats;
+	TextDebugSettings text;
 
 private:
 	friend class Application;

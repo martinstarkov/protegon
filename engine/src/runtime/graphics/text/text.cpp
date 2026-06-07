@@ -1,5 +1,7 @@
 #include "runtime/graphics/text/text.h"
 
+#include <algorithm>
+#include <functional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -11,14 +13,19 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
+#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_queue.h"
+#include "runtime/graphics/text/font_style.h"
 #include "runtime/graphics/text/text_effect.h"
 #include "runtime/graphics/text/text_layout.h"
 #include "runtime/graphics/text/text_style.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
+#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
@@ -51,7 +58,96 @@ TextRunStyle MakeDefaultTextRunStyle() {
 	return style;
 }
 
+[[nodiscard]] bool HasVisibleTextContent(const StyledText& styled_text) {
+	return std::ranges::any_of(styled_text.runs, [](const TextRun& run) {
+		return !run.text.empty();
+	});
+}
+
+[[nodiscard]] Transform GetTextLayoutBoxTransform(Entity entity, const Rect& local_box) {
+	auto transform{ GetDrawTransform(entity) };
+
+	V2_float center{ (local_box.min + local_box.max) * 0.5f };
+	transform.Translate(center);
+
+	return transform;
+}
+
+[[nodiscard]] Rect GetCenteredRect(V2_float size) {
+	return Rect{ { -size.x * 0.5f, -size.y * 0.5f }, { size.x * 0.5f, size.y * 0.5f } };
+}
+
+void DrawTextLayoutDebugForCamera(
+	Scene& scene, const impl::RenderCamera& camera, const impl::EntityFilterFunc& filter,
+	TextDebugSettings settings
+) {
+	PTGN_ASSERT(settings.draw_enabled);
+
+	for (auto [entity, styled_text, box] : scene.EntitiesWith<StyledText, TextBox>()) {
+		if (filter(entity)) {
+			continue;
+		}
+
+		if (!IsVisible(entity)) {
+			continue;
+		}
+
+		if (!HasVisibleTextContent(styled_text)) {
+			continue;
+		}
+
+		impl::UpdateLayout(entity, scene.ctx().asset, styled_text, box);
+
+		const auto* layout{ entity.TryGet<TextLayout>() };
+		if (!layout) {
+			continue;
+		}
+
+		if (!layout->local_box.GetSize().IsPositive()) {
+			continue;
+		}
+
+		auto transform{ GetTextLayoutBoxTransform(entity, layout->local_box) };
+		auto rect{ GetCenteredRect(layout->local_box.GetSize()) };
+
+		scene.ctx().render_queue.DrawShape(
+			transform, rect, settings.draw_color,
+			ShapeRenderParams{
+				.fill_style = settings.draw_line_width,
+				.origin		= Origin::Center,
+				.camera		= camera,
+				.debug		= true,
+			}
+		);
+	}
+}
+
 } // namespace
+
+namespace impl {
+
+void DrawTextLayoutDebug(Scene& scene) {
+	TextDebugSettings settings{ scene.ctx().debug.text };
+
+	if (scene.ctx().debug_local.text.draw_enabled) {
+		settings = scene.ctx().debug_local.text;
+	}
+
+	if (!settings.draw_enabled) {
+		return;
+	}
+
+	const auto& primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
+
+	ForDrawableSceneEntities(
+		scene, primary_world_camera,
+		[&settings](Scene& scene, const RenderCamera& camera, const EntityFilterFunc& filter) {
+			DrawTextLayoutDebugForCamera(scene, camera, filter, settings);
+		}
+	);
+}
+
+} // namespace impl
 
 void Text::Draw(
 	DrawContext& ctx, Entity entity, V2_int text_size, ptgn::Color additional_tint,

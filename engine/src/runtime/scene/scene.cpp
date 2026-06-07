@@ -18,9 +18,9 @@
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/util/hash.h"
+#include "renderer/draw_context.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
-#include "renderer/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/renderer.h"
@@ -213,6 +213,7 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 
 	ctx().collision.DrawDebug(*this);
 	ctx().interaction.DrawDebug(*this);
+	impl::DrawTextLayoutDebug(*this);
 	impl::DrawLightVisibilityDebug(*this);
 
 	impl::ClearedEntities cleared;
