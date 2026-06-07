@@ -66,15 +66,22 @@ struct TextScene : public Scene {
 			);
 
 		// Examples for the new rich API:
-		CreateLine(color::Black, 8).Content(" rich red").Color(color::Red).Bold().Underline();
+		CreateLine(color::Black, 8)
+			.Content(" ")
+			.Content("rich red")
+			.Color(color::Red)
+			.Bold()
+			.Underline();
 
 		CreateLine(color::Black, 9)
-			.Content(" glowing")
+			.Content(" ")
+			.Content("glowing")
 			.Color(color::Blue)
-			.Glow(color::Blue, 0.35f, 1.0f);
+			.Glow(color::Blue, 3.0f, 2.0f);
 
 		CreateLine(color::Black, 10)
-			.Content(" waving")
+			.Content(" ")
+			.Content("waving")
 			.Color(color::Purple)
 			.Effect(GlyphEffectType::Wave, 8.0f, 2.0f, 1.5f);
 	}
