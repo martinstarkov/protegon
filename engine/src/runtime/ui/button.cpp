@@ -15,6 +15,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "runtime/animation/animation_event.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
@@ -36,6 +37,96 @@
 namespace ptgn {
 
 namespace {
+
+[[nodiscard]] bool IsPressVisualState(ButtonVisualState state) {
+	switch (state) {
+		using enum ButtonVisualState;
+
+		case Press:
+		case ToggledPress:
+		case DisabledPress: return true;
+
+		default:			return false;
+	}
+}
+
+void ResetButtonAnimationPart(Entity part) {
+	if (!part.Has<impl::AnimationData>()) {
+		return;
+	}
+
+	Animation animation{ part };
+
+	auto animation_part{ part.TryGet<impl::ButtonAnimationPart>() };
+	auto static_frame{ animation_part ? animation_part->options.static_frame : 0uz };
+
+	animation.Reset();
+	animation.SetCurrentFrame(static_frame);
+}
+
+std::vector<ButtonVisualState> GetVisualStateFallbacks(ButtonVisualState state) {
+	switch (state) {
+		using enum ButtonVisualState;
+
+		case Base:			return { Base };
+
+		case Idle:			return { Idle, Base };
+
+		case Hover:			return { Hover, Idle, Base };
+
+		case Press:			return { Press, Hover, Idle, Base };
+
+		case Disabled:		return { Disabled, Idle, Base };
+
+		case DisabledHover: return { DisabledHover, Disabled, Hover, Idle, Base };
+
+		case DisabledPress:
+			return { DisabledPress, DisabledHover, Disabled, Press, Hover, Idle, Base };
+
+		case Toggled:	   return { Toggled, Idle, Base };
+
+		case ToggledHover: return { ToggledHover, Toggled, Hover, Idle, Base };
+
+		case ToggledPress: return { ToggledPress, ToggledHover, Toggled, Press, Hover, Idle, Base };
+	}
+
+	return { ButtonVisualState::Base };
+}
+
+std::optional<Animation> TryAnimationForVisualState(Button button, ButtonVisualState state) {
+	for (auto fallback_state : GetVisualStateFallbacks(state)) {
+		auto animation{ button.TryAnimation(fallback_state) };
+		if (animation.has_value()) {
+			return animation;
+		}
+	}
+
+	return std::nullopt;
+}
+
+ButtonVisualState GetPressVisualState(Button button) {
+	if (!button.IsEnabled(false)) {
+		return ButtonVisualState::DisabledPress;
+	}
+
+	if (button.HasToggle() && button.AsToggle().IsToggled()) {
+		return ButtonVisualState::ToggledPress;
+	}
+
+	return ButtonVisualState::Press;
+}
+
+ButtonVisualState ToVisualState(ButtonState state) {
+	switch (state) {
+		using enum ButtonState;
+
+		case Idle:	return ButtonVisualState::Idle;
+		case Hover: return ButtonVisualState::Hover;
+		case Press: return ButtonVisualState::Press;
+	}
+
+	return ButtonVisualState::Idle;
+}
 
 std::optional<Entity> FindButtonPart(Button button, ButtonPartRole role, ButtonVisualState state) {
 	if (!HasChildren(button)) {
@@ -129,6 +220,37 @@ std::optional<V2_float> GetShapeSize(const std::variant<Rect, Circle>& shape) {
 	);
 }
 
+[[nodiscard]] std::optional<V2_float> GetButtonShapeSize(Button button) {
+	auto shape{ button.GetShape() };
+
+	if (!shape.has_value()) {
+		return std::nullopt;
+	}
+
+	auto transform{ GetWorldTransform(button) };
+
+	return std::visit(
+		[&](const auto& value) -> std::optional<V2_float> { return value.GetSize(transform); },
+		*shape
+	);
+}
+
+[[nodiscard]] Rect GetButtonLocalRect(Button button, V2_float size) {
+	V2_float center{ GetOffset(GetDrawOrigin(button), size) };
+	V2_float half_size{ size * 0.5f };
+
+	return Rect{
+		center - half_size,
+		center + half_size,
+	};
+}
+
+[[nodiscard]] Rect ApplyContentPadding(Rect rect, Rect padding) {
+	rect.min += padding.min;
+	rect.max -= padding.max;
+	return rect;
+}
+
 } // namespace
 
 namespace impl {
@@ -136,8 +258,23 @@ namespace impl {
 ButtonAnimationCompleteScript::ButtonAnimationCompleteScript(Entity button) : button{ button } {}
 
 void ButtonAnimationCompleteScript::OnEvent(Event event) {
-	// Keep this if your AnimationComplete event still needs to restart hover animations.
-	// Otherwise this script can be removed entirely in the child-entity model.
+	event.Dispatch<ptgn::event::AnimationComplete>([this]() {
+		if (!button) {
+			return;
+		}
+
+		Button btn{ button };
+
+		auto part{ entity.TryGet<ButtonPart>() };
+		auto visual_override{ btn.TryGet<ButtonVisualOverride>() };
+
+		if (part && visual_override && visual_override->state == part->state) {
+			btn.Remove<ButtonVisualOverride>();
+			btn.RefreshVisualState();
+
+			ResetButtonAnimationPart(entity);
+		}
+	});
 }
 
 void ButtonScript::OnEvent(Event event) {
@@ -299,17 +436,19 @@ ButtonState Button::GetState() const {
 }
 
 ButtonVisualState Button::GetVisualState() const {
-	auto state{ GetState() };
-
 	if (!IsEnabled(false)) {
-		return DisabledStateFrom(state);
+		return DisabledStateFrom(GetState());
+	}
+
+	if (auto visual_override{ TryGet<impl::ButtonVisualOverride>() }) {
+		return visual_override->state;
 	}
 
 	if (HasToggle() && AsToggle().IsToggled()) {
-		return ToggledStateFrom(state);
+		return ToggledStateFrom(GetState());
 	}
 
-	return NormalStateFrom(state);
+	return NormalStateFrom(GetState());
 }
 
 impl::InternalButtonState Button::GetInternalState() const {
@@ -351,8 +490,32 @@ Button& Button::Press() {
 		return *this;
 	}
 
+	if (auto visual_override{ TryGet<impl::ButtonVisualOverride>() };
+		visual_override && visual_override->block_press) {
+		return *this;
+	}
+
+	auto press_visual_state{ GetPressVisualState(*this) };
+
+	if (auto animation{ TryAnimationForVisualState(*this, press_visual_state) }) {
+		auto part{ animation->TryGet<impl::ButtonAnimationPart>() };
+
+		if (part && part->options.lock_visual_state) {
+			auto& visual_override{ TryAdd<impl::ButtonVisualOverride>() };
+			visual_override.state		= press_visual_state;
+			visual_override.block_press = part->options.block_press;
+
+			RefreshVisualState();
+		}
+
+		animation->Reset();
+		animation->SetCurrentFrame(part ? part->options.static_frame : 0uz);
+		animation->Start(true);
+	} else {
+		PlayAnimation(ButtonState::Press);
+	}
+
 	PlaySound(ButtonState::Press);
-	PlayAnimation(ButtonState::Press);
 
 	PushEvent<event::ButtonPress>(*this, *this);
 
@@ -406,6 +569,8 @@ Button& Button::SetShape(const std::optional<std::variant<Rect, Circle>>& shape)
 	std::visit(
 		[this](const auto& value) { Add<std::remove_cvref_t<decltype(value)>>(value); }, *shape
 	);
+
+	UpdateChildLayouts();
 
 	return *this;
 }
@@ -477,10 +642,16 @@ Text Button::Label(ButtonVisualState state) {
 		return *label;
 	}
 
-	Text text{ CreateText(GetScene(), {}, Origin::Center) };
+	Text text{ CreateText(GetScene(), {}, Origin::TopLeft) };
+
 	text.Add<impl::ButtonPart>(ButtonPartRole::Label, state);
 	text.Add<impl::ButtonLabelAutoBox>();
+
 	SetParent(text, *this);
+	Show(text);
+
+	UpdateChildLayouts();
+	RefreshVisualState();
 
 	return text;
 }
@@ -490,8 +661,16 @@ Sprite Button::Icon(ButtonVisualState state) {
 		return *icon;
 	}
 
-	Entity part{ Part(ButtonPartRole::Icon, state) };
-	return Sprite{ part };
+	Sprite sprite{ CreateSprite(GetScene(), {}, {}, Origin::Center) };
+
+	sprite.Add<impl::ButtonPart>(ButtonPartRole::Icon, state);
+
+	SetParent(sprite, *this);
+	Show(sprite);
+
+	RefreshVisualState();
+
+	return sprite;
 }
 
 std::optional<Entity> Button::TryBackground(ButtonVisualState state) const {
@@ -546,10 +725,101 @@ Button& Button::SetIcon(std::string_view texture_key, ButtonVisualState state) {
 	return *this;
 }
 
+Button& Button::SetTexture(std::string_view texture_key, ButtonVisualState state) {
+	Icon(state).SetTexture(texture_key);
+	RefreshVisualState();
+	return *this;
+}
+
+Button& Button::SetAnimation(
+	Animation&& animation, ButtonVisualState state, ButtonAnimationOptions options
+) {
+	RemoveIcon(state);
+
+	Animation anim{ std::move(animation) };
+
+	anim.Add<impl::ButtonPart>(ButtonPartRole::Icon, state);
+	anim.Add<impl::ButtonAnimationPart>(options);
+
+	SetParent(anim, *this);
+	SetDrawOrigin(anim, Origin::Center);
+
+	anim.Reset();
+
+	if (options.playback == ButtonAnimationPlayback::StaticFrame) {
+		anim.SetCurrentFrame(options.static_frame);
+	}
+
+	Hide(anim);
+
+	if (!HasScript<impl::ButtonAnimationCompleteScript>(anim)) {
+		AddScript<impl::ButtonAnimationCompleteScript>(anim, *this);
+	}
+
+	RefreshVisualState();
+
+	return *this;
+}
+
+Button& Button::SetAnimation(Animation&& animation, ButtonVisualState state) {
+	ButtonAnimationOptions options;
+
+	if (state == ButtonVisualState::Press || state == ButtonVisualState::ToggledPress ||
+		state == ButtonVisualState::DisabledPress) {
+		options.playback		  = ButtonAnimationPlayback::PlayOnce;
+		options.lock_visual_state = true;
+		options.block_press		  = false;
+	}
+
+	return SetAnimation(std::move(animation), state, options);
+}
+
+Button& Button::SetStaticAnimationFrame(
+	Animation&& animation, ButtonVisualState state, std::size_t frame
+) {
+	return SetAnimation(
+		std::move(animation), state,
+		ButtonAnimationOptions{
+			.playback	  = ButtonAnimationPlayback::StaticFrame,
+			.static_frame = frame,
+		}
+	);
+}
+
+std::optional<Animation> Button::TryAnimation(ButtonVisualState state) const {
+	auto icon{ TryIcon(state) };
+
+	if (!icon.has_value()) {
+		return std::nullopt;
+	}
+
+	if (!icon->Has<impl::AnimationData>()) {
+		return std::nullopt;
+	}
+
+	return Animation{ *icon };
+}
+
+Button& Button::RemoveAnimation(ButtonVisualState state) {
+	auto animation{ TryAnimation(state) };
+
+	if (!animation.has_value()) {
+		return *this;
+	}
+
+	animation->Stop(true);
+	animation->Remove<impl::AnimationData>();
+	animation->Remove<impl::ButtonPart>();
+	Hide(*animation);
+
+	return *this;
+}
+
 Button& Button::SetLabelAutoBox(bool enabled, ButtonVisualState state) {
 	Text label{ Label(state) };
 	auto& auto_box{ label.TryAdd<impl::ButtonLabelAutoBox>() };
 	auto_box.enabled = enabled;
+	UpdateChildLayouts();
 	return *this;
 }
 
@@ -557,6 +827,7 @@ Button& Button::SetLabelPadding(Rect padding, ButtonVisualState state) {
 	Text label{ Label(state) };
 	auto& auto_box{ label.TryAdd<impl::ButtonLabelAutoBox>() };
 	auto_box.padding = padding;
+	UpdateChildLayouts();
 	return *this;
 }
 
@@ -614,19 +885,42 @@ Button& Button::SetExclusiveAudio(bool enabled) {
 
 void Button::RefreshVisualState() {
 	auto active_state{ GetVisualState() };
+	auto fallback_states{ GetVisualStateFallbacks(active_state) };
+	auto parts{ Parts() };
 
-	for (Entity part : Parts()) {
-		auto info{ part.TryGet<impl::ButtonPart>() };
-		if (!info) {
-			continue;
-		}
-
-		if (IsPartVisibleForState(*info, active_state)) {
-			Show(part);
-		} else {
-			Hide(part);
-		}
+	for (Entity part : parts) {
+		Hide(part);
 	}
+
+	auto show_role = [&](ButtonPartRole role) {
+		for (auto state : fallback_states) {
+			bool found{ false };
+
+			for (Entity part : parts) {
+				auto info{ part.TryGet<impl::ButtonPart>() };
+
+				if (!info) {
+					continue;
+				}
+
+				if (info->role != role || info->state != state) {
+					continue;
+				}
+
+				Show(part);
+				found = true;
+			}
+
+			if (found) {
+				return;
+			}
+		}
+	};
+
+	show_role(ButtonPartRole::Background);
+	show_role(ButtonPartRole::Border);
+	show_role(ButtonPartRole::Icon);
+	show_role(ButtonPartRole::Label);
 }
 
 void Button::SetState(impl::InternalButtonState state) {
@@ -636,7 +930,18 @@ void Button::SetState(impl::InternalButtonState state) {
 		return;
 	}
 
+	auto old_visual_state{ GetVisualState() };
+
 	data.state = state;
+
+	auto new_visual_state{ GetVisualState() };
+
+	if (old_visual_state != new_visual_state && IsPressVisualState(new_visual_state)) {
+		if (auto animation{ TryAnimationForVisualState(*this, new_visual_state) }) {
+			ResetButtonAnimationPart(*animation);
+		}
+	}
+
 	RefreshVisualState();
 }
 
@@ -651,38 +956,71 @@ void Button::PlaySound(ButtonState active) {
 	audio.Play(sound->GetEntity().Get<impl::AssetName>().value);
 }
 
-void Button::PlayAnimation(ButtonState) {
-	// State-specific animations now belong to child entities.
-	// Add your animation start/reset policy here if needed.
+void Button::PlayAnimation(ButtonState active) {
+	auto active_state{ ToVisualState(active) };
+
+	for (Entity part : Parts(ButtonPartRole::Icon)) {
+		auto part_data{ part.TryGet<impl::ButtonPart>() };
+
+		if (!part_data || !part.Has<impl::AnimationData>()) {
+			continue;
+		}
+
+		Animation animation{ part };
+
+		auto animation_part{ part.TryGet<impl::ButtonAnimationPart>() };
+		auto playback{ animation_part ? animation_part->options.playback
+									  : ButtonAnimationPlayback::Play };
+		auto static_frame{ animation_part ? animation_part->options.static_frame : 0uz };
+
+		if (part_data->state != active_state) {
+			animation.Reset();
+			animation.SetCurrentFrame(static_frame);
+			continue;
+		}
+
+		switch (playback) {
+			using enum ButtonAnimationPlayback;
+
+			case StaticFrame:
+				animation.Reset();
+				animation.SetCurrentFrame(static_frame);
+				break;
+
+			case Play:
+			case PlayOnce: animation.Start(true); break;
+		}
+	}
 }
 
 void Button::UpdateChildLayouts() {
-	auto shape{ GetShape() };
-	if (!shape.has_value()) {
+	auto size{ GetButtonShapeSize(*this) };
+
+	if (!size.has_value() || !size->IsPositive()) {
 		return;
 	}
 
-	auto size{ GetShapeSize(*shape) };
-	if (!size.has_value()) {
-		return;
-	}
-
-	Rect button_box{
-		{ -size->x * 0.5f, -size->y * 0.5f },
-		{ size->x * 0.5f, size->y * 0.5f },
-	};
+	Rect button_rect{ GetButtonLocalRect(*this, *size) };
 
 	for (Entity part : Parts(ButtonPartRole::Label)) {
 		auto auto_box{ part.TryGet<impl::ButtonLabelAutoBox>() };
+
 		if (!auto_box || !auto_box->enabled) {
 			continue;
 		}
 
-		Rect box{ button_box };
-		box.min += auto_box->padding.min;
-		box.max -= auto_box->padding.max;
+		Rect content_rect{ ApplyContentPadding(button_rect, auto_box->padding) };
 
-		Text{ part }.Box(box).Align(HorizontalAlign::Center, VerticalAlign::Center);
+		if (!content_rect.GetSize().IsPositive()) {
+			continue;
+		}
+
+		// Put the label entity at the top-left of the content area.
+		SetPosition(part, content_rect.min);
+		SetDrawOrigin(part, Origin::TopLeft);
+
+		// The label's own text box is now local to the label entity.
+		Text{ part }.Box(Rect{ {}, content_rect.GetSize() });
 	}
 }
 

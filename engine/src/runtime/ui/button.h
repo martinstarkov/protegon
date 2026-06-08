@@ -12,6 +12,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "runtime/animation/animation.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
@@ -39,6 +40,25 @@ struct ButtonHover;
 struct ButtonHoverStop;
 
 } // namespace event
+
+enum class ButtonAnimationPlayback : std::uint8_t {
+	StaticFrame,
+	Play,
+	PlayOnce,
+};
+
+struct ButtonAnimationOptions {
+	ButtonAnimationPlayback playback{ ButtonAnimationPlayback::Play };
+
+	/// @brief Used only for StaticFrame.
+	std::size_t static_frame{ 0 };
+
+	/// @brief If true, the button keeps showing this visual state until the animation completes.
+	bool lock_visual_state{ false };
+
+	/// @brief If true, repeated presses are ignored while this visual state is locked.
+	bool block_press{ false };
+};
 
 namespace impl {
 
@@ -87,6 +107,15 @@ struct ButtonSounds {
 	std::optional<Audio> idle;
 	std::optional<Audio> hover;
 	std::optional<Audio> press;
+};
+
+struct ButtonAnimationPart {
+	ButtonAnimationOptions options;
+};
+
+struct ButtonVisualOverride {
+	ButtonVisualState state{ ButtonVisualState::Base };
+	bool block_press{ false };
 };
 
 struct ButtonAnimationCompleteScript : public Script {
@@ -199,6 +228,25 @@ public:
 	Button& SetIcon(
 		std::string_view texture_key, ButtonVisualState state = ButtonVisualState::Base
 	);
+
+	Button& SetTexture(
+		std::string_view texture_key, ButtonVisualState state = ButtonVisualState::Idle
+	);
+
+	Button& SetAnimation(
+		Animation&& animation, ButtonVisualState state, ButtonAnimationOptions options
+	);
+
+	Button& SetAnimation(Animation&& animation, ButtonVisualState state);
+
+	Button& SetStaticAnimationFrame(
+		Animation&& animation, ButtonVisualState state = ButtonVisualState::Idle,
+		std::size_t frame = 0
+	);
+
+	[[nodiscard]] std::optional<Animation> TryAnimation(ButtonVisualState state) const;
+
+	Button& RemoveAnimation(ButtonVisualState state);
 
 	Button& SetLabelAutoBox(bool enabled = true, ButtonVisualState state = ButtonVisualState::Base);
 
