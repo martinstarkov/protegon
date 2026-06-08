@@ -15,7 +15,6 @@
 #include "runtime/animation/animation.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
@@ -144,15 +143,14 @@ private:
 	void OnMouseReleasedOut(Mouse mouse);
 };
 
+void UpdateButtons(Scene& scene);
+
 } // namespace impl
 
 class Button : public Entity {
 public:
 	Button() = default;
 	explicit Button(Entity entity);
-
-	/// @brief Button itself only coordinates state/layout. Visuals are child drawables.
-	static void Draw(DrawContext& ctx, Entity entity);
 
 	[[nodiscard]] bool IsEnabled(bool check_for_hover_enabled = false) const;
 	[[nodiscard]] ButtonState GetState() const;
@@ -288,6 +286,7 @@ public:
 private:
 	friend class impl::ButtonScript;
 	friend struct impl::ButtonAnimationCompleteScript;
+	friend void impl::UpdateButtons(Scene& scene);
 
 	template <typename E, EventCallbackInvocable<E> F>
 	Button& OnEvent(F&& callback) {
@@ -341,7 +340,5 @@ Button CreateAnimatedButton(
 	Scene& scene, V2_float position, std::optional<V2_float> size,
 	const AnimatedButtonConfig& config, Origin draw_origin = Origin::Center
 );
-
-PTGN_REGISTER_DRAWABLE(Button);
 
 } // namespace ptgn

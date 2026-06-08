@@ -395,16 +395,18 @@ void ButtonScript::OnMouseReleasedOut(Mouse mouse) {
 	}
 }
 
+void UpdateButtons(Scene& scene) {
+	for (auto [entity, _data] : scene.EntitiesWith<impl::ButtonData>()) {
+		Button button{ entity };
+
+		button.UpdateChildLayouts();
+		button.RefreshVisualState();
+	}
+}
+
 } // namespace impl
 
 Button::Button(Entity entity) : Entity{ entity } {}
-
-void Button::Draw(DrawContext&, Entity entity) {
-	Button button{ entity };
-
-	button.UpdateChildLayouts();
-	button.RefreshVisualState();
-}
 
 bool Button::IsEnabled(bool check_for_hover_enabled) const {
 	auto enabled{ TryGet<impl::ButtonEnabled>() };
@@ -1043,7 +1045,6 @@ Button CreateButton(Scene& scene, const ButtonDesc& desc) {
 	}
 
 	Show(button, false);
-	SetDraw<Button>(button);
 	button.SetShape(desc.shape);
 
 	SetPosition(button, desc.position);

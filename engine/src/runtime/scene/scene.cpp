@@ -50,6 +50,7 @@
 #include "runtime/scene/scene_event_handler.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scripting/script.h"
+#include "runtime/ui/button.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
@@ -295,6 +296,7 @@ void Scene::InternalUpdate() {
 	ctx().physics.PreCollisionUpdate();
 	ctx().collision.Update(*this, dt);
 	ctx().physics.PostCollisionUpdate();
+	impl::UpdateButtons(*this);
 
 	Refresh();
 

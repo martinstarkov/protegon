@@ -170,7 +170,7 @@ public:
 
 			disabled_button.Label(ButtonVisualState::Idle)
 				.Font("arial")
-				.Content("Enabled")
+				.Content("Q to Disable")
 				.Color(color::Black)
 				.Size(23.0f)
 				.Align(HorizontalAlign::Center, VerticalAlign::Center);
@@ -184,7 +184,7 @@ public:
 
 			disabled_button.Label(ButtonVisualState::Disabled)
 				.Font("arial")
-				.Content("Disabled")
+				.Content("E to Enable")
 				.Color(color::White)
 				.Size(23.0f)
 				.Align(HorizontalAlign::Center, VerticalAlign::Center)
