@@ -43,14 +43,15 @@ struct TextLayoutScene : public Scene {
 	}
 
 	Text CreateBody(
-		V2_float position, std::string_view content, HorizontalAlign horizontal_align,
-		VerticalAlign vertical_align, WrapMode wrap_mode, OverflowMode overflow_mode
+		V2_float position, V2_float size, std::string_view content,
+		HorizontalAlign horizontal_align, VerticalAlign vertical_align, WrapMode wrap_mode,
+		OverflowMode overflow_mode
 	) {
 		auto text{ CreateText(*this, position, Origin::CenterTop) };
 
 		Rect box{
-			{ -box_size.x * 0.5f, 0.0f },
-			{ box_size.x * 0.5f, box_size.y },
+			{ -size.x * 0.5f, 0.0f },
+			{ size.x * 0.5f, size.y },
 		};
 
 		text.Content(content)
@@ -61,7 +62,7 @@ struct TextLayoutScene : public Scene {
 			.Align(horizontal_align, vertical_align)
 			.Wrap(wrap_mode)
 			.Overflow(overflow_mode)
-			.LineSpacing(2.0f);
+			.LineSpacing(0.0f);
 
 		return text;
 	}
@@ -69,7 +70,7 @@ struct TextLayoutScene : public Scene {
 	Text CreateCell(
 		int column, int row, std::string_view label, std::string_view content,
 		HorizontalAlign horizontal_align, VerticalAlign vertical_align, WrapMode wrap_mode,
-		OverflowMode overflow_mode
+		OverflowMode overflow_mode, V2_float size = {}
 	) {
 		V2_float cell_top{
 			left + cell_size.x * static_cast<float>(column),
@@ -78,9 +79,14 @@ struct TextLayoutScene : public Scene {
 
 		CreateTitle(cell_top, label);
 
+		V2_float used_size{ size };
+		if (!used_size.IsPositive()) {
+			used_size = box_size;
+		}
+
 		return CreateBody(
-			cell_top + V2_float{ 0.0f, 22.0f }, content, horizontal_align, vertical_align,
-			wrap_mode, overflow_mode
+			cell_top + V2_float{ 0.0f, 22.0f }, used_size, content, horizontal_align,
+			vertical_align, wrap_mode, overflow_mode
 		);
 	}
 
@@ -99,7 +105,7 @@ struct TextLayoutScene : public Scene {
 			.Bold(true, 0.18f);
 
 		CreateCell(
-			0, 0, "WrapMode::None", "This is one very long line that overflows horizontally.",
+			0, 0, "WrapMode::None", "This long line will not attempt to wrap.",
 			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::None, OverflowMode::Overflow
 		);
 
@@ -110,51 +116,66 @@ struct TextLayoutScene : public Scene {
 		);
 
 		CreateCell(
-			2, 0, "WrapMode::Character", "Supercalifragilisticexpialidocious character wrapping.",
+			2, 0, "WrapMode::Character",
+			"Pneumonoultramicroscopicsilicovolcanoconiosis character wrapping.",
 			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Character, OverflowMode::Overflow
 		);
 
+		V2_float overflow_box_size{ 210.0f, 38.0f };
+
 		CreateCell(
 			0, 1, "OverflowMode::Overflow",
-			"This text is too long for the box, so it keeps drawing outside the box.",
+			"This text is not clipped to the text box bounds. Outside content stays. This text is "
+			"too long for the box, so it keeps drawing outside the magenta box",
+			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Overflow,
+			overflow_box_size
+		);
+
+		CreateCell(
+			1, 1, "OverflowMode::ClipPartial",
+			"This text is clipped to the text box bounds. Outside content disappears. This text is "
+			"too long for the box, so it keeps drawing outside the magenta box",
+			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::ClipPartial,
+			overflow_box_size
+		);
+
+		CreateCell(
+			2, 1, "OverflowMode::Clip",
+			"This text is clipped to the text box bounds. Outside content disappears. This text is "
+			"too long for the box, so it keeps drawing outside the magenta box",
+			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Clip,
+			overflow_box_size
+		);
+
+		CreateCell(
+			0, 2, "OverflowMode::Ellipsis",
+			"This text is clipped to the text box bounds. Outside content disappears. This text is "
+			"too long for the box, so it keeps drawing outside the magenta box",
+			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Ellipsis,
+			overflow_box_size
+		);
+
+		CreateCell(
+			1, 2, "OverflowMode::ScaleToFit",
+			"This long text should shrink until it fits inside the available text box. This long "
+			"text should shrink until it fits inside the available text box.",
+			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::ScaleToFit,
+			overflow_box_size
+		)
+			.ScaleToFit(0.35f, 1.0f);
+
+		CreateCell(
+			2, 2, "OverflowMode::ScaleToFit",
+			"This long text should grow until it fits inside the available text box.",
+			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::ScaleToFit
+		)
+			.ScaleToFit(0.35f, 2.0f);
+
+		CreateCell(
+			0, 3, "CollapseSpaces", "Many     spaces     collapse     into     single spaces.",
 			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Overflow
-		);
-
-		CreateCell(
-			1, 1, "OverflowMode::Clip",
-			"This text is clipped to the text box bounds. Outside content disappears.",
-			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Clip
-		);
-
-		CreateCell(
-			2, 1, "OverflowMode::Ellipsis",
-			"This text demonstrates ellipsis by limiting the box to two visible lines.",
-			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Ellipsis
 		)
-			.MaxLines(2, true);
-
-		CreateCell(
-			0, 2, "OverflowMode::ShrinkToFit",
-			"This long text should shrink until it fits inside the available text box.",
-			HorizontalAlign::Center, VerticalAlign::Center, WrapMode::Word,
-			OverflowMode::ShrinkToFit
-		)
-			.Shrink(0.35f, 1.0f);
-
-		CreateCell(
-			1, 2, "HorizontalAlign::Left", "short\nmedium line\nthis is the longest line",
-			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::None, OverflowMode::Overflow
-		);
-
-		CreateCell(
-			2, 2, "HorizontalAlign::Center", "short\nmedium line\nthis is the longest line",
-			HorizontalAlign::Center, VerticalAlign::Top, WrapMode::None, OverflowMode::Overflow
-		);
-
-		CreateCell(
-			0, 3, "HorizontalAlign::Right", "short\nmedium line\nthis is the longest line",
-			HorizontalAlign::Right, VerticalAlign::Top, WrapMode::None, OverflowMode::Overflow
-		);
+			.CollapseSpaces();
 
 		CreateCell(
 			1, 3, "HorizontalAlign::Justify",
@@ -163,23 +184,32 @@ struct TextLayoutScene : public Scene {
 		);
 
 		CreateCell(
-			2, 3, "CollapseSpaces", "Many     spaces     collapse     into     single spaces.",
-			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Overflow
-		)
-			.CollapseSpaces();
+			0, 4, "HorizontalAlign::Left", "short\nmedium line\nthis is the longest line",
+			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::None, OverflowMode::Overflow
+		);
 
 		CreateCell(
-			0, 4, "VerticalAlign::Top", "top aligned", HorizontalAlign::Center, VerticalAlign::Top,
+			1, 4, "HorizontalAlign::Center", "short\nmedium line\nthis is the longest line",
+			HorizontalAlign::Center, VerticalAlign::Top, WrapMode::None, OverflowMode::Overflow
+		);
+
+		CreateCell(
+			2, 4, "HorizontalAlign::Right", "short\nmedium line\nthis is the longest line",
+			HorizontalAlign::Right, VerticalAlign::Top, WrapMode::None, OverflowMode::Overflow
+		);
+
+		CreateCell(
+			0, 5, "VerticalAlign::Top", "top aligned", HorizontalAlign::Center, VerticalAlign::Top,
 			WrapMode::None, OverflowMode::Overflow
 		);
 
 		CreateCell(
-			1, 4, "VerticalAlign::Center", "center aligned", HorizontalAlign::Center,
+			1, 5, "VerticalAlign::Center", "center aligned", HorizontalAlign::Center,
 			VerticalAlign::Center, WrapMode::None, OverflowMode::Overflow
 		);
 
 		CreateCell(
-			2, 4, "VerticalAlign::Bottom", "bottom aligned", HorizontalAlign::Center,
+			2, 5, "VerticalAlign::Bottom", "bottom aligned", HorizontalAlign::Center,
 			VerticalAlign::Bottom, WrapMode::None, OverflowMode::Overflow
 		);
 	}

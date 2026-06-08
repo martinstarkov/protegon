@@ -15,8 +15,11 @@
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/tolerance.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "core/util/time.h"
@@ -99,8 +102,7 @@ std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 		std::to_underlying(box.style.horizontal_align),
 		std::to_underlying(box.style.vertical_align), std::to_underlying(box.style.wrap_mode),
 		std::to_underlying(box.style.overflow_mode), box.style.collapse_spaces,
-		box.style.justify_last_line, box.style.allow_word_break_in_overflow, box.style.max_lines,
-		box.style.ellipsis_on_max_lines
+		box.style.justify_last_line, box.style.allow_word_break_in_overflow, box.style.max_lines
 	);
 }
 
@@ -292,9 +294,99 @@ impl::TextDrawBatch& GetOrCreateTextBatch(
 	return batches.back();
 }
 
+struct TextLineMetrics {
+	float height{ 0.0f };
+	float ascent{ 0.0f };
+	float descent{ 0.0f };
+};
+
+TextLineMetrics MeasureLineMetrics(
+	AssetManager& asset_manager, const TextRunStyle& style, float global_shrink
+) {
+	auto font{ impl::GetFont(asset_manager, style.font) };
+	auto metrics{ font.GetFontData().metrics };
+
+	float scale{ style.scale * global_shrink };
+
+	TextLineMetrics result;
+	result.height  = (metrics.line_height + style.line_spacing) * scale;
+	result.ascent  = metrics.ascender * scale;
+	result.descent = -metrics.descender * scale;
+
+	return result;
+}
+
+[[nodiscard]] std::optional<Rect> IntersectClipRects(std::optional<Rect> a, std::optional<Rect> b) {
+	if (!a.has_value()) {
+		return b;
+	}
+
+	if (!b.has_value()) {
+		return a;
+	}
+
+	Rect result{
+		{
+			std::max(a->min.x, b->min.x),
+			std::max(a->min.y, b->min.y),
+		},
+		{
+			std::min(a->max.x, b->max.x),
+			std::min(a->max.y, b->max.y),
+		},
+	};
+
+	if (!result.GetSize().IsPositive()) {
+		return Rect{};
+	}
+
+	return result;
+}
+
+[[nodiscard]] bool RectFullyContains(Rect outer, Rect inner) {
+	return inner.min.x >= outer.min.x && inner.max.x <= outer.max.x && inner.min.y >= outer.min.y &&
+		   inner.max.y <= outer.max.y;
+}
+
+[[nodiscard]] bool RectIntersects(Rect a, Rect b) {
+	return a.max.x > b.min.x && a.min.x < b.max.x && a.max.y > b.min.y && a.min.y < b.max.y;
+}
+
+[[nodiscard]] bool ShouldDrawRectWithClipMode(Rect rect, Rect clip_rect, TextClipMode mode) {
+	switch (mode) {
+		using enum TextClipMode;
+
+		case None:				 return true;
+
+		case ClipFullyContained: return RectFullyContains(clip_rect, rect);
+
+		case ClipFullyOutside:	 return RectIntersects(rect, clip_rect);
+	}
+
+	return true;
+}
+
 } // namespace
 
 namespace impl {
+
+V2_float GetTextOriginPoint(Rect rect, Origin origin) {
+	V2_float center{ (rect.min + rect.max) * 0.5f };
+
+	switch (origin) {
+		using enum Origin;
+		case Center:	   return center;
+		case TopLeft:	   return rect.min;
+		case CenterTop:	   return { center.x, rect.min.y };
+		case CenterBottom: return { center.x, rect.max.y };
+		case CenterLeft:   return { rect.min.x, center.y };
+		case BottomLeft:   return { rect.min.x, rect.max.y };
+		case TopRight:	   return { rect.max.x, rect.min.y };
+		case CenterRight:  return { rect.max.x, center.y };
+		case BottomRight:  return rect.max;
+		default:		   PTGN_ERROR("Unknown Origin: ", std::to_underlying(origin));
+	}
+}
 
 void UpdateLayout(
 	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
@@ -316,7 +408,7 @@ void UpdateLayout(
 
 TextLayout BuildLayout(AssetManager& asset_manager, StyledText styled_text, const TextBox& box) {
 	float shrink{ 1.0f };
-	if (box.style.overflow_mode == OverflowMode::ShrinkToFit) {
+	if (box.style.overflow_mode == OverflowMode::ScaleToFit) {
 		shrink = FindBestShrinkScale(asset_manager, styled_text, box);
 	}
 
@@ -324,55 +416,47 @@ TextLayout BuildLayout(AssetManager& asset_manager, StyledText styled_text, cons
 	TextLayout layout{ std::move(candidate.layout) };
 	layout.used_shrink_scale = candidate.used_shrink_scale;
 
-	if (box.style.max_lines > 0 && layout.lines.size() > box.style.max_lines) {
-		layout.truncated_by_max_lines = true;
-		if (box.style.ellipsis_on_max_lines) {
-			ApplyEllipsisForMaxLines(asset_manager, styled_text, box, shrink, &layout);
-		} else {
-			auto last_line_index{ box.style.max_lines - 1 };
-			auto hide_from{ layout.lines[last_line_index].glyph_end };
-			for (auto i{ hide_from }; i < layout.glyphs.size(); ++i) {
-				layout.glyphs[i].visible = false;
-			}
-			layout.lines.resize(box.style.max_lines);
-			layout.measured_size.y = static_cast<float>(layout.lines.size()) *
-									 (layout.lines.empty() ? 0.0f : layout.lines.front().size.y);
-		}
-	}
-
-	if (box.style.overflow_mode == OverflowMode::Clip) {
-		ApplyClipVisibility(box.rect, &layout);
-		layout.clipped = true;
+	if (box.style.overflow_mode == OverflowMode::Ellipsis) {
+		ApplyEllipsisOverflow(asset_manager, styled_text, box, shrink, &layout);
+	} else {
+		ApplyMaxLines(box, &layout);
 	}
 
 	ApplyVerticalAlignment(box, &layout);
 
+	layout.clip_rect = std::nullopt;
+	layout.clip_mode = TextClipMode::None;
+
+	if (box.rect.GetSize().IsPositive()) {
+		switch (box.style.overflow_mode) {
+			using enum OverflowMode;
+
+			case Clip:
+				layout.clip_rect = box.rect;
+				layout.clip_mode = TextClipMode::ClipFullyContained;
+				layout.clipped	 = true;
+				break;
+
+			case ClipPartial:
+				layout.clip_rect = box.rect;
+				layout.clip_mode = TextClipMode::ClipFullyOutside;
+				layout.clipped	 = true;
+				break;
+
+			case Overflow:	 [[fallthrough]];
+			case Ellipsis:	 [[fallthrough]];
+			case ScaleToFit: break;
+		}
+	}
+
 	auto visible_bounds{ GetVisibleGlyphBounds(layout) };
 
-	bool has_explicit_box{ box.rect.GetSize().IsPositive() };
-
-	if (has_explicit_box) {
+	if (box.rect.GetSize().IsPositive()) {
 		layout.local_box = box.rect;
 	} else if (visible_bounds.has_value()) {
 		layout.local_box = *visible_bounds;
 	} else {
 		layout.local_box = {};
-	}
-
-	if (visible_bounds.has_value()) {
-		V2_float visual_center{ (visible_bounds->min + visible_bounds->max) * 0.5f };
-
-		for (auto& glyph : layout.glyphs) {
-			glyph.position -= visual_center;
-		}
-
-		for (auto& decoration : layout.decorations) {
-			decoration.rect.min -= visual_center;
-			decoration.rect.max -= visual_center;
-		}
-
-		layout.local_box.min -= visual_center;
-		layout.local_box.max -= visual_center;
 	}
 
 	return layout;
@@ -399,7 +483,8 @@ TextMeasurement Measure(
 
 void BuildVertices(
 	const TextLayout& layout, float depth, int entity_id, std::optional<Rect> clip_rect,
-	std::size_t reveal_glyph_count, float time, std::vector<TextDrawBatch>& batches
+	TextClipMode clip_mode, std::size_t reveal_glyph_count, float time,
+	std::vector<TextDrawBatch>& batches
 ) {
 	for (GlyphInstance glyph : layout.glyphs) {
 		if (!glyph.visible) {
@@ -410,11 +495,16 @@ void BuildVertices(
 		}
 
 		if (clip_rect.has_value()) {
-			V2_float gmin{ glyph.position + glyph.plane.min };
-			V2_float gmax{ glyph.position + glyph.plane.max };
+			if (!clip_rect->GetSize().IsPositive()) {
+				return;
+			}
 
-			if (gmax.x <= clip_rect->min.x || gmin.x >= clip_rect->max.x ||
-				gmax.y <= clip_rect->min.y || gmin.y >= clip_rect->max.y) {
+			Rect glyph_rect{
+				glyph.position + glyph.plane.min,
+				glyph.position + glyph.plane.max,
+			};
+
+			if (!ShouldDrawRectWithClipMode(glyph_rect, *clip_rect, clip_mode)) {
 				continue;
 			}
 		}
@@ -434,12 +524,22 @@ void BuildVertices(
 			continue;
 		}
 
+		if (clip_rect.has_value()) {
+			if (!clip_rect->GetSize().IsPositive()) {
+				return;
+			}
+
+			if (!ShouldDrawRectWithClipMode(decoration.rect, *clip_rect, clip_mode)) {
+				continue;
+			}
+		}
+
 		PTGN_ASSERT(
 			decoration.source_run_index < layout.batch_styles.size(),
 			"Decoration source run index does not have a matching text batch style"
 		);
 
-		auto batch_style{ layout.batch_styles[decoration.source_run_index] };
+		const auto& batch_style{ layout.batch_styles[decoration.source_run_index] };
 		auto& batch{ GetOrCreateTextBatch(batches, batch_style, true) };
 
 		EmitDecorationQuad(decoration, depth, entity_id, batch.quads);
@@ -525,9 +625,38 @@ std::u32string DecodeUtf8(std::string_view text) {
 }
 
 std::vector<RichTextToken> Tokenize(
-	AssetManager& asset_manager, StyledText& styled_text, float global_shrink
+	AssetManager& asset_manager, StyledText& styled_text, bool collapse_spaces, float global_shrink
 ) {
-	std::vector<RichTextToken> tokens{};
+	std::vector<RichTextToken> tokens;
+
+	bool previous_was_collapsible_space{ true };
+
+	auto emit_space = [&](std::size_t run_index, bool tab) {
+		if (collapse_spaces) {
+			if (previous_was_collapsible_space) {
+				return;
+			}
+
+			RichTextToken token;
+			token.type		= RichTextToken::Type::Space;
+			token.run_index = run_index;
+			token.text.push_back(U' ');
+			token.width = MeasureTokenWidth(asset_manager, token, styled_text, global_shrink);
+			tokens.push_back(std::move(token));
+
+			previous_was_collapsible_space = true;
+			return;
+		}
+
+		RichTextToken token;
+		token.type		= tab ? RichTextToken::Type::Tab : RichTextToken::Type::Space;
+		token.run_index = run_index;
+		token.text.push_back(tab ? U'\t' : U' ');
+		token.width = MeasureTokenWidth(asset_manager, token, styled_text, global_shrink);
+		tokens.push_back(std::move(token));
+
+		previous_was_collapsible_space = true;
+	};
 
 	for (auto run_index{ 0uz }; run_index < styled_text.runs.size(); ++run_index) {
 		const auto& run{ styled_text.runs[run_index] };
@@ -548,31 +677,42 @@ std::vector<RichTextToken> Tokenize(
 				token.run_index = run_index;
 				token.text.push_back(U'\n');
 				tokens.push_back(std::move(token));
+
+				previous_was_collapsible_space = true;
+
 				++i;
 				continue;
 			}
 
-			if (cp == U' ') {
-				std::size_t begin{ i };
-				while (i < decoded.size() && decoded[i] == U' ') {
-					++i;
-				}
-				RichTextToken token;
-				token.type		= RichTextToken::Type::Space;
-				token.run_index = run_index;
-				token.text		= decoded.substr(begin, i - begin);
-				token.width = MeasureTokenWidth(asset_manager, token, styled_text, global_shrink);
-				tokens.push_back(std::move(token));
-				continue;
-			}
+			if (cp == U' ' || cp == U'\t') {
+				if (collapse_spaces) {
+					while (i < decoded.size() && (decoded[i] == U' ' || decoded[i] == U'\t')) {
+						++i;
+					}
 
-			if (cp == U'\t') {
-				RichTextToken token;
-				token.type		= RichTextToken::Type::Tab;
-				token.run_index = run_index;
-				token.text.push_back(U'\t');
-				token.width = MeasureTokenWidth(asset_manager, token, styled_text, global_shrink);
-				tokens.push_back(std::move(token));
+					emit_space(run_index, false);
+					continue;
+				}
+
+				if (cp == U' ') {
+					std::size_t begin{ i };
+					while (i < decoded.size() && decoded[i] == U' ') {
+						++i;
+					}
+
+					RichTextToken token;
+					token.type		= RichTextToken::Type::Space;
+					token.run_index = run_index;
+					token.text		= decoded.substr(begin, i - begin);
+					token.width =
+						MeasureTokenWidth(asset_manager, token, styled_text, global_shrink);
+					tokens.push_back(std::move(token));
+
+					previous_was_collapsible_space = true;
+					continue;
+				}
+
+				emit_space(run_index, true);
 				++i;
 				continue;
 			}
@@ -588,7 +728,13 @@ std::vector<RichTextToken> Tokenize(
 			token.text		= decoded.substr(begin, i - begin);
 			token.width		= MeasureTokenWidth(asset_manager, token, styled_text, global_shrink);
 			tokens.push_back(std::move(token));
+
+			previous_was_collapsible_space = false;
 		}
+	}
+
+	if (collapse_spaces && !tokens.empty() && tokens.back().type == RichTextToken::Type::Space) {
+		tokens.pop_back();
 	}
 
 	return tokens;
@@ -673,7 +819,9 @@ std::optional<ResolvedGlyph> ResolveGlyph(
 CandidateLayout BuildSinglePassLayout(
 	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box, float global_shrink
 ) {
-	std::vector<RichTextToken> tokens{ Tokenize(asset_manager, styled_text, global_shrink) };
+	std::vector<RichTextToken> tokens{
+		Tokenize(asset_manager, styled_text, box.style.collapse_spaces, global_shrink)
+	};
 
 	TextLayout layout;
 	layout.used_shrink_scale = global_shrink;
@@ -681,6 +829,8 @@ CandidateLayout BuildSinglePassLayout(
 
 	std::vector<GlyphInstance> current_line_glyphs;
 	V2_float current_line_size;
+	float current_line_ascent{ 0.0f };
+	float current_line_descent{ 0.0f };
 	float y{ 0.0f };
 	std::size_t visible_order{ 0 };
 
@@ -693,7 +843,7 @@ CandidateLayout BuildSinglePassLayout(
 		line.glyph_begin				= layout.glyphs.size();
 		line.glyph_end					= layout.glyphs.size() + current_line_glyphs.size();
 		line.size						= current_line_size;
-		line.baseline_y					= y;
+		line.baseline_y					= y + current_line_ascent;
 		line.ends_with_explicit_newline = ends_with_explicit_newline;
 
 		for (const GlyphInstance& glyph : current_line_glyphs) {
@@ -723,7 +873,7 @@ CandidateLayout BuildSinglePassLayout(
 		float justify_extra{ 0.0f };
 		for (GlyphInstance& glyph : current_line_glyphs) {
 			glyph.position.x	+= x_offset + justify_extra;
-			glyph.position.y	+= box.rect.min.y;
+			glyph.position.y	+= box.rect.min.y + current_line_ascent;
 			glyph.line_index	 = layout.lines.size();
 			glyph.visible_order	 = visible_order++;
 
@@ -746,8 +896,10 @@ CandidateLayout BuildSinglePassLayout(
 		layout.measured_size.y += line.size.y;
 
 		current_line_glyphs.clear();
-		current_line_size  = {};
-		y				  += line.size.y;
+		current_line_size	  = {};
+		current_line_ascent	  = 0.0f;
+		current_line_descent  = 0.0f;
+		y					 += line.size.y;
 	};
 
 	for (RichTextToken& token : tokens) {
@@ -756,17 +908,25 @@ CandidateLayout BuildSinglePassLayout(
 			continue;
 		}
 
-		if (bool wrap_here{ box.style.wrap_mode != WrapMode::None && current_line_size.x > 0.0f &&
-							current_line_size.x + token.width > box.rect.GetSize().x };
-			wrap_here && !(token.type == RichTextToken::Type::Word &&
-						   box.style.wrap_mode == WrapMode::Character &&
-						   box.style.allow_word_break_in_overflow)) {
+		float wrap_width{ box.rect.GetSize().x };
+		bool can_wrap{ box.style.wrap_mode != WrapMode::None && wrap_width > 0.0f };
+
+		bool character_wrap_word{ token.type == RichTextToken::Type::Word &&
+								  box.style.wrap_mode == WrapMode::Character };
+
+		if (bool wrap_here{ can_wrap && current_line_size.x > 0.0f &&
+							current_line_size.x + token.width > wrap_width };
+			wrap_here && !character_wrap_word) {
 			flush_line(false);
 		}
 
 		const auto& run{ styled_text.runs[token.run_index] };
-		float line_h{ MeasureLineHeight(asset_manager, run.style) * global_shrink };
-		current_line_size.y = std::max(current_line_size.y, line_h);
+
+		auto line_metrics{ MeasureLineMetrics(asset_manager, run.style, global_shrink) };
+
+		current_line_size.y	 = std::max(current_line_size.y, line_metrics.height);
+		current_line_ascent	 = std::max(current_line_ascent, line_metrics.ascent);
+		current_line_descent = std::max(current_line_descent, line_metrics.descent);
 
 		if (token.type == RichTextToken::Type::Space || token.type == RichTextToken::Type::Tab) {
 			if (std::optional<ResolvedGlyph> space_glyph{ ResolveGlyph(
@@ -791,14 +951,16 @@ CandidateLayout BuildSinglePassLayout(
 			continue;
 		}
 
-		if (token.type == RichTextToken::Type::Word && token.width > box.rect.GetSize().x &&
-			box.style.wrap_mode == WrapMode::Character && box.style.allow_word_break_in_overflow) {
+		if (token.type == RichTextToken::Type::Word && box.style.wrap_mode == WrapMode::Character &&
+			box.rect.GetSize().x > 0.0f) {
 			for (auto i{ 0uz }; i < token.text.size(); ++i) {
 				std::uint32_t cp{ token.text[i] };
 				std::uint32_t next_cp{ GetNextCodepoint(token.text, i) };
+
 				std::optional<ResolvedGlyph> resolved{
 					ResolveGlyph(asset_manager, run, cp, next_cp, token.run_index, i, global_shrink)
 				};
+
 				if (!resolved.has_value()) {
 					continue;
 				}
@@ -806,7 +968,10 @@ CandidateLayout BuildSinglePassLayout(
 				if (current_line_size.x > 0.0f &&
 					current_line_size.x + resolved->metrics.advance > box.rect.GetSize().x) {
 					flush_line(false);
-					current_line_size.y = std::max(current_line_size.y, line_h);
+
+					current_line_size.y	 = std::max(current_line_size.y, line_metrics.height);
+					current_line_ascent	 = std::max(current_line_ascent, line_metrics.ascent);
+					current_line_descent = std::max(current_line_descent, line_metrics.descent);
 				}
 
 				GlyphInstance glyph;
@@ -823,6 +988,7 @@ CandidateLayout BuildSinglePassLayout(
 
 				current_line_size.x += resolved->metrics.advance;
 			}
+
 			continue;
 		}
 
@@ -889,13 +1055,30 @@ void ApplyVerticalAlignment(const TextBox& box, TextLayout* layout) {
 		return;
 	}
 
+	if (!box.rect.GetSize().IsPositive()) {
+		return;
+	}
+
+	auto bounds{ GetVisibleGlyphBounds(*layout) };
+	if (!bounds.has_value()) {
+		return;
+	}
+
 	float offset_y{ 0.0f };
 
 	switch (box.style.vertical_align) {
 		using enum VerticalAlign;
-		case Top:	 offset_y = 0.0f; break;
-		case Center: offset_y = (box.rect.GetSize().y - layout->measured_size.y) * 0.5f; break;
-		case Bottom: offset_y = box.rect.GetSize().y - layout->measured_size.y; break;
+
+		case Top:	 offset_y = box.rect.min.y - bounds->min.y; break;
+
+		case Center: {
+			float box_center_y{ (box.rect.min.y + box.rect.max.y) * 0.5f };
+			float content_center_y{ (bounds->min.y + bounds->max.y) * 0.5f };
+			offset_y = box_center_y - content_center_y;
+			break;
+		}
+
+		case Bottom: offset_y = box.rect.max.y - bounds->max.y; break;
 	}
 
 	for (GlyphInstance& glyph : layout->glyphs) {
@@ -907,13 +1090,10 @@ void ApplyVerticalAlignment(const TextBox& box, TextLayout* layout) {
 		decoration.rect.max.y += offset_y;
 	}
 
-	layout->content_offset = { 0.0f, offset_y };
+	layout->content_offset.y += offset_y;
 }
 
-void ApplyEllipsisForMaxLines(
-	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box, float global_shrink,
-	TextLayout* layout
-) {
+void ApplyMaxLines(const TextBox& box, TextLayout* layout) {
 	if (!layout) {
 		return;
 	}
@@ -923,8 +1103,103 @@ void ApplyEllipsisForMaxLines(
 	}
 
 	auto keep_lines{ box.style.max_lines };
+	auto last_line_index{ keep_lines - 1 };
+	auto hide_from{ layout->lines[last_line_index].glyph_end };
+
+	for (auto i{ hide_from }; i < layout->glyphs.size(); ++i) {
+		layout->glyphs[i].visible = false;
+	}
+
+	for (auto& decoration : layout->decorations) {
+		if (decoration.line_index >= keep_lines) {
+			decoration.visible = false;
+		}
+	}
+
+	layout->lines.resize(keep_lines);
+	layout->truncated_by_max_lines = true;
+
+	layout->measured_size.y = 0.0f;
+	for (const auto& line : layout->lines) {
+		layout->measured_size.y += line.size.y;
+	}
+}
+
+void ApplyEllipsisOverflow(
+	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box, float global_shrink,
+	TextLayout* layout
+) {
+	if (!layout) {
+		return;
+	}
+
+	if (layout->lines.empty()) {
+		return;
+	}
+
+	if (!box.rect.GetSize().IsPositive()) {
+		ApplyMaxLines(box, layout);
+		return;
+	}
+
+	auto keep_lines{ layout->lines.size() };
+
+	if (box.style.max_lines > 0) {
+		keep_lines = std::min(keep_lines, box.style.max_lines);
+	}
+
+	while (keep_lines > 0) {
+		auto& line{ layout->lines[keep_lines - 1] };
+
+		float line_bottom{ 0.0f };
+		for (auto i{ 0uz }; i < keep_lines; ++i) {
+			line_bottom += layout->lines[i].size.y;
+		}
+
+		if (line_bottom <= box.rect.GetSize().y || keep_lines == 1) {
+			break;
+		}
+
+		--keep_lines;
+	}
+
+	if (keep_lines == 0) {
+		for (auto& glyph : layout->glyphs) {
+			glyph.visible = false;
+		}
+		layout->lines.clear();
+		layout->ellipsized			   = true;
+		layout->truncated_by_max_lines = true;
+		layout->measured_size		   = {};
+		return;
+	}
+
 	auto last_visible_line_index{ keep_lines - 1 };
-	const LineLayout& last_line{ layout->lines[last_visible_line_index] };
+	auto& last_line{ layout->lines[last_visible_line_index] };
+
+	bool line_count_truncated{ keep_lines < layout->lines.size() };
+
+	bool width_overflow{ false };
+	for (auto i{ last_line.glyph_begin }; i < last_line.glyph_end; ++i) {
+		if (i >= layout->glyphs.size()) {
+			continue;
+		}
+
+		const auto& glyph{ layout->glyphs[i] };
+		if (!glyph.visible) {
+			continue;
+		}
+
+		float right{ glyph.position.x + glyph.plane.max.x };
+		if (right > box.rect.max.x) {
+			width_overflow = true;
+			break;
+		}
+	}
+
+	if (!line_count_truncated && !width_overflow) {
+		return;
+	}
 
 	auto hide_from{ last_line.glyph_end };
 	for (auto i{ hide_from }; i < layout->glyphs.size(); ++i) {
@@ -932,66 +1207,85 @@ void ApplyEllipsisForMaxLines(
 	}
 
 	const TextRun* source_run{ nullptr };
+	std::size_t source_run_index{ 0 };
+
 	if (last_line.glyph_begin < layout->glyphs.size()) {
 		const auto& anchor{ layout->glyphs[last_line.glyph_begin] };
 		if (anchor.source_run_index < styled_text.runs.size()) {
-			source_run = &styled_text.runs[anchor.source_run_index];
+			source_run		 = &styled_text.runs[anchor.source_run_index];
+			source_run_index = anchor.source_run_index;
 		}
 	}
 
 	if (!source_run) {
 		layout->lines.resize(keep_lines);
 		layout->ellipsized			   = true;
-		layout->truncated_by_max_lines = true;
+		layout->truncated_by_max_lines = line_count_truncated;
 		return;
 	}
 
 	auto font{ GetFont(asset_manager, source_run->style.font) };
 
 	std::u32string dots{ U"..." };
+
 	float dots_width{ 0.0f };
 	for (auto i{ 0uz }; i < dots.size(); ++i) {
-		std::uint32_t cp{ dots[i] };
-		std::uint32_t next_cp{ GetNextCodepoint(dots, i) };
+		auto cp{ static_cast<std::uint32_t>(dots[i]) };
+		auto next_cp{ GetNextCodepoint(dots, i) };
+
 		dots_width += (font.GetAdvance(cp, next_cp) + source_run->style.kerning +
 					   source_run->style.tracking) *
 					  (source_run->style.scale * global_shrink);
 	}
 
+	float usable_right{ box.rect.max.x - dots_width };
+
 	auto cutoff{ last_line.glyph_end };
-	float usable_x{ box.rect.min.x + box.rect.GetSize().x - dots_width };
 
 	for (auto i{ last_line.glyph_begin }; i < last_line.glyph_end; ++i) {
+		if (i >= layout->glyphs.size()) {
+			continue;
+		}
+
 		auto& glyph{ layout->glyphs[i] };
+		if (!glyph.visible) {
+			continue;
+		}
+
 		float right{ glyph.position.x + glyph.plane.max.x };
-		if (right > usable_x) {
+		if (right > usable_right) {
 			cutoff = i;
 			break;
 		}
 	}
 
 	for (auto i{ cutoff }; i < last_line.glyph_end; ++i) {
-		layout->glyphs[i].visible = false;
+		if (i < layout->glyphs.size()) {
+			layout->glyphs[i].visible = false;
+		}
 	}
 
 	float start_x{ box.rect.min.x };
 	if (cutoff > last_line.glyph_begin) {
 		const auto& prev{ layout->glyphs[cutoff - 1] };
-		start_x = prev.position.x + prev.plane.max.x;
+		start_x = prev.position.x + prev.advance;
 	}
 
-	float y{ layout->glyphs[last_line.glyph_begin].position.y };
+	float y{ 0.0f };
+	if (last_line.glyph_begin < layout->glyphs.size()) {
+		y = layout->glyphs[last_line.glyph_begin].position.y;
+	} else if (!layout->glyphs.empty()) {
+		y = layout->glyphs.back().position.y;
+	}
 
 	for (auto i{ 0uz }; i < dots.size(); ++i) {
-		std::uint32_t cp{ dots[i] };
-		std::uint32_t next_cp{ GetNextCodepoint(dots, i) };
+		auto cp{ static_cast<std::uint32_t>(dots[i]) };
+		auto next_cp{ GetNextCodepoint(dots, i) };
+
 		std::optional<ResolvedGlyph> resolved{ ResolveGlyph(
-			asset_manager, *source_run, cp, next_cp,
-			last_line.glyph_begin < layout->glyphs.size()
-				? layout->glyphs[last_line.glyph_begin].source_run_index
-				: 0,
-			i, global_shrink
+			asset_manager, *source_run, cp, next_cp, source_run_index, i, global_shrink
 		) };
+
 		if (!resolved.has_value()) {
 			continue;
 		}
@@ -1008,16 +1302,29 @@ void ApplyEllipsisForMaxLines(
 		glyph.line_index			 = last_visible_line_index;
 		glyph.visible_order			 = layout->glyphs.size();
 		glyph.texture				 = resolved->texture;
+
 		layout->glyphs.push_back(glyph);
 
 		start_x += resolved->metrics.advance;
 	}
 
+	for (auto& decoration : layout->decorations) {
+		if (decoration.line_index >= keep_lines) {
+			decoration.visible = false;
+		}
+	}
+
 	layout->lines.resize(keep_lines);
 	layout->ellipsized			   = true;
-	layout->truncated_by_max_lines = true;
-	layout->measured_size.y =
-		static_cast<float>(layout->lines.size()) * layout->lines.front().size.y;
+	layout->truncated_by_max_lines = line_count_truncated;
+
+	auto& updated_last_line{ layout->lines.back() };
+	updated_last_line.glyph_end = layout->glyphs.size();
+
+	layout->measured_size.y = 0.0f;
+	for (const auto& line : layout->lines) {
+		layout->measured_size.y += line.size.y;
+	}
 }
 
 void ApplyClipVisibility(Rect clip_rect, TextLayout* layout) {
@@ -1098,15 +1405,24 @@ void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity entity) {
 	auto& layout{ entity.Get<TextLayout>() };
 
 	auto transform{ GetDrawTransform(entity) };
+	if (layout.local_box.GetSize().IsPositive()) {
+		auto origin_point{ GetTextOriginPoint(layout.local_box, GetDrawOrigin(entity)) };
+		transform.Translate(-origin_point);
+	}
 	auto depth{ GetDepth(entity) };
 	auto entity_id{ entity.GetUUID() };
 
 	auto time{ duration_cast<secondsf>(entity.GetScene().ctx().TimeSinceStart()).count() };
 
-	std::optional<Rect> clip_rect{ std::nullopt };
+	std::optional<Rect> clip_rect{ layout.clip_rect };
+	TextClipMode clip_mode{ layout.clip_mode };
 
 	if (auto clip{ entity.TryGet<TextClip>() }) {
-		clip_rect = clip->rect;
+		clip_rect = IntersectClipRects(clip_rect, clip->rect);
+
+		if (clip->rect.has_value() && clip_mode == TextClipMode::None) {
+			clip_mode = TextClipMode::ClipFullyOutside;
+		}
 	}
 
 	auto reveal_glyph_count{ std::numeric_limits<std::size_t>::max() };
@@ -1117,16 +1433,15 @@ void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity entity) {
 
 	std::vector<TextDrawBatch> text_batches;
 
-	BuildVertices(layout, depth, entity_id, clip_rect, reveal_glyph_count, time, text_batches);
+	BuildVertices(
+		layout, depth, entity_id, clip_rect, clip_mode, reveal_glyph_count, time, text_batches
+	);
 
 	if (text_batches.empty()) {
 		return;
 	}
 
 	auto effects{ GetEffectParams(entity) };
-
-	// TODO: Check if transform needs to be offset by text box size and draw origin.
-	// request.transform	  = rect.Offset(transform, GetDrawOrigin(entity));
 
 	ctx.WithBlendMode(GetBlendMode(entity), [&text_batches, transform, &effects, &ctx]() {
 		for (auto& batch : text_batches) {

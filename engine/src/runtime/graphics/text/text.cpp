@@ -107,8 +107,16 @@ void DrawTextLayoutDebugForCamera(
 			continue;
 		}
 
-		auto transform{ GetTextLayoutBoxTransform(entity, layout->local_box) };
-		auto rect{ GetCenteredRect(layout->local_box.GetSize()) };
+		auto origin_point{ impl::GetTextOriginPoint(layout->local_box, GetDrawOrigin(entity)) };
+		auto box_center{ (layout->local_box.min + layout->local_box.max) * 0.5f };
+
+		auto transform{ GetDrawTransform(entity) };
+		transform.Translate(box_center - origin_point);
+
+		auto rect{ Rect{
+			{ -layout->local_box.GetSize().x * 0.5f, -layout->local_box.GetSize().y * 0.5f },
+			{ layout->local_box.GetSize().x * 0.5f, layout->local_box.GetSize().y * 0.5f },
+		} };
 
 		scene.ctx().render_queue.DrawShape(
 			transform, rect, settings.draw_color,
@@ -471,21 +479,20 @@ Text& Text::AllowWordBreakInOverflow(bool allow) {
 	return *this;
 }
 
-Text& Text::MaxLines(std::size_t max_lines, bool ellipsis) {
+Text& Text::MaxLines(std::size_t max_lines) {
 	auto& style{ EnsureTextBox().style };
 
-	style.max_lines				= max_lines;
-	style.ellipsis_on_max_lines = ellipsis;
+	style.max_lines = max_lines;
 
 	InvalidateLayout();
 
 	return *this;
 }
 
-Text& Text::Shrink(float min_scale, float max_scale) {
+Text& Text::ScaleToFit(float min_scale, float max_scale) {
 	auto& style{ EnsureTextBox().style };
 
-	style.overflow_mode	   = OverflowMode::ShrinkToFit;
+	style.overflow_mode	   = OverflowMode::ScaleToFit;
 	style.min_shrink_scale = min_scale;
 	style.max_shrink_scale = max_scale;
 

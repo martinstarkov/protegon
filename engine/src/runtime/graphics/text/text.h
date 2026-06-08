@@ -66,8 +66,8 @@ public:
 	Text& JustifyLastLine(bool justify = true);
 	Text& AllowWordBreakInOverflow(bool allow = true);
 
-	Text& MaxLines(std::size_t max_lines, bool ellipsis = true);
-	Text& Shrink(float min_scale, float max_scale = 1.0f);
+	Text& MaxLines(std::size_t max_lines);
+	Text& ScaleToFit(float min_scale, float max_scale = 1.0f);
 
 	Text& Font(std::string_view font_key = {});
 	Text& Color(ptgn::Color color);

@@ -37,9 +37,12 @@ enum class WrapMode : std::uint8_t {
 
 enum class OverflowMode : std::uint8_t {
 	Overflow,
+	/// @brief Hide any glyph not fully inside the rect.
 	Clip,
+	/// @brief Hide glyphs only when fully outside the rect.
+	ClipPartial,
 	Ellipsis,
-	ShrinkToFit,
+	ScaleToFit,
 };
 
 struct DistanceFieldStyle {

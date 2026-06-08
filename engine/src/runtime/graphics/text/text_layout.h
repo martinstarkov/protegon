@@ -33,7 +33,6 @@ struct TextLayoutStyle {
 	bool allow_word_break_in_overflow{ true };
 
 	std::size_t max_lines{ 0 };
-	bool ellipsis_on_max_lines{ true };
 
 	float min_shrink_scale{ 0.25f };
 	float max_shrink_scale{ 1.0f };
@@ -88,6 +87,12 @@ struct TextDecoration {
 	bool visible{ true };
 };
 
+enum class TextClipMode : std::uint8_t {
+	None,
+	ClipFullyContained,
+	ClipFullyOutside,
+};
+
 struct TextLayout {
 	std::vector<GlyphInstance> glyphs;
 	std::vector<TextDecoration> decorations;
@@ -104,6 +109,8 @@ struct TextLayout {
 	bool ellipsized{ false };
 	bool truncated_by_max_lines{ false };
 
+	std::optional<Rect> clip_rect;
+	TextClipMode clip_mode{ TextClipMode::None };
 	Rect local_box;
 
 	std::size_t hash{ 0 };
@@ -145,6 +152,8 @@ struct CandidateLayout {
 	float used_shrink_scale{ 1.0f };
 };
 
+V2_float GetTextOriginPoint(Rect rect, Origin origin);
+
 void UpdateLayout(
 	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
 );
@@ -159,7 +168,8 @@ void UpdateLayout(
 
 void BuildVertices(
 	const TextLayout& layout, float depth, int entity_id, std::optional<Rect> clip_rect,
-	std::size_t reveal_glyph_count, float time, std::vector<TextDrawBatch>& batches
+	TextClipMode clip_mode, std::size_t reveal_glyph_count, float time,
+	std::vector<TextDrawBatch>& batches
 );
 
 void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity text);
@@ -169,7 +179,7 @@ void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity text);
 [[nodiscard]] std::u32string DecodeUtf8(std::string_view text);
 
 [[nodiscard]] std::vector<RichTextToken> Tokenize(
-	AssetManager& asset_manager, StyledText& styled_text, float global_shrink
+	AssetManager& asset_manager, StyledText& styled_text, bool collapse_spaces, float global_shrink
 );
 [[nodiscard]] float MeasureLineHeight(AssetManager& asset_manager, const TextRunStyle& style);
 [[nodiscard]] float MeasureTokenWidth(
@@ -184,10 +194,11 @@ void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity text);
 );
 
 void ApplyVerticalAlignment(const TextBox& box, TextLayout* layout);
-void ApplyEllipsisForMaxLines(
+void ApplyEllipsisOverflow(
 	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box, float global_shrink,
 	TextLayout* layout
 );
+void ApplyMaxLines(const TextBox& box, TextLayout* layout);
 void ApplyClipVisibility(Rect clip_rect, TextLayout* layout);
 
 [[nodiscard]] std::optional<ResolvedGlyph> ResolveGlyph(
