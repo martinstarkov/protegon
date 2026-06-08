@@ -9,12 +9,17 @@
 #include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/shape.h"
+#include "runtime/graphics/tint.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
-#include "runtime/ui/button_event.h"
+#include "runtime/ui/toggle_button.h"
 
 using namespace ptgn;
 
@@ -22,51 +27,91 @@ class ToggleButtonGroupScene : public Scene {
 	ToggleButtonGroup group1;
 	ToggleButtonGroup group2;
 
+	static constexpr V2_float button_size{ 200.0f, 130.0f };
+
+	static void ConfigureBackground(Button button, ButtonVisualState state, Color color) {
+		Entity background{ button.Background(state) };
+
+		background.Add<Rect>(Rect{ button_size });
+		SetTint(background, color);
+		SetDraw<RectDraw>(background);
+		SetDrawOrigin(background, Origin::TopLeft);
+		Show(background);
+	}
+
+	static void ConfigureToggleButtonVisuals(Button button, int number) {
+		ConfigureBackground(button, ButtonVisualState::Idle, color::LightRed);
+		ConfigureBackground(button, ButtonVisualState::Hover, color::Red);
+		ConfigureBackground(button, ButtonVisualState::Press, color::DarkRed);
+
+		ConfigureBackground(button, ButtonVisualState::Toggled, color::LightBlue);
+		ConfigureBackground(button, ButtonVisualState::ToggledHover, color::Blue);
+		ConfigureBackground(button, ButtonVisualState::ToggledPress, color::DarkBlue);
+
+		button.SetLabelAutoBox(true);
+		button.SetLabelPadding(Rect{ { 8.0f, 8.0f }, { 8.0f, 8.0f } });
+
+		button.Label()
+			.Font("arial")
+			.Content(std::to_string(number))
+			.Color(color::White)
+			.Size(42.0f)
+			.Align(HorizontalAlign::Center, VerticalAlign::Center);
+	}
+
 	ToggleButton CreateToggleButtonGroupItem(
-		const V2_float& position, int number, std::string group_name
+		V2_float position, int number, std::string group_name
 	) {
-		ToggleButton b =
-			CreateToggleButton(*this, position, V2_int{ 200, 130 }, Origin::TopLeft, {}, false)
-				.SetText(std::to_string(number), color::White)
-				.SetBackgroundColor(color::LightRed)
-				.SetBackgroundColor(color::Red, ButtonState::Hover)
-				.SetBackgroundColor(color::DarkRed, ButtonState::Press)
-				.SetBackgroundColor(color::LightBlue, { ButtonState::Idle, false, true })
-				.SetBackgroundColor(color::Blue, { ButtonState::Hover, false, true })
-				.SetBackgroundColor(color::DarkBlue, { ButtonState::Press, false, true })
-				.OnPress([number, group_name]() { PTGN_LOG(group_name, " pressed ", number); })
-				.OnToggle([number, group_name](event::ToggleButtonToggle& t) {
-					PTGN_LOG(
-						group_name, " toggled ", number, ": ", std::boolalpha, t.toggled,
-						std::noboolalpha
-					);
-				});
-		return b;
+		ToggleButton toggle_button{
+			CreateToggleButton(*this, position, Rect{ button_size }, Origin::TopLeft, false)
+		};
+
+		Button button{ toggle_button.AsButton() };
+
+		ConfigureToggleButtonVisuals(button, number);
+
+		button.OnPress([number, group_name]() { PTGN_LOG(group_name, " pressed ", number); });
+
+		toggle_button.OnToggle([number, group_name](event::ToggleButtonToggle& event) {
+			PTGN_LOG(
+				group_name, " toggled ", number, ": ", std::boolalpha, event.toggled,
+				std::noboolalpha
+			);
+		});
+
+		return toggle_button;
 	}
 
 	void OnEnter() override {
+		ctx().asset.Load("arial", "assets/Arial.ttf");
 		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 
-		auto name1{ "Group 1" };
+		std::string name1{ "Group 1" };
+
 		group1 = CreateToggleButtonGroup(*this);
 		group1.SetAlwaysOneActive(false);
-		group1.Add("1", CreateToggleButtonGroupItem(V2_float{ -300, -300 - 130 / 2 }, 1, name1));
-		group1.Add("2", CreateToggleButtonGroupItem(V2_float{ -300, -100 - 130 / 2 }, 2, name1));
-		group1.Add("3", CreateToggleButtonGroupItem(V2_float{ -300, 100 - 130 / 2 }, 3, name1));
-		group1.Add("4", CreateToggleButtonGroupItem(V2_float{ -300, 300 - 130 / 2 }, 4, name1));
+
+		group1.Add("1", CreateToggleButtonGroupItem({ -300.0f, -365.0f }, 1, name1));
+		group1.Add("2", CreateToggleButtonGroupItem({ -300.0f, -165.0f }, 2, name1));
+		group1.Add("3", CreateToggleButtonGroupItem({ -300.0f, 35.0f }, 3, name1));
+		group1.Add("4", CreateToggleButtonGroupItem({ -300.0f, 235.0f }, 4, name1));
+
 		group1.SetActive("1");
 
-		auto name2{ "Group 2" };
+		std::string name2{ "Group 2" };
+
 		group2 = CreateToggleButtonGroup(*this);
-		group2.Add("1", CreateToggleButtonGroupItem(V2_float{ 100, -300 - 130 / 2 }, 1, name2));
-		group2.Add("2", CreateToggleButtonGroupItem(V2_float{ 100, -100 - 130 / 2 }, 2, name2));
-		group2.Add("3", CreateToggleButtonGroupItem(V2_float{ 100, 100 - 130 / 2 }, 3, name2));
-		group2.Add("4", CreateToggleButtonGroupItem(V2_float{ 100, 300 - 130 / 2 }, 4, name2));
+
+		group2.Add("1", CreateToggleButtonGroupItem({ 100.0f, -365.0f }, 1, name2));
+		group2.Add("2", CreateToggleButtonGroupItem({ 100.0f, -165.0f }, 2, name2));
+		group2.Add("3", CreateToggleButtonGroupItem({ 100.0f, 35.0f }, 3, name2));
+		group2.Add("4", CreateToggleButtonGroupItem({ 100.0f, 235.0f }, 4, name2));
+
 		// group2.SetActive("3");
 	}
 
-	void OnEvent(Event d) override {
-		d.Dispatch<event::KeyPressed>([this](const auto& key) {
+	void OnEvent(Event event) override {
+		event.Dispatch<event::KeyPressed>([this](const auto& key) {
 			if (key == Key::I) {
 				auto active1{ group1.GetActive() };
 				PTGN_ASSERT(active1.has_value(), "No active button set for group 1");
@@ -81,6 +126,6 @@ class ToggleButtonGroupScene : public Scene {
 };
 
 int main(int, char**) {
-	Application game{ "ToggleButtonGroupScene: I to print active button ID" };
-	game.StartWith<ToggleButtonGroupScene>();
+	Application app{ "ToggleButtonGroupScene: I to print active button ID" };
+	app.StartWith<ToggleButtonGroupScene>();
 }

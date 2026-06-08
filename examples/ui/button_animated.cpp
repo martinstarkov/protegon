@@ -1,10 +1,11 @@
-
 #include <chrono>
 #include <optional>
 #include <utility>
 
 #include "app/application.h"
 #include "core/log.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
@@ -37,17 +38,33 @@ public:
 		ctx().asset.LoadAudio("press2", "assets/press.ogg");
 
 		auto hover_animation{ CreateAnimation(
-			*this, "animation_hover", {}, { 3, 400ms, V2_int{ 253, 167 }, std::nullopt }
+			*this, "animation_hover", {},
+			AnimationConfig{
+				.frame_count		= 3,
+				.animation_duration = 400ms,
+				.frame_size			= V2_int{ 253, 167 },
+				.play_count			= std::nullopt,
+			}
 		) };
 
-		auto press_animation{
-			CreateAnimation(*this, "animation_press", {}, { 3, 200ms, V2_int{ 253, 167 }, 1 })
-		};
+		auto press_animation{ CreateAnimation(
+			*this, "animation_press", {},
+			AnimationConfig{
+				.frame_count		= 3,
+				.animation_duration = 200ms,
+				.frame_size			= V2_int{ 253, 167 },
+				.play_count			= 1,
+			}
+		) };
 
-		b1 = CreateButton(*this, {}, *GetDisplaySize(press_animation));
-		b1.SetTexture("idle")
-			.SetAnimation(std::move(hover_animation), ButtonState::Hover)
-			.SetAnimation(std::move(press_animation), ButtonState::Press)
+		auto b1_size{ V2_float{ *GetDisplaySize(press_animation) } };
+
+		b1 = CreateButton(*this, {}, Rect{ b1_size }, Origin::Center);
+
+		b1.Icon(ButtonVisualState::Idle).SetTexture("idle");
+
+		b1.SetAnimation(std::move(hover_animation), ButtonVisualState::Hover)
+			.SetAnimation(std::move(press_animation), ButtonVisualState::Press)
 			.SetSound("hover", ButtonState::Hover)
 			.SetSound("press", ButtonState::Press);
 
@@ -56,17 +73,33 @@ public:
 		b1.OnPress([]() { PTGN_LOG("Pressed bell!"); });
 
 		auto hover_animation2{ CreateAnimation(
-			*this, "animation_hover2", {}, { 4, 400ms, V2_int{ 32, 16 }, std::nullopt }
+			*this, "animation_hover2", {},
+			AnimationConfig{
+				.frame_count		= 4,
+				.animation_duration = 400ms,
+				.frame_size			= V2_int{ 32, 16 },
+				.play_count			= std::nullopt,
+			}
 		) };
 
-		auto press_animation2{
-			CreateAnimation(*this, "animation_press2", {}, { 4, 200ms, V2_int{ 32, 16 }, 1 })
-		};
+		auto press_animation2{ CreateAnimation(
+			*this, "animation_press2", {},
+			AnimationConfig{
+				.frame_count		= 4,
+				.animation_duration = 200ms,
+				.frame_size			= V2_int{ 32, 16 },
+				.play_count			= 1,
+			}
+		) };
 
-		b2 = CreateButton(*this, { 0, 200 }, *GetDisplaySize(press_animation2));
-		b2.SetTexture("idle2")
-			.SetAnimation(std::move(hover_animation2), ButtonState::Hover)
-			.SetAnimation(std::move(press_animation2), ButtonState::Press)
+		auto b2_size{ V2_float{ *GetDisplaySize(press_animation2) } };
+
+		b2 = CreateButton(*this, { 0.0f, 200.0f }, Rect{ b2_size }, Origin::Center);
+
+		b2.Icon(ButtonVisualState::Idle).SetTexture("idle2");
+
+		b2.SetAnimation(std::move(hover_animation2), ButtonVisualState::Hover)
+			.SetAnimation(std::move(press_animation2), ButtonVisualState::Press)
 			.SetSound("hover", ButtonState::Hover)
 			.SetSound("press2", ButtonState::Press);
 
