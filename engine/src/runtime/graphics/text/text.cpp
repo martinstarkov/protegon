@@ -426,6 +426,17 @@ Text& Text::Box(Rect rect) {
 	return *this;
 }
 
+Text& Text::Reveal(std::size_t glyph_count) {
+	auto& reveal{ TryAdd<impl::TextReveal>() };
+	reveal.glyph_count = glyph_count;
+	return *this;
+}
+
+Text& Text::RevealAll() {
+	Remove<impl::TextReveal>();
+	return *this;
+}
+
 Text& Text::Align(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical) {
 	auto& style{ EnsureTextBox().style };
 

@@ -55,6 +55,9 @@ public:
 
 	Text& Box(Rect rect);
 
+	Text& Reveal(std::size_t glyph_count);
+	Text& RevealAll();
+
 	Text& Align(HorizontalAlign horizontal, VerticalAlign vertical);
 	Text& HorizontalAlign(HorizontalAlign align);
 	Text& VerticalAlign(VerticalAlign align);

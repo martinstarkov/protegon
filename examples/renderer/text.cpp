@@ -25,18 +25,26 @@ struct TextEffectsScene : public Scene {
 
 	float scale{ 40.0f };
 
+	Text reveal_text;
+	static constexpr std::string_view reveal_content{ "Sine reveal hides and shows this text" };
+	float reveal_time{ 0.0f };
+
+	std::size_t current_line{ 0 };
+
 	Text CreateLine(
-		int index, std::string_view text_content, const Color& color = color::Black,
-		float font_size = 26.0f, std::string_view font_key = font
+		std::string_view text_content, const Color& color = color::Black, float font_size = 26.0f,
+		std::string_view font_key = font
 	) {
 		float stride{ 34.0f };
 		float top{ -static_cast<float>(game_size.y) * 0.5f + 16.0f };
 
-		auto text{
-			CreateText(*this, { 0.0f, top + stride * static_cast<float>(index) }, Origin::CenterTop)
-		};
+		auto text{ CreateText(
+			*this, { 0.0f, top + stride * static_cast<float>(current_line) }, Origin::CenterTop
+		) };
 
 		text.Content(text_content).Font(font_key).Size(font_size).Color(color);
+
+		current_line++;
 
 		return text;
 	}
@@ -47,24 +55,22 @@ struct TextEffectsScene : public Scene {
 
 		ctx().asset.Load(font, "assets/Arial.ttf");
 
-		CreateLine(0, "Text effects demo", color::Black, 30.0f).Bold(true, 0.2f);
+		CreateLine("Default font fallback", color::Black, 24.0f, {});
+		CreateLine("Plain black text", color::Black);
+		CreateLine("Colored text", color::Green);
 
-		CreateLine(1, "Default font fallback", color::Black, 24.0f, {});
-		CreateLine(2, "Plain black text", color::Black);
-		CreateLine(3, "Colored text", color::Green);
+		CreateLine("Fake bold", color::Black).Bold(true, 0.25f);
+		CreateLine("Italic shear", color::Black).Italic();
+		CreateLine("Underline", color::Black).Underline();
+		CreateLine("Strikethrough", color::Black).Strikethrough();
 
-		CreateLine(4, "Fake bold", color::Black).Bold(true, 0.25f);
-		CreateLine(5, "Italic shear", color::Black).Italic();
-		CreateLine(6, "Underline", color::Black).Underline();
-		CreateLine(7, "Strikethrough", color::Black).Strikethrough();
-
-		CreateLine(8, "Bold + italic + underline + strikethrough", color::Black)
+		CreateLine("Bold + italic + underline + strikethrough", color::Black)
 			.Bold(true, 0.2f)
 			.Italic()
 			.Underline()
 			.Strikethrough();
 
-		auto rich{ CreateLine(9, "Rich text: ", color::Black) };
+		auto rich{ CreateLine("Rich text: ", color::Black) };
 
 		rich.Content("red bold ").Color(color::Red).Bold(true, 0.2f);
 
@@ -72,39 +78,39 @@ struct TextEffectsScene : public Scene {
 
 		rich.Content("blue underline").Color(color::Blue).Italic(false).Underline();
 
-		CreateLine(10, "Black outline", color::White).Outline(color::Black, 1.5f, 1.0f);
+		CreateLine("Black outline", color::White).Outline(color::Black, 1.5f, 1.0f);
 
-		CreateLine(11, "Soft red outline", color::White).Outline(color::Red, 2.5f, 2.0f);
+		CreateLine("Soft red outline", color::White).Outline(color::Red, 2.5f, 2.0f);
 
-		CreateLine(12, "Drop shadow", color::Black)
+		CreateLine("Drop shadow", color::Black)
 			.Shadow(color::Black.WithAlpha(120), { 3.0f, -3.0f }, 2.0f, 2.5f);
 
-		CreateLine(13, "Outline + shadow", color::White)
+		CreateLine("Outline + shadow", color::White)
 			.Outline(color::Black, 1.5f, 1.0f)
 			.Shadow(color::Black.WithAlpha(130), { 3.0f, -3.0f }, 2.0f, 2.5f);
 
-		CreateLine(14, "Outer glow", color::Blue).OuterGlow(color::Blue.WithAlpha(160), 4.0f, 3.0f);
+		CreateLine("Outer glow", color::Blue).OuterGlow(color::Blue.WithAlpha(160), 4.0f, 3.0f);
 
-		CreateLine(15, "Inner glow", color::Blue).InnerGlow(color::White.WithAlpha(45), 3.0f, 2.0f);
+		CreateLine("Inner glow", color::Blue).InnerGlow(color::White.WithAlpha(45), 3.0f, 2.0f);
 
-		CreateLine(16, "Full glow", color::Blue).Glow(color::Blue.WithAlpha(150), 4.0f, 2.0f, 3.0f);
+		CreateLine("Full glow", color::Blue).Glow(color::Blue.WithAlpha(150), 4.0f, 2.0f, 3.0f);
 
-		CreateLine(17, "Outline + outer glow", color::White)
+		CreateLine("Outline + outer glow", color::White)
 			.Outline(color::Black, 1.5f, 1.0f)
 			.OuterGlow(color::Purple.WithAlpha(150), 4.0f, 3.0f);
 
-		CreateLine(18, "Wobble effect", color::Purple)
+		CreateLine("Wobble effect", color::Purple)
 			.Effect(GlyphEffectType::Wobble, 4.0f, 2.5f, 2.0f);
 
-		CreateLine(19, "Wave effect", color::Purple)
-			.Effect(GlyphEffectType::Wave, 7.0f, 2.0f, 1.5f);
+		CreateLine("Wave effect", color::Purple).Effect(GlyphEffectType::Wave, 7.0f, 2.0f, 1.5f);
 
-		CreateLine(20, "Shake effect", color::Red).Effect(GlyphEffectType::Shake, 1.5f, 1.0f, 1.0f);
+		CreateLine("Shake effect", color::Red).Effect(GlyphEffectType::Shake, 1.5f, 1.0f, 1.0f);
 
-		CreateLine(21, "Pulse effect", color::Green)
-			.Effect(GlyphEffectType::Pulse, 0.12f, 1.0f, 3.0f);
+		CreateLine("Pulse effect", color::Green).Effect(GlyphEffectType::Pulse, 0.12f, 1.0f, 3.0f);
 
-		CreateLine(22, "Tracking + kerning", color::Black).Tracking(0.5f).Kerning(0.5f);
+		reveal_text = CreateLine(reveal_content, color::Black);
+
+		CreateLine("Tracking + kerning", color::Black).Tracking(0.5f).Kerning(0.5f);
 	}
 
 	void OnUpdate() override {
@@ -119,6 +125,19 @@ struct TextEffectsScene : public Scene {
 		}
 
 		scale = std::clamp(scale, 0.0001f, 10000.0f);
+
+		reveal_time += ctx().dt().count();
+
+		float phase{ (std::sin(reveal_time * 2.0f) + 1.0f) * 0.5f };
+
+		std::size_t min_reveal{ 4 };
+		std::size_t max_reveal{ reveal_content.size() };
+
+		auto reveal_count{ static_cast<std::size_t>(
+			static_cast<float>(min_reveal) + phase * static_cast<float>(max_reveal - min_reveal)
+		) };
+
+		reveal_text.Reveal(reveal_count);
 	}
 };
 
