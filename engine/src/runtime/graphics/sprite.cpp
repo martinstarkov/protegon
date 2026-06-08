@@ -97,7 +97,9 @@ Sprite CreateSprite(
 	SetDraw<Sprite>(sprite);
 	Show(sprite, false);
 
-	sprite.SetTexture(texture_key);
+	if (!texture_key.empty()) {
+		sprite.SetTexture(texture_key);
+	}
 
 	SetPosition(sprite, position);
 	SetDrawOrigin(sprite, draw_origin);
