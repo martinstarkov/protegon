@@ -39,7 +39,6 @@ public:
 		SetDraw<RectDraw>(entity);
 		SetDrawOrigin(entity, Origin::Center);
 		SetFillStyle(entity, fill_style);
-		Show(entity);
 	}
 
 	static void ConfigureBackground(
@@ -74,6 +73,8 @@ public:
 			.Align(HorizontalAlign::Center, VerticalAlign::Center)
 			.Wrap(WrapMode::Word)
 			.Overflow(OverflowMode::Ellipsis);
+
+		button.RefreshVisualState();
 	}
 
 	static void ConfigureDropdownVisuals(
@@ -100,6 +101,8 @@ public:
 			.Align(HorizontalAlign::Center, VerticalAlign::Center)
 			.Wrap(WrapMode::Word)
 			.Overflow(OverflowMode::Ellipsis);
+
+		button.RefreshVisualState();
 	}
 
 	Button CreateMenuButton(std::string_view content, const std::function<void()>& on_press) {

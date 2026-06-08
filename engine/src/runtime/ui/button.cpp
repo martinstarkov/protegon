@@ -884,9 +884,17 @@ Button& Button::SetExclusiveAudio(bool enabled) {
 }
 
 void Button::RefreshVisualState() {
+	auto parts{ Parts() };
+
+	if (!IsVisible(*this)) {
+		for (Entity part : parts) {
+			Hide(part);
+		}
+		return;
+	}
+
 	auto active_state{ GetVisualState() };
 	auto fallback_states{ GetVisualStateFallbacks(active_state) };
-	auto parts{ Parts() };
 
 	for (Entity part : parts) {
 		Hide(part);

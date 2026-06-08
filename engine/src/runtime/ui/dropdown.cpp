@@ -34,6 +34,52 @@ namespace {
 	);
 }
 
+void HideButtonView(Button button) {
+	button.Disable();
+	Hide(button);
+
+	for (Entity part : button.Parts()) {
+		Hide(part);
+	}
+}
+
+void ShowButtonView(Button button) {
+	Show(button);
+	button.Enable();
+	button.RefreshVisualState();
+}
+
+void HideDropdownBranch(Button button) {
+	if (button.Has<impl::DropdownData>()) {
+		Dropdown dropdown{ button };
+
+		auto& info{ dropdown.Get<impl::DropdownData>() };
+		info.open = false;
+
+		for (Button child_button : dropdown.GetButtons()) {
+			HideDropdownBranch(child_button);
+		}
+	}
+
+	HideButtonView(button);
+}
+
+void ShowDropdownItem(Button button) {
+	ShowButtonView(button);
+
+	if (!button.Has<impl::DropdownData>()) {
+		return;
+	}
+
+	Dropdown dropdown{ button };
+
+	if (dropdown.Get<impl::DropdownData>().start_open) {
+		dropdown.Open();
+	} else {
+		dropdown.Close(false);
+	}
+}
+
 } // namespace
 
 namespace impl {
@@ -88,14 +134,21 @@ bool Dropdown::IsOpen() const {
 bool Dropdown::WillStartOpen() const {
 	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot query start-open state of invalid dropdown");
 
-	if (HasParent(*this)) {
-		Entity parent{ GetParent(*this) };
-		if (parent.Has<impl::DropdownData>()) {
-			return Get<impl::DropdownData>().start_open && Dropdown{ parent }.WillStartOpen();
-		}
+	if (!Get<impl::DropdownData>().start_open) {
+		return false;
 	}
 
-	return Get<impl::DropdownData>().start_open;
+	if (!HasParent(*this)) {
+		return true;
+	}
+
+	Entity parent{ GetParent(*this) };
+
+	if (!parent.Has<impl::DropdownData>()) {
+		return true;
+	}
+
+	return Dropdown{ parent }.IsOpen();
 }
 
 Dropdown& Dropdown::SetShape(const std::optional<std::variant<Rect, Circle>>& shape) {
@@ -234,22 +287,10 @@ Dropdown& Dropdown::AddButton(Button button) {
 		AddScript<impl::DropdownItemScript>(button);
 	}
 
-	if (WillStartOpen()) {
-		Show(button);
-		button.Enable();
+	if (IsOpen()) {
+		ShowDropdownItem(button);
 	} else {
-		Hide(button);
-		button.Disable();
-	}
-
-	if (button.Has<impl::DropdownData>()) {
-		Dropdown child_dropdown{ button };
-
-		if (child_dropdown.WillStartOpen()) {
-			child_dropdown.Open();
-		} else {
-			child_dropdown.Close(false);
-		}
+		HideDropdownBranch(button);
 	}
 
 	RecalculateButtonPositions();
@@ -361,20 +402,7 @@ Dropdown& Dropdown::Open() {
 	info.open = true;
 
 	for (Button button : GetButtons()) {
-		button.Enable();
-		Show(button);
-
-		if (!button.Has<impl::DropdownData>()) {
-			continue;
-		}
-
-		Dropdown child_dropdown{ button };
-
-		if (child_dropdown.WillStartOpen()) {
-			child_dropdown.Open();
-		} else {
-			child_dropdown.Close(false);
-		}
+		ShowDropdownItem(button);
 	}
 
 	if (!was_open) {
@@ -394,12 +422,7 @@ Dropdown& Dropdown::Close(bool close_parents) {
 	info.open = false;
 
 	for (Button button : GetButtons()) {
-		if (button.Has<impl::DropdownData>()) {
-			Dropdown{ button }.Close(false);
-		}
-
-		button.Disable();
-		Hide(button);
+		HideDropdownBranch(button);
 	}
 
 	if (close_parents && HasParent(*this)) {
