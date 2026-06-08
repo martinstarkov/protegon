@@ -55,6 +55,7 @@ public:
 
 	void OnEnter() override {
 		ctx().renderer.SetGameSize(game_size);
+		ctx().asset.Load("arial", "assets/Arial.ttf");
 		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 
 		SetBackgroundColor(color::LightGray);
@@ -64,6 +65,7 @@ public:
 			Button button{ CreateTextButton({ -170.0f, -250.0f }) };
 
 			button.Label()
+				.Font("arial")
 				.Content("Auto-boxed\ncentered label")
 				.Color(color::Black)
 				.Size(21.0f)
@@ -79,6 +81,7 @@ public:
 			button.SetLabelPadding(Rect{ { 22.0f, 10.0f }, { 22.0f, 10.0f } });
 
 			button.Label()
+				.Font("arial")
 				.Content("This label uses the button padding and wraps inside the button.")
 				.Color(color::Black)
 				.Size(16.0f)
@@ -94,6 +97,7 @@ public:
 			Button button{ CreateTextButton({ -170.0f, -125.0f }) };
 
 			button.Label()
+				.Font("arial")
 				.Content("A very long single-line button label that should end with ellipsis")
 				.Color(color::Black)
 				.Size(18.0f)
@@ -128,12 +132,14 @@ public:
 			);
 
 			button.Label(ButtonVisualState::Idle)
+				.Font("arial")
 				.Content("Idle label")
 				.Color(color::Black)
 				.Size(22.0f)
 				.Align(HorizontalAlign::Center, VerticalAlign::Center);
 
 			button.Label(ButtonVisualState::Hover)
+				.Font("arial")
 				.Content("Hover label")
 				.Color(color::Blue)
 				.Size(24.0f)
@@ -141,6 +147,7 @@ public:
 				.Align(HorizontalAlign::Center, VerticalAlign::Center);
 
 			button.Label(ButtonVisualState::Press)
+				.Font("arial")
 				.Content("Pressed label")
 				.Color(color::Red)
 				.Size(21.0f)
@@ -162,18 +169,21 @@ public:
 			disabled_button.SetLabelAutoBox(true, ButtonVisualState::Disabled);
 
 			disabled_button.Label(ButtonVisualState::Idle)
+				.Font("arial")
 				.Content("Enabled")
 				.Color(color::Black)
 				.Size(23.0f)
 				.Align(HorizontalAlign::Center, VerticalAlign::Center);
 
 			disabled_button.Label(ButtonVisualState::Hover)
+				.Font("arial")
 				.Content("Hover enabled")
 				.Color(color::Blue)
 				.Size(23.0f)
 				.Align(HorizontalAlign::Center, VerticalAlign::Center);
 
 			disabled_button.Label(ButtonVisualState::Disabled)
+				.Font("arial")
 				.Content("Disabled")
 				.Color(color::White)
 				.Size(23.0f)
@@ -190,17 +200,18 @@ public:
 			Text label{ button.Label() };
 
 			label.Content("Rich ")
+				.Font("arial")
 				.Color(color::Black)
 				.Size(20.0f)
 				.Align(HorizontalAlign::Center, VerticalAlign::Center)
 				.Wrap(WrapMode::Word)
 				.Overflow(OverflowMode::Clip);
 
-			label.Content("red ").Color(color::Red).Bold(true, 0.18f);
+			label.Content("red ").Font("arial").Color(color::Red).Bold(true, 0.18f);
 
-			label.Content("underlined ").Color(color::Blue).Bold(false).Underline();
+			label.Content("underlined ").Font("arial").Color(color::Blue).Bold(false).Underline();
 
-			label.Content("text").Color(color::Black).Underline(false);
+			label.Content("text").Font("arial").Color(color::Black).Underline(false);
 
 			button.OnPress([]() { PTGN_LOG("Pressed rich text button"); });
 		}
