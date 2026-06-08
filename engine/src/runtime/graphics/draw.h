@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
 #include "core/util/hash.h"
 #include "renderer/pipeline/blend_mode.h"
@@ -42,6 +43,8 @@ void SortByDepth(std::vector<Entity>& entities, bool ascending = true);
 void SetDrawOrigin(Entity entity, Origin origin);
 
 Origin GetDrawOrigin(Entity entity);
+
+void SetFillStyle(Entity entity, FillStyle fill_style);
 
 template <DrawableType T>
 void SetDraw(Entity entity) {

@@ -4,6 +4,7 @@
 #include <compare>
 #include <vector>
 
+#include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_state.h"
@@ -45,6 +46,10 @@ void SortByDepth(std::vector<Entity>& entities, bool ascending) {
 
 void SetDrawOrigin(Entity entity, Origin origin) {
 	entity.Add<Origin>(origin);
+}
+
+void SetFillStyle(Entity entity, FillStyle fill_style) {
+	entity.Add<FillStyle>(fill_style);
 }
 
 Origin GetDrawOrigin(Entity entity) {
