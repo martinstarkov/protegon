@@ -96,8 +96,8 @@ void TemplateMenuScene::OnEnter() {
 		const Color button_text_color{ color::White };
 
 		const auto& label = j_button.at("label");
-		auto button{ CreateButton(*this, {}) };
-		button.SetShape(button_size);
+		auto button{ CreateButton(*this, V2_float{}) };
+		button.SetShape(Rect{ button_size });
 		auto label_string{ label.get<std::string>() };
 		// TODO: Fix.
 		// button.SetText(label_string, button_text_color);

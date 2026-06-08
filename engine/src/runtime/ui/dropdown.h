@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -9,32 +10,52 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
 
 namespace ptgn {
 
 class Button;
+class Dropdown;
 class Scene;
+
+namespace event {
+
+struct DropdownOpen;
+
+struct DropdownClose;
+
+struct DropdownToggle;
+
+struct DropdownItemPress;
+
+} // namespace event
 
 namespace impl {
 
 struct DropdownData {
-	std::vector<Button> buttons_;
+	/// @brief Whether dropdown starts in an open state.
+	bool start_open{ false };
 
-	/// @brief Whether dropdown is open or closed.
-	bool start_open_{ false };
-	bool open_{ false };
+	/// @brief Whether dropdown is currently open.
+	bool open{ false };
 
-	/// @brief Default value of {} results in, each button having the size of the parent button.
-	std::optional<V2_float> button_size_;
-	/// @brief Fixed static offset for each of the dropdown buttons.
-	V2_float button_offset_;
-	/// @brief Which direction the dropdown drops relative to the parent button.
-	Origin direction_{ Origin::CenterBottom };
-	/// @brief Which side/edge the dropdown is on relative to the parent button.
-	Origin origin_{ Origin::CenterBottom };
+	/// @brief Default value of {} means each item uses the parent dropdown button size.
+	std::optional<V2_float> button_size;
+
+	/// @brief Fixed static offset applied to the dropdown item layout.
+	V2_float button_offset;
+
+	/// @brief Direction in which dropdown items are stacked relative to the parent button.
+	Origin direction{ Origin::CenterBottom };
+
+	/// @brief Edge/corner on which the dropdown starts relative to the parent button.
+	Origin origin{ Origin::CenterBottom };
 };
+
+/// @brief Marker for direct child buttons that are dropdown items.
+struct DropdownItem {};
 
 class DropdownScript : public Script {
 public:
@@ -52,26 +73,41 @@ public:
 
 } // namespace impl
 
-class Dropdown : public impl::ButtonBase<Dropdown> {
+class Dropdown : public Entity {
 public:
 	Dropdown() = default;
-	using impl::ButtonBase<Dropdown>::ButtonBase;
-	operator Button() const;
+	explicit Dropdown(Entity entity);
+
+	operator Button() const; // NOSONAR
+
+	[[nodiscard]] Button AsButton() const;
+
+	[[nodiscard]] bool IsOpen() const;
+	[[nodiscard]] bool WillStartOpen() const;
 
 	Dropdown& SetShape(const std::optional<std::variant<Rect, Circle>>& shape = {});
+	Dropdown& SetShape(Rect rect);
+	Dropdown& SetShape(Circle circle);
 
 	Dropdown& SetOrigin(Origin origin);
 
+	/// @brief Adds an existing button as a direct child dropdown item.
 	Dropdown& AddButton(Button button);
 
-	/// @brief Set the size that each dropdown button will be.
-	/// If not specified, each button will have the size of the parent button.
+	/// @brief Creates a new item button, adds it as a dropdown item, and returns it.
+	Button AddItem(std::string_view text);
+
+	/// @brief Returns direct child buttons marked with impl::DropdownItem.
+	[[nodiscard]] std::vector<Button> GetButtons() const;
+
+	/// @brief Set the size that each dropdown item button will be.
+	/// If not specified, each item uses the parent dropdown button size.
 	Dropdown& SetButtonSize(std::optional<V2_float> button_size);
 
-	/// @brief Specify a fixed static offset for each of the dropdown buttons.
+	/// @brief Specify a fixed static offset for the dropdown item layout.
 	Dropdown& SetButtonOffset(V2_float button_offset);
 
-	/// @brief Set which direction the dropdown drops relative to the parent button.
+	/// @brief Set which direction the dropdown items stack relative to the parent button.
 	Dropdown& SetDropdownDirection(Origin dropdown_direction);
 
 	/// @brief Set the edge/corner on which the dropdown starts relative to the parent button.
@@ -81,15 +117,68 @@ public:
 	Dropdown& Open();
 	Dropdown& Close(bool close_parents = true);
 
-private:
-	[[nodiscard]] bool WillStartOpen() const;
+	template <EventCallbackInvocable<event::DropdownOpen> F>
+	Dropdown& OnOpen(F&& callback) {
+		return OnEvent<event::DropdownOpen>(std::forward<F>(callback));
+	}
 
+	template <EventCallbackInvocable<event::DropdownClose> F>
+	Dropdown& OnClose(F&& callback) {
+		return OnEvent<event::DropdownClose>(std::forward<F>(callback));
+	}
+
+	template <EventCallbackInvocable<event::DropdownToggle> F>
+	Dropdown& OnToggle(F&& callback) {
+		return OnEvent<event::DropdownToggle>(std::forward<F>(callback));
+	}
+
+	template <EventCallbackInvocable<event::DropdownItemPress> F>
+	Dropdown& OnItemPress(F&& callback) {
+		return OnEvent<event::DropdownItemPress>(std::forward<F>(callback));
+	}
+
+private:
+	friend class impl::DropdownScript;
+	friend class impl::DropdownItemScript;
+
+	template <typename E, EventCallbackInvocable<E> F>
+	Dropdown& OnEvent(F&& callback) {
+		AddScript<impl::EventScript<E>>(
+			*this, impl::MakeEventCallback<E>(std::forward<F>(callback))
+		);
+		return *this;
+	}
+
+	void RecalculateParentDropdown(Entity entity);
 	void RecalculateButtonPositions();
 };
 
-/// @param open If true, dropdown starts in an open state.
+namespace event {
+
+struct DropdownOpen {
+	Dropdown dropdown;
+};
+
+struct DropdownClose {
+	Dropdown dropdown;
+};
+
+struct DropdownToggle {
+	Dropdown dropdown;
+	bool open{ false };
+};
+
+struct DropdownItemPress {
+	Dropdown dropdown;
+	Button item;
+};
+
+} // namespace event
+
+/// @param start_open If true, dropdown starts in an open state.
 Dropdown CreateDropdown(
-	Scene& manager, V2_float position, const std::optional<std::variant<Rect, Circle>>& shape = {},
+	Scene& scene, V2_float position = {},
+	const std::optional<std::variant<Rect, Circle>>& shape = {},
 	Origin draw_origin = Origin::Center, bool start_open = false
 );
 

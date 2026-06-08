@@ -1,5 +1,3 @@
-#include "runtime/ui/button.h"
-
 #include <ios>
 
 #include "app/application.h"
@@ -19,13 +17,14 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/toggle_button.h"
 #include "serialization/json/json.h"
 
 using namespace ptgn;
 
-class ButtonScene : public Scene {
+class ToggleButtonScene : public Scene {
 public:
-	Button button;
+	ToggleButton toggle_button;
 
 	static constexpr V2_float button_size{ 200.0f, 100.0f };
 
@@ -43,17 +42,28 @@ public:
 
 		Origin button_origin{ Origin::Center };
 
-		button = CreateButton(*this, V2_float{ 0.0f, 0.0f }, Rect{ button_size }, button_origin)
-					 .OnPress([]() { PTGN_LOG("Pressed regular button!"); })
-					 .SetSound("hover", ButtonState::Hover)
-					 .SetSound("press", ButtonState::Press);
+		toggle_button =
+			CreateToggleButton(*this, V2_float{ 0.0f, 0.0f }, Rect{ button_size }, button_origin)
+				.OnToggle([](event::ToggleButtonToggle& event) {
+					PTGN_LOG("Toggled button: ", std::boolalpha, event.toggled, std::noboolalpha);
+				});
 
-		ConfigureBackground(button.Background(ButtonVisualState::Idle), color::Pink);
+		Button button{ toggle_button.AsButton() };
+
+		button.OnPress([]() { PTGN_LOG("Pressed toggle button!"); });
+
+		button.SetSound("hover", ButtonState::Hover).SetSound("press", ButtonState::Press);
+
+		ConfigureBackground(button.Background(ButtonVisualState::Idle), color::LightRed);
 		ConfigureBackground(button.Background(ButtonVisualState::Hover), color::Red);
 		ConfigureBackground(button.Background(ButtonVisualState::Press), color::DarkRed);
 
+		ConfigureBackground(button.Background(ButtonVisualState::Toggled), color::LightBlue);
+		ConfigureBackground(button.Background(ButtonVisualState::ToggledHover), color::Blue);
+		ConfigureBackground(button.Background(ButtonVisualState::ToggledPress), color::DarkBlue);
+
 		button.Label()
-			.Content("Button")
+			.Content("Toggle")
 			.Color(color::Black)
 			.Size(28.0f)
 			.Box(Rect{ button_size })
@@ -63,28 +73,32 @@ public:
 	void OnUpdate() override {
 		static impl::InternalButtonState state{ impl::InternalButtonState::IdleUp };
 
+		Button button{ toggle_button.AsButton() };
+
 		if (auto s{ button.GetInternalState() }; state != s) {
 			state = s;
-			PTGN_LOG("Button internal state: ", json(state));
+			PTGN_LOG("Toggle button internal state: ", json(state));
 		}
 	}
 
 	void OnEvent(Event event) override {
 		event.Dispatch<event::KeyPressed>([this](const auto& key) {
+			Button button{ toggle_button.AsButton() };
+
 			if (key == Key::Q) {
 				button.Disable();
-				PTGN_LOG("Disabled button");
+				PTGN_LOG("Disabled toggle button");
 			}
 
 			if (key == Key::E) {
 				button.Enable();
-				PTGN_LOG("Enabled button");
+				PTGN_LOG("Enabled toggle button");
 			}
 		});
 	}
 };
 
 int main(int, char**) {
-	Application app{ "ButtonScene: Q/E to disable/enable button" };
-	app.StartWith<ButtonScene>();
+	Application app{ "ToggleButtonScene: Q/E to disable/enable toggle button" };
+	app.StartWith<ToggleButtonScene>();
 }
