@@ -54,6 +54,12 @@ void ToggleButtonScript::OnButtonPress() const {
 		return;
 	}
 
+	// Grouped toggle buttons are controlled by ToggleButtonGroupScript.
+	// Otherwise the button toggles itself first, then the group toggles it again.
+	if (self.Has<ToggleButtonGroupItem>()) {
+		return;
+	}
+
 	self.Toggle();
 }
 
@@ -162,8 +168,9 @@ void ToggleButtonGroup::SetAlwaysOneActive(
 }
 
 ToggleButton ToggleButtonGroup::Add(std::string_view button_key, ToggleButton toggle_button) {
-	auto& data{ TryAdd<impl::ToggleButtonGroupData>() };
-	(void)data;
+	TryAdd<impl::ToggleButtonGroupData>();
+
+	RemoveScript<impl::ToggleButtonScript>(toggle_button);
 
 	if (!toggle_button.Has<impl::ToggleButtonData>()) {
 		toggle_button.Add<impl::ToggleButtonData>();
@@ -192,6 +199,10 @@ void ToggleButtonGroup::Remove(std::string_view button_key) {
 
 	if (!button.has_value()) {
 		return;
+	}
+
+	if (!HasScript<impl::ToggleButtonScript>(*button)) {
+		AddScript<impl::ToggleButtonScript>(*button);
 	}
 
 	RemoveScript<impl::ToggleButtonGroupScript>(*button);
@@ -252,12 +263,16 @@ void ToggleButtonGroup::AddToggleScript(ToggleButton toggle_button) const {
 void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	auto& data{ TryAdd<impl::ToggleButtonGroupData>() };
 
-	bool same_as_current{ data.active == key };
+	bool same_as_current{ data.active.has_value() && *data.active == key };
 
-	if (data.always_active || !same_as_current) {
-		data.active = key;
-	} else {
+	if (same_as_current && data.always_active) {
+		return;
+	}
+
+	if (same_as_current) {
 		data.active.reset();
+	} else {
+		data.active = key;
 	}
 
 	for (ToggleButton button : GetButtons()) {
