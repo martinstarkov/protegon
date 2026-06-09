@@ -97,6 +97,7 @@ struct DialoguePageProperties {
 	HorizontalAlign horizontal_align{ HorizontalAlign::Left };
 	VerticalAlign vertical_align{ VerticalAlign::Top };
 	WrapMode wrap_mode{ WrapMode::Word };
+	// TODO: Fix clipping of side of characters.
 	OverflowMode overflow_mode{ OverflowMode::Clip };
 };
 
