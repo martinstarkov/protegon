@@ -17,6 +17,7 @@ namespace ptgn {
 
 class DrawContext;
 class Scene;
+class AssetManager;
 
 namespace impl {
 
@@ -108,6 +109,20 @@ public:
 	std::size_t GetCurrentRunIndex() const;
 
 	void InvalidateLayout();
+
+	Text& SetStyledText(StyledText styled_text);
+
+	[[nodiscard]] TextMeasurement Measure() const;
+	[[nodiscard]] std::size_t GetGlyphCount() const;
+	[[nodiscard]] std::size_t GetVisibleGlyphCount() const;
+	[[nodiscard]] bool IsFullyRevealed() const;
+
+	Text& RevealFraction(float fraction);
+
+	[[nodiscard]] static TextPaginationResult Paginate(
+		AssetManager& asset_manager, const StyledText& styled_text, TextBox box,
+		const TextPageOptions& options = {}
+	);
 
 private:
 	StyledText& EnsureStyledText();

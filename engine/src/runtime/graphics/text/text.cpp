@@ -1,7 +1,9 @@
 #include "runtime/graphics/text/text.h"
 
 #include <algorithm>
+#include <cmath>
 #include <functional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -128,6 +130,59 @@ void DrawTextLayoutDebugForCamera(
 			}
 		);
 	}
+}
+
+[[nodiscard]] std::string ToPlainText(const StyledText& styled_text) {
+	std::string result;
+
+	for (const auto& run : styled_text.runs) {
+		result += run.text;
+	}
+
+	return result;
+}
+
+[[nodiscard]] TextRunStyle GetFirstStyleOrDefault(const StyledText& styled_text) {
+	if (!styled_text.runs.empty()) {
+		return styled_text.runs.front().style;
+	}
+
+	return {};
+}
+
+[[nodiscard]] StyledText MakeSingleRunText(std::string_view content, const TextRunStyle& style) {
+	StyledText styled_text;
+	styled_text.runs.emplace_back(
+		TextRun{
+			.text  = std::string{ content },
+			.style = style,
+		}
+	);
+	return styled_text;
+}
+
+[[nodiscard]] bool FitsTextPage(
+	AssetManager& asset_manager, std::string_view content, const TextRunStyle& style, TextBox box,
+	std::size_t max_lines
+) {
+	StyledText styled_text{ MakeSingleRunText(content, style) };
+
+	box.style.overflow_mode = OverflowMode::Overflow;
+
+	auto layout{ impl::BuildLayout(asset_manager, styled_text, box) };
+
+	if (max_lines > 0 && layout.lines.size() > max_lines) {
+		return false;
+	}
+
+	return impl::FitsInBox(layout, box.rect);
+}
+
+[[nodiscard]] TextMeasurement MeasureTextPage(
+	AssetManager& asset_manager, std::string_view content, const TextRunStyle& style, TextBox box
+) {
+	StyledText styled_text{ MakeSingleRunText(content, style) };
+	return impl::Measure(asset_manager, styled_text, box);
 }
 
 } // namespace
@@ -734,6 +789,160 @@ void Text::InvalidateLayout() {
 	if (auto layout{ TryGet<TextLayout>() }) {
 		layout->hash = 0;
 	}
+}
+
+Text& Text::SetStyledText(StyledText styled_text) {
+	EnsureStyledText() = std::move(styled_text);
+	EnsureValidRuns();
+	InvalidateLayout();
+	return *this;
+}
+
+TextMeasurement Text::Measure() const {
+	return impl::Measure(GetScene().ctx().asset, RequireStyledText(), RequireTextBox());
+}
+
+std::size_t Text::GetGlyphCount() const {
+	auto layout{ impl::BuildLayout(GetScene().ctx().asset, RequireStyledText(), RequireTextBox()) };
+	return layout.glyphs.size();
+}
+
+std::size_t Text::GetVisibleGlyphCount() const {
+	auto reveal{ TryGet<impl::TextReveal>() };
+
+	if (!reveal) {
+		return GetGlyphCount();
+	}
+
+	return std::min(reveal->glyph_count, GetGlyphCount());
+}
+
+bool Text::IsFullyRevealed() const {
+	auto reveal{ TryGet<impl::TextReveal>() };
+
+	if (!reveal) {
+		return true;
+	}
+
+	return reveal->glyph_count >= GetGlyphCount();
+}
+
+Text& Text::RevealFraction(float fraction) {
+	fraction = std::clamp(fraction, 0.0f, 1.0f);
+
+	auto glyph_count{ GetGlyphCount() };
+
+	auto reveal_count{
+		static_cast<std::size_t>(std::round(static_cast<float>(glyph_count) * fraction))
+	};
+
+	return Reveal(reveal_count);
+}
+
+TextPaginationResult Text::Paginate(
+	AssetManager& asset_manager, const StyledText& styled_text, TextBox box,
+	const TextPageOptions& options
+) {
+	TextPaginationResult result;
+
+	std::string full_text{ ToPlainText(styled_text) };
+	TextRunStyle style{ GetFirstStyleOrDefault(styled_text) };
+
+	if (full_text.empty()) {
+		result.pages.emplace_back(
+			TextPage{
+				.styled_text = MakeSingleRunText("", style),
+				.measurement = MeasureTextPage(asset_manager, "", style, box),
+				.glyph_count = 0,
+			}
+		);
+		return result;
+	}
+
+	auto max_lines{ options.max_lines_per_page };
+
+	if (max_lines == 0) {
+		max_lines = box.style.max_lines;
+	}
+
+	std::istringstream stream{ full_text };
+	std::vector<std::string> words;
+	std::string word;
+
+	while (stream >> word) {
+		words.emplace_back(std::move(word));
+	}
+
+	if (words.empty()) {
+		words.emplace_back(full_text);
+	}
+
+	std::string current_page;
+	auto word_index{ 0uz };
+
+	while (word_index < words.size()) {
+		std::string candidate{ current_page.empty() ? words[word_index]
+													: current_page + " " + words[word_index] };
+
+		std::string measured_candidate{ candidate };
+
+		if (options.add_split_markers && word_index + 1 < words.size()) {
+			measured_candidate += options.split_end;
+		}
+
+		if (FitsTextPage(asset_manager, measured_candidate, style, box, max_lines)) {
+			current_page = std::move(candidate);
+			++word_index;
+			continue;
+		}
+
+		if (current_page.empty()) {
+			current_page = words[word_index];
+			++word_index;
+		}
+
+		std::string page_text{ current_page };
+
+		if (options.add_split_markers && word_index < words.size()) {
+			page_text += options.split_end;
+		}
+
+		auto page_styled_text{ MakeSingleRunText(page_text, style) };
+		auto measurement{ MeasureTextPage(asset_manager, page_text, style, box) };
+
+		result.pages.emplace_back(
+			TextPage{
+				.styled_text = std::move(page_styled_text),
+				.measurement = measurement,
+				.glyph_count =
+					impl::BuildLayout(asset_manager, MakeSingleRunText(page_text, style), box)
+						.glyphs.size(),
+			}
+		);
+
+		current_page.clear();
+
+		if (options.add_split_markers && word_index < words.size()) {
+			current_page = options.split_begin;
+		}
+	}
+
+	if (!current_page.empty()) {
+		auto page_styled_text{ MakeSingleRunText(current_page, style) };
+		auto measurement{ MeasureTextPage(asset_manager, current_page, style, box) };
+
+		result.pages.emplace_back(
+			TextPage{
+				.styled_text = std::move(page_styled_text),
+				.measurement = measurement,
+				.glyph_count =
+					impl::BuildLayout(asset_manager, MakeSingleRunText(current_page, style), box)
+						.glyphs.size(),
+			}
+		);
+	}
+
+	return result;
 }
 
 Text CreateText(Scene& scene, V2_float position, Origin draw_origin) {
