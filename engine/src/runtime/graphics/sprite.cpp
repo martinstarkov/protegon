@@ -51,7 +51,8 @@ void Sprite::Draw(
 	DrawContext& ctx, Entity entity, Origin offset_origin, V2_float offset_size,
 	Color additional_tint
 ) {
-	PTGN_ASSERT(entity.Has<Texture>());
+	PTGN_ASSERT(entity.Has<Texture>(), "Sprites must have a texture");
+
 	const auto& texture{ entity.Get<Texture>() };
 	auto texture_size{ GetDisplaySize(entity) };
 	PTGN_ASSERT(texture_size.has_value(), "Sprite texture does not have a valid texture size");
