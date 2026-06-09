@@ -1,17 +1,12 @@
 #include "runtime/ui/dialogue.h"
 
 #include <algorithm>
-#include <chrono>
-#include <cmath>
+#include <cstddef>
 #include <format>
-#include <list>
-#include <nlohmann/detail/iterators/iter_impl.hpp>
-#include <nlohmann/json.hpp>
 #include <optional>
-#include <sstream>
+#include <ranges>
 #include <string>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -23,21 +18,22 @@
 #include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
 #include "core/util/string.h"
+#include "renderer/resources/texture.h"
 #include "runtime/animation/tween.h"
 #include "runtime/animation/tween_event.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/ecs/game_object.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
-#include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/font_system.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -49,505 +45,424 @@ namespace ptgn {
 
 namespace {
 
-DialogueComponent& GetDialogueComponent(Entity entity) {
-	Entity dialogue_entity{ GetParent(entity) };
+[[nodiscard]] std::string ToPlainText(const StyledText& styled_text) {
+	std::string result;
 
-	PTGN_ASSERT(dialogue_entity);
+	for (const auto& run : styled_text.runs) {
+		result += run.text;
+	}
 
-	PTGN_ASSERT(dialogue_entity.Has<DialogueComponent>());
+	return result;
+}
 
-	return dialogue_entity.Get<DialogueComponent>();
+[[nodiscard]] Rect GetLocalRect(Origin origin, V2_float size) {
+	V2_float center{ GetOffset(origin, size) };
+	V2_float half_size{ size * 0.5f };
+
+	return Rect{
+		center - half_size,
+		center + half_size,
+	};
+}
+
+[[nodiscard]] Rect ApplyPadding(Rect rect, Rect padding) {
+	rect.min += padding.min;
+	rect.max -= padding.max;
+	return rect;
+}
+
+[[nodiscard]] std::optional<Entity> FindDialoguePart(Entity dialogue, DialoguePartRole role) {
+	if (!HasChildren(dialogue)) {
+		return std::nullopt;
+	}
+
+	for (Entity child : GetChildren(dialogue)) {
+		auto part{ child.TryGet<impl::DialoguePart>() };
+
+		if (!part) {
+			continue;
+		}
+
+		if (part->role == role) {
+			return child;
+		}
+	}
+
+	return std::nullopt;
+}
+
+[[nodiscard]] std::vector<DialoguePage> PaginateDialogueText(
+	const Scene& scene, std::string_view content, const DialoguePageProperties& properties,
+	std::string_view split_end, std::string_view split_begin
+) {
+	StyledText styled_text;
+	styled_text.runs.emplace_back(
+		TextRun{
+			.text  = std::string{ content },
+			.style = properties.ToTextRunStyle(),
+		}
+	);
+
+	auto pagination{ Text::Paginate(
+		scene.ctx().asset, styled_text, properties.ToTextBox(),
+		TextPageOptions{
+			.split_end	 = std::string{ split_end },
+			.split_begin = std::string{ split_begin },
+		}
+	) };
+
+	std::vector<DialoguePage> pages;
+
+	for (const auto& page : pagination.pages) {
+		pages.emplace_back(ToPlainText(page.styled_text), properties);
+	}
+
+	return pages;
 }
 
 } // namespace
 
 namespace impl {
 
-DialogueComponent& DialogueWaitScript::GetDialogueComponent() {
-	return ptgn::GetDialogueComponent(entity);
-}
-
 void DialogueWaitScript::OnEvent(Event event) {
 	event.Dispatch<event::KeyPressed>(&DialogueWaitScript::OnKeyPressed, this);
 }
 
 void DialogueWaitScript::OnKeyPressed(Key key) {
-	auto& dialogue_component{ GetDialogueComponent() };
-	if (auto continue_key{ dialogue_component.GetContinueKey() }; key != continue_key) {
+	DialogueBox dialogue{ entity };
+
+	if (!dialogue.IsOpen()) {
 		return;
 	}
-	PTGN_ASSERT(dialogue_component.tween_);
-	if (dialogue_component.tween_.IsRunning()) {
-		impl::DialogueScrollScript::UpdateText(dialogue_component.text_, 1.0f);
-		dialogue_component.tween_.Clear();
+
+	if (key != dialogue.GetContinueKey()) {
 		return;
 	}
-	dialogue_component.NextPage();
+
+	Text text{ dialogue.TextPart() };
+
+	if (!text.IsFullyRevealed()) {
+		dialogue.CompletePage();
+		return;
+	}
+
+	dialogue.NextPage();
 }
 
-DialogueComponent& DialogueScrollScript::GetDialogueComponent() {
-	return ptgn::GetDialogueComponent(entity);
-}
-
-void DialogueScrollScript::UpdateText(Entity text_entity, float elapsed_fraction) {
-	// TODO: Fix.
-	// PTGN_ASSERT(elapsed_fraction >= 0.0f && elapsed_fraction <= 1.0f);
-	// auto& dialogue_component{ ptgn::GetDialogueComponent(text_entity) };
-	// auto page{ dialogue_component.GetCurrentDialoguePage() };
-	// if (!page) {
-	//	return;
-	//}
-	// const auto& text{ page->content };
-	// std::size_t char_count{ static_cast<std::size_t>(std::round(elapsed_fraction * text.size()))
-	// }; TextContent revealed_text{ text.substr(0, char_count) }; TextColor text_color{
-	// page->properties.color };
-
-	// const auto& scene{ text_entity.GetScene() };
-	// PTGN_ASSERT(
-	//	scene.ctx().asset.HasFont(page->properties.font_key),
-	//	"Font key for dialogue must be loaded in the asset manager before use: ",
-	//	page->properties.font_key
-	//);
-
-	// auto font{ *scene.ctx().asset.GetFont(page->properties.font_key) };
-	// FontSize font_size{ page->properties.font_size };
-	// Text t{ text_entity };
-	//// Do not recreate texture more than once.
-	// Text::SetParameter(t, font_size, false);
-	// Text::SetParameter(t, font, false);
-	// Text::SetParameter(t, text_color, false);
-	// Text::SetParameter(t, revealed_text, true);
-}
-
-void DialogueScrollScript::OnEvent(Event d) {
-	d.Dispatch<event::TweenPointComplete>(&DialogueScrollScript::OnPointComplete, this);
-	d.Dispatch<event::TweenProgress>(&DialogueScrollScript::OnProgress, this);
+void DialogueScrollScript::OnEvent(Event event) {
+	event.Dispatch<event::TweenPointComplete>(&DialogueScrollScript::OnPointComplete, this);
+	event.Dispatch<event::TweenProgress>(&DialogueScrollScript::OnProgress, this);
 }
 
 void DialogueScrollScript::OnPointComplete() const {
-	Entity dialogue{ GetParent(entity) };
-	Entity text{ GetChild(dialogue, "text") };
-	UpdateText(text, 1.0f);
+	PTGN_ASSERT(HasParent(entity));
+
+	DialogueBox dialogue{ GetParent(entity) };
+	dialogue.TextPart().RevealAll();
 }
 
 void DialogueScrollScript::OnProgress(float elapsed_fraction) const {
-	Entity dialogue{ GetParent(entity) };
-	Entity text{ GetChild(dialogue, "text") };
-	UpdateText(text, elapsed_fraction);
+	PTGN_ASSERT(HasParent(entity));
+
+	DialogueBox dialogue{ GetParent(entity) };
+	dialogue.TextPart().RevealFraction(elapsed_fraction);
 }
 
 } // namespace impl
 
 DialoguePageProperties DialoguePageProperties::InheritProperties(const json& j) const {
-	DialoguePageProperties properties;
-	properties.color		   = j.value("color", color);
-	properties.scroll_duration = j.value("scroll_duration", scroll_duration);
-	properties.box_size		   = j.value("box_size", box_size);
-	properties.font_key		   = j.value("font_key", font_key);
-	properties.padding_top	   = j.value("padding_top", padding_top);
-	properties.padding_bottom  = j.value("padding_bottom", padding_bottom);
-	properties.padding_left	   = j.value("padding_left", padding_left);
-	properties.padding_right   = j.value("padding_right", padding_right);
-	properties.font_size	   = j.value("font_size", font_size);
+	DialoguePageProperties properties{ *this };
+
+	properties.color		   = j.value("color", properties.color);
+	properties.scroll_duration = j.value("scroll_duration", properties.scroll_duration);
+	properties.box_size		   = j.value("box_size", properties.box_size);
+	properties.font_key		   = j.value("font_key", properties.font_key);
+	properties.font_size	   = j.value("font_size", properties.font_size);
+
+	properties.horizontal_align = j.value("horizontal_align", properties.horizontal_align);
+	properties.vertical_align	= j.value("vertical_align", properties.vertical_align);
+	properties.wrap_mode		= j.value("wrap_mode", properties.wrap_mode);
+	properties.overflow_mode	= j.value("overflow_mode", properties.overflow_mode);
+
+	if (j.contains("padding")) {
+		auto padding_json{ j.at("padding").get<int>() };
+		properties.SetPadding(padding_json);
+	}
+
+	if (j.contains("padding_x")) {
+		auto padding_x{ j.at("padding_x").get<int>() };
+		properties.padding.min.x = static_cast<float>(padding_x);
+		properties.padding.max.x = static_cast<float>(padding_x);
+	}
+
+	if (j.contains("padding_y")) {
+		auto padding_y{ j.at("padding_y").get<int>() };
+		properties.padding.min.y = static_cast<float>(padding_y);
+		properties.padding.max.y = static_cast<float>(padding_y);
+	}
+
+	properties.padding.min.x =
+		static_cast<float>(j.value("padding_left", static_cast<int>(properties.padding.min.x)));
+	properties.padding.max.x =
+		static_cast<float>(j.value("padding_right", static_cast<int>(properties.padding.max.x)));
+	properties.padding.min.y =
+		static_cast<float>(j.value("padding_top", static_cast<int>(properties.padding.min.y)));
+	properties.padding.max.y =
+		static_cast<float>(j.value("padding_bottom", static_cast<int>(properties.padding.max.y)));
+
 	return properties;
 }
 
-void DialoguePageProperties::SetPadding(int padding) {
-	padding_left = padding_right = padding_top = padding_bottom = padding;
+void DialoguePageProperties::SetPadding(int padding_value) {
+	SetPadding(padding_value, padding_value, padding_value, padding_value);
 }
 
-void DialoguePageProperties::SetPadding(V2_int padding) {
-	padding_left = padding_right = padding.x;
-	padding_top = padding_bottom = padding.y;
+void DialoguePageProperties::SetPadding(V2_int padding_value) {
+	padding.min =
+		V2_float{ static_cast<float>(padding_value.x), static_cast<float>(padding_value.y) };
+	padding.max =
+		V2_float{ static_cast<float>(padding_value.x), static_cast<float>(padding_value.y) };
 }
 
 void DialoguePageProperties::SetPadding(int top, int right, int bottom, int left) {
-	padding_top	   = top;
-	padding_right  = right;
-	padding_bottom = bottom;
-	padding_left   = left;
+	padding.min = V2_float{ static_cast<float>(left), static_cast<float>(top) };
+	padding.max = V2_float{ static_cast<float>(right), static_cast<float>(bottom) };
 }
 
-DialoguePage::DialoguePage(
-	std::string_view text_content, const DialoguePageProperties& properties
-) :
-	content(text_content), properties(properties) {}
+V2_float DialoguePageProperties::TextAreaSize() const {
+	return box_size - padding.min - padding.max;
+}
 
-std::size_t Dialogue::PickRandomIndex() const {
+Rect DialoguePageProperties::TextAreaRect() const {
+	return Rect{ {}, TextAreaSize() };
+}
+
+TextBox DialoguePageProperties::ToTextBox() const {
+	TextBox box;
+	box.rect = TextAreaRect();
+
+	box.style.horizontal_align = horizontal_align;
+	box.style.vertical_align   = vertical_align;
+	box.style.wrap_mode		   = wrap_mode;
+	box.style.overflow_mode	   = overflow_mode;
+
+	return box;
+}
+
+TextRunStyle DialoguePageProperties::ToTextRunStyle() const {
+	TextRunStyle style;
+	style.font	= font_key;
+	style.color = color;
+	style.scale = font_size;
+	return style;
+}
+
+void DialoguePageProperties::ApplyToText(Text text) const {
+	text.Font(font_key)
+		.Color(color)
+		.Size(font_size)
+		.Box(ToTextBox().rect)
+		.Align(horizontal_align, vertical_align)
+		.Wrap(wrap_mode)
+		.Overflow(overflow_mode);
+}
+
+DialoguePage::DialoguePage(std::string_view content, const DialoguePageProperties& properties) :
+	content{ content }, properties{ properties } {}
+
+std::size_t DialogueEntry::PickRandomIndex() const {
 	PTGN_ASSERT(lines.size() > used_line_indices.size());
+
 	if (lines.size() == 1) {
 		return 0;
 	}
-	RNG<std::size_t> index_rng(0, lines.size() - 1);
-	std::size_t chosen_index{ index };
+
+	RNG<std::size_t> index_rng{ 0, lines.size() - 1 };
+
+	auto chosen_index{ index };
+
 	do {
 		chosen_index = index_rng();
 	} while (std::ranges::contains(used_line_indices, chosen_index));
+
 	return chosen_index;
 }
 
-const DialogueLine* Dialogue::GetCurrentDialogueLine() const {
+const DialogueLine* DialogueEntry::GetCurrentDialogueLine() const {
 	PTGN_ASSERT(!lines.empty());
 	PTGN_ASSERT(!used_line_indices.empty());
-	std::size_t current_index = Mod(index, lines.size());
+
+	auto current_index{ Mod(index, lines.size()) };
+
 	PTGN_ASSERT(current_index < lines.size());
 	PTGN_ASSERT(std::ranges::contains(used_line_indices, current_index));
+
 	return &lines[current_index];
 }
 
-std::optional<int> Dialogue::GetNewDialogueLine() {
+std::optional<std::size_t> DialogueEntry::GetNewDialogueLine() {
 	if (lines.empty()) {
 		return std::nullopt;
 	}
+
 	if (lines.size() == used_line_indices.size()) {
 		if (!repeatable) {
 			return std::nullopt;
 		}
+
 		used_line_indices.clear();
+
 		if (lines.size() > 1 && behavior == DialogueBehavior::Random) {
 			used_line_indices.emplace_back(index);
 		}
 	}
-	int chosen_index{ static_cast<int>(index) };
+
+	auto chosen_index{ index };
+
 	switch (behavior) {
-		case DialogueBehavior::Sequential:
-			chosen_index = Mod(chosen_index, static_cast<int>(lines.size()));
+		using enum DialogueBehavior;
+
+		case Sequential:
+			chosen_index = Mod(chosen_index, lines.size());
 			++index;
 			break;
-		case DialogueBehavior::Random:
-			chosen_index = static_cast<int>(PickRandomIndex());
-			index		 = static_cast<std::size_t>(chosen_index);
+
+		case Random:
+			chosen_index = PickRandomIndex();
+			index		 = chosen_index;
 			break;
-		default: PTGN_ERROR("Unrecognized dialogue behavior");
 	}
-	PTGN_ASSERT(static_cast<std::size_t>(chosen_index) < lines.size());
-	PTGN_ASSERT(!std::ranges::contains(used_line_indices, static_cast<std::size_t>(chosen_index)));
-	used_line_indices.emplace_back(static_cast<std::size_t>(chosen_index));
-	if (lines[static_cast<std::size_t>(chosen_index)].pages.empty()) {
+
+	PTGN_ASSERT(chosen_index < lines.size());
+	PTGN_ASSERT(!std::ranges::contains(used_line_indices, chosen_index));
+
+	used_line_indices.emplace_back(chosen_index);
+
+	if (lines[chosen_index].pages.empty()) {
 		return std::nullopt;
 	}
+
 	return chosen_index;
 }
 
-DialogueComponent::DialogueComponent(
-	Entity parent, const json& j, std::variant<GameObject<Sprite>, V2_float> background
-) {
-	auto& scene{ parent.GetScene() };
-
-	DialoguePageProperties default_properties;
-
-	std::visit(
-		[&]<typename T>(T arg) {
-			if constexpr (std::is_same_v<T, GameObject<Sprite>>) {
-				background_ = std::move(arg);
-				SetParent(*background_, parent);
-				auto display_size{ GetDisplaySize(*background_) };
-				PTGN_ASSERT(
-					display_size.has_value() && !display_size->IsZero(),
-					"Dialogue backgroud must have a valid display size"
-				);
-				default_properties.box_size = *display_size;
-			} else if constexpr (std::is_same_v<T, V2_float>) {
-				default_properties.box_size = arg;
-			} else {
-				static_assert(false, "Incomplete visitor!");
-			}
-		},
-		std::move(background)
-	);
-
-	PTGN_ASSERT(
-		!default_properties.box_size.HasZero(),
-		"Dialogue component must have a non-zero default box size"
-	);
-
-	text_ = GameObject{ CreateText(scene) };
-
-	tween_ = GameObject{ CreateTween(scene) };
-
-	AddChild(parent, tween_, "tween");
-	AddChild(parent, text_, "text");
-
-	LoadFromJson(scene, j, default_properties);
-
-	Close();
+void DialogueData::ClearRuntimeState() {
+	current_line = 0;
+	current_page = 0;
+	open		 = false;
 }
 
-Key DialogueComponent::GetContinueKey() const {
-	return continue_key_;
-}
-
-void DialogueComponent::SetContinueKey(Key continue_key) {
-	continue_key_ = continue_key;
-}
-
-bool DialogueComponent::IsOpen() const {
-	return IsVisible(text_);
-}
-
-void DialogueComponent::Open(std::string_view dialogue_name) {
-	PTGN_ASSERT(!dialogues_.empty());
-	if (!dialogue_name.empty()) {
-		if (dialogue_name == current_dialogue_ && IsOpen()) {
-			return;
-		}
-		current_dialogue_ = dialogue_name;
-	} else if (IsOpen()) {
-		return;
-	}
-	if (current_dialogue_.empty()) {
-		return;
-	}
-	auto dialogue = GetCurrentDialogue();
-	if (!dialogue) {
-		return;
-	}
-	auto dialogue_line_index = dialogue->GetNewDialogueLine();
-	if (!dialogue_line_index.has_value()) {
-		return;
-	}
-	StartDialogueLine(*dialogue_line_index);
-	Show(text_);
-	if (background_.has_value()) {
-		Show(*background_);
-	}
-}
-
-void DialogueComponent::Close() {
-	Hide(text_);
-	if (background_.has_value()) {
-		Hide(*background_);
-	}
-	tween_.Clear();
-	RemoveScript<impl::DialogueWaitScript>(text_);
-	current_line_ = 0;
-	current_page_ = 0;
-}
-
-void DialogueComponent::IncrementPage() {
-	current_page_++;
-}
-
-void DialogueComponent::NextPage() {
-	IncrementPage();
-	auto page{ GetCurrentDialoguePage() };
-	if (!page) {
-		Close();
-		return;
-	}
-	auto duration{ page->properties.scroll_duration };
-
-	tween_.Clear();
-	tween_.During(duration).AddScript<impl::DialogueScrollScript>().Start();
-}
-
-void DialogueComponent::SetNextDialogue() {
-	auto dialogue = GetCurrentDialogue();
-	if (!dialogue) {
-		current_line_ = 0;
-		current_page_ = 0;
-		return;
-	}
-	const auto& next_dialogue{ dialogue->next_dialogue };
-	PTGN_ASSERT(next_dialogue.empty() || dialogues_.contains(next_dialogue));
-	if (next_dialogue.empty()) {
-		current_line_ = 0;
-		current_page_ = 0;
-	}
-	current_dialogue_ = next_dialogue;
-}
-
-void DialogueComponent::SetDialogue(std::string_view name) {
-	PTGN_ASSERT(name.empty() || dialogues_.contains(name));
-	current_dialogue_ = name;
-	current_line_	  = 0;
-	current_page_	  = 0;
-}
-
-const DialogueMap& DialogueComponent::GetDialogues() const {
-	return dialogues_;
-}
-
-Dialogue* DialogueComponent::GetCurrentDialogue() {
-	if (current_dialogue_.empty()) {
-		return nullptr;
-	}
-	auto it{ dialogues_.find(current_dialogue_) };
-	if (it == dialogues_.end()) {
-		return nullptr;
-	}
-	return &it->second;
-}
-
-DialogueLine* DialogueComponent::GetCurrentDialogueLine() {
-	if (current_line_ < 0) {
-		return nullptr;
-	}
-	auto dialogue = GetCurrentDialogue();
-	if (!dialogue || static_cast<std::size_t>(current_line_) >= dialogue->lines.size()) {
-		return nullptr;
-	}
-	return &dialogue->lines[static_cast<std::size_t>(current_line_)];
-}
-
-DialoguePage* DialogueComponent::GetCurrentDialoguePage() {
-	if (current_page_ < 0) {
-		return nullptr;
-	}
-	auto line = GetCurrentDialogueLine();
-	if (!line || static_cast<std::size_t>(current_page_) >= line->pages.size()) {
-		return nullptr;
-	}
-	return &line->pages[static_cast<std::size_t>(current_page_)];
-}
-
-void DialogueComponent::DrawInfo(Scene& scene, V2_float position) {
-	constexpr float font_size{ 32 };
-	// TODO: Fix.
-	// scene.ctx().render_queue.DrawText(
-	//	position + V2_float{ 0, 0 }, std::format("Dialogue: {}", current_dialogue_), color::White,
-	//	font_size, {}, {}, Origin::TopLeft, .debug = true
-	//);
-	// scene.ctx().render_queue.DrawText(
-	//	position + V2_float{ 0, 50 }, std::format("Line: {}", std::to_string(current_line_)),
-	//	color::White, font_size, {}, {}, Origin::TopLeft, .debug = true
-	//);
-	// scene.ctx().render_queue.DrawText(
-	//	position + V2_float{ 0, 100 }, std::format("Page: {}", std::to_string(current_page_)),
-	//	color::White, font_size, {}, {}, Origin::TopLeft, .debug = true
-	//);
-}
-
-void DialogueComponent::AlignToTopLeft(const DialoguePageProperties& default_properties) const {
-	SetPosition(
-		text_, V2_int{ default_properties.padding_left, default_properties.padding_top } -
-				   default_properties.box_size / 2.0f
-	);
-	SetDrawOrigin(text_, Origin::TopLeft);
-}
-
-void DialogueComponent::StartDialogueLine(int dialogue_line_index) {
-	PTGN_ASSERT(dialogue_line_index >= 0);
-	current_line_ = dialogue_line_index;
-	current_page_ = 0;
-	auto page	  = GetCurrentDialoguePage();
-	PTGN_ASSERT(page);
-	auto duration = page->properties.scroll_duration;
-	tween_.Clear();
-	tween_.During(duration).AddScript<impl::DialogueScrollScript>().Start();
-	AddScript<impl::DialogueWaitScript>(text_);
-}
-
-void DialogueComponent::LoadFromJson(
+void DialogueData::LoadFromJson(
 	const Scene& scene, const json& root, const DialoguePageProperties& default_properties
 ) {
-	const auto root_properties{ default_properties.InheritProperties(root) };
-	AlignToTopLeft(root_properties);
+	dialogues.clear();
+
+	auto root_properties{ default_properties.InheritProperties(root) };
+
 	PTGN_ASSERT(
 		!root_properties.box_size.IsZero(),
-		"Dialogue requires either a sprite background or a non-zero json defined box size"
+		"Dialogue requires either a sprite background or a non-zero box size"
 	);
+
 	std::string split_end{ root.value("split_end", "...") };
 	std::string split_begin{ root.value("split_begin", ",,,") };
-	int default_index{ root.value("index", 0) };
-	PTGN_ASSERT(default_index >= 0, "Index must be greater than or equal to zero");
-	DialogueBehavior behavior{ root.value("behavior", DialogueBehavior::Sequential) };
-	bool repeatable{ root.value("repeatable", true) };
-	bool scroll{ root.value("scroll", true) };
 
-	PTGN_ASSERT(root.contains("dialogues"));
-	const auto& dialogues_json = root.at("dialogues");
+	auto default_index{ root.value("index", 0) };
+
+	PTGN_ASSERT(default_index >= 0, "Index must be greater than or equal to zero");
+
+	auto behavior{ root.value("behavior", DialogueBehavior::Sequential) };
+	auto repeatable{ root.value("repeatable", true) };
+	auto scroll{ root.value("scroll", true) };
 
 	std::string next{ root.value("next", "") };
+
+	continue_key	 = root.value("continue_key", continue_key);
+	current_dialogue = root.value("start", std::string{});
+
+	PTGN_ASSERT(root.contains("dialogues"));
+
+	const auto& dialogues_json{ root.at("dialogues") };
+
 	PTGN_ASSERT(
-		next.empty() || dialogues_json.contains(next), "Next key not found in json of dialogues"
+		current_dialogue.empty() || dialogues_json.contains(current_dialogue),
+		"Start key not found in dialogue json"
 	);
 
-	current_dialogue_ = root.value("start", "");
-
 	PTGN_ASSERT(
-		current_dialogue_.empty() || dialogues_json.contains(current_dialogue_),
-		"Start key not found in json of dialogues"
+		next.empty() || dialogues_json.contains(next), "Next key not found in dialogue json"
 	);
 
-	for (auto it = dialogues_json.begin(); it != dialogues_json.end(); ++it) {
-		std::string_view dialogue_name = it.key();
-		const auto& dialogue_json	   = it.value();
+	for (auto it{ dialogues_json.begin() }; it != dialogues_json.end(); ++it) {
+		std::string dialogue_name{ it.key() };
+		const auto& dialogue_json{ it.value() };
 
-		Dialogue dialogue;
+		DialogueEntry dialogue;
 
-		const auto dialogue_properties = root_properties.InheritProperties(dialogue_json);
+		auto dialogue_properties{ root_properties.InheritProperties(dialogue_json) };
 
-		int index{ dialogue_json.value("index", default_index) };
+		auto index{ dialogue_json.value("index", default_index) };
+
 		dialogue.repeatable	   = dialogue_json.value("repeatable", repeatable);
 		dialogue.scroll		   = dialogue_json.value("scroll", scroll);
 		dialogue.next_dialogue = dialogue_json.value("next", next);
+		dialogue.behavior	   = dialogue_json.value("behavior", behavior);
+
 		PTGN_ASSERT(
 			dialogue.next_dialogue.empty() || dialogues_json.contains(dialogue.next_dialogue),
-			"Next key not found in json of dialogues"
+			"Next key not found in dialogue json"
 		);
-		dialogue.behavior = dialogue_json.value("behavior", behavior);
 
 		PTGN_ASSERT(dialogue_json.contains("lines"));
 
-		const auto& lines_json = dialogue_json.at("lines");
+		const auto& lines_json{ dialogue_json.at("lines") };
+
+		auto append_pages = [&](DialogueLine& line, std::string_view content,
+								const DialoguePageProperties& properties) {
+			auto pages{ PaginateDialogueText(scene, content, properties, split_end, split_begin) };
+
+			line.pages.append_range(pages);
+		};
 
 		if (lines_json.is_string()) {
 			DialogueLine line;
-			auto pages = SplitTextWithDuration(
-				scene, lines_json.get<std::string>(), dialogue_properties, split_end, split_begin
-			);
-			line.pages.append_range(pages);
-			dialogue.lines.push_back(std::move(line));
+			append_pages(line, lines_json.get<std::string>(), dialogue_properties);
+			dialogue.lines.emplace_back(std::move(line));
 		} else if (lines_json.is_array()) {
 			for (const auto& line_json : lines_json) {
 				DialogueLine line;
 
 				if (line_json.is_string()) {
-					auto pages = SplitTextWithDuration(
-						scene, line_json.get<std::string>(), dialogue_properties, split_end,
-						split_begin
-					);
-					line.pages.append_range(pages);
+					append_pages(line, line_json.get<std::string>(), dialogue_properties);
 				} else if (line_json.is_object()) {
-					const auto line_properties = dialogue_properties.InheritProperties(line_json);
+					auto line_properties{ dialogue_properties.InheritProperties(line_json) };
 
 					PTGN_ASSERT(line_json.contains("pages"));
 
-					const auto& pages_json = line_json.at("pages");
+					const auto& pages_json{ line_json.at("pages") };
 
 					if (pages_json.is_string()) {
-						auto pages = SplitTextWithDuration(
-							scene, pages_json.get<std::string>(), line_properties, split_end,
-							split_begin
-						);
-						line.pages.append_range(pages);
+						append_pages(line, pages_json.get<std::string>(), line_properties);
 					} else if (pages_json.is_array()) {
 						for (const auto& page_json : pages_json) {
 							if (page_json.is_string()) {
-								auto pages = SplitTextWithDuration(
-									scene, page_json.get<std::string>(), line_properties, split_end,
-									split_begin
-								);
-								line.pages.append_range(pages);
+								append_pages(line, page_json.get<std::string>(), line_properties);
 							} else if (page_json.is_object()) {
 								PTGN_ASSERT(page_json.contains("content"));
-								const std::string content = page_json.at("content");
 
-								const auto page_properties{
+								auto page_properties{
 									line_properties.InheritProperties(page_json)
 								};
 
-								auto pages{ SplitTextWithDuration(
-									scene, content, page_properties, split_end, split_begin
-								) };
-								line.pages.append_range(pages);
+								append_pages(
+									line, page_json.at("content").get<std::string>(),
+									page_properties
+								);
 							}
 						}
 					}
 				}
 
-				dialogue.lines.push_back(std::move(line));
+				dialogue.lines.emplace_back(std::move(line));
 			}
 		}
 
@@ -557,10 +472,11 @@ void DialogueComponent::LoadFromJson(
 			if (dialogue.behavior == DialogueBehavior::Sequential &&
 				index >= static_cast<int>(dialogue.lines.size())) {
 				PTGN_WARN(
-					"Index ", index, " out of range of '", dialogue_name,
-					"' dialogue lines; clamping to ", dialogue.lines.size() - 1
+					"Dialogue index ", index, " out of range of '", dialogue_name,
+					"'; clamping to ", dialogue.lines.size() - 1
 				);
 			}
+
 			index = std::clamp(index, 0, static_cast<int>(dialogue.lines.size() - 1));
 		} else {
 			index = 0;
@@ -568,191 +484,508 @@ void DialogueComponent::LoadFromJson(
 
 		dialogue.index = static_cast<std::size_t>(index);
 
-		dialogues_.emplace(dialogue_name, std::move(dialogue));
+		dialogues.emplace(std::move(dialogue_name), std::move(dialogue));
+	}
+
+	ClearRuntimeState();
+}
+
+DialogueBox::DialogueBox(Entity entity) : Entity{ entity } {}
+
+DialogueData& DialogueBox::Data() {
+	return Get<DialogueData>();
+}
+
+const DialogueData& DialogueBox::Data() const {
+	return Get<DialogueData>();
+}
+
+Key DialogueBox::GetContinueKey() const {
+	return Data().continue_key;
+}
+
+DialogueBox& DialogueBox::SetContinueKey(Key continue_key) {
+	Data().continue_key = continue_key;
+	return *this;
+}
+
+bool DialogueBox::IsOpen() const {
+	return Data().open;
+}
+
+DialogueBox& DialogueBox::Open(std::string_view dialogue_name) {
+	auto& data{ Data() };
+
+	PTGN_ASSERT(!data.dialogues.empty());
+
+	if (!dialogue_name.empty()) {
+		if (dialogue_name == data.current_dialogue && data.open) {
+			return *this;
+		}
+
+		data.current_dialogue = dialogue_name;
+	} else if (data.open) {
+		return *this;
+	}
+
+	if (data.current_dialogue.empty()) {
+		return *this;
+	}
+
+	auto* dialogue{ GetCurrentDialogue() };
+
+	if (!dialogue) {
+		return *this;
+	}
+
+	auto dialogue_line_index{ dialogue->GetNewDialogueLine() };
+
+	if (!dialogue_line_index.has_value()) {
+		return *this;
+	}
+
+	data.current_line = *dialogue_line_index;
+	data.current_page = 0;
+	data.open		  = true;
+
+	ApplyCurrentPage();
+	StartCurrentPageScroll();
+
+	return *this;
+}
+
+DialogueBox& DialogueBox::Close() {
+	auto& data{ Data() };
+
+	data.open		  = false;
+	data.current_line = 0;
+	data.current_page = 0;
+
+	if (auto text{ TryTextPart() }) {
+		Hide(*text);
+	}
+
+	if (auto background{ TryBackgroundEntity() }) {
+		Hide(*background);
+	}
+
+	if (auto tween{ TryTweenPart() }) {
+		tween->Clear();
+	}
+
+	return *this;
+}
+
+DialogueBox& DialogueBox::NextPage() {
+	auto& data{ Data() };
+
+	++data.current_page;
+
+	auto* page{ GetCurrentDialoguePage() };
+
+	if (!page) {
+		Close();
+		SetNextDialogue();
+		return *this;
+	}
+
+	ApplyCurrentPage();
+	StartCurrentPageScroll();
+
+	return *this;
+}
+
+DialogueBox& DialogueBox::CompletePage() {
+	TextPart().RevealAll();
+
+	if (auto tween{ TryTweenPart() }) {
+		tween->Clear();
+	}
+
+	return *this;
+}
+
+DialogueBox& DialogueBox::SetDialogue(std::string_view name) {
+	auto& data{ Data() };
+
+	PTGN_ASSERT(name.empty() || data.dialogues.contains(name));
+
+	data.current_dialogue = std::string{ name };
+	data.current_line	  = 0;
+	data.current_page	  = 0;
+
+	return *this;
+}
+
+DialogueBox& DialogueBox::SetNextDialogue() {
+	auto& data{ Data() };
+
+	auto* dialogue{ GetCurrentDialogue() };
+
+	if (!dialogue) {
+		data.current_line = 0;
+		data.current_page = 0;
+		return *this;
+	}
+
+	if (dialogue->next_dialogue.empty()) {
+		data.current_line = 0;
+		data.current_page = 0;
+		return *this;
+	}
+
+	PTGN_ASSERT(data.dialogues.contains(dialogue->next_dialogue));
+
+	data.current_dialogue = dialogue->next_dialogue;
+	data.current_line	  = 0;
+	data.current_page	  = 0;
+
+	return *this;
+}
+
+DialogueEntry* DialogueBox::GetCurrentDialogue() {
+	auto& data{ Data() };
+
+	if (data.current_dialogue.empty()) {
+		return nullptr;
+	}
+
+	auto it{ data.dialogues.find(data.current_dialogue) };
+
+	if (it == data.dialogues.end()) {
+		return nullptr;
+	}
+
+	return &it->second;
+}
+
+DialogueLine* DialogueBox::GetCurrentDialogueLine() {
+	auto& data{ Data() };
+
+	auto* dialogue{ GetCurrentDialogue() };
+
+	if (!dialogue || data.current_line >= dialogue->lines.size()) {
+		return nullptr;
+	}
+
+	return &dialogue->lines[data.current_line];
+}
+
+DialoguePage* DialogueBox::GetCurrentDialoguePage() {
+	auto& data{ Data() };
+
+	auto* line{ GetCurrentDialogueLine() };
+
+	if (!line || data.current_page >= line->pages.size()) {
+		return nullptr;
+	}
+
+	return &line->pages[data.current_page];
+}
+
+std::optional<Entity> DialogueBox::TryPart(DialoguePartRole role) const {
+	return FindDialoguePart(*this, role);
+}
+
+Entity DialogueBox::Part(DialoguePartRole role) {
+	if (auto part{ TryPart(role) }) {
+		return *part;
+	}
+
+	Entity entity{ GetScene().CreateEntity() };
+	entity.Add<impl::DialoguePart>(role);
+	SetParent(entity, *this);
+
+	return entity;
+}
+
+Text DialogueBox::TextPart() {
+	if (auto text{ TryTextPart() }) {
+		return *text;
+	}
+
+	Text text{ CreateText(GetScene(), {}, Origin::TopLeft) };
+	text.Add<impl::DialoguePart>(DialoguePartRole::Text);
+	SetParent(text, *this);
+	Hide(text);
+
+	return text;
+}
+
+std::optional<Text> DialogueBox::TryTextPart() const {
+	auto part{ TryPart(DialoguePartRole::Text) };
+
+	if (!part.has_value()) {
+		return std::nullopt;
+	}
+
+	return Text{ *part };
+}
+
+Tween DialogueBox::TweenPart() {
+	if (auto tween{ TryTweenPart() }) {
+		return *tween;
+	}
+
+	Tween tween{ CreateTween(GetScene()) };
+	tween.Add<impl::DialoguePart>(DialoguePartRole::Tween);
+	SetParent(tween, *this);
+
+	return tween;
+}
+
+std::optional<Tween> DialogueBox::TryTweenPart() const {
+	auto part{ TryPart(DialoguePartRole::Tween) };
+
+	if (!part.has_value()) {
+		return std::nullopt;
+	}
+
+	return Tween{ *part };
+}
+
+std::optional<Sprite> DialogueBox::TryBackground() const {
+	auto part{ TryPart(DialoguePartRole::Background) };
+
+	if (!part.has_value()) {
+		return std::nullopt;
+	}
+
+	if (!part->Has<Texture>()) {
+		return std::nullopt;
+	}
+
+	return Sprite{ *part };
+}
+
+std::optional<Entity> DialogueBox::TryBackgroundEntity() const {
+	return TryPart(DialoguePartRole::Background);
+}
+
+void DialogueBox::DrawInfo(Scene& scene, V2_float position) {
+	(void)scene;
+	(void)position;
+
+	// Hook this into your debug text helpers if desired.
+}
+
+void DialogueBox::ApplyCurrentPage() {
+	auto* page{ GetCurrentDialoguePage() };
+
+	if (!page) {
+		Close();
+		return;
+	}
+
+	Text text{ TextPart() };
+
+	text.Clear()
+		.Content(page->content)
+		.Font(page->properties.font_key)
+		.Color(page->properties.color)
+		.Size(page->properties.font_size)
+		.Box(page->properties.TextAreaRect())
+		.Align(page->properties.horizontal_align, page->properties.vertical_align)
+		.Wrap(page->properties.wrap_mode)
+		.Overflow(page->properties.overflow_mode)
+		.Reveal(0);
+
+	PositionTextForPage(page->properties);
+
+	Show(text);
+
+	if (auto background{ TryBackgroundEntity() }) {
+		Show(*background);
 	}
 }
 
-std::string DialogueComponent::JoinLines(const std::vector<std::string>& lines) {
-	std::string result;
-	for (const auto& line : lines) {
-		if (!result.empty()) {
-			result += "\n";
-		}
-		result += line;
+void DialogueBox::StartCurrentPageScroll() {
+	auto* page{ GetCurrentDialoguePage() };
+	auto* dialogue{ GetCurrentDialogue() };
+
+	if (!page || !dialogue) {
+		Close();
+		return;
 	}
-	return result;
+
+	Tween tween{ TweenPart() };
+	tween.Clear();
+
+	if (!dialogue->scroll || page->properties.scroll_duration <= 0ms) {
+		TextPart().RevealAll();
+		return;
+	}
+
+	tween.During(page->properties.scroll_duration).AddScript<impl::DialogueScrollScript>().Start();
 }
 
-std::vector<DialoguePage> DialogueComponent::SplitTextWithDuration(
-	const Scene& scene, std::string_view full_text, const DialoguePageProperties& properties,
-	std::string_view split_end, std::string_view split_begin
-) {
-	const FontSystem& font{ scene.ctx().font };
+void DialogueBox::PositionTextForPage(const DialoguePageProperties& properties) {
+	Rect outer_rect{ GetLocalRect(GetDrawOrigin(*this), properties.box_size) };
+	Rect content_rect{ ApplyPadding(outer_rect, properties.padding) };
 
-	// TODO: Potentially move these outside of this function.
-	const int split_begin_width{
-		font.GetSize(properties.font_key, split_begin, properties.font_size).x
-	};
-	const int split_end_width{
-		font.GetSize(properties.font_key, split_end, properties.font_size).x
-	};
+	Text text{ TextPart() };
 
-	std::vector<DialoguePage> pages;
+	SetPosition(text, content_rect.min);
+	SetDrawOrigin(text, Origin::TopLeft);
 
-	const int text_area_width  = static_cast<int>(properties.box_size.x) - properties.padding_left -
-								 properties.padding_right;
-	const int text_area_height = static_cast<int>(properties.box_size.y) - properties.padding_top -
-								 properties.padding_bottom;
+	text.Box(Rect{ {}, content_rect.GetSize() });
+}
 
-	if (text_area_width <= 0 || text_area_height <= 0) {
-		return pages;
+DialogueBox CreateDialogueBox(Scene& scene, const DialogueDesc& desc) {
+	DialogueBox dialogue{ scene.CreateEntity() };
+
+	dialogue.Add<DialogueData>();
+
+	SetPosition(dialogue, desc.position);
+	SetDrawOrigin(dialogue, desc.origin);
+
+	if (desc.ui_layer) {
+		SetUI(dialogue, true);
 	}
 
-	const int line_height = font.GetHeight(properties.font_key, properties.font_size);
-	// const int line_height = font.GetSize(properties.font_key, "Ay", properties.font_size).y;
+	DialoguePageProperties default_properties;
+	default_properties.box_size = desc.box_size;
 
-	auto WrapTextToBox = [&](std::string_view text_view, int max_width, int max_lines,
-							 int split_begin_width,
-							 int split_end_width) -> std::vector<std::string> {
-		std::string text{ text_view };
-		std::istringstream word_stream(text);
-		std::vector<std::string> lines;
-		std::string word, current_line;
+	if (desc.background_texture.has_value()) {
+		Sprite background{ CreateSprite(scene, *desc.background_texture, {}, Origin::Center) };
+		background.Add<impl::DialoguePart>(DialoguePartRole::Background);
+		SetParent(background, dialogue);
 
-		int line_count	   = 0; // To count the number of lines wrapped
-		bool is_first_line = true;
-		bool is_last_line  = false;
-
-		while (word_stream >> word) {
-			std::string test_line = current_line.empty() ? word : current_line + " " + word;
-
-			V2_int size{ font.GetSize(properties.font_key, test_line, properties.font_size) };
-
-			if (is_first_line) {
-				size.x += split_begin_width; // Add split_begin width on the first line
-			}
-
-			if (is_last_line) {
-				size.x += split_end_width; // Add split_end width on the last line
-			}
-
-			if (size.x > max_width) {
-				// Handle word too long for a single line
-				if (current_line.empty()) {
-					std::string chunk;
-					for (char ch : word) {
-						chunk += ch;
-						V2_int part_size =
-							font.GetSize(properties.font_key, chunk, properties.font_size);
-						if (part_size.x > max_width) {
-							if (chunk.size() > 1) {
-								chunk.pop_back();
-								lines.push_back(chunk);
-								chunk = ch;
-							}
-						}
-					}
-					current_line = chunk;
-				} else {
-					lines.push_back(current_line);
-					current_line = word;
-				}
-				is_first_line = false;
-			} else {
-				current_line = test_line;
-			}
-
-			// Determine if it's the last line
-			line_count++; // Count the number of lines wrapped
-			is_last_line = (line_count >= max_lines);
+		if (auto size{ GetDisplaySize(background) }; size.has_value() && size->IsPositive()) {
+			default_properties.box_size = *size;
 		}
 
-		if (!current_line.empty()) {
-			V2_int size = font.GetSize(properties.font_key, current_line, properties.font_size);
-			if (size.x <= max_width) {
-				lines.push_back(current_line);
-			} else {
-				// Final check in case of leftover overlong word
-				std::string chunk;
-				for (char ch : current_line) {
-					chunk += ch;
-					V2_int part_size =
-						font.GetSize(properties.font_key, chunk, properties.font_size);
-					if (part_size.x > max_width) {
-						if (chunk.size() > 1) {
-							chunk.pop_back();
-							lines.push_back(chunk);
-							chunk = ch;
-						}
-					}
-				}
-				if (!chunk.empty()) {
-					lines.push_back(chunk);
-				}
-			}
-		}
+		SetPosition(background, GetOffset(desc.origin, default_properties.box_size));
+		Hide(background);
+	} else if (desc.box_size.IsPositive()) {
+		Entity background{ scene.CreateEntity() };
 
-		return lines;
+		background.Add<Rect>(Rect{ desc.box_size });
+		background.Add<impl::DialoguePart>(DialoguePartRole::Background);
+
+		SetTint(background, desc.background_tint);
+		SetDraw<RectDraw>(background);
+		SetDrawOrigin(background, Origin::Center);
+		SetPosition(background, GetOffset(desc.origin, desc.box_size));
+		SetParent(background, dialogue);
+		Hide(background);
+	}
+
+	Text text{ dialogue.TextPart() };
+	Tween tween{ dialogue.TweenPart() };
+
+	(void)text;
+	(void)tween;
+
+	dialogue.Data().LoadFromJson(scene, desc.data, default_properties);
+
+	if (!HasScript<impl::DialogueWaitScript>(dialogue)) {
+		AddScript<impl::DialogueWaitScript>(dialogue);
+	}
+
+	dialogue.Close();
+
+	return dialogue;
+}
+
+void to_json(json& j, const DialoguePageProperties& properties) {
+	j = json{
+		{ "color", properties.color },
+		{ "font_key", properties.font_key },
+		{ "font_size", properties.font_size },
+		{ "box_size", properties.box_size },
+		{ "padding_left", properties.padding.min.x },
+		{ "padding_right", properties.padding.max.x },
+		{ "padding_top", properties.padding.min.y },
+		{ "padding_bottom", properties.padding.max.y },
+		{ "scroll_duration", properties.scroll_duration },
+		{ "horizontal_align", properties.horizontal_align },
+		{ "vertical_align", properties.vertical_align },
+		{ "wrap_mode", properties.wrap_mode },
+		{ "overflow_mode", properties.overflow_mode },
 	};
+}
 
-	// Split by manual newlines
-	std::vector<std::string> newline_segments;
-	std::size_t start{ 0 };
-	std::size_t newline_pos{ 0 };
+void from_json(const json& j, DialoguePageProperties& properties) {
+	properties = properties.InheritProperties(j);
+}
 
-	while ((newline_pos = full_text.find('\n', start)) != std::string::npos) {
-		newline_segments.emplace_back(full_text.substr(start, newline_pos - start));
-		start = newline_pos + 1;
+void to_json(json& j, const DialoguePage& page) {
+	j = json{
+		{ "content", page.content },
+		{ "properties", page.properties },
+	};
+}
+
+void from_json(const json& j, DialoguePage& page) {
+	page.content = j.value("content", std::string{});
+
+	if (j.contains("properties")) {
+		page.properties = j.at("properties").get<DialoguePageProperties>();
 	}
-	newline_segments.emplace_back(full_text.substr(start));
+}
 
-	for (const auto& segment : newline_segments) {
-		if (segment.empty()) {
-			pages.emplace_back(DialoguePage{ "", properties });
-			continue;
-		}
+void to_json(json& j, const DialogueLine& line) {
+	j = json{
+		{ "pages", line.pages },
+	};
+}
 
-		const int max_lines = std::max(1, text_area_height / line_height);
-		std::vector<std::string> wrapped_lines =
-			WrapTextToBox(segment, text_area_width, max_lines, split_begin_width, split_end_width);
+void from_json(const json& j, DialogueLine& line) {
+	line.pages.clear();
 
-		std::vector<std::string> page_lines;
-		bool is_first_page = true;
+	if (j.contains("pages")) {
+		line.pages = j.at("pages").get<std::vector<DialoguePage>>();
+	}
+}
 
-		for (auto i{ 0uz }; i < wrapped_lines.size(); ++i) {
-			page_lines.push_back(wrapped_lines[i]);
+void to_json(json& j, const DialogueEntry& dialogue) {
+	j = json{
+		{ "index", dialogue.index },		{ "repeatable", dialogue.repeatable },
+		{ "behavior", dialogue.behavior },	{ "scroll", dialogue.scroll },
+		{ "next", dialogue.next_dialogue }, { "lines", dialogue.lines },
+	};
+}
 
-			if (page_lines.size() == static_cast<std::size_t>(max_lines)) {
-				std::string page_text{ JoinLines(page_lines) };
-				if (i < wrapped_lines.size() - 1) {
-					page_text += split_end;
-				}
-				if (!is_first_page) {
-					page_text = std::string{ split_begin } + page_text;
-				}
+void from_json(const json& j, DialogueEntry& dialogue) {
+	dialogue.index		   = j.value("index", 0uz);
+	dialogue.repeatable	   = j.value("repeatable", true);
+	dialogue.behavior	   = j.value("behavior", DialogueBehavior::Sequential);
+	dialogue.scroll		   = j.value("scroll", true);
+	dialogue.next_dialogue = j.value("next", std::string{});
 
-				auto page_properties{ properties };
-				pages.emplace_back(page_text, page_properties);
+	dialogue.lines.clear();
 
-				// Clear page_lines to start a new page for the next chunk of text
-				page_lines.clear();
-				is_first_page = false;
-			}
-		}
-
-		// Add the remaining lines as the last page
-		if (!page_lines.empty()) {
-			std::string page_text = JoinLines(page_lines);
-			if (!is_first_page) {
-				page_text = std::string{ split_begin } + page_text;
-			}
-
-			auto page_properties{ properties };
-			pages.emplace_back(page_text, page_properties);
-		}
+	if (j.contains("lines")) {
+		dialogue.lines = j.at("lines").get<std::vector<DialogueLine>>();
 	}
 
-	return pages;
+	dialogue.used_line_indices.clear();
+}
+
+void to_json(json& j, const DialogueData& data) {
+	j = json{
+		{ "continue_key", data.continue_key },
+		{ "current_line", data.current_line },
+		{ "current_page", data.current_page },
+		{ "current_dialogue", data.current_dialogue },
+		{ "open", data.open },
+		{ "dialogues", data.dialogues },
+	};
+}
+
+void from_json(const json& j, DialogueData& data) {
+	data.continue_key	  = j.value("continue_key", Key::Enter);
+	data.current_line	  = j.value("current_line", 0uz);
+	data.current_page	  = j.value("current_page", 0uz);
+	data.current_dialogue = j.value("current_dialogue", std::string{});
+	data.open			  = j.value("open", false);
+
+	data.dialogues.clear();
+
+	if (j.contains("dialogues")) {
+		data.dialogues = j.at("dialogues").get<DialogueMap>();
+	}
 }
 
 } // namespace ptgn

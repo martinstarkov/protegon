@@ -1,6 +1,6 @@
 #pragma once
 
-#include <functional>
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -11,12 +11,13 @@
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/util/string.h"
 #include "core/util/time.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/game_object.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
@@ -26,26 +27,41 @@
 
 namespace ptgn {
 
+class DialogueBox;
 class Scene;
-class DialogueComponent;
+
+enum class DialogueBehavior {
+	Sequential,
+	Random
+};
+PTGN_SERIALIZE_ENUM(DialogueBehavior);
+
+enum class DialoguePartRole : std::uint8_t {
+	Background,
+	Text,
+	Tween,
+};
+PTGN_SERIALIZE_ENUM(DialoguePartRole);
 
 namespace impl {
 
-struct DialogueWaitScript : public Script {
-	DialogueComponent& GetDialogueComponent();
+struct DialoguePart {
+	DialoguePartRole role{ DialoguePartRole::Text };
 
+	PTGN_SERIALIZE(DialoguePart, role)
+};
+
+struct DialogueWaitScript : public Script {
 	void OnEvent(Event event) override;
 
+private:
 	void OnKeyPressed(Key key);
 };
 
 struct DialogueScrollScript : public Script {
-	DialogueComponent& GetDialogueComponent();
-
-	static void UpdateText(Entity text_entity, float elapsed_fraction);
-
 	void OnEvent(Event event) override;
 
+private:
 	void OnPointComplete() const;
 	void OnProgress(float elapsed_fraction) const;
 };
@@ -63,20 +79,30 @@ struct DialoguePageProperties {
 	void SetPadding(V2_int padding);
 	void SetPadding(int top, int right, int bottom, int left);
 
+	[[nodiscard]] V2_float TextAreaSize() const;
+	[[nodiscard]] Rect TextAreaRect() const;
+	[[nodiscard]] TextBox ToTextBox() const;
+	[[nodiscard]] TextRunStyle ToTextRunStyle() const;
+	void ApplyToText(Text text) const;
+
 	Color color{ color::White };
 	std::string font_key;
 	float font_size{ kDefaultFontSize };
+
 	V2_float box_size;
-	int padding_left{ 0 };
-	int padding_right{ 0 };
-	int padding_top{ 0 };
-	int padding_bottom{ 0 };
+	Rect padding;
+
 	milliseconds scroll_duration{ 1000 };
+
+	HorizontalAlign horizontal_align{ HorizontalAlign::Left };
+	VerticalAlign vertical_align{ VerticalAlign::Top };
+	WrapMode wrap_mode{ WrapMode::Word };
+	OverflowMode overflow_mode{ OverflowMode::Clip };
 };
 
 struct DialoguePage {
 	DialoguePage() = default;
-	DialoguePage(std::string_view text_content, const DialoguePageProperties& properties);
+	DialoguePage(std::string_view content, const DialoguePageProperties& properties);
 
 	std::string content;
 	DialoguePageProperties properties;
@@ -86,84 +112,121 @@ struct DialogueLine {
 	std::vector<DialoguePage> pages;
 };
 
-enum class DialogueBehavior {
-	Sequential,
-	Random
-};
-PTGN_SERIALIZE_ENUM(DialogueBehavior);
-
-struct Dialogue {
+struct DialogueEntry {
 	std::size_t index{ 0 };
 	bool repeatable{ true };
 	DialogueBehavior behavior{ DialogueBehavior::Sequential };
 	bool scroll{ true };
 	std::string next_dialogue;
 
-	[[nodiscard]] std::size_t PickRandomIndex() const;
-	const DialogueLine* GetCurrentDialogueLine() const;
-
-	std::optional<int> GetNewDialogueLine();
-
 	std::vector<DialogueLine> lines;
 	std::vector<std::size_t> used_line_indices;
+
+	[[nodiscard]] std::size_t PickRandomIndex() const;
+	[[nodiscard]] const DialogueLine* GetCurrentDialogueLine() const;
+
+	std::optional<std::size_t> GetNewDialogueLine();
 };
 
-using DialogueMap = std::unordered_map<std::string, Dialogue, StringHash, std::equal_to<>>;
+using DialogueMap = std::unordered_map<std::string, DialogueEntry, StringHash, std::equal_to<>>;
 
-class DialogueComponent {
-public:
-	DialogueComponent() = default;
-	/// @param background Either the sprite that is used as the background or the size of the
-	/// background.
-	DialogueComponent(
-		Entity parent, const json& json, std::variant<GameObject<Sprite>, V2_float> background
+struct DialogueData {
+	Key continue_key{ Key::Enter };
+
+	std::size_t current_line{ 0 };
+	std::size_t current_page{ 0 };
+	std::string current_dialogue;
+
+	bool open{ false };
+
+	DialogueMap dialogues;
+
+	void ClearRuntimeState();
+	void LoadFromJson(
+		const Scene& scene, const json& root, const DialoguePageProperties& default_properties
 	);
+};
 
-	Key GetContinueKey() const;
-	void SetContinueKey(Key continue_key);
+struct DialogueDesc {
+	V2_float position;
+	Origin origin{ Origin::Center };
+
+	json data;
+
+	/// @brief Used when no background texture is supplied, and as a fallback if texture size cannot
+	/// be resolved.
+	V2_float box_size;
+
+	std::optional<std::string> background_texture;
+	Color background_tint{ color::Black.WithAlpha(180) };
+
+	bool ui_layer{ true };
+};
+
+class DialogueBox : public Entity {
+public:
+	DialogueBox() = default;
+	explicit DialogueBox(Entity entity);
+
+	[[nodiscard]] DialogueData& Data();
+	[[nodiscard]] const DialogueData& Data() const;
+
+	[[nodiscard]] Key GetContinueKey() const;
+	DialogueBox& SetContinueKey(Key continue_key);
 
 	[[nodiscard]] bool IsOpen() const;
 
-	void Open(std::string_view dialogue_name = "");
-	void Close();
-	void NextPage();
-	void SetNextDialogue();
-	void SetDialogue(std::string_view name = "");
+	DialogueBox& Open(std::string_view dialogue_name = {});
+	DialogueBox& Close();
 
-	const DialogueMap& GetDialogues() const;
-	Dialogue* GetCurrentDialogue();
-	DialogueLine* GetCurrentDialogueLine();
-	DialoguePage* GetCurrentDialoguePage();
-	void IncrementPage();
+	DialogueBox& NextPage();
+	DialogueBox& CompletePage();
+
+	DialogueBox& SetDialogue(std::string_view name = {});
+	DialogueBox& SetNextDialogue();
+
+	[[nodiscard]] DialogueEntry* GetCurrentDialogue();
+	[[nodiscard]] DialogueLine* GetCurrentDialogueLine();
+	[[nodiscard]] DialoguePage* GetCurrentDialoguePage();
+
+	[[nodiscard]] Text TextPart();
+	[[nodiscard]] std::optional<Text> TryTextPart() const;
+
+	[[nodiscard]] Tween TweenPart();
+	[[nodiscard]] std::optional<Tween> TryTweenPart() const;
+
+	[[nodiscard]] std::optional<Sprite> TryBackground() const;
+	[[nodiscard]] std::optional<Entity> TryBackgroundEntity() const;
+
 	void DrawInfo(Scene& scene, V2_float position);
 
 private:
 	friend struct impl::DialogueWaitScript;
+	friend struct impl::DialogueScrollScript;
 
-	void AlignToTopLeft(const DialoguePageProperties& default_properties) const;
-	void StartDialogueLine(int dialogue_line_index);
-	void LoadFromJson(
-		const Scene& scene, const json& root, const DialoguePageProperties& default_properties
-	);
+	[[nodiscard]] std::optional<Entity> TryPart(DialoguePartRole role) const;
+	[[nodiscard]] Entity Part(DialoguePartRole role);
 
-	[[nodiscard]] std::vector<DialoguePage> SplitTextWithDuration(
-		const Scene& scene, std::string_view full_text, const DialoguePageProperties& properties,
-		std::string_view split_end, std::string_view split_begin
-	);
-
-	[[nodiscard]] static std::string JoinLines(const std::vector<std::string>& lines);
-
-	GameObject<Tween> tween_;
-	GameObject<Text> text_;
-	std::optional<GameObject<Sprite>> background_;
-
-	Key continue_key_{ Key::Enter };
-
-	int current_line_{ 0 };
-	int current_page_{ 0 };
-	std::string current_dialogue_;
-
-	DialogueMap dialogues_;
+	void ApplyCurrentPage();
+	void StartCurrentPageScroll();
+	void PositionTextForPage(const DialoguePageProperties& properties);
 };
+
+DialogueBox CreateDialogueBox(Scene& scene, const DialogueDesc& desc);
+
+void to_json(json& j, const DialoguePageProperties& properties);
+void from_json(const json& j, DialoguePageProperties& properties);
+
+void to_json(json& j, const DialoguePage& page);
+void from_json(const json& j, DialoguePage& page);
+
+void to_json(json& j, const DialogueLine& line);
+void from_json(const json& j, DialogueLine& line);
+
+void to_json(json& j, const DialogueEntry& dialogue);
+void from_json(const json& j, DialogueEntry& dialogue);
+
+void to_json(json& j, const DialogueData& data);
+void from_json(const json& j, DialogueData& data);
 
 } // namespace ptgn

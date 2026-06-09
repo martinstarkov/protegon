@@ -59,7 +59,7 @@ std::ostream& operator<<(std::ostream& os, FontStyle style) {
 std::size_t std::hash<ptgn::DistanceFieldStyle>::operator()(
 	const ptgn::DistanceFieldStyle& style
 ) const {
-	// TODO: Quantize floats.
+	// TODO: Quantize floats by converting to integers.
 	return ptgn::Hash(
 		style.weight, style.softness,
 

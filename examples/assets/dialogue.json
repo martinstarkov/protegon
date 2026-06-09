@@ -9,6 +9,7 @@
   ],
   "scroll_duration": "4s",
   "font_size": 30,
+  "font_key": "retro_gaming",
   "padding_left": 80,
   "padding_right": 80,
   "padding_bottom": 80,
@@ -60,7 +61,7 @@
         "You are in the first page of the third line of the intro, you really should get going!\nBye!"
       ],
       "index": 0,
-      "behavior": "sequential",
+      "behavior": "Sequential",
       "scroll": true,
       "repeatable": true,
       "next": "outro"
@@ -71,7 +72,7 @@
         "You are in the first page of the second line of the outro, you are the savior of our city!\nThank you!"
       ],
       "index": 0,
-      "behavior": "random",
+      "behavior": "Random",
       "scroll": true,
       "next": "epilogue"
     },

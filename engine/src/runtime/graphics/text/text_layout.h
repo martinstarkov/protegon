@@ -7,6 +7,7 @@
 #include <string_view>
 #include <vector>
 
+#include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
@@ -115,6 +116,25 @@ struct TextLayout {
 	Rect local_box;
 
 	std::size_t hash{ 0 };
+};
+
+struct TextPageOptions {
+	std::string split_end{ "..." };
+	std::string split_begin{ "..." };
+
+	std::size_t max_lines_per_page{ 0 };
+
+	bool add_split_markers{ true };
+};
+
+struct TextPage {
+	StyledText styled_text;
+	TextMeasurement measurement;
+	std::size_t glyph_count{ 0 };
+};
+
+struct TextPaginationResult {
+	std::vector<TextPage> pages;
 };
 
 namespace impl {
