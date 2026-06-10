@@ -2,6 +2,7 @@
 
 #include <ecs/ecs.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -157,12 +158,7 @@ namespace impl {
 
 template <AssetType T>
 constexpr bool MatchesExtension(std::string_view extension) {
-	for (auto candidate : AssetInfo<T>::extensions) {
-		if (candidate == extension) {
-			return true;
-		}
-	}
-	return false;
+	return std::ranges::contains(AssetInfo<T>::extensions, extension);
 }
 
 AssetKind GetAssetKind(const path& path);
@@ -250,7 +246,7 @@ public:
 		TextureFormat storage_format = kDefaultTextureStorageFormat, TextureParams params = {}
 	);
 
-	Font CreateFont(const path& font_path, std::string_view name);
+	Font CreateFont(const path& font_path);
 	Font LoadFont(std::string_view key, const path& font_path);
 
 	template <AssetType T>
@@ -310,7 +306,7 @@ private:
 	[[nodiscard]] Texture CreateTexture(
 		bool persistent, const path& asset_path, TextureFormat storage_format, TextureParams params
 	);
-	[[nodiscard]] Font CreateFont(bool persistent, const path& asset_path, std::string_view name);
+	[[nodiscard]] Font CreateFont(bool persistent, const path& asset_path);
 
 	[[nodiscard]] ecs::Entity CreateAsset();
 

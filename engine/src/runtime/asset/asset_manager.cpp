@@ -91,9 +91,8 @@ impl::TextureObject AssetManager::CreateTexture(
 	);
 }
 
-impl::TextureObject AssetManager::CreateTexture(
-	const std::uint8_t* pixel_data, TextureDesc desc
-) const {
+impl::TextureObject AssetManager::CreateTexture(const std::uint8_t* pixel_data, TextureDesc desc)
+	const {
 	return impl::RendererAccessor{ renderer_ }.CreateTexture(pixel_data, desc);
 }
 
@@ -135,25 +134,25 @@ Texture AssetManager::LoadTexture(
 	return texture;
 }
 
-Font AssetManager::CreateFont(bool persistent, const path& asset_path, std::string_view name) {
+Font AssetManager::CreateFont(bool persistent, const path& asset_path) {
 	Font font{ CreateAsset(), persistent };
 
-	auto f{ FontSystem::CreateFont(*this, asset_path, name) };
+	auto font_object{ FontSystem::CreateFont(*this, asset_path) };
 
-	font.GetEntity().Add<impl::FontObject>(std::move(f));
+	font.GetEntity().Add<impl::FontObject>(std::move(font_object));
 
 	return font;
 }
 
-Font AssetManager::CreateFont(const path& asset_path, std::string_view name) {
-	return CreateFont(false, asset_path, name);
+Font AssetManager::CreateFont(const path& asset_path) {
+	return CreateFont(false, asset_path);
 }
 
 Font AssetManager::LoadFont(std::string_view key, const path& asset_path) {
 	if (auto existing{ TryGet<Font>(key) }; existing.has_value()) {
 		return *existing;
 	}
-	auto font{ CreateFont(true, asset_path, key) };
+	auto font{ CreateFont(true, asset_path) };
 	impl::AddAssetKey(font.GetEntity(), key, asset_path);
 	return font;
 }

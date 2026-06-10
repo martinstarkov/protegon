@@ -19,6 +19,21 @@
 
 namespace ptgn::impl {
 
+namespace {
+
+void WritePngBytesToVector(void* context, void* data, int size) {
+	PTGN_ASSERT(context, "PNG output context is null");
+	PTGN_ASSERT(data, "PNG output data is null");
+	PTGN_ASSERT(size >= 0, "PNG output size cannot be negative");
+
+	auto& bytes{ *static_cast<std::vector<std::uint8_t>*>(context) };
+
+	auto* first{ static_cast<std::uint8_t*>(data) };
+	bytes.insert(bytes.end(), first, first + size);
+}
+
+} // namespace
+
 Surface::Surface(
 	V2_int size, std::span<const std::uint8_t> pixels, int channels, bool flip_vertically
 ) :
@@ -47,30 +62,45 @@ Surface::Surface(
 	}
 }
 
-Surface::Surface(const path& filepath, int desired_channels) {
-	PTGN_ASSERT(
-		FileExists(filepath),
-		"Cannot create surface from a nonexistent filepath: ", filepath.string()
-	);
+Surface::Surface(std::span<const std::uint8_t> bytes, int desired_channels) {
+	PTGN_ASSERT(bytes.data(), "Embedded PNG binary is null");
+	PTGN_ASSERT(bytes.size() > 0, "Embedded PNG binary is empty");
 
-	int width{ 0 };
-	int height{ 0 };
+	int source_channel_count{ 0 };
+
+	auto data{ stbi_load_from_memory(
+		bytes.data(), static_cast<int>(bytes.size()), &size_.x, &size_.y, &source_channel_count,
+		desired_channels
+	) };
+
+	PTGN_ASSERT(data, "Failed to load image from memory: ", stbi_failure_reason());
+
+	PTGN_ASSERT(size_.IsPositive(), "Loaded image has invalid size");
+
+	auto total_bytes{ static_cast<std::size_t>(size_.x) * size_.y * channels_ };
+
+	pixels_.resize(total_bytes);
+	std::memcpy(pixels_.data(), data, total_bytes);
+
+	stbi_image_free(data);
+}
+
+Surface::Surface(const path& file, int desired_channels) : channels_{ desired_channels } {
+	PTGN_ASSERT(FileExists(file), "Cannot create surface from a nonexistent file: ", file.string());
+
 	int channels_in_file{ 0 };
 
-	auto abs_path{ GetAbsolutePath(filepath) };
+	auto abs_path{ GetAbsolutePath(file) };
 
-	auto data =
-		stbi_load(abs_path.string().c_str(), &width, &height, &channels_in_file, desired_channels);
+	auto data{ stbi_load(
+		abs_path.string().c_str(), &size_.x, &size_.y, &channels_in_file, desired_channels
+	) };
 
-	channels_ = desired_channels;
+	PTGN_ASSERT(data, "Failed to load image '", file.string(), "': ", stbi_failure_reason());
 
-	PTGN_ASSERT(data, "Failed to load image '", filepath.string(), "': ", stbi_failure_reason());
+	PTGN_ASSERT(size_.IsPositive(), "Loaded image has invalid size");
 
-	PTGN_ASSERT(width > 0 && height > 0, "Loaded image has invalid size");
-
-	size_ = { width, height };
-
-	auto total_bytes{ static_cast<std::size_t>(width) * height * channels_ };
+	auto total_bytes{ static_cast<std::size_t>(size_.x) * size_.y * channels_ };
 
 	pixels_.resize(total_bytes);
 	std::memcpy(pixels_.data(), data, total_bytes);
@@ -136,25 +166,27 @@ const std::uint8_t* Surface::Data() const {
 	return pixels_.empty();
 }
 
-std::expected<void, std::string> Surface::SavePNG(const path& filepath) const {
-#ifdef __EMSCRIPTEN__
-	return std::unexpected(
-		"Saving PNGs is not supported in Emscripten builds. This function should not be called."
+std::vector<std::uint8_t> Surface::EncodePNG() const {
+	std::vector<std::uint8_t> encoded;
+
+	auto success{ stbi_write_png_to_func(
+		&WritePngBytesToVector, &encoded, size_.x, size_.y, channels_, pixels_.data(),
+		size_.x * channels_
+	) };
+
+	PTGN_ASSERT(success, "Failed to encode surface as PNG");
+	PTGN_ASSERT(!encoded.empty(), "Encoded PNG was empty");
+
+	return encoded;
+}
+
+std::expected<void, FileWriteError> Surface::SavePNG(const path& file) const {
+	auto png_bytes{ EncodePNG() };
+	PTGN_ASSERT(
+		GetExtension(file) == "png",
+		"File extension must be .png to save surface as PNG: ", file.string()
 	);
-#endif
-
-	auto stride_in_bytes{ size_.x * channels_ };
-
-	EnsureDirectory(filepath.parent_path());
-
-	if (auto success{ stbi_write_png(
-			filepath.string().c_str(), size_.x, size_.y, channels_, pixels_.data(), stride_in_bytes
-		) };
-		!success) {
-		return std::unexpected("Failed to save PNG");
-	}
-
-	return {};
+	return WriteBinary(file, png_bytes);
 }
 
 } // namespace ptgn::impl

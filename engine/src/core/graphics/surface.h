@@ -27,7 +27,9 @@ public:
 		bool flip_vertically = false
 	);
 
-	explicit Surface(const path& filepath, int desired_channels = 4);
+	explicit Surface(std::span<const std::uint8_t> bytes, int desired_channels = 4);
+
+	explicit Surface(const path& file, int desired_channels = 4);
 
 	/// @brief Mirrors the surface vertically.
 	void FlipVertically();
@@ -60,8 +62,11 @@ public:
 
 	[[nodiscard]] bool IsEmpty() const;
 
-	[[nodiscard("Check if png save succeeded")]] std::expected<void, std::string> SavePNG(
-		const path& filepath
+	/// @brief Encodes the surface pixel data as a PNG file in memory.
+	std::vector<std::uint8_t> EncodePNG() const;
+
+	[[nodiscard("Check if png save succeeded")]] std::expected<void, FileWriteError> SavePNG(
+		const path& file
 	) const;
 
 private:

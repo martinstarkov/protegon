@@ -38,10 +38,10 @@ struct FontSize {
 struct FontBinary {
 	constexpr FontBinary() = default;
 
-	constexpr FontBinary(const unsigned char* font_buffer, unsigned int buffer_length) :
+	constexpr FontBinary(const std::uint8_t* font_buffer, std::size_t buffer_length) :
 		buffer{ font_buffer }, length{ buffer_length } {}
 
-	const unsigned char* buffer{ nullptr };
+	const std::uint8_t* buffer{ nullptr };
 	std::size_t length{ 0 };
 };
 
@@ -86,16 +86,17 @@ class FontObject {
 public:
 	FontObject() = default;
 
+	/// @brief Generate font atlas and embed FontData into cached PNG file.
 	FontObject(
-		const AssetManager& asset_manager, path font_path, path cache_directory,
-		std::string_view cache_name, const FontAtlasInfo& atlas_info = {}
+		const AssetManager& asset_manager, path font_path, path cache_png_path,
+		const FontAtlasInfo& atlas_info = {}
 	);
 
-#ifndef __EMSCRIPTEN__
-	FontObject(
-		const AssetManager& asset_manager, path cache_directory, std::string_view cache_name
-	);
-#endif
+	/// @brief Load cached PNG from disk instead of generating a new one.
+	FontObject(const AssetManager& asset_manager, path cache_png_path);
+
+	/// @brief Load built-in font from generated header binary.
+	FontObject(const AssetManager& asset_manager, FontBinary font_png);
 
 	std::optional<GlyphMetrics> GetGlyph(std::uint32_t codepoint) const;
 

@@ -1,16 +1,16 @@
 #include "runtime/graphics/text/text.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string_view>
 
 #include "app/application.h"
 #include "core/editor.h"
 #include "core/graphics/color.h"
+#include "core/input/key.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/font_style.h"
 #include "runtime/graphics/text/text_effect.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
@@ -21,8 +21,6 @@ using namespace ptgn;
 constexpr V2_int game_size{ 800, 800 };
 
 struct TextEffectsScene : public Scene {
-	static constexpr std::string_view font{ "arial" };
-
 	float scale{ 40.0f };
 
 	Text reveal_text;
@@ -33,7 +31,7 @@ struct TextEffectsScene : public Scene {
 
 	Text CreateLine(
 		std::string_view text_content, const Color& color = color::Black, float font_size = 26.0f,
-		std::string_view font_key = font
+		std::string_view font_key = {}
 	) {
 		float stride{ 34.0f };
 		float top{ -static_cast<float>(game_size.y) * 0.5f + 16.0f };
@@ -53,10 +51,10 @@ struct TextEffectsScene : public Scene {
 		ctx().renderer.SetGameSize(game_size);
 		SetBackgroundColor(color::LightGray);
 
-		ctx().asset.Load(font, "assets/Arial.ttf");
+		ctx().asset.Load("custom_font", "assets/retro_gaming.ttf");
 
-		CreateLine("Default font fallback", color::Black, 24.0f, {});
-		CreateLine("Plain black text", color::Black);
+		CreateLine("Plain black text (default font)", color::Black, 26.0f);
+		CreateLine("Plain black text (custom font)", color::Black, 26.0f, "custom_font");
 		CreateLine("Colored text", color::Green);
 
 		CreateLine("Fake bold", color::Black).Bold(true, 0.25f);
@@ -133,9 +131,9 @@ struct TextEffectsScene : public Scene {
 		std::size_t min_reveal{ 4 };
 		std::size_t max_reveal{ reveal_content.size() };
 
-		auto reveal_count{ static_cast<std::size_t>(
+		auto reveal_count{ static_cast<std::size_t>(std::ceil(
 			static_cast<float>(min_reveal) + phase * static_cast<float>(max_reveal - min_reveal)
-		) };
+		)) };
 
 		reveal_text.Reveal(reveal_count);
 	}

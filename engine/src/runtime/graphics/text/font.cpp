@@ -2,23 +2,23 @@
 
 #include <ecs/ecs.h>
 #include <msdf-atlas-gen/msdf-atlas-gen.h>
-#include <msdfgen.h>
 #include <msdfgen-ext.h>
+#include <msdfgen.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstring>
 #include <expected>
 #include <filesystem>
-#include <fstream>
-#include <istream>
+#include <limits>
 #include <list>
 #include <magic_enum/magic_enum.hpp>
+#include <memory>
 #include <optional>
-#include <ostream>
 #include <span>
 #include <string>
 #include <string_view>
-#include <thread>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -26,17 +26,20 @@
 
 #include "core/assert.h"
 #include "core/graphics/surface.h"
+#include "core/log.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
-#include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/asset/asset_manager.h"
 
 namespace ptgn {
+
+template <class T>
+concept BinarySerializable = std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>;
 
 namespace {
 
@@ -47,11 +50,329 @@ constexpr TextureFormat kFontAtlasFormat{ TextureFormat::RGBA8 };
 constexpr TextureParams kFontAtlasTextureParams{ TextureMinFilter::Linear,
 												 TextureMagFilter::Linear };
 
+constexpr std::array<std::uint8_t, 8> kPngSignature{ 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n' };
+constexpr std::array<char, 4> kFontDataChunkType{ 'p', 't', 'F', 'N' };
+constexpr std::array<char, 4> kPngEndChunkType{ 'I', 'E', 'N', 'D' };
+
 using FontAtlasDataType = std::uint8_t;
 
 using AtlasGenerator = msdf_atlas::ImmediateAtlasGenerator<
 	float, kFontAtlasChannelCount, msdf_atlas::mtsdfGenerator,
 	msdf_atlas::BitmapAtlasStorage<FontAtlasDataType, kFontAtlasChannelCount> >;
+
+struct FontCacheHeader {
+	std::array<char, 8> magic{ kExpectedFontCacheMagic };
+	std::uint32_t version{ kExpectedFontCacheVersion };
+	std::uint32_t glyph_count{ 0 };
+	std::uint32_t kerning_count{ 0 };
+};
+
+enum class FontCacheError {
+	CannotOpen,
+	InvalidMagic,
+	UnsupportedVersion,
+	ReadFailed,
+	WriteFailed,
+	InvalidPng,
+	MissingFontData,
+	MissingPngEnd,
+	CrcMismatch
+};
+
+class MemoryReader {
+public:
+	explicit MemoryReader(FontBinary binary) : data_{ binary.buffer }, size_{ binary.length } {}
+
+	template <BinarySerializable T>
+	bool Read(T& value) {
+		if (!CanRead(sizeof(T))) {
+			return false;
+		}
+
+		std::memcpy(&value, data_ + offset_, sizeof(T));
+		offset_ += sizeof(T);
+
+		return true;
+	}
+
+	bool ReadString(std::string& s) {
+		std::uint64_t size{ 0 };
+		if (!Read(size)) {
+			return false;
+		}
+
+		auto byte_count{ static_cast<std::size_t>(size) };
+
+		if (!CanRead(byte_count)) {
+			return false;
+		}
+
+		s.assign(reinterpret_cast<const char*>(data_ + offset_), byte_count);
+		offset_ += byte_count;
+
+		return true;
+	}
+
+private:
+	bool CanRead(std::size_t byte_count) const {
+		return data_ && offset_ <= size_ && byte_count <= size_ - offset_;
+	}
+
+	const std::uint8_t* data_{ nullptr };
+	std::size_t size_{ 0 };
+	std::size_t offset_{ 0 };
+};
+
+class MemoryWriter {
+public:
+	template <BinarySerializable T>
+	void Write(const T& value) {
+		auto* first{ reinterpret_cast<const std::uint8_t*>(&value) };
+		bytes.insert(bytes.end(), first, first + sizeof(T));
+	}
+
+	void WriteString(std::string_view s) {
+		auto size{ static_cast<std::uint64_t>(s.size()) };
+		Write(size);
+
+		auto* first{ reinterpret_cast<const std::uint8_t*>(s.data()) };
+		bytes.insert(bytes.end(), first, first + s.size());
+	}
+
+	std::vector<std::uint8_t> bytes;
+};
+
+bool ReadPath(MemoryReader& in, path& p) {
+	std::string s;
+	if (!in.ReadString(s)) {
+		return false;
+	}
+
+	p = path{ s };
+	return true;
+}
+
+void WritePath(MemoryWriter& out, const path& p) {
+	out.WriteString(p.string());
+}
+
+std::vector<std::uint8_t> WriteFontCachePayload(const impl::FontData& font) {
+	MemoryWriter out;
+
+	FontCacheHeader header{ .glyph_count   = static_cast<std::uint32_t>(font.glyphs.size()),
+							.kerning_count = static_cast<std::uint32_t>(font.kerning.size()) };
+
+	out.Write(header);
+	WritePath(out, font.font_path);
+	out.Write(font.metrics);
+
+	for (const auto& [_, glyph] : font.glyphs) {
+		out.Write(glyph);
+	}
+
+	for (const auto& [key, value] : font.kerning) {
+		out.Write(key);
+		out.Write(value);
+	}
+
+	return std::move(out.bytes);
+}
+
+std::expected<impl::FontData, FontCacheError> ReadFontCachePayload(FontBinary binary) {
+	MemoryReader in{ binary };
+
+	FontCacheHeader header;
+	if (!in.Read(header)) {
+		return std::unexpected(FontCacheError::ReadFailed);
+	}
+
+	if (header.magic != kExpectedFontCacheMagic) {
+		return std::unexpected(FontCacheError::InvalidMagic);
+	}
+
+	if (header.version != kExpectedFontCacheVersion) {
+		return std::unexpected(FontCacheError::UnsupportedVersion);
+	}
+
+	impl::FontData font;
+
+	if (!ReadPath(in, font.font_path)) {
+		return std::unexpected(FontCacheError::ReadFailed);
+	}
+	if (!in.Read(font.metrics)) {
+		return std::unexpected(FontCacheError::ReadFailed);
+	}
+
+	font.glyphs.reserve(header.glyph_count);
+
+	for (std::uint32_t i{ 0 }; i < header.glyph_count; ++i) {
+		impl::GlyphMetrics glyph;
+		if (!in.Read(glyph)) {
+			return std::unexpected(FontCacheError::ReadFailed);
+		}
+
+		font.glyphs.try_emplace(glyph.codepoint, glyph);
+	}
+
+	font.kerning.reserve(header.kerning_count);
+
+	for (std::uint32_t i{ 0 }; i < header.kerning_count; ++i) {
+		std::uint64_t key{ 0 };
+		float value{ 0.0f };
+
+		if (!in.Read(key)) {
+			return std::unexpected(FontCacheError::ReadFailed);
+		}
+		if (!in.Read(value)) {
+			return std::unexpected(FontCacheError::ReadFailed);
+		}
+
+		font.kerning.emplace(key, value);
+	}
+
+	return font;
+}
+
+std::uint32_t ReadBigEndianU32(std::span<const std::uint8_t> bytes, std::size_t offset) {
+	return (static_cast<std::uint32_t>(bytes[offset + 0]) << 24U) |
+		   (static_cast<std::uint32_t>(bytes[offset + 1]) << 16U) |
+		   (static_cast<std::uint32_t>(bytes[offset + 2]) << 8U) |
+		   static_cast<std::uint32_t>(bytes[offset + 3]);
+}
+
+void AppendBigEndianU32(std::vector<std::uint8_t>& bytes, std::uint32_t value) {
+	bytes.push_back(static_cast<std::uint8_t>((value >> 24U) & 0xFFU));
+	bytes.push_back(static_cast<std::uint8_t>((value >> 16U) & 0xFFU));
+	bytes.push_back(static_cast<std::uint8_t>((value >> 8U) & 0xFFU));
+	bytes.push_back(static_cast<std::uint8_t>(value & 0xFFU));
+}
+
+bool MatchesType(
+	std::span<const std::uint8_t> bytes, std::size_t offset, std::array<char, 4> type
+) {
+	for (std::size_t i{ 0 }; i < type.size(); ++i) {
+		if (bytes[offset + i] != static_cast<std::uint8_t>(type[i])) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+std::uint32_t Crc32(std::span<const std::uint8_t> bytes) {
+	std::uint32_t crc{ 0xFFFFFFFFU };
+
+	for (auto byte : bytes) {
+		crc ^= byte;
+
+		for (int bit{ 0 }; bit < 8; ++bit) {
+			crc = (crc & 1U) ? (crc >> 1U) ^ 0xEDB88320U : crc >> 1U;
+		}
+	}
+
+	return crc ^ 0xFFFFFFFFU;
+}
+
+std::vector<std::uint8_t> MakePngChunk(
+	std::array<char, 4> type, std::span<const std::uint8_t> payload
+) {
+	PTGN_ASSERT(
+		payload.size() <= static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()),
+		"PNG chunk payload is too large"
+	);
+
+	std::vector<std::uint8_t> chunk;
+	chunk.reserve(12 + payload.size());
+
+	AppendBigEndianU32(chunk, static_cast<std::uint32_t>(payload.size()));
+
+	for (auto c : type) {
+		chunk.push_back(static_cast<std::uint8_t>(c));
+	}
+
+	chunk.insert(chunk.end(), payload.begin(), payload.end());
+
+	auto crc_start{ chunk.begin() + 4 };
+	auto crc{ Crc32(std::span<const std::uint8_t>{ crc_start, chunk.end() }) };
+
+	AppendBigEndianU32(chunk, crc);
+
+	return chunk;
+}
+
+bool HasPngSignature(std::span<const std::uint8_t> bytes) {
+	return bytes.size() >= kPngSignature.size() &&
+		   std::ranges::equal(kPngSignature, bytes.first(kPngSignature.size()));
+}
+
+impl::Surface CreateSurfaceFromEncodedPng(FontBinary font_png) {
+	return impl::Surface{ std::span{ font_png.buffer, font_png.length }, kFontAtlasChannelCount };
+}
+
+FontCacheError ToFontCacheError(FileWriteError error) {
+	switch (error) {
+		case FileWriteError::OpenFailed:  return FontCacheError::CannotOpen;
+		case FileWriteError::WriteFailed: return FontCacheError::WriteFailed;
+		default:						  PTGN_ERROR("Unknown FileWriteError: ", std::to_underlying(error));
+	}
+}
+
+std::expected<impl::FontData, FontCacheError> ReadFontCacheFromPng(FontBinary font_png) {
+	if (!font_png.buffer || font_png.length == 0) {
+		return std::unexpected(FontCacheError::InvalidPng);
+	}
+
+	std::span<const std::uint8_t> png_bytes{ font_png.buffer, font_png.length };
+
+	if (!HasPngSignature(png_bytes)) {
+		return std::unexpected(FontCacheError::InvalidPng);
+	}
+
+	std::size_t offset{ kPngSignature.size() };
+
+	while (offset + 12 <= png_bytes.size()) {
+		auto length{ ReadBigEndianU32(png_bytes, offset) };
+		auto chunk_size{ static_cast<std::size_t>(length) + 12 };
+
+		if (offset + chunk_size > png_bytes.size()) {
+			return std::unexpected(FontCacheError::InvalidPng);
+		}
+
+		auto type_offset{ offset + 4 };
+		auto data_offset{ offset + 8 };
+		auto crc_offset{ data_offset + static_cast<std::size_t>(length) };
+
+		if (MatchesType(png_bytes, type_offset, kFontDataChunkType)) {
+			auto stored_crc{ ReadBigEndianU32(png_bytes, crc_offset) };
+
+			std::span<const std::uint8_t> crc_bytes{ png_bytes.data() + type_offset,
+													 4 + static_cast<std::size_t>(length) };
+
+			auto computed_crc{ Crc32(crc_bytes) };
+
+			if (stored_crc != computed_crc) {
+				return std::unexpected(FontCacheError::CrcMismatch);
+			}
+
+			FontBinary payload{ png_bytes.data() + data_offset, static_cast<std::size_t>(length) };
+
+			return ReadFontCachePayload(payload);
+		}
+
+		if (MatchesType(png_bytes, type_offset, kPngEndChunkType)) {
+			break;
+		}
+
+		offset += chunk_size;
+	}
+
+	return std::unexpected(FontCacheError::MissingFontData);
+}
+
+std::expected<impl::FontData, FontCacheError> ReadFontCacheFromPng(const path& png_path) {
+	auto png_bytes{ ReadBinary(png_path) };
+	return ReadFontCacheFromPng(FontBinary{ png_bytes.data(), png_bytes.size() });
+}
 
 auto InitFreetype() {
 	auto freetype{ msdfgen::initializeFreetype() };
@@ -92,161 +413,53 @@ std::uint64_t KerningKey(std::uint32_t current_codepoint, std::uint32_t next_cod
 		   static_cast<std::uint64_t>(next_codepoint);
 }
 
-enum class FontCacheError {
-	CannotOpen,
-	InvalidMagic,
-	UnsupportedVersion,
-	ReadFailed,
-	WriteFailed
-};
-
-struct FontCacheHeader {
-	std::array<char, 8> magic{ kExpectedFontCacheMagic };
-	std::uint32_t version{ kExpectedFontCacheVersion };
-	std::uint32_t glyph_count{ 0 };
-	std::uint32_t kerning_count{ 0 };
-};
-
-template <class T>
-concept BinarySerializable = std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>;
-
-template <BinarySerializable T>
-bool WriteRaw(std::ofstream& out, const T& value) {
-	out.write(reinterpret_cast<const char*>(&value), sizeof(T));
-	return static_cast<bool>(out);
-}
-
-template <BinarySerializable T>
-bool ReadRaw(std::ifstream& in, T& value) {
-	in.read(reinterpret_cast<char*>(&value), sizeof(T));
-	return static_cast<bool>(in);
-}
-
-bool WriteString(std::ofstream& out, std::string_view s) {
-	std::uint64_t size = s.size();
-	WriteRaw(out, size);
-	out.write(s.data(), static_cast<std::streamsize>(size));
-	return static_cast<bool>(out);
-}
-
-bool ReadString(std::ifstream& in, std::string& s) {
-	std::uint64_t size{};
-	ReadRaw(in, size);
-	s.resize(size);
-	in.read(s.data(), static_cast<std::streamsize>(size));
-	return static_cast<bool>(in);
-}
-
-bool WritePath(std::ofstream& out, const path& p) {
-	return WriteString(out, p.string());
-}
-
-bool ReadPath(std::ifstream& in, path& p) {
-	std::string s;
-	if (!ReadString(in, s)) {
-		return false;
-	}
-	p = path{ s };
-	return true;
-}
-
-std::expected<void, FontCacheError> WriteFontCache(
-	const path& cache_path, const impl::FontData& font
+std::expected<std::vector<std::uint8_t>, FontCacheError> InsertPngChunkBeforeIend(
+	std::span<const std::uint8_t> png_bytes, std::array<char, 4> type,
+	std::span<const std::uint8_t> payload
 ) {
-	EnsureDirectory(cache_path.parent_path());
-
-	std::ofstream out(cache_path, std::ios::binary);
-	if (!out) {
-		return std::unexpected(FontCacheError::CannotOpen);
+	if (!HasPngSignature(png_bytes)) {
+		return std::unexpected{ FontCacheError::InvalidPng };
 	}
 
-	if (FontCacheHeader header{ .glyph_count   = static_cast<std::uint32_t>(font.glyphs.size()),
-								.kerning_count = static_cast<std::uint32_t>(font.kerning.size()) };
-		!WriteRaw(out, header)) {
-		return std::unexpected(FontCacheError::WriteFailed);
-	}
-	if (!WritePath(out, font.font_path)) {
-		return std::unexpected(FontCacheError::WriteFailed);
-	}
-	if (!WriteRaw(out, font.metrics)) {
-		return std::unexpected(FontCacheError::WriteFailed);
-	}
+	auto inserted_chunk{ MakePngChunk(type, payload) };
 
-	for (const auto& [_, glyph] : font.glyphs) {
-		if (!WriteRaw(out, glyph)) {
-			return std::unexpected(FontCacheError::WriteFailed);
-		}
-	}
+	std::vector<std::uint8_t> output;
+	output.reserve(png_bytes.size() + inserted_chunk.size());
 
-	for (const auto& [key, value] : font.kerning) {
-		if (!WriteRaw(out, key)) {
-			return std::unexpected(FontCacheError::WriteFailed);
-		}
-		if (!WriteRaw(out, value)) {
-			return std::unexpected(FontCacheError::WriteFailed);
-		}
-	}
+	output.insert(output.end(), png_bytes.begin(), png_bytes.begin() + kPngSignature.size());
 
-	return {};
-}
+	std::size_t offset{ kPngSignature.size() };
 
-std::expected<impl::FontData, FontCacheError> ReadFontCache(const path& cache_path) {
-	std::ifstream in(cache_path, std::ios::binary);
-	if (!in) {
-		return std::unexpected(FontCacheError::CannotOpen);
-	}
+	while (offset + 12 <= png_bytes.size()) {
+		auto length{ ReadBigEndianU32(png_bytes, offset) };
+		auto chunk_size{ static_cast<std::size_t>(length) + 12 };
 
-	FontCacheHeader header;
-	if (!ReadRaw(in, header)) {
-		return std::unexpected(FontCacheError::ReadFailed);
-	}
-
-	if (header.magic != kExpectedFontCacheMagic) {
-		return std::unexpected(FontCacheError::InvalidMagic);
-	}
-
-	if (header.version != kExpectedFontCacheVersion) {
-		return std::unexpected(FontCacheError::UnsupportedVersion);
-	}
-
-	impl::FontData font;
-
-	if (!ReadPath(in, font.font_path)) {
-		return std::unexpected(FontCacheError::WriteFailed);
-	}
-	if (!ReadRaw(in, font.metrics)) {
-		return std::unexpected(FontCacheError::ReadFailed);
-	}
-
-	font.glyphs.reserve(header.glyph_count);
-
-	for (std::uint32_t i{ 0 }; i < header.glyph_count; ++i) {
-		impl::GlyphMetrics glyph;
-		if (!ReadRaw(in, glyph)) {
-			return std::unexpected(FontCacheError::ReadFailed);
+		if (offset + chunk_size > png_bytes.size()) {
+			return std::unexpected{ FontCacheError::InvalidPng };
 		}
 
-		font.glyphs.try_emplace(glyph.codepoint, glyph);
-	}
+		auto type_offset{ offset + 4 };
 
-	font.kerning.reserve(header.kerning_count);
+		if (MatchesType(png_bytes, type_offset, kPngEndChunkType)) {
+			output.insert(output.end(), inserted_chunk.begin(), inserted_chunk.end());
+			output.insert(
+				output.end(), png_bytes.begin() + offset, png_bytes.begin() + offset + chunk_size
+			);
 
-	for (std::uint32_t i{ 0 }; i < header.kerning_count; ++i) {
-		std::uint64_t key{ 0 };
-		float value{ 0.0f };
-
-		if (!ReadRaw(in, key)) {
-			return std::unexpected(FontCacheError::ReadFailed);
+			return output;
 		}
 
-		if (!ReadRaw(in, value)) {
-			return std::unexpected(FontCacheError::ReadFailed);
+		// Remove older copies of the same custom chunk when regenerating.
+		if (!MatchesType(png_bytes, type_offset, type)) {
+			output.insert(
+				output.end(), png_bytes.begin() + offset, png_bytes.begin() + offset + chunk_size
+			);
 		}
 
-		font.kerning.emplace(key, value);
+		offset += chunk_size;
 	}
 
-	return font;
+	return std::unexpected{ FontCacheError::MissingPngEnd };
 }
 
 } // namespace
@@ -254,8 +467,8 @@ std::expected<impl::FontData, FontCacheError> ReadFontCache(const path& cache_pa
 namespace impl {
 
 FontObject::FontObject(
-	const AssetManager& asset_manager, path font_path, path cache_directory,
-	std::string_view cache_name, const FontAtlasInfo& atlas_info
+	const AssetManager& asset_manager, path font_path, path cache_png_path,
+	const FontAtlasInfo& atlas_info
 ) {
 	auto freetype{ InitFreetype() };
 
@@ -318,8 +531,6 @@ FontObject::FontObject(
 
 	Surface surface{ atlas_size, std::span<const FontAtlasDataType>{ bitmap.pixels, byte_count },
 					 kFontAtlasChannelCount, true };
-
-	cache_directory = GetAbsolutePath(cache_directory);
 
 	atlas_texture_ =
 		asset_manager.CreateTexture(surface, kFontAtlasFormat, kFontAtlasTextureParams);
@@ -389,49 +600,59 @@ FontObject::FontObject(
 	}
 
 #ifndef __EMSCRIPTEN__
-	auto cache_png_path{ cache_directory / (std::string(cache_name) + ".png") };
-	auto cache_data_path{ cache_directory / (std::string(cache_name) + ".data") };
+	cache_png_path = GetAbsolutePath(cache_png_path);
 
-	auto success{ surface.SavePNG(cache_png_path) };
+	auto png_bytes{ surface.EncodePNG() };
+	auto font_payload{ WriteFontCachePayload(data_) };
+	auto font_png{ InsertPngChunkBeforeIend(png_bytes, kFontDataChunkType, font_payload) };
 
 	PTGN_ASSERT(
-		success.has_value(), "Failed to cache font atlas as png to path: ", cache_png_path.string()
+		font_png.has_value(),
+		"Failed to insert font data into png with error: ", magic_enum::enum_name(font_png.error())
 	);
 
-	auto cache_write{ WriteFontCache(cache_data_path, data_) };
+	auto cache_write{ WriteBinary(cache_png_path, font_png.value()) };
+
 	PTGN_ASSERT(
 		cache_write.has_value(),
-		"Failed to write font data to cache path: ", cache_data_path.string(),
+		"Failed to write embedded font png cache path: ", cache_png_path.string(),
 		" with error: ", magic_enum::enum_name(cache_write.error())
 	);
 #endif
 }
 
-#ifndef __EMSCRIPTEN__
-FontObject::FontObject(
-	const AssetManager& asset_manager, path cache_directory, std::string_view cache_name
-) {
-	cache_directory = GetAbsolutePath(cache_directory);
-
-	auto cache_png_path{ cache_directory / (std::string(cache_name) + ".png") };
+FontObject::FontObject(const AssetManager& asset_manager, path cache_png_path) {
+	cache_png_path = GetAbsolutePath(cache_png_path);
 
 	Surface surface{ cache_png_path, kFontAtlasChannelCount };
 
 	atlas_texture_ =
 		asset_manager.CreateTexture(surface, kFontAtlasFormat, kFontAtlasTextureParams);
 
-	auto cache_data_path{ cache_directory / (std::string(cache_name) + ".data") };
-
-	auto cache_read{ ReadFontCache(cache_data_path) };
+	auto cache_read{ ReadFontCacheFromPng(cache_png_path) };
 	PTGN_ASSERT(
 		cache_read.has_value(),
-		"Failed to read font data from cache path: ", cache_data_path.string(),
+		"Failed to read embedded font data from png cache path: ", cache_png_path.string(),
 		" with error: ", magic_enum::enum_name(cache_read.error())
 	);
 
 	data_ = std::move(cache_read.value());
 }
-#endif
+
+FontObject::FontObject(const AssetManager& asset_manager, FontBinary font_png) {
+	auto surface{ CreateSurfaceFromEncodedPng(font_png) };
+
+	atlas_texture_ =
+		asset_manager.CreateTexture(surface, kFontAtlasFormat, kFontAtlasTextureParams);
+
+	auto cache_read{ ReadFontCacheFromPng(font_png) };
+	PTGN_ASSERT(
+		cache_read.has_value(), "Failed to read embedded default font data from png with error: ",
+		magic_enum::enum_name(cache_read.error())
+	);
+
+	data_ = std::move(cache_read.value());
+}
 
 std::optional<GlyphMetrics> FontObject::GetGlyph(std::uint32_t codepoint) const {
 	auto it{ data_.glyphs.find(codepoint) };

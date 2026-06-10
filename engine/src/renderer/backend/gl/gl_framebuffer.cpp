@@ -5,6 +5,7 @@
 #include <cstring>
 #include <expected>
 #include <filesystem>
+#include <magic_enum/magic_enum.hpp>
 #include <optional>
 #include <ostream>
 #include <utility>
@@ -932,7 +933,7 @@ void Framebuffers::SavePNGImpl(const path& path, FramebufferId framebuffer, Atta
 
 	auto success{ surface.SavePNG(path) };
 
-	PTGN_ASSERT(success.has_value(), success.error());
+	PTGN_ASSERT(success.has_value(), magic_enum::enum_name(success.error()));
 }
 
 std::ostream& operator<<(std::ostream& os, ClearBufferBit bits) {
