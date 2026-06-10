@@ -36,13 +36,13 @@ struct FontSize {
 };
 
 struct FontBinary {
-	FontBinary() = default;
+	constexpr FontBinary() = default;
 
-	FontBinary(unsigned char* font_buffer, unsigned int buffer_length) :
+	constexpr FontBinary(const unsigned char* font_buffer, unsigned int buffer_length) :
 		buffer{ font_buffer }, length{ buffer_length } {}
 
-	unsigned char* buffer{ nullptr };
-	unsigned int length{ 0 };
+	const unsigned char* buffer{ nullptr };
+	std::size_t length{ 0 };
 };
 
 namespace impl {
