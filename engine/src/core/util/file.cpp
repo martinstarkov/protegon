@@ -1,15 +1,20 @@
 #include "core/util/file.h"
 
+#include <cstdint>
+#include <expected>
 #include <filesystem>
 #include <fstream>
 #include <ios>
 #include <ostream>
+#include <span>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <vector>
 
 #include "core/assert.h"
+#include "core/util/string.h"
 
 namespace ptgn {
 
@@ -18,18 +23,58 @@ void EnsureDirectory(const path& path) {
 
 	fs::create_directories(path, ec);
 
-	PTGN_ASSERT(!ec, "Could not create directory ", path.string(), ": ", ec.message());
+	PTGN_ASSERT(!ec, "Could not create directory: ", path.string(), ": ", ec.message());
 }
 
 std::string FileToString(const path& file) {
-	PTGN_ASSERT(FileExists(file), "Cannot convert non-existent file to string: ", file.string());
-	// Source: https://stackoverflow.com/a/2602258
-	std::ifstream f(GetAbsolutePath(file), std::ios::in | std::ios::binary);
-	// TODO: Add further checks for file being opened correctly.
-	PTGN_ASSERT(f, "Could not open file to convert it to string: ", file.string());
+	PTGN_ASSERT(FileExists(file), "File does not exist: ", file.string());
+
+	std::ifstream in{ GetAbsolutePath(file), std::ios::binary };
+	PTGN_ASSERT(in, "Failed to open file: ", file.string());
+
 	std::stringstream buffer;
-	buffer << f.rdbuf();
+	buffer << in.rdbuf();
+
+	PTGN_ASSERT(in, "Failed to read file: ", file.string());
+
 	return buffer.str();
+}
+
+std::vector<std::uint8_t> ReadBinary(const path& file) {
+	PTGN_ASSERT(FileExists(file), "Binary file does not exist: ", file.string());
+
+	std::vector<std::uint8_t> bytes(fs::file_size(file));
+
+	std::ifstream in{ file, std::ios::binary };
+	PTGN_ASSERT(in, "Failed to open binary file: ", file.string());
+
+	in.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+
+	PTGN_ASSERT(in, "Failed to read binary file: ", file.string());
+
+	return bytes;
+}
+
+std::expected<void, FileWriteError> WriteBinary(
+	const path& file_path, std::span<const std::uint8_t> bytes
+) {
+	EnsureDirectory(file_path.parent_path());
+
+	std::ofstream out{ file_path, std::ios::binary | std::ios::trunc };
+
+	if (!out) {
+		return std::unexpected(FileWriteError::OpenFailed);
+	}
+
+	out.write(
+		reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size())
+	);
+
+	if (!out) {
+		return std::unexpected(FileWriteError::WriteFailed);
+	}
+
+	return {};
 }
 
 path GetWorkingDirectory() {
@@ -90,8 +135,12 @@ bool IsDirectoryPath(std::string_view s) {
 	return false;
 }
 
-bool FileExists(const path& file_path) {
-	return fs::exists(file_path) || fs::exists(GetAbsolutePath(file_path));
+std::string GetExtension(const path& file) {
+	return ToLower(file.extension().string());
+}
+
+bool FileExists(const path& file) {
+	return fs::exists(file) || fs::exists(GetAbsolutePath(file));
 }
 
 bool DirectoryExists(const path& directory_path) {
