@@ -20,7 +20,8 @@ file(
   LIST_DIRECTORIES false
   "${PTGN_SHADER_DIR}/*.glsl")
 
-set(PTGN_FILES ${PTGN_SOURCES} ${PTGN_HEADERS} ${PTGN_SHADERS} "${PTGN_SHADER_DIR}/manifest.json")
+set(PTGN_FILES ${PTGN_SOURCES} ${PTGN_HEADERS} ${PTGN_SHADERS}
+               "${PTGN_SHADER_DIR}/manifest.json")
 
 add_library(protegon STATIC ${PTGN_FILES})
 
@@ -43,6 +44,9 @@ target_include_directories(
   PRIVATE "${PTGN_ASSETS_DIR}")
 
 target_compile_features(protegon PUBLIC cxx_std_23)
+
+target_compile_definitions(
+  protegon PRIVATE PTGN_ENGINE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_precompile_headers(protegon PRIVATE "${PTGN_SRC_DIR}/ptgn_pch.h")
 
