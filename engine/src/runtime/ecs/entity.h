@@ -266,6 +266,12 @@ Transform GetTransform(Entity entity);
 /// @return The transform of the entity with respect to its parent entity.
 Transform GetWorldTransform(Entity entity);
 
+/// @return Get the local transform of the entity from a world transform.
+Transform GetTransform(Entity entity, Transform world_transform);
+
+/// @brief Sets the transform of the entity to a world transform.
+void SetWorldTransform(Entity entity, Transform world_transform);
+
 /// @return The transform of the entity with respect to its parent entity and including any
 /// temporary offsets (e.g., shake or bounce).
 Transform GetDrawTransform(Entity entity);

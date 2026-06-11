@@ -74,6 +74,46 @@ Transform GetWorldTransformImpl(Entity entity, std::size_t search_depth) {
 	return world_transform;
 }
 
+Transform GetTransformImpl(Entity entity, Transform world_transform, std::size_t search_depth) {
+	if (entity.Has<impl::IgnoreParentTransform>()) {
+		return world_transform;
+	}
+
+	if (!HasParent(entity)) {
+		return world_transform;
+	}
+
+	if (search_depth >= kMaxParentDepth) {
+		PTGN_ASSERT(false, "Maximum parent depth exceeded while resolving local transform");
+		return world_transform;
+	}
+
+	auto parent{ GetParent(entity) };
+
+	if (parent == entity) {
+		PTGN_ASSERT(false, "Entity cannot be its own parent while resolving local transform");
+		return world_transform;
+	}
+
+	auto parent_world_transform{ GetWorldTransformImpl(parent, search_depth + 1) };
+	auto local_transform{ world_transform.InverseRelativeTo(parent_world_transform) };
+
+	if (entity.Has<impl::IgnoreParentPosition>()) {
+		local_transform.position = world_transform.position;
+	}
+
+	if (entity.Has<impl::IgnoreParentScale>()) {
+		local_transform.scale = world_transform.scale;
+		local_transform.ClampScale();
+	}
+
+	if (entity.Has<impl::IgnoreParentRotation>()) {
+		local_transform.rotation = world_transform.rotation;
+	}
+
+	return local_transform;
+}
+
 } // namespace
 
 namespace impl {
@@ -269,6 +309,14 @@ Transform GetTransform(Entity entity) {
 
 Transform GetWorldTransform(Entity entity) {
 	return GetWorldTransformImpl(entity, 0uz);
+}
+
+Transform GetTransform(Entity entity, Transform world_transform) {
+	return GetTransformImpl(entity, world_transform, 0uz);
+}
+
+void SetWorldTransform(Entity entity, Transform world_transform) {
+	SetTransform(entity, GetTransform(entity, world_transform));
 }
 
 Transform GetDrawTransform(Entity entity) {
