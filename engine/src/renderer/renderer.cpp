@@ -641,7 +641,7 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 
 		case ScalingMode::Stretch:
 			PTGN_ASSERT(viewport.size == presentation.size);
-			PTGN_ASSERT(viewport.position == V2_int{});
+			PTGN_ASSERT(viewport.position.IsZero());
 			// Viewport is full presentation area (default).
 			break;
 
