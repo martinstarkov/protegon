@@ -52,8 +52,8 @@ constexpr Viewport GetRenderViewport(
 			V2_float scale{ V2_float{ target_size } / game_size };
 
 			return {
-				.position{ FastCeil(raw_viewport.position * scale) },
-				.size{ FastCeil(raw_viewport.size * scale) },
+				.position{ V2_int{ raw_viewport.position * scale } },
+				.size{ Max(V2_int{ raw_viewport.size * scale }, { 1, 1 }) },
 			};
 		}
 

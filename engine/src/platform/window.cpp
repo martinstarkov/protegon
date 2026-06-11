@@ -419,7 +419,7 @@ bool Window::Update() {
 
 	bool mouse_moved{ !raw_mouse_position_.IsZero() };
 
-	auto half_window_size{ GetSize() / 2.0f };
+	V2_int half_window_size{ GetSize() / 2.0f };
 
 	if (mouse_moved) {
 		mouse_position_ = raw_mouse_position_ - half_window_size;

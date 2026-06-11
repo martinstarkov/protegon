@@ -34,11 +34,17 @@ FrameContext::FrameContext(
 	PTGN_ASSERT(game_size.IsPositive(), "Game size must be positive");
 	PTGN_ASSERT(full_viewport_size.IsPositive(), "Full viewport size must be positive");
 
-	auto presentation_center{ presentation_viewport.GetCenter() - full_viewport_size / 2.0f };
+	V2_int presentation_center{ presentation_viewport.GetCenter() };
 
-	auto display_center_window{ display_viewport.GetCenter() - presentation_viewport.size / 2.0f };
+	V2_int half_viewport{ full_viewport_size / 2.0f };
 
-	presentation = PresentationFrame{ .presentation_center = presentation_center };
+	V2_int display_center{ display_viewport.GetCenter() };
+
+	V2_int half_presentation{ presentation_viewport.size / 2.0f };
+
+	V2_int display_center_window{ display_center - half_presentation };
+
+	presentation = PresentationFrame{ .presentation_center = presentation_center - half_viewport };
 
 	display = DisplayFrame{ .display_center = display_center_window };
 
@@ -175,18 +181,29 @@ V2_float RenderTargetToDisplay(
 V2_float RenderTargetToCamera(V2_float render_target_point, const CameraFrame& camera_frame) {
 	PTGN_ASSERT(camera_frame.scale.IsPositive(), "Camera scale must be positive");
 
-	return (CenterToTopLeft(render_target_point, camera_frame.render_target_size) -
-			camera_frame.camera_viewport.GetCenter()) /
-		   camera_frame.scale;
+	auto top_left{ CenterToTopLeft(render_target_point, camera_frame.render_target_size) };
+
+	auto viewport_center{ camera_frame.camera_viewport.GetCenter() };
+
+	auto offset{ top_left - viewport_center };
+
+	auto camera_point{ offset / camera_frame.scale };
+
+	return camera_point;
 }
 
 V2_float CameraToRenderTarget(V2_float camera_point, const CameraFrame& camera_frame) {
 	PTGN_ASSERT(camera_frame.scale.IsPositive(), "Camera scale must be positive");
 
-	return TopLeftToCenter(
-		camera_point * camera_frame.scale + camera_frame.camera_viewport.GetCenter(),
-		camera_frame.render_target_size
-	);
+	auto viewport_center{ camera_frame.camera_viewport.GetCenter() };
+
+	auto scaled_camera_point{ camera_point * camera_frame.scale };
+
+	auto top_left{ scaled_camera_point + viewport_center };
+
+	auto render_target_point{ TopLeftToCenter(top_left, camera_frame.render_target_size) };
+
+	return render_target_point;
 }
 
 V2_float CameraToWorld(V2_float camera_point, const WorldFrame& world_frame) {
