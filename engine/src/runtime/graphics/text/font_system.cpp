@@ -6,16 +6,22 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <functional>
+#include <ios>
 #include <optional>
+#include <ostream>
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/config.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "fonts/default_font.h"
+#include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/font.h"
 
@@ -29,28 +35,10 @@ inline constexpr std::string_view kDefaultFontFile{ PTGN_ENGINE_ROOT
 /// @brief Relative to the working directory.
 inline constexpr std::string_view kFontCacheDirectory{ "cache/fonts" };
 /// @brief Enables generating a default font atlas at runtime and overwriting default_font.h with
-/// the generated atlas. This is useful for development and testing. This is only available for
-/// debug builds.
+/// the generated atlas. This is useful for development and testing.
 #ifdef PTGN_DEBUG
 inline constexpr bool kGenerateDefaultFontAtlas{ false };
 #endif
-
-void WriteByteArrayDeclaration(
-	std::ofstream& out, std::string_view name, std::span<const std::uint8_t> bytes
-) {
-	out << "inline constexpr std::uint8_t " << name << "[] = {";
-
-	for (auto i{ 0uz }; i < bytes.size(); ++i) {
-		out << (i % 12 == 0 ? "\n\t" : " ");
-		out << std::format("0x{:02X}", bytes[i]);
-
-		if (i + 1 != bytes.size()) {
-			out << ',';
-		}
-	}
-
-	out << "\n};\n\n";
-}
 
 void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
 	auto font_png{ ReadBinary(font_png_path) };
@@ -65,9 +53,18 @@ void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
 	out << "#include <cstdint>\n\n";
 	out << "#include \"runtime/graphics/text/font.h\"\n\n";
 	out << "namespace ptgn::impl {\n\n";
+	out << "inline constexpr std::uint8_t kDefaultFontBytes[] = {";
 
-	WriteByteArrayDeclaration(out, "kDefaultFontBytes", font_png);
+	for (auto i{ 0uz }; i < font_png.size(); ++i) {
+		out << (i % 12 == 0 ? "\n\t" : " ");
+		out << std::format("0x{:02X}", font_png[i]);
 
+		if (i + 1 != font_png.size()) {
+			out << ',';
+		}
+	}
+
+	out << "\n};\n\n";
 	out << "inline constexpr FontBinary kDefaultFontBinary{ kDefaultFontBytes, "
 		   "sizeof(kDefaultFontBytes) };\n\n";
 	out << "} // namespace ptgn::impl\n";
@@ -149,10 +146,16 @@ impl::FontObject FontSystem::CreateFont(const AssetManager& asset_manager, const
 		"Cannot create font from invalid path: ", absolute_font_path.string()
 	);
 
+	auto extension{ GetExtension(absolute_font_path) };
+
 	PTGN_ASSERT(
-		impl::MatchesExtension<Font>(GetExtension(absolute_font_path)),
+		impl::MatchesExtension<Font>(extension) || impl::MatchesExtension<Texture>(extension),
 		"Font file must have a valid extension: ", absolute_font_path.string()
 	);
+
+	if (impl::MatchesExtension<Texture>(extension)) {
+		return impl::FontObject{ asset_manager, absolute_font_path };
+	}
 
 	auto cache_directory{ GetWorkingDirectory() / kFontCacheDirectory };
 	auto cache_name{ absolute_font_path.stem().string() };

@@ -10,6 +10,7 @@
 #include "core/input/key.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
+#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/text_effect.h"
 #include "runtime/physics/movement.h"
@@ -17,8 +18,6 @@
 #include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
-
-constexpr V2_int game_size{ 800, 800 };
 
 struct TextEffectsScene : public Scene {
 	float scale{ 40.0f };
@@ -30,15 +29,13 @@ struct TextEffectsScene : public Scene {
 	std::size_t current_line{ 0 };
 
 	Text CreateLine(
-		std::string_view text_content, const Color& color = color::Black, float font_size = 26.0f,
-		std::string_view font_key = {}
+		std::string_view text_content, const Color& color = color::Black,
+		std::string_view font_key = {}, float font_size = 20.0f
 	) {
-		float stride{ 34.0f };
-		float top{ -static_cast<float>(game_size.y) * 0.5f + 16.0f };
+		float stride{ 26.0f };
+		float top{ -static_cast<float>(ctx().renderer.GetGameSize().y) * 0.5f + stride };
 
-		auto text{ CreateText(
-			*this, { 0.0f, top + stride * static_cast<float>(current_line) }, Origin::CenterTop
-		) };
+		auto text{ CreateText(*this, { 0.0f, top + stride * static_cast<float>(current_line) }) };
 
 		text.Content(text_content).Font(font_key).Size(font_size).Color(color);
 
@@ -48,17 +45,25 @@ struct TextEffectsScene : public Scene {
 	}
 
 	void OnEnter() override {
-		ctx().renderer.SetGameSize(game_size);
+		ctx().debug.text.draw_enabled = true;
 		SetBackgroundColor(color::LightGray);
 
-		ctx().asset.Load("custom_font", "assets/retro_gaming.ttf");
+		ctx().asset.Load("custom_ttf", "assets/OpenSans-Regular.ttf");
+		ctx().asset.Load("custom_otf", "assets/otf.otf");
+		ctx().asset.Load("custom_png", "assets/retro_gaming.png");
 
-		CreateLine("Plain black text (default font)", color::Black, 26.0f);
-		CreateLine("Plain black text (custom font)", color::Black, 26.0f, "custom_font");
+		CreateLine("Plain black text (default font)", color::Black);
+		CreateLine("Plain black text (custom ttf font)", color::Black, "custom_ttf");
+		CreateLine("Plain black text (custom otf font)", color::Black, "custom_otf");
+		CreateLine("Plain black text (custom font atlas png)", color::Black, "custom_png");
+
+		CreateLine("Increased font size", color::Black, {}, 26.0f);
+		CreateLine("Decreased font size", color::Black, {}, 12.0f);
+
 		CreateLine("Colored text", color::Green);
 
 		CreateLine("Fake bold", color::Black).Bold(true, 0.25f);
-		CreateLine("Italic shear", color::Black).Italic();
+		CreateLine("Fake italics", color::Black).Italic();
 		CreateLine("Underline", color::Black).Underline();
 		CreateLine("Strikethrough", color::Black).Strikethrough();
 
@@ -140,7 +145,7 @@ struct TextEffectsScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "TextEffectsScene", game_size };
-	PTGN_WITH_EDITOR(app);
+	Application app{ "TextEffectsScene" };
+	// PTGN_WITH_EDITOR(app);
 	app.StartWith<TextEffectsScene>();
 }

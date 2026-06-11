@@ -114,6 +114,8 @@ private:
 	FontData data_;
 };
 
+bool IsFontAtlasPng(const path& png_path);
+
 } // namespace impl
 
 class Font : public EntityHandle {

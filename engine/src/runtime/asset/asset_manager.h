@@ -191,7 +191,7 @@ public:
 	///
 	/// Audio: .OGG (only one supported by Emscripten), MP3, WAV, OPUS
 	///
-	/// Font: .TTF, .OTF
+	/// Font: .TTF, .OTF, font atlas .PNG with embedded font data.
 	///
 	/// JSON: .JSON
 	///

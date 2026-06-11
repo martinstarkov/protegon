@@ -91,8 +91,9 @@ impl::TextureObject AssetManager::CreateTexture(
 	);
 }
 
-impl::TextureObject AssetManager::CreateTexture(const std::uint8_t* pixel_data, TextureDesc desc)
-	const {
+impl::TextureObject AssetManager::CreateTexture(
+	const std::uint8_t* pixel_data, TextureDesc desc
+) const {
 	return impl::RendererAccessor{ renderer_ }.CreateTexture(pixel_data, desc);
 }
 
@@ -352,12 +353,18 @@ void AssetManager::Load(std::string_view key, const path& asset_path, impl::Asse
 
 	switch (kind) {
 		using enum impl::AssetKind;
-		case Texture: LoadTexture(key, asset_path); break;
-		case Audio:	  LoadAudio(key, asset_path); break;
-		case Font:	  LoadFont(key, asset_path); break;
-		case Json:	  LoadJson(key, asset_path); break;
+		case Texture:
+			if (impl::IsFontAtlasPng(asset_path)) {
+				LoadFont(key, asset_path);
+			} else {
+				LoadTexture(key, asset_path);
+			}
+			break;
+		case Audio:	 LoadAudio(key, asset_path); break;
+		case Font:	 LoadFont(key, asset_path); break;
+		case Json:	 LoadJson(key, asset_path); break;
 
-		case Shader:  {
+		case Shader: {
 			if (auto shader_content = FileToString(asset_path);
 				!HasVertexAndFragmentShader(shader_content)) {
 				// Skip shader files that don't contain both vertex and fragment shader code
