@@ -44,45 +44,31 @@ Color FromImGui(ImU32 color) {
 	return Color{ color };
 }
 
-struct ViewportView2D {
-	V2_float center{ 0.0f, 0.0f };
-	float zoom{ 1.0f };
-	Viewport viewport;
+V2_float PresentationToScreen(V2_float presentation_point, Viewport presentation_viewport) {
+	return presentation_point + presentation_viewport.GetCenter();
+}
 
-	[[nodiscard]] V2_float WorldToScreen(V2_float world) const {
-		V2_float local = (world - center) * zoom;
-		return { static_cast<float>(viewport.position.x) + viewport.size.x * 0.5f + local.x,
-				 static_cast<float>(viewport.position.y) + viewport.size.y * 0.5f + local.y };
-	}
+V2_float WorldToScreen(
+	V2_float world_point, const FrameContext& frame_context, Viewport presentation_viewport
+) {
+	auto presentation_point{
+		ConvertPoint(world_point, Frame::World, Frame::Presentation, frame_context)
+	};
 
-	[[nodiscard]] V2_float ScreenToWorld(V2_float screen) const {
-		V2_float local{
-			screen.x - (static_cast<float>(viewport.position.x) + viewport.size.x * 0.5f),
-			(screen.y - (static_cast<float>(viewport.position.y) + viewport.size.y * 0.5f))
-		};
-		return center + local / zoom;
-	}
+	return PresentationToScreen(presentation_point, presentation_viewport);
+}
+
+V2_float ScreenToPresentation(V2_float screen_point, Viewport presentation_viewport) {
+	return screen_point - presentation_viewport.GetCenter();
 };
 
-ImVec2 WorldToScreen(V2_float world, const Matrix4& view_projection, Viewport viewport) {
-	auto clip{ view_projection * V4_float{ world.x, world.y, 0.0f, 1.0f } };
+V2_float ScreenToWorld(
+	V2_float screen_point, const FrameContext& frame_context, Viewport presentation_viewport
+) {
+	auto presentation_point{ ScreenToPresentation(screen_point, presentation_viewport) };
 
-	if (std::abs(clip.w) <= 1e-6f) {
-		return ImVec2{ -100000.0f, -100000.0f };
-	}
-
-	auto inv_w{ 1.0f / clip.w };
-
-	auto ndc{ V2_float{ clip.x * inv_w, clip.y * inv_w } };
-
-	float screen_x{ static_cast<float>(viewport.position.x) +
-					(ndc.x * 0.5f + 0.5f) * viewport.size.x };
-
-	float screen_y{ static_cast<float>(viewport.position.y) +
-					(-ndc.y * 0.5f + 0.5f) * viewport.size.y };
-
-	return ImVec2{ screen_x, screen_y };
-}
+	return ConvertPoint(presentation_point, Frame::Presentation, Frame::World, frame_context);
+};
 
 void DrawCenteredText(ImDrawList* draw_list, ImVec2 center, ImU32 color, const char* text) {
 	auto text_size{ ImGui::CalcTextSize(text) };
@@ -90,25 +76,6 @@ void DrawCenteredText(ImDrawList* draw_list, ImVec2 center, ImU32 color, const c
 	draw_list->AddText(
 		ImVec2{ center.x - text_size.x * 0.5f, center.y - text_size.y * 0.5f }, color, text
 	);
-}
-
-void DrawSceneCameraOutline(
-	ImDrawList* draw_list, const SceneCamera& camera, const Matrix4& editor_view_projection,
-	Viewport image_viewport, ImU32 color, float thickness
-) {
-	auto world_vertices{ camera.GetWorldVertices() };
-
-	std::array points{ WorldToScreen(world_vertices[0], editor_view_projection, image_viewport),
-					   WorldToScreen(world_vertices[1], editor_view_projection, image_viewport),
-					   WorldToScreen(world_vertices[2], editor_view_projection, image_viewport),
-					   WorldToScreen(world_vertices[3], editor_view_projection, image_viewport),
-					   WorldToScreen(world_vertices[0], editor_view_projection, image_viewport) };
-
-	auto center{ ImVec2{ (points[0].x + points[2].x) * 0.5f, (points[0].y + points[2].y) * 0.5f } };
-
-	draw_list->AddPolyline(points.data(), static_cast<int>(points.size()), color, 0, thickness);
-
-	// DrawCenteredText(draw_list, center, color, camera.GetTag().c_str());
 }
 
 void UpdateEditorCameraPan(EditorCamera& editor_camera) {
@@ -154,71 +121,84 @@ float DistanceToSegmentLocal(V2_float p, V2_float a, V2_float b) {
 }
 
 void DrawSimple2DGizmo(
-	ImDrawList* draw_list, GizmoState& gizmo, Transform& transform, const ViewportView2D& view,
-	bool viewport_hovered, bool viewport_focused
+	ImDrawList* draw_list, GizmoState& gizmo, Transform& transform,
+	const FrameContext& frame_context, Viewport presentation_viewport, bool viewport_hovered,
+	bool viewport_focused
 ) {
-	ImGuiIO& io = ImGui::GetIO();
+	ImGuiIO& io{ ImGui::GetIO() };
 
-	if (!viewport_hovered) {
-		if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-			gizmo.hot = GizmoHandle::None;
-		}
+	if (!viewport_hovered && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+		gizmo.hot = GizmoHandle::None;
 	}
 
-	V2_float pos   = transform.position;
-	Radians rot	   = transform.rotation;
-	V2_float scale = transform.scale;
+	gizmo.pivot_world = transform.position;
 
-	gizmo.pivot_world = pos;
+	float axis_len_px{ 70.0f };
+	float handle_radius_px{ 8.0f };
+	float center_box_half_px{ 7.0f };
+	float rotate_ring_radius_px{ 48.0f };
+	float rotate_ring_thickness_px{ 8.0f };
 
-	const float axis_len_px				 = 70.0f;
-	const float handle_radius_px		 = 8.0f;
-	const float center_box_half_px		 = 7.0f;
-	const float rotate_ring_radius_px	 = 48.0f;
-	const float rotate_ring_thickness_px = 8.0f;
-
-	V2_float pivot_screen = view.WorldToScreen(transform.position);
+	V2_float pivot_screen{
+		WorldToScreen(transform.position, frame_context, presentation_viewport)
+	};
 	V2_float mouse_screen{ io.MousePos.x, io.MousePos.y };
-	V2_float mouse_world = view.ScreenToWorld(mouse_screen);
+	V2_float mouse_world{ ScreenToWorld(mouse_screen, frame_context, presentation_viewport) };
 
-	ImGui::Text("Mouse screen: %.2f %.2f", mouse_screen.x, mouse_screen.y);
-	ImGui::Text("Mouse world:  %.2f %.2f", mouse_world.x, mouse_world.y);
-	ImGui::Text("Obj pos:      %.2f %.2f", transform.position.x, transform.position.y);
-	ImGui::Text("Pivot screen: %.2f %.2f", pivot_screen.x, pivot_screen.y);
+	float angle{ transform.rotation.value };
 
-	float angle = transform.rotation.value;
+	V2_float world_axis_x{ std::cos(angle), std::sin(angle) };
 
-	V2_float axisX_screen{ std::cos(angle), -std::sin(angle) };
+	V2_float world_axis_y{ -std::sin(angle), std::cos(angle) };
 
-	V2_float axisY_screen{ -std::sin(angle), -std::cos(angle) };
+	auto axis_to_screen = [&](V2_float world_axis) {
+		auto axis_end_screen{
+			WorldToScreen(transform.position + world_axis, frame_context, presentation_viewport)
+		};
+		auto axis_screen{ axis_end_screen - pivot_screen };
 
-	V2_float mouse_delta = mouse_screen - pivot_screen;
-	V2_float mouse_local{ Dot(mouse_delta, axisX_screen), Dot(mouse_delta, axisY_screen) };
+		if (Length(axis_screen) <= 1e-6f) {
+			return V2_float{ 0.0f, 0.0f };
+		}
+
+		return Normalize(axis_screen);
+	};
+
+	V2_float axis_x_screen{ axis_to_screen(world_axis_x) };
+	V2_float axis_y_screen{ axis_to_screen(world_axis_y) };
+
+	if (Length(axis_x_screen) <= 1e-6f || Length(axis_y_screen) <= 1e-6f) {
+		return;
+	}
+
+	V2_float mouse_delta{ mouse_screen - pivot_screen };
+	V2_float mouse_local{ Dot(mouse_delta, axis_x_screen), Dot(mouse_delta, axis_y_screen) };
 
 	gizmo.hot = GizmoHandle::None;
 
 	if (viewport_hovered && gizmo.active == GizmoHandle::None) {
 		if (gizmo.tool == GizmoTool::Translate) {
-			bool inside_center = std::abs(mouse_local.x) <= center_box_half_px &&
-								 std::abs(mouse_local.y) <= center_box_half_px;
+			bool inside_center{ std::abs(mouse_local.x) <= center_box_half_px &&
+								std::abs(mouse_local.y) <= center_box_half_px };
 
-			float distToX = DistanceToSegmentLocal(
+			float dist_to_x{ DistanceToSegmentLocal(
 				mouse_local, V2_float{ 0.0f, 0.0f }, V2_float{ axis_len_px, 0.0f }
-			);
+			) };
 
-			float distToY = DistanceToSegmentLocal(
+			float dist_to_y{ DistanceToSegmentLocal(
 				mouse_local, V2_float{ 0.0f, 0.0f }, V2_float{ 0.0f, axis_len_px }
-			);
+			) };
 
 			if (inside_center) {
 				gizmo.hot = GizmoHandle::MoveCenter;
-			} else if (distToX < 6.0f) {
+			} else if (dist_to_x < 6.0f) {
 				gizmo.hot = GizmoHandle::MoveX;
-			} else if (distToY < 6.0f) {
+			} else if (dist_to_y < 6.0f) {
 				gizmo.hot = GizmoHandle::MoveY;
 			}
 		} else if (gizmo.tool == GizmoTool::Rotate) {
-			float d = Length(mouse_local);
+			float d{ Length(mouse_local) };
+
 			if (std::abs(d - rotate_ring_radius_px) <= rotate_ring_thickness_px) {
 				gizmo.hot = GizmoHandle::Rotate;
 			}
@@ -246,98 +226,82 @@ void DrawSimple2DGizmo(
 	if (gizmo.active != GizmoHandle::None && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 		switch (gizmo.active) {
 			case GizmoHandle::MoveCenter: {
-				V2_float screen_delta = mouse_screen - gizmo.drag_start_mouse_screen;
-
-				// temporary 1:1 mapping
-				V2_float world_delta = screen_delta / view.zoom;
-
-				// if your world uses negative Y up, flip Y here as needed
-				// world_delta.y = -world_delta.y;
-
+				auto world_delta{ mouse_world - gizmo.drag_start_mouse_world };
 				transform.position = gizmo.drag_start_position + world_delta;
 				break;
 			}
 
 			case GizmoHandle::MoveX: {
-				V2_float axis = Normalize(
-					V2_float{ std::cos(gizmo.drag_start_rotation.value),
-							  std::sin(gizmo.drag_start_rotation.value) }
-				);
-				V2_float screen_delta = mouse_screen - gizmo.drag_start_mouse_screen;
-				V2_float world_delta  = screen_delta / view.zoom;
-				// maybe flip Y depending on your world convention
-				float amount	   = Dot(world_delta, axis);
-				transform.position = gizmo.drag_start_position + axis * amount;
+				auto world_delta{ mouse_world - gizmo.drag_start_mouse_world };
+				float amount{ Dot(world_delta, world_axis_x) };
+				transform.position = gizmo.drag_start_position + world_axis_x * amount;
 				break;
 			}
 
 			case GizmoHandle::MoveY: {
-				V2_float axis = Normalize(
-					V2_float{ -std::sin(gizmo.drag_start_rotation.value),
-							  std::cos(gizmo.drag_start_rotation.value) }
-				);
-				V2_float screen_delta = mouse_screen - gizmo.drag_start_mouse_screen;
-				V2_float world_delta  = screen_delta / view.zoom;
-				// maybe flip Y depending on your world convention
-				float amount	   = Dot(world_delta, axis);
-				transform.position = gizmo.drag_start_position + axis * amount;
+				auto world_delta{ mouse_world - gizmo.drag_start_mouse_world };
+				float amount{ Dot(world_delta, world_axis_y) };
+				transform.position = gizmo.drag_start_position + world_axis_y * amount;
 				break;
 			}
 
 			case GizmoHandle::Rotate: {
-				V2_float start_dir =
-					Normalize(gizmo.drag_start_mouse_world - gizmo.drag_start_position);
-				V2_float current_dir = Normalize(mouse_world - gizmo.drag_start_position);
+				auto start_dir{
+					Normalize(gizmo.drag_start_mouse_world - gizmo.drag_start_position)
+				};
+
+				auto current_dir{ Normalize(mouse_world - gizmo.drag_start_position) };
 
 				if (Length(start_dir) > 0.0f && Length(current_dir) > 0.0f) {
-					float delta		   = SignedAngle(start_dir, current_dir);
+					float delta{ SignedAngle(start_dir, current_dir) };
 					transform.rotation = Radians{ gizmo.drag_start_rotation.value + delta };
 				}
+
 				break;
 			}
 
 			case GizmoHandle::ScaleX: {
-				V2_float axis = Normalize(
-					V2_float{ std::cos(gizmo.drag_start_rotation.value),
-							  std::sin(gizmo.drag_start_rotation.value) }
-				);
-				V2_float delta = mouse_world - gizmo.drag_start_mouse_world;
-				float amount   = Dot(delta, axis);
+				auto delta{ mouse_world - gizmo.drag_start_mouse_world };
+				float amount{ Dot(delta, world_axis_x) };
 
-				V2_float s		= gizmo.drag_start_scale;
-				s.x				= std::max(0.01f, gizmo.drag_start_scale.x + amount);
+				auto s{ gizmo.drag_start_scale };
+				s.x = std::max(0.01f, gizmo.drag_start_scale.x + amount);
+
 				transform.scale = s;
 				transform.ClampScale();
 				break;
 			}
 
 			case GizmoHandle::ScaleY: {
-				V2_float axis = Normalize(
-					V2_float{ -std::sin(gizmo.drag_start_rotation.value),
-							  std::cos(gizmo.drag_start_rotation.value) }
-				);
-				V2_float delta = mouse_world - gizmo.drag_start_mouse_world;
-				float amount   = Dot(delta, axis);
+				auto delta{ mouse_world - gizmo.drag_start_mouse_world };
+				float amount{ Dot(delta, world_axis_y) };
 
-				V2_float s		= gizmo.drag_start_scale;
-				s.y				= std::max(0.01f, gizmo.drag_start_scale.y + amount);
+				auto s{ gizmo.drag_start_scale };
+				s.y = std::max(0.01f, gizmo.drag_start_scale.y + amount);
+
 				transform.scale = s;
 				transform.ClampScale();
 				break;
 			}
 
 			case GizmoHandle::ScaleUniform: {
-				float start_dist = Length(gizmo.drag_start_mouse_world - gizmo.drag_start_position);
-				float current_dist = Length(mouse_world - gizmo.drag_start_position);
+				float start_dist{
+					Length(gizmo.drag_start_mouse_world - gizmo.drag_start_position)
+				};
+
+				float current_dist{ Length(mouse_world - gizmo.drag_start_position) };
 
 				if (start_dist > 1e-6f) {
-					float factor	= current_dist / start_dist;
-					V2_float s		= gizmo.drag_start_scale * factor;
-					s.x				= std::max(0.01f, s.x);
-					s.y				= std::max(0.01f, s.y);
+					float factor{ current_dist / start_dist };
+
+					auto s{ gizmo.drag_start_scale * factor };
+					s.x = std::max(0.01f, s.x);
+					s.y = std::max(0.01f, s.y);
+
 					transform.scale = s;
 					transform.ClampScale();
 				}
+
 				break;
 			}
 
@@ -349,81 +313,73 @@ void DrawSimple2DGizmo(
 		gizmo.active = GizmoHandle::None;
 	}
 
-	// Draw
-	const ImU32 col_x	   = IM_COL32(220, 60, 60, 255);
-	const ImU32 col_y	   = IM_COL32(60, 220, 60, 255);
-	const ImU32 col_center = IM_COL32(230, 200, 80, 255);
-	const ImU32 col_rotate = IM_COL32(80, 160, 255, 255);
-	const ImU32 col_hot	   = IM_COL32(255, 255, 255, 255);
+	ImU32 col_x{ IM_COL32(220, 60, 60, 255) };
+	ImU32 col_y{ IM_COL32(60, 220, 60, 255) };
+	ImU32 col_center{ IM_COL32(230, 200, 80, 255) };
+	ImU32 col_rotate{ IM_COL32(80, 160, 255, 255) };
+	ImU32 col_hot{ IM_COL32(255, 255, 255, 255) };
 
-	pivot_screen = view.WorldToScreen(transform.position);
+	pivot_screen = WorldToScreen(transform.position, frame_context, presentation_viewport);
 
-	V2_float x_end_screen = { pivot_screen.x + std::cos(transform.rotation.value) * axis_len_px,
-							  pivot_screen.y - std::sin(transform.rotation.value) * axis_len_px };
-
-	V2_float y_end_screen = { pivot_screen.x - std::sin(transform.rotation.value) * axis_len_px,
-							  pivot_screen.y - std::cos(transform.rotation.value) * axis_len_px };
+	V2_float x_end_screen{ pivot_screen + axis_x_screen * axis_len_px };
+	V2_float y_end_screen{ pivot_screen + axis_y_screen * axis_len_px };
 
 	if (gizmo.tool == GizmoTool::Translate) {
 		draw_list->AddLine(
-			ImVec2{ pivot_screen.x, pivot_screen.y }, ImVec2{ x_end_screen.x, x_end_screen.y },
+			ToImGui(pivot_screen), ToImGui(x_end_screen),
 			gizmo.hot == GizmoHandle::MoveX || gizmo.active == GizmoHandle::MoveX ? col_hot : col_x,
 			2.0f
 		);
 
 		draw_list->AddLine(
-			ImVec2{ pivot_screen.x, pivot_screen.y }, ImVec2{ y_end_screen.x, y_end_screen.y },
+			ToImGui(pivot_screen), ToImGui(y_end_screen),
 			gizmo.hot == GizmoHandle::MoveY || gizmo.active == GizmoHandle::MoveY ? col_hot : col_y,
 			2.0f
 		);
 
-		float h = center_box_half_px;
+		float h{ center_box_half_px };
 
-		V2_float c0 = GizmoLocalToScreen(pivot_screen, axisX_screen, axisY_screen, { -h, -h });
-		V2_float c1 = GizmoLocalToScreen(pivot_screen, axisX_screen, axisY_screen, { h, -h });
-		V2_float c2 = GizmoLocalToScreen(pivot_screen, axisX_screen, axisY_screen, { h, h });
-		V2_float c3 = GizmoLocalToScreen(pivot_screen, axisX_screen, axisY_screen, { -h, h });
+		auto c0{ GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, { -h, -h }) };
+		auto c1{ GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, { h, -h }) };
+		auto c2{ GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, { h, h }) };
+		auto c3{ GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, { -h, h }) };
 
 		draw_list->AddQuadFilled(
-			ImVec2{ c0.x, c0.y }, ImVec2{ c1.x, c1.y }, ImVec2{ c2.x, c2.y }, ImVec2{ c3.x, c3.y },
+			ToImGui(c0), ToImGui(c1), ToImGui(c2), ToImGui(c3),
 			gizmo.hot == GizmoHandle::MoveCenter || gizmo.active == GizmoHandle::MoveCenter
 				? col_hot
 				: col_center
 		);
 	} else if (gizmo.tool == GizmoTool::Rotate) {
 		draw_list->AddCircle(
-			ImVec2{ pivot_screen.x, pivot_screen.y }, rotate_ring_radius_px,
+			ToImGui(pivot_screen), rotate_ring_radius_px,
 			gizmo.hot == GizmoHandle::Rotate || gizmo.active == GizmoHandle::Rotate ? col_hot
 																					: col_rotate,
 			64, 2.0f
 		);
 	} else if (gizmo.tool == GizmoTool::Scale) {
-		draw_list->AddLine(
-			ImVec2{ pivot_screen.x, pivot_screen.y }, ImVec2{ x_end_screen.x, x_end_screen.y },
-			col_x, 2.0f
-		);
-		draw_list->AddLine(
-			ImVec2{ pivot_screen.x, pivot_screen.y }, ImVec2{ y_end_screen.x, y_end_screen.y },
-			col_y, 2.0f
-		);
+		draw_list->AddLine(ToImGui(pivot_screen), ToImGui(x_end_screen), col_x, 2.0f);
+		draw_list->AddLine(ToImGui(pivot_screen), ToImGui(y_end_screen), col_y, 2.0f);
 
 		draw_list->AddCircleFilled(
-			ImVec2{ x_end_screen.x, x_end_screen.y }, handle_radius_px,
+			ToImGui(x_end_screen), handle_radius_px,
 			gizmo.hot == GizmoHandle::ScaleX || gizmo.active == GizmoHandle::ScaleX ? col_hot
 																					: col_x
 		);
 
 		draw_list->AddCircleFilled(
-			ImVec2{ y_end_screen.x, y_end_screen.y }, handle_radius_px,
+			ToImGui(y_end_screen), handle_radius_px,
 			gizmo.hot == GizmoHandle::ScaleY || gizmo.active == GizmoHandle::ScaleY ? col_hot
 																					: col_y
 		);
 
-		V2_float uniform_handle{ pivot_screen.x + 40.0f, pivot_screen.y + 40.0f };
+		auto uniform_handle{
+			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ 40.0f, 40.0f })
+		};
 
 		draw_list->AddRectFilled(
-			ImVec2{ uniform_handle.x - 6.0f, uniform_handle.y - 6.0f },
-			ImVec2{ uniform_handle.x + 6.0f, uniform_handle.y + 6.0f },
+			ToImGui(uniform_handle - V2_float{ 6.0f, 6.0f }),
+			ToImGui(uniform_handle + V2_float{ 6.0f, 6.0f }),
 			gizmo.hot == GizmoHandle::ScaleUniform || gizmo.active == GizmoHandle::ScaleUniform
 				? col_hot
 				: col_center
@@ -433,29 +389,29 @@ void DrawSimple2DGizmo(
 
 } // namespace
 
-void ViewportPanel::DrawSceneCameraOutlines(EditorContext& ctx, Viewport image_viewport) {
+void ViewportPanel::DrawSceneCameraOutlines(
+	EditorContext& ctx, const FrameContext& frame_context, Viewport presentation_viewport,
+	Viewport image_viewport
+) {
 	if (!use_editor_camera_) {
 		return;
 	}
-
-	auto* draw_list{ ImGui::GetWindowDrawList() };
-
-	draw_list->PushClipRect(
-		ImVec2{ static_cast<float>(image_viewport.position.x),
-				static_cast<float>(image_viewport.position.y) },
-		ImVec2{ static_cast<float>(image_viewport.position.x + image_viewport.size.x),
-				static_cast<float>(image_viewport.position.y + image_viewport.size.y) },
-		true
-	);
-
-	auto color{ IM_COL32(80, 180, 255, 255) };
-	float thickness{ 2.0f };
 
 	auto scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
 
 	if (!scene) {
 		return;
 	}
+
+	auto* draw_list{ ImGui::GetWindowDrawList() };
+
+	draw_list->PushClipRect(
+		ToImGui(image_viewport.position), ToImGui(image_viewport.position + image_viewport.size),
+		true
+	);
+
+	auto color{ IM_COL32(80, 180, 255, 255) };
+	float thickness{ 2.0f };
 
 	for (auto [c, _camera] : scene->EntitiesWith<impl::CameraData>()) {
 		SceneCamera camera{ c };
@@ -464,10 +420,34 @@ void ViewportPanel::DrawSceneCameraOutlines(EditorContext& ctx, Viewport image_v
 			continue;
 		}
 
-		DrawSceneCameraOutline(
-			draw_list, camera, editor_camera_.camera.view_projection, image_viewport, color,
-			thickness
-		);
+		auto presentation_to_screen = [&](V2_float presentation_point) {
+			return presentation_point + presentation_viewport.GetCenter();
+		};
+
+		auto screen_to_presentation = [&](V2_float screen_point) {
+			return screen_point - presentation_viewport.GetCenter();
+		};
+
+		auto world_to_screen = [&](V2_float world_point) {
+			auto presentation_point{
+				ConvertPoint(world_point, Frame::World, Frame::Presentation, frame_context)
+			};
+
+			return presentation_to_screen(presentation_point);
+		};
+
+		auto world_vertices{ camera.GetWorldVertices() };
+
+		std::array points{ ToImGui(world_to_screen(world_vertices[0])),
+						   ToImGui(world_to_screen(world_vertices[1])),
+						   ToImGui(world_to_screen(world_vertices[2])),
+						   ToImGui(world_to_screen(world_vertices[3])),
+						   ToImGui(world_to_screen(world_vertices[0])) };
+
+		draw_list->AddPolyline(points.data(), static_cast<int>(points.size()), color, 0, thickness);
+
+		// auto center{ ImVec2{ (points[0].x + points[2].x) * 0.5f,
+		//					 (points[0].y + points[2].y) * 0.5f } };
 	}
 
 	draw_list->PopClipRect();
@@ -609,6 +589,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	auto display_viewport{ ctx.editor.GetDisplayViewport() };
 	auto presentation_texture{ ctx.editor.GetPresentationTexture() };
+	auto presentation_size{ ctx.editor.GetPresentationTextureSize() };
 
 	if (use_editor_camera_) {
 		UpdateEditorCameraPan(editor_camera_);
@@ -628,6 +609,12 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		ctx.editor.SetPrimaryWorldCamera(std::nullopt);
 	}
 
+	FrameContext frame_context{ ctx.editor.GetRenderer(),
+								{},
+								presentation_size,
+								editor_camera_.camera.transform,
+								editor_camera_.camera.viewport };
+
 	Viewport viewport{ .position{ min + display_viewport.position },
 					   .size{ display_viewport.size } };
 
@@ -643,14 +630,20 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	// We count this draw call so that draw call counts match with and without the editor.
 	ctx.editor.GetStats().Increment("draw_calls");
 
-	DrawSceneCameraOutlines(ctx, viewport);
+	draw_list->PushClipRect(
+		ToImGui(viewport.position), ToImGui(viewport.position + viewport.size), true
+	);
 
-	DrawSelectedEntityGizmo(ctx, viewport);
+	DrawSceneCameraOutlines(ctx, frame_context, presentation_viewport, viewport);
+
+	DrawSelectedEntityGizmo(ctx, presentation_viewport);
+
+	draw_list->PopClipRect();
 
 	ImGui::End();
 }
 
-void ViewportPanel::DrawSelectedEntityGizmo(EditorContext& ctx, Viewport viewport) {
+void ViewportPanel::DrawSelectedEntityGizmo(EditorContext& ctx, Viewport presentation_viewport) {
 	auto selected_entity{ ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity() };
 
 	if (!selected_entity || !selected_entity.Has<Transform>()) {
@@ -671,72 +664,13 @@ void ViewportPanel::DrawSelectedEntityGizmo(EditorContext& ctx, Viewport viewpor
 		}
 	}
 
-	auto* draw_list{ ImGui::GetWindowDrawList() };
+	FrameContext frame_context{ selected_entity.GetScene() };
 
-	auto viewport_min{ FromImGui(ImGui::GetCursorScreenPos()) };
-	auto viewport_size{ FromImGui(ImGui::GetContentRegionAvail()) };
-
-	Viewport presentation_viewport{ .position{ viewport_min }, .size{ viewport_size } };
-
-	auto add_quad = [&](V2_float world_pos, V2_float size, Color color,
-						Origin origin = Origin::Center) {
-		FrameContext frame_ctx{ selected_entity.GetScene() };
-
-		auto world_vertices{ Rect{ size }.GetWorldVertices(world_pos, origin) };
-
-		std::array<ImVec2, 4> screen_vertices;
-
-		for (std::size_t i{ 0 }; i < world_vertices.size(); ++i) {
-			auto presentation_point{
-				ConvertPoint(world_vertices[i], Frame::World, Frame::Presentation, frame_ctx)
-			};
-
-			auto screen_point{ presentation_point + presentation_viewport.GetCenter() };
-
-			screen_vertices[i] = ToImGui(screen_point);
-		}
-
-		draw_list->AddQuadFilled(
-			screen_vertices[0], screen_vertices[1], screen_vertices[2], screen_vertices[3],
-			ToImGui(color)
-		);
-	};
-
-	V2_float size{ 40, 40 };
-
-	add_quad({ -400, 0 }, size, color::Red);
-	add_quad(world_transform.position, size, color::Green);
-	add_quad({ 400, 0 }, size, color::Blue);
-
-	auto pos = [&](Frame frame) {
-		return selected_entity.GetScene().ctx().input.GetMousePosition(frame);
-	};
-
-	ImGui::Text("Window mouse: %.2f %.2f", pos(Frame::Window).x, pos(Frame::Window).y);
-	ImGui::Text(
-		"Presentation mouse: %.2f %.2f", pos(Frame::Presentation).x, pos(Frame::Presentation).y
+	DrawSimple2DGizmo(
+		ImGui::GetWindowDrawList(), gizmo_state_, world_transform, frame_context,
+		presentation_viewport, true, true
 	);
-	ImGui::Text("Display mouse: %.2f %.2f", pos(Frame::Display).x, pos(Frame::Display).y);
-	ImGui::Text(
-		"Render target mouse: %.2f %.2f", pos(Frame::RenderTarget).x, pos(Frame::RenderTarget).y
-	);
-	ImGui::Text("Camera mouse: %.2f %.2f", pos(Frame::Camera).x, pos(Frame::Camera).y);
-	ImGui::Text("World mouse: %.2f %.2f", pos(Frame::World).x, pos(Frame::World).y);
-	ImGui::Text(
-		"Entity world pos: %.2f %.2f", world_transform.position.x, world_transform.position.y
-	);
-
-	// ViewportView2D view{};
-	// view.viewport = viewport;
-	// view.center	  = V2_float{ 0.0f, 0.0f };
-	// view.zoom	  = 1.0f;
-
-	// DrawSimple2DGizmo(
-	//	ImGui::GetWindowDrawList(), gizmo_state_, world_transform, view, ctx.state.viewport.hovered,
-	//	ctx.state.viewport.focused
-	//);
 
 	SetWorldTransform(selected_entity, world_transform);
 }
-
 } // namespace ptgn::editor

@@ -6,6 +6,7 @@
 #include "core/math/transform.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
+#include "runtime/graphics/frame_context.h"
 
 namespace ptgn::editor {
 
@@ -53,7 +54,10 @@ public:
 private:
 	void DrawSelectedEntityGizmo(EditorContext& ctx, Viewport viewport);
 
-	void DrawSceneCameraOutlines(EditorContext& ctx, Viewport image_viewport);
+	void DrawSceneCameraOutlines(
+		EditorContext& ctx, const FrameContext& frame_context, Viewport presentation_viewport,
+		Viewport image_viewport
+	);
 
 	void DrawViewportToolbar(EditorContext& ctx);
 
