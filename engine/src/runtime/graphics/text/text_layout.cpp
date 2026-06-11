@@ -343,6 +343,47 @@ TextLineMetrics MeasureLineMetrics(
 	return result;
 }
 
+Rect GetGlyphVisualRect(const GlyphInstance& glyph) {
+	return Rect{
+		glyph.position + glyph.plane.min,
+		glyph.position + glyph.plane.max,
+	};
+}
+
+Rect GetGlyphLogicalRect(const GlyphInstance& glyph) {
+	float left{ glyph.position.x };
+	float right{ glyph.position.x + glyph.advance };
+
+	if (right < left) {
+		std::swap(left, right);
+	}
+
+	float top{ glyph.position.y + glyph.plane.min.y };
+	float bottom{ glyph.position.y + glyph.plane.max.y };
+
+	return Rect{
+		{ left, top },
+		{ right, bottom },
+	};
+}
+
+[[nodiscard]] Rect GetGlyphClipTestRect(const GlyphInstance& glyph, TextClipMode mode) {
+	switch (mode) {
+		using enum TextClipMode;
+
+		case ClipFullyContained:
+			// Character-level clipping should use the logical advance cell.
+			// Otherwise negative left bearings make first glyphs disappear.
+			return GetGlyphLogicalRect(glyph);
+
+		case ClipFullyOutside:
+		case None:
+		default:
+			// Partial clipping should use the actual visual quad.
+			return GetGlyphVisualRect(glyph);
+	}
+}
+
 [[nodiscard]] bool RectFullyContains(Rect outer, Rect inner) {
 	return inner.min.x >= outer.min.x && inner.max.x <= outer.max.x && inner.min.y >= outer.min.y &&
 		   inner.max.y <= outer.max.y;
@@ -499,10 +540,7 @@ void BuildVertices(
 				return;
 			}
 
-			Rect glyph_rect{
-				glyph.position + glyph.plane.min,
-				glyph.position + glyph.plane.max,
-			};
+			auto glyph_rect{ GetGlyphClipTestRect(glyph, clip_mode) };
 
 			if (!ShouldDrawRectWithClipMode(glyph_rect, *clip_rect, clip_mode)) {
 				continue;

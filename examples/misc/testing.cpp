@@ -1,146 +1,116 @@
-int main(int, char**) {}
+#include <algorithm>
+#include <chrono>
+#include <string_view>
 
-/*
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_opengl.h>
-#include <SDL3_ttf/SDL_ttf.h>
-#include <stdio.h>
-#include <string.h>
+#include "app/application.h"
+#include "core/editor.h"
+#include "core/graphics/color.h"
+#include "core/input/key.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/vector2.h"
+#include "runtime/asset/asset_manager.h"
+#include "runtime/graphics/text/text.h"
+#include "runtime/graphics/text/text_style.h"
+#include "runtime/physics/movement.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scene/scene_input.h"
+#include "tools/debug/debug_system.h"
 
-#define WINDOW_W   800
-#define WINDOW_H   600
-#define WRAP_WIDTH 300
+using namespace ptgn;
 
-GLuint texture_from_surface(SDL_Surface* surf) {
-	SDL_Surface* converted = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_RGBA32);
+struct TextLayoutScene : public Scene {
+	static constexpr std::string_view font{ "arial" };
 
-	GLuint tex;
-	glGenTextures(1, &tex);
-	glBindTexture(GL_TEXTURE_2D, tex);
+	static constexpr int kColumnCount{ 3 };
 
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	float scale{ 40.0f };
 
-	glTexImage2D(
-		GL_TEXTURE_2D, 0, GL_RGBA, converted->w, converted->h, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-		converted->pixels
-	);
+	V2_float cell_size{ 230.0f, 112.0f };
+	V2_float box_size{ 210.0f, 74.0f };
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	float top{ -330.0f };
+	float left{ -265.0f };
 
-	SDL_DestroySurface(converted);
+	Text CreateBody(
+		V2_float position, V2_float size, std::string_view content,
+		HorizontalAlign horizontal_align, VerticalAlign vertical_align, WrapMode wrap_mode,
+		OverflowMode overflow_mode
+	) {
+		auto text{ CreateText(*this, position, Origin::Center) };
 
-	return tex;
-}
+		Rect box{ size };
 
-int main(int argc, char* argv[]) {
-	SDL_Init(SDL_INIT_VIDEO);
-	TTF_Init();
+		text.Content(content)
+			.Font(font)
+			.Size(14.0f)
+			.Color(color::Black)
+			.Box(box)
+			.Align(horizontal_align, vertical_align)
+			.Wrap(wrap_mode)
+			.Overflow(overflow_mode);
 
-	SDL_Window* window =
-		SDL_CreateWindow("SDL3_ttf OpenGL Test", WINDOW_W, WINDOW_H, SDL_WINDOW_OPENGL);
-
-	SDL_GLContext glctx = SDL_GL_CreateContext(window);
-
-	glViewport(0, 0, WINDOW_W, WINDOW_H);
-
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(0, WINDOW_W, WINDOW_H, 0, -1, 1);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	TTF_Font* font = TTF_OpenFont("assets/Arial.ttf", 24);
-	if (!font) {
-		printf("Font load error: %s\n", SDL_GetError());
-		return 1;
+		return text;
 	}
 
-	char text[4096]	   = "Wrapping test: ";
-	const char* source = "The quick brown fox jumps over the lazy dog. ";
+	Text CreateCell(
+		int column, int row, std::string_view label, std::string_view content,
+		HorizontalAlign horizontal_align, VerticalAlign vertical_align, WrapMode wrap_mode,
+		OverflowMode overflow_mode, V2_float size = {}
+	) {
+		V2_float cell_top{
+			left + cell_size.x * static_cast<float>(column),
+			top + cell_size.y * static_cast<float>(row),
+		};
 
-	int source_index = 0;
-	Uint64 last_add	 = SDL_GetTicks();
-
-	SDL_Color white = { 255, 255, 255, 255 };
-
-	int running = 1;
-
-	while (running) {
-		SDL_Event e;
-		while (SDL_PollEvent(&e)) {
-			if (e.type == SDL_EVENT_QUIT) {
-				running = 0;
-			}
+		V2_float used_size{ size };
+		if (!used_size.IsPositive()) {
+			used_size = box_size;
 		}
 
-		Uint64 now = SDL_GetTicks();
-
-		size_t len = strlen(text);
-
-		if (now - last_add > 50) {
-			text[len]	  = source[source_index];
-			text[len + 1] = '\0';
-
-			source_index++;
-			if (source[source_index] == '\0') {
-				source_index = 0;
-			}
-
-			last_add = now;
-		}
-
-		glClearColor(0.08f, 0.08f, 0.08f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		SDL_Surface* surf = TTF_RenderText_Blended_Wrapped(font, text, len, white, WRAP_WIDTH);
-
-		if (surf) {
-			GLuint tex = texture_from_surface(surf);
-
-			float x = 50.5f;
-			float y = 50.5f;
-			float w = (float)surf->w;
-			float h = (float)surf->h;
-
-			glBindTexture(GL_TEXTURE_2D, tex);
-
-			glBegin(GL_QUADS);
-
-			glTexCoord2f(0.0f, 0.0f);
-			glVertex2f(x, y);
-
-			glTexCoord2f(1.0f, 0.0f);
-			glVertex2f(x + w, y);
-
-			glTexCoord2f(1.0f, 1.0f);
-			glVertex2f(x + w, y + h);
-
-			glTexCoord2f(0.0f, 1.0f);
-			glVertex2f(x, y + h);
-
-			glEnd();
-
-			glDeleteTextures(1, &tex);
-			SDL_DestroySurface(surf);
-		}
-
-		SDL_GL_SwapWindow(window);
+		return CreateBody(
+			{}, used_size, content, horizontal_align, vertical_align, wrap_mode, overflow_mode
+		);
 	}
 
-	TTF_CloseFont(font);
+	void OnEnter() override {
+		SetBackgroundColor(color::LightGray);
 
-	SDL_GL_DestroyContext(glctx);
-	SDL_DestroyWindow(window);
+		ctx().debug.text.draw_enabled = true;
 
-	TTF_Quit();
-	SDL_Quit();
+		ctx().asset.Load(font, "assets/Arial.ttf");
 
-	return 0;
+		V2_float overflow_box_size{ 210.0f, 38.0f };
+
+		CreateCell(
+			2, 1, "OverflowMode::Clip",
+			"Yo! This text is clipped to the text box bounds. Outside content disappears. This "
+			"text is "
+			"too long for the box, so it keeps drawing outside the magenta box",
+			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Clip,
+			overflow_box_size
+		);
+	}
+
+	void OnUpdate() override {
+		MoveWASD(ctx().camera, V2_float{ 300.0f } * ctx().dt().count());
+
+		if (ctx().input.KeyHeld(Key::Q)) {
+			scale += -10.0f * ctx().dt().count();
+			ctx().camera.Zoom(V2_float{ 10.0f } * ctx().dt().count());
+		} else if (ctx().input.KeyHeld(Key::E)) {
+			scale += 10.0f * ctx().dt().count();
+			ctx().camera.Zoom(-V2_float{ 10.0f } * ctx().dt().count());
+		}
+
+		scale = std::clamp(scale, 0.0001f, 10000.0f);
+	}
+};
+
+int main(int, char**) {
+	Application app{ "TextLayoutScene" };
+	// PTGN_WITH_EDITOR(app);
+	app.StartWith<TextLayoutScene>();
 }
-*/

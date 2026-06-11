@@ -133,7 +133,8 @@ struct TextLayoutScene : public Scene {
 
 		CreateCell(
 			1, 1, "OverflowMode::ClipPartial",
-			"This text is clipped to the text box bounds. Outside content disappears. This text is "
+			"Yo! This text is clipped to the text box bounds. Outside content disappears. This "
+			"text is "
 			"too long for the box, so it keeps drawing outside the magenta box",
 			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::ClipPartial,
 			overflow_box_size
@@ -141,7 +142,8 @@ struct TextLayoutScene : public Scene {
 
 		CreateCell(
 			2, 1, "OverflowMode::Clip",
-			"This text is clipped to the text box bounds. Outside content disappears. This text is "
+			"Yo! This text is clipped to the text box bounds. Outside content disappears. This "
+			"text is "
 			"too long for the box, so it keeps drawing outside the magenta box",
 			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Clip,
 			overflow_box_size
@@ -231,6 +233,6 @@ struct TextLayoutScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "TextLayoutScene" };
-	PTGN_WITH_EDITOR(app);
+	// PTGN_WITH_EDITOR(app);
 	app.StartWith<TextLayoutScene>();
 }
