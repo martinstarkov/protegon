@@ -11,6 +11,7 @@
 #include "core/editor.h"
 #include "core/editor_context.h"
 #include "core/editor_state.h"
+#include "core/graphics/color.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
@@ -26,6 +27,22 @@
 namespace ptgn::editor {
 
 namespace {
+
+ImVec2 ToImGui(V2_float v) {
+	return { v.x, v.y };
+}
+
+ImU32 ToImGui(Color c) {
+	return IM_COL32(c.r, c.g, c.b, c.a);
+}
+
+V2_float FromImGui(ImVec2 v) {
+	return { v.x, v.y };
+}
+
+Color FromImGui(ImU32 color) {
+	return Color{ color };
+}
 
 struct ViewportView2D {
 	V2_float center{ 0.0f, 0.0f };
@@ -557,20 +574,19 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	ImGui::Separator();
 
-	ImVec2 min	 = ImGui::GetCursorScreenPos();
-	ImVec2 avail = ImGui::GetContentRegionAvail();
-	ImVec2 max{ min.x + avail.x, min.y + avail.y };
-	ImVec2 center{ min.x + avail.x / 2.0f, min.y + avail.y / 2.0f };
+	auto min{ FromImGui(ImGui::GetCursorScreenPos()) };
+	auto size{ FromImGui(ImGui::GetContentRegionAvail()) };
+	auto max{ min + size };
 
-	Viewport viewport{ .position{ min.x, min.y }, .size{ avail.x, avail.y } };
+	Viewport presentation_viewport{ .position{ min }, .size{ size } };
 
-	ctx.state.viewport.viewport = viewport;
+	ctx.state.viewport.viewport = presentation_viewport;
 	ctx.state.viewport.focused	= ImGui::IsWindowFocused();
 	ctx.state.viewport.hovered	= ImGui::IsWindowHovered();
 
-	ctx.editor.SetPresentationViewport(viewport);
+	ctx.editor.SetPresentationViewport(presentation_viewport);
 
-	if (avail.x <= 0.0f || avail.y <= 0.0f) {
+	if (size.x <= 0.0f || size.y <= 0.0f) {
 		ImGui::End();
 		return;
 	}
@@ -589,7 +605,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	auto bg{ ctx.editor.GetWindowBackgroundColor() };
 
-	draw_list->AddRectFilled(min, max, IM_COL32(bg.r, bg.g, bg.b, bg.a));
+	draw_list->AddRectFilled(ToImGui(min), ToImGui(max), ToImGui(bg));
 
 	auto display_viewport{ ctx.editor.GetDisplayViewport() };
 	auto presentation_texture{ ctx.editor.GetPresentationTexture() };
@@ -612,16 +628,14 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		ctx.editor.SetPrimaryWorldCamera(std::nullopt);
 	}
 
-	ImVec2 img_min{ min.x + static_cast<float>(display_viewport.position.x),
-					min.y + static_cast<float>(display_viewport.position.y) };
-	ImVec2 img_max{ img_min.x + static_cast<float>(display_viewport.size.x),
-					img_min.y + static_cast<float>(display_viewport.size.y) };
+	Viewport viewport{ .position{ min + display_viewport.position },
+					   .size{ display_viewport.size } };
 
 	draw_list->AddCallback(SetImageBlendMode, &ctx.editor.GetRenderer());
 
 	draw_list->AddImage(
-		static_cast<ImTextureID>(presentation_texture), img_min, img_max, ImVec2{ 0.0f, 1.0f },
-		ImVec2{ 1.0f, 0.0f }
+		static_cast<ImTextureID>(presentation_texture), ToImGui(viewport.position),
+		ToImGui(viewport.position + viewport.size), ImVec2{ 0.0f, 1.0f }, ImVec2{ 1.0f, 0.0f }
 	);
 
 	draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
@@ -629,14 +643,9 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	// We count this draw call so that draw call counts match with and without the editor.
 	ctx.editor.GetStats().Increment("draw_calls");
 
-	Viewport gizmo_viewport{ .position{ min.x + static_cast<float>(display_viewport.position.x),
-										min.y + static_cast<float>(display_viewport.position.y) },
-							 .size{ static_cast<float>(display_viewport.size.x),
-									static_cast<float>(display_viewport.size.y) } };
+	DrawSceneCameraOutlines(ctx, viewport);
 
-	DrawSceneCameraOutlines(ctx, gizmo_viewport);
-
-	DrawSelectedEntityGizmo(ctx, gizmo_viewport);
+	DrawSelectedEntityGizmo(ctx, viewport);
 
 	ImGui::End();
 }
@@ -649,6 +658,55 @@ void ViewportPanel::DrawSelectedEntityGizmo(EditorContext& ctx, Viewport viewpor
 	}
 
 	auto world_transform{ GetWorldTransform(selected_entity) };
+
+	if (ctx.state.viewport.hovered && !ImGui::GetIO().WantTextInput) {
+		if (ImGui::IsKeyPressed(ImGuiKey_W)) {
+			gizmo_state_.tool = GizmoTool::Translate;
+		}
+		if (ImGui::IsKeyPressed(ImGuiKey_E)) {
+			gizmo_state_.tool = GizmoTool::Rotate;
+		}
+		if (ImGui::IsKeyPressed(ImGuiKey_R)) {
+			gizmo_state_.tool = GizmoTool::Scale;
+		}
+	}
+
+	auto* draw_list{ ImGui::GetWindowDrawList() };
+
+	auto viewport_min{ FromImGui(ImGui::GetCursorScreenPos()) };
+	auto viewport_size{ FromImGui(ImGui::GetContentRegionAvail()) };
+
+	Viewport presentation_viewport{ .position{ viewport_min }, .size{ viewport_size } };
+
+	auto add_quad = [&](V2_float world_pos, V2_float size, Color color,
+						Origin origin = Origin::Center) {
+		FrameContext frame_ctx{ selected_entity.GetScene() };
+
+		auto world_vertices{ Rect{ size }.GetWorldVertices(world_pos, origin) };
+
+		std::array<ImVec2, 4> screen_vertices;
+
+		for (std::size_t i{ 0 }; i < world_vertices.size(); ++i) {
+			auto presentation_point{
+				ConvertPoint(world_vertices[i], Frame::World, Frame::Presentation, frame_ctx)
+			};
+
+			auto screen_point{ presentation_point + presentation_viewport.GetCenter() };
+
+			screen_vertices[i] = ToImGui(screen_point);
+		}
+
+		draw_list->AddQuadFilled(
+			screen_vertices[0], screen_vertices[1], screen_vertices[2], screen_vertices[3],
+			ToImGui(color)
+		);
+	};
+
+	V2_float size{ 40, 40 };
+
+	add_quad({ -400, 0 }, size, color::Red);
+	add_quad(world_transform.position, size, color::Green);
+	add_quad({ 400, 0 }, size, color::Blue);
 
 	auto pos = [&](Frame frame) {
 		return selected_entity.GetScene().ctx().input.GetMousePosition(frame);
@@ -667,18 +725,6 @@ void ViewportPanel::DrawSelectedEntityGizmo(EditorContext& ctx, Viewport viewpor
 	ImGui::Text(
 		"Entity world pos: %.2f %.2f", world_transform.position.x, world_transform.position.y
 	);
-
-	if (ctx.state.viewport.hovered && !ImGui::GetIO().WantTextInput) {
-		if (ImGui::IsKeyPressed(ImGuiKey_W)) {
-			gizmo_state_.tool = GizmoTool::Translate;
-		}
-		if (ImGui::IsKeyPressed(ImGuiKey_E)) {
-			gizmo_state_.tool = GizmoTool::Rotate;
-		}
-		if (ImGui::IsKeyPressed(ImGuiKey_R)) {
-			gizmo_state_.tool = GizmoTool::Scale;
-		}
-	}
 
 	// ViewportView2D view{};
 	// view.viewport = viewport;
