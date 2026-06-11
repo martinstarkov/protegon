@@ -20,6 +20,7 @@
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "runtime/scene/scene_camera.h"
+#include "runtime/scene/scene_context.h"
 #include "tools/debug/stats.h"
 
 namespace ptgn::editor {
@@ -647,7 +648,25 @@ void ViewportPanel::DrawSelectedEntityGizmo(EditorContext& ctx, Viewport viewpor
 		return;
 	}
 
-	Transform& transform = selected_entity.Get<Transform>();
+	auto world_transform{ GetWorldTransform(selected_entity) };
+
+	auto pos = [&](Frame frame) {
+		return selected_entity.GetScene().ctx().input.GetMousePosition(frame);
+	};
+
+	ImGui::Text("Window mouse: %.2f %.2f", pos(Frame::Window).x, pos(Frame::Window).y);
+	ImGui::Text(
+		"Presentation mouse: %.2f %.2f", pos(Frame::Presentation).x, pos(Frame::Presentation).y
+	);
+	ImGui::Text("Display mouse: %.2f %.2f", pos(Frame::Display).x, pos(Frame::Display).y);
+	ImGui::Text(
+		"Render target mouse: %.2f %.2f", pos(Frame::RenderTarget).x, pos(Frame::RenderTarget).y
+	);
+	ImGui::Text("Camera mouse: %.2f %.2f", pos(Frame::Camera).x, pos(Frame::Camera).y);
+	ImGui::Text("World mouse: %.2f %.2f", pos(Frame::World).x, pos(Frame::World).y);
+	ImGui::Text(
+		"Entity world pos: %.2f %.2f", world_transform.position.x, world_transform.position.y
+	);
 
 	if (ctx.state.viewport.hovered && !ImGui::GetIO().WantTextInput) {
 		if (ImGui::IsKeyPressed(ImGuiKey_W)) {
@@ -661,15 +680,17 @@ void ViewportPanel::DrawSelectedEntityGizmo(EditorContext& ctx, Viewport viewpor
 		}
 	}
 
-	ViewportView2D view{};
-	view.viewport = viewport;
-	view.center	  = V2_float{ 0.0f, 0.0f };
-	view.zoom	  = 1.0f;
+	// ViewportView2D view{};
+	// view.viewport = viewport;
+	// view.center	  = V2_float{ 0.0f, 0.0f };
+	// view.zoom	  = 1.0f;
 
-	DrawSimple2DGizmo(
-		ImGui::GetWindowDrawList(), gizmo_state_, transform, view, ctx.state.viewport.hovered,
-		ctx.state.viewport.focused
-	);
+	// DrawSimple2DGizmo(
+	//	ImGui::GetWindowDrawList(), gizmo_state_, world_transform, view, ctx.state.viewport.hovered,
+	//	ctx.state.viewport.focused
+	//);
+
+	SetWorldTransform(selected_entity, world_transform);
 }
 
 } // namespace ptgn::editor
