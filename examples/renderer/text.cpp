@@ -48,7 +48,7 @@ struct TextEffectsScene : public Scene {
 		ctx().debug.text.draw_enabled = true;
 		SetBackgroundColor(color::LightGray);
 
-		ctx().asset.Load("custom_ttf", "assets/OpenSans-Regular.ttf");
+		ctx().asset.Load("custom_ttf", "assets/Inter-VariableFont.ttf");
 		ctx().asset.Load("custom_otf", "assets/otf.otf");
 		ctx().asset.Load("custom_png", "assets/retro_gaming.png");
 
