@@ -14,13 +14,18 @@ SceneInput::SceneInput(Scene& scene, const Window& window) : scene_{ scene }, wi
 
 V2_float SceneInput::GetMousePosition(Frame position_frame_of_reference) const {
 	auto position{ window_.GetMousePosition() };
+	if (position_frame_of_reference == Frame::Window) {
+		return position;
+	}
 	return GetMousePositionRelativeTo(position, position_frame_of_reference);
 }
 
 V2_float SceneInput::GetPreviousMousePosition(Frame position_frame_of_reference) const {
-	return GetMousePositionRelativeTo(
-		window_.GetPreviousMousePosition(), position_frame_of_reference
-	);
+	auto prev_position{ window_.GetPreviousMousePosition() };
+	if (position_frame_of_reference == Frame::Window) {
+		return prev_position;
+	}
+	return GetMousePositionRelativeTo(prev_position, position_frame_of_reference);
 }
 
 V2_float SceneInput::GetMouseDelta(Frame delta_frame_of_reference) const {

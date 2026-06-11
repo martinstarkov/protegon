@@ -60,10 +60,9 @@ public:
 
 	explicit FrameContext(const Scene& scene);
 	FrameContext(
-		const Renderer& renderer, RenderTarget render_target, Transform camera_transform,
-		Viewport camera_viewport
+		const Renderer& renderer, Transform render_target_transform, V2_float render_target_size,
+		Transform camera_transform, Viewport camera_viewport
 	);
-	FrameContext(const Renderer& renderer, RenderTarget render_target, SceneCamera cam);
 	FrameContext(const Renderer& renderer, RenderTarget render_target, const Camera& cam);
 
 	PresentationFrame presentation;

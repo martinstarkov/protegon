@@ -17,115 +17,117 @@
 namespace ptgn {
 
 FrameContext::FrameContext(const Scene& scene) :
-	FrameContext{ scene.ctx().renderer, scene.GetRenderTarget(), scene.ctx().camera } {}
+	FrameContext{ scene.ctx().renderer, scene.ctx().camera.GetParentRenderTarget(),
+				  scene.ctx().camera.operator Camera() } {}
 
 FrameContext::FrameContext(
-	const Renderer& renderer, RenderTarget render_target_entity, Transform camera_transform,
-	Viewport camera_viewport
+	const Renderer& renderer, Transform render_target_transform, V2_float render_target_size,
+	Transform camera_transform, Viewport render_viewport
 ) {
 	auto presentation_viewport{ renderer.GetPresentationViewport() };
 	auto display_viewport{ renderer.GetDisplayViewport() };
 
 	auto full_viewport_size{ renderer.GetFullViewportSize() };
 
-	auto presentation_center{ presentation_viewport.position + presentation_viewport.size / 2.0f -
-							  full_viewport_size / 2.0f };
+	auto game_size{ renderer.GetGameSize() };
 
-	auto display_center_window{ display_viewport.position + display_viewport.size / 2.0f -
-								presentation_viewport.size / 2.0f };
+	PTGN_ASSERT(game_size.IsPositive(), "Game size must be positive");
+	PTGN_ASSERT(full_viewport_size.IsPositive(), "Full viewport size must be positive");
+
+	auto presentation_center{ presentation_viewport.GetCenter() - full_viewport_size / 2.0f };
+
+	auto display_center_window{ display_viewport.GetCenter() - presentation_viewport.size / 2.0f };
 
 	presentation = PresentationFrame{ .presentation_center = presentation_center };
 
 	display = DisplayFrame{ .display_center = display_center_window };
 
-	render_target =
-		RenderTargetFrame{ .render_target_transform = GetTransform(render_target_entity) };
+	render_target = RenderTargetFrame{ .render_target_transform = render_target_transform };
 
-	camera = CameraFrame{ .camera_viewport	  = camera_viewport,
-						  .render_target_size = render_target_entity.GetSize(),
-						  .scale			  = render_target_entity.GetScale() };
+	camera = CameraFrame{ .camera_viewport	  = render_viewport,
+						  .render_target_size = render_target_size,
+						  .scale			  = render_target_size / game_size };
 
 	world = WorldFrame{ .camera_transform = camera_transform };
 }
 
 FrameContext::FrameContext(
-	const Renderer& renderer, RenderTarget render_target_entity, SceneCamera cam
-) :
-	FrameContext{ renderer, render_target_entity, GetTransform(cam), cam.GetLogicalViewport() } {}
-
-FrameContext::FrameContext(
 	const Renderer& renderer, RenderTarget render_target_entity, const Camera& cam
 ) :
-	FrameContext{ renderer, render_target_entity, cam.transform, cam.viewport } {}
+	FrameContext{ renderer, GetTransform(render_target_entity), render_target_entity.GetSize(),
+				  cam.transform, cam.viewport } {}
 
 V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx) {
 	int a{ std::to_underlying(from) };
 	int b{ std::to_underlying(to) };
-	if (a == b) {
-		return p;
-	}
 
-	// Move "up" (towards World)
-	while (a <= b) {
+	while (a < b) {
 		switch (from) {
 			using enum Frame;
+
 			case Window:
 				p	 = WindowToPresentation(p, ctx.presentation);
 				from = Presentation;
 				break;
+
 			case Presentation:
 				p	 = PresentationToDisplay(p, ctx.display);
 				from = Display;
 				break;
+
 			case Display:
 				p	 = DisplayToRenderTarget(p, ctx.render_target);
 				from = RenderTarget;
 				break;
+
 			case RenderTarget:
 				p	 = RenderTargetToCamera(p, ctx.camera);
 				from = Camera;
 				break;
+
 			case Camera:
 				p	 = CameraToWorld(p, ctx.world);
 				from = World;
 				break;
+
 			case World: break;
 		}
-		if (a == b) {
-			return p;
-		}
+
 		++a;
 	}
 
-	// Move "down" (towards Window)
-	while (a >= b) {
+	while (a > b) {
 		switch (from) {
 			using enum Frame;
+
 			case World:
 				p	 = WorldToCamera(p, ctx.world);
 				from = Camera;
 				break;
+
 			case Camera:
 				p	 = CameraToRenderTarget(p, ctx.camera);
 				from = RenderTarget;
 				break;
+
 			case RenderTarget:
 				p	 = RenderTargetToDisplay(p, ctx.render_target);
 				from = Display;
 				break;
+
 			case Display:
 				p	 = DisplayToPresentation(p, ctx.display);
 				from = Presentation;
 				break;
+
 			case Presentation:
 				p	 = PresentationToWindow(p, ctx.presentation);
 				from = Window;
 				break;
+
 			case Window: break;
 		}
-		if (a == b) {
-			return p;
-		}
+
 		--a;
 	}
 
@@ -171,17 +173,20 @@ V2_float RenderTargetToDisplay(
 }
 
 V2_float RenderTargetToCamera(V2_float render_target_point, const CameraFrame& camera_frame) {
-	PTGN_ASSERT(camera_frame.scale.IsPositive(), "Display scale cannot be negative or zero");
-	return (render_target_point + camera_frame.render_target_size / 2.0f) / camera_frame.scale -
-		   (camera_frame.camera_viewport.position + camera_frame.camera_viewport.size / 2.0f);
+	PTGN_ASSERT(camera_frame.scale.IsPositive(), "Camera scale must be positive");
+
+	return (CenterToTopLeft(render_target_point, camera_frame.render_target_size) -
+			camera_frame.camera_viewport.GetCenter()) /
+		   camera_frame.scale;
 }
 
 V2_float CameraToRenderTarget(V2_float camera_point, const CameraFrame& camera_frame) {
-	PTGN_ASSERT(camera_frame.scale.IsPositive(), "Display scale cannot be negative or zero");
-	return (camera_point + camera_frame.camera_viewport.position +
-			camera_frame.camera_viewport.size / 2.0f) *
-			   camera_frame.scale -
-		   camera_frame.render_target_size / 2.0f;
+	PTGN_ASSERT(camera_frame.scale.IsPositive(), "Camera scale must be positive");
+
+	return TopLeftToCenter(
+		camera_point * camera_frame.scale + camera_frame.camera_viewport.GetCenter(),
+		camera_frame.render_target_size
+	);
 }
 
 V2_float CameraToWorld(V2_float camera_point, const WorldFrame& world_frame) {

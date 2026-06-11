@@ -261,7 +261,7 @@ Viewport SceneCamera::GetLogicalViewport() const {
 	);
 }
 
-Viewport SceneCamera::GetRenderViewport() const {
+Viewport SceneCamera::GetRenderViewport(std::optional<RenderTarget> custom_render_target) const {
 	const auto& camera{ Get<impl::CameraData>() };
 
 	const auto& scene{ GetScene() };
@@ -269,7 +269,9 @@ Viewport SceneCamera::GetRenderViewport() const {
 
 	auto game_size{ renderer.GetGameSize() };
 
-	auto render_target{ GetParentRenderTarget() };
+	auto render_target{ custom_render_target.value_or(GetParentRenderTarget()) };
+
+	PTGN_ASSERT(render_target, "No valid render target found for scene camera");
 
 	auto target_size{ render_target.GetSize() };
 

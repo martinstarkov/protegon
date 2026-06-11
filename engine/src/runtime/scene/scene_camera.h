@@ -88,9 +88,11 @@ public:
 	/// by the game size.
 	Viewport GetLogicalViewport() const;
 
-	/// @return The viewport scaled to the parent render target. If no parent render target is set,
-	/// it is scaled to the default scene render target.
-	Viewport GetRenderViewport() const;
+	/// @return The viewport scaled to the parent render target or the custom target if provided. If
+	/// no parent render target is set, it is scaled to the default scene render target.
+	Viewport GetRenderViewport(
+		std::optional<RenderTarget> custom_render_target = std::nullopt
+	) const;
 
 	/// @return The viewport space of the camera, which determines how the viewport is scaled to the
 	/// parent render target.

@@ -191,11 +191,9 @@ void InteractionSystem::DrawDebugForCamera(
 		FrameContext{ scene.ctx().renderer, render_target, camera.camera }
 	);
 
-	if (debug_settings_.draw_enabled) {
-		scene.ctx().render_queue.DrawPoint(
-			mouse.position, debug_settings_.draw_color, { .camera = camera, .debug = true }
-		);
-	}
+	scene.ctx().render_queue.DrawPoint(
+		mouse.position, debug_settings_.draw_color, { .camera = camera, .debug = true }
+	);
 
 	for (auto [entity, interactive] : scene.EntitiesWith<impl::Interactive>()) {
 		if (!interactive.enabled) {
