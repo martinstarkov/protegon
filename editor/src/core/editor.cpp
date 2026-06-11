@@ -215,12 +215,6 @@ impl::TextureId Editor::GetPresentationTexture() const {
 	return texture;
 }
 
-V2_int Editor::GetPresentationSize() const {
-	impl::RendererAccessor renderer{ impl::ApplicationAccessor::ctx(app).renderer };
-	auto texture{ renderer.GetPresentationTexture() };
-	return renderer.GetSize(texture);
-}
-
 void Editor::OnProjectChanged() {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 	context_->selection.Clear();
