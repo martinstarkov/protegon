@@ -36,48 +36,43 @@ namespace {
 	return { v.x, v.y };
 }
 
-[[nodiscard]] V2_float GetViewportCenter(Viewport viewport) {
-	return viewport.position + viewport.size * 0.5f;
+[[nodiscard]] V2_float GetImGuiMainViewportPosition() {
+	auto* viewport{ ImGui::GetMainViewport() };
+	return { viewport->Pos.x, viewport->Pos.y };
 }
 
-[[nodiscard]] V2_float ImGuiScreenToPresentation(V2_float screen, Viewport presentation_viewport) {
-	return screen - GetViewportCenter(presentation_viewport);
+[[nodiscard]] V2_float ImGuiScreenToWindow(V2_float point, V2_float window_size) {
+	return point - GetImGuiMainViewportPosition() - window_size * 0.5f;
 }
 
-[[nodiscard]] V2_float PresentationToImGuiScreen(
-	V2_float presentation, Viewport presentation_viewport
-) {
-	return presentation + GetViewportCenter(presentation_viewport);
+[[nodiscard]] V2_float WindowToImGuiScreen(V2_float point, V2_float window_size) {
+	return point + window_size * 0.5f + GetImGuiMainViewportPosition();
 }
 
 [[nodiscard]] V2_float ConvertToImGuiScreen(
-	V2_float point, Frame from, const FrameContext& frame_context, Viewport presentation_viewport
+	V2_float point, Frame from, const FrameContext& frame_context, V2_float window_size
 ) {
-	auto presentation_point{ ConvertPoint(point, from, Frame::Presentation, frame_context) };
-	return PresentationToImGuiScreen(presentation_point, presentation_viewport);
+	auto window_point{ ConvertPoint(point, from, Frame::Window, frame_context) };
+	return WindowToImGuiScreen(window_point, window_size);
 }
 
 [[nodiscard]] V2_float ConvertFromImGuiScreen(
-	V2_float screen, Frame to, const FrameContext& frame_context, Viewport presentation_viewport
+	V2_float point, Frame to, const FrameContext& frame_context, V2_float window_size
 ) {
-	auto presentation_point{ ImGuiScreenToPresentation(screen, presentation_viewport) };
-	return ConvertPoint(presentation_point, Frame::Presentation, to, frame_context);
+	auto window_point{ ImGuiScreenToWindow(point, window_size) };
+	return ConvertPoint(window_point, Frame::Window, to, frame_context);
 }
 
 struct ViewportView2D {
 	const FrameContext& frame_context;
-	Viewport presentation_viewport;
+	V2_float window_size;
 
 	[[nodiscard]] V2_float WorldToScreen(V2_float world) const {
-		return ConvertToImGuiScreen(world, Frame::World, frame_context, presentation_viewport);
+		return ConvertToImGuiScreen(world, Frame::World, frame_context, window_size);
 	}
 
 	[[nodiscard]] V2_float ScreenToWorld(V2_float screen) const {
-		return ConvertFromImGuiScreen(screen, Frame::World, frame_context, presentation_viewport);
-	}
-
-	[[nodiscard]] V2_float DisplayToScreen(V2_float display) const {
-		return ConvertToImGuiScreen(display, Frame::Display, frame_context, presentation_viewport);
+		return ConvertFromImGuiScreen(screen, Frame::World, frame_context, window_size);
 	}
 };
 
@@ -109,7 +104,7 @@ void DrawSceneCameraOutline(
 }
 
 bool UpdateEditorCameraPan(
-	EditorCamera& editor_camera, const FrameContext& frame_context, Viewport presentation_viewport
+	EditorCamera& editor_camera, const FrameContext& frame_context, V2_float window_size
 ) {
 	auto& io{ ImGui::GetIO() };
 
@@ -120,12 +115,10 @@ bool UpdateEditorCameraPan(
 	V2_float mouse{ io.MousePos.x, io.MousePos.y };
 	V2_float previous_mouse{ mouse - V2_float{ io.MouseDelta.x, io.MouseDelta.y } };
 
-	auto mouse_world{
-		ConvertFromImGuiScreen(mouse, Frame::World, frame_context, presentation_viewport)
-	};
+	auto mouse_world{ ConvertFromImGuiScreen(mouse, Frame::World, frame_context, window_size) };
 
 	auto previous_mouse_world{
-		ConvertFromImGuiScreen(previous_mouse, Frame::World, frame_context, presentation_viewport)
+		ConvertFromImGuiScreen(previous_mouse, Frame::World, frame_context, window_size)
 	};
 
 	editor_camera.camera.transform.Translate(previous_mouse_world - mouse_world);
@@ -443,7 +436,8 @@ void ViewportPanel::DrawSceneCameraOutlines(
 		return;
 	}
 
-	ViewportView2D view{ frame_context, ctx.state.viewport.viewport };
+	auto window_size{ ctx.editor.GetRenderer().GetFullViewportSize() };
+	ViewportView2D view{ frame_context, window_size };
 
 	for (auto [c, _camera] : scene->EntitiesWith<impl::CameraData>()) {
 		SceneCamera camera{ c };
@@ -564,13 +558,13 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	ImVec2 max{ min.x + avail.x, min.y + avail.y };
 	ImVec2 center{ min.x + avail.x / 2.0f, min.y + avail.y / 2.0f };
 
-	Viewport presentation_viewport{ .position{ min.x, min.y }, .size{ avail.x, avail.y } };
+	Viewport viewport{ .position{ min.x, min.y }, .size{ avail.x, avail.y } };
 
-	ctx.state.viewport.viewport = presentation_viewport;
+	ctx.state.viewport.viewport = viewport;
 	ctx.state.viewport.focused	= ImGui::IsWindowFocused();
 	ctx.state.viewport.hovered	= ImGui::IsWindowHovered();
 
-	ctx.editor.SetPresentationViewport(presentation_viewport);
+	ctx.editor.SetPresentationViewport(viewport);
 
 	if (avail.x <= 0.0f || avail.y <= 0.0f) {
 		ImGui::End();
@@ -597,6 +591,8 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	auto presentation_texture{ ctx.editor.GetPresentationTexture() };
 	auto presentation_size{ ctx.editor.GetPresentationSize() };
 
+	auto window_size{ ctx.editor.GetRenderer().GetFullViewportSize() };
+
 	if (use_editor_camera_) {
 		editor_camera_.camera.viewport.position = {};
 		editor_camera_.camera.viewport.size		= ctx.editor.GetGameSize();
@@ -607,7 +603,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 										editor_camera_.camera.transform,
 										editor_camera_.camera.viewport };
 
-		UpdateEditorCameraPan(editor_camera_, pan_frame_context, presentation_viewport);
+		UpdateEditorCameraPan(editor_camera_, pan_frame_context, window_size);
 
 		editor_camera_.camera.view_projection =
 			GetOrthographicViewProjection(
@@ -627,13 +623,16 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 								editor_camera_.camera.transform,
 								editor_camera_.camera.viewport };
 
-	ViewportView2D view{ frame_context, presentation_viewport };
-
 	auto image_min_point{ display_viewport.size * -0.5f };
 	auto image_max_point{ display_viewport.size * 0.5f };
 
-	auto img_min_v{ view.DisplayToScreen(image_min_point) };
-	auto img_max_v{ view.DisplayToScreen(image_max_point) };
+	auto img_min_v{
+		ConvertToImGuiScreen(image_min_point, Frame::Display, frame_context, window_size)
+	};
+
+	auto img_max_v{
+		ConvertToImGuiScreen(image_max_point, Frame::Display, frame_context, window_size)
+	};
 
 	Viewport image_viewport{ .position{ img_min_v }, .size{ img_max_v - img_min_v } };
 
@@ -670,7 +669,9 @@ void ViewportPanel::DrawSelectedEntityGizmo(EditorContext& ctx, const FrameConte
 		}
 	}
 
-	ViewportView2D view{ frame_context, ctx.state.viewport.viewport };
+	auto window_size{ ctx.editor.GetRenderer().GetFullViewportSize() };
+
+	ViewportView2D view{ frame_context, window_size };
 
 	DrawSimple2DGizmo(
 		ImGui::GetWindowDrawList(), gizmo_state_, world_transform, view, ctx.state.viewport.hovered,
