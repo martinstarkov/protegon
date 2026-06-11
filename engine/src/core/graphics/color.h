@@ -59,6 +59,13 @@ struct Color {
 		PTGN_ASSERT(color.IsNormalized(), "Color must be normalized");
 	}
 
+	/// @brief Constructs from packed RGBA value in the form 0xRRGGBBAA.
+	explicit constexpr Color(std::uint32_t rgba) :
+		r{ static_cast<std::uint8_t>((rgba >> 24) & 255) },
+		g{ static_cast<std::uint8_t>((rgba >> 16) & 255) },
+		b{ static_cast<std::uint8_t>((rgba >> 8) & 255) },
+		a{ static_cast<std::uint8_t>(rgba & 255) } {}
+
 	/// @param alpha Value of transparency to set for the color.
 	/// @return A copy of the color with the modified alpha channel.
 	template <Arithmetic T>
