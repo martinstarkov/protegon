@@ -660,6 +660,8 @@ public:
 
 	TextureId GetPresentationTexture() const;
 
+	V2_int GetSize(TextureId texture) const;
+
 	TextureId GetTexture(FramebufferId framebuffer) const;
 
 	void FlushBatch();

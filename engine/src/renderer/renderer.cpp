@@ -1209,6 +1209,10 @@ TextureId RendererAccessor::GetPresentationTexture() const {
 	return GetTexture(renderer_.GetPresentationFramebuffer());
 }
 
+V2_int RendererAccessor::GetSize(TextureId texture) const {
+	return renderer_.GetSize(texture);
+}
+
 TextureId RendererAccessor::GetTexture(FramebufferId framebuffer) const {
 	return renderer_.GetTexture(framebuffer);
 }
