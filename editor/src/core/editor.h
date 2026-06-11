@@ -49,6 +49,7 @@ public:
 	bool HasGameSize() const;
 	Viewport GetDisplayViewport() const;
 	impl::TextureId GetPresentationTexture() const;
+	V2_int GetPresentationSize() const;
 	void SetWindowBackgroundColor(Color color);
 	Color GetWindowBackgroundColor() const;
 	void SetRendererBackgroundColor(Color color);
