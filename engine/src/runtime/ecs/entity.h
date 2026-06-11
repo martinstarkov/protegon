@@ -312,6 +312,11 @@ void Scale(Entity entity, V2_float scale_multiplier);
 void ScaleX(Entity entity, float scale_x_multiplier);
 void ScaleY(Entity entity, float scale_y_multiplier);
 
+void IgnoreParentTransform(Entity entity, bool ignore_parent_transform = true);
+void IgnoreParentPosition(Entity entity, bool ignore_parent_position = true);
+void IgnoreParentRotation(Entity entity, bool ignore_parent_rotation = true);
+void IgnoreParentScale(Entity entity, bool ignore_parent_scale = true);
+
 } // namespace ptgn
 
 template <>

@@ -53,6 +53,14 @@ struct RigidBody {
 	)
 };
 
+namespace impl {
+
+struct IgnoreParentImmovable {};
+
+} // namespace impl
+
 [[nodiscard]] bool IsImmovable(Entity entity, bool check_parents = true);
+
+void IgnoreParentImmovable(Entity entity, bool ignore_parent_immovable = true);
 
 } // namespace ptgn

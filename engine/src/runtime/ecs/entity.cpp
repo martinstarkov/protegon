@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/event/event.h"
@@ -29,6 +30,52 @@
 
 namespace ptgn {
 
+namespace {
+
+Transform GetWorldTransformImpl(Entity entity, std::size_t search_depth) {
+	auto transform{ GetTransform(entity) };
+
+	if (entity.Has<impl::IgnoreParentTransform>()) {
+		return transform;
+	}
+
+	if (!HasParent(entity)) {
+		return transform;
+	}
+
+	if (search_depth >= kMaxParentDepth) {
+		PTGN_ASSERT(false, "Maximum parent depth exceeded while resolving world transform");
+		return transform;
+	}
+
+	auto parent{ GetParent(entity) };
+
+	if (parent == entity) {
+		PTGN_ASSERT(false, "Entity cannot be its own parent while resolving world transform");
+		return transform;
+	}
+
+	auto relative_to{ GetWorldTransformImpl(parent, search_depth + 1) };
+	auto world_transform{ transform.RelativeTo(relative_to) };
+
+	if (entity.Has<impl::IgnoreParentPosition>()) {
+		world_transform.position = transform.position;
+	}
+
+	if (entity.Has<impl::IgnoreParentScale>()) {
+		world_transform.scale = transform.scale;
+		world_transform.ClampScale();
+	}
+
+	if (entity.Has<impl::IgnoreParentRotation>()) {
+		world_transform.rotation = transform.rotation;
+	}
+
+	return world_transform;
+}
+
+} // namespace
+
 namespace impl {
 
 void AddMandatoryComponents(
@@ -46,13 +93,17 @@ Entity& Entity::Destroy(bool orphan_children) {
 	}
 
 	if (HasChildren(*this)) {
-		const auto& children{ GetChildren(*this) };
+		// Prevent iterator invalidation by copying the children list.
+		std::vector<Entity> children{ GetChildren(*this) };
+
 		if (orphan_children) {
-			for (const auto& child : children) {
+			for (Entity child : children) {
+				PTGN_ASSERT(child != *this, "Entity cannot be its own child");
 				impl::OrphanChild(child);
 			}
 		} else {
 			for (Entity child : children) {
+				PTGN_ASSERT(child != *this, "Entity cannot be its own child");
 				child.Destroy();
 			}
 		}
@@ -206,7 +257,7 @@ void from_json(const json& j, Entity& entity) {
 	}
 
 	if (j.contains("scene")) {
-		std::string scene_tag{ 0 };
+		std::string scene_tag;
 		j["scene"].get_to(scene_tag);
 		PTGN_ASSERT(entity.GetScene().GetTag() == scene_tag, "Entity scene tag mismatch");
 	}
@@ -217,27 +268,7 @@ Transform GetTransform(Entity entity) {
 }
 
 Transform GetWorldTransform(Entity entity) {
-	const auto transform{ GetTransform(entity) };
-	if (entity.Has<impl::IgnoreParentTransform>()) {
-		return transform;
-	}
-	Transform relative_to;
-	if (HasParent(entity)) {
-		Entity parent{ GetParent(entity) };
-		relative_to = GetWorldTransform(parent);
-	}
-	auto world_transform{ transform.RelativeTo(relative_to) };
-	if (entity.Has<impl::IgnoreParentPosition>()) {
-		world_transform.position = transform.position;
-	}
-	if (entity.Has<impl::IgnoreParentScale>()) {
-		world_transform.scale = transform.scale;
-		world_transform.ClampScale();
-	}
-	if (entity.Has<impl::IgnoreParentRotation>()) {
-		world_transform.rotation = transform.rotation;
-	}
-	return world_transform;
+	return GetWorldTransformImpl(entity, 0uz);
 }
 
 Transform GetDrawTransform(Entity entity) {
@@ -355,6 +386,38 @@ void ScaleY(Entity entity, float scale_y_multiplier) {
 	V2_float scale{ GetScale(entity) };
 	scale.y *= scale_y_multiplier;
 	SetScale(entity, scale);
+}
+
+void IgnoreParentTransform(Entity entity, bool ignore_parent_transform) {
+	if (ignore_parent_transform) {
+		entity.Add<impl::IgnoreParentTransform>();
+	} else {
+		entity.Remove<impl::IgnoreParentTransform>();
+	}
+}
+
+void IgnoreParentPosition(Entity entity, bool ignore_parent_position) {
+	if (ignore_parent_position) {
+		entity.Add<impl::IgnoreParentPosition>();
+	} else {
+		entity.Remove<impl::IgnoreParentPosition>();
+	}
+}
+
+void IgnoreParentRotation(Entity entity, bool ignore_parent_rotation) {
+	if (ignore_parent_rotation) {
+		entity.Add<impl::IgnoreParentRotation>();
+	} else {
+		entity.Remove<impl::IgnoreParentRotation>();
+	}
+}
+
+void IgnoreParentScale(Entity entity, bool ignore_parent_scale) {
+	if (ignore_parent_scale) {
+		entity.Add<impl::IgnoreParentScale>();
+	} else {
+		entity.Remove<impl::IgnoreParentScale>();
+	}
 }
 
 } // namespace ptgn

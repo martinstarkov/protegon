@@ -12,7 +12,62 @@
 
 namespace ptgn {
 
+namespace {
+
+bool IsInParentChain(Entity entity, Entity possible_parent) {
+	bool found{ false };
+
+	ForEachParent(
+		entity, [](auto) { return false; },
+		[&found, possible_parent](Entity parent) {
+			if (parent == possible_parent) {
+				found = true;
+				return false;
+			}
+
+			return true;
+		}
+	);
+
+	return found;
+}
+
+void AttachChild(Entity parent, Entity child, std::optional<std::string_view> name) {
+	PTGN_ASSERT(parent, "Cannot add a child to a null parent entity");
+	PTGN_ASSERT(child, "Cannot add a null entity as a child");
+	PTGN_ASSERT(parent != child, "Cannot add an entity as its own child");
+	PTGN_ASSERT(
+		parent.GetManager() == child.GetManager(),
+		"Cannot set cross manager parent-child relationships"
+	);
+	PTGN_ASSERT(
+		!IsInParentChain(parent, child), "Cannot parent an entity to one of its descendants"
+	);
+
+	RemoveParent(child);
+
+	child.Add<impl::Parent>(parent);
+
+	auto& children{ parent.TryAdd<impl::Children>() };
+	children.Add(child, name);
+}
+
+} // namespace
+
 namespace impl {
+
+void OrphanChildren(Scene& scene) {
+	for (auto [entity, orphan] : scene.EntitiesWith<impl::Orphan>()) {
+		RemoveParent(entity);
+		entity.Remove<impl::Orphan>();
+	}
+}
+
+void ClearDeadChildren(Scene& scene) {
+	for (auto [entity, children] : scene.EntitiesWith<impl::Children>()) {
+		std::erase_if(children.children_, [](Entity child) { return !child; });
+	}
+}
 
 void OrphanChild(Entity entity) {
 	PTGN_ASSERT(entity, "Cannot orphan null entity child");
@@ -20,109 +75,58 @@ void OrphanChild(Entity entity) {
 	entity.Add<Orphan>();
 }
 
-void OrphanChildren(Scene& scene) {
-	for (auto [entity, orphan] : scene.EntitiesWith<Orphan>()) {
-		entity.Remove<Parent>();
-		entity.Remove<Orphan>();
-	}
-}
+} // namespace impl
 
-void ClearDeadChildren(Scene& scene) {
-	for (auto [entity, children] : scene.EntitiesWith<impl::Children>()) {
-		std::erase_if(children.children_, [](const Entity& child) { return !child; });
-	}
-}
+Entity GetRootEntity(Entity entity) {
+	Entity root{ entity };
 
-void AddChildImpl(Entity entity, Entity child, std::optional<std::string_view> name) {
-	PTGN_ASSERT(child, "Cannot add an null entity as a child");
-	PTGN_ASSERT(entity != child, "Cannot add an entity as its own child");
-	PTGN_ASSERT(
-		entity.GetManager() == child.GetManager(),
-		"Cannot set cross manager parent-child relationships"
+	ForEachParent(
+		entity, [](auto) { return false; },
+		[&root](Entity parent) {
+			root = parent;
+			return true;
+		}
 	);
-	auto& children{ entity.TryAdd<Children>() };
-	children.Add(child, name);
+
+	return root;
 }
 
-void SetParentImpl(Entity entity, Entity parent) {
+Entity GetParent(Entity entity) {
+	return entity && HasParent(entity) ? entity.Get<impl::Parent>() : Entity{};
+}
+
+bool HasParent(Entity entity) {
+	return entity && entity.Has<impl::Parent>();
+}
+
+void RemoveParent(Entity entity) {
+	if (!HasParent(entity)) {
+		return;
+	}
+
+	if (impl::Parent parent{ entity.Get<impl::Parent>() }; parent && parent.Has<impl::Children>()) {
+		auto& children{ parent.Get<impl::Children>() };
+		children.Remove(entity);
+	}
+
+	entity.Remove<impl::Parent>();
+}
+
+void SetParent(Entity entity, Entity parent, bool ignore_parent_transform) {
+	PTGN_ASSERT(entity, "Cannot set parent of null entity");
+
+	IgnoreParentTransform(entity, ignore_parent_transform);
+
 	if (!parent || parent == entity) {
 		RemoveParent(entity);
 		return;
 	}
-	entity.Add<Parent>(parent);
-}
 
-} // namespace impl
-
-Entity GetRootEntity(Entity entity) {
-	if (HasParent(entity)) {
-		Entity parent{ GetParent(entity) };
-		return GetRootEntity(parent);
-	}
-	return entity;
-}
-
-Entity GetParent(Entity entity) {
-	return HasParent(entity) ? entity.Get<impl::Parent>() : entity;
-}
-
-bool HasParent(Entity entity) {
-	return entity.Has<impl::Parent>();
-}
-
-void RemoveParent(Entity entity) {
-	if (entity.Has<impl::Parent>()) {
-		if (auto& parent{ entity.Get<impl::Parent>() }; parent.Has<impl::Children>()) {
-			auto& children{ parent.Get<impl::Children>() };
-			children.Remove(entity);
-		}
-		entity.Remove<impl::Parent>();
-	}
-}
-
-void IgnoreParentTransform(Entity entity, bool ignore_parent_transform) {
-	if (ignore_parent_transform) {
-		entity.Add<impl::IgnoreParentTransform>();
-	} else {
-		entity.Remove<impl::IgnoreParentTransform>();
-	}
-}
-
-void IgnoreParentPosition(Entity entity, bool ignore_parent_position) {
-	if (ignore_parent_position) {
-		entity.Add<impl::IgnoreParentPosition>();
-	} else {
-		entity.Remove<impl::IgnoreParentPosition>();
-	}
-}
-
-void IgnoreParentRotation(Entity entity, bool ignore_parent_rotation) {
-	if (ignore_parent_rotation) {
-		entity.Add<impl::IgnoreParentRotation>();
-	} else {
-		entity.Remove<impl::IgnoreParentRotation>();
-	}
-}
-
-void IgnoreParentScale(Entity entity, bool ignore_parent_scale) {
-	if (ignore_parent_scale) {
-		entity.Add<impl::IgnoreParentScale>();
-	} else {
-		entity.Remove<impl::IgnoreParentScale>();
-	}
-}
-
-void SetParent(Entity entity, Entity parent, bool ignore_parent_transform) {
-	IgnoreParentTransform(entity, ignore_parent_transform);
-	impl::SetParentImpl(entity, parent);
-	if (parent && parent != entity) {
-		impl::AddChildImpl(parent, entity, {});
-	}
+	AttachChild(parent, entity, {});
 }
 
 void AddChild(Entity entity, Entity child, std::optional<std::string_view> name) {
-	impl::AddChildImpl(entity, child, name);
-	impl::SetParentImpl(child, entity);
+	AttachChild(entity, child, name);
 }
 
 void ClearChildren(Entity entity) {
@@ -130,12 +134,15 @@ void ClearChildren(Entity entity) {
 		return;
 	}
 
-	auto& children{ entity.Get<impl::Children>() };
-	// Cannot use reference here due to unordered_set const iterator.
-	for (Entity child : children.children_) {
-		child.Remove<impl::Parent>();
+	auto children{ entity.Get<impl::Children>().children_ };
+
+	for (Entity child : children) {
+		if (child && HasParent(child) && GetParent(child) == entity) {
+			child.Remove<impl::Parent>();
+		}
 	}
-	children.Clear();
+
+	entity.Get<impl::Children>().Clear();
 }
 
 void RemoveChild(Entity entity, Entity child) {
@@ -147,7 +154,9 @@ void RemoveChild(Entity entity, std::string_view name) {
 	if (!entity.Has<impl::Children>()) {
 		return;
 	}
+
 	const auto& children{ entity.Get<impl::Children>() };
+
 	if (children.Has(name)) {
 		auto child{ children.Get(name) };
 		RemoveParent(child);
@@ -171,13 +180,13 @@ bool HasChild(Entity entity, Entity child) {
 }
 
 Entity GetChild(Entity entity, std::string_view name) {
-	PTGN_ASSERT(HasChildren(entity));
+	PTGN_ASSERT(HasChildren(entity), "Entity has no children");
 	const auto& children{ entity.Get<impl::Children>() };
 	return children.Get(name);
 }
 
 bool HasChildren(Entity entity) {
-	return entity.Has<impl::Children>();
+	return entity.Has<impl::Children>() && !entity.Get<impl::Children>().children_.empty();
 }
 
 const std::vector<Entity>& GetChildren(Entity entity) {

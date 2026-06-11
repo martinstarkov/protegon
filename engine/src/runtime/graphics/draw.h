@@ -21,6 +21,8 @@ struct EffectMargin {
 
 namespace impl {
 
+struct IgnoreParentDepth {};
+
 struct EffectTag {};
 
 struct HDREffectTag {};
@@ -58,6 +60,8 @@ void RemoveDraw(Entity entity);
 void SetDepth(Entity entity, Depth depth);
 
 Depth GetDepth(Entity entity);
+
+void IgnoreParentDepth(Entity entity, bool ignore_parent_depth = true);
 
 void SetBlendMode(Entity entity, BlendMode blend_mode);
 

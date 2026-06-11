@@ -20,9 +20,25 @@ Transform GetRelativeOffset(Entity entity) {
 }
 
 Transform GetOffset(Entity entity) {
-	return GetRelativeOffset(entity).RelativeTo(
-		HasParent(entity) ? GetRelativeOffset(GetParent(entity)) : Transform{}
+	Transform offset{ GetRelativeOffset(entity) };
+
+	ForEachParent(
+		entity, [](Entity e) { return e.Has<impl::IgnoreParentOffset>(); },
+		[&offset](Entity parent) {
+			offset = offset.RelativeTo(GetRelativeOffset(parent));
+			return true;
+		}
 	);
+
+	return offset;
+}
+
+void IgnoreParentOffset(Entity entity, bool ignore_parent_offset) {
+	if (ignore_parent_offset) {
+		entity.Add<impl::IgnoreParentOffset>();
+	} else {
+		entity.Remove<impl::IgnoreParentOffset>();
+	}
 }
 
 void SetDrawOffset(Entity entity, V2_float offset) {

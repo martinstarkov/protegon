@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "core/assert.h"
+#include "core/log.h"
 #include "core/math/angle.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
@@ -60,11 +61,34 @@ bool IsImmovable(Entity entity, bool check_parents) {
 	if (entity.Has<RigidBody>() && entity.Get<RigidBody>().immovable) {
 		return true;
 	}
-	if (check_parents && HasParent(entity)) {
-		Entity parent{ GetParent(entity) };
-		return IsImmovable(parent, check_parents);
+
+	if (!check_parents) {
+		return false;
 	}
-	return false;
+
+	bool immovable{ false };
+
+	ForEachParent(
+		entity, [](Entity e) { return e.Has<impl::IgnoreParentImmovable>(); },
+		[&immovable](Entity parent) {
+			if (parent.Has<RigidBody>() && parent.Get<RigidBody>().immovable) {
+				immovable = true;
+				return false;
+			}
+
+			return true;
+		}
+	);
+
+	return immovable;
+}
+
+void IgnoreParentImmovable(Entity entity, bool ignore_parent_immovable) {
+	if (ignore_parent_immovable) {
+		entity.Add<impl::IgnoreParentImmovable>();
+	} else {
+		entity.Remove<impl::IgnoreParentImmovable>();
+	}
 }
 
 } // namespace ptgn

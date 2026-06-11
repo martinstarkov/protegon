@@ -10,6 +10,8 @@ class Entity;
 
 namespace impl {
 
+struct IgnoreParentOffset {};
+
 /// @brief Holds temporary transform offsets that do not permanently change an entity's transform.
 ///
 /// This struct is useful for representing temporary visual or motion effects such as camera shake
@@ -55,5 +57,7 @@ Transform GetOffset(Entity entity);
 
 /// @brief Sets a custom draw offset for the entity relative to its transform position.
 void SetDrawOffset(Entity entity, V2_float offset = {});
+
+void IgnoreParentOffset(Entity entity, bool ignore_parent_offset = true);
 
 } // namespace ptgn

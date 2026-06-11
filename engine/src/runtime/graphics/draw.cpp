@@ -4,11 +4,13 @@
 #include <compare>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_state.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/drawable.h"
 
 namespace ptgn {
@@ -61,17 +63,25 @@ void SetDepth(Entity entity, Depth depth) {
 }
 
 Depth GetDepth(Entity entity) {
-	// TODO: This was causing a bug with the mitosis disk background (rock texture) thing in GMTK
-	// 2025. Figure out how to fix relative depths.
-	/*Depth parent_depth{};
-	if (HasParent(entity)) {
-		auto parent{ GetParent(entity) };
-		if (parent != entity && parent.Has<Depth>()) {
-			parent_depth = GetDepth(parent);
+	Depth depth{ entity.GetOrDefault<Depth>() };
+
+	ForEachParent(
+		entity, [](Entity e) { return e.Has<impl::IgnoreParentDepth>(); },
+		[&depth](Entity parent) {
+			depth.value += parent.GetOrDefault<Depth>().value;
+			return true;
 		}
+	);
+
+	return depth;
+}
+
+void IgnoreParentDepth(Entity entity, bool ignore_parent_depth) {
+	if (ignore_parent_depth) {
+		entity.Add<impl::IgnoreParentDepth>();
+	} else {
+		entity.Remove<impl::IgnoreParentDepth>();
 	}
-	return parent_depth +*/
-	return entity.GetOrDefault<Depth>();
 }
 
 void SetBlendMode(Entity entity, BlendMode blend_mode) {

@@ -8,6 +8,8 @@ namespace ptgn {
 
 namespace impl {
 
+struct IgnoreParentTint {};
+
 struct Tint {
 	Color value{ color::White };
 
@@ -24,5 +26,7 @@ struct Tint {
 void SetTint(Entity entity, Color color = color::White);
 
 Color GetTint(Entity entity);
+
+void IgnoreParentTint(Entity entity, bool ignore_parent_tint = true);
 
 } // namespace ptgn
