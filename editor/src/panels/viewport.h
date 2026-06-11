@@ -52,7 +52,9 @@ public:
 	void OnRender(EditorContext& ctx);
 
 private:
-	void DrawSelectedEntityGizmo(EditorContext& ctx, Viewport viewport);
+	void DrawSelectedEntityGizmo(
+		EditorContext& ctx, Viewport viewport, const FrameContext& frame_context
+	);
 
 	void DrawSceneCameraOutlines(
 		EditorContext& ctx, const FrameContext& frame_context, Viewport presentation_viewport,
