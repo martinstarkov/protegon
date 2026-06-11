@@ -82,6 +82,10 @@ struct Color {
 				 static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
 	}
 
+	[[nodiscard]] constexpr static Color Multiply(Color lhs, Color rhs) {
+		return Color{ lhs.Normalized() * rhs.Normalized() };
+	}
+
 	constexpr explicit operator V4_float() const {
 		return Normalized();
 	}
