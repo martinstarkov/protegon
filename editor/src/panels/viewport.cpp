@@ -420,29 +420,19 @@ void ViewportPanel::DrawSceneCameraOutlines(
 			continue;
 		}
 
-		auto presentation_to_screen = [&](V2_float presentation_point) {
-			return presentation_point + presentation_viewport.GetCenter();
-		};
-
-		auto screen_to_presentation = [&](V2_float screen_point) {
-			return screen_point - presentation_viewport.GetCenter();
-		};
-
-		auto world_to_screen = [&](V2_float world_point) {
-			auto presentation_point{
-				ConvertPoint(world_point, Frame::World, Frame::Presentation, frame_context)
-			};
-
-			return presentation_to_screen(presentation_point);
-		};
-
 		auto world_vertices{ camera.GetWorldVertices() };
 
-		std::array points{ ToImGui(world_to_screen(world_vertices[0])),
-						   ToImGui(world_to_screen(world_vertices[1])),
-						   ToImGui(world_to_screen(world_vertices[2])),
-						   ToImGui(world_to_screen(world_vertices[3])),
-						   ToImGui(world_to_screen(world_vertices[0])) };
+		// TODO: Fix.
+		FrameContext frame_ctx{ ctx.editor.GetRenderer(), camera.GetParentRenderTarget(),
+								camera.operator Camera() };
+
+		std::array points{
+			ToImGui(WorldToScreen(world_vertices[0], frame_ctx, presentation_viewport)),
+			ToImGui(WorldToScreen(world_vertices[1], frame_ctx, presentation_viewport)),
+			ToImGui(WorldToScreen(world_vertices[2], frame_ctx, presentation_viewport)),
+			ToImGui(WorldToScreen(world_vertices[3], frame_ctx, presentation_viewport)),
+			ToImGui(WorldToScreen(world_vertices[0], frame_ctx, presentation_viewport))
+		};
 
 		draw_list->AddPolyline(points.data(), static_cast<int>(points.size()), color, 0, thickness);
 
