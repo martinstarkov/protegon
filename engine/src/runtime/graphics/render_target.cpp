@@ -5,11 +5,10 @@
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
-#include "core/log.h"
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/pipeline/viewport_event.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/framebuffer.h"
@@ -28,16 +27,9 @@ namespace ptgn {
 
 namespace impl {
 
-void RenderTargetGameResizeScript::OnEvent(Event event) {
-	event.Dispatch<ptgn::event::GameResized>([this](const auto& resized) {
-		// PTGN_LOG("Render target ", entity, " received game resize: ", resized.size);
-		entity.Get<FramebufferObject>().Resize(resized.size);
-	});
-}
-
-void RenderTargetDisplayResizeScript::OnEvent(Event event) {
-	event.Dispatch<ptgn::event::DisplayResized>([this](const auto& resized) {
-		// PTGN_LOG("Render target ", entity, " received display resize: ", resized.size);
+void RenderTargetPresentationResizeScript::OnEvent(Event event) {
+	event.Dispatch<ptgn::event::PresentationResized>([this](const auto& resized) {
+		// PTGN_LOG("Render target ", entity, " received presentation resize: ", resized.size);
 		entity.Get<FramebufferObject>().Resize(resized.size);
 	});
 }
@@ -52,7 +44,7 @@ void RenderTarget::Bind() {
 
 void RenderTarget::ClearColor(std::optional<Color> color, bool restore_bind) {
 	if (color.has_value()) {
-		Get<impl::FramebufferObject>().Clear(*color, restore_bind);
+		Get<impl::FramebufferObject>().Clear(color.value(), restore_bind);
 		return;
 	}
 
@@ -61,7 +53,7 @@ void RenderTarget::ClearColor(std::optional<Color> color, bool restore_bind) {
 
 void RenderTarget::ClearDepth(std::optional<Depth> depth, bool restore_bind) {
 	if (depth.has_value()) {
-		Get<impl::FramebufferObject>().Clear(*depth, restore_bind);
+		Get<impl::FramebufferObject>().Clear(depth.value(), restore_bind);
 		return;
 	}
 
@@ -70,7 +62,7 @@ void RenderTarget::ClearDepth(std::optional<Depth> depth, bool restore_bind) {
 
 void RenderTarget::ClearStencil(std::optional<Stencil> stencil, bool restore_bind) {
 	if (stencil.has_value()) {
-		Get<impl::FramebufferObject>().Clear(*stencil, restore_bind);
+		Get<impl::FramebufferObject>().Clear(stencil.value(), restore_bind);
 		return;
 	}
 
@@ -79,7 +71,7 @@ void RenderTarget::ClearStencil(std::optional<Stencil> stencil, bool restore_bin
 
 void RenderTarget::ClearDepthStencil(std::optional<DepthStencil> depth_stencil, bool restore_bind) {
 	if (depth_stencil.has_value()) {
-		Get<impl::FramebufferObject>().Clear(*depth_stencil, restore_bind);
+		Get<impl::FramebufferObject>().Clear(depth_stencil.value(), restore_bind);
 		return;
 	}
 
@@ -149,10 +141,10 @@ std::optional<DepthStencil> RenderTarget::GetClearDepthStencil() const {
 }
 
 V2_float RenderTarget::GetScale() const {
-	V2_float game_size{ GetScene().ctx().renderer.GetGameSize() };
-	PTGN_ASSERT(game_size.IsPositive(), "Game size cannot be negative or zero");
+	V2_float logical_size{ GetScene().ctx().renderer.GetLogicalSize() };
+	PTGN_ASSERT(logical_size.IsPositive(), "Logical size cannot be negative or zero");
 	V2_float rt_size{ GetSize() };
-	V2_float scale{ rt_size / game_size };
+	V2_float scale{ rt_size / logical_size };
 	PTGN_ASSERT(scale.IsPositive(), "Render target scale cannot be negative or zero");
 	return scale;
 }
@@ -182,7 +174,7 @@ void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
 
 	RenderTarget render_target{ entity };
 
-	std::optional<V2_int> size;
+	V2_int size;
 
 	if (entity.Has<impl::TextureSize>()) {
 		size = V2_float{ entity.Get<impl::TextureSize>() };
@@ -190,24 +182,32 @@ void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
 		size = render_target.GetSize();
 	}
 
-	PTGN_ASSERT(size.has_value(), "Render target does not have a texture");
-	PTGN_ASSERT(!(*size).IsZero(), "Render target texture does not have a valid size");
+	PTGN_ASSERT(size.IsPositive(), "Render target size cannot be zero or negative");
 
 	auto draw_transform{ GetDrawTransform(entity) };
 	auto texture{ render_target.GetTexture() };
 	auto blend_mode{ GetBlendMode(entity) };
 
-	auto params{ impl::GetTextureDrawParams(entity, *size, true, color::White) };
+	auto params{ impl::GetTextureDrawParams(entity, size, true, color::White) };
 
 	ctx.WithBlendMode(blend_mode, [&ctx, draw_transform, texture, &params]() {
 		ctx.DrawTexture(draw_transform, texture, params);
 	});
 }
 
-void RenderTarget::AddRenderTargetComponents(
-	RenderTarget render_target, Scene& scene, V2_int size, Color clear_color, TextureFormat format
+RenderTarget CreateRenderTarget(
+	Scene& scene, V2_int size, Color clear_color, TextureFormat texture_format
 ) {
-	PTGN_ASSERT(render_target, "Failed to create render target entity");
+	RenderTarget render_target{ scene.CreateEntity() };
+
+	PTGN_ASSERT(!size.IsNegative(), "Render target size cannot be negative");
+
+	if (size.IsZero()) {
+		size = scene.ctx().renderer.GetPresentationViewport().size;
+		AddScript<impl::RenderTargetPresentationResizeScript>(render_target);
+	}
+
+	PTGN_ASSERT(size.IsPositive(), "Render target size cannot be zero or negative");
 
 	SetDraw<RenderTarget>(render_target);
 	Show(render_target, false);
@@ -216,55 +216,17 @@ void RenderTarget::AddRenderTargetComponents(
 
 	render_target.Add<impl::FramebufferObject>(
 		impl::RendererAccessor{ scene.ctx().renderer }.CreateFramebuffer(
-			{ .size{ size }, .format{ format } }, std::nullopt
+			{ .size{ size }, .format{ texture_format } }, std::nullopt
 		)
 	);
+
 	render_target.ClearColor(std::nullopt, true);
-}
 
-void RenderTarget::AddRenderTargetComponents(
-	RenderTarget render_target, Scene& scene, ResizeType resize_to_resolution, Color clear_color,
-	TextureFormat texture_format
-) {
-	PTGN_ASSERT(render_target, "Failed to create render target entity");
-
-	V2_int resolution;
-
-	if (resize_to_resolution == ResizeType::Display) {
-		resolution = scene.ctx().renderer.GetDisplaySize();
-		AddScript<impl::RenderTargetDisplayResizeScript>(render_target);
-	} else if (resize_to_resolution == ResizeType::Game) {
-		resolution = scene.ctx().renderer.GetGameSize();
-		AddScript<impl::RenderTargetGameResizeScript>(render_target);
-	} else {
-		PTGN_ERROR("Unknown resize to resolution value");
-	}
-
-	PTGN_ASSERT(resolution.IsPositive(), "Cannot create render target with an invalid resolution");
-
-	AddRenderTargetComponents(render_target, scene, resolution, clear_color, texture_format);
-
-	PTGN_ASSERT(render_target);
-}
-
-RenderTarget CreateRenderTarget(
-	Scene& scene, ResizeType resize_to_resolution, Color clear_color, TextureFormat texture_format
-) {
-	RenderTarget render_target{ scene.CreateEntity() };
-	RenderTarget::AddRenderTargetComponents(
-		render_target, scene, resize_to_resolution, clear_color, texture_format
-	);
 	return render_target;
 }
 
-RenderTarget CreateRenderTarget(
-	Scene& scene, V2_int size, Color clear_color, TextureFormat texture_format
-) {
-	RenderTarget render_target{ scene.CreateEntity() };
-	RenderTarget::AddRenderTargetComponents(
-		render_target, scene, size, clear_color, texture_format
-	);
-	return render_target;
+RenderTarget CreateRenderTarget(Scene& scene, Color clear_color, TextureFormat texture_format) {
+	return CreateRenderTarget(scene, {}, clear_color, texture_format);
 }
 
 } // namespace ptgn

@@ -1,14 +1,11 @@
 #pragma once
 
-#include <cstdint>
 #include <optional>
-#include <utility>
 
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/render_state.h"
-#include "renderer/pipeline/scaling_mode.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
@@ -25,9 +22,6 @@ class RenderTarget;
 inline constexpr TextureFormat kDefaultRenderTargetFormat{ kDefaultHDRFormat };
 inline constexpr Color kDefaultRenderTargetClearColor{ color::Transparent };
 
-RenderTarget CreateRenderTarget(Scene&, V2_int, Color, TextureFormat);
-RenderTarget CreateRenderTarget(Scene&, ResizeType, Color, TextureFormat);
-
 namespace impl {
 
 struct ClearColor {
@@ -42,12 +36,7 @@ struct ClearStencil {
 	Stencil stencil{ 0 };
 };
 
-class RenderTargetGameResizeScript : public Script {
-public:
-	void OnEvent(Event event) override;
-};
-
-class RenderTargetDisplayResizeScript : public Script {
+class RenderTargetPresentationResizeScript : public Script {
 public:
 	void OnEvent(Event event) override;
 };
@@ -98,7 +87,7 @@ public:
 	void SetClearDepthStencil(DepthStencil clear_depth_stencil);
 	std::optional<DepthStencil> GetClearDepthStencil() const;
 
-	/// @return The scale of the render target size relative to the game size.
+	/// @return The scale of the render target size relative to the logical size.
 	V2_float GetScale() const;
 
 	V2_int GetSize() const;
@@ -109,32 +98,11 @@ public:
 private:
 	friend class Scene;
 
-	friend RenderTarget CreateRenderTarget(Scene&, V2_int, Color, TextureFormat);
-	friend RenderTarget CreateRenderTarget(Scene&, ResizeType, Color, TextureFormat);
-
-	static void AddRenderTargetComponents(
-		RenderTarget render_target, Scene& scene, V2_int size, Color clear_color,
-		TextureFormat format
-	);
-
-	static void AddRenderTargetComponents(
-		RenderTarget render_target, Scene& scene, ResizeType resize_to_resolution,
-		Color clear_color, TextureFormat texture_format
-	);
-
 	impl::TextureId GetTexture() const;
 };
 
-namespace impl {
-
-struct ParentRenderTarget {
-	RenderTarget render_target;
-};
-
-} // namespace impl
-
-/// Create a render target with a custom size.
-/// @param size The size of the render target and its camera viewport.
+/// @brief Create a render target with a custom size.
+/// @param size The size of the render target.
 /// @param clear_color The color to which the render target is cleared.
 /// @param Texture format of the render target texture. Ensure this complies with possible HDR
 /// requirements.
@@ -143,14 +111,12 @@ RenderTarget CreateRenderTarget(
 	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
 
-/// Create a render target that is continuously sized to the specified resolution.
-/// @param resize_to_resolution Which resolution the render target automatically resizes to.
+/// @brief Create a render target that is continuously sized to the presentation resolution.
 /// @param clear_color The color to which the render target is cleared.
 /// @param Texture format of the render target texture. Ensure this complies with possible HDR
 /// requirements.
 RenderTarget CreateRenderTarget(
-	Scene& scene, ResizeType resize_to_resolution,
-	Color clear_color			 = kDefaultRenderTargetClearColor,
+	Scene& scene, Color clear_color = kDefaultRenderTargetClearColor,
 	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
 

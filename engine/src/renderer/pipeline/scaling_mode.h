@@ -4,7 +4,7 @@
 
 namespace ptgn {
 
-/// @brief How the game size is scaled to the window size, resulting in display size
+/// @brief How the logical size is scaled to the window size, resulting in display size
 enum class ScalingMode {
 	/// @brief There is no scaling in effect
 	Disabled,
@@ -20,16 +20,6 @@ enum class ScalingMode {
 	IntegerScale,
 };
 PTGN_SERIALIZE_ENUM(ScalingMode);
-
-/// @brief Determines which resolution the render target automatically resizes to when the game or
-/// display is resized.
-enum class ResizeType {
-	/// @brief Resizes to the current display size.
-	Display,
-	/// @brief Resizes to the current game size.
-	Game
-};
-PTGN_SERIALIZE_ENUM(ResizeType);
 
 namespace impl {
 
