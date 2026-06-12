@@ -22,7 +22,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 1280, 720 };
+constexpr V2_int logical_size{ 1280, 720 };
 
 class FluidContainer {
 public:
@@ -298,7 +298,7 @@ public:
 class FluidScene : public Scene {
 public:
 	V2_float scale{ 6, 6 };
-	FluidContainer fluid{ game_size / scale, 0.1f, 0.0001f, 0.000001f };
+	FluidContainer fluid{ logical_size / scale, 0.1f, 0.0001f, 0.000001f };
 	V2_float gravity;
 	float gravity_increment{ 1.0f };
 
@@ -331,7 +331,7 @@ public:
 
 		// Left click: add fluid
 		if (ctx().input.MouseHeld(Mouse::Left)) {
-			auto mouse_position = ctx().input.GetMousePosition() + game_size * 0.5f;
+			auto mouse_position = ctx().input.GetMousePosition() + logical_size * 0.5f;
 			V2_int pos			= mouse_position / scale;
 			fluid.AddDensity(pos.x, pos.y, 1000, static_cast<int>(10.0f / scale.x));
 			fluid.AddVelocity(pos.x, pos.y, gravity.x, gravity.y);
@@ -339,7 +339,7 @@ public:
 
 		// Right click: draw obstacles
 		if (ctx().input.MouseHeld(Mouse::Right)) {
-			auto mouse_position = ctx().input.GetMousePosition() + game_size * 0.5f;
+			auto mouse_position = ctx().input.GetMousePosition() + logical_size * 0.5f;
 			V2_int pos			= mouse_position / scale;
 			// Make a small brush radius to draw obstacles
 			auto brush_radius{ static_cast<int>(3.0f / scale.x) };
@@ -392,7 +392,7 @@ public:
 				}
 
 				ctx().renderer.DrawShape(
-					Transform{ -game_size * 0.5f + position * scale }, Rect{ scale }, color,
+					Transform{ -logical_size * 0.5f + position * scale }, Rect{ scale }, color,
 					Solid{}, Origin::TopLeft, Depth{}, BlendMode::Blend
 				);
 			}
@@ -404,6 +404,6 @@ int main(int, char**) {
 	Application app{ "Fluid with Obstacles: Click (add), Arrows (flow), R "
 					 "(reset gravity), Space (reset fluid), "
 					 "D (toggle view)",
-					 game_size };
+					 logical_size };
 	app.StartWith<FluidScene>();
 }

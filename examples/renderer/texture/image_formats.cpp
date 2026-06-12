@@ -38,7 +38,7 @@ class TextureFormatScene : public Scene {
 							   { "png10", "assets/png10.png" },
 							   { "png11", "assets/png11.png" } });
 
-		V2_float ws{ ctx().global_renderer_.GetGameSize() };
+		V2_float ws{ ctx().global_renderer_.GetLogicalSize() };
 
 		SetScale(
 			sprites.emplace_back(CreateSprite(*this, "jpg", -ws * 0.5f + V2_float{ 0, 0 })), 1.0f

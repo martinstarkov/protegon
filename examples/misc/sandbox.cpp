@@ -151,8 +151,8 @@ public:
 	void OnEnter() override {
 		PTGN_INFO("Entered asset scene");
 
-		V2_int game_size{ 320, 180 };
-		ctx().renderer.SetGameSize(game_size);
+		V2_int logical_size{ 320, 180 };
+		ctx().renderer.SetLogicalSize(logical_size);
 		V2_int window_size{ 1280, 720 };
 		ctx().window.SetSize(window_size);
 

@@ -41,12 +41,12 @@ public:
 							   { "planet_s", "assets/planet_s.png" },
 							   { "stars", "assets/stars.png" } });
 
-		bg_pos		 = ctx().renderer.GetGameSize() * 0.5f;
-		planet_b_pos = ctx().renderer.GetGameSize() * 0.5f - V2_float{ 200, 200 };
-		planet_s_pos = ctx().renderer.GetGameSize() * 0.5f + V2_float{ 200, 200 };
-		stars_pos	 = ctx().renderer.GetGameSize() * 0.5f;
+		bg_pos		 = ctx().renderer.GetLogicalSize() * 0.5f;
+		planet_b_pos = ctx().renderer.GetLogicalSize() * 0.5f - V2_float{ 200, 200 };
+		planet_s_pos = ctx().renderer.GetLogicalSize() * 0.5f + V2_float{ 200, 200 };
+		stars_pos	 = ctx().renderer.GetLogicalSize() * 0.5f;
 
-		size			= ctx().renderer.GetGameSize() * scale;
+		size			= ctx().renderer.GetLogicalSize() * scale;
 		background_size = ctx().asset.Get<Texture>("background").GetSize();
 		bg_aspect_ratio = background_size.x / background_size.y;
 

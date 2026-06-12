@@ -19,7 +19,7 @@
 using namespace ptgn;
 
 constexpr V2_int window_size{ 1280, 720 };
-constexpr V2_int game_size{ 320, 240 }; // 4, 3
+constexpr V2_int logical_size{ 320, 240 }; // 4, 3
 
 class ScalingModeScene : public Scene {
 	void OnEnter() override {
@@ -28,25 +28,25 @@ class ScalingModeScene : public Scene {
 
 		ctx().window.SetSize(window_size);
 		ctx().asset.Load("background", "assets/outlined.jpg");
-		ctx().renderer.SetGameSize(game_size, ScalingMode::Disabled);
+		ctx().renderer.SetLogicalSize(logical_size, ScalingMode::Disabled);
 
 		auto s1 = CreateSprite(*this, "background", {}, Center);
-		SetDisplaySize(s1, game_size);
+		SetDisplaySize(s1, logical_size);
 		CreateRect(
-			*this, V2_float{ -game_size.x * 0.5f, -game_size.y * 0.5f },
-			V2_float{ game_size.x, 30 }, color::Red, Solid{}, TopLeft
+			*this, V2_float{ -logical_size.x * 0.5f, -logical_size.y * 0.5f },
+			V2_float{ logical_size.x, 30 }, color::Red, Solid{}, TopLeft
 		);
 		CreateRect(
-			*this, V2_float{ game_size.x * 0.5f - 30, -game_size.y * 0.5f },
-			V2_float{ 30, game_size.y }, color::Green, Solid{}, TopLeft
+			*this, V2_float{ logical_size.x * 0.5f - 30, -logical_size.y * 0.5f },
+			V2_float{ 30, logical_size.y }, color::Green, Solid{}, TopLeft
 		);
 		CreateRect(
-			*this, V2_float{ -game_size.x * 0.5f, game_size.y * 0.5f - 30 },
-			V2_float{ game_size.x, 30 }, color::Blue, Solid{}, TopLeft
+			*this, V2_float{ -logical_size.x * 0.5f, logical_size.y * 0.5f - 30 },
+			V2_float{ logical_size.x, 30 }, color::Blue, Solid{}, TopLeft
 		);
 		CreateRect(
-			*this, V2_float{ -game_size.x * 0.5f, -game_size.y * 0.5f },
-			V2_float{ 30, game_size.y }, color::Teal, Solid{}, TopLeft
+			*this, V2_float{ -logical_size.x * 0.5f, -logical_size.y * 0.5f },
+			V2_float{ 30, logical_size.y }, color::Teal, Solid{}, TopLeft
 		);
 	}
 
@@ -70,7 +70,7 @@ class ScalingModeScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "ScalingModeScene: QWERT: Switch Resolution Modes", game_size };
+	Application app{ "ScalingModeScene: QWERT: Switch Resolution Modes", logical_size };
 	PTGN_WITH_EDITOR(app);
 	app.StartWith<ScalingModeScene>();
 }

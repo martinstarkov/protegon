@@ -15,13 +15,13 @@
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 800, 800 };
+constexpr V2_int logical_size{ 800, 800 };
 
 class Scene3 : public Scene {
 public:
 	void OnUpdate() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		ctx().renderer.DrawTexture("bg3", {}, game_size, Origin::Center);
+		ctx().renderer.DrawTexture("bg3", {}, logical_size, Origin::Center);
 	}
 };
 
@@ -39,7 +39,7 @@ public:
 
 	void OnUpdate() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		ctx().renderer.DrawTexture("bg2", {}, game_size, Origin::Center);
+		ctx().renderer.DrawTexture("bg2", {}, logical_size, Origin::Center);
 		if (ctx().input.KeyPressed(Key::A)) {
 			++i;
 			ctx().scene.Enter<Scene2>("scene2", i);
@@ -51,7 +51,7 @@ class Scene1 : public Scene {
 public:
 	void OnUpdate() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		ctx().renderer.DrawTexture("bg1", {}, game_size, Origin::Center);
+		ctx().renderer.DrawTexture("bg1", {}, logical_size, Origin::Center);
 	}
 };
 
@@ -68,6 +68,6 @@ public:
 };
 
 int main(int, char**) {
-	Application app{ "SceneExample: A to re-enter scene 2", game_size };
+	Application app{ "SceneExample: A to re-enter scene 2", logical_size };
 	app.StartWith<SceneExample>("scene_example");
 }

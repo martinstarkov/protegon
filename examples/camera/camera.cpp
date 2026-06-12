@@ -274,10 +274,10 @@ public:
 
 		// auto blur{ CreateBlur(*this) };
 		// auto grayscale{ CreateGrayscale(*this) };
-		auto game_size{ ctx().renderer.GetGameSize() };
-		auto s1{ CreateSprite(*this, "tree", -game_size * 0.5f + V2_float{ 100, 400 }) };
+		auto logical_size{ ctx().renderer.GetLogicalSize() };
+		auto s1{ CreateSprite(*this, "tree", -logical_size * 0.5f + V2_float{ 100, 400 }) };
 		// AddPreFX(s1, blur);
-		auto s2{ CreateSprite(*this, "tree", -game_size * 0.5f + V2_float{ 700, 400 }) };
+		auto s2{ CreateSprite(*this, "tree", -logical_size * 0.5f + V2_float{ 700, 400 }) };
 		// AddPostFX(s2, grayscale);
 
 		follow_config.move_mode = MoveMode::Lerp;

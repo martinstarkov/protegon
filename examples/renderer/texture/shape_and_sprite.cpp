@@ -20,7 +20,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 320, 180 };
+constexpr V2_int logical_size{ 320, 180 };
 
 struct ShapeAndSpriteScene : public Scene {
 	static constexpr Degrees arc_start_angle{ 113.0f };
@@ -65,7 +65,7 @@ struct ShapeAndSpriteScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "ShapeAndSpriteScene", game_size * 2.0f };
+	Application app{ "ShapeAndSpriteScene", logical_size * 2.0f };
 	PTGN_WITH_EDITOR(app);
 	app.StartWith<ShapeAndSpriteScene>();
 }

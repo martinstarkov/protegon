@@ -32,10 +32,10 @@
 using namespace ptgn;
 
 constexpr V2_int window_size{ 1280, 720 };
-constexpr V2_int game_size{ 320, 180 };
-constexpr Viewport camera0_viewport{ {}, { game_size.x / 2.0f, game_size.y } };
-constexpr Viewport camera_viewport{ { game_size.x / 2.0f, 0.0f },
-									{ game_size.x / 2.0f, game_size.y } };
+constexpr V2_int logical_size{ 320, 180 };
+constexpr Viewport camera0_viewport{ {}, { logical_size.x / 2.0f, logical_size.y } };
+constexpr Viewport camera_viewport{ { logical_size.x / 2.0f, 0.0f },
+									{ logical_size.x / 2.0f, logical_size.y } };
 
 struct RectDragScript : public Script {
 	void OnEvent(Event d) override {
@@ -62,7 +62,7 @@ struct ResolutionScene : public Scene {
 	SceneCamera camera0;
 
 	void OnEnter() override {
-		ctx().renderer.SetGameSize(game_size);
+		ctx().renderer.SetLogicalSize(logical_size);
 		ctx().window.SetBackgroundColor(color::LightPurple);
 		ctx().renderer.SetBackgroundColor(color::LightBlue);
 		ctx().renderer.SetScalingMode(ScalingMode::Letterbox);

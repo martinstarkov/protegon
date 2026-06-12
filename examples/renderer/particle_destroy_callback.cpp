@@ -31,7 +31,7 @@ public:
 		ctx().asset.Load("anim", "assets/animation_rain_splash.png");
 
 		rain = CreateParticleEmitter(
-			*this, { 0.0f, static_cast<float>(-ctx().renderer.GetGameSize().y) / 2.0f },
+			*this, { 0.0f, static_cast<float>(-ctx().renderer.GetLogicalSize().y) / 2.0f },
 			{ .rate_or_burst =
 				  ParticleRate{
 					  .duration = 1s, .loop = true, .prewarm = false, .rate_over_time = 250 },

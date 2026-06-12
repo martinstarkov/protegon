@@ -271,13 +271,13 @@ public:
 		);
 
 		V2_int offset{ 6, 6 };
-		V2_int size{ (ctx().renderer.GetGameSize() - offset * (grid.GetSize() + V2_int{ 1, 1 })) /
+		V2_int size{ (ctx().renderer.GetLogicalSize() - offset * (grid.GetSize() + V2_int{ 1, 1 })) /
 					 grid.GetSize() };
 
 		grid.ForEach([&, size, offset](auto coord, Button& b) {
 			if (b != Button{}) {
 				SetPosition(
-					b, -ctx().renderer.GetGameSize() * 0.5f + coord * (size + offset) + offset
+					b, -ctx().renderer.GetLogicalSize() * 0.5f + coord * (size + offset) + offset
 				);
 				SetDrawOrigin(b, Origin::TopLeft);
 				b.SetShape(size);

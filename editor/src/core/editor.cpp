@@ -153,20 +153,20 @@ void Editor::SetScalingMode(ScalingMode scaling_mode) {
 	impl::ApplicationAccessor::ctx(app).renderer.SetScalingMode(scaling_mode);
 }
 
-void Editor::SetGameSize(std::optional<V2_int> game_size) {
-	impl::ApplicationAccessor::ctx(app).renderer.SetGameSize(game_size, std::nullopt);
+void Editor::SetLogicalSize(std::optional<V2_int> logical_size) {
+	impl::ApplicationAccessor::ctx(app).renderer.SetLogicalSize(logical_size, std::nullopt);
 }
 
 ScalingMode Editor::GetScalingMode() const {
 	return impl::ApplicationAccessor::ctx(app).renderer.GetScalingMode();
 }
 
-bool Editor::HasGameSize() const {
-	return impl::ApplicationAccessor::ctx(app).renderer.HasGameSize();
+bool Editor::HasLogicalSize() const {
+	return impl::ApplicationAccessor::ctx(app).renderer.HasLogicalSize();
 }
 
-V2_int Editor::GetGameSize() const {
-	return impl::ApplicationAccessor::ctx(app).renderer.GetGameSize();
+V2_int Editor::GetLogicalSize() const {
+	return impl::ApplicationAccessor::ctx(app).renderer.GetLogicalSize();
 }
 
 Viewport Editor::GetDisplayViewport() const {
@@ -281,7 +281,7 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	ImGui::DockBuilderDockWindow("Inspector", dock_right);
 	ImGui::DockBuilderDockWindow("Engine Settings", dock_right_bottom);
 
-	ImGui::DockBuilderDockWindow("Game", dock_main);
+	ImGui::DockBuilderDockWindow("Viewport", dock_main);
 	ImGui::DockBuilderDockWindow("Render Stats", dock_center_bottom);
 	ImGui::DockBuilderDockWindow("Render Graph", dock_center_bottom);
 	ImGui::DockBuilderDockWindow("Content Browser", dock_center_bottom);

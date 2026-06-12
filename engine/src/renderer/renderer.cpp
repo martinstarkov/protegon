@@ -80,7 +80,7 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 
 	SetCurrentPipeline("texture");
 
-	game_size_ = GetFullViewportSize();
+	logical_size_ = GetFullViewportSize();
 
 	auto display{ RecalculateDisplayViewport() };
 
@@ -139,7 +139,7 @@ impl::FramebufferObject Renderer::CreateFramebuffer(
 	TextureDesc desc, std::optional<TextureDesc> other_desc
 ) {
 	PTGN_ASSERT(
-		!other_desc.has_value() || desc != *other_desc,
+		!other_desc.has_value() || desc != other_desc.value(),
 		"Other texture description cannot match the first one"
 	);
 
@@ -148,10 +148,10 @@ impl::FramebufferObject Renderer::CreateFramebuffer(
 	if (other_desc.has_value()) {
 		PTGN_ASSERT(IsColorFormat(desc.format), "Cannot specify other_desc for non-color format");
 		PTGN_ASSERT(
-			other_desc->size == desc.size, "Framebuffer attachments must have matching sizes"
+			other_desc.value().size == desc.size, "Framebuffer attachments must have matching sizes"
 		);
 		PTGN_ASSERT(
-			!IsColorFormat(other_desc->format),
+			!IsColorFormat(other_desc.value().format),
 			"Other framebuffer attachment must be depth, stencil, or depth-stencil"
 		);
 	}
@@ -165,8 +165,9 @@ impl::FramebufferObject Renderer::CreateFramebuffer(
 		auto attachment{ impl::gl::Attachment::DepthStencil };
 
 		if (other_desc.has_value()) {
-			attachment	 = impl::gl::GetDepthStencilAttachment(other_desc->format);
-			renderbuffer = gl_->renderbuffers.Create(other_desc->size, other_desc->format);
+			attachment = impl::gl::GetDepthStencilAttachment(other_desc.value().format);
+			renderbuffer =
+				gl_->renderbuffers.Create(other_desc.value().size, other_desc.value().format);
 		}
 
 		framebuffer = gl_->framebuffers.Create(texture, renderbuffer, attachment, true);
@@ -280,7 +281,7 @@ void Renderer::SetShader(impl::ShaderId shader) {
 	auto update_view_projection_uniform = [&]() {
 		if (bound.render_state.view_projection.has_value()) {
 			gl_->shaders.SetUniform(
-				shader, kViewProjectionUniform, *bound.render_state.view_projection
+				shader, kViewProjectionUniform, bound.render_state.view_projection.value()
 			);
 		}
 	};
@@ -346,7 +347,7 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	const auto& bound{ gl_->GetBoundState().render_state };
 	PTGN_ASSERT(bound.view_projection.has_value());
 	if (auto shader{ GetBoundShader() }) {
-		gl_->shaders.SetUniform(shader, kViewProjectionUniform, *bound.view_projection);
+		gl_->shaders.SetUniform(shader, kViewProjectionUniform, bound.view_projection.value());
 	}
 }
 
@@ -417,7 +418,7 @@ void Renderer::OnWindowResize(V2_int size) {
 		return;
 	}
 
-	if (!game_size_.has_value()) {
+	if (!logical_size_.has_value()) {
 		event_sink_(size, ResizeType::Game);
 	}
 
@@ -446,25 +447,25 @@ void Renderer::SetGamma(float gamma) {
 	render_settings_.gamma = gamma;
 }
 
-void Renderer::SetGameSize(
-	std::optional<V2_int> game_size, std::optional<ScalingMode> scaling_mode
+void Renderer::SetLogicalSize(
+	std::optional<V2_int> logical_size, std::optional<ScalingMode> scaling_mode
 ) {
-	if (game_size_ == game_size &&
+	if (logical_size_ == logical_size &&
 		(!scaling_mode.has_value() || scaling_mode.has_value() && scaling_mode_ == scaling_mode)) {
 		return;
 	}
 
 	PTGN_ASSERT(
-		!game_size.has_value() || game_size.has_value() && game_size->IsPositive(),
-		"Game size cannot be set to negative value or zero"
+		!logical_size.has_value() || logical_size.has_value() && logical_size.value().IsPositive(),
+		"Logical size cannot be set to negative value or zero"
 	);
 
-	game_size_ = game_size;
+	logical_size_ = logical_size;
 	if (scaling_mode.has_value()) {
-		scaling_mode_ = *scaling_mode;
+		scaling_mode_ = scaling_mode.value();
 	}
 
-	auto size{ GetGameSize() };
+	auto size{ GetLogicalSize() };
 
 	event_sink_(size, ResizeType::Game);
 
@@ -492,21 +493,21 @@ void Renderer::SetPresentationViewport(std::optional<Viewport> presentation_view
 		return;
 	}
 
-	if (!game_size_.has_value()) {
-		event_sink_(presentation_viewport_->size, ResizeType::Game);
+	if (!logical_size_.has_value()) {
+		event_sink_(presentation_viewport_.value().size, ResizeType::Game);
 	}
 
-	event_sink_(presentation_viewport_->size, impl::PresentationResizeType{});
+	event_sink_(presentation_viewport_.value().size, impl::PresentationResizeType{});
 	display_viewport_dirty_ = true;
 }
 
-bool Renderer::HasGameSize() const {
-	return game_size_.has_value();
+bool Renderer::HasLogicalSize() const {
+	return logical_size_.has_value();
 }
 
-V2_int Renderer::GetGameSize() const {
-	if (HasGameSize()) {
-		return *game_size_;
+V2_int Renderer::GetLogicalSize() const {
+	if (HasLogicalSize()) {
+		return logical_size_.value();
 	}
 	return GetPresentationSize();
 }
@@ -521,14 +522,14 @@ Viewport Renderer::GetPresentationViewport() const {
 
 V2_int Renderer::GetPresentationPosition() const {
 	if (presentation_viewport_.has_value()) {
-		return presentation_viewport_->position;
+		return presentation_viewport_.value().position;
 	}
 	return { 0, 0 };
 }
 
 V2_int Renderer::GetPresentationSize() const {
 	if (presentation_viewport_.has_value()) {
-		return presentation_viewport_->size;
+		return presentation_viewport_.value().size;
 	}
 	return GetFullViewportSize();
 }
@@ -547,12 +548,12 @@ V2_int Renderer::GetDisplaySize() const {
 
 V2_float Renderer::GetScale() const {
 	auto display_size{ GetDisplaySize() };
-	auto game_size{ GetGameSize() };
+	auto logical_size{ GetLogicalSize() };
 
 	PTGN_ASSERT(display_size.IsPositive());
-	PTGN_ASSERT(game_size.IsPositive());
+	PTGN_ASSERT(logical_size.IsPositive());
 
-	return V2_float{ display_size } / game_size;
+	return V2_float{ display_size } / logical_size;
 }
 
 V2_int Renderer::GetFullViewportSize() const {
@@ -604,32 +605,32 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 
 	PTGN_ASSERT(presentation.size.IsPositive());
 
-	auto game_size{ game_size_.value_or(presentation.size) };
+	auto logical_size{ logical_size_.value_or(presentation.size) };
 
-	PTGN_ASSERT(game_size.IsPositive());
+	PTGN_ASSERT(logical_size.IsPositive());
 
 	Viewport viewport{ .position{}, .size{ presentation.size } };
 
-	auto compute_aspect_fit = [&viewport, game_size, presentation](bool letterbox_mode) {
+	auto compute_aspect_fit = [&viewport, logical_size, presentation](bool letterbox_mode) {
 		float presentation_aspect{ static_cast<float>(presentation.size.x) / presentation.size.y };
-		float game_aspect{ static_cast<float>(game_size.x) / game_size.y };
+		float logical_aspect{ static_cast<float>(logical_size.x) / logical_size.y };
 
-		// In letterbox mode we need require presentation_aspect > game_aspect to fit
-		// height, and in overscan we require presentation_aspect > game_aspect to fit
+		// In letterbox mode we need require presentation_aspect > logical_aspect to fit
+		// height, and in overscan we require presentation_aspect > logical_aspect to fit
 		// height.
-		bool fit_height{ (presentation_aspect > game_aspect) == letterbox_mode };
+		bool fit_height{ (presentation_aspect > logical_aspect) == letterbox_mode };
 
 		if (fit_height) {
 			viewport.size.y = presentation.size.y;
 			viewport.size.x =
-				static_cast<int>(static_cast<float>(presentation.size.y) * game_aspect + 0.5f);
+				static_cast<int>(static_cast<float>(presentation.size.y) * logical_aspect + 0.5f);
 			viewport.position.x = (presentation.size.x - viewport.size.x) / 2; // left edge.
 			viewport.position.y = 0;
 		} else {
 			// Fit width.
 			viewport.size.x = presentation.size.x;
 			viewport.size.y =
-				static_cast<int>(static_cast<float>(presentation.size.x) / game_aspect + 0.5f);
+				static_cast<int>(static_cast<float>(presentation.size.x) / logical_aspect + 0.5f);
 			viewport.position.x = 0;
 			viewport.position.y = (presentation.size.y - viewport.size.y) / 2; // top edge.
 		}
@@ -646,17 +647,17 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 			break;
 
 		case ScalingMode::IntegerScale: {
-			V2_int ratio{ presentation.size / game_size };
+			V2_int ratio{ presentation.size / logical_size };
 			// Find which dimension limits the scaling factor.
 			int scale{ std::max(1, std::min(ratio.x, ratio.y)) };
-			viewport.size = game_size * scale;			 // scale up.
+			viewport.size = logical_size * scale;		 // scale up.
 			viewport.position =
 				(presentation.size - viewport.size) / 2; // center of presentation viewport.
 			break;
 		}
 
 		case ScalingMode::Disabled:
-			viewport.size = game_size;					 // no change.
+			viewport.size = logical_size;				 // no change.
 			viewport.position =
 				(presentation.size - viewport.size) / 2; // center of presentation viewport.
 			break;
@@ -731,7 +732,7 @@ void Renderer::DrawTexture(const impl::DrawTextureRequest& request) {
 }
 
 bool Renderer::IsPresentationViewportVisible() const {
-	return presentation_viewport_.has_value() && !presentation_viewport_->size.IsPositive();
+	return presentation_viewport_.has_value() && !presentation_viewport_.value().size.IsPositive();
 }
 
 impl::ShaderObject Renderer::CreateShader(
@@ -1072,7 +1073,7 @@ void Renderer::CompositeRenderPassResult(
 void Renderer::SetRenderState(const RenderState& state) {
 	SetViewport(state.viewport);
 	if (state.view_projection.has_value()) {
-		SetViewProjection(*state.view_projection);
+		SetViewProjection(state.view_projection.value());
 	}
 	SetBlending(state.blending);
 	SetBlendMode(state.blend_mode);
@@ -1086,34 +1087,34 @@ void Renderer::SetRenderState(const RenderState& state) {
 
 void Renderer::SetRenderStateDelta(const RenderStateDelta& delta) {
 	if (delta.viewport.has_value()) {
-		SetViewport(*delta.viewport);
+		SetViewport(delta.viewport.value());
 	}
 	if (delta.view_projection.has_value()) {
-		SetViewProjection(*delta.view_projection);
+		SetViewProjection(delta.view_projection.value());
 	}
 	if (delta.blending.has_value()) {
-		SetBlending(*delta.blending);
+		SetBlending(delta.blending.value());
 	}
 	if (delta.blend_mode.has_value()) {
-		SetBlendMode(*delta.blend_mode);
+		SetBlendMode(delta.blend_mode.value());
 	}
 	if (delta.depth_testing.has_value()) {
-		SetDepthTesting(*delta.depth_testing);
+		SetDepthTesting(delta.depth_testing.value());
 	}
 	if (delta.depth_mask.has_value()) {
-		SetDepthMask(*delta.depth_mask);
+		SetDepthMask(delta.depth_mask.value());
 	}
 	if (delta.stencil.has_value()) {
-		SetStencil(*delta.stencil);
+		SetStencil(delta.stencil.value());
 	}
 	if (delta.raster.has_value()) {
-		SetRaster(*delta.raster);
+		SetRaster(delta.raster.value());
 	}
 	if (delta.scissor.has_value()) {
-		SetScissor(*delta.scissor);
+		SetScissor(delta.scissor.value());
 	}
 	if (delta.color_mask.has_value()) {
-		SetColorMask(*delta.color_mask);
+		SetColorMask(delta.color_mask.value());
 	}
 }
 
@@ -1129,10 +1130,11 @@ bool Renderer::FramebufferMatches(
 	using enum impl::gl::AttachmentStorage;
 
 	if (IsColorFormat(desc.format)) {
-		if (auto expected_depth_stencil{
-				other_desc.has_value()
-					? std::optional{ impl::gl::GetDepthStencilAttachment(other_desc->format) }
-					: std::nullopt };
+		if (auto expected_depth_stencil{ other_desc.has_value()
+											 ? std::optional{ impl::gl::GetDepthStencilAttachment(
+												   other_desc.value().format
+											   ) }
+											 : std::nullopt };
 			!gl_->framebuffers.HasOnlyAttachmentLayout(
 				framebuffer, Color0, expected_depth_stencil
 			)) {
@@ -1143,7 +1145,7 @@ bool Renderer::FramebufferMatches(
 
 		PTGN_ASSERT(color.has_value());
 
-		auto color_texture{ impl::TextureId{ color->id } };
+		auto color_texture{ impl::TextureId{ color.value().id } };
 
 		if (GetFormat(color_texture) != desc.format || GetSize(color_texture) != desc.size) {
 			return false;
@@ -1153,17 +1155,19 @@ bool Renderer::FramebufferMatches(
 			return true;
 		}
 
-		auto depth_stencil_attachment{ impl::gl::GetDepthStencilAttachment(other_desc->format) };
+		auto depth_stencil_attachment{
+			impl::gl::GetDepthStencilAttachment(other_desc.value().format)
+		};
 		auto depth_stencil{
 			gl_->framebuffers.FindAttachment(framebuffer, depth_stencil_attachment, Renderbuffer)
 		};
 
 		PTGN_ASSERT(depth_stencil.has_value());
 
-		auto renderbuffer{ impl::RenderbufferId{ depth_stencil->id } };
+		auto renderbuffer{ impl::RenderbufferId{ depth_stencil.value().id } };
 
-		return GetFormat(renderbuffer) == other_desc->format &&
-			   GetSize(renderbuffer) == other_desc->size;
+		return GetFormat(renderbuffer) == other_desc.value().format &&
+			   GetSize(renderbuffer) == other_desc.value().size;
 	}
 
 	auto expected_attachment{ impl::gl::GetDepthStencilAttachment(desc.format) };
@@ -1180,7 +1184,7 @@ bool Renderer::FramebufferMatches(
 
 	PTGN_ASSERT(depth_stencil.has_value());
 
-	auto renderbuffer{ impl::RenderbufferId{ depth_stencil->id } };
+	auto renderbuffer{ impl::RenderbufferId{ depth_stencil.value().id } };
 
 	return GetFormat(renderbuffer) == desc.format && GetSize(renderbuffer) == desc.size;
 }

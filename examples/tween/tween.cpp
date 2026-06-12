@@ -113,7 +113,7 @@ public:
 };
 
 static void SetProgress(V2_float size, const event::TweenProgress& event) {
-	V2_float res{ event.tween.GetScene().ctx().renderer.GetGameSize() };
+	V2_float res{ event.tween.GetScene().ctx().renderer.GetLogicalSize() };
 	auto width{ res.x - size.x };
 	SetPositionX(event.parent, size.x * 0.5f - res.x * 0.5f + width * event.progress);
 }
@@ -125,7 +125,7 @@ public:
 	V2_float size{ 40.0f };
 
 	V2_float GetNextPosition() const {
-		V2_float res{ ctx().renderer.GetGameSize() };
+		V2_float res{ ctx().renderer.GetLogicalSize() };
 		static int count{ 0 };
 		V2_float pos{ -res.x * 0.5f + size.x / 2.0f,
 					  -res.y * 0.5f + size.y * static_cast<float>(count) };
@@ -215,7 +215,7 @@ public:
 
 		PTGN_ASSERT(tween_count > 0);
 
-		V2_float res{ ctx().renderer.GetGameSize() };
+		V2_float res{ ctx().renderer.GetLogicalSize() };
 		size   = { 0.0f, res.y / static_cast<float>(tween_count) };
 		size.x = std::clamp(size.y, 5.0f, 30.0f);
 

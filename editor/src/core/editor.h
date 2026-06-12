@@ -43,10 +43,10 @@ public:
 	void OnRender() override;
 
 	void SetScalingMode(ScalingMode scaling_mode);
-	void SetGameSize(std::optional<V2_int> game_size);
+	void SetLogicalSize(std::optional<V2_int> logical_size);
 	ScalingMode GetScalingMode() const;
-	V2_int GetGameSize() const;
-	bool HasGameSize() const;
+	V2_int GetLogicalSize() const;
+	bool HasLogicalSize() const;
 	Viewport GetDisplayViewport() const;
 	impl::TextureId GetPresentationTexture() const;
 	V2_int GetPresentationTextureSize() const;

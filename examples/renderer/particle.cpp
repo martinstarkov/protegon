@@ -73,7 +73,8 @@ public:
 		p = CreateParticleEmitter(*this, {}, GetParticleConfig(current_effect));
 		p.Start();
 
-		V2_float weather_offset{ 0.0f, static_cast<float>(-ctx().renderer.GetGameSize().y) / 2.0f };
+		V2_float weather_offset{ 0.0f,
+								 static_cast<float>(-ctx().renderer.GetLogicalSize().y) / 2.0f };
 
 		SetParticleButton({ 0, 0 }, "Smoke", ParticlePreset::Smoke1);
 		SetParticleButton({ 0, 1 }, "Fire", ParticlePreset::Fire1);
@@ -88,7 +89,7 @@ public:
 
 					 if (constexpr V2_float toggled_gravity{ 0.0f, 300.0f };
 						 emitter.config.start_gravity.has_value() &&
-						 *emitter.config.start_gravity == toggled_gravity) {
+						 emitter.config.start_gravity.value() == toggled_gravity) {
 						 emitter.config.start_gravity = std::nullopt;
 					 } else {
 						 emitter.config.start_gravity = toggled_gravity;
@@ -108,7 +109,7 @@ public:
 				return;
 			}
 			SetPosition(
-				b, -ctx().renderer.GetGameSize() * 0.5f + coord * size +
+				b, -ctx().renderer.GetLogicalSize() * 0.5f + coord * size +
 					   (coord + V2_int{ 1, 1 }) * offset
 			);
 			b.SetShape(size);

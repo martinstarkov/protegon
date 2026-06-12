@@ -22,7 +22,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 960, 540 };
+constexpr V2_int logical_size{ 960, 540 };
 
 constexpr ColliderMask ground_mask{ 1 };
 
@@ -79,7 +79,7 @@ class TopDownMovementScene : public Scene {
 	void OnEnter() override {
 		ctx().collision.SetDebugSettings({ .draw_enabled = true });
 
-		V2_float ws{ game_size };
+		V2_float ws{ logical_size };
 
 		CreatePlayer();
 		CreateWall(-ws * 0.5f + V2_float{ 0, ws.y - 10 }, { ws.x, 10 }, Origin::TopLeft);
@@ -93,6 +93,6 @@ class TopDownMovementScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "TopDownMovementScene: WASD to move", game_size };
+	Application app{ "TopDownMovementScene: WASD to move", logical_size };
 	app.StartWith<TopDownMovementScene>();
 }

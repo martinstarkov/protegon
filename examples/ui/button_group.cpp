@@ -115,11 +115,11 @@ class ToggleButtonGroupScene : public Scene {
 			if (key == Key::I) {
 				auto active1{ group1.GetActive() };
 				PTGN_ASSERT(active1.has_value(), "No active button set for group 1");
-				PTGN_LOG("Group 1 active toggle button: ", *active1);
+				PTGN_LOG("Group 1 active toggle button: ", active1.value());
 
 				auto active2{ group2.GetActive() };
 				PTGN_ASSERT(active2.has_value(), "No active button set for group 2");
-				PTGN_LOG("Group 2 active toggle button: ", *active2);
+				PTGN_LOG("Group 2 active toggle button: ", active2.value());
 			}
 		});
 	}

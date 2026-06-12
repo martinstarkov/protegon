@@ -116,7 +116,7 @@ public:
 	}
 
 	Dropdown CreateMenuDropdown(std::string_view content, bool open = false) {
-		V2_float position{ -ctx().renderer.GetGameSize() * 0.5f + V2_float{ 400.0f, 200.0f } };
+		V2_float position{ -ctx().renderer.GetLogicalSize() * 0.5f + V2_float{ 400.0f, 200.0f } };
 
 		Dropdown dropdown{
 			ptgn::CreateDropdown(*this, position, Rect{ dropdown_size }, Origin::Center, open)

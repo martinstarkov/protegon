@@ -33,7 +33,7 @@ struct TextEffectsScene : public Scene {
 		std::string_view font_key = {}, float font_size = 20.0f
 	) {
 		float stride{ 26.0f };
-		float top{ -static_cast<float>(ctx().renderer.GetGameSize().y) * 0.5f + stride };
+		float top{ -static_cast<float>(ctx().renderer.GetLogicalSize().y) * 0.5f + stride };
 
 		auto text{ CreateText(*this, { 0.0f, top + stride * static_cast<float>(current_line) }) };
 

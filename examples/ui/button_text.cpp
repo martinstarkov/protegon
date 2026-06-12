@@ -18,7 +18,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 800, 800 };
+constexpr V2_int logical_size{ 800, 800 };
 
 class ButtonTextScene : public Scene {
 public:
@@ -54,7 +54,7 @@ public:
 	}
 
 	void OnEnter() override {
-		ctx().renderer.SetGameSize(game_size);
+		ctx().renderer.SetLogicalSize(logical_size);
 		ctx().asset.Load("arial", "assets/Arial.ttf");
 		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 
@@ -233,7 +233,7 @@ public:
 };
 
 int main(int, char**) {
-	Application app{ "ButtonTextScene: Q/E to disable/enable one button", game_size };
+	Application app{ "ButtonTextScene: Q/E to disable/enable one button", logical_size };
 	PTGN_WITH_EDITOR(app);
 	app.StartWith<ButtonTextScene>();
 }

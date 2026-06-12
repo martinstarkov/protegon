@@ -50,7 +50,7 @@ namespace impl {
 struct CameraRenderBucket;
 
 void BuildLightVisibilityPolygons(
-	Scene&, std::span<const CameraRenderBucket> buckets, V2_int game_size,
+	Scene&, std::span<const CameraRenderBucket> buckets, V2_int logical_size,
 	const RenderTarget& scene_render_target
 );
 

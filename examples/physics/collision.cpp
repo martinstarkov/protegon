@@ -36,7 +36,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 800, 800 };
+constexpr V2_int logical_size{ 800, 800 };
 
 struct CollisionTest {
 	virtual ~CollisionTest() = default;
@@ -152,12 +152,12 @@ public:
 		SetTint(overlap, color::Orange);
 		SetTint(overlap_circle, color::Orange);
 
-		SetPosition(intersect, -game_size * 0.5f + V2_float{ 100, 100 });
-		SetPosition(overlap, -game_size * 0.5f + V2_float{ 200, 200 });
-		SetPosition(sweep, -game_size * 0.5f + V2_float{ 300, 300 });
-		SetPosition(intersect_circle, -game_size * 0.5f + V2_float{ 400, 400 });
-		SetPosition(overlap_circle, -game_size * 0.5f + V2_float{ 500, 500 });
-		SetPosition(sweep_circle, -game_size * 0.5f + V2_float{ 300, 600 });
+		SetPosition(intersect, -logical_size * 0.5f + V2_float{ 100, 100 });
+		SetPosition(overlap, -logical_size * 0.5f + V2_float{ 200, 200 });
+		SetPosition(sweep, -logical_size * 0.5f + V2_float{ 300, 300 });
+		SetPosition(intersect_circle, -logical_size * 0.5f + V2_float{ 400, 400 });
+		SetPosition(overlap_circle, -logical_size * 0.5f + V2_float{ 500, 500 });
+		SetPosition(sweep_circle, -logical_size * 0.5f + V2_float{ 300, 600 });
 
 		intersect.Add<RigidBody>();
 		overlap.Add<RigidBody>();
@@ -1419,7 +1419,7 @@ struct SweepTest : public CollisionTest {
 
 	void Draw() override {
 
-		V2_int grid_size = game.renderer.GetGameSize() / size;
+		V2_int grid_size = game.renderer.GetLogicalSize() / size;
 
 		for (auto i{ 0uz }; i < grid_size.x; i++) {
 			for (auto j{ 0uz }; j < grid_size.y; j++) {
@@ -1806,6 +1806,6 @@ public:
 };
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
-	Application app{ "CollisionScene: Arrow keys to flip between tests", game_size };
+	Application app{ "CollisionScene: Arrow keys to flip between tests", logical_size };
 	app.StartWith<CollisionScene>();
 }

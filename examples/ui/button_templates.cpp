@@ -89,7 +89,7 @@ public:
 			.MaxLines(1);
 
 		if (outline_width.has_value()) {
-			label.Outline(outline_color, *outline_width);
+			label.Outline(outline_color, outline_width.value());
 		}
 
 		button.SetLabelPadding(Rect{ padding_size, padding_size }, state);
@@ -103,7 +103,7 @@ public:
 		icon.SetTexture(texture_key);
 
 		if (tint.has_value()) {
-			SetTint(icon, *tint);
+			SetTint(icon, tint.value());
 		}
 	}
 
@@ -114,7 +114,9 @@ public:
 						  spec.texture_press.has_value() };
 
 		if (spec.background_color.has_value()) {
-			ConfigureBackground(button, ButtonVisualState::Idle, size, *spec.background_color);
+			ConfigureBackground(
+				button, ButtonVisualState::Idle, size, spec.background_color.value()
+			);
 		} else if (!has_texture) {
 			ConfigureBackground(
 				button, ButtonVisualState::Idle, size, color::Gray.WithAlpha(0.35f)
@@ -123,34 +125,38 @@ public:
 
 		if (spec.background_color_hover.has_value()) {
 			ConfigureBackground(
-				button, ButtonVisualState::Hover, size, *spec.background_color_hover
+				button, ButtonVisualState::Hover, size, spec.background_color_hover.value()
 			);
 		}
 
 		if (spec.background_color_press.has_value()) {
 			ConfigureBackground(
-				button, ButtonVisualState::Press, size, *spec.background_color_press
+				button, ButtonVisualState::Press, size, spec.background_color_press.value()
 			);
 		}
 
 		if (spec.texture.has_value()) {
-			ConfigureIcon(button, ButtonVisualState::Idle, *spec.texture, spec.texture_tint);
+			ConfigureIcon(button, ButtonVisualState::Idle, spec.texture.value(), spec.texture_tint);
 		}
 
 		if (spec.texture_hover.has_value()) {
 			ConfigureIcon(
-				button, ButtonVisualState::Hover, *spec.texture_hover, spec.texture_tint_hover
+				button, ButtonVisualState::Hover, spec.texture_hover.value(),
+				spec.texture_tint_hover
 			);
 		} else if (spec.texture_tint_hover.has_value() && spec.texture.has_value()) {
-			ConfigureIcon(button, ButtonVisualState::Hover, *spec.texture, spec.texture_tint_hover);
+			ConfigureIcon(
+				button, ButtonVisualState::Hover, spec.texture.value(), spec.texture_tint_hover
+			);
 		}
 
 		if (spec.texture_press.has_value()) {
 			ConfigureIcon(
-				button, ButtonVisualState::Press, *spec.texture_press, spec.texture_tint_press
+				button, ButtonVisualState::Press, spec.texture_press.value(),
+				spec.texture_tint_press
 			);
 		} else if (spec.texture_tint_press.has_value()) {
-			auto texture_key{ spec.texture_hover.has_value() ? *spec.texture_hover
+			auto texture_key{ spec.texture_hover.has_value() ? spec.texture_hover.value()
 															 : spec.texture.value_or({}) };
 
 			if (!texture_key.empty()) {
@@ -169,14 +175,14 @@ public:
 
 		if (spec.text_color_hover.has_value()) {
 			ConfigureLabel(
-				button, ButtonVisualState::Hover, spec.content, *spec.text_color_hover,
+				button, ButtonVisualState::Hover, spec.content, spec.text_color_hover.value(),
 				label_padding, spec.text_outline_width, spec.text_outline_color
 			);
 		}
 
 		if (spec.text_color_press.has_value()) {
 			ConfigureLabel(
-				button, ButtonVisualState::Press, spec.content, *spec.text_color_press,
+				button, ButtonVisualState::Press, spec.content, spec.text_color_press.value(),
 				label_padding, spec.text_outline_width, spec.text_outline_color
 			);
 		}
@@ -185,7 +191,7 @@ public:
 		button.SetSound(spec.sound_press, ButtonState::Press);
 
 		if (spec.hover_move.has_value()) {
-			button.OnHoverStart([button, position, offset = *spec.hover_move]() mutable {
+			button.OnHoverStart([button, position, offset = spec.hover_move.value()]() mutable {
 				SetPosition(button, position + offset);
 			});
 
@@ -193,7 +199,7 @@ public:
 		}
 
 		if (spec.hover_scale.has_value()) {
-			button.OnHoverStart([button, scale = *spec.hover_scale]() mutable {
+			button.OnHoverStart([button, scale = spec.hover_scale.value()]() mutable {
 				SetScale(button, scale);
 			});
 
@@ -379,7 +385,7 @@ public:
 			}
 		) };
 
-		V2_float bell_size{ *GetDisplaySize(bell_press_animation) };
+		V2_float bell_size{ GetDisplaySize(bell_press_animation).value() };
 
 		Button bell{ CreateButton(*this, { 250.0f, 0.0f }, Rect{ bell_size }, Origin::Center) };
 

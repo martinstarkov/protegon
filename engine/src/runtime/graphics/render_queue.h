@@ -101,7 +101,7 @@ public:
 		TextureRenderParams params = {}
 	);
 
-	/// @param params If size is nullopt, uses the entire game size.
+	/// @param params If size is nullopt, uses the entire logical size.
 	void DrawShader(
 		Transform transform, std::string_view shader_key, TextureRenderParams params = {}
 	);
@@ -197,17 +197,17 @@ private:
 
 	void Draw(
 		DrawContext& ctx, const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
-		V2_int game_size, const std::vector<impl::CameraRenderBucket>& buckets
+		V2_int logical_size, const std::vector<impl::CameraRenderBucket>& buckets
 	);
 
 	void Draw(
 		DrawContext& ctx, const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
-		V2_int game_size, const impl::CameraRenderBucket& bucket
+		V2_int logical_size, const impl::CameraRenderBucket& bucket
 	);
 
 	void SetupCamera(
-		const RenderTarget& scene_render_target, impl::ClearedEntities& cleared, V2_int game_size,
-		const impl::RenderCamera& render_camera
+		const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
+		V2_int logical_size, const impl::RenderCamera& render_camera
 	);
 
 	static std::vector<impl::CameraRenderBucket> GetRenderBuckets(

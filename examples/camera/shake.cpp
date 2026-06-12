@@ -49,7 +49,7 @@ public:
 		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 
 		ctx().interaction.SetTopOnly(true);
-		auto res{ ctx().renderer.GetGameSize() };
+		auto res{ ctx().renderer.GetLogicalSize() };
 
 		CreateRect(*this, -res * 0.5f + V2_float{ 500, 250 }, { 200, 50 }, color::Green);
 

@@ -20,7 +20,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 960, 540 };
+constexpr V2_int logical_size{ 960, 540 };
 
 constexpr ColliderMask ground_mask{ 1 };
 
@@ -63,7 +63,7 @@ class PlatformingScene : public Scene {
 	void OnEnter() override {
 		ctx().collision.SetDebugSettings({ .draw_ccd = true, .draw_enabled = true });
 
-		V2_float ws{ game_size };
+		V2_float ws{ logical_size };
 		ctx().physics.SetGravity({ 0.0f, 1.0f });
 
 		CreatePlayer();
@@ -78,6 +78,6 @@ class PlatformingScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "PlatformingScene", game_size };
+	Application app{ "PlatformingScene", logical_size };
 	app.StartWith<PlatformingScene>();
 }

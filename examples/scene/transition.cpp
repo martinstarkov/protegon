@@ -20,7 +20,7 @@ using namespace ptgn;
 
 int scene2_reenter_count{ 1 }; // NOSONAR
 
-constexpr V2_int game_size{ 800, 800 };
+constexpr V2_int logical_size{ 800, 800 };
 
 class Scene3 : public Scene {
 public:
@@ -41,9 +41,9 @@ public:
 
 	void OnUpdate() final {
 		// PTGN_LOG("Scene 2 tint: ", GetTint(GetRenderTarget()));
-		ctx().renderer.DrawTexture("bg2", {}, game_size * 0.5f, Origin::TopLeft);
+		ctx().renderer.DrawTexture("bg2", {}, logical_size * 0.5f, Origin::TopLeft);
 		ctx().renderer.DrawText(
-			"Scene 2: " + ToString(local_reenter_count), game_size * 0.25f + V2_int{ 0, 50 },
+			"Scene 2: " + ToString(local_reenter_count), logical_size * 0.25f + V2_int{ 0, 50 },
 			color::Magenta, 30
 		);
 		if (ctx().input.KeyPressed(Key::A) &&
@@ -63,7 +63,7 @@ public:
 	void OnUpdate() final {
 		// PTGN_LOG("Scene 1 tint: ", GetTint(GetRenderTarget()));
 		ctx().renderer.DrawTexture(
-			"bg1", V2_float{ 0.0f, -game_size.y * 0.5f }, game_size * 0.5f, Origin::TopLeft
+			"bg1", V2_float{ 0.0f, -logical_size.y * 0.5f }, logical_size * 0.5f, Origin::TopLeft
 		);
 
 		if (ctx().input.KeyPressed(Key::N) &&
@@ -75,7 +75,7 @@ public:
 
 void Scene3::OnUpdate() {
 	// PTGN_LOG("Scene 3 tint: ", GetTint(GetRenderTarget()));
-	ctx().renderer.DrawTexture("bg3", -game_size * 0.5f, game_size * 0.5f, Origin::TopLeft);
+	ctx().renderer.DrawTexture("bg3", -logical_size * 0.5f, logical_size * 0.5f, Origin::TopLeft);
 	if (ctx().input.KeyPressed(Key::N)) {
 		ctx().scene.Switch<Scene1>("scene1", CrossFadeTransition{ 3000ms });
 	}
@@ -93,6 +93,6 @@ public:
 };
 
 int main(int, char**) {
-	Application app{ "SceneTransitionExample: N: Transition to next scene", game_size };
+	Application app{ "SceneTransitionExample: N: Transition to next scene", logical_size };
 	app.StartWith<SceneTransitionExample>("scene_transition_example");
 }

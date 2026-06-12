@@ -58,7 +58,7 @@ public:
 			grid = inner_grid;
 		}
 
-		auto res{ ctx().renderer.GetGameSize() };
+		auto res{ ctx().renderer.GetLogicalSize() };
 
 		V2_int mouse_pos = ctx().input.GetMousePosition() + res * 0.5f;
 

@@ -204,16 +204,16 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 		// Logical Resolution
 		table_row_label("Resolution");
 
-		bool use_game_size = true;
+		bool use_logical_size = true;
 
 		{
 			// Resolution source
 			constexpr std::array resolution_mode_names{
 				"Use Window Size",
-				"Use Game Size",
+				"Use Logical Size",
 			};
 
-			auto resolution_mode{ static_cast<int>(ctx.editor.HasGameSize()) };
+			auto resolution_mode{ static_cast<int>(ctx.editor.HasLogicalSize()) };
 
 			full_width();
 			if (ImGui::Combo(
@@ -221,30 +221,30 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 					static_cast<int>(resolution_mode_names.size())
 				)) {
 				if (resolution_mode == 0) {
-					ctx.editor.SetGameSize(std::nullopt);
+					ctx.editor.SetLogicalSize(std::nullopt);
 				} else {
-					ctx.editor.SetGameSize(ctx.editor.GetDisplayViewport().size);
+					ctx.editor.SetLogicalSize(ctx.editor.GetDisplayViewport().size);
 				}
 			}
 
-			use_game_size = ctx.editor.HasGameSize();
+			use_logical_size = ctx.editor.HasLogicalSize();
 
-			if (use_game_size) {
-				auto game_size{ ctx.editor.GetGameSize() };
+			if (use_logical_size) {
+				auto logical_size{ ctx.editor.GetLogicalSize() };
 
 				auto selected_it{
-					std::ranges::find(kResolutionPresets, game_size, &ResolutionPreset::size)
+					std::ranges::find(kResolutionPresets, logical_size, &ResolutionPreset::size)
 				};
 
 				auto preview{ selected_it != kResolutionPresets.end() ? selected_it->label
 																	  : "Custom" };
 
 				full_width();
-				if (ImGui::BeginCombo("##GameSizePreset", preview)) {
+				if (ImGui::BeginCombo("##LogicalSizePreset", preview)) {
 					for (const auto& preset : kResolutionPresets) {
-						bool selected{ preset.size == game_size };
+						bool selected{ preset.size == logical_size };
 						if (ImGui::Selectable(preset.label, selected)) {
-							ctx.editor.SetGameSize(preset.size);
+							ctx.editor.SetLogicalSize(preset.size);
 						}
 						if (selected) {
 							ImGui::SetItemDefaultFocus();
@@ -255,9 +255,11 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 
 				ImGui::Spacing();
 
-				auto size{ ctx.editor.GetGameSize() };
-				drag_int_pair("##GameWidth", &size.x, 1, 4096, "##GameHeight", &size.y, 1, 2160);
-				ctx.editor.SetGameSize(size);
+				auto size{ ctx.editor.GetLogicalSize() };
+				drag_int_pair(
+					"##LogicalWidth", &size.x, 1, 4096, "##LogicalHeight", &size.y, 1, 2160
+				);
+				ctx.editor.SetLogicalSize(size);
 			} else {
 				auto window_size{ ctx.editor.GetDisplayViewport().size };
 				drag_int_pair(
@@ -267,7 +269,7 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 			}
 		}
 
-		if (use_game_size) {
+		if (use_logical_size) {
 			// Scaling Mode
 			table_row_label("Scaling Mode");
 

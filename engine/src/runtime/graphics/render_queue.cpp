@@ -25,9 +25,9 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/span.h"
+#include "renderer/draw_context.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
-#include "renderer/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_command.h"
 #include "renderer/pipeline/render_primitives.h"
@@ -171,7 +171,7 @@ void RenderQueue::DrawShader(
 ) {
 	const auto& assets{ scene_.ctx().asset };
 	auto shader{ assets.Get<Shader>(shader_key) };
-	auto texture_size{ renderer_.GetGameSize() };
+	auto texture_size{ renderer_.GetLogicalSize() };
 	impl::TextureId texture{};
 
 	DrawTexture(transform, texture, texture_size, shader, std::move(params));
@@ -317,11 +317,11 @@ impl::ShaderId RenderQueue::GetShader(std::string_view shader_key) const {
 //		return;
 //	}
 //
-//	auto texture_size{ texture_object->GetSize() };
+//	auto texture_size{ texture_object.value().GetSize() };
 //
-//	auto texture_id{ texture_object->operator impl::TextureId() };
+//	auto texture_id{ texture_object.value().operator impl::TextureId() };
 //
-//	temporary_textures_.emplace_back(std::move(*texture_object));
+//	temporary_textures_.emplace_back(std::move(texture_object.value()));
 //
 //	auto texture_shader{ renderer_.GetShader("texture") };
 //
@@ -350,16 +350,16 @@ void RenderQueue::CombineCommands(const impl::RenderCamera& camera) {
 
 void RenderQueue::Draw(
 	DrawContext& ctx, const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
-	V2_int game_size, const std::vector<impl::CameraRenderBucket>& buckets
+	V2_int logical_size, const std::vector<impl::CameraRenderBucket>& buckets
 ) {
 	for (const auto& bucket : buckets) {
-		Draw(ctx, scene_render_target, cleared, game_size, bucket);
+		Draw(ctx, scene_render_target, cleared, logical_size, bucket);
 	}
 }
 
 void RenderQueue::Draw(
 	DrawContext& ctx, const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
-	V2_int game_size, const impl::CameraRenderBucket& bucket
+	V2_int logical_size, const impl::CameraRenderBucket& bucket
 ) {
 	PTGN_ASSERT(bucket.camera);
 
@@ -378,7 +378,7 @@ void RenderQueue::Draw(
 		cleared.render_targets.emplace_back(render_target);
 	}
 
-	PTGN_ASSERT(game_size.IsPositive(), "Game size dimensions must be above 0");
+	PTGN_ASSERT(logical_size.IsPositive(), "Logical size must be positive");
 
 	auto rt_size{ render_target.GetSize() };
 
@@ -386,7 +386,7 @@ void RenderQueue::Draw(
 					   ? render_camera.camera.viewport
 					   : GetRenderViewport(
 							 render_camera.camera.viewport, render_camera.camera.viewport_space,
-							 game_size, rt_size
+							 logical_size, rt_size
 						 ) };
 
 	renderer.SetViewport(viewport);
@@ -395,7 +395,7 @@ void RenderQueue::Draw(
 
 	if (bool clear_camera{ !std::ranges::contains(cleared.cameras, render_camera.uuid) };
 		clear_camera && render_camera.clear_color.has_value()) {
-		render_target.ClearColor(*render_camera.clear_color, false);
+		render_target.ClearColor(render_camera.clear_color.value(), false);
 		cleared.cameras.emplace_back(render_camera.uuid);
 	}
 

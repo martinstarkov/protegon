@@ -95,7 +95,7 @@ struct DialogueScene : public Scene {
 				dialogue.SetDialogue("epilogue");
 			}
 
-			dialogue.DrawInfo(*this, -ctx().renderer.GetGameSize() * 0.5f);
+			dialogue.DrawInfo(*this, -ctx().renderer.GetLogicalSize() * 0.5f);
 		}
 
 		if (ctx().input.KeyPressed(Key::A)) {

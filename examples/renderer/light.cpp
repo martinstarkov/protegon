@@ -46,7 +46,7 @@ public:
 		const auto create_light = [&](const Color& color) {
 			static float i = 1.0f;
 			CreateLight(
-				*this, V2_float{ -ctx().renderer.GetGameSize() * 0.5f } + V2_float{ i * step },
+				*this, V2_float{ -ctx().renderer.GetLogicalSize() * 0.5f } + V2_float{ i * step },
 				{ .radius = radius, .color = color, .intensity = intensity, .falloff = falloff }
 			);
 			i++;

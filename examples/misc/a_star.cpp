@@ -1,22 +1,19 @@
 #include "runtime/world/a_star.h"
 
-#include <cassert>
 #include <chrono>
 #include <deque>
 #include <optional>
 
 #include "app/application.h"
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
-#include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/pipeline/blend_mode.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -25,7 +22,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 800, 800 };
+constexpr V2_int logical_size{ 800, 800 };
 
 class PathfindingScene : public Scene {
 	V2_int tile_size{ 20, 20 };
@@ -45,7 +42,7 @@ class PathfindingScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		V2_float mouse_pos	= ctx().input.GetMousePosition() + game_size * 0.5f;
+		V2_float mouse_pos	= ctx().input.GetMousePosition() + logical_size * 0.5f;
 		V2_float mouse_tile = mouse_pos / tile_size;
 
 		if (ctx().input.MouseHeld(Mouse::Right)) {
@@ -83,16 +80,16 @@ class PathfindingScene : public Scene {
 				c = color::Gold;
 			}
 
-			ctx().renderer.DrawShape(
-				Transform{ -game_size * 0.5f + tile * tile_size }, Rect{ tile_size }, c, Solid{},
-				Origin::TopLeft, Depth{}, BlendMode::Blend
+			ctx().render_queue.DrawShape(
+				Transform{ -logical_size * 0.5f + tile * tile_size }, Rect{ tile_size }, c,
+				{ .fill_style = Solid{}, .origin = Origin::TopLeft }
 			);
 		});
 
 		if (grid.Has(mouse_tile)) {
-			ctx().renderer.DrawShape(
-				Transform{ -game_size * 0.5f + mouse_tile * tile_size }, Rect{ tile_size },
-				color::Yellow, FillStyle{ 1.0f }, Origin::Center, Depth{}, BlendMode::Blend
+			ctx().render_queue.DrawShape(
+				Transform{ -logical_size * 0.5f + mouse_tile * tile_size }, Rect{ tile_size },
+				color::Yellow, { .fill_style = 1.0f, .origin = Origin::Center }
 			);
 		}
 
@@ -104,57 +101,57 @@ class PathfindingScene : public Scene {
 											   // the global path or at the end
 			local_waypoints = grid.FindWaypoints(pos, end);
 
-			idx			= AStarGrid::FindWaypointIndex(local_waypoints, pos);
+			idx.emplace(AStarGrid::FindWaypointIndex(local_waypoints, pos));
 			path_exists = idx.has_value();
 		}
 
 		if (path_exists) { // global or local path exists
 			current_waypoint += ctx().dt().count() * vel;
-			assert(*idx >= 0);
-			assert(*idx < local_waypoints.size());
-			assert(*idx + 1 < local_waypoints.size());
+			PTGN_ASSERT(idx.value() >= 0);
+			PTGN_ASSERT(idx.value() < local_waypoints.size());
+			PTGN_ASSERT(idx.value() + 1 < local_waypoints.size());
 			// Keep moving character 1 tile forward on its path
 			// until there is no longer enough "speed" for 1 full tile
 			// in which case exit the loop and linearly interpolate
 			// the position between the "in progress" tiles.
-			while (current_waypoint >= 1.0f && *idx + 1 < local_waypoints.size()) {
-				pos				 += local_waypoints[*idx + 1] - local_waypoints[*idx];
+			while (current_waypoint >= 1.0f && idx.value() + 1 < local_waypoints.size()) {
+				pos				 += local_waypoints[idx.value() + 1] - local_waypoints[idx.value()];
 				current_waypoint -= 1.0f;
-				(*idx)++;
+				idx.value()++;
 			}
 		}
-		if (path_exists && *idx + 1 < local_waypoints.size()) {
-			assert(current_waypoint <= 1.0f);
-			assert(current_waypoint >= 0.0f);
-			assert(*idx >= 0);
-			assert(*idx < local_waypoints.size());
-			assert(*idx + 1 < local_waypoints.size());
+		if (path_exists && idx.value() + 1 < local_waypoints.size()) {
+			PTGN_ASSERT(current_waypoint <= 1.0f);
+			PTGN_ASSERT(current_waypoint >= 0.0f);
+			PTGN_ASSERT(idx.value() >= 0);
+			PTGN_ASSERT(idx.value() < local_waypoints.size());
+			PTGN_ASSERT(idx.value() + 1 < local_waypoints.size());
 
-			auto p = -game_size * 0.5f +
-					 V2_int{ Lerp(
-						 V2_float{ pos * tile_size },
-						 V2_float{ (pos + local_waypoints[*idx + 1] - local_waypoints[*idx]) *
-								   tile_size },
-						 current_waypoint
-					 ) };
+			auto p = -logical_size * 0.5f + V2_int{ Lerp(
+												V2_float{ pos * tile_size },
+												V2_float{ (pos + local_waypoints[idx.value() + 1] -
+														   local_waypoints[idx.value()]) *
+														  tile_size },
+												current_waypoint
+											) };
 
-			ctx().renderer.DrawShape(
-				Transform{ p }, Rect{ tile_size }, color::Purple, Solid{}, Origin::TopLeft, Depth{},
-				BlendMode::Blend
+			ctx().render_queue.DrawShape(
+				Transform{ p }, Rect{ tile_size }, color::Purple,
+				{ .fill_style = Solid{}, .origin = Origin::TopLeft }
 			);
 		} else {
-			ctx().renderer.DrawShape(
-				Transform{ -game_size * 0.5f + pos * tile_size }, Rect{ tile_size }, color::Purple,
-				Solid{}, Origin::TopLeft, Depth{}, BlendMode::Blend
+			ctx().render_queue.DrawShape(
+				Transform{ -logical_size * 0.5f + pos * tile_size }, Rect{ tile_size },
+				color::Purple, { .fill_style = Solid{}, .origin = Origin::TopLeft }
 			);
 		}
 
 		const auto display_waypoints = [&](const auto& waypoints, const auto& color) {
 			for (auto i{ 0uz }; i + 1 < waypoints.size(); ++i) {
-				ctx().renderer.DrawLine(
-					-game_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
-					-game_size * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f, color,
-					1.0f, Depth{}, BlendMode::Blend
+				ctx().render_queue.DrawLine(
+					-logical_size * 0.5f + waypoints[i] * tile_size + tile_size / 2.0f,
+					-logical_size * 0.5f + waypoints[i + 1] * tile_size + tile_size / 2.0f, color,
+					{ .fill_style = 1.0f }
 				);
 			}
 		};
@@ -168,6 +165,6 @@ int main(int, char**) {
 	Application app{ "Pathfinding: 'ESC' (++category), 'left/right' "
 					 "(place/remove), 'ctrl+left/right' "
 					 "(start/end), 'V' (visited) ",
-					 game_size };
+					 logical_size };
 	app.StartWith<PathfindingScene>();
 }

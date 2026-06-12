@@ -27,7 +27,7 @@
 
 using namespace ptgn;
 
-constexpr V2_float game_size{ 800, 600 };
+constexpr V2_float logical_size{ 800, 600 };
 
 // TODO: Move all of this into the collision system.
 
@@ -59,12 +59,12 @@ struct BroadphaseScene : public Scene {
 	Entity player;
 	V2_float player_size{ 20, 20 };
 
-	RNG<float> rngx{ -(float)game_size.x * 0.5f, (float)game_size.x * 0.5f };
-	RNG<float> rngy{ -(float)game_size.y * 0.5f, (float)game_size.y * 0.5f };
+	RNG<float> rngx{ -(float)logical_size.x * 0.5f, (float)logical_size.x * 0.5f };
+	RNG<float> rngy{ -(float)logical_size.y * 0.5f, (float)logical_size.y * 0.5f };
 	RNG<float> rngsize{ 5.0f, 30.0f };
 
 	void OnEnter() override {
-		ctx().physics.SetBounds(Bounds{ V2_float{}, game_size, BoundaryBehavior::ReflectVelocity });
+		ctx().physics.SetBounds(Bounds{ V2_float{}, logical_size, BoundaryBehavior::ReflectVelocity });
 
 		player = AddEntity(*this, {}, player_size, color::Purple, false);
 		SetDepth(player, 1);
@@ -191,6 +191,6 @@ struct BroadphaseScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "BroadphaseScene", game_size };
+	Application app{ "BroadphaseScene", logical_size };
 	app.StartWith<BroadphaseScene>();
 }

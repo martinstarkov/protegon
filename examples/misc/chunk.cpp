@@ -69,7 +69,7 @@ public:
 		chunk_manager.AddNoiseLayer(NoiseLayer{
 			fractal_noise, [&](V2_float coordinate, float noise) {
 				return CreateColorTile(
-					-ctx().renderer.GetGameSize() * 0.5f + coordinate, color::White.WithAlpha(noise)
+					-ctx().renderer.GetLogicalSize() * 0.5f + coordinate, color::White.WithAlpha(noise)
 				);
 			} });
 

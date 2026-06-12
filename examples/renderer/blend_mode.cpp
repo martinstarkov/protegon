@@ -18,7 +18,7 @@ struct BlendModeScene : public Scene {
 		ctx().asset.Load("semitransparent", "assets/semitransparent.png");
 		ctx().asset.Load("opaque", "assets/smile.png");
 
-		V2_float ws{ ctx().renderer.GetGameSize() };
+		V2_float ws{ ctx().renderer.GetLogicalSize() };
 
 		CreateRect(
 			*this, -ws * 0.5f + V2_float{}, { ws.x, 100 }, color::Red, Solid{}, Origin::TopLeft

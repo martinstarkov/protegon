@@ -19,7 +19,7 @@
 
 using namespace ptgn;
 
-constexpr V2_int game_size{ 800, 800 };
+constexpr V2_int logical_size{ 800, 800 };
 
 struct PhysicsBoundaryScene : public Scene {
 	PhysicsBoundaryScene() = default;
@@ -33,8 +33,8 @@ struct PhysicsBoundaryScene : public Scene {
 
 	std::size_t entity_count{ 1000 };
 
-	RNG<float> rngx{ -(float)game_size.x * 0.5f, (float)game_size.x * 0.5f };
-	RNG<float> rngy{ -(float)game_size.y * 0.5f, (float)game_size.y * 0.5f };
+	RNG<float> rngx{ -(float)logical_size.x * 0.5f, (float)logical_size.x * 0.5f };
+	RNG<float> rngy{ -(float)logical_size.y * 0.5f, (float)logical_size.y * 0.5f };
 	RNG<float> rngsize{ 5.0f, 10.0f };
 
 	Entity AddEntity(
@@ -60,7 +60,7 @@ struct PhysicsBoundaryScene : public Scene {
 	}
 
 	void OnEnter() override {
-		ctx().physics.SetBounds(Bounds{ {}, game_size, behavior });
+		ctx().physics.SetBounds(Bounds{ {}, logical_size, behavior });
 		player = AddEntity({}, player_size, color::Purple, false);
 		SetDepth(player, 1);
 
@@ -85,6 +85,6 @@ struct PhysicsBoundaryScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "PhysicsBoundaryScene: Q/E to switch boundary behavior", game_size };
+	Application app{ "PhysicsBoundaryScene: Q/E to switch boundary behavior", logical_size };
 	app.StartWith<PhysicsBoundaryScene>();
 }
