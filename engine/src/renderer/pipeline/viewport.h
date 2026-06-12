@@ -8,17 +8,16 @@
 namespace ptgn {
 
 enum class ViewportSpace {
-	Game,
-	TargetPixels,
+	Logical,
 	Normalized,
 };
 
 struct Viewport {
-	/// @brief Position of the top left of the viewport relative to the display render target.
-	V2_int position;
+	/// @brief Top left position in pixels relative to its display target.
+	V2_float position;
 
-	/// @brief Size of the viewport in pixels.
-	V2_int size;
+	/// @brief Size in pixels.
+	V2_float size;
 
 	V2_float GetCenter() const {
 		return position + size * 0.5f;
@@ -30,42 +29,39 @@ struct Viewport {
 };
 
 constexpr Viewport GetLogicalViewport(
-	Viewport raw_viewport, ViewportSpace viewport_space, V2_int game_size
+	Viewport viewport, ViewportSpace viewport_space, V2_int logical_size
 ) {
-	if (viewport_space != ViewportSpace::Normalized) {
-		return raw_viewport;
-	}
+	PTGN_ASSERT(logical_size.IsPositive(), "Logical size must be positive");
 
-	return { raw_viewport.position * game_size, raw_viewport.size * game_size };
+	if (viewport_space == ViewportSpace::Logical) {
+		return viewport;
+	} else if (viewport_space == ViewportSpace::Normalized) {
+		return { viewport.position * logical_size, viewport.size * logical_size };
+	} else {
+		PTGN_ERROR("Unsupported viewport space");
+	}
 }
 
-constexpr Viewport GetRenderViewport(
-	Viewport raw_viewport, ViewportSpace viewport_space, V2_int game_size, V2_int target_size
+constexpr Viewport GetDisplayViewport(
+	Viewport viewport, ViewportSpace viewport_space, V2_int logical_size, V2_int display_target_size
 ) {
-	switch (viewport_space) {
-		using enum ViewportSpace;
+	PTGN_ASSERT(display_target_size.IsPositive(), "Display target size must be positive");
+	PTGN_ASSERT(logical_size.IsPositive(), "Logical size must be positive");
 
-		case Game: {
-			PTGN_ASSERT(game_size.IsPositive());
-			PTGN_ASSERT(target_size.IsPositive());
+	if (viewport_space == ViewportSpace::Logical) {
+		V2_float scale{ V2_float{ display_target_size } / logical_size };
 
-			V2_float scale{ V2_float{ target_size } / game_size };
-
-			return {
-				.position{ V2_int{ raw_viewport.position * scale } },
-				.size{ Max(V2_int{ raw_viewport.size * scale }, { 1, 1 }) },
-			};
-		}
-
-		case TargetPixels: return raw_viewport;
-
-		case Normalized:
-			return {
-				.position{ raw_viewport.position * target_size },
-				.size{ raw_viewport.size * target_size },
-			};
-
-		default: PTGN_ERROR("Unsupported viewport space");
+		return {
+			.position{ viewport.position * scale },
+			.size{ Max(viewport.size * scale, { 1, 1 }) },
+		};
+	} else if (viewport_space == ViewportSpace::Normalized) {
+		return {
+			.position{ viewport.position * display_target_size },
+			.size{ viewport.size * display_target_size },
+		};
+	} else {
+		PTGN_ERROR("Unsupported viewport space");
 	}
 }
 

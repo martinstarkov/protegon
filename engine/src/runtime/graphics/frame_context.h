@@ -34,7 +34,7 @@ struct CameraFrame {
 	/// @brief Size of the parent render target.
 	V2_float render_target_size;
 
-	/// @brief Scale of the display relative to the game size.
+	/// @brief Scale of the render target relative to the logical size.
 	V2_float scale{ 1.0f, 1.0f };
 };
 

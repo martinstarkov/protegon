@@ -4,18 +4,17 @@
 
 namespace ptgn::event {
 
-/// @brief Triggered when the game size is changed.
-struct GameResized {
+/// @brief Triggered when the logical size is changed.
+struct LogicalResized {
 	V2_int size;
 };
 
-/// @brief Triggered when the display size changes (due to window resize or game size change).
+/// @brief Triggered when the display size changes (due to window resize or logical size change).
 struct DisplayResized {
 	V2_int size;
 };
 
-/// @brief Triggered when the presentation area (such as window or editor game panel) resizes.
-/// When running in the editor, this may be different from the window size.
+/// @brief Triggered when the presentation area resizes.
 struct PresentationResized {
 	V2_int size;
 };

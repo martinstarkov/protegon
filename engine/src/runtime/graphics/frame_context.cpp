@@ -29,9 +29,9 @@ FrameContext::FrameContext(
 
 	auto full_viewport_size{ renderer.GetFullViewportSize() };
 
-	auto game_size{ renderer.GetGameSize() };
+	auto logical_size{ renderer.GetLogicalSize() };
 
-	PTGN_ASSERT(game_size.IsPositive(), "Game size must be positive");
+	PTGN_ASSERT(logical_size.IsPositive(), "Logical size must be positive");
 	PTGN_ASSERT(full_viewport_size.IsPositive(), "Full viewport size must be positive");
 
 	V2_int presentation_center{ presentation_viewport.GetCenter() };
@@ -52,7 +52,7 @@ FrameContext::FrameContext(
 
 	camera = CameraFrame{ .camera_viewport	  = render_viewport,
 						  .render_target_size = render_target_size,
-						  .scale			  = render_target_size / game_size };
+						  .scale			  = render_target_size / logical_size };
 
 	world = WorldFrame{ .camera_transform = camera_transform };
 }
