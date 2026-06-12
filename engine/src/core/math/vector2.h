@@ -410,6 +410,50 @@ template <Arithmetic T>
 	return std::abs(a.x - b.x) <= margin.x && std::abs(a.y - b.y) <= margin.y;
 }
 
+template <Arithmetic T>
+[[nodiscard]] constexpr bool LessOrNearlyEqual(Vector2<T> a, Vector2<T> b) noexcept {
+	return LessOrNearlyEqual(a.x, b.x) && LessOrNearlyEqual(a.y, b.y);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool LessOrNearlyEqual(Vector2<T> a, T b) noexcept {
+	return LessOrNearlyEqual(a.x, b) && LessOrNearlyEqual(a.y, b);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool WithinRangeInclusive(
+	Vector2<T> value, Vector2<T> min, Vector2<T> max
+) noexcept {
+	return WithinRangeInclusive(value.x, min.x, max.x) &&
+		   WithinRangeInclusive(value.y, min.y, max.y);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool WithinRangeInclusive(Vector2<T> value, T min, T max) noexcept {
+	return WithinRangeInclusive(value.x, min, max) && WithinRangeInclusive(value.y, min, max);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool WithinRangeExclusive(
+	Vector2<T> value, Vector2<T> min, Vector2<T> max
+) noexcept {
+	return WithinRangeExclusive(value.x, min.x, max.x) &&
+		   WithinRangeExclusive(value.y, min.y, max.y);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool WithinRangeExclusive(Vector2<T> value, T min, T max) noexcept {
+	return WithinRangeExclusive(value.x, min, max) && WithinRangeExclusive(value.y, min, max);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool NearlyWithinRangeInclusive(
+	Vector2<T> value, Vector2<T> min, Vector2<T> max
+) noexcept {
+	return NearlyWithinRangeInclusive(value.x, min.x, max.x) &&
+		   NearlyWithinRangeInclusive(value.y, min.y, max.y);
+}
+
 /// @return Ceil both components of a vector.
 template <Arithmetic T>
 [[nodiscard]] constexpr Vector2<T> FastCeil(Vector2<T> vector) {

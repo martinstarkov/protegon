@@ -6,9 +6,11 @@
 #include <limits>
 #include <type_traits>
 
+#include "core/util/concepts.h"
+
 namespace ptgn {
 
-template <typename T>
+template <Arithmetic T>
 inline constexpr T kEpsilon{ std::numeric_limits<T>::epsilon() };
 
 [[nodiscard]] constexpr bool StrictlyLess(float a, float b, float epsilon = kEpsilon<float>) {
@@ -19,7 +21,7 @@ inline constexpr T kEpsilon{ std::numeric_limits<T>::epsilon() };
 /// tolerances. The absolute tolerance test fails when x and y become large. The
 /// relative tolerance test fails when x and y become small.
 /// Source: https://stackoverflow.com/a/65015333
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] constexpr bool NearlyEqual(
 	T a, T b, T abs_tol = static_cast<T>(10) * kEpsilon<T>,
 	T rel_tol = static_cast<T>(10) * kEpsilon<T>
@@ -38,6 +40,27 @@ template <typename T>
 	} else {
 		return a == b;
 	}
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool LessOrNearlyEqual(T a, T b) noexcept {
+	return a < b || NearlyEqual(a, b);
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool WithinRangeInclusive(T value, T min, T max) noexcept {
+	return value >= min && value <= max;
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool WithinRangeExclusive(T value, T min, T max) noexcept {
+	return value > min && value < max;
+}
+
+template <Arithmetic T>
+[[nodiscard]] constexpr bool NearlyWithinRangeInclusive(T value, T min, T max) noexcept {
+	return WithinRangeInclusive(value, min, max) || NearlyEqual(value, min) ||
+		   NearlyEqual(value, max);
 }
 
 } // namespace ptgn
