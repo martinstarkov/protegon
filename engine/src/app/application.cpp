@@ -161,8 +161,6 @@ void Application::Update() {
 
 	start = end;
 
-	using enum ApplicationState;
-
 	ctx_.running = ctx_.window.Update();
 
 	if (ctx_.window.GetSetting(WindowSetting::Minimized)) {
