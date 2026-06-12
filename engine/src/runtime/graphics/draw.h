@@ -53,6 +53,13 @@ void SetDraw(Entity entity) {
 	impl::SetDraw(entity, Hash<T>());
 }
 
+/// @return True if the entity has a drawable component with the specified drawable type hash.
+template <DrawableType T>
+bool HasDraw(Entity entity) {
+	return entity.Has<impl::IDrawable>() && Hash<T>() == entity.Get<impl::IDrawable>().hash;
+}
+
+/// @return True if the entity has any drawable component.
 [[nodiscard]] bool HasDraw(Entity entity);
 
 void RemoveDraw(Entity entity);
