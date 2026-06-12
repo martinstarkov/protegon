@@ -43,7 +43,7 @@ void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<pa
 	asset.Add<impl::AssetName>(key);
 	asset.Add<impl::AssetKey>(key);
 	if (path.has_value()) {
-		asset.Add<impl::AssetPath>(*path);
+		asset.Add<impl::AssetPath>(path.value());
 	}
 }
 
@@ -128,7 +128,7 @@ Texture AssetManager::LoadTexture(
 	std::string_view key, const path& asset_path, TextureFormat storage_format, TextureParams params
 ) {
 	if (auto existing{ TryGet<Texture>(key) }; existing.has_value()) {
-		return *existing;
+		return existing.value();
 	}
 	auto texture{ CreateTexture(true, asset_path, storage_format, params) };
 	impl::AddAssetKey(texture.GetEntity(), key, asset_path);
@@ -151,7 +151,7 @@ Font AssetManager::CreateFont(const path& asset_path) {
 
 Font AssetManager::LoadFont(std::string_view key, const path& asset_path) {
 	if (auto existing{ TryGet<Font>(key) }; existing.has_value()) {
-		return *existing;
+		return existing.value();
 	}
 	auto font{ CreateFont(true, asset_path) };
 	impl::AddAssetKey(font.GetEntity(), key, asset_path);
@@ -172,7 +172,7 @@ Audio AssetManager::CreateAudio(const path& asset_path) {
 
 Audio AssetManager::LoadAudio(std::string_view key, const path& asset_path) {
 	if (auto existing{ TryGet<Audio>(key) }; existing.has_value()) {
-		return *existing;
+		return existing.value();
 	}
 	auto audio{ CreateAudio(true, asset_path) };
 	impl::AddAssetKey(audio.GetEntity(), key, asset_path);
@@ -203,7 +203,7 @@ Shader AssetManager::LoadShader(
 	std::optional<std::string_view> shader_name
 ) {
 	if (auto existing{ TryGet<Shader>(key) }; existing.has_value()) {
-		return *existing;
+		return existing.value();
 	}
 	auto shader{ CreateShader(true, source, shader_name.value_or(key)) };
 	impl::AddAssetKey(shader.GetEntity(), key, {});
@@ -479,14 +479,14 @@ template <AssetType T>
 ConstAsset<T> AssetManager::Get(std::string_view key) const {
 	auto asset{ TryGet<T>(key) };
 	PTGN_ASSERT(asset.has_value(), "Asset not found for key: ", key);
-	return *asset;
+	return asset.value();
 }
 
 template <AssetType T>
 Asset<T> AssetManager::Get(std::string_view key) {
 	auto asset{ TryGet<T>(key) };
 	PTGN_ASSERT(asset.has_value(), "Asset not found for key: ", key);
-	return *asset;
+	return asset.value();
 }
 
 template <AssetType T>

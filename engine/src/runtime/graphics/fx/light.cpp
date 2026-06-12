@@ -30,9 +30,9 @@
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
+#include "renderer/draw_context.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
-#include "renderer/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
@@ -121,11 +121,11 @@ std::vector<V2_float> BuildCircleVertices(const Circle& circle, Transform transf
 std::optional<V2_float> GetTextureCasterSize(Entity entity) {
 	auto texture_size{ GetTextureSize(entity) };
 
-	if (!texture_size.has_value() || !texture_size->IsPositive()) {
+	if (!texture_size.has_value() || !texture_size.value().IsPositive()) {
 		return std::nullopt;
 	}
 
-	return V2_float{ *texture_size };
+	return V2_float{ texture_size.value() };
 }
 
 std::optional<std::vector<V2_float>> GetShadowCasterWorldVertices(Entity entity) {
@@ -237,15 +237,15 @@ impl::VisibilityPolygon ComputeVisibilityPolygonForLight(
 
 		auto world_vertices{ GetShadowCasterWorldVertices(caster.entity) };
 
-		if (!world_vertices.has_value() || world_vertices->size() < 3) {
+		if (!world_vertices.has_value() || world_vertices.value().size() < 3) {
 			continue;
 		}
 
-		AddPolygonSegments(segments, *world_vertices);
+		AddPolygonSegments(segments, world_vertices.value());
 
 		interiors.emplace_back(
 			impl::ShadowMaskInterior{
-				.vertices			= *world_vertices,
+				.vertices			= world_vertices.value(),
 				.masks_light_inside = caster.masks_light_inside,
 			}
 		);
@@ -311,13 +311,13 @@ void BuildForBucket(
 				.entity				= entity,
 				.depth				= commands[order].depth,
 				.order				= order,
-				.aabb				= *aabb,
+				.aabb				= aabb.value(),
 				.masks_light_inside = caster.masks_light_inside,
 			}
 		) };
 
 		caster_lookup.emplace(entity, &entry);
-		objects.emplace_back(entity, *aabb);
+		objects.emplace_back(entity, aabb.value());
 	}
 
 	if (objects.empty()) {
@@ -353,7 +353,7 @@ void BuildForBucket(
 
 bool IsInvisibleCone(Entity entity) {
 	const auto& light{ entity.Get<impl::LightData>() };
-	return light.cone_angle.has_value() && *light.cone_angle == Radians{ 0.0f };
+	return light.cone_angle.has_value() && light.cone_angle.value() == Radians{ 0.0f };
 }
 
 void DrawStencilPolygon(
@@ -633,7 +633,7 @@ void DrawDebugForCamera(
 namespace impl {
 
 void BuildLightVisibilityPolygons(
-	Scene&, std::span<const CameraRenderBucket> buckets, V2_int game_size,
+	Scene&, std::span<const CameraRenderBucket> buckets, V2_int logical_size,
 	const RenderTarget& scene_render_target
 ) {
 	for (const auto& bucket : buckets) {
@@ -656,7 +656,7 @@ void BuildLightVisibilityPolygons(
 						   ? render_camera.camera.viewport
 						   : GetRenderViewport(
 								 render_camera.camera.viewport, render_camera.camera.viewport_space,
-								 game_size, rt_size
+								 logical_size, rt_size
 							 ) };
 
 		Rect rect{ viewport.size };
@@ -702,7 +702,7 @@ std::array<UniformWrite, 9> Light::GetUniforms() const {
 			   { "u_Falloff", light.falloff },
 			   { "u_UseCone", light.cone_angle.has_value() ? 1.0f : 0.0f },
 			   { "u_ConeAngle",
-				 light.cone_angle.has_value() ? (*light.cone_angle / 2.0f).value : kTwoPi },
+				 light.cone_angle.has_value() ? (light.cone_angle.value() / 2.0f).value : kTwoPi },
 			   { "u_Color", color_n },
 			   { "u_AmbientColor", ambient_color },
 			   { "u_AmbientIntensity", light.ambient_intensity },
@@ -813,7 +813,7 @@ Light& Light::SetConeAngle(std::optional<Degrees> cone_angle) {
 		return *this;
 	}
 
-	light_data.cone_angle = Radians{ Clamp(*cone_angle) };
+	light_data.cone_angle = Radians{ Clamp(cone_angle.value()) };
 
 	return *this;
 }
@@ -821,7 +821,7 @@ Light& Light::SetConeAngle(std::optional<Degrees> cone_angle) {
 std::optional<Degrees> Light::GetConeAngle() const {
 	PTGN_ASSERT(Has<impl::LightData>(), "Light must have LightData component");
 	if (const auto& light_data{ Get<impl::LightData>() }; light_data.cone_angle.has_value()) {
-		return light_data.cone_angle->ToDeg();
+		return light_data.cone_angle.value().ToDeg();
 	} else {
 		return std::nullopt;
 	}

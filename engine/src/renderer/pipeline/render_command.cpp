@@ -104,7 +104,7 @@ void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
 	auto prev_blend_mode{ renderer.GetBlendMode() };
 
 	if (command.blend_mode.has_value()) {
-		renderer.SetBlendMode(*command.blend_mode);
+		renderer.SetBlendMode(command.blend_mode.value());
 	}
 
 	auto get_span = [&command](auto& container) {

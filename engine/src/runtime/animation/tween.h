@@ -399,12 +399,12 @@ template <typename T, typename... TArgs>
 	requires BraceConstructible<T, TArgs...>
 void TweenData::PushEventToCurrentTweenPoint(TArgs&&... args) {
 	auto current_index{ GetCurrentIndex() };
-	if (!current_index.has_value() || *current_index >= points_.size() ||
-		!points_[*current_index]) {
+	if (!current_index.has_value() || current_index.value() >= points_.size() ||
+		!points_[current_index.value()]) {
 		return;
 	}
 	auto event{ EventData::Create<T>(std::forward<TArgs>(args)...) };
-	points_[*current_index]->events_.emplace_back(std::move(event));
+	points_[current_index.value()]->events_.emplace_back(std::move(event));
 }
 
 } // namespace impl

@@ -94,19 +94,19 @@ public:
 	const T& Get(V2_int coordinate) const {
 		auto c{ OneDimensionalize(coordinate) };
 		PTGN_ASSERT(c.has_value(), "Coordinate out of range");
-		return Get(*c);
+		return Get(c.value());
 	}
 
 	[[nodiscard]] T Pop(V2_int coordinate) {
 		auto c{ OneDimensionalize(coordinate) };
 		PTGN_ASSERT(c.has_value(), "Coordinate out of range");
-		return Pop(*c);
+		return Pop(c.value());
 	}
 
 	T& Get(V2_int coordinate) {
 		auto c{ OneDimensionalize(coordinate) };
 		PTGN_ASSERT(c.has_value(), "Coordinate out of range");
-		return Get(*c);
+		return Get(c.value());
 	}
 
 	[[nodiscard]] T Pop(int index) {
@@ -128,7 +128,7 @@ public:
 	T& Set(V2_int coordinate, T&& object) {
 		auto c{ OneDimensionalize(coordinate) };
 		PTGN_ASSERT(c.has_value(), "Coordinate out of range");
-		return Set(*c, std::move(object));
+		return Set(c.value(), std::move(object));
 	}
 
 	T& Set(int index, T&& object) {

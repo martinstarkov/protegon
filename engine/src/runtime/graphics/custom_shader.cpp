@@ -73,7 +73,7 @@ CustomShader CreateCustomShader(
 	auto shader{ assets.Get<Shader>(shader_key) };
 
 	if (texture_key.has_value()) {
-		auto texture{ assets.Get<Texture>(*texture_key) };
+		auto texture{ assets.Get<Texture>(texture_key.value()) };
 		custom_shader.Add<Texture>(texture);
 	}
 

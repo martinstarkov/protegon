@@ -327,12 +327,12 @@ TextLineMetrics MeasureLineMetrics(
 
 	Rect result{
 		{
-			std::max(a->min.x, b->min.x),
-			std::max(a->min.y, b->min.y),
+			std::max(a.value().min.x, b.value().min.x),
+			std::max(a.value().min.y, b.value().min.y),
 		},
 		{
-			std::min(a->max.x, b->max.x),
-			std::min(a->max.y, b->max.y),
+			std::min(a.value().max.x, b.value().max.x),
+			std::min(a.value().max.y, b.value().max.y),
 		},
 	};
 
@@ -495,7 +495,7 @@ TextLayout BuildLayout(AssetManager& asset_manager, StyledText styled_text, cons
 	if (box.rect.GetSize().IsPositive()) {
 		layout.local_box = box.rect;
 	} else if (visible_bounds.has_value()) {
-		layout.local_box = *visible_bounds;
+		layout.local_box = visible_bounds.value();
 	} else {
 		layout.local_box = {};
 	}
@@ -536,13 +536,13 @@ void BuildVertices(
 		}
 
 		if (clip_rect.has_value()) {
-			if (!clip_rect->GetSize().IsPositive()) {
+			if (!clip_rect.value().GetSize().IsPositive()) {
 				return;
 			}
 
 			auto glyph_rect{ GetGlyphClipTestRect(glyph, clip_mode) };
 
-			if (!ShouldDrawRectWithClipMode(glyph_rect, *clip_rect, clip_mode)) {
+			if (!ShouldDrawRectWithClipMode(glyph_rect, clip_rect.value(), clip_mode)) {
 				continue;
 			}
 		}
@@ -563,11 +563,11 @@ void BuildVertices(
 		}
 
 		if (clip_rect.has_value()) {
-			if (!clip_rect->GetSize().IsPositive()) {
+			if (!clip_rect.value().GetSize().IsPositive()) {
 				return;
 			}
 
-			if (!ShouldDrawRectWithClipMode(decoration.rect, *clip_rect, clip_mode)) {
+			if (!ShouldDrawRectWithClipMode(decoration.rect, clip_rect.value(), clip_mode)) {
 				continue;
 			}
 		}
@@ -832,7 +832,7 @@ std::optional<ResolvedGlyph> ResolveGlyph(
 
 	ResolvedGlyph resolved;
 	resolved.codepoint				= codepoint;
-	resolved.metrics				= *metrics;
+	resolved.metrics				= metrics.value();
 	resolved.source_run_index		= source_run_index;
 	resolved.source_codepoint_index = source_codepoint_index;
 	resolved.texture				= font.GetAtlasTexture();
@@ -973,15 +973,15 @@ CandidateLayout BuildSinglePassLayout(
 				) };
 				space_glyph.has_value()) {
 				GlyphInstance glyph;
-				glyph.codepoint				 = space_glyph->codepoint;
+				glyph.codepoint				 = space_glyph.value().codepoint;
 				glyph.position				 = { current_line_size.x, y };
-				glyph.plane					 = space_glyph->metrics.plane;
-				glyph.uv					 = space_glyph->metrics.uv;
+				glyph.plane					 = space_glyph.value().metrics.plane;
+				glyph.uv					 = space_glyph.value().metrics.uv;
 				glyph.source_run_index		 = token.run_index;
-				glyph.advance				 = space_glyph->metrics.advance;
+				glyph.advance				 = space_glyph.value().metrics.advance;
 				glyph.source_codepoint_index = 0;
-				glyph.render_style			 = space_glyph->render_style;
-				glyph.texture				 = space_glyph->texture;
+				glyph.render_style			 = space_glyph.value().render_style;
+				glyph.texture				 = space_glyph.value().texture;
 				current_line_glyphs.push_back(glyph);
 			}
 
@@ -1004,7 +1004,7 @@ CandidateLayout BuildSinglePassLayout(
 				}
 
 				if (current_line_size.x > 0.0f &&
-					current_line_size.x + resolved->metrics.advance > box.rect.GetSize().x) {
+					current_line_size.x + resolved.value().metrics.advance > box.rect.GetSize().x) {
 					flush_line(false);
 
 					current_line_size.y	 = std::max(current_line_size.y, line_metrics.height);
@@ -1013,18 +1013,18 @@ CandidateLayout BuildSinglePassLayout(
 				}
 
 				GlyphInstance glyph;
-				glyph.codepoint				 = resolved->codepoint;
+				glyph.codepoint				 = resolved.value().codepoint;
 				glyph.position				 = { current_line_size.x, y };
-				glyph.plane					 = resolved->metrics.plane;
-				glyph.uv					 = resolved->metrics.uv;
-				glyph.source_run_index		 = resolved->source_run_index;
-				glyph.advance				 = resolved->metrics.advance;
-				glyph.source_codepoint_index = resolved->source_codepoint_index;
-				glyph.render_style			 = resolved->render_style;
-				glyph.texture				 = resolved->texture;
+				glyph.plane					 = resolved.value().metrics.plane;
+				glyph.uv					 = resolved.value().metrics.uv;
+				glyph.source_run_index		 = resolved.value().source_run_index;
+				glyph.advance				 = resolved.value().metrics.advance;
+				glyph.source_codepoint_index = resolved.value().source_codepoint_index;
+				glyph.render_style			 = resolved.value().render_style;
+				glyph.texture				 = resolved.value().texture;
 				current_line_glyphs.push_back(glyph);
 
-				current_line_size.x += resolved->metrics.advance;
+				current_line_size.x += resolved.value().metrics.advance;
 			}
 
 			continue;
@@ -1042,18 +1042,18 @@ CandidateLayout BuildSinglePassLayout(
 			}
 
 			GlyphInstance glyph;
-			glyph.codepoint				 = resolved->codepoint;
+			glyph.codepoint				 = resolved.value().codepoint;
 			glyph.position				 = { x, y };
-			glyph.plane					 = resolved->metrics.plane;
-			glyph.uv					 = resolved->metrics.uv;
-			glyph.source_run_index		 = resolved->source_run_index;
-			glyph.advance				 = resolved->metrics.advance;
-			glyph.source_codepoint_index = resolved->source_codepoint_index;
-			glyph.render_style			 = resolved->render_style;
-			glyph.texture				 = resolved->texture;
+			glyph.plane					 = resolved.value().metrics.plane;
+			glyph.uv					 = resolved.value().metrics.uv;
+			glyph.source_run_index		 = resolved.value().source_run_index;
+			glyph.advance				 = resolved.value().metrics.advance;
+			glyph.source_codepoint_index = resolved.value().source_codepoint_index;
+			glyph.render_style			 = resolved.value().render_style;
+			glyph.texture				 = resolved.value().texture;
 			current_line_glyphs.push_back(glyph);
 
-			x += resolved->metrics.advance;
+			x += resolved.value().metrics.advance;
 		}
 
 		current_line_size.x = x;
@@ -1107,16 +1107,16 @@ void ApplyVerticalAlignment(const TextBox& box, TextLayout* layout) {
 	switch (box.style.vertical_align) {
 		using enum VerticalAlign;
 
-		case Top:	 offset_y = box.rect.min.y - bounds->min.y; break;
+		case Top:	 offset_y = box.rect.min.y - bounds.value().min.y; break;
 
 		case Center: {
 			float box_center_y{ (box.rect.min.y + box.rect.max.y) * 0.5f };
-			float content_center_y{ (bounds->min.y + bounds->max.y) * 0.5f };
+			float content_center_y{ (bounds.value().min.y + bounds.value().max.y) * 0.5f };
 			offset_y = box_center_y - content_center_y;
 			break;
 		}
 
-		case Bottom: offset_y = box.rect.max.y - bounds->max.y; break;
+		case Bottom: offset_y = box.rect.max.y - bounds.value().max.y; break;
 	}
 
 	for (GlyphInstance& glyph : layout->glyphs) {
@@ -1329,21 +1329,21 @@ void ApplyEllipsisOverflow(
 		}
 
 		GlyphInstance glyph;
-		glyph.codepoint				 = resolved->codepoint;
+		glyph.codepoint				 = resolved.value().codepoint;
 		glyph.position				 = { start_x, y };
-		glyph.plane					 = resolved->metrics.plane;
-		glyph.uv					 = resolved->metrics.uv;
-		glyph.source_run_index		 = resolved->source_run_index;
-		glyph.advance				 = resolved->metrics.advance;
-		glyph.source_codepoint_index = resolved->source_codepoint_index;
-		glyph.render_style			 = resolved->render_style;
+		glyph.plane					 = resolved.value().metrics.plane;
+		glyph.uv					 = resolved.value().metrics.uv;
+		glyph.source_run_index		 = resolved.value().source_run_index;
+		glyph.advance				 = resolved.value().metrics.advance;
+		glyph.source_codepoint_index = resolved.value().source_codepoint_index;
+		glyph.render_style			 = resolved.value().render_style;
 		glyph.line_index			 = last_visible_line_index;
 		glyph.visible_order			 = layout->glyphs.size();
-		glyph.texture				 = resolved->texture;
+		glyph.texture				 = resolved.value().texture;
 
 		layout->glyphs.push_back(glyph);
 
-		start_x += resolved->metrics.advance;
+		start_x += resolved.value().metrics.advance;
 	}
 
 	for (auto& decoration : layout->decorations) {

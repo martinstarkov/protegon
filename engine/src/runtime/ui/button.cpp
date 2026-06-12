@@ -24,6 +24,7 @@
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/graphics/text/text_style.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interactive.h"
@@ -160,7 +161,7 @@ std::vector<Entity> FindButtonParts(Button button, std::optional<ButtonPartRole>
 			continue;
 		}
 
-		if (role.has_value() && part->role != *role) {
+		if (role.has_value() && part->role != role.value()) {
 			continue;
 		}
 
@@ -231,7 +232,7 @@ std::optional<V2_float> GetShapeSize(const std::variant<Rect, Circle>& shape) {
 
 	return std::visit(
 		[&](const auto& value) -> std::optional<V2_float> { return value.GetSize(transform); },
-		*shape
+		shape.value()
 	);
 }
 
@@ -569,7 +570,8 @@ Button& Button::SetShape(const std::optional<std::variant<Rect, Circle>>& shape)
 	}
 
 	std::visit(
-		[this](const auto& value) { Add<std::remove_cvref_t<decltype(value)>>(value); }, *shape
+		[this](const auto& value) { Add<std::remove_cvref_t<decltype(value)>>(value); },
+		shape.value()
 	);
 
 	UpdateChildLayouts();
@@ -689,7 +691,7 @@ std::optional<Text> Button::TryLabel(ButtonVisualState state) const {
 		return std::nullopt;
 	}
 
-	return Text{ *part };
+	return Text{ part.value() };
 }
 
 std::optional<Sprite> Button::TryIcon(ButtonVisualState state) const {
@@ -698,7 +700,7 @@ std::optional<Sprite> Button::TryIcon(ButtonVisualState state) const {
 		return std::nullopt;
 	}
 
-	return Sprite{ *part };
+	return Sprite{ part.value() };
 }
 
 Button& Button::RemoveBackground(ButtonVisualState state) {
@@ -795,11 +797,11 @@ std::optional<Animation> Button::TryAnimation(ButtonVisualState state) const {
 		return std::nullopt;
 	}
 
-	if (!icon->Has<impl::AnimationData>()) {
+	if (!icon.value().Has<impl::AnimationData>()) {
 		return std::nullopt;
 	}
 
-	return Animation{ *icon };
+	return Animation{ icon.value() };
 }
 
 Button& Button::RemoveAnimation(ButtonVisualState state) {
@@ -809,10 +811,10 @@ Button& Button::RemoveAnimation(ButtonVisualState state) {
 		return *this;
 	}
 
-	animation->Stop(true);
-	animation->Remove<impl::AnimationData>();
-	animation->Remove<impl::ButtonPart>();
-	Hide(*animation);
+	animation.value().Stop(true);
+	animation.value().Remove<impl::AnimationData>();
+	animation.value().Remove<impl::ButtonPart>();
+	Hide(animation.value());
 
 	return *this;
 }
@@ -849,11 +851,11 @@ Button& Button::SetSound(std::optional<std::string_view> sound_key, ButtonState 
 	PTGN_ASSERT(slot);
 
 	if (!sound_key.has_value()) {
-		*slot = std::nullopt;
+		slot->reset();
 		return *this;
 	}
 
-	*slot = GetScene().ctx().asset.Get<Audio>(*sound_key);
+	slot->emplace(GetScene().ctx().asset.Get<Audio>(sound_key.value()));
 
 	return *this;
 }
@@ -963,7 +965,7 @@ void Button::PlaySound(ButtonState active) {
 	}
 
 	auto& audio{ GetScene().ctx().audio };
-	audio.Play(sound->GetEntity().Get<impl::AssetName>().value);
+	audio.Play(sound.value().GetEntity().Get<impl::AssetName>().value);
 }
 
 void Button::PlayAnimation(ButtonState active) {
@@ -1006,11 +1008,11 @@ void Button::PlayAnimation(ButtonState active) {
 void Button::UpdateChildLayouts() {
 	auto size{ GetButtonShapeSize(*this) };
 
-	if (!size.has_value() || !size->IsPositive()) {
+	if (!size.has_value() || !size.value().IsPositive()) {
 		return;
 	}
 
-	Rect button_rect{ GetButtonLocalRect(*this, *size) };
+	Rect button_rect{ GetButtonLocalRect(*this, size.value()) };
 
 	for (Entity part : Parts(ButtonPartRole::Label)) {
 		auto auto_box{ part.TryGet<impl::ButtonLabelAutoBox>() };
@@ -1081,16 +1083,16 @@ Button CreateButton(
 	if (config.background_color.has_value()) {
 		Entity background{ button.Background() };
 		background.Add<Rect>(Rect{ size });
-		SetTint(background, *config.background_color);
+		SetTint(background, config.background_color.value());
 	}
 
 	if (config.texture.has_value()) {
-		button.SetIcon(*config.texture);
+		button.SetIcon(config.texture.value());
 	}
 
 	if (config.content.has_value()) {
 		Text label{ button.Label() };
-		label.Content(*config.content)
+		label.Content(config.content.value())
 			.Color(config.text_color.value_or(impl::kDefaultButtonTextColor))
 			.Size(config.font_size)
 			.Font(config.font)

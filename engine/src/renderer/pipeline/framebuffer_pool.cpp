@@ -47,7 +47,7 @@ FramebufferId FramebufferPool::Acquire(TextureDesc desc, std::optional<TextureDe
 
 	PTGN_ASSERT(
 		!other_desc.has_value() ||
-			other_desc->size == desc.size && other_desc->format != desc.format,
+			other_desc.value().size == desc.size && other_desc.value().format != desc.format,
 		"Framebuffer attachments must have matching sizes and mismatching formats"
 	);
 

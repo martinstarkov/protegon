@@ -4,12 +4,18 @@
 #include <optional>
 #include <ranges>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/event/event.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/scene/scene.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
@@ -157,7 +163,7 @@ void ToggleButtonGroup::SetAlwaysOneActive(
 	}
 
 	if (button_key.has_value()) {
-		SetActive(*button_key);
+		SetActive(button_key.value());
 		return;
 	}
 
@@ -201,13 +207,13 @@ void ToggleButtonGroup::Remove(std::string_view button_key) {
 		return;
 	}
 
-	if (!HasScript<impl::ToggleButtonScript>(*button)) {
-		AddScript<impl::ToggleButtonScript>(*button);
+	if (!HasScript<impl::ToggleButtonScript>(button.value())) {
+		AddScript<impl::ToggleButtonScript>(button.value());
 	}
 
-	RemoveScript<impl::ToggleButtonGroupScript>(*button);
-	button->Remove<impl::ToggleButtonGroupItem>();
-	SetParent(*button, Entity{});
+	RemoveScript<impl::ToggleButtonGroupScript>(button.value());
+	button.value().Remove<impl::ToggleButtonGroupItem>();
+	SetParent(button.value(), Entity{});
 }
 
 void ToggleButtonGroup::SetActive(std::string_view button_key) {
@@ -230,7 +236,7 @@ std::optional<ToggleButton> ToggleButtonGroup::GetActive() const {
 			continue;
 		}
 
-		if (item->key == *data->active) {
+		if (item->key == data->active.value()) {
 			return ToggleButton{ child };
 		}
 	}
@@ -263,7 +269,7 @@ void ToggleButtonGroup::AddToggleScript(ToggleButton toggle_button) const {
 void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	auto& data{ TryAdd<impl::ToggleButtonGroupData>() };
 
-	bool same_as_current{ data.active.has_value() && *data.active == key };
+	bool same_as_current{ data.active.has_value() && data.active.value() == key };
 
 	if (same_as_current && data.always_active) {
 		return;
@@ -272,13 +278,13 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	if (same_as_current) {
 		data.active.reset();
 	} else {
-		data.active = key;
+		data.active.emplace(key);
 	}
 
 	for (ToggleButton button : GetButtons()) {
 		auto& item{ button.Get<impl::ToggleButtonGroupItem>() };
 
-		bool active{ data.active.has_value() && item.key == *data.active };
+		bool active{ data.active.has_value() && item.key == data.active.value() };
 		button.SetToggled(active);
 	}
 }

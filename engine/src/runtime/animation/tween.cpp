@@ -27,9 +27,9 @@ namespace impl {
 const TweenPoint& TweenData::GetCurrentTweenPoint() const {
 	auto current_index{ GetCurrentIndex() };
 	PTGN_ASSERT(current_index.has_value());
-	PTGN_ASSERT(*current_index < points_.size());
-	PTGN_ASSERT(points_[*current_index]);
-	return *points_[*current_index];
+	PTGN_ASSERT(current_index.value() < points_.size());
+	PTGN_ASSERT(points_[current_index.value()]);
+	return *points_[current_index.value()];
 }
 
 TweenPoint& TweenData::GetCurrentTweenPoint() {
@@ -39,9 +39,9 @@ TweenPoint& TweenData::GetCurrentTweenPoint() {
 const TweenPoint& TweenData::GetLastTweenPoint() const {
 	auto last_index{ GetLastIndex() };
 	PTGN_ASSERT(last_index.has_value());
-	PTGN_ASSERT(*last_index < points_.size());
-	PTGN_ASSERT(points_[*last_index]);
-	return *points_[*last_index];
+	PTGN_ASSERT(last_index.value() < points_.size());
+	PTGN_ASSERT(points_[last_index.value()]);
+	return *points_[last_index.value()];
 }
 
 TweenPoint& TweenData::GetLastTweenPoint() {
@@ -125,9 +125,11 @@ std::optional<bool> TweenData::FutureTweenPointIsValid() const {
 		return std::nullopt;
 	}
 
-	while (*current_index + 1 < points_.size()) {
-		if (points_[*current_index + 1]->flagged_for_removal_) {
-			++(*current_index);
+	while (current_index.value() + 1 < points_.size()) {
+		const auto& point{ points_[current_index.value() + 1] };
+		PTGN_ASSERT(point);
+		if (point->flagged_for_removal_) {
+			++current_index.value();
 		} else {
 			return true;
 		}
@@ -185,9 +187,9 @@ void TweenData::RemoveLastTweenPoint() {
 		return;
 	}
 
-	PTGN_ASSERT(*last_index < points_.size());
+	PTGN_ASSERT(last_index.value() < points_.size());
 
-	const auto& last_point{ points_[*last_index] };
+	const auto& last_point{ points_[last_index.value()] };
 
 	PTGN_ASSERT(last_point);
 	last_point->flagged_for_removal_ = true;
@@ -197,7 +199,7 @@ void TweenData::RemoveLastTweenPoint() {
 	// valid tween point instead of leaving the tween in an invalid state with an invalid current
 	// index.
 	while (index_ > 0) {
-		if (index_ < *last_index) {
+		if (index_ < last_index.value()) {
 			PTGN_ASSERT(index_ < points_.size());
 			if (!points_[index_]->flagged_for_removal_) {
 				break;
@@ -370,10 +372,10 @@ Tween& Tween::Ease(ptgn::Ease ease) {
 Tween& Tween::Repeat(std::optional<std::size_t> repeats) {
 	bool infinite{ !repeats.has_value() };
 
-	if (!infinite && *repeats == 0) {
+	if (!infinite && repeats.value() == 0) {
 		return *this;
 	}
-	PTGN_ASSERT(infinite || *repeats > 0, "Repeats cannot be negative");
+	PTGN_ASSERT(infinite || repeats.value() > 0, "Repeats cannot be negative");
 
 	auto& total_repeats{ GetLastTweenPoint().total_repeats_ };
 	total_repeats = repeats;
@@ -476,7 +478,8 @@ void Tween::Step(secondsf dt) {
 			point.current_repeat_++;
 
 			bool infinite_repeat{ !point.total_repeats_.has_value() };
-			bool should_repeat = infinite_repeat || point.current_repeat_ < *point.total_repeats_;
+			bool should_repeat =
+				infinite_repeat || point.current_repeat_ < point.total_repeats_.value();
 
 			if (point.yoyo_ && should_repeat) {
 				point.currently_reversed_ = !point.currently_reversed_;
@@ -511,7 +514,7 @@ Tween& Tween::IncrementPoint() {
 
 	auto parent{ GetParent(*this) };
 
-	if (*future_tween_available) {
+	if (future_tween_available.value()) {
 		// Move to next tween point.
 		PushEventToCurrentTweenPoint<event::TweenPointComplete>(*this, parent);
 		tween.IncrementIndex();

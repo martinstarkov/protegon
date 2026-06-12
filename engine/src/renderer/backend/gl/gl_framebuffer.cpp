@@ -123,7 +123,7 @@ void RestoreReadBuffer(const std::optional<GLint>& previous) {
 		return;
 	}
 
-	GLCall(glReadBuffer(static_cast<GLenum>(*previous)));
+	GLCall(glReadBuffer(static_cast<GLenum>(previous.value())));
 }
 
 void SelectDrawBufferIfColor(Attachment attachment, std::optional<GLint>& previous) {
@@ -144,7 +144,7 @@ void RestoreDrawBuffer(const std::optional<GLint>& previous) {
 		return;
 	}
 
-	GLCall(glDrawBuffer(static_cast<GLenum>(*previous)));
+	GLCall(glDrawBuffer(static_cast<GLenum>(previous.value())));
 }
 
 [[nodiscard]] GLbitfield BlitMask(Attachment attachment) {
@@ -184,11 +184,11 @@ FramebufferId Framebuffers::CreateImpl(
 	auto _{ gl_.Bind(framebuffer, restore_bind) };
 
 	if (texture.has_value()) {
-		AttachTextureImpl(framebuffer, *texture, texture_attachment);
+		AttachTextureImpl(framebuffer, texture.value(), texture_attachment);
 	}
 
 	if (renderbuffer.has_value()) {
-		AttachRenderbufferImpl(framebuffer, *renderbuffer, renderbuffer_attachment);
+		AttachRenderbufferImpl(framebuffer, renderbuffer.value(), renderbuffer_attachment);
 	}
 
 	PTGN_ASSERT(IsComplete(framebuffer), "Framebuffer is incomplete: ", GetStatus());
@@ -212,7 +212,7 @@ FramebufferId Framebuffers::Create(
 		);
 	}
 
-	PTGN_ASSERT(*renderbuffer, "Renderbuffer attachment must be valid");
+	PTGN_ASSERT(renderbuffer.value(), "Renderbuffer attachment must be valid");
 	PTGN_ASSERT(
 		!IsColorAttachment(renderbuffer_attachment),
 		"Renderbuffer attachment must not be a color attachment"
@@ -220,7 +220,7 @@ FramebufferId Framebuffers::Create(
 
 	return CreateImpl(
 		std::optional<TextureId>{ texture }, Attachment::Color0,
-		std::optional<RenderbufferId>{ *renderbuffer }, renderbuffer_attachment, restore_bind
+		std::optional<RenderbufferId>{ renderbuffer.value() }, renderbuffer_attachment, restore_bind
 	);
 }
 
@@ -330,7 +330,7 @@ bool Framebuffers::HasOnlyAttachmentLayout(
 	for (auto i{ 0uz }; i < kMaxColorAttachments; ++i) {
 		auto attachment{ ColorAttachment(i) };
 		auto has_attachment{ HasAttachment(framebuffer, attachment, AttachmentStorage::Texture) };
-		auto should_have_attachment{ color.has_value() && *color == attachment };
+		auto should_have_attachment{ color.has_value() && color.value() == attachment };
 
 		if (has_attachment != should_have_attachment) {
 			return false;
@@ -347,7 +347,8 @@ bool Framebuffers::HasOnlyAttachmentLayout(
 		auto has_attachment{
 			HasAttachment(framebuffer, attachment, AttachmentStorage::Renderbuffer)
 		};
-		auto should_have_attachment{ depth_stencil.has_value() && *depth_stencil == attachment };
+		auto should_have_attachment{ depth_stencil.has_value() &&
+									 depth_stencil.value() == attachment };
 
 		if (has_attachment != should_have_attachment) {
 			return false;

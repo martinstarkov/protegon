@@ -129,7 +129,7 @@ std::optional<Shape> GetSpriteOrShape(Entity entity) {
 	if (entity.Has<Texture>()) {
 		auto display_size{ GetDisplaySize(entity) };
 		PTGN_ASSERT(display_size.has_value(), "Entity with texture must have a display size");
-		return Rect{ *display_size };
+		return Rect{ display_size.value() };
 	}
 	return GetShape(entity);
 }

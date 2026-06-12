@@ -160,9 +160,9 @@ private:
 
 	body.velocity.set(velocityX, velocityY);
 
-	if (maxSpeed.has_value() && body.velocity.length() > maxSpeed) {
-		body.velocity.normalize().scale(maxSpeed);
-		speed = maxSpeed;
+	if (maxSpeed.has_value() && body.velocity.length() > maxSpeed.value()) {
+		body.velocity.normalize().scale(maxSpeed.value());
+		speed = maxSpeed.value();
 	}
 
 	body.speed = speed;

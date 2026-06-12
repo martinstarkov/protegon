@@ -236,7 +236,7 @@ void RenderGraphVisualizer::DrawResourceTable(const impl::DebugRenderGraphSnapsh
 
 		ImGui::TableNextColumn();
 		if (r.physical_target.has_value()) {
-			ImGui::Text("%u", *r.physical_target);
+			ImGui::Text("%u", r.physical_target.value());
 		} else {
 			ImGui::TextUnformatted("-");
 		}
@@ -417,7 +417,8 @@ void RenderGraphVisualizer::DrawNode(
 		p.y += 18.0f;
 		draw_list->AddText(
 			ToImVec2(p), dim,
-			("blend: " + std::string{ magic_enum::enum_name(*node.state.blend_mode) }).c_str()
+			("blend: " + std::string{ magic_enum::enum_name(node.state.blend_mode.value())
+}).c_str()
 		);
 	}
 
@@ -441,7 +442,7 @@ void RenderGraphVisualizer::DrawNode(
 			output_text += " " + resource->name;
 
 			if (resource->physical_target.has_value()) {
-				output_text += " -> RT " + std::to_string(*resource->physical_target);
+				output_text += " -> RT " + std::to_string(resource->physical_target.value());
 			}
 		}
 
@@ -647,7 +648,7 @@ void RenderGraphVisualizer::DrawNodeTooltip(
 	ImGui::Text("Draw item count: %zu", node.draw_item_count);
 	if (node.state.blend_mode.has_value()) {
 		ImGui::Text(
-			"Blend: %s", std::string{ magic_enum::enum_name(*node.state.blend_mode) }.c_str()
+			"Blend: %s", std::string{ magic_enum::enum_name(node.state.blend_mode.value()) }.c_str()
 		);
 	}
 
@@ -664,7 +665,7 @@ void RenderGraphVisualizer::DrawNodeTooltip(
 			ImGui::Text("Kind: %s", resource->imported ? "Imported" : "Transient");
 
 			if (resource->physical_target.has_value()) {
-				ImGui::Text("Physical target: %u", *resource->physical_target);
+				ImGui::Text("Physical target: %u", resource->physical_target.value());
 			}
 
 			if (resource->used) {

@@ -729,7 +729,7 @@ float FontObject::GetAdvance(std::uint32_t current_codepoint, std::uint32_t next
 		return 0.0f;
 	}
 
-	float advance{ glyph->advance };
+	float advance{ glyph.value().advance };
 
 	if (auto it{ data_.kerning.find(KerningKey(current_codepoint, next_codepoint)) };
 		it != data_.kerning.end()) {

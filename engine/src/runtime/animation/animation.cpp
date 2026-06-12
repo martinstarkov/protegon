@@ -239,7 +239,8 @@ void AnimationSystem::Update(Scene& scene, secondsf dt) {
 
 		// All animation plays have completed.
 		if (anim.config.play_count.has_value()) {
-			if (std::size_t total_frames{ *anim.config.play_count * anim.config.frame_count };
+			if (std::size_t total_frames{ anim.config.play_count.value() *
+										  anim.config.frame_count };
 				next_frames_played >= total_frames) {
 				PushEvent<event::AnimationComplete>(anim_entity, anim_entity);
 

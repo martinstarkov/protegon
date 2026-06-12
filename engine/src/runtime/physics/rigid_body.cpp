@@ -20,13 +20,16 @@ void RigidBody::Update(V2_float physics_gravity, secondsf dt) {
 	// Or alternatively: velocity *= Clamp01(1.0f - drag * dt);
 	angular_velocity *= 1.0f / (1.0f + angular_drag * dt.count());
 	if (max_speed.has_value()) {
-		PTGN_ASSERT(*max_speed >= 0.0f, "Max speed must be a positive number");
-		velocity = Clamp(velocity, -*max_speed, *max_speed);
+		PTGN_ASSERT(max_speed.value() >= 0.0f, "Max speed must be a positive number");
+		velocity = Clamp(velocity, -max_speed.value(), max_speed.value());
 	}
 	if (max_angular_speed.has_value()) {
-		PTGN_ASSERT(*max_angular_speed >= 0.0f, "Max angular speed must be a positive number");
-		angular_velocity =
-			Radians{ std::clamp(angular_velocity.value, -*max_angular_speed, *max_angular_speed) };
+		PTGN_ASSERT(
+			max_angular_speed.value() >= 0.0f, "Max angular speed must be a positive number"
+		);
+		angular_velocity = Radians{ std::clamp(
+			angular_velocity.value, -max_angular_speed.value(), max_angular_speed.value()
+		) };
 	}
 }
 

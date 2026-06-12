@@ -41,13 +41,13 @@ void TopDownMovementScript::OnEvent(Event event) {
 void TopDownMovementScript::OnMoveStart() {
 	auto active{ entity.Get<AnimationMap>().GetActive() };
 	PTGN_ASSERT(active.has_value());
-	active->Start(false);
+	active.value().Start(false);
 }
 
 void TopDownMovementScript::OnMoveStop() {
 	auto active{ entity.Get<AnimationMap>().GetActive() };
 	PTGN_ASSERT(active.has_value());
-	active->Reset();
+	active.value().Reset();
 }
 
 void TopDownMovementScript::OnDirectionChange() {
@@ -70,11 +70,11 @@ void TopDownMovementScript::OnDirectionChange() {
 		default:		break;
 	}
 	if (active_changed) {
-		prev_active->Reset();
+		prev_active.value().Reset();
 	}
 	auto current_active{ a.GetActive() };
 	PTGN_ASSERT(current_active.has_value());
-	current_active->Start(false);
+	current_active.value().Start(false);
 }
 
 TopDownAnimationRepeat::TopDownAnimationRepeat(
@@ -102,7 +102,7 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 	player.Add<RigidBody>();
 
 	if (config.depth.has_value()) {
-		SetDepth(player, *config.depth);
+		SetDepth(player, config.depth.value());
 	}
 
 	auto body_hitbox{ scene.CreateEntity() };
@@ -133,26 +133,26 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 		AnimationMap anim_map{ player.Add<GameObject<AnimationMap>>(CreateAnimationMap(scene)) };
 		auto a0 = anim_map.Add(
 			"down", CreateAnimation(
-						scene, *config.animation_texture_key, anim_position,
-						{ config.animation_frame_count->x, duration,
+						scene, config.animation_texture_key.value(), anim_position,
+						{ config.animation_frame_count.value().x, duration,
 						  config.animation_frame_size.value_or(V2_int{}) }
 					)
 		);
 		anim_map.SetActive("down");
 		auto a1 = anim_map.Add(
 			"right", CreateAnimation(
-						 scene, *config.animation_texture_key, anim_position,
-						 { config.animation_frame_count->x, duration,
+						 scene, config.animation_texture_key.value(), anim_position,
+						 { config.animation_frame_count.value().x, duration,
 						   config.animation_frame_size.value_or(V2_int{}), std::nullopt,
-						   V2_float{ 0, config.animation_frame_size->y } }
+						   V2_float{ 0, config.animation_frame_size.value().y } }
 					 )
 		);
 		auto a2 = anim_map.Add(
 			"up", CreateAnimation(
-					  scene, *config.animation_texture_key, anim_position,
-					  { config.animation_frame_count->x, duration,
+					  scene, config.animation_texture_key.value(), anim_position,
+					  { config.animation_frame_count.value().x, duration,
 						config.animation_frame_size.value_or(V2_int{}), std::nullopt,
-						V2_float{ 0, 2 * config.animation_frame_size->y } }
+						V2_float{ 0, 2 * config.animation_frame_size.value().y } }
 				  )
 		);
 
@@ -161,12 +161,12 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 		SetParent(a2, player);
 
 		if (config.walk_sound_key.has_value()) {
-			PTGN_ASSERT(scene.ctx().asset.Has<Audio>(*config.walk_sound_key));
+			PTGN_ASSERT(scene.ctx().asset.Has<Audio>(config.walk_sound_key.value()));
 			auto frequency{ config.walk_sound_frequency.value_or(1) };
 
-			AddScript<impl::TopDownAnimationRepeat>(a0, frequency, *config.walk_sound_key);
-			AddScript<impl::TopDownAnimationRepeat>(a1, frequency, *config.walk_sound_key);
-			AddScript<impl::TopDownAnimationRepeat>(a2, frequency, *config.walk_sound_key);
+			AddScript<impl::TopDownAnimationRepeat>(a0, frequency, config.walk_sound_key.value());
+			AddScript<impl::TopDownAnimationRepeat>(a1, frequency, config.walk_sound_key.value());
+			AddScript<impl::TopDownAnimationRepeat>(a2, frequency, config.walk_sound_key.value());
 		}
 
 		AddScript<impl::TopDownMovementScript>(player);

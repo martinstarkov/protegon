@@ -801,7 +801,7 @@ void InteractionSystem::Update(Scene& scene) {
 		PTGN_ASSERT(render_target);
 
 		UpdateForCamera(
-			scene, mouse_state, handled_under_mouse, render_target, *primary_world_camera, 0,
+			scene, mouse_state, handled_under_mouse, render_target, primary_world_camera.value(), 0,
 			[](auto) { return false; }, {}
 		);
 

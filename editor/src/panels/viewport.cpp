@@ -546,12 +546,12 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 										ImGuiWindowFlags_NoScrollWithMouse |
 										ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
 
-	ImGui::Begin("Game", nullptr, kFlags);
+	ImGui::Begin("Viewport", nullptr, kFlags);
 	ImGui::PopStyleVar();
 
-	if (ImGuiWindow* game_window = ImGui::FindWindowByName("Game")) {
-		if (game_window->DockNode) {
-			game_window->DockNode->LocalFlags |= ImGuiDockNodeFlags_HiddenTabBar;
+	if (ImGuiWindow* viewport_window = ImGui::FindWindowByName("Viewport")) {
+		if (viewport_window->DockNode) {
+			viewport_window->DockNode->LocalFlags |= ImGuiDockNodeFlags_HiddenTabBar;
 		}
 	}
 
@@ -615,7 +615,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		UpdateEditorCameraPan(editor_camera_);
 
 		editor_camera_.camera.viewport.position = {};
-		editor_camera_.camera.viewport.size		= ctx.editor.GetGameSize();
+		editor_camera_.camera.viewport.size		= ctx.editor.GetLogicalSize();
 
 		editor_camera_.camera.view_projection =
 			GetOrthographicViewProjection(

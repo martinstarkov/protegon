@@ -36,7 +36,7 @@ void AddInteractiveShape(
 	SetInteractive(entity);
 	if (shape_id.has_value()) {
 		PTGN_ASSERT(
-			!HasChild(entity, *shape_id),
+			!HasChild(entity, shape_id.value()),
 			"Cannot add the same named interactable to an entity more than once"
 		);
 	}

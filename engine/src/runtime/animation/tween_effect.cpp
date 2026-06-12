@@ -153,12 +153,12 @@ void TargetFollowImpl(Entity target, const TargetFollowConfig& config, Tween twe
 
 		SetPosition(parent, new_pos);
 	}
-	if (!config.stop_distance.has_value() || *config.stop_distance < kEpsilon<float>) {
+	if (!config.stop_distance.has_value() || config.stop_distance.value() < kEpsilon<float>) {
 		return;
 	}
 
 	if (auto dist2{ dir.MagnitudeSquared() };
-		dist2 >= *config.stop_distance * (*config.stop_distance)) {
+		dist2 >= config.stop_distance.value() * config.stop_distance.value()) {
 		return;
 	}
 	tween.IncrementPoint();
@@ -187,7 +187,7 @@ void PathFollowImpl(
 		config.stop_distance.has_value(), "Stop distance must be specified for path follow configs"
 	);
 
-	if (dir.MagnitudeSquared() < *config.stop_distance * (*config.stop_distance)) {
+	if (dir.MagnitudeSquared() < config.stop_distance.value() * config.stop_distance.value()) {
 		if (follow.current_waypoint + 1 < waypoints.size()) {
 			follow.current_waypoint++;
 		} else if (config.loop_path) {
@@ -371,8 +371,8 @@ void VelocityModeMoveImpl(const FollowConfig& config, Entity parent, V2_float di
 
 	auto dist2{ dir.MagnitudeSquared() };
 
-	if (config.stop_distance.has_value() && *config.stop_distance >= kEpsilon<float> &&
-		dist2 < *config.stop_distance * (*config.stop_distance)) {
+	if (config.stop_distance.has_value() && config.stop_distance.value() >= kEpsilon<float> &&
+		dist2 < config.stop_distance.value() * config.stop_distance.value()) {
 		return;
 	}
 
@@ -457,7 +457,7 @@ Tween Shake(
 	bool infinite_shake{ !duration.has_value() };
 
 	PTGN_ASSERT(
-		infinite_shake || *duration >= 0ms,
+		infinite_shake || duration.value() >= 0ms,
 		"Shake effect must have a positive duration or be infinite"
 	);
 
@@ -528,7 +528,7 @@ Tween Shake(
 	};
 
 	if (!infinite_shake) {
-		tween.During(*duration)
+		tween.During(duration.value())
 			.Ease(ease)
 			.OnStart(update_start)
 			.OnProgress(shake_func)

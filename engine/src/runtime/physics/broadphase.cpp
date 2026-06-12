@@ -257,8 +257,8 @@ void KDTree::PartialUpdate() {
 			// We need to call SplitNode with a depth. We don't store depths in nodes, so we
 			// compute it by walking from root.
 			auto depth = ComputeDepth(root.get(), leaf, 0);
-			if (depth.has_value() && *depth >= 0) {
-				SplitNodeExternal(leaf, *depth);
+			if (depth.has_value() && depth.value() >= 0) {
+				SplitNodeExternal(leaf, depth.value());
 			}
 		}
 	}
@@ -334,7 +334,8 @@ std::optional<int> KDTree::ComputeDepth(const KDNode* current, KDNode* target, i
 	if (current == target) {
 		return depth;
 	}
-	if (auto d = ComputeDepth(current->left.get(), target, depth + 1); d.has_value() && *d >= 0) {
+	if (auto d = ComputeDepth(current->left.get(), target, depth + 1);
+		d.has_value() && d.value() >= 0) {
 		return d;
 	}
 	return ComputeDepth(current->right.get(), target, depth + 1);

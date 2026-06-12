@@ -54,7 +54,7 @@ void Tooltip::Show(V2_float position) {
 	fade_in(instance.text);
 
 	if (instance.bg.has_value()) {
-		fade_in(*instance.bg);
+		fade_in(instance.bg.value());
 	}
 }
 
@@ -73,7 +73,7 @@ void Tooltip::Hide() {
 	fade_out(instance.text);
 
 	if (instance.bg.has_value()) {
-		fade_out(*instance.bg);
+		fade_out(instance.bg.value());
 	}
 }
 
@@ -120,7 +120,7 @@ Tooltip TooltipHoverScript::GetTooltip() {
 	PTGN_ASSERT(
 		tooltip.has_value(), "Tooltip with the name: ", name, " does not exist in the manager"
 	);
-	return *tooltip;
+	return tooltip.value();
 }
 
 Tooltip CreateTooltip(
@@ -142,10 +142,11 @@ Tooltip CreateTooltip(
 	instance.fade_out_ease	   = tooltip_properties.fade_out_ease;
 
 	if (tooltip_properties.texture.has_value()) {
-		instance.bg =
-			GameObject{ CreateSprite(scene, *tooltip_properties.texture, {}, Origin::Center) };
-		SetTint(*instance.bg, color::Transparent);
-		AddChild(tooltip, *instance.bg);
+		instance.bg = GameObject{
+			CreateSprite(scene, tooltip_properties.texture.value(), {}, Origin::Center)
+		};
+		SetTint(instance.bg.value(), color::Transparent);
+		AddChild(tooltip, instance.bg.value());
 	}
 
 	instance.text = GameObject<Text>{

@@ -225,7 +225,7 @@ void Dropdown::RecalculateButtonPositions() {
 	auto parent_shape{ AsButton().GetShape() };
 
 	auto parent_size{ parent_shape.has_value()
-						  ? GetShapeSize(*this, *parent_shape).value_or(V2_float{})
+						  ? GetShapeSize(*this, parent_shape.value()).value_or(V2_float{})
 						  : V2_float{} };
 
 	auto get_button_shape = [parent_shape, &info](Button button) -> std::variant<Rect, Circle> {
@@ -238,14 +238,14 @@ void Dropdown::RecalculateButtonPositions() {
 		}
 
 		if (info.button_size.has_value()) {
-			return Rect{ *info.button_size };
+			return Rect{ info.button_size.value() };
 		}
 
 		PTGN_ASSERT(
 			parent_shape.has_value(), "Cannot rely on parent dropdown shape if it has no shape set"
 		);
 
-		return *parent_shape;
+		return parent_shape.value();
 	};
 
 	V2_float parent_center{ GetOffset(GetDrawOrigin(*this), parent_size) };
@@ -304,7 +304,7 @@ Button Dropdown::AddItem(std::string_view text) {
 	auto& info{ Get<impl::DropdownData>() };
 
 	if (info.button_size.has_value()) {
-		shape = Rect{ *info.button_size };
+		shape = Rect{ info.button_size.value() };
 	} else {
 		shape = AsButton().GetShape();
 	}

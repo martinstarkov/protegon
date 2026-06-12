@@ -18,7 +18,7 @@ void Children::Clear() {
 
 void Children::Add(Entity child, std::optional<std::string_view> name) {
 	if (name.has_value()) {
-		child.Add<ChildKey>(*name);
+		child.Add<ChildKey>(name.value());
 	}
 	if (std::ranges::contains(children_, child)) {
 		return;

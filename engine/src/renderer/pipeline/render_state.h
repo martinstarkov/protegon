@@ -241,31 +241,31 @@ namespace impl {
 
 inline RenderState ApplyDeltaRenderState(RenderState base, const RenderStateDelta& delta) {
 	if (delta.view_projection.has_value()) {
-		base.view_projection = *delta.view_projection;
+		base.view_projection = delta.view_projection.value();
 	}
 	if (delta.viewport.has_value()) {
-		base.viewport = *delta.viewport;
+		base.viewport = delta.viewport.value();
 	}
 	if (delta.blend_mode.has_value()) {
-		base.blend_mode = *delta.blend_mode;
+		base.blend_mode = delta.blend_mode.value();
 	}
 	if (delta.depth_testing.has_value()) {
-		base.depth_testing = *delta.depth_testing;
+		base.depth_testing = delta.depth_testing.value();
 	}
 	if (delta.depth_mask.has_value()) {
-		base.depth_mask = *delta.depth_mask;
+		base.depth_mask = delta.depth_mask.value();
 	}
 	if (delta.stencil.has_value()) {
-		base.stencil = *delta.stencil;
+		base.stencil = delta.stencil.value();
 	}
 	if (delta.raster.has_value()) {
-		base.raster = *delta.raster;
+		base.raster = delta.raster.value();
 	}
 	if (delta.scissor.has_value()) {
-		base.scissor = *delta.scissor;
+		base.scissor = delta.scissor.value();
 	}
 	if (delta.color_mask.has_value()) {
-		base.color_mask = *delta.color_mask;
+		base.color_mask = delta.color_mask.value();
 	}
 	return base;
 }

@@ -544,7 +544,7 @@ DialogueBox& DialogueBox::Open(std::string_view dialogue_name) {
 		return *this;
 	}
 
-	data.current_line = *dialogue_line_index;
+	data.current_line = dialogue_line_index.value();
 	data.current_page = 0;
 	data.open		  = true;
 
@@ -562,15 +562,15 @@ DialogueBox& DialogueBox::Close() {
 	data.current_page = 0;
 
 	if (auto text{ TryTextPart() }) {
-		Hide(*text);
+		Hide(text.value());
 	}
 
 	if (auto background{ TryBackgroundEntity() }) {
-		Hide(*background);
+		Hide(background.value());
 	}
 
 	if (auto tween{ TryTweenPart() }) {
-		tween->Clear();
+		tween.value().Clear();
 	}
 
 	return *this;
@@ -599,7 +599,7 @@ DialogueBox& DialogueBox::CompletePage() {
 	TextPart().RevealAll();
 
 	if (auto tween{ TryTweenPart() }) {
-		tween->Clear();
+		tween.value().Clear();
 	}
 
 	return *this;
@@ -689,7 +689,7 @@ std::optional<Entity> DialogueBox::TryPart(DialoguePartRole role) const {
 
 Entity DialogueBox::Part(DialoguePartRole role) {
 	if (auto part{ TryPart(role) }) {
-		return *part;
+		return part.value();
 	}
 
 	Entity entity{ GetScene().CreateEntity() };
@@ -701,7 +701,7 @@ Entity DialogueBox::Part(DialoguePartRole role) {
 
 Text DialogueBox::TextPart() {
 	if (auto text{ TryTextPart() }) {
-		return *text;
+		return text.value();
 	}
 
 	Text text{ CreateText(GetScene(), {}, Origin::TopLeft) };
@@ -719,12 +719,12 @@ std::optional<Text> DialogueBox::TryTextPart() const {
 		return std::nullopt;
 	}
 
-	return Text{ *part };
+	return Text{ part.value() };
 }
 
 Tween DialogueBox::TweenPart() {
 	if (auto tween{ TryTweenPart() }) {
-		return *tween;
+		return tween.value();
 	}
 
 	Tween tween{ CreateTween(GetScene()) };
@@ -741,7 +741,7 @@ std::optional<Tween> DialogueBox::TryTweenPart() const {
 		return std::nullopt;
 	}
 
-	return Tween{ *part };
+	return Tween{ part.value() };
 }
 
 std::optional<Sprite> DialogueBox::TryBackground() const {
@@ -751,11 +751,11 @@ std::optional<Sprite> DialogueBox::TryBackground() const {
 		return std::nullopt;
 	}
 
-	if (!part->Has<Texture>()) {
+	if (!part.value().Has<Texture>()) {
 		return std::nullopt;
 	}
 
-	return Sprite{ *part };
+	return Sprite{ part.value() };
 }
 
 std::optional<Entity> DialogueBox::TryBackgroundEntity() const {
@@ -795,7 +795,7 @@ void DialogueBox::ApplyCurrentPage() {
 	Show(text);
 
 	if (auto background{ TryBackgroundEntity() }) {
-		Show(*background);
+		Show(background.value());
 	}
 }
 
@@ -847,12 +847,15 @@ DialogueBox CreateDialogueBox(Scene& scene, const DialogueDesc& desc) {
 	default_properties.box_size = desc.box_size;
 
 	if (desc.background_texture.has_value()) {
-		Sprite background{ CreateSprite(scene, *desc.background_texture, {}, Origin::Center) };
+		Sprite background{
+			CreateSprite(scene, desc.background_texture.value(), {}, Origin::Center)
+		};
 		background.Add<impl::DialoguePart>(DialoguePartRole::Background);
 		SetParent(background, dialogue);
 
-		if (auto size{ GetDisplaySize(background) }; size.has_value() && size->IsPositive()) {
-			default_properties.box_size = *size;
+		if (auto size{ GetDisplaySize(background) };
+			size.has_value() && size.value().IsPositive()) {
+			default_properties.box_size = size.value();
 		}
 
 		SetPosition(background, GetOffset(desc.origin, default_properties.box_size));
@@ -873,9 +876,6 @@ DialogueBox CreateDialogueBox(Scene& scene, const DialogueDesc& desc) {
 
 	Text text{ dialogue.TextPart() };
 	Tween tween{ dialogue.TweenPart() };
-
-	(void)text;
-	(void)tween;
 
 	dialogue.Data().LoadFromJson(scene, desc.data, default_properties);
 

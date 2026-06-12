@@ -290,7 +290,7 @@ std::vector<ColorQuad> GetHollowPrimitives(
 
 	PTGN_ASSERT(line_width.has_value(), "Cannot get use solid fill style for lines");
 
-	PTGN_ASSERT(*line_width >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
+	PTGN_ASSERT(line_width.value() >= kMinLineWidth, "Line width must be at least ", kMinLineWidth);
 
 	auto count{ points.size() };
 
@@ -300,7 +300,7 @@ std::vector<ColorQuad> GetHollowPrimitives(
 		"point"
 	);
 
-	if (*line_width < kMinLineWidth) {
+	if (line_width.value() < kMinLineWidth) {
 		return {};
 	}
 
@@ -317,7 +317,7 @@ std::vector<ColorQuad> GetHollowPrimitives(
 		auto next{ (i + 1) % count };
 
 		Line line{ points[i], points[next] };
-		auto vertices{ line.GetWorldQuadVertices(params.transform, *line_width) };
+		auto vertices{ line.GetWorldQuadVertices(params.transform, line_width.value()) };
 
 		primitives.emplace_back(
 			CreateColorQuad(vertices, params.depth, params.color, params.entity_id)

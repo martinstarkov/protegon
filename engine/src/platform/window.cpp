@@ -361,7 +361,7 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 
 	if (!config.fullscreen) {
 		if (config.x.has_value() && config.y.has_value()) {
-			glfwSetWindowPos(instance_.get(), *config.x, *config.y);
+			glfwSetWindowPos(instance_.get(), config.x.value(), config.y.value());
 		} else {
 			Center();
 		}

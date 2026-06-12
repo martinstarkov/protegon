@@ -34,7 +34,8 @@ Track::Track(
 	id_{ id }, sound_{ std::make_unique<ma_sound>() }, remaining_loops_{ loops } {
 	PTGN_ASSERT(engine, "Audio engine must be valid");
 	PTGN_ASSERT(
-		!loops.has_value() || *loops >= 0, "Audio loop count must be positive or infinite (nullopt)"
+		!loops.has_value() || loops.value() >= 0,
+		"Audio loop count must be positive or infinite (nullopt)"
 	);
 
 	ma_uint32 flags = MA_SOUND_FLAG_NO_SPATIALIZATION;
@@ -206,10 +207,9 @@ bool Track::IsFinished() const {
 
 	// Not playing. If we're at the natural end, we may need to emulate finite loops.
 	if (ma_sound_at_end(sound_.get()) == MA_TRUE) {
-		if (*remaining_loops_ > 0) {
-			--(*remaining_loops_);
-			// NOSONAR
-			const_cast<Track*>(this)->RestartFromBeginning();
+		if (remaining_loops_.value() > 0) {
+			--(remaining_loops_.value());
+			const_cast<Track*>(this)->RestartFromBeginning(); // NOSONAR
 			return false;
 		}
 		return true;

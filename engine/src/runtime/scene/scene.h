@@ -289,7 +289,7 @@ void ForDrawableSceneEntities(
 	if (primary_world_camera.has_value()) {
 		// If a primary world camera is set, we draw all entities in a single pass using that
 		// camera.
-		RenderCamera render_camera{ *primary_world_camera };
+		RenderCamera render_camera{ primary_world_camera.value() };
 
 		auto filter = [](auto) {
 			// TODO: Add frustum culling.

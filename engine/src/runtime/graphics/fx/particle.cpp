@@ -26,8 +26,8 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
-#include "renderer/pipeline/blend_mode.h"
 #include "renderer/draw_context.h"
+#include "renderer/pipeline/blend_mode.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -338,7 +338,7 @@ Particle::Particle(const ParticleConfig& config) {
 
 	const auto optional_range_or = [](const auto& range, const auto& constant) {
 		if (range.has_value()) {
-			return range->Evaluate();
+			return range.value().Evaluate();
 		} else {
 			return constant;
 		}

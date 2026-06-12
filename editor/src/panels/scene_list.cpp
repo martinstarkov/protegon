@@ -104,22 +104,22 @@ void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
 	std::string scene_tag{ "" };
 
 	{
-		std::string scene_title{ state_->scene_type_name };
+		std::string scene_title{ state_.value().scene_type_name };
 		if (ImGui::InputText("Scene Name", &scene_title)) {
-			state_->scene_type_name = scene_title;
+			state_.value().scene_type_name = scene_title;
 		}
 	}
 
-	for (auto it = state_->params.begin(); it != state_->params.end(); ++it) {
+	for (auto it = state_.value().params.begin(); it != state_.value().params.end(); ++it) {
 		DrawJsonEditor(it.key().c_str(), it.value());
 	}
 
-	std::string enter_text{ "Enter " + state_->scene_type_name };
+	std::string enter_text{ "Enter " + state_.value().scene_type_name };
 
 	if (ImGui::Button(enter_text.c_str())) {
 		ctx.editor.GetSceneManager().PushCommand(
 			impl::SceneManager::CommandType::ReEnter, scene_tag, Hash(scene_tag),
-			SceneTransitionPriority{}, impl::GetSceneFactory("EditorScene", state_->params),
+			SceneTransitionPriority{}, impl::GetSceneFactory("EditorScene", state_.value().params),
 			nullptr, nullptr
 		);
 	}
@@ -132,6 +132,8 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 
 	for (auto i{ 0uz }; i < scenes.size(); ++i) {
 		const auto& scene{ scenes[i] };
+
+		PTGN_ASSERT(scene);
 
 		bool selected{ scene.get() == selected_scene_ };
 

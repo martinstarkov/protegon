@@ -25,7 +25,8 @@ std::optional<Bounds> Physics::GetBounds() const {
 
 void Physics::SetBounds(std::optional<Bounds> bounds) {
 	PTGN_ASSERT(
-		bounds.has_value() ? bounds->size.IsPositive() : true, "Bounds size cannot be negative"
+		bounds.has_value() ? bounds.value().size.IsPositive() : true,
+		"Bounds size cannot be negative"
 	);
 
 	bounds_ = bounds;
@@ -104,14 +105,15 @@ void Physics::PostCollisionUpdate() const {
 
 		// Enforce world boundary behavior for the positions.
 
-		BoundaryBehavior behavior{ bounds_->behavior };
+		BoundaryBehavior behavior{ bounds_.value().behavior };
 
 		if (entity.Has<BoundaryBehavior>()) {
 			behavior = entity.Get<BoundaryBehavior>();
 		}
 
 		HandleBoundary(
-			transform, rigid_body.velocity, Bounds{ bounds_->position, bounds_->size, behavior }
+			transform, rigid_body.velocity,
+			Bounds{ bounds_.value().position, bounds_.value().size, behavior }
 		);
 	}
 }

@@ -175,7 +175,7 @@ RenderPass RenderPassBuilder::CreateLike(RenderPassHandle like, std::string_view
 RenderPass RenderPassBuilder::Apply(
 	std::string_view shader, std::optional<RenderPassHandle> input
 ) {
-	auto input_handle{ input.has_value() ? *input : BoundTarget() };
+	auto input_handle{ input.has_value() ? input.value() : BoundTarget() };
 
 	auto output{ CreateLike(input_handle, shader) };
 
@@ -216,9 +216,9 @@ void RenderPassBuilder::MarkUsed(RenderPassHandle target) {
 		return;
 	}
 
-	PTGN_ASSERT(*resource.writer < passes_.size(), "Writer index out of range");
+	PTGN_ASSERT(resource.writer.value() < passes_.size(), "Writer index out of range");
 
-	auto& pass{ passes_[*resource.writer] };
+	auto& pass{ passes_[resource.writer.value()] };
 	pass.used = true;
 
 	for (const auto& input : pass.reads) {
@@ -263,7 +263,7 @@ void RenderPassBuilder::Execute(RenderPassHandle final_handle) {
 	for (auto& resource : resources_) {
 		if (!resource.used && resource.imported) {
 			PTGN_ASSERT(resource.framebuffer.has_value());
-			ctx_.ReleaseFramebuffer(*resource.framebuffer);
+			ctx_.ReleaseFramebuffer(resource.framebuffer.value());
 		}
 		resource.last_use = std::nullopt;
 	}
@@ -354,13 +354,13 @@ impl::FramebufferId RenderPassBuilder::GetFramebufferId(RenderPassHandle handle)
 		resource.framebuffer.has_value(), "RenderPassHandle has no assigned framebuffer yet"
 	);
 
-	return *resource.framebuffer;
+	return resource.framebuffer.value();
 }
 
 void RenderPassBuilder::ReleaseIfLastUse(RenderPassHandle target, std::size_t pass_index) {
 	auto& resource{ GetResource(target) };
 
-	if (resource.last_use.has_value() && *resource.last_use != pass_index) {
+	if (resource.last_use.has_value() && resource.last_use.value() != pass_index) {
 		return;
 	}
 
@@ -368,7 +368,7 @@ void RenderPassBuilder::ReleaseIfLastUse(RenderPassHandle target, std::size_t pa
 		resource.framebuffer.has_value(), "RenderPassHandle has no assigned framebuffer yet"
 	);
 
-	ctx_.ReleaseFramebuffer(*resource.framebuffer);
+	ctx_.ReleaseFramebuffer(resource.framebuffer.value());
 }
 
 } // namespace ptgn

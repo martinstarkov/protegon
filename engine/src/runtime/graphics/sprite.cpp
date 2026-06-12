@@ -71,7 +71,7 @@ void Sprite::Draw(
 
 	auto blend_mode{ GetBlendMode(entity) };
 
-	auto params{ impl::GetTextureDrawParams(entity, *texture_size, false, additional_tint) };
+	auto params{ impl::GetTextureDrawParams(entity, texture_size.value(), false, additional_tint) };
 
 	ctx.WithBlendMode(blend_mode, [&]() { ctx.DrawTexture(draw_transform, texture, params); });
 }
@@ -126,9 +126,9 @@ std::optional<V2_int> GetCroppedTextureSize(Entity entity) {
 		if (!crop->size.has_value()) {
 			return GetTextureSize(entity);
 		}
-		PTGN_ASSERT(!crop->size->IsZero(), "Cropped texture does not have a valid size");
+		PTGN_ASSERT(!crop->size.value().IsZero(), "Cropped texture does not have a valid size");
 		if (crop->size.has_value()) {
-			return *crop->size;
+			return crop->size.value();
 		}
 		return std::nullopt;
 	}
@@ -145,7 +145,7 @@ std::optional<V2_float> GetDisplaySize(Entity entity) {
 	}
 	auto cropped_size{ GetCroppedTextureSize(entity) };
 	if (cropped_size.has_value()) {
-		return *cropped_size * GetWorldScale(entity);
+		return cropped_size.value() * GetWorldScale(entity);
 	}
 	return std::nullopt;
 }
@@ -164,13 +164,14 @@ std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_verticall
 	std::array<V2_float, 4> tex_coords;
 
 	if (auto crop{ entity.TryGet<impl::TextureCrop>() }) {
-		auto crop_size{ crop->size.value_or(*texture_size) };
+		auto crop_size{ crop->size.value_or(texture_size.value()) };
 		tex_coords = impl::GetTextureCoordinates(
-			crop->position, crop_size, *texture_size, flip_vertically, true
+			crop->position, crop_size, texture_size.value(), flip_vertically, true
 		);
 	} else {
-		tex_coords =
-			impl::GetTextureCoordinates({}, *texture_size, *texture_size, flip_vertically, true);
+		tex_coords = impl::GetTextureCoordinates(
+			{}, texture_size.value(), texture_size.value(), flip_vertically, true
+		);
 	}
 
 	auto scale{ GetWorldScale(entity) };

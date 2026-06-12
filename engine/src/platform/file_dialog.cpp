@@ -80,11 +80,11 @@ std::expected<std::optional<Into>, std::string> GetResult(
 	const nfdu8char_t* path{ nullptr };
 
 	if (options.default_path.has_value()) {
-		path_storage = options.default_path->u8string();
+		path_storage = options.default_path.value().u8string();
 		path		 = reinterpret_cast<const char*>(path_storage.c_str());
 	}
 
-	const nfdu8char_t* name{ options.default_name.has_value() ? options.default_name->c_str()
+	const nfdu8char_t* name{ options.default_name.has_value() ? options.default_name.value().c_str()
 															  : nullptr };
 
 	auto result{ std::invoke(

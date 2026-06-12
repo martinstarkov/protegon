@@ -135,7 +135,7 @@ template <EnumType T>
 	}
 
 	if (const auto parsed{ ::magic_enum::enum_cast<T>(j.get<std::string>()) }; parsed.has_value()) {
-		v = *parsed;
+		v = parsed.value();
 		return true;
 	}
 

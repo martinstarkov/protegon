@@ -66,7 +66,7 @@ public:
 	DebugContext debug_local;
 
 	/// @brief The default camera used by all objects in the scene. By default it resizes to the
-	/// game size.
+	/// logical size.
 	SceneCamera camera;
 
 	/// @brief Terminates the main application loop.
@@ -96,8 +96,8 @@ private:
 	friend class LocalSceneManager;
 	friend class impl::SceneContextAccessor;
 
-	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the game
-	/// size.
+	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the
+	/// logical size.
 	SceneCamera fixed_camera_;
 
 	Application& app_;
