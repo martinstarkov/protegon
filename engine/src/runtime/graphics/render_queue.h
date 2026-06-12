@@ -13,11 +13,9 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_command.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
-#include "renderer/resources/texture.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene_camera.h"
 
 namespace ptgn {
@@ -39,43 +37,32 @@ class Renderer;
 
 namespace impl {
 
+struct EntityRenderCommand {
+	Entity entity;
+	Depth depth;
+};
+
 struct CameraRenderCommands {
-	RenderCamera camera;
+	SceneCamera camera;
 	RenderCommands commands;
 };
 
-struct EntityRenderCommand {
-	Entity entity;
-	float depth{ 0.0f };
-};
-
 struct CameraEntityCommands {
-	RenderCamera camera;
+	SceneCamera camera;
 	std::vector<EntityRenderCommand> commands;
-};
-
-struct CameraRenderBucket {
-	const RenderCamera* camera{ nullptr };
-
-	std::vector<EntityRenderCommand>* entity_commands{ nullptr };
-	RenderCommands* manual_commands{ nullptr };
-};
-
-struct ClearedEntities {
-	std::vector<RenderTarget> render_targets;
-	std::vector<CameraUUID> cameras;
 };
 
 } // namespace impl
 
 struct TextureRenderParams {
+	/// @brief If nullopt, uses the texture size.
 	std::optional<V2_float> size;
 	Origin origin{ Origin::Center };
 	Color tint{ color::White };
 	Depth depth;
 	std::optional<BlendMode> blend_mode;
 	std::optional<std::array<V2_float, 4>> texture_coordinates;
-	std::optional<impl::RenderCamera> camera;
+	std::optional<SceneCamera> camera;
 	int entity_id{ -1 };
 };
 
@@ -84,7 +71,7 @@ struct ShapeRenderParams {
 	Origin origin{ Origin::Center };
 	Depth depth;
 	std::optional<BlendMode> blend_mode;
-	std::optional<impl::RenderCamera> camera;
+	std::optional<SceneCamera> camera;
 	int entity_id{ -1 };
 	/// @brief If true, the shape will be drawn to the debug layer which is drawn last.
 	bool debug{ false };
@@ -101,7 +88,6 @@ public:
 		TextureRenderParams params = {}
 	);
 
-	/// @param params If size is nullopt, uses the entire logical size.
 	void DrawShader(
 		Transform transform, std::string_view shader_key, TextureRenderParams params = {}
 	);
@@ -163,25 +149,9 @@ public:
 		Transform transform, const Shape& shape, Color color, ShapeRenderParams params = {}
 	);
 
-	// TODO: Fix.
-	// void DrawText(
-	//	std::string_view text_content, Transform transform, Color text_color,
-	//	FontSize font_size = {}, FontOrKey font = {}, const TextProperties& properties = {},
-	//	Origin draw_origin = Origin::Center, std::optional<V2_float> text_size = {},
-	//	Depth depth = {}, std::optional<BlendMode> blend_mode = {},
-	//	const std::optional<SceneCamera>& camera = {}, int entity_id = -1
-	//);
-
 private:
 	friend class Scene;
 	friend class SceneContext;
-
-	void DrawTexture(
-		Transform transform, impl::TextureId texture, V2_int texture_size, impl::ShaderId shader,
-		TextureRenderParams params
-	);
-
-	impl::ShaderId GetShader(std::string_view shader_key) const;
 
 	RenderQueue() = delete;
 	RenderQueue(Scene& scene, Renderer& renderer);
@@ -191,45 +161,26 @@ private:
 	RenderQueue(RenderQueue&&) noexcept			   = default;
 	RenderQueue& operator=(RenderQueue&&) noexcept = delete;
 
+	void DrawTexture(
+		Transform transform, impl::TextureId texture, V2_int texture_size, impl::ShaderId shader,
+		TextureRenderParams params
+	);
+
+	impl::ShaderId GetShader(std::string_view shader_key) const;
+
 	/// @brief If a primary world camera is set, we combine all commands into a single command
 	/// list for that camera.
-	void CombineCommands(const impl::RenderCamera& camera);
-
-	void Draw(
-		DrawContext& ctx, const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
-		V2_int logical_size, const std::vector<impl::CameraRenderBucket>& buckets
-	);
-
-	void Draw(
-		DrawContext& ctx, const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
-		V2_int logical_size, const impl::CameraRenderBucket& bucket
-	);
-
-	void SetupCamera(
-		const RenderTarget& scene_render_target, impl::ClearedEntities& cleared,
-		V2_int logical_size, const impl::RenderCamera& render_camera
-	);
-
-	static std::vector<impl::CameraRenderBucket> GetRenderBuckets(
-		std::vector<impl::CameraRenderCommands>& manual_commands,
-		std::vector<impl::CameraEntityCommands>& entity_commands
-	);
+	void CombineCommands();
 
 	/// @brief If camera is {}, returns draw commands for the primary scene camera. If draw commands
 	/// do not exist for the camera, adds them to the vector.
-	impl::RenderCommands& GetRenderCommands(
-		const std::optional<impl::RenderCamera>& camera, bool debug
-	);
+	impl::RenderCommands& GetRenderCommands(std::optional<SceneCamera> camera, bool debug);
 
 	std::vector<impl::CameraRenderCommands> render_commands_;
 	std::vector<impl::CameraRenderCommands> debug_commands_;
 
-	std::vector<impl::TextureObject> temporary_textures_;
-
 	Scene& scene_;
 	Renderer& renderer_;
-
-	std::optional<BlendMode> debug_blend_mode;
 };
 
 } // namespace ptgn

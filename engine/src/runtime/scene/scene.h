@@ -38,8 +38,6 @@ class CollisionHandler;
 
 namespace impl {
 
-struct RenderCamera;
-
 enum class SceneState {
 	Active,
 	TransitionIn,
@@ -251,6 +249,8 @@ private:
 
 	void InternalUpdate();
 	void InternalDraw(DrawContext& draw_context);
+	void DrawCamera(Camera camera, RenderTarget render_target);
+	void DrawCameras();
 	void DrawSceneTarget(DrawContext& draw_context) const;
 	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
 
@@ -321,7 +321,7 @@ void ForDrawableSceneEntities(
 				//	continue;
 				//}
 
-				return !scene_camera.IsVisible(entity);
+				return !scene_camera.CanSee(entity);
 			};
 
 			std::invoke(std::forward<F>(per_camera_draw_func), scene, render_camera, filter);

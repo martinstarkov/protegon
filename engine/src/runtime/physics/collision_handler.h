@@ -19,12 +19,6 @@ class Physics;
 class Scene;
 class SceneContext;
 
-namespace impl {
-
-struct RenderCamera;
-
-} // namespace impl
-
 struct CollisionDebugSettings {
 	/// @brief If true, draws continuous collision detection sweeps for debugging purposes.
 	bool draw_ccd{ false };

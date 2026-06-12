@@ -18,7 +18,6 @@
 #include "renderer/renderer.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene.h"

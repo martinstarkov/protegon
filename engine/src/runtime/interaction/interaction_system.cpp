@@ -833,7 +833,7 @@ void InteractionSystem::Update(Scene& scene) {
 			UpdateForCamera(
 				scene, mouse_state, handled_under_mouse, render_target,
 				camera.operator ptgn::Camera(), camera.GetUUID(),
-				[camera](auto entity) { return !camera.IsVisible(entity); }, camera
+				[camera](auto entity) { return !camera.CanSee(entity); }, camera
 			);
 		}
 
