@@ -17,19 +17,19 @@
 
 namespace ptgn {
 
-ViewProjection GetOrthographicViewProjection(
+Matrix4 GetOrthographicViewProjection(
 	Transform transform, V2_float viewport_size, bool pixel_rounding
 ) {
 	V2_float rounded_size{ pixel_rounding ? FastRound(viewport_size) : viewport_size };
 
-	auto half_size{ rounded_size * 0.5f };
+	V2_float half_size{ rounded_size * 0.5f };
 
-	V2_float min{ -half_size };
-	V2_float max{ half_size };
+	auto min{ -half_size };
+	auto max{ half_size };
 
-	ViewProjection out;
+	Matrix4 projection;
 
-	out.projection = Matrix4::Orthographic(min, max);
+	projection = Matrix4::Orthographic(min, max);
 
 	if (pixel_rounding) {
 		transform.position = FastRound(transform.position);
@@ -37,10 +37,9 @@ ViewProjection GetOrthographicViewProjection(
 
 	auto view{ Matrix4::MakeInverseTransform(transform) };
 
-	out.view			= view;
-	out.view_projection = out.projection * out.view;
+	auto view_projection{ projection * view };
 
-	return out;
+	return view_projection;
 }
 
 void to_json(json& j, const Matrix4& matrix) {
