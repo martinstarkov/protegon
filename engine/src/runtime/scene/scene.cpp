@@ -203,6 +203,12 @@ bool Scene::IsAwaitingTransitionDelay() const {
 	return data_.transition && !data_.transition->IsStarted();
 }
 
+void Scene::Draw() {
+	for (auto [camera, _data] : EntitiesWith<impl::CameraData>()) {
+		impl::RecalculateCameraViewProjection(SceneCamera{ camera });
+	}
+}
+
 void Scene::InternalDraw(DrawContext& draw_context) {
 	for (auto [camera, _data] : EntitiesWith<impl::CameraData>()) {
 		impl::RecalculateCameraViewProjection(SceneCamera{ camera });
@@ -219,10 +225,10 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 
 	impl::ClearedEntities cleared;
 
-	auto game_size{ ctx().renderer.GetGameSize() };
+	auto logical_size{ ctx().renderer.GetLogicalSize() };
 
 	if (primary_world_camera.has_value()) {
-		impl::RenderCamera render_camera{ *primary_world_camera };
+		impl::RenderCamera render_camera{ primary_world_camera.value() };
 		ctx().render_queue.CombineCommands(render_camera);
 
 		PTGN_ASSERT(ctx().render_queue.render_commands_.size() == 1);
@@ -233,9 +239,9 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 		RenderQueue::GetRenderBuckets(ctx().render_queue.render_commands_, entity_commands)
 	};
 
-	impl::BuildLightVisibilityPolygons(*this, buckets, game_size, render_target_);
+	impl::BuildLightVisibilityPolygons(*this, buckets, logical_size, render_target_);
 
-	ctx().render_queue.Draw(draw_context, render_target_, cleared, game_size, buckets);
+	ctx().render_queue.Draw(draw_context, render_target_, cleared, logical_size, buckets);
 
 	// Currently always empty.
 	std::vector<impl::CameraEntityCommands> debug_entity_commands;
@@ -244,7 +250,7 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 		RenderQueue::GetRenderBuckets(ctx().render_queue.debug_commands_, debug_entity_commands)
 	};
 
-	ctx().render_queue.Draw(draw_context, render_target_, cleared, game_size, debug_buckets);
+	ctx().render_queue.Draw(draw_context, render_target_, cleared, logical_size, debug_buckets);
 
 	impl::RendererAccessor renderer{ ctx().renderer };
 

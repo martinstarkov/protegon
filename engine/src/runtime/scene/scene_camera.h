@@ -4,19 +4,16 @@
 #include <cstdint>
 #include <optional>
 
-#include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "renderer/pipeline/camera.h"
-#include "renderer/pipeline/effect_params.h"
-#include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_target.h"
-#include "runtime/scripting/script.h"
 
 namespace ptgn {
 
@@ -33,26 +30,32 @@ inline constexpr LayerMask kLayersAll	 = ~LayerMask{ 0 }; // 0b11111111
 inline constexpr LayerMask kLayersNone	 = LayerMask{ 0 };	// 0b00000000
 inline constexpr LayerMask kLayerDefault = GetLayer(0);		// 0b00000001
 
+struct BoundingBox {
+	V2_float position;
+	Rect rect;
+	Origin origin{ Origin::Center };
+};
+
 namespace impl {
+
+struct ParentRenderTarget {
+	RenderTarget render_target;
+};
 
 struct UILayer {};
 
 struct CameraData {
-	Viewport viewport;
-	ViewportSpace viewport_space{ ViewportSpace::Game };
+	/// @brief If nullopt, viewport is set to the size of the parent render target.
+	std::optional<Viewport> raw_viewport;
+	ViewportSpace viewport_space{ ViewportSpace::Logical };
 
 	/// @brief If true, rounds camera position to pixel precision.
 	bool pixel_rounding{ false };
 
 	/// @brief If nullopt, no bounds are enforced.
-	std::optional<Viewport> bounding_box;
+	std::optional<BoundingBox> bounding_box;
 
-	ViewProjection view_projection_data;
-};
-
-class CameraResizeScript : public Script {
-public:
-	void OnEvent(Event event) override;
+	Matrix4 view_projection{ 1.0f };
 };
 
 /// @brief If an entity has no RenderMask, we treat it as having
@@ -78,19 +81,22 @@ public:
 
 	explicit operator Camera() const;
 
+	/// @return The vertices of the camera's viewport in the world frame of reference. The vertices
+	/// are returned in the following order: top left, top right, bottom right, bottom left.
 	std::array<V2_float, 4> GetWorldVertices() const;
 
-	/// @return The viewport of the camera without applying any scaling.
-	Viewport GetRawViewport() const;
+	/// @return The viewport of the camera without applying any scaling, or nullopt if no custom
+	/// viewport is set.
+	std::optional<Viewport> GetRawViewport() const;
 
 	/// @return The viewport without applying render target scaling. In other
 	/// words, the raw viewport except if viewport space is normalized, in which case it is scaled
-	/// by the game size.
+	/// by the logical size.
 	Viewport GetLogicalViewport() const;
 
 	/// @return The viewport scaled to the parent render target or the custom target if provided. If
 	/// no parent render target is set, it is scaled to the default scene render target.
-	Viewport GetRenderViewport(
+	Viewport GetDisplayViewport(
 		std::optional<RenderTarget> custom_render_target = std::nullopt
 	) const;
 
@@ -98,36 +104,30 @@ public:
 	/// parent render target.
 	ViewportSpace GetViewportSpace() const;
 
-	/// @return Viewport size scaled by the inverse of the zoom. In other words, the size of the
-	/// viewport in world units.
-	V2_float GetDisplaySize() const;
+	/// @return Logical viewport size scaled by the inverse of the zoom. In other words, the size of
+	/// the viewport in world units.
+	V2_float GetSize() const;
 
-	V2_float GetScroll() const;
 	V2_float GetZoom() const;
 
 	bool GetPixelRounding() const;
 
 	const Matrix4& GetViewProjection() const;
-	const Matrix4& GetView() const;
-	const Matrix4& GetProjection() const;
 
 	/// @return Bounding box viewport if set.
-	std::optional<Viewport> GetBounds() const;
+	std::optional<BoundingBox> GetBounds() const;
 
-	SceneCamera& SetViewport(Viewport viewport);
-	SceneCamera& SetViewportSpace(ViewportSpace viewport_space);
+	/// @param viewport The viewport to set. If nullopt, viewport is set to the size of the parent
+	/// render target, which is the display area size for the default scene render target.
+	SceneCamera& SetViewport(
+		std::optional<Viewport> viewport, ViewportSpace viewport_space = ViewportSpace::Logical
+	);
 
 	/// Camera bounds only apply along aligned axes. In other words: rotated cameras can see outside
 	/// the bounding box.
 	/// If bounds is {}, no bounds are enforced.
-	SceneCamera& SetBounds(std::optional<Viewport> bounds);
-
-	SceneCamera& SetScroll(V2_float new_scroll_position);
-	SceneCamera& SetScrollX(float new_scroll_x_position);
-	SceneCamera& SetScrollY(float new_scroll_y_position);
-	SceneCamera& Scroll(V2_float scroll_amount);
-	SceneCamera& ScrollX(float scroll_x_amount);
-	SceneCamera& ScrollY(float scroll_y_amount);
+	SceneCamera& SetBounds(const std::optional<BoundingBox>& bounds);
+	SceneCamera& SetPixelRounding(bool enabled);
 
 	SceneCamera& SetZoom(V2_float new_zoom);
 	SceneCamera& SetZoom(float new_xy_zoom);
@@ -137,12 +137,10 @@ public:
 	SceneCamera& Zoom(float zoom_xy_amount);
 	SceneCamera& ZoomX(float zoom_x_amount);
 	SceneCamera& ZoomY(float zoom_y_amount);
-	SceneCamera& SetPixelRounding(bool enabled);
 
-	/// @brief Resets the camera's viewport and scroll and zoom to the default values.
+	/// @brief Resets the camera's viewport, pan, rotation, and zoom to the default values.
+	/// Does not change the parent render target of the camera.
 	SceneCamera& Reset();
-	LayerMask GetIncludeMask() const;
-	LayerMask GetExcludeMask() const;
 
 	SceneCamera& SetMasks(LayerMask include, LayerMask exclude = kLayersNone);
 	SceneCamera& SetIncludeMask(LayerMask include);
@@ -155,22 +153,27 @@ public:
 
 	SceneCamera& ClearMasks();
 
-	[[nodiscard]] bool IsVisible(Entity entity) const;
+	LayerMask GetIncludeMask() const;
+	LayerMask GetExcludeMask() const;
 
-	/// @brief Sets the camera's parent render target.
-	/// Changes the viewport space to target pixels.
-	SceneCamera& SetParentRenderTarget(const RenderTarget& render_target);
+	/// @return True if the entity is visible to the camera based on layer masks. UI entities are
+	/// always visible to UI cameras.
+	[[nodiscard]] bool CanSee(Entity entity) const;
 
-	/// @brief Sets the camera's parent render target to the default scene render target.
-	/// Changes the viewport space to game size.
-	SceneCamera& SetParentRenderTarget();
+	/// @param parent The render target to set as the camera's parent. Setting to nullopt will use
+	/// the scene's default render target.
+	SceneCamera& SetRenderTarget(const std::optional<RenderTarget>& parent = std::nullopt);
 
-	/// @return The camera's parent render target if set, otherwise the default scene render target.
-	RenderTarget GetParentRenderTarget() const;
+	/// @return The camera's parent render target if set, otherwise the scene's default render
+	/// target.
+	RenderTarget GetRenderTarget() const;
 
-	/// @brief If clear_color is {}, uses the render target's clear color.
+	/// @brief If clear_color is {}, uses its parent render target's clear color.
 	void SetClearColor(std::optional<Color> clear_color);
 	std::optional<Color> GetClearColor() const;
+
+private:
+	Viewport GetRawOrDefaultViewport() const;
 };
 
 LayerMask GetMask(Entity entity);
@@ -192,44 +195,19 @@ bool HasAllMasks(Entity entity, LayerMask test);
 
 namespace impl {
 
-void AddCameraComponents(SceneCamera camera, const Renderer& renderer);
-
 void RecalculateCameraViewProjection(SceneCamera camera);
 
-/// @return Scroll with bounds applied.
-[[nodiscard]] V2_float ApplyCameraBounds(SceneCamera camera, V2_float scroll);
-
-/// Apply bounds to the current scroll.
 void ApplyCameraBounds(SceneCamera camera);
-
-using CameraUUID = std::size_t;
-
-struct RenderCamera {
-	CameraUUID uuid{ 0 };
-	Depth depth;
-	Camera camera;
-	std::optional<Color> clear_color;
-	SceneCamera scene_camera;
-	RenderTarget render_target;
-	EffectParams effect_params;
-	Color tint{ color::White };
-
-	friend bool operator==(const RenderCamera& lhs, const RenderCamera& rhs) {
-		return lhs.uuid == rhs.uuid;
-	}
-
-	RenderCamera() = default;
-	explicit RenderCamera(const Camera& world_camera);
-	explicit RenderCamera(SceneCamera scene_camera);
-};
 
 } // namespace impl
 
-/// Create a default camera which has the same viewport as the game size (automatic resizing).
-SceneCamera CreateCamera(Scene& scene);
-
-/// Create a camera with a custom viewport.
-SceneCamera CreateCamera(Scene& scene, V2_float viewport_size);
+/// @brief Create a camera with a custom viewport size. If nullopt, uses the full viewport of the
+/// parent render target.
+/// If unset, the camera's parent render target is the scene's default render target.
+SceneCamera CreateCamera(
+	Scene& scene, std::optional<V2_float> viewport_size = std::nullopt,
+	ViewportSpace viewport_space = ViewportSpace::Logical
+);
 
 } // namespace ptgn
 
