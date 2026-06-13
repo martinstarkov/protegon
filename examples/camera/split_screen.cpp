@@ -150,6 +150,6 @@ int main(int, char**) {
 	Application app{ "ResolutionScene: WASD/QE/ZC: Move/Rotate/Scale scene camera, Arrows/RT/FG: "
 					 "Move/Rotate/Scale scene target",
 					 window_size };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<ResolutionScene>();
 }

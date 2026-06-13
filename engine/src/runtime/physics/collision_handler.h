@@ -44,6 +44,11 @@ public:
 
 	const CollisionDebugSettings& GetDebugSettings() const;
 
+	// TODO: Move to private.
+	void DrawDebug(
+		Scene& scene, const SceneCamera& camera, const impl::EntityFilterFunc& filter
+	) const;
+
 private:
 	friend class Physics;
 	friend class Scene;
@@ -103,10 +108,6 @@ private:
 	) const;
 
 	void Update(Scene& scene, secondsf dt);
-
-	void DrawDebug(
-		Scene& scene, const SceneCamera& camera, const impl::EntityFilterFunc& filter
-	) const;
 
 	impl::KDTree static_tree_{ 100 };
 	impl::KDTree dynamic_tree_{ 100 };

@@ -21,10 +21,4 @@ enum class ScalingMode {
 };
 PTGN_SERIALIZE_ENUM(ScalingMode);
 
-namespace impl {
-
-struct PresentationResizeType {};
-
-} // namespace impl
-
 } // namespace ptgn

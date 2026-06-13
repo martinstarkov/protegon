@@ -620,7 +620,9 @@ void GLContext::SetViewport(Viewport viewport) {
 	if (bound_.render_state.viewport == viewport) {
 		return;
 	}
-	GLCall(glViewport(viewport.position.x, viewport.position.y, viewport.size.x, viewport.size.y));
+	V2_int pos{ FastFloor(viewport.position) };
+	V2_int size{ FastCeil(viewport.size) };
+	GLCall(glViewport(pos.x, pos.y, size.x, size.y));
 	bound_.render_state.viewport = viewport;
 }
 
@@ -683,10 +685,9 @@ void GLContext::SetScissor(const ScissorState& scissor) {
 			GLCall(glEnable(GL_SCISSOR_TEST));
 		}
 		if (bound_.render_state.scissor.viewport != scissor.viewport) {
-			GLCall(glScissor(
-				scissor.viewport.position.x, scissor.viewport.position.y, scissor.viewport.size.x,
-				scissor.viewport.size.y
-			));
+			V2_int pos{ FastFloor(scissor.viewport.position) };
+			V2_int size{ FastCeil(scissor.viewport.size) };
+			GLCall(glScissor(pos.x, pos.y, size.x, size.y));
 		}
 	} else {
 		if (bound_.render_state.scissor.enabled) {
@@ -783,7 +784,7 @@ std::size_t GLContext::GetMaxTextureSlots() const {
 bool GLContext::ViewportCoversFramebuffer(FramebufferId framebuffer) const {
 	return bound_.render_state.viewport.position.IsZero() &&
 		   bound_.render_state.viewport.size ==
-			   textures.GetDesc(framebuffers.GetAttachmentId(framebuffer)).size;
+			   V2_float{ textures.GetDesc(framebuffers.GetAttachmentId(framebuffer)).size };
 }
 
 bool GLContext::ScissorCoversFramebuffer(FramebufferId framebuffer) const {
@@ -793,7 +794,7 @@ bool GLContext::ScissorCoversFramebuffer(FramebufferId framebuffer) const {
 
 	return bound_.render_state.scissor.viewport.position.IsZero() &&
 		   bound_.render_state.scissor.viewport.size ==
-			   textures.GetDesc(framebuffers.GetAttachmentId(framebuffer)).size;
+			   V2_float{ textures.GetDesc(framebuffers.GetAttachmentId(framebuffer)).size };
 }
 
 std::uint32_t GLContext::GetActiveTextureSlot() const {

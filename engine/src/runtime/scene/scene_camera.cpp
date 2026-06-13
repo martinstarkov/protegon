@@ -327,7 +327,10 @@ SceneCamera& SceneCamera::SetRenderTarget(const std::optional<RenderTarget>& par
 
 	auto new_parent{ parent.value_or(GetScene().GetRenderTarget()) };
 
-	PTGN_ASSERT(HasDraw<RenderTarget>(new_parent), "Camera parent must be a render target");
+	PTGN_ASSERT(
+		HasDraw<RenderTarget>(new_parent) || new_parent == GetScene().GetRenderTarget(),
+		"Camera parent must be a render target"
+	);
 
 	Add<impl::ParentRenderTarget>(new_parent);
 
@@ -342,7 +345,10 @@ RenderTarget SceneCamera::GetRenderTarget() const {
 
 	auto parent{ Get<impl::ParentRenderTarget>().render_target };
 
-	PTGN_ASSERT(HasDraw<RenderTarget>(parent), "Camera parent must be a render target");
+	PTGN_ASSERT(
+		HasDraw<RenderTarget>(parent) || parent == GetScene().GetRenderTarget(),
+		"Camera parent must be a render target"
+	);
 
 	return parent;
 }
@@ -409,7 +415,7 @@ bool HasAllMasks(Entity entity, LayerMask test) {
 SceneCamera CreateCamera(
 	Scene& scene, std::optional<V2_float> viewport_size, ViewportSpace viewport_space
 ) {
-	auto camera{ CreateCamera(scene) };
+	SceneCamera camera{ scene.CreateEntity() };
 
 	PTGN_ASSERT(
 		!viewport_size.has_value() || viewport_size.value().IsPositive(),

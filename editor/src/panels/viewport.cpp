@@ -614,26 +614,31 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	if (use_editor_camera_) {
 		UpdateEditorCameraPan(editor_camera_);
 
-		editor_camera_.camera.viewport.position = {};
-		editor_camera_.camera.viewport.size		= ctx.editor.GetLogicalSize();
+		editor_camera_.camera.raw_viewport.position = {};
+		editor_camera_.camera.raw_viewport.size		= { 1.0f, 1.0f };
+		editor_camera_.camera.viewport_space		= ViewportSpace::Normalized;
 
-		editor_camera_.camera.view_projection =
-			GetOrthographicViewProjection(
-				editor_camera_.camera.transform, editor_camera_.camera.viewport.size,
-				editor_camera_.pixel_rounding
-			)
-				.view_projection;
+		auto logical_viewport{ GetLogicalViewport(
+			editor_camera_.camera.raw_viewport, editor_camera_.camera.viewport_space,
+			ctx.editor.GetRenderer().GetLogicalSize()
+		) };
+
+		editor_camera_.camera.view_projection = GetOrthographicViewProjection(
+			editor_camera_.camera.transform, logical_viewport.size, editor_camera_.pixel_rounding
+		);
 
 		ctx.editor.SetPrimaryWorldCamera(editor_camera_.camera);
 	} else {
 		ctx.editor.SetPrimaryWorldCamera(std::nullopt);
 	}
 
-	FrameContext frame_context{ ctx.editor.GetRenderer(),
-								{},
-								display_viewport.size,
+	FrameContext frame_context{ ctx.editor.GetRenderer(), Transform{}, presentation_size,
 								editor_camera_.camera.transform,
-								editor_camera_.camera.viewport };
+								GetDisplayViewport(
+									editor_camera_.camera.raw_viewport,
+									editor_camera_.camera.viewport_space,
+									ctx.editor.GetRenderer().GetLogicalSize(), presentation_size
+								) };
 
 	Viewport viewport{ .position{ min + display_viewport.position },
 					   .size{ display_viewport.size } };

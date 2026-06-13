@@ -89,8 +89,10 @@ private:
 
 	/// @param chunk_padding Number of additional chunks on each side that are loaded past the
 	/// camera view rectangle.
-	void GetBounds(V2_int& out_min, V2_int& out_max, const Camera& camera, V2_int chunk_padding)
-		const;
+	void GetBounds(
+		V2_int& out_min, V2_int& out_max, const Camera& camera, V2_int chunk_padding,
+		V2_float logical_size
+	) const;
 
 	[[nodiscard]] std::vector<Entity> GenerateEntities(V2_int chunk_coordinate) const;
 

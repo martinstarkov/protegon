@@ -27,16 +27,16 @@ FrameContext::FrameContext(
 	auto presentation_viewport{ renderer.GetPresentationViewport() };
 	auto display_viewport{ renderer.GetDisplayViewport() };
 
-	auto full_viewport_size{ renderer.GetFullViewportSize() };
+	auto window_size{ renderer.GetWindowSize() };
 
 	auto logical_size{ renderer.GetLogicalSize() };
 
 	PTGN_ASSERT(logical_size.IsPositive(), "Logical size must be positive");
-	PTGN_ASSERT(full_viewport_size.IsPositive(), "Full viewport size must be positive");
+	PTGN_ASSERT(window_size.IsPositive(), "Window size must be positive");
 
 	V2_int presentation_center{ presentation_viewport.GetCenter() };
 
-	V2_int half_viewport{ full_viewport_size / 2.0f };
+	V2_int half_window{ window_size / 2.0f };
 
 	V2_int display_center{ display_viewport.GetCenter() };
 
@@ -44,7 +44,7 @@ FrameContext::FrameContext(
 
 	V2_int display_center_window{ display_center - half_presentation };
 
-	presentation = PresentationFrame{ .presentation_center = presentation_center - half_viewport };
+	presentation = PresentationFrame{ .presentation_center = presentation_center - half_window };
 
 	display = DisplayFrame{ .display_center = display_center_window };
 

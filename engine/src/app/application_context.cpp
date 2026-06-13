@@ -2,7 +2,6 @@
 
 #include <chrono>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "app/application.h"
@@ -14,14 +13,12 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "platform/glfw.h"
-#include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport_event.h"
+#include "renderer/renderer.h"
 #include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
 
-namespace ptgn {
-
-namespace impl {
+namespace ptgn::impl {
 
 ApplicationLibrary::ApplicationLibrary() {
 	auto success{ glfwInit() };
@@ -50,22 +47,19 @@ ApplicationContext::ApplicationContext(const ApplicationConfig& config) :
 	debug{},
 	event_handler{},
 	window{ config.window,
-			[this](impl::EventData&& event) {
+			[this](EventData&& event) {
 				event_handler.global_event_queue_.emplace_back(std::move(event));
 			} },
 	renderer{ window, debug.stats,
-			  [this](V2_int size, std::variant<ResizeType, impl::PresentationResizeType> type) {
-				  if (std::holds_alternative<impl::PresentationResizeType>(type)) {
-					  event_handler.Push<event::PresentationResized>(size);
-					  return;
-				  }
-				  auto resize_type{ std::get<ResizeType>(type) };
-				  switch (resize_type) {
-					  case ResizeType::Display:
-						  event_handler.Push<event::DisplayResized>(size);
+			  [this](V2_int size, ResizeType type) {
+				  switch (type) {
+					  using enum ResizeType;
+					  case Presentation:
+						  event_handler.Push<event::PresentationResized>(size);
 						  break;
-					  case ResizeType::Game: event_handler.Push<event::GameResized>(size); break;
-					  default:				 PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(resize_type));
+					  case Display: event_handler.Push<event::DisplayResized>(size); break;
+					  case Logical: event_handler.Push<event::LogicalResized>(size); break;
+					  default:		PTGN_ERROR("Unknown ResizeType: ", std::to_underlying(type));
 				  }
 			  } },
 	assets{ renderer, audio, font },
@@ -76,6 +70,4 @@ ApplicationContext::ApplicationContext(const ApplicationConfig& config) :
 
 ApplicationContext::~ApplicationContext() noexcept = default;
 
-} // namespace impl
-
-} // namespace ptgn
+} // namespace ptgn::impl

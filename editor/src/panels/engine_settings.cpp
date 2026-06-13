@@ -261,7 +261,7 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 				);
 				ctx.editor.SetLogicalSize(size);
 			} else {
-				auto window_size{ ctx.editor.GetDisplayViewport().size };
+				V2_int window_size{ ctx.editor.GetDisplayViewport().size };
 				drag_int_pair(
 					"##WindowWidth", &window_size.x, 0, 0, "##WindowHeight", &window_size.y, 0, 0,
 					false

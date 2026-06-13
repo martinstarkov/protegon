@@ -69,6 +69,12 @@ class GLContext;
 
 } // namespace gl
 
+enum class ResizeType {
+	Logical,
+	Display,
+	Presentation
+};
+
 } // namespace impl
 
 class Renderer {
@@ -134,7 +140,7 @@ public:
 
 	/// @return The size of the entire viewport that the presentation viewport is within. This is
 	/// always equal to the window size.
-	V2_int GetFullViewportSize() const;
+	V2_int GetWindowSize() const;
 
 	void SetBackgroundColor(Color background_color);
 	Color GetBackgroundColor() const;
@@ -166,8 +172,7 @@ private:
 		Viewport viewport;
 	};
 
-	using EventSink =
-		std::function<void(V2_int, std::variant<ResizeType, impl::PresentationResizeType>)>;
+	using EventSink = std::function<void(V2_int, impl::ResizeType)>;
 
 	Renderer() = delete;
 	explicit Renderer(Window& window, Stats& stats, EventSink&& event_sink);
@@ -490,7 +495,7 @@ private:
 		}
 
 		PTGN_ASSERT(
-			GetSize(presentation_framebuffer_) == display_viewport_.size,
+			V2_float{ GetSize(presentation_framebuffer_) } == display_viewport_.size,
 			"Screen framebuffer size must match display viewport size"
 		);
 

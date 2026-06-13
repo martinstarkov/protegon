@@ -212,6 +212,9 @@ SceneCamera CreateCamera(
 template <>
 struct std::hash<ptgn::SceneCamera> {
 	std::size_t operator()(const ptgn::SceneCamera& camera) const {
-		return ptgn::Hash(camera);
+		if (!camera) {
+			return 0;
+		}
+		return ptgn::Hash(ptgn::Entity{ camera });
 	}
 };

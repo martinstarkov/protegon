@@ -13,8 +13,10 @@
 #include "core/math/noise.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/camera.h"
+#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "serialization/json/json.h"
 
 namespace ptgn {
@@ -109,9 +111,10 @@ ChunkManager::~ChunkManager() {
 }
 
 void ChunkManager::GetBounds(
-	V2_int& out_min, V2_int& out_max, const Camera& camera, V2_int chunk_padding
+	V2_int& out_min, V2_int& out_max, const Camera& camera, V2_int chunk_padding,
+	V2_float logical_size
 ) const {
-	auto cam_rect{ camera.GetWorldVertices() };
+	auto cam_rect{ camera.GetWorldVertices(logical_size) };
 
 	auto chunk_pixel_size{ tile_size * chunk_size };
 
@@ -134,7 +137,7 @@ void ChunkManager::Update(Scene& scene, const Camera& camera) {
 	V2_int min;
 	V2_int max;
 
-	GetBounds(min, max, camera, chunk_padding);
+	GetBounds(min, max, camera, chunk_padding, scene.ctx().renderer.GetLogicalSize());
 
 	if (min == previous_min_ && max == previous_max_) {
 		return;
@@ -169,7 +172,7 @@ void ChunkManager::Update(Scene& scene, const Camera& camera) {
 	std::vector<V2_int> chunks_to_unload;
 
 	for (const auto& [coordinate, chunk] : chunks) {
-		if (visible_chunks.find(coordinate) == visible_chunks.end()) {
+		if (!visible_chunks.contains(coordinate)) {
 			// Chunk no longer visible.
 			chunks_to_unload.emplace_back(coordinate);
 		}

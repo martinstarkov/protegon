@@ -74,6 +74,12 @@ public:
 	[[nodiscard]] static bool Overlap(V2_float point, Entity interactive_entity);
 	[[nodiscard]] static bool Overlap(Entity entityA, Entity entityB);
 
+	// TODO: Move to private.
+	void DrawDebug(
+		Scene& scene, const SceneCamera& camera, const Camera& cam, RenderTarget render_target,
+		const impl::EntityFilterFunc& filter
+	) const;
+
 private:
 	friend class Scene;
 	friend class SceneContext;
@@ -190,11 +196,6 @@ private:
 		const std::vector<Entity>& dropzones, const impl::MouseInfo& mouse,
 		const std::vector<Entity>& dragging_entities
 	);
-
-	void DrawDebug(
-		Scene& scene, const SceneCamera& camera, const Camera& cam, RenderTarget render_target,
-		const impl::EntityFilterFunc& filter
-	) const;
 
 	/// @brief A set of entities currently being dragged per a given camera.
 	std::unordered_map<SceneCamera, impl::InteractedEntities> dragging_entities_;

@@ -70,9 +70,9 @@ RenderQueue::RenderQueue(Scene& scene, Renderer& renderer) :
 impl::RenderCommands& RenderQueue::GetRenderCommands(
 	std::optional<SceneCamera> camera, bool debug
 ) {
-	camera = camera.or_else([this]() { return scene_.ctx().camera; });
+	camera = camera.or_else([this]() -> std::optional<SceneCamera> { return scene_.ctx().camera; });
 
-	PTGN_ASSERT(camera.has_value() && camera.value(), "Invalid camera");
+	PTGN_ASSERT(camera.has_value(), "Invalid camera");
 
 	std::vector<impl::CameraRenderCommands>* commands{ nullptr };
 

@@ -41,10 +41,12 @@
 #include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_pipeline.h"
 #include "renderer/pipeline/render_primitives.h"
+#include "renderer/pipeline/render_request.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/render_settings.h"
 #include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
@@ -80,7 +82,7 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 
 	SetCurrentPipeline("texture");
 
-	logical_size_ = GetFullViewportSize();
+	logical_size_ = GetWindowSize();
 
 	auto display{ RecalculateDisplayViewport() };
 
@@ -419,10 +421,10 @@ void Renderer::OnWindowResize(V2_int size) {
 	}
 
 	if (!logical_size_.has_value()) {
-		event_sink_(size, ResizeType::Game);
+		event_sink_(size, impl::ResizeType::Logical);
 	}
 
-	event_sink_(size, impl::PresentationResizeType{});
+	event_sink_(size, impl::ResizeType::Presentation);
 
 	display_viewport_dirty_ = true;
 }
@@ -467,7 +469,7 @@ void Renderer::SetLogicalSize(
 
 	auto size{ GetLogicalSize() };
 
-	event_sink_(size, ResizeType::Game);
+	event_sink_(size, impl::ResizeType::Logical);
 
 	display_viewport_dirty_ = true;
 }
@@ -489,15 +491,15 @@ void Renderer::SetPresentationViewport(std::optional<Viewport> presentation_view
 	presentation_viewport_ = presentation_viewport;
 
 	if (!presentation_viewport_.has_value()) {
-		OnWindowResize(GetFullViewportSize());
+		OnWindowResize(GetWindowSize());
 		return;
 	}
 
 	if (!logical_size_.has_value()) {
-		event_sink_(presentation_viewport_.value().size, ResizeType::Game);
+		event_sink_(presentation_viewport_.value().size, impl::ResizeType::Logical);
 	}
 
-	event_sink_(presentation_viewport_.value().size, impl::PresentationResizeType{});
+	event_sink_(presentation_viewport_.value().size, impl::ResizeType::Presentation);
 	display_viewport_dirty_ = true;
 }
 
@@ -531,7 +533,7 @@ V2_int Renderer::GetPresentationSize() const {
 	if (presentation_viewport_.has_value()) {
 		return presentation_viewport_.value().size;
 	}
-	return GetFullViewportSize();
+	return GetWindowSize();
 }
 
 Viewport Renderer::GetDisplayViewport() const {
@@ -556,7 +558,7 @@ V2_float Renderer::GetScale() const {
 	return V2_float{ display_size } / logical_size;
 }
 
-V2_int Renderer::GetFullViewportSize() const {
+V2_int Renderer::GetWindowSize() const {
 	return window_.GetSize();
 }
 
@@ -595,7 +597,7 @@ void Renderer::UpdateDisplayViewport(bool emit_events) {
 		ResizePresentationFramebuffer(display_viewport_.size);
 
 		if (emit_events) {
-			event_sink_(display_viewport_.size, ResizeType::Display);
+			event_sink_(display_viewport_.size, impl::ResizeType::Display);
 		}
 	}
 }
@@ -612,7 +614,7 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 	Viewport viewport{ .position{}, .size{ presentation.size } };
 
 	auto compute_aspect_fit = [&viewport, logical_size, presentation](bool letterbox_mode) {
-		float presentation_aspect{ static_cast<float>(presentation.size.x) / presentation.size.y };
+		float presentation_aspect{ presentation.size.x / presentation.size.y };
 		float logical_aspect{ static_cast<float>(logical_size.x) / logical_size.y };
 
 		// In letterbox mode we need require presentation_aspect > logical_aspect to fit
@@ -621,18 +623,16 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 		bool fit_height{ (presentation_aspect > logical_aspect) == letterbox_mode };
 
 		if (fit_height) {
-			viewport.size.y = presentation.size.y;
-			viewport.size.x =
-				static_cast<int>(static_cast<float>(presentation.size.y) * logical_aspect + 0.5f);
-			viewport.position.x = (presentation.size.x - viewport.size.x) / 2; // left edge.
+			viewport.size.y		= presentation.size.y;
+			viewport.size.x		= presentation.size.y * logical_aspect;
+			viewport.position.x = (presentation.size.x - viewport.size.x) / 2.0f; // left edge.
 			viewport.position.y = 0;
 		} else {
 			// Fit width.
-			viewport.size.x = presentation.size.x;
-			viewport.size.y =
-				static_cast<int>(static_cast<float>(presentation.size.x) / logical_aspect + 0.5f);
+			viewport.size.x		= presentation.size.x;
+			viewport.size.y		= presentation.size.x / logical_aspect;
 			viewport.position.x = 0;
-			viewport.position.y = (presentation.size.y - viewport.size.y) / 2; // top edge.
+			viewport.position.y = (presentation.size.y - viewport.size.y) / 2.0f; // top edge.
 		}
 	};
 
@@ -997,7 +997,7 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 		PTGN_ASSERT(input_size.IsPositive(), "Render pass input size must be non-zero");
 
 		PTGN_ASSERT(
-			input_size == request.viewport.size,
+			V2_float{ input_size } == request.viewport.size,
 			"Render pass input size must match the draw viewport size"
 		);
 

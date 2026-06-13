@@ -278,7 +278,7 @@ void DrawCamera(
 
 	SetupCamera(renderer, camera.view_projection, display_viewport, render_target, clear_color);
 
-	DrawCamera(
+	DrawCommands(
 		renderer, draw_context, view, commands, debug_commands, std::forward<F>(filter),
 		display_viewport, render_target_size, camera.view_projection, tint, effect_params
 	);
@@ -286,13 +286,11 @@ void DrawCamera(
 
 template <InvocableR<bool, Entity> F>
 void DrawScene(
-	Scene& scene, DrawContext& draw_context, const RenderTarget& render_target, const Camera& cam,
-	const SceneCamera& camera, std::optional<Color> clear_color, Color tint,
-	const impl::EffectParams& effect_params, F&& filter
+	Scene& scene, auto& commands, auto& debug_commands, DrawContext& draw_context,
+	const RenderTarget& render_target, const Camera& cam, const SceneCamera& camera,
+	std::optional<Color> clear_color, Color tint, const impl::EffectParams& effect_params,
+	F&& filter
 ) {
-	auto& commands{ scene.ctx().render_queue.GetRenderCommands(camera, false) };
-	auto& debug_commands{ scene.ctx().render_queue.GetRenderCommands(camera, true) };
-
 	auto light_entity_commands{ GetSortedEntityCommands(
 		scene.EntitiesWith<impl::LightData, impl::VisibilityPolygon>(), filter
 	) };
@@ -320,6 +318,12 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	data_ = std::move(scene_data);
 	ctx_  = std::make_unique<SceneContext>(app, *this);
 
+	// Must be created before scene camera.
+	render_target_ =
+		CreateRenderTarget(*this, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
+	render_target_.SetTag(kDefaultSceneTargetTag);
+	render_target_.Remove<impl::IDrawable>();
+
 	ctx_->camera = CreateCamera(*this);
 	ctx_->camera.SetTag(kDefaultSceneCameraTag);
 	ctx_->fixed_camera_ = CreateCamera(*this);
@@ -328,11 +332,6 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 		kDefaultFixedCameraIncludeLayerMask, kDefaultFixedCameraExcludeLayerMask
 	);
 	SetUI(ctx_->fixed_camera_, true);
-
-	render_target_ =
-		CreateRenderTarget(*this, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
-	render_target_.SetTag(kDefaultSceneTargetTag);
-	render_target_.Remove<impl::IDrawable>();
 
 	if (data_.first_scene) {
 		SetBlendMode(GetRenderTarget(), kDefaultFirstSceneBlendMode);
@@ -437,9 +436,12 @@ void Scene::DrawCameras(DrawContext& draw_context) {
 			return !camera.CanSee(entity);
 		};
 
+		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
+		auto& debug_commands{ ctx().render_queue.GetRenderCommands(camera, true) };
+
 		DrawScene(
-			*this, draw_context, render_target, cam, camera, clear_color, tint, effect_params,
-			filter
+			*this, commands, debug_commands, draw_context, render_target, cam, camera, clear_color,
+			tint, effect_params, filter
 		);
 	}
 }
@@ -463,9 +465,12 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 			return false;
 		};
 
+		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
+		auto& debug_commands{ ctx().render_queue.GetRenderCommands(camera, true) };
+
 		DrawScene(
-			*this, draw_context, render_target, cam, camera, clear_color, tint, effect_params,
-			filter
+			*this, commands, debug_commands, draw_context, render_target, cam, camera, clear_color,
+			tint, effect_params, filter
 		);
 	} else {
 		DrawCameras(draw_context);

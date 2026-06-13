@@ -786,8 +786,8 @@ void InteractionSystem::Update(Scene& scene) {
 		);
 
 		// Remove non primary world cameras.
-		std::erase_if(dragging_entities_, [](const auto& pair) { return pair.first != 0; });
-		std::erase_if(last_mouse_over_, [](const auto& pair) { return pair.first != 0; });
+		std::erase_if(dragging_entities_, [](const auto& pair) { return pair.first; });
+		std::erase_if(last_mouse_over_, [](const auto& pair) { return pair.first; });
 	} else {
 		std::vector<Entity> cameras;
 
@@ -819,10 +819,10 @@ void InteractionSystem::Update(Scene& scene) {
 
 		// Remove deleted cameras or primary world cameras.
 		std::erase_if(dragging_entities_, [&cameras](const auto& pair) {
-			return !std::ranges::contains(cameras, pair.second.camera) || pair.first == 0;
+			return !std::ranges::contains(cameras, pair.first) || !pair.first;
 		});
 		std::erase_if(last_mouse_over_, [&cameras](const auto& pair) {
-			return !std::ranges::contains(cameras, pair.second.camera) || pair.first == 0;
+			return !std::ranges::contains(cameras, pair.first) || !pair.first;
 		});
 	}
 }
