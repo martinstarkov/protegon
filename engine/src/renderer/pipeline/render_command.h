@@ -8,6 +8,7 @@
 
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_primitives.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
 
 namespace ptgn {
@@ -40,7 +41,7 @@ struct RenderCommand {
 	TextureId texture;
 	std::optional<BlendMode> blend_mode;
 
-	float depth{ 0.0f };
+	Depth depth;
 	std::uint64_t sequence{ 0 };
 
 	[[nodiscard]] bool CanMergeWith(const RenderCommand& next) const {
@@ -57,7 +58,7 @@ public:
 
 	[[nodiscard]] std::size_t Count() const;
 
-	float GetDepth(std::size_t command_index) const;
+	Depth GetDepth(std::size_t command_index) const;
 
 	void Sort();
 
@@ -67,22 +68,22 @@ public:
 
 	void Add(
 		ShaderId shader, std::span<TextureQuad> primitives, std::optional<BlendMode> blend_mode,
-		float depth, TextureId texture
+		Depth depth, TextureId texture
 	);
 
 	void Add(
 		ShaderId shader, std::span<ShapeQuad> primitives, std::optional<BlendMode> blend_mode,
-		float depth, TextureId
+		Depth depth, TextureId
 	);
 
 	void Add(
 		ShaderId shader, std::span<ColorQuad> primitives, std::optional<BlendMode> blend_mode,
-		float depth, TextureId
+		Depth depth, TextureId
 	);
 
 	void Add(
 		ShaderId shader, std::span<ColorTriangle> primitives, std::optional<BlendMode> blend_mode,
-		float depth, TextureId
+		Depth depth, TextureId
 	);
 
 private:
@@ -99,7 +100,7 @@ private:
 
 	void Push(
 		RenderCommandKind kind, RenderRange range, ShaderId shader, TextureId texture,
-		std::optional<BlendMode> blend_mode, float depth
+		std::optional<BlendMode> blend_mode, Depth depth
 	);
 
 	std::vector<RenderCommand> commands_;

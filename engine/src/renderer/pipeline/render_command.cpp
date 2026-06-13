@@ -13,6 +13,7 @@
 #include "core/log.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_primitives.h"
+#include "renderer/pipeline/render_request.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 
@@ -49,7 +50,7 @@ std::size_t RenderCommands::Count() const {
 	return commands_.size();
 }
 
-float RenderCommands::GetDepth(std::size_t command_index) const {
+Depth RenderCommands::GetDepth(std::size_t command_index) const {
 	PTGN_ASSERT(command_index < commands_.size(), "Command index outside of render command range");
 	return commands_[command_index].depth;
 }
@@ -66,7 +67,7 @@ void RenderCommands::Sort() {
 
 void RenderCommands::Add(
 	ShaderId shader, std::span<TextureQuad> primitives, std::optional<BlendMode> blend_mode,
-	float depth, TextureId texture
+	Depth depth, TextureId texture
 ) {
 	auto range{ Append(texture_quads_, primitives) };
 	Push(RenderCommandKind::TextureQuads, range, shader, texture, blend_mode, depth);
@@ -74,7 +75,7 @@ void RenderCommands::Add(
 
 void RenderCommands::Add(
 	ShaderId shader, std::span<ShapeQuad> primitives, std::optional<BlendMode> blend_mode,
-	float depth, TextureId
+	Depth depth, TextureId
 ) {
 	auto range{ Append(shape_quads_, primitives) };
 	Push(RenderCommandKind::ShapeQuads, range, shader, TextureId{}, blend_mode, depth);
@@ -82,7 +83,7 @@ void RenderCommands::Add(
 
 void RenderCommands::Add(
 	ShaderId shader, std::span<ColorQuad> primitives, std::optional<BlendMode> blend_mode,
-	float depth, TextureId
+	Depth depth, TextureId
 ) {
 	auto range{ Append(color_quads_, primitives) };
 	Push(RenderCommandKind::ColorQuads, range, shader, TextureId{}, blend_mode, depth);
@@ -90,13 +91,15 @@ void RenderCommands::Add(
 
 void RenderCommands::Add(
 	ShaderId shader, std::span<ColorTriangle> primitives, std::optional<BlendMode> blend_mode,
-	float depth, TextureId
+	Depth depth, TextureId
 ) {
 	auto range{ Append(color_triangles_, primitives) };
 	Push(RenderCommandKind::ColorTriangles, range, shader, TextureId{}, blend_mode, depth);
 }
 
 void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
+	PTGN_ASSERT(command_index < commands_.size(), "Command index outside of render command range");
+
 	const auto& command{ commands_[command_index] };
 
 	PTGN_ASSERT(command.range.count, "Cannot draw a command with zero range");
@@ -158,7 +161,7 @@ void RenderCommands::Clear() {
 
 void RenderCommands::Push(
 	RenderCommandKind kind, RenderRange range, ShaderId shader, TextureId texture,
-	std::optional<BlendMode> blend_mode, float depth
+	std::optional<BlendMode> blend_mode, Depth depth
 ) {
 	if (range.count == 0) {
 		return;
