@@ -300,10 +300,15 @@ bool SceneManager::CanIssueCommands(std::size_t target_scene_tag_hash) const {
 } // namespace impl
 
 LocalSceneManager::LocalSceneManager(impl::SceneManager& scene_manager, Scene& scene) :
-	scene_manager_{ scene_manager }, scene_{ scene } {}
+	scene_manager_{ scene_manager }, scene_{ &scene } {}
+
+void LocalSceneManager::Rebind(Scene& scene) {
+	scene_ = &scene;
+}
 
 bool LocalSceneManager::CanIssueCommands() const {
-	return !scene_.IsTransitioning();
+	PTGN_ASSERT(scene_);
+	return !scene_->IsTransitioning();
 }
 
 } // namespace ptgn

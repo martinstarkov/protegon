@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/util/time.h"
+#include "runtime/ecs/manager.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/interaction/interaction_system.h"
@@ -46,7 +47,7 @@ public:
 	~SceneContext() noexcept;
 	SceneContext(const SceneContext&)				 = delete;
 	SceneContext& operator=(const SceneContext&)	 = delete;
-	SceneContext(SceneContext&&) noexcept			 = default;
+	SceneContext(SceneContext&&) noexcept			 = delete;
 	SceneContext& operator=(SceneContext&&) noexcept = delete;
 
 	Window& window;
@@ -96,9 +97,13 @@ private:
 	friend class LocalSceneManager;
 	friend class impl::SceneContextAccessor;
 
+	void Rebind(Scene& parent_scene);
+
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the
 	/// logical size.
 	SceneCamera fixed_camera_;
+
+	RenderTarget render_target_;
 
 	Application& app_;
 };

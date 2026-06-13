@@ -64,13 +64,16 @@ void DrawShapeImpl(
 
 } // namespace
 
-RenderQueue::RenderQueue(Scene& scene, Renderer& renderer) :
-	scene_{ scene }, renderer_{ renderer } {}
+RenderQueue::RenderQueue(Renderer& renderer, Scene& scene) :
+	scene_{ &scene }, renderer_{ renderer } {}
 
 impl::RenderCommands& RenderQueue::GetRenderCommands(
 	std::optional<SceneCamera> camera, bool debug
 ) {
-	camera = camera.or_else([this]() -> std::optional<SceneCamera> { return scene_.ctx().camera; });
+	PTGN_ASSERT(scene_);
+
+	camera =
+		camera.or_else([this]() -> std::optional<SceneCamera> { return scene_->ctx().camera; });
 
 	PTGN_ASSERT(camera.has_value(), "Invalid camera");
 
@@ -120,8 +123,9 @@ void RenderQueue::DrawTexture(
 void RenderQueue::DrawTexture(
 	Transform transform, std::string_view texture_key, TextureRenderParams params
 ) {
+	PTGN_ASSERT(scene_);
 	auto shader{ GetShader("texture") };
-	const auto& assets{ scene_.ctx().asset };
+	const auto& assets{ scene_->ctx().asset };
 	auto texture{ assets.Get<Texture>(texture_key) };
 	auto texture_size{ texture.GetSize() };
 
@@ -132,7 +136,8 @@ void RenderQueue::DrawTexture(
 	Transform transform, std::string_view texture_key, std::string_view shader_key,
 	TextureRenderParams params
 ) {
-	const auto& assets{ scene_.ctx().asset };
+	PTGN_ASSERT(scene_);
+	const auto& assets{ scene_->ctx().asset };
 	auto texture{ assets.Get<Texture>(texture_key) };
 	auto shader{ assets.Get<Shader>(shader_key) };
 	auto texture_size{ texture.GetSize() };
@@ -143,7 +148,8 @@ void RenderQueue::DrawTexture(
 void RenderQueue::DrawShader(
 	Transform transform, std::string_view shader_key, TextureRenderParams params
 ) {
-	const auto& assets{ scene_.ctx().asset };
+	PTGN_ASSERT(scene_);
+	const auto& assets{ scene_->ctx().asset };
 	auto shader{ assets.Get<Shader>(shader_key) };
 	auto texture_size{ renderer_.GetLogicalSize() };
 
@@ -290,6 +296,10 @@ void RenderQueue::CombineCommands() {
 
 	combine(debug_commands_, combined_debug);
 	combine(render_commands_, combined_render);
+}
+
+void RenderQueue::Rebind(Scene& parent_scene) {
+	scene_ = &parent_scene;
 }
 
 } // namespace ptgn

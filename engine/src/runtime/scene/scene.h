@@ -251,7 +251,6 @@ private:
 	std::unique_ptr<SceneContext> ctx_;
 
 	Manager manager_;
-	RenderTarget render_target_;
 
 	impl::SceneData data_;
 };

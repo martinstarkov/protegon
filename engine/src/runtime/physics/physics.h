@@ -56,14 +56,22 @@ private:
 	friend class Scene;
 	friend class SceneContext;
 
+	Physics() = delete;
 	explicit Physics(Scene& scene);
+	~Physics() noexcept					   = default;
+	Physics(const Physics&)				   = delete;
+	Physics& operator=(const Physics&)	   = delete;
+	Physics(Physics&&) noexcept			   = delete;
+	Physics& operator=(Physics&&) noexcept = delete;
 
 	void PreCollisionUpdate() const;
 	void PostCollisionUpdate() const;
 
 	static void HandleBoundary(Transform& transform, V2_float& velocity, const Bounds& bounds);
 
-	Scene& scene_;
+	void Rebind(Scene& scene);
+
+	Scene* scene_{ nullptr };
 
 	void Reset();
 

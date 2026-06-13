@@ -154,12 +154,14 @@ private:
 	friend class SceneContext;
 
 	RenderQueue() = delete;
-	RenderQueue(Scene& scene, Renderer& renderer);
+	RenderQueue(Renderer& renderer, Scene& parent_scene);
 	~RenderQueue() noexcept						   = default;
 	RenderQueue(const RenderQueue&)				   = delete;
 	RenderQueue& operator=(const RenderQueue&)	   = delete;
-	RenderQueue(RenderQueue&&) noexcept			   = default;
+	RenderQueue(RenderQueue&&) noexcept			   = delete;
 	RenderQueue& operator=(RenderQueue&&) noexcept = delete;
+
+	void Rebind(Scene& parent_scene);
 
 	void DrawTexture(
 		Transform transform, impl::TextureId texture, V2_int texture_size, impl::ShaderId shader,
@@ -179,7 +181,7 @@ private:
 	std::vector<impl::CameraRenderCommands> render_commands_;
 	std::vector<impl::CameraRenderCommands> debug_commands_;
 
-	Scene& scene_;
+	Scene* scene_{ nullptr };
 	Renderer& renderer_;
 };
 

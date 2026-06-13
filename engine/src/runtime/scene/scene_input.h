@@ -76,13 +76,21 @@ private:
 	friend class Scene;
 	friend class SceneContext;
 
-	explicit SceneInput(Scene& scene, const Window& window);
+	SceneInput() = delete;
+	explicit SceneInput(const Window& window, Scene& scene);
+	~SceneInput() noexcept						 = default;
+	SceneInput(const SceneInput&)				 = delete;
+	SceneInput& operator=(const SceneInput&)	 = delete;
+	SceneInput(SceneInput&&) noexcept			 = delete;
+	SceneInput& operator=(SceneInput&&) noexcept = delete;
 
 	/// @brief Convert position from being relative to the center of the window to being relative to
 	/// the center of the specified viewport.
 	V2_float GetMousePositionRelativeTo(V2_float position, Frame frame_of_reference) const;
 
-	Scene& scene_;
+	void Rebind(Scene& scene);
+
+	Scene* scene_{ nullptr };
 	const Window& window_;
 };
 

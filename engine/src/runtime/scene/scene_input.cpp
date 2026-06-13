@@ -1,5 +1,6 @@
 #include "runtime/scene/scene_input.h"
 
+#include "core/assert.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/math/vector2.h"
@@ -10,7 +11,7 @@
 
 namespace ptgn {
 
-SceneInput::SceneInput(Scene& scene, const Window& window) : scene_{ scene }, window_{ window } {}
+SceneInput::SceneInput(const Window& window, Scene& scene) : scene_{ &scene }, window_{ window } {}
 
 V2_float SceneInput::GetMousePosition(Frame position_frame_of_reference) const {
 	auto position{ window_.GetMousePosition() };
@@ -76,8 +77,14 @@ milliseconds SceneInput::GetKeyHeldTime(Key key) const {
 V2_float SceneInput::GetMousePositionRelativeTo(
 	V2_float position, Frame position_frame_of_reference
 ) const {
+	PTGN_ASSERT(scene_);
 	return ConvertPoint(
-		position, Frame::Window, position_frame_of_reference, FrameContext{ scene_ }
+		position, Frame::Window, position_frame_of_reference, FrameContext{ *scene_ }
 	);
 }
+
+void SceneInput::Rebind(Scene& scene) {
+	scene_ = &scene;
+}
+
 } // namespace ptgn

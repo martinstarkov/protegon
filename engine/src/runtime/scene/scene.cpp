@@ -186,9 +186,8 @@ std::vector<impl::EntityRenderCommand> GetSortedEntityCommands(auto entity_view,
 
 template <InvocableR<bool, Entity> F>
 void DrawCommands(
-	Renderer& renderer, DrawContext& draw_context, Viewport display_viewport,
-	V2_float render_target_size, const Matrix4& view_projection, auto& manual_commands, Color tint,
-	const impl::EffectParams& effect_params, auto entities, F&& filter, bool debug
+	Renderer& renderer, DrawContext& draw_context, auto& manual_commands, auto entities, F&& filter,
+	bool debug
 ) {
 	std::size_t entity_index{ 0 };
 	std::size_t manual_index{ 0 };
@@ -244,11 +243,6 @@ void DrawCommands(
 	entity_commands.clear();
 
 	manual_commands.Clear();
-
-	ApplyCameraEffects(
-		renderer, draw_context, display_viewport, render_target_size, view_projection, tint,
-		effect_params
-	);
 }
 
 template <InvocableR<bool, Entity> F>
@@ -257,14 +251,13 @@ void DrawCommands(
 	F filter, Viewport display_viewport, V2_float render_target_size,
 	const Matrix4& view_projection, Color tint, const impl::EffectParams& effect_params
 ) {
-	DrawCommands(
-		renderer, draw_context, display_viewport, render_target_size, view_projection, commands,
-		tint, effect_params, view, filter, false
-	);
+	DrawCommands(renderer, draw_context, commands, view, filter, false);
 
-	DrawCommands(
-		renderer, draw_context, display_viewport, render_target_size, view_projection,
-		debug_commands, tint, effect_params, view, filter, true
+	DrawCommands(renderer, draw_context, debug_commands, view, filter, true);
+
+	ApplyCameraEffects(
+		renderer, draw_context, display_viewport, render_target_size, view_projection, tint,
+		effect_params
 	);
 }
 
@@ -316,15 +309,40 @@ void DrawScene(
 
 } // namespace
 
+Scene::Scene(Scene&& other) noexcept :
+	ctx_{ std::exchange(other.ctx_, nullptr) },
+	manager_{ std::exchange(other.manager_, {}) },
+	data_{ std::exchange(other.data_, {}) } {
+	if (ctx_) {
+		ctx_->Rebind(*this);
+	}
+}
+
+Scene& Scene::operator=(Scene&& other) noexcept {
+	if (this != &other) {
+		ctx_	 = std::exchange(other.ctx_, nullptr);
+		manager_ = std::exchange(other.manager_, {});
+		data_	 = std::exchange(other.data_, {});
+
+		if (ctx_) {
+			ctx_->Rebind(*this);
+		}
+	}
+
+	return *this;
+}
+
+Scene::~Scene() = default;
+
 void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	data_ = std::move(scene_data);
 	ctx_  = std::make_unique<SceneContext>(app, *this);
 
 	// Must be created before scene camera.
-	render_target_ =
+	ctx_->render_target_ =
 		CreateRenderTarget(*this, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
-	render_target_.SetTag(kDefaultSceneTargetTag);
-	render_target_.Remove<impl::IDrawable>();
+	ctx_->render_target_.SetTag(kDefaultSceneTargetTag);
+	ctx_->render_target_.Remove<impl::IDrawable>();
 
 	ctx_->camera = CreateCamera(*this);
 	ctx_->camera.SetTag(kDefaultSceneCameraTag);
@@ -495,11 +513,11 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 }
 
 void Scene::DrawSceneTarget(DrawContext& draw_context) const {
-	auto texture{ render_target_.GetTexture() };
-	auto draw_transform{ GetDrawTransform(render_target_) };
-	auto blend_mode{ GetBlendMode(render_target_) };
+	auto texture{ ctx_->render_target_.GetTexture() };
+	auto draw_transform{ GetDrawTransform(ctx_->render_target_) };
+	auto blend_mode{ GetBlendMode(ctx_->render_target_) };
 
-	auto effects{ impl::GetEffectParams(render_target_) };
+	auto effects{ impl::GetEffectParams(ctx_->render_target_) };
 	// No margin for scene effects so render targets do not exceed their sizes.
 	effects.margin = 0;
 
@@ -507,8 +525,8 @@ void Scene::DrawSceneTarget(DrawContext& draw_context) const {
 		blend_mode, [this, &draw_context, draw_transform, texture, &effects]() {
 			draw_context.DrawTexture(
 				draw_transform, texture,
-				{ .size				   = render_target_.GetSize(),
-				  .tint				   = GetTint(render_target_),
+				{ .size				   = ctx_->render_target_.GetSize(),
+				  .tint				   = GetTint(ctx_->render_target_),
 				  .texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
 				  .effects			   = std::move(effects) }
 			);
@@ -587,18 +605,12 @@ Entity Scene::CreateEntity(const json& j) {
 	return e;
 }
 
-Scene::Scene(Scene&&) noexcept = default;
-
-Scene& Scene::operator=(Scene&&) noexcept = default;
-
-Scene::~Scene() = default;
-
 void Scene::SetBackgroundColor(Color background_color) {
-	render_target_.SetClearColor(background_color);
+	ctx_->render_target_.SetClearColor(background_color);
 }
 
 Color Scene::GetBackgroundColor() const {
-	return render_target_.GetClearColor().value_or(impl::ClearColor{}.color);
+	return ctx_->render_target_.GetClearColor().value_or(impl::ClearColor{}.color);
 }
 
 std::size_t Scene::GetTagHash() const {
@@ -610,7 +622,7 @@ std::string Scene::GetTag() const {
 }
 
 RenderTarget Scene::GetRenderTarget() const {
-	return render_target_;
+	return ctx_->render_target_;
 }
 
 void Scene::Refresh() {

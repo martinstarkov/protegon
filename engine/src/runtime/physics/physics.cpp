@@ -17,7 +17,11 @@
 
 namespace ptgn {
 
-Physics::Physics(Scene& scene) : scene_{ scene } {}
+Physics::Physics(Scene& scene) : scene_{ &scene } {}
+
+void Physics::Rebind(Scene& scene) {
+	scene_ = &scene;
+}
 
 std::optional<Bounds> Physics::GetBounds() const {
 	return bounds_;
@@ -41,7 +45,8 @@ void Physics::SetGravity(V2_float gravity) {
 }
 
 secondsf Physics::dt() const {
-	return scene_.ctx().dt();
+	PTGN_ASSERT(scene_);
+	return scene_->ctx().dt();
 }
 
 void Physics::SetEnabled(bool enabled) {
@@ -67,22 +72,24 @@ void Physics::PreCollisionUpdate() const {
 
 	auto dt{ Physics::dt() };
 
+	PTGN_ASSERT(scene_);
+
 	for (auto [entity, transform, rigid_body, movement] :
-		 scene_.EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
+		 scene_->EntitiesWith<Transform, RigidBody, TopDownMovement>()) {
 		movement.Update(entity, transform, rigid_body, dt);
 	}
 
 	for (auto [e, transform, rigid_body, movement, jump] :
-		 scene_.EntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
-		movement.Update(scene_, transform, rigid_body, dt);
-		jump.Update(scene_, rigid_body, movement.grounded, gravity_, dt);
+		 scene_->EntitiesWith<Transform, RigidBody, PlatformerMovement, PlatformerJump>()) {
+		movement.Update(*scene_, transform, rigid_body, dt);
+		jump.Update(*scene_, rigid_body, movement.grounded, gravity_, dt);
 	}
 
-	for (auto [e, rigid_body] : scene_.EntitiesWith<RigidBody>()) {
+	for (auto [e, rigid_body] : scene_->EntitiesWith<RigidBody>()) {
 		rigid_body.Update(gravity_, dt);
 	}
 
-	for (auto [e, movement] : scene_.EntitiesWith<PlatformerMovement>()) {
+	for (auto [e, movement] : scene_->EntitiesWith<PlatformerMovement>()) {
 		movement.grounded = false;
 	}
 }
@@ -94,7 +101,9 @@ void Physics::PostCollisionUpdate() const {
 
 	auto dt{ Physics::dt() };
 
-	for (auto [entity, transform, rigid_body] : scene_.EntitiesWith<Transform, RigidBody>()) {
+	PTGN_ASSERT(scene_);
+
+	for (auto [entity, transform, rigid_body] : scene_->EntitiesWith<Transform, RigidBody>()) {
 		transform.Translate(rigid_body.velocity * dt.count());
 		transform.Rotate(rigid_body.angular_velocity * dt.count());
 		transform.ClampRotation();

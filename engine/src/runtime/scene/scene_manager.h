@@ -1,13 +1,13 @@
 #pragma once
 
 #include <concepts>
-#include <functional>
 #include <limits>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <type_traits>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "core/assert.h"
@@ -487,8 +487,10 @@ public:
 			return false;
 		}
 
+		PTGN_ASSERT(scene_);
+
 		return Transition<ToScene>(
-			scene_.GetTag(), scene_tag, std::move(transition), priority,
+			scene_->GetTag(), scene_tag, std::move(transition), priority,
 			std::forward<TArgs>(constructor_args)...
 		);
 	}
@@ -530,12 +532,20 @@ private:
 	friend class Scene;
 	friend class SceneContext;
 
+	LocalSceneManager() = delete;
 	explicit LocalSceneManager(impl::SceneManager& scene_manager, Scene& scene);
+	~LocalSceneManager() noexcept							   = default;
+	LocalSceneManager(const LocalSceneManager&)				   = delete;
+	LocalSceneManager& operator=(const LocalSceneManager&)	   = delete;
+	LocalSceneManager(LocalSceneManager&&) noexcept			   = delete;
+	LocalSceneManager& operator=(LocalSceneManager&&) noexcept = delete;
+
+	void Rebind(Scene& scene);
 
 	[[nodiscard]] bool CanIssueCommands() const;
 
 	impl::SceneManager& scene_manager_;
-	Scene& scene_;
+	Scene* scene_{ nullptr };
 };
 
 } // namespace ptgn
