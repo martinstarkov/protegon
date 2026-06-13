@@ -207,14 +207,12 @@ Viewport SceneCamera::GetLogicalViewport() const {
 	return ptgn::GetLogicalViewport(GetRawOrDefaultViewport(), camera.viewport_space, logical_size);
 }
 
-Viewport SceneCamera::GetDisplayViewport(std::optional<RenderTarget> custom_render_target) const {
+Viewport SceneCamera::GetDisplayViewport() const {
 	const auto& camera{ Get<impl::CameraData>() };
 
 	auto logical_size{ GetScene().ctx().renderer.GetLogicalSize() };
 
-	auto render_target{ custom_render_target.value_or(GetRenderTarget()) };
-
-	auto target_size{ render_target.GetSize() };
+	auto target_size{ GetRenderTarget().GetSize() };
 
 	return ptgn::GetDisplayViewport(
 		GetRawOrDefaultViewport(), camera.viewport_space, logical_size, target_size

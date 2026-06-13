@@ -18,6 +18,7 @@ namespace ptgn {
 class RenderTarget;
 class DrawContext;
 class Scene;
+class SceneCamera;
 
 struct LightProperties {
 	/// @brief Radius of the light. The higher the radius, the further light reaches out from the
@@ -47,14 +48,15 @@ struct LightProperties {
 
 namespace impl {
 
-struct CameraRenderBucket;
+struct EntityRenderCommand;
 
-void BuildLightVisibilityPolygons(
-	Scene&, std::span<const CameraRenderBucket> buckets, V2_int logical_size,
-	const RenderTarget& scene_render_target
+void UpdateLightVisibilityPolygons(
+	std::vector<impl::EntityRenderCommand>& commands, std::span<const V2_float> camera_vertices
 );
 
-void DrawLightVisibilityDebug(Scene& scene);
+void DrawDebugLightVisibilityPolygons(
+	Scene& scene, const SceneCamera& camera, const impl::EntityFilterFunc& filter
+);
 
 struct LightData {
 	/// @brief Intensity of the light. Range: [0, 1].

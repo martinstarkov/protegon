@@ -43,7 +43,6 @@
 #include "runtime/scene/scene_event.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
-#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
@@ -155,7 +154,7 @@ bool InteractionSystem::Overlap(Entity entityA, Entity entityB) {
 }
 
 bool InteractionSystem::IsAnyDragging(SceneCamera camera) const {
-	auto it{ dragging_entities_.find(camera.GetUUID()) };
+	auto it{ dragging_entities_.find(camera) };
 
 	if (it == dragging_entities_.end()) {
 		return false;
@@ -176,19 +175,19 @@ void InteractionSystem::SetDebugSettings(const InteractiveDebugSettings& setting
 	debug_settings_ = settings;
 }
 
-void InteractionSystem::DrawDebugForCamera(
-	Scene& scene, const impl::MouseInfo& mouse_state, const impl::RenderCamera& camera,
+void InteractionSystem::DrawDebug(
+	Scene& scene, const SceneCamera& camera, const Camera& cam, RenderTarget render_target,
 	const impl::EntityFilterFunc& filter
 ) const {
-	PTGN_ASSERT(debug_settings_.draw_enabled);
+	if (!debug_settings_.draw_enabled) {
+		return;
+	}
 
-	auto render_target{ camera.render_target ? camera.render_target : scene.GetRenderTarget() };
-
-	impl::MouseInfo mouse{ mouse_state };
+	impl::MouseInfo mouse{ scene };
 
 	mouse.position = ConvertPoint(
 		mouse.position, Frame::Window, Frame::Camera,
-		FrameContext{ scene.ctx().renderer, render_target, camera.camera }
+		FrameContext{ scene.ctx().renderer, render_target, cam }
 	);
 
 	scene.ctx().render_queue.DrawPoint(
@@ -224,23 +223,6 @@ void InteractionSystem::DrawDebugForCamera(
 			);
 		}
 	}
-}
-
-void InteractionSystem::DrawDebug(Scene& scene) const {
-	if (!debug_settings_.draw_enabled) {
-		return;
-	}
-
-	const auto& primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
-
-	impl::MouseInfo mouse_state{ scene };
-
-	impl::ForDrawableSceneEntities(
-		scene, primary_world_camera,
-		[this, &mouse_state](auto& scene, const auto& camera, const auto& filter) {
-			DrawDebugForCamera(scene, mouse_state, camera, filter);
-		}
-	);
 }
 
 InteractionSystem::InteractiveEntities InteractionSystem::GetInteractiveEntities(
@@ -717,7 +699,7 @@ void InteractionSystem::DispatchMouseEvents(
 
 void InteractionSystem::UpdateForCamera(
 	Scene& scene, const impl::MouseInfo& mouse_state, bool& handled_under_mouse,
-	const RenderTarget& render_target, const Camera& camera, std::size_t camera_uuid,
+	const RenderTarget& render_target, const Camera& camera,
 	const std::function<bool(Entity)>& filter, const SceneCamera& scene_camera
 ) {
 	impl::MouseInfo mouse{ mouse_state };
@@ -752,10 +734,8 @@ void InteractionSystem::UpdateForCamera(
 
 	auto dropzones{ GetDropzones(scene) };
 
-	dragging_entities_[camera_uuid].camera = scene_camera;
-	last_mouse_over_[camera_uuid].camera   = scene_camera;
-	auto& dragging_entities				   = dragging_entities_[camera_uuid].entities;
-	auto& last_mouse_over				   = last_mouse_over_[camera_uuid].entities;
+	auto& dragging_entities = dragging_entities_[scene_camera].entities;
+	auto& last_mouse_over	= last_mouse_over_[scene_camera].entities;
 
 	UpdateMouseOverStates(entities.under_mouse, last_mouse_over);
 
@@ -763,7 +743,7 @@ void InteractionSystem::UpdateForCamera(
 
 	HandleDragging(entities.under_mouse, dropzones, mouse, dragging_entities);
 
-	if (auto it{ dragging_entities_.find(camera_uuid) };
+	if (auto it{ dragging_entities_.find(scene_camera) };
 		it != dragging_entities_.end() && !it->second.entities.empty()) {
 		HandleDropzones(dropzones, mouse, dragging_entities);
 	}
@@ -801,7 +781,7 @@ void InteractionSystem::Update(Scene& scene) {
 		PTGN_ASSERT(render_target);
 
 		UpdateForCamera(
-			scene, mouse_state, handled_under_mouse, render_target, primary_world_camera.value(), 0,
+			scene, mouse_state, handled_under_mouse, render_target, primary_world_camera.value(),
 			[](auto) { return false; }, {}
 		);
 
@@ -832,7 +812,7 @@ void InteractionSystem::Update(Scene& scene) {
 
 			UpdateForCamera(
 				scene, mouse_state, handled_under_mouse, render_target,
-				camera.operator ptgn::Camera(), camera.GetUUID(),
+				camera.operator ptgn::Camera(),
 				[camera](auto entity) { return !camera.CanSee(entity); }, camera
 			);
 		}

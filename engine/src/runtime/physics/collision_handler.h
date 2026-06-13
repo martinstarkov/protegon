@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <vector>
 
 #include "core/graphics/color.h"
@@ -17,6 +18,7 @@ namespace ptgn {
 
 class Physics;
 class Scene;
+class SceneCamera;
 class SceneContext;
 
 struct CollisionDebugSettings {
@@ -102,11 +104,9 @@ private:
 
 	void Update(Scene& scene, secondsf dt);
 
-	void DrawDebugForCamera(
-		Scene& scene, const impl::RenderCamera& camera, const impl::EntityFilterFunc& filter
+	void DrawDebug(
+		Scene& scene, const SceneCamera& camera, const impl::EntityFilterFunc& filter
 	) const;
-
-	void DrawDebug(Scene& scene) const;
 
 	impl::KDTree static_tree_{ 100 };
 	impl::KDTree dynamic_tree_{ 100 };

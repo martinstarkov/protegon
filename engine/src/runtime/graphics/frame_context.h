@@ -29,7 +29,7 @@ struct RenderTargetFrame {
 
 struct CameraFrame {
 	/// @brief Pixels in display frame of reference.
-	Viewport camera_viewport;
+	Viewport camera_display_viewport;
 
 	/// @brief Size of the parent render target.
 	V2_float render_target_size;
@@ -61,7 +61,7 @@ public:
 	explicit FrameContext(const Scene& scene);
 	FrameContext(
 		const Renderer& renderer, Transform render_target_transform, V2_float render_target_size,
-		Transform camera_transform, Viewport camera_viewport
+		Transform camera_transform, Viewport camera_display_viewport
 	);
 	FrameContext(const Renderer& renderer, RenderTarget render_target, const Camera& cam);
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <ostream>
 #include <unordered_map>
 #include <utility>
@@ -43,7 +44,6 @@ struct DragState {
 
 struct InteractedEntities {
 	std::vector<Entity> entities;
-	SceneCamera camera;
 };
 
 } // namespace impl
@@ -98,7 +98,7 @@ private:
 
 	void UpdateForCamera(
 		Scene& scene, const impl::MouseInfo& mouse_state, bool& handled_under_mouse,
-		const RenderTarget& render_target, const Camera& camera, std::size_t camera_uuid,
+		const RenderTarget& render_target, const Camera& camera,
 		const std::function<bool(Entity)>& filter, const SceneCamera& scene_camera
 	);
 
@@ -191,18 +191,17 @@ private:
 		const std::vector<Entity>& dragging_entities
 	);
 
-	void DrawDebug(Scene& scene) const;
-	void DrawDebugForCamera(
-		Scene& scene, const impl::MouseInfo& mouse_state, const impl::RenderCamera& camera,
+	void DrawDebug(
+		Scene& scene, const SceneCamera& camera, const Camera& cam, RenderTarget render_target,
 		const impl::EntityFilterFunc& filter
 	) const;
 
-	/// @brief A set of entities currently being dragged per a given camera uuid.
-	std::unordered_map<impl::CameraUUID, impl::InteractedEntities> dragging_entities_;
+	/// @brief A set of entities currently being dragged per a given camera.
+	std::unordered_map<SceneCamera, impl::InteractedEntities> dragging_entities_;
 
 	/// @brief Stores the set of entities that were under the mouse cursor in the previous frame per
 	/// a given camera.
-	std::unordered_map<impl::CameraUUID, impl::InteractedEntities> last_mouse_over_;
+	std::unordered_map<SceneCamera, impl::InteractedEntities> last_mouse_over_;
 	/// @brief Indicates whether only the top interactable entity should be processed or considered.
 	bool top_only_{ false };
 

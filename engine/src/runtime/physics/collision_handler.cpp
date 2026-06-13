@@ -18,14 +18,11 @@
 #include "core/math/vector2.h"
 #include "core/util/span.h"
 #include "core/util/time.h"
-#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
-#include "runtime/graphics/visible.h"
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/broadphase.h"
 #include "runtime/physics/collider.h"
@@ -37,7 +34,6 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
-#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
@@ -613,10 +609,12 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 	}
 }
 
-void CollisionHandler::DrawDebugForCamera(
-	Scene& scene, const impl::RenderCamera& camera, const impl::EntityFilterFunc& filter
+void CollisionHandler::DrawDebug(
+	Scene& scene, const SceneCamera& camera, const impl::EntityFilterFunc& filter
 ) const {
-	PTGN_ASSERT(debug_settings_.draw_enabled);
+	if (!debug_settings_.draw_enabled) {
+		return;
+	}
 
 	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
 		// Mask test (entity layers vs camera include/exclude).
@@ -635,20 +633,6 @@ void CollisionHandler::DrawDebugForCamera(
 							   .debug	   = true }
 		);
 	}
-}
-
-void CollisionHandler::DrawDebug(Scene& scene) const {
-	if (!debug_settings_.draw_enabled) {
-		return;
-	}
-
-	const auto& primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
-
-	impl::ForDrawableSceneEntities(
-		scene, primary_world_camera, [this](auto& scene, const auto& camera, const auto& filter) {
-			DrawDebugForCamera(scene, camera, filter);
-		}
-	);
 }
 
 void CollisionHandler::SetDebugSettings(const CollisionDebugSettings& settings) {

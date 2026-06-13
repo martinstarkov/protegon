@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstdlib>
+#include <functional>
 #include <optional>
 #include <ranges>
 #include <span>
@@ -32,11 +33,9 @@
 #include "core/math/vector4.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
-#include "renderer/renderer.h"
 #include "renderer/resources/framebuffer.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
@@ -44,13 +43,13 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_queue.h"
-#include "runtime/graphics/render_target.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/broadphase.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 
 namespace ptgn {
@@ -274,83 +273,6 @@ void ClearStaleVisibilityPolygon(Entity entity) {
 	}
 }
 
-void BuildForBucket(
-	std::vector<impl::EntityRenderCommand>& commands, std::span<const V2_float> camera_vertices
-) {
-	impl::KDTree tree{ 20 };
-	std::vector<impl::KDObject> objects;
-	std::vector<ShadowCasterEntry> casters;
-	std::unordered_map<Entity, ShadowCasterEntry*> caster_lookup;
-
-	objects.reserve(commands.size());
-	casters.reserve(commands.size());
-
-	auto camera_bounds{ GetBoundingAABB(camera_vertices) };
-
-	for (auto order{ 0uz }; order < commands.size(); ++order) {
-		auto entity{ commands[order].entity };
-
-		if (IsLightEntity(entity)) {
-			ClearStaleVisibilityPolygon(entity);
-		}
-
-		if (!IsUsableShadowCaster(entity)) {
-			continue;
-		}
-
-		auto aabb{ GetShadowCasterAABB(entity) };
-
-		if (!aabb.has_value()) {
-			continue;
-		}
-
-		const auto& caster{ entity.Get<impl::ShadowCaster>() };
-
-		auto& entry{ casters.emplace_back(
-			ShadowCasterEntry{
-				.entity				= entity,
-				.depth				= commands[order].depth,
-				.order				= order,
-				.aabb				= aabb.value(),
-				.masks_light_inside = caster.masks_light_inside,
-			}
-		) };
-
-		caster_lookup.emplace(entity, &entry);
-		objects.emplace_back(entity, aabb.value());
-	}
-
-	if (objects.empty()) {
-		return;
-	}
-
-	tree.Build(objects);
-
-	for (auto order{ 0uz }; order < commands.size(); ++order) {
-		auto entity{ commands[order].entity };
-
-		if (!IsLightEntity(entity)) {
-			continue;
-		}
-
-		auto candidates{ tree.Query(camera_bounds) };
-
-		if (candidates.empty()) {
-			continue;
-		}
-
-		auto polygon{ ComputeVisibilityPolygonForLight(
-			entity, commands[order].depth, order, camera_vertices, casters, candidates
-		) };
-
-		if (polygon.vertices.empty()) {
-			continue;
-		}
-
-		entity.Add<impl::VisibilityPolygon>(std::move(polygon));
-	}
-}
-
 bool IsInvisibleCone(Entity entity) {
 	const auto& light{ entity.Get<impl::LightData>() };
 	return light.cone_angle.has_value() && light.cone_angle.value() == Radians{ 0.0f };
@@ -569,7 +491,7 @@ struct LightVisibilityDebugSettings {
 };
 
 void DrawPolygonLines(
-	Scene& scene, const impl::RenderCamera& camera, std::span<const V2_float> vertices, Color color,
+	Scene& scene, const SceneCamera& camera, std::span<const V2_float> vertices, Color color,
 	const FillStyle& fill_style, float depth
 ) {
 	if (vertices.size() < 2) {
@@ -589,11 +511,95 @@ void DrawPolygonLines(
 	);
 }
 
-void DrawDebugForCamera(
-	Scene& scene, const impl::RenderCamera& camera, const impl::EntityFilterFunc& filter,
-	const LightVisibilityDebugSettings& debug_settings
+} // namespace
+
+namespace impl {
+
+void UpdateLightVisibilityPolygons(
+	std::vector<impl::EntityRenderCommand>& commands, std::span<const V2_float> camera_vertices
 ) {
-	PTGN_ASSERT(debug_settings.draw_enabled);
+	impl::KDTree tree{ 20 };
+	std::vector<impl::KDObject> objects;
+	std::vector<ShadowCasterEntry> casters;
+	std::unordered_map<Entity, ShadowCasterEntry*> caster_lookup;
+
+	objects.reserve(commands.size());
+	casters.reserve(commands.size());
+
+	auto camera_bounds{ GetBoundingAABB(camera_vertices) };
+
+	for (auto order{ 0uz }; order < commands.size(); ++order) {
+		auto entity{ commands[order].entity };
+
+		if (IsLightEntity(entity)) {
+			ClearStaleVisibilityPolygon(entity);
+		}
+
+		if (!IsUsableShadowCaster(entity)) {
+			continue;
+		}
+
+		auto aabb{ GetShadowCasterAABB(entity) };
+
+		if (!aabb.has_value()) {
+			continue;
+		}
+
+		const auto& caster{ entity.Get<impl::ShadowCaster>() };
+
+		auto& entry{ casters.emplace_back(
+			ShadowCasterEntry{
+				.entity				= entity,
+				.depth				= commands[order].depth,
+				.order				= order,
+				.aabb				= aabb.value(),
+				.masks_light_inside = caster.masks_light_inside,
+			}
+		) };
+
+		caster_lookup.emplace(entity, &entry);
+		objects.emplace_back(entity, aabb.value());
+	}
+
+	if (objects.empty()) {
+		return;
+	}
+
+	tree.Build(objects);
+
+	for (auto order{ 0uz }; order < commands.size(); ++order) {
+		auto entity{ commands[order].entity };
+
+		if (!IsLightEntity(entity)) {
+			continue;
+		}
+
+		auto candidates{ tree.Query(camera_bounds) };
+
+		if (candidates.empty()) {
+			continue;
+		}
+
+		auto polygon{ ComputeVisibilityPolygonForLight(
+			entity, commands[order].depth, order, camera_vertices, casters, candidates
+		) };
+
+		if (polygon.vertices.empty()) {
+			continue;
+		}
+
+		entity.Add<impl::VisibilityPolygon>(std::move(polygon));
+	}
+}
+
+void DrawDebugLightVisibilityPolygons(
+	Scene& scene, const SceneCamera& camera, const impl::EntityFilterFunc& filter
+) {
+	constexpr LightVisibilityDebugSettings debug_settings{};
+
+	if (!debug_settings.draw_enabled) {
+		return;
+	}
 
 	for (auto [entity, _light, visibility_polygon] :
 		 scene.EntitiesWith<impl::LightData, impl::VisibilityPolygon>()) {
@@ -626,61 +632,6 @@ void DrawDebugForCamera(
 			);
 		}
 	}
-}
-
-} // namespace
-
-namespace impl {
-
-void BuildLightVisibilityPolygons(
-	Scene&, std::span<const CameraRenderBucket> buckets, V2_int logical_size,
-	const RenderTarget& scene_render_target
-) {
-	for (const auto& bucket : buckets) {
-		if (!bucket.entity_commands) {
-			continue;
-		}
-
-		PTGN_ASSERT(bucket.camera);
-
-		auto render_camera{ *bucket.camera };
-
-		auto render_target{ render_camera.render_target ? render_camera.render_target
-														: scene_render_target };
-
-		PTGN_ASSERT(render_target);
-
-		auto rt_size{ render_target.GetSize() };
-
-		auto viewport{ render_camera.scene_camera
-						   ? render_camera.camera.viewport
-						   : GetRenderViewport(
-								 render_camera.camera.viewport, render_camera.camera.viewport_space,
-								 logical_size, rt_size
-							 ) };
-
-		Rect rect{ viewport.size };
-		auto camera_vertices{ rect.GetWorldVertices(bucket.camera->camera.transform) };
-
-		BuildForBucket(*bucket.entity_commands, camera_vertices);
-	}
-}
-
-void DrawLightVisibilityDebug(Scene& scene) {
-	constexpr LightVisibilityDebugSettings kLightDebugSettings{};
-
-	if (!kLightDebugSettings.draw_enabled) {
-		return;
-	}
-
-	const auto& primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
-
-	impl::ForDrawableSceneEntities(
-		scene, primary_world_camera,
-		[kLightDebugSettings](auto& scene, const auto& camera, const auto& filter) {
-			DrawDebugForCamera(scene, camera, filter, kLightDebugSettings);
-		}
-	);
 }
 
 } // namespace impl

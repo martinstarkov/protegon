@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -13,12 +14,13 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
-#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_queue.h"
+#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/font_style.h"
 #include "runtime/graphics/text/text_effect.h"
 #include "runtime/graphics/text/text_layout.h"
@@ -79,59 +81,6 @@ TextRunStyle MakeDefaultTextRunStyle() {
 	return Rect{ { -size.x * 0.5f, -size.y * 0.5f }, { size.x * 0.5f, size.y * 0.5f } };
 }
 
-void DrawTextLayoutDebugForCamera(
-	Scene& scene, const impl::RenderCamera& camera, const impl::EntityFilterFunc& filter,
-	TextDebugSettings settings
-) {
-	PTGN_ASSERT(settings.draw_enabled);
-
-	for (auto [entity, styled_text, box] : scene.EntitiesWith<StyledText, TextBox>()) {
-		if (filter(entity)) {
-			continue;
-		}
-
-		if (!IsVisible(entity)) {
-			continue;
-		}
-
-		if (!HasVisibleTextContent(styled_text)) {
-			continue;
-		}
-
-		impl::UpdateLayout(entity, scene.ctx().asset, styled_text, box);
-
-		const auto* layout{ entity.TryGet<TextLayout>() };
-		if (!layout) {
-			continue;
-		}
-
-		if (!layout->local_box.GetSize().IsPositive()) {
-			continue;
-		}
-
-		auto origin_point{ impl::GetTextOriginPoint(layout->local_box, GetDrawOrigin(entity)) };
-		auto box_center{ (layout->local_box.min + layout->local_box.max) * 0.5f };
-
-		auto transform{ GetDrawTransform(entity) };
-		transform.Translate(box_center - origin_point);
-
-		auto rect{ Rect{
-			{ -layout->local_box.GetSize().x * 0.5f, -layout->local_box.GetSize().y * 0.5f },
-			{ layout->local_box.GetSize().x * 0.5f, layout->local_box.GetSize().y * 0.5f },
-		} };
-
-		scene.ctx().render_queue.DrawShape(
-			transform, rect, settings.draw_color,
-			ShapeRenderParams{
-				.fill_style = settings.draw_line_width,
-				.origin		= Origin::Center,
-				.camera		= camera,
-				.debug		= true,
-			}
-		);
-	}
-}
-
 [[nodiscard]] std::string ToPlainText(const StyledText& styled_text) {
 	std::string result;
 
@@ -189,7 +138,9 @@ void DrawTextLayoutDebugForCamera(
 
 namespace impl {
 
-void DrawTextLayoutDebug(Scene& scene) {
+void DrawDebugTextBoundingBoxes(
+	Scene& scene, const std::optional<SceneCamera>& camera, const impl::EntityFilterFunc& filter
+) {
 	TextDebugSettings settings{ scene.ctx().debug.text };
 
 	if (scene.ctx().debug_local.text.draw_enabled) {
@@ -200,14 +151,48 @@ void DrawTextLayoutDebug(Scene& scene) {
 		return;
 	}
 
-	const auto& primary_world_camera{ scene.ctx().renderer.GetPrimaryWorldCamera() };
-
-	ForDrawableSceneEntities(
-		scene, primary_world_camera,
-		[&settings](Scene& scene, const RenderCamera& camera, const EntityFilterFunc& filter) {
-			DrawTextLayoutDebugForCamera(scene, camera, filter, settings);
+	for (auto [entity, _visible, styled_text, box] :
+		 scene.EntitiesWith<Visible, StyledText, TextBox>()) {
+		if (filter(entity)) {
+			continue;
 		}
-	);
+
+		if (!HasVisibleTextContent(styled_text)) {
+			continue;
+		}
+
+		impl::UpdateLayout(entity, scene.ctx().asset, styled_text, box);
+
+		const auto* layout{ entity.TryGet<TextLayout>() };
+		if (!layout) {
+			continue;
+		}
+
+		if (!layout->local_box.GetSize().IsPositive()) {
+			continue;
+		}
+
+		auto origin_point{ impl::GetTextOriginPoint(layout->local_box, GetDrawOrigin(entity)) };
+		auto box_center{ (layout->local_box.min + layout->local_box.max) * 0.5f };
+
+		auto transform{ GetDrawTransform(entity) };
+		transform.Translate(box_center - origin_point);
+
+		auto rect{ Rect{
+			{ -layout->local_box.GetSize().x * 0.5f, -layout->local_box.GetSize().y * 0.5f },
+			{ layout->local_box.GetSize().x * 0.5f, layout->local_box.GetSize().y * 0.5f },
+		} };
+
+		scene.ctx().render_queue.DrawShape(
+			transform, rect, settings.draw_color,
+			ShapeRenderParams{
+				.fill_style = settings.draw_line_width,
+				.origin		= Origin::Center,
+				.camera		= camera,
+				.debug		= true,
+			}
+		);
+	}
 }
 
 } // namespace impl

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string_view>
 
 #include "core/graphics/color.h"
@@ -18,6 +19,7 @@ namespace ptgn {
 class DrawContext;
 class Scene;
 class AssetManager;
+class SceneCamera;
 
 namespace impl {
 
@@ -25,7 +27,9 @@ struct TextEditState {
 	std::size_t current_run_index{ 0 };
 };
 
-void DrawTextLayoutDebug(Scene& scene);
+void DrawDebugTextBoundingBoxes(
+	Scene& scene, const std::optional<SceneCamera>& camera, const impl::EntityFilterFunc& filter
+);
 
 } // namespace impl
 

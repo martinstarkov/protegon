@@ -4,12 +4,12 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -17,13 +17,18 @@
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/math/matrix4.h"
+#include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "core/util/hash.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/effect_params.h"
-#include "renderer/pipeline/scaling_mode.h"
+#include "renderer/pipeline/render_state.h"
+#include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/framebuffer.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/animation/animation.h"
@@ -39,6 +44,7 @@
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/render_target.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interaction_system.h"
@@ -79,44 +85,233 @@ void SortEntityDrawCommands(std::vector<impl::EntityRenderCommand>& commands) {
 	});
 }
 
-std::vector<impl::CameraEntityCommands> GetEntityRenderCommands(
-	Scene& scene, const std::optional<Camera>& primary_world_camera
+Viewport GetDisplayViewport(
+	const Renderer& renderer, const Camera& camera, RenderTarget render_target
 ) {
-	std::vector<impl::CameraEntityCommands> entity_commands;
+	auto logical_size{ renderer.GetLogicalSize() };
 
-	auto get_entity_commands_for_camera =
-		[&entity_commands](const auto& camera) -> impl::CameraEntityCommands& {
-		if (auto it{ std::ranges::find_if(
-				entity_commands,
-				[&camera](const auto& camera_entity_commands) {
-					return camera_entity_commands.camera == camera;
-				}
-			) };
-			it != entity_commands.end()) {
-			return *it;
-		}
+	V2_float display_position{ renderer.GetDisplayPosition() };
+	auto render_target_size{ render_target.GetSize() };
 
-		return entity_commands.emplace_back(impl::CameraEntityCommands{ .camera = camera });
-	};
+	auto display_viewport{ ptgn::GetDisplayViewport(
+		camera.raw_viewport, camera.viewport_space, logical_size, render_target_size
+	) };
 
-	impl::ForDrawableSceneEntities(
-		scene, primary_world_camera,
-		[&get_entity_commands_for_camera](auto& scene_ref, const auto& camera, const auto& filter) {
-			auto& camera_entity_commands{ get_entity_commands_for_camera(camera) };
+	display_viewport.position += display_position;
 
-			for (auto [entity, _visible, _drawable] :
-				 scene_ref.template EntitiesWith<impl::Visible, impl::IDrawable>()) {
-				// Mask test (entity layers vs camera include/exclude).
-				if (filter(entity)) {
-					continue;
-				}
+	return display_viewport;
+}
 
-				camera_entity_commands.commands.emplace_back(entity, GetDepth(entity));
-			}
-		}
+void SetupCamera(
+	Renderer& render, const Matrix4& view_projection, Viewport display_viewport,
+	RenderTarget render_target, std::optional<Color> clear_color
+) {
+	impl::RendererAccessor renderer{ render };
+
+	renderer.SetFramebuffer(&render_target.Get<impl::FramebufferObject>());
+
+	renderer.SetViewport(display_viewport);
+	renderer.SetViewProjection(view_projection);
+	renderer.SetScissor(ScissorState{ display_viewport });
+
+	if (clear_color.has_value()) {
+		render_target.ClearColor(clear_color.value(), false);
+	}
+}
+
+void ApplyCameraEffects(
+	Renderer& render, DrawContext& draw_context, Viewport display_viewport,
+	V2_float render_target_size, const Matrix4& view_projection, Color tint,
+	const impl::EffectParams& effect_params
+) {
+	if (tint == color::White && !effect_params.draw_callback) {
+		return;
+	}
+
+	impl::RendererAccessor renderer{ render };
+
+	auto texture{ renderer.GetTexture(renderer.GetBoundFramebuffer()) };
+
+	PTGN_ASSERT(view_projection == draw_context.GetRenderState().view_projection);
+	PTGN_ASSERT(display_viewport == draw_context.GetRenderState().viewport);
+	PTGN_ASSERT(
+		display_viewport == draw_context.GetRenderState().scissor.viewport &&
+		draw_context.GetRenderState().scissor.enabled
 	);
 
+	renderer.FlushBatch();
+
+	TextureDrawParams params{ .size{ display_viewport.size },
+							  .tint{ tint },
+							  .texture_coordinates{ impl::GetTextureCoordinates(
+								  display_viewport.position, display_viewport.size,
+								  render_target_size, true, true
+							  ) },
+							  .effects{ effect_params } };
+
+	// No margin for camera effects so cameras do not exceed their viewports
+	params.effects.margin = 0;
+
+	draw_context.WithRenderState(
+		{ .view_projection = Matrix4::Orthographic(display_viewport.size),
+		  .blend_mode	   = BlendMode::ReplaceRGBA },
+		[&draw_context, texture, &params, &renderer]() {
+			draw_context.DrawTexture({}, texture, std::move(params));
+
+			renderer.FlushBatch();
+		}
+	);
+}
+
+template <InvocableR<bool, Entity> F>
+std::vector<impl::EntityRenderCommand> GetSortedEntityCommands(auto entity_view, F&& filter) {
+	std::vector<impl::EntityRenderCommand> entity_commands;
+
+	for (auto tuple : entity_view) {
+		auto entity{ std::get<0>(tuple) };
+
+		if (filter(entity)) {
+			continue;
+		}
+
+		entity_commands.emplace_back(entity, GetDepth(entity));
+	}
+
+	SortEntityDrawCommands(entity_commands);
+
 	return entity_commands;
+}
+
+template <InvocableR<bool, Entity> F>
+void DrawCommands(
+	Renderer& renderer, DrawContext& draw_context, Viewport display_viewport,
+	V2_float render_target_size, const Matrix4& view_projection, auto& manual_commands, Color tint,
+	const impl::EffectParams& effect_params, auto entities, F&& filter, bool debug
+) {
+	std::size_t entity_index{ 0 };
+	std::size_t manual_index{ 0 };
+
+	std::vector<impl::EntityRenderCommand> entity_commands;
+
+	// Debug entity commands not supported.
+	if (!debug) {
+		entity_commands = GetSortedEntityCommands(entities, std::forward<F>(filter));
+	}
+
+	manual_commands.Sort();
+
+	auto entity_count{ entity_commands.size() };
+	auto manual_count{ manual_commands.Count() };
+
+	auto draw_entity = [&]() {
+		PTGN_ASSERT(entity_index < entity_commands.size());
+		const auto& entity_cmd{ entity_commands[entity_index] };
+		PTGN_ASSERT(IsVisible(entity_cmd.entity), "Cannot render entity without visible component");
+		impl::InvokeDrawable(draw_context, entity_cmd.entity);
+		entity_index++;
+	};
+
+	auto draw_command = [&]() {
+		manual_commands.Draw(renderer, manual_index);
+		manual_index++;
+	};
+
+	while (entity_index < entity_count || manual_index < manual_count) {
+		if (manual_index >= manual_count) {
+			draw_entity();
+			continue;
+		}
+
+		if (entity_index >= entity_count) {
+			draw_command();
+			continue;
+		}
+
+		PTGN_ASSERT(entity_index < entity_commands.size());
+
+		auto entity_cmd_depth{ entity_commands[entity_index].depth };
+		auto manual_cmd_depth{ manual_commands.GetDepth(manual_index) };
+
+		if (entity_cmd_depth <= manual_cmd_depth) {
+			draw_entity();
+		} else {
+			draw_command();
+		}
+	}
+
+	entity_commands.clear();
+
+	manual_commands.Clear();
+
+	ApplyCameraEffects(
+		renderer, draw_context, display_viewport, render_target_size, view_projection, tint,
+		effect_params
+	);
+}
+
+template <InvocableR<bool, Entity> F>
+void DrawCommands(
+	Renderer& renderer, DrawContext& draw_context, auto view, auto& commands, auto& debug_commands,
+	F filter, Viewport display_viewport, V2_float render_target_size,
+	const Matrix4& view_projection, Color tint, const impl::EffectParams& effect_params
+) {
+	DrawCommands(
+		renderer, draw_context, display_viewport, render_target_size, view_projection, commands,
+		tint, effect_params, view, filter, false
+	);
+
+	DrawCommands(
+		renderer, draw_context, display_viewport, render_target_size, view_projection,
+		debug_commands, tint, effect_params, view, filter, true
+	);
+}
+
+template <InvocableR<bool, Entity> F>
+void DrawCamera(
+	Renderer& renderer, DrawContext& draw_context, auto view, RenderTarget render_target,
+	const Camera& camera, std::optional<Color> clear_color, auto& commands, auto& debug_commands,
+	Color tint, const impl::EffectParams& effect_params, F&& filter
+) {
+	auto display_viewport{ GetDisplayViewport(renderer, camera, render_target) };
+
+	auto render_target_size{ render_target.GetSize() };
+
+	SetupCamera(renderer, camera.view_projection, display_viewport, render_target, clear_color);
+
+	DrawCamera(
+		renderer, draw_context, view, commands, debug_commands, std::forward<F>(filter),
+		display_viewport, render_target_size, camera.view_projection, tint, effect_params
+	);
+}
+
+template <InvocableR<bool, Entity> F>
+void DrawScene(
+	Scene& scene, DrawContext& draw_context, const RenderTarget& render_target, const Camera& cam,
+	const SceneCamera& camera, std::optional<Color> clear_color, Color tint,
+	const impl::EffectParams& effect_params, F&& filter
+) {
+	auto& commands{ scene.ctx().render_queue.GetRenderCommands(camera, false) };
+	auto& debug_commands{ scene.ctx().render_queue.GetRenderCommands(camera, true) };
+
+	auto light_entity_commands{ GetSortedEntityCommands(
+		scene.EntitiesWith<impl::LightData, impl::VisibilityPolygon>(), filter
+	) };
+
+	impl::UpdateLightVisibilityPolygons(
+		light_entity_commands, cam.GetWorldVertices(scene.ctx().renderer.GetLogicalSize())
+	);
+
+	scene.ctx().collision.DrawDebug(scene, camera, filter);
+	scene.ctx().interaction.DrawDebug(scene, camera, cam, render_target, filter);
+	impl::DrawDebugLightVisibilityPolygons(scene, camera, filter);
+	impl::DrawDebugTextBoundingBoxes(scene, camera, filter);
+
+	auto view{ scene.EntitiesWith<impl::Visible, impl::IDrawable>() };
+
+	DrawCamera(
+		scene.ctx().renderer, draw_context, view, render_target, cam, clear_color, commands,
+		debug_commands, tint, effect_params, filter
+	);
 }
 
 } // namespace
@@ -134,9 +329,8 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	);
 	SetUI(ctx_->fixed_camera_, true);
 
-	render_target_ = CreateRenderTarget(
-		*this, ResizeType::Display, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat
-	);
+	render_target_ =
+		CreateRenderTarget(*this, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
 	render_target_.SetTag(kDefaultSceneTargetTag);
 	render_target_.Remove<impl::IDrawable>();
 
@@ -213,209 +407,71 @@ bool Scene::IsAwaitingTransitionDelay() const {
 	return data_.transition && !data_.transition->IsStarted();
 }
 
-void Scene::DrawCameras() {
+void Scene::ClearRenderTargets(DrawContext& draw_context) {
+	draw_context.WithPreservedRenderTarget([this]() {
+		for (auto [render_target, frame_buffer] : EntitiesWith<impl::FramebufferObject>()) {
+			RenderTarget{ render_target }.ClearColor(std::nullopt, false);
+		}
+	});
+}
+
+void Scene::DrawCameras(DrawContext& draw_context) {
 	std::vector<Entity> camera_entities;
 
-	for (auto [camera, _data] : EntitiesWith<impl::CameraData>()) {
-		impl::RecalculateCameraViewProjection(SceneCamera{ camera });
-		camera_entities.emplace_back(camera);
+	for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
+		impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
+		camera_entities.emplace_back(camera_entity);
 	}
 
 	SortByDepth(camera_entities, false);
 
-	for (const auto& camera : camera_entities) {
-		// TODO: Bind parent render target.
-		Draw(camera);
-	}
-}
+	for (const auto& camera_entity : camera_entities) {
+		SceneCamera camera{ camera_entity };
 
-void Scene::Draw(Camera camera, impl::Tint tint, const impl::EffectParams& effect_params) {
-	// TODO: Fix this.
-
-	PTGN_ASSERT(bucket.camera);
-
-	auto render_camera{ *bucket.camera };
-
-	auto render_target{ render_camera.render_target ? render_camera.render_target
-													: scene_render_target };
-
-	impl::RendererAccessor renderer{ renderer_ };
-
-	renderer.SetFramebuffer(&render_target.Get<impl::FramebufferObject>());
-
-	if (bool clear_render_target{ !std::ranges::contains(cleared.render_targets, render_target) };
-		clear_render_target) {
-		render_target.ClearColor(std::nullopt, false);
-		cleared.render_targets.emplace_back(render_target);
-	}
-
-	PTGN_ASSERT(logical_size.IsPositive(), "Logical size must be positive");
-
-	auto rt_size{ render_target.GetSize() };
-
-	auto viewport{ render_camera.scene_camera
-					   ? render_camera.camera.viewport
-					   : GetRenderViewport(
-							 render_camera.camera.viewport, render_camera.camera.viewport_space,
-							 logical_size, rt_size
-						 ) };
-
-	renderer.SetViewport(viewport);
-	renderer.SetViewProjection(render_camera.camera.view_projection);
-	renderer.SetScissor(ScissorState{ viewport });
-
-	if (bool clear_camera{ !std::ranges::contains(cleared.cameras, render_camera.uuid) };
-		clear_camera && render_camera.clear_color.has_value()) {
-		render_target.ClearColor(render_camera.clear_color.value(), false);
-		cleared.cameras.emplace_back(render_camera.uuid);
-	}
-
-	std::size_t entity_index{ 0 };
-	std::size_t manual_index{ 0 };
-
-	if (bucket.entity_commands) {
-		SortEntityDrawCommands(*bucket.entity_commands);
-	}
-
-	if (bucket.manual_commands) {
-		bucket.manual_commands->Sort();
-	}
-
-	auto entity_count{ bucket.entity_commands ? bucket.entity_commands->size() : 0 };
-	auto manual_count{ bucket.manual_commands ? bucket.manual_commands->Count() : 0 };
-
-	while (entity_index < entity_count || manual_index < manual_count) {
-		if (manual_index >= manual_count) {
-			PTGN_ASSERT(bucket.entity_commands);
-			const auto& entity_cmd{ (*bucket.entity_commands)[entity_index] };
-			PTGN_ASSERT(
-				IsVisible(entity_cmd.entity), "Cannot render entity without visible component"
-			);
-			impl::InvokeDrawable(ctx, entity_cmd.entity);
-			entity_index++;
-			continue;
-		}
-
-		if (entity_index >= entity_count) {
-			PTGN_ASSERT(bucket.manual_commands);
-			bucket.manual_commands->Draw(renderer_, manual_index);
-			manual_index++;
-			continue;
-		}
-
-		auto entity_cmd_depth{ (*bucket.entity_commands)[entity_index].depth };
-		auto manual_cmd_depth{ bucket.manual_commands->GetDepth(manual_index) };
-
-		if (NearlyEqual(entity_cmd_depth, manual_cmd_depth) ||
-			entity_cmd_depth < manual_cmd_depth) {
-			PTGN_ASSERT(bucket.entity_commands);
-			const auto& entity_cmd{ (*bucket.entity_commands)[entity_index] };
-			PTGN_ASSERT(
-				IsVisible(entity_cmd.entity), "Cannot render entity without visible component"
-			);
-			impl::InvokeDrawable(ctx, entity_cmd.entity);
-			entity_index++;
-		} else {
-			PTGN_ASSERT(bucket.manual_commands);
-			bucket.manual_commands->Draw(renderer_, manual_index);
-			manual_index++;
-		}
-	}
-
-	if (bucket.entity_commands) {
-		bucket.entity_commands->clear();
-	}
-
-	if (bucket.manual_commands) {
-		bucket.manual_commands->Clear();
-	}
-
-	PTGN_ASSERT(bucket.camera);
-	if (auto camera_tint{ bucket.camera->tint };
-		camera_tint != color::White || bucket.camera->effect_params.draw_callback) {
-		auto apply_camera_effects = [&]() {
-			auto texture{ renderer.GetTexture(renderer.GetBoundFramebuffer()) };
-
-			PTGN_ASSERT(viewport == ctx.GetRenderState().viewport);
-			PTGN_ASSERT(
-				render_camera.camera.view_projection == ctx.GetRenderState().view_projection
-			);
-			PTGN_ASSERT(
-				viewport == ctx.GetRenderState().scissor.viewport &&
-				ctx.GetRenderState().scissor.enabled
-			);
-
-			renderer.FlushBatch();
-
-			TextureDrawParams params{ .size{ viewport.size },
-									  .tint{ bucket.camera->tint },
-									  .texture_coordinates{ impl::GetTextureCoordinates(
-										  viewport.position, viewport.size, rt_size, true, true
-									  ) },
-									  .effects{ bucket.camera->effect_params } };
-
-			// No margin for camera effects so cameras do not exceed their viewports
-			params.effects.margin = 0;
-
-			ctx.WithRenderState(
-				{ .view_projection = Matrix4::Orthographic(viewport.size),
-				  .blend_mode	   = BlendMode::ReplaceRGBA },
-				[&]() {
-					ctx.DrawTexture({}, texture, std::move(params));
-
-					renderer.FlushBatch();
-				}
-			);
+		auto render_target{ camera.GetRenderTarget() };
+		auto tint{ GetTint(camera) };
+		auto effect_params{ impl::GetEffectParams(camera) };
+		auto cam{ camera.operator Camera() };
+		auto clear_color{ camera.GetClearColor() };
+		auto filter = [camera](auto entity) {
+			return !camera.CanSee(entity);
 		};
 
-		apply_camera_effects();
+		DrawScene(
+			*this, draw_context, render_target, cam, camera, clear_color, tint, effect_params,
+			filter
+		);
 	}
-
-	renderer.SetScissor(ScissorState{ false });
 }
 
 void Scene::InternalDraw(DrawContext& draw_context) {
-	for (auto [camera, _data] : EntitiesWith<impl::CameraData>()) {
-		impl::RecalculateCameraViewProjection(SceneCamera{ camera });
-	}
-
 	const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
 
-	auto entity_commands{ GetEntityRenderCommands(*this, primary_world_camera) };
-
-	ctx().collision.DrawDebug(*this);
-	ctx().interaction.DrawDebug(*this);
-	impl::DrawTextLayoutDebug(*this);
-	impl::DrawLightVisibilityDebug(*this);
-
-	impl::ClearedEntities cleared;
-
-	auto logical_size{ ctx().renderer.GetLogicalSize() };
-
 	if (primary_world_camera.has_value()) {
-		impl::RenderCamera render_camera{ primary_world_camera.value() };
-		ctx().render_queue.CombineCommands(render_camera);
+		ctx().render_queue.CombineCommands();
 
 		PTGN_ASSERT(ctx().render_queue.render_commands_.size() == 1);
 		PTGN_ASSERT(ctx().render_queue.debug_commands_.size() == 1);
+
+		SceneCamera camera;
+		auto render_target{ GetRenderTarget() };
+		auto tint{ color::White };
+		impl::EffectParams effect_params;
+		Camera cam{ primary_world_camera.value() };
+		auto clear_color{ color::Transparent };
+		auto filter = [](auto) {
+			return false;
+		};
+
+		DrawScene(
+			*this, draw_context, render_target, cam, camera, clear_color, tint, effect_params,
+			filter
+		);
+	} else {
+		DrawCameras(draw_context);
 	}
 
-	auto buckets{
-		RenderQueue::GetRenderBuckets(ctx().render_queue.render_commands_, entity_commands)
-	};
-
-	impl::BuildLightVisibilityPolygons(*this, buckets, logical_size, render_target_);
-
-	ctx().render_queue.Draw(draw_context, render_target_, cleared, logical_size, buckets);
-
-	// Currently always empty.
-	std::vector<impl::CameraEntityCommands> debug_entity_commands;
-
-	auto debug_buckets{
-		RenderQueue::GetRenderBuckets(ctx().render_queue.debug_commands_, debug_entity_commands)
-	};
-
-	ctx().render_queue.Draw(draw_context, render_target_, cleared, logical_size, debug_buckets);
+	impl::RendererAccessor{ ctx().renderer }.SetScissor(ScissorState{ false });
 
 	impl::RendererAccessor renderer{ ctx().renderer };
 
@@ -440,15 +496,17 @@ void Scene::DrawSceneTarget(DrawContext& draw_context) const {
 	// No margin for scene effects so render targets do not exceed their sizes.
 	effects.margin = 0;
 
-	draw_context.WithBlendMode(blend_mode, [&]() {
-		draw_context.DrawTexture(
-			draw_transform, texture,
-			{ .size				   = render_target_.GetSize(),
-			  .tint				   = GetTint(render_target_),
-			  .texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
-			  .effects			   = std::move(effects) }
-		);
-	});
+	draw_context.WithBlendMode(
+		blend_mode, [this, &draw_context, draw_transform, texture, &effects]() {
+			draw_context.DrawTexture(
+				draw_transform, texture,
+				{ .size				   = render_target_.GetSize(),
+				  .tint				   = GetTint(render_target_),
+				  .texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
+				  .effects			   = std::move(effects) }
+			);
+		}
+	);
 }
 
 void Scene::InternalUpdate() {

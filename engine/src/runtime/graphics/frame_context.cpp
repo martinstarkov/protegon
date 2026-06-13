@@ -17,12 +17,12 @@
 namespace ptgn {
 
 FrameContext::FrameContext(const Scene& scene) :
-	FrameContext{ scene.ctx().renderer, scene.ctx().camera.GetParentRenderTarget(),
+	FrameContext{ scene.ctx().renderer, scene.ctx().camera.GetRenderTarget(),
 				  scene.ctx().camera.operator Camera() } {}
 
 FrameContext::FrameContext(
 	const Renderer& renderer, Transform render_target_transform, V2_float render_target_size,
-	Transform camera_transform, Viewport render_viewport
+	Transform camera_transform, Viewport camera_display_viewport
 ) {
 	auto presentation_viewport{ renderer.GetPresentationViewport() };
 	auto display_viewport{ renderer.GetDisplayViewport() };
@@ -50,9 +50,9 @@ FrameContext::FrameContext(
 
 	render_target = RenderTargetFrame{ .render_target_transform = render_target_transform };
 
-	camera = CameraFrame{ .camera_viewport	  = render_viewport,
-						  .render_target_size = render_target_size,
-						  .scale			  = render_target_size / logical_size };
+	camera = CameraFrame{ .camera_display_viewport = camera_display_viewport,
+						  .render_target_size	   = render_target_size,
+						  .scale				   = render_target_size / logical_size };
 
 	world = WorldFrame{ .camera_transform = camera_transform };
 }
@@ -61,7 +61,11 @@ FrameContext::FrameContext(
 	const Renderer& renderer, RenderTarget render_target_entity, const Camera& cam
 ) :
 	FrameContext{ renderer, GetTransform(render_target_entity), render_target_entity.GetSize(),
-				  cam.transform, cam.viewport } {}
+				  cam.transform,
+				  GetDisplayViewport(
+					  cam.raw_viewport, cam.viewport_space, renderer.GetLogicalSize(),
+					  render_target_entity.GetSize()
+				  ) } {}
 
 V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx) {
 	int a{ std::to_underlying(from) };
@@ -181,13 +185,15 @@ V2_float RenderTargetToDisplay(
 V2_float RenderTargetToCamera(V2_float render_target_point, const CameraFrame& camera_frame) {
 	PTGN_ASSERT(camera_frame.scale.IsPositive(), "Camera scale must be positive");
 
-	auto top_left{ CenterToTopLeft(render_target_point, camera_frame.render_target_size) };
+	auto render_target_top_left_point{
+		CenterToTopLeft(render_target_point, camera_frame.render_target_size)
+	};
 
-	auto viewport_center{ camera_frame.camera_viewport.GetCenter() };
+	auto display_viewport_center{ camera_frame.camera_display_viewport.GetCenter() };
 
-	auto offset{ top_left - viewport_center };
+	auto scaled_camera_point{ render_target_top_left_point - display_viewport_center };
 
-	auto camera_point{ offset / camera_frame.scale };
+	auto camera_point{ scaled_camera_point / camera_frame.scale };
 
 	return camera_point;
 }
@@ -195,13 +201,15 @@ V2_float RenderTargetToCamera(V2_float render_target_point, const CameraFrame& c
 V2_float CameraToRenderTarget(V2_float camera_point, const CameraFrame& camera_frame) {
 	PTGN_ASSERT(camera_frame.scale.IsPositive(), "Camera scale must be positive");
 
-	auto viewport_center{ camera_frame.camera_viewport.GetCenter() };
+	auto display_viewport_center{ camera_frame.camera_display_viewport.GetCenter() };
 
 	auto scaled_camera_point{ camera_point * camera_frame.scale };
 
-	auto top_left{ scaled_camera_point + viewport_center };
+	auto render_target_top_left_point{ scaled_camera_point + display_viewport_center };
 
-	auto render_target_point{ TopLeftToCenter(top_left, camera_frame.render_target_size) };
+	auto render_target_point{
+		TopLeftToCenter(render_target_top_left_point, camera_frame.render_target_size)
+	};
 
 	return render_target_point;
 }

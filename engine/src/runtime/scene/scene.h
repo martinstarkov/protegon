@@ -2,24 +2,19 @@
 
 #include <ecs/ecs.h>
 
+#include <algorithm>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 #include "core/event/event.h"
 #include "core/graphics/color.h"
-#include "core/util/concepts.h"
-#include "renderer/pipeline/camera.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_target.h"
-#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_common.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scene/scene_view.h"
@@ -31,10 +26,9 @@ namespace ptgn {
 class Application;
 class Scene;
 class EventHandler;
+class LocalEventHandler;
 class SceneContext;
-class LocalSceneManager;
 class DrawContext;
-class CollisionHandler;
 
 namespace impl {
 
@@ -249,8 +243,8 @@ private:
 
 	void InternalUpdate();
 	void InternalDraw(DrawContext& draw_context);
-	void DrawCamera(Camera camera, RenderTarget render_target);
-	void DrawCameras();
+	void ClearRenderTargets(DrawContext& draw_context);
+	void DrawCameras(DrawContext& draw_context);
 	void DrawSceneTarget(DrawContext& draw_context) const;
 	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
 
@@ -280,53 +274,6 @@ struct MemberPointerClass<R (C::*)(Args...) const> {
 template <SceneType TScene>
 void InitScene(TScene& scene, Application& app, SceneData&& scene_data) {
 	scene.Init(app, std::move(scene_data));
-}
-
-template <InvocableR<void, Scene&, const RenderCamera&, EntityFilterFunc> F>
-void ForDrawableSceneEntities(
-	Scene& scene, const std::optional<Camera>& primary_world_camera, F&& per_camera_draw_func
-) {
-	if (primary_world_camera.has_value()) {
-		// If a primary world camera is set, we draw all entities in a single pass using that
-		// camera.
-		RenderCamera render_camera{ primary_world_camera.value() };
-
-		auto filter = [](auto) {
-			// TODO: Add frustum culling.
-			// if (!std::ranges::contains(frustum_objects, entity)) {
-			//	continue;
-			//}
-
-			return false;
-		};
-
-		std::invoke(std::forward<F>(per_camera_draw_func), scene, render_camera, filter);
-
-	} else {
-		std::vector<Entity> camera_entities;
-
-		for (auto [camera_entity, _data] : scene.EntitiesWith<CameraData>()) {
-			camera_entities.emplace_back(camera_entity);
-		}
-
-		SortByDepth(camera_entities, false);
-
-		for (const auto& camera_entity : camera_entities) {
-			SceneCamera scene_camera{ camera_entity };
-			RenderCamera render_camera{ scene_camera };
-
-			auto filter = [&scene_camera](auto entity) {
-				// TODO: Add frustum culling.
-				// if (!std::ranges::contains(frustum_objects, entity)) {
-				//	continue;
-				//}
-
-				return !scene_camera.CanSee(entity);
-			};
-
-			std::invoke(std::forward<F>(per_camera_draw_func), scene, render_camera, filter);
-		}
-	}
 }
 
 } // namespace impl
