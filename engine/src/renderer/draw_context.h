@@ -59,6 +59,25 @@ struct TextureDrawParams {
 
 class DrawContext {
 private:
+	class RenderTargetScope {
+	private:
+		explicit RenderTargetScope(DrawContext& ctx);
+
+		RenderTargetScope(const RenderTargetScope&)			   = delete;
+		RenderTargetScope& operator=(const RenderTargetScope&) = delete;
+
+		RenderTargetScope(RenderTargetScope&&) noexcept			   = delete;
+		RenderTargetScope& operator=(RenderTargetScope&&) noexcept = delete;
+
+		~RenderTargetScope();
+
+		friend class DrawContext;
+
+		DrawContext& ctx_;
+		impl::FramebufferObject* previous_framebuffer_{ nullptr };
+		Viewport previous_viewport_;
+	};
+
 	class RenderStateScope {
 	private:
 		RenderStateScope() = delete;
@@ -82,7 +101,7 @@ private:
 	class TemporaryFramebufferScope {
 	public:
 		TemporaryFramebufferScope(
-			DrawContext& ctx, TextureDesc desc, std::optional<TextureDesc> other_desc
+			DrawContext& ctx, TextureDesc desc, const std::optional<TextureDesc>& other_desc
 		);
 
 		TemporaryFramebufferScope(const TemporaryFramebufferScope&)			   = delete;
@@ -110,34 +129,44 @@ public:
 	}
 
 	/// @brief User is responsible for ensuring that the framebuffer is cleared before use.
-	template <InvocableR<void, impl::FramebufferObject&> F>
-	void WithTemporaryFramebuffer(TextureDesc desc, F&& function) {
+	void WithTemporaryFramebuffer(
+		TextureDesc desc, InvocableR<void, impl::FramebufferObject&> auto&& function
+	) {
 		TemporaryFramebufferScope scope{ *this, desc };
 
-		std::invoke(std::forward<F>(function), scope.Get());
+		function(scope.Get());
 	}
 
 	/// @brief User is responsible for ensuring that the framebuffer is cleared before use.
-	template <InvocableR<void, impl::FramebufferObject&> F>
-	void WithTemporaryFramebuffer(TextureDesc desc, TextureDesc other_desc, F&& function) {
+	void WithTemporaryFramebuffer(
+		TextureDesc desc, TextureDesc other_desc,
+		InvocableR<void, impl::FramebufferObject&> auto&& function
+	) {
 		TemporaryFramebufferScope scope{ *this, desc, other_desc };
 
-		std::invoke(std::forward<F>(function), scope.Get());
+		function(scope.Get());
 	}
 
+	/// @brief Preserves the current framebuffer and viewport, and restores them after the function
+	/// is executed.
+	//
+	void WithPreservedRenderTarget(InvocableR<void> auto&& function) {
+		RenderTargetScope scope{ *this };
+
+		function();
+	}
+
+	/// @brief Sets the framebuffer and viewport, and restores to their previous values after the
+	/// function is executed.
 	void WithRenderTarget(
 		impl::FramebufferObject* framebuffer, Viewport viewport, InvocableR<void> auto&& function
 	) {
-		auto previous_framebuffer{ &GetBoundFramebuffer() };
-		auto previous_viewport{ GetRenderState().viewport };
+		RenderTargetScope scope{ *this };
 
 		SetFramebuffer(framebuffer);
 		SetViewport(viewport);
 
 		function();
-
-		SetFramebuffer(previous_framebuffer);
-		SetViewport(previous_viewport);
 	}
 
 	void WithBlendMode(BlendMode blend_mode, InvocableR<void> auto&& function) {
@@ -247,7 +276,7 @@ private:
 
 	/// @brief NOTE: Caller is responsible for clearing the acquired framebuffer.
 	[[nodiscard]] impl::FramebufferId AcquireFramebuffer(
-		TextureDesc desc, std::optional<TextureDesc> other_desc
+		TextureDesc desc, const std::optional<TextureDesc>& other_desc
 	);
 
 	void ReleaseFramebuffer(impl::FramebufferId framebuffer);

@@ -24,6 +24,7 @@
 #include "renderer/pipeline/framebuffer_pool.h"
 #include "renderer/pipeline/render_pass_builder.h"
 #include "renderer/pipeline/render_primitives.h"
+#include "renderer/pipeline/render_request.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/shape_primitives.h"
 #include "renderer/pipeline/viewport.h"
@@ -81,8 +82,18 @@ DrawContext::RenderStateScope::~RenderStateScope() {
 	ctx_.SetRenderState(previous_state_);
 }
 
+DrawContext::RenderTargetScope::RenderTargetScope(DrawContext& ctx) :
+	ctx_{ ctx },
+	previous_framebuffer_{ &ctx.GetBoundFramebuffer() },
+	previous_viewport_{ ctx.GetRenderState().viewport } {}
+
+DrawContext::RenderTargetScope::~RenderTargetScope() {
+	ctx_.SetFramebuffer(previous_framebuffer_);
+	ctx_.SetViewport(previous_viewport_);
+}
+
 DrawContext::TemporaryFramebufferScope::TemporaryFramebufferScope(
-	DrawContext& ctx, TextureDesc desc, std::optional<TextureDesc> other_desc
+	DrawContext& ctx, TextureDesc desc, const std::optional<TextureDesc>& other_desc
 ) :
 	ctx_{ ctx }, framebuffer_{ ctx_.AcquireFramebuffer(desc, other_desc) } {}
 
@@ -315,7 +326,7 @@ bool DrawContext::FramebufferPoolHas(impl::FramebufferId framebuffer) const {
 }
 
 impl::FramebufferId DrawContext::AcquireFramebuffer(
-	TextureDesc desc, std::optional<TextureDesc> other_desc
+	TextureDesc desc, const std::optional<TextureDesc>& other_desc
 ) {
 	return renderer_.framebuffer_pool_.Acquire(desc, other_desc);
 }
