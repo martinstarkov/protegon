@@ -21,6 +21,7 @@
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "core/util/hash.h"
+#include "platform/window.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
@@ -113,11 +114,9 @@ void SetupCamera(
 
 	auto offset_viewport{ display_viewport };
 
-	if (!render.GetPrimaryWorldCamera().has_value()) {
-		V2_float display_position{ render.GetDisplayPosition() };
+	V2_float display_position{ render.GetDisplayPosition() };
 
-		offset_viewport.position += display_position;
-	}
+	offset_viewport.position += display_position;
 
 	renderer.SetViewport(offset_viewport);
 	renderer.SetViewProjection(view_projection);
@@ -440,8 +439,9 @@ void Scene::ClearRenderTargets(DrawContext& draw_context) {
 
 	draw_context.WithPreservedRenderTarget([this, &renderer]() {
 		renderer.SetViewport({ .position = {}, .size = ctx_->render_target_.GetSize() });
-		ctx_->render_target_.ClearColor(ctx().renderer.GetBackgroundColor(), false);
-		renderer.SetScissor(ScissorState{ ctx().renderer.GetDisplayViewport() });
+		ctx_->render_target_.ClearColor(ctx().window.GetBackgroundColor(), false);
+		auto display_viewport{ ctx().renderer.GetDisplayViewport() };
+		renderer.SetScissor(ScissorState{ display_viewport });
 		ctx_->render_target_.ClearColor(std::nullopt, false);
 
 		for (auto [render_target, frame_buffer, _drawable] :
@@ -503,7 +503,7 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 		auto tint{ color::White };
 		impl::EffectParams effect_params;
 		Camera cam{ primary_world_camera.value() };
-		auto clear_color{ color::Transparent };
+		std::optional<Color> clear_color;
 		auto filter = [](auto) {
 			return false;
 		};

@@ -542,12 +542,12 @@ void GLContext::Destroy(VertexArrayId id) {
 	vertex_arrays.Destroy(id);
 }
 
-void GLContext::SetBlend(bool enabled) {
+void GLContext::SetBlend(bool enabled, bool force) {
 	if (enabled) {
-		SetDepthTesting(false);
+		SetDepthTesting(false, force);
 	}
 
-	if (bound_.render_state.blending == enabled) {
+	if (bound_.render_state.blending == enabled && !force) {
 		return;
 	}
 
@@ -556,12 +556,12 @@ void GLContext::SetBlend(bool enabled) {
 	bound_.render_state.blending = enabled;
 }
 
-void GLContext::SetDepthTesting(bool enabled) {
+void GLContext::SetDepthTesting(bool enabled, bool force) {
 	if (enabled) {
-		SetBlend(false);
+		SetBlend(false, force);
 	}
 
-	if (bound_.render_state.depth_testing == enabled) {
+	if (bound_.render_state.depth_testing == enabled && !force) {
 		return;
 	}
 
@@ -570,10 +570,10 @@ void GLContext::SetDepthTesting(bool enabled) {
 	bound_.render_state.depth_testing = enabled;
 }
 
-void GLContext::SetBlendMode(BlendMode blend) {
-	SetBlend(true);
+void GLContext::SetBlendMode(BlendMode blend, bool force) {
+	SetBlend(true, force);
 
-	if (bound_.render_state.blend_mode == blend) {
+	if (bound_.render_state.blend_mode == blend && !force) {
 		return;
 	}
 

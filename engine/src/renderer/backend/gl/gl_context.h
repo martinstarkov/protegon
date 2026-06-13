@@ -82,12 +82,12 @@ public:
 	void ForgetId(VertexArrayId id);
 
 	/// @brief Enabling blending will disable depth testing.
-	void SetBlend(bool enabled);
+	void SetBlend(bool enabled, bool force = false);
 	/// @brief Will disable depth testing.
-	void SetBlendMode(BlendMode blend);
+	void SetBlendMode(BlendMode blend, bool force = false);
 
 	/// @brief Enabling depth testing will disable blending.
-	void SetDepthTesting(bool enabled);
+	void SetDepthTesting(bool enabled, bool force = false);
 	void SetDepthMask(const DepthMaskState& mask);
 
 	void SetColorMask(const ColorMaskState& mask);

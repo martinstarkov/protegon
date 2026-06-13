@@ -306,7 +306,7 @@ void Renderer::SetBlendMode(BlendMode blend_mode, bool force) {
 		return;
 	}
 	FlushBatch();
-	gl_->SetBlendMode(blend_mode);
+	gl_->SetBlendMode(blend_mode, force);
 }
 
 void Renderer::SetBlending(bool enabled) {
