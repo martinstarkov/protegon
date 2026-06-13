@@ -97,7 +97,9 @@ Viewport GetDisplayViewport(
 		camera.raw_viewport, camera.viewport_space, logical_size, render_target_size
 	) };
 
-	display_viewport.position += display_position;
+	if (!renderer.GetPrimaryWorldCamera().has_value()) {
+		display_viewport.position += display_position;
+	}
 
 	return display_viewport;
 }
