@@ -90,16 +90,15 @@ Viewport GetDisplayViewport(
 ) {
 	auto logical_size{ renderer.GetLogicalSize() };
 
-	V2_float display_position{ renderer.GetDisplayPosition() };
 	auto render_target_size{ render_target.GetSize() };
+
+	if (render_target == render_target.GetScene().GetRenderTarget()) {
+		render_target_size = renderer.GetDisplaySize();
+	}
 
 	auto display_viewport{ ptgn::GetDisplayViewport(
 		camera.raw_viewport, camera.viewport_space, logical_size, render_target_size
 	) };
-
-	if (!renderer.GetPrimaryWorldCamera().has_value()) {
-		display_viewport.position += display_position;
-	}
 
 	return display_viewport;
 }
@@ -112,9 +111,17 @@ void SetupCamera(
 
 	renderer.SetFramebuffer(&render_target.Get<impl::FramebufferObject>());
 
-	renderer.SetViewport(display_viewport);
+	auto offset_viewport{ display_viewport };
+
+	if (!render.GetPrimaryWorldCamera().has_value()) {
+		V2_float display_position{ render.GetDisplayPosition() };
+
+		offset_viewport.position += display_position;
+	}
+
+	renderer.SetViewport(offset_viewport);
 	renderer.SetViewProjection(view_projection);
-	renderer.SetScissor(ScissorState{ display_viewport });
+	renderer.SetScissor(ScissorState{ offset_viewport });
 
 	if (clear_color.has_value()) {
 		render_target.ClearColor(clear_color.value(), false);
@@ -143,11 +150,13 @@ void ApplyCameraEffects(
 
 	renderer.FlushBatch();
 
+	V2_float display_position{ render.GetDisplayPosition() };
+
 	TextureDrawParams params{ .size{ display_viewport.size },
 							  .tint{ tint },
 							  .texture_coordinates{ impl::GetTextureCoordinates(
-								  display_viewport.position, display_viewport.size,
-								  render_target_size, true, true
+								  display_viewport.position + display_position,
+								  display_viewport.size, render_target_size, true, true
 							  ) },
 							  .effects{ effect_params } };
 
@@ -427,8 +436,20 @@ bool Scene::IsAwaitingTransitionDelay() const {
 }
 
 void Scene::ClearRenderTargets(DrawContext& draw_context) {
-	draw_context.WithPreservedRenderTarget([this]() {
-		for (auto [render_target, frame_buffer] : EntitiesWith<impl::FramebufferObject>()) {
+	impl::RendererAccessor renderer{ ctx().renderer };
+
+	draw_context.WithPreservedRenderTarget([this, &renderer]() {
+		renderer.SetViewport({ .position = {}, .size = ctx_->render_target_.GetSize() });
+		ctx_->render_target_.ClearColor(ctx().renderer.GetBackgroundColor(), false);
+		renderer.SetScissor(ScissorState{ ctx().renderer.GetDisplayViewport() });
+		ctx_->render_target_.ClearColor(std::nullopt, false);
+
+		for (auto [render_target, frame_buffer, _drawable] :
+			 EntitiesWith<impl::FramebufferObject, impl::IDrawable>()) {
+			renderer.SetViewport(
+				{ .position = {}, .size = RenderTarget{ render_target }.GetSize() }
+			);
+			renderer.SetScissor(ScissorState{ false });
 			RenderTarget{ render_target }.ClearColor(std::nullopt, false);
 		}
 	});
@@ -467,6 +488,8 @@ void Scene::DrawCameras(DrawContext& draw_context) {
 }
 
 void Scene::InternalDraw(DrawContext& draw_context) {
+	ClearRenderTargets(draw_context);
+
 	const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
 
 	if (primary_world_camera.has_value()) {
@@ -495,8 +518,6 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 	} else {
 		DrawCameras(draw_context);
 	}
-
-	impl::RendererAccessor{ ctx().renderer }.SetScissor(ScissorState{ false });
 
 	impl::RendererAccessor renderer{ ctx().renderer };
 

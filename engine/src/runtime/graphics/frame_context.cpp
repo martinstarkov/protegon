@@ -60,11 +60,16 @@ FrameContext::FrameContext(
 FrameContext::FrameContext(
 	const Renderer& renderer, RenderTarget render_target_entity, const Camera& cam
 ) :
-	FrameContext{ renderer, GetTransform(render_target_entity), render_target_entity.GetSize(),
+	FrameContext{ renderer, GetTransform(render_target_entity),
+				  render_target_entity == render_target_entity.GetScene().GetRenderTarget()
+					  ? renderer.GetDisplayViewport().size
+					  : V2_float{ render_target_entity.GetSize() },
 				  cam.transform,
 				  GetDisplayViewport(
 					  cam.raw_viewport, cam.viewport_space, renderer.GetLogicalSize(),
-					  render_target_entity.GetSize()
+					  render_target_entity == render_target_entity.GetScene().GetRenderTarget()
+						  ? renderer.GetDisplayViewport().size
+						  : V2_float{ render_target_entity.GetSize() }
 				  ) } {}
 
 V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx) {

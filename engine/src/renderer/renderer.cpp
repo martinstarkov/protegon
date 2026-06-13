@@ -89,15 +89,15 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	display_viewport_		= display.viewport;
 	display_viewport_dirty_ = false;
 
-	auto display_size{ GetDisplaySize() };
+	auto presentation_size{ GetWindowSize() };
 
-	PTGN_ASSERT(display_size.IsPositive(), "Display size cannot be zero");
+	PTGN_ASSERT(presentation_size.IsPositive(), "Presentation size cannot be zero");
 
 	presentation_framebuffer_ = CreateFramebuffer(
-		{ .size{ display_size }, .format{ kDefaultPresentationTargetFormat } }, std::nullopt
+		{ .size{ presentation_size }, .format{ kDefaultPresentationTargetFormat } }, std::nullopt
 	);
 	BindPresentationFramebuffer();
-	SetViewProjection(display_size);
+	SetViewProjection(presentation_size);
 
 	auto max_texture_slots{ GetMaxTextureSlots() };
 
@@ -424,6 +424,7 @@ void Renderer::OnWindowResize(V2_int size) {
 		event_sink_(size, impl::ResizeType::Logical);
 	}
 
+	ResizePresentationFramebuffer(size);
 	event_sink_(size, impl::ResizeType::Presentation);
 
 	display_viewport_dirty_ = true;
@@ -499,6 +500,7 @@ void Renderer::SetPresentationViewport(std::optional<Viewport> presentation_view
 		event_sink_(presentation_viewport_.value().size, impl::ResizeType::Logical);
 	}
 
+	ResizePresentationFramebuffer(presentation_viewport_.value().size);
 	event_sink_(presentation_viewport_.value().size, impl::ResizeType::Presentation);
 	display_viewport_dirty_ = true;
 }
@@ -594,8 +596,6 @@ void Renderer::UpdateDisplayViewport(bool emit_events) {
 	display_viewport_ = resize_info.viewport;
 
 	if (resize_info.resized) {
-		ResizePresentationFramebuffer(display_viewport_.size);
-
 		if (emit_events) {
 			event_sink_(display_viewport_.size, impl::ResizeType::Display);
 		}
@@ -674,6 +674,9 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 }
 
 void Renderer::ResizePresentationFramebuffer(V2_int size) {
+	if (size.IsZero()) {
+		return;
+	}
 	Resize(GetPresentationFramebuffer(), size);
 }
 
@@ -692,17 +695,30 @@ void Renderer::ResetState() {
 void Renderer::BeginFrame() {
 	ResetState();
 
-	if (!presentation_viewport_.has_value()) {
-		auto presentation{ GetPresentationViewport() };
-		Color window_background_color{ window_.GetBackgroundColor() };
+	auto presentation{ GetPresentationViewport() };
+	Color window_background_color{ window_.GetBackgroundColor() };
 
+	if (!presentation_viewport_.has_value()) {
 		auto _ = gl_->Bind(impl::FramebufferId{ 0 }, false);
 		gl_->SetClearColor(window_background_color);
 		SetViewport(presentation);
 		gl_->framebuffers.Clear();
 	}
 
+	SetFramebuffer(&presentation_framebuffer_);
+
+	Viewport viewport{ .position{}, .size{ presentation.size } };
+
+	SetScissor(ScissorState{ viewport });
+	SetViewport(viewport);
+	Clear(presentation_framebuffer_, window_background_color, false);
+
+	SetScissor(ScissorState{ display_viewport_ });
+	SetViewport(display_viewport_);
 	Clear(presentation_framebuffer_, background_color_, false);
+
+	SetScissor(ScissorState{ viewport });
+	SetViewport(viewport);
 }
 
 void Renderer::BindUniforms() {
@@ -1226,10 +1242,11 @@ void RendererAccessor::FlushBatch() {
 }
 
 void RendererAccessor::SetupPresentationFramebuffer() {
-	Viewport viewport{ {}, renderer_.GetDisplayViewport().size };
+	Viewport viewport{ {}, renderer_.GetSize(renderer_.GetPresentationFramebuffer()) };
 
 	renderer_.BindPresentationFramebuffer();
 	renderer_.SetViewport(viewport);
+	renderer_.SetScissor(ScissorState{ false });
 	renderer_.SetViewProjection(viewport.size);
 	renderer_.SetBlendMode(BlendMode::Blend);
 }

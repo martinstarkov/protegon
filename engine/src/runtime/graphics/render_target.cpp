@@ -29,6 +29,9 @@ namespace impl {
 
 void RenderTargetPresentationResizeScript::OnEvent(Event event) {
 	event.Dispatch<ptgn::event::PresentationResized>([this](const auto& resized) {
+		if (resized.size.IsZero()) {
+			return;
+		}
 		// PTGN_LOG("Render target ", entity, " received presentation resize: ", resized.size);
 		entity.Get<FramebufferObject>().Resize(resized.size);
 	});

@@ -607,7 +607,6 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	draw_list->AddRectFilled(ToImGui(min), ToImGui(max), ToImGui(bg));
 
-	auto display_viewport{ ctx.editor.GetDisplayViewport() };
 	auto presentation_texture{ ctx.editor.GetPresentationTexture() };
 	auto presentation_size{ ctx.editor.GetPresentationTextureSize() };
 
@@ -637,13 +636,10 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		ctx.editor.GetRenderer().GetLogicalSize(), presentation_size
 	) };
 
-	camera_display_viewport.position += V2_float{ ctx.editor.GetRenderer().GetDisplayPosition() };
-
 	FrameContext frame_context{ ctx.editor.GetRenderer(), Transform{}, presentation_size,
 								editor_camera_.camera.transform, camera_display_viewport };
 
-	Viewport viewport{ .position{ min + display_viewport.position },
-					   .size{ display_viewport.size } };
+	Viewport viewport{ .position{ min }, .size{ size } };
 
 	draw_list->AddCallback(SetImageBlendMode, &ctx.editor.GetRenderer());
 
