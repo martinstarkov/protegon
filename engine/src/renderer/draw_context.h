@@ -76,6 +76,7 @@ private:
 		DrawContext& ctx_;
 		impl::FramebufferObject* previous_framebuffer_{ nullptr };
 		Viewport previous_viewport_;
+		ScissorState previous_scissor_;
 	};
 
 	class RenderStateScope {
@@ -303,6 +304,7 @@ private:
 
 	void SetFramebuffer(impl::FramebufferObject* framebuffer);
 	void SetViewport(Viewport viewport);
+	void SetScissor(const ScissorState& scissor);
 
 	Renderer& renderer_;
 };

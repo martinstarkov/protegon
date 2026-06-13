@@ -85,11 +85,13 @@ DrawContext::RenderStateScope::~RenderStateScope() {
 DrawContext::RenderTargetScope::RenderTargetScope(DrawContext& ctx) :
 	ctx_{ ctx },
 	previous_framebuffer_{ &ctx.GetBoundFramebuffer() },
-	previous_viewport_{ ctx.GetRenderState().viewport } {}
+	previous_viewport_{ ctx.GetRenderState().viewport },
+	previous_scissor_{ ctx.GetRenderState().scissor } {}
 
 DrawContext::RenderTargetScope::~RenderTargetScope() {
 	ctx_.SetFramebuffer(previous_framebuffer_);
 	ctx_.SetViewport(previous_viewport_);
+	ctx_.SetScissor(previous_scissor_);
 }
 
 DrawContext::TemporaryFramebufferScope::TemporaryFramebufferScope(
@@ -370,6 +372,10 @@ void DrawContext::SetFramebuffer(impl::FramebufferObject* framebuffer) {
 
 void DrawContext::SetViewport(Viewport viewport) {
 	renderer_.SetViewport(viewport);
+}
+
+void DrawContext::SetScissor(const ScissorState& scissor) {
+	renderer_.SetScissor(scissor);
 }
 
 } // namespace ptgn
