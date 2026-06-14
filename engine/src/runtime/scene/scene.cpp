@@ -573,6 +573,10 @@ void Scene::InternalUpdate() {
 	ctx().physics.PostCollisionUpdate();
 	impl::UpdateButtons(*this);
 
+	for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
+		impl::ApplyCameraBounds(SceneCamera{ camera_entity });
+	}
+
 	Refresh();
 
 	impl::OrphanChildren(*this);
