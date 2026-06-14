@@ -186,7 +186,7 @@ void InteractionSystem::DrawDebug(
 	impl::MouseInfo mouse{ scene };
 
 	mouse.position = ConvertPoint(
-		mouse.position, Frame::Window, Frame::Camera,
+		mouse.position, Frame::Window, Frame::World,
 		FrameContext{ scene.ctx().renderer, render_target, cam }
 	);
 
@@ -705,7 +705,7 @@ void InteractionSystem::UpdateForCamera(
 	impl::MouseInfo mouse{ mouse_state };
 
 	mouse.position = ConvertPoint(
-		mouse.position, Frame::Window, Frame::Camera,
+		mouse.position, Frame::Window, Frame::World,
 		FrameContext{ scene.ctx().renderer, render_target, camera }
 	);
 
