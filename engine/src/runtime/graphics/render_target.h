@@ -36,7 +36,7 @@ struct ClearStencil {
 	Stencil stencil{ 0 };
 };
 
-class RenderTargetPresentationResizeScript : public Script {
+class RenderTargetResizeScript : public Script {
 public:
 	void OnEvent(Event event) override;
 };

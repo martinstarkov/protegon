@@ -3,6 +3,7 @@
 #include <ecs/ecs.h>
 
 #include <algorithm>
+#include <compare>
 #include <cstdint>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -21,7 +22,6 @@
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
 #include "core/util/hash.h"
-#include "platform/window.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
@@ -93,10 +93,6 @@ Viewport GetDisplayViewport(
 
 	auto render_target_size{ render_target.GetSize() };
 
-	if (render_target == render_target.GetScene().GetRenderTarget()) {
-		render_target_size = renderer.GetDisplaySize();
-	}
-
 	auto display_viewport{ ptgn::GetDisplayViewport(
 		camera.raw_viewport, camera.viewport_space, logical_size, render_target_size
 	) };
@@ -112,15 +108,9 @@ void SetupCamera(
 
 	renderer.SetFramebuffer(&render_target.Get<impl::FramebufferObject>());
 
-	auto offset_viewport{ display_viewport };
-
-	V2_float display_position{ render.GetDisplayPosition() };
-
-	offset_viewport.position += display_position;
-
-	renderer.SetViewport(offset_viewport);
+	renderer.SetViewport(display_viewport);
 	renderer.SetViewProjection(view_projection);
-	renderer.SetScissor(ScissorState{ offset_viewport });
+	renderer.SetScissor(ScissorState{ display_viewport });
 
 	if (clear_color.has_value()) {
 		render_target.ClearColor(clear_color.value(), false);
@@ -149,13 +139,11 @@ void ApplyCameraEffects(
 
 	renderer.FlushBatch();
 
-	V2_float display_position{ render.GetDisplayPosition() };
-
 	TextureDrawParams params{ .size{ display_viewport.size },
 							  .tint{ tint },
 							  .texture_coordinates{ impl::GetTextureCoordinates(
-								  display_viewport.position + display_position,
-								  display_viewport.size, render_target_size, true, true
+								  display_viewport.position, display_viewport.size,
+								  render_target_size, true, true
 							  ) },
 							  .effects{ effect_params } };
 
@@ -437,22 +425,18 @@ bool Scene::IsAwaitingTransitionDelay() const {
 void Scene::ClearRenderTargets(DrawContext& draw_context) {
 	impl::RendererAccessor renderer{ ctx().renderer };
 
-	draw_context.WithPreservedRenderTarget([this, &renderer]() {
-		renderer.SetViewport({ .position = {}, .size = ctx_->render_target_.GetSize() });
-		ctx_->render_target_.ClearColor(ctx().window.GetBackgroundColor(), false);
-		auto display_viewport{ ctx().renderer.GetDisplayViewport() };
-		renderer.SetScissor(ScissorState{ display_viewport });
-		ctx_->render_target_.ClearColor(std::nullopt, false);
+	for (auto [render_target, frame_buffer, _drawable] :
+		 EntitiesWith<impl::FramebufferObject, impl::IDrawable>()) {
+		renderer.SetViewport({ .position = {}, .size = RenderTarget{ render_target }.GetSize() });
+		renderer.SetScissor(ScissorState{ false });
+		RenderTarget{ render_target }.ClearColor(std::nullopt, false);
+	}
 
-		for (auto [render_target, frame_buffer, _drawable] :
-			 EntitiesWith<impl::FramebufferObject, impl::IDrawable>()) {
-			renderer.SetViewport(
-				{ .position = {}, .size = RenderTarget{ render_target }.GetSize() }
-			);
-			renderer.SetScissor(ScissorState{ false });
-			RenderTarget{ render_target }.ClearColor(std::nullopt, false);
-		}
-	});
+	renderer.SetFramebuffer(&ctx_->render_target_.Get<impl::FramebufferObject>());
+	Viewport viewport{ {}, ctx_->render_target_.GetSize() };
+	renderer.SetViewport(viewport);
+	renderer.SetScissor(ScissorState{ false });
+	ctx_->render_target_.ClearColor(std::nullopt, false);
 }
 
 void Scene::DrawCameras(DrawContext& draw_context) {
@@ -490,9 +474,8 @@ void Scene::DrawCameras(DrawContext& draw_context) {
 void Scene::InternalDraw(DrawContext& draw_context) {
 	ClearRenderTargets(draw_context);
 
-	const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
-
-	if (primary_world_camera.has_value()) {
+	if (const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
+		primary_world_camera.has_value()) {
 		ctx().render_queue.CombineCommands();
 
 		PTGN_ASSERT(ctx().render_queue.render_commands_.size() == 1);

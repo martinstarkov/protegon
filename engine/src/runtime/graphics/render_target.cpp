@@ -27,12 +27,12 @@ namespace ptgn {
 
 namespace impl {
 
-void RenderTargetPresentationResizeScript::OnEvent(Event event) {
-	event.Dispatch<ptgn::event::PresentationResized>([this](const auto& resized) {
+void RenderTargetResizeScript::OnEvent(Event event) {
+	event.Dispatch<ptgn::event::DisplayResized>([this](const auto& resized) {
 		if (resized.size.IsZero()) {
 			return;
 		}
-		// PTGN_LOG("Render target ", entity, " received presentation resize: ", resized.size);
+		// PTGN_LOG("Render target ", entity, " received resize: ", resized.size);
 		entity.Get<FramebufferObject>().Resize(resized.size);
 	});
 }
@@ -207,7 +207,7 @@ RenderTarget CreateRenderTarget(
 
 	if (size.IsZero()) {
 		size = scene.ctx().renderer.GetPresentationViewport().size;
-		AddScript<impl::RenderTargetPresentationResizeScript>(render_target);
+		AddScript<impl::RenderTargetResizeScript>(render_target);
 	}
 
 	PTGN_ASSERT(size.IsPositive(), "Render target size cannot be zero or negative");
