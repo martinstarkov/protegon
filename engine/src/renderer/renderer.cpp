@@ -278,23 +278,13 @@ void Renderer::SetShader(std::string_view shader) {
 }
 
 void Renderer::SetShader(impl::ShaderId shader) {
-	const auto& bound{ gl_->GetBoundState() };
+	auto bound{ GetBoundShader() };
 
-	auto update_view_projection_uniform = [&]() {
-		if (bound.render_state.view_projection.has_value()) {
-			gl_->shaders.SetUniform(
-				shader, kViewProjectionUniform, bound.render_state.view_projection.value()
-			);
-		}
-	};
-
-	if (shader == bound.shader_program) {
-		update_view_projection_uniform();
+	if (shader == bound) {
 		return;
 	}
 	FlushBatch();
 	auto _ = gl_->Bind(shader, false);
-	update_view_projection_uniform();
 }
 
 BlendMode Renderer::GetBlendMode() const {
@@ -716,12 +706,17 @@ void Renderer::BeginFrame() {
 }
 
 void Renderer::BindUniforms() {
-	auto shader{ GetBoundShader() };
-	if (!shader) {
+	const auto& bound{ gl_->GetBoundState() };
+	if (!bound.shader_program) {
 		return;
 	}
+	if (bound.render_state.view_projection.has_value()) {
+		gl_->shaders.SetUniform(
+			bound.shader_program, kViewProjectionUniform, bound.render_state.view_projection.value()
+		);
+	}
 	for (const auto& [name, value] : current_uniforms_) {
-		SetUniformValue(shader, name.c_str(), value);
+		SetUniformValue(bound.shader_program, name.c_str(), value);
 	}
 }
 

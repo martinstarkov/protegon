@@ -75,6 +75,6 @@ private:
 
 int main(int, char**) {
 	Application app{ "CombinedEffectsScene", CombinedEffectsScene::kWindowSize };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<CombinedEffectsScene>();
 }
