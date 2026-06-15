@@ -234,6 +234,8 @@ void DrawCamera(
 
 	DrawCommands(render, draw_context, commands, view, filter, false);
 
+	draw_context.SetBlendMode(BlendMode::Blend);
+
 	DrawCommands(render, draw_context, debug_commands, view, filter, true);
 
 	ApplyCameraEffects(
@@ -256,6 +258,7 @@ void DrawScene(
 		light_entity_commands, cam.GetWorldVertices(scene.ctx().renderer.GetLogicalSize())
 	);
 
+	draw_context.SetBlendMode(BlendMode::Blend);
 	scene.ctx().collision.DrawDebug(scene, camera, filter);
 	scene.ctx().interaction.DrawDebug(scene, camera, cam, render_target, filter);
 	impl::DrawDebugLightVisibilityPolygons(scene, camera, filter);
