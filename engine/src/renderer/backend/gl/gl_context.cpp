@@ -29,6 +29,7 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
 
+/// @brief Apply X macro with args: mode, src_rgb, dst_rgb, src_alpha, dst_alpha
 #define PTGN_BLEND_MODE_TABLE(X)                                                          \
 	X(Blend, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA)        \
 	X(PremultipliedBlend, GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA) \
