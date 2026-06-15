@@ -193,9 +193,8 @@ void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
 
 	auto params{ impl::GetTextureDrawParams(entity, size, true, color::White) };
 
-	ctx.WithBlendMode(blend_mode, [&ctx, draw_transform, texture, &params]() {
-		ctx.DrawTexture(draw_transform, texture, params);
-	});
+	ctx.SetBlendMode(blend_mode);
+	ctx.DrawTexture(draw_transform, texture, params);
 }
 
 RenderTarget CreateRenderTarget(

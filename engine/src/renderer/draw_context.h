@@ -123,6 +123,8 @@ private:
 	};
 
 public:
+	void SetBlendMode(BlendMode blend_mode);
+
 	void WithRenderState(const RenderStateDelta& delta, InvocableR<void> auto&& function) {
 		RenderStateScope scope{ *this, delta };
 
@@ -166,12 +168,6 @@ public:
 
 		SetFramebuffer(framebuffer);
 		SetViewport(viewport);
-
-		function();
-	}
-
-	void WithBlendMode(BlendMode blend_mode, InvocableR<void> auto&& function) {
-		RenderStateScope scope{ *this, RenderStateDelta{ .blend_mode{ blend_mode } } };
 
 		function();
 	}

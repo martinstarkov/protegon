@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/line.h"
 #include "core/math/geometry/origin.h"
@@ -64,7 +65,9 @@ struct BroadphaseScene : public Scene {
 	RNG<float> rngsize{ 5.0f, 30.0f };
 
 	void OnEnter() override {
-		ctx().physics.SetBounds(Bounds{ V2_float{}, logical_size, BoundaryBehavior::ReflectVelocity });
+		ctx().physics.SetBounds(
+			Bounds{ V2_float{}, logical_size, BoundaryBehavior::ReflectVelocity }
+		);
 
 		player = AddEntity(*this, {}, player_size, color::Purple, false);
 		SetDepth(player, 1);
@@ -168,9 +171,7 @@ struct BroadphaseScene : public Scene {
 			SetTint(candidate, color::Red);
 		}
 
-		ctx().renderer.DrawLine(
-			player_pos, mouse_pos, color::Gold, 2.0f, Depth{}, BlendMode::Blend
-		);
+		ctx().render_queue.DrawLine(player_pos, mouse_pos, color::Gold, { .fill_style = 2.0f });
 
 #else
 		PTGN_PROFILE_FUNCTION();
@@ -192,5 +193,6 @@ struct BroadphaseScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "BroadphaseScene", logical_size };
+	PTGN_WITH_EDITOR(app);
 	app.StartWith<BroadphaseScene>();
 }

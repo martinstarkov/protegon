@@ -38,14 +38,13 @@ void CustomShader::Draw(DrawContext& ctx, Entity entity) {
 
 	auto params{ impl::GetTextureDrawParams(entity, size, false, color::White) };
 
-	ctx.WithBlendMode(blend_mode, [&]() {
-		if (entity.Has<Texture>()) {
-			auto texture{ entity.Get<Texture>() };
-			ctx.DrawTexture(draw_transform, texture, material, params);
-		} else {
-			ctx.DrawShader(draw_transform, material, params);
-		}
-	});
+	ctx.SetBlendMode(blend_mode);
+	if (entity.Has<Texture>()) {
+		auto texture{ entity.Get<Texture>() };
+		ctx.DrawTexture(draw_transform, texture, material, params);
+	} else {
+		ctx.DrawShader(draw_transform, material, params);
+	}
 }
 
 void SetMaterialUpdate(Entity entity, const std::function<void(Entity)>& update) {

@@ -4,7 +4,6 @@
 #include <compare>
 #include <vector>
 
-#include "core/assert.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
 #include "renderer/pipeline/blend_mode.h"

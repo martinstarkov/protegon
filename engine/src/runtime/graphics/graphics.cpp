@@ -49,19 +49,18 @@ void Graphics::Draw(DrawContext& ctx, Entity entity) {
 	auto transform{ GetDrawTransform(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
 
-	ctx.WithBlendMode(blend_mode, [&]() {
-		for (const auto& cmd : instance.commands_) {
-			auto cmd_transform{ cmd.transform.RelativeTo(transform) };
+	ctx.SetBlendMode(blend_mode);
+	for (const auto& cmd : instance.commands_) {
+		auto cmd_transform{ cmd.transform.RelativeTo(transform) };
 
-			ctx.DrawShape(
-				cmd_transform, cmd.shape, cmd.color,
-				{ .depth	  = GetDepth(entity),
-				  .fill_style = cmd.line_width,
-				  .entity_id  = entity.GetUUID(),
-				  .effects	  = impl::GetEffectParams(entity) }
-			);
-		}
-	});
+		ctx.DrawShape(
+			cmd_transform, cmd.shape, cmd.color,
+			{ .depth	  = GetDepth(entity),
+			  .fill_style = cmd.line_width,
+			  .entity_id  = entity.GetUUID(),
+			  .effects	  = impl::GetEffectParams(entity) }
+		);
+	}
 }
 
 Graphics& Graphics::Clear() {

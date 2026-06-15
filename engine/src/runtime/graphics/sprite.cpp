@@ -73,7 +73,8 @@ void Sprite::Draw(
 
 	auto params{ impl::GetTextureDrawParams(entity, texture_size.value(), false, additional_tint) };
 
-	ctx.WithBlendMode(blend_mode, [&]() { ctx.DrawTexture(draw_transform, texture, params); });
+	ctx.SetBlendMode(blend_mode);
+	ctx.DrawTexture(draw_transform, texture, params);
 }
 
 void Sprite::Draw(DrawContext& ctx, Entity entity) {

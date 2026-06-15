@@ -77,7 +77,8 @@ void DrawShape(DrawContext& ctx, Entity entity) {
 
 	auto params{ impl::GetShapeDrawParams(entity) };
 
-	ctx.WithBlendMode(blend_mode, [&]() { ctx.DrawShape(draw_transform, shape, color, params); });
+	ctx.SetBlendMode(blend_mode);
+	ctx.DrawShape(draw_transform, shape, color, params);
 }
 
 void RectDraw::Draw(DrawContext& ctx, Entity entity) {

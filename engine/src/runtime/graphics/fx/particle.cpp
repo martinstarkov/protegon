@@ -68,23 +68,22 @@ template <ShapeType T>
 void DrawParticleShape(DrawContext& ctx, const T& shape, const ParticleDrawInfo& draw) {
 	auto params{ ConvertToShapeDrawParams(draw) };
 
-	ctx.WithBlendMode(draw.blend_mode, [&]() {
-		if constexpr (std::is_same_v<T, Circle>) {
-			Circle circle{ shape.radius * draw.size * 0.5f };
-			ctx.DrawShape(draw.transform, circle, draw.color, params);
-		} else if constexpr (std::is_same_v<T, Rect>) {
-			Rect rect{ shape.GetSize() * V2_float{ draw.size } };
+	ctx.SetBlendMode(draw.blend_mode);
+	if constexpr (std::is_same_v<T, Circle>) {
+		Circle circle{ shape.radius * draw.size * 0.5f };
+		ctx.DrawShape(draw.transform, circle, draw.color, params);
+	} else if constexpr (std::is_same_v<T, Rect>) {
+		Rect rect{ shape.GetSize() * V2_float{ draw.size } };
 
-			Transform transform{ draw.transform };
-			// We rotate rectangle particle -90 degrees because the default direction of the
-			// rectangle shape is down (90 degrees).
-			transform.Rotate(-Radians{ kHalfPi });
+		Transform transform{ draw.transform };
+		// We rotate rectangle particle -90 degrees because the default direction of the
+		// rectangle shape is down (90 degrees).
+		transform.Rotate(-Radians{ kHalfPi });
 
-			ctx.DrawShape(transform, rect, draw.color, params);
-		} else {
-			ctx.DrawShape(draw.transform, shape, draw.color, params);
-		}
-	});
+		ctx.DrawShape(transform, rect, draw.color, params);
+	} else {
+		ctx.DrawShape(draw.transform, shape, draw.color, params);
+	}
 }
 
 template <typename T>
@@ -97,9 +96,8 @@ void DrawParticleType(
 
 		auto params{ ConvertToTextureDrawParams(draw) };
 
-		ctx.WithBlendMode(draw.blend_mode, [&]() {
-			ctx.DrawTexture(draw.transform, texture, params);
-		});
+		ctx.SetBlendMode(draw.blend_mode);
+		ctx.DrawTexture(draw.transform, texture, params);
 	} else if constexpr (std::is_same_v<T, Shape>) {
 		particle_type.Visit([&ctx, &draw]<typename S>(const S& shape) {
 			DrawParticleShape(ctx, shape, draw);

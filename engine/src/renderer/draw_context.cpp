@@ -20,6 +20,7 @@
 #include "core/math/geometry/triangle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/framebuffer_pool.h"
 #include "renderer/pipeline/render_pass_builder.h"
@@ -110,6 +111,10 @@ impl::FramebufferObject& DrawContext::TemporaryFramebufferScope::Get() {
 
 impl::FramebufferId DrawContext::TemporaryFramebufferScope::GetId() const {
 	return framebuffer_;
+}
+
+void DrawContext::SetBlendMode(BlendMode blend_mode) {
+	renderer_.SetBlendMode(blend_mode);
 }
 
 RenderState DrawContext::GetRenderState() const {

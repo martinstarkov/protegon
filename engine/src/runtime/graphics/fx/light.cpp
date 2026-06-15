@@ -456,9 +456,8 @@ void DrawShadowedLight(
 			auto texture{ framebuffer.GetTexture() };
 			auto composite_params{ impl::GetTextureDrawParams(entity, size, true, color::White) };
 
-			ctx.WithBlendMode(blend_mode, [&ctx, draw_transform, texture, &composite_params]() {
-				ctx.DrawTexture(draw_transform, texture, std::move(composite_params));
-			});
+			ctx.SetBlendMode(blend_mode);
+			ctx.DrawTexture(draw_transform, texture, std::move(composite_params));
 		}
 	);
 }
@@ -474,9 +473,8 @@ void DrawUnmaskedLight(
 
 	auto params{ impl::GetTextureDrawParams(entity, size, false, color::White) };
 
-	ctx.WithBlendMode(blend_mode, [&ctx, draw_transform, &material, &params]() {
-		ctx.DrawShader(draw_transform, material, std::move(params));
-	});
+	ctx.SetBlendMode(blend_mode);
+	ctx.DrawShader(draw_transform, material, std::move(params));
 }
 
 struct LightVisibilityDebugSettings {

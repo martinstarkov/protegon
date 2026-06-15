@@ -4,6 +4,7 @@
 #include <chrono>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
@@ -14,8 +15,6 @@
 #include "runtime/scene/scene_context.h"
 
 using namespace ptgn;
-
-constexpr V2_int kWindowSize{ 800, 800 };
 
 struct RenderTargetScene : public Scene {
 	RenderTarget rt;
@@ -35,7 +34,7 @@ struct RenderTargetScene : public Scene {
 		SetPosition(rt, { 200, 200 });
 
 		rt_camera = CreateCamera(*this, rt.GetSize());
-		rt_camera.SetParentRenderTarget(rt);
+		rt_camera.SetRenderTarget(rt);
 		rt_camera.SetIncludeMask(rt_layer);
 
 		auto rect2{ CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::Orange) };
@@ -51,6 +50,7 @@ struct RenderTargetScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "RenderTargetScene", kWindowSize };
+	Application app{ "RenderTargetScene" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<RenderTargetScene>();
 }

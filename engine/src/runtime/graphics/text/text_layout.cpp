@@ -1480,55 +1480,55 @@ void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity entity) {
 	}
 
 	auto effects{ GetEffectParams(entity) };
+	auto blend_mode{ GetBlendMode(entity) };
 
-	ctx.WithBlendMode(GetBlendMode(entity), [&text_batches, transform, &effects, &ctx]() {
-		for (auto& batch : text_batches) {
-			if (batch.quads.empty()) {
-				continue;
-			}
-
-			const auto& style{ batch.style.sdf };
-
-			PTGN_ASSERT(style.pixel_range > 0.0f, "Invalid font pixel range");
-
-			Material material{
-				.shader = "text",
-				.uniforms{
-					{ "u_Weight", style.weight },
-					{ "u_Softness", style.softness },
-
-					{ "u_OutlineColor", style.outline_color.Normalized() },
-					{ "u_OutlineWidth", style.outline_width },
-					{ "u_OutlineSoftness", style.outline_softness },
-
-					{ "u_ShadowColor", style.shadow_color.Normalized() },
-					{ "u_ShadowOffset", style.shadow_offset },
-					{ "u_ShadowWidth", style.shadow_width },
-					{ "u_ShadowSoftness", style.shadow_softness },
-
-					{ "u_OuterGlowColor", style.outer_glow_color.Normalized() },
-					{ "u_OuterGlowWidth", style.outer_glow_width },
-					{ "u_OuterGlowSoftness", style.outer_glow_softness },
-
-					{ "u_InnerGlowColor", style.inner_glow_color.Normalized() },
-					{ "u_InnerGlowWidth", style.inner_glow_width },
-					{ "u_InnerGlowSoftness", style.inner_glow_softness },
-
-					{ "u_PixelRange", style.pixel_range },
-					{ "u_IsDecoration", batch.decoration ? 1.0f : 0.0f },
-				},
-			};
-
-			DrawTextureRequest request{
-				.texture	   = batch.style.texture,
-				.transform	   = transform,
-				.primitives	   = batch.quads,
-				.effect_params = effects,
-			};
-
-			ctx.DrawTexture(request, material);
+	ctx.SetBlendMode(blend_mode);
+	for (auto& batch : text_batches) {
+		if (batch.quads.empty()) {
+			continue;
 		}
-	});
+
+		const auto& style{ batch.style.sdf };
+
+		PTGN_ASSERT(style.pixel_range > 0.0f, "Invalid font pixel range");
+
+		Material material{
+			.shader = "text",
+			.uniforms{
+				{ "u_Weight", style.weight },
+				{ "u_Softness", style.softness },
+
+				{ "u_OutlineColor", style.outline_color.Normalized() },
+				{ "u_OutlineWidth", style.outline_width },
+				{ "u_OutlineSoftness", style.outline_softness },
+
+				{ "u_ShadowColor", style.shadow_color.Normalized() },
+				{ "u_ShadowOffset", style.shadow_offset },
+				{ "u_ShadowWidth", style.shadow_width },
+				{ "u_ShadowSoftness", style.shadow_softness },
+
+				{ "u_OuterGlowColor", style.outer_glow_color.Normalized() },
+				{ "u_OuterGlowWidth", style.outer_glow_width },
+				{ "u_OuterGlowSoftness", style.outer_glow_softness },
+
+				{ "u_InnerGlowColor", style.inner_glow_color.Normalized() },
+				{ "u_InnerGlowWidth", style.inner_glow_width },
+				{ "u_InnerGlowSoftness", style.inner_glow_softness },
+
+				{ "u_PixelRange", style.pixel_range },
+				{ "u_IsDecoration", batch.decoration ? 1.0f : 0.0f },
+			},
+		};
+
+		DrawTextureRequest request{
+			.texture	   = batch.style.texture,
+			.transform	   = transform,
+			.primitives	   = batch.quads,
+			.effect_params = effects,
+		};
+
+		ctx.DrawTexture(request, material);
+	}
 }
 
 } // namespace impl
