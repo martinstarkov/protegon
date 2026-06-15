@@ -157,7 +157,7 @@ void DrawCommands(
 
 	// Debug entity commands not supported.
 	if (!debug) {
-		entity_commands = GetSortedEntityCommands(entities, std::forward<F>(filter));
+		entity_commands = GetSortedEntityCommands(entities, filter);
 	}
 
 	manual_commands.Sort();

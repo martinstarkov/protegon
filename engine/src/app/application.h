@@ -67,8 +67,10 @@ public:
 
 	template <typename T, typename... TArgs>
 		requires std::constructible_from<T, TArgs...> && std::derived_from<T, ApplicationLayer>
-	void PushLayer(TArgs&&... args) {
-		ctx_.layers.emplace_back(std::make_unique<T>(std::forward<TArgs>(args)...));
+	T& PushLayer(TArgs&&... args) {
+		return static_cast<T&>(
+			*ctx_.layers.emplace_back(std::make_unique<T>(std::forward<TArgs>(args)...))
+		);
 	}
 
 private:

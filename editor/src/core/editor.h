@@ -65,7 +65,7 @@ public:
 	const std::vector<std::unique_ptr<Scene>>& GetScenes() const;
 	std::vector<std::unique_ptr<Scene>>& GetScenes();
 
-	void SetPresentationViewport(Viewport viewport);
+	void SetPresentationViewport(std::optional<Viewport> presentation_viewport);
 
 	SceneHierarchyPanel& GetSceneHierarchyPanel();
 	SceneListPanel& GetSceneListPanel();
@@ -79,6 +79,8 @@ public:
 	Stats& GetStats();
 
 	Renderer& GetRenderer();
+
+	void EnableRendering(bool enable = true);
 
 private:
 	Application& app;
@@ -107,4 +109,6 @@ private:
 
 } // namespace ptgn
 
-#define PTGN_WITH_EDITOR(application) application.PushLayer<editor::Editor>(application)
+/// @param Optional: bool argument to enable rendering on the editor layer. Defaults to true.
+#define PTGN_WITH_EDITOR(application, ...) \
+	application.PushLayer<editor::Editor>(application).EnableRendering(__VA_ARGS__)

@@ -12,6 +12,8 @@
 #include <vector>
 
 #include "app/application.h"
+#include "app/application_context.h"
+#include "app/application_layer.h"
 #include "app/application_state.h"
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
@@ -60,7 +62,11 @@ Editor::Editor(Application& app) : app{ app } {
 	commands_ = EditorCommands{ &undo_stack_, &scene_list_panel_ };
 }
 
-void Editor::OnUpdate() {}
+void Editor::OnUpdate() {
+	if (ImGui::IsKeyPressed(ImGuiKey_F11)) {
+		EnableRendering(!render_enabled_);
+	}
+}
 
 void Editor::OnRender() {
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -113,7 +119,7 @@ std::vector<std::unique_ptr<Scene>>& Editor::GetScenes() {
 	return impl::ApplicationAccessor::ctx(app).scene_manager.GetScenes();
 }
 
-void Editor::SetPresentationViewport(Viewport presentation_viewport) {
+void Editor::SetPresentationViewport(std::optional<Viewport> presentation_viewport) {
 	impl::ApplicationAccessor::ctx(app).renderer.SetPresentationViewport(presentation_viewport);
 }
 
@@ -147,6 +153,14 @@ Stats& Editor::GetStats() {
 
 Renderer& Editor::GetRenderer() {
 	return impl::ApplicationAccessor::ctx(app).renderer;
+}
+
+void Editor::EnableRendering(bool enable) {
+	render_enabled_ = enable;
+	if (!render_enabled_) {
+		SetPresentationViewport(std::nullopt);
+		SetPrimaryWorldCamera(std::nullopt);
+	}
 }
 
 void Editor::SetScalingMode(ScalingMode scaling_mode) {

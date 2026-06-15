@@ -13,6 +13,7 @@
 
 #include <chrono>
 #include <memory>
+#include <optional>
 #include <string_view>
 #include <utility>
 
@@ -191,7 +192,10 @@ void Application::Update() {
 	}
 
 	for (const auto& layer : ctx_.layers) {
-		layer->OnUpdate();
+		PTGN_ASSERT(layer);
+		if (layer->update_enabled_) {
+			layer->OnUpdate();
+		}
 	}
 
 	ctx_.audio.Update();
@@ -201,7 +205,10 @@ void Application::Update() {
 	}
 
 	for (const auto& layer : ctx_.layers) {
-		layer->OnRender();
+		PTGN_ASSERT(layer);
+		if (layer->render_enabled_) {
+			layer->OnRender();
+		}
 	}
 
 	ImGui::Render();
