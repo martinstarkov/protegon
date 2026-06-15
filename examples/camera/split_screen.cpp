@@ -15,6 +15,7 @@
 #include "renderer/pipeline/viewport.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/graphics/fx/light.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
@@ -89,22 +90,18 @@ struct ResolutionScene : public Scene {
 		SetDraggable(rect);
 		AddScript<RectDragScript>(rect);
 
-		// TODO: Fix point light.
-		/*
-		float intensity{ 0.5f };
+		float intensity{ 1.0f };
 		float falloff{ 2.0f };
-
-		CreatePointLight(
-			*this, camera_center + V2_float{ 100, 0 }, 50.0f, color::Red, intensity, falloff
-		);*/
-
-		/*float radius{ 50.0f };
-		circle = Sprite{ CreateEntity() };
+		auto light = CreateLight(
+			*this, V2_float{ 100, 0 },
+			{ .radius = 50.0f, .color = color::Red, .intensity = intensity, .falloff = falloff }
+		);
+		float radius{ 50.0f };
 		auto child{ CreateEntity() };
 		child.Add<Circle>(radius);
-		AddInteractiveShape(circle, GameObject{ std::move(child) });
-		SetDraggable(circle);
-		AddScript<CircleDragScript>(circle);*/
+		AddInteractiveShape(light, child);
+		SetDraggable(light);
+		AddScript<CircleDragScript>(light);
 	}
 
 	const float rotation_speed{ 100.0f };
