@@ -76,47 +76,6 @@ constexpr std::string_view kDefaultSceneFixedCameraTag{ "Fixed Camera" };
 constexpr LayerMask kDefaultFixedCameraIncludeLayerMask{ kLayersNone };
 constexpr LayerMask kDefaultFixedCameraExcludeLayerMask{ kLayersAll };
 
-void SortEntityDrawCommands(std::vector<impl::EntityRenderCommand>& commands) {
-	std::ranges::stable_sort(commands, [](const auto& a, const auto& b) {
-		if (a.depth != b.depth) {
-			return a.depth < b.depth;
-		}
-
-		return a.entity.WasCreatedBefore(b.entity);
-	});
-}
-
-Viewport GetDisplayViewport(
-	const Renderer& renderer, const Camera& camera, RenderTarget render_target
-) {
-	auto logical_size{ renderer.GetLogicalSize() };
-
-	auto render_target_size{ render_target.GetSize() };
-
-	auto display_viewport{ ptgn::GetDisplayViewport(
-		camera.raw_viewport, camera.viewport_space, logical_size, render_target_size
-	) };
-
-	return display_viewport;
-}
-
-void SetupCamera(
-	Renderer& render, const Matrix4& view_projection, Viewport display_viewport,
-	RenderTarget render_target, std::optional<Color> clear_color
-) {
-	impl::RendererAccessor renderer{ render };
-
-	renderer.SetFramebuffer(&render_target.Get<impl::FramebufferObject>());
-
-	renderer.SetViewport(display_viewport);
-	renderer.SetViewProjection(view_projection);
-	renderer.SetScissor(ScissorState{ display_viewport });
-
-	if (clear_color.has_value()) {
-		render_target.ClearColor(clear_color.value(), false);
-	}
-}
-
 void ApplyCameraEffects(
 	Renderer& render, DrawContext& draw_context, Viewport display_viewport,
 	V2_float render_target_size, const Matrix4& view_projection, Color tint,
@@ -161,8 +120,9 @@ void ApplyCameraEffects(
 	);
 }
 
-template <InvocableR<bool, Entity> F>
-std::vector<impl::EntityRenderCommand> GetSortedEntityCommands(auto entity_view, F&& filter) {
+std::vector<impl::EntityRenderCommand> GetSortedEntityCommands(
+	auto entity_view, InvocableR<bool, Entity> auto filter
+) {
 	std::vector<impl::EntityRenderCommand> entity_commands;
 
 	for (auto tuple : entity_view) {
@@ -175,15 +135,20 @@ std::vector<impl::EntityRenderCommand> GetSortedEntityCommands(auto entity_view,
 		entity_commands.emplace_back(entity, GetDepth(entity));
 	}
 
-	SortEntityDrawCommands(entity_commands);
+	std::ranges::stable_sort(entity_commands, [](const auto& a, const auto& b) {
+		if (a.depth != b.depth) {
+			return a.depth < b.depth;
+		}
+
+		return a.entity.WasCreatedBefore(b.entity);
+	});
 
 	return entity_commands;
 }
 
-template <InvocableR<bool, Entity> F>
 void DrawCommands(
-	Renderer& renderer, DrawContext& draw_context, auto& manual_commands, auto entities, F&& filter,
-	bool debug
+	Renderer& renderer, DrawContext& draw_context, auto& manual_commands, auto entities,
+	InvocableR<bool, Entity> auto filter, bool debug
 ) {
 	std::size_t entity_index{ 0 };
 	std::size_t manual_index{ 0 };
@@ -241,46 +206,46 @@ void DrawCommands(
 	manual_commands.Clear();
 }
 
-template <InvocableR<bool, Entity> F>
-void DrawCommands(
-	Renderer& renderer, DrawContext& draw_context, auto view, auto& commands, auto& debug_commands,
-	F filter, Viewport display_viewport, V2_float render_target_size,
-	const Matrix4& view_projection, Color tint, const impl::EffectParams& effect_params
+void DrawCamera(
+	Renderer& render, DrawContext& draw_context, auto view, RenderTarget render_target,
+	const Camera& camera, std::optional<Color> clear_color, auto& commands, auto& debug_commands,
+	Color tint, const impl::EffectParams& effect_params, InvocableR<bool, Entity> auto filter
 ) {
-	DrawCommands(renderer, draw_context, commands, view, filter, false);
+	auto logical_size{ render.GetLogicalSize() };
 
-	DrawCommands(renderer, draw_context, debug_commands, view, filter, true);
+	auto render_target_size{ render_target.GetSize() };
+
+	auto display_viewport{ ptgn::GetDisplayViewport(
+		camera.raw_viewport, camera.viewport_space, logical_size, render_target_size
+	) };
+
+	impl::RendererAccessor renderer{ render };
+
+	renderer.SetFramebuffer(&render_target.Get<impl::FramebufferObject>());
+
+	renderer.SetViewport(display_viewport);
+	renderer.SetViewProjection(camera.view_projection);
+	renderer.SetScissor(ScissorState{ display_viewport });
+
+	if (clear_color.has_value()) {
+		render_target.ClearColor(clear_color.value(), false);
+	}
+
+	DrawCommands(render, draw_context, commands, view, filter, false);
+
+	DrawCommands(render, draw_context, debug_commands, view, filter, true);
 
 	ApplyCameraEffects(
-		renderer, draw_context, display_viewport, render_target_size, view_projection, tint,
+		render, draw_context, display_viewport, render_target_size, camera.view_projection, tint,
 		effect_params
 	);
 }
 
-template <InvocableR<bool, Entity> F>
-void DrawCamera(
-	Renderer& renderer, DrawContext& draw_context, auto view, RenderTarget render_target,
-	const Camera& camera, std::optional<Color> clear_color, auto& commands, auto& debug_commands,
-	Color tint, const impl::EffectParams& effect_params, F&& filter
-) {
-	auto display_viewport{ GetDisplayViewport(renderer, camera, render_target) };
-
-	auto render_target_size{ render_target.GetSize() };
-
-	SetupCamera(renderer, camera.view_projection, display_viewport, render_target, clear_color);
-
-	DrawCommands(
-		renderer, draw_context, view, commands, debug_commands, std::forward<F>(filter),
-		display_viewport, render_target_size, camera.view_projection, tint, effect_params
-	);
-}
-
-template <InvocableR<bool, Entity> F>
 void DrawScene(
 	Scene& scene, auto& commands, auto& debug_commands, DrawContext& draw_context,
 	const RenderTarget& render_target, const Camera& cam, const SceneCamera& camera,
 	std::optional<Color> clear_color, Color tint, const impl::EffectParams& effect_params,
-	F&& filter
+	InvocableR<bool, Entity> auto filter
 ) {
 	auto light_entity_commands{ GetSortedEntityCommands(
 		scene.EntitiesWith<impl::LightData, impl::VisibilityPolygon>(), filter
@@ -422,7 +387,7 @@ bool Scene::IsAwaitingTransitionDelay() const {
 	return data_.transition && !data_.transition->IsStarted();
 }
 
-void Scene::ClearRenderTargets(DrawContext& draw_context) {
+void Scene::ClearRenderTargets() {
 	impl::RendererAccessor renderer{ ctx().renderer };
 
 	for (auto [render_target, frame_buffer, _drawable] :
@@ -472,7 +437,7 @@ void Scene::DrawCameras(DrawContext& draw_context) {
 }
 
 void Scene::InternalDraw(DrawContext& draw_context) {
-	ClearRenderTargets(draw_context);
+	ClearRenderTargets();
 
 	if (const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
 		primary_world_camera.has_value()) {

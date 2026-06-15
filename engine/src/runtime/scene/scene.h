@@ -243,7 +243,7 @@ private:
 
 	void InternalUpdate();
 	void InternalDraw(DrawContext& draw_context);
-	void ClearRenderTargets(DrawContext& draw_context);
+	void ClearRenderTargets();
 	void DrawCameras(DrawContext& draw_context);
 	void DrawSceneTarget(DrawContext& draw_context) const;
 	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
