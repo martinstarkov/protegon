@@ -164,8 +164,8 @@ public:
 
 	void Draw() {
 		auto vertices{ ctx().camera.GetWorldVertices() };
-		V2_int min{ FastFloor(vertices[0] / pixel_size) - V2_int{ 1 } };
-		V2_int max{ FastCeil(vertices[2] / pixel_size) + V2_int{ 1 } };
+		V2_int min{ Floor(vertices[0] / pixel_size) - V2_int{ 1 } };
+		V2_int max{ Ceil(vertices[2] / pixel_size) + V2_int{ 1 } };
 
 		PTGN_LOG("Min: ", min, ", Max: ", max);
 

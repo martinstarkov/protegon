@@ -620,8 +620,8 @@ void GLContext::SetViewport(Viewport viewport) {
 	if (bound_.render_state.viewport == viewport) {
 		return;
 	}
-	V2_int pos{ FastFloor(viewport.position) };
-	V2_int size{ FastCeil(viewport.size) };
+	V2_int pos{ Floor(viewport.position) };
+	V2_int size{ Ceil(viewport.size) };
 	GLCall(glViewport(pos.x, pos.y, size.x, size.y));
 	bound_.render_state.viewport = viewport;
 }
@@ -685,8 +685,8 @@ void GLContext::SetScissor(const ScissorState& scissor) {
 			GLCall(glEnable(GL_SCISSOR_TEST));
 		}
 		if (bound_.render_state.scissor.viewport != scissor.viewport) {
-			V2_int pos{ FastFloor(scissor.viewport.position) };
-			V2_int size{ FastCeil(scissor.viewport.size) };
+			V2_int pos{ Floor(scissor.viewport.position) };
+			V2_int size{ Ceil(scissor.viewport.size) };
 			GLCall(glScissor(pos.x, pos.y, size.x, size.y));
 		}
 	} else {

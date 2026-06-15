@@ -20,7 +20,7 @@ namespace ptgn {
 Matrix4 GetOrthographicViewProjection(
 	Transform transform, V2_float viewport_size, bool pixel_rounding
 ) {
-	V2_float rounded_size{ pixel_rounding ? FastRound(viewport_size) : viewport_size };
+	V2_float rounded_size{ pixel_rounding ? Round(viewport_size) : viewport_size };
 
 	V2_float half_size{ rounded_size * 0.5f };
 
@@ -32,7 +32,7 @@ Matrix4 GetOrthographicViewProjection(
 	projection = Matrix4::Orthographic(min, max);
 
 	if (pixel_rounding) {
-		transform.position = FastRound(transform.position);
+		transform.position = Round(transform.position);
 	}
 
 	auto view{ Matrix4::MakeInverseTransform(transform) };

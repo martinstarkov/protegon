@@ -8,6 +8,7 @@
 #include <numbers>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 
 #include "core/assert.h"
 #include "core/util/concepts.h"
@@ -42,7 +43,7 @@ template <std::integral T>
 /// Returns  0  if value is zero.
 /// Returns -1  if value is negative.
 /// No NaN/inf checking.
-template <typename T>
+template <Arithmetic T>
 [[nodiscard]] constexpr T Sign(T value) {
 	return static_cast<T>((0 < value) - (value < 0));
 }
@@ -54,8 +55,8 @@ template <typename T>
 
 /// @brief Fast floor function (same as std::floor but without NaN/inf checking).
 /// From: https://stackoverflow.com/a/30308919
-template <typename T>
-[[nodiscard]] constexpr T FastFloor(T value) {
+template <Arithmetic T>
+[[nodiscard]] constexpr T Floor(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
 		return static_cast<T>(
 			static_cast<std::int64_t>(value) - (value < static_cast<std::int64_t>(value))
@@ -66,18 +67,18 @@ template <typename T>
 }
 
 /// @brief Fast round function (same as std::round but without NaN/inf checking).
-template <typename T>
-[[nodiscard]] constexpr T FastRound(T value) {
+template <Arithmetic T>
+[[nodiscard]] constexpr T Round(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
-		return FastFloor(value + 0.5f);
+		return Floor(value + 0.5f);
 	} else {
 		return value;
 	}
 }
 
 /// @brief Fast ceil function (same as std::ceil but without NaN/inf checking).
-template <typename T>
-[[nodiscard]] constexpr T FastCeil(T value) {
+template <Arithmetic T>
+[[nodiscard]] constexpr T Ceil(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
 		return static_cast<T>(
 			static_cast<std::int64_t>(value) + (value > static_cast<std::int64_t>(value))
@@ -99,7 +100,7 @@ template <typename T>
 	t += phase_shift + 0.25f;
 	t /= period;
 
-	return 2.0f * std::abs(2.0f * (t - FastRound(t))) - 1.0f;
+	return 2.0f * std::abs(2.0f * (t - Round(t))) - 1.0f;
 }
 
 /// @brief Linearly interpolate between a and b by t.

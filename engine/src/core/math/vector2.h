@@ -456,20 +456,20 @@ template <Arithmetic T>
 
 /// @return Ceil both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] constexpr Vector2<T> FastCeil(Vector2<T> vector) {
-	return { FastCeil(vector.x), FastCeil(vector.y) };
+[[nodiscard]] constexpr Vector2<T> Ceil(Vector2<T> vector) {
+	return { Ceil(vector.x), Ceil(vector.y) };
 }
 
 /// @return Floor both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] constexpr Vector2<T> FastFloor(Vector2<T> vector) {
-	return { FastFloor(vector.x), FastFloor(vector.y) };
+[[nodiscard]] constexpr Vector2<T> Floor(Vector2<T> vector) {
+	return { Floor(vector.x), Floor(vector.y) };
 }
 
 /// @return Round both components of a vector.
 template <Arithmetic T>
-[[nodiscard]] constexpr Vector2<T> FastRound(Vector2<T> vector) {
-	return { FastRound(vector.x), FastRound(vector.y) };
+[[nodiscard]] constexpr Vector2<T> Round(Vector2<T> vector) {
+	return { Round(vector.x), Round(vector.y) };
 }
 
 /// @return Absolute value for both components of a vector.

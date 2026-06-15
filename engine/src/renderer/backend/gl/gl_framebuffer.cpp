@@ -666,11 +666,11 @@ void Framebuffers::CopyRegionImpl(
 	std::optional<GLint> previous_draw_buffer;
 	SelectDrawBufferIfColor(attachment, previous_draw_buffer);
 
-	V2_int src_min{ FastFloor(source_region.position) };
-	V2_int src_max{ FastCeil(source_region.position + source_region.size) };
+	V2_int src_min{ Floor(source_region.position) };
+	V2_int src_max{ Ceil(source_region.position + source_region.size) };
 
-	V2_int dst_min{ FastFloor(destination_position) };
-	V2_int dst_max{ FastCeil(destination_position + source_region.size) };
+	V2_int dst_min{ Floor(destination_position) };
+	V2_int dst_max{ Ceil(destination_position + source_region.size) };
 
 	GLCall(glBlitFramebuffer(
 		src_min.x, src_min.y, src_max.x, src_max.y, dst_min.x, dst_min.y, dst_max.x, dst_max.y,

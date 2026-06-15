@@ -166,8 +166,8 @@ float PerlinNoise::GetValue(float x, float y, std::int32_t seed, float frequency
 }
 
 float PerlinNoise::GetImpl(float x, float y, std::int32_t seed) {
-	auto x0 = static_cast<std::int32_t>(FastFloor(x));
-	auto y0 = static_cast<std::int32_t>(FastFloor(y));
+	auto x0 = static_cast<std::int32_t>(Floor(x));
+	auto y0 = static_cast<std::int32_t>(Floor(y));
 
 	auto xd0  = x - static_cast<float>(x0);
 	auto yd0  = y - static_cast<float>(y0);
@@ -205,8 +205,8 @@ float ValueNoise::GetValue(float x, float y, std::int32_t seed, float frequency)
 }
 
 float ValueNoise::GetImpl(float x, float y, std::int32_t seed) {
-	auto x0 = static_cast<std::int32_t>(FastFloor(x));
-	auto y0 = static_cast<std::int32_t>(FastFloor(y));
+	auto x0 = static_cast<std::int32_t>(Floor(x));
+	auto y0 = static_cast<std::int32_t>(Floor(y));
 
 	float xs = Smoothstep(x - static_cast<float>(x0));
 	float ys = Smoothstep(y - static_cast<float>(y0));
@@ -245,8 +245,8 @@ float SimplexNoise::GetImpl(float x, float y, std::int32_t seed) {
 	x			   += t0;
 	y			   += t0;
 
-	auto i{ static_cast<std::int32_t>(FastFloor(x)) };
-	auto j{ static_cast<std::int32_t>(FastFloor(y)) };
+	auto i{ static_cast<std::int32_t>(Floor(x)) };
+	auto j{ static_cast<std::int32_t>(Floor(y)) };
 	auto xi{ x - static_cast<float>(i) };
 	auto yi{ y - static_cast<float>(j) };
 
