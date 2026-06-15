@@ -22,6 +22,6 @@ class TextureEffectScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "TextureEffectScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<TextureEffectScene>();
 }
