@@ -614,9 +614,8 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	if (use_editor_camera_) {
 		UpdateEditorCameraPan(editor_camera_);
 
-		editor_camera_.camera.raw_viewport.position = {};
-		editor_camera_.camera.raw_viewport.size		= { 1.0f, 1.0f };
-		editor_camera_.camera.viewport_space		= ViewportSpace::Normalized;
+		editor_camera_.camera.raw_viewport	 = { .position{}, .size{ 1.0f, 1.0f } };
+		editor_camera_.camera.viewport_space = ViewportSpace::Normalized;
 
 		auto logical_viewport{ GetLogicalViewport(
 			editor_camera_.camera.raw_viewport, editor_camera_.camera.viewport_space,
@@ -634,7 +633,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	auto camera_display_viewport{ GetDisplayViewport(
 		editor_camera_.camera.raw_viewport, editor_camera_.camera.viewport_space,
-		ctx.editor.GetRenderer().GetLogicalSize(), presentation_size
+		ctx.editor.GetRenderer().GetLogicalSize(), presentation_size, true
 	) };
 
 	FrameContext frame_context{ ctx.editor.GetRenderer(), Transform{}, presentation_size,

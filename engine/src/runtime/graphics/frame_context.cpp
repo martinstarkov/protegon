@@ -64,7 +64,8 @@ FrameContext::FrameContext(
 				  cam.transform,
 				  GetDisplayViewport(
 					  cam.raw_viewport, cam.viewport_space, renderer.GetLogicalSize(),
-					  render_target_entity.GetSize()
+					  render_target_entity.GetSize(),
+					  render_target_entity == render_target_entity.GetScene().GetRenderTarget()
 				  ) } {}
 
 V2_float ConvertPoint(V2_float p, Frame from, Frame to, const FrameContext& ctx) {

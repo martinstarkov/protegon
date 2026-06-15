@@ -169,9 +169,6 @@ public:
 	/// @brief If clear_color is {}, uses its parent render target's clear color.
 	void SetClearColor(std::optional<Color> clear_color);
 	std::optional<Color> GetClearColor() const;
-
-private:
-	Viewport GetRawOrDefaultViewport() const;
 };
 
 LayerMask GetMask(Entity entity);

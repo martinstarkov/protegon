@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
@@ -12,7 +13,7 @@ namespace ptgn {
 
 struct Camera {
 	Transform transform;
-	Viewport raw_viewport;
+	std::optional<Viewport> raw_viewport;
 	ViewportSpace viewport_space{ ViewportSpace::Logical };
 	Matrix4 view_projection;
 

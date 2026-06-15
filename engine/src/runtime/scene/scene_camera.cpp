@@ -110,7 +110,7 @@ SceneCamera::SceneCamera(Entity entity) : Entity{ entity } {}
 
 SceneCamera::operator Camera() const {
 	return Camera{ .transform{ GetTransform(*this) },
-				   .raw_viewport{ GetRawOrDefaultViewport() },
+				   .raw_viewport{ GetRawViewport() },
 				   .viewport_space{ GetViewportSpace() },
 				   .view_projection{ GetViewProjection() } };
 }
@@ -193,18 +193,12 @@ std::optional<Viewport> SceneCamera::GetRawViewport() const {
 	return Get<impl::CameraData>().raw_viewport;
 }
 
-Viewport SceneCamera::GetRawOrDefaultViewport() const {
-	return GetRawViewport().value_or(
-		Viewport{ .position = {}, .size = GetScene().ctx().renderer.GetLogicalSize() }
-	);
-}
-
 Viewport SceneCamera::GetLogicalViewport() const {
 	const auto& camera{ Get<impl::CameraData>() };
 
 	auto logical_size{ GetScene().ctx().renderer.GetLogicalSize() };
 
-	return ptgn::GetLogicalViewport(GetRawOrDefaultViewport(), camera.viewport_space, logical_size);
+	return ptgn::GetLogicalViewport(GetRawViewport(), camera.viewport_space, logical_size);
 }
 
 Viewport SceneCamera::GetDisplayViewport() const {
@@ -212,10 +206,13 @@ Viewport SceneCamera::GetDisplayViewport() const {
 
 	auto logical_size{ GetScene().ctx().renderer.GetLogicalSize() };
 
-	auto target_size{ GetRenderTarget().GetSize() };
+	auto parent{ GetRenderTarget() };
+
+	auto target_size{ parent.GetSize() };
 
 	return ptgn::GetDisplayViewport(
-		GetRawOrDefaultViewport(), camera.viewport_space, logical_size, target_size
+		GetRawViewport(), camera.viewport_space, logical_size, target_size,
+		parent == GetScene().GetRenderTarget()
 	);
 }
 
