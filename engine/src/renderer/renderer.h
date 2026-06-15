@@ -494,9 +494,10 @@ private:
 			return;
 		}
 
-		auto size{ GetSize(presentation_framebuffer_) };
-
-		PTGN_ASSERT(size == GetWindowSize(), "Screen framebuffer size must match window size");
+		PTGN_ASSERT(
+			GetSize(presentation_framebuffer_) == V2_int{ Ceil(display_viewport_.size) },
+			"Presentation framebuffer size must match display size"
+		);
 
 		SetCurrentPipeline("texture");
 		SetMaterial(
@@ -506,16 +507,16 @@ private:
 			}
 		);
 		SetBlendMode(BlendMode::ReplaceRGBA);
-		SetViewport({ {}, size });
+		SetViewport(display_viewport_);
 		SetScissor(ScissorState{ false });
-		SetViewProjection(size);
+		SetViewProjection(display_viewport_.size);
 
 		constexpr auto depth{ 0.0f };
 		constexpr auto tint{ color::White };
 		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
 		constexpr auto entity_id{ -1 };
 
-		auto local_vertices{ Rect{ size }.GetLocalVertices() };
+		auto local_vertices{ Rect{ display_viewport_.size }.GetLocalVertices() };
 		auto local_quad{
 			impl::CreateTextureQuad(local_vertices, depth, tint.Normalized(), tex_coords, entity_id)
 		};

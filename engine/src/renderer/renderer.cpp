@@ -495,11 +495,13 @@ void Renderer::SetPresentationViewport(std::optional<Viewport> presentation_view
 		return;
 	}
 
+	auto size{ Ceil(presentation_viewport_.value().size) };
+
 	if (!logical_size_.has_value()) {
-		event_sink_(presentation_viewport_.value().size, impl::ResizeType::Logical);
+		event_sink_(size, impl::ResizeType::Logical);
 	}
 
-	event_sink_(presentation_viewport_.value().size, impl::ResizeType::Presentation);
+	event_sink_(size, impl::ResizeType::Presentation);
 	display_viewport_dirty_ = true;
 }
 
@@ -594,10 +596,12 @@ void Renderer::UpdateDisplayViewport(bool emit_events) {
 	display_viewport_ = resize_info.viewport;
 
 	if (resize_info.resized) {
-		ResizePresentationFramebuffer(display_viewport_.size);
+		auto size{ Ceil(display_viewport_.size) };
+
+		ResizePresentationFramebuffer(size);
 
 		if (emit_events) {
-			event_sink_(display_viewport_.size, impl::ResizeType::Display);
+			event_sink_(size, impl::ResizeType::Display);
 		}
 	}
 }
@@ -1003,7 +1007,7 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 		PTGN_ASSERT(input_size.IsPositive(), "Render pass input size must be non-zero");
 
 		PTGN_ASSERT(
-			V2_float{ input_size } == request.viewport.size,
+			input_size == V2_int{ Floor(request.viewport.size) },
 			"Render pass input size must match the draw viewport size"
 		);
 
