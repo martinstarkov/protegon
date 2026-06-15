@@ -1155,9 +1155,8 @@ bool Renderer::FramebufferMatches(
 
 		PTGN_ASSERT(color.has_value());
 
-		auto color_texture{ impl::TextureId{ color.value().id } };
-
-		if (GetFormat(color_texture) != desc.format || GetSize(color_texture) != desc.size) {
+		if (auto color_texture{ impl::TextureId{ color.value().id } };
+			GetFormat(color_texture) != desc.format || GetSize(color_texture) != desc.size) {
 			return false;
 		}
 
@@ -1214,7 +1213,7 @@ ShaderObject RendererAccessor::CreateShader(
 }
 
 FramebufferObject RendererAccessor::CreateFramebuffer(
-	TextureDesc desc, std::optional<TextureDesc> other_desc
+	TextureDesc desc, const std::optional<TextureDesc>& other_desc
 ) {
 	return renderer_.CreateFramebuffer(desc, other_desc);
 }

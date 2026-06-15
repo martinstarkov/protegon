@@ -661,7 +661,7 @@ public:
 	);
 
 	[[nodiscard]] FramebufferObject CreateFramebuffer(
-		TextureDesc desc, std::optional<TextureDesc> other_desc
+		TextureDesc desc, const std::optional<TextureDesc>& other_desc
 	);
 
 	TextureId GetPresentationTexture() const;
