@@ -216,7 +216,8 @@ void DrawCamera(
 	auto render_target_size{ render_target.GetSize() };
 
 	auto display_viewport{ ptgn::GetDisplayViewport(
-		camera.raw_viewport, camera.viewport_space, logical_size, render_target_size
+		camera.raw_viewport, camera.viewport_space, logical_size, render_target_size,
+		render_target == render_target.GetScene().GetRenderTarget()
 	) };
 
 	impl::RendererAccessor renderer{ render };
@@ -390,31 +391,23 @@ bool Scene::IsAwaitingTransitionDelay() const {
 void Scene::ClearRenderTargets() {
 	impl::RendererAccessor renderer{ ctx().renderer };
 
+	auto clear_render_target = [&](auto render_target) {
+		renderer.SetViewport({ .position = {}, .size = render_target.GetSize() });
+		renderer.SetScissor(ScissorState{ false });
+		render_target.ClearColor(std::nullopt, false);
+	};
+
 	for (auto [render_target, frame_buffer, _drawable] :
 		 EntitiesWith<impl::FramebufferObject, impl::IDrawable>()) {
-		renderer.SetViewport({ .position = {}, .size = RenderTarget{ render_target }.GetSize() });
-		renderer.SetScissor(ScissorState{ false });
-		RenderTarget{ render_target }.ClearColor(std::nullopt, false);
+		clear_render_target(RenderTarget{ render_target });
 	}
 
 	renderer.SetFramebuffer(&ctx_->render_target_.Get<impl::FramebufferObject>());
-	Viewport viewport{ {}, ctx_->render_target_.GetSize() };
-	renderer.SetViewport(viewport);
-	renderer.SetScissor(ScissorState{ false });
-	ctx_->render_target_.ClearColor(std::nullopt, false);
+	clear_render_target(ctx_->render_target_);
 }
 
-void Scene::DrawCameras(DrawContext& draw_context) {
-	std::vector<Entity> camera_entities;
-
-	for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
-		impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
-		camera_entities.emplace_back(camera_entity);
-	}
-
-	SortByDepth(camera_entities, false);
-
-	for (const auto& camera_entity : camera_entities) {
+void Scene::DrawCameras(DrawContext& draw_context, const std::vector<Entity>& cameras) {
+	for (const auto& camera_entity : cameras) {
 		SceneCamera camera{ camera_entity };
 
 		auto render_target{ camera.GetRenderTarget() };
@@ -441,6 +434,20 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 
 	if (const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
 		primary_world_camera.has_value()) {
+		std::vector<Entity> non_scene_cameras;
+
+		for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
+			if (SceneCamera{ camera_entity }.GetRenderTarget() == ctx_->render_target_) {
+				continue;
+			}
+			impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
+			non_scene_cameras.emplace_back(camera_entity);
+		}
+
+		SortByDepth(non_scene_cameras, false);
+
+		DrawCameras(draw_context, non_scene_cameras);
+
 		ctx().render_queue.CombineCommands();
 
 		PTGN_ASSERT(ctx().render_queue.render_commands_.size() == 1);
@@ -452,8 +459,15 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 		impl::EffectParams effect_params;
 		Camera cam{ primary_world_camera.value() };
 		std::optional<Color> clear_color;
-		auto filter = [](auto) {
-			return false;
+		auto filter = [this](auto entity) {
+			auto entity_mask = GetMask(entity);
+			auto include	 = ctx().camera.GetIncludeMask();
+			auto exclude	 = ctx().camera.GetExcludeMask();
+
+			bool in_include = (entity_mask & include) != 0;
+			bool in_exclude = (entity_mask & exclude) != 0;
+
+			return !(in_include && !in_exclude /*|| IsUI(entity)*/);
 		};
 
 		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
@@ -464,7 +478,16 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 			tint, effect_params, filter
 		);
 	} else {
-		DrawCameras(draw_context);
+		std::vector<Entity> cameras;
+
+		for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
+			impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
+			cameras.emplace_back(camera_entity);
+		}
+
+		SortByDepth(cameras, false);
+
+		DrawCameras(draw_context, cameras);
 	}
 
 	impl::RendererAccessor renderer{ ctx().renderer };
@@ -490,16 +513,13 @@ void Scene::DrawSceneTarget(DrawContext& draw_context) const {
 	// No margin for scene effects so render targets do not exceed their sizes.
 	effects.margin = 0;
 
-	draw_context.WithBlendMode(
-		blend_mode, [this, &draw_context, draw_transform, texture, &effects]() {
-			draw_context.DrawTexture(
-				draw_transform, texture,
-				{ .size				   = ctx_->render_target_.GetSize(),
-				  .tint				   = GetTint(ctx_->render_target_),
-				  .texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
-				  .effects			   = std::move(effects) }
-			);
-		}
+	draw_context.SetBlendMode(blend_mode);
+	draw_context.DrawTexture(
+		draw_transform, texture,
+		{ .size				   = ctx_->render_target_.GetSize(),
+		  .tint				   = GetTint(ctx_->render_target_),
+		  .texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
+		  .effects			   = std::move(effects) }
 	);
 }
 

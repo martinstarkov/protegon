@@ -244,7 +244,7 @@ private:
 	void InternalUpdate();
 	void InternalDraw(DrawContext& draw_context);
 	void ClearRenderTargets();
-	void DrawCameras(DrawContext& draw_context);
+	void DrawCameras(DrawContext& draw_context, const std::vector<Entity>& cameras);
 	void DrawSceneTarget(DrawContext& draw_context) const;
 	[[nodiscard]] bool IsAwaitingTransitionDelay() const;
 
