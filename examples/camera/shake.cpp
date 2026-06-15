@@ -75,7 +75,7 @@ public:
 				return;
 			}
 			SetPosition(b, -res * 0.5f + screen_offset + (offset + size) * coord);
-			b.SetShape(size);
+			b.SetShape(Rect{ size });
 			SetDrawOrigin(b, Origin::TopLeft);
 			if (coord == V2_int{}) {
 				SetUI(b, false);
