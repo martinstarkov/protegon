@@ -2,8 +2,8 @@
 
 #include <algorithm>
 #include <optional>
+#include <ranges>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include "core/assert.h"
@@ -13,7 +13,6 @@
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/ecs/game_object.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/interaction/trigger_condition.h"
 #include "runtime/scene/scene.h"
@@ -29,7 +28,7 @@ bool IsInteractive(Entity entity) {
 }
 
 void AddInteractiveShape(
-	Entity entity, GameObject<>&& shape, std::optional<std::string_view> shape_id,
+	Entity entity, Entity shape, std::optional<std::string_view> shape_id,
 	bool ignore_parent_transform
 ) {
 	IgnoreParentTransform(shape, ignore_parent_transform);
@@ -40,17 +39,16 @@ void AddInteractiveShape(
 			"Cannot add the same named interactable to an entity more than once"
 		);
 	}
+	shape.Add<impl::InteractiveTag>();
 	AddChild(entity, shape, shape_id);
-	auto& interactive{ entity.Get<impl::Interactive>() };
-	interactive.shapes.emplace_back(std::move(shape));
 }
 
 void SetInteractiveShape(
-	Entity entity, GameObject<>&& shape, std::optional<std::string_view> shape_id,
+	Entity entity, Entity shape, std::optional<std::string_view> shape_id,
 	bool ignore_parent_transform
 ) {
 	ClearInteractiveShapes(entity);
-	AddInteractiveShape(entity, std::move(shape), shape_id, ignore_parent_transform);
+	AddInteractiveShape(entity, shape, shape_id, ignore_parent_transform);
 }
 
 void AddInteractiveRect(
@@ -62,9 +60,7 @@ void AddInteractiveRect(
 	shape.Add<Rect>(size);
 	SetPosition(shape, position);
 	SetDrawOrigin(shape, draw_origin);
-	AddInteractiveShape(
-		interactive_entity, GameObject{ std::move(shape) }, shape_id, ignore_parent_transform
-	);
+	AddInteractiveShape(interactive_entity, shape, shape_id, ignore_parent_transform);
 }
 
 void SetInteractiveRect(
@@ -85,9 +81,7 @@ void AddInteractiveCircle(
 	auto shape = scene.CreateEntity();
 	shape.Add<Circle>(radius);
 	SetPosition(shape, position);
-	AddInteractiveShape(
-		interactive_entity, GameObject{ std::move(shape) }, shape_id, ignore_parent_transform
-	);
+	AddInteractiveShape(interactive_entity, shape, shape_id, ignore_parent_transform);
 }
 
 void SetInteractiveCircle(
@@ -106,16 +100,27 @@ void RemoveInteractiveShape(Entity entity, std::string_view name) {
 		return;
 	}
 	Entity child{ GetChild(entity, name) };
-	auto& interactive{ entity.Get<impl::Interactive>() };
-	std::erase(interactive.shapes, child);
+	PTGN_ASSERT(
+		child.Has<impl::InteractiveTag>(), "Cannot remove a child entity that is not interactive"
+	);
+	RemoveChild(entity, name);
+	child.Destroy();
 }
 
 bool HasInteractiveShape(Entity entity) {
 	if (!entity.Has<impl::Interactive>()) {
 		return false;
 	}
-	const auto& interactive{ entity.Get<impl::Interactive>() };
-	return !interactive.shapes.empty() || entity.HasAny<Rect, Circle>();
+	if (entity.HasAny<Rect, Circle>()) {
+		return true;
+	}
+	if (!HasChildren(entity)) {
+		return false;
+	}
+	const auto& children{ GetChildren(entity) };
+	return std::ranges::any_of(children, [](auto child) {
+		return child.template Has<impl::InteractiveTag>();
+	});
 }
 
 bool HasInteractiveShape(Entity entity, std::string_view name) {
@@ -128,29 +133,35 @@ bool HasInteractiveShape(Entity entity, std::string_view name) {
 
 	Entity child{ GetChild(entity, name) };
 
-	const auto& interactive{ entity.Get<impl::Interactive>() };
-
-	return std::ranges::contains(interactive.shapes, child);
+	return child.Has<impl::InteractiveTag>();
 }
 
 std::vector<Entity> GetInteractiveShapes(Entity entity) {
-	PTGN_ASSERT(entity.Has<impl::Interactive>());
-	const auto& interactive{ entity.Get<impl::Interactive>() };
-	std::vector<Entity> interactables;
-	interactables.reserve(interactive.shapes.size());
-	for (const auto& shape : interactive.shapes) {
-		interactables.emplace_back(shape);
+	PTGN_ASSERT(entity.Has<impl::Interactive>(), "Entity must have interactive component");
+	if (!HasChildren(entity)) {
+		return {};
 	}
-	return interactables;
+	const auto& children{ GetChildren(entity) };
+	return std::ranges::to<std::vector<Entity>>(
+		children |
+		std::views::filter([](auto child) { return child.template Has<impl::InteractiveTag>(); })
+	);
 }
 
 void ClearInteractiveShapes(Entity entity) {
 	if (!entity.Has<impl::Interactive>()) {
 		return;
 	}
-	auto& interactive{ entity.Get<impl::Interactive>() };
-	// Clear owned entities.
-	interactive.shapes.clear();
+	if (!HasChildren(entity)) {
+		return;
+	}
+	std::vector<Entity> children{ GetChildren(entity) };
+	std::ranges::for_each(children, [entity](auto child) {
+		if (child.template Has<impl::InteractiveTag>()) {
+			RemoveChild(entity, child);
+			child.Destroy();
+		}
+	});
 }
 
 } // namespace ptgn

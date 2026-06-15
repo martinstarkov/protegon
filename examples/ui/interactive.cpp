@@ -3,7 +3,6 @@
 
 #include <chrono>
 #include <optional>
-#include <utility>
 
 #include "app/application.h"
 #include "core/editor.h"
@@ -19,8 +18,6 @@
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/game_object.h"
-#include "runtime/scene/scene_camera.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/interaction/draggable.h"
@@ -32,6 +29,7 @@
 #include "runtime/interaction/trigger_condition.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
@@ -164,13 +162,15 @@ struct InteractiveScene : public Scene {
 
 		ctx().interaction.SetDebugSettings({ .draw_enabled = true, .draw_line_width = 3.0f });
 
-		ctx().asset.LoadMany({ { "circle", "assets/circle.png" },
-							   { "drag", "assets/drag.png" },
-							   { "drag_circle", "assets/drag_circle.png" },
-							   { "dropzone", "assets/dropzone.png" },
-							   { "box", "assets/box.png" } });
+		ctx().asset.LoadMany(
+			{ { "circle", "assets/circle.png" },
+			  { "drag", "assets/drag.png" },
+			  { "drag_circle", "assets/drag_circle.png" },
+			  { "dropzone", "assets/dropzone.png" },
+			  { "box", "assets/box.png" } }
+		);
 
-		V2_float center{ GetTransform(ctx().camera).GetPosition() };
+		V2_float center{ GetTransform(ctx().camera).position };
 
 		V2_float offset{ 250, 250 };
 		V2_float rsize{ 100, 50 };
@@ -179,40 +179,40 @@ struct InteractiveScene : public Scene {
 			*this, center + V2_float{ offset.x, -offset.y }, 90.0f, color::Green, 1.0f
 		);
 		auto c0_child = CreateInteractiveCircle(90.0f);
-		AddInteractiveShape(c0, GameObject{ std::move(c0_child) });
+		AddInteractiveShape(c0, c0_child);
 
 		auto c1 = CreateCircle(
 			*this, center + V2_float{ offset.x, offset.y }, 90.0f, color::LightGreen, 1.0f
 		);
 		auto c1_child = CreateInteractiveCircle(45.0f);
-		AddInteractiveShape(c1, GameObject{ std::move(c1_child) });
+		AddInteractiveShape(c1, c1_child);
 
 		auto r0 = CreateRect(
 			*this, center + V2_float{ -offset.x, -offset.y }, rsize * 2, color::Blue, 1.0f
 		);
 		auto r0_child = CreateInteractiveRect(rsize * 2);
-		AddInteractiveShape(r0, GameObject{ std::move(r0_child) });
+		AddInteractiveShape(r0, r0_child);
 
 		auto r1 = CreateRect(
 			*this, center + V2_float{ -offset.x, offset.y }, rsize, color::LightBlue, 1.0f
 		);
 		auto r1_child = CreateInteractiveRect(rsize * 2);
-		AddInteractiveShape(r1, GameObject{ std::move(r1_child) });
+		AddInteractiveShape(r1, r1_child);
 
 		auto r2		  = CreateSprite(*this, "box", center + V2_float{ -offset.x, 0.0f });
 		auto r2_child = CreateInteractiveRect(*GetDisplaySize(r2));
-		AddInteractiveShape(r2, GameObject{ std::move(r2_child) });
+		AddInteractiveShape(r2, r2_child);
 
 		auto r4		  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
 		auto r4_child = CreateInteractiveRect(rsize * 2);
-		AddInteractiveShape(r4, GameObject{ std::move(r4_child) });
+		AddInteractiveShape(r4, r4_child);
 		SetDropzone(r4);
 		AddScript<DropzoneScript>(r4);
 		PTGN_LOG("Dropzone: ", r4);
 
 		auto r3		  = CreateSprite(*this, "drag", center + V2_float{ offset.x, 0.0f });
 		auto r3_child = CreateInteractiveRect(*GetDisplaySize(r3));
-		AddInteractiveShape(r3, GameObject{ std::move(r3_child) });
+		AddInteractiveShape(r3, r3_child);
 		SetDraggable(r3);
 		AddScript<DragScript>(r3);
 
@@ -220,7 +220,7 @@ struct InteractiveScene : public Scene {
 
 		auto c3		  = CreateSprite(*this, "drag_circle", center + V2_float{ 0, 0 });
 		auto c3_child = CreateInteractiveCircle(GetDisplaySize(c3)->x * 0.5f);
-		AddInteractiveShape(c3, GameObject{ std::move(c3_child) });
+		AddInteractiveShape(c3, c3_child);
 		SetDraggable(c3); //.SetTrigger(CallbackTrigger::MouseOverlaps);
 		AddScript<DraggableScript>(c3);
 
@@ -228,7 +228,7 @@ struct InteractiveScene : public Scene {
 
 		auto c4		  = CreateSprite(*this, "circle", center + V2_float{ 0, offset.y });
 		auto c4_child = CreateInteractiveCircle(GetDisplaySize(c4)->x * 0.5f);
-		AddInteractiveShape(c4, GameObject{ std::move(c4_child) });
+		AddInteractiveShape(c4, c4_child);
 		SetDraggable(c4, ComponentState::Disabled);
 		AddScript<DraggableScript>(c4);
 

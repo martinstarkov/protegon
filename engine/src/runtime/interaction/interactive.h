@@ -8,7 +8,6 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/game_object.h"
 #include "runtime/interaction/trigger_condition.h"
 #include "serialization/serialize.h"
 
@@ -25,6 +24,8 @@ struct InteractionLock {
 
 namespace impl {
 
+struct InteractiveTag {};
+
 struct Interactive {
 	Interactive()								   = default;
 	~Interactive() noexcept						   = default;
@@ -32,10 +33,6 @@ struct Interactive {
 	Interactive& operator=(Interactive&&) noexcept = default;
 	Interactive(const Interactive&)				   = delete;
 	Interactive& operator=(const Interactive&)	   = delete;
-
-	/// Interactive owns that shapes.
-	/// List of entities that can be interacted with. They require a valid Rect / Circle component.
-	std::vector<GameObject<>> shapes;
 
 	bool enabled{ true };
 
@@ -58,7 +55,7 @@ void SetInteractive(Entity entity, ComponentState state = ComponentState::Enable
 /// @param ignore_parent_transform If true, the shape's position will be treated as world space
 /// instead of relative to the interactive entity's transform.
 void AddInteractiveShape(
-	Entity interactive_entity, GameObject<>&& shape, std::optional<std::string_view> shape_id = {},
+	Entity interactive_entity, Entity shape, std::optional<std::string_view> shape_id = {},
 	bool ignore_parent_transform = false
 );
 
@@ -70,7 +67,7 @@ void AddInteractiveShape(
 /// @param ignore_parent_transform If true, the shape's position will be treated as world space
 /// instead of relative to the interactive entity's transform.
 void SetInteractiveShape(
-	Entity interactive_entity, GameObject<>&& shape, std::optional<std::string_view> shape_id = {},
+	Entity interactive_entity, Entity shape, std::optional<std::string_view> shape_id = {},
 	bool ignore_parent_transform = false
 );
 
