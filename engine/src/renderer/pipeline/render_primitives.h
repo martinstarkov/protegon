@@ -75,6 +75,10 @@ template <RenderPrimitive T>
 void ApplyTransform(Transform transform, std::span<T> primitives) {
 	using TVertex = typename RenderPrimitiveInfo<std::remove_cvref_t<T>>::Vertex;
 
+	if (transform.IsIdentity()) {
+		return;
+	}
+
 	transform.ApplyTo(
 		primitives | std::views::join,
 		[](const TVertex& vertex) {

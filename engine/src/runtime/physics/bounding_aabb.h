@@ -2,6 +2,7 @@
 
 #include <span>
 
+#include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 
@@ -24,6 +25,13 @@ struct BoundingAABB {
 BoundingAABB GetBoundingAABB(std::span<const V2_float> vertices);
 
 /// @return Axis aligned bounding box which contains the given shape (fully surrounding it).
+template <ColliderType T>
+BoundingAABB GetBoundingAABB(const T& shape, Transform transform) {
+	auto world_vertices{ GetWorldVertices(shape, transform) };
+
+	return GetBoundingAABB(world_vertices);
+}
+
 BoundingAABB GetBoundingAABB(const ColliderShape& shape, Transform transform);
 
 } // namespace ptgn

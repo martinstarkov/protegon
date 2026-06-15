@@ -153,15 +153,15 @@ std::optional<BoundingAABB> GetShadowCasterAABB(Entity entity) {
 	auto transform{ GetDrawTransform(entity) };
 
 	if (entity.Has<Rect>()) {
-		return GetBoundingAABB(ColliderShape{ entity.Get<Rect>() }, transform);
+		return GetBoundingAABB(entity.Get<Rect>(), transform);
 	}
 
 	if (entity.Has<Circle>()) {
-		return GetBoundingAABB(ColliderShape{ entity.Get<Circle>() }, transform);
+		return GetBoundingAABB(entity.Get<Circle>(), transform);
 	}
 
 	if (auto texture_size{ GetTextureCasterSize(entity) }) {
-		return GetBoundingAABB(ColliderShape{ Rect{ *texture_size } }, transform);
+		return GetBoundingAABB(Rect{ *texture_size }, transform);
 	}
 
 	return std::nullopt;

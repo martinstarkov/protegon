@@ -1,7 +1,6 @@
 #include "runtime/physics/bounding_aabb.h"
 
 #include <span>
-#include <vector>
 
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
@@ -54,9 +53,7 @@ BoundingAABB GetBoundingAABB(std::span<const V2_float> vertices) {
 }
 
 BoundingAABB GetBoundingAABB(const ColliderShape& shape, Transform transform) {
-	auto world_vertices{ GetWorldVertices(shape, transform) };
-
-	return GetBoundingAABB(world_vertices);
+	return shape.Visit([transform](const auto& s) { return GetBoundingAABB(s, transform); });
 }
 
 } // namespace ptgn

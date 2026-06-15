@@ -142,38 +142,44 @@ concept InteractiveType = VariantContains<T, InteractiveShapeVariant>;
 template <typename T>
 concept ColliderType = VariantContains<T, ColliderShapeVariant>;
 
-/// @return The vertices that fully contain the shape.
-/// For a line, this is the start and end points.
-/// For polygons, this is equivalent to their vertices.
-/// For shapes with curved edges, this is the quad that contains them.
-constexpr std::vector<V2_float> GetWorldVertices(const Shape& shape, Transform transform) {
-	return shape.Visit([&]<typename T>(const T& s) -> std::vector<V2_float> {
-		if constexpr (std::is_same_v<T, Rect>) {
-			return std::ranges::to<std::vector>(s.GetWorldVertices(transform));
-		} else if constexpr (std::is_same_v<T, Polygon>) {
-			return transform.Apply(s.vertices);
-		} else if constexpr (std::is_same_v<T, Triangle>) {
-			return std::ranges::to<std::vector>(transform.Apply(s.vertices));
-		} else if constexpr (std::is_same_v<T, Line>) {
-			return std::ranges::to<std::vector>(s.GetWorldVertices(transform));
-		} else if constexpr (std::is_same_v<T, RoundedRect>) {
-			return std::ranges::to<std::vector>(s.rect.GetWorldVertices(transform));
-		} else if constexpr (std::is_same_v<T, Ellipse>) {
-			return std::ranges::to<std::vector>(s.GetWorldQuadVertices(transform));
-		} else if constexpr (std::is_same_v<T, Circle>) {
-			return std::ranges::to<std::vector>(s.GetWorldQuadVertices(transform));
-		} else if constexpr (std::is_same_v<T, Arc>) {
-			return std::ranges::to<std::vector>(s.GetWorldQuadVertices(transform));
-		} else if constexpr (std::is_same_v<T, Capsule>) {
-			return std::ranges::to<std::vector>(s.GetWorldQuadVertices(transform));
-		} else if constexpr (std::is_same_v<T, V2_float>) {
-			return std::ranges::to<std::vector>(
-				Rect{ V2_float{ 1.0f } }.GetWorldVertices(transform)
-			);
-		} else {
-			static_assert(false, "Incomplete visitor!");
-		}
-	});
+constexpr std::array<V2_float, 4> GetWorldVertices(const Rect& shape, Transform transform) {
+	return shape.GetWorldVertices(transform);
+}
+
+constexpr std::array<V2_float, 2> GetWorldVertices(const Line& shape, Transform transform) {
+	return shape.GetWorldVertices(transform);
+}
+
+constexpr std::array<V2_float, 3> GetWorldVertices(const Triangle& shape, Transform transform) {
+	return transform.Apply(shape.vertices);
+}
+
+constexpr std::vector<V2_float> GetWorldVertices(const Polygon& shape, Transform transform) {
+	return transform.Apply(shape.vertices);
+}
+
+constexpr std::array<V2_float, 4> GetWorldVertices(const Ellipse& shape, Transform transform) {
+	return shape.GetWorldQuadVertices(transform);
+}
+
+constexpr std::array<V2_float, 4> GetWorldVertices(const Circle& shape, Transform transform) {
+	return shape.GetWorldQuadVertices(transform);
+}
+
+constexpr std::array<V2_float, 4> GetWorldVertices(const Arc& shape, Transform transform) {
+	return shape.GetWorldQuadVertices(transform);
+}
+
+constexpr std::array<V2_float, 4> GetWorldVertices(const Capsule& shape, Transform transform) {
+	return shape.GetWorldQuadVertices(transform);
+}
+
+constexpr std::array<V2_float, 4> GetWorldVertices(const RoundedRect& shape, Transform transform) {
+	return GetWorldVertices(shape.rect, transform);
+}
+
+constexpr std::array<V2_float, 4> GetWorldVertices(V2_float, Transform transform) {
+	return GetWorldVertices(Rect{ V2_float{ 1.0f } }, transform);
 }
 
 struct EdgeInfo {
@@ -184,20 +190,19 @@ struct EdgeInfo {
 	std::vector<Line> edges;
 };
 
-constexpr EdgeInfo GetEdges(const Shape& shape, Transform transform) {
-	return shape.Visit([&]<typename T>(const T& s) {
-		EdgeInfo info;
+template <ShapeType T>
+constexpr EdgeInfo GetEdges(const T& shape, Transform transform) {
+	EdgeInfo info;
 
-		if constexpr (IsAnyOf<T, RoundedRect, Ellipse, Circle>) {
-			info.quad_approximation = true;
-		}
+	if constexpr (IsAnyOf<T, RoundedRect, Ellipse, Circle>) {
+		info.quad_approximation = true;
+	}
 
-		auto world_vertices{ GetWorldVertices(s, transform) };
+	auto world_vertices{ GetWorldVertices(shape, transform) };
 
-		info.edges = PointsToLines(world_vertices, true);
+	info.edges = PointsToLines(world_vertices, true);
 
-		return info;
-	});
+	return info;
 }
 
 } // namespace ptgn

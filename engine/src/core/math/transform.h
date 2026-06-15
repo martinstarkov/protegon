@@ -206,6 +206,9 @@ struct Transform {
 	[[nodiscard]] constexpr std::array<V2_float, N> Apply(
 		const std::array<V2_float, N>& points
 	) const {
+		if (IsIdentity()) {
+			return points;
+		}
 		std::array<V2_float, N> transformed_points;
 		Apply(points, transformed_points);
 		return transformed_points;
