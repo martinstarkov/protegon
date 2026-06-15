@@ -32,7 +32,15 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		});
 	};
 
-	auto draw_entity = [&](auto&& self, Entity entity) -> void {
+	auto draw_entity = [&](auto&& self, Entity entity, std::size_t recursion_depth) -> void {
+		if (recursion_depth > kMaxParentDepth) {
+			PTGN_ERROR(
+				"Maximum parent depth exceeded while sorting entities by depth. "
+				"This likely indicates a cycle in the entity hierarchy."
+			);
+			return;
+		}
+
 		bool selected{ entity == selected_entity_ };
 		bool has_children{ HasChildren(entity) };
 
@@ -71,7 +79,7 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			sort_by_depth(children);
 
 			for (auto child : children) {
-				self(self, child);
+				self(self, child, recursion_depth + 1);
 			}
 
 			ImGui::TreePop();
@@ -91,7 +99,7 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 	sort_by_depth(roots);
 
 	for (auto entity : roots) {
-		draw_entity(draw_entity, entity);
+		draw_entity(draw_entity, entity, 0);
 	}
 
 	ImGui::End();
