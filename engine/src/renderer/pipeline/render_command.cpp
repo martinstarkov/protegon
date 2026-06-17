@@ -114,8 +114,10 @@ void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
 		return std::span{ container.data() + command.range.first, command.range.count };
 	};
 
-	auto draw_primitive = [&renderer, &get_span,
-						   &command](std::string_view pipeline, auto& container) {
+	auto draw_primitive = [&renderer, &get_span, &command](
+							  std::string_view pipeline, auto& container,
+							  std::size_t texture_slot_capacity
+						  ) {
 		auto primitives{ get_span(container) };
 
 		if (primitives.empty()) {
@@ -126,7 +128,9 @@ void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
 
 		using TPrimitive = std::remove_reference_t<decltype(primitives[0])>;
 
-		renderer.SetShader(command.shader);
+		renderer.SetMaterial(
+			{ .shader = command.shader, .texture_slot_capacity = texture_slot_capacity }
+		);
 
 		// Effects are currently not supported for queued render commands.
 		renderer.Draw(
@@ -134,14 +138,14 @@ void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
 		);
 	};
 
-	renderer.SetShader(command.shader);
-
 	switch (command.kind) {
 		using enum RenderCommandKind;
-		case TextureQuads:	 draw_primitive("texture", texture_quads_); break;
-		case ShapeQuads:	 draw_primitive("shape", shape_quads_); break;
-		case ColorQuads:	 draw_primitive("color", color_quads_); break;
-		case ColorTriangles: draw_primitive("color", color_triangles_); break;
+		case TextureQuads:
+			draw_primitive("texture", texture_quads_, renderer.GetMaxTextureSlots());
+			break;
+		case ShapeQuads:	 draw_primitive("shape", shape_quads_, 1); break;
+		case ColorQuads:	 draw_primitive("color", color_quads_, 1); break;
+		case ColorTriangles: draw_primitive("color", color_triangles_, 1); break;
 		default:			 PTGN_ERROR("Unknown RenderCommandKind: ", std::to_underlying(command.kind));
 	}
 

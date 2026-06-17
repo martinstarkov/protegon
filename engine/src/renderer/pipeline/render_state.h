@@ -192,6 +192,7 @@ struct RasterState {
 struct MaterialState {
 	impl::ShaderId shader;
 	std::vector<UniformWrite> uniforms;
+	std::size_t texture_slot_capacity{ 1 };
 
 	bool operator==(const MaterialState&) const = default;
 };
@@ -199,6 +200,7 @@ struct MaterialState {
 struct Material {
 	std::string shader;
 	std::vector<UniformWrite> uniforms;
+	std::size_t texture_slot_capacity{ 1 };
 
 	bool operator==(const Material&) const = default;
 };

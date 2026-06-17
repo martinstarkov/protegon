@@ -51,21 +51,25 @@ public:
 	template <VertexType TVertex>
 	void SubmitQuads(
 		std::span<RenderQuad<TVertex>> quads, std::size_t vertex_capacity,
-		std::size_t index_capacity, std::span<const TextureId> local_textures = {}
+		std::size_t index_capacity, std::span<const TextureId> local_textures,
+		std::size_t texture_slot_capacity
 	) {
 		SubmitPrimitives<TVertex, std::tuple_size_v<RenderQuad<TVertex>>, kQuadIndices.size()>(
-			quads, kQuadIndices, local_textures, vertex_capacity, index_capacity
+			quads, kQuadIndices, local_textures, vertex_capacity, index_capacity,
+			texture_slot_capacity
 		);
 	}
 
 	template <VertexType TVertex>
 	void SubmitTriangles(
 		std::span<RenderTriangle<TVertex>> triangles, std::size_t vertex_capacity,
-		std::size_t index_capacity, std::span<const TextureId> local_textures = {}
+		std::size_t index_capacity, std::span<const TextureId> local_textures,
+		std::size_t texture_slot_capacity
 	) {
 		SubmitPrimitives<
 			TVertex, std::tuple_size_v<RenderTriangle<TVertex>>, kTriangleIndices.size()>(
-			triangles, kTriangleIndices, local_textures, vertex_capacity, index_capacity
+			triangles, kTriangleIndices, local_textures, vertex_capacity, index_capacity,
+			texture_slot_capacity
 		);
 	}
 
@@ -73,11 +77,12 @@ public:
 	void SubmitQuadsWithTextureBindings(
 		std::span<const RenderQuad<TVertex>> quads, std::size_t vertex_capacity,
 		std::size_t index_capacity, std::span<const TextureBinding> bindings,
-		std::span<const TextureId> textures
+		std::span<const TextureId> textures, std::size_t texture_slot_capacity
 	) {
 		SubmitPrimitivesWithTextureBindings<
 			TVertex, std::tuple_size_v<RenderQuad<TVertex>>, kQuadIndices.size()>(
-			quads, kQuadIndices, vertex_capacity, index_capacity, bindings, textures
+			quads, kQuadIndices, vertex_capacity, index_capacity, bindings, textures,
+			texture_slot_capacity
 		);
 	}
 
@@ -94,7 +99,8 @@ private:
 	TextureSlotInfo GetTextureSlotNoFlush(TextureId texture) const;
 
 	void BindTextureUniforms(
-		std::span<const TextureBinding> bindings, std::span<const TextureId> textures
+		std::span<const TextureBinding> bindings, std::span<const TextureId> textures,
+		std::size_t texture_slot_capacity
 	);
 
 	template <
@@ -102,7 +108,8 @@ private:
 	void SubmitPrimitivesWithTextureBindings(
 		std::span<const TPrimitive> primitives, const std::array<Index, IndexCount>& index_pattern,
 		std::size_t vertex_capacity, std::size_t index_capacity,
-		std::span<const TextureBinding> bindings, std::span<const TextureId> textures
+		std::span<const TextureBinding> bindings, std::span<const TextureId> textures,
+		std::size_t texture_slot_capacity
 	) {
 		static_assert(std::is_standard_layout_v<TVertex>);
 		static_assert(std::tuple_size_v<TPrimitive> == VertexCount);
@@ -116,19 +123,35 @@ private:
 
 		PTGN_ASSERT(VertexCount <= vertex_capacity, "Single primitive exceeds vertex capacity");
 		PTGN_ASSERT(IndexCount <= index_capacity, "Single primitive exceeds index capacity");
+		PTGN_ASSERT(texture_slot_capacity > 0);
+		PTGN_ASSERT(texture_slot_capacity <= GetMaxTextureSlots());
+
+		PTGN_ASSERT(
+			bindings.size() == textures.size(), "Texture binding count must match texture count"
+		);
+
+		PTGN_ASSERT(
+			textures.size() <= texture_slot_capacity, "Shader supports ", texture_slot_capacity,
+			" texture slots, but submission requires ", textures.size()
+		);
+
+		for (auto texture : textures) {
+			PTGN_ASSERT(texture, "Cannot bind an invalid texture");
+
+			if (IsAttachedToCurrentFramebuffer(texture)) {
+				PTGN_ERROR("Cannot sample from a texture attached to the current framebuffer");
+			}
+		}
 
 		Flush();
 
-		BindTextureUniforms(bindings, textures);
+		BindTextureUniforms(bindings, textures, texture_slot_capacity);
 
 		for (const auto& primitive : primitives) {
 			if (BatchWouldExceedCapacity<TVertex>(
 					VertexCount, IndexCount, vertex_capacity, index_capacity
 				)) {
 				Flush();
-
-				// Rebind defensively in case Flush/apply-material logic changes later.
-				BindTextureUniforms(bindings, textures);
 			}
 
 			SubmitPrimitiveUnchecked<TVertex, VertexCount, IndexCount>(primitive, index_pattern);
@@ -142,7 +165,7 @@ private:
 	void SubmitPrimitives(
 		std::span<TPrimitive> primitives, const std::array<Index, IndexCount>& index_pattern,
 		std::span<const TextureId> local_textures, std::size_t vertex_capacity,
-		std::size_t index_capacity
+		std::size_t index_capacity, std::size_t texture_slot_capacity
 	) {
 		static_assert(std::is_standard_layout_v<TVertex>);
 		static_assert(std::tuple_size_v<TPrimitive> == VertexCount);
@@ -156,6 +179,8 @@ private:
 
 		PTGN_ASSERT(VertexCount <= vertex_capacity, "Single primitive exceeds vertex capacity");
 		PTGN_ASSERT(IndexCount <= index_capacity, "Single primitive exceeds index capacity");
+		PTGN_ASSERT(texture_slot_capacity > 0);
+		PTGN_ASSERT(texture_slot_capacity <= GetMaxTextureSlots());
 
 		for (auto& primitive : primitives) {
 			if (BatchWouldExceedCapacity<TVertex>(
@@ -164,9 +189,9 @@ private:
 				Flush();
 			}
 
-			auto batch_texture_slot{
-				ResolveTextureSlotForPrimitive<TVertex>(primitive, local_textures)
-			};
+			auto batch_texture_slot{ ResolveTextureSlotForPrimitive<TVertex>(
+				primitive, local_textures, texture_slot_capacity
+			) };
 
 			if constexpr (TextureIndexAccessor<TVertex>::has_texture_index) {
 				if (!local_textures.empty()) {
@@ -182,7 +207,8 @@ private:
 
 	template <VertexType TVertex, typename TPrimitive>
 	float ResolveTextureSlotForPrimitive(
-		TPrimitive& primitive, std::span<const TextureId> local_textures
+		TPrimitive& primitive, std::span<const TextureId> local_textures,
+		std::size_t texture_slot_capacity
 	) {
 		if (local_textures.empty()) {
 			return 0.0f;
@@ -204,7 +230,7 @@ private:
 			}
 
 			if (bool already_bound{ std::ranges::contains(textures_, texture) };
-				!already_bound && textures_.size() >= GetMaxTextureSlots()) {
+				!already_bound && textures_.size() >= texture_slot_capacity) {
 				Flush();
 			}
 
@@ -214,9 +240,13 @@ private:
 				textures_.push_back(texture);
 			}
 
+			PTGN_ASSERT(slot.slot < texture_slot_capacity);
+
 			return static_cast<float>(slot.slot);
 		} else {
-			PTGN_ERROR("Vertex type must have a texture index when submitting with textures");
+			PTGN_ERROR(
+				"Vertex type does not support texture indices, but local textures were provided"
+			);
 		}
 	}
 

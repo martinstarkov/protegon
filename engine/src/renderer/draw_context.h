@@ -123,6 +123,9 @@ private:
 	};
 
 public:
+	/// @brief Returns the maximum number of texture slots available for shaders.
+	std::size_t GetMaxTextureSlots() const;
+
 	void SetBlendMode(BlendMode blend_mode);
 
 	void WithRenderState(const RenderStateDelta& delta, InvocableR<void> auto&& function) {

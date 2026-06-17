@@ -17,12 +17,19 @@ namespace ptgn::impl {
 RenderBatcher::RenderBatcher(Renderer& renderer) : renderer_{ renderer } {}
 
 void RenderBatcher::BindTextureUniforms(
-	std::span<const TextureBinding> bindings, std::span<const TextureId> textures
+	std::span<const TextureBinding> bindings, std::span<const TextureId> textures,
+	std::size_t texture_slot_capacity
 ) {
 	PTGN_ASSERT(bindings.size() == textures.size(), "Texture bindings must match texture count");
 
 	for (auto i{ 0uz }; i < textures.size(); ++i) {
 		const auto& binding{ bindings[i] };
+
+		PTGN_ASSERT(
+			binding.slot < texture_slot_capacity, "Texture binding uses slot ", binding.slot,
+			", but the shader only supports ", texture_slot_capacity, " texture slots"
+		);
+
 		auto texture{ textures[i] };
 
 		PTGN_ASSERT(texture, "Cannot bind an invalid texture");

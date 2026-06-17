@@ -104,9 +104,13 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	std::vector<std::int32_t> samplers(max_texture_slots);
 	std::ranges::iota(samplers, 0);
 
-	auto quad{ GetShader("texture") };
-	auto _1 = gl_->Bind(quad, false);
-	SetUniform(quad, impl::kTexturesUniform, samplers);
+	auto texture_shader{ GetShader("texture") };
+	auto _1 = gl_->Bind(texture_shader, false);
+	SetUniform(texture_shader, impl::kTexturesUniform, samplers);
+
+	auto text_shader{ GetShader("text") };
+	auto _2 = gl_->Bind(text_shader, false);
+	SetUniform(text_shader, impl::kTexturesUniform, samplers);
 
 #ifdef PTGN_PLATFORM_MACOS
 	//  Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
@@ -114,7 +118,7 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	//  texture because texture unloadable."
 	for (auto i{ 0u }; i < max_texture_slots; ++i) {
 		gl_->SetActiveTextureSlot(i);
-		auto _3 = gl_->Bind(TextureId{ 0 }, false);
+		auto _999 = gl_->Bind(TextureId{ 0 }, false);
 	}
 #endif
 }
@@ -935,11 +939,13 @@ void Renderer::DrawElements(const impl::RenderPipeline& pipeline, std::uint32_t 
 void Renderer::SetMaterial(const MaterialState& material) {
 	SetShader(material.shader);
 
-	if (current_uniforms_ == material.uniforms) {
+	if (current_uniforms_ == material.uniforms &&
+		current_texture_slot_capacity_ == material.texture_slot_capacity) {
 		return;
 	}
 	FlushBatch();
-	current_uniforms_ = material.uniforms;
+	current_uniforms_			   = material.uniforms;
+	current_texture_slot_capacity_ = material.texture_slot_capacity;
 }
 
 RenderState Renderer::GetRenderState() const {
@@ -1025,7 +1031,8 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	const auto& pipeline{ pipeline_manager_.GetCurrentPipeline() };
 
 	batcher_.SubmitQuadsWithTextureBindings<impl::TextureVertex>(
-		quads, pipeline.vertex_capacity, pipeline.index_capacity, bindings, textures
+		quads, pipeline.vertex_capacity, pipeline.index_capacity, bindings, textures,
+		current_texture_slot_capacity_
 	);
 
 	FlushBatch();

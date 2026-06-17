@@ -137,10 +137,15 @@ void DrawContext::SetRenderState(const RenderState& state) {
 	renderer_.SetRenderState(state);
 }
 
+std::size_t DrawContext::GetMaxTextureSlots() const {
+	return renderer_.GetMaxTextureSlots();
+}
+
 void DrawContext::DrawTexture(const impl::DrawTextureRequest& request, const Material& material) {
 	DrawTexture(
-		request,
-		MaterialState{ .shader = GetShader(material.shader), .uniforms = material.uniforms }
+		request, MaterialState{ .shader				   = GetShader(material.shader),
+								.uniforms			   = material.uniforms,
+								.texture_slot_capacity = material.texture_slot_capacity }
 	);
 }
 
@@ -185,7 +190,11 @@ void DrawContext::DrawTexture(
 void DrawContext::DrawTexture(
 	Transform transform, impl::TextureId texture, TextureDrawParams params
 ) {
-	DrawTexture(transform, texture, Material{ .shader = "texture" }, std::move(params));
+	DrawTexture(
+		transform, texture,
+		Material{ .shader = "texture", .texture_slot_capacity = renderer_.GetMaxTextureSlots() },
+		std::move(params)
+	);
 }
 
 void DrawContext::DrawTexture(

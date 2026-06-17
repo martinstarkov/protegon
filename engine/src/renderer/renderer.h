@@ -281,7 +281,9 @@ private:
 
 		SetCurrentPipeline("texture");
 		SetFramebuffer(previous_framebuffer);
-		SetShader("texture");
+		SetMaterial(
+			{ .shader = GetShader("texture"), .texture_slot_capacity = GetMaxTextureSlots() }
+		);
 		SetRenderState(previous_state);
 
 		auto positions{ Rect{ size }.GetLocalVertices() };
@@ -336,11 +338,13 @@ private:
 
 		if constexpr (vertex_count == 4) {
 			batcher_.SubmitQuads(
-				request.primitives, pipeline.vertex_capacity, pipeline.index_capacity, textures
+				request.primitives, pipeline.vertex_capacity, pipeline.index_capacity, textures,
+				current_texture_slot_capacity_
 			);
 		} else if constexpr (vertex_count == 3) {
 			batcher_.SubmitTriangles(
-				request.primitives, pipeline.vertex_capacity, pipeline.index_capacity, textures
+				request.primitives, pipeline.vertex_capacity, pipeline.index_capacity, textures,
+				current_texture_slot_capacity_
 			);
 		} else {
 			static_assert(false, "Unsupported vertex count");
@@ -502,8 +506,8 @@ private:
 		SetCurrentPipeline("texture");
 		SetMaterial(
 			MaterialState{
-				.shader	  = GetShader("texture"),
-				.uniforms = {},
+				.shader				   = GetShader("texture"),
+				.texture_slot_capacity = GetMaxTextureSlots(),
 			}
 		);
 		SetBlendMode(BlendMode::ReplaceRGBA);
@@ -624,6 +628,7 @@ private:
 	Color background_color_{ impl::kDefaultRendererBackgroundColor };
 	impl::FramebufferObject presentation_framebuffer_;
 
+	std::size_t current_texture_slot_capacity_{ 1 };
 	std::vector<UniformWrite> current_uniforms_;
 	impl::FramebufferObject* current_framebuffer_{ nullptr };
 
