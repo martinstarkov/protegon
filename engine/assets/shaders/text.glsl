@@ -8,7 +8,7 @@ in vec2 v_TexCoord;
 in float v_TexIndex;
 flat in int v_EntityID;
 
-uniform sampler2D u_Texture;
+uniform sampler2D u_Textures[{MAX_TEXTURE_SLOTS}];
 
 uniform float u_Weight;
 uniform float u_Softness;
@@ -38,7 +38,10 @@ float Median(vec3 value) {
 }
 
 float RawScreenPxRange() {
-	vec2 texture_size = vec2(textureSize(u_Texture, 0));
+	vec2 texture_size = vec2(1.0f);
+
+	{TEXTURE_SIZE_SWITCH_BLOCK}
+
 	vec2 unit_range = vec2(u_PixelRange) / texture_size;
 	vec2 screen_tex_size = vec2(1.0f) / fwidth(v_TexCoord);
 
@@ -54,7 +57,11 @@ float EffectDistanceToScreenPx(float distance_px, float raw_screen_px_range) {
 }
 
 vec4 SampleAtlas(vec2 uv) {
-	return texture(u_Texture, uv);
+	vec4 texture_color = vec4(1.0f);
+
+	{TEXTURE_COLOR_SWITCH_BLOCK}
+
+	return texture_color;
 }
 
 float SampleMsdfDistance(vec2 uv) {
