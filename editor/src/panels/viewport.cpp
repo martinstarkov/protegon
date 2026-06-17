@@ -151,11 +151,14 @@ void DrawSimple2DGizmo(
 
 	PTGN_ASSERT(editor_camera.camera.transform.scale.IsPositive());
 
-	V2_float axis_len_px{ 70.0f / editor_camera.camera.transform.scale };
-	float handle_radius_px{ 8.0f / editor_camera.camera.transform.GetAverageScale() };
-	V2_float center_box_half_px{ 7.0f / editor_camera.camera.transform.scale };
-	float rotate_ring_radius_px{ 48.0f / editor_camera.camera.transform.GetAverageScale() };
-	float rotate_ring_thickness_px{ 8.0f / editor_camera.camera.transform.GetAverageScale() };
+	V2_float axis_len_px{ 70.0f, 70.0f };
+	float handle_radius_px{ 8.0f };
+	V2_float center_box_half_px{ 7.0f, 7.0f };
+	float rotate_ring_radius_px{ 48.0f };
+	float rotate_ring_thickness_px{ 8.0f };
+
+	constexpr float kScaleDragPixels{ 100.0f };
+	constexpr float kMinimumScale{ 0.01f };
 
 	V2_float pivot_screen{ WorldToScreen(
 		transform.position, frame_context, presentation_viewport, editor_camera.camera.transform
@@ -224,57 +227,82 @@ void DrawSimple2DGizmo(
 				gizmo.hot = GizmoHandle::Rotate;
 			}
 		} else if (gizmo.tool == GizmoTool::Scale) {
-			if (Distance(mouse_local, V2_float{ axis_len_px.x, 0.0f }) <= handle_radius_px) {
+			bool inside_center{ std::abs(mouse_local.x) <= center_box_half_px.x &&
+								std::abs(mouse_local.y) <= center_box_half_px.y };
+
+			if (inside_center) {
+				gizmo.hot = GizmoHandle::ScaleUniform;
+			} else if (Distance(mouse_local, V2_float{ axis_len_px.x, 0.0f }) <= handle_radius_px) {
 				gizmo.hot = GizmoHandle::ScaleX;
 			} else if (Distance(mouse_local, V2_float{ 0.0f, axis_len_px.y }) <= handle_radius_px) {
 				gizmo.hot = GizmoHandle::ScaleY;
-			} else if (Distance(mouse_local, V2_float{ 40.0f, 40.0f }) <= handle_radius_px) {
-				gizmo.hot = GizmoHandle::ScaleUniform;
 			}
 		}
 	}
 
 	if (viewport_hovered && viewport_focused && gizmo.hot != GizmoHandle::None &&
 		gizmo.active == GizmoHandle::None && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-		gizmo.active				  = gizmo.hot;
-		gizmo.drag_start_mouse_world  = mouse_world;
-		gizmo.drag_start_mouse_screen = mouse_screen;
-		gizmo.drag_start_position	  = transform.position;
-		gizmo.drag_start_scale		  = transform.scale;
-		gizmo.drag_start_rotation	  = transform.rotation;
+		gizmo.active				   = gizmo.hot;
+		gizmo.drag_start_mouse_world   = mouse_world;
+		gizmo.drag_start_mouse_screen  = mouse_screen;
+		gizmo.drag_start_pivot_screen  = pivot_screen;
+		gizmo.drag_start_position	   = transform.position;
+		gizmo.drag_start_scale		   = transform.scale;
+		gizmo.drag_start_rotation	   = transform.rotation;
+		gizmo.drag_start_axis_x_screen = axis_x_screen;
+		gizmo.drag_start_axis_y_screen = axis_y_screen;
 	}
 
 	if (gizmo.active != GizmoHandle::None && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+		V2_float screen_delta{ mouse_screen - gizmo.drag_start_mouse_screen };
+
+		V2_float drag_start_mouse_world{ ScreenToWorld(
+			gizmo.drag_start_mouse_screen, frame_context, presentation_viewport,
+			editor_camera.camera.transform
+		) };
+
+		V2_float current_mouse_world{ ScreenToWorld(
+			mouse_screen, frame_context, presentation_viewport, editor_camera.camera.transform
+		) };
+
+		V2_float world_delta{ current_mouse_world - drag_start_mouse_world };
+
+		float start_angle{ gizmo.drag_start_rotation.value };
+
+		V2_float drag_axis_x_world{ std::cos(start_angle), std::sin(start_angle) };
+		V2_float drag_axis_y_world{ -std::sin(start_angle), std::cos(start_angle) };
+
 		switch (gizmo.active) {
 			case GizmoHandle::MoveCenter: {
-				auto world_delta{ mouse_world - gizmo.drag_start_mouse_world };
 				transform.position = gizmo.drag_start_position + world_delta;
 				break;
 			}
 
 			case GizmoHandle::MoveX: {
-				auto world_delta{ mouse_world - gizmo.drag_start_mouse_world };
-				float amount{ Dot(world_delta, world_axis_x) };
-				transform.position = gizmo.drag_start_position + world_axis_x * amount;
+				float amount{ Dot(world_delta, drag_axis_x_world) };
+
+				transform.position = gizmo.drag_start_position + drag_axis_x_world * amount;
 				break;
 			}
 
 			case GizmoHandle::MoveY: {
-				auto world_delta{ mouse_world - gizmo.drag_start_mouse_world };
-				float amount{ Dot(world_delta, world_axis_y) };
-				transform.position = gizmo.drag_start_position + world_axis_y * amount;
+				float amount{ Dot(world_delta, drag_axis_y_world) };
+
+				transform.position = gizmo.drag_start_position + drag_axis_y_world * amount;
 				break;
 			}
 
 			case GizmoHandle::Rotate: {
-				auto start_dir{
-					Normalize(gizmo.drag_start_mouse_world - gizmo.drag_start_position)
-				};
+				V2_float start_direction{ drag_start_mouse_world - gizmo.drag_start_position };
 
-				auto current_dir{ Normalize(mouse_world - gizmo.drag_start_position) };
+				V2_float current_direction{ current_mouse_world - gizmo.drag_start_position };
 
-				if (Length(start_dir) > 0.0f && Length(current_dir) > 0.0f) {
-					float delta{ SignedAngle(start_dir, current_dir) };
+				if (Length(start_direction) > 1e-6f && Length(current_direction) > 1e-6f) {
+					start_direction	  = Normalize(start_direction);
+					current_direction = Normalize(current_direction);
+
+					float delta{ SignedAngle(start_direction, current_direction) };
+
 					transform.rotation = Radians{ gizmo.drag_start_rotation.value + delta };
 				}
 
@@ -282,44 +310,46 @@ void DrawSimple2DGizmo(
 			}
 
 			case GizmoHandle::ScaleX: {
-				auto delta{ mouse_world - gizmo.drag_start_mouse_world };
-				float amount{ Dot(delta, world_axis_x) };
+				float delta_px{ Dot(screen_delta, gizmo.drag_start_axis_x_screen) };
 
-				auto s{ gizmo.drag_start_scale };
-				s.x = std::max(0.01f, gizmo.drag_start_scale.x + amount);
+				float factor{ std::max(0.01f, 1.0f + delta_px / kScaleDragPixels) };
 
-				transform.scale = s;
+				auto scale{ gizmo.drag_start_scale };
+				scale.x = std::max(kMinimumScale, gizmo.drag_start_scale.x * factor);
+
+				transform.scale = scale;
 				transform.ClampScale();
 				break;
 			}
 
 			case GizmoHandle::ScaleY: {
-				auto delta{ mouse_world - gizmo.drag_start_mouse_world };
-				float amount{ Dot(delta, world_axis_y) };
+				float delta_px{ Dot(screen_delta, gizmo.drag_start_axis_y_screen) };
 
-				auto s{ gizmo.drag_start_scale };
-				s.y = std::max(0.01f, gizmo.drag_start_scale.y + amount);
+				float factor{ std::max(0.01f, 1.0f + delta_px / kScaleDragPixels) };
 
-				transform.scale = s;
+				auto scale{ gizmo.drag_start_scale };
+				scale.y = std::max(kMinimumScale, gizmo.drag_start_scale.y * factor);
+
+				transform.scale = scale;
 				transform.ClampScale();
 				break;
 			}
 
 			case GizmoHandle::ScaleUniform: {
-				float start_dist{
-					Length(gizmo.drag_start_mouse_world - gizmo.drag_start_position)
-				};
+				V2_float uniform_direction{ gizmo.drag_start_axis_x_screen +
+											gizmo.drag_start_axis_y_screen };
 
-				float current_dist{ Length(mouse_world - gizmo.drag_start_position) };
+				if (Length(uniform_direction) > 1e-6f) {
+					uniform_direction = Normalize(uniform_direction);
 
-				if (start_dist > 1e-6f) {
-					float factor{ current_dist / start_dist };
+					float delta_px{ Dot(screen_delta, uniform_direction) };
+					float factor{ std::max(0.01f, 1.0f + delta_px / kScaleDragPixels) };
 
-					auto s{ gizmo.drag_start_scale * factor };
-					s.x = std::max(0.01f, s.x);
-					s.y = std::max(0.01f, s.y);
+					auto scale{ gizmo.drag_start_scale * factor };
+					scale.x = std::max(kMinimumScale, scale.x);
+					scale.y = std::max(kMinimumScale, scale.y);
 
-					transform.scale = s;
+					transform.scale = scale;
 					transform.ClampScale();
 				}
 

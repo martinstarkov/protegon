@@ -38,6 +38,9 @@ struct GizmoState {
 	V2_float drag_start_position{};
 	V2_float drag_start_scale{};
 	Radians drag_start_rotation{};
+	V2_float drag_start_pivot_screen{};
+	V2_float drag_start_axis_x_screen{};
+	V2_float drag_start_axis_y_screen{};
 
 	V2_float pivot_world{};
 };
