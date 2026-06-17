@@ -80,20 +80,34 @@ void DrawCenteredText(ImDrawList* draw_list, ImVec2 center, ImU32 color, const c
 	);
 }
 
-void UpdateEditorCameraPan(EditorCamera& editor_camera) {
-	ImGuiIO& io{ ImGui::GetIO() };
+void UpdateEditorCamera(EditorCamera& editor_camera) {
+	const auto& io{ ImGui::GetIO() };
 
-	// Middle mouse held
-	if (ImGui::IsWindowHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
-		ImVec2 d = io.MouseDelta;
+	if (!ImGui::IsWindowHovered()) {
+		return;
+	}
 
-		editor_camera.camera.transform.Translate(-V2_float{ d.x, d.y });
+	auto& camera{ editor_camera.camera };
 
-		// ImGui::Text("Panning: %.2f, %.2f", d.x, d.y);
-		// ImGui::Text(
-		//	"Transform: %.2f, %.2f", editor_camera.camera.transform.position.x,
-		//	editor_camera.camera.transform.position.y
-		//);
+	PTGN_ASSERT(camera.transform.scale.IsPositive());
+
+	auto zoom{ 1.0f / camera.transform.scale };
+
+	// Middle mouse held.
+	if (ImGui::IsMouseDown(ImGuiMouseButton_Middle)) {
+		auto delta{ io.MouseDelta };
+
+		// Divide by zoom so panning has a consistent screen-space speed.
+		camera.transform.position = camera.transform.position - FromImGui(delta) / zoom;
+	}
+
+	// Mouse wheel zoom.
+	if (io.MouseWheel != 0.0f) {
+		float zoom_factor{ std::pow(1.1f, io.MouseWheel) };
+
+		zoom = Clamp(zoom * zoom_factor, 0.1f, 10.0f);
+		PTGN_ASSERT(zoom.IsPositive());
+		camera.transform.scale = 1.0f / zoom;
 	}
 }
 
@@ -612,7 +626,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	auto presentation_size{ ctx.editor.GetPresentationTextureSize() };
 
 	if (use_editor_camera_) {
-		UpdateEditorCameraPan(editor_camera_);
+		UpdateEditorCamera(editor_camera_);
 
 		editor_camera_.camera.raw_viewport	 = { .position{}, .size{ 1.0f, 1.0f } };
 		editor_camera_.camera.viewport_space = ViewportSpace::Normalized;
