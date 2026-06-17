@@ -633,11 +633,8 @@ FontObject::FontObject(
 
 		out.plane = Rect{ { plane_left, -plane_top }, { plane_right, -plane_bottom } };
 
-		out.uv = Rect{ { atlas_left / bitmap.width, atlas_top / bitmap.height },
-					   { atlas_right / bitmap.width, atlas_bottom / bitmap.height } };
-
-		out.uv.min.y = 1.0f - out.uv.min.y;
-		out.uv.max.y = 1.0f - out.uv.max.y;
+		out.uv = Rect{ { atlas_left / bitmap.width, 1.0f - atlas_top / bitmap.height },
+					   { atlas_right / bitmap.width, 1.0f - atlas_bottom / bitmap.height } };
 
 		data_.glyphs[out.codepoint] = out;
 	}
