@@ -718,15 +718,17 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	// We count this draw call so that draw call counts match with and without the editor.
 	ctx.editor.GetStats().Increment("draw_calls");
 
-	draw_list->PushClipRect(
-		ToImGui(viewport.position), ToImGui(viewport.position + viewport.size), true
-	);
+	if (use_editor_camera_) {
+		draw_list->PushClipRect(
+			ToImGui(viewport.position), ToImGui(viewport.position + viewport.size), true
+		);
 
-	DrawSceneCameraOutlines(ctx, frame_context, presentation_viewport, viewport);
+		DrawSceneCameraOutlines(ctx, frame_context, presentation_viewport, viewport);
 
-	DrawSelectedEntityGizmo(ctx, presentation_viewport, frame_context);
+		DrawSelectedEntityGizmo(ctx, presentation_viewport, frame_context);
 
-	draw_list->PopClipRect();
+		draw_list->PopClipRect();
+	}
 
 	ImGui::End();
 }
