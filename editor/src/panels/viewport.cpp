@@ -141,7 +141,7 @@ void DrawSimple2DGizmo(
 	const FrameContext& frame_context, Viewport presentation_viewport, bool viewport_hovered,
 	bool viewport_focused, EditorCamera& editor_camera
 ) {
-	ImGuiIO& io{ ImGui::GetIO() };
+	const auto& io{ ImGui::GetIO() };
 
 	if (!viewport_hovered && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 		gizmo.hot = GizmoHandle::None;
@@ -149,11 +149,13 @@ void DrawSimple2DGizmo(
 
 	gizmo.pivot_world = transform.position;
 
-	float axis_len_px{ 70.0f };
-	float handle_radius_px{ 8.0f };
-	float center_box_half_px{ 7.0f };
-	float rotate_ring_radius_px{ 48.0f };
-	float rotate_ring_thickness_px{ 8.0f };
+	PTGN_ASSERT(editor_camera.camera.transform.scale.IsPositive());
+
+	V2_float axis_len_px{ 70.0f / editor_camera.camera.transform.scale };
+	float handle_radius_px{ 8.0f / editor_camera.camera.transform.GetAverageScale() };
+	V2_float center_box_half_px{ 7.0f / editor_camera.camera.transform.scale };
+	float rotate_ring_radius_px{ 48.0f / editor_camera.camera.transform.GetAverageScale() };
+	float rotate_ring_thickness_px{ 8.0f / editor_camera.camera.transform.GetAverageScale() };
 
 	V2_float pivot_screen{ WorldToScreen(
 		transform.position, frame_context, presentation_viewport, editor_camera.camera.transform
@@ -197,15 +199,15 @@ void DrawSimple2DGizmo(
 
 	if (viewport_hovered && gizmo.active == GizmoHandle::None) {
 		if (gizmo.tool == GizmoTool::Translate) {
-			bool inside_center{ std::abs(mouse_local.x) <= center_box_half_px &&
-								std::abs(mouse_local.y) <= center_box_half_px };
+			bool inside_center{ std::abs(mouse_local.x) <= center_box_half_px.x &&
+								std::abs(mouse_local.y) <= center_box_half_px.y };
 
 			float dist_to_x{ DistanceToSegmentLocal(
-				mouse_local, V2_float{ 0.0f, 0.0f }, V2_float{ axis_len_px, 0.0f }
+				mouse_local, V2_float{ 0.0f, 0.0f }, V2_float{ axis_len_px.x, 0.0f }
 			) };
 
 			float dist_to_y{ DistanceToSegmentLocal(
-				mouse_local, V2_float{ 0.0f, 0.0f }, V2_float{ 0.0f, axis_len_px }
+				mouse_local, V2_float{ 0.0f, 0.0f }, V2_float{ 0.0f, axis_len_px.y }
 			) };
 
 			if (inside_center) {
@@ -218,13 +220,13 @@ void DrawSimple2DGizmo(
 		} else if (gizmo.tool == GizmoTool::Rotate) {
 			float d{ Length(mouse_local) };
 
-			if (std::abs(d - rotate_ring_radius_px) <= rotate_ring_thickness_px) {
+			if (std::abs(d - rotate_ring_radius_px) <= rotate_ring_thickness_px / 2.0f) {
 				gizmo.hot = GizmoHandle::Rotate;
 			}
 		} else if (gizmo.tool == GizmoTool::Scale) {
-			if (Distance(mouse_local, V2_float{ axis_len_px, 0.0f }) <= handle_radius_px) {
+			if (Distance(mouse_local, V2_float{ axis_len_px.x, 0.0f }) <= handle_radius_px) {
 				gizmo.hot = GizmoHandle::ScaleX;
-			} else if (Distance(mouse_local, V2_float{ 0.0f, axis_len_px }) <= handle_radius_px) {
+			} else if (Distance(mouse_local, V2_float{ 0.0f, axis_len_px.y }) <= handle_radius_px) {
 				gizmo.hot = GizmoHandle::ScaleY;
 			} else if (Distance(mouse_local, V2_float{ 40.0f, 40.0f }) <= handle_radius_px) {
 				gizmo.hot = GizmoHandle::ScaleUniform;
@@ -342,8 +344,8 @@ void DrawSimple2DGizmo(
 		transform.position, frame_context, presentation_viewport, editor_camera.camera.transform
 	);
 
-	V2_float x_end_screen{ pivot_screen + axis_x_screen * axis_len_px };
-	V2_float y_end_screen{ pivot_screen + axis_y_screen * axis_len_px };
+	V2_float x_end_screen{ pivot_screen + axis_x_screen * axis_len_px.x };
+	V2_float y_end_screen{ pivot_screen + axis_y_screen * axis_len_px.y };
 
 	if (gizmo.tool == GizmoTool::Translate) {
 		draw_list->AddLine(
@@ -358,12 +360,20 @@ void DrawSimple2DGizmo(
 			2.0f
 		);
 
-		float h{ center_box_half_px };
+		auto h{ center_box_half_px };
 
-		auto c0{ GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, { -h, -h }) };
-		auto c1{ GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, { h, -h }) };
-		auto c2{ GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, { h, h }) };
-		auto c3{ GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, { -h, h }) };
+		auto c0{
+			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ -h.x, -h.y })
+		};
+		auto c1{
+			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ h.x, -h.y })
+		};
+		auto c2{
+			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ h.x, h.y })
+		};
+		auto c3{
+			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ -h.x, h.y })
+		};
 
 		draw_list->AddQuadFilled(
 			ToImGui(c0), ToImGui(c1), ToImGui(c2), ToImGui(c3),
@@ -376,7 +386,7 @@ void DrawSimple2DGizmo(
 			ToImGui(pivot_screen), rotate_ring_radius_px,
 			gizmo.hot == GizmoHandle::Rotate || gizmo.active == GizmoHandle::Rotate ? col_hot
 																					: col_rotate,
-			64, 2.0f
+			64, rotate_ring_thickness_px
 		);
 	} else if (gizmo.tool == GizmoTool::Scale) {
 		draw_list->AddLine(ToImGui(pivot_screen), ToImGui(x_end_screen), col_x, 2.0f);
@@ -394,13 +404,23 @@ void DrawSimple2DGizmo(
 																					: col_y
 		);
 
-		auto uniform_handle{
-			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ 40.0f, 40.0f })
+		auto h{ center_box_half_px };
+
+		auto c0{
+			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ -h.x, -h.y })
+		};
+		auto c1{
+			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ h.x, -h.y })
+		};
+		auto c2{
+			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ h.x, h.y })
+		};
+		auto c3{
+			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ -h.x, h.y })
 		};
 
-		draw_list->AddRectFilled(
-			ToImGui(uniform_handle - V2_float{ 6.0f, 6.0f }),
-			ToImGui(uniform_handle + V2_float{ 6.0f, 6.0f }),
+		draw_list->AddQuadFilled(
+			ToImGui(c0), ToImGui(c1), ToImGui(c2), ToImGui(c3),
 			gizmo.hot == GizmoHandle::ScaleUniform || gizmo.active == GizmoHandle::ScaleUniform
 				? col_hot
 				: col_center
