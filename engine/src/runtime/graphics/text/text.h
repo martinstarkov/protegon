@@ -113,6 +113,18 @@ public:
 		GlyphEffectType type, float amplitude, float frequency, float speed, float phase = 0.0f
 	);
 
+	const TextLayout& GetLayout() const;
+	Rect GetLocalBounds() const;
+	std::size_t GetLineCount() const;
+	const LineLayout& GetLine(std::size_t index) const;
+
+	bool IsClipped() const;
+	bool IsEllipsized() const;
+	bool IsTruncatedByMaxLines() const;
+	bool IsTruncated() const;
+
+	float GetUsedShrinkScale() const;
+
 	std::size_t GetRunCount() const;
 	std::size_t GetCurrentRunIndex() const;
 
@@ -120,11 +132,23 @@ public:
 
 	Text& SetStyledText(StyledText styled_text);
 
+	/// @return The measured size of the text, which may be larger than the box if the text is
+	/// clipped, ellipsized, or truncated.
 	[[nodiscard]] TextMeasurement Measure() const;
-	[[nodiscard]] std::size_t GetGlyphCount() const;
-	[[nodiscard]] std::size_t GetVisibleGlyphCount() const;
-	[[nodiscard]] bool IsFullyRevealed() const;
+	/// @return The total number of glyphs in the text, which may be more than the number of visible
+	/// glyphs if the text is clipped, ellipsized, or truncated.
+	std::size_t GetGlyphCount() const;
+	/// @return The number of glyphs that are currently visible, which may be less than the total
+	/// glyph count if the text is clipped, ellipsized, or truncated.
+	std::size_t GetVisibleGlyphCount() const;
+	/// @return The number of glyphs that are currently set to be revealed or
+	/// std::size_t::max() if no reveal is active.
+	std::size_t GetRevealGlyphCount() const;
+	/// @return True if all glyphs are currently revealed or no reveal is active.
+	bool IsFullyRevealed() const;
 
+	/// @brief Sets the fraction of the total glyphs to reveal. Clamped to range: [0.0, 1.0]. 0.0 =
+	/// no glyphs revealed, 1.0 = all glyphs revealed.
 	Text& RevealFraction(float fraction);
 
 	[[nodiscard]] static TextPaginationResult Paginate(
@@ -133,6 +157,8 @@ public:
 	);
 
 private:
+	const TextLayout& RequireLayout() const;
+
 	StyledText& EnsureStyledText();
 	const StyledText& RequireStyledText() const;
 

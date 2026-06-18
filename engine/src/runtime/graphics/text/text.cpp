@@ -775,6 +775,70 @@ Text& Text::Effect(
 	return *this;
 }
 
+const TextLayout& Text::RequireLayout() const {
+	const auto& styled_text{ RequireStyledText() };
+	const auto& box{ RequireTextBox() };
+
+	Entity entity{ *this };
+
+	impl::UpdateLayout(entity, GetScene().ctx().asset, styled_text, box);
+
+	return entity.Get<TextLayout>();
+}
+
+const TextLayout& Text::GetLayout() const {
+	return RequireLayout();
+}
+
+Rect Text::GetLocalBounds() const {
+	return RequireLayout().local_box;
+}
+
+std::size_t Text::GetLineCount() const {
+	return RequireLayout().lines.size();
+}
+
+const LineLayout& Text::GetLine(std::size_t index) const {
+	const auto& layout{ RequireLayout() };
+
+	PTGN_ASSERT(
+		index < layout.lines.size(), "Text line index out of range: ", index,
+		", line count: ", layout.lines.size()
+	);
+
+	return layout.lines[index];
+}
+
+bool Text::IsClipped() const {
+	return RequireLayout().clipped;
+}
+
+bool Text::IsEllipsized() const {
+	return RequireLayout().ellipsized;
+}
+
+bool Text::IsTruncatedByMaxLines() const {
+	return RequireLayout().truncated_by_max_lines;
+}
+
+bool Text::IsTruncated() const {
+	const auto& layout{ RequireLayout() };
+
+	return layout.ellipsized || layout.truncated_by_max_lines;
+}
+
+float Text::GetUsedShrinkScale() const {
+	return RequireLayout().used_shrink_scale;
+}
+
+std::size_t Text::GetRevealGlyphCount() const {
+	if (auto reveal{ TryGet<impl::TextReveal>() }) {
+		return reveal->glyph_count;
+	}
+
+	return std::numeric_limits<std::size_t>::max();
+}
+
 std::size_t Text::GetRunCount() const {
 	return RequireStyledText().runs.size();
 }
@@ -797,7 +861,17 @@ Text& Text::SetStyledText(StyledText styled_text) {
 }
 
 TextMeasurement Text::Measure() const {
-	return impl::Measure(GetScene().ctx().asset, RequireStyledText(), RequireTextBox());
+	const auto& layout{ RequireLayout() };
+
+	TextMeasurement result;
+	result.size				 = layout.measured_size;
+	result.first_line_height = layout.lines.empty() ? 0.0f : layout.lines.front().size.y;
+	result.max_line_width	 = layout.measured_size.x;
+	result.line_count		 = layout.lines.size();
+	result.truncated		 = layout.ellipsized || layout.truncated_by_max_lines;
+	result.used_shrink_scale = layout.used_shrink_scale;
+
+	return result;
 }
 
 std::size_t Text::GetGlyphCount() const {
