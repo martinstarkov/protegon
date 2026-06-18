@@ -252,15 +252,11 @@ void DrawSimple2DGizmo(
 	if (gizmo.active != GizmoHandle::None && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
 		V2_float screen_delta{ mouse_screen - gizmo.drag_start_mouse_screen };
 
-		V2_float drag_start_mouse_world{
-			ScreenToWorld(gizmo.drag_start_mouse_screen, frame_context, presentation_viewport, from)
-		};
-
 		V2_float current_mouse_world{
 			ScreenToWorld(mouse_screen, frame_context, presentation_viewport, from)
 		};
 
-		V2_float world_delta{ current_mouse_world - drag_start_mouse_world };
+		V2_float world_delta{ current_mouse_world - gizmo.drag_start_mouse_world };
 
 		float start_angle{ gizmo.drag_start_rotation.value };
 
@@ -288,7 +284,8 @@ void DrawSimple2DGizmo(
 			}
 
 			case GizmoHandle::Rotate: {
-				V2_float start_direction{ drag_start_mouse_world - gizmo.drag_start_position };
+				V2_float start_direction{ gizmo.drag_start_mouse_world -
+										  gizmo.drag_start_position };
 
 				V2_float current_direction{ current_mouse_world - gizmo.drag_start_position };
 
