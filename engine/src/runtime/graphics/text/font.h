@@ -78,7 +78,11 @@ struct FontMetrics {
 struct FontData {
 	path font_path;
 	FontMetrics metrics;
+	/// @brief Key is a Unicode codepoint. Value is the glyph metrics for that codepoint.
 	std::unordered_map<std::uint32_t, GlyphMetrics> glyphs;
+	/// @brief Key is a 64-bit integer where the high 32 bits are the current codepoint and the low
+	/// 32 bits are the next codepoint. Value is the kerning adjustment to apply to the advance when
+	/// the current codepoint is followed by the next codepoint.
 	std::unordered_map<std::uint64_t, float> kerning;
 };
 
