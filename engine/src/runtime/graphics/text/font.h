@@ -24,7 +24,7 @@ inline constexpr float kDefaultFontSize{ 18.0f };
 struct FontSize {
 	FontSize() = default;
 
-	FontSize(float value) : value{ value } {}
+	FontSize(float value) : value{ value } {} // NOSONAR
 
 	float value{ kDefaultFontSize };
 

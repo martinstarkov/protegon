@@ -1,14 +1,12 @@
 #pragma once
 
 #include <cstdint>
-#include <ostream>
 #include <string>
-#include <string_view>
-#include <utility>
 #include <vector>
 
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
+#include "core/util/hash.h"
 #include "runtime/graphics/text/font_style.h"
 #include "runtime/graphics/text/text_effect.h"
 
@@ -98,34 +96,51 @@ struct StyledText {
 	std::vector<TextRun> runs;
 };
 
-struct TextStyle {
-	std::string font;
-	Color color{ color::White };
-	float scale{ 1.0f };
-	FontStyle flags{ FontStyle::Normal };
-	DistanceFieldStyle sdf;
-
-	[[nodiscard]] TextRunStyle ToRunStyle() const;
-};
-
 } // namespace ptgn
 
 template <>
 struct std::hash<ptgn::DistanceFieldStyle> {
-	std::size_t operator()(const ptgn::DistanceFieldStyle& style) const;
+	std::size_t operator()(const ptgn::DistanceFieldStyle& style) const {
+		// TODO: Quantize floats by converting to integers.
+		return ptgn::Hash(
+			style.weight, style.softness,
+
+			style.outline_color, style.outline_width, style.outline_softness,
+
+			style.shadow_color, style.shadow_offset, style.shadow_width, style.shadow_softness,
+
+			style.outer_glow_color, style.outer_glow_width, style.outer_glow_softness,
+
+			style.inner_glow_color, style.inner_glow_width, style.inner_glow_softness,
+
+			style.pixel_range
+		);
+	}
 };
 
 template <>
 struct std::hash<ptgn::TextRunStyle> {
-	std::size_t operator()(const ptgn::TextRunStyle& style) const;
+	std::size_t operator()(const ptgn::TextRunStyle& style) const {
+		// TODO: Quantize floats by converting to integers.
+		return ptgn::Hash(
+			style.font, style.color, style.scale, style.kerning, style.tracking, style.line_spacing,
+			style.fake_bold_if_missing, style.fake_bold_weight, std::to_underlying(style.flags),
+			style.sdf, std::to_underlying(style.effect.type), style.effect.amplitude,
+			style.effect.frequency, style.effect.speed, style.effect.phase
+		);
+	}
 };
 
 template <>
 struct std::hash<ptgn::TextRun> {
-	std::size_t operator()(const ptgn::TextRun& run) const;
+	std::size_t operator()(const ptgn::TextRun& run) const {
+		return ptgn::Hash(run.text, run.style);
+	}
 };
 
 template <>
 struct std::hash<ptgn::StyledText> {
-	std::size_t operator()(const ptgn::StyledText& styled_text) const;
+	std::size_t operator()(const ptgn::StyledText& styled_text) const {
+		return ptgn::Hash(styled_text.runs);
+	}
 };
