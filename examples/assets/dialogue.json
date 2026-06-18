@@ -10,10 +10,10 @@
   "scroll_duration": "4s",
   "font_size": 30,
   "font_key": "retro_gaming",
-  "padding_left": 0,
-  "padding_right": 0,
-  "padding_bottom": 0,
-  "padding_top": 0,
+  "padding_left": 40,
+  "padding_right": 40,
+  "padding_bottom": 40,
+  "padding_top": 40,
   "start": "intro",
   "dialogues": {
     "intro": {
