@@ -75,7 +75,7 @@ AssetKind GetAssetKind(const path& path) {
 
 AssetManager::AssetManager(Renderer& renderer, AudioSystem& audio, FontSystem& font) :
 	renderer_{ renderer }, audio_{ audio }, font_{ font } {
-	// Note: Do not use audio or font systems here as they are constructed after asset manager.
+	// Note: Do not use audio or font systems here as those are constructed after asset manager.
 }
 
 impl::TextureObject AssetManager::CreateTexture(
@@ -368,7 +368,7 @@ void AssetManager::Load(std::string_view key, const path& asset_path, impl::Asse
 			if (auto shader_content = FileToString(asset_path);
 				!HasVertexAndFragmentShader(shader_content)) {
 				// Skip shader files that don't contain both vertex and fragment shader code
-				// since they can't be loaded as standalone shader assets. This allows for load
+				// since those can't be loaded as standalone shader assets. This allows for load
 				// directory to be used on directories containing shader files that are meant to
 				// be used as part of shader pairs without causing errors.
 				return;

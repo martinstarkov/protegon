@@ -106,7 +106,7 @@ void ApplyCameraEffects(
 							  ) },
 							  .effects{ effect_params } };
 
-	// No margin for camera effects so cameras do not exceed their viewports
+	// No margin for camera effects so cameras do not exceed viewports
 	params.effects.margin = 0;
 
 	draw_context.WithRenderState(
@@ -513,7 +513,7 @@ void Scene::DrawSceneTarget(DrawContext& draw_context) const {
 	auto blend_mode{ GetBlendMode(ctx_->render_target_) };
 
 	auto effects{ impl::GetEffectParams(ctx_->render_target_) };
-	// No margin for scene effects so render targets do not exceed their sizes.
+	// No margin for scene effects so render targets do not exceed sizes.
 	effects.margin = 0;
 
 	draw_context.SetBlendMode(blend_mode);

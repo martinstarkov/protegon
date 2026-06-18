@@ -346,7 +346,7 @@ BindGuard<VertexArrayId> GLContext::Bind(VertexArrayId id, bool restore_bind) {
 		return BindGuard<VertexArrayId>{ *this, VertexArrayId{}, false };
 	}
 
-	// On Mac we cannot bind 0 for vertex arrays, so we skip it.
+	// Cannot bind 0 for vertex arrays on macOS, so skip it.
 #ifdef PTGN_PLATFORM_MACOS
 	if (id) {
 #endif

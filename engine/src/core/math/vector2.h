@@ -491,7 +491,7 @@ template <Arithmetic T>
 	return Vector2<T>{ Lerp(lhs.x, rhs.x, t), Lerp(lhs.y, rhs.y, t) };
 }
 
-/// @return Linearly interpolate both components of a vector by their respective t values.
+/// @return Linearly interpolate both components of a vector by respective t values.
 template <Arithmetic T>
 [[nodiscard]] constexpr Vector2<T> Lerp(Vector2<T> lhs, Vector2<T> rhs, Vector2<T> t) {
 	return Vector2<T>{ Lerp(lhs.x, rhs.x, t.x), Lerp(lhs.y, rhs.y, t.y) };

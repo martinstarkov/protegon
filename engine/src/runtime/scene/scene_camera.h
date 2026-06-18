@@ -58,14 +58,14 @@ struct CameraData {
 	Matrix4 view_projection{ 1.0f };
 };
 
-/// @brief If an entity has no RenderMask, we treat it as having
+/// @brief If an entity has no RenderMask, treat it as having
 /// RenderMask{} (default ctor).
 struct RenderMask {
 	/// @brief Neutral engine default: entity belongs to default layer.
 	LayerMask layers{ kLayerDefault };
 };
 
-/// @brief If a camera has no CameraMask, we treat it as having
+/// @brief If a camera has no CameraMask, treat it as having
 /// CameraMask{} (default ctor). Neutral engine default: include all, exclude none.
 struct CameraMask {
 	LayerMask include{ kLayersAll };

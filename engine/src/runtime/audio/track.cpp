@@ -205,7 +205,7 @@ bool Track::IsFinished() const {
 		return false;
 	}
 
-	// Not playing. If we're at the natural end, we may need to emulate finite loops.
+	// Not playing. If at the natural end, may need to emulate finite loops.
 	if (ma_sound_at_end(sound_.get()) == MA_TRUE) {
 		if (remaining_loops_.value() > 0) {
 			--(remaining_loops_.value());

@@ -15,8 +15,8 @@
 #elif defined(__APPLE__) || defined(__MACH__)
 #include <TargetConditionals.h>
 /* TARGET_OS_MAC exists on all the platforms
- * so we must check all of them (in this order)
- * to ensure that we're running on MAC
+ * so must check all of them (in this order)
+ * to ensure that running on MAC
  * and not some other Apple platform */
 #if TARGET_IPHONE_SIMULATOR == 1
 #error "IOS simulator is not supported!"
@@ -28,7 +28,7 @@
 #else
 #error "Unknown Apple platform!"
 #endif
-/* We also have to check __ANDROID__ before __linux__
+/* Check __ANDROID__ before __linux__
  * since android is based on the linux kernel
  * it has __linux__ defined */
 #elif defined(__ANDROID__)

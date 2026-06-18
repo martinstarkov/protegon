@@ -139,7 +139,7 @@ std::vector<Triangle> Triangulate(std::span<const V2_float> vertices) {
 	std::int64_t r_count{ 2 * static_cast<std::int64_t>(nv) }; // Error detection
 
 	for ([[maybe_unused]] auto m{ 0uz }, v = nv - 1; nv > 2;) {
-		// If we loop, it is probably a non-simple polygon
+		// If this loop is entered, it is probably a non-simple polygon
 		if ((r_count--) < 0) {
 			// Triangulate: ERROR - probable bad polygon
 			return result;
@@ -273,10 +273,10 @@ std::vector<V2_float> GetVisibilityPolygon(V2_float point, std::span<const Line>
 		return point_less(b, d);
 	};
 
-	// Compare 2 line segments based on their distance from given point.
-	// Assumes: (1) The line segments are intersected by some ray from the origin.
-	//          (2) The line segments do not intersect except at their endpoints.
-	//          (3) No line segment is Collinear with the origin.
+	// Compare 2 line segments based on distance from given point.
+	// Assumes: The line segments are intersected by some ray from the origin.
+	//          The line segments do not intersect except at endpoints.
+	//          No line segment is Collinear with the origin.
 	// Check whether the line segment x is closer to the origin than the line segment y.
 	// @param x Line segment: Left hand side of the comparison operator.
 	// @param y Line segment: Right hand side of the comparison operator.
@@ -477,7 +477,7 @@ std::vector<Triangle> GetVisibilityTriangles(
 
 	auto count{ polygon.size() };
 
-	// We need at least 3 points to form a triangle.
+	// At least 3 points needed to form a triangle.
 	if (count < 3) {
 		return {};
 	}

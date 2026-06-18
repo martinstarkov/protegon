@@ -605,7 +605,7 @@ std::vector<Tween> Bounce(
 /// offset before returning back to the origin point all within a single duration and can repeat a
 /// specified number of times or indefinitely. As a result, a symmetrical bounce requires a
 /// symmetrical easing function. Note: Symmetrical bounces occupy the same effect queue as regular
-/// bounces, i.e. they can not occur at the same time for the same entity.
+/// bounces, i.e. can not occur at the same time for the same entity.
 ///
 /// @param entity The entity to apply the bounce effect to.
 /// @param bounce_amplitude The peak offset applied during the bounce.

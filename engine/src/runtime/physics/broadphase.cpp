@@ -220,21 +220,21 @@ void KDTree::PartialUpdate() {
 		return;
 	}
 
-	// 1) Mark/removal step: for each moved entity, try to find it in the tree and remove by
-	// swap-pop. We'll also record which leaves were touched so we can later split them if
+	// Mark/removal step: for each moved entity, try to find it in the tree and remove by
+	// swap-pop. Also record which leaves were touched so leaves can later be split if
 	// needed.
 	std::vector<KDNode*> touched_leaves;
 	touched_leaves.reserve(moved_entities.size());
 
 	for (const auto& entity : moved_entities) {
-		// if entity isn't present in the tree (inserted this frame), skip removal
-		// We'll insert it below from entity_map
+		// If entity isn't present in the tree (inserted this frame), skip removal
+		// Insert it below from entity_map
 		bool found_and_removed = RemoveFromTree(root.get(), entity, 0, touched_leaves);
 		(void)found_and_removed; // fine if not found
 	}
 
-	// 2) Bulk-insert: gather moved objects from entity_map and insert into leaves without
-	// splitting yet We insert directly into leaves to avoid repeated traversals doing node
+	// Bulk-insert: gather moved objects from entity_map and insert into leaves without
+	// splitting yet Insert directly into leaves to avoid repeated traversals doing node
 	// splitting mid-flight.
 	for (const auto& entity : moved_entities) {
 		auto it = entity_map.find(entity);
@@ -244,17 +244,17 @@ void KDTree::PartialUpdate() {
 		InsertIntoLeaf(root.get(), it->second, 0);
 	}
 
-	// 3) Split all touched leaves (and recursively if children need splitting)
-	// We deduplicate touched leaves
+	// Split all touched leaves (and recursively if children need splitting)
+	// Deduplicate touched leaves
 	std::ranges::sort(touched_leaves);
 	touched_leaves.erase(
 		std::unique(touched_leaves.begin(), touched_leaves.end()), touched_leaves.end()
 	);
 
 	for (KDNode* leaf : touched_leaves) {
-		// if leaf still exists and is over capacity, split it
+		// If leaf still exists and is over capacity, split it
 		if (leaf && leaf->objects.size() > max_objects_per_node) {
-			// We need to call SplitNode with a depth. We don't store depths in nodes, so we
+			// Need to call SplitNode with a depth. Don't store depths in nodes, so
 			// compute it by walking from root.
 			auto depth = ComputeDepth(root.get(), leaf, 0);
 			if (depth.has_value() && depth.value() >= 0) {
@@ -389,7 +389,7 @@ void KDTree::SplitNodeExternal(KDNode* node, int depth) {
 		}
 	}
 
-	// Recursively split children if they are still oversized
+	// Recursively split children if still oversized
 	if (node->left && node->left->objects.size() > max_objects_per_node) {
 		SplitNodeExternal(node->left.get(), depth + 1);
 	}

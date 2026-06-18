@@ -77,7 +77,7 @@ FramebufferId FramebufferPool::Acquire(TextureDesc desc, std::optional<TextureDe
 			}
 		);
 	} else {
-		// No format/layout changes here. We only reuse framebuffers that already match.
+		// No format/layout changes here. Only reuse framebuffers that already match.
 		if (renderer_.GetSize(acquired_pool->framebuffer) != desc.size) {
 			renderer_.Resize(acquired_pool->framebuffer, desc.size);
 		}

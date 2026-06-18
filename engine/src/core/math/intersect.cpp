@@ -162,7 +162,7 @@ Intersection IntersectCirclePolygon(Transform t1, const Circle& A, Transform t2,
 		}
 	}
 
-	// If we got here, the circle intersects or is inside the polygon
+	// The circle intersects or is inside the polygon
 	PTGN_ASSERT(min_penetration != std::numeric_limits<float>::infinity());
 	PTGN_ASSERT(!collision_normal.IsZero());
 

@@ -615,8 +615,8 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 		float presentation_aspect{ presentation.size.x / presentation.size.y };
 		float logical_aspect{ static_cast<float>(logical_size.x) / logical_size.y };
 
-		// In letterbox mode we need require presentation_aspect > logical_aspect to fit
-		// height, and in overscan we require presentation_aspect > logical_aspect to fit
+		// In letterbox mode require presentation_aspect > logical_aspect to fit
+		// height, and in overscan require presentation_aspect > logical_aspect to fit
 		// height.
 		bool fit_height{ (presentation_aspect > logical_aspect) == letterbox_mode };
 

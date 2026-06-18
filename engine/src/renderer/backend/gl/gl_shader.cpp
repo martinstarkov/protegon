@@ -273,7 +273,7 @@ void AddShaderLayout(std::string& source, [[maybe_unused]] ShaderType type) {
 	std::regex layout_regex(R"(layout\s*\(\s*location\s*=\s*\d+\s*\))");
 
 	while (std::getline(input, line)) {
-		// Stop injecting once we hit `void main()`
+		// Stop injecting once `void main()` is found
 		if (!in_main && line.contains("void main")) {
 			in_main = true;
 		}

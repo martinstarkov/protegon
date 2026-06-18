@@ -686,7 +686,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
 
-	// We count this draw call so that draw call counts match with and without the editor.
+	// Count this draw call so that draw call counts match with and without the editor.
 	ctx.editor.GetStats().Increment("draw_calls");
 
 	if (auto scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };

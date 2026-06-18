@@ -144,8 +144,8 @@ void TopDownMovement::Update(Entity entity, Transform& transform, RigidBody& rb,
 		facing_direction = dir;
 	}
 
-	// Used to flip the character's sprite when she changes direction
-	// Also tells us that we are currently pressing a direction button
+	// Used to flip the character's sprite when the player changes direction.
+	// Also means the player is currently pressing a direction button.
 	if (dir.x != 0.0f) {
 		transform.scale.x = std::abs(transform.scale.x) * Sign(dir.x);
 	}
@@ -213,8 +213,7 @@ void TopDownMovement::InvokeCallbacks(Entity entity) const {
 	}
 
 	if (dir != prev_dir) {
-		// Clamp because turning from left to right can cause a difference in direction of 2.0f,
-		// which we see as the same as 1.0f.
+		// Clamp because turning from left to right can cause a difference in direction of 2.0f.
 		V2_float diff{ Clamp(prev_dir - dir, V2_float{ -1.0f }, V2_float{ 1.0f }) };
 		auto dir_state{ GetDirectionState(diff) };
 		PushEvent<event::PlayerMoveDirectionChange>(entity, diff, dir_state);
@@ -342,21 +341,21 @@ void TopDownMovement::RunWithAcceleration(
 		float max_speed_change{ 0.0f };
 
 		if (dir[i] != 0.0f) {
-			// If the sign (i.e. positive or negative) of our input direction doesn't match our
-			// movement, it means we're turning around and so should use the turn speed stat.
+			// If the sign (i.e. positive or negative) of input direction doesn't match
+			// movement, it means player is turning around and so should use the turn speed stat.
 			if (!NearlyEqual(Sign(dir[i]), Sign(rb.velocity[i]))) {
 				max_speed_change = turn_speed * dt.count();
 			} else {
-				// If they match, it means we're simply running along and so should use the
-				// acceleration stat
+				// If direction and velocity signs match, player is simply running along and so
+				// should use the acceleration stat
 				max_speed_change = acceleration * dt.count();
 			}
 		} else {
-			// And if we're not pressing a direction at all, use the deceleration stat
+			// And if not pressing a direction at all, use the deceleration stat
 			max_speed_change = deceleration * dt.count();
 		}
 
-		// Move our velocity towards the desired velocity, at the rate of the number calculated
+		// Move velocity towards the desired velocity, at the rate of the number calculated
 		// above
 		rb.velocity[i] = MoveTowards(rb.velocity[i], desired_velocity[i], max_speed_change);
 	};
@@ -383,13 +382,13 @@ void PlatformerMovement::Update(
 		dir_x = 1.0f;
 	}
 
-	// Used to flip the character's sprite when she changes direction
-	// Also tells us that we are currently pressing a direction button
+	// Used to flip the character's sprite when the player changes direction
+	// Also indicates that the player is currently pressing a direction button
 	if (dir_x != 0.0f) {
 		transform.scale.x = std::abs(transform.scale.x) * Sign(dir_x);
 	}
 
-	// Calculate's the character's desired velocity - which is the direction you are facing,
+	// Calculate's the character's desired velocity, which is the direction the player is facing
 	// multiplied by the character's maximum speed
 	V2_float desired_velocity{ dir_x * std::max(max_speed - friction, 0.0f), 0.0f };
 
@@ -410,8 +409,8 @@ void PlatformerMovement::RunWithAcceleration(
 ) const {
 	const auto& input{ scene.ctx().input };
 
-	// Set our acceleration, deceleration, and turn speed stats, based on whether we're on the
-	// ground on in the air
+	// Set acceleration, deceleration, and turn speed stats, based on whether the player is on
+	// the ground or in the air
 
 	float acceleration{ grounded ? max_acceleration : max_air_acceleration };
 	float deceleration{ grounded ? max_deceleration : max_air_deceleration };
@@ -424,21 +423,21 @@ void PlatformerMovement::RunWithAcceleration(
 	float max_speed_change{ 0.0f };
 
 	if (pressing_key) {
-		// If the sign (i.e. positive or negative) of our input direction doesn't match our
-		// movement, it means we're turning around and so should use the turn speed stat.
+		// If the sign (i.e. positive or negative) of input direction doesn't match
+		// movement, it means the player is turning around and so should use the turn speed stat.
 		if (!NearlyEqual(Sign(dir_x), Sign(rb.velocity.x))) {
 			max_speed_change = turn_speed * dt.count();
 		} else {
-			// If they match, it means we're simply running along and so should use the
-			// acceleration stat
+			// If the input direction and velocity match, it means the player is simply running
+			// along and so should use the acceleration stat
 			max_speed_change = acceleration * dt.count();
 		}
 	} else {
-		// And if we're not pressing a direction at all, use the deceleration stat
+		// And if not pressing a direction at all, use the deceleration stat
 		max_speed_change = deceleration * dt.count();
 	}
 
-	// Move our velocity towards the desired velocity, at the rate of the number calculated
+	// Move velocity towards the desired velocity, at the rate of the number calculated
 	// above
 	rb.velocity.x = MoveTowards(rb.velocity.x, desired_velocity.x, max_speed_change);
 }
@@ -504,14 +503,14 @@ void PlatformerJump::Jump(RigidBody& rb, V2_float gravity) {
 	jump_buffer_.Stop();
 	coyote_timer_.Stop();
 
-	// If we have double jump on, allow us to jump again (but only once)
+	// If double jump is on, allow the jump again (but only once)
 	// canJumpAgain = (maxAirJumps == 1 && canJumpAgain == false);
 
-	// Determine the power of the jump, based on our gravity and stats
+	// Determine the power of the jump, based on gravity and stats
 	float jump_speed{ std::sqrt(2.0f * gravity.y * rb.gravity * jump_height) };
 
-	// If Kit is moving up or down when she jumps (such as when doing a double jump), change
-	// the jump_speed; This will ensure the jump is the exact same strength, no matter your
+	// If player is moving up or down when the player jumps (such as when doing a double jump),
+	// change the jump_speed; This will ensure the jump is the exact same strength, no matter the
 	// velocity.
 	if (rb.velocity.y < 0.0f) {
 		jump_speed = std::max(jump_speed - rb.velocity.y, 0.0f);

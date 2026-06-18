@@ -76,7 +76,7 @@ void DrawParticleShape(DrawContext& ctx, const T& shape, const ParticleDrawInfo&
 		Rect rect{ shape.GetSize() * V2_float{ draw.size } };
 
 		Transform transform{ draw.transform };
-		// We rotate rectangle particle -90 degrees because the default direction of the
+		// Rotate rectangle particle -90 degrees because the default direction of the
 		// rectangle shape is down (90 degrees).
 		transform.Rotate(-Radians{ kHalfPi });
 

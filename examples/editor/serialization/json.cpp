@@ -61,8 +61,7 @@ int main(int, char**) {
 	// child.Add<Circle>(30.0f);
 	// AddInteractable(e1, std::move(child));
 	e1.Add<impl::Draggable>();
-	e1.Add<impl::Offsets>(); // Transforms will be serialized as nulls because they are default
-							 // values.
+	e1.Add<impl::Offsets>();
 	e1.Add<Lifetime>(300ms).Start();
 
 	{

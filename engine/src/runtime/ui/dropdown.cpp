@@ -104,7 +104,7 @@ void DropdownItemScript::OnEvent(Event event) {
 			parent_dropdown, parent_dropdown, Button{ entity }
 		);
 
-		// Nested dropdown roots are also dropdown items. Pressing them should open/close their own
+		// Nested dropdown roots are also dropdown items. Pressing them should open/close own
 		// menu, not close the parent menu.
 		if (entity.Has<impl::DropdownData>()) {
 			return;

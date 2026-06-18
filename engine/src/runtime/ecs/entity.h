@@ -134,8 +134,8 @@ public:
 	}
 
 	/// @brief Destroy the given entity and potentially its children.
-	/// @param orphan_children If false, destroys all the children (and their children). If true,
-	/// removes the parents of all the entity's children, orphaning them.
+	/// @param orphan_children If false, destroys all the children (and grandchildren, etc). If
+	/// true, removes the parents of all the entity's children, orphaning them.
 	/// @return *this, allowing for it to be set to {} if needed.
 	Entity& Destroy(bool orphan_children = false);
 

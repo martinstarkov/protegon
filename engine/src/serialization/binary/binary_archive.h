@@ -155,7 +155,7 @@
 //
 //	operator bool() const;
 //
-//	// Useful for inserting unknown values and then later populating them by storing their stream
+//	// Useful for inserting unknown values and then later populating them by storing stream
 //	// positions.
 //	// @param count The number of zero bytes to write.
 //	void WriteZeroByte(std::size_t count);

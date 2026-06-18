@@ -44,7 +44,7 @@ struct WorldFrame {
 };
 
 /// @brief  Must be ordered from lowest rank to highest rank, where higher rank frames depend on
-/// lower rank frames of reference for their definition.
+/// lower rank frames of reference for definition.
 enum class Frame {
 	Window,
 	Presentation,

@@ -34,7 +34,7 @@ void Scripts::ApplyPending() {
 		});
 	}
 
-	// If a script was added and removed in the same frame, we never add it.
+	// If a script was added and removed in the same frame, never add it.
 	if (!pending_remove_.empty()) {
 		std::erase_if(pending_add_, [this](const auto& s) {
 			return std::ranges::contains(pending_remove_, s->hash_);

@@ -39,7 +39,7 @@ using TextureUnits = std::vector<TextureUnitState>;
 struct State {
 	State() = default;
 
-	/// @brief Constructs a default state with all values set to their OpenGL defaults.
+	/// @brief Constructs a default state with all values set to OpenGL defaults.
 	explicit State(std::size_t max_texture_slots) :
 		texture_units(max_texture_slots),
 		// Important as Depth default constructs to 0.0, whereas OpenGL default value is 1.0.

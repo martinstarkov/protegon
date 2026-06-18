@@ -130,8 +130,8 @@ private:
 
 	void ApplyPending();
 
-	/// @brief Emits the given event to all scripts of the entity in the order they were added until
-	/// one of them handles it (or until all scripts have been tried).
+	/// @brief Emits the given event to all scripts of the entity in the order the scripts were
+	/// added until one of them handles it (or until all scripts have been tried).
 	void OnEvent(Event event) const;
 
 	std::vector<std::unique_ptr<Script>> scripts_;

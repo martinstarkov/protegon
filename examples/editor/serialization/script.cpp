@@ -44,10 +44,10 @@ int main() {
 	// Instead of storing scripts in one container, store them in a unordered map of vectors of
 	// scripts. When a script is registered, it uses a similar method to Serialize() to retrieve a
 	// list of Enums of what maps that scripts should be inserted into.
-	// Then, when cycling we simply cycle through that enum type of the unordered map.
-	// When removing a script, we again retrieve all the enum types and remove from all those maps.
-	// This changes every dynamic cast to simply a found in map check or not. And then we can static
-	// cast as well.
+	// Then, when cycling simply cycle through that enum type of the unordered map.
+	// When removing a script, again retrieve all the enum types and remove from all those maps.
+	// This changes every dynamic cast to simply a found in map check or not. And then it can be
+	// static cast as well.
 
 	// TODO: Consider using script_types as a hash type thing instead of having a map with separate
 	// function pointers.

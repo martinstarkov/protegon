@@ -494,7 +494,8 @@ void CollisionHandler::SortCollisions(std::vector<impl::SweepCollision>& collisi
 	std::ranges::sort(collisions, [](const impl::SweepCollision& a, const impl::SweepCollision& b) {
 		return a.dist2 < b.dist2;
 	});
-	// Sort based on collision times, and if they are equal, by collision normal magnitudes.
+	// Sort based on collision times, and if collision times are equal, by collision normal
+	// magnitudes.
 	std::ranges::sort(collisions, [](const impl::SweepCollision& a, const impl::SweepCollision& b) {
 		// If time of collision are equal, prioritize walls to corners, i.e. normals
 		// (1,0) come before (1,1).

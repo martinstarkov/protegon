@@ -170,7 +170,7 @@ private:
 
 	impl::ShaderId GetShader(std::string_view shader_key) const;
 
-	/// @brief If a primary world camera is set, we combine all commands into a single command
+	/// @brief If a primary world camera is set, combine all commands into a single command
 	/// list for that camera.
 	void CombineCommands();
 

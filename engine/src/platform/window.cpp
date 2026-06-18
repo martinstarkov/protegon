@@ -375,7 +375,7 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 
 	glfwSetWindowSizeLimits(instance_.get(), 1, 1, GLFW_DONT_CARE, GLFW_DONT_CARE);
 
-	// Callbacks should be set after window setup so they dont trigger initially.
+	// Callbacks should be set after window setup so the callbacks dont trigger initially.
 	SetCallbacks();
 
 	ImGui_ImplGlfw_InitForOpenGL(instance_.get(), true);
@@ -411,7 +411,7 @@ bool Window::Update() {
 	bool focused{ focused_ };
 
 #ifdef __EMSCRIPTEN__
-	// Emscripten does not support window focus, so we assume the window is always focused.
+	// Emscripten does not support window focus, so assume the window is always focused.
 	focused = true;
 #endif
 

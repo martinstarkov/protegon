@@ -126,8 +126,8 @@ private:
 	}
 
 	/// @brief This function basically determines whether or not the the callback condition of the
-	/// entity is met (since they can be different), and if so it calls the respective provided
-	/// function.
+	/// entity is met (since conditions can be different), and if so it calls the respective
+	/// provided function.
 	template <DropzoneAction action, typename FDropzone, typename FDraggable, typename FOverlap>
 	static void AddDropzoneActions(
 		Entity& dragging, Entity& dropzone, const V2_float& mouse_position, FDropzone&& dropzone_fn,

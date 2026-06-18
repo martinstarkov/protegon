@@ -128,7 +128,7 @@
 //	auto scroll{ input.GetMouseScroll() };
 //
 //	if (scroll != 0 && mouse_on_plot) {
-//		// To zoom into where mouse is located, we scale zoom amount for each axis
+//		// To zoom into where mouse is located, scale zoom amount for each axis
 //		// by the fraction of axis remaining on either side of the mouse position.
 //		V2_float mouse_frac{ (mouse_pos - canvas_rect.Min()) / canvas_rect.size };
 //		PTGN_ASSERT(mouse_frac.x >= 0.0f && mouse_frac.x <= 1.0f);

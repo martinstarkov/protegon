@@ -622,7 +622,7 @@ bool OverlapCircleCapsule(Transform t1, const Circle& A, Transform t2, const Cap
 	// Source:
 	// http://www.r-5.org/files/books/computers/algo-list/realtime-3d/Christer_Ericson-Real-Time_Collision_Detection-EN.pdf
 	// Page 114.
-	// If (squared) distance smaller than (squared) sum of radii, they collide
+	// If (squared) distance smaller than (squared) sum of radii, a collision has occurred
 	return impl::WithinPerimeter(
 		circle_radius + capsule_radius,
 		impl::SquareDistancePointLine(circle_center, capsule_start, capsule_end)

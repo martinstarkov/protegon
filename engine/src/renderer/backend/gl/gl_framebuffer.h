@@ -223,7 +223,7 @@ public:
 		std::optional<Attachment> depth_stencil
 	) const;
 
-	/// Clear currently bound framebuffer buffers to their current OpenGL clear values.
+	/// Clear currently bound framebuffer buffers to current OpenGL clear values.
 	void Clear(
 		ClearBufferBit buffers = ClearBufferBit::Color | ClearBufferBit::Stencil |
 								 ClearBufferBit::Depth

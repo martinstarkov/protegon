@@ -273,8 +273,8 @@
 //		edge.Draw(axis.line_color, axis.line_thickness);
 //
 //		// Since the rect.GetEdges() function goes in clockwise direction starting from top left,
-//		// the non regularly aligned axes will point in the wrong directions so they need to be
-//		// flipped.
+//		// the non regularly aligned axes will point in the wrong directions so the directions need
+//      // to be flipped.
 //		bool swap_dir{ (axis.regular_align && component_index == 0) ||
 //					   (!axis.regular_align && component_index == 1) };
 //

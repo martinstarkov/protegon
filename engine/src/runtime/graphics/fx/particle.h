@@ -186,7 +186,7 @@ struct ParticleConfig {
 	/// @brief Starting rotation of an individual particle.
 	std::optional<ConstantOrRange<Degrees>> start_rotation;
 
-	/// @brief If true, will attempt to align particles to their emission direction upon emission.
+	/// @brief If true, will attempt to align particles to emission direction upon emission.
 	/// This is overridden if start_rotation is set.
 	bool align_to_direction{ true };
 

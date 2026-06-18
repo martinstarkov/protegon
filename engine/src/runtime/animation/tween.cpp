@@ -55,14 +55,14 @@ void TweenData::OnEvent() {
 
 		PTGN_ASSERT(points_[i]);
 
-		// We deference the unique pointer here because OnEvent can grow tween points safely.
+		// Deference the unique pointer here because OnEvent can grow tween points safely.
 		auto& point{ *points_[i] };
 
 		if (point.flagged_for_removal_) {
 			continue;
 		}
 
-		// Move pending events so they do not conflict.
+		// Move pending events to avoid conflicts.
 		auto current{ std::exchange(point.events_, {}) };
 
 		for (auto& e : current) {
@@ -93,7 +93,7 @@ void TweenData::ClearFlagged() {
 		return;
 	}
 
-	// Since all flagged points are removed, we can be sure that the last index is not flagged.
+	// Since all flagged points are removed, it can be sure that the last index is not flagged.
 	if (index_ >= points_.size()) {
 		index_ = points_.size() - 1;
 	}
@@ -194,10 +194,10 @@ void TweenData::RemoveLastTweenPoint() {
 	PTGN_ASSERT(last_point);
 	last_point->flagged_for_removal_ = true;
 
-	// While index is valid, we keep backing up until we find a valid index or exhaust all indices.
-	// This ensures that if the current tween point is the one being removed, we move back to a
-	// valid tween point instead of leaving the tween in an invalid state with an invalid current
-	// index.
+	// While index is valid, keep backing up until a valid index is found or all indices have been
+	// exhausted. This ensures that if the current tween point is the one being removed, move back
+	// to a valid tween point instead of leaving the tween in an invalid state with an invalid
+	// current index.
 	while (index_ > 0) {
 		if (index_ < last_index.value()) {
 			PTGN_ASSERT(index_ < points_.size());

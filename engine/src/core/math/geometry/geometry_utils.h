@@ -129,7 +129,7 @@ float ClosestPointLineLine(
 
 [[nodiscard]] bool IntervalsOverlap(float min1, float max1, float min2, float max2);
 
-/// @return Amount by which the two intervals overlap. 0 is they do not overlap.
+/// @return Amount by which the two intervals overlap. 0 means no overlap.
 float GetIntervalOverlap(
 	float min1, float max1, float min2, float max2, bool contained_polygon,
 	V2_float& out_axis_direction

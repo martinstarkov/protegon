@@ -113,7 +113,7 @@
 	PTGN_EVAL(PTGN_MAP_LIST2_UD_I(f, userdata, 0, __VA_ARGS__, ()()(), ()()(), ()()(), 0))
 
 /// Because the preprocessor can't do arithmetic that produces integer literals for the *_I macros,
-/// we have to do it manually. Since the number of parameters is limited anyways, this is sufficient
+/// it is done here manually. Since the number of parameters is limited anyways, this is sufficient
 /// for all cases. If extra PTGN_EVAL layers are added, these definitions have to be extended. This
 /// is equivalent to the way Boost.preprocessor does it:
 /// https://github.com/boostorg/preprocessor/blob/develop/include/boost/preprocessor/arithmetic/inc.hpp

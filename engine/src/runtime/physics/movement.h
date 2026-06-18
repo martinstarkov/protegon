@@ -110,8 +110,8 @@ private:
 
 struct PlatformerMovement {
 	// TODO: Move to PlatformerJump class?
-	/// @brief Whether or not the player is currently on the ground. Determines their acceleration
-	/// (air or ground) and if they can jump or not.
+	/// @brief Whether or not the player is currently on the ground. Determines acceleration
+	/// (air or ground) and if the player can jump or not.
 	bool grounded{ false };
 
 	/// @brief Maximum movement speed.
@@ -173,9 +173,9 @@ public:
 	float jump_cut_off_gravity_multiplier{ 12.0f };
 	/// @brief  Gravity when down key is held.
 	float downward_speedup_gravity_multiplier{ 12.0f };
-	/// @brief  If player presses down_key, their downward gravity increases.
+	/// @brief  If player presses down_key, downward gravity increases.
 	bool downward_key_speedup{ true };
-	/// @brief  If player lets go of jump key, their downward gravity increases.
+	/// @brief  If player lets go of jump key, downward gravity increases.
 	bool variable_jump_height{ true };
 	/// @brief  Maximum downward velocity.
 	float terminal_velocity{ 36000.0f };

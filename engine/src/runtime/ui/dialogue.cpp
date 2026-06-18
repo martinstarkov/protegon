@@ -765,8 +765,6 @@ std::optional<Entity> DialogueBox::TryBackgroundEntity() const {
 void DialogueBox::DrawInfo(Scene& scene, V2_float position) {
 	(void)scene;
 	(void)position;
-
-	// Hook this into your debug text helpers if desired.
 }
 
 void DialogueBox::ApplyCurrentPage() {

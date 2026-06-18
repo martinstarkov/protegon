@@ -162,7 +162,7 @@ public:
 		function();
 	}
 
-	/// @brief Sets the framebuffer and viewport, and restores to their previous values after the
+	/// @brief Sets the framebuffer and viewport, and restores to previous values after the
 	/// function is executed.
 	void WithRenderTarget(
 		impl::FramebufferObject* framebuffer, Viewport viewport, InvocableR<void> auto&& function

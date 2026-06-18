@@ -111,37 +111,37 @@ private:
 
 	std::unique_ptr<KDNode> BuildRecursive(const std::vector<KDObject>& objects, int depth);
 
-	/// @brief Strategy:
-	/// 1) For each moved entity that exists in the tree, find the leaf it currently resides in
-	/// (using the
-	///    *old* rect stored in entity_map before the move). We use the entity_map's rect because
-	///    when the user called UpdateRect we already wrote the new rect there. To find the old tree
-	///    leaf we need the "previous" rect; to keep it simple here, we assume UpdateRect replaced
-	///    rect in entity_map but we have also kept a copy of the previous rect in the node's
-	///    objects (we will match by entity id). So we traverse the tree like in Remove() to find
-	///    the leaf and mark that object as deleted (swap-remove) so the node keeps compact storage.
-	/// 2) Collect the moved objects from entity_map (current rect) and insert them into leaf nodes
-	/// in bulk. 3) For any leaf nodes that exceed capacity, call SplitNode once per such node
+	/// @brief
+	/// For each moved entity that exists in the tree, find the leaf it currently resides in
+	/// using the *old* rect stored in entity_map before the move). Use the entity_map's rect
+	/// because when the user called UpdateRect the new rect was already written there. To find the
+	/// old tree leaf the "previous" rect is needed; to keep it simple here, assume UpdateRect
+	/// replaced rect in entity_map but also kept a copy of the previous rect in the node's
+	/// objects (match by entity id). So traverse the tree like in Remove() to find
+	/// the leaf and mark that object as deleted (swap-remove) so the node keeps compact storage.
+	///
+	/// Collect the moved objects from entity_map (current rect) and insert them into leaf nodes
+	/// in bulk.
+	///
+	/// For any leaf nodes that exceed capacity, call SplitNode once per such node
 	/// (recursive splitting)
 	void PartialUpdate();
 
 	/// @brief Find and remove the object with entity id from the tree by traversing to leaves using
-	/// the object's position inside the node (we search node->objects for the entity). When found,
-	/// we swap-pop to remove it quickly and record the leaf pointer.
+	/// the object's position inside the node (search node->objects for the entity). When found,
+	/// swap-pop to remove it quickly and record the leaf pointer.
 	bool RemoveFromTree(
 		KDNode* node, Entity entity, int depth, std::vector<KDNode*>& touched_leaves
 	);
 
 	void CompactTree(KDNode* node);
 
-	/// @brief Insert object into a leaf (descend using object's rect). We do NOT split here.
+	/// @brief Insert object into a leaf (descend using object's rect). Do NOT split here.
 	void InsertIntoLeaf(KDNode* node, const KDObject& obj, int depth);
 
 	/// @brief Compute depth of a target leaf by walking tree; returns nullopt if not found.
 	[[nodiscard]] std::optional<int> ComputeDepth(const KDNode* current, KDNode* target, int depth);
 
-	/// @brief External SplitNode: we'll emulate the same logic as your original SplitNode but
-	/// accept a pointer to an existing leaf.
 	void SplitNodeExternal(KDNode* node, int depth);
 };
 

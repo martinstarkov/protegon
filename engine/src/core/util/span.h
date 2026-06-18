@@ -75,7 +75,7 @@ constexpr bool ContainsDuplicates(TRange&& range, TProj proj = {}) {
 	return false;
 }
 
-/// @brief Swaps vector elements if they both exist in the vector.
+/// @brief Swaps vector elements if both exist in the vector.
 template <typename T>
 void VectorSwapElements(std::vector<T>& v, const T& e1, const T& e2) {
 	auto it1{ std::ranges::find(v, e1) };
