@@ -111,7 +111,8 @@ struct TextEffectsScene : public Scene {
 
 		CreateLine("Pulse effect", color::Green).Effect(GlyphEffectType::Pulse, 0.12f, 1.0f, 3.0f);
 
-		reveal_text = CreateLine(reveal_content, color::Black);
+		reveal_text = CreateLine(reveal_content, color::Black)
+						  .Effect(GlyphEffectType::Wave, 2.0f, 2.0f, 1.5f);
 
 		CreateLine("Tracking + kerning", color::Black).Tracking(0.5f).Kerning(0.5f);
 	}
