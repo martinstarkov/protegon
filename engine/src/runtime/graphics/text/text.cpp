@@ -512,6 +512,19 @@ Text& Text::Overflow(OverflowMode mode) {
 	return *this;
 }
 
+Text& Text::Clip(Rect rect, TextClipMode mode) {
+	Add<impl::TextClip>(impl::TextClip{
+		.rect = rect,
+		.mode = mode,
+	});
+	return *this;
+}
+
+Text& Text::ClearClip() {
+	Remove<impl::TextClip>();
+	return *this;
+}
+
 Text& Text::CollapseSpaces(bool collapse) {
 	EnsureTextBox().style.collapse_spaces = collapse;
 	InvalidateLayout();

@@ -70,6 +70,10 @@ public:
 	Text& Wrap(WrapMode mode);
 	Text& Overflow(OverflowMode mode);
 
+	Text& Clip(Rect rect, TextClipMode mode = TextClipMode::ClipFullyOutside);
+
+	Text& ClearClip();
+
 	Text& CollapseSpaces(bool collapse = true);
 	Text& JustifyLastLine(bool justify = true);
 	Text& AllowWordBreakInOverflow(bool allow = true);

@@ -238,6 +238,7 @@ struct TextReveal {
 
 struct TextClip {
 	std::optional<Rect> rect;
+	TextClipMode mode{ TextClipMode::ClipFullyOutside };
 };
 
 } // namespace impl

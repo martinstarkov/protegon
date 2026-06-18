@@ -1455,8 +1455,33 @@ void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity entity) {
 	std::optional<Rect> clip_rect{ layout.clip_rect };
 	TextClipMode clip_mode{ layout.clip_mode };
 
+	// TODO: Eventually replace this with two separate clip tests that are passed into BuildVertices
+	// and checked:
+	// bool PassesClip(
+	//	const GlyphInstance& glyph, const TextClipConstraint& clip
+	//) {
+	//	if (!clip.rect.has_value() || clip.mode == TextClipMode::None) {
+	//		return true;
+	//	}
+	//	Rect glyph_rect{ GetGlyphClipTestRect(glyph, clip.mode) };
+	//	return ShouldDrawRectWithClipMode(
+	//		glyph_rect,
+	//		clip.rect.value(),
+	//		clip.mode
+	//	);
+	//}
+	// for (const auto& clip : clips) {
+	//	if (!PassesClip(glyph, clip)) {
+	//		clipped = true;
+	//		break;
+	//	}
+	//}
+	// if (clipped) {
+	//	continue;
+	//}
 	if (auto clip{ entity.TryGet<TextClip>() }) {
 		clip_rect = IntersectClipRects(clip_rect, clip->rect);
+		clip_mode = clip->mode;
 
 		if (clip->rect.has_value() && clip_mode == TextClipMode::None) {
 			clip_mode = TextClipMode::ClipFullyOutside;
