@@ -146,7 +146,7 @@ std::optional<V2_float> GetDisplaySize(Entity entity) {
 	}
 	auto cropped_size{ GetCroppedTextureSize(entity) };
 	if (cropped_size.has_value()) {
-		return cropped_size.value() * GetWorldScale(entity);
+		return cropped_size.value() * Abs(GetWorldScale(entity));
 	}
 	return std::nullopt;
 }
