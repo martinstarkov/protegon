@@ -56,12 +56,11 @@ public:
 
 private:
 	void DrawSelectedEntityGizmo(
-		EditorContext& ctx, Viewport viewport, const FrameContext& frame_context
+		EditorContext& ctx, Viewport presentation_viewport, const FrameContext& frame_context
 	);
 
 	void DrawSceneCameraOutlines(
-		EditorContext& ctx, const FrameContext& frame_context, Viewport presentation_viewport,
-		Viewport image_viewport
+		EditorContext& ctx, Viewport presentation_viewport, const FrameContext& frame_context
 	);
 
 	void DrawViewportToolbar(EditorContext& ctx);
