@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -11,6 +13,7 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/animation/animation.h"
 #include "runtime/audio/audio.h"
@@ -299,7 +302,7 @@ private:
 	void SetState(impl::InternalButtonState state);
 
 	void PlaySound(ButtonState active);
-	void PlayAnimation(ButtonState active);
+	void PlayAnimation(ButtonState active) const;
 
 	void UpdateChildLayouts();
 };
@@ -324,20 +327,20 @@ struct ButtonHoverStop {
 
 } // namespace event
 
-Button CreateButton(Scene& scene, const ButtonDesc& desc);
+Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
 
 Button CreateButton(
-	Scene& scene, V2_float position = {},
+	Scene& scene, Transform transform = {},
 	const std::optional<std::variant<Rect, Circle>>& shape = {}, Origin draw_origin = Origin::Center
 );
 
 Button CreateButton(
-	Scene& scene, V2_float position, V2_float size, const ButtonConfig& config,
+	Scene& scene, Transform transform, V2_float size, const ButtonConfig& config,
 	Origin draw_origin = Origin::Center
 );
 
 Button CreateAnimatedButton(
-	Scene& scene, V2_float position, std::optional<V2_float> size,
+	Scene& scene, Transform transform, std::optional<V2_float> size,
 	const AnimatedButtonConfig& config, Origin draw_origin = Origin::Center
 );
 

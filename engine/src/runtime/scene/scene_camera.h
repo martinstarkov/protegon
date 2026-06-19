@@ -8,6 +8,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "renderer/pipeline/camera.h"
@@ -200,7 +201,7 @@ void ApplyCameraBounds(SceneCamera camera);
 /// parent render target.
 /// If unset, the camera's parent render target is the scene's default render target.
 SceneCamera CreateCamera(
-	Scene& scene, std::optional<V2_float> viewport_size = std::nullopt,
+	Scene& scene, Transform transform = {}, std::optional<V2_float> viewport_size = std::nullopt,
 	ViewportSpace viewport_space = ViewportSpace::Logical
 );
 
@@ -212,6 +213,7 @@ struct std::hash<ptgn::SceneCamera> {
 		if (!camera) {
 			return 0;
 		}
+
 		return ptgn::Hash(ptgn::Entity{ camera });
 	}
 };

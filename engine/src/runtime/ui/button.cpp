@@ -1,9 +1,10 @@
 #include "runtime/ui/button.h"
 
-#include <algorithm>
+#include <ecs/ecs.h>
+
 #include <optional>
-#include <ranges>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -14,14 +15,17 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/entity_handle.h"
+#include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/text/text_style.h"
@@ -30,9 +34,11 @@
 #include "runtime/interaction/interactive.h"
 #include "runtime/interaction/interactive_event.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
+#include "runtime/ui/button_config.h"
 #include "runtime/ui/toggle_button.h"
 
 namespace ptgn {
@@ -569,10 +575,7 @@ Button& Button::SetShape(const std::optional<std::variant<Rect, Circle>>& shape)
 		return *this;
 	}
 
-	std::visit(
-		[this](const auto& value) { Add<std::remove_cvref_t<decltype(value)>>(value); },
-		shape.value()
-	);
+	std::visit([this]<typename T>(const T& value) { Add<T>(value); }, shape.value());
 
 	UpdateChildLayouts();
 
@@ -855,7 +858,9 @@ Button& Button::SetSound(std::optional<std::string_view> sound_key, ButtonState 
 		return *this;
 	}
 
-	slot->emplace(GetScene().ctx().asset.Get<Audio>(sound_key.value()));
+	auto audio{ impl::AssetAccessor{ GetScene().ctx().asset }.Get<Audio>(sound_key.value()) };
+
+	slot->emplace(std::move(audio));
 
 	return *this;
 }
@@ -968,7 +973,7 @@ void Button::PlaySound(ButtonState active) {
 	audio.Play(sound.value().GetEntity().Get<impl::AssetName>().value);
 }
 
-void Button::PlayAnimation(ButtonState active) {
+void Button::PlayAnimation(ButtonState active) const {
 	auto active_state{ ToVisualState(active) };
 
 	for (Entity part : Parts(ButtonPartRole::Icon)) {
@@ -1036,7 +1041,7 @@ void Button::UpdateChildLayouts() {
 	}
 }
 
-Button CreateButton(Scene& scene, const ButtonDesc& desc) {
+Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 	Button button{ scene.CreateEntity() };
 
 	button.Add<impl::ButtonData>();
@@ -1049,7 +1054,7 @@ Button CreateButton(Scene& scene, const ButtonDesc& desc) {
 	Show(button, false);
 	button.SetShape(desc.shape);
 
-	SetPosition(button, desc.position);
+	SetTransform(button, transform);
 	SetDrawOrigin(button, desc.origin);
 	SetInteractive(button);
 
@@ -1063,22 +1068,22 @@ Button CreateButton(Scene& scene, const ButtonDesc& desc) {
 }
 
 Button CreateButton(
-	Scene& scene, V2_float position, const std::optional<std::variant<Rect, Circle>>& shape,
+	Scene& scene, Transform transform, const std::optional<std::variant<Rect, Circle>>& shape,
 	Origin draw_origin
 ) {
 	return CreateButton(
-		scene, ButtonDesc{
-				   .position = position,
-				   .shape	 = shape,
-				   .origin	 = draw_origin,
-			   }
+		scene, transform,
+		ButtonDesc{
+			.shape	= shape,
+			.origin = draw_origin,
+		}
 	);
 }
 
 Button CreateButton(
-	Scene& scene, V2_float position, V2_float size, const ButtonConfig& config, Origin draw_origin
+	Scene& scene, Transform transform, V2_float size, const ButtonConfig& config, Origin draw_origin
 ) {
-	Button button{ CreateButton(scene, position, Rect{ size }, draw_origin) };
+	Button button{ CreateButton(scene, transform, Rect{ size }, draw_origin) };
 
 	if (config.background_color.has_value()) {
 		Entity background{ button.Background() };
@@ -1106,12 +1111,12 @@ Button CreateButton(
 }
 
 Button CreateAnimatedButton(
-	Scene& scene, V2_float position, std::optional<V2_float> size,
+	Scene& scene, Transform transform, std::optional<V2_float> size,
 	const AnimatedButtonConfig& config, Origin draw_origin
 ) {
-	V2_float resolved_size{ size.value_or(V2_float{ 0.0f, 0.0f }) };
+	V2_float resolved_size{ size.value_or(V2_float{}) };
 
-	Button button{ CreateButton(scene, position, Rect{ resolved_size }, draw_origin) };
+	Button button{ CreateButton(scene, transform, Rect{ resolved_size }, draw_origin) };
 	button.SetIcon(config.texture);
 
 	button.SetSound(config.sound_hover, ButtonState::Hover);

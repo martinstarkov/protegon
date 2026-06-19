@@ -6,6 +6,7 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
@@ -181,7 +182,7 @@ private:
 	bool HasOnlyDefaultEmptyRun() const;
 };
 
-Text CreateText(Scene& scene, V2_float position = {}, Origin draw_origin = Origin::Center);
+Text CreateText(Scene& scene, Transform transform = {}, Origin draw_origin = Origin::Center);
 
 PTGN_REGISTER_DRAWABLE(Text);
 

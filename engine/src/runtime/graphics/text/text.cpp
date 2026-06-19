@@ -1017,7 +1017,7 @@ TextPaginationResult Text::Paginate(
 	return result;
 }
 
-Text CreateText(Scene& scene, V2_float position, Origin draw_origin) {
+Text CreateText(Scene& scene, Transform transform, Origin draw_origin) {
 	Text text{ scene.CreateEntity() };
 
 	StyledText styled_text;
@@ -1031,7 +1031,7 @@ Text CreateText(Scene& scene, V2_float position, Origin draw_origin) {
 	text.Add<TextBox>(MakeDefaultTextBox());
 	text.Add<impl::TextEditState>(impl::TextEditState{ .current_run_index = 0 });
 
-	SetPosition(text, position);
+	SetTransform(text, transform);
 	SetDrawOrigin(text, draw_origin);
 	SetDraw<Text>(text);
 	Show(text, true);

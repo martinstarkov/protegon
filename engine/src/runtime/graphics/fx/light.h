@@ -7,6 +7,7 @@
 
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/shader.h"
 #include "runtime/ecs/entity.h"
@@ -147,10 +148,7 @@ private:
 
 PTGN_REGISTER_DRAWABLE(Light);
 
-/// @param position Starting point of the light.
-/// @param properties Optional properties of the light. If not provided, default properties will be
-/// used.
-Light CreateLight(Scene& scene, V2_float position = {}, const LightProperties& properties = {});
+Light CreateLight(Scene& scene, Transform transform = {}, const LightProperties& properties = {});
 
 /// @brief Marks an entity as a shadow occluder.
 /// @param entity Entity that should cast shadows.

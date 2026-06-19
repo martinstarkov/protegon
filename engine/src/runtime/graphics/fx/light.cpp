@@ -23,7 +23,6 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/polygon.h"
 #include "core/math/geometry/rect.h"
-#include "core/math/geometry/shape.h"
 #include "core/math/geometry/triangle.h"
 #include "core/math/math_utils.h"
 #include "core/math/tolerance.h"
@@ -798,12 +797,12 @@ LightProperties Light::GetLightProperties() const {
 	return properties;
 }
 
-Light CreateLight(Scene& scene, V2_float position, const LightProperties& properties) {
+Light CreateLight(Scene& scene, Transform transform, const LightProperties& properties) {
 	Light light{ scene.CreateEntity() };
 	light.Add<impl::LightData>();
 	light.SetLightProperties(properties);
 
-	SetPosition(light, position);
+	SetTransform(light, transform);
 	SetDraw<Light>(light);
 	Show(light);
 

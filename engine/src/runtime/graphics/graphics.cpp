@@ -126,11 +126,11 @@ Graphics& Graphics::StrokePolygon(const Polygon& polygon) {
 	return *this;
 }
 
-Graphics CreateGraphics(Scene& scene, V2_float position) {
+Graphics CreateGraphics(Scene& scene, Transform transform) {
 	Graphics graphics{ scene.CreateEntity() };
 
 	graphics.Add<impl::GraphicsData>();
-	SetPosition(graphics, position);
+	SetTransform(graphics, transform);
 	SetDraw<Graphics>(graphics);
 	Show(graphics, false);
 

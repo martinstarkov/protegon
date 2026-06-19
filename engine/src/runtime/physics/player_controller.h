@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "core/event/event.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
@@ -84,6 +85,8 @@ struct TopDownPlayerConfig {
 	)
 };
 
-Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerConfig& config = {});
+Entity CreateTopDownPlayer(
+	Scene& scene, Transform transform, const TopDownPlayerConfig& config = {}
+);
 
 } // namespace ptgn

@@ -69,6 +69,6 @@ public:
 
 PTGN_REGISTER_DRAWABLE(Graphics);
 
-Graphics CreateGraphics(Scene& scene, V2_float position = {});
+Graphics CreateGraphics(Scene& scene, Transform transform = {});
 
 } // namespace ptgn

@@ -12,6 +12,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/rng.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
@@ -349,7 +350,7 @@ private:
 };
 
 ParticleEmitter CreateParticleEmitter(
-	Scene& scene, V2_float position = {}, const ParticleConfig& config = {}
+	Scene& scene, Transform transform = {}, const ParticleConfig& config = {}
 );
 
 PTGN_REGISTER_DRAWABLE(ParticleEmitter);

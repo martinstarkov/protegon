@@ -12,6 +12,7 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -290,10 +291,10 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 }
 
 ToggleButton CreateToggleButton(
-	Scene& scene, V2_float position, const std::optional<std::variant<Rect, Circle>>& shape,
+	Scene& scene, Transform transform, const std::optional<std::variant<Rect, Circle>>& shape,
 	Origin draw_origin, bool toggled
 ) {
-	Button button{ CreateButton(scene, position, shape, draw_origin) };
+	Button button{ CreateButton(scene, transform, shape, draw_origin) };
 	return button.AddToggle(toggled);
 }
 

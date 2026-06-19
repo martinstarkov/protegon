@@ -9,7 +9,6 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/math/vector4.h"
 #include "renderer/draw_context.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/animation.h"
@@ -37,7 +36,7 @@ TextureDrawParams GetTextureDrawParams(
 	return { .depth{ GetDepth(entity) },
 			 .size{ size },
 			 .origin{ GetDrawOrigin(entity) },
-			 .tint{ GetTint(entity).Normalized() * additional_tint.Normalized() },
+			 .tint{ Color::Multiply(GetTint(entity), additional_tint) },
 			 .texture_coordinates{ GetTextureCoordinates(entity, flip_y) },
 			 .effects{ impl::GetEffectParams(entity) },
 			 .entity_id{ entity.GetUUID() } };
@@ -82,17 +81,17 @@ void Sprite::Draw(DrawContext& ctx, Entity entity) {
 }
 
 Sprite& Sprite::SetTexture(std::string_view texture_key) {
-	const auto& scene{ GetScene() };
-	const auto& assets{ scene.ctx().asset };
+	auto& scene{ GetScene() };
+	auto& assets{ scene.ctx().asset };
 
-	auto resolved_texture{ assets.Get<Texture>(texture_key) };
+	auto resolved_texture{ impl::AssetAccessor{ assets }.Get<Texture>(texture_key) };
 
 	Add<Texture>(resolved_texture);
 	return *this;
 }
 
 Sprite CreateSprite(
-	Scene& scene, std::string_view texture_key, V2_float position, Origin draw_origin
+	Scene& scene, Transform transform, std::string_view texture_key, Origin draw_origin
 ) {
 	Sprite sprite{ scene.CreateEntity() };
 
@@ -103,7 +102,7 @@ Sprite CreateSprite(
 		sprite.SetTexture(texture_key);
 	}
 
-	SetPosition(sprite, position);
+	SetTransform(sprite, transform);
 	SetDrawOrigin(sprite, draw_origin);
 
 	return sprite;

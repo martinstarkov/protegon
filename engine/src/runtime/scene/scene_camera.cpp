@@ -410,7 +410,8 @@ bool HasAllMasks(Entity entity, LayerMask test) {
 }
 
 SceneCamera CreateCamera(
-	Scene& scene, std::optional<V2_float> viewport_size, ViewportSpace viewport_space
+	Scene& scene, Transform transform, std::optional<V2_float> viewport_size,
+	ViewportSpace viewport_space
 ) {
 	SceneCamera camera{ scene.CreateEntity() };
 
@@ -419,7 +420,7 @@ SceneCamera CreateCamera(
 		"Camera viewport size cannot be negative or zero"
 	);
 
-	camera.Add<Transform>();
+	SetTransform(camera, transform);
 
 	auto& data{ camera.Add<impl::CameraData>() };
 	data.viewport_space = viewport_space;

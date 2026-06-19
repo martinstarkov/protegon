@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
@@ -72,24 +73,24 @@ void SetInteractiveShape(
 );
 
 void AddInteractiveRect(
-	Entity interactive_entity, V2_float position, V2_float size,
+	Entity interactive_entity, Transform transform, V2_float size,
 	Origin draw_origin = Origin::Center, std::optional<std::string_view> shape_id = {},
 	bool ignore_parent_transform = false
 );
 
 void SetInteractiveRect(
-	Entity interactive_entity, V2_float position, V2_float size,
+	Entity interactive_entity, Transform transform, V2_float size,
 	Origin draw_origin = Origin::Center, std::optional<std::string_view> shape_id = {},
 	bool ignore_parent_transform = false
 );
 
 void AddInteractiveCircle(
-	Entity interactive_entity, V2_float position, float radius,
+	Entity interactive_entity, Transform transform, float radius,
 	std::optional<std::string_view> shape_id = {}, bool ignore_parent_transform = false
 );
 
 void SetInteractiveCircle(
-	Entity interactive_entity, V2_float position, float radius,
+	Entity interactive_entity, Transform transform, float radius,
 	std::optional<std::string_view> shape_id = {}, bool ignore_parent_transform = false
 );
 

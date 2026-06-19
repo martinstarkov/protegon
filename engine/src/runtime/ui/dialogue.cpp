@@ -21,6 +21,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/string.h"
 #include "renderer/resources/texture.h"
@@ -762,11 +763,6 @@ std::optional<Entity> DialogueBox::TryBackgroundEntity() const {
 	return TryPart(DialoguePartRole::Background);
 }
 
-void DialogueBox::DrawInfo(Scene& scene, V2_float position) {
-	(void)scene;
-	(void)position;
-}
-
 void DialogueBox::ApplyCurrentPage() {
 	auto* page{ GetCurrentDialoguePage() };
 
@@ -829,12 +825,12 @@ void DialogueBox::PositionTextForPage(const DialoguePageProperties& properties) 
 	text.Box(Rect{ {}, content_rect.GetSize() });
 }
 
-DialogueBox CreateDialogueBox(Scene& scene, const DialogueDesc& desc) {
+DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueDesc& desc) {
 	DialogueBox dialogue{ scene.CreateEntity() };
 
 	dialogue.Add<DialogueData>();
 
-	SetPosition(dialogue, desc.position);
+	SetTransform(dialogue, transform);
 	SetDrawOrigin(dialogue, desc.origin);
 
 	if (desc.ui_layer) {
@@ -846,7 +842,7 @@ DialogueBox CreateDialogueBox(Scene& scene, const DialogueDesc& desc) {
 
 	if (desc.background_texture.has_value()) {
 		Sprite background{
-			CreateSprite(scene, desc.background_texture.value(), {}, Origin::Center)
+			CreateSprite(scene, {}, desc.background_texture.value(), Origin::Center)
 		};
 		background.Add<impl::DialoguePart>(DialoguePartRole::Background);
 		SetParent(background, dialogue);

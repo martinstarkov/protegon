@@ -9,6 +9,7 @@
 
 #include "core/assert.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
@@ -362,14 +363,14 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 }
 
 Animation CreateAnimation(
-	Scene& scene, std::string_view texture_key, V2_float position, const AnimationConfig& config,
+	Scene& scene, Transform transform, std::string_view texture_key, const AnimationConfig& config,
 	Origin draw_origin
 ) {
-	const auto& assets{ scene.ctx().asset };
+	auto& assets{ scene.ctx().asset };
 
-	Animation animation{ CreateSprite(scene, texture_key, position, draw_origin) };
+	Animation animation{ CreateSprite(scene, transform, texture_key, draw_origin) };
 
-	auto texture{ assets.Get<Texture>(texture_key) };
+	auto texture{ impl::AssetAccessor{ assets }.Get<Texture>(texture_key) };
 
 	auto texture_size{ texture.GetSize() };
 
@@ -382,10 +383,10 @@ Animation CreateAnimation(
 }
 
 Animation PlayTemporaryAnimation(
-	Scene& scene, std::string_view texture_key, V2_float position, const AnimationConfig& config,
+	Scene& scene, Transform transform, std::string_view texture_key, const AnimationConfig& config,
 	milliseconds destroy_delay, Origin draw_origin
 ) {
-	Animation anim{ CreateAnimation(scene, texture_key, position, config, draw_origin) };
+	Animation anim{ CreateAnimation(scene, transform, texture_key, config, draw_origin) };
 
 	if (destroy_delay == 0ms) {
 		anim.OnComplete([](auto& a) mutable { a.animation.Destroy(); });

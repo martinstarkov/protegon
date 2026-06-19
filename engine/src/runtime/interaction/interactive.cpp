@@ -10,6 +10,7 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -52,44 +53,44 @@ void SetInteractiveShape(
 }
 
 void AddInteractiveRect(
-	Entity interactive_entity, V2_float position, V2_float size, Origin draw_origin,
+	Entity interactive_entity, Transform transform, V2_float size, Origin draw_origin,
 	std::optional<std::string_view> shape_id, bool ignore_parent_transform
 ) {
 	auto& scene{ interactive_entity.GetScene() };
 	auto shape = scene.CreateEntity();
 	shape.Add<Rect>(size);
-	SetPosition(shape, position);
+	SetTransform(shape, transform);
 	SetDrawOrigin(shape, draw_origin);
 	AddInteractiveShape(interactive_entity, shape, shape_id, ignore_parent_transform);
 }
 
 void SetInteractiveRect(
-	Entity interactive_entity, V2_float position, V2_float size, Origin draw_origin,
+	Entity interactive_entity, Transform transform, V2_float size, Origin draw_origin,
 	std::optional<std::string_view> shape_id, bool ignore_parent_transform
 ) {
 	ClearInteractiveShapes(interactive_entity);
 	AddInteractiveRect(
-		interactive_entity, position, size, draw_origin, shape_id, ignore_parent_transform
+		interactive_entity, transform, size, draw_origin, shape_id, ignore_parent_transform
 	);
 }
 
 void AddInteractiveCircle(
-	Entity interactive_entity, V2_float position, float radius,
+	Entity interactive_entity, Transform transform, float radius,
 	std::optional<std::string_view> shape_id, bool ignore_parent_transform
 ) {
 	auto& scene{ interactive_entity.GetScene() };
 	auto shape = scene.CreateEntity();
 	shape.Add<Circle>(radius);
-	SetPosition(shape, position);
+	SetTransform(shape, transform);
 	AddInteractiveShape(interactive_entity, shape, shape_id, ignore_parent_transform);
 }
 
 void SetInteractiveCircle(
-	Entity interactive_entity, V2_float position, float radius,
+	Entity interactive_entity, Transform transform, float radius,
 	std::optional<std::string_view> shape_id, bool ignore_parent_transform
 ) {
 	ClearInteractiveShapes(interactive_entity);
-	AddInteractiveCircle(interactive_entity, position, radius, shape_id, ignore_parent_transform);
+	AddInteractiveCircle(interactive_entity, transform, radius, shape_id, ignore_parent_transform);
 }
 
 void RemoveInteractiveShape(Entity entity, std::string_view name) {

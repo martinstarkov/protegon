@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/resources/shader.h"
@@ -44,7 +45,7 @@ void SetMaterial(Entity entity, const MaterialState& material);
 
 CustomShader CreateCustomShader(
 	Scene& scene, std::string_view shader_key, std::optional<std::string_view> texture_key,
-	V2_float position, V2_float size, const std::vector<UniformWrite>& uniforms = {},
+	Transform transform, V2_float size, const std::vector<UniformWrite>& uniforms = {},
 	Origin draw_origin = Origin::Center
 );
 

@@ -5,6 +5,7 @@
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/render_state.h"
@@ -198,7 +199,7 @@ void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
 }
 
 RenderTarget CreateRenderTarget(
-	Scene& scene, V2_int size, Color clear_color, TextureFormat texture_format
+	Scene& scene, Transform transform, V2_int size, Color clear_color, TextureFormat texture_format
 ) {
 	RenderTarget render_target{ scene.CreateEntity() };
 
@@ -213,6 +214,7 @@ RenderTarget CreateRenderTarget(
 
 	SetDraw<RenderTarget>(render_target);
 	Show(render_target, false);
+	SetTransform(render_target, transform);
 
 	render_target.SetClearColor(clear_color);
 
@@ -227,8 +229,10 @@ RenderTarget CreateRenderTarget(
 	return render_target;
 }
 
-RenderTarget CreateRenderTarget(Scene& scene, Color clear_color, TextureFormat texture_format) {
-	return CreateRenderTarget(scene, {}, clear_color, texture_format);
+RenderTarget CreateRenderTarget(
+	Scene& scene, Transform transform, Color clear_color, TextureFormat texture_format
+) {
+	return CreateRenderTarget(scene, transform, {}, clear_color, texture_format);
 }
 
 } // namespace ptgn

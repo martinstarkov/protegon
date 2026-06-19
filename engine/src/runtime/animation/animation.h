@@ -7,6 +7,7 @@
 
 #include "core/event/event.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "core/util/time.h"
@@ -265,19 +266,17 @@ public:
 
 /// @param manager Which manager the entity is added to.
 /// @param texture Texture key to be used for the animation.
-/// @param position Where to place the animation object.
 Animation CreateAnimation(
-	Scene& scene, std::string_view texture_key, V2_float position, const AnimationConfig& config,
+	Scene& scene, Transform transform, std::string_view texture_key, const AnimationConfig& config,
 	Origin draw_origin = Origin::Center
 );
 
 /// @brief Creates and starts an animation that will automatically destroy itself once it finishes.
 /// @param texture Texture key to be used for the animation.
-/// @param position Where to place the animation object.
 /// @param destroy_delay If 0ms, the animation is destroyed immediately after finishing. Otherwise,
 /// the animation is destroyed after the specified delay once it finishes.
 Animation PlayTemporaryAnimation(
-	Scene& scene, std::string_view texture_key, V2_float position, const AnimationConfig& config,
+	Scene& scene, Transform transform, std::string_view texture_key, const AnimationConfig& config,
 	milliseconds destroy_delay = 0ms, Origin draw_origin = Origin::Center
 );
 

@@ -4,6 +4,7 @@
 
 #include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
@@ -107,7 +108,8 @@ private:
 /// @param Texture format of the render target texture. Ensure this complies with possible HDR
 /// requirements.
 RenderTarget CreateRenderTarget(
-	Scene& scene, V2_int size, Color clear_color = kDefaultRenderTargetClearColor,
+	Scene& scene, Transform transform, V2_int size,
+	Color clear_color			 = kDefaultRenderTargetClearColor,
 	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
 
@@ -116,7 +118,7 @@ RenderTarget CreateRenderTarget(
 /// @param Texture format of the render target texture. Ensure this complies with possible HDR
 /// requirements.
 RenderTarget CreateRenderTarget(
-	Scene& scene, Color clear_color = kDefaultRenderTargetClearColor,
+	Scene& scene, Transform transform, Color clear_color = kDefaultRenderTargetClearColor,
 	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
 

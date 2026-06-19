@@ -27,7 +27,6 @@
 #include "runtime/interaction/interactive.h"
 #include "runtime/interaction/interactive_event.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {
@@ -143,7 +142,7 @@ Tooltip CreateTooltip(
 
 	if (tooltip_properties.texture.has_value()) {
 		instance.bg = GameObject{
-			CreateSprite(scene, tooltip_properties.texture.value(), {}, Origin::Center)
+			CreateSprite(scene, {}, tooltip_properties.texture.value(), Origin::Center)
 		};
 		SetTint(instance.bg.value(), color::Transparent);
 		AddChild(tooltip, instance.bg.value());

@@ -88,11 +88,10 @@ void DrawParticleShape(DrawContext& ctx, const T& shape, const ParticleDrawInfo&
 
 template <typename T>
 void DrawParticleType(
-	const AssetManager& assets, DrawContext& ctx, const T& particle_type,
-	const ParticleDrawInfo& draw
+	AssetManager& assets, DrawContext& ctx, const T& particle_type, const ParticleDrawInfo& draw
 ) {
 	if constexpr (std::is_same_v<T, std::string>) {
-		Texture texture{ assets.Get<Texture>(particle_type) };
+		Texture texture{ impl::AssetAccessor{ assets }.Get<Texture>(particle_type) };
 
 		auto params{ ConvertToTextureDrawParams(draw) };
 
@@ -476,8 +475,8 @@ void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
 
 	const auto& emitter{ entity.Get<impl::ParticleEmitterComponent>() };
 
-	const auto& scene{ entity.GetScene() };
-	const auto& assets{ scene.ctx().asset };
+	auto& scene{ entity.GetScene() };
+	auto& assets{ scene.ctx().asset };
 
 	const Transform base_transform{ GetDrawTransform(entity) };
 
@@ -511,10 +510,10 @@ void ParticleEmitter::Update(Scene& scene, secondsf dt) {
 }
 
 ParticleEmitter CreateParticleEmitter(
-	Scene& scene, V2_float position, const ParticleConfig& config
+	Scene& scene, Transform transform, const ParticleConfig& config
 ) {
 	ParticleEmitter particle{ scene.CreateEntity() };
-	SetPosition(particle, position);
+	SetTransform(particle, transform);
 
 	SetDraw<ParticleEmitter>(particle);
 	particle.Add<impl::ParticleEmitterComponent>(config);

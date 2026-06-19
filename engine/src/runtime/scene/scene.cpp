@@ -305,13 +305,13 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 
 	// Must be created before scene camera.
 	ctx_->render_target_ =
-		CreateRenderTarget(*this, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
+		CreateRenderTarget(*this, {}, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
 	ctx_->render_target_.SetTag(kDefaultSceneTargetTag);
 	ctx_->render_target_.Remove<impl::IDrawable>();
 
-	ctx_->camera = CreateCamera(*this);
+	ctx_->camera = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
 	ctx_->camera.SetTag(kDefaultSceneCameraTag);
-	ctx_->fixed_camera_ = CreateCamera(*this);
+	ctx_->fixed_camera_ = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
 	ctx_->fixed_camera_.SetTag(kDefaultSceneFixedCameraTag);
 	ctx_->fixed_camera_.SetMasks(
 		kDefaultFixedCameraIncludeLayerMask, kDefaultFixedCameraExcludeLayerMask

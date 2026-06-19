@@ -7,6 +7,7 @@
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
@@ -95,10 +96,10 @@ void TopDownAnimationRepeat::OnAnimationFrameChange() {
 
 } // namespace impl
 
-Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerConfig& config) {
+Entity CreateTopDownPlayer(Scene& scene, Transform transform, const TopDownPlayerConfig& config) {
 	auto player{ scene.CreateEntity() };
 
-	SetPosition(player, position);
+	SetTransform(player, transform);
 	player.Add<RigidBody>();
 
 	if (config.depth.has_value()) {
@@ -127,13 +128,13 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 	movement.friction		  = config.friction;
 
 	if (config.animation_texture_key.has_value() && config.animation_frame_count.has_value()) {
-		V2_float anim_position;
+		Transform animation_transform;
 		auto duration{ config.animation_duration.value_or(1000ms) };
 
 		AnimationMap anim_map{ player.Add<GameObject<AnimationMap>>(CreateAnimationMap(scene)) };
 		auto a0 = anim_map.Add(
 			"down", CreateAnimation(
-						scene, config.animation_texture_key.value(), anim_position,
+						scene, animation_transform, config.animation_texture_key.value(),
 						{ config.animation_frame_count.value().x, duration,
 						  config.animation_frame_size.value_or(V2_int{}) }
 					)
@@ -141,7 +142,7 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 		anim_map.SetActive("down");
 		auto a1 = anim_map.Add(
 			"right", CreateAnimation(
-						 scene, config.animation_texture_key.value(), anim_position,
+						 scene, animation_transform, config.animation_texture_key.value(),
 						 { config.animation_frame_count.value().x, duration,
 						   config.animation_frame_size.value_or(V2_int{}), std::nullopt,
 						   V2_float{ 0, config.animation_frame_size.value().y } }
@@ -149,7 +150,7 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 		);
 		auto a2 = anim_map.Add(
 			"up", CreateAnimation(
-					  scene, config.animation_texture_key.value(), anim_position,
+					  scene, animation_transform, config.animation_texture_key.value(),
 					  { config.animation_frame_count.value().x, duration,
 						config.animation_frame_size.value_or(V2_int{}), std::nullopt,
 						V2_float{ 0, 2 * config.animation_frame_size.value().y } }
@@ -161,7 +162,10 @@ Entity CreateTopDownPlayer(Scene& scene, V2_float position, const TopDownPlayerC
 		SetParent(a2, player);
 
 		if (config.walk_sound_key.has_value()) {
-			PTGN_ASSERT(scene.ctx().asset.Has<Audio>(config.walk_sound_key.value()));
+			PTGN_ASSERT(
+				impl::AssetAccessor{ scene.ctx().asset }.Has<Audio>(config.walk_sound_key.value()),
+				"Walk sound not found"
+			);
 			auto frequency{ config.walk_sound_frequency.value_or(1) };
 
 			AddScript<impl::TopDownAnimationRepeat>(a0, frequency, config.walk_sound_key.value());

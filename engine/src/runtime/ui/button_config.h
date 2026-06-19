@@ -12,11 +12,11 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "runtime/animation/animation.h"
 #include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/text_layout.h"
 #include "runtime/graphics/text/text_style.h"
 #include "serialization/serialize.h"
 
@@ -73,11 +73,11 @@ struct ButtonSpritePartConfig {
 
 	std::string texture;
 	Origin origin{ Origin::Center };
-	V2_float position;
+	Transform transform;
 	std::optional<V2_float> size;
 	std::optional<Color> tint;
 
-	PTGN_SERIALIZE(ButtonSpritePartConfig, state, texture, origin, position, size, tint)
+	PTGN_SERIALIZE(ButtonSpritePartConfig, state, texture, origin, transform, size, tint)
 };
 
 struct ButtonTextPartConfig {
@@ -89,7 +89,7 @@ struct ButtonTextPartConfig {
 	Color color{ color::Black };
 
 	Origin origin{ Origin::Center };
-	V2_float position;
+	Transform transform;
 
 	/// @brief Optional initial TextBox. Further text behavior should use the Text API.
 	std::optional<Rect> box;
@@ -106,7 +106,7 @@ struct ButtonTextPartConfig {
 	Rect auto_box_padding;
 
 	PTGN_SERIALIZE(
-		ButtonTextPartConfig, state, content, font, font_size, color, origin, position, box,
+		ButtonTextPartConfig, state, content, font, font_size, color, origin, transform, box,
 		horizontal_align, vertical_align, wrap_mode, overflow_mode, auto_box, auto_box_padding
 	)
 };
@@ -136,8 +136,6 @@ struct ScaleButtonConfig {
 };
 
 struct ButtonDesc {
-	V2_float position;
-
 	/// @brief Interactive shape. Visual background/border should be child parts.
 	std::optional<std::variant<Rect, Circle>> shape;
 
@@ -151,9 +149,7 @@ struct ButtonDesc {
 
 	ButtonSoundConfig sounds;
 
-	PTGN_SERIALIZE(
-		ButtonDesc, position, shape, origin, ui_layer, enabled, shapes, sprites, texts, sounds
-	)
+	PTGN_SERIALIZE(ButtonDesc, shape, origin, ui_layer, enabled, shapes, sprites, texts, sounds)
 };
 
 /// @brief Convenience high-level config for simple buttons.

@@ -6,6 +6,7 @@
 
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
 #include "runtime/ecs/entity.h"
@@ -71,7 +72,7 @@ public:
 };
 
 Sprite CreateSprite(
-	Scene& scene, std::string_view texture_key, V2_float position = {},
+	Scene& scene, Transform transform, std::string_view texture_key,
 	Origin draw_origin = Origin::Center
 );
 

@@ -9,6 +9,7 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
@@ -177,7 +178,7 @@ struct DropdownItemPress {
 
 /// @param start_open If true, dropdown starts in an open state.
 Dropdown CreateDropdown(
-	Scene& scene, V2_float position = {},
+	Scene& scene, Transform transform = {},
 	const std::optional<std::variant<Rect, Circle>>& shape = {},
 	Origin draw_origin = Origin::Center, bool start_open = false
 );

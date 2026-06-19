@@ -149,7 +149,6 @@ struct DialogueData {
 };
 
 struct DialogueDesc {
-	V2_float position;
 	Origin origin{ Origin::Center };
 
 	json data;
@@ -199,8 +198,6 @@ public:
 	[[nodiscard]] std::optional<Sprite> TryBackground() const;
 	[[nodiscard]] std::optional<Entity> TryBackgroundEntity() const;
 
-	void DrawInfo(Scene& scene, V2_float position);
-
 private:
 	friend struct impl::DialogueWaitScript;
 	friend struct impl::DialogueScrollScript;
@@ -213,7 +210,7 @@ private:
 	void PositionTextForPage(const DialoguePageProperties& properties);
 };
 
-DialogueBox CreateDialogueBox(Scene& scene, const DialogueDesc& desc);
+DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueDesc& desc);
 
 void to_json(json& j, const DialoguePageProperties& properties);
 void from_json(const json& j, DialoguePageProperties& properties);

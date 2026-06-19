@@ -9,6 +9,7 @@
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/render_state.h"
@@ -63,16 +64,17 @@ void SetMaterial(Entity entity, const MaterialState& material) {
 
 CustomShader CreateCustomShader(
 	Scene& scene, std::string_view shader_key, std::optional<std::string_view> texture_key,
-	V2_float position, V2_float size, const std::vector<UniformWrite>& uniforms, Origin draw_origin
+	Transform transform, V2_float size, const std::vector<UniformWrite>& uniforms,
+	Origin draw_origin
 ) {
 	CustomShader custom_shader{ scene.CreateEntity() };
 
-	const auto& assets{ scene.ctx().asset };
+	auto& assets{ scene.ctx().asset };
 
-	auto shader{ assets.Get<Shader>(shader_key) };
+	auto shader{ impl::AssetAccessor{ assets }.Get<Shader>(shader_key) };
 
 	if (texture_key.has_value()) {
-		auto texture{ assets.Get<Texture>(texture_key.value()) };
+		auto texture{ impl::AssetAccessor{ assets }.Get<Texture>(texture_key.value()) };
 		custom_shader.Add<Texture>(texture);
 	}
 
@@ -84,7 +86,7 @@ CustomShader CreateCustomShader(
 
 	custom_shader.Add<Rect>(size);
 
-	SetPosition(custom_shader, position);
+	SetTransform(custom_shader, transform);
 
 	SetDrawOrigin(custom_shader, draw_origin);
 

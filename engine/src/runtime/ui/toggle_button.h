@@ -2,9 +2,14 @@
 
 #include <optional>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include "core/event/event.h"
+#include "core/math/geometry/circle.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/key_hash.h"
 #include "runtime/scripting/script.h"
@@ -134,7 +139,7 @@ struct ToggleButtonToggle {
 } // namespace event
 
 ToggleButton CreateToggleButton(
-	Scene& scene, V2_float position = {},
+	Scene& scene, Transform transform = {},
 	const std::optional<std::variant<Rect, Circle>>& shape = {},
 	Origin draw_origin = Origin::Center, bool toggled = false
 );
