@@ -50,7 +50,7 @@ void AudioSystem::Play(
 		}
 	}
 
-	auto audio{ assets_.Get<Audio>(audio_key) };
+	auto audio{ impl::AssetAccessor{ assets_ }.Get<Audio>(audio_key) };
 	const auto& audio_path{ audio.GetEntity().Get<impl::AudioObject>().path };
 
 	PTGN_ASSERT(engine_);

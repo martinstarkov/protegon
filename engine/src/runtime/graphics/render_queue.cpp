@@ -125,8 +125,8 @@ void RenderQueue::DrawTexture(
 ) {
 	PTGN_ASSERT(scene_);
 	auto shader{ GetShader("texture") };
-	const auto& assets{ scene_->ctx().asset };
-	auto texture{ assets.Get<Texture>(texture_key) };
+	auto& assets{ scene_->ctx().asset };
+	auto texture{ impl::AssetAccessor{ assets }.Get<Texture>(texture_key) };
 	auto texture_size{ texture.GetSize() };
 
 	DrawTexture(transform, texture, texture_size, shader, std::move(params));
@@ -137,9 +137,9 @@ void RenderQueue::DrawTexture(
 	TextureRenderParams params
 ) {
 	PTGN_ASSERT(scene_);
-	const auto& assets{ scene_->ctx().asset };
-	auto texture{ assets.Get<Texture>(texture_key) };
-	auto shader{ assets.Get<Shader>(shader_key) };
+	auto& assets{ scene_->ctx().asset };
+	auto texture{ impl::AssetAccessor{ assets }.Get<Texture>(texture_key) };
+	auto shader{ impl::AssetAccessor{ assets }.Get<Shader>(shader_key) };
 	auto texture_size{ texture.GetSize() };
 
 	DrawTexture(transform, texture, texture_size, shader, std::move(params));
@@ -149,8 +149,8 @@ void RenderQueue::DrawShader(
 	Transform transform, std::string_view shader_key, TextureRenderParams params
 ) {
 	PTGN_ASSERT(scene_);
-	const auto& assets{ scene_->ctx().asset };
-	auto shader{ assets.Get<Shader>(shader_key) };
+	auto& assets{ scene_->ctx().asset };
+	auto shader{ impl::AssetAccessor{ assets }.Get<Shader>(shader_key) };
 	auto texture_size{ renderer_.GetLogicalSize() };
 
 	DrawTexture(transform, {}, texture_size, shader, std::move(params));

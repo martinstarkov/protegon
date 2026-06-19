@@ -21,11 +21,13 @@
 #include "core/assert.h"
 #include "core/graphics/surface.h"
 #include "core/log.h"
+#include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
 #include "core/util/string.h"
 #include "renderer/renderer.h"
+#include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
@@ -70,6 +72,8 @@ AssetKind GetAssetKind(const path& path) {
 
 	return AssetKind::Unknown;
 }
+
+AssetAccessor::AssetAccessor(AssetManager& assets) : assets{ assets } {}
 
 } // namespace impl
 
@@ -500,6 +504,18 @@ bool AssetManager::Has(std::string_view key) const {
 
 std::size_t AssetManager::Size() const {
 	return manager_.Size() + jsons_.size();
+}
+
+V2_int AssetManager::GetTextureSize(std::string_view key) const {
+	return Get<Texture>(key).GetEntity().Get<impl::TextureObject>().GetSize();
+}
+
+V2_int AssetManager::GetFontAtlasSize(std::string_view key) const {
+	return Get<Font>(key).GetEntity().Get<impl::FontObject>().GetAtlasSize();
+}
+
+impl::TextureId AssetManager::GetFontAtlasTexture(std::string_view key) const {
+	return Get<Font>(key).GetEntity().Get<impl::FontObject>().GetAtlasTexture();
 }
 
 template bool AssetManager::Unload<json>(std::string_view);

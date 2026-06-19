@@ -13,7 +13,9 @@
 #include <variant>
 #include <vector>
 
+#include "core/math/vector2.h"
 #include "core/util/file.h"
+#include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
@@ -29,6 +31,7 @@ class AudioSystem;
 class FontSystem;
 class Text;
 class Renderer;
+class AssetManager;
 
 namespace impl {
 
@@ -165,6 +168,28 @@ AssetKind GetAssetKind(const path& path);
 
 void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<path>& path);
 
+class AssetAccessor {
+public:
+	explicit AssetAccessor(AssetManager& assets);
+	~AssetAccessor() noexcept						   = default;
+	AssetAccessor(const AssetAccessor&)				   = delete;
+	AssetAccessor& operator=(const AssetAccessor&)	   = delete;
+	AssetAccessor(AssetAccessor&&) noexcept			   = delete;
+	AssetAccessor& operator=(AssetAccessor&&) noexcept = delete;
+
+	template <AssetType T>
+	ConstAsset<T> Get(std::string_view key) const;
+
+	template <AssetType T>
+	Asset<T> Get(std::string_view key);
+
+	template <AssetType T>
+	[[nodiscard]] bool Has(std::string_view key) const;
+
+private:
+	AssetManager& assets;
+};
+
 } // namespace impl
 
 class AssetManager {
@@ -217,40 +242,55 @@ public:
 	void Load(std::string_view key, const ShaderCode& shader_code);
 	void Load(std::string_view key, const ShaderPair& shader_pair);
 
-	Audio CreateAudio(const path& audio_path);
 	Audio LoadAudio(std::string_view key, const path& audio_path);
 
 	/// @brief Note: Do not brace initialize JSON objects.
 	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
-	[[nodiscard]] static json CreateJson(const path& json_path);
-
-	/// @brief Note: Do not brace initialize JSON objects.
-	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 	json& LoadJson(std::string_view key, const path& json_path);
-
-	Shader CreateShader(
-		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
-	);
 
 	Shader LoadShader(
 		std::string_view key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 		std::optional<std::string_view> shader_name = std::nullopt
 	);
 
-	Texture CreateTexture(
-		const path& texture_path, TextureFormat storage_format = kDefaultTextureStorageFormat,
-		TextureParams params = {}
-	);
 	Texture LoadTexture(
 		std::string_view key, const path& texture_path,
 		TextureFormat storage_format = kDefaultTextureStorageFormat, TextureParams params = {}
 	);
 
-	Font CreateFont(const path& font_path);
 	Font LoadFont(std::string_view key, const path& font_path);
 
 	template <AssetType T>
 	bool Unload(std::string_view key);
+
+	/// @return The total number of assets currently loaded in the manager. Never below 1 (default
+	/// font is always loaded).
+	[[nodiscard]] std::size_t Size() const;
+
+	V2_int GetTextureSize(std::string_view key) const;
+	V2_int GetFontAtlasSize(std::string_view key) const;
+	impl::TextureId GetFontAtlasTexture(std::string_view key) const;
+
+	/// @brief Note: Do not brace initialize JSON objects.
+	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
+	[[nodiscard]] static json CreateJson(const path& json_path);
+
+private:
+	friend class impl::AssetAccessor;
+	friend class impl::ApplicationContext;
+	friend class Shader;
+	friend class Texture;
+	friend class FontSystem;
+	friend class Text;
+	friend class impl::FontObject;
+
+	AssetManager() = delete;
+	AssetManager(Renderer& renderer, AudioSystem& audio, FontSystem& font);
+	~AssetManager() noexcept						 = default;
+	AssetManager(const AssetManager&)				 = delete;
+	AssetManager& operator=(const AssetManager&)	 = delete;
+	AssetManager(AssetManager&&) noexcept			 = delete;
+	AssetManager& operator=(AssetManager&&) noexcept = delete;
 
 	/// @brief Note: Do not brace initialize JSON objects.
 	template <AssetType T>
@@ -267,25 +307,18 @@ public:
 	template <AssetType T>
 	[[nodiscard]] bool Has(std::string_view key) const;
 
-	/// @return The total number of assets currently loaded in the manager. Never below 1 (default
-	/// font is always loaded).
-	[[nodiscard]] std::size_t Size() const;
+	Audio CreateAudio(const path& audio_path);
 
-private:
-	friend class impl::ApplicationContext;
-	friend class Shader;
-	friend class Texture;
-	friend class FontSystem;
-	friend class Text;
-	friend class impl::FontObject;
+	Shader CreateShader(
+		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
+	);
 
-	AssetManager() = delete;
-	AssetManager(Renderer& renderer, AudioSystem& audio, FontSystem& font);
-	~AssetManager() noexcept						 = default;
-	AssetManager(const AssetManager&)				 = delete;
-	AssetManager& operator=(const AssetManager&)	 = delete;
-	AssetManager(AssetManager&&) noexcept			 = delete;
-	AssetManager& operator=(AssetManager&&) noexcept = delete;
+	Texture CreateTexture(
+		const path& texture_path, TextureFormat storage_format = kDefaultTextureStorageFormat,
+		TextureParams params = {}
+	);
+
+	Font CreateFont(const path& font_path);
 
 	void Load(std::string_view key, const path& asset_path, impl::AssetKind kind);
 
@@ -318,5 +351,24 @@ private:
 
 	std::unordered_map<std::size_t, json> jsons_;
 };
+
+namespace impl {
+
+template <AssetType T>
+ConstAsset<T> AssetAccessor::Get(std::string_view key) const {
+	return assets.Get<T>(key);
+}
+
+template <AssetType T>
+Asset<T> AssetAccessor::Get(std::string_view key) {
+	return assets.Get<T>(key);
+}
+
+template <AssetType T>
+bool AssetAccessor::Has(std::string_view key) const {
+	return assets.Has<T>(key);
+}
+
+} // namespace impl
 
 } // namespace ptgn

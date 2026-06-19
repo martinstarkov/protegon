@@ -585,7 +585,7 @@ void BuildVertices(
 }
 
 Font GetFont(AssetManager& asset_manager, std::string_view font_key) {
-	return asset_manager.Get<Font>(font_key);
+	return impl::AssetAccessor{ asset_manager }.Get<Font>(font_key);
 }
 
 std::u32string DecodeUtf8(std::string_view text) {
