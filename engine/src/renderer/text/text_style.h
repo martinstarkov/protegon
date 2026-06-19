@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "core/graphics/color.h"
@@ -42,6 +43,8 @@ enum class OverflowMode : std::uint8_t {
 	Ellipsis,
 	ScaleToFit,
 };
+
+namespace impl {
 
 struct DistanceFieldStyle {
 	float weight{ 0.5f };
@@ -96,11 +99,13 @@ struct StyledText {
 	std::vector<TextRun> runs;
 };
 
+} // namespace impl
+
 } // namespace ptgn
 
 template <>
-struct std::hash<ptgn::DistanceFieldStyle> {
-	std::size_t operator()(const ptgn::DistanceFieldStyle& style) const {
+struct std::hash<ptgn::impl::DistanceFieldStyle> {
+	std::size_t operator()(const ptgn::impl::DistanceFieldStyle& style) const {
 		// TODO: Quantize floats by converting to integers.
 		return ptgn::Hash(
 			style.weight, style.softness,
@@ -119,8 +124,8 @@ struct std::hash<ptgn::DistanceFieldStyle> {
 };
 
 template <>
-struct std::hash<ptgn::TextRunStyle> {
-	std::size_t operator()(const ptgn::TextRunStyle& style) const {
+struct std::hash<ptgn::impl::TextRunStyle> {
+	std::size_t operator()(const ptgn::impl::TextRunStyle& style) const {
 		// TODO: Quantize floats by converting to integers.
 		return ptgn::Hash(
 			style.font, style.color, style.scale, style.kerning, style.tracking, style.line_spacing,
@@ -132,15 +137,15 @@ struct std::hash<ptgn::TextRunStyle> {
 };
 
 template <>
-struct std::hash<ptgn::TextRun> {
-	std::size_t operator()(const ptgn::TextRun& run) const {
+struct std::hash<ptgn::impl::TextRun> {
+	std::size_t operator()(const ptgn::impl::TextRun& run) const {
 		return ptgn::Hash(run.text, run.style);
 	}
 };
 
 template <>
-struct std::hash<ptgn::StyledText> {
-	std::size_t operator()(const ptgn::StyledText& styled_text) const {
+struct std::hash<ptgn::impl::StyledText> {
+	std::size_t operator()(const ptgn::impl::StyledText& styled_text) const {
 		return ptgn::Hash(styled_text.runs);
 	}
 };

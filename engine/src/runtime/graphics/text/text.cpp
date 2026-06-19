@@ -53,8 +53,8 @@ TextBox MakeDefaultTextBox() {
 	return TextBox{ .rect{ { 0.0f, 0.0f }, { 0.0f, 0.0f } }, .style{} };
 }
 
-TextRunStyle MakeDefaultTextRunStyle() {
-	TextRunStyle style;
+impl::TextRunStyle MakeDefaultTextRunStyle() {
+	impl::TextRunStyle style;
 
 	style.font	= {};
 	style.color = color::White;
@@ -64,9 +64,7 @@ TextRunStyle MakeDefaultTextRunStyle() {
 }
 
 [[nodiscard]] bool HasVisibleTextContent(const StyledText& styled_text) {
-	return std::ranges::any_of(styled_text.runs, [](const TextRun& run) {
-		return !run.text.empty();
-	});
+	return std::ranges::any_of(styled_text.runs, [](const auto& run) { return !run.text.empty(); });
 }
 
 [[nodiscard]] Transform GetTextLayoutBoxTransform(Entity entity, const Rect& local_box) {
@@ -92,7 +90,7 @@ TextRunStyle MakeDefaultTextRunStyle() {
 	return result;
 }
 
-[[nodiscard]] TextRunStyle GetFirstStyleOrDefault(const StyledText& styled_text) {
+[[nodiscard]] impl::TextRunStyle GetFirstStyleOrDefault(const StyledText& styled_text) {
 	if (!styled_text.runs.empty()) {
 		return styled_text.runs.front().style;
 	}
@@ -100,10 +98,12 @@ TextRunStyle MakeDefaultTextRunStyle() {
 	return {};
 }
 
-[[nodiscard]] StyledText MakeSingleRunText(std::string_view content, const TextRunStyle& style) {
+[[nodiscard]] StyledText MakeSingleRunText(
+	std::string_view content, const impl::TextRunStyle& style
+) {
 	StyledText styled_text;
 	styled_text.runs.emplace_back(
-		TextRun{
+		impl::TextRun{
 			.text  = std::string{ content },
 			.style = style,
 		}
@@ -112,10 +112,10 @@ TextRunStyle MakeDefaultTextRunStyle() {
 }
 
 [[nodiscard]] bool FitsTextPage(
-	AssetManager& asset_manager, std::string_view content, const TextRunStyle& style, TextBox box,
-	std::size_t max_lines
+	AssetManager& asset_manager, std::string_view content, const impl::TextRunStyle& style,
+	TextBox box, std::size_t max_lines
 ) {
-	StyledText styled_text{ MakeSingleRunText(content, style) };
+	auto styled_text{ MakeSingleRunText(content, style) };
 
 	box.style.overflow_mode = OverflowMode::Overflow;
 
@@ -129,9 +129,10 @@ TextRunStyle MakeDefaultTextRunStyle() {
 }
 
 [[nodiscard]] TextMeasurement MeasureTextPage(
-	AssetManager& asset_manager, std::string_view content, const TextRunStyle& style, TextBox box
+	AssetManager& asset_manager, std::string_view content, const impl::TextRunStyle& style,
+	TextBox box
 ) {
-	StyledText styled_text{ MakeSingleRunText(content, style) };
+	auto styled_text{ MakeSingleRunText(content, style) };
 	return impl::Measure(asset_manager, styled_text, box);
 }
 
@@ -153,7 +154,7 @@ void DrawDebugTextBoundingBoxes(
 	}
 
 	for (auto [entity, _visible, styled_text, box] :
-		 scene.EntitiesWith<Visible, StyledText, TextBox>()) {
+		 scene.EntitiesWith<Visible, impl::StyledText, TextBox>()) {
 		if (filter(entity)) {
 			continue;
 		}
@@ -292,16 +293,16 @@ void Text::Draw(DrawContext& ctx, Entity text) {
 
 Text::Text(Entity entity) : Entity{ entity } {}
 
-TextRunStyle Text::MakeDefaultRunStyle() const {
+impl::TextRunStyle Text::MakeDefaultRunStyle() const {
 	return MakeDefaultTextRunStyle();
 }
 
-StyledText& Text::EnsureStyledText() {
-	if (!Has<StyledText>()) {
-		Add<StyledText>();
+impl::StyledText& Text::EnsureStyledText() {
+	if (!Has<impl::StyledText>()) {
+		Add<impl::vStyledText>();
 	}
 
-	auto& styled_text{ Get<StyledText>() };
+	auto& styled_text{ Get<impl::StyledText>() };
 
 	if (styled_text.runs.empty()) {
 		auto& run{ styled_text.runs.emplace_back() };
@@ -311,8 +312,8 @@ StyledText& Text::EnsureStyledText() {
 	return styled_text;
 }
 
-const StyledText& Text::RequireStyledText() const {
-	auto& styled_text{ Get<StyledText>() };
+const impl::StyledText& Text::RequireStyledText() const {
+	auto& styled_text{ Get<impl::StyledText>() };
 
 	PTGN_ASSERT(!styled_text.runs.empty(), "Text must always contain at least one run");
 
@@ -355,12 +356,12 @@ void Text::EnsureValidRuns() {
 	}
 }
 
-StyledText& Text::GetStyledText() {
+impl::StyledText& Text::GetStyledText() {
 	EnsureValidRuns();
-	return Get<StyledText>();
+	return Get<impl::StyledText>();
 }
 
-const StyledText& Text::GetStyledText() const {
+const impl::StyledText& Text::GetStyledText() const {
 	return RequireStyledText();
 }
 
@@ -373,11 +374,11 @@ const TextBox& Text::GetTextBox() const {
 }
 
 bool Text::HasOnlyDefaultEmptyRun() const {
-	if (!Has<StyledText>()) {
+	if (!Has<impl::StyledText>()) {
 		return false;
 	}
 
-	auto& styled_text{ Get<StyledText>() };
+	auto& styled_text{ Get<impl::StyledText>() };
 
 	return styled_text.runs.size() == 1 && styled_text.runs.front().text.empty();
 }
@@ -433,7 +434,7 @@ Text& Text::Select(std::size_t index) {
 	return *this;
 }
 
-TextRun& Text::CurrentRun() {
+impl::TextRun& Text::CurrentRun() {
 	EnsureValidRuns();
 
 	auto& styled_text{ Get<StyledText>() };
@@ -442,7 +443,7 @@ TextRun& Text::CurrentRun() {
 	return styled_text.runs[edit_state.current_run_index];
 }
 
-const TextRun& Text::CurrentRun() const {
+const impl::TextRun& Text::CurrentRun() const {
 	auto& styled_text{ RequireStyledText() };
 	auto& edit_state{ RequireEditState() };
 
@@ -453,11 +454,11 @@ const TextRun& Text::CurrentRun() const {
 	return styled_text.runs[edit_state.current_run_index];
 }
 
-TextRunStyle& Text::CurrentStyle() {
+impl::TextRunStyle& Text::CurrentStyle() {
 	return CurrentRun().style;
 }
 
-const TextRunStyle& Text::CurrentStyle() const {
+const impl::TextRunStyle& Text::CurrentStyle() const {
 	return CurrentRun().style;
 }
 
@@ -919,7 +920,7 @@ TextPaginationResult Text::Paginate(
 	TextPaginationResult result;
 
 	std::string full_text{ ToPlainText(styled_text) };
-	TextRunStyle style{ GetFirstStyleOrDefault(styled_text) };
+	auto style{ GetFirstStyleOrDefault(styled_text) };
 
 	if (full_text.empty()) {
 		result.pages.emplace_back(
@@ -1023,7 +1024,7 @@ Text CreateText(Scene& scene, Transform transform, Origin draw_origin) {
 
 	StyledText styled_text;
 
-	TextRun run;
+	impl::TextRun run;
 	run.style = MakeDefaultTextRunStyle();
 
 	styled_text.runs.push_back(std::move(run));

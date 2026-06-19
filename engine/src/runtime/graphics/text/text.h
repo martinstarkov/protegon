@@ -46,9 +46,6 @@ public:
 		Origin offset_origin, V2_float offset_size
 	);
 
-	StyledText& GetStyledText();
-	const StyledText& GetStyledText() const;
-
 	TextBox& GetTextBox();
 	const TextBox& GetTextBox() const;
 
@@ -131,8 +128,6 @@ public:
 
 	void InvalidateLayout();
 
-	Text& SetStyledText(StyledText styled_text);
-
 	/// @return The measured size of the text, which may be larger than the box if the text is
 	/// clipped, ellipsized, or truncated.
 	[[nodiscard]] TextMeasurement Measure() const;
@@ -152,16 +147,21 @@ public:
 	/// no glyphs revealed, 1.0 = all glyphs revealed.
 	Text& RevealFraction(float fraction);
 
+private:
 	[[nodiscard]] static TextPaginationResult Paginate(
-		AssetManager& asset_manager, const StyledText& styled_text, TextBox box,
+		AssetManager& asset_manager, const impl::StyledText& styled_text, TextBox box,
 		const TextPageOptions& options = {}
 	);
 
-private:
+	impl::StyledText& GetStyledText();
+	const impl::StyledText& GetStyledText() const;
+
 	const TextLayout& RequireLayout() const;
 
-	StyledText& EnsureStyledText();
-	const StyledText& RequireStyledText() const;
+	Text& SetStyledText(impl::StyledText styled_text);
+
+	impl::StyledText& EnsureStyledText();
+	const impl::StyledText& RequireStyledText() const;
 
 	TextBox& EnsureTextBox();
 	const TextBox& RequireTextBox() const;
@@ -171,13 +171,13 @@ private:
 
 	void EnsureValidRuns();
 
-	TextRunStyle MakeDefaultRunStyle() const;
+	impl::TextRunStyle MakeDefaultRunStyle() const;
 
-	TextRun& CurrentRun();
-	const TextRun& CurrentRun() const;
+	impl::TextRun& CurrentRun();
+	const impl::TextRun& CurrentRun() const;
 
-	TextRunStyle& CurrentStyle();
-	const TextRunStyle& CurrentStyle() const;
+	impl::TextRunStyle& CurrentStyle();
+	const impl::TextRunStyle& CurrentStyle() const;
 
 	bool HasOnlyDefaultEmptyRun() const;
 };

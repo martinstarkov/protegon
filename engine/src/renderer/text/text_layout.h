@@ -14,8 +14,6 @@
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/resources/id.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/graphics/text/font.h"
 #include "renderer/text/glyph.h"
 #include "renderer/text/text_style.h"
 
