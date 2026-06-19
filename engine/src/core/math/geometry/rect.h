@@ -37,8 +37,8 @@ public:
 		PTGN_ASSERT(!size.IsNegative(), "Rect size cannot be negative");
 	}
 
-	template <Arithmetic T>
-	constexpr Rect(T x, T y) : Rect{ Vector2<T>{ x, y } } {}
+	template <Arithmetic TX, Arithmetic TY>
+	constexpr Rect(TX x, TY y) : Rect{ V2_float{ x, y } } {}
 
 	template <Arithmetic T>
 	constexpr Rect(V2_float position, Vector2<T> size, Origin draw_origin) {

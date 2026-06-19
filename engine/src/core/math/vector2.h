@@ -43,8 +43,8 @@ struct Vector2 {
 		:
 		x{ static_cast<T>(o.x) }, y{ static_cast<T>(o.y) } {}
 
-	template <ConvertibleToArithmetic U, ConvertibleToArithmetic S>
-	constexpr Vector2(U x_component, S y_component) :
+	template <ConvertibleToArithmetic TX, ConvertibleToArithmetic TY>
+	constexpr Vector2(TX x_component, TY y_component) :
 		x{ static_cast<T>(x_component) }, y{ static_cast<T>(y_component) } {}
 
 	template <Arithmetic U>

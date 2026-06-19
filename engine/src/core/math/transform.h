@@ -31,6 +31,9 @@ struct Transform {
 
 	constexpr Transform() = default;
 
+	template <Arithmetic TX, Arithmetic TY>
+	constexpr Transform(TX x, TY y) : position{ static_cast<float>(x), static_cast<float>(y) } {}
+
 	template <Arithmetic T>
 	constexpr Transform(Vector2<T> position) : position{ position } {} // NOSONAR
 
