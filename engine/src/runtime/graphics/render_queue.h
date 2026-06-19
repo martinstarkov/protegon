@@ -149,6 +149,11 @@ public:
 		Transform transform, const Shape& shape, Color color, ShapeRenderParams params = {}
 	);
 
+	void DrawTexture(
+		Transform transform, impl::TextureId texture, V2_int texture_size, impl::ShaderId shader,
+		TextureRenderParams params = {}
+	);
+
 private:
 	friend class Scene;
 	friend class SceneContext;
@@ -162,11 +167,6 @@ private:
 	RenderQueue& operator=(RenderQueue&&) noexcept = delete;
 
 	void Rebind(Scene& parent_scene);
-
-	void DrawTexture(
-		Transform transform, impl::TextureId texture, V2_int texture_size, impl::ShaderId shader,
-		TextureRenderParams params
-	);
 
 	impl::ShaderId GetShader(std::string_view shader_key) const;
 
