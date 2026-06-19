@@ -149,6 +149,8 @@ public:
 
 	const std::optional<Camera>& GetPrimaryWorldCamera() const;
 
+	impl::ShaderId GetShader(std::string_view name) const;
+
 private:
 	friend class Application;
 	friend class impl::ApplicationContext;
@@ -382,8 +384,6 @@ private:
 	[[nodiscard]] impl::FramebufferObject CreateFramebuffer(
 		TextureDesc desc, std::optional<TextureDesc> other_desc
 	);
-
-	impl::ShaderId GetShader(std::string_view name) const;
 
 	impl::TextureId GetTexture(impl::FramebufferId framebuffer) const;
 	impl::RenderbufferId GetDepthRenderbuffer(impl::FramebufferId framebuffer) const;
