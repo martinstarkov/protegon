@@ -11,7 +11,7 @@
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/text.h"
-#include "runtime/graphics/text/text_style.h"
+#include "renderer/text/text_style.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"

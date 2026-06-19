@@ -1,4 +1,4 @@
-#include "runtime/graphics/text/text_effect.h"
+#include "renderer/text/glyph.h"
 
 #include <cmath>
 

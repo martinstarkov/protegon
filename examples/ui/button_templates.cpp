@@ -18,7 +18,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
-#include "runtime/graphics/text/text_style.h"
+#include "renderer/text/text_style.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"

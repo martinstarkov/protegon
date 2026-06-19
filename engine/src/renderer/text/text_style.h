@@ -7,8 +7,8 @@
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
-#include "runtime/graphics/text/font_style.h"
-#include "runtime/graphics/text/text_effect.h"
+#include "renderer/text/font_style.h"
+#include "renderer/text/glyph.h"
 
 namespace ptgn {
 

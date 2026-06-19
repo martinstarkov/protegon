@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -16,6 +17,8 @@
 #include "core/math/vector2.h"
 #include "core/util/string.h"
 #include "core/util/time.h"
+#include "renderer/text/text_layout.h"
+#include "renderer/text/text_style.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/sprite.h"

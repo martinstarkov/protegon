@@ -8,12 +8,12 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/text/font_style.h"
+#include "renderer/text/glyph.h"
+#include "renderer/text/text_layout.h"
+#include "renderer/text/text_style.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/text/font_style.h"
-#include "runtime/graphics/text/text_effect.h"
-#include "runtime/graphics/text/text_layout.h"
-#include "runtime/graphics/text/text_style.h"
 
 namespace ptgn {
 

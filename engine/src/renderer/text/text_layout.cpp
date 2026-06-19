@@ -1,4 +1,4 @@
-#include "runtime/graphics/text/text_layout.h"
+#include "renderer/text/text_layout.h"
 
 #include <algorithm>
 #include <array>
@@ -34,8 +34,8 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/text_effect.h"
-#include "runtime/graphics/text/text_style.h"
+#include "renderer/text/glyph.h"
+#include "renderer/text/text_style.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 

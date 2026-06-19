@@ -12,7 +12,7 @@
 #include "core/math/vector2.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/graphics/text/text_effect.h"
+#include "renderer/text/glyph.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"

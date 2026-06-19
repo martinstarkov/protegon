@@ -15,7 +15,7 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text/text.h"
-#include "runtime/graphics/text/text_style.h"
+#include "renderer/text/text_style.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"

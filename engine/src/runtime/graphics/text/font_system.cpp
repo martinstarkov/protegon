@@ -118,7 +118,6 @@ FontSystem::FontSystem(AssetManager& assets) : assets_{ assets } {
 	auto default_font{ GetDefaultFontObject(assets) };
 
 	Font font{ assets_.CreateAsset(), true };
-	font.GetEntity().Add<FontSize>(kDefaultFontSize);
 	font.GetEntity().Add<impl::FontObject>(std::move(default_font));
 	impl::AddAssetKey(font.GetEntity(), {}, std::nullopt);
 

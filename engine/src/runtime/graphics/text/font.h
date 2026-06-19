@@ -2,7 +2,6 @@
 
 #include <cstdint>
 #include <optional>
-#include <string_view>
 #include <unordered_map>
 
 #include "core/math/geometry/rect.h"
@@ -19,21 +18,6 @@ namespace ptgn {
 class AssetManager;
 
 inline constexpr float kDefaultFontSize{ 18.0f };
-
-/// @brief Defaults to default engine font size.
-struct FontSize {
-	FontSize() = default;
-
-	FontSize(float value) : value{ value } {} // NOSONAR
-
-	float value{ kDefaultFontSize };
-
-	operator float() const { // NOSONAR
-		return value;
-	}
-
-	PTGN_SERIALIZE_VALUE(FontSize, value)
-};
 
 struct FontBinary {
 	constexpr FontBinary() = default;

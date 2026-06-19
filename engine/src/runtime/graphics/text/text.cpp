@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -17,14 +18,14 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
+#include "renderer/text/font_style.h"
+#include "renderer/text/glyph.h"
+#include "renderer/text/text_layout.h"
+#include "renderer/text/text_style.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/font_style.h"
-#include "runtime/graphics/text/text_effect.h"
-#include "runtime/graphics/text/text_layout.h"
-#include "runtime/graphics/text/text_style.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"

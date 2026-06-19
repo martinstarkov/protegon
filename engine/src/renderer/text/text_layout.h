@@ -16,8 +16,8 @@
 #include "renderer/resources/id.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/text_effect.h"
-#include "runtime/graphics/text/text_style.h"
+#include "renderer/text/glyph.h"
+#include "renderer/text/text_style.h"
 
 namespace ptgn {
 

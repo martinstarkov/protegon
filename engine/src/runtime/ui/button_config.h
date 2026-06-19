@@ -15,9 +15,9 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
+#include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/graphics/text/font.h"
-#include "runtime/graphics/text/text_style.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -85,7 +85,7 @@ struct ButtonTextPartConfig {
 
 	std::string content;
 	std::string font;
-	FontSize font_size;
+	float font_size{ kDefaultFontSize };
 	Color color{ color::Black };
 
 	Origin origin{ Origin::Center };
@@ -160,7 +160,7 @@ struct ButtonConfig {
 	std::optional<Color> text_color_hover;
 	std::optional<Color> text_color_press;
 
-	FontSize font_size;
+	float font_size{ kDefaultFontSize };
 	std::string font;
 
 	std::optional<std::string> texture;

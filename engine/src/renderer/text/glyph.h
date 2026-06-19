@@ -6,7 +6,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/id.h"
-#include "runtime/graphics/text/font_style.h"
+#include "renderer/text/font_style.h"
 
 namespace ptgn {
 
