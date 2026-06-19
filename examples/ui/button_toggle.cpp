@@ -1,6 +1,7 @@
 #include <ios>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/event/event.h"
 #include "core/event/key_event.h"
 #include "core/graphics/color.h"
@@ -10,13 +11,15 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
-#include "runtime/graphics/tint.h"
+#include "runtime/graphics/text/text_style.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/button_config.h"
 #include "runtime/ui/toggle_button.h"
 #include "serialization/json/json.h"
 
@@ -26,12 +29,12 @@ class ToggleButtonScene : public Scene {
 public:
 	ToggleButton toggle_button;
 
-	static constexpr V2_float button_size{ 200.0f, 100.0f };
+	static constexpr V2_float button_size{ 200, 100 };
 
 	static void ConfigureBackground(Entity background, Color color) {
 		background.Add<Rect>(Rect{ button_size });
 		SetDraw<RectDraw>(background);
-		SetTint(background, color);
+		background.Add<Color>(color);
 	}
 
 	void OnEnter() override {
@@ -100,5 +103,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "ToggleButtonScene: Q/E to disable/enable toggle button" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ToggleButtonScene>();
 }

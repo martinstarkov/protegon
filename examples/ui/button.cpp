@@ -12,6 +12,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/tint.h"
@@ -32,7 +33,7 @@ public:
 	static void ConfigureBackground(Entity background, Color color) {
 		background.Add<Rect>(Rect{ button_size });
 		SetDraw<RectDraw>(background);
-		SetTint(background, color);
+		background.Add<Color>(color);
 	}
 
 	void OnEnter() override {

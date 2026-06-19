@@ -105,7 +105,7 @@ class TweenScriptCustom : public Script {
 public:
 	void OnEvent(Event d) override {
 		d.Dispatch<event::TweenPointComplete>([this]() {
-			SetTint(GetParent(entity), Color::RandomOpaque());
+			GetParent(entity).Add<Color>(Color::RandomOpaque());
 		});
 	}
 };

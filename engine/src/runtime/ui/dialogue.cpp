@@ -859,8 +859,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 
 		background.Add<Rect>(Rect{ desc.box_size });
 		background.Add<impl::DialoguePart>(DialoguePartRole::Background);
-
-		SetTint(background, desc.background_tint);
+		background.Add<Color>(desc.background_color);
 		SetDraw<RectDraw>(background);
 		SetDrawOrigin(background, Origin::Center);
 		SetPosition(background, GetOffset(desc.origin, desc.box_size));

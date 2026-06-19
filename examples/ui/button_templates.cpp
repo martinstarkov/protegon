@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/log.h"
@@ -59,7 +60,7 @@ public:
 
 	static void ConfigureShapePart(Entity entity, V2_float size, Color tint, FillStyle fill_style) {
 		entity.Add<Rect>(Rect{ size });
-		SetTint(entity, tint);
+		entity.Add<Color>(tint);
 		SetDraw<RectDraw>(entity);
 		SetDrawOrigin(entity, Origin::Center);
 		SetFillStyle(entity, fill_style);
@@ -229,8 +230,8 @@ public:
 		ctx().asset.LoadAudio("bell_hover_sound", "assets/hover.ogg");
 		ctx().asset.LoadAudio("bell_press_sound", "assets/bell.ogg");
 
-		V2_float size{ 200.0f, 50.0f };
-		V2_float offset{ 0.0f, 70.0f };
+		V2_float size{ 200, 50 };
+		V2_float offset{ 0, 70 };
 
 		CreateTemplateButton(
 			offset * -5.0f, size,
@@ -257,7 +258,7 @@ public:
 				.texture_hover		= "big_hover",
 				.sound_hover		= "sound_hover",
 				.sound_press		= "sound_press",
-				.hover_move			= V2_float{ 20.0f, 0.0f },
+				.hover_move			= V2_float{ 20, 0 },
 				.hover_scale		= 1.1f,
 			}
 		);
@@ -346,7 +347,7 @@ public:
 				.text_outline_width = 1.0f,
 				.sound_hover		= "sound_hover",
 				.sound_press		= "sound_press",
-				.hover_move			= V2_float{ 20.0f, 0.0f },
+				.hover_move			= V2_float{ 20, 0 },
 			}
 		);
 
@@ -403,5 +404,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "ButtonTemplatesScene" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ButtonTemplatesScene>();
 }

@@ -3,6 +3,7 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/editor.h"
 #include "core/event/event.h"
 #include "core/event/key_event.h"
 #include "core/graphics/color.h"
@@ -11,14 +12,16 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
-#include "runtime/graphics/tint.h"
+#include "runtime/graphics/text/text_style.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/button_config.h"
 #include "runtime/ui/toggle_button.h"
 
 using namespace ptgn;
@@ -27,13 +30,13 @@ class ToggleButtonGroupScene : public Scene {
 	ToggleButtonGroup group1;
 	ToggleButtonGroup group2;
 
-	static constexpr V2_float button_size{ 200.0f, 130.0f };
+	static constexpr V2_float button_size{ 200, 130 };
 
 	static void ConfigureBackground(Button button, ButtonVisualState state, Color color) {
 		Entity background{ button.Background(state) };
 
 		background.Add<Rect>(Rect{ button_size });
-		SetTint(background, color);
+		background.Add<Color>(color);
 		SetDraw<RectDraw>(background);
 		SetDrawOrigin(background, Origin::TopLeft);
 		Show(background);
@@ -49,7 +52,7 @@ class ToggleButtonGroupScene : public Scene {
 		ConfigureBackground(button, ButtonVisualState::ToggledPress, color::DarkBlue);
 
 		button.SetLabelAutoBox(true);
-		button.SetLabelPadding(Rect{ { 8.0f, 8.0f }, { 8.0f, 8.0f } });
+		button.SetLabelPadding(Rect{ { 8, 8 }, { 8, 8 } });
 
 		button.Label()
 			.Font("arial")
@@ -91,10 +94,10 @@ class ToggleButtonGroupScene : public Scene {
 		group1 = CreateToggleButtonGroup(*this);
 		group1.SetAlwaysOneActive(false);
 
-		group1.Add("1", CreateToggleButtonGroupItem({ -300.0f, -365.0f }, 1, name1));
-		group1.Add("2", CreateToggleButtonGroupItem({ -300.0f, -165.0f }, 2, name1));
-		group1.Add("3", CreateToggleButtonGroupItem({ -300.0f, 35.0f }, 3, name1));
-		group1.Add("4", CreateToggleButtonGroupItem({ -300.0f, 235.0f }, 4, name1));
+		group1.Add("1", CreateToggleButtonGroupItem({ -300, -365 }, 1, name1));
+		group1.Add("2", CreateToggleButtonGroupItem({ -300, -165 }, 2, name1));
+		group1.Add("3", CreateToggleButtonGroupItem({ -300, 35 }, 3, name1));
+		group1.Add("4", CreateToggleButtonGroupItem({ -300, 235 }, 4, name1));
 
 		group1.SetActive("1");
 
@@ -102,10 +105,10 @@ class ToggleButtonGroupScene : public Scene {
 
 		group2 = CreateToggleButtonGroup(*this);
 
-		group2.Add("1", CreateToggleButtonGroupItem({ 100.0f, -365.0f }, 1, name2));
-		group2.Add("2", CreateToggleButtonGroupItem({ 100.0f, -165.0f }, 2, name2));
-		group2.Add("3", CreateToggleButtonGroupItem({ 100.0f, 35.0f }, 3, name2));
-		group2.Add("4", CreateToggleButtonGroupItem({ 100.0f, 235.0f }, 4, name2));
+		group2.Add("1", CreateToggleButtonGroupItem({ 100, -365 }, 1, name2));
+		group2.Add("2", CreateToggleButtonGroupItem({ 100, -165 }, 2, name2));
+		group2.Add("3", CreateToggleButtonGroupItem({ 100, 35 }, 3, name2));
+		group2.Add("4", CreateToggleButtonGroupItem({ 100, 235 }, 4, name2));
 
 		// group2.SetActive("3");
 	}
@@ -127,5 +130,6 @@ class ToggleButtonGroupScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "ToggleButtonGroupScene: I to print active button ID" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ToggleButtonGroupScene>();
 }

@@ -32,6 +32,8 @@ constexpr V2_float logical_size{ 800, 600 };
 
 // TODO: Move all of this into the collision system.
 
+namespace {
+
 BoundingAABB GetBoundingAABB(const Entity& entity) {
 	return GetBoundingAABB(entity.Get<Rect>(), GetTransform(entity));
 }
@@ -49,6 +51,8 @@ Entity AddEntity(
 	}
 	return entity;
 }
+
+} // namespace
 
 #define KDTREE 0
 
@@ -93,11 +97,11 @@ struct BroadphaseScene : public Scene {
 		MoveWASD(*this, pos, speed * dt, false);
 		SetPosition(player, pos);
 
-		for (auto [e, tint] : EntitiesWith<impl::Tint>()) {
-			SetTint(e, color::Green);
+		for (auto [e, color] : EntitiesWith<Color>()) {
+			color = color::Green;
 		}
 
-		SetTint(player, color::Purple);
+		player.Add<Color>(color::Purple);
 
 		auto player_volume{ GetBoundingAABB(player) };
 
@@ -143,8 +147,8 @@ struct BroadphaseScene : public Scene {
 		//		auto bounding{ GetBoundingAABB(e2) };
 		//		Rect rectb2{ bounding.min, bounding.max };
 		//		if (Overlap(Transform{}, rectb1, Transform{}, rectb2)) {
-		//			SetTint(e1, color::Red);
-		//			SetTint(e2, color::Red);
+		//			e1.Add<Color>(color::Red);
+		//			e2.Add<Color>(color::Red);
 		//		}
 		//	}
 		//}
@@ -160,7 +164,7 @@ struct BroadphaseScene : public Scene {
 		auto candidates = tree.Raycast(player, dir, player_rect);
 		for (auto& candidate : candidates) {
 			if (candidate && candidate != player) {
-				SetTint(candidate, color::Orange);
+				candidate.Add<Color>(color::Orange);
 			}
 		}
 
@@ -168,7 +172,7 @@ struct BroadphaseScene : public Scene {
 
 		auto candidate = tree.RaycastFirst(player, dir, player_rect);
 		if (candidate && candidate != player) {
-			SetTint(candidate, color::Red);
+			candidate.Add<Color>(color::Red);
 		}
 
 		ctx().render_queue.DrawLine(player_pos, mouse_pos, color::Gold, { .fill_style = 2.0f });
@@ -182,8 +186,8 @@ struct BroadphaseScene : public Scene {
 					continue;
 				}
 				if (Overlap(Transform{}, b1, Transform{}, GetBoundingAABB(e2)) {
-					SetTint(e1, color::Red);
-					SetTint(e2, color::Red);
+					e1.Add<Color>(color::Red);
+					e2.Add<Color>(color::Red);
 				}
 			}
 		}
@@ -193,6 +197,6 @@ struct BroadphaseScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "BroadphaseScene", logical_size };
-	PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<BroadphaseScene>();
 }

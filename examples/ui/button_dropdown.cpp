@@ -2,6 +2,7 @@
 #include <string_view>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/log.h"
@@ -15,8 +16,6 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/text/text_style.h"
-#include "runtime/graphics/tint.h"
-#include "runtime/graphics/visible.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -28,14 +27,14 @@ using namespace ptgn;
 
 class DropdownScene : public Scene {
 public:
-	static constexpr V2_float dropdown_size{ 200.0f, 100.0f };
-	static constexpr V2_float item_size{ 100.0f, 50.0f };
+	static constexpr V2_float dropdown_size{ 200, 100 };
+	static constexpr V2_float item_size{ 100, 50 };
 
 	static void ConfigureShapePart(
 		Entity entity, V2_float size, Color color, FillStyle fill_style
 	) {
 		entity.Add<Rect>(Rect{ size });
-		SetTint(entity, color);
+		entity.Add<Color>(color);
 		SetDraw<RectDraw>(entity);
 		SetDrawOrigin(entity, Origin::Center);
 		SetFillStyle(entity, fill_style);
@@ -63,7 +62,7 @@ public:
 		ConfigureBorder(button, ButtonVisualState::Press, size, color::Red);
 
 		button.SetLabelAutoBox(true);
-		button.SetLabelPadding(Rect{ { 6.0f, 4.0f }, { 6.0f, 4.0f } });
+		button.SetLabelPadding(Rect{ { 6, 4 }, { 6, 4 } });
 
 		button.Label()
 			.Font("arial")
@@ -91,7 +90,7 @@ public:
 		ConfigureBorder(button, ButtonVisualState::Press, size, color::Gold);
 
 		button.SetLabelAutoBox(true);
-		button.SetLabelPadding(Rect{ { 6.0f, 4.0f }, { 6.0f, 4.0f } });
+		button.SetLabelPadding(Rect{ { 6, 4 }, { 6, 4 } });
 
 		button.Label()
 			.Font("arial")
@@ -116,7 +115,7 @@ public:
 	}
 
 	Dropdown CreateMenuDropdown(std::string_view content, bool open = false) {
-		V2_float position{ -ctx().renderer.GetLogicalSize() * 0.5f + V2_float{ 400.0f, 200.0f } };
+		V2_float position{ -ctx().renderer.GetLogicalSize() * 0.5f + V2_float{ 400, 200 } };
 
 		Dropdown dropdown{
 			ptgn::CreateDropdown(*this, position, Rect{ dropdown_size }, Origin::Center, open)
@@ -180,5 +179,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "DropdownScene" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<DropdownScene>();
 }

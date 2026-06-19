@@ -146,12 +146,12 @@ public:
 		Show(sweep_circle);
 		Show(overlap_circle);
 
-		SetTint(intersect, color::Purple);
-		SetTint(intersect_circle, color::Purple);
-		SetTint(sweep, color::Cyan);
-		SetTint(sweep_circle, color::Cyan);
-		SetTint(overlap, color::Orange);
-		SetTint(overlap_circle, color::Orange);
+		intersect.Add<Color>(color::Purple);
+		intersect_circle.Add<Color>(color::Purple);
+		sweep.Add<Color>(color::Cyan);
+		sweep_circle.Add<Color>(color::Cyan);
+		overlap.Add<Color>(color::Orange);
+		overlap_circle.Add<Color>(color::Orange);
 
 		SetPosition(intersect, -logical_size * 0.5f + V2_float{ 100, 100 });
 		SetPosition(overlap, -logical_size * 0.5f + V2_float{ 200, 200 });

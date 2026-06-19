@@ -158,7 +158,7 @@ struct DialogueDesc {
 	V2_float box_size;
 
 	std::optional<std::string> background_texture;
-	Color background_tint{ color::Black.WithAlpha(180) };
+	Color background_color{ color::Black.WithAlpha(180) };
 
 	bool ui_layer{ true };
 };

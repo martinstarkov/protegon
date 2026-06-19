@@ -26,8 +26,8 @@ public:
 	void OnEnter() override {
 		auto rect{ CreateRect(*this, {}, { 200, 200 }, color::White, Solid{}, Origin::Center) };
 
-		auto tint_by_gradient = [this, rect](const event::TweenProgress& e) {
-			SetTint(rect, gradient.Sample(e.progress));
+		auto tint_by_gradient = [this, rect](const event::TweenProgress& e) mutable {
+			rect.Add<Color>(gradient.Sample(e.progress));
 		};
 
 		CreateTween(*this).During(3s).Yoyo().Repeat().OnProgress(tint_by_gradient).Start();

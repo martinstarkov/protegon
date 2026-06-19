@@ -11,6 +11,7 @@
 
 #include "core/assert.h"
 #include "core/event/event.h"
+#include "core/graphics/color.h"
 #include "core/input/mouse.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
@@ -1088,7 +1089,7 @@ Button CreateButton(
 	if (config.background_color.has_value()) {
 		Entity background{ button.Background() };
 		background.Add<Rect>(Rect{ size });
-		SetTint(background, config.background_color.value());
+		background.Add<Color>(config.background_color.value());
 	}
 
 	if (config.texture.has_value()) {
