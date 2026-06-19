@@ -478,6 +478,12 @@ template <Arithmetic T>
 	return { std::abs(vector.x), std::abs(vector.y) };
 }
 
+/// @return Sign for both components of a vector.
+template <Arithmetic T>
+[[nodiscard]] constexpr Vector2<T> Sign(Vector2<T> vector) {
+	return { Sign(vector.x), Sign(vector.y) };
+}
+
 /// @brief Swap both components of vectors a and b.
 template <Arithmetic T>
 constexpr void Swap(Vector2<T>& a, Vector2<T>& b) {
