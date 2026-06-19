@@ -21,7 +21,7 @@ struct RenderTargetScene : public Scene {
 	SceneCamera rt_camera;
 
 	void OnEnter() override {
-		constexpr V2_float rt_size{ 200, 200 };
+		constexpr V2_float rt_size{ 200 };
 		constexpr auto rt_layer{ GetLayer(3) };
 
 		SetBackgroundColor(color::LightBlue);
@@ -30,14 +30,13 @@ struct RenderTargetScene : public Scene {
 
 		ctx().camera.SetExcludeMask(rt_layer);
 
-		rt = CreateRenderTarget(*this, rt_size, color::Red);
-		SetPosition(rt, { 200, 200 });
+		rt = CreateRenderTarget(*this, { 200, 200 }, rt_size, color::Red);
 
-		rt_camera = CreateCamera(*this, rt.GetSize());
+		rt_camera = CreateCamera(*this, {}, rt.GetSize());
 		rt_camera.SetRenderTarget(rt);
 		rt_camera.SetIncludeMask(rt_layer);
 
-		auto rect2{ CreateRect(*this, V2_float{ 0, 0 }, { 100, 100 }, color::Orange) };
+		auto rect2{ CreateRect(*this, { 0, 0 }, { 100, 100 }, color::Orange) };
 		SetMask(rect2, rt_layer);
 	}
 

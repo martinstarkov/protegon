@@ -12,26 +12,26 @@ class PixelSpritesScene : public Scene {
 		ctx().asset.Load("sprite", "assets/sprite.png");
 		ctx().asset.Load("sprite2", "assets/sprite2.png");
 
-		CreateSprite(*this, "sprite", { -50 + 0, 0 });
-		CreateSprite(*this, "sprite", { -50 + 0, 100.5 });
-		CreateSprite(*this, "sprite", { -50 + 0, 50.5 });
-		CreateSprite(*this, "sprite", { -50 + 50, 100 });
-		CreateSprite(*this, "sprite", { -50 + 0, -100.5 });
-		CreateSprite(*this, "sprite", { -50 + 0, -50.5 });
-		CreateSprite(*this, "sprite", { -50 + -50, -100 });
+		CreateSprite(*this, { -50 + 0, 0 }, "sprite");
+		CreateSprite(*this, { -50 + 0, 100.5 }, "sprite");
+		CreateSprite(*this, { -50 + 0, 50.5 }, "sprite");
+		CreateSprite(*this, { -50 + 50, 100 }, "sprite");
+		CreateSprite(*this, { -50 + 0, -100.5 }, "sprite");
+		CreateSprite(*this, { -50 + 0, -50.5 }, "sprite");
+		CreateSprite(*this, { -50 + -50, -100 }, "sprite");
 
-		CreateSprite(*this, "sprite2", { 50 + 0, 0 });
-		CreateSprite(*this, "sprite2", { 50 + 0, 100.5 });
-		CreateSprite(*this, "sprite2", { 50 + 0, 50.5 });
-		CreateSprite(*this, "sprite2", { 50 + 50, 100 });
-		CreateSprite(*this, "sprite2", { 50 + 0, -100.5 });
-		CreateSprite(*this, "sprite2", { 50 + 0, -50.5 });
-		CreateSprite(*this, "sprite2", { 50 + -50, -100 });
+		CreateSprite(*this, { 50 + 0, 0 }, "sprite2");
+		CreateSprite(*this, { 50 + 0, 100.5 }, "sprite2");
+		CreateSprite(*this, { 50 + 0, 50.5 }, "sprite2");
+		CreateSprite(*this, { 50 + 50, 100 }, "sprite2");
+		CreateSprite(*this, { 50 + 0, -100.5 }, "sprite2");
+		CreateSprite(*this, { 50 + 0, -50.5 }, "sprite2");
+		CreateSprite(*this, { 50 + -50, -100 }, "sprite2");
 	}
 };
 
 int main(int, char**) {
 	Application app{ "PixelSpritesScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<PixelSpritesScene>();
 }

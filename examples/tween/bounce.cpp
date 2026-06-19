@@ -1,9 +1,9 @@
 #include <optional>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/input/mouse.h"
 #include "core/math/easing.h"
-#include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
@@ -24,9 +24,9 @@ struct BounceEffectScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("smile", "assets/smile.png");
 
-		sprite1 = CreateSprite(*this, "smile", V2_float{ 250, 0 });
-		sprite2 = CreateSprite(*this, "smile", V2_float{ 0, 0 });
-		sprite3 = CreateSprite(*this, "smile", V2_float{ -250, 0 });
+		sprite1 = CreateSprite(*this, { 250, 0 }, "smile");
+		sprite2 = CreateSprite(*this, { 0, 0 }, "smile");
+		sprite3 = CreateSprite(*this, { -250, 0 }, "smile");
 
 		Bounce(sprite1, { 0, -400 }, bounce_duration, std::nullopt, Ease::InSine, {}, true);
 		Bounce(sprite2, { 0, -400 }, bounce_duration, std::nullopt, Ease::OutSine, {}, true);
@@ -55,5 +55,6 @@ struct BounceEffectScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "BounceEffectScene: left/right click switches bounce type" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<BounceEffectScene>();
 }

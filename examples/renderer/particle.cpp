@@ -10,6 +10,7 @@
 #include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
@@ -112,7 +113,7 @@ public:
 				b, -ctx().renderer.GetLogicalSize() * 0.5f + coord * size +
 					   (coord + V2_int{ 1, 1 }) * offset
 			);
-			b.SetShape(size);
+			b.SetShape(Rect{ size });
 			SetDrawOrigin(b, Origin::TopLeft);
 		});
 	}

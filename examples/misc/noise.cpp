@@ -7,6 +7,7 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/input/key.h"
@@ -17,7 +18,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "runtime/graphics/draw.h"
+#include "renderer/renderer.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
@@ -224,27 +225,28 @@ public:
 					color.a		  = static_cast<std::uint8_t>(opacity);
 				}
 
-				ctx().renderer.DrawShape(
-					Transform{ p * pixel_size }, Rect{ pixel_size }, color, Solid{}, Origin::Center,
-					Depth{}, BlendMode::Blend
+				ctx().render_queue.DrawShape(
+					Transform{ p * pixel_size }, Rect{ pixel_size }, color,
+					{ .fill_style = Solid{}, .blend_mode = BlendMode::Blend }
 				);
 			}
 		}
 
-		ctx().renderer.DrawShape(
+		ctx().render_queue.DrawShape(
 			Transform{ (min * pixel_size + max * pixel_size) * 0.5f },
-			Rect{ (max - min) * pixel_size }, color::Orange, 3.0f, Origin::Center, Depth{},
-			BlendMode::Blend
+			Rect{ (max - min) * pixel_size }, color::Orange,
+			{ .fill_style = 3.0f, .blend_mode = BlendMode::Blend }
 		);
 
-		ctx().renderer.DrawShape(
-			Transform{}, Rect{ 30, 30 }, color::Red, Solid{}, Origin::TopLeft, Depth{},
-			BlendMode::Blend
+		ctx().render_queue.DrawShape(
+			Transform{}, Rect{ 30, 30 }, color::Red,
+			{ .fill_style = Solid{}, .origin = Origin::TopLeft, .blend_mode = BlendMode::Blend }
 		);
 	}
 };
 
 int main(int, char**) {
 	Application app{ "NoiseExample: T: Zoom out, Arrow keys to swap noise type" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<NoiseExampleScene>();
 }

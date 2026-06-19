@@ -1,8 +1,6 @@
 #include "app/application.h"
 #include "core/editor.h"
 #include "core/graphics/color.h"
-#include "core/math/vector2.h"
-#include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -14,41 +12,37 @@
 
 using namespace ptgn;
 
-inline constexpr V2_int kWindowSize{ 1280, 720 };
-
-inline constexpr Viewport kLeftViewport{ { 0.0f, 0.0f }, { kWindowSize.x / 2.0f, kWindowSize.y } };
-
-inline constexpr Viewport kRightViewport{ { kWindowSize.x / 2.0f, 0.0f },
-										  { kWindowSize.x / 2.0f, kWindowSize.y } };
-
 class CameraTintScene : public Scene {
-public:
 private:
-	SceneCamera left_camera;
+	SceneCamera second_camera;
 
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		left_camera = CreateCamera(*this);
+		second_camera = CreateCamera(*this);
 
-		left_camera.SetTag("Left Camera");
-		ctx().camera.SetTag("Right Camera");
+		ctx().camera.SetTag("Left Camera");
+		second_camera.SetTag("Right Camera");
 
-		left_camera.SetViewport(kLeftViewport);
-		ctx().camera.SetViewport(kRightViewport);
+		ctx().camera.SetViewport(
+			Viewport{ { 0.0f, 0.0f }, { 0.5f, 1.0f } }, ViewportSpace::Normalized
+		);
+		second_camera.SetViewport(
+			Viewport{ { 0.5f, 0.0f }, { 0.5f, 1.0f } }, ViewportSpace::Normalized
+		);
 
-		left_camera.SetClearColor(color::LightBlue.WithAlpha(0.5f));
 		ctx().camera.SetClearColor(color::LightBlue.WithAlpha(0.5f));
+		second_camera.SetClearColor(color::LightBlue.WithAlpha(0.5f));
 
-		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
-		CreateSprite(*this, "sprite", { 180.0f, 0.0f });
+		CreateSprite(*this, { -180, 0 }, "sprite");
+		CreateSprite(*this, { 180, 0 }, "sprite");
 
-		SetTint(ctx().camera, Color{ 255, 0, 0, 255 });
+		SetTint(ctx().camera, color::Red);
 	}
 };
 
 int main(int, char**) {
-	Application app{ "CameraTintScene", kWindowSize };
-	//PTGN_WITH_EDITOR(app);
+	Application app{ "CameraTintScene", { 1280, 720 } };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<CameraTintScene>();
 }

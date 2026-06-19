@@ -1,6 +1,7 @@
 #include <optional>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/input/mouse.h"
 #include "core/math/easing.h"
 #include "core/util/time.h"
@@ -23,9 +24,9 @@ struct ShakeEffectScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("smile", "assets/smile.png");
 
-		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
-		sprite2 = CreateSprite(*this, "smile", { -300, 200 });
-		sprite3 = CreateSprite(*this, "smile", { 200, -300 });
+		sprite1 = CreateSprite(*this, { -300, -300 }, "smile");
+		sprite2 = CreateSprite(*this, { -300, 200 }, "smile");
+		sprite3 = CreateSprite(*this, { 200, -300 }, "smile");
 
 		Shake(sprite1, 1.0f, shake_duration, {}, Ease::Linear, false, true);
 		Shake(sprite1, -1.0f, shake_duration, {}, Ease::Linear, false);
@@ -45,5 +46,6 @@ struct ShakeEffectScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "ShakeEffectScene: left/right click to start/stop shake" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ShakeEffectScene>();
 }

@@ -1,4 +1,5 @@
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
@@ -28,8 +29,8 @@ struct FadeEffectScene : public Scene {
 		ctx().asset.Load("tree", "assets/jpg.jpg");
 		ctx().asset.Load("smile", "assets/smile.png");
 
-		sprite1 = CreateSprite(*this, "tree", { -200, -200 });
-		sprite2 = CreateSprite(*this, "smile", { 200, 200 });
+		sprite1 = CreateSprite(*this, { -200, -200 }, "tree");
+		sprite2 = CreateSprite(*this, { 200, 200 }, "smile");
 
 		SetTint(sprite1, color::Transparent);
 
@@ -61,5 +62,6 @@ struct FadeEffectScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "FadeEffectScene: R/T: Scene Fade In/Out, Left/Right: Tree Fade In/Out" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<FadeEffectScene>();
 }

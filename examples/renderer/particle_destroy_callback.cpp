@@ -42,7 +42,7 @@ public:
 			  .start_color		   = Color{ 120, 170, 255, 255 },
 			  .start_gravity	   = V2_float{ 0.0f, 300.0f },
 			  .max_particles	   = 1000,
-			  .particle_type	   = Rect{ V2_float{ 0.25f, 1.0f } },
+			  .particle_type	   = Rect{ 0.25f, 1.0f },
 			  .particle_fill_style = Solid{},
 			  .emission_shape	   = EmissionShape::Rect({ 500.0f, 20.0f }, { 0.0f, 1.0f }),
 			  .size_over_lifetime  = 3.0f,
@@ -56,7 +56,7 @@ public:
 				auto duration{ 250ms };
 
 				auto anim = PlayTemporaryAnimation(
-					scene, "anim", p.particle.position,
+					scene, p.particle.position, "anim",
 					{ .frame_count = 3, .animation_duration = duration, .play_count = 1 }
 				);
 				SetScale(anim, 0.5f);

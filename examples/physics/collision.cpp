@@ -8,6 +8,7 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/editor.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
@@ -1807,5 +1808,6 @@ public:
 
 int main([[maybe_unused]] int c, [[maybe_unused]] char** v) {
 	Application app{ "CollisionScene: Arrow keys to flip between tests", logical_size };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<CollisionScene>();
 }

@@ -1,4 +1,5 @@
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/input/mouse.h"
 #include "core/math/easing.h"
@@ -25,9 +26,9 @@ struct TranslateEffectScene : public Scene {
 
 		ctx().asset.Load("smile", "assets/smile.png");
 
-		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
-		sprite2 = CreateSprite(*this, "smile", { -300, 200 });
-		sprite3 = CreateSprite(*this, "smile", { 200, -300 });
+		sprite1 = CreateSprite(*this, { -300, -300 }, "smile");
+		sprite2 = CreateSprite(*this, { -300, 200 }, "smile");
+		sprite3 = CreateSprite(*this, { 200, -300 }, "smile");
 
 		TranslateTo(sprite1, { 200, 200 }, translate_duration1, Ease::Linear);
 		TranslateTo(sprite1, { -300, -300 }, translate_duration2, Ease::Linear, false);
@@ -48,5 +49,6 @@ struct TranslateEffectScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "TranslateEffectScene: left click to translate to mouse" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<TranslateEffectScene>();
 }

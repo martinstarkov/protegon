@@ -1,6 +1,7 @@
 
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/input/mouse.h"
 #include "core/log.h"
@@ -41,8 +42,8 @@ public:
 
 		SetPosition(light1, light_starting_pos);
 
-		CreateSprite(*this, "sprite", { -200, -250 });
-		auto sprite2{ CreateSprite(*this, "sprite", { 200, -250 }) };
+		CreateSprite(*this, { -200, -250 }, "sprite");
+		auto sprite2{ CreateSprite(*this, { 200, -250 }, "sprite") };
 		SetOccluder(sprite2, true, false);
 
 		CreateRect(*this, { -300, 300 }, { 100, 100 }, color::LightGray);
@@ -85,5 +86,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "ShadowScene: Left click to switch mouse light" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ShadowScene>();
 }

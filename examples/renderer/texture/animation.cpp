@@ -75,8 +75,7 @@ public:
 		ctx().asset.Load("anim", "assets/animation.png");
 
 		animation = CreateAnimation(
-			*this, "anim", GetPosition(ctx().camera),
-			{ 4, 500ms, V2_int{ 16, 32 }, std::nullopt, { 0, 32 } }
+			*this, {}, "anim", { 4, 500ms, V2_int{ 16, 32 }, std::nullopt, { 0, 32 } }
 		);
 
 		SetScale(animation, 4.0f);

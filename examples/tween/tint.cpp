@@ -1,4 +1,5 @@
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/input/mouse.h"
 #include "core/math/easing.h"
@@ -25,10 +26,10 @@ struct TintEffectScene : public Scene {
 		ctx().asset.Load("tree", "assets/jpg.jpg");
 		ctx().asset.Load("smile", "assets/smile.png");
 
-		sprite1 = CreateSprite(*this, "tree", { -300, -300 });
-		sprite2 = CreateSprite(*this, "tree", { -300, 200 });
-		sprite3 = CreateSprite(*this, "tree", { 200, -300 });
-		sprite4 = CreateSprite(*this, "smile", { 200, 200 });
+		sprite1 = CreateSprite(*this, { -300, -300 }, "tree");
+		sprite2 = CreateSprite(*this, { -300, 200 }, "tree");
+		sprite3 = CreateSprite(*this, { 200, -300 }, "tree");
+		sprite4 = CreateSprite(*this, { 200, 200 }, "smile");
 
 		TintTo(sprite1, color::Red, tint_duration1, Ease::Linear);
 		TintTo(sprite1, color::White, tint_duration2, Ease::Linear, false);
@@ -52,5 +53,6 @@ struct TintEffectScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "TintEffectScene: left/right: tint/untint" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<TintEffectScene>();
 }

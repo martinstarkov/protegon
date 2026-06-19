@@ -2,6 +2,7 @@
 #include <string>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/log.h"
@@ -41,8 +42,10 @@ public:
 
 	void OnUpdate() final {
 		// PTGN_LOG("Scene 2 tint: ", GetTint(GetRenderTarget()));
-		ctx().renderer.DrawTexture("bg2", {}, logical_size * 0.5f, Origin::TopLeft);
-		ctx().renderer.DrawText(
+		ctx().render_queue.DrawTexture(
+			{}, "bg2", { .size = logical_size * 0.5f, .origin = Origin::TopLeft }
+		);
+		ctx().render_queue.DrawText(
 			"Scene 2: " + ToString(local_reenter_count), logical_size * 0.25f + V2_int{ 0, 50 },
 			color::Magenta, 30
 		);
@@ -62,8 +65,8 @@ class Scene1 : public Scene {
 public:
 	void OnUpdate() final {
 		// PTGN_LOG("Scene 1 tint: ", GetTint(GetRenderTarget()));
-		ctx().renderer.DrawTexture(
-			"bg1", V2_float{ 0.0f, -logical_size.y * 0.5f }, logical_size * 0.5f, Origin::TopLeft
+		ctx().render_queue.DrawTexture(
+			{}, "bg1", { .size = logical_size * 0.5f, .origin = Origin::TopLeft }
 		);
 
 		if (ctx().input.KeyPressed(Key::N) &&
@@ -75,7 +78,9 @@ public:
 
 void Scene3::OnUpdate() {
 	// PTGN_LOG("Scene 3 tint: ", GetTint(GetRenderTarget()));
-	ctx().renderer.DrawTexture("bg3", -logical_size * 0.5f, logical_size * 0.5f, Origin::TopLeft);
+	ctx().render_queue.DrawTexture(
+		{}, "bg3", { .size = logical_size * 0.5f, .origin = Origin::TopLeft }
+	);
 	if (ctx().input.KeyPressed(Key::N)) {
 		ctx().scene.Switch<Scene1>("scene1", CrossFadeTransition{ 3000ms });
 	}
@@ -84,9 +89,11 @@ void Scene3::OnUpdate() {
 class SceneTransitionExample : public Scene {
 public:
 	void OnEnter() override {
-		ctx().asset.LoadMany({ { "bg1", "assets/scene1.png" },
-							   { "bg2", "assets/scene2.png" },
-							   { "bg3", "assets/scene3.png" } });
+		ctx().asset.LoadMany(
+			{ { "bg1", "assets/scene1.png" },
+			  { "bg2", "assets/scene2.png" },
+			  { "bg3", "assets/scene3.png" } }
+		);
 
 		ctx().scene.Enter<Scene1>("scene1");
 	}
@@ -94,5 +101,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "SceneTransitionExample: N: Transition to next scene", logical_size };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<SceneTransitionExample>("scene_transition_example");
 }

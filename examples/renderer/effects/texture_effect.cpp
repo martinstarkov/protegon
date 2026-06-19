@@ -13,8 +13,8 @@ class TextureEffectScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
-		auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
+		CreateSprite(*this, { -180, 0 }, "sprite");
+		auto sprite2{ CreateSprite(*this, { 180, 0 }, "sprite") };
 
 		AddEffect<Grayscale>(sprite2);
 	}

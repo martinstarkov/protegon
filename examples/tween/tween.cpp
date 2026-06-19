@@ -19,11 +19,11 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
+#include "renderer/renderer.h"
 #include "runtime/animation/tween_event.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/relatives.h"
-#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/tint.h"
@@ -38,21 +38,21 @@ using namespace ptgn;
 class TweenScriptA : public Script {
 public:
 	void OnEvent(Event d) override {
-		d.Dispatch<event::TweenComplete>([this](auto e) { PTGN_LOG("Completed tween A"); });
+		d.Dispatch<event::TweenComplete>([this](auto) { PTGN_LOG("Completed tween A"); });
 	}
 };
 
 class TweenScriptB : public Script {
 public:
 	void OnEvent(Event d) override {
-		d.Dispatch<event::TweenPause>([this](auto e) { PTGN_LOG("Paused tween B"); });
+		d.Dispatch<event::TweenPause>([this](auto) { PTGN_LOG("Paused tween B"); });
 	}
 };
 
 class TweenScriptC : public Script {
 public:
 	void OnEvent(Event d) override {
-		d.Dispatch<event::TweenRepeat>([this]() {
+		d.Dispatch<event::TweenRepeat>([]() {
 			PTGN_ERROR("This repeat should never be triggered for tween C");
 		});
 		d.Dispatch<event::TweenResume>([this]() {
@@ -70,9 +70,7 @@ public:
 		d.Dispatch<event::TweenStart>([this]() {
 			PTGN_LOG("Starting tween C with value ", Tween{ entity }.GetProgress());
 		});
-		d.Dispatch<event::TweenProgress>([]() {
-			// PTGN_LOG("Updated Value: ", Tween{ entity }.GetProgress());
-		});
+		d.Dispatch<event::TweenProgress>([]() {});
 	}
 };
 
@@ -134,8 +132,8 @@ public:
 	}
 
 	Tween CreateRectTween(const Color& color, const std::string& name) {
-		auto rect	= CreateRect(*this, V2_float{}, V2_float{}, color, Solid{}, Origin::CenterTop);
-		auto text	= CreateText(*this, {}, name, color::Black);
+		auto rect	= CreateRect(*this, {}, {}, color, Solid{}, Origin::CenterTop);
+		Text text	= CreateText(*this, {}).Content(name).Color(color::Black);
 		Tween tween = CreateTween(*this).During(duration);
 		tween.OnProgress([this](auto p) { SetProgress(size, p); });
 		AddChild(rect, text, "text");
@@ -163,7 +161,7 @@ public:
 		Tween tweenP{ CreateRectTween(color::DarkRed, "P") };
 
 		// Behaviors
-		tweenA.AddScript<TweenScriptA>(); // TODO: Add destroy on completion
+		tweenA.AddScript<TweenScriptA>();
 
 		tweenB.AddScript<TweenScriptB>(); // Pause after starting
 
@@ -235,7 +233,7 @@ public:
 
 	void OnUpdate() override {
 		if (ctx().input.KeyPressed(Key::T)) {
-			for (auto e : EntitiesWithout<impl::Parent>()) {
+			for (Entity e : EntitiesWithout<impl::Parent>()) {
 				if (!e.Has<Rect>()) {
 					continue;
 				}
@@ -249,7 +247,7 @@ public:
 		}
 
 		if (ctx().input.KeyPressed(Key::R)) {
-			for (auto e : EntitiesWithout<impl::Parent>()) {
+			for (Entity e : EntitiesWithout<impl::Parent>()) {
 				if (!e.Has<Rect>()) {
 					continue;
 				}
@@ -259,7 +257,7 @@ public:
 		}
 
 		if (ctx().input.KeyPressed(Key::S)) {
-			for (auto e : EntitiesWithout<impl::Parent>()) {
+			for (Entity e : EntitiesWithout<impl::Parent>()) {
 				if (!e.Has<Rect>()) {
 					continue;
 				}

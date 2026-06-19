@@ -14,7 +14,6 @@
 #include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -170,47 +169,37 @@ struct InteractiveScene : public Scene {
 			  { "box", "assets/box.png" } }
 		);
 
-		V2_float center{ GetTransform(ctx().camera).position };
-
 		V2_float offset{ 250, 250 };
 		V2_float rsize{ 100, 50 };
 
-		auto c0 = CreateCircle(
-			*this, center + V2_float{ offset.x, -offset.y }, 90.0f, color::Green, 1.0f
-		);
+		auto c0		  = CreateCircle(*this, { offset.x, -offset.y }, 90.0f, color::Green, 1.0f);
 		auto c0_child = CreateInteractiveCircle(90.0f);
 		AddInteractiveShape(c0, c0_child);
 
-		auto c1 = CreateCircle(
-			*this, center + V2_float{ offset.x, offset.y }, 90.0f, color::LightGreen, 1.0f
-		);
+		auto c1		  = CreateCircle(*this, { offset.x, offset.y }, 90.0f, color::LightGreen, 1.0f);
 		auto c1_child = CreateInteractiveCircle(45.0f);
 		AddInteractiveShape(c1, c1_child);
 
-		auto r0 = CreateRect(
-			*this, center + V2_float{ -offset.x, -offset.y }, rsize * 2, color::Blue, 1.0f
-		);
+		auto r0		  = CreateRect(*this, { -offset.x, -offset.y }, rsize * 2, color::Blue, 1.0f);
 		auto r0_child = CreateInteractiveRect(rsize * 2);
 		AddInteractiveShape(r0, r0_child);
 
-		auto r1 = CreateRect(
-			*this, center + V2_float{ -offset.x, offset.y }, rsize, color::LightBlue, 1.0f
-		);
+		auto r1		  = CreateRect(*this, { -offset.x, offset.y }, rsize, color::LightBlue, 1.0f);
 		auto r1_child = CreateInteractiveRect(rsize * 2);
 		AddInteractiveShape(r1, r1_child);
 
-		auto r2		  = CreateSprite(*this, "box", center + V2_float{ -offset.x, 0.0f });
+		auto r2		  = CreateSprite(*this, { -offset.x, 0.0f }, "box");
 		auto r2_child = CreateInteractiveRect(*GetDisplaySize(r2));
 		AddInteractiveShape(r2, r2_child);
 
-		auto r4		  = CreateSprite(*this, "dropzone", center + V2_float{ 0.0f, -offset.y });
+		auto r4		  = CreateSprite(*this, { 0.0f, -offset.y }, "dropzone");
 		auto r4_child = CreateInteractiveRect(rsize * 2);
 		AddInteractiveShape(r4, r4_child);
 		SetDropzone(r4);
 		AddScript<DropzoneScript>(r4);
 		PTGN_LOG("Dropzone: ", r4);
 
-		auto r3		  = CreateSprite(*this, "drag", center + V2_float{ offset.x, 0.0f });
+		auto r3		  = CreateSprite(*this, { offset.x, 0.0f }, "drag");
 		auto r3_child = CreateInteractiveRect(*GetDisplaySize(r3));
 		AddInteractiveShape(r3, r3_child);
 		SetDraggable(r3);
@@ -218,7 +207,7 @@ struct InteractiveScene : public Scene {
 
 		PTGN_LOG("Rect drag: ", r3);
 
-		auto c3		  = CreateSprite(*this, "drag_circle", center + V2_float{ 0, 0 });
+		auto c3		  = CreateSprite(*this, { 0, 0 }, "drag_circle");
 		auto c3_child = CreateInteractiveCircle(GetDisplaySize(c3)->x * 0.5f);
 		AddInteractiveShape(c3, c3_child);
 		SetDraggable(c3); //.SetTrigger(CallbackTrigger::MouseOverlaps);
@@ -226,7 +215,7 @@ struct InteractiveScene : public Scene {
 
 		PTGN_LOG("Circle drag: ", c3);
 
-		auto c4		  = CreateSprite(*this, "circle", center + V2_float{ 0, offset.y });
+		auto c4		  = CreateSprite(*this, { 0, offset.y }, "circle");
 		auto c4_child = CreateInteractiveCircle(GetDisplaySize(c4)->x * 0.5f);
 		AddInteractiveShape(c4, c4_child);
 		SetDraggable(c4, ComponentState::Disabled);
@@ -267,6 +256,6 @@ struct InteractiveScene : public Scene {
 int main(int, char**) {
 	Application app{ "InteractiveScene: T: Toggle Top Only Input, WASD/QE/ZC: "
 					 "Move/Rotate/Zoom Camera" };
-	PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<InteractiveScene>();
 }

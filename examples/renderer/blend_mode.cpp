@@ -1,11 +1,12 @@
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
+#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
@@ -32,14 +33,15 @@ struct BlendModeScene : public Scene {
 			Origin::TopLeft
 		);
 
-		auto s1 = CreateSprite(*this, "semitransparent", -ws * 0.5f + V2_float{ 100, 100 });
+		auto s1 = CreateSprite(*this, -ws * 0.5f + V2_float{ 100, 100 }, "semitransparent");
 		SetDrawOrigin(s1, Origin::TopLeft);
-		auto s2 = CreateSprite(*this, "opaque", -ws * 0.5f + V2_float{ 200, 200 });
+		auto s2 = CreateSprite(*this, -ws * 0.5f + V2_float{ 200, 200 }, "opaque");
 		SetDrawOrigin(s2, Origin::TopLeft);
 	}
 };
 
 int main(int, char**) {
 	Application app{ "BlendModeScene" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<BlendModeScene>();
 }

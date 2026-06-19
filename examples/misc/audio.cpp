@@ -5,10 +5,13 @@
 #include <string_view>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
+#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
@@ -84,19 +87,15 @@ public:
 		b12 = grid.Set({ 0, 11 }, CreateAudioButton("Channel 2 Fading: ", nullptr, sound2_color));
 
 		grid.Set(
-			{ 1, 0 }, CreateAudioButton(
-						  "Play Music 1", [&]() { ctx().audio.Play("music1"); }, music_color
-					  )
+			{ 1, 0 },
+			CreateAudioButton("Play Music 1", [&]() { ctx().audio.Play("music1"); }, music_color)
 		);
 		grid.Set(
-			{ 1, 1 }, CreateAudioButton(
-						  "Play Music 2", [&]() { ctx().audio.Play("music2"); }, music_color
-					  )
+			{ 1, 1 },
+			CreateAudioButton("Play Music 2", [&]() { ctx().audio.Play("music2"); }, music_color)
 		);
 		grid.Set(
-			{ 1, 2 }, CreateAudioButton(
-						  "Stop Music", [&]() { ctx().audio.StopAll(); }, music_color
-					  )
+			{ 1, 2 }, CreateAudioButton("Stop Music", [&]() { ctx().audio.StopAll(); }, music_color)
 		);
 		grid.Set(
 			{ 1, 3 }, CreateAudioButton(
@@ -271,7 +270,8 @@ public:
 		);
 
 		V2_int offset{ 6, 6 };
-		V2_int size{ (ctx().renderer.GetLogicalSize() - offset * (grid.GetSize() + V2_int{ 1, 1 })) /
+		V2_int size{ (ctx().renderer.GetLogicalSize() -
+					  offset * (grid.GetSize() + V2_int{ 1, 1 })) /
 					 grid.GetSize() };
 
 		grid.ForEach([&, size, offset](auto coord, Button& b) {
@@ -280,7 +280,7 @@ public:
 					b, -ctx().renderer.GetLogicalSize() * 0.5f + coord * (size + offset) + offset
 				);
 				SetDrawOrigin(b, Origin::TopLeft);
-				b.SetShape(size);
+				b.SetShape(Rect{ size });
 			}
 		});
 	}
@@ -293,8 +293,10 @@ public:
 		b3.SetTextContent(
 			std::string("Music Is Paused: ") + (ctx().audio.IsPaused("music1") ? "true" : "false")
 		);
-		b4.SetTextContent(std::string("Music Is Fading: "
-		) /* TODO: Fix: + (ctx().audio.IsFading() ? "true" : "false")*/
+		b4.SetTextContent(
+			std::string(
+				"Music Is Fading: "
+			) /* TODO: Fix: + (ctx().audio.IsFading() ? "true" : "false")*/
 		);
 		b5.SetTextContent(
 			std::string("Channel 1 Volume: ") + std::to_string(ctx().audio.GetVolume("sound1"))
@@ -316,16 +318,21 @@ public:
 		b10.SetTextContent(
 			std::string("Channel 2 Paused: ") + (ctx().audio.IsPaused("sound2") ? "true" : "false")
 		);
-		b11.SetTextContent(std::string("Channel 1 Fading: "
-		) /* TODO: Fix: + (ctx().audio.IsFading("sound1") ? "true" : "false")*/
+		b11.SetTextContent(
+			std::string(
+				"Channel 1 Fading: "
+			) /* TODO: Fix: + (ctx().audio.IsFading("sound1") ? "true" : "false")*/
 		);
-		b12.SetTextContent(std::string("Channel 2 Fading: "
-		) /* TODO: Fix: + (ctx().audio.IsFading("sound2") ? "true" : "false")*/
+		b12.SetTextContent(
+			std::string(
+				"Channel 2 Fading: "
+			) /* TODO: Fix: + (ctx().audio.IsFading("sound2") ? "true" : "false")*/
 		);
 	}
 };
 
 int main(int, char**) {
-	Application game{ "AudioScene" };
-	game.StartWith<AudioScene>();
+	Application app{ "AudioScene" };
+	PTGN_WITH_EDITOR(app, false);
+	app.StartWith<AudioScene>();
 }

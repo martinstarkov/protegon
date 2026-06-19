@@ -13,17 +13,17 @@ class EffectEntityScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
-		CreateSprite(*this, "sprite", { 180.0f, 0.0f });
+		CreateSprite(*this, { -180, 0 }, "sprite");
+		CreateSprite(*this, { 180, 0 }, "sprite");
 
 		CreateEffect<Grayscale>(*this);
 
-		CreateSprite(*this, "sprite", { 0.0f, -250.0f });
+		CreateSprite(*this, { 0, -250 }, "sprite");
 	}
 };
 
 int main(int, char**) {
 	Application app{ "EffectEntityScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<EffectEntityScene>();
 }

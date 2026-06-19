@@ -16,17 +16,17 @@ class GaussianBlurEffectScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
+		CreateSprite(*this, { -180, 0 }, "sprite");
 
 		CreateEffect<GaussianBlur>(*this);
 
-		auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
+		auto sprite2{ CreateSprite(*this, { 180, 0 }, "sprite") };
 
 		AddEffect<GaussianBlur>(sprite2);
 
-		CreateSprite(*this, "sprite", { 0.0f, -250.0f });
+		CreateSprite(*this, { 0, -250 }, "sprite");
 
-		auto sprite4{ CreateSprite(*this, "sprite", { 0.0f, 250.0f }) };
+		auto sprite4{ CreateSprite(*this, { 0, 250 }, "sprite") };
 
 		AddEffect<GaussianBlur>(sprite4).Add<EffectMargin>(5);
 	}
@@ -34,6 +34,6 @@ class GaussianBlurEffectScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "GaussianBlurEffectScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<GaussianBlurEffectScene>();
 }

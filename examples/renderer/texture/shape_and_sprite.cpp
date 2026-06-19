@@ -20,8 +20,6 @@
 
 using namespace ptgn;
 
-constexpr V2_int logical_size{ 320, 180 };
-
 struct ShapeAndSpriteScene : public Scene {
 	static constexpr Degrees arc_start_angle{ 113.0f };
 	static constexpr Degrees arc_end_angle{ -156.0f };
@@ -36,7 +34,7 @@ struct ShapeAndSpriteScene : public Scene {
 		auto arc{ CreateArc(
 			*this, { 3, 3 }, arc_radius, arc_start_angle, arc_end_angle, false, color::Red
 		) };
-		auto combo{ CreateSprite(*this, "combo_meter", { 6, 6 }) };
+		auto combo{ CreateSprite(*this, { 6, 6 }, "combo_meter") };
 
 		// TODO: Fix text.
 		// auto text {CreateText(
@@ -58,14 +56,15 @@ struct ShapeAndSpriteScene : public Scene {
 			.OnProgress([this](auto p) {
 				auto& arc_shape{ p.parent.template Get<Arc>() };
 
-				arc_shape.SetStartAngle(Lerp(arc_start_angle, arc_end_angle + 360.0f, p.progress));
+				arc_shape.start_angle =
+					Lerp(arc_start_angle, arc_end_angle + 360.0f, p.progress).ToRad();
 			})
 			.Start();
 	}
 };
 
 int main(int, char**) {
-	Application app{ "ShapeAndSpriteScene", logical_size * 2.0f };
-	PTGN_WITH_EDITOR(app);
+	Application app{ "ShapeAndSpriteScene", { 640, 360 } };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ShapeAndSpriteScene>();
 }

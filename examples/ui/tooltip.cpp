@@ -4,9 +4,9 @@
 #include <chrono>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
-#include "core/math/vector2.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/shape.h"
@@ -33,19 +33,18 @@ public:
 			  .text_color		= color::White,
 			  .texture			= "bg",
 			  .fade_in_duration = 1000ms },
-			V2_float{ 0, -80 }
+			{ 0, -80 }
 		);
 
-		auto sprite2 = CreateSprite(*this, "smile", { -130.0f, -50.0f });
+		auto sprite2 = CreateSprite(*this, { -130, -50 }, "smile");
 		SetScale(sprite2, 0.5f);
 
-		AddTooltipOnHover(
-			sprite2, "tooltip2", { "Smile!", color::Yellow, "bg" }, V2_float{ 0, -75.0f - 25.0f }
-		);
+		AddTooltipOnHover(sprite2, "tooltip2", { "Smile!", color::Yellow, "bg" }, { 0, -100 });
 	}
 };
 
 int main(int, char**) {
 	Application app{ "TooltipScene" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<TooltipScene>();
 }

@@ -8,8 +8,8 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/window.h"
+#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
@@ -23,30 +23,29 @@ constexpr V2_int logical_size{ 320, 240 }; // 4, 3
 
 class ScalingModeScene : public Scene {
 	void OnEnter() override {
-		using enum Origin;
 		SetBackgroundColor(color::LightBlue);
 
 		ctx().window.SetSize(window_size);
 		ctx().asset.Load("background", "assets/outlined.jpg");
 		ctx().renderer.SetLogicalSize(logical_size, ScalingMode::Disabled);
 
-		auto s1 = CreateSprite(*this, "background", {}, Center);
+		auto s1 = CreateSprite(*this, {}, "background", Origin::Center);
 		SetDisplaySize(s1, logical_size);
 		CreateRect(
-			*this, V2_float{ -logical_size.x * 0.5f, -logical_size.y * 0.5f },
-			V2_float{ logical_size.x, 30 }, color::Red, Solid{}, TopLeft
+			*this, { -logical_size.x * 0.5f, -logical_size.y * 0.5f }, { logical_size.x, 30 },
+			color::Red, Solid{}, Origin::TopLeft
 		);
 		CreateRect(
-			*this, V2_float{ logical_size.x * 0.5f - 30, -logical_size.y * 0.5f },
-			V2_float{ 30, logical_size.y }, color::Green, Solid{}, TopLeft
+			*this, { logical_size.x * 0.5f - 30, -logical_size.y * 0.5f }, { 30, logical_size.y },
+			color::Green, Solid{}, Origin::TopLeft
 		);
 		CreateRect(
-			*this, V2_float{ -logical_size.x * 0.5f, logical_size.y * 0.5f - 30 },
-			V2_float{ logical_size.x, 30 }, color::Blue, Solid{}, TopLeft
+			*this, { -logical_size.x * 0.5f, logical_size.y * 0.5f - 30 }, { logical_size.x, 30 },
+			color::Blue, Solid{}, Origin::TopLeft
 		);
 		CreateRect(
-			*this, V2_float{ -logical_size.x * 0.5f, -logical_size.y * 0.5f },
-			V2_float{ 30, logical_size.y }, color::Teal, Solid{}, TopLeft
+			*this, { -logical_size.x * 0.5f, -logical_size.y * 0.5f }, { 30, logical_size.y },
+			color::Teal, Solid{}, Origin::TopLeft
 		);
 	}
 
@@ -71,6 +70,6 @@ class ScalingModeScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "ScalingModeScene: QWERT: Switch Resolution Modes", logical_size };
-	PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ScalingModeScene>();
 }

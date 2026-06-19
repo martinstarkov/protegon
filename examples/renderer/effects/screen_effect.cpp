@@ -1,4 +1,5 @@
 #include "app/application.h"
+#include "core/editor.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/fx/grayscale.h"
@@ -13,7 +14,7 @@ class ScreenEffectSecondScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		CreateSprite(*this, "sprite", { 180.0f, 0.0f });
+		CreateSprite(*this, { 180, 0 }, "sprite");
 	}
 };
 
@@ -21,7 +22,7 @@ class ScreenEffectFirstScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
+		CreateSprite(*this, { -180, 0 }, "sprite");
 
 		AddScreenEffect<Grayscale>(*this);
 
@@ -31,6 +32,6 @@ class ScreenEffectFirstScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "ScreenEffectScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ScreenEffectFirstScene>();
 }

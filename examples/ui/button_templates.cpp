@@ -1,5 +1,4 @@
 #include <chrono>
-#include <functional>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -20,11 +19,11 @@
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/text/text_style.h"
 #include "runtime/graphics/tint.h"
-#include "runtime/graphics/visible.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/button_config.h"
 
 using namespace ptgn;
 
@@ -366,28 +365,28 @@ public:
 		);
 
 		auto bell_hover_animation{ CreateAnimation(
-			*this, "bell_hover", {},
+			*this, {}, "bell_hover",
 			AnimationConfig{
 				.frame_count		= 3,
 				.animation_duration = 400ms,
-				.frame_size			= V2_int{ 253, 167 },
+				.frame_size			= { 253, 167 },
 				.play_count			= std::nullopt,
 			}
 		) };
 
 		auto bell_press_animation{ CreateAnimation(
-			*this, "bell_press", {},
+			*this, {}, "bell_press",
 			AnimationConfig{
 				.frame_count		= 3,
 				.animation_duration = 200ms,
-				.frame_size			= V2_int{ 253, 167 },
+				.frame_size			= { 253, 167 },
 				.play_count			= 1,
 			}
 		) };
 
 		V2_float bell_size{ GetDisplaySize(bell_press_animation).value() };
 
-		Button bell{ CreateButton(*this, { 250.0f, 0.0f }, Rect{ bell_size }, Origin::Center) };
+		Button bell{ CreateButton(*this, { 250, 0 }, Rect{ bell_size }, Origin::Center) };
 
 		bell.Icon(ButtonVisualState::Idle).SetTexture("bell_idle");
 

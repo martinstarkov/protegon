@@ -12,7 +12,7 @@ class SpriteRotatedScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		auto sprite{ CreateSprite(*this, "sprite") };
+		auto sprite{ CreateSprite(*this, {}, "sprite") };
 
 		SetRotation(sprite, 45.0f);
 	}
@@ -20,6 +20,6 @@ class SpriteRotatedScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "SpriteRotatedScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<SpriteRotatedScene>();
 }

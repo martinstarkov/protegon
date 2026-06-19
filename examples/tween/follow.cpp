@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/input/mouse.h"
 #include "core/math/vector2.h"
@@ -9,7 +10,6 @@
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/scene/scene.h"
@@ -36,7 +36,7 @@ struct FollowEffectScene : public Scene {
 	std::vector<V2_float> waypoints;
 
 	Sprite CreateFollower(const Color& color, const V2_float& start_position) {
-		auto follower{ CreateSprite(*this, "smile", start_position) };
+		auto follower{ CreateSprite(*this, start_position, "smile") };
 		SetTint(follower, color);
 		return follower;
 	}
@@ -119,5 +119,6 @@ struct FollowEffectScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "FollowEffectScene: Left/Right: Stop/Start Follow" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<FollowEffectScene>();
 }

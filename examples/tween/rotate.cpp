@@ -1,4 +1,5 @@
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/input/mouse.h"
 #include "core/math/easing.h"
 #include "core/util/time.h"
@@ -22,9 +23,9 @@ struct RotateEffectScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("smile", "assets/smile.png");
 
-		sprite1 = CreateSprite(*this, "smile", { -300, -300 });
-		sprite2 = CreateSprite(*this, "smile", { -300, 200 });
-		sprite3 = CreateSprite(*this, "smile", { 200, -300 });
+		sprite1 = CreateSprite(*this, { -300, -300 }, "smile");
+		sprite2 = CreateSprite(*this, { -300, 200 }, "smile");
+		sprite3 = CreateSprite(*this, { 200, -300 }, "smile");
 
 		RotateTo(sprite1, 180.0f, rotation_duration1, Ease::Linear);
 		RotateTo(sprite1, 0.0f, rotation_duration2, Ease::Linear, false);
@@ -46,5 +47,6 @@ struct RotateEffectScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "RotateEffectScene: left/right click to rotate" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<RotateEffectScene>();
 }

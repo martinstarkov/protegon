@@ -4,6 +4,7 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/editor.h"
 #include "core/event/event.h"
 #include "core/event/key_event.h"
 #include "core/event/mouse_event.h"
@@ -164,17 +165,17 @@ public:
 
 		// ctx().audio.Play("test");
 
-		auto sprite = CreateSprite(*this, t, {});
+		auto sprite = CreateSprite(*this, {}, "test");
 
 		PTGN_ASSERT(sprite.Has<Texture>());
 		PTGN_ASSERT((sprite.Get<Texture>().GetSize() == V2_int{ 300, 300 }));
 
-		auto sprite2 = CreateSprite(*this, "test", { 200, 0 });
+		auto sprite2 = CreateSprite(*this, { 200, 0 }, "test");
 
 		PTGN_ASSERT(sprite2.Has<Texture>());
 		PTGN_ASSERT((sprite2.Get<Texture>().GetSize() == V2_int{ 300, 300 }));
 
-		auto arial = ctx().asset.LoadFont("arial", "assets/Arial.ttf", 72.0f);
+		auto arial = ctx().asset.LoadFont("arial", "assets/Arial.ttf");
 
 		auto text = CreateText(*this, {}, "Hello World", color::Orange, 72.0f, arial);
 
@@ -210,5 +211,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "AssetScene" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<AssetScene>();
 }

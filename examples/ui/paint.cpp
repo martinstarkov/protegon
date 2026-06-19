@@ -1,6 +1,7 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/input/key.h"
@@ -82,15 +83,15 @@ public:
 				}
 			}
 
-			ctx().renderer.DrawShape(
+			ctx().render_queue.DrawShape(
 				Transform{ -res * 0.5f + V2_int{ p.x * tile_size.x, p.y * tile_size.y } },
-				Rect{ tile_size }, c, Solid{}, Origin::TopLeft, Depth{}, BlendMode::Blend
+				Rect{ tile_size }, c, { .fill_style = Solid{}, .origin = Origin::TopLeft }
 			);
 		});
 		if (grid.Has(mouse_tile)) {
-			ctx().renderer.DrawShape(
+			ctx().render_queue.DrawShape(
 				Transform{ -res * 0.5f + mouse_tile * tile_size }, Rect{ tile_size }, color::Yellow,
-				1.0f, Origin::TopLeft, Depth{}, BlendMode::Blend
+				{ .fill_style = 1.0f, .origin = Origin::TopLeft }
 			);
 		}
 		text.SetContent(ToString(mouse_tile));
@@ -101,5 +102,6 @@ public:
 int main(int, char**) {
 	Application app{ "paint: left click to draw; right click to erase; B to flip color",
 					 { 720, 720 } };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<Paint>();
 }

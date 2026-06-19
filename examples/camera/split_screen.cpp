@@ -8,15 +8,16 @@
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/log.h"
+#include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "platform/window.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/graphics/fx/light.h"
-#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/interaction/draggable.h"
@@ -31,12 +32,6 @@
 #include "runtime/scripting/script.h"
 
 using namespace ptgn;
-
-constexpr V2_int window_size{ 1280, 720 };
-constexpr V2_int logical_size{ 320, 180 };
-constexpr Viewport camera0_viewport{ {}, { logical_size.x / 2.0f, logical_size.y } };
-constexpr Viewport camera_viewport{ { logical_size.x / 2.0f, 0.0f },
-									{ logical_size.x / 2.0f, logical_size.y } };
 
 struct RectDragScript : public Script {
 	void OnEvent(Event d) override {
@@ -59,26 +54,29 @@ struct CircleDragScript : public Script {
 	}
 };
 
-struct ResolutionScene : public Scene {
-	SceneCamera camera0;
+struct SplitScreenScene : public Scene {
+	SceneCamera second_camera;
 
 	void OnEnter() override {
-		ctx().renderer.SetLogicalSize(logical_size);
+		ctx().renderer.SetLogicalSize(V2_int{ 320, 180 });
 		ctx().window.SetBackgroundColor(color::LightPurple);
 		ctx().renderer.SetBackgroundColor(color::LightBlue);
 		ctx().renderer.SetScalingMode(ScalingMode::Letterbox);
 
 		SetBackgroundColor(color::LightGray.WithAlpha(0.8f));
 
-		camera0 = CreateCamera(*this);
+		second_camera = CreateCamera(*this);
 
-		camera0.SetTag("Secondary Camera");
+		ctx().camera.SetTag("Left Camera");
+		second_camera.SetTag("Right Camera");
 
-		camera0.SetClearColor(color::LightPink.WithAlpha(0.5f));
+		ctx().camera.SetViewport(Viewport{ {}, { 0.5f, 1.0f } }, ViewportSpace::Normalized);
+		second_camera.SetViewport(
+			Viewport{ { 0.5f, 0.0f }, { 0.5f, 1.0f } }, ViewportSpace::Normalized
+		);
+
 		ctx().camera.SetClearColor(color::LightGold.WithAlpha(0.5f));
-
-		camera0.SetViewport(camera0_viewport);
-		ctx().camera.SetViewport(camera_viewport);
+		second_camera.SetClearColor(color::LightPink.WithAlpha(0.5f));
 
 		ctx().interaction.SetDebugSettings({ .draw_enabled = true, .draw_line_width = 10.0f });
 
@@ -93,7 +91,7 @@ struct ResolutionScene : public Scene {
 		float intensity{ 1.0f };
 		float falloff{ 2.0f };
 		auto light = CreateLight(
-			*this, V2_float{ 100, 0 },
+			*this, { 100, 0 },
 			{ .radius = 50.0f, .color = color::Red, .intensity = intensity, .falloff = falloff }
 		);
 		float radius{ 50.0f };
@@ -144,9 +142,9 @@ struct ResolutionScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "ResolutionScene: WASD/QE/ZC: Move/Rotate/Scale scene camera, Arrows/RT/FG: "
+	Application app{ "SplitScreenScene: WASD/QE/ZC: Move/Rotate/Scale scene camera, Arrows/RT/FG: "
 					 "Move/Rotate/Scale scene target",
-					 window_size };
+					 { 1280, 720 } };
 	PTGN_WITH_EDITOR(app, false);
-	app.StartWith<ResolutionScene>();
+	app.StartWith<SplitScreenScene>();
 }

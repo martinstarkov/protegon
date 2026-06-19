@@ -2,6 +2,7 @@
 #include "core/editor.h"
 
 #include <chrono>
+#include <string>
 
 #include "app/application.h"
 #include "core/event/event.h"
@@ -10,6 +11,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "platform/window.h"
+#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/fx/particle.h"
@@ -46,7 +48,7 @@ public:
 			.SetTag("Text");
 
 		/*
-		CreateSprite(*this, "tree", {}).SetTag("Tree");
+		CreateSprite(*this, {}, "tree").SetTag("Tree");
 
 		CreateParticleEmitter(
 			*this, { 0.0f, static_cast<float>(-ctx().renderer.GetLogicalSize().y) / 2.0f },

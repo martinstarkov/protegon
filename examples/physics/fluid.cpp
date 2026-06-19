@@ -4,6 +4,7 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/input/key.h"
@@ -14,7 +15,6 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/blend_mode.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -252,8 +252,8 @@ public:
 				auto xs{ static_cast<float>(i) - dt0x * u[index] };
 				auto ys{ static_cast<float>(j) - dt0y * v[index] };
 
-				xs = std::clamp(xs, 0.5f, static_cast<float>(size.x) - 1.0f, 0.5f);
-				ys = std::clamp(ys, 0.5f, static_cast<float>(size.y) - 1.0f, 0.5f);
+				xs = std::clamp(xs, 0.5f, static_cast<float>(size.x) - 1.0f);
+				ys = std::clamp(ys, 0.5f, static_cast<float>(size.y) - 1.0f);
 
 				auto i0{ static_cast<int>(xs) };
 				auto i1{ i0 + 1 };
@@ -391,9 +391,11 @@ public:
 					}
 				}
 
-				ctx().renderer.DrawShape(
+				ctx().render_queue.DrawShape(
 					Transform{ -logical_size * 0.5f + position * scale }, Rect{ scale }, color,
-					Solid{}, Origin::TopLeft, Depth{}, BlendMode::Blend
+					{ .fill_style = Solid{},
+					  .origin	  = Origin::TopLeft,
+					  .blend_mode = BlendMode::Blend }
 				);
 			}
 		}
@@ -405,5 +407,6 @@ int main(int, char**) {
 					 "(reset gravity), Space (reset fluid), "
 					 "D (toggle view)",
 					 logical_size };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<FluidScene>();
 }

@@ -101,7 +101,7 @@ class PathfindingScene : public Scene {
 											   // the global path or at the end
 			local_waypoints = grid.FindWaypoints(pos, end);
 
-			idx.emplace(AStarGrid::FindWaypointIndex(local_waypoints, pos));
+			idx			= AStarGrid::FindWaypointIndex(local_waypoints, pos);
 			path_exists = idx.has_value();
 		}
 

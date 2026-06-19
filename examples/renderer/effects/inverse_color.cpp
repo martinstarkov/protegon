@@ -1,6 +1,7 @@
 #include "runtime/graphics/fx/inverse_color.h"
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/fx/effects.h"
 #include "runtime/graphics/sprite.h"
@@ -13,8 +14,8 @@ class InverseColorEffectScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		CreateSprite(*this, "sprite", { -180.0f, 0.0f });
-		auto sprite2{ CreateSprite(*this, "sprite", { 180.0f, 0.0f }) };
+		CreateSprite(*this, { -180, 0 }, "sprite");
+		auto sprite2{ CreateSprite(*this, { 180, 0 }, "sprite") };
 
 		AddEffect<InverseColor>(sprite2);
 	}
@@ -22,6 +23,6 @@ class InverseColorEffectScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "InverseColorEffectScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<InverseColorEffectScene>();
 }

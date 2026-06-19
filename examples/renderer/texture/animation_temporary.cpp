@@ -6,7 +6,6 @@
 #include "core/input/key.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/vector2.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -28,9 +27,8 @@ class AnimationTemporaryScene : public Scene {
 		ctx().asset.Load("anim", "assets/animation_bubble.png");
 		ctx().collision.SetDebugSettings({ .draw_enabled = true });
 
-		player = CreateRect(
-			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::Orange, Solid{}, Origin::Center
-		);
+		player =
+			CreateRect(*this, { 100, 100 }, { 20, 40 }, color::Orange, Solid{}, Origin::Center);
 		player.Add<RigidBody>();
 		player.Add<TopDownMovement>();
 	}
@@ -38,7 +36,7 @@ class AnimationTemporaryScene : public Scene {
 	void OnUpdate() override {
 		if (ctx().input.KeyPressed(Key::Space) && !HasChild(player, "love_bubble")) {
 			auto anim = PlayTemporaryAnimation(
-				*this, "anim", { 0, -50 },
+				*this, { 0, -50 }, "anim",
 				{ .frame_count = 4, .animation_duration = 1s, .play_count = 2 }, 2s
 			);
 			SetScale(anim, 3);

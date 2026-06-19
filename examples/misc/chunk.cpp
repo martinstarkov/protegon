@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/input/key.h"
@@ -12,11 +13,11 @@
 #include "core/math/noise.h"
 #include "core/math/vector2.h"
 #include "renderer/pipeline/camera.h"
+#include "renderer/renderer.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
-#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/physics/movement.h"
@@ -30,13 +31,13 @@ using namespace ptgn;
 class ChunkScene : public Scene {
 public:
 	Entity CreatePlayer(V2_float position) {
-		auto e = CreateSprite(*this, "white_smile", position);
+		auto e = CreateSprite(*this, position, "white_smile");
 		SetDepth(e, 1);
 		return e;
 	}
 
 	Entity CreateTile(V2_float position, std::string_view texture_key) {
-		auto e = CreateSprite(*this, texture_key, position, Origin::TopLeft);
+		auto e = CreateSprite(*this, position, texture_key, Origin::TopLeft);
 		return e;
 	}
 
@@ -66,12 +67,14 @@ public:
 		ctx().asset.LoadTexture("blue", "assets/blue_tile.png");
 		ctx().asset.LoadTexture("green", "assets/green_tile.png");
 
-		chunk_manager.AddNoiseLayer(NoiseLayer{
-			fractal_noise, [&](V2_float coordinate, float noise) {
-				return CreateColorTile(
-					-ctx().renderer.GetLogicalSize() * 0.5f + coordinate, color::White.WithAlpha(noise)
-				);
-			} });
+		chunk_manager.AddNoiseLayer(
+			NoiseLayer{ fractal_noise, [this](V2_float coordinate, float noise) {
+						   return CreateColorTile(
+							   -ctx().renderer.GetLogicalSize() * 0.5f + coordinate,
+							   color::White.WithAlpha(noise)
+						   );
+					   } }
+		);
 
 		player = CreatePlayer(V2_float{ 0, 0 });
 		StartFollow(ctx().camera, player);
@@ -97,5 +100,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "ChunkScene", { 1280, 720 } };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ChunkScene>();
 }

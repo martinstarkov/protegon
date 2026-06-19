@@ -4,6 +4,7 @@
 #include <optional>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/angle.h"
@@ -32,7 +33,7 @@ public:
 
 		ctx().asset.Load("tree", "assets/jpg.jpg");
 
-		auto sprite = CreateSprite(*this, "tree", { -200, -200 });
+		auto sprite = CreateSprite(*this, { -200, -200 }, "tree");
 		SetDrawOrigin(sprite, Origin::TopLeft);
 
 		CreateRect(*this, { 0, 0 }, { 100, 100 }, color::Blue, Solid{}, Origin::TopLeft);
@@ -74,7 +75,7 @@ public:
 			  .falloff	  = 0.2f }
 		);
 
-		auto sprite2 = CreateSprite(*this, "tree", { -200, 150 });
+		auto sprite2 = CreateSprite(*this, { -200, 150 }, "tree");
 		SetDrawOrigin(sprite2, Origin::TopLeft);
 
 		CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, Solid{}, Origin::TopLeft);
@@ -99,5 +100,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "LightScene: Scroll to resize cone angle" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<LightScene>();
 }

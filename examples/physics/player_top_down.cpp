@@ -64,14 +64,12 @@ class TopDownMovementScene : public Scene {
 	}
 
 	Entity CreatePlayer() {
-		Entity entity = CreateRect(
-			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen, Solid{},
-			Origin::Center
-		);
+		Entity entity =
+			CreateRect(*this, { 100, 100 }, { 20, 40 }, color::DarkGreen, Solid{}, Origin::Center);
 		AddScript<TopDownScript1>(entity);
 		auto& rb = entity.Add<RigidBody>();
 		auto& m	 = entity.Add<TopDownMovement>();
-		auto& b	 = entity.Add<Collider>(Rect{ V2_float{ 20, 40 } });
+		auto& b	 = entity.Add<Collider>(Rect{ 20, 40 });
 		b.SetCollisionMode(CollisionMode::Continuous);
 		return entity;
 	}

@@ -1,16 +1,10 @@
-#include <cstdint>
-#include <string>
 
 #include "app/application.h"
-#include "core/graphics/color.h"
-#include "core/math/geometry/origin.h"
+#include "core/editor.h"
 #include "core/math/transform.h"
-#include "core/math/vector2.h"
+#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_queue.h"
-#include "runtime/graphics/sprite.h"
-#include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 
@@ -22,15 +16,16 @@ class FontCacheScene : public Scene {
 	}
 
 	void OnUpdate() override {
-		auto font{ ctx().asset.Get<Font>("fontA") };
-		auto size{ font.GetAtlasSize() };
-		ctx().renderer.DrawTexture(
-			font.GetAtlasTexture(), size, ctx().renderer.GetShader("texture"), {}
+		auto size{ ctx().asset.GetFontAtlasSize("fontA") };
+		auto texture{ ctx().asset.GetFontAtlasTexture("fontA") };
+		ctx().render_queue.DrawTexture(
+			Transform{}, texture, size, ctx().renderer.GetShader("texture")
 		);
 	}
 };
 
 int main(int, char**) {
-	Application app{ "FontCache" };
+	Application app{ "FontCacheScene" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<FontCacheScene>();
 }

@@ -2,16 +2,16 @@
 #include <string>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
-#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
+#include "renderer/renderer.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
@@ -29,9 +29,7 @@ public:
 	void OnEnter() override {
 		game.texture.Load("ui_texture2", "assets/ui2.jpg");
 
-		auto ui = CreateSprite(*this, "ui_texture2");
-		ui.SetPosition({});
-		ui.SetOrigin(Origin::TopLeft);
+		auto ui = CreateSprite(*this, {}, "ui_texture2", Origin::TopLeft);
 
 		auto camera_center = manager.CreateEntity();
 		camera_center.Add<Circle>(3.0f);
@@ -75,8 +73,7 @@ public:
 		camera.SetPosition(ctx().window.GetCenter());
 		// camera.SetBounds({}, window_size);
 
-		auto texture = CreateSprite(*this, "texture");
-		texture.SetPosition(ctx().window.GetCenter());
+		auto texture = CreateSprite(*this, ctx().window.GetCenter(), "texture");
 		texture.Add<Interactive>();
 		texture.Add<callback::KeyPressed>([](auto key) {
 			if (key == Key::W) {
@@ -110,9 +107,7 @@ public:
 
 		game.texture.Load("ui_texture", "assets/ui.jpg");
 
-		ui = CreateSprite(*this, "ui_texture");
-		ui.SetPosition(V2_float{ window_size.x, 0 });
-		ui.SetOrigin(Origin::TopRight);
+		ui = CreateSprite(*this, V2_float{ window_size.x, 0 }, "ui_texture", Origin::TopRight);
 		ui.Hide();
 
 		rt = manager.CreateEntity();
@@ -275,9 +270,9 @@ public:
 		// auto blur{ CreateBlur(*this) };
 		// auto grayscale{ CreateGrayscale(*this) };
 		auto logical_size{ ctx().renderer.GetLogicalSize() };
-		auto s1{ CreateSprite(*this, "tree", -logical_size * 0.5f + V2_float{ 100, 400 }) };
+		auto s1{ CreateSprite(*this, -logical_size * 0.5f + V2_float{ 100, 400 }, "tree") };
 		// AddPreFX(s1, blur);
-		auto s2{ CreateSprite(*this, "tree", -logical_size * 0.5f + V2_float{ 700, 400 }) };
+		auto s2{ CreateSprite(*this, -logical_size * 0.5f + V2_float{ 700, 400 }, "tree") };
 		// AddPostFX(s2, grayscale);
 
 		follow_config.move_mode = MoveMode::Lerp;
@@ -352,6 +347,7 @@ public:
 };
 
 int main(int, char**) {
-	Application game{ "Camera: WASD move, Q/E zoom" };
-	game.StartWith<CameraScene>();
+	Application app{ "Camera: WASD move, Q/E zoom" };
+	PTGN_WITH_EDITOR(app, false);
+	app.StartWith<CameraScene>();
 }

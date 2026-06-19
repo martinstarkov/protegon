@@ -15,6 +15,7 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
+#include "runtime/ui/button_config.h"
 
 using namespace ptgn;
 
@@ -38,26 +39,26 @@ public:
 		ctx().asset.LoadAudio("press2", "assets/press.ogg");
 
 		auto hover_animation{ CreateAnimation(
-			*this, "animation_hover", {},
+			*this, {}, "animation_hover",
 			AnimationConfig{
 				.frame_count		= 3,
 				.animation_duration = 400ms,
-				.frame_size			= V2_int{ 253, 167 },
+				.frame_size			= { 253, 167 },
 				.play_count			= std::nullopt,
 			}
 		) };
 
 		auto press_animation{ CreateAnimation(
-			*this, "animation_press", {},
+			*this, {}, "animation_press",
 			AnimationConfig{
 				.frame_count		= 3,
 				.animation_duration = 200ms,
-				.frame_size			= V2_int{ 253, 167 },
+				.frame_size			= { 253, 167 },
 				.play_count			= 1,
 			}
 		) };
 
-		auto b1_size{ V2_float{ *GetDisplaySize(press_animation) } };
+		V2_float b1_size{ GetDisplaySize(press_animation).value() };
 
 		b1 = CreateButton(*this, {}, Rect{ b1_size }, Origin::Center);
 
@@ -73,28 +74,28 @@ public:
 		b1.OnPress([]() { PTGN_LOG("Pressed bell!"); });
 
 		auto hover_animation2{ CreateAnimation(
-			*this, "animation_hover2", {},
+			*this, {}, "animation_hover2",
 			AnimationConfig{
 				.frame_count		= 4,
 				.animation_duration = 400ms,
-				.frame_size			= V2_int{ 32, 16 },
+				.frame_size			= { 32, 16 },
 				.play_count			= std::nullopt,
 			}
 		) };
 
 		auto press_animation2{ CreateAnimation(
-			*this, "animation_press2", {},
+			*this, {}, "animation_press2",
 			AnimationConfig{
 				.frame_count		= 4,
 				.animation_duration = 200ms,
-				.frame_size			= V2_int{ 32, 16 },
+				.frame_size			= { 32, 16 },
 				.play_count			= 1,
 			}
 		) };
 
-		auto b2_size{ V2_float{ *GetDisplaySize(press_animation2) } };
+		V2_float b2_size{ GetDisplaySize(press_animation2).value() };
 
-		b2 = CreateButton(*this, { 0.0f, 200.0f }, Rect{ b2_size }, Origin::Center);
+		b2 = CreateButton(*this, { 0, 200 }, Rect{ b2_size }, Origin::Center);
 
 		b2.Icon(ButtonVisualState::Idle).SetTexture("idle2");
 

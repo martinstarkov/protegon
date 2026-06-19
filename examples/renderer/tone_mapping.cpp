@@ -6,12 +6,14 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "platform/window.h"
+#include "renderer/render_settings.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/fx/bloom.h"
@@ -27,7 +29,7 @@ using namespace ptgn;
 namespace {
 
 void IncrementToneMappingOperator(ToneMappingOperator& op, int increment) {
-	constexpr auto values{ magic_enum::enum_values<ToneMappingOperator>() };
+	constexpr auto& values{ magic_enum::enum_values<ToneMappingOperator>() };
 	auto it{ std::ranges::find(values, op) };
 	PTGN_ASSERT(it != values.end(), "Unknown ToneMappingOperator");
 	int index{ static_cast<int>(std::ranges::distance(values.begin(), it)) };
@@ -49,8 +51,8 @@ class ToneMappingScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		CreateSprite(*this, "sprite", { 0.0f, 0.0f });
-		CreateRect(*this, { 0.0f, -200.0f }, { 100.0f, 100.0f }, color::Blue);
+		CreateSprite(*this, {}, "sprite");
+		CreateRect(*this, { 0, -200 }, { 100, 100 }, color::Blue);
 
 		ApplyToneMappingSettings();
 		EnableBloom();
@@ -124,6 +126,6 @@ class ToneMappingScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "ToneMappingScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ToneMappingScene>();
 }

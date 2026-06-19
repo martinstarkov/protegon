@@ -4,12 +4,12 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/editor.h"
 #include "core/input/key.h"
 #include "core/log.h"
-#include "core/math/vector2.h"
+#include "core/math/geometry/origin.h"
 #include "core/util/file.h"
 #include "nlohmann/json.hpp"
-#include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -18,7 +18,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "serialization/json/json.h"
-
+#include "tools/debug/debug_system.h"
 using namespace ptgn;
 
 struct DialogueScene : public Scene {
@@ -36,14 +36,14 @@ struct DialogueScene : public Scene {
 
 	DialogueBox CreateNpcDialogue() {
 		auto dialogue_box{ CreateDialogueBox(
-			*this, DialogueDesc{
-					   .position		   = { 0.0f, 220.0f },
-					   .origin			   = Origin::Center,
-					   .data			   = LoadDialogueJson(),
-					   .box_size		   = { 600.0f, 160.0f },
-					   .background_texture = "dialogue_box",
-					   .ui_layer		   = true,
-				   }
+			*this, { 0, 220 },
+			DialogueDesc{
+				.origin				= Origin::Center,
+				.data				= LoadDialogueJson(),
+				.box_size			= { 600.0f, 160.0f },
+				.background_texture = "dialogue_box",
+				.ui_layer			= true,
+			}
 		) };
 
 		SetParent(dialogue_box, npc);
@@ -94,8 +94,6 @@ struct DialogueScene : public Scene {
 			if (ctx().input.KeyPressed(Key::E)) {
 				dialogue.SetDialogue("epilogue");
 			}
-
-			dialogue.DrawInfo(*this, -ctx().renderer.GetLogicalSize() * 0.5f);
 		}
 
 		if (ctx().input.KeyPressed(Key::A)) {
@@ -120,5 +118,6 @@ struct DialogueScene : public Scene {
 int main(int, char**) {
 	Application app{ "DialogueScene: Space: Show, Enter: Continue, N: Next, "
 					 "A/D: Add/Delete, I: Intro, O: Outro, E: Epilogue" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<DialogueScene>();
 }

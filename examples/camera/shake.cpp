@@ -6,6 +6,7 @@
 #include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/renderer.h"
 #include "runtime/animation/tween_effect.h"
@@ -58,13 +59,19 @@ public:
 
 		StartFollow(ctx().camera, player);
 
-		grid.Set({ 0, 0 }, CreateButton("Stop Shake", [&]() { StopShake(ctx().camera); }));
-		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [&]() { Shake(ctx().camera, 0.1f); }));
-		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [&]() {
+		grid.Set({ 0, 0 }, CreateButton("Stop Shake", [this]() { StopShake(ctx().camera); }));
+		grid.Set({ 0, 1 }, CreateButton("Induce 0.10 Shake", [this]() {
+					 Shake(ctx().camera, 0.1f);
+				 }));
+		grid.Set({ 0, 2 }, CreateButton("Induce 0.25 Shake", [this]() {
 					 Shake(ctx().camera, 0.25f);
 				 }));
-		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [&]() { Shake(ctx().camera, 0.5f); }));
-		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [&]() { Shake(ctx().camera, 1.0f); }));
+		grid.Set({ 0, 3 }, CreateButton("Induce 0.75 Shake", [this]() {
+					 Shake(ctx().camera, 0.5f);
+				 }));
+		grid.Set({ 0, 4 }, CreateButton("Induce 1.00 Shake", [this]() {
+					 Shake(ctx().camera, 1.0f);
+				 }));
 
 		V2_float screen_offset{ 30, 30 };
 		V2_float offset{ 6, 6 };
@@ -94,6 +101,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "CameraShakeScene: WASD: Move" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<CameraShakeScene>();
 }

@@ -4,6 +4,7 @@
 #include <filesystem>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
@@ -114,9 +115,11 @@ public:
 
 		CreateButton(*this, V2_float{ 0, 110 }, button_size, button_origin)
 			.OnPress([](auto e) {
-				const auto result = e.button.GetScene().ctx().window.file.OpenFolder({
-					.default_path = "assets",
-				});
+				const auto result = e.button.GetScene().ctx().window.file.OpenFolder(
+					{
+						.default_path = "assets",
+					}
+				);
 
 				LogFileDialogResult("OpenFolder", result);
 			})
@@ -128,9 +131,11 @@ public:
 
 		CreateButton(*this, V2_float{ 0, 220 }, button_size, button_origin)
 			.OnPress([](auto e) {
-				const auto result = e.button.GetScene().ctx().window.file.OpenFolders({
-					.default_path = "default_path",
-				});
+				const auto result = e.button.GetScene().ctx().window.file.OpenFolders(
+					{
+						.default_path = "default_path",
+					}
+				);
 
 				LogFileDialogResult("OpenFolders", result);
 			})
@@ -143,6 +148,7 @@ public:
 };
 
 int main(int, char**) {
-	Application game{ "FileDialogDemoScene" };
-	game.StartWith<FileDialogDemoScene>();
+	Application app{ "FileDialogDemoScene" };
+	PTGN_WITH_EDITOR(app, false);
+	app.StartWith<FileDialogDemoScene>();
 }

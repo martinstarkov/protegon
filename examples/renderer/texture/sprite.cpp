@@ -12,12 +12,12 @@ class SpriteScene : public Scene {
 	void OnEnter() override {
 		ctx().asset.Load("sprite", "assets/jpg.jpg");
 
-		CreateSprite(*this, "sprite");
+		CreateSprite(*this, {}, "sprite");
 	}
 };
 
 int main(int, char**) {
 	Application app{ "SpriteScene" };
-	PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<SpriteScene>();
 }

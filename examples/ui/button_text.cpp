@@ -24,7 +24,7 @@ class ButtonTextScene : public Scene {
 public:
 	Button disabled_button;
 
-	static constexpr V2_float button_size{ 260.0f, 86.0f };
+	static constexpr V2_float button_size{ 260, 86 };
 
 	static void ConfigureBackground(Button button, ButtonVisualState state, Color color) {
 		Entity background{ button.Background(state) };
@@ -48,7 +48,7 @@ public:
 		ConfigureBasicBackgrounds(button);
 
 		button.SetLabelAutoBox(true);
-		button.SetLabelPadding(Rect{ { 14.0f, 8.0f }, { 14.0f, 8.0f } });
+		button.SetLabelPadding(Rect{ { 14, 8 }, { 14, 8 } });
 
 		return button;
 	}
@@ -60,9 +60,9 @@ public:
 
 		SetBackgroundColor(color::LightGray);
 
-		// 1. Basic auto-boxed centered text.
+		// Basic auto-boxed centered text.
 		{
-			Button button{ CreateTextButton({ -170.0f, -250.0f }) };
+			Button button{ CreateTextButton({ -170, -250 }) };
 
 			button.Label()
 				.Font("arial")
@@ -74,11 +74,11 @@ public:
 			button.OnPress([]() { PTGN_LOG("Pressed centered text button"); });
 		}
 
-		// 2. Button padding + word wrap.
+		// Button padding + word wrap.
 		{
-			Button button{ CreateTextButton({ 170.0f, -250.0f }) };
+			Button button{ CreateTextButton({ 170, -250 }) };
 
-			button.SetLabelPadding(Rect{ { 22.0f, 10.0f }, { 22.0f, 10.0f } });
+			button.SetLabelPadding(Rect{ { 22, 10 }, { 22, 10 } });
 
 			button.Label()
 				.Font("arial")
@@ -92,9 +92,9 @@ public:
 			button.OnPress([]() { PTGN_LOG("Pressed wrapped text button"); });
 		}
 
-		// 3. Ellipsis in a fixed button label box.
+		// Ellipsis in a fixed button label box.
 		{
-			Button button{ CreateTextButton({ -170.0f, -125.0f }) };
+			Button button{ CreateTextButton({ -170, -125 }) };
 
 			button.Label()
 				.Font("arial")
@@ -109,10 +109,10 @@ public:
 			button.OnPress([]() { PTGN_LOG("Pressed ellipsis text button"); });
 		}
 
-		// 4. State-specific labels. No base label is created, so the labels do not overlap.
+		// State-specific labels. No base label is created, so the labels do not overlap.
 		{
 			Button button{
-				CreateButton(*this, { 170.0f, -125.0f }, Rect{ button_size }, Origin::Center)
+				CreateButton(*this, { 170, -125 }, Rect{ button_size }, Origin::Center)
 			};
 
 			ConfigureBasicBackgrounds(button);
@@ -121,15 +121,9 @@ public:
 			button.SetLabelAutoBox(true, ButtonVisualState::Hover);
 			button.SetLabelAutoBox(true, ButtonVisualState::Press);
 
-			button.SetLabelPadding(
-				Rect{ { 14.0f, 8.0f }, { 14.0f, 8.0f } }, ButtonVisualState::Idle
-			);
-			button.SetLabelPadding(
-				Rect{ { 14.0f, 8.0f }, { 14.0f, 8.0f } }, ButtonVisualState::Hover
-			);
-			button.SetLabelPadding(
-				Rect{ { 14.0f, 8.0f }, { 14.0f, 8.0f } }, ButtonVisualState::Press
-			);
+			button.SetLabelPadding(Rect{ { 14, 8 }, { 14, 8 } }, ButtonVisualState::Idle);
+			button.SetLabelPadding(Rect{ { 14, 8 }, { 14, 8 } }, ButtonVisualState::Hover);
+			button.SetLabelPadding(Rect{ { 14, 8 }, { 14, 8 } }, ButtonVisualState::Press);
 
 			button.Label(ButtonVisualState::Idle)
 				.Font("arial")
@@ -157,10 +151,9 @@ public:
 			button.OnPress([]() { PTGN_LOG("Pressed state-specific text button"); });
 		}
 
-		// 5. Disabled-state label. Press Q/E to disable/enable.
+		// Disabled-state label. Press Q/E to disable/enable.
 		{
-			disabled_button =
-				CreateButton(*this, { -170.0f, 0.0f }, Rect{ button_size }, Origin::Center);
+			disabled_button = CreateButton(*this, { -170, 0 }, Rect{ button_size }, Origin::Center);
 
 			ConfigureBasicBackgrounds(disabled_button);
 
@@ -193,9 +186,9 @@ public:
 			disabled_button.OnPress([]() { PTGN_LOG("Pressed disable-demo button"); });
 		}
 
-		// 6. Rich text inside a button label.
+		// Rich text inside a button label.
 		{
-			Button button{ CreateTextButton({ 170.0f, 0.0f }) };
+			Button button{ CreateTextButton({ 170, 0 }) };
 
 			Text label{ button.Label() };
 

@@ -3,6 +3,7 @@
 #include <nlohmann/json.hpp>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene_context.h"
 #include "serialization/json/json.h"
@@ -25,5 +26,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "DeserializedScene" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<DeserializedScene>();
 }

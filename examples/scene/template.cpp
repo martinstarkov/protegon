@@ -3,6 +3,7 @@
 
 #include "app/application.h"
 #include "core/assert.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/shape.h"
@@ -40,9 +41,11 @@ public:
 class SceneTemplateExample : public Scene {
 public:
 	void OnEnter() final {
-		ctx().asset.LoadMany({ { "bg1", "assets/scene1.png" },
-							   { "bg2", "assets/scene2.png" },
-							   { "bg3", "assets/scene3.png" } });
+		ctx().asset.LoadMany(
+			{ { "bg1", "assets/scene1.png" },
+			  { "bg2", "assets/scene2.png" },
+			  { "bg3", "assets/scene3.png" } }
+		);
 
 		SceneAction::Register("load_level_1", [](Scene& scene) mutable {
 			scene.ctx().scene.Switch<GameScene>("game_scene", 1);
@@ -57,5 +60,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "SceneTemplateExample" };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<SceneTemplateExample>();
 }

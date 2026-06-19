@@ -1,6 +1,7 @@
 #include "runtime/scene/scene.h"
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/log.h"
@@ -21,7 +22,9 @@ class Scene3 : public Scene {
 public:
 	void OnUpdate() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		ctx().renderer.DrawTexture("bg3", {}, logical_size, Origin::Center);
+		ctx().render_queue.DrawTexture(
+			{}, "bg3", { .size = logical_size, .origin = Origin::Center }
+		);
 	}
 };
 
@@ -39,7 +42,9 @@ public:
 
 	void OnUpdate() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		ctx().renderer.DrawTexture("bg2", {}, logical_size, Origin::Center);
+		ctx().render_queue.DrawTexture(
+			{}, "bg2", { .size = logical_size, .origin = Origin::Center }
+		);
 		if (ctx().input.KeyPressed(Key::A)) {
 			++i;
 			ctx().scene.Enter<Scene2>("scene2", i);
@@ -51,16 +56,20 @@ class Scene1 : public Scene {
 public:
 	void OnUpdate() final {
 		SetTint(GetRenderTarget(), color::White.WithAlpha(0.5f));
-		ctx().renderer.DrawTexture("bg1", {}, logical_size, Origin::Center);
+		ctx().render_queue.DrawTexture(
+			{}, "bg1", { .size = logical_size, .origin = Origin::Center }
+		);
 	}
 };
 
 class SceneExample : public Scene {
 public:
 	void OnEnter() override {
-		ctx().asset.LoadMany({ { "bg1", "assets/scene1.png" },
-							   { "bg2", "assets/scene2.png" },
-							   { "bg3", "assets/scene3.png" } });
+		ctx().asset.LoadMany(
+			{ { "bg1", "assets/scene1.png" },
+			  { "bg2", "assets/scene2.png" },
+			  { "bg3", "assets/scene3.png" } }
+		);
 
 		ctx().scene.Enter<Scene1>("scene1");
 		ctx().scene.Enter<Scene2>("scene2");
@@ -69,5 +78,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "SceneExample: A to re-enter scene 2", logical_size };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<SceneExample>("scene_example");
 }

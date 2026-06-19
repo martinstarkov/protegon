@@ -46,15 +46,13 @@ class PlatformingScene : public Scene {
 	}
 
 	Entity CreatePlayer() {
-		auto entity = CreateRect(
-			*this, V2_float{ 100, 100 }, V2_float{ 20, 40 }, color::DarkGreen, Solid{},
-			Origin::Center
-		);
+		auto entity =
+			CreateRect(*this, { 100, 100 }, { 20, 40 }, color::DarkGreen, Solid{}, Origin::Center);
 		auto& rb   = entity.Add<RigidBody>();
 		rb.gravity = 1.0f;
 		entity.Add<PlatformerMovement>();
 		entity.Add<PlatformerJump>();
-		auto& b = entity.Add<Collider>(Rect{ V2_float{ 20, 40 } });
+		auto& b = entity.Add<Collider>(Rect{ 20, 40 });
 		b.SetCollisionMode(CollisionMode::Continuous);
 		AddScript<GroundScript>(entity);
 		return entity;
