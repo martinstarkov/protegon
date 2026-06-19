@@ -161,24 +161,16 @@ std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_verticall
 		return impl::GetDefaultTextureCoordinates(flip_vertically);
 	}
 
-	std::array<V2_float, 4> tex_coords;
-
 	if (auto crop{ entity.TryGet<impl::TextureCrop>() }) {
 		auto crop_size{ crop->size.value_or(texture_size.value()) };
-		tex_coords = impl::GetTextureCoordinates(
+		return impl::GetTextureCoordinates(
 			crop->position, crop_size, texture_size.value(), flip_vertically, true
-		);
-	} else {
-		tex_coords = impl::GetTextureCoordinates(
-			{}, texture_size.value(), texture_size.value(), flip_vertically, true
 		);
 	}
 
-	auto scale{ GetWorldScale(entity) };
-
-	impl::FlipTextureCoordinates(tex_coords, scale);
-
-	return tex_coords;
+	return impl::GetTextureCoordinates(
+		{}, texture_size.value(), texture_size.value(), flip_vertically, true
+	);
 }
 
 } // namespace ptgn

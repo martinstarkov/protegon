@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include "core/graphics/color.h"
 #include "core/graphics/surface.h"
 #include "core/math/vector2.h"
