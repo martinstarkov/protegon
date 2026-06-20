@@ -2,15 +2,12 @@
 
 #include <ecs/ecs.h>
 
-#include <cstdint>
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <functional>
 #include <ios>
 #include <optional>
 #include <ostream>
-#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -21,7 +18,9 @@
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "fonts/default_font.h"
+#include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
+#include "renderer/text/font_atlas.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/font.h"
 
@@ -72,7 +71,7 @@ void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
 	PTGN_ASSERT(out, "Failed to write generated default font header: ", header_path.string());
 }
 
-impl::FontObject GenerateDefaultFontObject(const AssetManager& assets) {
+impl::FontAtlas GenerateDefaultFontAtlas(Renderer& renderer) {
 #ifdef __EMSCRIPTEN__
 	static_assert(
 		false, "Default font atlas header generation is not supported on Emscripten builds"
@@ -93,32 +92,33 @@ impl::FontObject GenerateDefaultFontObject(const AssetManager& assets) {
 	auto font_png_path{ kDefaultFontCacheDirectory /
 						font_path.filename().replace_extension("png") };
 
-	impl::FontObject font_object{ assets, font_path, font_png_path };
+	impl::FontAtlas font_atlas{ renderer, font_path, font_png_path };
 
 	WriteGeneratedDefaultFontHeader(font_png_path);
 
-	return font_object;
+	return font_atlas;
 }
 
-impl::FontObject GetDefaultFontObject(AssetManager& assets) {
+impl::FontAtlas GetDefaultFontAtlas(Renderer& renderer) {
 #if !defined(__EMSCRIPTEN__) && defined(PTGN_DEBUG)
 	if constexpr (kGenerateDefaultFontAtlas) {
-		return GenerateDefaultFontObject(assets);
+		return GenerateDefaultFontAtlas(renderer);
 	} else {
-		return impl::FontObject{ assets, impl::kDefaultFontBinary };
+		return impl::FontAtlas{ renderer, impl::kDefaultFontBinary };
 	}
 #else
-	return impl::FontObject{ assets, impl::kDefaultFontBinary };
+	return impl::FontAtlas{ renderer, impl::kDefaultFontBinary };
 #endif
 }
 
 } // namespace
 
-FontSystem::FontSystem(AssetManager& assets) : assets_{ assets } {
-	auto default_font{ GetDefaultFontObject(assets) };
+FontSystem::FontSystem(Renderer& renderer, AssetManager& asset_manager) :
+	asset_manager_{ asset_manager } {
+	auto default_font{ GetDefaultFontAtlas(renderer) };
 
-	Font font{ assets_.CreateAsset(), true };
-	font.GetEntity().Add<impl::FontObject>(std::move(default_font));
+	Font font{ asset_manager_.CreateAsset(), true };
+	font.GetEntity().Add<impl::FontAtlas>(std::move(default_font));
 	impl::AddAssetKey(font.GetEntity(), {}, std::nullopt);
 
 	default_font_ = {};
@@ -127,17 +127,17 @@ FontSystem::FontSystem(AssetManager& assets) : assets_{ assets } {
 FontSystem::~FontSystem() noexcept = default;
 
 Font FontSystem::GetDefault() const {
-	return assets_.Get<Font>(default_font_);
+	return asset_manager_.Get<Font>(default_font_);
 }
 
 void FontSystem::SetDefault(std::string_view font_key) {
 	PTGN_ASSERT(
-		assets_.Has<Font>(font_key), "Font key must be loaded before setting it as default"
+		asset_manager_.Has<Font>(font_key), "Font key must be loaded before setting it as default"
 	);
 	default_font_ = font_key;
 }
 
-impl::FontObject FontSystem::CreateFont(const AssetManager& asset_manager, const path& font_path) {
+impl::FontAtlas FontSystem::CreateFontAtlas(Renderer& renderer, const path& font_path) {
 	auto absolute_font_path{ GetAbsolutePath(font_path) };
 
 	PTGN_ASSERT(
@@ -153,7 +153,7 @@ impl::FontObject FontSystem::CreateFont(const AssetManager& asset_manager, const
 	);
 
 	if (impl::MatchesExtension<Texture>(extension)) {
-		return impl::FontObject{ asset_manager, absolute_font_path };
+		return impl::FontAtlas{ renderer, absolute_font_path };
 	}
 
 	auto cache_directory{ GetWorkingDirectory() / kFontCacheDirectory };
@@ -161,10 +161,10 @@ impl::FontObject FontSystem::CreateFont(const AssetManager& asset_manager, const
 	auto cache_png_file{ cache_directory / (cache_name + ".png") };
 
 	if (FileExists(cache_png_file)) {
-		return impl::FontObject{ asset_manager, cache_png_file };
+		return impl::FontAtlas{ renderer, cache_png_file };
 	}
 
-	return impl::FontObject{ asset_manager, absolute_font_path, cache_png_file };
+	return impl::FontAtlas{ renderer, absolute_font_path, cache_png_file };
 }
 
 } // namespace ptgn

@@ -4,11 +4,13 @@
 #include <string_view>
 
 #include "core/util/file.h"
+#include "renderer/text/font_atlas.h"
 #include "runtime/graphics/text/font.h"
 
 namespace ptgn {
 
 class AssetManager;
+class Renderer;
 
 namespace impl {
 
@@ -29,18 +31,16 @@ private:
 	friend class AssetManager;
 	friend class impl::ApplicationContext;
 
-	explicit FontSystem(AssetManager& assets);
+	explicit FontSystem(Renderer& renderer, AssetManager& asset_manager);
 	~FontSystem() noexcept;
 	FontSystem(const FontSystem&)				 = delete;
 	FontSystem& operator=(const FontSystem&)	 = delete;
 	FontSystem(FontSystem&&) noexcept			 = delete;
 	FontSystem& operator=(FontSystem&&) noexcept = delete;
 
-	[[nodiscard]] static impl::FontObject CreateFont(
-		const AssetManager& asset_manager, const path& font_path
-	);
+	[[nodiscard]] static impl::FontAtlas CreateFontAtlas(Renderer& renderer, const path& font_path);
 
-	AssetManager& assets_;
+	AssetManager& asset_manager_;
 
 	std::string default_font_;
 };

@@ -63,7 +63,7 @@ ApplicationContext::ApplicationContext(const ApplicationConfig& config) :
 				  }
 			  } },
 	assets{ renderer, audio, font },
-	font{ assets },
+	font{ renderer, assets },
 	audio{ assets } {
 	PTGN_INFO("Application Config: ", json(config));
 }

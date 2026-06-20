@@ -95,7 +95,7 @@ std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 }
 
 [[nodiscard]] std::size_t ComputeTextLayoutHash(const StyledText& styled_text, const TextBox& box) {
-	return ptgn::Hash(
+	return Hash(
 		Hash(styled_text), QuantizeUnsigned(box.rect.GetSize().x),
 		QuantizeUnsigned(box.rect.GetSize().y), QuantizeUnsigned(box.style.min_shrink_scale),
 		QuantizeUnsigned(box.style.max_shrink_scale),
@@ -123,7 +123,7 @@ std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 }
 
 [[nodiscard]] std::vector<TextBatchStyle> BuildBatchStyles(
-	AssetManager& asset_manager, const StyledText& styled_text
+	FontData& font, TextureId atlas_texture, const StyledText& styled_text
 ) {
 	std::vector<TextBatchStyle> styles;
 	styles.reserve(styled_text.runs.size());

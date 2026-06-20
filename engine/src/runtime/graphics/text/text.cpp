@@ -53,8 +53,8 @@ TextBox MakeDefaultTextBox() {
 	return TextBox{ .rect{ { 0.0f, 0.0f }, { 0.0f, 0.0f } }, .style{} };
 }
 
-impl::TextRunStyle MakeDefaultTextRunStyle() {
-	impl::TextRunStyle style;
+TextRunStyle MakeDefaultTextRunStyle() {
+	TextRunStyle style;
 
 	style.font	= {};
 	style.color = color::White;
@@ -63,11 +63,11 @@ impl::TextRunStyle MakeDefaultTextRunStyle() {
 	return style;
 }
 
-[[nodiscard]] bool HasVisibleTextContent(const StyledText& styled_text) {
+bool HasVisibleTextContent(const StyledText& styled_text) {
 	return std::ranges::any_of(styled_text.runs, [](const auto& run) { return !run.text.empty(); });
 }
 
-[[nodiscard]] Transform GetTextLayoutBoxTransform(Entity entity, const Rect& local_box) {
+Transform GetTextLayoutBoxTransform(Entity entity, const Rect& local_box) {
 	auto transform{ GetDrawTransform(entity) };
 
 	V2_float center{ (local_box.min + local_box.max) * 0.5f };
@@ -76,11 +76,11 @@ impl::TextRunStyle MakeDefaultTextRunStyle() {
 	return transform;
 }
 
-[[nodiscard]] Rect GetCenteredRect(V2_float size) {
+Rect GetCenteredRect(V2_float size) {
 	return Rect{ { -size.x * 0.5f, -size.y * 0.5f }, { size.x * 0.5f, size.y * 0.5f } };
 }
 
-[[nodiscard]] std::string ToPlainText(const StyledText& styled_text) {
+std::string ToPlainText(const StyledText& styled_text) {
 	std::string result;
 
 	for (const auto& run : styled_text.runs) {
@@ -90,7 +90,7 @@ impl::TextRunStyle MakeDefaultTextRunStyle() {
 	return result;
 }
 
-[[nodiscard]] impl::TextRunStyle GetFirstStyleOrDefault(const StyledText& styled_text) {
+impl::TextRunStyle GetFirstStyleOrDefault(const StyledText& styled_text) {
 	if (!styled_text.runs.empty()) {
 		return styled_text.runs.front().style;
 	}
@@ -98,9 +98,7 @@ impl::TextRunStyle MakeDefaultTextRunStyle() {
 	return {};
 }
 
-[[nodiscard]] StyledText MakeSingleRunText(
-	std::string_view content, const impl::TextRunStyle& style
-) {
+StyledText MakeSingleRunText(std::string_view content, const impl::TextRunStyle& style) {
 	StyledText styled_text;
 	styled_text.runs.emplace_back(
 		impl::TextRun{
@@ -111,7 +109,7 @@ impl::TextRunStyle MakeDefaultTextRunStyle() {
 	return styled_text;
 }
 
-[[nodiscard]] bool FitsTextPage(
+bool FitsTextPage(
 	AssetManager& asset_manager, std::string_view content, const impl::TextRunStyle& style,
 	TextBox box, std::size_t max_lines
 ) {
@@ -128,7 +126,7 @@ impl::TextRunStyle MakeDefaultTextRunStyle() {
 	return impl::FitsInBox(layout, box.rect);
 }
 
-[[nodiscard]] TextMeasurement MeasureTextPage(
+TextMeasurement MeasureTextPage(
 	AssetManager& asset_manager, std::string_view content, const impl::TextRunStyle& style,
 	TextBox box
 ) {
