@@ -205,7 +205,7 @@ void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity text);
 	AssetManager& asset_manager, RichTextToken& token, StyledText& styled_text, float global_shrink
 );
 [[nodiscard]] bool FitsInBox(const TextLayout& layout, Rect box);
-[[nodiscard]] CandidateLayout BuildSinglePassLayout(
+[[nodiscard]] CandidateLayout BuildLayoutAtScale(
 	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box, float global_shrink
 );
 [[nodiscard]] float FindBestShrinkScale(

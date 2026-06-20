@@ -29,13 +29,13 @@
 #include "renderer/pipeline/render_state.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
+#include "renderer/text/glyph.h"
+#include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/text/font.h"
-#include "renderer/text/glyph.h"
-#include "renderer/text/text_style.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 
@@ -453,7 +453,7 @@ TextLayout BuildLayout(AssetManager& asset_manager, StyledText styled_text, cons
 		shrink = FindBestShrinkScale(asset_manager, styled_text, box);
 	}
 
-	auto candidate{ BuildSinglePassLayout(asset_manager, styled_text, box, shrink) };
+	auto candidate{ BuildLayoutAtScale(asset_manager, styled_text, box, shrink) };
 	TextLayout layout{ std::move(candidate.layout) };
 	layout.used_shrink_scale = candidate.used_shrink_scale;
 
@@ -854,7 +854,7 @@ std::optional<ResolvedGlyph> ResolveGlyph(
 	return resolved;
 }
 
-CandidateLayout BuildSinglePassLayout(
+CandidateLayout BuildLayoutAtScale(
 	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box, float global_shrink
 ) {
 	std::vector<RichTextToken> tokens{
@@ -1074,9 +1074,11 @@ float FindBestShrinkScale(
 	float hi{ box.style.max_shrink_scale };
 	float best{ lo };
 
+	// Binary search for best scale.
+	// TODO: Make search count configurable.
 	for (int i{ 0 }; i < 16; ++i) {
 		float mid{ 0.5f * (lo + hi) };
-		CandidateLayout candidate{ BuildSinglePassLayout(asset_manager, styled_text, box, mid) };
+		CandidateLayout candidate{ BuildLayoutAtScale(asset_manager, styled_text, box, mid) };
 		if (FitsInBox(candidate.layout, box.rect)) {
 			best = mid;
 			lo	 = mid;
