@@ -29,6 +29,7 @@
 #include "renderer/pipeline/render_state.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
+#include "renderer/text/font_atlas.h"
 #include "renderer/text/glyph.h"
 #include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
@@ -107,11 +108,11 @@ std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 }
 
 [[nodiscard]] DistanceFieldStyle ResolveDistanceFieldStyle(
-	const Font& font, const TextRunStyle& style
+	const FontAtlas& font, const TextRunStyle& style
 ) {
 	auto sdf{ style.sdf };
 
-	sdf.pixel_range = font.GetFontData().metrics.pixel_range;
+	sdf.pixel_range = font.GetMetrics().pixel_range;
 
 	if (HasFlag(style.flags, FontStyle::Bold) && style.fake_bold_if_missing) {
 		sdf.weight -= style.fake_bold_weight;
@@ -123,7 +124,7 @@ std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 }
 
 [[nodiscard]] std::vector<TextBatchStyle> BuildBatchStyles(
-	FontData& font, TextureId atlas_texture, const StyledText& styled_text
+	TextureId atlas_texture, const StyledText& styled_text
 ) {
 	std::vector<TextBatchStyle> styles;
 	styles.reserve(styled_text.runs.size());
@@ -133,8 +134,8 @@ std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 
 		styles.emplace_back(
 			TextBatchStyle{
-				.texture = font.GetAtlasTexture(),
-				.sdf	 = ResolveDistanceFieldStyle(font, run.style),
+				.texture = atlas_texture,
+				.sdf	 = ResolveDistanceFieldStyle(run.font, run.style),
 			}
 		);
 	}
@@ -142,9 +143,7 @@ std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 	return styles;
 }
 
-[[nodiscard]] TextBatchStyle GetGlyphBatchStyle(
-	const TextLayout& layout, const GlyphInstance& glyph
-) {
+[[nodiscard]] TextBatchStyle GetGlyphBatchStyle(const TextLayout& layout, const Glyph& glyph) {
 	PTGN_ASSERT(
 		glyph.source_run_index < layout.batch_styles.size(),
 		"Glyph source run index does not have a matching text batch style"
@@ -180,7 +179,7 @@ void ApplyItalicShear(std::array<V2_float, 4>& positions) {
 
 void AddTextDecorationsForLine(
 	AssetManager& asset_manager, const StyledText& styled_text,
-	const std::vector<GlyphInstance>& line_glyphs, std::size_t line_index, float global_shrink,
+	const std::vector<Glyph>& line_glyphs, std::size_t line_index, float global_shrink,
 	std::vector<TextDecoration>& decorations
 ) {
 	if (line_glyphs.empty()) {
@@ -343,14 +342,14 @@ TextLineMetrics MeasureLineMetrics(
 	return result;
 }
 
-Rect GetGlyphVisualRect(const GlyphInstance& glyph) {
+Rect GetGlyphVisualRect(const Glyph& glyph) {
 	return Rect{
 		glyph.position + glyph.plane.min,
 		glyph.position + glyph.plane.max,
 	};
 }
 
-Rect GetGlyphLogicalRect(const GlyphInstance& glyph) {
+Rect GetGlyphLogicalRect(const Glyph& glyph) {
 	float left{ glyph.position.x };
 	float right{ glyph.position.x + glyph.advance };
 
@@ -367,7 +366,7 @@ Rect GetGlyphLogicalRect(const GlyphInstance& glyph) {
 	};
 }
 
-[[nodiscard]] Rect GetGlyphClipTestRect(const GlyphInstance& glyph, TextClipMode mode) {
+[[nodiscard]] Rect GetGlyphClipTestRect(const Glyph& glyph, TextClipMode mode) {
 	switch (mode) {
 		using enum TextClipMode;
 
@@ -405,6 +404,45 @@ Rect GetGlyphLogicalRect(const GlyphInstance& glyph) {
 	}
 
 	return true;
+}
+
+V2_float GetEffectOffset(const Glyph& glyph, float time) const {
+	const auto& effect{ glyph.render_style.effect };
+	auto order{ static_cast<float>(glyph.visible_order) };
+
+	// TODO: Get rid of magic numbers.
+
+	float phase{ effect.phase + order * 0.35f };
+	float t{ time * effect.speed + phase };
+
+	switch (effect.type) {
+		using enum GlyphEffectType;
+		case Wobble:
+			return { std::sin(t * effect.frequency) * effect.amplitude,
+					 std::cos(t * effect.frequency * 1.37f) * effect.amplitude };
+
+		case Wave: return { 0.0f, std::sin(t * effect.frequency) * effect.amplitude };
+
+		case Shake:
+			return { std::sin(t * effect.frequency * 17.0f + order * 12.9898f) * effect.amplitude,
+					 std::cos(t * effect.frequency * 23.0f + order * 78.233f) * effect.amplitude };
+
+		case Pulse: [[fallthrough]];
+		case None:	[[fallthrough]];
+		default:	return { 0.0f, 0.0f };
+	}
+}
+
+float GetEffectScale(const Glyph& glyph, float time) {
+	const auto& effect{ glyph.render_style.effect };
+	if (effect.type != GlyphEffectType::Pulse) {
+		return 1.0f;
+	}
+
+	auto order{ static_cast<float>(glyph.visible_order) };
+	// TODO: Get rid of magic number.
+	float phase{ effect.phase + order * 0.35f };
+	return 1.0f + std::sin(time * effect.speed + phase) * effect.amplitude;
 }
 
 } // namespace
@@ -527,7 +565,7 @@ void BuildVertices(
 	TextClipMode clip_mode, std::size_t reveal_glyph_count, float time,
 	std::vector<TextDrawBatch>& batches
 ) {
-	for (GlyphInstance glyph : layout.glyphs) {
+	for (Glyph glyph : layout.glyphs) {
 		if (!glyph.visible) {
 			continue;
 		}
@@ -865,7 +903,7 @@ CandidateLayout BuildLayoutAtScale(
 	layout.used_shrink_scale = global_shrink;
 	layout.batch_styles		 = BuildBatchStyles(asset_manager, styled_text);
 
-	std::vector<GlyphInstance> current_line_glyphs;
+	std::vector<Glyph> current_line_glyphs;
 	V2_float current_line_size;
 	float current_line_ascent{ 0.0f };
 	float current_line_descent{ 0.0f };
@@ -884,7 +922,7 @@ CandidateLayout BuildLayoutAtScale(
 		line.baseline_y					= y + current_line_ascent;
 		line.ends_with_explicit_newline = ends_with_explicit_newline;
 
-		for (const GlyphInstance& glyph : current_line_glyphs) {
+		for (const Glyph& glyph : current_line_glyphs) {
 			if (glyph.codepoint == U' ' || glyph.codepoint == U'\t') {
 				++line.justify_space_count;
 			}
@@ -909,7 +947,7 @@ CandidateLayout BuildLayoutAtScale(
 		}
 
 		float justify_extra{ 0.0f };
-		for (GlyphInstance& glyph : current_line_glyphs) {
+		for (Glyph& glyph : current_line_glyphs) {
 			glyph.position.x	+= x_offset + justify_extra;
 			glyph.position.y	+= box.rect.min.y + current_line_ascent;
 			glyph.line_index	 = layout.lines.size();
@@ -972,7 +1010,7 @@ CandidateLayout BuildLayoutAtScale(
 					token.run_index, 0, global_shrink
 				) };
 				space_glyph.has_value()) {
-				GlyphInstance glyph;
+				Glyph glyph;
 				glyph.codepoint				 = space_glyph.value().codepoint;
 				glyph.position				 = { current_line_size.x, y };
 				glyph.plane					 = space_glyph.value().metrics.plane;
@@ -1012,7 +1050,7 @@ CandidateLayout BuildLayoutAtScale(
 					current_line_descent = std::max(current_line_descent, line_metrics.descent);
 				}
 
-				GlyphInstance glyph;
+				Glyph glyph;
 				glyph.codepoint				 = resolved.value().codepoint;
 				glyph.position				 = { current_line_size.x, y };
 				glyph.plane					 = resolved.value().metrics.plane;
@@ -1041,7 +1079,7 @@ CandidateLayout BuildLayoutAtScale(
 				continue;
 			}
 
-			GlyphInstance glyph;
+			Glyph glyph;
 			glyph.codepoint				 = resolved.value().codepoint;
 			glyph.position				 = { x, y };
 			glyph.plane					 = resolved.value().metrics.plane;
@@ -1121,7 +1159,7 @@ void ApplyVerticalAlignment(const TextBox& box, TextLayout* layout) {
 		case Bottom: offset_y = box.rect.max.y - bounds.value().max.y; break;
 	}
 
-	for (GlyphInstance& glyph : layout->glyphs) {
+	for (Glyph& glyph : layout->glyphs) {
 		glyph.position.y += offset_y;
 	}
 
@@ -1330,7 +1368,7 @@ void ApplyEllipsisOverflow(
 			continue;
 		}
 
-		GlyphInstance glyph;
+		Glyph glyph;
 		glyph.codepoint				 = resolved.value().codepoint;
 		glyph.position				 = { start_x, y };
 		glyph.plane					 = resolved.value().metrics.plane;
@@ -1391,15 +1429,15 @@ void ApplyClipVisibility(Rect clip_rect, TextLayout* layout) {
 }
 
 void EmitGlyphQuad(
-	const GlyphInstance& glyph, float depth, int entity_id, float time,
+	const Glyph& glyph, float depth, int entity_id, float time,
 	std::vector<impl::TextureQuad>& quads
 ) {
-	auto effect_offset{ glyph.GetEffectOffset(time) };
+	auto effect_offset{ GetEffectOffset(glyph, time) };
 
 	auto quad_min{ glyph.position + glyph.plane.min + effect_offset };
 	auto quad_max{ glyph.position + glyph.plane.max + effect_offset };
 
-	if (float scale{ glyph.GetEffectScale(time) }; !NearlyEqual(scale, 1.0f)) {
+	if (float scale{ GetEffectScale(glyph, time) }; !NearlyEqual(scale, 1.0f)) {
 		auto center{ (quad_min + quad_max) * 0.5f };
 		quad_min = center + (quad_min - center) * scale;
 		quad_max = center + (quad_max - center) * scale;
@@ -1460,7 +1498,7 @@ void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity entity) {
 	// TODO: Eventually replace this with two separate clip tests that are passed into BuildVertices
 	// and checked:
 	// bool PassesClip(
-	//	const GlyphInstance& glyph, const TextClipConstraint& clip
+	//	const Glyph& glyph, const TextClipConstraint& clip
 	//) {
 	//	if (!clip.rect.has_value() || clip.mode == TextClipMode::None) {
 	//		return true;

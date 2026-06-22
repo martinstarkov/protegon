@@ -32,7 +32,7 @@ struct GlyphRenderStyle {
 	FontStyle flags{ FontStyle::Normal };
 };
 
-struct GlyphInstance {
+struct Glyph {
 	std::uint32_t codepoint{ 0 };
 	V2_float position;
 	Rect plane;
@@ -48,9 +48,6 @@ struct GlyphInstance {
 	bool visible{ true };
 
 	float advance{ 0.0f };
-
-	V2_float GetEffectOffset(float time) const;
-	float GetEffectScale(float time) const;
 };
 
 } // namespace ptgn
