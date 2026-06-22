@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <fstream>
 #include <ios>
+#include <istream>
 #include <ostream>
 #include <span>
 #include <sstream>
@@ -136,7 +137,13 @@ bool IsDirectoryPath(std::string_view s) {
 }
 
 std::string GetExtension(const path& file) {
+	PTGN_ASSERT(file.has_extension(), "File extension is missing: ", file.string());
 	return ToLower(file.extension().string());
+}
+
+bool HasExtension(const path& file, std::string_view extension) {
+	PTGN_ASSERT(extension.starts_with('.'), "Extension must start with a dot: ", extension);
+	return file.has_extension() && GetExtension(file) == extension;
 }
 
 bool FileExists(const path& file) {

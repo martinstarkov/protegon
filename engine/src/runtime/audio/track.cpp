@@ -19,7 +19,7 @@ namespace ptgn::impl {
 namespace {
 
 bool IsOggFile(const path& p) {
-	return ToLower(p.extension().string()) == ".ogg";
+	return HasExtension(p, ".ogg");
 }
 
 } // namespace

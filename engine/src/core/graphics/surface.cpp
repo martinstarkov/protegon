@@ -183,7 +183,7 @@ std::vector<std::uint8_t> Surface::EncodePNG() const {
 std::expected<void, FileWriteError> Surface::SavePNG(const path& file) const {
 	auto png_bytes{ EncodePNG() };
 	PTGN_ASSERT(
-		GetExtension(file) == "png",
+		HasExtension(file, ".png"),
 		"File extension must be .png to save surface as PNG: ", file.string()
 	);
 	return WriteBinary(file, png_bytes);

@@ -497,7 +497,7 @@ void Shaders::PopulateShaderCache(const cmrc::embedded_filesystem& filesystem) {
 
 		path filename{ resource.filename() };
 
-		if (ToLower(filename.extension().string()) != ".glsl") {
+		if (!HasExtension(filename, ".glsl")) {
 			continue;
 		}
 
