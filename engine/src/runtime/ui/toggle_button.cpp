@@ -1,8 +1,6 @@
 #include "runtime/ui/toggle_button.h"
 
-#include <algorithm>
 #include <optional>
-#include <ranges>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -13,7 +11,6 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
-#include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/scene/scene.h"

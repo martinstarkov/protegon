@@ -38,9 +38,10 @@ class Capsule;
 class Arc;
 class Shape;
 class RenderPassBuilder;
+struct DrawTextRequest;
 
 struct ShapeDrawParams {
-	float depth{ 0.0f };
+	Depth depth;
 	FillStyle fill_style{ 1.0f };
 	Origin origin{ Origin::Center };
 	int entity_id{ -1 };
@@ -48,7 +49,7 @@ struct ShapeDrawParams {
 };
 
 struct TextureDrawParams {
-	float depth{ 0.0f };
+	Depth depth;
 	V2_float size;
 	Origin origin{ Origin::Center };
 	Color tint{ color::White };
@@ -176,6 +177,8 @@ public:
 	}
 
 	RenderState GetRenderState() const;
+
+	void DrawText(const DrawTextRequest& request);
 
 	void DrawTexture(const impl::DrawTextureRequest& request, const Material& material);
 	void DrawTexture(const impl::DrawTextureRequest& request, const MaterialState& material);

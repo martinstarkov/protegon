@@ -1,11 +1,13 @@
 #include "runtime/graphics/text/text.h"
 
+#include <ecs/ecs.h>
+
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <functional>
 #include <limits>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -17,15 +19,22 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/entity_handle.h"
+#include "core/util/hash.h"
+#include "core/util/time.h"
 #include "renderer/draw_context.h"
+#include "renderer/text/font_atlas.h"
 #include "renderer/text/font_style.h"
-#include "renderer/text/glyph.h"
+#include "renderer/text/text_glyph.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/text/font.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
@@ -49,14 +58,9 @@ FontStyle SetFlag(FontStyle value, FontStyle flag, bool enabled) {
 	return static_cast<FontStyle>(bits);
 }
 
-TextBox MakeDefaultTextBox() {
-	return TextBox{ .rect{ { 0.0f, 0.0f }, { 0.0f, 0.0f } }, .style{} };
-}
-
 TextRunStyle MakeDefaultTextRunStyle() {
 	TextRunStyle style;
 
-	style.font	= {};
 	style.color = color::White;
 	style.scale = 48.0f;
 
@@ -70,7 +74,7 @@ bool HasVisibleTextContent(const StyledText& styled_text) {
 Transform GetTextLayoutBoxTransform(Entity entity, const Rect& local_box) {
 	auto transform{ GetDrawTransform(entity) };
 
-	V2_float center{ (local_box.min + local_box.max) * 0.5f };
+	auto center{ local_box.GetCenter() };
 	transform.Translate(center);
 
 	return transform;
@@ -90,19 +94,26 @@ std::string ToPlainText(const StyledText& styled_text) {
 	return result;
 }
 
-impl::TextRunStyle GetFirstStyleOrDefault(const StyledText& styled_text) {
+impl::ResolvedTextRun GetFirstRunOrDefault(const impl::ResolvedStyledText& styled_text) {
 	if (!styled_text.runs.empty()) {
-		return styled_text.runs.front().style;
+		return styled_text.runs.front();
 	}
 
 	return {};
 }
 
-StyledText MakeSingleRunText(std::string_view content, const impl::TextRunStyle& style) {
-	StyledText styled_text;
+impl::ResolvedStyledText MakeSingleRunText(
+	AssetManager& asset_manager, std::string_view content, std::string_view font,
+	const TextRunStyle& style
+) {
+	impl::ResolvedStyledText styled_text;
 	styled_text.runs.emplace_back(
-		impl::TextRun{
+		impl::ResolvedTextRun{
 			.text  = std::string{ content },
+			.font  = &impl::AssetAccessor{ asset_manager }
+						  .Get<Font>(font)
+						  .GetEntity()
+						  .Get<impl::FontAtlas>(),
 			.style = style,
 		}
 	);
@@ -110,33 +121,98 @@ StyledText MakeSingleRunText(std::string_view content, const impl::TextRunStyle&
 }
 
 bool FitsTextPage(
-	AssetManager& asset_manager, std::string_view content, const impl::TextRunStyle& style,
-	TextBox box, std::size_t max_lines
+	AssetManager& asset_manager, std::string_view content, std::string_view font,
+	const TextRunStyle& style, TextBox box, std::size_t max_lines
 ) {
-	auto styled_text{ MakeSingleRunText(content, style) };
+	auto styled_text{ MakeSingleRunText(asset_manager, content, font, style) };
 
 	box.style.overflow_mode = OverflowMode::Overflow;
 
-	auto layout{ impl::BuildLayout(asset_manager, styled_text, box) };
+	auto layout{ impl::BuildTextLayout(styled_text, box) };
 
 	if (max_lines > 0 && layout.lines.size() > max_lines) {
 		return false;
 	}
 
-	return impl::FitsInBox(layout, box.rect);
+	return impl::TextLayoutFitsInBox(layout, box.rect);
 }
 
-TextMeasurement MeasureTextPage(
-	AssetManager& asset_manager, std::string_view content, const impl::TextRunStyle& style,
-	TextBox box
+void UpdateLayout(
+	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
 ) {
-	auto styled_text{ MakeSingleRunText(content, style) };
-	return impl::Measure(asset_manager, styled_text, box);
+	auto hash{ Hash(styled_text, box) };
+
+	if (auto cached{ entity.TryGet<TextLayout>() }) {
+		if (cached->hash == hash) {
+			return;
+		}
+	}
+
+	auto resolved_text{ impl::ResolveStyledText(asset_manager, styled_text) };
+
+	auto layout{ impl::BuildTextLayout(resolved_text, box) };
+
+	layout.hash = hash;
+
+	entity.Add<TextLayout>(layout);
+}
+
+V2_float GetTextOriginPoint(Rect rect, Origin origin) {
+	return rect.GetCenter() - GetOffset(origin, rect.GetSize());
+}
+
+std::optional<Rect> IntersectClipRects(std::optional<Rect> a, std::optional<Rect> b) {
+	if (!a.has_value()) {
+		return b;
+	}
+
+	if (!b.has_value()) {
+		return a;
+	}
+
+	Rect result{
+		{
+			std::max(a.value().min.x, b.value().min.x),
+			std::max(a.value().min.y, b.value().min.y),
+		},
+		{
+			std::min(a.value().max.x, b.value().max.x),
+			std::min(a.value().max.y, b.value().max.y),
+		},
+	};
+
+	if (!result.GetSize().IsPositive()) {
+		return Rect{};
+	}
+
+	return result;
 }
 
 } // namespace
 
 namespace impl {
+
+const FontAtlas* GetFontAtlas(AssetManager& asset_manager, std::string_view font_key) {
+	auto font{ AssetAccessor{ asset_manager }.Get<Font>(font_key) };
+	return &font.GetEntity().Get<FontAtlas>();
+}
+
+ResolvedStyledText ResolveStyledText(AssetManager& asset_manager, const StyledText& styled_text) {
+	ResolvedStyledText result;
+	result.runs.reserve(styled_text.runs.size());
+	for (const auto& run : styled_text.runs) {
+		auto font_atlas{ GetFontAtlas(asset_manager, run.font) };
+		result.runs.emplace_back(
+			ResolvedTextRun{
+				.text  = run.text,
+				.font  = font_atlas,
+				.style = run.style,
+			}
+		);
+	}
+
+	return result;
+}
 
 void DrawDebugTextBoundingBoxes(
 	Scene& scene, const std::optional<SceneCamera>& camera, const impl::EntityFilterFunc& filter
@@ -152,7 +228,7 @@ void DrawDebugTextBoundingBoxes(
 	}
 
 	for (auto [entity, _visible, styled_text, box] :
-		 scene.EntitiesWith<Visible, impl::StyledText, TextBox>()) {
+		 scene.EntitiesWith<Visible, StyledText, TextBox>()) {
 		if (filter(entity)) {
 			continue;
 		}
@@ -161,9 +237,10 @@ void DrawDebugTextBoundingBoxes(
 			continue;
 		}
 
-		impl::UpdateLayout(entity, scene.ctx().asset, styled_text, box);
+		UpdateLayout(entity, scene.ctx().asset, styled_text, box);
 
 		const auto* layout{ entity.TryGet<TextLayout>() };
+
 		if (!layout) {
 			continue;
 		}
@@ -172,7 +249,7 @@ void DrawDebugTextBoundingBoxes(
 			continue;
 		}
 
-		auto origin_point{ impl::GetTextOriginPoint(layout->local_box, GetDrawOrigin(entity)) };
+		auto origin_point{ GetTextOriginPoint(layout->local_box, GetDrawOrigin(entity)) };
 		auto box_center{ (layout->local_box.min + layout->local_box.max) * 0.5f };
 
 		auto transform{ GetDrawTransform(entity) };
@@ -197,110 +274,117 @@ void DrawDebugTextBoundingBoxes(
 
 } // namespace impl
 
-void Text::Draw(
-	DrawContext& ctx, Entity entity, V2_int text_size, ptgn::Color additional_tint,
-	Origin offset_origin, V2_float offset_size
-) {
+void Text::Draw(DrawContext& ctx, Entity entity) {
 	auto& scene{ entity.GetScene() };
 	auto& assets{ scene.ctx().asset };
 
-	impl::DrawText(assets, ctx, entity);
-	// TODO: Move out.
-	// static TextSystem text_system;
-	// static impl::MsdfFontData msdf_font{
-	//	renderer.renderer_, "assets/fonts/LiberationSans-Regular.ttf", 0, {}
-	//};
-	/*draw_context.DrawTexture(
-		msdf_font.GetAtlasTexture(), {}, 0.0f, msdf_font.GetAtlasSize(), Origin::Center,
-		color::White, impl::GetDefaultTextureCoordinates<false>(), std::nullopt, -1
-	);*/
-
-	// text_system.DrawText(renderer, {}, &msdf_font);
-
-	/*
-	Text text{ entity };
-
-	if (!text.Has<impl::TextContent>()) {
+	if (!entity.Has<StyledText, TextBox>()) {
 		return;
 	}
 
-	if (text.Get<impl::TextContent>().GetValue().empty()) {
+	auto& styled_text{ entity.Get<StyledText>() };
+	const auto& box{ entity.Get<TextBox>() };
+
+	if (styled_text.runs.empty()) {
 		return;
 	}
 
-	if (text.Has<impl::TextColor>() && text.Get<impl::TextColor>().a == 0) {
+	if (bool has_content{ std::ranges::any_of(
+			styled_text.runs, [](const TextRun& run) { return !run.text.empty(); }
+		) };
+		!has_content) {
 		return;
 	}
 
-	impl::Tint tint{ GetTint(text) };
-	Transform transform{ GetDrawTransform(text) };
+	UpdateLayout(entity, assets, styled_text, box);
 
-	if (tint.a == 0 || additional_tint.a == 0) {
-		return;
+	auto& layout{ entity.Get<TextLayout>() };
+
+	auto transform{ GetDrawTransform(entity) };
+	if (layout.local_box.GetSize().IsPositive()) {
+		auto origin_point{ GetTextOriginPoint(layout.local_box, GetDrawOrigin(entity)) };
+		transform.Translate(-origin_point);
 	}
 
-	// Offset text so it is centered on the offset origin and size.
-	const auto transform_scale{ transform.GetScale() };
-	auto scaled_offset{ offset_size * Abs(transform_scale) };
-	V2_float offset{ GetOffset(offset_origin, scaled_offset) };
-	transform.Translate(offset);
+	auto depth{ GetDepth(entity) };
+	auto entity_id{ entity.GetUUID() };
+	auto tint{ GetTint(entity) };
 
-	const auto& text_texture{ text.Get<Texture>() };
+	auto time{ duration_cast<secondsf>(entity.GetScene().ctx().TimeSinceStart()).count() };
 
-	if (!text_texture) {
-		return;
-	}
+	std::optional<Rect> clip_rect{ layout.clip_rect };
+	TextClipMode clip_mode{ layout.clip_mode };
 
-	V2_int size{ text_size };
+	// TODO: Eventually replace this with two separate clip tests that are passed into BuildVertices
+	// and checked:
+	// bool PassesClip(
+	//	const Glyph& glyph, const TextClipConstraint& clip
+	//) {
+	//	if (!clip.rect.has_value() || clip.mode == TextClipMode::None) {
+	//		return true;
+	//	}
+	//	Rect glyph_rect{ GetGlyphClipTestRect(glyph, clip.mode) };
+	//	return ShouldDrawRectWithClipMode(
+	//		glyph_rect,
+	//		clip.rect.value(),
+	//		clip.mode
+	//	);
+	//}
+	// for (const auto& clip : clips) {
+	//	if (!PassesClip(glyph, clip)) {
+	//		clipped = true;
+	//		break;
+	//	}
+	//}
+	// if (clipped) {
+	//	continue;
+	//}
 
-	// If the text texture size for any text_size dimension that is zero.
-	if (size.HasZero()) {
-		V2_int texture_size{ text_texture.GetSize() };
-		if (!size.x) {
-			size.x = texture_size.x;
+	if (auto clip{ entity.TryGet<impl::TextClip>() }) {
+		clip_rect = IntersectClipRects(clip_rect, clip->rect);
+		clip_mode = clip->mode;
+
+		if (clip->rect.has_value() && clip_mode == TextClipMode::None) {
+			clip_mode = TextClipMode::ClipFullyOutside;
 		}
-		if (!size.y) {
-			size.y = texture_size.y;
-		}
 	}
 
-	auto tex_coords{ GetTextureCoordinates(text, false) };
+	auto reveal_glyph_count{ std::numeric_limits<std::size_t>::max() };
 
-	Color text_tint{ additional_tint.Normalized() * tint.Normalized() };
-	auto blend_mode{ GetBlendMode(text) };
-	auto draw_origin{ GetDrawOrigin(text) };
-	auto depth{ GetDepth(text) };
+	if (auto reveal{ entity.TryGet<impl::TextReveal>() }) {
+		reveal_glyph_count = reveal->glyph_count;
+	}
 
-	// NOSONAR
-	// Enable to see outline of text:
-	// entity.GetScene().ctx().render_queue.DrawShape(
-	//	transform, Rect{ size }, color::Purple, { .origin = draw_origin }
-	//);
+	auto effects{ impl::GetEffectParams(entity) };
+	auto blend_mode{ GetBlendMode(entity) };
 
-	renderer.DrawTexture(
-		text_texture, transform, depth, size, draw_origin, text_tint, tex_coords, blend_mode,
-		text.GetUUID()
+	ctx.SetBlendMode(blend_mode);
+	ctx.DrawText(
+		{ .layout			  = layout,
+		  .tint				  = tint,
+		  .depth			  = depth,
+		  .entity_id		  = entity_id,
+		  .clip_rect		  = clip_rect,
+		  .clip_mode		  = clip_mode,
+		  .reveal_glyph_count = reveal_glyph_count,
+		  .time				  = time,
+		  .transform		  = transform,
+		  .effects			  = effects }
 	);
-	*/
-}
-
-void Text::Draw(DrawContext& ctx, Entity text) {
-	// This wrapper exists so that buttons can draw offset text.
-	Draw(ctx, text, V2_float{}, color::White, Origin::Center, V2_float{});
 }
 
 Text::Text(Entity entity) : Entity{ entity } {}
 
-impl::TextRunStyle Text::MakeDefaultRunStyle() const {
+TextRunStyle Text::MakeDefaultRunStyle() const {
 	return MakeDefaultTextRunStyle();
 }
 
-impl::StyledText& Text::EnsureStyledText() {
-	if (!Has<impl::StyledText>()) {
-		Add<impl::vStyledText>();
+StyledText& Text::EnsureStyledText() {
+	if (!Has<StyledText>()) {
+		Add<StyledText>();
 	}
 
-	auto& styled_text{ Get<impl::StyledText>() };
+	auto& styled_text{ Get<StyledText>() };
 
 	if (styled_text.runs.empty()) {
 		auto& run{ styled_text.runs.emplace_back() };
@@ -310,8 +394,8 @@ impl::StyledText& Text::EnsureStyledText() {
 	return styled_text;
 }
 
-const impl::StyledText& Text::RequireStyledText() const {
-	auto& styled_text{ Get<impl::StyledText>() };
+const StyledText& Text::RequireStyledText() const {
+	const auto& styled_text{ Get<StyledText>() };
 
 	PTGN_ASSERT(!styled_text.runs.empty(), "Text must always contain at least one run");
 
@@ -320,7 +404,7 @@ const impl::StyledText& Text::RequireStyledText() const {
 
 TextBox& Text::EnsureTextBox() {
 	if (!Has<TextBox>()) {
-		Add<TextBox>(MakeDefaultTextBox());
+		Add<TextBox>();
 	}
 
 	return Get<TextBox>();
@@ -354,12 +438,12 @@ void Text::EnsureValidRuns() {
 	}
 }
 
-impl::StyledText& Text::GetStyledText() {
+StyledText& Text::GetStyledText() {
 	EnsureValidRuns();
-	return Get<impl::StyledText>();
+	return Get<StyledText>();
 }
 
-const impl::StyledText& Text::GetStyledText() const {
+const StyledText& Text::GetStyledText() const {
 	return RequireStyledText();
 }
 
@@ -372,11 +456,11 @@ const TextBox& Text::GetTextBox() const {
 }
 
 bool Text::HasOnlyDefaultEmptyRun() const {
-	if (!Has<impl::StyledText>()) {
+	if (!Has<StyledText>()) {
 		return false;
 	}
 
-	auto& styled_text{ Get<impl::StyledText>() };
+	auto& styled_text{ Get<StyledText>() };
 
 	return styled_text.runs.size() == 1 && styled_text.runs.front().text.empty();
 }
@@ -422,8 +506,12 @@ Text& Text::Content(std::string_view content) {
 	return *this;
 }
 
+Text& Text::Content(StyledText styled_text) {
+	return SetStyledText(std::move(styled_text));
+}
+
 Text& Text::Select(std::size_t index) {
-	auto& styled_text{ EnsureStyledText() };
+	const auto& styled_text{ EnsureStyledText() };
 
 	PTGN_ASSERT(index < styled_text.runs.size(), "Invalid text run index");
 
@@ -432,16 +520,16 @@ Text& Text::Select(std::size_t index) {
 	return *this;
 }
 
-impl::TextRun& Text::CurrentRun() {
+TextRun& Text::CurrentRun() {
 	EnsureValidRuns();
 
 	auto& styled_text{ Get<StyledText>() };
-	auto& edit_state{ Get<impl::TextEditState>() };
+	const auto& edit_state{ Get<impl::TextEditState>() };
 
 	return styled_text.runs[edit_state.current_run_index];
 }
 
-const impl::TextRun& Text::CurrentRun() const {
+const TextRun& Text::CurrentRun() const {
 	auto& styled_text{ RequireStyledText() };
 	auto& edit_state{ RequireEditState() };
 
@@ -452,11 +540,11 @@ const impl::TextRun& Text::CurrentRun() const {
 	return styled_text.runs[edit_state.current_run_index];
 }
 
-impl::TextRunStyle& Text::CurrentStyle() {
+TextRunStyle& Text::CurrentStyle() {
 	return CurrentRun().style;
 }
 
-const impl::TextRunStyle& Text::CurrentStyle() const {
+const TextRunStyle& Text::CurrentStyle() const {
 	return CurrentRun().style;
 }
 
@@ -560,7 +648,6 @@ Text& Text::RequireThreeLetterRemainder(bool require) {
 	InvalidateLayout();
 	return *this;
 }
-}
 
 Text& Text::MaxLines(std::size_t max_lines) {
 	auto& style{ EnsureTextBox().style };
@@ -576,8 +663,8 @@ Text& Text::ScaleToFit(float min_scale, float max_scale) {
 	auto& style{ EnsureTextBox().style };
 
 	style.overflow_mode	   = OverflowMode::ScaleToFit;
-	style.min_shrink_scale = min_scale;
-	style.max_shrink_scale = max_scale;
+	style.shrink_scale.min = min_scale;
+	style.shrink_scale.max = max_scale;
 
 	InvalidateLayout();
 
@@ -585,7 +672,7 @@ Text& Text::ScaleToFit(float min_scale, float max_scale) {
 }
 
 Text& Text::Font(std::string_view font_key) {
-	CurrentStyle().font = std::string{ font_key };
+	CurrentRun().font = std::string{ font_key };
 	InvalidateLayout();
 	return *this;
 }
@@ -800,7 +887,7 @@ const TextLayout& Text::RequireLayout() const {
 
 	Entity entity{ *this };
 
-	impl::UpdateLayout(entity, GetScene().ctx().asset, styled_text, box);
+	UpdateLayout(entity, GetScene().ctx().asset, styled_text, box);
 
 	return entity.Get<TextLayout>();
 }
@@ -894,7 +981,8 @@ TextMeasurement Text::Measure() const {
 }
 
 std::size_t Text::GetGlyphCount() const {
-	auto layout{ impl::BuildLayout(GetScene().ctx().asset, RequireStyledText(), RequireTextBox()) };
+	auto resolved_text{ impl::ResolveStyledText(GetScene().ctx().asset, RequireStyledText()) };
+	auto layout{ impl::BuildTextLayout(resolved_text, RequireTextBox()) };
 	return layout.glyphs.size();
 }
 
@@ -930,124 +1018,18 @@ Text& Text::RevealFraction(float fraction) {
 	return Reveal(reveal_count);
 }
 
-TextPaginationResult Text::Paginate(
-	AssetManager& asset_manager, const StyledText& styled_text, TextBox box,
-	const TextPageOptions& options
-) {
-	TextPaginationResult result;
-
-	std::string full_text{ ToPlainText(styled_text) };
-	auto style{ GetFirstStyleOrDefault(styled_text) };
-
-	if (full_text.empty()) {
-		result.pages.emplace_back(
-			TextPage{
-				.styled_text = MakeSingleRunText("", style),
-				.measurement = MeasureTextPage(asset_manager, "", style, box),
-				.glyph_count = 0,
-			}
-		);
-		return result;
-	}
-
-	auto max_lines{ options.max_lines_per_page };
-
-	if (max_lines == 0) {
-		max_lines = box.style.max_lines;
-	}
-
-	std::istringstream stream{ full_text };
-	std::vector<std::string> words;
-	std::string word;
-
-	while (stream >> word) {
-		words.emplace_back(std::move(word));
-	}
-
-	if (words.empty()) {
-		words.emplace_back(full_text);
-	}
-
-	std::string current_page;
-	auto word_index{ 0uz };
-
-	while (word_index < words.size()) {
-		std::string candidate{ current_page.empty() ? words[word_index]
-													: current_page + " " + words[word_index] };
-
-		std::string measured_candidate{ candidate };
-
-		if (options.add_split_markers && word_index + 1 < words.size()) {
-			measured_candidate += options.split_end;
-		}
-
-		if (FitsTextPage(asset_manager, measured_candidate, style, box, max_lines)) {
-			current_page = std::move(candidate);
-			++word_index;
-			continue;
-		}
-
-		if (current_page.empty()) {
-			current_page = words[word_index];
-			++word_index;
-		}
-
-		std::string page_text{ current_page };
-
-		if (options.add_split_markers && word_index < words.size()) {
-			page_text += options.split_end;
-		}
-
-		auto page_styled_text{ MakeSingleRunText(page_text, style) };
-		auto measurement{ MeasureTextPage(asset_manager, page_text, style, box) };
-
-		result.pages.emplace_back(
-			TextPage{
-				.styled_text = std::move(page_styled_text),
-				.measurement = measurement,
-				.glyph_count =
-					impl::BuildLayout(asset_manager, MakeSingleRunText(page_text, style), box)
-						.glyphs.size(),
-			}
-		);
-
-		current_page.clear();
-
-		if (options.add_split_markers && word_index < words.size()) {
-			current_page = options.split_begin;
-		}
-	}
-
-	if (!current_page.empty()) {
-		auto page_styled_text{ MakeSingleRunText(current_page, style) };
-		auto measurement{ MeasureTextPage(asset_manager, current_page, style, box) };
-
-		result.pages.emplace_back(
-			TextPage{
-				.styled_text = std::move(page_styled_text),
-				.measurement = measurement,
-				.glyph_count =
-					impl::BuildLayout(asset_manager, MakeSingleRunText(current_page, style), box)
-						.glyphs.size(),
-			}
-		);
-	}
-
-	return result;
-}
-
 Text CreateText(Scene& scene, Transform transform, Origin draw_origin) {
 	Text text{ scene.CreateEntity() };
 
 	StyledText styled_text;
 
-	impl::TextRun run;
+	TextRun run;
 	run.style = MakeDefaultTextRunStyle();
 
 	styled_text.runs.push_back(std::move(run));
 
 	text.Add<StyledText>(std::move(styled_text));
-	text.Add<TextBox>(MakeDefaultTextBox());
+	text.Add<TextBox>();
 	text.Add<impl::TextEditState>(impl::TextEditState{ .current_run_index = 0 });
 
 	SetTransform(text, transform);

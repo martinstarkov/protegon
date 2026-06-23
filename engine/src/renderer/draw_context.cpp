@@ -117,6 +117,10 @@ void DrawContext::SetBlendMode(BlendMode blend_mode) {
 	renderer_.SetBlendMode(blend_mode);
 }
 
+void DrawContext::DrawText(const DrawTextRequest& request) {
+	renderer_.DrawText(request);
+}
+
 RenderState DrawContext::GetRenderState() const {
 	return renderer_.GetRenderState();
 }

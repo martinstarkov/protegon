@@ -19,6 +19,7 @@
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
+#include "renderer/text/font_atlas.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/key_hash.h"
 #include "runtime/graphics/text/font.h"
@@ -36,7 +37,6 @@ class AssetManager;
 namespace impl {
 
 class Surface;
-class FontObject;
 class ApplicationContext;
 
 struct AssetKey : public KeyHash {
@@ -106,7 +106,7 @@ struct AssetInfo<Audio> {
 template <>
 struct AssetInfo<Font> {
 	static constexpr AssetKind kind = AssetKind::Font;
-	using Object					= impl::FontObject;
+	using Object					= impl::FontAtlas;
 	using Get						= Font;
 	using ConstGet					= Font;
 
@@ -282,7 +282,6 @@ private:
 	friend class Texture;
 	friend class FontSystem;
 	friend class Text;
-	friend class impl::FontObject;
 
 	AssetManager() = delete;
 	AssetManager(Renderer& renderer, AudioSystem& audio, FontSystem& font);

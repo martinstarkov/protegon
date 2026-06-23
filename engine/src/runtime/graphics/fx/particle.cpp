@@ -28,6 +28,7 @@
 #include "core/util/time.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/blend_mode.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -47,7 +48,7 @@ struct ParticleDrawInfo {
 	float size{ 0.0f };
 	Color color;
 	FillStyle fill_style;
-	float depth{ 0.0f };
+	Depth depth;
 	BlendMode blend_mode{ BlendMode::Blend };
 	Origin origin{ Origin::Center };
 };

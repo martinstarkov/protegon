@@ -32,7 +32,7 @@ template <class T>
 concept BinarySerializable = std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T>;
 
 constexpr std::array kExpectedFontCacheMagic{ 'F', 'O', 'N', 'T', 'C', 'A', 'C', 'H' };
-constexpr std::uint32_t kExpectedFontCacheVersion{ 8 };
+constexpr std::uint32_t kExpectedFontCacheVersion{ 9 };
 
 struct FontCacheHeader {
 	std::array<char, 8> magic{ kExpectedFontCacheMagic };

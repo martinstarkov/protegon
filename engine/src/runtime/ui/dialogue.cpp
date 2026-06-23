@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <format>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <ranges>
 #include <string>
@@ -25,6 +26,8 @@
 #include "core/math/vector2.h"
 #include "core/util/string.h"
 #include "renderer/resources/texture.h"
+#include "renderer/text/text_layout.h"
+#include "renderer/text/text_style.h"
 #include "runtime/animation/tween.h"
 #include "runtime/animation/tween_event.h"
 #include "runtime/asset/asset_manager.h"
@@ -34,6 +37,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/graphics/text/text_pagination.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -45,16 +49,6 @@
 namespace ptgn {
 
 namespace {
-
-[[nodiscard]] std::string ToPlainText(const StyledText& styled_text) {
-	std::string result;
-
-	for (const auto& run : styled_text.runs) {
-		result += run.text;
-	}
-
-	return result;
-}
 
 [[nodiscard]] Rect GetLocalRect(Origin origin, V2_float size) {
 	V2_float center{ GetOffset(origin, size) };
@@ -93,32 +87,44 @@ namespace {
 }
 
 [[nodiscard]] std::vector<DialoguePage> PaginateDialogueText(
-	const Scene& scene, std::string_view content, const DialoguePageProperties& properties,
+	const Scene& scene, const StyledText& styled_text, const DialoguePageProperties& properties,
 	std::string_view split_end, std::string_view split_begin
 ) {
-	StyledText styled_text;
-	styled_text.runs.emplace_back(
-		TextRun{
-			.text  = std::string{ content },
-			.style = properties.ToTextRunStyle(),
-		}
-	);
-
-	auto pagination{ Text::Paginate(
+	auto pagination{ impl::PaginateText(
 		scene.ctx().asset, styled_text, properties.ToTextBox(),
-		TextPageOptions{
-			.split_end	 = std::string{ split_end },
-			.split_begin = std::string{ split_begin },
+		impl::TextPageOptions{
+			.split_end			= std::string{ split_end },
+			.split_begin		= std::string{ split_begin },
+			.max_lines_per_page = 0,
+			.add_split_markers	= true,
 		}
 	) };
 
 	std::vector<DialoguePage> pages;
+	pages.reserve(pagination.pages.size());
 
-	for (const auto& page : pagination.pages) {
-		pages.emplace_back(ToPlainText(page.styled_text), properties);
+	for (auto& page : pagination.pages) {
+		pages.emplace_back(std::move(page.styled_text), properties);
 	}
 
 	return pages;
+}
+
+[[nodiscard]] std::vector<DialoguePage> PaginateDialogueText(
+	const Scene& scene, std::string_view content, const DialoguePageProperties& properties,
+	std::string_view split_end, std::string_view split_begin
+) {
+	StyledText styled_text;
+
+	styled_text.runs.emplace_back(
+		TextRun{
+			.text  = std::string{ content },
+			.font  = properties.font_key,
+			.style = properties.ToTextRunStyle(),
+		}
+	);
+
+	return PaginateDialogueText(scene, std::move(styled_text), properties, split_end, split_begin);
 }
 
 } // namespace
@@ -170,6 +176,9 @@ void DialogueScrollScript::OnProgress(float elapsed_fraction) const {
 }
 
 } // namespace impl
+
+DialoguePage::DialoguePage(StyledText styled_text, const DialoguePageProperties& properties) :
+	styled_text{ std::move(styled_text) }, properties{ properties } {}
 
 DialoguePageProperties DialoguePageProperties::InheritProperties(const json& j) const {
 	DialoguePageProperties properties{ *this };
@@ -252,7 +261,6 @@ TextBox DialoguePageProperties::ToTextBox() const {
 
 TextRunStyle DialoguePageProperties::ToTextRunStyle() const {
 	TextRunStyle style;
-	style.font	= font_key;
 	style.color = color;
 	style.scale = font_size;
 	return style;
@@ -267,9 +275,6 @@ void DialoguePageProperties::ApplyToText(Text text) const {
 		.Wrap(wrap_mode)
 		.Overflow(overflow_mode);
 }
-
-DialoguePage::DialoguePage(std::string_view content, const DialoguePageProperties& properties) :
-	content{ content }, properties{ properties } {}
 
 std::size_t DialogueEntry::PickRandomIndex() const {
 	PTGN_ASSERT(lines.size() > used_line_indices.size());
@@ -393,10 +398,7 @@ void DialogueData::LoadFromJson(
 		next.empty() || dialogues_json.contains(next), "Next key not found in dialogue json"
 	);
 
-	for (auto it{ dialogues_json.begin() }; it != dialogues_json.end(); ++it) {
-		std::string dialogue_name{ it.key() };
-		const auto& dialogue_json{ it.value() };
-
+	for (const auto& [dialogue_name, dialogue_json] : dialogues_json.items()) {
 		DialogueEntry dialogue;
 
 		auto dialogue_properties{ root_properties.InheritProperties(dialogue_json) };
@@ -661,7 +663,7 @@ DialogueEntry* DialogueBox::GetCurrentDialogue() {
 }
 
 DialogueLine* DialogueBox::GetCurrentDialogueLine() {
-	auto& data{ Data() };
+	const auto& data{ Data() };
 
 	auto* dialogue{ GetCurrentDialogue() };
 
@@ -774,10 +776,7 @@ void DialogueBox::ApplyCurrentPage() {
 	Text text{ TextPart() };
 
 	text.Clear()
-		.Content(page->content)
-		.Font(page->properties.font_key)
-		.Color(page->properties.color)
-		.Size(page->properties.font_size)
+		.Content(page->styled_text)
 		.Box(page->properties.TextAreaRect())
 		.Align(page->properties.horizontal_align, page->properties.vertical_align)
 		.Wrap(page->properties.wrap_mode)
@@ -905,13 +904,13 @@ void from_json(const json& j, DialoguePageProperties& properties) {
 
 void to_json(json& j, const DialoguePage& page) {
 	j = json{
-		{ "content", page.content },
+		{ "styled_text", page.styled_text },
 		{ "properties", page.properties },
 	};
 }
 
 void from_json(const json& j, DialoguePage& page) {
-	page.content = j.value("content", std::string{});
+	page.styled_text = j.value("styled_text", StyledText{});
 
 	if (j.contains("properties")) {
 		page.properties = j.at("properties").get<DialoguePageProperties>();

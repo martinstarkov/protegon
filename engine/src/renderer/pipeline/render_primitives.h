@@ -12,6 +12,7 @@
 #include "core/math/vector4.h"
 #include "core/util/concepts.h"
 #include "renderer/pipeline/buffer_layout.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/vertex.h"
 
 namespace ptgn::impl {
@@ -28,21 +29,21 @@ using ShapeQuad		= RenderQuad<ShapeVertex>;
 using TextureQuad	= RenderQuad<TextureVertex>;
 
 [[nodiscard]] ColorTriangle CreateColorTriangle(
-	const std::array<V2_float, 3>& vertices, float depth, V4_float color_n, int entity_id
+	const std::array<V2_float, 3>& vertices, Depth depth, V4_float color_n, int entity_id
 );
 
 [[nodiscard]] ColorQuad CreateColorQuad(
-	const std::array<V2_float, 4>& vertices, float depth, V4_float color_n, int entity_id
+	const std::array<V2_float, 4>& vertices, Depth depth, V4_float color_n, int entity_id
 );
 
 [[nodiscard]] ShapeQuad CreateShapeQuad(
-	const std::array<V2_float, 4>& vertices, float depth, V4_float color_n,
+	const std::array<V2_float, 4>& vertices, Depth depth, V4_float color_n,
 	const std::array<V2_float, 4>& local_coords, const std::array<float, 4>& shape_data,
 	int entity_id
 );
 
 [[nodiscard]] TextureQuad CreateTextureQuad(
-	const std::array<V2_float, 4>& positions, float depth, V4_float color_n,
+	const std::array<V2_float, 4>& positions, Depth depth, V4_float color_n,
 	const std::array<V2_float, 4>& tex_coords, int entity_id
 );
 

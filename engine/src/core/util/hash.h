@@ -1,13 +1,16 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <concepts>
+#include <cstdint>
 #include <functional>
 #include <ranges>
 #include <string>
 #include <string_view>
 #include <type_traits>
 
+#include "core/assert.h"
 #include "core/util/type_info.h"
 
 namespace ptgn {
@@ -104,6 +107,15 @@ std::size_t Hash(const Ts&... values) {
 	std::size_t hash{ 0 };
 	(impl::HashValue(hash, values), ...);
 	return hash;
+}
+
+constexpr std::uint32_t QuantizeUnsigned(float value, float scale = 64.0f) {
+	PTGN_ASSERT(value >= 0.0f, "Value must be positive for unsigned quantization");
+	return static_cast<std::uint32_t>(std::lround(value * scale));
+}
+
+constexpr std::int32_t QuantizeSigned(float value, float scale = 64.0f) {
+	return static_cast<std::int32_t>(std::lround(value * scale));
 }
 
 } // namespace ptgn

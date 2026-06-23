@@ -4,7 +4,6 @@
 
 #include <optional>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -19,6 +18,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
+#include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
 #include "runtime/asset/asset_manager.h"
@@ -29,8 +29,6 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
-#include "renderer/text/text_style.h"
-#include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interactive.h"
 #include "runtime/interaction/interactive_event.h"

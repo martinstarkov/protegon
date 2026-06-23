@@ -9,7 +9,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/text/font_style.h"
-#include "renderer/text/glyph.h"
+#include "renderer/text/text_glyph.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/ecs/entity.h"
@@ -24,9 +24,15 @@ class SceneCamera;
 
 namespace impl {
 
+class FontAtlas;
+
 struct TextEditState {
 	std::size_t current_run_index{ 0 };
 };
+
+const FontAtlas* GetFontAtlas(AssetManager& asset_manager, std::string_view font_key);
+
+ResolvedStyledText ResolveStyledText(AssetManager& asset_manager, const StyledText& styled_text);
 
 void DrawDebugTextBoundingBoxes(
 	Scene& scene, const std::optional<SceneCamera>& camera, const impl::EntityFilterFunc& filter
@@ -41,18 +47,15 @@ public:
 
 	static void Draw(DrawContext& ctx, Entity entity);
 
-	static void Draw(
-		DrawContext& ctx, Entity text, V2_int text_size, Color additional_tint,
-		Origin offset_origin, V2_float offset_size
-	);
-
 	TextBox& GetTextBox();
 	const TextBox& GetTextBox() const;
 
 	Text& Clear();
 
-	// Appends/selects a text segment and makes it the current run.
+	/// @brief Appends/selects a text segment and makes it the current run.
 	Text& Content(std::string_view content);
+
+	Text& Content(StyledText styled_text);
 
 	Text& Select(std::size_t index);
 
@@ -129,7 +132,7 @@ public:
 	Text& OuterGlow(ptgn::Color color, float width, float softness = 1.0f);
 	Text& InnerGlow(ptgn::Color color, float width, float softness = 1.0f);
 
-	// Full glow = outer + inner.
+	/// @brief Full glow = outer + inner.
 	Text& Glow(ptgn::Color color, float width, float softness = 1.0f);
 	Text& Glow(ptgn::Color color, float outer_width, float inner_width, float softness);
 
@@ -176,20 +179,15 @@ public:
 	Text& RevealFraction(float fraction);
 
 private:
-	[[nodiscard]] static TextPaginationResult Paginate(
-		AssetManager& asset_manager, const impl::StyledText& styled_text, TextBox box,
-		const TextPageOptions& options = {}
-	);
-
-	impl::StyledText& GetStyledText();
-	const impl::StyledText& GetStyledText() const;
+	StyledText& GetStyledText();
+	const StyledText& GetStyledText() const;
 
 	const TextLayout& RequireLayout() const;
 
-	Text& SetStyledText(impl::StyledText styled_text);
+	Text& SetStyledText(StyledText styled_text);
 
-	impl::StyledText& EnsureStyledText();
-	const impl::StyledText& RequireStyledText() const;
+	StyledText& EnsureStyledText();
+	const StyledText& RequireStyledText() const;
 
 	TextBox& EnsureTextBox();
 	const TextBox& RequireTextBox() const;
@@ -199,13 +197,13 @@ private:
 
 	void EnsureValidRuns();
 
-	impl::TextRunStyle MakeDefaultRunStyle() const;
+	TextRunStyle MakeDefaultRunStyle() const;
 
-	impl::TextRun& CurrentRun();
-	const impl::TextRun& CurrentRun() const;
+	TextRun& CurrentRun();
+	const TextRun& CurrentRun() const;
 
-	impl::TextRunStyle& CurrentStyle();
-	const impl::TextRunStyle& CurrentStyle() const;
+	TextRunStyle& CurrentStyle();
+	const TextRunStyle& CurrentStyle() const;
 
 	bool HasOnlyDefaultEmptyRun() const;
 };

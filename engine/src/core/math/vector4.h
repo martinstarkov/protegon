@@ -301,6 +301,12 @@ template <Arithmetic T>
 template <ptgn::Arithmetic T>
 struct std::hash<ptgn::Vector4<T>> {
 	std::size_t operator()(ptgn::Vector4<T> v) const noexcept {
+		if constexpr (std::is_floating_point_v<T>) {
+			return ptgn::Hash(
+				ptgn::QuantizeSigned(v.x), ptgn::QuantizeSigned(v.y), ptgn::QuantizeSigned(v.z),
+				ptgn::QuantizeSigned(v.w)
+			);
+		}
 		return ptgn::Hash(v.x, v.y, v.z, v.w);
 	}
 };

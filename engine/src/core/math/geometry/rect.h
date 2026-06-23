@@ -11,6 +11,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
+#include "core/util/hash.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -168,3 +169,10 @@ public:
 };
 
 } // namespace ptgn
+
+template <>
+struct std::hash<ptgn::Rect> {
+	std::size_t operator()(const ptgn::Rect& rect) const {
+		return ptgn::Hash(rect.min, rect.max);
+	}
+};

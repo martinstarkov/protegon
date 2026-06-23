@@ -3,24 +3,67 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
-#include <string>
-#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/hash.h"
+#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_primitives.h"
-#include "renderer/pipeline/vertex.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
-#include "renderer/text/glyph.h"
+#include "renderer/text/text_glyph.h"
 #include "renderer/text/text_style.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
-class DrawContext;
-class AssetManager;
+enum class HorizontalAlign : std::uint8_t {
+	Left,
+	Center,
+	Right,
+	Justify,
+};
+PTGN_SERIALIZE_ENUM(HorizontalAlign)
+
+enum class VerticalAlign : std::uint8_t {
+	Top,
+	Center,
+	Bottom,
+};
+PTGN_SERIALIZE_ENUM(VerticalAlign)
+
+enum class WrapMode : std::uint8_t {
+	None,
+	Word,
+	Character,
+};
+PTGN_SERIALIZE_ENUM(WrapMode)
+
+enum class OverflowMode : std::uint8_t {
+	Overflow,
+	/// @brief Hide any glyph not fully inside the rect.
+	Clip,
+	/// @brief Hide glyphs only when fully outside the rect.
+	ClipPartial,
+	Ellipsis,
+	ScaleToFit,
+};
+PTGN_SERIALIZE_ENUM(OverflowMode)
+
+struct ShrinkScale {
+	float min{ 0.25f };
+	float max{ 1.0f };
+
+	constexpr bool operator==(const ShrinkScale& o) const {
+		return NearlyEqual(min, o.min) && NearlyEqual(max, o.max);
+	}
+	PTGN_SERIALIZE(ShrinkScale, min, max)
+};
 
 struct TextLayoutStyle {
 	HorizontalAlign horizontal_align{ HorizontalAlign::Left };
@@ -56,13 +99,24 @@ struct TextLayoutStyle {
 
 	std::size_t max_lines{ 0 };
 
-	float min_shrink_scale{ 0.25f };
-	float max_shrink_scale{ 1.0f };
+	ShrinkScale shrink_scale;
+
+	constexpr bool operator==(const TextLayoutStyle&) const = default;
+
+	PTGN_SERIALIZE(
+		TextLayoutStyle, horizontal_align, vertical_align, wrap_mode, overflow_mode,
+		collapse_spaces, justify_last_line, allow_word_break_in_overflow, insert_hyphen_on_split,
+		prevent_single_letter_split, require_three_letter_remainder, max_lines, shrink_scale
+	)
 };
 
 struct TextBox {
 	Rect rect;
 	TextLayoutStyle style;
+
+	constexpr bool operator==(const TextBox&) const = default;
+
+	PTGN_SERIALIZE(TextBox, rect, style)
 };
 
 struct LineLayout {
@@ -70,11 +124,8 @@ struct LineLayout {
 	std::size_t glyph_end{ 0 };
 
 	V2_float size;
-	float baseline_y{ 0.0f };
 
-	std::size_t justify_space_count{ 0 };
-	float justify_extra_per_space{ 0.0f };
-	bool ends_with_explicit_newline{ false };
+	constexpr bool operator==(const LineLayout&) const = default;
 };
 
 struct TextMeasurement {
@@ -90,7 +141,7 @@ struct TextBatchStyle {
 	impl::TextureId texture{ 0 };
 	DistanceFieldStyle sdf;
 
-	bool operator==(const TextBatchStyle&) const = default;
+	constexpr bool operator==(const TextBatchStyle&) const = default;
 };
 
 enum class TextDecorationType : std::uint8_t {
@@ -114,13 +165,14 @@ enum class TextClipMode : std::uint8_t {
 	ClipFullyContained,
 	ClipFullyOutside,
 };
+PTGN_SERIALIZE_ENUM(TextClipMode)
 
 struct TextLayout {
-	std::vector<GlyphInstance> glyphs;
+	std::vector<Glyph> glyphs;
 	std::vector<TextDecoration> decorations;
 	std::vector<LineLayout> lines;
 
-	// One style per StyledText run. GlyphInstance::source_run_index indexes this.
+	/// @brief One style per StyledText run. Glyph::source_run_index indexes this.
 	std::vector<TextBatchStyle> batch_styles;
 
 	V2_float measured_size;
@@ -138,23 +190,21 @@ struct TextLayout {
 	std::size_t hash{ 0 };
 };
 
-struct TextPageOptions {
-	std::string split_end{ "..." };
-	std::string split_begin{ "..." };
+struct DrawTextRequest {
+	const TextLayout& layout;
+	Color tint{ color::White };
+	Depth depth;
+	int entity_id{ -1 };
+	std::optional<Rect> clip_rect;
+	TextClipMode clip_mode;
+	std::size_t reveal_glyph_count{ std::numeric_limits<std::size_t>::max() };
+	float time{ 0.0f };
 
-	std::size_t max_lines_per_page{ 0 };
+	/// @brief Center of the text in world space. Origin should be accounted for in this
+	/// transform.
+	Transform transform;
 
-	bool add_split_markers{ true };
-};
-
-struct TextPage {
-	StyledText styled_text;
-	TextMeasurement measurement;
-	std::size_t glyph_count{ 0 };
-};
-
-struct TextPaginationResult {
-	std::vector<TextPage> pages;
+	impl::EffectParams effects;
 };
 
 namespace impl {
@@ -165,102 +215,60 @@ struct TextDrawBatch {
 	std::vector<impl::TextureQuad> quads;
 };
 
-struct RichTextToken {
-	enum class Type : std::uint8_t {
-		Word,
-		Space,
-		Tab,
-		Newline,
-	};
-
-	Type type{ Type::Word };
-	std::u32string text;
-	std::size_t run_index{ 0 };
-	float width{ 0.0f };
-};
-
-struct ResolvedGlyph {
-	std::uint32_t codepoint{ 0 };
-	impl::GlyphMetrics metrics;
-	GlyphRenderStyle render_style;
-	std::size_t source_run_index{ 0 };
-	std::size_t source_codepoint_index{ 0 };
-	impl::TextureId texture{ 0 };
-};
-
-struct CandidateLayout {
-	TextLayout layout;
-	float used_shrink_scale{ 1.0f };
-};
-
-V2_float GetTextOriginPoint(Rect rect, Origin origin);
-
-void UpdateLayout(
-	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
-);
-
-[[nodiscard]] TextLayout BuildLayout(
-	AssetManager& asset_manager, StyledText styled_text, const TextBox& box
-);
-
-[[nodiscard]] TextMeasurement Measure(
-	AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
-);
-
-void BuildVertices(
-	const TextLayout& layout, float depth, int entity_id, std::optional<Rect> clip_rect,
-	TextClipMode clip_mode, std::size_t reveal_glyph_count, float time,
-	std::vector<TextDrawBatch>& batches
-);
-
-void DrawText(AssetManager& asset_manager, DrawContext& ctx, Entity text);
-
-[[nodiscard]] Font GetFont(AssetManager& asset_manager, std::string_view font_key);
-
-[[nodiscard]] std::u32string DecodeUtf8(std::string_view text);
-
-[[nodiscard]] std::vector<RichTextToken> Tokenize(
-	AssetManager& asset_manager, StyledText& styled_text, bool collapse_spaces, float global_shrink
-);
-[[nodiscard]] float MeasureLineHeight(AssetManager& asset_manager, const TextRunStyle& style);
-[[nodiscard]] float MeasureTokenWidth(
-	AssetManager& asset_manager, RichTextToken& token, StyledText& styled_text, float global_shrink
-);
-[[nodiscard]] bool FitsInBox(const TextLayout& layout, Rect box);
-[[nodiscard]] CandidateLayout BuildLayoutAtScale(
-	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box, float global_shrink
-);
-[[nodiscard]] float FindBestShrinkScale(
-	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box
-);
-
-void ApplyVerticalAlignment(const TextBox& box, TextLayout* layout);
-void ApplyEllipsisOverflow(
-	AssetManager& asset_manager, StyledText& styled_text, const TextBox& box, float global_shrink,
-	TextLayout* layout
-);
-void ApplyMaxLines(const TextBox& box, TextLayout* layout);
-void ApplyClipVisibility(Rect clip_rect, TextLayout* layout);
-
-[[nodiscard]] std::optional<ResolvedGlyph> ResolveGlyph(
-	AssetManager& asset_manager, const TextRun& run, uint32_t codepoint, uint32_t next_codepoint,
-	size_t source_run_index, size_t source_codepoint_index, float global_shrink
-);
-
-void EmitGlyphQuad(
-	const GlyphInstance& glyph, float depth, int entity_id, float time,
-	std::vector<impl::TextureQuad>& quads
-);
-
 struct TextReveal {
 	std::size_t glyph_count{ std::numeric_limits<std::size_t>::max() };
+
+	PTGN_SERIALIZE_VALUE(TextReveal, glyph_count)
 };
 
 struct TextClip {
 	std::optional<Rect> rect;
 	TextClipMode mode{ TextClipMode::ClipFullyOutside };
+
+	PTGN_SERIALIZE(TextClip, rect, mode)
 };
+
+[[nodiscard]] TextLayout BuildTextLayout(const ResolvedStyledText& styled_text, const TextBox& box);
+
+[[nodiscard]] TextMeasurement MeasureText(
+	const ResolvedStyledText& styled_text, const TextBox& box
+);
+
+std::vector<TextDrawBatch> BuildTextDrawBatches(const ptgn::DrawTextRequest& request);
+
+[[nodiscard]] bool TextLayoutFitsInBox(const TextLayout& layout, Rect box);
 
 } // namespace impl
 
 } // namespace ptgn
+
+template <>
+struct std::hash<ptgn::ShrinkScale> {
+	std::size_t operator()(const ptgn::ShrinkScale& scale) const {
+		return ptgn::Hash(ptgn::QuantizeUnsigned(scale.min), ptgn::QuantizeUnsigned(scale.max));
+	}
+};
+
+template <>
+struct std::hash<ptgn::TextLayoutStyle> {
+	std::size_t operator()(const ptgn::TextLayoutStyle& style) const {
+		return ptgn::Hash(
+			std::to_underlying(style.horizontal_align), std::to_underlying(style.vertical_align),
+			std::to_underlying(style.wrap_mode), std::to_underlying(style.overflow_mode),
+
+			style.collapse_spaces, style.justify_last_line, style.allow_word_break_in_overflow,
+
+			style.insert_hyphen_on_split, style.prevent_single_letter_split,
+			style.require_three_letter_remainder,
+
+			style.max_lines, style.shrink_scale
+		);
+	}
+};
+
+template <>
+struct std::hash<ptgn::TextBox> {
+	std::size_t operator()(const ptgn::TextBox& box) const {
+		return ptgn::Hash(box.rect, box.style);
+	}
+};

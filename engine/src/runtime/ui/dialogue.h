@@ -1,12 +1,10 @@
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <variant>
 #include <vector>
 
 #include "core/event/event.h"
@@ -14,6 +12,7 @@
 #include "core/input/key.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/string.h"
 #include "core/util/time.h"
@@ -22,7 +21,6 @@
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/sprite.h"
-#include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/json.h"
@@ -100,16 +98,16 @@ struct DialoguePageProperties {
 	HorizontalAlign horizontal_align{ HorizontalAlign::Left };
 	VerticalAlign vertical_align{ VerticalAlign::Top };
 	WrapMode wrap_mode{ WrapMode::Word };
-	// TODO: Fix clipping of side of characters.
 	OverflowMode overflow_mode{ OverflowMode::Clip };
 };
 
 struct DialoguePage {
-	DialoguePage() = default;
-	DialoguePage(std::string_view content, const DialoguePageProperties& properties);
-
-	std::string content;
+	StyledText styled_text;
 	DialoguePageProperties properties;
+
+	DialoguePage() = default;
+
+	DialoguePage(StyledText styled_text, const DialoguePageProperties& properties);
 };
 
 struct DialogueLine {

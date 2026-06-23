@@ -25,7 +25,6 @@
 #include "core/util/entity_handle.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
-#include "core/util/string.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
@@ -142,9 +141,9 @@ Texture AssetManager::LoadTexture(
 Font AssetManager::CreateFont(bool persistent, const path& asset_path) {
 	Font font{ CreateAsset(), persistent };
 
-	auto font_object{ FontSystem::CreateFontAtlas(renderer_, asset_path) };
+	auto font_atlas{ FontSystem::CreateFontAtlas(renderer_, asset_path) };
 
-	font.GetEntity().Add<impl::FontObject>(std::move(font_object));
+	font.GetEntity().Add<impl::FontAtlas>(std::move(font_atlas));
 
 	return font;
 }

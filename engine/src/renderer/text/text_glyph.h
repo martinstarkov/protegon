@@ -7,6 +7,7 @@
 #include "core/math/vector2.h"
 #include "renderer/resources/id.h"
 #include "renderer/text/font_style.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -17,6 +18,7 @@ enum class GlyphEffectType : std::uint8_t {
 	Shake,
 	Pulse,
 };
+PTGN_SERIALIZE_ENUM(GlyphEffectType)
 
 struct GlyphEffectStyle {
 	GlyphEffectType type{ GlyphEffectType::None };
@@ -24,6 +26,8 @@ struct GlyphEffectStyle {
 	float frequency{ 0.0f };
 	float speed{ 0.0f };
 	float phase{ 0.0f };
+
+	PTGN_SERIALIZE(GlyphEffectStyle, type, amplitude, frequency, speed, phase)
 };
 
 struct GlyphRenderStyle {

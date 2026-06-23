@@ -6,7 +6,6 @@
 #include <msdf-atlas-gen/FontGeometry.h>
 #include <msdf-atlas-gen/glyph-generators.h>
 #include <msdf-atlas-gen/GlyphGeometry.h>
-#include <msdf-atlas-gen/ImmediateAtlasGenerator.h>
 #include <msdf-atlas-gen/TightAtlasPacker.h>
 #include <msdf-atlas-gen/types.h>
 #include <msdfgen/core/edge-coloring.h>

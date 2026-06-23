@@ -285,6 +285,11 @@ constexpr Vector3<S> operator/(Vector3<V> lhs, U rhs) { // NOSONAR
 template <ptgn::Arithmetic T>
 struct std::hash<ptgn::Vector3<T>> {
 	std::size_t operator()(ptgn::Vector3<T> v) const noexcept {
+		if constexpr (std::is_floating_point_v<T>) {
+			return ptgn::Hash(
+				ptgn::QuantizeSigned(v.x), ptgn::QuantizeSigned(v.y), ptgn::QuantizeSigned(v.z)
+			);
+		}
 		return ptgn::Hash(v.x, v.y, v.z);
 	}
 };

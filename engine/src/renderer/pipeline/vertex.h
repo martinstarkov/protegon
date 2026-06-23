@@ -13,7 +13,7 @@ namespace ptgn::impl {
 struct ColorVertex : public VertexLayout<ColorVertex, glsl::vec3, glsl::vec4, glsl::int_> {
 	ColorVertex() = default;
 
-	ColorVertex(V2_float position, float depth, V4_float color, int entity_id) :
+	ColorVertex(V2_float position, Depth depth, V4_float color, int entity_id) :
 		position{ position.x, position.y, depth },
 		color{ color[0], color[1], color[2], color[3] },
 		entity_id{ entity_id } {}
@@ -28,7 +28,7 @@ struct ShapeVertex :
 	ShapeVertex() = default;
 
 	ShapeVertex(
-		V2_float position, float depth, V4_float color, V2_float local_coord,
+		V2_float position, Depth depth, V4_float color, V2_float local_coord,
 		const std::array<float, 4>& shape_data, int entity_id
 	) :
 		position{ position.x, position.y, depth },
@@ -57,7 +57,7 @@ struct TextureVertex :
 	TextureVertex() = default;
 
 	TextureVertex(
-		V2_float position, float depth, V4_float color, V2_float tex_coord, float tex_index,
+		V2_float position, Depth depth, V4_float color, V2_float tex_coord, float tex_index,
 		int entity_id
 	) :
 		position{ position.x, position.y, depth },

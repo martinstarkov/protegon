@@ -15,6 +15,7 @@ struct DrawRequest {
 	/// @brief Optional texture to apply to the primitive. If the pipeline does not support
 	/// texturing, this field will be ignored.
 	TextureId texture;
+
 	/// @brief Center of the primitive in world space. Origin should be accounted for in this
 	/// transform.
 	Transform transform;

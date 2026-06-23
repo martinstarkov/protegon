@@ -489,7 +489,7 @@ struct LightVisibilityDebugSettings {
 
 void DrawPolygonLines(
 	Scene& scene, const SceneCamera& camera, std::span<const V2_float> vertices, Color color,
-	const FillStyle& fill_style, float depth
+	const FillStyle& fill_style, Depth depth
 ) {
 	if (vertices.size() < 2) {
 		return;
