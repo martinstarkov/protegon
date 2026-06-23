@@ -1,11 +1,10 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <functional>
 #include <span>
-#include <string>
-#include <utility>
 #include <vector>
 
 #include "core/assert.h"
@@ -27,7 +26,7 @@ public:
 		bool flip_vertically = false
 	);
 
-	explicit Surface(std::span<const std::uint8_t> bytes, int desired_channels = 4);
+	explicit Surface(std::span<const std::byte> bytes, int desired_channels = 4);
 
 	explicit Surface(const path& file, int desired_channels = 4);
 
@@ -63,7 +62,7 @@ public:
 	[[nodiscard]] bool IsEmpty() const;
 
 	/// @brief Encodes the surface pixel data as a PNG file in memory.
-	std::vector<std::uint8_t> EncodePNG() const;
+	std::vector<std::byte> EncodePNG() const;
 
 	[[nodiscard("Check if png save succeeded")]] std::expected<void, FileWriteError> SavePNG(
 		const path& file

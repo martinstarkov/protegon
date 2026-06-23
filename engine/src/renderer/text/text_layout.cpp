@@ -28,6 +28,22 @@ namespace ptgn {
 
 namespace {
 
+constexpr int kShrinkScaleSearchIterations{ 16 };
+
+struct GlyphEffectOscillation {
+	V2_float frequency_multiplier{ 1.0f, 1.0f };
+	V2_float glyph_phase_multiplier;
+};
+
+constexpr float kGlyphEffectPhaseStep{ 0.35f };
+
+constexpr GlyphEffectOscillation kWobbleOscillation{ .frequency_multiplier{ 1.0f, 1.37f } };
+
+constexpr GlyphEffectOscillation kShakeOscillation{
+	.frequency_multiplier{ 17.0f, 23.0f },
+	.glyph_phase_multiplier{ 12.9898f, 78.233f },
+};
+
 struct RichTextToken {
 	enum class Type : std::uint8_t {
 		Word,
@@ -376,20 +392,14 @@ Rect GetGlyphLogicalRect(const Glyph& glyph) {
 }
 
 Rect GetGlyphClipTestRect(const Glyph& glyph, TextClipMode mode) {
-	switch (mode) {
-		using enum TextClipMode;
-
-		case ClipFullyContained:
-			// Character-level clipping should use the logical advance cell.
-			// Otherwise negative left bearings make first glyphs disappear.
-			return GetGlyphLogicalRect(glyph);
-
-		case ClipFullyOutside:
-		case None:
-		default:
-			// Partial clipping should use the actual visual quad.
-			return GetGlyphVisualRect(glyph);
+	if (mode == TextClipMode::ClipFullyContained) {
+		// Character-level clipping should use the logical advance cell.
+		// Otherwise negative left bearings make first glyphs disappear.
+		return GetGlyphLogicalRect(glyph);
 	}
+
+	// Partial clipping should use the actual visual quad.
+	return GetGlyphVisualRect(glyph);
 }
 
 bool RectFullyContains(Rect outer, Rect inner) {
@@ -401,7 +411,7 @@ bool RectIntersects(Rect a, Rect b) {
 	return a.max.x > b.min.x && a.min.x < b.max.x && a.max.y > b.min.y && a.min.y < b.max.y;
 }
 
-bool ShouldDrawRectWithClipMode(Rect rect, Rect clip_rect, TextClipMode mode) {
+bool ShouldDrawRectWithClipMode(const Rect& rect, const Rect& clip_rect, TextClipMode mode) {
 	switch (mode) {
 		using enum TextClipMode;
 
@@ -419,38 +429,53 @@ V2_float GetEffectOffset(const Glyph& glyph, float time) {
 	const auto& effect{ glyph.render_style.effect };
 	auto order{ static_cast<float>(glyph.visible_order) };
 
-	// TODO: Get rid of magic numbers.
-
-	float phase{ effect.phase + order * 0.35f };
+	float phase{ effect.phase + order * kGlyphEffectPhaseStep };
 	float t{ time * effect.speed + phase };
+
+	auto oscillate = [&](const GlyphEffectOscillation& oscillation) {
+		auto angle = [&](float frequency_multiplier, float glyph_phase_multiplier) {
+			return t * effect.frequency * frequency_multiplier + order * glyph_phase_multiplier;
+		};
+
+		return V2_float{
+			std::sin(
+				angle(oscillation.frequency_multiplier.x, oscillation.glyph_phase_multiplier.x)
+			) * effect.amplitude,
+			std::cos(
+				angle(oscillation.frequency_multiplier.y, oscillation.glyph_phase_multiplier.y)
+			) * effect.amplitude,
+		};
+	};
 
 	switch (effect.type) {
 		using enum GlyphEffectType;
-		case Wobble:
-			return { std::sin(t * effect.frequency) * effect.amplitude,
-					 std::cos(t * effect.frequency * 1.37f) * effect.amplitude };
 
-		case Wave: return { 0.0f, std::sin(t * effect.frequency) * effect.amplitude };
+		case Wobble: return oscillate(kWobbleOscillation);
 
-		case Shake:
-			return { std::sin(t * effect.frequency * 17.0f + order * 12.9898f) * effect.amplitude,
-					 std::cos(t * effect.frequency * 23.0f + order * 78.233f) * effect.amplitude };
+		case Wave:
+			return {
+				0.0f,
+				std::sin(t * effect.frequency) * effect.amplitude,
+			};
+
+		case Shake: return oscillate(kShakeOscillation);
 
 		case Pulse: [[fallthrough]];
 		case None:	[[fallthrough]];
-		default:	return { 0.0f, 0.0f };
+		default:	return {};
 	}
 }
 
 float GetEffectScale(const Glyph& glyph, float time) {
 	const auto& effect{ glyph.render_style.effect };
+
 	if (effect.type != GlyphEffectType::Pulse) {
 		return 1.0f;
 	}
 
 	auto order{ static_cast<float>(glyph.visible_order) };
-	// TODO: Get rid of magic numbers.
-	float phase{ effect.phase + order * 0.35f };
+	float phase{ effect.phase + order * kGlyphEffectPhaseStep };
+
 	return 1.0f + std::sin(time * effect.speed + phase) * effect.amplitude;
 }
 
@@ -675,7 +700,7 @@ TextLayout BuildLayoutAtScale(
 		line.glyph_end	 = layout.glyphs.size() + current_line_glyphs.size();
 		line.size		 = current_line_size;
 
-		// auto line_baseline_y{ y + current_line_ascent };
+		// auto line_baseline_y{ y + current_line_ascent }; // NOSONAR
 
 		std::size_t justify_space_count{ 0 };
 
@@ -705,9 +730,8 @@ TextLayout BuildLayoutAtScale(
 				bool should_justify{ justify_space_count > 0 &&
 									 (!is_last_line_of_paragraph || box.style.justify_last_line) };
 
-				float remaining_width{ box.rect.GetSize().x - line.size.x };
-
-				if (should_justify && remaining_width > 0.0f) {
+				if (float remaining_width{ box.rect.GetSize().x - line.size.x };
+					should_justify && remaining_width > 0.0f) {
 					justify_extra_per_space =
 						remaining_width / static_cast<float>(justify_space_count);
 				}
@@ -976,9 +1000,8 @@ TextLayout BuildLayoutAtScale(
 					continue;
 				}
 
-				float advance{ resolved.value().metrics.advance };
-
-				if (current_line_size.x > 0.0f && current_line_size.x + advance > wrap_width) {
+				if (float advance{ resolved.value().metrics.advance };
+					current_line_size.x > 0.0f && current_line_size.x + advance > wrap_width) {
 					flush_line(LineFlushReason::SoftWrap);
 					restore_line_metrics();
 				}
@@ -1031,10 +1054,8 @@ float FindBestShrinkScale(const impl::ResolvedStyledText& styled_text, const Tex
 	float hi{ box.style.shrink_scale.max };
 	float best{ lo };
 
-	// TODO: Make search count configurable.
-
 	// Binary search for best scale.
-	for (int i{ 0 }; i < 16; ++i) {
+	for (int i{ 0 }; i < kShrinkScaleSearchIterations; ++i) {
 		float mid{ 0.5f * (lo + hi) };
 		auto layout{ BuildLayoutAtScale(styled_text, box, mid) };
 		if (impl::TextLayoutFitsInBox(layout, box.rect)) {
@@ -1135,8 +1156,6 @@ void ApplyEllipsisOverflow(
 	}
 
 	while (keep_lines > 0) {
-		auto& line{ layout.lines[keep_lines - 1] };
-
 		float line_bottom{ 0.0f };
 		for (auto i{ 0uz }; i < keep_lines; ++i) {
 			line_bottom += layout.lines[i].size.y;
@@ -1161,7 +1180,7 @@ void ApplyEllipsisOverflow(
 	}
 
 	auto last_visible_line_index{ keep_lines - 1 };
-	auto& last_line{ layout.lines[last_visible_line_index] };
+	const auto& last_line{ layout.lines[last_visible_line_index] };
 
 	bool line_count_truncated{ keep_lines < layout.lines.size() };
 
@@ -1236,7 +1255,7 @@ void ApplyEllipsisOverflow(
 			continue;
 		}
 
-		auto& glyph{ layout.glyphs[i] };
+		const auto& glyph{ layout.glyphs[i] };
 		if (!glyph.visible) {
 			continue;
 		}
@@ -1464,7 +1483,7 @@ TextMeasurement MeasureText(const ResolvedStyledText& styled_text, const TextBox
 std::vector<TextDrawBatch> BuildTextDrawBatches(const DrawTextRequest& request) {
 	std::vector<TextDrawBatch> batches;
 
-	for (Glyph glyph : request.layout.glyphs) {
+	for (const Glyph& glyph : request.layout.glyphs) {
 		if (!glyph.visible) {
 			continue;
 		}

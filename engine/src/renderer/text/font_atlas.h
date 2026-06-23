@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <unordered_map>
 
 #include "core/graphics/surface.h"
@@ -129,11 +131,9 @@ struct FontData {
 struct FontBinary {
 	constexpr FontBinary() = default;
 
-	constexpr FontBinary(const std::uint8_t* font_buffer, std::size_t buffer_length) :
-		buffer{ font_buffer }, length{ buffer_length } {}
+	constexpr explicit FontBinary(std::span<const std::byte> buffer) : buffer(buffer) {}
 
-	const std::uint8_t* buffer{ nullptr };
-	std::size_t length{ 0 };
+	std::span<const std::byte> buffer;
 };
 
 /// @brief CPU-side atlas data, produced either by generation or cache loading.

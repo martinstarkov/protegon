@@ -1,5 +1,6 @@
 #include "core/util/file.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
@@ -41,15 +42,18 @@ std::string FileToString(const path& file) {
 	return buffer.str();
 }
 
-std::vector<std::uint8_t> ReadBinary(const path& file) {
+std::vector<std::byte> ReadBinary(const path& file) {
 	PTGN_ASSERT(FileExists(file), "Binary file does not exist: ", file.string());
 
-	std::vector<std::uint8_t> bytes(fs::file_size(file));
+	std::vector<std::byte> bytes(fs::file_size(file));
 
 	std::ifstream in{ file, std::ios::binary };
 	PTGN_ASSERT(in, "Failed to open binary file: ", file.string());
 
-	in.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+	in.read(
+		reinterpret_cast<char*>(bytes.data()), // NOSONAR
+		static_cast<std::streamsize>(bytes.size())
+	);
 
 	PTGN_ASSERT(in, "Failed to read binary file: ", file.string());
 

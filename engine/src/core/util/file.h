@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <cstddef>
 #include <expected>
 #include <filesystem>
 #include <span>
@@ -32,10 +32,10 @@ enum class FileWriteError {
 	WriteFailed
 };
 
-[[nodiscard]] std::vector<std::uint8_t> ReadBinary(const path& file);
+[[nodiscard]] std::vector<std::byte> ReadBinary(const path& file);
 
 std::expected<void, FileWriteError> WriteBinary(
-	const path& file_path, std::span<const std::uint8_t> bytes
+	const path& file_path, std::span<const std::byte> bytes
 );
 
 } // namespace ptgn

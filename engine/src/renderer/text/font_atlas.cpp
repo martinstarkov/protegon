@@ -6,6 +6,7 @@
 #include <msdf-atlas-gen/FontGeometry.h>
 #include <msdf-atlas-gen/glyph-generators.h>
 #include <msdf-atlas-gen/GlyphGeometry.h>
+#include <msdf-atlas-gen/ImmediateAtlasGenerator.h>
 #include <msdf-atlas-gen/TightAtlasPacker.h>
 #include <msdf-atlas-gen/types.h>
 #include <msdfgen/core/edge-coloring.h>
@@ -18,7 +19,6 @@
 #include <list>
 #include <magic_enum/magic_enum.hpp>
 #include <memory>
-#include <msdf-atlas-gen/ImmediateAtlasGenerator.hpp>
 #include <msdfgen/core/BitmapRef.hpp>
 #include <optional>
 #include <span>

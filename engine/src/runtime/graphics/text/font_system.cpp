@@ -2,6 +2,7 @@
 
 #include <ecs/ecs.h>
 
+#include <cstddef>
 #include <filesystem>
 #include <format>
 #include <fstream>
@@ -36,7 +37,7 @@ inline constexpr std::string_view kFontCacheDirectory{ "cache/fonts" };
 /// @brief Enables generating a default font atlas at runtime and overwriting default_font.h with
 /// the generated atlas. This is useful for development and testing.
 #ifdef PTGN_DEBUG
-inline constexpr bool kGenerateDefaultFontAtlas{ false };
+inline constexpr bool kGenerateDefaultFontAtlas{ true };
 #endif
 
 void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
@@ -49,14 +50,17 @@ void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
 	PTGN_ASSERT(out, "Failed to open generated default font header: ", header_path.string());
 
 	out << "#pragma once\n\n";
-	out << "#include <cstdint>\n\n";
+	out << "#include <cstddef>\n";
+	out << "#include <cstdint>\n";
+	out << "#include <span>\n\n";
 	out << "#include \"runtime/graphics/text/font.h\"\n\n";
 	out << "namespace ptgn::impl {\n\n";
 	out << "inline constexpr std::uint8_t kDefaultFontBytes[] = {";
 
 	for (auto i{ 0uz }; i < font_png.size(); ++i) {
 		out << (i % 12 == 0 ? "\n\t" : " ");
-		out << std::format("0x{:02X}", font_png[i]);
+
+		out << std::format("0x{:02X}", std::to_integer<unsigned int>(font_png[i]));
 
 		if (i + 1 != font_png.size()) {
 			out << ',';
@@ -64,8 +68,9 @@ void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
 	}
 
 	out << "\n};\n\n";
-	out << "inline constexpr FontBinary kDefaultFontBinary{ kDefaultFontBytes, "
-		   "sizeof(kDefaultFontBytes) };\n\n";
+	out << "inline constexpr FontBinary kDefaultFontBinary{\n";
+	out << "\t.buffer = std::as_bytes(std::span{ kDefaultFontBytes })\n";
+	out << "};\n\n";
 	out << "} // namespace ptgn::impl\n";
 
 	PTGN_ASSERT(out, "Failed to write generated default font header: ", header_path.string());

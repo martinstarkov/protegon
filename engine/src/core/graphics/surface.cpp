@@ -4,10 +4,12 @@
 #include <stb_image_write.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <expected>
 #include <filesystem>
+#include <ranges>
 #include <span>
 #include <string>
 #include <vector>
@@ -26,9 +28,9 @@ void WritePngBytesToVector(void* context, void* data, int size) {
 	PTGN_ASSERT(data, "PNG output data is null");
 	PTGN_ASSERT(size >= 0, "PNG output size cannot be negative");
 
-	auto& bytes{ *static_cast<std::vector<std::uint8_t>*>(context) };
+	auto& bytes{ *static_cast<std::vector<std::byte>*>(context) };
 
-	auto* first{ static_cast<std::uint8_t*>(data) };
+	auto* first{ static_cast<std::byte*>(data) };
 	bytes.insert(bytes.end(), first, first + size);
 }
 
@@ -45,9 +47,9 @@ Surface::Surface(
 		"Pixel data size does not match expected size for given surface dimensions"
 	);
 	if (!flip_vertically) {
-		pixels_ = std::vector<std::uint8_t>(pixels.begin(), pixels.end());
+		pixels_ = std::ranges::to<std::vector<std::uint8_t>>(pixels);
 	} else {
-		auto row_bytes{ static_cast<std::size_t>(size.x) * static_cast<std::size_t>(channels) };
+		auto row_bytes{ static_cast<std::size_t>(size.x) * channels };
 
 		pixels_.resize(pixels.size());
 
@@ -62,15 +64,15 @@ Surface::Surface(
 	}
 }
 
-Surface::Surface(std::span<const std::uint8_t> bytes, int desired_channels) {
+Surface::Surface(std::span<const std::byte> bytes, int desired_channels) {
 	PTGN_ASSERT(bytes.data(), "Embedded PNG binary is null");
 	PTGN_ASSERT(bytes.size() > 0, "Embedded PNG binary is empty");
 
 	int source_channel_count{ 0 };
 
 	auto data{ stbi_load_from_memory(
-		bytes.data(), static_cast<int>(bytes.size()), &size_.x, &size_.y, &source_channel_count,
-		desired_channels
+		reinterpret_cast<const unsigned char*>(bytes.data()), // NOSONAR
+		static_cast<int>(bytes.size()), &size_.x, &size_.y, &source_channel_count, desired_channels
 	) };
 
 	PTGN_ASSERT(data, "Failed to load image from memory: ", stbi_failure_reason());
@@ -166,8 +168,8 @@ const std::uint8_t* Surface::Data() const {
 	return pixels_.empty();
 }
 
-std::vector<std::uint8_t> Surface::EncodePNG() const {
-	std::vector<std::uint8_t> encoded;
+std::vector<std::byte> Surface::EncodePNG() const {
+	std::vector<std::byte> encoded;
 
 	auto success{ stbi_write_png_to_func(
 		&WritePngBytesToVector, &encoded, size_.x, size_.y, channels_, pixels_.data(),
