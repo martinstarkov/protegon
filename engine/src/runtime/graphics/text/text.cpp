@@ -543,6 +543,25 @@ Text& Text::AllowWordBreakInOverflow(bool allow) {
 	return *this;
 }
 
+Text& Text::InsertHyphenOnSplit(bool insert) {
+	EnsureTextBox().style.insert_hyphen_on_split = insert;
+	InvalidateLayout();
+	return *this;
+}
+
+Text& Text::PreventSingleLetterSplit(bool prevent) {
+	EnsureTextBox().style.prevent_single_letter_split = prevent;
+	InvalidateLayout();
+	return *this;
+}
+
+Text& Text::RequireThreeLetterRemainder(bool require) {
+	EnsureTextBox().style.require_three_letter_remainder = require;
+	InvalidateLayout();
+	return *this;
+}
+}
+
 Text& Text::MaxLines(std::size_t max_lines) {
 	auto& style{ EnsureTextBox().style };
 

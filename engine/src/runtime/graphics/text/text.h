@@ -68,8 +68,11 @@ public:
 	Text& Wrap(WrapMode mode);
 	Text& Overflow(OverflowMode mode);
 
+	/// @brief Useful for something like a scrollable text box where you want to clip the text to
+	/// the box, but still allow the user to scroll the text outside of the box.
 	Text& Clip(Rect rect, TextClipMode mode = TextClipMode::ClipFullyOutside);
 
+	/// @brief Removes any clipping that was previously set.
 	Text& ClearClip();
 
 	/// @brief If true, consecutive whitespace characters will be collapsed into a single space
@@ -82,7 +85,24 @@ public:
 	/// to be a paragraph, such as a single line of text.
 	Text& JustifyLastLine(bool justify = true);
 
+	/// @brief Only applicable for WrapMode::Word. If true, move the word to a new line, then split
+	/// it across lines if it cannot fit on an empty line. If false, move the word to a new line,
+	/// then allow it to overflow if it is still too wide.
 	Text& AllowWordBreakInOverflow(bool allow = true);
+
+	/// @brief Only used by WrapMode::Character.
+	/// If true, inserts a hyphen at the end of a line when a word is split across lines.
+	Text& InsertHyphenOnSplit(bool insert = true);
+
+	/// @brief Only used by WrapMode::Character.
+	/// If true, if a word is split and only a single letter remains on the current line, the
+	/// entire word is moved to the next line instead.
+	Text& PreventSingleLetterSplit(bool prevent = true);
+
+	/// @brief Only used by WrapMode::Character.
+	/// If true, if a word is split and fewer than three letters remain on the next line, the
+	/// entire word is moved to the next line instead.
+	Text& RequireThreeLetterRemainder(bool require = true);
 
 	Text& MaxLines(std::size_t max_lines);
 	Text& ScaleToFit(float min_scale, float max_scale = 1.0f);

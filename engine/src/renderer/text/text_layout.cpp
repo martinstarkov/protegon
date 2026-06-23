@@ -103,7 +103,9 @@ std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 		std::to_underlying(box.style.horizontal_align),
 		std::to_underlying(box.style.vertical_align), std::to_underlying(box.style.wrap_mode),
 		std::to_underlying(box.style.overflow_mode), box.style.collapse_spaces,
-		box.style.justify_last_line, box.style.allow_word_break_in_overflow, box.style.max_lines
+		box.style.justify_last_line, box.style.allow_word_break_in_overflow,
+		box.style.prevent_single_letter_split, box.style.insert_hyphen_on_split,
+		box.style.require_three_letter_remainder, box.style.max_lines
 	);
 }
 
@@ -940,12 +942,16 @@ CandidateLayout BuildLayoutAtScale(
 		float x_offset{ 0.0f };
 		switch (box.style.horizontal_align) {
 			using enum HorizontalAlign;
+
 			case Left: x_offset = box.rect.min.x; break;
+
 			case Center:
 				x_offset = box.rect.min.x + (box.rect.GetSize().x - line.size.x) * 0.5f;
 				break;
-			case Right: x_offset = box.rect.min.x + (box.rect.GetSize().x - line.size.x); break;
-			case Justify:
+
+			case Right:	  x_offset = box.rect.min.x + (box.rect.GetSize().x - line.size.x); break;
+
+			case Justify: {
 				x_offset = box.rect.min.x;
 
 				bool should_justify{ line.justify_space_count > 0 &&
@@ -959,9 +965,11 @@ CandidateLayout BuildLayoutAtScale(
 				}
 
 				break;
+			}
 		}
 
 		float justify_extra{ 0.0f };
+
 		for (Glyph& glyph : current_line_glyphs) {
 			glyph.position.x	+= x_offset + justify_extra;
 			glyph.position.y	+= box.rect.min.y + current_line_ascent;
@@ -1002,8 +1010,13 @@ CandidateLayout BuildLayoutAtScale(
 		float wrap_width{ box.rect.GetSize().x };
 		bool can_wrap{ box.style.wrap_mode != WrapMode::None && wrap_width > 0.0f };
 
-		bool character_wrap_word{ token.type == RichTextToken::Type::Word &&
+		bool character_wrap_word{ token.type == RichTextToken::Type::Word && can_wrap &&
 								  box.style.wrap_mode == WrapMode::Character };
+
+		bool break_oversized_word{ token.type == RichTextToken::Type::Word && can_wrap &&
+								   box.style.wrap_mode == WrapMode::Word &&
+								   box.style.allow_word_break_in_overflow &&
+								   token.width > wrap_width };
 
 		if (bool wrap_here{ can_wrap && current_line_size.x > 0.0f &&
 							current_line_size.x + token.width > wrap_width };
@@ -1015,9 +1028,13 @@ CandidateLayout BuildLayoutAtScale(
 
 		auto line_metrics{ MeasureLineMetrics(asset_manager, run.style, global_shrink) };
 
-		current_line_size.y	 = std::max(current_line_size.y, line_metrics.height);
-		current_line_ascent	 = std::max(current_line_ascent, line_metrics.ascent);
-		current_line_descent = std::max(current_line_descent, line_metrics.descent);
+		auto restore_line_metrics = [&]() {
+			current_line_size.y	 = std::max(current_line_size.y, line_metrics.height);
+			current_line_ascent	 = std::max(current_line_ascent, line_metrics.ascent);
+			current_line_descent = std::max(current_line_descent, line_metrics.descent);
+		};
+
+		restore_line_metrics();
 
 		if (token.type == RichTextToken::Type::Space || token.type == RichTextToken::Type::Tab) {
 			if (std::optional<ResolvedGlyph> space_glyph{ ResolveGlyph(
@@ -1042,8 +1059,166 @@ CandidateLayout BuildLayoutAtScale(
 			continue;
 		}
 
-		if (token.type == RichTextToken::Type::Word && box.style.wrap_mode == WrapMode::Character &&
-			box.rect.GetSize().x > 0.0f) {
+		auto append_glyph = [&](const ResolvedGlyph& resolved) {
+			Glyph glyph;
+			glyph.codepoint				 = resolved.codepoint;
+			glyph.position				 = { current_line_size.x, y };
+			glyph.plane					 = resolved.metrics.plane;
+			glyph.uv					 = resolved.metrics.uv;
+			glyph.source_run_index		 = resolved.source_run_index;
+			glyph.advance				 = resolved.metrics.advance;
+			glyph.source_codepoint_index = resolved.source_codepoint_index;
+			glyph.render_style			 = resolved.render_style;
+			glyph.texture				 = resolved.texture;
+			current_line_glyphs.push_back(glyph);
+
+			current_line_size.x += resolved.metrics.advance;
+		};
+
+		if (character_wrap_word) {
+			std::vector<ResolvedGlyph> word_glyphs;
+			word_glyphs.reserve(token.text.size());
+
+			for (auto i{ 0uz }; i < token.text.size(); ++i) {
+				std::uint32_t cp{ token.text[i] };
+				std::uint32_t next_cp{ GetNextCodepoint(token.text, i) };
+
+				std::optional<ResolvedGlyph> resolved{
+					ResolveGlyph(asset_manager, run, cp, next_cp, token.run_index, i, global_shrink)
+				};
+
+				if (resolved.has_value()) {
+					word_glyphs.push_back(std::move(resolved.value()));
+				}
+			}
+
+			std::optional<ResolvedGlyph> hyphen_glyph;
+
+			if (box.style.insert_hyphen_on_split) {
+				hyphen_glyph =
+					ResolveGlyph(asset_manager, run, U'-', 0, token.run_index, 0, global_shrink);
+			}
+
+			auto word_begin{ 0uz };
+
+			while (word_begin < word_glyphs.size()) {
+				std::size_t remaining_count{ word_glyphs.size() - word_begin };
+
+				float remaining_word_width{ 0.0f };
+
+				for (auto i{ word_begin }; i < word_glyphs.size(); ++i) {
+					remaining_word_width += word_glyphs[i].metrics.advance;
+				}
+
+				if (current_line_size.x + remaining_word_width <= wrap_width) {
+					for (auto i{ word_begin }; i < word_glyphs.size(); ++i) {
+						append_glyph(word_glyphs[i]);
+					}
+
+					break;
+				}
+
+				bool add_hyphen{ box.style.insert_hyphen_on_split && hyphen_glyph.has_value() };
+
+				std::size_t fit_count{ 0 };
+				std::optional<ResolvedGlyph> fitted_last_glyph;
+
+				float prefix_width{ 0.0f };
+
+				// Only test actual splits. A count equal to remaining_count
+				// would mean the complete suffix fits, which was tested above.
+				for (auto count{ 1uz }; count < remaining_count; ++count) {
+					auto glyph_index{ word_begin + count - 1 };
+
+					prefix_width += word_glyphs[glyph_index].metrics.advance;
+
+					std::uint32_t boundary_next_cp{ add_hyphen ? U'-' : 0 };
+
+					std::optional<ResolvedGlyph> boundary_glyph{ ResolveGlyph(
+						asset_manager, run, word_glyphs[glyph_index].codepoint, boundary_next_cp,
+						token.run_index, word_glyphs[glyph_index].source_codepoint_index,
+						global_shrink
+					) };
+
+					if (!boundary_glyph.has_value()) {
+						continue;
+					}
+
+					// Replace the original advance, which included kerning
+					// against the next source character, with the advance at
+					// the actual line boundary.
+					float candidate_width{ current_line_size.x + prefix_width -
+										   word_glyphs[glyph_index].metrics.advance +
+										   boundary_glyph.value().metrics.advance };
+
+					if (add_hyphen) {
+						candidate_width += hyphen_glyph.value().metrics.advance;
+					}
+
+					if (candidate_width <= wrap_width) {
+						fit_count		  = count;
+						fitted_last_glyph = std::move(boundary_glyph.value());
+					}
+				}
+
+				std::size_t remainder_count{ remaining_count - fit_count };
+
+				bool invalid_split{
+					fit_count == 0 || (box.style.prevent_single_letter_split && fit_count == 1) ||
+					(box.style.require_three_letter_remainder && remainder_count < 3)
+				};
+
+				if (invalid_split) {
+					// The split available on this line violates one of the
+					// enabled rules. Move the complete remaining word to a
+					// fresh line and try again.
+					if (!current_line_glyphs.empty()) {
+						flush_line(LineFlushReason::SoftWrap);
+						restore_line_metrics();
+						continue;
+					}
+
+					// The word is already on an empty line and still has no
+					// valid split. Keep it intact and allow horizontal
+					// overflow rather than violating the requested rules.
+					for (auto i{ word_begin }; i < word_glyphs.size(); ++i) {
+						append_glyph(word_glyphs[i]);
+					}
+
+					break;
+				}
+
+				for (auto offset{ 0uz }; offset < fit_count; ++offset) {
+					bool is_last{ offset + 1 == fit_count };
+
+					if (is_last) {
+						append_glyph(fitted_last_glyph.value());
+					} else {
+						append_glyph(word_glyphs[word_begin + offset]);
+					}
+				}
+
+				if (add_hyphen) {
+					ResolvedGlyph inserted_hyphen{ hyphen_glyph.value() };
+
+					// The hyphen is synthetic, so associate it with the
+					// preceding source character.
+					inserted_hyphen.source_codepoint_index =
+						word_glyphs[word_begin + fit_count - 1].source_codepoint_index;
+
+					append_glyph(inserted_hyphen);
+				}
+
+				word_begin += fit_count;
+
+				flush_line(LineFlushReason::SoftWrap);
+				restore_line_metrics();
+			}
+
+			continue;
+		}
+
+		if (break_oversized_word) {
 			for (auto i{ 0uz }; i < token.text.size(); ++i) {
 				std::uint32_t cp{ token.text[i] };
 				std::uint32_t next_cp{ GetNextCodepoint(token.text, i) };
@@ -1056,40 +1231,29 @@ CandidateLayout BuildLayoutAtScale(
 					continue;
 				}
 
-				if (current_line_size.x > 0.0f &&
-					current_line_size.x + resolved.value().metrics.advance > box.rect.GetSize().x) {
-					flush_line(LineFlushReason::SoftWrap);
+				float advance{ resolved.value().metrics.advance };
 
-					current_line_size.y	 = std::max(current_line_size.y, line_metrics.height);
-					current_line_ascent	 = std::max(current_line_ascent, line_metrics.ascent);
-					current_line_descent = std::max(current_line_descent, line_metrics.descent);
+				if (current_line_size.x > 0.0f && current_line_size.x + advance > wrap_width) {
+					flush_line(LineFlushReason::SoftWrap);
+					restore_line_metrics();
 				}
 
-				Glyph glyph;
-				glyph.codepoint				 = resolved.value().codepoint;
-				glyph.position				 = { current_line_size.x, y };
-				glyph.plane					 = resolved.value().metrics.plane;
-				glyph.uv					 = resolved.value().metrics.uv;
-				glyph.source_run_index		 = resolved.value().source_run_index;
-				glyph.advance				 = resolved.value().metrics.advance;
-				glyph.source_codepoint_index = resolved.value().source_codepoint_index;
-				glyph.render_style			 = resolved.value().render_style;
-				glyph.texture				 = resolved.value().texture;
-				current_line_glyphs.push_back(glyph);
-
-				current_line_size.x += resolved.value().metrics.advance;
+				append_glyph(resolved.value());
 			}
 
 			continue;
 		}
 
 		float x{ current_line_size.x };
+
 		for (auto i{ 0uz }; i < token.text.size(); ++i) {
 			std::uint32_t cp{ token.text[i] };
 			std::uint32_t next_cp{ GetNextCodepoint(token.text, i) };
+
 			std::optional<ResolvedGlyph> resolved{
 				ResolveGlyph(asset_manager, run, cp, next_cp, token.run_index, i, global_shrink)
 			};
+
 			if (!resolved.has_value()) {
 				continue;
 			}

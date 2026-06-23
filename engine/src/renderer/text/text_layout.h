@@ -28,9 +28,31 @@ struct TextLayoutStyle {
 	WrapMode wrap_mode{ WrapMode::None };
 	OverflowMode overflow_mode{ OverflowMode::Overflow };
 
+	/// @brief If true, consecutive whitespace characters will be collapsed into a single space.
 	bool collapse_spaces{ false };
+
+	/// @brief If true, the last line of text will be justified to fill the width of the box.
 	bool justify_last_line{ false };
+
+	/// @brief Only used by WrapMode::Word.
+	/// If true, move the word to a new line, then split it across lines if it cannot fit on an
+	/// empty line. If false, move the word to a new line, then allow it to overflow if it is still
+	/// too wide.
 	bool allow_word_break_in_overflow{ true };
+
+	/// @brief Only used by WrapMode::Character.
+	/// If true, inserts a hyphen at the end of a line when a word is split across lines.
+	bool insert_hyphen_on_split{ true };
+
+	/// @brief Only used by WrapMode::Character.
+	/// If true, if a word is split and only a single letter remains on the current line, the
+	/// entire word is moved to the next line instead.
+	bool prevent_single_letter_split{ true };
+
+	/// @brief Only used by WrapMode::Character.
+	/// If true, if a word is split and fewer than three letters remain on the next line, the
+	/// entire word is moved to the next line instead.
+	bool require_three_letter_remainder{ true };
 
 	std::size_t max_lines{ 0 };
 
