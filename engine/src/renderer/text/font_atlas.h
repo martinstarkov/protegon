@@ -131,9 +131,13 @@ struct FontData {
 struct FontBinary {
 	constexpr FontBinary() = default;
 
-	constexpr explicit FontBinary(std::span<const std::byte> buffer) : buffer(buffer) {}
+	explicit FontBinary(std::span<const std::byte> buffer) :
+		buffer{ std::span{ reinterpret_cast<const std::uint8_t*>(buffer.data()), // NOSONAR
+						   buffer.size() } } {}
 
-	std::span<const std::byte> buffer;
+	constexpr explicit FontBinary(std::span<const std::uint8_t> buffer) : buffer{ buffer } {}
+
+	std::span<const std::uint8_t> buffer;
 };
 
 /// @brief CPU-side atlas data, produced either by generation or cache loading.

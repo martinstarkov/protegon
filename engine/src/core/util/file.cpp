@@ -61,7 +61,7 @@ std::vector<std::byte> ReadBinary(const path& file) {
 }
 
 std::expected<void, FileWriteError> WriteBinary(
-	const path& file_path, std::span<const std::uint8_t> bytes
+	const path& file_path, std::span<const std::byte> bytes
 ) {
 	EnsureDirectory(file_path.parent_path());
 
@@ -72,7 +72,8 @@ std::expected<void, FileWriteError> WriteBinary(
 	}
 
 	out.write(
-		reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size())
+		reinterpret_cast<const char*>(bytes.data()), // NOSONAR
+		static_cast<std::streamsize>(bytes.size())
 	);
 
 	if (!out) {

@@ -37,7 +37,7 @@ inline constexpr std::string_view kFontCacheDirectory{ "cache/fonts" };
 /// @brief Enables generating a default font atlas at runtime and overwriting default_font.h with
 /// the generated atlas. This is useful for development and testing.
 #ifdef PTGN_DEBUG
-inline constexpr bool kGenerateDefaultFontAtlas{ true };
+inline constexpr bool kGenerateDefaultFontAtlas{ false };
 #endif
 
 void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
@@ -69,7 +69,7 @@ void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
 
 	out << "\n};\n\n";
 	out << "inline constexpr FontBinary kDefaultFontBinary{\n";
-	out << "\t.buffer = std::as_bytes(std::span{ kDefaultFontBytes })\n";
+	out << "\tstd::span{ kDefaultFontBytes }\n";
 	out << "};\n\n";
 	out << "} // namespace ptgn::impl\n";
 

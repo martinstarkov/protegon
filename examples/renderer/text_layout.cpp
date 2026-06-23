@@ -9,9 +9,9 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/text.h"
-#include "renderer/text/text_style.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
@@ -117,7 +117,8 @@ struct TextLayoutScene : public Scene {
 
 		CreateCell(
 			2, 0, "WrapMode::Character",
-			"Pneumonoultramicroscopicsilicovolcanoconiosis character wrapping.",
+			"Pneumonoultramicroscopicsilicovolcanoconiosis character wrapping. But not for short "
+			"words like this",
 			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Character, OverflowMode::Overflow
 		);
 

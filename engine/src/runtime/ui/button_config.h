@@ -15,9 +15,9 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
-#include "renderer/text/text_style.h"
+#include "renderer/text/font_atlas.h"
+#include "renderer/text/text_layout.h"
 #include "runtime/animation/animation.h"
-#include "runtime/graphics/text/font.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {

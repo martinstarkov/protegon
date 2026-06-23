@@ -8,7 +8,6 @@
 #include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/input/key.h"
-#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/renderer.h"
 #include "renderer/text/text_glyph.h"

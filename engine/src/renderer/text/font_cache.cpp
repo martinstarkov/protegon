@@ -69,7 +69,7 @@ constexpr std::size_t kMinimumFontAtlasPngSize{ kFontDataChunkTypeOffset + kPngC
 
 class MemoryReader {
 public:
-	explicit MemoryReader(FontBinary binary) : data_{ binary.buffer } {}
+	explicit MemoryReader(FontBinary binary) : data_{ std::as_bytes(binary.buffer) } {}
 
 	template <BinarySerializable T>
 	bool Read(T& value) {
@@ -366,7 +366,7 @@ std::vector<std::byte> MakePngChunk(std::array<char, 4> type, std::span<const st
 }
 
 impl::Surface CreateSurfaceFromEncodedPng(FontBinary font_png) {
-	return impl::Surface{ font_png.buffer, kFontAtlasChannelCount };
+	return impl::Surface{ std::as_bytes(font_png.buffer), kFontAtlasChannelCount };
 }
 
 FontCacheError ToFontCacheError(FileWriteError error) {
@@ -382,7 +382,7 @@ std::expected<impl::FontData, FontCacheError> ReadFontCacheFromPng(FontBinary fo
 		return std::unexpected{ FontCacheError::InvalidPng };
 	}
 
-	std::span<const std::byte> png_bytes{ font_png.buffer };
+	auto png_bytes{ std::as_bytes(font_png.buffer) };
 
 	auto payload{ GetExpectedFontDataChunkPayload(png_bytes) };
 	if (!payload.has_value()) {
@@ -410,7 +410,7 @@ std::expected<std::vector<std::byte>, FontCacheError> InsertPngChunkAfterIhdr(
 	std::vector<std::byte> output;
 	output.reserve(png_bytes.size() + inserted_chunk.size());
 
-	output.append_range(png_bytes.subspan(kPngSignature.size()));
+	output.append_range(png_bytes.first(kPngSignature.size()));
 
 	std::size_t offset{ kPngSignature.size() };
 	bool inserted{ false };
@@ -460,7 +460,7 @@ std::expected<FontAtlasData, FontCacheError> LoadFontCache(FontBinary font_png) 
 		return std::unexpected{ FontCacheError::InvalidPng };
 	}
 
-	auto png_bytes{ font_png.buffer };
+	auto png_bytes{ std::as_bytes(font_png.buffer) };
 
 	auto embedded_payload{ GetExpectedFontDataChunkPayload(png_bytes) };
 
