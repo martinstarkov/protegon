@@ -910,7 +910,16 @@ CandidateLayout BuildLayoutAtScale(
 	float y{ 0.0f };
 	std::size_t visible_order{ 0 };
 
-	auto flush_line = [&](bool ends_with_explicit_newline) {
+	enum class LineFlushReason {
+		SoftWrap,
+		ExplicitNewline,
+		EndOfText
+	};
+
+	auto flush_line = [&](LineFlushReason reason) {
+		bool ends_with_explicit_newline{ reason == LineFlushReason::ExplicitNewline };
+		bool is_last_line_of_paragraph{ reason != LineFlushReason::SoftWrap };
+
 		if (current_line_glyphs.empty() && !ends_with_explicit_newline) {
 			return;
 		}
@@ -938,11 +947,17 @@ CandidateLayout BuildLayoutAtScale(
 			case Right: x_offset = box.rect.min.x + (box.rect.GetSize().x - line.size.x); break;
 			case Justify:
 				x_offset = box.rect.min.x;
-				if (line.justify_space_count > 0 &&
-					(!ends_with_explicit_newline || box.style.justify_last_line)) {
-					line.justify_extra_per_space = (box.rect.GetSize().x - line.size.x) /
-												   static_cast<float>(line.justify_space_count);
+
+				bool should_justify{ line.justify_space_count > 0 &&
+									 (!is_last_line_of_paragraph || box.style.justify_last_line) };
+
+				float remaining_width{ box.rect.GetSize().x - line.size.x };
+
+				if (should_justify && remaining_width > 0.0f) {
+					line.justify_extra_per_space =
+						remaining_width / static_cast<float>(line.justify_space_count);
 				}
+
 				break;
 		}
 
@@ -980,7 +995,7 @@ CandidateLayout BuildLayoutAtScale(
 
 	for (RichTextToken& token : tokens) {
 		if (token.type == RichTextToken::Type::Newline) {
-			flush_line(true);
+			flush_line(LineFlushReason::ExplicitNewline);
 			continue;
 		}
 
@@ -993,7 +1008,7 @@ CandidateLayout BuildLayoutAtScale(
 		if (bool wrap_here{ can_wrap && current_line_size.x > 0.0f &&
 							current_line_size.x + token.width > wrap_width };
 			wrap_here && !character_wrap_word) {
-			flush_line(false);
+			flush_line(LineFlushReason::SoftWrap);
 		}
 
 		const auto& run{ styled_text.runs[token.run_index] };
@@ -1043,7 +1058,7 @@ CandidateLayout BuildLayoutAtScale(
 
 				if (current_line_size.x > 0.0f &&
 					current_line_size.x + resolved.value().metrics.advance > box.rect.GetSize().x) {
-					flush_line(false);
+					flush_line(LineFlushReason::SoftWrap);
 
 					current_line_size.y	 = std::max(current_line_size.y, line_metrics.height);
 					current_line_ascent	 = std::max(current_line_ascent, line_metrics.ascent);
@@ -1097,7 +1112,7 @@ CandidateLayout BuildLayoutAtScale(
 		current_line_size.x = x;
 	}
 
-	flush_line(false);
+	flush_line(LineFlushReason::EndOfText);
 
 	CandidateLayout result;
 	result.layout			 = std::move(layout);

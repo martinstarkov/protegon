@@ -72,8 +72,16 @@ public:
 
 	Text& ClearClip();
 
+	/// @brief If true, consecutive whitespace characters will be collapsed into a single space
+	/// across all text runs.
+	/// Useful for processing user entered text or different localization strings.
 	Text& CollapseSpaces(bool collapse = true);
+
+	/// @brief By default, the last line of text is not justified. If true, the last line will be
+	/// justified if the alignment is set to justify. This is useful for text that is not expected
+	/// to be a paragraph, such as a single line of text.
 	Text& JustifyLastLine(bool justify = true);
+
 	Text& AllowWordBreakInOverflow(bool allow = true);
 
 	Text& MaxLines(std::size_t max_lines);
