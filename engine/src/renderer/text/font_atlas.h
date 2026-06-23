@@ -30,6 +30,9 @@ struct FontAtlasInfo {
 
 	/// @brief Determines how far outside and inside the glyph outline the signed-distance field
 	/// records useful distance information.
+	/// If the font looks bad, make sure 2 / scale < atlas.distanceRange < 128 (see issue 11 on
+	/// msdf-atlas-gen), where atlas.distanceRange = (em_range[1] - em_range[0]) * atlas.size and
+	/// scale is the ratio of the on-screen size to the size in the atlas.
 	float em_range{ 0.2f };
 
 	/// @brief Pixel range calculated from em_size * em_range. A larger range gives the shader more
