@@ -103,7 +103,6 @@ void UpdateLayout(
 	entity.Add<TextLayout>(layout);
 }
 
-// TODO: Use math functions.
 std::optional<Rect> IntersectClipRects(std::optional<Rect> a, std::optional<Rect> b) {
 	if (!a.has_value()) {
 		return b;

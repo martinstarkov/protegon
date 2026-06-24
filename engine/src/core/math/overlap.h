@@ -36,6 +36,11 @@ bool GetPolygonMinimumOverlap(
 
 [[nodiscard]] bool LineContainsLine(Transform t1, const Line& A, Transform t2, const Line& B);
 
+[[nodiscard]] constexpr bool RectContainsRect(Rect outer, Rect inner) {
+	return inner.min.x >= outer.min.x && inner.max.x <= outer.max.x && inner.min.y >= outer.min.y &&
+		   inner.max.y <= outer.max.y;
+}
+
 [[nodiscard]] bool PolygonContainsPolygon(
 	Transform t1, const Polygon& A, Transform t2, const Polygon& B
 );

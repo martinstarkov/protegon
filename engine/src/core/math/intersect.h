@@ -42,6 +42,10 @@ namespace impl {
 	Transform t1, const Polygon& A, Transform t2, const Polygon& B
 );
 
+[[nodiscard]] constexpr bool Intersects(Rect a, Rect b) {
+	return a.max.x > b.min.x && a.min.x < b.max.x && a.max.y > b.min.y && a.min.y < b.max.y;
+}
+
 } // namespace impl
 
 [[nodiscard]] Intersection Intersect(
