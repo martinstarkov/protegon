@@ -127,7 +127,18 @@ struct LineLayout {
 
 	V2_float size;
 
-	constexpr bool operator==(const LineLayout&) const = default;
+	/// Logical vertical bounds shared by every glyph on the line.
+	///
+	/// These use the greatest ascent and descent of all runs participating
+	/// in the line, but do not include additional line spacing.
+	float logical_top{ 0.0f };
+	float logical_bottom{ 0.0f };
+
+	constexpr bool operator==(const LineLayout& o) const {
+		return glyph_begin == o.glyph_begin && glyph_end == o.glyph_end && size == o.size &&
+			   NearlyEqual(logical_top, o.logical_top) &&
+			   NearlyEqual(logical_bottom, o.logical_bottom);
+	}
 };
 
 struct TextMeasurement {

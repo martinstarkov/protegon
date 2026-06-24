@@ -295,6 +295,10 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 		}
 	}
 
+	if (clip_rect.has_value() && !clip_rect->GetSize().IsPositive()) {
+		return;
+	}
+
 	auto reveal_glyph_count{ std::numeric_limits<std::size_t>::max() };
 
 	if (auto reveal{ entity.TryGet<impl::TextReveal>() }) {

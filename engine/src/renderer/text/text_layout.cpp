@@ -498,7 +498,9 @@ Rect GetGlyphVisualRect(const Glyph& glyph) {
 	};
 }
 
-Rect GetGlyphLogicalRect(const Glyph& glyph) {
+Rect GetGlyphLogicalRect(const TextLayout& layout, const Glyph& glyph) {
+	PTGN_ASSERT(glyph.line_index < layout.lines.size(), "Glyph line index is out of range");
+
 	float left{ glyph.position.x };
 	float right{ glyph.position.x + glyph.advance };
 
@@ -506,20 +508,19 @@ Rect GetGlyphLogicalRect(const Glyph& glyph) {
 		std::swap(left, right);
 	}
 
-	float top{ glyph.position.y + glyph.plane.min.y };
-	float bottom{ glyph.position.y + glyph.plane.max.y };
+	const auto& line{ layout.lines[glyph.line_index] };
 
 	return Rect{
-		{ left, top },
-		{ right, bottom },
+		{ left, line.logical_top },
+		{ right, line.logical_bottom },
 	};
 }
 
-Rect GetGlyphClipTestRect(const Glyph& glyph, TextClipMode mode) {
+Rect GetGlyphClipTestRect(const TextLayout& layout, const Glyph& glyph, TextClipMode mode) {
 	if (mode == TextClipMode::Clip) {
 		// Character-level clipping should use the logical advance cell.
 		// Otherwise negative left bearings make first glyphs disappear.
-		return GetGlyphLogicalRect(glyph);
+		return GetGlyphLogicalRect(layout, glyph);
 	}
 
 	// Partial clipping should use the actual visual quad.
@@ -831,7 +832,6 @@ void AppendGlyph(TextLayoutBuildContext& ctx, const ResolvedGlyph& resolved) {
 
 void FlushLine(TextLayoutBuildContext& ctx, LineFlushReason reason) {
 	bool ends_with_explicit_newline{ reason == LineFlushReason::ExplicitNewline };
-
 	bool is_last_line_of_paragraph{ reason != LineFlushReason::SoftWrap };
 
 	if (ctx.current_line_glyphs.empty() && !ends_with_explicit_newline) {
@@ -842,6 +842,12 @@ void FlushLine(TextLayoutBuildContext& ctx, LineFlushReason reason) {
 	line.glyph_begin = ctx.layout.glyphs.size();
 	line.glyph_end	 = ctx.layout.glyphs.size() + ctx.current_line_glyphs.size();
 	line.size		 = ctx.current_line_size;
+
+	float baseline_y{ ctx.box.rect.min.y + ctx.y + ctx.current_line_ascent };
+
+	line.logical_top = baseline_y - ctx.current_line_ascent;
+
+	line.logical_bottom = baseline_y + ctx.current_line_descent;
 
 	auto justify_space_count{
 		std::ranges::count_if(ctx.current_line_glyphs, IsJustificationSpace)
@@ -880,7 +886,10 @@ void FlushLine(TextLayoutBuildContext& ctx, LineFlushReason reason) {
 
 	for (Glyph& glyph : ctx.current_line_glyphs) {
 		glyph.position.x += x_offset + justify_extra;
-		glyph.position.y += ctx.box.rect.min.y + ctx.current_line_ascent;
+
+		// Every glyph initially has ctx.y as its y position, so either set
+		// it directly to the baseline or retain the previous addition.
+		glyph.position.y = baseline_y;
 
 		glyph.line_index	= ctx.layout.lines.size();
 		glyph.visible_order = ctx.visible_order++;
@@ -1250,6 +1259,7 @@ void ApplyVerticalAlignment(const TextBox& box, TextLayout& layout) {
 	}
 
 	auto bounds{ GetVisibleGlyphBounds(layout) };
+
 	if (!bounds.has_value()) {
 		return;
 	}
@@ -1259,16 +1269,18 @@ void ApplyVerticalAlignment(const TextBox& box, TextLayout& layout) {
 	switch (box.style.vertical_align) {
 		using enum VerticalAlign;
 
-		case Top:	 offset_y = box.rect.min.y - bounds.value().min.y; break;
+		case Top:	 offset_y = box.rect.min.y - bounds->min.y; break;
 
 		case Center: {
 			float box_center_y{ (box.rect.min.y + box.rect.max.y) * 0.5f };
-			float content_center_y{ (bounds.value().min.y + bounds.value().max.y) * 0.5f };
+
+			float content_center_y{ (bounds->min.y + bounds->max.y) * 0.5f };
+
 			offset_y = box_center_y - content_center_y;
 			break;
 		}
 
-		case Bottom: offset_y = box.rect.max.y - bounds.value().max.y; break;
+		case Bottom: offset_y = box.rect.max.y - bounds->max.y; break;
 	}
 
 	for (Glyph& glyph : layout.glyphs) {
@@ -1278,6 +1290,11 @@ void ApplyVerticalAlignment(const TextBox& box, TextLayout& layout) {
 	for (TextDecoration& decoration : layout.decorations) {
 		decoration.rect.min.y += offset_y;
 		decoration.rect.max.y += offset_y;
+	}
+
+	for (LineLayout& line : layout.lines) {
+		line.logical_top	+= offset_y;
+		line.logical_bottom += offset_y;
 	}
 
 	layout.content_offset.y += offset_y;
@@ -1692,7 +1709,7 @@ std::vector<TextDrawBatch> BuildTextDrawBatches(const DrawTextRequest& request) 
 				"If clip rect is set its size must be positive"
 			);
 
-			auto glyph_rect{ GetGlyphClipTestRect(glyph, request.clip_mode) };
+			auto glyph_rect{ GetGlyphClipTestRect(request.layout, glyph, request.clip_mode) };
 
 			if (!ShouldDrawRectWithClipMode(
 					glyph_rect, request.clip_rect.value(), request.clip_mode

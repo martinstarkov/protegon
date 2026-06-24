@@ -90,37 +90,34 @@ struct TextLayoutScene : public Scene {
 		);
 	}
 
-	void CreateClipped(int column, int row) {
+	void CreateClipped(
+		int column, int row, std::string_view content, HorizontalAlign horizontal,
+		VerticalAlign vertical, WrapMode wrap, OverflowMode overflow
+	) {
 		V2_float cell_top{
 			left + cell_size.x * static_cast<float>(column),
 			top + cell_size.y * static_cast<float>(row),
 		};
 
-		CreateTitle(cell_top, "Text::Clip");
+		CreateTitle(cell_top - V2_float{ 0.0f, 6.0f }, "Text::Clip");
 
 		V2_float viewport_position{ cell_top + V2_float{ 0.0f, 22.0f } };
 
 		Rect text_box{
 			{ -box_size.x * 0.5f, 0.0f },
-			{ box_size.x * 0.5f, box_size.y },
+			{ box_size.x * 0.5f, box_size.y + 20.0f },
 		};
 
 		auto text{ CreateText(*this, viewport_position, Origin::CenterTop) };
 
-		text.Content(
-				"The storm had been building beyond the hills all afternoon. Dark clouds "
-				"rolled across the horizon while distant thunder echoed through the valley. "
-				"By the time the first drops reached the road, the wind was already bending "
-				"the trees and carrying loose leaves through the air. The passage begins "
-				"above the visible region, as though the user has already scrolled down."
-		)
+		text.Content(content)
 			.Font(font)
 			.Size(14.0f)
 			.Color(color::Black)
 			.Box(text_box)
-			.Align(HorizontalAlign::Left, VerticalAlign::Top)
-			.Wrap(WrapMode::Word)
-			.Overflow(OverflowMode::Overflow);
+			.Align(horizontal, vertical)
+			.Wrap(wrap)
+			.Overflow(overflow);
 
 		float scroll_offset{ text.Measure().first_line_height * 0.5f };
 
@@ -230,7 +227,15 @@ struct TextLayoutScene : public Scene {
 			HorizontalAlign::Justify, VerticalAlign::Top, WrapMode::Word, OverflowMode::Overflow
 		);
 
-		CreateClipped(2, 3);
+		CreateClipped(
+			2, 3,
+			"The storm had been building beyond the hills all afternoon. Dark clouds "
+			"rolled across the horizon while distant thunder echoed through the valley. "
+			"By the time the first drops reached the road, the wind was already bending "
+			"the trees and carrying loose leaves through the air. The passage begins "
+			"above the visible region, as though the user has already scrolled down.",
+			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Overflow
+		);
 
 		CreateCell(
 			0, 4, "HorizontalAlign::Left", "short\nmedium line\nthis is the longest line",
