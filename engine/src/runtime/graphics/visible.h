@@ -9,7 +9,7 @@ namespace impl {
 struct IgnoreParentVisibility {};
 
 struct Visible {
-	bool visible{ false };
+	bool visible{ true };
 };
 
 } // namespace impl
@@ -38,7 +38,7 @@ struct EntityHide {
 
 } // namespace event
 
-void SetVisible(Entity entity, bool visible, bool emit_visibility_event = true);
+void SetVisible(Entity entity, bool visible = true, bool emit_visibility_event = true);
 
 void Show(Entity entity, bool emit_visibility_event = true);
 

@@ -15,12 +15,11 @@ bool IsLocallyVisible(Entity entity) {
 } // namespace
 
 void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
-	auto& visibility{ entity.TryAdd<impl::Visible>() };
-
-	if (visibility.visible == visible) {
+	if (entity.Has<impl::Visible>() && entity.Get<impl::Visible>().visible == visible) {
 		return;
 	}
 
+	auto& visibility{ entity.TryAdd<impl::Visible>() };
 	visibility.visible = visible;
 
 	if (emit_visibility_event && entity.HasScene()) {
