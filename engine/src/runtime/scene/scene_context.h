@@ -85,6 +85,9 @@ public:
 	/// @brief Returns the time elapsed since the Application instance was constructed.
 	[[nodiscard]] milliseconds TimeSinceStart() const;
 
+	/// @brief Returns the time elapsed since the Application instance was constructed.
+	[[nodiscard]] secondsf TimeSinceStartSeconds() const;
+
 	/// @brief Returns whether the application is currently running.
 	bool IsRunning() const;
 

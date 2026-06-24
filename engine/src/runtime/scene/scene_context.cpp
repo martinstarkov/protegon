@@ -1,5 +1,7 @@
 #include "runtime/scene/scene_context.h"
 
+#include <chrono>
+
 #include "app/application.h"
 #include "app/application_context.h"
 #include "core/util/time.h"
@@ -50,6 +52,10 @@ secondsf SceneContext::dt() const {
 
 milliseconds SceneContext::TimeSinceStart() const {
 	return impl::ApplicationAccessor::ctx(app_).TimeSinceStart();
+}
+
+secondsf SceneContext::TimeSinceStartSeconds() const {
+	return duration_cast<secondsf>(TimeSinceStart());
 }
 
 bool SceneContext::IsRunning() const {
