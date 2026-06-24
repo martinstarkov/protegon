@@ -15,6 +15,7 @@
 #include "renderer/pipeline/render_command.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
+#include "renderer/text/text_layout.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene_camera.h"
 
@@ -34,6 +35,7 @@ class Capsule;
 class Arc;
 class Shape;
 class Renderer;
+struct StyledText;
 
 namespace impl {
 
@@ -77,6 +79,17 @@ struct ShapeRenderParams {
 	bool debug{ false };
 };
 
+struct TextRenderParams {
+	Origin origin{ Origin::Center };
+	Color tint{ color::White };
+	Depth depth;
+	std::optional<BlendMode> blend_mode;
+	std::optional<SceneCamera> camera;
+	int entity_id{ -1 };
+	/// @brief If true, the text will be drawn to the debug layer which is drawn last.
+	bool debug{ false };
+};
+
 class RenderQueue {
 public:
 	void DrawTexture(
@@ -90,6 +103,16 @@ public:
 
 	void DrawShader(
 		Transform transform, std::string_view shader_key, TextureRenderParams params = {}
+	);
+
+	void DrawText(
+		Transform transform, std::string_view text, Color color, float font_size,
+		const TextBox& text_box = {}, TextRenderParams params = {}
+	);
+
+	void DrawText(
+		Transform transform, const StyledText& styled_text, const TextBox& text_box = {},
+		TextRenderParams params = {}
 	);
 
 	void DrawPoint(V2_float point, Color color, ShapeRenderParams params = {});

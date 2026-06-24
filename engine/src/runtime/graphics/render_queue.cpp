@@ -1,8 +1,10 @@
 #include "runtime/graphics/render_queue.h"
 
 #include <algorithm>
+#include <chrono>
 #include <optional>
 #include <span>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -23,13 +25,17 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/render_command.h"
 #include "renderer/pipeline/render_primitives.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/shape_primitives.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
+#include "renderer/text/text_layout.h"
+#include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
@@ -57,7 +63,7 @@ void DrawShapeImpl(
 	impl::VisitPrimitives(
 		shape, ConvertToCommonShapeParams(transform, color, params),
 		[&commands, shader, &params](auto& primitives) {
-			commands.Add(shader, primitives, params.blend_mode, params.depth, {});
+			commands.Add({ .shader = shader }, primitives, params.blend_mode, params.depth, {});
 		}
 	);
 }
@@ -117,7 +123,7 @@ void RenderQueue::DrawTexture(
 
 	auto& commands{ GetRenderCommands(params.camera, false) };
 
-	commands.Add(shader, primitives, params.blend_mode, params.depth, texture);
+	commands.Add({ .shader = shader }, primitives, params.blend_mode, params.depth, texture);
 }
 
 void RenderQueue::DrawTexture(
@@ -156,6 +162,69 @@ void RenderQueue::DrawShader(
 	DrawTexture(transform, {}, texture_size, shader, std::move(params));
 }
 
+void RenderQueue::DrawText(
+	Transform transform, std::string_view text, Color color, float font_size,
+	const TextBox& text_box, TextRenderParams params
+) {
+	DrawText(
+		transform,
+		StyledText{ TextRun{ .text	= std::string{ text },
+							 .style = { .color = color, .size = font_size } } },
+		text_box, std::move(params)
+	);
+}
+
+void RenderQueue::DrawText(
+	Transform transform, const StyledText& styled_text, const TextBox& text_box,
+	TextRenderParams params
+) {
+	auto& commands{ GetRenderCommands(params.camera, params.debug) };
+
+	PTGN_ASSERT(scene_);
+
+	auto& ctx{ scene_->ctx() };
+
+	auto resolved_style{ impl::ResolveStyledText(ctx.asset, styled_text) };
+
+	auto layout{ impl::BuildTextLayout(resolved_style, text_box) };
+
+	if (layout.local_box.GetSize().IsPositive()) {
+		auto origin_point{ layout.local_box.GetOriginPoint(params.origin) };
+		transform.Translate(-origin_point);
+	}
+
+	auto text_batches{ impl::BuildTextDrawBatches(
+		{
+			.layout	   = layout,
+			.tint	   = params.tint,
+			.depth	   = params.depth,
+			.entity_id = params.entity_id,
+			//.clip_rect		  = clip_rect,
+			//.clip_mode		  = clip_mode,
+			//.reveal_glyph_count = reveal_glyph_count,
+			.time = ctx.TimeSinceStartSeconds().count(),
+		}
+	) };
+
+	if (text_batches.empty()) {
+		return;
+	}
+
+	for (auto& batch : text_batches) {
+		if (batch.quads.empty()) {
+			continue;
+		}
+
+		impl::ApplyTransform(transform, std::span{ batch.quads });
+
+		MaterialState material{ .shader = GetShader("text"),
+								.uniforms =
+									impl::GetTextUniforms(batch.style.sdf, batch.decoration) };
+
+		commands.Add(material, batch.quads, params.blend_mode, params.depth, batch.style.texture);
+	}
+}
+
 void RenderQueue::DrawPoint(V2_float point, Color color, ShapeRenderParams params) {
 	DrawShape({}, point, color, std::move(params));
 }
@@ -176,7 +245,7 @@ void RenderQueue::DrawLines(
 
 	auto& commands{ GetRenderCommands(params.camera, params.debug) };
 
-	commands.Add(GetShader("color"), primitives, params.blend_mode, params.depth, {});
+	commands.Add({ .shader = GetShader("color") }, primitives, params.blend_mode, params.depth, {});
 }
 
 void RenderQueue::DrawShape(
