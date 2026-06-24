@@ -178,7 +178,11 @@ public:
 
 	RenderState GetRenderState() const;
 
-	void DrawText(const DrawTextRequest& request);
+	/// @param transform Center of the text in world space. Origin should be accounted for in this
+	/// transform.
+	void DrawText(
+		Transform transform, const DrawTextRequest& request, const impl::EffectParams& effects
+	);
 
 	void DrawTexture(const impl::DrawTextureRequest& request, const Material& material);
 	void DrawTexture(const impl::DrawTextureRequest& request, const MaterialState& material);

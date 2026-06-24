@@ -52,7 +52,6 @@ class Window;
 class RenderPassBuilder;
 class DrawContext;
 class Stats;
-struct DrawTextRequest;
 
 namespace impl {
 
@@ -353,8 +352,6 @@ private:
 			static_assert(false, "Unsupported vertex count");
 		}
 	}
-
-	void DrawText(const DrawTextRequest& request);
 
 	/// @brief Set the view projection to an orthographic projection matrix with the given size,
 	/// centered at the origin.

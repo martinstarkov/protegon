@@ -5,6 +5,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
@@ -33,6 +34,7 @@
 #include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
+#include "renderer/text/text_layout.h"
 
 namespace ptgn {
 
@@ -117,8 +119,37 @@ void DrawContext::SetBlendMode(BlendMode blend_mode) {
 	renderer_.SetBlendMode(blend_mode);
 }
 
-void DrawContext::DrawText(const DrawTextRequest& request) {
-	renderer_.DrawText(request);
+void DrawContext::DrawText(
+	Transform transform, const DrawTextRequest& request, const impl::EffectParams& effects
+) {
+	auto text_batches{ impl::BuildTextDrawBatches(request) };
+
+	if (text_batches.empty()) {
+		return;
+	}
+
+	for (auto& batch : text_batches) {
+		if (batch.quads.empty()) {
+			continue;
+		}
+
+		MaterialState material{ .shader = GetShader("text"),
+								.uniforms{
+									impl::GetTextUniforms(batch.style.sdf, batch.decoration),
+								},
+								.texture_slot_capacity = GetMaxTextureSlots() };
+
+		impl::DrawTextureRequest texture_request{
+			.texture	   = batch.style.texture,
+			.transform	   = transform,
+			.primitives	   = batch.quads,
+			.effect_params = effects,
+		};
+
+		renderer_.SetCurrentPipeline("texture");
+		renderer_.SetMaterial(material);
+		renderer_.DrawTexture(texture_request);
+	}
 }
 
 RenderState DrawContext::GetRenderState() const {

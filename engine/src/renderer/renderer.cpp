@@ -52,8 +52,6 @@
 #include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
-#include "renderer/text/text_layout.h"
-#include "renderer/text/text_style.h"
 
 namespace ptgn {
 
@@ -284,9 +282,7 @@ void Renderer::SetShader(std::string_view shader) {
 }
 
 void Renderer::SetShader(impl::ShaderId shader) {
-	auto bound{ GetBoundShader() };
-
-	if (shader == bound) {
+	if (shader == GetBoundShader()) {
 		return;
 	}
 	FlushBatch();
@@ -942,13 +938,15 @@ void Renderer::DrawElements(const impl::RenderPipeline& pipeline, std::uint32_t 
 void Renderer::SetMaterial(const MaterialState& material) {
 	SetShader(material.shader);
 
+	auto resolved_texture_slot_capacity{ material.texture_slot_capacity.value_or(1) };
+
 	if (current_uniforms_ == material.uniforms &&
-		current_texture_slot_capacity_ == material.texture_slot_capacity) {
+		current_texture_slot_capacity_ == resolved_texture_slot_capacity) {
 		return;
 	}
 	FlushBatch();
 	current_uniforms_			   = material.uniforms;
-	current_texture_slot_capacity_ = material.texture_slot_capacity;
+	current_texture_slot_capacity_ = resolved_texture_slot_capacity;
 }
 
 RenderState Renderer::GetRenderState() const {
@@ -1201,62 +1199,6 @@ bool Renderer::FramebufferMatches(
 	auto renderbuffer{ impl::RenderbufferId{ depth_stencil.value().id } };
 
 	return GetFormat(renderbuffer) == desc.format && GetSize(renderbuffer) == desc.size;
-}
-
-void Renderer::DrawText(const DrawTextRequest& request) {
-	auto text_batches{ impl::BuildTextDrawBatches(request) };
-
-	if (text_batches.empty()) {
-		return;
-	}
-
-	for (auto& batch : text_batches) {
-		if (batch.quads.empty()) {
-			continue;
-		}
-
-		const auto& style{ batch.style.sdf };
-
-		PTGN_ASSERT(style.pixel_range > 0.0f, "Invalid font pixel range");
-
-		MaterialState material{ .shader = GetShader("text"),
-								.uniforms{
-									{ "u_Weight", style.weight },
-									{ "u_Softness", style.softness },
-
-									{ "u_OutlineColor", style.outline_color.Normalized() },
-									{ "u_OutlineWidth", style.outline_width },
-									{ "u_OutlineSoftness", style.outline_softness },
-
-									{ "u_ShadowColor", style.shadow_color.Normalized() },
-									{ "u_ShadowOffset", style.shadow_offset },
-									{ "u_ShadowWidth", style.shadow_width },
-									{ "u_ShadowSoftness", style.shadow_softness },
-
-									{ "u_OuterGlowColor", style.outer_glow_color.Normalized() },
-									{ "u_OuterGlowWidth", style.outer_glow_width },
-									{ "u_OuterGlowSoftness", style.outer_glow_softness },
-
-									{ "u_InnerGlowColor", style.inner_glow_color.Normalized() },
-									{ "u_InnerGlowWidth", style.inner_glow_width },
-									{ "u_InnerGlowSoftness", style.inner_glow_softness },
-
-									{ "u_PixelRange", style.pixel_range },
-									{ "u_IsDecoration", batch.decoration ? 1.0f : 0.0f },
-								},
-								.texture_slot_capacity = GetMaxTextureSlots() };
-
-		impl::DrawTextureRequest texture_request{
-			.texture	   = batch.style.texture,
-			.transform	   = request.transform,
-			.primitives	   = batch.quads,
-			.effect_params = request.effects,
-		};
-
-		SetCurrentPipeline("texture");
-		SetMaterial(material);
-		DrawTexture(texture_request);
-	}
 }
 
 namespace impl {
