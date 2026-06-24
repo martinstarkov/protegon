@@ -167,8 +167,7 @@ void DrawDebugTextBoundingBoxes(
 		return;
 	}
 
-	for (auto [entity, _visibility, styled_text, box] :
-		 scene.EntitiesWith<Visible, StyledText, TextBox>()) {
+	for (auto [entity, styled_text, box] : scene.EntitiesWith<StyledText, TextBox>()) {
 		if (filter(entity)) {
 			continue;
 		}

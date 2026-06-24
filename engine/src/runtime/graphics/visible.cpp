@@ -6,21 +6,27 @@
 
 namespace ptgn {
 
+namespace {
+
+bool IsLocallyVisible(Entity entity) {
+	return !entity.Has<impl::Visible>() || entity.Get<impl::Visible>().visible;
+}
+
+} // namespace
+
 void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
-	if (visible) {
-		if (entity.Has<impl::Visible>()) {
-			return;
-		}
-		entity.Add<impl::Visible>();
-		if (emit_visibility_event && entity.HasScene()) {
+	auto& visibility{ entity.TryAdd<impl::Visible>() };
+
+	if (visibility.visible == visible) {
+		return;
+	}
+
+	visibility.visible = visible;
+
+	if (emit_visibility_event && entity.HasScene()) {
+		if (visible) {
 			PushEvent<event::EntityShow>(entity, entity);
-		}
-	} else {
-		if (!entity.Has<impl::Visible>()) {
-			return;
-		}
-		entity.Remove<impl::Visible>();
-		if (emit_visibility_event && entity.HasScene()) {
+		} else {
 			PushEvent<event::EntityHide>(entity, entity);
 		}
 	}
@@ -34,11 +40,11 @@ void Hide(Entity entity, bool emit_visibility_event) {
 	SetVisible(entity, false, emit_visibility_event);
 }
 
-bool IsLocallyVisible(Entity entity) {
-	return entity.Has<impl::Visible>();
-}
+bool IsVisible(Entity entity, bool check_parent_visibility) {
+	if (!check_parent_visibility) {
+		return IsLocallyVisible(entity);
+	}
 
-bool IsVisible(Entity entity) {
 	if (!IsLocallyVisible(entity)) {
 		return false;
 	}
@@ -60,7 +66,7 @@ bool IsVisible(Entity entity) {
 	return visible;
 }
 
-void IgoreParentVisibility(Entity entity, bool ignore) {
+void IgnoreParentVisibility(Entity entity, bool ignore) {
 	if (ignore) {
 		entity.Add<impl::IgnoreParentVisibility>();
 	} else {

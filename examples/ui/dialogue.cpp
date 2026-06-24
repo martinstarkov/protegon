@@ -19,6 +19,7 @@
 #include "runtime/scene/scene_input.h"
 #include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
+
 using namespace ptgn;
 
 struct DialogueScene : public Scene {

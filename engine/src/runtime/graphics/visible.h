@@ -8,7 +8,9 @@ namespace impl {
 
 struct IgnoreParentVisibility {};
 
-struct Visible {};
+struct Visible {
+	bool visible{ false };
+};
 
 } // namespace impl
 
@@ -42,13 +44,12 @@ void Show(Entity entity, bool emit_visibility_event = true);
 
 void Hide(Entity entity, bool emit_visibility_event = true);
 
-/// @return True if the entity is locally visible (has the Visible component), false otherwise.
-[[nodiscard]] bool IsLocallyVisible(Entity entity);
-
-/// @return True if the entity and all its parent entities are visible, false otherwise.
-[[nodiscard]] bool IsVisible(Entity entity);
+/// @param check_parent_visibility If true, the visibility of parent entities will be checked. If
+/// any parent is hidden, this entity will be considered hidden as well.
+/// @return True if the entity is visible, false otherwise.
+bool IsVisible(Entity entity, bool check_parent_visibility = true);
 
 /// @brief Ignores the visibility of parent entities when determining if this entity is visible.
-void IgoreParentVisibility(Entity entity, bool ignore = true);
+void IgnoreParentVisibility(Entity entity, bool ignore = true);
 
 } // namespace ptgn

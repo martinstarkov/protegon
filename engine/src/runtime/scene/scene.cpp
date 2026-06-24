@@ -264,7 +264,7 @@ void DrawScene(
 	impl::DrawDebugLightVisibilityPolygons(scene, camera, filter);
 	impl::DrawDebugTextBoundingBoxes(scene, camera, filter);
 
-	auto view{ scene.EntitiesWith<impl::Visible, impl::IDrawable>() };
+	auto view{ scene.EntitiesWith<impl::IDrawable>() };
 
 	DrawCamera(
 		scene.ctx().renderer, draw_context, view, render_target, cam, clear_color, commands,
