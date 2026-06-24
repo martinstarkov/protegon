@@ -1,6 +1,7 @@
 #include "renderer/pipeline/render_command.h"
 
 #include <algorithm>
+#include <compare>
 #include <optional>
 #include <ranges>
 #include <span>
@@ -14,6 +15,7 @@
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_request.h"
+#include "renderer/pipeline/render_state.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 
@@ -66,35 +68,35 @@ void RenderCommands::Sort() {
 }
 
 void RenderCommands::Add(
-	ShaderId shader, std::span<TextureQuad> primitives, std::optional<BlendMode> blend_mode,
-	Depth depth, TextureId texture
+	const MaterialState& material, std::span<TextureQuad> primitives,
+	std::optional<BlendMode> blend_mode, Depth depth, TextureId texture
 ) {
 	auto range{ Append(texture_quads_, primitives) };
-	Push(RenderCommandKind::TextureQuads, range, shader, texture, blend_mode, depth);
+	Push(RenderCommandKind::TextureQuads, range, material, texture, blend_mode, depth);
 }
 
 void RenderCommands::Add(
-	ShaderId shader, std::span<ShapeQuad> primitives, std::optional<BlendMode> blend_mode,
-	Depth depth, TextureId
+	const MaterialState& material, std::span<ShapeQuad> primitives,
+	std::optional<BlendMode> blend_mode, Depth depth, TextureId
 ) {
 	auto range{ Append(shape_quads_, primitives) };
-	Push(RenderCommandKind::ShapeQuads, range, shader, TextureId{}, blend_mode, depth);
+	Push(RenderCommandKind::ShapeQuads, range, material, TextureId{}, blend_mode, depth);
 }
 
 void RenderCommands::Add(
-	ShaderId shader, std::span<ColorQuad> primitives, std::optional<BlendMode> blend_mode,
-	Depth depth, TextureId
+	const MaterialState& material, std::span<ColorQuad> primitives,
+	std::optional<BlendMode> blend_mode, Depth depth, TextureId
 ) {
 	auto range{ Append(color_quads_, primitives) };
-	Push(RenderCommandKind::ColorQuads, range, shader, TextureId{}, blend_mode, depth);
+	Push(RenderCommandKind::ColorQuads, range, material, TextureId{}, blend_mode, depth);
 }
 
 void RenderCommands::Add(
-	ShaderId shader, std::span<ColorTriangle> primitives, std::optional<BlendMode> blend_mode,
-	Depth depth, TextureId
+	const MaterialState& material, std::span<ColorTriangle> primitives,
+	std::optional<BlendMode> blend_mode, Depth depth, TextureId
 ) {
 	auto range{ Append(color_triangles_, primitives) };
-	Push(RenderCommandKind::ColorTriangles, range, shader, TextureId{}, blend_mode, depth);
+	Push(RenderCommandKind::ColorTriangles, range, material, TextureId{}, blend_mode, depth);
 }
 
 void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
@@ -128,9 +130,13 @@ void RenderCommands::Draw(Renderer& renderer, std::size_t command_index) {
 
 		using TPrimitive = std::remove_reference_t<decltype(primitives[0])>;
 
-		renderer.SetMaterial(
-			{ .shader = command.shader, .texture_slot_capacity = texture_slot_capacity }
-		);
+		MaterialState material{ command.material };
+
+		if (!material.texture_slot_capacity.has_value()) {
+			material.texture_slot_capacity = texture_slot_capacity;
+		}
+
+		renderer.SetMaterial(material);
 
 		// Effects are currently not supported for queued render commands.
 		renderer.Draw(
@@ -164,7 +170,7 @@ void RenderCommands::Clear() {
 }
 
 void RenderCommands::Push(
-	RenderCommandKind kind, RenderRange range, ShaderId shader, TextureId texture,
+	RenderCommandKind kind, RenderRange range, const MaterialState& material, TextureId texture,
 	std::optional<BlendMode> blend_mode, Depth depth
 ) {
 	if (range.count == 0) {
@@ -173,7 +179,7 @@ void RenderCommands::Push(
 
 	RenderCommand command{ .kind	   = kind,
 						   .range	   = range,
-						   .shader	   = shader,
+						   .material   = material,
 						   .texture	   = texture,
 						   .blend_mode = blend_mode,
 						   .depth	   = depth,

@@ -37,7 +37,7 @@ struct RenderCommand {
 	RenderCommandKind kind{ RenderCommandKind::ColorQuads };
 	RenderRange range;
 
-	ShaderId shader;
+	MaterialState material;
 	TextureId texture;
 	std::optional<BlendMode> blend_mode;
 
@@ -45,7 +45,7 @@ struct RenderCommand {
 	std::uint64_t sequence{ 0 };
 
 	[[nodiscard]] bool CanMergeWith(const RenderCommand& next) const {
-		return kind == next.kind && shader == next.shader && texture == next.texture &&
+		return kind == next.kind && material == next.material && texture == next.texture &&
 			   blend_mode == next.blend_mode && depth == next.depth &&
 			   range.End() == next.range.first;
 	}
@@ -67,23 +67,23 @@ public:
 	void Clear();
 
 	void Add(
-		ShaderId shader, std::span<TextureQuad> primitives, std::optional<BlendMode> blend_mode,
-		Depth depth, TextureId texture
+		const MaterialState& material, std::span<TextureQuad> primitives,
+		std::optional<BlendMode> blend_mode, Depth depth, TextureId texture
 	);
 
 	void Add(
-		ShaderId shader, std::span<ShapeQuad> primitives, std::optional<BlendMode> blend_mode,
-		Depth depth, TextureId
+		const MaterialState& material, std::span<ShapeQuad> primitives,
+		std::optional<BlendMode> blend_mode, Depth depth, TextureId
 	);
 
 	void Add(
-		ShaderId shader, std::span<ColorQuad> primitives, std::optional<BlendMode> blend_mode,
-		Depth depth, TextureId
+		const MaterialState& material, std::span<ColorQuad> primitives,
+		std::optional<BlendMode> blend_mode, Depth depth, TextureId
 	);
 
 	void Add(
-		ShaderId shader, std::span<ColorTriangle> primitives, std::optional<BlendMode> blend_mode,
-		Depth depth, TextureId
+		const MaterialState& material, std::span<ColorTriangle> primitives,
+		std::optional<BlendMode> blend_mode, Depth depth, TextureId
 	);
 
 private:
@@ -99,7 +99,7 @@ private:
 	}
 
 	void Push(
-		RenderCommandKind kind, RenderRange range, ShaderId shader, TextureId texture,
+		RenderCommandKind kind, RenderRange range, const MaterialState& material, TextureId texture,
 		std::optional<BlendMode> blend_mode, Depth depth
 	);
 
