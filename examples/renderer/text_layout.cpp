@@ -1,3 +1,5 @@
+#include "renderer/text/text_layout.h"
+
 #include <algorithm>
 #include <chrono>
 #include <string_view>
@@ -26,8 +28,6 @@ struct TextLayoutScene : public Scene {
 
 	static constexpr int kColumnCount{ 3 };
 
-	float scale{ 40.0f };
-
 	V2_float cell_size{ 230.0f, 112.0f };
 	V2_float box_size{ 210.0f, 74.0f };
 
@@ -37,7 +37,7 @@ struct TextLayoutScene : public Scene {
 	Text CreateTitle(V2_float position, std::string_view label) {
 		auto text{ CreateText(*this, position, Origin::CenterTop) };
 
-		text.Content(label).Font(font).Size(13.0f).Color(color::Black).Bold(true, 0.12f);
+		text.Content(label).Font(font).Size(13.0f).Color(color::Black).Bold(true);
 
 		return text;
 	}
@@ -146,7 +146,7 @@ struct TextLayoutScene : public Scene {
 			.Font(font)
 			.Size(28.0f)
 			.Color(color::Black)
-			.Bold(true, 0.18f);
+			.Bold(true);
 
 		CreateCell(
 			0, 0, "WrapMode::None", "This long line will not attempt to wrap.",
@@ -267,19 +267,15 @@ struct TextLayoutScene : public Scene {
 		MoveWASD(ctx().camera, V2_float{ 300.0f } * ctx().dt().count());
 
 		if (ctx().input.KeyHeld(Key::Q)) {
-			scale += -10.0f * ctx().dt().count();
-			ctx().camera.Zoom(V2_float{ 10.0f } * ctx().dt().count());
+			ctx().camera.Zoom(V2_float{ 1.0f } * ctx().dt().count());
 		} else if (ctx().input.KeyHeld(Key::E)) {
-			scale += 10.0f * ctx().dt().count();
-			ctx().camera.Zoom(-V2_float{ 10.0f } * ctx().dt().count());
+			ctx().camera.Zoom(-V2_float{ 1.0f } * ctx().dt().count());
 		}
-
-		scale = std::clamp(scale, 0.0001f, 10000.0f);
 	}
 };
 
 int main(int, char**) {
 	Application app{ "TextLayoutScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<TextLayoutScene>();
 }
