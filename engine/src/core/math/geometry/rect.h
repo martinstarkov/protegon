@@ -94,6 +94,11 @@ public:
 		return (max + min) * 0.5f;
 	}
 
+	/// @return Center relative to the local shape, offset by the given origin.
+	constexpr V2_float GetOriginPoint(Origin origin) const {
+		return GetCenter() - GetOffset(origin, GetSize());
+	}
+
 	/// @return Center relative to the transform.
 	constexpr V2_float GetCenter(Transform transform) const {
 		auto center{ GetCenter() };
