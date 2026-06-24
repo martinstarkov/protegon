@@ -21,11 +21,11 @@ struct Viewport {
 	/// @brief Size in pixels.
 	V2_float size;
 
-	V2_float GetCenter() const {
+	constexpr V2_float GetCenter() const {
 		return position + size * 0.5f;
 	}
 
-	bool operator==(const Viewport&) const = default;
+	constexpr bool operator==(const Viewport&) const = default;
 
 	PTGN_SERIALIZE(Viewport, position, size)
 };

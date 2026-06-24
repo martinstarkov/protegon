@@ -1,13 +1,18 @@
 #pragma once
 
+#include <array>
+#include <concepts>
 #include <ostream>
 #include <span>
 #include <string>
 #include <string_view>
+#include <tuple>
+#include <utility>
 #include <variant>
 #include <vector>
 
 #include "core/math/matrix4.h"
+#include "core/math/tolerance.h"
 #include "core/math/vector2.h"
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
@@ -22,9 +27,9 @@ namespace ptgn {
 class Shader;
 
 struct ShaderCode {
-	ShaderCode() = default;
+	constexpr ShaderCode() = default;
 
-	explicit ShaderCode(const std::string& content, bool delete_after = true) :
+	constexpr explicit ShaderCode(std::string_view content, bool delete_after = true) :
 		content{ content }, delete_after{ delete_after } {}
 
 	std::string content;
@@ -32,7 +37,7 @@ struct ShaderCode {
 };
 
 struct ShaderPath {
-	ShaderPath() = default;
+	constexpr ShaderPath() = default;
 
 	// Not explicit on purpose. Allows implicit conversion from path to ShaderPath, which is useful
 	// for the common case of loading shaders from files.
@@ -74,7 +79,23 @@ struct UniformWrite {
 	std::string name;
 	UniformValue value;
 
-	bool operator==(const UniformWrite&) const = default;
+	constexpr bool operator==(const UniformWrite& o) const {
+		if (value.index() != o.value.index() || name != o.name) {
+			return false;
+		}
+		return std::visit(
+			[&]<typename T>(const T& lhs) {
+				const auto& rhs{ std::get<T>(o.value) };
+
+				if constexpr (std::same_as<T, float> || std::same_as<T, std::vector<float>>) {
+					return NearlyEqual(lhs, rhs);
+				} else {
+					return lhs == rhs;
+				}
+			},
+			value
+		);
+	}
 };
 
 [[nodiscard]] std::size_t Hash(const UniformValue& value);
