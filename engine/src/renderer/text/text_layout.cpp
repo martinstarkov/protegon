@@ -18,6 +18,7 @@
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/shader.h"
 #include "renderer/resources/texture.h"
 #include "renderer/text/font_atlas.h"
 #include "renderer/text/font_style.h"
@@ -285,8 +286,8 @@ void AddTextDecorationsForLine(
 			continue;
 		}
 
-		float scale{ style.scale * global_shrink };
-		float thickness{ std::max(1.0f, scale * 0.065f) };
+		float size{ style.size * global_shrink };
+		float thickness{ std::max(1.0f, size * 0.065f) };
 
 		float x_min{ begin->position.x };
 		float x_max{ begin->position.x };
@@ -299,7 +300,7 @@ void AddTextDecorationsForLine(
 		float baseline_y{ begin->position.y };
 
 		if (underline) {
-			float y{ baseline_y + scale * 0.12f };
+			float y{ baseline_y + size * 0.12f };
 
 			decorations.emplace_back(
 				TextDecoration{
@@ -314,7 +315,7 @@ void AddTextDecorationsForLine(
 		}
 
 		if (strikethrough) {
-			float y{ baseline_y - scale * 0.28f };
+			float y{ baseline_y - size * 0.28f };
 
 			decorations.emplace_back(
 				TextDecoration{
@@ -357,12 +358,12 @@ TextLineMetrics MeasureLineMetrics(const impl::ResolvedTextRun& run, float globa
 
 	auto metrics{ run.font->GetMetrics() };
 
-	float scale{ run.style.scale * global_shrink };
+	float size{ run.style.size * global_shrink };
 
 	TextLineMetrics result;
-	result.height  = (metrics.line_height + run.style.line_spacing) * scale;
-	result.ascent  = metrics.ascender * scale;
-	result.descent = -metrics.descender * scale;
+	result.height  = (metrics.line_height + run.style.line_spacing) * size;
+	result.ascent  = metrics.ascender * size;
+	result.descent = -metrics.descender * size;
 
 	return result;
 }
@@ -490,11 +491,11 @@ float MeasureTokenWidth(
 
 	PTGN_ASSERT(run.font, "Valid font required for text run");
 
-	float scale{ run.style.scale * global_shrink };
+	float size{ run.style.size * global_shrink };
 
 	if (token.type == RichTextToken::Type::Tab) {
 		float space_adv{ run.font->GetAdvance(U' ', 0) };
-		return (space_adv + run.style.kerning + run.style.tracking) * scale * 4.0f;
+		return (space_adv + run.style.kerning + run.style.tracking) * size * 4.0f;
 	}
 
 	float width{ 0.0f };
@@ -502,7 +503,7 @@ float MeasureTokenWidth(
 		std::uint32_t cp{ token.text[i] };
 		std::uint32_t next_cp{ GetNextCodepoint(token.text, i) };
 		width +=
-			(run.font->GetAdvance(cp, next_cp) + run.style.kerning + run.style.tracking) * scale;
+			(run.font->GetAdvance(cp, next_cp) + run.style.kerning + run.style.tracking) * size;
 	}
 
 	return width;
@@ -654,11 +655,11 @@ std::optional<ResolvedGlyph> ResolveGlyph(
 	resolved.render_style.effect.speed	   = run.style.effect.speed;
 	resolved.render_style.effect.phase	   = run.style.effect.phase;
 
-	resolved.metrics.plane.min *= run.style.scale * global_shrink;
-	resolved.metrics.plane.max *= run.style.scale * global_shrink;
+	resolved.metrics.plane.min *= run.style.size * global_shrink;
+	resolved.metrics.plane.max *= run.style.size * global_shrink;
 	resolved.metrics.advance =
 		(run.font->GetAdvance(codepoint, next_codepoint) + run.style.kerning + run.style.tracking) *
-		(run.style.scale * global_shrink);
+		(run.style.size * global_shrink);
 
 	return resolved;
 }
@@ -1243,7 +1244,7 @@ void ApplyEllipsisOverflow(
 
 		dots_width += (font.GetAdvance(cp, next_cp) + source_run->style.kerning +
 					   source_run->style.tracking) *
-					  (source_run->style.scale * global_shrink);
+					  (source_run->style.size * global_shrink);
 	}
 
 	float usable_right{ box.rect.max.x - dots_width };
@@ -1478,6 +1479,35 @@ TextMeasurement MeasureText(const ResolvedStyledText& styled_text, const TextBox
 	}
 
 	return result;
+}
+
+std::vector<UniformWrite> GetTextUniforms(const DistanceFieldStyle& sdf, bool is_decoration) {
+	PTGN_ASSERT(sdf.pixel_range > 0.0f, "Invalid font pixel range");
+
+	return {
+		{ "u_Weight", sdf.weight },
+		{ "u_Softness", sdf.softness },
+
+		{ "u_OutlineColor", sdf.outline_color.Normalized() },
+		{ "u_OutlineWidth", sdf.outline_width },
+		{ "u_OutlineSoftness", sdf.outline_softness },
+
+		{ "u_ShadowColor", sdf.shadow_color.Normalized() },
+		{ "u_ShadowOffset", sdf.shadow_offset },
+		{ "u_ShadowWidth", sdf.shadow_width },
+		{ "u_ShadowSoftness", sdf.shadow_softness },
+
+		{ "u_OuterGlowColor", sdf.outer_glow_color.Normalized() },
+		{ "u_OuterGlowWidth", sdf.outer_glow_width },
+		{ "u_OuterGlowSoftness", sdf.outer_glow_softness },
+
+		{ "u_InnerGlowColor", sdf.inner_glow_color.Normalized() },
+		{ "u_InnerGlowWidth", sdf.inner_glow_width },
+		{ "u_InnerGlowSoftness", sdf.inner_glow_softness },
+
+		{ "u_PixelRange", sdf.pixel_range },
+		{ "u_IsDecoration", is_decoration ? 1.0f : 0.0f },
+	};
 }
 
 std::vector<TextDrawBatch> BuildTextDrawBatches(const DrawTextRequest& request) {

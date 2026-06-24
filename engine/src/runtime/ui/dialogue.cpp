@@ -258,7 +258,7 @@ TextBox DialoguePageProperties::ToTextBox() const {
 TextRunStyle DialoguePageProperties::ToTextRunStyle() const {
 	TextRunStyle style;
 	style.color = color;
-	style.scale = font_size;
+	style.size	= font_size;
 	return style;
 }
 

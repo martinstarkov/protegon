@@ -11,7 +11,9 @@
 #include "core/math/vector2.h"
 #include "renderer/renderer.h"
 #include "renderer/text/text_glyph.h"
+#include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/graphics/render_queue.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -19,22 +21,25 @@
 using namespace ptgn;
 
 struct TextEffectsScene : public Scene {
-	float scale{ 40.0f };
+	static constexpr float stride{ 26.0f };
+
+	static constexpr std::string_view reveal_content{ "Sine reveal hides and shows this text" };
 
 	Text reveal_text;
-	static constexpr std::string_view reveal_content{ "Sine reveal hides and shows this text" };
 	float reveal_time{ 0.0f };
 
 	std::size_t current_line{ 0 };
+
+	V2_float GetTextPosition(std::size_t line) const {
+		return { 0.0f, -static_cast<float>(ctx().renderer.GetLogicalSize().y) * 0.5f +
+						   stride * (1.0f + static_cast<float>(line)) };
+	}
 
 	Text CreateLine(
 		std::string_view text_content, const Color& color = color::Black,
 		std::string_view font_key = {}, float font_size = 20.0f
 	) {
-		float stride{ 26.0f };
-		float top{ -static_cast<float>(ctx().renderer.GetLogicalSize().y) * 0.5f + stride };
-
-		auto text{ CreateText(*this, { 0.0f, top + stride * static_cast<float>(current_line) }) };
+		auto text{ CreateText(*this, GetTextPosition(current_line)) };
 
 		text.Content(text_content).Font(font_key).Size(font_size).Color(color);
 
@@ -51,6 +56,8 @@ struct TextEffectsScene : public Scene {
 		ctx().asset.Load("custom_otf", "assets/otf.otf");
 		ctx().asset.Load("custom_png", "assets/retro_gaming.png");
 
+		current_line++;
+		current_line++;
 		CreateLine("Plain black text (default font)", color::Black);
 		CreateLine("Plain black text (custom ttf font)", color::Black, "custom_ttf");
 		CreateLine("Plain black text (custom otf font)", color::Black, "custom_otf");
@@ -117,17 +124,22 @@ struct TextEffectsScene : public Scene {
 	}
 
 	void OnUpdate() override {
+		ctx().render_queue.DrawText(
+			GetTextPosition(0), "Render queue text with custom size!", color::Blue, 14.0f
+		);
+		ctx().render_queue.DrawText(
+			GetTextPosition(1), { { .text  = "Render queue text with custom font and style!",
+									.font  = "custom_otf",
+									.style = { .color = color::Green } } }
+		);
+
 		MoveWASD(ctx().camera, V2_float{ 300.0f } * ctx().dt().count());
 
 		if (ctx().input.KeyHeld(Key::Q)) {
-			scale += -10.0f * ctx().dt().count();
 			ctx().camera.Zoom(V2_float{ 10.0f } * ctx().dt().count());
 		} else if (ctx().input.KeyHeld(Key::E)) {
-			scale += 10.0f * ctx().dt().count();
 			ctx().camera.Zoom(-V2_float{ 10.0f } * ctx().dt().count());
 		}
-
-		scale = std::clamp(scale, 0.0001f, 10000.0f);
 
 		reveal_time += ctx().dt().count();
 

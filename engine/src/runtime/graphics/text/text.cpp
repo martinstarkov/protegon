@@ -21,7 +21,6 @@
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
 #include "core/util/hash.h"
-#include "core/util/time.h"
 #include "renderer/draw_context.h"
 #include "renderer/text/font_atlas.h"
 #include "renderer/text/font_style.h"
@@ -58,73 +57,20 @@ FontStyle SetFlag(FontStyle value, FontStyle flag, bool enabled) {
 	return static_cast<FontStyle>(bits);
 }
 
-TextRunStyle MakeDefaultTextRunStyle() {
-	TextRunStyle style;
-
-	style.color = color::White;
-	style.scale = 48.0f;
-
-	return style;
-}
-
 bool HasVisibleTextContent(const StyledText& styled_text) {
 	return std::ranges::any_of(styled_text.runs, [](const auto& run) { return !run.text.empty(); });
 }
 
-Transform GetTextLayoutBoxTransform(Entity entity, const Rect& local_box) {
-	auto transform{ GetDrawTransform(entity) };
-
-	auto center{ local_box.GetCenter() };
-	transform.Translate(center);
-
-	return transform;
-}
-
-Rect GetCenteredRect(V2_float size) {
-	return Rect{ { -size.x * 0.5f, -size.y * 0.5f }, { size.x * 0.5f, size.y * 0.5f } };
-}
-
-std::string ToPlainText(const StyledText& styled_text) {
-	std::string result;
-
-	for (const auto& run : styled_text.runs) {
-		result += run.text;
-	}
-
-	return result;
-}
-
-impl::ResolvedTextRun GetFirstRunOrDefault(const impl::ResolvedStyledText& styled_text) {
-	if (!styled_text.runs.empty()) {
-		return styled_text.runs.front();
-	}
-
-	return {};
-}
-
-impl::ResolvedStyledText MakeSingleRunText(
-	AssetManager& asset_manager, std::string_view content, std::string_view font,
-	const TextRunStyle& style
-) {
+impl::ResolvedStyledText ResolveStyledText(AssetManager& asset_manager, const TextRun& text_run) {
 	impl::ResolvedStyledText styled_text;
-	styled_text.runs.emplace_back(
-		impl::ResolvedTextRun{
-			.text  = std::string{ content },
-			.font  = &impl::AssetAccessor{ asset_manager }
-						  .Get<Font>(font)
-						  .GetEntity()
-						  .Get<impl::FontAtlas>(),
-			.style = style,
-		}
-	);
+	styled_text.runs.emplace_back(impl::ResolveTextRun(asset_manager, text_run));
 	return styled_text;
 }
 
 bool FitsTextPage(
-	AssetManager& asset_manager, std::string_view content, std::string_view font,
-	const TextRunStyle& style, TextBox box, std::size_t max_lines
+	AssetManager& asset_manager, const TextRun& text_run, TextBox box, std::size_t max_lines
 ) {
-	auto styled_text{ MakeSingleRunText(asset_manager, content, font, style) };
+	auto styled_text{ ResolveStyledText(asset_manager, text_run) };
 
 	box.style.overflow_mode = OverflowMode::Overflow;
 
@@ -157,6 +103,7 @@ void UpdateLayout(
 	entity.Add<TextLayout>(layout);
 }
 
+// TODO: Use math functions.
 std::optional<Rect> IntersectClipRects(std::optional<Rect> a, std::optional<Rect> b) {
 	if (!a.has_value()) {
 		return b;
@@ -188,25 +135,22 @@ std::optional<Rect> IntersectClipRects(std::optional<Rect> a, std::optional<Rect
 
 namespace impl {
 
-const FontAtlas* GetFontAtlas(AssetManager& asset_manager, std::string_view font_key) {
-	auto font{ AssetAccessor{ asset_manager }.Get<Font>(font_key) };
-	return &font.GetEntity().Get<FontAtlas>();
+ResolvedTextRun ResolveTextRun(AssetManager& asset_manager, const TextRun& text_run) {
+	auto font{ impl::AssetAccessor{ asset_manager }.Get<Font>(text_run.font) };
+	auto font_atlas{ &font.GetEntity().Get<impl::FontAtlas>() };
+	return {
+		.text  = text_run.text,
+		.font  = font_atlas,
+		.style = text_run.style,
+	};
 }
 
 ResolvedStyledText ResolveStyledText(AssetManager& asset_manager, const StyledText& styled_text) {
 	ResolvedStyledText result;
 	result.runs.reserve(styled_text.runs.size());
 	for (const auto& run : styled_text.runs) {
-		auto font_atlas{ GetFontAtlas(asset_manager, run.font) };
-		result.runs.emplace_back(
-			ResolvedTextRun{
-				.text  = run.text,
-				.font  = font_atlas,
-				.style = run.style,
-			}
-		);
+		result.runs.emplace_back(ResolveTextRun(asset_manager, run));
 	}
-
 	return result;
 }
 
@@ -256,7 +200,7 @@ void DrawDebugTextBoundingBoxes(
 			transform.Translate(rect.GetCenter() - origin_point);
 
 			scene.ctx().render_queue.DrawShape(
-				transform, GetCenteredRect(rect.GetSize()), color,
+				transform, Rect{ rect.GetSize() }, color,
 				ShapeRenderParams{
 					.fill_style = settings.draw_line_width,
 					.origin		= Origin::Center,
@@ -314,7 +258,7 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 	auto entity_id{ entity.GetUUID() };
 	auto tint{ GetTint(entity) };
 
-	auto time{ duration_cast<secondsf>(entity.GetScene().ctx().TimeSinceStart()).count() };
+	auto time{ entity.GetScene().ctx().TimeSinceStartSeconds().count() };
 
 	std::optional<Rect> clip_rect{ layout.clip_rect };
 	TextClipMode clip_mode{ layout.clip_mode };
@@ -364,6 +308,7 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 
 	ctx.SetBlendMode(blend_mode);
 	ctx.DrawText(
+		transform,
 		{ .layout			  = layout,
 		  .tint				  = tint,
 		  .depth			  = depth,
@@ -371,17 +316,12 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 		  .clip_rect		  = clip_rect,
 		  .clip_mode		  = clip_mode,
 		  .reveal_glyph_count = reveal_glyph_count,
-		  .time				  = time,
-		  .transform		  = transform,
-		  .effects			  = effects }
+		  .time				  = time },
+		effects
 	);
 }
 
 Text::Text(Entity entity) : Entity{ entity } {}
-
-TextRunStyle Text::MakeDefaultRunStyle() const {
-	return MakeDefaultTextRunStyle();
-}
 
 StyledText& Text::EnsureStyledText() {
 	if (!Has<StyledText>()) {
@@ -391,8 +331,7 @@ StyledText& Text::EnsureStyledText() {
 	auto& styled_text{ Get<StyledText>() };
 
 	if (styled_text.runs.empty()) {
-		auto& run{ styled_text.runs.emplace_back() };
-		run.style = MakeDefaultRunStyle();
+		styled_text.runs.emplace_back();
 	}
 
 	return styled_text;
@@ -431,8 +370,7 @@ void Text::EnsureValidRuns() {
 	auto& edit_state{ EnsureEditState() };
 
 	if (styled_text.runs.empty()) {
-		auto& run{ styled_text.runs.emplace_back() };
-		run.style					 = MakeDefaultRunStyle();
+		styled_text.runs.emplace_back();
 		edit_state.current_run_index = 0;
 		return;
 	}
@@ -475,8 +413,7 @@ Text& Text::Clear() {
 
 	styled_text.runs.clear();
 
-	auto& run{ styled_text.runs.emplace_back() };
-	run.style = MakeDefaultRunStyle();
+	styled_text.runs.emplace_back();
 
 	edit_state.current_run_index = 0;
 
@@ -725,8 +662,8 @@ Text& Text::Color(ptgn::Color color) {
 	return *this;
 }
 
-Text& Text::Size(float size) {
-	CurrentStyle().scale = size;
+Text& Text::Size(float font_size) {
+	CurrentStyle().size = font_size;
 	InvalidateLayout();
 	return *this;
 }
@@ -1065,10 +1002,7 @@ Text CreateText(Scene& scene, Transform transform, Origin draw_origin) {
 
 	StyledText styled_text;
 
-	TextRun run;
-	run.style = MakeDefaultTextRunStyle();
-
-	styled_text.runs.push_back(std::move(run));
+	styled_text.runs.emplace_back();
 
 	text.Add<StyledText>(std::move(styled_text));
 	text.Add<TextBox>();

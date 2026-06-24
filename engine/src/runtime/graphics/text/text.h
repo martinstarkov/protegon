@@ -24,8 +24,6 @@ class SceneCamera;
 
 namespace impl {
 
-class FontAtlas;
-
 struct TextAlignmentOverride {
 	bool horizontal{ false };
 	bool vertical{ false };
@@ -35,7 +33,7 @@ struct TextEditState {
 	std::size_t current_run_index{ 0 };
 };
 
-const FontAtlas* GetFontAtlas(AssetManager& asset_manager, std::string_view font_key);
+ResolvedTextRun ResolveTextRun(AssetManager& asset_manager, const TextRun& text_run);
 
 ResolvedStyledText ResolveStyledText(AssetManager& asset_manager, const StyledText& styled_text);
 
@@ -119,7 +117,7 @@ public:
 
 	Text& Font(std::string_view font_key = {});
 	Text& Color(ptgn::Color color);
-	Text& Size(float size);
+	Text& Size(float font_size);
 
 	Text& Kerning(float kerning);
 	Text& Tracking(float tracking);
@@ -207,8 +205,6 @@ private:
 	const impl::TextEditState& RequireEditState() const;
 
 	void EnsureValidRuns();
-
-	TextRunStyle MakeDefaultRunStyle() const;
 
 	TextRun& CurrentRun();
 	const TextRun& CurrentRun() const;

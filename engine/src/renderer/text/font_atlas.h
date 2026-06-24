@@ -13,13 +13,11 @@
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
+#include "renderer/text/text_style.h"
 
 namespace ptgn {
 
 class Renderer;
-
-/// @brief Default font size used when no explicit size is specified for text rendering.
-inline constexpr float kDefaultFontSize{ 18.0f };
 
 /// @brief Configuration for font atlas generation. These values affect the quality and size of the
 /// generated atlas texture and the resulting glyph metrics.
