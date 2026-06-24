@@ -1,18 +1,18 @@
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <optional>
 #include <utility>
 #include <vector>
 
+#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/tolerance.h"
-#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
-#include "renderer/pipeline/effect_params.h"
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
@@ -127,6 +127,9 @@ struct LineLayout {
 
 	V2_float size;
 
+	/// @brief Represents the entire line layout cell, including line spacing.
+	Rect bounds;
+
 	/// Logical vertical bounds shared by every glyph on the line.
 	///
 	/// These use the greatest ascent and descent of all runs participating
@@ -135,8 +138,8 @@ struct LineLayout {
 	float logical_bottom{ 0.0f };
 
 	constexpr bool operator==(const LineLayout& o) const {
-		return glyph_begin == o.glyph_begin && glyph_end == o.glyph_end && size == o.size &&
-			   NearlyEqual(logical_top, o.logical_top) &&
+		return bounds == o.bounds && glyph_begin == o.glyph_begin && glyph_end == o.glyph_end &&
+			   size == o.size && NearlyEqual(logical_top, o.logical_top) &&
 			   NearlyEqual(logical_bottom, o.logical_bottom);
 	}
 };
@@ -144,7 +147,6 @@ struct LineLayout {
 struct TextMeasurement {
 	V2_float size;
 	float first_line_height{ 0.0f };
-	float max_line_width{ 0.0f };
 	std::size_t line_count{ 0 };
 	bool truncated{ false };
 	float used_shrink_scale{ 1.0f };
@@ -188,19 +190,63 @@ struct TextLayout {
 	/// @brief One style per StyledText run. Glyph::source_run_index indexes this.
 	std::vector<TextBatchStyle> batch_styles;
 
+	/// Final logical size of the laid out content.
 	V2_float measured_size;
-	V2_float content_offset;
+
+	/// Final positioned logical bounds of the laid out content.
+	Rect bounds;
+
 	float used_shrink_scale{ 1.0f };
 
-	bool clipped{ false };
+	/// True when at least one automatic soft wrap occurred.
+	bool wrapped{ false };
+
+	/// True when the complete source text fit without truncation or clipping.
+	bool fits{ true };
+
+	/// True when the layout overflow clipping is enabled.
+	bool uses_clipping{ false };
+
 	bool ellipsized{ false };
 	bool truncated_by_max_lines{ false };
 
 	std::optional<Rect> clip_rect;
 	TextClipMode clip_mode{ TextClipMode::None };
+
+	/// Rectangle used when applying the entity's draw origin.
+	///
+	/// This is the explicit TextBox rectangle when one exists, otherwise
+	/// it is the automatically calculated content bounds.
 	Rect local_box;
 
 	std::size_t hash{ 0 };
+
+	constexpr bool IsTruncated() const {
+		return ellipsized || truncated_by_max_lines;
+	}
+
+	constexpr const LineLayout& GetLine(std::size_t index) const {
+		PTGN_ASSERT(
+			index < lines.size(), "Text line index out of range: ", index,
+			", line count: ", lines.size()
+		);
+
+		return lines[index];
+	}
+
+	constexpr std::size_t GetGlyphCount() const {
+		return glyphs.size();
+	}
+
+	constexpr std::size_t GetLineCount() const {
+		return lines.size();
+	}
+
+	constexpr std::size_t GetVisibleGlyphCount() const {
+		return static_cast<std::size_t>(std::ranges::count_if(glyphs, [](const Glyph& glyph) {
+			return glyph.visible;
+		}));
+	}
 };
 
 struct DrawTextRequest {
