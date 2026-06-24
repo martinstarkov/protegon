@@ -68,20 +68,20 @@ struct TextEffectsScene : public Scene {
 
 		CreateLine("Colored text", color::Green);
 
-		CreateLine("Fake bold", color::Black).Bold(true, 0.25f);
+		CreateLine("Fake bold", color::Black).Bold(true, 0.06f);
 		CreateLine("Fake italics", color::Black).Italic();
 		CreateLine("Underline", color::Black).Underline();
 		CreateLine("Strikethrough", color::Black).Strikethrough();
 
 		CreateLine("Bold + italic + underline + strikethrough", color::Black)
-			.Bold(true, 0.2f)
+			.Bold(true)
 			.Italic()
 			.Underline()
 			.Strikethrough();
 
 		auto rich{ CreateLine("Rich text: ", color::Black) };
 
-		rich.Content("red bold ").Color(color::Red).Bold(true, 0.2f);
+		rich.Content("red bold ").Color(color::Red).Bold(true);
 
 		rich.Content("green italic ").Color(color::Green).Bold(false).Italic();
 
@@ -136,9 +136,9 @@ struct TextEffectsScene : public Scene {
 		MoveWASD(ctx().camera, V2_float{ 300.0f } * ctx().dt().count());
 
 		if (ctx().input.KeyHeld(Key::Q)) {
-			ctx().camera.Zoom(V2_float{ 10.0f } * ctx().dt().count());
+			ctx().camera.Zoom(V2_float{ 1.0f } * ctx().dt().count());
 		} else if (ctx().input.KeyHeld(Key::E)) {
-			ctx().camera.Zoom(-V2_float{ 10.0f } * ctx().dt().count());
+			ctx().camera.Zoom(-V2_float{ 1.0f } * ctx().dt().count());
 		}
 
 		reveal_time += ctx().dt().count();
