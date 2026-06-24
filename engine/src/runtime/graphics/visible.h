@@ -6,6 +6,8 @@ namespace ptgn {
 
 namespace impl {
 
+struct IgnoreParentVisibility {};
+
 struct Visible {};
 
 } // namespace impl
@@ -40,7 +42,13 @@ void Show(Entity entity, bool emit_visibility_event = true);
 
 void Hide(Entity entity, bool emit_visibility_event = true);
 
-/// @return True if the entity is visible, false otherwise.
+/// @return True if the entity is locally visible (has the Visible component), false otherwise.
+[[nodiscard]] bool IsLocallyVisible(Entity entity);
+
+/// @return True if the entity and all its parent entities are visible, false otherwise.
 [[nodiscard]] bool IsVisible(Entity entity);
+
+/// @brief Ignores the visibility of parent entities when determining if this entity is visible.
+void IgoreParentVisibility(Entity entity, bool ignore = true);
 
 } // namespace ptgn

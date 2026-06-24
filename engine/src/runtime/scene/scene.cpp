@@ -419,7 +419,7 @@ void Scene::DrawCameras(DrawContext& draw_context, const std::vector<Entity>& ca
 		auto cam{ camera.operator Camera() };
 		auto clear_color{ camera.GetClearColor() };
 		auto filter = [camera](auto entity) {
-			return !camera.CanSee(entity);
+			return !camera.CanSee(entity) || !IsVisible(entity);
 		};
 
 		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
@@ -470,7 +470,7 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 			bool in_include = (entity_mask & include) != 0;
 			bool in_exclude = (entity_mask & exclude) != 0;
 
-			return !(in_include && !in_exclude /*|| IsUI(entity)*/);
+			return !(in_include && !in_exclude /*|| IsUI(entity)*/) || !IsVisible(entity);
 		};
 
 		auto& commands{ ctx().render_queue.GetRenderCommands(camera, false) };
