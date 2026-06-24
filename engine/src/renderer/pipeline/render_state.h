@@ -68,7 +68,7 @@ struct StencilState {
 
 	std::uint32_t write_mask{ 0xFFFFFFFF };
 
-	bool operator==(const StencilState&) const = default;
+	constexpr bool operator==(const StencilState&) const = default;
 };
 
 struct DepthMaskState {
@@ -79,7 +79,7 @@ struct DepthMaskState {
 	float range_near{ 0.0f };
 	float range_far{ 1.0f };
 
-	bool operator==(const DepthMaskState& other) const {
+	constexpr bool operator==(const DepthMaskState& other) const {
 		return write == other.write && func == other.func &&
 			   NearlyEqual(range_near, other.range_near) && NearlyEqual(range_far, other.range_far);
 	}
@@ -88,13 +88,13 @@ struct DepthMaskState {
 struct Stencil {
 	std::int32_t value{ 0 };
 
-	Stencil() = default;
+	constexpr Stencil() = default;
 
-	Stencil(std::int32_t value) : value{ value } {} // NOSONAR
+	constexpr Stencil(std::int32_t value) : value{ value } {} // NOSONAR
 
-	std::strong_ordering operator<=>(const Stencil&) const = default;
+	constexpr std::strong_ordering operator<=>(const Stencil&) const = default;
 
-	operator std::int32_t() const { // NOSONAR
+	constexpr operator std::int32_t() const { // NOSONAR
 		return value;
 	}
 
@@ -102,20 +102,20 @@ struct Stencil {
 };
 
 struct Depth {
-	Depth() = default;
+	constexpr Depth() = default;
 
-	Depth(float value) : value{ value } {} // NOSONAR
+	constexpr Depth(float value) : value{ value } {} // NOSONAR
 
-	[[nodiscard]] Depth RelativeTo(Depth parent) const {
+	[[nodiscard]] constexpr Depth RelativeTo(Depth parent) const {
 		parent.value += value;
 		return parent;
 	}
 
-	friend bool operator==(const Depth& lhs, const Depth& rhs) {
+	friend constexpr bool operator==(const Depth& lhs, const Depth& rhs) {
 		return NearlyEqual(lhs.value, rhs.value);
 	}
 
-	friend std::partial_ordering operator<=>(const Depth& lhs, const Depth& rhs) {
+	friend constexpr std::partial_ordering operator<=>(const Depth& lhs, const Depth& rhs) {
 		if (NearlyEqual(lhs.value, rhs.value)) {
 			return std::partial_ordering::equivalent;
 		}
@@ -131,7 +131,7 @@ struct Depth {
 		return std::partial_ordering::unordered;
 	}
 
-	operator float() const { // NOSONAR
+	constexpr operator float() const { // NOSONAR
 		return value;
 	}
 
@@ -144,7 +144,7 @@ struct DepthStencil {
 	Depth depth;
 	Stencil stencil;
 
-	bool operator==(const DepthStencil&) const = default;
+	constexpr bool operator==(const DepthStencil&) const = default;
 };
 
 struct ColorMaskState {
@@ -153,22 +153,22 @@ struct ColorMaskState {
 	bool blue{ true };
 	bool alpha{ true };
 
-	bool operator==(const ColorMaskState&) const = default;
+	constexpr bool operator==(const ColorMaskState&) const = default;
 };
 
 struct ScissorState {
 	ScissorState() = default;
 
-	explicit ScissorState(Viewport viewport) : viewport{ viewport }, enabled{ true } {}
+	constexpr explicit ScissorState(Viewport viewport) : viewport{ viewport }, enabled{ true } {}
 
-	explicit ScissorState(bool enabled) : enabled{ enabled } {}
+	constexpr explicit ScissorState(bool enabled) : enabled{ enabled } {}
 
 	/// @brief Viewport of the scissor rectangle.
 	Viewport viewport;
 
 	bool enabled{ false };
 
-	bool operator==(const ScissorState&) const = default;
+	constexpr bool operator==(const ScissorState&) const = default;
 };
 
 struct CullState {
@@ -177,14 +177,14 @@ struct CullState {
 	CullFace cull_face{ CullFace::Back };
 	FrontFace front_face{ FrontFace::CCW };
 
-	bool operator==(const CullState&) const = default;
+	constexpr bool operator==(const CullState&) const = default;
 };
 
 struct RasterState {
 	CullState cull;
 	float line_width{ 1.0f };
 
-	bool operator==(const RasterState& other) const {
+	constexpr bool operator==(const RasterState& other) const {
 		return cull == other.cull && NearlyEqual(line_width, other.line_width);
 	}
 };
@@ -192,17 +192,17 @@ struct RasterState {
 struct MaterialState {
 	impl::ShaderId shader;
 	std::vector<UniformWrite> uniforms;
-	std::size_t texture_slot_capacity{ 1 };
+	std::optional<std::size_t> texture_slot_capacity;
 
-	bool operator==(const MaterialState&) const = default;
+	constexpr bool operator==(const MaterialState&) const = default;
 };
 
 struct Material {
 	std::string shader;
 	std::vector<UniformWrite> uniforms;
-	std::size_t texture_slot_capacity{ 1 };
+	std::optional<std::size_t> texture_slot_capacity;
 
-	bool operator==(const Material&) const = default;
+	constexpr bool operator==(const Material&) const = default;
 };
 
 struct RenderState {
@@ -219,7 +219,7 @@ struct RenderState {
 	ScissorState scissor{ false };
 	RasterState raster;
 
-	bool operator==(const RenderState&) const = default;
+	constexpr bool operator==(const RenderState&) const = default;
 };
 
 struct RenderStateDelta {
@@ -236,12 +236,12 @@ struct RenderStateDelta {
 	std::optional<ScissorState> scissor;
 	std::optional<RasterState> raster;
 
-	bool operator==(const RenderStateDelta&) const = default;
+	constexpr bool operator==(const RenderStateDelta&) const = default;
 };
 
 namespace impl {
 
-inline RenderState ApplyDeltaRenderState(RenderState base, const RenderStateDelta& delta) {
+constexpr RenderState ApplyDeltaRenderState(RenderState base, const RenderStateDelta& delta) {
 	if (delta.view_projection.has_value()) {
 		base.view_projection = delta.view_projection.value();
 	}
