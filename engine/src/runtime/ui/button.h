@@ -92,8 +92,9 @@ struct ButtonPart {
 struct ButtonLabelAutoBox {
 	bool enabled{ true };
 	Rect padding;
+	Origin origin{ Origin::Center };
 
-	PTGN_SERIALIZE(ButtonLabelAutoBox, enabled, padding)
+	PTGN_SERIALIZE(ButtonLabelAutoBox, enabled, padding, origin)
 };
 
 struct ButtonEnabled {
@@ -200,6 +201,8 @@ public:
 
 	Text Label(ButtonVisualState state = ButtonVisualState::Base);
 	Sprite Icon(ButtonVisualState state = ButtonVisualState::Base);
+
+	Button& SetLabelOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Base);
 
 	[[nodiscard]] std::optional<Entity> TryBackground(
 		ButtonVisualState state = ButtonVisualState::Base

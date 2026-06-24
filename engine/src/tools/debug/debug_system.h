@@ -17,6 +17,7 @@ class ApplicationContext;
 struct TextDebugSettings {
 	bool draw_enabled{ false };
 	Color draw_color{ color::Magenta };
+	Color clip_draw_color{ color::Blue };
 	float draw_line_width{ 2.0f };
 };
 

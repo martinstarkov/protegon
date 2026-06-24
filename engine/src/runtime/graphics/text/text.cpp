@@ -157,10 +157,6 @@ void UpdateLayout(
 	entity.Add<TextLayout>(layout);
 }
 
-V2_float GetTextOriginPoint(Rect rect, Origin origin) {
-	return rect.GetCenter() - GetOffset(origin, rect.GetSize());
-}
-
 std::optional<Rect> IntersectClipRects(std::optional<Rect> a, std::optional<Rect> b) {
 	if (!a.has_value()) {
 		return b;
@@ -249,26 +245,34 @@ void DrawDebugTextBoundingBoxes(
 			continue;
 		}
 
-		auto origin_point{ GetTextOriginPoint(layout->local_box, GetDrawOrigin(entity)) };
-		auto box_center{ (layout->local_box.min + layout->local_box.max) * 0.5f };
+		auto origin_point{ layout->local_box.GetOriginPoint(GetDrawOrigin(entity)) };
 
-		auto transform{ GetDrawTransform(entity) };
-		transform.Translate(box_center - origin_point);
-
-		auto rect{ Rect{
-			{ -layout->local_box.GetSize().x * 0.5f, -layout->local_box.GetSize().y * 0.5f },
-			{ layout->local_box.GetSize().x * 0.5f, layout->local_box.GetSize().y * 0.5f },
-		} };
-
-		scene.ctx().render_queue.DrawShape(
-			transform, rect, settings.draw_color,
-			ShapeRenderParams{
-				.fill_style = settings.draw_line_width,
-				.origin		= Origin::Center,
-				.camera		= camera,
-				.debug		= true,
+		auto draw_rect = [&](Rect rect, Color color) {
+			if (!rect.GetSize().IsPositive()) {
+				return;
 			}
-		);
+
+			auto transform{ GetDrawTransform(entity) };
+			transform.Translate(rect.GetCenter() - origin_point);
+
+			scene.ctx().render_queue.DrawShape(
+				transform, GetCenteredRect(rect.GetSize()), color,
+				ShapeRenderParams{
+					.fill_style = settings.draw_line_width,
+					.origin		= Origin::Center,
+					.camera		= camera,
+					.debug		= true,
+				}
+			);
+		};
+
+		// The layout box moves with the scrolled text.
+		draw_rect(layout->local_box, settings.draw_color);
+
+		// The explicit clip rectangle represents the fixed viewport.
+		if (auto clip{ entity.TryGet<TextClip>() }; clip && clip->rect.has_value()) {
+			draw_rect(clip->rect.value(), settings.clip_draw_color);
+		}
 	}
 }
 
@@ -302,7 +306,7 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 
 	auto transform{ GetDrawTransform(entity) };
 	if (layout.local_box.GetSize().IsPositive()) {
-		auto origin_point{ GetTextOriginPoint(layout.local_box, GetDrawOrigin(entity)) };
+		auto origin_point{ layout.local_box.GetOriginPoint(GetDrawOrigin(entity)) };
 		transform.Translate(-origin_point);
 	}
 
@@ -345,7 +349,7 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 		clip_mode = clip->mode;
 
 		if (clip->rect.has_value() && clip_mode == TextClipMode::None) {
-			clip_mode = TextClipMode::ClipFullyOutside;
+			clip_mode = TextClipMode::Clip;
 		}
 	}
 

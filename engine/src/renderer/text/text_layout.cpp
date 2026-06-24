@@ -392,7 +392,7 @@ Rect GetGlyphLogicalRect(const Glyph& glyph) {
 }
 
 Rect GetGlyphClipTestRect(const Glyph& glyph, TextClipMode mode) {
-	if (mode == TextClipMode::ClipFullyContained) {
+	if (mode == TextClipMode::Clip) {
 		// Character-level clipping should use the logical advance cell.
 		// Otherwise negative left bearings make first glyphs disappear.
 		return GetGlyphLogicalRect(glyph);
@@ -415,11 +415,11 @@ bool ShouldDrawRectWithClipMode(const Rect& rect, const Rect& clip_rect, TextCli
 	switch (mode) {
 		using enum TextClipMode;
 
-		case None:				 return true;
+		case None:		  return true;
 
-		case ClipFullyContained: return RectFullyContains(clip_rect, rect);
+		case Clip:		  return RectFullyContains(clip_rect, rect);
 
-		case ClipFullyOutside:	 return RectIntersects(rect, clip_rect);
+		case ClipPartial: return RectIntersects(rect, clip_rect);
 	}
 
 	return true;
@@ -1436,13 +1436,13 @@ TextLayout BuildTextLayout(const ResolvedStyledText& styled_text, const TextBox&
 
 			case Clip:
 				layout.clip_rect = box.rect;
-				layout.clip_mode = TextClipMode::ClipFullyContained;
+				layout.clip_mode = TextClipMode::Clip;
 				layout.clipped	 = true;
 				break;
 
 			case ClipPartial:
 				layout.clip_rect = box.rect;
-				layout.clip_mode = TextClipMode::ClipFullyOutside;
+				layout.clip_mode = TextClipMode::ClipPartial;
 				layout.clipped	 = true;
 				break;
 

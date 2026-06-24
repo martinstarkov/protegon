@@ -44,6 +44,46 @@ namespace ptgn {
 
 namespace {
 
+HorizontalAlign GetHorizontalAlignment(Origin origin) {
+	switch (origin) {
+		using enum Origin;
+
+		case TopLeft:
+		case CenterLeft:
+		case BottomLeft:   return HorizontalAlign::Left;
+
+		case CenterTop:
+		case Center:
+		case CenterBottom: return HorizontalAlign::Center;
+
+		case TopRight:
+		case CenterRight:
+		case BottomRight:  return HorizontalAlign::Right;
+	}
+
+	PTGN_ERROR("Unknown Origin: ", std::to_underlying(origin));
+}
+
+VerticalAlign GetVerticalAlignment(Origin origin) {
+	switch (origin) {
+		using enum Origin;
+
+		case TopLeft:
+		case CenterTop:
+		case TopRight:	   return VerticalAlign::Top;
+
+		case CenterLeft:
+		case Center:
+		case CenterRight:  return VerticalAlign::Center;
+
+		case BottomLeft:
+		case CenterBottom:
+		case BottomRight:  return VerticalAlign::Bottom;
+	}
+
+	PTGN_ERROR("Unknown Origin: ", std::to_underlying(origin));
+}
+
 [[nodiscard]] bool IsPressVisualState(ButtonVisualState state) {
 	switch (state) {
 		using enum ButtonVisualState;
@@ -679,6 +719,17 @@ Sprite Button::Icon(ButtonVisualState state) {
 	return sprite;
 }
 
+Button& Button::SetLabelOrigin(Origin origin, ButtonVisualState state) {
+	Text label{ Label(state) };
+
+	auto& auto_box{ label.TryAdd<impl::ButtonLabelAutoBox>() };
+	auto_box.origin = origin;
+
+	UpdateChildLayouts();
+
+	return *this;
+}
+
 std::optional<Entity> Button::TryBackground(ButtonVisualState state) const {
 	return TryPart(ButtonPartRole::Background, state);
 }
@@ -1012,11 +1063,11 @@ void Button::PlayAnimation(ButtonState active) const {
 void Button::UpdateChildLayouts() {
 	auto size{ GetButtonShapeSize(*this) };
 
-	if (!size.has_value() || !size.value().IsPositive()) {
+	if (!size.has_value() || !size->IsPositive()) {
 		return;
 	}
 
-	Rect button_rect{ GetButtonLocalRect(*this, size.value()) };
+	Rect button_rect{ GetButtonLocalRect(*this, *size) };
 
 	for (Entity part : Parts(ButtonPartRole::Label)) {
 		auto auto_box{ part.TryGet<impl::ButtonLabelAutoBox>() };
@@ -1031,12 +1082,27 @@ void Button::UpdateChildLayouts() {
 			continue;
 		}
 
-		// Put the label entity at the top-left of the content area.
-		SetPosition(part, content_rect.min);
-		SetDrawOrigin(part, Origin::TopLeft);
+		Origin origin{ auto_box->origin };
+		V2_float content_size{ content_rect.GetSize() };
+		V2_float label_position{ content_rect.GetOriginPoint(origin) };
 
-		// The label's own text box is now local to the label entity.
-		Text{ part }.Box(Rect{ {}, content_rect.GetSize() });
+		SetPosition(part, label_position);
+		SetDrawOrigin(part, origin);
+
+		Text label{ part };
+		Rect label_box{ {}, content_size };
+
+		if (label.GetTextBox().rect != label_box) {
+			label.Box(label_box);
+		}
+
+		auto horizontal_align{ GetHorizontalAlignment(origin) };
+		auto vertical_align{ GetVerticalAlignment(origin) };
+		const auto& style{ label.GetTextBox().style };
+
+		if (style.horizontal_align != horizontal_align || style.vertical_align != vertical_align) {
+			label.Align(horizontal_align, vertical_align);
+		}
 	}
 }
 

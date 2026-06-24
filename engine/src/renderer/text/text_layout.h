@@ -162,8 +162,8 @@ struct TextDecoration {
 
 enum class TextClipMode : std::uint8_t {
 	None,
-	ClipFullyContained,
-	ClipFullyOutside,
+	Clip,
+	ClipPartial,
 };
 PTGN_SERIALIZE_ENUM(TextClipMode)
 
@@ -223,7 +223,7 @@ struct TextReveal {
 
 struct TextClip {
 	std::optional<Rect> rect;
-	TextClipMode mode{ TextClipMode::ClipFullyOutside };
+	TextClipMode mode{ TextClipMode::Clip };
 
 	PTGN_SERIALIZE(TextClip, rect, mode)
 };

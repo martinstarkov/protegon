@@ -90,6 +90,50 @@ struct TextLayoutScene : public Scene {
 		);
 	}
 
+	void CreateClipped(int column, int row) {
+		V2_float cell_top{
+			left + cell_size.x * static_cast<float>(column),
+			top + cell_size.y * static_cast<float>(row),
+		};
+
+		CreateTitle(cell_top, "Text::Clip");
+
+		V2_float viewport_position{ cell_top + V2_float{ 0.0f, 22.0f } };
+
+		Rect text_box{
+			{ -box_size.x * 0.5f, 0.0f },
+			{ box_size.x * 0.5f, box_size.y },
+		};
+
+		auto text{ CreateText(*this, viewport_position, Origin::CenterTop) };
+
+		text.Content(
+				"The storm had been building beyond the hills all afternoon. Dark clouds "
+				"rolled across the horizon while distant thunder echoed through the valley. "
+				"By the time the first drops reached the road, the wind was already bending "
+				"the trees and carrying loose leaves through the air. The passage begins "
+				"above the visible region, as though the user has already scrolled down."
+		)
+			.Font(font)
+			.Size(14.0f)
+			.Color(color::Black)
+			.Box(text_box)
+			.Align(HorizontalAlign::Left, VerticalAlign::Top)
+			.Wrap(WrapMode::Word)
+			.Overflow(OverflowMode::Overflow);
+
+		float scroll_offset{ text.Measure().first_line_height * 0.5f };
+
+		SetPosition(text, viewport_position - V2_float{ 0.0f, scroll_offset });
+
+		Rect clip_rect{
+			{ -box_size.x * 0.5f, scroll_offset },
+			{ box_size.x * 0.5f, scroll_offset + box_size.y },
+		};
+
+		text.Clip(clip_rect);
+	}
+
 	void OnEnter() override {
 		SetBackgroundColor(color::LightGray);
 
@@ -185,6 +229,8 @@ struct TextLayoutScene : public Scene {
 			"Justified text spreads spaces so wrapped lines fill the full width.",
 			HorizontalAlign::Justify, VerticalAlign::Top, WrapMode::Word, OverflowMode::Overflow
 		);
+
+		CreateClipped(2, 3);
 
 		CreateCell(
 			0, 4, "HorizontalAlign::Left", "short\nmedium line\nthis is the longest line",

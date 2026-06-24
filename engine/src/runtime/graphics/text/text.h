@@ -73,7 +73,7 @@ public:
 
 	/// @brief Useful for something like a scrollable text box where you want to clip the text to
 	/// the box, but still allow the user to scroll the text outside of the box.
-	Text& Clip(Rect rect, TextClipMode mode = TextClipMode::ClipFullyOutside);
+	Text& Clip(Rect rect, TextClipMode mode = TextClipMode::Clip);
 
 	/// @brief Removes any clipping that was previously set.
 	Text& ClearClip();
