@@ -64,6 +64,7 @@ struct RichTextToken {
 
 	Type type{ Type::Word };
 	std::u32string text;
+	std::size_t source_codepoint_begin{ 0 };
 	std::size_t run_index{ 0 };
 	float width{ 0.0f };
 
@@ -229,36 +230,47 @@ std::u32string DecodeUtf8(std::string_view text) {
 	return out;
 }
 
-std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
-	bool found{ false };
-	V2_float min;
-	V2_float max;
+void ReindexVisibleGlyphs(TextLayout& layout) {
+	std::size_t visible_order{ 0 };
 
-	for (const auto& glyph : layout.glyphs) {
+	for (auto& glyph : layout.glyphs) {
 		if (!glyph.visible) {
 			continue;
 		}
 
-		V2_float glyph_min{ glyph.position + glyph.plane.min };
-		V2_float glyph_max{ glyph.position + glyph.plane.max };
+		glyph.visible_order = visible_order++;
+	}
+}
 
-		if (!found) {
-			min	  = glyph_min;
-			max	  = glyph_max;
-			found = true;
-		} else {
-			min.x = std::min(min.x, glyph_min.x);
-			min.y = std::min(min.y, glyph_min.y);
-			max.x = std::max(max.x, glyph_max.x);
-			max.y = std::max(max.y, glyph_max.y);
+void RecalculateLayoutGeometry(TextLayout& layout) {
+	layout.measured_size = {};
+	layout.bounds		 = {};
+
+	if (layout.lines.empty()) {
+		return;
+	}
+
+	bool found_bounds{ false };
+
+	for (const auto& line : layout.lines) {
+		layout.measured_size.x = std::max(layout.measured_size.x, line.size.x);
+
+		layout.measured_size.y += line.size.y;
+
+		if (!found_bounds) {
+			layout.bounds = line.bounds;
+			found_bounds  = true;
+			continue;
 		}
-	}
 
-	if (!found) {
-		return std::nullopt;
-	}
+		layout.bounds.min.x = std::min(layout.bounds.min.x, line.bounds.min.x);
 
-	return Rect{ min, max };
+		layout.bounds.min.y = std::min(layout.bounds.min.y, line.bounds.min.y);
+
+		layout.bounds.max.x = std::max(layout.bounds.max.x, line.bounds.max.x);
+
+		layout.bounds.max.y = std::max(layout.bounds.max.y, line.bounds.max.y);
+	}
 }
 
 float MeasureRunTextWidth(
@@ -638,7 +650,7 @@ std::vector<RichTextToken> Tokenize(
 
 	bool previous_was_collapsible_space{ true };
 
-	auto emit_space = [&](std::size_t run_index, bool tab) {
+	auto emit_space = [&](std::size_t run_index, bool tab, auto i) {
 		if (collapse_spaces) {
 			if (previous_was_collapsible_space) {
 				return;
@@ -648,7 +660,8 @@ std::vector<RichTextToken> Tokenize(
 			token.type		= RichTextToken::Type::Space;
 			token.run_index = run_index;
 			token.text.push_back(U' ');
-			token.width = MeasureTokenWidth(token, styled_text, global_shrink);
+			token.width					 = MeasureTokenWidth(token, styled_text, global_shrink);
+			token.source_codepoint_begin = i;
 			tokens.push_back(std::move(token));
 
 			previous_was_collapsible_space = true;
@@ -659,7 +672,8 @@ std::vector<RichTextToken> Tokenize(
 		token.type		= tab ? RichTextToken::Type::Tab : RichTextToken::Type::Space;
 		token.run_index = run_index;
 		token.text.push_back(tab ? U'\t' : U' ');
-		token.width = MeasureTokenWidth(token, styled_text, global_shrink);
+		token.width					 = MeasureTokenWidth(token, styled_text, global_shrink);
+		token.source_codepoint_begin = run_index;
 		tokens.push_back(std::move(token));
 
 		previous_was_collapsible_space = true;
@@ -683,6 +697,7 @@ std::vector<RichTextToken> Tokenize(
 				token.type		= RichTextToken::Type::Newline;
 				token.run_index = run_index;
 				token.text.push_back(U'\n');
+				token.source_codepoint_begin = i;
 				tokens.push_back(std::move(token));
 
 				previous_was_collapsible_space = true;
@@ -697,7 +712,7 @@ std::vector<RichTextToken> Tokenize(
 						++i;
 					}
 
-					emit_space(run_index, false);
+					emit_space(run_index, false, i);
 					continue;
 				}
 
@@ -712,13 +727,14 @@ std::vector<RichTextToken> Tokenize(
 					token.run_index = run_index;
 					token.text		= decoded.substr(begin, i - begin);
 					token.width		= MeasureTokenWidth(token, styled_text, global_shrink);
+					token.source_codepoint_begin = i;
 					tokens.push_back(std::move(token));
 
 					previous_was_collapsible_space = true;
 					continue;
 				}
 
-				emit_space(run_index, true);
+				emit_space(run_index, true, i);
 				++i;
 				continue;
 			}
@@ -729,10 +745,11 @@ std::vector<RichTextToken> Tokenize(
 			}
 
 			RichTextToken token;
-			token.type		= RichTextToken::Type::Word;
-			token.run_index = run_index;
-			token.text		= decoded.substr(begin, i - begin);
-			token.width		= MeasureTokenWidth(token, styled_text, global_shrink);
+			token.type					 = RichTextToken::Type::Word;
+			token.run_index				 = run_index;
+			token.text					 = decoded.substr(begin, i - begin);
+			token.width					 = MeasureTokenWidth(token, styled_text, global_shrink);
+			token.source_codepoint_begin = i;
 			tokens.push_back(std::move(token));
 
 			previous_was_collapsible_space = false;
@@ -831,6 +848,10 @@ void AppendGlyph(TextLayoutBuildContext& ctx, const ResolvedGlyph& resolved) {
 }
 
 void FlushLine(TextLayoutBuildContext& ctx, LineFlushReason reason) {
+	if (reason == LineFlushReason::SoftWrap) {
+		ctx.layout.wrapped = true;
+	}
+
 	bool ends_with_explicit_newline{ reason == LineFlushReason::ExplicitNewline };
 	bool is_last_line_of_paragraph{ reason != LineFlushReason::SoftWrap };
 
@@ -876,11 +897,20 @@ void FlushLine(TextLayoutBuildContext& ctx, LineFlushReason reason) {
 			if (float remaining_width{ ctx.box.rect.GetSize().x - line.size.x };
 				should_justify && remaining_width > 0.0f) {
 				justify_extra_per_space = remaining_width / static_cast<float>(justify_space_count);
+
+				line.size.x += remaining_width;
 			}
 
 			break;
 		}
 	}
+
+	float line_top{ ctx.box.rect.min.y + ctx.y };
+
+	line.bounds = Rect{
+		{ x_offset, line_top },
+		{ x_offset + line.size.x, line_top + line.size.y },
+	};
 
 	float justify_extra{ 0.0f };
 
@@ -992,8 +1022,10 @@ void AppendSpacingToken(
 	std::size_t codepoint_begin
 ) {
 	if (token.type == RichTextToken::Type::Tab) {
-		if (std::optional<ResolvedGlyph> resolved{
-				ResolveGlyph(run, U'\t', token.run_index, 0, ctx.global_shrink) };
+		// TODO: Get rid of this resolve glyph and add custom tab width support.
+		if (std::optional<ResolvedGlyph> resolved{ ResolveGlyph(
+				run, U'\t', token.run_index, token.source_codepoint_begin, ctx.global_shrink
+			) };
 			resolved.has_value()) {
 			AppendGlyph(ctx, resolved.value(), token.width);
 		} else {
@@ -1009,9 +1041,9 @@ void AppendSpacingToken(
 	for (auto i{ codepoint_begin }; i < token.text.size(); ++i) {
 		std::uint32_t codepoint{ token.text[i] };
 
-		std::optional<ResolvedGlyph> resolved{
-			ResolveGlyph(run, codepoint, token.run_index, i, ctx.global_shrink)
-		};
+		std::optional<ResolvedGlyph> resolved{ ResolveGlyph(
+			run, codepoint, token.run_index, token.source_codepoint_begin + i, ctx.global_shrink
+		) };
 
 		if (resolved.has_value()) {
 			AppendGlyph(ctx, resolved.value());
@@ -1029,9 +1061,9 @@ std::vector<ResolvedGlyph> ResolveTokenGlyphs(
 	for (auto i{ 0uz }; i < token.text.size(); ++i) {
 		std::uint32_t codepoint{ token.text[i] };
 
-		std::optional<ResolvedGlyph> resolved{
-			ResolveGlyph(run, codepoint, token.run_index, i, ctx.global_shrink)
-		};
+		std::optional<ResolvedGlyph> resolved{ ResolveGlyph(
+			run, codepoint, token.run_index, token.source_codepoint_begin + i, ctx.global_shrink
+		) };
 
 		if (resolved.has_value()) {
 			glyphs.push_back(std::move(resolved.value()));
@@ -1050,7 +1082,9 @@ void AppendCharacterWrappedWord(
 	std::optional<ResolvedGlyph> hyphen_glyph;
 
 	if (ctx.box.style.insert_hyphen_on_split) {
-		hyphen_glyph = ResolveGlyph(run, U'-', token.run_index, 0, ctx.global_shrink);
+		hyphen_glyph = ResolveGlyph(
+			run, U'-', token.run_index, token.source_codepoint_begin, ctx.global_shrink
+		);
 	}
 
 	auto word_begin{ 0uz };
@@ -1134,9 +1168,9 @@ void AppendBrokenOversizedWord(
 	for (auto i{ 0uz }; i < token.text.size(); ++i) {
 		std::uint32_t codepoint{ token.text[i] };
 
-		std::optional<ResolvedGlyph> resolved{
-			ResolveGlyph(run, codepoint, token.run_index, i, ctx.global_shrink)
-		};
+		std::optional<ResolvedGlyph> resolved{ ResolveGlyph(
+			run, codepoint, token.run_index, token.source_codepoint_begin + i, ctx.global_shrink
+		) };
 
 		if (!resolved.has_value()) {
 			continue;
@@ -1160,9 +1194,9 @@ void AppendUnbrokenToken(TextLayoutBuildContext& ctx, const RichTextToken& token
 	for (auto i{ 0uz }; i < token.text.size(); ++i) {
 		std::uint32_t codepoint{ token.text[i] };
 
-		std::optional<ResolvedGlyph> resolved{
-			ResolveGlyph(run, codepoint, token.run_index, i, ctx.global_shrink)
-		};
+		std::optional<ResolvedGlyph> resolved{ ResolveGlyph(
+			run, codepoint, token.run_index, token.source_codepoint_begin + i, ctx.global_shrink
+		) };
 
 		if (resolved.has_value()) {
 			AppendGlyph(ctx, resolved.value());
@@ -1172,6 +1206,8 @@ void AppendUnbrokenToken(TextLayoutBuildContext& ctx, const RichTextToken& token
 
 void ProcessToken(TextLayoutBuildContext& ctx, const RichTextToken& token) {
 	if (token.type == RichTextToken::Type::Newline) {
+		const auto& run{ ctx.styled_text.runs[token.run_index] };
+		IncludeRunLineMetrics(ctx, run);
 		FlushLine(ctx, LineFlushReason::ExplicitNewline);
 		return;
 	}
@@ -1258,29 +1294,29 @@ void ApplyVerticalAlignment(const TextBox& box, TextLayout& layout) {
 		return;
 	}
 
-	auto bounds{ GetVisibleGlyphBounds(layout) };
-
-	if (!bounds.has_value()) {
+	if (!layout.bounds.GetSize().IsPositive()) {
 		return;
 	}
+
+	Rect bounds{ layout.bounds };
 
 	float offset_y{ 0.0f };
 
 	switch (box.style.vertical_align) {
 		using enum VerticalAlign;
 
-		case Top:	 offset_y = box.rect.min.y - bounds->min.y; break;
+		case Top:	 offset_y = box.rect.min.y - bounds.min.y; break;
 
 		case Center: {
 			float box_center_y{ (box.rect.min.y + box.rect.max.y) * 0.5f };
 
-			float content_center_y{ (bounds->min.y + bounds->max.y) * 0.5f };
+			float content_center_y{ (bounds.min.y + bounds.max.y) * 0.5f };
 
 			offset_y = box_center_y - content_center_y;
 			break;
 		}
 
-		case Bottom: offset_y = box.rect.max.y - bounds->max.y; break;
+		case Bottom: offset_y = box.rect.max.y - bounds.max.y; break;
 	}
 
 	for (Glyph& glyph : layout.glyphs) {
@@ -1295,9 +1331,13 @@ void ApplyVerticalAlignment(const TextBox& box, TextLayout& layout) {
 	for (LineLayout& line : layout.lines) {
 		line.logical_top	+= offset_y;
 		line.logical_bottom += offset_y;
+
+		line.bounds.min.y += offset_y;
+		line.bounds.max.y += offset_y;
 	}
 
-	layout.content_offset.y += offset_y;
+	layout.bounds.min.y += offset_y;
+	layout.bounds.max.y += offset_y;
 }
 
 void ApplyMaxLines(const TextBox& box, TextLayout& layout) {
@@ -1308,6 +1348,10 @@ void ApplyMaxLines(const TextBox& box, TextLayout& layout) {
 	auto keep_lines{ box.style.max_lines };
 	auto last_line_index{ keep_lines - 1 };
 	auto hide_from{ layout.lines[last_line_index].glyph_end };
+
+	layout.glyphs.erase(
+		layout.glyphs.begin() + static_cast<std::ptrdiff_t>(hide_from), layout.glyphs.end()
+	);
 
 	for (auto i{ hide_from }; i < layout.glyphs.size(); ++i) {
 		layout.glyphs[i].visible = false;
@@ -1474,6 +1518,10 @@ void ApplyEllipsisOverflow(
 		y = layout.glyphs.back().position.y;
 	}
 
+	layout.glyphs.erase(
+		layout.glyphs.begin() + static_cast<std::ptrdiff_t>(cutoff), layout.glyphs.end()
+	);
+
 	for (auto i{ 0uz }; i < dots.size(); ++i) {
 		auto codepoint{ static_cast<std::uint32_t>(dots[i]) };
 
@@ -1515,25 +1563,6 @@ void ApplyEllipsisOverflow(
 	layout.measured_size.y = 0.0f;
 	for (const auto& line : layout.lines) {
 		layout.measured_size.y += line.size.y;
-	}
-}
-
-void ApplyClipVisibility(Rect clip_rect, TextLayout& layout) {
-	for (auto& glyph : layout.glyphs) {
-		V2_float gmin{ glyph.position + glyph.plane.min };
-		V2_float gmax{ glyph.position + glyph.plane.max };
-
-		if (gmax.x <= clip_rect.min.x || gmin.x >= clip_rect.max.x || gmax.y <= clip_rect.min.y ||
-			gmin.y >= clip_rect.max.y) {
-			glyph.visible = false;
-		}
-	}
-
-	for (auto& decoration : layout.decorations) {
-		if (decoration.rect.max.x <= clip_rect.min.x || decoration.rect.min.x >= clip_rect.max.x ||
-			decoration.rect.max.y <= clip_rect.min.y || decoration.rect.min.y >= clip_rect.max.y) {
-			decoration.visible = false;
-		}
 	}
 }
 
@@ -1602,13 +1631,26 @@ TextLayout BuildTextLayout(const ResolvedStyledText& styled_text, const TextBox&
 
 	auto layout{ BuildLayoutAtScale(styled_text, box, shrink) };
 
+	RecalculateLayoutGeometry(layout);
+
+	bool exceeds_max_lines{ box.style.max_lines > 0 && layout.lines.size() > box.style.max_lines };
+
+	layout.fits = !box.rect.GetSize().IsPositive() ||
+				  (!exceeds_max_lines && TextLayoutFitsInBox(layout, box.rect));
+
+	RecalculateLayoutGeometry(layout);
+
 	if (box.style.overflow_mode == OverflowMode::Ellipsis) {
 		ApplyEllipsisOverflow(styled_text, box, shrink, layout);
 	} else {
 		ApplyMaxLines(box, layout);
 	}
 
+	RecalculateLayoutGeometry(layout);
+
 	ApplyVerticalAlignment(box, layout);
+
+	RecalculateLayoutGeometry(layout);
 
 	layout.clip_rect = std::nullopt;
 	layout.clip_mode = TextClipMode::None;
@@ -1618,15 +1660,15 @@ TextLayout BuildTextLayout(const ResolvedStyledText& styled_text, const TextBox&
 			using enum OverflowMode;
 
 			case Clip:
-				layout.clip_rect = box.rect;
-				layout.clip_mode = TextClipMode::Clip;
-				layout.clipped	 = true;
+				layout.clip_rect	 = box.rect;
+				layout.clip_mode	 = TextClipMode::Clip;
+				layout.uses_clipping = true;
 				break;
 
 			case ClipPartial:
-				layout.clip_rect = box.rect;
-				layout.clip_mode = TextClipMode::ClipPartial;
-				layout.clipped	 = true;
+				layout.clip_rect	 = box.rect;
+				layout.clip_mode	 = TextClipMode::ClipPartial;
+				layout.uses_clipping = true;
 				break;
 
 			case Overflow:	 [[fallthrough]];
@@ -1637,11 +1679,11 @@ TextLayout BuildTextLayout(const ResolvedStyledText& styled_text, const TextBox&
 
 	if (box.rect.GetSize().IsPositive()) {
 		layout.local_box = box.rect;
-	} else if (auto visible_bounds{ GetVisibleGlyphBounds(layout) }; visible_bounds.has_value()) {
-		layout.local_box = visible_bounds.value();
 	} else {
-		layout.local_box = {};
+		layout.local_box = layout.bounds;
 	}
+
+	ReindexVisibleGlyphs(layout);
 
 	return layout;
 }
@@ -1652,7 +1694,6 @@ TextMeasurement MeasureText(const ResolvedStyledText& styled_text, const TextBox
 	TextMeasurement result;
 	result.size				 = layout.measured_size;
 	result.line_count		 = layout.lines.size();
-	result.max_line_width	 = layout.measured_size.x;
 	result.used_shrink_scale = layout.used_shrink_scale;
 	result.truncated		 = layout.ellipsized || layout.truncated_by_max_lines;
 

@@ -13,6 +13,7 @@
 #include "core/math/vector2.h"
 #include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/ecs/entity.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
@@ -32,7 +33,14 @@ struct TextLayoutScene : public Scene {
 	V2_float box_size{ 210.0f, 74.0f };
 
 	float top{ -330.0f };
-	float left{ -265.0f };
+
+	V2_float GetCellTop(int column, int row) const {
+		return {
+			-cell_size.x * static_cast<float>(kColumnCount - 1) * 0.5f +
+				cell_size.x * static_cast<float>(column),
+			top + cell_size.y * static_cast<float>(row),
+		};
+	}
 
 	Text CreateTitle(V2_float position, std::string_view label) {
 		auto text{ CreateText(*this, position, Origin::CenterTop) };
@@ -72,10 +80,7 @@ struct TextLayoutScene : public Scene {
 		HorizontalAlign horizontal_align, VerticalAlign vertical_align, WrapMode wrap_mode,
 		OverflowMode overflow_mode, V2_float size = {}
 	) {
-		V2_float cell_top{
-			left + cell_size.x * static_cast<float>(column),
-			top + cell_size.y * static_cast<float>(row),
-		};
+		V2_float cell_top{ GetCellTop(column, row) };
 
 		CreateTitle(cell_top, label);
 
@@ -94,10 +99,7 @@ struct TextLayoutScene : public Scene {
 		int column, int row, std::string_view content, HorizontalAlign horizontal,
 		VerticalAlign vertical, WrapMode wrap, OverflowMode overflow
 	) {
-		V2_float cell_top{
-			left + cell_size.x * static_cast<float>(column),
-			top + cell_size.y * static_cast<float>(row),
-		};
+		V2_float cell_top{ GetCellTop(column, row) };
 
 		CreateTitle(cell_top - V2_float{ 0.0f, 6.0f }, "Text::Clip");
 
@@ -138,12 +140,12 @@ struct TextLayoutScene : public Scene {
 
 		ctx().asset.Load(font, "assets/Arial.ttf");
 
-		CreateText(*this, { 0.0f, -390.0f }, Origin::CenterTop)
-			.Content("Text layout demo")
-			.Font(font)
-			.Size(28.0f)
-			.Color(color::Black)
-			.Bold(true);
+		auto title{ CreateText(*this, { 0.0f, -390.0f }, Origin::CenterTop) };
+
+		title.Content("Text layout demo").Font(font).Size(28.0f).Color(color::Black).Bold(true);
+
+		// TODO: Fix.
+		// SetPosition(title, { -title.GetSize().x * 0.5f, -390.0f });
 
 		CreateCell(
 			0, 0, "WrapMode::None", "This long line will not attempt to wrap.",
