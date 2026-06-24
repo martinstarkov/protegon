@@ -98,11 +98,13 @@ struct TextEffectsScene : public Scene {
 			.Outline(color::Black, 1.5f, 1.0f)
 			.Shadow(color::Black.WithAlpha(130), { 3.0f, -3.0f }, 2.0f, 2.5f);
 
-		CreateLine("Outer glow", color::Blue).OuterGlow(color::Blue.WithAlpha(160), 4.0f, 3.0f);
+		CreateLine("Inner glow", color::Blue).InnerGlow(color::Red.WithAlpha(160), 2.0f, 2.0f);
 
-		CreateLine("Inner glow", color::Blue).InnerGlow(color::White.WithAlpha(45), 3.0f, 2.0f);
+		CreateLine("Outer glow", color::Blue).OuterGlow(color::Red.WithAlpha(160), 4.0f, 3.0f);
 
-		CreateLine("Full glow", color::Blue).Glow(color::Blue.WithAlpha(150), 4.0f, 2.0f, 3.0f);
+		CreateLine("Inner + outer glow", color::Blue)
+			.OuterGlow(color::Red.WithAlpha(160), 4.0f, 3.0f)
+			.InnerGlow(color::Red.WithAlpha(160), 2.0f, 2.0f);
 
 		CreateLine("Outline + outer glow", color::White)
 			.Outline(color::Black, 1.5f, 1.0f)
@@ -120,7 +122,8 @@ struct TextEffectsScene : public Scene {
 		reveal_text = CreateLine(reveal_content, color::Black)
 						  .Effect(GlyphEffectType::Wave, 2.0f, 2.0f, 1.5f);
 
-		CreateLine("Tracking + kerning", color::Black).Tracking(0.5f).Kerning(0.5f);
+		CreateLine("This text does tracking: AV", color::Black).Tracking(0.5f);
+		CreateLine("This text does kerning: AV", color::Black).Kerning(2.0f);
 	}
 
 	void OnUpdate() override {

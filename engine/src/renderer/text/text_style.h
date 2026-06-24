@@ -87,9 +87,19 @@ struct TextRunStyle {
 	float fake_bold_weight{ kDefaultBoldWeight };
 
 	float size{ kDefaultFontSize };
-	float kerning{ 0.0f };
-	float tracking{ 0.0f };
 	float line_spacing{ 0.0f };
+
+	/// Multiplier applied to the font's pair-specific kerning.
+	///
+	/// 1.0 uses the font's normal kerning.
+	/// 0.0 disables kerning.
+	float kerning{ 1.0f };
+
+	/// Additional spacing between adjacent glyphs, in em units.
+	///
+	/// 0.05 adds 5% of the rendered font size between glyphs.
+	/// Negative values bring glyphs closer together.
+	float tracking{ 0.0f };
 
 	FontStyle flags{ FontStyle::Normal };
 

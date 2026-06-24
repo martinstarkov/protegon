@@ -163,11 +163,18 @@ public:
 	/// @return std::nullopt if the requested codepoint is not present in the font atlas.
 	std::optional<GlyphMetrics> GetGlyph(std::uint32_t codepoint) const;
 
+	float GetGlyphAdvance(std::uint32_t codepoint) const;
+
+	float GetKerning(std::uint32_t current_codepoint, std::uint32_t next_codepoint) const;
+
 	/// @return The amount by which the text cursor should move after the current glyph when it is
 	/// followed by the next glyph. This includes the current glyph's advance plus any kerning
 	/// adjustment for the specific pair of glyphs. Returns 0 if the current codepoint is not
 	/// present in the font atlas.
-	float GetAdvance(std::uint32_t current_codepoint, std::uint32_t next_codepoint) const;
+	float GetAdvance(
+		std::uint32_t current_codepoint, std::uint32_t next_codepoint,
+		float kerning_multiplier = 1.0f
+	) const;
 
 	/// @return The font-wide metrics for this atlas.
 	FontMetrics GetMetrics() const;

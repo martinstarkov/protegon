@@ -785,38 +785,6 @@ Text& Text::InnerGlow(ptgn::Color color, float width, float softness) {
 	return *this;
 }
 
-Text& Text::Glow(ptgn::Color color, float width, float softness) {
-	auto& sdf{ CurrentStyle().sdf };
-
-	sdf.outer_glow_color	= color;
-	sdf.outer_glow_width	= width;
-	sdf.outer_glow_softness = softness;
-
-	sdf.inner_glow_color	= color;
-	sdf.inner_glow_width	= width;
-	sdf.inner_glow_softness = softness;
-
-	InvalidateLayout();
-
-	return *this;
-}
-
-Text& Text::Glow(ptgn::Color color, float outer_width, float inner_width, float softness) {
-	auto& sdf{ CurrentStyle().sdf };
-
-	sdf.outer_glow_color	= color;
-	sdf.outer_glow_width	= outer_width;
-	sdf.outer_glow_softness = softness;
-
-	sdf.inner_glow_color	= color;
-	sdf.inner_glow_width	= inner_width;
-	sdf.inner_glow_softness = softness;
-
-	InvalidateLayout();
-
-	return *this;
-}
-
 Text& Text::ClearSdfEffects() {
 	auto& sdf{ CurrentStyle().sdf };
 

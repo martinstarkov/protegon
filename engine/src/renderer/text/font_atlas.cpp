@@ -272,21 +272,35 @@ std::optional<GlyphMetrics> FontAtlas::GetGlyph(std::uint32_t codepoint) const {
 	return it->second;
 }
 
-float FontAtlas::GetAdvance(std::uint32_t current_codepoint, std::uint32_t next_codepoint) const {
-	auto glyph{ GetGlyph(current_codepoint) };
+float FontAtlas::GetGlyphAdvance(std::uint32_t codepoint) const {
+	auto glyph{ GetGlyph(codepoint) };
 
 	if (!glyph.has_value()) {
 		return 0.0f;
 	}
 
-	float advance{ glyph.value().advance };
+	return glyph->advance;
+}
 
-	if (auto it{ data_.kerning.find(ToKerningKey(current_codepoint, next_codepoint)) };
-		it != data_.kerning.end()) {
-		advance += it->second;
+float FontAtlas::GetKerning(std::uint32_t current_codepoint, std::uint32_t next_codepoint) const {
+	if (next_codepoint == 0) {
+		return 0.0f;
 	}
 
-	return advance;
+	auto it{ data_.kerning.find(ToKerningKey(current_codepoint, next_codepoint)) };
+
+	if (it == data_.kerning.end()) {
+		return 0.0f;
+	}
+
+	return it->second;
+}
+
+float FontAtlas::GetAdvance(
+	std::uint32_t current_codepoint, std::uint32_t next_codepoint, float kerning_multiplier
+) const {
+	return GetGlyphAdvance(current_codepoint) +
+		   GetKerning(current_codepoint, next_codepoint) * kerning_multiplier;
 }
 
 FontMetrics FontAtlas::GetMetrics() const {

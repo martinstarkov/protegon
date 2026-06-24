@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -78,6 +79,76 @@ struct ResolvedGlyph {
 	std::size_t source_run_index{ 0 };
 	std::size_t source_codepoint_index{ 0 };
 	impl::TextureId texture{ 0 };
+};
+
+struct TextLineMetrics {
+	float height{ 0.0f };
+	float ascent{ 0.0f };
+	float descent{ 0.0f };
+};
+
+DistanceFieldStyle ResolveDistanceFieldStyle(
+	const impl::FontAtlas& font, const TextRunStyle& style
+) {
+	auto sdf{ style.sdf };
+
+	sdf.pixel_range = font.GetMetrics().pixel_range;
+
+	if (HasFlag(style.flags, FontStyle::Bold) && style.fake_bold_if_missing) {
+		sdf.weight -= style.fake_bold_weight;
+	}
+
+	sdf.weight = std::clamp(sdf.weight, 0.0f, 1.0f);
+
+	return sdf;
+}
+
+std::vector<TextBatchStyle> BuildBatchStyles(const impl::ResolvedStyledText& styled_text) {
+	std::vector<TextBatchStyle> styles;
+	styles.reserve(styled_text.runs.size());
+
+	for (const auto& run : styled_text.runs) {
+		PTGN_ASSERT(run.font, "Valid font required for text run");
+		styles.emplace_back(
+			TextBatchStyle{
+				.texture = run.font->GetTexture(),
+				.sdf	 = ResolveDistanceFieldStyle(*run.font, run.style),
+			}
+		);
+	}
+
+	return styles;
+}
+
+struct TextLayoutBuildContext {
+	TextLayoutBuildContext(
+		const impl::ResolvedStyledText& styled_text, const TextBox& box, float global_shrink
+	) :
+		styled_text{ styled_text },
+		box{ box },
+		global_shrink{ global_shrink },
+		wrap_width{ box.rect.GetSize().x },
+		can_wrap{ box.style.wrap_mode != WrapMode::None && wrap_width > 0.0f } {
+		layout.used_shrink_scale = global_shrink;
+		layout.batch_styles		 = BuildBatchStyles(styled_text);
+	}
+
+	const impl::ResolvedStyledText& styled_text;
+	const TextBox& box;
+
+	float global_shrink{ 1.0f };
+	float wrap_width{ 0.0f };
+	bool can_wrap{ false };
+
+	TextLayout layout;
+	std::vector<Glyph> current_line_glyphs;
+
+	V2_float current_line_size;
+	float current_line_ascent{ 0.0f };
+	float current_line_descent{ 0.0f };
+	float y{ 0.0f };
+
+	std::size_t visible_order{ 0 };
 };
 
 bool IsWhitespace(std::uint32_t codepoint) {
@@ -158,13 +229,6 @@ std::u32string DecodeUtf8(std::string_view text) {
 	return out;
 }
 
-std::uint32_t GetNextCodepoint(std::u32string_view text, std::size_t index) {
-	if (index + 1 < text.size()) {
-		return text[index + 1];
-	}
-	return 0;
-}
-
 std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 	bool found{ false };
 	V2_float min;
@@ -197,37 +261,90 @@ std::optional<Rect> GetVisibleGlyphBounds(const TextLayout& layout) {
 	return Rect{ min, max };
 }
 
-DistanceFieldStyle ResolveDistanceFieldStyle(
-	const impl::FontAtlas& font, const TextRunStyle& style
+float MeasureRunTextWidth(
+	const impl::ResolvedTextRun& run, std::u32string_view text, float global_shrink
 ) {
-	auto sdf{ style.sdf };
+	PTGN_ASSERT(run.font, "Valid font required");
 
-	sdf.pixel_range = font.GetMetrics().pixel_range;
+	float size{ run.style.size * global_shrink };
+	float width{ 0.0f };
 
-	if (HasFlag(style.flags, FontStyle::Bold) && style.fake_bold_if_missing) {
-		sdf.weight -= style.fake_bold_weight;
+	for (auto i{ 0uz }; i < text.size(); ++i) {
+		std::uint32_t codepoint{ text[i] };
+
+		width += run.font->GetGlyphAdvance(codepoint) * size;
+
+		if (i + 1 < text.size()) {
+			std::uint32_t next_codepoint{ text[i + 1] };
+
+			width += (run.font->GetKerning(codepoint, next_codepoint) * run.style.kerning +
+					  run.style.tracking) *
+					 size;
+		}
 	}
 
-	sdf.weight = std::clamp(sdf.weight, 0.0f, 1.0f);
-
-	return sdf;
+	return width;
 }
 
-std::vector<TextBatchStyle> BuildBatchStyles(const impl::ResolvedStyledText& styled_text) {
-	std::vector<TextBatchStyle> styles;
-	styles.reserve(styled_text.runs.size());
+float GetInterGlyphSpacing(
+	const impl::ResolvedStyledText& styled_text, std::uint32_t left_codepoint,
+	std::size_t left_run_index, std::uint32_t right_codepoint, std::size_t right_run_index,
+	float global_shrink
+) {
+	PTGN_ASSERT(left_run_index < styled_text.runs.size());
+	PTGN_ASSERT(right_run_index < styled_text.runs.size());
 
-	for (const auto& run : styled_text.runs) {
-		PTGN_ASSERT(run.font, "Valid font required for text run");
-		styles.emplace_back(
-			TextBatchStyle{
-				.texture = run.font->GetTexture(),
-				.sdf	 = ResolveDistanceFieldStyle(*run.font, run.style),
-			}
-		);
+	const auto& left_run{ styled_text.runs[left_run_index] };
+	const auto& right_run{ styled_text.runs[right_run_index] };
+
+	PTGN_ASSERT(left_run.font, "Valid left font required");
+	PTGN_ASSERT(right_run.font, "Valid right font required");
+
+	float left_size{ left_run.style.size * global_shrink };
+
+	// Tracking belongs after the left glyph, so use the left run's style.
+	float spacing{ left_run.style.tracking * left_size };
+
+	// Preserve kerning across boundaries that only change color or another
+	// non-metric style. Avoid kerning between different fonts or sizes.
+	if (bool compatible_for_kerning{ left_run.font == right_run.font &&
+									 NearlyEqual(left_run.style.size, right_run.style.size) };
+		compatible_for_kerning) {
+		spacing += left_run.font->GetKerning(left_codepoint, right_codepoint) *
+				   left_run.style.kerning * left_size;
 	}
 
-	return styles;
+	return spacing;
+}
+
+float GetSpacingBeforeGlyph(const TextLayoutBuildContext& ctx, const ResolvedGlyph& resolved) {
+	if (ctx.current_line_glyphs.empty()) {
+		return 0.0f;
+	}
+
+	const auto& previous{ ctx.current_line_glyphs.back() };
+
+	return GetInterGlyphSpacing(
+		ctx.styled_text, previous.codepoint, previous.source_run_index, resolved.codepoint,
+		resolved.source_run_index, ctx.global_shrink
+	);
+}
+
+float GetTokenLeadingSpacing(const TextLayoutBuildContext& ctx, const RichTextToken& token) {
+	if (ctx.current_line_glyphs.empty() || token.text.empty()) {
+		return 0.0f;
+	}
+
+	const auto& previous{ ctx.current_line_glyphs.back() };
+
+	return GetInterGlyphSpacing(
+		ctx.styled_text, previous.codepoint, previous.source_run_index, token.text.front(),
+		token.run_index, ctx.global_shrink
+	);
+}
+
+float GetTokenAppendWidth(const TextLayoutBuildContext& ctx, const RichTextToken& token) {
+	return GetTokenLeadingSpacing(ctx, token) + token.width;
 }
 
 TextBatchStyle GetGlyphBatchStyle(const TextLayout& layout, const Glyph& glyph) {
@@ -358,12 +475,6 @@ impl::TextDrawBatch& GetOrCreateTextBatch(
 
 	return batches.back();
 }
-
-struct TextLineMetrics {
-	float height{ 0.0f };
-	float ascent{ 0.0f };
-	float descent{ 0.0f };
-};
 
 TextLineMetrics MeasureLineMetrics(const impl::ResolvedTextRun& run, float global_shrink) {
 	PTGN_ASSERT(run.font, "Valid font required for text run");
@@ -497,16 +608,23 @@ float MeasureTokenWidth(
 	float size{ run.style.size * global_shrink };
 
 	if (token.type == RichTextToken::Type::Tab) {
-		float space_adv{ run.font->GetAdvance(U' ', 0) };
-		return (space_adv + run.style.kerning + run.style.tracking) * size * 4.0f;
+		return run.font->GetGlyphAdvance(U' ') * size * 4.0f;
 	}
 
 	float width{ 0.0f };
+
 	for (auto i{ 0uz }; i < token.text.size(); ++i) {
-		std::uint32_t cp{ token.text[i] };
-		std::uint32_t next_cp{ GetNextCodepoint(token.text, i) };
-		width +=
-			(run.font->GetAdvance(cp, next_cp) + run.style.kerning + run.style.tracking) * size;
+		std::uint32_t codepoint{ token.text[i] };
+
+		width += run.font->GetGlyphAdvance(codepoint) * size;
+
+		if (i + 1 < token.text.size()) {
+			std::uint32_t next_codepoint{ token.text[i + 1] };
+
+			width += (run.font->GetKerning(codepoint, next_codepoint) * run.style.kerning +
+					  run.style.tracking) *
+					 size;
+		}
 	}
 
 	return width;
@@ -628,8 +746,8 @@ std::vector<RichTextToken> Tokenize(
 }
 
 std::optional<ResolvedGlyph> ResolveGlyph(
-	const impl::ResolvedTextRun& run, std::uint32_t codepoint, std::uint32_t next_codepoint,
-	std::size_t source_run_index, std::size_t source_codepoint_index, float global_shrink
+	const impl::ResolvedTextRun& run, std::uint32_t codepoint, std::size_t source_run_index,
+	std::size_t source_codepoint_index, float global_shrink
 ) {
 	PTGN_ASSERT(run.font, "Valid font required for text run");
 
@@ -658,45 +776,17 @@ std::optional<ResolvedGlyph> ResolveGlyph(
 	resolved.render_style.effect.speed	   = run.style.effect.speed;
 	resolved.render_style.effect.phase	   = run.style.effect.phase;
 
-	resolved.metrics.plane.min *= run.style.size * global_shrink;
-	resolved.metrics.plane.max *= run.style.size * global_shrink;
-	resolved.metrics.advance =
-		(run.font->GetAdvance(codepoint, next_codepoint) + run.style.kerning + run.style.tracking) *
-		(run.style.size * global_shrink);
+	float size{ run.style.size * global_shrink };
+
+	resolved.metrics.plane.min *= size;
+	resolved.metrics.plane.max *= size;
+
+	// Store only the glyph's base advance. Pair spacing is applied when the
+	// following glyph is appended.
+	resolved.metrics.advance *= size;
 
 	return resolved;
 }
-
-struct TextLayoutBuildContext {
-	TextLayoutBuildContext(
-		const impl::ResolvedStyledText& styled_text, const TextBox& box, float global_shrink
-	) :
-		styled_text{ styled_text },
-		box{ box },
-		global_shrink{ global_shrink },
-		wrap_width{ box.rect.GetSize().x },
-		can_wrap{ box.style.wrap_mode != WrapMode::None && wrap_width > 0.0f } {
-		layout.used_shrink_scale = global_shrink;
-		layout.batch_styles		 = BuildBatchStyles(styled_text);
-	}
-
-	const impl::ResolvedStyledText& styled_text;
-	const TextBox& box;
-
-	float global_shrink{ 1.0f };
-	float wrap_width{ 0.0f };
-	bool can_wrap{ false };
-
-	TextLayout layout;
-	std::vector<Glyph> current_line_glyphs;
-
-	V2_float current_line_size;
-	float current_line_ascent{ 0.0f };
-	float current_line_descent{ 0.0f };
-	float y{ 0.0f };
-
-	std::size_t visible_order{ 0 };
-};
 
 bool IsJustificationSpace(const Glyph& glyph) {
 	return glyph.codepoint == U' ' || glyph.codepoint == U'\t';
@@ -728,6 +818,8 @@ Glyph BuildGlyph(const ResolvedGlyph& resolved, V2_float position) {
 }
 
 void AppendGlyph(TextLayoutBuildContext& ctx, const ResolvedGlyph& resolved, float layout_advance) {
+	ctx.current_line_size.x += GetSpacingBeforeGlyph(ctx, resolved);
+
 	ctx.current_line_glyphs.push_back(BuildGlyph(resolved, { ctx.current_line_size.x, ctx.y }));
 
 	ctx.current_line_size.x += layout_advance;
@@ -833,7 +925,48 @@ bool ShouldWrapBeforeToken(
 	const TextLayoutBuildContext& ctx, const RichTextToken& token, bool character_wrap_word
 ) {
 	return ctx.can_wrap && !character_wrap_word && ctx.current_line_size.x > 0.0f &&
-		   ctx.current_line_size.x + token.width > ctx.wrap_width;
+		   ctx.current_line_size.x + GetTokenAppendWidth(ctx, token) > ctx.wrap_width;
+}
+
+float MeasureGlyphAppendWidth(
+	const TextLayoutBuildContext& ctx, std::span<const ResolvedGlyph> glyphs,
+	const ResolvedGlyph* suffix = nullptr
+) {
+	float width{ 0.0f };
+
+	std::optional<std::uint32_t> previous_codepoint;
+	std::optional<std::size_t> previous_run_index;
+
+	if (!ctx.current_line_glyphs.empty()) {
+		const auto& previous{ ctx.current_line_glyphs.back() };
+
+		previous_codepoint = previous.codepoint;
+		previous_run_index = previous.source_run_index;
+	}
+
+	auto measure_glyph = [&](const ResolvedGlyph& glyph) {
+		if (previous_codepoint.has_value()) {
+			width += GetInterGlyphSpacing(
+				ctx.styled_text, previous_codepoint.value(), previous_run_index.value(),
+				glyph.codepoint, glyph.source_run_index, ctx.global_shrink
+			);
+		}
+
+		width += glyph.metrics.advance;
+
+		previous_codepoint = glyph.codepoint;
+		previous_run_index = glyph.source_run_index;
+	};
+
+	for (const auto& glyph : glyphs) {
+		measure_glyph(glyph);
+	}
+
+	if (suffix) {
+		measure_glyph(*suffix);
+	}
+
+	return width;
 }
 
 std::size_t GetSpacingCodepointBegin(const RichTextToken& token, bool wrapped_before_token) {
@@ -850,11 +983,9 @@ void AppendSpacingToken(
 	std::size_t codepoint_begin
 ) {
 	if (token.type == RichTextToken::Type::Tab) {
-		std::optional<ResolvedGlyph> resolved{
-			ResolveGlyph(run, U'\t', 0, token.run_index, 0, ctx.global_shrink)
-		};
-
-		if (resolved.has_value()) {
+		if (std::optional<ResolvedGlyph> resolved{
+				ResolveGlyph(run, U'\t', token.run_index, 0, ctx.global_shrink) };
+			resolved.has_value()) {
 			AppendGlyph(ctx, resolved.value(), token.width);
 		} else {
 			ctx.current_line_size.x += token.width;
@@ -868,10 +999,9 @@ void AppendSpacingToken(
 
 	for (auto i{ codepoint_begin }; i < token.text.size(); ++i) {
 		std::uint32_t codepoint{ token.text[i] };
-		std::uint32_t next_codepoint{ GetNextCodepoint(token.text, i) };
 
 		std::optional<ResolvedGlyph> resolved{
-			ResolveGlyph(run, codepoint, next_codepoint, token.run_index, i, ctx.global_shrink)
+			ResolveGlyph(run, codepoint, token.run_index, i, ctx.global_shrink)
 		};
 
 		if (resolved.has_value()) {
@@ -889,10 +1019,9 @@ std::vector<ResolvedGlyph> ResolveTokenGlyphs(
 
 	for (auto i{ 0uz }; i < token.text.size(); ++i) {
 		std::uint32_t codepoint{ token.text[i] };
-		std::uint32_t next_codepoint{ GetNextCodepoint(token.text, i) };
 
 		std::optional<ResolvedGlyph> resolved{
-			ResolveGlyph(run, codepoint, next_codepoint, token.run_index, i, ctx.global_shrink)
+			ResolveGlyph(run, codepoint, token.run_index, i, ctx.global_shrink)
 		};
 
 		if (resolved.has_value()) {
@@ -912,7 +1041,7 @@ void AppendCharacterWrappedWord(
 	std::optional<ResolvedGlyph> hyphen_glyph;
 
 	if (ctx.box.style.insert_hyphen_on_split) {
-		hyphen_glyph = ResolveGlyph(run, U'-', 0, token.run_index, 0, ctx.global_shrink);
+		hyphen_glyph = ResolveGlyph(run, U'-', token.run_index, 0, ctx.global_shrink);
 	}
 
 	auto word_begin{ 0uz };
@@ -920,13 +1049,10 @@ void AppendCharacterWrappedWord(
 	while (word_begin < word_glyphs.size()) {
 		std::size_t remaining_count{ word_glyphs.size() - word_begin };
 
-		float remaining_word_width{ 0.0f };
+		auto remaining_glyphs{ std::span{ word_glyphs }.subspan(word_begin) };
 
-		for (auto i{ word_begin }; i < word_glyphs.size(); ++i) {
-			remaining_word_width += word_glyphs[i].metrics.advance;
-		}
-
-		if (ctx.current_line_size.x + remaining_word_width <= ctx.wrap_width) {
+		if (float remaining_word_width{ MeasureGlyphAppendWidth(ctx, remaining_glyphs) };
+			ctx.current_line_size.x + remaining_word_width <= ctx.wrap_width) {
 			for (auto i{ word_begin }; i < word_glyphs.size(); ++i) {
 				AppendGlyph(ctx, word_glyphs[i]);
 			}
@@ -937,46 +1063,26 @@ void AppendCharacterWrappedWord(
 		bool add_hyphen{ ctx.box.style.insert_hyphen_on_split && hyphen_glyph.has_value() };
 
 		std::size_t fit_count{ 0 };
-		std::optional<ResolvedGlyph> fitted_last_glyph;
-		float prefix_width{ 0.0f };
 
 		for (auto count{ 1uz }; count < remaining_count; ++count) {
-			auto glyph_index{ word_begin + count - 1 };
+			auto prefix{ std::span{ word_glyphs }.subspan(word_begin, count) };
 
-			prefix_width += word_glyphs[glyph_index].metrics.advance;
+			const ResolvedGlyph* suffix{ add_hyphen ? &hyphen_glyph.value() : nullptr };
 
-			std::uint32_t boundary_next_codepoint{ add_hyphen ? U'-' : 0 };
-
-			std::optional<ResolvedGlyph> boundary_glyph{ ResolveGlyph(
-				run, word_glyphs[glyph_index].codepoint, boundary_next_codepoint, token.run_index,
-				word_glyphs[glyph_index].source_codepoint_index, ctx.global_shrink
-			) };
-
-			if (!boundary_glyph.has_value()) {
-				continue;
-			}
-
-			float candidate_width{ ctx.current_line_size.x + prefix_width -
-								   word_glyphs[glyph_index].metrics.advance +
-								   boundary_glyph.value().metrics.advance };
-
-			if (add_hyphen) {
-				candidate_width += hyphen_glyph.value().metrics.advance;
-			}
+			float candidate_width{ ctx.current_line_size.x +
+								   MeasureGlyphAppendWidth(ctx, prefix, suffix) };
 
 			if (candidate_width <= ctx.wrap_width) {
-				fit_count		  = count;
-				fitted_last_glyph = std::move(boundary_glyph.value());
+				fit_count = count;
 			}
 		}
 
 		std::size_t remainder_count{ remaining_count - fit_count };
 
-		bool invalid_split{ fit_count == 0 ||
-							(ctx.box.style.prevent_single_letter_split && fit_count == 1) ||
-							(ctx.box.style.require_three_letter_remainder && remainder_count < 3) };
-
-		if (invalid_split) {
+		if (bool invalid_split{
+				fit_count == 0 || (ctx.box.style.prevent_single_letter_split && fit_count == 1) ||
+				(ctx.box.style.require_three_letter_remainder && remainder_count < 3) };
+			invalid_split) {
 			if (!ctx.current_line_glyphs.empty()) {
 				FlushLine(ctx, LineFlushReason::SoftWrap);
 				IncludeRunLineMetrics(ctx, run);
@@ -993,13 +1099,7 @@ void AppendCharacterWrappedWord(
 		}
 
 		for (auto offset{ 0uz }; offset < fit_count; ++offset) {
-			bool is_last{ offset + 1 == fit_count };
-
-			if (is_last) {
-				AppendGlyph(ctx, fitted_last_glyph.value());
-			} else {
-				AppendGlyph(ctx, word_glyphs[word_begin + offset]);
-			}
+			AppendGlyph(ctx, word_glyphs[word_begin + offset]);
 		}
 
 		if (add_hyphen) {
@@ -1024,18 +1124,20 @@ void AppendBrokenOversizedWord(
 ) {
 	for (auto i{ 0uz }; i < token.text.size(); ++i) {
 		std::uint32_t codepoint{ token.text[i] };
-		std::uint32_t next_codepoint{ GetNextCodepoint(token.text, i) };
 
 		std::optional<ResolvedGlyph> resolved{
-			ResolveGlyph(run, codepoint, next_codepoint, token.run_index, i, ctx.global_shrink)
+			ResolveGlyph(run, codepoint, token.run_index, i, ctx.global_shrink)
 		};
 
 		if (!resolved.has_value()) {
 			continue;
 		}
 
-		if (float advance{ resolved.value().metrics.advance };
-			ctx.current_line_size.x > 0.0f && ctx.current_line_size.x + advance > ctx.wrap_width) {
+		auto resolved_span{ std::span<const ResolvedGlyph>{ &resolved.value(), 1 } };
+
+		if (float append_width{ MeasureGlyphAppendWidth(ctx, resolved_span) };
+			ctx.current_line_size.x > 0.0f &&
+			ctx.current_line_size.x + append_width > ctx.wrap_width) {
 			FlushLine(ctx, LineFlushReason::SoftWrap);
 			IncludeRunLineMetrics(ctx, run);
 		}
@@ -1048,10 +1150,9 @@ template <typename TRun>
 void AppendUnbrokenToken(TextLayoutBuildContext& ctx, const RichTextToken& token, const TRun& run) {
 	for (auto i{ 0uz }; i < token.text.size(); ++i) {
 		std::uint32_t codepoint{ token.text[i] };
-		std::uint32_t next_codepoint{ GetNextCodepoint(token.text, i) };
 
 		std::optional<ResolvedGlyph> resolved{
-			ResolveGlyph(run, codepoint, next_codepoint, token.run_index, i, ctx.global_shrink)
+			ResolveGlyph(run, codepoint, token.run_index, i, ctx.global_shrink)
 		};
 
 		if (resolved.has_value()) {
@@ -1304,21 +1405,10 @@ void ApplyEllipsisOverflow(
 	}
 
 	PTGN_ASSERT(source_run, "Source run not found");
-	PTGN_ASSERT(source_run->font, "Source run font must be valid");
-
-	const auto& font{ *source_run->font };
 
 	std::u32string dots{ U"..." };
 
-	float dots_width{ 0.0f };
-	for (auto i{ 0uz }; i < dots.size(); ++i) {
-		auto cp{ static_cast<std::uint32_t>(dots[i]) };
-		auto next_cp{ GetNextCodepoint(dots, i) };
-
-		dots_width += (font.GetAdvance(cp, next_cp) + source_run->style.kerning +
-					   source_run->style.tracking) *
-					  (source_run->style.size * global_shrink);
-	}
+	float dots_width{ MeasureRunTextWidth(*source_run, dots, global_shrink) };
 
 	float usable_right{ box.rect.max.x - dots_width };
 
@@ -1348,9 +1438,16 @@ void ApplyEllipsisOverflow(
 	}
 
 	float start_x{ box.rect.min.x };
+
 	if (cutoff > last_line.glyph_begin) {
-		const auto& prev{ layout.glyphs[cutoff - 1] };
-		start_x = prev.position.x + prev.advance;
+		const auto& previous{ layout.glyphs[cutoff - 1] };
+
+		start_x = previous.position.x + previous.advance;
+
+		start_x += GetInterGlyphSpacing(
+			styled_text, previous.codepoint, previous.source_run_index, U'.', source_run_index,
+			global_shrink
+		);
 	}
 
 	float y{ 0.0f };
@@ -1361,33 +1458,28 @@ void ApplyEllipsisOverflow(
 	}
 
 	for (auto i{ 0uz }; i < dots.size(); ++i) {
-		auto cp{ static_cast<std::uint32_t>(dots[i]) };
-		auto next_cp{ GetNextCodepoint(dots, i) };
+		auto codepoint{ static_cast<std::uint32_t>(dots[i]) };
 
-		std::optional<ResolvedGlyph> resolved{
-			ResolveGlyph(*source_run, cp, next_cp, source_run_index, i, global_shrink)
-		};
+		if (i > 0) {
+			start_x += GetInterGlyphSpacing(
+				styled_text, static_cast<std::uint32_t>(dots[i - 1]), source_run_index, codepoint,
+				source_run_index, global_shrink
+			);
+		}
+
+		auto resolved{ ResolveGlyph(*source_run, codepoint, source_run_index, i, global_shrink) };
 
 		if (!resolved.has_value()) {
 			continue;
 		}
 
-		Glyph glyph;
-		glyph.codepoint				 = resolved.value().codepoint;
-		glyph.position				 = { start_x, y };
-		glyph.plane					 = resolved.value().metrics.plane;
-		glyph.uv					 = resolved.value().metrics.uv;
-		glyph.source_run_index		 = resolved.value().source_run_index;
-		glyph.advance				 = resolved.value().metrics.advance;
-		glyph.source_codepoint_index = resolved.value().source_codepoint_index;
-		glyph.render_style			 = resolved.value().render_style;
-		glyph.line_index			 = last_visible_line_index;
-		glyph.visible_order			 = layout.glyphs.size();
-		glyph.texture				 = resolved.value().texture;
+		Glyph glyph{ BuildGlyph(resolved.value(), { start_x, y }) };
+		glyph.line_index	= last_visible_line_index;
+		glyph.visible_order = layout.glyphs.size();
 
 		layout.glyphs.push_back(glyph);
 
-		start_x += resolved.value().metrics.advance;
+		start_x += resolved->metrics.advance;
 	}
 
 	for (auto& decoration : layout.decorations) {

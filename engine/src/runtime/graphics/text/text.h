@@ -119,8 +119,19 @@ public:
 	Text& Color(ptgn::Color color);
 	Text& Size(float font_size);
 
-	Text& Kerning(float kerning);
-	Text& Tracking(float tracking);
+	/// @brief Kerning adjusts spacing between specific glyph pairs based on the font's kerning
+	/// data.
+	/// @param multiplier The multiplier for the kerning adjustment.
+	/// 1.0 uses the font's kerning unchanged.
+	/// 0.0 disables kerning.
+	/// Values above 1.0 exaggerate kerning adjustments.
+	Text& Kerning(float multiplier);
+
+	/// @brief Tracking adds a uniform amount of spacing between all adjacent glyphs.
+	/// The value is measured in rendered text pixels after font scaling.
+	/// Positive values spread glyphs apart; negative values bring them closer.
+	Text& Tracking(float spacing);
+
 	Text& LineSpacing(float line_spacing);
 
 	Text& Style(FontStyle flags);
@@ -136,10 +147,6 @@ public:
 
 	Text& OuterGlow(ptgn::Color color, float width, float softness = 1.0f);
 	Text& InnerGlow(ptgn::Color color, float width, float softness = 1.0f);
-
-	/// @brief Full glow = outer + inner.
-	Text& Glow(ptgn::Color color, float width, float softness = 1.0f);
-	Text& Glow(ptgn::Color color, float outer_width, float inner_width, float softness);
 
 	Text& ClearSdfEffects();
 
