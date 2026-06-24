@@ -1,5 +1,7 @@
 #pragma once
 
+#include <initializer_list>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -19,6 +21,9 @@ namespace ptgn {
 /// Do not modify this value.
 /// Use ctx().font.SetDefault(new_default_font_key); to change the default font
 inline constexpr std::string_view kDefaultFont{ "" };
+
+/// @brief Default font size used when no explicit size is specified for text rendering.
+inline constexpr float kDefaultFontSize{ 18.0f };
 
 namespace impl {
 
@@ -81,7 +86,7 @@ struct TextRunStyle {
 	bool fake_bold_if_missing{ true };
 	float fake_bold_weight{ kDefaultBoldWeight };
 
-	float scale{ 1.0f };
+	float size{ kDefaultFontSize };
 	float kerning{ 0.0f };
 	float tracking{ 0.0f };
 	float line_spacing{ 0.0f };
@@ -93,7 +98,7 @@ struct TextRunStyle {
 
 	constexpr bool operator==(const TextRunStyle& o) const {
 		return color == o.color && fake_bold_if_missing == o.fake_bold_if_missing &&
-			   NearlyEqual(fake_bold_weight, o.fake_bold_weight) && NearlyEqual(scale, o.scale) &&
+			   NearlyEqual(fake_bold_weight, o.fake_bold_weight) && NearlyEqual(size, o.size) &&
 			   NearlyEqual(kerning, o.kerning) && NearlyEqual(tracking, o.tracking) &&
 			   NearlyEqual(line_spacing, o.line_spacing) && flags == o.flags && sdf == o.sdf &&
 			   effect.type == o.effect.type && NearlyEqual(effect.amplitude, o.effect.amplitude) &&
@@ -103,7 +108,7 @@ struct TextRunStyle {
 	}
 
 	PTGN_SERIALIZE(
-		TextRunStyle, color, fake_bold_if_missing, fake_bold_weight, scale, kerning, tracking,
+		TextRunStyle, color, fake_bold_if_missing, fake_bold_weight, size, kerning, tracking,
 		line_spacing, flags, sdf, effect
 	)
 };
@@ -120,6 +125,12 @@ struct TextRun {
 
 struct StyledText {
 	std::vector<TextRun> runs;
+
+	constexpr StyledText() = default;
+
+	constexpr StyledText(std::initializer_list<TextRun> text_runs) : runs{ text_runs } {}
+
+	constexpr explicit StyledText(const TextRun& run) : runs{ run } {}
 
 	constexpr bool operator==(const StyledText&) const = default;
 
@@ -177,7 +188,7 @@ struct std::hash<ptgn::TextRunStyle> {
 
 			style.fake_bold_if_missing, ptgn::QuantizeUnsigned(style.fake_bold_weight),
 
-			ptgn::QuantizeUnsigned(style.scale), ptgn::QuantizeSigned(style.kerning),
+			ptgn::QuantizeUnsigned(style.size), ptgn::QuantizeSigned(style.kerning),
 			ptgn::QuantizeSigned(style.tracking), ptgn::QuantizeSigned(style.line_spacing),
 
 			std::to_underlying(style.flags),
