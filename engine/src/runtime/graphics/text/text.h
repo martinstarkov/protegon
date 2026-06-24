@@ -83,9 +83,9 @@ public:
 	/// @brief Removes any clipping that was previously set.
 	Text& ClearClip();
 
-	/// @brief If true, consecutive whitespace characters will be collapsed into a single space
-	/// across all text runs.
-	/// Useful for processing user entered text or different localization strings.
+	/// @brief If true, leading and trailing spaces will be trimmed and consecutive whitespace
+	/// characters will be collapsed into a single space across all text runs. Useful for processing
+	/// user entered text or different localization strings.
 	Text& CollapseSpaces(bool collapse = true);
 
 	/// @brief By default, the last line of text is not justified. If true, the last line will be
@@ -154,35 +154,29 @@ public:
 		GlyphEffectType type, float amplitude, float frequency, float speed, float phase = 0.0f
 	);
 
-	const TextLayout& GetLayout() const;
-	Rect GetLocalBounds() const;
-	std::size_t GetLineCount() const;
-	const LineLayout& GetLine(std::size_t index) const;
+	/// @return Final logical size of the laid out text.
+	V2_float GetSize() const;
 
-	bool IsClipped() const;
-	bool IsEllipsized() const;
-	bool IsTruncatedByMaxLines() const;
-	bool IsTruncated() const;
-
-	float GetUsedShrinkScale() const;
-
-	std::size_t GetRunCount() const;
-	std::size_t GetCurrentRunIndex() const;
-
-	void InvalidateLayout();
+	/// @return Final text content bounds in the entity's local coordinate space,
+	/// after applying the text draw origin.
+	Rect GetBounds() const;
 
 	/// @return The measured size of the text, which may be larger than the box if the text is
 	/// clipped, ellipsized, or truncated.
 	[[nodiscard]] TextMeasurement Measure() const;
+
 	/// @return The total number of glyphs in the text, which may be more than the number of visible
 	/// glyphs if the text is clipped, ellipsized, or truncated.
 	std::size_t GetGlyphCount() const;
+
 	/// @return The number of glyphs that are currently visible, which may be less than the total
 	/// glyph count if the text is clipped, ellipsized, or truncated.
 	std::size_t GetVisibleGlyphCount() const;
+
 	/// @return The number of glyphs that are currently set to be revealed or
 	/// std::size_t::max() if no reveal is active.
 	std::size_t GetRevealGlyphCount() const;
+
 	/// @return True if all glyphs are currently revealed or no reveal is active.
 	bool IsFullyRevealed() const;
 
@@ -190,36 +184,20 @@ public:
 	/// no glyphs revealed, 1.0 = all glyphs revealed.
 	Text& RevealFraction(float fraction);
 
-private:
-	friend class Button;
-
-	void ApplyFallbackAlignment(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical);
+	const TextLayout& GetLayout() const;
 
 	StyledText& GetStyledText();
 	const StyledText& GetStyledText() const;
 
-	const TextLayout& RequireLayout() const;
+private:
+	friend class Button;
 
-	Text& SetStyledText(StyledText styled_text);
+	void InvalidateLayout();
 
-	StyledText& EnsureStyledText();
-	const StyledText& RequireStyledText() const;
-
-	TextBox& EnsureTextBox();
-	const TextBox& RequireTextBox() const;
-
-	impl::TextEditState& EnsureEditState();
-	const impl::TextEditState& RequireEditState() const;
-
-	void EnsureValidRuns();
+	void ApplyFallbackAlignment(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical);
 
 	TextRun& CurrentRun();
 	const TextRun& CurrentRun() const;
-
-	TextRunStyle& CurrentStyle();
-	const TextRunStyle& CurrentStyle() const;
-
-	bool HasOnlyDefaultEmptyRun() const;
 };
 
 Text CreateText(Scene& scene, Transform transform = {}, Origin draw_origin = Origin::Center);
