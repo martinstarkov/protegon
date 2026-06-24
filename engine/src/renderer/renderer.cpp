@@ -342,6 +342,7 @@ void Renderer::SetViewProjection(const Matrix4& view_projection) {
 	}
 	// TODO: Find a better way to do this. This is needed to ensure that the shader's
 	// uniform is updated even if the shader itself doesn't change.
+	// EDIT: Possibly no longer needed due to BindUniforms setting the view projection.
 	const auto& bound{ gl_->GetBoundState().render_state };
 	PTGN_ASSERT(bound.view_projection.has_value());
 	if (auto shader{ GetBoundShader() }) {

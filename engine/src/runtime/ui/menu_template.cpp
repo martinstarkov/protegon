@@ -12,9 +12,11 @@
 #include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -94,13 +96,11 @@ void TemplateMenuScene::OnEnter() {
 	for (const auto& j_button : j_buttons) {
 		const V2_float button_size{ 100, 50 };
 		const Color button_text_color{ color::White };
-
 		const auto& label = j_button.at("label");
 		auto button{ CreateButton(*this, V2_float{}) };
 		button.SetShape(Rect{ button_size });
 		auto label_string{ label.get<std::string>() };
-		// TODO: Fix.
-		// button.SetText(label_string, button_text_color);
+		button.Label().Content(label_string).Color(button_text_color);
 		const auto& action_name{ j_button.at("action").get<std::string>() };
 		button.OnPress([key = key, scene_json = scene_json, action_name, button]() mutable {
 			std::invoke(SceneAction::Get(key, scene_json, action_name), button.GetScene());
