@@ -1,15 +1,14 @@
 #include "runtime/ui/dialogue.h"
 
 #include <algorithm>
-#include <cstddef>
-#include <format>
+#include <chrono>
+#include <list>
 #include <nlohmann/json.hpp>
 #include <optional>
-#include <ranges>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "core/assert.h"
@@ -24,13 +23,11 @@
 #include "core/math/rng.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/string.h"
 #include "renderer/resources/texture.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/tween.h"
 #include "runtime/animation/tween_event.h"
-#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
@@ -38,13 +35,12 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/text/text_pagination.h"
-#include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/json.h"
-#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
@@ -119,7 +115,7 @@ namespace {
 	styled_text.runs.emplace_back(
 		TextRun{
 			.text  = std::string{ content },
-			.font  = properties.font_key,
+			.font  = properties.font,
 			.style = properties.ToTextRunStyle(),
 		}
 	);
@@ -186,7 +182,7 @@ DialoguePageProperties DialoguePageProperties::InheritProperties(const json& j) 
 	properties.color		   = j.value("color", properties.color);
 	properties.scroll_duration = j.value("scroll_duration", properties.scroll_duration);
 	properties.box_size		   = j.value("box_size", properties.box_size);
-	properties.font_key		   = j.value("font_key", properties.font_key);
+	properties.font			   = j.value("font", properties.font);
 	properties.font_size	   = j.value("font_size", properties.font_size);
 
 	properties.horizontal_align = j.value("horizontal_align", properties.horizontal_align);
@@ -267,7 +263,7 @@ TextRunStyle DialoguePageProperties::ToTextRunStyle() const {
 }
 
 void DialoguePageProperties::ApplyToText(Text text) const {
-	text.Font(font_key)
+	text.Font(font)
 		.Color(color)
 		.Size(font_size)
 		.Box(ToTextBox().rect)
@@ -883,7 +879,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 void to_json(json& j, const DialoguePageProperties& properties) {
 	j = json{
 		{ "color", properties.color },
-		{ "font_key", properties.font_key },
+		{ "font", properties.font },
 		{ "font_size", properties.font_size },
 		{ "box_size", properties.box_size },
 		{ "padding_left", properties.padding.min.x },

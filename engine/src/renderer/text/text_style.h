@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -13,6 +14,11 @@
 #include "serialization/serialize.h"
 
 namespace ptgn {
+
+/// @brief Default engine font key.
+/// Do not modify this value.
+/// Use ctx().font.SetDefault(new_default_font_key); to change the default font
+inline constexpr std::string_view kDefaultFont{ "" };
 
 namespace impl {
 
@@ -104,7 +110,7 @@ struct TextRunStyle {
 
 struct TextRun {
 	std::string text;
-	std::string font;
+	std::string font{ kDefaultFont };
 	TextRunStyle style;
 
 	constexpr bool operator==(const TextRun&) const = default;

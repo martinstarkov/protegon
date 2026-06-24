@@ -17,6 +17,7 @@
 #include "core/util/time.h"
 #include "renderer/text/font_atlas.h"
 #include "renderer/text/text_layout.h"
+#include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "serialization/serialize.h"
 
@@ -84,7 +85,7 @@ struct ButtonTextPartConfig {
 	ButtonVisualState state{ ButtonVisualState::Base };
 
 	std::string content;
-	std::string font;
+	std::string font{ kDefaultFont };
 	float font_size{ kDefaultFontSize };
 	Color color{ color::Black };
 
@@ -161,7 +162,14 @@ struct ButtonConfig {
 	std::optional<Color> text_color_press;
 
 	float font_size{ kDefaultFontSize };
-	std::string font;
+
+	/// @brief Font key to use for the button label. Must be loaded in the AssetManager.
+	std::string font{ kDefaultFont };
+
+	/// @brief Horizontal alignment of button label.
+	std::optional<HorizontalAlign> horizontal_align;
+	/// @brief Vertical alignment of button label.
+	std::optional<VerticalAlign> vertical_align;
 
 	std::optional<std::string> texture;
 	std::optional<std::string> texture_hover;

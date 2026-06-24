@@ -51,7 +51,7 @@ struct InteractedEntities {
 struct InteractiveDebugSettings {
 	bool draw_enabled{ false };
 	Color draw_color{ color::Magenta };
-	float draw_line_width{ 1.0f };
+	float draw_line_width{ 2.0f };
 
 	PTGN_SERIALIZE(InteractiveDebugSettings, draw_enabled, draw_color, draw_line_width)
 };

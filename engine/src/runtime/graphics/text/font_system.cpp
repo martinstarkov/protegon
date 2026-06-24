@@ -22,6 +22,7 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/texture.h"
 #include "renderer/text/font_atlas.h"
+#include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/font.h"
 
@@ -124,9 +125,7 @@ FontSystem::FontSystem(Renderer& renderer, AssetManager& asset_manager) :
 
 	Font font{ asset_manager_.CreateAsset(), true };
 	font.GetEntity().Add<impl::FontAtlas>(std::move(default_font));
-	impl::AddAssetKey(font.GetEntity(), {}, std::nullopt);
-
-	default_font_ = {};
+	impl::AddAssetKey(font.GetEntity(), kDefaultFont, std::nullopt);
 }
 
 FontSystem::~FontSystem() noexcept = default;

@@ -5,6 +5,7 @@
 
 #include "core/util/file.h"
 #include "renderer/text/font_atlas.h"
+#include "renderer/text/text_style.h"
 #include "runtime/graphics/text/font.h"
 
 namespace ptgn {
@@ -22,8 +23,7 @@ class FontSystem {
 public:
 	Font GetDefault() const;
 
-	/// @param font Default ({}) key corresponds to the engine default font.
-	void SetDefault(std::string_view font_key = {});
+	void SetDefault(std::string_view font_key = kDefaultFont);
 
 private:
 	friend class Shader;
@@ -42,7 +42,7 @@ private:
 
 	AssetManager& asset_manager_;
 
-	std::string default_font_;
+	std::string default_font_{ kDefaultFont };
 };
 
 } // namespace ptgn

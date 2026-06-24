@@ -88,7 +88,7 @@ struct DialoguePageProperties {
 	void ApplyToText(Text text) const;
 
 	Color color{ color::White };
-	std::string font_key;
+	std::string font{ kDefaultFont };
 	float font_size{ kDefaultFontSize };
 
 	V2_float box_size;
