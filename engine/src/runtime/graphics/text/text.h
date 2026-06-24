@@ -26,6 +26,11 @@ namespace impl {
 
 class FontAtlas;
 
+struct TextAlignmentOverride {
+	bool horizontal{ false };
+	bool vertical{ false };
+};
+
 struct TextEditState {
 	std::size_t current_run_index{ 0 };
 };
@@ -67,6 +72,8 @@ public:
 	Text& Align(HorizontalAlign horizontal, VerticalAlign vertical);
 	Text& HorizontalAlign(HorizontalAlign align);
 	Text& VerticalAlign(VerticalAlign align);
+	/// @brief Removes any previously set alignment.
+	Text& ClearAlignment();
 
 	Text& Wrap(WrapMode mode);
 	Text& Overflow(OverflowMode mode);
@@ -179,6 +186,10 @@ public:
 	Text& RevealFraction(float fraction);
 
 private:
+	friend class Button;
+
+	void ApplyFallbackAlignment(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical);
+
 	StyledText& GetStyledText();
 	const StyledText& GetStyledText() const;
 

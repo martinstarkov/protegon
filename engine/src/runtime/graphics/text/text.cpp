@@ -575,20 +575,58 @@ Text& Text::Align(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical
 	style.horizontal_align = horizontal;
 	style.vertical_align   = vertical;
 
+	auto& alignment_override{ TryAdd<impl::TextAlignmentOverride>() };
+	alignment_override.horizontal = true;
+	alignment_override.vertical	  = true;
+
 	InvalidateLayout();
 
 	return *this;
 }
 
 Text& Text::HorizontalAlign(ptgn::HorizontalAlign align) {
-	EnsureTextBox().style.horizontal_align = align;
+	EnsureTextBox().style.horizontal_align			 = align;
+	TryAdd<impl::TextAlignmentOverride>().horizontal = true;
+
 	InvalidateLayout();
+
 	return *this;
 }
 
 Text& Text::VerticalAlign(ptgn::VerticalAlign align) {
-	EnsureTextBox().style.vertical_align = align;
+	EnsureTextBox().style.vertical_align		   = align;
+	TryAdd<impl::TextAlignmentOverride>().vertical = true;
+
 	InvalidateLayout();
+
+	return *this;
+}
+
+void Text::ApplyFallbackAlignment(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical) {
+	auto alignment_override{ TryGet<impl::TextAlignmentOverride>() };
+	auto& style{ EnsureTextBox().style };
+
+	bool changed{ false };
+
+	if ((!alignment_override || !alignment_override->horizontal) &&
+		style.horizontal_align != horizontal) {
+		style.horizontal_align = horizontal;
+		changed				   = true;
+	}
+
+	if ((!alignment_override || !alignment_override->vertical) &&
+		style.vertical_align != vertical) {
+		style.vertical_align = vertical;
+		changed				 = true;
+	}
+
+	if (changed) {
+		InvalidateLayout();
+	}
+}
+
+Text& Text::ClearAlignment() {
+	Remove<impl::TextAlignmentOverride>();
 	return *this;
 }
 

@@ -1090,19 +1090,12 @@ void Button::UpdateChildLayouts() {
 		SetDrawOrigin(part, origin);
 
 		Text label{ part };
-		Rect label_box{ {}, content_size };
 
-		if (label.GetTextBox().rect != label_box) {
+		if (Rect label_box{ {}, content_size }; label.GetTextBox().rect != label_box) {
 			label.Box(label_box);
 		}
 
-		auto horizontal_align{ GetHorizontalAlignment(origin) };
-		auto vertical_align{ GetVerticalAlignment(origin) };
-		const auto& style{ label.GetTextBox().style };
-
-		if (style.horizontal_align != horizontal_align || style.vertical_align != vertical_align) {
-			label.Align(horizontal_align, vertical_align);
-		}
+		label.ApplyFallbackAlignment(GetHorizontalAlignment(origin), GetVerticalAlignment(origin));
 	}
 }
 
@@ -1162,11 +1155,19 @@ Button CreateButton(
 
 	if (config.content.has_value()) {
 		Text label{ button.Label() };
+
 		label.Content(config.content.value())
 			.Color(config.text_color.value_or(impl::kDefaultButtonTextColor))
 			.Size(config.font_size)
-			.Font(config.font)
-			.Align(HorizontalAlign::Center, VerticalAlign::Center);
+			.Font(config.font);
+
+		if (config.horizontal_align.has_value()) {
+			label.HorizontalAlign(config.horizontal_align.value());
+		}
+
+		if (config.vertical_align.has_value()) {
+			label.VerticalAlign(config.vertical_align.value());
+		}
 	}
 
 	button.SetSound(config.sound_hover, ButtonState::Hover);
