@@ -120,7 +120,7 @@ namespace {
 		}
 	);
 
-	return PaginateDialogueText(scene, std::move(styled_text), properties, split_end, split_begin);
+	return PaginateDialogueText(scene, styled_text, properties, split_end, split_begin);
 }
 
 } // namespace
@@ -131,7 +131,7 @@ void DialogueWaitScript::OnEvent(Event event) {
 	event.Dispatch<event::KeyPressed>(&DialogueWaitScript::OnKeyPressed, this);
 }
 
-void DialogueWaitScript::OnKeyPressed(Key key) {
+void DialogueWaitScript::OnKeyPressed(Key key) const {
 	DialogueBox dialogue{ entity };
 
 	if (!dialogue.IsOpen()) {
@@ -142,9 +142,7 @@ void DialogueWaitScript::OnKeyPressed(Key key) {
 		return;
 	}
 
-	Text text{ dialogue.TextPart() };
-
-	if (!text.IsFullyRevealed()) {
+	if (Text text{ dialogue.TextPart() }; !text.IsFullyRevealed()) {
 		dialogue.CompletePage();
 		return;
 	}
@@ -483,7 +481,7 @@ void DialogueData::LoadFromJson(
 
 		dialogue.index = static_cast<std::size_t>(index);
 
-		dialogues.emplace(std::move(dialogue_name), std::move(dialogue));
+		dialogues.emplace(dialogue_name, std::move(dialogue));
 	}
 
 	ClearRuntimeState();
@@ -580,9 +578,7 @@ DialogueBox& DialogueBox::NextPage() {
 
 	++data.current_page;
 
-	auto* page{ GetCurrentDialoguePage() };
-
-	if (!page) {
+	if (auto page{ GetCurrentDialoguePage() }; !page) {
 		Close();
 		SetNextDialogue();
 		return *this;
@@ -619,7 +615,7 @@ DialogueBox& DialogueBox::SetDialogue(std::string_view name) {
 DialogueBox& DialogueBox::SetNextDialogue() {
 	auto& data{ Data() };
 
-	auto* dialogue{ GetCurrentDialogue() };
+	const auto* dialogue{ GetCurrentDialogue() };
 
 	if (!dialogue) {
 		data.current_line = 0;
@@ -671,7 +667,7 @@ DialogueLine* DialogueBox::GetCurrentDialogueLine() {
 }
 
 DialoguePage* DialogueBox::GetCurrentDialoguePage() {
-	auto& data{ Data() };
+	const auto& data{ Data() };
 
 	auto* line{ GetCurrentDialogueLine() };
 
@@ -762,7 +758,7 @@ std::optional<Entity> DialogueBox::TryBackgroundEntity() const {
 }
 
 void DialogueBox::ApplyCurrentPage() {
-	auto* page{ GetCurrentDialoguePage() };
+	const auto* page{ GetCurrentDialoguePage() };
 
 	if (!page) {
 		Close();
@@ -789,8 +785,8 @@ void DialogueBox::ApplyCurrentPage() {
 }
 
 void DialogueBox::StartCurrentPageScroll() {
-	auto* page{ GetCurrentDialoguePage() };
-	auto* dialogue{ GetCurrentDialogue() };
+	const auto* page{ GetCurrentDialoguePage() };
+	const auto* dialogue{ GetCurrentDialogue() };
 
 	if (!page || !dialogue) {
 		Close();
@@ -862,8 +858,8 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 		Hide(background);
 	}
 
-	Text text{ dialogue.TextPart() };
-	Tween tween{ dialogue.TweenPart() };
+	dialogue.TextPart();
+	dialogue.TweenPart();
 
 	dialogue.Data().LoadFromJson(scene, desc.data, default_properties);
 

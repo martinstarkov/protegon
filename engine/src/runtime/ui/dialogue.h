@@ -16,7 +16,6 @@
 #include "core/math/vector2.h"
 #include "core/util/string.h"
 #include "core/util/time.h"
-#include "renderer/text/font_atlas.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/tween.h"
@@ -57,7 +56,7 @@ struct DialogueWaitScript : public Script {
 	void OnEvent(Event event) override;
 
 private:
-	void OnKeyPressed(Key key);
+	void OnKeyPressed(Key key) const;
 };
 
 struct DialogueScrollScript : public Script {
@@ -126,7 +125,7 @@ struct DialogueEntry {
 	std::vector<std::size_t> used_line_indices;
 
 	[[nodiscard]] std::size_t PickRandomIndex() const;
-	[[nodiscard]] const DialogueLine* GetCurrentDialogueLine() const;
+	const DialogueLine* GetCurrentDialogueLine() const;
 
 	std::optional<std::size_t> GetNewDialogueLine();
 };
@@ -173,10 +172,10 @@ public:
 	[[nodiscard]] DialogueData& Data();
 	[[nodiscard]] const DialogueData& Data() const;
 
-	[[nodiscard]] Key GetContinueKey() const;
+	Key GetContinueKey() const;
 	DialogueBox& SetContinueKey(Key continue_key);
 
-	[[nodiscard]] bool IsOpen() const;
+	bool IsOpen() const;
 
 	DialogueBox& Open(std::string_view dialogue_name = {});
 	DialogueBox& Close();
@@ -187,14 +186,14 @@ public:
 	DialogueBox& SetDialogue(std::string_view name = {});
 	DialogueBox& SetNextDialogue();
 
-	[[nodiscard]] DialogueEntry* GetCurrentDialogue();
-	[[nodiscard]] DialogueLine* GetCurrentDialogueLine();
-	[[nodiscard]] DialoguePage* GetCurrentDialoguePage();
+	DialogueEntry* GetCurrentDialogue();
+	DialogueLine* GetCurrentDialogueLine();
+	DialoguePage* GetCurrentDialoguePage();
 
-	[[nodiscard]] Text TextPart();
+	Text TextPart();
 	[[nodiscard]] std::optional<Text> TryTextPart() const;
 
-	[[nodiscard]] Tween TweenPart();
+	Tween TweenPart();
 	[[nodiscard]] std::optional<Tween> TryTweenPart() const;
 
 	[[nodiscard]] std::optional<Sprite> TryBackground() const;
@@ -205,7 +204,7 @@ private:
 	friend struct impl::DialogueScrollScript;
 
 	[[nodiscard]] std::optional<Entity> TryPart(DialoguePartRole role) const;
-	[[nodiscard]] Entity Part(DialoguePartRole role);
+	Entity Part(DialoguePartRole role);
 
 	void ApplyCurrentPage();
 	void StartCurrentPageScroll();
