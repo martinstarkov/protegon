@@ -16,6 +16,7 @@
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
+#include "renderer/resources/shader.h"
 #include "renderer/text/text_glyph.h"
 #include "renderer/text/text_style.h"
 #include "serialization/serialize.h"
@@ -62,6 +63,7 @@ struct ShrinkScale {
 	constexpr bool operator==(const ShrinkScale& o) const {
 		return NearlyEqual(min, o.min) && NearlyEqual(max, o.max);
 	}
+
 	PTGN_SERIALIZE(ShrinkScale, min, max)
 };
 
@@ -199,12 +201,6 @@ struct DrawTextRequest {
 	TextClipMode clip_mode;
 	std::size_t reveal_glyph_count{ std::numeric_limits<std::size_t>::max() };
 	float time{ 0.0f };
-
-	/// @brief Center of the text in world space. Origin should be accounted for in this
-	/// transform.
-	Transform transform;
-
-	impl::EffectParams effects;
 };
 
 namespace impl {
@@ -233,6 +229,8 @@ struct TextClip {
 [[nodiscard]] TextMeasurement MeasureText(
 	const ResolvedStyledText& styled_text, const TextBox& box
 );
+
+std::vector<UniformWrite> GetTextUniforms(const DistanceFieldStyle& sdf, bool is_decoration);
 
 std::vector<TextDrawBatch> BuildTextDrawBatches(const ptgn::DrawTextRequest& request);
 
