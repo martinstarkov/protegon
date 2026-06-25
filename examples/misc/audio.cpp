@@ -54,11 +54,11 @@ public:
 	) {
 		Button b{ CreateButton(*this) };
 		b.SetText(content, color::Black);
-		b.SetBackgroundColor(bg_color);
-		b.SetBackgroundColor(color::Gray, ButtonState::Hover);
-		b.SetBackgroundColor(color::DarkGray, ButtonState::Press);
-		b.SetBorderColor(color::LightGray);
-		b.SetBorderWidth(3.0f);
+		b.BackgroundColor(bg_color);
+		b.BackgroundColor(color::Gray, ButtonState::Hover);
+		b.BackgroundColor(color::DarkGray, ButtonState::Press);
+		b.BorderColor(color::LightGray);
+		b.BorderWidth(3.0f);
 		b.OnPress(on_press);
 		return b;
 	}
@@ -286,44 +286,44 @@ public:
 	}
 
 	void OnUpdate() override {
-		b1.SetTextContent(std::string("Music Volume: ") + std::to_string(ctx().audio.GetVolume()));
-		b2.SetTextContent(
+		b1.Text().Content(std::string("Music Volume: ") + std::to_string(ctx().audio.GetVolume()));
+		b2.Text().Content(
 			std::string("Music Is Playing: ") + (ctx().audio.IsPlaying("music1") ? "true" : "false")
 		);
-		b3.SetTextContent(
+		b3.Text().Content(
 			std::string("Music Is Paused: ") + (ctx().audio.IsPaused("music1") ? "true" : "false")
 		);
-		b4.SetTextContent(
+		b4.Text().Content(
 			std::string(
 				"Music Is Fading: "
 			) /* TODO: Fix: + (ctx().audio.IsFading() ? "true" : "false")*/
 		);
-		b5.SetTextContent(
+		b5.Text().Content(
 			std::string("Channel 1 Volume: ") + std::to_string(ctx().audio.GetVolume("sound1"))
 		);
-		b6.SetTextContent(
+		b6.Text().Content(
 			std::string("Channel 2 Volume: ") + std::to_string(ctx().audio.GetVolume("sound2"))
 		);
-		b7.SetTextContent(
+		b7.Text().Content(
 			std::string("Channel 1 Playing: ") +
 			(ctx().audio.IsPlaying("sound1") ? "true" : "false")
 		);
-		b8.SetTextContent(
+		b8.Text().Content(
 			std::string("Channel 2 Playing: ") +
 			(ctx().audio.IsPlaying("sound2") ? "true" : "false")
 		);
-		b9.SetTextContent(
+		b9.Text().Content(
 			std::string("Channel 1 Paused: ") + (ctx().audio.IsPaused("sound1") ? "true" : "false")
 		);
-		b10.SetTextContent(
+		b10.Text().Content(
 			std::string("Channel 2 Paused: ") + (ctx().audio.IsPaused("sound2") ? "true" : "false")
 		);
-		b11.SetTextContent(
+		b11.Text().Content(
 			std::string(
 				"Channel 1 Fading: "
 			) /* TODO: Fix: + (ctx().audio.IsFading("sound1") ? "true" : "false")*/
 		);
-		b12.SetTextContent(
+		b12.Text().Content(
 			std::string(
 				"Channel 2 Fading: "
 			) /* TODO: Fix: + (ctx().audio.IsFading("sound2") ? "true" : "false")*/

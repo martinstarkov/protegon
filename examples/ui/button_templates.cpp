@@ -92,7 +92,7 @@ public:
 			text.Outline(outline_color, outline_width.value());
 		}
 
-		button.SetTextPadding(Rect{ padding_size, padding_size }, state);
+		button.SetTextPadding(padding_size, state);
 	}
 
 	static void ConfigureIcon(

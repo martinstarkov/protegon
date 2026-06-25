@@ -65,14 +65,9 @@ class ToggleButtonGroupScript;
 
 } // namespace impl
 
-class ToggleButton : public Entity {
+class ToggleButton : public Button {
 public:
-	ToggleButton() = default;
-	explicit ToggleButton(Entity entity);
-
-	operator Button() const; // NOSONAR
-
-	[[nodiscard]] Button AsButton() const;
+	using Button::Button;
 
 	[[nodiscard]] bool IsToggled() const;
 

@@ -12,6 +12,7 @@
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/input/mouse.h"
+#include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -44,14 +45,12 @@ namespace ptgn {
 
 namespace {
 
-bool IsPressVisualState(ButtonVisualState state) {
+constexpr bool IsPressVisualState(ButtonVisualState state) {
 	switch (state) {
 		using enum ButtonVisualState;
-
-		case Press:
-		case ToggledPress:
+		case Press:			[[fallthrough]];
+		case ToggledPress:	[[fallthrough]];
 		case DisabledPress: return true;
-
 		default:			return false;
 	}
 }
@@ -73,30 +72,20 @@ void ResetButtonAnimationPart(Entity part) {
 std::vector<ButtonVisualState> GetVisualStateFallbacks(ButtonVisualState state) {
 	switch (state) {
 		using enum ButtonVisualState;
-
 		case Base:			return { Base };
-
 		case Idle:			return { Idle, Base };
-
 		case Hover:			return { Hover, Idle, Base };
-
 		case Press:			return { Press, Hover, Idle, Base };
-
 		case Disabled:		return { Disabled, Idle, Base };
-
 		case DisabledHover: return { DisabledHover, Disabled, Hover, Idle, Base };
-
 		case DisabledPress:
 			return { DisabledPress, DisabledHover, Disabled, Press, Hover, Idle, Base };
-
 		case Toggled:	   return { Toggled, Idle, Base };
-
 		case ToggledHover: return { ToggledHover, Toggled, Hover, Idle, Base };
-
 		case ToggledPress: return { ToggledPress, ToggledHover, Toggled, Press, Hover, Idle, Base };
-	}
 
-	return { ButtonVisualState::Base };
+		default:		   PTGN_ERROR("Unknown ButtonVisualState: ", std::to_underlying(state));
+	}
 }
 
 std::optional<Animation> TryAnimationForVisualState(Button button, ButtonVisualState state) {
@@ -127,11 +116,10 @@ ButtonVisualState GetPressVisualState(Button button) {
 ButtonVisualState ToVisualState(ButtonState state) {
 	switch (state) {
 		using enum ButtonState;
-
 		case Idle:	return ButtonVisualState::Idle;
 		case Hover: return ButtonVisualState::Hover;
 		case Press: return ButtonVisualState::Press;
-		default:	return ButtonVisualState::Idle;
+		default:	PTGN_ERROR("Unknown ButtonState: ", std::to_underlying(state));
 	}
 }
 
@@ -177,7 +165,7 @@ std::vector<Entity> FindButtonParts(Button button, std::optional<ButtonPartRole>
 	return parts;
 }
 
-bool IsPartVisibleForState(const impl::ButtonPart& part, ButtonVisualState active_state) {
+constexpr bool IsPartVisibleForState(const impl::ButtonPart& part, ButtonVisualState active_state) {
 	if (part.state == ButtonVisualState::Base) {
 		return true;
 	}
@@ -185,40 +173,34 @@ bool IsPartVisibleForState(const impl::ButtonPart& part, ButtonVisualState activ
 	return part.state == active_state;
 }
 
-ButtonVisualState DisabledStateFrom(ButtonState state) {
+constexpr ButtonVisualState DisabledStateFrom(ButtonState state) {
 	switch (state) {
 		using enum ButtonState;
-
 		case Idle:	return ButtonVisualState::Disabled;
 		case Hover: return ButtonVisualState::DisabledHover;
 		case Press: return ButtonVisualState::DisabledPress;
+		default:	PTGN_ERROR("Unknown ButtonState: ", std::to_underlying(state));
 	}
-
-	return ButtonVisualState::Disabled;
 }
 
-ButtonVisualState ToggledStateFrom(ButtonState state) {
+constexpr ButtonVisualState ToggledStateFrom(ButtonState state) {
 	switch (state) {
 		using enum ButtonState;
-
 		case Idle:	return ButtonVisualState::Toggled;
 		case Hover: return ButtonVisualState::ToggledHover;
 		case Press: return ButtonVisualState::ToggledPress;
+		default:	PTGN_ERROR("Unknown ButtonState: ", std::to_underlying(state));
 	}
-
-	return ButtonVisualState::Toggled;
 }
 
-ButtonVisualState NormalStateFrom(ButtonState state) {
+constexpr ButtonVisualState NormalStateFrom(ButtonState state) {
 	switch (state) {
 		using enum ButtonState;
-
 		case Idle:	return ButtonVisualState::Idle;
 		case Hover: return ButtonVisualState::Hover;
 		case Press: return ButtonVisualState::Press;
+		default:	PTGN_ERROR("Unknown ButtonState: ", std::to_underlying(state));
 	}
-
-	return ButtonVisualState::Idle;
 }
 
 [[nodiscard]] std::optional<V2_float> GetButtonShapeSize(Button button) {
@@ -711,8 +693,10 @@ Button& Button::RemoveIcon(ButtonVisualState state) {
 	return RemovePart(ButtonPartRole::Icon, state);
 }
 
-Button& Button::SetText(std::string_view content, ButtonVisualState state) {
-	Text(state).Content(content);
+Button& Button::SetText(
+	std::string_view content, Color color, float font_size, ButtonVisualState state
+) {
+	Text(state).Content(content).Color(color).Size(font_size);
 	return *this;
 }
 

@@ -74,16 +74,11 @@ public:
 
 } // namespace impl
 
-class Dropdown : public Entity {
+class Dropdown : public Button {
 public:
-	Dropdown() = default;
-	explicit Dropdown(Entity entity);
+	using Button::Button;
 
-	operator Button() const; // NOSONAR
-
-	[[nodiscard]] Button AsButton() const;
-
-	[[nodiscard]] bool IsOpen() const;
+	bool IsOpen() const;
 	[[nodiscard]] bool WillStartOpen() const;
 
 	Dropdown& SetShape(const std::optional<std::variant<Rect, Circle>>& shape = {});
@@ -99,7 +94,7 @@ public:
 	Button AddItem(std::string_view text);
 
 	/// @brief Returns direct child buttons marked with impl::DropdownItem.
-	[[nodiscard]] std::vector<Button> GetButtons() const;
+	std::vector<Button> GetButtons() const;
 
 	/// @brief Set the size that each dropdown item button will be.
 	/// If not specified, each item uses the parent dropdown button size.

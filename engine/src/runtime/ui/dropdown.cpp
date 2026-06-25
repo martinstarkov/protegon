@@ -110,16 +110,6 @@ void DropdownItemScript::OnEvent(Event event) {
 
 } // namespace impl
 
-Dropdown::Dropdown(Entity entity) : Entity{ entity } {}
-
-Dropdown::operator Button() const {
-	return Button{ *this };
-}
-
-Button Dropdown::AsButton() const {
-	return Button{ *this };
-}
-
 bool Dropdown::IsOpen() const {
 	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot query open state of invalid dropdown");
 	return Get<impl::DropdownData>().open;
@@ -146,7 +136,7 @@ bool Dropdown::WillStartOpen() const {
 }
 
 Dropdown& Dropdown::SetShape(const std::optional<std::variant<Rect, Circle>>& shape) {
-	AsButton().SetShape(shape);
+	Button::SetShape(shape);
 
 	RecalculateButtonPositions();
 	RecalculateParentDropdown(*this);
@@ -216,7 +206,7 @@ void Dropdown::RecalculateButtonPositions() {
 
 	auto& info{ Get<impl::DropdownData>() };
 
-	auto parent_shape{ AsButton().GetShape() };
+	auto parent_shape{ GetShape() };
 
 	auto parent_size{ parent_shape.has_value()
 						  ? GetShapeSize(*this, parent_shape.value()).value_or(V2_float{})
@@ -298,7 +288,7 @@ Button Dropdown::AddItem(std::string_view text) {
 	if (const auto& info{ Get<impl::DropdownData>() }; info.button_size.has_value()) {
 		shape = Rect{ info.button_size.value() };
 	} else {
-		shape = AsButton().GetShape();
+		shape = GetShape();
 	}
 
 	Button button{ CreateButton(GetScene(), {}, shape, Origin::Center) };

@@ -15,6 +15,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/entity.h"
@@ -50,6 +51,12 @@ struct Padding {
 	float bottom{ 0.0f };
 
 	constexpr Padding() = default;
+
+	/// @brief Constructs a uniform padding on all sides.
+	constexpr Padding(float amount) : Padding{ amount, amount, amount, amount } {} // NOSONAR
+
+	constexpr Padding(V2_float amount) :										   // NOSONAR
+		Padding{ amount.x, amount.y, amount.x, amount.y } {}
 
 	constexpr Padding(float left, float top, float right, float bottom) :
 		left{ left }, top{ top }, right{ right }, bottom{ bottom } {}
@@ -254,10 +261,11 @@ public:
 	Button& RemoveText(ButtonVisualState state = ButtonVisualState::Base);
 	Button& RemoveIcon(ButtonVisualState state = ButtonVisualState::Base);
 
-	/// @brief Convenience only. Further text configuration should use the Text API.
-	Button& SetText(std::string_view content, ButtonVisualState state = ButtonVisualState::Base);
+	Button& SetText(
+		std::string_view content, Color color = color::Black, float font_size = kDefaultFontSize,
+		ButtonVisualState state = ButtonVisualState::Base
+	);
 
-	/// @brief Convenience only. Further icon configuration should use the Sprite API.
 	Button& SetIcon(
 		std::string_view texture_key, ButtonVisualState state = ButtonVisualState::Base
 	);

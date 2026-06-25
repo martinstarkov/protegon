@@ -54,7 +54,7 @@ void ToggleButtonScript::OnEvent(Event event) {
 void ToggleButtonScript::OnButtonPress() const {
 	ToggleButton self{ entity };
 
-	if (!self.AsButton().IsEnabled(false)) {
+	if (!self.IsEnabled(false)) {
 		return;
 	}
 
@@ -77,7 +77,7 @@ void ToggleButtonGroupScript::OnEvent(Event event) {
 void ToggleButtonGroupScript::OnButtonPress() {
 	ToggleButton self{ entity };
 
-	if (!self.AsButton().IsEnabled(false)) {
+	if (!self.IsEnabled(false)) {
 		return;
 	}
 
@@ -111,16 +111,6 @@ bool Button::HasToggle() const {
 ToggleButton Button::AsToggle() const {
 	PTGN_ASSERT(HasToggle(), "Button does not have toggle capability");
 	return ToggleButton{ *this };
-}
-
-ToggleButton::ToggleButton(Entity entity) : Entity{ entity } {}
-
-ToggleButton::operator Button() const {
-	return Button{ *this };
-}
-
-Button ToggleButton::AsButton() const {
-	return Button{ *this };
 }
 
 bool ToggleButton::IsToggled() const {
