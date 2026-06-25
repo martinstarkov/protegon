@@ -33,12 +33,18 @@ struct TextEditState {
 	std::size_t current_run_index{ 0 };
 };
 
-ResolvedTextRun ResolveTextRun(AssetManager& asset_manager, const TextRun& text_run);
+[[nodiscard]] ResolvedTextRun ResolveTextRun(AssetManager& asset_manager, const TextRun& text_run);
 
-ResolvedStyledText ResolveStyledText(AssetManager& asset_manager, const StyledText& styled_text);
+[[nodiscard]] ResolvedStyledText ResolveStyledText(
+	AssetManager& asset_manager, const StyledText& styled_text
+);
 
 void DrawDebugTextBoundingBoxes(
 	Scene& scene, const std::optional<SceneCamera>& camera, const impl::EntityFilterFunc& filter
+);
+
+[[nodiscard]] TextLayout BuildTextLayout(
+	AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
 );
 
 } // namespace impl
@@ -70,8 +76,13 @@ public:
 	Text& Align(HorizontalAlign horizontal, VerticalAlign vertical);
 	Text& HorizontalAlign(HorizontalAlign align);
 	Text& VerticalAlign(VerticalAlign align);
+
 	/// @brief Removes any previously set alignment.
 	Text& ClearAlignment();
+
+	/// @brief Sets the number of space columns between tab stops.
+	/// A tab advances to the next multiple of this many spaces.
+	Text& TabWidth(std::size_t spaces);
 
 	Text& Wrap(WrapMode mode);
 	Text& Overflow(OverflowMode mode);

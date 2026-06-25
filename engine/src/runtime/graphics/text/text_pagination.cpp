@@ -58,14 +58,14 @@ void AppendMarker(
 		return;
 	}
 
-	fragments.emplace_back(
-		PaginationFragment{
-			.run			  = { .text	 = std::string{ marker },
-								  .font	 = anchor.run.font,
-								  .style = anchor.run.style },
-			.source_run_index = std::nullopt,
-		}
-	);
+	fragments.emplace_back(PaginationFragment{
+		.run = {
+			.text = std::string{ marker },
+			.font = anchor.run.font,
+			.style = anchor.run.style,
+		},
+		.source_run_index = std::nullopt,
+	});
 }
 
 void AppendWord(
@@ -75,34 +75,27 @@ void AppendWord(
 	if (include_leading_whitespace) {
 		fragments.append_range(word.leading_whitespace);
 	}
-
 	fragments.append_range(word.content);
 }
 
 PaginationContent BuildPaginationContent(const StyledText& styled_text) {
 	PaginationContent result;
-
 	std::vector<PaginationFragment> pending_whitespace;
 	std::optional<PaginationWord> current_word;
 
 	for (auto run_index{ 0uz }; run_index < styled_text.runs.size(); ++run_index) {
 		const auto& run{ styled_text.runs[run_index] };
-
 		auto begin{ 0uz };
 
 		while (begin < run.text.size()) {
 			bool whitespace{ IsPaginationWhitespace(run.text[begin]) };
-
 			auto end{ begin + 1 };
 
 			while (end < run.text.size() && IsPaginationWhitespace(run.text[end]) == whitespace) {
 				++end;
 			}
 
-			std::string_view fragment{
-				run.text.data() + begin,
-				end - begin,
-			};
+			std::string_view fragment{ run.text.data() + begin, end - begin };
 
 			if (whitespace) {
 				if (current_word.has_value()) {
@@ -112,7 +105,11 @@ PaginationContent BuildPaginationContent(const StyledText& styled_text) {
 
 				AppendSourceFragment(
 					pending_whitespace,
-					{ .text = std::string{ fragment }, .font = run.font, .style = run.style },
+					TextRun{
+						.text  = std::string{ fragment },
+						.font  = run.font,
+						.style = run.style,
+					},
 					run_index
 				);
 			} else {
@@ -124,7 +121,11 @@ PaginationContent BuildPaginationContent(const StyledText& styled_text) {
 
 				AppendSourceFragment(
 					current_word->content,
-					{ .text = std::string{ fragment }, .font = run.font, .style = run.style },
+					TextRun{
+						.text  = std::string{ fragment },
+						.font  = run.font,
+						.style = run.style,
+					},
 					run_index
 				);
 			}
@@ -138,13 +139,11 @@ PaginationContent BuildPaginationContent(const StyledText& styled_text) {
 	}
 
 	result.trailing_whitespace = std::move(pending_whitespace);
-
 	return result;
 }
 
 StyledText BuildStyledText(const std::vector<PaginationFragment>& fragments) {
 	StyledText result;
-
 	std::optional<std::size_t> previous_source_run;
 
 	for (const auto& fragment : fragments) {
@@ -152,10 +151,10 @@ StyledText BuildStyledText(const std::vector<PaginationFragment>& fragments) {
 			continue;
 		}
 
-		if (bool can_merge{ fragment.source_run_index.has_value() &&
-							previous_source_run == fragment.source_run_index &&
-							!result.runs.empty() };
-			can_merge) {
+		bool can_merge{ fragment.source_run_index.has_value() &&
+						previous_source_run == fragment.source_run_index && !result.runs.empty() };
+
+		if (can_merge) {
 			result.runs.back().text += fragment.run.text;
 		} else {
 			result.runs.emplace_back(fragment.run);
@@ -167,23 +166,19 @@ StyledText BuildStyledText(const std::vector<PaginationFragment>& fragments) {
 	return result;
 }
 
-bool FitsTextPage(
-	const ResolvedStyledText& styled_text, const TextBox& box, std::size_t max_lines
-) {
-	TextBox measurement_box{ box };
+bool FitsTextPage(const ResolvedStyledText& styled_text, TextBox box, std::size_t max_lines) {
+	box.style.max_lines		= 0;
+	box.style.overflow_mode = OverflowMode::Overflow;
 
-	measurement_box.style.max_lines		= 0;
-	measurement_box.style.overflow_mode = OverflowMode::Overflow;
+	auto measurement{ MeasureText(styled_text, box) };
+	if (max_lines > 0 && measurement.line_count > max_lines) {
+		return false;
+	}
 
-	TextMeasurement measurement{ MeasureText(styled_text, measurement_box) };
-
-	bool fits_lines{ max_lines == 0 || measurement.line_count <= max_lines };
-
-	float box_height{ box.rect.GetSize().y };
-
-	bool fits_height{ box_height <= 0.0f || measurement.size.y <= box_height };
-
-	return fits_lines && fits_height;
+	auto box_size{ box.rect.GetSize() };
+	bool fits_width{ !box.HasWidth() || measurement.size.x <= box_size.x };
+	bool fits_height{ !box.HasHeight() || measurement.size.y <= box_size.y };
+	return fits_width && fits_height;
 }
 
 } // namespace
@@ -196,32 +191,29 @@ TextPaginationResult PaginateText(
 
 	auto add_page = [&](StyledText&& page_text) {
 		auto resolved_page_text{ ResolveStyledText(asset_manager, page_text) };
-
-		auto measurement{ MeasureText(resolved_page_text, box) };
-
 		auto layout{ BuildTextLayout(resolved_page_text, box) };
 
-		result.pages.emplace_back(
-			TextPage{
-				.styled_text = std::move(page_text),
-				.measurement = measurement,
-				.glyph_count = layout.glyphs.size(),
-			}
-		);
+		result.pages.emplace_back(TextPage{
+			.styled_text = std::move(page_text),
+			.measurement = {
+				.size = layout.size,
+				.line_count = layout.lines.size(),
+				.truncated = layout.truncated,
+				.used_shrink_scale = layout.used_shrink_scale,
+			},
+			.glyph_count = layout.GetVisibleGlyphCount(),
+		});
 	};
 
-	PaginationContent content{ BuildPaginationContent(styled_text) };
+	auto content{ BuildPaginationContent(styled_text) };
 
 	if (content.words.empty()) {
 		auto page_text{ styled_text };
-
 		add_page(std::move(page_text));
-
 		return result;
 	}
 
 	auto max_lines{ options.max_lines_per_page };
-
 	if (max_lines == 0) {
 		max_lines = box.style.max_lines;
 	}
@@ -232,41 +224,37 @@ TextPaginationResult PaginateText(
 
 	while (word_index < content.words.size()) {
 		const auto& word{ content.words[word_index] };
-
 		std::vector<PaginationFragment> candidate{ current_page };
 
-		// Preserve leading whitespace on the first page and after a
-		// split-begin marker. Drop it on an otherwise empty continuation
-		// page so the page does not begin with ordinary spaces.
+		// The first page preserves source-leading whitespace. A continuation page discards only
+		// its ordinary separator whitespace unless a split-begin marker already anchors the page.
 		bool include_leading_whitespace{ !candidate.empty() || result.pages.empty() };
-
 		AppendWord(candidate, word, include_leading_whitespace);
 
 		std::vector<PaginationFragment> measured_candidate{ candidate };
+		bool has_more_words{ word_index + 1 < content.words.size() };
 
-		if (bool has_more_words{ word_index + 1 < content.words.size() };
-			options.add_split_markers && has_more_words && !measured_candidate.empty()) {
+		if (options.add_split_markers && has_more_words && !measured_candidate.empty()) {
 			AppendMarker(measured_candidate, options.split_end, measured_candidate.back());
 		}
 
-		if (auto candidate_text{ BuildStyledText(measured_candidate) };
-			FitsTextPage(impl::ResolveStyledText(asset_manager, candidate_text), box, max_lines)) {
+		auto candidate_text{ BuildStyledText(measured_candidate) };
+		if (FitsTextPage(ResolveStyledText(asset_manager, candidate_text), box, max_lines)) {
 			current_page = std::move(candidate);
 			++current_page_word_count;
 			++word_index;
 			continue;
 		}
 
-		// A single word does not fit on an otherwise empty page. Keep it
-		// intact and allow the configured layout behavior to handle it.
-		if (!current_page_word_count) {
+		// Keep a single oversized word intact. The configured TextBox wrapping and overflow mode
+		// remains responsible for deciding how that word is displayed.
+		if (current_page_word_count == 0) {
 			current_page = std::move(candidate);
 			++current_page_word_count;
 			++word_index;
 		}
 
 		bool has_next_page{ word_index < content.words.size() };
-
 		std::vector<PaginationFragment> completed_page{ current_page };
 
 		if (options.add_split_markers && has_next_page && !completed_page.empty()) {
@@ -274,13 +262,11 @@ TextPaginationResult PaginateText(
 		}
 
 		add_page(BuildStyledText(completed_page));
-
 		current_page.clear();
 		current_page_word_count = 0;
 
 		if (options.add_split_markers && has_next_page) {
 			const auto& next_word{ content.words[word_index] };
-
 			if (!next_word.content.empty()) {
 				AppendMarker(current_page, options.split_begin, next_word.content.front());
 			}

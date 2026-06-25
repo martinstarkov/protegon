@@ -1,7 +1,7 @@
 #include "renderer/text/text_layout.h"
 
-#include <algorithm>
 #include <chrono>
+#include <optional>
 #include <string_view>
 
 #include "app/application.h"
@@ -11,7 +11,6 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/text/text.h"
@@ -33,6 +32,10 @@ struct TextLayoutScene : public Scene {
 	V2_float box_size{ 210.0f, 74.0f };
 
 	float top{ -330.0f };
+
+	std::optional<Text> clipped_text;
+	Rect clipped_rect;
+	bool clip_enabled{ true };
 
 	V2_float GetCellTop(int column, int row) const {
 		return {
@@ -85,6 +88,7 @@ struct TextLayoutScene : public Scene {
 		CreateTitle(cell_top, label);
 
 		V2_float used_size{ size };
+
 		if (!used_size.IsPositive()) {
 			used_size = box_size;
 		}
@@ -101,14 +105,9 @@ struct TextLayoutScene : public Scene {
 	) {
 		V2_float cell_top{ GetCellTop(column, row) };
 
-		CreateTitle(cell_top - V2_float{ 0.0f, 6.0f }, "Text::Clip");
+		CreateTitle(cell_top - V2_float{ 0.0f, 6.0f }, "Text::Clip — Q to toggle");
 
 		V2_float viewport_position{ cell_top + V2_float{ 0.0f, 22.0f } };
-
-		Rect text_box{
-			{ -box_size.x * 0.5f, 0.0f },
-			{ box_size.x * 0.5f, box_size.y + 20.0f },
-		};
 
 		auto text{ CreateText(*this, viewport_position, Origin::CenterTop) };
 
@@ -116,21 +115,38 @@ struct TextLayoutScene : public Scene {
 			.Font(font)
 			.Size(14.0f)
 			.Color(color::Black)
-			.Box(text_box)
+			.Box({ { -box_size.x * 0.5f, 0.0f }, { box_size.x * 0.5f, 0.0f } })
 			.Align(horizontal, vertical)
 			.Wrap(wrap)
 			.Overflow(overflow);
 
-		float scroll_offset{ text.Measure().first_line_height * 0.5f };
+		float scroll_offset{ text.GetLayout().GetLineHeight(0) * 0.5f };
 
 		SetPosition(text, viewport_position - V2_float{ 0.0f, scroll_offset });
 
-		Rect clip_rect{
+		clipped_rect = Rect{
 			{ -box_size.x * 0.5f, scroll_offset },
 			{ box_size.x * 0.5f, scroll_offset + box_size.y },
 		};
 
-		text.Clip(clip_rect);
+		text.Clip(clipped_rect);
+
+		clipped_text = text;
+		clip_enabled = true;
+	}
+
+	void ToggleClip() {
+		if (!clipped_text.has_value()) {
+			return;
+		}
+
+		clip_enabled = !clip_enabled;
+
+		if (clip_enabled) {
+			clipped_text->Clip(clipped_rect);
+		} else {
+			clipped_text->ClearClip();
+		}
 	}
 
 	void OnEnter() override {
@@ -140,12 +156,11 @@ struct TextLayoutScene : public Scene {
 
 		ctx().asset.Load(font, "assets/Arial.ttf");
 
-		auto title{ CreateText(*this, { 0.0f, -390.0f }, Origin::CenterTop) };
+		auto title{ CreateText(*this, {}, Origin::TopLeft) };
 
 		title.Content("Text layout demo").Font(font).Size(28.0f).Color(color::Black).Bold(true);
 
-		// TODO: Fix.
-		// SetPosition(title, { -title.GetSize().x * 0.5f, -390.0f });
+		SetPosition(title, { -title.GetSize().x * 0.5f, -380.0f });
 
 		CreateCell(
 			0, 0, "WrapMode::None", "This long line will not attempt to wrap.",
@@ -178,8 +193,7 @@ struct TextLayoutScene : public Scene {
 		CreateCell(
 			1, 1, "OverflowMode::ClipPartial",
 			"Yo! This text is clipped to the text box bounds. Outside content disappears. This "
-			"text is "
-			"too long for the box, so it keeps drawing outside the magenta box",
+			"text is too long for the box, so it keeps drawing outside the magenta box",
 			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::ClipPartial,
 			overflow_box_size
 		);
@@ -187,8 +201,7 @@ struct TextLayoutScene : public Scene {
 		CreateCell(
 			2, 1, "OverflowMode::Clip",
 			"Yo! This text is clipped to the text box bounds. Outside content disappears. This "
-			"text is "
-			"too long for the box, so it keeps drawing outside the magenta box",
+			"text is too long for the box, so it keeps drawing outside the magenta box",
 			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Clip,
 			overflow_box_size
 		);
@@ -231,11 +244,9 @@ struct TextLayoutScene : public Scene {
 
 		CreateClipped(
 			2, 3,
-			"The storm had been building beyond the hills all afternoon. Dark clouds "
-			"rolled across the horizon while distant thunder echoed through the valley. "
-			"By the time the first drops reached the road, the wind was already bending "
-			"the trees and carrying loose leaves through the air. The passage begins "
-			"above the visible region, as though the user has already scrolled down.",
+			"The storm had been building beyond the hills all afternoon. Dark clouds rolled across "
+			"the horizon, while distant thunder echoed through "
+			"the valley. The wind was already bending the trees. ",
 			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Overflow
 		);
 
@@ -273,10 +284,14 @@ struct TextLayoutScene : public Scene {
 	void OnUpdate() override {
 		MoveWASD(ctx().camera, V2_float{ 300.0f } * ctx().dt().count());
 
-		if (ctx().input.KeyHeld(Key::Q)) {
-			ctx().camera.Zoom(V2_float{ 1.0f } * ctx().dt().count());
-		} else if (ctx().input.KeyHeld(Key::E)) {
-			ctx().camera.Zoom(-V2_float{ 1.0f } * ctx().dt().count());
+		if (ctx().input.KeyPressed(Key::Q)) {
+			ToggleClip();
+		}
+
+		if (ctx().input.KeyHeld(Key::E)) {
+			ctx().camera.Zoom(ctx().dt().count());
+		} else if (ctx().input.KeyHeld(Key::R)) {
+			ctx().camera.Zoom(-ctx().dt().count());
 		}
 	}
 };

@@ -1,6 +1,7 @@
 #include "runtime/graphics/render_queue.h"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <optional>
 #include <span>
@@ -178,31 +179,26 @@ void RenderQueue::DrawText(
 	Transform transform, const StyledText& styled_text, const TextBox& text_box,
 	TextRenderParams params
 ) {
-	auto& commands{ GetRenderCommands(params.camera, params.debug) };
-
 	PTGN_ASSERT(scene_);
 
 	auto& ctx{ scene_->ctx() };
 
-	auto resolved_style{ impl::ResolveStyledText(ctx.asset, styled_text) };
+	auto layout{ impl::BuildTextLayout(ctx.asset, styled_text, text_box) };
 
-	auto layout{ impl::BuildTextLayout(resolved_style, text_box) };
+	auto prepared{ impl::PrepareTextDraw(transform, text_box, params.origin) };
 
-	if (layout.local_box.GetSize().IsPositive()) {
-		auto origin_point{ layout.local_box.GetOriginPoint(params.origin) };
-		transform.Translate(-origin_point);
+	if (!prepared.drawable) {
+		return;
 	}
 
 	auto text_batches{ impl::BuildTextDrawBatches(
-		{
+		DrawTextRequest{
 			.layout	   = layout,
 			.tint	   = params.tint,
 			.depth	   = params.depth,
 			.entity_id = params.entity_id,
-			//.clip_rect		  = clip_rect,
-			//.clip_mode		  = clip_mode,
-			//.reveal_glyph_count = reveal_glyph_count,
-			.time = ctx.TimeSinceStartSeconds().count(),
+			.clips	   = prepared.GetClips(),
+			.time	   = ctx.TimeSinceStartSeconds().count(),
 		}
 	) };
 
@@ -210,16 +206,19 @@ void RenderQueue::DrawText(
 		return;
 	}
 
+	auto& commands{ GetRenderCommands(params.camera, params.debug) };
+
 	for (auto& batch : text_batches) {
 		if (batch.quads.empty()) {
 			continue;
 		}
 
-		impl::ApplyTransform(transform, std::span{ batch.quads });
+		impl::ApplyTransform(prepared.transform, std::span{ batch.quads });
 
-		MaterialState material{ .shader = GetShader("text"),
-								.uniforms =
-									impl::GetTextUniforms(batch.style.sdf, batch.decoration) };
+		MaterialState material{
+			.shader	  = GetShader("text"),
+			.uniforms = impl::GetTextUniforms(batch.style.sdf, batch.decoration),
+		};
 
 		commands.Add(material, batch.quads, params.blend_mode, params.depth, batch.style.texture);
 	}

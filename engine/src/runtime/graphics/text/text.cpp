@@ -15,6 +15,7 @@
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
@@ -88,19 +89,14 @@ void UpdateLayout(
 ) {
 	auto hash{ Hash(styled_text, box) };
 
-	if (auto cached{ entity.TryGet<TextLayout>() }) {
-		if (cached->hash == hash) {
-			return;
-		}
+	if (auto cached{ entity.TryGet<TextLayout>() }; cached && cached->hash == hash) {
+		return;
 	}
 
-	auto resolved_text{ impl::ResolveStyledText(asset_manager, styled_text) };
-
-	auto layout{ impl::BuildTextLayout(resolved_text, box) };
-
+	auto layout{ impl::BuildTextLayout(asset_manager, styled_text, box) };
 	layout.hash = hash;
 
-	entity.Add<TextLayout>(layout);
+	entity.Add<TextLayout>(std::move(layout));
 }
 
 std::optional<Rect> IntersectClipRects(std::optional<Rect> a, std::optional<Rect> b) {
@@ -128,6 +124,43 @@ std::optional<Rect> IntersectClipRects(std::optional<Rect> a, std::optional<Rect
 	}
 
 	return result;
+}
+
+std::pair<HorizontalAlign, VerticalAlign> GetTextAlignment(Origin origin) {
+	switch (origin) {
+		using enum Origin;
+		case TopLeft:	   return { HorizontalAlign::Left, VerticalAlign::Top };
+		case CenterTop:	   return { HorizontalAlign::Center, VerticalAlign::Top };
+		case TopRight:	   return { HorizontalAlign::Right, VerticalAlign::Top };
+		case CenterRight:  return { HorizontalAlign::Right, VerticalAlign::Center };
+		case BottomRight:  return { HorizontalAlign::Right, VerticalAlign::Bottom };
+		case CenterBottom: return { HorizontalAlign::Center, VerticalAlign::Bottom };
+		case BottomLeft:   return { HorizontalAlign::Left, VerticalAlign::Bottom };
+		case CenterLeft:   return { HorizontalAlign::Left, VerticalAlign::Center };
+		case Center:	   return { HorizontalAlign::Center, VerticalAlign::Center };
+		default:		   PTGN_ERROR("Unknown Origin: ", std::to_underlying(origin));
+	}
+}
+
+V2_float GetTextOriginPoint(Entity entity, const TextLayout& layout, const TextBox& box) {
+	if (box.HasBox()) {
+		return box.rect.GetOriginPoint(GetDrawOrigin(entity));
+	}
+
+	auto origin_point{ layout.GetBounds().GetOriginPoint(GetDrawOrigin(entity)) };
+
+	// In unboxed text, an explicitly selected alignment anchors that axis directly to the
+	// transform. The draw origin remains the fallback anchor for axes the user did not override.
+	if (auto alignment_override{ entity.TryGet<impl::TextAlignmentOverride>() }) {
+		if (alignment_override->horizontal) {
+			origin_point.x = 0.0f;
+		}
+		if (alignment_override->vertical) {
+			origin_point.y = 0.0f;
+		}
+	}
+
+	return origin_point;
 }
 
 } // namespace
@@ -167,11 +200,7 @@ void DrawDebugTextBoundingBoxes(
 	}
 
 	for (auto [entity, styled_text, box] : scene.EntitiesWith<StyledText, TextBox>()) {
-		if (filter(entity)) {
-			continue;
-		}
-
-		if (!HasVisibleTextContent(styled_text)) {
+		if (filter(entity) || !HasVisibleTextContent(styled_text)) {
 			continue;
 		}
 
@@ -183,142 +212,148 @@ void DrawDebugTextBoundingBoxes(
 			continue;
 		}
 
-		if (!layout->local_box.GetSize().IsPositive()) {
+		auto prepared{
+			impl::PrepareTextDraw(GetDrawTransform(entity), box, GetDrawOrigin(entity))
+		};
+
+		if (!prepared.drawable) {
 			continue;
 		}
 
-		auto origin_point{ layout->local_box.GetOriginPoint(GetDrawOrigin(entity)) };
+		auto shape_params = [&] {
+			return ShapeRenderParams{
+				.fill_style = settings.draw_line_width,
+				.origin		= Origin::Center,
+				.camera		= camera,
+				.debug		= true,
+			};
+		};
 
 		auto draw_rect = [&](Rect rect, Color color) {
-			if (!rect.GetSize().IsPositive()) {
+			if (!rect.HasPositiveArea()) {
 				return;
 			}
 
-			auto transform{ GetDrawTransform(entity) };
-			transform.Translate(rect.GetCenter() - origin_point);
+			auto transform{ prepared.transform };
+			transform.Translate(rect.GetCenter());
 
 			scene.ctx().render_queue.DrawShape(
-				transform, Rect{ rect.GetSize() }, color,
-				ShapeRenderParams{
-					.fill_style = settings.draw_line_width,
-					.origin		= Origin::Center,
-					.camera		= camera,
-					.debug		= true,
-				}
+				transform, Rect{ rect.GetSize() }, color, shape_params()
 			);
 		};
 
-		// The layout box moves with the scrolled text.
-		draw_rect(layout->local_box, settings.draw_color);
+		auto draw_line = [&](V2_float start, V2_float end, Color color) {
+			std::array<V2_float, 2> points{
+				start,
+				end,
+			};
 
-		// The explicit clip rectangle represents the fixed viewport.
-		if (auto clip{ entity.TryGet<TextClip>() }; clip && clip->rect.has_value()) {
+			scene.ctx().render_queue.DrawLines(
+				points, color, shape_params(), false, prepared.transform
+			);
+		};
+
+		auto layout_bounds{ layout->GetBounds() };
+
+		if (box.HasArea()) {
+			// Both dimensions are constrained, so draw the complete text box.
+			draw_rect(box.rect, settings.draw_color);
+		} else if (box.HasWidth()) {
+			// Only width is constrained. Draw the two vertical boundaries
+			// where the left and right sides of the text box would be.
+			draw_line(
+				{ box.rect.min.x, layout_bounds.min.y }, { box.rect.min.x, layout_bounds.max.y },
+				settings.draw_color
+			);
+
+			draw_line(
+				{ box.rect.max.x, layout_bounds.min.y }, { box.rect.max.x, layout_bounds.max.y },
+				settings.draw_color
+			);
+		} else if (box.HasHeight()) {
+			// Only height is constrained. Draw the two horizontal boundaries
+			// where the top and bottom sides of the text box would be.
+			draw_line(
+				{ layout_bounds.min.x, box.rect.min.y }, { layout_bounds.max.x, box.rect.min.y },
+				settings.draw_color
+			);
+
+			draw_line(
+				{ layout_bounds.min.x, box.rect.max.y }, { layout_bounds.max.x, box.rect.max.y },
+				settings.draw_color
+			);
+		} else {
+			// Unconstrained text has no explicit box, so show its generated
+			// logical bounds instead.
+			draw_rect(layout_bounds, settings.draw_color);
+		}
+
+		// An explicit clip rectangle always has both dimensions and is local
+		// to the same prepared text transform.
+		if (auto clip{ entity.TryGet<impl::TextClip>() }; clip && clip->rect.has_value()) {
 			draw_rect(clip->rect.value(), settings.clip_draw_color);
 		}
 	}
+}
+
+TextLayout BuildTextLayout(
+	AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
+) {
+	return BuildTextLayout(ResolveStyledText(asset_manager, styled_text), box);
 }
 
 } // namespace impl
 
 void Text::Draw(DrawContext& ctx, Entity entity) {
 	auto& scene{ entity.GetScene() };
-	auto& assets{ scene.ctx().asset };
 
 	if (!entity.Has<StyledText, TextBox>()) {
 		return;
 	}
 
-	auto& styled_text{ entity.Get<StyledText>() };
+	const auto& styled_text{ entity.Get<StyledText>() };
 	const auto& box{ entity.Get<TextBox>() };
 
-	if (styled_text.runs.empty()) {
+	if (!HasVisibleTextContent(styled_text)) {
 		return;
 	}
 
-	if (bool has_content{ std::ranges::any_of(
-			styled_text.runs, [](const TextRun& run) { return !run.text.empty(); }
-		) };
-		!has_content) {
+	UpdateLayout(entity, scene.ctx().asset, styled_text, box);
+
+	const auto& layout{ entity.Get<TextLayout>() };
+
+	std::optional<TextClipConstraint> explicit_clip;
+
+	if (auto clip{ entity.TryGet<impl::TextClip>() }; clip && clip->rect.has_value()) {
+		explicit_clip = TextClipConstraint{
+			.rect = clip->rect.value(),
+			.mode = clip->mode == TextClipMode::None ? TextClipMode::Clip : clip->mode,
+		};
+	}
+
+	auto prepared{
+		impl::PrepareTextDraw(GetDrawTransform(entity), box, GetDrawOrigin(entity), explicit_clip)
+	};
+
+	if (!prepared.drawable) {
 		return;
-	}
-
-	UpdateLayout(entity, assets, styled_text, box);
-
-	auto& layout{ entity.Get<TextLayout>() };
-
-	auto transform{ GetDrawTransform(entity) };
-	if (layout.local_box.GetSize().IsPositive()) {
-		auto origin_point{ layout.local_box.GetOriginPoint(GetDrawOrigin(entity)) };
-		transform.Translate(-origin_point);
-	}
-
-	auto depth{ GetDepth(entity) };
-	auto entity_id{ entity.GetUUID() };
-	auto tint{ GetTint(entity) };
-
-	auto time{ entity.GetScene().ctx().TimeSinceStartSeconds().count() };
-
-	std::optional<Rect> clip_rect{ layout.clip_rect };
-	TextClipMode clip_mode{ layout.clip_mode };
-
-	// TODO: Eventually replace this with two separate clip tests that are passed into BuildVertices
-	// and checked:
-	// bool PassesClip(
-	//	const Glyph& glyph, const TextClipConstraint& clip
-	//) {
-	//	if (!clip.rect.has_value() || clip.mode == TextClipMode::None) {
-	//		return true;
-	//	}
-	//	Rect glyph_rect{ GetGlyphClipTestRect(glyph, clip.mode) };
-	//	return ShouldDrawRectWithClipMode(
-	//		glyph_rect,
-	//		clip.rect.value(),
-	//		clip.mode
-	//	);
-	//}
-	// for (const auto& clip : clips) {
-	//	if (!PassesClip(glyph, clip)) {
-	//		clipped = true;
-	//		break;
-	//	}
-	//}
-	// if (clipped) {
-	//	continue;
-	//}
-
-	if (auto clip{ entity.TryGet<impl::TextClip>() }) {
-		clip_rect = IntersectClipRects(clip_rect, clip->rect);
-		clip_mode = clip->mode;
-
-		if (clip->rect.has_value() && clip_mode == TextClipMode::None) {
-			clip_mode = TextClipMode::Clip;
-		}
-	}
-
-	if (clip_rect.has_value() && !clip_rect->GetSize().IsPositive()) {
-		return;
-	}
-
-	auto reveal_glyph_count{ std::numeric_limits<std::size_t>::max() };
-
-	if (auto reveal{ entity.TryGet<impl::TextReveal>() }) {
-		reveal_glyph_count = reveal->glyph_count;
 	}
 
 	auto effects{ impl::GetEffectParams(entity) };
-	auto blend_mode{ GetBlendMode(entity) };
 
-	ctx.SetBlendMode(blend_mode);
+	ctx.SetBlendMode(GetBlendMode(entity));
+
 	ctx.DrawText(
-		transform,
-		{ .layout			  = layout,
-		  .tint				  = tint,
-		  .depth			  = depth,
-		  .entity_id		  = entity_id,
-		  .clip_rect		  = clip_rect,
-		  .clip_mode		  = clip_mode,
-		  .reveal_glyph_count = reveal_glyph_count,
-		  .time				  = time },
+		prepared.transform,
+		DrawTextRequest{
+			.layout				= layout,
+			.tint				= GetTint(entity),
+			.depth				= GetDepth(entity),
+			.entity_id			= entity.GetUUID(),
+			.clips				= prepared.GetClips(),
+			.reveal_glyph_count = Text{ entity }.GetRevealGlyphCount(),
+			.time				= scene.ctx().TimeSinceStartSeconds().count(),
+		},
 		effects
 	);
 }
@@ -459,6 +494,13 @@ Text& Text::VerticalAlign(ptgn::VerticalAlign align) {
 	return *this;
 }
 
+Text& Text::TabWidth(std::size_t spaces) {
+	PTGN_ASSERT(spaces > 0, "Text tab width must be at least one space");
+	Get<TextBox>().style.tab_width = spaces;
+	InvalidateLayout();
+	return *this;
+}
+
 void Text::ApplyFallbackAlignment(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical) {
 	auto alignment_override{ TryGet<impl::TextAlignmentOverride>() };
 	auto& style{ Get<TextBox>().style };
@@ -484,9 +526,30 @@ void Text::ApplyFallbackAlignment(ptgn::HorizontalAlign horizontal, ptgn::Vertic
 
 Text& Text::ClearAlignment() {
 	Remove<impl::TextAlignmentOverride>();
-	Get<TextBox>().style.horizontal_align = HorizontalAlign::Left;
-	Get<TextBox>().style.vertical_align	  = VerticalAlign::Top;
+
+	auto [horizontal, vertical]{ GetTextAlignment(GetDrawOrigin(*this)) };
+	auto& style{ Get<TextBox>().style };
+	style.horizontal_align = horizontal;
+	style.vertical_align   = vertical;
+
+	InvalidateLayout();
 	return *this;
+}
+
+V2_float Text::GetSize() const {
+	return GetLayout().size;
+}
+
+Rect Text::GetBounds() const {
+	const auto& layout{ GetLayout() };
+	auto bounds{ layout.GetBounds() };
+
+	if (const auto& box{ GetTextBox() }; box.HasBox()) {
+		auto origin_point{ box.rect.GetOriginPoint(GetDrawOrigin(*this)) };
+		return bounds.Translated(-origin_point);
+	}
+
+	return bounds;
 }
 
 Text& Text::Wrap(WrapMode mode) {
@@ -716,22 +779,15 @@ Text& Text::InnerGlow(ptgn::Color color, float width, float softness) {
 Text& Text::ClearSdfEffects() {
 	auto& sdf{ CurrentRun().style.sdf };
 
-	sdf.outline_color	 = color::Black.WithAlpha(0);
-	sdf.outline_width	 = 0.0f;
-	sdf.outline_softness = 1.0f;
+	auto weight{ sdf.weight };
+	auto softness{ sdf.softness };
+	auto pixel_range{ sdf.pixel_range };
 
-	sdf.shadow_color	= color::Black.WithAlpha(0);
-	sdf.shadow_offset	= {};
-	sdf.shadow_width	= 0.0f;
-	sdf.shadow_softness = 1.0f;
+	sdf = {};
 
-	sdf.outer_glow_color	= color::White.WithAlpha(0);
-	sdf.outer_glow_width	= 0.0f;
-	sdf.outer_glow_softness = 1.0f;
-
-	sdf.inner_glow_color	= color::White.WithAlpha(0);
-	sdf.inner_glow_width	= 0.0f;
-	sdf.inner_glow_softness = 1.0f;
+	sdf.weight		= weight;
+	sdf.softness	= softness;
+	sdf.pixel_range = pixel_range;
 
 	InvalidateLayout();
 
@@ -752,27 +808,6 @@ Text& Text::Effect(
 	InvalidateLayout();
 
 	return *this;
-}
-
-V2_float Text::GetSize() const {
-	return GetLayout().measured_size;
-}
-
-Rect Text::GetBounds() const {
-	const auto& layout{ GetLayout() };
-
-	Rect bounds{ layout.bounds };
-
-	if (!layout.local_box.GetSize().IsPositive()) {
-		return bounds;
-	}
-
-	auto origin_point{ layout.local_box.GetOriginPoint(GetDrawOrigin(*this)) };
-
-	bounds.min -= origin_point;
-	bounds.max -= origin_point;
-
-	return bounds;
 }
 
 const TextLayout& Text::GetLayout() const {
@@ -800,15 +835,12 @@ void Text::InvalidateLayout() {
 
 TextMeasurement Text::Measure() const {
 	const auto& layout{ GetLayout() };
-
-	TextMeasurement result;
-	result.size				 = layout.measured_size;
-	result.first_line_height = layout.lines.empty() ? 0.0f : layout.lines.front().size.y;
-	result.line_count		 = layout.lines.size();
-	result.truncated		 = layout.ellipsized || layout.truncated_by_max_lines;
-	result.used_shrink_scale = layout.used_shrink_scale;
-
-	return result;
+	return {
+		.size			   = layout.size,
+		.line_count		   = layout.lines.size(),
+		.truncated		   = layout.truncated,
+		.used_shrink_scale = layout.used_shrink_scale,
+	};
 }
 
 std::size_t Text::GetGlyphCount() const {
@@ -845,11 +877,15 @@ Text CreateText(Scene& scene, Transform transform, Origin draw_origin) {
 	Text text{ scene.CreateEntity() };
 
 	StyledText styled_text;
-
 	styled_text.runs.emplace_back();
 
+	auto [horizontal, vertical] = GetTextAlignment(draw_origin);
+	TextBox box;
+	box.style.horizontal_align = horizontal;
+	box.style.vertical_align   = vertical;
+
 	text.Add<StyledText>(std::move(styled_text));
-	text.Add<TextBox>();
+	text.Add<TextBox>(box);
 	text.Add<impl::TextEditState>(impl::TextEditState{ .current_run_index = 0 });
 
 	SetTransform(text, transform);

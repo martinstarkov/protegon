@@ -38,19 +38,21 @@ struct GlyphRenderStyle {
 
 struct Glyph {
 	std::uint32_t codepoint{ 0 };
+
+	/// @brief Baseline pen position in local text coordinates.
 	V2_float position;
+
 	Rect plane;
 	Rect uv;
 	impl::TextureId texture{ 0 };
 
 	std::size_t source_run_index{ 0 };
 	std::size_t source_codepoint_index{ 0 };
-	std::size_t line_index{ 0 };
 	std::size_t visible_order{ 0 };
 
 	GlyphRenderStyle render_style;
-	bool visible{ true };
 
+	/// @brief Logical cursor advance excluding spacing before the glyph.
 	float advance{ 0.0f };
 };
 

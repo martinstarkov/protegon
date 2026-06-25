@@ -1,16 +1,20 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <span>
 #include <utility>
 #include <vector>
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/tolerance.h"
+#include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "renderer/pipeline/render_primitives.h"
@@ -47,10 +51,13 @@ PTGN_SERIALIZE_ENUM(WrapMode)
 
 enum class OverflowMode : std::uint8_t {
 	Overflow,
-	/// @brief Hide any glyph not fully inside the rect.
+
+	/// @brief Draw a line only when its complete logical bounds are inside the text box.
 	Clip,
-	/// @brief Hide glyphs only when fully outside the rect.
+
+	/// @brief Draw a line when any part of its logical bounds intersects the text box.
 	ClipPartial,
+
 	Ellipsis,
 	ScaleToFit,
 };
@@ -99,6 +106,10 @@ struct TextLayoutStyle {
 	/// entire word is moved to the next line instead.
 	bool require_three_letter_remainder{ true };
 
+	/// @brief Number of space columns between tab stops.
+	/// A tab advances to the next multiple of this many spaces.
+	std::size_t tab_width{ 4 };
+
 	std::size_t max_lines{ 0 };
 
 	ShrinkScale shrink_scale;
@@ -108,7 +119,8 @@ struct TextLayoutStyle {
 	PTGN_SERIALIZE(
 		TextLayoutStyle, horizontal_align, vertical_align, wrap_mode, overflow_mode,
 		collapse_spaces, justify_last_line, allow_word_break_in_overflow, insert_hyphen_on_split,
-		prevent_single_letter_split, require_three_letter_remainder, max_lines, shrink_scale
+		prevent_single_letter_split, require_three_letter_remainder, tab_width, max_lines,
+		shrink_scale
 	)
 };
 
@@ -116,40 +128,25 @@ struct TextBox {
 	Rect rect;
 	TextLayoutStyle style;
 
+	constexpr bool HasWidth() const {
+		return rect.GetSize().x > 0.0f;
+	}
+
+	constexpr bool HasHeight() const {
+		return rect.GetSize().y > 0.0f;
+	}
+
+	constexpr bool HasBox() const {
+		return HasWidth() || HasHeight();
+	}
+
+	constexpr bool HasArea() const {
+		return HasWidth() && HasHeight();
+	}
+
 	constexpr bool operator==(const TextBox&) const = default;
 
 	PTGN_SERIALIZE(TextBox, rect, style)
-};
-
-struct LineLayout {
-	std::size_t glyph_begin{ 0 };
-	std::size_t glyph_end{ 0 };
-
-	V2_float size;
-
-	/// @brief Represents the entire line layout cell, including line spacing.
-	Rect bounds;
-
-	/// Logical vertical bounds shared by every glyph on the line.
-	///
-	/// These use the greatest ascent and descent of all runs participating
-	/// in the line, but do not include additional line spacing.
-	float logical_top{ 0.0f };
-	float logical_bottom{ 0.0f };
-
-	constexpr bool operator==(const LineLayout& o) const {
-		return bounds == o.bounds && glyph_begin == o.glyph_begin && glyph_end == o.glyph_end &&
-			   size == o.size && NearlyEqual(logical_top, o.logical_top) &&
-			   NearlyEqual(logical_bottom, o.logical_bottom);
-	}
-};
-
-struct TextMeasurement {
-	V2_float size;
-	float first_line_height{ 0.0f };
-	std::size_t line_count{ 0 };
-	bool truncated{ false };
-	float used_shrink_scale{ 1.0f };
 };
 
 struct TextBatchStyle {
@@ -168,85 +165,117 @@ struct TextDecoration {
 	TextDecorationType type{ TextDecorationType::Underline };
 	Rect rect;
 	Color color{ color::White };
-
 	std::size_t source_run_index{ 0 };
-	std::size_t line_index{ 0 };
-
-	bool visible{ true };
 };
 
-enum class TextClipMode : std::uint8_t {
-	None,
-	Clip,
-	ClipPartial,
-};
-PTGN_SERIALIZE_ENUM(TextClipMode)
-
-struct TextLayout {
+struct LineLayout {
 	std::vector<Glyph> glyphs;
 	std::vector<TextDecoration> decorations;
-	std::vector<LineLayout> lines;
 
-	/// @brief One style per StyledText run. Glyph::source_run_index indexes this.
-	std::vector<TextBatchStyle> batch_styles;
+	/// @brief Logical line size. The height includes the selected line spacing.
+	V2_float size;
 
-	/// Final logical size of the laid out content.
-	V2_float measured_size;
-
-	/// Final positioned logical bounds of the laid out content.
+	/// @brief Logical line cell after horizontal and vertical alignment.
 	Rect bounds;
 
+	float baseline{ 0.0f };
+
+	/// @brief True for a line ended by an explicit newline or by the end of the text.
+	/// False for a line produced by automatic wrapping.
+	bool paragraph_end{ false };
+
+	constexpr std::size_t GetGlyphCount() const {
+		return glyphs.size();
+	}
+};
+
+struct TextMeasurement {
+	V2_float size;
+	std::size_t line_count{ 0 };
+	bool truncated{ false };
 	float used_shrink_scale{ 1.0f };
+};
 
-	/// True when at least one automatic soft wrap occurred.
+struct TextLayout {
+	std::vector<LineLayout> lines;
+
+	/// @brief One style per StyledText run. Glyph::source_run_index indexes this array.
+	std::vector<TextBatchStyle> batch_styles;
+
+	/// @brief Final logical size after wrapping, max-line handling, ellipsis, and justification.
+	V2_float size;
+
+	float used_shrink_scale{ 1.0f };
 	bool wrapped{ false };
+	bool truncated{ false };
 
-	/// True when the complete source text fit without truncation or clipping.
-	bool fits{ true };
-
-	/// True when the layout overflow clipping is enabled.
-	bool uses_clipping{ false };
-
-	bool ellipsized{ false };
-	bool truncated_by_max_lines{ false };
-
-	std::optional<Rect> clip_rect;
-	TextClipMode clip_mode{ TextClipMode::None };
-
-	/// Rectangle used when applying the entity's draw origin.
-	///
-	/// This is the explicit TextBox rectangle when one exists, otherwise
-	/// it is the automatically calculated content bounds.
-	Rect local_box;
+	/// @brief Number of non-newline source characters after optional whitespace collapsing.
+	/// This deliberately excludes synthetic ellipsis and hyphen glyphs.
+	std::size_t source_glyph_count{ 0 };
 
 	std::size_t hash{ 0 };
-
-	constexpr bool IsTruncated() const {
-		return ellipsized || truncated_by_max_lines;
-	}
 
 	constexpr const LineLayout& GetLine(std::size_t index) const {
 		PTGN_ASSERT(
 			index < lines.size(), "Text line index out of range: ", index,
 			", line count: ", lines.size()
 		);
-
 		return lines[index];
 	}
 
+	constexpr float GetLineHeight(std::size_t index = 0) const {
+		if (index >= lines.size()) {
+			return 0.0f;
+		}
+		return GetLine(index).size.y;
+	}
+
+	Rect GetBounds() const {
+		if (lines.empty()) {
+			return {};
+		}
+
+		Rect bounds{ lines.front().bounds };
+
+		for (auto i{ 1uz }; i < lines.size(); ++i) {
+			bounds.min = Min(bounds.min, lines[i].bounds.min);
+			bounds.max = Max(bounds.max, lines[i].bounds.max);
+		}
+
+		return bounds;
+	}
+
 	constexpr std::size_t GetGlyphCount() const {
-		return glyphs.size();
+		return source_glyph_count;
 	}
 
 	constexpr std::size_t GetLineCount() const {
 		return lines.size();
 	}
 
-	constexpr std::size_t GetVisibleGlyphCount() const {
-		return static_cast<std::size_t>(std::ranges::count_if(glyphs, [](const Glyph& glyph) {
-			return glyph.visible;
-		}));
+	std::size_t GetVisibleGlyphCount() const {
+		std::size_t count{ 0 };
+		for (const auto& line : lines) {
+			count += line.glyphs.size();
+		}
+		return count;
 	}
+};
+
+enum class TextClipMode : std::uint8_t {
+	None,
+
+	/// @brief Keep only lines completely contained by the clip rectangle.
+	Clip,
+
+	/// @brief Keep lines that intersect the clip rectangle, including partial intersections.
+	ClipPartial,
+};
+PTGN_SERIALIZE_ENUM(TextClipMode)
+
+struct TextClipConstraint {
+	Rect rect;
+	TextClipMode mode{ TextClipMode::Clip };
 };
 
 struct DrawTextRequest {
@@ -254,8 +283,7 @@ struct DrawTextRequest {
 	Color tint{ color::White };
 	Depth depth;
 	int entity_id{ -1 };
-	std::optional<Rect> clip_rect;
-	TextClipMode clip_mode;
+	std::span<const TextClipConstraint> clips;
 	std::size_t reveal_glyph_count{ std::numeric_limits<std::size_t>::max() };
 	float time{ 0.0f };
 };
@@ -281,6 +309,19 @@ struct TextClip {
 	PTGN_SERIALIZE(TextClip, rect, mode)
 };
 
+struct PreparedTextDraw {
+	Transform transform;
+
+	std::array<TextClipConstraint, 2> clips;
+	std::size_t clip_count{ 0 };
+
+	bool drawable{ true };
+
+	std::span<const TextClipConstraint> GetClips() const {
+		return { clips.data(), clip_count };
+	}
+};
+
 [[nodiscard]] TextLayout BuildTextLayout(const ResolvedStyledText& styled_text, const TextBox& box);
 
 [[nodiscard]] TextMeasurement MeasureText(
@@ -289,9 +330,14 @@ struct TextClip {
 
 std::vector<UniformWrite> GetTextUniforms(const DistanceFieldStyle& sdf, bool is_decoration);
 
-std::vector<TextDrawBatch> BuildTextDrawBatches(const ptgn::DrawTextRequest& request);
+std::vector<TextDrawBatch> BuildTextDrawBatches(const DrawTextRequest& request);
 
 [[nodiscard]] bool TextLayoutFitsInBox(const TextLayout& layout, Rect box);
+
+[[nodiscard]] PreparedTextDraw PrepareTextDraw(
+	Transform transform, const TextBox& box, Origin origin,
+	std::optional<TextClipConstraint> explicit_clip = std::nullopt
+);
 
 } // namespace impl
 
@@ -310,13 +356,10 @@ struct std::hash<ptgn::TextLayoutStyle> {
 		return ptgn::Hash(
 			std::to_underlying(style.horizontal_align), std::to_underlying(style.vertical_align),
 			std::to_underlying(style.wrap_mode), std::to_underlying(style.overflow_mode),
-
 			style.collapse_spaces, style.justify_last_line, style.allow_word_break_in_overflow,
-
 			style.insert_hyphen_on_split, style.prevent_single_letter_split,
-			style.require_three_letter_remainder,
-
-			style.max_lines, style.shrink_scale
+			style.require_three_letter_remainder, style.tab_width, style.max_lines,
+			style.shrink_scale
 		);
 	}
 };
