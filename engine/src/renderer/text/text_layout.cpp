@@ -1460,18 +1460,17 @@ bool TextLayoutFitsInBox(const TextLayout& layout, Rect box) {
 }
 
 PreparedTextDraw PrepareTextDraw(
-	Transform transform, const TextBox& box, Origin origin,
+	Transform transform, const TextLayout& layout, const TextBox& box, Origin origin,
 	std::optional<TextClipConstraint> explicit_clip
 ) {
 	PreparedTextDraw result;
 	result.transform = transform;
 
-	// Boxless text is already anchored around local zero by its horizontal
-	// and vertical alignment. A boxed text layout uses the selected point
-	// of the box as the transform origin.
-	if (box.HasBox()) {
-		result.transform.Translate(-box.rect.GetOriginPoint(origin));
-	}
+	// An explicit text box is the positioning reference. For unboxed text,
+	// the generated logical bounds act as the implicit text box.
+	Rect origin_rect{ box.HasBox() ? box.rect : layout.GetBounds() };
+
+	result.transform.Translate(-origin_rect.GetOriginPoint(origin));
 
 	auto add_clip = [&](Rect rect, TextClipMode mode) {
 		if (mode == TextClipMode::None) {
@@ -1489,6 +1488,7 @@ PreparedTextDraw PrepareTextDraw(
 			.rect = rect,
 			.mode = mode,
 		};
+
 		++result.clip_count;
 	};
 

@@ -129,15 +129,15 @@ std::optional<Rect> IntersectClipRects(std::optional<Rect> a, std::optional<Rect
 std::pair<HorizontalAlign, VerticalAlign> GetTextAlignment(Origin origin) {
 	switch (origin) {
 		using enum Origin;
+		case Center:	   return { HorizontalAlign::Center, VerticalAlign::Center };
 		case TopLeft:	   return { HorizontalAlign::Left, VerticalAlign::Top };
+		case BottomLeft:   return { HorizontalAlign::Left, VerticalAlign::Bottom };
 		case CenterTop:	   return { HorizontalAlign::Center, VerticalAlign::Top };
+		case CenterLeft:   return { HorizontalAlign::Left, VerticalAlign::Center };
 		case TopRight:	   return { HorizontalAlign::Right, VerticalAlign::Top };
 		case CenterRight:  return { HorizontalAlign::Right, VerticalAlign::Center };
 		case BottomRight:  return { HorizontalAlign::Right, VerticalAlign::Bottom };
 		case CenterBottom: return { HorizontalAlign::Center, VerticalAlign::Bottom };
-		case BottomLeft:   return { HorizontalAlign::Left, VerticalAlign::Bottom };
-		case CenterLeft:   return { HorizontalAlign::Left, VerticalAlign::Center };
-		case Center:	   return { HorizontalAlign::Center, VerticalAlign::Center };
 		default:		   PTGN_ERROR("Unknown Origin: ", std::to_underlying(origin));
 	}
 }
@@ -213,7 +213,7 @@ void DrawDebugTextBoundingBoxes(
 		}
 
 		auto prepared{
-			impl::PrepareTextDraw(GetDrawTransform(entity), box, GetDrawOrigin(entity))
+			impl::PrepareTextDraw(GetDrawTransform(entity), *layout, box, GetDrawOrigin(entity))
 		};
 
 		if (!prepared.drawable) {
@@ -331,9 +331,9 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 		};
 	}
 
-	auto prepared{
-		impl::PrepareTextDraw(GetDrawTransform(entity), box, GetDrawOrigin(entity), explicit_clip)
-	};
+	auto prepared{ impl::PrepareTextDraw(
+		GetDrawTransform(entity), layout, box, GetDrawOrigin(entity), explicit_clip
+	) };
 
 	if (!prepared.drawable) {
 		return;

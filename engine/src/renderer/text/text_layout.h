@@ -335,7 +335,7 @@ std::vector<TextDrawBatch> BuildTextDrawBatches(const DrawTextRequest& request);
 [[nodiscard]] bool TextLayoutFitsInBox(const TextLayout& layout, Rect box);
 
 [[nodiscard]] PreparedTextDraw PrepareTextDraw(
-	Transform transform, const TextBox& box, Origin origin,
+	Transform transform, const TextLayout& layout, const TextBox& box, Origin origin,
 	std::optional<TextClipConstraint> explicit_clip = std::nullopt
 );
 

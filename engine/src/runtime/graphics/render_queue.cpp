@@ -185,7 +185,7 @@ void RenderQueue::DrawText(
 
 	auto layout{ impl::BuildTextLayout(ctx.asset, styled_text, text_box) };
 
-	auto prepared{ impl::PrepareTextDraw(transform, text_box, params.origin) };
+	auto prepared{ impl::PrepareTextDraw(transform, layout, text_box, params.origin) };
 
 	if (!prepared.drawable) {
 		return;
