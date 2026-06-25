@@ -306,7 +306,8 @@ struct std::hash<ptgn::Vector4<T>> {
 				ptgn::QuantizeSigned(v.x), ptgn::QuantizeSigned(v.y), ptgn::QuantizeSigned(v.z),
 				ptgn::QuantizeSigned(v.w)
 			);
+		} else {
+			return ptgn::Hash(v.x, v.y, v.z, v.w);
 		}
-		return ptgn::Hash(v.x, v.y, v.z, v.w);
 	}
 };

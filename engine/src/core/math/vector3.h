@@ -289,7 +289,8 @@ struct std::hash<ptgn::Vector3<T>> {
 			return ptgn::Hash(
 				ptgn::QuantizeSigned(v.x), ptgn::QuantizeSigned(v.y), ptgn::QuantizeSigned(v.z)
 			);
+		} else {
+			return ptgn::Hash(v.x, v.y, v.z);
 		}
-		return ptgn::Hash(v.x, v.y, v.z);
 	}
 };

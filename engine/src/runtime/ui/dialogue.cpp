@@ -245,10 +245,10 @@ TextBox DialoguePageProperties::ToTextBox() const {
 	TextBox box;
 	box.rect = TextAreaRect();
 
-	box.style.horizontal_align = horizontal_align;
-	box.style.vertical_align   = vertical_align;
-	box.style.wrap_mode		   = wrap_mode;
-	box.style.overflow_mode	   = overflow_mode;
+	box.style.alignment.horizontal = horizontal_align;
+	box.style.alignment.vertical   = vertical_align;
+	box.style.wrap.mode			   = wrap_mode;
+	box.style.overflow			   = overflow_mode;
 
 	return box;
 }
