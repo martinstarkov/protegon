@@ -3,6 +3,7 @@
 #include <ecs/ecs.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
 #include <functional>
@@ -15,7 +16,6 @@
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
-#include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
@@ -73,7 +73,7 @@ bool FitsTextPage(
 ) {
 	auto styled_text{ ResolveStyledText(asset_manager, text_run) };
 
-	box.style.overflow_mode = OverflowMode::Overflow;
+	box.style.overflow = OverflowMode::Overflow;
 
 	auto layout{ impl::BuildTextLayout(styled_text, box) };
 
@@ -124,22 +124,6 @@ std::optional<Rect> IntersectClipRects(std::optional<Rect> a, std::optional<Rect
 	}
 
 	return result;
-}
-
-std::pair<HorizontalAlign, VerticalAlign> GetTextAlignment(Origin origin) {
-	switch (origin) {
-		using enum Origin;
-		case Center:	   return { HorizontalAlign::Center, VerticalAlign::Center };
-		case TopLeft:	   return { HorizontalAlign::Left, VerticalAlign::Top };
-		case BottomLeft:   return { HorizontalAlign::Left, VerticalAlign::Bottom };
-		case CenterTop:	   return { HorizontalAlign::Center, VerticalAlign::Top };
-		case CenterLeft:   return { HorizontalAlign::Left, VerticalAlign::Center };
-		case TopRight:	   return { HorizontalAlign::Right, VerticalAlign::Top };
-		case CenterRight:  return { HorizontalAlign::Right, VerticalAlign::Center };
-		case BottomRight:  return { HorizontalAlign::Right, VerticalAlign::Bottom };
-		case CenterBottom: return { HorizontalAlign::Center, VerticalAlign::Bottom };
-		default:		   PTGN_ERROR("Unknown Origin: ", std::to_underlying(origin));
-	}
 }
 
 V2_float GetTextOriginPoint(Entity entity, const TextLayout& layout, const TextBox& box) {
@@ -464,8 +448,8 @@ Text& Text::RevealAll() {
 Text& Text::Align(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical) {
 	auto& style{ Get<TextBox>().style };
 
-	style.horizontal_align = horizontal;
-	style.vertical_align   = vertical;
+	style.alignment.horizontal = horizontal;
+	style.alignment.vertical   = vertical;
 
 	auto& alignment_override{ TryAdd<impl::TextAlignmentOverride>() };
 	alignment_override.horizontal = true;
@@ -477,7 +461,7 @@ Text& Text::Align(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical
 }
 
 Text& Text::HorizontalAlign(ptgn::HorizontalAlign align) {
-	Get<TextBox>().style.horizontal_align			 = align;
+	Get<TextBox>().style.alignment.horizontal		 = align;
 	TryAdd<impl::TextAlignmentOverride>().horizontal = true;
 
 	InvalidateLayout();
@@ -486,7 +470,7 @@ Text& Text::HorizontalAlign(ptgn::HorizontalAlign align) {
 }
 
 Text& Text::VerticalAlign(ptgn::VerticalAlign align) {
-	Get<TextBox>().style.vertical_align			   = align;
+	Get<TextBox>().style.alignment.vertical		   = align;
 	TryAdd<impl::TextAlignmentOverride>().vertical = true;
 
 	InvalidateLayout();
@@ -508,15 +492,15 @@ void Text::ApplyFallbackAlignment(ptgn::HorizontalAlign horizontal, ptgn::Vertic
 	bool changed{ false };
 
 	if ((!alignment_override || !alignment_override->horizontal) &&
-		style.horizontal_align != horizontal) {
-		style.horizontal_align = horizontal;
-		changed				   = true;
+		style.alignment.horizontal != horizontal) {
+		style.alignment.horizontal = horizontal;
+		changed					   = true;
 	}
 
 	if ((!alignment_override || !alignment_override->vertical) &&
-		style.vertical_align != vertical) {
-		style.vertical_align = vertical;
-		changed				 = true;
+		style.alignment.vertical != vertical) {
+		style.alignment.vertical = vertical;
+		changed					 = true;
 	}
 
 	if (changed) {
@@ -527,10 +511,8 @@ void Text::ApplyFallbackAlignment(ptgn::HorizontalAlign horizontal, ptgn::Vertic
 Text& Text::ClearAlignment() {
 	Remove<impl::TextAlignmentOverride>();
 
-	auto [horizontal, vertical]{ GetTextAlignment(GetDrawOrigin(*this)) };
 	auto& style{ Get<TextBox>().style };
-	style.horizontal_align = horizontal;
-	style.vertical_align   = vertical;
+	style.alignment = GetAlignment(GetDrawOrigin(*this));
 
 	InvalidateLayout();
 	return *this;
@@ -553,13 +535,13 @@ Rect Text::GetBounds() const {
 }
 
 Text& Text::Wrap(WrapMode mode) {
-	Get<TextBox>().style.wrap_mode = mode;
+	Get<TextBox>().style.wrap.mode = mode;
 	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::Overflow(OverflowMode mode) {
-	Get<TextBox>().style.overflow_mode = mode;
+	Get<TextBox>().style.overflow = mode;
 	InvalidateLayout();
 	return *this;
 }
@@ -590,25 +572,25 @@ Text& Text::JustifyLastLine(bool justify) {
 }
 
 Text& Text::AllowWordBreakInOverflow(bool allow) {
-	Get<TextBox>().style.allow_word_break_in_overflow = allow;
+	Get<TextBox>().style.wrap.allow_word_break_in_overflow = allow;
 	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::InsertHyphenOnSplit(bool insert) {
-	Get<TextBox>().style.insert_hyphen_on_split = insert;
+	Get<TextBox>().style.wrap.insert_hyphen_on_split = insert;
 	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::PreventSingleLetterSplit(bool prevent) {
-	Get<TextBox>().style.prevent_single_letter_split = prevent;
+	Get<TextBox>().style.wrap.prevent_single_letter_split = prevent;
 	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::RequireThreeLetterRemainder(bool require) {
-	Get<TextBox>().style.require_three_letter_remainder = require;
+	Get<TextBox>().style.wrap.require_three_letter_remainder = require;
 	InvalidateLayout();
 	return *this;
 }
@@ -630,7 +612,7 @@ Text& Text::ScaleToFit(float min_scale, float max_scale) {
 
 	auto& style{ Get<TextBox>().style };
 
-	style.overflow_mode	   = OverflowMode::ScaleToFit;
+	style.overflow		   = OverflowMode::ScaleToFit;
 	style.shrink_scale.min = min_scale;
 	style.shrink_scale.max = max_scale;
 
@@ -684,9 +666,8 @@ Text& Text::Style(FontStyle flags) {
 Text& Text::Bold(bool enabled, float weight) {
 	auto& style{ CurrentRun().style };
 
-	style.flags				   = SetFlag(style.flags, FontStyle::Bold, enabled);
-	style.fake_bold_if_missing = enabled;
-	style.fake_bold_weight	   = weight;
+	style.flags		  = SetFlag(style.flags, FontStyle::Bold, enabled);
+	style.bold_weight = weight;
 
 	InvalidateLayout();
 
@@ -726,9 +707,7 @@ Text& Text::Strikethrough(bool enabled) {
 Text& Text::Outline(ptgn::Color color, float width, float softness) {
 	auto& sdf{ CurrentRun().style.sdf };
 
-	sdf.outline_color	 = color;
-	sdf.outline_width	 = width;
-	sdf.outline_softness = softness;
+	sdf.outline = { .color = color, .width = width, .softness = softness };
 
 	InvalidateLayout();
 
@@ -742,10 +721,8 @@ Text& Text::Shadow(ptgn::Color color, V2_float offset, float softness) {
 Text& Text::Shadow(ptgn::Color color, V2_float offset, float width, float softness) {
 	auto& sdf{ CurrentRun().style.sdf };
 
-	sdf.shadow_color	= color;
-	sdf.shadow_offset	= offset;
-	sdf.shadow_width	= width;
-	sdf.shadow_softness = softness;
+	sdf.shadow		  = { .color = color, .width = width, .softness = softness };
+	sdf.shadow_offset = offset;
 
 	InvalidateLayout();
 
@@ -755,9 +732,7 @@ Text& Text::Shadow(ptgn::Color color, V2_float offset, float width, float softne
 Text& Text::OuterGlow(ptgn::Color color, float width, float softness) {
 	auto& sdf{ CurrentRun().style.sdf };
 
-	sdf.outer_glow_color	= color;
-	sdf.outer_glow_width	= width;
-	sdf.outer_glow_softness = softness;
+	sdf.outer_glow = { .color = color, .width = width, .softness = softness };
 
 	InvalidateLayout();
 
@@ -767,9 +742,7 @@ Text& Text::OuterGlow(ptgn::Color color, float width, float softness) {
 Text& Text::InnerGlow(ptgn::Color color, float width, float softness) {
 	auto& sdf{ CurrentRun().style.sdf };
 
-	sdf.inner_glow_color	= color;
-	sdf.inner_glow_width	= width;
-	sdf.inner_glow_softness = softness;
+	sdf.inner_glow = { .color = color, .width = width, .softness = softness };
 
 	InvalidateLayout();
 
@@ -777,17 +750,7 @@ Text& Text::InnerGlow(ptgn::Color color, float width, float softness) {
 }
 
 Text& Text::ClearSdfEffects() {
-	auto& sdf{ CurrentRun().style.sdf };
-
-	auto weight{ sdf.weight };
-	auto softness{ sdf.softness };
-	auto pixel_range{ sdf.pixel_range };
-
-	sdf = {};
-
-	sdf.weight		= weight;
-	sdf.softness	= softness;
-	sdf.pixel_range = pixel_range;
+	CurrentRun().style.sdf = {};
 
 	InvalidateLayout();
 
@@ -879,14 +842,9 @@ Text CreateText(Scene& scene, Transform transform, Origin draw_origin) {
 	StyledText styled_text;
 	styled_text.runs.emplace_back();
 
-	auto [horizontal, vertical] = GetTextAlignment(draw_origin);
-	TextBox box;
-	box.style.horizontal_align = horizontal;
-	box.style.vertical_align   = vertical;
-
 	text.Add<StyledText>(std::move(styled_text));
-	text.Add<TextBox>(box);
-	text.Add<impl::TextEditState>(impl::TextEditState{ .current_run_index = 0 });
+	text.Add<TextBox>(TextBox{ .style = { .alignment{ GetAlignment(draw_origin) } } });
+	text.Add<impl::TextEditState>();
 
 	SetTransform(text, transform);
 	SetDrawOrigin(text, draw_origin);

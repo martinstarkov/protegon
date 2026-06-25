@@ -11,6 +11,7 @@
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/tolerance.h"
@@ -42,12 +43,30 @@ enum class VerticalAlign : std::uint8_t {
 };
 PTGN_SERIALIZE_ENUM(VerticalAlign)
 
-enum class WrapMode : std::uint8_t {
-	None,
-	Word,
-	Character,
+struct Alignment {
+	HorizontalAlign horizontal{ HorizontalAlign::Left };
+	VerticalAlign vertical{ VerticalAlign::Top };
+
+	constexpr bool operator==(const Alignment&) const = default;
+
+	PTGN_SERIALIZE(Alignment, horizontal, vertical)
 };
-PTGN_SERIALIZE_ENUM(WrapMode)
+
+constexpr Alignment GetAlignment(Origin origin) {
+	switch (origin) {
+		using enum Origin;
+		case Center:	   return { HorizontalAlign::Center, VerticalAlign::Center };
+		case TopLeft:	   return { HorizontalAlign::Left, VerticalAlign::Top };
+		case BottomLeft:   return { HorizontalAlign::Left, VerticalAlign::Bottom };
+		case CenterTop:	   return { HorizontalAlign::Center, VerticalAlign::Top };
+		case CenterLeft:   return { HorizontalAlign::Left, VerticalAlign::Center };
+		case TopRight:	   return { HorizontalAlign::Right, VerticalAlign::Top };
+		case CenterRight:  return { HorizontalAlign::Right, VerticalAlign::Center };
+		case BottomRight:  return { HorizontalAlign::Right, VerticalAlign::Bottom };
+		case CenterBottom: return { HorizontalAlign::Center, VerticalAlign::Bottom };
+		default:		   PTGN_ERROR("Unknown Origin: ", std::to_underlying(origin));
+	}
+}
 
 enum class OverflowMode : std::uint8_t {
 	Overflow,
@@ -74,17 +93,15 @@ struct ShrinkScale {
 	PTGN_SERIALIZE(ShrinkScale, min, max)
 };
 
-struct TextLayoutStyle {
-	HorizontalAlign horizontal_align{ HorizontalAlign::Left };
-	VerticalAlign vertical_align{ VerticalAlign::Top };
-	WrapMode wrap_mode{ WrapMode::None };
-	OverflowMode overflow_mode{ OverflowMode::Overflow };
+enum class WrapMode : std::uint8_t {
+	None,
+	Word,
+	Character,
+};
+PTGN_SERIALIZE_ENUM(WrapMode)
 
-	/// @brief If true, consecutive whitespace characters will be collapsed into a single space.
-	bool collapse_spaces{ false };
-
-	/// @brief If true, the last line of text will be justified to fill the width of the box.
-	bool justify_last_line{ false };
+struct WrapSettings {
+	WrapMode mode{ WrapMode::None };
 
 	/// @brief Only used by WrapMode::Word.
 	/// If true, move the word to a new line, then split it across lines if it cannot fit on an
@@ -106,6 +123,27 @@ struct TextLayoutStyle {
 	/// entire word is moved to the next line instead.
 	bool require_three_letter_remainder{ true };
 
+	constexpr bool operator==(const WrapSettings& o) const = default;
+
+	PTGN_SERIALIZE(
+		WrapSettings, mode, allow_word_break_in_overflow, insert_hyphen_on_split,
+		prevent_single_letter_split, require_three_letter_remainder
+	)
+};
+
+struct TextLayoutStyle {
+	Alignment alignment;
+
+	/// @brief If true, the last line of text will be justified to fill the width of the box.
+	bool justify_last_line{ false };
+
+	OverflowMode overflow{ OverflowMode::Overflow };
+
+	WrapSettings wrap;
+
+	/// @brief If true, consecutive whitespace characters will be collapsed into a single space.
+	bool collapse_spaces{ false };
+
 	/// @brief Number of space columns between tab stops.
 	/// A tab advances to the next multiple of this many spaces.
 	std::size_t tab_width{ 4 };
@@ -117,10 +155,8 @@ struct TextLayoutStyle {
 	constexpr bool operator==(const TextLayoutStyle&) const = default;
 
 	PTGN_SERIALIZE(
-		TextLayoutStyle, horizontal_align, vertical_align, wrap_mode, overflow_mode,
-		collapse_spaces, justify_last_line, allow_word_break_in_overflow, insert_hyphen_on_split,
-		prevent_single_letter_split, require_three_letter_remainder, tab_width, max_lines,
-		shrink_scale
+		TextLayoutStyle, alignment, wrap, overflow, collapse_spaces, justify_last_line, tab_width,
+		max_lines, shrink_scale
 	)
 };
 
@@ -178,6 +214,8 @@ struct LineLayout {
 	/// @brief Logical line cell after horizontal and vertical alignment.
 	Rect bounds;
 
+	/// @brief The baseline offset from the top of the line. This is the distance from the top of
+	/// the line to the baseline of the first glyph in the line.
 	float baseline{ 0.0f };
 
 	/// @brief True for a line ended by an explicit newline or by the end of the text.
@@ -351,15 +389,31 @@ struct std::hash<ptgn::ShrinkScale> {
 };
 
 template <>
+struct std::hash<ptgn::Alignment> {
+	std::size_t operator()(const ptgn::Alignment& alignment) const {
+		return ptgn::Hash(
+			std::to_underlying(alignment.horizontal), std::to_underlying(alignment.vertical)
+		);
+	}
+};
+
+template <>
+struct std::hash<ptgn::WrapSettings> {
+	std::size_t operator()(const ptgn::WrapSettings& wrap) const {
+		return ptgn::Hash(
+			std::to_underlying(wrap.mode), wrap.allow_word_break_in_overflow,
+			wrap.insert_hyphen_on_split, wrap.prevent_single_letter_split,
+			wrap.require_three_letter_remainder
+		);
+	}
+};
+
+template <>
 struct std::hash<ptgn::TextLayoutStyle> {
 	std::size_t operator()(const ptgn::TextLayoutStyle& style) const {
 		return ptgn::Hash(
-			std::to_underlying(style.horizontal_align), std::to_underlying(style.vertical_align),
-			std::to_underlying(style.wrap_mode), std::to_underlying(style.overflow_mode),
-			style.collapse_spaces, style.justify_last_line, style.allow_word_break_in_overflow,
-			style.insert_hyphen_on_split, style.prevent_single_letter_split,
-			style.require_three_letter_remainder, style.tab_width, style.max_lines,
-			style.shrink_scale
+			style.alignment, style.wrap, std::to_underlying(style.overflow), style.collapse_spaces,
+			style.justify_last_line, style.tab_width, style.max_lines, style.shrink_scale
 		);
 	}
 };

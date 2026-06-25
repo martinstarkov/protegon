@@ -1,7 +1,6 @@
 #pragma once
 
 #include <initializer_list>
-#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -33,58 +32,49 @@ class FontAtlas;
 
 inline constexpr float kDefaultBoldWeight{ 0.04f };
 
+struct DistanceFieldLayerStyle {
+	Color color{ color::Transparent };
+	float width{ 0.0f };
+	float softness{ 1.0f };
+
+	constexpr bool operator==(const DistanceFieldLayerStyle& o) const {
+		return color == o.color && NearlyEqual(width, o.width) && NearlyEqual(softness, o.softness);
+	}
+
+	PTGN_SERIALIZE(DistanceFieldLayerStyle, color, width, softness)
+};
+
 struct DistanceFieldStyle {
 	float weight{ 0.5f };
 	float softness{ 1.0f };
 
-	Color outline_color{ color::Black.WithAlpha(0) };
-	float outline_width{ 0.0f };
-	float outline_softness{ 1.0f };
+	DistanceFieldLayerStyle outline;
 
-	Color shadow_color{ color::Black.WithAlpha(0) };
+	DistanceFieldLayerStyle shadow;
 	V2_float shadow_offset;
-	float shadow_width{ 0.0f };
-	float shadow_softness{ 1.0f };
 
-	Color outer_glow_color{ color::White.WithAlpha(0) };
-	float outer_glow_width{ 0.0f };
-	float outer_glow_softness{ 1.0f };
-
-	Color inner_glow_color{ color::White.WithAlpha(0) };
-	float inner_glow_width{ 0.0f };
-	float inner_glow_softness{ 1.0f };
+	DistanceFieldLayerStyle outer_glow;
+	DistanceFieldLayerStyle inner_glow;
 
 	float pixel_range{ 0.0f };
 
 	constexpr bool operator==(const DistanceFieldStyle& o) const {
 		return NearlyEqual(weight, o.weight) && NearlyEqual(softness, o.softness) &&
-			   outline_color == o.outline_color && NearlyEqual(outline_width, o.outline_width) &&
-			   NearlyEqual(outline_softness, o.outline_softness) &&
-			   shadow_color == o.shadow_color && shadow_offset == o.shadow_offset &&
-			   NearlyEqual(shadow_width, o.shadow_width) &&
-			   NearlyEqual(shadow_softness, o.shadow_softness) &&
-			   outer_glow_color == o.outer_glow_color &&
-			   NearlyEqual(outer_glow_width, o.outer_glow_width) &&
-			   NearlyEqual(outer_glow_softness, o.outer_glow_softness) &&
-			   inner_glow_color == o.inner_glow_color &&
-			   NearlyEqual(inner_glow_width, o.inner_glow_width) &&
-			   NearlyEqual(inner_glow_softness, o.inner_glow_softness) &&
+			   outline == o.outline && shadow == o.shadow && shadow_offset == o.shadow_offset &&
+			   outer_glow == o.outer_glow && inner_glow == o.inner_glow &&
 			   NearlyEqual(pixel_range, o.pixel_range);
 	}
 
 	PTGN_SERIALIZE(
-		DistanceFieldStyle, weight, softness, outline_color, outline_width, outline_softness,
-		shadow_color, shadow_offset, shadow_width, shadow_softness, outer_glow_color,
-		outer_glow_width, outer_glow_softness, inner_glow_color, inner_glow_width,
-		inner_glow_softness, pixel_range
+		DistanceFieldStyle, weight, softness, outline, shadow, shadow_offset, outer_glow,
+		inner_glow, pixel_range
 	)
 };
 
 struct TextRunStyle {
 	Color color{ color::White };
 
-	bool fake_bold_if_missing{ true };
-	float fake_bold_weight{ kDefaultBoldWeight };
+	float bold_weight{ kDefaultBoldWeight };
 
 	float size{ kDefaultFontSize };
 	float line_spacing{ 0.0f };
@@ -107,19 +97,18 @@ struct TextRunStyle {
 	GlyphEffectStyle effect;
 
 	constexpr bool operator==(const TextRunStyle& o) const {
-		return color == o.color && fake_bold_if_missing == o.fake_bold_if_missing &&
-			   NearlyEqual(fake_bold_weight, o.fake_bold_weight) && NearlyEqual(size, o.size) &&
-			   NearlyEqual(kerning, o.kerning) && NearlyEqual(tracking, o.tracking) &&
-			   NearlyEqual(line_spacing, o.line_spacing) && flags == o.flags && sdf == o.sdf &&
-			   effect.type == o.effect.type && NearlyEqual(effect.amplitude, o.effect.amplitude) &&
+		return color == o.color && NearlyEqual(bold_weight, o.bold_weight) &&
+			   NearlyEqual(size, o.size) && NearlyEqual(kerning, o.kerning) &&
+			   NearlyEqual(tracking, o.tracking) && NearlyEqual(line_spacing, o.line_spacing) &&
+			   flags == o.flags && sdf == o.sdf && effect.type == o.effect.type &&
+			   NearlyEqual(effect.amplitude, o.effect.amplitude) &&
 			   NearlyEqual(effect.frequency, o.effect.frequency) &&
 			   NearlyEqual(effect.speed, o.effect.speed) &&
 			   NearlyEqual(effect.phase, o.effect.phase);
 	}
 
 	PTGN_SERIALIZE(
-		TextRunStyle, color, fake_bold_if_missing, fake_bold_weight, size, kerning, tracking,
-		line_spacing, flags, sdf, effect
+		TextRunStyle, color, bold_weight, size, kerning, tracking, line_spacing, flags, sdf, effect
 	)
 };
 
@@ -139,8 +128,6 @@ struct StyledText {
 	constexpr StyledText() = default;
 
 	constexpr StyledText(std::initializer_list<TextRun> text_runs) : runs{ text_runs } {}
-
-	constexpr explicit StyledText(const TextRun& run) : runs{ run } {}
 
 	constexpr bool operator==(const StyledText&) const = default;
 
@@ -168,23 +155,20 @@ struct ResolvedStyledText {
 } // namespace ptgn
 
 template <>
+struct std::hash<ptgn::DistanceFieldLayerStyle> {
+	std::size_t operator()(const ptgn::DistanceFieldLayerStyle& style) const {
+		return ptgn::Hash(
+			style.color, ptgn::QuantizeUnsigned(style.width), ptgn::QuantizeUnsigned(style.softness)
+		);
+	}
+};
+
+template <>
 struct std::hash<ptgn::DistanceFieldStyle> {
 	std::size_t operator()(const ptgn::DistanceFieldStyle& style) const {
 		return ptgn::Hash(
 			ptgn::QuantizeUnsigned(style.weight), ptgn::QuantizeUnsigned(style.softness),
-
-			style.outline_color, ptgn::QuantizeUnsigned(style.outline_width),
-			ptgn::QuantizeUnsigned(style.outline_softness),
-
-			style.shadow_color, style.shadow_offset, ptgn::QuantizeUnsigned(style.shadow_width),
-			ptgn::QuantizeUnsigned(style.shadow_softness),
-
-			style.outer_glow_color, ptgn::QuantizeUnsigned(style.outer_glow_width),
-			ptgn::QuantizeUnsigned(style.outer_glow_softness),
-
-			style.inner_glow_color, ptgn::QuantizeUnsigned(style.inner_glow_width),
-			ptgn::QuantizeUnsigned(style.inner_glow_softness),
-
+			style.outline, style.shadow, style.shadow_offset, style.outer_glow, style.inner_glow,
 			ptgn::QuantizeUnsigned(style.pixel_range)
 		);
 	}
@@ -194,18 +178,11 @@ template <>
 struct std::hash<ptgn::TextRunStyle> {
 	std::size_t operator()(const ptgn::TextRunStyle& style) const {
 		return ptgn::Hash(
-			style.color,
-
-			style.fake_bold_if_missing, ptgn::QuantizeUnsigned(style.fake_bold_weight),
-
+			style.color, ptgn::QuantizeUnsigned(style.bold_weight),
 			ptgn::QuantizeUnsigned(style.size), ptgn::QuantizeSigned(style.kerning),
 			ptgn::QuantizeSigned(style.tracking), ptgn::QuantizeSigned(style.line_spacing),
-
-			std::to_underlying(style.flags),
-
-			style.sdf,
-
-			std::to_underlying(style.effect.type), ptgn::QuantizeSigned(style.effect.amplitude),
+			std::to_underlying(style.flags), style.sdf, std::to_underlying(style.effect.type),
+			ptgn::QuantizeSigned(style.effect.amplitude),
 			ptgn::QuantizeSigned(style.effect.frequency), ptgn::QuantizeSigned(style.effect.speed),
 			ptgn::QuantizeSigned(style.effect.phase)
 		);

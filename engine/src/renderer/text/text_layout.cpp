@@ -77,8 +77,8 @@ DistanceFieldStyle ResolveDistanceFieldStyle(
 
 	sdf.pixel_range = font.GetMetrics().pixel_range;
 
-	if (HasFlag(style.flags, FontStyle::Bold) && style.fake_bold_if_missing) {
-		sdf.weight -= style.fake_bold_weight;
+	if (HasFlag(style.flags, FontStyle::Bold)) {
+		sdf.weight -= style.bold_weight;
 	}
 
 	sdf.weight = std::clamp(sdf.weight, 0.0f, 1.0f);
@@ -379,7 +379,7 @@ struct LayoutBuilder {
 		box{ box },
 		characters{ characters },
 		scale{ scale },
-		can_wrap{ box.HasWidth() && box.style.wrap_mode != WrapMode::None },
+		can_wrap{ box.HasWidth() && box.style.wrap.mode != WrapMode::None },
 		wrap_width{ box.rect.GetSize().x } {
 		layout.used_shrink_scale  = scale;
 		layout.batch_styles		  = BuildBatchStyles(styled_text);
@@ -600,7 +600,7 @@ struct LayoutBuilder {
 				return;
 			}
 
-			bool insert_hyphen{ use_character_rules && box.style.insert_hyphen_on_split };
+			bool insert_hyphen{ use_character_rules && box.style.wrap.insert_hyphen_on_split };
 			auto split_count{ FindCharacterSplit(begin, end, insert_hyphen) };
 
 			if (split_count == 0) {
@@ -616,13 +616,13 @@ struct LayoutBuilder {
 
 			auto remaining_count{ end - (begin + split_count) };
 
-			if (use_character_rules && HasLineContent() && box.style.prevent_single_letter_split &&
-				split_count == 1) {
+			if (use_character_rules && HasLineContent() &&
+				box.style.wrap.prevent_single_letter_split && split_count == 1) {
 				FlushLine(false, true);
 				continue;
 			}
 
-			if (use_character_rules && box.style.require_three_letter_remainder &&
+			if (use_character_rules && box.style.wrap.require_three_letter_remainder &&
 				remaining_count > 0 && remaining_count < 3) {
 				if (HasLineContent()) {
 					FlushLine(false, true);
@@ -653,10 +653,10 @@ struct LayoutBuilder {
 	void AppendWord(const TextToken& word, const std::optional<TextToken>& whitespace) {
 		bool has_whitespace{ whitespace.has_value() };
 
-		bool fits{ has_whitespace ? Fits(whitespace->begin, whitespace->end, word.begin, word.end)
-								  : Fits(word.begin, word.end) };
-
-		if (!can_wrap || fits) {
+		if (bool fits{ has_whitespace
+						   ? Fits(whitespace->begin, whitespace->end, word.begin, word.end)
+						   : Fits(word.begin, word.end) };
+			!can_wrap || fits) {
 			if (has_whitespace) {
 				AppendRange(whitespace->begin, whitespace->end);
 			}
@@ -665,7 +665,7 @@ struct LayoutBuilder {
 			return;
 		}
 
-		if (box.style.wrap_mode == WrapMode::Character) {
+		if (box.style.wrap.mode == WrapMode::Character) {
 			if (has_whitespace) {
 				bool wrap_before_separator{ HasLineContent() &&
 											whitespace->begin < whitespace->end &&
@@ -686,7 +686,7 @@ struct LayoutBuilder {
 			return;
 		}
 
-		PTGN_ASSERT(box.style.wrap_mode == WrapMode::Word);
+		PTGN_ASSERT(box.style.wrap.mode == WrapMode::Word);
 
 		bool wrapped_before_word{ false };
 
@@ -699,7 +699,7 @@ struct LayoutBuilder {
 			AppendWhitespace(whitespace->begin, whitespace->end, wrapped_before_word);
 		}
 
-		if (Fits(word.begin, word.end) || !box.style.allow_word_break_in_overflow) {
+		if (Fits(word.begin, word.end) || !box.style.wrap.allow_word_break_in_overflow) {
 			AppendRange(word.begin, word.end);
 			return;
 		}
@@ -946,7 +946,7 @@ void ApplyOverflow(
 		keep_lines = std::min(keep_lines, box.style.max_lines);
 	}
 
-	if (box.style.overflow_mode == OverflowMode::Ellipsis && box.HasHeight()) {
+	if (box.style.overflow == OverflowMode::Ellipsis && box.HasHeight()) {
 		float height{ 0.0f };
 		std::size_t height_lines{ 0 };
 		float box_height{ box.rect.GetSize().y };
@@ -973,7 +973,7 @@ void ApplyOverflow(
 		layout.truncated = true;
 	}
 
-	if (box.style.overflow_mode != OverflowMode::Ellipsis || layout.lines.empty()) {
+	if (box.style.overflow != OverflowMode::Ellipsis || layout.lines.empty()) {
 		RecalculateLayoutSize(layout);
 		return;
 	}
@@ -1011,7 +1011,7 @@ void ApplyHorizontalAlignment(const TextBox& box, TextLayout& layout) {
 		if (box.HasWidth()) {
 			float box_width{ box.rect.GetSize().x };
 
-			switch (box.style.horizontal_align) {
+			switch (box.style.alignment.horizontal) {
 				using enum HorizontalAlign;
 
 				case Left:	  x_offset = box.rect.min.x; break;
@@ -1034,7 +1034,7 @@ void ApplyHorizontalAlignment(const TextBox& box, TextLayout& layout) {
 				}
 			}
 		} else {
-			switch (box.style.horizontal_align) {
+			switch (box.style.alignment.horizontal) {
 				using enum HorizontalAlign;
 				case Left:	  [[fallthrough]];
 				case Justify: x_offset = 0.0f; break;
@@ -1062,14 +1062,14 @@ void ApplyVerticalAlignment(const TextBox& box, TextLayout& layout) {
 	if (box.HasHeight()) {
 		float box_height{ box.rect.GetSize().y };
 
-		switch (box.style.vertical_align) {
+		switch (box.style.alignment.vertical) {
 			using enum VerticalAlign;
 			case Top:	 y_offset = box.rect.min.y; break;
 			case Center: y_offset = box.rect.min.y + (box_height - layout.size.y) * 0.5f; break;
 			case Bottom: y_offset = box.rect.max.y - layout.size.y; break;
 		}
 	} else {
-		switch (box.style.vertical_align) {
+		switch (box.style.alignment.vertical) {
 			using enum VerticalAlign;
 			case Top:	 y_offset = 0.0f; break;
 			case Center: y_offset = -layout.size.y * 0.5f; break;
@@ -1348,7 +1348,7 @@ TextLayout BuildTextLayout(const ResolvedStyledText& styled_text, const TextBox&
 	auto tokens{ Tokenize(characters) };
 
 	float scale{ 1.0f };
-	if (box.style.overflow_mode == OverflowMode::ScaleToFit) {
+	if (box.style.overflow == OverflowMode::ScaleToFit) {
 		scale = FindBestScale(styled_text, box, characters, tokens);
 	}
 
@@ -1381,22 +1381,22 @@ std::vector<UniformWrite> GetTextUniforms(const DistanceFieldStyle& sdf, bool is
 		{ "u_Weight", sdf.weight },
 		{ "u_Softness", sdf.softness },
 
-		{ "u_OutlineColor", sdf.outline_color.Normalized() },
-		{ "u_OutlineWidth", sdf.outline_width },
-		{ "u_OutlineSoftness", sdf.outline_softness },
+		{ "u_OutlineColor", sdf.outline.color.Normalized() },
+		{ "u_OutlineWidth", sdf.outline.width },
+		{ "u_OutlineSoftness", sdf.outline.softness },
 
-		{ "u_ShadowColor", sdf.shadow_color.Normalized() },
+		{ "u_ShadowColor", sdf.shadow.color.Normalized() },
 		{ "u_ShadowOffset", sdf.shadow_offset },
-		{ "u_ShadowWidth", sdf.shadow_width },
-		{ "u_ShadowSoftness", sdf.shadow_softness },
+		{ "u_ShadowWidth", sdf.shadow.width },
+		{ "u_ShadowSoftness", sdf.shadow.softness },
 
-		{ "u_OuterGlowColor", sdf.outer_glow_color.Normalized() },
-		{ "u_OuterGlowWidth", sdf.outer_glow_width },
-		{ "u_OuterGlowSoftness", sdf.outer_glow_softness },
+		{ "u_OuterGlowColor", sdf.outer_glow.color.Normalized() },
+		{ "u_OuterGlowWidth", sdf.outer_glow.width },
+		{ "u_OuterGlowSoftness", sdf.outer_glow.softness },
 
-		{ "u_InnerGlowColor", sdf.inner_glow_color.Normalized() },
-		{ "u_InnerGlowWidth", sdf.inner_glow_width },
-		{ "u_InnerGlowSoftness", sdf.inner_glow_softness },
+		{ "u_InnerGlowColor", sdf.inner_glow.color.Normalized() },
+		{ "u_InnerGlowWidth", sdf.inner_glow.width },
+		{ "u_InnerGlowSoftness", sdf.inner_glow.softness },
 
 		{ "u_PixelRange", sdf.pixel_range },
 		{ "u_IsDecoration", is_decoration ? 1.0f : 0.0f },
@@ -1493,7 +1493,7 @@ PreparedTextDraw PrepareTextDraw(
 	};
 
 	if (box.HasArea()) {
-		switch (box.style.overflow_mode) {
+		switch (box.style.overflow) {
 			using enum OverflowMode;
 
 			case Clip:		  add_clip(box.rect, TextClipMode::Clip); break;

@@ -167,8 +167,8 @@ StyledText BuildStyledText(const std::vector<PaginationFragment>& fragments) {
 }
 
 bool FitsTextPage(const ResolvedStyledText& styled_text, TextBox box, std::size_t max_lines) {
-	box.style.max_lines		= 0;
-	box.style.overflow_mode = OverflowMode::Overflow;
+	box.style.max_lines = 0;
+	box.style.overflow	= OverflowMode::Overflow;
 
 	auto measurement{ MeasureText(styled_text, box) };
 	if (max_lines > 0 && measurement.line_count > max_lines) {
