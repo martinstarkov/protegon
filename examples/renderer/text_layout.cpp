@@ -40,10 +40,10 @@ struct TextLayoutScene : public Scene {
 		};
 	}
 
-	Text CreateTitle(V2_float position, std::string_view label) {
+	Text CreateTitle(V2_float position, std::string_view text) {
 		auto text{ CreateText(*this, position, Origin::CenterTop) };
 
-		text.Content(label).Font(font).Size(13.0f).Color(color::Black).Bold(true);
+		text.Content(text).Font(font).Size(13.0f).Color(color::Black).Bold(true);
 
 		return text;
 	}
@@ -74,13 +74,13 @@ struct TextLayoutScene : public Scene {
 	}
 
 	Text CreateCell(
-		int column, int row, std::string_view label, std::string_view content,
+		int column, int row, std::string_view text, std::string_view content,
 		HorizontalAlign horizontal_align, VerticalAlign vertical_align, WrapMode wrap_mode,
 		OverflowMode overflow_mode, V2_float size = {}
 	) {
 		V2_float cell_top{ GetCellTop(column, row) };
 
-		CreateTitle(cell_top, label);
+		CreateTitle(cell_top, text);
 
 		V2_float used_size{ size };
 

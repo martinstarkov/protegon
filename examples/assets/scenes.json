@@ -9,9 +9,9 @@
         "spacing": 60
       },
       "buttons": [
-        { "label": "Play", "action": "transition:LevelSelect" },
-        { "label": "Options", "action": "transition:OptionsMenu" },
-        { "label": "Quit", "action": "quit" }
+        { "text": "Play", "action": "transition:LevelSelect" },
+        { "text": "Options", "action": "transition:OptionsMenu" },
+        { "text": "Quit", "action": "quit" }
       ]
     },
     "OptionsMenu": {
@@ -24,8 +24,8 @@
         "columns": 2
       },
       "buttons": [
-        { "label": "Audio", "action": "open_audio_settings" },
-        { "label": "Back", "action": "transition:MainMenu" }
+        { "text": "Audio", "action": "open_audio_settings" },
+        { "text": "Back", "action": "transition:MainMenu" }
       ]
     },
     "LevelSelect": {
@@ -36,9 +36,9 @@
         "spacing": 150
       },
       "buttons": [
-        { "label": "Level 1", "action": "load_level_1" },
-        { "label": "Level 2", "action": "load_level_2" },
-        { "label": "Back", "action": "transition:MainMenu" }
+        { "text": "Level 1", "action": "load_level_1" },
+        { "text": "Level 2", "action": "load_level_2" },
+        { "text": "Back", "action": "transition:MainMenu" }
       ]
     }
   }

@@ -24,7 +24,7 @@ public:
 	void OnEnter() final {
 		PTGN_ASSERT(level != -1);
 
-		std::string label{ std::format("Level {}", level) };
+		std::string text{ std::format("Level {}", level) };
 		Color color;
 
 		switch (level) {
@@ -34,7 +34,7 @@ public:
 		}
 
 		CreateRect(*this, {}, { 100, 100 }, color);
-		CreateText(*this, {}, label, color::White);
+		CreateText(*this, {}, text, color::White);
 	}
 };
 

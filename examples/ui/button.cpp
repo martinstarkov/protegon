@@ -1,7 +1,5 @@
 #include "runtime/ui/button.h"
 
-#include <ios>
-
 #include "app/application.h"
 #include "core/event/event.h"
 #include "core/event/key_event.h"
@@ -11,15 +9,16 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "renderer/text/text_layout.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
-#include "runtime/graphics/tint.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
-#include "runtime/ui/button.h"
+#include "runtime/ui/button_config.h"
 #include "serialization/json/json.h"
 
 using namespace ptgn;
@@ -53,7 +52,7 @@ public:
 		ConfigureBackground(button.Background(ButtonVisualState::Hover), color::Red);
 		ConfigureBackground(button.Background(ButtonVisualState::Press), color::DarkRed);
 
-		button.Label()
+		button.Text()
 			.Content("Button")
 			.Color(color::Black)
 			.Size(28.0f)

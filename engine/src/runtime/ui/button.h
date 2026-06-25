@@ -88,13 +88,13 @@ struct ButtonPart {
 	PTGN_SERIALIZE(ButtonPart, role, state)
 };
 
-/// @brief Optional metadata for label children. Text behavior itself stays on Text.
-struct ButtonLabelAutoBox {
+/// @brief Optional metadata for text children. Text behavior itself stays on Text.
+struct ButtonTextAutoBox {
 	bool enabled{ true };
 	Rect padding;
 	Origin origin{ Origin::Center };
 
-	PTGN_SERIALIZE(ButtonLabelAutoBox, enabled, padding, origin)
+	PTGN_SERIALIZE(ButtonTextAutoBox, enabled, padding, origin)
 };
 
 struct ButtonEnabled {
@@ -137,14 +137,14 @@ public:
 	void OnEvent(Event event) override;
 
 private:
-	void OnMouseMoveOver();
-	void OnMouseMoveOut();
+	void OnMouseMoveOver() const;
+	void OnMouseMoveOut() const;
 
-	void OnMousePressedOver(Mouse mouse);
-	void OnMousePressedOut(Mouse mouse);
+	void OnMousePressedOver(Mouse mouse) const;
+	void OnMousePressedOut(Mouse mouse) const;
 
-	void OnMouseReleasedOver(Mouse mouse);
-	void OnMouseReleasedOut(Mouse mouse);
+	void OnMouseReleasedOver(Mouse mouse) const;
+	void OnMouseReleasedOut(Mouse mouse) const;
 };
 
 void UpdateButtons(Scene& scene);
@@ -199,10 +199,10 @@ public:
 	Entity Background(ButtonVisualState state = ButtonVisualState::Base);
 	Entity Border(ButtonVisualState state = ButtonVisualState::Base);
 
-	Text Label(ButtonVisualState state = ButtonVisualState::Base);
+	Text Text(ButtonVisualState state = ButtonVisualState::Base);
 	Sprite Icon(ButtonVisualState state = ButtonVisualState::Base);
 
-	Button& SetLabelOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Base);
+	Button& SetTextOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Base);
 
 	[[nodiscard]] std::optional<Entity> TryBackground(
 		ButtonVisualState state = ButtonVisualState::Base
@@ -212,7 +212,7 @@ public:
 		ButtonVisualState state = ButtonVisualState::Base
 	) const;
 
-	[[nodiscard]] std::optional<Text> TryLabel(
+	[[nodiscard]] std::optional<ptgn::Text> TryText(
 		ButtonVisualState state = ButtonVisualState::Base
 	) const;
 
@@ -222,11 +222,11 @@ public:
 
 	Button& RemoveBackground(ButtonVisualState state = ButtonVisualState::Base);
 	Button& RemoveBorder(ButtonVisualState state = ButtonVisualState::Base);
-	Button& RemoveLabel(ButtonVisualState state = ButtonVisualState::Base);
+	Button& RemoveText(ButtonVisualState state = ButtonVisualState::Base);
 	Button& RemoveIcon(ButtonVisualState state = ButtonVisualState::Base);
 
-	/// @brief Convenience only. Further label configuration should use the Text API.
-	Button& SetLabel(std::string_view content, ButtonVisualState state = ButtonVisualState::Base);
+	/// @brief Convenience only. Further text configuration should use the Text API.
+	Button& SetText(std::string_view content, ButtonVisualState state = ButtonVisualState::Base);
 
 	/// @brief Convenience only. Further icon configuration should use the Sprite API.
 	Button& SetIcon(
@@ -252,9 +252,9 @@ public:
 
 	Button& RemoveAnimation(ButtonVisualState state);
 
-	Button& SetLabelAutoBox(bool enabled = true, ButtonVisualState state = ButtonVisualState::Base);
+	Button& SetTextAutoBox(bool enabled = true, ButtonVisualState state = ButtonVisualState::Base);
 
-	Button& SetLabelPadding(Rect padding, ButtonVisualState state = ButtonVisualState::Base);
+	Button& SetTextPadding(Rect padding, ButtonVisualState state = ButtonVisualState::Base);
 
 	Button& SetSound(std::optional<std::string_view> sound_key, ButtonState state);
 	[[nodiscard]] std::optional<Audio> GetSound(ButtonState state) const;
@@ -262,7 +262,7 @@ public:
 	Button& SetExclusiveAudio(bool enabled);
 
 	/// @brief Shows/hides state-specific child parts according to current visual state.
-	void RefreshVisualState();
+	void RefreshVisualState() const;
 
 	template <EventCallbackInvocable<event::ButtonPress> F>
 	Button& OnPress(F&& callback) {
@@ -307,7 +307,7 @@ private:
 	void PlaySound(ButtonState active);
 	void PlayAnimation(ButtonState active) const;
 
-	void UpdateChildLayouts();
+	void UpdateChildLayouts() const;
 };
 
 namespace event {

@@ -12,13 +12,14 @@
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/input/mouse.h"
+#include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
-#include "renderer/text/text_style.h"
+#include "renderer/text/text_layout.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
 #include "runtime/asset/asset_manager.h"
@@ -151,15 +152,17 @@ std::optional<Animation> TryAnimationForVisualState(Button button, ButtonVisualS
 }
 
 ButtonVisualState GetPressVisualState(Button button) {
+	using enum ButtonVisualState;
+
 	if (!button.IsEnabled(false)) {
-		return ButtonVisualState::DisabledPress;
+		return DisabledPress;
 	}
 
 	if (button.HasToggle() && button.AsToggle().IsToggled()) {
-		return ButtonVisualState::ToggledPress;
+		return ToggledPress;
 	}
 
-	return ButtonVisualState::Press;
+	return Press;
 }
 
 ButtonVisualState ToVisualState(ButtonState state) {
@@ -169,9 +172,8 @@ ButtonVisualState ToVisualState(ButtonState state) {
 		case Idle:	return ButtonVisualState::Idle;
 		case Hover: return ButtonVisualState::Hover;
 		case Press: return ButtonVisualState::Press;
+		default:	return ButtonVisualState::Idle;
 	}
-
-	return ButtonVisualState::Idle;
 }
 
 std::optional<Entity> FindButtonPart(Button button, ButtonPartRole role, ButtonVisualState state) {
@@ -334,7 +336,7 @@ void ButtonScript::OnEvent(Event event) {
 	event.Dispatch<MouseReleasedOut>(&ButtonScript::OnMouseReleasedOut, this);
 }
 
-void ButtonScript::OnMouseMoveOver() {
+void ButtonScript::OnMouseMoveOver() const {
 	Button button{ entity };
 
 	if (!button.IsEnabled(true)) {
@@ -359,7 +361,7 @@ void ButtonScript::OnMouseMoveOver() {
 	button.ContinueHover();
 }
 
-void ButtonScript::OnMouseMoveOut() {
+void ButtonScript::OnMouseMoveOut() const {
 	Button button{ entity };
 
 	if (!button.IsEnabled(true)) {
@@ -382,7 +384,7 @@ void ButtonScript::OnMouseMoveOut() {
 	}
 }
 
-void ButtonScript::OnMousePressedOver(Mouse mouse) {
+void ButtonScript::OnMousePressedOver(Mouse mouse) const {
 	Button button{ entity };
 
 	if (!button.IsEnabled(false) || mouse != Mouse::Left) {
@@ -394,7 +396,7 @@ void ButtonScript::OnMousePressedOver(Mouse mouse) {
 	}
 }
 
-void ButtonScript::OnMousePressedOut(Mouse mouse) {
+void ButtonScript::OnMousePressedOut(Mouse mouse) const {
 	Button button{ entity };
 
 	if (!button.IsEnabled(false) || mouse != Mouse::Left) {
@@ -406,7 +408,7 @@ void ButtonScript::OnMousePressedOut(Mouse mouse) {
 	}
 }
 
-void ButtonScript::OnMouseReleasedOver(Mouse mouse) {
+void ButtonScript::OnMouseReleasedOver(Mouse mouse) const {
 	Button button{ entity };
 
 	if (!button.IsEnabled(false) || mouse != Mouse::Left) {
@@ -425,7 +427,7 @@ void ButtonScript::OnMouseReleasedOver(Mouse mouse) {
 	}
 }
 
-void ButtonScript::OnMouseReleasedOut(Mouse mouse) {
+void ButtonScript::OnMouseReleasedOut(Mouse mouse) const {
 	Button button{ entity };
 
 	if (!button.IsEnabled(false) || mouse != Mouse::Left) {
@@ -683,15 +685,15 @@ Entity Button::Border(ButtonVisualState state) {
 	return Part(ButtonPartRole::Border, state);
 }
 
-Text Button::Label(ButtonVisualState state) {
-	if (auto label{ TryLabel(state) }) {
-		return *label;
+Text Button::Text(ButtonVisualState state) {
+	if (auto text{ TryText(state) }) {
+		return *text;
 	}
 
-	Text text{ CreateText(GetScene(), {}, Origin::TopLeft) };
+	ptgn::Text text{ CreateText(GetScene(), {}, Origin::TopLeft) };
 
-	text.Add<impl::ButtonPart>(ButtonPartRole::Label, state);
-	text.Add<impl::ButtonLabelAutoBox>();
+	text.Add<impl::ButtonPart>(ButtonPartRole::Text, state);
+	text.Add<impl::ButtonTextAutoBox>();
 
 	SetParent(text, *this);
 	Show(text);
@@ -719,10 +721,10 @@ Sprite Button::Icon(ButtonVisualState state) {
 	return sprite;
 }
 
-Button& Button::SetLabelOrigin(Origin origin, ButtonVisualState state) {
-	Text label{ Label(state) };
+Button& Button::SetTextOrigin(Origin origin, ButtonVisualState state) {
+	ptgn::Text text{ Text(state) };
 
-	auto& auto_box{ label.TryAdd<impl::ButtonLabelAutoBox>() };
+	auto& auto_box{ text.TryAdd<impl::ButtonTextAutoBox>() };
 	auto_box.origin = origin;
 
 	UpdateChildLayouts();
@@ -738,13 +740,13 @@ std::optional<Entity> Button::TryBorder(ButtonVisualState state) const {
 	return TryPart(ButtonPartRole::Border, state);
 }
 
-std::optional<Text> Button::TryLabel(ButtonVisualState state) const {
-	auto part{ TryPart(ButtonPartRole::Label, state) };
+std::optional<Text> Button::TryText(ButtonVisualState state) const {
+	auto part{ TryPart(ButtonPartRole::Text, state) };
 	if (!part.has_value()) {
 		return std::nullopt;
 	}
 
-	return Text{ part.value() };
+	return ptgn::Text{ part.value() };
 }
 
 std::optional<Sprite> Button::TryIcon(ButtonVisualState state) const {
@@ -764,16 +766,16 @@ Button& Button::RemoveBorder(ButtonVisualState state) {
 	return RemovePart(ButtonPartRole::Border, state);
 }
 
-Button& Button::RemoveLabel(ButtonVisualState state) {
-	return RemovePart(ButtonPartRole::Label, state);
+Button& Button::RemoveText(ButtonVisualState state) {
+	return RemovePart(ButtonPartRole::Text, state);
 }
 
 Button& Button::RemoveIcon(ButtonVisualState state) {
 	return RemovePart(ButtonPartRole::Icon, state);
 }
 
-Button& Button::SetLabel(std::string_view content, ButtonVisualState state) {
-	Label(state).Content(content);
+Button& Button::SetText(std::string_view content, ButtonVisualState state) {
+	Text(state).Content(content);
 	return *this;
 }
 
@@ -872,17 +874,17 @@ Button& Button::RemoveAnimation(ButtonVisualState state) {
 	return *this;
 }
 
-Button& Button::SetLabelAutoBox(bool enabled, ButtonVisualState state) {
-	Text label{ Label(state) };
-	auto& auto_box{ label.TryAdd<impl::ButtonLabelAutoBox>() };
+Button& Button::SetTextAutoBox(bool enabled, ButtonVisualState state) {
+	ptgn::Text text{ Text(state) };
+	auto& auto_box{ text.TryAdd<impl::ButtonTextAutoBox>() };
 	auto_box.enabled = enabled;
 	UpdateChildLayouts();
 	return *this;
 }
 
-Button& Button::SetLabelPadding(Rect padding, ButtonVisualState state) {
-	Text label{ Label(state) };
-	auto& auto_box{ label.TryAdd<impl::ButtonLabelAutoBox>() };
+Button& Button::SetTextPadding(Rect padding, ButtonVisualState state) {
+	ptgn::Text text{ Text(state) };
+	auto& auto_box{ text.TryAdd<impl::ButtonTextAutoBox>() };
 	auto_box.padding = padding;
 	UpdateChildLayouts();
 	return *this;
@@ -942,11 +944,11 @@ Button& Button::SetExclusiveAudio(bool enabled) {
 	return *this;
 }
 
-void Button::RefreshVisualState() {
+void Button::RefreshVisualState() const {
 	auto parts{ Parts() };
 
 	if (!IsVisible(*this)) {
-		for (Entity part : parts) {
+		for (const auto& part : parts) {
 			Hide(part);
 		}
 		return;
@@ -955,7 +957,7 @@ void Button::RefreshVisualState() {
 	auto active_state{ GetVisualState() };
 	auto fallback_states{ GetVisualStateFallbacks(active_state) };
 
-	for (Entity part : parts) {
+	for (const auto& part : parts) {
 		Hide(part);
 	}
 
@@ -963,14 +965,13 @@ void Button::RefreshVisualState() {
 		for (auto state : fallback_states) {
 			bool found{ false };
 
-			for (Entity part : parts) {
-				auto info{ part.TryGet<impl::ButtonPart>() };
-
-				if (!info) {
+			for (const auto& part : parts) {
+				if (!part.Has<impl::ButtonPart>()) {
 					continue;
 				}
 
-				if (info->role != role || info->state != state) {
+				if (const auto& info{ part.Get<impl::ButtonPart>() };
+					info.role != role || info.state != state) {
 					continue;
 				}
 
@@ -987,7 +988,7 @@ void Button::RefreshVisualState() {
 	show_role(ButtonPartRole::Background);
 	show_role(ButtonPartRole::Border);
 	show_role(ButtonPartRole::Icon);
-	show_role(ButtonPartRole::Label);
+	show_role(ButtonPartRole::Text);
 }
 
 void Button::SetState(impl::InternalButtonState state) {
@@ -1001,9 +1002,8 @@ void Button::SetState(impl::InternalButtonState state) {
 
 	data.state = state;
 
-	auto new_visual_state{ GetVisualState() };
-
-	if (old_visual_state != new_visual_state && IsPressVisualState(new_visual_state)) {
+	if (auto new_visual_state{ GetVisualState() };
+		old_visual_state != new_visual_state && IsPressVisualState(new_visual_state)) {
 		if (auto animation{ TryAnimationForVisualState(*this, new_visual_state) }) {
 			ResetButtonAnimationPart(*animation);
 		}
@@ -1027,11 +1027,11 @@ void Button::PlayAnimation(ButtonState active) const {
 	auto active_state{ ToVisualState(active) };
 
 	for (Entity part : Parts(ButtonPartRole::Icon)) {
-		auto part_data{ part.TryGet<impl::ButtonPart>() };
-
-		if (!part_data || !part.Has<impl::AnimationData>()) {
+		if (!part.Has<impl::ButtonPart, impl::AnimationData>()) {
 			continue;
 		}
+
+		const auto& part_data{ part.Get<impl::ButtonPart>() };
 
 		Animation animation{ part };
 
@@ -1040,7 +1040,7 @@ void Button::PlayAnimation(ButtonState active) const {
 									  : ButtonAnimationPlayback::Play };
 		auto static_frame{ animation_part ? animation_part->options.static_frame : 0uz };
 
-		if (part_data->state != active_state) {
+		if (part_data.state != active_state) {
 			animation.Reset();
 			animation.SetCurrentFrame(static_frame);
 			continue;
@@ -1060,7 +1060,7 @@ void Button::PlayAnimation(ButtonState active) const {
 	}
 }
 
-void Button::UpdateChildLayouts() {
+void Button::UpdateChildLayouts() const {
 	auto size{ GetButtonShapeSize(*this) };
 
 	if (!size.has_value() || !size->IsPositive()) {
@@ -1069,33 +1069,36 @@ void Button::UpdateChildLayouts() {
 
 	Rect button_rect{ GetButtonLocalRect(*this, *size) };
 
-	for (Entity part : Parts(ButtonPartRole::Label)) {
-		auto auto_box{ part.TryGet<impl::ButtonLabelAutoBox>() };
+	for (Entity part : Parts(ButtonPartRole::Text)) {
+		if (!part.Has<impl::ButtonTextAutoBox>()) {
+			continue;
+		}
+		const auto& auto_box{ part.Get<impl::ButtonTextAutoBox>() };
 
-		if (!auto_box || !auto_box->enabled) {
+		if (!auto_box.enabled) {
 			continue;
 		}
 
-		Rect content_rect{ ApplyContentPadding(button_rect, auto_box->padding) };
+		Rect content_rect{ ApplyContentPadding(button_rect, auto_box.padding) };
 
 		if (!content_rect.GetSize().IsPositive()) {
 			continue;
 		}
 
-		Origin origin{ auto_box->origin };
+		Origin origin{ auto_box.origin };
 		V2_float content_size{ content_rect.GetSize() };
-		V2_float label_position{ content_rect.GetOriginPoint(origin) };
+		V2_float text_position{ content_rect.GetOriginPoint(origin) };
 
-		SetPosition(part, label_position);
+		SetPosition(part, text_position);
 		SetDrawOrigin(part, origin);
 
-		Text label{ part };
+		ptgn::Text text{ part };
 
-		if (Rect label_box{ {}, content_size }; label.GetTextBox().rect != label_box) {
-			label.Box(label_box);
+		if (Rect text_box{ {}, content_size }; text.GetTextBox().rect != text_box) {
+			text.Box(text_box);
 		}
 
-		label.ApplyFallbackAlignment(GetHorizontalAlignment(origin), GetVerticalAlignment(origin));
+		text.ApplyFallbackAlignment(GetHorizontalAlignment(origin), GetVerticalAlignment(origin));
 	}
 }
 
@@ -1154,19 +1157,19 @@ Button CreateButton(
 	}
 
 	if (config.content.has_value()) {
-		Text label{ button.Label() };
+		Text text{ button.Text() };
 
-		label.Content(config.content.value())
+		text.Content(config.content.value())
 			.Color(config.text_color.value_or(impl::kDefaultButtonTextColor))
 			.Size(config.font_size)
 			.Font(config.font);
 
 		if (config.horizontal_align.has_value()) {
-			label.HorizontalAlign(config.horizontal_align.value());
+			text.HorizontalAlign(config.horizontal_align.value());
 		}
 
 		if (config.vertical_align.has_value()) {
-			label.VerticalAlign(config.vertical_align.value());
+			text.VerticalAlign(config.vertical_align.value());
 		}
 	}
 

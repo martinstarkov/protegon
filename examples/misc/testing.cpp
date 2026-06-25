@@ -9,9 +9,9 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/text.h"
-#include "renderer/text/text_style.h"
 #include "runtime/physics/movement.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
@@ -56,7 +56,7 @@ struct TextLayoutScene : public Scene {
 	}
 
 	Text CreateCell(
-		int column, int row, std::string_view label, std::string_view content,
+		int column, int row, std::string_view text, std::string_view content,
 		HorizontalAlign horizontal_align, VerticalAlign vertical_align, WrapMode wrap_mode,
 		OverflowMode overflow_mode, V2_float size = {}
 	) {
@@ -111,6 +111,6 @@ struct TextLayoutScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "TextLayoutScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<TextLayoutScene>();
 }

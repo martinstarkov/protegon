@@ -10,12 +10,12 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/renderer.h"
+#include "renderer/text/text_layout.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text/text.h"
-#include "renderer/text/text_style.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -61,10 +61,10 @@ public:
 		ConfigureBorder(button, ButtonVisualState::Hover, size, color::Red);
 		ConfigureBorder(button, ButtonVisualState::Press, size, color::Red);
 
-		button.SetLabelAutoBox(true);
-		button.SetLabelPadding(Rect{ { 6, 4 }, { 6, 4 } });
+		button.SetTextAutoBox(true);
+		button.SetTextPadding(Rect{ { 6, 4 }, { 6, 4 } });
 
-		button.Label()
+		button.Text()
 			.Font("arial")
 			.Content(content)
 			.Color(color::White)
@@ -89,10 +89,10 @@ public:
 		ConfigureBorder(button, ButtonVisualState::Hover, size, color::Gold);
 		ConfigureBorder(button, ButtonVisualState::Press, size, color::Gold);
 
-		button.SetLabelAutoBox(true);
-		button.SetLabelPadding(Rect{ { 6, 4 }, { 6, 4 } });
+		button.SetTextAutoBox(true);
+		button.SetTextPadding(Rect{ { 6, 4 }, { 6, 4 } });
 
-		button.Label()
+		button.Text()
 			.Font("arial")
 			.Content(content)
 			.Color(color::Yellow)

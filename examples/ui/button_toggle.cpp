@@ -10,11 +10,13 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "renderer/text/text_layout.h"
+#include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
-#include "renderer/text/text_style.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -65,7 +67,7 @@ public:
 		ConfigureBackground(button.Background(ButtonVisualState::ToggledHover), color::Blue);
 		ConfigureBackground(button.Background(ButtonVisualState::ToggledPress), color::DarkBlue);
 
-		button.Label()
+		button.Text()
 			.Content("Toggle")
 			.Color(color::Black)
 			.Size(28.0f)

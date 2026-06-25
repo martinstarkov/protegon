@@ -11,6 +11,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "renderer/text/text_layout.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -18,7 +19,6 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
-#include "renderer/text/text_style.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
@@ -72,14 +72,14 @@ public:
 		ConfigureShapePart(button.Background(state), size, tint, Solid{});
 	}
 
-	static void ConfigureLabel(
+	static void ConfigureText(
 		Button button, ButtonVisualState state, std::string_view content, Color tint,
 		V2_float padding_size, std::optional<float> outline_width = std::nullopt,
 		Color outline_color = color::Black
 	) {
-		Text label{ button.Label(state) };
+		Text text{ button.Text(state) };
 
-		label.Font("arial")
+		text.Font("arial")
 			.Content(content)
 			.Color(tint)
 			.Size(20.0f)
@@ -89,10 +89,10 @@ public:
 			.MaxLines(1);
 
 		if (outline_width.has_value()) {
-			label.Outline(outline_color, outline_width.value());
+			text.Outline(outline_color, outline_width.value());
 		}
 
-		button.SetLabelPadding(Rect{ padding_size, padding_size }, state);
+		button.SetTextPadding(Rect{ padding_size, padding_size }, state);
 	}
 
 	static void ConfigureIcon(
@@ -166,24 +166,24 @@ public:
 			}
 		}
 
-		V2_float label_padding{ 8.0f, 4.0f };
+		V2_float text_padding{ 8.0f, 4.0f };
 
-		ConfigureLabel(
-			button, ButtonVisualState::Idle, spec.content, spec.text_color, label_padding,
+		ConfigureText(
+			button, ButtonVisualState::Idle, spec.content, spec.text_color, text_padding,
 			spec.text_outline_width, spec.text_outline_color
 		);
 
 		if (spec.text_color_hover.has_value()) {
-			ConfigureLabel(
+			ConfigureText(
 				button, ButtonVisualState::Hover, spec.content, spec.text_color_hover.value(),
-				label_padding, spec.text_outline_width, spec.text_outline_color
+				text_padding, spec.text_outline_width, spec.text_outline_color
 			);
 		}
 
 		if (spec.text_color_press.has_value()) {
-			ConfigureLabel(
+			ConfigureText(
 				button, ButtonVisualState::Press, spec.content, spec.text_color_press.value(),
-				label_padding, spec.text_outline_width, spec.text_outline_color
+				text_padding, spec.text_outline_width, spec.text_outline_color
 			);
 		}
 

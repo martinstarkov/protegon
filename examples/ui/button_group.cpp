@@ -12,10 +12,12 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
+#include "renderer/text/text_layout.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
-#include "renderer/text/text_style.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
@@ -51,10 +53,10 @@ class ToggleButtonGroupScene : public Scene {
 		ConfigureBackground(button, ButtonVisualState::ToggledHover, color::Blue);
 		ConfigureBackground(button, ButtonVisualState::ToggledPress, color::DarkBlue);
 
-		button.SetLabelAutoBox(true);
-		button.SetLabelPadding(Rect{ { 8, 8 }, { 8, 8 } });
+		button.SetTextAutoBox(true);
+		button.SetTextPadding(Rect{ { 8, 8 }, { 8, 8 } });
 
-		button.Label()
+		button.Text()
 			.Font("arial")
 			.Content(std::to_string(number))
 			.Color(color::White)

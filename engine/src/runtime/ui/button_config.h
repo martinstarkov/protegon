@@ -51,7 +51,7 @@ enum class ButtonPartRole : std::uint8_t {
 	Background,
 	Border,
 	Icon,
-	Label,
+	Text,
 	Custom,
 };
 PTGN_SERIALIZE_ENUM(ButtonPartRole);
@@ -72,6 +72,7 @@ struct ButtonShapePartConfig {
 struct ButtonSpritePartConfig {
 	ButtonVisualState state{ ButtonVisualState::Base };
 
+	/// @brief Texture key to use for the sprite. Must be loaded in the AssetManager.
 	std::string texture;
 	Origin origin{ Origin::Center };
 	Transform transform;
@@ -85,6 +86,7 @@ struct ButtonTextPartConfig {
 	ButtonVisualState state{ ButtonVisualState::Base };
 
 	std::string content;
+	/// @brief Font key to use for the text. Must be loaded in the AssetManager.
 	std::string font{ kDefaultFont };
 	float font_size{ kDefaultFontSize };
 	Color color{ color::Black };
@@ -100,7 +102,7 @@ struct ButtonTextPartConfig {
 	WrapMode wrap_mode{ WrapMode::None };
 	OverflowMode overflow_mode{ OverflowMode::Overflow };
 
-	/// @brief If true, the button may update the label TextBox from the button shape.
+	/// @brief If true, the button may update the text box from the button shape.
 	bool auto_box{ true };
 
 	/// @brief Padding used when auto_box is true.
@@ -113,8 +115,11 @@ struct ButtonTextPartConfig {
 };
 
 struct ButtonSoundConfig {
+	/// @brief Sound key to use for the button sounds. Must be loaded in the AssetManager.
 	std::optional<std::string> idle;
+	/// @brief Sound key to use for the button sounds. Must be loaded in the AssetManager.
 	std::optional<std::string> hover;
+	/// @brief Sound key to use for the button sounds. Must be loaded in the AssetManager.
 	std::optional<std::string> press;
 
 	PTGN_SERIALIZE(ButtonSoundConfig, idle, hover, press)
@@ -163,12 +168,12 @@ struct ButtonConfig {
 
 	float font_size{ kDefaultFontSize };
 
-	/// @brief Font key to use for the button label. Must be loaded in the AssetManager.
+	/// @brief Font key to use for the button text. Must be loaded in the AssetManager.
 	std::string font{ kDefaultFont };
 
-	/// @brief Horizontal alignment of button label.
+	/// @brief Horizontal alignment of button text.
 	std::optional<HorizontalAlign> horizontal_align;
-	/// @brief Vertical alignment of button label.
+	/// @brief Vertical alignment of button text.
 	std::optional<VerticalAlign> vertical_align;
 
 	std::optional<std::string> texture;

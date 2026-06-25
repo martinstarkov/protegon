@@ -312,7 +312,7 @@ Button Dropdown::AddItem(std::string_view text) {
 	}
 
 	Button button{ CreateButton(GetScene(), {}, shape, Origin::Center) };
-	button.SetLabel(text);
+	button.SetText(text);
 
 	AddButton(button);
 

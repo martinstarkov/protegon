@@ -11,7 +11,6 @@
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/text/text.h"
-#include "runtime/graphics/tint.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -22,9 +21,9 @@ using namespace ptgn;
 
 class ButtonTextOriginScene : public Scene {
 public:
-	static constexpr V2_float button_size{ 220.0f, 90.0f };
-	static constexpr V2_float button_spacing{ 270.0f, 150.0f };
-	static constexpr V2_float label_padding{ 12.0f, 10.0f };
+	static constexpr V2_float button_size{ 220, 90 };
+	static constexpr V2_float button_spacing{ 270, 150 };
+	inline static Rect text_padding{ { 12, 10 }, { 12, 10 } };
 
 	struct OriginTest {
 		Origin button;
@@ -74,10 +73,10 @@ public:
 
 		ConfigureBackgrounds(button, button_origin);
 
-		button.SetLabelOrigin(text_origin);
-		button.SetLabelPadding(Rect{ { 12.0f, 10.0f }, { 12.0f, 10.0f } });
+		button.SetTextOrigin(text_origin);
+		button.SetTextPadding(text_padding);
 
-		button.Label().Content(magic_enum::enum_name(text_origin)).Color(color::Black).Size(18.0f);
+		button.Text().Content(magic_enum::enum_name(text_origin)).Color(color::Black).Size(18);
 	}
 
 	void OnEnter() override {

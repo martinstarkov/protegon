@@ -66,11 +66,9 @@ public:
 
 				LogFileDialogResult("OpenFile", result);
 			})
-			//.SetText("Open File")
-			.SetBackgroundShape(button_size)
-			.SetBackgroundColor(color::LightBlue)
-			.SetBackgroundColor(color::Blue, ButtonState::Hover)
-			.SetBackgroundColor(color::DarkBlue, ButtonState::Press);
+			.Text("Open File")
+			.BackgroundShape(button_size)
+			.BackgroundColor(color::LightBlue, color::Blue, color::DarkBlue);
 
 		CreateButton(*this, V2_float{ 0, -110 }, button_size, button_origin)
 			.OnPress([](auto e) {
@@ -86,11 +84,9 @@ public:
 
 				LogFileDialogResult("OpenFiles", result);
 			})
-			//.SetText("Open Files")
-			.SetBackgroundShape(button_size)
-			.SetBackgroundColor(color::LightRed)
-			.SetBackgroundColor(color::Red, ButtonState::Hover)
-			.SetBackgroundColor(color::DarkRed, ButtonState::Press);
+			.Text("Open Files")
+			.BackgroundShape(button_size)
+			.BackgroundColor(color::LightRed, color::Red, color::DarkRed);
 
 		CreateButton(*this, V2_float{ 0, 0 }, button_size, button_origin)
 			.OnPress([](auto e) {
@@ -107,11 +103,9 @@ public:
 
 				LogFileDialogResult("SaveFile", result);
 			})
-			//.SetText("Save File")
-			.SetBackgroundShape(button_size)
-			.SetBackgroundColor(color::LightGreen)
-			.SetBackgroundColor(color::Green, ButtonState::Hover)
-			.SetBackgroundColor(color::DarkGreen, ButtonState::Press);
+			.Text("Save File")
+			.BackgroundShape(button_size)
+			.BackgroundColor(color::LightGreen, color::Green, color::DarkGreen);
 
 		CreateButton(*this, V2_float{ 0, 110 }, button_size, button_origin)
 			.OnPress([](auto e) {
@@ -123,11 +117,9 @@ public:
 
 				LogFileDialogResult("OpenFolder", result);
 			})
-			//.SetText("Open Folder")
-			.SetBackgroundShape(button_size)
-			.SetBackgroundColor(color::Pink)
-			.SetBackgroundColor(color::Red, ButtonState::Hover)
-			.SetBackgroundColor(color::DarkRed, ButtonState::Press);
+			.Text("Open Folder")
+			.BackgroundShape(button_size)
+			.BackgroundColor(color::Pink, color::Red, color::DarkRed);
 
 		CreateButton(*this, V2_float{ 0, 220 }, button_size, button_origin)
 			.OnPress([](auto e) {
@@ -139,11 +131,9 @@ public:
 
 				LogFileDialogResult("OpenFolders", result);
 			})
-			//.SetText("Open Folders")
-			.SetBackgroundShape(button_size)
-			.SetBackgroundColor(color::LightPurple)
-			.SetBackgroundColor(color::Purple, ButtonState::Hover)
-			.SetBackgroundColor(color::DarkPurple, ButtonState::Press);
+			.Text("Open Folders")
+			.BackgroundShape(button_size)
+			.BackgroundColor(color::LightPurple, color::Purple, color::DarkPurple);
 	}
 };
 
