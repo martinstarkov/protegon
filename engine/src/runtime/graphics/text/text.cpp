@@ -45,45 +45,6 @@ namespace ptgn {
 
 namespace {
 
-FontStyle SetFlag(FontStyle value, FontStyle flag, bool enabled) {
-	auto bits{ std::to_underlying(value) };
-	auto flag_bits{ std::to_underlying(flag) };
-
-	if (enabled) {
-		bits |= flag_bits;
-	} else {
-		bits &= ~flag_bits;
-	}
-
-	return static_cast<FontStyle>(bits);
-}
-
-bool HasVisibleTextContent(const StyledText& styled_text) {
-	return std::ranges::any_of(styled_text.runs, [](const auto& run) { return !run.text.empty(); });
-}
-
-impl::ResolvedStyledText ResolveStyledText(AssetManager& asset_manager, const TextRun& text_run) {
-	impl::ResolvedStyledText styled_text;
-	styled_text.runs.emplace_back(impl::ResolveTextRun(asset_manager, text_run));
-	return styled_text;
-}
-
-bool FitsTextPage(
-	AssetManager& asset_manager, const TextRun& text_run, TextBox box, std::size_t max_lines
-) {
-	auto styled_text{ ResolveStyledText(asset_manager, text_run) };
-
-	box.style.overflow = OverflowMode::Overflow;
-
-	auto layout{ impl::BuildTextLayout(styled_text, box) };
-
-	if (max_lines > 0 && layout.lines.size() > max_lines) {
-		return false;
-	}
-
-	return impl::TextLayoutFitsInBox(layout, box.rect);
-}
-
 void UpdateLayout(
 	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
 ) {
@@ -97,54 +58,6 @@ void UpdateLayout(
 	layout.hash = hash;
 
 	entity.Add<TextLayout>(std::move(layout));
-}
-
-std::optional<Rect> IntersectClipRects(std::optional<Rect> a, std::optional<Rect> b) {
-	if (!a.has_value()) {
-		return b;
-	}
-
-	if (!b.has_value()) {
-		return a;
-	}
-
-	Rect result{
-		{
-			std::max(a.value().min.x, b.value().min.x),
-			std::max(a.value().min.y, b.value().min.y),
-		},
-		{
-			std::min(a.value().max.x, b.value().max.x),
-			std::min(a.value().max.y, b.value().max.y),
-		},
-	};
-
-	if (!result.GetSize().IsPositive()) {
-		return Rect{};
-	}
-
-	return result;
-}
-
-V2_float GetTextOriginPoint(Entity entity, const TextLayout& layout, const TextBox& box) {
-	if (box.HasBox()) {
-		return box.rect.GetOriginPoint(GetDrawOrigin(entity));
-	}
-
-	auto origin_point{ layout.GetBounds().GetOriginPoint(GetDrawOrigin(entity)) };
-
-	// In unboxed text, an explicitly selected alignment anchors that axis directly to the
-	// transform. The draw origin remains the fallback anchor for axes the user did not override.
-	if (auto alignment_override{ entity.TryGet<impl::TextAlignmentOverride>() }) {
-		if (alignment_override->horizontal) {
-			origin_point.x = 0.0f;
-		}
-		if (alignment_override->vertical) {
-			origin_point.y = 0.0f;
-		}
-	}
-
-	return origin_point;
 }
 
 } // namespace
@@ -184,7 +97,11 @@ void DrawDebugTextBoundingBoxes(
 	}
 
 	for (auto [entity, styled_text, box] : scene.EntitiesWith<StyledText, TextBox>()) {
-		if (filter(entity) || !HasVisibleTextContent(styled_text)) {
+		if (filter(entity)) {
+			continue;
+		}
+
+		if (!styled_text.HasContent()) {
 			continue;
 		}
 
@@ -214,7 +131,7 @@ void DrawDebugTextBoundingBoxes(
 		};
 
 		auto draw_rect = [&](Rect rect, Color color) {
-			if (!rect.HasPositiveArea()) {
+			if (!rect.GetSize().IsPositive()) {
 				return;
 			}
 
@@ -298,7 +215,7 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 	const auto& styled_text{ entity.Get<StyledText>() };
 	const auto& box{ entity.Get<TextBox>() };
 
-	if (!HasVisibleTextContent(styled_text)) {
+	if (!styled_text.HasContent()) {
 		return;
 	}
 
@@ -428,8 +345,14 @@ const TextRun& Text::CurrentRun() const {
 	return styled_text.runs[edit_state.current_run_index];
 }
 
-Text& Text::Box(Rect rect) {
-	Get<TextBox>().rect = rect;
+Text& Text::Box(Rect text_box) {
+	Get<TextBox>().rect = text_box;
+	InvalidateLayout();
+	return *this;
+}
+
+Text& Text::Box(const TextBox& box) {
+	Add<TextBox>(box);
 	InvalidateLayout();
 	return *this;
 }
@@ -485,21 +408,21 @@ Text& Text::TabWidth(std::size_t spaces) {
 	return *this;
 }
 
-void Text::ApplyFallbackAlignment(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical) {
+void Text::ApplyFallbackAlignment(Alignment alignment) {
 	auto alignment_override{ TryGet<impl::TextAlignmentOverride>() };
 	auto& style{ Get<TextBox>().style };
 
 	bool changed{ false };
 
 	if ((!alignment_override || !alignment_override->horizontal) &&
-		style.alignment.horizontal != horizontal) {
-		style.alignment.horizontal = horizontal;
+		style.alignment.horizontal != alignment.horizontal) {
+		style.alignment.horizontal = alignment.horizontal;
 		changed					   = true;
 	}
 
 	if ((!alignment_override || !alignment_override->vertical) &&
-		style.alignment.vertical != vertical) {
-		style.alignment.vertical = vertical;
+		style.alignment.vertical != alignment.vertical) {
+		style.alignment.vertical = alignment.vertical;
 		changed					 = true;
 	}
 
@@ -666,7 +589,7 @@ Text& Text::Style(FontStyle flags) {
 Text& Text::Bold(bool enabled, float weight) {
 	auto& style{ CurrentRun().style };
 
-	style.flags		  = SetFlag(style.flags, FontStyle::Bold, enabled);
+	style.flags		  = SetFontFlag(style.flags, FontStyle::Bold, enabled);
 	style.bold_weight = weight;
 
 	InvalidateLayout();
@@ -677,7 +600,7 @@ Text& Text::Bold(bool enabled, float weight) {
 Text& Text::Italic(bool enabled) {
 	auto& style{ CurrentRun().style };
 
-	style.flags = SetFlag(style.flags, FontStyle::Italic, enabled);
+	style.flags = SetFontFlag(style.flags, FontStyle::Italic, enabled);
 
 	InvalidateLayout();
 
@@ -687,7 +610,7 @@ Text& Text::Italic(bool enabled) {
 Text& Text::Underline(bool enabled) {
 	auto& style{ CurrentRun().style };
 
-	style.flags = SetFlag(style.flags, FontStyle::Underline, enabled);
+	style.flags = SetFontFlag(style.flags, FontStyle::Underline, enabled);
 
 	InvalidateLayout();
 
@@ -697,7 +620,7 @@ Text& Text::Underline(bool enabled) {
 Text& Text::Strikethrough(bool enabled) {
 	auto& style{ CurrentRun().style };
 
-	style.flags = SetFlag(style.flags, FontStyle::Strikethrough, enabled);
+	style.flags = SetFontFlag(style.flags, FontStyle::Strikethrough, enabled);
 
 	InvalidateLayout();
 

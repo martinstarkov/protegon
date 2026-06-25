@@ -32,8 +32,21 @@ constexpr FontStyle& operator|=(FontStyle& a, FontStyle b) {
 	return a;
 }
 
-constexpr bool HasFlag(FontStyle value, FontStyle flag) {
+constexpr bool HasFontFlag(FontStyle value, FontStyle flag) {
 	return (std::to_underlying(value) & std::to_underlying(flag)) != 0u;
+}
+
+constexpr FontStyle SetFontFlag(FontStyle value, FontStyle flag, bool enabled) {
+	auto bits{ std::to_underlying(value) };
+	auto flag_bits{ std::to_underlying(flag) };
+
+	if (enabled) {
+		bits |= flag_bits;
+	} else {
+		bits &= ~flag_bits;
+	}
+
+	return static_cast<FontStyle>(bits);
 }
 
 inline std::ostream& operator<<(std::ostream& os, FontStyle style) {
@@ -46,7 +59,7 @@ inline std::ostream& operator<<(std::ostream& os, FontStyle style) {
 	bool first = true;
 
 	auto print = [&](FontStyle flag, const char* name) {
-		if (HasFlag(style, flag)) {
+		if (HasFontFlag(style, flag)) {
 			if (!first) {
 				os << " | ";
 			}

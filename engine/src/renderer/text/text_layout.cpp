@@ -77,7 +77,7 @@ DistanceFieldStyle ResolveDistanceFieldStyle(
 
 	sdf.pixel_range = font.GetMetrics().pixel_range;
 
-	if (HasFlag(style.flags, FontStyle::Bold)) {
+	if (HasFontFlag(style.flags, FontStyle::Bold)) {
 		sdf.weight -= style.bold_weight;
 	}
 
@@ -1112,8 +1112,8 @@ void BuildDecorations(
 
 			const auto& run{ styled_text.runs[run_index] };
 			const auto& style{ run.style };
-			bool underline{ HasFlag(style.flags, FontStyle::Underline) };
-			bool strikethrough{ HasFlag(style.flags, FontStyle::Strikethrough) };
+			bool underline{ HasFontFlag(style.flags, FontStyle::Underline) };
+			bool strikethrough{ HasFontFlag(style.flags, FontStyle::Strikethrough) };
 
 			if (!underline && !strikethrough) {
 				begin = end;
@@ -1245,7 +1245,9 @@ bool LinePassesClips(const LineLayout& line, std::span<const TextClipConstraint>
 			continue;
 		}
 
-		PTGN_ASSERT(clip.rect.HasPositiveArea(), "Text clip rectangle must have positive area");
+		PTGN_ASSERT(
+			clip.rect.GetSize().IsPositive(), "Text clip rectangle must have positive area"
+		);
 
 		bool keep{ true };
 		switch (clip.mode) {
@@ -1280,7 +1282,7 @@ void EmitGlyphQuad(
 	const Glyph& glyph, Color tint, Depth depth, int entity_id, float time,
 	std::vector<impl::TextureQuad>& quads
 ) {
-	if (!glyph.plane.HasPositiveArea()) {
+	if (!glyph.plane.GetSize().IsPositive()) {
 		return;
 	}
 
@@ -1301,7 +1303,7 @@ void EmitGlyphQuad(
 		V2_float{ quad_min.x, quad_max.y },
 	};
 
-	if (HasFlag(glyph.render_style.flags, FontStyle::Italic)) {
+	if (HasFontFlag(glyph.render_style.flags, FontStyle::Italic)) {
 		ApplyItalicShear(positions);
 	}
 
@@ -1416,7 +1418,7 @@ std::vector<TextDrawBatch> BuildTextDrawBatches(const DrawTextRequest& request) 
 				continue;
 			}
 
-			if (!glyph.plane.HasPositiveArea()) {
+			if (!glyph.plane.GetSize().IsPositive()) {
 				continue;
 			}
 
@@ -1477,7 +1479,7 @@ PreparedTextDraw PrepareTextDraw(
 			return;
 		}
 
-		if (!rect.HasPositiveArea()) {
+		if (!rect.GetSize().IsPositive()) {
 			result.drawable = false;
 			return;
 		}

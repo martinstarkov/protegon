@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <initializer_list>
 #include <string>
 #include <string_view>
@@ -130,6 +131,10 @@ struct StyledText {
 	constexpr StyledText(std::initializer_list<TextRun> text_runs) : runs{ text_runs } {}
 
 	constexpr bool operator==(const StyledText&) const = default;
+
+	constexpr bool HasContent() const {
+		return std::ranges::any_of(runs, [](const auto& run) { return !run.text.empty(); });
+	}
 
 	PTGN_SERIALIZE_VALUE(StyledText, runs)
 };

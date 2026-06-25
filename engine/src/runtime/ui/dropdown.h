@@ -150,7 +150,7 @@ private:
 		return *this;
 	}
 
-	void RecalculateParentDropdown(Entity entity);
+	void RecalculateParentDropdown(Entity entity) const;
 	void RecalculateButtonPositions();
 };
 

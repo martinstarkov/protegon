@@ -27,6 +27,7 @@ public:
 	Button disabled_button;
 
 	static constexpr V2_float button_size{ 260, 86 };
+	inline static Rect text_padding{ { 14, 8 }, { 14, 8 } };
 
 	static void ConfigureBackground(Button button, ButtonVisualState state, Color color) {
 		Entity background{ button.Background(state) };
@@ -50,7 +51,7 @@ public:
 		ConfigureBasicBackgrounds(button);
 
 		button.SetTextAutoBox(true);
-		button.SetTextPadding(Rect{ { 14, 8 }, { 14, 8 } });
+		button.SetTextPadding(text_padding);
 
 		return button;
 	}
@@ -79,7 +80,7 @@ public:
 			// Button padding + word wrap.
 			Button button{ CreateTextButton({ 170, -250 }) };
 
-			button.SetTextPadding(Rect{ { 22, 10 }, { 22, 10 } });
+			button.SetTextPadding({ { 22, 10 }, { 22, 10 } });
 
 			button.Text()
 				.Font("arial")

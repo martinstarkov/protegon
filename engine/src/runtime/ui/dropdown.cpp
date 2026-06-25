@@ -36,21 +36,6 @@ namespace {
 	);
 }
 
-void HideButtonView(Button button) {
-	button.Disable();
-	Hide(button);
-
-	for (Entity part : button.Parts()) {
-		Hide(part);
-	}
-}
-
-void ShowButtonView(Button button) {
-	Show(button);
-	button.Enable();
-	button.RefreshVisualState();
-}
-
 void HideDropdownBranch(Button button) {
 	if (button.Has<impl::DropdownData>()) {
 		Dropdown dropdown{ button };
@@ -63,11 +48,18 @@ void HideDropdownBranch(Button button) {
 		}
 	}
 
-	HideButtonView(button);
+	button.Disable();
+	Hide(button);
+
+	for (Entity part : button.Parts()) {
+		Hide(part);
+	}
 }
 
 void ShowDropdownItem(Button button) {
-	ShowButtonView(button);
+	Show(button);
+	button.Enable();
+	button.RefreshVisualState();
 
 	if (!button.Has<impl::DropdownData>()) {
 		return;
@@ -197,7 +189,7 @@ std::vector<Button> Dropdown::GetButtons() const {
 	return buttons;
 }
 
-void Dropdown::RecalculateParentDropdown(Entity entity) {
+void Dropdown::RecalculateParentDropdown(Entity entity) const {
 	if (!HasParent(entity)) {
 		return;
 	}
@@ -303,9 +295,7 @@ Dropdown& Dropdown::AddButton(Button button) {
 Button Dropdown::AddItem(std::string_view text) {
 	std::optional<std::variant<Rect, Circle>> shape;
 
-	auto& info{ Get<impl::DropdownData>() };
-
-	if (info.button_size.has_value()) {
+	if (const auto& info{ Get<impl::DropdownData>() }; info.button_size.has_value()) {
 		shape = Rect{ info.button_size.value() };
 	} else {
 		shape = AsButton().GetShape();

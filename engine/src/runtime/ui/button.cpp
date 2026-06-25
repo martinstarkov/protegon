@@ -12,7 +12,6 @@
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/input/mouse.h"
-#include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -45,47 +44,7 @@ namespace ptgn {
 
 namespace {
 
-HorizontalAlign GetHorizontalAlignment(Origin origin) {
-	switch (origin) {
-		using enum Origin;
-
-		case TopLeft:
-		case CenterLeft:
-		case BottomLeft:   return HorizontalAlign::Left;
-
-		case CenterTop:
-		case Center:
-		case CenterBottom: return HorizontalAlign::Center;
-
-		case TopRight:
-		case CenterRight:
-		case BottomRight:  return HorizontalAlign::Right;
-	}
-
-	PTGN_ERROR("Unknown Origin: ", std::to_underlying(origin));
-}
-
-VerticalAlign GetVerticalAlignment(Origin origin) {
-	switch (origin) {
-		using enum Origin;
-
-		case TopLeft:
-		case CenterTop:
-		case TopRight:	   return VerticalAlign::Top;
-
-		case CenterLeft:
-		case Center:
-		case CenterRight:  return VerticalAlign::Center;
-
-		case BottomLeft:
-		case CenterBottom:
-		case BottomRight:  return VerticalAlign::Bottom;
-	}
-
-	PTGN_ERROR("Unknown Origin: ", std::to_underlying(origin));
-}
-
-[[nodiscard]] bool IsPressVisualState(ButtonVisualState state) {
+bool IsPressVisualState(ButtonVisualState state) {
 	switch (state) {
 		using enum ButtonVisualState;
 
@@ -262,12 +221,6 @@ ButtonVisualState NormalStateFrom(ButtonState state) {
 	return ButtonVisualState::Idle;
 }
 
-std::optional<V2_float> GetShapeSize(const std::variant<Rect, Circle>& shape) {
-	return std::visit(
-		[](const auto& value) -> std::optional<V2_float> { return value.GetSize(); }, shape
-	);
-}
-
 [[nodiscard]] std::optional<V2_float> GetButtonShapeSize(Button button) {
 	auto shape{ button.GetShape() };
 
@@ -281,22 +234,6 @@ std::optional<V2_float> GetShapeSize(const std::variant<Rect, Circle>& shape) {
 		[&](const auto& value) -> std::optional<V2_float> { return value.GetSize(transform); },
 		shape.value()
 	);
-}
-
-[[nodiscard]] Rect GetButtonLocalRect(Button button, V2_float size) {
-	V2_float center{ GetOffset(GetDrawOrigin(button), size) };
-	V2_float half_size{ size * 0.5f };
-
-	return Rect{
-		center - half_size,
-		center + half_size,
-	};
-}
-
-[[nodiscard]] Rect ApplyContentPadding(Rect rect, Rect padding) {
-	rect.min += padding.min;
-	rect.max -= padding.max;
-	return rect;
 }
 
 } // namespace
@@ -882,7 +819,7 @@ Button& Button::SetTextAutoBox(bool enabled, ButtonVisualState state) {
 	return *this;
 }
 
-Button& Button::SetTextPadding(Rect padding, ButtonVisualState state) {
+Button& Button::SetTextPadding(Padding padding, ButtonVisualState state) {
 	ptgn::Text text{ Text(state) };
 	auto& auto_box{ text.TryAdd<impl::ButtonTextAutoBox>() };
 	auto_box.padding = padding;
@@ -1067,7 +1004,7 @@ void Button::UpdateChildLayouts() const {
 		return;
 	}
 
-	Rect button_rect{ GetButtonLocalRect(*this, *size) };
+	Rect button_rect{ *size, GetDrawOrigin(*this) };
 
 	for (Entity part : Parts(ButtonPartRole::Text)) {
 		if (!part.Has<impl::ButtonTextAutoBox>()) {
@@ -1079,7 +1016,9 @@ void Button::UpdateChildLayouts() const {
 			continue;
 		}
 
-		Rect content_rect{ ApplyContentPadding(button_rect, auto_box.padding) };
+		auto content_rect{
+			button_rect.Expanded(auto_box.padding.GetLeftTop(), auto_box.padding.GetRightBottom())
+		};
 
 		if (!content_rect.GetSize().IsPositive()) {
 			continue;
@@ -1098,7 +1037,7 @@ void Button::UpdateChildLayouts() const {
 			text.Box(text_box);
 		}
 
-		text.ApplyFallbackAlignment(GetHorizontalAlignment(origin), GetVerticalAlignment(origin));
+		text.ApplyFallbackAlignment(GetAlignment(origin));
 	}
 }
 

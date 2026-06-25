@@ -7,7 +7,6 @@
 
 #include "core/assert.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/concepts.h"
@@ -26,48 +25,36 @@ public:
 	constexpr Rect() = default;
 
 	constexpr Rect(V2_float min, V2_float max) : min{ min }, max{ max } {
-		PTGN_ASSERT(
-			(min.x < max.x || NearlyEqual(min.x, max.x)) &&
-				(min.y < max.y || NearlyEqual(min.y, max.y)),
-			"Rect min must be less than or equal to max"
-		);
+		PTGN_ASSERT(!GetSize().IsNegative(), "Rect size cannot be negative");
 	}
 
 	template <Arithmetic T>
-	constexpr Rect(Vector2<T> size) : Rect{ -size * 0.5f, size * 0.5f } { // NOSONAR
-		PTGN_ASSERT(!size.IsNegative(), "Rect size cannot be negative");
-	}
+	constexpr Rect(Vector2<T> size) : Rect{ -size * 0.5f, size * 0.5f } {} // NOSONAR
 
 	template <Arithmetic TX, Arithmetic TY>
-	constexpr Rect(TX x, TY y) : Rect{ V2_float{ x, y } } {}
+	constexpr Rect(TX x, TY y) : Rect{ { x, y } } {}
 
 	template <Arithmetic T>
-	constexpr Rect(V2_float position, Vector2<T> size, Origin draw_origin) {
-		PTGN_ASSERT(!size.IsNegative(), "Rect size cannot be negative");
-
-		auto local_rect{ Rect{ size } };
-		auto offset{ GetOffset(draw_origin, local_rect.GetSize()) };
-
-		min = local_rect.min + position + offset;
-		max = local_rect.max + position + offset;
-
-		PTGN_ASSERT(
-			(min.x < max.x || NearlyEqual(min.x, max.x)) &&
-				(min.y < max.y || NearlyEqual(min.y, max.y)),
-			"Rect min must be less than or equal to max"
-		);
+	constexpr Rect(Vector2<T> size, Origin origin) : Rect{ size } { // NOSONAR
+		auto offset{ GetOffset(origin, size) };
+		*this = Translated(offset);
 	}
 
-	constexpr bool HasPositiveArea() const {
-		return max.x > min.x && max.y > min.y;
+	template <Arithmetic T>
+	constexpr Rect(V2_float position, Vector2<T> size, Origin origin) : Rect{ size, origin } {
+		*this = Translated(position);
+	}
+
+	[[nodiscard]] constexpr Rect Expanded(V2_float left_top, V2_float right_bottom) const {
+		return {
+			min - left_top,
+			max + right_bottom,
+		};
 	}
 
 	/// @return New Rect with min and max expanded by the +margin.
 	[[nodiscard]] constexpr Rect Expanded(V2_float margin) const {
-		return {
-			min - margin,
-			max + margin,
-		};
+		return Expanded(margin, margin);
 	}
 
 	/// @return New Rect with min and max translated by the +offset.

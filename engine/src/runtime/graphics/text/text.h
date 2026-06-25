@@ -68,7 +68,8 @@ public:
 
 	Text& Select(std::size_t index);
 
-	Text& Box(Rect rect);
+	Text& Box(Rect text_box);
+	Text& Box(const TextBox& box);
 
 	Text& Reveal(std::size_t glyph_count);
 	Text& RevealAll();
@@ -205,7 +206,7 @@ private:
 
 	void InvalidateLayout();
 
-	void ApplyFallbackAlignment(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical);
+	void ApplyFallbackAlignment(Alignment alignment);
 
 	TextRun& CurrentRun();
 	const TextRun& CurrentRun() const;

@@ -43,6 +43,35 @@ struct ButtonHoverStop;
 
 } // namespace event
 
+struct Padding {
+	float left{ 0.0f };
+	float top{ 0.0f };
+	float right{ 0.0f };
+	float bottom{ 0.0f };
+
+	constexpr Padding() = default;
+
+	constexpr Padding(float left, float top, float right, float bottom) :
+		left{ left }, top{ top }, right{ right }, bottom{ bottom } {}
+
+	constexpr Padding(V2_float left_top, V2_float right_bottom) :
+		Padding{ left_top.x, left_top.y, right_bottom.x, right_bottom.y } {}
+
+	constexpr V2_float GetLeftTop() const {
+		return { left, top };
+	}
+
+	constexpr V2_float GetRightBottom() const {
+		return { right, bottom };
+	}
+
+	constexpr bool operator==(const Padding& o) const {
+		return left == o.left && right == o.right && top == o.top && bottom == o.bottom;
+	}
+
+	PTGN_SERIALIZE(Padding, left, top, right, bottom)
+};
+
 enum class ButtonAnimationPlayback : std::uint8_t {
 	StaticFrame,
 	Play,
@@ -91,7 +120,7 @@ struct ButtonPart {
 /// @brief Optional metadata for text children. Text behavior itself stays on Text.
 struct ButtonTextAutoBox {
 	bool enabled{ true };
-	Rect padding;
+	Padding padding;
 	Origin origin{ Origin::Center };
 
 	PTGN_SERIALIZE(ButtonTextAutoBox, enabled, padding, origin)
@@ -254,7 +283,7 @@ public:
 
 	Button& SetTextAutoBox(bool enabled = true, ButtonVisualState state = ButtonVisualState::Base);
 
-	Button& SetTextPadding(Rect padding, ButtonVisualState state = ButtonVisualState::Base);
+	Button& SetTextPadding(Padding padding, ButtonVisualState state = ButtonVisualState::Base);
 
 	Button& SetSound(std::optional<std::string_view> sound_key, ButtonState state);
 	[[nodiscard]] std::optional<Audio> GetSound(ButtonState state) const;

@@ -236,11 +236,9 @@ private:
 			})
 		) };
 
-		PTGN_ASSERT(bounds.HasPositiveArea());
-
 		V2_float size{ bounds.GetSize() };
 
-		PTGN_ASSERT(size.IsPositive());
+		PTGN_ASSERT(size.IsPositive(), "Bounds size must be positive");
 
 		size += V2_float{ request.effect_params.margin * 2 };
 
