@@ -1,7 +1,6 @@
 #include "renderer/text/text_layout.h"
 
 #include <chrono>
-#include <optional>
 #include <string_view>
 
 #include "app/application.h"
@@ -32,10 +31,6 @@ struct TextLayoutScene : public Scene {
 	V2_float box_size{ 210.0f, 74.0f };
 
 	float top{ -330.0f };
-
-	std::optional<Text> clipped_text;
-	Rect clipped_rect;
-	bool clip_enabled{ true };
 
 	V2_float GetCellTop(int column, int row) const {
 		return {
@@ -97,56 +92,6 @@ struct TextLayoutScene : public Scene {
 			cell_top + V2_float{ 0.0f, 22.0f }, used_size, content, horizontal_align,
 			vertical_align, wrap_mode, overflow_mode
 		);
-	}
-
-	void CreateClipped(
-		int column, int row, std::string_view content, HorizontalAlign horizontal,
-		VerticalAlign vertical, WrapMode wrap, OverflowMode overflow
-	) {
-		V2_float cell_top{ GetCellTop(column, row) };
-
-		CreateTitle(cell_top - V2_float{ 0.0f, 6.0f }, "Text::Clip — Q to toggle");
-
-		V2_float viewport_position{ cell_top + V2_float{ 0.0f, 22.0f } };
-
-		auto text{ CreateText(*this, viewport_position, Origin::CenterTop) };
-
-		text.Content(content)
-			.Font(font)
-			.Size(14.0f)
-			.Color(color::Black)
-			.Box({ { -box_size.x * 0.5f, 0.0f }, { box_size.x * 0.5f, 0.0f } })
-			.Align(horizontal, vertical)
-			.Wrap(wrap)
-			.Overflow(overflow);
-
-		float scroll_offset{ text.GetLayout().GetLineHeight(0) * 0.5f };
-
-		SetPosition(text, viewport_position - V2_float{ 0.0f, scroll_offset });
-
-		clipped_rect = Rect{
-			{ -box_size.x * 0.5f, scroll_offset },
-			{ box_size.x * 0.5f, scroll_offset + box_size.y },
-		};
-
-		text.Clip(clipped_rect);
-
-		clipped_text = text;
-		clip_enabled = true;
-	}
-
-	void ToggleClip() {
-		if (!clipped_text.has_value()) {
-			return;
-		}
-
-		clip_enabled = !clip_enabled;
-
-		if (clip_enabled) {
-			clipped_text->Clip(clipped_rect);
-		} else {
-			clipped_text->ClearClip();
-		}
 	}
 
 	void OnEnter() override {
@@ -242,13 +187,12 @@ struct TextLayoutScene : public Scene {
 			HorizontalAlign::Justify, VerticalAlign::Top, WrapMode::Word, OverflowMode::Overflow
 		);
 
-		CreateClipped(
-			2, 3,
-			"The storm had been building beyond the hills all afternoon. Dark clouds rolled across "
-			"the horizon, while distant thunder echoed through "
-			"the valley. The wind was already bending the trees. ",
-			HorizontalAlign::Left, VerticalAlign::Top, WrapMode::Word, OverflowMode::Overflow
-		);
+		CreateCell(
+			2, 3, "JustifyLastLine",
+			"Justified text spreads spaces so wrapped lines fill the full width.",
+			HorizontalAlign::Justify, VerticalAlign::Top, WrapMode::Word, OverflowMode::Overflow
+		)
+			.JustifyLastLine();
 
 		CreateCell(
 			0, 4, "HorizontalAlign::Left", "short\nmedium line\nthis is the longest line",
@@ -284,13 +228,9 @@ struct TextLayoutScene : public Scene {
 	void OnUpdate() override {
 		MoveWASD(ctx().camera, V2_float{ 300.0f } * ctx().dt().count());
 
-		if (ctx().input.KeyPressed(Key::Q)) {
-			ToggleClip();
-		}
-
-		if (ctx().input.KeyHeld(Key::E)) {
+		if (ctx().input.KeyHeld(Key::Q)) {
 			ctx().camera.Zoom(ctx().dt().count());
-		} else if (ctx().input.KeyHeld(Key::R)) {
+		} else if (ctx().input.KeyHeld(Key::E)) {
 			ctx().camera.Zoom(-ctx().dt().count());
 		}
 	}
