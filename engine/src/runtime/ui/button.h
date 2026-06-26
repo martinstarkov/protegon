@@ -365,6 +365,8 @@ private:
 	friend class Dropdown;
 	friend class ToggleButton;
 
+	ptgn::Text GetText(ButtonVisualState state);
+
 	Button& Border(ButtonVisualState state);
 	Button& Background(ButtonVisualState state);
 

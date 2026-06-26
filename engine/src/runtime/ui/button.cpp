@@ -236,7 +236,7 @@ std::optional<Animation> TryAnimationForVisualState(Button button, ButtonVisualS
 		std::optional<Animation> animation{
 			FindButtonPart(button, { ButtonPart::Sprite, fallback_state })
 		};
-		if (animation.has_value()) {
+		if (animation.has_value() && animation.value().Has<impl::AnimationData>()) {
 			return animation;
 		}
 	}
@@ -621,6 +621,25 @@ Button& Button::RemoveParts(ButtonPart part) {
 	return *this;
 }
 
+Text Button::GetText(ButtonVisualState state) {
+	if (auto text{ FindButtonPart(*this, { ButtonPart::Text, state }) }) {
+		return ptgn::Text{ text.value() };
+	}
+
+	ptgn::Text text{ CreateText(GetScene()) };
+
+	text.Add<impl::ButtonChild>(ButtonPart::Text, state);
+	text.Add<impl::ButtonTextAutoBox>();
+
+	SetParent(text, *this);
+	Show(text);
+
+	UpdateChildLayouts();
+	RefreshVisualState();
+
+	return text;
+}
+
 Text Button::Text(ButtonVisualState state) {
 	return Text({}, state);
 }
@@ -633,22 +652,8 @@ Text Button::Text(std::string_view content, Color color, float font_size, Button
 }
 
 Text Button::Text(StyledText styled_text, ButtonVisualState state) {
-	if (auto text{ FindButtonPart(*this, { ButtonPart::Text, state }) }) {
-		ptgn::Text{ text.value() }.Content(std::move(styled_text));
-		return ptgn::Text{ text.value() };
-	}
-
-	ptgn::Text text{ CreateText(GetScene(), {}, std::move(styled_text)) };
-
-	text.Add<impl::ButtonChild>(ButtonPart::Text, state);
-	text.Add<impl::ButtonTextAutoBox>();
-
-	SetParent(text, *this);
-	Show(text);
-
-	UpdateChildLayouts();
-	RefreshVisualState();
-
+	auto text{ GetText(state) };
+	text.Content(std::move(styled_text));
 	return text;
 }
 
@@ -681,7 +686,7 @@ Button& Button::Sprite(
 }
 
 Button& Button::TextOrigin(Origin origin, ButtonVisualState state) {
-	ptgn::Text text{ Text(state) };
+	ptgn::Text text{ GetText(state) };
 
 	auto& auto_box{ text.TryAdd<impl::ButtonTextAutoBox>() };
 	auto_box.origin = origin;
@@ -983,7 +988,7 @@ Button& Button::RemoveAnimation(ButtonVisualState state) {
 }
 
 Button& Button::TextAutoBox(bool enabled, ButtonVisualState state) {
-	ptgn::Text text{ Text(state) };
+	ptgn::Text text{ GetText(state) };
 	auto& auto_box{ text.TryAdd<impl::ButtonTextAutoBox>() };
 	auto_box.enabled = enabled;
 	UpdateChildLayouts();
@@ -991,7 +996,7 @@ Button& Button::TextAutoBox(bool enabled, ButtonVisualState state) {
 }
 
 Button& Button::TextPadding(Padding padding, ButtonVisualState state) {
-	ptgn::Text text{ Text(state) };
+	ptgn::Text text{ GetText(state) };
 	auto& auto_box{ text.TryAdd<impl::ButtonTextAutoBox>() };
 	auto_box.padding = padding;
 	UpdateChildLayouts();
@@ -1145,6 +1150,12 @@ void Button::PlaySound(ButtonState active) {
 void Button::PlayAnimation(ButtonState active) const {
 	auto active_state{ ToVisualState(active) };
 
+	std::optional<ptgn::Animation> override_animation;
+
+	if (auto visual_override{ TryGet<impl::ButtonVisualOverride>() }) {
+		override_animation = TryAnimationForVisualState(*this, visual_override->state);
+	}
+
 	for (Entity part : Parts(ButtonPart::Sprite)) {
 		if (!part.Has<impl::ButtonChild, impl::AnimationData>()) {
 			continue;
@@ -1157,24 +1168,25 @@ void Button::PlayAnimation(ButtonState active) const {
 		auto animation_part{ part.TryGet<impl::ButtonAnimationPart>() };
 		auto playback{ animation_part ? animation_part->options.playback
 									  : ButtonAnimationPlayback::Play };
-		auto static_frame{ animation_part ? animation_part->options.static_frame : 0uz };
 
 		if (part_data.state != active_state) {
-			animation.Reset();
-			animation.SetCurrentFrame(static_frame);
+			if (bool is_override_animation{ override_animation.has_value() &&
+											Entity{ override_animation.value() } == part };
+				!is_override_animation) {
+				ResetButtonAnimation(animation);
+			}
+
 			continue;
 		}
 
 		switch (playback) {
 			using enum ButtonAnimationPlayback;
 
-			case StaticFrame:
-				animation.Reset();
-				animation.SetCurrentFrame(static_frame);
-				break;
+			case StaticFrame: ResetButtonAnimation(animation); break;
 
-			case Play:
-			case PlayOnce: animation.Start(true); break;
+			case Play:		  [[fallthrough]];
+
+			case PlayOnce:	  animation.Start(true); break;
 		}
 	}
 }
