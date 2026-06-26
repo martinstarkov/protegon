@@ -1,12 +1,10 @@
 #include <chrono>
 #include <optional>
 #include <string_view>
-#include <utility>
 
 #include "app/application.h"
 #include "core/editor.h"
 #include "core/graphics/color.h"
-#include "core/graphics/fill_style.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
@@ -15,8 +13,6 @@
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/tint.h"
@@ -58,20 +54,6 @@ public:
 		std::optional<float> hover_scale;
 	};
 
-	static void ConfigureShapePart(Entity entity, V2_float size, Color tint, FillStyle fill_style) {
-		entity.Add<Rect>(Rect{ size });
-		entity.Add<Color>(tint);
-		SetDraw<RectDraw>(entity);
-		SetDrawOrigin(entity, Origin::Center);
-		SetFillStyle(entity, fill_style);
-	}
-
-	static void ConfigureBackground(
-		Button button, ButtonVisualState state, V2_float size, Color tint
-	) {
-		ConfigureShapePart(button.Background(state), size, tint, Solid{});
-	}
-
 	static void ConfigureText(
 		Button button, ButtonVisualState state, std::string_view content, Color tint,
 		V2_float padding_size, std::optional<float> outline_width = std::nullopt,
@@ -92,66 +74,58 @@ public:
 			text.Outline(outline_color, outline_width.value());
 		}
 
-		button.SetTextPadding(padding_size, state);
+		button.TextPadding(padding_size, state);
 	}
 
-	static void ConfigureIcon(
+	static void ConfigureSprite(
 		Button button, ButtonVisualState state, std::string_view texture_key,
 		std::optional<Color> tint = std::nullopt
 	) {
-		Sprite icon{ button.Icon(state) };
-		icon.SetTexture(texture_key);
-
+		button.Sprite(texture_key);
 		if (tint.has_value()) {
-			SetTint(icon, tint.value());
+			SetTint(button.Part(ButtonPart::Sprite, state), tint.value());
 		}
 	}
 
 	Button CreateTemplateButton(V2_float position, V2_float size, const ButtonTemplateSpec& spec) {
-		Button button{ CreateButton(*this, position, Rect{ size }, Origin::Center) };
+		Button button{ CreateButton(*this, position, size) };
 
 		bool has_texture{ spec.texture.has_value() || spec.texture_hover.has_value() ||
 						  spec.texture_press.has_value() };
 
 		if (spec.background_color.has_value()) {
-			ConfigureBackground(
-				button, ButtonVisualState::Idle, size, spec.background_color.value()
-			);
+			button.BackgroundColor(spec.background_color.value(), ButtonVisualState::Idle);
 		} else if (!has_texture) {
-			ConfigureBackground(
-				button, ButtonVisualState::Idle, size, color::Gray.WithAlpha(0.35f)
-			);
+			button.BackgroundColor(color::Gray.WithAlpha(0.35f), ButtonVisualState::Idle);
 		}
 
 		if (spec.background_color_hover.has_value()) {
-			ConfigureBackground(
-				button, ButtonVisualState::Hover, size, spec.background_color_hover.value()
-			);
+			button.BackgroundColor(spec.background_color_hover.value(), ButtonVisualState::Hover);
 		}
 
 		if (spec.background_color_press.has_value()) {
-			ConfigureBackground(
-				button, ButtonVisualState::Press, size, spec.background_color_press.value()
-			);
+			button.BackgroundColor(spec.background_color_press.value(), ButtonVisualState::Press);
 		}
 
 		if (spec.texture.has_value()) {
-			ConfigureIcon(button, ButtonVisualState::Idle, spec.texture.value(), spec.texture_tint);
+			ConfigureSprite(
+				button, ButtonVisualState::Idle, spec.texture.value(), spec.texture_tint
+			);
 		}
 
 		if (spec.texture_hover.has_value()) {
-			ConfigureIcon(
+			ConfigureSprite(
 				button, ButtonVisualState::Hover, spec.texture_hover.value(),
 				spec.texture_tint_hover
 			);
 		} else if (spec.texture_tint_hover.has_value() && spec.texture.has_value()) {
-			ConfigureIcon(
+			ConfigureSprite(
 				button, ButtonVisualState::Hover, spec.texture.value(), spec.texture_tint_hover
 			);
 		}
 
 		if (spec.texture_press.has_value()) {
-			ConfigureIcon(
+			ConfigureSprite(
 				button, ButtonVisualState::Press, spec.texture_press.value(),
 				spec.texture_tint_press
 			);
@@ -160,7 +134,7 @@ public:
 															 : spec.texture.value_or({}) };
 
 			if (!texture_key.empty()) {
-				ConfigureIcon(
+				ConfigureSprite(
 					button, ButtonVisualState::Press, texture_key, spec.texture_tint_press
 				);
 			}
@@ -187,8 +161,7 @@ public:
 			);
 		}
 
-		button.SetSound(spec.sound_hover, ButtonState::Hover);
-		button.SetSound(spec.sound_press, ButtonState::Press);
+		button.Sounds(spec.sound_press, spec.sound_hover);
 
 		if (spec.hover_move.has_value()) {
 			button.OnHoverStart([button, position, offset = spec.hover_move.value()]() mutable {
@@ -205,8 +178,6 @@ public:
 
 			button.OnHoverStop([button]() mutable { SetScale(button, 1.0f); });
 		}
-
-		button.RefreshVisualState();
 
 		return button;
 	}
@@ -389,16 +360,13 @@ public:
 
 		Button bell{ CreateButton(*this, { 250, 0 }, Rect{ bell_size }, Origin::Center) };
 
-		bell.Icon(ButtonVisualState::Idle).SetTexture("bell_idle");
+		bell.Sprite("bell_idle", {}, ButtonVisualState::Idle);
 
-		bell.SetAnimation(std::move(bell_hover_animation), ButtonVisualState::Hover)
-			.SetAnimation(std::move(bell_press_animation), ButtonVisualState::Press)
-			.SetSound("bell_hover_sound", ButtonState::Hover)
-			.SetSound("bell_press_sound", ButtonState::Press);
+		bell.Animation(bell_hover_animation, ButtonVisualState::Hover)
+			.Animation(bell_press_animation, ButtonVisualState::Press)
+			.Sounds("bell_press_sound", "bell_hover_sound");
 
 		bell.OnPress([]() { PTGN_LOG("Pressed bell!"); });
-
-		bell.RefreshVisualState();
 	}
 };
 
