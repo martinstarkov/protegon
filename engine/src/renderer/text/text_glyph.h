@@ -4,6 +4,7 @@
 
 #include "core/graphics/color.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/tolerance.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/id.h"
 #include "renderer/text/font_style.h"
@@ -27,6 +28,12 @@ struct GlyphEffectStyle {
 	float speed{ 0.0f };
 	float phase{ 0.0f };
 
+	constexpr bool operator==(const GlyphEffectStyle& o) const {
+		return type == o.type && NearlyEqual(amplitude, o.amplitude) &&
+			   NearlyEqual(frequency, o.frequency) && NearlyEqual(speed, o.speed) &&
+			   NearlyEqual(phase, o.phase);
+	}
+
 	PTGN_SERIALIZE(GlyphEffectStyle, type, amplitude, frequency, speed, phase)
 };
 
@@ -34,6 +41,8 @@ struct GlyphRenderStyle {
 	Color color{ color::White };
 	GlyphEffectStyle effect;
 	FontStyle flags{ FontStyle::Normal };
+
+	constexpr bool operator==(const GlyphRenderStyle&) const = default;
 };
 
 struct Glyph {
