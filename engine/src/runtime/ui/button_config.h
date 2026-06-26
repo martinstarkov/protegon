@@ -14,6 +14,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "core/util/time.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
@@ -140,13 +141,7 @@ struct ButtonTextConfig {
 	Transform transform;
 
 	/// @brief Optional text box.
-	std::optional<Rect> box;
-
-	Alignment alignment{ HorizontalAlign::Center, VerticalAlign::Center };
-	WrapMode wrap{ WrapMode::None };
-	OverflowMode overflow{ OverflowMode::Overflow };
-
-	std::size_t max_lines{ 0 };
+	TextBox box;
 
 	std::optional<float> outline_width;
 	Color outline_color{ color::Black };
@@ -158,8 +153,8 @@ struct ButtonTextConfig {
 	Padding padding;
 
 	PTGN_SERIALIZE(
-		ButtonTextConfig, state, content, font, font_size, color, origin, transform, box, alignment,
-		wrap, overflow, max_lines, outline_width, outline_color, auto_box, padding
+		ButtonTextConfig, state, content, font, font_size, color, origin, transform, box,
+		outline_width, outline_color, auto_box, padding
 	)
 };
 
@@ -191,7 +186,7 @@ struct ScaleButtonConfig {
 };
 
 struct ButtonDesc {
-	/// @brief Interactive shape. Visual background/border should be child parts.
+	/// @brief Interactive shape.
 	std::variant<Rect, Circle> shape;
 
 	Origin origin{ Origin::Center };
@@ -204,12 +199,18 @@ struct ButtonDesc {
 
 	ButtonSoundConfig sounds;
 
-	PTGN_SERIALIZE(ButtonDesc, shape, origin, ui_layer, enabled, shapes, sprites, texts, sounds)
+	std::optional<MoveButtonConfig> move;
+	std::optional<ScaleButtonConfig> scale;
+
+	PTGN_SERIALIZE(
+		ButtonDesc, shape, origin, ui_layer, enabled, shapes, sprites, texts, sounds, move, scale
+	)
 };
 
-/// @brief Convenience high-level config for simple buttons.
-/// This should create child entities internally, not store visuals on the button entity.
+/// @brief Convenience high level config for simple buttons.
 struct ButtonConfig {
+	Origin origin{ Origin::Center };
+
 	std::optional<std::string> content;
 	std::optional<Color> text_color{ color::White };
 	std::optional<Color> text_color_hover;
@@ -220,12 +221,7 @@ struct ButtonConfig {
 	/// @brief Font key to use for the button text. Must be loaded in the AssetManager.
 	std::string font{ kDefaultFont };
 
-	std::optional<Alignment> text_alignment;
-
-	WrapMode text_wrap{ WrapMode::None };
-	OverflowMode text_overflow{ OverflowMode::Overflow };
-
-	std::size_t text_max_lines{ 0 };
+	TextBox text_box;
 
 	std::optional<float> text_outline_width;
 	Color text_outline_color{ color::Black };
@@ -258,11 +254,17 @@ struct ButtonConfig {
 };
 
 struct AnimatedButtonConfig {
+	/// @brief If set, the button will be sized to this size. Otherwise, the button will be sized to
+	/// the texture size.
+	std::optional<V2_float> size;
+
+	Origin origin{ Origin::Center };
+
 	std::string texture;
-	std::string texture_hover;
+	std::optional<std::string> texture_hover;
 	std::optional<std::string> texture_press;
 
-	AnimationConfig animation_hover;
+	std::optional<AnimationConfig> animation_hover;
 	std::optional<AnimationConfig> animation_press;
 
 	std::optional<std::string> sound_hover;
