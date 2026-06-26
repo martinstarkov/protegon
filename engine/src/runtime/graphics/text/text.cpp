@@ -3,7 +3,6 @@
 #include <ecs/ecs.h>
 
 #include <algorithm>
-#include <array>
 #include <chrono>
 #include <cmath>
 #include <functional>
@@ -22,7 +21,6 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/entity_handle.h"
-#include "core/util/hash.h"
 #include "renderer/draw_context.h"
 #include "renderer/text/font_atlas.h"
 #include "renderer/text/font_style.h"
@@ -49,13 +47,11 @@ namespace {
 void UpdateLayout(
 	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
 ) {
-	if (entity.Has<TextLayout>() && !entity.Has<impl::TextLayoutDirty>()) {
+	if (auto layout{ entity.TryGet<TextLayout>() }; layout && !layout->dirty) {
 		return;
 	}
 
 	entity.Add<TextLayout>(impl::BuildTextLayout(asset_manager, styled_text, box));
-
-	entity.Remove<impl::TextLayoutDirty>();
 }
 
 } // namespace
@@ -204,12 +200,11 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 
 	Text text{ entity };
 
-	const auto& styled_text{ text.GetStyledText() };
-	const auto& box{ text.GetTextBox() };
-
-	if (!styled_text.HasContent()) {
+	if (const auto& styled_text{ text.GetStyledText() }; !styled_text.HasContent()) {
 		return;
 	}
+
+	const auto& box{ text.GetTextBox() };
 
 	const auto& layout{ text.GetLayout() };
 
@@ -256,14 +251,16 @@ Text& Text::Clear() {
 	auto& styled_text{ Get<StyledText>() };
 	auto& edit_state{ Get<impl::TextEditState>() };
 
-	if (!styled_text.runs.empty()) {
-		InvalidateLayout();
-	}
+	bool changed{ styled_text.HasContent() };
 
 	styled_text.runs.clear();
 	styled_text.runs.emplace_back();
 
 	edit_state.current_run_index = 0;
+
+	if (changed) {
+		InvalidateLayout();
+	}
 
 	return *this;
 }
@@ -353,8 +350,10 @@ Text& Text::Align(Alignment alignment) {
 		InvalidateLayout();
 	}
 
-	Add<impl::TextAlignmentOverride>(impl::TextAlignmentOverride{ .horizontal = true,
-																  .vertical	  = true });
+	auto& override{ TryAdd<impl::TextAlignmentOverride>() };
+	override.horizontal = true;
+	override.vertical	= true;
+
 	return *this;
 }
 
@@ -561,12 +560,19 @@ Text& Text::Style(FontStyle flags) {
 }
 
 Text& Text::Bold(bool enabled, float weight) {
-	if (auto& run{ CurrentRun() }; HasFontFlag(run.style.flags, FontStyle::Bold) != enabled ||
-								   !NearlyEqual(run.style.bold_weight, weight)) {
-		run.style.flags		  = SetFontFlag(run.style.flags, FontStyle::Bold, enabled);
-		run.style.bold_weight = weight;
+	auto& run{ CurrentRun() };
+
+	bool was_enabled{ HasFontFlag(run.style.flags, FontStyle::Bold) };
+	bool layout_changed{ was_enabled != enabled ||
+						 (enabled && !NearlyEqual(run.style.bold_weight, weight)) };
+
+	run.style.flags		  = SetFontFlag(run.style.flags, FontStyle::Bold, enabled);
+	run.style.bold_weight = weight;
+
+	if (layout_changed) {
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
@@ -725,23 +731,27 @@ TextRun& Text::CurrentRun() {
 }
 
 void Text::InvalidateLayout() {
-	Add<impl::TextLayoutDirty>();
+	if (auto layout{ TryGet<TextLayout>() }) {
+		layout->dirty = true;
+	}
 }
 
 void Text::OverrideAlignment(Alignment alignment) {
 	auto alignment_override{ TryGet<impl::TextAlignmentOverride>() };
-	auto& box{ Get<TextBox>() };
+	auto& current{ Get<TextBox>().style.alignment };
 
 	bool changed{ false };
 
-	if (!alignment_override || !alignment_override->horizontal) {
-		box.style.alignment.horizontal = alignment.horizontal;
-		changed						   = true;
+	if ((!alignment_override || !alignment_override->horizontal) &&
+		current.horizontal != alignment.horizontal) {
+		current.horizontal = alignment.horizontal;
+		changed			   = true;
 	}
 
-	if (!alignment_override || !alignment_override->vertical) {
-		box.style.alignment.vertical = alignment.vertical;
-		changed						 = true;
+	if ((!alignment_override || !alignment_override->vertical) &&
+		current.vertical != alignment.vertical) {
+		current.vertical = alignment.vertical;
+		changed			 = true;
 	}
 
 	if (changed) {
@@ -753,9 +763,11 @@ Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origi
 	Text text{ scene.CreateEntity() };
 
 	text.Add<impl::TextEditState>();
+	text.Add<StyledText>();
+	text.Add<TextBox>();
+	text.Add<TextLayout>();
 
 	text.Content(std::move(styled_text));
-
 	text.Box(TextBox{ .style = { .alignment{ GetAlignment(origin) } } });
 
 	SetTransform(text, transform);

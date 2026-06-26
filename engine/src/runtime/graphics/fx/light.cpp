@@ -504,7 +504,7 @@ void DrawPolygonLines(
 			.camera		= camera,
 			.debug		= true,
 		},
-		true, std::nullopt
+		true, {}
 	);
 }
 

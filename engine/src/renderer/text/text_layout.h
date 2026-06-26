@@ -17,7 +17,6 @@
 #include "core/math/tolerance.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/hash.h"
 #include "renderer/pipeline/render_primitives.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
@@ -251,7 +250,8 @@ struct TextLayout {
 	/// This deliberately excludes synthetic ellipsis and hyphen glyphs.
 	std::size_t source_glyph_count{ 0 };
 
-	std::size_t hash{ 0 };
+	/// @brief Set to true when the layout has been modified and needs to be rebuilt.
+	bool dirty{ false };
 
 	constexpr const LineLayout& GetLine(std::size_t index) const {
 		PTGN_ASSERT(
@@ -380,47 +380,3 @@ std::vector<TextDrawBatch> BuildTextDrawBatches(const DrawTextRequest& request);
 } // namespace impl
 
 } // namespace ptgn
-
-template <>
-struct std::hash<ptgn::ShrinkScale> {
-	std::size_t operator()(const ptgn::ShrinkScale& scale) const {
-		return ptgn::Hash(ptgn::QuantizeUnsigned(scale.min), ptgn::QuantizeUnsigned(scale.max));
-	}
-};
-
-template <>
-struct std::hash<ptgn::Alignment> {
-	std::size_t operator()(const ptgn::Alignment& alignment) const {
-		return ptgn::Hash(
-			std::to_underlying(alignment.horizontal), std::to_underlying(alignment.vertical)
-		);
-	}
-};
-
-template <>
-struct std::hash<ptgn::WrapSettings> {
-	std::size_t operator()(const ptgn::WrapSettings& wrap) const {
-		return ptgn::Hash(
-			std::to_underlying(wrap.mode), wrap.allow_word_break_in_overflow,
-			wrap.insert_hyphen_on_split, wrap.prevent_single_letter_split,
-			wrap.require_three_letter_remainder
-		);
-	}
-};
-
-template <>
-struct std::hash<ptgn::TextLayoutStyle> {
-	std::size_t operator()(const ptgn::TextLayoutStyle& style) const {
-		return ptgn::Hash(
-			style.alignment, style.wrap, std::to_underlying(style.overflow), style.collapse_spaces,
-			style.justify_last_line, style.tab_width, style.max_lines, style.shrink_scale
-		);
-	}
-};
-
-template <>
-struct std::hash<ptgn::TextBox> {
-	std::size_t operator()(const ptgn::TextBox& box) const {
-		return ptgn::Hash(box.rect, box.style);
-	}
-};

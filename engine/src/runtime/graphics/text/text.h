@@ -25,8 +25,6 @@ class Button;
 
 namespace impl {
 
-struct TextLayoutDirty {};
-
 struct TextAlignmentOverride {
 	bool horizontal{ false };
 	bool vertical{ false };

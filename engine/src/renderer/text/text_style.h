@@ -10,7 +10,6 @@
 #include "core/graphics/color.h"
 #include "core/math/tolerance.h"
 #include "core/math/vector2.h"
-#include "core/util/hash.h"
 #include "renderer/text/font_style.h"
 #include "renderer/text/text_glyph.h"
 #include "serialization/serialize.h"
@@ -158,52 +157,3 @@ struct ResolvedStyledText {
 } // namespace impl
 
 } // namespace ptgn
-
-template <>
-struct std::hash<ptgn::DistanceFieldLayerStyle> {
-	std::size_t operator()(const ptgn::DistanceFieldLayerStyle& style) const {
-		return ptgn::Hash(
-			style.color, ptgn::QuantizeUnsigned(style.width), ptgn::QuantizeUnsigned(style.softness)
-		);
-	}
-};
-
-template <>
-struct std::hash<ptgn::DistanceFieldStyle> {
-	std::size_t operator()(const ptgn::DistanceFieldStyle& style) const {
-		return ptgn::Hash(
-			ptgn::QuantizeUnsigned(style.weight), ptgn::QuantizeUnsigned(style.softness),
-			style.outline, style.shadow, style.shadow_offset, style.outer_glow, style.inner_glow,
-			ptgn::QuantizeUnsigned(style.pixel_range)
-		);
-	}
-};
-
-template <>
-struct std::hash<ptgn::TextRunStyle> {
-	std::size_t operator()(const ptgn::TextRunStyle& style) const {
-		return ptgn::Hash(
-			style.color, ptgn::QuantizeUnsigned(style.bold_weight),
-			ptgn::QuantizeUnsigned(style.size), ptgn::QuantizeSigned(style.kerning),
-			ptgn::QuantizeSigned(style.tracking), ptgn::QuantizeSigned(style.line_spacing),
-			std::to_underlying(style.flags), style.sdf, std::to_underlying(style.effect.type),
-			ptgn::QuantizeSigned(style.effect.amplitude),
-			ptgn::QuantizeSigned(style.effect.frequency), ptgn::QuantizeSigned(style.effect.speed),
-			ptgn::QuantizeSigned(style.effect.phase)
-		);
-	}
-};
-
-template <>
-struct std::hash<ptgn::TextRun> {
-	std::size_t operator()(const ptgn::TextRun& run) const {
-		return ptgn::Hash(run.text, run.font, run.style);
-	}
-};
-
-template <>
-struct std::hash<ptgn::StyledText> {
-	std::size_t operator()(const ptgn::StyledText& styled_text) const {
-		return ptgn::Hash(styled_text.runs);
-	}
-};
