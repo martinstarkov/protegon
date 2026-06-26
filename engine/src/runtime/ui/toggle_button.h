@@ -6,10 +6,9 @@
 #include <vector>
 
 #include "core/event/event.h"
-#include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
+#include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/key_hash.h"
 #include "runtime/scripting/script.h"
@@ -133,12 +132,12 @@ struct ToggleButtonToggle {
 } // namespace event
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, Rect rect, Origin draw_origin = Origin::Center,
+	Scene& scene, Transform transform, V2_float size, Origin draw_origin = Origin::Center,
 	bool toggled = false
 );
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, Circle circle, Origin draw_origin = Origin::Center,
+	Scene& scene, Transform transform, float radius, Origin draw_origin = Origin::Center,
 	bool toggled = false
 );
 

@@ -16,7 +16,6 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/concepts.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/audio/audio.h"
@@ -163,8 +162,8 @@ public:
 	ButtonVisualState GetVisualState() const;
 	impl::InternalButtonState GetInternalState() const;
 
-	/// @return Interactive shape, not necessarily the visual background child.
-	std::variant<Rect, Circle> GetShape() const;
+	/// @return Unscaled interactive shape size.
+	std::variant<V2_float, float> GetSize() const;
 
 	Button& Enable(bool enable_hover = true, bool reset_state = true);
 	Button& Disable(bool disable_hover = true, bool reset_state = true);
@@ -178,9 +177,7 @@ public:
 	Button& StopHover();
 
 	Button& Size(V2_float size);
-
-	Button& Shape(Rect rect);
-	Button& Shape(Circle circle);
+	Button& Size(float radius);
 
 	Button& Background();
 
@@ -252,6 +249,11 @@ public:
 	Button& Sprite(
 		std::string_view texture_key, std::optional<Origin> origin = std::nullopt,
 		ButtonVisualState state = ButtonVisualState::Base
+	);
+	Button& Sprites(
+		std::optional<std::string_view> idle_texture_key,
+		std::optional<std::string_view> hover_texture_key = std::nullopt,
+		std::optional<std::string_view> press_texture_key = std::nullopt
 	);
 
 	/// @brief Removes every sprite state.
@@ -367,39 +369,51 @@ struct ButtonAnimationCompleteScript : public Script {
 namespace event {
 
 struct ButtonPress {
+	operator Button() const { // NOSONAR
+		return button;
+	}
+
 	Button button;
 };
 
 struct ButtonHoverStart {
+	operator Button() const { // NOSONAR
+		return button;
+	}
+
 	Button button;
 };
 
 struct ButtonHover {
+	operator Button() const { // NOSONAR
+		return button;
+	}
+
 	Button button;
 };
 
 struct ButtonHoverStop {
+	operator Button() const { // NOSONAR
+		return button;
+	}
+
 	Button button;
 };
 
 } // namespace event
 
+Button CreateButton(
+	Scene& scene, Transform transform, V2_float size, Origin origin = Origin::Center
+);
+
+Button CreateButton(
+	Scene& scene, Transform transform, float radius, Origin origin = Origin::Center
+);
+
+Button CreateButton(Scene& scene, Transform transform, V2_float size, const ButtonConfig& config);
+
 Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
 
-Button CreateButton(Scene& scene, Transform transform, Rect rect, Origin origin = Origin::Center);
-
-Button CreateButton(
-	Scene& scene, Transform transform, Circle circle, Origin origin = Origin::Center
-);
-
-Button CreateButton(
-	Scene& scene, Transform transform, V2_float size, const ButtonConfig& config,
-	Origin origin = Origin::Center
-);
-
-Button CreateAnimatedButton(
-	Scene& scene, Transform transform, std::optional<V2_float> size,
-	const AnimatedButtonConfig& config, Origin origin = Origin::Center
-);
+Button CreateAnimatedButton(Scene& scene, Transform transform, const AnimatedButtonConfig& config);
 
 } // namespace ptgn

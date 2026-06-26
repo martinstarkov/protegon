@@ -3,6 +3,7 @@
 #include <ecs/ecs.h>
 
 #include <algorithm>
+#include <concepts>
 #include <optional>
 #include <ranges>
 #include <string>
@@ -28,6 +29,7 @@
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
+#include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
@@ -62,10 +64,10 @@ constexpr Color kDefaultPressButtonBorderColor{ color::Gray };
 
 constexpr float kDefaultButtonBorderWidth{ 2.0f };
 
-ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config, Origin origin) {
+ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config) {
 	ButtonDesc desc{
 		.shape	= Rect{ size },
-		.origin = origin,
+		.origin = config.origin,
 	};
 
 	auto add_background = [&](ButtonVisualState state, const std::optional<Color>& color) {
@@ -78,7 +80,7 @@ ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config, Origin orig
 				.part		= ButtonPart::Background,
 				.state		= state,
 				.shape		= config.background_size.value_or(size),
-				.origin		= origin,
+				.origin		= config.origin,
 				.color		= color,
 				.fill_style = Solid{},
 			}
@@ -99,7 +101,7 @@ ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config, Origin orig
 			ButtonSpriteConfig{
 				.state	 = state,
 				.texture = texture.value(),
-				.origin	 = origin,
+				.origin	 = config.origin,
 				.tint	 = tint,
 			}
 		);
@@ -130,11 +132,8 @@ ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config, Origin orig
 				.font		   = config.font,
 				.font_size	   = config.font_size,
 				.color		   = color,
-				.origin		   = Origin::Center,
-				.alignment	   = config.text_alignment.value_or({}),
-				.wrap		   = config.text_wrap,
-				.overflow	   = config.text_overflow,
-				.max_lines	   = config.text_max_lines,
+				.origin		   = config.origin,
+				.box		   = config.text_box,
 				.outline_width = config.text_outline_width,
 				.outline_color = config.text_outline_color,
 				.auto_box	   = config.text_auto_box,
@@ -157,6 +156,9 @@ ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config, Origin orig
 
 	desc.sounds.hover = config.sound_hover;
 	desc.sounds.press = config.sound_press;
+
+	desc.move  = config.move;
+	desc.scale = config.scale;
 
 	return desc;
 }
@@ -323,11 +325,22 @@ constexpr ButtonVisualState NormalStateFrom(ButtonState state) {
 }
 
 V2_float GetButtonShapeSize(Button button) {
-	auto shape{ button.GetShape() };
+	auto shape{ button.GetSize() };
 
 	auto transform{ GetWorldTransform(button) };
 
-	return std::visit([&](const auto& value) { return value.GetSize(transform); }, shape);
+	return std::visit(
+		[&]<typename T>(const T& value) {
+			if constexpr (std::same_as<T, V2_float>) {
+				return Rect{ value }.GetSize(transform);
+			} else if constexpr (std::same_as<T, float>) {
+				return Circle{ value }.GetSize(transform);
+			} else {
+				static_assert(false, "Non-exhaustive visitor!");
+			}
+		},
+		shape
+	);
 }
 
 std::optional<Animation> TryAnimationForVisualState(Button button, ButtonVisualState state) {
@@ -557,13 +570,13 @@ impl::InternalButtonState Button::GetInternalState() const {
 	return Get<impl::ButtonData>().state;
 }
 
-std::variant<Rect, Circle> Button::GetShape() const {
+std::variant<V2_float, float> Button::GetSize() const {
 	if (auto rect{ TryGet<Rect>() }) {
-		return *rect;
+		return rect->GetSize();
 	}
 
 	if (auto circle{ TryGet<Circle>() }) {
-		return *circle;
+		return circle->radius;
 	}
 
 	PTGN_ERROR("Button has no shape. Use Button::Shape() to set a shape.");
@@ -661,20 +674,16 @@ Button& Button::StopHover() {
 }
 
 Button& Button::Size(V2_float size) {
-	return Shape(size);
-}
-
-Button& Button::Shape(Rect rect) {
 	Remove<Circle>();
-	Add<Rect>(rect);
+	Add<Rect>(size);
 	UpdateChildShapes();
 	UpdateChildLayouts();
 	return *this;
 }
 
-Button& Button::Shape(Circle circle) {
+Button& Button::Size(float radius) {
 	Remove<Rect>();
-	Add<Circle>(circle);
+	Add<Circle>(radius);
 	UpdateChildShapes();
 	UpdateChildLayouts();
 	return *this;
@@ -781,6 +790,23 @@ Button& Button::Sprite(
 
 	RefreshVisualState();
 
+	return *this;
+}
+
+Button& Button::Sprites(
+	std::optional<std::string_view> idle_texture_key,
+	std::optional<std::string_view> hover_texture_key,
+	std::optional<std::string_view> press_texture_key
+) {
+	if (idle_texture_key.has_value()) {
+		Sprite(idle_texture_key.value(), std::nullopt, ButtonVisualState::Idle);
+	}
+	if (hover_texture_key.has_value()) {
+		Sprite(hover_texture_key.value(), std::nullopt, ButtonVisualState::Hover);
+	}
+	if (press_texture_key.has_value()) {
+		Sprite(press_texture_key.value(), std::nullopt, ButtonVisualState::Press);
+	}
 	return *this;
 }
 
@@ -1353,6 +1379,30 @@ void Button::UpdateChildLayouts() const {
 	}
 }
 
+Button CreateButton(Scene& scene, Transform transform, V2_float size, Origin origin) {
+	return CreateButton(
+		scene, transform,
+		ButtonDesc{
+			.shape	= Rect{ size },
+			.origin = origin,
+		}
+	);
+}
+
+Button CreateButton(Scene& scene, Transform transform, float radius, Origin origin) {
+	return CreateButton(
+		scene, transform,
+		ButtonDesc{
+			.shape	= Circle{ radius },
+			.origin = origin,
+		}
+	);
+}
+
+Button CreateButton(Scene& scene, Transform transform, V2_float size, const ButtonConfig& config) {
+	return CreateButton(scene, transform, MakeButtonDesc(size, config));
+}
+
 Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 	Button button{ scene.CreateEntity() };
 
@@ -1365,7 +1415,18 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 
 	Show(button, false);
 
-	std::visit([button](const auto& shape) mutable { button.Shape(shape); }, desc.shape);
+	std::visit(
+		[button]<typename T>(const T& shape) mutable {
+			if constexpr (std::same_as<T, Rect>) {
+				button.Size(shape.GetSize());
+			} else if constexpr (std::same_as<T, Circle>) {
+				button.Size(shape.radius);
+			} else {
+				static_assert(false, "Non-exhaustive visitor!");
+			}
+		},
+		desc.shape
+	);
 
 	SetTransform(button, transform);
 	SetDrawOrigin(button, desc.origin);
@@ -1377,69 +1438,93 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 		button.Disable();
 	}
 
+	auto get_texts = [](auto button) {
+		return FindButtonParts(button, ButtonPart::Text) |
+			   std::views::transform([](Entity text) { return ptgn::Text{ text }; }) |
+			   std::ranges::to<std::vector>();
+	};
+
+	if (desc.move.has_value()) {
+		const auto& move{ desc.move.value() };
+
+		auto tween_move = [get_texts, move](V2_float offset, auto button) {
+			auto texts{ get_texts(button) };
+			TranslateTo<Text>(texts, offset, move.duration, move.ease);
+		};
+
+		button.OnHoverStart([tween_move, offset = move.offset](auto button) {
+			tween_move(offset, button);
+		});
+
+		button.OnHoverStop([tween_move](auto button) { tween_move(V2_float{}, button); });
+	}
+
+	if (desc.scale.has_value()) {
+		using enum ButtonState;
+
+		const auto& scale{ desc.scale.value() };
+
+		button.OnHoverStart([get_texts, scale](auto button) {
+			auto texts{ get_texts(button) };
+			ScaleTo<Text>(texts, V2_float{ scale.scale }, scale.duration, scale.ease);
+		});
+
+		auto texts{ get_texts(button) };
+
+		auto starting_scales{ texts | std::views::transform([](Text text) {
+								  return std::pair{ text, GetScale(text) };
+							  }) |
+							  std::ranges::to<std::vector>() };
+
+		button.OnHoverStop([get_texts, scale, starting_scales](auto button) {
+			auto texts{ get_texts(button) };
+
+			auto target_scales{ texts | std::views::transform([&](Text text) {
+									auto it{ std::ranges::find(
+										starting_scales, text, &std::pair<Text, V2_float>::first
+									) };
+
+									return it != starting_scales.end() ? it->second
+																	   : V2_float{ 1.0f, 1.0f };
+								}) |
+								std::ranges::to<std::vector>() };
+
+			ScaleTo<Text>(texts, target_scales, scale.duration, scale.ease);
+		});
+	}
+
 	return button;
 }
 
-Button CreateButton(Scene& scene, Transform transform, Rect rect, Origin origin) {
-	return CreateButton(
-		scene, transform,
-		ButtonDesc{
-			.shape	= rect,
-			.origin = origin,
+Button CreateAnimatedButton(Scene& scene, Transform transform, const AnimatedButtonConfig& config) {
+	auto size{ config.size.value_or(V2_float{}) };
+
+	Button button{ CreateButton(scene, transform, size, config.origin) };
+
+	button.Sprites(config.texture, config.texture_hover, config.texture_press);
+
+	auto set_animation = [&scene, &config, button](
+							 auto state, auto texture_key, auto fallback_texture_key, auto options,
+							 auto fallback_options
+						 ) mutable {
+		if (options.has_value() || texture_key.has_value()) {
+			auto animation{ CreateAnimation(
+				scene, {}, texture_key.value_or(fallback_texture_key.value_or(config.texture)),
+				options.value_or(fallback_options.value_or({}))
+			) };
+			button.Animation(animation, state);
 		}
+	};
+
+	set_animation(
+		ButtonVisualState::Hover, config.texture_hover, config.texture_hover,
+		config.animation_hover, config.animation_hover
 	);
-}
 
-Button CreateButton(Scene& scene, Transform transform, Circle circle, Origin origin) {
-	return CreateButton(
-		scene, transform,
-		ButtonDesc{
-			.shape	= circle,
-			.origin = origin,
-		}
+	set_animation(
+		ButtonVisualState::Press, config.texture_press, config.texture_hover,
+		config.animation_press, config.animation_hover
 	);
-}
-
-Button CreateButton(
-	Scene& scene, Transform transform, V2_float size, const ButtonConfig& config, Origin origin
-) {
-	Button button{ CreateButton(scene, transform, Rect{ size }, origin) };
-
-	if (config.background_color.has_value()) {
-		button.BackgroundColor(config.background_color.value());
-	}
-
-	if (config.texture.has_value()) {
-		button.Sprite(config.texture.value());
-	}
-
-	if (config.content.has_value()) {
-		Text text{ button.Text() };
-
-		text.Content(config.content.value())
-			.Color(config.text_color.value_or(kDefaultButtonTextColor))
-			.Size(config.font_size)
-			.Font(config.font);
-
-		if (config.text_alignment.has_value()) {
-			text.Align(config.text_alignment.value());
-		}
-	}
-
-	button.Sound(config.sound_hover, ButtonState::Hover);
-	button.Sound(config.sound_press, ButtonState::Press);
-
-	return button;
-}
-
-Button CreateAnimatedButton(
-	Scene& scene, Transform transform, std::optional<V2_float> size,
-	const AnimatedButtonConfig& config, Origin origin
-) {
-	V2_float resolved_size{ size.value_or(V2_float{}) };
-
-	Button button{ CreateButton(scene, transform, Rect{ resolved_size }, origin) };
-	button.Sprite(config.texture);
 
 	button.Sound(config.sound_hover, ButtonState::Hover);
 	button.Sound(config.sound_press, ButtonState::Press);

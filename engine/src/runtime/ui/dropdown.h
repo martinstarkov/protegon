@@ -6,9 +6,7 @@
 #include <vector>
 
 #include "core/event/event.h"
-#include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
@@ -81,8 +79,8 @@ public:
 	bool IsOpen() const;
 	[[nodiscard]] bool WillStartOpen() const;
 
-	Dropdown& Shape(Rect rect);
-	Dropdown& Shape(Circle circle);
+	Dropdown& Size(V2_float size);
+	Dropdown& Size(float radius);
 
 	Dropdown& Origin(Origin origin);
 
@@ -176,7 +174,7 @@ struct DropdownItemPress {
 
 /// @param start_open If true, dropdown starts in an open state.
 Dropdown CreateDropdown(
-	Scene& scene, Transform transform, Rect rect, Origin draw_origin = Origin::Center,
+	Scene& scene, Transform transform, V2_float size, Origin draw_origin = Origin::Center,
 	bool start_open = false
 );
 

@@ -6,11 +6,10 @@
 
 #include "core/assert.h"
 #include "core/event/event.h"
-#include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
+#include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/scene/scene.h"
@@ -251,7 +250,7 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 namespace {
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, InteractiveType auto shape, Origin origin, bool toggled
+	Scene& scene, Transform transform, auto shape, Origin origin, bool toggled
 ) {
 	ToggleButton button{ CreateButton(scene, transform, shape, origin) };
 
@@ -271,15 +270,15 @@ ToggleButton CreateToggleButton(
 } // namespace
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, Rect rect, Origin origin, bool toggled
+	Scene& scene, Transform transform, V2_float size, Origin origin, bool toggled
 ) {
-	return CreateToggleButton<Rect>(scene, transform, rect, origin, toggled);
+	return CreateToggleButton<V2_float>(scene, transform, size, origin, toggled);
 }
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, Circle circle, Origin origin, bool toggled
+	Scene& scene, Transform transform, float radius, Origin origin, bool toggled
 ) {
-	return CreateToggleButton<Circle>(scene, transform, circle, origin, toggled);
+	return CreateToggleButton<float>(scene, transform, radius, origin, toggled);
 }
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {

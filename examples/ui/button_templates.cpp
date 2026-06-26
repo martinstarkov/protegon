@@ -358,7 +358,7 @@ public:
 
 		V2_float bell_size{ GetDisplaySize(bell_press_animation).value() };
 
-		Button bell{ CreateButton(*this, { 250, 0 }, Rect{ bell_size }, Origin::Center) };
+		Button bell{ CreateButton(*this, { 250, 0 }, bell_size, Origin::Center) };
 
 		bell.Sprite("bell_idle", {}, ButtonVisualState::Idle);
 

@@ -1,5 +1,6 @@
 #include "runtime/ui/dropdown.h"
 
+#include <concepts>
 #include <optional>
 #include <string_view>
 #include <variant>
@@ -130,15 +131,15 @@ bool Dropdown::WillStartOpen() const {
 	return Dropdown{ parent }.IsOpen();
 }
 
-Dropdown& Dropdown::Shape(Rect rect) {
-	Button::Shape(rect);
+Dropdown& Dropdown::Size(V2_float size) {
+	Button::Size(size);
 	RecalculateButtonPositions();
 	RecalculateParentDropdown(*this);
 	return *this;
 }
 
-Dropdown& Dropdown::Shape(Circle circle) {
-	Button::Shape(circle);
+Dropdown& Dropdown::Size(float radius) {
+	Button::Size(radius);
 	RecalculateButtonPositions();
 	RecalculateParentDropdown(*this);
 	return *this;
@@ -198,48 +199,56 @@ void Dropdown::RecalculateButtonPositions() {
 
 	auto& info{ Get<impl::DropdownData>() };
 
-	auto parent_shape{ GetShape() };
+	using Size = std::variant<V2_float, float>;
 
-	auto parent_size{ GetShapeSize(*this, parent_shape) };
-
-	auto get_button_shape = [parent_shape, &info](Button button) -> std::variant<Rect, Circle> {
-		if (auto rect{ button.TryGet<Rect>() }) {
-			return *rect;
+	auto get_extent = []<typename T>(const T& size) -> V2_float {
+		if constexpr (std::same_as<T, V2_float>) {
+			return size;
+		} else {
+			// A scalar button size represents a circle radius.
+			return V2_float{ size * 2.0f };
 		}
+	};
 
-		if (auto circle{ button.TryGet<Circle>() }) {
-			return *circle;
-		}
+	auto to_extent = [&](const Size& size) {
+		return std::visit(get_extent, size);
+	};
 
+	auto parent_size_value{ GetSize() };
+	auto parent_size{ to_extent(parent_size_value) };
+
+	auto get_button_size = [&](Button button) -> Size {
 		if (info.button_size.has_value()) {
-			return Rect{ info.button_size.value() };
+			return info.button_size.value();
 		}
 
-		return parent_shape;
+		return button.GetSize();
+	};
+
+	auto set_button_size = [](Button button, const Size& size) {
+		std::visit([&](const auto& value) { button.Size(value); }, size);
 	};
 
 	V2_float parent_center{ GetOffset(GetDrawOrigin(*this), parent_size) };
 	V2_float parent_edge{ parent_center - GetOffset(info.origin, parent_size) };
 
-	auto shape{ get_button_shape(buttons.front()) };
-	auto size{ GetShapeSize(buttons.front(), shape) };
+	auto size_value{ get_button_size(buttons.front()) };
+	auto size{ to_extent(size_value) };
 
 	V2_float offset{ parent_edge - GetOffset(info.origin, size) + info.button_offset };
 
 	for (auto i{ 0uz }; i < buttons.size(); ++i) {
 		Button button{ buttons[i] };
 
-		shape = get_button_shape(button);
-		size  = GetShapeSize(button, shape);
+		size_value = get_button_size(button);
+		size	   = to_extent(size_value);
 
 		if (i != 0) {
 			offset -= GetOffset(info.direction, size);
 		}
 
 		SetPosition(button, offset);
-
-		std::visit([&](const auto& value) { button.Shape(value); }, shape);
-
+		set_button_size(button, size_value);
 		SetDrawOrigin(button, Origin::Center);
 
 		offset -= GetOffset(info.direction, size);
@@ -269,12 +278,12 @@ Dropdown& Dropdown::AddButton(Button button) {
 }
 
 Button Dropdown::AddItem(std::string_view text) {
-	std::variant<Rect, Circle> shape;
+	std::variant<V2_float, float> size;
 
 	if (const auto& info{ Get<impl::DropdownData>() }; info.button_size.has_value()) {
-		shape = Rect{ info.button_size.value() };
+		size = info.button_size.value();
 	} else {
-		shape = GetShape();
+		size = GetSize();
 	}
 
 	return std::visit(
@@ -285,7 +294,7 @@ Button Dropdown::AddItem(std::string_view text) {
 			AddButton(button);
 			return button;
 		},
-		shape
+		size
 	);
 }
 
@@ -413,9 +422,9 @@ Dropdown& Dropdown::Close(bool close_parents) {
 }
 
 Dropdown CreateDropdown(
-	Scene& scene, Transform transform, Rect rect, Origin draw_origin, bool start_open
+	Scene& scene, Transform transform, V2_float size, Origin draw_origin, bool start_open
 ) {
-	Button button{ CreateButton(scene, transform, rect, draw_origin) };
+	Button button{ CreateButton(scene, transform, size, draw_origin) };
 
 	Dropdown dropdown{ button };
 
