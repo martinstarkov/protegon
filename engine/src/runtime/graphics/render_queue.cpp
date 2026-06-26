@@ -228,18 +228,18 @@ void RenderQueue::DrawPoint(V2_float point, Color color, ShapeRenderParams param
 	DrawShape({}, point, color, std::move(params));
 }
 
-void RenderQueue::DrawLine(V2_float start, V2_float end, Color color, ShapeRenderParams params) {
-	DrawShape({}, Line{ start, end }, color, std::move(params));
+void RenderQueue::DrawLine(
+	V2_float start, V2_float end, Color color, ShapeRenderParams params, Transform transform
+) {
+	DrawShape(transform, Line{ start, end }, color, std::move(params));
 }
 
 void RenderQueue::DrawLines(
 	std::span<const V2_float> points, Color color, ShapeRenderParams params, bool closed,
-	std::optional<Transform> transform
+	Transform transform
 ) {
-	auto resolved_transform{ transform.value_or(Transform{}) };
-
 	auto primitives{ impl::GetHollowPrimitives(
-		points, closed, ConvertToCommonShapeParams(resolved_transform, color, params)
+		points, closed, ConvertToCommonShapeParams(transform, color, params)
 	) };
 
 	auto& commands{ GetRenderCommands(params.camera, params.debug) };

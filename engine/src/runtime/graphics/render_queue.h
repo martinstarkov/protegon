@@ -119,13 +119,14 @@ public:
 
 	void DrawLine(
 		V2_float start, V2_float end, Color color,
-		ShapeRenderParams params = ShapeRenderParams{ .fill_style{ 1.0f } }
+		ShapeRenderParams params = ShapeRenderParams{ .fill_style{ 1.0f } },
+		Transform transform		 = {}
 	);
 
 	void DrawLines(
 		std::span<const V2_float> points, Color color,
 		ShapeRenderParams params = ShapeRenderParams{ .fill_style{ 1.0f } }, bool closed = false,
-		std::optional<Transform> transform = std::nullopt
+		Transform transform = {}
 	);
 
 	void DrawShape(
