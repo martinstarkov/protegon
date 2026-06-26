@@ -21,8 +21,11 @@ class DrawContext;
 class Scene;
 class AssetManager;
 class SceneCamera;
+class Button;
 
 namespace impl {
+
+struct TextLayoutDirty {};
 
 struct TextAlignmentOverride {
 	bool horizontal{ false };
@@ -56,23 +59,21 @@ public:
 
 	static void Draw(DrawContext& ctx, Entity entity);
 
-	TextBox& GetTextBox();
-	const TextBox& GetTextBox() const;
-
+	/// @brief Clears all text content and resets the current run index to 0.
 	Text& Clear();
 
-	/// @brief Appends/selects a text segment and makes it the current run.
-	Text& Content(std::string_view content);
-
-	Text& Content(StyledText styled_text);
-
+	/// @brief Selects the text run at the specified index. If the index is out of bounds, it will
+	/// select the last text run.
 	Text& Select(std::size_t index);
 
-	Text& Box(Rect text_box);
-	Text& Box(const TextBox& box);
+	/// @brief Appends and selects the content as the current text run.
+	Text& Content(std::string_view content);
 
-	Text& Reveal(std::size_t glyph_count);
-	Text& RevealAll();
+	/// @brief Appends and selects the styled text as the current text run.
+	Text& Content(StyledText styled_text);
+
+	Text& Box(Rect text_rect);
+	Text& Box(const TextBox& text_box);
 
 	Text& Align(Alignment alignment);
 	Text& Align(HorizontalAlign horizontal, VerticalAlign vertical);
@@ -82,19 +83,35 @@ public:
 	/// @brief Removes any previously set alignment.
 	Text& ClearAlignment();
 
-	/// @brief Sets the number of space columns between tab stops.
-	/// A tab advances to the next multiple of this many spaces.
-	Text& TabWidth(std::size_t spaces);
-
+	/// @brief Determines how text is wrapped to the next line when it exceeds the width of the text
+	/// box.
 	Text& Wrap(WrapMode mode);
+
+	/// @brief Sets more specific rules for how text is wrapped to the next line when it exceeds the
+	/// width of the text box.
+	Text& WrapSettings(const ptgn::WrapSettings& settings);
+
+	/// @brief Determines how text is handled when it exceeds the height of the text box.
 	Text& Overflow(OverflowMode mode);
 
 	/// @brief Useful for something like a scrollable text box where you want to clip the text to
 	/// the box, but still allow the user to scroll the text outside of the box.
+	/// Rectange is positioned relative to the text's transform.
 	Text& Clip(Rect rect, TextClipMode mode = TextClipMode::Clip);
 
 	/// @brief Removes any clipping that was previously set.
 	Text& ClearClip();
+
+	/// @brief Sets the number of glyphs to reveal. If the count is greater than the total number of
+	/// glyphs, all glyphs will be revealed.
+	Text& Reveal(std::size_t glyph_count);
+
+	/// @brief Removes any previously set reveal restrictions.
+	Text& RevealAll();
+
+	/// @brief Sets the fraction of the total glyphs to reveal. Clamped to range: [0.0, 1.0]. 0.0 =
+	/// no glyphs revealed, 1.0 = all glyphs revealed.
+	Text& RevealFraction(float fraction);
 
 	/// @brief If true, leading and trailing spaces will be trimmed and consecutive whitespace
 	/// characters will be collapsed into a single space across all text runs. Useful for processing
@@ -106,24 +123,9 @@ public:
 	/// to be a paragraph, such as a single line of text.
 	Text& JustifyLastLine(bool justify = true);
 
-	/// @brief Only applicable for WrapMode::Word. If true, move the word to a new line, then split
-	/// it across lines if it cannot fit on an empty line. If false, move the word to a new line,
-	/// then allow it to overflow if it is still too wide.
-	Text& AllowWordBreakInOverflow(bool allow = true);
-
-	/// @brief Only used by WrapMode::Character.
-	/// If true, inserts a hyphen at the end of a line when a word is split across lines.
-	Text& InsertHyphenOnSplit(bool insert = true);
-
-	/// @brief Only used by WrapMode::Character.
-	/// If true, if a word is split and only a single letter remains on the current line, the
-	/// entire word is moved to the next line instead.
-	Text& PreventSingleLetterSplit(bool prevent = true);
-
-	/// @brief Only used by WrapMode::Character.
-	/// If true, if a word is split and fewer than three letters remain on the next line, the
-	/// entire word is moved to the next line instead.
-	Text& RequireThreeLetterRemainder(bool require = true);
+	/// @brief Sets the number of space columns between tab stops.
+	/// A tab advances to the next multiple of this many spaces.
+	Text& TabWidth(std::size_t spaces);
 
 	Text& MaxLines(std::size_t max_lines);
 	Text& ScaleToFit(float min_scale, float max_scale = 1.0f);
@@ -178,37 +180,29 @@ public:
 	/// clipped, ellipsized, or truncated.
 	[[nodiscard]] TextMeasurement Measure() const;
 
-	/// @return The total number of glyphs in the text, which may be more than the number of visible
-	/// glyphs if the text is clipped, ellipsized, or truncated.
-	std::size_t GetGlyphCount() const;
-
-	/// @return The number of glyphs that are currently visible, which may be less than the total
-	/// glyph count if the text is clipped, ellipsized, or truncated.
-	std::size_t GetVisibleGlyphCount() const;
-
 	/// @return The number of glyphs that are currently set to be revealed or
 	/// std::size_t::max() if no reveal is active.
 	std::size_t GetRevealGlyphCount() const;
 
-	/// @return True if all glyphs are currently revealed or no reveal is active.
+	/// @return True if all glyphs are currently revealed or no reveal restrictions are set.
 	bool IsFullyRevealed() const;
 
-	/// @brief Sets the fraction of the total glyphs to reveal. Clamped to range: [0.0, 1.0]. 0.0 =
-	/// no glyphs revealed, 1.0 = all glyphs revealed.
-	Text& RevealFraction(float fraction);
-
-	const TextLayout& GetLayout() const;
-
-	StyledText& GetStyledText();
 	const StyledText& GetStyledText() const;
+
+	const TextBox& GetTextBox() const;
+
+	/// @return The text layout for the current styled text and text box. If the layout is not up to
+	/// date, it will be rebuilt before returning.
+	const TextLayout& GetLayout() const;
 
 private:
 	friend class Button;
 
-	void ApplyFallbackAlignment(Alignment alignment);
-
 	TextRun& CurrentRun();
-	const TextRun& CurrentRun() const;
+
+	void InvalidateLayout();
+
+	void OverrideAlignment(Alignment alignment);
 };
 
 Text CreateText(
