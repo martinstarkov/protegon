@@ -21,7 +21,7 @@ class TextureFormatScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::Pink);
 
-		ctx().asset.LoadMany(
+		ctx().asset.Load(
 			{ { "jpg", "assets/jpg.jpg" },
 			  { "jpg2", "assets/jpg2.jpg" },
 			  { "jpg3", "assets/jpg3.jpg" },

@@ -32,7 +32,7 @@ public:
 	float bg_aspect_ratio{ 0.0f };
 
 	void OnEnter() override {
-		ctx().asset.LoadMany(
+		ctx().asset.Load(
 			{ { "background", "assets/background.png" },
 			  { "planet_b", "assets/planet_b.png" },
 			  { "planet_s", "assets/planet_s.png" },

@@ -275,7 +275,7 @@ void AssetManager::LoadDirectory(const path& directory, bool recursive) {
 	}
 }
 
-void AssetManager::LoadMany(const path& asset_manifest_file) {
+void AssetManager::LoadManifest(const path& asset_manifest_file) {
 	PTGN_ASSERT(
 		HasExtension(asset_manifest_file, ".json"), "Asset manifest file must be json file"
 	);
@@ -330,7 +330,7 @@ void AssetManager::LoadMany(const path& asset_manifest_file) {
 	}
 }
 
-void AssetManager::LoadMany(
+void AssetManager::Load(
 	const std::vector<std::pair<std::string, std::variant<path, ShaderCode, ShaderPair>>>&
 		asset_keys_and_paths
 ) {

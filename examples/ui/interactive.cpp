@@ -161,7 +161,7 @@ struct InteractiveScene : public Scene {
 
 		ctx().interaction.SetDebugSettings({ .draw_enabled = true, .draw_line_width = 3.0f });
 
-		ctx().asset.LoadMany(
+		ctx().asset.Load(
 			{ { "circle", "assets/circle.png" },
 			  { "drag", "assets/drag.png" },
 			  { "drag_circle", "assets/drag_circle.png" },

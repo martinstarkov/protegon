@@ -224,12 +224,12 @@ public:
 	/// is used to reference an already loaded shader, while path is used to load a new shader.
 	///
 	/// @param asset_manifest_file The path to the asset json manifest file.
-	void LoadMany(const path& asset_manifest_file);
+	void LoadManifest(const path& asset_manifest_file);
 
 	/// @brief Loads multiple assets from the specified file paths.
 	/// @param asset_keys_and_paths A vector of key-path pairs where each pair contains an asset
 	/// identifier string and its corresponding file path.
-	void LoadMany(
+	void Load(
 		const std::vector<std::pair<std::string, std::variant<path, ShaderCode, ShaderPair>>>&
 			asset_keys_and_paths
 	);

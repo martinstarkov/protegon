@@ -11,7 +11,7 @@ using namespace ptgn;
 class LoadResourcesScene : public Scene {
 public:
 	void OnEnter() override {
-		// ctx().asset.LoadMany("assets/assets.json");
+		// ctx().asset.LoadManifest("assets/assets.json");
 		PTGN_LOG("Loading all assets...");
 		ctx().asset.LoadDirectory("assets");
 		PTGN_LOG("Loaded all assets!");

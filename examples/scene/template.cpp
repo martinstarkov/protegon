@@ -41,7 +41,7 @@ public:
 class SceneTemplateExample : public Scene {
 public:
 	void OnEnter() final {
-		ctx().asset.LoadMany(
+		ctx().asset.Load(
 			{ { "bg1", "assets/scene1.png" },
 			  { "bg2", "assets/scene2.png" },
 			  { "bg3", "assets/scene3.png" } }
