@@ -3,7 +3,6 @@
 #include <optional>
 #include <string_view>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "core/event/event.h"

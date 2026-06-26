@@ -74,7 +74,7 @@ void Dropdown::HideDropdownBranch(Button button) {
 		auto& info{ dropdown.Get<impl::DropdownData>() };
 		info.open = false;
 
-		for (Button child_button : dropdown.GetButtons()) {
+		for (const auto& child_button : dropdown.GetButtons()) {
 			HideDropdownBranch(child_button);
 		}
 	}
@@ -82,7 +82,7 @@ void Dropdown::HideDropdownBranch(Button button) {
 	button.Disable();
 	Hide(button);
 
-	for (Entity part : button.Parts()) {
+	for (const auto& part : button.Parts()) {
 		Hide(part);
 	}
 }
@@ -373,7 +373,7 @@ Dropdown& Dropdown::Open() {
 	bool was_open{ info.open };
 	info.open = true;
 
-	for (Button button : GetButtons()) {
+	for (const auto& button : GetButtons()) {
 		ShowDropdownItem(button);
 	}
 
@@ -393,7 +393,7 @@ Dropdown& Dropdown::Close(bool close_parents) {
 	bool was_open{ info.open };
 	info.open = false;
 
-	for (Button button : GetButtons()) {
+	for (const auto& button : GetButtons()) {
 		HideDropdownBranch(button);
 	}
 

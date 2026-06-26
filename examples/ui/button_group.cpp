@@ -14,16 +14,11 @@
 #include "core/math/vector2.h"
 #include "renderer/text/text_layout.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/shape.h"
 #include "runtime/graphics/text/text.h"
-#include "runtime/graphics/visible.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
-#include "runtime/ui/button_config.h"
 #include "runtime/ui/toggle_button.h"
 
 using namespace ptgn;
@@ -32,57 +27,35 @@ class ToggleButtonGroupScene : public Scene {
 	ToggleButtonGroup group1;
 	ToggleButtonGroup group2;
 
-	static constexpr V2_float button_size{ 200, 130 };
+	static constexpr V2_float kButtonSize{ 200, 130 };
+	static constexpr V2_float kTextPadding{ 8, 8 };
 
-	static void ConfigureBackground(Button button, ButtonVisualState state, Color color) {
-		Entity background{ button.Background(state) };
+	ToggleButton CreateToggleButtonGroupItem(
+		V2_float position, int number, const std::string& group_name
+	) {
+		ToggleButton toggle_button{
+			CreateToggleButton(*this, position, Rect{ kButtonSize }, Origin::TopLeft, false)
+		};
 
-		background.Add<Rect>(Rect{ button_size });
-		background.Add<Color>(color);
-		SetDraw<RectDraw>(background);
-		SetDrawOrigin(background, Origin::TopLeft);
-		Show(background);
-	}
-
-	static void ConfigureToggleButtonVisuals(Button button, int number) {
-		ConfigureBackground(button, ButtonVisualState::Idle, color::LightRed);
-		ConfigureBackground(button, ButtonVisualState::Hover, color::Red);
-		ConfigureBackground(button, ButtonVisualState::Press, color::DarkRed);
-
-		ConfigureBackground(button, ButtonVisualState::Toggled, color::LightBlue);
-		ConfigureBackground(button, ButtonVisualState::ToggledHover, color::Blue);
-		ConfigureBackground(button, ButtonVisualState::ToggledPress, color::DarkBlue);
-
-		button.SetTextAutoBox(true);
-		button.SetTextPadding(Rect{ { 8, 8 }, { 8, 8 } });
-
-		button.Text()
+		toggle_button.BackgroundColors(color::LightRed, color::Red, color::DeepRed)
+			.ToggledBackgroundColors(color::LightBlue, color::Blue, color::DarkBlue)
+			.Border()
+			.TextPadding(kTextPadding)
+			.Text()
 			.Font("arial")
 			.Content(std::to_string(number))
 			.Color(color::White)
 			.Size(42.0f)
 			.Align(HorizontalAlign::Center, VerticalAlign::Center);
-	}
 
-	ToggleButton CreateToggleButtonGroupItem(
-		V2_float position, int number, std::string group_name
-	) {
-		ToggleButton toggle_button{
-			CreateToggleButton(*this, position, Rect{ button_size }, Origin::TopLeft, false)
-		};
-
-		Button button{ toggle_button.AsButton() };
-
-		ConfigureToggleButtonVisuals(button, number);
-
-		button.OnPress([number, group_name]() { PTGN_LOG(group_name, " pressed ", number); });
-
-		toggle_button.OnToggle([number, group_name](event::ToggleButtonToggle& event) {
-			PTGN_LOG(
-				group_name, " toggled ", number, ": ", std::boolalpha, event.toggled,
-				std::noboolalpha
-			);
-		});
+		toggle_button
+			.OnToggle([number, group_name](event::ToggleButtonToggle& event) {
+				PTGN_LOG(
+					group_name, " toggled ", number, ": ", std::boolalpha, event.toggled,
+					std::noboolalpha
+				);
+			})
+			.OnPress([number, group_name]() { PTGN_LOG(group_name, " pressed ", number); });
 
 		return toggle_button;
 	}

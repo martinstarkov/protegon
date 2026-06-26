@@ -314,6 +314,9 @@ Text& Text::Content(std::string_view content) {
 }
 
 Text& Text::Content(StyledText styled_text) {
+	if (styled_text.runs.empty()) {
+		styled_text.runs.emplace_back();
+	}
 	Add<StyledText>(std::move(styled_text));
 	Get<impl::TextEditState>().current_run_index = 0;
 	InvalidateLayout();
@@ -762,14 +765,11 @@ Text& Text::RevealFraction(float fraction) {
 Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origin origin) {
 	Text text{ scene.CreateEntity() };
 
-	if (styled_text.runs.empty()) {
-		styled_text.runs.emplace_back();
-	}
-
-	text.Add<StyledText>(std::move(styled_text));
-
-	text.Add<TextBox>(TextBox{ .style = { .alignment{ GetAlignment(origin) } } });
 	text.Add<impl::TextEditState>();
+
+	text.Content(std::move(styled_text));
+
+	text.Box(TextBox{ .style = { .alignment{ GetAlignment(origin) } } });
 
 	SetTransform(text, transform);
 	SetDrawOrigin(text, origin);

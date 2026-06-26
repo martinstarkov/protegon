@@ -62,14 +62,13 @@ public:
 
 		V2_float b1_size{ GetDisplaySize(press_animation).value() };
 
-		b1 = CreateButton(*this, {}, b1_size, Origin::Center);
+		b1 = CreateButton(*this, {}, b1_size, Origin::TopLeft);
 
-		b1.Sprite("idle", ButtonVisualState::Idle);
+		b1.Sprite("idle", {}, ButtonVisualState::Idle);
 
 		b1.Animation(hover_animation, ButtonVisualState::Hover)
 			.Animation(press_animation, ButtonVisualState::Press)
-			.Sound("hover", ButtonState::Hover)
-			.Sound("press", ButtonState::Press);
+			.Sounds("press", "hover");
 
 		SetScale(b1, 1);
 
@@ -97,14 +96,13 @@ public:
 
 		V2_float b2_size{ GetDisplaySize(press_animation2).value() };
 
-		b2 = CreateButton(*this, { 0, 200 }, b2_size, Origin::Center);
+		b2 = CreateButton(*this, { 0, 200 }, b2_size, Origin::TopLeft);
 
-		b2.Sprite("idle2", ButtonVisualState::Idle);
+		b2.Sprite("idle2", {}, ButtonVisualState::Idle);
 
 		b2.Animation(hover_animation2, ButtonVisualState::Hover)
 			.Animation(press_animation2, ButtonVisualState::Press)
-			.Sound("hover", ButtonState::Hover)
-			.Sound("press2", ButtonState::Press);
+			.Sounds("press2", "hover");
 
 		SetScale(b2, 4);
 

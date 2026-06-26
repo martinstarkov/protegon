@@ -16,6 +16,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/audio/audio.h"
@@ -56,13 +57,25 @@ struct Padding {
 	constexpr Padding() = default;
 
 	/// @brief Constructs a uniform padding on all sides.
-	constexpr Padding(float amount) : Padding{ amount, amount, amount, amount } {} // NOSONAR
+	template <Arithmetic T>
+	constexpr Padding(T amount) : // NOSONAR
+		Padding{ static_cast<float>(amount), static_cast<float>(amount), static_cast<float>(amount),
+				 static_cast<float>(amount) } {}
 
-	constexpr Padding(V2_float amount) :										   // NOSONAR
+	template <Arithmetic TX, Arithmetic TY>
+	constexpr Padding(TX horizontal, TY vertical) :
+		Padding{ static_cast<float>(horizontal), static_cast<float>(vertical),
+				 static_cast<float>(horizontal), static_cast<float>(vertical) } {}
+
+	constexpr Padding(V2_float amount) : // NOSONAR
 		Padding{ amount.x, amount.y, amount.x, amount.y } {}
 
-	constexpr Padding(float left, float top, float right, float bottom) :
-		left{ left }, top{ top }, right{ right }, bottom{ bottom } {}
+	template <Arithmetic TL, Arithmetic TT, Arithmetic TR, Arithmetic TB>
+	constexpr Padding(TL left, TT top, TR right, TB bottom) :
+		left{ static_cast<float>(left) },
+		top{ static_cast<float>(top) },
+		right{ static_cast<float>(right) },
+		bottom{ static_cast<float>(bottom) } {}
 
 	constexpr Padding(V2_float left_top, V2_float right_bottom) :
 		Padding{ left_top.x, left_top.y, right_bottom.x, right_bottom.y } {}
@@ -128,6 +141,8 @@ struct ButtonChild {
 };
 
 struct ButtonShapeSync {};
+
+struct ButtonOriginSync {};
 
 /// @brief Optional metadata for text children. Text behavior itself stays on Text.
 struct ButtonTextAutoBox {
@@ -215,12 +230,24 @@ public:
 	Button& Shape(Circle circle);
 
 	Button& Background();
-	Button& Background(ButtonVisualState state);
+
+	/// @brief Sets the origin of the background shape for all the visual states.
+	/// By default the origin will be the same as the button's origin.
+	Button& BackgroundOrigin(Origin origin);
+	Button& ClearBackgroundOrigin();
 
 	Button& BackgroundColor(Color color, ButtonVisualState state = ButtonVisualState::Base);
 	Button& BackgroundColors(
 		std::optional<Color> idle, std::optional<Color> hover = std::nullopt,
 		std::optional<Color> press = std::nullopt
+	);
+	Button& ToggledBackgroundColors(
+		std::optional<Color> toggled, std::optional<Color> toggled_hover = std::nullopt,
+		std::optional<Color> toggled_press = std::nullopt
+	);
+	Button& DisabledBackgroundColors(
+		std::optional<Color> disabled, std::optional<Color> disabled_hover = std::nullopt,
+		std::optional<Color> disabled_press = std::nullopt
 	);
 
 	Button& BackgroundShape(Rect rect, ButtonVisualState state = ButtonVisualState::Base);
@@ -235,7 +262,11 @@ public:
 	Button& RemoveBorder(ButtonVisualState state);
 
 	Button& Border();
-	Button& Border(ButtonVisualState state);
+
+	/// @brief Sets the origin of the border for all the visual states.
+	/// By default the origin will be the same as the button's origin.
+	Button& BorderOrigin(Origin origin);
+	Button& ClearBorderOrigin();
 
 	Button& BorderColor(Color color, ButtonVisualState state = ButtonVisualState::Base);
 	Button& BorderColors(
@@ -263,7 +294,12 @@ public:
 	Button& RemoveText();
 	Button& RemoveText(ButtonVisualState state);
 
-	Button& Sprite(std::string_view texture_key, ButtonVisualState state = ButtonVisualState::Base);
+	/// @param origin If not specified, the origin of the sprite will be the same as the button's
+	/// origin.
+	Button& Sprite(
+		std::string_view texture_key, std::optional<Origin> origin = std::nullopt,
+		ButtonVisualState state = ButtonVisualState::Base
+	);
 
 	/// @brief Removes every sprite state.
 	Button& RemoveSprite();
@@ -283,6 +319,10 @@ public:
 	Button& RemoveAnimation();
 	Button& RemoveAnimation(ButtonVisualState state);
 
+	Button& Sounds(
+		std::optional<std::string_view> press_sound_key,
+		std::optional<std::string_view> hover_sound_key = std::nullopt
+	);
 	Button& Sound(std::optional<std::string_view> sound_key, ButtonState state);
 
 	Button& ExclusiveAudio(bool enabled);
@@ -325,6 +365,9 @@ private:
 	friend class Dropdown;
 	friend class ToggleButton;
 
+	Button& Border(ButtonVisualState state);
+	Button& Background(ButtonVisualState state);
+
 	/// @brief Shows/hides state specific child parts according to current visual state.
 	void RefreshVisualState() const;
 
@@ -349,6 +392,7 @@ private:
 	void PlaySound(ButtonState active);
 	void PlayAnimation(ButtonState active) const;
 
+	void UpdateChildShapes() const;
 	void UpdateChildLayouts() const;
 };
 
