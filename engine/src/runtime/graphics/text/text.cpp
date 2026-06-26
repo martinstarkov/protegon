@@ -759,22 +759,37 @@ Text& Text::RevealFraction(float fraction) {
 	return Reveal(reveal_count);
 }
 
-Text CreateText(Scene& scene, Transform transform, Origin draw_origin) {
+Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origin origin) {
 	Text text{ scene.CreateEntity() };
 
-	StyledText styled_text;
-	styled_text.runs.emplace_back();
+	if (styled_text.runs.empty()) {
+		styled_text.runs.emplace_back();
+	}
 
 	text.Add<StyledText>(std::move(styled_text));
-	text.Add<TextBox>(TextBox{ .style = { .alignment{ GetAlignment(draw_origin) } } });
+
+	text.Add<TextBox>(TextBox{ .style = { .alignment{ GetAlignment(origin) } } });
 	text.Add<impl::TextEditState>();
 
 	SetTransform(text, transform);
-	SetDrawOrigin(text, draw_origin);
+	SetDrawOrigin(text, origin);
 	SetDraw<Text>(text);
 	Show(text, true);
 
 	return text;
+}
+
+Text CreateText(
+	Scene& scene, Transform transform, std::string_view content, Color color, float font_size,
+	Origin origin, std::string_view font
+) {
+	return CreateText(
+		scene, transform,
+		{ { .text  = std::string{ content },
+			.font  = std::string{ font },
+			.style = { .color = color, .size = font_size } } },
+		origin
+	);
 }
 
 } // namespace ptgn

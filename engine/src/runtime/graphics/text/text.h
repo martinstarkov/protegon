@@ -212,7 +212,16 @@ private:
 	const TextRun& CurrentRun() const;
 };
 
-Text CreateText(Scene& scene, Transform transform = {}, Origin draw_origin = Origin::Center);
+Text CreateText(
+	Scene& scene, Transform transform = {}, StyledText styled_text = {},
+	Origin origin = Origin::Center
+);
+
+Text CreateText(
+	Scene& scene, Transform transform, std::string_view content, Color color,
+	float font_size = kDefaultFontSize, Origin origin = Origin::Center,
+	std::string_view font = kDefaultFont
+);
 
 PTGN_REGISTER_DRAWABLE(Text);
 
