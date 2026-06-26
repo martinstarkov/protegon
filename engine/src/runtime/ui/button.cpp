@@ -62,6 +62,105 @@ constexpr Color kDefaultPressButtonBorderColor{ color::Gray };
 
 constexpr float kDefaultButtonBorderWidth{ 2.0f };
 
+ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config, Origin origin) {
+	ButtonDesc desc{
+		.shape	= Rect{ size },
+		.origin = origin,
+	};
+
+	auto add_background = [&](ButtonVisualState state, const std::optional<Color>& color) {
+		if (!color.has_value()) {
+			return;
+		}
+
+		desc.shapes.emplace_back(
+			ButtonShapeConfig{
+				.part		= ButtonPart::Background,
+				.state		= state,
+				.shape		= config.background_size.value_or(size),
+				.origin		= origin,
+				.color		= color,
+				.fill_style = Solid{},
+			}
+		);
+	};
+
+	add_background(ButtonVisualState::Idle, config.background_color);
+	add_background(ButtonVisualState::Hover, config.background_color_hover);
+	add_background(ButtonVisualState::Press, config.background_color_press);
+
+	auto add_sprite = [&](ButtonVisualState state, const std::optional<std::string>& texture,
+						  const std::optional<Color>& tint) {
+		if (!texture.has_value()) {
+			return;
+		}
+
+		desc.sprites.emplace_back(
+			ButtonSpriteConfig{
+				.state	 = state,
+				.texture = texture.value(),
+				.origin	 = origin,
+				.tint	 = tint,
+			}
+		);
+	};
+
+	add_sprite(ButtonVisualState::Idle, config.texture, config.texture_tint);
+
+	if (config.texture_hover.has_value()) {
+		add_sprite(ButtonVisualState::Hover, config.texture_hover, config.texture_tint_hover);
+	} else if (config.texture.has_value() && config.texture_tint_hover.has_value()) {
+		add_sprite(ButtonVisualState::Hover, config.texture, config.texture_tint_hover);
+	}
+
+	if (config.texture_press.has_value()) {
+		add_sprite(ButtonVisualState::Press, config.texture_press, config.texture_tint_press);
+	} else if (config.texture_tint_press.has_value()) {
+		auto press_texture{ config.texture_hover.has_value() ? config.texture_hover
+															 : config.texture };
+
+		add_sprite(ButtonVisualState::Press, press_texture, config.texture_tint_press);
+	}
+
+	auto add_text = [&](ButtonVisualState state, Color color) {
+		desc.texts.emplace_back(
+			ButtonTextConfig{
+				.state		   = state,
+				.content	   = config.content.value(),
+				.font		   = config.font,
+				.font_size	   = config.font_size,
+				.color		   = color,
+				.origin		   = Origin::Center,
+				.alignment	   = config.text_alignment.value_or({}),
+				.wrap		   = config.text_wrap,
+				.overflow	   = config.text_overflow,
+				.max_lines	   = config.text_max_lines,
+				.outline_width = config.text_outline_width,
+				.outline_color = config.text_outline_color,
+				.auto_box	   = config.text_auto_box,
+				.padding	   = config.text_padding,
+			}
+		);
+	};
+
+	if (config.content.has_value()) {
+		add_text(ButtonVisualState::Idle, config.text_color.value_or(kDefaultButtonTextColor));
+
+		if (config.text_color_hover.has_value()) {
+			add_text(ButtonVisualState::Hover, config.text_color_hover.value());
+		}
+
+		if (config.text_color_press.has_value()) {
+			add_text(ButtonVisualState::Press, config.text_color_press.value());
+		}
+	}
+
+	desc.sounds.hover = config.sound_hover;
+	desc.sounds.press = config.sound_press;
+
+	return desc;
+}
+
 constexpr Color GetDefaultBackgroundColor(ButtonVisualState state) {
 	switch (state) {
 		using enum ButtonVisualState;
@@ -1320,12 +1419,8 @@ Button CreateButton(
 			.Size(config.font_size)
 			.Font(config.font);
 
-		if (config.horizontal_align.has_value()) {
-			text.HorizontalAlign(config.horizontal_align.value());
-		}
-
-		if (config.vertical_align.has_value()) {
-			text.VerticalAlign(config.vertical_align.value());
+		if (config.text_alignment.has_value()) {
+			text.Align(config.text_alignment.value());
 		}
 	}
 

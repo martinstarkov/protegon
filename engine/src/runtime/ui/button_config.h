@@ -22,6 +22,53 @@
 
 namespace ptgn {
 
+struct Padding {
+	float left{ 0.0f };
+	float top{ 0.0f };
+	float right{ 0.0f };
+	float bottom{ 0.0f };
+
+	constexpr Padding() = default;
+
+	/// @brief Constructs a uniform padding on all sides.
+	template <Arithmetic T>
+	constexpr Padding(T amount) : // NOSONAR
+		Padding{ static_cast<float>(amount), static_cast<float>(amount), static_cast<float>(amount),
+				 static_cast<float>(amount) } {}
+
+	template <Arithmetic TX, Arithmetic TY>
+	constexpr Padding(TX horizontal, TY vertical) :
+		Padding{ static_cast<float>(horizontal), static_cast<float>(vertical),
+				 static_cast<float>(horizontal), static_cast<float>(vertical) } {}
+
+	constexpr Padding(V2_float amount) : // NOSONAR
+		Padding{ amount.x, amount.y, amount.x, amount.y } {}
+
+	template <Arithmetic TL, Arithmetic TT, Arithmetic TR, Arithmetic TB>
+	constexpr Padding(TL left, TT top, TR right, TB bottom) :
+		left{ static_cast<float>(left) },
+		top{ static_cast<float>(top) },
+		right{ static_cast<float>(right) },
+		bottom{ static_cast<float>(bottom) } {}
+
+	constexpr Padding(V2_float left_top, V2_float right_bottom) :
+		Padding{ left_top.x, left_top.y, right_bottom.x, right_bottom.y } {}
+
+	constexpr V2_float GetLeftTop() const {
+		return { left, top };
+	}
+
+	constexpr V2_float GetRightBottom() const {
+		return { right, bottom };
+	}
+
+	constexpr bool operator==(const Padding& o) const {
+		return left == o.left && right == o.right && top == o.top && bottom == o.bottom;
+	}
+
+	PTGN_SERIALIZE(Padding, left, top, right, bottom)
+};
+
 enum class ButtonState : std::uint8_t {
 	Idle,
 	Hover,
@@ -54,20 +101,20 @@ enum class ButtonPart : std::uint8_t {
 };
 PTGN_SERIALIZE_ENUM(ButtonPart);
 
-struct ButtonShapePartConfig {
+struct ButtonShapeConfig {
 	ButtonPart part{ ButtonPart::Background };
 	ButtonVisualState state{ ButtonVisualState::Base };
 
-	std::optional<std::variant<Rect, Circle>> shape;
+	std::variant<Rect, Circle> shape;
 	Origin origin{ Origin::Center };
 
 	std::optional<Color> color;
 	std::optional<FillStyle> fill_style;
 
-	PTGN_SERIALIZE(ButtonShapePartConfig, part, state, shape, origin, color, fill_style)
+	PTGN_SERIALIZE(ButtonShapeConfig, part, state, shape, origin, color, fill_style)
 };
 
-struct ButtonSpritePartConfig {
+struct ButtonSpriteConfig {
 	ButtonVisualState state{ ButtonVisualState::Base };
 
 	/// @brief Texture key to use for the sprite. Must be loaded in the AssetManager.
@@ -77,10 +124,10 @@ struct ButtonSpritePartConfig {
 	std::optional<V2_float> size;
 	std::optional<Color> tint;
 
-	PTGN_SERIALIZE(ButtonSpritePartConfig, state, texture, origin, transform, size, tint)
+	PTGN_SERIALIZE(ButtonSpriteConfig, state, texture, origin, transform, size, tint)
 };
 
-struct ButtonTextPartConfig {
+struct ButtonTextConfig {
 	ButtonVisualState state{ ButtonVisualState::Base };
 
 	std::string content;
@@ -92,23 +139,27 @@ struct ButtonTextPartConfig {
 	Origin origin{ Origin::Center };
 	Transform transform;
 
-	/// @brief Optional initial TextBox. Further text behavior should use the Text API.
+	/// @brief Optional text box.
 	std::optional<Rect> box;
 
-	HorizontalAlign horizontal_align{ HorizontalAlign::Center };
-	VerticalAlign vertical_align{ VerticalAlign::Center };
-	WrapMode wrap_mode{ WrapMode::None };
-	OverflowMode overflow_mode{ OverflowMode::Overflow };
+	Alignment alignment{ HorizontalAlign::Center, VerticalAlign::Center };
+	WrapMode wrap{ WrapMode::None };
+	OverflowMode overflow{ OverflowMode::Overflow };
+
+	std::size_t max_lines{ 0 };
+
+	std::optional<float> outline_width;
+	Color outline_color{ color::Black };
 
 	/// @brief If true, the button may update the text box from the button shape.
 	bool auto_box{ true };
 
 	/// @brief Padding used when auto_box is true.
-	Rect auto_box_padding;
+	Padding padding;
 
 	PTGN_SERIALIZE(
-		ButtonTextPartConfig, state, content, font, font_size, color, origin, transform, box,
-		horizontal_align, vertical_align, wrap_mode, overflow_mode, auto_box, auto_box_padding
+		ButtonTextConfig, state, content, font, font_size, color, origin, transform, box, alignment,
+		wrap, overflow, max_lines, outline_width, outline_color, auto_box, padding
 	)
 };
 
@@ -124,7 +175,7 @@ struct ButtonSoundConfig {
 };
 
 struct MoveButtonConfig {
-	V2_float offset{ 20.0f, 0.0f };
+	V2_float offset{ 20, 0 };
 	milliseconds duration{ 100 };
 	Ease ease{ Ease::Linear };
 
@@ -147,9 +198,9 @@ struct ButtonDesc {
 	bool ui_layer{ true };
 	bool enabled{ true };
 
-	std::vector<ButtonShapePartConfig> shapes;
-	std::vector<ButtonSpritePartConfig> sprites;
-	std::vector<ButtonTextPartConfig> texts;
+	std::vector<ButtonShapeConfig> shapes;
+	std::vector<ButtonSpriteConfig> sprites;
+	std::vector<ButtonTextConfig> texts;
 
 	ButtonSoundConfig sounds;
 
@@ -169,10 +220,21 @@ struct ButtonConfig {
 	/// @brief Font key to use for the button text. Must be loaded in the AssetManager.
 	std::string font{ kDefaultFont };
 
-	/// @brief Horizontal alignment of button text.
-	std::optional<HorizontalAlign> horizontal_align;
-	/// @brief Vertical alignment of button text.
-	std::optional<VerticalAlign> vertical_align;
+	std::optional<Alignment> text_alignment;
+
+	WrapMode text_wrap{ WrapMode::None };
+	OverflowMode text_overflow{ OverflowMode::Overflow };
+
+	std::size_t text_max_lines{ 0 };
+
+	std::optional<float> text_outline_width;
+	Color text_outline_color{ color::Black };
+
+	/// @brief If true, the button may update the text box from the button shape.
+	bool text_auto_box{ true };
+
+	/// @brief Padding used when auto_box is true.
+	Padding text_padding;
 
 	std::optional<std::string> texture;
 	std::optional<std::string> texture_hover;

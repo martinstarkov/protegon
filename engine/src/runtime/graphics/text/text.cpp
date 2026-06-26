@@ -371,11 +371,10 @@ Text& Text::RevealAll() {
 	return *this;
 }
 
-Text& Text::Align(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical) {
+Text& Text::Align(Alignment alignment) {
 	auto& style{ Get<TextBox>().style };
 
-	style.alignment.horizontal = horizontal;
-	style.alignment.vertical   = vertical;
+	style.alignment = alignment;
 
 	auto& alignment_override{ TryAdd<impl::TextAlignmentOverride>() };
 	alignment_override.horizontal = true;
@@ -384,6 +383,10 @@ Text& Text::Align(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical
 	InvalidateLayout();
 
 	return *this;
+}
+
+Text& Text::Align(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical) {
+	return Align({ .horizontal = horizontal, .vertical = vertical });
 }
 
 Text& Text::HorizontalAlign(ptgn::HorizontalAlign align) {
