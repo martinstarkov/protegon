@@ -1,6 +1,7 @@
 #pragma once
 
 #include "runtime/ecs/entity.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -10,6 +11,8 @@ struct IgnoreParentVisibility {};
 
 struct Visible {
 	bool visible{ true };
+
+	PTGN_SERIALIZE_VALUE(Visible, visible)
 };
 
 } // namespace impl

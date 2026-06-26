@@ -28,16 +28,9 @@ namespace impl {
 struct InteractiveTag {};
 
 struct Interactive {
-	Interactive()								   = default;
-	~Interactive() noexcept						   = default;
-	Interactive(Interactive&&) noexcept			   = default;
-	Interactive& operator=(Interactive&&) noexcept = default;
-	Interactive(const Interactive&)				   = delete;
-	Interactive& operator=(const Interactive&)	   = delete;
-
 	bool enabled{ true };
 
-	PTGN_SERIALIZE(Interactive, enabled)
+	PTGN_SERIALIZE_VALUE(Interactive, enabled)
 };
 
 } // namespace impl
