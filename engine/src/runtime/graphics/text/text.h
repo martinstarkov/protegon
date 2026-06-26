@@ -205,8 +205,6 @@ public:
 private:
 	friend class Button;
 
-	void InvalidateLayout();
-
 	void ApplyFallbackAlignment(Alignment alignment);
 
 	TextRun& CurrentRun();

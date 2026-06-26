@@ -286,8 +286,6 @@ Text& Text::Clear() {
 
 	edit_state.current_run_index = 0;
 
-	InvalidateLayout();
-
 	return *this;
 }
 
@@ -299,7 +297,6 @@ Text& Text::Content(std::string_view content) {
 		auto& run{ styled_text.runs.front() };
 		run.text					 = std::string{ content };
 		edit_state.current_run_index = 0;
-		InvalidateLayout();
 		return *this;
 	}
 
@@ -307,8 +304,6 @@ Text& Text::Content(std::string_view content) {
 	run.text = std::string{ content };
 
 	edit_state.current_run_index = styled_text.runs.size() - 1;
-
-	InvalidateLayout();
 
 	return *this;
 }
@@ -319,7 +314,6 @@ Text& Text::Content(StyledText styled_text) {
 	}
 	Add<StyledText>(std::move(styled_text));
 	Get<impl::TextEditState>().current_run_index = 0;
-	InvalidateLayout();
 	return *this;
 }
 
@@ -350,13 +344,11 @@ const TextRun& Text::CurrentRun() const {
 
 Text& Text::Box(Rect text_box) {
 	Get<TextBox>().rect = text_box;
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::Box(const TextBox& box) {
 	Add<TextBox>(box);
-	InvalidateLayout();
 	return *this;
 }
 
@@ -380,8 +372,6 @@ Text& Text::Align(Alignment alignment) {
 	alignment_override.horizontal = true;
 	alignment_override.vertical	  = true;
 
-	InvalidateLayout();
-
 	return *this;
 }
 
@@ -393,8 +383,6 @@ Text& Text::HorizontalAlign(ptgn::HorizontalAlign align) {
 	Get<TextBox>().style.alignment.horizontal		 = align;
 	TryAdd<impl::TextAlignmentOverride>().horizontal = true;
 
-	InvalidateLayout();
-
 	return *this;
 }
 
@@ -402,15 +390,12 @@ Text& Text::VerticalAlign(ptgn::VerticalAlign align) {
 	Get<TextBox>().style.alignment.vertical		   = align;
 	TryAdd<impl::TextAlignmentOverride>().vertical = true;
 
-	InvalidateLayout();
-
 	return *this;
 }
 
 Text& Text::TabWidth(std::size_t spaces) {
 	PTGN_ASSERT(spaces > 0, "Text tab width must be at least one space");
 	Get<TextBox>().style.tab_width = spaces;
-	InvalidateLayout();
 	return *this;
 }
 
@@ -418,22 +403,12 @@ void Text::ApplyFallbackAlignment(Alignment alignment) {
 	auto alignment_override{ TryGet<impl::TextAlignmentOverride>() };
 	auto& style{ Get<TextBox>().style };
 
-	bool changed{ false };
-
-	if ((!alignment_override || !alignment_override->horizontal) &&
-		style.alignment.horizontal != alignment.horizontal) {
+	if (!alignment_override || !alignment_override->horizontal) {
 		style.alignment.horizontal = alignment.horizontal;
-		changed					   = true;
 	}
 
-	if ((!alignment_override || !alignment_override->vertical) &&
-		style.alignment.vertical != alignment.vertical) {
+	if (!alignment_override || !alignment_override->vertical) {
 		style.alignment.vertical = alignment.vertical;
-		changed					 = true;
-	}
-
-	if (changed) {
-		InvalidateLayout();
 	}
 }
 
@@ -443,7 +418,6 @@ Text& Text::ClearAlignment() {
 	auto& style{ Get<TextBox>().style };
 	style.alignment = GetAlignment(GetDrawOrigin(*this));
 
-	InvalidateLayout();
 	return *this;
 }
 
@@ -465,13 +439,11 @@ Rect Text::GetBounds() const {
 
 Text& Text::Wrap(WrapMode mode) {
 	Get<TextBox>().style.wrap.mode = mode;
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::Overflow(OverflowMode mode) {
 	Get<TextBox>().style.overflow = mode;
-	InvalidateLayout();
 	return *this;
 }
 
@@ -490,37 +462,31 @@ Text& Text::ClearClip() {
 
 Text& Text::CollapseSpaces(bool collapse) {
 	Get<TextBox>().style.collapse_spaces = collapse;
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::JustifyLastLine(bool justify) {
 	Get<TextBox>().style.justify_last_line = justify;
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::AllowWordBreakInOverflow(bool allow) {
 	Get<TextBox>().style.wrap.allow_word_break_in_overflow = allow;
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::InsertHyphenOnSplit(bool insert) {
 	Get<TextBox>().style.wrap.insert_hyphen_on_split = insert;
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::PreventSingleLetterSplit(bool prevent) {
 	Get<TextBox>().style.wrap.prevent_single_letter_split = prevent;
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::RequireThreeLetterRemainder(bool require) {
 	Get<TextBox>().style.wrap.require_three_letter_remainder = require;
-	InvalidateLayout();
 	return *this;
 }
 
@@ -528,8 +494,6 @@ Text& Text::MaxLines(std::size_t max_lines) {
 	auto& style{ Get<TextBox>().style };
 
 	style.max_lines = max_lines;
-
-	InvalidateLayout();
 
 	return *this;
 }
@@ -545,50 +509,41 @@ Text& Text::ScaleToFit(float min_scale, float max_scale) {
 	style.shrink_scale.min = min_scale;
 	style.shrink_scale.max = max_scale;
 
-	InvalidateLayout();
-
 	return *this;
 }
 
 Text& Text::Font(std::string_view font_key) {
 	CurrentRun().font = std::string{ font_key };
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::Color(ptgn::Color color) {
 	CurrentRun().style.color = color;
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::Size(float font_size) {
 	CurrentRun().style.size = font_size;
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::Kerning(float kerning) {
 	CurrentRun().style.kerning = kerning;
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::Tracking(float tracking) {
 	CurrentRun().style.tracking = tracking;
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::LineSpacing(float line_spacing) {
 	CurrentRun().style.line_spacing = line_spacing;
-	InvalidateLayout();
 	return *this;
 }
 
 Text& Text::Style(FontStyle flags) {
 	CurrentRun().style.flags = flags;
-	InvalidateLayout();
 	return *this;
 }
 
@@ -598,8 +553,6 @@ Text& Text::Bold(bool enabled, float weight) {
 	style.flags		  = SetFontFlag(style.flags, FontStyle::Bold, enabled);
 	style.bold_weight = weight;
 
-	InvalidateLayout();
-
 	return *this;
 }
 
@@ -607,8 +560,6 @@ Text& Text::Italic(bool enabled) {
 	auto& style{ CurrentRun().style };
 
 	style.flags = SetFontFlag(style.flags, FontStyle::Italic, enabled);
-
-	InvalidateLayout();
 
 	return *this;
 }
@@ -618,8 +569,6 @@ Text& Text::Underline(bool enabled) {
 
 	style.flags = SetFontFlag(style.flags, FontStyle::Underline, enabled);
 
-	InvalidateLayout();
-
 	return *this;
 }
 
@@ -628,8 +577,6 @@ Text& Text::Strikethrough(bool enabled) {
 
 	style.flags = SetFontFlag(style.flags, FontStyle::Strikethrough, enabled);
 
-	InvalidateLayout();
-
 	return *this;
 }
 
@@ -637,8 +584,6 @@ Text& Text::Outline(ptgn::Color color, float width, float softness) {
 	auto& sdf{ CurrentRun().style.sdf };
 
 	sdf.outline = { .color = color, .width = width, .softness = softness };
-
-	InvalidateLayout();
 
 	return *this;
 }
@@ -653,8 +598,6 @@ Text& Text::Shadow(ptgn::Color color, V2_float offset, float width, float softne
 	sdf.shadow		  = { .color = color, .width = width, .softness = softness };
 	sdf.shadow_offset = offset;
 
-	InvalidateLayout();
-
 	return *this;
 }
 
@@ -662,8 +605,6 @@ Text& Text::OuterGlow(ptgn::Color color, float width, float softness) {
 	auto& sdf{ CurrentRun().style.sdf };
 
 	sdf.outer_glow = { .color = color, .width = width, .softness = softness };
-
-	InvalidateLayout();
 
 	return *this;
 }
@@ -673,16 +614,11 @@ Text& Text::InnerGlow(ptgn::Color color, float width, float softness) {
 
 	sdf.inner_glow = { .color = color, .width = width, .softness = softness };
 
-	InvalidateLayout();
-
 	return *this;
 }
 
 Text& Text::ClearSdfEffects() {
 	CurrentRun().style.sdf = {};
-
-	InvalidateLayout();
-
 	return *this;
 }
 
@@ -696,8 +632,6 @@ Text& Text::Effect(
 	effect.frequency = frequency;
 	effect.speed	 = speed;
 	effect.phase	 = phase;
-
-	InvalidateLayout();
 
 	return *this;
 }
@@ -717,12 +651,6 @@ std::size_t Text::GetRevealGlyphCount() const {
 	}
 
 	return std::numeric_limits<std::size_t>::max();
-}
-
-void Text::InvalidateLayout() {
-	if (auto layout{ TryGet<TextLayout>() }) {
-		layout->hash = 0;
-	}
 }
 
 TextMeasurement Text::Measure() const {
