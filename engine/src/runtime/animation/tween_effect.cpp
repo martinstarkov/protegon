@@ -1,14 +1,16 @@
 #include "runtime/animation/tween_effect.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
-#include <variant>
+#include <ranges>
+#include <span>
 #include <vector>
 
 #include "core/assert.h"
-#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/easing.h"
@@ -26,7 +28,6 @@
 #include "runtime/animation/tween_event.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/graphics/text/text.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
@@ -36,11 +37,6 @@
 namespace ptgn {
 
 namespace {
-
-TweenProperty<float> TextSizeProperty() {
-	return { [](Entity e) { return GetTransform(e).GetAverageScale(); },
-			 [](Entity e, const float& v) { SetScale(e, v); } };
-};
 
 float ApplyBounceEase(float t, bool symmetrical, Ease ease) {
 	if (!symmetrical) {
@@ -165,7 +161,7 @@ void TargetFollowImpl(Entity target, const TargetFollowConfig& config, Tween twe
 }
 
 void PathFollowImpl(
-	const std::vector<V2_float>& waypoints, const PathFollowConfig& config, Tween tween
+	std::span<const V2_float> waypoints, const PathFollowConfig& config, Tween tween
 ) {
 	if (!config.follow_x && !config.follow_y) {
 		return;
@@ -229,8 +225,8 @@ void EntityFollowStartImpl(Entity parent, const FollowConfig& config) {
 }
 
 Tween StartFollowPathImpl(
-	Entity entity, const std::vector<V2_float>& waypoints, const PathFollowConfig& config,
-	bool force, bool reset_waypoint_index
+	Entity entity, std::span<const V2_float> waypoints, const PathFollowConfig& config, bool force,
+	bool reset_waypoint_index
 ) {
 	PTGN_ASSERT(!waypoints.empty(), "Cannot follow an empty set of waypoints");
 	PTGN_ASSERT(
@@ -250,7 +246,7 @@ Tween StartFollowPathImpl(
 	}
 
 	std::vector<V2_float> prev_waypoints{ follow_comp.waypoints };
-	follow_comp.waypoints = waypoints;
+	follow_comp.waypoints = std::ranges::to<std::vector>(waypoints);
 
 	const auto start_func = [reset_waypoint_index, config, waypoints,
 							 prev_waypoints](const event::TweenStart& e) {
@@ -265,7 +261,7 @@ Tween StartFollowPathImpl(
 		// 3. Waypoints have changed.
 		if (auto& follow{ e.tween.template Get<impl::FollowEffect>() };
 			reset_waypoint_index || follow.current_waypoint >= waypoints.size() ||
-			waypoints != prev_waypoints) {
+			!std::ranges::equal(waypoints, prev_waypoints)) {
 			follow.current_waypoint = 0;
 		}
 
@@ -648,28 +644,6 @@ Tween ScaleTo(Entity entity, V2_float target_scale, milliseconds duration, Ease 
 	);
 }
 
-Tween ScaleTextSize(
-	Text entity, float target_font_size, milliseconds duration, Ease ease, bool force
-) {
-	struct TextFontSizeTween {};
-
-	return TweenTo<TextFontSizeTween, float>(
-		entity, target_font_size, duration, ease, TextSizeProperty(), force
-	);
-}
-
-std::vector<Tween> ScaleTextSize(
-	const std::vector<Text>& entities,
-	const std::variant<float, std::vector<float>>& target_font_size, milliseconds duration,
-	Ease ease, bool force
-) {
-	struct TextFontSizeTween {};
-
-	return TweenTo<TextFontSizeTween, float>(
-		entities, target_font_size, duration, ease, TextSizeProperty(), force
-	);
-}
-
 Tween StartFollow(Entity entity, Entity target, const TargetFollowConfig& config, bool force) {
 	Entity base{ entity };
 
@@ -689,8 +663,8 @@ Tween StartFollow(Entity entity, Entity target, const TargetFollowConfig& config
 }
 
 Tween StartFollow(
-	Entity entity, const std::vector<V2_float>& waypoints, const PathFollowConfig& config,
-	bool force, bool reset_waypoint_index
+	Entity entity, std::span<const V2_float> waypoints, const PathFollowConfig& config, bool force,
+	bool reset_waypoint_index
 ) {
 	return impl::StartFollowPathImpl(entity, waypoints, config, force, reset_waypoint_index);
 }
