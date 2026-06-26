@@ -1347,7 +1347,9 @@ void Button::UpdateChildLayouts() const {
 			text.Box(text_box);
 		}
 
-		text.ApplyFallbackAlignment(GetAlignment(origin));
+		auto alignment{ GetAlignment(origin) };
+
+		text.OverrideAlignment(alignment);
 	}
 }
 
