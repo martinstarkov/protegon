@@ -32,7 +32,7 @@ public:
 	constexpr Rect(Vector2<T> size) : Rect{ -size * 0.5f, size * 0.5f } {} // NOSONAR
 
 	template <Arithmetic TX, Arithmetic TY>
-	constexpr Rect(TX x, TY y) : Rect{ { x, y } } {}
+	constexpr Rect(TX x, TY y) : Rect{ V2_float{ x, y } } {}
 
 	template <Arithmetic T>
 	constexpr Rect(Vector2<T> size, Origin origin) : Rect{ size } { // NOSONAR
