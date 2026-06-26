@@ -15,7 +15,6 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
-#include "renderer/text/font_atlas.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
@@ -47,17 +46,16 @@ enum class ButtonVisualState : std::uint8_t {
 };
 PTGN_SERIALIZE_ENUM(ButtonVisualState);
 
-enum class ButtonPartRole : std::uint8_t {
+enum class ButtonPart : std::uint8_t {
 	Background,
 	Border,
-	Icon,
-	Text,
-	Custom,
+	Sprite,
+	Text
 };
-PTGN_SERIALIZE_ENUM(ButtonPartRole);
+PTGN_SERIALIZE_ENUM(ButtonPart);
 
 struct ButtonShapePartConfig {
-	ButtonPartRole role{ ButtonPartRole::Background };
+	ButtonPart part{ ButtonPart::Background };
 	ButtonVisualState state{ ButtonVisualState::Base };
 
 	std::optional<std::variant<Rect, Circle>> shape;
@@ -66,7 +64,7 @@ struct ButtonShapePartConfig {
 	std::optional<Color> color;
 	std::optional<FillStyle> fill_style;
 
-	PTGN_SERIALIZE(ButtonShapePartConfig, role, state, shape, origin, color, fill_style)
+	PTGN_SERIALIZE(ButtonShapePartConfig, part, state, shape, origin, color, fill_style)
 };
 
 struct ButtonSpritePartConfig {
@@ -143,7 +141,7 @@ struct ScaleButtonConfig {
 
 struct ButtonDesc {
 	/// @brief Interactive shape. Visual background/border should be child parts.
-	std::optional<std::variant<Rect, Circle>> shape;
+	std::variant<Rect, Circle> shape;
 
 	Origin origin{ Origin::Center };
 	bool ui_layer{ true };

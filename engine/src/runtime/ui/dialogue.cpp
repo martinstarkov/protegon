@@ -699,7 +699,7 @@ Text DialogueBox::TextPart() {
 		return text.value();
 	}
 
-	Text text{ CreateText(GetScene(), {}, Origin::TopLeft) };
+	Text text{ CreateText(GetScene(), {}, {}, Origin::TopLeft) };
 	text.Add<impl::DialoguePart>(DialoguePartRole::Text);
 	SetParent(text, *this);
 	Hide(text);

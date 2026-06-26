@@ -25,53 +25,10 @@ namespace ptgn {
 
 namespace {
 
-[[nodiscard]] std::optional<V2_float> GetShapeSize(
-	Entity entity, const std::variant<Rect, Circle>& shape
-) {
+[[nodiscard]] V2_float GetShapeSize(Entity entity, const std::variant<Rect, Circle>& shape) {
 	auto transform{ GetWorldTransform(entity) };
 
-	return std::visit(
-		[&](const auto& value) -> std::optional<V2_float> { return value.GetSize(transform); },
-		shape
-	);
-}
-
-void HideDropdownBranch(Button button) {
-	if (button.Has<impl::DropdownData>()) {
-		Dropdown dropdown{ button };
-
-		auto& info{ dropdown.Get<impl::DropdownData>() };
-		info.open = false;
-
-		for (Button child_button : dropdown.GetButtons()) {
-			HideDropdownBranch(child_button);
-		}
-	}
-
-	button.Disable();
-	Hide(button);
-
-	for (Entity part : button.Parts()) {
-		Hide(part);
-	}
-}
-
-void ShowDropdownItem(Button button) {
-	Show(button);
-	button.Enable();
-	button.RefreshVisualState();
-
-	if (!button.Has<impl::DropdownData>()) {
-		return;
-	}
-
-	Dropdown dropdown{ button };
-
-	if (dropdown.Get<impl::DropdownData>().start_open) {
-		dropdown.Open();
-	} else {
-		dropdown.Close(false);
-	}
+	return std::visit([&](const auto& value) { return value.GetSize(transform); }, shape);
 }
 
 } // namespace
@@ -110,6 +67,44 @@ void DropdownItemScript::OnEvent(Event event) {
 
 } // namespace impl
 
+void Dropdown::HideDropdownBranch(Button button) {
+	if (button.Has<impl::DropdownData>()) {
+		Dropdown dropdown{ button };
+
+		auto& info{ dropdown.Get<impl::DropdownData>() };
+		info.open = false;
+
+		for (Button child_button : dropdown.GetButtons()) {
+			HideDropdownBranch(child_button);
+		}
+	}
+
+	button.Disable();
+	Hide(button);
+
+	for (Entity part : button.Parts()) {
+		Hide(part);
+	}
+}
+
+void Dropdown::ShowDropdownItem(Button button) const {
+	Show(button);
+	button.Enable();
+	button.RefreshVisualState();
+
+	if (!button.Has<impl::DropdownData>()) {
+		return;
+	}
+
+	Dropdown dropdown{ button };
+
+	if (dropdown.Get<impl::DropdownData>().start_open) {
+		dropdown.Open();
+	} else {
+		dropdown.Close(false);
+	}
+}
+
 bool Dropdown::IsOpen() const {
 	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot query open state of invalid dropdown");
 	return Get<impl::DropdownData>().open;
@@ -135,24 +130,21 @@ bool Dropdown::WillStartOpen() const {
 	return Dropdown{ parent }.IsOpen();
 }
 
-Dropdown& Dropdown::SetShape(const std::optional<std::variant<Rect, Circle>>& shape) {
-	Button::SetShape(shape);
-
+Dropdown& Dropdown::Shape(Rect rect) {
+	Button::Shape(rect);
 	RecalculateButtonPositions();
 	RecalculateParentDropdown(*this);
-
 	return *this;
 }
 
-Dropdown& Dropdown::SetShape(Rect rect) {
-	return SetShape(std::variant<Rect, Circle>{ rect });
+Dropdown& Dropdown::Shape(Circle circle) {
+	Button::Shape(circle);
+	RecalculateButtonPositions();
+	RecalculateParentDropdown(*this);
+	return *this;
 }
 
-Dropdown& Dropdown::SetShape(Circle circle) {
-	return SetShape(std::variant<Rect, Circle>{ circle });
-}
-
-Dropdown& Dropdown::SetOrigin(Origin origin) {
+Dropdown& Dropdown::Origin(ptgn::Origin origin) {
 	SetDrawOrigin(*this, origin);
 
 	RecalculateButtonPositions();
@@ -208,9 +200,7 @@ void Dropdown::RecalculateButtonPositions() {
 
 	auto parent_shape{ GetShape() };
 
-	auto parent_size{ parent_shape.has_value()
-						  ? GetShapeSize(*this, parent_shape.value()).value_or(V2_float{})
-						  : V2_float{} };
+	auto parent_size{ GetShapeSize(*this, parent_shape) };
 
 	auto get_button_shape = [parent_shape, &info](Button button) -> std::variant<Rect, Circle> {
 		if (auto rect{ button.TryGet<Rect>() }) {
@@ -225,18 +215,14 @@ void Dropdown::RecalculateButtonPositions() {
 			return Rect{ info.button_size.value() };
 		}
 
-		PTGN_ASSERT(
-			parent_shape.has_value(), "Cannot rely on parent dropdown shape if it has no shape set"
-		);
-
-		return parent_shape.value();
+		return parent_shape;
 	};
 
 	V2_float parent_center{ GetOffset(GetDrawOrigin(*this), parent_size) };
 	V2_float parent_edge{ parent_center - GetOffset(info.origin, parent_size) };
 
 	auto shape{ get_button_shape(buttons.front()) };
-	auto size{ GetShapeSize(buttons.front(), shape).value_or(V2_float{}) };
+	auto size{ GetShapeSize(buttons.front(), shape) };
 
 	V2_float offset{ parent_edge - GetOffset(info.origin, size) + info.button_offset };
 
@@ -244,7 +230,7 @@ void Dropdown::RecalculateButtonPositions() {
 		Button button{ buttons[i] };
 
 		shape = get_button_shape(button);
-		size  = GetShapeSize(button, shape).value_or(V2_float{});
+		size  = GetShapeSize(button, shape);
 
 		if (i != 0) {
 			offset -= GetOffset(info.direction, size);
@@ -252,7 +238,7 @@ void Dropdown::RecalculateButtonPositions() {
 
 		SetPosition(button, offset);
 
-		std::visit([&](const auto& value) { button.SetShape(value); }, shape);
+		std::visit([&](const auto& value) { button.Shape(value); }, shape);
 
 		SetDrawOrigin(button, Origin::Center);
 
@@ -283,7 +269,7 @@ Dropdown& Dropdown::AddButton(Button button) {
 }
 
 Button Dropdown::AddItem(std::string_view text) {
-	std::optional<std::variant<Rect, Circle>> shape;
+	std::variant<Rect, Circle> shape;
 
 	if (const auto& info{ Get<impl::DropdownData>() }; info.button_size.has_value()) {
 		shape = Rect{ info.button_size.value() };
@@ -291,12 +277,16 @@ Button Dropdown::AddItem(std::string_view text) {
 		shape = GetShape();
 	}
 
-	Button button{ CreateButton(GetScene(), {}, shape, Origin::Center) };
-	button.SetText(text);
+	return std::visit(
+		[&](const auto& s) {
+			Button button{ CreateButton(GetScene(), {}, s, Origin::Center) };
+			button.Text(text);
 
-	AddButton(button);
-
-	return button;
+			AddButton(button);
+			return button;
+		},
+		shape
+	);
 }
 
 Dropdown& Dropdown::SetButtonSize(std::optional<V2_float> button_size) {
@@ -331,7 +321,7 @@ Dropdown& Dropdown::SetButtonOffset(V2_float button_offset) {
 	return *this;
 }
 
-Dropdown& Dropdown::SetDropdownDirection(Origin dropdown_direction) {
+Dropdown& Dropdown::SetDropdownDirection(ptgn::Origin dropdown_direction) {
 	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set dropdown direction of invalid dropdown");
 	PTGN_ASSERT(
 		dropdown_direction != Origin::Center, "Cannot set dropdown direction to Origin::Center"
@@ -350,7 +340,7 @@ Dropdown& Dropdown::SetDropdownDirection(Origin dropdown_direction) {
 	return *this;
 }
 
-Dropdown& Dropdown::SetDropdownOrigin(Origin dropdown_origin) {
+Dropdown& Dropdown::SetDropdownOrigin(ptgn::Origin dropdown_origin) {
 	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set dropdown origin of invalid dropdown");
 	PTGN_ASSERT(dropdown_origin != Origin::Center, "Cannot set dropdown origin to Origin::Center");
 
@@ -423,10 +413,9 @@ Dropdown& Dropdown::Close(bool close_parents) {
 }
 
 Dropdown CreateDropdown(
-	Scene& scene, Transform transform, const std::optional<std::variant<Rect, Circle>>& shape,
-	Origin draw_origin, bool start_open
+	Scene& scene, Transform transform, Rect rect, Origin draw_origin, bool start_open
 ) {
-	Button button{ CreateButton(scene, transform, shape, draw_origin) };
+	Button button{ CreateButton(scene, transform, rect, draw_origin) };
 
 	Dropdown dropdown{ button };
 

@@ -10,6 +10,7 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -88,31 +89,6 @@ void ToggleButtonGroupScript::OnButtonPress() {
 
 } // namespace impl
 
-ToggleButton Button::AddToggle(bool toggled) {
-	ToggleButton toggle{ *this };
-
-	if (!Has<impl::ToggleButtonData>()) {
-		Add<impl::ToggleButtonData>();
-	}
-
-	if (!HasScript<impl::ToggleButtonScript>(*this)) {
-		AddScript<impl::ToggleButtonScript>(*this);
-	}
-
-	toggle.SetToggled(toggled);
-
-	return toggle;
-}
-
-bool Button::HasToggle() const {
-	return Has<impl::ToggleButtonData>();
-}
-
-ToggleButton Button::AsToggle() const {
-	PTGN_ASSERT(HasToggle(), "Button does not have toggle capability");
-	return ToggleButton{ *this };
-}
-
 bool ToggleButton::IsToggled() const {
 	auto data{ TryGet<impl::ToggleButtonData>() };
 	return data && data->toggled;
@@ -176,19 +152,15 @@ ToggleButton ToggleButtonGroup::Add(std::string_view button_key, ToggleButton to
 
 	AddToggleScript(toggle_button);
 
-	auto buttons{ GetButtons() };
-	if (Get<impl::ToggleButtonGroupData>().always_active && buttons.size() == 1) {
+	if (auto buttons{ GetButtons() };
+		Get<impl::ToggleButtonGroupData>().always_active && buttons.size() == 1) {
 		SetActive(button_key);
 	}
 
 	return toggle_button;
 }
 
-ToggleButton ToggleButtonGroup::Add(std::string_view button_key, Button button) {
-	return Add(button_key, button.AddToggle(false));
-}
-
-void ToggleButtonGroup::Remove(std::string_view button_key) {
+void ToggleButtonGroup::Remove(std::string_view button_key) const {
 	auto button{ FindToggleButtonByKey(*this, button_key) };
 
 	if (!button.has_value()) {
@@ -270,19 +242,45 @@ void ToggleButtonGroup::SetActiveKey(impl::ToggleButtonGroupKey key) {
 	}
 
 	for (ToggleButton button : GetButtons()) {
-		auto& item{ button.Get<impl::ToggleButtonGroupItem>() };
+		const auto& item{ button.Get<impl::ToggleButtonGroupItem>() };
 
 		bool active{ data.active.has_value() && item.key == data.active.value() };
 		button.SetToggled(active);
 	}
 }
 
+namespace {
+
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, const std::optional<std::variant<Rect, Circle>>& shape,
-	Origin draw_origin, bool toggled
+	Scene& scene, Transform transform, InteractiveType auto shape, Origin origin, bool toggled
 ) {
-	Button button{ CreateButton(scene, transform, shape, draw_origin) };
-	return button.AddToggle(toggled);
+	ToggleButton button{ CreateButton(scene, transform, shape, origin) };
+
+	button.Add<impl::ToggleButtonData>();
+
+	PTGN_ASSERT(
+		!HasScript<impl::ToggleButtonScript>(button), "Toggle button cannot be part of a group"
+	);
+
+	AddScript<impl::ToggleButtonScript>(button);
+
+	button.SetToggled(toggled);
+
+	return button;
+}
+
+} // namespace
+
+ToggleButton CreateToggleButton(
+	Scene& scene, Transform transform, Rect rect, Origin origin, bool toggled
+) {
+	return CreateToggleButton<Rect>(scene, transform, rect, origin, toggled);
+}
+
+ToggleButton CreateToggleButton(
+	Scene& scene, Transform transform, Circle circle, Origin origin, bool toggled
+) {
+	return CreateToggleButton<Circle>(scene, transform, circle, origin, toggled);
 }
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {

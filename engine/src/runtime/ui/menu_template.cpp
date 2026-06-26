@@ -12,7 +12,6 @@
 #include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/log.h"
-#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "runtime/ecs/entity.h"
@@ -97,8 +96,7 @@ void TemplateMenuScene::OnEnter() {
 		const V2_float button_size{ 100, 50 };
 		const Color button_text_color{ color::White };
 		const auto& text = j_button.at("text");
-		auto button{ CreateButton(*this, V2_float{}) };
-		button.SetShape(Rect{ button_size });
+		auto button{ CreateButton(*this, {}, button_size) };
 		auto text_string{ text.get<std::string>() };
 		button.Text().Content(text_string).Color(button_text_color);
 		const auto& action_name{ j_button.at("action").get<std::string>() };

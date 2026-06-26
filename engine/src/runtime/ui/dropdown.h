@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <string_view>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -81,11 +82,10 @@ public:
 	bool IsOpen() const;
 	[[nodiscard]] bool WillStartOpen() const;
 
-	Dropdown& SetShape(const std::optional<std::variant<Rect, Circle>>& shape = {});
-	Dropdown& SetShape(Rect rect);
-	Dropdown& SetShape(Circle circle);
+	Dropdown& Shape(Rect rect);
+	Dropdown& Shape(Circle circle);
 
-	Dropdown& SetOrigin(Origin origin);
+	Dropdown& Origin(Origin origin);
 
 	/// @brief Adds an existing button as a direct child dropdown item.
 	Dropdown& AddButton(Button button);
@@ -104,10 +104,10 @@ public:
 	Dropdown& SetButtonOffset(V2_float button_offset);
 
 	/// @brief Set which direction the dropdown items stack relative to the parent button.
-	Dropdown& SetDropdownDirection(Origin dropdown_direction);
+	Dropdown& SetDropdownDirection(ptgn::Origin dropdown_direction);
 
 	/// @brief Set the edge/corner on which the dropdown starts relative to the parent button.
-	Dropdown& SetDropdownOrigin(Origin dropdown_origin);
+	Dropdown& SetDropdownOrigin(ptgn::Origin dropdown_origin);
 
 	Dropdown& Toggle();
 	Dropdown& Open();
@@ -136,6 +136,10 @@ public:
 private:
 	friend class impl::DropdownScript;
 	friend class impl::DropdownItemScript;
+
+	void HideDropdownBranch(Button button);
+
+	void ShowDropdownItem(Button button) const;
 
 	template <typename E, EventCallbackInvocable<E> F>
 	Dropdown& OnEvent(F&& callback) {
@@ -173,9 +177,8 @@ struct DropdownItemPress {
 
 /// @param start_open If true, dropdown starts in an open state.
 Dropdown CreateDropdown(
-	Scene& scene, Transform transform = {},
-	const std::optional<std::variant<Rect, Circle>>& shape = {},
-	Origin draw_origin = Origin::Center, bool start_open = false
+	Scene& scene, Transform transform, Rect rect, Origin draw_origin = Origin::Center,
+	bool start_open = false
 );
 
 } // namespace ptgn

@@ -91,9 +91,8 @@ public:
 	void SetAlwaysOneActive(bool always_active, std::optional<std::string_view> button_key = {});
 
 	ToggleButton Add(std::string_view button_key, ToggleButton toggle_button);
-	ToggleButton Add(std::string_view button_key, Button button);
 
-	void Remove(std::string_view button_key);
+	void Remove(std::string_view button_key) const;
 
 	void SetActive(std::string_view button_key);
 
@@ -134,9 +133,13 @@ struct ToggleButtonToggle {
 } // namespace event
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform = {},
-	const std::optional<std::variant<Rect, Circle>>& shape = {},
-	Origin draw_origin = Origin::Center, bool toggled = false
+	Scene& scene, Transform transform, Rect rect, Origin draw_origin = Origin::Center,
+	bool toggled = false
+);
+
+ToggleButton CreateToggleButton(
+	Scene& scene, Transform transform, Circle circle, Origin draw_origin = Origin::Center,
+	bool toggled = false
 );
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene);
