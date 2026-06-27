@@ -3,15 +3,16 @@
 #include <optional>
 #include <string>
 
-#include "core/editor_context.h"
 #include "core/util/file.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 
 class Scene;
 
 namespace editor {
+
+class EditorContext;
 
 struct SceneEditorState {
 	std::string scene_type_name;

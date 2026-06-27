@@ -4,14 +4,9 @@ namespace ptgn::editor {
 
 class EditorContext;
 
-class ContentBrowserPanel {
+class DebugSettingsPanel {
 public:
 	void OnRender(EditorContext& ctx);
-
-private:
-	void DrawContentBrowser(EditorContext& ctx);
-
-	// RenderGraphVisualizer render_graph_visualizer_;
 };
 
 } // namespace ptgn::editor

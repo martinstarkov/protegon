@@ -1,6 +1,5 @@
 #pragma once
 
-#include "core/editor_context.h"
 #include "core/math/angle.h"
 #include "core/math/matrix4.h"
 #include "core/math/transform.h"
@@ -9,6 +8,8 @@
 #include "runtime/graphics/frame_context.h"
 
 namespace ptgn::editor {
+
+class EditorContext;
 
 enum class GizmoTool {
 	None,

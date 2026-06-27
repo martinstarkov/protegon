@@ -2,28 +2,65 @@
 
 #include <imgui.h>
 
-#include <algorithm>
 #include <array>
-#include <cfloat>
-#include <cmath>
-#include <cstdint>
 #include <optional>
 #include <string>
-#include <utility>
 
 #include "core/editor.h"
 #include "core/editor_context.h"
-#include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "core/util/span.h"
+#include "panels/inspector_fields.h"
+#include "panels/settings_fields.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/render_settings.h"
 
-// TODO: Add fps modification.
+namespace ptgn::editor::inspector {
+
+template <>
+struct Contents<RenderSettings> {
+	static bool Draw(RenderSettings& settings) {
+		bool changed{ false };
+
+		changed |= DrawValue("Tone Mapping", settings.tone_mapping.op);
+
+		if (settings.tone_mapping.op == ToneMappingOperator::Exposure ||
+			settings.tone_mapping.op == ToneMappingOperator::ACES) {
+			changed |= DrawValue(
+				"Exposure", settings.tone_mapping.exposure,
+				FieldOptions{
+					.speed	= 0.05f,
+					.min	= 0.0,
+					.max	= 20.0,
+					.format = "%.2f",
+					.flags	= ImGuiSliderFlags_AlwaysClamp,
+				}
+			);
+		}
+
+		changed |= DrawValue(
+			"Gamma", settings.gamma,
+			FieldOptions{
+				.speed	= 0.05f,
+				.min	= 0.01,
+				.max	= 5.0,
+				.format = "%.2f",
+				.flags	= ImGuiSliderFlags_AlwaysClamp,
+			}
+		);
+
+		return changed;
+	}
+};
+
+} // namespace ptgn::editor::inspector
 
 namespace ptgn::editor {
 
 namespace {
+
+using namespace inspector;
 
 struct ResolutionPreset {
 	const char* label{ "" };
@@ -48,260 +85,127 @@ constexpr std::array<ResolutionPreset, 12> kResolutionPresets{
 static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::size));
 static_assert(!ContainsDuplicates(kResolutionPresets, &ResolutionPreset::label));
 
-constexpr std::array kScalingModeNames{
-	"Disabled", "Stretch", "Letterbox", "Overscan", "IntegerScale",
-};
+bool DrawResolutionMode(Editor& editor) {
+	constexpr std::array names{
+		"Use Window Size",
+		"Use Logical Size",
+	};
 
-static_assert(!ContainsDuplicates(kScalingModeNames));
+	int mode{ editor.HasLogicalSize() ? 1 : 0 };
+
+	bool changed{ DrawPropertyRow("Resolution Source", [&]() {
+		return ImGui::Combo("##value", &mode, names.data(), static_cast<int>(names.size()));
+	}) };
+
+	if (!changed) {
+		return false;
+	}
+
+	if (mode == 0) {
+		editor.SetLogicalSize(std::nullopt);
+	} else {
+		editor.SetLogicalSize(editor.GetDisplayViewport().size);
+	}
+
+	return true;
+}
+
+bool DrawResolutionPreset(Editor& editor) {
+	auto logical_size{ editor.GetLogicalSize() };
+
+	auto selected{ std::ranges::find(kResolutionPresets, logical_size, &ResolutionPreset::size) };
+
+	auto preview{ selected != kResolutionPresets.end() ? selected->label : "Custom" };
+
+	return DrawPropertyRow("Preset", [&]() {
+		bool changed{ false };
+
+		if (ImGui::BeginCombo("##value", preview)) {
+			for (const auto& preset : kResolutionPresets) {
+				bool is_selected{ preset.size == logical_size };
+
+				if (ImGui::Selectable(preset.label, is_selected)) {
+					editor.SetLogicalSize(preset.size);
+					changed = true;
+				}
+
+				if (is_selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+
+			ImGui::EndCombo();
+		}
+
+		return changed;
+	});
+}
+
+void DrawDisplaySettings(Editor& editor) {
+	if (!ImGui::CollapsingHeader("Display", ImGuiTreeNodeFlags_DefaultOpen)) {
+		return;
+	}
+
+	ImGui::Indent();
+
+	DrawResolutionMode(editor);
+
+	if (editor.HasLogicalSize()) {
+		DrawResolutionPreset(editor);
+
+		auto logical_size{ editor.GetLogicalSize() };
+
+		if (DrawValue(
+				"Logical Size", logical_size,
+				FieldOptions{
+					.speed	= 1.0f,
+					.min	= 1.0,
+					.max	= 4096.0,
+					.format = "%d",
+					.flags	= ImGuiSliderFlags_AlwaysClamp,
+				}
+			)) {
+			editor.SetLogicalSize(logical_size);
+		}
+
+		auto scaling_mode{ editor.GetScalingMode() };
+
+		if (DrawValue("Scaling Mode", scaling_mode)) {
+			editor.SetScalingMode(scaling_mode);
+		}
+	} else {
+		auto window_size{ editor.GetDisplayViewport().size };
+
+		ImGui::BeginDisabled();
+		DrawValue("Window Size", window_size);
+		ImGui::EndDisabled();
+	}
+
+	settings::EditValue(
+		"Window Background", [&]() { return editor.GetWindowBackgroundColor(); },
+		[&](Color color) { editor.SetWindowBackgroundColor(color); }
+	);
+
+	settings::EditValue(
+		"Renderer Background", [&]() { return editor.GetRendererBackgroundColor(); },
+		[&](Color color) { editor.SetRendererBackgroundColor(color); }
+	);
+
+	ImGui::Unindent();
+	ImGui::Spacing();
+}
 
 } // namespace
 
 void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Engine Settings");
 
-	constexpr float kLabelWidth = 140.0f;
-	constexpr float kSpacing	= 6.0f;
+	DrawDisplaySettings(ctx.editor);
 
-	const auto table_row_label = [](const char* text) {
-		ImGui::TableNextRow();
-		ImGui::TableSetColumnIndex(0);
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextUnformatted(text);
-		ImGui::TableSetColumnIndex(1);
-	};
-
-	const auto full_width = [] {
-		ImGui::SetNextItemWidth(-FLT_MIN);
-	};
-
-	const auto drag_int_pair = [](const char* id_w, int* w, int w_min, int w_max, const char* id_h,
-								  int* h, int h_min, int h_max, bool enabled = true) {
-		ImGui::BeginDisabled(!enabled);
-
-		const float total_width = ImGui::GetContentRegionAvail().x;
-		const float field_width = (total_width - kSpacing) * 0.5f;
-
-		ImGui::SetNextItemWidth(field_width);
-		ImGui::DragInt(id_w, w, 1.0f, w_min, w_max, "W: %d", ImGuiSliderFlags_AlwaysClamp);
-
-		ImGui::SameLine(0.0f, kSpacing);
-
-		ImGui::SetNextItemWidth(field_width);
-		ImGui::DragInt(id_h, h, 1.0f, h_min, h_max, "H: %d", ImGuiSliderFlags_AlwaysClamp);
-
-		ImGui::EndDisabled();
-	};
-
-	const auto draw_centered_label = [](const char* text, float width) {
-		float text_width = ImGui::CalcTextSize(text).x;
-		float cursor_x	 = ImGui::GetCursorPosX();
-		float offset	 = (width - text_width) * 0.5f;
-		if (offset > 0.0f) {
-			ImGui::SetCursorPosX(cursor_x + offset);
-		}
-		ImGui::TextUnformatted(text);
-	};
-
-	const auto draw_rgba_color_row = [&](const char* label, const char* id_prefix, auto get_color,
-										 auto set_color) {
-		table_row_label(label);
-
-		constexpr float kPickerWidth = 36.0f;
-		const float total_width		 = ImGui::GetContentRegionAvail().x;
-		const float field_width		 = (total_width - 4.0f * kSpacing - kPickerWidth) / 4.0f;
-		const float sublabel_height	 = ImGui::GetTextLineHeight();
-
-		auto color = get_color();
-
-		int r = static_cast<int>(color.r);
-		int g = static_cast<int>(color.g);
-		int b = static_cast<int>(color.b);
-		int a = static_cast<int>(color.a);
-
-		float colorf[4]{ static_cast<float>(r) / 255.0f, static_cast<float>(g) / 255.0f,
-						 static_cast<float>(b) / 255.0f, static_cast<float>(a) / 255.0f };
-
-		bool changed_from_sliders = false;
-		bool changed_from_picker  = false;
-
-		ImGui::BeginGroup();
-
-		ImGui::BeginGroup();
-		draw_centered_label("R", field_width);
-		ImGui::SetNextItemWidth(field_width);
-		changed_from_sliders |= ImGui::DragInt(
-			(std::string("##") + id_prefix + "R").c_str(), &r, 1.0f, 0, 255, "%d",
-			ImGuiSliderFlags_AlwaysClamp
-		);
-		ImGui::EndGroup();
-
-		ImGui::SameLine(0.0f, kSpacing);
-
-		ImGui::BeginGroup();
-		draw_centered_label("G", field_width);
-		ImGui::SetNextItemWidth(field_width);
-		changed_from_sliders |= ImGui::DragInt(
-			(std::string("##") + id_prefix + "G").c_str(), &g, 1.0f, 0, 255, "%d",
-			ImGuiSliderFlags_AlwaysClamp
-		);
-		ImGui::EndGroup();
-
-		ImGui::SameLine(0.0f, kSpacing);
-
-		ImGui::BeginGroup();
-		draw_centered_label("B", field_width);
-		ImGui::SetNextItemWidth(field_width);
-		changed_from_sliders |= ImGui::DragInt(
-			(std::string("##") + id_prefix + "B").c_str(), &b, 1.0f, 0, 255, "%d",
-			ImGuiSliderFlags_AlwaysClamp
-		);
-		ImGui::EndGroup();
-
-		ImGui::SameLine(0.0f, kSpacing);
-
-		ImGui::BeginGroup();
-		draw_centered_label("A", field_width);
-		ImGui::SetNextItemWidth(field_width);
-		changed_from_sliders |= ImGui::DragInt(
-			(std::string("##") + id_prefix + "A").c_str(), &a, 1.0f, 0, 255, "%d",
-			ImGuiSliderFlags_AlwaysClamp
-		);
-		ImGui::EndGroup();
-
-		ImGui::SameLine(0.0f, kSpacing);
-
-		ImGui::BeginGroup();
-		ImGui::Dummy(ImVec2(0.0f, sublabel_height));
-		ImGui::SetNextItemWidth(kPickerWidth);
-		changed_from_picker |= ImGui::ColorEdit4(
-			(std::string("##") + id_prefix + "Picker").c_str(), colorf,
-			ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel |
-				ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf
-		);
-		ImGui::EndGroup();
-
-		ImGui::EndGroup();
-
-		if (changed_from_sliders) {
-			color.r = static_cast<std::uint8_t>(std::clamp(r, 0, 255));
-			color.g = static_cast<std::uint8_t>(std::clamp(g, 0, 255));
-			color.b = static_cast<std::uint8_t>(std::clamp(b, 0, 255));
-			color.a = static_cast<std::uint8_t>(std::clamp(a, 0, 255));
-			set_color(color);
-		} else if (changed_from_picker) {
-			color.r = static_cast<std::uint8_t>(std::round(colorf[0] * 255.0f));
-			color.g = static_cast<std::uint8_t>(std::round(colorf[1] * 255.0f));
-			color.b = static_cast<std::uint8_t>(std::round(colorf[2] * 255.0f));
-			color.a = static_cast<std::uint8_t>(std::round(colorf[3] * 255.0f));
-			set_color(color);
-		}
-	};
-
-	if (ImGui::BeginTable("##EngineSettingsTable", 2, ImGuiTableFlags_SizingFixedFit)) {
-		ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, kLabelWidth);
-		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-
-		// Logical Resolution
-		table_row_label("Resolution");
-
-		bool use_logical_size = true;
-
-		{
-			// Resolution source
-			constexpr std::array resolution_mode_names{
-				"Use Window Size",
-				"Use Logical Size",
-			};
-
-			auto resolution_mode{ static_cast<int>(ctx.editor.HasLogicalSize()) };
-
-			full_width();
-			if (ImGui::Combo(
-					"##ResolutionMode", &resolution_mode, resolution_mode_names.data(),
-					static_cast<int>(resolution_mode_names.size())
-				)) {
-				if (resolution_mode == 0) {
-					ctx.editor.SetLogicalSize(std::nullopt);
-				} else {
-					ctx.editor.SetLogicalSize(ctx.editor.GetDisplayViewport().size);
-				}
-			}
-
-			use_logical_size = ctx.editor.HasLogicalSize();
-
-			if (use_logical_size) {
-				auto logical_size{ ctx.editor.GetLogicalSize() };
-
-				auto selected_it{
-					std::ranges::find(kResolutionPresets, logical_size, &ResolutionPreset::size)
-				};
-
-				auto preview{ selected_it != kResolutionPresets.end() ? selected_it->label
-																	  : "Custom" };
-
-				full_width();
-				if (ImGui::BeginCombo("##LogicalSizePreset", preview)) {
-					for (const auto& preset : kResolutionPresets) {
-						bool selected{ preset.size == logical_size };
-						if (ImGui::Selectable(preset.label, selected)) {
-							ctx.editor.SetLogicalSize(preset.size);
-						}
-						if (selected) {
-							ImGui::SetItemDefaultFocus();
-						}
-					}
-					ImGui::EndCombo();
-				}
-
-				ImGui::Spacing();
-
-				auto size{ ctx.editor.GetLogicalSize() };
-				drag_int_pair(
-					"##LogicalWidth", &size.x, 1, 4096, "##LogicalHeight", &size.y, 1, 2160
-				);
-				ctx.editor.SetLogicalSize(size);
-			} else {
-				V2_int window_size{ ctx.editor.GetDisplayViewport().size };
-				drag_int_pair(
-					"##WindowWidth", &window_size.x, 0, 0, "##WindowHeight", &window_size.y, 0, 0,
-					false
-				);
-			}
-		}
-
-		if (use_logical_size) {
-			// Scaling Mode
-			table_row_label("Scaling Mode");
-
-			{
-				auto scaling_mode{ std::to_underlying(ctx.editor.GetScalingMode()) };
-
-				full_width();
-				if (ImGui::Combo(
-						"##ScalingMode", &scaling_mode, kScalingModeNames.data(),
-						static_cast<int>(kScalingModeNames.size())
-					)) {
-					ctx.editor.SetScalingMode(static_cast<ScalingMode>(scaling_mode));
-				}
-			}
-		}
-
-		// Window Background Color
-		draw_rgba_color_row(
-			"Window Background", "WindowBackground",
-			[&]() { return ctx.editor.GetWindowBackgroundColor(); },
-			[&](const auto& color) { ctx.editor.SetWindowBackgroundColor(color); }
-		);
-
-		// Renderer Background Color
-		draw_rgba_color_row(
-			"Renderer Background", "RendererBackground",
-			[&]() { return ctx.editor.GetRendererBackgroundColor(); },
-			[&](const auto& color) { ctx.editor.SetRendererBackgroundColor(color); }
-		);
-
-		ImGui::EndTable();
-	}
+	settings::EditSection(
+		"Rendering", [&]() { return ctx.editor.GetRenderSettings(); },
+		[&](const RenderSettings& value) { ctx.editor.SetRenderSettings(value); }
+	);
 
 	ImGui::End();
 }

@@ -1,9 +1,10 @@
 #pragma once
 
-#include "core/editor_context.h"
 #include "runtime/ecs/entity.h"
 
 namespace ptgn::editor {
+
+class EditorContext;
 
 class SceneHierarchyPanel {
 public:

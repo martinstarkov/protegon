@@ -34,6 +34,7 @@
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/render_settings.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "runtime/scene/scene.h"
@@ -158,6 +159,7 @@ void Editor::DrawPanels() {
 	scene_list_panel_.OnRender(*context_);
 	inspector_panel_.OnRender(*context_);
 	engine_settings_panel_.OnRender(*context_);
+	debug_settings_panel_.OnRender(*context_);
 	content_browser_panel_.OnRender(*context_);
 }
 
@@ -171,6 +173,14 @@ std::vector<std::unique_ptr<Scene>>& Editor::GetScenes() {
 
 void Editor::SetPresentationViewport(std::optional<Viewport> presentation_viewport) {
 	impl::ApplicationAccessor::ctx(app).renderer.SetPresentationViewport(presentation_viewport);
+}
+
+RenderSettings Editor::GetRenderSettings() const {
+	return impl::ApplicationAccessor::ctx(app).renderer.GetSettings();
+}
+
+void Editor::SetRenderSettings(const RenderSettings& settings) {
+	impl::ApplicationAccessor::ctx(app).renderer.SetSettings(settings);
 }
 
 SceneHierarchyPanel& Editor::GetSceneHierarchyPanel() {
@@ -265,6 +275,14 @@ void Editor::RequestStep() {
 	impl::ApplicationAccessor::ctx(app).step_requested = true;
 }
 
+DebugSystem& Editor::GetDebug() {
+	return impl::ApplicationAccessor::ctx(app).debug;
+}
+
+const DebugSystem& Editor::GetDebug() const {
+	return impl::ApplicationAccessor::ctx(app).debug;
+}
+
 void Editor::SetApplicationState(ApplicationState state) {
 	impl::ApplicationAccessor::ctx(app).state = state;
 }
@@ -345,6 +363,7 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 
 	ImGui::DockBuilderDockWindow("Inspector", dock_right);
 	ImGui::DockBuilderDockWindow("Engine Settings", dock_right_bottom);
+	ImGui::DockBuilderDockWindow("Debug Settings", dock_right_bottom);
 
 	ImGui::DockBuilderDockWindow("Viewport", dock_main);
 	ImGui::DockBuilderDockWindow("Render Stats", dock_center_bottom);

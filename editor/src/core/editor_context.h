@@ -9,7 +9,8 @@ namespace ptgn::editor {
 
 class Editor;
 
-struct EditorContext {
+class EditorContext {
+public:
 	Editor& editor;
 	EditorCommands& commands;
 	UndoStack& undo;

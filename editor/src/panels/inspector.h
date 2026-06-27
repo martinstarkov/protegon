@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/editor_context.h"
-
 namespace ptgn::editor {
+
+class EditorContext;
 
 class InspectorPanel {
 public:

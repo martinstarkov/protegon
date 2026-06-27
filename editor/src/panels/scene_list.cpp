@@ -19,12 +19,12 @@
 #include "core/editor_context.h"
 #include "core/util/file.h"
 #include "core/util/hash.h"
+#include "panels/scene_hierarchy.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scene/scene_view.h"
-#include "scene_hierarchy.h"
-#include "serialization/json/fwd.h"
+#include "serialization/json/json.h"
 
 namespace ptgn::editor {
 
@@ -43,10 +43,6 @@ std::optional<SceneEditorState> MakeSceneEditorState(std::string_view name) {
 		// PTGN_ERROR("Scene not found in registry: ", name);
 	}
 }
-
-// --------------------------------------------------
-// Generic ImGui JSON editor
-// --------------------------------------------------
 
 void DrawJsonEditor(const char* label, json& value) {
 	if (value.is_boolean()) {

@@ -11,10 +11,9 @@
 #include "commands/undo_stack.h"
 #include "core/editor_context.h"
 #include "core/graphics/color.h"
-#include "core/math/matrix4.h"
 #include "core/math/vector2.h"
-#include "core/util/file.h"
 #include "panels/content_browser.h"
+#include "panels/debug_settings.h"
 #include "panels/engine_settings.h"
 #include "panels/inspector.h"
 #include "panels/scene_hierarchy.h"
@@ -23,6 +22,7 @@
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
+#include "renderer/render_settings.h"
 #include "renderer/resources/id.h"
 #include "runtime/scene/scene_manager.h"
 
@@ -32,6 +32,7 @@ class Application;
 class Scene;
 class Stats;
 class Renderer;
+class DebugSystem;
 
 namespace editor {
 
@@ -42,6 +43,10 @@ public:
 	void OnUpdate() override;
 	void OnRender() override;
 
+	DebugSystem& GetDebug();
+	const DebugSystem& GetDebug() const;
+	RenderSettings GetRenderSettings() const;
+	void SetRenderSettings(const RenderSettings& settings);
 	void SetScalingMode(ScalingMode scaling_mode);
 	void SetLogicalSize(std::optional<V2_int> logical_size);
 	ScalingMode GetScalingMode() const;
@@ -100,6 +105,7 @@ private:
 	ViewportPanel viewport_panel_;
 	ContentBrowserPanel content_browser_panel_;
 	EngineSettingsPanel engine_settings_panel_;
+	DebugSettingsPanel debug_settings_panel_;
 	InspectorPanel inspector_panel_;
 	SceneHierarchyPanel scene_hierarchy_panel_;
 	SceneListPanel scene_list_panel_;
