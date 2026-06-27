@@ -91,11 +91,7 @@ struct ComponentChangeHandler {
 };
 
 void MarkTextLayoutDirty(Entity entity) {
-	PTGN_ASSERT(
-		entity.Has<TextLayout>(), "Entities with StyledText or TextBox must also have a TextLayout"
-	);
-
-	entity.Get<TextLayout>().dirty = true;
+	entity.TryAdd<TextLayout>().dirty = true;
 }
 
 template <>
