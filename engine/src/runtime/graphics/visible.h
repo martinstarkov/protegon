@@ -41,11 +41,11 @@ struct EntityHide {
 
 } // namespace event
 
-void SetVisible(Entity entity, bool visible = true, bool emit_visibility_event = true);
+void SetVisible(Entity entity, bool visible = true);
 
-void Show(Entity entity, bool emit_visibility_event = true);
+void Show(Entity entity);
 
-void Hide(Entity entity, bool emit_visibility_event = true);
+void Hide(Entity entity);
 
 /// @param check_parent_visibility If true, the visibility of parent entities will be checked. If
 /// any parent is hidden, this entity will be considered hidden as well.

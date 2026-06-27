@@ -132,7 +132,7 @@ Graphics CreateGraphics(Scene& scene, Transform transform) {
 	graphics.Add<impl::GraphicsData>();
 	SetTransform(graphics, transform);
 	SetDraw<Graphics>(graphics);
-	Show(graphics, false);
+	graphics.Add<impl::Visible>(true);
 
 	return graphics;
 }

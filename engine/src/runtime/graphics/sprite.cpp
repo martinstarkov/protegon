@@ -96,7 +96,7 @@ Sprite CreateSprite(
 	Sprite sprite{ scene.CreateEntity() };
 
 	SetDraw<Sprite>(sprite);
-	Show(sprite, false);
+	sprite.Add<impl::Visible>(true);
 
 	if (!texture_key.empty()) {
 		sprite.SetTexture(texture_key);

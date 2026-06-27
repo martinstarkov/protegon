@@ -710,7 +710,7 @@ Entity Button::Part(ButtonPart part, ButtonVisualState state) {
 	entity.Add<impl::ButtonChild>(part, state);
 	SetParent(entity, *this);
 
-	Show(entity, false);
+	entity.Add<impl::Visible>(true);
 
 	return entity;
 }
@@ -747,7 +747,6 @@ Text Button::GetText(ButtonVisualState state) {
 	text.Add<impl::ButtonTextAutoBox>();
 
 	SetParent(text, *this);
-	Show(text);
 
 	UpdateChildLayouts();
 	RefreshVisualState();
@@ -1449,6 +1448,7 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 
 	Button button{ scene.CreateEntity() };
 
+	button.Add<impl::Visible>(true);
 	button.Add<impl::ButtonData>();
 	button.Add<impl::ButtonEnabled>();
 
@@ -1610,7 +1610,6 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 	}
 
 	button.UpdateChildLayouts();
-	Show(button, false);
 	button.RefreshVisualState();
 
 	return button;

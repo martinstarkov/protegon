@@ -150,12 +150,12 @@ Entity CreateShape(
 	auto entity{ scene.CreateEntity() };
 
 	SetDraw<TShapeDraw>(entity);
-	Show(entity, false);
-
 	SetTransform(entity, transform);
+
 	entity.Add<TShape>(std::move(shape));
 	entity.Add<Color>(color);
 	entity.Add<FillStyle>(fill_style);
+	entity.Add<impl::Visible>(true);
 
 	return entity;
 }

@@ -519,7 +519,7 @@ ParticleEmitter CreateParticleEmitter(
 	SetDraw<ParticleEmitter>(particle);
 	particle.Add<impl::ParticleEmitterComponent>(config);
 
-	Show(particle, false);
+	particle.Add<impl::Visible>(true);
 
 	return particle;
 }

@@ -14,7 +14,7 @@ bool IsLocallyVisible(Entity entity) {
 
 } // namespace
 
-void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
+void SetVisible(Entity entity, bool visible) {
 	if (entity.Has<impl::Visible>() && entity.Get<impl::Visible>().visible == visible) {
 		return;
 	}
@@ -22,7 +22,7 @@ void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
 	auto& visibility{ entity.TryAdd<impl::Visible>() };
 	visibility.visible = visible;
 
-	if (emit_visibility_event && entity.HasScene()) {
+	if (entity.HasScene()) {
 		if (visible) {
 			PushEvent<event::EntityShow>(entity, entity);
 		} else {
@@ -31,12 +31,12 @@ void SetVisible(Entity entity, bool visible, bool emit_visibility_event) {
 	}
 }
 
-void Show(Entity entity, bool emit_visibility_event) {
-	SetVisible(entity, true, emit_visibility_event);
+void Show(Entity entity) {
+	SetVisible(entity, true);
 }
 
-void Hide(Entity entity, bool emit_visibility_event) {
-	SetVisible(entity, false, emit_visibility_event);
+void Hide(Entity entity) {
+	SetVisible(entity, false);
 }
 
 bool IsVisible(Entity entity, bool check_parent_visibility) {

@@ -82,7 +82,7 @@ CustomShader CreateCustomShader(
 
 	SetDraw<CustomShader>(custom_shader);
 
-	Show(custom_shader, false);
+	custom_shader.Add<impl::Visible>(true);
 
 	custom_shader.Add<Rect>(size);
 

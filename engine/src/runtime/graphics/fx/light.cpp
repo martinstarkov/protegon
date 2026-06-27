@@ -804,7 +804,7 @@ Light CreateLight(Scene& scene, Transform transform, const LightProperties& prop
 
 	SetTransform(light, transform);
 	SetDraw<Light>(light);
-	Show(light);
+	light.Add<impl::Visible>(true);
 
 	// Blend mode with which the lights are added to the scene.
 	SetBlendMode(light, BlendMode::PremultipliedAddRGBA);

@@ -367,7 +367,7 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 	auto prev_active{ info.animations.find(info.active) };
 
 	// Hide and pause old active animation.
-	Hide(prev_active->second, false);
+	prev_active->second.Add<impl::Visible>(false);
 	prev_active->second.Pause();
 
 	auto it{ info.animations.find(key) };
