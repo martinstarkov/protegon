@@ -1370,6 +1370,7 @@ void Button::UpdateChildLayouts() const {
 		if (!part.Has<impl::ButtonTextAutoBox>()) {
 			continue;
 		}
+
 		const auto& auto_box{ part.Get<impl::ButtonTextAutoBox>() };
 
 		if (!auto_box.enabled) {
@@ -1393,13 +1394,12 @@ void Button::UpdateChildLayouts() const {
 
 		ptgn::Text text{ part };
 
-		if (Rect text_box{ {}, content_size }; text.GetTextBox().rect != text_box) {
+		// Keep the selected origin at local zero so scaling occurs around it.
+		if (Rect text_box{ content_size, origin }; text.GetTextBox().rect != text_box) {
 			text.Box(text_box);
 		}
 
-		auto alignment{ GetAlignment(origin) };
-
-		text.OverrideAlignment(alignment);
+		text.OverrideAlignment(GetAlignment(origin));
 	}
 }
 
@@ -1470,7 +1470,6 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 
 	for (const auto& shape : desc.shapes) {
 		if (shape.part == ButtonPart::Background) {
-			button.Background(shape.state);
 			if (shape.size.has_value()) {
 				std::visit(
 					[&](const auto& size) { button.BackgroundSize(size, shape.state); },
@@ -1484,7 +1483,6 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 				button.BackgroundOrigin(shape.origin.value(), shape.state);
 			}
 		} else if (shape.part == ButtonPart::Border) {
-			button.Border(shape.state);
 			if (shape.size.has_value()) {
 				std::visit(
 					[&](const auto& size) { button.BorderSize(size, shape.state); },
@@ -1561,7 +1559,6 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 			auto& auto_box{ text.TryAdd<impl::ButtonTextAutoBox>() };
 			auto_box.enabled = false;
 		}
-		button.UpdateChildLayouts();
 
 		auto tween_move = [get_texts, move](V2_float offset, auto button) {
 			auto texts{ get_texts(button) };

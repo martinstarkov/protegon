@@ -24,18 +24,18 @@ public:
 
 		ctx().asset.Load(
 			{
-				{ "sound_hover", "assets/hover.ogg" },
-				{ "sound_press", "assets/press.ogg" },
+				{ "hover", "assets/hover.ogg" },
+				{ "press", "assets/press.ogg" },
 
-				{ "big_idle", "assets/big_button_idle.png" },
-				{ "big_hover", "assets/big_button_hover.png" },
-				{ "big_press", "assets/big_button_press.png" },
+				{ "idle", "assets/big_button_idle.png" },
+				{ "hover", "assets/big_button_hover.png" },
+				{ "press", "assets/big_button_press.png" },
 
 				{ "bell_idle", "assets/bell.png" },
 				{ "bell_hover", "assets/bell_hover_animation.png" },
 				{ "bell_press", "assets/bell_press_animation.png" },
-				{ "bell_hover_sound", "assets/hover.ogg" },
-				{ "bell_press_sound", "assets/bell.ogg" },
+				{ "bell_hover", "assets/hover.ogg" },
+				{ "bell_press", "assets/bell.ogg" },
 			}
 		);
 
@@ -48,12 +48,12 @@ public:
 				.content			= "It Takes Two 1",
 				.text_color			= color::Gold,
 				.text_color_hover	= color::Brown,
-				.text_outline_width = 1.0f,
-				.texture			= "big_idle",
+				.text_outline_width = 1,
+				.texture			= "idle",
 				.texture_tint_hover = color::Orange,
 				.texture_tint_press = color::Blue,
-				.sound_hover		= "sound_hover",
-				.sound_press		= "sound_press",
+				.sound_hover		= "hover",
+				.sound_press		= "press",
 			}
 		);
 
@@ -63,18 +63,12 @@ public:
 				.content			= "It Takes Two 2",
 				.text_color			= color::White,
 				.text_color_hover	= color::Brown,
-				.text_outline_width = 1.0f,
-				.texture_hover		= "big_hover",
-				.sound_hover		= "sound_hover",
-				.sound_press		= "sound_press",
-				.move =
-					MoveButtonConfig{
-						.offset = { 20, 0 },
-					},
-				.scale =
-					ScaleButtonConfig{
-						.scale = 1.1f,
-					},
+				.text_outline_width = 1,
+				.texture_hover		= "hover",
+				.sound_hover		= "hover",
+				.sound_press		= "press",
+				.move				= MoveButtonConfig{ .offset = { 20, 0 }, .duration = 100ms },
+				.scale				= ScaleButtonConfig{ .scale = 1.1f, .duration = 100ms },
 			}
 		);
 
@@ -83,11 +77,11 @@ public:
 			ButtonConfig{
 				.content	   = "Baba Is You",
 				.text_color	   = color::White,
-				.texture	   = "big_idle",
-				.texture_hover = "big_hover",
-				.texture_press = "big_press",
-				.sound_hover   = "sound_hover",
-				.sound_press   = "sound_press",
+				.texture	   = "idle",
+				.texture_hover = "hover",
+				.texture_press = "press",
+				.sound_hover   = "hover",
+				.sound_press   = "press",
 			}
 		);
 
@@ -97,10 +91,10 @@ public:
 				.content			= "Dogs Organized Neatly",
 				.text_color			= color::Black,
 				.text_color_hover	= color::White,
-				.texture			= "big_idle",
+				.texture			= "idle",
 				.texture_tint_hover = color::Orange,
-				.sound_hover		= "sound_hover",
-				.sound_press		= "sound_press",
+				.sound_hover		= "hover",
+				.sound_press		= "press",
 			}
 		);
 
@@ -109,10 +103,10 @@ public:
 			ButtonConfig{
 				.content	   = "Rogue Legacy 2",
 				.text_color	   = color::Gray,
-				.texture_hover = "big_hover",
-				.texture_press = "big_hover",
-				.sound_hover   = "sound_hover",
-				.sound_press   = "sound_press",
+				.texture_hover = "hover",
+				.texture_press = "hover",
+				.sound_hover   = "hover",
+				.sound_press   = "press",
 			}
 		);
 
@@ -122,9 +116,8 @@ public:
 				.content		  = "Enter the Gungeon",
 				.text_color		  = color::Gray,
 				.text_color_hover = color::White,
-				.background_color = color::Gray.WithAlpha(0.35f),
-				.sound_hover	  = "sound_hover",
-				.sound_press	  = "sound_press",
+				.sound_hover	  = "hover",
+				.sound_press	  = "press",
 			}
 		);
 
@@ -134,11 +127,10 @@ public:
 				.content				= "Payday 2",
 				.text_color				= color::LightBlue,
 				.text_color_hover		= color::Blue,
-				.text_outline_width		= 1.0f,
-				.background_color		= color::Gray.WithAlpha(0.35f),
+				.text_outline_width		= 1,
 				.background_color_hover = color::Blue.WithAlpha(0.1f),
-				.sound_hover			= "sound_hover",
-				.sound_press			= "sound_press",
+				.sound_hover			= "hover",
+				.sound_press			= "press",
 			}
 		);
 
@@ -148,14 +140,10 @@ public:
 				.content			= "Terraria",
 				.text_color			= color::Gray,
 				.text_color_hover	= color::Gold,
-				.text_outline_width = 1.0f,
-				.background_color	= color::Gray.WithAlpha(0.35f),
-				.sound_hover		= "sound_hover",
-				.sound_press		= "sound_press",
-				.scale =
-					ScaleButtonConfig{
-						.scale = 1.25f,
-					},
+				.text_outline_width = 1,
+				.sound_hover		= "hover",
+				.sound_press		= "press",
+				.scale				= ScaleButtonConfig{ .scale = 1.25f, .duration = 100ms },
 			}
 		);
 
@@ -163,16 +151,11 @@ public:
 			*this, offset * 3.0f, size,
 			ButtonConfig{
 				.content			= "Celeste",
-				.text_color			= color::White,
 				.text_color_hover	= color::Green,
-				.text_outline_width = 1.0f,
-				.background_color	= color::Gray.WithAlpha(0.35f),
-				.sound_hover		= "sound_hover",
-				.sound_press		= "sound_press",
-				.move =
-					MoveButtonConfig{
-						.offset = { 20, 0 },
-					},
+				.text_outline_width = 1,
+				.sound_hover		= "hover",
+				.sound_press		= "press",
+				.move				= MoveButtonConfig{ .offset = { 20, 0 }, .duration = 100ms },
 			}
 		);
 
@@ -182,36 +165,30 @@ public:
 				.content				= "Golf with Friends",
 				.text_color				= color::White,
 				.text_color_hover		= color::Black,
-				.text_outline_width		= 1.0f,
+				.text_outline_width		= 1,
 				.background_color		= color::Gray.WithAlpha(0.5f),
 				.background_color_hover = color::Gold.WithAlpha(0.5f),
-				.sound_hover			= "sound_hover",
-				.sound_press			= "sound_press",
+				.sound_hover			= "hover",
+				.sound_press			= "press",
 			}
 		);
 
 		Button bell{ CreateAnimatedButton(
 			*this, { 250, 0 },
 			AnimatedButtonConfig{
-				.texture	   = "bell_idle",
-				.texture_hover = "bell_hover",
-				.texture_press = "bell_press",
-				.animation_hover =
-					AnimationConfig{
-						.frame_count		= 3,
-						.animation_duration = 400ms,
-						.frame_size			= { 253, 167 },
-						.play_count			= std::nullopt,
-					},
-				.animation_press =
-					AnimationConfig{
-						.frame_count		= 3,
-						.animation_duration = 200ms,
-						.frame_size			= { 253, 167 },
-						.play_count			= 1,
-					},
-				.sound_hover = "bell_hover_sound",
-				.sound_press = "bell_press_sound",
+				.texture		 = "bell_idle",
+				.texture_hover	 = "bell_hover",
+				.texture_press	 = "bell_press",
+				.animation_hover = AnimationConfig{ .frame_count = 3,
+													.duration	 = 400ms,
+													.frame_size	 = { 253, 167 },
+													.play_count	 = -1 },
+				.animation_press = AnimationConfig{ .frame_count = 3,
+													.duration	 = 200ms,
+													.frame_size	 = { 253, 167 },
+													.play_count	 = 1 },
+				.sound_hover	 = "bell_hover",
+				.sound_press	 = "bell_press",
 			}
 		) };
 
