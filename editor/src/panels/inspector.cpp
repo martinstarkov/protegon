@@ -22,6 +22,8 @@
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interactive.h"
+#include "runtime/physics/movement.h"
+#include "runtime/physics/rigid_body.h"
 
 namespace ptgn::editor {
 
@@ -212,7 +214,7 @@ struct ComponentTypes {};
 // Adding a type here adds both its inspector section and its Add Component menu entry.
 using DefaultInspectorComponents = ComponentTypes<
 	impl::Tint, Color, impl::Visible, Origin, Rect, Circle, FillStyle, impl::Interactive,
-	StyledText, TextBox>;
+	StyledText, TextBox, RigidBody, TopDownMovement>;
 
 template <typename... T>
 void DrawComponents(Entity entity, ComponentTypes<T...>) {

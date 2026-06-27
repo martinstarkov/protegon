@@ -29,7 +29,7 @@
 
 namespace ptgn::editor::inspector {
 
-inline constexpr float kLabelWidth{ 105.0f };
+inline constexpr float kLabelWidth{ 180.0f };
 
 struct FieldOptions {
 	float speed{ 0.1f };
@@ -171,6 +171,15 @@ struct IsVariant<std::variant<T...>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool kIsVariant{ IsVariant<T>::value };
+
+template <typename T>
+struct IsOptional : std::false_type {};
+
+template <typename T>
+struct IsOptional<std::optional<T>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool kIsOptional{ IsOptional<T>::value };
 
 template <typename T>
 bool DrawValue(
@@ -550,6 +559,33 @@ bool DrawVariant(std::string_view label, std::variant<T...>& value) {
 }
 
 template <typename T>
+bool DrawOptional(std::string_view label, std::optional<T>& value, FieldOptions options) {
+	bool enabled{ value.has_value() };
+
+	bool changed{ DrawPropertyRow(label, [&]() {
+		return ImGui::Checkbox("##enabled", &enabled);
+	}) };
+
+	if (enabled != value.has_value()) {
+		if (enabled) {
+			value.emplace();
+		} else {
+			value.reset();
+		}
+
+		changed = true;
+	}
+
+	if (value.has_value()) {
+		ImGui::Indent();
+		changed |= DrawValue("Value", *value, options);
+		ImGui::Unindent();
+	}
+
+	return changed;
+}
+
+template <typename T>
 bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 	using Value = std::remove_cvref_t<T>;
 
@@ -590,6 +626,8 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 		return DrawFontStyle(label, value);
 	} else if constexpr (std::is_enum_v<Value>) {
 		return DrawEnum(label, value);
+	} else if constexpr (kIsOptional<Value>) {
+		return DrawOptional(label, value, options);
 	} else if constexpr (kIsVector<Value>) {
 		using Element = typename Value::value_type;
 		return DrawVectorEditor(

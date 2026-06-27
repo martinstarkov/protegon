@@ -162,14 +162,19 @@ RenderPass RenderPassBuilder::CreateTarget(TextureDesc desc) {
 	return RenderPass{ *this, pass_index, handle };
 }
 
-RenderPass RenderPassBuilder::CreateLike(TextureDesc desc, std::string_view shader) {
+RenderPass RenderPassBuilder::CreateLike(
+	TextureDesc desc, std::string_view shader, std::optional<std::size_t> texture_slot_capacity
+) {
 	auto pass{ CreateTarget(desc) };
-	pass.GetPassData().material = { .shader = ctx_.GetShader(shader) };
+	pass.GetPassData().material = { .shader				   = ctx_.GetShader(shader),
+									.texture_slot_capacity = texture_slot_capacity };
 	return pass;
 }
 
-RenderPass RenderPassBuilder::CreateLike(RenderPassHandle like, std::string_view shader) {
-	return CreateLike(GetResource(like).desc, shader);
+RenderPass RenderPassBuilder::CreateLike(
+	RenderPassHandle like, std::string_view shader, std::optional<std::size_t> texture_slot_capacity
+) {
+	return CreateLike(GetResource(like).desc, shader, texture_slot_capacity);
 }
 
 RenderPass RenderPassBuilder::Apply(

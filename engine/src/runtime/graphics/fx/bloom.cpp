@@ -34,7 +34,7 @@ void Bloom::Draw(DrawContext& ctx, Entity entity) {
 			blurred = blur_y;
 		}
 
-		return pass.CreateLike(scene, "composite_additive")
+		return pass.CreateLike(scene, "composite_additive", 2)
 			.Read(scene)
 			.Read(blurred, 1, "u_Additive")
 			.Uniform("u_Intensity", bloom.intensity)

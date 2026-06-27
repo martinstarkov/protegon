@@ -124,9 +124,15 @@ public:
 
 	RenderPass CreateTarget(TextureDesc desc);
 
-	RenderPass CreateLike(TextureDesc desc, std::string_view shader);
+	RenderPass CreateLike(
+		TextureDesc desc, std::string_view shader,
+		std::optional<std::size_t> texture_slot_capacity = std::nullopt
+	);
 
-	RenderPass CreateLike(RenderPassHandle handle, std::string_view shader);
+	RenderPass CreateLike(
+		RenderPassHandle handle, std::string_view shader,
+		std::optional<std::size_t> texture_slot_capacity = std::nullopt
+	);
 
 	/// @param input Optional input to the shader. If nullopt, uses the currently bound target as
 	/// input.
