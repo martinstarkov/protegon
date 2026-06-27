@@ -1,4 +1,5 @@
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
@@ -77,5 +78,6 @@ class PlatformingScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "PlatformingScene", logical_size };
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<PlatformingScene>();
 }
