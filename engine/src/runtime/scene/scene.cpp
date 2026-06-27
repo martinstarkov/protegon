@@ -3,7 +3,6 @@
 #include <ecs/ecs.h>
 
 #include <algorithm>
-#include <compare>
 #include <cstdint>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -45,7 +44,6 @@
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/render_target.h"
-#include "runtime/graphics/text/text.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interaction_system.h"
@@ -59,6 +57,7 @@
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
 #include "serialization/json/json.h"
+#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
@@ -259,10 +258,7 @@ void DrawScene(
 	);
 
 	draw_context.SetBlendMode(BlendMode::Blend);
-	scene.ctx().collision.DrawDebug(scene, camera, filter);
-	scene.ctx().interaction.DrawDebug(scene, camera, cam, render_target, filter);
-	impl::DrawDebugLightVisibilityPolygons(scene, camera, filter);
-	impl::DrawDebugTextBoundingBoxes(scene, camera, filter);
+	scene.ctx().debug.Draw(scene, camera, cam, render_target, filter);
 
 	auto view{ scene.EntitiesWith<impl::IDrawable>() };
 

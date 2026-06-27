@@ -85,8 +85,6 @@ private:
 	V2_int previous_min_;
 	V2_int previous_max_;
 
-	void DrawDebugChunkBorders() const;
-
 	/// @param chunk_padding Number of additional chunks on each side that are loaded past the
 	/// camera view rectangle.
 	void GetBounds(

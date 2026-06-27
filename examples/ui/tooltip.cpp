@@ -20,7 +20,7 @@ using namespace ptgn;
 class TooltipScene : public Scene {
 public:
 	void OnEnter() override {
-		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
+		ctx().debug.interaction.draw_enabled = true;
 
 		ctx().asset.Load("bg", "assets/tooltip_bg.png");
 		ctx().asset.Load("smile", "assets/smile.png");

@@ -40,7 +40,7 @@ public:
 	}
 
 	void OnEnter() override {
-		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
+		ctx().debug.interaction.draw_enabled = true;
 
 		ctx().asset.LoadAudio("hover", "assets/hover.ogg");
 		ctx().asset.LoadAudio("press", "assets/press.ogg");

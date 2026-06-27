@@ -1,11 +1,8 @@
 #pragma once
 
-#include <functional>
-#include <optional>
 #include <vector>
 
 #include "core/graphics/color.h"
-#include "core/graphics/fill_style.h"
 #include "core/math/raycast.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
@@ -18,37 +15,13 @@ namespace ptgn {
 
 class Physics;
 class Scene;
-class SceneCamera;
 class SceneContext;
 
-struct CollisionDebugSettings {
-	/// @brief If true, draws continuous collision detection sweeps for debugging purposes.
-	bool draw_ccd{ false };
-
-	bool draw_enabled{ false };
-	Color draw_color{ color::Magenta };
-	FillStyle draw_fill_style{ 1.0f };
-
-	[[nodiscard]] bool DrawCCD() const {
-		return draw_enabled && draw_ccd;
-	}
-};
+[[nodiscard]] bool CanCollide(
+	Entity entity1, const Collider& collider1, Entity entity2, const Collider& collider2
+);
 
 class CollisionHandler {
-public:
-	[[nodiscard]] static bool CanCollide(
-		Entity entity1, const Collider& collider1, Entity entity2, const Collider& collider2
-	);
-
-	void SetDebugSettings(const CollisionDebugSettings& settings = {});
-
-	const CollisionDebugSettings& GetDebugSettings() const;
-
-	// TODO: Move to private.
-	void DrawDebug(
-		Scene& scene, const SceneCamera& camera, const impl::EntityFilterFunc& filter
-	) const;
-
 private:
 	friend class Physics;
 	friend class Scene;
@@ -99,20 +72,21 @@ private:
 
 	/// @brief If debug draw enabled, draws the collider of the entity with the given position
 	/// offset and color.
-	void TryDrawDebugCollider(Scene& scene, Entity entity, V2_float offset, Color color) const;
+	void TryDrawDebugCollider(
+		Scene& scene, Entity entity, V2_float offset, Color color, bool draw_ccd
+	) const;
 
 	/// @brief If debug draw enabled, draws a line from the entity's position + start_offset to the
 	/// entity's position + end_offset with the given color.
 	void TryDrawDebugLine(
-		Scene& scene, Entity entity, V2_float start_offset, V2_float end_offset, Color color
+		Scene& scene, Entity entity, V2_float start_offset, V2_float end_offset, Color color,
+		bool draw_ccd
 	) const;
 
 	void Update(Scene& scene, secondsf dt);
 
 	impl::KDTree static_tree_{ 100 };
 	impl::KDTree dynamic_tree_{ 100 };
-
-	CollisionDebugSettings debug_settings_;
 
 	constexpr static auto slop_{ 0.0005f };
 	constexpr static std::size_t max_sweep_iterations_{ 4 };

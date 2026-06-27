@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <chrono>
 #include <functional>
-#include <optional>
 #include <vector>
 
 #include "core/assert.h"
@@ -20,7 +19,6 @@
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/physics/bounding_aabb.h"
@@ -30,14 +28,14 @@
 #include "runtime/physics/collision_event.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
+#include "tools/debug/debug_system.h"
 
 namespace ptgn {
 
-bool CollisionHandler::CanCollide(
+bool CanCollide(
 	Entity entity1, const Collider& collider1, Entity entity2, const Collider& collider2
 ) {
 	if (collider2.mode == CollisionMode::None) {
@@ -93,7 +91,7 @@ std::vector<Entity> GetDiscreteCollideables(Entity entity1, const impl::KDTree& 
 			continue;
 		}
 
-		if (!CollisionHandler::CanCollide(entity1, collider1, entity2, collider2)) {
+		if (!CanCollide(entity1, collider1, entity2, collider2)) {
 			continue;
 		}
 
@@ -340,6 +338,8 @@ std::vector<impl::SweepCollision> CollisionHandler::GetSortedCollisions(
 }
 
 void CollisionHandler::Sweep(Scene& scene, Entity entity, secondsf dt) {
+	bool draw_ccd{ scene.ctx().debug.collision.DrawCCD() };
+
 	PTGN_ASSERT(entity.Has<Collider>());
 	PTGN_ASSERT(entity.Get<Collider>().mode == CollisionMode::Continuous);
 	PTGN_ASSERT(entity.Has<RigidBody>());
@@ -366,12 +366,12 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, secondsf dt) {
 		raycast_hit = true;
 
 		// no collisions occured.
-		TryDrawDebugLine(scene, entity, {}, velocity, color::Gray);
+		TryDrawDebugLine(scene, entity, {}, velocity, color::Gray, draw_ccd);
 
 		auto earliest{ collisions.front().collision };
 
-		TryDrawDebugLine(scene, entity, {}, velocity * earliest.t, color::Blue);
-		TryDrawDebugCollider(scene, entity, velocity * earliest.t, color::Purple);
+		TryDrawDebugLine(scene, entity, {}, velocity * earliest.t, color::Blue, draw_ccd);
+		TryDrawDebugCollider(scene, entity, velocity * earliest.t, color::Purple, draw_ccd);
 
 		AddEarliestCollisions(entity, collisions);
 
@@ -392,7 +392,9 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, secondsf dt) {
 		PTGN_ASSERT(dt > 0s);
 
 		if (collisions2.empty()) {
-			TryDrawDebugLine(scene, entity, velocity * earliest.t, new_velocity, color::Orange);
+			TryDrawDebugLine(
+				scene, entity, velocity * earliest.t, new_velocity, color::Orange, draw_ccd
+			);
 
 			entity.Get<RigidBody>().AddImpulse(new_velocity / dt.count());
 			break;
@@ -401,7 +403,7 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, secondsf dt) {
 		auto earliest2{ collisions2.front().collision };
 
 		TryDrawDebugLine(
-			scene, entity, velocity * earliest.t, new_velocity * earliest2.t, color::Green
+			scene, entity, velocity * earliest.t, new_velocity * earliest2.t, color::Green, draw_ccd
 		);
 
 		AddEarliestCollisions(entity, collisions2);
@@ -418,9 +420,9 @@ void CollisionHandler::Sweep(Scene& scene, Entity entity, secondsf dt) {
 }
 
 void CollisionHandler::TryDrawDebugCollider(
-	Scene& scene, Entity entity, V2_float offset, Color color
+	Scene& scene, Entity entity, V2_float offset, Color color, bool draw_ccd
 ) const {
-	if (debug_settings_.DrawCCD()) {
+	if (draw_ccd) {
 		auto transform{ GetWorldTransform(entity) };
 		transform.Translate(offset);
 		const auto& collider{ entity.Get<Collider>() };
@@ -429,9 +431,10 @@ void CollisionHandler::TryDrawDebugCollider(
 }
 
 void CollisionHandler::TryDrawDebugLine(
-	Scene& scene, Entity entity, V2_float start_offset, V2_float end_offset, Color color
+	Scene& scene, Entity entity, V2_float start_offset, V2_float end_offset, Color color,
+	bool draw_ccd
 ) const {
-	if (debug_settings_.DrawCCD()) {
+	if (draw_ccd) {
 		auto transform{ GetWorldTransform(entity) };
 		auto position{ transform.position };
 		scene.ctx().render_queue.DrawLine(
@@ -608,40 +611,6 @@ void CollisionHandler::Update(Scene& scene, secondsf dt) {
 			}
 		}
 	}
-}
-
-void CollisionHandler::DrawDebug(
-	Scene& scene, const SceneCamera& camera, const impl::EntityFilterFunc& filter
-) const {
-	if (!debug_settings_.draw_enabled) {
-		return;
-	}
-
-	for (auto [entity, collider] : scene.EntitiesWith<Collider>()) {
-		// Mask test (entity layers vs camera include/exclude).
-		if (filter(entity)) {
-			continue;
-		}
-
-		auto transform{ GetDrawTransform(entity) };
-		auto draw_origin{ GetDrawOrigin(entity) };
-
-		scene.ctx().render_queue.DrawShape(
-			transform, collider.shape, debug_settings_.draw_color,
-			ShapeRenderParams{ .fill_style = debug_settings_.draw_fill_style,
-							   .origin	   = draw_origin,
-							   .camera	   = camera,
-							   .debug	   = true }
-		);
-	}
-}
-
-void CollisionHandler::SetDebugSettings(const CollisionDebugSettings& settings) {
-	debug_settings_ = settings;
-}
-
-const CollisionDebugSettings& CollisionHandler::GetDebugSettings() const {
-	return debug_settings_;
 }
 
 namespace impl {

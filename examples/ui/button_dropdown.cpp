@@ -65,7 +65,7 @@ public:
 
 	void OnEnter() override {
 		ctx().asset.Load("arial", "assets/Arial.ttf");
-		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
+		ctx().debug.interaction.draw_enabled = true;
 
 		Dropdown dropdown{ CreateMenuDropdown("Dropdown") };
 		Dropdown dropdown2{ CreateMenuDropdown("Dropdown 2", false) };

@@ -1,13 +1,11 @@
 #pragma once
 
 #include <functional>
-#include <optional>
 #include <ostream>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include "core/graphics/color.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
@@ -17,7 +15,6 @@
 #include "runtime/interaction/dropzone.h"
 #include "runtime/interaction/trigger_condition.h"
 #include "runtime/scene/scene_camera.h"
-#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -46,15 +43,11 @@ struct InteractedEntities {
 	std::vector<Entity> entities;
 };
 
+void GetShapes(
+	Entity entity, Entity root_entity, std::vector<std::pair<InteractiveShape, Entity>>& vector
+);
+
 } // namespace impl
-
-struct InteractiveDebugSettings {
-	bool draw_enabled{ false };
-	Color draw_color{ color::Magenta };
-	float draw_line_width{ 2.0f };
-
-	PTGN_SERIALIZE(InteractiveDebugSettings, draw_enabled, draw_color, draw_line_width)
-};
 
 class InteractionSystem {
 public:
@@ -66,19 +59,11 @@ public:
 	/// two buttons on top of each other, only the top one will be able to be hovered or pressed.
 	void SetTopOnly(bool top_only = true);
 
-	void SetDebugSettings(const InteractiveDebugSettings& settings = {});
-
 	/// @return True if any draggable entity is being dragged.
 	[[nodiscard]] bool IsAnyDragging(SceneCamera camera) const;
 
 	[[nodiscard]] static bool Overlap(V2_float point, Entity interactive_entity);
 	[[nodiscard]] static bool Overlap(Entity entityA, Entity entityB);
-
-	// TODO: Move to private.
-	void DrawDebug(
-		Scene& scene, const SceneCamera& camera, const Camera& cam, RenderTarget render_target,
-		const impl::EntityFilterFunc& filter
-	) const;
 
 private:
 	friend class Scene;
@@ -205,8 +190,6 @@ private:
 	std::unordered_map<SceneCamera, impl::InteractedEntities> last_mouse_over_;
 	/// @brief Indicates whether only the top interactable entity should be processed or considered.
 	bool top_only_{ false };
-
-	InteractiveDebugSettings debug_settings_;
 };
 
 } // namespace ptgn

@@ -36,10 +36,6 @@ public:
 
 } // namespace impl
 
-struct DebugContext {
-	TextDebugSettings text;
-};
-
 class SceneContext {
 public:
 	SceneContext() = delete;
@@ -64,7 +60,6 @@ public:
 	InteractionSystem interaction;
 	Physics physics;
 	CollisionHandler collision;
-	DebugContext debug_local;
 
 	/// @brief The default camera used by all objects in the scene. By default it resizes to the
 	/// logical size.

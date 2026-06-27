@@ -20,7 +20,6 @@ namespace ptgn {
 class DrawContext;
 class Scene;
 class AssetManager;
-class SceneCamera;
 class Button;
 
 namespace impl {
@@ -38,10 +37,6 @@ struct TextEditState {
 
 [[nodiscard]] ResolvedStyledText ResolveStyledText(
 	AssetManager& asset_manager, const StyledText& styled_text
-);
-
-void DrawDebugTextBoundingBoxes(
-	Scene& scene, const std::optional<SceneCamera>& camera, const impl::EntityFilterFunc& filter
 );
 
 [[nodiscard]] TextLayout BuildTextLayout(

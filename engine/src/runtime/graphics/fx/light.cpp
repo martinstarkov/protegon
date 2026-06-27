@@ -4,7 +4,6 @@
 #include <array>
 #include <cmath>
 #include <cstdlib>
-#include <functional>
 #include <optional>
 #include <ranges>
 #include <span>
@@ -49,8 +48,6 @@
 #include "runtime/physics/bounding_aabb.h"
 #include "runtime/physics/broadphase.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scene/scene_camera.h"
-#include "runtime/scene/scene_context.h"
 
 namespace ptgn {
 
@@ -477,38 +474,6 @@ void DrawUnmaskedLight(
 	ctx.DrawShader(draw_transform, material, std::move(params));
 }
 
-struct LightVisibilityDebugSettings {
-	bool draw_enabled{ true };
-	bool draw_interiors{ true };
-
-	Color polygon_color{ color::Yellow };
-	Color masks_inside_color{ color::Red };
-	Color does_not_mask_inside_color{ color::Green };
-
-	FillStyle draw_fill_style{ 2.0f };
-};
-
-void DrawPolygonLines(
-	Scene& scene, const SceneCamera& camera, std::span<const V2_float> vertices, Color color,
-	const FillStyle& fill_style, Depth depth
-) {
-	if (vertices.size() < 2) {
-		return;
-	}
-
-	scene.ctx().render_queue.DrawLines(
-		vertices, color,
-		ShapeRenderParams{
-			.fill_style = fill_style,
-			.origin		= Origin::Center,
-			.depth		= depth,
-			.camera		= camera,
-			.debug		= true,
-		},
-		true, {}
-	);
-}
-
 } // namespace
 
 namespace impl {
@@ -587,48 +552,6 @@ void UpdateLightVisibilityPolygons(
 		}
 
 		entity.Add<impl::VisibilityPolygon>(std::move(polygon));
-	}
-}
-
-void DrawDebugLightVisibilityPolygons(
-	Scene& scene, const SceneCamera& camera, const impl::EntityFilterFunc& filter
-) {
-	constexpr LightVisibilityDebugSettings debug_settings{};
-
-	if (!debug_settings.draw_enabled) {
-		return;
-	}
-
-	for (auto [entity, _light, visibility_polygon] :
-		 scene.EntitiesWith<impl::LightData, impl::VisibilityPolygon>()) {
-		// Mask test: entity layers vs camera include/exclude.
-		if (filter(entity)) {
-			continue;
-		}
-
-		if (visibility_polygon.vertices.empty()) {
-			continue;
-		}
-
-		auto depth{ GetDepth(entity) };
-
-		DrawPolygonLines(
-			scene, camera, visibility_polygon.vertices, debug_settings.polygon_color,
-			debug_settings.draw_fill_style, depth
-		);
-
-		if (!debug_settings.draw_interiors) {
-			continue;
-		}
-
-		for (const auto& interior : visibility_polygon.occluder_interiors) {
-			auto color{ interior.masks_light_inside ? debug_settings.masks_inside_color
-													: debug_settings.does_not_mask_inside_color };
-
-			DrawPolygonLines(
-				scene, camera, interior.vertices, color, debug_settings.draw_fill_style, depth
-			);
-		}
 	}
 }
 

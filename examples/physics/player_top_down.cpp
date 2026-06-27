@@ -76,7 +76,7 @@ class TopDownMovementScene : public Scene {
 	}
 
 	void OnEnter() override {
-		ctx().collision.SetDebugSettings({ .draw_enabled = true });
+		ctx().debug.collision.draw_enabled = true;
 
 		V2_float ws{ logical_size };
 

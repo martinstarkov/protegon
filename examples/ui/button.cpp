@@ -26,7 +26,7 @@ public:
 	Button button;
 
 	void OnEnter() override {
-		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
+		ctx().debug.interaction.draw_enabled = true;
 
 		ctx().asset.Load({ { "hover", "assets/hover.ogg" }, { "press", "assets/press.ogg" } });
 

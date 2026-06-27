@@ -83,7 +83,7 @@ TemplateMenuScene::TemplateMenuScene(const std::string& key, const json& scene_j
 	key{ key }, scene_json(scene_json_arg) {}
 
 void TemplateMenuScene::OnEnter() {
-	ctx().interaction.SetDebugSettings({ .draw_enabled = true });
+	ctx().debug.interaction.draw_enabled = true;
 
 	PTGN_ASSERT(scene_json.contains(key));
 

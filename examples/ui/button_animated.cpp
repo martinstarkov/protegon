@@ -26,7 +26,7 @@ public:
 	Button b2;
 
 	void OnEnter() override {
-		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
+		ctx().debug.interaction.draw_enabled = true;
 
 		ctx().asset.Load(
 			{ { "idle", "assets/bell.png" },

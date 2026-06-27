@@ -54,7 +54,7 @@ struct DialogueScene : public Scene {
 
 	void OnEnter() override {
 		ctx().debug.text.draw_enabled = true;
-		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
+		ctx().debug.interaction.draw_enabled = true;
 
 		PTGN_LOG("Entity count: ", GetEntityCount());
 

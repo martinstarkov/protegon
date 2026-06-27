@@ -33,6 +33,7 @@
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/fwd.h"
+#include "tools/debug/debug_system.h"
 
 using namespace ptgn;
 
@@ -159,7 +160,8 @@ struct InteractiveScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::DarkGray);
 
-		ctx().interaction.SetDebugSettings({ .draw_enabled = true, .draw_line_width = 3.0f });
+		ctx().debug.interaction.draw_enabled	= true;
+		ctx().debug.interaction.draw_line_width = 3.0f;
 
 		ctx().asset.Load(
 			{ { "circle", "assets/circle.png" },

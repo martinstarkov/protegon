@@ -46,7 +46,7 @@ void LogFileDialogResult(const char* label, const FileDialog::Result<T>& result)
 class FileDialogDemoScene : public Scene {
 public:
 	void OnEnter() override {
-		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
+		ctx().debug.interaction.draw_enabled = true;
 
 		const Origin button_origin{ Origin::Center };
 		const V2_int button_size{ 360, 72 };

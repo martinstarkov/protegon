@@ -16,6 +16,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
+#include "tools/debug/debug_system.h"
 
 using namespace ptgn;
 
@@ -82,11 +83,7 @@ public:
 	void OnEnter() override {
 		SetBackgroundColor(color::LightGray);
 
-		ctx().interaction.SetDebugSettings(
-			{
-				.draw_enabled = true,
-			}
-		);
+		ctx().debug.interaction.draw_enabled = true;
 
 		for (std::size_t i{ 0 }; i < origin_tests.size(); ++i) {
 			int column{ static_cast<int>(i % 3) };

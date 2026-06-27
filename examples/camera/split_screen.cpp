@@ -30,6 +30,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scripting/script.h"
+#include "tools/debug/debug_system.h"
 
 using namespace ptgn;
 
@@ -78,7 +79,8 @@ struct SplitScreenScene : public Scene {
 		ctx().camera.SetClearColor(color::LightGold.WithAlpha(0.5f));
 		second_camera.SetClearColor(color::LightPink.WithAlpha(0.5f));
 
-		ctx().interaction.SetDebugSettings({ .draw_enabled = true, .draw_line_width = 10.0f });
+		ctx().debug.interaction.draw_enabled	= true;
+		ctx().debug.interaction.draw_line_width = 10.0f;
 
 		V2_int rect_size{ 100, 100 };
 		auto rect = CreateRect(*this, { 0, 0 }, rect_size, color::Green);

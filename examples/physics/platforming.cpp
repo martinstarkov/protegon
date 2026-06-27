@@ -11,13 +11,13 @@
 #include "runtime/physics/collider.h"
 #include "runtime/physics/collision.h"
 #include "runtime/physics/collision_event.h"
-#include "runtime/physics/collision_handler.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scripting/script.h"
+#include "tools/debug/debug_system.h"
 
 using namespace ptgn;
 
@@ -60,7 +60,7 @@ class PlatformingScene : public Scene {
 	}
 
 	void OnEnter() override {
-		ctx().collision.SetDebugSettings({ .draw_ccd = true, .draw_enabled = true });
+		ctx().debug.collision = { .draw_ccd = true, .draw_enabled = true };
 
 		V2_float ws{ logical_size };
 		ctx().physics.SetGravity({ 0.0f, 1.0f });

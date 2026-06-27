@@ -196,21 +196,15 @@ void ChunkManager::Update(Scene& scene, const Camera& camera) {
 
 	scene.Refresh();
 
-	// DrawDebugChunkBorders();
+	// TODO: Fix debug draw.
+	/*debug.DrawShape(
+		{ coordinate * chunk_size * tile_size }, Rect{ chunk_size * tile_size }, color::Red,
+		2.0f, Origin::TopLeft
+	);*/
 }
 
 void ChunkManager::AddNoiseLayer(const NoiseLayer& noise_layer) {
 	noise_layers_.emplace_back(noise_layer);
-}
-
-void ChunkManager::DrawDebugChunkBorders() const {
-	for (const auto& [coordinate, chunk] : chunks) {
-		// TODO: Fix debug draw.
-		/*debug.DrawShape(
-			{ coordinate * chunk_size * tile_size }, Rect{ chunk_size * tile_size }, color::Red,
-			2.0f, Origin::TopLeft
-		);*/
-	}
 }
 
 std::vector<Entity> ChunkManager::GenerateEntities(V2_int chunk_coordinate) const {

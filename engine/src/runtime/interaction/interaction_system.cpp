@@ -25,7 +25,6 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/frame_context.h"
-#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/interaction/draggable.h"
@@ -46,7 +45,7 @@
 
 namespace ptgn {
 
-namespace {
+namespace impl {
 
 void GetShapes(
 	Entity entity, Entity root_entity, std::vector<std::pair<InteractiveShape, Entity>>& vector
@@ -86,10 +85,6 @@ void GetShapes(
 	}
 }
 
-} // namespace
-
-namespace impl {
-
 MouseInfo::MouseInfo(const Scene& scene) {
 	const SceneInput& input{ scene.ctx().input };
 	position	  = input.GetMousePosition(Frame::Window);
@@ -111,7 +106,7 @@ Transform InteractionSystem::GetWorldOffsetTransform(const Shape& shape, Entity 
 
 bool InteractionSystem::Overlap(V2_float point, Entity interactive_entity) {
 	std::vector<std::pair<InteractiveShape, Entity>> shapes;
-	GetShapes(interactive_entity, interactive_entity, shapes);
+	impl::GetShapes(interactive_entity, interactive_entity, shapes);
 
 	for (const auto& [shape, e] : shapes) {
 		auto transform{ GetWorldOffsetTransform(shape, e) };
@@ -125,10 +120,10 @@ bool InteractionSystem::Overlap(V2_float point, Entity interactive_entity) {
 
 bool InteractionSystem::Overlap(Entity entityA, Entity entityB) {
 	std::vector<std::pair<InteractiveShape, Entity>> shapesA;
-	GetShapes(entityA, entityA, shapesA);
+	impl::GetShapes(entityA, entityA, shapesA);
 
 	std::vector<std::pair<InteractiveShape, Entity>> shapesB;
-	GetShapes(entityB, entityB, shapesB);
+	impl::GetShapes(entityB, entityB, shapesB);
 
 	for (const auto& [shapeA, eA] : shapesA) {
 		auto transformA{ GetWorldOffsetTransform(shapeA, eA) };
@@ -161,60 +156,6 @@ void InteractionSystem::SetTopOnly(bool top_only) {
 	top_only_ = top_only;
 }
 
-void InteractionSystem::SetDebugSettings(const InteractiveDebugSettings& settings) {
-	debug_settings_ = settings;
-}
-
-void InteractionSystem::DrawDebug(
-	Scene& scene, const SceneCamera& camera, const Camera& cam, RenderTarget render_target,
-	const impl::EntityFilterFunc& filter
-) const {
-	if (!debug_settings_.draw_enabled) {
-		return;
-	}
-
-	impl::MouseInfo mouse{ scene };
-
-	mouse.position = ConvertPoint(
-		mouse.position, Frame::Window, Frame::World,
-		FrameContext{ scene.ctx().renderer, render_target, cam }
-	);
-
-	scene.ctx().render_queue.DrawPoint(
-		mouse.position, debug_settings_.draw_color, { .camera = camera, .debug = true }
-	);
-
-	for (auto [entity, interactive] : scene.EntitiesWith<impl::Interactive>()) {
-		if (!interactive.enabled) {
-			continue;
-		}
-
-		if (filter(entity)) {
-			continue;
-		}
-
-		if (auto lock{ entity.TryGet<InteractionLock>() }; lock && lock->block_hover) {
-			continue;
-		}
-
-		std::vector<std::pair<InteractiveShape, Entity>> shapes;
-
-		GetShapes(entity, entity, shapes);
-
-		for (const auto& [shape, shape_entity] : shapes) {
-			auto draw_transform{ GetDrawTransform(shape_entity) };
-
-			scene.ctx().render_queue.DrawShape(
-				draw_transform, shape, debug_settings_.draw_color,
-				{ .fill_style = debug_settings_.draw_line_width,
-				  .origin	  = GetDrawOrigin(shape_entity),
-				  .camera	  = camera,
-				  .debug	  = true }
-			);
-		}
-	}
-}
-
 InteractionSystem::InteractiveEntities InteractionSystem::GetInteractiveEntities(
 	const impl::MouseInfo& mouse_state, const std::vector<Entity>& all_entities
 ) const {
@@ -233,7 +174,7 @@ InteractionSystem::InteractiveEntities InteractionSystem::GetInteractiveEntities
 
 		std::vector<std::pair<InteractiveShape, Entity>> shapes;
 
-		GetShapes(entity, entity, shapes);
+		impl::GetShapes(entity, entity, shapes);
 
 		if (shapes.empty()) {
 			continue;
