@@ -80,7 +80,6 @@ ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config) {
 				.part		= ButtonPart::Background,
 				.state		= state,
 				.shape		= config.background_size.value_or(size),
-				.origin		= config.origin,
 				.color		= color,
 				.fill_style = Solid{},
 			}
@@ -101,7 +100,6 @@ ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config) {
 			ButtonSpriteConfig{
 				.state	 = state,
 				.texture = texture.value(),
-				.origin	 = config.origin,
 				.tint	 = tint,
 			}
 		);
@@ -132,7 +130,6 @@ ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config) {
 				.font		   = config.font,
 				.font_size	   = config.font_size,
 				.color		   = color,
-				.origin		   = config.origin,
 				.box		   = config.text_box,
 				.outline_width = config.text_outline_width,
 				.outline_color = config.text_outline_color,
@@ -1038,18 +1035,33 @@ Button& Button::BorderWidth(FillStyle fill, ButtonVisualState state) {
 }
 
 Button& Button::Animation(
-	ptgn::Animation animation, ButtonVisualState state, ButtonAnimationOptions options
+	AnimationConfig config, std::optional<Origin> origin, ButtonVisualState state,
+	ButtonAnimationOptions options
 ) {
-	RemoveAnimation(state);
+	if (auto anim{ FindButtonPart(*this, { ButtonPart::Sprite, state }) }) {
+		ptgn::Animation animation{ anim.value() };
+		animation.SetConfig(std::move(config));
+		if (origin.has_value()) {
+			SetDrawOrigin(animation, origin.value());
+			animation.Remove<impl::ButtonOriginSync>();
+		} else {
+			SetDrawOrigin(animation, GetDrawOrigin(*this));
+		}
+		return *this;
+	}
 
-	animation.Add<impl::ButtonOriginSync>();
+	auto animation{ CreateAnimation(
+		GetScene(), {}, "", std::move(config), origin.value_or(GetDrawOrigin(*this))
+	) };
+
+	if (!origin.has_value()) {
+		animation.Add<impl::ButtonOriginSync>();
+	}
+
 	animation.Add<impl::ButtonChild>(ButtonPart::Sprite, state);
 	animation.Add<impl::ButtonAnimationPart>(options);
 
 	SetParent(animation, *this);
-	SetDrawOrigin(animation, Origin::Center);
-
-	animation.Reset();
 
 	if (options.playback == ButtonAnimationPlayback::StaticFrame) {
 		animation.SetCurrentFrame(options.static_frame);
@@ -1066,7 +1078,9 @@ Button& Button::Animation(
 	return *this;
 }
 
-Button& Button::Animation(ptgn::Animation animation, ButtonVisualState state) {
+Button& Button::Animation(
+	AnimationConfig config, std::optional<Origin> origin, ButtonVisualState state
+) {
 	ButtonAnimationOptions options;
 
 	if (state == ButtonVisualState::Press || state == ButtonVisualState::ToggledPress ||
@@ -1076,14 +1090,30 @@ Button& Button::Animation(ptgn::Animation animation, ButtonVisualState state) {
 		options.block_press		  = false;
 	}
 
-	return Animation(animation, state, options);
+	return Animation(std::move(config), origin, state, options);
+}
+
+Button& Button::Animation(
+	std::optional<AnimationConfig> idle_animation, std::optional<AnimationConfig> hover_animation,
+	std::optional<AnimationConfig> press_animation
+) {
+	if (idle_animation.has_value()) {
+		Animation(std::move(idle_animation.value()), std::nullopt, ButtonVisualState::Idle);
+	}
+	if (hover_animation.has_value()) {
+		Animation(std::move(hover_animation.value()), std::nullopt, ButtonVisualState::Hover);
+	}
+	if (press_animation.has_value()) {
+		Animation(std::move(press_animation.value()), std::nullopt, ButtonVisualState::Press);
+	}
+	return *this;
 }
 
 Button& Button::StaticAnimationFrame(
-	ptgn::Animation animation, ButtonVisualState state, std::size_t frame
+	AnimationConfig config, std::optional<Origin> origin, ButtonVisualState state, std::size_t frame
 ) {
 	return Animation(
-		animation, state,
+		std::move(config), origin, state,
 		ButtonAnimationOptions{
 			.playback	  = ButtonAnimationPlayback::StaticFrame,
 			.static_frame = frame,
@@ -1096,20 +1126,7 @@ Button& Button::RemoveAnimation() {
 }
 
 Button& Button::RemoveAnimation(ButtonVisualState state) {
-	std::optional<ptgn::Animation> animation{
-		FindButtonPart(*this, { ButtonPart::Sprite, state })
-	};
-
-	if (!animation.has_value()) {
-		return *this;
-	}
-
-	animation.value().Stop(true);
-	animation.value().Remove<impl::AnimationData>();
-	animation.value().Remove<impl::ButtonChild>();
-	Hide(animation.value());
-
-	return *this;
+	return RemovePart(ButtonPart::Sprite, state);
 }
 
 Button& Button::TextAutoBox(bool enabled, ButtonVisualState state) {
@@ -1383,7 +1400,7 @@ Button CreateButton(Scene& scene, Transform transform, V2_float size, Origin ori
 	return CreateButton(
 		scene, transform,
 		ButtonDesc{
-			.shape	= Rect{ size },
+			.size	= size,
 			.origin = origin,
 		}
 	);
@@ -1393,7 +1410,7 @@ Button CreateButton(Scene& scene, Transform transform, float radius, Origin orig
 	return CreateButton(
 		scene, transform,
 		ButtonDesc{
-			.shape	= Circle{ radius },
+			.size	= radius,
 			.origin = origin,
 		}
 	);
@@ -1415,18 +1432,7 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 
 	Show(button, false);
 
-	std::visit(
-		[button]<typename T>(const T& shape) mutable {
-			if constexpr (std::same_as<T, Rect>) {
-				button.Size(shape.GetSize());
-			} else if constexpr (std::same_as<T, Circle>) {
-				button.Size(shape.radius);
-			} else {
-				static_assert(false, "Non-exhaustive visitor!");
-			}
-		},
-		desc.shape
-	);
+	std::visit([button](const auto& size) mutable { button.Size(size); }, desc.size);
 
 	SetTransform(button, transform);
 	SetDrawOrigin(button, desc.origin);
@@ -1497,34 +1503,19 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 }
 
 Button CreateAnimatedButton(Scene& scene, Transform transform, const AnimatedButtonConfig& config) {
-	auto size{ config.size.value_or(V2_float{}) };
+	auto size{ config.size.value_or(scene.ctx().asset.GetTextureSize(config.texture)) };
 
-	Button button{ CreateButton(scene, transform, size, config.origin) };
+	Button button{ CreateButton(scene, transform, size) };
 
 	button.Sprites(config.texture, config.texture_hover, config.texture_press);
 
-	auto set_animation = [&scene, &config, button](
-							 auto state, auto texture_key, auto fallback_texture_key, auto options,
-							 auto fallback_options
-						 ) mutable {
-		if (options.has_value() || texture_key.has_value()) {
-			auto animation{ CreateAnimation(
-				scene, {}, texture_key.value_or(fallback_texture_key.value_or(config.texture)),
-				options.value_or(fallback_options.value_or({}))
-			) };
-			button.Animation(animation, state);
-		}
-	};
+	if (config.animation_hover.has_value()) {
+		button.Animation(config.animation_hover.value(), config.origin, ButtonVisualState::Hover);
+	}
 
-	set_animation(
-		ButtonVisualState::Hover, config.texture_hover, config.texture_hover,
-		config.animation_hover, config.animation_hover
-	);
-
-	set_animation(
-		ButtonVisualState::Press, config.texture_press, config.texture_hover,
-		config.animation_press, config.animation_hover
-	);
+	if (config.animation_press.has_value()) {
+		button.Animation(config.animation_press.value(), config.origin, ButtonVisualState::Press);
+	}
 
 	button.Sound(config.sound_hover, ButtonState::Hover);
 	button.Sound(config.sound_press, ButtonState::Press);

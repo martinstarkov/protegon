@@ -106,13 +106,13 @@ struct ButtonShapeConfig {
 	ButtonPart part{ ButtonPart::Background };
 	ButtonVisualState state{ ButtonVisualState::Base };
 
-	std::variant<Rect, Circle> shape;
-	Origin origin{ Origin::Center };
+	std::variant<V2_float, float> size;
+	std::optional<Origin> origin;
 
 	std::optional<Color> color;
 	std::optional<FillStyle> fill_style;
 
-	PTGN_SERIALIZE(ButtonShapeConfig, part, state, shape, origin, color, fill_style)
+	PTGN_SERIALIZE(ButtonShapeConfig, part, state, size, origin, color, fill_style)
 };
 
 struct ButtonSpriteConfig {
@@ -120,7 +120,7 @@ struct ButtonSpriteConfig {
 
 	/// @brief Texture key to use for the sprite. Must be loaded in the AssetManager.
 	std::string texture;
-	Origin origin{ Origin::Center };
+	std::optional<Origin> origin;
 	Transform transform;
 	std::optional<V2_float> size;
 	std::optional<Color> tint;
@@ -137,7 +137,7 @@ struct ButtonTextConfig {
 	float font_size{ kDefaultFontSize };
 	Color color{ color::Black };
 
-	Origin origin{ Origin::Center };
+	std::optional<Origin> origin;
 	Transform transform;
 
 	/// @brief Optional text box.
@@ -146,7 +146,7 @@ struct ButtonTextConfig {
 	std::optional<float> outline_width;
 	Color outline_color{ color::Black };
 
-	/// @brief If true, the button may update the text box from the button shape.
+	/// @brief If true, the button may update the text box from the button size.
 	bool auto_box{ true };
 
 	/// @brief Padding used when auto_box is true.
@@ -186,9 +186,10 @@ struct ScaleButtonConfig {
 };
 
 struct ButtonDesc {
-	/// @brief Interactive shape.
-	std::variant<Rect, Circle> shape;
+	/// @brief Interactive shape size.
+	std::variant<V2_float, float> size;
 
+	/// @brief Origin of the button interactive shape.
 	Origin origin{ Origin::Center };
 	bool ui_layer{ true };
 	bool enabled{ true };
@@ -203,12 +204,13 @@ struct ButtonDesc {
 	std::optional<ScaleButtonConfig> scale;
 
 	PTGN_SERIALIZE(
-		ButtonDesc, shape, origin, ui_layer, enabled, shapes, sprites, texts, sounds, move, scale
+		ButtonDesc, size, origin, ui_layer, enabled, shapes, sprites, texts, sounds, move, scale
 	)
 };
 
 /// @brief Convenience high level config for simple buttons.
 struct ButtonConfig {
+	/// @brief Origin of the button interactive shape.
 	Origin origin{ Origin::Center };
 
 	std::optional<std::string> content;
@@ -226,7 +228,7 @@ struct ButtonConfig {
 	std::optional<float> text_outline_width;
 	Color text_outline_color{ color::Black };
 
-	/// @brief If true, the button may update the text box from the button shape.
+	/// @brief If true, the button may update the text box from the button size.
 	bool text_auto_box{ true };
 
 	/// @brief Padding used when auto_box is true.
@@ -251,14 +253,23 @@ struct ButtonConfig {
 
 	std::optional<MoveButtonConfig> move;
 	std::optional<ScaleButtonConfig> scale;
+
+	PTGN_SERIALIZE(
+		ButtonConfig, origin, content, text_color, text_color_hover, text_color_press, font_size,
+		font, text_box, text_outline_width, text_outline_color, text_auto_box, text_padding,
+		texture, texture_hover, texture_press, texture_tint, texture_tint_hover, texture_tint_press,
+		background_color, background_color_hover, background_color_press, background_size,
+		sound_hover, sound_press, move, scale
+	)
 };
 
 struct AnimatedButtonConfig {
 	/// @brief If set, the button will be sized to this size. Otherwise, the button will be sized to
-	/// the texture size.
+	/// the (idle) texture size.
 	std::optional<V2_float> size;
 
-	Origin origin{ Origin::Center };
+	/// @brief Origin of the animation sprite relative to the button transform.
+	std::optional<Origin> origin;
 
 	std::string texture;
 	std::optional<std::string> texture_hover;
@@ -269,6 +280,11 @@ struct AnimatedButtonConfig {
 
 	std::optional<std::string> sound_hover;
 	std::optional<std::string> sound_press;
+
+	PTGN_SERIALIZE(
+		AnimatedButtonConfig, size, origin, texture, texture_hover, texture_press, animation_hover,
+		animation_press, sound_hover, sound_press
+	)
 };
 
 } // namespace ptgn

@@ -261,13 +261,22 @@ public:
 	Button& RemoveSprite(ButtonVisualState state);
 
 	Button& Animation(
-		ptgn::Animation animation, ButtonVisualState state, ButtonAnimationOptions options
+		AnimationConfig config, std::optional<Origin> origin, ButtonVisualState state,
+		ButtonAnimationOptions options
 	);
-	Button& Animation(ptgn::Animation animation, ButtonVisualState state);
+	Button& Animation(
+		AnimationConfig config, std::optional<Origin> origin = std::nullopt,
+		ButtonVisualState state = ButtonVisualState::Base
+	);
+	Button& Animation(
+		std::optional<AnimationConfig> idle_animation,
+		std::optional<AnimationConfig> hover_animation = std::nullopt,
+		std::optional<AnimationConfig> press_animation = std::nullopt
+	);
 
 	Button& StaticAnimationFrame(
-		ptgn::Animation animation, ButtonVisualState state = ButtonVisualState::Idle,
-		std::size_t frame = 0
+		AnimationConfig config, std::optional<Origin> origin = std::nullopt,
+		ButtonVisualState state = ButtonVisualState::Idle, std::size_t frame = 0
 	);
 
 	/// @brief Removes every sprite (animation) state.

@@ -29,6 +29,21 @@ namespace ptgn {
 
 Animation::Animation(Entity entity) : Entity{ entity } {}
 
+Animation& Animation::SetConfig(AnimationConfig config) {
+	auto& asset_manager{ GetScene().ctx().asset };
+
+	const auto& texture{ Get<Texture>() };
+
+	auto texture_size{ texture.GetSize() };
+
+	const auto& anim{ Add<impl::AnimationData>(std::move(config), texture_size) };
+
+	auto& crop{ TryAdd<impl::TextureCrop>() };
+	crop.Update(anim);
+
+	return Reset();
+}
+
 Animation& Animation::Start(bool force) {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	PTGN_ASSERT(Has<impl::TextureCrop>(), "Animation must have TextureCrop component");
@@ -182,8 +197,8 @@ V2_int Animation::GetFrameSize() const {
 
 namespace impl {
 
-AnimationData::AnimationData(const AnimationConfig& anim_config, V2_int texture_size) :
-	config{ anim_config } {
+AnimationData::AnimationData(AnimationConfig&& anim_config, V2_int texture_size) :
+	config{ std::move(anim_config) } {
 	PTGN_ASSERT(config.frame_count > 0, "Cannot create an animation with 0 frames");
 
 	if (config.frame_size.IsZero()) {
@@ -363,30 +378,19 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 }
 
 Animation CreateAnimation(
-	Scene& scene, Transform transform, std::string_view texture_key, const AnimationConfig& config,
-	Origin draw_origin
+	Scene& scene, Transform transform, std::string_view texture_key, AnimationConfig config,
+	Origin origin
 ) {
-	auto& assets{ scene.ctx().asset };
-
-	Animation animation{ CreateSprite(scene, transform, texture_key, draw_origin) };
-
-	auto texture{ impl::AssetAccessor{ assets }.Get<Texture>(texture_key) };
-
-	auto texture_size{ texture.GetSize() };
-
-	const auto& anim{ animation.Add<impl::AnimationData>(config, texture_size) };
-
-	auto& crop{ animation.Add<impl::TextureCrop>() };
-	crop.Update(anim);
-
+	Animation animation{ CreateSprite(scene, transform, texture_key, origin) };
+	animation.SetConfig(std::move(config));
 	return animation;
 }
 
 Animation PlayTemporaryAnimation(
-	Scene& scene, Transform transform, std::string_view texture_key, const AnimationConfig& config,
-	milliseconds destroy_delay, Origin draw_origin
+	Scene& scene, Transform transform, std::string_view texture_key, AnimationConfig config,
+	milliseconds destroy_delay, Origin origin
 ) {
-	Animation anim{ CreateAnimation(scene, transform, texture_key, config, draw_origin) };
+	Animation anim{ CreateAnimation(scene, transform, texture_key, std::move(config), origin) };
 
 	if (destroy_delay == 0ms) {
 		anim.OnComplete([](auto& a) mutable { a.animation.Destroy(); });

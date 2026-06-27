@@ -4,6 +4,7 @@
 #include <optional>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 
 #include "core/event/event.h"
 #include "core/math/geometry/origin.h"
@@ -66,6 +67,9 @@ struct AnimationLoopComplete;
 struct Animation : public Entity {
 	Animation() = default;
 	explicit Animation(Entity entity);
+
+	/// @brief Sets the animation configuration. Animation will be reset.
+	Animation& SetConfig(AnimationConfig config);
 
 	/// @brief Triggered when an animation is started.
 	template <EventCallbackInvocable<event::AnimationStart> F>
@@ -229,7 +233,7 @@ class AnimationData {
 public:
 	AnimationData() = default;
 
-	AnimationData(const AnimationConfig& config, V2_int texture_size);
+	AnimationData(AnimationConfig&& config, V2_int texture_size);
 
 	milliseconds GetFrameDuration() const;
 	V2_int GetCurrentFramePosition() const;
@@ -267,8 +271,8 @@ public:
 /// @param manager Which manager the entity is added to.
 /// @param texture Texture key to be used for the animation.
 Animation CreateAnimation(
-	Scene& scene, Transform transform, std::string_view texture_key, const AnimationConfig& config,
-	Origin draw_origin = Origin::Center
+	Scene& scene, Transform transform, std::string_view texture_key, AnimationConfig config,
+	Origin origin = Origin::Center
 );
 
 /// @brief Creates and starts an animation that will automatically destroy itself once it finishes.
@@ -276,8 +280,8 @@ Animation CreateAnimation(
 /// @param destroy_delay If 0ms, the animation is destroyed immediately after finishing. Otherwise,
 /// the animation is destroyed after the specified delay once it finishes.
 Animation PlayTemporaryAnimation(
-	Scene& scene, Transform transform, std::string_view texture_key, const AnimationConfig& config,
-	milliseconds destroy_delay = 0ms, Origin draw_origin = Origin::Center
+	Scene& scene, Transform transform, std::string_view texture_key, AnimationConfig config,
+	milliseconds destroy_delay = 0ms, Origin origin = Origin::Center
 );
 
 AnimationMap CreateAnimationMap(Scene& scene);

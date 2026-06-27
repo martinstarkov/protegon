@@ -91,7 +91,7 @@ Sprite& Sprite::SetTexture(std::string_view texture_key) {
 }
 
 Sprite CreateSprite(
-	Scene& scene, Transform transform, std::string_view texture_key, Origin draw_origin
+	Scene& scene, Transform transform, std::string_view texture_key, Origin origin
 ) {
 	Sprite sprite{ scene.CreateEntity() };
 
@@ -103,7 +103,7 @@ Sprite CreateSprite(
 	}
 
 	SetTransform(sprite, transform);
-	SetDrawOrigin(sprite, draw_origin);
+	SetDrawOrigin(sprite, origin);
 
 	return sprite;
 }
