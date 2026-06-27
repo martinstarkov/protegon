@@ -18,6 +18,7 @@
 #include "renderer/renderer.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene.h"
@@ -414,6 +415,7 @@ SceneCamera CreateCamera(
 	ViewportSpace viewport_space
 ) {
 	SceneCamera camera{ scene.CreateEntity() };
+	PTGN_DEFAULT_NAME(camera, "Camera");
 
 	PTGN_ASSERT(
 		!viewport_size.has_value() || viewport_size.value().IsPositive(),

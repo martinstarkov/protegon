@@ -29,6 +29,7 @@
 #include "renderer/text/text_style.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/render_queue.h"
@@ -767,6 +768,7 @@ Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origi
 	text.Add<StyledText>();
 	text.Add<TextBox>();
 	text.Add<TextLayout>();
+	PTGN_DEFAULT_NAME(text, "Text");
 
 	text.Content(std::move(styled_text));
 	text.Box(TextBox{ .style = { .alignment{ GetAlignment(origin) } } });

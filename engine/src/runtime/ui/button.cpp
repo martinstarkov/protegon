@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <concepts>
+#include <magic_enum/magic_enum.hpp>
 #include <optional>
 #include <ranges>
 #include <string>
@@ -37,6 +38,7 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
@@ -364,8 +366,7 @@ std::optional<Animation> TryAnimationForVisualState(Button button, ButtonVisualS
 
 template <InteractiveType T, typename S>
 	requires IsAnyOf<S, V2_float, float>
-Button& ModifySize(Button& button, S size, ButtonPart part, ButtonVisualState state) {
-	auto entity{ button.Part(part, state) };
+Button& ModifySize(Button& button, Entity entity, S size) {
 	entity.Remove<impl::ButtonSizeSync>();
 	entity.Remove<Rect>();
 	entity.Remove<Circle>();
@@ -707,6 +708,30 @@ Entity Button::Part(ButtonPart part, ButtonVisualState state) {
 
 	Entity entity{ GetScene().CreateEntity() };
 
+	switch (part) {
+		case ButtonPart::Background:
+			PTGN_DEFAULT_NAME(
+				entity, "Button " + std::string{ magic_enum::enum_name(state) } + " Background"
+			);
+			break;
+		case ButtonPart::Border:
+			PTGN_DEFAULT_NAME(
+				entity, "Button " + std::string{ magic_enum::enum_name(state) } + " Border"
+			);
+			break;
+		case ButtonPart::Sprite:
+			PTGN_DEFAULT_NAME(
+				entity, "Button " + std::string{ magic_enum::enum_name(state) } + " Sprite"
+			);
+			break;
+		case ButtonPart::Text:
+			PTGN_DEFAULT_NAME(
+				entity, "Button " + std::string{ magic_enum::enum_name(state) } + " Text"
+			);
+			break;
+		default: PTGN_ERROR("Unknown ButtonPart: ", std::to_underlying(part));
+	}
+
 	entity.Add<impl::ButtonChild>(part, state);
 	SetParent(entity, *this);
 
@@ -742,6 +767,8 @@ Text Button::GetText(ButtonVisualState state) {
 	}
 
 	ptgn::Text text{ CreateText(GetScene()) };
+
+	PTGN_DEFAULT_NAME(text, "Button " + std::string{ magic_enum::enum_name(state) } + " Text");
 
 	text.Add<impl::ButtonChild>(ButtonPart::Text, state);
 	text.Add<impl::ButtonTextAutoBox>();
@@ -786,6 +813,8 @@ Button& Button::Sprite(
 	}
 
 	auto sprite{ CreateSprite(GetScene(), {}, texture_key, origin.value_or(GetDrawOrigin(*this))) };
+
+	PTGN_DEFAULT_NAME(sprite, "Button " + std::string{ magic_enum::enum_name(state) } + " Sprite");
 
 	if (!origin.has_value()) {
 		sprite.Add<impl::ButtonOriginSync>();
@@ -859,9 +888,9 @@ Button& Button::RemoveSprite(ButtonVisualState state) {
 	return RemovePart(ButtonPart::Sprite, state);
 }
 
-Button& Button::ShapePart(ButtonPart part, ButtonVisualState state, Color color, FillStyle fill) {
+Entity Button::ShapePart(ButtonPart part, ButtonVisualState state, Color color, FillStyle fill) {
 	if (HasPart(part, state)) {
-		return *this;
+		return Part(part, state);
 	}
 
 	auto entity{ Part(part, state) };
@@ -883,11 +912,12 @@ Button& Button::ShapePart(ButtonPart part, ButtonVisualState state, Color color,
 
 	RefreshVisualState();
 
-	return *this;
+	return entity;
 }
 
 Button& Button::Background(ButtonVisualState state) {
-	return ShapePart(ButtonPart::Background, state, GetDefaultBackgroundColor(state), Solid{});
+	auto _{ ShapePart(ButtonPart::Background, state, GetDefaultBackgroundColor(state), Solid{}) };
+	return *this;
 }
 
 Button& Button::Background() {
@@ -968,11 +998,11 @@ Button& Button::DisabledBackgroundColors(
 }
 
 Button& Button::BackgroundSize(V2_float size, ButtonVisualState state) {
-	return ModifySize<Rect>(*this, size, ButtonPart::Background, state);
+	return ModifySize<Rect>(*this, Part(ButtonPart::Background, state), size);
 }
 
 Button& Button::BackgroundSize(float radius, ButtonVisualState state) {
-	return ModifySize<Circle>(*this, radius, ButtonPart::Background, state);
+	return ModifySize<Circle>(*this, Part(ButtonPart::Background, state), radius);
 }
 
 Button& Button::Border() {
@@ -983,9 +1013,10 @@ Button& Button::Border() {
 }
 
 Button& Button::Border(ButtonVisualState state) {
-	return ShapePart(
+	auto _{ ShapePart(
 		ButtonPart::Border, state, GetDefaultBorderColor(state), kDefaultButtonBorderWidth
-	);
+	) };
+	return *this;
 }
 
 Button& Button::BorderOrigin(Origin origin, ButtonVisualState state) {
@@ -1027,11 +1058,11 @@ Button& Button::BorderColors(
 }
 
 Button& Button::BorderSize(V2_float size, ButtonVisualState state) {
-	return ModifySize<Rect>(*this, size, ButtonPart::Border, state);
+	return ModifySize<Rect>(*this, Part(ButtonPart::Border, state), size);
 }
 
 Button& Button::BorderSize(float radius, ButtonVisualState state) {
-	return ModifySize<Circle>(*this, radius, ButtonPart::Border, state);
+	return ModifySize<Circle>(*this, Part(ButtonPart::Border, state), radius);
 }
 
 Button& Button::BorderWidth(FillStyle fill, ButtonVisualState state) {
@@ -1060,6 +1091,10 @@ Button& Button::Animation(
 	auto animation{ CreateAnimation(
 		GetScene(), {}, "", std::move(config), origin.value_or(GetDrawOrigin(*this))
 	) };
+
+	PTGN_DEFAULT_NAME(
+		animation, "Button " + std::string{ magic_enum::enum_name(state) } + " Animation"
+	);
 
 	if (!origin.has_value()) {
 		animation.Add<impl::ButtonOriginSync>();
@@ -1448,6 +1483,7 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 
 	Button button{ scene.CreateEntity() };
 
+	PTGN_DEFAULT_NAME(button, "Button");
 	button.Add<impl::Visible>(true);
 	button.Add<impl::ButtonData>();
 	button.Add<impl::ButtonEnabled>();
@@ -1616,6 +1652,8 @@ Button CreateAnimatedButton(Scene& scene, Transform transform, const AnimatedBut
 	auto size{ config.size.value_or(scene.ctx().asset.GetTextureSize(config.texture)) };
 
 	Button button{ CreateButton(scene, transform, size) };
+
+	PTGN_DEFAULT_NAME(button, "Animated Button");
 
 	button.Sprites(config.texture, config.texture_hover, config.texture_press);
 

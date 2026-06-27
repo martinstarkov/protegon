@@ -7,7 +7,7 @@
 
 namespace ptgn::impl {
 
-constexpr std::string_view kDefaultTag{ "Unnamed Entity" };
+inline constexpr std::string_view kDefaultTag{ "Entity" };
 
 struct Tag {
 	Tag() = default;
@@ -24,3 +24,5 @@ struct Tag {
 };
 
 } // namespace ptgn::impl
+
+#define PTGN_DEFAULT_NAME(entity, tag) entity.SetTag(tag)

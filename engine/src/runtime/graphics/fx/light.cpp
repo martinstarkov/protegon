@@ -40,6 +40,7 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/sprite.h"
@@ -799,6 +800,7 @@ LightProperties Light::GetLightProperties() const {
 
 Light CreateLight(Scene& scene, Transform transform, const LightProperties& properties) {
 	Light light{ scene.CreateEntity() };
+	PTGN_DEFAULT_NAME(light, "Light");
 	light.Add<impl::LightData>();
 	light.SetLightProperties(properties);
 

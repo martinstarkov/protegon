@@ -15,6 +15,7 @@
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -289,6 +290,7 @@ Button Dropdown::AddItem(std::string_view text) {
 	return std::visit(
 		[&](const auto& s) {
 			Button button{ CreateButton(GetScene(), {}, s, Origin::Center) };
+			PTGN_DEFAULT_NAME(button, "Dropdown Item");
 			button.Text(text);
 
 			AddButton(button);
@@ -425,6 +427,7 @@ Dropdown CreateDropdown(
 	Scene& scene, Transform transform, V2_float size, Origin draw_origin, bool start_open
 ) {
 	Button button{ CreateButton(scene, transform, size, draw_origin) };
+	PTGN_DEFAULT_NAME(button, "Dropdown Button");
 
 	Dropdown dropdown{ button };
 

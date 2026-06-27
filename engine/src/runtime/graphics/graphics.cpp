@@ -13,6 +13,7 @@
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/visible.h"
@@ -128,6 +129,7 @@ Graphics& Graphics::StrokePolygon(const Polygon& polygon) {
 
 Graphics CreateGraphics(Scene& scene, Transform transform) {
 	Graphics graphics{ scene.CreateEntity() };
+	PTGN_DEFAULT_NAME(graphics, "Graphics");
 
 	graphics.Add<impl::GraphicsData>();
 	SetTransform(graphics, transform);

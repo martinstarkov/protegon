@@ -15,6 +15,7 @@
 #include "core/math/vector2.h"
 #include "core/util/hash.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
@@ -97,6 +98,7 @@ void TemplateMenuScene::OnEnter() {
 		const Color button_text_color{ color::White };
 		const auto& text = j_button.at("text");
 		auto button{ CreateButton(*this, {}, button_size) };
+		PTGN_DEFAULT_NAME(button, "Menu Button");
 		auto text_string{ text.get<std::string>() };
 		button.Text().Content(text_string).Color(button_text_color);
 		const auto& action_name{ j_button.at("action").get<std::string>() };

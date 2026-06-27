@@ -12,6 +12,7 @@
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
@@ -253,6 +254,7 @@ ToggleButton CreateToggleButton(
 	Scene& scene, Transform transform, auto shape, Origin origin, bool toggled
 ) {
 	ToggleButton button{ CreateButton(scene, transform, shape, origin) };
+	PTGN_DEFAULT_NAME(button, "Toggle Button");
 
 	button.Add<impl::ToggleButtonData>();
 
@@ -283,6 +285,7 @@ ToggleButton CreateToggleButton(
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {
 	ToggleButtonGroup group{ scene.CreateEntity() };
+	PTGN_DEFAULT_NAME(group, "Toggle Button Group");
 	group.Entity::Add<impl::ToggleButtonGroupData>();
 	return group;
 }

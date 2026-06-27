@@ -32,6 +32,7 @@
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/fx/particle_event.h"
 #include "runtime/graphics/visible.h"
@@ -514,6 +515,7 @@ ParticleEmitter CreateParticleEmitter(
 	Scene& scene, Transform transform, const ParticleConfig& config
 ) {
 	ParticleEmitter particle{ scene.CreateEntity() };
+	PTGN_DEFAULT_NAME(particle, "Particle Emitter");
 	SetTransform(particle, transform);
 
 	SetDraw<ParticleEmitter>(particle);

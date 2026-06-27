@@ -14,6 +14,7 @@
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/tint.h"
@@ -95,6 +96,7 @@ Sprite CreateSprite(
 ) {
 	Sprite sprite{ scene.CreateEntity() };
 
+	PTGN_DEFAULT_NAME(sprite, "Sprite");
 	SetDraw<Sprite>(sprite);
 	sprite.Add<impl::Visible>(true);
 

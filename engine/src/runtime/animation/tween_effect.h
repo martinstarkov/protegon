@@ -26,6 +26,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/ecs/tag.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -102,6 +103,7 @@ Tween GetOrCreateTween(Entity entity) {
 
 	if (!entity.Has<impl::EffectObject<TComponent>>()) {
 		impl::EffectObject<TComponent> obj{ CreateTween(entity.GetScene()) };
+		PTGN_DEFAULT_NAME(obj, "Tween Effect");
 		SetParent(obj, entity);
 		tween = Tween{ obj };
 		entity.Add<impl::EffectObject<TComponent>>(std::move(obj));

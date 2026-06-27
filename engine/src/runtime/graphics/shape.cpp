@@ -26,6 +26,7 @@
 #include "renderer/draw_context.h"
 #include "renderer/resources/texture.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/sprite.h"
@@ -165,6 +166,7 @@ Entity CreateRect(
 	Origin origin
 ) {
 	auto rect{ CreateShape<RectDraw>(scene, transform, Rect{ size }, color, fill_style) };
+	PTGN_DEFAULT_NAME(rect, "Rect");
 	SetDrawOrigin(rect, origin);
 	return rect;
 }
@@ -176,6 +178,7 @@ Entity CreateRoundedRect(
 	auto rounded_rect{ CreateShape<RoundedRectDraw>(
 		scene, transform, RoundedRect{ size, radius }, color, fill_style
 	) };
+	PTGN_DEFAULT_NAME(rounded_rect, "Rounded Rect");
 	SetDrawOrigin(rounded_rect, origin);
 	return rounded_rect;
 }
@@ -184,50 +187,68 @@ Entity CreatePolygon(
 	Scene& scene, Transform transform, const std::vector<V2_float>& vertices, Color color,
 	FillStyle fill_style
 ) {
-	return CreateShape<PolygonDraw>(scene, transform, Polygon{ vertices }, color, fill_style);
+	auto polygon{
+		CreateShape<PolygonDraw>(scene, transform, Polygon{ vertices }, color, fill_style)
+	};
+	PTGN_DEFAULT_NAME(polygon, "Polygon");
+	return polygon;
 }
 
 Entity CreateTriangle(
 	Scene& scene, Transform transform, V2_float a, V2_float b, V2_float c, Color color,
 	FillStyle fill_style
 ) {
-	return CreateShape<TriangleDraw>(scene, transform, Triangle{ a, b, c }, color, fill_style);
+	auto triangle{
+		CreateShape<TriangleDraw>(scene, transform, Triangle{ a, b, c }, color, fill_style)
+	};
+	PTGN_DEFAULT_NAME(triangle, "Triangle");
+	return triangle;
 }
 
 Entity CreateCircle(
 	Scene& scene, Transform transform, float radius, Color color, FillStyle fill_style
 ) {
-	return CreateShape<CircleDraw>(scene, transform, Circle{ radius }, color, fill_style);
+	auto circle{ CreateShape<CircleDraw>(scene, transform, Circle{ radius }, color, fill_style) };
+	PTGN_DEFAULT_NAME(circle, "Circle");
+	return circle;
 }
 
 Entity CreateEllipse(
 	Scene& scene, Transform transform, V2_float radii, Color color, FillStyle fill_style
 ) {
-	return CreateShape<EllipseDraw>(scene, transform, Ellipse{ radii }, color, fill_style);
+	auto ellipse{ CreateShape<EllipseDraw>(scene, transform, Ellipse{ radii }, color, fill_style) };
+	PTGN_DEFAULT_NAME(ellipse, "Ellipse");
+	return ellipse;
 }
 
 Entity CreateArc(
 	Scene& scene, Transform transform, float arc_radius, Degrees start_angle, Degrees end_angle,
 	bool clockwise, Color color, FillStyle fill_style
 ) {
-	return CreateShape<ArcDraw>(
+	auto arc{ CreateShape<ArcDraw>(
 		scene, transform, Arc{ arc_radius, start_angle, end_angle, clockwise }, color, fill_style
-	);
+	) };
+	PTGN_DEFAULT_NAME(arc, "Arc");
+	return arc;
 }
 
 Entity CreateLine(
 	Scene& scene, Transform transform, V2_float start, V2_float end, Color color, float width
 ) {
-	return CreateShape<LineDraw>(scene, transform, Line{ start, end }, color, width);
+	auto line{ CreateShape<LineDraw>(scene, transform, Line{ start, end }, color, width) };
+	PTGN_DEFAULT_NAME(line, "Line");
+	return line;
 }
 
 Entity CreateCapsule(
 	Scene& scene, Transform transform, V2_float start, V2_float end, float radius, Color color,
 	FillStyle fill_style
 ) {
-	return CreateShape<CapsuleDraw>(
-		scene, transform, Capsule{ start, end, radius }, color, fill_style
-	);
+	auto capsule{
+		CreateShape<CapsuleDraw>(scene, transform, Capsule{ start, end, radius }, color, fill_style)
+	};
+	PTGN_DEFAULT_NAME(capsule, "Capsule");
+	return capsule;
 }
 
 } // namespace ptgn

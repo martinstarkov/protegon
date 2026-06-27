@@ -13,6 +13,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/scene/scene.h"
 
 namespace ptgn {
@@ -83,7 +84,9 @@ void ScriptSequence::Start(bool force) {
 ScriptSequence CreateScriptSequence(Scene& scene, bool destroy_on_complete) {
 	ScriptSequence sequence{ scene.CreateEntity() };
 
+	PTGN_DEFAULT_NAME(sequence, "Script Sequence");
 	auto tween{ CreateTween(scene) };
+	PTGN_DEFAULT_NAME(tween, "Script Sequence Tween");
 	AddChild(sequence, tween, "tween");
 
 	auto& instance{ sequence.Add<impl::ScriptSequenceData>(GameObject{ std::move(tween) }) };

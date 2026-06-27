@@ -17,6 +17,7 @@
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/visible.h"
@@ -68,6 +69,7 @@ CustomShader CreateCustomShader(
 	Origin draw_origin
 ) {
 	CustomShader custom_shader{ scene.CreateEntity() };
+	PTGN_DEFAULT_NAME(custom_shader, "Custom Shader");
 
 	auto& assets{ scene.ctx().asset };
 

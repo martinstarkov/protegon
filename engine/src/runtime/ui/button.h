@@ -315,6 +315,14 @@ public:
 		return OnEvent<event::ButtonHoverStop>(std::forward<F>(callback));
 	}
 
+private:
+	friend class impl::ButtonScript;
+	friend struct impl::ButtonAnimationCompleteScript;
+	friend void impl::UpdateButtons(Scene& scene);
+	friend class Dropdown;
+	friend class ToggleButton;
+	friend Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
+
 	/// @return True if the button has a direct child part for the given visual state.
 	bool HasPart(ButtonPart part, ButtonVisualState state = ButtonVisualState::Base) const;
 
@@ -323,14 +331,6 @@ public:
 
 	[[nodiscard]] std::vector<Entity> Parts(ButtonPart part) const;
 	[[nodiscard]] std::vector<Entity> Parts() const;
-
-private:
-	friend class impl::ButtonScript;
-	friend struct impl::ButtonAnimationCompleteScript;
-	friend void impl::UpdateButtons(Scene& scene);
-	friend class Dropdown;
-	friend class ToggleButton;
-	friend Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
 
 	ptgn::Text GetText(ButtonVisualState state);
 
@@ -346,7 +346,7 @@ private:
 	Button& RemoveParts(ButtonPart part);
 
 	/// @brief Sets the color and fill style of a direct child part for the given visual state.
-	Button& ShapePart(ButtonPart part, ButtonVisualState state, Color color, FillStyle fill);
+	Entity ShapePart(ButtonPart part, ButtonVisualState state, Color color, FillStyle fill);
 
 	template <typename E, EventCallbackInvocable<E> F>
 	Button& OnEvent(F&& callback) {

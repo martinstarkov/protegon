@@ -18,6 +18,7 @@
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -383,6 +384,7 @@ Animation CreateAnimation(
 ) {
 	Animation animation{ CreateSprite(scene, transform, texture_key, origin) };
 	animation.SetConfig(std::move(config));
+	PTGN_DEFAULT_NAME(animation, "Animation");
 	return animation;
 }
 
@@ -391,11 +393,13 @@ Animation PlayTemporaryAnimation(
 	milliseconds destroy_delay, Origin origin
 ) {
 	Animation anim{ CreateAnimation(scene, transform, texture_key, std::move(config), origin) };
+	PTGN_DEFAULT_NAME(anim, "Temporary Animation");
 
 	if (destroy_delay == 0ms) {
 		anim.OnComplete([](auto& a) mutable { a.animation.Destroy(); });
 	} else {
 		auto script_sequence{ CreateScriptSequence(scene) };
+		PTGN_DEFAULT_NAME(script_sequence, "Temporary Animation Script Sequence");
 		script_sequence.Wait(destroy_delay);
 		script_sequence.Then([anim]() mutable { anim.Destroy(); });
 		anim.OnComplete([script_sequence]() mutable { script_sequence.Start(); });
@@ -409,6 +413,7 @@ Animation PlayTemporaryAnimation(
 AnimationMap CreateAnimationMap(Scene& scene) {
 	AnimationMap animation_map{ scene.CreateEntity() };
 
+	PTGN_DEFAULT_NAME(animation_map, "Animation Map");
 	animation_map.Entity::Add<impl::AnimationMapData>();
 
 	return animation_map;

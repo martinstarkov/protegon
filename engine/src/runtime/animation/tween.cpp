@@ -17,6 +17,7 @@
 #include "runtime/animation/tween_event.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scripting/script.h"
 
@@ -638,6 +639,7 @@ void Tween::Update(Scene& scene, secondsf dt) {
 Tween CreateTween(Scene& scene) {
 	Tween tween{ scene.CreateEntity() };
 
+	PTGN_DEFAULT_NAME(tween, "Tween");
 	tween.Add<impl::TweenData>();
 
 	return tween;

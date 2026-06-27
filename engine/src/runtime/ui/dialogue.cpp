@@ -30,6 +30,7 @@
 #include "runtime/animation/tween_event.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
@@ -688,6 +689,14 @@ Entity DialogueBox::Part(DialoguePartRole role) {
 	}
 
 	Entity entity{ GetScene().CreateEntity() };
+
+	switch (role) {
+		case DialoguePartRole::Tween:	   PTGN_DEFAULT_NAME(entity, "Dialogue Tween"); break;
+		case DialoguePartRole::Text:	   PTGN_DEFAULT_NAME(entity, "Dialogue Text"); break;
+		case DialoguePartRole::Background: PTGN_DEFAULT_NAME(entity, "Dialogue Sprite"); break;
+		default:						   PTGN_ERROR("Unknown DialoguePartRole: ", std::to_underlying(role));
+	}
+
 	entity.Add<impl::DialoguePart>(role);
 	SetParent(entity, *this);
 
@@ -700,6 +709,7 @@ Text DialogueBox::TextPart() {
 	}
 
 	Text text{ CreateText(GetScene(), {}, {}, Origin::TopLeft) };
+	PTGN_DEFAULT_NAME(text, "Dialogue Text");
 	text.Add<impl::DialoguePart>(DialoguePartRole::Text);
 	SetParent(text, *this);
 	Hide(text);
@@ -723,6 +733,7 @@ Tween DialogueBox::TweenPart() {
 	}
 
 	Tween tween{ CreateTween(GetScene()) };
+	PTGN_DEFAULT_NAME(tween, "Dialogue Tween");
 	tween.Add<impl::DialoguePart>(DialoguePartRole::Tween);
 	SetParent(tween, *this);
 
@@ -818,6 +829,7 @@ void DialogueBox::PositionTextForPage(const DialoguePageProperties& properties) 
 
 DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueDesc& desc) {
 	DialogueBox dialogue{ scene.CreateEntity() };
+	PTGN_DEFAULT_NAME(dialogue, "Dialogue Box");
 
 	dialogue.Add<DialogueData>();
 
@@ -835,6 +847,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 		Sprite background{
 			CreateSprite(scene, {}, desc.background_texture.value(), Origin::Center)
 		};
+		PTGN_DEFAULT_NAME(background, "Dialogue Sprite");
 		background.Add<impl::DialoguePart>(DialoguePartRole::Background);
 		SetParent(background, dialogue);
 
@@ -847,6 +860,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 		Hide(background);
 	} else if (desc.box_size.IsPositive()) {
 		Entity background{ scene.CreateEntity() };
+		PTGN_DEFAULT_NAME(background, "Dialogue Background");
 
 		background.Add<Rect>(Rect{ desc.box_size });
 		background.Add<impl::DialoguePart>(DialoguePartRole::Background);

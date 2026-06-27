@@ -17,6 +17,7 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/visible.h"
@@ -202,6 +203,7 @@ RenderTarget CreateRenderTarget(
 	Scene& scene, Transform transform, V2_int size, Color clear_color, TextureFormat texture_format
 ) {
 	RenderTarget render_target{ scene.CreateEntity() };
+	PTGN_DEFAULT_NAME(render_target, "Render Target");
 
 	PTGN_ASSERT(!size.IsNegative(), "Render target size cannot be negative");
 

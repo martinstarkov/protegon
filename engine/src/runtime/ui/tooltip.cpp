@@ -21,6 +21,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/tint.h"
@@ -131,6 +132,7 @@ Tooltip CreateTooltip(
 	);
 
 	Tooltip tooltip{ scene.CreateEntity() };
+	PTGN_DEFAULT_NAME(tooltip, "Tooltip");
 
 	auto& instance{ tooltip.Add<impl::TooltipData>() };
 
@@ -141,16 +143,18 @@ Tooltip CreateTooltip(
 	instance.fade_out_ease	   = tooltip_properties.fade_out_ease;
 
 	if (tooltip_properties.texture.has_value()) {
-		instance.bg = GameObject{
-			CreateSprite(scene, {}, tooltip_properties.texture.value(), Origin::Center)
-		};
+		auto sprite{ CreateSprite(scene, {}, tooltip_properties.texture.value(), Origin::Center) };
+		PTGN_DEFAULT_NAME(sprite, "Tooltip Sprite");
+		instance.bg = GameObject{ std::move(sprite) };
 		SetTint(instance.bg.value(), color::Transparent);
 		AddChild(tooltip, instance.bg.value());
 	}
 
-	instance.text = GameObject<Text>{
+	Text text{
 		CreateText(scene).Content(tooltip_properties.content).Color(tooltip_properties.text_color)
 	};
+	PTGN_DEFAULT_NAME(text, "Tooltip Text");
+	instance.text = GameObject<Text>{ std::move(text) };
 	SetTint(instance.text, color::Transparent);
 	AddChild(tooltip, instance.text);
 
@@ -172,6 +176,7 @@ Tooltip AddTooltipOnHover(
 
 	if (entity.Has<Texture>() && !HasInteractiveShape(entity)) {
 		auto rect{ entity.GetScene().CreateEntity() };
+		PTGN_DEFAULT_NAME(rect, "Tooltip Interactive Rect");
 		V2_float size{ *GetTextureSize(entity) };
 		rect.Add<Rect>(size);
 		AddInteractiveShape(entity, GameObject{ std::move(rect) });

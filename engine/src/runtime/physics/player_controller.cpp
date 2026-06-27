@@ -17,6 +17,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/game_object.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/collider.h"
 #include "runtime/physics/move_direction.h"
@@ -99,6 +100,7 @@ void TopDownAnimationRepeat::OnAnimationFrameChange() {
 Entity CreateTopDownPlayer(Scene& scene, Transform transform, const TopDownPlayerConfig& config) {
 	auto player{ scene.CreateEntity() };
 
+	PTGN_DEFAULT_NAME(player, "Top Down Player");
 	SetTransform(player, transform);
 	player.Add<RigidBody>();
 
@@ -107,11 +109,13 @@ Entity CreateTopDownPlayer(Scene& scene, Transform transform, const TopDownPlaye
 	}
 
 	auto body_hitbox{ scene.CreateEntity() };
+	PTGN_DEFAULT_NAME(body_hitbox, "Body Hitbox");
 	body_hitbox.Add<Collider>(Rect{ config.body_hitbox_size });
 	SetPosition(body_hitbox, config.body_hitbox_offset);
 	body_hitbox.Add<RigidBody>();
 
 	auto interaction_hitbox{ scene.CreateEntity() };
+	PTGN_DEFAULT_NAME(interaction_hitbox, "Interaction Hitbox");
 	auto& interaction_collider =
 		interaction_hitbox.Add<Collider>(Rect{ config.interaction_hitbox_size });
 	interaction_collider.SetCollisionMode(CollisionMode::Overlap);
@@ -132,30 +136,30 @@ Entity CreateTopDownPlayer(Scene& scene, Transform transform, const TopDownPlaye
 		auto duration{ config.animation_duration.value_or(1000ms) };
 
 		AnimationMap anim_map{ player.Add<GameObject<AnimationMap>>(CreateAnimationMap(scene)) };
-		auto a0 = anim_map.Add(
-			"down", CreateAnimation(
-						scene, animation_transform, config.animation_texture_key.value(),
-						{ config.animation_frame_count.value().x, duration,
-						  config.animation_frame_size.value_or(V2_int{}) }
-					)
-		);
+		auto anim0{ CreateAnimation(
+			scene, animation_transform, config.animation_texture_key.value(),
+			{ config.animation_frame_count.value().x, duration,
+			  config.animation_frame_size.value_or(V2_int{}) }
+		) };
+		PTGN_DEFAULT_NAME(anim0, "Down Animation");
+		auto a0 = anim_map.Add("down", anim0);
 		anim_map.SetActive("down");
-		auto a1 = anim_map.Add(
-			"right", CreateAnimation(
-						 scene, animation_transform, config.animation_texture_key.value(),
-						 { config.animation_frame_count.value().x, duration,
-						   config.animation_frame_size.value_or(V2_int{}), std::nullopt,
-						   V2_float{ 0, config.animation_frame_size.value().y } }
-					 )
-		);
-		auto a2 = anim_map.Add(
-			"up", CreateAnimation(
-					  scene, animation_transform, config.animation_texture_key.value(),
-					  { config.animation_frame_count.value().x, duration,
-						config.animation_frame_size.value_or(V2_int{}), std::nullopt,
-						V2_float{ 0, 2 * config.animation_frame_size.value().y } }
-				  )
-		);
+		auto anim1{ CreateAnimation(
+			scene, animation_transform, config.animation_texture_key.value(),
+			{ config.animation_frame_count.value().x, duration,
+			  config.animation_frame_size.value_or(V2_int{}), std::nullopt,
+			  V2_float{ 0, config.animation_frame_size.value().y } }
+		) };
+		PTGN_DEFAULT_NAME(anim1, "Right Animation");
+		auto a1 = anim_map.Add("right", anim1);
+		auto anim2{ CreateAnimation(
+			scene, animation_transform, config.animation_texture_key.value(),
+			{ config.animation_frame_count.value().x, duration,
+			  config.animation_frame_size.value_or(V2_int{}), std::nullopt,
+			  V2_float{ 0, 2 * config.animation_frame_size.value().y } }
+		) };
+		PTGN_DEFAULT_NAME(anim2, "Up Animation");
+		auto a2 = anim_map.Add("up", anim2);
 
 		SetParent(a0, player);
 		SetParent(a1, player);

@@ -14,6 +14,7 @@
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/interaction/trigger_condition.h"
 #include "runtime/scene/scene.h"
@@ -58,6 +59,7 @@ void AddInteractiveRect(
 ) {
 	auto& scene{ interactive_entity.GetScene() };
 	auto shape = scene.CreateEntity();
+	PTGN_DEFAULT_NAME(shape, "Interactive Rect");
 	shape.Add<Rect>(size);
 	SetTransform(shape, transform);
 	SetDrawOrigin(shape, draw_origin);
@@ -80,6 +82,7 @@ void AddInteractiveCircle(
 ) {
 	auto& scene{ interactive_entity.GetScene() };
 	auto shape = scene.CreateEntity();
+	PTGN_DEFAULT_NAME(shape, "Interactive Circle");
 	shape.Add<Circle>(radius);
 	SetTransform(shape, transform);
 	AddInteractiveShape(interactive_entity, shape, shape_id, ignore_parent_transform);
