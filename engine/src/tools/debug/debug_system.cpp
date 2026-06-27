@@ -279,15 +279,19 @@ void DrawDebugLightVisibilityPolygons(
 
 } // namespace
 
-void DebugSystem::Draw(
+namespace impl {
+
+void DrawDebug(
 	Scene& scene, const SceneCamera& camera, const Camera& cam, const RenderTarget& render_target,
-	const impl::EntityFilterFunc& filter
-) const {
-	DrawDebugLightVisibilityPolygons(scene, camera, filter, light);
-	DrawDebugTextBoundingBoxes(scene, camera, filter, text);
-	DrawDebugColliders(scene, camera, filter, collision);
-	DrawDebugInteractiveShapes(scene, camera, cam, render_target, filter, interaction);
+	const impl::EntityFilterFunc& filter, const DebugSystem& debug
+) {
+	DrawDebugLightVisibilityPolygons(scene, camera, filter, debug.light);
+	DrawDebugTextBoundingBoxes(scene, camera, filter, debug.text);
+	DrawDebugColliders(scene, camera, filter, debug.collision);
+	DrawDebugInteractiveShapes(scene, camera, cam, render_target, filter, debug.interaction);
 }
+
+} // namespace impl
 
 void DebugSystem::PreUpdate() {
 	impl::GetProfiler().timings_.clear();

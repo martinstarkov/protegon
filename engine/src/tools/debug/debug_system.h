@@ -81,12 +81,6 @@ public:
 private:
 	friend class Application;
 	friend class impl::ApplicationContext;
-	friend class Scene;
-
-	void Draw(
-		Scene& scene, const SceneCamera& camera, const Camera& cam,
-		const RenderTarget& render_target, const impl::EntityFilterFunc& filter
-	) const;
 
 	DebugSystem()								   = default;
 	~DebugSystem() noexcept						   = default;
@@ -98,5 +92,14 @@ private:
 	void PreUpdate();
 	void PostRender();
 };
+
+namespace impl {
+
+void DrawDebug(
+	Scene& scene, const SceneCamera& camera, const Camera& cam, const RenderTarget& render_target,
+	const impl::EntityFilterFunc& filter, const DebugSystem& debug
+);
+
+} // namespace impl
 
 } // namespace ptgn

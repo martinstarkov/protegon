@@ -258,7 +258,7 @@ void DrawScene(
 	);
 
 	draw_context.SetBlendMode(BlendMode::Blend);
-	scene.ctx().debug.Draw(scene, camera, cam, render_target, filter);
+	impl::DrawDebug(scene, camera, cam, render_target, filter, scene.ctx().debug);
 
 	auto view{ scene.EntitiesWith<impl::IDrawable>() };
 
