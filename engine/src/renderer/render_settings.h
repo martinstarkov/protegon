@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "core/log.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -13,12 +14,15 @@ enum class ToneMappingOperator {
 	Reinhard,
 	ACES
 };
+PTGN_SERIALIZE_ENUM(ToneMappingOperator)
 
 struct ToneMappingSettings {
 	ToneMappingOperator op{ ToneMappingOperator::None };
 	/// @brief Only used by Exposure and ACES operators. Higher values will result in a brighter
 	/// image.
 	float exposure{ 1.0f };
+
+	PTGN_SERIALIZE(ToneMappingSettings, op, exposure)
 };
 
 struct RenderSettings {
@@ -27,6 +31,8 @@ struct RenderSettings {
 	/// should be set to 2.2 for correct sRGB output. Setting this to 1.0 will disable gamma
 	/// correction.
 	float gamma{ 2.2f };
+
+	PTGN_SERIALIZE(RenderSettings, tone_mapping, gamma)
 };
 
 namespace impl {
