@@ -103,13 +103,18 @@ enum class ButtonPart : std::uint8_t {
 PTGN_SERIALIZE_ENUM(ButtonPart);
 
 struct ButtonShapeConfig {
+	/// @brief Can only be ButtonPart::Background or ButtonPart::Border.
 	ButtonPart part{ ButtonPart::Background };
 	ButtonVisualState state{ ButtonVisualState::Base };
 
-	std::variant<V2_float, float> size;
+	/// @brief Optional fixed size for the shape. If not set, the shape will be sized to the button
+	/// size.
+	std::optional<std::variant<V2_float, float>> size;
 	std::optional<Origin> origin;
 
 	std::optional<Color> color;
+
+	/// @brief Only applicable for ButtonPart::Border.
 	std::optional<FillStyle> fill_style;
 
 	PTGN_SERIALIZE(ButtonShapeConfig, part, state, size, origin, color, fill_style)
@@ -122,6 +127,8 @@ struct ButtonSpriteConfig {
 	std::string texture;
 	std::optional<Origin> origin;
 	Transform transform;
+	/// @brief Optional fixed size for the sprite. If not set, the sprite will be sized to the
+	/// texture size.
 	std::optional<V2_float> size;
 	std::optional<Color> tint;
 

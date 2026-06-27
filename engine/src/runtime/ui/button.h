@@ -35,6 +35,8 @@ class Dropdown;
 
 inline constexpr Color kDefaultButtonTextColor{ color::Black };
 
+Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
+
 namespace event {
 
 struct ButtonPress;
@@ -92,7 +94,7 @@ struct ButtonChild {
 	PTGN_SERIALIZE(ButtonChild, part, state)
 };
 
-struct ButtonShapeSync {};
+struct ButtonSizeSync {};
 
 struct ButtonOriginSync {};
 
@@ -181,9 +183,9 @@ public:
 
 	Button& Background();
 
-	/// @brief Sets the origin of the background shape for all the visual states.
+	/// @brief Sets the origin of the background shape for the given visual state.
 	/// By default the origin will be the same as the button's origin.
-	Button& BackgroundOrigin(Origin origin);
+	Button& BackgroundOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Base);
 	Button& ClearBackgroundOrigin();
 
 	Button& BackgroundColor(Color color, ButtonVisualState state = ButtonVisualState::Base);
@@ -200,8 +202,8 @@ public:
 		std::optional<Color> disabled_press = std::nullopt
 	);
 
-	Button& BackgroundShape(Rect rect, ButtonVisualState state = ButtonVisualState::Base);
-	Button& BackgroundShape(Circle circle, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BackgroundSize(V2_float size, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BackgroundSize(float radius, ButtonVisualState state = ButtonVisualState::Base);
 
 	/// @brief Removes every background state.
 	Button& RemoveBackground();
@@ -213,9 +215,9 @@ public:
 
 	Button& Border();
 
-	/// @brief Sets the origin of the border for all the visual states.
+	/// @brief Sets the origin of the border for the given visual state.
 	/// By default the origin will be the same as the button's origin.
-	Button& BorderOrigin(Origin origin);
+	Button& BorderOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Base);
 	Button& ClearBorderOrigin();
 
 	Button& BorderColor(Color color, ButtonVisualState state = ButtonVisualState::Base);
@@ -226,8 +228,8 @@ public:
 
 	Button& BorderWidth(FillStyle fill, ButtonVisualState state = ButtonVisualState::Base);
 
-	Button& BorderShape(Rect rect, ButtonVisualState state = ButtonVisualState::Base);
-	Button& BorderShape(Circle circle, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BorderSize(V2_float size, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BorderSize(float radius, ButtonVisualState state = ButtonVisualState::Base);
 
 	ptgn::Text Text(ButtonVisualState state = ButtonVisualState::Base);
 	ptgn::Text Text(
@@ -328,6 +330,7 @@ private:
 	friend void impl::UpdateButtons(Scene& scene);
 	friend class Dropdown;
 	friend class ToggleButton;
+	friend Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
 
 	ptgn::Text GetText(ButtonVisualState state);
 
@@ -358,7 +361,7 @@ private:
 	void PlaySound(ButtonState active);
 	void PlayAnimation(ButtonState active) const;
 
-	void UpdateChildShapes() const;
+	void UpdateChildSizes() const;
 	void UpdateChildLayouts() const;
 };
 

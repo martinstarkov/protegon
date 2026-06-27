@@ -24,7 +24,9 @@
 #include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "core/util/concepts.h"
 #include "core/util/entity_handle.h"
+#include "core/util/span.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
@@ -39,6 +41,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interactive.h"
 #include "runtime/interaction/interactive_event.h"
@@ -66,7 +69,7 @@ constexpr float kDefaultButtonBorderWidth{ 2.0f };
 
 ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config) {
 	ButtonDesc desc{
-		.shape	= Rect{ size },
+		.size	= size,
 		.origin = config.origin,
 	};
 
@@ -75,11 +78,17 @@ ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config) {
 			return;
 		}
 
+		std::optional<std::variant<V2_float, float>> size;
+
+		if (config.background_size.has_value()) {
+			size = config.background_size.value();
+		}
+
 		desc.shapes.emplace_back(
 			ButtonShapeConfig{
 				.part		= ButtonPart::Background,
 				.state		= state,
-				.shape		= config.background_size.value_or(size),
+				.size		= size,
 				.color		= color,
 				.fill_style = Solid{},
 			}
@@ -353,13 +362,14 @@ std::optional<Animation> TryAnimationForVisualState(Button button, ButtonVisualS
 	return std::nullopt;
 }
 
-template <ShapeType T>
-Button& ModifyShape(Button& button, T shape, ButtonPart part, ButtonVisualState state) {
+template <InteractiveType T, typename S>
+	requires IsAnyOf<S, V2_float, float>
+Button& ModifySize(Button& button, S size, ButtonPart part, ButtonVisualState state) {
 	auto entity{ button.Part(part, state) };
-	entity.Remove<impl::ButtonShapeSync>();
+	entity.Remove<impl::ButtonSizeSync>();
 	entity.Remove<Rect>();
 	entity.Remove<Circle>();
-	entity.Add<T>(shape);
+	entity.Add<T>(size);
 	return button;
 }
 
@@ -673,7 +683,7 @@ Button& Button::StopHover() {
 Button& Button::Size(V2_float size) {
 	Remove<Circle>();
 	Add<Rect>(size);
-	UpdateChildShapes();
+	UpdateChildSizes();
 	UpdateChildLayouts();
 	return *this;
 }
@@ -681,7 +691,7 @@ Button& Button::Size(V2_float size) {
 Button& Button::Size(float radius) {
 	Remove<Rect>();
 	Add<Circle>(radius);
-	UpdateChildShapes();
+	UpdateChildSizes();
 	UpdateChildLayouts();
 	return *this;
 }
@@ -858,7 +868,7 @@ Button& Button::ShapePart(ButtonPart part, ButtonVisualState state, Color color,
 	auto entity{ Part(part, state) };
 
 	entity.Add<impl::ButtonOriginSync>();
-	entity.Add<impl::ButtonShapeSync>();
+	entity.Add<impl::ButtonSizeSync>();
 	entity.Add<Color>(color);
 	entity.Add<FillStyle>(fill);
 
@@ -888,11 +898,10 @@ Button& Button::Background() {
 	return *this;
 }
 
-Button& Button::BackgroundOrigin(Origin origin) {
-	for (Entity child : Parts(ButtonPart::Background)) {
-		SetDrawOrigin(child, origin);
-		child.Remove<impl::ButtonOriginSync>();
-	}
+Button& Button::BackgroundOrigin(Origin origin, ButtonVisualState state) {
+	auto background{ Part(ButtonPart::Background, state) };
+	SetDrawOrigin(background, origin);
+	background.Remove<impl::ButtonOriginSync>();
 	return *this;
 }
 
@@ -959,12 +968,12 @@ Button& Button::DisabledBackgroundColors(
 	return *this;
 }
 
-Button& Button::BackgroundShape(Rect rect, ButtonVisualState state) {
-	return ModifyShape(*this, rect, ButtonPart::Background, state);
+Button& Button::BackgroundSize(V2_float size, ButtonVisualState state) {
+	return ModifySize<Rect>(*this, size, ButtonPart::Background, state);
 }
 
-Button& Button::BackgroundShape(Circle circle, ButtonVisualState state) {
-	return ModifyShape(*this, circle, ButtonPart::Background, state);
+Button& Button::BackgroundSize(float radius, ButtonVisualState state) {
+	return ModifySize<Circle>(*this, radius, ButtonPart::Background, state);
 }
 
 Button& Button::Border() {
@@ -980,11 +989,10 @@ Button& Button::Border(ButtonVisualState state) {
 	);
 }
 
-Button& Button::BorderOrigin(Origin origin) {
-	for (Entity child : Parts(ButtonPart::Border)) {
-		SetDrawOrigin(child, origin);
-		child.Remove<impl::ButtonOriginSync>();
-	}
+Button& Button::BorderOrigin(Origin origin, ButtonVisualState state) {
+	auto border{ Part(ButtonPart::Border, state) };
+	SetDrawOrigin(border, origin);
+	border.Remove<impl::ButtonOriginSync>();
 	return *this;
 }
 
@@ -1019,12 +1027,12 @@ Button& Button::BorderColors(
 	return *this;
 }
 
-Button& Button::BorderShape(Rect rect, ButtonVisualState state) {
-	return ModifyShape(*this, rect, ButtonPart::Border, state);
+Button& Button::BorderSize(V2_float size, ButtonVisualState state) {
+	return ModifySize<Rect>(*this, size, ButtonPart::Border, state);
 }
 
-Button& Button::BorderShape(Circle circle, ButtonVisualState state) {
-	return ModifyShape(*this, circle, ButtonPart::Border, state);
+Button& Button::BorderSize(float radius, ButtonVisualState state) {
+	return ModifySize<Circle>(*this, radius, ButtonPart::Border, state);
 }
 
 Button& Button::BorderWidth(FillStyle fill, ButtonVisualState state) {
@@ -1333,9 +1341,9 @@ void Button::PlayAnimation(ButtonState active) const {
 	}
 }
 
-void Button::UpdateChildShapes() const {
+void Button::UpdateChildSizes() const {
 	for (Entity part : Parts()) {
-		if (!part.Has<impl::ButtonShapeSync>()) {
+		if (!part.Has<impl::ButtonSizeSync>()) {
 			continue;
 		}
 		if (Has<Rect>()) {
@@ -1421,6 +1429,24 @@ Button CreateButton(Scene& scene, Transform transform, V2_float size, const Butt
 }
 
 Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
+	PTGN_ASSERT(
+		!ContainsDuplicates(
+			desc.shapes,
+			[](const ButtonShapeConfig& config) { return std::pair{ config.part, config.state }; }
+		),
+		"Button description cannot contain duplicate shape parts for the same visual state"
+	);
+
+	PTGN_ASSERT(
+		!ContainsDuplicates(desc.sprites, &ButtonSpriteConfig::state),
+		"Button description cannot contain multiple sprites for the same visual state"
+	);
+
+	PTGN_ASSERT(
+		!ContainsDuplicates(desc.texts, &ButtonTextConfig::state),
+		"Button description cannot contain multiple texts for the same visual state"
+	);
+
 	Button button{ scene.CreateEntity() };
 
 	button.Add<impl::ButtonData>();
@@ -1444,6 +1470,85 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 		button.Disable();
 	}
 
+	for (const auto& shape : desc.shapes) {
+		if (shape.part == ButtonPart::Background) {
+			button.Background(shape.state);
+			if (shape.size.has_value()) {
+				std::visit(
+					[&](const auto& size) { button.BackgroundSize(size, shape.state); },
+					shape.size.value()
+				);
+			}
+			if (shape.color.has_value()) {
+				button.BackgroundColor(shape.color.value(), shape.state);
+			}
+			if (shape.origin.has_value()) {
+				button.BackgroundOrigin(shape.origin.value(), shape.state);
+			}
+		} else if (shape.part == ButtonPart::Border) {
+			button.Border(shape.state);
+			if (shape.size.has_value()) {
+				std::visit(
+					[&](const auto& size) { button.BorderSize(size, shape.state); },
+					shape.size.value()
+				);
+			}
+			if (shape.color.has_value()) {
+				button.BorderColor(shape.color.value(), shape.state);
+			}
+			if (shape.origin.has_value()) {
+				button.BorderOrigin(shape.origin.value(), shape.state);
+			}
+			if (shape.fill_style.has_value()) {
+				button.BorderWidth(shape.fill_style.value(), shape.state);
+			}
+		} else {
+			PTGN_ERROR("Button description contains invalid shape part");
+		}
+	}
+
+	for (const auto& sprite_config : desc.sprites) {
+		button.Sprite(sprite_config.texture, sprite_config.origin, sprite_config.state);
+		std::optional<Sprite> part{
+			FindButtonPart(button, { ButtonPart::Sprite, sprite_config.state })
+		};
+		PTGN_ASSERT(part.has_value(), "Failed to create sprite part for button");
+		Sprite sprite{ part.value() };
+		if (sprite_config.tint.has_value()) {
+			SetTint(sprite, sprite_config.tint.value());
+		}
+		SetTransform(sprite, sprite_config.transform);
+		if (sprite_config.size.has_value()) {
+			SetDisplaySize(sprite, sprite_config.size.value());
+		}
+	}
+
+	for (const auto& text_config : desc.texts) {
+		button.Text(
+			{ TextRun{ .text  = text_config.content,
+					   .font  = text_config.font,
+					   .style = { .color = text_config.color, .size = text_config.font_size } } },
+			text_config.state
+		);
+		if (text_config.origin.has_value()) {
+			button.TextOrigin(text_config.origin.value(), text_config.state);
+		}
+		std::optional<Text> part{ FindButtonPart(button, { ButtonPart::Text, text_config.state }) };
+		PTGN_ASSERT(part.has_value(), "Failed to create text part for button");
+		Text text{ part.value() };
+		text.Box(text_config.box);
+		if (text_config.outline_width.has_value()) {
+			text.Outline(text_config.outline_color, text_config.outline_width.value());
+		}
+		button.TextAutoBox(text_config.auto_box, text_config.state);
+		button.TextPadding(text_config.padding, text_config.state);
+		SetTransform(text, text_config.transform);
+	}
+
+	button.Sound(desc.sounds.idle, ButtonState::Idle);
+	button.Sound(desc.sounds.hover, ButtonState::Hover);
+	button.Sound(desc.sounds.press, ButtonState::Press);
+
 	auto get_texts = [](auto button) {
 		return FindButtonParts(button, ButtonPart::Text) |
 			   std::views::transform([](Entity text) { return ptgn::Text{ text }; }) |
@@ -1452,6 +1557,13 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 
 	if (desc.move.has_value()) {
 		const auto& move{ desc.move.value() };
+
+		// Disable auto-boxing for all texts to prevent layout issues during movement.
+		for (auto& text : get_texts(button)) {
+			auto& auto_box{ text.TryAdd<impl::ButtonTextAutoBox>() };
+			auto_box.enabled = false;
+		}
+		button.UpdateChildLayouts();
 
 		auto tween_move = [get_texts, move](V2_float offset, auto button) {
 			auto texts{ get_texts(button) };

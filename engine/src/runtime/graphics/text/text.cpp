@@ -218,6 +218,7 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 	}
 
 	auto transform{ GetDrawTransform(entity) };
+
 	auto origin{ GetDrawOrigin(entity) };
 
 	auto prepared{ impl::PrepareTextDraw(transform, layout, box, origin, explicit_clip) };
