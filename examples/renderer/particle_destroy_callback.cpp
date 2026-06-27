@@ -9,6 +9,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/rng.h"
 #include "core/math/vector2.h"
+#include "renderer/renderer.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
@@ -57,7 +58,7 @@ public:
 
 				auto anim = PlayTemporaryAnimation(
 					scene, p.particle.position, "anim",
-					{ .frame_count = 3, .animation_duration = duration, .play_count = 1 }
+					{ .frame_count = 3, .duration = duration, .play_count = 1 }
 				);
 				SetScale(anim, 0.5f);
 				FadeOut(anim, duration * 2);

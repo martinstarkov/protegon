@@ -29,7 +29,7 @@ struct AnimationConfig {
 	std::size_t frame_count{ 0 };
 
 	/// @brief Duration of the full animation sequence.
-	milliseconds animation_duration{ 0 };
+	milliseconds duration{ 0 };
 
 	/// @brief Pixel size of an individual animation frame within the texture.
 	/// If {}, automatically calculated as { texture_size.x / frame_count, texture_size.y }.
@@ -46,7 +46,7 @@ struct AnimationConfig {
 	bool reset_on_complete{ false };
 
 	PTGN_SERIALIZE(
-		AnimationConfig, frame_count, animation_duration, frame_size, play_count, start_pixel,
+		AnimationConfig, frame_count, duration, frame_size, play_count, start_pixel,
 		reset_on_complete
 	)
 };

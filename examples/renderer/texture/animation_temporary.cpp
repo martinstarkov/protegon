@@ -36,8 +36,7 @@ class AnimationTemporaryScene : public Scene {
 	void OnUpdate() override {
 		if (ctx().input.KeyPressed(Key::Space) && !HasChild(player, "love_bubble")) {
 			auto anim = PlayTemporaryAnimation(
-				*this, { 0, -50 }, "anim",
-				{ .frame_count = 4, .animation_duration = 1s, .play_count = 2 }, 2s
+				*this, { 0, -50 }, "anim", { .frame_count = 4, .duration = 1s, .play_count = 2 }, 2s
 			);
 			SetScale(anim, 3);
 			AddChild(player, anim, "love_bubble");

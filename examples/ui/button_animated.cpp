@@ -43,20 +43,20 @@ public:
 		auto hover_animation{ CreateAnimation(
 			*this, {}, "animation_hover",
 			AnimationConfig{
-				.frame_count		= 3,
-				.animation_duration = 400ms,
-				.frame_size			= { 253, 167 },
-				.play_count			= std::nullopt,
+				.frame_count = 3,
+				.duration	 = 400ms,
+				.frame_size	 = { 253, 167 },
+				.play_count	 = std::nullopt,
 			}
 		) };
 
 		auto press_animation{ CreateAnimation(
 			*this, {}, "animation_press",
 			AnimationConfig{
-				.frame_count		= 3,
-				.animation_duration = 200ms,
-				.frame_size			= { 253, 167 },
-				.play_count			= 1,
+				.frame_count = 3,
+				.duration	 = 200ms,
+				.frame_size	 = { 253, 167 },
+				.play_count	 = 1,
 			}
 		) };
 
@@ -77,20 +77,20 @@ public:
 		auto hover_animation2{ CreateAnimation(
 			*this, {}, "animation_hover2",
 			AnimationConfig{
-				.frame_count		= 4,
-				.animation_duration = 400ms,
-				.frame_size			= { 32, 16 },
-				.play_count			= std::nullopt,
+				.frame_count = 4,
+				.duration	 = 400ms,
+				.frame_size	 = { 32, 16 },
+				.play_count	 = std::nullopt,
 			}
 		) };
 
 		auto press_animation2{ CreateAnimation(
 			*this, {}, "animation_press2",
 			AnimationConfig{
-				.frame_count		= 4,
-				.animation_duration = 200ms,
-				.frame_size			= { 32, 16 },
-				.play_count			= 1,
+				.frame_count = 4,
+				.duration	 = 200ms,
+				.frame_size	 = { 32, 16 },
+				.play_count	 = 1,
 			}
 		) };
 

@@ -8,6 +8,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
+#include "renderer/pipeline/render_state.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scripting/script.h"
@@ -66,7 +67,7 @@ struct TopDownPlayerConfig {
 	std::optional<std::string> animation_texture_key;
 	std::optional<V2_int> animation_frame_size;
 
-	/// @brief Defaults to 1000 if not provided.
+	/// @brief Defaults to 1000ms if not provided.
 	std::optional<milliseconds> animation_duration;
 
 	std::optional<Depth> depth;

@@ -30,7 +30,7 @@ namespace ptgn {
 Animation::Animation(Entity entity) : Entity{ entity } {}
 
 Animation& Animation::SetConfig(AnimationConfig config) {
-	auto& asset_manager{ GetScene().ctx().asset };
+	AssetManager& asset_manager{ GetScene().ctx().asset };
 
 	const auto& texture{ Get<Texture>() };
 
@@ -135,13 +135,13 @@ std::size_t Animation::GetFramePlayCount() const {
 milliseconds Animation::GetDuration() const {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	const auto& anim{ Get<impl::AnimationData>() };
-	return anim.config.animation_duration;
+	return anim.config.duration;
 }
 
 milliseconds Animation::GetFrameDuration() const {
 	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
 	const auto& anim{ Get<impl::AnimationData>() };
-	milliseconds frame_duration{ anim.config.animation_duration / anim.config.frame_count };
+	milliseconds frame_duration{ anim.config.duration / anim.config.frame_count };
 	return frame_duration;
 }
 
@@ -207,7 +207,7 @@ AnimationData::AnimationData(AnimationConfig&& anim_config, V2_int texture_size)
 }
 
 milliseconds AnimationData::GetFrameDuration() const {
-	return config.animation_duration / config.frame_count;
+	return config.duration / config.frame_count;
 }
 
 V2_int AnimationData::GetCurrentFramePosition() const {
@@ -245,7 +245,7 @@ void AnimationSystem::Update(Scene& scene, secondsf dt) {
 			anim.frame_dirty = false;
 		}
 
-		if (anim.config.frame_count == 0 || anim.config.animation_duration <= 0ms ||
+		if (anim.config.frame_count == 0 || anim.config.duration <= 0ms ||
 			!anim.frame_timer.IsRunning() || anim.frame_timer.IsPaused()) {
 			// Timer is not active or animation has no frames / duration.
 			continue;
