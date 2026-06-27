@@ -351,9 +351,9 @@ Text& Text::Align(Alignment alignment) {
 		InvalidateLayout();
 	}
 
-	auto& override{ TryAdd<impl::TextAlignmentOverride>() };
-	override.horizontal = true;
-	override.vertical	= true;
+	auto& alignment_override{ TryAdd<impl::TextAlignmentOverride>() };
+	alignment_override.horizontal = true;
+	alignment_override.vertical	  = true;
 
 	return *this;
 }
