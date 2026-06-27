@@ -1456,8 +1456,6 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 		SetUI(button, true);
 	}
 
-	Show(button, false);
-
 	std::visit([button](const auto& size) mutable { button.Size(size); }, desc.size);
 
 	SetTransform(button, transform);
@@ -1610,6 +1608,10 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 			ScaleTo<Text>(texts, target_scales, scale.duration, scale.ease);
 		});
 	}
+
+	button.UpdateChildLayouts();
+	Show(button, false);
+	button.RefreshVisualState();
 
 	return button;
 }
