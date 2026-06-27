@@ -83,9 +83,6 @@ void GetShapes(
 		if (vector.empty()) {
 			get_shape(root_entity);
 		}
-		PTGN_ASSERT(
-			!vector.empty(), "Failed to find a valid interactable for the entity: ", entity
-		);
 	}
 }
 
@@ -116,8 +113,6 @@ bool InteractionSystem::Overlap(V2_float point, Entity interactive_entity) {
 	std::vector<std::pair<InteractiveShape, Entity>> shapes;
 	GetShapes(interactive_entity, interactive_entity, shapes);
 
-	PTGN_ASSERT(!shapes.empty(), "Cannot check for overlap with an interactive that has no shape");
-
 	for (const auto& [shape, e] : shapes) {
 		auto transform{ GetWorldOffsetTransform(shape, e) };
 		if (ptgn::Overlap(point, transform, shape)) {
@@ -134,11 +129,6 @@ bool InteractionSystem::Overlap(Entity entityA, Entity entityB) {
 
 	std::vector<std::pair<InteractiveShape, Entity>> shapesB;
 	GetShapes(entityB, entityB, shapesB);
-
-	PTGN_ASSERT(
-		!shapesA.empty() && !shapesB.empty(),
-		"Cannot check for overlap with an interactive that has no shape"
-	);
 
 	for (const auto& [shapeA, eA] : shapesA) {
 		auto transformA{ GetWorldOffsetTransform(shapeA, eA) };
@@ -245,11 +235,18 @@ InteractionSystem::InteractiveEntities InteractionSystem::GetInteractiveEntities
 
 		GetShapes(entity, entity, shapes);
 
+		if (shapes.empty()) {
+			continue;
+		}
+
 		entity_shapes.try_emplace(entity, shapes);
 
 		for (const auto& [shape, shape_entity] : shapes) {
 			auto transform{ GetWorldOffsetTransform(shape, shape_entity) };
-			objects.emplace_back(entity, GetBoundingAABB(shape, transform));
+			auto bounding_box{ GetBoundingAABB(shape, transform) };
+			if (bounding_box.max != bounding_box.min) {
+				objects.emplace_back(entity, bounding_box);
+			}
 		}
 	}
 
