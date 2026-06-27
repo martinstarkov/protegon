@@ -15,6 +15,7 @@
 #include <variant>
 
 #include "core/util/macro.h"
+#include "core/util/reflection.h"
 #include "serialization/json/json.h"
 
 namespace ptgn::impl {
@@ -203,9 +204,9 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 	friend void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {      \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO, __VA_ARGS__))   \
 	}                                                                                      \
-	friend void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t) {    \
+	friend void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t){     \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM, __VA_ARGS__)) \
-	}
+	} PTGN_REFLECT_MEMBERS(Type, __VA_ARGS__)
 
 /// @brief Use this INSIDE the class/struct body.
 /// Declares JSON serialization for the class/struct.
@@ -214,9 +215,9 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 	friend void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {            \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO_VALUE, __VA_ARGS__))   \
 	}                                                                                            \
-	friend void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t) {          \
+	friend void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t){           \
 		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM_VALUE, __VA_ARGS__)) \
-	}
+	} PTGN_REFLECT_VALUE(Type, __VA_ARGS__)
 
 /// @brief Use this INSIDE the class/struct body.
 /// Declares JSON serialization for the class/struct.
@@ -232,7 +233,8 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 				"Invalid struct name found in JSON: " + s + ", expected: " PTGN_STRINGIFY(Type) \
 			);                                                                                  \
 		}                                                                                       \
-	}
+	}                                                                                           \
+	PTGN_REFLECT_EMPTY(Type)
 
 /// @brief Use this INSIDE the class/struct body.
 /// Declares JSON serialization for the class/struct and its base class.
