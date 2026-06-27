@@ -693,6 +693,7 @@ void Window::SetSetting(WindowSetting setting) {
 		case Resizable:	 glfwSetWindowAttrib(win, GLFW_RESIZABLE, GLFW_TRUE); break;
 		case FixedSize:	 glfwSetWindowAttrib(win, GLFW_RESIZABLE, GLFW_FALSE); break;
 		case Minimized:	 glfwIconifyWindow(win); break;
+		case Restored:	 glfwRestoreWindow(win); break;
 		case Maximized:
 			if (!glfwGetWindowMonitor(win)) {
 				glfwMaximizeWindow(win);
@@ -726,7 +727,10 @@ bool Window::GetSetting(WindowSetting setting) const {
 		case FixedSize:	 return !glfwGetWindowAttrib(win, GLFW_RESIZABLE);
 		case Maximized:	 return glfwGetWindowAttrib(win, GLFW_MAXIMIZED);
 		case Minimized:	 return glfwGetWindowAttrib(win, GLFW_ICONIFIED);
-		default:		 PTGN_ERROR("Unknown WindowSetting: ", std::to_underlying(setting));
+		case Restored:
+			return !glfwGetWindowAttrib(win, GLFW_MAXIMIZED) &&
+				   !glfwGetWindowAttrib(win, GLFW_ICONIFIED);
+		default: PTGN_ERROR("Unknown WindowSetting: ", std::to_underlying(setting));
 	}
 }
 

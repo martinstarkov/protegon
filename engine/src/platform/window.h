@@ -39,6 +39,9 @@ enum class WindowSetting {
 	FixedSize,
 	Maximized,
 	Minimized,
+	/// @brief Restores the window to its previous size and position before it was minimized or
+	/// maximized.
+	Restored,
 	Shown,
 	Hidden
 };
