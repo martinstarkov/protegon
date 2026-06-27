@@ -114,7 +114,6 @@ public:
 	}
 
 	constexpr std::array<V2_float, 4> GetLocalVertices() const {
-		PTGN_ASSERT(min != max, "Cannot get local vertices for a rect with size zero");
 		return { min, V2_float{ max.x, min.y }, max, V2_float{ min.x, max.y } };
 	}
 
