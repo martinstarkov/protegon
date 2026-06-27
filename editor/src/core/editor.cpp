@@ -65,6 +65,11 @@ Editor::Editor(Application& app) : app{ app } {
 void Editor::OnUpdate() {
 	if (ImGui::IsKeyPressed(ImGuiKey_F11)) {
 		EnableRendering(!render_enabled_);
+		if (render_enabled_) {
+			impl::ApplicationAccessor::ctx(app).window.SetSetting(WindowSetting::Maximized);
+		} else {
+			impl::ApplicationAccessor::ctx(app).window.SetSetting(WindowSetting::Restored);
+		}
 	}
 }
 
@@ -265,11 +270,12 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	ImGuiID dock_right_bottom  = 0;
 	ImGuiID dock_center_bottom = 0;
 
-	const float left_ratio			= 0.3f;
-	const float right_ratio			= 0.3f;
-	const float left_bottom_ratio	= 0.35f;
-	const float right_bottom_ratio	= 0.35f;
-	const float center_bottom_ratio = 0.25f;
+	float left_ratio{ 0.3f };
+	float inspector_width{ 0.35f };
+	float right_ratio{ inspector_width / (1.0f - left_ratio) };
+	float left_bottom_ratio{ 0.35f };
+	float right_bottom_ratio{ 0.35f };
+	float center_bottom_ratio{ 0.25f };
 
 	dock_left =
 		ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Left, left_ratio, nullptr, &dock_main);
