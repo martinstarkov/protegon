@@ -5,14 +5,9 @@
 #include "core/graphics/color.h"
 #include "core/input/key.h"
 #include "core/log.h"
-#include "core/math/geometry/origin.h"
-#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "renderer/text/text_layout.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/shape.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
@@ -27,37 +22,17 @@ public:
 	Button disabled_button;
 
 	static constexpr V2_float button_size{ 260, 86 };
-	inline static Rect text_padding{ { 14, 8 }, { 14, 8 } };
-
-	static void ConfigureBackground(Button button, ButtonVisualState state, Color color) {
-		Entity background{ button.Background(state) };
-
-		background.Add<Rect>(Rect{ button_size });
-		SetDraw<RectDraw>(background);
-		background.Add<Color>(color);
-		SetDrawOrigin(background, Origin::Center);
-	}
-
-	static void ConfigureBasicBackgrounds(Button button) {
-		ConfigureBackground(button, ButtonVisualState::Idle, color::White);
-		ConfigureBackground(button, ButtonVisualState::Hover, color::LightGray);
-		ConfigureBackground(button, ButtonVisualState::Press, color::Gray);
-		ConfigureBackground(button, ButtonVisualState::Disabled, color::DarkGray);
-	}
+	static constexpr Padding text_padding{ 14, 8 };
 
 	Button CreateTextButton(V2_float position) {
-		Button button{ CreateButton(*this, position, Rect{ button_size }, Origin::Center) };
+		Button button{ CreateButton(*this, position, button_size) };
 
-		ConfigureBasicBackgrounds(button);
-
-		button.SetTextAutoBox(true);
-		button.SetTextPadding(text_padding);
+		button.Background().Border().TextAutoBox(true).TextPadding(text_padding);
 
 		return button;
 	}
 
 	void OnEnter() override {
-		ctx().asset.Load("arial", "assets/Arial.ttf");
 		ctx().interaction.SetDebugSettings({ .draw_enabled = true });
 
 		SetBackgroundColor(color::LightGray);
@@ -67,7 +42,6 @@ public:
 			Button button{ CreateTextButton({ -170, -250 }) };
 
 			button.Text()
-				.Font("arial")
 				.Content("Auto-boxed\ncentered text")
 				.Color(color::Black)
 				.Size(21.0f)
@@ -80,10 +54,9 @@ public:
 			// Button padding + word wrap.
 			Button button{ CreateTextButton({ 170, -250 }) };
 
-			button.SetTextPadding({ { 22, 10 }, { 22, 10 } });
+			button.TextPadding({ 22, 10 });
 
 			button.Text()
-				.Font("arial")
 				.Content("This text uses the button padding and wraps inside the button.")
 				.Color(color::Black)
 				.Size(16.0f)
@@ -99,7 +72,6 @@ public:
 			Button button{ CreateTextButton({ -170, -125 }) };
 
 			button.Text()
-				.Font("arial")
 				.Content("A very long single-line button text that should end with ellipsis")
 				.Color(color::Black)
 				.Size(18.0f)
@@ -113,37 +85,32 @@ public:
 
 		{
 			// State-specific texts. No base text is created, so the texts do not overlap.
-			Button button{
-				CreateButton(*this, { 170, -125 }, Rect{ button_size }, Origin::Center)
-			};
+			Button button{ CreateButton(*this, { 170, -125 }, button_size) };
 
-			ConfigureBasicBackgrounds(button);
+			button.Background().Border();
 
-			button.SetTextAutoBox(true, ButtonVisualState::Idle);
-			button.SetTextAutoBox(true, ButtonVisualState::Hover);
-			button.SetTextAutoBox(true, ButtonVisualState::Press);
+			button.TextAutoBox(true, ButtonVisualState::Idle);
+			button.TextAutoBox(true, ButtonVisualState::Hover);
+			button.TextAutoBox(true, ButtonVisualState::Press);
 
-			button.SetTextPadding(Rect{ { 14, 8 }, { 14, 8 } }, ButtonVisualState::Idle);
-			button.SetTextPadding(Rect{ { 14, 8 }, { 14, 8 } }, ButtonVisualState::Hover);
-			button.SetTextPadding(Rect{ { 14, 8 }, { 14, 8 } }, ButtonVisualState::Press);
+			button.TextPadding({ 14, 8 }, ButtonVisualState::Idle);
+			button.TextPadding({ 14, 8 }, ButtonVisualState::Hover);
+			button.TextPadding({ 14, 8 }, ButtonVisualState::Press);
 
 			button.Text(ButtonVisualState::Idle)
-				.Font("arial")
 				.Content("Idle text")
 				.Color(color::Black)
 				.Size(22.0f)
 				.Align(HorizontalAlign::Center, VerticalAlign::Center);
 
 			button.Text(ButtonVisualState::Hover)
-				.Font("arial")
 				.Content("Hover text")
 				.Color(color::Blue)
 				.Size(24.0f)
-				.Bold(true, 0.2f)
+				.Bold(true)
 				.Align(HorizontalAlign::Center, VerticalAlign::Center);
 
 			button.Text(ButtonVisualState::Press)
-				.Font("arial")
 				.Content("Pressed text")
 				.Color(color::Red)
 				.Size(21.0f)
@@ -154,30 +121,27 @@ public:
 		}
 
 		// Disabled-state text. Press Q/E to disable/enable.
-		disabled_button = CreateButton(*this, { -170, 0 }, Rect{ button_size }, Origin::Center);
+		disabled_button = CreateButton(*this, { -170, 0 }, button_size);
 
-		ConfigureBasicBackgrounds(disabled_button);
+		disabled_button.Background().Border();
 
-		disabled_button.SetTextAutoBox(true, ButtonVisualState::Idle);
-		disabled_button.SetTextAutoBox(true, ButtonVisualState::Hover);
-		disabled_button.SetTextAutoBox(true, ButtonVisualState::Disabled);
+		disabled_button.TextAutoBox(true, ButtonVisualState::Idle);
+		disabled_button.TextAutoBox(true, ButtonVisualState::Hover);
+		disabled_button.TextAutoBox(true, ButtonVisualState::Disabled);
 
 		disabled_button.Text(ButtonVisualState::Idle)
-			.Font("arial")
 			.Content("Q to Disable")
 			.Color(color::Black)
 			.Size(23.0f)
 			.Align(HorizontalAlign::Center, VerticalAlign::Center);
 
 		disabled_button.Text(ButtonVisualState::Hover)
-			.Font("arial")
 			.Content("Hover enabled")
 			.Color(color::Blue)
 			.Size(23.0f)
 			.Align(HorizontalAlign::Center, VerticalAlign::Center);
 
 		disabled_button.Text(ButtonVisualState::Disabled)
-			.Font("arial")
 			.Content("E to Enable")
 			.Color(color::White)
 			.Size(23.0f)
@@ -193,18 +157,17 @@ public:
 			Text text{ button.Text() };
 
 			text.Content("Rich ")
-				.Font("arial")
 				.Color(color::Black)
 				.Size(20.0f)
 				.Align(HorizontalAlign::Center, VerticalAlign::Center)
 				.Wrap(WrapMode::Word)
 				.Overflow(OverflowMode::Clip);
 
-			text.Content("red ").Font("arial").Color(color::Red).Bold(true, 0.18f);
+			text.Content("red ").Color(color::Red).Bold(true);
 
-			text.Content("underlined ").Font("arial").Color(color::Blue).Bold(false).Underline();
+			text.Content("underlined ").Color(color::Blue).Bold(false).Underline();
 
-			text.Content("text").Font("arial").Color(color::Black).Underline(false);
+			text.Content("text").Color(color::Black).Underline(false);
 
 			button.OnPress([]() { PTGN_LOG("Pressed rich text button"); });
 		}
