@@ -91,6 +91,8 @@ private:
 
 	void BuildDefaultDockLayout(std::uint32_t dockspace_id);
 
+	void UpdateDockLayout(std::uint32_t dockspace_id, float width);
+
 	std::unique_ptr<EditorContext> context_;
 	UndoStack undo_stack_;
 	EditorCommands commands_;
@@ -101,6 +103,13 @@ private:
 	InspectorPanel inspector_panel_;
 	SceneHierarchyPanel scene_hierarchy_panel_;
 	SceneListPanel scene_list_panel_;
+
+	std::uint32_t dock_left_column_id_{ 0 };
+	std::uint32_t dock_right_column_id_{ 0 };
+	std::uint8_t dock_resize_frames_remaining_{ 0 };
+
+	bool dock_layout_update_requested_{ false };
+	V2_float previous_dockspace_size_;
 
 	bool dock_layout_built_{ false };
 };

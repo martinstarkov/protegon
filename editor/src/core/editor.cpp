@@ -43,6 +43,13 @@
 
 namespace ptgn::editor {
 
+namespace {
+
+constexpr float kLeftColumnRatio{ 0.25f };
+constexpr float kRightColumnRatio{ 0.30f };
+
+} // namespace
+
 Editor::Editor(Application& app) : app{ app } {
 	EditorSelection selection;
 
@@ -65,25 +72,58 @@ Editor::Editor(Application& app) : app{ app } {
 void Editor::OnUpdate() {
 	if (ImGui::IsKeyPressed(ImGuiKey_F11)) {
 		EnableRendering(!render_enabled_);
+
+		auto& window{ impl::ApplicationAccessor::ctx(app).window };
+
 		if (render_enabled_) {
-			impl::ApplicationAccessor::ctx(app).window.SetSetting(WindowSetting::Maximized);
+			window.SetSetting(WindowSetting::Maximized);
 		} else {
-			impl::ApplicationAccessor::ctx(app).window.SetSetting(WindowSetting::Restored);
+			window.SetSetting(WindowSetting::Restored);
 		}
+
+		dock_layout_update_requested_ = true;
+
+		// Maximizing may produce multiple window size updates.
+		dock_resize_frames_remaining_ = 4;
+	}
+}
+
+void Editor::UpdateDockLayout(std::uint32_t dockspace_id, float width) {
+	auto* dockspace{ ImGui::DockBuilderGetNode(dockspace_id) };
+
+	if (!dockspace) {
+		dock_layout_built_ = false;
+		BuildDefaultDockLayout(dockspace_id);
+		return;
+	}
+
+	ImGui::DockBuilderSetNodeSize(
+		dockspace_id, ImVec2{
+						  ImGui::GetMainViewport()->WorkSize.x,
+						  ImGui::GetMainViewport()->WorkSize.y,
+					  }
+	);
+
+	if (auto* left{ ImGui::DockBuilderGetNode(dock_left_column_id_) }) {
+		left->SizeRef.x = width * kLeftColumnRatio;
+	}
+
+	if (auto* right{ ImGui::DockBuilderGetNode(dock_right_column_id_) }) {
+		right->SizeRef.x = width * kRightColumnRatio;
 	}
 }
 
 void Editor::OnRender() {
-	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	auto* viewport{ ImGui::GetMainViewport() };
 
 	ImGui::SetNextWindowPos(viewport->WorkPos);
 	ImGui::SetNextWindowSize(viewport->WorkSize);
 	ImGui::SetNextWindowViewport(viewport->ID);
 
-	ImGuiWindowFlags window_flags =
-		ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
-		ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_MenuBar;
+	auto window_flags{ ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
+					   ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+					   ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
+					   ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_MenuBar };
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
@@ -93,12 +133,17 @@ void Editor::OnRender() {
 
 	ImGui::PopStyleVar(3);
 
-	ImGuiID dockspace_id = ImGui::GetID("EditorDockspace");
-
-	ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;
-	ImGui::DockSpace(dockspace_id, ImVec2{ 0.0f, 0.0f }, dockspace_flags);
+	auto dockspace_id{ ImGui::GetID("EditorDockspace") };
+	auto dockspace_size{ ImGui::GetContentRegionAvail() };
 
 	BuildDefaultDockLayout(dockspace_id);
+
+	if (dock_resize_frames_remaining_ > 0) {
+		UpdateDockLayout(dockspace_id, dockspace_size.x);
+		--dock_resize_frames_remaining_;
+	}
+
+	ImGui::DockSpace(dockspace_id, dockspace_size, ImGuiDockNodeFlags_None);
 
 	DrawPanels();
 
@@ -256,44 +301,44 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 
 	dock_layout_built_ = true;
 
-	const ImGuiViewport* viewport{ ImGui::GetMainViewport() };
-	ImVec2 work_size = viewport->WorkSize;
+	auto* viewport{ ImGui::GetMainViewport() };
+	auto work_size{ viewport->WorkSize };
 
 	ImGui::DockBuilderRemoveNode(dockspace_id);
 	ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
 	ImGui::DockBuilderSetNodeSize(dockspace_id, work_size);
 
-	ImGuiID dock_main		   = dockspace_id;
-	ImGuiID dock_left		   = 0;
-	ImGuiID dock_right		   = 0;
-	ImGuiID dock_left_bottom   = 0;
-	ImGuiID dock_right_bottom  = 0;
-	ImGuiID dock_center_bottom = 0;
+	ImGuiID dock_main{ dockspace_id };
 
-	float left_ratio{ 0.3f };
-	float inspector_width{ 0.35f };
-	float right_ratio{ inspector_width / (1.0f - left_ratio) };
-	float left_bottom_ratio{ 0.35f };
-	float right_bottom_ratio{ 0.35f };
-	float center_bottom_ratio{ 0.25f };
-
-	dock_left =
-		ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Left, left_ratio, nullptr, &dock_main);
-
-	dock_right =
-		ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Right, right_ratio, nullptr, &dock_main);
-
-	dock_left_bottom = ImGui::DockBuilderSplitNode(
-		dock_left, ImGuiDir_Down, left_bottom_ratio, nullptr, &dock_left
+	dock_left_column_id_ = ImGui::DockBuilderSplitNode(
+		dock_main, ImGuiDir_Left, kLeftColumnRatio, nullptr, &dock_main
 	);
 
-	dock_right_bottom = ImGui::DockBuilderSplitNode(
-		dock_right, ImGuiDir_Down, right_bottom_ratio, nullptr, &dock_right
+	// The right split ratio is relative to the space remaining after
+	// removing the left column.
+	float right_split_ratio{ kRightColumnRatio / (1.0f - kLeftColumnRatio) };
+
+	dock_right_column_id_ = ImGui::DockBuilderSplitNode(
+		dock_main, ImGuiDir_Right, right_split_ratio, nullptr, &dock_main
 	);
 
-	dock_center_bottom = ImGui::DockBuilderSplitNode(
-		dock_main, ImGuiDir_Down, center_bottom_ratio, nullptr, &dock_main
+	ImGuiID dock_left{};
+	ImGuiID dock_left_bottom{};
+
+	ImGui::DockBuilderSplitNode(
+		dock_left_column_id_, ImGuiDir_Down, 0.35f, &dock_left_bottom, &dock_left
 	);
+
+	ImGuiID dock_right{};
+	ImGuiID dock_right_bottom{};
+
+	ImGui::DockBuilderSplitNode(
+		dock_right_column_id_, ImGuiDir_Down, 0.35f, &dock_right_bottom, &dock_right
+	);
+
+	ImGuiID dock_center_bottom{};
+
+	ImGui::DockBuilderSplitNode(dock_main, ImGuiDir_Down, 0.25f, &dock_center_bottom, &dock_main);
 
 	ImGui::DockBuilderDockWindow("Scene Hierarchy###SceneHierarchyWindow", dock_left);
 	ImGui::DockBuilderDockWindow("Scenes", dock_left_bottom);
