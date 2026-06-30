@@ -122,19 +122,17 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 
 	ctx.SetBlendMode(GetBlendMode(entity));
 
-	ctx.DrawText(
-		prepared.transform,
-		DrawTextRequest{
-			.layout				= layout,
-			.tint				= GetTint(entity),
-			.depth				= GetDepth(entity),
-			.entity_id			= entity.GetUUID(),
-			.clips				= prepared.GetClips(),
-			.reveal_glyph_count = text.GetRevealGlyphCount(),
-			.time				= scene.ctx().TimeSinceStartSeconds().count(),
-		},
-		effects
-	);
+	DrawTextRequest request{
+		.layout				= layout,
+		.tint				= GetTint(entity),
+		.depth				= GetDepth(entity),
+		.entity_id			= entity.GetUUID(),
+		.clips				= prepared.GetClips(),
+		.reveal_glyph_count = text.GetRevealGlyphCount(),
+		.time				= scene.ctx().TimeSinceStartSeconds().count(),
+	};
+
+	ctx.DrawText(prepared.transform, request, effects);
 }
 
 Text::Text(Entity entity) : Entity{ entity } {}
