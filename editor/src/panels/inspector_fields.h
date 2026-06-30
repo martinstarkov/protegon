@@ -24,6 +24,7 @@
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
 #include "core/math/vector2.h"
+#include "core/util/time.h"
 #include "core/util/type_info.h"
 #include "renderer/text/font_style.h"
 
@@ -85,6 +86,11 @@ inline constexpr FieldOptions kDefaultFieldOptions<Radians>{
 	.format = "%.1f deg",
 };
 
+template <typename Rep, typename Period>
+inline constexpr FieldOptions kDefaultFieldOptions<std::chrono::duration<Rep, Period>>{
+	.speed = std::floating_point<Rep> ? 0.01f : 1.0f,
+};
+
 inline std::string PrettyName(std::string_view name) {
 	while (!name.empty() && name.back() == '_') {
 		name.remove_suffix(1);
@@ -123,7 +129,21 @@ inline std::string PrettyName(std::string_view name) {
 }
 
 template <typename T>
+	requires std::is_enum_v<T>
+std::string EnumLabel(T value) {
+	auto name{ magic_enum::enum_name(value) };
+	return name.empty() ? "Unknown" : PrettyName(name);
+}
+
+template <typename T>
 std::string TypeLabel() {
+	if constexpr (std::is_enum_v<T>) {
+		auto name{ magic_enum::enum_type_name<T>() };
+		if (!name.empty()) {
+			return PrettyName(name);
+		}
+	}
+
 	return PrettyName(type_name_without_namespaces<T>());
 }
 
@@ -162,6 +182,15 @@ struct IsVector<std::vector<T, Allocator>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool kIsVector{ IsVector<T>::value };
+
+template <typename T>
+struct IsArray : std::false_type {};
+
+template <typename T, std::size_t N>
+struct IsArray<std::array<T, N>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool kIsArray{ IsArray<T>::value };
 
 template <typename T>
 struct IsVariant : std::false_type {};
@@ -259,6 +288,107 @@ inline bool DrawSize(std::string_view label, std::size_t& value, const FieldOpti
 	});
 }
 
+template <typename Rep, typename Period>
+bool DrawDuration(
+	std::string_view label, std::chrono::duration<Rep, Period>& value, const FieldOptions& options
+) {
+	auto unit{ DurationUnit<Period>() };
+
+	if constexpr (std::integral<Rep>) {
+		return DrawPropertyRow(label, [&]() {
+			std::int64_t temporary{ static_cast<std::int64_t>(value.count()) };
+			std::int64_t min{ static_cast<std::int64_t>(options.min) };
+			std::int64_t max{ static_cast<std::int64_t>(options.max) };
+
+			auto default_format{ std::string{ "%lld " } + std::string{ unit } };
+			auto format{ options.format ? options.format : default_format.c_str() };
+
+			bool changed{ ImGui::DragScalar(
+				"##value", ImGuiDataType_S64, &temporary, options.speed,
+				HasBounds(options) ? &min : nullptr, HasBounds(options) ? &max : nullptr, format,
+				options.flags
+			) };
+
+			if (changed) {
+				value = std::chrono::duration<Rep, Period>{ static_cast<Rep>(temporary) };
+			}
+
+			return changed;
+		});
+	} else {
+		return DrawPropertyRow(label, [&]() {
+			float temporary{ static_cast<float>(value.count()) };
+			float min{ static_cast<float>(options.min) };
+			float max{ static_cast<float>(options.max) };
+
+			auto default_format{ std::string{ "%.3f " } + std::string{ unit } };
+			auto format{ options.format ? options.format : default_format.c_str() };
+
+			bool changed{ ImGui::DragScalar(
+				"##value", ImGuiDataType_Float, &temporary, options.speed,
+				HasBounds(options) ? &min : nullptr, HasBounds(options) ? &max : nullptr, format,
+				options.flags
+			) };
+
+			if (changed) {
+				value = std::chrono::duration<Rep, Period>{ static_cast<Rep>(temporary) };
+			}
+
+			return changed;
+		});
+	}
+}
+
+template <typename T, std::size_t N, typename Label>
+bool DrawArrayEditor(std::string_view label, std::array<T, N>& values, Label&& get_item_label) {
+	auto header{ std::string{ label } + " (" + std::to_string(N) + ")" };
+
+	bool open{ ImGui::TreeNodeEx(
+		header.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen
+	) };
+
+	if (!open) {
+		return false;
+	}
+
+	bool changed{ false };
+
+	for (auto i{ 0uz }; i < N; ++i) {
+		ImGui::PushID(&values[i]);
+
+		auto item_label{ std::invoke(get_item_label, i) };
+		changed |= DrawValue(item_label, values[i]);
+
+		ImGui::PopID();
+	}
+
+	ImGui::TreePop();
+
+	return changed;
+}
+
+template <typename T, std::size_t N>
+bool DrawArrayEditor(std::string_view label, std::array<T, N>& values) {
+	return DrawArrayEditor(label, values, [](std::size_t index) {
+		return "Item " + std::to_string(index + 1);
+	});
+}
+
+template <typename TEnum, typename T, std::size_t N>
+	requires std::is_enum_v<TEnum>
+bool DrawEnumArrayEditor(std::string_view label, std::array<T, N>& values) {
+	constexpr auto entries{ magic_enum::enum_entries<TEnum>() };
+
+	static_assert(
+		magic_enum::enum_count<TEnum>() == N,
+		"Enum-indexed array size must match the number of reflected enum values"
+	);
+
+	return DrawArrayEditor(label, values, [&](std::size_t index) {
+		return PrettyName(entries[index].second);
+	});
+}
+
 inline bool DrawVector(std::string_view label, V2_float& value, const FieldOptions& options) {
 	return DrawPropertyRow(label, [&]() {
 		float values[2]{ value.x, value.y };
@@ -324,27 +454,34 @@ inline bool DrawColor(std::string_view label, Color& value) {
 	});
 }
 
+template <typename T>
+	requires std::is_enum_v<T>
+constexpr bool IsSingleEnumFlag(T value) {
+	using Underlying = std::underlying_type_t<T>;
+	using Unsigned	 = std::make_unsigned_t<Underlying>;
+
+	auto bits{ static_cast<Unsigned>(magic_enum::enum_underlying(value)) };
+	return bits != 0 && (bits & (bits - 1)) == 0;
+}
+
 inline std::string FontStylePreview(FontStyle style) {
 	if (style == FontStyle::Normal) {
-		return "Normal";
+		return EnumLabel(style);
 	}
 
 	std::string result;
 
-	auto append = [&](FontStyle flag, std::string_view name) {
-		if (!HasFontFlag(style, flag)) {
-			return;
+	for (auto [flag, name] : magic_enum::enum_entries<FontStyle>()) {
+		if (!IsSingleEnumFlag(flag) || !HasFontFlag(style, flag)) {
+			continue;
 		}
+
 		if (!result.empty()) {
 			result += " | ";
 		}
-		result += name;
-	};
 
-	append(FontStyle::Bold, "Bold");
-	append(FontStyle::Italic, "Italic");
-	append(FontStyle::Underline, "Underline");
-	append(FontStyle::Strikethrough, "Strikethrough");
+		result += PrettyName(name);
+	}
 
 	return result.empty() ? "Unknown" : result;
 }
@@ -355,18 +492,22 @@ inline bool DrawFontStyle(std::string_view label, FontStyle& value) {
 		bool changed{ false };
 
 		if (ImGui::BeginCombo("##value", preview.c_str())) {
-			for (auto [flag, name] : std::array{
-					 std::pair{ FontStyle::Bold, "Bold" },
-					 std::pair{ FontStyle::Italic, "Italic" },
-					 std::pair{ FontStyle::Underline, "Underline" },
-					 std::pair{ FontStyle::Strikethrough, "Strikethrough" },
-				 }) {
+			for (auto [flag, name] : magic_enum::enum_entries<FontStyle>()) {
+				if (!IsSingleEnumFlag(flag)) {
+					continue;
+				}
+
+				auto item_label{ PrettyName(name) };
 				bool enabled{ HasFontFlag(value, flag) };
-				if (ImGui::Selectable(name, enabled, ImGuiSelectableFlags_DontClosePopups)) {
+
+				if (ImGui::Selectable(
+						item_label.c_str(), enabled, ImGuiSelectableFlags_DontClosePopups
+					)) {
 					value	= SetFontFlag(value, flag, !enabled);
 					changed = true;
 				}
 			}
+
 			ImGui::EndCombo();
 		}
 
@@ -378,22 +519,24 @@ template <typename T>
 	requires std::is_enum_v<T>
 bool DrawEnum(std::string_view label, T& value) {
 	return DrawPropertyRow(label, [&]() {
-		auto current_name{ magic_enum::enum_name(value) };
-		std::string preview{ current_name.empty() ? "Unknown" : current_name };
+		auto preview{ EnumLabel(value) };
 		bool changed{ false };
 
 		if (ImGui::BeginCombo("##value", preview.c_str())) {
-			for (T candidate : magic_enum::enum_values<T>()) {
-				auto candidate_name{ magic_enum::enum_name(candidate) };
+			for (auto [candidate, name] : magic_enum::enum_entries<T>()) {
+				auto item_label{ PrettyName(name) };
 				bool selected{ candidate == value };
-				if (ImGui::Selectable(candidate_name.data(), selected)) {
+
+				if (ImGui::Selectable(item_label.c_str(), selected)) {
 					value	= candidate;
 					changed = true;
 				}
+
 				if (selected) {
 					ImGui::SetItemDefaultFocus();
 				}
 			}
+
 			ImGui::EndCombo();
 		}
 
@@ -560,6 +703,8 @@ bool DrawVariant(std::string_view label, std::variant<T...>& value) {
 
 template <typename T>
 bool DrawOptional(std::string_view label, std::optional<T>& value, FieldOptions options) {
+	ImGui::PushID(&value);
+
 	bool enabled{ value.has_value() };
 
 	bool changed{ DrawPropertyRow(label, [&]() {
@@ -582,6 +727,8 @@ bool DrawOptional(std::string_view label, std::optional<T>& value, FieldOptions 
 		ImGui::Unindent();
 	}
 
+	ImGui::PopID();
+
 	return changed;
 }
 
@@ -597,6 +744,8 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 		return DrawInt(label, value, options);
 	} else if constexpr (std::same_as<Value, std::size_t>) {
 		return DrawSize(label, value, options);
+	} else if constexpr (DurationType<Value>) {
+		return DrawDuration(label, value, options);
 	} else if constexpr (std::same_as<Value, std::string>) {
 		return DrawPropertyRow(label, [&]() {
 			if (options.multiline) {
@@ -628,6 +777,8 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 		return DrawEnum(label, value);
 	} else if constexpr (kIsOptional<Value>) {
 		return DrawOptional(label, value, options);
+	} else if constexpr (kIsArray<Value>) {
+		return DrawArrayEditor(label, value);
 	} else if constexpr (kIsVector<Value>) {
 		using Element = typename Value::value_type;
 		return DrawVectorEditor(

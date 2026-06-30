@@ -3,6 +3,8 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
+#include <array>
+#include <magic_enum/magic_enum.hpp>
 #include <string>
 
 #include "core/editor.h"
@@ -19,11 +21,14 @@
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interactive.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
+#include "runtime/ui/button.h"
+#include "runtime/ui/button_config.h"
 
 namespace ptgn::editor {
 
@@ -71,6 +76,27 @@ struct Contents<StyledText> {
 	}
 };
 
+template <>
+struct Contents<impl::ButtonShapeVisuals> {
+	static bool Draw(impl::ButtonShapeVisuals& visuals) {
+		return DrawEnumArrayEditor<ButtonVisualState>("States", visuals.states);
+	}
+};
+
+template <>
+struct Contents<impl::ButtonSpriteVisuals> {
+	static bool Draw(impl::ButtonSpriteVisuals& visuals) {
+		return DrawEnumArrayEditor<ButtonVisualState>("States", visuals.states);
+	}
+};
+
+template <>
+struct Contents<impl::ButtonTextVisuals> {
+	static bool Draw(impl::ButtonTextVisuals& visuals) {
+		return DrawEnumArrayEditor<ButtonVisualState>("States", visuals.states);
+	}
+};
+
 } // namespace ptgn::editor
 
 namespace ptgn::editor {
@@ -107,6 +133,52 @@ template <>
 struct ComponentChangeHandler<TextBox> {
 	static void Apply(Entity entity) {
 		MarkTextLayoutDirty(entity);
+	}
+};
+
+template <>
+struct ComponentChangeHandler<impl::ButtonTextVisuals> {
+	static void Apply(Entity entity) {
+		MarkTextLayoutDirty(entity);
+
+		Entity parent{ GetParent(entity) };
+
+		if (!parent || !parent.Has<impl::ButtonData>()) {
+			return;
+		}
+
+		parent.Get<impl::ButtonData>().dirty |=
+			impl::ButtonDirty::Text | impl::ButtonDirty::TextLayout;
+	}
+};
+
+template <>
+struct ComponentChangeHandler<impl::ButtonShapeVisuals> {
+	static void Apply(Entity entity) {
+		Entity parent{ GetParent(entity) };
+
+		if (!parent || !parent.Has<impl::ButtonData>()) {
+			return;
+		}
+
+		auto part{ entity.Get<impl::ButtonChild>().part };
+
+		parent.Get<impl::ButtonData>().dirty |= part == ButtonPart::Background
+												  ? impl::ButtonDirty::Background
+												  : impl::ButtonDirty::Border;
+	}
+};
+
+template <>
+struct ComponentChangeHandler<impl::ButtonSpriteVisuals> {
+	static void Apply(Entity entity) {
+		Entity parent{ GetParent(entity) };
+
+		if (!parent || !parent.Has<impl::ButtonData>()) {
+			return;
+		}
+
+		parent.Get<impl::ButtonData>().dirty |= impl::ButtonDirty::Sprite;
 	}
 };
 
@@ -260,6 +332,24 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 
 	DrawTransformComponent(selected_entity);
 	DrawComponents(selected_entity, DefaultInspectorComponents{});
+
+	DrawComponent<impl::ButtonShapeVisuals>(
+		selected_entity, ComponentOptions{
+							 .removable = false,
+						 }
+	);
+
+	DrawComponent<impl::ButtonSpriteVisuals>(
+		selected_entity, ComponentOptions{
+							 .removable = false,
+						 }
+	);
+
+	DrawComponent<impl::ButtonTextVisuals>(
+		selected_entity, ComponentOptions{
+							 .removable = false,
+						 }
+	);
 
 	ImGui::Separator();
 

@@ -20,16 +20,16 @@ using duration = std::chrono::duration<Rep, Period>;
 
 namespace impl {
 
-template <class _Tp>
+template <typename T>
 struct is_chrono_duration : std::false_type {};
 
-template <class _Rep, class _Period>
-struct is_chrono_duration<std::chrono::duration<_Rep, _Period>> : std::true_type {};
+template <typename Rep, typename Period>
+struct is_chrono_duration<std::chrono::duration<Rep, Period>> : std::true_type {};
 
 } // namespace impl
 
 template <typename T>
-concept DurationType = impl::is_chrono_duration<T>::value;
+concept DurationType = impl::is_chrono_duration<std::remove_cvref_t<T>>::value;
 
 using hours			= std::chrono::hours;
 using hoursf		= duration<float, hours::period>;
@@ -44,27 +44,34 @@ using microsecondsf = duration<float, microseconds::period>;
 using nanoseconds	= std::chrono::nanoseconds;
 using nanosecondsf	= duration<float, nanoseconds::period>;
 
-template <typename Rep, typename Period>
-std::ostream& operator<<(std::ostream& os, const ptgn::duration<Rep, Period>& d) {
-	os << d.count();
-
-	if constexpr (std::is_same_v<Period, std::milli>) {
-		os << " ms";			// Milliseconds
-	} else if constexpr (std::is_same_v<Period, std::micro>) {
-		os << " us";			// Microseconds
-	} else if constexpr (std::is_same_v<Period, std::nano>) {
-		os << " ns";			// Nanoseconds
-	} else if constexpr (std::is_same_v<Period, std::ratio<1>>) {
-		os << " s";				// Seconds
-	} else if constexpr (std::is_same_v<Period, std::ratio<60>>) {
-		os << " min";			// Minutes
-	} else if constexpr (std::is_same_v<Period, std::ratio<3600>>) {
-		os << " h";				// Hours
+template <typename Period>
+[[nodiscard]] constexpr std::string_view DurationUnit() {
+	if constexpr (std::ratio_equal_v<Period, hours::period>) {
+		return "h";
+	} else if constexpr (std::ratio_equal_v<Period, minutes::period>) {
+		return "min";
+	} else if constexpr (std::ratio_equal_v<Period, seconds::period>) {
+		return "s";
+	} else if constexpr (std::ratio_equal_v<Period, milliseconds::period>) {
+		return "ms";
+	} else if constexpr (std::ratio_equal_v<Period, microseconds::period>) {
+		return "us";
+	} else if constexpr (std::ratio_equal_v<Period, nanoseconds::period>) {
+		return "ns";
 	} else {
-		os << " [custom unit]"; // Fallback for other units
+		return "[custom unit]";
 	}
+}
 
-	return os;
+template <DurationType T>
+[[nodiscard]] constexpr std::string_view DurationUnit() {
+	using Period = typename std::remove_cvref_t<T>::period;
+	return DurationUnit<Period>();
+}
+
+template <typename Rep, typename Period>
+std::ostream& operator<<(std::ostream& os, const duration<Rep, Period>& d) {
+	return os << d.count() << ' ' << DurationUnit<Period>();
 }
 
 template <DurationType T>
@@ -80,24 +87,13 @@ template <typename Rep, typename Period>
 struct adl_serializer<ptgn::duration<Rep, Period>> {
 	static void to_json(json& j, const ptgn::duration<Rep, Period>& d) {
 		using namespace ptgn;
-		// Convert DurationType To milliseconds (common base unit for serialization)
-		auto ms{ duration_cast<milliseconds>(d) };
 
-		if (ms == d) {
-			j = std::to_string(ms.count()) + "ms";
-		} else {
-			// For non-integral durations (e.g., seconds, minutes)
-			float value{ duration_cast<secondsf>(d).count() };
-			if (std::is_integral_v<Rep>) {
-				j = std::to_string(ms.count()) + "ms";
-			} else {
-				j = std::format("{}s", value);
-			}
-		}
+		j = std::format("{}{}", d.count(), DurationUnit<Period>());
 	}
 
 	static void from_json(const json& j, ptgn::duration<Rep, Period>& d) {
 		using namespace ptgn;
+
 		if (!j.is_string()) {
 			PTGN_ERROR("Expected duration as string");
 		}
@@ -105,30 +101,33 @@ struct adl_serializer<ptgn::duration<Rep, Period>> {
 		std::string s{ j.get<std::string>() };
 		std::smatch match;
 
-		// icase = ignore case
-		if (std::regex pattern{ R"(^\s*([\d.]+)\s*(ms|s|min|h)\s*$)", std::regex::icase };
+		if (std::regex pattern{ R"(^\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(ns|us|ms|min|s|h)\s*$)",
+								std::regex::icase };
 			!std::regex_match(s, match, pattern)) {
 			PTGN_ERROR("Invalid duration format: ", s);
 		}
 
 		float value{ std::stof(match[1].str()) };
-		// Do not make this a string_view, otherwise it may add a \0 to the front.
 		std::string unit{ match[2].str() };
 
-		using dur = ptgn::duration<Rep, Period>;
+		std::ranges::transform(unit, unit.begin(), [](unsigned char c) {
+			return static_cast<char>(std::tolower(c));
+		});
 
-		if (unit == "s" || unit == "S") {
-			d = duration_cast<dur>(secondsf{ value });
-		} else if (unit == "ms" || unit == "MS") {
-			d = duration_cast<dur>(millisecondsf{ value });
-		} else if (unit == "min" || unit == "MIN") {
-			d = duration_cast<dur>(minutesf{ value });
-		} else if (unit == "h" || unit == "H") {
-			d = duration_cast<dur>(hoursf{ value });
-		} else if (unit == "ns" || unit == "NS") {
-			d = duration_cast<dur>(nanosecondsf{ value });
-		} else if (unit == "us" || unit == "US") {
-			d = duration_cast<dur>(microsecondsf{ value });
+		using Duration = ptgn::duration<Rep, Period>;
+
+		if (unit == "h") {
+			d = duration_cast<Duration>(hoursf{ value });
+		} else if (unit == "min") {
+			d = duration_cast<Duration>(minutesf{ value });
+		} else if (unit == "s") {
+			d = duration_cast<Duration>(secondsf{ value });
+		} else if (unit == "ms") {
+			d = duration_cast<Duration>(millisecondsf{ value });
+		} else if (unit == "us") {
+			d = duration_cast<Duration>(microsecondsf{ value });
+		} else if (unit == "ns") {
+			d = duration_cast<Duration>(nanosecondsf{ value });
 		} else {
 			PTGN_ERROR("Unsupported time unit: ", unit);
 		}
