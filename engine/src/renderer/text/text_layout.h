@@ -1,6 +1,5 @@
 #pragma once
 
-#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <limits>
@@ -43,8 +42,8 @@ enum class VerticalAlign : std::uint8_t {
 PTGN_SERIALIZE_ENUM(VerticalAlign)
 
 struct Alignment {
-	HorizontalAlign horizontal{ HorizontalAlign::Left };
-	VerticalAlign vertical{ VerticalAlign::Top };
+	std::optional<HorizontalAlign> horizontal;
+	std::optional<VerticalAlign> vertical;
 
 	constexpr bool operator==(const Alignment&) const = default;
 
@@ -184,6 +183,18 @@ struct TextBox {
 	PTGN_SERIALIZE(TextBox, rect, style)
 };
 
+[[nodiscard]] constexpr Alignment ResolveTextAlignment(const TextBox& box, Origin origin) {
+	auto fallback{ GetAlignment(origin) };
+
+	PTGN_ASSERT(fallback.horizontal.has_value());
+	PTGN_ASSERT(fallback.vertical.has_value());
+
+	return {
+		.horizontal = box.style.alignment.horizontal.value_or(fallback.horizontal.value()),
+		.vertical	= box.style.alignment.vertical.value_or(fallback.vertical.value()),
+	};
+}
+
 struct TextBatchStyle {
 	impl::TextureId texture{ 0 };
 	DistanceFieldStyle sdf;
@@ -249,6 +260,9 @@ struct TextLayout {
 	/// @brief Number of non-newline source characters after optional whitespace collapsing.
 	/// This deliberately excludes synthetic ellipsis and hyphen glyphs.
 	std::size_t source_glyph_count{ 0 };
+
+	/// @brief Effective alignment used when this layout was built.
+	Alignment built_alignment;
 
 	/// @brief Set to true when the layout has been modified and needs to be rebuilt.
 	bool dirty{ false };
@@ -360,10 +374,12 @@ struct PreparedTextDraw {
 	}
 };
 
-[[nodiscard]] TextLayout BuildTextLayout(const ResolvedStyledText& styled_text, const TextBox& box);
+[[nodiscard]] TextLayout BuildTextLayout(
+	const ResolvedStyledText& styled_text, const TextBox& box, Alignment alignment
+);
 
 [[nodiscard]] TextMeasurement MeasureText(
-	const ResolvedStyledText& styled_text, const TextBox& box
+	const ResolvedStyledText& styled_text, const TextBox& box, Alignment alignment
 );
 
 std::vector<UniformWrite> GetTextUniforms(const DistanceFieldStyle& sdf, bool is_decoration);

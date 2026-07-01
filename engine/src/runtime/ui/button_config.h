@@ -107,17 +107,21 @@ struct ButtonShapeConfig {
 	ButtonPart part{ ButtonPart::Background };
 	ButtonVisualState state{ ButtonVisualState::Base };
 
-	/// @brief Optional fixed size for the shape. If not set, the shape will be sized to the button
-	/// size.
+	/// @brief Optional fixed size for the shape. If not set, the shape uses the button size.
 	std::optional<std::variant<V2_float, float>> size;
+
+	/// @brief Point of the child shape that lies at its transform.
 	std::optional<Origin> origin;
+
+	/// @brief Point of the button shape at which the child transform is placed.
+	std::optional<Origin> anchor;
 
 	std::optional<Color> color;
 
 	/// @brief Only applicable for ButtonPart::Border.
 	std::optional<FillStyle> fill_style;
 
-	PTGN_SERIALIZE(ButtonShapeConfig, part, state, size, origin, color, fill_style)
+	PTGN_SERIALIZE(ButtonShapeConfig, part, state, size, origin, anchor, color, fill_style)
 };
 
 struct ButtonSpriteConfig {
@@ -125,14 +129,21 @@ struct ButtonSpriteConfig {
 
 	/// @brief Texture key to use for the sprite. Must be loaded in the AssetManager.
 	std::string texture;
+
+	/// @brief Point of the sprite that lies at its transform.
 	std::optional<Origin> origin;
+
+	/// @brief Point of the button shape at which the sprite transform is placed.
+	std::optional<Origin> anchor;
+
+	/// @brief Transform relative to the selected button anchor.
 	Transform transform;
-	/// @brief Optional fixed size for the sprite. If not set, the sprite will be sized to the
-	/// texture size.
+
+	/// @brief Optional fixed size for the sprite. If not set, the sprite uses the texture size.
 	std::optional<V2_float> size;
 	std::optional<Color> tint;
 
-	PTGN_SERIALIZE(ButtonSpriteConfig, state, texture, origin, transform, size, tint)
+	PTGN_SERIALIZE(ButtonSpriteConfig, state, texture, origin, anchor, transform, size, tint)
 };
 
 struct ButtonTextConfig {
@@ -144,11 +155,17 @@ struct ButtonTextConfig {
 	float font_size{ kDefaultFontSize };
 	Color color{ color::Black };
 
-	std::optional<Origin> origin;
-	Transform transform;
-
 	/// @brief Optional text box.
 	TextBox box;
+
+	/// @brief Point of the text box that lies at its transform.
+	std::optional<Origin> origin;
+
+	/// @brief Point of the button shape at which the text transform is placed.
+	std::optional<Origin> anchor;
+
+	/// @brief Transform relative to the selected button anchor.
+	Transform transform;
 
 	std::optional<float> outline_width;
 	Color outline_color{ color::Black };
@@ -160,7 +177,7 @@ struct ButtonTextConfig {
 	Padding padding;
 
 	PTGN_SERIALIZE(
-		ButtonTextConfig, state, content, font, font_size, color, origin, transform, box,
+		ButtonTextConfig, state, content, font, font_size, color, origin, anchor, transform, box,
 		outline_width, outline_color, auto_box, padding
 	)
 };
@@ -232,6 +249,17 @@ struct ButtonConfig {
 
 	TextBox text_box;
 
+	/// @brief Optional point of the text box placed at the text transform.
+	/// When absent, the resolved text anchor is used.
+	std::optional<Origin> text_origin;
+
+	/// @brief Point of the padded button content rectangle to which the text
+	/// transform is anchored. When absent, defaults to Center.
+	std::optional<Origin> text_anchor;
+
+	/// @brief Transform relative to the resolved padded text anchor.
+	Transform text_transform;
+
 	std::optional<float> text_outline_width;
 	Color text_outline_color{ color::Black };
 
@@ -263,20 +291,23 @@ struct ButtonConfig {
 
 	PTGN_SERIALIZE(
 		ButtonConfig, origin, content, text_color, text_color_hover, text_color_press, font_size,
-		font, text_box, text_outline_width, text_outline_color, text_auto_box, text_padding,
-		texture, texture_hover, texture_press, texture_tint, texture_tint_hover, texture_tint_press,
-		background_color, background_color_hover, background_color_press, background_size,
-		sound_hover, sound_press, move, scale
+		font, text_box, text_origin, text_anchor, text_transform, text_outline_width,
+		text_outline_color, text_auto_box, text_padding, texture, texture_hover, texture_press,
+		texture_tint, texture_tint_hover, texture_tint_press, background_color,
+		background_color_hover, background_color_press, background_size, sound_hover, sound_press,
+		move, scale
 	)
 };
 
 struct AnimatedButtonConfig {
-	/// @brief If set, the button will be sized to this size. Otherwise, the button will be sized to
-	/// the (idle) texture size.
+	/// @brief If set, the button uses this size. Otherwise it uses the idle texture size.
 	std::optional<V2_float> size;
 
-	/// @brief Origin of the animation sprite relative to the button transform.
+	/// @brief Origin of the animation sprite itself.
 	std::optional<Origin> origin;
+
+	/// @brief Point of the button shape at which the animation sprite is placed.
+	std::optional<Origin> anchor;
 
 	std::string texture;
 	std::optional<std::string> texture_hover;
@@ -289,8 +320,8 @@ struct AnimatedButtonConfig {
 	std::optional<std::string> sound_press;
 
 	PTGN_SERIALIZE(
-		AnimatedButtonConfig, size, origin, texture, texture_hover, texture_press, animation_hover,
-		animation_press, sound_hover, sound_press
+		AnimatedButtonConfig, size, origin, anchor, texture, texture_hover, texture_press,
+		animation_hover, animation_press, sound_hover, sound_press
 	)
 };
 

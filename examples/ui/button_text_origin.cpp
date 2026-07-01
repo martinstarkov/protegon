@@ -24,7 +24,7 @@ class ButtonTextOriginScene : public Scene {
 public:
 	static constexpr V2_float button_size{ 220, 90 };
 	static constexpr V2_float button_spacing{ 270, 150 };
-	inline static Rect text_padding{ { 12, 10 }, { 12, 10 } };
+	static constexpr Padding text_padding{ 12, 10 };
 
 	struct OriginTest {
 		Origin button;
@@ -45,23 +45,6 @@ public:
 		OriginTest{ Origin::BottomRight, Origin::TopLeft },
 	};
 
-	static void ConfigureBackground(
-		Button button, ButtonVisualState state, Color color, Origin origin
-	) {
-		Entity background{ button.Background(state) };
-
-		background.Add<Rect>(button_size);
-		SetDraw<RectDraw>(background);
-		SetDrawOrigin(background, origin);
-		background.Add<Color>(color);
-	}
-
-	static void ConfigureBackgrounds(Button button, Origin origin) {
-		ConfigureBackground(button, ButtonVisualState::Idle, color::White, origin);
-		ConfigureBackground(button, ButtonVisualState::Hover, color::LightGray, origin);
-		ConfigureBackground(button, ButtonVisualState::Press, color::Gray, origin);
-	}
-
 	void CreateOriginButton(V2_float center, Origin button_origin, Origin text_origin) {
 		// Button bounds relative to the button entity's selected origin.
 		Rect button_rect{ {}, button_size, button_origin };
@@ -70,12 +53,12 @@ public:
 		// of which point on the button is used as its entity position.
 		V2_float button_position{ center - button_rect.GetCenter() };
 
-		Button button{ CreateButton(*this, button_position, Rect{ button_size }, button_origin) };
+		Button button{ CreateButton(*this, button_position, button_size, button_origin) };
 
-		ConfigureBackgrounds(button, button_origin);
+		button.Background();
 
-		button.SetTextOrigin(text_origin);
-		button.SetTextPadding(text_padding);
+		button.TextAnchor(text_origin);
+		button.TextPadding(text_padding);
 
 		button.Text().Content(magic_enum::enum_name(text_origin)).Color(color::Black).Size(18);
 	}

@@ -170,7 +170,14 @@ bool FitsTextPage(const ResolvedStyledText& styled_text, TextBox box, std::size_
 	box.style.max_lines = 0;
 	box.style.overflow	= OverflowMode::Overflow;
 
-	auto measurement{ MeasureText(styled_text, box) };
+	Alignment effective_alignment{ box.style.alignment };
+	if (!effective_alignment.horizontal.has_value()) {
+		effective_alignment.horizontal = GetAlignment(kDefaultTextAlignmentOrigin).horizontal;
+	}
+	if (!effective_alignment.vertical.has_value()) {
+		effective_alignment.vertical = GetAlignment(kDefaultTextAlignmentOrigin).vertical;
+	}
+	auto measurement{ MeasureText(styled_text, box, effective_alignment) };
 	if (max_lines > 0 && measurement.line_count > max_lines) {
 		return false;
 	}
@@ -191,7 +198,16 @@ TextPaginationResult PaginateText(
 
 	auto add_page = [&](StyledText&& page_text) {
 		auto resolved_page_text{ ResolveStyledText(asset_manager, page_text) };
-		auto layout{ BuildTextLayout(resolved_page_text, box) };
+
+		Alignment effective_alignment{ box.style.alignment };
+		if (!effective_alignment.horizontal.has_value()) {
+			effective_alignment.horizontal = GetAlignment(kDefaultTextAlignmentOrigin).horizontal;
+		}
+		if (!effective_alignment.vertical.has_value()) {
+			effective_alignment.vertical = GetAlignment(kDefaultTextAlignmentOrigin).vertical;
+		}
+
+		auto layout{ BuildTextLayout(resolved_page_text, box, effective_alignment) };
 
 		result.pages.emplace_back(TextPage{
 			.styled_text = std::move(page_text),

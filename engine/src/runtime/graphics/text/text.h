@@ -20,14 +20,10 @@ namespace ptgn {
 class DrawContext;
 class Scene;
 class AssetManager;
-class Button;
 
 namespace impl {
 
-struct TextAlignmentOverride {
-	bool horizontal{ false };
-	bool vertical{ false };
-};
+inline constexpr Origin kDefaultTextAlignmentOrigin{ Origin::TopLeft };
 
 struct TextEditState {
 	std::size_t current_run_index{ 0 };
@@ -40,7 +36,8 @@ struct TextEditState {
 );
 
 [[nodiscard]] TextLayout BuildTextLayout(
-	AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
+	AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box,
+	Alignment alignment
 );
 
 } // namespace impl
@@ -68,12 +65,14 @@ public:
 	Text& Box(Rect text_rect);
 	Text& Box(const TextBox& text_box);
 
+	Text& Align(Origin origin);
 	Text& Align(Alignment alignment);
 	Text& Align(HorizontalAlign horizontal, VerticalAlign vertical);
 	Text& HorizontalAlign(HorizontalAlign align);
 	Text& VerticalAlign(VerticalAlign align);
 
-	/// @brief Removes any previously set alignment.
+	/// @brief Removes explicit alignment overrides and returns to alignment derived
+	/// from the current draw origin.
 	Text& ClearAlignment();
 
 	/// @brief Determines how text is wrapped to the next line when it exceeds the width of the text
@@ -89,7 +88,7 @@ public:
 
 	/// @brief Useful for something like a scrollable text box where you want to clip the text to
 	/// the box, but still allow the user to scroll the text outside of the box.
-	/// Rectange is positioned relative to the text's transform.
+	/// Rectangle is positioned relative to the text's transform.
 	Text& Clip(Rect rect, TextClipMode mode = TextClipMode::Clip);
 
 	/// @brief Removes any clipping that was previously set.
@@ -137,7 +136,7 @@ public:
 
 	/// @brief Tracking adds a uniform amount of spacing between all adjacent glyphs.
 	/// The value is measured in rendered text pixels after font scaling.
-	/// Positive values spread glyphs apart; negative values bring them closer.
+	/// Positive values spread glyphs apart; negative values bring glyphs closer.
 	Text& Tracking(float spacing);
 
 	Text& LineSpacing(float line_spacing);
@@ -181,7 +180,6 @@ public:
 	bool IsFullyRevealed() const;
 
 	const StyledText& GetStyledText() const;
-
 	const TextBox& GetTextBox() const;
 
 	/// @return The text layout for the current styled text and text box. If the layout is not up to
@@ -189,13 +187,8 @@ public:
 	const TextLayout& GetLayout() const;
 
 private:
-	friend class Button;
-
 	TextRun& CurrentRun();
-
 	void InvalidateLayout();
-
-	void OverrideAlignment(Alignment alignment);
 };
 
 Text CreateText(

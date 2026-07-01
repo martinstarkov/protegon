@@ -104,6 +104,7 @@ public:
 				.Align(HorizontalAlign::Center, VerticalAlign::Center);
 
 			button.Text(ButtonVisualState::Hover)
+				.Clear()
 				.Content("Hover text")
 				.Color(color::Blue)
 				.Size(24.0f)
@@ -111,6 +112,7 @@ public:
 				.Align(HorizontalAlign::Center, VerticalAlign::Center);
 
 			button.Text(ButtonVisualState::Press)
+				.Clear()
 				.Content("Pressed text")
 				.Color(color::Red)
 				.Size(21.0f)
@@ -136,12 +138,14 @@ public:
 			.Align(HorizontalAlign::Center, VerticalAlign::Center);
 
 		disabled_button.Text(ButtonVisualState::Hover)
+			.Clear()
 			.Content("Hover enabled")
 			.Color(color::Blue)
 			.Size(23.0f)
 			.Align(HorizontalAlign::Center, VerticalAlign::Center);
 
 		disabled_button.Text(ButtonVisualState::Disabled)
+			.Clear()
 			.Content("E to Enable")
 			.Color(color::White)
 			.Size(23.0f)

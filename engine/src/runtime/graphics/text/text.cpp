@@ -41,14 +41,25 @@ namespace ptgn {
 
 namespace {
 
+Alignment ResolveEntityTextAlignment(Entity entity, const TextBox& box) {
+	auto origin{ entity.TryGet<Origin>() };
+
+	return ResolveTextAlignment(box, origin ? *origin : impl::kDefaultTextAlignmentOrigin);
+}
+
 void UpdateLayout(
 	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
 ) {
-	if (auto layout{ entity.TryGet<TextLayout>() }; layout && !layout->dirty) {
+	auto effective_alignment{ ResolveEntityTextAlignment(entity, box) };
+
+	if (auto layout{ entity.TryGet<TextLayout>() };
+		layout && !layout->dirty && layout->built_alignment == effective_alignment) {
 		return;
 	}
 
-	entity.Add<TextLayout>(impl::BuildTextLayout(asset_manager, styled_text, box));
+	entity.Add<TextLayout>(
+		impl::BuildTextLayout(asset_manager, styled_text, box, effective_alignment)
+	);
 }
 
 } // namespace
@@ -75,9 +86,10 @@ ResolvedStyledText ResolveStyledText(AssetManager& asset_manager, const StyledTe
 }
 
 TextLayout BuildTextLayout(
-	AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
+	AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box,
+	Alignment alignment
 ) {
-	return BuildTextLayout(ResolveStyledText(asset_manager, styled_text), box);
+	return BuildTextLayout(ResolveStyledText(asset_manager, styled_text), box, alignment);
 }
 
 } // namespace impl
@@ -235,54 +247,59 @@ Text& Text::RevealAll() {
 }
 
 Text& Text::Align(Alignment alignment) {
-	if (auto& box{ Get<TextBox>() }; box.style.alignment != alignment) {
-		box.style.alignment = alignment;
+	auto& current{ Get<TextBox>().style.alignment };
+
+	if (current != alignment) {
+		current = alignment;
 		InvalidateLayout();
 	}
 
-	auto& alignment_override{ TryAdd<impl::TextAlignmentOverride>() };
-	alignment_override.horizontal = true;
-	alignment_override.vertical	  = true;
-
 	return *this;
+}
+
+Text& Text::Align(Origin origin) {
+	return Align(GetAlignment(origin));
 }
 
 Text& Text::Align(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical) {
-	return Align({ .horizontal = horizontal, .vertical = vertical });
+	return Align(
+		{
+			.horizontal = horizontal,
+			.vertical	= vertical,
+		}
+	);
 }
 
-Text& Text::HorizontalAlign(ptgn::HorizontalAlign align) {
-	if (auto& box{ Get<TextBox>() }; box.style.alignment.horizontal != align) {
-		box.style.alignment.horizontal = align;
+Text& Text::HorizontalAlign(ptgn::HorizontalAlign horizontal) {
+	auto& alignment{ Get<TextBox>().style.alignment };
+
+	if (alignment.horizontal != horizontal) {
+		alignment.horizontal = horizontal;
 		InvalidateLayout();
 	}
-
-	TryAdd<impl::TextAlignmentOverride>().horizontal = true;
 
 	return *this;
 }
 
-Text& Text::VerticalAlign(ptgn::VerticalAlign align) {
-	if (auto& box{ Get<TextBox>() }; box.style.alignment.vertical != align) {
-		box.style.alignment.vertical = align;
+Text& Text::VerticalAlign(ptgn::VerticalAlign vertical) {
+	auto& alignment{ Get<TextBox>().style.alignment };
+
+	if (alignment.vertical != vertical) {
+		alignment.vertical = vertical;
 		InvalidateLayout();
 	}
-
-	TryAdd<impl::TextAlignmentOverride>().vertical = true;
 
 	return *this;
 }
 
 Text& Text::ClearAlignment() {
-	auto origin{ GetDrawOrigin(*this) };
-	auto alignment{ GetAlignment(origin) };
+	auto& alignment{ Get<TextBox>().style.alignment };
 
-	if (auto& box{ Get<TextBox>() }; box.style.alignment != alignment) {
-		box.style.alignment = alignment;
+	if (alignment.vertical.has_value() || alignment.horizontal.has_value()) {
+		alignment.vertical.reset();
+		alignment.horizontal.reset();
 		InvalidateLayout();
 	}
-
-	Remove<impl::TextAlignmentOverride>();
 
 	return *this;
 }
@@ -626,43 +643,23 @@ void Text::InvalidateLayout() {
 	}
 }
 
-void Text::OverrideAlignment(Alignment alignment) {
-	auto alignment_override{ TryGet<impl::TextAlignmentOverride>() };
-	auto& current{ Get<TextBox>().style.alignment };
-
-	bool changed{ false };
-
-	if ((!alignment_override || !alignment_override->horizontal) &&
-		current.horizontal != alignment.horizontal) {
-		current.horizontal = alignment.horizontal;
-		changed			   = true;
-	}
-
-	if ((!alignment_override || !alignment_override->vertical) &&
-		current.vertical != alignment.vertical) {
-		current.vertical = alignment.vertical;
-		changed			 = true;
-	}
-
-	if (changed) {
-		InvalidateLayout();
-	}
-}
-
 Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origin origin) {
 	Text text{ scene.CreateEntity() };
 
 	text.Add<impl::TextEditState>();
 	text.Add<StyledText>();
-	text.Add<TextBox>();
+	text.Add<TextBox>(TextBox{
+		.style = { .alignment = GetAlignment(impl::kDefaultTextAlignmentOrigin) } });
 	text.Add<TextLayout>();
+
 	PTGN_DEFAULT_NAME(text, "Text");
 
 	text.Content(std::move(styled_text));
-	text.Box(TextBox{ .style = { .alignment{ GetAlignment(origin) } } });
 
 	SetTransform(text, transform);
+
 	SetDrawOrigin(text, origin);
+
 	SetDraw<Text>(text);
 	text.Add<impl::Visible>(true);
 

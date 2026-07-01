@@ -183,7 +183,15 @@ void RenderQueue::DrawText(
 
 	auto& ctx{ scene_->ctx() };
 
-	auto layout{ impl::BuildTextLayout(ctx.asset, styled_text, text_box) };
+	Alignment effective_alignment{ text_box.style.alignment };
+	if (!effective_alignment.horizontal.has_value()) {
+		effective_alignment.horizontal = GetAlignment(impl::kDefaultTextAlignmentOrigin).horizontal;
+	}
+	if (!effective_alignment.vertical.has_value()) {
+		effective_alignment.vertical = GetAlignment(impl::kDefaultTextAlignmentOrigin).vertical;
+	}
+
+	auto layout{ impl::BuildTextLayout(ctx.asset, styled_text, text_box, effective_alignment) };
 
 	auto prepared{ impl::PrepareTextDraw(transform, layout, text_box, params.origin) };
 
