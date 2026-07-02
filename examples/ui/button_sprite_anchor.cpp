@@ -44,7 +44,7 @@ public:
 
 	void CreateAnchorButton(V2_float center, Origin button_origin, Origin sprite_anchor) {
 		// Button bounds relative to the button entity's selected origin.
-		Rect button_rect{ {}, button_size, button_origin };
+		Rect button_rect{ button_size, button_origin };
 
 		// Keep every button visually centered on its grid position regardless
 		// of which point of the button is represented by its entity position.
