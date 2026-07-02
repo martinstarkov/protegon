@@ -72,7 +72,8 @@ public:
 };
 
 Sprite CreateSprite(
-	Scene& scene, Transform transform, std::string_view texture_key, Origin origin = Origin::Center
+	Scene& scene, Transform transform = {}, std::string_view texture_key = "",
+	Origin origin = Origin::Center
 );
 
 PTGN_REGISTER_DRAWABLE(Sprite);
