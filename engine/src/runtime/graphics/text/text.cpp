@@ -41,25 +41,30 @@ namespace ptgn {
 
 namespace {
 
-Alignment ResolveEntityTextAlignment(Entity entity, const TextBox& box) {
-	auto origin{ entity.TryGet<Origin>() };
-
-	return ResolveTextAlignment(box, origin ? *origin : impl::kDefaultTextAlignmentOrigin);
-}
-
 void UpdateLayout(
-	Entity entity, AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
+	Text text, AssetManager& asset_manager, const StyledText& styled_text, TextBox box
 ) {
-	auto effective_alignment{ ResolveEntityTextAlignment(entity, box) };
+	auto origin{ text.TryGet<Origin>() };
 
-	if (auto layout{ entity.TryGet<TextLayout>() };
-		layout && !layout->dirty && layout->built_alignment == effective_alignment) {
+	Alignment fallback{ origin ? GetAlignment(*origin) : Alignment{} };
+
+	PTGN_ASSERT(fallback.horizontal.has_value(), "Fallback horizontal alignment must have a value");
+	PTGN_ASSERT(fallback.vertical.has_value(), "Fallback vertical alignment must have a value");
+
+	if (!box.style.alignment.horizontal.has_value()) {
+		box.style.alignment.horizontal = fallback.horizontal.value();
+	}
+
+	if (!box.style.alignment.vertical.has_value()) {
+		box.style.alignment.vertical = fallback.vertical.value();
+	}
+
+	if (auto layout{ text.TryGet<TextLayout>() };
+		layout && !layout->dirty && layout->built_alignment == box.style.alignment) {
 		return;
 	}
 
-	entity.Add<TextLayout>(
-		impl::BuildTextLayout(asset_manager, styled_text, box, effective_alignment)
-	);
+	text.Add<TextLayout>(impl::BuildTextLayout(asset_manager, styled_text, box));
 }
 
 } // namespace
@@ -86,10 +91,9 @@ ResolvedStyledText ResolveStyledText(AssetManager& asset_manager, const StyledTe
 }
 
 TextLayout BuildTextLayout(
-	AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box,
-	Alignment alignment
+	AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
 ) {
-	return BuildTextLayout(ResolveStyledText(asset_manager, styled_text), box, alignment);
+	return BuildTextLayout(ResolveStyledText(asset_manager, styled_text), box);
 }
 
 } // namespace impl
@@ -648,8 +652,7 @@ Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origi
 
 	text.Add<impl::TextEditState>();
 	text.Add<StyledText>();
-	text.Add<TextBox>(TextBox{
-		.style = { .alignment = GetAlignment(impl::kDefaultTextAlignmentOrigin) } });
+	text.Add<TextBox>();
 	text.Add<TextLayout>();
 
 	PTGN_DEFAULT_NAME(text, "Text");

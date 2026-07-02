@@ -1003,7 +1003,12 @@ bool IsJustificationSpace(const Glyph& glyph) {
 	return glyph.codepoint == U' ' || glyph.codepoint == U'\t';
 }
 
-void ApplyHorizontalAlignment(const TextBox& box, TextLayout& layout, HorizontalAlign alignment) {
+void ApplyHorizontalAlignment(const TextBox& box, TextLayout& layout) {
+	PTGN_ASSERT(
+		box.style.alignment.horizontal.has_value(),
+		"Text box must have a valid horizontal alignment set"
+	);
+
 	for (auto& line : layout.lines) {
 		float x_offset{ 0.0f };
 		float justify_extra_per_space{ 0.0f };
@@ -1011,7 +1016,7 @@ void ApplyHorizontalAlignment(const TextBox& box, TextLayout& layout, Horizontal
 		if (box.HasWidth()) {
 			float box_width{ box.rect.GetSize().x };
 
-			switch (alignment) {
+			switch (box.style.alignment.horizontal.value()) {
 				using enum HorizontalAlign;
 
 				case Left:	  x_offset = box.rect.min.x; break;
@@ -1034,7 +1039,7 @@ void ApplyHorizontalAlignment(const TextBox& box, TextLayout& layout, Horizontal
 				}
 			}
 		} else {
-			switch (alignment) {
+			switch (box.style.alignment.horizontal.value()) {
 				using enum HorizontalAlign;
 				case Left:	  [[fallthrough]];
 				case Justify: x_offset = 0.0f; break;
@@ -1056,20 +1061,25 @@ void ApplyHorizontalAlignment(const TextBox& box, TextLayout& layout, Horizontal
 	}
 }
 
-void ApplyVerticalAlignment(const TextBox& box, TextLayout& layout, VerticalAlign alignment) {
+void ApplyVerticalAlignment(const TextBox& box, TextLayout& layout) {
+	PTGN_ASSERT(
+		box.style.alignment.vertical.has_value(),
+		"Text box must have a valid horizontal alignment set"
+	);
+
 	float y_offset{ 0.0f };
 
 	if (box.HasHeight()) {
 		float box_height{ box.rect.GetSize().y };
 
-		switch (alignment) {
+		switch (box.style.alignment.vertical.value()) {
 			using enum VerticalAlign;
 			case Top:	 y_offset = box.rect.min.y; break;
 			case Center: y_offset = box.rect.min.y + (box_height - layout.size.y) * 0.5f; break;
 			case Bottom: y_offset = box.rect.max.y - layout.size.y; break;
 		}
 	} else {
-		switch (alignment) {
+		switch (box.style.alignment.vertical.value()) {
 			using enum VerticalAlign;
 			case Top:	 y_offset = 0.0f; break;
 			case Center: y_offset = -layout.size.y * 0.5f; break;
@@ -1343,12 +1353,17 @@ void EmitDecorationQuad(
 
 namespace impl {
 
-TextLayout BuildTextLayout(
-	const ResolvedStyledText& styled_text, const TextBox& box, Alignment alignment
-) {
+TextLayout BuildTextLayout(const ResolvedStyledText& styled_text, const TextBox& box) {
 	PTGN_ASSERT(box.style.tab_width > 0, "Text tab width must be at least one space");
-	PTGN_ASSERT(alignment.horizontal.has_value());
-	PTGN_ASSERT(alignment.vertical.has_value());
+
+	PTGN_ASSERT(
+		box.style.alignment.horizontal.has_value(),
+		"Text box must have a valid horizontal alignment set"
+	);
+	PTGN_ASSERT(
+		box.style.alignment.vertical.has_value(),
+		"Text box must have a valid horizontal alignment set"
+	);
 
 	auto characters{ BuildSourceCharacters(styled_text, box.style.collapse_spaces) };
 	auto tokens{ Tokenize(characters) };
@@ -1361,22 +1376,20 @@ TextLayout BuildTextLayout(
 	auto layout{ BuildLinesAtScale(styled_text, box, characters, tokens, scale) };
 
 	ApplyOverflow(layout, styled_text, box, scale);
-	ApplyHorizontalAlignment(box, layout, alignment.horizontal.value());
-	ApplyVerticalAlignment(box, layout, alignment.vertical.value());
+	ApplyHorizontalAlignment(box, layout);
+	ApplyVerticalAlignment(box, layout);
 	BuildDecorations(styled_text, scale, layout);
 	AssignVisibleOrder(layout);
 	RecalculateLayoutSize(layout);
 
-	layout.built_alignment = alignment;
+	layout.built_alignment = box.style.alignment;
 	layout.dirty		   = false;
 
 	return layout;
 }
 
-TextMeasurement MeasureText(
-	const ResolvedStyledText& styled_text, const TextBox& box, Alignment alignment
-) {
-	auto layout{ BuildTextLayout(styled_text, box, alignment) };
+TextMeasurement MeasureText(const ResolvedStyledText& styled_text, const TextBox& box) {
+	auto layout{ BuildTextLayout(styled_text, box) };
 	return {
 		.size			   = layout.size,
 		.line_count		   = layout.lines.size(),

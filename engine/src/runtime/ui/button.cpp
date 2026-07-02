@@ -23,10 +23,8 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
-#include "core/math/geometry/shape.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/concepts.h"
 #include "core/util/entity_handle.h"
 #include "core/util/span.h"
 #include "renderer/text/text_layout.h"
@@ -302,23 +300,20 @@ std::vector<Entity> FindButtonParts(Button button, std::optional<ButtonPart> par
 		   std::ranges::to<std::vector>();
 }
 
-V2_float GetButtonLocalSize(Button button) {
-	return std::visit(
-		[]<typename T>(const T& value) {
-			if constexpr (std::same_as<T, V2_float>) {
-				return value;
-			} else if constexpr (std::same_as<T, float>) {
-				return V2_float{ value * 2.0f };
-			} else {
-				static_assert(false, "Non-exhaustive visitor!");
-			}
-		},
-		button.GetSize()
-	);
-}
-
 Rect GetButtonLocalRect(Button button) {
-	return { GetButtonLocalSize(button), GetDrawOrigin(button) };
+	return { std::visit(
+				 []<typename T>(const T& value) {
+					 if constexpr (std::same_as<T, V2_float>) {
+						 return value;
+					 } else if constexpr (std::same_as<T, float>) {
+						 return V2_float{ value * 2.0f };
+					 } else {
+						 static_assert(false, "Non-exhaustive visitor!");
+					 }
+				 },
+				 button.GetSize()
+			 ),
+			 GetDrawOrigin(button) };
 }
 
 Rect GetButtonTextContentRect(Button button, Padding padding) {
@@ -328,44 +323,6 @@ Rect GetButtonTextContentRect(Button button, Padding padding) {
 	rect.max -= padding.GetRightBottom();
 
 	return rect;
-}
-
-V2_float GetButtonTextOriginPosition(
-	Rect content_rect, const Transform& relative_transform, Origin anchor
-) {
-	return content_rect.GetOriginPoint(anchor) + relative_transform.position;
-}
-
-float GetAutoBoxWidth(Rect content_rect, float origin_x, HorizontalAlign origin_alignment) {
-	switch (origin_alignment) {
-		using enum HorizontalAlign;
-
-		case Left: return content_rect.max.x - origin_x;
-
-		case Center:
-			return 2.0f * std::min(origin_x - content_rect.min.x, content_rect.max.x - origin_x);
-
-		case Right:	  return origin_x - content_rect.min.x;
-
-		case Justify: PTGN_ERROR("A text Origin cannot resolve to justified alignment");
-
-		default:	  PTGN_ERROR("Unknown HorizontalAlign: ", std::to_underlying(origin_alignment));
-	}
-}
-
-float GetAutoBoxHeight(Rect content_rect, float origin_y, VerticalAlign origin_alignment) {
-	switch (origin_alignment) {
-		using enum VerticalAlign;
-
-		case Top: return content_rect.max.y - origin_y;
-
-		case Center:
-			return 2.0f * std::min(origin_y - content_rect.min.y, content_rect.max.y - origin_y);
-
-		case Bottom: return origin_y - content_rect.min.y;
-
-		default:	 PTGN_ERROR("Unknown VerticalAlign: ", std::to_underlying(origin_alignment));
-	}
 }
 
 Rect GetButtonTextAutoBox(Rect content_rect, V2_float text_origin_position, Origin text_origin) {
@@ -381,10 +338,49 @@ Rect GetButtonTextAutoBox(Rect content_rect, V2_float text_origin_position, Orig
 	PTGN_ASSERT(origin_alignment.horizontal.has_value());
 	PTGN_ASSERT(origin_alignment.vertical.has_value());
 
-	V2_float size{
-		GetAutoBoxWidth(content_rect, text_origin_position.x, origin_alignment.horizontal.value()),
-		GetAutoBoxHeight(content_rect, text_origin_position.y, origin_alignment.vertical.value()),
-	};
+	V2_float size;
+
+	switch (origin_alignment.horizontal.value()) {
+		using enum HorizontalAlign;
+
+		case Left: size.x = content_rect.max.x - text_origin_position.x; break;
+
+		case Center:
+			size.x = 2.0f * std::min(
+								text_origin_position.x - content_rect.min.x,
+								content_rect.max.x - text_origin_position.x
+							);
+			break;
+
+		case Right:	  size.x = text_origin_position.x - content_rect.min.x; break;
+
+		case Justify: PTGN_ERROR("A text Origin cannot resolve to justified alignment");
+
+		default:
+			PTGN_ERROR(
+				"Unknown HorizontalAlign: ", std::to_underlying(origin_alignment.horizontal.value())
+			);
+	}
+
+	switch (origin_alignment.vertical.value()) {
+		using enum VerticalAlign;
+
+		case Top: size.y = content_rect.max.y - text_origin_position.y; break;
+
+		case Center:
+			size.y = 2.0f * std::min(
+								text_origin_position.y - content_rect.min.y,
+								content_rect.max.y - text_origin_position.y
+							);
+			break;
+
+		case Bottom: size.y = text_origin_position.y - content_rect.min.y; break;
+
+		default:
+			PTGN_ERROR(
+				"Unknown VerticalAlign: ", std::to_underlying(origin_alignment.vertical.value())
+			);
+	}
 
 	if (!size.IsPositive()) {
 		return {};
@@ -411,9 +407,15 @@ Entity EnsureButtonPart(Button button, ButtonPart part) {
 	switch (part) {
 		case ButtonPart::Background: [[fallthrough]];
 		case ButtonPart::Border:	 entity = button.GetScene().CreateEntity(); break;
-		case ButtonPart::Sprite:	 entity = CreateSprite(button.GetScene(), {}, ""); break;
-		case ButtonPart::Text:		 entity = CreateText(button.GetScene()).ClearAlignment(); break;
-		default:					 PTGN_ERROR("Unknown ButtonPart: ", std::to_underlying(part));
+		case ButtonPart::Sprite:	 entity = CreateSprite(button.GetScene()); break;
+		case ButtonPart::Text:		 {
+			Text text{ CreateText(button.GetScene()) };
+			text.ClearAlignment();
+			text.Remove<Origin>();
+			entity = text;
+			break;
+		}
+		default: PTGN_ERROR("Unknown ButtonPart: ", std::to_underlying(part));
 	}
 
 	PTGN_DEFAULT_NAME(entity, "Button " + std::string{ magic_enum::enum_name(part) });
@@ -433,20 +435,14 @@ Entity EnsureButtonPart(Button button, ButtonPart part) {
 }
 
 template <typename TVisual>
-bool HasAnyDefinedState(const std::array<TVisual, impl::kButtonVisualStateCount>& states) {
-	return std::ranges::any_of(states, [](const TVisual& visual) { return visual.defined; });
-}
-
-template <typename TVisual>
 bool HasResolvedState(
 	const std::array<TVisual, impl::kButtonVisualStateCount>& states, ButtonVisualState state
 ) {
-	for (auto fallback : GetVisualStateFallbacks(state)) {
-		if (states[std::to_underlying(fallback)].defined) {
-			return true;
+	return std::ranges::any_of(
+		GetVisualStateFallbacks(state), [&states](ButtonVisualState fallback) {
+			return states[std::to_underlying(fallback)].defined;
 		}
-	}
-	return false;
+	);
 }
 
 template <typename TVisual, typename T>
@@ -596,21 +592,13 @@ struct ResolvedTextVisual {
 	Padding padding;
 };
 
-Transform GetButtonTextTransform(Rect content_rect, const ResolvedTextVisual& resolved) {
-	auto transform{ resolved.transform };
-
-	transform.position =
-		GetButtonTextOriginPosition(content_rect, resolved.transform, resolved.anchor);
-
-	return transform;
-}
-
 ResolvedTextVisual ResolveTextVisual(
 	Button button, const impl::ButtonTextVisuals& visuals, ButtonVisualState state
 ) {
 	ResolvedTextVisual result{
 		.visible = HasResolvedState(visuals.states, state),
-
+		.box	 = { .style = { .alignment = { .horizontal = std::nullopt,
+											   .vertical   = std::nullopt } } },
 		// Anchor always defaults to center, independent of button origin.
 		.anchor = Origin::Center,
 	};
@@ -633,6 +621,14 @@ ResolvedTextVisual ResolveTextVisual(
 
 	if (auto value{ ResolveProperty(visuals.states, state, &impl::ButtonTextVisual::box) }) {
 		result.box = *value;
+	}
+
+	if (!result.box.style.alignment.horizontal.has_value()) {
+		result.box.style.alignment.horizontal = GetAlignment(result.origin).horizontal;
+	}
+
+	if (!result.box.style.alignment.vertical.has_value()) {
+		result.box.style.alignment.vertical = GetAlignment(result.origin).vertical;
 	}
 
 	if (auto value{ ResolveProperty(visuals.states, state, &impl::ButtonTextVisual::transform) }) {
@@ -1088,26 +1084,30 @@ Button& Button::RemovePart(ButtonPart part, ButtonVisualState state) {
 
 	bool any_defined{ false };
 
+	auto has_any_defined = [](const auto& states) {
+		return std::ranges::any_of(states, [](const auto& visual) { return visual.defined; });
+	};
+
 	switch (part) {
 		case ButtonPart::Background:
 		case ButtonPart::Border:	 {
 			auto& visuals{ entity->Get<impl::ButtonShapeVisuals>() };
 			visuals.states[std::to_underlying(state)] = {};
-			any_defined								  = HasAnyDefinedState(visuals.states);
+			any_defined								  = has_any_defined(visuals.states);
 			break;
 		}
 		case ButtonPart::Sprite: {
 			auto& visuals{ entity->Get<impl::ButtonSpriteVisuals>() };
 			visuals.states[std::to_underlying(state)] = {};
 			visuals.applied_animation_state.reset();
-			any_defined = HasAnyDefinedState(visuals.states);
+			any_defined = has_any_defined(visuals.states);
 			break;
 		}
 		case ButtonPart::Text: {
 			auto& visuals{ entity->Get<impl::ButtonTextVisuals>() };
 			visuals.states[std::to_underlying(state)] = {};
 			visuals.editing.reset();
-			any_defined = HasAnyDefinedState(visuals.states);
+			any_defined = has_any_defined(visuals.states);
 			break;
 		}
 		default: PTGN_ERROR("Unknown ButtonPart: ", std::to_underlying(part));
@@ -1721,7 +1721,7 @@ void Button::CommitTextEdit() {
 		return;
 	}
 
-	auto snapshot{ visuals.editing.value() };
+	impl::ButtonTextEditSnapshot snapshot{ visuals.editing.value() };
 
 	ptgn::Text text{ entity.value() };
 
@@ -1945,7 +1945,12 @@ void Button::ApplyTextVisual() {
 	text.Box(resolved.box);
 
 	SetDrawOrigin(text, resolved.origin);
-	SetTransform(text, GetButtonTextTransform(content_rect, resolved));
+
+	auto transform{ resolved.transform };
+
+	transform.position = content_rect.GetOriginPoint(resolved.anchor) + resolved.transform.position;
+
+	SetTransform(text, transform);
 }
 
 void Button::SetState(impl::InternalButtonState state) {
@@ -2020,9 +2025,8 @@ void Button::UpdateChildLayouts() const {
 		return;
 	}
 
-	auto text_origin_position{
-		GetButtonTextOriginPosition(content_rect, resolved.transform, resolved.anchor)
-	};
+	auto text_origin_position{ content_rect.GetOriginPoint(resolved.anchor) +
+							   resolved.transform.position };
 
 	auto text_box{ GetButtonTextAutoBox(content_rect, text_origin_position, resolved.origin) };
 

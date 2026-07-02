@@ -368,11 +368,12 @@ public:
 	);
 	ptgn::Text Text(StyledText styled_text, ButtonVisualState state = ButtonVisualState::Base);
 
-	/// @brief Sets which point of the text box lies at the text transform.
+	/// @brief Sets which point of the text box lies at the text transform. If unset defaults to the
+	/// text anchor, which defaults to the button center.
 	Button& TextOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Base);
 
 	/// @brief Sets which point of the button shape the text transform is anchored
-	/// to.
+	/// to. If unset defaults to the button center.
 	Button& TextAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Base);
 
 	Button& ClearTextOrigin(ButtonVisualState state = ButtonVisualState::Base);

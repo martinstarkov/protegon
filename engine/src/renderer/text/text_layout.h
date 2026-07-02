@@ -42,8 +42,8 @@ enum class VerticalAlign : std::uint8_t {
 PTGN_SERIALIZE_ENUM(VerticalAlign)
 
 struct Alignment {
-	std::optional<HorizontalAlign> horizontal;
-	std::optional<VerticalAlign> vertical;
+	std::optional<HorizontalAlign> horizontal{ HorizontalAlign::Left };
+	std::optional<VerticalAlign> vertical{ VerticalAlign::Top };
 
 	constexpr bool operator==(const Alignment&) const = default;
 
@@ -182,18 +182,6 @@ struct TextBox {
 
 	PTGN_SERIALIZE(TextBox, rect, style)
 };
-
-[[nodiscard]] constexpr Alignment ResolveTextAlignment(const TextBox& box, Origin origin) {
-	auto fallback{ GetAlignment(origin) };
-
-	PTGN_ASSERT(fallback.horizontal.has_value());
-	PTGN_ASSERT(fallback.vertical.has_value());
-
-	return {
-		.horizontal = box.style.alignment.horizontal.value_or(fallback.horizontal.value()),
-		.vertical	= box.style.alignment.vertical.value_or(fallback.vertical.value()),
-	};
-}
 
 struct TextBatchStyle {
 	impl::TextureId texture{ 0 };
@@ -374,12 +362,10 @@ struct PreparedTextDraw {
 	}
 };
 
-[[nodiscard]] TextLayout BuildTextLayout(
-	const ResolvedStyledText& styled_text, const TextBox& box, Alignment alignment
-);
+[[nodiscard]] TextLayout BuildTextLayout(const ResolvedStyledText& styled_text, const TextBox& box);
 
 [[nodiscard]] TextMeasurement MeasureText(
-	const ResolvedStyledText& styled_text, const TextBox& box, Alignment alignment
+	const ResolvedStyledText& styled_text, const TextBox& box
 );
 
 std::vector<UniformWrite> GetTextUniforms(const DistanceFieldStyle& sdf, bool is_decoration);

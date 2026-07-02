@@ -23,8 +23,6 @@ class AssetManager;
 
 namespace impl {
 
-inline constexpr Origin kDefaultTextAlignmentOrigin{ Origin::TopLeft };
-
 struct TextEditState {
 	std::size_t current_run_index{ 0 };
 };
@@ -36,8 +34,7 @@ struct TextEditState {
 );
 
 [[nodiscard]] TextLayout BuildTextLayout(
-	AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box,
-	Alignment alignment
+	AssetManager& asset_manager, const StyledText& styled_text, const TextBox& box
 );
 
 } // namespace impl

@@ -7,11 +7,7 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/shape.h"
 #include "runtime/graphics/text/text.h"
-#include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
@@ -20,32 +16,32 @@
 
 using namespace ptgn;
 
-class ButtonTextOriginScene : public Scene {
+class ButtonTextAnchorScene : public Scene {
 public:
 	static constexpr V2_float button_size{ 220, 90 };
 	static constexpr V2_float button_spacing{ 270, 150 };
 	static constexpr Padding text_padding{ 12, 10 };
 
-	struct OriginTest {
+	struct AnchorTest {
 		Origin button;
-		Origin text;
+		Origin text_anchor;
 	};
 
-	static constexpr std::array<OriginTest, 9> origin_tests{
-		OriginTest{ Origin::TopLeft, Origin::CenterTop },
-		OriginTest{ Origin::CenterTop, Origin::TopRight },
-		OriginTest{ Origin::TopRight, Origin::CenterLeft },
+	static constexpr std::array<AnchorTest, 9> anchor_tests{
+		AnchorTest{ Origin::TopLeft, Origin::CenterTop },
+		AnchorTest{ Origin::CenterTop, Origin::TopRight },
+		AnchorTest{ Origin::TopRight, Origin::CenterLeft },
 
-		OriginTest{ Origin::CenterLeft, Origin::Center },
-		OriginTest{ Origin::Center, Origin::CenterRight },
-		OriginTest{ Origin::CenterRight, Origin::BottomLeft },
+		AnchorTest{ Origin::CenterLeft, Origin::Center },
+		AnchorTest{ Origin::Center, Origin::CenterRight },
+		AnchorTest{ Origin::CenterRight, Origin::BottomLeft },
 
-		OriginTest{ Origin::BottomLeft, Origin::CenterBottom },
-		OriginTest{ Origin::CenterBottom, Origin::BottomRight },
-		OriginTest{ Origin::BottomRight, Origin::TopLeft },
+		AnchorTest{ Origin::BottomLeft, Origin::CenterBottom },
+		AnchorTest{ Origin::CenterBottom, Origin::BottomRight },
+		AnchorTest{ Origin::BottomRight, Origin::TopLeft },
 	};
 
-	void CreateOriginButton(V2_float center, Origin button_origin, Origin text_origin) {
+	void CreateAnchorButton(V2_float center, Origin button_origin, Origin text_anchor) {
 		// Button bounds relative to the button entity's selected origin.
 		Rect button_rect{ {}, button_size, button_origin };
 
@@ -57,10 +53,11 @@ public:
 
 		button.Background();
 
-		button.TextAnchor(text_origin);
+		button.TextAnchor(text_anchor);
+		// button.TextOrigin(text_anchor);
 		button.TextPadding(text_padding);
 
-		button.Text().Content(magic_enum::enum_name(text_origin)).Color(color::Black).Size(18);
+		button.Text().Content(magic_enum::enum_name(text_anchor)).Color(color::Black).Size(18);
 	}
 
 	void OnEnter() override {
@@ -68,7 +65,7 @@ public:
 
 		ctx().debug.interaction.draw_enabled = true;
 
-		for (std::size_t i{ 0 }; i < origin_tests.size(); ++i) {
+		for (std::size_t i{ 0 }; i < anchor_tests.size(); ++i) {
 			int column{ static_cast<int>(i % 3) };
 			int row{ static_cast<int>(i / 3) };
 
@@ -77,15 +74,15 @@ public:
 				(static_cast<float>(row) - 1.0f) * button_spacing.y,
 			};
 
-			const auto& test{ origin_tests[i] };
+			const auto& test{ anchor_tests[i] };
 
-			CreateOriginButton(center, test.button, test.text);
+			CreateAnchorButton(center, test.button, test.text_anchor);
 		}
 	}
 };
 
 int main(int, char**) {
-	Application app{ "ButtonTextOriginScene" };
+	Application app{ "ButtonTextAnchorScene" };
 	PTGN_WITH_EDITOR(app, false);
-	app.StartWith<ButtonTextOriginScene>();
+	app.StartWith<ButtonTextAnchorScene>();
 }

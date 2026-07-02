@@ -111,7 +111,7 @@ public:
 	);
 
 	void DrawText(
-		Transform transform, const StyledText& styled_text, const TextBox& text_box = {},
+		Transform transform, StyledText styled_text, TextBox text_box = {},
 		TextRenderParams params = {}
 	);
 

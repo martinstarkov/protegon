@@ -176,22 +176,13 @@ void RenderQueue::DrawText(
 }
 
 void RenderQueue::DrawText(
-	Transform transform, const StyledText& styled_text, const TextBox& text_box,
-	TextRenderParams params
+	Transform transform, StyledText styled_text, TextBox text_box, TextRenderParams params
 ) {
 	PTGN_ASSERT(scene_);
 
 	auto& ctx{ scene_->ctx() };
 
-	Alignment effective_alignment{ text_box.style.alignment };
-	if (!effective_alignment.horizontal.has_value()) {
-		effective_alignment.horizontal = GetAlignment(impl::kDefaultTextAlignmentOrigin).horizontal;
-	}
-	if (!effective_alignment.vertical.has_value()) {
-		effective_alignment.vertical = GetAlignment(impl::kDefaultTextAlignmentOrigin).vertical;
-	}
-
-	auto layout{ impl::BuildTextLayout(ctx.asset, styled_text, text_box, effective_alignment) };
+	auto layout{ impl::BuildTextLayout(ctx.asset, styled_text, text_box) };
 
 	auto prepared{ impl::PrepareTextDraw(transform, layout, text_box, params.origin) };
 
