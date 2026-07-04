@@ -1572,7 +1572,7 @@ Button& Button::Animation(
 	return Animation(std::move(config), origin, state, options);
 }
 
-Button& Button::Animation(
+Button& Button::Animations(
 	std::optional<AnimationConfig> idle_animation, std::optional<AnimationConfig> hover_animation,
 	std::optional<AnimationConfig> press_animation
 ) {
@@ -1832,11 +1832,13 @@ void Button::ApplySpriteVisual(ButtonVisualState state, bool transient) {
 		if (sprite.Has<impl::AnimationData>()) {
 			ptgn::Animation{ sprite }.Stop();
 		}
+		entity->Remove<impl::TextureCrop>();
 		entity->Remove<impl::ButtonAnimationPart>();
 		visuals.applied_animation_state.reset();
 		visuals.transient_animation = false;
 		return;
 	}
+
 	bool has_animation{ resolved.animation && resolved.animation_state.has_value() };
 
 	if (!has_animation && sprite.Has<impl::AnimationData>()) {
@@ -1856,11 +1858,14 @@ void Button::ApplySpriteVisual(ButtonVisualState state, bool transient) {
 
 	if (resolved.size.has_value()) {
 		SetDisplaySize(sprite, resolved.size.value());
-	} else if (!resolved.texture.empty()) {
-		SetDisplaySize(sprite, GetScene().ctx().asset.GetTextureSize(resolved.texture));
+	} else {
+		SetDisplaySize(sprite, std::nullopt);
 	}
 
 	if (has_animation) {
+		PTGN_ASSERT(
+			!resolved.size.has_value(), "Animations cannot have a custom fixed texture size"
+		);
 		if (visuals.applied_animation_state != resolved.animation_state) {
 			ptgn::Animation{ sprite }.SetConfig(*resolved.animation);
 			visuals.applied_animation_state = resolved.animation_state;
@@ -1874,6 +1879,7 @@ void Button::ApplySpriteVisual(ButtonVisualState state, bool transient) {
 			animation.SetCurrentFrame(resolved.animation_options.static_frame);
 		}
 	} else {
+		entity->Remove<impl::TextureCrop>();
 		entity->Remove<impl::ButtonAnimationPart>();
 		visuals.applied_animation_state.reset();
 	}

@@ -69,6 +69,8 @@ struct Animation : public Entity {
 	explicit Animation(Entity entity);
 
 	/// @brief Sets the animation configuration. Animation will be reset.
+	/// If animation has a different texture key, the texture key must be set before calling this
+	/// function.
 	Animation& SetConfig(AnimationConfig config);
 
 	/// @brief Triggered when an animation is started.

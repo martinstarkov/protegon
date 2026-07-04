@@ -1,30 +1,22 @@
 #include <chrono>
 #include <optional>
-#include <utility>
 
 #include "app/application.h"
 #include "core/editor.h"
 #include "core/log.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/sprite.h"
-#include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/ui/button.h"
-#include "runtime/ui/button_config.h"
 
 using namespace ptgn;
 
 class AnimatedButtonScene : public Scene {
 public:
-	Button b1;
-	Button b2;
-
 	void OnEnter() override {
 		ctx().debug.interaction.draw_enabled = true;
 
@@ -40,73 +32,59 @@ public:
 			  { "press2", "assets/press.ogg" } }
 		);
 
-		auto hover_animation{ CreateAnimation(
-			*this, {}, "animation_hover",
-			AnimationConfig{
-				.frame_count = 3,
-				.duration	 = 400ms,
-				.frame_size	 = { 253, 167 },
-				.play_count	 = std::nullopt,
-			}
-		) };
+		{
+			V2_int frame_size{ 253, 167 };
 
-		auto press_animation{ CreateAnimation(
-			*this, {}, "animation_press",
-			AnimationConfig{
-				.frame_count = 3,
-				.duration	 = 200ms,
-				.frame_size	 = { 253, 167 },
-				.play_count	 = 1,
-			}
-		) };
+			auto button{ CreateButton(*this, {}, frame_size, Origin::TopLeft) };
 
-		V2_float b1_size{ GetDisplaySize(press_animation).value() };
+			button.Sprites("idle", "animation_hover", "animation_press")
+				.Sounds("press", "hover")
+				.OnPress([]() { PTGN_LOG("Pressed bell!"); })
+				.Animations(
+					std::nullopt,
+					AnimationConfig{
+						.frame_count = 3,
+						.duration	 = 400ms,
+						.frame_size	 = frame_size,
+						.play_count	 = std::nullopt,
+					},
+					AnimationConfig{
+						.frame_count = 3,
+						.duration	 = 200ms,
+						.frame_size	 = frame_size,
+						.play_count	 = 1,
+					}
+				);
 
-		b1 = CreateButton(*this, {}, b1_size, Origin::TopLeft);
+			SetScale(button, 1);
+		}
 
-		b1.Sprite("idle", {}, ButtonVisualState::Idle);
+		{
+			V2_int frame_size{ 32, 16 };
 
-		b1.Animation(hover_animation, ButtonVisualState::Hover)
-			.Animation(press_animation, ButtonVisualState::Press)
-			.Sounds("press", "hover");
+			auto button{ CreateButton(*this, { 0, 200 }, frame_size, Origin::TopLeft) };
 
-		SetScale(b1, 1);
+			button.Sprites("idle2", "animation_hover2", "animation_press2")
+				.Sounds("press2", "hover")
+				.OnPress([]() { PTGN_LOG("Pressed button!"); })
+				.Animations(
+					std::nullopt,
+					AnimationConfig{
+						.frame_count = 4,
+						.duration	 = 400ms,
+						.frame_size	 = frame_size,
+						.play_count	 = std::nullopt,
+					},
+					AnimationConfig{
+						.frame_count = 4,
+						.duration	 = 200ms,
+						.frame_size	 = frame_size,
+						.play_count	 = 1,
+					}
+				);
 
-		b1.OnPress([]() { PTGN_LOG("Pressed bell!"); });
-
-		auto hover_animation2{ CreateAnimation(
-			*this, {}, "animation_hover2",
-			AnimationConfig{
-				.frame_count = 4,
-				.duration	 = 400ms,
-				.frame_size	 = { 32, 16 },
-				.play_count	 = std::nullopt,
-			}
-		) };
-
-		auto press_animation2{ CreateAnimation(
-			*this, {}, "animation_press2",
-			AnimationConfig{
-				.frame_count = 4,
-				.duration	 = 200ms,
-				.frame_size	 = { 32, 16 },
-				.play_count	 = 1,
-			}
-		) };
-
-		V2_float b2_size{ GetDisplaySize(press_animation2).value() };
-
-		b2 = CreateButton(*this, { 0, 200 }, b2_size, Origin::TopLeft);
-
-		b2.Sprite("idle2", {}, ButtonVisualState::Idle);
-
-		b2.Animation(hover_animation2, ButtonVisualState::Hover)
-			.Animation(press_animation2, ButtonVisualState::Press)
-			.Sounds("press2", "hover");
-
-		SetScale(b2, 4);
-
-		b2.OnPress([]() { PTGN_LOG("Pressed button!"); });
+			SetScale(button, 4);
+		}
 	}
 };
 

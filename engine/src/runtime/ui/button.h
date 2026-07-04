@@ -416,7 +416,7 @@ public:
 		AnimationConfig config, std::optional<Origin> origin = std::nullopt,
 		ButtonVisualState state = ButtonVisualState::Base
 	);
-	Button& Animation(
+	Button& Animations(
 		std::optional<AnimationConfig> idle_animation,
 		std::optional<AnimationConfig> hover_animation = std::nullopt,
 		std::optional<AnimationConfig> press_animation = std::nullopt
