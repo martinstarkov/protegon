@@ -87,8 +87,9 @@ std::optional<V2_int> GetCroppedTextureSize(Entity entity);
 /// @return Scaled size of the cropped texture in pixels.
 std::optional<V2_float> GetDisplaySize(Entity entity);
 
-/// @brief Overrides the scale of the entity.
-void SetDisplaySize(Entity entity, V2_float display_size);
+/// @brief Overrides the scale of the entity. If nullopt, removes the override and uses the actual
+/// texture size.
+void SetDisplaySize(Entity entity, std::optional<V2_float> display_size);
 
 std::array<V2_float, 4> GetTextureCoordinates(Entity entity, bool flip_vertically);
 

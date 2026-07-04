@@ -137,8 +137,12 @@ std::optional<V2_int> GetCroppedTextureSize(Entity entity) {
 	return GetTextureSize(entity);
 }
 
-void SetDisplaySize(Entity entity, V2_float display_size) {
-	entity.Add<impl::TextureSize>(display_size);
+void SetDisplaySize(Entity entity, std::optional<V2_float> display_size) {
+	if (display_size.has_value()) {
+		entity.Add<impl::TextureSize>(display_size.value());
+	} else {
+		entity.Remove<impl::TextureSize>();
+	}
 }
 
 std::optional<V2_float> GetDisplaySize(Entity entity) {
