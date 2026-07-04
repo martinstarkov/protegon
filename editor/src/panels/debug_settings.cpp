@@ -107,6 +107,12 @@ namespace ptgn::editor {
 void DebugSettingsPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Debug Settings");
 
+	ImGui::Checkbox("ImGui Metrics", &show_imgui_metrics_);
+
+	if (show_imgui_metrics_) {
+		ImGui::ShowMetricsWindow(&show_imgui_metrics_);
+	}
+
 	settings::EditSection(
 		"Interaction", [&]() { return ctx.editor.GetDebug().interaction; },
 		[&](const InteractiveDebugSettings& value) { ctx.editor.GetDebug().interaction = value; }
