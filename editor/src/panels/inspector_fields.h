@@ -26,6 +26,7 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "core/util/type_info.h"
+#include "panels/content_browser.h"
 #include "renderer/text/font_style.h"
 
 namespace ptgn::editor::inspector {
@@ -1080,43 +1081,43 @@ bool DrawOptional(std::string_view label, std::optional<T>& value, FieldOptions 
 		return DrawOptionalEnum(label, value);
 	} else if constexpr (std::same_as<T, bool>) {
 		return DrawOptionalBool(label, value);
-	}
+	} else {
+		ImGui::PushID(&value);
 
-	ImGui::PushID(&value);
+		bool enabled{ value.has_value() };
 
-	bool enabled{ value.has_value() };
+		bool changed{ DrawPropertyRow(label, [&]() {
+			return ImGui::Checkbox("##enabled", &enabled);
+		}) };
 
-	bool changed{ DrawPropertyRow(label, [&]() {
-		return ImGui::Checkbox("##enabled", &enabled);
-	}) };
+		if (enabled != value.has_value()) {
+			if (enabled) {
+				value.emplace();
+			} else {
+				value.reset();
+			}
 
-	if (enabled != value.has_value()) {
-		if (enabled) {
-			value.emplace();
-		} else {
-			value.reset();
+			changed = true;
 		}
 
-		changed = true;
-	}
+		if (value.has_value()) {
+			ImGui::Indent();
 
-	if (value.has_value()) {
-		ImGui::Indent();
+			using Value = std::remove_cvref_t<T>;
 
-		using Value = std::remove_cvref_t<T>;
+			if constexpr (ReflectedValue<Value> || ReflectedMembers<Value>) {
+				changed |= DrawContents(value.value());
+			} else {
+				changed |= DrawValue("Value", value.value(), options);
+			}
 
-		if constexpr (ReflectedValue<Value> || ReflectedMembers<Value>) {
-			changed |= DrawContents(value.value());
-		} else {
-			changed |= DrawValue("Value", value.value(), options);
+			ImGui::Unindent();
 		}
 
-		ImGui::Unindent();
+		ImGui::PopID();
+
+		return changed;
 	}
-
-	ImGui::PopID();
-
-	return changed;
 }
 
 template <typename T>
@@ -1137,13 +1138,23 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 		return DrawDuration(label, value, options);
 	} else if constexpr (std::same_as<Value, std::string>) {
 		return DrawPropertyRow(label, [&]() {
+			bool changed{ false };
+
 			if (options.multiline) {
-				return ImGui::InputTextMultiline(
+				changed |= ImGui::InputTextMultiline(
 					"##value", &value,
 					ImVec2{ -FLT_MIN, ImGui::GetTextLineHeightWithSpacing() * 4.0f }
 				);
+			} else {
+				changed |= ImGui::InputText("##value", &value);
 			}
-			return ImGui::InputText("##value", &value);
+
+			// TODO: Use stricter type checking for asset keys, e.g. by using a template parameter
+			// or a type trait.
+
+			changed |= ptgn::editor::AcceptAssetKeyDragDrop(value);
+
+			return changed;
 		});
 	} else if constexpr (std::same_as<Value, Color>) {
 		return DrawColor(label, value);

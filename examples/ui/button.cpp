@@ -28,7 +28,11 @@ public:
 	void OnEnter() override {
 		ctx().debug.interaction.draw_enabled = true;
 
-		ctx().asset.Load({ { "hover", "assets/hover.ogg" }, { "press", "assets/press.ogg" } });
+		ctx().asset.Load(
+			{ { "hover", "assets/hover.ogg" },
+			  { "press", "assets/press.ogg" },
+			  { "retro_gaming", "assets/retro_gaming.png" } }
+		);
 
 		button = CreateButton(*this, {}, { 200, 100 }, Origin::Center)
 					 .OnPress([]() { PTGN_LOG("Pressed regular button!"); })
@@ -69,6 +73,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "ButtonScene: Q/E to disable/enable button" };
-	PTGN_WITH_EDITOR(app, false);
+	PTGN_WITH_EDITOR(app, true);
 	app.StartWith<ButtonScene>();
 }

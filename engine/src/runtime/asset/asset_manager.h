@@ -168,6 +168,12 @@ AssetKind GetAssetKind(const path& path);
 
 void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<path>& path);
 
+struct AssetRecord {
+	std::string key;
+	path source_path;
+	AssetKind kind{ AssetKind::Unknown };
+};
+
 class AssetAccessor {
 public:
 	explicit AssetAccessor(AssetManager& assets);
@@ -185,6 +191,9 @@ public:
 
 	template <AssetType T>
 	[[nodiscard]] bool Has(std::string_view key) const;
+
+	[[nodiscard]] std::vector<impl::AssetRecord> GetAssets() const;
+	bool Unload(std::string_view key, impl::AssetKind kind);
 
 private:
 	AssetManager& assets;
@@ -275,6 +284,8 @@ public:
 	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 	[[nodiscard]] static json CreateJson(const path& json_path);
 
+	[[nodiscard]] bool Has(std::string_view key) const;
+
 private:
 	friend class impl::AssetAccessor;
 	friend class impl::ApplicationContext;
@@ -318,6 +329,9 @@ private:
 	);
 
 	Font CreateFont(const path& font_path);
+
+	[[nodiscard]] std::vector<impl::AssetRecord> GetAssets() const;
+	bool Unload(std::string_view key, impl::AssetKind kind);
 
 	void Load(std::string_view key, const path& asset_path, impl::AssetKind kind);
 

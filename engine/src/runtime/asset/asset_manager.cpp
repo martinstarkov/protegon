@@ -40,6 +40,36 @@
 
 namespace ptgn {
 
+namespace {
+
+impl::AssetKind GetAssetKindFromEntity(ecs::Entity asset, const path& source_path) {
+	using enum impl::AssetKind;
+
+	if (asset.Has<impl::TextureObject>()) {
+		return Texture;
+	}
+
+	if (asset.Has<impl::AudioObject>()) {
+		return Audio;
+	}
+
+	if (asset.Has<impl::FontAtlas>()) {
+		return Font;
+	}
+
+	if (asset.Has<impl::ShaderObject>()) {
+		return Shader;
+	}
+
+	if (!source_path.empty()) {
+		return impl::GetAssetKind(source_path);
+	}
+
+	return Unknown;
+}
+
+} // namespace
+
 namespace impl {
 
 void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<path>& path) {
@@ -73,6 +103,14 @@ AssetKind GetAssetKind(const path& path) {
 }
 
 AssetAccessor::AssetAccessor(AssetManager& assets) : assets{ assets } {}
+
+std::vector<impl::AssetRecord> AssetAccessor::GetAssets() const {
+	return assets.GetAssets();
+}
+
+bool AssetAccessor::Unload(std::string_view key, impl::AssetKind kind) {
+	return assets.Unload(key, kind);
+}
 
 } // namespace impl
 
@@ -514,6 +552,46 @@ V2_int AssetManager::GetFontAtlasSize(std::string_view key) const {
 
 impl::TextureId AssetManager::GetFontAtlasTexture(std::string_view key) const {
 	return Get<Font>(key).GetEntity().Get<impl::FontAtlas>().GetTexture();
+}
+
+std::vector<impl::AssetRecord> AssetManager::GetAssets() const {
+	std::vector<impl::AssetRecord> records;
+
+	for (auto [asset, key, name] : manager_.EntitiesWith<impl::AssetKey, impl::AssetName>()) {
+		path source_path;
+
+		if (auto path{ asset.TryGet<impl::AssetPath>() }) {
+			source_path = path->value;
+		}
+
+		records.emplace_back(
+			impl::AssetRecord{
+				.key		 = name.value,
+				.source_path = source_path,
+				.kind		 = GetAssetKindFromEntity(asset, source_path),
+			}
+		);
+	}
+
+	return records;
+}
+
+bool AssetManager::Has(std::string_view key) const {
+	return Has<Texture>(key) || Has<Audio>(key) || Has<Font>(key) || Has<Shader>(key) ||
+		   Has<json>(key);
+}
+
+bool AssetManager::Unload(std::string_view key, impl::AssetKind kind) {
+	switch (kind) {
+		case impl::AssetKind::Texture: return Unload<Texture>(key);
+		case impl::AssetKind::Audio:   return Unload<Audio>(key);
+		case impl::AssetKind::Font:	   return Unload<Font>(key);
+		case impl::AssetKind::Json:	   return Unload<json>(key);
+		case impl::AssetKind::Shader:  return Unload<Shader>(key);
+		case impl::AssetKind::Unknown: break;
+	}
+
+	return false;
 }
 
 template bool AssetManager::Unload<json>(std::string_view);
