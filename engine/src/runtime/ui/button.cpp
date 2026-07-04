@@ -704,13 +704,14 @@ void ButtonAnimationCompleteScript::OnEvent(Event event) {
 
 		auto& visuals{ entity.Get<ButtonSpriteVisuals>() };
 
-		if (auto visual_override{ button.TryGet<ButtonVisualOverride>() }) {
-			auto animation{ TryAnimationForVisualState(button, visual_override->state) };
+		if (auto& data{ button.Get<ButtonData>() }; data.visual_override.has_value()) {
+			auto animation{ TryAnimationForVisualState(button, data.visual_override.value()) };
 			if (!animation.has_value() || animation->entity != entity) {
 				return;
 			}
 
-			button.Remove<ButtonVisualOverride>();
+			data.visual_override.reset();
+			data.block_press = false;
 			button.MarkDirty(ButtonDirty::All);
 			button.RefreshDirty();
 			return;
@@ -882,8 +883,10 @@ ButtonVisualState Button::GetVisualState() const {
 		return DisabledStateFrom(GetState());
 	}
 
-	if (auto visual_override{ TryGet<impl::ButtonVisualOverride>() }) {
-		return visual_override->state;
+	const auto& button{ Get<impl::ButtonData>() };
+
+	if (button.visual_override.has_value()) {
+		return button.visual_override.value();
 	}
 
 	if (Has<impl::ToggleButtonData>() && ToggleButton{ *this }.IsToggled()) {
@@ -934,8 +937,9 @@ Button& Button::Press() {
 		return *this;
 	}
 
-	if (auto visual_override{ TryGet<impl::ButtonVisualOverride>() };
-		visual_override && visual_override->block_press) {
+	auto& button{ Get<impl::ButtonData>() };
+
+	if (button.block_press) {
 		return *this;
 	}
 
@@ -946,9 +950,8 @@ Button& Button::Press() {
 		const auto& options{ resolved_animation->options };
 
 		if (options.lock_visual_state) {
-			auto& visual_override{ TryAdd<impl::ButtonVisualOverride>() };
-			visual_override.state		= press_visual_state;
-			visual_override.block_press = options.block_press;
+			button.visual_override = press_visual_state;
+			button.block_press	   = options.block_press;
 
 			MarkDirty(impl::ButtonDirty::All);
 			RefreshDirty();
@@ -1028,7 +1031,9 @@ Button& Button::RemovePart(ButtonPart part, ButtonVisualState state) {
 		CommitTextEdit();
 	}
 	if (part == ButtonPart::Sprite) {
-		Remove<impl::ButtonVisualOverride>();
+		auto& button{ Get<impl::ButtonData>() };
+		button.visual_override.reset();
+		button.block_press = false;
 	}
 
 	auto entity{ FindButtonPart(*this, part) };
@@ -1081,7 +1086,9 @@ Button& Button::RemoveParts(ButtonPart part) {
 		CommitTextEdit();
 	}
 	if (part == ButtonPart::Sprite) {
-		Remove<impl::ButtonVisualOverride>();
+		auto& button{ Get<impl::ButtonData>() };
+		button.visual_override.reset();
+		button.block_press = false;
 	}
 
 	if (auto entity{ FindButtonPart(*this, part) }) {

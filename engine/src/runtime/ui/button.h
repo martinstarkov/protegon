@@ -130,6 +130,9 @@ struct ButtonData {
 	InternalButtonState state{ InternalButtonState::IdleUp };
 	ButtonDirty dirty{ ButtonDirty::All };
 
+	std::optional<ButtonVisualState> visual_override;
+	bool block_press{ false };
+
 	std::optional<ButtonVisualState> applied_visual_state;
 	std::optional<std::variant<V2_float, float>> applied_size;
 	std::optional<Origin> applied_origin;
@@ -238,11 +241,6 @@ struct ButtonSounds {
 /// consolidated sprite part.
 struct ButtonAnimationPart {
 	ButtonAnimationOptions options;
-};
-
-struct ButtonVisualOverride {
-	ButtonVisualState state{ ButtonVisualState::Base };
-	bool block_press{ false };
 };
 
 struct ButtonAnimationCompleteScript;
