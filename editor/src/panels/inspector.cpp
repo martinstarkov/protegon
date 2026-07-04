@@ -210,7 +210,7 @@ void DrawComponent(Entity entity, ComponentOptions options = {}) {
 
 	ImGui::Indent();
 
-	if (DrawContents(entity.Get<T>())) {
+	if (DrawComponentContents(entity.Get<T>())) {
 		ComponentChangeHandler<T>::Apply(entity);
 	}
 

@@ -45,7 +45,7 @@ bool EditSection(
 ) {
 	return EditSection(
 		label, std::forward<Get>(get), std::forward<Set>(set),
-		[](auto& value) { return inspector::DrawContents(value); }, flags
+		[](auto& value) { return inspector::DrawComponentContents(value); }, flags
 	);
 }
 

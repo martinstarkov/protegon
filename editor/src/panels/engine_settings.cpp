@@ -200,7 +200,10 @@ void DrawDisplaySettings(Editor& editor) {
 void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Engine Settings");
 
-	DrawDisplaySettings(ctx.editor);
+	{
+		AutoLabelWidthScope label_width{ "DisplaySettings" };
+		DrawDisplaySettings(ctx.editor);
+	}
 
 	settings::EditSection(
 		"Rendering", [&]() { return ctx.editor.GetRenderSettings(); },

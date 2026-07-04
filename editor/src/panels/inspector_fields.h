@@ -30,7 +30,80 @@
 
 namespace ptgn::editor::inspector {
 
-inline constexpr float kLabelWidth{ 180.0f };
+inline constexpr float kDefaultLabelWidth{ 180.0f };
+inline constexpr float kLabelValueSpacing{ 12.0f };
+
+struct AutoLabelWidthData {
+	float width{ kDefaultLabelWidth };
+	float measured_width{ kDefaultLabelWidth };
+};
+
+inline std::unordered_map<ImGuiID, AutoLabelWidthData>& AutoLabelWidths() {
+	static std::unordered_map<ImGuiID, AutoLabelWidthData> widths;
+	return widths;
+}
+
+inline std::vector<AutoLabelWidthData*>& AutoLabelWidthStack() {
+	static std::vector<AutoLabelWidthData*> stack;
+	return stack;
+}
+
+inline float GetPropertyLabelWidth() {
+	auto& stack{ AutoLabelWidthStack() };
+
+	if (stack.empty()) {
+		return kDefaultLabelWidth;
+	}
+
+	return stack.back()->width;
+}
+
+inline void MeasurePropertyLabel(std::string_view label) {
+	auto& stack{ AutoLabelWidthStack() };
+
+	if (stack.empty()) {
+		return;
+	}
+
+	auto size{ ImGui::CalcTextSize(label.data(), label.data() + label.size()).x };
+	auto width{ size + ImGui::GetStyle().FramePadding.x * 2.0f + kLabelValueSpacing };
+
+	stack.back()->measured_width = std::max(stack.back()->measured_width, width);
+}
+
+class AutoLabelWidthScope {
+public:
+	explicit AutoLabelWidthScope(std::string_view label) {
+		ImGui::PushID(label.data(), label.data() + label.size());
+		id_ = ImGui::GetID("##auto_label_width");
+
+		auto& data{ AutoLabelWidths()[id_] };
+		data.measured_width = kDefaultLabelWidth;
+
+		AutoLabelWidthStack().push_back(&data);
+	}
+
+	~AutoLabelWidthScope() {
+		auto& stack{ AutoLabelWidthStack() };
+
+		if (!stack.empty()) {
+			auto& data{ *stack.back() };
+			data.width = data.measured_width;
+			stack.pop_back();
+		}
+
+		ImGui::PopID();
+	}
+
+	AutoLabelWidthScope(const AutoLabelWidthScope&)			   = delete;
+	AutoLabelWidthScope& operator=(const AutoLabelWidthScope&) = delete;
+
+	AutoLabelWidthScope(AutoLabelWidthScope&&)			  = delete;
+	AutoLabelWidthScope& operator=(AutoLabelWidthScope&&) = delete;
+
+private:
+	ImGuiID id_{ 0 };
+};
 
 struct FieldOptions {
 	float speed{ 0.1f };
@@ -160,7 +233,8 @@ bool DrawPropertyRow(std::string_view label, F&& draw) {
 	ImGui::AlignTextToFramePadding();
 	ImGui::TextUnformatted(label.data(), label.data() + label.size());
 	ImGui::SameLine();
-	ImGui::SetCursorPosX(start_x + kLabelWidth);
+	MeasurePropertyLabel(label);
+	ImGui::SetCursorPosX(start_x + GetPropertyLabelWidth());
 	ImGui::SetNextItemWidth(-FLT_MIN);
 	bool changed{ std::invoke(std::forward<F>(draw)) };
 	ImGui::PopID();
@@ -229,6 +303,14 @@ struct Contents {
 template <typename T>
 bool DrawContents(T& value) {
 	return Contents<std::remove_cvref_t<T>>::Draw(value);
+}
+
+template <typename T>
+bool DrawComponentContents(T& value) {
+	auto label{ TypeLabel<std::remove_cvref_t<T>>() };
+	AutoLabelWidthScope label_width{ label };
+
+	return DrawContents(value);
 }
 
 template <typename T>
