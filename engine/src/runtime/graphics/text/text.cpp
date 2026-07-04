@@ -14,6 +14,7 @@
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/tolerance.h"
@@ -72,8 +73,18 @@ void UpdateLayout(
 namespace impl {
 
 ResolvedTextRun ResolveTextRun(AssetManager& asset_manager, const TextRun& text_run) {
-	auto font{ impl::AssetAccessor{ asset_manager }.Get<Font>(text_run.font) };
+	bool has_font{ impl::AssetAccessor{ asset_manager }.Has<Font>(text_run.font) };
+
+	if (!has_font) {
+		PTGN_WARN("Font not found: ", text_run.font, ". Using default font instead.");
+	}
+
+	auto font_key{ has_font ? text_run.font : kDefaultFont };
+
+	auto font{ impl::AssetAccessor{ asset_manager }.Get<Font>(font_key) };
+
 	auto font_atlas{ &font.GetEntity().Get<impl::FontAtlas>() };
+
 	return {
 		.text  = text_run.text,
 		.font  = font_atlas,
