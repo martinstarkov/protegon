@@ -112,17 +112,6 @@ public:
 	/// to be a paragraph, such as a single line of text.
 	Text& JustifyLastLine(bool justify = true);
 
-	/// @brief Sets the number of space columns between tab stops.
-	/// A tab advances to the next multiple of this many spaces.
-	Text& TabWidth(std::size_t spaces);
-
-	Text& MaxLines(std::size_t max_lines);
-	Text& ScaleToFit(float min_scale, float max_scale = 1.0f);
-
-	Text& Font(std::string_view font_key = {});
-	Text& Color(ptgn::Color color);
-	Text& Size(float font_size);
-
 	/// @brief Kerning adjusts spacing between specific glyph pairs based on the font's kerning
 	/// data.
 	/// @param multiplier The multiplier for the kerning adjustment.
@@ -136,7 +125,19 @@ public:
 	/// Positive values spread glyphs apart; negative values bring glyphs closer.
 	Text& Tracking(float spacing);
 
+	/// @brief Sets the number of space columns between tab stops.
+	/// A tab advances to the next multiple of this many spaces.
+	Text& TabWidth(std::size_t spaces);
+
 	Text& LineSpacing(float line_spacing);
+
+	Text& MaxLines(std::size_t max_lines);
+
+	Text& ScaleToFit(float min_scale, float max_scale = 1.0f);
+
+	Text& Font(std::string_view font_key = {});
+	Text& Color(ptgn::Color color);
+	Text& Size(float font_size);
 
 	Text& Style(FontStyle flags);
 	Text& Bold(bool enabled = true, float weight = kDefaultBoldWeight);
