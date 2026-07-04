@@ -2,9 +2,9 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <array>
 #include <optional>
-#include <string>
 
 #include "core/editor.h"
 #include "core/editor_context.h"

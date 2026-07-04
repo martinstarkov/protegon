@@ -348,11 +348,9 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	);
 
 	ImGuiID dock_right{};
-	ImGuiID dock_right_bottom{};
 
-	ImGui::DockBuilderSplitNode(
-		dock_right_column_id_, ImGuiDir_Down, 0.35f, &dock_right_bottom, &dock_right
-	);
+	// ImGuiID dock_right_bottom{};
+	ImGui::DockBuilderSplitNode(dock_right_column_id_, ImGuiDir_Down, 0.35f, nullptr, &dock_right);
 
 	ImGuiID dock_center_bottom{};
 
@@ -362,10 +360,11 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 	ImGui::DockBuilderDockWindow("Scenes", dock_left_bottom);
 
 	ImGui::DockBuilderDockWindow("Inspector", dock_right);
-	ImGui::DockBuilderDockWindow("Engine Settings", dock_right_bottom);
-	ImGui::DockBuilderDockWindow("Debug Settings", dock_right_bottom);
 
 	ImGui::DockBuilderDockWindow("Viewport", dock_main);
+
+	ImGui::DockBuilderDockWindow("Engine Settings", dock_center_bottom);
+	ImGui::DockBuilderDockWindow("Debug Settings", dock_center_bottom);
 	ImGui::DockBuilderDockWindow("Render Stats", dock_center_bottom);
 	ImGui::DockBuilderDockWindow("Render Graph", dock_center_bottom);
 	ImGui::DockBuilderDockWindow("Content Browser", dock_center_bottom);
