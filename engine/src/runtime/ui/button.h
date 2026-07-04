@@ -570,6 +570,9 @@ struct ButtonHoverStop {
 
 } // namespace event
 
+/// @brief Creates a button with the given transform and origin without a specified size.
+Button CreateButton(Scene& scene, Transform transform, Origin origin = Origin::Center);
+
 Button CreateButton(
 	Scene& scene, Transform transform, V2_float size, Origin origin = Origin::Center
 );

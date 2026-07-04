@@ -83,10 +83,6 @@ void Dropdown::HideDropdownBranch(Button button) {
 
 	button.Disable();
 	Hide(button);
-
-	for (const auto& part : button.Parts()) {
-		Hide(part);
-	}
 }
 
 void Dropdown::ShowDropdownItem(Button button) const {
@@ -192,7 +188,7 @@ void Dropdown::RecalculateButtonPositions() {
 		Has<impl::DropdownData>(), "Cannot recalculate button positions of invalid dropdown"
 	);
 
-	auto buttons{ GetButtons() };
+	const auto& buttons{ GetButtons() };
 
 	if (buttons.empty()) {
 		return;
@@ -200,59 +196,65 @@ void Dropdown::RecalculateButtonPositions() {
 
 	auto& info{ Get<impl::DropdownData>() };
 
-	using Size = std::variant<V2_float, float>;
+	auto parent_shape{ GetSize() };
 
-	auto get_extent = []<typename T>(const T& size) -> V2_float {
-		if constexpr (std::same_as<T, V2_float>) {
-			return size;
-		} else {
-			// A scalar button size represents a circle radius.
-			return V2_float{ size * 2.0f };
+	auto transform{ GetWorldTransform(*this) };
+
+	auto get_scaled_size = [transform](const std::variant<V2_float, float>& size) {
+		return std::visit(
+			[&]<typename T>(const T& s) {
+				if constexpr (std::same_as<T, V2_float>) {
+					return Rect{ s }.GetSize(transform);
+				} else if constexpr (std::same_as<T, float>) {
+					return Circle{ s }.GetSize(transform);
+				} else {
+					static_assert(false, "Incomplete visitor");
+				}
+			},
+			size
+		);
+	};
+
+	auto scaled_parent_size{ get_scaled_size(parent_shape) };
+
+	const auto get_button_size = [parent_shape,
+								  &info](const auto& button) -> std::variant<V2_float, float> {
+		if (auto rect{ button.template TryGet<Rect>() }) {
+			return rect->GetSize();
 		}
-	};
-
-	auto to_extent = [&](const Size& size) {
-		return std::visit(get_extent, size);
-	};
-
-	auto parent_size_value{ GetSize() };
-	auto parent_size{ to_extent(parent_size_value) };
-
-	auto get_button_size = [&](Button button) -> Size {
+		if (auto circle{ button.template TryGet<Circle>() }) {
+			return circle->radius;
+		}
 		if (info.button_size.has_value()) {
 			return info.button_size.value();
 		}
-
-		return button.GetSize();
+		return parent_shape;
 	};
 
-	auto set_button_size = [](Button button, const Size& size) {
-		std::visit([&](const auto& value) { button.Size(value); }, size);
-	};
+	V2_float parent_center{ GetOffset(GetDrawOrigin(*this), scaled_parent_size) };
+	V2_float parent_edge{ parent_center - GetOffset(info.origin, scaled_parent_size) };
 
-	V2_float parent_center{ GetOffset(GetDrawOrigin(*this), parent_size) };
-	V2_float parent_edge{ parent_center - GetOffset(info.origin, parent_size) };
+	PTGN_ASSERT(buttons.size() >= 1);
+	const auto& first_button{ buttons.front() };
+	auto shape_size{ get_button_size(first_button) };
+	auto scaled_size{ get_scaled_size(shape_size) };
 
-	auto size_value{ get_button_size(buttons.front()) };
-	auto size{ to_extent(size_value) };
-
-	V2_float offset{ parent_edge - GetOffset(info.origin, size) + info.button_offset };
+	V2_float offset{ parent_edge - GetOffset(info.origin, scaled_size) + info.button_offset };
 
 	for (auto i{ 0uz }; i < buttons.size(); ++i) {
 		Button button{ buttons[i] };
-
-		size_value = get_button_size(button);
-		size	   = to_extent(size_value);
-
+		shape_size	= get_button_size(button);
+		scaled_size = get_scaled_size(shape_size);
+		// First button offset goes in the direction of the dropdown origin, the rest go in the
+		// direction of dropdown.
 		if (i != 0) {
-			offset -= GetOffset(info.direction, size);
+			offset -= GetOffset(info.direction, scaled_size);
 		}
-
 		SetPosition(button, offset);
-		set_button_size(button, size_value);
+		std::visit([&](const auto& s) { button.Size(s); }, shape_size);
 		SetDrawOrigin(button, Origin::Center);
-
-		offset -= GetOffset(info.direction, size);
+		// Offset is added separately while moving through dropdown buttons.
+		offset -= GetOffset(info.direction, scaled_size);
 	}
 }
 

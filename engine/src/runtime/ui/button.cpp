@@ -301,6 +301,10 @@ std::vector<Entity> FindButtonParts(Button button, std::optional<ButtonPart> par
 }
 
 Rect GetButtonLocalRect(Button button) {
+	if (!button.HasAny<Rect, Circle>()) {
+		return {};
+	}
+
 	return { std::visit(
 				 []<typename T>(const T& value) {
 					 if constexpr (std::same_as<T, V2_float>) {
@@ -308,7 +312,7 @@ Rect GetButtonLocalRect(Button button) {
 					 } else if constexpr (std::same_as<T, float>) {
 						 return V2_float{ value * 2.0f };
 					 } else {
-						 static_assert(false, "Non-exhaustive visitor!");
+						 static_assert(false, "Incomplete visitor");
 					 }
 				 },
 				 button.GetSize()
@@ -495,7 +499,7 @@ ResolvedShapeVisual ResolveShapeVisual(Button button, Entity entity, ButtonPart 
 
 	ResolvedShapeVisual result{
 		.visible	= HasResolvedState(visuals.states, state),
-		.size		= button.GetSize(),
+		.size		= button.HasAny<Rect, Circle>() ? button.GetSize() : V2_float{},
 		.origin		= GetDrawOrigin(button),
 		.anchor		= GetDrawOrigin(button),
 		.color		= part == ButtonPart::Background ? GetDefaultBackgroundColor(state)
@@ -1752,7 +1756,10 @@ void Button::RefreshDirty() {
 
 	auto& data{ Get<impl::ButtonData>() };
 	auto visual_state{ GetVisualState() };
-	auto size{ GetSize() };
+	std::optional<std::variant<V2_float, float>> size;
+	if (HasAny<Rect, Circle>()) {
+		size = GetSize();
+	}
 	auto origin{ GetDrawOrigin(*this) };
 	bool visible{ IsVisible(*this) };
 
@@ -1839,7 +1846,7 @@ void Button::ApplyShapeVisual(ButtonPart part) {
 				entity->Add<Circle>(size);
 				SetDraw<CircleDraw>(entity.value());
 			} else {
-				static_assert(false, "Non-exhaustive visitor!");
+				static_assert(false, "Incomplete visitor");
 			}
 		},
 		resolved.size
@@ -2037,6 +2044,15 @@ void Button::UpdateChildLayouts() const {
 	}
 }
 
+Button CreateButton(Scene& scene, Transform transform, Origin origin) {
+	return CreateButton(
+		scene, transform,
+		ButtonDesc{
+			.origin = origin,
+		}
+	);
+}
+
 Button CreateButton(Scene& scene, Transform transform, V2_float size, Origin origin) {
 	return CreateButton(
 		scene, transform,
@@ -2091,7 +2107,9 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 		SetUI(button, true);
 	}
 
-	std::visit([button](const auto& size) mutable { button.Size(size); }, desc.size);
+	if (desc.size.has_value()) {
+		std::visit([button](const auto& size) mutable { button.Size(size); }, desc.size.value());
+	}
 
 	SetTransform(button, transform);
 	SetDrawOrigin(button, desc.origin);

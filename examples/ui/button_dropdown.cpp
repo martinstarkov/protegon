@@ -26,7 +26,7 @@ public:
 	static constexpr V2_float kTextPadding{ 6, 4 };
 
 	Button CreateMenuButton(std::string_view content, const std::function<void()>& on_press) {
-		Button button{ CreateButton(*this, {}, kButtonSize) };
+		Button button{ CreateButton(*this, {}) };
 
 		button.Background()
 			.BorderColor(color::Red)
@@ -102,9 +102,9 @@ public:
 		dropdown4.SetDropdownOrigin(Origin::CenterTop);
 		dropdown4.SetDropdownDirection(Origin::CenterTop);
 
-		dropdown2.Shape({ 200, 50 });
-		dropdown3.Shape({ 200, 50 });
-		dropdown4.Shape({ 200, 50 });
+		dropdown2.Size({ 200, 50 });
+		dropdown3.Size({ 200, 50 });
+		dropdown4.Size({ 200, 50 });
 	}
 };
 

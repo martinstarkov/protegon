@@ -211,7 +211,7 @@ struct ScaleButtonConfig {
 
 struct ButtonDesc {
 	/// @brief Interactive shape size.
-	std::variant<V2_float, float> size;
+	std::optional<std::variant<V2_float, float>> size;
 
 	/// @brief Origin of the button interactive shape.
 	Origin origin{ Origin::Center };
