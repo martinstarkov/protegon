@@ -73,19 +73,6 @@ Editor::Editor(Application& app) : app{ app } {
 void Editor::OnUpdate() {
 	if (ImGui::IsKeyPressed(ImGuiKey_F11)) {
 		EnableRendering(!render_enabled_);
-
-		auto& window{ impl::ApplicationAccessor::ctx(app).window };
-
-		if (render_enabled_) {
-			window.SetSetting(WindowSetting::Maximized);
-		} else {
-			window.SetSetting(WindowSetting::Restored);
-		}
-
-		dock_layout_update_requested_ = true;
-
-		// Maximizing may produce multiple window size updates.
-		dock_resize_frames_remaining_ = 4;
 	}
 }
 
@@ -217,7 +204,20 @@ Renderer& Editor::GetRenderer() {
 
 void Editor::EnableRendering(bool enable) {
 	render_enabled_ = enable;
-	if (!render_enabled_) {
+	if (render_enabled_) {
+		auto& window{ impl::ApplicationAccessor::ctx(app).window };
+
+		if (render_enabled_) {
+			window.SetSetting(WindowSetting::Maximized);
+		} else {
+			window.SetSetting(WindowSetting::Restored);
+		}
+
+		dock_layout_update_requested_ = true;
+
+		// Maximizing may produce multiple window size updates.
+		dock_resize_frames_remaining_ = 4;
+	} else {
 		SetPresentationViewport(std::nullopt);
 		SetPrimaryWorldCamera(std::nullopt);
 	}
