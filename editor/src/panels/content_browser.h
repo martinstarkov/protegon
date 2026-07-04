@@ -10,8 +10,6 @@ public:
 
 private:
 	void DrawContentBrowser(EditorContext& ctx);
-
-	// RenderGraphVisualizer render_graph_visualizer_;
 };
 
 } // namespace ptgn::editor

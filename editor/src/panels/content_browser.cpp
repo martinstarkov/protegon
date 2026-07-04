@@ -17,12 +17,6 @@ void ContentBrowserPanel::OnRender(EditorContext& ctx) {
 	}
 	ImGui::End();
 
-	if (ImGui::Begin("Render Graph")) {
-		ImGui::TextUnformatted("Render graph...");
-		// render_graph_visualizer_.DrawContents(ctx.editor.GetRenderGraphSnapshot());
-	}
-	ImGui::End();
-
 	if (ImGui::Begin("Render Stats")) {
 		const auto& stats{ ctx.editor.GetStats() };
 		auto draw_calls{ "Draw calls: " + ToString(stats.GetCount("draw_calls")) };
