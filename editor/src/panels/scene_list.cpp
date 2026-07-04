@@ -21,6 +21,7 @@
 #include "core/util/hash.h"
 #include "panels/scene_hierarchy.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_manager.h"
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scene/scene_view.h"
@@ -126,6 +127,63 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 
 	auto& scenes{ ctx.editor.GetScenes() };
 
+	auto select_scene = [&](Scene* scene) {
+		selected_scene_ = scene;
+
+		if (!selected_scene_) {
+			return;
+		}
+
+		auto& scene_hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
+		const auto& entities{ selected_scene_->Entities() };
+
+		auto select_if_present = [&](Entity entity) {
+			if (!entity || !entities.Contains(entity)) {
+				return false;
+			}
+
+			scene_hierarchy.SetSelectedEntity(entity);
+			return true;
+		};
+
+		auto& scene_ctx{ selected_scene_->ctx() };
+
+		auto render_target{ selected_scene_->GetRenderTarget() };
+		auto fixed_camera{ impl::SceneContextAccessor::GetFixedCamera(scene_ctx) };
+		auto camera{ scene_ctx.camera };
+
+		auto regular_entity{ entities.FindIf([&](Entity entity) {
+			return entity != render_target && entity != fixed_camera && entity != camera;
+		}) };
+
+		if (select_if_present(regular_entity)) {
+			return;
+		}
+
+		if (select_if_present(camera)) {
+			return;
+		}
+
+		if (select_if_present(fixed_camera)) {
+			return;
+		}
+
+		select_if_present(render_target);
+	};
+
+	auto selected_scene_exists{ false };
+
+	for (auto& scene : scenes) {
+		if (scene.get() == selected_scene_) {
+			selected_scene_exists = true;
+			break;
+		}
+	}
+
+	if (!scenes.empty() && !selected_scene_exists) {
+		select_scene(scenes.front().get());
+	}
+
 	for (auto i{ 0uz }; i < scenes.size(); ++i) {
 		const auto& scene{ scenes[i] };
 
@@ -137,15 +195,7 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 		auto label{ tag.empty() ? "Untitled Scene" : tag.c_str() };
 
 		if (ImGui::Selectable(label, selected)) {
-			selected_scene_ = scene.get();
-			auto& scene_hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
-
-			const auto& entities{ scene->Entities() };
-
-			auto first_entity = entities.Front();
-
-			scene_hierarchy.SetSelectedEntity(first_entity);
-
+			select_scene(scene.get());
 			// TODO: Fix.
 			// app.selected_component_ = ComponentKind::Transform;
 		}
