@@ -114,7 +114,7 @@ public:
 				// Internally line width for a completely hollow ellipse is 0.0f.
 				return fade + s.line_width / std::min(radii.x, radii.y);
 			} else {
-				static_assert(false, "Incomplete visitor!");
+				static_assert(false, "Incomplete visitor");
 			}
 		});
 	}

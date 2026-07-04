@@ -816,7 +816,7 @@ ProgramInfo Shaders::GetProgramInfo(
 				);
 				return { arg.content, arg.delete_after };
 			} else {
-				static_assert(false, "Incomplete visitor!");
+				static_assert(false, "Incomplete visitor");
 			}
 		},
 		code_or_path
@@ -862,7 +862,7 @@ ProgramInfo Shaders::GetProgramInfo(
 			} else if constexpr (std::is_same_v<T, ShaderCode> || std::is_same_v<T, ShaderPath>) {
 				return GetProgramInfo(std::variant<ShaderCode, ShaderPath>{ arg }, program_name);
 			} else {
-				static_assert(false, "Incomplete visitor!");
+				static_assert(false, "Incomplete visitor");
 			}
 		},
 		variant
