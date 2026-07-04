@@ -16,6 +16,7 @@
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
 #include "panels/scene_hierarchy.h"
+#include "platform/window.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
@@ -622,7 +623,10 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	ctx.state.viewport.focused	= ImGui::IsWindowFocused();
 	ctx.state.viewport.hovered	= ImGui::IsWindowHovered();
 
-	ctx.editor.SetPresentationViewport(presentation_viewport);
+	auto& renderer{ ctx.editor.GetRenderer() };
+	auto& window{ ctx.editor.GetWindow() };
+
+	renderer.SetPresentationViewport(presentation_viewport);
 
 	if (size.x <= 0.0f || size.y <= 0.0f) {
 		ImGui::End();
@@ -641,11 +645,11 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	auto draw_list{ ImGui::GetWindowDrawList() };
 
-	auto bg{ ctx.editor.GetWindowBackgroundColor() };
+	auto bg{ window.GetBackgroundColor() };
 
 	draw_list->AddRectFilled(ToImGui(min), ToImGui(max), ToImGui(bg));
 
-	auto display_viewport{ ctx.editor.GetDisplayViewport() };
+	auto display_viewport{ renderer.GetDisplayViewport() };
 	auto presentation_texture{ ctx.editor.GetPresentationTexture() };
 	auto presentation_size{ ctx.editor.GetPresentationTextureSize() };
 
@@ -657,27 +661,27 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 		auto logical_viewport{ GetLogicalViewport(
 			editor_camera_.camera.raw_viewport, editor_camera_.camera.viewport_space,
-			ctx.editor.GetRenderer().GetLogicalSize()
+			renderer.GetLogicalSize()
 		) };
 
 		editor_camera_.camera.view_projection = GetOrthographicViewProjection(
 			editor_camera_.camera.transform, logical_viewport.size, editor_camera_.pixel_rounding
 		);
 
-		ctx.editor.SetPrimaryWorldCamera(editor_camera_.camera);
+		renderer.SetPrimaryWorldCamera(editor_camera_.camera);
 	} else {
-		ctx.editor.SetPrimaryWorldCamera(std::nullopt);
+		renderer.SetPrimaryWorldCamera(std::nullopt);
 	}
 
 	auto camera_display_viewport{ GetDisplayViewport(
 		editor_camera_.camera.raw_viewport, editor_camera_.camera.viewport_space,
-		ctx.editor.GetRenderer().GetLogicalSize(), presentation_size, true
+		renderer.GetLogicalSize(), presentation_size, true
 	) };
 
 	Viewport viewport{ .position{ min + display_viewport.position },
 					   .size{ display_viewport.size } };
 
-	draw_list->AddCallback(SetImageBlendMode, &ctx.editor.GetRenderer());
+	draw_list->AddCallback(SetImageBlendMode, &renderer);
 
 	draw_list->AddImage(
 		static_cast<ImTextureID>(presentation_texture), ToImGui(viewport.position),
@@ -687,13 +691,13 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
 
 	// Count this draw call so that draw call counts match with and without the editor.
-	ctx.editor.GetStats().Increment("draw_calls");
+	ctx.editor.GetDebugSystem().stats.Increment("draw_calls");
 
 	if (auto scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
 		scene && use_editor_camera_) {
-		FrameContext frame_context{ ctx.editor.GetRenderer(),
-									GetTransform(scene->GetRenderTarget()), presentation_size,
-									editor_camera_.camera.transform, camera_display_viewport };
+		FrameContext frame_context{ renderer, GetTransform(scene->GetRenderTarget()),
+									presentation_size, editor_camera_.camera.transform,
+									camera_display_viewport };
 
 		draw_list->PushClipRect(
 			ToImGui(viewport.position), ToImGui(viewport.position + viewport.size), true

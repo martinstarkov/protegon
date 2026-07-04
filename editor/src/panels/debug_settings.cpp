@@ -114,23 +114,27 @@ void DebugSettingsPanel::OnRender(EditorContext& ctx) {
 	}
 
 	settings::EditSection(
-		"Interaction", [&]() { return ctx.editor.GetDebug().interaction; },
-		[&](const InteractiveDebugSettings& value) { ctx.editor.GetDebug().interaction = value; }
+		"Interaction", [&]() { return ctx.editor.GetDebugSystem().interaction; },
+		[&](const InteractiveDebugSettings& value) {
+			ctx.editor.GetDebugSystem().interaction = value;
+		}
 	);
 
 	settings::EditSection(
-		"Collision", [&]() { return ctx.editor.GetDebug().collision; },
-		[&](const CollisionDebugSettings& value) { ctx.editor.GetDebug().collision = value; }
+		"Collision", [&]() { return ctx.editor.GetDebugSystem().collision; },
+		[&](const CollisionDebugSettings& value) { ctx.editor.GetDebugSystem().collision = value; }
 	);
 
 	settings::EditSection(
-		"Text", [&]() { return ctx.editor.GetDebug().text; },
-		[&](const TextDebugSettings& value) { ctx.editor.GetDebug().text = value; }
+		"Text", [&]() { return ctx.editor.GetDebugSystem().text; },
+		[&](const TextDebugSettings& value) { ctx.editor.GetDebugSystem().text = value; }
 	);
 
 	settings::EditSection(
-		"Light Visibility", [&]() { return ctx.editor.GetDebug().light; },
-		[&](const LightVisibilityDebugSettings& value) { ctx.editor.GetDebug().light = value; }
+		"Light Visibility", [&]() { return ctx.editor.GetDebugSystem().light; },
+		[&](const LightVisibilityDebugSettings& value) {
+			ctx.editor.GetDebugSystem().light = value;
+		}
 	);
 
 	ImGui::End();

@@ -2,15 +2,12 @@
 
 #include <cstdint>
 #include <memory>
-#include <optional>
-#include <vector>
 
 #include "app/application_layer.h"
 #include "app/application_state.h"
 #include "commands/editor_commands.h"
 #include "commands/undo_stack.h"
 #include "core/editor_context.h"
-#include "core/graphics/color.h"
 #include "core/math/vector2.h"
 #include "panels/content_browser.h"
 #include "panels/debug_settings.h"
@@ -19,12 +16,7 @@
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
 #include "panels/viewport.h"
-#include "renderer/pipeline/camera.h"
-#include "renderer/pipeline/scaling_mode.h"
-#include "renderer/pipeline/viewport.h"
-#include "renderer/render_settings.h"
 #include "renderer/resources/id.h"
-#include "runtime/scene/scene_manager.h"
 
 namespace ptgn {
 
@@ -33,6 +25,14 @@ class Scene;
 class Stats;
 class Renderer;
 class DebugSystem;
+class AssetManager;
+class Window;
+
+namespace impl {
+
+class SceneManager;
+
+} // namespace impl
 
 namespace editor {
 
@@ -43,22 +43,19 @@ public:
 	void OnUpdate() override;
 	void OnRender() override;
 
-	DebugSystem& GetDebug();
-	const DebugSystem& GetDebug() const;
-	RenderSettings GetRenderSettings() const;
-	void SetRenderSettings(const RenderSettings& settings);
-	void SetScalingMode(ScalingMode scaling_mode);
-	void SetLogicalSize(std::optional<V2_int> logical_size);
-	ScalingMode GetScalingMode() const;
-	V2_int GetLogicalSize() const;
-	bool HasLogicalSize() const;
-	Viewport GetDisplayViewport() const;
+	const Window& GetWindow() const;
+	Window& GetWindow();
+	const AssetManager& GetAssetManager() const;
+	AssetManager& GetAssetManager();
+	const DebugSystem& GetDebugSystem() const;
+	DebugSystem& GetDebugSystem();
+	const impl::SceneManager& GetSceneManager() const;
+	impl::SceneManager& GetSceneManager();
+	const Renderer& GetRenderer() const;
+	Renderer& GetRenderer();
+
 	impl::TextureId GetPresentationTexture() const;
 	V2_int GetPresentationTextureSize() const;
-	void SetWindowBackgroundColor(Color color);
-	Color GetWindowBackgroundColor() const;
-	void SetRendererBackgroundColor(Color color);
-	Color GetRendererBackgroundColor() const;
 
 	void SetTimeScale(float time_scale);
 	float GetTimeScale() const;
@@ -67,23 +64,8 @@ public:
 	void SetApplicationState(ApplicationState state);
 	ApplicationState GetApplicationState() const;
 
-	const std::vector<std::unique_ptr<Scene>>& GetScenes() const;
-	std::vector<std::unique_ptr<Scene>>& GetScenes();
-
-	void SetPresentationViewport(std::optional<Viewport> presentation_viewport);
-
 	SceneHierarchyPanel& GetSceneHierarchyPanel();
 	SceneListPanel& GetSceneListPanel();
-
-	impl::SceneManager& GetSceneManager();
-
-	void SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera);
-	const std::optional<Camera>& GetPrimaryWorldCamera() const;
-
-	const Stats& GetStats() const;
-	Stats& GetStats();
-
-	Renderer& GetRenderer();
 
 	void EnableRendering(bool enable = true);
 

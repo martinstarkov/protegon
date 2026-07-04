@@ -125,7 +125,7 @@ void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
 void SceneListPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Scenes");
 
-	auto& scenes{ ctx.editor.GetScenes() };
+	auto& scenes{ ctx.editor.GetSceneManager().GetScenes() };
 
 	auto select_scene = [&](Scene* scene) {
 		selected_scene_ = scene;

@@ -5,11 +5,9 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <magic_enum/magic_enum.hpp>
 #include <memory>
 #include <optional>
 #include <utility>
-#include <vector>
 
 #include "app/application.h"
 #include "app/application_context.h"
@@ -21,8 +19,6 @@
 #include "core/editor_context.h"
 #include "core/editor_selection.h"
 #include "core/editor_state.h"
-#include "core/graphics/color.h"
-#include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "panels/content_browser.h"
 #include "panels/engine_settings.h"
@@ -31,16 +27,12 @@
 #include "panels/scene_list.h"
 #include "panels/viewport.h"
 #include "platform/window.h"
-#include "renderer/pipeline/camera.h"
-#include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
-#include "renderer/render_settings.h"
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
-#include "runtime/scene/scene.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
-#include "tools/debug/stats.h"
 
 namespace ptgn::editor {
 
@@ -150,24 +142,12 @@ void Editor::DrawPanels() {
 	content_browser_panel_.OnRender(*context_);
 }
 
-const std::vector<std::unique_ptr<Scene>>& Editor::GetScenes() const {
-	return impl::ApplicationAccessor::ctx(app).scene_manager.GetScenes();
+const impl::SceneManager& Editor::GetSceneManager() const {
+	return impl::ApplicationAccessor::ctx(app).scene_manager;
 }
 
-std::vector<std::unique_ptr<Scene>>& Editor::GetScenes() {
-	return impl::ApplicationAccessor::ctx(app).scene_manager.GetScenes();
-}
-
-void Editor::SetPresentationViewport(std::optional<Viewport> presentation_viewport) {
-	impl::ApplicationAccessor::ctx(app).renderer.SetPresentationViewport(presentation_viewport);
-}
-
-RenderSettings Editor::GetRenderSettings() const {
-	return impl::ApplicationAccessor::ctx(app).renderer.GetSettings();
-}
-
-void Editor::SetRenderSettings(const RenderSettings& settings) {
-	impl::ApplicationAccessor::ctx(app).renderer.SetSettings(settings);
+impl::SceneManager& Editor::GetSceneManager() {
+	return impl::ApplicationAccessor::ctx(app).scene_manager;
 }
 
 SceneHierarchyPanel& Editor::GetSceneHierarchyPanel() {
@@ -176,30 +156,6 @@ SceneHierarchyPanel& Editor::GetSceneHierarchyPanel() {
 
 SceneListPanel& Editor::GetSceneListPanel() {
 	return scene_list_panel_;
-}
-
-impl::SceneManager& Editor::GetSceneManager() {
-	return impl::ApplicationAccessor::ctx(app).scene_manager;
-}
-
-void Editor::SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera) {
-	impl::ApplicationAccessor::ctx(app).renderer.SetPrimaryWorldCamera(primary_world_camera);
-}
-
-const std::optional<Camera>& Editor::GetPrimaryWorldCamera() const {
-	return impl::ApplicationAccessor::ctx(app).renderer.GetPrimaryWorldCamera();
-}
-
-const Stats& Editor::GetStats() const {
-	return impl::ApplicationAccessor::ctx(app).debug.stats;
-}
-
-Stats& Editor::GetStats() {
-	return impl::ApplicationAccessor::ctx(app).debug.stats;
-}
-
-Renderer& Editor::GetRenderer() {
-	return impl::ApplicationAccessor::ctx(app).renderer;
 }
 
 void Editor::EnableRendering(bool enable) {
@@ -218,49 +174,10 @@ void Editor::EnableRendering(bool enable) {
 		// Maximizing may produce multiple window size updates.
 		dock_resize_frames_remaining_ = 4;
 	} else {
-		SetPresentationViewport(std::nullopt);
-		SetPrimaryWorldCamera(std::nullopt);
+		auto& renderer{ GetRenderer() };
+		renderer.SetPresentationViewport(std::nullopt);
+		renderer.SetPrimaryWorldCamera(std::nullopt);
 	}
-}
-
-void Editor::SetScalingMode(ScalingMode scaling_mode) {
-	impl::ApplicationAccessor::ctx(app).renderer.SetScalingMode(scaling_mode);
-}
-
-void Editor::SetLogicalSize(std::optional<V2_int> logical_size) {
-	impl::ApplicationAccessor::ctx(app).renderer.SetLogicalSize(logical_size, std::nullopt);
-}
-
-ScalingMode Editor::GetScalingMode() const {
-	return impl::ApplicationAccessor::ctx(app).renderer.GetScalingMode();
-}
-
-bool Editor::HasLogicalSize() const {
-	return impl::ApplicationAccessor::ctx(app).renderer.HasLogicalSize();
-}
-
-V2_int Editor::GetLogicalSize() const {
-	return impl::ApplicationAccessor::ctx(app).renderer.GetLogicalSize();
-}
-
-Viewport Editor::GetDisplayViewport() const {
-	return impl::ApplicationAccessor::ctx(app).renderer.GetDisplayViewport();
-}
-
-void Editor::SetWindowBackgroundColor(Color color) {
-	impl::ApplicationAccessor::ctx(app).window.SetBackgroundColor(color);
-}
-
-Color Editor::GetWindowBackgroundColor() const {
-	return impl::ApplicationAccessor::ctx(app).window.GetBackgroundColor();
-}
-
-void Editor::SetRendererBackgroundColor(Color color) {
-	impl::ApplicationAccessor::ctx(app).renderer.SetBackgroundColor(color);
-}
-
-Color Editor::GetRendererBackgroundColor() const {
-	return impl::ApplicationAccessor::ctx(app).renderer.GetBackgroundColor();
 }
 
 void Editor::SetTimeScale(float time_scale) {
@@ -275,11 +192,35 @@ void Editor::RequestStep() {
 	impl::ApplicationAccessor::ctx(app).step_requested = true;
 }
 
-DebugSystem& Editor::GetDebug() {
+Window& Editor::GetWindow() {
+	return impl::ApplicationAccessor::ctx(app).window;
+}
+
+const Window& Editor::GetWindow() const {
+	return impl::ApplicationAccessor::ctx(app).window;
+}
+
+const AssetManager& Editor::GetAssetManager() const {
+	return impl::ApplicationAccessor::ctx(app).assets;
+}
+
+AssetManager& Editor::GetAssetManager() {
+	return impl::ApplicationAccessor::ctx(app).assets;
+}
+
+const Renderer& Editor::GetRenderer() const {
+	return impl::ApplicationAccessor::ctx(app).renderer;
+}
+
+Renderer& Editor::GetRenderer() {
+	return impl::ApplicationAccessor::ctx(app).renderer;
+}
+
+DebugSystem& Editor::GetDebugSystem() {
 	return impl::ApplicationAccessor::ctx(app).debug;
 }
 
-const DebugSystem& Editor::GetDebug() const {
+const DebugSystem& Editor::GetDebugSystem() const {
 	return impl::ApplicationAccessor::ctx(app).debug;
 }
 

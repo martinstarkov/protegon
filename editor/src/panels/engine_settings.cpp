@@ -12,9 +12,11 @@
 #include "core/util/span.h"
 #include "panels/inspector_fields.h"
 #include "panels/settings_fields.h"
+#include "platform/window.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/render_settings.h"
+#include "renderer/renderer.h"
 
 namespace ptgn::editor::inspector {
 
@@ -91,7 +93,9 @@ bool DrawResolutionMode(Editor& editor) {
 		"Use Logical Size",
 	};
 
-	int mode{ editor.HasLogicalSize() ? 1 : 0 };
+	auto& renderer{ editor.GetRenderer() };
+
+	int mode{ renderer.HasLogicalSize() ? 1 : 0 };
 
 	bool changed{ DrawPropertyRow("Resolution Source", [&]() {
 		return ImGui::Combo("##value", &mode, names.data(), static_cast<int>(names.size()));
@@ -102,16 +106,18 @@ bool DrawResolutionMode(Editor& editor) {
 	}
 
 	if (mode == 0) {
-		editor.SetLogicalSize(std::nullopt);
+		renderer.SetLogicalSize(std::nullopt);
 	} else {
-		editor.SetLogicalSize(editor.GetDisplayViewport().size);
+		renderer.SetLogicalSize(renderer.GetDisplayViewport().size);
 	}
 
 	return true;
 }
 
 bool DrawResolutionPreset(Editor& editor) {
-	auto logical_size{ editor.GetLogicalSize() };
+	auto& renderer{ editor.GetRenderer() };
+
+	auto logical_size{ renderer.GetLogicalSize() };
 
 	auto selected{ std::ranges::find(kResolutionPresets, logical_size, &ResolutionPreset::size) };
 
@@ -125,7 +131,7 @@ bool DrawResolutionPreset(Editor& editor) {
 				bool is_selected{ preset.size == logical_size };
 
 				if (ImGui::Selectable(preset.label, is_selected)) {
-					editor.SetLogicalSize(preset.size);
+					renderer.SetLogicalSize(preset.size);
 					changed = true;
 				}
 
@@ -150,10 +156,12 @@ void DrawDisplaySettings(Editor& editor) {
 
 	DrawResolutionMode(editor);
 
-	if (editor.HasLogicalSize()) {
+	auto& renderer{ editor.GetRenderer() };
+
+	if (renderer.HasLogicalSize()) {
 		DrawResolutionPreset(editor);
 
-		auto logical_size{ editor.GetLogicalSize() };
+		auto logical_size{ renderer.GetLogicalSize() };
 
 		if (DrawValue(
 				"Logical Size", logical_size,
@@ -165,16 +173,16 @@ void DrawDisplaySettings(Editor& editor) {
 					.flags	= ImGuiSliderFlags_AlwaysClamp,
 				}
 			)) {
-			editor.SetLogicalSize(logical_size);
+			renderer.SetLogicalSize(logical_size);
 		}
 
-		auto scaling_mode{ editor.GetScalingMode() };
+		auto scaling_mode{ renderer.GetScalingMode() };
 
 		if (DrawValue("Scaling Mode", scaling_mode)) {
-			editor.SetScalingMode(scaling_mode);
+			renderer.SetScalingMode(scaling_mode);
 		}
 	} else {
-		auto window_size{ editor.GetDisplayViewport().size };
+		auto window_size{ renderer.GetDisplayViewport().size };
 
 		ImGui::BeginDisabled();
 		DrawValue("Window Size", window_size);
@@ -182,13 +190,13 @@ void DrawDisplaySettings(Editor& editor) {
 	}
 
 	settings::EditValue(
-		"Window Background", [&]() { return editor.GetWindowBackgroundColor(); },
-		[&](Color color) { editor.SetWindowBackgroundColor(color); }
+		"Window Background", [&]() { return editor.GetWindow().GetBackgroundColor(); },
+		[&](Color color) { editor.GetWindow().SetBackgroundColor(color); }
 	);
 
 	settings::EditValue(
-		"Renderer Background", [&]() { return editor.GetRendererBackgroundColor(); },
-		[&](Color color) { editor.SetRendererBackgroundColor(color); }
+		"Renderer Background", [&]() { return editor.GetRenderer().GetBackgroundColor(); },
+		[&](Color color) { editor.GetRenderer().SetBackgroundColor(color); }
 	);
 
 	ImGui::Unindent();
@@ -206,8 +214,8 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 	}
 
 	settings::EditSection(
-		"Rendering", [&]() { return ctx.editor.GetRenderSettings(); },
-		[&](const RenderSettings& value) { ctx.editor.SetRenderSettings(value); }
+		"Rendering", [&]() { return ctx.editor.GetRenderer().GetSettings(); },
+		[&](const RenderSettings& value) { ctx.editor.GetRenderer().SetSettings(value); }
 	);
 
 	ImGui::End();
