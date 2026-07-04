@@ -25,6 +25,7 @@
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interactive.h"
+#include "runtime/physics/collider.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/ui/button.h"
@@ -319,7 +320,7 @@ struct ComponentTypes {};
 // Adding a type here adds both its inspector section and its Add Component menu entry.
 using DefaultInspectorComponents = ComponentTypes<
 	impl::Tint, Color, impl::Visible, Origin, Rect, Circle, FillStyle, impl::Interactive,
-	StyledText, TextBox, RigidBody, TopDownMovement>;
+	StyledText, TextBox, Collider, RigidBody, TopDownMovement>;
 
 template <typename... T>
 void DrawComponents(Entity entity, ComponentTypes<T...>) {
