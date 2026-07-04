@@ -476,9 +476,6 @@ private:
 		Scene& scene, Transform transform, const AnimatedButtonConfig& config
 	);
 
-	bool HasPart(ButtonPart part, ButtonVisualState state = ButtonVisualState::Base) const;
-	Entity Part(ButtonPart part, ButtonVisualState state = ButtonVisualState::Base);
-
 	ptgn::Text GetText(ButtonVisualState state);
 
 	Button& Border(ButtonVisualState state);

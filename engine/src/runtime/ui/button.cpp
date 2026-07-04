@@ -1023,48 +1023,6 @@ Button& Button::Size(float radius) {
 	return *this;
 }
 
-bool Button::HasPart(ButtonPart part, ButtonVisualState state) const {
-	auto entity{ FindButtonPart(*this, part) };
-	if (!entity.has_value()) {
-		return false;
-	}
-
-	switch (part) {
-		case ButtonPart::Background:
-		case ButtonPart::Border:
-			return entity->Get<impl::ButtonShapeVisuals>()
-				.states[std::to_underlying(state)]
-				.defined;
-		case ButtonPart::Sprite:
-			return entity->Get<impl::ButtonSpriteVisuals>()
-				.states[std::to_underlying(state)]
-				.defined;
-		case ButtonPart::Text:
-			return entity->Get<impl::ButtonTextVisuals>().states[std::to_underlying(state)].defined;
-		default: PTGN_ERROR("Unknown ButtonPart: ", std::to_underlying(part));
-	}
-}
-
-Entity Button::Part(ButtonPart part, ButtonVisualState state) {
-	switch (part) {
-		case ButtonPart::Background:
-			return ShapePart(part, state, GetDefaultBackgroundColor(state), FillStyle{ Solid{} });
-		case ButtonPart::Border:
-			return ShapePart(
-				part, state, GetDefaultBorderColor(state), FillStyle{ kDefaultButtonBorderWidth }
-			);
-		case ButtonPart::Sprite: {
-			auto entity{ EnsureButtonPart(*this, part) };
-			entity.Get<impl::ButtonSpriteVisuals>().states[std::to_underlying(state)].defined =
-				true;
-			MarkDirty(impl::ButtonDirty::Sprite);
-			return entity;
-		}
-		case ButtonPart::Text: return GetText(state);
-		default:			   PTGN_ERROR("Unknown ButtonPart: ", std::to_underlying(part));
-	}
-}
-
 Button& Button::RemovePart(ButtonPart part, ButtonVisualState state) {
 	if (part == ButtonPart::Text) {
 		CommitTextEdit();
