@@ -136,6 +136,12 @@ inline constexpr FieldOptions kDefaultFieldOptions<int>{
 };
 
 template <>
+inline constexpr FieldOptions kDefaultFieldOptions<std::int64_t>{
+	.speed	= 1.0f,
+	.format = "%lld",
+};
+
+template <>
 inline constexpr FieldOptions kDefaultFieldOptions<std::size_t>{
 	.speed	= 1.0f,
 	.format = "%llu",
@@ -352,6 +358,19 @@ inline bool DrawFloat(std::string_view label, float& value, const FieldOptions& 
 		return ImGui::DragFloat(
 			"##value", &value, options.speed, HasBounds(options) ? min : 0.0f,
 			HasBounds(options) ? max : 0.0f, options.format ? options.format : "%.3f", options.flags
+		);
+	});
+}
+
+inline bool DrawInt64(std::string_view label, std::int64_t& value, const FieldOptions& options) {
+	return DrawPropertyRow(label, [&]() {
+		std::int64_t min{ static_cast<std::int64_t>(options.min) };
+		std::int64_t max{ static_cast<std::int64_t>(options.max) };
+
+		return ImGui::DragScalar(
+			"##value", ImGuiDataType_S64, &value, options.speed,
+			HasBounds(options) ? &min : nullptr, HasBounds(options) ? &max : nullptr,
+			options.format ? options.format : "%lld", options.flags
 		);
 	});
 }
@@ -671,30 +690,52 @@ bool DrawVectorEditor(
 		ImGui::PushID(static_cast<int>(i));
 
 		auto item_label{ options.item_name + " " + std::to_string(i + 1) };
-		bool item_open{ ImGui::TreeNodeEx(
-			"##item", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen, "%s",
-			item_label.c_str()
-		) };
+		bool item_open{ false };
 
-		if (options.reorderable) {
-			ImGui::SameLine();
-			if (ImGui::ArrowButton("##up", ImGuiDir_Up) && i > 0) {
-				move = std::pair{ i, i - 1 };
-			}
-			ImGui::SameLine();
-			if (ImGui::ArrowButton("##down", ImGuiDir_Down) && i + 1 < values.size()) {
-				move = std::pair{ i, i + 1 };
-			}
-		}
+		if (ImGui::BeginTable("##vector_item_row", 2, ImGuiTableFlags_SizingStretchProp)) {
+			ImGui::TableSetupColumn("Item", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed);
 
-		ImGui::SameLine();
-		if (ImGui::SmallButton("X")) {
-			remove_index = i;
+			ImGui::TableNextRow();
+
+			ImGui::TableSetColumnIndex(0);
+
+			item_open = ImGui::TreeNodeEx(
+				"##item", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen,
+				"%s", item_label.c_str()
+			);
+
+			ImGui::TableSetColumnIndex(1);
+
+			if (options.reorderable) {
+				ImGui::BeginDisabled(i == 0);
+				if (ImGui::ArrowButton("##up", ImGuiDir_Up)) {
+					move = std::pair{ i, i - 1 };
+				}
+				ImGui::EndDisabled();
+
+				ImGui::SameLine();
+
+				ImGui::BeginDisabled(i + 1 >= values.size());
+				if (ImGui::ArrowButton("##down", ImGuiDir_Down)) {
+					move = std::pair{ i, i + 1 };
+				}
+				ImGui::EndDisabled();
+
+				ImGui::SameLine();
+			}
+
+			if (ImGui::SmallButton("X")) {
+				remove_index = i;
+			}
+
+			ImGui::EndTable();
 		}
 
 		if (item_open) {
+			ImGui::Indent();
 			changed |= std::invoke(draw, values[i], i);
-			ImGui::TreePop();
+			ImGui::Unindent();
 		}
 
 		ImGui::PopID();
@@ -840,6 +881,8 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 		return DrawFloat(label, value, options);
 	} else if constexpr (std::same_as<Value, int>) {
 		return DrawInt(label, value, options);
+	} else if constexpr (std::same_as<Value, std::int64_t>) {
+		return DrawInt64(label, value, options);
 	} else if constexpr (std::same_as<Value, std::size_t>) {
 		return DrawSize(label, value, options);
 	} else if constexpr (DurationType<Value>) {
