@@ -980,7 +980,7 @@ bool DrawVariant(std::string_view label, std::variant<T...>& value) {
 
 inline bool DrawOptionalBool(std::string_view label, std::optional<bool>& value) {
 	return DrawPropertyRow(label, [&]() {
-		auto preview{ value.has_value() ? (*value ? "True" : "False") : "Unset" };
+		auto preview{ value.has_value() ? (value.value() ? "True" : "False") : "Unset" };
 
 		bool changed{ false };
 
@@ -990,12 +990,12 @@ inline bool DrawOptionalBool(std::string_view label, std::optional<bool>& value)
 				changed = true;
 			}
 
-			if (ImGui::Selectable("False", value.has_value() && !*value)) {
+			if (ImGui::Selectable("False", value.has_value() && !value.value())) {
 				value	= false;
 				changed = true;
 			}
 
-			if (ImGui::Selectable("True", value.has_value() && *value)) {
+			if (ImGui::Selectable("True", value.has_value() && value.value())) {
 				value	= true;
 				changed = true;
 			}
@@ -1024,7 +1024,7 @@ bool DrawOptionalEnum(std::string_view label, std::optional<T>& value) {
 			local_changed = true;
 		}
 
-		auto preview{ value.has_value() ? EnumLabel(*value) : "Unset" };
+		auto preview{ value.has_value() ? EnumLabel(value.value()) : "Unset" };
 
 		ImGuiComboFlags combo_flags{ ImGuiComboFlags_None };
 
@@ -1039,7 +1039,7 @@ bool DrawOptionalEnum(std::string_view label, std::optional<T>& value) {
 		if (ImGui::BeginCombo("##value", preview.c_str(), combo_flags)) {
 			for (auto candidate : magic_enum::enum_values<T>()) {
 				auto item_label{ EnumLabel(candidate) };
-				bool selected{ value.has_value() && *value == candidate };
+				bool selected{ value.has_value() && value.value() == candidate };
 
 				if (ImGui::Selectable(item_label.c_str(), selected)) {
 					value		  = candidate;
