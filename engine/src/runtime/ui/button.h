@@ -479,9 +479,6 @@ private:
 	bool HasPart(ButtonPart part, ButtonVisualState state = ButtonVisualState::Base) const;
 	Entity Part(ButtonPart part, ButtonVisualState state = ButtonVisualState::Base);
 
-	[[nodiscard]] std::vector<Entity> Parts(ButtonPart part) const;
-	[[nodiscard]] std::vector<Entity> Parts() const;
-
 	ptgn::Text GetText(ButtonVisualState state);
 
 	Button& Border(ButtonVisualState state);

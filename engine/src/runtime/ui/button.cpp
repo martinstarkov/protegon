@@ -1065,14 +1065,6 @@ Entity Button::Part(ButtonPart part, ButtonVisualState state) {
 	}
 }
 
-std::vector<Entity> Button::Parts(ButtonPart part) const {
-	return FindButtonParts(*this, part);
-}
-
-std::vector<Entity> Button::Parts() const {
-	return FindButtonParts(*this);
-}
-
 Button& Button::RemovePart(ButtonPart part, ButtonVisualState state) {
 	if (part == ButtonPart::Text) {
 		CommitTextEdit();
