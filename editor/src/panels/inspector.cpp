@@ -50,6 +50,41 @@ struct Contents<Hollow> {
 };
 
 template <>
+struct Contents<Rect> {
+	static bool Draw(Rect& rect) {
+		bool changed{ false };
+
+		auto size{ rect.max - rect.min };
+
+		if (DrawValue(
+				"Size", size,
+				FieldOptions{
+					.speed	= 0.1f,
+					.min	= 0.0,
+					.max	= 0.0,
+					.format = "%.3f",
+				}
+			)) {
+			size.x = std::max(size.x, 0.0f);
+			size.y = std::max(size.y, 0.0f);
+
+			auto center{ rect.GetCenter() };
+			auto half_size{ size * 0.5f };
+
+			rect.min = center - half_size;
+			rect.max = center + half_size;
+
+			changed = true;
+		}
+
+		changed |= DrawValue("Min", rect.min);
+		changed |= DrawValue("Max", rect.max);
+
+		return changed;
+	}
+};
+
+template <>
 struct Contents<TextRun> {
 	static bool Draw(TextRun& run) {
 		bool changed{ false };
