@@ -30,9 +30,7 @@
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
 
-namespace ptgn::editor {
-
-using namespace inspector;
+namespace ptgn::editor::inspector {
 
 // Only types whose default reflected layout is not ideal need a specialization.
 template <>
@@ -97,7 +95,7 @@ struct Contents<impl::ButtonTextVisuals> {
 	}
 };
 
-} // namespace ptgn::editor
+} // namespace ptgn::editor::inspector
 
 namespace ptgn::editor {
 

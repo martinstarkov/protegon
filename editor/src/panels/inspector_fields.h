@@ -34,6 +34,7 @@ inline constexpr float kDefaultLabelWidth{ 180.0f };
 inline constexpr float kLabelValueSpacing{ 12.0f };
 
 struct AutoLabelWidthData {
+	float start_x{ 0.0f };
 	float width{ kDefaultLabelWidth };
 	float measured_width{ kDefaultLabelWidth };
 };
@@ -58,17 +59,21 @@ inline float GetPropertyLabelWidth() {
 	return stack.back()->width;
 }
 
-inline void MeasurePropertyLabel(std::string_view label) {
+inline void MeasurePropertyLabel(std::string_view label, float label_x) {
 	auto& stack{ AutoLabelWidthStack() };
 
 	if (stack.empty()) {
 		return;
 	}
 
-	auto size{ ImGui::CalcTextSize(label.data(), label.data() + label.size()).x };
-	auto width{ size + ImGui::GetStyle().FramePadding.x * 2.0f + kLabelValueSpacing };
+	auto& data{ *stack.back() };
 
-	stack.back()->measured_width = std::max(stack.back()->measured_width, width);
+	auto label_offset{ std::max(0.0f, label_x - data.start_x) };
+	auto text_width{ ImGui::CalcTextSize(label.data(), label.data() + label.size()).x };
+	auto width{ label_offset + text_width + ImGui::GetStyle().FramePadding.x * 2.0f +
+				kLabelValueSpacing };
+
+	data.measured_width = std::max(data.measured_width, width);
 }
 
 class AutoLabelWidthScope {
@@ -78,6 +83,7 @@ public:
 		id_ = ImGui::GetID("##auto_label_width");
 
 		auto& data{ AutoLabelWidths()[id_] };
+		data.start_x		= ImGui::GetCursorPosX();
 		data.measured_width = kDefaultLabelWidth;
 
 		AutoLabelWidthStack().push_back(&data);
@@ -224,6 +230,16 @@ inline bool HasBounds(const FieldOptions& options) {
 	return options.min < options.max;
 }
 
+inline float GetPropertyValueX(float fallback_start_x) {
+	auto& stack{ AutoLabelWidthStack() };
+
+	if (stack.empty()) {
+		return fallback_start_x + kDefaultLabelWidth;
+	}
+
+	return stack.back()->start_x + stack.back()->width;
+}
+
 template <typename F>
 bool DrawPropertyRow(std::string_view label, F&& draw) {
 	auto id{ std::string{ label } };
@@ -233,8 +249,8 @@ bool DrawPropertyRow(std::string_view label, F&& draw) {
 	ImGui::AlignTextToFramePadding();
 	ImGui::TextUnformatted(label.data(), label.data() + label.size());
 	ImGui::SameLine();
-	MeasurePropertyLabel(label);
-	ImGui::SetCursorPosX(start_x + GetPropertyLabelWidth());
+	MeasurePropertyLabel(label, start_x);
+	ImGui::SetCursorPosX(GetPropertyValueX(start_x));
 	ImGui::SetNextItemWidth(-FLT_MIN);
 	bool changed{ std::invoke(std::forward<F>(draw)) };
 	ImGui::PopID();
