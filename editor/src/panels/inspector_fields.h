@@ -459,6 +459,22 @@ bool DrawDuration(
 }
 
 template <typename T, std::size_t N, typename Label>
+bool DrawArrayEditorItems(std::array<T, N>& values, Label&& get_item_label) {
+	bool changed{ false };
+
+	for (auto i{ 0uz }; i < N; ++i) {
+		ImGui::PushID(static_cast<int>(i));
+
+		auto item_label{ std::invoke(get_item_label, i) };
+		changed |= DrawValue(item_label, values[i]);
+
+		ImGui::PopID();
+	}
+
+	return changed;
+}
+
+template <typename T, std::size_t N, typename Label>
 bool DrawArrayEditor(std::string_view label, std::array<T, N>& values, Label&& get_item_label) {
 	auto header{ std::string{ label } + " (" + std::to_string(N) + ")" };
 
@@ -470,16 +486,7 @@ bool DrawArrayEditor(std::string_view label, std::array<T, N>& values, Label&& g
 		return false;
 	}
 
-	bool changed{ false };
-
-	for (auto i{ 0uz }; i < N; ++i) {
-		ImGui::PushID(&values[i]);
-
-		auto item_label{ std::invoke(get_item_label, i) };
-		changed |= DrawValue(item_label, values[i]);
-
-		ImGui::PopID();
-	}
+	bool changed{ DrawArrayEditorItems(values, std::forward<Label>(get_item_label)) };
 
 	ImGui::TreePop();
 
@@ -489,6 +496,18 @@ bool DrawArrayEditor(std::string_view label, std::array<T, N>& values, Label&& g
 template <typename T, std::size_t N>
 bool DrawArrayEditor(std::string_view label, std::array<T, N>& values) {
 	return DrawArrayEditor(label, values, [](std::size_t index) {
+		return "Item " + std::to_string(index + 1);
+	});
+}
+
+template <typename T, std::size_t N, typename Label>
+bool DrawArrayEditor(std::array<T, N>& values, Label&& get_item_label) {
+	return DrawArrayEditorItems(values, std::forward<Label>(get_item_label));
+}
+
+template <typename T, std::size_t N>
+bool DrawArrayEditor(std::array<T, N>& values) {
+	return DrawArrayEditor(values, [](std::size_t index) {
 		return "Item " + std::to_string(index + 1);
 	});
 }
@@ -504,6 +523,21 @@ bool DrawEnumArrayEditor(std::string_view label, std::array<T, N>& values) {
 	);
 
 	return DrawArrayEditor(label, values, [&](std::size_t index) {
+		return PrettyName(entries[index].second);
+	});
+}
+
+template <typename TEnum, typename T, std::size_t N>
+	requires std::is_enum_v<TEnum>
+bool DrawEnumArrayEditor(std::array<T, N>& values) {
+	constexpr auto entries{ magic_enum::enum_entries<TEnum>() };
+
+	static_assert(
+		magic_enum::enum_count<TEnum>() == N,
+		"Enum-indexed array size must match the number of reflected enum values"
+	);
+
+	return DrawArrayEditor(values, [&](std::size_t index) {
 		return PrettyName(entries[index].second);
 	});
 }
@@ -663,6 +697,78 @@ bool DrawEnum(std::string_view label, T& value) {
 	});
 }
 
+inline bool DrawFixedWidthCollapsingHeader(std::string_view label, float width, bool default_open) {
+	auto& style{ ImGui::GetStyle() };
+	auto size{ ImVec2{ std::max(1.0f, width), ImGui::GetFrameHeight() } };
+
+	ImGui::PushID("CollapsingHeader");
+
+	auto id{ ImGui::GetID("##open") };
+	auto* storage{ ImGui::GetStateStorage() };
+
+	bool open{ storage->GetBool(id, default_open) };
+
+	auto pos{ ImGui::GetCursorScreenPos() };
+
+	if (ImGui::InvisibleButton("##button", size)) {
+		open = !open;
+		storage->SetBool(id, open);
+	}
+
+	auto hovered{ ImGui::IsItemHovered() };
+	auto active{ ImGui::IsItemActive() };
+
+	auto color{ ImGui::GetColorU32(
+		active	  ? ImGuiCol_HeaderActive
+		: hovered ? ImGuiCol_HeaderHovered
+				  : ImGuiCol_Header
+	) };
+
+	auto text_color{ ImGui::GetColorU32(ImGuiCol_Text) };
+	auto* draw_list{ ImGui::GetWindowDrawList() };
+
+	auto max{ ImVec2{ pos.x + size.x, pos.y + size.y } };
+
+	draw_list->AddRectFilled(pos, max, color, style.FrameRounding);
+
+	if (style.FrameBorderSize > 0.0f) {
+		draw_list->AddRect(pos, max, ImGui::GetColorU32(ImGuiCol_Border), style.FrameRounding);
+	}
+
+	auto arrow_half_size{ ImGui::GetFontSize() * 0.35f };
+	auto arrow_center{ ImVec2{
+		pos.x + style.FramePadding.x + arrow_half_size,
+		pos.y + size.y * 0.5f,
+	} };
+
+	if (open) {
+		draw_list->AddTriangleFilled(
+			ImVec2{ arrow_center.x - arrow_half_size, arrow_center.y - arrow_half_size * 0.5f },
+			ImVec2{ arrow_center.x + arrow_half_size, arrow_center.y - arrow_half_size * 0.5f },
+			ImVec2{ arrow_center.x, arrow_center.y + arrow_half_size * 0.5f }, text_color
+		);
+	} else {
+		draw_list->AddTriangleFilled(
+			ImVec2{ arrow_center.x - arrow_half_size * 0.5f, arrow_center.y - arrow_half_size },
+			ImVec2{ arrow_center.x - arrow_half_size * 0.5f, arrow_center.y + arrow_half_size },
+			ImVec2{ arrow_center.x + arrow_half_size * 0.5f, arrow_center.y }, text_color
+		);
+	}
+
+	auto text_pos{ ImVec2{
+		pos.x + style.FramePadding.x + ImGui::GetFontSize() + style.ItemInnerSpacing.x,
+		pos.y + (size.y - ImGui::GetTextLineHeight()) * 0.5f,
+	} };
+
+	draw_list->PushClipRect(pos, max, true);
+	draw_list->AddText(text_pos, text_color, label.data(), label.data() + label.size());
+	draw_list->PopClipRect();
+
+	ImGui::PopID();
+
+	return open;
+}
+
 struct VectorOptions {
 	std::string item_name{ "Item" };
 	bool default_open{ true };
@@ -670,84 +776,57 @@ struct VectorOptions {
 };
 
 template <typename T, typename Draw>
-bool DrawVectorEditor(
-	std::string_view label, std::vector<T>& values, VectorOptions options, Draw&& draw
-) {
-	auto header{ std::string{ label } + " (" + std::to_string(values.size()) + ")" };
-	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth };
-	if (options.default_open) {
-		flags |= ImGuiTreeNodeFlags_DefaultOpen;
-	}
-
-	bool open{ ImGui::TreeNodeEx(header.c_str(), flags) };
-	if (!open) {
-		return false;
-	}
+bool DrawVectorEditorItems(std::vector<T>& values, VectorOptions options, Draw&& draw) {
+	ImGui::PushID(&values);
 
 	bool changed{ false };
 	std::optional<std::size_t> remove_index;
 	std::optional<std::pair<std::size_t, std::size_t>> move;
 
+	auto& style{ ImGui::GetStyle() };
+
 	for (auto i{ 0uz }; i < values.size(); ++i) {
 		ImGui::PushID(static_cast<int>(i));
 
 		auto item_label{ options.item_name + " " + std::to_string(i + 1) };
-		bool item_open{ false };
 
-		auto spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		auto spacing{ style.ItemInnerSpacing.x };
 		auto button_size{ ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() } };
 
 		auto action_count{ options.reorderable ? 3 : 1 };
-		auto action_width{ 2 * spacing + static_cast<float>(action_count) * button_size.x +
-						   static_cast<float>(action_count - 1) * spacing };
+		auto action_button_width{ static_cast<float>(action_count) * button_size.x +
+								  static_cast<float>(action_count - 1) * spacing };
 
-		if (ImGui::BeginTable(
-				"##vector_item_row", 2,
-				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX
-			)) {
-			ImGui::TableSetupColumn("Item", ImGuiTableColumnFlags_WidthStretch);
-			ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed, action_width);
+		auto available_width{ ImGui::GetContentRegionAvail().x };
+		auto header_width{ available_width - action_button_width - spacing };
+		header_width = std::max(1.0f, header_width);
 
-			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+		bool item_open{
+			DrawFixedWidthCollapsingHeader(item_label, header_width, options.default_open)
+		};
 
-			ImGui::TableSetColumnIndex(0);
+		ImGui::SameLine(0.0f, spacing);
 
-			item_open = ImGui::TreeNodeEx(
-				"##item",
-				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen |
-					ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth,
-				"%s", item_label.c_str()
-			);
-
-			ImGui::TableSetColumnIndex(1);
+		if (options.reorderable) {
+			ImGui::BeginDisabled(i == 0);
+			if (ImGui::ArrowButton("##up", ImGuiDir_Up)) {
+				move = std::pair{ i, i - 1 };
+			}
+			ImGui::EndDisabled();
 
 			ImGui::SameLine(0.0f, spacing);
 
-			ImGui::SetCursorPosX(ImGui::GetCursorPosX() + spacing);
-
-			if (options.reorderable) {
-				ImGui::BeginDisabled(i == 0);
-				if (ImGui::ArrowButton("##up", ImGuiDir_Up)) {
-					move = std::pair{ i, i - 1 };
-				}
-				ImGui::EndDisabled();
-
-				ImGui::SameLine(0.0f, spacing);
-
-				ImGui::BeginDisabled(i + 1 >= values.size());
-				if (ImGui::ArrowButton("##down", ImGuiDir_Down)) {
-					move = std::pair{ i, i + 1 };
-				}
-				ImGui::EndDisabled();
-
-				ImGui::SameLine(0.0f, spacing);
+			ImGui::BeginDisabled(i + 1 >= values.size());
+			if (ImGui::ArrowButton("##down", ImGuiDir_Down)) {
+				move = std::pair{ i, i + 1 };
 			}
+			ImGui::EndDisabled();
 
-			if (ImGui::Button("X", button_size)) {
-				remove_index = i;
-			}
+			ImGui::SameLine(0.0f, spacing);
+		}
 
-			ImGui::EndTable();
+		if (ImGui::Button("X##remove", button_size)) {
+			remove_index = i;
 		}
 
 		if (item_open) {
@@ -773,7 +852,7 @@ bool DrawVectorEditor(
 	}
 
 	if (!values.empty()) {
-		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetStyle().FramePadding.y);
+		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + style.FramePadding.y);
 	}
 
 	auto add_label{ "Add " + options.item_name };
@@ -782,14 +861,51 @@ bool DrawVectorEditor(
 		changed = true;
 	}
 
-	ImGui::TreePop();
+	ImGui::PopID();
+
 	return changed;
+}
+
+template <typename T, typename Draw>
+bool DrawVectorEditor(
+	std::string_view label, std::vector<T>& values, VectorOptions options, Draw&& draw
+) {
+	auto header{ std::string{ label } + " (" + std::to_string(values.size()) + ")" };
+
+	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth };
+	if (options.default_open) {
+		flags |= ImGuiTreeNodeFlags_DefaultOpen;
+	}
+
+	bool open{ ImGui::TreeNodeEx(header.c_str(), flags) };
+	if (!open) {
+		return false;
+	}
+
+	bool changed{ DrawVectorEditorItems(values, std::move(options), std::forward<Draw>(draw)) };
+
+	ImGui::TreePop();
+
+	return changed;
+}
+
+template <typename T, typename Draw>
+bool DrawVectorEditor(std::vector<T>& values, VectorOptions options, Draw&& draw) {
+	return DrawVectorEditorItems(values, std::move(options), std::forward<Draw>(draw));
 }
 
 template <typename T>
 bool DrawVectorEditor(std::string_view label, std::vector<T>& values, VectorOptions options = {}) {
 	return DrawVectorEditor(
 		label, values, std::move(options),
+		[]<typename TValue>(TValue& value, std::size_t) { return DrawContents(value); }
+	);
+}
+
+template <typename T>
+bool DrawVectorEditor(std::vector<T>& values, VectorOptions options = {}) {
+	return DrawVectorEditor(
+		values, std::move(options),
 		[]<typename TValue>(TValue& value, std::size_t) { return DrawContents(value); }
 	);
 }
@@ -862,8 +978,110 @@ bool DrawVariant(std::string_view label, std::variant<T...>& value) {
 	return changed;
 }
 
+inline bool DrawOptionalBool(std::string_view label, std::optional<bool>& value) {
+	return DrawPropertyRow(label, [&]() {
+		auto preview{ value.has_value() ? (*value ? "True" : "False") : "Unset" };
+
+		bool changed{ false };
+
+		if (ImGui::BeginCombo("##value", preview)) {
+			if (ImGui::Selectable("Unset", !value.has_value())) {
+				value.reset();
+				changed = true;
+			}
+
+			if (ImGui::Selectable("False", value.has_value() && !*value)) {
+				value	= false;
+				changed = true;
+			}
+
+			if (ImGui::Selectable("True", value.has_value() && *value)) {
+				value	= true;
+				changed = true;
+			}
+
+			ImGui::EndCombo();
+		}
+
+		return changed;
+	});
+}
+
+template <typename T>
+	requires std::is_enum_v<T>
+bool DrawOptionalEnum(std::string_view label, std::optional<T>& value) {
+	ImGui::PushID(&value);
+
+	bool enabled{ value.has_value() };
+
+	bool changed{ DrawPropertyRow(label, [&]() {
+		bool local_changed{ ImGui::Checkbox("##enabled", &enabled) };
+
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+
+		if (enabled && !value.has_value()) {
+			value		  = magic_enum::enum_values<T>().front();
+			local_changed = true;
+		}
+
+		auto preview{ value.has_value() ? EnumLabel(*value) : "Unset" };
+
+		ImGuiComboFlags combo_flags{ ImGuiComboFlags_None };
+
+		if (!enabled) {
+			combo_flags |= ImGuiComboFlags_NoArrowButton;
+		}
+
+		ImGui::BeginDisabled(!enabled);
+
+		ImGui::SetNextItemWidth(-FLT_MIN);
+
+		if (ImGui::BeginCombo("##value", preview.c_str(), combo_flags)) {
+			for (auto candidate : magic_enum::enum_values<T>()) {
+				auto item_label{ EnumLabel(candidate) };
+				bool selected{ value.has_value() && *value == candidate };
+
+				if (ImGui::Selectable(item_label.c_str(), selected)) {
+					value		  = candidate;
+					local_changed = true;
+				}
+
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+
+			ImGui::EndCombo();
+		}
+
+		ImGui::EndDisabled();
+
+		return local_changed;
+	}) };
+
+	if (enabled != value.has_value()) {
+		if (enabled) {
+			value = magic_enum::enum_values<T>().front();
+		} else {
+			value.reset();
+		}
+
+		changed = true;
+	}
+
+	ImGui::PopID();
+
+	return changed;
+}
+
 template <typename T>
 bool DrawOptional(std::string_view label, std::optional<T>& value, FieldOptions options) {
+	if constexpr (std::is_enum_v<T>) {
+		return DrawOptionalEnum(label, value);
+	} else if constexpr (std::same_as<T, bool>) {
+		return DrawOptionalBool(label, value);
+	}
+
 	ImGui::PushID(&value);
 
 	bool enabled{ value.has_value() };
@@ -884,7 +1102,15 @@ bool DrawOptional(std::string_view label, std::optional<T>& value, FieldOptions 
 
 	if (value.has_value()) {
 		ImGui::Indent();
-		changed |= DrawValue("Value", *value, options);
+
+		using Value = std::remove_cvref_t<T>;
+
+		if constexpr (ReflectedValue<Value> || ReflectedMembers<Value>) {
+			changed |= DrawContents(value.value());
+		} else {
+			changed |= DrawValue("Value", value.value(), options);
+		}
+
 		ImGui::Unindent();
 	}
 

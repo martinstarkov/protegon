@@ -100,12 +100,11 @@ template <>
 struct Contents<StyledText> {
 	static bool Draw(StyledText& text) {
 		return DrawVectorEditor(
-			"Runs", text.runs,
-			VectorOptions{
-				.item_name	  = "Run",
-				.default_open = true,
-				.reorderable  = true,
-			}
+			text.runs, VectorOptions{
+						   .item_name	 = "Text Run",
+						   .default_open = true,
+						   .reorderable	 = true,
+					   }
 		);
 	}
 };
@@ -113,21 +112,21 @@ struct Contents<StyledText> {
 template <>
 struct Contents<impl::ButtonShapeVisuals> {
 	static bool Draw(impl::ButtonShapeVisuals& visuals) {
-		return DrawEnumArrayEditor<ButtonVisualState>("States", visuals.states);
+		return DrawEnumArrayEditor<ButtonVisualState>(visuals.states);
 	}
 };
 
 template <>
 struct Contents<impl::ButtonSpriteVisuals> {
 	static bool Draw(impl::ButtonSpriteVisuals& visuals) {
-		return DrawEnumArrayEditor<ButtonVisualState>("States", visuals.states);
+		return DrawEnumArrayEditor<ButtonVisualState>(visuals.states);
 	}
 };
 
 template <>
 struct Contents<impl::ButtonTextVisuals> {
 	static bool Draw(impl::ButtonTextVisuals& visuals) {
-		return DrawEnumArrayEditor<ButtonVisualState>("States", visuals.states);
+		return DrawEnumArrayEditor<ButtonVisualState>(visuals.states);
 	}
 };
 
