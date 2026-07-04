@@ -176,7 +176,6 @@ ButtonDesc MakeButtonDesc(V2_float size, const ButtonConfig& config) {
 constexpr Color GetDefaultBackgroundColor(ButtonVisualState state) {
 	switch (state) {
 		using enum ButtonVisualState;
-		case Base:			return kDefaultIdleButtonBackgroundColor;
 		case Idle:			return kDefaultIdleButtonBackgroundColor;
 		case Hover:			return kDefaultHoverButtonBackgroundColor;
 		case Press:			return kDefaultPressButtonBackgroundColor;
@@ -193,7 +192,6 @@ constexpr Color GetDefaultBackgroundColor(ButtonVisualState state) {
 constexpr Color GetDefaultBorderColor(ButtonVisualState state) {
 	switch (state) {
 		using enum ButtonVisualState;
-		case Base:			return kDefaultIdleButtonBorderColor;
 		case Idle:			return kDefaultIdleButtonBorderColor;
 		case Hover:			return kDefaultHoverButtonBorderColor;
 		case Press:			return kDefaultPressButtonBorderColor;
@@ -210,18 +208,16 @@ constexpr Color GetDefaultBorderColor(ButtonVisualState state) {
 std::vector<ButtonVisualState> GetVisualStateFallbacks(ButtonVisualState state) {
 	switch (state) {
 		using enum ButtonVisualState;
-		case Base:			return { Base };
-		case Idle:			return { Idle, Base };
-		case Hover:			return { Hover, Idle, Base };
-		case Press:			return { Press, Hover, Idle, Base };
-		case Disabled:		return { Disabled, Idle, Base };
-		case DisabledHover: return { DisabledHover, Disabled, Hover, Idle, Base };
-		case DisabledPress:
-			return { DisabledPress, DisabledHover, Disabled, Press, Hover, Idle, Base };
-		case Toggled:	   return { Toggled, Idle, Base };
-		case ToggledHover: return { ToggledHover, Toggled, Hover, Idle, Base };
-		case ToggledPress: return { ToggledPress, ToggledHover, Toggled, Press, Hover, Idle, Base };
-		default:		   PTGN_ERROR("Unknown ButtonVisualState: ", std::to_underlying(state));
+		case Idle:			return { Idle };
+		case Hover:			return { Hover, Idle };
+		case Press:			return { Press, Hover, Idle };
+		case Disabled:		return { Disabled, Idle };
+		case DisabledHover: return { DisabledHover, Disabled, Hover, Idle };
+		case DisabledPress: return { DisabledPress, DisabledHover, Disabled, Press, Hover, Idle };
+		case Toggled:		return { Toggled, Idle };
+		case ToggledHover:	return { ToggledHover, Toggled, Hover, Idle };
+		case ToggledPress:	return { ToggledPress, ToggledHover, Toggled, Press, Hover, Idle };
+		default:			PTGN_ERROR("Unknown ButtonVisualState: ", std::to_underlying(state));
 	}
 }
 
@@ -664,7 +660,7 @@ void ResetButtonAnimation(Animation animation) {
 
 struct ResolvedButtonAnimation {
 	Entity entity;
-	ButtonVisualState state{ ButtonVisualState::Base };
+	ButtonVisualState state{ ButtonVisualState::Idle };
 	ButtonAnimationOptions options;
 };
 
@@ -2275,7 +2271,7 @@ Button CreateAnimatedButton(Scene& scene, Transform transform, const AnimatedBut
 	button.Sprites(config.texture, config.texture_hover, config.texture_press);
 
 	if (config.anchor.has_value()) {
-		button.SpriteAnchor(config.anchor.value(), ButtonVisualState::Base);
+		button.SpriteAnchor(config.anchor.value(), ButtonVisualState::Idle);
 	}
 
 	if (config.animation_hover.has_value()) {

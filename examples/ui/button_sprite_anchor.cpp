@@ -56,11 +56,11 @@ public:
 
 		// Keep the sprite centered on its transform so the sprite's center
 		// visibly marks the selected anchor point on the button.
-		button.Sprite(sprite_texture, Origin::Center, ButtonVisualState::Base);
+		button.Sprite(sprite_texture, Origin::Center, ButtonVisualState::Idle);
 
 		// The sprite transform is positioned at this point of the button,
 		// independently of the button's own draw origin.
-		button.SpriteAnchor(sprite_anchor, ButtonVisualState::Base);
+		button.SpriteAnchor(sprite_anchor, ButtonVisualState::Idle);
 	}
 
 	void OnEnter() override {

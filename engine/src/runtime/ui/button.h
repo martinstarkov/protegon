@@ -120,7 +120,7 @@ constexpr bool HasDirty(ButtonDirty dirty, ButtonDirty flag) {
 }
 
 struct ButtonTextEditSnapshot {
-	ButtonVisualState state{ ButtonVisualState::Base };
+	ButtonVisualState state{ ButtonVisualState::Idle };
 
 	TextBox box;
 	Origin origin{ Origin::Center };
@@ -132,7 +132,7 @@ struct ButtonData {
 	ButtonDirty dirty{ ButtonDirty::All };
 
 	struct VisualOverride {
-		ButtonVisualState state{ ButtonVisualState::Base };
+		ButtonVisualState state{ ButtonVisualState::Idle };
 		bool block_press{ false };
 	};
 
@@ -296,14 +296,14 @@ public:
 
 	/// @brief Sets which point of the background lies at the background
 	/// transform.
-	Button& BackgroundOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BackgroundOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Idle);
 	Button& ClearBackgroundOrigin();
 
 	/// @brief Sets which point of the button shape the background transform is
 	/// anchored to.
-	Button& BackgroundAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BackgroundAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Idle);
 
-	Button& BackgroundColor(Color color, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BackgroundColor(Color color, ButtonVisualState state = ButtonVisualState::Idle);
 	Button& BackgroundColors(
 		std::optional<Color> idle, std::optional<Color> hover = std::nullopt,
 		std::optional<Color> press = std::nullopt
@@ -317,8 +317,8 @@ public:
 		std::optional<Color> disabled_press = std::nullopt
 	);
 
-	Button& BackgroundSize(V2_float size, ButtonVisualState state = ButtonVisualState::Base);
-	Button& BackgroundSize(float radius, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BackgroundSize(V2_float size, ButtonVisualState state = ButtonVisualState::Idle);
+	Button& BackgroundSize(float radius, ButtonVisualState state = ButtonVisualState::Idle);
 
 	/// @brief Removes every background state and destroys the consolidated
 	/// background entity.
@@ -330,23 +330,23 @@ public:
 	Button& Border();
 
 	/// @brief Sets which point of the border lies at the border transform.
-	Button& BorderOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BorderOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Idle);
 	Button& ClearBorderOrigin();
 
 	/// @brief Sets which point of the button shape the border transform is
 	/// anchored to.
-	Button& BorderAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BorderAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Idle);
 
-	Button& BorderColor(Color color, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BorderColor(Color color, ButtonVisualState state = ButtonVisualState::Idle);
 	Button& BorderColors(
 		std::optional<Color> idle, std::optional<Color> hover = std::nullopt,
 		std::optional<Color> press = std::nullopt
 	);
 
-	Button& BorderWidth(FillStyle fill, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BorderWidth(FillStyle fill, ButtonVisualState state = ButtonVisualState::Idle);
 
-	Button& BorderSize(V2_float size, ButtonVisualState state = ButtonVisualState::Base);
-	Button& BorderSize(float radius, ButtonVisualState state = ButtonVisualState::Base);
+	Button& BorderSize(V2_float size, ButtonVisualState state = ButtonVisualState::Idle);
+	Button& BorderSize(float radius, ButtonVisualState state = ButtonVisualState::Idle);
 
 	/// @brief Removes every border state and destroys the consolidated border
 	/// entity.
@@ -358,27 +358,27 @@ public:
 	/// @brief Begins editing the requested state on the single consolidated text
 	/// entity. The edit is committed before the next state edit or button visual
 	/// refresh.
-	ptgn::Text Text(ButtonVisualState state = ButtonVisualState::Base);
+	ptgn::Text Text(ButtonVisualState state = ButtonVisualState::Idle);
 	ptgn::Text Text(
 		std::string_view content, Color color = kDefaultButtonTextColor,
-		float font_size = kDefaultFontSize, ButtonVisualState state = ButtonVisualState::Base
+		float font_size = kDefaultFontSize, ButtonVisualState state = ButtonVisualState::Idle
 	);
-	ptgn::Text Text(StyledText styled_text, ButtonVisualState state = ButtonVisualState::Base);
+	ptgn::Text Text(StyledText styled_text, ButtonVisualState state = ButtonVisualState::Idle);
 
 	/// @brief Sets which point of the text box lies at the text transform. If unset defaults to the
 	/// text anchor, which defaults to the button center.
-	Button& TextOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Base);
+	Button& TextOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Idle);
 
 	/// @brief Sets which point of the button shape the text transform is anchored
 	/// to. If unset defaults to the button center.
-	Button& TextAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Base);
+	Button& TextAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Idle);
 
-	Button& ClearTextOrigin(ButtonVisualState state = ButtonVisualState::Base);
+	Button& ClearTextOrigin(ButtonVisualState state = ButtonVisualState::Idle);
 
-	Button& ClearTextAnchor(ButtonVisualState state = ButtonVisualState::Base);
+	Button& ClearTextAnchor(ButtonVisualState state = ButtonVisualState::Idle);
 
-	Button& TextAutoBox(bool enabled = true, ButtonVisualState state = ButtonVisualState::Base);
-	Button& TextPadding(Padding padding, ButtonVisualState state = ButtonVisualState::Base);
+	Button& TextAutoBox(bool enabled = true, ButtonVisualState state = ButtonVisualState::Idle);
+	Button& TextPadding(Padding padding, ButtonVisualState state = ButtonVisualState::Idle);
 
 	/// @brief Removes every text state and destroys the consolidated text entity.
 	Button& RemoveText();
@@ -391,7 +391,7 @@ public:
 	/// origin.
 	Button& Sprite(
 		std::string_view texture_key, std::optional<Origin> origin = std::nullopt,
-		ButtonVisualState state = ButtonVisualState::Base
+		ButtonVisualState state = ButtonVisualState::Idle
 	);
 	Button& Sprites(
 		std::optional<std::string_view> idle_texture_key,
@@ -399,7 +399,7 @@ public:
 		std::optional<std::string_view> press_texture_key = std::nullopt
 	);
 
-	Button& SpriteAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Base);
+	Button& SpriteAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Idle);
 
 	/// @brief Removes every sprite and animation state and destroys the
 	/// consolidated sprite entity.
@@ -413,7 +413,7 @@ public:
 	);
 	Button& Animation(
 		AnimationConfig config, std::optional<Origin> origin = std::nullopt,
-		ButtonVisualState state = ButtonVisualState::Base
+		ButtonVisualState state = ButtonVisualState::Idle
 	);
 	Button& Animations(
 		std::optional<AnimationConfig> idle_animation,
@@ -481,7 +481,7 @@ private:
 	/// @brief Compatibility entry point used by ToggleButton/Dropdown code.
 	void RefreshVisualState() const;
 
-	Button& RemovePart(ButtonPart part, ButtonVisualState state = ButtonVisualState::Base);
+	Button& RemovePart(ButtonPart part, ButtonVisualState state = ButtonVisualState::Idle);
 	Button& RemoveParts(ButtonPart part);
 
 	Entity ShapePart(ButtonPart part, ButtonVisualState state, Color color, FillStyle fill);

@@ -78,8 +78,6 @@ enum class ButtonState : std::uint8_t {
 PTGN_SERIALIZE_ENUM(ButtonState);
 
 enum class ButtonVisualState : std::uint8_t {
-	Base,
-
 	Idle,
 	Hover,
 	Press,
@@ -105,7 +103,7 @@ PTGN_SERIALIZE_ENUM(ButtonPart);
 struct ButtonShapeConfig {
 	/// @brief Can only be ButtonPart::Background or ButtonPart::Border.
 	ButtonPart part{ ButtonPart::Background };
-	ButtonVisualState state{ ButtonVisualState::Base };
+	ButtonVisualState state{ ButtonVisualState::Idle };
 
 	/// @brief Optional fixed size for the shape. If not set, the shape uses the button size.
 	std::optional<std::variant<V2_float, float>> size;
@@ -125,7 +123,7 @@ struct ButtonShapeConfig {
 };
 
 struct ButtonSpriteConfig {
-	ButtonVisualState state{ ButtonVisualState::Base };
+	ButtonVisualState state{ ButtonVisualState::Idle };
 
 	/// @brief Texture key to use for the sprite. Must be loaded in the AssetManager.
 	std::string texture;
@@ -147,7 +145,7 @@ struct ButtonSpriteConfig {
 };
 
 struct ButtonTextConfig {
-	ButtonVisualState state{ ButtonVisualState::Base };
+	ButtonVisualState state{ ButtonVisualState::Idle };
 
 	std::string content;
 	/// @brief Font key to use for the text. Must be loaded in the AssetManager.
