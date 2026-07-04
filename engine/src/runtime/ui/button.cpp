@@ -1922,13 +1922,36 @@ void Button::SetState(impl::InternalButtonState state) {
 }
 
 void Button::PlaySound(ButtonState active) {
-	auto sound{ GetSound(active) };
-	if (!sound.has_value()) {
+	auto active_sound{ GetSound(active) };
+
+	// Preserve the old behavior: exclusive audio only stops other button sounds
+	// when the active state actually has a sound to play.
+	if (!active_sound.has_value()) {
 		return;
 	}
 
 	auto& audio{ GetScene().ctx().audio };
-	audio.Play(sound.value().GetEntity().Get<impl::AssetName>().value);
+	bool stop_others{ Has<impl::ButtonExclusiveAudio>() };
+
+	auto play_if_active = [this, &audio, stop_others, active](auto state) {
+		auto sound{ GetSound(state) };
+
+		if (!sound.has_value()) {
+			return;
+		}
+
+		auto& asset_name{ sound.value().GetEntity().Get<impl::AssetName>().value };
+
+		if (state == active) {
+			audio.Play(asset_name);
+		} else if (stop_others) {
+			audio.Stop(asset_name);
+		}
+	};
+
+	play_if_active(ButtonState::Idle);
+	play_if_active(ButtonState::Hover);
+	play_if_active(ButtonState::Press);
 }
 
 void Button::PlayAnimation(ButtonState active) const {
