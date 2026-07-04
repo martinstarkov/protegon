@@ -705,13 +705,14 @@ void ButtonAnimationCompleteScript::OnEvent(Event event) {
 		auto& visuals{ entity.Get<ButtonSpriteVisuals>() };
 
 		if (auto& data{ button.Get<ButtonData>() }; data.visual_override.has_value()) {
-			auto animation{ TryAnimationForVisualState(button, data.visual_override.value()) };
+			auto animation{
+				TryAnimationForVisualState(button, data.visual_override.value().state)
+			};
 			if (!animation.has_value() || animation->entity != entity) {
 				return;
 			}
 
 			data.visual_override.reset();
-			data.block_press = false;
 			button.MarkDirty(ButtonDirty::All);
 			button.RefreshDirty();
 			return;
@@ -854,12 +855,9 @@ void UpdateButtons(Scene& scene) {
 Button::Button(Entity entity) : Entity{ entity } {}
 
 bool Button::IsEnabled(bool check_for_hover_enabled) const {
-	auto enabled{ TryGet<impl::ButtonEnabled>() };
-	if (!enabled) {
-		return false;
-	}
+	auto& button{ Get<impl::ButtonData>() };
 
-	return check_for_hover_enabled ? enabled->hover : enabled->press;
+	return check_for_hover_enabled ? button.hover_enabled : button.press_enabled;
 }
 
 ButtonState Button::GetState() const {
@@ -886,7 +884,7 @@ ButtonVisualState Button::GetVisualState() const {
 	const auto& button{ Get<impl::ButtonData>() };
 
 	if (button.visual_override.has_value()) {
-		return button.visual_override.value();
+		return button.visual_override.value().state;
 	}
 
 	if (Has<impl::ToggleButtonData>() && ToggleButton{ *this }.IsToggled()) {
@@ -920,8 +918,11 @@ Button& Button::Disable(bool disable_hover, bool reset_state) {
 	return SetEnabled(false, !disable_hover, reset_state);
 }
 
-Button& Button::SetEnabled(bool enable_activation, bool enable_hover, bool reset_state) {
-	Add<impl::ButtonEnabled>(enable_activation, enable_hover);
+Button& Button::SetEnabled(bool enable_press, bool enable_hover, bool reset_state) {
+	auto& button{ Get<impl::ButtonData>() };
+
+	button.press_enabled = enable_press;
+	button.hover_enabled = enable_hover;
 
 	if (reset_state) {
 		Get<impl::ButtonData>().state = impl::InternalButtonState::IdleUp;
@@ -939,7 +940,7 @@ Button& Button::Press() {
 
 	auto& button{ Get<impl::ButtonData>() };
 
-	if (button.block_press) {
+	if (button.visual_override.has_value() && button.visual_override.value().block_press) {
 		return *this;
 	}
 
@@ -950,8 +951,8 @@ Button& Button::Press() {
 		const auto& options{ resolved_animation->options };
 
 		if (options.lock_visual_state) {
-			button.visual_override = press_visual_state;
-			button.block_press	   = options.block_press;
+			button.visual_override = { .state		= press_visual_state,
+									   .block_press = options.block_press };
 
 			MarkDirty(impl::ButtonDirty::All);
 			RefreshDirty();
@@ -1033,7 +1034,6 @@ Button& Button::RemovePart(ButtonPart part, ButtonVisualState state) {
 	if (part == ButtonPart::Sprite) {
 		auto& button{ Get<impl::ButtonData>() };
 		button.visual_override.reset();
-		button.block_press = false;
 	}
 
 	auto entity{ FindButtonPart(*this, part) };
@@ -1088,7 +1088,6 @@ Button& Button::RemoveParts(ButtonPart part) {
 	if (part == ButtonPart::Sprite) {
 		auto& button{ Get<impl::ButtonData>() };
 		button.visual_override.reset();
-		button.block_press = false;
 	}
 
 	if (auto entity{ FindButtonPart(*this, part) }) {
@@ -2087,7 +2086,6 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 	PTGN_DEFAULT_NAME(button, "Button");
 	button.Add<impl::Visible>(true);
 	button.Add<impl::ButtonData>();
-	button.Add<impl::ButtonEnabled>();
 
 	if (desc.ui_layer) {
 		SetUI(button, true);

@@ -19,6 +19,7 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/audio/audio.h"
@@ -130,8 +131,15 @@ struct ButtonData {
 	InternalButtonState state{ InternalButtonState::IdleUp };
 	ButtonDirty dirty{ ButtonDirty::All };
 
-	std::optional<ButtonVisualState> visual_override;
-	bool block_press{ false };
+	struct VisualOverride {
+		ButtonVisualState state{ ButtonVisualState::Base };
+		bool block_press{ false };
+	};
+
+	std::optional<VisualOverride> visual_override;
+
+	bool press_enabled{ true };
+	bool hover_enabled{ true };
 
 	std::optional<ButtonVisualState> applied_visual_state;
 	std::optional<std::variant<V2_float, float>> applied_size;
@@ -164,7 +172,7 @@ struct ButtonShapeVisual {
 struct ButtonShapeVisuals {
 	std::array<ButtonShapeVisual, kButtonVisualStateCount> states;
 
-	PTGN_SERIALIZE(ButtonShapeVisuals, states)
+	PTGN_SERIALIZE_VALUE(ButtonShapeVisuals, states)
 };
 
 struct ButtonSpriteVisual {
@@ -193,7 +201,7 @@ struct ButtonSpriteVisuals {
 	std::optional<ButtonVisualState> applied_animation_state;
 	bool transient_animation{ false };
 
-	PTGN_SERIALIZE(ButtonSpriteVisuals, states)
+	PTGN_SERIALIZE_VALUE(ButtonSpriteVisuals, states)
 };
 
 struct ButtonTextVisual {
@@ -219,14 +227,7 @@ struct ButtonTextVisuals {
 	/// editing. Not serialized.
 	std::optional<ButtonTextEditSnapshot> editing;
 
-	PTGN_SERIALIZE(ButtonTextVisuals, states)
-};
-
-struct ButtonEnabled {
-	bool press{ true };
-	bool hover{ true };
-
-	PTGN_SERIALIZE(ButtonEnabled, press, hover)
+	PTGN_SERIALIZE_VALUE(ButtonTextVisuals, states)
 };
 
 struct ButtonExclusiveAudio {};
@@ -281,9 +282,7 @@ public:
 
 	Button& Enable(bool enable_hover = true, bool reset_state = true);
 	Button& Disable(bool disable_hover = true, bool reset_state = true);
-	Button& SetEnabled(
-		bool enable_activation = true, bool enable_hover = true, bool reset_state = true
-	);
+	Button& SetEnabled(bool enable_press = true, bool enable_hover = true, bool reset_state = true);
 
 	Button& Press();
 	Button& StartHover();
