@@ -582,7 +582,9 @@ std::array<UniformWrite, 9> Light::GetUniforms() const {
 }
 
 void Light::Draw(DrawContext& ctx, Entity entity) {
-	PTGN_ASSERT((entity.Has<Circle, impl::LightData>()));
+	if (!entity.Has<Circle, impl::LightData>()) {
+		return;
+	}
 
 	if (IsInvisibleCone(entity)) {
 		return;

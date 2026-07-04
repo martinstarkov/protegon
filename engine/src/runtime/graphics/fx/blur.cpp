@@ -7,6 +7,10 @@
 namespace ptgn {
 
 void Blur::Draw(DrawContext& ctx, Entity entity) {
+	if (!entity.Has<Blur>()) {
+		return;
+	}
+
 	const auto& blur{ entity.Get<Blur>() };
 
 	if (!blur.iterations) {

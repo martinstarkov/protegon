@@ -6,6 +6,7 @@
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
@@ -51,11 +52,17 @@ void Sprite::Draw(
 	DrawContext& ctx, Entity entity, Origin offset_origin, V2_float offset_size,
 	Color additional_tint
 ) {
-	PTGN_ASSERT(entity.Has<Texture>(), "Sprites must have a texture");
+	if (!entity.Has<Texture>()) {
+		return;
+	}
 
 	const auto& texture{ entity.Get<Texture>() };
 	auto texture_size{ GetDisplaySize(entity) };
-	PTGN_ASSERT(texture_size.has_value(), "Sprite texture does not have a valid texture size");
+
+	if (!texture_size.has_value()) {
+		PTGN_WARN("Sprite texture does not have a valid texture size");
+		return;
+	}
 
 	auto draw_transform{ GetDrawTransform(entity) };
 	auto scale{ draw_transform.scale };

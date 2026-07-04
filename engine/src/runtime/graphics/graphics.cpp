@@ -45,6 +45,10 @@ void GraphicsData::AddCommand(Transform transform, const Shape& shape, bool fill
 Graphics::Graphics(Entity entity) : Entity{ entity } {}
 
 void Graphics::Draw(DrawContext& ctx, Entity entity) {
+	if (!entity.Has<impl::GraphicsData>()) {
+		return;
+	}
+
 	const auto& instance{ entity.Get<impl::GraphicsData>() };
 
 	auto transform{ GetDrawTransform(entity) };

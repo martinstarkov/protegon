@@ -472,6 +472,10 @@ bool ParticleEmitter::IsStopped() const {
 }
 
 void ParticleEmitter::Draw(DrawContext& ctx, Entity entity) {
+	if (!entity.Has<impl::ParticleEmitterComponent>()) {
+		return;
+	}
+
 	auto depth{ GetDepth(entity) };
 	auto blend_mode{ GetBlendMode(entity) };
 

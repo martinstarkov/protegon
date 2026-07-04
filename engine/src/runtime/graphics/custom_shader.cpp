@@ -29,7 +29,9 @@ namespace ptgn {
 CustomShader::CustomShader(Entity entity) : Entity{ entity } {}
 
 void CustomShader::Draw(DrawContext& ctx, Entity entity) {
-	PTGN_ASSERT((entity.Has<Rect, MaterialState>()));
+	if (!entity.Has<Rect, MaterialState>()) {
+		return;
+	}
 
 	const auto& material{ entity.Get<MaterialState>() };
 

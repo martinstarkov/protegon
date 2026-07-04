@@ -8,6 +8,10 @@
 namespace ptgn {
 
 void Bloom::Draw(DrawContext& ctx, Entity entity) {
+	if (!entity.Has<Bloom>()) {
+		return;
+	}
+
 	const auto& bloom{ entity.Get<Bloom>() };
 
 	ctx.Pass([&](auto& pass) -> RenderPassHandle {

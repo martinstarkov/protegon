@@ -175,7 +175,9 @@ impl::TextureId RenderTarget::GetTexture() const {
 }
 
 void RenderTarget::Draw(DrawContext& ctx, Entity entity) {
-	PTGN_ASSERT(entity.Has<impl::FramebufferObject>());
+	if (!entity.Has<impl::FramebufferObject>()) {
+		return;
+	}
 
 	RenderTarget render_target{ entity };
 

@@ -69,8 +69,9 @@ ShapeDrawParams GetShapeDrawParams(Entity entity) {
 
 template <ShapeType T>
 void DrawShape(DrawContext& ctx, Entity entity) {
-	PTGN_ASSERT(entity.Has<T>(), "Entity does not have shape: ", type_name<T>());
-	PTGN_ASSERT(entity.Has<Color>(), "Shape does not have color: ", type_name<T>());
+	if (!entity.Has<T, Color>()) {
+		return;
+	}
 
 	const auto& shape{ entity.Get<T>() };
 	auto draw_transform{ GetDrawTransform(entity) };
