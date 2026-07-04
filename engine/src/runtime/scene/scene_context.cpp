@@ -24,6 +24,10 @@ const Application& SceneContextAccessor::app(const SceneContext& ctx) {
 	return ctx.app_;
 }
 
+SceneCamera SceneContextAccessor::GetFixedCamera(const SceneContext& ctx) {
+	return ctx.fixed_camera_;
+}
+
 } // namespace impl
 
 SceneContext::SceneContext(Application& app, Scene& parent_scene) :

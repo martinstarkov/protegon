@@ -32,6 +32,7 @@ class SceneContextAccessor {
 public:
 	[[nodiscard]] static Application& app(SceneContext& ctx);
 	[[nodiscard]] static const Application& app(const SceneContext& ctx);
+	[[nodiscard]] static SceneCamera GetFixedCamera(const SceneContext& ctx);
 };
 
 } // namespace impl
@@ -98,9 +99,10 @@ private:
 	void Rebind(Scene& parent_scene);
 
 	/// @brief An optional secondary fixed camera for the scene. By default it resizes to the
-	/// logical size.
+	/// logical size. Used as the default camera for UI.
 	SceneCamera fixed_camera_;
 
+	/// @brief The default render target for the scene. By default it resizes to the logical size.
 	RenderTarget render_target_;
 
 	Application& app_;
