@@ -692,20 +692,36 @@ bool DrawVectorEditor(
 		auto item_label{ options.item_name + " " + std::to_string(i + 1) };
 		bool item_open{ false };
 
-		if (ImGui::BeginTable("##vector_item_row", 2, ImGuiTableFlags_SizingStretchProp)) {
-			ImGui::TableSetupColumn("Item", ImGuiTableColumnFlags_WidthStretch);
-			ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed);
+		auto spacing{ ImGui::GetStyle().ItemInnerSpacing.x };
+		auto button_size{ ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() } };
 
-			ImGui::TableNextRow();
+		auto action_count{ options.reorderable ? 3 : 1 };
+		auto action_width{ 2 * spacing + static_cast<float>(action_count) * button_size.x +
+						   static_cast<float>(action_count - 1) * spacing };
+
+		if (ImGui::BeginTable(
+				"##vector_item_row", 2,
+				ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoPadInnerX
+			)) {
+			ImGui::TableSetupColumn("Item", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed, action_width);
+
+			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 			ImGui::TableSetColumnIndex(0);
 
 			item_open = ImGui::TreeNodeEx(
-				"##item", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen,
+				"##item",
+				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_NoTreePushOnOpen |
+					ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth,
 				"%s", item_label.c_str()
 			);
 
 			ImGui::TableSetColumnIndex(1);
+
+			ImGui::SameLine(0.0f, spacing);
+
+			ImGui::SetCursorPosX(ImGui::GetCursorPosX() + spacing);
 
 			if (options.reorderable) {
 				ImGui::BeginDisabled(i == 0);
@@ -714,7 +730,7 @@ bool DrawVectorEditor(
 				}
 				ImGui::EndDisabled();
 
-				ImGui::SameLine();
+				ImGui::SameLine(0.0f, spacing);
 
 				ImGui::BeginDisabled(i + 1 >= values.size());
 				if (ImGui::ArrowButton("##down", ImGuiDir_Down)) {
@@ -722,10 +738,10 @@ bool DrawVectorEditor(
 				}
 				ImGui::EndDisabled();
 
-				ImGui::SameLine();
+				ImGui::SameLine(0.0f, spacing);
 			}
 
-			if (ImGui::SmallButton("X")) {
+			if (ImGui::Button("X", button_size)) {
 				remove_index = i;
 			}
 
