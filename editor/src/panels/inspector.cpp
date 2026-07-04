@@ -238,7 +238,14 @@ bool DrawComponentHeader(Entity entity, ComponentOptions options = {}) {
 
 template <typename T>
 void DrawComponent(Entity entity, ComponentOptions options = {}) {
-	if (!entity.Has<T>() || !DrawComponentHeader<T>(entity, options)) {
+	if (!entity.Has<T>()) {
+		return;
+	}
+
+	bool open{ DrawComponentHeader<T>(entity, options) };
+
+	if (!open) {
+		ImGui::Spacing();
 		return;
 	}
 
@@ -249,19 +256,21 @@ void DrawComponent(Entity entity, ComponentOptions options = {}) {
 	}
 
 	ImGui::Unindent();
-	ImGui::Spacing();
 }
 
 void DrawTransformComponent(Entity entity) {
 	auto& transform{ entity.TryAdd<Transform>() };
 	auto& depth{ entity.TryAdd<Depth>() };
 
-	if (!DrawComponentHeader<Transform>(
-			entity, ComponentOptions{
-						.removable	  = false,
-						.default_open = true,
-					}
-		)) {
+	bool open{ DrawComponentHeader<Transform>(
+		entity, ComponentOptions{
+					.removable	  = false,
+					.default_open = true,
+				}
+	) };
+
+	if (!open) {
+		ImGui::Spacing();
 		return;
 	}
 
@@ -311,7 +320,6 @@ void DrawTransformComponent(Entity entity) {
 	}
 
 	ImGui::Unindent();
-	ImGui::Spacing();
 }
 
 template <typename... T>

@@ -332,7 +332,9 @@ bool DrawComponentContents(T& value) {
 	auto label{ TypeLabel<std::remove_cvref_t<T>>() };
 	AutoLabelWidthScope label_width{ label };
 
-	return DrawContents(value);
+	bool changed{ DrawContents(value) };
+
+	return changed;
 }
 
 template <typename T>
@@ -768,6 +770,10 @@ bool DrawVectorEditor(
 	if (remove_index.has_value()) {
 		values.erase(values.begin() + static_cast<std::ptrdiff_t>(*remove_index));
 		changed = true;
+	}
+
+	if (!values.empty()) {
+		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + ImGui::GetStyle().FramePadding.y);
 	}
 
 	auto add_label{ "Add " + options.item_name };
