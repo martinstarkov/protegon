@@ -8,7 +8,6 @@
 #include <string_view>
 #include <utility>
 #include <variant>
-#include <vector>
 
 #include "core/event/event.h"
 #include "core/graphics/color.h"
@@ -19,12 +18,12 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
+#include "renderer/text/font_style.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button_config.h"
 #include "serialization/serialize.h"
@@ -32,14 +31,13 @@
 namespace ptgn {
 
 class Button;
-class ToggleButton;
-class DrawContext;
+class ButtonShape;
+class ButtonBackground;
+class ButtonBorder;
+class ButtonText;
+class ButtonSprite;
+class ButtonAnimation;
 class Scene;
-class Dropdown;
-
-inline constexpr Color kDefaultButtonTextColor{ color::Black };
-
-Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
 
 namespace event {
 
@@ -50,35 +48,15 @@ struct ButtonHoverStop;
 
 } // namespace event
 
-enum class ButtonAnimationPlayback : std::uint8_t {
-	StaticFrame,
-	Play,
-	PlayOnce,
-};
-PTGN_SERIALIZE_ENUM(ButtonAnimationPlayback);
-
-struct ButtonAnimationOptions {
-	ButtonAnimationPlayback playback{ ButtonAnimationPlayback::Play };
-
-	/// @brief Used only for StaticFrame.
-	std::size_t static_frame{ 0 };
-
-	/// @brief If true, the button keeps showing this visual state until the
-	/// animation completes.
-	bool lock_visual_state{ false };
-
-	/// @brief If true, repeated presses are ignored while this visual state is
-	/// locked.
-	bool block_press{ false };
-
-	constexpr bool operator==(const ButtonAnimationOptions&) const = default;
-
-	PTGN_SERIALIZE(ButtonAnimationOptions, playback, static_frame, lock_visual_state, block_press)
-};
-
 namespace impl {
 
-inline constexpr std::size_t kButtonVisualStateCount{ magic_enum::enum_count<ButtonVisualState>() };
+enum class ButtonPart : std::uint8_t {
+	Background,
+	Border,
+	Sprite,
+	Text,
+};
+PTGN_SERIALIZE_ENUM(ButtonPart);
 
 enum class InternalButtonState : std::uint8_t {
 	IdleUp,
@@ -88,18 +66,15 @@ enum class InternalButtonState : std::uint8_t {
 	IdleDown,
 	HoverPressed,
 };
-PTGN_SERIALIZE_ENUM(InternalButtonState);
 
 enum class ButtonDirty : std::uint8_t {
 	None	   = 0,
 	Background = 1 << 0,
 	Border	   = 1 << 1,
-	Sprite	   = 1 << 2,
-	Text	   = 1 << 3,
-	TextLayout = 1 << 4,
+	Text	   = 1 << 2,
+	Sprite	   = 1 << 3,
 
-	Visual = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3),
-	All	   = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 4),
+	All = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3),
 };
 
 constexpr ButtonDirty operator|(ButtonDirty lhs, ButtonDirty rhs) {
@@ -119,127 +94,27 @@ constexpr bool HasDirty(ButtonDirty dirty, ButtonDirty flag) {
 	return (dirty & flag) != ButtonDirty::None;
 }
 
-struct ButtonTextEditSnapshot {
-	ButtonVisualState state{ ButtonVisualState::Idle };
-
-	TextBox box;
-	Origin origin{ Origin::Center };
-	Transform transform;
-};
-
 struct ButtonData {
 	InternalButtonState state{ InternalButtonState::IdleUp };
-	ButtonDirty dirty{ ButtonDirty::All };
 
-	struct VisualOverride {
+	bool press_enabled{ true };
+	bool hover_enabled{ true };
+	bool toggled{ false };
+
+	struct VisualLock {
 		ButtonVisualState state{ ButtonVisualState::Idle };
 		bool block_press{ false };
 	};
 
-	std::optional<VisualOverride> visual_override;
-
-	bool press_enabled{ true };
-	bool hover_enabled{ true };
+	std::optional<VisualLock> visual_lock;
 
 	std::optional<ButtonVisualState> applied_visual_state;
-	std::optional<std::variant<V2_float, float>> applied_size;
-	std::optional<Origin> applied_origin;
-	std::optional<bool> applied_visibility;
+
+	ButtonDirty dirty{ ButtonDirty::All };
+
+	PTGN_SERIALIZE(ButtonData, press_enabled, hover_enabled, toggled)
 };
 
-/// @brief Marker for a direct child entity that represents one stable button
-/// part.
-struct ButtonChild {
-	ButtonPart part{ ButtonPart::Background };
-
-	constexpr bool operator==(const ButtonChild&) const = default;
-
-	PTGN_SERIALIZE(ButtonChild, part)
-};
-
-struct ButtonShapeVisual {
-	bool defined{ false };
-
-	std::optional<std::variant<V2_float, float>> size;
-	std::optional<Origin> origin;
-	std::optional<Origin> anchor;
-	std::optional<Color> color;
-	std::optional<FillStyle> fill_style;
-
-	PTGN_SERIALIZE(ButtonShapeVisual, defined, size, origin, anchor, color, fill_style)
-};
-
-struct ButtonShapeVisuals {
-	std::array<ButtonShapeVisual, kButtonVisualStateCount> states;
-
-	PTGN_SERIALIZE_VALUE(ButtonShapeVisuals, states)
-};
-
-struct ButtonSpriteVisual {
-	bool defined{ false };
-
-	std::optional<std::string> texture;
-	std::optional<Origin> origin;
-	std::optional<Origin> anchor;
-	std::optional<Transform> transform;
-	std::optional<V2_float> size;
-	std::optional<Color> tint;
-
-	std::optional<AnimationConfig> animation;
-	std::optional<ButtonAnimationOptions> animation_options;
-
-	PTGN_SERIALIZE(
-		ButtonSpriteVisual, defined, texture, origin, anchor, transform, size, tint, animation,
-		animation_options
-	)
-};
-
-struct ButtonSpriteVisuals {
-	std::array<ButtonSpriteVisual, kButtonVisualStateCount> states;
-
-	/// @brief Runtime state. Not serialized.
-	std::optional<ButtonVisualState> applied_animation_state;
-	bool transient_animation{ false };
-
-	PTGN_SERIALIZE_VALUE(ButtonSpriteVisuals, states)
-};
-
-struct ButtonTextVisual {
-	bool defined{ false };
-
-	std::optional<StyledText> styled_text;
-	std::optional<TextBox> box;
-	std::optional<Origin> origin;
-	std::optional<Origin> anchor;
-	std::optional<Transform> transform;
-	std::optional<bool> auto_box;
-	std::optional<Padding> padding;
-
-	PTGN_SERIALIZE(
-		ButtonTextVisual, defined, styled_text, box, origin, anchor, transform, auto_box, padding
-	)
-};
-
-struct ButtonTextVisuals {
-	std::array<ButtonTextVisual, kButtonVisualStateCount> states;
-
-	/// @brief The state currently loaded into the single Text entity for fluent
-	/// editing. Not serialized.
-	std::optional<ButtonTextEditSnapshot> editing;
-
-	PTGN_SERIALIZE_VALUE(ButtonTextVisuals, states)
-};
-
-struct ButtonExclusiveAudio {};
-
-struct ButtonSounds {
-	std::optional<Audio> idle;
-	std::optional<Audio> hover;
-	std::optional<Audio> press;
-};
-
-/// @brief Runtime options for the animation currently applied to the
-/// consolidated sprite part.
 struct ButtonAnimationPart {
 	ButtonAnimationOptions options;
 };
@@ -272,17 +147,22 @@ public:
 	Button() = default;
 	explicit Button(Entity entity);
 
-	bool IsEnabled(bool check_for_hover_enabled = false) const;
-	ButtonState GetState() const;
-	ButtonVisualState GetVisualState() const;
-	impl::InternalButtonState GetInternalState() const;
+	[[nodiscard]] bool IsEnabled(bool check_for_hover_enabled = false) const;
+	[[nodiscard]] bool IsToggled() const;
+
+	[[nodiscard]] ButtonState GetState() const;
+	[[nodiscard]] ButtonVisualState GetVisualState() const;
+	[[nodiscard]] impl::InternalButtonState GetInternalState() const;
 
 	/// @return Unscaled interactive shape size.
-	std::variant<V2_float, float> GetSize() const;
+	[[nodiscard]] std::variant<V2_float, float> GetSize() const;
 
 	Button& Enable(bool enable_hover = true, bool reset_state = true);
 	Button& Disable(bool disable_hover = true, bool reset_state = true);
 	Button& SetEnabled(bool enable_press = true, bool enable_hover = true, bool reset_state = true);
+
+	Button& SetToggled(bool toggled);
+	Button& Toggle();
 
 	Button& Press();
 	Button& StartHover();
@@ -292,155 +172,33 @@ public:
 	Button& Size(V2_float size);
 	Button& Size(float radius);
 
-	Button& Background();
+	ButtonBackground Background(ButtonVisualState state = ButtonVisualState::Idle);
+	ButtonBorder Border(ButtonVisualState state = ButtonVisualState::Idle);
+	ButtonText Text(ButtonVisualState state = ButtonVisualState::Idle);
+	ButtonSprite Sprite(ButtonVisualState state = ButtonVisualState::Idle);
+	ButtonAnimation Animation(ButtonVisualState state = ButtonVisualState::Idle);
 
-	/// @brief Sets which point of the background lies at the background
-	/// transform.
-	Button& BackgroundOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Idle);
-	Button& ClearBackgroundOrigin();
-
-	/// @brief Sets which point of the button shape the background transform is
-	/// anchored to.
-	Button& BackgroundAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Idle);
-
-	Button& BackgroundColor(Color color, ButtonVisualState state = ButtonVisualState::Idle);
-	Button& BackgroundColors(
-		std::optional<Color> idle, std::optional<Color> hover = std::nullopt,
-		std::optional<Color> press = std::nullopt
-	);
-	Button& ToggledBackgroundColors(
-		std::optional<Color> toggled, std::optional<Color> toggled_hover = std::nullopt,
-		std::optional<Color> toggled_press = std::nullopt
-	);
-	Button& DisabledBackgroundColors(
-		std::optional<Color> disabled, std::optional<Color> disabled_hover = std::nullopt,
-		std::optional<Color> disabled_press = std::nullopt
-	);
-
-	Button& BackgroundSize(V2_float size, ButtonVisualState state = ButtonVisualState::Idle);
-	Button& BackgroundSize(float radius, ButtonVisualState state = ButtonVisualState::Idle);
-
-	/// @brief Removes every background state and destroys the consolidated
-	/// background entity.
-	Button& RemoveBackground();
-	/// @brief Removes one background state. The state then falls back to
-	/// less-specific states.
+	Button& RemoveBackgrounds();
 	Button& RemoveBackground(ButtonVisualState state);
 
-	Button& Border();
-
-	/// @brief Sets which point of the border lies at the border transform.
-	Button& BorderOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Idle);
-	Button& ClearBorderOrigin();
-
-	/// @brief Sets which point of the button shape the border transform is
-	/// anchored to.
-	Button& BorderAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Idle);
-
-	Button& BorderColor(Color color, ButtonVisualState state = ButtonVisualState::Idle);
-	Button& BorderColors(
-		std::optional<Color> idle, std::optional<Color> hover = std::nullopt,
-		std::optional<Color> press = std::nullopt
-	);
-
-	Button& BorderWidth(FillStyle fill, ButtonVisualState state = ButtonVisualState::Idle);
-
-	Button& BorderSize(V2_float size, ButtonVisualState state = ButtonVisualState::Idle);
-	Button& BorderSize(float radius, ButtonVisualState state = ButtonVisualState::Idle);
-
-	/// @brief Removes every border state and destroys the consolidated border
-	/// entity.
-	Button& RemoveBorder();
-	/// @brief Removes one border state. The state then falls back to
-	/// less-specific states.
+	Button& RemoveBorders();
 	Button& RemoveBorder(ButtonVisualState state);
 
-	/// @brief Begins editing the requested state on the single consolidated text
-	/// entity. The edit is committed before the next state edit or button visual
-	/// refresh.
-	ptgn::Text Text(ButtonVisualState state = ButtonVisualState::Idle);
-	ptgn::Text Text(
-		std::string_view content, Color color = kDefaultButtonTextColor,
-		float font_size = kDefaultFontSize, ButtonVisualState state = ButtonVisualState::Idle
-	);
-	ptgn::Text Text(StyledText styled_text, ButtonVisualState state = ButtonVisualState::Idle);
-
-	/// @brief Sets which point of the text box lies at the text transform. If unset defaults to the
-	/// text anchor, which defaults to the button center.
-	Button& TextOrigin(Origin origin, ButtonVisualState state = ButtonVisualState::Idle);
-
-	/// @brief Sets which point of the button shape the text transform is anchored
-	/// to. If unset defaults to the button center.
-	Button& TextAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Idle);
-
-	Button& ClearTextOrigin(ButtonVisualState state = ButtonVisualState::Idle);
-
-	Button& ClearTextAnchor(ButtonVisualState state = ButtonVisualState::Idle);
-
-	Button& TextAutoBox(bool enabled = true, ButtonVisualState state = ButtonVisualState::Idle);
-	Button& TextPadding(Padding padding, ButtonVisualState state = ButtonVisualState::Idle);
-
-	/// @brief Removes every text state and destroys the consolidated text entity.
-	Button& RemoveText();
-	/// @brief Removes one text state. The state then falls back to less-specific
-	/// states.
+	Button& RemoveTexts();
 	Button& RemoveText(ButtonVisualState state);
 
-	/// @param origin Origin of the sprite itself. When omitted it is inherited
-	/// through the visual fallback chain and ultimately defaults to the button
-	/// origin.
-	Button& Sprite(
-		std::string_view texture_key, std::optional<Origin> origin = std::nullopt,
-		ButtonVisualState state = ButtonVisualState::Idle
-	);
-	Button& Sprites(
-		std::optional<std::string_view> idle_texture_key,
-		std::optional<std::string_view> hover_texture_key = std::nullopt,
-		std::optional<std::string_view> press_texture_key = std::nullopt
-	);
-
-	Button& SpriteAnchor(Origin anchor, ButtonVisualState state = ButtonVisualState::Idle);
-
-	/// @brief Removes every sprite and animation state and destroys the
-	/// consolidated sprite entity.
-	Button& RemoveSprite();
-	/// @brief Removes one sprite/animation state.
+	Button& RemoveSprites();
 	Button& RemoveSprite(ButtonVisualState state);
 
-	Button& Animation(
-		AnimationConfig config, std::optional<Origin> origin, ButtonVisualState state,
-		ButtonAnimationOptions options
-	);
-	Button& Animation(
-		AnimationConfig config, std::optional<Origin> origin = std::nullopt,
-		ButtonVisualState state = ButtonVisualState::Idle
-	);
-	Button& Animations(
-		std::optional<AnimationConfig> idle_animation,
-		std::optional<AnimationConfig> hover_animation = std::nullopt,
-		std::optional<AnimationConfig> press_animation = std::nullopt
-	);
-
-	Button& StaticAnimationFrame(
-		AnimationConfig config, std::optional<Origin> origin = std::nullopt,
-		ButtonVisualState state = ButtonVisualState::Idle, std::size_t frame = 0
-	);
-
-	/// @brief Preserves the old behavior: removes every sprite/animation state.
-	Button& RemoveAnimation();
-	/// @brief Preserves the old behavior: removes the entire sprite/animation
-	/// state.
+	Button& RemoveAnimations();
 	Button& RemoveAnimation(ButtonVisualState state);
 
-	Button& Sounds(
-		std::optional<std::string_view> press_sound_key,
-		std::optional<std::string_view> hover_sound_key = std::nullopt
-	);
-	Button& Sound(std::optional<std::string_view> sound_key, ButtonState state);
+	Button& Sound(std::optional<std::string_view> sound_key, ButtonVisualState state);
+	Button& RemoveSound(ButtonVisualState state);
+	Button& RemoveSounds();
+	Button& ExclusiveAudio(bool enabled = true);
 
-	Button& ExclusiveAudio(bool enabled);
-
-	[[nodiscard]] std::optional<Audio> GetSound(ButtonState state) const;
+	[[nodiscard]] std::optional<Audio> GetSound(ButtonVisualState state) const;
 
 	template <EventCallbackInvocable<event::ButtonPress> F>
 	Button& OnPress(F&& callback) {
@@ -463,28 +221,13 @@ public:
 	}
 
 private:
+	friend class ButtonShape;
+	friend class ButtonText;
+	friend class ButtonSprite;
+	friend class ButtonAnimation;
 	friend class impl::ButtonScript;
 	friend struct impl::ButtonAnimationCompleteScript;
 	friend void impl::UpdateButtons(Scene& scene);
-	friend class Dropdown;
-	friend class ToggleButton;
-	friend Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
-	friend Button CreateAnimatedButton(
-		Scene& scene, Transform transform, const AnimatedButtonConfig& config
-	);
-
-	ptgn::Text GetText(ButtonVisualState state);
-
-	Button& Border(ButtonVisualState state);
-	Button& Background(ButtonVisualState state);
-
-	/// @brief Compatibility entry point used by ToggleButton/Dropdown code.
-	void RefreshVisualState() const;
-
-	Button& RemovePart(ButtonPart part, ButtonVisualState state = ButtonVisualState::Idle);
-	Button& RemoveParts(ButtonPart part);
-
-	Entity ShapePart(ButtonPart part, ButtonVisualState state, Color color, FillStyle fill);
 
 	template <typename E, EventCallbackInvocable<E> F>
 	Button& OnEvent(F&& callback) {
@@ -496,20 +239,187 @@ private:
 
 	void SetState(impl::InternalButtonState state);
 
-	void PlaySound(ButtonState active);
-	void PlayAnimation(ButtonState active) const;
-
 	void MarkDirty(impl::ButtonDirty dirty);
 	void RefreshDirty();
-	void CommitTextEdit();
+	void RefreshVisualState() const;
 
-	void ApplyShapeVisual(ButtonPart part);
-	void ApplySpriteVisual();
-	void ApplySpriteVisual(ButtonVisualState state, bool transient);
-	void ApplyTextVisual();
+	Button& LockVisualState(ButtonVisualState state, bool block_press = false);
+	Button& UnlockVisualState();
 
-	void UpdateChildSizes() const;
-	void UpdateChildLayouts() const;
+	Entity EnsurePart(impl::ButtonPart part) const;
+	[[nodiscard]] std::optional<Entity> FindPart(impl::ButtonPart part) const;
+
+	ButtonShapeVisual& ShapeVisual(impl::ButtonPart part, ButtonVisualState state);
+	ButtonTextVisual& TextVisual(ButtonVisualState state);
+	ButtonSpriteVisual& SpriteVisual(ButtonVisualState state);
+
+	[[nodiscard]] StyledText GetTextFallback(ButtonVisualState state) const;
+
+	void ApplyShapeVisual(impl::ButtonPart part) const;
+	void ApplyTextVisual() const;
+	void ApplySpriteVisual() const;
+	void ApplySpriteVisual(ButtonVisualState state, bool transient) const;
+
+	void PlaySound(ButtonVisualState state);
+	void PlayAnimation(ButtonState state) const;
+
+	Button& RemovePart(impl::ButtonPart part, ButtonVisualState state);
+	Button& RemoveParts(impl::ButtonPart part);
+};
+
+class ButtonShape {
+public:
+	ButtonShape& Size(V2_float size);
+	ButtonShape& Size(float radius);
+	ButtonShape& ClearSize();
+
+	ButtonShape& Origin(ptgn::Origin origin);
+	ButtonShape& ClearOrigin();
+
+	ButtonShape& Anchor(ptgn::Origin anchor);
+	ButtonShape& ClearAnchor();
+
+	ButtonShape& Transform(ptgn::Transform transform = {});
+
+	ButtonShape& Color(ptgn::Color color);
+	ButtonShape& ClearColor();
+
+	ButtonShape& Fill(FillStyle fill_style);
+	ButtonShape& ClearFill();
+
+	ButtonShape& Clear();
+
+protected:
+	ButtonShape(Button button, impl::ButtonPart part, ButtonVisualState state);
+
+	Button button_;
+	impl::ButtonPart part{ impl::ButtonPart::Background };
+	ButtonVisualState state{ ButtonVisualState::Idle };
+};
+
+class ButtonBackground : public ButtonShape {
+public:
+	ButtonBackground(Button button, ButtonVisualState state);
+};
+
+class ButtonBorder : public ButtonShape {
+public:
+	ButtonBorder(Button button, ButtonVisualState state);
+};
+
+class ButtonText {
+public:
+	ButtonText(Button button, ButtonVisualState state);
+
+	ButtonText& Clear();
+	ButtonText& Select(std::size_t index);
+
+	ButtonText& Content(std::string_view content);
+	ButtonText& Content(StyledText styled_text);
+	ButtonText& ClearContent();
+
+	ButtonText& Box(TextBox box);
+	ButtonText& ClearBox();
+
+	ButtonText& Origin(ptgn::Origin origin);
+	ButtonText& ClearOrigin();
+
+	ButtonText& Anchor(ptgn::Origin anchor);
+	ButtonText& ClearAnchor();
+
+	ButtonText& Transform(ptgn::Transform transform = {});
+
+	ButtonText& AutoBox(bool enabled = true);
+	ButtonText& ClearAutoBox();
+
+	ButtonText& Padding(ptgn::Padding padding);
+	ButtonText& ClearPadding();
+
+	ButtonText& Font(std::string_view font);
+	ButtonText& Color(ptgn::Color color);
+	ButtonText& Size(float font_size);
+
+	ButtonText& Style(FontStyle flags);
+	ButtonText& Bold(bool enabled = true, float weight = kDefaultBoldWeight);
+	ButtonText& Italic(bool enabled = true);
+	ButtonText& Underline(bool enabled = true);
+	ButtonText& Strikethrough(bool enabled = true);
+
+	ButtonText& Outline(ptgn::Color color, float width, float softness = 1.0f);
+	ButtonText& Shadow(ptgn::Color color, V2_float offset, float softness = 1.0f);
+	ButtonText& Shadow(ptgn::Color color, V2_float offset, float width, float softness);
+	ButtonText& OuterGlow(ptgn::Color color, float width, float softness = 1.0f);
+	ButtonText& InnerGlow(ptgn::Color color, float width, float softness = 1.0f);
+
+	ButtonText& ClearSdfEffects();
+
+	ButtonText& Effect(
+		GlyphEffectType type, float amplitude, float frequency, float speed, float phase = 0.0f
+	);
+
+private:
+	StyledText& StyledTextForEdit();
+	TextRun& CurrentRun();
+	void MarkTextDirty();
+
+	Button button_;
+	ButtonVisualState state{ ButtonVisualState::Idle };
+};
+
+class ButtonSprite {
+public:
+	ButtonSprite(Button button, ButtonVisualState state);
+
+	ButtonSprite& Texture(std::string_view texture_key);
+	ButtonSprite& ClearTexture();
+
+	ButtonSprite& Origin(ptgn::Origin origin);
+	ButtonSprite& ClearOrigin();
+
+	ButtonSprite& Anchor(ptgn::Origin anchor);
+	ButtonSprite& ClearAnchor();
+
+	ButtonSprite& Transform(ptgn::Transform transform = {});
+
+	ButtonSprite& Size(V2_float size);
+	ButtonSprite& ClearSize();
+
+	ButtonSprite& Tint(ptgn::Color tint);
+	ButtonSprite& ClearTint();
+
+	ButtonSprite& Clear();
+
+protected:
+	Button button_;
+	ButtonVisualState state{ ButtonVisualState::Idle };
+};
+
+class ButtonAnimation : public ButtonSprite {
+public:
+	ButtonAnimation(Button button, ButtonVisualState state);
+
+	ButtonAnimation& Texture(std::string_view texture_key);
+	ButtonAnimation& ClearTexture();
+
+	ButtonAnimation& Origin(ptgn::Origin origin);
+	ButtonAnimation& ClearOrigin();
+
+	ButtonAnimation& Anchor(ptgn::Origin anchor);
+	ButtonAnimation& ClearAnchor();
+
+	ButtonAnimation& Transform(ptgn::Transform transform = {});
+
+	ButtonAnimation& Size(V2_float size);
+	ButtonAnimation& ClearSize();
+
+	ButtonAnimation& Tint(ptgn::Color tint);
+	ButtonAnimation& ClearTint();
+
+	ButtonAnimation& Config(AnimationConfig config, ButtonAnimationOptions options = {});
+	ButtonAnimation& StaticFrame(AnimationConfig config, std::size_t frame = 0);
+	ButtonAnimation& ClearConfig();
+
+	ButtonAnimation& Clear();
 };
 
 namespace impl {
@@ -561,6 +471,12 @@ struct ButtonHoverStop {
 
 } // namespace event
 
+Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
+
+Button CreateButton(Scene& scene, Transform transform, V2_float size, const ButtonConfig& config);
+
+Button CreateAnimatedButton(Scene& scene, Transform transform, const AnimatedButtonConfig& config);
+
 /// @brief Creates a button with the given transform and origin without a specified size.
 Button CreateButton(Scene& scene, Transform transform, Origin origin = Origin::Center);
 
@@ -571,11 +487,5 @@ Button CreateButton(
 Button CreateButton(
 	Scene& scene, Transform transform, float radius, Origin origin = Origin::Center
 );
-
-Button CreateButton(Scene& scene, Transform transform, V2_float size, const ButtonConfig& config);
-
-Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
-
-Button CreateAnimatedButton(Scene& scene, Transform transform, const AnimatedButtonConfig& config);
 
 } // namespace ptgn
