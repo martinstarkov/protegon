@@ -1,9 +1,12 @@
 #pragma once
 
 #include <array>
+#include <cmath>
 #include <cstdlib>
+#include <vector>
 
 #include "core/assert.h"
+#include "core/math/math_utils.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "serialization/serialize.h"
@@ -39,6 +42,23 @@ public:
 
 	constexpr std::array<V2_float, 4> GetWorldQuadVertices(Transform transform) const {
 		auto vertices{ GetLocalQuadVertices() };
+		return transform.Apply(vertices);
+	}
+
+	/// @brief Approximates a circle with a polygon of segment_count vertices. Must be above 3.
+	constexpr std::vector<V2_float> GetVertices(Transform transform, std::size_t segment_count) {
+		PTGN_ASSERT(segment_count > 3 && segment_count < 10000);
+
+		std::vector<V2_float> vertices;
+		vertices.reserve(segment_count);
+
+		for (auto i{ 0uz }; i < segment_count; ++i) {
+			auto t{ kTwoPi * static_cast<float>(i) / static_cast<float>(segment_count) };
+			auto local{ V2_float{ std::cos(t), std::sin(t) } * radius };
+
+			vertices.emplace_back();
+		}
+
 		return transform.Apply(vertices);
 	}
 
