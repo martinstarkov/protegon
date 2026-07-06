@@ -1,10 +1,7 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
-#include <magic_enum/magic_enum.hpp>
 #include <optional>
-#include <string>
 #include <string_view>
 #include <utility>
 #include <variant>
@@ -13,9 +10,7 @@
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/input/mouse.h"
-#include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
-#include "core/math/geometry/rect.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/text/font_style.h"
@@ -23,7 +18,6 @@
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
-#include "runtime/audio/audio.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button_config.h"
@@ -120,6 +114,8 @@ struct ButtonData {
 
 struct ButtonAnimationPart {
 	ButtonAnimationOptions options;
+
+	PTGN_SERIALIZE_VALUE(ButtonAnimationPart, options)
 };
 
 struct ButtonAnimationCompleteScript;
