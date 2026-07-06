@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "core/assert.h"
 #include "core/event/event.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
@@ -26,8 +27,14 @@ class DrawContext;
 
 namespace impl {
 
-constexpr V2_int GetFrameSize(V2_int texture_size, std::size_t frame_count) {
-	return { texture_size.x / frame_count, texture_size.y };
+constexpr std::optional<V2_int> GetFrameSize(
+	std::optional<V2_int> texture_size, std::size_t frame_count
+) {
+	if (!frame_count || !texture_size.has_value()) {
+		return std::nullopt;
+	}
+	PTGN_ASSERT(texture_size.value().IsPositive(), "Texture size must be positive");
+	return V2_int{ texture_size.value().x / frame_count, texture_size.value().y };
 }
 
 } // namespace impl
@@ -40,8 +47,9 @@ struct AnimationConfig {
 	milliseconds duration{ 0 };
 
 	/// @brief Pixel size of an individual animation frame within the texture.
-	/// If {}, automatically calculated using impl::GetFrameSize(texture_size, frame_count).
-	V2_int frame_size;
+	/// If nullopt, frame size is automatically calculated using impl::GetFrameSize(texture_size,
+	/// frame_count).
+	std::optional<V2_int> frame_size;
 
 	/// @brief Number of times that the animation plays for, nullopt for infinite replay.
 	std::optional<std::size_t> play_count{ 1 };
@@ -53,9 +61,9 @@ struct AnimationConfig {
 	/// @brief Reset animation to frame 0 when it completes.
 	bool reset_on_complete{ false };
 
-	constexpr bool IsIdentical(const AnimationConfig& o, V2_int texture_size) const {
+	constexpr bool IsIdentical(const AnimationConfig& o, std::optional<V2_int> texture_size) const {
 		auto zero_frame_size = [&](const auto& a, const auto& b) {
-			return a.frame_size.IsZero() &&
+			return !a.frame_size.has_value() &&
 				   impl::GetFrameSize(texture_size, b.frame_count) == b.frame_size;
 		};
 
@@ -256,9 +264,10 @@ class AnimationData {
 public:
 	AnimationData() = default;
 
-	AnimationData(AnimationConfig&& config, V2_int texture_size);
+	AnimationData(AnimationConfig&& config, std::optional<V2_int> texture_size);
 
 	milliseconds GetFrameDuration() const;
+	V2_int GetFrameSize(std::optional<V2_int> texture_size) const;
 	V2_int GetCurrentFramePosition() const;
 
 	/// @return Total number of animation repeats.
@@ -294,8 +303,8 @@ public:
 /// @param manager Which manager the entity is added to.
 /// @param texture Texture key to be used for the animation.
 Animation CreateAnimation(
-	Scene& scene, Transform transform, std::string_view texture_key, AnimationConfig config,
-	Origin origin = Origin::Center
+	Scene& scene, Transform transform = {}, std::string_view texture_key = {},
+	AnimationConfig config = {}, Origin origin = Origin::Center
 );
 
 /// @brief Creates and starts an animation that will automatically destroy itself once it finishes.
@@ -303,8 +312,8 @@ Animation CreateAnimation(
 /// @param destroy_delay If 0ms, the animation is destroyed immediately after finishing. Otherwise,
 /// the animation is destroyed after the specified delay once it finishes.
 Animation PlayTemporaryAnimation(
-	Scene& scene, Transform transform, std::string_view texture_key, AnimationConfig config,
-	milliseconds destroy_delay = 0ms, Origin origin = Origin::Center
+	Scene& scene, Transform transform = {}, std::string_view texture_key = {},
+	AnimationConfig config = {}, milliseconds destroy_delay = 0ms, Origin origin = Origin::Center
 );
 
 AnimationMap CreateAnimationMap(Scene& scene);

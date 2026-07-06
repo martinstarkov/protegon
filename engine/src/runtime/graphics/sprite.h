@@ -2,13 +2,17 @@
 
 #include <array>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <utility>
 
 #include "core/graphics/color.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
+#include "renderer/resources/id.h"
+#include "renderer/resources/texture.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
@@ -19,6 +23,10 @@ class Scene;
 class DrawContext;
 
 namespace impl {
+
+/// @return The texture id of the entity retrieved from its Texture or TextureKey components.
+/// Texture might be 0 if no valid texture is found.
+TextureId GetTexture(Entity entity);
 
 class AnimationData;
 
@@ -56,6 +64,17 @@ struct TextureCrop {
 
 } // namespace impl
 
+struct TextureKey {
+	constexpr TextureKey() = default;
+
+	constexpr TextureKey(std::string_view key) : value{ std::string{ key } } {} // NOSONAR
+
+	constexpr TextureKey(std::string key) : value{ std::move(key) } {}			// NOSONAR
+
+	std::string value;
+	PTGN_SERIALIZE_VALUE(TextureKey, value)
+};
+
 class Sprite : public Entity {
 public:
 	Sprite() = default;
@@ -72,7 +91,7 @@ public:
 };
 
 Sprite CreateSprite(
-	Scene& scene, Transform transform = {}, std::string_view texture_key = "",
+	Scene& scene, Transform transform = {}, std::string_view texture_key = {},
 	Origin origin = Origin::Center
 );
 

@@ -11,6 +11,8 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/draw_context.h"
+#include "renderer/renderer.h"
+#include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
@@ -26,6 +28,23 @@
 namespace ptgn {
 
 namespace impl {
+
+TextureId GetTexture(Entity entity) {
+	if (auto texture{ entity.TryGet<TextureId>() }) {
+		return *texture;
+	}
+	if (auto texture{ entity.TryGet<Texture>() }) {
+		return *texture;
+	}
+	if (auto texture_key{ entity.TryGet<TextureKey>() }) {
+		auto& scene{ entity.GetScene() };
+		auto& assets{ scene.ctx().asset };
+		if (impl::AssetAccessor{ assets }.Has<Texture>(texture_key->value)) {
+			return impl::AssetAccessor{ assets }.Get<Texture>(texture_key->value);
+		}
+	}
+	return {};
+}
 
 void TextureCrop::Update(const AnimationData& anim) {
 	position = anim.GetCurrentFramePosition();
@@ -52,11 +71,13 @@ void Sprite::Draw(
 	DrawContext& ctx, Entity entity, Origin offset_origin, V2_float offset_size,
 	Color additional_tint
 ) {
-	if (!entity.Has<Texture>()) {
+	auto texture{ impl::GetTexture(entity) };
+
+	if (!texture) {
+		PTGN_WARN("Sprite does not have a valid texture or texture key");
 		return;
 	}
 
-	const auto& texture{ entity.Get<Texture>() };
 	auto texture_size{ GetDisplaySize(entity) };
 
 	if (!texture_size.has_value()) {
@@ -89,12 +110,7 @@ void Sprite::Draw(DrawContext& ctx, Entity entity) {
 }
 
 Sprite& Sprite::SetTexture(std::string_view texture_key) {
-	auto& scene{ GetScene() };
-	auto& assets{ scene.ctx().asset };
-
-	auto resolved_texture{ impl::AssetAccessor{ assets }.Get<Texture>(texture_key) };
-
-	Add<Texture>(resolved_texture);
+	Add<TextureKey>(texture_key);
 	return *this;
 }
 
@@ -105,11 +121,9 @@ Sprite CreateSprite(
 
 	PTGN_DEFAULT_NAME(sprite, "Sprite");
 	SetDraw<Sprite>(sprite);
-	sprite.Add<impl::Visible>(true);
+	sprite.Add<Visible>(true);
 
-	if (!texture_key.empty()) {
-		sprite.SetTexture(texture_key);
-	}
+	sprite.SetTexture(texture_key);
 
 	SetTransform(sprite, transform);
 	SetDrawOrigin(sprite, origin);
@@ -118,16 +132,21 @@ Sprite CreateSprite(
 }
 
 std::optional<V2_int> GetTextureSize(Entity entity) {
-	if (auto texture{ entity.TryGet<Texture>() }) {
-		auto size{ texture->GetSize() };
-		// TODO: Re-enable when text is fixed.
-		// PTGN_ASSERT(!size.IsZero(), "Texture does not have a valid size");
-		if (size.IsZero()) {
-			return std::nullopt;
-		}
-		return size;
+	auto texture{ impl::GetTexture(entity) };
+
+	const auto& scene{ entity.GetScene() };
+
+	auto size{ impl::RendererAccessor{ scene.ctx().renderer }.GetSize(texture) };
+
+	if (!size.has_value()) {
+		return std::nullopt;
 	}
-	return std::nullopt;
+
+	if (size.value().IsZero()) {
+		return std::nullopt;
+	}
+
+	return size;
 }
 
 std::optional<V2_int> GetCroppedTextureSize(Entity entity) {

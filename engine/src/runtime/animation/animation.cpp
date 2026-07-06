@@ -8,12 +8,12 @@
 #include <utility>
 
 #include "core/assert.h"
+#include "core/log.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
-#include "renderer/resources/texture.h"
 #include "runtime/animation/animation_event.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
@@ -33,9 +33,7 @@ Animation::Animation(Entity entity) : Entity{ entity } {}
 Animation& Animation::SetConfig(AnimationConfig config) {
 	AssetManager& asset_manager{ GetScene().ctx().asset };
 
-	const auto& texture{ Get<Texture>() };
-
-	auto texture_size{ texture.GetSize() };
+	auto texture_size{ GetTextureSize(*this) };
 
 	if (auto anim_data{ TryGet<impl::AnimationData>() };
 		anim_data && anim_data->config.IsIdentical(config, texture_size)) {
@@ -44,15 +42,18 @@ Animation& Animation::SetConfig(AnimationConfig config) {
 
 	const auto& anim{ Add<impl::AnimationData>(std::move(config), texture_size) };
 
-	auto& crop{ TryAdd<impl::TextureCrop>() };
-	crop.Update(anim);
+	if (Has<impl::TextureCrop>()) {
+		auto& crop{ Get<impl::TextureCrop>() };
+		crop.Update(anim);
+	}
 
 	return Reset();
 }
 
 Animation& Animation::Start(bool force) {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
-	PTGN_ASSERT(Has<impl::TextureCrop>(), "Animation must have TextureCrop component");
+	if (!Has<impl::AnimationData, impl::TextureCrop>()) {
+		return *this;
+	}
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.current_frame = 0;
 	anim.frames_played = 0;
@@ -65,8 +66,9 @@ Animation& Animation::Start(bool force) {
 }
 
 Animation& Animation::Reset() {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
-	PTGN_ASSERT(Has<impl::TextureCrop>(), "Animation must have TextureCrop component");
+	if (!Has<impl::AnimationData, impl::TextureCrop>()) {
+		return *this;
+	}
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.current_frame = 0;
 	anim.frames_played = 0;
@@ -82,7 +84,9 @@ Animation& Animation::Stop(bool reset) {
 		Reset();
 		return *this;
 	}
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return *this;
+	}
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Stop();
 	PushEvent<event::AnimationStop>(*this, *this);
@@ -99,7 +103,9 @@ Animation& Animation::Toggle() {
 }
 
 Animation& Animation::Pause() {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return *this;
+	}
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Pause();
 	PushEvent<event::AnimationPause>(*this, *this);
@@ -107,7 +113,9 @@ Animation& Animation::Pause() {
 }
 
 Animation& Animation::Resume() {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return *this;
+	}
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.frame_timer.Resume();
 	PushEvent<event::AnimationResume>(*this, *this);
@@ -115,50 +123,66 @@ Animation& Animation::Resume() {
 }
 
 bool Animation::IsPaused() const {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return false;
+	}
 	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.frame_timer.IsPaused();
 }
 
 bool Animation::IsPlaying() const {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return false;
+	}
 	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.frame_timer.IsRunning();
 }
 
 std::size_t Animation::GetPlayCount() const {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return 0;
+	}
 	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.GetPlayCount();
 }
 
 std::size_t Animation::GetFramePlayCount() const {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return 0;
+	}
 	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.frames_played;
 }
 
 milliseconds Animation::GetDuration() const {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return 0ms;
+	}
 	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.config.duration;
 }
 
 milliseconds Animation::GetFrameDuration() const {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return 0ms;
+	}
 	const auto& anim{ Get<impl::AnimationData>() };
 	milliseconds frame_duration{ anim.config.duration / anim.config.frame_count };
 	return frame_duration;
 }
 
 std::size_t Animation::GetFrameCount() const {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return 0;
+	}
 	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.config.frame_count;
 }
 
 Animation& Animation::SetCurrentFrame(std::size_t new_frame) {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return *this;
+	}
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.SetCurrentFrame(new_frame);
 	return *this;
@@ -170,58 +194,82 @@ Animation& Animation::SetTexture(std::string_view texture_key) {
 }
 
 Animation& Animation::IncrementFrame() {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return *this;
+	}
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.IncrementFrame();
 	return *this;
 }
 
 Animation& Animation::SetResetOnComplete(bool reset_on_complete) {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return *this;
+	}
 	auto& anim{ Get<impl::AnimationData>() };
 	anim.config.reset_on_complete = reset_on_complete;
 	return *this;
 }
 
 std::size_t Animation::GetCurrentFrame() const {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return 0;
+	}
 	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.current_frame;
 }
 
 V2_int Animation::GetCurrentFramePosition() const {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return {};
+	}
 	const auto& anim{ Get<impl::AnimationData>() };
 	return anim.GetCurrentFramePosition();
 }
 
 V2_int Animation::GetFrameSize() const {
-	PTGN_ASSERT(Has<impl::AnimationData>(), "Animation must have AnimationData component");
+	if (!Has<impl::AnimationData>()) {
+		return {};
+	}
 	const auto& anim{ Get<impl::AnimationData>() };
-	return anim.config.frame_size;
+	auto texture_size{ GetTextureSize(*this) };
+	return anim.config.frame_size.value_or(
+		impl::GetFrameSize(texture_size, anim.config.frame_count).value_or(V2_int{})
+	);
 }
 
 namespace impl {
 
-AnimationData::AnimationData(AnimationConfig&& anim_config, V2_int texture_size) :
+AnimationData::AnimationData(AnimationConfig&& anim_config, std::optional<V2_int> texture_size) :
 	config{ std::move(anim_config) } {
-	PTGN_ASSERT(config.frame_count > 0, "Cannot create an animation with 0 frames");
-
-	if (config.frame_size.IsZero()) {
-		config.frame_size = GetFrameSize(texture_size, config.frame_count);
+	if (!config.frame_size.has_value()) {
+		config.frame_size = impl::GetFrameSize(texture_size, config.frame_count);
 	}
 }
 
 milliseconds AnimationData::GetFrameDuration() const {
+	if (!config.frame_count) {
+		return 0ms;
+	}
 	return config.duration / config.frame_count;
 }
 
+V2_int AnimationData::GetFrameSize(std::optional<V2_int> texture_size) const {
+	return config.frame_size.value_or(
+		impl::GetFrameSize(texture_size, config.frame_count).value_or(V2_int{})
+	);
+}
+
 V2_int AnimationData::GetCurrentFramePosition() const {
-	return { config.start_pixel.x + config.frame_size.x * static_cast<int>(current_frame),
+	auto frame_size{ GetFrameSize(std::nullopt) };
+	return { config.start_pixel.x + frame_size.x * static_cast<int>(current_frame),
 			 config.start_pixel.y };
 }
 
 std::size_t AnimationData::GetPlayCount() const {
+	if (!config.frame_count) {
+		return 0;
+	}
 	return frames_played / config.frame_count;
 }
 
@@ -307,11 +355,13 @@ void AnimationSystem::Update(Scene& scene, secondsf dt) {
 AnimationMap::AnimationMap(Entity entity) : Entity{ entity } {}
 
 Animation AnimationMap::Add(std::string_view animation_key, Animation animation, bool hide) {
+	if (!Has<impl::AnimationMapData>()) {
+		return animation;
+	}
+
 	if (hide) {
 		Hide(animation);
 	}
-
-	PTGN_ASSERT(Has<impl::AnimationMapData>());
 
 	auto& info{ Get<impl::AnimationMapData>() };
 
@@ -331,7 +381,9 @@ Animation AnimationMap::Add(std::string_view animation_key, Animation animation,
 }
 
 void AnimationMap::Remove(std::string_view animation_key) {
-	PTGN_ASSERT(Has<impl::AnimationMapData>());
+	if (!Has<impl::AnimationMapData>()) {
+		return;
+	}
 
 	impl::AnimationMapKey key{ animation_key };
 
@@ -341,21 +393,25 @@ void AnimationMap::Remove(std::string_view animation_key) {
 }
 
 std::optional<Animation> AnimationMap::GetActive() const {
-	PTGN_ASSERT(Has<impl::AnimationMapData>());
+	if (!Has<impl::AnimationMapData>()) {
+		return std::nullopt;
+	}
 
 	auto& info{ Get<impl::AnimationMapData>() };
 
 	auto it{ info.animations.find(info.active) };
 
 	if (it == info.animations.end()) {
-		return {};
+		return std::nullopt;
 	}
 
 	return Animation{ it->second };
 }
 
 bool AnimationMap::SetActive(std::string_view animation_key) {
-	PTGN_ASSERT(Has<impl::AnimationMapData>());
+	if (!Has<impl::AnimationMapData>()) {
+		return false;
+	}
 
 	auto& info{ Get<impl::AnimationMapData>() };
 
@@ -365,15 +421,15 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 		return false;
 	}
 
-	PTGN_ASSERT(
-		info.animations.contains(key),
-		"Cannot set non-existent toggle button key to active: ", animation_key
-	);
+	if (!info.animations.contains(key)) {
+		PTGN_WARN("Attempting to set non-existent toggle button key to active: ", animation_key);
+		return false;
+	}
 
 	auto prev_active{ info.animations.find(info.active) };
 
 	// Hide and pause old active animation.
-	prev_active->second.Add<impl::Visible>(false);
+	prev_active->second.Add<Visible>(false);
 	prev_active->second.Pause();
 
 	auto it{ info.animations.find(key) };
