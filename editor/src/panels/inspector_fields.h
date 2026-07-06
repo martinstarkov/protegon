@@ -124,6 +124,9 @@ struct FieldOptions {
 template <typename T>
 inline constexpr FieldOptions kDefaultFieldOptions{};
 
+template <typename T>
+inline constexpr FieldOptions kDefaultFieldOptions<std::optional<T>>{ kDefaultFieldOptions<T> };
+
 template <>
 inline constexpr FieldOptions kDefaultFieldOptions<float>{
 	.speed	= 0.1f,
@@ -1076,47 +1079,294 @@ bool DrawOptionalEnum(std::string_view label, std::optional<T>& value) {
 }
 
 template <typename T>
+inline constexpr bool kCanDrawOptionalInlineValue{
+	std::same_as<T, float> || std::same_as<T, int> || std::same_as<T, std::int64_t> ||
+	std::same_as<T, std::size_t> || DurationType<T> || std::same_as<T, std::string> ||
+	std::same_as<T, V2_float> || std::same_as<T, V2_int> || std::same_as<T, Color> ||
+	std::same_as<T, Degrees> || std::same_as<T, Radians>
+};
+
+template <typename T>
+bool CanDrawOptionalInlineValue(const FieldOptions& options) {
+	using Value = std::remove_cvref_t<T>;
+
+	if constexpr (std::same_as<Value, std::string>) {
+		return !options.multiline;
+	} else {
+		return kCanDrawOptionalInlineValue<Value>;
+	}
+}
+
+inline void DrawUnsetOptionalInlineValue() {
+	std::string unset{ "Unset" };
+	ImGui::InputText("##unset", &unset, ImGuiInputTextFlags_ReadOnly);
+}
+
+template <typename Rep, typename Period>
+bool DrawDurationInlineValue(
+	std::chrono::duration<Rep, Period>& value, const FieldOptions& options
+) {
+	auto unit{ DurationUnit<Period>() };
+
+	if constexpr (std::integral<Rep>) {
+		std::int64_t temporary{ static_cast<std::int64_t>(value.count()) };
+		std::int64_t min{ static_cast<std::int64_t>(options.min) };
+		std::int64_t max{ static_cast<std::int64_t>(options.max) };
+
+		auto default_format{ std::string{ "%lld " } + std::string{ unit } };
+		auto format{ options.format ? options.format : default_format.c_str() };
+
+		bool changed{ ImGui::DragScalar(
+			"##value", ImGuiDataType_S64, &temporary, options.speed,
+			HasBounds(options) ? &min : nullptr, HasBounds(options) ? &max : nullptr, format,
+			options.flags
+		) };
+
+		if (changed) {
+			value = std::chrono::duration<Rep, Period>{ static_cast<Rep>(temporary) };
+		}
+
+		return changed;
+	} else {
+		float temporary{ static_cast<float>(value.count()) };
+		float min{ static_cast<float>(options.min) };
+		float max{ static_cast<float>(options.max) };
+
+		auto default_format{ std::string{ "%.3f " } + std::string{ unit } };
+		auto format{ options.format ? options.format : default_format.c_str() };
+
+		bool changed{ ImGui::DragScalar(
+			"##value", ImGuiDataType_Float, &temporary, options.speed,
+			HasBounds(options) ? &min : nullptr, HasBounds(options) ? &max : nullptr, format,
+			options.flags
+		) };
+
+		if (changed) {
+			value = std::chrono::duration<Rep, Period>{ static_cast<Rep>(temporary) };
+		}
+
+		return changed;
+	}
+}
+
+template <typename T>
+bool DrawOptionalInlineValue(T& value, const FieldOptions& options) {
+	using Value = std::remove_cvref_t<T>;
+
+	if constexpr (std::same_as<Value, float>) {
+		float min{ static_cast<float>(options.min) };
+		float max{ static_cast<float>(options.max) };
+
+		return ImGui::DragFloat(
+			"##value", &value, options.speed, HasBounds(options) ? min : 0.0f,
+			HasBounds(options) ? max : 0.0f, options.format ? options.format : "%.3f", options.flags
+		);
+	} else if constexpr (std::same_as<Value, int>) {
+		int min{ static_cast<int>(options.min) };
+		int max{ static_cast<int>(options.max) };
+
+		return ImGui::DragInt(
+			"##value", &value, options.speed, HasBounds(options) ? min : 0,
+			HasBounds(options) ? max : 0, options.format ? options.format : "%d", options.flags
+		);
+	} else if constexpr (std::same_as<Value, std::int64_t>) {
+		std::int64_t min{ static_cast<std::int64_t>(options.min) };
+		std::int64_t max{ static_cast<std::int64_t>(options.max) };
+
+		return ImGui::DragScalar(
+			"##value", ImGuiDataType_S64, &value, options.speed,
+			HasBounds(options) ? &min : nullptr, HasBounds(options) ? &max : nullptr,
+			options.format ? options.format : "%lld", options.flags
+		);
+	} else if constexpr (std::same_as<Value, std::size_t>) {
+		std::uint64_t temporary{ value };
+		std::uint64_t min{ static_cast<std::uint64_t>(std::max(0.0, options.min)) };
+		std::uint64_t max{ static_cast<std::uint64_t>(std::max(0.0, options.max)) };
+
+		bool changed{ ImGui::DragScalar(
+			"##value", ImGuiDataType_U64, &temporary, options.speed,
+			HasBounds(options) ? &min : nullptr, HasBounds(options) ? &max : nullptr,
+			options.format ? options.format : "%llu", options.flags
+		) };
+
+		if (changed) {
+			value = static_cast<std::size_t>(temporary);
+		}
+
+		return changed;
+	} else if constexpr (DurationType<Value>) {
+		return DrawDurationInlineValue(value, options);
+	} else if constexpr (std::same_as<Value, std::string>) {
+		bool changed{ ImGui::InputText("##value", &value) };
+
+		// TODO: Use stricter type checking for asset keys, e.g. by using a template parameter
+		// or a type trait.
+
+		changed |= ptgn::editor::AcceptAssetKeyDragDrop(value);
+
+		return changed;
+	} else if constexpr (std::same_as<Value, V2_float>) {
+		float values[2]{ value.x, value.y };
+		float min{ static_cast<float>(options.min) };
+		float max{ static_cast<float>(options.max) };
+
+		bool changed{ ImGui::DragFloat2(
+			"##value", values, options.speed, HasBounds(options) ? min : 0.0f,
+			HasBounds(options) ? max : 0.0f, options.format ? options.format : "%.3f", options.flags
+		) };
+
+		if (changed) {
+			value = { values[0], values[1] };
+		}
+
+		return changed;
+	} else if constexpr (std::same_as<Value, V2_int>) {
+		int values[2]{ value.x, value.y };
+		int min{ static_cast<int>(options.min) };
+		int max{ static_cast<int>(options.max) };
+
+		bool changed{ ImGui::DragInt2(
+			"##value", values, options.speed, HasBounds(options) ? min : 0,
+			HasBounds(options) ? max : 0, options.format ? options.format : "%d", options.flags
+		) };
+
+		if (changed) {
+			value = { values[0], values[1] };
+		}
+
+		return changed;
+	} else if constexpr (std::same_as<Value, Color>) {
+		float rgba[4]{
+			static_cast<float>(value.r) / 255.0f,
+			static_cast<float>(value.g) / 255.0f,
+			static_cast<float>(value.b) / 255.0f,
+			static_cast<float>(value.a) / 255.0f,
+		};
+
+		bool changed{ ImGui::ColorEdit4(
+			"##value", rgba,
+			ImGuiColorEditFlags_Uint8 | ImGuiColorEditFlags_AlphaBar |
+				ImGuiColorEditFlags_AlphaPreviewHalf
+		) };
+
+		if (changed) {
+			auto to_byte = [](float channel) {
+				return static_cast<std::uint8_t>(
+					std::lround(std::clamp(channel, 0.0f, 1.0f) * 255.0f)
+				);
+			};
+
+			value.r = to_byte(rgba[0]);
+			value.g = to_byte(rgba[1]);
+			value.b = to_byte(rgba[2]);
+			value.a = to_byte(rgba[3]);
+		}
+
+		return changed;
+	} else if constexpr (std::same_as<Value, Degrees>) {
+		return DrawOptionalInlineValue(value.value, options);
+	} else if constexpr (std::same_as<Value, Radians>) {
+		float degrees{ value.ToDeg().value };
+
+		if (!DrawOptionalInlineValue(degrees, options)) {
+			return false;
+		}
+
+		value = Degrees{ degrees }.ToRad();
+		return true;
+	} else {
+		static_assert(
+			std::is_same_v<Value, void>, "No inline optional drawer exists for this type"
+		);
+	}
+}
+
+template <typename T>
+bool DrawOptionalInline(std::string_view label, std::optional<T>& value, FieldOptions options) {
+	ImGui::PushID(&value);
+
+	bool enabled{ value.has_value() };
+
+	bool changed{ DrawPropertyRow(label, [&]() {
+		bool local_changed{ ImGui::Checkbox("##enabled", &enabled) };
+
+		if (enabled && !value.has_value()) {
+			value.emplace();
+			local_changed = true;
+		} else if (!enabled && value.has_value()) {
+			value.reset();
+			local_changed = true;
+		}
+
+		ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+
+		ImGui::BeginDisabled(!enabled);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+
+		if (value.has_value()) {
+			local_changed |= DrawOptionalInlineValue(value.value(), options);
+		} else {
+			DrawUnsetOptionalInlineValue();
+		}
+
+		ImGui::EndDisabled();
+
+		return local_changed;
+	}) };
+
+	ImGui::PopID();
+
+	return changed;
+}
+
+template <typename T>
 bool DrawOptional(std::string_view label, std::optional<T>& value, FieldOptions options) {
 	if constexpr (std::is_enum_v<T>) {
 		return DrawOptionalEnum(label, value);
 	} else if constexpr (std::same_as<T, bool>) {
 		return DrawOptionalBool(label, value);
 	} else {
-		ImGui::PushID(&value);
+		using Value = std::remove_cvref_t<T>;
 
-		bool enabled{ value.has_value() };
+		if constexpr (kCanDrawOptionalInlineValue<Value>) {
+			if (CanDrawOptionalInlineValue<Value>(options)) {
+				return DrawOptionalInline(label, value, options);
+			}
+		} else {
+			ImGui::PushID(&value);
 
-		bool changed{ DrawPropertyRow(label, [&]() {
-			return ImGui::Checkbox("##enabled", &enabled);
-		}) };
+			bool enabled{ value.has_value() };
 
-		if (enabled != value.has_value()) {
-			if (enabled) {
-				value.emplace();
-			} else {
-				value.reset();
+			bool changed{ DrawPropertyRow(label, [&]() {
+				return ImGui::Checkbox("##enabled", &enabled);
+			}) };
+
+			if (enabled != value.has_value()) {
+				if (enabled) {
+					value.emplace();
+				} else {
+					value.reset();
+				}
+
+				changed = true;
 			}
 
-			changed = true;
-		}
+			if (value.has_value()) {
+				ImGui::Indent();
 
-		if (value.has_value()) {
-			ImGui::Indent();
+				if constexpr (ReflectedValue<Value> || ReflectedMembers<Value>) {
+					changed |= DrawContents(value.value());
+				} else {
+					changed |= DrawValue("Value", value.value(), options);
+				}
 
-			using Value = std::remove_cvref_t<T>;
-
-			if constexpr (ReflectedValue<Value> || ReflectedMembers<Value>) {
-				changed |= DrawContents(value.value());
-			} else {
-				changed |= DrawValue("Value", value.value(), options);
+				ImGui::Unindent();
 			}
 
-			ImGui::Unindent();
+			ImGui::PopID();
+
+			return changed;
 		}
-
-		ImGui::PopID();
-
-		return changed;
 	}
 }
 
