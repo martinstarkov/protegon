@@ -4,6 +4,7 @@
 #include <chrono>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "renderer/resources/shader.h"
@@ -24,33 +25,32 @@ public:
 		ctx().asset.Load("ripple", ShaderPair{ "texture", "assets/ripple.glsl" });
 		ctx().asset.Load("noise", "assets/noise.png");
 
-		shader_entity = CreateCustomShader(
-			*this, "whirlpool", "noise", V2_float{}, V2_float{ 150 }, {}, Origin::Center
-		);
+		shader_entity =
+			CreateCustomShader(*this, {}, "whirlpool", "noise", V2_float{ 150 }, {}, Origin::Center)
+				.SetMaterialUpdate([](auto entity) mutable {
+					float timescale{ 1.0f };
+					float scale{ 0.5f };
+					float opacity{ 0.5f };
+					float time{
+						static_cast<float>(entity.GetScene().ctx().TimeSinceStart().count())
+					};
 
-		SetMaterialUpdate(shader_entity, [](auto entity) mutable {
-			float timescale{ 1.0f };
-			float scale{ 0.5f };
-			float opacity{ 0.5f };
-			float time{ static_cast<float>(entity.GetScene().ctx().TimeSinceStart().count()) };
-
-			SetMaterialUniforms(
-				entity, { { "u_Time", time / 1000.0f * timescale },
+					entity.SetMaterialUniforms(
+						{ { "u_Time", time / 1000.0f * timescale },
 						  { "u_Scale", scale },
 						  { "u_Opacity", opacity } }
-			);
-		});
+					);
+				});
 
-		auto shader_entity2{ CreateCustomShader(
-			*this, "ripple", {}, V2_float{ 200 }, V2_float{ 300 }, {}, Origin::Center
-		) };
+		CreateCustomShader(
+			*this, V2_float{ 200 }, "ripple", {}, V2_float{ 300 }, {}, Origin::Center
+		)
+			.SetMaterialUpdate([](auto entity) mutable {
+				float timescale{ 1.0f };
+				float time{ static_cast<float>(entity.GetScene().ctx().TimeSinceStart().count()) };
 
-		SetMaterialUpdate(shader_entity2, [](auto entity) mutable {
-			float timescale{ 1.0f };
-			float time{ static_cast<float>(entity.GetScene().ctx().TimeSinceStart().count()) };
-
-			SetMaterialUniforms(entity, { { "u_Time", time / 1000.0f * timescale } });
-		});
+				entity.SetMaterialUniforms({ { "u_Time", time / 1000.0f * timescale } });
+			});
 	}
 
 	void OnUpdate() override {
@@ -63,6 +63,7 @@ public:
 };
 
 int main(int, char**) {
-	Application game{ "CustomShaderScene: WASD: Move" };
-	game.StartWith<CustomShaderScene>();
+	Application app{ "CustomShaderScene: WASD: Move" };
+	PTGN_WITH_EDITOR(app, false);
+	app.StartWith<CustomShaderScene>();
 }

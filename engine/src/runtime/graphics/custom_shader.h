@@ -1,7 +1,6 @@
 #pragma once
 
 #include <functional>
-#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -24,29 +23,31 @@ public:
 	explicit CustomShader(Entity entity);
 
 	static void Draw(DrawContext& ctx, Entity entity);
+
+	CustomShader& SetMaterialUpdate(const std::function<void(CustomShader)>& update);
+
+	CustomShader& SetMaterialUniforms(const std::vector<UniformWrite>& material_uniforms);
+
+	CustomShader& SetMaterial(Material material);
 };
 
 namespace impl {
+
+MaterialState GetMaterialState(Entity entity);
 
 /// @brief Optional component that can be added to an effect entity to specify a custom update
 /// function for the effect.
 struct MaterialUpdate {
 	/// @brief Called once per draw for the entity with this component.
-	std::function<void(Entity)> update;
+	std::function<void(CustomShader)> update;
 };
 
 } // namespace impl
 
-void SetMaterialUpdate(Entity entity, const std::function<void(Entity)>& update);
-
-void SetMaterialUniforms(Entity entity, const std::vector<UniformWrite>& material_uniforms);
-
-void SetMaterial(Entity entity, const MaterialState& material);
-
 CustomShader CreateCustomShader(
-	Scene& scene, std::string_view shader_key, std::optional<std::string_view> texture_key,
-	Transform transform, V2_float size, const std::vector<UniformWrite>& uniforms = {},
-	Origin draw_origin = Origin::Center
+	Scene& scene, Transform transform = {}, std::string_view shader_key = {},
+	std::string_view texture_key = {}, V2_float size = {},
+	const std::vector<UniformWrite>& uniforms = {}, Origin origin = Origin::Center
 );
 
 PTGN_REGISTER_DRAWABLE_NAMED(CustomShader, "Custom Shader");
