@@ -1450,6 +1450,8 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 			ImGui::TreePop();
 		}
 		return changed;
+	} else if constexpr (std::is_empty_v<Value>) {
+		return false;
 	} else {
 		static_assert(std::is_same_v<Value, void>, "No inspector drawer exists for this type");
 	}
