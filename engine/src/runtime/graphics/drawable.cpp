@@ -2,8 +2,6 @@
 
 #include <algorithm>
 #include <functional>
-#include <list>
-#include <utility>
 
 #include "core/assert.h"
 #include "renderer/draw_context.h"
@@ -57,7 +55,7 @@ EffectParams GetEffectParams(const Entity& entity) {
 
 	params.draw_callback = [entity](DrawContext& ctx) {
 		if (auto material_update{ entity.TryGet<MaterialUpdate>() }) {
-			material_update->update(entity);
+			material_update->update(CustomShader{ entity });
 		}
 
 		if (!HasChildren(entity)) {
