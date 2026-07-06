@@ -1332,41 +1332,41 @@ bool DrawOptional(std::string_view label, std::optional<T>& value, FieldOptions 
 			if (CanDrawOptionalInlineValue<Value>(options)) {
 				return DrawOptionalInline(label, value, options);
 			}
-		} else {
-			ImGui::PushID(&value);
-
-			bool enabled{ value.has_value() };
-
-			bool changed{ DrawPropertyRow(label, [&]() {
-				return ImGui::Checkbox("##enabled", &enabled);
-			}) };
-
-			if (enabled != value.has_value()) {
-				if (enabled) {
-					value.emplace();
-				} else {
-					value.reset();
-				}
-
-				changed = true;
-			}
-
-			if (value.has_value()) {
-				ImGui::Indent();
-
-				if constexpr (ReflectedValue<Value> || ReflectedMembers<Value>) {
-					changed |= DrawContents(value.value());
-				} else {
-					changed |= DrawValue("Value", value.value(), options);
-				}
-
-				ImGui::Unindent();
-			}
-
-			ImGui::PopID();
-
-			return changed;
 		}
+
+		ImGui::PushID(&value);
+
+		bool enabled{ value.has_value() };
+
+		bool changed{ DrawPropertyRow(label, [&]() {
+			return ImGui::Checkbox("##enabled", &enabled);
+		}) };
+
+		if (enabled != value.has_value()) {
+			if (enabled) {
+				value.emplace();
+			} else {
+				value.reset();
+			}
+
+			changed = true;
+		}
+
+		if (value.has_value()) {
+			ImGui::Indent();
+
+			if constexpr (ReflectedValue<Value> || ReflectedMembers<Value>) {
+				changed |= DrawContents(value.value());
+			} else {
+				changed |= DrawValue("Value", value.value(), options);
+			}
+
+			ImGui::Unindent();
+		}
+
+		ImGui::PopID();
+
+		return changed;
 	}
 }
 
