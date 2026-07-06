@@ -39,15 +39,15 @@ struct Offsets;
 
 template <typename T>
 struct TweenEffect {
-	TweenEffect() = default;
+	constexpr TweenEffect() = default;
 
-	explicit TweenEffect(const T& start) : start{ start } {}
+	constexpr explicit TweenEffect(const T& start) : start{ start } {}
 
 	T start{};
 
-	bool operator==(const TweenEffect&) const = default;
+	constexpr bool operator==(const TweenEffect&) const = default;
 
-	PTGN_SERIALIZE(TweenEffect, start)
+	PTGN_SERIALIZE_VALUE(TweenEffect, start)
 };
 
 struct TranslateEffect : public TweenEffect<V2_float> {};
@@ -59,35 +59,31 @@ struct ScaleEffect : public TweenEffect<V2_float> {};
 struct TintEffect : public TweenEffect<Color> {};
 
 struct FollowEffect {
-	FollowEffect() = default;
+	constexpr FollowEffect() = default;
 
 	std::size_t current_waypoint{ 0 };
 
 	// Cache for comparing when a waypoint path changes.
 	std::vector<V2_float> waypoints;
 
-	bool operator==(const FollowEffect&) const = default;
+	constexpr bool operator==(const FollowEffect&) const = default;
 
-	// TODO: Fix serialization.
-	// PTGN_SERIALIZE(FollowEffect, current_waypoint, waypoints)
+	PTGN_SERIALIZE(FollowEffect, current_waypoint, waypoints)
 };
 
-struct BounceEffect {
-	BounceEffect() = default;
-};
+struct BounceEffect {};
 
 struct ShakeEffect {
-	ShakeEffect() = default;
+	constexpr ShakeEffect() = default;
 
 	// Range [0, 1] defining the current amount of stress this entity is enduring.
 	float trauma{ 0.0f };
 
 	float previous_target{ 0.0f };
 
-	bool operator==(const ShakeEffect&) const = default;
+	constexpr bool operator==(const ShakeEffect&) const = default;
 
-	// TODO: Fix serialization.
-	// PTGN_SERIALIZE(ShakeEffect, trauma, previous_target)
+	PTGN_SERIALIZE(ShakeEffect, trauma, previous_target)
 };
 
 template <typename TComponent>
