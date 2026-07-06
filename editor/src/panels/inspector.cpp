@@ -3,6 +3,7 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
+#include <algorithm>
 #include <array>
 #include <magic_enum/magic_enum.hpp>
 #include <string>
@@ -22,6 +23,7 @@
 #include "renderer/text/text_style.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interactive.h"
@@ -32,6 +34,39 @@
 #include "runtime/ui/button_config.h"
 
 namespace ptgn::editor::inspector {
+
+template <>
+struct Contents<impl::IDrawable> {
+	static bool Draw(impl::IDrawable& drawable) {
+		auto* current_info{ impl::IDrawable::FindInfo(drawable.hash) };
+
+		std::string preview{ current_info ? current_info->name : "<Missing Drawable>" };
+		bool changed{ false };
+
+		if (ImGui::BeginCombo("Drawable", preview.c_str())) {
+			for (const auto& info : impl::IDrawable::data()) {
+				bool selected{ drawable.hash == info.hash };
+
+				if (ImGui::Selectable(std::string{ info.name }.c_str(), selected)) {
+					drawable.hash = info.hash;
+					changed		  = true;
+				}
+
+				if (selected) {
+					ImGui::SetItemDefaultFocus();
+				}
+			}
+
+			ImGui::EndCombo();
+		}
+
+		if (!current_info && drawable.hash != 0) {
+			ImGui::TextDisabled("Stored hash: %zu", drawable.hash);
+		}
+
+		return changed;
+	}
+};
 
 // Only types whose default reflected layout is not ideal need a specialization.
 template <>
@@ -110,23 +145,40 @@ struct Contents<StyledText> {
 };
 
 template <>
-struct Contents<impl::ButtonShapeVisuals> {
-	static bool Draw(impl::ButtonShapeVisuals& visuals) {
+struct Contents<ButtonBorderVisuals> {
+	static bool Draw(ButtonBorderVisuals& visuals) {
 		return DrawEnumArrayEditor<ButtonVisualState>(visuals.states);
 	}
 };
 
 template <>
-struct Contents<impl::ButtonSpriteVisuals> {
-	static bool Draw(impl::ButtonSpriteVisuals& visuals) {
+struct Contents<ButtonBackgroundVisuals> {
+	static bool Draw(ButtonBackgroundVisuals& visuals) {
 		return DrawEnumArrayEditor<ButtonVisualState>(visuals.states);
 	}
 };
 
 template <>
-struct Contents<impl::ButtonTextVisuals> {
-	static bool Draw(impl::ButtonTextVisuals& visuals) {
+struct Contents<ButtonTextVisuals> {
+	static bool Draw(ButtonTextVisuals& visuals) {
 		return DrawEnumArrayEditor<ButtonVisualState>(visuals.states);
+	}
+};
+
+template <>
+struct Contents<ButtonSpriteVisuals> {
+	static bool Draw(ButtonSpriteVisuals& visuals) {
+		return DrawEnumArrayEditor<ButtonVisualState>(visuals.states);
+	}
+};
+
+template <>
+struct Contents<ButtonSounds> {
+	static bool Draw(ButtonSounds& sounds) {
+		bool changed{ false };
+		changed |= DrawEnumArrayEditor<ButtonVisualState>("Sounds", sounds.states);
+		changed |= DrawValue("Exclusive Audio", sounds.exclusive);
+		return changed;
 	}
 };
 
@@ -170,7 +222,7 @@ struct ComponentChangeHandler<TextBox> {
 };
 
 template <>
-struct ComponentChangeHandler<impl::ButtonTextVisuals> {
+struct ComponentChangeHandler<ButtonTextVisuals> {
 	static void Apply(Entity entity) {
 		MarkTextLayoutDirty(entity);
 
@@ -180,13 +232,12 @@ struct ComponentChangeHandler<impl::ButtonTextVisuals> {
 			return;
 		}
 
-		parent.Get<impl::ButtonData>().dirty |=
-			impl::ButtonDirty::Text | impl::ButtonDirty::TextLayout;
+		parent.Get<impl::ButtonData>().dirty |= impl::ButtonDirty::Text;
 	}
 };
 
 template <>
-struct ComponentChangeHandler<impl::ButtonShapeVisuals> {
+struct ComponentChangeHandler<ButtonBorderVisuals> {
 	static void Apply(Entity entity) {
 		Entity parent{ GetParent(entity) };
 
@@ -194,16 +245,25 @@ struct ComponentChangeHandler<impl::ButtonShapeVisuals> {
 			return;
 		}
 
-		auto part{ entity.Get<impl::ButtonChild>().part };
-
-		parent.Get<impl::ButtonData>().dirty |= part == ButtonPart::Background
-												  ? impl::ButtonDirty::Background
-												  : impl::ButtonDirty::Border;
+		parent.Get<impl::ButtonData>().dirty |= impl::ButtonDirty::Border;
 	}
 };
 
 template <>
-struct ComponentChangeHandler<impl::ButtonSpriteVisuals> {
+struct ComponentChangeHandler<ButtonBackgroundVisuals> {
+	static void Apply(Entity entity) {
+		Entity parent{ GetParent(entity) };
+
+		if (!parent || !parent.Has<impl::ButtonData>()) {
+			return;
+		}
+
+		parent.Get<impl::ButtonData>().dirty |= impl::ButtonDirty::Background;
+	}
+};
+
+template <>
+struct ComponentChangeHandler<ButtonSpriteVisuals> {
 	static void Apply(Entity entity) {
 		Entity parent{ GetParent(entity) };
 
@@ -351,6 +411,24 @@ void DrawAddComponentMenu(Entity entity, ComponentTypes<T...>) {
 	(DrawAddComponentItem<T>(entity), ...);
 }
 
+void DrawAddDrawableMenu(Entity entity) {
+	if (entity.Has<impl::IDrawable>()) {
+		return;
+	}
+
+	if (!ImGui::BeginMenu("Drawable")) {
+		return;
+	}
+
+	for (const auto& info : impl::IDrawable::data()) {
+		if (ImGui::MenuItem(std::string{ info.name }.c_str())) {
+			entity.Add<impl::IDrawable>(info.hash);
+		}
+	}
+
+	ImGui::EndMenu();
+}
+
 } // namespace
 
 void InspectorPanel::OnRender(EditorContext& ctx) {
@@ -372,21 +450,34 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 	ImGui::Separator();
 
 	DrawTransformComponent(selected_entity);
+	DrawComponent<impl::IDrawable>(selected_entity);
 	DrawComponents(selected_entity, DefaultInspectorComponents{});
 
-	DrawComponent<impl::ButtonShapeVisuals>(
+	DrawComponent<ButtonBackgroundVisuals>(
 		selected_entity, ComponentOptions{
 							 .removable = false,
 						 }
 	);
 
-	DrawComponent<impl::ButtonSpriteVisuals>(
+	DrawComponent<ButtonBorderVisuals>(
 		selected_entity, ComponentOptions{
 							 .removable = false,
 						 }
 	);
 
-	DrawComponent<impl::ButtonTextVisuals>(
+	DrawComponent<ButtonSpriteVisuals>(
+		selected_entity, ComponentOptions{
+							 .removable = false,
+						 }
+	);
+
+	DrawComponent<ButtonTextVisuals>(
+		selected_entity, ComponentOptions{
+							 .removable = false,
+						 }
+	);
+
+	DrawComponent<ButtonSounds>(
 		selected_entity, ComponentOptions{
 							 .removable = false,
 						 }
@@ -400,6 +491,7 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 
 	if (ImGui::BeginPopup("AddComponentPopup")) {
 		DrawAddComponentMenu(selected_entity, DefaultInspectorComponents{});
+		DrawAddDrawableMenu(selected_entity);
 		ImGui::EndPopup();
 	}
 

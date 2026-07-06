@@ -50,6 +50,7 @@ void SetFillStyle(Entity entity, FillStyle fill_style);
 
 template <DrawableType T>
 void SetDraw(Entity entity) {
+	impl::DrawableRegistrar<T>::Touch();
 	impl::SetDraw(entity, Hash<T>());
 }
 

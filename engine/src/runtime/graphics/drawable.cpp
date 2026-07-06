@@ -21,11 +21,9 @@ void InvokeDrawable(DrawContext& ctx, const Entity& entity) {
 
 	const auto& drawable{ entity.Get<impl::IDrawable>() };
 
-	const auto& drawable_functions{ impl::IDrawable::data() };
+	auto draw_function{ impl::IDrawable::FindDrawFunction(drawable.hash) };
 
-	PTGN_ASSERT(drawable_functions.contains(drawable.hash), "Failed to identify drawable hash");
-
-	const auto& draw_function{ drawable_functions.find(drawable.hash)->second };
+	PTGN_ASSERT(draw_function, "Failed to identify drawable hash");
 
 	draw_function(ctx, entity);
 }

@@ -1,7 +1,9 @@
 #pragma once
 
+#include <algorithm>
 #include <concepts>
-#include <unordered_map>
+#include <string_view>
+#include <vector>
 
 #include "core/util/hash.h"
 #include "core/util/macro.h"
@@ -27,6 +29,13 @@ concept DrawableType = requires(DrawContext& render_context, Entity entity) {
 
 namespace impl {
 
+template <typename T>
+struct DrawableName {
+	static constexpr std::string_view Get() {
+		return "Unknown Drawable";
+	}
+};
+
 class IDrawable {
 public:
 	IDrawable() = default;
@@ -35,9 +44,64 @@ public:
 
 	using DrawFunc = void (*)(DrawContext&, Entity);
 
+	struct Info {
+		std::size_t hash{ 0 };
+		std::string_view name;
+		DrawFunc draw{ nullptr };
+	};
+
 	static auto& data() {
-		static std::unordered_map<std::size_t, DrawFunc> s;
+		static std::vector<Info> s;
 		return s;
+	}
+
+	static bool Register(std::size_t type_hash, std::string_view name, DrawFunc draw) {
+		auto& drawables{ data() };
+
+		auto it{ std::ranges::find(drawables, type_hash, &Info::hash) };
+
+		if (it != drawables.end()) {
+			PTGN_ASSERT(
+				it->draw == draw,
+				"Drawable hash collision or duplicate drawable hash with different draw function"
+			);
+
+			return true;
+		}
+
+		drawables.push_back(
+			Info{
+				.hash = type_hash,
+				.name = name,
+				.draw = draw,
+			}
+		);
+
+		std::ranges::sort(drawables, {}, &Info::name);
+
+		return true;
+	}
+
+	static const Info* FindInfo(std::size_t type_hash) {
+		auto& drawables{ data() };
+
+		auto it{ std::ranges::find(drawables, type_hash, &Info::hash) };
+
+		if (it == drawables.end()) {
+			return nullptr;
+		}
+
+		return &*it;
+	}
+
+	static DrawFunc FindDrawFunction(std::size_t type_hash) {
+		auto* info{ FindInfo(type_hash) };
+
+		if (!info) {
+			return nullptr;
+		}
+
+		return info->draw;
 	}
 
 	PTGN_SERIALIZE(IDrawable, hash)
@@ -51,15 +115,20 @@ class DrawableRegistrar {
 
 	friend T;
 
+public:
+	static void Touch() {
+		(void)registered_draw;
+	}
+
+private:
 	static bool RegisterDrawFunction() {
-		IDrawable::data()[Hash<T>()] = &T::Draw;
-		return true;
+		return IDrawable::Register(Hash<T>(), DrawableName<T>::Get(), &T::Draw);
 	}
 
 	static bool registered_draw;
 
 	DrawableRegistrar() {
-		(void)registered_draw;
+		Touch();
 	}
 };
 
@@ -74,7 +143,16 @@ EffectParams GetEffectParams(const Entity& entity);
 
 } // namespace ptgn
 
-#define PTGN_REGISTER_DRAWABLE(Type) template class ::ptgn::impl::DrawableRegistrar<Type>
+#define PTGN_REGISTER_DRAWABLE_NAMED(Type, Name)  \
+	template <>                                   \
+	struct ::ptgn::impl::DrawableName<Type> {     \
+		static constexpr std::string_view Get() { \
+			return Name;                          \
+		}                                         \
+	};                                            \
+	template class ::ptgn::impl::DrawableRegistrar<Type>
+
+#define PTGN_REGISTER_DRAWABLE(Type) PTGN_REGISTER_DRAWABLE_NAMED(Type, #Type)
 
 /// @param Type The effect type to register.
 /// @param ... Optional bool value indicating whether the effect requires HDR rendering. Defaults to
