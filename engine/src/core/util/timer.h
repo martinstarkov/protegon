@@ -5,6 +5,7 @@
 
 #include "core/assert.h"
 #include "core/math/math_utils.h"
+#include "core/util/reflection.h"
 #include "core/util/time.h"
 #include "serialization/json/json.h"
 
@@ -426,6 +427,8 @@ private:
 	bool running_{ false };
 	bool paused_{ false };
 	bool has_run_{ false };
+
+	PTGN_REFLECT_MEMBERS(ManualTimer, elapsed_, offset_, running_, paused_, has_run_)
 };
 
 } // namespace ptgn
