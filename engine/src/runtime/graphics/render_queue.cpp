@@ -12,6 +12,7 @@
 
 #include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
@@ -131,8 +132,17 @@ void RenderQueue::DrawTexture(
 	Transform transform, std::string_view texture_key, TextureRenderParams params
 ) {
 	PTGN_ASSERT(scene_);
+
 	auto shader{ GetShader("texture") };
 	auto& assets{ scene_->ctx().asset };
+
+	if (!impl::AssetAccessor{ assets }.Has<Texture>(texture_key)) {
+		PTGN_WARN(
+			"Cannot draw texture with key that is not loaded in the asset manager: ", texture_key
+		);
+		return;
+	}
+
 	auto texture{ impl::AssetAccessor{ assets }.Get<Texture>(texture_key) };
 	auto texture_size{ texture.GetSize() };
 
@@ -144,9 +154,27 @@ void RenderQueue::DrawTexture(
 	TextureRenderParams params
 ) {
 	PTGN_ASSERT(scene_);
+
 	auto& assets{ scene_->ctx().asset };
+
+	if (!impl::AssetAccessor{ assets }.Has<Texture>(texture_key)) {
+		PTGN_WARN(
+			"Cannot draw texture with key that is not loaded in the asset manager: ", texture_key
+		);
+		return;
+	}
+
+	if (!impl::AssetAccessor{ assets }.Has<Shader>(shader_key)) {
+		PTGN_WARN(
+			"Cannot draw texture with shader key that is not loaded in the asset manager: ",
+			shader_key
+		);
+		return;
+	}
+
 	auto texture{ impl::AssetAccessor{ assets }.Get<Texture>(texture_key) };
 	auto shader{ impl::AssetAccessor{ assets }.Get<Shader>(shader_key) };
+
 	auto texture_size{ texture.GetSize() };
 
 	DrawTexture(transform, texture, texture_size, shader, std::move(params));
@@ -157,6 +185,15 @@ void RenderQueue::DrawShader(
 ) {
 	PTGN_ASSERT(scene_);
 	auto& assets{ scene_->ctx().asset };
+
+	if (!impl::AssetAccessor{ assets }.Has<Shader>(shader_key)) {
+		PTGN_WARN(
+			"Cannot draw texture with shader key that is not loaded in the asset manager: ",
+			shader_key
+		);
+		return;
+	}
+
 	auto shader{ impl::AssetAccessor{ assets }.Get<Shader>(shader_key) };
 	auto texture_size{ renderer_.GetLogicalSize() };
 
