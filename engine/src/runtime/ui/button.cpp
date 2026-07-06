@@ -1312,9 +1312,16 @@ Button& Button::Sound(std::optional<std::string_view> sound_key, ButtonVisualSta
 		return *this;
 	}
 
-	auto audio{ impl::AssetAccessor{ GetScene().ctx().asset }.Get<Audio>(sound_key.value()) };
-	slot.emplace(std::move(audio));
+	slot.emplace(sound_key.value());
 
+	return *this;
+}
+
+Button& Button::Sounds(
+	std::optional<std::string_view> hover, std::optional<std::string_view> press
+) {
+	Sound(hover, ButtonVisualState::Hover);
+	Sound(press, ButtonVisualState::Press);
 	return *this;
 }
 
@@ -1430,13 +1437,13 @@ Entity Button::EnsurePart(impl::ButtonPart part) {
 
 	switch (part) {
 		case impl::ButtonPart::Background: {
-			entity = GetScene().CreateEntity();
+			entity = CreateRect(GetScene(), {}, {}, {});
 			entity.Add<ButtonBackgroundVisuals>();
 			break;
 		}
 
 		case impl::ButtonPart::Border: {
-			entity = GetScene().CreateEntity();
+			entity = CreateRect(GetScene(), {}, {}, {});
 			entity.Add<ButtonBorderVisuals>();
 			break;
 		}
@@ -1935,173 +1942,210 @@ Button& Button::RemoveParts(impl::ButtonPart part) {
 	return *this;
 }
 
-ButtonShape::ButtonShape(Button button, impl::ButtonPart part, ButtonVisualState state) :
-	button_{ button }, part{ part }, state{ state } {
+ButtonShape::ButtonShape(ptgn::Button button, impl::ButtonPart part, ButtonVisualState state) :
+	button_{ button }, part_{ part }, state_{ state } {
 	PTGN_ASSERT(
-		part == impl::ButtonPart::Background || part == impl::ButtonPart::Border,
+		part_ == impl::ButtonPart::Background || part_ == impl::ButtonPart::Border,
 		"ButtonShape can only edit background or border parts"
 	);
 
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual.defined = true;
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 }
 
+ButtonShape::operator ptgn::Button() const {
+	return button_;
+}
+
+ptgn::Button ButtonShape::Button() const {
+	return button_;
+}
+
 ButtonShape& ButtonShape::Size(V2_float size) {
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual.defined = true;
 	visual.size	   = size;
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 
 	return *this;
 }
 
 ButtonShape& ButtonShape::Size(float radius) {
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual.defined = true;
 	visual.size	   = radius;
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 
 	return *this;
 }
 
 ButtonShape& ButtonShape::ClearSize() {
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual.size.reset();
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 
 	return *this;
 }
 
 ButtonShape& ButtonShape::Origin(ptgn::Origin origin) {
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual.defined = true;
 	visual.origin  = origin;
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 
 	return *this;
 }
 
 ButtonShape& ButtonShape::ClearOrigin() {
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual.origin.reset();
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 
 	return *this;
 }
 
 ButtonShape& ButtonShape::Anchor(ptgn::Origin anchor) {
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual.defined = true;
 	visual.anchor  = anchor;
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 
 	return *this;
 }
 
 ButtonShape& ButtonShape::ClearAnchor() {
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual.anchor.reset();
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 
 	return *this;
 }
 
 ButtonShape& ButtonShape::Transform(ptgn::Transform transform) {
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual.defined	 = true;
 	visual.transform = transform;
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
+	button_.RefreshDirty();
+
+	return *this;
+}
+
+ButtonShape& ButtonShape::Color(ptgn::Color color, ButtonVisualState state) {
+	auto& visual{ button_.ShapeVisual(part_, state) };
+	visual.defined = true;
+	visual.color   = color;
+
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 
 	return *this;
 }
 
 ButtonShape& ButtonShape::Color(ptgn::Color color) {
-	auto& visual{ button_.ShapeVisual(part, state) };
-	visual.defined = true;
-	visual.color   = color;
+	return Color(color, state_);
+}
 
-	button_.MarkDirty(DirtyForPart(part));
-	button_.RefreshDirty();
-
+ButtonShape& ButtonShape::Colors(
+	std::optional<ptgn::Color> idle, std::optional<ptgn::Color> hover,
+	std::optional<ptgn::Color> press
+) {
+	if (idle.has_value()) {
+		Color(idle.value(), ButtonVisualState::Idle);
+	}
+	if (hover.has_value()) {
+		Color(hover.value(), ButtonVisualState::Hover);
+	}
+	if (press.has_value()) {
+		Color(press.value(), ButtonVisualState::Press);
+	}
 	return *this;
 }
 
 ButtonShape& ButtonShape::ClearColor() {
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual.color.reset();
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 
 	return *this;
 }
 
 ButtonShape& ButtonShape::Fill(FillStyle fill_style) {
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual.defined	  = true;
 	visual.fill_style = fill_style;
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 
 	return *this;
 }
 
 ButtonShape& ButtonShape::ClearFill() {
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual.fill_style.reset();
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 
 	return *this;
 }
 
 ButtonShape& ButtonShape::Clear() {
-	auto& visual{ button_.ShapeVisual(part, state) };
+	auto& visual{ button_.ShapeVisual(part_, state_) };
 	visual = {};
 
-	button_.MarkDirty(DirtyForPart(part));
+	button_.MarkDirty(DirtyForPart(part_));
 	button_.RefreshDirty();
 
 	return *this;
 }
 
-ButtonBackground::ButtonBackground(Button button, ButtonVisualState state) :
+ButtonBackground::ButtonBackground(ptgn::Button button, ButtonVisualState state) :
 	ButtonShape{ button, impl::ButtonPart::Background, state } {}
 
-ButtonBorder::ButtonBorder(Button button, ButtonVisualState state) :
+ButtonBorder::ButtonBorder(ptgn::Button button, ButtonVisualState state) :
 	ButtonShape{ button, impl::ButtonPart::Border, state } {}
 
-ButtonText::ButtonText(Button button, ButtonVisualState state) : button_{ button }, state{ state } {
-	auto& visual{ button_.TextVisual(state) };
+ButtonText::ButtonText(ptgn::Button button, ButtonVisualState state) :
+	button_{ button }, state_{ state } {
+	auto& visual{ button_.TextVisual(state_) };
 	visual.defined = true;
 
 	button_.MarkDirty(impl::ButtonDirty::Text);
 	button_.RefreshDirty();
 }
 
+ButtonText::operator ptgn::Button() const {
+	return button_;
+}
+
+ptgn::Button ButtonText::Button() const {
+	return button_;
+}
+
 ButtonText& ButtonText::Clear() {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 	visual = {};
 
 	button_.MarkDirty(impl::ButtonDirty::Text);
@@ -2111,14 +2155,14 @@ ButtonText& ButtonText::Clear() {
 }
 
 ButtonText& ButtonText::Content(std::string_view content) {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 
 	TextRun run;
 
 	if (visual.styled_text.has_value() && !visual.styled_text->runs.empty()) {
 		run = visual.styled_text->runs.front();
 	} else {
-		auto fallback{ button_.GetTextFallback(state) };
+		auto fallback{ button_.GetTextFallback(state_) };
 
 		if (!fallback.runs.empty()) {
 			run = fallback.runs.front();
@@ -2137,7 +2181,7 @@ ButtonText& ButtonText::Content(std::string_view content) {
 }
 
 ButtonText& ButtonText::Content(StyledText styled_text) {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 
 	if (styled_text.runs.empty()) {
 		styled_text.runs.emplace_back();
@@ -2152,7 +2196,11 @@ ButtonText& ButtonText::Content(StyledText styled_text) {
 }
 
 ButtonText& ButtonText::ClearContent() {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
+
+	if (!visual.styled_text.has_value()) {
+		return *this;
+	}
 
 	visual.styled_text.reset();
 
@@ -2162,7 +2210,7 @@ ButtonText& ButtonText::ClearContent() {
 }
 
 ButtonText& ButtonText::Box(TextBox box) {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 
 	visual.defined = true;
 	visual.box	   = std::move(box);
@@ -2173,7 +2221,12 @@ ButtonText& ButtonText::Box(TextBox box) {
 }
 
 ButtonText& ButtonText::ClearBox() {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
+
+	if (!visual.box.has_value()) {
+		return *this;
+	}
+
 	visual.box.reset();
 
 	MarkTextDirty();
@@ -2181,8 +2234,67 @@ ButtonText& ButtonText::ClearBox() {
 	return *this;
 }
 
+ButtonText& ButtonText::Align(ptgn::Origin origin) {
+	return Align(GetAlignment(origin));
+}
+
+ButtonText& ButtonText::Align(Alignment alignment) {
+	auto& visual{ button_.TextVisual(state_) };
+
+	bool changed{ !visual.defined };
+	visual.defined = true;
+
+	if (!visual.box.has_value()) {
+		visual.box = TextBox{};
+		changed	   = true;
+	}
+
+	if (alignment.horizontal.has_value()) {
+		visual.box.value().style.alignment.horizontal = alignment.horizontal;
+
+		changed = true;
+	}
+
+	if (alignment.vertical.has_value()) {
+		visual.box.value().style.alignment.vertical = alignment.vertical;
+
+		changed = true;
+	}
+
+	if (changed) {
+		MarkTextDirty();
+	}
+
+	return *this;
+}
+
+ButtonText& ButtonText::Align(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical) {
+	return Align({ .horizontal = horizontal, .vertical = vertical });
+}
+
+ButtonText& ButtonText::HorizontalAlign(ptgn::HorizontalAlign align) {
+	return Align({ .horizontal = align, .vertical = std::nullopt });
+}
+
+ButtonText& ButtonText::VerticalAlign(ptgn::VerticalAlign align) {
+	return Align({ .horizontal = std::nullopt, .vertical = align });
+}
+
+ButtonText& ButtonText::ClearAlignment() {
+	auto& visual{ button_.TextVisual(state_) };
+
+	if (visual.box.has_value()) {
+		visual.box.value().style.alignment.horizontal.reset();
+		visual.box.value().style.alignment.vertical.reset();
+
+		MarkTextDirty();
+	}
+
+	return *this;
+}
+
 ButtonText& ButtonText::Origin(ptgn::Origin origin) {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 
 	visual.defined = true;
 	visual.origin  = origin;
@@ -2193,7 +2305,7 @@ ButtonText& ButtonText::Origin(ptgn::Origin origin) {
 }
 
 ButtonText& ButtonText::ClearOrigin() {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 	visual.origin.reset();
 
 	MarkTextDirty();
@@ -2202,7 +2314,7 @@ ButtonText& ButtonText::ClearOrigin() {
 }
 
 ButtonText& ButtonText::Anchor(ptgn::Origin anchor) {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 
 	visual.defined = true;
 	visual.anchor  = anchor;
@@ -2213,7 +2325,7 @@ ButtonText& ButtonText::Anchor(ptgn::Origin anchor) {
 }
 
 ButtonText& ButtonText::ClearAnchor() {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 	visual.anchor.reset();
 
 	MarkTextDirty();
@@ -2222,7 +2334,7 @@ ButtonText& ButtonText::ClearAnchor() {
 }
 
 ButtonText& ButtonText::Transform(ptgn::Transform transform) {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 
 	visual.defined	 = true;
 	visual.transform = transform;
@@ -2233,7 +2345,7 @@ ButtonText& ButtonText::Transform(ptgn::Transform transform) {
 }
 
 ButtonText& ButtonText::AutoBox(bool enabled) {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 
 	visual.defined	= true;
 	visual.auto_box = enabled;
@@ -2244,7 +2356,7 @@ ButtonText& ButtonText::AutoBox(bool enabled) {
 }
 
 ButtonText& ButtonText::ClearAutoBox() {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 	visual.auto_box.reset();
 
 	MarkTextDirty();
@@ -2253,7 +2365,7 @@ ButtonText& ButtonText::ClearAutoBox() {
 }
 
 ButtonText& ButtonText::Padding(ptgn::Padding padding) {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 
 	visual.defined = true;
 	visual.padding = padding;
@@ -2264,7 +2376,7 @@ ButtonText& ButtonText::Padding(ptgn::Padding padding) {
 }
 
 ButtonText& ButtonText::ClearPadding() {
-	auto& visual{ button_.TextVisual(state) };
+	auto& visual{ button_.TextVisual(state_) };
 	visual.padding.reset();
 
 	MarkTextDirty();
@@ -2273,6 +2385,10 @@ ButtonText& ButtonText::ClearPadding() {
 }
 
 StyledText& ButtonText::StyledTextForEdit() {
+	return StyledTextForEdit(state_);
+}
+
+StyledText& ButtonText::StyledTextForEdit(ButtonVisualState state) {
 	auto& visual{ button_.TextVisual(state) };
 
 	visual.defined = true;
@@ -2307,8 +2423,8 @@ ButtonText& ButtonText::Font(std::string_view font) {
 	return *this;
 }
 
-ButtonText& ButtonText::Color(ptgn::Color color) {
-	auto& styled_text{ StyledTextForEdit() };
+ButtonText& ButtonText::Color(ptgn::Color color, ButtonVisualState state) {
+	auto& styled_text{ StyledTextForEdit(state) };
 
 	bool changed{ false };
 
@@ -2323,6 +2439,26 @@ ButtonText& ButtonText::Color(ptgn::Color color) {
 		MarkTextDirty();
 	}
 
+	return *this;
+}
+
+ButtonText& ButtonText::Color(ptgn::Color color) {
+	return Color(color, state_);
+}
+
+ButtonText& ButtonText::Colors(
+	std::optional<ptgn::Color> idle, std::optional<ptgn::Color> hover,
+	std::optional<ptgn::Color> press
+) {
+	if (idle.has_value()) {
+		Color(idle.value(), ButtonVisualState::Idle);
+	}
+	if (hover.has_value()) {
+		Color(hover.value(), ButtonVisualState::Hover);
+	}
+	if (press.has_value()) {
+		Color(press.value(), ButtonVisualState::Press);
+	}
 	return *this;
 }
 
@@ -2586,16 +2722,24 @@ void ButtonText::MarkTextDirty() {
 	button_.RefreshDirty();
 }
 
-ButtonSprite::ButtonSprite(Button button, ButtonVisualState state) :
-	button_{ button }, state{ state } {
-	auto& visual{ button_.SpriteVisual(state) };
+ButtonSprite::ButtonSprite(ptgn::Button button, ButtonVisualState state) :
+	button_{ button }, state_{ state } {
+	auto& visual{ button_.SpriteVisual(state_) };
 	visual.defined = true;
 
 	button_.MarkDirty(impl::ButtonDirty::Sprite);
 	button_.RefreshDirty();
 }
 
-ButtonSprite& ButtonSprite::Texture(std::string_view texture_key) {
+ButtonSprite::operator ptgn::Button() const {
+	return button_;
+}
+
+ptgn::Button ButtonSprite::Button() const {
+	return button_;
+}
+
+ButtonSprite& ButtonSprite::Texture(std::string_view texture_key, ButtonVisualState state) {
 	auto& visual{ button_.SpriteVisual(state) };
 
 	visual.defined = true;
@@ -2607,8 +2751,28 @@ ButtonSprite& ButtonSprite::Texture(std::string_view texture_key) {
 	return *this;
 }
 
+ButtonSprite& ButtonSprite::Texture(std::string_view texture_key) {
+	return Texture(texture_key, state_);
+}
+
+ButtonSprite& ButtonSprite::Textures(
+	std::optional<std::string_view> idle, std::optional<std::string_view> hover,
+	std::optional<std::string_view> press
+) {
+	if (idle.has_value()) {
+		Texture(idle.value(), ButtonVisualState::Idle);
+	}
+	if (hover.has_value()) {
+		Texture(hover.value(), ButtonVisualState::Hover);
+	}
+	if (press.has_value()) {
+		Texture(press.value(), ButtonVisualState::Press);
+	}
+	return *this;
+}
+
 ButtonSprite& ButtonSprite::ClearTexture() {
-	auto& visual{ button_.SpriteVisual(state) };
+	auto& visual{ button_.SpriteVisual(state_) };
 	visual.texture.reset();
 
 	button_.MarkDirty(impl::ButtonDirty::Sprite);
@@ -2618,7 +2782,7 @@ ButtonSprite& ButtonSprite::ClearTexture() {
 }
 
 ButtonSprite& ButtonSprite::Origin(ptgn::Origin origin) {
-	auto& visual{ button_.SpriteVisual(state) };
+	auto& visual{ button_.SpriteVisual(state_) };
 
 	visual.defined = true;
 	visual.origin  = origin;
@@ -2630,7 +2794,7 @@ ButtonSprite& ButtonSprite::Origin(ptgn::Origin origin) {
 }
 
 ButtonSprite& ButtonSprite::ClearOrigin() {
-	auto& visual{ button_.SpriteVisual(state) };
+	auto& visual{ button_.SpriteVisual(state_) };
 	visual.origin.reset();
 
 	button_.MarkDirty(impl::ButtonDirty::Sprite);
@@ -2640,7 +2804,7 @@ ButtonSprite& ButtonSprite::ClearOrigin() {
 }
 
 ButtonSprite& ButtonSprite::Anchor(ptgn::Origin anchor) {
-	auto& visual{ button_.SpriteVisual(state) };
+	auto& visual{ button_.SpriteVisual(state_) };
 
 	visual.defined = true;
 	visual.anchor  = anchor;
@@ -2652,7 +2816,7 @@ ButtonSprite& ButtonSprite::Anchor(ptgn::Origin anchor) {
 }
 
 ButtonSprite& ButtonSprite::ClearAnchor() {
-	auto& visual{ button_.SpriteVisual(state) };
+	auto& visual{ button_.SpriteVisual(state_) };
 	visual.anchor.reset();
 
 	button_.MarkDirty(impl::ButtonDirty::Sprite);
@@ -2662,7 +2826,7 @@ ButtonSprite& ButtonSprite::ClearAnchor() {
 }
 
 ButtonSprite& ButtonSprite::Transform(ptgn::Transform transform) {
-	auto& visual{ button_.SpriteVisual(state) };
+	auto& visual{ button_.SpriteVisual(state_) };
 
 	visual.defined	 = true;
 	visual.transform = transform;
@@ -2674,7 +2838,7 @@ ButtonSprite& ButtonSprite::Transform(ptgn::Transform transform) {
 }
 
 ButtonSprite& ButtonSprite::Size(V2_float size) {
-	auto& visual{ button_.SpriteVisual(state) };
+	auto& visual{ button_.SpriteVisual(state_) };
 
 	visual.defined = true;
 	visual.size	   = size;
@@ -2686,7 +2850,7 @@ ButtonSprite& ButtonSprite::Size(V2_float size) {
 }
 
 ButtonSprite& ButtonSprite::ClearSize() {
-	auto& visual{ button_.SpriteVisual(state) };
+	auto& visual{ button_.SpriteVisual(state_) };
 	visual.size.reset();
 
 	button_.MarkDirty(impl::ButtonDirty::Sprite);
@@ -2696,7 +2860,7 @@ ButtonSprite& ButtonSprite::ClearSize() {
 }
 
 ButtonSprite& ButtonSprite::Tint(ptgn::Color tint) {
-	auto& visual{ button_.SpriteVisual(state) };
+	auto& visual{ button_.SpriteVisual(state_) };
 
 	visual.defined = true;
 	visual.tint	   = tint;
@@ -2708,7 +2872,7 @@ ButtonSprite& ButtonSprite::Tint(ptgn::Color tint) {
 }
 
 ButtonSprite& ButtonSprite::ClearTint() {
-	auto& visual{ button_.SpriteVisual(state) };
+	auto& visual{ button_.SpriteVisual(state_) };
 	visual.tint.reset();
 
 	button_.MarkDirty(impl::ButtonDirty::Sprite);
@@ -2718,7 +2882,7 @@ ButtonSprite& ButtonSprite::ClearTint() {
 }
 
 ButtonSprite& ButtonSprite::Clear() {
-	auto& visual{ button_.SpriteVisual(state) };
+	auto& visual{ button_.SpriteVisual(state_) };
 	visual = {};
 
 	auto entity{ button_.FindPart(impl::ButtonPart::Sprite) };
@@ -2734,11 +2898,19 @@ ButtonSprite& ButtonSprite::Clear() {
 	return *this;
 }
 
-ButtonAnimation::ButtonAnimation(Button button, ButtonVisualState state) :
+ButtonAnimation::ButtonAnimation(ptgn::Button button, ButtonVisualState state) :
 	ButtonSprite{ button, state } {}
 
 ButtonAnimation& ButtonAnimation::Texture(std::string_view texture_key) {
 	ButtonSprite::Texture(texture_key);
+	return *this;
+}
+
+ButtonAnimation& ButtonAnimation::Textures(
+	std::optional<std::string_view> idle, std::optional<std::string_view> hover,
+	std::optional<std::string_view> press
+) {
+	ButtonSprite::Textures(idle, hover, press);
 	return *this;
 }
 
@@ -2792,7 +2964,9 @@ ButtonAnimation& ButtonAnimation::ClearTint() {
 	return *this;
 }
 
-ButtonAnimation& ButtonAnimation::Config(AnimationConfig config, ButtonAnimationOptions options) {
+ButtonAnimation& ButtonAnimation::Config(
+	AnimationConfig config, ButtonAnimationOptions options, ButtonVisualState state
+) {
 	auto& visual{ button_.SpriteVisual(state) };
 
 	visual.defined			 = true;
@@ -2811,6 +2985,26 @@ ButtonAnimation& ButtonAnimation::Config(AnimationConfig config, ButtonAnimation
 	return *this;
 }
 
+ButtonAnimation& ButtonAnimation::Config(AnimationConfig config, ButtonAnimationOptions options) {
+	return Config(config, options, state_);
+}
+
+ButtonAnimation& ButtonAnimation::Configs(
+	std::optional<AnimationConfig> idle, std::optional<AnimationConfig> hover,
+	std::optional<AnimationConfig> press
+) {
+	if (idle.has_value()) {
+		Config(idle.value(), {}, ButtonVisualState::Idle);
+	}
+	if (hover.has_value()) {
+		Config(hover.value(), {}, ButtonVisualState::Hover);
+	}
+	if (press.has_value()) {
+		Config(press.value(), {}, ButtonVisualState::Press);
+	}
+	return *this;
+}
+
 ButtonAnimation& ButtonAnimation::StaticFrame(AnimationConfig config, std::size_t frame) {
 	return Config(
 		std::move(config), ButtonAnimationOptions{
@@ -2821,7 +3015,7 @@ ButtonAnimation& ButtonAnimation::StaticFrame(AnimationConfig config, std::size_
 }
 
 ButtonAnimation& ButtonAnimation::ClearConfig() {
-	auto& visual{ button_.SpriteVisual(state) };
+	auto& visual{ button_.SpriteVisual(state_) };
 
 	visual.animation.reset();
 	visual.animation_options.reset();

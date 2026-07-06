@@ -193,6 +193,7 @@ public:
 	Button& RemoveAnimation(ButtonVisualState state);
 
 	Button& Sound(std::optional<std::string_view> sound_key, ButtonVisualState state);
+	Button& Sounds(std::optional<std::string_view> hover, std::optional<std::string_view> press);
 	Button& RemoveSound(ButtonVisualState state);
 	Button& RemoveSounds();
 	Button& ExclusiveAudio(bool enabled = true);
@@ -270,6 +271,10 @@ private:
 
 class ButtonShape {
 public:
+	operator ptgn::Button() const; // NOSONAR
+
+	ptgn::Button Button() const;
+
 	ButtonShape& Size(V2_float size);
 	ButtonShape& Size(float radius);
 	ButtonShape& ClearSize();
@@ -283,6 +288,10 @@ public:
 	ButtonShape& Transform(ptgn::Transform transform = {});
 
 	ButtonShape& Color(ptgn::Color color);
+	ButtonShape& Colors(
+		std::optional<ptgn::Color> idle, std::optional<ptgn::Color> hover = std::nullopt,
+		std::optional<ptgn::Color> press = std::nullopt
+	);
 	ButtonShape& ClearColor();
 
 	ButtonShape& Fill(FillStyle fill_style);
@@ -291,26 +300,33 @@ public:
 	ButtonShape& Clear();
 
 protected:
-	ButtonShape(Button button, impl::ButtonPart part, ButtonVisualState state);
+	ButtonShape(ptgn::Button button, impl::ButtonPart part, ButtonVisualState state);
 
-	Button button_;
-	impl::ButtonPart part{ impl::ButtonPart::Background };
-	ButtonVisualState state{ ButtonVisualState::Idle };
+private:
+	ButtonShape& Color(ptgn::Color color, ButtonVisualState state);
+
+	ptgn::Button button_;
+	impl::ButtonPart part_{ impl::ButtonPart::Background };
+	ButtonVisualState state_{ ButtonVisualState::Idle };
 };
 
 class ButtonBackground : public ButtonShape {
 public:
-	ButtonBackground(Button button, ButtonVisualState state);
+	ButtonBackground(ptgn::Button button, ButtonVisualState state);
 };
 
 class ButtonBorder : public ButtonShape {
 public:
-	ButtonBorder(Button button, ButtonVisualState state);
+	ButtonBorder(ptgn::Button button, ButtonVisualState state);
 };
 
 class ButtonText {
 public:
-	ButtonText(Button button, ButtonVisualState state);
+	ButtonText(ptgn::Button button, ButtonVisualState state);
+
+	operator ptgn::Button() const; // NOSONAR
+
+	ptgn::Button Button() const;
 
 	/// @brief Removes all text visuals from the button.
 	ButtonText& Clear();
@@ -321,6 +337,13 @@ public:
 
 	ButtonText& Box(TextBox box);
 	ButtonText& ClearBox();
+
+	ButtonText& Align(ptgn::Origin origin);
+	ButtonText& Align(Alignment alignment);
+	ButtonText& Align(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical);
+	ButtonText& HorizontalAlign(ptgn::HorizontalAlign align);
+	ButtonText& VerticalAlign(ptgn::VerticalAlign align);
+	ButtonText& ClearAlignment();
 
 	ButtonText& Origin(ptgn::Origin origin);
 	ButtonText& ClearOrigin();
@@ -338,6 +361,10 @@ public:
 
 	ButtonText& Font(std::string_view font);
 	ButtonText& Color(ptgn::Color color);
+	ButtonText& Colors(
+		std::optional<ptgn::Color> idle, std::optional<ptgn::Color> hover = std::nullopt,
+		std::optional<ptgn::Color> press = std::nullopt
+	);
 	ButtonText& Size(float font_size);
 
 	ButtonText& Style(FontStyle flags);
@@ -359,18 +386,29 @@ public:
 	);
 
 private:
+	ButtonText& Color(ptgn::Color color, ButtonVisualState state);
+
+	StyledText& StyledTextForEdit(ButtonVisualState state);
 	StyledText& StyledTextForEdit();
 	void MarkTextDirty();
 
-	Button button_;
-	ButtonVisualState state{ ButtonVisualState::Idle };
+	ptgn::Button button_;
+	ButtonVisualState state_{ ButtonVisualState::Idle };
 };
 
 class ButtonSprite {
 public:
-	ButtonSprite(Button button, ButtonVisualState state);
+	ButtonSprite(ptgn::Button button, ButtonVisualState state);
+
+	operator ptgn::Button() const; // NOSONAR
+
+	ptgn::Button Button() const;
 
 	ButtonSprite& Texture(std::string_view texture_key);
+	ButtonSprite& Textures(
+		std::optional<std::string_view> idle, std::optional<std::string_view> hover = std::nullopt,
+		std::optional<std::string_view> press = std::nullopt
+	);
 	ButtonSprite& ClearTexture();
 
 	ButtonSprite& Origin(ptgn::Origin origin);
@@ -390,15 +428,22 @@ public:
 	ButtonSprite& Clear();
 
 protected:
-	Button button_;
-	ButtonVisualState state{ ButtonVisualState::Idle };
+	ptgn::Button button_;
+	ButtonVisualState state_{ ButtonVisualState::Idle };
+
+private:
+	ButtonSprite& Texture(std::string_view texture_key, ButtonVisualState state);
 };
 
 class ButtonAnimation : public ButtonSprite {
 public:
-	ButtonAnimation(Button button, ButtonVisualState state);
+	ButtonAnimation(ptgn::Button button, ButtonVisualState state);
 
 	ButtonAnimation& Texture(std::string_view texture_key);
+	ButtonAnimation& Textures(
+		std::optional<std::string_view> idle, std::optional<std::string_view> hover = std::nullopt,
+		std::optional<std::string_view> press = std::nullopt
+	);
 	ButtonAnimation& ClearTexture();
 
 	ButtonAnimation& Origin(ptgn::Origin origin);
@@ -416,10 +461,19 @@ public:
 	ButtonAnimation& ClearTint();
 
 	ButtonAnimation& Config(AnimationConfig config, ButtonAnimationOptions options = {});
+	ButtonAnimation& Configs(
+		std::optional<AnimationConfig> idle, std::optional<AnimationConfig> hover = std::nullopt,
+		std::optional<AnimationConfig> press = std::nullopt
+	);
 	ButtonAnimation& StaticFrame(AnimationConfig config, std::size_t frame = 0);
 	ButtonAnimation& ClearConfig();
 
 	ButtonAnimation& Clear();
+
+private:
+	ButtonAnimation& Config(
+		AnimationConfig config, ButtonAnimationOptions options, ButtonVisualState state
+	);
 };
 
 namespace impl {

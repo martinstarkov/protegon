@@ -12,12 +12,8 @@
 #include "core/math/geometry/origin.h"
 #include "renderer/text/text_layout.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/graphics/text/text.h"
-#include "runtime/interaction/interaction_system.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
-#include "runtime/ui/button_config.h"
-#include "serialization/json/json.h"
 
 using namespace ptgn;
 
@@ -36,15 +32,15 @@ public:
 
 		button = CreateButton(*this, {}, { 200, 100 }, Origin::Center)
 					 .OnPress([]() { PTGN_LOG("Pressed regular button!"); })
-					 .Sound("hover", ButtonState::Hover)
-					 .Sound("press", ButtonState::Press)
-					 .BackgroundColors(color::Pink, color::Red, color::DarkRed);
-
-		button.Text()
-			.Content("Button")
-			.Color(color::Black)
-			.Size(28)
-			.Align(HorizontalAlign::Center, VerticalAlign::Center);
+					 .Sounds("hover", "press")
+					 .Background()
+					 .Colors(color::Pink, color::Red, color::DarkRed)
+					 .Button()
+					 .Text()
+					 .Content("Button")
+					 .Color(color::Black)
+					 .Size(28)
+					 .Align(HorizontalAlign::Center, VerticalAlign::Center);
 	}
 
 	void OnUpdate() override {
