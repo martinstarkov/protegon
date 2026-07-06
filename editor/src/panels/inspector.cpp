@@ -24,6 +24,9 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/graphics/fx/light.h"
+#include "runtime/graphics/fx/particle.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/interaction/interactive.h"
@@ -394,8 +397,11 @@ struct ComponentTypes {};
 
 // Adding a type here adds both its inspector section and its Add Component menu entry.
 using DefaultInspectorComponents = ComponentTypes<
-	impl::Tint, Color, impl::Visible, Origin, Rect, Circle, FillStyle, impl::Interactive,
-	StyledText, TextBox, Collider, RigidBody, TopDownMovement>;
+	impl::Tint, Color, Visible, Origin, Rect, Circle, FillStyle, impl::Interactive, StyledText,
+	TextBox, Collider, RigidBody, TopDownMovement, impl::ParticleEmitterComponent, TextureKey,
+	impl::LightData, impl::ShadowCaster>;
+
+// TODO: Add Material.
 
 template <typename... T>
 void DrawComponents(Entity entity, ComponentTypes<T...>) {

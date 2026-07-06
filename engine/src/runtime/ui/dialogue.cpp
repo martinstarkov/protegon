@@ -757,7 +757,7 @@ std::optional<Sprite> DialogueBox::TryBackground() const {
 		return std::nullopt;
 	}
 
-	if (!part.value().Has<Texture>()) {
+	if (!part.value().HasAny<Texture, TextureKey>()) {
 		return std::nullopt;
 	}
 

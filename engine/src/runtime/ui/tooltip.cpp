@@ -174,7 +174,7 @@ Tooltip AddTooltipOnHover(
 ) {
 	SetInteractive(entity);
 
-	if (entity.Has<Texture>() && !HasInteractiveShape(entity)) {
+	if (entity.HasAny<Texture, TextureKey>() && !HasInteractiveShape(entity)) {
 		auto rect{ entity.GetScene().CreateEntity() };
 		PTGN_DEFAULT_NAME(rect, "Tooltip Interactive Rect");
 		V2_float size{ *GetTextureSize(entity) };

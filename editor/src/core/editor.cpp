@@ -241,7 +241,7 @@ impl::TextureId Editor::GetPresentationTexture() const {
 V2_int Editor::GetPresentationTextureSize() const {
 	impl::RendererAccessor renderer{ impl::ApplicationAccessor::ctx(app).renderer };
 	auto texture{ renderer.GetPresentationTexture() };
-	return renderer.GetSize(texture);
+	return renderer.GetSize(texture).value();
 }
 
 void Editor::OnProjectChanged() {
