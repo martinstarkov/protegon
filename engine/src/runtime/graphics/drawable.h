@@ -166,3 +166,16 @@ EffectParams GetEffectParams(const Entity& entity);
 			requires_hdr ? ::ptgn::impl::ColorRange::HDR : ::ptgn::impl::ColorRange::SDR      \
 		};                                                                                    \
 	}
+
+/// @param Type The effect type to register.
+/// @param ... Optional bool value indicating whether the effect requires HDR rendering. Defaults to
+/// false if not provided.
+#define PTGN_REGISTER_EFFECT_NAMED(Type, Name, ...)                                           \
+	PTGN_REGISTER_DRAWABLE_NAMED(Type, Name);                                                 \
+	template <>                                                                               \
+	struct ::ptgn::impl::EffectTraits<Type> {                                                 \
+		static constexpr bool requires_hdr{ PTGN_IMPL_FIRST_OR_DEFAULT(false, __VA_ARGS__) }; \
+		static constexpr ::ptgn::impl::ColorRange color_range{                                \
+			requires_hdr ? ::ptgn::impl::ColorRange::HDR : ::ptgn::impl::ColorRange::SDR      \
+		};                                                                                    \
+	}

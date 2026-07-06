@@ -2,6 +2,7 @@
 
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -12,8 +13,10 @@ struct GaussianBlur {
 	std::size_t iterations{ 4 };
 
 	static void Draw(DrawContext& ctx, Entity entity);
+
+	PTGN_SERIALIZE(GaussianBlur, radius, iterations)
 };
 
-PTGN_REGISTER_EFFECT(GaussianBlur);
+PTGN_REGISTER_EFFECT_NAMED(GaussianBlur, "Gaussian Blur");
 
 } // namespace ptgn
