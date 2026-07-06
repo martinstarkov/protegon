@@ -675,7 +675,7 @@ Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origi
 	SetDrawOrigin(text, origin);
 
 	SetDraw<Text>(text);
-	text.Add<impl::Visible>(true);
+	text.Add<Visible>(true);
 
 	return text;
 }

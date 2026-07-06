@@ -93,7 +93,10 @@ void DrawParticleType(
 	AssetManager& assets, DrawContext& ctx, const T& particle_type, const ParticleDrawInfo& draw
 ) {
 	if constexpr (std::is_same_v<T, std::string>) {
-		Texture texture{ impl::AssetAccessor{ assets }.Get<Texture>(particle_type) };
+		if (!impl::AssetAccessor{ assets }.Has<Texture>(particle_type)) {
+			return;
+		}
+		auto texture{ impl::AssetAccessor{ assets }.Get<Texture>(particle_type) };
 
 		auto params{ ConvertToTextureDrawParams(draw) };
 
@@ -520,12 +523,12 @@ ParticleEmitter CreateParticleEmitter(
 ) {
 	ParticleEmitter particle{ scene.CreateEntity() };
 	PTGN_DEFAULT_NAME(particle, "Particle Emitter");
-	SetTransform(particle, transform);
+
+	particle.Add<Transform>(transform);
+	particle.Add<impl::ParticleEmitterComponent>(config);
+	particle.Add<Visible>(true);
 
 	SetDraw<ParticleEmitter>(particle);
-	particle.Add<impl::ParticleEmitterComponent>(config);
-
-	particle.Add<impl::Visible>(true);
 
 	return particle;
 }

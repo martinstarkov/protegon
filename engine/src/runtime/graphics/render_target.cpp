@@ -217,7 +217,7 @@ RenderTarget CreateRenderTarget(
 	PTGN_ASSERT(size.IsPositive(), "Render target size cannot be zero or negative");
 
 	SetDraw<RenderTarget>(render_target);
-	render_target.Add<impl::Visible>(true);
+	render_target.Add<Visible>(true);
 	SetTransform(render_target, transform);
 
 	render_target.SetClearColor(clear_color);

@@ -9,17 +9,17 @@ namespace ptgn {
 namespace {
 
 bool IsLocallyVisible(Entity entity) {
-	return !entity.Has<impl::Visible>() || entity.Get<impl::Visible>().visible;
+	return !entity.Has<Visible>() || entity.Get<Visible>().visible;
 }
 
 } // namespace
 
 void SetVisible(Entity entity, bool visible) {
-	if (entity.Has<impl::Visible>() && entity.Get<impl::Visible>().visible == visible) {
+	if (entity.Has<Visible>() && entity.Get<Visible>().visible == visible) {
 		return;
 	}
 
-	auto& visibility{ entity.TryAdd<impl::Visible>() };
+	auto& visibility{ entity.TryAdd<Visible>() };
 	visibility.visible = visible;
 
 	if (entity.HasScene()) {

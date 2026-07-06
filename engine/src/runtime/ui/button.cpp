@@ -1484,7 +1484,7 @@ Entity Button::EnsurePart(impl::ButtonPart part) {
 
 	PTGN_DEFAULT_NAME(entity, name);
 
-	entity.Add<impl::Visible>(true);
+	entity.Add<Visible>(true);
 
 	SetParent(entity, *this);
 	SetUI(entity, true);
@@ -3068,7 +3068,7 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 
 	PTGN_DEFAULT_NAME(button, "Button");
 
-	button.Add<impl::Visible>(true);
+	button.Add<Visible>(true);
 	button.Add<impl::ButtonData>();
 
 	SetTransform(button, transform);

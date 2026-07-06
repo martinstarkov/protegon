@@ -138,7 +138,7 @@ Graphics CreateGraphics(Scene& scene, Transform transform) {
 	graphics.Add<impl::GraphicsData>();
 	SetTransform(graphics, transform);
 	SetDraw<Graphics>(graphics);
-	graphics.Add<impl::Visible>(true);
+	graphics.Add<Visible>(true);
 
 	return graphics;
 }

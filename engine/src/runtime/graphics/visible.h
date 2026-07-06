@@ -9,13 +9,13 @@ namespace impl {
 
 struct IgnoreParentVisibility {};
 
+} // namespace impl
+
 struct Visible {
 	bool visible{ true };
 
 	PTGN_SERIALIZE_VALUE(Visible, visible)
 };
-
-} // namespace impl
 
 namespace event {
 

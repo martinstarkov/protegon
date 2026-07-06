@@ -93,7 +93,7 @@ int main(int, char**) {
 		PTGN_ASSERT(e2.Has<UUID>());
 		PTGN_ASSERT(e2.Has<impl::Draggable>());
 		PTGN_ASSERT(e2.Has<impl::TextureCrop>());
-		PTGN_ASSERT(e2.Has<impl::Visible>());
+		PTGN_ASSERT(e2.Has<Visible>());
 		PTGN_ASSERT(e2.Has<Depth>());
 		PTGN_ASSERT(e2.Has<impl::Tint>());
 		PTGN_ASSERT(e2.Get<impl::Tint>() == tint_color);

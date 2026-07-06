@@ -43,7 +43,7 @@ EffectEntity<T> CreateEffect(Entity effect, TArgs&&... args) {
 	}
 
 	SetDraw<T>(effect);
-	effect.Add<impl::Visible>(true);
+	effect.Add<Visible>(true);
 
 	return EffectEntity<T>{ effect };
 }
@@ -52,7 +52,7 @@ EffectEntity<T> CreateEffect(Entity effect, TArgs&&... args) {
 
 template <typename T>
 void AddEffect(Entity entity, EffectEntity<T> effect) {
-	effect.Add<impl::Visible>(false);
+	effect.Add<Visible>(false);
 	PTGN_ASSERT(effect.Has<impl::EffectTag>());
 	AddChild(entity, effect);
 }
