@@ -10,6 +10,7 @@
 #include "core/event/event.h"
 #include "core/util/concepts.h"
 #include "core/util/hash.h"
+#include "core/util/reflection.h"
 #include "core/util/type_info.h"
 #include "runtime/ecs/entity.h"
 
@@ -114,6 +115,9 @@ public:
 
 	friend void from_json(const json& j, Scripts& scripts);
 	friend void to_json(json& j, const Scripts& scripts);
+
+	// TODO: Fix.
+	PTGN_REFLECT_EMPTY(Scripts)
 
 	friend std::ostream& operator<<(std::ostream& os, const Scripts& scripts) {
 		os << "{ script_count: " << scripts.scripts_.size() << " }";
