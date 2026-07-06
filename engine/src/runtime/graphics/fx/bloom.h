@@ -3,6 +3,7 @@
 #include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -17,6 +18,8 @@ struct Bloom {
 	Color tint{ color::White };
 
 	static void Draw(DrawContext& ctx, Entity entity);
+
+	PTGN_SERIALIZE(Bloom, threshold, soft_knee, radius, intensity, blur_iterations, tint)
 };
 
 PTGN_REGISTER_EFFECT(Bloom, true);

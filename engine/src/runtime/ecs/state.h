@@ -1,13 +1,15 @@
 #pragma once
 
+#include <concepts>
 #include <vector>
 
 #include "core/event/event.h"
 #include "core/util/state_machine.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/scripting/script.h"
 
 namespace ptgn {
-	
+
 namespace impl {
 
 template <std::copy_constructible TPayload>
