@@ -49,6 +49,6 @@ CustomShader CreateCustomShader(
 	Origin draw_origin = Origin::Center
 );
 
-PTGN_REGISTER_DRAWABLE(CustomShader);
+PTGN_REGISTER_DRAWABLE_NAMED(CustomShader, "Custom Shader");
 
 } // namespace ptgn

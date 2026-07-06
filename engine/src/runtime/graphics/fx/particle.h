@@ -353,6 +353,6 @@ ParticleEmitter CreateParticleEmitter(
 	Scene& scene, Transform transform = {}, const ParticleConfig& config = {}
 );
 
-PTGN_REGISTER_DRAWABLE(ParticleEmitter);
+PTGN_REGISTER_DRAWABLE_NAMED(ParticleEmitter, "Particle Emitter");
 
 } // namespace ptgn
