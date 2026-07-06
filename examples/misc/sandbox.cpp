@@ -12,12 +12,12 @@
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/log.h"
+#include "core/math/geometry/origin.h"
 #include "core/math/vector2.h"
 #include "platform/window.h"
 #include "renderer/resources/texture.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/render_queue.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/scene/scene.h"
@@ -158,12 +158,11 @@ public:
 		ctx().window.SetSize(window_size);
 
 		// PTGN_LOG("Working Directory: ", GetWorkingDirectory());
-		auto a = ctx().asset.LoadAudio("test", "assets/music.ogg");
-		// auto f = ctx().asset.LoadFont("test", "assets/ttf.ttf", 11);
-		auto t = ctx().asset.LoadTexture("test", "assets/smile.png");
-		// auto j = ctx().asset.LoadJson("test", "assets/dialogue.json");
-
-		// ctx().audio.Play("test");
+		ctx().asset.Load(
+			{ { "test", "assets/music.ogg" },
+			  { "test", "assets/smile.png" },
+			  { "arial", "assets/Arial.ttf" } }
+		);
 
 		auto sprite = CreateSprite(*this, {}, "test");
 
@@ -175,9 +174,8 @@ public:
 		PTGN_ASSERT(sprite2.Has<Texture>());
 		PTGN_ASSERT((sprite2.Get<Texture>().GetSize() == V2_int{ 300, 300 }));
 
-		auto arial = ctx().asset.LoadFont("arial", "assets/Arial.ttf");
-
-		auto text = CreateText(*this, {}, "Hello World", color::Orange, 72.0f, arial);
+		auto text =
+			CreateText(*this, {}, "Hello World", color::Orange, 72.0f, Origin::Center, "arial");
 
 		/*auto button = CreateTextButton(*this, "Press me", color::Black);
 		button.SetSize({ 200, 200 }).OnPress([this]() { PTGN_LOG("Pressed button!"); });*/

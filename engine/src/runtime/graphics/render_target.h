@@ -118,7 +118,7 @@ RenderTarget CreateRenderTarget(
 /// @param Texture format of the render target texture. Ensure this complies with possible HDR
 /// requirements.
 RenderTarget CreateRenderTarget(
-	Scene& scene, Transform transform, Color clear_color = kDefaultRenderTargetClearColor,
+	Scene& scene, Transform transform = {}, Color clear_color = kDefaultRenderTargetClearColor,
 	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
 

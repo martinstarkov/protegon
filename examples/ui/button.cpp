@@ -46,24 +46,28 @@ public:
 	void OnUpdate() override {
 		static impl::InternalButtonState state{ impl::InternalButtonState::IdleUp };
 
-		if (auto s{ button.GetInternalState() }; state != s) {
-			state = s;
-			PTGN_LOG("Button internal state: ", magic_enum::enum_name(state));
+		if (button) {
+			if (auto s{ button.GetInternalState() }; state != s) {
+				state = s;
+				PTGN_LOG("Button internal state: ", magic_enum::enum_name(state));
+			}
 		}
 	}
 
 	void OnEvent(Event event) override {
-		event.Dispatch<event::KeyPressed>([this](const auto& key) {
-			if (key == Key::Q) {
-				button.Disable();
-				PTGN_LOG("Disabled button");
-			}
+		if (button) {
+			event.Dispatch<event::KeyPressed>([this](const auto& key) {
+				if (key == Key::Q) {
+					button.Disable();
+					PTGN_LOG("Disabled button");
+				}
 
-			if (key == Key::E) {
-				button.Enable();
-				PTGN_LOG("Enabled button");
-			}
-		});
+				if (key == Key::E) {
+					button.Enable();
+					PTGN_LOG("Enabled button");
+				}
+			});
+		}
 	}
 };
 
