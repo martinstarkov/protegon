@@ -21,9 +21,16 @@
 #include "renderer/pipeline/render_state.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
+#include "runtime/animation/animation.h"
+#include "runtime/animation/offsets.h"
+#include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "runtime/graphics/fx/bloom.h"
+#include "runtime/graphics/fx/blur.h"
+#include "runtime/graphics/fx/gaussian_blur.h"
 #include "runtime/graphics/fx/light.h"
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/graphics/sprite.h"
@@ -37,6 +44,21 @@
 #include "runtime/ui/button_config.h"
 
 namespace ptgn::editor::inspector {
+
+// TODO: Add Material.
+
+template <typename... T>
+struct ComponentTypes {};
+
+// Adding a type here adds both its inspector section and its Add Component menu entry.
+using DefaultInspectorComponents = ComponentTypes<
+	impl::Tint, Color, Visible, Origin, Rect, Circle, FillStyle, impl::Interactive, StyledText,
+	TextBox, Collider, RigidBody, TopDownMovement, impl::ParticleEmitterComponent, TextureKey,
+	LightConfig, impl::ShadowCaster, impl::ButtonData, impl::ButtonAnimationPart,
+	impl::AnimationData, impl::Offsets, impl::IgnoreParentOffset, impl::TweenData,
+	impl::IgnoreParentTransform, impl::IgnoreParentPosition, impl::IgnoreParentRotation,
+	impl::IgnoreParentScale, impl::IgnoreParentDepth, impl::EffectTag, impl::HDREffectTag, Bloom,
+	Blur, GaussianBlur>;
 
 template <>
 struct Contents<impl::IDrawable> {
@@ -391,17 +413,6 @@ void DrawTransformComponent(Entity entity) {
 
 	ImGui::Unindent();
 }
-
-template <typename... T>
-struct ComponentTypes {};
-
-// Adding a type here adds both its inspector section and its Add Component menu entry.
-using DefaultInspectorComponents = ComponentTypes<
-	impl::Tint, Color, Visible, Origin, Rect, Circle, FillStyle, impl::Interactive, StyledText,
-	TextBox, Collider, RigidBody, TopDownMovement, impl::ParticleEmitterComponent, TextureKey,
-	impl::LightData, impl::ShadowCaster>;
-
-// TODO: Add Material.
 
 template <typename... T>
 void DrawComponents(Entity entity, ComponentTypes<T...>) {
