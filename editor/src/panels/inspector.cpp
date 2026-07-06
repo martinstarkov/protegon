@@ -41,24 +41,30 @@ struct Contents<impl::IDrawable> {
 		auto* current_info{ impl::IDrawable::FindInfo(drawable.hash) };
 
 		std::string preview{ current_info ? current_info->name : "<Missing Drawable>" };
-		bool changed{ false };
 
-		if (ImGui::BeginCombo("Drawable", preview.c_str())) {
-			for (const auto& info : impl::IDrawable::data()) {
-				bool selected{ drawable.hash == info.hash };
+		bool changed{ DrawPropertyRow("Drawable", [&]() {
+			bool local_changed{ false };
 
-				if (ImGui::Selectable(std::string{ info.name }.c_str(), selected)) {
-					drawable.hash = info.hash;
-					changed		  = true;
+			if (ImGui::BeginCombo("##value", preview.c_str())) {
+				for (const auto& info : impl::IDrawable::data()) {
+					bool selected{ drawable.hash == info.hash };
+					std::string display_name{ info.name };
+
+					if (ImGui::Selectable(display_name.c_str(), selected)) {
+						drawable.hash = info.hash;
+						local_changed = true;
+					}
+
+					if (selected) {
+						ImGui::SetItemDefaultFocus();
+					}
 				}
 
-				if (selected) {
-					ImGui::SetItemDefaultFocus();
-				}
+				ImGui::EndCombo();
 			}
 
-			ImGui::EndCombo();
-		}
+			return local_changed;
+		}) };
 
 		if (!current_info && drawable.hash != 0) {
 			ImGui::TextDisabled("Stored hash: %zu", drawable.hash);
@@ -194,6 +200,7 @@ template <typename T>
 constexpr int type_id_value{ 0 };
 
 struct ComponentOptions {
+	std::optional<std::string> label_override;
 	bool removable{ true };
 	bool default_open{ false };
 };
@@ -279,7 +286,8 @@ template <typename T>
 bool DrawComponentHeader(Entity entity, ComponentOptions options = {}) {
 	ImGui::PushID(&type_id_value<T>);
 
-	auto name{ TypeLabel<T>() };
+	auto name{ options.label_override.has_value() ? options.label_override.value()
+												  : TypeLabel<T>() };
 	auto flags{ options.default_open ? ImGuiTreeNodeFlags_DefaultOpen : ImGuiTreeNodeFlags_None };
 	bool open{ ImGui::CollapsingHeader(name.c_str(), flags) };
 
@@ -450,7 +458,7 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 	ImGui::Separator();
 
 	DrawTransformComponent(selected_entity);
-	DrawComponent<impl::IDrawable>(selected_entity);
+	DrawComponent<impl::IDrawable>(selected_entity, { .label_override = "Drawable" });
 	DrawComponents(selected_entity, DefaultInspectorComponents{});
 
 	DrawComponent<ButtonBackgroundVisuals>(
