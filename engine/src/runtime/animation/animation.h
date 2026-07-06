@@ -24,6 +24,14 @@ namespace ptgn {
 class Scene;
 class DrawContext;
 
+namespace impl {
+
+constexpr V2_int GetFrameSize(V2_int texture_size, std::size_t frame_count) {
+	return { texture_size.x / frame_count, texture_size.y };
+}
+
+} // namespace impl
+
 struct AnimationConfig {
 	/// @brief Number of frames in the animation sequence.
 	std::size_t frame_count{ 0 };
@@ -32,7 +40,7 @@ struct AnimationConfig {
 	milliseconds duration{ 0 };
 
 	/// @brief Pixel size of an individual animation frame within the texture.
-	/// If {}, automatically calculated as { texture_size.x / frame_count, texture_size.y }.
+	/// If {}, automatically calculated using impl::GetFrameSize(texture_size, frame_count).
 	V2_int frame_size;
 
 	/// @brief Number of times that the animation plays for, nullopt for infinite replay.
@@ -44,6 +52,19 @@ struct AnimationConfig {
 
 	/// @brief Reset animation to frame 0 when it completes.
 	bool reset_on_complete{ false };
+
+	constexpr bool IsIdentical(const AnimationConfig& o, V2_int texture_size) const {
+		auto zero_frame_size = [&](const auto& a, const auto& b) {
+			return a.frame_size.IsZero() &&
+				   impl::GetFrameSize(texture_size, b.frame_count) == b.frame_size;
+		};
+
+		return frame_count == o.frame_count && duration == o.duration &&
+			   (frame_size == o.frame_size || zero_frame_size(*this, o) ||
+				zero_frame_size(o, *this)) &&
+			   play_count == o.play_count && start_pixel == o.start_pixel &&
+			   reset_on_complete == o.reset_on_complete;
+	}
 
 	PTGN_SERIALIZE(
 		AnimationConfig, frame_count, duration, frame_size, play_count, start_pixel,
@@ -68,9 +89,9 @@ struct Animation : public Entity {
 	Animation() = default;
 	explicit Animation(Entity entity);
 
-	/// @brief Sets the animation configuration. Animation will be reset.
-	/// If animation has a different texture key, the texture key must be set before calling this
-	/// function.
+	/// @brief Sets the animation configuration. Animation will be reset if the configuration is
+	/// new. If animation has a different texture key, the texture key must be set before calling
+	/// this function.
 	Animation& SetConfig(AnimationConfig config);
 
 	/// @brief Triggered when an animation is started.

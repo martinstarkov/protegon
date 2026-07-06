@@ -19,6 +19,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/text/font_style.h"
+#include "renderer/text/text_glyph.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
@@ -37,7 +38,10 @@ class ButtonBorder;
 class ButtonText;
 class ButtonSprite;
 class ButtonAnimation;
+class Dropdown;
 class Scene;
+
+Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
 
 namespace event {
 
@@ -99,7 +103,6 @@ struct ButtonData {
 
 	bool press_enabled{ true };
 	bool hover_enabled{ true };
-	bool toggled{ false };
 
 	struct VisualLock {
 		ButtonVisualState state{ ButtonVisualState::Idle };
@@ -112,7 +115,7 @@ struct ButtonData {
 
 	ButtonDirty dirty{ ButtonDirty::All };
 
-	PTGN_SERIALIZE(ButtonData, press_enabled, hover_enabled, toggled)
+	PTGN_SERIALIZE(ButtonData, press_enabled, hover_enabled)
 };
 
 struct ButtonAnimationPart {
@@ -148,7 +151,6 @@ public:
 	explicit Button(Entity entity);
 
 	[[nodiscard]] bool IsEnabled(bool check_for_hover_enabled = false) const;
-	[[nodiscard]] bool IsToggled() const;
 
 	[[nodiscard]] ButtonState GetState() const;
 	[[nodiscard]] ButtonVisualState GetVisualState() const;
@@ -160,9 +162,6 @@ public:
 	Button& Enable(bool enable_hover = true, bool reset_state = true);
 	Button& Disable(bool disable_hover = true, bool reset_state = true);
 	Button& SetEnabled(bool enable_press = true, bool enable_hover = true, bool reset_state = true);
-
-	Button& SetToggled(bool toggled);
-	Button& Toggle();
 
 	Button& Press();
 	Button& StartHover();
@@ -198,8 +197,6 @@ public:
 	Button& RemoveSounds();
 	Button& ExclusiveAudio(bool enabled = true);
 
-	[[nodiscard]] std::optional<Audio> GetSound(ButtonVisualState state) const;
-
 	template <EventCallbackInvocable<event::ButtonPress> F>
 	Button& OnPress(F&& callback) {
 		return OnEvent<event::ButtonPress>(std::forward<F>(callback));
@@ -220,14 +217,20 @@ public:
 		return OnEvent<event::ButtonHoverStop>(std::forward<F>(callback));
 	}
 
+protected:
+	void MarkDirty(impl::ButtonDirty dirty);
+	void RefreshDirty();
+
 private:
 	friend class ButtonShape;
 	friend class ButtonText;
 	friend class ButtonSprite;
 	friend class ButtonAnimation;
+	friend class Dropdown;
 	friend class impl::ButtonScript;
 	friend struct impl::ButtonAnimationCompleteScript;
 	friend void impl::UpdateButtons(Scene& scene);
+	friend Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc);
 
 	template <typename E, EventCallbackInvocable<E> F>
 	Button& OnEvent(F&& callback) {
@@ -239,14 +242,12 @@ private:
 
 	void SetState(impl::InternalButtonState state);
 
-	void MarkDirty(impl::ButtonDirty dirty);
-	void RefreshDirty();
 	void RefreshVisualState() const;
 
 	Button& LockVisualState(ButtonVisualState state, bool block_press = false);
 	Button& UnlockVisualState();
 
-	Entity EnsurePart(impl::ButtonPart part) const;
+	Entity EnsurePart(impl::ButtonPart part);
 	[[nodiscard]] std::optional<Entity> FindPart(impl::ButtonPart part) const;
 
 	ButtonShapeVisual& ShapeVisual(impl::ButtonPart part, ButtonVisualState state);
@@ -258,7 +259,7 @@ private:
 	void ApplyShapeVisual(impl::ButtonPart part) const;
 	void ApplyTextVisual() const;
 	void ApplySpriteVisual() const;
-	void ApplySpriteVisual(ButtonVisualState state, bool transient) const;
+	void ApplySpriteVisual(ButtonVisualState state) const;
 
 	void PlaySound(ButtonVisualState state);
 	void PlayAnimation(ButtonState state) const;
@@ -311,8 +312,8 @@ class ButtonText {
 public:
 	ButtonText(Button button, ButtonVisualState state);
 
+	/// @brief Removes all text visuals from the button.
 	ButtonText& Clear();
-	ButtonText& Select(std::size_t index);
 
 	ButtonText& Content(std::string_view content);
 	ButtonText& Content(StyledText styled_text);
@@ -359,7 +360,6 @@ public:
 
 private:
 	StyledText& StyledTextForEdit();
-	TextRun& CurrentRun();
 	void MarkTextDirty();
 
 	Button button_;

@@ -37,6 +37,11 @@ Animation& Animation::SetConfig(AnimationConfig config) {
 
 	auto texture_size{ texture.GetSize() };
 
+	if (auto anim_data{ TryGet<impl::AnimationData>() };
+		anim_data && anim_data->config.IsIdentical(config, texture_size)) {
+		return *this;
+	}
+
 	const auto& anim{ Add<impl::AnimationData>(std::move(config), texture_size) };
 
 	auto& crop{ TryAdd<impl::TextureCrop>() };
@@ -203,7 +208,7 @@ AnimationData::AnimationData(AnimationConfig&& anim_config, V2_int texture_size)
 	PTGN_ASSERT(config.frame_count > 0, "Cannot create an animation with 0 frames");
 
 	if (config.frame_size.IsZero()) {
-		config.frame_size = { texture_size.x / config.frame_count, texture_size.y };
+		config.frame_size = GetFrameSize(texture_size, config.frame_count);
 	}
 }
 

@@ -2,14 +2,21 @@
 
 #include <algorithm>
 #include <array>
+#include <concepts>
+#include <magic_enum/magic_enum.hpp>
+#include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "core/assert.h"
+#include "core/event/event.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
+#include "core/input/mouse.h"
 #include "core/log.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
@@ -18,8 +25,12 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "renderer/text/font_style.h"
+#include "renderer/text/text_glyph.h"
+#include "renderer/text/text_layout.h"
+#include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
+#include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
@@ -35,10 +46,12 @@
 #include "runtime/interaction/interactive.h"
 #include "runtime/interaction/interactive_event.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button_config.h"
+#include "runtime/ui/toggle_button.h"
 
 namespace ptgn {
 
@@ -95,7 +108,7 @@ ButtonVisualState PressVisualState(Button button) {
 		return ButtonVisualState::DisabledPress;
 	}
 
-	if (button.IsToggled()) {
+	if (ToggleButton{ button }.IsToggled()) {
 		return ButtonVisualState::ToggledPress;
 	}
 
@@ -505,7 +518,8 @@ void ApplyButtonSpriteConfig(ButtonSpriteVisuals& visuals, const ButtonSpriteCon
 	if (!(config.texture.has_value() || config.texture_hover.has_value() ||
 		  config.texture_press.has_value() || config.tint.has_value() ||
 		  config.tint_hover.has_value() || config.tint_press.has_value() ||
-		  config.origin.has_value() || config.anchor.has_value() || config.size.has_value())) {
+		  config.origin.has_value() || config.anchor.has_value() || config.size.has_value() ||
+		  config.transform.has_value())) {
 		return;
 	}
 
@@ -514,10 +528,6 @@ void ApplyButtonSpriteConfig(ButtonSpriteVisuals& visuals, const ButtonSpriteCon
 								  const std::optional<std::string>& texture,
 								  const std::optional<Color>& tint
 							  ) {
-		if (!texture.has_value() && !tint.has_value()) {
-			return;
-		}
-
 		auto& visual{ visuals.states[std::to_underlying(state)] };
 
 		visual.defined = true;
@@ -529,7 +539,9 @@ void ApplyButtonSpriteConfig(ButtonSpriteVisuals& visuals, const ButtonSpriteCon
 			visual.anchor = config.anchor;
 		}
 
-		visual.transform = config.transform;
+		if (config.transform.has_value()) {
+			visual.transform = config.transform;
+		}
 
 		if (config.size.has_value()) {
 			visual.size = config.size;
@@ -538,6 +550,7 @@ void ApplyButtonSpriteConfig(ButtonSpriteVisuals& visuals, const ButtonSpriteCon
 		if (texture.has_value()) {
 			visual.texture = texture;
 		}
+
 		if (tint.has_value()) {
 			visual.tint = tint;
 		}
@@ -548,22 +561,22 @@ void ApplyButtonSpriteConfig(ButtonSpriteVisuals& visuals, const ButtonSpriteCon
 	apply_sprite_state(ButtonVisualState::Press, config.texture_press, config.tint_press);
 }
 
-void ApplyButtonSoundConfig(ButtonSoundVisuals& visuals, const ButtonSoundConfig& config) {
-	auto set_button_sound = [](auto& sounds, auto state, const auto& sound) {
+void ApplyButtonSoundConfig(ButtonSounds& sounds, const ButtonSoundConfig& config) {
+	auto set_button_sound = [&sounds](auto state, const auto& sound) {
 		if (sound.has_value()) {
 			sounds.states[std::to_underlying(state)] = sound;
 		}
 	};
 
-	set_button_sound(visuals, ButtonVisualState::Idle, config.idle);
-	set_button_sound(visuals, ButtonVisualState::Hover, config.hover);
-	set_button_sound(visuals, ButtonVisualState::Press, config.press);
-	set_button_sound(visuals, ButtonVisualState::Disabled, config.disabled);
-	set_button_sound(visuals, ButtonVisualState::DisabledHover, config.disabled_hover);
-	set_button_sound(visuals, ButtonVisualState::DisabledPress, config.disabled_press);
-	set_button_sound(visuals, ButtonVisualState::Toggled, config.toggled);
-	set_button_sound(visuals, ButtonVisualState::ToggledHover, config.toggled_hover);
-	set_button_sound(visuals, ButtonVisualState::ToggledPress, config.toggled_press);
+	set_button_sound(ButtonVisualState::Idle, config.idle);
+	set_button_sound(ButtonVisualState::Hover, config.hover);
+	set_button_sound(ButtonVisualState::Press, config.press);
+	set_button_sound(ButtonVisualState::Disabled, config.disabled);
+	set_button_sound(ButtonVisualState::DisabledHover, config.disabled_hover);
+	set_button_sound(ButtonVisualState::DisabledPress, config.disabled_press);
+	set_button_sound(ButtonVisualState::Toggled, config.toggled);
+	set_button_sound(ButtonVisualState::ToggledHover, config.toggled_hover);
+	set_button_sound(ButtonVisualState::ToggledPress, config.toggled_press);
 }
 
 void ApplyButtonAnimationConfig(
@@ -579,6 +592,206 @@ void ApplyButtonAnimationConfig(
 	visual.defined			 = true;
 	visual.animation		 = config;
 	visual.animation_options = options;
+}
+
+std::optional<Text> FindButtonText(Button button) {
+	if (!HasChildren(button)) {
+		return std::nullopt;
+	}
+
+	auto children{ GetChildren(button) };
+	auto it{ std::ranges::find_if(children, [](Entity child) {
+		return child.Has<ButtonTextVisuals>();
+	}) };
+
+	return it != children.end() ? std::optional<Text>{ Text{ *it } } : std::nullopt;
+}
+
+void ApplyButtonShapeVisual(ButtonShape shape, const ButtonShapeVisual& visual) {
+	if (visual.size.has_value()) {
+		std::visit(
+			[&shape]<typename T>(const T& value) { shape.Size(value); }, visual.size.value()
+		);
+	}
+	if (visual.origin.has_value()) {
+		shape.Origin(visual.origin.value());
+	}
+	if (visual.anchor.has_value()) {
+		shape.Anchor(visual.anchor.value());
+	}
+	if (visual.transform.has_value()) {
+		shape.Transform(visual.transform.value());
+	}
+	if (visual.color.has_value()) {
+		shape.Color(visual.color.value());
+	}
+	if (visual.fill_style.has_value()) {
+		shape.Fill(visual.fill_style.value());
+	}
+}
+
+void ApplyButtonTextVisual(ButtonText text, const ButtonTextVisual& visual) {
+	if (visual.styled_text.has_value()) {
+		text.Content(visual.styled_text.value());
+	}
+	if (visual.box.has_value()) {
+		text.Box(visual.box.value());
+	}
+	if (visual.origin.has_value()) {
+		text.Origin(visual.origin.value());
+	}
+	if (visual.anchor.has_value()) {
+		text.Anchor(visual.anchor.value());
+	}
+	if (visual.transform.has_value()) {
+		text.Transform(visual.transform.value());
+	}
+	if (visual.auto_box.has_value()) {
+		text.AutoBox(visual.auto_box.value());
+	}
+	if (visual.padding.has_value()) {
+		text.Padding(visual.padding.value());
+	}
+}
+
+void ApplyButtonSpriteVisual(
+	Button button, ButtonVisualState state, const ButtonSpriteVisual& visual
+) {
+	auto apply_common = [](auto& sprite, const ButtonSpriteVisual& visual) {
+		if (visual.texture.has_value()) {
+			sprite.Texture(visual.texture.value());
+		}
+		if (visual.origin.has_value()) {
+			sprite.Origin(visual.origin.value());
+		}
+		if (visual.anchor.has_value()) {
+			sprite.Anchor(visual.anchor.value());
+		}
+		if (visual.transform.has_value()) {
+			sprite.Transform(visual.transform.value());
+		}
+		if (visual.size.has_value()) {
+			sprite.Size(visual.size.value());
+		}
+		if (visual.tint.has_value()) {
+			sprite.Tint(visual.tint.value());
+		}
+	};
+
+	if (visual.animation.has_value()) {
+		auto animation{ button.Animation(state) };
+
+		apply_common(animation, visual);
+
+		animation.Config(
+			visual.animation.value(), visual.animation_options.value_or(ButtonAnimationOptions{})
+		);
+
+		return;
+	}
+
+	auto sprite{ button.Sprite(state) };
+
+	apply_common(sprite, visual);
+}
+
+void ApplyButtonDescVisuals(Button button, const ButtonDesc& desc) {
+	for (auto state : magic_enum::enum_values<ButtonVisualState>()) {
+		auto index{ std::to_underlying(state) };
+
+		const auto& background{ desc.background.states[index] };
+		if (background.defined) {
+			ApplyButtonShapeVisual(button.Background(state), background);
+		}
+
+		const auto& border{ desc.border.states[index] };
+		if (border.defined) {
+			ApplyButtonShapeVisual(button.Border(state), border);
+		}
+
+		const auto& text{ desc.text.states[index] };
+		if (text.defined) {
+			ApplyButtonTextVisual(button.Text(state), text);
+		}
+
+		const auto& sprite{ desc.sprite.states[index] };
+		if (sprite.defined) {
+			ApplyButtonSpriteVisual(button, state, sprite);
+		}
+
+		const auto& sound{ desc.sounds.states[index] };
+		if (sound.has_value()) {
+			button.Sound(
+				std::optional<std::string_view>{ std::string_view{ sound.value() } }, state
+			);
+		}
+	}
+}
+
+void ApplyButtonMoveConfig(Button button, const MoveButtonConfig& move) {
+	button.OnHoverStart([move](Button button) {
+		auto text{ FindButtonText(button) };
+
+		if (!text.has_value()) {
+			return;
+		}
+
+		std::vector<Text> texts{ text.value() };
+
+		TranslateTo<Text>(texts, move.offset, move.duration, move.ease);
+	});
+
+	button.OnHoverStop([move](Button button) {
+		auto text{ FindButtonText(button) };
+
+		if (!text.has_value()) {
+			return;
+		}
+
+		std::vector<Text> texts{ text.value() };
+
+		TranslateTo<Text>(texts, V2_float{}, move.duration, move.ease);
+	});
+}
+
+void ApplyButtonScaleConfig(Button button, const ScaleButtonConfig& scale) {
+	auto text{ FindButtonText(button) };
+	auto starting_scale{ text.has_value() ? GetScale(text.value()) : V2_float{ 1.0f, 1.0f } };
+
+	button.OnHoverStart([scale](Button button) {
+		auto text{ FindButtonText(button) };
+
+		if (!text.has_value()) {
+			return;
+		}
+
+		std::vector<Text> texts{ text.value() };
+
+		ScaleTo<Text>(texts, V2_float{ scale.scale }, scale.duration, scale.ease);
+	});
+
+	button.OnHoverStop([scale, starting_scale](Button button) {
+		auto text{ FindButtonText(button) };
+
+		if (!text.has_value()) {
+			return;
+		}
+
+		std::vector<Text> texts{ text.value() };
+		std::vector<V2_float> target_scales{ starting_scale };
+
+		ScaleTo<Text>(texts, target_scales, scale.duration, scale.ease);
+	});
+}
+
+void ApplyButtonEffects(Button button, const ButtonDesc& desc) {
+	if (desc.move.has_value()) {
+		ApplyButtonMoveConfig(button, desc.move.value());
+	}
+
+	if (desc.scale.has_value()) {
+		ApplyButtonScaleConfig(button, desc.scale.value());
+	}
 }
 
 ButtonDesc ToButtonDesc(const ButtonConfig& config) {
@@ -630,24 +843,6 @@ ButtonDesc ToButtonDesc(const AnimatedButtonConfig& config) {
 	return desc;
 }
 
-Button CreateBaseButton(Scene& scene, Transform transform, Origin origin) {
-	Button button{ scene.CreateEntity() };
-
-	PTGN_DEFAULT_NAME(button, "Button");
-
-	button.Add<impl::Visible>(true);
-	button.Add<impl::ButtonData>();
-
-	SetUI(button, true);
-	SetTransform(button, transform);
-	SetDrawOrigin(button, origin);
-	SetInteractive(button);
-
-	AddScript<impl::ButtonScript>(button);
-
-	return button;
-}
-
 } // namespace
 
 namespace impl {
@@ -660,30 +855,28 @@ void ButtonAnimationCompleteScript::OnEvent(Event event) {
 			return;
 		}
 
-		auto& visuals{ entity.Get<ButtonSpriteVisuals>() };
+		auto& data{ button.Get<ButtonData>() };
 
-		if (auto& data{ button.Get<ButtonData>() }; data.visual_lock.has_value()) {
-			ButtonVisualState animation_state;
-			auto animation{ ResolveProperty(
-				visuals.states, data.visual_lock->state, &ButtonSpriteVisual::animation,
-				&animation_state
-			) };
-
-			if (!animation) {
-				return;
-			}
-
-			data.visual_lock.reset();
-			button.MarkDirty(ButtonDirty::All);
-			button.RefreshDirty();
+		if (!data.visual_lock.has_value()) {
 			return;
 		}
 
-		if (visuals.transient_animation) {
-			visuals.transient_animation = false;
-			button.MarkDirty(ButtonDirty::Sprite);
-			button.RefreshDirty();
+		const auto& visuals{ entity.Get<ButtonSpriteVisuals>() };
+
+		ButtonVisualState animation_state;
+		auto animation{ ResolveProperty(
+			visuals.states, data.visual_lock->state, &ButtonSpriteVisual::animation,
+			&animation_state
+		) };
+
+		if (!animation) {
+			return;
 		}
+
+		data.visual_lock.reset();
+
+		button.MarkDirty(ButtonDirty::All);
+		button.RefreshDirty();
 	});
 }
 
@@ -821,10 +1014,6 @@ bool Button::IsEnabled(bool check_for_hover_enabled) const {
 	return check_for_hover_enabled ? button.hover_enabled : button.press_enabled;
 }
 
-bool Button::IsToggled() const {
-	return Get<impl::ButtonData>().toggled;
-}
-
 ButtonState Button::GetState() const {
 	auto state{ GetInternalState() };
 
@@ -853,7 +1042,7 @@ ButtonVisualState Button::GetVisualState() const {
 		return button.visual_lock->state;
 	}
 
-	if (button.toggled) {
+	if (ToggleButton{ *this }.IsToggled()) {
 		return ToggledVisualState(state);
 	}
 
@@ -901,25 +1090,6 @@ Button& Button::SetEnabled(bool enable_press, bool enable_hover, bool reset_stat
 	return *this;
 }
 
-Button& Button::SetToggled(bool toggled) {
-	auto& button{ Get<impl::ButtonData>() };
-
-	if (button.toggled == toggled) {
-		return *this;
-	}
-
-	button.toggled = toggled;
-
-	MarkDirty(impl::ButtonDirty::All);
-	RefreshDirty();
-
-	return *this;
-}
-
-Button& Button::Toggle() {
-	return SetToggled(!IsToggled());
-}
-
 Button& Button::Press() {
 	if (!IsEnabled(false)) {
 		return *this;
@@ -938,6 +1108,7 @@ Button& Button::Press() {
 
 	if (sprite.has_value()) {
 		auto& visuals{ sprite->Get<ButtonSpriteVisuals>() };
+
 		ButtonVisualState animation_state;
 		auto animation{ ResolveProperty(
 			visuals.states, press_visual_state, &ButtonSpriteVisual::animation, &animation_state
@@ -954,27 +1125,27 @@ Button& Button::Press() {
 	}
 
 	if (has_animation) {
-		const auto& options{ animation_options };
+		if (animation_options.playback == ButtonAnimationPlayback::StaticFrame) {
+			ApplySpriteVisual(press_visual_state);
 
-		if (options.lock_visual_state) {
+			if (sprite.has_value() && sprite->Has<impl::AnimationData>()) {
+				ResetButtonAnimation(ptgn::Animation{ sprite.value() });
+			}
+		} else {
 			button.visual_lock = {
 				.state		 = press_visual_state,
-				.block_press = options.block_press,
+				.block_press = animation_options.block_press,
 			};
 
 			MarkDirty(impl::ButtonDirty::All);
 			RefreshDirty();
-		} else {
-			ApplySpriteVisual(press_visual_state, true);
-		}
 
-		if (sprite.has_value() && sprite->Has<impl::AnimationData>()) {
-			ptgn::Animation sprite_animation{ sprite.value() };
-			ResetButtonAnimation(sprite_animation);
-			sprite_animation.Start(true);
+			if (sprite.has_value() && sprite->Has<impl::AnimationData>()) {
+				ptgn::Animation sprite_animation{ sprite.value() };
+				ResetButtonAnimation(sprite_animation);
+				sprite_animation.Start(true);
+			}
 		}
-	} else {
-		PlayAnimation(ButtonState::Press);
 	}
 
 	PlaySound(press_visual_state);
@@ -1103,7 +1274,6 @@ Button& Button::RemoveAnimations() {
 		visual.animation_options.reset();
 	}
 
-	visuals.applied_animation_state.reset();
 	entity->Remove<impl::ButtonAnimationPart>();
 
 	MarkDirty(impl::ButtonDirty::Sprite);
@@ -1124,7 +1294,6 @@ Button& Button::RemoveAnimation(ButtonVisualState state) {
 
 	visual.animation.reset();
 	visual.animation_options.reset();
-	visuals.applied_animation_state.reset();
 
 	entity->Remove<impl::ButtonAnimationPart>();
 
@@ -1158,7 +1327,7 @@ Button& Button::RemoveSound(ButtonVisualState state) {
 }
 
 Button& Button::RemoveSounds() {
-	if (auto sounds{ Remove<ButtonSounds>() }) {
+	if (auto sounds{ TryGet<ButtonSounds>() }) {
 		sounds->states = {};
 	}
 
@@ -1168,19 +1337,6 @@ Button& Button::RemoveSounds() {
 Button& Button::ExclusiveAudio(bool enabled) {
 	TryAdd<ButtonSounds>().exclusive = enabled;
 	return *this;
-}
-
-std::optional<Audio> Button::GetSound(ButtonVisualState state) const {
-	if (auto sounds{ TryGet<ButtonSounds>() }) {
-		for (auto fallback : GetVisualStateFallbacks(state)) {
-			const auto& sound{ sounds->states[std::to_underlying(fallback)] };
-			if (sound.has_value()) {
-				return sound;
-			}
-		}
-	}
-
-	return std::nullopt;
 }
 
 void Button::SetState(impl::InternalButtonState state) {
@@ -1263,7 +1419,7 @@ Button& Button::UnlockVisualState() {
 	return *this;
 }
 
-Entity Button::EnsurePart(impl::ButtonPart part) const {
+Entity Button::EnsurePart(impl::ButtonPart part) {
 	auto existing{ FindPart(part) };
 
 	if (existing.has_value()) {
@@ -1529,10 +1685,10 @@ void Button::ApplyTextVisual() const {
 }
 
 void Button::ApplySpriteVisual() const {
-	ApplySpriteVisual(GetVisualState(), false);
+	ApplySpriteVisual(GetVisualState());
 }
 
-void Button::ApplySpriteVisual(ButtonVisualState state, bool transient) const {
+void Button::ApplySpriteVisual(ButtonVisualState state) const {
 	auto entity{ FindPart(impl::ButtonPart::Sprite) };
 
 	if (!entity.has_value()) {
@@ -1540,7 +1696,6 @@ void Button::ApplySpriteVisual(ButtonVisualState state, bool transient) const {
 	}
 
 	auto& visuals{ entity->Get<ButtonSpriteVisuals>() };
-	visuals.transient_animation = transient;
 
 	auto visible{ HasResolvedState(visuals.states, state) };
 
@@ -1554,8 +1709,6 @@ void Button::ApplySpriteVisual(ButtonVisualState state, bool transient) const {
 		}
 
 		entity->Remove<impl::ButtonAnimationPart>();
-		visuals.applied_animation_state.reset();
-		visuals.transient_animation = false;
 		return;
 	}
 
@@ -1628,61 +1781,71 @@ void Button::ApplySpriteVisual(ButtonVisualState state, bool transient) const {
 		}
 
 		entity->Remove<impl::ButtonAnimationPart>();
-		visuals.applied_animation_state.reset();
 		return;
 	}
 
 	PTGN_ASSERT(!size.has_value(), "Animations cannot have a custom fixed texture size");
 
-	if (visuals.applied_animation_state != animation_state) {
-		ptgn::Animation{ sprite }.SetConfig(*animation);
-		visuals.applied_animation_state = animation_state;
-	}
+	ptgn::Animation{ sprite }.SetConfig(*animation);
 
 	entity->Add<impl::ButtonAnimationPart>(animation_options);
 
 	if (animation_options.playback == ButtonAnimationPlayback::StaticFrame) {
-		ptgn::Animation animation{ sprite };
-		animation.Reset();
-		animation.SetCurrentFrame(animation_options.static_frame);
+		ptgn::Animation{ sprite }.Reset();
+		ptgn::Animation{ sprite }.SetCurrentFrame(animation_options.static_frame);
 	}
 }
 
 void Button::PlaySound(ButtonVisualState state) {
-	auto active_sound{ GetSound(state) };
+	if (!Has<ButtonSounds>()) {
+		return;
+	}
+
+	const auto& sounds{ Get<ButtonSounds>() };
+
+	auto& audio{ GetScene().ctx().audio };
+
+	auto get_sound = [this, &sounds](auto state) -> std::optional<std::string> {
+		for (auto fallback : GetVisualStateFallbacks(state)) {
+			const auto& sound{ sounds.states[std::to_underlying(fallback)] };
+			if (sound.has_value()) {
+				return sound.value();
+			}
+		}
+		return std::nullopt;
+	};
+
+	auto active_sound{ get_sound(state) };
 
 	if (!active_sound.has_value()) {
 		return;
 	}
 
-	auto& audio{ GetScene().ctx().audio };
-
-	auto play_sound = [&audio](Audio sound) {
-		auto& asset_name{ sound.GetEntity().Get<impl::AssetName>().value };
-		audio.Play(asset_name);
-	};
-
-	auto stop_sound = [&audio](Audio sound) {
-		auto& asset_name{ sound.GetEntity().Get<impl::AssetName>().value };
-		audio.Stop(asset_name);
-	};
-
-	if (auto sounds{ TryGet<ButtonSounds>() }; sounds && sounds->exclusive) {
-		for (const auto& sound : sounds->states) {
+	if (sounds.exclusive) {
+		for (const auto& sound : sounds.states) {
 			if (sound.has_value()) {
-				stop_sound(sound.value());
+				audio.Stop(sound.value());
 			}
 		}
 	}
 
-	play_sound(active_sound.value());
+	audio.Play(active_sound.value());
 }
 
 void Button::PlayAnimation(ButtonState state) const {
-	(void)state;
+	auto visual_state = [this, state] {
+		if (!IsEnabled(false)) {
+			return DisabledVisualState(state);
+		}
 
-	auto& button{ const_cast<Button&>(*this) };
-	button.RefreshDirty();
+		if (ToggleButton{ *this }.IsToggled()) {
+			return ToggledVisualState(state);
+		}
+
+		return NormalVisualState(state);
+	}();
+
+	ApplySpriteVisual(visual_state);
 
 	auto entity{ FindPart(impl::ButtonPart::Sprite) };
 
@@ -1739,9 +1902,7 @@ Button& Button::RemovePart(impl::ButtonPart part, ButtonVisualState state) {
 		case impl::ButtonPart::Sprite: {
 			auto& visuals{ entity->Get<ButtonSpriteVisuals>() };
 			visuals.states[std::to_underlying(state)] = {};
-			visuals.applied_animation_state.reset();
-			visuals.transient_animation = false;
-			any_defined					= has_any_defined(visuals.states);
+			any_defined								  = has_any_defined(visuals.states);
 
 			Get<impl::ButtonData>().visual_lock.reset();
 			break;
@@ -1949,31 +2110,26 @@ ButtonText& ButtonText::Clear() {
 	return *this;
 }
 
-ButtonText& ButtonText::Select(std::size_t index) {
-	auto& styled_text{ StyledTextForEdit() };
-	auto& visual{ button_.TextVisual(state) };
-
-	if (index >= styled_text.runs.size()) {
-		index = styled_text.runs.size() - 1;
-	}
-
-	visual.current_run_index = index;
-
-	return *this;
-}
-
 ButtonText& ButtonText::Content(std::string_view content) {
-	auto& styled_text{ StyledTextForEdit() };
 	auto& visual{ button_.TextVisual(state) };
 
-	if (styled_text.runs.size() == 1 && styled_text.runs.front().text.empty()) {
-		visual.current_run_index	  = 0;
-		styled_text.runs.front().text = std::string{ content };
+	TextRun run;
+
+	if (visual.styled_text.has_value() && !visual.styled_text->runs.empty()) {
+		run = visual.styled_text->runs.front();
 	} else {
-		auto& run{ styled_text.runs.emplace_back() };
-		run.text				 = std::string{ content };
-		visual.current_run_index = styled_text.runs.size() - 1;
+		auto fallback{ button_.GetTextFallback(state) };
+
+		if (!fallback.runs.empty()) {
+			run = fallback.runs.front();
+		}
 	}
+
+	run.text = std::string{ content };
+
+	visual.defined	   = true;
+	visual.styled_text = StyledText{};
+	visual.styled_text->runs.emplace_back(std::move(run));
 
 	MarkTextDirty();
 
@@ -1987,9 +2143,8 @@ ButtonText& ButtonText::Content(StyledText styled_text) {
 		styled_text.runs.emplace_back();
 	}
 
-	visual.defined			 = true;
-	visual.styled_text		 = std::move(styled_text);
-	visual.current_run_index = 0;
+	visual.defined	   = true;
+	visual.styled_text = std::move(styled_text);
 
 	MarkTextDirty();
 
@@ -1999,9 +2154,7 @@ ButtonText& ButtonText::Content(StyledText styled_text) {
 ButtonText& ButtonText::ClearContent() {
 	auto& visual{ button_.TextVisual(state) };
 
-	visual.styled_text = StyledText{};
-	visual.styled_text->runs.emplace_back();
-	visual.current_run_index = 0;
+	visual.styled_text.reset();
 
 	MarkTextDirty();
 
@@ -2119,11 +2272,35 @@ ButtonText& ButtonText::ClearPadding() {
 	return *this;
 }
 
-ButtonText& ButtonText::Font(std::string_view font) {
-	auto& run{ CurrentRun() };
+StyledText& ButtonText::StyledTextForEdit() {
+	auto& visual{ button_.TextVisual(state) };
 
-	if (run.font != font) {
-		run.font = std::string{ font };
+	visual.defined = true;
+
+	if (!visual.styled_text.has_value()) {
+		visual.styled_text = button_.GetTextFallback(state);
+	}
+
+	if (visual.styled_text->runs.empty()) {
+		visual.styled_text->runs.emplace_back();
+	}
+
+	return visual.styled_text.value();
+}
+
+ButtonText& ButtonText::Font(std::string_view font) {
+	auto& styled_text{ StyledTextForEdit() };
+
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (run.font != font) {
+			run.font = std::string{ font };
+			changed	 = true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
@@ -2131,10 +2308,18 @@ ButtonText& ButtonText::Font(std::string_view font) {
 }
 
 ButtonText& ButtonText::Color(ptgn::Color color) {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
-	if (run.style.color != color) {
-		run.style.color = color;
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (run.style.color != color) {
+			run.style.color = color;
+			changed			= true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
@@ -2142,10 +2327,18 @@ ButtonText& ButtonText::Color(ptgn::Color color) {
 }
 
 ButtonText& ButtonText::Size(float font_size) {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
-	if (!NearlyEqual(run.style.size, font_size)) {
-		run.style.size = font_size;
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (!NearlyEqual(run.style.size, font_size)) {
+			run.style.size = font_size;
+			changed		   = true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
@@ -2153,10 +2346,18 @@ ButtonText& ButtonText::Size(float font_size) {
 }
 
 ButtonText& ButtonText::Style(FontStyle flags) {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
-	if (run.style.flags != flags) {
-		run.style.flags = flags;
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (run.style.flags != flags) {
+			run.style.flags = flags;
+			changed			= true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
@@ -2164,14 +2365,20 @@ ButtonText& ButtonText::Style(FontStyle flags) {
 }
 
 ButtonText& ButtonText::Bold(bool enabled, float weight) {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
-	bool was_enabled{ HasFontFlag(run.style.flags, FontStyle::Bold) };
-	bool changed{ was_enabled != enabled ||
-				  (enabled && !NearlyEqual(run.style.bold_weight, weight)) };
+	bool changed{ false };
 
-	run.style.flags		  = SetFontFlag(run.style.flags, FontStyle::Bold, enabled);
-	run.style.bold_weight = weight;
+	for (auto& run : styled_text.runs) {
+		bool was_enabled{ HasFontFlag(run.style.flags, FontStyle::Bold) };
+		bool run_changed{ was_enabled != enabled ||
+						  (enabled && !NearlyEqual(run.style.bold_weight, weight)) };
+
+		run.style.flags		  = SetFontFlag(run.style.flags, FontStyle::Bold, enabled);
+		run.style.bold_weight = weight;
+
+		changed = changed || run_changed;
+	}
 
 	if (changed) {
 		MarkTextDirty();
@@ -2181,10 +2388,18 @@ ButtonText& ButtonText::Bold(bool enabled, float weight) {
 }
 
 ButtonText& ButtonText::Italic(bool enabled) {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
-	if (HasFontFlag(run.style.flags, FontStyle::Italic) != enabled) {
-		run.style.flags = SetFontFlag(run.style.flags, FontStyle::Italic, enabled);
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (HasFontFlag(run.style.flags, FontStyle::Italic) != enabled) {
+			run.style.flags = SetFontFlag(run.style.flags, FontStyle::Italic, enabled);
+			changed			= true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
@@ -2192,10 +2407,18 @@ ButtonText& ButtonText::Italic(bool enabled) {
 }
 
 ButtonText& ButtonText::Underline(bool enabled) {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
-	if (HasFontFlag(run.style.flags, FontStyle::Underline) != enabled) {
-		run.style.flags = SetFontFlag(run.style.flags, FontStyle::Underline, enabled);
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (HasFontFlag(run.style.flags, FontStyle::Underline) != enabled) {
+			run.style.flags = SetFontFlag(run.style.flags, FontStyle::Underline, enabled);
+			changed			= true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
@@ -2203,10 +2426,18 @@ ButtonText& ButtonText::Underline(bool enabled) {
 }
 
 ButtonText& ButtonText::Strikethrough(bool enabled) {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
-	if (HasFontFlag(run.style.flags, FontStyle::Strikethrough) != enabled) {
-		run.style.flags = SetFontFlag(run.style.flags, FontStyle::Strikethrough, enabled);
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (HasFontFlag(run.style.flags, FontStyle::Strikethrough) != enabled) {
+			run.style.flags = SetFontFlag(run.style.flags, FontStyle::Strikethrough, enabled);
+			changed			= true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
@@ -2214,12 +2445,20 @@ ButtonText& ButtonText::Strikethrough(bool enabled) {
 }
 
 ButtonText& ButtonText::Outline(ptgn::Color color, float width, float softness) {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
 	DistanceFieldLayerStyle outline{ .color = color, .width = width, .softness = softness };
 
-	if (run.style.sdf.outline != outline) {
-		run.style.sdf.outline = outline;
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (run.style.sdf.outline != outline) {
+			run.style.sdf.outline = outline;
+			changed				  = true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
@@ -2231,13 +2470,21 @@ ButtonText& ButtonText::Shadow(ptgn::Color color, V2_float offset, float softnes
 }
 
 ButtonText& ButtonText::Shadow(ptgn::Color color, V2_float offset, float width, float softness) {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
 	DistanceFieldLayerStyle shadow{ .color = color, .width = width, .softness = softness };
 
-	if (run.style.sdf.shadow != shadow || run.style.sdf.shadow_offset != offset) {
-		run.style.sdf.shadow		= shadow;
-		run.style.sdf.shadow_offset = offset;
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (run.style.sdf.shadow != shadow || run.style.sdf.shadow_offset != offset) {
+			run.style.sdf.shadow		= shadow;
+			run.style.sdf.shadow_offset = offset;
+			changed						= true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
@@ -2245,12 +2492,20 @@ ButtonText& ButtonText::Shadow(ptgn::Color color, V2_float offset, float width, 
 }
 
 ButtonText& ButtonText::OuterGlow(ptgn::Color color, float width, float softness) {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
 	DistanceFieldLayerStyle outer_glow{ .color = color, .width = width, .softness = softness };
 
-	if (run.style.sdf.outer_glow != outer_glow) {
-		run.style.sdf.outer_glow = outer_glow;
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (run.style.sdf.outer_glow != outer_glow) {
+			run.style.sdf.outer_glow = outer_glow;
+			changed					 = true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
@@ -2258,12 +2513,20 @@ ButtonText& ButtonText::OuterGlow(ptgn::Color color, float width, float softness
 }
 
 ButtonText& ButtonText::InnerGlow(ptgn::Color color, float width, float softness) {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
 	DistanceFieldLayerStyle inner_glow{ .color = color, .width = width, .softness = softness };
 
-	if (run.style.sdf.inner_glow != inner_glow) {
-		run.style.sdf.inner_glow = inner_glow;
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (run.style.sdf.inner_glow != inner_glow) {
+			run.style.sdf.inner_glow = inner_glow;
+			changed					 = true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
@@ -2271,10 +2534,18 @@ ButtonText& ButtonText::InnerGlow(ptgn::Color color, float width, float softness
 }
 
 ButtonText& ButtonText::ClearSdfEffects() {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
-	if (run.style.sdf != DistanceFieldStyle{}) {
-		run.style.sdf = {};
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (run.style.sdf != DistanceFieldStyle{}) {
+			run.style.sdf = {};
+			changed		  = true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
@@ -2284,7 +2555,7 @@ ButtonText& ButtonText::ClearSdfEffects() {
 ButtonText& ButtonText::Effect(
 	GlyphEffectType type, float amplitude, float frequency, float speed, float phase
 ) {
-	auto& run{ CurrentRun() };
+	auto& styled_text{ StyledTextForEdit() };
 
 	GlyphEffectStyle effect{
 		.type	   = type,
@@ -2294,41 +2565,20 @@ ButtonText& ButtonText::Effect(
 		.phase	   = phase,
 	};
 
-	if (run.style.effect != effect) {
-		run.style.effect = effect;
+	bool changed{ false };
+
+	for (auto& run : styled_text.runs) {
+		if (run.style.effect != effect) {
+			run.style.effect = effect;
+			changed			 = true;
+		}
+	}
+
+	if (changed) {
 		MarkTextDirty();
 	}
 
 	return *this;
-}
-
-StyledText& ButtonText::StyledTextForEdit() {
-	auto& visual{ button_.TextVisual(state) };
-
-	visual.defined = true;
-
-	if (!visual.styled_text.has_value()) {
-		visual.styled_text = button_.GetTextFallback(state);
-	}
-
-	EnsureStyledTextHasRun(visual.styled_text.value());
-
-	if (visual.current_run_index >= visual.styled_text->runs.size()) {
-		visual.current_run_index = visual.styled_text->runs.size() - 1;
-	}
-
-	return visual.styled_text.value();
-}
-
-TextRun& ButtonText::CurrentRun() {
-	auto& styled_text{ StyledTextForEdit() };
-	auto& visual{ button_.TextVisual(state) };
-
-	PTGN_ASSERT(
-		visual.current_run_index < styled_text.runs.size(), "Invalid current text run index"
-	);
-
-	return styled_text.runs[visual.current_run_index];
 }
 
 void ButtonText::MarkTextDirty() {
@@ -2475,8 +2725,6 @@ ButtonSprite& ButtonSprite::Clear() {
 
 	if (entity.has_value()) {
 		auto& visuals{ entity->Get<ButtonSpriteVisuals>() };
-		visuals.applied_animation_state.reset();
-		visuals.transient_animation = false;
 		entity->Remove<impl::ButtonAnimationPart>();
 	}
 
@@ -2552,8 +2800,6 @@ ButtonAnimation& ButtonAnimation::Config(AnimationConfig config, ButtonAnimation
 	visual.animation_options = options;
 
 	auto entity{ button_.EnsurePart(impl::ButtonPart::Sprite) };
-	auto& visuals{ entity.Get<ButtonSpriteVisuals>() };
-	visuals.applied_animation_state.reset();
 
 	if (!HasScript<impl::ButtonAnimationCompleteScript>(entity)) {
 		AddScript<impl::ButtonAnimationCompleteScript>(entity, button_);
@@ -2583,8 +2829,6 @@ ButtonAnimation& ButtonAnimation::ClearConfig() {
 	auto entity{ button_.FindPart(impl::ButtonPart::Sprite) };
 
 	if (entity.has_value()) {
-		auto& visuals{ entity->Get<ButtonSpriteVisuals>() };
-		visuals.applied_animation_state.reset();
 		entity->Remove<impl::ButtonAnimationPart>();
 	}
 
@@ -2619,10 +2863,25 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 	auto resolved_desc{ desc };
 
 	if (resolved_desc.move.has_value()) {
-		DisableButtonTextAutoBoxForMove(resolved_desc);
+		for (auto& visual : resolved_desc.text.states) {
+			if (visual.defined) {
+				visual.auto_box = false;
+			}
+		}
 	}
 
-	auto button{ CreateBaseButton(scene, transform, resolved_desc.origin) };
+	Button button{ scene.CreateEntity() };
+
+	PTGN_DEFAULT_NAME(button, "Button");
+
+	button.Add<impl::Visible>(true);
+	button.Add<impl::ButtonData>();
+
+	SetTransform(button, transform);
+	SetDrawOrigin(button, resolved_desc.origin);
+	SetInteractive(button);
+
+	AddScript<impl::ButtonScript>(button);
 
 	if (resolved_desc.size.has_value()) {
 		std::visit(

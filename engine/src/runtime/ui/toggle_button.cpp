@@ -94,15 +94,16 @@ bool ToggleButton::IsToggled() const {
 }
 
 ToggleButton& ToggleButton::SetToggled(bool toggled) {
-	auto& data{ TryAdd<impl::ToggleButtonData>() };
+	auto& button{ TryAdd<impl::ToggleButtonData>() };
 
-	if (data.toggled == toggled) {
+	if (button.toggled == toggled) {
 		return *this;
 	}
 
-	data.toggled = toggled;
+	button.toggled = toggled;
 
-	Button{ *this }.RefreshVisualState();
+	MarkDirty(impl::ButtonDirty::All);
+	RefreshDirty();
 
 	PushEvent<event::ToggleButtonToggle>(*this, *this, toggled);
 

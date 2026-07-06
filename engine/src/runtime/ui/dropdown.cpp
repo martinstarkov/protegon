@@ -293,7 +293,7 @@ Button Dropdown::AddItem(std::string_view text) {
 		[&](const auto& s) {
 			Button button{ CreateButton(GetScene(), {}, s, Origin::Center) };
 			PTGN_DEFAULT_NAME(button, "Dropdown Item");
-			button.Text(text);
+			button.Text().Content(text);
 
 			AddButton(button);
 			return button;

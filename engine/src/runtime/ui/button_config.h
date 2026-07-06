@@ -107,15 +107,12 @@ struct ButtonAnimationOptions {
 	/// @brief Used only for StaticFrame.
 	std::size_t static_frame{ 0 };
 
-	/// @brief If true, the button keeps showing this visual state until the animation completes.
-	bool lock_visual_state{ false };
-
 	/// @brief If true, repeated presses are ignored while this visual state is locked.
 	bool block_press{ false };
 
 	constexpr bool operator==(const ButtonAnimationOptions&) const = default;
 
-	PTGN_SERIALIZE(ButtonAnimationOptions, playback, static_frame, lock_visual_state, block_press)
+	PTGN_SERIALIZE(ButtonAnimationOptions, playback, static_frame, block_press)
 };
 
 struct ButtonShapeVisual {
@@ -321,7 +318,7 @@ struct ButtonTextConfig {
 	std::optional<Origin> anchor;
 
 	/// @brief Transform relative to the selected button anchor.
-	Transform transform;
+	std::optional<Transform> transform;
 
 	std::optional<float> outline_width;
 	Color outline_color{ color::Black };
@@ -354,7 +351,7 @@ struct ButtonSpriteConfig {
 	std::optional<Origin> anchor;
 
 	/// @brief Transform relative to the selected button anchor.
-	Transform transform;
+	std::optional<Transform> transform;
 
 	/// @brief Optional fixed display size for the sprite. If not set, the sprite uses texture size.
 	std::optional<V2_float> size;
@@ -433,10 +430,9 @@ struct AnimatedButtonConfig {
 	ButtonAnimationOptions animation_options;
 	ButtonAnimationOptions animation_options_hover;
 	ButtonAnimationOptions animation_options_press{
-		.playback		   = ButtonAnimationPlayback::PlayOnce,
-		.static_frame	   = 0,
-		.lock_visual_state = true,
-		.block_press	   = false,
+		.playback	  = ButtonAnimationPlayback::PlayOnce,
+		.static_frame = 0,
+		.block_press  = false,
 	};
 
 	ButtonSoundConfig sounds;
