@@ -142,7 +142,7 @@ std::optional<V2_int> GetTextureSize(Entity entity) {
 		return std::nullopt;
 	}
 
-	if (size.value().IsZero()) {
+	if (!size.value().IsPositive()) {
 		return std::nullopt;
 	}
 
