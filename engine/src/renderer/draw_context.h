@@ -294,8 +294,8 @@ private:
 	void SetRenderState(const RenderState& state);
 	void SetRenderStateDelta(const RenderStateDelta& delta);
 
-	V2_int GetSize(impl::FramebufferId framebuffer) const;
-	TextureDesc GetDesc(impl::FramebufferId framebuffer) const;
+	std::optional<V2_int> GetSize(impl::FramebufferId framebuffer) const;
+	std::optional<TextureDesc> GetDesc(impl::FramebufferId framebuffer) const;
 
 	void CopyFramebufferRegion(
 		impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,

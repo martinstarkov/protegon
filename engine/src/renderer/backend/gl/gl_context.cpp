@@ -785,7 +785,7 @@ std::size_t GLContext::GetMaxTextureSlots() const {
 bool GLContext::ViewportCoversFramebuffer(FramebufferId framebuffer) const {
 	return bound_.render_state.viewport.position.IsZero() &&
 		   bound_.render_state.viewport.size ==
-			   V2_float{ textures.GetDesc(framebuffers.GetAttachmentId(framebuffer)).size };
+			   V2_float{ textures.GetDesc(framebuffers.GetAttachmentId(framebuffer)).value().size };
 }
 
 bool GLContext::ScissorCoversFramebuffer(FramebufferId framebuffer) const {
@@ -795,7 +795,7 @@ bool GLContext::ScissorCoversFramebuffer(FramebufferId framebuffer) const {
 
 	return bound_.render_state.scissor.viewport.position.IsZero() &&
 		   bound_.render_state.scissor.viewport.size ==
-			   V2_float{ textures.GetDesc(framebuffers.GetAttachmentId(framebuffer)).size };
+			   V2_float{ textures.GetDesc(framebuffers.GetAttachmentId(framebuffer)).value().size };
 }
 
 std::uint32_t GLContext::GetActiveTextureSlot() const {

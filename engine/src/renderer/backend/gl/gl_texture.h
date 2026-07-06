@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <utility>
 
 #include "core/log.h"
@@ -122,7 +123,7 @@ public:
 
 	void Destroy(TextureId id);
 
-	TextureDesc GetDesc(TextureId texture) const;
+	std::optional<TextureDesc> GetDesc(TextureId texture) const;
 
 	void Resize(TextureId texture, V2_int new_size);
 

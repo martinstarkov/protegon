@@ -13,7 +13,6 @@
 
 #include <chrono>
 #include <memory>
-#include <optional>
 #include <string_view>
 #include <utility>
 
@@ -116,7 +115,9 @@ void Application::RenderScenes() {
 		for (auto entity : ctx_.screen_effect_manager.Entities()) {
 			PTGN_ASSERT(
 				!entity.Has<impl::HDREffectTag>() ||
-					IsHDRFormat(ctx_.renderer.GetFormat(ctx_.renderer.presentation_framebuffer_)),
+					IsHDRFormat(
+						ctx_.renderer.GetFormat(ctx_.renderer.presentation_framebuffer_).value()
+					),
 				"Presentation framebuffer must use HDR format if it has an HDR effect"
 			);
 			impl::InvokeDrawable(draw_ctx, entity);

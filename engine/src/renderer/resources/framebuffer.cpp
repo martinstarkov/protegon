@@ -50,7 +50,7 @@ TextureId FramebufferObject::GetTexture() const {
 
 TextureDesc FramebufferObject::GetDesc() const {
 	PTGN_ASSERT(*this, "Framebuffer must be valid");
-	return renderer->GetDesc(*this);
+	return renderer->GetDesc(*this).value();
 }
 
 } // namespace impl

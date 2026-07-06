@@ -23,7 +23,6 @@
 #include "renderer/backend/gl/gl.h"
 #include "renderer/backend/gl/gl_context.h"
 #include "renderer/backend/gl/gl_renderbuffer.h"
-#include "renderer/backend/gl/gl_state.h"
 #include "renderer/backend/gl/gl_texture.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/pipeline/viewport.h"
@@ -244,7 +243,8 @@ void Framebuffers::AttachTextureImpl(
 
 	if (texture) {
 		PTGN_ASSERT(
-			gl_.textures.GetDesc(texture).size.IsPositive(), "Cannot attach a texture with no size"
+			gl_.textures.GetDesc(texture).value().size.IsPositive(),
+			"Cannot attach a texture with no size"
 		);
 	}
 
@@ -578,7 +578,7 @@ V2_int Framebuffers::GetAttachmentSize(const AttachmentRecord& record) const {
 
 	switch (record.storage) {
 		using enum AttachmentStorage;
-		case Texture:	   return gl_.textures.GetDesc(TextureId{ record.id }).size;
+		case Texture:	   return gl_.textures.GetDesc(TextureId{ record.id }).value().size;
 		case Renderbuffer: return gl_.renderbuffers.GetCache(RenderbufferId{ record.id }).size;
 		case None:		   [[fallthrough]];
 		default:		   PTGN_ERROR("Cannot query the size of an empty framebuffer attachment");

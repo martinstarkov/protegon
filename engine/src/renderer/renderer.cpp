@@ -207,26 +207,6 @@ impl::RenderbufferId Renderer::GetDepthStencilRenderbuffer(impl::FramebufferId f
 	return gl_->framebuffers.GetAttachmentId<impl::gl::Attachment::DepthStencil>(framebuffer);
 }
 
-V2_int Renderer::GetSize(impl::FramebufferId framebuffer) const {
-	auto texture{ GetTexture(framebuffer) };
-	return GetSize(texture);
-}
-
-TextureFormat Renderer::GetFormat(impl::FramebufferId framebuffer) const {
-	auto texture{ GetTexture(framebuffer) };
-	return GetFormat(texture);
-}
-
-TextureParams Renderer::GetParams(impl::FramebufferId framebuffer) const {
-	auto texture{ GetTexture(framebuffer) };
-	return GetParams(texture);
-}
-
-TextureDesc Renderer::GetDesc(impl::FramebufferId framebuffer) const {
-	auto texture{ GetTexture(framebuffer) };
-	return GetDesc(texture);
-}
-
 void Renderer::Clear(impl::FramebufferId framebuffer, Color clear_color, bool restore_bind) const {
 	auto bind_guard = gl_->Bind(framebuffer, restore_bind);
 	gl_->framebuffers.Clear(framebuffer, clear_color);
@@ -855,27 +835,56 @@ void Renderer::Destroy(impl::VertexArrayId id) {
 	gl_->Destroy(id);
 }
 
-V2_int Renderer::GetSize(impl::TextureId texture) const {
-	return GetDesc(texture).size;
+std::optional<V2_int> Renderer::GetSize(impl::FramebufferId framebuffer) const {
+	auto texture{ GetTexture(framebuffer) };
+	return GetSize(texture);
 }
 
-TextureFormat Renderer::GetFormat(impl::TextureId texture) const {
-	return GetDesc(texture).format;
+std::optional<TextureFormat> Renderer::GetFormat(impl::FramebufferId framebuffer) const {
+	auto texture{ GetTexture(framebuffer) };
+	return GetFormat(texture);
 }
 
-TextureParams Renderer::GetParams(impl::TextureId texture) const {
-	return GetDesc(texture).params;
+std::optional<TextureParams> Renderer::GetParams(impl::FramebufferId framebuffer) const {
+	auto texture{ GetTexture(framebuffer) };
+	return GetParams(texture);
 }
 
-TextureDesc Renderer::GetDesc(impl::TextureId texture) const {
+std::optional<TextureDesc> Renderer::GetDesc(impl::FramebufferId framebuffer) const {
+	auto texture{ GetTexture(framebuffer) };
+	return GetDesc(texture);
+}
+
+std::optional<V2_int> Renderer::GetSize(impl::TextureId texture) const {
+	if (auto desc{ GetDesc(texture) }) {
+		return desc.value().size;
+	}
+	return std::nullopt;
+}
+
+std::optional<TextureFormat> Renderer::GetFormat(impl::TextureId texture) const {
+	if (auto desc{ GetDesc(texture) }) {
+		return desc.value().format;
+	}
+	return std::nullopt;
+}
+
+std::optional<TextureParams> Renderer::GetParams(impl::TextureId texture) const {
+	if (auto desc{ GetDesc(texture) }) {
+		return desc.value().params;
+	}
+	return std::nullopt;
+}
+
+std::optional<TextureDesc> Renderer::GetDesc(impl::TextureId texture) const {
 	return gl_->textures.GetDesc(texture);
 }
 
-V2_int Renderer::GetSize(impl::RenderbufferId renderbuffer) const {
+std::optional<V2_int> Renderer::GetSize(impl::RenderbufferId renderbuffer) const {
 	return gl_->renderbuffers.GetSize(renderbuffer);
 }
 
-TextureFormat Renderer::GetFormat(impl::RenderbufferId renderbuffer) const {
+std::optional<TextureFormat> Renderer::GetFormat(impl::RenderbufferId renderbuffer) const {
 	return gl_->renderbuffers.GetFormat(renderbuffer);
 }
 
@@ -971,7 +980,7 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 
 	auto output_size{ GetSize(request.output) };
 
-	PTGN_ASSERT(output_size.IsPositive(), "Render pass output size must be non-zero");
+	PTGN_ASSERT(output_size.value().IsPositive(), "Render pass output size must be non-zero");
 	PTGN_ASSERT(request.viewport.size.IsPositive(), "Render pass viewport size must be non-zero");
 
 	auto previous_state{ GetRenderState() };
@@ -1006,7 +1015,7 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 
 		auto input_size{ GetSize(input.framebuffer) };
 
-		PTGN_ASSERT(input_size.IsPositive(), "Render pass input size must be non-zero");
+		PTGN_ASSERT(input_size.value().IsPositive(), "Render pass input size must be non-zero");
 
 		PTGN_ASSERT(
 			input_size == V2_int{ Floor(request.viewport.size) },
@@ -1225,7 +1234,7 @@ TextureId RendererAccessor::GetPresentationTexture() const {
 	return GetTexture(renderer_.GetPresentationFramebuffer());
 }
 
-V2_int RendererAccessor::GetSize(TextureId texture) const {
+std::optional<V2_int> RendererAccessor::GetSize(TextureId texture) const {
 	return renderer_.GetSize(texture);
 }
 

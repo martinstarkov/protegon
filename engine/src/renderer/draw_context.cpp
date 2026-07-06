@@ -7,8 +7,8 @@
 #include <utility>
 #include <vector>
 
-#include "core/assert.h"
 #include "core/graphics/color.h"
+#include "core/log.h"
 #include "core/math/geometry/arc.h"
 #include "core/math/geometry/capsule.h"
 #include "core/math/geometry/circle.h"
@@ -199,11 +199,18 @@ void DrawContext::DrawTexture(
 	impl::DrawTextureRequest request;
 
 	if (params.size.IsZero()) {
-		PTGN_ASSERT(texture, "Texture must be set if size is zero");
-		params.size = renderer_.GetSize(texture);
+		auto size{ renderer_.GetSize(texture) };
+
+		if (!size.has_value()) {
+			PTGN_WARN("Texture size not found for texture ", texture, ", skipping draw");
+			return;
+		}
 	}
 
-	PTGN_ASSERT(params.size.IsPositive());
+	if (!params.size.IsPositive()) {
+		PTGN_WARN("Texture size is not positive, skipping draw");
+		return;
+	}
 
 	Rect rect{ params.size };
 
@@ -386,11 +393,11 @@ void DrawContext::ReleaseFramebuffer(impl::FramebufferId framebuffer) {
 	return renderer_.framebuffer_pool_.Release(framebuffer);
 }
 
-V2_int DrawContext::GetSize(impl::FramebufferId framebuffer) const {
+std::optional<V2_int> DrawContext::GetSize(impl::FramebufferId framebuffer) const {
 	return renderer_.GetSize(framebuffer);
 }
 
-TextureDesc DrawContext::GetDesc(impl::FramebufferId framebuffer) const {
+std::optional<TextureDesc> DrawContext::GetDesc(impl::FramebufferId framebuffer) const {
 	return renderer_.GetDesc(framebuffer);
 }
 

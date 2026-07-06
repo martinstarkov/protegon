@@ -109,7 +109,7 @@ RenderPassBuilder::RenderPassBuilder(DrawContext& ctx) : ctx_{ ctx } {
 	auto viewport{ ctx_.GetRenderState().viewport };
 
 	destination_	  = viewport;
-	destination_desc_ = ctx_.GetDesc(bound);
+	destination_desc_ = ctx_.GetDesc(bound).value();
 	destination_id_	  = bound;
 
 	PTGN_ASSERT(
@@ -320,8 +320,8 @@ void RenderPassBuilder::Execute(RenderPassHandle final_handle) {
 
 		GetResource(pass.output).framebuffer = output;
 
-		auto output_size{ ctx_.GetSize(output) };
-		Viewport viewport{ .position{}, .size{ V2_float{ output_size } } };
+		auto output_size{ ctx_.GetSize(output).value() };
+		Viewport viewport{ .size{ output_size } };
 
 		// TODO: Consider making pipeline customizable in the future.
 		constexpr auto pipeline{ Hash("texture") };

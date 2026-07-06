@@ -248,7 +248,7 @@ private:
 		if (request.texture) {
 			// Inherit texture parameters from the original texture if it exists, to ensure
 			// consistency of sampling behavior between the original and expanded framebuffer.
-			desc.params = GetParams(request.texture);
+			desc.params = GetParams(request.texture).value();
 		}
 
 		auto expanded_framebuffer{ CreateFramebuffer(desc, std::nullopt) };
@@ -388,10 +388,6 @@ private:
 	impl::RenderbufferId GetStencilRenderbuffer(impl::FramebufferId framebuffer) const;
 	impl::RenderbufferId GetDepthStencilRenderbuffer(impl::FramebufferId framebuffer) const;
 
-	V2_int GetSize(impl::FramebufferId framebuffer) const;
-	TextureFormat GetFormat(impl::FramebufferId framebuffer) const;
-	TextureParams GetParams(impl::FramebufferId framebuffer) const;
-	TextureDesc GetDesc(impl::FramebufferId framebuffer) const;
 	void SetParams(impl::FramebufferId framebuffer, TextureParams params);
 	void SetParams(impl::TextureId texture, TextureParams params);
 	void Resize(impl::FramebufferId framebuffer, V2_int new_size);
@@ -405,12 +401,16 @@ private:
 
 	impl::FramebufferId GetPresentationFramebuffer() const;
 
-	V2_int GetSize(impl::TextureId texture) const;
-	TextureFormat GetFormat(impl::TextureId texture) const;
-	V2_int GetSize(impl::RenderbufferId renderbuffer) const;
-	TextureFormat GetFormat(impl::RenderbufferId renderbuffer) const;
-	TextureParams GetParams(impl::TextureId texture) const;
-	TextureDesc GetDesc(impl::TextureId texture) const;
+	std::optional<V2_int> GetSize(impl::FramebufferId framebuffer) const;
+	std::optional<TextureFormat> GetFormat(impl::FramebufferId framebuffer) const;
+	std::optional<TextureParams> GetParams(impl::FramebufferId framebuffer) const;
+	std::optional<TextureDesc> GetDesc(impl::FramebufferId framebuffer) const;
+	std::optional<V2_int> GetSize(impl::TextureId texture) const;
+	std::optional<TextureFormat> GetFormat(impl::TextureId texture) const;
+	std::optional<V2_int> GetSize(impl::RenderbufferId renderbuffer) const;
+	std::optional<TextureFormat> GetFormat(impl::RenderbufferId renderbuffer) const;
+	std::optional<TextureParams> GetParams(impl::TextureId texture) const;
+	std::optional<TextureDesc> GetDesc(impl::TextureId texture) const;
 
 	/// @brief For binding textures to shader uniforms.
 	void SetBoundShaderUniform(const char* uniform_name, int value);
@@ -465,7 +465,8 @@ private:
 		auto op{ render_settings_.tone_mapping.op };
 
 		PTGN_ASSERT(
-			!impl::RequiresHDRInput(op) || IsHDRFormat(GetFormat(presentation_framebuffer_)),
+			!impl::RequiresHDRInput(op) ||
+				IsHDRFormat(GetFormat(presentation_framebuffer_).value()),
 			"Presentation framebuffer format must support HDR if tone mapping is enabled"
 		);
 
@@ -592,7 +593,7 @@ private:
 
 		PTGN_ASSERT(presentation_framebuffer_, "Presentation framebuffer must be valid");
 
-		auto size{ GetSize(presentation_framebuffer_) };
+		auto size{ GetSize(presentation_framebuffer_).value() };
 
 		PTGN_ASSERT(size.IsPositive(), "Presentation framebuffer size must be valid");
 
@@ -669,7 +670,7 @@ public:
 
 	TextureId GetPresentationTexture() const;
 
-	V2_int GetSize(TextureId texture) const;
+	std::optional<V2_int> GetSize(TextureId texture) const;
 
 	TextureId GetTexture(FramebufferId framebuffer) const;
 

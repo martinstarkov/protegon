@@ -105,8 +105,8 @@ TextureParams TextureObject::GetParams() const {
 }
 
 TextureDesc TextureObject::GetDesc() const {
-	PTGN_ASSERT(*this);
-	return renderer->GetDesc(*this);
+	PTGN_ASSERT(*this, "Texture object must be valid");
+	return renderer->GetDesc(*this).value();
 }
 
 } // namespace impl

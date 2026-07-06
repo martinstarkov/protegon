@@ -1,5 +1,6 @@
 #include "renderer/backend/gl/gl_renderbuffer.h"
 
+#include <optional>
 #include <utility>
 
 #include "core/assert.h"
@@ -48,12 +49,18 @@ const RenderbufferCache& Renderbuffers::GetCache(RenderbufferId renderbuffer) co
 	return cache_.Get(renderbuffer);
 }
 
-V2_int Renderbuffers::GetSize(RenderbufferId renderbuffer) const {
-	return GetCache(renderbuffer).size;
+std::optional<V2_int> Renderbuffers::GetSize(RenderbufferId renderbuffer) const {
+	if (!cache_.Has(renderbuffer)) {
+		return std::nullopt;
+	}
+	return cache_.Get(renderbuffer).size;
 }
 
-TextureFormat Renderbuffers::GetFormat(RenderbufferId renderbuffer) const {
-	return GetCache(renderbuffer).format;
+std::optional<TextureFormat> Renderbuffers::GetFormat(RenderbufferId renderbuffer) const {
+	if (!cache_.Has(renderbuffer)) {
+		return std::nullopt;
+	}
+	return cache_.Get(renderbuffer).format;
 }
 
 void Renderbuffers::SetStorage(RenderbufferId renderbuffer, V2_int size, TextureFormat format) {

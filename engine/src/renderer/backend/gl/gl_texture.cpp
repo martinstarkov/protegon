@@ -1,5 +1,6 @@
 #include "renderer/backend/gl/gl_texture.h"
 
+#include <optional>
 #include <utility>
 
 #include "core/assert.h"
@@ -48,8 +49,10 @@ TextureId Textures::Create(
 	return texture;
 }
 
-TextureDesc Textures::GetDesc(TextureId texture) const {
-	PTGN_ASSERT(cache_.Has(texture), "TextureId not in cache");
+std::optional<TextureDesc> Textures::GetDesc(TextureId texture) const {
+	if (!cache_.Has(texture)) {
+		return std::nullopt;
+	}
 	return cache_.Get(texture).desc;
 }
 

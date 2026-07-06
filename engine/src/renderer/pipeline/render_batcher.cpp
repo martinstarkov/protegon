@@ -70,6 +70,11 @@ void RenderBatcher::Flush() {
 		return;
 	}
 
+	if (!renderer_.GetBoundShader()) {
+		PTGN_WARN("Attempting to flush render batcher without a bound shader");
+		return;
+	}
+
 	const auto& pipeline{ renderer_.pipeline_manager_.GetCurrentPipeline() };
 
 	renderer_.BindUniforms();

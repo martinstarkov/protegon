@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "core/math/vector2.h"
 #include "core/util/id_map.h"
 #include "renderer/resources/id.h"
@@ -25,8 +27,8 @@ public:
 
 	const RenderbufferCache& GetCache(RenderbufferId renderbuffer) const;
 
-	V2_int GetSize(RenderbufferId renderbuffer) const;
-	TextureFormat GetFormat(RenderbufferId renderbuffer) const;
+	std::optional<V2_int> GetSize(RenderbufferId renderbuffer) const;
+	std::optional<TextureFormat> GetFormat(RenderbufferId renderbuffer) const;
 
 private:
 	friend class GLContext;
