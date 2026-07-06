@@ -246,6 +246,11 @@ struct ParticleEmitterPlayback {
 
 	void Update(ParticleEmitterComponent& emitter, const ParticleBurst& burst, secondsf dt);
 	void Update(ParticleEmitterComponent& emitter, const ParticleRate& rate, secondsf dt);
+
+	PTGN_SERIALIZE(
+		ParticleEmitterPlayback, state, elapsed, cycle_elapsed, spawn_accumulator, burst_elapsed,
+		burst_cycles_emitted, initialized
+	)
 };
 
 struct ParticleEmitterComponent {

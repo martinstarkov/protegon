@@ -194,6 +194,10 @@ struct MaterialState {
 	std::vector<UniformWrite> uniforms;
 	std::optional<std::size_t> texture_slot_capacity;
 
+	constexpr explicit operator bool() const {
+		return shader;
+	}
+
 	constexpr bool operator==(const MaterialState&) const = default;
 };
 
@@ -203,6 +207,8 @@ struct Material {
 	std::optional<std::size_t> texture_slot_capacity;
 
 	constexpr bool operator==(const Material&) const = default;
+
+	PTGN_SERIALIZE(Material, shader, uniforms, texture_slot_capacity)
 };
 
 struct RenderState {

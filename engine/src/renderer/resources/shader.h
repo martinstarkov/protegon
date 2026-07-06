@@ -21,6 +21,7 @@
 #include "core/util/hash.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -96,6 +97,8 @@ struct UniformWrite {
 			value
 		);
 	}
+
+	PTGN_SERIALIZE(UniformWrite, name, value)
 };
 
 [[nodiscard]] std::size_t Hash(const UniformValue& value);
