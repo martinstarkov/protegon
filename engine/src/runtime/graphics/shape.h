@@ -66,10 +66,6 @@ struct CapsuleDraw {
 /// @return The shape of the entity, if it has one.
 std::optional<Shape> GetShape(Entity entity);
 
-/// @return The display size of the entity sprite (if it has a TextureHandle), or its shape, if it
-/// has one.
-std::optional<Shape> GetSpriteOrShape(Entity entity);
-
 Entity CreateRect(
 	Scene& scene, Transform transform, V2_float size, Color color, FillStyle fill_style = Solid{},
 	Origin origin = Origin::Center
@@ -113,7 +109,7 @@ Entity CreateCapsule(
 );
 
 PTGN_REGISTER_DRAWABLE_NAMED(RectDraw, "Rect");
-PTGN_REGISTER_DRAWABLE_NAMED(RoundedRectDraw, "RoundedRect");
+PTGN_REGISTER_DRAWABLE_NAMED(RoundedRectDraw, "Rounded Rect");
 PTGN_REGISTER_DRAWABLE_NAMED(PolygonDraw, "Polygon");
 PTGN_REGISTER_DRAWABLE_NAMED(TriangleDraw, "Triangle");
 PTGN_REGISTER_DRAWABLE_NAMED(CircleDraw, "Circle");

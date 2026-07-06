@@ -5,7 +5,6 @@
 #include <utility>
 #include <vector>
 
-#include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/angle.h"
@@ -22,14 +21,11 @@
 #include "core/math/geometry/triangle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/type_info.h"
 #include "renderer/draw_context.h"
-#include "renderer/resources/texture.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
-#include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
@@ -131,15 +127,6 @@ Transform OffsetByOrigin(const Shape& shape, Transform transform, Entity entity)
 	return rect.Offset(transform, draw_origin);
 }
 
-std::optional<Shape> GetSpriteOrShape(Entity entity) {
-	if (entity.Has<Texture>()) {
-		auto display_size{ GetDisplaySize(entity) };
-		PTGN_ASSERT(display_size.has_value(), "Entity with texture must have a display size");
-		return Rect{ display_size.value() };
-	}
-	return GetShape(entity);
-}
-
 std::optional<Shape> GetShape(Entity entity) {
 	return GetFirstMatchingVariant<
 		Shape, Rect, Circle, Polygon, Triangle, Line, Ellipse, RoundedRect, Arc, Capsule>(entity);
@@ -157,7 +144,7 @@ Entity CreateShape(
 	entity.Add<TShape>(std::move(shape));
 	entity.Add<Color>(color);
 	entity.Add<FillStyle>(fill_style);
-	entity.Add<impl::Visible>(true);
+	entity.Add<Visible>(true);
 
 	return entity;
 }
@@ -184,6 +171,7 @@ Entity CreateRoundedRect(
 	return rounded_rect;
 }
 
+// Using vector to enable initialization with a list of vertices, e.g. { {0, 0}, {1, 0}, {0, 1} }.
 Entity CreatePolygon(
 	Scene& scene, Transform transform, const std::vector<V2_float>& vertices, Color color,
 	FillStyle fill_style
