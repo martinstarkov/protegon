@@ -249,9 +249,9 @@ void DrawScene(
 	std::optional<Color> clear_color, Color tint, const impl::EffectParams& effect_params,
 	InvocableR<bool, Entity> auto filter
 ) {
-	auto light_entity_commands{ GetSortedEntityCommands(
-		scene.EntitiesWith<impl::LightData, impl::VisibilityPolygon>(), filter
-	) };
+	auto light_entity_commands{
+		GetSortedEntityCommands(scene.EntitiesWith<LightConfig, impl::VisibilityPolygon>(), filter)
+	};
 
 	impl::UpdateLightVisibilityPolygons(
 		light_entity_commands, cam.GetWorldVertices(scene.ctx().renderer.GetLogicalSize())

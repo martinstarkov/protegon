@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <optional>
 #include <span>
 #include <vector>
@@ -9,7 +8,6 @@
 #include "core/math/angle.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "renderer/resources/shader.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
@@ -19,13 +17,19 @@ namespace ptgn {
 class DrawContext;
 class Scene;
 
-struct LightProperties {
+struct LightConfig {
+	/// @brief Color of the light.
+	Color color{ color::Red };
+
+	/// @brief Intensity of the light source. Range: [0, 1].
+	float intensity{ 0.5f };
+
+	/// @brief Falloff of the light. The higher the value, the less light reaches the outer radius.
+	float falloff{ 2.0f };
+
 	/// @brief Radius of the light. The higher the radius, the further light reaches out from the
 	/// center.
 	float radius{ 100.0f };
-
-	/// @brief Color of the light.
-	Color color{ color::Red };
 
 	/// @brief Angle of the light cone. If std::nullopt, the light is a
 	/// point light. Range: [0.0, 360.0]. 0.0 means no light is drawn,
@@ -36,13 +40,16 @@ struct LightProperties {
 	/// Range: [0.0, 360.0]. Only applies to lights with a cone angle.
 	Degrees direction_angle{ 0.0f };
 
-	/// @brief Intensity of the light source. Range: [0, 1].
-	float intensity{ 0.5f };
+	/// @brief Color of the ambient light.
+	Color ambient_color{ color::Transparent };
 
-	/// @brief Falloff of the light. The higher the value, the less light reaches the outer radius.
-	float falloff{ 2.0f };
+	/// @brief Intensity of the ambient light. Range: [0, 1].
+	float ambient_intensity{ 0.0f };
 
-	PTGN_SERIALIZE(LightProperties, radius, color, cone_angle, direction_angle, intensity, falloff)
+	PTGN_SERIALIZE(
+		LightConfig, color, intensity, falloff, radius, cone_angle, direction_angle, ambient_color,
+		ambient_intensity
+	)
 };
 
 namespace impl {
@@ -52,27 +59,6 @@ struct EntityRenderCommand;
 void UpdateLightVisibilityPolygons(
 	std::vector<impl::EntityRenderCommand>& commands, std::span<const V2_float> camera_vertices
 );
-
-struct LightData {
-	/// @brief Intensity of the light. Range: [0, 1].
-	float intensity{ 1.0f };
-
-	/// @brief Intensity of the ambient light. Range: [0, 1].
-	float ambient_intensity{ 0.0f };
-
-	/// @brief Color of the ambient light.
-	Color ambient_color{ color::Transparent };
-
-	/// @brief Higher -> Less light reaches the outer radius.
-	float falloff{ 2.0f };
-
-	/// @brief Angle of the light cone. Range: [0.0, 2pi]. 0.0 means no light is drawn,
-	/// 2pi means the light is a point light and has no cone. If std::nullopt, the light is a
-	/// point light.
-	std::optional<Radians> cone_angle;
-
-	PTGN_SERIALIZE(LightData, intensity, ambient_intensity, ambient_color, falloff, cone_angle)
-};
 
 struct ShadowCaster {
 	bool casts_shadows{ true };
@@ -107,42 +93,25 @@ public:
 
 	static void Draw(DrawContext& ctx, Entity entity);
 
-	Light& SetIntensity(float intensity);
-	float GetIntensity() const;
-
-	Light& SetColor(Color color);
-	Color GetColor() const;
-
-	Light& SetAmbientIntensity(float ambient_intensity);
-	float GetAmbientIntensity() const;
-
-	Light& SetAmbientColor(Color ambient_color);
-	Color GetAmbientColor() const;
-
-	Light& SetRadius(float radius);
-	float GetRadius() const;
-
-	Light& SetFalloff(float falloff);
-	float GetFalloff() const;
+	Light& Intensity(float intensity);
+	Light& Color(ptgn::Color color);
+	Light& AmbientIntensity(float ambient_intensity);
+	Light& AmbientColor(ptgn::Color ambient_color);
+	Light& Radius(float radius);
+	Light& Falloff(float falloff);
+	Light& Config(const LightConfig& config);
 
 	/// @param cone_angle Angle of the light cone. If std::nullopt, the light is a
 	/// point light. Range: [0.0, 360.0]. 0.0 means no light is drawn, 360.0 means the light is a
 	/// point light and has no cone.
-	Light& SetConeAngle(std::optional<Degrees> cone_angle);
+	Light& ConeAngle(std::optional<Degrees> cone_angle);
 
-	/// @return Cone angle, if it has been set. Range: [0.0, 360.0].
-	std::optional<Degrees> GetConeAngle() const;
-
-	Light& SetLightProperties(const LightProperties& properties);
-	LightProperties GetLightProperties() const;
-
-private:
-	std::array<UniformWrite, 9> GetUniforms() const;
+	LightConfig GetConfig() const;
 };
 
 PTGN_REGISTER_DRAWABLE(Light);
 
-Light CreateLight(Scene& scene, Transform transform = {}, const LightProperties& properties = {});
+Light CreateLight(Scene& scene, Transform transform = {}, const LightConfig& config = {});
 
 /// @brief Marks an entity as a shadow occluder.
 /// @param entity Entity that should cast shadows.

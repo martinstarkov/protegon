@@ -2,8 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cmath>
-#include <cstdlib>
 #include <optional>
 #include <ranges>
 #include <span>
@@ -15,6 +13,7 @@
 #include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
+#include "core/log.h"
 #include "core/math/angle.h"
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/geometry_utils.h"
@@ -65,65 +64,6 @@ struct ShadowCasterEntry {
 	bool masks_light_inside{ true };
 };
 
-bool IsLightEntity(Entity entity) {
-	return entity.Has<Circle, impl::LightData>();
-}
-
-bool IsUsableShadowCaster(Entity entity) {
-	auto caster{ entity.TryGet<impl::ShadowCaster>() };
-	return caster && caster->casts_shadows;
-}
-
-BoundingAABB MakeAABB(V2_float center, float radius) {
-	auto r{ V2_float{ radius, radius } };
-
-	return BoundingAABB{
-		.min = center - r,
-		.max = center + r,
-	};
-}
-
-float GetScaledLightRadius(Entity entity) {
-	auto radius{ entity.Get<Circle>().radius };
-	auto scale{ GetWorldScale(entity) };
-
-	auto scale_x{ std::abs(scale.x) };
-	auto scale_y{ std::abs(scale.y) };
-
-	return radius * std::max(scale_x, scale_y);
-}
-
-BoundingAABB GetLightInfluenceAABB(Entity entity) {
-	auto position{ GetPosition(entity) };
-	auto radius{ GetScaledLightRadius(entity) * kLightShadowQueryFactor };
-
-	return MakeAABB(position, radius);
-}
-
-std::vector<V2_float> BuildCircleVertices(const Circle& circle, Transform transform) {
-	std::vector<V2_float> vertices;
-	vertices.reserve(kCircleShadowSegments);
-
-	for (auto i{ 0 }; i < kCircleShadowSegments; ++i) {
-		auto t{ kTwoPi * static_cast<float>(i) / static_cast<float>(kCircleShadowSegments) };
-		auto local{ V2_float{ std::cos(t), std::sin(t) } * circle.radius };
-
-		vertices.emplace_back(transform.Apply(local));
-	}
-
-	return vertices;
-}
-
-std::optional<V2_float> GetTextureCasterSize(Entity entity) {
-	auto texture_size{ GetTextureSize(entity) };
-
-	if (!texture_size.has_value() || !texture_size.value().IsPositive()) {
-		return std::nullopt;
-	}
-
-	return V2_float{ texture_size.value() };
-}
-
 std::optional<std::vector<V2_float>> GetShadowCasterWorldVertices(Entity entity) {
 	auto transform{ GetDrawTransform(entity) };
 	auto origin{ GetDrawOrigin(entity) };
@@ -134,11 +74,11 @@ std::optional<std::vector<V2_float>> GetShadowCasterWorldVertices(Entity entity)
 	}
 
 	if (entity.Has<Circle>()) {
-		return BuildCircleVertices(entity.Get<Circle>(), transform);
+		return entity.Get<Circle>().GetVertices(transform, kCircleShadowSegments);
 	}
 
-	if (auto texture_size{ GetTextureCasterSize(entity) }) {
-		Rect rect{ *texture_size };
+	if (auto texture_size{ GetTextureSize(entity) }) {
+		Rect rect{ texture_size.value() };
 		auto vertices{ rect.GetWorldVertices(transform, origin) };
 		return std::vector<V2_float>{ vertices.begin(), vertices.end() };
 	}
@@ -157,8 +97,8 @@ std::optional<BoundingAABB> GetShadowCasterAABB(Entity entity) {
 		return GetBoundingAABB(entity.Get<Circle>(), transform);
 	}
 
-	if (auto texture_size{ GetTextureCasterSize(entity) }) {
-		return GetBoundingAABB(Rect{ *texture_size }, transform);
+	if (auto texture_size{ GetTextureSize(entity) }) {
+		return GetBoundingAABB(Rect{ texture_size.value() }, transform);
 	}
 
 	return std::nullopt;
@@ -188,21 +128,6 @@ bool CasterIsBeforeLight(
 	}
 
 	return false;
-}
-
-std::vector<V2_float> BuildFallbackCameraPolygon(std::span<const V2_float> camera_vertices) {
-	return std::vector<V2_float>{ camera_vertices.begin(), camera_vertices.end() };
-}
-
-std::vector<V2_float> RunVisibilitySolver(
-	V2_float light_position, std::span<const V2_float> camera_vertices,
-	std::span<const Line> segments
-) {
-	if (segments.empty()) {
-		return BuildFallbackCameraPolygon(camera_vertices);
-	}
-
-	return GetVisibilityPolygon(light_position, segments);
 }
 
 impl::VisibilityPolygon ComputeVisibilityPolygonForLight(
@@ -250,29 +175,24 @@ impl::VisibilityPolygon ComputeVisibilityPolygonForLight(
 	impl::VisibilityPolygon result;
 
 	if (segments.empty()) {
-		result.vertices = BuildFallbackCameraPolygon(camera_vertices);
+		result.vertices = std::ranges::to<std::vector>(camera_vertices);
 		return result;
 	}
 
 	AddPolygonSegments(segments, camera_vertices);
 
-	auto world_visibility{ RunVisibilitySolver(light_position, camera_vertices, segments) };
+	std::vector<V2_float> world_visibility;
+
+	if (segments.empty()) {
+		world_visibility = std::ranges::to<std::vector>(camera_vertices);
+	} else {
+		world_visibility = GetVisibilityPolygon(light_position, segments);
+	}
 
 	result.vertices			  = std::move(world_visibility);
 	result.occluder_interiors = std::move(interiors);
 
 	return result;
-}
-
-void ClearStaleVisibilityPolygon(Entity entity) {
-	if (entity.Has<impl::VisibilityPolygon>()) {
-		entity.Remove<impl::VisibilityPolygon>();
-	}
-}
-
-bool IsInvisibleCone(Entity entity) {
-	const auto& light{ entity.Get<impl::LightData>() };
-	return light.cone_angle.has_value() && light.cone_angle.value() == Radians{ 0.0f };
 }
 
 void DrawStencilPolygon(
@@ -368,8 +288,6 @@ void WriteLightVisibilityStencil(
 				}
 			}
 
-			// DrawStencilPolygon(ctx, draw_transform, visibility_polygon.vertices);
-
 			for (const auto& interior : visibility_polygon.occluder_interiors) {
 				if (interior.masks_light_inside) {
 					continue;
@@ -419,7 +337,10 @@ void DrawShadowedLight(
 ) {
 	V2_int target_size{ size };
 
-	PTGN_ASSERT(target_size.IsPositive(), "Light shadow target size must be positive");
+	if (!target_size.IsPositive()) {
+		PTGN_WARN("Light shadow target size should be positive");
+		return;
+	}
 
 	TextureDesc light_desc{
 		.size	= target_size,
@@ -474,6 +395,26 @@ void DrawUnmaskedLight(
 	ctx.DrawShader(draw_transform, material, std::move(params));
 }
 
+std::array<UniformWrite, 9> GetUniforms(const LightConfig& light, Color tint) {
+	auto color{ Color::Multiply(light.color, tint) };
+	V4_float color_n{ color.Normalized() };
+
+	auto ambient_light_n{ light.ambient_color.Normalized() };
+	V3_float ambient_color{ ambient_light_n.xyz() };
+	constexpr V3_float light_attenuation{ 1.0f, 0.0f, 0.1f };
+
+	return { { { "u_LightIntensity", light.intensity },
+			   { "u_LightRadius", 0.5f },
+			   { "u_Falloff", light.falloff },
+			   { "u_UseCone", light.cone_angle.has_value() ? 1.0f : 0.0f },
+			   { "u_ConeAngle",
+				 light.cone_angle.has_value() ? (light.cone_angle.value() / 2.0f).value : kTwoPi },
+			   { "u_Color", color_n },
+			   { "u_AmbientColor", ambient_color },
+			   { "u_AmbientIntensity", light.ambient_intensity },
+			   { "u_LightAttenuation", light_attenuation } } };
+}
+
 } // namespace
 
 namespace impl {
@@ -494,11 +435,17 @@ void UpdateLightVisibilityPolygons(
 	for (auto order{ 0uz }; order < commands.size(); ++order) {
 		auto entity{ commands[order].entity };
 
-		if (IsLightEntity(entity)) {
-			ClearStaleVisibilityPolygon(entity);
+		if (entity.Has<LightConfig>()) {
+			entity.Remove<impl::VisibilityPolygon>();
 		}
 
-		if (!IsUsableShadowCaster(entity)) {
+		if (!entity.Has<impl::ShadowCaster>()) {
+			continue;
+		}
+
+		const auto& caster{ entity.Get<impl::ShadowCaster>() };
+
+		if (caster.casts_shadows) {
 			continue;
 		}
 
@@ -507,8 +454,6 @@ void UpdateLightVisibilityPolygons(
 		if (!aabb.has_value()) {
 			continue;
 		}
-
-		const auto& caster{ entity.Get<impl::ShadowCaster>() };
 
 		auto& entry{ casters.emplace_back(
 			ShadowCasterEntry{
@@ -533,7 +478,7 @@ void UpdateLightVisibilityPolygons(
 	for (auto order{ 0uz }; order < commands.size(); ++order) {
 		auto entity{ commands[order].entity };
 
-		if (!IsLightEntity(entity)) {
+		if (!entity.Has<LightConfig>()) {
 			continue;
 		}
 
@@ -559,43 +504,29 @@ void UpdateLightVisibilityPolygons(
 
 Light::Light(Entity entity) : Entity{ entity } {}
 
-std::array<UniformWrite, 9> Light::GetUniforms() const {
-	const auto& light{ Get<impl::LightData>() };
-
-	auto color{ GetTint(*this) };
-	V4_float color_n{ color.Normalized() };
-
-	auto ambient_light_n{ light.ambient_color.Normalized() };
-	V3_float ambient_color{ ambient_light_n.xyz() };
-	constexpr V3_float light_attenuation{ 1.0f, 0.0f, 0.1f };
-
-	return { { { "u_LightIntensity", light.intensity },
-			   { "u_LightRadius", 0.5f },
-			   { "u_Falloff", light.falloff },
-			   { "u_UseCone", light.cone_angle.has_value() ? 1.0f : 0.0f },
-			   { "u_ConeAngle",
-				 light.cone_angle.has_value() ? (light.cone_angle.value() / 2.0f).value : kTwoPi },
-			   { "u_Color", color_n },
-			   { "u_AmbientColor", ambient_color },
-			   { "u_AmbientIntensity", light.ambient_intensity },
-			   { "u_LightAttenuation", light_attenuation } } };
-}
-
 void Light::Draw(DrawContext& ctx, Entity entity) {
-	if (!entity.Has<Circle, impl::LightData>()) {
+	if (!entity.Has<LightConfig>()) {
 		return;
 	}
 
-	if (IsInvisibleCone(entity)) {
+	const auto& light{ entity.Get<LightConfig>() };
+
+	if (!light.cone_angle.has_value() || light.cone_angle.value() == Degrees{ 0.0f }) {
 		return;
 	}
+
+	if (light.radius <= 0.0f) {
+		return;
+	}
+
+	SetRotation(entity, light.direction_angle);
 
 	auto draw_transform{ GetDrawTransform(entity) };
-	const auto& circle{ entity.Get<Circle>() };
-	auto size{ circle.GetSize() };
+	auto size{ Circle{ light.radius }.GetSize() };
 	auto blend_mode{ GetBlendMode(entity) };
+	auto tint{ GetTint(entity) };
 
-	auto uniforms{ std::ranges::to<std::vector<UniformWrite>>(Light{ entity }.GetUniforms()) };
+	auto uniforms{ std::ranges::to<std::vector<UniformWrite>>(GetUniforms(light, tint)) };
 
 	if (!entity.Has<impl::VisibilityPolygon>()) {
 		DrawUnmaskedLight(ctx, entity, draw_transform, size, blend_mode, std::move(uniforms));
@@ -613,128 +544,90 @@ void Light::Draw(DrawContext& ctx, Entity entity) {
 	);
 }
 
-Light& Light::SetIntensity(float intensity) {
-	Get<impl::LightData>().intensity = intensity;
+Light& Light::Intensity(float intensity) {
+	if (auto light{ TryGet<LightConfig>() }) {
+		light->intensity = std::max(intensity, 0.0f);
+	}
 	return *this;
 }
 
-float Light::GetIntensity() const {
-	PTGN_ASSERT(Has<impl::LightData>(), "Light must have LightData component");
-	return Get<impl::LightData>().intensity;
-}
-
-Light& Light::SetColor(Color color) {
-	Add<impl::Tint>(color);
+Light& Light::Color(ptgn::Color color) {
+	if (auto light{ TryGet<LightConfig>() }) {
+		light->color = color;
+	}
 	return *this;
 }
 
-Color Light::GetColor() const {
-	PTGN_ASSERT(Has<impl::Tint>(), "Light must have Tint component");
-	return Get<impl::Tint>();
-}
-
-Light& Light::SetAmbientIntensity(float ambient_intensity) {
-	PTGN_ASSERT(Has<impl::LightData>(), "Light must have LightData component");
-	Get<impl::LightData>().ambient_intensity = ambient_intensity;
+Light& Light::AmbientIntensity(float ambient_intensity) {
+	if (auto light{ TryGet<LightConfig>() }) {
+		light->ambient_intensity = std::max(ambient_intensity, 0.0f);
+	}
 	return *this;
 }
 
-float Light::GetAmbientIntensity() const {
-	PTGN_ASSERT(Has<impl::LightData>(), "Light must have LightData component");
-	return Get<impl::LightData>().ambient_intensity;
-}
-
-Light& Light::SetAmbientColor(Color ambient_color) {
-	PTGN_ASSERT(Has<impl::LightData>(), "Light must have LightData component");
-	Get<impl::LightData>().ambient_color = ambient_color;
+Light& Light::AmbientColor(ptgn::Color ambient_color) {
+	if (auto light{ TryGet<LightConfig>() }) {
+		light->ambient_color = ambient_color;
+	}
 	return *this;
 }
 
-Color Light::GetAmbientColor() const {
-	PTGN_ASSERT(Has<impl::LightData>(), "Light must have LightData component");
-	return Get<impl::LightData>().ambient_color;
-}
-
-Light& Light::SetRadius(float radius) {
-	PTGN_ASSERT(radius > 0.0f, "Light radius must be above 0");
-	Add<Circle>().radius = radius;
+Light& Light::Radius(float radius) {
+	if (auto light{ TryGet<LightConfig>() }) {
+		light->radius = std::max(radius, 0.0f);
+	}
 	return *this;
 }
 
-float Light::GetRadius() const {
-	PTGN_ASSERT(Has<Circle>(), "Light must have Circle component");
-	return Get<Circle>().radius;
-}
-
-Light& Light::SetFalloff(float falloff) {
-	PTGN_ASSERT(falloff >= 0.0f, "Light falloff must be above or equal to 0");
-	PTGN_ASSERT(Has<impl::LightData>(), "Light must have LightData component");
-	Get<impl::LightData>().falloff = falloff;
+Light& Light::Falloff(float falloff) {
+	if (auto light{ TryGet<LightConfig>() }) {
+		light->falloff = std::max(falloff, 0.0f);
+	}
 	return *this;
 }
 
-float Light::GetFalloff() const {
-	PTGN_ASSERT(Has<impl::LightData>(), "Light must have LightData component");
-	return Get<impl::LightData>().falloff;
-};
-
-Light& Light::SetConeAngle(std::optional<Degrees> cone_angle) {
-	PTGN_ASSERT(Has<impl::LightData>(), "Directional light must have LightData component");
-	auto& light_data{ Get<impl::LightData>() };
-
-	if (!cone_angle.has_value()) {
-		light_data.cone_angle = std::nullopt;
+Light& Light::ConeAngle(std::optional<Degrees> cone_angle) {
+	if (!Has<LightConfig>()) {
 		return *this;
 	}
 
-	light_data.cone_angle = Radians{ Clamp(cone_angle.value()) };
+	auto& light{ Get<LightConfig>() };
 
-	return *this;
-}
-
-std::optional<Degrees> Light::GetConeAngle() const {
-	PTGN_ASSERT(Has<impl::LightData>(), "Light must have LightData component");
-	if (const auto& light_data{ Get<impl::LightData>() }; light_data.cone_angle.has_value()) {
-		return light_data.cone_angle.value().ToDeg();
-	} else {
-		return std::nullopt;
+	if (!cone_angle.has_value()) {
+		light.cone_angle = std::nullopt;
+		return *this;
 	}
-}
 
-Light& Light::SetLightProperties(const LightProperties& properties) {
-	SetRadius(properties.radius);
-	SetColor(properties.color);
-	SetIntensity(properties.intensity);
-	SetFalloff(properties.falloff);
-	SetConeAngle(properties.cone_angle);
-	SetRotation(*this, properties.direction_angle);
+	light.cone_angle = Clamp(cone_angle.value());
+
 	return *this;
 }
 
-LightProperties Light::GetLightProperties() const {
-	LightProperties properties;
-	properties.radius	  = GetRadius();
-	properties.color	  = GetColor();
-	properties.intensity  = GetIntensity();
-	properties.falloff	  = GetFalloff();
-	properties.cone_angle = GetConeAngle();
-	auto rotation{ GetRotation(*this) };
-	properties.direction_angle = rotation;
-	return properties;
+Light& Light::Config(const LightConfig& config) {
+	Add<LightConfig>(config);
+	SetRotation(*this, config.direction_angle);
+	return *this;
 }
 
-Light CreateLight(Scene& scene, Transform transform, const LightProperties& properties) {
-	Light light{ scene.CreateEntity() };
-	PTGN_DEFAULT_NAME(light, "Light");
-	light.Add<impl::LightData>();
-	light.SetLightProperties(properties);
+LightConfig Light::GetConfig() const {
+	PTGN_ASSERT(Has<LightConfig>());
+	return Get<LightConfig>();
+}
 
-	SetTransform(light, transform);
-	SetDraw<Light>(light);
+Light CreateLight(Scene& scene, Transform transform, const LightConfig& config) {
+	Light light{ scene.CreateEntity() };
+
+	PTGN_DEFAULT_NAME(light, "Light");
+
+	light.Config(config);
+
+	light.Add<Transform>(transform);
 	light.Add<Visible>(true);
 
 	// Blend mode with which the lights are added to the scene.
-	SetBlendMode(light, BlendMode::PremultipliedAddRGBA);
+	light.Add<BlendMode>(BlendMode::PremultipliedAddRGBA);
+
+	SetDraw<Light>(light);
 
 	return light;
 }

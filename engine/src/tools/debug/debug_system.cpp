@@ -245,7 +245,7 @@ void DrawDebugLightVisibilityPolygons(
 	}
 
 	for (auto [entity, _light, visibility_polygon] :
-		 scene.EntitiesWith<impl::LightData, impl::VisibilityPolygon>()) {
+		 scene.EntitiesWith<LightConfig, impl::VisibilityPolygon>()) {
 		// Mask test: entity layers vs camera include/exclude.
 		if (filter(entity)) {
 			continue;
