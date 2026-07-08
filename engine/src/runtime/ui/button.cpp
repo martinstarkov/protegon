@@ -1484,8 +1484,6 @@ Entity Button::EnsurePart(impl::ButtonPart part) {
 
 	PTGN_DEFAULT_NAME(entity, name);
 
-	entity.Add<Visible>(true);
-
 	SetParent(entity, *this);
 	SetUI(entity, true);
 
