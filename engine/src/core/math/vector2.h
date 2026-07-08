@@ -210,11 +210,15 @@ struct Vector2 {
 
 	/// @return Unit vector (magnitude = 1) except for zero vectors (magnitude = 0).
 	[[nodiscard]] constexpr Vector2<float> Normalized() const {
-		T m{ MagnitudeSquared() };
-		if (NearlyEqual(m, T{ 0 })) {
+		float m{ static_cast<float>(MagnitudeSquared()) };
+
+		if (NearlyEqual(m, 0.0f)) {
 			return *this;
 		}
-		return *this / std::sqrt(static_cast<float>(m));
+
+		float inv_magnitude{ 1.0f / std::sqrt(m) };
+
+		return { static_cast<float>(x) * inv_magnitude, static_cast<float>(y) * inv_magnitude };
 	}
 
 	/// @return Normalized (unit) direction vector toward a target position.

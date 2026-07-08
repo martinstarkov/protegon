@@ -118,7 +118,7 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	//  texture because texture unloadable."
 	for (auto i{ 0u }; i < max_texture_slots; ++i) {
 		gl_->SetActiveTextureSlot(i);
-		auto _999 = gl_->Bind(TextureId{ 0 }, false);
+		auto _999 = gl_->Bind(impl::TextureId{ 0 }, false);
 	}
 #endif
 }

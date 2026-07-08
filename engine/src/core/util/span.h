@@ -62,13 +62,17 @@ void VectorRemoveDuplicates(std::vector<T>& v) {
 
 template <std::ranges::forward_range TRange, typename TProj = std::identity>
 constexpr bool ContainsDuplicates(TRange&& range, TProj proj = {}) {
-	for (auto [i, item] : range | std::views::enumerate) {
-		auto rest{ range | std::views::drop(i + 1) };
+	auto first{ std::ranges::begin(range) };
+	auto last{ std::ranges::end(range) };
 
-		if (std::ranges::any_of(rest, [&](const auto& other) {
-				return std::invoke(proj, item) == std::invoke(proj, other);
-			})) {
-			return true;
+	for (auto it{ first }; it != last; ++it) {
+		auto other{ it };
+		++other;
+
+		for (; other != last; ++other) {
+			if (std::invoke(proj, *it) == std::invoke(proj, *other)) {
+				return true;
+			}
 		}
 	}
 

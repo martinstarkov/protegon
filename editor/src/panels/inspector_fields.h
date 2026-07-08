@@ -29,6 +29,7 @@
 #include "core/util/time.h"
 #include "core/util/type_info.h"
 #include "panels/content_browser.h"
+#include "platform/platform.h"
 #include "renderer/text/font_style.h"
 
 namespace ptgn::editor::inspector {
@@ -116,8 +117,8 @@ private:
 
 struct FieldOptions {
 	float speed{ 0.1f };
-	double min{ 0.0 };
-	double max{ 0.0 };
+	float min{ 0.0 };
+	float max{ 0.0 };
 	const char* format{ nullptr };
 	ImGuiSliderFlags flags{ ImGuiSliderFlags_None };
 	bool multiline{ false };
@@ -402,11 +403,12 @@ inline bool DrawInt(std::string_view label, int& value, const FieldOptions& opti
 	});
 }
 
-inline bool DrawSize(std::string_view label, std::size_t& value, const FieldOptions& options) {
+inline bool DrawUInt64(std::string_view label, std::uint64_t& value, const FieldOptions& options) {
 	return DrawPropertyRow(label, [&]() {
 		std::uint64_t temporary{ value };
-		std::uint64_t min{ static_cast<std::uint64_t>(std::max(0.0, options.min)) };
-		std::uint64_t max{ static_cast<std::uint64_t>(std::max(0.0, options.max)) };
+		std::uint64_t min{ static_cast<std::uint64_t>(std::max(0.0f, options.min)) };
+		std::uint64_t max{ static_cast<std::uint64_t>(std::max(0.0f, options.max)) };
+
 		bool changed{ ImGui::DragScalar(
 			"##value", ImGuiDataType_U64, &temporary, options.speed,
 			HasBounds(options) ? &min : nullptr, HasBounds(options) ? &max : nullptr,
@@ -414,10 +416,22 @@ inline bool DrawSize(std::string_view label, std::size_t& value, const FieldOpti
 		) };
 
 		if (changed) {
-			value = static_cast<std::size_t>(temporary);
+			value = temporary;
 		}
+
 		return changed;
 	});
+}
+
+inline bool DrawSize(std::string_view label, std::size_t& value, const FieldOptions& options) {
+	std::uint64_t temporary{ static_cast<std::uint64_t>(value) };
+
+	if (!DrawUInt64(label, temporary, options)) {
+		return false;
+	}
+
+	value = static_cast<std::size_t>(temporary);
+	return true;
 }
 
 template <typename Rep, typename Period>
@@ -547,10 +561,12 @@ bool DrawEnumArrayEditor(
 ) {
 	constexpr auto entries{ magic_enum::enum_entries<TEnum>() };
 
+#ifndef PTGN_PLATFORM_MACOS
 	static_assert(
 		magic_enum::enum_count<TEnum>() == N,
 		"Enum-indexed array size must match the number of reflected enum values"
 	);
+#endif
 
 	return DrawArrayEditor(
 		label, values, [&](std::size_t index) { return PrettyName(entries[index].second); }, options
@@ -562,10 +578,12 @@ template <typename TEnum, typename T, std::size_t N>
 bool DrawEnumArrayEditor(std::array<T, N>& values) {
 	constexpr auto entries{ magic_enum::enum_entries<TEnum>() };
 
+#ifndef PTGN_PLATFORM_MACOS
 	static_assert(
 		magic_enum::enum_count<TEnum>() == N,
 		"Enum-indexed array size must match the number of reflected enum values"
 	);
+#endif
 
 	return DrawArrayEditor(values, [&](std::size_t index) {
 		return PrettyName(entries[index].second);
@@ -1301,8 +1319,8 @@ bool DrawOptionalInlineValue(T& value, const FieldOptions& options) {
 		);
 	} else if constexpr (std::same_as<Value, std::size_t>) {
 		std::uint64_t temporary{ value };
-		std::uint64_t min{ static_cast<std::uint64_t>(std::max(0.0, options.min)) };
-		std::uint64_t max{ static_cast<std::uint64_t>(std::max(0.0, options.max)) };
+		std::uint64_t min{ static_cast<std::uint64_t>(std::max(0.0f, options.min)) };
+		std::uint64_t max{ static_cast<std::uint64_t>(std::max(0.0f, options.max)) };
 
 		bool changed{ ImGui::DragScalar(
 			"##value", ImGuiDataType_U64, &temporary, options.speed,
@@ -1505,6 +1523,8 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 		return DrawInt(label, value, options);
 	} else if constexpr (std::same_as<Value, std::int64_t>) {
 		return DrawInt64(label, value, options);
+	} else if constexpr (std::same_as<Value, std::uint64_t>) {
+		return DrawUInt64(label, value, options);
 	} else if constexpr (std::same_as<Value, std::size_t>) {
 		return DrawSize(label, value, options);
 	} else if constexpr (DurationType<Value>) {

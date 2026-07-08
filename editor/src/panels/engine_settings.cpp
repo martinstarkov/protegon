@@ -45,7 +45,7 @@ struct Contents<RenderSettings> {
 			"Gamma", settings.gamma,
 			FieldOptions{
 				.speed	= 0.05f,
-				.min	= 0.01,
+				.min	= 0.01f,
 				.max	= 5.0,
 				.format = "%.2f",
 				.flags	= ImGuiSliderFlags_AlwaysClamp,
@@ -119,7 +119,9 @@ bool DrawResolutionPreset(Editor& editor) {
 
 	auto logical_size{ renderer.GetLogicalSize() };
 
-	auto selected{ std::ranges::find(kResolutionPresets, logical_size, &ResolutionPreset::size) };
+	auto selected{ std::ranges::find_if(kResolutionPresets, [&](const ResolutionPreset& preset) {
+		return preset.size == logical_size;
+	}) };
 
 	auto preview{ selected != kResolutionPresets.end() ? selected->label : "Custom" };
 

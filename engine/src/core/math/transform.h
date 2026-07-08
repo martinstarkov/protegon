@@ -19,6 +19,14 @@ namespace ptgn {
 constexpr float kMinScale{ 0.001f };
 constexpr float kMaxScale{ 10000.0f };
 
+namespace impl {
+
+template <std::ranges::range R>
+using RangeConstReference = std::common_reference_t<
+	const std::ranges::range_value_t<R>&&, std::ranges::range_reference_t<R>>;
+
+} // namespace impl
+
 struct Transform {
 	V2_float position;
 
@@ -146,7 +154,7 @@ struct Transform {
 
 	template <
 		std::ranges::input_range TRange,
-		InvocableR<V2_float, std::ranges::range_const_reference_t<TRange>> TGetPosition,
+		InvocableR<V2_float, impl::RangeConstReference<TRange>> TGetPosition,
 		InvocableR<void, std::ranges::range_reference_t<TRange>, V2_float> TSetPosition>
 	constexpr void ApplyTo(
 		TRange&& elements, TGetPosition&& get_position, TSetPosition&& set_position

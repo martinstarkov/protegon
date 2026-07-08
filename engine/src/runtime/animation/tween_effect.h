@@ -220,13 +220,14 @@ template <EntityType E, typename T, InvocableR<Tween, const E&, const T&> F>
 ) {
 	PTGN_ASSERT(targets.size() == entities.size(), "Target count must match entity count");
 
-	return std::views::zip_transform(
-			   [&](const E& entity, const T& target) {
-				   return std::invoke(create_tween, entity, target);
-			   },
-			   entities, targets
-		   ) |
-		   std::ranges::to<std::vector<Tween>>();
+	std::vector<Tween> tweens;
+	tweens.reserve(entities.size());
+
+	for (std::size_t i{ 0 }; i < entities.size(); ++i) {
+		tweens.emplace_back(std::invoke(create_tween, entities[i], targets[i]));
+	}
+
+	return tweens;
 }
 
 } // namespace impl

@@ -121,7 +121,7 @@ struct Contents<Hollow> {
 			FieldOptions{
 				.speed	= 0.1f,
 				.min	= kMinLineWidth,
-				.max	= 1000.0,
+				.max	= 1000.0f,
 				.format = "%.2f",
 				.flags	= ImGuiSliderFlags_AlwaysClamp,
 			}

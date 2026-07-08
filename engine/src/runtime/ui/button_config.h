@@ -88,11 +88,13 @@ enum class ButtonVisualState : std::uint8_t {
 
 	Toggled,
 	ToggledHover,
-	ToggledPress,
+	ToggledPress, // Must be the last state
 };
 PTGN_SERIALIZE_ENUM(ButtonVisualState);
 
-inline constexpr std::size_t kButtonVisualStateCount{ magic_enum::enum_count<ButtonVisualState>() };
+inline constexpr std::size_t kButtonVisualStateCount{
+	std::to_underlying(ButtonVisualState::ToggledPress)
+};
 
 enum class ButtonAnimationPlayback : std::uint8_t {
 	StaticFrame,

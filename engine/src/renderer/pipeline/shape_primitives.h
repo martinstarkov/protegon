@@ -134,14 +134,14 @@ bool VisitPrimitives(const TShape& shape, const CommonShapeParams& params, F&& f
 	};
 
 	auto visit_container =
-		[&to_span]<typename TPrimitives, typename F>(TPrimitives& primitives, F&& function) {
+		[&to_span]<typename TPrimitives, typename FV>(TPrimitives& primitives, FV&& function) {
 			if constexpr (OptionalType<TPrimitives>) {
 				if (!primitives || primitives->empty()) {
 					return false;
 				}
 
 				auto span{ to_span(*primitives) };
-				std::invoke(std::forward<F>(function), span);
+				std::invoke(std::forward<FV>(function), span);
 				return true;
 			} else {
 				if (primitives.empty()) {
@@ -149,7 +149,7 @@ bool VisitPrimitives(const TShape& shape, const CommonShapeParams& params, F&& f
 				}
 
 				auto span{ to_span(primitives) };
-				std::invoke(std::forward<F>(function), span);
+				std::invoke(std::forward<FV>(function), span);
 				return true;
 			}
 		};

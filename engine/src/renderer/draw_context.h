@@ -139,7 +139,7 @@ public:
 	void WithTemporaryFramebuffer(
 		TextureDesc desc, InvocableR<void, impl::FramebufferObject&> auto&& function
 	) {
-		TemporaryFramebufferScope scope{ *this, desc };
+		TemporaryFramebufferScope scope{ *this, desc, std::nullopt };
 
 		function(scope.Get());
 	}
