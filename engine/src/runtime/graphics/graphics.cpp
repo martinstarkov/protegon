@@ -24,7 +24,10 @@ namespace ptgn {
 namespace impl {
 
 void GraphicsData::AddCommand(Transform transform, const Shape& shape, bool fill) {
-	Command cmd;
+	GraphicsCommand cmd{
+		.transform = transform,
+		.shape	   = shape,
+	};
 
 	if (fill) {
 		cmd.color	   = fill_color_;
@@ -33,9 +36,6 @@ void GraphicsData::AddCommand(Transform transform, const Shape& shape, bool fill
 		cmd.color	   = stroke_color_;
 		cmd.line_width = line_width_;
 	}
-
-	cmd.transform = transform;
-	cmd.shape	  = shape;
 
 	commands_.emplace_back(cmd);
 }
@@ -133,12 +133,14 @@ Graphics& Graphics::StrokePolygon(const Polygon& polygon) {
 
 Graphics CreateGraphics(Scene& scene, Transform transform) {
 	Graphics graphics{ scene.CreateEntity() };
+
 	PTGN_DEFAULT_NAME(graphics, "Graphics");
 
 	graphics.Add<impl::GraphicsData>();
-	SetTransform(graphics, transform);
-	SetDraw<Graphics>(graphics);
+	graphics.Add<Transform>(transform);
 	graphics.Add<Visible>(true);
+
+	SetDraw<Graphics>(graphics);
 
 	return graphics;
 }
