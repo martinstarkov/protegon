@@ -637,6 +637,19 @@ inline bool DrawColor(std::string_view label, Color& value) {
 	});
 }
 
+inline void DrawCenteredTableText(
+	std::string_view text, float cell_height = ImGui::GetFrameHeight()
+) {
+	auto text_size{ ImGui::CalcTextSize(text.data(), text.data() + text.size()) };
+
+	auto offset_x{ std::max(0.0f, (ImGui::GetColumnWidth() - text_size.x) * 0.5f) };
+	auto offset_y{ std::max(0.0f, (cell_height - text_size.y) * 0.5f) };
+
+	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset_x);
+	ImGui::SetCursorPosY(ImGui::GetCursorPosY() + offset_y);
+	ImGui::TextUnformatted(text.data(), text.data() + text.size());
+}
+
 inline bool DrawMatrix4(std::string_view label, Matrix4& value, const FieldOptions& options) {
 	ImGui::PushID(&value);
 
@@ -667,13 +680,24 @@ inline bool DrawMatrix4(std::string_view label, Matrix4& value, const FieldOptio
 		ImGui::TableSetupColumn("Col 1");
 		ImGui::TableSetupColumn("Col 2");
 		ImGui::TableSetupColumn("Col 3");
-		ImGui::TableHeadersRow();
+
+		auto cell_height{ ImGui::GetFrameHeight() };
+
+		ImGui::TableNextRow(ImGuiTableRowFlags_Headers, cell_height);
+
+		ImGui::TableSetColumnIndex(0);
+		DrawCenteredTableText("", cell_height);
+
+		for (auto column{ 0uz }; column < 4uz; ++column) {
+			ImGui::TableSetColumnIndex(static_cast<int>(column + 1uz));
+			DrawCenteredTableText("Col " + std::to_string(column), cell_height);
+		}
 
 		for (auto row{ 0uz }; row < 4uz; ++row) {
-			ImGui::TableNextRow();
+			ImGui::TableNextRow(ImGuiTableRowFlags_None, cell_height);
 
 			ImGui::TableSetColumnIndex(0);
-			ImGui::Text("Row %zu", row);
+			DrawCenteredTableText("Row " + std::to_string(row), cell_height);
 
 			for (auto column{ 0uz }; column < 4uz; ++column) {
 				ImGui::TableSetColumnIndex(static_cast<int>(column + 1uz));
