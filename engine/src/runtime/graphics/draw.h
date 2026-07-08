@@ -10,6 +10,7 @@
 #include "renderer/resources/shader.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -17,6 +18,8 @@ struct EffectMargin {
 	/// @brief Number of pixels on all sides added to the effect render target.
 	/// Only applies to texture effects.
 	int value{ 0 };
+
+	PTGN_SERIALIZE_VALUE(EffectMargin, value)
 };
 
 namespace impl {

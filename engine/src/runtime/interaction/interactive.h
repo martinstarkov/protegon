@@ -21,6 +21,8 @@ struct InteractionLock {
 
 	bool block_hover{ true };
 	bool block_press{ true };
+
+	PTGN_SERIALIZE(InteractionLock, remaining_time, block_hover, block_press)
 };
 
 namespace impl {

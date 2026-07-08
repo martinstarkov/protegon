@@ -60,6 +60,8 @@ struct TextureCrop {
 
 	/// @brief Updates the crop size based on the animation data.
 	void Update(const AnimationData& anim);
+
+	PTGN_SERIALIZE(TextureCrop, position, size)
 };
 
 } // namespace impl
@@ -72,6 +74,7 @@ struct TextureKey {
 	constexpr TextureKey(std::string key) : value{ std::move(key) } {}			// NOSONAR
 
 	std::string value;
+
 	PTGN_SERIALIZE_VALUE(TextureKey, value)
 };
 

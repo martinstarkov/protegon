@@ -73,8 +73,6 @@ struct Collider {
 	[[nodiscard]] CollisionInfo SweptWith(Entity other) const;
 	[[nodiscard]] bool OverlappedWith(Entity other) const;
 
-	PTGN_SERIALIZE(Collider, shape, mode, response, mask_, collides_with_masks_)
-
 	/// @brief Optional function to check for early outs before performing collision checks. Should
 	/// return true if the collision check should be performed, false if it should be skipped.
 	std::function<bool(Entity, Entity)> pre_collision_check;
@@ -83,6 +81,7 @@ struct Collider {
 	/// return true if the overlap check should be performed, false if it should be skipped.
 	std::function<bool(Entity, Entity)> pre_overlap_check;
 
+	PTGN_SERIALIZE(Collider, shape, mode, response, mask_, collides_with_masks_)
 private:
 	friend class CollisionHandler;
 

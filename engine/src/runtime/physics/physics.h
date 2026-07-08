@@ -1,7 +1,6 @@
 #pragma once
 
 #include <optional>
-#include <ostream>
 
 #include "core/math/transform.h"
 #include "core/math/vector2.h"

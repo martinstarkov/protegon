@@ -35,6 +35,8 @@ struct BoundingBox {
 	V2_float position;
 	Rect rect;
 	Origin origin{ Origin::Center };
+
+	PTGN_SERIALIZE(BoundingBox, position, rect, origin)
 };
 
 namespace impl {
@@ -57,6 +59,10 @@ struct CameraData {
 	std::optional<BoundingBox> bounding_box;
 
 	Matrix4 view_projection{ 1.0f };
+
+	PTGN_SERIALIZE(
+		CameraData, raw_viewport, viewport_space, pixel_rounding, bounding_box, view_projection
+	)
 };
 
 /// @brief If an entity has no RenderMask, treat it as having
@@ -64,6 +70,8 @@ struct CameraData {
 struct RenderMask {
 	/// @brief Neutral engine default: entity belongs to default layer.
 	LayerMask layers{ kLayerDefault };
+
+	PTGN_SERIALIZE_VALUE(RenderMask, layers)
 };
 
 /// @brief If a camera has no CameraMask, treat it as having
@@ -71,6 +79,8 @@ struct RenderMask {
 struct CameraMask {
 	LayerMask include{ kLayersAll };
 	LayerMask exclude{ kLayersNone };
+
+	PTGN_SERIALIZE(CameraMask, include, exclude)
 };
 
 } // namespace impl

@@ -15,6 +15,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -23,20 +24,24 @@ class Scene;
 
 namespace impl {
 
-struct GraphicsData {
-	struct Command {
-		Transform transform;
-		Shape shape;
-		Color color;
-		FillStyle line_width;
-	};
+struct GraphicsCommand {
+	Transform transform;
+	Shape shape;
+	Color color;
+	FillStyle line_width;
 
+	PTGN_SERIALIZE(GraphicsCommand, transform, shape, color, line_width)
+};
+
+struct GraphicsData {
 	void AddCommand(Transform transform, const Shape& shape, bool fill);
 
-	std::vector<Command> commands_;
 	Color fill_color_{ color::White };
 	Color stroke_color_{ color::White };
 	FillStyle line_width_;
+	std::vector<GraphicsCommand> commands_;
+
+	PTGN_SERIALIZE(GraphicsData, fill_color_, stroke_color_, line_width_, commands_)
 };
 
 } // namespace impl

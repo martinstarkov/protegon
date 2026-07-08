@@ -35,10 +35,6 @@ struct MouseInfo {
 	bool left_released{ false };
 };
 
-struct DragState {
-	V2_int drag_start_position;
-};
-
 struct InteractedEntities {
 	std::vector<Entity> entities;
 };

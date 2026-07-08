@@ -13,6 +13,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/scripting/script.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -27,14 +28,20 @@ namespace impl {
 
 struct ClearColor {
 	Color color{ color::Transparent };
+
+	PTGN_SERIALIZE_VALUE(ClearColor, color)
 };
 
 struct ClearDepth {
 	Depth depth{ 1.0f };
+
+	PTGN_SERIALIZE_VALUE(ClearDepth, depth)
 };
 
 struct ClearStencil {
 	Stencil stencil{ 0 };
+
+	PTGN_SERIALIZE_VALUE(ClearStencil, stencil)
 };
 
 class RenderTargetResizeScript : public Script {
