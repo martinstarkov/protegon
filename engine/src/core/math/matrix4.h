@@ -16,6 +16,7 @@
 #include "core/math/vector3.h"
 #include "core/math/vector4.h"
 #include "core/util/concepts.h"
+#include "core/util/reflection.h"
 #include "serialization/json/fwd.h"
 
 namespace ptgn {
@@ -30,6 +31,8 @@ public:
 	friend void to_json(json& j, const Matrix4& m);
 
 	friend void from_json(const json& j, Matrix4& m);
+
+	PTGN_REFLECT_VALUE(Matrix4, m_)
 
 	friend std::ostream& operator<<(std::ostream& os, const Matrix4& m) {
 		os << "\n";

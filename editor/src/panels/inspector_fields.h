@@ -7,6 +7,7 @@
 #include <array>
 #include <cctype>
 #include <cfloat>
+#include <chrono>
 #include <cmath>
 #include <concepts>
 #include <cstdint>
@@ -23,6 +24,7 @@
 
 #include "core/graphics/color.h"
 #include "core/math/angle.h"
+#include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "core/util/type_info.h"
@@ -119,6 +121,8 @@ struct FieldOptions {
 	const char* format{ nullptr };
 	ImGuiSliderFlags flags{ ImGuiSliderFlags_None };
 	bool multiline{ false };
+	bool default_open{ true };
+	std::string_view array_item_name{ "Item" };
 };
 
 template <typename T>
@@ -178,6 +182,11 @@ inline constexpr FieldOptions kDefaultFieldOptions<Radians>{
 template <typename Rep, typename Period>
 inline constexpr FieldOptions kDefaultFieldOptions<std::chrono::duration<Rep, Period>>{
 	.speed = std::floating_point<Rep> ? 0.01f : 1.0f,
+};
+
+template <>
+inline constexpr FieldOptions kDefaultFieldOptions<Matrix4>{
+	.default_open = false,
 };
 
 inline std::string PrettyName(std::string_view name) {
@@ -479,12 +488,19 @@ bool DrawArrayEditorItems(std::array<T, N>& values, Label&& get_item_label) {
 }
 
 template <typename T, std::size_t N, typename Label>
-bool DrawArrayEditor(std::string_view label, std::array<T, N>& values, Label&& get_item_label) {
+bool DrawArrayEditor(
+	std::string_view label, std::array<T, N>& values, Label&& get_item_label,
+	FieldOptions options = {}
+) {
 	auto header{ std::string{ label } + " (" + std::to_string(N) + ")" };
 
-	bool open{ ImGui::TreeNodeEx(
-		header.c_str(), ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_DefaultOpen
-	) };
+	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth };
+
+	if (options.default_open) {
+		flags |= ImGuiTreeNodeFlags_DefaultOpen;
+	}
+
+	bool open{ ImGui::TreeNodeEx(header.c_str(), flags) };
 
 	if (!open) {
 		return false;
@@ -498,10 +514,14 @@ bool DrawArrayEditor(std::string_view label, std::array<T, N>& values, Label&& g
 }
 
 template <typename T, std::size_t N>
-bool DrawArrayEditor(std::string_view label, std::array<T, N>& values) {
-	return DrawArrayEditor(label, values, [](std::size_t index) {
-		return "Item " + std::to_string(index + 1);
-	});
+bool DrawArrayEditor(std::string_view label, std::array<T, N>& values, FieldOptions options = {}) {
+	return DrawArrayEditor(
+		label, values,
+		[&](std::size_t index) {
+			return std::string{ options.array_item_name } + " " + std::to_string(index);
+		},
+		options
+	);
 }
 
 template <typename T, std::size_t N, typename Label>
@@ -510,15 +530,21 @@ bool DrawArrayEditor(std::array<T, N>& values, Label&& get_item_label) {
 }
 
 template <typename T, std::size_t N>
-bool DrawArrayEditor(std::array<T, N>& values) {
-	return DrawArrayEditor(values, [](std::size_t index) {
-		return "Item " + std::to_string(index + 1);
-	});
+bool DrawArrayEditor(std::array<T, N>& values, FieldOptions options = {}) {
+	return DrawArrayEditor(
+		values,
+		[&](std::size_t index) {
+			return std::string{ options.array_item_name } + " " + std::to_string(index);
+		},
+		options
+	);
 }
 
 template <typename TEnum, typename T, std::size_t N>
 	requires std::is_enum_v<TEnum>
-bool DrawEnumArrayEditor(std::string_view label, std::array<T, N>& values) {
+bool DrawEnumArrayEditor(
+	std::string_view label, std::array<T, N>& values, FieldOptions options = {}
+) {
 	constexpr auto entries{ magic_enum::enum_entries<TEnum>() };
 
 	static_assert(
@@ -526,9 +552,9 @@ bool DrawEnumArrayEditor(std::string_view label, std::array<T, N>& values) {
 		"Enum-indexed array size must match the number of reflected enum values"
 	);
 
-	return DrawArrayEditor(label, values, [&](std::size_t index) {
-		return PrettyName(entries[index].second);
-	});
+	return DrawArrayEditor(
+		label, values, [&](std::size_t index) { return PrettyName(entries[index].second); }, options
+	);
 }
 
 template <typename TEnum, typename T, std::size_t N>
@@ -609,6 +635,77 @@ inline bool DrawColor(std::string_view label, Color& value) {
 		}
 		return changed;
 	});
+}
+
+inline bool DrawMatrix4(std::string_view label, Matrix4& value, const FieldOptions& options) {
+	ImGui::PushID(&value);
+
+	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth };
+
+	if (options.default_open) {
+		flags |= ImGuiTreeNodeFlags_DefaultOpen;
+	}
+
+	auto title{ std::string{ label } + " (Column Major 4x4)" };
+
+	bool open{ ImGui::TreeNodeEx(title.c_str(), flags) };
+
+	if (!open) {
+		ImGui::PopID();
+		return false;
+	}
+
+	bool changed{ false };
+
+	if (ImGui::BeginTable(
+			"##matrix", 5,
+			ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchSame |
+				ImGuiTableFlags_NoSavedSettings
+		)) {
+		ImGui::TableSetupColumn("");
+		ImGui::TableSetupColumn("Col 0");
+		ImGui::TableSetupColumn("Col 1");
+		ImGui::TableSetupColumn("Col 2");
+		ImGui::TableSetupColumn("Col 3");
+		ImGui::TableHeadersRow();
+
+		for (auto row{ 0uz }; row < 4uz; ++row) {
+			ImGui::TableNextRow();
+
+			ImGui::TableSetColumnIndex(0);
+			ImGui::Text("Row %zu", row);
+
+			for (auto column{ 0uz }; column < 4uz; ++column) {
+				ImGui::TableSetColumnIndex(static_cast<int>(column + 1uz));
+				ImGui::PushID(static_cast<int>(row + column * 4uz));
+
+				ImGui::SetNextItemWidth(-FLT_MIN);
+
+				changed |= ImGui::DragFloat(
+					"##value", &value(row, column), options.speed,
+					HasBounds(options) ? static_cast<float>(options.min) : 0.0f,
+					HasBounds(options) ? static_cast<float>(options.max) : 0.0f,
+					options.format ? options.format : "%.3f", options.flags
+				);
+
+				if (ImGui::IsItemHovered()) {
+					ImGui::SetTooltip(
+						"Index %zu\nm(%zu, %zu)\nColumn-major offset: row + column * 4",
+						row + column * 4uz, row, column
+					);
+				}
+
+				ImGui::PopID();
+			}
+		}
+
+		ImGui::EndTable();
+	}
+
+	ImGui::TreePop();
+	ImGui::PopID();
+
+	return changed;
 }
 
 template <typename T>
@@ -1374,6 +1471,8 @@ template <typename T>
 bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 	using Value = std::remove_cvref_t<T>;
 
+	static_assert(!std::is_empty_v<T>, "Value type cannot be empty struct/class");
+
 	if constexpr (std::same_as<Value, bool>) {
 		return DrawPropertyRow(label, [&]() { return ImGui::Checkbox("##value", &value); });
 	} else if constexpr (std::same_as<Value, float>) {
@@ -1428,7 +1527,7 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 	} else if constexpr (kIsOptional<Value>) {
 		return DrawOptional(label, value, options);
 	} else if constexpr (kIsArray<Value>) {
-		return DrawArrayEditor(label, value);
+		return DrawArrayEditor(label, value, options);
 	} else if constexpr (kIsVector<Value>) {
 		using Element = typename Value::value_type;
 		return DrawVectorEditor(
@@ -1439,6 +1538,8 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 		);
 	} else if constexpr (kIsVariant<Value>) {
 		return DrawVariant(label, value);
+	} else if constexpr (std::same_as<Value, Matrix4>) {
+		return DrawMatrix4(label, value, options);
 	} else if constexpr (ReflectedValue<Value>) {
 		auto member{ ReflectValue(value) };
 		return DrawValue(label, member.value, options);
@@ -1450,8 +1551,6 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 			ImGui::TreePop();
 		}
 		return changed;
-	} else if constexpr (std::is_empty_v<Value>) {
-		return false;
 	} else {
 		static_assert(std::is_same_v<Value, void>, "No inspector drawer exists for this type");
 	}

@@ -18,6 +18,7 @@
 #include "core/math/transform.h"
 #include "panels/inspector_fields.h"
 #include "panels/scene_hierarchy.h"
+#include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
@@ -33,13 +34,20 @@
 #include "runtime/graphics/fx/gaussian_blur.h"
 #include "runtime/graphics/fx/light.h"
 #include "runtime/graphics/fx/particle.h"
+#include "runtime/graphics/graphics.h"
+#include "runtime/graphics/render_target.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
+#include "runtime/interaction/draggable.h"
+#include "runtime/interaction/dropzone.h"
 #include "runtime/interaction/interactive.h"
 #include "runtime/physics/collider.h"
+#include "runtime/physics/lifetime.h"
 #include "runtime/physics/movement.h"
+#include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
 
@@ -52,13 +60,18 @@ struct ComponentTypes {};
 
 // Adding a type here adds both its inspector section and its Add Component menu entry.
 using DefaultInspectorComponents = ComponentTypes<
-	impl::Tint, Color, Visible, Origin, Rect, Circle, FillStyle, impl::Interactive, StyledText,
-	TextBox, Collider, RigidBody, TopDownMovement, impl::ParticleEmitterComponent, TextureKey,
-	LightConfig, impl::ShadowCaster, impl::ButtonData, impl::ButtonAnimationPart,
-	impl::AnimationData, impl::Offsets, impl::IgnoreParentOffset, impl::TweenData,
+	impl::Tint, Color, Visible, Origin, Rect, Circle, FillStyle, BlendMode, impl::Interactive,
+	impl::Draggable, impl::Dropzone, InteractionLock, impl::InteractiveTag, StyledText, TextBox,
+	Collider, RigidBody, BoundaryBehavior, Lifetime, TopDownMovement, PlatformerMovement,
+	PlatformerJump, impl::ParticleEmitterComponent, TextureKey, LightConfig, impl::ShadowCaster,
+	impl::ButtonData, impl::ButtonAnimationPart, impl::AnimationData, impl::Offsets,
+	impl::TweenData, impl::IgnoreParentOffset, impl::IgnoreParentImmovable,
 	impl::IgnoreParentTransform, impl::IgnoreParentPosition, impl::IgnoreParentRotation,
-	impl::IgnoreParentScale, impl::IgnoreParentDepth, impl::EffectTag, impl::HDREffectTag, Bloom,
-	Blur, GaussianBlur>;
+	impl::IgnoreParentScale, impl::IgnoreParentDepth, impl::IgnoreParentVisibility,
+	impl::IgnoreParentTint, impl::EffectTag, impl::HDREffectTag, EffectMargin, Bloom, Blur,
+	GaussianBlur, impl::RenderMask, impl::CameraMask, impl::CameraData, impl::ClearColor,
+	impl::ClearDepth, impl::ClearStencil, impl::UILayer, impl::TextureSize, impl::TextureCrop,
+	impl::GraphicsData>;
 
 template <>
 struct Contents<impl::IDrawable> {
@@ -330,24 +343,28 @@ bool DrawComponentHeader(Entity entity, ComponentOptions options = {}) {
 
 template <typename T>
 void DrawComponent(Entity entity, ComponentOptions options = {}) {
-	if (!entity.Has<T>()) {
+	if constexpr (std::is_empty_v<T>) {
 		return;
+	} else {
+		if (!entity.Has<T>()) {
+			return;
+		}
+
+		bool open{ DrawComponentHeader<T>(entity, options) };
+
+		if (!open) {
+			ImGui::Spacing();
+			return;
+		}
+
+		ImGui::Indent();
+
+		if (DrawComponentContents(entity.Get<T>())) {
+			ComponentChangeHandler<T>::Apply(entity);
+		}
+
+		ImGui::Unindent();
 	}
-
-	bool open{ DrawComponentHeader<T>(entity, options) };
-
-	if (!open) {
-		ImGui::Spacing();
-		return;
-	}
-
-	ImGui::Indent();
-
-	if (DrawComponentContents(entity.Get<T>())) {
-		ComponentChangeHandler<T>::Apply(entity);
-	}
-
-	ImGui::Unindent();
 }
 
 void DrawTransformComponent(Entity entity) {
@@ -410,6 +427,66 @@ void DrawTransformComponent(Entity entity) {
 		)) {
 		transform.ClampScale();
 	}
+
+	ImGui::Unindent();
+}
+
+template <typename T>
+[[nodiscard]] bool HasTagComponent(Entity entity) {
+	if constexpr (std::is_empty_v<T>) {
+		return entity.Has<T>();
+	} else {
+		return false;
+	}
+}
+
+template <typename... T>
+[[nodiscard]] bool HasTagComponents(Entity entity, ComponentTypes<T...>) {
+	return (false || ... || HasTagComponent<T>(entity));
+}
+
+template <typename T>
+void DrawTagComponentItem(Entity entity) {
+	if constexpr (std::is_empty_v<T>) {
+		if (!entity.Has<T>()) {
+			return;
+		}
+
+		ImGui::Spacing();
+
+		ImGui::PushID(&type_id_value<T>);
+
+		auto name{ TypeLabel<T>() };
+
+		ImGui::Selectable(name.c_str(), false);
+
+		if (ImGui::BeginPopupContextItem("TagComponentContextMenu")) {
+			if (ImGui::MenuItem("Remove Component")) {
+				entity.Remove<T>();
+			}
+			ImGui::EndPopup();
+		}
+
+		ImGui::PopID();
+
+		ImGui::Spacing();
+	}
+}
+
+template <typename... T>
+void DrawTagComponents(Entity entity, ComponentTypes<T...> components) {
+	if (!HasTagComponents(entity, components)) {
+		return;
+	}
+
+	if (!ImGui::CollapsingHeader("Tag Components")) {
+		ImGui::Spacing();
+		return;
+	}
+
+	ImGui::Indent();
+
+	(DrawTagComponentItem<T>(entity), ...);
 
 	ImGui::Unindent();
 }
@@ -477,6 +554,7 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 	DrawTransformComponent(selected_entity);
 	DrawComponent<impl::IDrawable>(selected_entity, { .label_override = "Drawable" });
 	DrawComponents(selected_entity, DefaultInspectorComponents{});
+	DrawTagComponents(selected_entity, DefaultInspectorComponents{});
 
 	DrawComponent<ButtonBackgroundVisuals>(
 		selected_entity, ComponentOptions{
