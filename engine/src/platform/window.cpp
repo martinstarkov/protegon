@@ -637,9 +637,12 @@ void Window::SetSize(V2_int new_size, bool centered) {
 
 V2_int Window::GetSize() const {
 	V2_int window_size;
+	V2_float scale{ 1.0f, 1.0f };
+	glfwGetWindowContentScale(instance_.get(), &scale.x, &scale.y);
 	// glfwGetWindowSize(instance_.get(), &window_size.x, &window_size.y);
 	glfwGetFramebufferSize(instance_.get(), &window_size.x, &window_size.y);
-	return window_size;
+	PTGN_ASSERT(scale.IsPositive());
+	return window_size / scale;
 }
 
 void Window::SetBackgroundColor(Color background_color) {
