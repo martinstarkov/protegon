@@ -53,7 +53,6 @@ namespace ptgn {
 namespace {
 
 constexpr int kLightVisibleStencilRef{ 1 };
-constexpr float kLightShadowQueryFactor{ 1.25f };
 constexpr int kCircleShadowSegments{ 24 };
 
 struct ShadowCasterEntry {

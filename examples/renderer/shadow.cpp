@@ -30,7 +30,7 @@ public:
 
 	void OnEnter() override {
 		constexpr LightConfig properties{
-			.radius = 400.0f, .color = color::Cyan, .intensity = 0.5f, .falloff = 2.0f
+			.color = color::Cyan, .radius = 400.0f, .intensity = 0.5f, .falloff = 2.0f
 		};
 		constexpr V2_int light_starting_pos{ 130, 0 };
 
@@ -71,7 +71,7 @@ public:
 	}
 
 	void OnUpdate() override {
-		if (ctx().input.MousePressed(Mouse::Left)) {
+		if (ctx().input.KeyPressed(Key::Space)) {
 			mouse_light++;
 			mouse_light = Mod(mouse_light, 3);
 		}
@@ -86,6 +86,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "ShadowScene: Left click to switch mouse light" };
-	PTGN_WITH_EDITOR(app, false);
+	PTGN_WITH_EDITOR(app, true);
 	app.StartWith<ShadowScene>();
 }

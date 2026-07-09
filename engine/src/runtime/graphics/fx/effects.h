@@ -52,8 +52,8 @@ EffectEntity<T> CreateEffect(Entity effect, TArgs&&... args) {
 
 template <typename T>
 void AddEffect(Entity entity, EffectEntity<T> effect) {
-	effect.Add<Visible>(false);
-	PTGN_ASSERT(effect.Has<impl::EffectTag>());
+	effect.template Add<Visible>(false);
+	PTGN_ASSERT(effect.template Has<impl::EffectTag>());
 	AddChild(entity, effect);
 }
 
@@ -97,7 +97,7 @@ EffectEntity<T> AddScreenEffect(Scene& scene, TArgs&&... args) {
 
 template <typename T>
 EffectEntity<T> AddEffectMargin(EffectEntity<T> effect, int margin) {
-	effect.Add<EffectMargin>(margin);
+	effect.template Add<EffectMargin>(margin);
 	return effect;
 }
 

@@ -21,15 +21,15 @@ struct LightConfig {
 	/// @brief Color of the light.
 	Color color{ color::Red };
 
+	/// @brief Radius of the light. The higher the radius, the further light reaches out from the
+	/// center.
+	float radius{ 100.0f };
+
 	/// @brief Intensity of the light source. Range: [0, 1].
 	float intensity{ 0.5f };
 
 	/// @brief Falloff of the light. The higher the value, the less light reaches the outer radius.
 	float falloff{ 2.0f };
-
-	/// @brief Radius of the light. The higher the radius, the further light reaches out from the
-	/// center.
-	float radius{ 100.0f };
 
 	/// @brief Angle of the light cone. If std::nullopt, the light is a
 	/// point light. Range: [0.0, 360.0]. 0.0 means no light is drawn,
@@ -47,7 +47,7 @@ struct LightConfig {
 	float ambient_intensity{ 0.0f };
 
 	PTGN_SERIALIZE(
-		LightConfig, color, intensity, falloff, radius, cone_angle, direction_angle, ambient_color,
+		LightConfig, color, radius, intensity, falloff, cone_angle, direction_angle, ambient_color,
 		ambient_intensity
 	)
 };
