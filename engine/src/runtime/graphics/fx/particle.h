@@ -9,6 +9,7 @@
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/angle.h"
+#include "core/math/geometry/circle.h"
 #include "core/math/geometry/rect.h"
 #include "core/math/geometry/shape.h"
 #include "core/math/rng.h"
@@ -83,7 +84,7 @@ private:
 
 struct EmissionShapeArc {
 	Degrees arc_angle{ 360.0f };
-	float outer_radius{ 1.0f };
+	float outer_radius{ 12.0f };
 	V2_float direction{ 1.0f, 0.0f };
 	float inner_radius{ 0.0f };
 
@@ -151,7 +152,7 @@ struct ParticleRate {
 	bool prewarm{ false };
 
 	/// @brief The number of particles emitted per second.
-	float rate_over_time{ 10.0f };
+	float rate_over_time{ 100.0f };
 
 	PTGN_SERIALIZE(ParticleRate, duration, loop, prewarm, rate_over_time)
 };
@@ -180,9 +181,9 @@ struct ParticleConfig {
 	/// @brief Time after which a particle despawns. If nullopt defaults to duration.
 	std::optional<ConstantOrRange<milliseconds>> lifetime;
 
-	ConstantOrRange<float> start_speed{ 1.0f };
+	ConstantOrRange<float> start_speed{ 10.0f, 30.0f };
 
-	ConstantOrRange<float> start_size{ 1.0f };
+	ConstantOrRange<float> start_size{ 12.0f, 24.0f };
 
 	/// @brief Starting rotation of an individual particle.
 	std::optional<ConstantOrRange<Degrees>> start_rotation;
@@ -200,7 +201,7 @@ struct ParticleConfig {
 	/// @brief Simulation speed multiplier.
 	float simulation_speed{ 1.0f };
 
-	ParticleType particle_type{ Rect{ V2_float{ 1.0f } } };
+	ParticleType particle_type{ Circle{ 0.5f } };
 
 	FillStyle particle_fill_style{ Solid{} };
 
@@ -208,7 +209,7 @@ struct ParticleConfig {
 
 	std::optional<ConstantOrRange<V2_float>> velocity_over_lifetime;
 
-	std::optional<ConstantOrRange<float>> size_over_lifetime;
+	std::optional<ConstantOrRange<float>> size_over_lifetime{ 40.0f };
 
 	std::optional<ConstantOrRange<Color>> color_over_lifetime;
 
@@ -270,7 +271,7 @@ struct ParticleEmitterComponent {
 
 	void Update(const ParticleEmitter& emitter, secondsf dt);
 
-	PTGN_SERIALIZE(ParticleEmitterComponent, config)
+	PTGN_SERIALIZE(ParticleEmitterComponent, config, playback)
 };
 
 } // namespace impl
@@ -355,7 +356,7 @@ private:
 };
 
 ParticleEmitter CreateParticleEmitter(
-	Scene& scene, Transform transform = {}, const ParticleConfig& config = {}
+	Scene& scene, Transform transform = {}, const ParticleConfig& config = {}, bool start = false
 );
 
 PTGN_REGISTER_DRAWABLE_NAMED(ParticleEmitter, "Particle Emitter");

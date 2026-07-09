@@ -169,13 +169,13 @@ void ParticleEmitterPlayback::Update(
 		}
 	}
 
-	if (state != ParticleEmitterState::Playing) {
+	if (state != ParticleEmitterState::Playing || rate.rate_over_time < 0.0f) {
 		return;
 	}
 
 	spawn_accumulator += rate.rate_over_time * dt.count();
 
-	PTGN_ASSERT(spawn_accumulator >= 0.0f);
+	PTGN_ASSERT(spawn_accumulator >= 0.0f, "Particle spawn accumulator cannot be negative");
 
 	auto to_spawn{ static_cast<std::size_t>(spawn_accumulator) };
 	spawn_accumulator -= static_cast<float>(to_spawn);
@@ -250,7 +250,7 @@ void ParticleEmitterComponent::Start() {
 
 	const auto& rate{ std::get<ParticleRate>(config.rate_or_burst) };
 
-	if (!rate.prewarm) {
+	if (!rate.prewarm || rate.rate_over_time < 0.0f) {
 		return;
 	}
 
@@ -258,7 +258,7 @@ void ParticleEmitterComponent::Start() {
 	// for one full cycle.
 	auto cycle_particles{ rate.rate_over_time * duration_cast<secondsf>(rate.duration).count() };
 
-	PTGN_ASSERT(cycle_particles >= 0.0f);
+	PTGN_ASSERT(cycle_particles >= 0.0f, "Prewarm cycle particle count cannot be negative");
 
 	auto prewarm_count{ static_cast<std::size_t>(cycle_particles) };
 
@@ -519,7 +519,7 @@ void ParticleEmitter::Update(Scene& scene, secondsf dt) {
 }
 
 ParticleEmitter CreateParticleEmitter(
-	Scene& scene, Transform transform, const ParticleConfig& config
+	Scene& scene, Transform transform, const ParticleConfig& config, bool start
 ) {
 	ParticleEmitter particle{ scene.CreateEntity() };
 	PTGN_DEFAULT_NAME(particle, "Particle Emitter");
@@ -529,6 +529,10 @@ ParticleEmitter CreateParticleEmitter(
 	particle.Add<Visible>(true);
 
 	SetDraw<ParticleEmitter>(particle);
+
+	if (start) {
+		particle.Start();
+	}
 
 	return particle;
 }
