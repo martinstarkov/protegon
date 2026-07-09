@@ -7,11 +7,7 @@
 namespace ptgn {
 
 void SetTint(Entity entity, Color color) {
-	if (color != impl::Tint{}) {
-		entity.Add<impl::Tint>(color);
-	} else {
-		entity.Remove<impl::Tint>();
-	}
+	entity.Add<impl::Tint>(color);
 }
 
 Color GetTint(Entity entity) {
