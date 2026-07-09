@@ -980,6 +980,10 @@ void ButtonScript::OnMouseReleasedOut(Mouse mouse) const {
 
 void UpdateButtons(Scene& scene) {
 	for (auto [entity, _data] : scene.EntitiesWith<impl::ButtonData>()) {
+		// TODO: Come up with a better way to sync button origins to their parts. Keep in mind that
+		// it may not be as simple as looping over the button parts because the origin may influence
+		// things like transform, etc.
+		Button{ entity }.MarkDirty(impl::ButtonDirty::All);
 		Button{ entity }.RefreshDirty();
 	}
 }

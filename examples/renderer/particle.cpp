@@ -33,13 +33,8 @@ public:
 
 	Button CreateParticleButton(std::string_view content, const std::function<void()>& on_press) {
 		Button b{ CreateButton(*this) };
-		b.SetBackgroundColor(color::Gold)
-			.SetBackgroundColor(color::Red, ButtonState::Hover)
-			.SetBackgroundColor(color::DarkRed, ButtonState::Press)
-			.SetBorderColor(color::LightGray)
-			.SetBorderWidth(3.0f)
-			.SetText(content, color::Black)
-			.OnPress(on_press);
+		b.OnPress(on_press).Background().Colors(color::Gold, color::Red, color::DarkRed).Button().Border().Color(color::LightGray).Fill(3.0f).Button()
+			.Text().Content(content).Color(color::Black);
 
 		return b;
 	}
@@ -113,7 +108,7 @@ public:
 				b, -ctx().renderer.GetLogicalSize() * 0.5f + coord * size +
 					   (coord + V2_int{ 1, 1 }) * offset
 			);
-			b.SetShape(Rect{ size });
+			b.Size(size);
 			SetDrawOrigin(b, Origin::TopLeft);
 		});
 	}
@@ -121,6 +116,6 @@ public:
 
 int main(int, char**) {
 	Application app{ "ParticleScene" };
-	PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, true);
 	app.StartWith<ParticleScene>();
 }
