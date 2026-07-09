@@ -407,8 +407,9 @@ std::array<UniformWrite, 9> GetUniforms(const LightConfig& light, Color tint) {
 			   { "u_LightRadius", 0.5f },
 			   { "u_Falloff", light.falloff },
 			   { "u_UseCone", light.cone_angle.has_value() ? 1.0f : 0.0f },
-			   { "u_ConeAngle",
-				 light.cone_angle.has_value() ? (light.cone_angle.value() / 2.0f).value : kTwoPi },
+			   { "u_ConeAngle", light.cone_angle.has_value()
+									? (light.cone_angle.value() / 2.0f).ToRad().value
+									: kTwoPi },
 			   { "u_Color", color_n },
 			   { "u_AmbientColor", ambient_color },
 			   { "u_AmbientIntensity", light.ambient_intensity },
@@ -511,7 +512,7 @@ void Light::Draw(DrawContext& ctx, Entity entity) {
 
 	const auto& light{ entity.Get<LightConfig>() };
 
-	if (!light.cone_angle.has_value() || light.cone_angle.value() == Degrees{ 0.0f }) {
+	if (light.cone_angle.has_value() && light.cone_angle.value() == Degrees{ 0.0f }) {
 		return;
 	}
 

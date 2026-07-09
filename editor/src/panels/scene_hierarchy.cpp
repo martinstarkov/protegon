@@ -70,7 +70,7 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			create_menu_item("Animation", [&]() { return CreateAnimation(*selected_scene); });
 
 			create_menu_item("Particle Emitter", [&]() {
-				return CreateParticleEmitter(*selected_scene);
+				return CreateParticleEmitter(*selected_scene, {}, {}, true);
 			});
 
 			create_menu_item("Light", [&]() { return CreateLight(*selected_scene); });
