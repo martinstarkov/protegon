@@ -69,6 +69,8 @@ auto WrapCallable(SceneT* scene, F&& fn) {
 
 template <typename SceneT, typename EcsView>
 struct SceneEntityRange {
+	static constexpr bool with_filter{ false };
+
 	SceneT* scene{};
 	EcsView view;
 
@@ -200,6 +202,8 @@ struct SceneEntityRange {
 
 template <typename SceneT, typename EcsView, typename... TComponents>
 struct SceneEntitiesWithRange {
+	static constexpr bool with_filter{ true };
+
 	SceneT* scene{};
 	EcsView view;
 

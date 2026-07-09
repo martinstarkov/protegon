@@ -445,7 +445,7 @@ void UpdateLightVisibilityPolygons(
 
 		const auto& caster{ entity.Get<impl::ShadowCaster>() };
 
-		if (caster.casts_shadows) {
+		if (!caster.casts_shadows) {
 			continue;
 		}
 

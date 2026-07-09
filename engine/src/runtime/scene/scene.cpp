@@ -119,13 +119,20 @@ void ApplyCameraEffects(
 	);
 }
 
+template <typename T>
 std::vector<impl::EntityRenderCommand> GetSortedEntityCommands(
-	auto entity_view, InvocableR<bool, Entity> auto filter
+	T entity_view, InvocableR<bool, Entity> auto filter
 ) {
 	std::vector<impl::EntityRenderCommand> entity_commands;
 
 	for (auto tuple : entity_view) {
-		auto entity{ std::get<0>(tuple) };
+		Entity entity;
+
+		if constexpr (T::with_filter) {
+			entity = std::get<0>(tuple);
+		} else {
+			entity = tuple;
+		}
 
 		if (filter(entity)) {
 			continue;
@@ -249,12 +256,10 @@ void DrawScene(
 	std::optional<Color> clear_color, Color tint, const impl::EffectParams& effect_params,
 	InvocableR<bool, Entity> auto filter
 ) {
-	auto light_entity_commands{
-		GetSortedEntityCommands(scene.EntitiesWith<LightConfig, impl::VisibilityPolygon>(), filter)
-	};
+	auto entity_commands{ GetSortedEntityCommands(scene.Entities(), filter) };
 
 	impl::UpdateLightVisibilityPolygons(
-		light_entity_commands, cam.GetWorldVertices(scene.ctx().renderer.GetLogicalSize())
+		entity_commands, cam.GetWorldVertices(scene.ctx().renderer.GetLogicalSize())
 	);
 
 	draw_context.SetBlendMode(BlendMode::Blend);
