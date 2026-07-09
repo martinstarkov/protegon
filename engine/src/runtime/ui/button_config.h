@@ -93,7 +93,7 @@ enum class ButtonVisualState : std::uint8_t {
 PTGN_SERIALIZE_ENUM(ButtonVisualState);
 
 inline constexpr std::size_t kButtonVisualStateCount{
-	std::to_underlying(ButtonVisualState::ToggledPress)
+	std::to_underlying(ButtonVisualState::ToggledPress) + 1
 };
 
 enum class ButtonAnimationPlayback : std::uint8_t {

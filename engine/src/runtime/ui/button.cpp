@@ -103,32 +103,20 @@ constexpr ButtonVisualState ToggledVisualState(ButtonState state) {
 	}
 }
 
-ButtonVisualState PressVisualState(Button button) {
-	if (!button.IsEnabled(false)) {
-		return ButtonVisualState::DisabledPress;
-	}
-
-	if (ToggleButton{ button }.IsToggled()) {
-		return ButtonVisualState::ToggledPress;
-	}
-
-	return ButtonVisualState::Press;
-}
-
 constexpr Color GetDefaultBackgroundColor(ButtonVisualState state) {
 	switch (state) {
 		using enum ButtonVisualState;
 
-		case Idle:			return kDefaultIdleButtonBackgroundColor;
-		case Hover:			return kDefaultHoverButtonBackgroundColor;
-		case Press:			return kDefaultPressButtonBackgroundColor;
-
-		case Disabled:		return kDefaultIdleButtonBackgroundColor;
-		case DisabledHover: return kDefaultHoverButtonBackgroundColor;
-		case DisabledPress: return kDefaultPressButtonBackgroundColor;
-
+		case Idle:			[[fallthrough]];
+		case Disabled:		[[fallthrough]];
 		case Toggled:		return kDefaultIdleButtonBackgroundColor;
+
+		case Hover:			[[fallthrough]];
+		case DisabledHover: [[fallthrough]];
 		case ToggledHover:	return kDefaultHoverButtonBackgroundColor;
+
+		case Press:			[[fallthrough]];
+		case DisabledPress: [[fallthrough]];
 		case ToggledPress:	return kDefaultPressButtonBackgroundColor;
 
 		default:			PTGN_ERROR("Unknown ButtonVisualState: ", std::to_underlying(state));
@@ -139,16 +127,16 @@ constexpr Color GetDefaultBorderColor(ButtonVisualState state) {
 	switch (state) {
 		using enum ButtonVisualState;
 
-		case Idle:			return kDefaultIdleButtonBorderColor;
-		case Hover:			return kDefaultHoverButtonBorderColor;
-		case Press:			return kDefaultPressButtonBorderColor;
-
-		case Disabled:		return kDefaultIdleButtonBorderColor;
-		case DisabledHover: return kDefaultHoverButtonBorderColor;
-		case DisabledPress: return kDefaultPressButtonBorderColor;
-
+		case Idle:			[[fallthrough]];
+		case Disabled:		[[fallthrough]];
 		case Toggled:		return kDefaultIdleButtonBorderColor;
+
+		case Hover:			[[fallthrough]];
+		case DisabledHover: [[fallthrough]];
 		case ToggledHover:	return kDefaultHoverButtonBorderColor;
+
+		case Press:			[[fallthrough]];
+		case DisabledPress: [[fallthrough]];
 		case ToggledPress:	return kDefaultPressButtonBorderColor;
 
 		default:			PTGN_ERROR("Unknown ButtonVisualState: ", std::to_underlying(state));
@@ -182,6 +170,18 @@ constexpr impl::ButtonDirty DirtyForPart(impl::ButtonPart part) {
 
 		default:						   PTGN_ERROR("Unsupported button part: ", std::to_underlying(part));
 	}
+}
+
+ButtonVisualState PressVisualState(Button button) {
+	if (!button.IsEnabled(false)) {
+		return ButtonVisualState::DisabledPress;
+	}
+
+	if (ToggleButton{ button }.IsToggled()) {
+		return ButtonVisualState::ToggledPress;
+	}
+
+	return ButtonVisualState::Press;
 }
 
 std::span<const ButtonVisualState> GetVisualStateFallbacks(ButtonVisualState state) {
@@ -345,25 +345,6 @@ const T* ResolveProperty(
 	return nullptr;
 }
 
-void ApplyShapeSize(Entity entity, std::variant<V2_float, float> size) {
-	std::visit(
-		[entity]<typename T>(const T& value) mutable {
-			if constexpr (std::same_as<T, V2_float>) {
-				entity.Remove<Circle>();
-				entity.Add<Rect>(value);
-				SetDraw<RectDraw>(entity);
-			} else if constexpr (std::same_as<T, float>) {
-				entity.Remove<Rect>();
-				entity.Add<Circle>(value);
-				SetDraw<CircleDraw>(entity);
-			} else {
-				static_assert(false, "Incomplete visitor");
-			}
-		},
-		size
-	);
-}
-
 void EnsureDefaultShapeVisual(impl::ButtonPart part, ButtonShapeVisual& visual) {
 	if (visual.defined) {
 		return;
@@ -381,26 +362,25 @@ void EnsureDefaultTextVisual(ButtonTextVisual& visual) {
 
 	visual.defined	   = true;
 	visual.styled_text = StyledText{};
-	visual.styled_text->runs.emplace_back();
+	visual.styled_text.value().runs.emplace_back();
 	visual.anchor	= Origin::Center;
 	visual.origin	= Origin::Center;
 	visual.auto_box = true;
 	visual.padding	= Padding{};
 }
 
-void EnsureStyledTextHasRun(StyledText& styled_text) {
-	if (styled_text.runs.empty()) {
-		styled_text.runs.emplace_back();
-	}
-}
-
-void ResetButtonAnimation(Animation animation) {
-	if (!animation.Has<impl::AnimationData>()) {
+void ResetButtonAnimation(Entity animation_entity) {
+	if (!animation_entity.Has<impl::AnimationData>()) {
 		return;
 	}
 
-	auto animation_part{ animation.TryGet<impl::ButtonAnimationPart>() };
-	auto static_frame{ animation_part ? animation_part->options.static_frame : 0uz };
+	Animation animation{ animation_entity };
+
+	std::size_t static_frame{ 0 };
+
+	if (auto animation_part{ animation.TryGet<impl::ButtonAnimationPart>() }) {
+		static_frame = animation_part->options.static_frame;
+	}
 
 	animation.Reset();
 	animation.SetCurrentFrame(static_frame);
@@ -865,7 +845,7 @@ void ButtonAnimationCompleteScript::OnEvent(Event event) {
 
 		ButtonVisualState animation_state;
 		auto animation{ ResolveProperty(
-			visuals.states, data.visual_lock->state, &ButtonSpriteVisual::animation,
+			visuals.states, data.visual_lock.value().state, &ButtonSpriteVisual::animation,
 			&animation_state
 		) };
 
@@ -1030,16 +1010,14 @@ ButtonState Button::GetState() const {
 	return ButtonState::Idle;
 }
 
-ButtonVisualState Button::GetVisualState() const {
-	const auto& button{ Get<impl::ButtonData>() };
-	auto state{ GetState() };
-
-	if (!button.press_enabled) {
+ButtonVisualState Button::GetVisualState(ButtonState state, bool check_for_visual_lock) const {
+	if (!IsEnabled(false)) {
 		return DisabledVisualState(state);
 	}
 
-	if (button.visual_lock.has_value()) {
-		return button.visual_lock->state;
+	if (const auto& button{ Get<impl::ButtonData>() };
+		check_for_visual_lock && button.visual_lock.has_value()) {
+		return button.visual_lock.value().state;
 	}
 
 	if (ToggleButton{ *this }.IsToggled()) {
@@ -1047,6 +1025,10 @@ ButtonVisualState Button::GetVisualState() const {
 	}
 
 	return NormalVisualState(state);
+}
+
+ButtonVisualState Button::GetVisualState() const {
+	return GetVisualState(GetState(), true);
 }
 
 impl::InternalButtonState Button::GetInternalState() const {
@@ -1097,7 +1079,7 @@ Button& Button::Press() {
 
 	auto& button{ Get<impl::ButtonData>() };
 
-	if (button.visual_lock.has_value() && button.visual_lock->block_press) {
+	if (button.visual_lock.has_value() && button.visual_lock.value().block_press) {
 		return *this;
 	}
 
@@ -1106,8 +1088,8 @@ Button& Button::Press() {
 	ButtonAnimationOptions animation_options;
 	auto has_animation{ false };
 
-	if (sprite.has_value()) {
-		auto& visuals{ sprite->Get<ButtonSpriteVisuals>() };
+	if (sprite) {
+		auto& visuals{ sprite.Get<ButtonSpriteVisuals>() };
 
 		ButtonVisualState animation_state;
 		auto animation{ ResolveProperty(
@@ -1128,8 +1110,8 @@ Button& Button::Press() {
 		if (animation_options.playback == ButtonAnimationPlayback::StaticFrame) {
 			ApplySpriteVisual(press_visual_state);
 
-			if (sprite.has_value() && sprite->Has<impl::AnimationData>()) {
-				ResetButtonAnimation(ptgn::Animation{ sprite.value() });
+			if (sprite && sprite.Has<impl::AnimationData>()) {
+				ResetButtonAnimation(sprite);
 			}
 		} else {
 			button.visual_lock = {
@@ -1140,10 +1122,9 @@ Button& Button::Press() {
 			MarkDirty(impl::ButtonDirty::All);
 			RefreshDirty();
 
-			if (sprite.has_value() && sprite->Has<impl::AnimationData>()) {
-				ptgn::Animation sprite_animation{ sprite.value() };
-				ResetButtonAnimation(sprite_animation);
-				sprite_animation.Start(true);
+			if (sprite && sprite.Has<impl::AnimationData>()) {
+				ResetButtonAnimation(sprite);
+				ptgn::Animation{ sprite }.Start(true);
 			}
 		}
 	}
@@ -1263,18 +1244,18 @@ Button& Button::RemoveSprite(ButtonVisualState state) {
 Button& Button::RemoveAnimations() {
 	auto entity{ FindPart(impl::ButtonPart::Sprite) };
 
-	if (!entity.has_value()) {
+	if (!entity) {
 		return *this;
 	}
 
-	auto& visuals{ entity->Get<ButtonSpriteVisuals>() };
+	auto& visuals{ entity.Get<ButtonSpriteVisuals>() };
 
 	for (auto& visual : visuals.states) {
 		visual.animation.reset();
 		visual.animation_options.reset();
 	}
 
-	entity->Remove<impl::ButtonAnimationPart>();
+	entity.Remove<impl::ButtonAnimationPart>();
 
 	MarkDirty(impl::ButtonDirty::Sprite);
 	RefreshDirty();
@@ -1285,17 +1266,17 @@ Button& Button::RemoveAnimations() {
 Button& Button::RemoveAnimation(ButtonVisualState state) {
 	auto entity{ FindPart(impl::ButtonPart::Sprite) };
 
-	if (!entity.has_value()) {
+	if (!entity) {
 		return *this;
 	}
 
-	auto& visuals{ entity->Get<ButtonSpriteVisuals>() };
+	auto& visuals{ entity.Get<ButtonSpriteVisuals>() };
 	auto& visual{ visuals.states[std::to_underlying(state)] };
 
 	visual.animation.reset();
 	visual.animation_options.reset();
 
-	entity->Remove<impl::ButtonAnimationPart>();
+	entity.Remove<impl::ButtonAnimationPart>();
 
 	MarkDirty(impl::ButtonDirty::Sprite);
 	RefreshDirty();
@@ -1429,8 +1410,8 @@ Button& Button::UnlockVisualState() {
 Entity Button::EnsurePart(impl::ButtonPart part) {
 	auto existing{ FindPart(part) };
 
-	if (existing.has_value()) {
-		return existing.value();
+	if (existing) {
+		return existing;
 	}
 
 	Entity entity;
@@ -1490,9 +1471,9 @@ Entity Button::EnsurePart(impl::ButtonPart part) {
 	return entity;
 }
 
-std::optional<Entity> Button::FindPart(impl::ButtonPart part) const {
+Entity Button::FindPart(impl::ButtonPart part) const {
 	if (!HasChildren(*this)) {
-		return std::nullopt;
+		return {};
 	}
 
 	auto children{ GetChildren(*this) };
@@ -1500,7 +1481,11 @@ std::optional<Entity> Button::FindPart(impl::ButtonPart part) const {
 		return IsButtonPart(entity, part);
 	}) };
 
-	return it != children.end() ? std::optional<Entity>{ *it } : std::nullopt;
+	if (it == children.end()) {
+		return {};
+	}
+
+	return *it;
 }
 
 ButtonShapeVisual& Button::ShapeVisual(impl::ButtonPart part, ButtonVisualState state) {
@@ -1537,13 +1522,13 @@ ButtonSpriteVisual& Button::SpriteVisual(ButtonVisualState state) {
 StyledText Button::GetTextFallback(ButtonVisualState state) const {
 	auto entity{ FindPart(impl::ButtonPart::Text) };
 
-	if (!entity.has_value()) {
+	if (!entity) {
 		StyledText styled_text;
 		styled_text.runs.emplace_back();
 		return styled_text;
 	}
 
-	const auto& visuals{ entity->Get<ButtonTextVisuals>() };
+	const auto& visuals{ entity.Get<ButtonTextVisuals>() };
 
 	if (auto value{ ResolveProperty(visuals.states, state, &ButtonTextVisual::styled_text) }) {
 		return *value;
@@ -1557,19 +1542,20 @@ StyledText Button::GetTextFallback(ButtonVisualState state) const {
 void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 	auto entity{ FindPart(part) };
 
-	if (!entity.has_value()) {
+	if (!entity) {
 		return;
 	}
 
-	const auto& visuals{ GetShapeVisuals(entity.value(), part) };
+	const auto& visuals{ GetShapeVisuals(entity, part) };
 	auto visual_state{ GetVisualState() };
 
 	if (!HasResolvedState(visuals.states, visual_state)) {
-		SetVisible(entity.value(), false);
+		SetVisible(entity, false);
 		return;
 	}
 
-	SetVisible(entity.value(), IsVisible(*this));
+	bool button_visible{ IsVisible(*this) };
+	SetVisible(entity, button_visible);
 
 	auto size{ HasAny<Rect, Circle>() ? GetSize() : std::variant<V2_float, float>{ V2_float{} } };
 	auto origin{ GetDrawOrigin(*this) };
@@ -1590,35 +1576,50 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 		transform = *value;
 	}
 
-	ApplyShapeSize(entity.value(), size);
+	std::visit(
+		[entity]<typename T>(const T& value) mutable {
+			if constexpr (std::same_as<T, V2_float>) {
+				entity.Remove<Circle>();
+				entity.Add<Rect>(value);
+				SetDraw<RectDraw>(entity);
+			} else if constexpr (std::same_as<T, float>) {
+				entity.Remove<Rect>();
+				entity.Add<Circle>(value);
+				SetDraw<CircleDraw>(entity);
+			} else {
+				static_assert(false, "Incomplete visitor");
+			}
+		},
+		size
+	);
 
 	auto button_rect{ GetButtonLocalRect(*this) };
 	transform.position += button_rect.GetOriginPoint(anchor);
 
-	SetTransform(entity.value(), transform);
-	SetDrawOrigin(entity.value(), origin);
+	entity.Add<Transform>(transform);
+	entity.Add<Origin>(origin);
 
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::color) }) {
-		entity->Add<Color>(*value);
+		entity.Add<Color>(*value);
 	}
 	if (auto value{
 			ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::fill_style) }) {
-		entity->Add<FillStyle>(*value);
+		entity.Add<FillStyle>(*value);
 	}
 }
 
 void Button::ApplyTextVisual() const {
 	auto entity{ FindPart(impl::ButtonPart::Text) };
 
-	if (!entity.has_value()) {
+	if (!entity) {
 		return;
 	}
 
-	const auto& visuals{ entity->Get<ButtonTextVisuals>() };
+	const auto& visuals{ entity.Get<ButtonTextVisuals>() };
 	auto visual_state{ GetVisualState() };
 
 	if (!HasResolvedState(visuals.states, visual_state)) {
-		SetVisible(entity.value(), false);
+		SetVisible(entity, false);
 		return;
 	}
 
@@ -1627,11 +1628,12 @@ void Button::ApplyTextVisual() const {
 	};
 
 	if (!styled_text || !styled_text->HasContent()) {
-		SetVisible(entity.value(), false);
+		SetVisible(entity, false);
 		return;
 	}
 
-	SetVisible(entity.value(), IsVisible(*this));
+	bool button_visible{ IsVisible(*this) };
+	SetVisible(entity, button_visible);
 
 	TextBox box;
 	auto anchor{ Origin::Center };
@@ -1679,14 +1681,14 @@ void Button::ApplyTextVisual() const {
 			GetButtonTextAutoBox(GetButtonTextContentRect(*this, padding), anchor_position, origin);
 	}
 
-	ptgn::Text text{ entity.value() };
+	ptgn::Text text{ entity };
 
 	text.Clear();
 	text.Content(*styled_text);
 	text.Box(box);
 
-	SetDrawOrigin(text, origin);
-	SetTransform(text, transform);
+	text.Add<Origin>(origin);
+	text.Add<Transform>(transform);
 }
 
 void Button::ApplySpriteVisual() const {
@@ -1696,24 +1698,25 @@ void Button::ApplySpriteVisual() const {
 void Button::ApplySpriteVisual(ButtonVisualState state) const {
 	auto entity{ FindPart(impl::ButtonPart::Sprite) };
 
-	if (!entity.has_value()) {
+	if (!entity) {
 		return;
 	}
 
-	auto& visuals{ entity->Get<ButtonSpriteVisuals>() };
+	auto& visuals{ entity.Get<ButtonSpriteVisuals>() };
 
 	auto visible{ HasResolvedState(visuals.states, state) };
 
-	SetVisible(entity.value(), IsVisible(*this) && visible);
+	bool button_visible{ IsVisible(*this) };
+	SetVisible(entity, button_visible && visible);
 
-	ptgn::Sprite sprite{ entity.value() };
+	ptgn::Sprite sprite{ entity };
 
 	if (!visible) {
 		if (sprite.Has<impl::AnimationData>()) {
 			ptgn::Animation{ sprite }.Stop();
 		}
 
-		entity->Remove<impl::ButtonAnimationPart>();
+		entity.Remove<impl::ButtonAnimationPart>();
 		return;
 	}
 
@@ -1763,19 +1766,19 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 	}
 
 	if (!texture.empty()) {
-		sprite.SetTexture(texture);
+		sprite.Add<TextureKey>(texture);
 	}
 
-	SetTint(sprite, tint);
-	SetDrawOrigin(sprite, origin);
+	sprite.Add<impl::Tint>(tint);
+	sprite.Add<Origin>(origin);
 
 	transform.position += GetButtonLocalRect(*this).GetOriginPoint(anchor);
-	SetTransform(sprite, transform);
+	sprite.Add<Transform>(transform);
 
 	if (size.has_value()) {
-		SetDisplaySize(sprite, size.value());
+		sprite.Add<impl::TextureSize>(size.value());
 	} else {
-		SetDisplaySize(sprite, std::nullopt);
+		sprite.Remove<impl::TextureSize>();
 	}
 
 	bool has_animation{ animation && animation_state.has_value() };
@@ -1785,7 +1788,7 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 			ptgn::Animation{ sprite }.Stop();
 		}
 
-		entity->Remove<impl::ButtonAnimationPart>();
+		entity.Remove<impl::ButtonAnimationPart>();
 		return;
 	}
 
@@ -1793,7 +1796,7 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 
 	ptgn::Animation{ sprite }.SetConfig(*animation);
 
-	entity->Add<impl::ButtonAnimationPart>(animation_options);
+	entity.Add<impl::ButtonAnimationPart>(animation_options);
 
 	if (animation_options.playback == ButtonAnimationPlayback::StaticFrame) {
 		ptgn::Animation{ sprite }.Reset();
@@ -1810,7 +1813,7 @@ void Button::PlaySound(ButtonVisualState state) {
 
 	auto& audio{ GetScene().ctx().audio };
 
-	auto get_sound = [this, &sounds](auto state) -> std::optional<std::string> {
+	auto get_sound = [&sounds](auto state) -> std::optional<std::string> {
 		for (auto fallback : GetVisualStateFallbacks(state)) {
 			const auto& sound{ sounds.states[std::to_underlying(fallback)] };
 			if (sound.has_value()) {
@@ -1838,47 +1841,35 @@ void Button::PlaySound(ButtonVisualState state) {
 }
 
 void Button::PlayAnimation(ButtonState state) const {
-	auto visual_state = [this, state] {
-		if (!IsEnabled(false)) {
-			return DisabledVisualState(state);
-		}
-
-		if (ToggleButton{ *this }.IsToggled()) {
-			return ToggledVisualState(state);
-		}
-
-		return NormalVisualState(state);
-	}();
+	auto visual_state{ GetVisualState(state, false) };
 
 	ApplySpriteVisual(visual_state);
 
 	auto entity{ FindPart(impl::ButtonPart::Sprite) };
 
-	if (!entity.has_value() || !entity->Has<impl::AnimationData>()) {
+	if (!entity) {
 		return;
 	}
 
-	auto animation_part{ entity->TryGet<impl::ButtonAnimationPart>() };
-
-	if (!animation_part) {
+	if (!entity.Has<impl::AnimationData, impl::ButtonAnimationPart>()) {
 		return;
 	}
 
-	ptgn::Animation animation{ entity.value() };
+	const auto& animation_part{ entity.Get<impl::ButtonAnimationPart>() };
 
-	switch (animation_part->options.playback) {
+	switch (animation_part.options.playback) {
 		using enum ButtonAnimationPlayback;
 
-		case StaticFrame: ResetButtonAnimation(animation); break;
+		case StaticFrame: ResetButtonAnimation(entity); break;
 		case Play:		  [[fallthrough]];
-		case PlayOnce:	  animation.Start(true); break;
+		case PlayOnce:	  ptgn::Animation{ entity }.Start(true); break;
 	}
 }
 
 Button& Button::RemovePart(impl::ButtonPart part, ButtonVisualState state) {
 	auto entity{ FindPart(part) };
 
-	if (!entity.has_value()) {
+	if (!entity) {
 		return *this;
 	}
 
@@ -1891,21 +1882,21 @@ Button& Button::RemovePart(impl::ButtonPart part, ButtonVisualState state) {
 	switch (part) {
 		case impl::ButtonPart::Background:
 		case impl::ButtonPart::Border:	   {
-			auto& visuals{ GetShapeVisuals(entity.value(), part) };
+			auto& visuals{ GetShapeVisuals(entity, part) };
 			visuals.states[std::to_underlying(state)] = {};
 			any_defined								  = has_any_defined(visuals.states);
 			break;
 		}
 
 		case impl::ButtonPart::Text: {
-			auto& visuals{ entity->Get<ButtonTextVisuals>() };
+			auto& visuals{ entity.Get<ButtonTextVisuals>() };
 			visuals.states[std::to_underlying(state)] = {};
 			any_defined								  = has_any_defined(visuals.states);
 			break;
 		}
 
 		case impl::ButtonPart::Sprite: {
-			auto& visuals{ entity->Get<ButtonSpriteVisuals>() };
+			auto& visuals{ entity.Get<ButtonSpriteVisuals>() };
 			visuals.states[std::to_underlying(state)] = {};
 			any_defined								  = has_any_defined(visuals.states);
 
@@ -1917,7 +1908,7 @@ Button& Button::RemovePart(impl::ButtonPart part, ButtonVisualState state) {
 	}
 
 	if (!any_defined) {
-		entity->Destroy();
+		entity.Destroy();
 	} else {
 		MarkDirty(DirtyForPart(part));
 		RefreshDirty();
@@ -1932,7 +1923,7 @@ Button& Button::RemoveParts(impl::ButtonPart part) {
 	}
 
 	if (auto entity{ FindPart(part) }) {
-		entity->Destroy();
+		entity.Destroy();
 	}
 
 	MarkDirty(DirtyForPart(part));
@@ -2157,8 +2148,8 @@ ButtonText& ButtonText::Content(std::string_view content) {
 
 	TextRun run;
 
-	if (visual.styled_text.has_value() && !visual.styled_text->runs.empty()) {
-		run = visual.styled_text->runs.front();
+	if (visual.styled_text.has_value() && !visual.styled_text.value().runs.empty()) {
+		run = visual.styled_text.value().runs.front();
 	} else {
 		auto fallback{ button_.GetTextFallback(state_) };
 
@@ -2171,7 +2162,7 @@ ButtonText& ButtonText::Content(std::string_view content) {
 
 	visual.defined	   = true;
 	visual.styled_text = StyledText{};
-	visual.styled_text->runs.emplace_back(std::move(run));
+	visual.styled_text.value().runs.emplace_back(std::move(run));
 
 	MarkTextDirty();
 
@@ -2395,8 +2386,8 @@ StyledText& ButtonText::StyledTextForEdit(ButtonVisualState state) {
 		visual.styled_text = button_.GetTextFallback(state);
 	}
 
-	if (visual.styled_text->runs.empty()) {
-		visual.styled_text->runs.emplace_back();
+	if (visual.styled_text.value().runs.empty()) {
+		visual.styled_text.value().runs.emplace_back();
 	}
 
 	return visual.styled_text.value();
@@ -2883,11 +2874,8 @@ ButtonSprite& ButtonSprite::Clear() {
 	auto& visual{ button_.SpriteVisual(state_) };
 	visual = {};
 
-	auto entity{ button_.FindPart(impl::ButtonPart::Sprite) };
-
-	if (entity.has_value()) {
-		auto& visuals{ entity->Get<ButtonSpriteVisuals>() };
-		entity->Remove<impl::ButtonAnimationPart>();
+	if (auto entity{ button_.FindPart(impl::ButtonPart::Sprite) }) {
+		entity.Remove<impl::ButtonAnimationPart>();
 	}
 
 	button_.MarkDirty(impl::ButtonDirty::Sprite);
@@ -3018,10 +3006,8 @@ ButtonAnimation& ButtonAnimation::ClearConfig() {
 	visual.animation.reset();
 	visual.animation_options.reset();
 
-	auto entity{ button_.FindPart(impl::ButtonPart::Sprite) };
-
-	if (entity.has_value()) {
-		entity->Remove<impl::ButtonAnimationPart>();
+	if (auto entity{ button_.FindPart(impl::ButtonPart::Sprite) }) {
+		entity.Remove<impl::ButtonAnimationPart>();
 	}
 
 	button_.MarkDirty(impl::ButtonDirty::Sprite);
@@ -3068,9 +3054,9 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 
 	button.Add<Visible>(true);
 	button.Add<impl::ButtonData>();
+	button.Add<Transform>(transform);
+	button.Add<Origin>(resolved_desc.origin);
 
-	SetTransform(button, transform);
-	SetDrawOrigin(button, resolved_desc.origin);
 	SetInteractive(button);
 
 	AddScript<impl::ButtonScript>(button);

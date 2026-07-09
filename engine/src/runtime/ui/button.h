@@ -237,6 +237,8 @@ private:
 		return *this;
 	}
 
+	ButtonVisualState GetVisualState(ButtonState state, bool check_for_visual_lock) const;
+
 	void SetState(impl::InternalButtonState state);
 
 	void RefreshVisualState() const;
@@ -245,7 +247,8 @@ private:
 	Button& UnlockVisualState();
 
 	Entity EnsurePart(impl::ButtonPart part);
-	[[nodiscard]] std::optional<Entity> FindPart(impl::ButtonPart part) const;
+	/// @return May return a null entity if part is not found.
+	[[nodiscard]] Entity FindPart(impl::ButtonPart part) const;
 
 	ButtonShapeVisual& ShapeVisual(impl::ButtonPart part, ButtonVisualState state);
 	ButtonTextVisual& TextVisual(ButtonVisualState state);
