@@ -7,8 +7,6 @@ function(add_protegon_to target)
   set(oneValueArgs ASSETS_DIR SHELL_HTML)
   cmake_parse_arguments(PTGN "${options}" "${oneValueArgs}" "" ${ARGN})
 
-  target_link_libraries(${target} PRIVATE protegon)
-
   if(PTGN_EDITOR)
     if(NOT TARGET protegon_editor)
       message(FATAL_ERROR
@@ -18,6 +16,8 @@ function(add_protegon_to target)
 
     target_link_libraries(${target} PRIVATE protegon_editor)
     target_compile_definitions(${target} PRIVATE PTGN_EDITOR=1)
+  else()
+    target_link_libraries(${target} PRIVATE protegon)
   endif()
 
   if(NOT EMSCRIPTEN)
@@ -50,7 +50,7 @@ function(add_protegon_to target)
     else()
       target_compile_options(${target} PRIVATE -O3)
     endif()
-    
+
     target_compile_definitions(protegon PRIVATE PTGN_ASSET_ROOT="/assets/..")
 
     target_link_options(${target} PRIVATE
