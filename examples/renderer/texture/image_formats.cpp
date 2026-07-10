@@ -109,7 +109,7 @@ class TextureFormatScene : public Scene {
 		);
 
 		for (auto& sprite : sprites) {
-			SetDrawOrigin(sprite, Origin::TopLeft);
+			sprite.Add<Origin>(Origin::TopLeft);
 		}
 	}
 };

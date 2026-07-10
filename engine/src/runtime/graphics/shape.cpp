@@ -56,8 +56,8 @@ namespace impl {
 ShapeDrawParams GetShapeDrawParams(Entity entity) {
 	return { .depth{ GetDepth(entity) },
 			 .fill_style{ entity.GetOrDefault<FillStyle>() },
-			 .origin{ GetDrawOrigin(entity) },
-			 .entity_id{ entity.GetUUID() },
+			 .origin	= entity.GetOrDefault<Origin>(kDefaultOrigin),
+			 .entity_id = entity.GetUUID(),
 			 .effects{ impl::GetEffectParams(entity) } };
 }
 
@@ -123,8 +123,8 @@ Transform OffsetByOrigin(const Shape& shape, Transform transform, Entity entity)
 		return transform;
 	}
 	const auto& rect{ shape.Get<Rect>() };
-	auto draw_origin{ GetDrawOrigin(entity) };
-	return rect.Offset(transform, draw_origin);
+	auto origin{ entity.GetOrDefault<Origin>(kDefaultOrigin) };
+	return rect.Offset(transform, origin);
 }
 
 std::optional<Shape> GetShape(Entity entity) {
@@ -155,7 +155,7 @@ Entity CreateRect(
 ) {
 	auto rect{ CreateShape<RectDraw>(scene, transform, Rect{ size }, color, fill_style) };
 	PTGN_DEFAULT_NAME(rect, "Rect");
-	SetDrawOrigin(rect, origin);
+	rect.Add<Origin>(origin);
 	return rect;
 }
 
@@ -167,7 +167,7 @@ Entity CreateRoundedRect(
 		scene, transform, RoundedRect{ size, radius }, color, fill_style
 	) };
 	PTGN_DEFAULT_NAME(rounded_rect, "Rounded Rect");
-	SetDrawOrigin(rounded_rect, origin);
+	rounded_rect.Add<Origin>(origin);
 	return rounded_rect;
 }
 

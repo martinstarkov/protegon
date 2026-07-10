@@ -65,7 +65,7 @@ struct ShadowCasterEntry {
 
 std::optional<std::vector<V2_float>> GetShadowCasterWorldVertices(Entity entity) {
 	auto transform{ GetDrawTransform(entity) };
-	auto origin{ GetDrawOrigin(entity) };
+	auto origin{ entity.GetOrDefault<Origin>(kDefaultOrigin) };
 
 	if (entity.Has<Rect>()) {
 		auto vertices{ entity.Get<Rect>().GetWorldVertices(transform, origin) };
@@ -402,17 +402,17 @@ std::array<UniformWrite, 9> GetUniforms(const LightConfig& light, Color tint) {
 	V3_float ambient_color{ ambient_light_n.xyz() };
 	constexpr V3_float light_attenuation{ 1.0f, 0.0f, 0.1f };
 
-	return { { { "u_LightIntensity", light.intensity },
-			   { "u_LightRadius", 0.5f },
-			   { "u_Falloff", light.falloff },
-			   { "u_UseCone", light.cone_angle.has_value() ? 1.0f : 0.0f },
-			   { "u_ConeAngle", light.cone_angle.has_value()
+	return { UniformWrite{ "u_LightIntensity", light.intensity },
+			 UniformWrite{ "u_LightRadius", 0.5f },
+			 UniformWrite{ "u_Falloff", light.falloff },
+			 UniformWrite{ "u_UseCone", light.cone_angle.has_value() ? 1.0f : 0.0f },
+			 UniformWrite{ "u_ConeAngle", light.cone_angle.has_value()
 									? (light.cone_angle.value() / 2.0f).ToRad().value
 									: kTwoPi },
-			   { "u_Color", color_n },
-			   { "u_AmbientColor", ambient_color },
-			   { "u_AmbientIntensity", light.ambient_intensity },
-			   { "u_LightAttenuation", light_attenuation } } };
+			 UniformWrite{ "u_Color", color_n },
+			 UniformWrite{ "u_AmbientColor", ambient_color },
+			 UniformWrite{ "u_AmbientIntensity", light.ambient_intensity },
+			 UniformWrite{ "u_LightAttenuation", light_attenuation } };
 }
 
 } // namespace

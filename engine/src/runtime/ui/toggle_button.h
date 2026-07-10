@@ -132,12 +132,12 @@ struct ToggleButtonToggle {
 } // namespace event
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, V2_float size, Origin draw_origin = Origin::Center,
+	Scene& scene, Transform transform, V2_float size, Origin origin = Origin::Center,
 	bool toggled = false
 );
 
 ToggleButton CreateToggleButton(
-	Scene& scene, Transform transform, float radius, Origin draw_origin = Origin::Center,
+	Scene& scene, Transform transform, float radius, Origin origin = Origin::Center,
 	bool toggled = false
 );
 

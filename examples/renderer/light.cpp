@@ -34,7 +34,7 @@ public:
 		ctx().asset.Load("tree", "assets/jpg.jpg");
 
 		auto sprite = CreateSprite(*this, { -200, -200 }, "tree");
-		SetDrawOrigin(sprite, Origin::TopLeft);
+		sprite.Add<Origin>(Origin::TopLeft);
 
 		CreateRect(*this, { 0, 0 }, { 100, 100 }, color::Blue, Solid{}, Origin::TopLeft);
 
@@ -76,7 +76,7 @@ public:
 		);
 
 		auto sprite2 = CreateSprite(*this, { -200, 150 }, "tree");
-		SetDrawOrigin(sprite2, Origin::TopLeft);
+		sprite2.Add<Origin>(Origin::TopLeft);
 
 		CreateRect(*this, { 200, 200 }, { 100, 100 }, color::Red, Solid{}, Origin::TopLeft);
 	}

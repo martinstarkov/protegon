@@ -21,6 +21,8 @@ enum class Origin {
 };
 PTGN_SERIALIZE_ENUM(Origin);
 
+inline constexpr Origin kDefaultOrigin{ Origin::Center };
+
 /// @return Vector to be added to a position to get the object center given an origin and size.
 constexpr V2_float GetOffset(Origin origin, V2_float size) {
 	auto half{ size * 0.5f };

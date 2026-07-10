@@ -54,25 +54,28 @@ void SetInteractiveShape(
 }
 
 void AddInteractiveRect(
-	Entity interactive_entity, Transform transform, V2_float size, Origin draw_origin,
+	Entity interactive_entity, Transform transform, V2_float size, Origin origin,
 	std::optional<std::string_view> shape_id, bool ignore_parent_transform
 ) {
 	auto& scene{ interactive_entity.GetScene() };
 	auto shape = scene.CreateEntity();
+
 	PTGN_DEFAULT_NAME(shape, "Interactive Rect");
+
 	shape.Add<Rect>(size);
-	SetTransform(shape, transform);
-	SetDrawOrigin(shape, draw_origin);
+	shape.Add<Transform>(transform);
+	shape.Add<Origin>(origin);
+
 	AddInteractiveShape(interactive_entity, shape, shape_id, ignore_parent_transform);
 }
 
 void SetInteractiveRect(
-	Entity interactive_entity, Transform transform, V2_float size, Origin draw_origin,
+	Entity interactive_entity, Transform transform, V2_float size, Origin origin,
 	std::optional<std::string_view> shape_id, bool ignore_parent_transform
 ) {
 	ClearInteractiveShapes(interactive_entity);
 	AddInteractiveRect(
-		interactive_entity, transform, size, draw_origin, shape_id, ignore_parent_transform
+		interactive_entity, transform, size, origin, shape_id, ignore_parent_transform
 	);
 }
 

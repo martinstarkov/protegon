@@ -118,7 +118,7 @@ SDFRoundData GetSDFRoundData(float radius, V2_float size, FillStyle fill_style) 
 } // namespace
 
 RenderQuadArray<ColorVertex> GetSolidPrimitives(const Rect& rect, const CommonShapeParams& params) {
-	auto vertices{ rect.GetWorldVertices(params.transform, params.draw_origin) };
+	auto vertices{ rect.GetWorldVertices(params.transform, params.origin) };
 	return CreateColorQuadPrimitive(vertices, params);
 }
 
@@ -137,7 +137,7 @@ std::optional<RenderQuadArray<ShapeVertex>> GetSolidPrimitives(
 		return std::nullopt;
 	}
 
-	auto vertices{ rounded_rect.rect.GetWorldVertices(params.transform, params.draw_origin) };
+	auto vertices{ rounded_rect.rect.GetWorldVertices(params.transform, params.origin) };
 	auto sdf{ GetSDFRoundData(radius, size, params.fill_style) };
 
 	std::array<float, 4> data{ sdf.thickness * sdf.aspect_ratio, sdf.fade,
@@ -331,7 +331,7 @@ std::vector<ColorQuad> GetHollowPrimitives(const Rect& rect, const CommonShapePa
 	CommonShapeParams stroke_params{ params };
 	stroke_params.transform = Transform{};
 
-	auto points{ rect.GetWorldVertices(params.transform, params.draw_origin) };
+	auto points{ rect.GetWorldVertices(params.transform, params.origin) };
 	return GetHollowPrimitives(points, true, stroke_params);
 }
 

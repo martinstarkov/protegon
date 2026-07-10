@@ -233,7 +233,7 @@ Rect GetButtonLocalRect(Button button) {
 				 },
 				 button.GetSize()
 			 ),
-			 GetDrawOrigin(button) };
+			 button.GetOrDefault<Origin>(kDefaultOrigin) };
 }
 
 Rect GetButtonTextContentRect(Button button, Padding padding) {
@@ -1562,8 +1562,8 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 	SetVisible(entity, button_visible);
 
 	auto size{ HasAny<Rect, Circle>() ? GetSize() : std::variant<V2_float, float>{ V2_float{} } };
-	auto origin{ GetDrawOrigin(*this) };
-	auto anchor{ GetDrawOrigin(*this) };
+	auto origin{ GetOrDefault<Origin>(kDefaultOrigin) };
+	auto anchor{ GetOrDefault<Origin>(kDefaultOrigin) };
 	Transform transform;
 
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::size) }) {
@@ -1725,8 +1725,8 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 	}
 
 	std::string texture;
-	auto origin{ GetDrawOrigin(*this) };
-	auto anchor{ GetDrawOrigin(*this) };
+	auto origin{ GetOrDefault<Origin>(kDefaultOrigin) };
+	auto anchor{ GetOrDefault<Origin>(kDefaultOrigin) };
 	Transform transform;
 	std::optional<V2_float> size;
 	Color tint{ color::White };

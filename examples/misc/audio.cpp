@@ -279,7 +279,7 @@ public:
 				SetPosition(
 					b, -ctx().renderer.GetLogicalSize() * 0.5f + coord * (size + offset) + offset
 				);
-				SetDrawOrigin(b, Origin::TopLeft);
+				b.Add<Origin>(Origin::TopLeft);
 				b.SetShape(Rect{ size });
 			}
 		});

@@ -34,9 +34,9 @@ struct BlendModeScene : public Scene {
 		);
 
 		auto s1 = CreateSprite(*this, -ws * 0.5f + V2_float{ 100, 100 }, "semitransparent");
-		SetDrawOrigin(s1, Origin::TopLeft);
+		s1.Add<Origin>(Origin::TopLeft);
 		auto s2 = CreateSprite(*this, -ws * 0.5f + V2_float{ 200, 200 }, "opaque");
-		SetDrawOrigin(s2, Origin::TopLeft);
+		s2.Add<Origin>(Origin::TopLeft);
 	}
 };
 

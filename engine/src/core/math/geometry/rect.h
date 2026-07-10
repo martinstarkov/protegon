@@ -92,10 +92,10 @@ public:
 		return center + transform.position;
 	}
 
-	/// @return New transform offset by the draw_origin.
-	[[nodiscard]] constexpr Transform Offset(Transform transform, Origin draw_origin) const {
+	/// @return New transform offset by the origin.
+	[[nodiscard]] constexpr Transform Offset(Transform transform, Origin origin) const {
 		auto size{ GetSize(transform) };
-		auto offset{ GetOffset(draw_origin, size) };
+		auto offset{ GetOffset(origin, size) };
 
 		if (offset.IsZero()) {
 			return transform;
@@ -118,9 +118,9 @@ public:
 	}
 
 	constexpr std::array<V2_float, 4> GetWorldVertices(
-		Transform transform, Origin draw_origin
+		Transform transform, Origin origin
 	) const {
-		auto offset_transform{ Offset(transform, draw_origin) };
+		auto offset_transform{ Offset(transform, origin) };
 		return GetWorldVertices(offset_transform);
 	}
 

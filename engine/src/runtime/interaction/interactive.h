@@ -69,13 +69,13 @@ void SetInteractiveShape(
 
 void AddInteractiveRect(
 	Entity interactive_entity, Transform transform, V2_float size,
-	Origin draw_origin = Origin::Center, std::optional<std::string_view> shape_id = {},
+	Origin origin = Origin::Center, std::optional<std::string_view> shape_id = {},
 	bool ignore_parent_transform = false
 );
 
 void SetInteractiveRect(
 	Entity interactive_entity, Transform transform, V2_float size,
-	Origin draw_origin = Origin::Center, std::optional<std::string_view> shape_id = {},
+	Origin origin = Origin::Center, std::optional<std::string_view> shape_id = {},
 	bool ignore_parent_transform = false
 );
 

@@ -59,7 +59,7 @@ class TopDownMovementScene : public Scene {
 	Entity CreateWall(const V2_float& position, const V2_float& size, Origin origin) {
 		Entity entity = CreateRect(*this, position, size, color::Purple, Solid{}, origin);
 		auto& box	  = entity.Add<Collider>(Rect{ size });
-		SetDrawOrigin(entity, origin);
+		entity.Add<Origin>(origin);
 		box.SetMask(ground_mask);
 		return entity;
 	}

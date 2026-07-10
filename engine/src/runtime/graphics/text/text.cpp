@@ -137,7 +137,7 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 
 	auto transform{ GetDrawTransform(entity) };
 
-	auto origin{ GetDrawOrigin(entity) };
+	auto origin{ entity.GetOrDefault<Origin>(kDefaultOrigin) };
 
 	auto prepared{ impl::PrepareTextDraw(transform, layout, box, origin, explicit_clip) };
 
@@ -328,7 +328,7 @@ Rect Text::GetBounds() const {
 	auto bounds{ layout.GetBounds() };
 
 	if (const auto& box{ GetTextBox() }; box.HasBox()) {
-		auto origin{ GetDrawOrigin(*this) };
+		auto origin{ GetOrDefault<Origin>(kDefaultOrigin) };
 		auto origin_point{ box.rect.GetOriginPoint(origin) };
 		// TODO: Check if this is correct.
 		return bounds.Translated(-origin_point);
@@ -665,17 +665,15 @@ Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origi
 	text.Add<StyledText>();
 	text.Add<TextBox>();
 	text.Add<TextLayout>();
+	text.Add<Transform>(transform);
+	text.Add<Origin>(origin);
+	text.Add<Visible>(true);
 
 	PTGN_DEFAULT_NAME(text, "Text");
 
 	text.Content(std::move(styled_text));
 
-	SetTransform(text, transform);
-
-	SetDrawOrigin(text, origin);
-
 	SetDraw<Text>(text);
-	text.Add<Visible>(true);
 
 	return text;
 }

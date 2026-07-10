@@ -174,7 +174,7 @@ struct DropdownItemPress {
 
 /// @param start_open If true, dropdown starts in an open state.
 Dropdown CreateDropdown(
-	Scene& scene, Transform transform, V2_float size, Origin draw_origin = Origin::Center,
+	Scene& scene, Transform transform, V2_float size, Origin origin = Origin::Center,
 	bool start_open = false
 );
 

@@ -43,7 +43,7 @@ using RenderTriangleArray = std::array<RenderTriangle<TVertex>, 1>;
 struct CommonShapeParams {
 	Transform transform;
 	FillStyle fill_style{ 1.0f };
-	Origin draw_origin{ Origin::Center };
+	Origin origin{ Origin::Center };
 	V4_float color{ color::White.Normalized() };
 	Depth depth;
 	int entity_id{ -1 };

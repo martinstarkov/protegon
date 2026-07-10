@@ -109,7 +109,7 @@ public:
 					   (coord + V2_int{ 1, 1 }) * offset
 			);
 			b.Size(size);
-			SetDrawOrigin(b, Origin::TopLeft);
+			b.Add<Origin>(Origin::TopLeft);
 		});
 	}
 };

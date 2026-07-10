@@ -221,7 +221,7 @@ public:
 		auto obstacle = scene->CreateEntity();
 		SetPosition(obstacle, pos);
 		obstacle.Add<Collider>(Rect{ size });
-		SetDrawOrigin(obstacle, origin);
+		obstacle.Add<Origin>(origin);
 	}
 
 	void OnUpdate() override {

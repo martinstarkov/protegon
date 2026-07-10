@@ -816,13 +816,13 @@ void DialogueBox::StartCurrentPageScroll() {
 }
 
 void DialogueBox::PositionTextForPage(const DialoguePageProperties& properties) {
-	Rect outer_rect{ GetLocalRect(GetDrawOrigin(*this), properties.box_size) };
+	Rect outer_rect{ GetLocalRect(GetOrDefault<Origin>(kDefaultOrigin), properties.box_size) };
 	Rect content_rect{ ApplyPadding(outer_rect, properties.padding) };
 
 	Text text{ TextPart() };
 
 	SetPosition(text, content_rect.min);
-	SetDrawOrigin(text, Origin::TopLeft);
+	text.Add<Origin>(Origin::TopLeft);
 
 	text.Box(Rect{ {}, content_rect.GetSize() });
 }
@@ -832,9 +832,8 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 	PTGN_DEFAULT_NAME(dialogue, "Dialogue Box");
 
 	dialogue.Add<DialogueData>();
-
-	SetTransform(dialogue, transform);
-	SetDrawOrigin(dialogue, desc.origin);
+	dialogue.Add<Transform>(transform);
+	dialogue.Add<Origin>(desc.origin);
 
 	if (desc.ui_layer) {
 		SetUI(dialogue, true);
@@ -866,7 +865,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 		background.Add<impl::DialoguePart>(DialoguePartRole::Background);
 		background.Add<Color>(desc.background_color);
 		SetDraw<RectDraw>(background);
-		SetDrawOrigin(background, Origin::Center);
+		background.Add<Origin>(Origin::Center);
 		SetPosition(background, GetOffset(desc.origin, desc.box_size));
 		SetParent(background, dialogue);
 		Hide(background);

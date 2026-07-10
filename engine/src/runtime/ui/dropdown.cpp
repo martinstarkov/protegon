@@ -25,16 +25,6 @@
 
 namespace ptgn {
 
-namespace {
-
-[[nodiscard]] V2_float GetShapeSize(Entity entity, const std::variant<Rect, Circle>& shape) {
-	auto transform{ GetWorldTransform(entity) };
-
-	return std::visit([&](const auto& value) { return value.GetSize(transform); }, shape);
-}
-
-} // namespace
-
 namespace impl {
 
 void DropdownScript::OnEvent(Event event) {
@@ -143,7 +133,7 @@ Dropdown& Dropdown::Size(float radius) {
 }
 
 Dropdown& Dropdown::Origin(ptgn::Origin origin) {
-	SetDrawOrigin(*this, origin);
+	Entity::Add<ptgn::Origin>(origin);
 
 	RecalculateButtonPositions();
 	RecalculateParentDropdown(*this);
@@ -231,7 +221,7 @@ void Dropdown::RecalculateButtonPositions() {
 		return parent_shape;
 	};
 
-	V2_float parent_center{ GetOffset(GetDrawOrigin(*this), scaled_parent_size) };
+	V2_float parent_center{ GetOffset(GetOrDefault<ptgn::Origin>(kDefaultOrigin), scaled_parent_size) };
 	V2_float parent_edge{ parent_center - GetOffset(info.origin, scaled_parent_size) };
 
 	PTGN_ASSERT(buttons.size() >= 1);
@@ -252,7 +242,7 @@ void Dropdown::RecalculateButtonPositions() {
 		}
 		SetPosition(button, offset);
 		std::visit([&](const auto& s) { button.Size(s); }, shape_size);
-		SetDrawOrigin(button, Origin::Center);
+		button.Add<ptgn::Origin>(ptgn::Origin::Center);
 		// Offset is added separately while moving through dropdown buttons.
 		offset -= GetOffset(info.direction, scaled_size);
 	}
@@ -291,7 +281,7 @@ Button Dropdown::AddItem(std::string_view text) {
 
 	return std::visit(
 		[&](const auto& s) {
-			Button button{ CreateButton(GetScene(), {}, s, Origin::Center) };
+			Button button{ CreateButton(GetScene(), {}, s, ptgn::Origin::Center) };
 			PTGN_DEFAULT_NAME(button, "Dropdown Item");
 			button.Text().Content(text);
 
@@ -337,7 +327,7 @@ Dropdown& Dropdown::SetButtonOffset(V2_float button_offset) {
 Dropdown& Dropdown::SetDropdownDirection(ptgn::Origin dropdown_direction) {
 	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set dropdown direction of invalid dropdown");
 	PTGN_ASSERT(
-		dropdown_direction != Origin::Center, "Cannot set dropdown direction to Origin::Center"
+		dropdown_direction != ptgn::Origin::Center, "Cannot set dropdown direction to Origin::Center"
 	);
 
 	auto& info{ Get<impl::DropdownData>() };
@@ -355,7 +345,7 @@ Dropdown& Dropdown::SetDropdownDirection(ptgn::Origin dropdown_direction) {
 
 Dropdown& Dropdown::SetDropdownOrigin(ptgn::Origin dropdown_origin) {
 	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set dropdown origin of invalid dropdown");
-	PTGN_ASSERT(dropdown_origin != Origin::Center, "Cannot set dropdown origin to Origin::Center");
+	PTGN_ASSERT(dropdown_origin != ptgn::Origin::Center, "Cannot set dropdown origin to Origin::Center");
 
 	auto& info{ Get<impl::DropdownData>() };
 
@@ -426,9 +416,9 @@ Dropdown& Dropdown::Close(bool close_parents) {
 }
 
 Dropdown CreateDropdown(
-	Scene& scene, Transform transform, V2_float size, Origin draw_origin, bool start_open
+	Scene& scene, Transform transform, V2_float size, Origin origin, bool start_open
 ) {
-	Button button{ CreateButton(scene, transform, size, draw_origin) };
+	Button button{ CreateButton(scene, transform, size, origin) };
 	PTGN_DEFAULT_NAME(button, "Dropdown Button");
 
 	Dropdown dropdown{ button };

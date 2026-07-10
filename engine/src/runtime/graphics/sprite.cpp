@@ -56,11 +56,11 @@ TextureDrawParams GetTextureDrawParams(
 ) {
 	return { .depth{ GetDepth(entity) },
 			 .size{ size },
-			 .origin{ entity.GetOrDefault<Origin>(Origin::Center) },
+			 .origin = entity.GetOrDefault<Origin>(kDefaultOrigin),
 			 .tint{ Color::Multiply(entity.GetOrDefault<Tint>(), additional_tint) },
 			 .texture_coordinates{ GetTextureCoordinates(entity, flip_y) },
 			 .effects{ impl::GetEffectParams(entity) },
-			 .entity_id{ entity.GetUUID() } };
+			 .entity_id = entity.GetUUID() };
 }
 
 } // namespace impl
@@ -120,13 +120,13 @@ Sprite CreateSprite(
 	Sprite sprite{ scene.CreateEntity() };
 
 	PTGN_DEFAULT_NAME(sprite, "Sprite");
-	SetDraw<Sprite>(sprite);
+
 	sprite.Add<Visible>(true);
+	sprite.Add<TextureKey>(texture_key);
+	sprite.Add<Transform>(transform);
+	sprite.Add<Origin>(origin);
 
-	sprite.SetTexture(texture_key);
-
-	SetTransform(sprite, transform);
-	SetDrawOrigin(sprite, origin);
+	SetDraw<Sprite>(sprite);
 
 	return sprite;
 }
