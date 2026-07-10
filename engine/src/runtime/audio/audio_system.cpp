@@ -1,7 +1,11 @@
 #include "runtime/audio/audio_system.h"
 
 #include <ecs/ecs.h>
+
+#pragma GCC diagnostic push /* also works on clang */
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include <miniaudio.h>
+#pragma GCC diagnostic pop
 
 #include <algorithm>
 #include <memory>

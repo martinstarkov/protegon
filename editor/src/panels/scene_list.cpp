@@ -75,7 +75,7 @@ void DrawJsonEditor(const char* label, json& value) {
 		}
 	} else if (value.is_array()) {
 		if (ImGui::TreeNode(label)) {
-			for (int i{ 0 }; i < static_cast<int>(value.size()); ++i) {
+			for (auto i{ 0uz }; i < value.size(); ++i) {
 				std::string item{ "[" + std::to_string(i) + "]" };
 				DrawJsonEditor(item.c_str(), value[i]);
 			}

@@ -206,8 +206,10 @@ struct Vector4 {
 
 	/// @return True if all components are in range [0.0, 1.0].
 	constexpr bool IsNormalized() const {
-		return x >= 0.0f && x <= 1.0f && y >= 0.0f && y <= 1.0f && z >= 0.0f && z <= 1.0f &&
-			   w >= 0.0f && w <= 1.0f;
+		return static_cast<float>(x) >= 0.0f && static_cast<float>(x) <= 1.0f &&
+			   static_cast<float>(y) >= 0.0f && static_cast<float>(y) <= 1.0f &&
+			   static_cast<float>(z) >= 0.0f && static_cast<float>(z) <= 1.0f &&
+			   static_cast<float>(w) >= 0.0f && static_cast<float>(w) <= 1.0f;
 	}
 
 	/// @return True if all components are zero (or very close to zero within a small epsilon).
@@ -251,49 +253,93 @@ std::ostream& operator<<(std::ostream& os, Vector4<V> v) { // NOSONAR
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 constexpr Vector4<S> operator+(Vector4<V> lhs, Vector4<U> rhs) { // NOSONAR
-	return { lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w };
+	return {
+		lhs.x + rhs.x,
+		lhs.y + rhs.y,
+		lhs.z + rhs.z,
+		lhs.w + rhs.w,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 constexpr Vector4<S> operator-(Vector4<V> lhs, Vector4<U> rhs) { // NOSONAR
-	return { lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w };
+	return {
+		lhs.x - rhs.x,
+		lhs.y - rhs.y,
+		lhs.z - rhs.z,
+		lhs.w - rhs.w,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 constexpr Vector4<S> operator*(Vector4<V> lhs, Vector4<U> rhs) { // NOSONAR
-	return { lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w };
+	return {
+		lhs.x * rhs.x,
+		lhs.y * rhs.y,
+		lhs.z * rhs.z,
+		lhs.w * rhs.w,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 constexpr Vector4<S> operator/(Vector4<V> lhs, Vector4<U> rhs) { // NOSONAR
-	return { lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w };
+	return {
+		lhs.x / rhs.x,
+		lhs.y / rhs.y,
+		lhs.z / rhs.z,
+		lhs.w / rhs.w,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 constexpr Vector4<S> operator*(V lhs, Vector4<U> rhs) { // NOSONAR
-	return { lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w };
+	return {
+		lhs * rhs.x,
+		lhs * rhs.y,
+		lhs * rhs.z,
+		lhs * rhs.w,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 constexpr Vector4<S> operator*(Vector4<V> lhs, U rhs) { // NOSONAR
-	return { lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs };
+	return {
+		lhs.x * rhs,
+		lhs.y * rhs,
+		lhs.z * rhs,
+		lhs.w * rhs,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 constexpr Vector4<S> operator/(V lhs, Vector4<U> rhs) { // NOSONAR
-	return { lhs / rhs.x, lhs / rhs.y, lhs / rhs.z, lhs / rhs.w };
+	return {
+		lhs / rhs.x,
+		lhs / rhs.y,
+		lhs / rhs.z,
+		lhs / rhs.w,
+	};
 }
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 constexpr Vector4<S> operator/(Vector4<V> lhs, U rhs) { // NOSONAR
-	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs };
+	return {
+		static_cast<S>(lhs.x) / rhs,
+		static_cast<S>(lhs.y) / rhs,
+		static_cast<S>(lhs.z) / rhs,
+		static_cast<S>(lhs.w) / rhs,
+	};
 }
 
 /// @brief Clamp all components of the vector between min and max (component specific).
 template <Arithmetic T>
 [[nodiscard]] constexpr Vector4<T> Clamp(Vector4<T> vector, Vector4<T> min, Vector4<T> max) {
-	return { std::clamp(vector.x, min.x, max.x), std::clamp(vector.y, min.y, max.y),
-			 std::clamp(vector.z, min.z, max.z), std::clamp(vector.w, min.w, max.w) };
+	return {
+		std::clamp(vector.x, min.x, max.x),
+		std::clamp(vector.y, min.y, max.y),
+		std::clamp(vector.z, min.z, max.z),
+		std::clamp(vector.w, min.w, max.w),
+	};
 }
 
 } // namespace ptgn

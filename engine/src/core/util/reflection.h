@@ -23,20 +23,24 @@ Member(std::string_view, T&) -> Member<T>;
 		std::string_view{ #member }, object.member \
 	}
 
-#define PTGN_REFLECT_MEMBERS(Type, ...)                                                   \
-	friend constexpr auto ReflectMembers(Type& value) {                                   \
-		return std::tuple{ PTGN_MAP_LIST_DATA(PTGN_REFLECT_MEMBER, value, __VA_ARGS__) }; \
-	}                                                                                     \
-	friend constexpr auto ReflectMembers(const Type& value) {                             \
-		return std::tuple{ PTGN_MAP_LIST_DATA(PTGN_REFLECT_MEMBER, value, __VA_ARGS__) }; \
+#define PTGN_REFLECT_MEMBERS(Type, ...)                                              \
+	friend constexpr auto ReflectMembers(Type& reflection_value_t) {                 \
+		return std::tuple{                                                           \
+			PTGN_MAP_LIST_DATA(PTGN_REFLECT_MEMBER, reflection_value_t, __VA_ARGS__) \
+		};                                                                           \
+	}                                                                                \
+	friend constexpr auto ReflectMembers(const Type& reflection_value_t) {           \
+		return std::tuple{                                                           \
+			PTGN_MAP_LIST_DATA(PTGN_REFLECT_MEMBER, reflection_value_t, __VA_ARGS__) \
+		};                                                                           \
 	}
 
-#define PTGN_REFLECT_VALUE(Type, member)                    \
-	friend constexpr auto ReflectValue(Type& value) {       \
-		return PTGN_REFLECT_MEMBER(member, value);          \
-	}                                                       \
-	friend constexpr auto ReflectValue(const Type& value) { \
-		return PTGN_REFLECT_MEMBER(member, value);          \
+#define PTGN_REFLECT_VALUE(Type, member)                                 \
+	friend constexpr auto ReflectValue(Type& reflection_value_t) {       \
+		return PTGN_REFLECT_MEMBER(member, reflection_value_t);          \
+	}                                                                    \
+	friend constexpr auto ReflectValue(const Type& reflection_value_t) { \
+		return PTGN_REFLECT_MEMBER(member, reflection_value_t);          \
 	}
 
 #define PTGN_REFLECT_EMPTY(Type)                        \

@@ -112,7 +112,7 @@ SceneCamera::SceneCamera(Entity entity) : Entity{ entity } {}
 SceneCamera::operator Camera() const {
 	return Camera{ .transform{ GetTransform(*this) },
 				   .raw_viewport{ GetRawViewport() },
-				   .viewport_space{ GetViewportSpace() },
+				   .viewport_space = GetViewportSpace(),
 				   .view_projection{ GetViewProjection() } };
 }
 
@@ -314,7 +314,7 @@ bool SceneCamera::CanSee(Entity entity) const {
 	bool in_include = (entity_mask & include) != 0;
 	bool in_exclude = (entity_mask & exclude) != 0;
 
-	return in_include && !in_exclude || IsUI(*this) && IsUI(entity);
+	return (in_include && !in_exclude) || (IsUI(*this) && IsUI(entity));
 }
 
 SceneCamera& SceneCamera::SetRenderTarget(const std::optional<RenderTarget>& parent) {

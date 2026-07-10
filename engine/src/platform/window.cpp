@@ -270,7 +270,7 @@ void Window::SetCallbacks() {
 }
 
 Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)>&& event_sink) :
-	event_sink_{ std::move(event_sink) }, file{ *this }, title_{ config.title } {
+	file{ *this }, event_sink_{ std::move(event_sink) }, title_{ config.title } {
 	PTGN_ASSERT(event_sink_, "Window event sink must be set to a function");
 
 	int exclusive_states = static_cast<int>(config.minimized) + static_cast<int>(config.maximized) +

@@ -95,7 +95,7 @@ FontAtlasData GenerateFontAtlas(path font_path, const FontAtlasInfo& atlas_info)
 		charset.add(c);
 	}
 
-	auto loaded_glyph_count{ font_geometry.loadCharset(font_face.get(), kFontScale, charset) };
+	auto loaded_glyph_count{ font_geometry.loadCharset(font_face.get(), static_cast<double>(kFontScale), charset) };
 	PTGN_ASSERT(
 		loaded_glyph_count > 0, "Failed to load ", loaded_glyph_count,
 		" glyphs for font: ", font_path.string()
@@ -104,14 +104,14 @@ FontAtlasData GenerateFontAtlas(path font_path, const FontAtlasInfo& atlas_info)
 	std::uint64_t glyph_seed{ 0 };
 	for (auto& glyph : glyphs) {
 		glyph_seed = glyph_seed * 6364136223846793005ULL + 1442695040888963407ULL;
-		glyph.edgeColoring(&msdfgen::edgeColoringInkTrap, atlas_info.max_corner_angle, glyph_seed);
+		glyph.edgeColoring(&msdfgen::edgeColoringInkTrap, static_cast<double>(atlas_info.max_corner_angle), glyph_seed);
 	}
 
 	msdf_atlas::TightAtlasPacker packer;
 	packer.setDimensionsConstraint(msdf_atlas::DimensionsConstraint::SQUARE);
-	packer.setScale(atlas_info.em_size);
-	packer.setUnitRange(atlas_info.em_range); // or packer.setPixelRange(atlas_info.pixel_range);
-	packer.setMiterLimit(atlas_info.miter_limit);
+	packer.setScale(static_cast<double>(atlas_info.em_size));
+	packer.setUnitRange(static_cast<double>(atlas_info.em_range)); // or packer.setPixelRange(atlas_info.pixel_range);
+	packer.setMiterLimit(static_cast<double>(atlas_info.miter_limit));
 
 	auto remaining_glyph_count{ packer.pack(glyphs.data(), static_cast<int>(glyphs.size())) };
 	PTGN_ASSERT(
@@ -137,7 +137,9 @@ FontAtlasData GenerateFontAtlas(path font_path, const FontAtlasInfo& atlas_info)
 
 	atlas_size = { bitmap.width, bitmap.height };
 
-	auto byte_count{ static_cast<std::size_t>(bitmap.width) * bitmap.height *
+	PTGN_ASSERT(atlas_size.IsPositive(), "Failed to generate a font atlas with a positive size: ", atlas_size);
+
+	auto byte_count{ static_cast<std::size_t>(atlas_size.x) * static_cast<std::size_t>(atlas_size.y) *
 					 kFontAtlasChannelCount };
 
 	Surface surface{ atlas_size, std::span<const FontAtlasDataType>{ bitmap.pixels, byte_count },
@@ -181,8 +183,8 @@ FontAtlasData GenerateFontAtlas(path font_path, const FontAtlasInfo& atlas_info)
 
 		output.plane = Rect{ { plane_left, -plane_top }, { plane_right, -plane_bottom } };
 
-		output.uv = Rect{ { atlas_left / bitmap.width, 1.0f - atlas_top / bitmap.height },
-						  { atlas_right / bitmap.width, 1.0f - atlas_bottom / bitmap.height } };
+		output.uv = Rect{ { atlas_left / bitmap.width, 1.0 - atlas_top / bitmap.height },
+						  { atlas_right / bitmap.width, 1.0 - atlas_bottom / bitmap.height } };
 
 		font.glyphs[output.codepoint] = output;
 	}
@@ -217,7 +219,7 @@ FontAtlasData GenerateFontAtlas(path font_path, const FontAtlasInfo& atlas_info)
 void FontAtlas::Initialize(Renderer& renderer, FontAtlasData&& data) {
 	atlas_texture_ = RendererAccessor{ renderer }.CreateTexture(
 		data.surface.Data(), TextureDesc{ .size{ data.surface.GetSize() },
-										  .format{ kFontAtlasFormat },
+										  .format = kFontAtlasFormat,
 										  .params{ kFontAtlasTextureParams } }
 	);
 	data_ = std::move(data.font);

@@ -28,7 +28,7 @@ ScriptSequence& ScriptSequence::During(milliseconds duration, DuringSequenceFunc
 				if constexpr (std::is_same_v<T, std::function<void()>>) {
 					func_variant();
 				} else if constexpr (std::is_same_v<T, std::function<void(SequenceInfo)>>) {
-					func_variant({ p.parent, p.tween, p.progress });
+					func_variant({ .sequence = { p.parent }, .tween = p.tween, .progress = p.progress });
 				} else {
 					static_assert(false, "Incomplete variant visitor");
 				}

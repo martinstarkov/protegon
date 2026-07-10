@@ -328,6 +328,6 @@ void IgnoreParentScale(Entity entity, bool ignore_parent_scale = true);
 template <>
 struct std::hash<ptgn::Entity> {
 	std::size_t operator()(const ptgn::Entity& entity) const {
-		return entity.GetUUID();
+		return static_cast<std::size_t>(entity.GetUUID());
 	}
 };

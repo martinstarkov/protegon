@@ -58,8 +58,10 @@ template <Arithmetic T>
 template <Arithmetic T>
 [[nodiscard]] constexpr T Floor(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
+		auto truncated{ static_cast<std::int64_t>(value) };
+
 		return static_cast<T>(
-			static_cast<std::int64_t>(value) - (value < static_cast<std::int64_t>(value))
+			truncated - static_cast<std::int64_t>(value < static_cast<T>(truncated))
 		);
 	} else {
 		return value;
@@ -80,8 +82,10 @@ template <Arithmetic T>
 template <Arithmetic T>
 [[nodiscard]] constexpr T Ceil(T value) {
 	if constexpr (std::is_floating_point_v<T>) {
+		auto truncated{ static_cast<std::int64_t>(value) };
+
 		return static_cast<T>(
-			static_cast<std::int64_t>(value) + (value > static_cast<std::int64_t>(value))
+			truncated + static_cast<std::int64_t>(value > static_cast<T>(truncated))
 		);
 	} else {
 		return value;

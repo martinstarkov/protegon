@@ -138,8 +138,8 @@ Entity CreateTopDownPlayer(Scene& scene, Transform transform, const TopDownPlaye
 		AnimationMap anim_map{ player.Add<GameObject<AnimationMap>>(CreateAnimationMap(scene)) };
 		auto anim0{ CreateAnimation(
 			scene, animation_transform, config.animation_texture_key.value(),
-			{ config.animation_frame_count.value().x, duration,
-			  config.animation_frame_size.value_or(V2_int{}) }
+			{ .frame_count = config.animation_frame_count.value().x, .duration = duration,
+			  .frame_size = config.animation_frame_size.value_or(V2_int{}) }
 		) };
 		PTGN_DEFAULT_NAME(anim0, "Down Animation");
 		auto a0 = anim_map.Add("down", anim0);

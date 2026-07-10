@@ -224,7 +224,7 @@ RenderTarget CreateRenderTarget(
 
 	render_target.Add<impl::FramebufferObject>(
 		impl::RendererAccessor{ scene.ctx().renderer }.CreateFramebuffer(
-			{ .size{ size }, .format{ texture_format } }, std::nullopt
+			{ .size{ size }, .format = texture_format }, std::nullopt
 		)
 	);
 

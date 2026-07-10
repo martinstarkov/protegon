@@ -69,7 +69,9 @@ void Renderbuffers::SetStorage(RenderbufferId renderbuffer, V2_int size, Texture
 	);
 	PTGN_ASSERT(size.IsPositive(), "Cannot create renderbuffer with zero size");
 
-	GLCall(glRenderbufferStorage(GL_RENDERBUFFER, std::to_underlying(format), size.x, size.y));
+	GLCall(
+		glRenderbufferStorage(GL_RENDERBUFFER, static_cast<std::uint32_t>(format), size.x, size.y)
+	);
 
 	auto& cache{ cache_.Get(renderbuffer) };
 	cache.size	 = size;

@@ -295,7 +295,7 @@ void ApplyShake(
 	// out the transition from shaking to being static.
 	float shake_value{ std::pow(trauma, config.trauma_exponent) };
 
-	float x{ static_cast<float>(static_cast<double>(time.count()) * config.frequency) };
+	float x{ static_cast<float>(time.count()) * config.frequency };
 
 	V2_float position_noise{ PerlinNoise::GetValue(x, 0.0f, seed + 0) * 2.0f - 1.0f,
 							 PerlinNoise::GetValue(x, 0.0f, seed + 1) * 2.0f - 1.0f };

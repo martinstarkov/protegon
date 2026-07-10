@@ -34,7 +34,8 @@ constexpr std::optional<V2_int> GetFrameSize(
 		return std::nullopt;
 	}
 	PTGN_ASSERT(texture_size.value().IsPositive(), "Texture size must be positive");
-	return V2_int{ texture_size.value().x / frame_count, texture_size.value().y };
+	return V2_int{ static_cast<std::size_t>(texture_size.value().x) / frame_count,
+				   texture_size.value().y };
 }
 
 } // namespace impl

@@ -72,9 +72,9 @@ using UniformValue = std::variant<
 	std::vector<int>, bool>;
 
 struct UniformWrite {
-	UniformWrite() = default;
+	constexpr UniformWrite() = default;
 
-	UniformWrite(std::string_view name, UniformValue value) :
+	constexpr UniformWrite(std::string_view name, UniformValue value) :
 		name{ std::string{ name } }, value{ std::move(value) } {}
 
 	std::string name;

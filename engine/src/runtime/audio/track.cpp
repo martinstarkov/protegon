@@ -1,7 +1,10 @@
 #include "runtime/audio/track.h"
 
+#pragma GCC diagnostic push /* also works on clang */
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include <extras/decoders/libvorbis/miniaudio_libvorbis.h>
 #include <miniaudio.h>
+#pragma GCC diagnostic pop
 
 #include <cstdint>
 #include <filesystem>

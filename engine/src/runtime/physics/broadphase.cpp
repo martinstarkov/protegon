@@ -178,7 +178,7 @@ std::unique_ptr<KDNode> KDTree::BuildRecursive(const std::vector<KDObject>& obje
 	std::size_t mid{ centers.size() / 2 };
 	// Every center below mid index is smaller than mid center, everything above is larger, but
 	// not completely sorting the centers (faster).
-	std::nth_element(centers.begin(), centers.begin() + mid, centers.end());
+	std::nth_element(centers.begin(), centers.begin() + static_cast<std::int64_t>(mid), centers.end());
 	node->split_value = centers[mid];
 
 	std::vector<KDObject> left_objs;
@@ -368,7 +368,7 @@ void KDTree::SplitNodeExternal(KDNode* node, int depth) {
 	}
 
 	std::size_t mid = centers.size() / 2;
-	std::nth_element(centers.begin(), centers.begin() + mid, centers.end());
+	std::nth_element(centers.begin(), centers.begin() + static_cast<std::int64_t>(mid), centers.end());
 	node->split_value = centers[mid];
 
 	// Move objects into left/right

@@ -140,10 +140,10 @@ std::optional<bool> TweenData::FutureTweenPointIsValid() const {
 }
 
 std::size_t TweenData::GetValidPointCount() const {
-	return std::ranges::count_if(points_, [](const auto& point) {
+	return static_cast<std::size_t>(std::ranges::count_if(points_, [](const auto& point) {
 		PTGN_ASSERT(point);
 		return !point->flagged_for_removal_;
-	});
+	}));
 }
 
 bool TweenData::IsEmpty() const {

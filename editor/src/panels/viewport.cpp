@@ -32,19 +32,19 @@ namespace {
 constexpr Color kCameraOutlineColor{ color::Blue };
 constexpr Color kFixedCameraOutlineColor{ color::Red };
 
-ImVec2 ToImGui(V2_float v) {
+[[maybe_unused]] ImVec2 ToImGui(V2_float v) {
 	return { v.x, v.y };
 }
 
-ImU32 ToImGui(Color c) {
-	return IM_COL32(c.r, c.g, c.b, c.a);
+[[maybe_unused]] ImU32 ToImGui(Color c) {
+	return c.ToUint32(ColorPacking::ABGR);
 }
 
-V2_float FromImGui(ImVec2 v) {
+[[maybe_unused]] V2_float FromImGui(ImVec2 v) {
 	return { v.x, v.y };
 }
 
-Color FromImGui(ImU32 color) {
+[[maybe_unused]] Color FromImGui(ImU32 color) {
 	return Color{ color };
 }
 
@@ -72,14 +72,6 @@ V2_float ScreenToWorld(
 	auto presentation_point{ ScreenToPresentation(screen_point, presentation_viewport) };
 
 	return ConvertPoint(presentation_point, Frame::Presentation, to, frame_context);
-}
-
-void DrawCenteredText(ImDrawList* draw_list, ImVec2 center, ImU32 color, const char* text) {
-	auto text_size{ ImGui::CalcTextSize(text) };
-
-	draw_list->AddText(
-		ImVec2{ center.x - text_size.x * 0.5f, center.y - text_size.y * 0.5f }, color, text
-	);
 }
 
 void UpdateEditorCamera(EditorCamera& editor_camera) {
@@ -139,7 +131,7 @@ float DistanceToSegmentLocal(V2_float p, V2_float a, V2_float b) {
 }
 
 void DrawSimple2DGizmo(
-	EditorContext& ctx, ImDrawList* draw_list, GizmoState& gizmo, Transform& transform,
+	EditorContext&, ImDrawList* draw_list, GizmoState& gizmo, Transform& transform,
 	const FrameContext& frame_context, Viewport presentation_viewport, bool viewport_hovered,
 	bool viewport_focused, Frame from
 ) {
@@ -357,11 +349,11 @@ void DrawSimple2DGizmo(
 		gizmo.active = GizmoHandle::None;
 	}
 
-	ImU32 col_x{ IM_COL32(220, 60, 60, 255) };
-	ImU32 col_y{ IM_COL32(60, 220, 60, 255) };
-	ImU32 col_center{ IM_COL32(230, 200, 80, 255) };
-	ImU32 col_rotate{ IM_COL32(80, 160, 255, 255) };
-	ImU32 col_hot{ IM_COL32(255, 255, 255, 255) };
+	auto col_x{ ToImGui(Color{ 220, 60, 60, 255 }) };
+	auto col_y{ ToImGui(Color{ 60, 220, 60, 255 }) };
+	auto col_center{ ToImGui(Color{ 230, 200, 80, 255 }) };
+	auto col_rotate{ ToImGui(Color{ 80, 160, 255, 255 }) };
+	auto col_hot{ ToImGui(Color{ 255, 255, 255, 255 }) };
 
 	pivot_screen = WorldToScreen(transform.position, frame_context, presentation_viewport, from);
 
@@ -688,7 +680,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 		ToImGui(viewport.position + viewport.size), ImVec2{ 0.0f, 1.0f }, ImVec2{ 1.0f, 0.0f }
 	);
 
-	draw_list->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+	draw_list->AddCallback(ImGui::GetPlatformIO().DrawCallback_ResetRenderState, nullptr);
 
 	// Count this draw call so that draw call counts match with and without the editor.
 	ctx.editor.GetDebugSystem().stats.Increment("draw_calls");

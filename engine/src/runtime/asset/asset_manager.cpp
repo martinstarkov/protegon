@@ -128,7 +128,7 @@ impl::TextureObject AssetManager::CreateTexture(
 	);
 	return CreateTexture(
 		surface.Data(),
-		TextureDesc{ .size{ surface.GetSize() }, .format{ storage_format }, .params{ params } }
+		TextureDesc{ .size{ surface.GetSize() }, .format = storage_format, .params{ params } }
 	);
 }
 
@@ -153,7 +153,7 @@ Texture AssetManager::CreateTexture(
 	Texture texture{ CreateAsset(), persistent };
 
 	texture.GetEntity().Add<impl::TextureObject>(CreateTexture(
-		data, TextureDesc{ .size{ size }, .format{ storage_format }, .params{ params } }
+		data, TextureDesc{ .size{ size }, .format = storage_format, .params{ params } }
 	));
 
 	return texture;

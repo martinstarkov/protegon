@@ -43,10 +43,10 @@ namespace {
 impl::CommonShapeParams ConvertToCommonShapeParams(Color color, const ShapeDrawParams& params) {
 	return { .transform{},
 			 .fill_style{ params.fill_style },
-			 .draw_origin{ params.origin },
+			 .origin = params.origin,
 			 .color{ color },
 			 .depth{ params.depth },
-			 .entity_id{ params.entity_id } };
+			 .entity_id = params.entity_id };
 }
 
 template <ShapeType TShape>

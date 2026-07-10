@@ -4,7 +4,7 @@
 
 namespace ptgn {
 
-enum class Mouse {
+enum class Mouse : std::size_t {
 	Button0 = 0,
 	Button1 = 1,
 	Button2 = 2,

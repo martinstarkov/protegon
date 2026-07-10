@@ -15,7 +15,6 @@
 #include "core/util/time.h"
 #include "core/util/timer.h"
 #include "runtime/animation/animation_event.h"
-#include "runtime/asset/asset_manager.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/ecs/tag.h"
@@ -31,8 +30,6 @@ namespace ptgn {
 Animation::Animation(Entity entity) : Entity{ entity } {}
 
 Animation& Animation::SetConfig(AnimationConfig config) {
-	AssetManager& asset_manager{ GetScene().ctx().asset };
-
 	auto texture_size{ GetTextureSize(*this) };
 
 	if (auto anim_data{ TryGet<impl::AnimationData>() };

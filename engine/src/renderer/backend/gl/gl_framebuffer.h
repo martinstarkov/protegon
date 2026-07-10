@@ -285,6 +285,8 @@ public:
 	void ForEachPixel(
 		const PixelBuffer& buffer, InvocableR<void, V2_int, PixelValue> auto func
 	) const {
+		PTGN_ASSERT(buffer.size.IsPositive(), "Cannot loop through buffer with invalid size: ", buffer.size);
+		
 		for (int y{ 0 }; y < buffer.size.y; ++y) {
 			const int flipped_y{ buffer.size.y - 1 - y };
 

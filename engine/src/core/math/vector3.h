@@ -190,11 +190,14 @@ struct Vector3 {
 		auto cos_B = pitch.Cos();
 		auto sin_y = roll.Sin();
 		auto cos_y = roll.Cos();
-		return { x * (cos_B * cos_y) + y * (sin_a * sin_B * cos_y - cos_a * sin_y) +
-					 z * (cos_a * sin_B * cos_y + sin_a * sin_y),
-				 x * (cos_B * sin_y) + y * (sin_a * sin_B * sin_y + cos_a * cos_y) +
-					 z * (cos_a * sin_B * sin_y - sin_a * cos_y),
-				 x * (-sin_B) + y * (sin_a * cos_B) + z * (cos_a * cos_B) };
+		return { static_cast<float>(x) * (cos_B * cos_y) +
+					 static_cast<float>(y) * (sin_a * sin_B * cos_y - cos_a * sin_y) +
+					 static_cast<float>(z) * (cos_a * sin_B * cos_y + sin_a * sin_y),
+				 static_cast<float>(x) * (cos_B * sin_y) +
+					 static_cast<float>(y) * (sin_a * sin_B * sin_y + cos_a * cos_y) +
+					 static_cast<float>(z) * (cos_a * sin_B * sin_y - sin_a * cos_y),
+				 static_cast<float>(x) * (-sin_B) + static_cast<float>(y) * (sin_a * cos_B) +
+					 static_cast<float>(z) * (cos_a * cos_B) };
 	}
 
 	/// @brief See https://en.wikipedia.org/wiki/Rotation_matrix for details
@@ -277,7 +280,7 @@ constexpr Vector3<S> operator/(V lhs, Vector3<U> rhs) { // NOSONAR
 
 template <Arithmetic V, Arithmetic U, Arithmetic S = typename std::common_type_t<V, U>>
 constexpr Vector3<S> operator/(Vector3<V> lhs, U rhs) { // NOSONAR
-	return { lhs.x / rhs, lhs.y / rhs, lhs.z / rhs };
+	return { static_cast<S>(lhs.x) / rhs, static_cast<S>(lhs.y) / rhs, static_cast<S>(lhs.z) / rhs };
 }
 
 } // namespace ptgn

@@ -55,8 +55,7 @@ public:
 		for (auto i{ 0uz }; i < segment_count; ++i) {
 			auto t{ kTwoPi * static_cast<float>(i) / static_cast<float>(segment_count) };
 			auto local{ V2_float{ std::cos(t), std::sin(t) } * radius };
-
-			vertices.emplace_back();
+			vertices.emplace_back(local);
 		}
 
 		return transform.Apply(vertices);
