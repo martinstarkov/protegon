@@ -9,7 +9,7 @@
 namespace ptgn {
 
 /// @brief Texture storage format (GL_INTERNAL_FORMAT)
-enum class TextureFormat : std::uint32_t {
+enum class TextureFormat : int {
 	R8				  = 0x8229, // GL_R8
 	RG8				  = 0x822B, // GL_RG8
 	RGB8			  = 0x8051, // GL_RGB8
