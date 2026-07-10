@@ -37,13 +37,14 @@ void WritePngBytesToVector(void* context, void* data, int size) {
 } // namespace
 
 Surface::Surface(
-	V2_int size, std::span<const std::uint8_t> pixels, int channels, bool flip_vertically
+	V2_int size, std::span<const std::uint8_t> pixels, std::uint8_t channels, bool flip_vertically
 ) :
 	channels_{ channels }, size_{ size } {
-	PTGN_ASSERT(channels > 0 && channels <= 4, "Invalid channel count: ", channels);
-	PTGN_ASSERT(size.x > 0 && size.y > 0, "Invalid surface size: ", size);
+	PTGN_ASSERT(channels <= 4, "Invalid channel count: ", channels);
+	PTGN_ASSERT(size.IsPositive(), "Invalid surface size: ", size);
 	PTGN_ASSERT(
-		pixels.size() == static_cast<std::size_t>(size.x) * size.y * channels,
+		pixels.size() ==
+			static_cast<std::size_t>(size.x) * static_cast<std::size_t>(size.y) * channels,
 		"Pixel data size does not match expected size for given surface dimensions"
 	);
 	if (!flip_vertically) {
@@ -54,7 +55,7 @@ Surface::Surface(
 		pixels_.resize(pixels.size());
 
 		for (auto dst_row{ 0uz }; dst_row < static_cast<std::size_t>(size.y); ++dst_row) {
-			auto src_row{ size.y - dst_row - 1uz };
+			auto src_row{ static_cast<std::size_t>(size.y) - dst_row - 1uz };
 
 			std::copy_n(
 				pixels.begin() + static_cast<std::ptrdiff_t>(src_row * row_bytes), row_bytes,
@@ -64,7 +65,7 @@ Surface::Surface(
 	}
 }
 
-Surface::Surface(std::span<const std::byte> bytes, int desired_channels) {
+Surface::Surface(std::span<const std::byte> bytes, std::uint8_t desired_channels) {
 	PTGN_ASSERT(bytes.data(), "Embedded PNG binary is null");
 	PTGN_ASSERT(bytes.size() > 0, "Embedded PNG binary is empty");
 
@@ -77,9 +78,10 @@ Surface::Surface(std::span<const std::byte> bytes, int desired_channels) {
 
 	PTGN_ASSERT(data, "Failed to load image from memory: ", stbi_failure_reason());
 
-	PTGN_ASSERT(size_.IsPositive(), "Loaded image has invalid size");
+	PTGN_ASSERT(size_.IsPositive(), "Loaded image has invalid size: ", size_);
 
-	auto total_bytes{ static_cast<std::size_t>(size_.x) * size_.y * channels_ };
+	auto total_bytes{ static_cast<std::size_t>(size_.x) * static_cast<std::size_t>(size_.y) *
+					  channels_ };
 
 	pixels_.resize(total_bytes);
 	std::memcpy(pixels_.data(), data, total_bytes);
@@ -87,7 +89,7 @@ Surface::Surface(std::span<const std::byte> bytes, int desired_channels) {
 	stbi_image_free(data);
 }
 
-Surface::Surface(const path& file, int desired_channels) : channels_{ desired_channels } {
+Surface::Surface(const path& file, std::uint8_t desired_channels) : channels_{ desired_channels } {
 	PTGN_ASSERT(FileExists(file), "Cannot create surface from a nonexistent file: ", file.string());
 
 	int channels_in_file{ 0 };
@@ -100,9 +102,10 @@ Surface::Surface(const path& file, int desired_channels) : channels_{ desired_ch
 
 	PTGN_ASSERT(data, "Failed to load image '", file.string(), "': ", stbi_failure_reason());
 
-	PTGN_ASSERT(size_.IsPositive(), "Loaded image has invalid size");
+	PTGN_ASSERT(size_.IsPositive(), "Loaded image has invalid size: ", size_);
 
-	auto total_bytes{ static_cast<std::size_t>(size_.x) * size_.y * channels_ };
+	auto total_bytes{ static_cast<std::size_t>(size_.x) * static_cast<std::size_t>(size_.y) *
+					  channels_ };
 
 	pixels_.resize(total_bytes);
 	std::memcpy(pixels_.data(), data, total_bytes);
@@ -112,30 +115,28 @@ Surface::Surface(const path& file, int desired_channels) : channels_{ desired_ch
 
 void Surface::FlipVertically() {
 	PTGN_ASSERT(!IsEmpty(), "Cannot vertically flip an empty surface");
+	PTGN_ASSERT(size_.IsPositive(), "Surface size is invalid: ", size_);
 
 	auto row_bytes{ static_cast<std::size_t>(size_.x) * channels_ };
 
-	for (auto row{ 0uz }; row < size_.y / 2uz; ++row) {
+	for (auto row{ 0uz }; row < static_cast<std::size_t>(size_.y) / 2uz; ++row) {
 		auto top_begin{ pixels_.begin() + static_cast<std::ptrdiff_t>(row * row_bytes) };
 		auto top_end{ top_begin + static_cast<std::ptrdiff_t>(row_bytes) };
-		auto bot_begin{ pixels_.begin() +
-						static_cast<std::ptrdiff_t>((size_.y - row - 1uz) * row_bytes) };
+		auto bot_begin{
+			pixels_.begin() +
+			static_cast<std::ptrdiff_t>((static_cast<std::size_t>(size_.y) - row - 1uz) * row_bytes)
+		};
 
 		std::swap_ranges(top_begin, top_end, bot_begin);
 	}
 }
 
 Color Surface::GetPixel(V2_int coordinate) const {
-	PTGN_ASSERT(
-		coordinate.x >= 0 && coordinate.x < size_.x, "X Coordinate '", coordinate.x,
-		"' outside of surface width: ", size_.x
-	);
-	PTGN_ASSERT(
-		coordinate.y >= 0 && coordinate.y < size_.y, "Y Coordinate '", coordinate.y,
-		"' outside of surface height: ", size_.y
-	);
+	PTGN_ASSERT(size_.IsPositive(), "Surface size is invalid: ", size_);
+	coordinate = Clamp(coordinate, {}, size_);
 
-	auto pixel_index{ static_cast<std::size_t>(coordinate.y) * size_.x + coordinate.x };
+	auto pixel_index{ static_cast<std::size_t>(coordinate.y) * static_cast<std::size_t>(size_.x) +
+					  static_cast<std::size_t>(coordinate.x) };
 
 	return GetPixel(pixel_index);
 }
@@ -145,8 +146,9 @@ Color Surface::GetPixel(std::size_t pixel_index) const {
 
 	PTGN_ASSERT(channels_ == 4, "GetPixel only works for surfaces with 4 channels");
 
-	const std::size_t byte_index = pixel_index * channels_;
-	PTGN_ASSERT(byte_index + 3 < pixels_.size(), "Pixel index outside of range of surface");
+	std::size_t byte_index{ pixel_index * channels_ };
+
+	byte_index = std::max(byte_index, pixels_.size() - 3);
 
 	return { pixels_[byte_index + 0], pixels_[byte_index + 1], pixels_[byte_index + 2],
 			 pixels_[byte_index + 3] };

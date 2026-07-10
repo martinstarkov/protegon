@@ -916,15 +916,22 @@ void Framebuffers::SavePNGImpl(const path& path, FramebufferId framebuffer, Atta
 	PixelBuffer buffer{ ReadPixelsImpl(framebuffer, attachment) };
 
 	auto size{ buffer.size };
-	constexpr int channels{ 4 };
 
-	std::vector<std::uint8_t> rgba(static_cast<std::size_t>(size.x) * size.y * channels);
+	PTGN_ASSERT(size.IsPositive(), "Failed to read size of pixel buffer: ", size);
+
+	constexpr std::uint8_t channels{ 4 };
+
+	std::vector<std::uint8_t> rgba(
+		static_cast<std::size_t>(size.x) * static_cast<std::size_t>(size.y) * channels
+	);
 
 	ForEachPixel(buffer, [&rgba, size](V2_int pos, const PixelValue& pixel) {
 		const auto* color{ std::get_if<Color>(&pixel) };
 		PTGN_ASSERT(color);
 
-		std::size_t index{ static_cast<std::size_t>(pos.y * size.x + pos.x) * channels };
+		std::size_t index{
+			(static_cast<std::size_t>(pos.y) * static_cast<std::size_t>(size.x) + static_cast<std::size_t>(pos.x)) * channels
+		};
 
 		rgba[index + 0] = color->r;
 		rgba[index + 1] = color->g;

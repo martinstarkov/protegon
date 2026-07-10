@@ -22,18 +22,18 @@ namespace impl {
 class Surface {
 public:
 	Surface(
-		V2_int size, std::span<const std::uint8_t> pixels, int channels = 4,
+		V2_int size, std::span<const std::uint8_t> pixels, std::uint8_t channels = 4,
 		bool flip_vertically = false
 	);
 
-	explicit Surface(std::span<const std::byte> bytes, int desired_channels = 4);
+	explicit Surface(std::span<const std::byte> bytes, std::uint8_t desired_channels = 4);
 
-	explicit Surface(const path& file, int desired_channels = 4);
+	explicit Surface(const path& file, std::uint8_t desired_channels = 4);
 
 	/// @brief Mirrors the surface vertically.
 	void FlipVertically();
 
-	/// @param coordinate Pixel coordinate from [0, size).
+	/// @param coordinate Pixel coordinate clamped to [0, size).
 	/// @return Color value of the given pixel.
 	Color GetPixel(V2_int coordinate) const;
 
@@ -71,11 +71,12 @@ public:
 private:
 	friend class ptgn::FontSystem;
 
-	/// @param pixel_index One dimensionalized index into the data array.
+	/// @param pixel_index One dimensionalized index into the data array clamped to pixels.size()-3
+	/// (for a 4 channel surface)
 	Color GetPixel(std::size_t pixel_index) const;
 
 	/// @brief Number of channels in the pixel data.
-	int channels_{ 4 };
+	std::uint8_t channels_{ 4 };
 
 	/// @brief The row major one dimensionalized array of pixel values that makes up the surface.
 	std::vector<std::uint8_t> pixels_;
