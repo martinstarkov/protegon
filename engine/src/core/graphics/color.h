@@ -5,6 +5,7 @@
 #include <ostream>
 #include <type_traits>
 
+#include "core/log.h"
 #include "core/assert.h"
 #include "core/math/math_utils.h"
 #include "core/math/rng.h"
@@ -15,6 +16,11 @@
 #include "serialization/json/json.h"
 
 namespace ptgn {
+
+enum class ColorPacking {
+	RGBA,
+	ABGR,
+};
 
 /// @brief 8-bit RGBA color.
 /// Default: Transparent.
@@ -65,6 +71,22 @@ struct Color {
 		g{ static_cast<std::uint8_t>((rgba >> 16) & 255) },
 		b{ static_cast<std::uint8_t>((rgba >> 8) & 255) },
 		a{ static_cast<std::uint8_t>(rgba & 255) } {}
+
+	constexpr std::uint32_t ToUint32(ColorPacking packing = ColorPacking::RGBA) const {
+		switch (packing) {
+			case ColorPacking::RGBA:
+				return (static_cast<std::uint32_t>(r) << 24u) |
+					(static_cast<std::uint32_t>(g) << 16u) |
+					(static_cast<std::uint32_t>(b) << 8u) |
+					static_cast<std::uint32_t>(a);
+			case ColorPacking::ABGR:
+				return (static_cast<std::uint32_t>(a) << 24u) |
+					(static_cast<std::uint32_t>(b) << 16u) |
+					(static_cast<std::uint32_t>(g) << 8u) |
+					static_cast<std::uint32_t>(r);
+			default: PTGN_ERROR("Unknown ColorPacking: ", std::to_underlying(packing));
+		}
+	}
 
 	/// @param alpha Value of transparency to set for the color.
 	/// @return A copy of the color with the modified alpha channel.
