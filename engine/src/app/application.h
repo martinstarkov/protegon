@@ -49,10 +49,12 @@ public:
 		ctx_.state = ApplicationState::Running;
 		auto& scene{ ctx_.scene_manager.scenes_.emplace_back(std::move(first_scene)) };
 		scene->Init(
-			*this, impl::SceneData{ .tag{ scene_tag },
-									.tag_hash{ Hash(scene_tag) },
-									.state{ impl::SceneState::Active },
-									.first_scene{ true } }
+			*this, impl::SceneData{
+					   .tag{ scene_tag },
+					   .tag_hash	= Hash(scene_tag),
+					   .state		= impl::SceneState::Active,
+					   .first_scene = true,
+				   }
 		);
 		scene->InternalEnter();
 
