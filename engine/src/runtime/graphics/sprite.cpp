@@ -56,8 +56,8 @@ TextureDrawParams GetTextureDrawParams(
 ) {
 	return { .depth{ GetDepth(entity) },
 			 .size{ size },
-			 .origin{ GetDrawOrigin(entity) },
-			 .tint{ Color::Multiply(GetTint(entity), additional_tint) },
+			 .origin{ entity.GetOrDefault<Origin>(Origin::Center) },
+			 .tint{ Color::Multiply(entity.GetOrDefault<Tint>(), additional_tint) },
 			 .texture_coordinates{ GetTextureCoordinates(entity, flip_y) },
 			 .effects{ impl::GetEffectParams(entity) },
 			 .entity_id{ entity.GetUUID() } };
