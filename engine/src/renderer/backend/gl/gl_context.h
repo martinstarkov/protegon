@@ -37,7 +37,9 @@ public:
 	[[nodiscard]] BindGuard<ElementBufferId> Bind(ElementBufferId id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<UniformBufferId> Bind(UniformBufferId id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<ShaderId> Bind(ShaderId id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<TextureId> Bind(TextureId id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<TextureId> Bind(
+		TextureId id, bool restore_bind = false, bool force = false
+	);
 	[[nodiscard]] BindGuard<RenderbufferId> Bind(RenderbufferId id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<FramebufferId> Bind(FramebufferId id, bool restore_bind = false);
 	[[nodiscard]] BindGuard<VertexArrayId> Bind(VertexArrayId id, bool restore_bind = false);
@@ -68,15 +70,19 @@ public:
 	void Destroy(ElementBufferId id);
 	void Destroy(UniformBufferId id);
 	void Destroy(ShaderId id);
-	void Destroy(TextureId id);
+	/// @param replacement_texture The replacement texture id that will be bound instead of the id.
+	void Destroy(TextureId id, TextureId replacement_texture);
 	void Destroy(RenderbufferId id);
-	void Destroy(FramebufferId id);
+	/// @param replacement_texture The replacement texture id that will be bound instead of the
+	/// framebuffer's attached texture id (if applicable).
+	void Destroy(FramebufferId id, TextureId replacement_texture);
 	void Destroy(VertexArrayId id);
 
 	void ForgetId(VertexBufferId id);
 	void ForgetId(UniformBufferId id);
 	void ForgetId(ShaderId id);
-	void ForgetId(TextureId id);
+	/// @param replacement_texture The replacement texture id that will be bound instead of the id.
+	void ForgetId(TextureId id, TextureId replacement_texture);
 	void ForgetId(RenderbufferId id);
 	void ForgetId(FramebufferId id);
 	void ForgetId(VertexArrayId id);
@@ -105,7 +111,7 @@ public:
 
 	const std::optional<Matrix4>& GetViewProjection() const;
 
-	void SetActiveTextureSlot(std::uint32_t slot);
+	void SetActiveTextureSlot(std::uint32_t slot, bool force = false);
 
 	/// @return The maximum number of texture slots available on the current hardware.
 	std::size_t GetMaxTextureSlots() const;

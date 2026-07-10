@@ -65,12 +65,6 @@ bool GetBoolean(GLenum name) {
 	return value == GL_TRUE;
 }
 
-float GetFloat(GLenum name) {
-	GLfloat value{ 0.0f };
-	GLCall(glGetFloatv(name, &value));
-	return value;
-}
-
 std::uint32_t GetUint(GLenum name) {
 	GLint value{ 0 };
 	GLCall(glGetIntegerv(name, &value));
@@ -307,18 +301,22 @@ BindGuard<RenderbufferId> GLContext::Bind(RenderbufferId id, bool restore_bind) 
 	return BindGuard<RenderbufferId>{ *this, previous, restore_bind };
 }
 
-BindGuard<TextureId> GLContext::Bind(TextureId id, bool restore_bind) {
+BindGuard<TextureId> GLContext::Bind(TextureId id, bool restore_bind, bool force) {
 	auto previous{ GetBoundTexture() };
 
-	if (id == previous) {
+	if (id == previous && !force) {
 		return BindGuard<TextureId>{ *this, TextureId{}, false };
 	}
 
 	auto slot{ GetActiveTextureSlot() };
-	PTGN_ASSERT(slot < GetMaxTextureSlots(), "Slot out of range of max slots");
-	PTGN_ASSERT(bound_.texture_units[slot].id != id);
 
+	PTGN_ASSERT(slot < GetMaxTextureSlots(), "Slot out of range of max slots");
+	PTGN_ASSERT(force || bound_.texture_units[slot].id != id);
 	PTGN_ASSERT(!id || textures.cache_.Has(id), "Texture ", id, " not found in texture cache");
+
+#ifdef PTGN_PLATFORM_MACOS
+	PTGN_ASSERT(id || !id && force, "Texture with id 0 cannot be bound on MacOS");
+#endif
 
 	GLCall(glBindTexture(GL_TEXTURE_2D, id));
 	bound_.texture_units[slot].id = id;
@@ -441,7 +439,7 @@ void GLContext::ForgetId(ShaderId id) {
 	}
 }
 
-void GLContext::ForgetId(TextureId id) {
+void GLContext::ForgetId(TextureId id, TextureId replacement_texture) {
 	if (!id) {
 		return;
 	}
@@ -456,18 +454,16 @@ void GLContext::ForgetId(TextureId id) {
 		}
 
 		if (bound_.active_texture.slot != slot) {
-			GLCall(glActiveTexture(GL_TEXTURE0 + slot));
-			bound_.active_texture = ActiveTexture{ slot };
+			SetActiveTextureSlot(slot, true);
 		}
 
-		GLCall(glBindTexture(GL_TEXTURE_2D, 0));
+		auto _ = Bind(replacement_texture, false, true);
 
-		unit = {};
+		unit = TextureUnitState{ .id = replacement_texture };
 	}
 
 	if (bound_.active_texture != previous_active_texture) {
-		GLCall(glActiveTexture(GL_TEXTURE0 + previous_active_texture.slot));
-		bound_.active_texture = previous_active_texture;
+		SetActiveTextureSlot(previous_active_texture.slot, true);
 	}
 }
 
@@ -525,9 +521,9 @@ void GLContext::Destroy(ShaderId id) {
 	shaders.DestroyProgram(id);
 }
 
-void GLContext::Destroy(TextureId id) {
+void GLContext::Destroy(TextureId id, TextureId replacement_texture) {
 	framebuffers.InvalidateTexture(id);
-	textures.Destroy(id);
+	textures.Destroy(id, replacement_texture);
 }
 
 void GLContext::Destroy(RenderbufferId id) {
@@ -535,8 +531,8 @@ void GLContext::Destroy(RenderbufferId id) {
 	renderbuffers.Destroy(id);
 }
 
-void GLContext::Destroy(FramebufferId id) {
-	framebuffers.Destroy(id);
+void GLContext::Destroy(FramebufferId id, TextureId replacement_texture) {
+	framebuffers.Destroy(id, replacement_texture);
 }
 
 void GLContext::Destroy(VertexArrayId id) {
@@ -609,7 +605,9 @@ void GLContext::SetDepthMask(const DepthMaskState& mask) {
 	}
 	if (!NearlyEqual(bound_.render_state.depth_mask.range_near, mask.range_near) ||
 		!NearlyEqual(bound_.render_state.depth_mask.range_far, mask.range_far)) {
-		GLCall(glDepthRange(mask.range_near, mask.range_far));
+		GLCall(
+			glDepthRange(static_cast<double>(mask.range_near), static_cast<double>(mask.range_far))
+		);
 	}
 
 	bound_.render_state.depth_mask = mask;
@@ -655,7 +653,7 @@ void GLContext::SetClearDepth(Depth depth) {
 	PTGN_ASSERT(
 		depth.value >= 0.0f && depth.value <= 1.0f, "Clear depth must be in range [0.0, 1.0]"
 	);
-	GLCall(glClearDepth(depth.value));
+	GLCall(glClearDepth(static_cast<double>(depth.value)));
 	bound_.clear_depth = depth;
 }
 
@@ -765,17 +763,19 @@ void GLContext::SetStencil(const StencilState& stencil) {
 	bound_.render_state.stencil = stencil;
 }
 
-void GLContext::SetActiveTextureSlot(std::uint32_t slot) {
-	if (bound_.active_texture.slot == slot) {
+void GLContext::SetActiveTextureSlot(std::uint32_t slot, bool force) {
+	if (bound_.active_texture.slot == slot && !force) {
 		return;
 	}
+
 	PTGN_ASSERT(
 		slot < GetMaxTextureSlots(),
 		"Attempting to bind a slot outside of OpenGL texture slot maximum"
 	);
+
 	GLCall(glActiveTexture(GL_TEXTURE0 + slot));
 
-	bound_.active_texture = ActiveTexture{ slot };
+	bound_.active_texture = ActiveTexture{ .slot = slot };
 }
 
 std::size_t GLContext::GetMaxTextureSlots() const {
@@ -832,14 +832,21 @@ void GLContext::ResetState() {
 	GLCall(glGetIntegerv(GL_ACTIVE_TEXTURE, &active_texture_index));
 
 	bound_.active_texture = ActiveTexture{
-		static_cast<std::uint32_t>(active_texture_index - GL_TEXTURE0),
+		.slot = static_cast<std::uint32_t>(active_texture_index - GL_TEXTURE0),
 	};
+
+	PTGN_ASSERT(
+		bound_.active_texture.slot >= 0,
+		"Failed to query a non-negative texture slot when resetting GLContext state"
+	);
+
+	auto previous_slot{ bound_.active_texture.slot };
 
 	bound_.texture_units.clear();
 	bound_.texture_units.resize(max_texture_slots);
 
-	for (auto i{ 0uz }; i < max_texture_slots; ++i) {
-		GLCall(glActiveTexture(GL_TEXTURE0 + static_cast<GLenum>(i)));
+	for (auto i{ 0u }; i < max_texture_slots; ++i) {
+		SetActiveTextureSlot(i);
 
 		GLint texture_2d{ 0 };
 		GLCall(glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture_2d));
@@ -847,7 +854,7 @@ void GLContext::ResetState() {
 		bound_.texture_units[i].id = TextureId{ static_cast<std::uint32_t>(texture_2d) };
 	}
 
-	GLCall(glActiveTexture(GL_TEXTURE0 + bound_.active_texture.slot));
+	SetActiveTextureSlot(previous_slot, true);
 
 	GLfloat depth{ 1.0f };
 	GLCall(glGetFloatv(GL_DEPTH_CLEAR_VALUE, &depth));

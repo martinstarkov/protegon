@@ -853,7 +853,7 @@ void Framebuffers::InvalidateRenderbuffer(RenderbufferId renderbuffer) {
 	}
 }
 
-void Framebuffers::Destroy(FramebufferId id) {
+void Framebuffers::Destroy(FramebufferId id, TextureId replacement_texture) {
 	if (!cache_.Has(id)) {
 		DestroyOnlyFramebuffer(id);
 		return;
@@ -881,7 +881,9 @@ void Framebuffers::Destroy(FramebufferId id) {
 
 		switch (attachment.storage) {
 			using enum AttachmentStorage;
-			case Texture:	   gl_.textures.Destroy(TextureId{ attachment.id }); break;
+			case Texture:
+				gl_.textures.Destroy(TextureId{ attachment.id }, replacement_texture);
+				break;
 			case Renderbuffer: gl_.renderbuffers.Destroy(RenderbufferId{ attachment.id }); break;
 			case None:		   PTGN_ERROR("Cannot destroy an empty framebuffer attachment");
 		}

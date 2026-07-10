@@ -172,7 +172,7 @@ public:
 
 	/// @brief Destroys the framebuffer and any color, depth, or stencil attachments that are
 	/// attached to it.
-	void Destroy(FramebufferId id);
+	void Destroy(FramebufferId id, TextureId replacement_texture);
 
 	/// @brief Destroys the framebuffer without destroying any attachments.
 	/// WARNING: Use with caution, as this can lead to resource leaks if the caller does not

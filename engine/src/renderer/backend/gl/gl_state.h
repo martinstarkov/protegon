@@ -12,18 +12,12 @@
 namespace ptgn::impl::gl {
 
 struct ActiveTexture {
-	ActiveTexture() = default;
-
-	explicit ActiveTexture(std::uint32_t slot) : slot{ slot } {}
-
 	std::uint32_t slot{ 0 };
 
-	bool operator==(const ActiveTexture&) const = default;
+	constexpr bool operator==(const ActiveTexture&) const = default;
 };
 
 struct TextureUnitState {
-	TextureUnitState() = default;
-
 	TextureId id;
 
 	TextureMinFilter min_filter{ TextureMinFilter::Linear };
@@ -31,7 +25,7 @@ struct TextureUnitState {
 	TextureWrap wrap_s{ TextureWrap::Repeat };
 	TextureWrap wrap_t{ TextureWrap::Repeat };
 
-	bool operator==(const TextureUnitState&) const = default;
+	constexpr bool operator==(const TextureUnitState&) const = default;
 };
 
 using TextureUnits = std::vector<TextureUnitState>;

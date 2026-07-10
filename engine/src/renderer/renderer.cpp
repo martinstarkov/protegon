@@ -69,7 +69,21 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	gl_{ std::make_unique<impl::gl::GLContext>(stats) },
 	batcher_{ *this },
 	framebuffer_pool_{ *this },
-	pipeline_manager_{ *this } {
+	pipeline_manager_{ *this },
+	white_texture_{ CreateTexture(color::White.Data(), { .size = { 1, 1 } }, false) } {
+	auto max_texture_slots{ GetMaxTextureSlots() };
+
+#ifdef PTGN_PLATFORM_MACOS
+	//  Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
+	//  GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
+	//  texture because texture unloadable."
+	for (auto i{ 0u }; i < max_texture_slots; ++i) {
+		gl_->SetActiveTextureSlot(i, true);
+		auto _999 = gl_->Bind(white_texture_, false, true);
+	}
+	gl_->SetActiveTextureSlot(0);
+#endif
+
 	pipeline_manager_.AddPipeline<impl::TextureVertex>(
 		"texture", impl::kVertexCapacity, impl::kIndexCapacity, impl::PrimitiveMode::Triangles
 	);
@@ -94,12 +108,10 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	PTGN_ASSERT(display_size.IsPositive(), "Display size cannot be zero");
 
 	presentation_framebuffer_ = CreateFramebuffer(
-		{ .size{ display_size }, .format{ kDefaultPresentationTargetFormat } }, std::nullopt
+		{ .size{ display_size }, .format = kDefaultPresentationTargetFormat }, std::nullopt
 	);
 	BindPresentationFramebuffer();
 	SetViewProjection(display_size);
-
-	auto max_texture_slots{ GetMaxTextureSlots() };
 
 	std::vector<std::int32_t> samplers(max_texture_slots);
 	std::ranges::iota(samplers, 0);
@@ -111,16 +123,6 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 	auto text_shader{ GetShader("text") };
 	auto _2 = gl_->Bind(text_shader, false);
 	SetUniform(text_shader, impl::kTexturesUniform, samplers);
-
-#ifdef PTGN_PLATFORM_MACOS
-	//  Prevents MacOS warning: "UNSUPPORTED (log once): POSSIBLE ISSUE: unit X
-	//  GLD_TEXTURE_INDEX_2D is unloadable and bound to sampler type (Float) - using zero
-	//  texture because texture unloadable."
-	for (auto i{ 0u }; i < max_texture_slots; ++i) {
-		gl_->SetActiveTextureSlot(i);
-		auto _999 = gl_->Bind(impl::TextureId{ 0 }, false);
-	}
-#endif
 }
 
 Renderer::~Renderer() noexcept {
@@ -165,7 +167,7 @@ impl::FramebufferObject Renderer::CreateFramebuffer(
 	impl::FramebufferId framebuffer{};
 
 	if (IsColorFormat(desc.format)) {
-		auto texture{ gl_->textures.Create(desc) };
+		auto texture{ gl_->textures.Create(desc, true) };
 
 		std::optional<impl::RenderbufferId> renderbuffer;
 		auto attachment{ impl::gl::Attachment::DepthStencil };
@@ -426,7 +428,8 @@ void Renderer::SetLogicalSize(
 	std::optional<V2_int> logical_size, std::optional<ScalingMode> scaling_mode
 ) {
 	if (logical_size_ == logical_size &&
-		(!scaling_mode.has_value() || scaling_mode.has_value() && scaling_mode_ == scaling_mode)) {
+		(!scaling_mode.has_value() ||
+		 (scaling_mode.has_value() && scaling_mode_ == scaling_mode))) {
 		return;
 	}
 
@@ -729,14 +732,10 @@ impl::ShaderObject Renderer::CreateShader(
 	return impl::ShaderObject{ this, gl_->shaders.CreateProgram(source, shader_name) };
 }
 
-impl::TextureObject Renderer::CreateTexture(const std::uint8_t* pixel_data, TextureDesc desc) {
-	auto [pixel_format, pixel_type] = impl::gl::GetPixelDataFormat(desc.format);
-	PTGN_ASSERT(
-		pixel_type == impl::gl::PixelDataType::UnsignedByte,
-		"Texture format must have a type of bytes"
-	);
-	return impl::TextureObject{ this,
-								gl_->textures.Create(pixel_data, pixel_format, pixel_type, desc) };
+impl::TextureObject Renderer::CreateTexture(
+	const std::uint8_t* pixel_data, TextureDesc desc, bool restore_bind
+) {
+	return impl::TextureObject{ this, gl_->textures.Create(pixel_data, desc, restore_bind) };
 }
 
 void Renderer::SetBoundShaderUniform(const char* uniform_name, int value) {
@@ -820,7 +819,11 @@ void Renderer::Destroy(impl::ShaderId id) {
 }
 
 void Renderer::Destroy(impl::TextureId id) {
-	gl_->Destroy(id);
+#ifdef PTGN_PLATFORM_MACOS
+	gl_->Destroy(id, white_texture_.operator impl::TextureId());
+#else
+	gl_->Destroy(id, impl::TextureId{ 0 });
+#endif
 }
 
 void Renderer::Destroy(impl::RenderbufferId id) {
@@ -828,7 +831,11 @@ void Renderer::Destroy(impl::RenderbufferId id) {
 }
 
 void Renderer::Destroy(impl::FramebufferId id) {
-	gl_->Destroy(id);
+#ifdef PTGN_PLATFORM_MACOS
+	gl_->Destroy(id, white_texture_.operator impl::TextureId());
+#else
+	gl_->Destroy(id, impl::TextureId{ 0 });
+#endif
 }
 
 void Renderer::Destroy(impl::VertexArrayId id) {
@@ -936,11 +943,12 @@ void Renderer::UploadIndices(
 	);
 }
 
-void Renderer::DrawElements(const impl::RenderPipeline& pipeline, std::uint32_t index_count) {
+void Renderer::DrawElements(const impl::RenderPipeline& pipeline, std::size_t index_count) {
 	auto _0{ gl_->Bind(pipeline.vao, false) };
 
 	gl_->vertex_arrays.DrawElements(
-		pipeline.vao, index_count, impl::gl::IndexType::UnsignedInt, pipeline.primitive_mode
+		pipeline.vao, static_cast<int>(index_count), impl::gl::IndexType::UnsignedInt,
+		pipeline.primitive_mode
 	);
 }
 
@@ -1140,9 +1148,14 @@ void Renderer::SetRenderStateDelta(const RenderStateDelta& delta) {
 	}
 }
 
-void Renderer::BindTextureSlot(std::uint32_t slot, impl::TextureId texture) {
-	gl_->SetActiveTextureSlot(slot);
-	auto _3{ gl_->Bind(texture, false) };
+void Renderer::BindTextureSlot(std::uint32_t slot, impl::TextureId texture, bool force) {
+	gl_->SetActiveTextureSlot(slot, force);
+#ifdef PTGN_PLATFORM_MACOS
+	if (!texture) {
+		texture = white_texture_;
+	}
+#endif
+	auto _3{ gl_->Bind(texture, false, force) };
 }
 
 bool Renderer::FramebufferMatches(

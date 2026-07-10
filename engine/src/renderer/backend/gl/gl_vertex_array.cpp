@@ -55,12 +55,15 @@ void VertexArrays::SetupVertexAttrib(
 void VertexArrays::DrawElements(
 	VertexArrayId vertex_array, int index_count, IndexType index_type, PrimitiveMode primitive_mode
 ) const {
+	PTGN_ASSERT(index_count > 0);
 	PTGN_ASSERT(gl_.IsBound(vertex_array));
 	PTGN_ASSERT(cache_.Get(vertex_array).layout_set);
 	PTGN_ASSERT(gl_.GetBoundElementBuffer());
+
 	GLCall(glDrawElements(
 		std::to_underlying(primitive_mode), index_count, std::to_underlying(index_type), nullptr
 	));
+
 	gl_.stats.Increment("draw_calls");
 }
 

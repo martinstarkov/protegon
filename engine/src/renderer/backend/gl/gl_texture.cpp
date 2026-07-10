@@ -16,9 +16,9 @@ namespace ptgn::impl::gl {
 
 Textures::Textures(GLContext& gl) : gl_{ gl } {}
 
-TextureId Textures::Create(TextureDesc desc) {
+TextureId Textures::Create(TextureDesc desc, bool restore_bind) {
 	auto [pixel_format, pixel_type] = GetPixelDataFormat(desc.format);
-	return Create(nullptr, pixel_format, pixel_type, desc);
+	return Create(nullptr, pixel_format, pixel_type, desc, restore_bind);
 }
 
 TextureId Textures::Create(
@@ -47,6 +47,15 @@ TextureId Textures::Create(
 	PTGN_ASSERT(GLCallReturn(glIsTexture(texture)), "Failed to create a valid OpenGL texture");
 
 	return texture;
+}
+
+TextureId Textures::Create(const void* pixel_data, TextureDesc desc, bool restore_bind) {
+	auto [pixel_format, pixel_type] = impl::gl::GetPixelDataFormat(desc.format);
+	PTGN_ASSERT(
+		pixel_type == impl::gl::PixelDataType::UnsignedByte,
+		"Texture format must have a type of bytes"
+	);
+	return Create(pixel_data, pixel_format, pixel_type, desc, restore_bind);
 }
 
 std::optional<TextureDesc> Textures::GetDesc(TextureId texture) const {
@@ -186,12 +195,12 @@ TextureId Textures::CreateImpl() {
 	return id;
 }
 
-void Textures::Destroy(TextureId id) {
+void Textures::Destroy(TextureId id, TextureId replacement_texture) {
 	if (!id) {
 		return;
 	}
-	gl_.ForgetId(id);
-	PTGN_ASSERT(!gl_.IsBound(id), "TextureId must not be bound when destroying it");
+	gl_.ForgetId(id, id == replacement_texture ? TextureId{ 0 } : replacement_texture);
+	PTGN_ASSERT(!gl_.IsBound(id), "TextureId ", id, " must not be bound when destroying it");
 	GLCall(glDeleteTextures(1, &id.value));
 	cache_.Remove(id);
 }

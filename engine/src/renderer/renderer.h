@@ -377,7 +377,7 @@ private:
 		const std::variant<ShaderCode, ShaderPath, ShaderPair>& source, std::string_view shader_name
 	);
 	[[nodiscard]] impl::TextureObject CreateTexture(
-		const std::uint8_t* pixel_data, TextureDesc desc
+		const std::uint8_t* pixel_data, TextureDesc desc, bool restore_bind = true
 	);
 	[[nodiscard]] impl::FramebufferObject CreateFramebuffer(
 		TextureDesc desc, std::optional<TextureDesc> other_desc
@@ -444,7 +444,7 @@ private:
 		std::uint32_t vertex_size
 	);
 	void UploadIndices(const impl::RenderPipeline& pipeline, std::span<const impl::Index> indices);
-	void DrawElements(const impl::RenderPipeline& pipeline, std::uint32_t index_count);
+	void DrawElements(const impl::RenderPipeline& pipeline, std::size_t index_count);
 
 	void BeginFrame();
 
@@ -559,7 +559,7 @@ private:
 	// scene.
 	void UpdateDisplayViewport(bool emit_events = true);
 
-	void BindTextureSlot(std::uint32_t slot, impl::TextureId texture);
+	void BindTextureSlot(std::uint32_t slot, impl::TextureId texture, bool force = false);
 
 	[[nodiscard]] DisplayResizeInfo RecalculateDisplayViewport() const;
 
@@ -635,6 +635,7 @@ private:
 	impl::FramebufferPool framebuffer_pool_;
 	impl::RenderPipelineManager pipeline_manager_;
 	std::vector<impl::FramebufferObject> temp_framebuffers_;
+	impl::TextureObject white_texture_;
 
 	RenderSettings render_settings_;
 
