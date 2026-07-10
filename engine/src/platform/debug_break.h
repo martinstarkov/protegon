@@ -18,6 +18,11 @@
 #undef PTGN_DEBUGBREAK
 #define PTGN_DEBUGBREAK() raise(SIGTRAP)
 
+#elif defined(__clang__)
+
+#undef PTGN_DEBUGBREAK
+#define PTGN_DEBUGBREAK() __builtin_debugtrap()
+
 #endif
 
 #endif
