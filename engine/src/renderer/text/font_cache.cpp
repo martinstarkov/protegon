@@ -365,36 +365,12 @@ std::vector<std::byte> MakePngChunk(std::array<char, 4> type, std::span<const st
 	return chunk;
 }
 
-impl::Surface CreateSurfaceFromEncodedPng(FontBinary font_png) {
-	return impl::Surface{ std::as_bytes(font_png.buffer), kFontAtlasChannelCount };
-}
-
 FontCacheError ToFontCacheError(FileWriteError error) {
 	switch (error) {
 		case FileWriteError::OpenFailed:  return FontCacheError::CannotOpen;
 		case FileWriteError::WriteFailed: return FontCacheError::WriteFailed;
 		default:						  PTGN_ERROR("Unknown FileWriteError: ", std::to_underlying(error));
 	}
-}
-
-std::expected<impl::FontData, FontCacheError> ReadFontCacheFromPng(FontBinary font_png) {
-	if (font_png.buffer.empty()) {
-		return std::unexpected{ FontCacheError::InvalidPng };
-	}
-
-	auto png_bytes{ std::as_bytes(font_png.buffer) };
-
-	auto payload{ GetExpectedFontDataChunkPayload(png_bytes) };
-	if (!payload.has_value()) {
-		return std::unexpected{ payload.error() };
-	}
-
-	return ReadFontCachePayload(payload.value());
-}
-
-std::expected<impl::FontData, FontCacheError> ReadFontCacheFromPng(const path& png_path) {
-	auto png_bytes{ ReadBinary(png_path) };
-	return ReadFontCacheFromPng(FontBinary{ png_bytes });
 }
 
 std::expected<std::vector<std::byte>, FontCacheError> InsertPngChunkAfterIhdr(
@@ -430,7 +406,7 @@ std::expected<std::vector<std::byte>, FontCacheError> InsertPngChunkAfterIhdr(
 		if (auto is_existing_target_chunk{ MatchesType(png_bytes, type_offset, type) };
 			!is_existing_target_chunk) {
 			output.insert(
-				output.end(), png_bytes.begin() + offset, png_bytes.begin() + offset + chunk_size
+				output.end(), png_bytes.begin() + static_cast<std::int64_t>(offset), png_bytes.begin() + static_cast<std::int64_t>(offset + chunk_size)
 			);
 		}
 

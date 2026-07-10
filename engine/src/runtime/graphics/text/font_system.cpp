@@ -77,13 +77,8 @@ void WriteGeneratedDefaultFontHeader(const path& font_png_path) {
 	PTGN_ASSERT(out, "Failed to write generated default font header: ", header_path.string());
 }
 
-impl::FontAtlas GenerateDefaultFontAtlas(Renderer& renderer) {
-#ifdef __EMSCRIPTEN__
-	static_assert(
-		false, "Default font atlas header generation is not supported on Emscripten builds"
-	);
-#endif
-
+#if !defined(__EMSCRIPTEN__) && defined(PTGN_DEBUG)
+[[maybe_unused]] impl::FontAtlas GenerateDefaultFontAtlas(Renderer& renderer) {
 	path font_path{ kDefaultFontFile };
 
 	PTGN_ASSERT(FileExists(font_path), "Default font file does not exist: ", font_path.string());
@@ -104,6 +99,7 @@ impl::FontAtlas GenerateDefaultFontAtlas(Renderer& renderer) {
 
 	return font_atlas;
 }
+#endif
 
 impl::FontAtlas GetDefaultFontAtlas(Renderer& renderer) {
 #if !defined(__EMSCRIPTEN__) && defined(PTGN_DEBUG)
