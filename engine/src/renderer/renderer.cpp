@@ -1089,6 +1089,8 @@ std::optional<std::int32_t> Renderer::ReadEntityId(
 		return std::nullopt;
 	}
 
+	auto bind_guard{ gl_->Bind(framebuffer, true) };
+
 	auto entity_id{ gl_->framebuffers.ReadPixel<impl::gl::Attachment::Color1>(framebuffer, pixel) };
 
 	if (!std::holds_alternative<std::int32_t>(entity_id)) {

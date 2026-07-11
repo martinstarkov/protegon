@@ -353,35 +353,9 @@ void DebugSettingsPanel::OnRender(EditorContext& ctx) {
 void EditorSettingsPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Editor Settings");
 
-	constexpr std::array<const char*, 3> names{
-		"Automatic",
-		"Enabled",
-		"Disabled",
-	};
-
-	auto mode{ static_cast<int>(ctx.editor.GetSettings().entity_picking) };
-
-	if (inspector::DrawPropertyRow("Entity Picking", [&]() {
-			return ImGui::Combo("##value", &mode, names.data(), static_cast<int>(names.size()));
-		})) {
-		ctx.editor.SetEntityPickingMode(static_cast<EditorEntityPickingMode>(mode));
-	}
-
-	switch (ctx.editor.GetSettings().entity_picking) {
-		case EditorEntityPickingMode::Automatic:
-			ImGui::TextDisabled("Enabled while the editor renderer is active.");
-			break;
-
-		case EditorEntityPickingMode::Enabled:
-			ImGui::TextDisabled("Entity picking is always enabled.");
-			break;
-
-		case EditorEntityPickingMode::Disabled:
-			ImGui::TextDisabled("Viewport entity selection is disabled.");
-			break;
-
-		default: PTGN_ERROR("Unknown editor entity picking mode");
-	}
+	auto entity_picking{ ctx.editor.GetSettings().entity_picking };
+	ImGui::Checkbox("Entity Picking", &entity_picking);
+	ctx.editor.SetEntityPickingMode(entity_picking);
 
 	ImGui::End();
 }

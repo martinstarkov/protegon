@@ -161,18 +161,7 @@ SceneListPanel& Editor::GetSceneListPanel() {
 
 bool Editor::ShouldEnableEntityPicking() const {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
-
-	switch (context_->settings.entity_picking) {
-		case EditorEntityPickingMode::Automatic: return render_enabled_;
-		case EditorEntityPickingMode::Enabled:	 return true;
-		case EditorEntityPickingMode::Disabled:	 return false;
-
-		default:
-			PTGN_ERROR(
-				"Unknown EditorEntityPickingMode: ",
-				std::to_underlying(context_->settings.entity_picking)
-			);
-	}
+	return context_->settings.entity_picking && render_enabled_;
 }
 
 impl::FramebufferId Editor::GetSceneFramebuffer(Scene& scene) const {
@@ -232,16 +221,16 @@ const EditorSettings& Editor::GetSettings() const {
 	return context_->settings;
 }
 
-void Editor::SetEntityPickingMode(EditorEntityPickingMode mode) {
+void Editor::SetEntityPickingMode(bool enabled) {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 
-	if (context_->settings.entity_picking == mode) {
+	if (context_->settings.entity_picking == enabled) {
 		return;
 	}
 
 	auto previously_enabled{ ShouldEnableEntityPicking() };
 
-	context_->settings.entity_picking = mode;
+	context_->settings.entity_picking = enabled;
 
 	auto currently_enabled{ ShouldEnableEntityPicking() };
 

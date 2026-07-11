@@ -299,6 +299,6 @@ struct ShapeScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "ShapeScene" };
-	// PTGN_WITH_EDITOR(app);
+	PTGN_WITH_EDITOR(app, false);
 	app.StartWith<ShapeScene>();
 }

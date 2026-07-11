@@ -72,7 +72,7 @@ public:
 
 	const EditorSettings& GetSettings() const;
 
-	void SetEntityPickingMode(EditorEntityPickingMode mode);
+	void SetEntityPickingMode(bool enabled);
 
 private:
 	Application& app;
