@@ -305,7 +305,7 @@ Rect GetButtonTextAutoBox(Rect content_rect, V2_float text_origin_position, Orig
 		return {};
 	}
 
-	return Rect{ size, text_origin };
+	return { size, text_origin };
 }
 
 template <typename TVisual>
@@ -1639,9 +1639,9 @@ void Button::ApplyTextVisual() const {
 	bool button_visible{ IsVisible(*this) };
 	SetVisible(entity, button_visible);
 
-	TextBox box;
+	TextBox box{ .style = { .alignment = { .horizontal = std::nullopt, .vertical = std::nullopt } } };
 	auto anchor{ Origin::Center };
-	auto origin{ Origin::Center };
+	auto origin{ anchor };
 	Transform transform;
 	auto auto_box{ true };
 	Padding padding;
