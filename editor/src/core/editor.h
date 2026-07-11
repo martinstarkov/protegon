@@ -76,6 +76,8 @@ public:
 
 	void SetGizmoUsesLocalOrientation(bool enabled);
 
+	void SetSceneEntityPickingEnabled(Scene& scene, bool enabled);
+
 private:
 	Application& app;
 

@@ -62,12 +62,6 @@ Editor::Editor(Application& app) : app{ app } {
 	commands_ = EditorCommands{ &undo_stack_, &scene_list_panel_ };
 }
 
-void Editor::OnUpdate() {
-	if (ImGui::IsKeyPressed(ImGuiKey_F11)) {
-		EnableRendering(!render_enabled_);
-	}
-}
-
 void Editor::UpdateDockLayout(std::uint32_t dockspace_id, float width) {
 	auto* dockspace{ ImGui::DockBuilderGetNode(dockspace_id) };
 
@@ -171,14 +165,12 @@ impl::FramebufferId Editor::GetSceneFramebuffer(Scene& scene) const {
 }
 
 void Editor::OnSelectedSceneChanged(Scene* previous_scene, Scene* selected_scene) {
-	impl::RendererAccessor renderer{ GetRenderer() };
-
 	if (previous_scene) {
-		renderer.SetEntityPickingEnabled(GetSceneFramebuffer(*previous_scene), false);
+		SetSceneEntityPickingEnabled(*previous_scene, false);
 	}
 
-	if (selected_scene && ShouldEnableEntityPicking()) {
-		renderer.SetEntityPickingEnabled(GetSceneFramebuffer(*selected_scene), true);
+	if (selected_scene) {
+		SetSceneEntityPickingEnabled(*selected_scene, ShouldEnableEntityPicking());
 	}
 }
 
@@ -204,16 +196,14 @@ void Editor::EnableRendering(bool enable) {
 	ApplyEntityPickingSettings();
 }
 
-void Editor::ApplyEntityPickingSettings() {
-	auto* scene{ scene_list_panel_.GetSelectedScene() };
-
-	if (!scene) {
-		return;
+void Editor::OnUpdate() {
+	if (ImGui::IsKeyPressed(ImGuiKey_F11)) {
+		EnableRendering(!render_enabled_);
 	}
 
-	impl::RendererAccessor renderer{ GetRenderer() };
-
-	renderer.SetEntityPickingEnabled(GetSceneFramebuffer(*scene), ShouldEnableEntityPicking());
+	if (auto* scene{ scene_list_panel_.GetSelectedScene() }) {
+		SetSceneEntityPickingEnabled(*scene, ShouldEnableEntityPicking());
+	}
 }
 
 const EditorSettings& Editor::GetSettings() const {
@@ -245,6 +235,16 @@ void Editor::SetEntityPickingMode(bool enabled) {
 	}
 
 	ApplyEntityPickingSettings();
+}
+
+void Editor::ApplyEntityPickingSettings() {
+	auto* scene{ scene_list_panel_.GetSelectedScene() };
+
+	if (!scene) {
+		return;
+	}
+
+	SetSceneEntityPickingEnabled(*scene, ShouldEnableEntityPicking());
 }
 
 void Editor::SetTimeScale(float time_scale) {
@@ -318,6 +318,14 @@ void Editor::OnProjectChanged() {
 	undo_stack_.Clear();
 
 	context_->state.is_dirty = false;
+}
+
+void Editor::SetSceneEntityPickingEnabled(Scene& scene, bool enabled) {
+	impl::RendererAccessor renderer{ GetRenderer() };
+
+	for (auto [entity, framebuffer] : scene.EntitiesWith<impl::FramebufferObject>()) {
+		renderer.SetEntityPickingEnabled(static_cast<impl::FramebufferId>(framebuffer), enabled);
+	}
 }
 
 void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {

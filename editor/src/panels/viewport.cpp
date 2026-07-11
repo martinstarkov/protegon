@@ -74,6 +74,42 @@ V2_float ScreenToWorld(
 	return ConvertPoint(presentation_point, Frame::Presentation, to, frame_context);
 }
 
+std::optional<V2_int> WorldToRenderTargetPixel(
+	Entity render_target_entity, V2_float world_position
+) {
+	if (!render_target_entity.Has<impl::FramebufferObject>()) {
+		return std::nullopt;
+	}
+
+	RenderTarget render_target{ render_target_entity };
+
+	auto size{ render_target.GetSize() };
+
+	if (!size.IsPositive()) {
+		return std::nullopt;
+	}
+
+	auto draw_transform{ GetDrawTransform(render_target_entity) };
+
+	auto local_position{ draw_transform.ApplyInverse(world_position) };
+
+	Rect local_rect{ V2_float{ size }, render_target_entity.GetOrDefault<Origin>(kDefaultOrigin) };
+
+	if (local_position.x < local_rect.min.x || local_position.x >= local_rect.max.x ||
+		local_position.y < local_rect.min.y || local_position.y >= local_rect.max.y) {
+		return std::nullopt;
+	}
+
+	auto uv{ (local_position - local_rect.min) / local_rect.GetSize() };
+
+	V2_int pixel{
+		static_cast<int>(uv.x * static_cast<float>(size.x)),
+		static_cast<int>(uv.y * static_cast<float>(size.y)),
+	};
+
+	return Clamp(pixel, V2_int{ 0, 0 }, size - V2_int{ 1, 1 });
+}
+
 std::optional<V2_int> ScreenToFramebufferPixel(
 	V2_float screen_position, Viewport image_viewport, V2_int framebuffer_size
 ) {
@@ -98,6 +134,53 @@ std::optional<V2_int> ScreenToFramebufferPixel(
 	};
 
 	return Clamp(pixel, V2_int{ 0, 0 }, framebuffer_size - V2_int{ 1, 1 });
+}
+
+Entity ResolveRenderTargetPick(
+	Scene& scene, impl::RendererAccessor& renderer, Entity outer_entity, V2_float world_position
+) {
+	if (!outer_entity || !outer_entity.Has<impl::FramebufferObject>()) {
+		return outer_entity;
+	}
+
+	RenderTarget render_target{ outer_entity };
+
+	auto framebuffer{
+		static_cast<impl::FramebufferId>(render_target.Get<impl::FramebufferObject>())
+	};
+
+	if (!renderer.IsEntityPickingEnabled(framebuffer)) {
+		return outer_entity;
+	}
+
+	auto pixel{ WorldToRenderTargetPixel(outer_entity, world_position) };
+
+	if (!pixel.has_value()) {
+		return outer_entity;
+	}
+
+	auto nested_id{ renderer.ReadEntityId(framebuffer, pixel.value()) };
+
+	if (!nested_id.has_value() || nested_id.value() == impl::kNoEntityId) {
+		return outer_entity;
+	}
+
+	PTGN_ASSERT(
+		nested_id.value() >= 0, "Render target returned an invalid entity ID: ", nested_id.value()
+	);
+
+	auto nested_entity{ scene.GetEntityByUUID(nested_id.value()) };
+
+	if (!nested_entity) {
+		return outer_entity;
+	}
+
+	// Protect against a render target rendering itself.
+	if (nested_entity == outer_entity) {
+		return outer_entity;
+	}
+
+	return nested_entity;
 }
 
 void UpdateEditorCamera(EditorCamera& editor_camera) {
@@ -508,7 +591,7 @@ void ViewportPanel::DrawSceneCameraOutlines(
 		}
 
 		Rect rect{ camera.GetLogicalViewport().size };
-		auto transform{ GetTransform(camera) };
+		auto transform{ GetTransform(camera).RelativeTo(GetTransform(camera.GetRenderTarget())) };
 		auto world_vertices{ rect.GetWorldVertices(transform) };
 
 		std::array points{
@@ -735,7 +818,7 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 		DrawSelectedEntityGizmo(ctx, presentation_viewport, frame_context);
 
-		HandleEntityPicking(ctx, viewport, presentation_size);
+		HandleEntityPicking(ctx, viewport, presentation_size, presentation_viewport, frame_context);
 
 		draw_list->PopClipRect();
 	}
@@ -760,6 +843,14 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 
 	auto world_transform{ GetWorldTransform(selected_entity) };
 
+	Transform render_target_transform;
+
+	if (selected_entity.Has<impl::CameraData>()) {
+		render_target_transform = GetTransform(SceneCamera{ selected_entity }.GetRenderTarget());
+	}
+
+	world_transform = world_transform.RelativeTo(render_target_transform);
+
 	if (ctx.state.viewport.hovered && !ImGui::GetIO().WantTextInput) {
 		if (ImGui::IsKeyPressed(ImGuiKey_W)) {
 			gizmo_state_.tool = GizmoTool::Translate;
@@ -780,11 +871,14 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		ctx.editor.GetSettings().gizmo_uses_local_orientation
 	);
 
+	world_transform = world_transform.InverseRelativeTo(render_target_transform);
+
 	SetWorldTransform(selected_entity, world_transform);
 }
 
 void ViewportPanel::HandleEntityPicking(
-	EditorContext& ctx, Viewport image_viewport, V2_int presentation_framebuffer_size
+	EditorContext& ctx, Viewport image_viewport, V2_int presentation_framebuffer_size,
+	Viewport presentation_viewport, const FrameContext& frame_context
 ) {
 	auto* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
 
@@ -792,10 +886,10 @@ void ViewportPanel::HandleEntityPicking(
 		return;
 	}
 
-	auto render_target{ scene->GetRenderTarget() };
+	auto scene_target{ scene->GetRenderTarget() };
 
 	auto scene_framebuffer{
-		static_cast<impl::FramebufferId>(render_target.Get<impl::FramebufferObject>())
+		static_cast<impl::FramebufferId>(scene_target.Get<impl::FramebufferObject>())
 	};
 
 	impl::RendererAccessor renderer{ ctx.editor.GetRenderer() };
@@ -804,7 +898,7 @@ void ViewportPanel::HandleEntityPicking(
 		return;
 	}
 
-	if (!ctx.state.viewport.hovered || !ctx.state.viewport.focused) {
+	if (!ctx.state.viewport.hovered) {
 		return;
 	}
 
@@ -826,38 +920,47 @@ void ViewportPanel::HandleEntityPicking(
 		ImGui::GetIO().MousePos.y,
 	};
 
-	auto scene_target_size{ render_target.GetSize() };
+	auto scene_target_size{ scene_target.GetSize() };
 
 	PTGN_ASSERT(scene_target_size.IsPositive());
 	PTGN_ASSERT(presentation_framebuffer_size.IsPositive());
 
-	auto pixel{ ScreenToFramebufferPixel(mouse_position, image_viewport, scene_target_size) };
+	auto scene_pixel{ ScreenToFramebufferPixel(mouse_position, image_viewport, scene_target_size) };
 
-	if (!pixel.has_value()) {
+	if (!scene_pixel.has_value()) {
 		return;
 	}
 
-	// Normally everything has already been flushed by Scene::InternalDraw(),
-	// but the read must occur after all relevant rendering has completed.
+	// Readback must happen after every relevant render target has been completed.
 	renderer.FlushBatch();
 
-	auto entity_id{ renderer.ReadEntityId(scene_framebuffer, pixel.value()) };
+	auto outer_id{ renderer.ReadEntityId(scene_framebuffer, scene_pixel.value()) };
 
 	auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
 
-	if (!entity_id.has_value() || entity_id.value() == impl::kNoEntityId) {
+	if (!outer_id.has_value() || outer_id.value() == impl::kNoEntityId) {
 		hierarchy.SetSelectedEntity({});
 		return;
 	}
 
 	PTGN_ASSERT(
-		entity_id.value() >= 0,
-		"Entity picking returned an invalid negative entity ID: ", entity_id.value()
+		outer_id.value() >= 0, "Entity picking returned an invalid entity ID: ", outer_id.value()
 	);
 
-	auto entity{ scene->GetEntityByUUID(static_cast<std::uint64_t>(entity_id.value())) };
+	auto outer_entity{ scene->GetEntityByUUID(outer_id.value()) };
 
-	hierarchy.SetSelectedEntity(entity);
+	if (!outer_entity) {
+		hierarchy.SetSelectedEntity({});
+		return;
+	}
+
+	auto mouse_world{
+		ScreenToWorld(mouse_position, frame_context, presentation_viewport, Frame::World)
+	};
+
+	auto selected_entity{ ResolveRenderTargetPick(*scene, renderer, outer_entity, mouse_world) };
+
+	hierarchy.SetSelectedEntity(selected_entity);
 }
 
 } // namespace ptgn::editor

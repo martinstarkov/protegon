@@ -395,31 +395,22 @@ bool Scene::IsAwaitingTransitionDelay() const {
 void Scene::ClearRenderTargets() {
 	impl::RendererAccessor renderer{ ctx().renderer };
 
-	auto clear_render_target = [&](auto render_target) {
+	for (auto [entity, framebuffer] : EntitiesWith<impl::FramebufferObject>()) {
+		RenderTarget render_target{ entity };
+
+		renderer.SetFramebuffer(&framebuffer);
 		renderer.SetViewport(
 			{
-				.position = {},
-				.size	  = render_target.GetSize(),
+				.position{},
+				.size{ render_target.GetSize() },
 			}
 		);
 		renderer.SetScissor(ScissorState{ false });
 
 		render_target.ClearColor(std::nullopt, false);
 
-		auto framebuffer{
-			static_cast<impl::FramebufferId>(render_target.template Get<impl::FramebufferObject>())
-		};
-
-		renderer.ClearEntityIds(framebuffer);
-	};
-
-	for (auto [render_target, frame_buffer, _drawable] :
-		 EntitiesWith<impl::FramebufferObject, impl::IDrawable>()) {
-		clear_render_target(RenderTarget{ render_target });
+		renderer.ClearEntityIds(static_cast<impl::FramebufferId>(framebuffer));
 	}
-
-	renderer.SetFramebuffer(&ctx_->render_target_.Get<impl::FramebufferObject>());
-	clear_render_target(ctx_->render_target_);
 }
 
 void Scene::DrawCameras(DrawContext& draw_context, const std::vector<Entity>& cameras) {

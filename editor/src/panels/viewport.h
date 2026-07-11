@@ -68,7 +68,10 @@ private:
 
 	void DrawViewportToolbar(EditorContext& ctx);
 
-	void HandleEntityPicking(EditorContext& ctx, Viewport image_viewport, V2_int framebuffer_size);
+	void HandleEntityPicking(
+		EditorContext& ctx, Viewport image_viewport, V2_int presentation_framebuffer_size,
+		Viewport presentation_viewport, const FrameContext& frame_context
+	);
 
 	EditorCamera editor_camera_;
 
