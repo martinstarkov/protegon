@@ -74,8 +74,12 @@ using UniformValue = std::variant<
 struct UniformWrite {
 	constexpr UniformWrite() = default;
 
-	constexpr UniformWrite(std::string_view name, UniformValue value) :
-		name{ std::string{ name } }, value{ std::move(value) } {}
+	constexpr UniformWrite() = default;
+
+	template <typename T>
+		requires std::constructible_from<UniformValue, T&&>
+	constexpr UniformWrite(std::string_view name, T&& value) :
+		name{ name }, value{ std::forward<T>(value) } {}
 
 	std::string name;
 	UniformValue value;
