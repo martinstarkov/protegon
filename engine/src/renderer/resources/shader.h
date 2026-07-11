@@ -38,7 +38,7 @@ struct ShaderCode {
 };
 
 struct ShaderPath {
-	constexpr ShaderPath() = default;
+	ShaderPath() = default;
 
 	// Not explicit on purpose. Allows implicit conversion from path to ShaderPath, which is useful
 	// for the common case of loading shaders from files.
@@ -72,8 +72,6 @@ using UniformValue = std::variant<
 	std::vector<int>, bool>;
 
 struct UniformWrite {
-	constexpr UniformWrite() = default;
-
 	constexpr UniformWrite() = default;
 
 	template <typename T>

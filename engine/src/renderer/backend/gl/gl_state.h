@@ -20,10 +20,12 @@ struct ActiveTexture {
 struct TextureUnitState {
 	TextureId id;
 
-	TextureMinFilter min_filter{ TextureMinFilter::Linear };
-	TextureMagFilter mag_filter{ TextureMagFilter::Linear };
-	TextureWrap wrap_s{ TextureWrap::Repeat };
-	TextureWrap wrap_t{ TextureWrap::Repeat };
+	TextureParams params{
+		.min_filter = TextureMinFilter::Linear,
+		.mag_filter = TextureMagFilter::Linear,
+		.wrap_s = TextureWrap::Repeat,
+		.wrap_t = TextureWrap::Repeat,
+	};
 
 	constexpr bool operator==(const TextureUnitState&) const = default;
 };
@@ -58,7 +60,7 @@ struct State {
 	Stencil clear_stencil;
 	Color clear_color;
 
-	bool operator==(const State&) const = default;
+	constexpr bool operator==(const State&) const = default;
 };
 
 } // namespace ptgn::impl::gl

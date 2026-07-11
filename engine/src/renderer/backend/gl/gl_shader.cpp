@@ -505,7 +505,7 @@ void Shaders::PopulateShaderCache(const cmrc::embedded_filesystem& filesystem) {
 		std::string shader_src(file.begin(), file.end());
 		std::string name_without_ext{ filename.stem().string() };
 		auto srcs{ ParseShader(shader_src, name_without_ext) };
-		sources.append_range(srcs | std::views::as_rvalue);
+		std::ranges::move(srcs, std::back_inserter(sources));
 	}
 
 	SubstituteShaderTokens(sources, max_texture_slots_);
