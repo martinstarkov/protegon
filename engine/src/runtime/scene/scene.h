@@ -99,7 +99,7 @@ public:
 	Color GetBackgroundColor() const;
 
 	/// @return Null entity if no entity with the given uuid exists in the manager.
-	Entity GetEntityByUUID(std::uint64_t uuid) const;
+	Entity GetEntityByUUID(int uuid) const;
 
 	/// @return Null entity if no entity with the given tag exists in the scene.
 	/// If multiple entities have the same tag, returns the first one found.
@@ -111,8 +111,7 @@ public:
 	/// if unspecified.
 	/// Make sure to call Refresh() after this function.
 	Entity CreateEntity(
-		std::optional<std::string_view> tag = std::nullopt,
-		std::optional<std::uint64_t> uuid	= std::nullopt
+		std::optional<std::string_view> tag = std::nullopt, std::optional<int> uuid = std::nullopt
 	);
 
 	/// @brief Creates an entity from a json object.
@@ -127,7 +126,7 @@ public:
 	template <typename... Ts>
 	Entity CopyEntity(
 		Entity from, std::optional<std::string_view> tag = std::nullopt,
-		std::optional<std::uint64_t> uuid = std::nullopt
+		std::optional<int> uuid = std::nullopt
 	) {
 		auto entity{ manager_.CopyEntity<Ts...>(from) };
 		AddMandatoryComponents(entity, tag, uuid);

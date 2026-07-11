@@ -46,7 +46,7 @@ struct CommonShapeParams {
 	Origin origin{ Origin::Center };
 	V4_float color{ color::White.Normalized() };
 	Depth depth;
-	int entity_id{ -1 };
+	int entity_id{ kNoEntityId };
 };
 
 RenderQuadArray<ColorVertex> GetSolidPrimitives(const Rect& rect, const CommonShapeParams& params);

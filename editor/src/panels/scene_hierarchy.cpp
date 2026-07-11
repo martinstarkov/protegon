@@ -165,7 +165,7 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		bool selected{ entity == selected_entity_ };
 		bool has_children{ HasChildren(entity) };
 
-		ImGui::PushID(static_cast<int>(entity.GetUUID()));
+		ImGui::PushID(entity.GetUUID());
 
 		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_OpenOnArrow |
 								  ImGuiTreeNodeFlags_OpenOnDoubleClick |

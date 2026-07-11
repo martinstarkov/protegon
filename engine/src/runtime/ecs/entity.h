@@ -255,7 +255,7 @@ struct IgnoreParentScale {};
 using EntityFilterFunc = std::function<bool(Entity)>;
 
 void AddMandatoryComponents(
-	Entity entity, std::optional<std::string_view> tag, std::optional<std::uint64_t> uuid
+	Entity entity, std::optional<std::string_view> tag, std::optional<int> uuid
 );
 
 } // namespace impl

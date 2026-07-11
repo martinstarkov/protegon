@@ -65,7 +65,7 @@ struct TextureRenderParams {
 	std::optional<BlendMode> blend_mode;
 	std::optional<std::array<V2_float, 4>> texture_coordinates;
 	std::optional<SceneCamera> camera;
-	int entity_id{ -1 };
+	int entity_id{ impl::kNoEntityId };
 };
 
 struct ShapeRenderParams {
@@ -74,7 +74,7 @@ struct ShapeRenderParams {
 	Depth depth;
 	std::optional<BlendMode> blend_mode;
 	std::optional<SceneCamera> camera;
-	int entity_id{ -1 };
+	int entity_id{ impl::kNoEntityId };
 	/// @brief If true, the shape will be drawn to the debug layer which is drawn last.
 	bool debug{ false };
 };
@@ -85,7 +85,7 @@ struct TextRenderParams {
 	Depth depth;
 	std::optional<BlendMode> blend_mode;
 	std::optional<SceneCamera> camera;
-	int entity_id{ -1 };
+	int entity_id{ impl::kNoEntityId };
 	/// @brief If true, the text will be drawn to the debug layer which is drawn last.
 	bool debug{ false };
 };

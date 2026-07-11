@@ -322,7 +322,7 @@ struct DrawTextRequest {
 	const TextLayout& layout;
 	Color tint{ color::White };
 	Depth depth;
-	int entity_id{ -1 };
+	int entity_id{ impl::kNoEntityId };
 	std::span<const TextClipConstraint> clips;
 	std::size_t reveal_glyph_count{ std::numeric_limits<std::size_t>::max() };
 	float time{ 0.0f };

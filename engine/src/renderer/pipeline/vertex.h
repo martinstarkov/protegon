@@ -7,8 +7,11 @@
 #include "core/math/vector4.h"
 #include "renderer/pipeline/buffer_layout.h"
 #include "renderer/pipeline/glsl_types.h"
+#include "renderer/pipeline/render_state.h"
 
 namespace ptgn::impl {
+
+constexpr std::int32_t kNoEntityId{ -1 };
 
 struct ColorVertex : public VertexLayout<ColorVertex, glsl::vec3, glsl::vec4, glsl::int_> {
 	ColorVertex() = default;
@@ -20,7 +23,7 @@ struct ColorVertex : public VertexLayout<ColorVertex, glsl::vec3, glsl::vec4, gl
 
 	glsl::vec3 position{};
 	glsl::vec4 color{};
-	glsl::int_ entity_id{ -1 };
+	glsl::int_ entity_id{ kNoEntityId };
 };
 
 struct ShapeVertex :
@@ -48,7 +51,7 @@ struct ShapeVertex :
 	/// For arc: x = thickness, y = fade, z = aperture, w = direction (positive = CW, negative =
 	/// CCW)
 	glsl::vec4 shape_data{};
-	glsl::int_ entity_id{ -1 };
+	glsl::int_ entity_id{ kNoEntityId };
 };
 
 struct TextureVertex :
@@ -70,7 +73,7 @@ struct TextureVertex :
 	glsl::vec4 color{};
 	glsl::vec2 tex_coord{};
 	glsl::float_ tex_index{};
-	glsl::int_ entity_id{ -1 };
+	glsl::int_ entity_id{ kNoEntityId };
 };
 
 struct PositionTag {};

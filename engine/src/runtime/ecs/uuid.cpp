@@ -8,20 +8,20 @@
 
 namespace ptgn::impl {
 
-UUID::UUID() : uuid_{ static_cast<std::uint64_t>(RandomPositiveNumber<int>()) } {}
+UUID::UUID() : uuid_{ RandomPositiveNumber<int>() } {}
 
-UUID::UUID(std::uint64_t uuid) : uuid_{ uuid } {}
+UUID::UUID(int uuid) : uuid_{ uuid } {}
 
-UUID::operator std::uint64_t() const {
+UUID::operator int() const {
 	return uuid_;
 }
 
 void to_json(json& j, const UUID& uuid) {
-	j = static_cast<std::uint64_t>(uuid);
+	j = static_cast<int>(uuid);
 }
 
 void from_json(const json& j, UUID& uuid) {
-	uuid = UUID{ j.get<std::uint64_t>() };
+	uuid = UUID{ j.get<int>() };
 }
 
 } // namespace ptgn::impl

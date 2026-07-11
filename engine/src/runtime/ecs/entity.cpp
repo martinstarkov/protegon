@@ -119,7 +119,7 @@ Transform GetTransformImpl(Entity entity, Transform world_transform, std::size_t
 namespace impl {
 
 void AddMandatoryComponents(
-	Entity entity, std::optional<std::string_view> tag, std::optional<std::uint64_t> uuid
+	Entity entity, std::optional<std::string_view> tag, std::optional<int> uuid
 ) {
 	entity.Add<impl::Tag>(tag.value_or(impl::kDefaultTag));
 	entity.Add<impl::UUID>(uuid.value_or(impl::UUID{}));
@@ -183,7 +183,7 @@ bool Entity::IsIdenticalTo(Entity entity) const {
 
 int Entity::GetUUID() const {
 	PTGN_ASSERT(Has<impl::UUID>(), "Every entity must have a UUID");
-	return static_cast<int>(Get<impl::UUID>());
+	return Get<impl::UUID>();
 }
 
 std::string Entity::GetTag() const {
