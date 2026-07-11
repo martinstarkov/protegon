@@ -216,19 +216,15 @@ void Editor::EnableRendering(bool enable) {
 }
 
 void Editor::ApplyEntityPickingSettings() {
-	auto enabled{ ShouldEnableEntityPicking() };
-
-	impl::RendererAccessor renderer{ GetRenderer() };
-
-	renderer.SetPresentationEntityPickingEnabled(enabled);
-
-	auto scene{ scene_list_panel_.GetSelectedScene() };
+	auto* scene{ scene_list_panel_.GetSelectedScene() };
 
 	if (!scene) {
 		return;
 	}
 
-	renderer.SetEntityPickingEnabled(GetSceneFramebuffer(*scene), enabled);
+	impl::RendererAccessor renderer{ GetRenderer() };
+
+	renderer.SetEntityPickingEnabled(GetSceneFramebuffer(*scene), ShouldEnableEntityPicking());
 }
 
 const EditorSettings& Editor::GetSettings() const {

@@ -773,11 +773,23 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 }
 
 void ViewportPanel::HandleEntityPicking(
-	EditorContext& ctx, Viewport image_viewport, V2_int framebuffer_size
+	EditorContext& ctx, Viewport image_viewport, V2_int presentation_framebuffer_size
 ) {
-	auto renderer{ impl::RendererAccessor{ ctx.editor.GetRenderer() } };
+	auto* scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
 
-	if (!renderer.IsPresentationEntityPickingEnabled()) {
+	if (!scene) {
+		return;
+	}
+
+	auto render_target{ scene->GetRenderTarget() };
+
+	auto scene_framebuffer{
+		static_cast<impl::FramebufferId>(render_target.Get<impl::FramebufferObject>())
+	};
+
+	impl::RendererAccessor renderer{ ctx.editor.GetRenderer() };
+
+	if (!renderer.IsEntityPickingEnabled(scene_framebuffer)) {
 		return;
 	}
 
@@ -798,15 +810,17 @@ void ViewportPanel::HandleEntityPicking(
 		return;
 	}
 
-	auto scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
+	V2_float mouse_position{
+		ImGui::GetIO().MousePos.x,
+		ImGui::GetIO().MousePos.y,
+	};
 
-	if (!scene) {
-		return;
-	}
+	auto scene_target_size{ render_target.GetSize() };
 
-	V2_float mouse_position{ ImGui::GetIO().MousePos.x, ImGui::GetIO().MousePos.y };
+	PTGN_ASSERT(scene_target_size.IsPositive());
+	PTGN_ASSERT(presentation_framebuffer_size.IsPositive());
 
-	auto pixel{ ScreenToFramebufferPixel(mouse_position, image_viewport, framebuffer_size) };
+	auto pixel{ ScreenToFramebufferPixel(mouse_position, image_viewport, scene_target_size) };
 
 	if (!pixel.has_value()) {
 		return;
@@ -816,7 +830,7 @@ void ViewportPanel::HandleEntityPicking(
 	// but the read must occur after all relevant rendering has completed.
 	renderer.FlushBatch();
 
-	auto entity_id{ renderer.ReadPresentationEntityId(pixel.value()) };
+	auto entity_id{ renderer.ReadEntityId(scene_framebuffer, pixel.value()) };
 
 	auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
 
@@ -827,10 +841,10 @@ void ViewportPanel::HandleEntityPicking(
 
 	PTGN_ASSERT(
 		entity_id.value() >= 0,
-		"Entity picking returned an unexpected negative entity ID: ", entity_id.value()
+		"Entity picking returned an invalid negative entity ID: ", entity_id.value()
 	);
 
-	auto entity{ scene->GetEntityByUUID(entity_id.value()) };
+	auto entity{ scene->GetEntityByUUID(static_cast<std::uint64_t>(entity_id.value())) };
 
 	hierarchy.SetSelectedEntity(entity);
 }

@@ -701,8 +701,6 @@ void Renderer::BeginFrame() {
 	SetViewport(display_viewport_);
 
 	Clear(presentation_framebuffer_, background_color_, false);
-
-	ClearEntityIds(presentation_framebuffer_);
 }
 
 void Renderer::BindUniforms() {
@@ -995,22 +993,6 @@ impl::FramebufferObject& Renderer::GetBoundFramebuffer() {
 	return *current_framebuffer_;
 }
 
-void Renderer::CopyEntityIds(
-	impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
-	V2_int destination_position
-) {
-	if (!gl_->framebuffers.HasAttachment<impl::gl::Attachment::Color1>(source) ||
-		!gl_->framebuffers.HasAttachment<impl::gl::Attachment::Color1>(destination)) {
-		return;
-	}
-
-	FlushBatch();
-
-	gl_->framebuffers.CopyRegion<impl::gl::Attachment::Color1>(
-		source, destination, source_region, destination_position
-	);
-}
-
 void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	FlushBatch();
 
@@ -1116,13 +1098,8 @@ std::optional<std::int32_t> Renderer::ReadEntityId(
 	return std::get<std::int32_t>(entity_id);
 }
 
-std::optional<std::int32_t> Renderer::ReadPresentationEntityId(V2_int pixel) const {
-	return presentation_framebuffer_.ReadEntityId(pixel);
-}
-
 void Renderer::CompositeRenderPassResult(
-	impl::FramebufferId color_source, impl::FramebufferId destination, Viewport destination_region,
-	std::optional<impl::FramebufferId> entity_id_source
+	impl::FramebufferId color_source, impl::FramebufferId destination, Viewport destination_region
 ) {
 	PTGN_ASSERT(color_source, "Render pass source must be valid");
 	PTGN_ASSERT(destination, "Render pass destination must be valid");
@@ -1151,19 +1128,6 @@ void Renderer::CompositeRenderPassResult(
 			.viewport			 = destination_region,
 			.scissor_to_viewport = true,
 		}
-	);
-
-	if (!entity_id_source.has_value()) {
-		return;
-	}
-
-	auto id_source_size{ GetSize(entity_id_source.value()) };
-
-	PTGN_ASSERT(id_source_size.has_value());
-
-	CopyEntityIds(
-		entity_id_source.value(), destination, { .position{}, .size{ id_source_size.value() } },
-		V2_int{ destination_region.position }
 	);
 }
 
@@ -1338,10 +1302,6 @@ void Renderer::SetEntityPickingEnabled(impl::FramebufferId framebuffer, bool ena
 	Destroy(entity_id_texture);
 }
 
-void Renderer::SetPresentationEntityPickingEnabled(bool enabled) {
-	SetEntityPickingEnabled(GetPresentationFramebuffer(), enabled);
-}
-
 bool Renderer::IsEntityPickingEnabled(impl::FramebufferId framebuffer) const {
 	if (!framebuffer) {
 		return false;
@@ -1356,10 +1316,6 @@ bool Renderer::IsEntityPickingEnabled(impl::FramebufferId framebuffer) const {
 	PTGN_ASSERT(GetFormat(texture) == TextureFormat::R32I, "Entity ID attachment must use R32I");
 
 	return true;
-}
-
-bool Renderer::IsPresentationEntityPickingEnabled() const {
-	return IsEntityPickingEnabled(GetPresentationFramebuffer());
 }
 
 void Renderer::ClearEntityIds(impl::FramebufferId framebuffer) const {
@@ -1446,23 +1402,8 @@ const FramebufferObject& RendererAccessor::GetBoundFramebuffer() const {
 	return renderer_.GetBoundFramebuffer();
 }
 
-std::optional<std::int32_t> RendererAccessor::ReadPresentationEntityId(V2_int pixel) const {
-	return renderer_.ReadPresentationEntityId(pixel);
-}
-
 void RendererAccessor::ClearEntityIds(FramebufferId framebuffer) const {
 	renderer_.ClearEntityIds(framebuffer);
-}
-
-bool RendererAccessor::IsPresentationEntityPickingEnabled() const {
-	return renderer_.IsPresentationEntityPickingEnabled();
-}
-
-void RendererAccessor::CopyEntityIds(
-	impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
-	V2_int destination_position
-) {
-	renderer_.CopyEntityIds(source, destination, source_region, destination_position);
 }
 
 impl::FramebufferId RendererAccessor::GetPresentationFramebuffer() const {
@@ -1473,8 +1414,14 @@ void RendererAccessor::SetEntityPickingEnabled(impl::FramebufferId framebuffer, 
 	renderer_.SetEntityPickingEnabled(framebuffer, enabled);
 }
 
-void RendererAccessor::SetPresentationEntityPickingEnabled(bool enabled) {
-	renderer_.SetPresentationEntityPickingEnabled(enabled);
+bool RendererAccessor::IsEntityPickingEnabled(FramebufferId framebuffer) const {
+	return renderer_.IsEntityPickingEnabled(framebuffer);
+}
+
+std::optional<std::int32_t> RendererAccessor::ReadEntityId(
+	FramebufferId framebuffer, V2_int pixel
+) const {
+	return renderer_.ReadEntityId(framebuffer, pixel);
 }
 
 } // namespace impl

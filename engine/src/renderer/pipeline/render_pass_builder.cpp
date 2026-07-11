@@ -358,7 +358,7 @@ void RenderPassBuilder::Execute(RenderPassHandle final_handle) {
 	auto final_framebuffer{ GetFramebufferId(final_handle) };
 
 	ctx_.CompositeRenderPassResult(
-		final_framebuffer, destination_id_, destination_, final_framebuffer
+		final_framebuffer, destination_id_, destination_
 	);
 
 	ctx_.ReleaseFramebuffer(final_framebuffer);

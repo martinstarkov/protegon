@@ -537,25 +537,6 @@ void Scene::DrawSceneTarget(DrawContext& draw_context) const {
 		  .texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
 		  .effects			   = std::move(effects) }
 	);
-
-	auto source_framebuffer{
-		static_cast<impl::FramebufferId>(ctx_->render_target_.Get<impl::FramebufferObject>())
-	};
-
-	impl::RendererAccessor renderer{ ctx().renderer };
-
-	auto destination_framebuffer{ renderer.GetPresentationFramebuffer() };
-
-	V2_int destination_position;
-
-	renderer.CopyEntityIds(
-		source_framebuffer, destination_framebuffer,
-		{
-			.position{},
-			.size{ ctx_->render_target_.GetSize() },
-		},
-		destination_position
-	);
 }
 
 void Scene::InternalUpdate() {

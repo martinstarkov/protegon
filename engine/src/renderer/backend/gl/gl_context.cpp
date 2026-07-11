@@ -831,14 +831,16 @@ void GLContext::ResetState() {
 	GLint active_texture_index{ 0 };
 	GLCall(glGetIntegerv(GL_ACTIVE_TEXTURE, &active_texture_index));
 
-	bound_.active_texture = ActiveTexture{
-		.slot = static_cast<std::uint32_t>(active_texture_index - GL_TEXTURE0),
-	};
+	auto slot{ active_texture_index - GL_TEXTURE0 };
 
 	PTGN_ASSERT(
-		bound_.active_texture.slot >= 0,
+		slot >= 0,
 		"Failed to query a non-negative texture slot when resetting GLContext state"
 	);
+
+	bound_.active_texture = ActiveTexture{
+		.slot = static_cast<std::uint32_t>(slot),
+	};
 
 	auto previous_slot{ bound_.active_texture.slot };
 

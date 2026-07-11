@@ -304,7 +304,7 @@ private:
 
 	void CompositeRenderPassResult(
 		impl::FramebufferId color_source, impl::FramebufferId destination,
-		Viewport destination_region, std::optional<impl::FramebufferId> entity_id_source
+		Viewport destination_region
 	);
 
 	impl::FramebufferObject& GetPoolFramebuffer(impl::FramebufferId framebuffer);
