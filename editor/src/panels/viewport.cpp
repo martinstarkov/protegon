@@ -74,6 +74,32 @@ V2_float ScreenToWorld(
 	return ConvertPoint(presentation_point, Frame::Presentation, to, frame_context);
 }
 
+std::optional<V2_int> ScreenToFramebufferPixel(
+	V2_float screen_position, Viewport image_viewport, V2_int framebuffer_size
+) {
+	auto image_min{ image_viewport.position };
+	auto image_max{ image_viewport.position + image_viewport.size };
+
+	if (screen_position.x < image_min.x || screen_position.x >= image_max.x ||
+		screen_position.y < image_min.y || screen_position.y >= image_max.y) {
+		return std::nullopt;
+	}
+
+	auto local{ screen_position - image_min };
+
+	V2_float uv{
+		local.x / image_viewport.size.x,
+		local.y / image_viewport.size.y,
+	};
+
+	V2_int pixel{
+		static_cast<int>(uv.x * static_cast<float>(framebuffer_size.x)),
+		static_cast<int>(uv.y * static_cast<float>(framebuffer_size.y)),
+	};
+
+	return Clamp(pixel, V2_int{ 0, 0 }, framebuffer_size - V2_int{ 1, 1 });
+}
+
 void UpdateEditorCamera(EditorCamera& editor_camera) {
 	const auto& io{ ImGui::GetIO() };
 
@@ -699,6 +725,8 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 		DrawSelectedEntityGizmo(ctx, presentation_viewport, frame_context);
 
+		HandleEntityPicking(ctx, viewport, presentation_size);
+
 		draw_list->PopClipRect();
 	}
 
@@ -743,4 +771,68 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 
 	SetWorldTransform(selected_entity, world_transform);
 }
+
+void ViewportPanel::HandleEntityPicking(
+	EditorContext& ctx, Viewport image_viewport, V2_int framebuffer_size
+) {
+	auto renderer{ impl::RendererAccessor{ ctx.editor.GetRenderer() } };
+
+	if (!renderer.IsPresentationEntityPickingEnabled()) {
+		return;
+	}
+
+	if (!ctx.state.viewport.hovered || !ctx.state.viewport.focused) {
+		return;
+	}
+
+	if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+		return;
+	}
+
+	if (ImGui::GetIO().WantTextInput) {
+		return;
+	}
+
+	// Let the gizmo consume the click instead of changing selection.
+	if (gizmo_state_.hot != GizmoHandle::None || gizmo_state_.active != GizmoHandle::None) {
+		return;
+	}
+
+	auto scene{ ctx.editor.GetSceneListPanel().GetSelectedScene() };
+
+	if (!scene) {
+		return;
+	}
+
+	V2_float mouse_position{ ImGui::GetIO().MousePos.x, ImGui::GetIO().MousePos.y };
+
+	auto pixel{ ScreenToFramebufferPixel(mouse_position, image_viewport, framebuffer_size) };
+
+	if (!pixel.has_value()) {
+		return;
+	}
+
+	// Normally everything has already been flushed by Scene::InternalDraw(),
+	// but the read must occur after all relevant rendering has completed.
+	renderer.FlushBatch();
+
+	auto entity_id{ renderer.ReadPresentationEntityId(pixel.value()) };
+
+	auto& hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
+
+	if (!entity_id.has_value() || entity_id.value() == impl::kNoEntityId) {
+		hierarchy.SetSelectedEntity({});
+		return;
+	}
+
+	PTGN_ASSERT(
+		entity_id.value() >= 0,
+		"Entity picking returned an unexpected negative entity ID: ", entity_id.value()
+	);
+
+	auto entity{ scene->GetEntityByUUID(entity_id.value()) };
+
+	hierarchy.SetSelectedEntity(entity);
+}
+
 } // namespace ptgn::editor

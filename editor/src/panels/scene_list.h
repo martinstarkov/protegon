@@ -12,6 +12,7 @@ class Scene;
 
 namespace editor {
 
+class Editor;
 class EditorContext;
 
 struct SceneEditorState {
@@ -23,7 +24,7 @@ class SceneListPanel {
 public:
 	void OnRender(EditorContext& ctx);
 
-	void SetSelectedScene(Scene* scene, const path& scene_path = {});
+	void SetSelectedScene(Editor& editor, Scene* scene, const path& scene_path = {});
 
 	Scene* GetSelectedScene() const;
 

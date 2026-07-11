@@ -22,6 +22,16 @@
 
 namespace ptgn {
 
+namespace {
+
+[[maybe_unused]] bool UniformsContain(
+	const std::vector<UniformWrite>& uniforms, std::string_view name
+) {
+	return std::ranges::contains(uniforms, name, [](const auto& uniform) { return uniform.name; });
+}
+
+} // namespace
+
 RenderPass::RenderPass(
 	RenderPassBuilder& render_pass_builder, std::size_t pass_index, RenderPassHandle output
 ) :
@@ -52,7 +62,7 @@ RenderPass& RenderPass::Read(
 RenderPass& RenderPass::Uniform(std::string_view name, int value) {
 	auto& pass{ GetPassData() };
 	PTGN_ASSERT(
-		!std::ranges::contains(pass.material.uniforms, name, &UniformWrite::name),
+		!UniformsContain(pass.material.uniforms, name),
 		"Cannot set the same uniform more than once per pass"
 	);
 	pass.material.uniforms.emplace_back(name, value);
@@ -62,7 +72,7 @@ RenderPass& RenderPass::Uniform(std::string_view name, int value) {
 RenderPass& RenderPass::Uniform(std::string_view name, float value) {
 	auto& pass{ GetPassData() };
 	PTGN_ASSERT(
-		!std::ranges::contains(pass.material.uniforms, name, &UniformWrite::name),
+		!UniformsContain(pass.material.uniforms, name),
 		"Cannot set the same uniform more than once per pass"
 	);
 	pass.material.uniforms.emplace_back(name, value);
@@ -72,7 +82,7 @@ RenderPass& RenderPass::Uniform(std::string_view name, float value) {
 RenderPass& RenderPass::Uniform(std::string_view name, V2_float value) {
 	auto& pass{ GetPassData() };
 	PTGN_ASSERT(
-		!std::ranges::contains(pass.material.uniforms, name, &UniformWrite::name),
+		!UniformsContain(pass.material.uniforms, name),
 		"Cannot set the same uniform more than once per pass"
 	);
 	pass.material.uniforms.emplace_back(name, value);
@@ -82,7 +92,7 @@ RenderPass& RenderPass::Uniform(std::string_view name, V2_float value) {
 RenderPass& RenderPass::Uniform(std::string_view name, Color value) {
 	auto& pass{ GetPassData() };
 	PTGN_ASSERT(
-		!std::ranges::contains(pass.material.uniforms, name, &UniformWrite::name),
+		!UniformsContain(pass.material.uniforms, name),
 		"Cannot set the same uniform more than once per pass"
 	);
 	pass.material.uniforms.emplace_back(name, value.Normalized());
@@ -347,7 +357,9 @@ void RenderPassBuilder::Execute(RenderPassHandle final_handle) {
 
 	auto final_framebuffer{ GetFramebufferId(final_handle) };
 
-	ctx_.CompositeRenderPassResult(final_framebuffer, destination_id_, destination_);
+	ctx_.CompositeRenderPassResult(
+		final_framebuffer, destination_id_, destination_, final_framebuffer
+	);
 
 	ctx_.ReleaseFramebuffer(final_framebuffer);
 }

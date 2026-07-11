@@ -60,6 +60,17 @@ namespace {
 constexpr TextureFormat kDefaultPresentationTargetFormat{ kDefaultHDRFormat };
 constexpr const char* kViewProjectionUniform{ "u_ViewProjection" };
 
+TextureDesc GetEntityIdTextureDesc(V2_int size) {
+	return { .size{ size },
+			 .format = TextureFormat::R32I,
+			 .params{
+				 .min_filter = TextureMinFilter::Nearest,
+				 .mag_filter = TextureMagFilter::Nearest,
+				 .wrap_s	 = TextureWrap::ClampToEdge,
+				 .wrap_t	 = TextureWrap::ClampToEdge,
+			 } };
+}
+
 } // namespace
 
 Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
@@ -688,7 +699,10 @@ void Renderer::BeginFrame() {
 
 	SetScissor(ScissorState{ false });
 	SetViewport(display_viewport_);
+
 	Clear(presentation_framebuffer_, background_color_, false);
+
+	ClearEntityIds(presentation_framebuffer_);
 }
 
 void Renderer::BindUniforms() {
@@ -981,6 +995,22 @@ impl::FramebufferObject& Renderer::GetBoundFramebuffer() {
 	return *current_framebuffer_;
 }
 
+void Renderer::CopyEntityIds(
+	impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
+	V2_int destination_position
+) {
+	if (!gl_->framebuffers.HasAttachment<impl::gl::Attachment::Color1>(source) ||
+		!gl_->framebuffers.HasAttachment<impl::gl::Attachment::Color1>(destination)) {
+		return;
+	}
+
+	FlushBatch();
+
+	gl_->framebuffers.CopyRegion<impl::gl::Attachment::Color1>(
+		source, destination, source_region, destination_position
+	);
+}
+
 void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 	FlushBatch();
 
@@ -1036,12 +1066,11 @@ void Renderer::DrawRenderPass(const impl::DrawPassRequest& request) {
 
 	constexpr auto depth{ 0.0f };
 	constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
-	constexpr auto entity_id{ -1 };
 
 	auto local_vertices{ Rect{ request.viewport.size }.GetLocalVertices() };
 
 	auto local_quad{ impl::CreateTextureQuad(
-		local_vertices, depth, request.tint.Normalized(), tex_coords, entity_id
+		local_vertices, depth, request.tint.Normalized(), tex_coords, impl::kNoEntityId
 	) };
 
 	std::span quads{ &local_quad, 1 };
@@ -1071,14 +1100,35 @@ void Renderer::CopyFramebufferRegion(
 	gl_->framebuffers.CopyRegion(source, destination, source_region, destination_position);
 }
 
+std::optional<std::int32_t> Renderer::ReadEntityId(
+	impl::FramebufferId framebuffer, V2_int pixel
+) const {
+	if (!gl_->framebuffers.HasAttachment<impl::gl::Attachment::Color1>(framebuffer)) {
+		return std::nullopt;
+	}
+
+	auto entity_id{ gl_->framebuffers.ReadPixel<impl::gl::Attachment::Color1>(framebuffer, pixel) };
+
+	if (!std::holds_alternative<std::int32_t>(entity_id)) {
+		return std::nullopt;
+	}
+
+	return std::get<std::int32_t>(entity_id);
+}
+
+std::optional<std::int32_t> Renderer::ReadPresentationEntityId(V2_int pixel) const {
+	return presentation_framebuffer_.ReadEntityId(pixel);
+}
+
 void Renderer::CompositeRenderPassResult(
-	impl::FramebufferId source, impl::FramebufferId destination, Viewport destination_region
+	impl::FramebufferId color_source, impl::FramebufferId destination, Viewport destination_region,
+	std::optional<impl::FramebufferId> entity_id_source
 ) {
-	PTGN_ASSERT(source, "Render pass source must be valid");
+	PTGN_ASSERT(color_source, "Render pass source must be valid");
 	PTGN_ASSERT(destination, "Render pass destination must be valid");
 	PTGN_ASSERT(destination_region.size.IsPositive(), "Composite region must be valid");
 
-	auto source_size{ GetSize(source) };
+	auto source_size{ GetSize(color_source) };
 
 	PTGN_ASSERT(
 		source_size == V2_int{ destination_region.size },
@@ -1086,17 +1136,34 @@ void Renderer::CompositeRenderPassResult(
 	);
 
 	auto input{ impl::BoundInput{
-		.framebuffer = source,
+		.framebuffer = color_source,
 		.binding	 = TextureBinding{ 0, kTextureUniform },
 	} };
 
 	DrawRenderPass(
-		impl::DrawPassRequest{ .material			= { .shader = GetShader("passthrough") },
-							   .pipeline			= Hash("texture"),
-							   .inputs				= std::span{ &input, 1 },
-							   .output				= destination,
-							   .viewport			= destination_region,
-							   .scissor_to_viewport = true }
+		impl::DrawPassRequest{
+			.material{
+				.shader = GetShader("passthrough"),
+			},
+			.pipeline			 = Hash("texture"),
+			.inputs				 = std::span{ &input, 1 },
+			.output				 = destination,
+			.viewport			 = destination_region,
+			.scissor_to_viewport = true,
+		}
+	);
+
+	if (!entity_id_source.has_value()) {
+		return;
+	}
+
+	auto id_source_size{ GetSize(entity_id_source.value()) };
+
+	PTGN_ASSERT(id_source_size.has_value());
+
+	CopyEntityIds(
+		entity_id_source.value(), destination, { .position{}, .size{ id_source_size.value() } },
+		V2_int{ destination_region.position }
 	);
 }
 
@@ -1223,6 +1290,88 @@ bool Renderer::FramebufferMatches(
 	return GetFormat(renderbuffer) == desc.format && GetSize(renderbuffer) == desc.size;
 }
 
+void Renderer::SetEntityPickingEnabled(impl::FramebufferId framebuffer, bool enabled) {
+	PTGN_ASSERT(framebuffer, "Framebuffer must be valid");
+
+	auto currently_enabled{
+		gl_->framebuffers.HasAttachment<impl::gl::Attachment::Color1>(framebuffer)
+	};
+
+	if (currently_enabled == enabled) {
+		return;
+	}
+
+	// Attachment state must not change while vertices targeting the previous
+	// attachment configuration are still pending.
+	FlushBatch();
+
+	auto bind_guard{ gl_->Bind(framebuffer, true) };
+
+	if (enabled) {
+		auto size{ GetSize(framebuffer) };
+
+		PTGN_ASSERT(
+			size.has_value(),
+			"Framebuffer must have a color attachment before enabling entity picking"
+		);
+		PTGN_ASSERT(
+			size->IsPositive(), "Framebuffer size must be positive before enabling entity picking"
+		);
+
+		auto entity_id_texture{ gl_->textures.Create(GetEntityIdTextureDesc(size.value()), true) };
+
+		gl_->framebuffers.Attach<impl::gl::Attachment::Color1>(framebuffer, entity_id_texture);
+
+		gl_->framebuffers.ClearInt<impl::gl::Attachment::Color1>(framebuffer, impl::kNoEntityId);
+
+		return;
+	}
+
+	auto entity_id_texture{
+		gl_->framebuffers.GetAttachment<impl::gl::Attachment::Color1>(framebuffer)
+	};
+
+	// Detach first so destroying the texture does not leave a dead attachment
+	// on the framebuffer.
+	gl_->framebuffers.Detach<impl::gl::Attachment::Color1>(framebuffer);
+
+	Destroy(entity_id_texture);
+}
+
+void Renderer::SetPresentationEntityPickingEnabled(bool enabled) {
+	SetEntityPickingEnabled(GetPresentationFramebuffer(), enabled);
+}
+
+bool Renderer::IsEntityPickingEnabled(impl::FramebufferId framebuffer) const {
+	if (!framebuffer) {
+		return false;
+	}
+
+	if (!gl_->framebuffers.HasAttachment<impl::gl::Attachment::Color1>(framebuffer)) {
+		return false;
+	}
+
+	auto texture{ gl_->framebuffers.GetAttachment<impl::gl::Attachment::Color1>(framebuffer) };
+
+	PTGN_ASSERT(GetFormat(texture) == TextureFormat::R32I, "Entity ID attachment must use R32I");
+
+	return true;
+}
+
+bool Renderer::IsPresentationEntityPickingEnabled() const {
+	return IsEntityPickingEnabled(GetPresentationFramebuffer());
+}
+
+void Renderer::ClearEntityIds(impl::FramebufferId framebuffer) const {
+	if (!IsEntityPickingEnabled(framebuffer)) {
+		return;
+	}
+
+	auto bind_guard{ gl_->Bind(framebuffer, true) };
+
+	gl_->framebuffers.ClearInt<impl::gl::Attachment::Color1>(framebuffer, impl::kNoEntityId);
+}
+
 namespace impl {
 
 RendererAccessor::RendererAccessor(Renderer& renderer) : renderer_{ renderer } {}
@@ -1295,6 +1444,37 @@ void RendererAccessor::SetBlendMode(BlendMode blend_mode, bool force) {
 
 const FramebufferObject& RendererAccessor::GetBoundFramebuffer() const {
 	return renderer_.GetBoundFramebuffer();
+}
+
+std::optional<std::int32_t> RendererAccessor::ReadPresentationEntityId(V2_int pixel) const {
+	return renderer_.ReadPresentationEntityId(pixel);
+}
+
+void RendererAccessor::ClearEntityIds(FramebufferId framebuffer) const {
+	renderer_.ClearEntityIds(framebuffer);
+}
+
+bool RendererAccessor::IsPresentationEntityPickingEnabled() const {
+	return renderer_.IsPresentationEntityPickingEnabled();
+}
+
+void RendererAccessor::CopyEntityIds(
+	impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
+	V2_int destination_position
+) {
+	renderer_.CopyEntityIds(source, destination, source_region, destination_position);
+}
+
+impl::FramebufferId RendererAccessor::GetPresentationFramebuffer() const {
+	return renderer_.GetPresentationFramebuffer();
+}
+
+void RendererAccessor::SetEntityPickingEnabled(impl::FramebufferId framebuffer, bool enabled) {
+	renderer_.SetEntityPickingEnabled(framebuffer, enabled);
+}
+
+void RendererAccessor::SetPresentationEntityPickingEnabled(bool enabled) {
+	renderer_.SetPresentationEntityPickingEnabled(enabled);
 }
 
 } // namespace impl

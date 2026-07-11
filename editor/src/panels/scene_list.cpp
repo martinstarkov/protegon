@@ -114,6 +114,11 @@ void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
 	std::string enter_text{ "Enter " + state_.value().scene_type_name };
 
 	if (ImGui::Button(enter_text.c_str())) {
+		if (selected_scene_) {
+			SetSelectedScene(ctx.editor, nullptr);
+			ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity({});
+		}
+
 		ctx.editor.GetSceneManager().PushCommand(
 			impl::SceneManager::CommandType::ReEnter, scene_tag, Hash(scene_tag),
 			SceneTransitionPriority{}, impl::GetSceneFactory("EditorScene", state_.value().params),
@@ -128,7 +133,7 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 	auto& scenes{ ctx.editor.GetSceneManager().GetScenes() };
 
 	auto select_scene = [&](Scene* scene) {
-		selected_scene_ = scene;
+		SetSelectedScene(ctx.editor, scene);
 
 		if (!selected_scene_) {
 			return;
@@ -180,8 +185,8 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 		}
 	}
 
-	if (!scenes.empty() && !selected_scene_exists) {
-		select_scene(scenes.front().get());
+	if (!selected_scene_exists) {
+		select_scene(scenes.empty() ? nullptr : scenes.front().get());
 	}
 
 	for (auto i{ 0uz }; i < scenes.size(); ++i) {
@@ -196,17 +201,23 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 
 		if (ImGui::Selectable(label, selected)) {
 			select_scene(scene.get());
-			// TODO: Fix.
-			// app.selected_component_ = ComponentKind::Transform;
 		}
 
 		if (ImGui::BeginPopupContextItem()) {
 			if (ImGui::MenuItem("Delete")) {
+				if (scene.get() == selected_scene_) {
+					SetSelectedScene(ctx.editor, nullptr);
+					ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity({});
+				}
+
+				// Must happen after SetSelectedScene(ctx.editor, nullptr);
 				// TODO: Fix.
 				// ctx.editor.DeleteScene(i);
+
 				ImGui::EndPopup();
 				break;
 			}
+
 			ImGui::EndPopup();
 		}
 	}
@@ -235,9 +246,18 @@ Scene* SceneListPanel::GetSelectedScene() const {
 	return selected_scene_;
 }
 
-void SceneListPanel::SetSelectedScene(Scene* scene, const path& scene_path) {
+void SceneListPanel::SetSelectedScene(Editor& editor, Scene* scene, const path& scene_path) {
+	if (selected_scene_ == scene) {
+		selected_scene_path_ = scene_path;
+		return;
+	}
+
+	auto* previous_scene{ selected_scene_ };
+
 	selected_scene_		 = scene;
 	selected_scene_path_ = scene_path;
+
+	editor.OnSelectedSceneChanged(previous_scene, selected_scene_);
 }
 
 } // namespace ptgn::editor

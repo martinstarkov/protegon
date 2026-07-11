@@ -396,9 +396,21 @@ void Scene::ClearRenderTargets() {
 	impl::RendererAccessor renderer{ ctx().renderer };
 
 	auto clear_render_target = [&](auto render_target) {
-		renderer.SetViewport({ .position = {}, .size = render_target.GetSize() });
+		renderer.SetViewport(
+			{
+				.position = {},
+				.size	  = render_target.GetSize(),
+			}
+		);
 		renderer.SetScissor(ScissorState{ false });
+
 		render_target.ClearColor(std::nullopt, false);
+
+		auto framebuffer{
+			static_cast<impl::FramebufferId>(render_target.template Get<impl::FramebufferObject>())
+		};
+
+		renderer.ClearEntityIds(framebuffer);
 	};
 
 	for (auto [render_target, frame_buffer, _drawable] :
@@ -525,6 +537,25 @@ void Scene::DrawSceneTarget(DrawContext& draw_context) const {
 		  .texture_coordinates = impl::GetDefaultTextureCoordinates<true>(),
 		  .effects			   = std::move(effects) }
 	);
+
+	auto source_framebuffer{
+		static_cast<impl::FramebufferId>(ctx_->render_target_.Get<impl::FramebufferObject>())
+	};
+
+	impl::RendererAccessor renderer{ ctx().renderer };
+
+	auto destination_framebuffer{ renderer.GetPresentationFramebuffer() };
+
+	V2_int destination_position;
+
+	renderer.CopyEntityIds(
+		source_framebuffer, destination_framebuffer,
+		{
+			.position{},
+			.size{ ctx_->render_target_.GetSize() },
+		},
+		destination_position
+	);
 }
 
 void Scene::InternalUpdate() {
@@ -565,7 +596,7 @@ void Scene::InternalExit() {
 	Refresh();
 }
 
-Entity Scene::GetEntityByUUID(std::uint64_t uuid) const {
+Entity Scene::GetEntityByUUID(int uuid) const {
 	for (const Entity& e : Entities()) {
 		PTGN_ASSERT(e.Has<impl::UUID>(), "Entity does not have a valid UUID component");
 		if (e.Get<impl::UUID>() == uuid) {
@@ -585,7 +616,7 @@ Entity Scene::GetEntityByTag(std::string_view tag) const {
 	return {};
 }
 
-Entity Scene::CreateEntity(std::optional<std::string_view> tag, std::optional<std::uint64_t> uuid) {
+Entity Scene::CreateEntity(std::optional<std::string_view> tag, std::optional<int> uuid) {
 	auto entity{ manager_.CreateEntity() };
 	impl::AddMandatoryComponents(entity, tag, uuid);
 	return Entity{ entity, this };

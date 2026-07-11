@@ -53,6 +53,10 @@ TextureDesc FramebufferObject::GetDesc() const {
 	return renderer->GetDesc(*this).value();
 }
 
+std::optional<std::int32_t> FramebufferObject::ReadEntityId(V2_int pixel) const {
+	return renderer->ReadEntityId(*this, pixel);
+}
+
 } // namespace impl
 
 } // namespace ptgn

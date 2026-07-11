@@ -517,12 +517,11 @@ private:
 		constexpr auto depth{ 0.0f };
 		constexpr auto tint{ color::White };
 		constexpr auto tex_coords{ impl::GetDefaultTextureCoordinates<true>() };
-		constexpr auto entity_id{ -1 };
 
 		auto local_vertices{ Rect{ display_viewport_.size }.GetLocalVertices() };
-		auto local_quad{
-			impl::CreateTextureQuad(local_vertices, depth, tint.Normalized(), tex_coords, entity_id)
-		};
+		auto local_quad{ impl::CreateTextureQuad(
+			local_vertices, depth, tint.Normalized(), tex_coords, impl::kNoEntityId
+		) };
 
 		impl::DrawTextureRequest request;
 		request.primitives = { &local_quad, 1 };
@@ -574,8 +573,25 @@ private:
 	);
 
 	void CompositeRenderPassResult(
-		impl::FramebufferId source, impl::FramebufferId destination, Viewport destination_region
+		impl::FramebufferId color_source, impl::FramebufferId destination,
+		Viewport destination_region, std::optional<impl::FramebufferId> entity_id_source
 	);
+
+	void SetEntityPickingEnabled(impl::FramebufferId framebuffer, bool enabled);
+
+	[[nodiscard]] bool IsEntityPickingEnabled(impl::FramebufferId framebuffer) const;
+
+	void ClearEntityIds(impl::FramebufferId framebuffer) const;
+
+	void SetPresentationEntityPickingEnabled(bool enabled);
+
+	[[nodiscard]] bool IsPresentationEntityPickingEnabled() const;
+
+	[[nodiscard]] std::optional<std::int32_t> ReadEntityId(
+		impl::FramebufferId framebuffer, V2_int pixel
+	) const;
+
+	[[nodiscard]] std::optional<std::int32_t> ReadPresentationEntityId(V2_int pixel) const;
 
 	void BindUniforms();
 
@@ -586,6 +602,11 @@ private:
 	bool FramebufferMatches(
 		impl::FramebufferId framebuffer, TextureDesc desc, std::optional<TextureDesc> other_desc
 	) const;
+
+	void CopyEntityIds(
+		impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
+		V2_int destination_position
+	);
 
 	template <InvocableR<void, DrawContext&> F>
 	void ApplyPresentationEffect(F&& function) {
@@ -697,6 +718,23 @@ public:
 	}
 
 	const FramebufferObject& GetBoundFramebuffer() const;
+
+	std::optional<std::int32_t> ReadPresentationEntityId(V2_int pixel) const;
+
+	void ClearEntityIds(FramebufferId framebuffer) const;
+
+	[[nodiscard]] bool IsPresentationEntityPickingEnabled() const;
+
+	void CopyEntityIds(
+		impl::FramebufferId source, impl::FramebufferId destination, Viewport source_region,
+		V2_int destination_position
+	);
+
+	impl::FramebufferId GetPresentationFramebuffer() const;
+
+	void SetEntityPickingEnabled(impl::FramebufferId framebuffer, bool enabled);
+
+	void SetPresentationEntityPickingEnabled(bool enabled);
 
 private:
 	Renderer& renderer_;

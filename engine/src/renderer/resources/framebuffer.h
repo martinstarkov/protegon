@@ -23,6 +23,8 @@ public:
 	void Clear(Stencil clear_stencil, bool restore_bind);
 	void Clear(DepthStencil clear_depth_stencil, bool restore_bind);
 
+	std::optional<std::int32_t> ReadEntityId(V2_int pixel) const;
+
 	TextureId GetTexture() const;
 	TextureDesc GetDesc() const;
 };

@@ -413,9 +413,12 @@ void DrawContext::CopyFramebufferRegion(
 }
 
 void DrawContext::CompositeRenderPassResult(
-	impl::FramebufferId source, impl::FramebufferId destination, Viewport destination_region
+	impl::FramebufferId color_source,
+	impl::FramebufferId destination,
+	Viewport destination_region,
+	std::optional<impl::FramebufferId> entity_id_source
 ) {
-	renderer_.CompositeRenderPassResult(source, destination, destination_region);
+	renderer_.CompositeRenderPassResult(color_source, destination, destination_region, entity_id_source);
 }
 
 impl::FramebufferObject& DrawContext::GetPoolFramebuffer(impl::FramebufferId framebuffer) {

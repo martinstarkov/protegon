@@ -66,6 +66,8 @@ private:
 
 	void DrawViewportToolbar(EditorContext& ctx);
 
+	void HandleEntityPicking(EditorContext& ctx, Viewport image_viewport, V2_int framebuffer_size);
+
 	EditorCamera editor_camera_;
 
 	GizmoState gizmo_state_;

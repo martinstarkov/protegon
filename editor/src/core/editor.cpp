@@ -21,10 +21,10 @@
 #include "core/editor_state.h"
 #include "core/math/vector2.h"
 #include "panels/content_browser.h"
-#include "panels/engine_settings.h"
 #include "panels/inspector.h"
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
+#include "panels/settings.h"
 #include "panels/viewport.h"
 #include "platform/window.h"
 #include "renderer/pipeline/viewport.h"
@@ -139,6 +139,7 @@ void Editor::DrawPanels() {
 	inspector_panel_.OnRender(*context_);
 	engine_settings_panel_.OnRender(*context_);
 	debug_settings_panel_.OnRender(*context_);
+	editor_settings_panel_.OnRender(*context_);
 	content_browser_panel_.OnRender(*context_);
 }
 
@@ -158,26 +159,101 @@ SceneListPanel& Editor::GetSceneListPanel() {
 	return scene_list_panel_;
 }
 
+bool Editor::ShouldEnableEntityPicking() const {
+	PTGN_ASSERT(context_, "Editor context must be initialized");
+
+	switch (context_->settings.entity_picking) {
+		case EditorEntityPickingMode::Automatic: return render_enabled_;
+		case EditorEntityPickingMode::Enabled:	 return true;
+		case EditorEntityPickingMode::Disabled:	 return false;
+
+		default:
+			PTGN_ERROR(
+				"Unknown EditorEntityPickingMode: ",
+				std::to_underlying(context_->settings.entity_picking)
+			);
+	}
+}
+
+impl::FramebufferId Editor::GetSceneFramebuffer(Scene& scene) const {
+	auto render_target{ scene.GetRenderTarget() };
+
+	return static_cast<impl::FramebufferId>(render_target.Get<impl::FramebufferObject>());
+}
+
+void Editor::OnSelectedSceneChanged(Scene* previous_scene, Scene* selected_scene) {
+	impl::RendererAccessor renderer{ GetRenderer() };
+
+	if (previous_scene) {
+		renderer.SetEntityPickingEnabled(GetSceneFramebuffer(*previous_scene), false);
+	}
+
+	if (selected_scene && ShouldEnableEntityPicking()) {
+		renderer.SetEntityPickingEnabled(GetSceneFramebuffer(*selected_scene), true);
+	}
+}
+
 void Editor::EnableRendering(bool enable) {
 	render_enabled_ = enable;
+
+	auto& window{ GetWindow() };
+
+	window.SetSetting(render_enabled_ ? WindowSetting::Maximized : WindowSetting::Restored);
+
 	if (render_enabled_) {
-		auto& window{ impl::ApplicationAccessor::ctx(app).window };
-
-		if (render_enabled_) {
-			window.SetSetting(WindowSetting::Maximized);
-		} else {
-			window.SetSetting(WindowSetting::Restored);
-		}
-
 		dock_layout_update_requested_ = true;
 
 		// Maximizing may produce multiple window size updates.
 		dock_resize_frames_remaining_ = 4;
 	} else {
 		auto& renderer{ GetRenderer() };
+
 		renderer.SetPresentationViewport(std::nullopt);
 		renderer.SetPrimaryWorldCamera(std::nullopt);
 	}
+
+	ApplyEntityPickingSettings();
+}
+
+void Editor::ApplyEntityPickingSettings() {
+	auto enabled{ ShouldEnableEntityPicking() };
+
+	impl::RendererAccessor renderer{ GetRenderer() };
+
+	renderer.SetPresentationEntityPickingEnabled(enabled);
+
+	auto scene{ scene_list_panel_.GetSelectedScene() };
+
+	if (!scene) {
+		return;
+	}
+
+	renderer.SetEntityPickingEnabled(GetSceneFramebuffer(*scene), enabled);
+}
+
+const EditorSettings& Editor::GetSettings() const {
+	PTGN_ASSERT(context_, "Editor context must be initialized");
+	return context_->settings;
+}
+
+void Editor::SetEntityPickingMode(EditorEntityPickingMode mode) {
+	PTGN_ASSERT(context_, "Editor context must be initialized");
+
+	if (context_->settings.entity_picking == mode) {
+		return;
+	}
+
+	auto previously_enabled{ ShouldEnableEntityPicking() };
+
+	context_->settings.entity_picking = mode;
+
+	auto currently_enabled{ ShouldEnableEntityPicking() };
+
+	if (previously_enabled == currently_enabled) {
+		return;
+	}
+
+	ApplyEntityPickingSettings();
 }
 
 void Editor::SetTimeScale(float time_scale) {
@@ -306,9 +382,9 @@ void Editor::BuildDefaultDockLayout(std::uint32_t dockspace_id) {
 
 	ImGui::DockBuilderDockWindow("Engine Settings", dock_center_bottom);
 	ImGui::DockBuilderDockWindow("Debug Settings", dock_center_bottom);
-	ImGui::DockBuilderDockWindow("Render Stats", dock_center_bottom);
-	ImGui::DockBuilderDockWindow("Render Graph", dock_center_bottom);
+	ImGui::DockBuilderDockWindow("Editor Settings", dock_center_bottom);
 	ImGui::DockBuilderDockWindow("Content Browser", dock_center_bottom);
+	ImGui::DockBuilderDockWindow("Render Stats", dock_center_bottom);
 
 	ImGui::DockBuilderFinish(dockspace_id);
 }

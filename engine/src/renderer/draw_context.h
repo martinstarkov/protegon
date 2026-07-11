@@ -44,7 +44,7 @@ struct ShapeDrawParams {
 	Depth depth;
 	FillStyle fill_style{ 1.0f };
 	Origin origin{ Origin::Center };
-	int entity_id{ -1 };
+	int entity_id{ impl::kNoEntityId };
 	impl::EffectParams effects;
 };
 
@@ -55,7 +55,7 @@ struct TextureDrawParams {
 	Color tint{ color::White };
 	std::array<V2_float, 4> texture_coordinates;
 	impl::EffectParams effects;
-	int entity_id{ -1 };
+	int entity_id{ impl::kNoEntityId };
 };
 
 class DrawContext {
@@ -303,7 +303,8 @@ private:
 	);
 
 	void CompositeRenderPassResult(
-		impl::FramebufferId source, impl::FramebufferId destination, Viewport destination_region
+		impl::FramebufferId color_source, impl::FramebufferId destination,
+		Viewport destination_region, std::optional<impl::FramebufferId> entity_id_source
 	);
 
 	impl::FramebufferObject& GetPoolFramebuffer(impl::FramebufferId framebuffer);

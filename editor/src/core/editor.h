@@ -10,11 +10,10 @@
 #include "core/editor_context.h"
 #include "core/math/vector2.h"
 #include "panels/content_browser.h"
-#include "panels/debug_settings.h"
-#include "panels/engine_settings.h"
 #include "panels/inspector.h"
 #include "panels/scene_hierarchy.h"
 #include "panels/scene_list.h"
+#include "panels/settings.h"
 #include "panels/viewport.h"
 #include "renderer/resources/id.h"
 
@@ -69,6 +68,12 @@ public:
 
 	void EnableRendering(bool enable = true);
 
+	void OnSelectedSceneChanged(Scene* previous_scene, Scene* selected_scene);
+
+	const EditorSettings& GetSettings() const;
+
+	void SetEntityPickingMode(EditorEntityPickingMode mode);
+
 private:
 	Application& app;
 
@@ -80,6 +85,12 @@ private:
 
 	void UpdateDockLayout(std::uint32_t dockspace_id, float width);
 
+	bool ShouldEnableEntityPicking() const;
+
+	void ApplyEntityPickingSettings();
+
+	impl::FramebufferId GetSceneFramebuffer(Scene& scene) const;
+
 	std::unique_ptr<EditorContext> context_;
 	UndoStack undo_stack_;
 	EditorCommands commands_;
@@ -88,6 +99,7 @@ private:
 	ContentBrowserPanel content_browser_panel_;
 	EngineSettingsPanel engine_settings_panel_;
 	DebugSettingsPanel debug_settings_panel_;
+	EditorSettingsPanel editor_settings_panel_;
 	InspectorPanel inspector_panel_;
 	SceneHierarchyPanel scene_hierarchy_panel_;
 	SceneListPanel scene_list_panel_;
