@@ -94,7 +94,7 @@ struct SplitScreenScene : public Scene {
 		float falloff{ 2.0f };
 		auto light = CreateLight(
 			*this, { 100, 0 },
-			{ .radius = 50.0f, .color = color::Red, .intensity = intensity, .falloff = falloff }
+			{ .color = color::Red, .radius = 50.0f, .intensity = intensity, .falloff = falloff }
 		);
 		float radius{ 50.0f };
 		auto child{ CreateEntity() };
