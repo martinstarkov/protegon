@@ -41,7 +41,9 @@ public:
 		TextureId id, bool restore_bind = false, bool force = false
 	);
 	[[nodiscard]] BindGuard<RenderbufferId> Bind(RenderbufferId id, bool restore_bind = false);
-	[[nodiscard]] BindGuard<FramebufferId> Bind(FramebufferId id, bool restore_bind = false);
+	[[nodiscard]] BindGuard<FramebufferId> Bind(
+		FramebufferId id, bool restore_bind = false, bool force = false
+	);
 	[[nodiscard]] BindGuard<VertexArrayId> Bind(VertexArrayId id, bool restore_bind = false);
 
 	const State& GetBoundState() const;

@@ -18,6 +18,7 @@ enum class TextureFormat : int {
 	RG16F			  = 0x822F, // GL_RG16F
 	RGB16F			  = 0x881B, // GL_RGB16F
 	RGBA16F			  = 0x881A, // GL_RGBA16F
+	R32I			  = 0x8235, // GL_R32I
 	R32F			  = 0x822E, // GL_R32F
 	RG32F			  = 0x8230, // GL_RG32F
 	RGB32F			  = 0x8815, // GL_RGB32F
@@ -47,6 +48,7 @@ inline constexpr TextureFormat kDefaultSDRFormat{ TextureFormat::RGBA8 };
 		case RG16F:				return "RG16F";
 		case RGB16F:			return "RGB16F";
 		case RGBA16F:			return "RGBA16F";
+		case R32I:				return "R32I";
 		case R32F:				return "R32F";
 		case RG32F:				return "RG32F";
 		case RGB32F:			return "RGB32F";
@@ -88,17 +90,6 @@ enum class TextureWrap : std::int32_t {
 };
 
 struct TextureParams {
-	constexpr TextureParams() = default;
-
-	constexpr TextureParams(TextureMinFilter min_filter, TextureMagFilter mag_filter) :
-		min_filter{ min_filter }, mag_filter{ mag_filter } {}
-
-	constexpr TextureParams(
-		TextureMinFilter min_filter, TextureMagFilter mag_filter, TextureWrap wrap_s,
-		TextureWrap wrap_t
-	) :
-		min_filter{ min_filter }, mag_filter{ mag_filter }, wrap_s{ wrap_s }, wrap_t{ wrap_t } {}
-
 	TextureMinFilter min_filter{ TextureMinFilter::Nearest };
 	TextureMagFilter mag_filter{ TextureMagFilter::Nearest };
 	TextureWrap wrap_s{ TextureWrap::ClampToEdge };
@@ -106,33 +97,6 @@ struct TextureParams {
 
 	constexpr bool operator==(const TextureParams&) const = default;
 };
-
-constexpr int GetChannelCount(TextureFormat format) {
-	switch (format) {
-		using enum TextureFormat;
-		case R8:				[[fallthrough]];
-		case R16F:				[[fallthrough]];
-		case R32F:				return 1;
-		case RG8:				[[fallthrough]];
-		case RG16F:				[[fallthrough]];
-		case RG32F:				return 2;
-		case RGB8:				[[fallthrough]];
-		case RGB16F:			[[fallthrough]];
-		case RGB32F:			[[fallthrough]];
-		case SRGB8:				return 3;
-		case RGBA8:				[[fallthrough]];
-		case RGBA16F:			[[fallthrough]];
-		case RGBA32F:			[[fallthrough]];
-		case Depth24_Stencil8:	[[fallthrough]];
-		case Depth32F_Stencil8: [[fallthrough]];
-		case SRGB8_ALPHA8:		return 4;
-		case Depth16:			[[fallthrough]];
-		case Depth24:			[[fallthrough]];
-		case Depth32F:			return 0; // Depth formats don't have color channels.
-		case Stencil8:			return 0; // Stencil formats don't have color channels.
-		default:				PTGN_ERROR("Unknown TextureFormat: ", std::to_underlying(format));
-	}
-}
 
 constexpr bool IsDepthOnlyFormat(TextureFormat fmt) {
 	switch (fmt) {
@@ -198,37 +162,33 @@ constexpr bool IsHDRFormat(TextureFormat fmt) {
 	}
 }
 
-constexpr TextureFormat ToHDRFormat(TextureFormat format) {
+constexpr int GetChannelCount(TextureFormat format) {
+	PTGN_ASSERT(IsColorFormat(format), "Format does not have color channels");
+
 	switch (format) {
 		using enum TextureFormat;
-
-		// Already HDR.
+		case R8:				[[fallthrough]];
 		case R16F:				[[fallthrough]];
+		case R32I:				[[fallthrough]];
+		case R32F:				return 1;
+		case RG8:				[[fallthrough]];
 		case RG16F:				[[fallthrough]];
-		case RGB16F:			[[fallthrough]];
-		case RGBA16F:			[[fallthrough]];
-		case R32F:				[[fallthrough]];
-		case RG32F:				[[fallthrough]];
-		case RGB32F:			[[fallthrough]];
-		case RGBA32F:			return format;
-
-		// LDR color -> HDR linear float.
-		case R8:				return R32F;
-		case RG8:				return RG32F;
+		case RG32F:				return 2;
 		case RGB8:				[[fallthrough]];
-		case SRGB8:				return RGB32F;
-
+		case RGB16F:			[[fallthrough]];
+		case RGB32F:			[[fallthrough]];
+		case SRGB8:				return 3;
 		case RGBA8:				[[fallthrough]];
-		case SRGB8_ALPHA8:		return RGBA32F;
-
-		// Non-color formats should not be promoted this way.
+		case RGBA16F:			[[fallthrough]];
+		case RGBA32F:			[[fallthrough]];
+		case SRGB8_ALPHA8:		return 4;
+		case Depth24_Stencil8:	[[fallthrough]];
+		case Depth32F_Stencil8: [[fallthrough]];
 		case Depth16:			[[fallthrough]];
 		case Depth24:			[[fallthrough]];
 		case Depth32F:			[[fallthrough]];
-		case Depth24_Stencil8:	[[fallthrough]];
-		case Depth32F_Stencil8: [[fallthrough]];
-		case Stencil8:			[[fallthrough]];
-		default:				PTGN_ERROR("Cannot upgrade non-color TextureFormat to HDR: ", ToString(format));
+		case Stencil8:			PTGN_ERROR("Cannot check for depth or stencil channel count");
+		default:				PTGN_ERROR("Unknown TextureFormat: ", std::to_underlying(format));
 	}
 }
 

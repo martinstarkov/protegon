@@ -76,10 +76,9 @@ void Textures::Resize(TextureId texture, V2_int new_size) {
 
 	auto _ = gl_.Bind(texture, true);
 
-	SetData(
-		texture, nullptr, PixelDataFormat::RGBA, PixelDataType::UnsignedByte, new_size,
-		cache.desc.format
-	);
+	auto [format, type]{ GetPixelDataFormat(cache.desc.format) };
+
+	SetData(texture, nullptr, format, type, new_size, cache.desc.format);
 }
 
 TextureCache& Textures::GetCache(TextureId texture) {

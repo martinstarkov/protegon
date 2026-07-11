@@ -33,6 +33,13 @@ namespace ptgn::impl::gl {
 
 namespace {
 
+struct ReadSpec {
+	PixelDataFormat format{ PixelDataFormat::RGBA };
+	PixelDataType type{ PixelDataType::UnsignedByte };
+	std::size_t bytes_per_pixel{ 4 };
+	PixelValueType value_type{ PixelValueType::Color };
+};
+
 [[nodiscard]] std::size_t ColorAttachmentIndex(Attachment attachment) {
 	PTGN_ASSERT(IsColorAttachment(attachment), "Attachment is not a color attachment");
 	return static_cast<std::size_t>(
@@ -52,6 +59,27 @@ namespace {
 		case DepthStencil: return GL_DEPTH_STENCIL_ATTACHMENT;
 		default:		   PTGN_ERROR("Unknown Attachment: ", std::to_underlying(attachment));
 	}
+}
+
+[[nodiscard]] bool IsBoundDrawFramebuffer(FramebufferId framebuffer) {
+	GLint bound_draw_framebuffer{ 0 };
+
+	GLCall(glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &bound_draw_framebuffer));
+
+	return static_cast<std::uint32_t>(bound_draw_framebuffer) == framebuffer.value;
+}
+
+[[nodiscard]] bool CorrectDrawBufferMapping(Attachment attachment) {
+	if (!IsColorAttachment(attachment)) {
+		return false;
+	}
+
+	auto index{ ColorAttachmentIndex(attachment) };
+
+	GLint mapped_attachment{ GL_NONE };
+	GLCall(glGetIntegerv(static_cast<GLenum>(GL_DRAW_BUFFER0 + index), &mapped_attachment));
+
+	return static_cast<GLenum>(mapped_attachment) == ToGLAttachment(attachment);
 }
 
 [[nodiscard]] AttachmentStorage ExpectedStorage(Attachment attachment) {
@@ -79,29 +107,88 @@ namespace {
 	return mask;
 }
 
-struct ReadSpec {
-	GLenum format{ GL_RGBA };
-	GLenum type{ GL_UNSIGNED_BYTE };
-	std::size_t bytes_per_pixel{ 4 };
-};
+[[nodiscard]] ReadSpec GetReadSpec(TextureFormat texture_format) {
+	using enum PixelDataFormat;
+	using enum PixelDataType;
 
-[[nodiscard]] ReadSpec GetReadSpec(Attachment attachment) {
-	if (IsColorAttachment(attachment)) {
-		return ReadSpec{ GL_RGBA, GL_UNSIGNED_BYTE, 4 };
+	if (texture_format == TextureFormat::R32I) {
+		auto [format, type]{ GetPixelDataFormat(texture_format) };
+
+		return {
+			.format			 = format,
+			.type			 = type,
+			.bytes_per_pixel = sizeof(std::int32_t),
+			.value_type		 = PixelValueType::Int32,
+		};
 	}
 
-	switch (attachment) {
-		using enum Attachment;
-		case Depth:	  return ReadSpec{ GL_DEPTH_COMPONENT, GL_FLOAT, sizeof(float) };
-		case Stencil: return ReadSpec{ GL_STENCIL_INDEX, GL_UNSIGNED_BYTE, 1 };
-		case DepthStencil:
-			return ReadSpec{ GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, sizeof(std::uint32_t) };
-		default: PTGN_ERROR("Unknown Attachment: ", std::to_underlying(attachment));
+	if (IsHDRFormat(texture_format)) {
+		return {
+			.format			 = PixelDataFormat::RGBA,
+			.type			 = PixelDataType::Float,
+			.bytes_per_pixel = 4 * GetPixelDataTypeSize(PixelDataType::Float),
+			.value_type		 = PixelValueType::FloatColor,
+		};
 	}
+
+	if (IsColorFormat(texture_format)) {
+		return {
+			.format			 = RGBA,
+			.type			 = UnsignedByte,
+			.bytes_per_pixel = 4,
+			.value_type		 = PixelValueType::Color,
+		};
+	}
+
+	if (IsDepthOnlyFormat(texture_format)) {
+		return {
+			.format			 = DepthComponent,
+			.type			 = Float,
+			.bytes_per_pixel = sizeof(float),
+			.value_type		 = PixelValueType::Depth,
+		};
+	}
+
+	if (IsStencilOnlyFormat(texture_format)) {
+		auto [format, type]{ GetPixelDataFormat(texture_format) };
+
+		return {
+			.format			 = format,
+			.type			 = type,
+			.bytes_per_pixel = GetPixelDataTypeSize(type),
+			.value_type		 = PixelValueType::Stencil,
+		};
+	}
+
+	PTGN_ASSERT(
+		IsDepthStencilOnlyFormat(texture_format),
+		"Unsupported framebuffer texture format: ", ToString(texture_format)
+	);
+
+	auto [format, type]{ GetPixelDataFormat(texture_format) };
+
+	return {
+		.format			 = format,
+		.type			 = type,
+		.bytes_per_pixel = GetPixelDataTypeSize(type),
+		.value_type		 = texture_format == TextureFormat::Depth24_Stencil8
+							 ? PixelValueType::Depth24Stencil8
+							 : PixelValueType::Depth32FStencil8,
+	};
 }
 
-void ReadPixelsRaw(V2_int coord, V2_int size, const ReadSpec& read_spec, void* data) {
-	GLCall(glReadPixels(coord.x, coord.y, size.x, size.y, read_spec.format, read_spec.type, data));
+void ReadPixelsRaw(V2_int coordinate, V2_int size, const ReadSpec& read_spec, void* data) {
+	GLint previous_pack_alignment{};
+	GLCall(glGetIntegerv(GL_PACK_ALIGNMENT, &previous_pack_alignment));
+
+	GLCall(glPixelStorei(GL_PACK_ALIGNMENT, 1));
+
+	GLCall(glReadPixels(
+		coordinate.x, coordinate.y, size.x, size.y, static_cast<GLenum>(read_spec.format),
+		static_cast<GLenum>(read_spec.type), data
+	));
+
+	GLCall(glPixelStorei(GL_PACK_ALIGNMENT, previous_pack_alignment));
 }
 
 void SelectReadBufferIfColor(Attachment attachment, std::optional<GLint>& previous) {
@@ -123,27 +210,6 @@ void RestoreReadBuffer(const std::optional<GLint>& previous) {
 	}
 
 	GLCall(glReadBuffer(static_cast<GLenum>(previous.value())));
-}
-
-void SelectDrawBufferIfColor(Attachment attachment, std::optional<GLint>& previous) {
-	if (!IsColorAttachment(attachment)) {
-		return;
-	}
-
-	GLint previous_draw_buffer{ 0 };
-	GLCall(glGetIntegerv(GL_DRAW_BUFFER0, &previous_draw_buffer));
-
-	previous = previous_draw_buffer;
-
-	GLCall(glDrawBuffer(ToGLAttachment(attachment)));
-}
-
-void RestoreDrawBuffer(const std::optional<GLint>& previous) {
-	if (!previous.has_value()) {
-		return;
-	}
-
-	GLCall(glDrawBuffer(static_cast<GLenum>(previous.value())));
 }
 
 [[nodiscard]] GLbitfield BlitMask(Attachment attachment) {
@@ -235,6 +301,26 @@ FramebufferId Framebuffers::Create(
 	);
 }
 
+TextureFormat Framebuffers::GetAttachmentFormat(const AttachmentRecord& record) const {
+	PTGN_ASSERT(record.id, "Cannot query the format of an empty attachment");
+
+	switch (record.storage) {
+		using enum AttachmentStorage;
+
+		case Texture: {
+			auto desc{ gl_.textures.GetDesc(TextureId{ record.id }) };
+
+			PTGN_ASSERT(desc.has_value(), "Texture attachment must have a description");
+
+			return desc->format;
+		}
+
+		case Renderbuffer: return gl_.renderbuffers.GetCache(RenderbufferId{ record.id }).format;
+		case None:		   [[fallthrough]];
+		default:		   PTGN_ERROR("Cannot query the format of an empty attachment");
+	}
+}
+
 void Framebuffers::AttachTextureImpl(
 	FramebufferId framebuffer, TextureId texture, Attachment attachment
 ) {
@@ -266,6 +352,10 @@ void Framebuffers::AttachTextureImpl(
 		framebuffer, attachment, texture.value,
 		texture ? AttachmentStorage::Texture : AttachmentStorage::None
 	);
+
+	UpdateDrawBuffers(framebuffer);
+
+	PTGN_ASSERT(IsComplete(framebuffer), "Framebuffer is incomplete: ", GetStatus());
 }
 
 void Framebuffers::AttachRenderbufferImpl(
@@ -303,6 +393,10 @@ void Framebuffers::AttachRenderbufferImpl(
 		framebuffer, attachment, renderbuffer.value,
 		renderbuffer ? AttachmentStorage::Renderbuffer : AttachmentStorage::None
 	);
+
+	UpdateDrawBuffers(framebuffer);
+
+	PTGN_ASSERT(IsComplete(framebuffer), "Framebuffer is incomplete: ", GetStatus());
 }
 
 std::optional<FramebufferAttachment> Framebuffers::FindAttachment(
@@ -310,7 +404,7 @@ std::optional<FramebufferAttachment> Framebuffers::FindAttachment(
 ) const {
 	auto info{ GetAttachmentInfoImpl(framebuffer, attachment) };
 
-	if (info.id == 0 || info.storage != storage) {
+	if (!info.id || info.storage != storage) {
 		return std::nullopt;
 	}
 
@@ -368,13 +462,33 @@ void Framebuffers::ClearColorImpl(
 	PTGN_ASSERT(gl_.IsBound(framebuffer), "FramebufferId must be bound before clearing color");
 	PTGN_ASSERT(IsColorAttachment(attachment), "ClearColor only supports color attachments");
 
-	std::optional<GLint> previous_draw_buffer;
-	SelectDrawBufferIfColor(attachment, previous_draw_buffer);
+	PTGN_ASSERT(
+		CorrectDrawBufferMapping(attachment),
+		"Color attachment is not mapped to its expected draw buffer index"
+	);
+
+	auto attachment_index{ ColorAttachmentIndex(attachment) };
 
 	auto c{ static_cast<V4_float>(color) };
-	GLCall(glClearBufferfv(GL_COLOR, 0, c.Data()));
+	GLCall(glClearBufferfv(GL_COLOR, static_cast<int>(attachment_index), c.Data()));
+}
 
-	RestoreDrawBuffer(previous_draw_buffer);
+void Framebuffers::ClearIntImpl(
+	FramebufferId framebuffer, Attachment attachment, std::int32_t value
+) const {
+	PTGN_ASSERT(gl_.IsBound(framebuffer), "FramebufferId must be bound before clearing int");
+	PTGN_ASSERT(IsColorAttachment(attachment), "ClearInt only supports color attachments");
+
+	PTGN_ASSERT(
+		CorrectDrawBufferMapping(attachment),
+		"Color attachment is not mapped to its expected draw buffer index"
+	);
+
+	auto attachment_index{ ColorAttachmentIndex(attachment) };
+
+	std::array<std::int32_t, 4> clear_value{ value, 0, 0, 0 };
+
+	GLCall(glClearBufferiv(GL_COLOR, static_cast<GLint>(attachment_index), clear_value.data()));
 }
 
 void Framebuffers::ClearDepth(FramebufferId framebuffer, Depth depth) const {
@@ -404,7 +518,7 @@ Framebuffers::PixelValue Framebuffers::ReadPixelImpl(
 
 	const auto& record{ GetAttachmentRecord(framebuffer, attachment) };
 
-	PTGN_ASSERT(record.id != 0, "No image attached to framebuffer attachment");
+	PTGN_ASSERT(record.id, "No image attached to framebuffer attachment");
 	PTGN_ASSERT(
 		record.storage == ExpectedStorage(attachment),
 		"Framebuffer attachment does not match the expected storage type"
@@ -424,7 +538,8 @@ Framebuffers::PixelValue Framebuffers::ReadPixelImpl(
 	V2_int read_coord{ coordinate.x, size.y - 1 - coordinate.y };
 	constexpr V2_int query_size{ 1, 1 };
 
-	auto read_spec{ GetReadSpec(attachment) };
+	auto texture_format{ GetAttachmentFormat(record) };
+	auto read_spec{ GetReadSpec(texture_format) };
 	std::vector<std::uint8_t> data(read_spec.bytes_per_pixel);
 
 	std::optional<GLint> previous_read_buffer;
@@ -434,7 +549,7 @@ Framebuffers::PixelValue Framebuffers::ReadPixelImpl(
 
 	RestoreReadBuffer(previous_read_buffer);
 
-	return DecodePixel(data, 0, attachment);
+	return DecodePixel(data, 0, read_spec.value_type);
 }
 
 Framebuffers::PixelBuffer Framebuffers::ReadPixelsImpl(
@@ -444,7 +559,7 @@ Framebuffers::PixelBuffer Framebuffers::ReadPixelsImpl(
 
 	const auto& record{ GetAttachmentRecord(framebuffer, attachment) };
 
-	PTGN_ASSERT(record.id != 0, "No image attached to framebuffer attachment");
+	PTGN_ASSERT(record.id, "No image attached to framebuffer attachment");
 	PTGN_ASSERT(
 		record.storage == ExpectedStorage(attachment),
 		"Framebuffer attachment does not match the expected storage type"
@@ -453,7 +568,8 @@ Framebuffers::PixelBuffer Framebuffers::ReadPixelsImpl(
 	auto size{ GetAttachmentSize(record) };
 	PTGN_ASSERT(size.IsPositive(), "Cannot read pixels from an attachment with no size");
 
-	auto read_spec{ GetReadSpec(attachment) };
+	auto texture_format{ GetAttachmentFormat(record) };
+	auto read_spec{ GetReadSpec(texture_format) };
 
 	auto pixel_count{ static_cast<std::size_t>(size.x) * static_cast<std::size_t>(size.y) };
 	std::vector<std::uint8_t> data(pixel_count * read_spec.bytes_per_pixel);
@@ -465,7 +581,12 @@ Framebuffers::PixelBuffer Framebuffers::ReadPixelsImpl(
 
 	RestoreReadBuffer(previous_read_buffer);
 
-	return PixelBuffer{ .size = size, .attachment = attachment, .data = std::move(data) };
+	return PixelBuffer{
+		.size		= size,
+		.attachment = attachment,
+		.value_type = read_spec.value_type,
+		.data		= std::move(data),
+	};
 }
 
 std::vector<FramebufferAttachment> Framebuffers::GetAttachments(FramebufferId framebuffer) const {
@@ -475,12 +596,10 @@ std::vector<FramebufferAttachment> Framebuffers::GetAttachments(FramebufferId fr
 		return attachments;
 	}
 
-	PTGN_ASSERT(cache_.Has(framebuffer), "No framebuffer with id ", framebuffer, " in cache");
-
 	const auto& cache{ cache_.Get(framebuffer) };
 
 	for (auto i{ 0uz }; i < cache.color.size(); ++i) {
-		if (cache.color[i].id != 0) {
+		if (cache.color[i].id) {
 			attachments.push_back(
 				FramebufferAttachment{
 					.attachment = ColorAttachment(i),
@@ -491,7 +610,7 @@ std::vector<FramebufferAttachment> Framebuffers::GetAttachments(FramebufferId fr
 		}
 	}
 
-	if (cache.depth.id != 0) {
+	if (cache.depth.id) {
 		attachments.push_back(
 			FramebufferAttachment{
 				.attachment = Attachment::Depth,
@@ -501,7 +620,7 @@ std::vector<FramebufferAttachment> Framebuffers::GetAttachments(FramebufferId fr
 		);
 	}
 
-	if (cache.stencil.id != 0) {
+	if (cache.stencil.id) {
 		attachments.push_back(
 			FramebufferAttachment{
 				.attachment = Attachment::Stencil,
@@ -511,7 +630,7 @@ std::vector<FramebufferAttachment> Framebuffers::GetAttachments(FramebufferId fr
 		);
 	}
 
-	if (cache.depth_stencil.id != 0) {
+	if (cache.depth_stencil.id) {
 		attachments.push_back(
 			FramebufferAttachment{
 				.attachment = Attachment::DepthStencil,
@@ -539,8 +658,6 @@ FramebufferAttachment Framebuffers::GetAttachmentInfoImpl(
 const Framebuffers::AttachmentRecord& Framebuffers::GetAttachmentRecord(
 	FramebufferId framebuffer, Attachment attachment
 ) const {
-	PTGN_ASSERT(cache_.Has(framebuffer), "No framebuffer with id ", framebuffer, " in cache");
-
 	const auto& cache{ cache_.Get(framebuffer) };
 
 	if (IsColorAttachment(attachment)) {
@@ -570,11 +687,11 @@ void Framebuffers::UpdateCache(
 	auto& record{ GetAttachmentRecord(framebuffer, attachment) };
 
 	record.id	   = id;
-	record.storage = id != 0 ? storage : AttachmentStorage::None;
+	record.storage = id ? storage : AttachmentStorage::None;
 }
 
 V2_int Framebuffers::GetAttachmentSize(const AttachmentRecord& record) const {
-	PTGN_ASSERT(record.id != 0, "Cannot query the size of an empty framebuffer attachment");
+	PTGN_ASSERT(record.id, "Cannot query the size of an empty framebuffer attachment");
 
 	switch (record.storage) {
 		using enum AttachmentStorage;
@@ -627,6 +744,8 @@ void Framebuffers::CopyRegionImpl(
 ) const {
 	PTGN_ASSERT(source, "Source framebuffer must be valid");
 	PTGN_ASSERT(destination, "Destination framebuffer must be valid");
+	PTGN_ASSERT(source != destination, "Source and destination framebuffers must differ");
+
 	PTGN_ASSERT(
 		!source_region.position.IsNegative() && source_region.size.IsPositive(),
 		"Source framebuffer copy region must be valid"
@@ -640,6 +759,7 @@ void Framebuffers::CopyRegionImpl(
 
 	PTGN_ASSERT(source_attachment, "Source framebuffer attachment must be valid");
 	PTGN_ASSERT(destination_attachment, "Destination framebuffer attachment must be valid");
+
 	PTGN_ASSERT(
 		source_attachment.storage == ExpectedStorage(attachment),
 		"Source framebuffer attachment does not match the expected storage type"
@@ -649,6 +769,30 @@ void Framebuffers::CopyRegionImpl(
 		"Destination framebuffer attachment does not match the expected storage type"
 	);
 
+	const auto& source_record{ GetAttachmentRecord(source, attachment) };
+	const auto& destination_record{ GetAttachmentRecord(destination, attachment) };
+
+	auto source_format{ GetAttachmentFormat(source_record) };
+	auto destination_format{ GetAttachmentFormat(destination_record) };
+
+	PTGN_ASSERT(
+		source_format == destination_format,
+		"Cannot blit framebuffer attachments with different formats. Source: ",
+		ToString(source_format), ", destination: ", ToString(destination_format)
+	);
+
+	if (attachment == Attachment::Color1) {
+		PTGN_ASSERT(
+			source_format == TextureFormat::R32I,
+			"Entity ID source attachment must use R32I, got: ", ToString(source_format)
+		);
+
+		PTGN_ASSERT(
+			destination_format == TextureFormat::R32I,
+			"Entity ID destination attachment must use R32I, got: ", ToString(destination_format)
+		);
+	}
+
 	PTGN_ASSERT(GLCallReturn(glIsFramebuffer(source)), "Source is not a valid OpenGL framebuffer");
 	PTGN_ASSERT(
 		GLCallReturn(glIsFramebuffer(destination)), "Destination is not a valid OpenGL framebuffer"
@@ -656,15 +800,30 @@ void Framebuffers::CopyRegionImpl(
 
 	auto previous_framebuffer{ gl_.GetBoundFramebuffer() };
 
-	PTGN_ASSERT(gl_.ScissorCoversFramebuffer(source));
+	PTGN_ASSERT(gl_.ScissorCoversFramebuffer(destination));
 
 	GLCall(glBindFramebuffer(GL_READ_FRAMEBUFFER, source));
+
+	PTGN_ASSERT(
+		GLCallReturn(glCheckFramebufferStatus(GL_READ_FRAMEBUFFER)) == GL_FRAMEBUFFER_COMPLETE,
+		"Source framebuffer is incomplete for reading"
+	);
+
 	std::optional<GLint> previous_read_buffer;
 	SelectReadBufferIfColor(attachment, previous_read_buffer);
 
 	GLCall(glBindFramebuffer(GL_DRAW_FRAMEBUFFER, destination));
-	std::optional<GLint> previous_draw_buffer;
-	SelectDrawBufferIfColor(attachment, previous_draw_buffer);
+
+	PTGN_ASSERT(
+		GLCallReturn(glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER)) == GL_FRAMEBUFFER_COMPLETE,
+		"Destination framebuffer is incomplete for drawing"
+	);
+
+	if (IsColorAttachment(attachment)) {
+		auto draw_buffer{ ToGLAttachment(attachment) };
+
+		GLCall(glDrawBuffers(1, &draw_buffer));
+	}
 
 	V2_int src_min{ Floor(source_region.position) };
 	V2_int src_max{ Ceil(source_region.position + source_region.size) };
@@ -678,40 +837,38 @@ void Framebuffers::CopyRegionImpl(
 	));
 
 	RestoreReadBuffer(previous_read_buffer);
-	RestoreDrawBuffer(previous_draw_buffer);
 
-	auto _ = gl_.Bind(previous_framebuffer, false);
+	if (IsColorAttachment(attachment)) {
+		UpdateDrawBuffers(destination);
+	}
+
+	auto _{ gl_.Bind(previous_framebuffer, false, true) };
 }
 
 void Framebuffers::Resize(FramebufferId framebuffer, V2_int new_size) {
-	const auto& cache{ cache_.Get(framebuffer) };
+	auto& framebuffer_cache{ cache_.Get(framebuffer) };
 
-	auto resize_attachment = [this, new_size](const AttachmentRecord& record) {
-		if (record.id == 0) {
-			return;
+	for (const auto& attachment : framebuffer_cache.color) {
+		if (!attachment.id) {
+			continue;
 		}
 
-		switch (record.storage) {
-			using enum AttachmentStorage;
-			case Texture: gl_.textures.Resize(TextureId{ record.id }, new_size); return;
-			case Renderbuffer:
-				gl_.renderbuffers.Resize(RenderbufferId{ record.id }, new_size);
-				return;
-			case None: [[fallthrough]];
-			default:
-				PTGN_ERROR(
-					"Unknown or None AttachmentStorage: ", std::to_underlying(record.storage)
-				);
-		}
-	};
+		PTGN_ASSERT(attachment.storage == AttachmentStorage::Texture);
 
-	for (const auto& color : cache.color) {
-		resize_attachment(color);
+		gl_.textures.Resize(TextureId{ attachment.id }, new_size);
 	}
 
-	resize_attachment(cache.depth);
-	resize_attachment(cache.stencil);
-	resize_attachment(cache.depth_stencil);
+	if (framebuffer_cache.depth.id) {
+		gl_.renderbuffers.Resize(RenderbufferId{ framebuffer_cache.depth.id }, new_size);
+	}
+
+	if (framebuffer_cache.stencil.id) {
+		gl_.renderbuffers.Resize(RenderbufferId{ framebuffer_cache.stencil.id }, new_size);
+	}
+
+	if (framebuffer_cache.depth_stencil.id) {
+		gl_.renderbuffers.Resize(RenderbufferId{ framebuffer_cache.depth_stencil.id }, new_size);
+	}
 }
 
 FramebufferId Framebuffers::CreateBareFramebuffer() {
@@ -727,50 +884,90 @@ FramebufferId Framebuffers::CreateBareFramebuffer() {
 }
 
 Framebuffers::PixelValue Framebuffers::DecodePixel(
-	const std::vector<std::uint8_t>& data, int index, Attachment attachment
+	const std::vector<std::uint8_t>& data, int index, PixelValueType value_type
 ) {
 	PTGN_ASSERT(index >= 0, "Pixel index cannot be negative");
 
-	if (IsColorAttachment(attachment)) {
-		std::size_t offset{ static_cast<std::size_t>(index) * 4 };
+	switch (value_type) {
+		case PixelValueType::Color: {
+			constexpr std::size_t kBytesPerPixel{ 4 };
 
-		PTGN_ASSERT(offset + 3 < data.size(), "Pixel buffer does not contain an RGBA pixel");
-
-		return Color{ data[offset + 0], data[offset + 1], data[offset + 2], data[offset + 3] };
-	}
-
-	switch (attachment) {
-		using enum Attachment;
-		case Depth: {
-			std::size_t offset{ static_cast<std::size_t>(index) * sizeof(float) };
+			auto offset{ static_cast<std::size_t>(index) * kBytesPerPixel };
 
 			PTGN_ASSERT(
-				offset + sizeof(float) <= data.size(), "Pixel buffer does not contain depth"
+				offset + kBytesPerPixel <= data.size(),
+				"Pixel buffer does not contain an RGBA pixel"
 			);
 
-			float depth{ 0.0f };
-			std::memcpy(&depth, data.data() + offset, sizeof(depth));
-
-			return ptgn::Depth{ depth };
+			return Color{
+				data[offset + 0],
+				data[offset + 1],
+				data[offset + 2],
+				data[offset + 3],
+			};
 		}
 
-		case Stencil: {
-			std::size_t offset{ static_cast<std::size_t>(index) };
+		case PixelValueType::Int32: {
+			auto offset{ static_cast<std::size_t>(index) * sizeof(std::int32_t) };
 
-			PTGN_ASSERT(offset < data.size(), "Pixel buffer does not contain stencil");
+			PTGN_ASSERT(
+				offset + sizeof(std::int32_t) <= data.size(),
+				"Pixel buffer does not contain an int32 pixel"
+			);
 
-			return ptgn::Stencil{ data[offset] };
+			std::int32_t value{};
+			std::memcpy(&value, data.data() + offset, sizeof(value));
+
+			return value;
 		}
 
-		case DepthStencil: {
-			std::size_t offset{ static_cast<std::size_t>(index) * sizeof(std::uint32_t) };
+		case PixelValueType::FloatColor: {
+			constexpr std::size_t kChannelCount{ 4 };
+			constexpr std::size_t kBytesPerPixel{ sizeof(float) * kChannelCount };
+
+			auto offset{ static_cast<std::size_t>(index) * kBytesPerPixel };
+
+			PTGN_ASSERT(
+				offset + kBytesPerPixel <= data.size(),
+				"Pixel buffer does not contain an RGBA float pixel"
+			);
+
+			std::array<float, kChannelCount> channels{};
+			std::memcpy(channels.data(), data.data() + offset, kBytesPerPixel);
+
+			return V4_float{ channels };
+		}
+
+		case PixelValueType::Depth: {
+			auto offset{ static_cast<std::size_t>(index) * sizeof(float) };
+
+			PTGN_ASSERT(
+				offset + sizeof(float) <= data.size(), "Pixel buffer does not contain a depth pixel"
+			);
+
+			float value{};
+			std::memcpy(&value, data.data() + offset, sizeof(value));
+
+			return Depth{ value };
+		}
+
+		case PixelValueType::Stencil: {
+			auto offset{ static_cast<std::size_t>(index) };
+
+			PTGN_ASSERT(offset < data.size(), "Pixel buffer does not contain a stencil pixel");
+
+			return Stencil{ data[offset] };
+		}
+
+		case PixelValueType::Depth24Stencil8: {
+			auto offset{ static_cast<std::size_t>(index) * sizeof(std::uint32_t) };
 
 			PTGN_ASSERT(
 				offset + sizeof(std::uint32_t) <= data.size(),
-				"Pixel buffer does not contain packed depth-stencil"
+				"Pixel buffer does not contain a packed depth-stencil pixel"
 			);
 
-			std::uint32_t packed{ 0 };
+			std::uint32_t packed{};
 			std::memcpy(&packed, data.data() + offset, sizeof(packed));
 
 			constexpr std::uint32_t kDepthMax{ 0x00FFFFFFu };
@@ -779,10 +976,37 @@ Framebuffers::PixelValue Framebuffers::DecodePixel(
 			float depth{ static_cast<float>(depth_bits) / static_cast<float>(kDepthMax) };
 			auto stencil{ static_cast<std::uint8_t>(packed & 0xFFu) };
 
-			return ptgn::DepthStencil{ .depth{ depth }, .stencil{ stencil } };
+			return DepthStencil{
+				.depth{ depth },
+				.stencil{ stencil },
+			};
 		}
 
-		default: PTGN_ERROR("Unknown framebuffer attachment: ", std::to_underlying(attachment));
+		case PixelValueType::Depth32FStencil8: {
+			struct PackedPixel {
+				float depth{ 0.0f };
+				std::uint32_t stencil{ 0 };
+			};
+
+			static_assert(sizeof(PackedPixel) == 8);
+
+			auto offset{ static_cast<std::size_t>(index) * sizeof(PackedPixel) };
+
+			PTGN_ASSERT(
+				offset + sizeof(PackedPixel) <= data.size(),
+				"Pixel buffer does not contain a float depth-stencil pixel"
+			);
+
+			PackedPixel packed{};
+			std::memcpy(&packed, data.data() + offset, sizeof(packed));
+
+			return DepthStencil{
+				.depth{ packed.depth },
+				.stencil{ static_cast<std::uint8_t>(packed.stencil & 0xFFu) },
+			};
+		}
+
+		default: PTGN_ERROR("Unknown PixelValueType: ", std::to_underlying(value_type));
 	}
 }
 
@@ -805,7 +1029,7 @@ void Framebuffers::InvalidateTexture(TextureId texture) {
 			}
 		}
 
-		if (count == 0) {
+		if (!count) {
 			continue;
 		}
 
@@ -841,7 +1065,7 @@ void Framebuffers::InvalidateRenderbuffer(RenderbufferId renderbuffer) {
 		queue_if_matching(item.value.stencil, Attachment::Stencil);
 		queue_if_matching(item.value.depth_stencil, Attachment::DepthStencil);
 
-		if (count == 0) {
+		if (!count) {
 			continue;
 		}
 
@@ -862,7 +1086,7 @@ void Framebuffers::Destroy(FramebufferId id, TextureId replacement_texture) {
 	std::vector<FramebufferAttachment> destroyed;
 
 	for (const auto& attachment : GetAttachments(id)) {
-		PTGN_ASSERT(attachment.id != 0);
+		PTGN_ASSERT(attachment.id);
 
 		bool already_destroyed{ false };
 
@@ -915,6 +1139,11 @@ void Framebuffers::SavePNGImpl(const path& path, FramebufferId framebuffer, Atta
 
 	PixelBuffer buffer{ ReadPixelsImpl(framebuffer, attachment) };
 
+	PTGN_ASSERT(
+		buffer.value_type == PixelValueType::Color,
+		"Only regular color attachments can be saved as PNG"
+	);
+
 	auto size{ buffer.size };
 
 	PTGN_ASSERT(size.IsPositive(), "Failed to read size of pixel buffer: ", size);
@@ -944,6 +1173,36 @@ void Framebuffers::SavePNGImpl(const path& path, FramebufferId framebuffer, Atta
 	auto success{ surface.SavePNG(path) };
 
 	PTGN_ASSERT(success.has_value(), magic_enum::enum_name(success.error()));
+}
+
+void Framebuffers::UpdateDrawBuffers(FramebufferId framebuffer) const {
+	PTGN_ASSERT(
+		IsBoundDrawFramebuffer(framebuffer),
+		"FramebufferId must be bound as the draw framebuffer before updating draw buffers"
+	);
+
+	const auto& data{ cache_.Get(framebuffer) };
+
+	std::array<GLenum, kMaxColorAttachments> draw_buffers;
+	draw_buffers.fill(GL_NONE);
+
+	GLsizei draw_buffer_count{ 0 };
+
+	for (auto i{ 0uz }; i < data.color.size(); ++i) {
+		if (!data.color[i].id) {
+			continue;
+		}
+
+		draw_buffers[i]	  = GL_COLOR_ATTACHMENT0 + static_cast<GLenum>(i);
+		draw_buffer_count = static_cast<GLsizei>(i + 1);
+	}
+
+	if (!draw_buffer_count) {
+		GLCall(glDrawBuffer(GL_NONE));
+		return;
+	}
+
+	GLCall(glDrawBuffers(draw_buffer_count, draw_buffers.data()));
 }
 
 std::ostream& operator<<(std::ostream& os, ClearBufferBit bits) {

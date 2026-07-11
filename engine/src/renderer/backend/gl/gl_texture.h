@@ -27,9 +27,6 @@ enum class PixelDataFormat : std::uint32_t {
 	DepthComponent = 0x1902, // GL_DEPTH_COMPONENT
 	DepthStencil   = 0x84F9, // GL_DEPTH_STENCIL
 	Stencil		   = 0x1901, // GL_STENCIL_INDEX
-	LuminanceAlpha = 0x190A, // GL_LUMINANCE_ALPHA
-	Luminance	   = 0x1909, // GL_LUMINANCE
-	Alpha		   = 0x1906	 // GL_ALPHA
 };
 
 enum class PixelDataType : std::uint32_t {
@@ -41,7 +38,8 @@ enum class PixelDataType : std::uint32_t {
 	Int				 = 0x1404, // GL_INT
 	HalfFloat		 = 0x140B, // GL_HALF_FLOAT
 	Float			 = 0x1406, // GL_FLOAT
-	UnsignedInt_24_8 = 0x84FA  // GL_UNSIGNED_INT_24_8
+	UnsignedInt_24_8		   = 0x84FA, // GL_UNSIGNED_INT_24_8
+	Float32UnsignedInt_24_8Rev = 0x8DAD	 // GL_FLOAT_32_UNSIGNED_INT_24_8_REV
 };
 
 enum class TextureParameter : std::uint32_t {
@@ -55,59 +53,75 @@ struct TextureCache {
 	TextureDesc desc;
 };
 
-constexpr int GetBitCount(TextureFormat fmt) {
-	switch (fmt) {
-		using enum TextureFormat;
-		case RGBA8:
-		case RGBA16F:
-		case RGBA32F:
-		case SRGB8_ALPHA8:		return 4;
-		case RGB8:
-		case RGB16F:
-		case RGB32F:
-		case SRGB8:				return 3;
-		case R8:
-		case R16F:
-		case R32F:
-		case Depth16:
-		case Depth24:
-		case Depth32F:
-		case Stencil8:			return 1;
-		case RG8:
-		case RG16F:
-		case RG32F:
-		case Depth24_Stencil8:
-		case Depth32F_Stencil8: return 2;
-		default:				PTGN_ERROR("Unknown texture format: ", std::to_underlying(fmt));
+/// @return Number of logical components represented by the format.
+/// This is not the number of color channels or bytes per pixel.
+constexpr int GetComponentCount(TextureFormat format) {
+	if (IsColorFormat(format)) {
+		return GetChannelCount(format);
 	}
+
+	if (IsDepthStencilOnlyFormat(format)) {
+		return 2;
+	}
+
+	if (IsDepthOnlyFormat(format) || IsStencilOnlyFormat(format)) {
+		return 1;
+	}
+
+	PTGN_ERROR("Unknown TextureFormat: ", std::to_underlying(format));
 }
 
+/// @return External pixel transfer format and type used for uploads/readbacks.
+/// This does not describe the texture's internal storage size.
 constexpr std::pair<PixelDataFormat, PixelDataType> GetPixelDataFormat(TextureFormat fmt) {
 	switch (fmt) {
 		using enum PixelDataFormat;
 		using enum TextureFormat;
 		using enum PixelDataType;
-		case RGBA8:
+		case RGBA8:				[[fallthrough]];
 		case SRGB8_ALPHA8:		return { RGBA, UnsignedByte };
-		case RGBA16F:
+		case RGBA16F:			[[fallthrough]];
 		case RGBA32F:			return { RGBA, Float };
-		case RGB8:
+		case RGB8:				[[fallthrough]];
 		case SRGB8:				return { RGB, UnsignedByte };
-		case RGB16F:
+		case RGB16F:			[[fallthrough]];
 		case RGB32F:			return { RGB, Float };
-		case R16F:
+		case R16F:				[[fallthrough]];
 		case R32F:				return { RED, Float };
+		case R32I:				return { RED_INTEGER, Int };
 		case R8:				return { RED, UnsignedByte };
-		case Depth16:
+		case Depth16:			[[fallthrough]];
 		case Depth24:			return { DepthComponent, UnsignedInt };
 		case Depth32F:			return { DepthComponent, Float };
 		case Stencil8:			return { Stencil, UnsignedByte };
-		case Depth24_Stencil8:
-		case Depth32F_Stencil8: return { DepthStencil, UnsignedInt_24_8 };
+		case Depth24_Stencil8:	return { DepthStencil, UnsignedInt_24_8 };
+		case Depth32F_Stencil8: return { DepthStencil, Float32UnsignedInt_24_8Rev };
 		case RG8:				return { RG, UnsignedByte };
-		case RG16F:
+		case RG16F:				[[fallthrough]];
 		case RG32F:				return { RG, Float };
 		default:				PTGN_ERROR("Unknown texture format: ", std::to_underlying(fmt));
+	}
+}
+
+constexpr std::size_t GetPixelDataTypeSize(PixelDataType type) {
+	switch (type) {
+		using enum PixelDataType;
+
+		case UnsignedByte:				 [[fallthrough]];
+		case Byte:						 return 1;
+
+		case UnsignedShort:				 [[fallthrough]];
+		case Short:						 [[fallthrough]];
+		case HalfFloat:					 return 2;
+
+		case UnsignedInt:				 [[fallthrough]];
+		case Int:						 [[fallthrough]];
+		case Float:						 [[fallthrough]];
+		case UnsignedInt_24_8:			 return 4;
+
+		case Float32UnsignedInt_24_8Rev: return 8;
+
+		default:						 PTGN_ERROR("Unknown PixelDataType: ", std::to_underlying(type));
 	}
 }
 

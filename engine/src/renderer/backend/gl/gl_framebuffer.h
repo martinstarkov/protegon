@@ -13,6 +13,7 @@
 #include "core/assert.h"
 #include "core/graphics/color.h"
 #include "core/math/vector2.h"
+#include "core/math/vector4.h"
 #include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "core/util/id_map.h"
@@ -24,6 +25,16 @@
 namespace ptgn::impl::gl {
 
 class GLContext;
+
+enum class PixelValueType : std::uint8_t {
+	Color,
+	FloatColor,
+	Int32,
+	Depth,
+	Stencil,
+	Depth24Stencil8,
+	Depth32FStencil8
+};
 
 inline constexpr std::uint32_t kMaxColorAttachments{ 8 };
 
@@ -251,13 +262,19 @@ public:
 		ClearColorImpl(framebuffer, A, color);
 	}
 
+	template <Attachment A>
+	void ClearInt(FramebufferId framebuffer, std::int32_t value) const {
+		static_assert(IsColorAttachment(A), "ClearInt only supports color attachments");
+		ClearIntImpl(framebuffer, A, value);
+	}
+
 	void ClearDepth(FramebufferId framebuffer, Depth depth) const;
 
 	void ClearStencil(FramebufferId framebuffer, Stencil stencil) const;
 
 	void ClearDepthStencil(FramebufferId framebuffer, DepthStencil depth_stencil) const;
 
-	using PixelValue = std::variant<Color, Depth, Stencil, DepthStencil>;
+	using PixelValue = std::variant<Color, V4_float, std::int32_t, Depth, Stencil, DepthStencil>;
 
 	/// @brief WARNING: This function is slow and should be primarily used for debugging
 	/// framebuffers.
@@ -270,6 +287,7 @@ public:
 	struct PixelBuffer {
 		V2_int size{};
 		Attachment attachment{ Attachment::Color0 };
+		PixelValueType value_type{ PixelValueType::Color };
 		std::vector<std::uint8_t> data;
 	};
 
@@ -292,7 +310,7 @@ public:
 
 			for (int x{ 0 }; x < buffer.size.x; ++x) {
 				const int index{ flipped_y * buffer.size.x + x };
-				PixelValue pixel{ DecodePixel(buffer.data, index, buffer.attachment) };
+				PixelValue pixel{ DecodePixel(buffer.data, index, buffer.value_type) };
 
 				std::invoke(func, V2_int{ x, y }, pixel);
 			}
@@ -383,6 +401,9 @@ private:
 	Framebuffers& operator=(const Framebuffers&)	 = delete;
 	Framebuffers& operator=(Framebuffers&&) noexcept = delete;
 
+	TextureFormat GetAttachmentFormat(const AttachmentRecord& record) const;
+	void UpdateDrawBuffers(FramebufferId framebuffer) const;
+
 	[[nodiscard]] FramebufferId CreateImpl(
 		std::optional<TextureId> texture, Attachment texture_attachment,
 		std::optional<RenderbufferId> renderbuffer, Attachment renderbuffer_attachment,
@@ -396,6 +417,7 @@ private:
 	);
 
 	void ClearColorImpl(FramebufferId framebuffer, Attachment attachment, Color color) const;
+	void ClearIntImpl(FramebufferId framebuffer, Attachment attachment, std::int32_t value) const;
 
 	[[nodiscard]] PixelValue ReadPixelImpl(
 		FramebufferId framebuffer, V2_int coordinate, Attachment attachment
@@ -436,7 +458,7 @@ private:
 	[[nodiscard]] FramebufferId CreateBareFramebuffer();
 
 	[[nodiscard]] static PixelValue DecodePixel(
-		const std::vector<std::uint8_t>& data, int index, Attachment attachment
+		const std::vector<std::uint8_t>& data, int index, PixelValueType value_type
 	);
 
 	void InvalidateTexture(TextureId texture);

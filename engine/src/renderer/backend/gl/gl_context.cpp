@@ -324,10 +324,10 @@ BindGuard<TextureId> GLContext::Bind(TextureId id, bool restore_bind, bool force
 	return BindGuard<TextureId>{ *this, previous, restore_bind };
 }
 
-BindGuard<FramebufferId> GLContext::Bind(FramebufferId id, bool restore_bind) {
+BindGuard<FramebufferId> GLContext::Bind(FramebufferId id, bool restore_bind, bool force) {
 	auto previous{ GetBoundFramebuffer() };
 
-	if (id == previous) {
+	if (id == previous && !force) {
 		return BindGuard<FramebufferId>{ *this, FramebufferId{}, false };
 	}
 
