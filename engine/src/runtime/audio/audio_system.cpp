@@ -2,10 +2,16 @@
 
 #include <ecs/ecs.h>
 
-#pragma GCC diagnostic push /* also works on clang */
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
+#endif
+
 #include <miniaudio.h>
+
+#if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic pop
+#endif
 
 #include <algorithm>
 #include <memory>

@@ -1,10 +1,16 @@
 #include "runtime/audio/track.h"
 
-#pragma GCC diagnostic push /* also works on clang */
+#if defined(__clang__) || defined(__GNUC__)
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
+#endif
+
 #include <extras/decoders/libvorbis/miniaudio_libvorbis.h>
 #include <miniaudio.h>
+
+#if defined(__clang__) || defined(__GNUC__)
 #pragma GCC diagnostic pop
+#endif
 
 #include <cstdint>
 #include <filesystem>

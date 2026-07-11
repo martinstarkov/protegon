@@ -1,7 +1,7 @@
-#ifndef __STDC_LIB_EXT1__
-#define __STDC_LIB_EXT1__
-#define sprintf_s snprintf
-#endif
+#include <cstdio>
+
+#define STBIW_SPRINTF std::snprintf
+
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
