@@ -5,25 +5,27 @@
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "CMake")
 
-set(_select_all TRUE)
+set(_sel_raw "${PTGN_EXAMPLES}")
+string(STRIP "${_sel_raw}" _sel_raw)
+string(TOUPPER "${_sel_raw}" _sel_upper)
+
+set(_select_all FALSE)
 set(_select_list "")
 
-if(EMSCRIPTEN)
-  set(_sel_raw "${PTGN_WEB_EXAMPLES}")
-  string(STRIP "${_sel_raw}" _sel_raw)
-  string(TOUPPER "${_sel_raw}" _sel_upper)
-
-  if(_sel_raw STREQUAL "")
-    message(STATUS "Web examples disabled (PTGN_WEB_EXAMPLES is empty)")
-    return()
-  endif()
-
-  if(_sel_upper STREQUAL "ALL")
-    set(_select_all TRUE)
-  else()
-    set(_select_all FALSE)
-    set(_select_list ${_sel_raw}) # semicolon-separated list
-  endif()
+if(
+  _sel_raw STREQUAL ""
+  OR _sel_upper STREQUAL "OFF"
+  OR _sel_upper STREQUAL "FALSE"
+  OR _sel_upper STREQUAL "NO"
+  OR _sel_upper STREQUAL "0"
+)
+  message(STATUS "Examples disabled")
+  return()
+elseif(_sel_upper STREQUAL "ALL" OR _sel_upper STREQUAL "ON")
+  # Supporting ON preserves compatibility with an existing Boolean cache entry.
+  set(_select_all TRUE)
+else()
+  set(_select_list ${_sel_raw})
 endif()
 
 set(_examples_dir "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -38,29 +40,37 @@ if(NOT _example_sources)
   return()
 endif()
 
-# Validate requested web examples early
-if(EMSCRIPTEN AND NOT _select_all)
+# Validate requested examples early
+if(NOT _select_all)
   foreach(_req IN LISTS _select_list)
     string(STRIP "${_req}" _req)
+
     if(_req STREQUAL "")
       continue()
     endif()
 
     if(_req MATCHES "\\.\\.")
-      message(FATAL_ERROR "PTGN_WEB_EXAMPLES entry must not contain '..': '${_req}'")
+      message(FATAL_ERROR
+        "PTGN_EXAMPLES entry must not contain '..': '${_req}'"
+      )
     endif()
 
     if(NOT EXISTS "${_examples_dir}/${_req}.cpp")
       message(FATAL_ERROR
-        "Requested web example '${_req}' not found. Expected examples/${_req}.cpp")
+        "Requested example '${_req}' not found. "
+        "Expected examples/${_req}.cpp"
+      )
     endif()
   endforeach()
 endif()
 
 if(EMSCRIPTEN)
   set(_shell_html "${CMAKE_CURRENT_SOURCE_DIR}/../platform/emscripten/shell.html")
+
   if(NOT EXISTS "${_shell_html}")
-    message(FATAL_ERROR "Missing Emscripten shell file: ${_shell_html}")
+    message(FATAL_ERROR
+      "Missing Emscripten shell file: ${_shell_html}"
+    )
   endif()
 endif()
 
@@ -70,7 +80,12 @@ set(_built_examples "")
 set(_built_targets "")
 
 foreach(_src IN LISTS _example_sources)
-  file(RELATIVE_PATH _rel "${_examples_dir}" "${_src}") # e.g. audio/basic.cpp
+  file(
+    RELATIVE_PATH
+    _rel
+    "${_examples_dir}"
+    "${_src}"
+  ) # e.g. audio/basic.cpp
 
   # Skip web support sources if present under examples/web
   if(_rel MATCHES "^web/")
@@ -87,9 +102,9 @@ foreach(_src IN LISTS _example_sources)
     set(_rel_key "${_rel_dir}/${_rel_no_ext}")
   endif()
 
-  # Selection only applies to Emscripten builds
-  if(EMSCRIPTEN AND NOT _select_all)
+  if(NOT _select_all)
     list(FIND _select_list "${_rel_key}" _idx)
+
     if(_idx EQUAL -1)
       continue()
     endif()
@@ -101,51 +116,79 @@ foreach(_src IN LISTS _example_sources)
 
   # Disambiguate duplicate leaf names
   list(FIND _used_target_names "${_t}" _taken)
+
   if(NOT _taken EQUAL -1)
     string(REPLACE "/" "_" _suffix "${_rel_key}")
     set(_t "${_suffix}")
 
     list(FIND _used_target_names "${_t}" _taken2)
+
     if(NOT _taken2 EQUAL -1)
       message(FATAL_ERROR
-        "Target name collision even after disambiguation for '${_rel_key}'.")
+        "Target name collision even after disambiguation for '${_rel_key}'."
+      )
     endif()
   endif()
+
   list(APPEND _used_target_names "${_t}")
 
   add_executable(${_t} "${_src}")
 
   # Choose assets directory before wiring Protegon
   set(_assets_src "${_default_assets_dir}")
+
   if(EXISTS "${_example_dir}/assets")
     set(_assets_src "${_example_dir}/assets")
   endif()
 
   if(EMSCRIPTEN)
-    add_protegon_to(${_t}
+    add_protegon_to(
+      ${_t}
       ASSETS_DIR "${_assets_src}"
       SHELL_HTML "${_shell_html}"
     )
   else()
-    add_protegon_to(${_t} ASSETS_DIR "${_assets_src}")
+    add_protegon_to(
+      ${_t}
+      ASSETS_DIR "${_assets_src}"
+    )
   endif()
 
-  set_target_properties(${_t} PROPERTIES OUTPUT_NAME "${_t}")
-  target_compile_definitions(${_t} PRIVATE PTGN_EXAMPLE_ID="${_rel}")
+  set_target_properties(
+    ${_t}
+    PROPERTIES
+      OUTPUT_NAME "${_t}"
+  )
+
+  target_compile_definitions(
+    ${_t}
+    PRIVATE
+      PTGN_EXAMPLE_ID="${_rel}"
+  )
 
   if(MSVC)
-    set_target_properties(${_t} PROPERTIES
-      VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
+    set_target_properties(
+      ${_t}
+      PROPERTIES
+        VS_DEBUGGER_WORKING_DIRECTORY
+          "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>"
+    )
   endif()
 
   # IDE folder grouping
   get_filename_component(_parent_path "${_rel}" DIRECTORY)
+
   if(_parent_path STREQUAL "." OR _parent_path STREQUAL "")
     set(_folder "examples")
   else()
     set(_folder "examples/${_parent_path}")
   endif()
-  set_target_properties(${_t} PROPERTIES FOLDER "${_folder}")
+
+  set_target_properties(
+    ${_t}
+    PROPERTIES
+      FOLDER "${_folder}"
+  )
 
   list(APPEND _built_examples "${_rel_key}")
   list(APPEND _built_targets "${_t}")
@@ -153,19 +196,25 @@ endforeach()
 
 if(_built_examples)
   message(STATUS "Built examples: ${_built_examples}")
+elseif(_select_all)
+  message(WARNING
+    "PTGN_EXAMPLES was ALL but no examples were built."
+  )
 else()
-  if(EMSCRIPTEN AND _select_all)
-    message(WARNING "Selection was ALL but no examples were built (unexpected).")
-  elseif(EMSCRIPTEN)
-    message(STATUS "No web examples matched selection: ${PTGN_WEB_EXAMPLES}")
-  else()
-    message(WARNING "No examples were built (unexpected).")
-  endif()
+  message(STATUS
+    "No examples matched selection: ${PTGN_EXAMPLES}"
+  )
 endif()
 
 # ---- Emscripten: generate dist/index and copy outputs for built examples ----
 if(EMSCRIPTEN AND _built_examples)
-  set(PTGN_DIST_DIR "${CMAKE_BINARY_DIR}/dist" CACHE PATH "Web output folder")
+  set(
+    PTGN_DIST_DIR
+    "${CMAKE_BINARY_DIR}/dist"
+    CACHE PATH
+    "Web output folder"
+  )
+
   file(MAKE_DIRECTORY "${PTGN_DIST_DIR}")
 
   set(PTGN_EXAMPLE_ITEMS "")
@@ -175,10 +224,11 @@ if(EMSCRIPTEN AND _built_examples)
 
   foreach(_i RANGE ${_last_index})
     list(GET _built_examples ${_i} _rel_key)
-    list(GET _built_targets  ${_i} _t)
+    list(GET _built_targets ${_i} _t)
 
     string(APPEND PTGN_EXAMPLE_ITEMS
-      "      { label: \"${_rel_key}\", file: \"${_t}.html\" },\n")
+      "      { label: \"${_rel_key}\", file: \"${_t}.html\" },\n"
+    )
   endforeach()
 
   configure_file(
