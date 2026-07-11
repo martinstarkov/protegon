@@ -159,7 +159,7 @@ float DistanceToSegmentLocal(V2_float p, V2_float a, V2_float b) {
 void DrawSimple2DGizmo(
 	EditorContext&, ImDrawList* draw_list, GizmoState& gizmo, Transform& transform,
 	const FrameContext& frame_context, Viewport presentation_viewport, bool viewport_hovered,
-	bool viewport_focused, Frame from
+	bool viewport_focused, Frame from, bool use_local_orientation
 ) {
 	const auto& io{ ImGui::GetIO() };
 
@@ -184,11 +184,17 @@ void DrawSimple2DGizmo(
 	V2_float mouse_screen{ io.MousePos.x, io.MousePos.y };
 	V2_float mouse_world{ ScreenToWorld(mouse_screen, frame_context, presentation_viewport, from) };
 
-	float angle{ transform.rotation.value };
+	float gizmo_angle{ use_local_orientation ? transform.rotation.value : 0.0f };
 
-	V2_float world_axis_x{ std::cos(angle), std::sin(angle) };
+	V2_float world_axis_x{
+		std::cos(gizmo_angle),
+		std::sin(gizmo_angle),
+	};
 
-	V2_float world_axis_y{ -std::sin(angle), std::cos(angle) };
+	V2_float world_axis_y{
+		-std::sin(gizmo_angle),
+		std::cos(gizmo_angle),
+	};
 
 	auto axis_to_screen = [&](V2_float world_axis) {
 		auto axis_end_screen{ WorldToScreen(
@@ -264,6 +270,8 @@ void DrawSimple2DGizmo(
 		gizmo.drag_start_position	   = transform.position;
 		gizmo.drag_start_scale		   = transform.scale;
 		gizmo.drag_start_rotation	   = transform.rotation;
+		gizmo.drag_start_axis_x_world  = world_axis_x;
+		gizmo.drag_start_axis_y_world  = world_axis_y;
 		gizmo.drag_start_axis_x_screen = axis_x_screen;
 		gizmo.drag_start_axis_y_screen = axis_y_screen;
 	}
@@ -277,10 +285,8 @@ void DrawSimple2DGizmo(
 
 		V2_float world_delta{ current_mouse_world - gizmo.drag_start_mouse_world };
 
-		float start_angle{ gizmo.drag_start_rotation.value };
-
-		V2_float drag_axis_x_world{ std::cos(start_angle), std::sin(start_angle) };
-		V2_float drag_axis_y_world{ -std::sin(start_angle), std::cos(start_angle) };
+		auto drag_axis_x_world{ gizmo.drag_start_axis_x_world };
+		auto drag_axis_y_world{ gizmo.drag_start_axis_y_world };
 
 		switch (gizmo.active) {
 			case GizmoHandle::MoveCenter: {
@@ -326,6 +332,7 @@ void DrawSimple2DGizmo(
 				float factor{ std::max(0.01f, 1.0f + delta_px / kScaleDragPixels) };
 
 				auto scale{ gizmo.drag_start_scale };
+
 				scale.x = std::max(kMinimumScale, gizmo.drag_start_scale.x * factor);
 
 				transform.scale = scale;
@@ -339,6 +346,7 @@ void DrawSimple2DGizmo(
 				float factor{ std::max(0.01f, 1.0f + delta_px / kScaleDragPixels) };
 
 				auto scale{ gizmo.drag_start_scale };
+
 				scale.y = std::max(kMinimumScale, gizmo.drag_start_scale.y * factor);
 
 				transform.scale = scale;
@@ -354,9 +362,11 @@ void DrawSimple2DGizmo(
 					uniform_direction = Normalize(uniform_direction);
 
 					float delta_px{ Dot(screen_delta, uniform_direction) };
+
 					float factor{ std::max(0.01f, 1.0f + delta_px / kScaleDragPixels) };
 
 					auto scale{ gizmo.drag_start_scale * factor };
+
 					scale.x = std::max(kMinimumScale, scale.x);
 					scale.y = std::max(kMinimumScale, scale.y);
 
@@ -766,7 +776,8 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 
 	DrawSimple2DGizmo(
 		ctx, ImGui::GetWindowDrawList(), gizmo_state_, world_transform, frame_context,
-		presentation_viewport, true, true, from
+		presentation_viewport, true, true, from,
+		ctx.editor.GetSettings().gizmo_uses_local_orientation
 	);
 
 	SetWorldTransform(selected_entity, world_transform);

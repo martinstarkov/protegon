@@ -74,6 +74,8 @@ public:
 
 	void SetEntityPickingMode(bool enabled);
 
+	void SetGizmoUsesLocalOrientation(bool enabled);
+
 private:
 	Application& app;
 

@@ -221,6 +221,12 @@ const EditorSettings& Editor::GetSettings() const {
 	return context_->settings;
 }
 
+void Editor::SetGizmoUsesLocalOrientation(bool enabled) {
+	PTGN_ASSERT(context_, "Editor context must be initialized");
+
+	context_->settings.gizmo_uses_local_orientation = enabled;
+}
+
 void Editor::SetEntityPickingMode(bool enabled) {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 

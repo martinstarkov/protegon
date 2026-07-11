@@ -8,8 +8,9 @@ namespace editor {
 
 struct EditorSettings {
 	bool entity_picking{ true };
+	bool gizmo_uses_local_orientation{ false };
 
-	PTGN_SERIALIZE(EditorSettings, entity_picking)
+	PTGN_SERIALIZE(EditorSettings, entity_picking, gizmo_uses_local_orientation)
 };
 
 } // namespace editor

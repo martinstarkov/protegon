@@ -354,8 +354,18 @@ void EditorSettingsPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Editor Settings");
 
 	auto entity_picking{ ctx.editor.GetSettings().entity_picking };
-	ImGui::Checkbox("Entity Picking", &entity_picking);
-	ctx.editor.SetEntityPickingMode(entity_picking);
+
+	if (ImGui::Checkbox("Entity Picking", &entity_picking)) {
+		ctx.editor.SetEntityPickingMode(entity_picking);
+	}
+
+	auto gizmo_uses_local_orientation{ ctx.editor.GetSettings().gizmo_uses_local_orientation };
+
+	if (ImGui::Checkbox("Local Gizmo Orientation", &gizmo_uses_local_orientation)) {
+		ctx.editor.SetGizmoUsesLocalOrientation(gizmo_uses_local_orientation);
+	}
+
+	ImGui::TextDisabled("Local orientation rotates the translate and scale axes with the entity.");
 
 	ImGui::End();
 }
