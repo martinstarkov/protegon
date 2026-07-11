@@ -5,6 +5,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/scene/scene.h"
+#include "core/editor.h"
 
 using namespace ptgn;
 
@@ -20,6 +21,7 @@ class RectEntityScene : public Scene {
 };
 
 int main(int, char**) {
-	Application app{ "rect_entity" };
+	Application app{ "RectEntityScene" };
+	PTGN_WITH_EDITOR(app, true);
 	app.StartWith<RectEntityScene>();
 }
