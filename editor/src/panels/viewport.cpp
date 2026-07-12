@@ -3,8 +3,13 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
+#include <cstdint>
+#include <limits>
 #include <optional>
+#include <vector>
 
 #include "app/application_state.h"
 #include "core/assert.h"
@@ -12,6 +17,8 @@
 #include "core/editor_context.h"
 #include "core/editor_state.h"
 #include "core/graphics/color.h"
+#include "core/math/geometry/origin.h"
+#include "core/math/geometry/rect.h"
 #include "core/math/matrix4.h"
 #include "core/math/vector2.h"
 #include "core/math/vector4.h"
@@ -21,6 +28,11 @@
 #include "renderer/pipeline/camera.h"
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/graphics/draw.h"
+#include "runtime/graphics/render_target.h"
+#include "runtime/graphics/visible.h"
+#include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "tools/debug/stats.h"
@@ -31,6 +43,74 @@ namespace {
 
 constexpr Color kCameraOutlineColor{ color::Blue };
 constexpr Color kFixedCameraOutlineColor{ color::Red };
+
+constexpr GizmoOccurrenceId kDirectOccurrenceId{ 0 };
+constexpr std::size_t kMaximumRenderPathDepth{ 16 };
+
+constexpr V2_float kGizmoAxisLengthPixels{ 70.0f, 70.0f };
+constexpr float kGizmoHandleRadiusPixels{ 8.0f };
+constexpr V2_float kGizmoCenterHalfSizePixels{ 7.0f, 7.0f };
+constexpr float kGizmoRotateRadiusPixels{ 48.0f };
+constexpr float kGizmoRotateThicknessPixels{ 8.0f };
+constexpr float kGizmoAxisHitThicknessPixels{ 6.0f };
+constexpr float kScaleDragPixels{ 100.0f };
+constexpr float kMinimumScale{ 0.01f };
+
+struct EntityRenderPath {
+	GizmoOccurrenceId id;
+	std::vector<Entity> cameras;
+};
+
+struct GizmoProjection2D {
+	V2_float world_anchor;
+	V2_float screen_anchor;
+	V2_float screen_basis_x;
+	V2_float screen_basis_y;
+
+	[[nodiscard]] V2_float Project(V2_float world_position) const {
+		auto local{ world_position - world_anchor };
+		return screen_anchor + screen_basis_x * local.x + screen_basis_y * local.y;
+	}
+
+	[[nodiscard]] std::optional<V2_float> Unproject(V2_float screen_position) const {
+		auto delta{ screen_position - screen_anchor };
+
+		float determinant{ screen_basis_x.x * screen_basis_y.y -
+						   screen_basis_x.y * screen_basis_y.x };
+
+		if (std::abs(determinant) <= 1e-6f) {
+			return std::nullopt;
+		}
+
+		V2_float local{
+			(delta.x * screen_basis_y.y - delta.y * screen_basis_y.x) / determinant,
+			(screen_basis_x.x * delta.y - screen_basis_x.y * delta.x) / determinant,
+		};
+
+		return world_anchor + local;
+	}
+};
+
+struct GizmoInstance {
+	GizmoOccurrenceId id;
+	GizmoProjection2D projection;
+	std::size_t draw_order{};
+};
+
+struct GizmoGeometry {
+	V2_float pivot_screen;
+	V2_float axis_x_screen;
+	V2_float axis_y_screen;
+	V2_float world_axis_x;
+	V2_float world_axis_y;
+};
+
+struct GizmoHit {
+	GizmoOccurrenceId occurrence;
+	GizmoHandle handle{ GizmoHandle::None };
+	float distance{ std::numeric_limits<float>::max() };
+	std::size_t draw_order{};
+};
 
 [[maybe_unused]] ImVec2 ToImGui(V2_float v) {
 	return { v.x, v.y };
@@ -214,6 +294,274 @@ void UpdateEditorCamera(EditorCamera& editor_camera) {
 	}
 }
 
+std::optional<V2_float> RenderTargetPixelToWorld(Entity render_target_entity, V2_float pixel) {
+	if (!render_target_entity.Has<impl::FramebufferObject>()) {
+		return std::nullopt;
+	}
+
+	RenderTarget render_target{ render_target_entity };
+	auto size{ render_target.GetSize() };
+
+	if (!size.IsPositive()) {
+		return std::nullopt;
+	}
+
+	Rect local_rect{ V2_float{ size }, render_target_entity.GetOrDefault<Origin>(kDefaultOrigin) };
+
+	auto uv{ pixel / V2_float{ size } };
+	auto local_position{ local_rect.min + uv * local_rect.GetSize() };
+
+	return GetDrawTransform(render_target_entity).Apply(local_position);
+}
+
+std::optional<V2_float> ProjectWorldToCameraTarget(SceneCamera camera, V2_float world_position) {
+	auto clip{ camera.GetViewProjection() *
+			   V4_float{ world_position.x, world_position.y, 0.0f, 1.0f } };
+
+	if (std::abs(clip.w) <= 1e-6f) {
+		return std::nullopt;
+	}
+
+	float inverse_w{ 1.0f / clip.w };
+	V2_float ndc{ clip.x * inverse_w, clip.y * inverse_w };
+
+	auto viewport{ camera.GetDisplayViewport() };
+
+	return V2_float{
+		viewport.position.x + (ndc.x * 0.5f + 0.5f) * viewport.size.x,
+		viewport.position.y + (-ndc.y * 0.5f + 0.5f) * viewport.size.y,
+	};
+}
+
+bool ContainsEntity(const std::vector<Entity>& entities, Entity entity) {
+	return std::find(entities.begin(), entities.end(), entity) != entities.end();
+}
+
+std::vector<Entity> GetCustomTargetCameras(Scene& scene) {
+	std::vector<Entity> cameras;
+
+	for (auto [entity, _camera] : scene.EntitiesWith<impl::CameraData>()) {
+		SceneCamera camera{ entity };
+
+		if (camera.GetRenderTarget() != scene.GetRenderTarget()) {
+			cameras.push_back(entity);
+		}
+	}
+
+	std::stable_sort(cameras.begin(), cameras.end(), [](Entity lhs, Entity rhs) {
+		auto lhs_depth{ GetDepth(lhs) };
+		auto rhs_depth{ GetDepth(rhs) };
+
+		if (lhs_depth != rhs_depth) {
+			return lhs_depth < rhs_depth;
+		}
+
+		return lhs.WasCreatedBefore(rhs);
+	});
+
+	return cameras;
+}
+
+bool IsRenderedByEditorCamera(Scene& scene, Entity entity) {
+	if (!IsVisible(entity)) {
+		return false;
+	}
+
+	auto entity_mask{ GetMask(entity) };
+	auto include{ scene.ctx().camera.GetIncludeMask() };
+	auto exclude{ scene.ctx().camera.GetExcludeMask() };
+
+	bool in_include{ (entity_mask & include) != 0 };
+	bool in_exclude{ (entity_mask & exclude) != 0 };
+
+	return (in_include && !in_exclude) || IsUI(entity);
+}
+
+bool IsRenderedByCamera(SceneCamera camera, Entity entity) {
+	return IsVisible(entity) && camera.CanSee(entity);
+}
+
+GizmoOccurrenceId MakeOccurrenceId(const std::vector<Entity>& camera_path) {
+	constexpr std::uint64_t kOffsetBasis{ 1469598103934665603ull };
+	constexpr std::uint64_t kPrime{ 1099511628211ull };
+
+	std::uint64_t hash{ kOffsetBasis };
+
+	for (auto camera : camera_path) {
+		hash ^= static_cast<std::uint64_t>(camera.GetUUID());
+		hash *= kPrime;
+	}
+
+	// Zero is reserved for the direct occurrence.
+	if (hash == kDirectOccurrenceId.value) {
+		hash = 1;
+	}
+
+	return GizmoOccurrenceId{ hash };
+}
+
+void AppendCustomRenderPaths(
+	Scene& scene, Entity rendered_entity, std::vector<Entity>& camera_path,
+	std::vector<Entity>& target_path, std::vector<EntityRenderPath>& paths,
+	std::size_t recursion_depth
+) {
+	if (recursion_depth >= kMaximumRenderPathDepth) {
+		return;
+	}
+
+	for (auto camera_entity : GetCustomTargetCameras(scene)) {
+		SceneCamera camera{ camera_entity };
+		auto render_target{ camera.GetRenderTarget() };
+
+		if (ContainsEntity(camera_path, camera_entity) ||
+			ContainsEntity(target_path, render_target) || render_target == rendered_entity) {
+			continue;
+		}
+
+		if (!IsRenderedByCamera(camera, rendered_entity)) {
+			continue;
+		}
+
+		camera_path.push_back(camera_entity);
+		target_path.push_back(render_target);
+
+		if (IsRenderedByEditorCamera(scene, render_target)) {
+			paths.push_back(
+				EntityRenderPath{
+					.id{ MakeOccurrenceId(camera_path) },
+					.cameras{ camera_path },
+				}
+			);
+		}
+
+		AppendCustomRenderPaths(
+			scene, render_target, camera_path, target_path, paths, recursion_depth + 1
+		);
+
+		target_path.pop_back();
+		camera_path.pop_back();
+	}
+}
+
+std::vector<EntityRenderPath> BuildEntityRenderPaths(Scene& scene, Entity entity) {
+	std::vector<EntityRenderPath> paths;
+
+	if (IsRenderedByEditorCamera(scene, entity)) {
+		paths.push_back(EntityRenderPath{ .id{ kDirectOccurrenceId } });
+	}
+
+	std::vector<Entity> camera_path;
+	std::vector<Entity> target_path;
+
+	AppendCustomRenderPaths(scene, entity, camera_path, target_path, paths, 0);
+
+	// Keep hierarchy-selected entities editable even if they are hidden or masked from every
+	// camera.
+	if (paths.empty()) {
+		paths.push_back(EntityRenderPath{ .id{ kDirectOccurrenceId } });
+	}
+
+	return paths;
+}
+
+std::optional<V2_float> ProjectWorldPointThroughPath(
+	V2_float world_position, const EntityRenderPath& path, Frame direct_frame,
+	const FrameContext& frame_context, Viewport presentation_viewport
+) {
+	if (path.cameras.empty()) {
+		return WorldToScreen(world_position, frame_context, presentation_viewport, direct_frame);
+	}
+
+	V2_float point{ world_position };
+
+	for (auto camera_entity : path.cameras) {
+		SceneCamera camera{ camera_entity };
+
+		auto target_pixel{ ProjectWorldToCameraTarget(camera, point) };
+		if (!target_pixel.has_value()) {
+			return std::nullopt;
+		}
+
+		auto parent_world{
+			RenderTargetPixelToWorld(camera.GetRenderTarget(), target_pixel.value())
+		};
+		if (!parent_world.has_value()) {
+			return std::nullopt;
+		}
+
+		point = parent_world.value();
+	}
+
+	return WorldToScreen(point, frame_context, presentation_viewport, Frame::World);
+}
+
+std::optional<GizmoProjection2D> BuildGizmoProjection(
+	const EntityRenderPath& path, V2_float world_anchor, Frame direct_frame,
+	const FrameContext& frame_context, Viewport presentation_viewport
+) {
+	auto screen_anchor{ ProjectWorldPointThroughPath(
+		world_anchor, path, direct_frame, frame_context, presentation_viewport
+	) };
+
+	auto screen_x{ ProjectWorldPointThroughPath(
+		world_anchor + V2_float{ 1.0f, 0.0f }, path, direct_frame, frame_context,
+		presentation_viewport
+	) };
+
+	auto screen_y{ ProjectWorldPointThroughPath(
+		world_anchor + V2_float{ 0.0f, 1.0f }, path, direct_frame, frame_context,
+		presentation_viewport
+	) };
+
+	if (!screen_anchor.has_value() || !screen_x.has_value() || !screen_y.has_value()) {
+		return std::nullopt;
+	}
+
+	GizmoProjection2D projection{
+		.world_anchor{ world_anchor },
+		.screen_anchor{ screen_anchor.value() },
+		.screen_basis_x{ screen_x.value() - screen_anchor.value() },
+		.screen_basis_y{ screen_y.value() - screen_anchor.value() },
+	};
+
+	float determinant{ projection.screen_basis_x.x * projection.screen_basis_y.y -
+					   projection.screen_basis_x.y * projection.screen_basis_y.x };
+
+	if (std::abs(determinant) <= 1e-6f) {
+		return std::nullopt;
+	}
+
+	return projection;
+}
+
+std::vector<GizmoInstance> BuildGizmoInstances(
+	const std::vector<EntityRenderPath>& paths, V2_float world_anchor, Frame direct_frame,
+	const FrameContext& frame_context, Viewport presentation_viewport
+) {
+	std::vector<GizmoInstance> instances;
+	instances.reserve(paths.size());
+
+	for (std::size_t i{ 0 }; i < paths.size(); ++i) {
+		auto projection{ BuildGizmoProjection(
+			paths[i], world_anchor, direct_frame, frame_context, presentation_viewport
+		) };
+
+		if (!projection.has_value()) {
+			continue;
+		}
+
+		instances.push_back(
+			GizmoInstance{
+				.id{ paths[i].id },
+				.projection{ projection.value() },
+				.draw_order{ i },
+			}
+		);
+	}
+
+	return instances;
+}
+
 float SignedAngle(V2_float from, V2_float to) {
 	float cross{ from.x * to.y - from.y * to.x };
 	float dot{ Dot(from, to) };
@@ -221,52 +569,43 @@ float SignedAngle(V2_float from, V2_float to) {
 }
 
 V2_float GizmoLocalToScreen(
-	V2_float pivot_screen, V2_float axisX_screen, V2_float axisY_screen, V2_float local
+	V2_float pivot_screen, V2_float axis_x_screen, V2_float axis_y_screen, V2_float local
 ) {
-	return pivot_screen + axisX_screen * local.x + axisY_screen * local.y;
+	return pivot_screen + axis_x_screen * local.x + axis_y_screen * local.y;
 }
 
-float DistanceToSegmentLocal(V2_float p, V2_float a, V2_float b) {
-	V2_float ab		= b - a;
-	float ab_len_sq = Dot(ab, ab);
-	if (ab_len_sq <= 1e-6f) {
-		return Length(p - a);
+float DistanceToSegment(V2_float point, V2_float a, V2_float b) {
+	auto ab{ b - a };
+	float ab_length_squared{ Dot(ab, ab) };
+
+	if (ab_length_squared <= 1e-6f) {
+		return Length(point - a);
 	}
 
-	float t			 = Dot(p - a, ab) / ab_len_sq;
-	t				 = Clamp01(t);
-	V2_float closest = a + ab * t;
-	return Length(p - closest);
+	float t{ Dot(point - a, ab) / ab_length_squared };
+	t = Clamp01(t);
+
+	return Length(point - (a + ab * t));
 }
 
-void DrawSimple2DGizmo(
-	EditorContext&, ImDrawList* draw_list, GizmoState& gizmo, Transform& transform,
-	const FrameContext& frame_context, Viewport presentation_viewport, bool viewport_hovered,
-	bool viewport_focused, Frame from, bool use_local_orientation
+std::optional<V2_float> ScreenDeltaToGizmoLocal(
+	V2_float delta, V2_float axis_x_screen, V2_float axis_y_screen
 ) {
-	const auto& io{ ImGui::GetIO() };
+	float determinant{ axis_x_screen.x * axis_y_screen.y - axis_x_screen.y * axis_y_screen.x };
 
-	if (!viewport_hovered && !ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-		gizmo.hot = GizmoHandle::None;
+	if (std::abs(determinant) <= 1e-6f) {
+		return std::nullopt;
 	}
 
-	gizmo.pivot_world = transform.position;
-
-	V2_float axis_len_px{ 70.0f, 70.0f };
-	float handle_radius_px{ 8.0f };
-	V2_float center_box_half_px{ 7.0f, 7.0f };
-	float rotate_ring_radius_px{ 48.0f };
-	float rotate_ring_thickness_px{ 8.0f };
-
-	constexpr float kScaleDragPixels{ 100.0f };
-	constexpr float kMinimumScale{ 0.01f };
-
-	V2_float pivot_screen{
-		WorldToScreen(transform.position, frame_context, presentation_viewport, from)
+	return V2_float{
+		(delta.x * axis_y_screen.y - delta.y * axis_y_screen.x) / determinant,
+		(axis_x_screen.x * delta.y - axis_x_screen.y * delta.x) / determinant,
 	};
-	V2_float mouse_screen{ io.MousePos.x, io.MousePos.y };
-	V2_float mouse_world{ ScreenToWorld(mouse_screen, frame_context, presentation_viewport, from) };
+}
 
+std::optional<GizmoGeometry> BuildGizmoGeometry(
+	const GizmoInstance& instance, const Transform& transform, bool use_local_orientation
+) {
 	float gizmo_angle{ use_local_orientation ? transform.rotation.value : 0.0f };
 
 	V2_float world_axis_x{
@@ -279,194 +618,286 @@ void DrawSimple2DGizmo(
 		std::cos(gizmo_angle),
 	};
 
-	auto axis_to_screen = [&](V2_float world_axis) {
-		auto axis_end_screen{ WorldToScreen(
-			transform.position + world_axis, frame_context, presentation_viewport, from
-		) };
-		auto axis_screen{ axis_end_screen - pivot_screen };
+	auto pivot_screen{ instance.projection.Project(transform.position) };
 
-		if (Length(axis_screen) <= 1e-6f) {
-			return V2_float{ 0.0f, 0.0f };
-		}
+	auto axis_x_screen{ instance.projection.Project(transform.position + world_axis_x) -
+						pivot_screen };
 
-		return Normalize(axis_screen);
-	};
-
-	V2_float axis_x_screen{ axis_to_screen(world_axis_x) };
-	V2_float axis_y_screen{ axis_to_screen(world_axis_y) };
+	auto axis_y_screen{ instance.projection.Project(transform.position + world_axis_y) -
+						pivot_screen };
 
 	if (Length(axis_x_screen) <= 1e-6f || Length(axis_y_screen) <= 1e-6f) {
+		return std::nullopt;
+	}
+
+	axis_x_screen = Normalize(axis_x_screen);
+	axis_y_screen = Normalize(axis_y_screen);
+
+	return GizmoGeometry{
+		.pivot_screen{ pivot_screen },
+		.axis_x_screen{ axis_x_screen },
+		.axis_y_screen{ axis_y_screen },
+		.world_axis_x{ world_axis_x },
+		.world_axis_y{ world_axis_y },
+	};
+}
+
+std::optional<GizmoHit> HitTestGizmo(
+	const GizmoInstance& instance, const Transform& transform, GizmoTool tool,
+	V2_float mouse_screen, bool use_local_orientation
+) {
+	auto geometry{ BuildGizmoGeometry(instance, transform, use_local_orientation) };
+	if (!geometry.has_value()) {
+		return std::nullopt;
+	}
+
+	const auto& g{ geometry.value() };
+	auto mouse_local{
+		ScreenDeltaToGizmoLocal(mouse_screen - g.pivot_screen, g.axis_x_screen, g.axis_y_screen)
+	};
+
+	if (!mouse_local.has_value()) {
+		return std::nullopt;
+	}
+
+	auto make_hit = [&](GizmoHandle handle, float distance) {
+		return GizmoHit{
+			.occurrence{ instance.id },
+			.handle{ handle },
+			.distance{ distance },
+			.draw_order{ instance.draw_order },
+		};
+	};
+
+	bool inside_center{ std::abs(mouse_local->x) <= kGizmoCenterHalfSizePixels.x &&
+						std::abs(mouse_local->y) <= kGizmoCenterHalfSizePixels.y };
+
+	if (tool == GizmoTool::Translate) {
+		if (inside_center) {
+			return make_hit(GizmoHandle::MoveCenter, Length(mouse_screen - g.pivot_screen));
+		}
+
+		auto x_end{ g.pivot_screen + g.axis_x_screen * kGizmoAxisLengthPixels.x };
+		auto y_end{ g.pivot_screen + g.axis_y_screen * kGizmoAxisLengthPixels.y };
+
+		float distance_x{ DistanceToSegment(mouse_screen, g.pivot_screen, x_end) };
+		float distance_y{ DistanceToSegment(mouse_screen, g.pivot_screen, y_end) };
+
+		if (distance_x < kGizmoAxisHitThicknessPixels && distance_x <= distance_y) {
+			return make_hit(GizmoHandle::MoveX, distance_x);
+		}
+
+		if (distance_y < kGizmoAxisHitThicknessPixels) {
+			return make_hit(GizmoHandle::MoveY, distance_y);
+		}
+	} else if (tool == GizmoTool::Rotate) {
+		float radius_distance{
+			std::abs(Length(mouse_screen - g.pivot_screen) - kGizmoRotateRadiusPixels)
+		};
+
+		if (radius_distance <= kGizmoRotateThicknessPixels * 0.5f) {
+			return make_hit(GizmoHandle::Rotate, radius_distance);
+		}
+	} else if (tool == GizmoTool::Scale) {
+		if (inside_center) {
+			return make_hit(GizmoHandle::ScaleUniform, Length(mouse_screen - g.pivot_screen));
+		}
+
+		auto x_end{ g.pivot_screen + g.axis_x_screen * kGizmoAxisLengthPixels.x };
+		auto y_end{ g.pivot_screen + g.axis_y_screen * kGizmoAxisLengthPixels.y };
+
+		float distance_x{ Distance(mouse_screen, x_end) };
+		float distance_y{ Distance(mouse_screen, y_end) };
+
+		if (distance_x <= kGizmoHandleRadiusPixels && distance_x <= distance_y) {
+			return make_hit(GizmoHandle::ScaleX, distance_x);
+		}
+
+		if (distance_y <= kGizmoHandleRadiusPixels) {
+			return make_hit(GizmoHandle::ScaleY, distance_y);
+		}
+	}
+
+	return std::nullopt;
+}
+
+std::optional<GizmoHit> FindBestGizmoHit(
+	const std::vector<GizmoInstance>& instances, const Transform& transform, GizmoTool tool,
+	V2_float mouse_screen, bool use_local_orientation
+) {
+	std::optional<GizmoHit> best;
+
+	for (const auto& instance : instances) {
+		auto hit{ HitTestGizmo(instance, transform, tool, mouse_screen, use_local_orientation) };
+
+		if (!hit.has_value()) {
+			continue;
+		}
+
+		if (!best.has_value() || hit->distance < best->distance - 1e-4f ||
+			(std::abs(hit->distance - best->distance) <= 1e-4f &&
+			 hit->draw_order >= best->draw_order)) {
+			best = hit;
+		}
+	}
+
+	return best;
+}
+
+const GizmoInstance* FindGizmoInstance(
+	const std::vector<GizmoInstance>& instances, GizmoOccurrenceId occurrence
+) {
+	auto it{ std::find_if(instances.begin(), instances.end(), [&](const GizmoInstance& instance) {
+		return instance.id == occurrence;
+	}) };
+
+	return it != instances.end() ? &*it : nullptr;
+}
+
+void ResetGizmoInteraction(GizmoState& gizmo) {
+	gizmo.hot = GizmoHandle::None;
+	gizmo.hot_occurrence.reset();
+	gizmo.active = GizmoHandle::None;
+	gizmo.active_occurrence.reset();
+}
+
+void BeginGizmoDrag(
+	GizmoState& gizmo, const GizmoInstance& instance, const GizmoGeometry& geometry,
+	Transform& transform, V2_float mouse_screen
+) {
+	auto mouse_world{ instance.projection.Unproject(mouse_screen) };
+	if (!mouse_world.has_value()) {
 		return;
 	}
 
-	V2_float mouse_delta{ mouse_screen - pivot_screen };
-	V2_float mouse_local{ Dot(mouse_delta, axis_x_screen), Dot(mouse_delta, axis_y_screen) };
+	gizmo.active				   = gizmo.hot;
+	gizmo.active_occurrence		   = instance.id;
+	gizmo.drag_start_mouse_world   = mouse_world.value();
+	gizmo.drag_start_mouse_screen  = mouse_screen;
+	gizmo.drag_start_pivot_screen  = geometry.pivot_screen;
+	gizmo.drag_start_position	   = transform.position;
+	gizmo.drag_start_scale		   = transform.scale;
+	gizmo.drag_start_rotation	   = transform.rotation;
+	gizmo.drag_start_axis_x_world  = geometry.world_axis_x;
+	gizmo.drag_start_axis_y_world  = geometry.world_axis_y;
+	gizmo.drag_start_axis_x_screen = geometry.axis_x_screen;
+	gizmo.drag_start_axis_y_screen = geometry.axis_y_screen;
+}
 
-	gizmo.hot = GizmoHandle::None;
+void UpdateActiveGizmo(
+	GizmoState& gizmo, const GizmoInstance& instance, Transform& transform, V2_float mouse_screen
+) {
+	auto current_mouse_world{ instance.projection.Unproject(mouse_screen) };
+	if (!current_mouse_world.has_value()) {
+		return;
+	}
 
-	if (viewport_hovered && gizmo.active == GizmoHandle::None) {
-		if (gizmo.tool == GizmoTool::Translate) {
-			bool inside_center{ std::abs(mouse_local.x) <= center_box_half_px.x &&
-								std::abs(mouse_local.y) <= center_box_half_px.y };
+	V2_float screen_delta{ mouse_screen - gizmo.drag_start_mouse_screen };
+	V2_float world_delta{ current_mouse_world.value() - gizmo.drag_start_mouse_world };
 
-			float dist_to_x{ DistanceToSegmentLocal(
-				mouse_local, V2_float{ 0.0f, 0.0f }, V2_float{ axis_len_px.x, 0.0f }
-			) };
+	auto drag_axis_x_world{ gizmo.drag_start_axis_x_world };
+	auto drag_axis_y_world{ gizmo.drag_start_axis_y_world };
 
-			float dist_to_y{ DistanceToSegmentLocal(
-				mouse_local, V2_float{ 0.0f, 0.0f }, V2_float{ 0.0f, axis_len_px.y }
-			) };
-
-			if (inside_center) {
-				gizmo.hot = GizmoHandle::MoveCenter;
-			} else if (dist_to_x < 6.0f) {
-				gizmo.hot = GizmoHandle::MoveX;
-			} else if (dist_to_y < 6.0f) {
-				gizmo.hot = GizmoHandle::MoveY;
-			}
-		} else if (gizmo.tool == GizmoTool::Rotate) {
-			float d{ Length(mouse_local) };
-
-			if (std::abs(d - rotate_ring_radius_px) <= rotate_ring_thickness_px / 2.0f) {
-				gizmo.hot = GizmoHandle::Rotate;
-			}
-		} else if (gizmo.tool == GizmoTool::Scale) {
-			bool inside_center{ std::abs(mouse_local.x) <= center_box_half_px.x &&
-								std::abs(mouse_local.y) <= center_box_half_px.y };
-
-			if (inside_center) {
-				gizmo.hot = GizmoHandle::ScaleUniform;
-			} else if (Distance(mouse_local, V2_float{ axis_len_px.x, 0.0f }) <= handle_radius_px) {
-				gizmo.hot = GizmoHandle::ScaleX;
-			} else if (Distance(mouse_local, V2_float{ 0.0f, axis_len_px.y }) <= handle_radius_px) {
-				gizmo.hot = GizmoHandle::ScaleY;
-			}
+	switch (gizmo.active) {
+		case GizmoHandle::MoveCenter: {
+			transform.position = gizmo.drag_start_position + world_delta;
+			break;
 		}
-	}
 
-	if (viewport_hovered && viewport_focused && gizmo.hot != GizmoHandle::None &&
-		gizmo.active == GizmoHandle::None && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-		gizmo.active				   = gizmo.hot;
-		gizmo.drag_start_mouse_world   = mouse_world;
-		gizmo.drag_start_mouse_screen  = mouse_screen;
-		gizmo.drag_start_pivot_screen  = pivot_screen;
-		gizmo.drag_start_position	   = transform.position;
-		gizmo.drag_start_scale		   = transform.scale;
-		gizmo.drag_start_rotation	   = transform.rotation;
-		gizmo.drag_start_axis_x_world  = world_axis_x;
-		gizmo.drag_start_axis_y_world  = world_axis_y;
-		gizmo.drag_start_axis_x_screen = axis_x_screen;
-		gizmo.drag_start_axis_y_screen = axis_y_screen;
-	}
+		case GizmoHandle::MoveX: {
+			float amount{ Dot(world_delta, drag_axis_x_world) };
+			transform.position = gizmo.drag_start_position + drag_axis_x_world * amount;
+			break;
+		}
 
-	if (gizmo.active != GizmoHandle::None && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-		V2_float screen_delta{ mouse_screen - gizmo.drag_start_mouse_screen };
+		case GizmoHandle::MoveY: {
+			float amount{ Dot(world_delta, drag_axis_y_world) };
+			transform.position = gizmo.drag_start_position + drag_axis_y_world * amount;
+			break;
+		}
 
-		V2_float current_mouse_world{
-			ScreenToWorld(mouse_screen, frame_context, presentation_viewport, from)
-		};
+		case GizmoHandle::Rotate: {
+			V2_float start_direction{ gizmo.drag_start_mouse_world - gizmo.drag_start_position };
+			V2_float current_direction{ current_mouse_world.value() - gizmo.drag_start_position };
 
-		V2_float world_delta{ current_mouse_world - gizmo.drag_start_mouse_world };
+			if (Length(start_direction) > 1e-6f && Length(current_direction) > 1e-6f) {
+				start_direction	  = Normalize(start_direction);
+				current_direction = Normalize(current_direction);
 
-		auto drag_axis_x_world{ gizmo.drag_start_axis_x_world };
-		auto drag_axis_y_world{ gizmo.drag_start_axis_y_world };
-
-		switch (gizmo.active) {
-			case GizmoHandle::MoveCenter: {
-				transform.position = gizmo.drag_start_position + world_delta;
-				break;
+				float delta{ SignedAngle(start_direction, current_direction) };
+				transform.rotation = Radians{ gizmo.drag_start_rotation.value + delta };
 			}
+			break;
+		}
 
-			case GizmoHandle::MoveX: {
-				float amount{ Dot(world_delta, drag_axis_x_world) };
+		case GizmoHandle::ScaleX: {
+			float delta_pixels{ Dot(screen_delta, gizmo.drag_start_axis_x_screen) };
+			float factor{ std::max(0.01f, 1.0f + delta_pixels / kScaleDragPixels) };
 
-				transform.position = gizmo.drag_start_position + drag_axis_x_world * amount;
-				break;
-			}
+			auto scale{ gizmo.drag_start_scale };
+			scale.x = std::max(kMinimumScale, gizmo.drag_start_scale.x * factor);
 
-			case GizmoHandle::MoveY: {
-				float amount{ Dot(world_delta, drag_axis_y_world) };
+			transform.scale = scale;
+			transform.ClampScale();
+			break;
+		}
 
-				transform.position = gizmo.drag_start_position + drag_axis_y_world * amount;
-				break;
-			}
+		case GizmoHandle::ScaleY: {
+			float delta_pixels{ Dot(screen_delta, gizmo.drag_start_axis_y_screen) };
+			float factor{ std::max(0.01f, 1.0f + delta_pixels / kScaleDragPixels) };
 
-			case GizmoHandle::Rotate: {
-				V2_float start_direction{ gizmo.drag_start_mouse_world -
-										  gizmo.drag_start_position };
+			auto scale{ gizmo.drag_start_scale };
+			scale.y = std::max(kMinimumScale, gizmo.drag_start_scale.y * factor);
 
-				V2_float current_direction{ current_mouse_world - gizmo.drag_start_position };
+			transform.scale = scale;
+			transform.ClampScale();
+			break;
+		}
 
-				if (Length(start_direction) > 1e-6f && Length(current_direction) > 1e-6f) {
-					start_direction	  = Normalize(start_direction);
-					current_direction = Normalize(current_direction);
+		case GizmoHandle::ScaleUniform: {
+			auto uniform_direction{ gizmo.drag_start_axis_x_screen +
+									gizmo.drag_start_axis_y_screen };
 
-					float delta{ SignedAngle(start_direction, current_direction) };
+			if (Length(uniform_direction) > 1e-6f) {
+				uniform_direction = Normalize(uniform_direction);
 
-					transform.rotation = Radians{ gizmo.drag_start_rotation.value + delta };
-				}
+				float delta_pixels{ Dot(screen_delta, uniform_direction) };
+				float factor{ std::max(0.01f, 1.0f + delta_pixels / kScaleDragPixels) };
 
-				break;
-			}
-
-			case GizmoHandle::ScaleX: {
-				float delta_px{ Dot(screen_delta, gizmo.drag_start_axis_x_screen) };
-
-				float factor{ std::max(0.01f, 1.0f + delta_px / kScaleDragPixels) };
-
-				auto scale{ gizmo.drag_start_scale };
-
-				scale.x = std::max(kMinimumScale, gizmo.drag_start_scale.x * factor);
+				auto scale{ gizmo.drag_start_scale * factor };
+				scale.x = std::max(kMinimumScale, scale.x);
+				scale.y = std::max(kMinimumScale, scale.y);
 
 				transform.scale = scale;
 				transform.ClampScale();
-				break;
 			}
-
-			case GizmoHandle::ScaleY: {
-				float delta_px{ Dot(screen_delta, gizmo.drag_start_axis_y_screen) };
-
-				float factor{ std::max(0.01f, 1.0f + delta_px / kScaleDragPixels) };
-
-				auto scale{ gizmo.drag_start_scale };
-
-				scale.y = std::max(kMinimumScale, gizmo.drag_start_scale.y * factor);
-
-				transform.scale = scale;
-				transform.ClampScale();
-				break;
-			}
-
-			case GizmoHandle::ScaleUniform: {
-				V2_float uniform_direction{ gizmo.drag_start_axis_x_screen +
-											gizmo.drag_start_axis_y_screen };
-
-				if (Length(uniform_direction) > 1e-6f) {
-					uniform_direction = Normalize(uniform_direction);
-
-					float delta_px{ Dot(screen_delta, uniform_direction) };
-
-					float factor{ std::max(0.01f, 1.0f + delta_px / kScaleDragPixels) };
-
-					auto scale{ gizmo.drag_start_scale * factor };
-
-					scale.x = std::max(kMinimumScale, scale.x);
-					scale.y = std::max(kMinimumScale, scale.y);
-
-					transform.scale = scale;
-					transform.ClampScale();
-				}
-
-				break;
-			}
-
-			default: break;
+			break;
 		}
+
+		default: break;
+	}
+}
+
+void DrawGizmoInstance(
+	ImDrawList* draw_list, const GizmoState& gizmo, const GizmoInstance& instance,
+	const Transform& transform, bool use_local_orientation
+) {
+	auto geometry{ BuildGizmoGeometry(instance, transform, use_local_orientation) };
+	if (!geometry.has_value()) {
+		return;
 	}
 
-	if (gizmo.active != GizmoHandle::None && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
-		gizmo.active = GizmoHandle::None;
-	}
+	const auto& g{ geometry.value() };
+
+	auto is_hot = [&](GizmoHandle handle) {
+		return gizmo.hot == handle && gizmo.hot_occurrence.has_value() &&
+			   gizmo.hot_occurrence.value() == instance.id;
+	};
+
+	auto is_active = [&](GizmoHandle handle) {
+		return gizmo.active == handle && gizmo.active_occurrence.has_value() &&
+			   gizmo.active_occurrence.value() == instance.id;
+	};
 
 	auto col_x{ ToImGui(Color{ 220, 60, 60, 255 }) };
 	auto col_y{ ToImGui(Color{ 60, 220, 60, 255 }) };
@@ -474,89 +905,146 @@ void DrawSimple2DGizmo(
 	auto col_rotate{ ToImGui(Color{ 80, 160, 255, 255 }) };
 	auto col_hot{ ToImGui(Color{ 255, 255, 255, 255 }) };
 
-	pivot_screen = WorldToScreen(transform.position, frame_context, presentation_viewport, from);
-
-	V2_float x_end_screen{ pivot_screen + axis_x_screen * axis_len_px.x };
-	V2_float y_end_screen{ pivot_screen + axis_y_screen * axis_len_px.y };
+	auto x_end_screen{ g.pivot_screen + g.axis_x_screen * kGizmoAxisLengthPixels.x };
+	auto y_end_screen{ g.pivot_screen + g.axis_y_screen * kGizmoAxisLengthPixels.y };
 
 	if (gizmo.tool == GizmoTool::Translate) {
 		draw_list->AddLine(
-			ToImGui(pivot_screen), ToImGui(x_end_screen),
-			gizmo.hot == GizmoHandle::MoveX || gizmo.active == GizmoHandle::MoveX ? col_hot : col_x,
-			2.0f
+			ToImGui(g.pivot_screen), ToImGui(x_end_screen),
+			is_hot(GizmoHandle::MoveX) || is_active(GizmoHandle::MoveX) ? col_hot : col_x, 2.0f
 		);
 
 		draw_list->AddLine(
-			ToImGui(pivot_screen), ToImGui(y_end_screen),
-			gizmo.hot == GizmoHandle::MoveY || gizmo.active == GizmoHandle::MoveY ? col_hot : col_y,
-			2.0f
+			ToImGui(g.pivot_screen), ToImGui(y_end_screen),
+			is_hot(GizmoHandle::MoveY) || is_active(GizmoHandle::MoveY) ? col_hot : col_y, 2.0f
 		);
 
-		auto h{ center_box_half_px };
+		auto h{ kGizmoCenterHalfSizePixels };
 
-		auto c0{
-			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ -h.x, -h.y })
-		};
-		auto c1{
-			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ h.x, -h.y })
-		};
-		auto c2{
-			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ h.x, h.y })
-		};
-		auto c3{
-			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ -h.x, h.y })
-		};
+		auto c0{ GizmoLocalToScreen(
+			g.pivot_screen, g.axis_x_screen, g.axis_y_screen, V2_float{ -h.x, -h.y }
+		) };
+		auto c1{ GizmoLocalToScreen(
+			g.pivot_screen, g.axis_x_screen, g.axis_y_screen, V2_float{ h.x, -h.y }
+		) };
+		auto c2{ GizmoLocalToScreen(
+			g.pivot_screen, g.axis_x_screen, g.axis_y_screen, V2_float{ h.x, h.y }
+		) };
+		auto c3{ GizmoLocalToScreen(
+			g.pivot_screen, g.axis_x_screen, g.axis_y_screen, V2_float{ -h.x, h.y }
+		) };
 
 		draw_list->AddQuadFilled(
 			ToImGui(c0), ToImGui(c1), ToImGui(c2), ToImGui(c3),
-			gizmo.hot == GizmoHandle::MoveCenter || gizmo.active == GizmoHandle::MoveCenter
-				? col_hot
-				: col_center
+			is_hot(GizmoHandle::MoveCenter) || is_active(GizmoHandle::MoveCenter) ? col_hot
+																				  : col_center
 		);
 	} else if (gizmo.tool == GizmoTool::Rotate) {
 		draw_list->AddCircle(
-			ToImGui(pivot_screen), rotate_ring_radius_px,
-			gizmo.hot == GizmoHandle::Rotate || gizmo.active == GizmoHandle::Rotate ? col_hot
-																					: col_rotate,
-			64, rotate_ring_thickness_px
+			ToImGui(g.pivot_screen), kGizmoRotateRadiusPixels,
+			is_hot(GizmoHandle::Rotate) || is_active(GizmoHandle::Rotate) ? col_hot : col_rotate,
+			64, kGizmoRotateThicknessPixels
 		);
 	} else if (gizmo.tool == GizmoTool::Scale) {
-		draw_list->AddLine(ToImGui(pivot_screen), ToImGui(x_end_screen), col_x, 2.0f);
-		draw_list->AddLine(ToImGui(pivot_screen), ToImGui(y_end_screen), col_y, 2.0f);
+		draw_list->AddLine(ToImGui(g.pivot_screen), ToImGui(x_end_screen), col_x, 2.0f);
+		draw_list->AddLine(ToImGui(g.pivot_screen), ToImGui(y_end_screen), col_y, 2.0f);
 
 		draw_list->AddCircleFilled(
-			ToImGui(x_end_screen), handle_radius_px,
-			gizmo.hot == GizmoHandle::ScaleX || gizmo.active == GizmoHandle::ScaleX ? col_hot
-																					: col_x
+			ToImGui(x_end_screen), kGizmoHandleRadiusPixels,
+			is_hot(GizmoHandle::ScaleX) || is_active(GizmoHandle::ScaleX) ? col_hot : col_x
 		);
 
 		draw_list->AddCircleFilled(
-			ToImGui(y_end_screen), handle_radius_px,
-			gizmo.hot == GizmoHandle::ScaleY || gizmo.active == GizmoHandle::ScaleY ? col_hot
-																					: col_y
+			ToImGui(y_end_screen), kGizmoHandleRadiusPixels,
+			is_hot(GizmoHandle::ScaleY) || is_active(GizmoHandle::ScaleY) ? col_hot : col_y
 		);
 
-		auto h{ center_box_half_px };
+		auto h{ kGizmoCenterHalfSizePixels };
 
-		auto c0{
-			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ -h.x, -h.y })
-		};
-		auto c1{
-			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ h.x, -h.y })
-		};
-		auto c2{
-			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ h.x, h.y })
-		};
-		auto c3{
-			GizmoLocalToScreen(pivot_screen, axis_x_screen, axis_y_screen, V2_float{ -h.x, h.y })
-		};
+		auto c0{ GizmoLocalToScreen(
+			g.pivot_screen, g.axis_x_screen, g.axis_y_screen, V2_float{ -h.x, -h.y }
+		) };
+		auto c1{ GizmoLocalToScreen(
+			g.pivot_screen, g.axis_x_screen, g.axis_y_screen, V2_float{ h.x, -h.y }
+		) };
+		auto c2{ GizmoLocalToScreen(
+			g.pivot_screen, g.axis_x_screen, g.axis_y_screen, V2_float{ h.x, h.y }
+		) };
+		auto c3{ GizmoLocalToScreen(
+			g.pivot_screen, g.axis_x_screen, g.axis_y_screen, V2_float{ -h.x, h.y }
+		) };
 
 		draw_list->AddQuadFilled(
 			ToImGui(c0), ToImGui(c1), ToImGui(c2), ToImGui(c3),
-			gizmo.hot == GizmoHandle::ScaleUniform || gizmo.active == GizmoHandle::ScaleUniform
-				? col_hot
-				: col_center
+			is_hot(GizmoHandle::ScaleUniform) || is_active(GizmoHandle::ScaleUniform) ? col_hot
+																					  : col_center
 		);
+	}
+}
+
+void UpdateAndDrawGizmoInstances(
+	ImDrawList* draw_list, GizmoState& gizmo, Transform& transform,
+	const std::vector<GizmoInstance>& instances, bool viewport_hovered, bool viewport_focused,
+	bool use_local_orientation
+) {
+	const auto& io{ ImGui::GetIO() };
+	V2_float mouse_screen{ io.MousePos.x, io.MousePos.y };
+
+	gizmo.pivot_world = transform.position;
+
+	if (instances.empty()) {
+		ResetGizmoInteraction(gizmo);
+		return;
+	}
+
+	if (gizmo.active == GizmoHandle::None) {
+		gizmo.hot = GizmoHandle::None;
+		gizmo.hot_occurrence.reset();
+
+		if (viewport_hovered) {
+			auto hit{ FindBestGizmoHit(
+				instances, transform, gizmo.tool, mouse_screen, use_local_orientation
+			) };
+
+			if (hit.has_value()) {
+				gizmo.hot			 = hit->handle;
+				gizmo.hot_occurrence = hit->occurrence;
+			}
+		}
+	}
+
+	if (viewport_hovered && viewport_focused && gizmo.hot != GizmoHandle::None &&
+		gizmo.active == GizmoHandle::None && gizmo.hot_occurrence.has_value() &&
+		ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+		auto* instance{ FindGizmoInstance(instances, gizmo.hot_occurrence.value()) };
+
+		if (instance) {
+			auto geometry{ BuildGizmoGeometry(*instance, transform, use_local_orientation) };
+
+			if (geometry.has_value()) {
+				BeginGizmoDrag(gizmo, *instance, geometry.value(), transform, mouse_screen);
+			}
+		}
+	}
+
+	if (gizmo.active != GizmoHandle::None && gizmo.active_occurrence.has_value() &&
+		ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+		auto* instance{ FindGizmoInstance(instances, gizmo.active_occurrence.value()) };
+
+		if (instance) {
+			UpdateActiveGizmo(gizmo, *instance, transform, mouse_screen);
+		} else {
+			ResetGizmoInteraction(gizmo);
+		}
+	}
+
+	if (gizmo.active != GizmoHandle::None && ImGui::IsMouseReleased(ImGuiMouseButton_Left)) {
+		gizmo.active = GizmoHandle::None;
+		gizmo.active_occurrence.reset();
+	}
+
+	for (const auto& instance : instances) {
+		DrawGizmoInstance(draw_list, gizmo, instance, transform, use_local_orientation);
 	}
 }
 
@@ -832,24 +1320,17 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 	auto selected_entity{ ctx.editor.GetSceneHierarchyPanel().GetSelectedEntity() };
 
 	if (!selected_entity || !selected_entity.Has<Transform>()) {
+		gizmo_entity_uuid_.reset();
+		ResetGizmoInteraction(gizmo_state_);
 		return;
 	}
 
-	Frame from{ Frame::World };
+	auto selected_uuid{ static_cast<std::uint64_t>(selected_entity.GetUUID()) };
 
-	if (selected_entity == selected_entity.GetScene().GetRenderTarget()) {
-		from = Frame::Display;
+	if (gizmo_entity_uuid_ != selected_uuid) {
+		gizmo_entity_uuid_ = selected_uuid;
+		ResetGizmoInteraction(gizmo_state_);
 	}
-
-	auto world_transform{ GetWorldTransform(selected_entity) };
-
-	Transform render_target_transform;
-
-	if (selected_entity.Has<impl::CameraData>()) {
-		render_target_transform = GetTransform(SceneCamera{ selected_entity }.GetRenderTarget());
-	}
-
-	world_transform = world_transform.RelativeTo(render_target_transform);
 
 	if (ctx.state.viewport.hovered && !ImGui::GetIO().WantTextInput) {
 		if (ImGui::IsKeyPressed(ImGuiKey_W)) {
@@ -863,17 +1344,42 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		}
 	}
 
-	// FrameContext frame_context{ selected_entity.GetScene() };
+	auto& scene{ selected_entity.GetScene() };
 
-	DrawSimple2DGizmo(
-		ctx, ImGui::GetWindowDrawList(), gizmo_state_, world_transform, frame_context,
-		presentation_viewport, true, true, from,
+	Frame direct_frame{ Frame::World };
+	Transform editable_transform{ GetWorldTransform(selected_entity) };
+	Transform render_target_transform;
+
+	std::vector<EntityRenderPath> render_paths;
+
+	if (selected_entity == scene.GetRenderTarget()) {
+		direct_frame = Frame::Display;
+		render_paths.push_back(EntityRenderPath{ .id{ kDirectOccurrenceId } });
+	} else if (selected_entity.Has<impl::CameraData>()) {
+		// Cameras are edited in the coordinate system of their parent render target.
+		render_target_transform = GetTransform(SceneCamera{ selected_entity }.GetRenderTarget());
+		editable_transform		= editable_transform.RelativeTo(render_target_transform);
+		render_paths.push_back(EntityRenderPath{ .id{ kDirectOccurrenceId } });
+	} else {
+		render_paths = BuildEntityRenderPaths(scene, selected_entity);
+	}
+
+	auto gizmo_instances{ BuildGizmoInstances(
+		render_paths, editable_transform.position, direct_frame, frame_context,
+		presentation_viewport
+	) };
+
+	UpdateAndDrawGizmoInstances(
+		ImGui::GetWindowDrawList(), gizmo_state_, editable_transform, gizmo_instances,
+		ctx.state.viewport.hovered, ctx.state.viewport.focused,
 		ctx.editor.GetSettings().gizmo_uses_local_orientation
 	);
 
-	world_transform = world_transform.InverseRelativeTo(render_target_transform);
+	if (selected_entity.Has<impl::CameraData>()) {
+		editable_transform = editable_transform.InverseRelativeTo(render_target_transform);
+	}
 
-	SetWorldTransform(selected_entity, world_transform);
+	SetWorldTransform(selected_entity, editable_transform);
 }
 
 void ViewportPanel::HandleEntityPicking(
