@@ -238,37 +238,6 @@ void Entity::OnEvent(const Event& event) {
 	}
 }
 
-void Entity::SerializeAllImpl(json& j) const {
-	JsonArchiver archiver;
-
-	const auto& pools{ GetManager().pools_ };
-
-	for (const auto& pool : pools) {
-		if (!pool) {
-			continue;
-		}
-		pool->Serialize(archiver, entity_.GetId());
-	}
-
-	j = archiver.j;
-}
-
-void Entity::DeserializeAllImpl(const json& j) {
-	JsonArchiver archiver;
-	archiver.j = j;
-
-	impl::ComponentRegistry::AddTypes(GetManager());
-
-	const auto& manager{ GetManager() };
-
-	for (const auto& pool : manager.pools_) {
-		if (!pool) {
-			continue;
-		}
-		pool->Deserialize(archiver, manager, entity_.GetId());
-	}
-}
-
 void to_json(json& j, const Entity& entity) {
 	j = json{};
 

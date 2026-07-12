@@ -161,35 +161,6 @@ public:
 	friend void to_json(json& j, const Entity& entity);
 	friend void from_json(const json& j, Entity& entity);
 
-	/// @brief Converts the specified entity components to a JSON object.
-	template <JsonSerializable... TComponents>
-	[[nodiscard]] json Serialize() const {
-		PTGN_ASSERT(*this, "Cannot serialize a null entity");
-
-		json j{};
-
-		if constexpr (sizeof...(TComponents) == 0) {
-			SerializeAllImpl(j);
-		} else {
-			(SerializeImpl<TComponents>(j), ...);
-		}
-
-		return j;
-	}
-
-	/// @brief Populates the entity's components based on a JSON object. Does not impact existing
-	/// components, unless they are specified as part of TComponents, in which case they are
-	/// replaced.
-	template <JsonDeserializable... TComponents>
-	void Deserialize(const json& j) {
-		if constexpr (sizeof...(TComponents) == 0) {
-			DeserializeAllImpl(j);
-		} else {
-			PTGN_ASSERT(*this, "Cannot deserialize to a null entity");
-			(DeserializeImpl<TComponents>(j), ...);
-		}
-	}
-
 	template <typename TComponent, typename... TArgs>
 	TComponent GetOrDefault(TArgs&&... args) const {
 		if (Has<TComponent>()) {
@@ -216,24 +187,6 @@ private:
 	friend struct SceneEntitiesWithRange;
 
 	void OnEvent(const Event& event);
-
-	template <JsonSerializable T>
-	void SerializeImpl(json& j) const {
-		PTGN_ASSERT(Has<T>(), "Entity must have component which is being serialized");
-		constexpr auto component_name{ type_name_without_namespaces<T>() };
-		j[component_name] = GetImpl<T>();
-	}
-
-	void SerializeAllImpl(json& j) const;
-
-	template <JsonDeserializable T>
-	void DeserializeImpl(const json& j) {
-		constexpr auto component_name{ type_name_without_namespaces<T>() };
-		PTGN_ASSERT(j.contains(component_name), "JSON does not contain ", component_name);
-		j[component_name].get_to(TryAdd<T>());
-	}
-
-	void DeserializeAllImpl(const json& j);
 
 	ecs::impl::BaseEntity<JsonArchiver> entity_;
 	Scene* scene_{ nullptr };

@@ -594,17 +594,6 @@ Entity Scene::CreateEntity(std::optional<std::string_view> tag, std::optional<in
 	return Entity{ entity, this };
 }
 
-Entity Scene::CreateEntity(const json& j) {
-	auto entity{ manager_.CreateEntity() };
-	PTGN_ASSERT(entity, "Failed to create entity");
-	Entity e{ entity, this };
-	j.get_to(e);
-	e.Deserialize(j);
-	PTGN_ASSERT(e.Has<impl::UUID>(), "Entity created from json must have a UUID component");
-	PTGN_ASSERT(e.Has<impl::Tag>(), "Entity created from json must have a Tag component");
-	return e;
-}
-
 void Scene::SetBackgroundColor(Color background_color) {
 	ctx_->render_target_.SetClearColor(background_color);
 }

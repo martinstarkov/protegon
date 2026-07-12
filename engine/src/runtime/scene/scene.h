@@ -114,12 +114,6 @@ public:
 		std::optional<std::string_view> tag = std::nullopt, std::optional<int> uuid = std::nullopt
 	);
 
-	/// @brief Creates an entity from a json object.
-	/// If the json does not have a valid tag component, the default tag will be assigned.
-	/// If the json does not have a valid UUID component, a random UUID will be assigned.
-	/// Make sure to call Refresh() after this function.
-	Entity CreateEntity(const json& j);
-
 	/// @brief Copies all of the from entity's specified components into a new entity with a
 	/// specified tag and UUID, or a default tag and a random UUID if unspecified.
 	/// @brief Make sure to call Refresh() after this function.

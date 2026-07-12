@@ -45,26 +45,26 @@ void Chunk::FlagAsChanged(bool changed) {
 }
 
 json Chunk::Serialize() const {
-	json j{};
-
-	for (const auto& entity : entities) {
-		j["entities"].emplace_back(entity.Serialize());
-	}
-
-	return j;
+	// TODO: Fix.
+	// for (const auto& entity : entities) {
+	// 	j["entities"].emplace_back(entity.Serialize());
+	// }
+	PTGN_ERROR("TODO: Fix chunk serialization");
 }
 
 void Chunk::Deserialize(const json& j, Scene& scene) {
-	PTGN_ASSERT(entities.empty());
-	const auto& json_entities = j["entities"];
-	entities.reserve(json_entities.size());
-	for (const auto& entity : json_entities) {
-		PTGN_ASSERT(entity != json{});
-		auto e{ scene.CreateEntity() };
-		scene.Refresh();
-		e.Deserialize(entity);
-		entities.emplace_back(e);
-	}
+	// TODO: Fix.
+	// PTGN_ASSERT(entities.empty());
+	// const auto& json_entities = j["entities"];
+	// entities.reserve(json_entities.size());
+	// for (const auto& entity : json_entities) {
+	// 	PTGN_ASSERT(entity != json{});
+	// 	auto e{ scene.CreateEntity() };
+	// 	scene.Refresh();
+	// 	e.Deserialize(entity);
+	// 	entities.emplace_back(e);
+	// }
+	PTGN_ERROR("TODO: Fix chunk deserialization");
 }
 
 Chunk::~Chunk() {
