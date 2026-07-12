@@ -1564,7 +1564,6 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 	auto size{ HasAny<Rect, Circle>() ? GetSize() : std::variant<V2_float, float>{ V2_float{} } };
 	auto origin{ GetOrDefault<Origin>(kDefaultOrigin) };
 	auto anchor{ GetOrDefault<Origin>(kDefaultOrigin) };
-	Transform transform;
 
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::size) }) {
 		size = *value;
@@ -1577,7 +1576,13 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 	}
 	if (auto value{
 			ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::transform) }) {
-		transform = *value;
+		Transform transform{ *value };
+
+		auto button_rect{ GetButtonLocalRect(*this) };
+		transform.position += button_rect.GetOriginPoint(anchor);
+
+		entity.Add<Transform>(transform);
+		entity.Add<Origin>(origin);
 	}
 
 	std::visit(
@@ -1596,12 +1601,6 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 		},
 		size
 	);
-
-	auto button_rect{ GetButtonLocalRect(*this) };
-	transform.position += button_rect.GetOriginPoint(anchor);
-
-	entity.Add<Transform>(transform);
-	entity.Add<Origin>(origin);
 
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::color) }) {
 		entity.Add<Color>(*value);
@@ -1642,7 +1641,6 @@ void Button::ApplyTextVisual() const {
 	TextBox box{ .style = { .alignment = { .horizontal = std::nullopt, .vertical = std::nullopt } } };
 	auto anchor{ Origin::Center };
 	auto origin{ anchor };
-	Transform transform;
 	auto auto_box{ true };
 	Padding padding;
 
@@ -1657,8 +1655,14 @@ void Button::ApplyTextVisual() const {
 	} else {
 		origin = anchor;
 	}
+
+	auto button_rect{ GetButtonLocalRect(*this) };
+	auto anchor_position{ button_rect.GetOriginPoint(anchor) };
+
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::transform) }) {
-		transform = *value;
+		Transform transform{ *value };
+		transform.position += anchor_position;
+		entity.Add<Transform>(transform);
 	}
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::auto_box) }) {
 		auto_box = *value;
@@ -1666,11 +1670,6 @@ void Button::ApplyTextVisual() const {
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonTextVisual::padding) }) {
 		padding = *value;
 	}
-
-	auto button_rect{ GetButtonLocalRect(*this) };
-	auto anchor_position{ button_rect.GetOriginPoint(anchor) };
-
-	transform.position += anchor_position;
 
 	if (!box.style.alignment.horizontal.has_value()) {
 		box.style.alignment.horizontal = GetAlignment(origin).horizontal;
@@ -1692,7 +1691,6 @@ void Button::ApplyTextVisual() const {
 	text.Box(box);
 
 	text.Add<Origin>(origin);
-	text.Add<Transform>(transform);
 }
 
 void Button::ApplySpriteVisual() const {
@@ -1727,7 +1725,6 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 	std::string texture;
 	auto origin{ GetOrDefault<Origin>(kDefaultOrigin) };
 	auto anchor{ GetOrDefault<Origin>(kDefaultOrigin) };
-	Transform transform;
 	std::optional<V2_float> size;
 	Color tint{ color::White };
 	const AnimationConfig* animation{ nullptr };
@@ -1744,7 +1741,9 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 		anchor = *value;
 	}
 	if (auto value{ ResolveProperty(visuals.states, state, &ButtonSpriteVisual::transform) }) {
-		transform = *value;
+		Transform transform{ *value };
+		transform.position += GetButtonLocalRect(*this).GetOriginPoint(anchor);
+		sprite.Add<Transform>(transform);
 	}
 	if (auto value{ ResolveProperty(visuals.states, state, &ButtonSpriteVisual::size) }) {
 		size = *value;
@@ -1775,9 +1774,6 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 
 	sprite.Add<impl::Tint>(tint);
 	sprite.Add<Origin>(origin);
-
-	transform.position += GetButtonLocalRect(*this).GetOriginPoint(anchor);
-	sprite.Add<Transform>(transform);
 
 	if (size.has_value()) {
 		sprite.Add<impl::TextureSize>(size.value());

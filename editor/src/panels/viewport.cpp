@@ -29,12 +29,15 @@
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
+#include "runtime/ui/button.h"
+#include "runtime/ui/button_config.h"
 #include "tools/debug/stats.h"
 
 namespace ptgn::editor {
@@ -111,6 +114,114 @@ struct GizmoHit {
 	float distance{ std::numeric_limits<float>::max() };
 	std::size_t draw_order{};
 };
+
+void ApplyGizmoDeltaToTransform(
+	Transform& transform, GizmoHandle handle, const Transform& before, const Transform& after
+) {
+	switch (handle) {
+		case GizmoHandle::MoveCenter:
+		case GizmoHandle::MoveX:
+		case GizmoHandle::MoveY:	  {
+			transform.position += after.position - before.position;
+			break;
+		}
+
+		case GizmoHandle::Rotate: {
+			transform.rotation =
+				Radians{ transform.rotation.value + after.rotation.value - before.rotation.value };
+			break;
+		}
+
+		case GizmoHandle::ScaleX:
+		case GizmoHandle::ScaleY:
+		case GizmoHandle::ScaleUniform: {
+			PTGN_ASSERT(
+				std::abs(before.scale.x) > 1e-6f && std::abs(before.scale.y) > 1e-6f,
+				"Cannot calculate gizmo scale delta from a zero scale"
+			);
+
+			V2_float scale_factor{
+				after.scale.x / before.scale.x,
+				after.scale.y / before.scale.y,
+			};
+
+			transform.scale *= scale_factor;
+			transform.ClampScale();
+			break;
+		}
+
+		default: break;
+	}
+}
+
+template <typename TVisuals>
+bool ApplyGizmoDeltaToVisualTransforms(
+	TVisuals& visuals, GizmoHandle handle, const Transform& before, const Transform& after
+) {
+	bool changed{ false };
+
+	for (auto& visual : visuals.states) {
+		if (!visual.transform.has_value()) {
+			continue;
+		}
+
+		ApplyGizmoDeltaToTransform(visual.transform.value(), handle, before, after);
+		changed = true;
+	}
+
+	return changed;
+}
+
+void MarkParentButtonDirty(Entity entity, impl::ButtonDirty dirty) {
+	Entity parent{ GetParent(entity) };
+
+	if (!parent || !parent.Has<impl::ButtonData>()) {
+		return;
+	}
+
+	parent.Get<impl::ButtonData>().dirty |= dirty;
+}
+
+bool ApplyGizmoDeltaToButtonVisualTransforms(
+	Entity entity, GizmoHandle handle, const Transform& before, const Transform& after
+) {
+	bool changed{ false };
+
+	if (auto visuals{ entity.TryGet<ButtonBackgroundVisuals>() }) {
+		if (ApplyGizmoDeltaToVisualTransforms(*visuals, handle, before, after)) {
+			MarkParentButtonDirty(entity, impl::ButtonDirty::Background);
+			changed = true;
+		}
+	}
+
+	if (auto visuals{ entity.TryGet<ButtonBorderVisuals>() }) {
+		if (ApplyGizmoDeltaToVisualTransforms(*visuals, handle, before, after)) {
+			MarkParentButtonDirty(entity, impl::ButtonDirty::Border);
+			changed = true;
+		}
+	}
+
+	if (auto visuals{ entity.TryGet<ButtonTextVisuals>() }) {
+		if (ApplyGizmoDeltaToVisualTransforms(*visuals, handle, before, after)) {
+			MarkParentButtonDirty(entity, impl::ButtonDirty::Text);
+
+			if (entity.Has<TextLayout>()) {
+				entity.Get<TextLayout>().dirty = true;
+			}
+
+			changed = true;
+		}
+	}
+
+	if (auto visuals{ entity.TryGet<ButtonSpriteVisuals>() }) {
+		if (ApplyGizmoDeltaToVisualTransforms(*visuals, handle, before, after)) {
+			MarkParentButtonDirty(entity, impl::ButtonDirty::Sprite);
+			changed = true;
+		}
+	}
+
+	return changed;
+}
 
 [[maybe_unused]] ImVec2 ToImGui(V2_float v) {
 	return { v.x, v.y };
@@ -1369,17 +1480,32 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		presentation_viewport
 	) };
 
+	Transform local_transform_before{ GetTransform(selected_entity) };
+
+	auto active_handle_before_update{ gizmo_state_.active };
+
 	UpdateAndDrawGizmoInstances(
 		ImGui::GetWindowDrawList(), gizmo_state_, editable_transform, gizmo_instances,
 		ctx.state.viewport.hovered, ctx.state.viewport.focused,
 		ctx.editor.GetSettings().gizmo_uses_local_orientation
 	);
 
+	auto applied_handle{ gizmo_state_.active != GizmoHandle::None ? gizmo_state_.active
+																  : active_handle_before_update };
+
 	if (selected_entity.Has<impl::CameraData>()) {
 		editable_transform = editable_transform.InverseRelativeTo(render_target_transform);
 	}
 
 	SetWorldTransform(selected_entity, editable_transform);
+
+	Transform local_transform_after{ GetTransform(selected_entity) };
+
+	if (applied_handle != GizmoHandle::None) {
+		(void)ApplyGizmoDeltaToButtonVisualTransforms(
+			selected_entity, applied_handle, local_transform_before, local_transform_after
+		);
+	}
 }
 
 void ViewportPanel::HandleEntityPicking(
