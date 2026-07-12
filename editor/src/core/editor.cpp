@@ -197,7 +197,7 @@ void Editor::EnableRendering(bool enable) {
 }
 
 void Editor::OnUpdate() {
-	if (ImGui::IsKeyPressed(ImGuiKey_F11)) {
+	if (ImGui::IsKeyPressed(ImGuiKey_F10)) {
 		EnableRendering(!render_enabled_);
 	}
 
