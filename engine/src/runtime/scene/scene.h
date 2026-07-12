@@ -19,7 +19,6 @@
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scene/scene_view.h"
 #include "serialization/json/archiver.h"
-#include "serialization/json/json.h"
 
 namespace ptgn {
 
@@ -188,9 +187,6 @@ public:
 	auto OnUpdate() {
 		return SceneHook<TComponent>{ *this, manager_.template OnUpdate<TComponent>() };
 	}
-
-	friend void to_json(json& j, const Scene& scene);
-	friend void from_json(const json& j, Scene& scene);
 
 	void Refresh();
 

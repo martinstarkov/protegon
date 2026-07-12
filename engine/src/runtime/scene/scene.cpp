@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -56,7 +55,6 @@
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
-#include "serialization/json/json.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -620,22 +618,6 @@ void Scene::Refresh() {
 
 std::size_t Scene::GetEntityCount() const {
 	return manager_.Size();
-}
-
-void to_json(json& j, const Scene& scene) {
-	to_json(j["manager"], scene.manager_);
-	j["tag"] = scene.data_.tag;
-}
-
-void from_json(const json& j, Scene& scene) {
-	scene.manager_.Reset();
-
-	// Ensure manager is deserialized before any of the other scene systems which may reference
-	// manager entities (such as the CameraManager).
-	from_json(j.at("manager"), scene.manager_);
-
-	j.at("tag").get_to(scene.data_.tag);
-	scene.data_.tag_hash = Hash(scene.data_.tag);
 }
 
 SceneContext& Scene::ctx() {
