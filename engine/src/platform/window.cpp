@@ -284,17 +284,18 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 	glfwDefaultWindowHints();
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
 	glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+	// Disable OS DPI-aware resizing so window is 1:1 with screen coordinates
+	glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
+	// On MacOS displays disable high-resolution framebuffers
+	glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
 	glfwWindowHint(GLFW_RESIZABLE, config.resizable ? GLFW_TRUE : GLFW_FALSE);
 	glfwWindowHint(GLFW_DECORATED, config.borderless ? GLFW_FALSE : GLFW_TRUE);
 	glfwWindowHint(GLFW_FLOATING, config.always_on_top ? GLFW_TRUE : GLFW_FALSE);
 	glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, config.transparent ? GLFW_TRUE : GLFW_FALSE);
 	glfwWindowHint(GLFW_MAXIMIZED, config.maximized ? GLFW_TRUE : GLFW_FALSE);
 
-	GLFWmonitor* monitor{ nullptr };
-	if (config.fullscreen) {
-		monitor = glfwGetPrimaryMonitor();
-		PTGN_ASSERT(monitor, "glfwGetPrimaryMonitor failed");
-	}
+	GLFWmonitor* monitor{ glfwGetPrimaryMonitor() };
+	PTGN_ASSERT(monitor, "glfwGetPrimaryMonitor failed");
 
 #ifdef __EMSCRIPTEN__
 	const char* glsl_version = "#version 300 es";
@@ -312,9 +313,12 @@ Window::Window(const WindowConfig& config, std::function<void(impl::EventData&&)
 #endif
 #endif
 
-	float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor());
+	float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(monitor);
 	instance_		 = std::unique_ptr<GLFWwindow, impl::WindowDeleter>{
-		glfwCreateWindow(config.size.x, config.size.y, title_.c_str(), monitor, nullptr),
+		glfwCreateWindow(
+			config.size.x, config.size.y, title_.c_str(), config.fullscreen ? monitor : nullptr,
+			nullptr
+		),
 		impl::WindowDeleter{}
 	};
 
@@ -636,12 +640,18 @@ void Window::SetSize(V2_int new_size, bool centered) {
 }
 
 V2_int Window::GetSize() const {
+	auto win{ instance_.get() };
+	PTGN_ASSERT(win, "Window is null");
+
 	V2_int window_size;
 	V2_float scale{ 1.0f, 1.0f };
-	glfwGetWindowContentScale(instance_.get(), &scale.x, &scale.y);
-	// glfwGetWindowSize(instance_.get(), &window_size.x, &window_size.y);
-	glfwGetFramebufferSize(instance_.get(), &window_size.x, &window_size.y);
+	glfwGetWindowContentScale(win, &scale.x, &scale.y);
+
+	// glfwGetWindowSize(win, &window_size.x, &window_size.y);
+	glfwGetFramebufferSize(win, &window_size.x, &window_size.y);
+
 	PTGN_ASSERT(scale.IsPositive());
+
 	return window_size / scale;
 }
 
