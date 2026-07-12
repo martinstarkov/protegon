@@ -19,6 +19,6 @@ enum class ScalingMode {
 	/// @brief The rendered content is scaled up by integer multiples to fit the window size
 	IntegerScale,
 };
-PTGN_SERIALIZE_ENUM(ScalingMode);
+PTGN_REFLECT_ENUM(ScalingMode);
 
 } // namespace ptgn

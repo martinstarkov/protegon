@@ -17,7 +17,7 @@ struct Tint {
 		return value;
 	}
 
-	PTGN_SERIALIZE_VALUE(Tint, value)
+	PTGN_REFLECT_VALUE(Tint, value)
 };
 
 } // namespace impl

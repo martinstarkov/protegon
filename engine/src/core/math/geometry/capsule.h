@@ -38,7 +38,7 @@ public:
 
 	constexpr bool operator==(const Capsule&) const = default;
 
-	PTGN_SERIALIZE(Capsule, line, radius)
+	PTGN_REFLECT(Capsule, line, radius)
 };
 
 } // namespace ptgn

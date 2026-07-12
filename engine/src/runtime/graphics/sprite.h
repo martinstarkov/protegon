@@ -43,7 +43,7 @@ struct TextureSize {
 		return value;
 	}
 
-	PTGN_SERIALIZE_VALUE(TextureSize, value)
+	PTGN_REFLECT_VALUE(TextureSize, value)
 };
 
 struct TextureCrop {
@@ -61,7 +61,7 @@ struct TextureCrop {
 	/// @brief Updates the crop size based on the animation data.
 	void Update(const AnimationData& anim);
 
-	PTGN_SERIALIZE(TextureCrop, position, size)
+	PTGN_REFLECT(TextureCrop, position, size)
 };
 
 } // namespace impl
@@ -75,7 +75,7 @@ struct TextureKey {
 
 	std::string value;
 
-	PTGN_SERIALIZE_VALUE(TextureKey, value)
+	PTGN_REFLECT_VALUE(TextureKey, value)
 };
 
 class Sprite : public Entity {

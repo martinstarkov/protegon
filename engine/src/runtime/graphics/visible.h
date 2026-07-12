@@ -14,7 +14,7 @@ struct IgnoreParentVisibility {};
 struct Visible {
 	bool visible{ true };
 
-	PTGN_SERIALIZE_VALUE(Visible, visible)
+	PTGN_REFLECT_VALUE(Visible, visible)
 };
 
 namespace event {

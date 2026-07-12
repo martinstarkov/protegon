@@ -62,7 +62,7 @@ public:
 
 	constexpr bool operator==(const Line&) const = default;
 
-	PTGN_SERIALIZE(Line, start, end)
+	PTGN_REFLECT(Line, start, end)
 };
 
 } // namespace ptgn

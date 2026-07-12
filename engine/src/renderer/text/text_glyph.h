@@ -19,7 +19,7 @@ enum class GlyphEffectType : std::uint8_t {
 	Shake,
 	Pulse,
 };
-PTGN_SERIALIZE_ENUM(GlyphEffectType)
+PTGN_REFLECT_ENUM(GlyphEffectType)
 
 struct GlyphEffectStyle {
 	GlyphEffectType type{ GlyphEffectType::None };
@@ -34,7 +34,7 @@ struct GlyphEffectStyle {
 			   NearlyEqual(phase, o.phase);
 	}
 
-	PTGN_SERIALIZE(GlyphEffectStyle, type, amplitude, frequency, speed, phase)
+	PTGN_REFLECT(GlyphEffectStyle, type, amplitude, frequency, speed, phase)
 };
 
 struct GlyphRenderStyle {

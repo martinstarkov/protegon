@@ -26,7 +26,7 @@ struct InteractiveDebugSettings {
 	Color draw_color{ color::Magenta };
 	float draw_line_width{ 2.0f };
 
-	PTGN_SERIALIZE(InteractiveDebugSettings, draw_enabled, draw_color, draw_line_width)
+	PTGN_REFLECT(InteractiveDebugSettings, draw_enabled, draw_color, draw_line_width)
 };
 
 struct CollisionDebugSettings {
@@ -41,7 +41,7 @@ struct CollisionDebugSettings {
 		return draw_enabled && draw_ccd;
 	}
 
-	PTGN_SERIALIZE(CollisionDebugSettings, draw_ccd, draw_enabled, draw_color, draw_fill_style)
+	PTGN_REFLECT(CollisionDebugSettings, draw_ccd, draw_enabled, draw_color, draw_fill_style)
 };
 
 struct TextDebugSettings {
@@ -50,7 +50,7 @@ struct TextDebugSettings {
 	Color clip_draw_color{ color::Blue };
 	float draw_line_width{ 2.0f };
 
-	PTGN_SERIALIZE(TextDebugSettings, draw_enabled, draw_color, clip_draw_color, draw_line_width)
+	PTGN_REFLECT(TextDebugSettings, draw_enabled, draw_color, clip_draw_color, draw_line_width)
 };
 
 struct LightVisibilityDebugSettings {
@@ -63,7 +63,7 @@ struct LightVisibilityDebugSettings {
 
 	FillStyle draw_fill_style{ 2.0f };
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		LightVisibilityDebugSettings, draw_enabled, draw_interiors, polygon_color,
 		masks_inside_color, does_not_mask_inside_color, draw_fill_style
 	)

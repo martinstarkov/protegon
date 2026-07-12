@@ -22,7 +22,7 @@ struct InteractionLock {
 	bool block_hover{ true };
 	bool block_press{ true };
 
-	PTGN_SERIALIZE(InteractionLock, remaining_time, block_hover, block_press)
+	PTGN_REFLECT(InteractionLock, remaining_time, block_hover, block_press)
 };
 
 namespace impl {
@@ -32,7 +32,7 @@ struct InteractiveTag {};
 struct Interactive {
 	bool enabled{ true };
 
-	PTGN_SERIALIZE_VALUE(Interactive, enabled)
+	PTGN_REFLECT_VALUE(Interactive, enabled)
 };
 
 } // namespace impl

@@ -306,7 +306,7 @@ struct Transform {
 		}
 	}
 
-	PTGN_SERIALIZE(Transform, position, rotation, scale)
+	PTGN_REFLECT(Transform, position, rotation, scale)
 private:
 	constexpr void Apply(
 		std::span<const V2_float> points, std::span<V2_float> out_transformed_points

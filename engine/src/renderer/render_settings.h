@@ -14,7 +14,7 @@ enum class ToneMappingOperator {
 	Reinhard,
 	ACES
 };
-PTGN_SERIALIZE_ENUM(ToneMappingOperator)
+PTGN_REFLECT_ENUM(ToneMappingOperator)
 
 struct ToneMappingSettings {
 	ToneMappingOperator op{ ToneMappingOperator::None };
@@ -22,7 +22,7 @@ struct ToneMappingSettings {
 	/// image.
 	float exposure{ 1.0f };
 
-	PTGN_SERIALIZE(ToneMappingSettings, op, exposure)
+	PTGN_REFLECT(ToneMappingSettings, op, exposure)
 };
 
 struct RenderSettings {
@@ -32,7 +32,7 @@ struct RenderSettings {
 	/// correction.
 	float gamma{ 2.2f };
 
-	PTGN_SERIALIZE(RenderSettings, tone_mapping, gamma)
+	PTGN_REFLECT(RenderSettings, tone_mapping, gamma)
 };
 
 namespace impl {

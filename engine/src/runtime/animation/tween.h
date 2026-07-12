@@ -282,7 +282,7 @@ private:
 
 	std::vector<impl::EventData> events_;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		TweenPoint, current_repeat_, total_repeats_, yoyo_, currently_reversed_, start_reversed_,
 		duration_, ease_, flagged_for_removal_, script_container_
 	)
@@ -296,7 +296,7 @@ enum class TweenState {
 	Paused,
 	Completed
 };
-PTGN_SERIALIZE_ENUM(TweenState);
+PTGN_REFLECT_ENUM(TweenState);
 
 class TweenData {
 public:
@@ -365,7 +365,7 @@ public:
 	void PushEventToCurrentTweenPoint(TArgs&&... args);
 
 	// TODO: Fix serialization of points.
-	PTGN_SERIALIZE(TweenData, progress_, index_, state_)
+	PTGN_REFLECT(TweenData, progress_, index_, state_)
 private:
 	/// @brief Value between [0.0f, 1.0f] indicating how much of the total duration the tween has
 	/// passed in the current repetition. Note: This value remains 0.0f to 1.0f even when the tween

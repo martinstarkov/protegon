@@ -46,7 +46,7 @@ struct LightConfig {
 	/// @brief Intensity of the ambient light. Range: [0, 1].
 	float ambient_intensity{ 0.0f };
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		LightConfig, color, radius, intensity, falloff, cone_angle, direction_angle, ambient_color,
 		ambient_intensity
 	)
@@ -64,7 +64,7 @@ struct ShadowCaster {
 	bool casts_shadows{ true };
 	bool masks_light_inside{ true };
 
-	PTGN_SERIALIZE(ShadowCaster, casts_shadows, masks_light_inside)
+	PTGN_REFLECT(ShadowCaster, casts_shadows, masks_light_inside)
 };
 
 struct ShadowMaskInterior {

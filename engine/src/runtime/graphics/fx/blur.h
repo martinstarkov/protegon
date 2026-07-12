@@ -13,7 +13,7 @@ struct Blur {
 
 	static void Draw(DrawContext& ctx, Entity entity);
 
-	PTGN_SERIALIZE(Blur, iterations)
+	PTGN_REFLECT(Blur, iterations)
 };
 
 PTGN_REGISTER_EFFECT(Blur);

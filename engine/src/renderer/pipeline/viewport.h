@@ -27,7 +27,7 @@ struct Viewport {
 
 	constexpr bool operator==(const Viewport&) const = default;
 
-	PTGN_SERIALIZE(Viewport, position, size)
+	PTGN_REFLECT(Viewport, position, size)
 };
 
 constexpr Viewport GetLogicalViewport(

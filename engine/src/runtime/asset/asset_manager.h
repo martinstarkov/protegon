@@ -48,7 +48,7 @@ struct AssetName {
 
 	std::string value;
 
-	PTGN_SERIALIZE_VALUE(AssetName, value)
+	PTGN_REFLECT_VALUE(AssetName, value)
 };
 
 struct AssetPath {
@@ -56,7 +56,7 @@ struct AssetPath {
 
 	path value;
 
-	PTGN_SERIALIZE_VALUE(AssetPath, value)
+	PTGN_REFLECT_VALUE(AssetPath, value)
 };
 
 enum class AssetKind {
@@ -68,7 +68,7 @@ enum class AssetKind {
 	Unknown
 };
 
-PTGN_SERIALIZE_ENUM(AssetKind);
+PTGN_REFLECT_ENUM(AssetKind);
 
 template <typename>
 struct AssetInfo;

@@ -41,7 +41,7 @@ struct DistanceFieldLayerStyle {
 		return color == o.color && NearlyEqual(width, o.width) && NearlyEqual(softness, o.softness);
 	}
 
-	PTGN_SERIALIZE(DistanceFieldLayerStyle, color, width, softness)
+	PTGN_REFLECT(DistanceFieldLayerStyle, color, width, softness)
 };
 
 struct DistanceFieldStyle {
@@ -65,7 +65,7 @@ struct DistanceFieldStyle {
 			   NearlyEqual(pixel_range, o.pixel_range);
 	}
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		DistanceFieldStyle, weight, softness, outline, shadow, shadow_offset, outer_glow,
 		inner_glow, pixel_range
 	)
@@ -107,7 +107,7 @@ struct TextRunStyle {
 			   NearlyEqual(effect.phase, o.effect.phase);
 	}
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		TextRunStyle, color, bold_weight, size, kerning, tracking, line_spacing, flags, sdf, effect
 	)
 };
@@ -119,7 +119,7 @@ struct TextRun {
 
 	constexpr bool operator==(const TextRun&) const = default;
 
-	PTGN_SERIALIZE(TextRun, text, font, style)
+	PTGN_REFLECT(TextRun, text, font, style)
 };
 
 struct StyledText {
@@ -135,7 +135,7 @@ struct StyledText {
 		return std::ranges::any_of(runs, [](const auto& run) { return !run.text.empty(); });
 	}
 
-	PTGN_SERIALIZE_VALUE(StyledText, runs)
+	PTGN_REFLECT_VALUE(StyledText, runs)
 };
 
 namespace impl {

@@ -67,7 +67,7 @@ struct Padding {
 		return left == o.left && right == o.right && top == o.top && bottom == o.bottom;
 	}
 
-	PTGN_SERIALIZE(Padding, left, top, right, bottom)
+	PTGN_REFLECT(Padding, left, top, right, bottom)
 };
 
 enum class ButtonState : std::uint8_t {
@@ -75,7 +75,7 @@ enum class ButtonState : std::uint8_t {
 	Hover,
 	Press,
 };
-PTGN_SERIALIZE_ENUM(ButtonState);
+PTGN_REFLECT_ENUM(ButtonState);
 
 enum class ButtonVisualState : std::uint8_t {
 	Idle,
@@ -90,7 +90,7 @@ enum class ButtonVisualState : std::uint8_t {
 	ToggledHover,
 	ToggledPress, // Must be the last state
 };
-PTGN_SERIALIZE_ENUM(ButtonVisualState);
+PTGN_REFLECT_ENUM(ButtonVisualState);
 
 inline constexpr std::size_t kButtonVisualStateCount{
 	std::to_underlying(ButtonVisualState::ToggledPress) + 1
@@ -101,7 +101,7 @@ enum class ButtonAnimationPlayback : std::uint8_t {
 	Play,
 	PlayOnce,
 };
-PTGN_SERIALIZE_ENUM(ButtonAnimationPlayback);
+PTGN_REFLECT_ENUM(ButtonAnimationPlayback);
 
 struct ButtonAnimationOptions {
 	ButtonAnimationPlayback playback{ ButtonAnimationPlayback::Play };
@@ -114,7 +114,7 @@ struct ButtonAnimationOptions {
 
 	constexpr bool operator==(const ButtonAnimationOptions&) const = default;
 
-	PTGN_SERIALIZE(ButtonAnimationOptions, playback, static_frame, block_press)
+	PTGN_REFLECT(ButtonAnimationOptions, playback, static_frame, block_press)
 };
 
 struct ButtonShapeVisual {
@@ -137,21 +137,21 @@ struct ButtonShapeVisual {
 	/// @brief Only applicable for borders.
 	std::optional<FillStyle> fill_style;
 
-	PTGN_SERIALIZE(ButtonShapeVisual, defined, size, origin, anchor, transform, color, fill_style)
+	PTGN_REFLECT(ButtonShapeVisual, defined, size, origin, anchor, transform, color, fill_style)
 };
 
 struct ButtonShapeVisuals {
 	std::array<ButtonShapeVisual, kButtonVisualStateCount> states;
 
-	PTGN_SERIALIZE_VALUE(ButtonShapeVisuals, states)
+	PTGN_REFLECT_VALUE(ButtonShapeVisuals, states)
 };
 
 struct ButtonBackgroundVisuals : ButtonShapeVisuals {
-	PTGN_SERIALIZE_VALUE(ButtonBackgroundVisuals, states)
+	PTGN_REFLECT_VALUE(ButtonBackgroundVisuals, states)
 };
 
 struct ButtonBorderVisuals : ButtonShapeVisuals {
-	PTGN_SERIALIZE_VALUE(ButtonBorderVisuals, states)
+	PTGN_REFLECT_VALUE(ButtonBorderVisuals, states)
 };
 
 struct ButtonTextVisual {
@@ -177,7 +177,7 @@ struct ButtonTextVisual {
 	/// @brief Padding used when auto_box resolves to true.
 	std::optional<Padding> padding;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		ButtonTextVisual, defined, styled_text, box, origin, anchor, transform, auto_box, padding
 	)
 };
@@ -185,7 +185,7 @@ struct ButtonTextVisual {
 struct ButtonTextVisuals {
 	std::array<ButtonTextVisual, kButtonVisualStateCount> states;
 
-	PTGN_SERIALIZE_VALUE(ButtonTextVisuals, states)
+	PTGN_REFLECT_VALUE(ButtonTextVisuals, states)
 };
 
 struct ButtonSpriteVisual {
@@ -211,7 +211,7 @@ struct ButtonSpriteVisual {
 	std::optional<AnimationConfig> animation;
 	std::optional<ButtonAnimationOptions> animation_options;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		ButtonSpriteVisual, defined, texture, origin, anchor, transform, size, tint, animation,
 		animation_options
 	)
@@ -220,7 +220,7 @@ struct ButtonSpriteVisual {
 struct ButtonSpriteVisuals {
 	std::array<ButtonSpriteVisual, kButtonVisualStateCount> states;
 
-	PTGN_SERIALIZE_VALUE(ButtonSpriteVisuals, states)
+	PTGN_REFLECT_VALUE(ButtonSpriteVisuals, states)
 };
 
 struct ButtonSounds {
@@ -230,7 +230,7 @@ struct ButtonSounds {
 	/// @brief If true when one sound plays the others are stopped.
 	bool exclusive{ false };
 
-	PTGN_SERIALIZE(ButtonSounds, states, exclusive)
+	PTGN_REFLECT(ButtonSounds, states, exclusive)
 };
 
 struct MoveButtonConfig {
@@ -238,7 +238,7 @@ struct MoveButtonConfig {
 	milliseconds duration{ 100 };
 	Ease ease{ Ease::Linear };
 
-	PTGN_SERIALIZE(MoveButtonConfig, offset, duration, ease)
+	PTGN_REFLECT(MoveButtonConfig, offset, duration, ease)
 };
 
 struct ScaleButtonConfig {
@@ -246,7 +246,7 @@ struct ScaleButtonConfig {
 	milliseconds duration{ 100 };
 	Ease ease{ Ease::Linear };
 
-	PTGN_SERIALIZE(ScaleButtonConfig, scale, duration, ease)
+	PTGN_REFLECT(ScaleButtonConfig, scale, duration, ease)
 };
 
 struct ButtonDesc {
@@ -268,7 +268,7 @@ struct ButtonDesc {
 	std::optional<MoveButtonConfig> move;
 	std::optional<ScaleButtonConfig> scale;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		ButtonDesc, size, origin, ui_layer, enabled, background, border, text, sprite, sounds, move,
 		scale
 	)
@@ -293,7 +293,7 @@ struct ButtonShapeConfig {
 
 	std::optional<FillStyle> fill_style;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		ButtonShapeConfig, size, origin, anchor, transform, color, color_hover, color_press,
 		fill_style
 	)
@@ -331,7 +331,7 @@ struct ButtonTextConfig {
 	/// @brief Padding used when auto_box is true.
 	Padding padding;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		ButtonTextConfig, content, color, color_hover, color_press, font_size, font, box, origin,
 		anchor, transform, outline_width, outline_color, auto_box, padding
 	)
@@ -358,7 +358,7 @@ struct ButtonSpriteConfig {
 	/// @brief Optional fixed display size for the sprite. If not set, the sprite uses texture size.
 	std::optional<V2_float> size;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		ButtonSpriteConfig, texture, texture_hover, texture_press, tint, tint_hover, tint_press,
 		origin, anchor, transform, size
 	)
@@ -377,7 +377,7 @@ struct ButtonSoundConfig {
 	std::optional<std::string> toggled_hover;
 	std::optional<std::string> toggled_press;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		ButtonSoundConfig, idle, hover, press, disabled, disabled_hover, disabled_press, toggled,
 		toggled_hover, toggled_press
 	)
@@ -404,7 +404,7 @@ struct ButtonConfig {
 	std::optional<MoveButtonConfig> move;
 	std::optional<ScaleButtonConfig> scale;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		ButtonConfig, size, origin, ui_layer, enabled, background, border, text, sprite, sounds,
 		move, scale
 	)
@@ -439,7 +439,7 @@ struct AnimatedButtonConfig {
 
 	ButtonSoundConfig sounds;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		AnimatedButtonConfig, size, origin, ui_layer, enabled, sprite, animation, animation_hover,
 		animation_press, animation_options, animation_options_hover, animation_options_press, sounds
 	)

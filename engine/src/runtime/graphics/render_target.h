@@ -29,19 +29,19 @@ namespace impl {
 struct ClearColor {
 	Color color{ color::Transparent };
 
-	PTGN_SERIALIZE_VALUE(ClearColor, color)
+	PTGN_REFLECT_VALUE(ClearColor, color)
 };
 
 struct ClearDepth {
 	Depth depth{ 1.0f };
 
-	PTGN_SERIALIZE_VALUE(ClearDepth, depth)
+	PTGN_REFLECT_VALUE(ClearDepth, depth)
 };
 
 struct ClearStencil {
 	Stencil stencil{ 0 };
 
-	PTGN_SERIALIZE_VALUE(ClearStencil, stencil)
+	PTGN_REFLECT_VALUE(ClearStencil, stencil)
 };
 
 class RenderTargetResizeScript : public Script {

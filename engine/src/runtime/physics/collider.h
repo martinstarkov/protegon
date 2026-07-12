@@ -21,7 +21,7 @@ enum class CollisionResponse {
 	Push,	/// Velocity set perpendicular to collision normal at partial speed.
 	Stick	/// Velocity set to 0.
 };
-PTGN_SERIALIZE_ENUM(CollisionResponse);
+PTGN_REFLECT_ENUM(CollisionResponse);
 
 enum class CollisionMode {
 	None,		/// No collision checks.
@@ -29,7 +29,7 @@ enum class CollisionMode {
 	Discrete,	/// Discrete collision detection.
 	Continuous, /// Continuous collision detection for high velocity colliders.
 };
-PTGN_SERIALIZE_ENUM(CollisionMode);
+PTGN_REFLECT_ENUM(CollisionMode);
 
 struct Collider {
 	Collider() = default;
@@ -81,7 +81,7 @@ struct Collider {
 	/// return true if the overlap check should be performed, false if it should be skipped.
 	std::function<bool(Entity, Entity)> pre_overlap_check;
 
-	PTGN_SERIALIZE(Collider, shape, mode, response, mask_, collides_with_masks_)
+	PTGN_REFLECT(Collider, shape, mode, response, mask_, collides_with_masks_)
 private:
 	friend class CollisionHandler;
 

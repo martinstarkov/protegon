@@ -24,7 +24,7 @@ struct RaycastResult {
 	[[nodiscard]] bool Occurred() const;
 	operator bool() const;
 
-	PTGN_SERIALIZE(RaycastResult, t, normal)
+	PTGN_REFLECT(RaycastResult, t, normal)
 };
 
 namespace impl {

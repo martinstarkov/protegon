@@ -40,7 +40,7 @@ struct Children {
 
 	std::vector<Entity> children_;
 
-	PTGN_SERIALIZE(Children, children_)
+	PTGN_REFLECT(Children, children_)
 };
 
 } // namespace ptgn::impl

@@ -20,7 +20,7 @@ struct Tag {
 
 	std::string value{ kDefaultTag };
 
-	PTGN_SERIALIZE_VALUE(Tag, value)
+	PTGN_REFLECT_VALUE(Tag, value)
 };
 
 } // namespace ptgn::impl

@@ -19,7 +19,7 @@ inline constexpr float kMinLineWidth{ 1.0f };
 struct Solid {
 	constexpr Solid() = default;
 
-	PTGN_SERIALIZE_EMPTY(Solid)
+	PTGN_REFLECT_EMPTY(Solid)
 };
 
 struct Hollow {
@@ -31,7 +31,7 @@ struct Hollow {
 
 	float line_width{ kMinLineWidth }; // must be positive and >= kMinLineWidth
 
-	PTGN_SERIALIZE_VALUE(Hollow, line_width)
+	PTGN_REFLECT_VALUE(Hollow, line_width)
 };
 
 class FillStyle {
@@ -119,7 +119,7 @@ public:
 		});
 	}
 
-	PTGN_SERIALIZE_VALUE(FillStyle, style_)
+	PTGN_REFLECT_VALUE(FillStyle, style_)
 
 private:
 	Variant style_{};

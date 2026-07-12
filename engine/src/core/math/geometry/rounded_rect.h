@@ -31,7 +31,7 @@ public:
 
 	constexpr bool operator==(const RoundedRect&) const = default;
 
-	PTGN_SERIALIZE(RoundedRect, rect, radius)
+	PTGN_REFLECT(RoundedRect, rect, radius)
 };
 
 } // namespace ptgn

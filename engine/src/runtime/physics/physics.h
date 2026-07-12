@@ -17,7 +17,7 @@ enum class BoundaryBehavior {
 	SlideVelocity,	// Clamp position and do not change velocity.
 	ReflectVelocity // Bounce off bounds by flipping velocity
 };
-PTGN_SERIALIZE_ENUM(BoundaryBehavior);
+PTGN_REFLECT_ENUM(BoundaryBehavior);
 
 struct Bounds {
 	/// @brief Center position of the bounding box.
@@ -27,7 +27,7 @@ struct Bounds {
 
 	BoundaryBehavior behavior{ BoundaryBehavior::SlideVelocity };
 
-	PTGN_SERIALIZE(Bounds, position, size, behavior)
+	PTGN_REFLECT(Bounds, position, size, behavior)
 };
 
 class Physics {
@@ -49,7 +49,7 @@ public:
 	/// @return True if physics is enabled, false otherwise.
 	[[nodiscard]] bool IsEnabled() const;
 
-	PTGN_SERIALIZE(Physics, gravity_, bounds_, enabled_)
+	PTGN_REFLECT(Physics, gravity_, bounds_, enabled_)
 
 private:
 	friend class Scene;

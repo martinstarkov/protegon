@@ -19,6 +19,6 @@ enum class Mouse : std::size_t {
 	Right  = Button1,
 	Middle = Button2
 };
-PTGN_SERIALIZE_ENUM(Mouse);
+PTGN_REFLECT_ENUM(Mouse);
 
 } // namespace ptgn

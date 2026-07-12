@@ -98,7 +98,7 @@ struct Stencil {
 		return value;
 	}
 
-	PTGN_SERIALIZE_VALUE(Stencil, value)
+	PTGN_REFLECT_VALUE(Stencil, value)
 };
 
 struct Depth {
@@ -137,7 +137,7 @@ struct Depth {
 
 	float value{ 0.0f };
 
-	PTGN_SERIALIZE_VALUE(Depth, value)
+	PTGN_REFLECT_VALUE(Depth, value)
 };
 
 struct DepthStencil {
@@ -208,7 +208,7 @@ struct Material {
 
 	constexpr bool operator==(const Material&) const = default;
 
-	PTGN_SERIALIZE(Material, shader, uniforms, texture_slot_capacity)
+	PTGN_REFLECT(Material, shader, uniforms, texture_slot_capacity)
 };
 
 struct RenderState {

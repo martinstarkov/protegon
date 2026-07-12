@@ -45,7 +45,7 @@ enum class Ease {
 
 	None
 };
-PTGN_SERIALIZE_ENUM(Ease);
+PTGN_REFLECT_ENUM(Ease);
 
 [[nodiscard]] bool IsSymmetricalEase(Ease ease);
 

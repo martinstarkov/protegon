@@ -54,7 +54,7 @@ enum class ButtonPart : std::uint8_t {
 	Sprite,
 	Text,
 };
-PTGN_SERIALIZE_ENUM(ButtonPart);
+PTGN_REFLECT_ENUM(ButtonPart);
 
 enum class InternalButtonState : std::uint8_t {
 	IdleUp,
@@ -109,13 +109,13 @@ struct ButtonData {
 
 	ButtonDirty dirty{ ButtonDirty::All };
 
-	PTGN_SERIALIZE(ButtonData, press_enabled, hover_enabled)
+	PTGN_REFLECT(ButtonData, press_enabled, hover_enabled)
 };
 
 struct ButtonAnimationPart {
 	ButtonAnimationOptions options;
 
-	PTGN_SERIALIZE_VALUE(ButtonAnimationPart, options)
+	PTGN_REFLECT_VALUE(ButtonAnimationPart, options)
 };
 
 struct ButtonAnimationCompleteScript;

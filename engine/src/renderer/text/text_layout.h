@@ -32,14 +32,14 @@ enum class HorizontalAlign : std::uint8_t {
 	Right,
 	Justify,
 };
-PTGN_SERIALIZE_ENUM(HorizontalAlign)
+PTGN_REFLECT_ENUM(HorizontalAlign)
 
 enum class VerticalAlign : std::uint8_t {
 	Top,
 	Center,
 	Bottom,
 };
-PTGN_SERIALIZE_ENUM(VerticalAlign)
+PTGN_REFLECT_ENUM(VerticalAlign)
 
 struct Alignment {
 	std::optional<HorizontalAlign> horizontal{ HorizontalAlign::Left };
@@ -47,7 +47,7 @@ struct Alignment {
 
 	constexpr bool operator==(const Alignment&) const = default;
 
-	PTGN_SERIALIZE(Alignment, horizontal, vertical)
+	PTGN_REFLECT(Alignment, horizontal, vertical)
 };
 
 constexpr Alignment GetAlignment(Origin origin) {
@@ -78,7 +78,7 @@ enum class OverflowMode : std::uint8_t {
 	Ellipsis,
 	ScaleToFit,
 };
-PTGN_SERIALIZE_ENUM(OverflowMode)
+PTGN_REFLECT_ENUM(OverflowMode)
 
 struct ShrinkScale {
 	float min{ 0.25f };
@@ -88,7 +88,7 @@ struct ShrinkScale {
 		return NearlyEqual(min, o.min) && NearlyEqual(max, o.max);
 	}
 
-	PTGN_SERIALIZE(ShrinkScale, min, max)
+	PTGN_REFLECT(ShrinkScale, min, max)
 };
 
 enum class WrapMode : std::uint8_t {
@@ -96,7 +96,7 @@ enum class WrapMode : std::uint8_t {
 	Word,
 	Character,
 };
-PTGN_SERIALIZE_ENUM(WrapMode)
+PTGN_REFLECT_ENUM(WrapMode)
 
 struct WrapSettings {
 	WrapMode mode{ WrapMode::None };
@@ -123,7 +123,7 @@ struct WrapSettings {
 
 	constexpr bool operator==(const WrapSettings& o) const = default;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		WrapSettings, mode, allow_word_break_in_overflow, insert_hyphen_on_split,
 		prevent_single_letter_split, require_three_letter_remainder
 	)
@@ -152,7 +152,7 @@ struct TextLayoutStyle {
 
 	constexpr bool operator==(const TextLayoutStyle&) const = default;
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		TextLayoutStyle, alignment, wrap, overflow, collapse_spaces, justify_last_line, tab_width,
 		max_lines, shrink_scale
 	)
@@ -180,7 +180,7 @@ struct TextBox {
 
 	constexpr bool operator==(const TextBox&) const = default;
 
-	PTGN_SERIALIZE(TextBox, rect, style)
+	PTGN_REFLECT(TextBox, rect, style)
 };
 
 struct TextBatchStyle {
@@ -311,7 +311,7 @@ enum class TextClipMode : std::uint8_t {
 	/// @brief Keep lines that intersect the clip rectangle, including partial intersections.
 	ClipPartial,
 };
-PTGN_SERIALIZE_ENUM(TextClipMode)
+PTGN_REFLECT_ENUM(TextClipMode)
 
 struct TextClipConstraint {
 	Rect rect;
@@ -339,14 +339,14 @@ struct TextDrawBatch {
 struct TextReveal {
 	std::size_t glyph_count{ std::numeric_limits<std::size_t>::max() };
 
-	PTGN_SERIALIZE_VALUE(TextReveal, glyph_count)
+	PTGN_REFLECT_VALUE(TextReveal, glyph_count)
 };
 
 struct TextClip {
 	std::optional<Rect> rect;
 	TextClipMode mode{ TextClipMode::Clip };
 
-	PTGN_SERIALIZE(TextClip, rect, mode)
+	PTGN_REFLECT(TextClip, rect, mode)
 };
 
 struct PreparedTextDraw {

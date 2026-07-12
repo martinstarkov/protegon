@@ -103,7 +103,7 @@ public:
 
 	constexpr bool operator==(const Polygon&) const = default;
 
-	PTGN_SERIALIZE(Polygon, vertices)
+	PTGN_REFLECT(Polygon, vertices)
 };
 
 } // namespace ptgn

@@ -24,7 +24,7 @@ public:
 
 	constexpr bool operator==(const Triangle&) const = default;
 
-	PTGN_SERIALIZE(Triangle, vertices)
+	PTGN_REFLECT(Triangle, vertices)
 };
 
 } // namespace ptgn

@@ -57,7 +57,7 @@ protected:
 
 	static constexpr float default_y{ 0.12345f }; /* default y for 1D noise */
 
-	PTGN_SERIALIZE(Noise, seed_, frequency_)
+	PTGN_REFLECT(Noise, seed_, frequency_)
 
 private:
 	static constexpr std::array<float, 256> gradients{
@@ -187,7 +187,7 @@ enum class NoiseType {
 	Value,
 	Simplex /// @brief Technically OpenSimplex noise but "Open" removed for brevity.
 };
-PTGN_SERIALIZE_ENUM(NoiseType);
+PTGN_REFLECT_ENUM(NoiseType);
 
 class FractalNoise : public impl::Noise {
 public:
@@ -227,7 +227,7 @@ public:
 		float persistence = 0.5f, float weighted_strength = 0.0f
 	);
 
-	PTGN_SERIALIZE_DERIVED(
+	PTGN_REFLECT_DERIVED(
 		FractalNoise, impl::Noise, noise_bounding_, octaves_, lacunarity_, persistence_,
 		weighted_strength_, noise_type_
 	)

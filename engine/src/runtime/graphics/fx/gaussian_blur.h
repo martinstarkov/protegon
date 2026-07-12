@@ -14,7 +14,7 @@ struct GaussianBlur {
 
 	static void Draw(DrawContext& ctx, Entity entity);
 
-	PTGN_SERIALIZE(GaussianBlur, radius, iterations)
+	PTGN_REFLECT(GaussianBlur, radius, iterations)
 };
 
 PTGN_REGISTER_EFFECT_NAMED(GaussianBlur, "Gaussian Blur");

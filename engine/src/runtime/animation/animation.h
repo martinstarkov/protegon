@@ -75,7 +75,7 @@ struct AnimationConfig {
 			   reset_on_complete == o.reset_on_complete;
 	}
 
-	PTGN_SERIALIZE(
+	PTGN_REFLECT(
 		AnimationConfig, frame_count, duration, frame_size, play_count, start_pixel,
 		reset_on_complete
 	)
@@ -291,7 +291,7 @@ public:
 	/// @brief If the current frame has been changed externally.
 	bool frame_dirty{ false };
 
-	PTGN_SERIALIZE(AnimationData, config, frame_timer, current_frame, frames_played)
+	PTGN_REFLECT(AnimationData, config, frame_timer, current_frame, frames_played)
 };
 
 class AnimationSystem {

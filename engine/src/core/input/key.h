@@ -136,6 +136,6 @@ enum class Key : std::size_t {
 	RightSuper = 347,
 	Menu	   = 348
 };
-PTGN_SERIALIZE_ENUM(Key);
+PTGN_REFLECT_ENUM(Key);
 
 } // namespace ptgn

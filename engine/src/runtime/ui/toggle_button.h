@@ -33,7 +33,7 @@ namespace impl {
 struct ToggleButtonData {
 	bool toggled{ false };
 
-	PTGN_SERIALIZE(ToggleButtonData, toggled)
+	PTGN_REFLECT(ToggleButtonData, toggled)
 };
 
 class ToggleButtonScript : public Script {

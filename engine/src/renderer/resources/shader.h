@@ -100,7 +100,7 @@ struct UniformWrite {
 		);
 	}
 
-	PTGN_SERIALIZE(UniformWrite, name, value)
+	PTGN_REFLECT(UniformWrite, name, value)
 };
 
 [[nodiscard]] std::size_t Hash(const UniformValue& value);

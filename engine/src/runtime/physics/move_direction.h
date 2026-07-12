@@ -15,6 +15,6 @@ enum class MoveDirection {
 	DownRight,
 	DownLeft
 };
-PTGN_SERIALIZE_ENUM(MoveDirection);
+PTGN_REFLECT_ENUM(MoveDirection);
 
 } // namespace ptgn

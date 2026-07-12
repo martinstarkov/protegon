@@ -30,7 +30,7 @@ struct GraphicsCommand {
 	Color color;
 	FillStyle line_width;
 
-	PTGN_SERIALIZE(GraphicsCommand, transform, shape, color, line_width)
+	PTGN_REFLECT(GraphicsCommand, transform, shape, color, line_width)
 };
 
 struct GraphicsData {
@@ -41,7 +41,7 @@ struct GraphicsData {
 	FillStyle line_width_;
 	std::vector<GraphicsCommand> commands_;
 
-	PTGN_SERIALIZE(GraphicsData, fill_color_, stroke_color_, line_width_, commands_)
+	PTGN_REFLECT(GraphicsData, fill_color_, stroke_color_, line_width_, commands_)
 };
 
 } // namespace impl

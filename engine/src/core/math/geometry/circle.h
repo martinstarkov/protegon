@@ -69,7 +69,7 @@ public:
 
 	constexpr bool operator==(const Circle&) const = default;
 
-	PTGN_SERIALIZE(Circle, radius)
+	PTGN_REFLECT(Circle, radius)
 };
 
 } // namespace ptgn

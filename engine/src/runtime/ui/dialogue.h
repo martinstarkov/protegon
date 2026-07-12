@@ -35,21 +35,21 @@ enum class DialogueBehavior {
 	Sequential,
 	Random
 };
-PTGN_SERIALIZE_ENUM(DialogueBehavior);
+PTGN_REFLECT_ENUM(DialogueBehavior);
 
 enum class DialoguePartRole : std::uint8_t {
 	Background,
 	Text,
 	Tween,
 };
-PTGN_SERIALIZE_ENUM(DialoguePartRole);
+PTGN_REFLECT_ENUM(DialoguePartRole);
 
 namespace impl {
 
 struct DialoguePart {
 	DialoguePartRole role{ DialoguePartRole::Text };
 
-	PTGN_SERIALIZE(DialoguePart, role)
+	PTGN_REFLECT(DialoguePart, role)
 };
 
 struct DialogueWaitScript : public Script {

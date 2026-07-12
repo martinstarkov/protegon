@@ -19,7 +19,7 @@ enum class Origin {
 	BottomLeft,
 	CenterLeft,
 };
-PTGN_SERIALIZE_ENUM(Origin);
+PTGN_REFLECT_ENUM(Origin);
 
 inline constexpr Origin kDefaultOrigin{ Origin::Center };
 

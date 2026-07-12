@@ -25,7 +25,7 @@ public:
 		return value_;
 	}
 
-	PTGN_SERIALIZE_VALUE(KeyHash, value_)
+	PTGN_REFLECT_VALUE(KeyHash, value_)
 private:
 	std::size_t value_{ 0 };
 };

@@ -156,7 +156,7 @@ public:
 
 	constexpr bool operator==(const Rect&) const = default;
 
-	PTGN_SERIALIZE(Rect, min, max)
+	PTGN_REFLECT(Rect, min, max)
 };
 
 } // namespace ptgn

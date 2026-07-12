@@ -18,7 +18,7 @@ struct EffectMargin {
 	/// Only applies to texture effects.
 	int value{ 0 };
 
-	PTGN_SERIALIZE_VALUE(EffectMargin, value)
+	PTGN_REFLECT_VALUE(EffectMargin, value)
 };
 
 namespace impl {

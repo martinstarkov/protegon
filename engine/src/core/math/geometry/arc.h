@@ -75,7 +75,7 @@ public:
 
 	constexpr bool operator==(const Arc&) const = default;
 
-	PTGN_SERIALIZE(Arc, radius, start_angle, end_angle, clockwise)
+	PTGN_REFLECT(Arc, radius, start_angle, end_angle, clockwise)
 };
 
 } // namespace ptgn

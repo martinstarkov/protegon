@@ -41,7 +41,7 @@ public:
 
 	constexpr bool operator==(const Ellipse&) const = default;
 
-	PTGN_SERIALIZE(Ellipse, radius)
+	PTGN_REFLECT(Ellipse, radius)
 };
 
 } // namespace ptgn
