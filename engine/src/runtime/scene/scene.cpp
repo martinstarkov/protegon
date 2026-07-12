@@ -444,10 +444,10 @@ void Scene::InternalDraw(DrawContext& draw_context) {
 		std::vector<Entity> non_scene_cameras;
 
 		for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
+			impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
 			if (SceneCamera{ camera_entity }.GetRenderTarget() == ctx_->render_target_) {
 				continue;
 			}
-			impl::RecalculateCameraViewProjection(SceneCamera{ camera_entity });
 			non_scene_cameras.emplace_back(camera_entity);
 		}
 
