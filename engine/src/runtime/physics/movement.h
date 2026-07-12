@@ -83,8 +83,12 @@ struct TopDownMovement {
 	PTGN_REFLECT(
 		TopDownMovement, max_speed, max_acceleration, max_deceleration, max_turn_speed, friction,
 		use_acceleration, flip_vertically, keys_enabled, only_orthogonal_movement, up_key, left_key,
-		down_key, right_key, facing_direction, up_input, down_input, left_input, right_input, dir,
-		prev_dir
+		down_key, right_key
+	)
+
+	PTGN_REFLECT_READONLY(
+		TopDownMovement, facing_direction, dir, prev_dir, up_input, down_input, left_input,
+		right_input
 	)
 
 private:

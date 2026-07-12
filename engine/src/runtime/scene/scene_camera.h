@@ -60,9 +60,8 @@ struct CameraData {
 
 	Matrix4 view_projection{ 1.0f };
 
-	PTGN_REFLECT(
-		CameraData, raw_viewport, viewport_space, pixel_rounding, bounding_box, view_projection
-	)
+	PTGN_REFLECT(CameraData, raw_viewport, viewport_space, pixel_rounding, bounding_box)
+	PTGN_REFLECT_READONLY(CameraData, view_projection)
 };
 
 /// @brief If an entity has no RenderMask, treat it as having

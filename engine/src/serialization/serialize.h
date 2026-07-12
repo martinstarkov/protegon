@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <magic_enum/magic_enum.hpp>
 #include <nlohmann/detail/abi_macros.hpp>
 #include <nlohmann/detail/iterators/iter_impl.hpp>
@@ -10,6 +11,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -60,7 +62,7 @@ void optional_to_json(json& j, std::string_view name, const std::optional<T>& va
 
 template <class T>
 void optional_from_json(const json& j, std::string_view name, std::optional<T>& value) {
-	const auto it = j.find(name);
+	const auto it{ j.find(name) };
 	if (it != j.end()) {
 		value = it->get<T>();
 	} else {
@@ -172,25 +174,101 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 	return (!name.empty() && name.back() == '_') ? name.substr(0, name.size() - 1) : name;
 }
 
+template <typename T>
+void reflected_members_to_json(json& j, const T& value) {
+	j = json::object();
+	auto members{ ReflectMembers(value) };
+
+	std::apply(
+		[&]<typename... TMember>(const TMember&... member) {
+			(extended_to_json(StripTrailingUnderscore(member.name), j, member.value), ...);
+		},
+		members
+	);
+}
+
+template <typename T>
+void reflected_members_from_json(const json& j, T& value) {
+	auto members{ ReflectMembers(value) };
+
+	std::apply(
+		[&]<typename... TMember>(TMember&&... member) {
+			(extended_from_json(StripTrailingUnderscore(member.name), j, member.value), ...);
+		},
+		members
+	);
+}
+
+template <typename T>
+void reflected_value_to_json(json& j, const T& value) {
+	auto member{ ReflectValue(value) };
+	extended_to_json(j, member.value);
+}
+
+template <typename T>
+void reflected_value_from_json(const json& j, T& value) {
+	auto member{ ReflectValue(value) };
+	extended_from_json(j, member.value);
+}
+
+inline void reflected_empty_to_json(json& j, std::string_view expected_name) {
+	j = expected_name;
+}
+
+inline void reflected_empty_from_json(const json& j, std::string_view expected_name) {
+	const auto name{ j.get<std::string>() };
+	if (name != expected_name) {
+		throw std::runtime_error(
+			"Invalid struct name found in JSON: " + name +
+			", expected: " + std::string{ expected_name }
+		);
+	}
+}
+
 } // namespace ptgn::impl
 
-#define PTGN_IMPL_EXTEND_JSON_TO(v1)                                                    \
-	::ptgn::impl::extended_to_json(                                                     \
-		::ptgn::impl::StripTrailingUnderscore(#v1), nlohmann_json_j, nlohmann_json_t.v1 \
-	);
-#define PTGN_IMPL_EXTEND_JSON_FROM(v1)                                                  \
-	::ptgn::impl::extended_from_json(                                                   \
-		::ptgn::impl::StripTrailingUnderscore(#v1), nlohmann_json_j, nlohmann_json_t.v1 \
-	);
+#define PTGN_IMPL_REFLECTED_JSON_MEMBERS(Type)                                                     \
+	template <typename PTGNReflectedType>                                                          \
+		requires std::same_as<std::remove_cvref_t<PTGNReflectedType>, Type>                        \
+	friend void to_json(::ptgn::json& nlohmann_json_j, const PTGNReflectedType& nlohmann_json_t) { \
+		::ptgn::impl::reflected_members_to_json(nlohmann_json_j, nlohmann_json_t);                 \
+	}                                                                                              \
+	template <typename PTGNReflectedType>                                                          \
+		requires std::same_as<std::remove_cvref_t<PTGNReflectedType>, Type>                        \
+	friend void from_json(                                                                         \
+		const ::ptgn::json& nlohmann_json_j, PTGNReflectedType& nlohmann_json_t                    \
+	) {                                                                                            \
+		::ptgn::impl::reflected_members_from_json(nlohmann_json_j, nlohmann_json_t);               \
+	}
 
-#define PTGN_IMPL_EXTEND_JSON_TO_VALUE(v1) \
-	::ptgn::impl::extended_to_json(nlohmann_json_j, nlohmann_json_t.v1);
-#define PTGN_IMPL_EXTEND_JSON_FROM_VALUE(v1) \
-	::ptgn::impl::extended_from_json(nlohmann_json_j, nlohmann_json_t.v1);
+#define PTGN_IMPL_REFLECTED_JSON_VALUE(Type)                                                       \
+	template <typename PTGNReflectedType>                                                          \
+		requires std::same_as<std::remove_cvref_t<PTGNReflectedType>, Type>                        \
+	friend void to_json(::ptgn::json& nlohmann_json_j, const PTGNReflectedType& nlohmann_json_t) { \
+		::ptgn::impl::reflected_value_to_json(nlohmann_json_j, nlohmann_json_t);                   \
+	}                                                                                              \
+	template <typename PTGNReflectedType>                                                          \
+		requires std::same_as<std::remove_cvref_t<PTGNReflectedType>, Type>                        \
+	friend void from_json(                                                                         \
+		const ::ptgn::json& nlohmann_json_j, PTGNReflectedType& nlohmann_json_t                    \
+	) {                                                                                            \
+		::ptgn::impl::reflected_value_from_json(nlohmann_json_j, nlohmann_json_t);                 \
+	}
+
+#define PTGN_IMPL_REFLECTED_JSON_EMPTY(Type)                                                 \
+	template <typename PTGNReflectedType>                                                    \
+		requires std::same_as<std::remove_cvref_t<PTGNReflectedType>, Type>                  \
+	friend void to_json(::ptgn::json& nlohmann_json_j, const PTGNReflectedType&) {           \
+		::ptgn::impl::reflected_empty_to_json(nlohmann_json_j, std::string_view{ #Type });   \
+	}                                                                                        \
+	template <typename PTGNReflectedType>                                                    \
+		requires std::same_as<std::remove_cvref_t<PTGNReflectedType>, Type>                  \
+	friend void from_json(const ::ptgn::json& nlohmann_json_j, PTGNReflectedType&) {         \
+		::ptgn::impl::reflected_empty_from_json(nlohmann_json_j, std::string_view{ #Type }); \
+	}
 
 /// @brief Use this OUTSIDE the enum declaration.
-/// Declares JSON serialization for the enum.
-#define PTGN_SERIALIZE_ENUM(Type)                               \
+#define PTGN_REFLECT_ENUM(Type)                                 \
 	inline void to_json(::ptgn::json& j, Type value) {          \
 		::ptgn::impl::enum_to_json(j, value);                   \
 	}                                                           \
@@ -198,52 +276,25 @@ constexpr std::string_view StripTrailingUnderscore(std::string_view name) {
 		::ptgn::impl::enum_from_json(j, value);                 \
 	}
 
-/// @brief Use this INSIDE the class/struct body.
-/// Declares JSON serialization for the class/struct.
-#define PTGN_SERIALIZE(Type, ...)                                                          \
-	friend void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {      \
-		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO, __VA_ARGS__))   \
-	}                                                                                      \
-	friend void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t){     \
-		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM, __VA_ARGS__)) \
-	} PTGN_REFLECT_MEMBERS(Type, __VA_ARGS__)
+/// @brief Use this INSIDE a class/struct. The listed members are editable reflection members and
+/// receive fallback JSON serialization. A user-provided non-template to_json and/or from_json
+/// overload is preferred over the generated fallback template, so custom serialization does not
+/// conflict with this macro.
+#define PTGN_REFLECT(Type, ...)                  \
+	PTGN_IMPL_REFLECT_MEMBERS(Type, __VA_ARGS__) \
+	PTGN_IMPL_REFLECTED_JSON_MEMBERS(Type)
 
-/// @brief Use this INSIDE the class/struct body.
-/// Declares JSON serialization for the class/struct.
-/// Serializes directly as that value, without a field name.
-#define PTGN_SERIALIZE_VALUE(Type, ...)                                                          \
-	friend void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {            \
-		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO_VALUE, __VA_ARGS__))   \
-	}                                                                                            \
-	friend void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t){           \
-		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM_VALUE, __VA_ARGS__)) \
-	} PTGN_REFLECT_VALUE(Type, __VA_ARGS__)
+/// @brief Reflects and serializes the type directly as one member value.
+#define PTGN_REFLECT_VALUE(Type, member)  \
+	PTGN_IMPL_REFLECT_VALUE(Type, member) \
+	PTGN_IMPL_REFLECTED_JSON_VALUE(Type)
 
-/// @brief Use this INSIDE the class/struct body.
-/// Declares JSON serialization for the class/struct.
-/// Serializes directly as the name of the class/struct.
-#define PTGN_SERIALIZE_EMPTY(Type)                                                              \
-	friend void to_json(::ptgn::json& j, const Type&) {                                         \
-		j = PTGN_STRINGIFY(Type);                                                               \
-	}                                                                                           \
-	friend void from_json(const ::ptgn::json& j, Type&) {                                       \
-		const auto s = j.get<std::string>();                                                    \
-		if (s != PTGN_STRINGIFY(Type)) {                                                        \
-			throw std::runtime_error(                                                           \
-				"Invalid struct name found in JSON: " + s + ", expected: " PTGN_STRINGIFY(Type) \
-			);                                                                                  \
-		}                                                                                       \
-	}                                                                                           \
-	PTGN_REFLECT_EMPTY(Type)
+/// @brief Reflects an empty type and serializes it as its type name.
+#define PTGN_REFLECT_EMPTY(Type)  \
+	PTGN_IMPL_REFLECT_EMPTY(Type) \
+	PTGN_IMPL_REFLECTED_JSON_EMPTY(Type)
 
-/// @brief Use this INSIDE the class/struct body.
-/// Declares JSON serialization for the class/struct and its base class.
-#define PTGN_SERIALIZE_DERIVED(Type, Base, ...)                                            \
-	friend void to_json(::ptgn::json& nlohmann_json_j, const Type& nlohmann_json_t) {      \
-		to_json(nlohmann_json_j, static_cast<const Base&>(nlohmann_json_t));               \
-		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO, __VA_ARGS__))   \
-	}                                                                                      \
-	friend void from_json(const ::ptgn::json& nlohmann_json_j, Type& nlohmann_json_t) {    \
-		from_json(nlohmann_json_j, static_cast<Base&>(nlohmann_json_t));                   \
-		NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM, __VA_ARGS__)) \
-	}
+/// @brief Reflects a base class followed by this type's listed members and provides fallback JSON.
+#define PTGN_REFLECT_DERIVED(Type, Base, ...)                  \
+	PTGN_IMPL_REFLECT_DERIVED_MEMBERS(Type, Base, __VA_ARGS__) \
+	PTGN_IMPL_REFLECTED_JSON_MEMBERS(Type)
