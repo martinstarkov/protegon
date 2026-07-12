@@ -15,7 +15,6 @@ function(add_protegon_to target)
     endif()
 
     target_link_libraries(${target} PRIVATE protegon_editor)
-    target_compile_definitions(${target} PRIVATE PTGN_EDITOR=1)
   else()
     target_link_libraries(${target} PRIVATE protegon)
   endif()

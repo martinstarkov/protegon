@@ -12,15 +12,13 @@ add_library(protegon::editor ALIAS protegon_editor)
 
 target_include_directories(protegon_editor
   PUBLIC
-    ${PTGN_EDITOR_INCLUDE_DIR}
-    ${PTGN_EDITOR_SRC_DIR}
+  ${PTGN_EDITOR_INCLUDE_DIR}
+  ${PTGN_EDITOR_SRC_DIR}
 )
-
 target_compile_features(protegon_editor PUBLIC cxx_std_23)
-
 target_link_libraries(protegon_editor PUBLIC protegon)
-
-target_precompile_headers(protegon PRIVATE "${PTGN_EDITOR_SRC_DIR}/ptgn_editor_pch.h")
+target_compile_definitions(protegon_editor PUBLIC PTGN_EDITOR=1)
+target_precompile_headers(protegon_editor PRIVATE "${PTGN_EDITOR_SRC_DIR}/ptgn_editor_pch.h")
 
 if(NOT EMSCRIPTEN)
   set_project_warnings(protegon_editor "${PTGN_WARNINGS_AS_ERRORS}")
