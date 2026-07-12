@@ -1,188 +1,280 @@
 #pragma once
 
-#include <functional>
+#include <concepts>
+#include <memory>
 #include <string_view>
-#include <unordered_map>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+#include <vector>
 
-#include "core/graphics/color.h"
-#include "core/graphics/flip.h"
-#include "core/log.h"
-#include "core/math/geometry/capsule.h"
-#include "core/math/geometry/circle.h"
-#include "core/math/geometry/line.h"
-#include "core/math/geometry/origin.h"
-#include "core/math/geometry/polygon.h"
-#include "core/math/geometry/rect.h"
-#include "core/math/geometry/triangle.h"
-#include "core/math/transform.h"
-#include "core/util/hash.h"
-#include "core/util/timer.h"
-#include "core/util/type_info.h"
-#include "renderer/pipeline/blend_mode.h"
-#include "runtime/animation/animation.h"
+#include "core/util/reflection.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/manager.h"
-#include "runtime/ecs/relatives.h"
-#include "runtime/graphics/draw.h"
-#include "runtime/graphics/sprite.h"
-#include "runtime/graphics/tint.h"
-#include "runtime/graphics/visible.h"
-#include "runtime/interaction/draggable.h"
-#include "runtime/interaction/dropzone.h"
-#include "runtime/interaction/interactive.h"
-#include "runtime/physics/collider.h"
-#include "runtime/physics/lifetime.h"
-#include "runtime/physics/rigid_body.h"
-// #include "renderer/render_target.h"
-// #include "runtime/graphics/text/font.h"
-// #include "runtime/graphics/text/text.h"
-// #include "runtime/graphics/fx/light.h"
-// #include "runtime/graphics/fx/particle.h"
-// #include "tween/follow_config.h"
-// #include "tween/shake_config.h"
-// #include "tween/tween.h"
-// #include "tween/tween_effect.h"
-// #include "ui/button.h"
-// #include "scene/camera.h"
-#include "runtime/ecs/tag.h"
-#include "runtime/ecs/uuid.h"
-#include "runtime/scene/scene.h"
-#include "runtime/scene/scene_manager.h"
+#include "serialization/json/json.h"
 
-// #include "runtime/scene/scene_transition.h"
+namespace ptgn {
 
-namespace ptgn::impl {
+namespace impl {
+
+template <typename T>
+inline constexpr unsigned char kRegisteredComponentTypeId{ 0 };
+
+template <typename T>
+[[nodiscard]] bool HasRegisteredComponent(Entity entity) {
+	return entity.Has<T>();
+}
+
+template <typename T>
+void RemoveRegisteredComponent(Entity entity) {
+	entity.Remove<T>();
+}
+
+template <typename T>
+void AddDefaultRegisteredComponent(Entity entity) {
+	entity.Add<T>();
+}
+
+template <typename T>
+void SerializeRegisteredComponent(json& output, Entity entity) {
+	output = entity.Get<T>();
+}
+
+template <typename T>
+concept JsonGettable = requires(const json& input) {
+	{ input.template get<T>() } -> std::same_as<T>;
+};
+
+template <typename T>
+void DeserializeRegisteredComponent(const json& input, Entity entity) {
+	if (entity.Has<T>()) {
+		input.get_to(entity.Get<T>());
+		return;
+	}
+
+	if constexpr (std::default_initializable<T>) {
+		entity.Add<T>();
+		input.get_to(entity.Get<T>());
+	} else {
+		static_assert(
+			JsonGettable<T>,
+			"A registered non-default-constructible component must support json::get<T>()"
+		);
+		entity.Add<T>(input.template get<T>());
+	}
+}
+
+} // namespace impl
+
+template <typename T>
+[[nodiscard]] constexpr const void* ComponentTypeId() noexcept {
+	return &impl::kRegisteredComponentTypeId<std::remove_cvref_t<T>>;
+}
+
+struct ReflectedComponentMember {
+	std::string_view name;
+	const void* type_id{ nullptr };
+	const void* value{ nullptr };
+	void* mutable_value{ nullptr };
+	bool read_only{ false };
+};
+
+using ReflectedComponentMemberCallback =
+	void (*)(void* user_data, const ReflectedComponentMember& member);
+
+struct ComponentReflectionVisitor {
+	void* user_data{ nullptr };
+	ReflectedComponentMemberCallback callback{ nullptr };
+};
+
+namespace impl {
+
+template <typename T>
+concept HasReflectedMembers = requires(T& value) { ReflectMembers(value); };
+
+template <typename T>
+concept HasReflectedReadOnlyMembers = requires(const T& value) { ReflectReadOnlyMembers(value); };
+
+template <typename T>
+void VisitRegisteredComponentMembers(Entity entity, ComponentReflectionVisitor visitor) {
+	if (!visitor.callback) {
+		return;
+	}
+
+	auto& component{ entity.Get<T>() };
+
+	if constexpr (HasReflectedMembers<T>) {
+		auto members{ ReflectMembers(component) };
+
+		std::apply(
+			[&]<typename... TMember>(TMember&&... member) {
+				(visitor.callback(
+					 visitor.user_data,
+					 ReflectedComponentMember{
+						 .name			= member.name,
+						 .type_id		= ComponentTypeId<decltype(member.value)>(),
+						 .value			= std::addressof(member.value),
+						 .mutable_value = std::addressof(member.value),
+						 .read_only		= false,
+					 }
+				 ),
+				 ...);
+			},
+			members
+		);
+	}
+
+	if constexpr (HasReflectedReadOnlyMembers<T>) {
+		auto members{ ReflectReadOnlyMembers(component) };
+
+		std::apply(
+			[&]<typename... TMember>(TMember&&... member) {
+				(visitor.callback(
+					 visitor.user_data,
+					 ReflectedComponentMember{
+						 .name			= member.name,
+						 .type_id		= ComponentTypeId<decltype(member.value)>(),
+						 .value			= std::addressof(member.value),
+						 .mutable_value = nullptr,
+						 .read_only		= true,
+					 }
+				 ),
+				 ...);
+			},
+			members
+		);
+	}
+}
+
+/// Ensures the translation unit containing the built-in component
+/// registrations is linked into the application.
+void EnsureEngineComponentsRegistered();
+
+} // namespace impl
+
+using ComponentHasCallback			= bool (*)(Entity entity);
+using ComponentRemoveCallback		= void (*)(Entity entity);
+using ComponentAddDefaultCallback	= void (*)(Entity entity);
+using ComponentSerializeCallback	= void (*)(json& output, Entity entity);
+using ComponentDeserializeCallback	= void (*)(const json& input, Entity entity);
+using ComponentVisitMembersCallback = void (*)(Entity entity, ComponentReflectionVisitor visitor);
+
+struct RegisteredComponent {
+	const void* type_id{ nullptr };
+	std::string_view name;
+	bool is_empty{ false };
+	bool default_constructible{ false };
+	bool serializable{ false };
+	bool deserializable{ false };
+
+	ComponentHasCallback has{ nullptr };
+	ComponentRemoveCallback remove{ nullptr };
+	ComponentAddDefaultCallback add_default{ nullptr };
+	ComponentSerializeCallback serialize{ nullptr };
+	ComponentDeserializeCallback deserialize{ nullptr };
+	ComponentVisitMembersCallback visit_members{ nullptr };
+};
 
 class ComponentRegistry {
 public:
-	using ComponentRegistrationFunc = void (*)(Manager& manager);
-
-	static auto& GetData() {
-		static std::unordered_map<std::size_t, ComponentRegistrationFunc> s;
-		return s;
-	}
-
 	template <typename T>
-	static bool Register() {
-		// PTGN_LOG("Registering component: ", class_name);
-		auto& registry{ GetData() };
-		registry[Hash<T>()] = [](Manager& manager) {
-			manager.template RegisterType<T>();
-		};
+	static bool Register(std::string_view name) {
+		using Component = std::remove_cvref_t<T>;
+
+		auto& components{ MutableComponents() };
+		const void* type_id{ ComponentTypeId<Component>() };
+
+		for (auto& component : components) {
+			if (component.type_id == type_id) {
+				component.name = name;
+				return false;
+			}
+
+			if (component.name == name) {
+				return false;
+			}
+		}
+
+		ComponentAddDefaultCallback add_default{ nullptr };
+		ComponentSerializeCallback serialize{ nullptr };
+		ComponentDeserializeCallback deserialize{ nullptr };
+		ComponentVisitMembersCallback visit_members{ nullptr };
+
+		if constexpr (std::default_initializable<Component>) {
+			add_default = &impl::AddDefaultRegisteredComponent<Component>;
+		}
+
+		if constexpr (JsonSerializable<Component>) {
+			serialize = &impl::SerializeRegisteredComponent<Component>;
+		}
+
+		if constexpr (
+			impl::HasReflectedMembers<Component> || impl::HasReflectedReadOnlyMembers<Component>
+		) {
+			visit_members = &impl::VisitRegisteredComponentMembers<Component>;
+		}
+
+		if constexpr (
+			JsonDeserializable<Component> &&
+			(std::default_initializable<Component> || impl::JsonGettable<Component>)
+		) {
+			deserialize = &impl::DeserializeRegisteredComponent<Component>;
+		}
+
+		components.push_back(
+			RegisteredComponent{
+				.type_id			   = type_id,
+				.name				   = name,
+				.is_empty			   = std::is_empty_v<Component>,
+				.default_constructible = std::default_initializable<Component>,
+				.serializable		   = serialize != nullptr,
+				.deserializable		   = deserialize != nullptr,
+				.has				   = &impl::HasRegisteredComponent<Component>,
+				.remove				   = &impl::RemoveRegisteredComponent<Component>,
+				.add_default		   = add_default,
+				.serialize			   = serialize,
+				.deserialize		   = deserialize,
+				.visit_members		   = visit_members,
+			}
+		);
+
 		return true;
 	}
 
-	static void AddTypes(Manager& manager) {
-		const auto& registry{ GetData() };
-		for (const auto& [type_name, fn] : registry) {
-			fn(manager);
+	[[nodiscard]] static const std::vector<RegisteredComponent>& Components() {
+		impl::EnsureEngineComponentsRegistered();
+		return MutableComponents();
+	}
+
+	[[nodiscard]] static const RegisteredComponent* Find(std::string_view name) {
+		for (const auto& component : Components()) {
+			if (component.name == name) {
+				return &component;
+			}
 		}
+
+		return nullptr;
+	}
+
+	[[nodiscard]] static const RegisteredComponent* Find(const void* type_id) {
+		for (const auto& component : Components()) {
+			if (component.type_id == type_id) {
+				return &component;
+			}
+		}
+
+		return nullptr;
+	}
+
+	template <typename T>
+	[[nodiscard]] static const RegisteredComponent* Find() {
+		return Find(ComponentTypeId<T>());
+	}
+
+private:
+	[[nodiscard]] static std::vector<RegisteredComponent>& MutableComponents() {
+		static std::vector<RegisteredComponent> components;
+		return components;
 	}
 };
 
-} // namespace ptgn::impl
-
-#define PTGN_REGISTER_COMPONENT(TComponent)                            \
-	namespace ptgn::impl::registration {                               \
-	struct TComponent##Registration {                                  \
-		TComponent##Registration() {                                   \
-			ptgn::impl::ComponentRegistry::Register<TComponent>();     \
-		}                                                              \
-	};                                                                 \
-	static TComponent##Registration global_##TComponent##Registration; \
-	}
-
-PTGN_REGISTER_COMPONENT(Visible)
-PTGN_REGISTER_COMPONENT(Tint)
-PTGN_REGISTER_COMPONENT(Depth)
-PTGN_REGISTER_COMPONENT(TextureCrop)
-PTGN_REGISTER_COMPONENT(AnimationData)
-// PTGN_REGISTER_COMPONENT(IDrawable)
-// PTGN_REGISTER_COMPONENT(IDrawFilter)
-PTGN_REGISTER_COMPONENT(Draggable)
-PTGN_REGISTER_COMPONENT(Dropzone)
-PTGN_REGISTER_COMPONENT(Lifetime)
-PTGN_REGISTER_COMPONENT(Interactive)
-// PTGN_REGISTER_COMPONENT(TopDownMovement)
-// PTGN_REGISTER_COMPONENT(PlatformerMovement)
-// PTGN_REGISTER_COMPONENT(PlatformerJump)
-// PTGN_REGISTER_COMPONENT(Offsets)
-PTGN_REGISTER_COMPONENT(Transform)
-PTGN_REGISTER_COMPONENT(UUID)
-PTGN_REGISTER_COMPONENT(Tag)
-// PTGN_REGISTER_COMPONENT(ChildKey)
-// PTGN_REGISTER_COMPONENT(SceneKey)
-// PTGN_REGISTER_COMPONENT(Parent)
-// PTGN_REGISTER_COMPONENT(Children)
-PTGN_REGISTER_COMPONENT(Timer)
-PTGN_REGISTER_COMPONENT(ManualTimer)
-PTGN_REGISTER_COMPONENT(Collider)
-PTGN_REGISTER_COMPONENT(RigidBody)
-PTGN_REGISTER_COMPONENT(BlendMode)
-PTGN_REGISTER_COMPONENT(Color)
-PTGN_REGISTER_COMPONENT(Flip)
-PTGN_REGISTER_COMPONENT(Origin)
-// PTGN_REGISTER_COMPONENT(LightConfig)
-// PTGN_REGISTER_COMPONENT(Particle)
-// PTGN_REGISTER_COMPONENT(ParticleInfo)
-// PTGN_REGISTER_COMPONENT(ParticleEmitterComponent)
-// PTGN_REGISTER_COMPONENT(FontRenderMode)
-// PTGN_REGISTER_COMPONENT(FontStyle)
-// PTGN_REGISTER_COMPONENT(ClearColor)
-// PTGN_REGISTER_COMPONENT(TextJustify)
-// PTGN_REGISTER_COMPONENT(TextContent)
-// PTGN_REGISTER_COMPONENT(TextLineSkip)
-// PTGN_REGISTER_COMPONENT(TextWrapAfter)
-// PTGN_REGISTER_COMPONENT(TextColor)
-// PTGN_REGISTER_COMPONENT(TextOutline)
-// PTGN_REGISTER_COMPONENT(TextShadingColor)
-// PTGN_REGISTER_COMPONENT(TextureFormat)
-// PTGN_REGISTER_COMPONENT(TextureWrapping)
-// PTGN_REGISTER_COMPONENT(TextureScaling)
-// PTGN_REGISTER_COMPONENT(TextureHandle)
-// PTGN_REGISTER_COMPONENT(CameraInstance)
-// PTGN_REGISTER_COMPONENT(SceneTransition)
-// PTGN_REGISTER_COMPONENT(TargetFollowConfig)
-// PTGN_REGISTER_COMPONENT(PathFollowConfig)
-// PTGN_REGISTER_COMPONENT(ShakeConfig)
-// PTGN_REGISTER_COMPONENT(TranslateEffect)
-// PTGN_REGISTER_COMPONENT(RotateEffect)
-// PTGN_REGISTER_COMPONENT(ScaleEffect)
-// PTGN_REGISTER_COMPONENT(TintEffect)
-// PTGN_REGISTER_COMPONENT(FollowEffect)
-// PTGN_REGISTER_COMPONENT(BounceEffect)
-// PTGN_REGISTER_COMPONENT(ShakeEffect)
-// PTGN_REGISTER_COMPONENT(TweenData)
-//  PTGN_REGISTER_COMPONENT(ButtonState)
-//  PTGN_REGISTER_COMPONENT(InternalButtonState)
-//  PTGN_REGISTER_COMPONENT(ButtonToggled)
-//  PTGN_REGISTER_COMPONENT(ButtonDisabledTexture)
-//  PTGN_REGISTER_COMPONENT(ButtonTextFixedSize)
-//  PTGN_REGISTER_COMPONENT(ButtonBorderWidth)
-//  PTGN_REGISTER_COMPONENT(ButtonBackgroundWidth)
-//  PTGN_REGISTER_COMPONENT(ButtonColor)
-//  PTGN_REGISTER_COMPONENT(ButtonColorToggled)
-//  PTGN_REGISTER_COMPONENT(ButtonTint)
-//  PTGN_REGISTER_COMPONENT(ButtonTintToggled)
-//  PTGN_REGISTER_COMPONENT(ButtonBorderColor)
-//  PTGN_REGISTER_COMPONENT(ButtonBorderColorToggled)
-//  PTGN_REGISTER_COMPONENT(ButtonTexture)
-//  PTGN_REGISTER_COMPONENT(ButtonTextureToggled)
-//  PTGN_REGISTER_COMPONENT(ButtonTextToggled)
-PTGN_REGISTER_COMPONENT(Rect)
-PTGN_REGISTER_COMPONENT(Circle)
-PTGN_REGISTER_COMPONENT(Line)
-PTGN_REGISTER_COMPONENT(Polygon)
-PTGN_REGISTER_COMPONENT(Capsule)
-PTGN_REGISTER_COMPONENT(Triangle)
-// PTGN_REGISTER_COMPONENT(Camera)
-// PTGN_REGISTER_COMPONENT(Button)
-// PTGN_REGISTER_COMPONENT(Entity)
-// PTGN_REGISTER_COMPONENT(RenderTarget)
-// PTGN_REGISTER_COMPONENT(Text)
-// PTGN_REGISTER_COMPONENT(Sprite)
-// PTGN_REGISTER_COMPONENT(Animation)
-// PTGN_REGISTER_COMPONENT(PhysicsBody)
-// PTGN_REGISTER_COMPONENT(PointLight)
-// PTGN_REGISTER_COMPONENT(ParticleEmitter)
-// PTGN_REGISTER_COMPONENT(ToggleButton)
+} // namespace ptgn

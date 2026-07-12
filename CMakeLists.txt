@@ -25,6 +25,11 @@ if(NOT EMSCRIPTEN)
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerSettings.cmake)
 endif()
 
+set(
+  PTGN_COMPONENT_REGISTRATION_SOURCE
+  "${CMAKE_CURRENT_SOURCE_DIR}/engine/src/runtime/ecs/component_registry.cpp"
+)
+
 add_subdirectory(engine)
 
 if(PTGN_EDITOR)
