@@ -8,6 +8,7 @@
 #include <compare>
 #include <cstdint>
 #include <functional>
+#include <initializer_list>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -42,6 +43,7 @@
 #include "runtime/graphics/shape.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
+#include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scripting/script_sequence.h"
@@ -72,6 +74,11 @@ struct ChildAcceptanceRule {
 	std::string_view reason;
 };
 
+struct DeletionRule {
+	HierarchyCondition condition;
+	std::string_view reason;
+};
+
 bool IsManagedButtonVisual(Entity entity) {
 	if (!ptgn::HasParent(entity) || !GetParent(entity).Has<impl::ButtonData>()) {
 		return false;
@@ -85,28 +92,50 @@ bool IsCameraEntity(Entity entity) {
 	return entity.Has<impl::CameraData>();
 }
 
+bool IsPrimarySceneCamera(Entity entity) {
+	return entity && entity == entity.GetScene().GetCamera();
+}
+
+bool IsFixedSceneCamera(Entity entity) {
+	return entity && entity == entity.GetScene().GetFixedCamera();
+}
+
 bool IsPrimarySceneRenderTarget(Entity entity) {
 	return entity && entity == entity.GetScene().GetRenderTarget();
 }
+
+/// @brief Restrictions on which entities may be deleted through the hierarchy.
+constexpr std::array kDeletionRules{
+	DeletionRule{
+		.condition = IsPrimarySceneRenderTarget,
+		.reason{ "Scene render target cannot be deleted" },
+	},
+	DeletionRule{
+		.condition = IsPrimarySceneCamera,
+		.reason{ "Primary camera cannot be deleted" },
+	},
+	DeletionRule{
+		.condition = IsFixedSceneCamera,
+		.reason{ "Scene fixed camera cannot be deleted" },
+	},
+};
 
 /// @brief Restrictions on which parent an entity may be assigned to.
 constexpr std::array kParentAssignmentRules{
 	ParentAssignmentRule{
 		.condition = IsManagedButtonVisual,
 		.policy	   = ParentAssignmentPolicy::SameParentOnly,
-		.reason{
-			"Button visual entities may only be reordered under their current ButtonData parent" },
+		.reason{ "Button part cannot be reparented" },
 	},
 	ParentAssignmentRule{
 		.condition = IsCameraEntity,
 		.policy	   = ParentAssignmentPolicy::RootOnly,
-		.reason{ "Cameras must remain at the scene root and cannot have children" },
+		.reason{ "Camera cannot have parent" },
 	},
 	ParentAssignmentRule{
 		.condition = IsPrimarySceneRenderTarget,
 		.policy	   = ParentAssignmentPolicy::RootOnly,
-		.reason{ "The scene's primary render target must remain at the scene root and cannot have "
-				 "children" },
+		.reason{ "Primary render target cannot have parent" },
 	},
 };
 
@@ -114,11 +143,11 @@ constexpr std::array kParentAssignmentRules{
 constexpr std::array kChildAcceptanceRules{
 	ChildAcceptanceRule{
 		.condition = IsCameraEntity,
-		.reason{ "Cameras cannot have children" },
+		.reason{ "Camera cannot have children" },
 	},
 	ChildAcceptanceRule{
 		.condition = IsPrimarySceneRenderTarget,
-		.reason{ "The scene's primary render target cannot have children" },
+		.reason{ "Primary render target cannot have children" },
 	},
 };
 
@@ -134,6 +163,20 @@ bool IsParentAssignmentAllowed(Entity entity, Entity new_parent, ParentAssignmen
 	}
 
 	return false;
+}
+
+std::optional<std::string_view> GetDeletionLockReason(Entity entity) {
+	if (!entity) {
+		return "Invalid entity";
+	}
+
+	for (const auto& rule : kDeletionRules) {
+		if (rule.condition(entity)) {
+			return rule.reason;
+		}
+	}
+
+	return std::nullopt;
 }
 
 std::optional<std::string_view> GetParentAssignmentLockReason(Entity entity, Entity new_parent) {
@@ -193,16 +236,19 @@ struct PendingHierarchyDrop {
 	}
 };
 
-bool EntityMatchesFilter(std::string_view entity_name, std::string_view filter_text) {
+bool EntityMatchesFilter(Entity entity, std::string_view filter_text) {
 	if (filter_text.empty()) {
 		return true;
 	}
 
-	auto name{ ToLower(entity_name) };
+	auto name{ ToLower(entity.Get<Tag>().value) };
 	auto filter{ std::string{ filter_text } };
 
-	bool has_include{ false };
-	bool matched_include{ false };
+	bool has_name_include{ false };
+	bool matched_name_include{ false };
+
+	bool require_hidden{ false };
+	bool require_shown{ false };
 
 	std::size_t start{ 0 };
 
@@ -214,19 +260,29 @@ bool EntityMatchesFilter(std::string_view entity_name, std::string_view filter_t
 		token = ToLower(TrimWhitespace(std::move(token)));
 
 		if (!token.empty()) {
-			bool exclude{ token.front() == '-' };
-			auto needle{ TrimWhitespace(exclude ? token.substr(1) : token) };
+			if (token.front() == '*') {
+				auto filter_name{ TrimWhitespace(token.substr(1)) };
 
-			if (!needle.empty()) {
-				bool contains{ name.find(needle) != std::string::npos };
-
-				if (exclude && contains) {
-					return false;
+				if (filter_name == "hidden") {
+					require_hidden = true;
+				} else if (filter_name == "shown") {
+					require_shown = true;
 				}
+			} else {
+				bool exclude{ token.front() == '-' };
+				auto needle{ TrimWhitespace(exclude ? token.substr(1) : token) };
 
-				if (!exclude) {
-					has_include		 = true;
-					matched_include |= contains;
+				if (!needle.empty()) {
+					bool contains{ name.find(needle) != std::string::npos };
+
+					if (exclude && contains) {
+						return false;
+					}
+
+					if (!exclude) {
+						has_name_include	  = true;
+						matched_name_include |= contains;
+					}
 				}
 			}
 		}
@@ -238,7 +294,22 @@ bool EntityMatchesFilter(std::string_view entity_name, std::string_view filter_t
 		start = comma + 1;
 	}
 
-	return !has_include || matched_include;
+	// Conflicting property filters cannot both be satisfied.
+	if (require_hidden && require_shown) {
+		return false;
+	}
+
+	bool visible{ IsVisible(entity) };
+
+	if (require_hidden && visible) {
+		return false;
+	}
+
+	if (require_shown && !visible) {
+		return false;
+	}
+
+	return !has_name_include || matched_name_include;
 }
 
 bool EntityOrDescendantMatchesFilter(
@@ -250,7 +321,7 @@ bool EntityOrDescendantMatchesFilter(
 		"This likely indicates a cycle in the entity hierarchy"
 	);
 
-	if (EntityMatchesFilter(entity.Get<Tag>().value, filter_text)) {
+	if (EntityMatchesFilter(entity, filter_text)) {
 		return true;
 	}
 
@@ -381,6 +452,30 @@ void ApplyHierarchyDrop(const PendingHierarchyDrop& drop) {
 	}
 }
 
+void DrawRestrictionReasons(std::initializer_list<std::optional<std::string_view>> reasons) {
+	std::vector<std::string_view> drawn_reasons;
+	bool drew_separator{ false };
+
+	for (const auto& reason : reasons) {
+		if (!reason.has_value() || reason->empty()) {
+			continue;
+		}
+
+		if (std::ranges::find(drawn_reasons, reason.value()) != drawn_reasons.end()) {
+			continue;
+		}
+
+		if (!drew_separator) {
+			ImGui::Separator();
+			drew_separator = true;
+		}
+
+		ImGui::TextDisabled("%.*s", static_cast<int>(reason->size()), reason->data());
+
+		drawn_reasons.emplace_back(reason.value());
+	}
+}
+
 } // namespace
 
 void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
@@ -460,13 +555,13 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		auto child_acceptance_reason{ parent ? GetChildAcceptanceLockReason(parent)
 											 : std::optional<std::string_view>{} };
 
-		ImGui::BeginDisabled(child_acceptance_reason.has_value());
+		bool can_create_child{ !child_acceptance_reason.has_value() };
 
-		if (ImGui::MenuItem(create_entity_label)) {
+		if (ImGui::MenuItem(create_entity_label, nullptr, false, can_create_child)) {
 			finalize_created_entity(selected_scene->CreateEntity());
 		}
 
-		if (ImGui::BeginMenu(create_submenu_label)) {
+		if (ImGui::BeginMenu(create_submenu_label, can_create_child)) {
 			create_menu_item("Sprite", [&]() { return CreateSprite(*selected_scene); });
 
 			create_menu_item("Animation", [&]() { return CreateAnimation(*selected_scene); });
@@ -485,8 +580,7 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 				return CreateRenderTarget(*selected_scene);
 			});
 
-			// Cameras must remain at the scene root, so keep the item visible but
-			// disabled when this menu is being used to create a child.
+			// Cameras must remain at the scene root.
 			create_menu_item("Camera", [&]() { return CreateCamera(*selected_scene); }, false);
 
 			create_menu_item("Custom Shader", [&]() {
@@ -589,23 +683,43 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 
 			ImGui::EndMenu();
 		}
-
-		ImGui::EndDisabled();
-
-		if (child_acceptance_reason.has_value()) {
-			ImGui::Separator();
-
-			ImGui::TextDisabled(
-				"%.*s", static_cast<int>(child_acceptance_reason->size()),
-				child_acceptance_reason->data()
-			);
-		}
 	};
 
 	ImGui::SetNextItemWidth(-1.0f);
 	ImGui::InputTextWithHint(
-		"##HierarchyFilter", "Filter entities: player, -hidden", filter_.data(), filter_.size()
+		"##HierarchyFilter", "Filter: player, -enemy, *hidden, *shown", filter_.data(),
+		filter_.size()
 	);
+
+	if (ImGui::IsItemHovered()) {
+		ImGui::BeginTooltip();
+
+		ImGui::TextUnformatted("Hierarchy filter syntax:");
+		ImGui::Separator();
+
+		ImGui::TextUnformatted("player");
+		ImGui::SameLine();
+		ImGui::TextDisabled("Name contains \"player\"");
+
+		ImGui::TextUnformatted("-enemy");
+		ImGui::SameLine();
+		ImGui::TextDisabled("Name does not contain \"enemy\"");
+
+		ImGui::TextUnformatted("*shown");
+		ImGui::SameLine();
+		ImGui::TextDisabled("Entity is visible");
+
+		ImGui::TextUnformatted("*hidden");
+		ImGui::SameLine();
+		ImGui::TextDisabled("Entity is hidden");
+
+		ImGui::Spacing();
+		ImGui::TextDisabled("Separate filters with commas.");
+		ImGui::TextDisabled("Positive name filters use OR; all other filters must match.");
+
+		ImGui::EndTooltip();
+	}
+
 	ImGui::Separator();
 
 	auto filter_text{ std::string_view{ filter_.data() } };
@@ -689,6 +803,8 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		}
 
 		auto hierarchy_restriction_reason{ GetHierarchyRestrictionReason(entity) };
+		auto deletion_lock_reason{ GetDeletionLockReason(entity) };
+		auto child_acceptance_reason{ GetChildAcceptanceLockReason(entity) };
 
 		if (ImGui::BeginDragDropSource()) {
 			auto uuid{ entity.Get<UUID>() };
@@ -712,8 +828,6 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		if (ImGui::BeginPopupContextItem()) {
 			draw_create_entity_menu(entity);
 
-			ImGui::Separator();
-
 			if (ptgn::HasParent(entity)) {
 				bool can_move_to_root{ CanReparent(entity, {}) };
 
@@ -729,18 +843,21 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 				ImGui::EndDisabled();
 			}
 
-			if (hierarchy_restriction_reason.has_value()) {
-				ImGui::Separator();
-
-				ImGui::TextDisabled(
-					"%.*s", static_cast<int>(hierarchy_restriction_reason->size()),
-					hierarchy_restriction_reason->data()
-				);
-			}
+			ImGui::BeginDisabled(deletion_lock_reason.has_value());
 
 			if (ImGui::MenuItem("Delete")) {
 				entity_to_delete = entity;
 			}
+
+			ImGui::EndDisabled();
+
+			DrawRestrictionReasons(
+				{
+					child_acceptance_reason,
+					hierarchy_restriction_reason,
+					deletion_lock_reason,
+				}
+			);
 
 			ImGui::EndPopup();
 		}
@@ -806,10 +923,11 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		ApplyHierarchyDrop(pending_drop);
 	}
 
-	if (entity_to_delete) {
+	if (entity_to_delete && !GetDeletionLockReason(entity_to_delete).has_value()) {
 		if (selected_entity_ == entity_to_delete) {
 			selected_entity_ = {};
 		}
+
 		entity_to_delete.Destroy();
 	}
 
