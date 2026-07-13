@@ -301,6 +301,19 @@ struct Contents<StyledText> {
 };
 
 template <>
+struct Contents<Polygon> {
+	static bool Draw(Polygon& polygon) {
+		return DrawVectorEditor(
+			polygon.vertices, VectorOptions{
+								  .item_name	= "Vertex",
+								  .default_open = true,
+								  .reorderable	= true,
+							  }
+		);
+	}
+};
+
+template <>
 struct Contents<ButtonBorderVisuals> {
 	static bool Draw(ButtonBorderVisuals& visuals) {
 		return DrawEnumArrayEditor<ButtonVisualState>(visuals.states);
@@ -457,6 +470,79 @@ void DrawAddDrawableMenu(Entity entity, std::string_view label) {
 	ImGui::EndMenu();
 }
 
+bool DrawScaleValue(Entity entity, V2_float& scale, const FieldOptions& options) {
+	ImGui::PushID(entity.Get<UUID>());
+	ImGui::PushID("Scale");
+
+	ImGuiStorage* storage{ ImGui::GetStateStorage() };
+	ImGuiID scale_lock_id{ ImGui::GetID("ScaleLocked") };
+	bool scale_locked{ storage->GetBool(scale_lock_id, true) };
+
+	bool changed{ DrawPropertyRow("Scale", [&]() {
+		if (ImGui::Checkbox("##ScaleLocked", &scale_locked)) {
+			storage->SetBool(scale_lock_id, scale_locked);
+		}
+
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip(scale_locked ? "Unlock ratio" : "Lock ratio");
+		}
+
+		ImGui::SameLine();
+
+		constexpr float kFieldSpacing{ 4.0f };
+
+		float available_width{ ImGui::GetContentRegionAvail().x };
+		float field_width{ (available_width - kFieldSpacing) * 0.5f };
+
+		V2_float previous_scale{ scale };
+
+		ImGui::SetNextItemWidth(field_width);
+		bool x_changed{ ImGui::DragFloat(
+			"##X", &scale.x, options.speed, static_cast<float>(options.min),
+			static_cast<float>(options.max), options.format, options.flags
+		) };
+
+		ImGui::SameLine(0.0f, kFieldSpacing);
+
+		ImGui::SetNextItemWidth(field_width);
+		bool y_changed{ ImGui::DragFloat(
+			"##Y", &scale.y, options.speed, static_cast<float>(options.min),
+			static_cast<float>(options.max), options.format, options.flags
+		) };
+
+		bool value_changed{ x_changed || y_changed };
+
+		if (!value_changed || !scale_locked) {
+			return value_changed;
+		}
+
+		constexpr float kScaleEpsilon{ 0.000001f };
+
+		if (x_changed && !y_changed) {
+			if (std::abs(previous_scale.x) > kScaleEpsilon) {
+				float factor{ scale.x / previous_scale.x };
+				scale.y = previous_scale.y * factor;
+			} else if (std::abs(previous_scale.y) <= kScaleEpsilon) {
+				scale.y = scale.x;
+			}
+		} else if (y_changed && !x_changed) {
+			if (std::abs(previous_scale.y) > kScaleEpsilon) {
+				float factor{ scale.y / previous_scale.y };
+				scale.x = previous_scale.x * factor;
+			} else if (std::abs(previous_scale.x) <= kScaleEpsilon) {
+				scale.x = scale.y;
+			}
+		}
+
+		return true;
+	}) };
+
+	ImGui::PopID();
+	ImGui::PopID();
+
+	return changed;
+}
+
 void DrawTransformComponent(Entity entity) {
 	auto& transform{ entity.TryAdd<Transform>() };
 	auto& depth{ entity.TryAdd<Depth>() };
@@ -514,8 +600,8 @@ void DrawTransformComponent(Entity entity) {
 		}
 	);
 
-	if (DrawValue(
-			"Scale", transform.scale,
+	if (DrawScaleValue(
+			entity, transform.scale,
 			FieldOptions{
 				.speed	= 0.01f,
 				.min	= -1000.0,
@@ -546,6 +632,12 @@ PTGN_REGISTER_COMPONENT(
 			"Controlled by Button Shape Visuals", ButtonBackgroundVisuals, ButtonBorderVisuals>,
 		.draw_contents = &DrawRegisteredContents<Rect>,
 	}
+);
+
+PTGN_REGISTER_COMPONENT(
+	Polygon, {
+				 .draw_contents = &DrawRegisteredContents<Polygon>,
+			 }
 );
 
 PTGN_REGISTER_COMPONENT(
