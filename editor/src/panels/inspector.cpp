@@ -80,16 +80,117 @@ std::optional<std::string_view> HasAnyComponent(Entity entity) {
 	return std::nullopt;
 }
 
+bool DrawOptionalViewport(
+	std::string_view label, std::optional<Viewport>& value, ViewportSpace viewport_space
+) {
+	ImGui::PushID(&value);
+
+	bool enabled{ value.has_value() };
+	bool changed{ DrawPropertyRow(label, [&]() {
+		return DrawDisabledIf(IsReadOnly(), [&]() {
+			return ImGui::Checkbox("##enabled", &enabled);
+		});
+	}) };
+
+	if (enabled != value.has_value()) {
+		if (enabled) {
+			auto& viewport{ value.emplace() };
+
+			if (viewport_space == ViewportSpace::Normalized) {
+				viewport.position = V2_float{ 0.0f, 0.0f };
+				viewport.size	  = V2_float{ 1.0f, 1.0f };
+			}
+		} else {
+			value.reset();
+		}
+
+		changed = true;
+	}
+
+	if (value.has_value()) {
+		ImGui::Indent();
+
+		if (viewport_space == ViewportSpace::Normalized) {
+			FieldOptions options{
+				.speed	= 0.01f,
+				.min	= 0.0,
+				.max	= 1.0,
+				.format = "%.3f",
+				.flags	= ImGuiSliderFlags_AlwaysClamp,
+			};
+
+			changed |= DrawValue("Position", value->position, options);
+			changed |= DrawValue("Size", value->size, options);
+
+			if (value->size.x > 1.0f || value->size.y > 1.0f) {
+				value->size.x = std::min(1.0f, value->size.x);
+				value->size.y = std::min(1.0f, value->size.y);
+				changed		  = true;
+			}
+		} else {
+			changed |= DrawValue(
+				"Position", value->position,
+				FieldOptions{
+					.speed	= 1.0f,
+					.format = "%.0f",
+				}
+			);
+
+			changed |= DrawValue(
+				"Size", value->size,
+				FieldOptions{
+					.speed	= 1.0f,
+					.min	= 1.0f,
+					.max	= 4096.0f,
+					.format = "%.0f",
+				}
+			);
+
+			if (value->size.x < 1.0f || value->size.y < 1.0f) {
+				value->size.x = std::max(1.0f, value->size.x);
+				value->size.y = std::max(1.0f, value->size.y);
+				changed		  = true;
+			}
+		}
+
+		ImGui::Unindent();
+	}
+
+	ImGui::PopID();
+
+	return changed;
+}
+
 } // namespace
 
 // TODO: Add Material.
+
+template <>
+struct Contents<::ptgn::impl::CameraData> {
+	static bool Draw(::ptgn::impl::CameraData& camera) {
+		bool changed{ false };
+
+		// Draw this first because it controls the raw viewport's defaults and bounds.
+		changed |= DrawValue("Viewport Space", camera.viewport_space);
+
+		changed |= DrawOptionalViewport("Raw Viewport", camera.raw_viewport, camera.viewport_space);
+
+		changed |= DrawValue("Pixel Rounding", camera.pixel_rounding);
+		changed |= DrawValue("Bounding Box", camera.bounding_box);
+
+		(void)DrawReadOnlyValue("View Projection", camera.view_projection);
+
+		return changed;
+	}
+};
 
 template <>
 struct Contents<::ptgn::impl::IDrawable> {
 	static bool Draw(::ptgn::impl::IDrawable& drawable) {
 		auto* current_info{ ::ptgn::impl::IDrawable::FindInfo(drawable.hash) };
 
-		std::string preview{ current_info ? current_info->name : "<Missing Drawable>" };
+		std::string preview{ current_info ? std::string{ current_info->GetDisplayName() }
+										  : "<Unregistered Drawable>" };
 
 		bool changed{ DrawPropertyRow("Drawable", [&]() {
 			bool local_changed{ false };
@@ -97,7 +198,7 @@ struct Contents<::ptgn::impl::IDrawable> {
 			if (ImGui::BeginCombo("##value", preview.c_str())) {
 				for (const auto& info : ::ptgn::impl::IDrawable::data()) {
 					bool selected{ drawable.hash == info.hash };
-					std::string display_name{ info.name };
+					std::string display_name{ info.GetDisplayName() };
 
 					if (ImGui::Selectable(display_name.c_str(), selected)) {
 						drawable.hash = info.hash;
@@ -283,6 +384,14 @@ void MarkButtonSpriteDirty(Entity entity) {
 	MarkParentButtonDirty(entity, ::ptgn::impl::ButtonDirty::Sprite);
 }
 
+void DrawAddDrawableMenuItem(Entity entity, const auto& info) {
+	auto name{ std::string{ info.GetDisplayName() } };
+
+	if (ImGui::MenuItem(name.c_str())) {
+		entity.Add<::ptgn::impl::IDrawable>(info.hash);
+	}
+}
+
 void DrawAddDrawableMenu(Entity entity, std::string_view label) {
 	auto menu_label{ std::string{ label } };
 
@@ -290,9 +399,58 @@ void DrawAddDrawableMenu(Entity entity, std::string_view label) {
 		return;
 	}
 
-	for (const auto& info : ::ptgn::impl::IDrawable::data()) {
-		if (ImGui::MenuItem(std::string{ info.name }.c_str())) {
+	const auto& drawables{ ::ptgn::impl::IDrawable::data() };
+
+	auto draw_menu_item = [entity](const ::ptgn::impl::IDrawable::Info& info) mutable {
+		auto display_name{ std::string{ info.GetDisplayName() } };
+
+		if (ImGui::MenuItem(display_name.c_str())) {
 			entity.Add<::ptgn::impl::IDrawable>(info.hash);
+		}
+	};
+
+	std::vector<std::string_view> groups;
+
+	for (const auto& info : drawables) {
+		if (!info.group.has_value() || info.group->empty()) {
+			continue;
+		}
+
+		if (std::ranges::find(groups, info.group.value()) == groups.end()) {
+			groups.push_back(info.group.value());
+		}
+	}
+
+	std::ranges::sort(groups);
+
+	for (auto group : groups) {
+		auto group_label{ std::string{ group } };
+
+		if (!ImGui::BeginMenu(group_label.c_str())) {
+			continue;
+		}
+
+		for (const auto& info : drawables) {
+			if (info.group.has_value() && info.group.value() == group) {
+				draw_menu_item(info);
+			}
+		}
+
+		ImGui::EndMenu();
+	}
+
+	bool has_grouped_drawables{ !groups.empty() };
+	bool has_ungrouped_drawables{ std::ranges::any_of(drawables, [](const auto& info) {
+		return !info.group.has_value() || info.group->empty();
+	}) };
+
+	if (has_grouped_drawables && has_ungrouped_drawables) {
+		ImGui::Separator();
+	}
+
+	for (const auto& info : drawables) {
+		if (!info.group.has_value() || info.group->empty()) {
+			draw_menu_item(info);
 		}
 	}
 
@@ -375,9 +533,10 @@ void DrawTransformComponent(Entity entity) {
 } // namespace
 
 PTGN_REGISTER_COMPONENT(
-	FillStyle, {
-				   .draw_contents = &DrawRegisteredContents<FillStyle>,
-			   }
+	::ptgn::impl::CameraData,
+	{
+		.draw_contents = &DrawRegisteredContents<::ptgn::impl::CameraData>,
+	}
 );
 
 PTGN_REGISTER_COMPONENT(
@@ -428,7 +587,8 @@ PTGN_REGISTER_COMPONENT(
 PTGN_REGISTER_COMPONENT(
 	FillStyle,
 	{ .get_read_only_reason = &HasAnyComponent<
-		  "Controlled by Button Shape Visuals", ButtonBackgroundVisuals, ButtonBorderVisuals> }
+		  "Controlled by Button Shape Visuals", ButtonBackgroundVisuals, ButtonBorderVisuals>,
+	  .draw_contents = &DrawRegisteredContents<FillStyle> }
 );
 
 PTGN_REGISTER_COMPONENT(
