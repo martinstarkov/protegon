@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "app/application.h"
+#include "core/editor.h"
 #include "core/graphics/color.h"
 #include "core/graphics/fill_style.h"
 #include "core/math/angle.h"
@@ -62,5 +63,6 @@ class ShapeEntitiesScene : public Scene {
 
 int main(int, char**) {
 	Application app{ "shape_entities" };
+	PTGN_WITH_EDITOR(app, true);
 	app.StartWith<ShapeEntitiesScene>();
 }
