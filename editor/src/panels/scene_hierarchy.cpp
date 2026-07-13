@@ -28,6 +28,15 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scripting/script_sequence.h"
+#include "runtime/graphics/fx/effects.h"
+#include "runtime/graphics/fx/blur.h"
+#include "runtime/graphics/fx/sharpen.h"
+#include "runtime/graphics/fx/blur.h"
+#include "runtime/graphics/fx/grayscale.h"
+#include "runtime/graphics/fx/gaussian_blur.h"
+#include "runtime/graphics/fx/bloom.h"
+#include "runtime/graphics/fx/edge_detection.h"
+#include "runtime/graphics/fx/inverse_color.h"
 
 namespace ptgn::editor {
 
@@ -57,44 +66,80 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			select_created_entity(selected_scene->CreateEntity());
 		}
 
-		if (ImGui::BeginMenu("Create")) {
-			auto create_menu_item = [&](const char* label, auto&& create) {
-				if (ImGui::MenuItem(label)) {
-					select_created_entity(create());
-				}
-			};
+		if (!ImGui::BeginMenu("Create")) {
+			return;
+		}
 
-			// Keep these default arguments matched to your actual factory overloads.
-			create_menu_item("Sprite", [&]() { return CreateSprite(*selected_scene); });
+		auto create_menu_item = [&](const char* label, auto&& create) {
+			if (ImGui::MenuItem(label)) {
+				select_created_entity(std::invoke(std::forward<decltype(create)>(create)));
+			}
+		};
 
-			create_menu_item("Animation", [&]() { return CreateAnimation(*selected_scene); });
+		auto draw_submenu = [&](const char* label, auto&& draw_contents) {
+			if (!ImGui::BeginMenu(label)) {
+				return;
+			}
 
-			create_menu_item("Particle Emitter", [&]() {
-				return CreateParticleEmitter(*selected_scene, {}, {}, true);
+			std::invoke(std::forward<decltype(draw_contents)>(draw_contents));
+
+			ImGui::EndMenu();
+		};
+
+		// Keep these default arguments matched to your actual factory overloads.
+		create_menu_item("Sprite", [&]() { return CreateSprite(*selected_scene); });
+
+		create_menu_item("Animation", [&]() { return CreateAnimation(*selected_scene); });
+
+		create_menu_item("Particle Emitter", [&]() {
+			return CreateParticleEmitter(*selected_scene, {}, {}, true);
+		});
+
+		create_menu_item("Light", [&]() { return CreateLight(*selected_scene); });
+
+		create_menu_item("Text", [&]() {
+			return CreateText(*selected_scene, {}, "Default Text", color::White);
+		});
+
+		create_menu_item("Render Target", [&]() { return CreateRenderTarget(*selected_scene); });
+
+		create_menu_item("Camera", [&]() { return CreateCamera(*selected_scene); });
+
+		create_menu_item("Custom Shader", [&]() { return CreateCustomShader(*selected_scene); });
+
+		create_menu_item("Script Sequence", [&]() {
+			return CreateScriptSequence(*selected_scene);
+		});
+
+		create_menu_item("Tween", [&]() { return CreateTween(*selected_scene); });
+
+		draw_submenu("Effects", [&]() {
+			create_menu_item("Bloom", [&]() { return CreateEffect<Bloom>(*selected_scene); });
+
+			create_menu_item("Blur", [&]() { return CreateEffect<Blur>(*selected_scene); });
+
+			create_menu_item("Gaussian Blur", [&]() {
+				return CreateEffect<GaussianBlur>(*selected_scene);
 			});
 
-			create_menu_item("Light", [&]() { return CreateLight(*selected_scene); });
-
-			create_menu_item("Text", [&]() {
-				return CreateText(*selected_scene, {}, "Default Text", color::White);
+			create_menu_item("Grayscale", [&]() {
+				return CreateEffect<Grayscale>(*selected_scene);
 			});
 
-			create_menu_item("Render Target", [&]() {
-				return CreateRenderTarget(*selected_scene);
+			create_menu_item("Inverse Color", [&]() {
+				return CreateEffect<InverseColor>(*selected_scene);
 			});
 
-			create_menu_item("Camera", [&]() { return CreateCamera(*selected_scene); });
-
-			create_menu_item("Custom Shader", [&]() {
-				return CreateCustomShader(*selected_scene);
+			create_menu_item("Sharpen", [&]() {
+				return CreateEffect<Sharpen>(*selected_scene);
 			});
 
-			create_menu_item("Script Sequence", [&]() {
-				return CreateScriptSequence(*selected_scene);
+			create_menu_item("Edge Detection", [&]() {
+				return CreateEffect<EdgeDetection>(*selected_scene);
 			});
+		});
 
-			create_menu_item("Tween", [&]() { return CreateTween(*selected_scene); });
-
+		draw_submenu("Shapes", [&]() {
 			constexpr auto kShapeColor{ color::White };
 			constexpr V2_float kShapeSize{ 100, 100 };
 			constexpr float kShapeRadius{ 50 };
@@ -150,9 +195,9 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 					*selected_scene, {}, { -100, -100 }, { 100, 100 }, kShapeRadius, kShapeColor
 				);
 			});
+		});
 
-			ImGui::EndMenu();
-		}
+		ImGui::EndMenu();
 	};
 
 	auto draw_entity = [&](auto&& self, Entity entity, std::size_t recursion_depth) -> void {
