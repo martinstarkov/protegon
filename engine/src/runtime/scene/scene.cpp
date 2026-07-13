@@ -613,6 +613,14 @@ RenderTarget Scene::GetRenderTarget() const {
 	return ctx_->render_target_;
 }
 
+SceneCamera Scene::GetCamera() const {
+	return ctx_->camera;
+}
+
+SceneCamera Scene::GetFixedCamera() const {
+	return ctx_->fixed_camera_;
+}
+
 void Scene::Refresh() {
 	manager_.Refresh();
 }

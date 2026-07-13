@@ -17,6 +17,7 @@
 #include "runtime/ecs/tag.h"
 #include "runtime/ecs/uuid.h"
 #include "runtime/graphics/render_target.h"
+#include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_common.h"
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scene/scene_view.h"
@@ -191,6 +192,8 @@ public:
 	std::size_t GetEntityCount() const;
 
 	RenderTarget GetRenderTarget() const;
+	SceneCamera GetCamera() const;
+	SceneCamera GetFixedCamera() const;
 
 	[[nodiscard]] const SceneContext& ctx() const;
 	[[nodiscard]] SceneContext& ctx();
