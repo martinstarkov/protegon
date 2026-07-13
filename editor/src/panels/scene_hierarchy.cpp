@@ -96,19 +96,19 @@ bool IsPrimarySceneRenderTarget(Entity entity) {
 /// @brief Restrictions on which parent an entity may be assigned to.
 constexpr std::array kParentAssignmentRules{
 	ParentAssignmentRule{
-		.condition{ IsManagedButtonVisual },
-		.policy{ ParentAssignmentPolicy::SameParentOnly },
+		.condition = IsManagedButtonVisual,
+		.policy	   = ParentAssignmentPolicy::SameParentOnly,
 		.reason{
 			"Button visual entities may only be reordered under their current ButtonData parent" },
 	},
 	ParentAssignmentRule{
-		.condition{ IsCameraEntity },
-		.policy{ ParentAssignmentPolicy::RootOnly },
+		.condition = IsCameraEntity,
+		.policy	   = ParentAssignmentPolicy::RootOnly,
 		.reason{ "Cameras must remain at the scene root and cannot have children" },
 	},
 	ParentAssignmentRule{
-		.condition{ IsPrimarySceneRenderTarget },
-		.policy{ ParentAssignmentPolicy::RootOnly },
+		.condition = IsPrimarySceneRenderTarget,
+		.policy	   = ParentAssignmentPolicy::RootOnly,
 		.reason{ "The scene's primary render target must remain at the scene root and cannot have "
 				 "children" },
 	},
@@ -117,11 +117,11 @@ constexpr std::array kParentAssignmentRules{
 /// @brief Restrictions on which entities may receive children.
 constexpr std::array kChildAcceptanceRules{
 	ChildAcceptanceRule{
-		.condition{ IsCameraEntity },
+		.condition = IsCameraEntity,
 		.reason{ "Cameras cannot have children" },
 	},
 	ChildAcceptanceRule{
-		.condition{ IsPrimarySceneRenderTarget },
+		.condition = IsPrimarySceneRenderTarget,
 		.reason{ "The scene's primary render target cannot have children" },
 	},
 };
@@ -652,19 +652,46 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		selected_entity_ = entity;
 	};
 
-	auto draw_create_entity_menu = [&]() {
-		if (ImGui::MenuItem("Create Entity")) {
-			select_created_entity(selected_scene->CreateEntity());
-		}
+	auto draw_create_entity_menu = [&](Entity parent = {}) {
+		bool creating_child{ static_cast<bool>(parent) };
 
-		if (!ImGui::BeginMenu("Create")) {
-			return;
-		}
+		const char* create_entity_label{ creating_child ? "Create Child Entity" : "Create Entity" };
+		const char* create_submenu_label{ creating_child ? "Create Child" : "Create" };
 
-		auto create_menu_item = [&](const char* label, auto&& create) {
-			if (ImGui::MenuItem(label)) {
-				select_created_entity(std::invoke(std::forward<decltype(create)>(create)));
+		auto finalize_created_entity = [&](Entity created) {
+			if (!created) {
+				return;
 			}
+
+			if (parent) {
+				// This is a final safeguard for entities such as cameras that are
+				// not allowed to become children.
+				if (!CanReparent(created, parent)) {
+					PTGN_WARN(
+						"Could not create entity as a child of ", parent.Get<Tag>().value,
+						" because the hierarchy relationship is restricted"
+					);
+					created.Destroy();
+					return;
+				}
+
+				SetParent(created, parent);
+			}
+
+			select_created_entity(created);
+		};
+
+		auto create_menu_item = [&](const char* label, auto&& create,
+									bool can_create_as_child = true) {
+			bool disabled{ creating_child && !can_create_as_child };
+
+			ImGui::BeginDisabled(disabled);
+
+			if (ImGui::MenuItem(label)) {
+				finalize_created_entity(std::invoke(std::forward<decltype(create)>(create)));
+			}
+
+			ImGui::EndDisabled();
 		};
 
 		auto draw_submenu = [&](const char* label, auto&& draw_contents) {
@@ -677,118 +704,149 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			ImGui::EndMenu();
 		};
 
-		// Keep these default arguments matched to your actual factory overloads.
-		create_menu_item("Sprite", [&]() { return CreateSprite(*selected_scene); });
+		auto child_acceptance_reason{ parent ? GetChildAcceptanceLockReason(parent)
+											 : std::optional<std::string_view>{} };
 
-		create_menu_item("Animation", [&]() { return CreateAnimation(*selected_scene); });
+		ImGui::BeginDisabled(child_acceptance_reason.has_value());
 
-		create_menu_item("Particle Emitter", [&]() {
-			return CreateParticleEmitter(*selected_scene, {}, {}, true);
-		});
+		if (ImGui::MenuItem(create_entity_label)) {
+			finalize_created_entity(selected_scene->CreateEntity());
+		}
 
-		create_menu_item("Light", [&]() { return CreateLight(*selected_scene); });
+		if (ImGui::BeginMenu(create_submenu_label)) {
+			create_menu_item("Sprite", [&]() { return CreateSprite(*selected_scene); });
 
-		create_menu_item("Text", [&]() {
-			return CreateText(*selected_scene, {}, "Default Text", color::White);
-		});
+			create_menu_item("Animation", [&]() { return CreateAnimation(*selected_scene); });
 
-		create_menu_item("Render Target", [&]() { return CreateRenderTarget(*selected_scene); });
-
-		create_menu_item("Camera", [&]() { return CreateCamera(*selected_scene); });
-
-		create_menu_item("Custom Shader", [&]() { return CreateCustomShader(*selected_scene); });
-
-		create_menu_item("Script Sequence", [&]() {
-			return CreateScriptSequence(*selected_scene);
-		});
-
-		create_menu_item("Tween", [&]() { return CreateTween(*selected_scene); });
-
-		draw_submenu("Effects", [&]() {
-			create_menu_item("Bloom", [&]() { return CreateEffect<Bloom>(*selected_scene); });
-
-			create_menu_item("Blur", [&]() { return CreateEffect<Blur>(*selected_scene); });
-
-			create_menu_item("Gaussian Blur", [&]() {
-				return CreateEffect<GaussianBlur>(*selected_scene);
+			create_menu_item("Particle Emitter", [&]() {
+				return CreateParticleEmitter(*selected_scene, {}, {}, true);
 			});
 
-			create_menu_item("Grayscale", [&]() {
-				return CreateEffect<Grayscale>(*selected_scene);
+			create_menu_item("Light", [&]() { return CreateLight(*selected_scene); });
+
+			create_menu_item("Text", [&]() {
+				return CreateText(*selected_scene, {}, "Default Text", color::White);
 			});
 
-			create_menu_item("Inverse Color", [&]() {
-				return CreateEffect<InverseColor>(*selected_scene);
+			create_menu_item("Render Target", [&]() {
+				return CreateRenderTarget(*selected_scene);
 			});
 
-			create_menu_item("Sharpen", [&]() {
-				return CreateEffect<Sharpen>(*selected_scene);
+			// Cameras must remain at the scene root, so keep the item visible but
+			// disabled when this menu is being used to create a child.
+			create_menu_item("Camera", [&]() { return CreateCamera(*selected_scene); }, false);
+
+			create_menu_item("Custom Shader", [&]() {
+				return CreateCustomShader(*selected_scene);
 			});
 
-			create_menu_item("Edge Detection", [&]() {
-				return CreateEffect<EdgeDetection>(*selected_scene);
-			});
-		});
-
-		draw_submenu("Shapes", [&]() {
-			constexpr auto kShapeColor{ color::White };
-			constexpr V2_float kShapeSize{ 100, 100 };
-			constexpr float kShapeRadius{ 50 };
-
-			create_menu_item("Rect", [&]() {
-				return CreateRect(*selected_scene, {}, kShapeSize, kShapeColor);
+			create_menu_item("Script Sequence", [&]() {
+				return CreateScriptSequence(*selected_scene);
 			});
 
-			create_menu_item("Circle", [&]() {
-				return CreateCircle(*selected_scene, {}, kShapeRadius, kShapeColor);
+			create_menu_item("Tween", [&]() { return CreateTween(*selected_scene); });
+
+			draw_submenu("Effects", [&]() {
+				create_menu_item("Bloom", [&]() { return CreateEffect<Bloom>(*selected_scene); });
+
+				create_menu_item("Blur", [&]() { return CreateEffect<Blur>(*selected_scene); });
+
+				create_menu_item("Gaussian Blur", [&]() {
+					return CreateEffect<GaussianBlur>(*selected_scene);
+				});
+
+				create_menu_item("Grayscale", [&]() {
+					return CreateEffect<Grayscale>(*selected_scene);
+				});
+
+				create_menu_item("Inverse Color", [&]() {
+					return CreateEffect<InverseColor>(*selected_scene);
+				});
+
+				create_menu_item("Sharpen", [&]() {
+					return CreateEffect<Sharpen>(*selected_scene);
+				});
+
+				create_menu_item("Edge Detection", [&]() {
+					return CreateEffect<EdgeDetection>(*selected_scene);
+				});
 			});
 
-			create_menu_item("Line", [&]() {
-				return CreateLine(*selected_scene, {}, { -100, -100 }, { 100, 100 }, kShapeColor);
+			draw_submenu("Shapes", [&]() {
+				constexpr auto kShapeColor{ color::White };
+				constexpr V2_float kShapeSize{ 100, 100 };
+				constexpr float kShapeRadius{ 50 };
+
+				create_menu_item("Rect", [&]() {
+					return CreateRect(*selected_scene, {}, kShapeSize, kShapeColor);
+				});
+
+				create_menu_item("Circle", [&]() {
+					return CreateCircle(*selected_scene, {}, kShapeRadius, kShapeColor);
+				});
+
+				create_menu_item("Line", [&]() {
+					return CreateLine(
+						*selected_scene, {}, { -100, -100 }, { 100, 100 }, kShapeColor
+					);
+				});
+
+				create_menu_item("Polygon", [&]() {
+					return CreatePolygon(
+						*selected_scene, {},
+						{
+							{ 0, -50 },
+							{ 47, -15 },
+							{ 29, 40 },
+							{ -29, 40 },
+							{ -47, -15 },
+						},
+						kShapeColor
+					);
+				});
+
+				create_menu_item("Ellipse", [&]() {
+					return CreateEllipse(
+						*selected_scene, {}, { kShapeRadius * 2, kShapeRadius }, kShapeColor
+					);
+				});
+
+				create_menu_item("Arc", [&]() {
+					return CreateArc(
+						*selected_scene, {}, kShapeRadius, 0.0f, 90.0f, true, kShapeColor
+					);
+				});
+
+				create_menu_item("Rounded Rect", [&]() {
+					return CreateRoundedRect(*selected_scene, {}, kShapeSize, 10.0f, kShapeColor);
+				});
+
+				create_menu_item("Triangle", [&]() {
+					return CreateTriangle(
+						*selected_scene, {}, { -100, 50 }, { 0, -50 }, { 100, 50 }, kShapeColor
+					);
+				});
+
+				create_menu_item("Capsule", [&]() {
+					return CreateCapsule(
+						*selected_scene, {}, { -100, -100 }, { 100, 100 }, kShapeRadius, kShapeColor
+					);
+				});
 			});
 
-			create_menu_item("Polygon", [&]() {
-				return CreatePolygon(
-					*selected_scene, {},
-					{
-						{ 0, -50 },
-						{ 47, -15 },
-						{ 29, 40 },
-						{ -29, 40 },
-						{ -47, -15 },
-					},
-					kShapeColor
-				);
-			});
+			ImGui::EndMenu();
+		}
 
-			create_menu_item("Ellipse", [&]() {
-				return CreateEllipse(
-					*selected_scene, {}, { kShapeRadius * 2, kShapeRadius }, kShapeColor
-				);
-			});
+		ImGui::EndDisabled();
 
-			create_menu_item("Arc", [&]() {
-				return CreateArc(*selected_scene, {}, kShapeRadius, 0.0f, 90.0f, true, kShapeColor);
-			});
+		if (child_acceptance_reason.has_value()) {
+			ImGui::Separator();
 
-			create_menu_item("Rounded Rect", [&]() {
-				return CreateRoundedRect(*selected_scene, {}, kShapeSize, 10.0f, kShapeColor);
-			});
-
-			create_menu_item("Triangle", [&]() {
-				return CreateTriangle(
-					*selected_scene, {}, { -100, 50 }, { 0, -50 }, { 100, 50 }, kShapeColor
-				);
-			});
-
-			create_menu_item("Capsule", [&]() {
-				return CreateCapsule(
-					*selected_scene, {}, { -100, -100 }, { 100, 100 }, kShapeRadius, kShapeColor
-				);
-			});
-		});
-
-		ImGui::EndMenu();
+			ImGui::TextDisabled(
+				"%.*s", static_cast<int>(child_acceptance_reason->size()),
+				child_acceptance_reason->data()
+			);
+		}
 	};
 
 	ImGui::SetNextItemWidth(-1.0f);
@@ -798,6 +856,8 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 	ImGui::Separator();
 
 	auto filter_text{ std::string_view{ filter_.data() } };
+
+	bool entity_left_clicked_this_frame{ false };
 
 	auto draw_entity = [&](auto&& self, Entity entity, std::size_t recursion_depth) -> void {
 		PTGN_ASSERT(
@@ -848,11 +908,33 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 		}
 
+		Entity dragged{ GetDraggedEntity(*selected_scene) };
+
+		bool hierarchy_drag_active{ static_cast<bool>(dragged) };
+		bool can_drop_on_entity{ hierarchy_drag_active && CanReparent(dragged, entity) };
+		bool invalid_entity_drop_target{ hierarchy_drag_active && !can_drop_on_entity };
+
+		if (invalid_entity_drop_target) {
+			constexpr ImVec4 kTransparent{ 0.0f, 0.0f, 0.0f, 0.0f };
+
+			ImGui::PushStyleColor(ImGuiCol_Header, kTransparent);
+			ImGui::PushStyleColor(ImGuiCol_HeaderHovered, kTransparent);
+			ImGui::PushStyleColor(ImGuiCol_HeaderActive, kTransparent);
+		}
+
 		auto label{ entity.Get<Tag>() };
 		bool open{ ImGui::TreeNodeEx("##Entity", flags, "%s", label.value.c_str()) };
 
-		if (ImGui::IsItemClicked(ImGuiMouseButton_Left) ||
-			ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+		if (invalid_entity_drop_target) {
+			ImGui::PopStyleColor(3);
+		}
+
+		if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+			selected_entity_			   = entity;
+			entity_left_clicked_this_frame = true;
+		}
+
+		if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
 			selected_entity_ = entity;
 		}
 
@@ -864,9 +946,6 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			ImGui::Text("Move %s", label.value.c_str());
 			ImGui::EndDragDropSource();
 		}
-
-		Entity dragged{ GetDraggedEntity(*selected_scene) };
-		bool can_drop_on_entity{ dragged && CanReparent(dragged, entity) };
 
 		if (can_drop_on_entity && ImGui::BeginDragDropTarget()) {
 			if (Entity dropped{ AcceptDraggedEntity(*selected_scene) };
@@ -882,6 +961,10 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		}
 
 		if (ImGui::BeginPopupContextItem()) {
+			draw_create_entity_menu(entity);
+
+			ImGui::Separator();
+
 			if (ptgn::HasParent(entity)) {
 				bool can_move_to_root{ CanReparent(entity, {}) };
 
@@ -939,8 +1022,17 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			"SceneHierarchyPanelContextMenu",
 			ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems
 		)) {
+		// Comment this if right clicking to open the popup context should not deselect the current
+		// entity.
+		selected_entity_ = {};
+
 		draw_create_entity_menu();
 		ImGui::EndPopup();
+	}
+
+	if (ImGui::IsWindowHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+		!entity_left_clicked_this_frame /* && !ImGui::IsAnyItemHovered() */) {
+		selected_entity_ = {};
 	}
 
 	if (pending_drop) {
