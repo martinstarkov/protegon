@@ -4,11 +4,12 @@
 
 #include "serialization/json/fwd.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
 class UUID {
 public:
 	UUID();
+
 	explicit UUID(int uuid);
 
 	operator int() const; // NOSONAR
@@ -20,11 +21,11 @@ private:
 	int uuid_{ 0 };
 };
 
-} // namespace ptgn::impl
+} // namespace ptgn
 
 template <>
-struct std::hash<ptgn::impl::UUID> {
-	std::size_t operator()(const ptgn::impl::UUID& uuid) const {
+struct std::hash<ptgn::UUID> {
+	std::size_t operator()(const ptgn::UUID& uuid) const {
 		return static_cast<std::size_t>(uuid);
 	}
 };

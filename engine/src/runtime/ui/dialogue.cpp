@@ -691,9 +691,9 @@ Entity DialogueBox::Part(DialoguePartRole role) {
 	Entity entity{ GetScene().CreateEntity() };
 
 	switch (role) {
-		case DialoguePartRole::Tween:	   PTGN_DEFAULT_NAME(entity, "Dialogue Tween"); break;
-		case DialoguePartRole::Text:	   PTGN_DEFAULT_NAME(entity, "Dialogue Text"); break;
-		case DialoguePartRole::Background: PTGN_DEFAULT_NAME(entity, "Dialogue Sprite"); break;
+		case DialoguePartRole::Tween:	   entity.Add<Tag>("Dialogue Tween"); break;
+		case DialoguePartRole::Text:	   entity.Add<Tag>("Dialogue Text"); break;
+		case DialoguePartRole::Background: entity.Add<Tag>("Dialogue Sprite"); break;
 		default:						   PTGN_ERROR("Unknown DialoguePartRole: ", std::to_underlying(role));
 	}
 
@@ -709,7 +709,7 @@ Text DialogueBox::TextPart() {
 	}
 
 	Text text{ CreateText(GetScene(), {}, {}, Origin::TopLeft) };
-	PTGN_DEFAULT_NAME(text, "Dialogue Text");
+	text.Add<Tag>("Dialogue Text");
 	text.Add<impl::DialoguePart>(DialoguePartRole::Text);
 	SetParent(text, *this);
 	Hide(text);
@@ -733,7 +733,7 @@ Tween DialogueBox::TweenPart() {
 	}
 
 	Tween tween{ CreateTween(GetScene()) };
-	PTGN_DEFAULT_NAME(tween, "Dialogue Tween");
+	tween.Add<Tag>("Dialogue Tween");
 	tween.Add<impl::DialoguePart>(DialoguePartRole::Tween);
 	SetParent(tween, *this);
 
@@ -816,7 +816,7 @@ void DialogueBox::StartCurrentPageScroll() {
 }
 
 void DialogueBox::PositionTextForPage(const DialoguePageProperties& properties) {
-	Rect outer_rect{ GetLocalRect(GetOrDefault<Origin>(kDefaultOrigin), properties.box_size) };
+	Rect outer_rect{ GetLocalRect(GetOrDefault<Origin>(), properties.box_size) };
 	Rect content_rect{ ApplyPadding(outer_rect, properties.padding) };
 
 	Text text{ TextPart() };
@@ -829,8 +829,8 @@ void DialogueBox::PositionTextForPage(const DialoguePageProperties& properties) 
 
 DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueDesc& desc) {
 	DialogueBox dialogue{ scene.CreateEntity() };
-	PTGN_DEFAULT_NAME(dialogue, "Dialogue Box");
 
+	dialogue.Add<Tag>("Dialogue Box");
 	dialogue.Add<DialogueData>();
 	dialogue.Add<Transform>(transform);
 	dialogue.Add<Origin>(desc.origin);
@@ -846,7 +846,7 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 		Sprite background{
 			CreateSprite(scene, {}, desc.background_texture.value(), Origin::Center)
 		};
-		PTGN_DEFAULT_NAME(background, "Dialogue Sprite");
+		background.Add<Tag>("Dialogue Sprite");
 		background.Add<impl::DialoguePart>(DialoguePartRole::Background);
 		SetParent(background, dialogue);
 
@@ -859,13 +859,13 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 		Hide(background);
 	} else if (desc.box_size.IsPositive()) {
 		Entity background{ scene.CreateEntity() };
-		PTGN_DEFAULT_NAME(background, "Dialogue Background");
 
+		background.Add<Tag>("Dialogue Background");
 		background.Add<Rect>(Rect{ desc.box_size });
 		background.Add<impl::DialoguePart>(DialoguePartRole::Background);
 		background.Add<Color>(desc.background_color);
-		SetDraw<RectDraw>(background);
 		background.Add<Origin>(Origin::Center);
+		SetDraw<RectDraw>(background);
 		SetPosition(background, GetOffset(desc.origin, desc.box_size));
 		SetParent(background, dialogue);
 		Hide(background);

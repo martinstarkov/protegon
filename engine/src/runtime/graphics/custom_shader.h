@@ -9,6 +9,7 @@
 #include "core/math/vector2.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/resources/shader.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 
@@ -16,6 +17,16 @@ namespace ptgn {
 
 class DrawContext;
 class Scene;
+
+struct Material {
+	ShaderKey shader;
+	std::vector<UniformWrite> uniforms;
+	std::optional<std::size_t> texture_slot_capacity;
+
+	constexpr bool operator==(const Material&) const = default;
+
+	PTGN_REFLECT(Material, shader, uniforms, texture_slot_capacity)
+};
 
 class CustomShader : public Entity {
 public:
@@ -45,9 +56,9 @@ struct MaterialUpdate {
 } // namespace impl
 
 CustomShader CreateCustomShader(
-	Scene& scene, Transform transform = {}, std::string_view shader_key = {},
-	std::string_view texture_key = {}, V2_float size = {},
-	const std::vector<UniformWrite>& uniforms = {}, Origin origin = Origin::Center
+	Scene& scene, Transform transform = {}, ShaderKey shader_key = {}, TextureKey texture_key = {},
+	V2_float size = {}, const std::vector<UniformWrite>& uniforms = {},
+	Origin origin = Origin::Center
 );
 
 PTGN_REGISTER_DRAWABLE(CustomShader, { .name = "Custom Shader" });

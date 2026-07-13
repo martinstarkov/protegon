@@ -597,9 +597,8 @@ PTGN_REGISTER_COMPONENT(
 );
 
 PTGN_REGISTER_COMPONENT(
-	::ptgn::impl::Tint,
-	{ .get_read_only_reason =
-		  &HasAnyComponent<"Controlled by Button Sprite Visuals", ButtonSpriteVisuals> }
+	Tint, { .get_read_only_reason =
+				&HasAnyComponent<"Controlled by Button Sprite Visuals", ButtonSpriteVisuals> }
 );
 
 PTGN_REGISTER_COMPONENT(
@@ -692,9 +691,9 @@ void InspectorPanel::OnRender(EditorContext& ctx) {
 		return;
 	}
 
-	auto name{ std::string{ selected_entity.GetTag() } };
+	auto name{ std::string{ selected_entity.Get<Tag>() } };
 	if (ImGui::InputText("Name", &name)) {
-		selected_entity.SetTag(name);
+		selected_entity.Add<Tag>(name);
 	}
 
 	ImGui::Separator();

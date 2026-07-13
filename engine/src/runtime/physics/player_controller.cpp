@@ -100,8 +100,8 @@ void TopDownAnimationRepeat::OnAnimationFrameChange() {
 Entity CreateTopDownPlayer(Scene& scene, Transform transform, const TopDownPlayerConfig& config) {
 	auto player{ scene.CreateEntity() };
 
-	PTGN_DEFAULT_NAME(player, "Top Down Player");
-	SetTransform(player, transform);
+	player.Add<Tag>("Top Down Player");
+	player.Add<Transform>(transform);
 	player.Add<RigidBody>();
 
 	if (config.depth.has_value()) {
@@ -109,15 +109,15 @@ Entity CreateTopDownPlayer(Scene& scene, Transform transform, const TopDownPlaye
 	}
 
 	auto body_hitbox{ scene.CreateEntity() };
-	PTGN_DEFAULT_NAME(body_hitbox, "Body Hitbox");
+	body_hitbox.Add<Tag>("Body Hitbox");
 	body_hitbox.Add<Collider>(Rect{ config.body_hitbox_size });
 	SetPosition(body_hitbox, config.body_hitbox_offset);
 	body_hitbox.Add<RigidBody>();
 
 	auto interaction_hitbox{ scene.CreateEntity() };
-	PTGN_DEFAULT_NAME(interaction_hitbox, "Interaction Hitbox");
-	auto& interaction_collider =
-		interaction_hitbox.Add<Collider>(Rect{ config.interaction_hitbox_size });
+	interaction_hitbox.Add<Tag>("Interaction Hitbox");
+	auto& interaction_collider{ interaction_hitbox.Add<Collider>(Rect{
+		config.interaction_hitbox_size }) };
 	interaction_collider.SetCollisionMode(CollisionMode::Overlap);
 	SetPosition(interaction_hitbox, {});
 
@@ -131,50 +131,51 @@ Entity CreateTopDownPlayer(Scene& scene, Transform transform, const TopDownPlaye
 	movement.max_turn_speed	  = config.max_turn_speed;
 	movement.friction		  = config.friction;
 
-	if (config.animation_texture_key.has_value() && config.animation_frame_count.has_value()) {
+	if (config.animation_texture_key && config.animation_frame_count.has_value()) {
 		Transform animation_transform;
 		auto duration{ config.animation_duration.value_or(1000ms) };
 
 		AnimationMap anim_map{ player.Add<GameObject<AnimationMap>>(CreateAnimationMap(scene)) };
 		auto anim0{ CreateAnimation(
-			scene, animation_transform, config.animation_texture_key.value(),
-			{ .frame_count = config.animation_frame_count.value().x, .duration = duration,
-			  .frame_size = config.animation_frame_size.value_or(V2_int{}) }
+			scene, animation_transform, config.animation_texture_key,
+			{ .frame_count = config.animation_frame_count.value().x,
+			  .duration	   = duration,
+			  .frame_size  = config.animation_frame_size.value_or(V2_int{}) }
 		) };
-		PTGN_DEFAULT_NAME(anim0, "Down Animation");
+		anim0.Add<Tag>("Down Animation");
 		auto a0 = anim_map.Add("down", anim0);
 		anim_map.SetActive("down");
 		auto anim1{ CreateAnimation(
-			scene, animation_transform, config.animation_texture_key.value(),
+			scene, animation_transform, config.animation_texture_key,
 			{ config.animation_frame_count.value().x, duration,
 			  config.animation_frame_size.value_or(V2_int{}), std::nullopt,
 			  V2_float{ 0, config.animation_frame_size.value().y } }
 		) };
-		PTGN_DEFAULT_NAME(anim1, "Right Animation");
+		anim1.Add<Tag>("Right Animation");
 		auto a1 = anim_map.Add("right", anim1);
 		auto anim2{ CreateAnimation(
-			scene, animation_transform, config.animation_texture_key.value(),
+			scene, animation_transform, config.animation_texture_key,
 			{ config.animation_frame_count.value().x, duration,
 			  config.animation_frame_size.value_or(V2_int{}), std::nullopt,
 			  V2_float{ 0, 2 * config.animation_frame_size.value().y } }
 		) };
-		PTGN_DEFAULT_NAME(anim2, "Up Animation");
+		anim2.Add<Tag>("Up Animation");
 		auto a2 = anim_map.Add("up", anim2);
 
 		SetParent(a0, player);
 		SetParent(a1, player);
 		SetParent(a2, player);
 
-		if (config.walk_sound_key.has_value()) {
+		if (config.walk_sound_key) {
 			PTGN_ASSERT(
-				impl::AssetAccessor{ scene.ctx().asset }.Has<Audio>(config.walk_sound_key.value()),
+				impl::AssetAccessor{ scene.ctx().asset }.Has<Audio>(config.walk_sound_key),
 				"Walk sound not found"
 			);
 			auto frequency{ config.walk_sound_frequency.value_or(1) };
 
-			AddScript<impl::TopDownAnimationRepeat>(a0, frequency, config.walk_sound_key.value());
-			AddScript<impl::TopDownAnimationRepeat>(a1, frequency, config.walk_sound_key.value());
-			AddScript<impl::TopDownAnimationRepeat>(a2, frequency, config.walk_sound_key.value());
+			AddScript<impl::TopDownAnimationRepeat>(a0, frequency, config.walk_sound_key);
+			AddScript<impl::TopDownAnimationRepeat>(a1, frequency, config.walk_sound_key);
+			AddScript<impl::TopDownAnimationRepeat>(a2, frequency, config.walk_sound_key);
 		}
 
 		AddScript<impl::TopDownMovementScript>(player);

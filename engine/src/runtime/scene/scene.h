@@ -14,6 +14,8 @@
 #include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
+#include "runtime/ecs/tag.h"
+#include "runtime/ecs/uuid.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/scene/scene_common.h"
 #include "runtime/scene/scene_transition.h"
@@ -109,20 +111,16 @@ public:
 	/// @brief Creates an entity with a specified tag and UUID, or a default tag and a random UUID
 	/// if unspecified.
 	/// Make sure to call Refresh() after this function.
-	Entity CreateEntity(
-		std::optional<std::string_view> tag = std::nullopt, std::optional<int> uuid = std::nullopt
-	);
+	Entity CreateEntity(Tag tag = {}, UUID uuid = {});
 
 	/// @brief Copies all of the from entity's specified components into a new entity with a
 	/// specified tag and UUID, or a default tag and a random UUID if unspecified.
 	/// @brief Make sure to call Refresh() after this function.
 	template <typename... Ts>
-	Entity CopyEntity(
-		Entity from, std::optional<std::string_view> tag = std::nullopt,
-		std::optional<int> uuid = std::nullopt
-	) {
+	Entity CopyEntity(Entity from, Tag tag = {}, UUID uuid = {}) {
 		auto entity{ manager_.CopyEntity<Ts...>(from) };
-		AddMandatoryComponents(entity, tag, uuid);
+		entity.template Add<Tag>(std::move(tag));
+		entity.template Add<UUID>(uuid);
 		return entity;
 	}
 

@@ -221,7 +221,7 @@ void Dropdown::RecalculateButtonPositions() {
 		return parent_shape;
 	};
 
-	V2_float parent_center{ GetOffset(GetOrDefault<ptgn::Origin>(kDefaultOrigin), scaled_parent_size) };
+	V2_float parent_center{ GetOffset(GetOrDefault<ptgn::Origin>(), scaled_parent_size) };
 	V2_float parent_edge{ parent_center - GetOffset(info.origin, scaled_parent_size) };
 
 	PTGN_ASSERT(buttons.size() >= 1);
@@ -282,7 +282,7 @@ Button Dropdown::AddItem(std::string_view text) {
 	return std::visit(
 		[&](const auto& s) {
 			Button button{ CreateButton(GetScene(), {}, s, ptgn::Origin::Center) };
-			PTGN_DEFAULT_NAME(button, "Dropdown Item");
+			button.Add<Tag>("Dropdown Item");
 			button.Text().Content(text);
 
 			AddButton(button);
@@ -419,7 +419,7 @@ Dropdown CreateDropdown(
 	Scene& scene, Transform transform, V2_float size, Origin origin, bool start_open
 ) {
 	Button button{ CreateButton(scene, transform, size, origin) };
-	PTGN_DEFAULT_NAME(button, "Dropdown Button");
+	button.Add<Tag>("Dropdown Button");
 
 	Dropdown dropdown{ button };
 

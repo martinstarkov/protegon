@@ -16,6 +16,7 @@
 #include "renderer/pipeline/render_state.h"
 #include "renderer/resources/id.h"
 #include "renderer/text/text_layout.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scene/scene_camera.h"
 
@@ -92,18 +93,14 @@ struct TextRenderParams {
 
 class RenderQueue {
 public:
-	void DrawTexture(
-		Transform transform, std::string_view texture_key, TextureRenderParams params = {}
-	);
+	void DrawTexture(Transform transform, TextureKey texture_key, TextureRenderParams params = {});
 
 	void DrawTexture(
-		Transform transform, std::string_view texture_key, std::string_view shader_key,
+		Transform transform, TextureKey texture_key, ShaderKey shader_key,
 		TextureRenderParams params = {}
 	);
 
-	void DrawShader(
-		Transform transform, std::string_view shader_key, TextureRenderParams params = {}
-	);
+	void DrawShader(Transform transform, ShaderKey shader_key, TextureRenderParams params = {});
 
 	void DrawText(
 		Transform transform, std::string_view text, Color color, float font_size,
@@ -192,7 +189,7 @@ private:
 
 	void Rebind(Scene& parent_scene);
 
-	impl::ShaderId GetShader(std::string_view shader_key) const;
+	impl::ShaderId GetShader(ShaderKey shader_key) const;
 
 	/// @brief If a primary world camera is set, combine all commands into a single command
 	/// list for that camera.

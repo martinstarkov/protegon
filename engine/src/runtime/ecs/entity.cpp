@@ -116,17 +116,6 @@ Transform GetTransformImpl(Entity entity, Transform world_transform, std::size_t
 
 } // namespace
 
-namespace impl {
-
-void AddMandatoryComponents(
-	Entity entity, std::optional<std::string_view> tag, std::optional<int> uuid
-) {
-	entity.Add<impl::Tag>(tag.value_or(impl::kDefaultTag));
-	entity.Add<impl::UUID>(uuid.value_or(impl::UUID{}));
-}
-
-} // namespace impl
-
 Entity& Entity::Destroy(bool orphan_children) {
 	if (!*this) {
 		return *this;
@@ -181,25 +170,6 @@ bool Entity::IsIdenticalTo(Entity entity) const {
 	return entity_.IsIdenticalTo(entity.entity_);
 }
 
-int Entity::GetUUID() const {
-	PTGN_ASSERT(Has<impl::UUID>(), "Every entity must have a UUID");
-	return Get<impl::UUID>();
-}
-
-std::string Entity::GetTag() const {
-	PTGN_ASSERT(Has<impl::Tag>(), "Every entity must have a tag");
-	return Get<impl::Tag>().value;
-}
-
-Entity& Entity::SetTag(std::string_view tag) {
-	if (Has<impl::Tag>()) {
-		Get<impl::Tag>() = tag;
-	} else {
-		Add<impl::Tag>(tag);
-	}
-	return *this;
-}
-
 std::size_t Entity::GetECSId() const {
 	return entity_.GetId();
 }
@@ -245,8 +215,8 @@ void to_json(json& j, const Entity& entity) {
 		return;
 	}
 
-	j["uuid"]  = entity.GetUUID();
-	j["tag"]   = entity.GetTag();
+	j["uuid"]  = entity.Get<UUID>();
+	j["tag"]   = entity.Get<Tag>();
 	j["scene"] = entity.GetScene().GetTag();
 }
 
@@ -254,15 +224,15 @@ void from_json(const json& j, Entity& entity) {
 	PTGN_ASSERT(entity, "Cannot read JSON into null entity");
 
 	if (j.contains("uuid")) {
-		impl::UUID uuid;
+		UUID uuid;
 		j["uuid"].get_to(uuid);
-		entity.Add<impl::UUID>(uuid);
+		entity.Add<UUID>(uuid);
 	}
 
 	if (j.contains("tag")) {
-		impl::Tag tag;
+		Tag tag;
 		j["tag"].get_to(tag.value);
-		entity.Add<impl::Tag>(std::move(tag));
+		entity.Add<Tag>(std::move(tag));
 	}
 
 	if (j.contains("scene")) {
@@ -285,7 +255,7 @@ Transform GetTransform(Entity entity, Transform world_transform) {
 }
 
 void SetWorldTransform(Entity entity, Transform world_transform) {
-	SetTransform(entity, GetTransform(entity, world_transform));
+	entity.template Add<Transform>(GetTransform(entity, world_transform));
 }
 
 Transform GetDrawTransform(Entity entity) {
@@ -329,7 +299,7 @@ void SetTransform(Entity entity, Transform transform) {
 void SetPosition(Entity entity, V2_float position) {
 	auto transform{ GetTransform(entity) };
 	transform.position = position;
-	SetTransform(entity, transform);
+	entity.template Add<Transform>(transform);
 }
 
 void SetPositionX(Entity entity, float position_x) {
@@ -355,7 +325,7 @@ void TranslateY(Entity entity, float position_y_difference) {
 void SetRotation(Entity entity, Radians rotation) {
 	auto transform{ GetTransform(entity) };
 	transform.rotation = rotation;
-	SetTransform(entity, transform);
+	entity.template Add<Transform>(transform);
 }
 
 void SetRotation(Entity entity, Degrees rotation) {
@@ -374,7 +344,7 @@ void SetScale(Entity entity, V2_float scale) {
 	auto transform{ GetTransform(entity) };
 	transform.scale = scale;
 	transform.ClampScale();
-	SetTransform(entity, transform);
+	entity.template Add<Transform>(transform);
 }
 
 void SetScale(Entity entity, float scale) {

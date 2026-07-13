@@ -22,7 +22,7 @@ FadeInTransition::FadeInTransition(milliseconds duration, milliseconds delay, Ea
 	SceneTransition{ duration, delay, ease } {}
 
 void FadeInTransition::OnDelayStart(Scene& scene) {
-	SetTint(scene.GetRenderTarget(), color::Transparent);
+	scene.GetRenderTarget().Add<Tint>(color::Transparent);
 }
 
 void FadeInTransition::OnStart(Scene& scene) {
@@ -30,14 +30,14 @@ void FadeInTransition::OnStart(Scene& scene) {
 }
 
 void FadeInTransition::OnStop(Scene& scene) {
-	SetTint(scene.GetRenderTarget(), color::White);
+	scene.GetRenderTarget().Add<Tint>(color::White);
 }
 
 FadeOutTransition::FadeOutTransition(milliseconds duration, milliseconds delay, Ease ease) :
 	SceneTransition{ duration, delay, ease } {}
 
 void FadeOutTransition::OnDelayStart(Scene& scene) {
-	SetTint(scene.GetRenderTarget(), color::White);
+	scene.GetRenderTarget().Add<Tint>(color::White);
 }
 
 void FadeOutTransition::OnStart(Scene& scene) {
@@ -45,7 +45,7 @@ void FadeOutTransition::OnStart(Scene& scene) {
 }
 
 void FadeOutTransition::OnStop(Scene& scene) {
-	SetTint(scene.GetRenderTarget(), color::Transparent);
+	scene.GetRenderTarget().Add<Tint>(color::Transparent);
 }
 
 FadeTransition::FadeTransition(milliseconds duration, milliseconds delay, Ease ease) :

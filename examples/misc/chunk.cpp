@@ -36,7 +36,7 @@ public:
 		return e;
 	}
 
-	Entity CreateTile(V2_float position, std::string_view texture_key) {
+	Entity CreateTile(V2_float position, TextureKey texture_key) {
 		auto e = CreateSprite(*this, position, texture_key, Origin::TopLeft);
 		return e;
 	}

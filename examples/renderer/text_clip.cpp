@@ -25,7 +25,7 @@
 using namespace ptgn;
 
 struct TextClipScene : public Scene {
-	static constexpr std::string_view font{ "arial" };
+	static constexpr FontKey font{ "arial" };
 
 	static constexpr std::string_view lorem_ipsum{
 		"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer vitae justo sed neque "

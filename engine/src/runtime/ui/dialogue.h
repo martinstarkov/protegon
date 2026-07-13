@@ -87,7 +87,7 @@ struct DialoguePageProperties {
 	void ApplyToText(Text text) const;
 
 	Color color{ color::White };
-	std::string font{ kDefaultFont };
+	FontKey font{ kDefaultFont };
 	float font_size{ kDefaultFontSize };
 
 	V2_float box_size;
@@ -158,7 +158,7 @@ struct DialogueDesc {
 	/// be resolved.
 	V2_float box_size;
 
-	std::optional<std::string> background_texture;
+	std::optional<TextureKey> background_texture;
 	Color background_color{ color::Black.WithAlpha(180) };
 
 	bool ui_layer{ true };

@@ -47,8 +47,7 @@ void Tooltip::Show(V2_float position) {
 	bool fade_in_force{ true };
 
 	const auto fade_in = [=](auto& entity) {
-		SetTint(entity, color::Transparent);
-		FadeIn(entity, fade_in_duration, fade_in_ease, fade_in_force);
+		FadeIn(entity, fade_in_duration, fade_in_ease, fade_in_force, true);
 	};
 
 	fade_in(instance.text);
@@ -132,7 +131,7 @@ Tooltip CreateTooltip(
 	);
 
 	Tooltip tooltip{ scene.CreateEntity() };
-	PTGN_DEFAULT_NAME(tooltip, "Tooltip");
+	tooltip.Add<Tag>("Tooltip");
 
 	auto& instance{ tooltip.Add<impl::TooltipData>() };
 
@@ -144,18 +143,18 @@ Tooltip CreateTooltip(
 
 	if (tooltip_properties.texture.has_value()) {
 		auto sprite{ CreateSprite(scene, {}, tooltip_properties.texture.value(), Origin::Center) };
-		PTGN_DEFAULT_NAME(sprite, "Tooltip Sprite");
+		sprite.Add<Tag>("Tooltip Sprite");
 		instance.bg = GameObject{ std::move(sprite) };
-		SetTint(instance.bg.value(), color::Transparent);
+		instance.bg.value().Add<Tint>(color::Transparent);
 		AddChild(tooltip, instance.bg.value());
 	}
 
 	Text text{
 		CreateText(scene).Content(tooltip_properties.content).Color(tooltip_properties.text_color)
 	};
-	PTGN_DEFAULT_NAME(text, "Tooltip Text");
+	text.Add<Tag>("Tooltip Text");
 	instance.text = GameObject<Text>{ std::move(text) };
-	SetTint(instance.text, color::Transparent);
+	instance.text.Add<Tint>(color::Transparent);
 	AddChild(tooltip, instance.text);
 
 	return tooltip;
@@ -176,7 +175,7 @@ Tooltip AddTooltipOnHover(
 
 	if (entity.HasAny<Texture, TextureKey>() && !HasInteractiveShape(entity)) {
 		auto rect{ entity.GetScene().CreateEntity() };
-		PTGN_DEFAULT_NAME(rect, "Tooltip Interactive Rect");
+		rect.Add<Tag>("Tooltip Interactive Rect");
 		V2_float size{ *GetTextureSize(entity) };
 		rect.Add<Rect>(size);
 		AddInteractiveShape(entity, GameObject{ std::move(rect) });

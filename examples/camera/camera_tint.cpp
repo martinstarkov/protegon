@@ -21,8 +21,8 @@ private:
 
 		second_camera = CreateCamera(*this);
 
-		ctx().camera.SetTag("Left Camera");
-		second_camera.SetTag("Right Camera");
+		ctx().camera.Add<Tag>("Left Camera");
+		second_camera.Add<Tag>("Right Camera");
 
 		ctx().camera.SetViewport(
 			Viewport{ { 0.0f, 0.0f }, { 0.5f, 1.0f } }, ViewportSpace::Normalized

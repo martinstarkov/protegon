@@ -17,6 +17,7 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/type_info.h"
+#include "runtime/ecs/uuid.h"
 #include "serialization/json/archiver.h"
 #include "serialization/json/json.h"
 
@@ -150,12 +151,6 @@ public:
 
 	bool IsIdenticalTo(Entity entity) const;
 
-	int GetUUID() const;
-
-	std::string GetTag() const;
-
-	Entity& SetTag(std::string_view tag);
-
 	std::size_t GetECSId() const;
 
 	friend void to_json(json& j, const Entity& entity);
@@ -207,10 +202,6 @@ struct IgnoreParentScale {};
 
 using EntityFilterFunc = std::function<bool(Entity)>;
 
-void AddMandatoryComponents(
-	Entity entity, std::optional<std::string_view> tag, std::optional<int> uuid
-);
-
 } // namespace impl
 
 /// @return The transform of the entity.
@@ -238,7 +229,7 @@ Degrees GetWorldRotation(Entity entity);
 V2_float GetScale(Entity entity);
 V2_float GetWorldScale(Entity entity);
 
-/// Set the transform of the entity with respect to its parent entity.
+/// @brief Set the transform of the entity with respect to its parent entity.
 void SetTransform(Entity entity, Transform transform);
 
 void SetPosition(Entity entity, V2_float position);
@@ -249,7 +240,7 @@ void Translate(Entity entity, V2_float position_difference);
 void TranslateX(Entity entity, float position_x_difference);
 void TranslateY(Entity entity, float position_y_difference);
 
-/// Set 2D rotation angle.
+/// @brief Set 2D rotation angle.
 /// Range: (-180, 180].
 /// Positive clockwise.
 ///          -90
@@ -281,6 +272,6 @@ void IgnoreParentScale(Entity entity, bool ignore_parent_scale = true);
 template <>
 struct std::hash<ptgn::Entity> {
 	std::size_t operator()(const ptgn::Entity& entity) const {
-		return static_cast<std::size_t>(entity.GetUUID());
+		return static_cast<std::size_t>(entity.Get<ptgn::UUID>());
 	}
 };

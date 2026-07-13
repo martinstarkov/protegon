@@ -9,6 +9,7 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "renderer/pipeline/render_state.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/scripting/script.h"
@@ -64,7 +65,7 @@ struct TopDownPlayerConfig {
 	// TODO: Move to a shared animation struct.
 	/// @brief These three are necessary for animation to work.
 	std::optional<V2_uint> animation_frame_count;
-	std::optional<std::string> animation_texture_key;
+	TextureKey animation_texture_key;
 	std::optional<V2_int> animation_frame_size;
 
 	/// @brief Defaults to 1000ms if not provided.
@@ -74,7 +75,7 @@ struct TopDownPlayerConfig {
 
 	// TODO: Move to a shared sound struct.
 	/// @brief Required for sound to play
-	std::optional<std::string> walk_sound_key;
+	AudioKey walk_sound_key;
 	/// @brief Defaults to 1 if not provided.
 	std::optional<std::size_t> walk_sound_frequency;
 

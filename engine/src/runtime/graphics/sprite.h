@@ -13,6 +13,7 @@
 #include "renderer/draw_context.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/texture.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
 #include "serialization/serialize.h"
@@ -66,18 +67,6 @@ struct TextureCrop {
 
 } // namespace impl
 
-struct TextureKey {
-	constexpr TextureKey() = default;
-
-	constexpr TextureKey(std::string_view key) : value{ std::string{ key } } {} // NOSONAR
-
-	constexpr TextureKey(std::string key) : value{ std::move(key) } {}			// NOSONAR
-
-	std::string value;
-
-	PTGN_REFLECT_VALUE(TextureKey, value)
-};
-
 class Sprite : public Entity {
 public:
 	Sprite() = default;
@@ -90,11 +79,11 @@ public:
 
 	static void Draw(DrawContext& ctx, Entity entity);
 
-	Sprite& SetTexture(std::string_view texture_key);
+	Sprite& SetTexture(TextureKey texture_key);
 };
 
 Sprite CreateSprite(
-	Scene& scene, Transform transform = {}, std::string_view texture_key = {},
+	Scene& scene, Transform transform = {}, TextureKey texture_key = {},
 	Origin origin = Origin::Center
 );
 

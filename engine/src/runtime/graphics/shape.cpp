@@ -56,8 +56,8 @@ namespace impl {
 ShapeDrawParams GetShapeDrawParams(Entity entity) {
 	return { .depth{ GetDepth(entity) },
 			 .fill_style{ entity.GetOrDefault<FillStyle>() },
-			 .origin	= entity.GetOrDefault<Origin>(kDefaultOrigin),
-			 .entity_id = entity.GetUUID(),
+			 .origin	= entity.GetOrDefault<Origin>(),
+			 .entity_id = entity.Get<UUID>(),
 			 .effects{ impl::GetEffectParams(entity) } };
 }
 
@@ -123,7 +123,7 @@ Transform OffsetByOrigin(const Shape& shape, Transform transform, Entity entity)
 		return transform;
 	}
 	const auto& rect{ shape.Get<Rect>() };
-	auto origin{ entity.GetOrDefault<Origin>(kDefaultOrigin) };
+	auto origin{ entity.GetOrDefault<Origin>() };
 	return rect.Offset(transform, origin);
 }
 
@@ -138,13 +138,13 @@ Entity CreateShape(
 ) {
 	auto entity{ scene.CreateEntity() };
 
-	SetDraw<TShapeDraw>(entity);
-	SetTransform(entity, transform);
-
+	entity.Add<Transform>(transform);
 	entity.Add<TShape>(std::move(shape));
 	entity.Add<Color>(color);
 	entity.Add<FillStyle>(fill_style);
 	entity.Add<Visible>(true);
+
+	SetDraw<TShapeDraw>(entity);
 
 	return entity;
 }
@@ -154,7 +154,7 @@ Entity CreateRect(
 	Origin origin
 ) {
 	auto rect{ CreateShape<RectDraw>(scene, transform, Rect{ size }, color, fill_style) };
-	PTGN_DEFAULT_NAME(rect, "Rect");
+	rect.Add<Tag>("Rect");
 	rect.Add<Origin>(origin);
 	return rect;
 }
@@ -166,7 +166,7 @@ Entity CreateRoundedRect(
 	auto rounded_rect{ CreateShape<RoundedRectDraw>(
 		scene, transform, RoundedRect{ size, radius }, color, fill_style
 	) };
-	PTGN_DEFAULT_NAME(rounded_rect, "Rounded Rect");
+	rounded_rect.Add<Tag>("Rounded Rect");
 	rounded_rect.Add<Origin>(origin);
 	return rounded_rect;
 }
@@ -179,7 +179,7 @@ Entity CreatePolygon(
 	auto polygon{
 		CreateShape<PolygonDraw>(scene, transform, Polygon{ vertices }, color, fill_style)
 	};
-	PTGN_DEFAULT_NAME(polygon, "Polygon");
+	polygon.Add<Tag>("Polygon");
 	return polygon;
 }
 
@@ -190,7 +190,7 @@ Entity CreateTriangle(
 	auto triangle{
 		CreateShape<TriangleDraw>(scene, transform, Triangle{ a, b, c }, color, fill_style)
 	};
-	PTGN_DEFAULT_NAME(triangle, "Triangle");
+	triangle.Add<Tag>("Triangle");
 	return triangle;
 }
 
@@ -198,7 +198,7 @@ Entity CreateCircle(
 	Scene& scene, Transform transform, float radius, Color color, FillStyle fill_style
 ) {
 	auto circle{ CreateShape<CircleDraw>(scene, transform, Circle{ radius }, color, fill_style) };
-	PTGN_DEFAULT_NAME(circle, "Circle");
+	circle.Add<Tag>("Circle");
 	return circle;
 }
 
@@ -206,7 +206,7 @@ Entity CreateEllipse(
 	Scene& scene, Transform transform, V2_float radii, Color color, FillStyle fill_style
 ) {
 	auto ellipse{ CreateShape<EllipseDraw>(scene, transform, Ellipse{ radii }, color, fill_style) };
-	PTGN_DEFAULT_NAME(ellipse, "Ellipse");
+	ellipse.Add<Tag>("Ellipse");
 	return ellipse;
 }
 
@@ -217,7 +217,7 @@ Entity CreateArc(
 	auto arc{ CreateShape<ArcDraw>(
 		scene, transform, Arc{ arc_radius, start_angle, end_angle, clockwise }, color, fill_style
 	) };
-	PTGN_DEFAULT_NAME(arc, "Arc");
+	arc.Add<Tag>("Arc");
 	return arc;
 }
 
@@ -225,7 +225,7 @@ Entity CreateLine(
 	Scene& scene, Transform transform, V2_float start, V2_float end, Color color, float width
 ) {
 	auto line{ CreateShape<LineDraw>(scene, transform, Line{ start, end }, color, width) };
-	PTGN_DEFAULT_NAME(line, "Line");
+	line.Add<Tag>("Line");
 	return line;
 }
 
@@ -236,7 +236,7 @@ Entity CreateCapsule(
 	auto capsule{
 		CreateShape<CapsuleDraw>(scene, transform, Capsule{ start, end, radius }, color, fill_style)
 	};
-	PTGN_DEFAULT_NAME(capsule, "Capsule");
+	capsule.Add<Tag>("Capsule");
 	return capsule;
 }
 

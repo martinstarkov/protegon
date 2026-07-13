@@ -62,7 +62,7 @@ void Graphics::Draw(DrawContext& ctx, Entity entity) {
 			cmd_transform, cmd.shape, cmd.color,
 			{ .depth	  = GetDepth(entity),
 			  .fill_style = cmd.line_width,
-			  .entity_id  = entity.GetUUID(),
+			  .entity_id  = entity.Get<UUID>(),
 			  .effects	  = impl::GetEffectParams(entity) }
 		);
 	}
@@ -134,8 +134,7 @@ Graphics& Graphics::StrokePolygon(const Polygon& polygon) {
 Graphics CreateGraphics(Scene& scene, Transform transform) {
 	Graphics graphics{ scene.CreateEntity() };
 
-	PTGN_DEFAULT_NAME(graphics, "Graphics");
-
+	graphics.Add<Tag>("Graphics");
 	graphics.Add<impl::GraphicsData>();
 	graphics.Add<Transform>(transform);
 	graphics.Add<Visible>(true);

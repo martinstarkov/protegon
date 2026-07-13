@@ -233,7 +233,7 @@ Rect GetButtonLocalRect(Button button) {
 				 },
 				 button.GetSize()
 			 ),
-			 button.GetOrDefault<Origin>(kDefaultOrigin) };
+			 button.GetOrDefault<Origin>() };
 }
 
 Rect GetButtonTextContentRect(Button button, Padding padding) {
@@ -504,8 +504,7 @@ void ApplyButtonSpriteConfig(ButtonSpriteVisuals& visuals, const ButtonSpriteCon
 	}
 
 	auto apply_sprite_state = [&config, &visuals](
-								  ButtonVisualState state,
-								  const std::optional<std::string>& texture,
+								  ButtonVisualState state, const std::optional<TextureKey>& texture,
 								  const std::optional<Color>& tint
 							  ) {
 		auto& visual{ visuals.states[std::to_underlying(state)] };
@@ -701,9 +700,7 @@ void ApplyButtonDescVisuals(Button button, const ButtonDesc& desc) {
 
 		const auto& sound{ desc.sounds.states[index] };
 		if (sound.has_value()) {
-			button.Sound(
-				std::optional<std::string_view>{ std::string_view{ sound.value() } }, state
-			);
+			button.Sound(sound, state);
 		}
 	}
 }
@@ -1288,7 +1285,7 @@ Button& Button::RemoveAnimation(ButtonVisualState state) {
 	return *this;
 }
 
-Button& Button::Sound(std::optional<std::string_view> sound_key, ButtonVisualState state) {
+Button& Button::Sound(std::optional<AudioKey> sound_key, ButtonVisualState state) {
 	auto& sounds{ TryAdd<ButtonSounds>() };
 	auto& slot{ sounds.states[std::to_underlying(state)] };
 
@@ -1303,7 +1300,7 @@ Button& Button::Sound(std::optional<std::string_view> sound_key, ButtonVisualSta
 }
 
 Button& Button::Sounds(
-	std::optional<std::string_view> hover, std::optional<std::string_view> press
+	std::optional<AudioKey> hover, std::optional<AudioKey> press
 ) {
 	Sound(hover, ButtonVisualState::Hover);
 	Sound(press, ButtonVisualState::Press);
@@ -1456,7 +1453,7 @@ Entity Button::EnsurePart(impl::ButtonPart part) {
 		default: PTGN_ERROR("Unsupported button part: ", std::to_underlying(part));
 	}
 
-	auto name{ std::string{ "Button " } };
+	std::string name{ "Button " };
 
 	switch (part) {
 		case impl::ButtonPart::Background: name += "Background"; break;
@@ -1467,7 +1464,7 @@ Entity Button::EnsurePart(impl::ButtonPart part) {
 		default:						   PTGN_ERROR("Unsupported button part: ", std::to_underlying(part));
 	}
 
-	PTGN_DEFAULT_NAME(entity, name);
+	entity.Add<Tag>(name);
 
 	SetParent(entity, *this);
 	SetUI(entity, true);
@@ -1562,8 +1559,8 @@ void Button::ApplyShapeVisual(impl::ButtonPart part) const {
 	SetVisible(entity, button_visible);
 
 	auto size{ HasAny<Rect, Circle>() ? GetSize() : std::variant<V2_float, float>{ V2_float{} } };
-	auto origin{ GetOrDefault<Origin>(kDefaultOrigin) };
-	auto anchor{ GetOrDefault<Origin>(kDefaultOrigin) };
+	auto origin{ GetOrDefault<Origin>() };
+	auto anchor{ GetOrDefault<Origin>() };
 
 	if (auto value{ ResolveProperty(visuals.states, visual_state, &ButtonShapeVisual::size) }) {
 		size = *value;
@@ -1722,9 +1719,9 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 		return;
 	}
 
-	std::string texture;
-	auto origin{ GetOrDefault<Origin>(kDefaultOrigin) };
-	auto anchor{ GetOrDefault<Origin>(kDefaultOrigin) };
+	std::optional<TextureKey> texture;
+	auto origin{ GetOrDefault<Origin>() };
+	auto anchor{ GetOrDefault<Origin>() };
 	std::optional<V2_float> size;
 	Color tint{ color::White };
 	const AnimationConfig* animation{ nullptr };
@@ -1768,11 +1765,11 @@ void Button::ApplySpriteVisual(ButtonVisualState state) const {
 		}
 	}
 
-	if (!texture.empty()) {
-		sprite.Add<TextureKey>(texture);
+	if (texture.has_value()) {
+		sprite.Add<TextureKey>(texture.value());
 	}
 
-	sprite.Add<impl::Tint>(tint);
+	sprite.Add<Tint>(tint);
 	sprite.Add<Origin>(origin);
 
 	if (size.has_value()) {
@@ -1813,7 +1810,7 @@ void Button::PlaySound(ButtonVisualState state) {
 
 	auto& audio{ GetScene().ctx().audio };
 
-	auto get_sound = [&sounds](auto state) -> std::optional<std::string> {
+	auto get_sound = [&sounds](auto state) -> std::optional<AudioKey> {
 		for (auto fallback : GetVisualStateFallbacks(state)) {
 			const auto& sound{ sounds.states[std::to_underlying(fallback)] };
 			if (sound.has_value()) {
@@ -2393,14 +2390,14 @@ StyledText& ButtonText::StyledTextForEdit(ButtonVisualState state) {
 	return visual.styled_text.value();
 }
 
-ButtonText& ButtonText::Font(std::string_view font) {
+ButtonText& ButtonText::Font(FontKey font) {
 	auto& styled_text{ StyledTextForEdit() };
 
 	bool changed{ false };
 
 	for (auto& run : styled_text.runs) {
 		if (run.font != font) {
-			run.font = std::string{ font };
+			run.font = font;
 			changed	 = true;
 		}
 	}
@@ -2728,11 +2725,11 @@ ptgn::Button ButtonSprite::Button() const {
 	return button_;
 }
 
-ButtonSprite& ButtonSprite::Texture(std::string_view texture_key, ButtonVisualState state) {
+ButtonSprite& ButtonSprite::Texture(TextureKey texture_key, ButtonVisualState state) {
 	auto& visual{ button_.SpriteVisual(state) };
 
 	visual.defined = true;
-	visual.texture = std::string{ texture_key };
+	visual.texture = std::move(texture_key);
 
 	button_.MarkDirty(impl::ButtonDirty::Sprite);
 	button_.RefreshDirty();
@@ -2740,13 +2737,13 @@ ButtonSprite& ButtonSprite::Texture(std::string_view texture_key, ButtonVisualSt
 	return *this;
 }
 
-ButtonSprite& ButtonSprite::Texture(std::string_view texture_key) {
+ButtonSprite& ButtonSprite::Texture(TextureKey texture_key) {
 	return Texture(texture_key, state_);
 }
 
 ButtonSprite& ButtonSprite::Textures(
-	std::optional<std::string_view> idle, std::optional<std::string_view> hover,
-	std::optional<std::string_view> press
+	std::optional<TextureKey> idle, std::optional<TextureKey> hover,
+	std::optional<TextureKey> press
 ) {
 	if (idle.has_value()) {
 		Texture(idle.value(), ButtonVisualState::Idle);
@@ -2887,14 +2884,14 @@ ButtonSprite& ButtonSprite::Clear() {
 ButtonAnimation::ButtonAnimation(ptgn::Button button, ButtonVisualState state) :
 	ButtonSprite{ button, state } {}
 
-ButtonAnimation& ButtonAnimation::Texture(std::string_view texture_key) {
+ButtonAnimation& ButtonAnimation::Texture(TextureKey texture_key) {
 	ButtonSprite::Texture(texture_key);
 	return *this;
 }
 
 ButtonAnimation& ButtonAnimation::Textures(
-	std::optional<std::string_view> idle, std::optional<std::string_view> hover,
-	std::optional<std::string_view> press
+	std::optional<TextureKey> idle, std::optional<TextureKey> hover,
+	std::optional<TextureKey> press
 ) {
 	ButtonSprite::Textures(idle, hover, press);
 	return *this;
@@ -3050,8 +3047,7 @@ Button CreateButton(Scene& scene, Transform transform, const ButtonDesc& desc) {
 
 	Button button{ scene.CreateEntity() };
 
-	PTGN_DEFAULT_NAME(button, "Button");
-
+	button.Add<Tag>("Button");
 	button.Add<Visible>(true);
 	button.Add<impl::ButtonData>();
 	button.Add<Transform>(transform);

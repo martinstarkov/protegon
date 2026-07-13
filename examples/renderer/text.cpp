@@ -36,8 +36,8 @@ struct TextEffectsScene : public Scene {
 	}
 
 	Text CreateLine(
-		std::string_view text_content, const Color& color = color::Black,
-		std::string_view font_key = {}, float font_size = 20.0f
+		std::string_view text_content, const Color& color = color::Black, FontKey font_key = {},
+		float font_size = 20.0f
 	) {
 		auto text{ CreateText(*this, GetTextPosition(current_line)) };
 

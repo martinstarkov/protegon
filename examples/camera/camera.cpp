@@ -18,233 +18,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
 
-// TODO: Fix this demo.
-
 using namespace ptgn;
-
-/*
-class CameraUIScene : public Scene {
-constexpr V2_int deadzone_size{ 150, 150 };
-public:
-	void OnEnter() override {
-		game.texture.Load("ui_texture2", "assets/ui2.jpg");
-
-		auto ui = CreateSprite(*this, {}, "ui_texture2", Origin::TopLeft);
-
-		auto camera_center = manager.CreateEntity();
-		camera_center.Add<Circle>(3.0f);
-		camera_center.SetPosition(ctx().window.GetCenter());
-		camera_center.SetTint(color::Black);
-		camera_center.Show();
-
-		auto deadzone = manager.CreateEntity();
-		deadzone.Add<Rect>(deadzone_size, Origin::Center);
-		deadzone.SetPosition(ctx().window.GetCenter());
-		deadzone.Add<FillStyle>(2.0f);
-		deadzone.SetOrigin;
-		deadzone.SetTint(color::DarkGreen);
-		deadzone.Show();
-
-		camera.FadeFrom(color::Black, 3s);
-		camera.FadeTo(color::Red, 3s);
-		camera.FadeFrom(color::Red, 3s);
-	}
-};
-*/
-
-/*
-class CameraExampleScene : public Scene {
-public:
-	const float pan_speed	   = 200.0f;
-	const float rotation_speed = 1.0f;
-	const float zoom_speed{ 0.4f };
-
-	Entity rt;
-	Entity ui;
-	Entity mouse;
-
-	CameraExampleScene() {
-		ctx().scene.Load<CameraUIScene>("ui_scene");
-	}
-
-	void OnEnter() override {
-		game.texture.Load("texture", "assets/test1.jpg");
-
-		camera.SetPosition(ctx().window.GetCenter());
-		// camera.SetBounds({}, window_size);
-
-		auto texture = CreateSprite(*this, ctx().window.GetCenter(), "texture");
-		texture.Add<Interactive>();
-		texture.Add<callback::KeyPressed>([](auto key) {
-			if (key == Key::W) {
-				PTGN_LOG("Key down W");
-			}
-		});
-		texture.Add<callback::KeyPressed>([](auto key) {
-			if (key == Key::W) {
-				PTGN_LOG("Key pressed W");
-			}
-		});
-		texture.Add<callback::KeyUp>([](auto key) {
-			if (key == Key::W) {
-				PTGN_LOG("Key up W");
-			}
-		});
-		texture.Add<callback::MouseMove>([](auto mouse) { PTGN_LOG("Mouse move: ", mouse); });
-		texture.Add<callback::MouseDown>([](auto mouse) { PTGN_LOG("Mouse down: ", mouse); });
-		texture.Add<callback::MouseUp>([](auto mouse) { PTGN_LOG("Mouse up: ", mouse); });
-		texture.Add<callback::MousePressed>([](auto mouse) { PTGN_LOG("Mouse pressed: ", mouse); });
-		texture.Add<callback::MouseScroll>([](auto scroll) { PTGN_LOG("Mouse scroll: ", scroll); });
-
-		auto b = manager.CreateEntity();
-		b.Add<Rect>(window_size, Origin::TopLeft);
-		b.SetPosition({});
-		b.Add<FillStyle>(3.0f);
-		b.SetTint(color::Red);
-		b.Show();
-
-		ctx().scene.Enter("ui_scene");
-
-		game.texture.Load("ui_texture", "assets/ui.jpg");
-
-		ui = CreateSprite(*this, V2_float{ window_size.x, 0 }, "ui_texture", Origin::TopRight);
-		ui.Hide();
-
-		rt = manager.CreateEntity();
-		rt.Add<RenderTarget>(manager, window_size);
-		rt.SetPosition({});
-		rt.Show();
-
-		mouse = manager.CreateEntity();
-		mouse.SetPosition({});
-		mouse.Add<Circle>(20.0f);
-		mouse.SetTint(color::Red);
-		mouse.Show();
-
-		camera.PanTo({ 0, 0 }, 3s);
-		camera.PanTo({ 800, 0 }, 3s);
-		camera.PanTo({ 800, 800 }, 3s);
-		camera.PanTo({ 0, 800 }, 3s);
-		StartFollow(camera,mouse);
-		camera.SetLerp(V2_float{ 0.9f });
-		// camera.SetOffset(V2_float{ -75, -75 });
-		camera.SetDeadzone(deadzone_size);
-
-		camera.ZoomTo(0.5f, 3s);
-		camera.ZoomTo(2.0f, 3s);
-		camera.ZoomTo(0.25f, 3s);
-		camera.ZoomTo(1.0f, 3s);
-
-		camera.RotateTo(90.0f, 3s);
-		camera.RotateTo(0.0f, 3s);
-		camera.RotateTo(-90.0f, 3s);
-		camera.RotateTo(0.0f, 3s);
-	}
-
-	void OnUpdate() override {
-		V2_float center{ ctx().window.GetCenter() };
-		auto dt{ ctx().dt().count() };
-
-		if (ctx().input.KeyHeld(Key::W)) {
-			Translate(camera,{ 0, -pan_speed * dt });
-		}
-		if (ctx().input.KeyHeld(Key::S)) {
-			Translate(camera,{ 0, pan_speed * dt });
-		}
-		if (ctx().input.KeyHeld(Key::A)) {
-			Translate(camera,{ -pan_speed * dt, 0 });
-		}
-		if (ctx().input.KeyHeld(Key::D)) {
-			Translate(camera,{ pan_speed * dt, 0 });
-		}
-
-		if (ctx().input.KeyHeld(Key::Z)) {
-			camera.Yaw(rotation_speed * dt);
-		}
-
-		if (ctx().input.KeyHeld(Key::X)) {
-			camera.Yaw(-rotation_speed * dt);
-		}
-
-		if (ctx().input.KeyHeld(Key::C)) {
-			camera.Pitch(rotation_speed * dt);
-		}
-
-		if (ctx().input.KeyHeld(Key::V)) {
-			camera.Pitch(-rotation_speed * dt);
-		}
-
-		if (ctx().input.KeyHeld(Key::B)) {
-			camera.Roll(rotation_speed * dt);
-		}
-
-		if (ctx().input.KeyHeld(Key::N)) {
-			camera.Roll(-rotation_speed * dt);
-		}
-
-		if (ctx().input.KeyHeld(Key::E)) {
-			camera.Zoom(zoom_speed * dt);
-		}
-		if (ctx().input.KeyHeld(Key::Q)) {
-			camera.Zoom(-zoom_speed * dt);
-		}
-
-		if (ctx().input.KeyHeld(Key::R)) {
-			camera.SetPosition(center);
-			camera.SetZoom(1.0f);
-		}
-
-		if (ctx().input.MousePressed(Mouse::Left)) {
-			mouse.SetPosition( =
-				camera.TransformToCamera(ctx().input.GetMousePosition());
-			//camera.PanTo(camera.TransformToCamera(ctx().input.GetMousePosition()),
-4s,Ease::InOutSine, false); } else if (ctx().input.MousePressed(Mouse::Right)) {
-			StopFollow(camera);
-		}
-
-		const auto& r{ rt.Get<RenderTarget>() };
-		r.Bind();
-		r.Clear();
-
-		r.Draw(ui);
-	}
-};
-*/
-
-/*
-class PostProcessingEffect {
-public:
-	PostProcessingEffect() {}
-
-	static void Draw(const Entity& entity) {
-		impl::DrawShader(entity);
-	}
-};
-
-PTGN_DRAWABLE_REGISTER(PostProcessingEffect);
-
-Entity CreatePostFX(Scene& scene) {
-	auto effect{ scene.CreateEntity() };
-
-	SetDraw<PostProcessingEffect>(effect);
-	Show(effect);
-	SetBlendMode(effect, BlendMode::ReplaceRGBA);
-
-	return effect;
-}
-
-Entity CreateBlur(Scene& scene) {
-	auto blur{ CreatePostFX(scene) };
-	blur.Add<impl::ShaderPass>(game.shader.Get("blur"), nullptr);
-	return blur;
-}
-
-Entity CreateGrayscale(Scene& scene) {
-	auto grayscale{ CreatePostFX(scene) };
-	grayscale.Add<impl::ShaderPass>(game.shader.Get("grayscale"), nullptr);
-	return grayscale;
-}
-*/
 
 class CameraScene : public Scene {
 public:
@@ -261,40 +35,24 @@ public:
 	V2_int center{ 0, 0 };
 
 	void OnEnter() override {
-		//	camera.SetPixelRounding(true);
 		ctx().asset.Load("tree", "assets/jpg.jpg");
 
 		mouse = CreateEntity();
 		SetPosition(mouse, {});
 
-		// auto blur{ CreateBlur(*this) };
-		// auto grayscale{ CreateGrayscale(*this) };
 		auto logical_size{ ctx().renderer.GetLogicalSize() };
 		auto s1{ CreateSprite(*this, -logical_size * 0.5f + V2_float{ 100, 400 }, "tree") };
-		// AddPreFX(s1, blur);
-		auto s2{ CreateSprite(*this, -logical_size * 0.5f + V2_float{ 700, 400 }, "tree") };
-		// AddPostFX(s2, grayscale);
+		auto s2{
+			CreateSprite(*this, -logical_size * 0.5f + V2_float{ 700, 400 }, "tree")
+		}; // AddPostFX(s2, grayscale);
 
 		follow_config.move_mode = MoveMode::Lerp;
 		follow_config.lerp		= { 0.5f, 0.5f };
 		follow_config.deadzone	= { 300, 300 };
-
-		// Shake(camera, 0.5f, 5s);
-		// RotateTo(camera, 360.0f, 5s);
-		// Shake(camera, 1, 5s, {}, Ease::Linear, false);
-		// Shake(camera, 0, 5s, {}, Ease::Linear, false);
-		// FadeTo(camera, color::Red, 5s);
-		// FadeFrom(camera, color::Red, 3s, Ease::InOutBack, false);
-		// StartFollow(camera, mouse, follow_config);
 	}
 
 	void OnUpdate() override {
 		auto dt{ ctx().dt().count() };
-
-		/*	PTGN_LOG(
-				"Mouse screen pos: ", ctx().input.GetMouseWindowPosition(),
-				", Mouse world pos: ", ctx().input.GetMousePosition()
-			);*/
 
 		SetPosition(mouse, ctx().input.GetMousePosition());
 
@@ -333,16 +91,6 @@ public:
 		} else if (ctx().input.MousePressed(Mouse::Right)) {
 			StartFollow(camera, mouse, follow_config);
 		}
-
-		// TODO: Fix text.
-		// ctx().renderer.DrawText(
-		//	content, center - 0 * V2_float{ 0.0f, font_size }, color, font_size, {}, {},
-		//	Origin::Center, {}, false
-		//);
-		// ctx().renderer.DrawText(
-		//	content, center + 1 * V2_float{ 0.0f, font_size }, color, font_size, {}, {},
-		//	Origin::Center, {}, true
-		//);
 	}
 };
 

@@ -101,7 +101,7 @@ EffectEntity<T> CreateEffect(Scene& scene, TArgs&&... args) {
 	std::string name{
 		impl::EffectRegistration<T>::Get().options.name.value_or(type_name_without_namespaces<T>())
 	};
-	PTGN_DEFAULT_NAME(effect, name + " Entity");
+	effect.Add<Tag>(name + " Entity");
 	impl::CreateEffect<T>(effect, std::forward<TArgs>(args)...);
 	return EffectEntity<T>{ effect };
 }

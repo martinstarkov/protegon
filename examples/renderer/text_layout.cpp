@@ -23,7 +23,7 @@
 using namespace ptgn;
 
 struct TextLayoutScene : public Scene {
-	static constexpr std::string_view font{ "arial" };
+	static constexpr FontKey font{ "arial" };
 
 	static constexpr int kColumnCount{ 3 };
 

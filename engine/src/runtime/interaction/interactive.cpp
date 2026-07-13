@@ -60,8 +60,7 @@ void AddInteractiveRect(
 	auto& scene{ interactive_entity.GetScene() };
 	auto shape = scene.CreateEntity();
 
-	PTGN_DEFAULT_NAME(shape, "Interactive Rect");
-
+	shape.Add<Tag>("Interactive Rect");
 	shape.Add<Rect>(size);
 	shape.Add<Transform>(transform);
 	shape.Add<Origin>(origin);
@@ -85,9 +84,9 @@ void AddInteractiveCircle(
 ) {
 	auto& scene{ interactive_entity.GetScene() };
 	auto shape = scene.CreateEntity();
-	PTGN_DEFAULT_NAME(shape, "Interactive Circle");
+	shape.Add<Tag>("Interactive Circle");
 	shape.Add<Circle>(radius);
-	SetTransform(shape, transform);
+	shape.Add<Transform>(transform);
 	AddInteractiveShape(interactive_entity, shape, shape_id, ignore_parent_transform);
 }
 

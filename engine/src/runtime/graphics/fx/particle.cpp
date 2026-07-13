@@ -522,8 +522,8 @@ ParticleEmitter CreateParticleEmitter(
 	Scene& scene, Transform transform, const ParticleConfig& config, bool start
 ) {
 	ParticleEmitter particle{ scene.CreateEntity() };
-	PTGN_DEFAULT_NAME(particle, "Particle Emitter");
 
+	particle.Add<Tag>("Particle Emitter");
 	particle.Add<Transform>(transform);
 	particle.Add<impl::ParticleEmitterComponent>(config);
 	particle.Add<Visible>(true);

@@ -65,7 +65,7 @@ RenderPass& RenderPass::Uniform(std::string_view name, int value) {
 		!UniformsContain(pass.material.uniforms, name),
 		"Cannot set the same uniform more than once per pass"
 	);
-	pass.material.uniforms.emplace_back(name, value);
+	pass.material.uniforms.emplace_back(std::string{ name }, value);
 	return *this;
 }
 
@@ -75,7 +75,7 @@ RenderPass& RenderPass::Uniform(std::string_view name, float value) {
 		!UniformsContain(pass.material.uniforms, name),
 		"Cannot set the same uniform more than once per pass"
 	);
-	pass.material.uniforms.emplace_back(name, value);
+	pass.material.uniforms.emplace_back(std::string{ name }, value);
 	return *this;
 }
 
@@ -85,7 +85,7 @@ RenderPass& RenderPass::Uniform(std::string_view name, V2_float value) {
 		!UniformsContain(pass.material.uniforms, name),
 		"Cannot set the same uniform more than once per pass"
 	);
-	pass.material.uniforms.emplace_back(name, value);
+	pass.material.uniforms.emplace_back(std::string{ name }, value);
 	return *this;
 }
 
@@ -95,7 +95,7 @@ RenderPass& RenderPass::Uniform(std::string_view name, Color value) {
 		!UniformsContain(pass.material.uniforms, name),
 		"Cannot set the same uniform more than once per pass"
 	);
-	pass.material.uniforms.emplace_back(name, value.Normalized());
+	pass.material.uniforms.emplace_back(std::string{ name }, value.Normalized());
 	return *this;
 }
 

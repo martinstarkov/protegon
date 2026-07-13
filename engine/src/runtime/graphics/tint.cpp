@@ -6,17 +6,17 @@
 
 namespace ptgn {
 
-void SetTint(Entity entity, Color color) {
-	entity.Add<impl::Tint>(color);
+void SetTint(Entity entity, Color tint) {
+	entity.Add<Tint>(tint);
 }
 
 Color GetTint(Entity entity) {
-	Color tint{ entity.GetOrDefault<impl::Tint>() };
+	Color tint{ entity.GetOrDefault<Tint>() };
 
 	ForEachParent(
 		entity, [](Entity e) { return e.Has<impl::IgnoreParentTint>(); },
 		[&tint](Entity parent) {
-			tint = Color::Multiply(parent.GetOrDefault<impl::Tint>(), tint);
+			tint = Color::Multiply(parent.GetOrDefault<Tint>(), tint);
 			return true;
 		}
 	);

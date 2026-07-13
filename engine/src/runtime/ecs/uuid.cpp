@@ -6,7 +6,7 @@
 #include "core/math/rng.h"
 #include "serialization/json/fwd.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
 UUID::UUID() : uuid_{ RandomPositiveNumber<int>() } {}
 
@@ -24,4 +24,4 @@ void from_json(const json& j, UUID& uuid) {
 	uuid = UUID{ j.get<int>() };
 }
 
-} // namespace ptgn::impl
+} // namespace ptgn

@@ -192,7 +192,7 @@ struct ButtonSpriteVisual {
 	bool defined{ false };
 
 	/// @brief Texture key to use for the sprite. Must be loaded in the AssetManager.
-	std::optional<std::string> texture;
+	std::optional<TextureKey> texture;
 
 	/// @brief Point of the sprite that lies at its transform.
 	std::optional<Origin> origin;
@@ -225,7 +225,7 @@ struct ButtonSpriteVisuals {
 
 struct ButtonSounds {
 	/// @brief Sound keys per visual state. Each sound must be loaded in the AssetManager.
-	std::array<std::optional<std::string>, kButtonVisualStateCount> states;
+	std::array<std::optional<AudioKey>, kButtonVisualStateCount> states;
 
 	/// @brief If true when one sound plays the others are stopped.
 	bool exclusive{ false };
@@ -309,7 +309,7 @@ struct ButtonTextConfig {
 	float font_size{ kDefaultFontSize };
 
 	/// @brief Font key to use for the button text. Must be loaded in the AssetManager.
-	std::string font{ kDefaultFont };
+	FontKey font{ kDefaultFont };
 
 	TextBox box;
 
@@ -338,9 +338,9 @@ struct ButtonTextConfig {
 };
 
 struct ButtonSpriteConfig {
-	std::optional<std::string> texture;
-	std::optional<std::string> texture_hover;
-	std::optional<std::string> texture_press;
+	std::optional<TextureKey> texture;
+	std::optional<TextureKey> texture_hover;
+	std::optional<TextureKey> texture_press;
 
 	std::optional<Color> tint;
 	std::optional<Color> tint_hover;

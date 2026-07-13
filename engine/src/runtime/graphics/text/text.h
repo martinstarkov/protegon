@@ -14,12 +14,40 @@
 #include "renderer/text/text_style.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/drawable.h"
+#include "serialization/serialize.h"
+#include "runtime/graphics/text/font_system.h"
 
 namespace ptgn {
 
 class DrawContext;
 class Scene;
 class AssetManager;
+
+struct TextRun {
+	std::string text;
+	FontKey font{ kDefaultFont };
+	TextRunStyle style;
+
+	constexpr bool operator==(const TextRun&) const = default;
+
+	PTGN_REFLECT(TextRun, text, font, style)
+};
+
+struct StyledText {
+	std::vector<TextRun> runs;
+
+	constexpr StyledText() = default;
+
+	constexpr StyledText(std::initializer_list<TextRun> text_runs) : runs{ text_runs } {}
+
+	constexpr bool operator==(const StyledText&) const = default;
+
+	constexpr bool HasContent() const {
+		return std::ranges::any_of(runs, [](const auto& run) { return !run.text.empty(); });
+	}
+
+	PTGN_REFLECT_VALUE(StyledText, runs)
+};
 
 namespace impl {
 
@@ -135,7 +163,7 @@ public:
 
 	Text& ScaleToFit(float min_scale, float max_scale = 1.0f);
 
-	Text& Font(std::string_view font_key = {});
+	Text& Font(FontKey font_key = {});
 	Text& Color(ptgn::Color color);
 	Text& Size(float font_size);
 
@@ -197,7 +225,7 @@ Text CreateText(
 Text CreateText(
 	Scene& scene, Transform transform, std::string_view content, Color color,
 	float font_size = kDefaultFontSize, Origin origin = Origin::Center,
-	std::string_view font = kDefaultFont
+	FontKey font = kDefaultFont
 );
 
 PTGN_REGISTER_DRAWABLE(Text);

@@ -99,7 +99,7 @@ public:
 	Light& AmbientColor(ptgn::Color ambient_color);
 	Light& Radius(float radius);
 	Light& Falloff(float falloff);
-	Light& Config(const LightConfig& config);
+	Light& Config(LightConfig config);
 
 	/// @param cone_angle Angle of the light cone. If std::nullopt, the light is a
 	/// point light. Range: [0.0, 360.0]. 0.0 means no light is drawn, 360.0 means the light is a
@@ -111,7 +111,7 @@ public:
 
 PTGN_REGISTER_DRAWABLE(Light);
 
-Light CreateLight(Scene& scene, Transform transform = {}, const LightConfig& config = {});
+Light CreateLight(Scene& scene, Transform transform = {}, LightConfig config = {});
 
 /// @brief Marks an entity as a shadow occluder.
 /// @param entity Entity that should cast shadows.

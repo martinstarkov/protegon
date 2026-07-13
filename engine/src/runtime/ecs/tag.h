@@ -1,28 +1,18 @@
 #pragma once
 
-#include <string>
 #include <string_view>
 
+#include "core/util/strong_string.h"
 #include "serialization/serialize.h"
 
-namespace ptgn::impl {
+namespace ptgn {
 
-inline constexpr std::string_view kDefaultTag{ "Entity" };
+struct Tag : StrongString<Tag> {
+	using StrongString::StrongString;
 
-struct Tag {
-	Tag() = default;
-
-	Tag(std::string_view tag) : value{ tag } {} // NOSONAR
-
-	operator std::string_view() const {			// NOSONAR
-		return value;
-	}
-
-	std::string value{ kDefaultTag };
+	constexpr Tag() : StrongString{ "Entity" } {}
 
 	PTGN_REFLECT_VALUE(Tag, value)
 };
 
-} // namespace ptgn::impl
-
-#define PTGN_DEFAULT_NAME(entity, tag) entity.SetTag(tag)
+} // namespace ptgn

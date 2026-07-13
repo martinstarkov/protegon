@@ -284,7 +284,7 @@ std::optional<V2_int> WorldToRenderTargetPixel(
 
 	auto local_position{ draw_transform.ApplyInverse(world_position) };
 
-	Rect local_rect{ V2_float{ size }, render_target_entity.GetOrDefault<Origin>(kDefaultOrigin) };
+	Rect local_rect{ V2_float{ size }, render_target_entity.GetOrDefault<Origin>() };
 
 	if (local_position.x < local_rect.min.x || local_position.x >= local_rect.max.x ||
 		local_position.y < local_rect.min.y || local_position.y >= local_rect.max.y) {
@@ -417,7 +417,7 @@ std::optional<V2_float> RenderTargetPixelToWorld(Entity render_target_entity, V2
 		return std::nullopt;
 	}
 
-	Rect local_rect{ V2_float{ size }, render_target_entity.GetOrDefault<Origin>(kDefaultOrigin) };
+	Rect local_rect{ V2_float{ size }, render_target_entity.GetOrDefault<Origin>() };
 
 	auto uv{ pixel / V2_float{ size } };
 	auto local_position{ local_rect.min + uv * local_rect.GetSize() };
@@ -499,7 +499,7 @@ GizmoOccurrenceId MakeOccurrenceId(const std::vector<Entity>& camera_path) {
 	std::uint64_t hash{ kOffsetBasis };
 
 	for (auto camera : camera_path) {
-		hash ^= static_cast<std::uint64_t>(camera.GetUUID());
+		hash ^= static_cast<std::uint64_t>(camera.Get<UUID>());
 		hash *= kPrime;
 	}
 
@@ -1436,7 +1436,7 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		return;
 	}
 
-	auto selected_uuid{ static_cast<std::uint64_t>(selected_entity.GetUUID()) };
+	auto selected_uuid{ static_cast<std::uint64_t>(selected_entity.Get<UUID>()) };
 
 	if (gizmo_entity_uuid_ != selected_uuid) {
 		gizmo_entity_uuid_ = selected_uuid;

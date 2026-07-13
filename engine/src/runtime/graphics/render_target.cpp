@@ -205,7 +205,6 @@ RenderTarget CreateRenderTarget(
 	Scene& scene, Transform transform, V2_int size, Color clear_color, TextureFormat texture_format
 ) {
 	RenderTarget render_target{ scene.CreateEntity() };
-	PTGN_DEFAULT_NAME(render_target, "Render Target");
 
 	PTGN_ASSERT(!size.IsNegative(), "Render target size cannot be negative");
 
@@ -216,9 +215,11 @@ RenderTarget CreateRenderTarget(
 
 	PTGN_ASSERT(size.IsPositive(), "Render target size cannot be zero or negative");
 
-	SetDraw<RenderTarget>(render_target);
+	render_target.Add<Tag>("Render Target");
 	render_target.Add<Visible>(true);
-	SetTransform(render_target, transform);
+	render_target.Add<Transform>(transform);
+
+	SetDraw<RenderTarget>(render_target);
 
 	render_target.SetClearColor(clear_color);
 

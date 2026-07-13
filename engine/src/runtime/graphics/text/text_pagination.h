@@ -5,6 +5,7 @@
 
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
+#include "runtime/graphics/text/text.h"
 
 namespace ptgn {
 

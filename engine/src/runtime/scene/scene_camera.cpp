@@ -415,14 +415,14 @@ SceneCamera CreateCamera(
 	ViewportSpace viewport_space
 ) {
 	SceneCamera camera{ scene.CreateEntity() };
-	PTGN_DEFAULT_NAME(camera, "Camera");
 
 	PTGN_ASSERT(
 		!viewport_size.has_value() || viewport_size.value().IsPositive(),
 		"Camera viewport size cannot be negative or zero"
 	);
 
-	SetTransform(camera, transform);
+	camera.Add<Tag>("Camera");
+	camera.Add<Transform>(transform);
 
 	auto& data{ camera.Add<impl::CameraData>() };
 	data.viewport_space = viewport_space;

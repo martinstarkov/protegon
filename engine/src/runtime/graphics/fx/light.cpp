@@ -65,7 +65,7 @@ struct ShadowCasterEntry {
 
 std::optional<std::vector<V2_float>> GetShadowCasterWorldVertices(Entity entity) {
 	auto transform{ GetDrawTransform(entity) };
-	auto origin{ entity.GetOrDefault<Origin>(kDefaultOrigin) };
+	auto origin{ entity.GetOrDefault<Origin>() };
 
 	if (entity.Has<Rect>()) {
 		auto vertices{ entity.Get<Rect>().GetWorldVertices(transform, origin) };
@@ -313,8 +313,8 @@ void WriteLightVisibilityStencil(
 void DrawLightThroughStencil(
 	DrawContext& ctx, Entity entity, V2_float size, std::vector<UniformWrite> uniforms
 ) {
-	Material material{
-		.shader	  = "light",
+	MaterialState material{
+		.shader	  = ctx.GetShader("light"),
 		.uniforms = std::move(uniforms),
 	};
 
@@ -383,8 +383,8 @@ void DrawUnmaskedLight(
 	DrawContext& ctx, Entity entity, Transform draw_transform, V2_float size, BlendMode blend_mode,
 	std::vector<UniformWrite> uniforms
 ) {
-	Material material{
-		.shader	  = "light",
+	MaterialState material{
+		.shader	  = ctx.GetShader("light"),
 		.uniforms = std::move(uniforms),
 	};
 
@@ -603,8 +603,8 @@ Light& Light::ConeAngle(std::optional<Degrees> cone_angle) {
 	return *this;
 }
 
-Light& Light::Config(const LightConfig& config) {
-	Add<LightConfig>(config);
+Light& Light::Config(LightConfig config) {
+	Add<LightConfig>(std::move(config));
 	SetRotation(*this, config.direction_angle);
 	return *this;
 }
@@ -614,15 +614,14 @@ LightConfig Light::GetConfig() const {
 	return Get<LightConfig>();
 }
 
-Light CreateLight(Scene& scene, Transform transform, const LightConfig& config) {
+Light CreateLight(Scene& scene, Transform transform, LightConfig config) {
 	Light light{ scene.CreateEntity() };
 
-	PTGN_DEFAULT_NAME(light, "Light");
-
-	light.Config(config);
-
+	light.Add<Tag>("Light");
 	light.Add<Transform>(transform);
 	light.Add<Visible>(true);
+	light.Add<LightConfig>(std::move(config));
+	SetRotation(light, config.direction_angle);
 
 	// Blend mode with which the lights are added to the scene.
 	light.Add<BlendMode>(BlendMode::PremultipliedAddRGBA);

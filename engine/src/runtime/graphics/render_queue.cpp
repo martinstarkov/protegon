@@ -129,7 +129,7 @@ void RenderQueue::DrawTexture(
 }
 
 void RenderQueue::DrawTexture(
-	Transform transform, std::string_view texture_key, TextureRenderParams params
+	Transform transform, TextureKey texture_key, TextureRenderParams params
 ) {
 	PTGN_ASSERT(scene_);
 
@@ -150,7 +150,7 @@ void RenderQueue::DrawTexture(
 }
 
 void RenderQueue::DrawTexture(
-	Transform transform, std::string_view texture_key, std::string_view shader_key,
+	Transform transform, TextureKey texture_key, ShaderKey shader_key,
 	TextureRenderParams params
 ) {
 	PTGN_ASSERT(scene_);
@@ -181,7 +181,7 @@ void RenderQueue::DrawTexture(
 }
 
 void RenderQueue::DrawShader(
-	Transform transform, std::string_view shader_key, TextureRenderParams params
+	Transform transform, ShaderKey shader_key, TextureRenderParams params
 ) {
 	PTGN_ASSERT(scene_);
 	auto& assets{ scene_->ctx().asset };
@@ -381,7 +381,7 @@ void RenderQueue::DrawShape(
 	});
 }
 
-impl::ShaderId RenderQueue::GetShader(std::string_view shader_key) const {
+impl::ShaderId RenderQueue::GetShader(ShaderKey shader_key) const {
 	return impl::RendererAccessor{ renderer_ }.GetShader(shader_key);
 }
 

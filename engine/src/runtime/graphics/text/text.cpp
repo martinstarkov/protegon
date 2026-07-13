@@ -137,7 +137,7 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 
 	auto transform{ GetDrawTransform(entity) };
 
-	auto origin{ entity.GetOrDefault<Origin>(kDefaultOrigin) };
+	auto origin{ entity.GetOrDefault<Origin>() };
 
 	auto prepared{ impl::PrepareTextDraw(transform, layout, box, origin, explicit_clip) };
 
@@ -153,7 +153,7 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 		.layout				= layout,
 		.tint				= GetTint(entity),
 		.depth				= GetDepth(entity),
-		.entity_id			= entity.GetUUID(),
+		.entity_id			= entity.Get<UUID>(),
 		.clips				= prepared.GetClips(),
 		.reveal_glyph_count = text.GetRevealGlyphCount(),
 		.time				= scene.ctx().TimeSinceStartSeconds().count(),
@@ -328,7 +328,7 @@ Rect Text::GetBounds() const {
 	auto bounds{ layout.GetBounds() };
 
 	if (const auto& box{ GetTextBox() }; box.HasBox()) {
-		auto origin{ GetOrDefault<Origin>(kDefaultOrigin) };
+		auto origin{ GetOrDefault<Origin>() };
 		auto origin_point{ box.rect.GetOriginPoint(origin) };
 		// TODO: Check if this is correct.
 		return bounds.Translated(-origin_point);
@@ -425,9 +425,9 @@ Text& Text::ScaleToFit(float min_scale, float max_scale) {
 	return *this;
 }
 
-Text& Text::Font(std::string_view font_key) {
+Text& Text::Font(FontKey font_key) {
 	if (auto& run{ CurrentRun() }; run.font != font_key) {
-		run.font = std::string{ font_key };
+		run.font = std::move(font_key);
 		InvalidateLayout();
 	}
 	return *this;
@@ -668,8 +668,7 @@ Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origi
 	text.Add<Transform>(transform);
 	text.Add<Origin>(origin);
 	text.Add<Visible>(true);
-
-	PTGN_DEFAULT_NAME(text, "Text");
+	text.Add<Tag>("Text");
 
 	text.Content(std::move(styled_text));
 
@@ -680,12 +679,12 @@ Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origi
 
 Text CreateText(
 	Scene& scene, Transform transform, std::string_view content, Color color, float font_size,
-	Origin origin, std::string_view font
+	Origin origin, FontKey font
 ) {
 	return CreateText(
 		scene, transform,
 		{ { .text  = std::string{ content },
-			.font  = std::string{ font },
+			.font  = std::move(font),
 			.style = { .color = color, .size = font_size } } },
 		origin
 	);

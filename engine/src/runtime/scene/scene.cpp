@@ -305,13 +305,13 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	// Must be created before scene camera.
 	ctx_->render_target_ =
 		CreateRenderTarget(*this, {}, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
-	ctx_->render_target_.SetTag(kDefaultSceneTargetTag);
+	ctx_->render_target_.Add<Tag>(kDefaultSceneTargetTag);
 	ctx_->render_target_.Remove<impl::IDrawable>();
 
 	ctx_->camera = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
-	ctx_->camera.SetTag(kDefaultSceneCameraTag);
+	ctx_->camera.Add<Tag>(kDefaultSceneCameraTag);
 	ctx_->fixed_camera_ = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
-	ctx_->fixed_camera_.SetTag(kDefaultSceneFixedCameraTag);
+	ctx_->fixed_camera_.Add<Tag>(kDefaultSceneFixedCameraTag);
 	ctx_->fixed_camera_.SetMasks(
 		kDefaultFixedCameraIncludeLayerMask, kDefaultFixedCameraExcludeLayerMask
 	);
@@ -568,8 +568,8 @@ void Scene::InternalExit() {
 
 Entity Scene::GetEntityByUUID(int uuid) const {
 	for (const Entity& e : Entities()) {
-		PTGN_ASSERT(e.Has<impl::UUID>(), "Entity does not have a valid UUID component");
-		if (e.Get<impl::UUID>() == uuid) {
+		PTGN_ASSERT(e.Has<UUID>(), "Entity does not have a valid UUID component");
+		if (e.Get<UUID>() == uuid) {
 			return e;
 		}
 	}
@@ -578,17 +578,18 @@ Entity Scene::GetEntityByUUID(int uuid) const {
 
 Entity Scene::GetEntityByTag(std::string_view tag) const {
 	for (const Entity& e : Entities()) {
-		PTGN_ASSERT(e.Has<impl::Tag>(), "Entity does not have a valid Tag component");
-		if (e.Get<impl::Tag>() == tag) {
+		PTGN_ASSERT(e.Has<Tag>(), "Entity does not have a valid Tag component");
+		if (e.Get<Tag>().value == tag) {
 			return e;
 		}
 	}
 	return {};
 }
 
-Entity Scene::CreateEntity(std::optional<std::string_view> tag, std::optional<int> uuid) {
+Entity Scene::CreateEntity(Tag tag, UUID uuid) {
 	auto entity{ manager_.CreateEntity() };
-	impl::AddMandatoryComponents(entity, tag, uuid);
+	entity.Add<Tag>(std::move(tag));
+	entity.Add<UUID>(uuid);
 	return Entity{ entity, this };
 }
 

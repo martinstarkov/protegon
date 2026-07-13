@@ -9,6 +9,7 @@
 namespace ptgn {
 
 enum class Origin {
+	/// @brief Default origin value.
 	Center,
 	TopLeft,
 	CenterTop,
@@ -20,8 +21,6 @@ enum class Origin {
 	CenterLeft,
 };
 PTGN_REFLECT_ENUM(Origin);
-
-inline constexpr Origin kDefaultOrigin{ Origin::Center };
 
 /// @return Vector to be added to a position to get the object center given an origin and size.
 constexpr V2_float GetOffset(Origin origin, V2_float size) {

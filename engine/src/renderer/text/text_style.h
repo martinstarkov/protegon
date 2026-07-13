@@ -16,11 +16,6 @@
 
 namespace ptgn {
 
-/// @brief Default engine font key.
-/// Do not modify this value.
-/// Use ctx().font.SetDefault(new_default_font_key); to change the default font
-inline constexpr std::string_view kDefaultFont{ "" };
-
 /// @brief Default font size used when no explicit size is specified for text rendering.
 inline constexpr float kDefaultFontSize{ 18.0f };
 
@@ -110,32 +105,6 @@ struct TextRunStyle {
 	PTGN_REFLECT(
 		TextRunStyle, color, bold_weight, size, kerning, tracking, line_spacing, flags, sdf, effect
 	)
-};
-
-struct TextRun {
-	std::string text;
-	std::string font{ kDefaultFont };
-	TextRunStyle style;
-
-	constexpr bool operator==(const TextRun&) const = default;
-
-	PTGN_REFLECT(TextRun, text, font, style)
-};
-
-struct StyledText {
-	std::vector<TextRun> runs;
-
-	constexpr StyledText() = default;
-
-	constexpr StyledText(std::initializer_list<TextRun> text_runs) : runs{ text_runs } {}
-
-	constexpr bool operator==(const StyledText&) const = default;
-
-	constexpr bool HasContent() const {
-		return std::ranges::any_of(runs, [](const auto& run) { return !run.text.empty(); });
-	}
-
-	PTGN_REFLECT_VALUE(StyledText, runs)
 };
 
 namespace impl {

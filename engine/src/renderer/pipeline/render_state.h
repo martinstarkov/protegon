@@ -201,16 +201,6 @@ struct MaterialState {
 	constexpr bool operator==(const MaterialState&) const = default;
 };
 
-struct Material {
-	std::string shader;
-	std::vector<UniformWrite> uniforms;
-	std::optional<std::size_t> texture_slot_capacity;
-
-	constexpr bool operator==(const Material&) const = default;
-
-	PTGN_REFLECT(Material, shader, uniforms, texture_slot_capacity)
-};
-
 struct RenderState {
 	Viewport viewport{ { 0, 0 }, { 0, 0 } };
 	std::optional<Matrix4> view_projection;

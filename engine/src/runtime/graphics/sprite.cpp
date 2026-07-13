@@ -56,11 +56,11 @@ TextureDrawParams GetTextureDrawParams(
 ) {
 	return { .depth{ GetDepth(entity) },
 			 .size{ size },
-			 .origin = entity.GetOrDefault<Origin>(kDefaultOrigin),
-			 .tint{ Color::Multiply(entity.GetOrDefault<Tint>(), additional_tint) },
+			 .origin = entity.GetOrDefault<Origin>(),
+			 .tint{ Color::Multiply(GetTint(entity), additional_tint) },
 			 .texture_coordinates{ GetTextureCoordinates(entity, flip_y) },
 			 .effects{ impl::GetEffectParams(entity) },
-			 .entity_id = entity.GetUUID() };
+			 .entity_id = entity.Get<UUID>() };
 }
 
 } // namespace impl
@@ -106,23 +106,20 @@ void Sprite::Draw(
 }
 
 void Sprite::Draw(DrawContext& ctx, Entity entity) {
-	Sprite::Draw(ctx, entity, Origin::Center, {}, impl::Tint{});
+	Sprite::Draw(ctx, entity, Origin::Center, {}, Tint{});
 }
 
-Sprite& Sprite::SetTexture(std::string_view texture_key) {
+Sprite& Sprite::SetTexture(TextureKey texture_key) {
 	Add<TextureKey>(texture_key);
 	return *this;
 }
 
-Sprite CreateSprite(
-	Scene& scene, Transform transform, std::string_view texture_key, Origin origin
-) {
+Sprite CreateSprite(Scene& scene, Transform transform, TextureKey texture_key, Origin origin) {
 	Sprite sprite{ scene.CreateEntity() };
 
-	PTGN_DEFAULT_NAME(sprite, "Sprite");
-
+	sprite.Add<Tag>("Sprite");
 	sprite.Add<Visible>(true);
-	sprite.Add<TextureKey>(texture_key);
+	sprite.Add<TextureKey>(std::move(texture_key));
 	sprite.Add<Transform>(transform);
 	sprite.Add<Origin>(origin);
 

@@ -72,15 +72,15 @@ using UniformValue = std::variant<
 	std::vector<int>, bool>;
 
 struct UniformWrite {
+	std::string name;
+	UniformValue value;
+
 	constexpr UniformWrite() = default;
 
 	template <typename T>
 		requires std::constructible_from<UniformValue, T&&>
-	constexpr UniformWrite(std::string_view name, T&& value) :
-		name{ name }, value{ std::forward<T>(value) } {}
-
-	std::string name;
-	UniformValue value;
+	constexpr UniformWrite(std::string name, T&& value) :
+		name{ std::move(name) }, value{ std::forward<T>(value) } {}
 
 	constexpr bool operator==(const UniformWrite& o) const {
 		if (value.index() != o.value.index() || name != o.name) {

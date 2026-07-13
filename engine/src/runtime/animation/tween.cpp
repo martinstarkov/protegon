@@ -639,7 +639,7 @@ void Tween::Update(Scene& scene, secondsf dt) {
 Tween CreateTween(Scene& scene) {
 	Tween tween{ scene.CreateEntity() };
 
-	PTGN_DEFAULT_NAME(tween, "Tween");
+	tween.Add<Tag>("Tween");
 	tween.Add<impl::TweenData>();
 
 	return tween;

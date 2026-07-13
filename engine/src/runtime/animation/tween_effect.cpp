@@ -390,21 +390,21 @@ void VelocityModeMoveImpl(const FollowConfig& config, Entity parent, V2_float di
 
 Tween TintTo(Entity entity, Color target_tint, milliseconds duration, Ease ease, bool force) {
 	return impl::AddTweenEffect<impl::TintEffect, Color>(
-		entity, target_tint, duration, ease, force, [](Entity e) { return GetTint(e); },
-		[](Entity e, Color v) { SetTint(e, v); }
+		entity, target_tint, duration, ease, force, [](Entity e) { return e.GetOrDefault<Tint>(); },
+		[](Entity e, Color v) { e.Add<Tint>(v); }
 	);
 }
 
 Tween FadeIn(Entity entity, milliseconds duration, Ease ease, bool force, bool start_transparent) {
 	if (start_transparent) {
-		SetTint(entity, color::Transparent);
+		entity.Add<Tint>(color::Transparent);
 	}
 	return TintTo(entity, color::White, duration, ease, force);
 }
 
 Tween FadeOut(Entity entity, milliseconds duration, Ease ease, bool force, bool start_opaque) {
 	if (start_opaque) {
-		SetTint(entity, color::White);
+		entity.Add<Tint>(color::White);
 	}
 	return TintTo(entity, color::Transparent, duration, ease, force);
 }

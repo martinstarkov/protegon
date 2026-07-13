@@ -12,15 +12,16 @@
 #include "runtime/animation/animation.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/animation/tween.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/ecs/component_registration.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/fx/bloom.h"
 #include "runtime/graphics/fx/blur.h"
 #include "runtime/graphics/fx/gaussian_blur.h"
 #include "runtime/graphics/fx/light.h"
 #include "runtime/graphics/fx/particle.h"
 #include "runtime/graphics/graphics.h"
-#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
@@ -39,7 +40,7 @@
 
 namespace ptgn {
 
-PTGN_REGISTER_COMPONENT(impl::Tint);
+PTGN_REGISTER_COMPONENT(Tint);
 PTGN_REGISTER_COMPONENT(impl::IDrawable);
 PTGN_REGISTER_COMPONENT(Color);
 PTGN_REGISTER_COMPONENT(Visible);
@@ -68,6 +69,10 @@ PTGN_REGISTER_COMPONENT(PlatformerJump, { .group = "Physics Components" });
 
 PTGN_REGISTER_COMPONENT(impl::ParticleEmitterComponent);
 PTGN_REGISTER_COMPONENT(TextureKey);
+PTGN_REGISTER_COMPONENT(FontKey);
+PTGN_REGISTER_COMPONENT(AudioKey);
+PTGN_REGISTER_COMPONENT(ShaderKey);
+PTGN_REGISTER_COMPONENT(JsonKey);
 PTGN_REGISTER_COMPONENT(LightConfig);
 PTGN_REGISTER_COMPONENT(impl::ShadowCaster);
 

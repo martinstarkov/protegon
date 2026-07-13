@@ -255,8 +255,8 @@ ToggleButton CreateToggleButton(
 	Scene& scene, Transform transform, auto shape, Origin origin, bool toggled
 ) {
 	ToggleButton button{ CreateButton(scene, transform, shape, origin) };
-	PTGN_DEFAULT_NAME(button, "Toggle Button");
 
+	button.Add<Tag>("Toggle Button");
 	button.Add<impl::ToggleButtonData>();
 
 	PTGN_ASSERT(
@@ -286,7 +286,7 @@ ToggleButton CreateToggleButton(
 
 ToggleButtonGroup CreateToggleButtonGroup(Scene& scene) {
 	ToggleButtonGroup group{ scene.CreateEntity() };
-	PTGN_DEFAULT_NAME(group, "Toggle Button Group");
+	group.Entity::Add<Tag>("Toggle Button Group");
 	group.Entity::Add<impl::ToggleButtonGroupData>();
 	return group;
 }

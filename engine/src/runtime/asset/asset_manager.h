@@ -20,6 +20,7 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "renderer/text/font_atlas.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/key_hash.h"
 #include "runtime/graphics/text/font.h"
@@ -38,18 +39,6 @@ namespace impl {
 
 class Surface;
 class ApplicationContext;
-
-struct AssetKey : public KeyHash {
-	using KeyHash::KeyHash;
-};
-
-struct AssetName {
-	explicit AssetName(std::string_view name) : value{ name } {}
-
-	std::string value;
-
-	PTGN_REFLECT_VALUE(AssetName, value)
-};
 
 struct AssetPath {
 	explicit AssetPath(const path& asset_path) : value{ asset_path } {}
@@ -166,10 +155,10 @@ constexpr bool MatchesExtension(std::string_view extension) {
 
 AssetKind GetAssetKind(const path& path);
 
-void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<path>& path);
+void AddAssetKey(ecs::Entity asset, AssetKey key, const std::optional<path>& path);
 
 struct AssetRecord {
-	std::string key;
+	AssetKey key;
 	path source_path;
 	AssetKind kind{ AssetKind::Unknown };
 };
@@ -184,16 +173,16 @@ public:
 	AssetAccessor& operator=(AssetAccessor&&) noexcept = delete;
 
 	template <AssetType T>
-	ConstAsset<T> Get(std::string_view key) const;
+	ConstAsset<T> Get(AssetKey key) const;
 
 	template <AssetType T>
-	Asset<T> Get(std::string_view key);
+	Asset<T> Get(AssetKey key);
 
 	template <AssetType T>
-	[[nodiscard]] bool Has(std::string_view key) const;
+	[[nodiscard]] bool Has(AssetKey key) const;
 
 	[[nodiscard]] std::vector<impl::AssetRecord> GetAssets() const;
-	bool Unload(std::string_view key, impl::AssetKind kind);
+	bool Unload(AssetKey key, impl::AssetKind kind);
 
 private:
 	AssetManager& assets;
@@ -239,7 +228,7 @@ public:
 	/// @param asset_keys_and_paths A vector of key-path pairs where each pair contains an asset
 	/// identifier string and its corresponding file path.
 	void Load(
-		const std::vector<std::pair<std::string, std::variant<path, ShaderCode, ShaderPair>>>&
+		const std::vector<std::pair<AssetKey, std::variant<path, ShaderCode, ShaderPair>>>&
 			asset_keys_and_paths
 	);
 
@@ -247,44 +236,44 @@ public:
 	/// associates it with a key.
 	/// @param key The unique identifier used to reference the loaded asset.
 	/// @param asset_path The file system path to the asset to be loaded.
-	void Load(std::string_view key, const path& asset_path);
-	void Load(std::string_view key, const ShaderCode& shader_code);
-	void Load(std::string_view key, const ShaderPair& shader_pair);
+	void Load(AssetKey key, const path& asset_path);
+	void Load(AssetKey key, const ShaderCode& shader_code);
+	void Load(AssetKey key, const ShaderPair& shader_pair);
 
-	Audio LoadAudio(std::string_view key, const path& audio_path);
+	Audio LoadAudio(AssetKey key, const path& audio_path);
 
 	/// @brief Note: Do not brace initialize JSON objects.
 	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
-	json& LoadJson(std::string_view key, const path& json_path);
+	json& LoadJson(AssetKey key, const path& json_path);
 
 	Shader LoadShader(
-		std::string_view key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
+		AssetKey key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 		std::optional<std::string_view> shader_name = std::nullopt
 	);
 
 	Texture LoadTexture(
-		std::string_view key, const path& texture_path,
+		AssetKey key, const path& texture_path,
 		TextureFormat storage_format = kDefaultTextureStorageFormat, TextureParams params = {}
 	);
 
-	Font LoadFont(std::string_view key, const path& font_path);
+	Font LoadFont(AssetKey key, const path& font_path);
 
 	template <AssetType T>
-	bool Unload(std::string_view key);
+	bool Unload(AssetKey key);
 
 	/// @return The total number of assets currently loaded in the manager. Never below 1 (default
 	/// font is always loaded).
 	[[nodiscard]] std::size_t Size() const;
 
-	V2_int GetTextureSize(std::string_view key) const;
-	V2_int GetFontAtlasSize(std::string_view key) const;
-	impl::TextureId GetFontAtlasTexture(std::string_view key) const;
+	V2_int GetTextureSize(AssetKey key) const;
+	V2_int GetFontAtlasSize(AssetKey key) const;
+	impl::TextureId GetFontAtlasTexture(AssetKey key) const;
 
 	/// @brief Note: Do not brace initialize JSON objects.
 	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 	[[nodiscard]] static json CreateJson(const path& json_path);
 
-	[[nodiscard]] bool Has(std::string_view key) const;
+	[[nodiscard]] bool Has(AssetKey key) const;
 
 private:
 	friend class impl::AssetAccessor;
@@ -304,18 +293,18 @@ private:
 
 	/// @brief Note: Do not brace initialize JSON objects.
 	template <AssetType T>
-	std::optional<ConstAsset<T>> TryGet(std::string_view key) const;
+	std::optional<ConstAsset<T>> TryGet(AssetKey key) const;
 	template <AssetType T>
-	std::optional<Asset<T>> TryGet(std::string_view key);
+	std::optional<Asset<T>> TryGet(AssetKey key);
 
 	template <AssetType T>
-	ConstAsset<T> Get(std::string_view key) const;
+	ConstAsset<T> Get(AssetKey key) const;
 
 	template <AssetType T>
-	Asset<T> Get(std::string_view key);
+	Asset<T> Get(AssetKey key);
 
 	template <AssetType T>
-	[[nodiscard]] bool Has(std::string_view key) const;
+	[[nodiscard]] bool Has(AssetKey key) const;
 
 	Audio CreateAudio(const path& audio_path);
 
@@ -331,9 +320,9 @@ private:
 	Font CreateFont(const path& font_path);
 
 	[[nodiscard]] std::vector<impl::AssetRecord> GetAssets() const;
-	bool Unload(std::string_view key, impl::AssetKind kind);
+	bool Unload(AssetKey key, impl::AssetKind kind);
 
-	void Load(std::string_view key, const path& asset_path, impl::AssetKind kind);
+	void Load(AssetKey key, const path& asset_path, impl::AssetKind kind);
 
 	[[nodiscard]] Shader CreateShader(
 		bool persistent, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
@@ -368,17 +357,17 @@ private:
 namespace impl {
 
 template <AssetType T>
-ConstAsset<T> AssetAccessor::Get(std::string_view key) const {
+ConstAsset<T> AssetAccessor::Get(AssetKey key) const {
 	return assets.Get<T>(key);
 }
 
 template <AssetType T>
-Asset<T> AssetAccessor::Get(std::string_view key) {
+Asset<T> AssetAccessor::Get(AssetKey key) {
 	return assets.Get<T>(key);
 }
 
 template <AssetType T>
-bool AssetAccessor::Has(std::string_view key) const {
+bool AssetAccessor::Has(AssetKey key) const {
 	return assets.Has<T>(key);
 }
 

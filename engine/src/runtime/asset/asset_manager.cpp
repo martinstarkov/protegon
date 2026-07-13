@@ -32,6 +32,7 @@
 #include "renderer/resources/texture_format.h"
 #include "renderer/text/font_atlas.h"
 #include "renderer/text/font_cache.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
 #include "runtime/graphics/text/font.h"
@@ -72,9 +73,8 @@ impl::AssetKind GetAssetKindFromEntity(ecs::Entity asset, const path& source_pat
 
 namespace impl {
 
-void AddAssetKey(ecs::Entity asset, std::string_view key, const std::optional<path>& path) {
-	asset.Add<impl::AssetName>(key);
-	asset.Add<impl::AssetKey>(key);
+void AddAssetKey(ecs::Entity asset, AssetKey key, const std::optional<path>& path) {
+	asset.Add<AssetKey>(key);
 	if (path.has_value()) {
 		asset.Add<impl::AssetPath>(path.value());
 	}
@@ -108,7 +108,7 @@ std::vector<impl::AssetRecord> AssetAccessor::GetAssets() const {
 	return assets.GetAssets();
 }
 
-bool AssetAccessor::Unload(std::string_view key, impl::AssetKind kind) {
+bool AssetAccessor::Unload(AssetKey key, impl::AssetKind kind) {
 	return assets.Unload(key, kind);
 }
 
@@ -166,7 +166,7 @@ Texture AssetManager::CreateTexture(
 }
 
 Texture AssetManager::LoadTexture(
-	std::string_view key, const path& asset_path, TextureFormat storage_format, TextureParams params
+	AssetKey key, const path& asset_path, TextureFormat storage_format, TextureParams params
 ) {
 	if (auto existing{ TryGet<Texture>(key) }; existing.has_value()) {
 		return existing.value();
@@ -190,7 +190,7 @@ Font AssetManager::CreateFont(const path& asset_path) {
 	return CreateFont(false, asset_path);
 }
 
-Font AssetManager::LoadFont(std::string_view key, const path& asset_path) {
+Font AssetManager::LoadFont(AssetKey key, const path& asset_path) {
 	if (auto existing{ TryGet<Font>(key) }; existing.has_value()) {
 		return existing.value();
 	}
@@ -211,7 +211,7 @@ Audio AssetManager::CreateAudio(const path& asset_path) {
 	return CreateAudio(false, asset_path);
 }
 
-Audio AssetManager::LoadAudio(std::string_view key, const path& asset_path) {
+Audio AssetManager::LoadAudio(AssetKey key, const path& asset_path) {
 	if (auto existing{ TryGet<Audio>(key) }; existing.has_value()) {
 		return existing.value();
 	}
@@ -240,7 +240,7 @@ Shader AssetManager::CreateShader(
 }
 
 Shader AssetManager::LoadShader(
-	std::string_view key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
+	AssetKey key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 	std::optional<std::string_view> shader_name
 ) {
 	if (auto existing{ TryGet<Shader>(key) }; existing.has_value()) {
@@ -261,7 +261,7 @@ json AssetManager::CreateJson(const path& asset_path) {
 	return j;
 }
 
-json& AssetManager::LoadJson(std::string_view key, const path& asset_path) {
+json& AssetManager::LoadJson(AssetKey key, const path& asset_path) {
 	auto [it, _] = jsons_.try_emplace(Hash(key), CreateJson(asset_path));
 	return it->second;
 }
@@ -286,7 +286,7 @@ void AssetManager::LoadDirectory(const path& directory, bool recursive) {
 		// This is because including the extension would make
 		// music.mp3 and music.ogg have different keys even though both would be loaded as audio
 		// assets and only the first loaded one could ever be accessed.
-		std::string key{ asset_path.stem().string() };
+		AssetKey key{ asset_path.stem().string() };
 
 		auto hash{ Hash(key) };
 
@@ -369,7 +369,7 @@ void AssetManager::LoadManifest(const path& asset_manifest_file) {
 }
 
 void AssetManager::Load(
-	const std::vector<std::pair<std::string, std::variant<path, ShaderCode, ShaderPair>>>&
+	const std::vector<std::pair<AssetKey, std::variant<path, ShaderCode, ShaderPair>>>&
 		asset_keys_and_paths
 ) {
 	for (const auto& [asset_key, asset_variant] : asset_keys_and_paths) {
@@ -377,15 +377,15 @@ void AssetManager::Load(
 	}
 }
 
-void AssetManager::Load(std::string_view key, const ShaderCode& shader_code) {
+void AssetManager::Load(AssetKey key, const ShaderCode& shader_code) {
 	LoadShader(key, shader_code, std::nullopt);
 }
 
-void AssetManager::Load(std::string_view key, const ShaderPair& shader_pair) {
+void AssetManager::Load(AssetKey key, const ShaderPair& shader_pair) {
 	LoadShader(key, shader_pair, std::nullopt);
 }
 
-void AssetManager::Load(std::string_view key, const path& asset_path, impl::AssetKind kind) {
+void AssetManager::Load(AssetKey key, const path& asset_path, impl::AssetKind kind) {
 	PTGN_ASSERT(
 		FileExists(asset_path), "Cannot get non-existent ", json(kind),
 		" file: ", asset_path.string()
@@ -427,7 +427,7 @@ void AssetManager::Load(std::string_view key, const path& asset_path, impl::Asse
 	}
 }
 
-void AssetManager::Load(std::string_view key, const path& asset_path) {
+void AssetManager::Load(AssetKey key, const path& asset_path) {
 	auto kind{ impl::GetAssetKind(asset_path) };
 	Load(key, asset_path, kind);
 }
@@ -439,22 +439,22 @@ ecs::Entity AssetManager::CreateAsset() {
 }
 
 template <AssetType T>
-bool HasAssetImpl(const ecs::Manager& manager, std::string_view key) {
+bool HasAssetImpl(const ecs::Manager& manager, AssetKey key) {
 	auto hash{ Hash(key) };
 	using TObject = typename impl::AssetInfo<T>::Object;
-	return manager.EntitiesWith<TObject, impl::AssetKey>().AnyOf(
-		[hash](auto, const auto&, const auto& asset_key) { return asset_key == hash; }
+	return manager.EntitiesWith<TObject, AssetKey>().AnyOf(
+		[hash](auto, const auto&, const auto& asset_key) { return Hash(asset_key) == hash; }
 	);
 }
 
 template <AssetType T>
-std::optional<T> TryGetAssetImpl(const ecs::Manager& manager, std::string_view key) {
+std::optional<T> TryGetAssetImpl(const ecs::Manager& manager, AssetKey key) {
 	auto hash{ Hash(key) };
 
 	using TObject = typename impl::AssetInfo<T>::Object;
 
-	for (auto [entity, _asset, asset_key] : manager.EntitiesWith<TObject, impl::AssetKey>()) {
-		if (asset_key == hash) {
+	for (auto [entity, _asset, asset_key] : manager.EntitiesWith<TObject, AssetKey>()) {
+		if (Hash(asset_key) == hash) {
 			return T{ entity, true };
 		}
 	}
@@ -462,15 +462,15 @@ std::optional<T> TryGetAssetImpl(const ecs::Manager& manager, std::string_view k
 }
 
 template <AssetType T>
-bool UnloadAssetImpl(ecs::Manager& manager, std::string_view key) {
+bool UnloadAssetImpl(ecs::Manager& manager, AssetKey key) {
 	bool unloaded{ false };
 
 	auto hash{ Hash(key) };
 
 	using TObject = typename impl::AssetInfo<T>::Object;
 
-	for (auto [entity, _asset, asset_key] : manager.EntitiesWith<TObject, impl::AssetKey>()) {
-		if (asset_key == hash) {
+	for (auto [entity, _asset, asset_key] : manager.EntitiesWith<TObject, AssetKey>()) {
+		if (Hash(asset_key) == hash) {
 			unloaded = true;
 			entity.Destroy();
 		}
@@ -481,7 +481,7 @@ bool UnloadAssetImpl(ecs::Manager& manager, std::string_view key) {
 }
 
 template <AssetType T>
-bool AssetManager::Unload(std::string_view key) {
+bool AssetManager::Unload(AssetKey key) {
 	if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
 		return jsons_.erase(Hash(key)) != 0;
 	} else {
@@ -490,7 +490,7 @@ bool AssetManager::Unload(std::string_view key) {
 }
 
 template <AssetType T>
-std::optional<ConstAsset<T>> AssetManager::TryGet(std::string_view key) const {
+std::optional<ConstAsset<T>> AssetManager::TryGet(AssetKey key) const {
 	if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
 		auto it{ jsons_.find(Hash(key)) };
 		if (it == jsons_.end()) {
@@ -503,7 +503,7 @@ std::optional<ConstAsset<T>> AssetManager::TryGet(std::string_view key) const {
 }
 
 template <AssetType T>
-std::optional<Asset<T>> AssetManager::TryGet(std::string_view key) {
+std::optional<Asset<T>> AssetManager::TryGet(AssetKey key) {
 	if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
 		auto it{ jsons_.find(Hash(key)) };
 		if (it == jsons_.end()) {
@@ -516,21 +516,21 @@ std::optional<Asset<T>> AssetManager::TryGet(std::string_view key) {
 }
 
 template <AssetType T>
-ConstAsset<T> AssetManager::Get(std::string_view key) const {
+ConstAsset<T> AssetManager::Get(AssetKey key) const {
 	auto asset{ TryGet<T>(key) };
 	PTGN_ASSERT(asset.has_value(), "Asset not found for key: ", key);
 	return asset.value();
 }
 
 template <AssetType T>
-Asset<T> AssetManager::Get(std::string_view key) {
+Asset<T> AssetManager::Get(AssetKey key) {
 	auto asset{ TryGet<T>(key) };
 	PTGN_ASSERT(asset.has_value(), "Asset not found for key: ", key);
 	return asset.value();
 }
 
 template <AssetType T>
-bool AssetManager::Has(std::string_view key) const {
+bool AssetManager::Has(AssetKey key) const {
 	if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
 		return jsons_.contains(Hash(key));
 	} else {
@@ -542,22 +542,22 @@ std::size_t AssetManager::Size() const {
 	return manager_.Size() + jsons_.size();
 }
 
-V2_int AssetManager::GetTextureSize(std::string_view key) const {
+V2_int AssetManager::GetTextureSize(AssetKey key) const {
 	return Get<Texture>(key).GetEntity().Get<impl::TextureObject>().GetSize();
 }
 
-V2_int AssetManager::GetFontAtlasSize(std::string_view key) const {
+V2_int AssetManager::GetFontAtlasSize(AssetKey key) const {
 	return Get<Font>(key).GetEntity().Get<impl::FontAtlas>().GetSize();
 }
 
-impl::TextureId AssetManager::GetFontAtlasTexture(std::string_view key) const {
+impl::TextureId AssetManager::GetFontAtlasTexture(AssetKey key) const {
 	return Get<Font>(key).GetEntity().Get<impl::FontAtlas>().GetTexture();
 }
 
 std::vector<impl::AssetRecord> AssetManager::GetAssets() const {
 	std::vector<impl::AssetRecord> records;
 
-	for (auto [asset, key, name] : manager_.EntitiesWith<impl::AssetKey, impl::AssetName>()) {
+	for (auto [asset, key] : manager_.EntitiesWith<AssetKey>()) {
 		path source_path;
 
 		if (auto path{ asset.TryGet<impl::AssetPath>() }) {
@@ -566,7 +566,7 @@ std::vector<impl::AssetRecord> AssetManager::GetAssets() const {
 
 		records.emplace_back(
 			impl::AssetRecord{
-				.key		 = name.value,
+				.key		 = key.value,
 				.source_path = source_path,
 				.kind		 = GetAssetKindFromEntity(asset, source_path),
 			}
@@ -576,12 +576,12 @@ std::vector<impl::AssetRecord> AssetManager::GetAssets() const {
 	return records;
 }
 
-bool AssetManager::Has(std::string_view key) const {
+bool AssetManager::Has(AssetKey key) const {
 	return Has<Texture>(key) || Has<Audio>(key) || Has<Font>(key) || Has<Shader>(key) ||
 		   Has<json>(key);
 }
 
-bool AssetManager::Unload(std::string_view key, impl::AssetKind kind) {
+bool AssetManager::Unload(AssetKey key, impl::AssetKind kind) {
 	switch (kind) {
 		case impl::AssetKind::Texture: return Unload<Texture>(key);
 		case impl::AssetKind::Audio:   return Unload<Audio>(key);
@@ -594,40 +594,40 @@ bool AssetManager::Unload(std::string_view key, impl::AssetKind kind) {
 	return false;
 }
 
-template bool AssetManager::Unload<json>(std::string_view);
-template bool AssetManager::Unload<Font>(std::string_view);
-template bool AssetManager::Unload<Texture>(std::string_view);
-template bool AssetManager::Unload<Audio>(std::string_view);
-template bool AssetManager::Unload<Shader>(std::string_view);
+template bool AssetManager::Unload<json>(AssetKey);
+template bool AssetManager::Unload<Font>(AssetKey);
+template bool AssetManager::Unload<Texture>(AssetKey);
+template bool AssetManager::Unload<Audio>(AssetKey);
+template bool AssetManager::Unload<Shader>(AssetKey);
 
-template bool AssetManager::Has<json>(std::string_view) const;
-template bool AssetManager::Has<Font>(std::string_view) const;
-template bool AssetManager::Has<Texture>(std::string_view) const;
-template bool AssetManager::Has<Audio>(std::string_view) const;
-template bool AssetManager::Has<Shader>(std::string_view) const;
+template bool AssetManager::Has<json>(AssetKey) const;
+template bool AssetManager::Has<Font>(AssetKey) const;
+template bool AssetManager::Has<Texture>(AssetKey) const;
+template bool AssetManager::Has<Audio>(AssetKey) const;
+template bool AssetManager::Has<Shader>(AssetKey) const;
 
-template ConstAsset<json> AssetManager::Get<json>(std::string_view) const;
-template ConstAsset<Font> AssetManager::Get<Font>(std::string_view) const;
-template ConstAsset<Texture> AssetManager::Get<Texture>(std::string_view) const;
-template ConstAsset<Audio> AssetManager::Get<Audio>(std::string_view) const;
-template ConstAsset<Shader> AssetManager::Get<Shader>(std::string_view) const;
+template ConstAsset<json> AssetManager::Get<json>(AssetKey) const;
+template ConstAsset<Font> AssetManager::Get<Font>(AssetKey) const;
+template ConstAsset<Texture> AssetManager::Get<Texture>(AssetKey) const;
+template ConstAsset<Audio> AssetManager::Get<Audio>(AssetKey) const;
+template ConstAsset<Shader> AssetManager::Get<Shader>(AssetKey) const;
 
-template Asset<json> AssetManager::Get<json>(std::string_view);
-template Asset<Font> AssetManager::Get<Font>(std::string_view);
-template Asset<Texture> AssetManager::Get<Texture>(std::string_view);
-template Asset<Audio> AssetManager::Get<Audio>(std::string_view);
-template Asset<Shader> AssetManager::Get<Shader>(std::string_view);
+template Asset<json> AssetManager::Get<json>(AssetKey);
+template Asset<Font> AssetManager::Get<Font>(AssetKey);
+template Asset<Texture> AssetManager::Get<Texture>(AssetKey);
+template Asset<Audio> AssetManager::Get<Audio>(AssetKey);
+template Asset<Shader> AssetManager::Get<Shader>(AssetKey);
 
-template std::optional<ConstAsset<json>> AssetManager::TryGet<json>(std::string_view) const;
-template std::optional<ConstAsset<Font>> AssetManager::TryGet<Font>(std::string_view) const;
-template std::optional<ConstAsset<Texture>> AssetManager::TryGet<Texture>(std::string_view) const;
-template std::optional<ConstAsset<Audio>> AssetManager::TryGet<Audio>(std::string_view) const;
-template std::optional<ConstAsset<Shader>> AssetManager::TryGet<Shader>(std::string_view) const;
+template std::optional<ConstAsset<json>> AssetManager::TryGet<json>(AssetKey) const;
+template std::optional<ConstAsset<Font>> AssetManager::TryGet<Font>(AssetKey) const;
+template std::optional<ConstAsset<Texture>> AssetManager::TryGet<Texture>(AssetKey) const;
+template std::optional<ConstAsset<Audio>> AssetManager::TryGet<Audio>(AssetKey) const;
+template std::optional<ConstAsset<Shader>> AssetManager::TryGet<Shader>(AssetKey) const;
 
-template std::optional<Asset<json>> AssetManager::TryGet<json>(std::string_view);
-template std::optional<Asset<Font>> AssetManager::TryGet<Font>(std::string_view);
-template std::optional<Asset<Texture>> AssetManager::TryGet<Texture>(std::string_view);
-template std::optional<Asset<Audio>> AssetManager::TryGet<Audio>(std::string_view);
-template std::optional<Asset<Shader>> AssetManager::TryGet<Shader>(std::string_view);
+template std::optional<Asset<json>> AssetManager::TryGet<json>(AssetKey);
+template std::optional<Asset<Font>> AssetManager::TryGet<Font>(AssetKey);
+template std::optional<Asset<Texture>> AssetManager::TryGet<Texture>(AssetKey);
+template std::optional<Asset<Audio>> AssetManager::TryGet<Audio>(AssetKey);
+template std::optional<Asset<Shader>> AssetManager::TryGet<Shader>(AssetKey);
 
 } // namespace ptgn

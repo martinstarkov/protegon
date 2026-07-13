@@ -185,7 +185,7 @@ Animation& Animation::SetCurrentFrame(std::size_t new_frame) {
 	return *this;
 }
 
-Animation& Animation::SetTexture(std::string_view texture_key) {
+Animation& Animation::SetTexture(TextureKey texture_key) {
 	Sprite{ *this }.SetTexture(texture_key);
 	return *this;
 }
@@ -437,27 +437,26 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 }
 
 Animation CreateAnimation(
-	Scene& scene, Transform transform, std::string_view texture_key, AnimationConfig config,
-	Origin origin
+	Scene& scene, Transform transform, TextureKey texture_key, AnimationConfig config, Origin origin
 ) {
 	Animation animation{ CreateSprite(scene, transform, texture_key, origin) };
 	animation.SetConfig(std::move(config));
-	PTGN_DEFAULT_NAME(animation, "Animation");
+	animation.Add<Tag>("Animation");
 	return animation;
 }
 
 Animation PlayTemporaryAnimation(
-	Scene& scene, Transform transform, std::string_view texture_key, AnimationConfig config,
+	Scene& scene, Transform transform, TextureKey texture_key, AnimationConfig config,
 	milliseconds destroy_delay, Origin origin
 ) {
 	Animation anim{ CreateAnimation(scene, transform, texture_key, std::move(config), origin) };
-	PTGN_DEFAULT_NAME(anim, "Temporary Animation");
+	anim.Add<Tag>("Temporary Animation");
 
 	if (destroy_delay == 0ms) {
 		anim.OnComplete([](auto& a) mutable { a.animation.Destroy(); });
 	} else {
 		auto script_sequence{ CreateScriptSequence(scene) };
-		PTGN_DEFAULT_NAME(script_sequence, "Temporary Animation Script Sequence");
+		script_sequence.Add<Tag>("Temporary Animation Script Sequence");
 		script_sequence.Wait(destroy_delay);
 		script_sequence.Then([anim]() mutable { anim.Destroy(); });
 		anim.OnComplete([script_sequence]() mutable { script_sequence.Start(); });
@@ -471,7 +470,7 @@ Animation PlayTemporaryAnimation(
 AnimationMap CreateAnimationMap(Scene& scene) {
 	AnimationMap animation_map{ scene.CreateEntity() };
 
-	PTGN_DEFAULT_NAME(animation_map, "Animation Map");
+	animation_map.Entity::Add<Tag>("Animation Map");
 	animation_map.Entity::Add<impl::AnimationMapData>();
 
 	return animation_map;

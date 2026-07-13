@@ -99,7 +99,7 @@ Tween GetOrCreateTween(Entity entity) {
 
 	if (!entity.Has<impl::EffectObject<TComponent>>()) {
 		impl::EffectObject<TComponent> obj{ CreateTween(entity.GetScene()) };
-		PTGN_DEFAULT_NAME(obj, "Tween Effect");
+		obj.template Add<Tag>("Tween Effect");
 		SetParent(obj, entity);
 		tween = Tween{ obj };
 		entity.Add<impl::EffectObject<TComponent>>(std::move(obj));

@@ -19,6 +19,7 @@
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/ecs/entity.h"
+#include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button_config.h"
 #include "serialization/serialize.h"
@@ -188,8 +189,8 @@ public:
 	Button& RemoveAnimations();
 	Button& RemoveAnimation(ButtonVisualState state);
 
-	Button& Sound(std::optional<std::string_view> sound_key, ButtonVisualState state);
-	Button& Sounds(std::optional<std::string_view> hover, std::optional<std::string_view> press);
+	Button& Sound(std::optional<AudioKey> sound_key, ButtonVisualState state);
+	Button& Sounds(std::optional<AudioKey> hover, std::optional<AudioKey> press);
 	Button& RemoveSound(ButtonVisualState state);
 	Button& RemoveSounds();
 	Button& ExclusiveAudio(bool enabled = true);
@@ -358,7 +359,7 @@ public:
 	ButtonText& Padding(ptgn::Padding padding);
 	ButtonText& ClearPadding();
 
-	ButtonText& Font(std::string_view font);
+	ButtonText& Font(FontKey font);
 	ButtonText& Color(ptgn::Color color);
 	ButtonText& Colors(
 		std::optional<ptgn::Color> idle, std::optional<ptgn::Color> hover = std::nullopt,
@@ -403,10 +404,10 @@ public:
 
 	ptgn::Button Button() const;
 
-	ButtonSprite& Texture(std::string_view texture_key);
+	ButtonSprite& Texture(TextureKey texture_key);
 	ButtonSprite& Textures(
-		std::optional<std::string_view> idle, std::optional<std::string_view> hover = std::nullopt,
-		std::optional<std::string_view> press = std::nullopt
+		std::optional<TextureKey> idle, std::optional<TextureKey> hover = std::nullopt,
+		std::optional<TextureKey> press = std::nullopt
 	);
 	ButtonSprite& ClearTexture();
 
@@ -431,17 +432,17 @@ protected:
 	ButtonVisualState state_{ ButtonVisualState::Idle };
 
 private:
-	ButtonSprite& Texture(std::string_view texture_key, ButtonVisualState state);
+	ButtonSprite& Texture(TextureKey texture_key, ButtonVisualState state);
 };
 
 class ButtonAnimation : public ButtonSprite {
 public:
 	ButtonAnimation(ptgn::Button button, ButtonVisualState state);
 
-	ButtonAnimation& Texture(std::string_view texture_key);
+	ButtonAnimation& Texture(TextureKey texture_key);
 	ButtonAnimation& Textures(
-		std::optional<std::string_view> idle, std::optional<std::string_view> hover = std::nullopt,
-		std::optional<std::string_view> press = std::nullopt
+		std::optional<TextureKey> idle, std::optional<TextureKey> hover = std::nullopt,
+		std::optional<TextureKey> press = std::nullopt
 	);
 	ButtonAnimation& ClearTexture();
 

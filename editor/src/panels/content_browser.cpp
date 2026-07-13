@@ -155,7 +155,7 @@ void DrawAssetTile(
 	float preview_size, const impl::AssetRecord& asset,
 	std::optional<impl::AssetRecord>& asset_to_unload
 ) {
-	ImGui::PushID(asset.key.c_str());
+	ImGui::PushID(asset.key.value.c_str());
 
 	ImGui::BeginGroup();
 
@@ -172,10 +172,10 @@ void DrawAssetTile(
 		ImGui::EndPopup();
 	}
 
-	auto key_text{ asset.key };
+	auto key_text{ asset.key.value };
 	ImGui::SetNextItemWidth(preview_size);
 	ImGui::InputText("##key", &key_text, ImGuiInputTextFlags_ReadOnly);
-	BeginAssetKeyDragDropSource(asset.key, asset.kind);
+	BeginAssetKeyDragDropSource(asset.key.value, asset.kind);
 
 	if (!asset.source_path.empty()) {
 		auto filename{ asset.source_path.filename().string() };
@@ -381,9 +381,9 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 		if (impl::AssetAccessor{ ctx.editor.GetAssetManager() }.Unload(
 				asset_to_unload->key, asset_to_unload->kind
 			)) {
-			status_ = "Unloaded " + asset_to_unload->key;
+			status_ = "Unloaded " + asset_to_unload->key.value;
 		} else {
-			status_ = "Failed to unload " + asset_to_unload->key;
+			status_ = "Failed to unload " + asset_to_unload->key.value;
 		}
 	}
 

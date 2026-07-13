@@ -101,15 +101,14 @@ CustomShader& CustomShader::SetMaterial(Material material) {
 }
 
 CustomShader CreateCustomShader(
-	Scene& scene, Transform transform, std::string_view shader_key, std::string_view texture_key,
-	V2_float size, const std::vector<UniformWrite>& uniforms, Origin origin
+	Scene& scene, Transform transform, ShaderKey shader_key, TextureKey texture_key, V2_float size,
+	const std::vector<UniformWrite>& uniforms, Origin origin
 ) {
 	CustomShader custom_shader{ scene.CreateEntity() };
-	PTGN_DEFAULT_NAME(custom_shader, "Custom Shader");
 
-	custom_shader.Add<TextureKey>(texture_key);
-	custom_shader.Add<Material>(Material{ .shader	= std::string{ shader_key },
-										  .uniforms = uniforms });
+	custom_shader.Add<Tag>("Custom Shader");
+	custom_shader.Add<TextureKey>(std::move(texture_key));
+	custom_shader.Add<Material>(Material{ .shader = std::move(shader_key), .uniforms = uniforms, });
 	custom_shader.Add<Visible>(true);
 	custom_shader.Add<Rect>(size);
 	custom_shader.Add<Transform>(transform);

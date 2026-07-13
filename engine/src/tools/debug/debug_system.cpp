@@ -73,7 +73,7 @@ void DrawDebugColliders(
 		}
 
 		auto transform{ GetDrawTransform(entity) };
-		auto origin{ entity.GetOrDefault<Origin>(kDefaultOrigin) };
+		auto origin{ entity.GetOrDefault<Origin>() };
 
 		scene.ctx().render_queue.DrawShape(
 			transform, collider.shape, settings.draw_color,
@@ -106,7 +106,7 @@ void DrawDebugTextBoundingBoxes(
 		const auto& layout{ Text{ entity }.GetLayout() };
 
 		auto transform{ GetDrawTransform(entity) };
-		auto origin{ entity.GetOrDefault<Origin>(kDefaultOrigin) };
+		auto origin{ entity.GetOrDefault<Origin>() };
 
 		auto prepared{ impl::PrepareTextDraw(transform, layout, box, origin) };
 
@@ -228,7 +228,7 @@ void DrawDebugInteractiveShapes(
 			scene.ctx().render_queue.DrawShape(
 				draw_transform, shape, settings.draw_color,
 				{ .fill_style = settings.draw_line_width,
-				  .origin	  = shape_entity.GetOrDefault<Origin>(kDefaultOrigin),
+				  .origin	  = shape_entity.GetOrDefault<Origin>(),
 				  .camera	  = camera,
 				  .debug	  = true }
 			);

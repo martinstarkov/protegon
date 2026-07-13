@@ -95,8 +95,8 @@ int main(int, char**) {
 		PTGN_ASSERT(e2.Has<impl::TextureCrop>());
 		PTGN_ASSERT(e2.Has<Visible>());
 		PTGN_ASSERT(e2.Has<Depth>());
-		PTGN_ASSERT(e2.Has<impl::Tint>());
-		PTGN_ASSERT(e2.Get<impl::Tint>() == tint_color);
+		PTGN_ASSERT(e2.Has<Tint>());
+		PTGN_ASSERT(e2.Get<Tint>() == tint_color);
 		PTGN_ASSERT(e2.Has<FillStyle>());
 		PTGN_ASSERT(e2.Has<TextureOrKey>());
 		PTGN_ASSERT(e2.Has<RigidBody>());

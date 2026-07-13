@@ -17,6 +17,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/game_object.h"
 #include "runtime/ecs/key_hash.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/scripting/script.h"
 #include "serialization/serialize.h"
 
@@ -154,7 +155,7 @@ struct Animation : public Entity {
 		return OnEvent<event::AnimationLoopComplete>(std::forward<F>(callback));
 	}
 
-	Animation& SetTexture(std::string_view texture_key);
+	Animation& SetTexture(TextureKey texture_key);
 
 	/// @brief Starts the animation. Can also be used to restart the animation.
 	/// @param force If false, only starts the animation if it is not already playing.
@@ -304,7 +305,7 @@ public:
 /// @param manager Which manager the entity is added to.
 /// @param texture Texture key to be used for the animation.
 Animation CreateAnimation(
-	Scene& scene, Transform transform = {}, std::string_view texture_key = {},
+	Scene& scene, Transform transform = {}, TextureKey texture_key = {},
 	AnimationConfig config = {}, Origin origin = Origin::Center
 );
 
@@ -313,7 +314,7 @@ Animation CreateAnimation(
 /// @param destroy_delay If 0ms, the animation is destroyed immediately after finishing. Otherwise,
 /// the animation is destroyed after the specified delay once it finishes.
 Animation PlayTemporaryAnimation(
-	Scene& scene, Transform transform = {}, std::string_view texture_key = {},
+	Scene& scene, Transform transform = {}, TextureKey texture_key = {},
 	AnimationConfig config = {}, milliseconds destroy_delay = 0ms, Origin origin = Origin::Center
 );
 

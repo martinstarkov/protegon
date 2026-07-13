@@ -184,7 +184,6 @@ public:
 		Transform transform, const DrawTextRequest& request, const impl::EffectParams& effects
 	);
 
-	void DrawTexture(const impl::DrawTextureRequest& request, const Material& material);
 	void DrawTexture(const impl::DrawTextureRequest& request, const MaterialState& material);
 
 	void DrawTexture(Transform transform, impl::TextureId texture, TextureDrawParams params);
@@ -193,13 +192,8 @@ public:
 		Transform transform, impl::TextureId texture, const MaterialState& material,
 		TextureDrawParams params
 	);
-	void DrawTexture(
-		Transform transform, impl::TextureId texture, const Material& material,
-		TextureDrawParams params
-	);
 
 	void DrawShader(Transform transform, const MaterialState& material, TextureDrawParams params);
-	void DrawShader(Transform transform, const Material& material, TextureDrawParams params);
 
 	void DrawPoint(V2_float point, Color color, const ShapeDrawParams& params);
 

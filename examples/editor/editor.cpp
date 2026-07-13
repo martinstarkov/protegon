@@ -45,10 +45,10 @@ public:
 		PTGN_LOG("Entered EditorScene with: seed: ", ToString(seed), ", level: ", level);
 
 		CreateText(*this, {}, "Hello World", color::Black, {}, "fontA", Origin::Center)
-			.SetTag("Text");
+			.Add<Tag>("Text");
 
 		/*
-		CreateSprite(*this, {}, "tree").SetTag("Tree");
+		CreateSprite(*this, {}, "tree").Add<Tag>("Tree");
 
 		CreateParticleEmitter(
 			*this, { 0.0f, static_cast<float>(-ctx().renderer.GetLogicalSize().y) / 2.0f },
@@ -69,7 +69,7 @@ public:
 			  .color_over_lifetime = Color{ 120, 170, 255, 200 } }
 		)
 			.Start()
-			.SetTag("Particle Emitter");
+			.Add<Tag>("Particle Emitter");
 			*/
 	}
 

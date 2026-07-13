@@ -130,11 +130,11 @@ Font FontSystem::GetDefault() const {
 	return asset_manager_.Get<Font>(default_font_);
 }
 
-void FontSystem::SetDefault(std::string_view font_key) {
+void FontSystem::SetDefault(FontKey font_key) {
 	PTGN_ASSERT(
 		asset_manager_.Has<Font>(font_key), "Font key must be loaded before setting it as default"
 	);
-	default_font_ = font_key;
+	default_font_ = std::move(font_key);
 }
 
 impl::FontAtlas FontSystem::CreateFontAtlas(Renderer& renderer, const path& font_path) {

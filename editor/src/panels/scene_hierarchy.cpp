@@ -210,7 +210,7 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		bool selected{ entity == selected_entity_ };
 		bool has_children{ HasChildren(entity) };
 
-		ImGui::PushID(entity.GetUUID());
+		ImGui::PushID(entity.Get<UUID>());
 
 		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_OpenOnArrow |
 								  ImGuiTreeNodeFlags_OpenOnDoubleClick |
@@ -225,8 +225,8 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 		}
 
-		auto label{ entity.GetTag() };
-		bool open{ ImGui::TreeNodeEx("##Entity", flags, "%s", label.c_str()) };
+		auto label{ entity.Get<Tag>() };
+		bool open{ ImGui::TreeNodeEx("##Entity", flags, "%s", label.value.c_str()) };
 
 		if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
 			selected_entity_ = entity;
