@@ -1,7 +1,7 @@
 #pragma once
 
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/drawable.h"
+#include "runtime/graphics/fx/effects.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -17,6 +17,6 @@ struct GaussianBlur {
 	PTGN_REFLECT(GaussianBlur, radius, iterations)
 };
 
-PTGN_REGISTER_EFFECT_NAMED(GaussianBlur, "Gaussian Blur");
+PTGN_REGISTER_EFFECT(GaussianBlur, { .name = "Gaussian Blur" });
 
 } // namespace ptgn

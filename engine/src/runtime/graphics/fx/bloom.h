@@ -2,7 +2,7 @@
 
 #include "core/graphics/color.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/drawable.h"
+#include "runtime/graphics/fx/effects.h"
 #include "serialization/serialize.h"
 
 namespace ptgn {
@@ -22,6 +22,6 @@ struct Bloom {
 	PTGN_REFLECT(Bloom, threshold, soft_knee, radius, intensity, blur_iterations, tint)
 };
 
-PTGN_REGISTER_EFFECT(Bloom, true);
+PTGN_REGISTER_EFFECT(Bloom, { .hdr = true });
 
 } // namespace ptgn

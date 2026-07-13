@@ -45,7 +45,7 @@ EffectParams GetEffectParams(const Entity& entity) {
 			params.margin = std::max(params.margin, margin->value);
 		}
 		if (child.Has<HDREffectTag>()) {
-			params.color_range = ColorRange::HDR;
+			params.hdr = true;
 		}
 	}
 

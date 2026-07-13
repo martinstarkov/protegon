@@ -129,6 +129,6 @@ RenderTarget CreateRenderTarget(
 	TextureFormat texture_format = kDefaultRenderTargetFormat
 );
 
-PTGN_REGISTER_DRAWABLE_NAMED(RenderTarget, "Render Target");
+PTGN_REGISTER_DRAWABLE(RenderTarget, { .name = "Render Target" });
 
 } // namespace ptgn

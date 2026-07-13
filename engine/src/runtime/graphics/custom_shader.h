@@ -50,6 +50,6 @@ CustomShader CreateCustomShader(
 	const std::vector<UniformWrite>& uniforms = {}, Origin origin = Origin::Center
 );
 
-PTGN_REGISTER_DRAWABLE_NAMED(CustomShader, "Custom Shader");
+PTGN_REGISTER_DRAWABLE(CustomShader, { .name = "Custom Shader" });
 
 } // namespace ptgn

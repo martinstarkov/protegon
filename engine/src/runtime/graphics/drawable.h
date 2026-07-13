@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <concepts>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -29,10 +30,29 @@ concept DrawableType = requires(DrawContext& render_context, Entity entity) {
 
 namespace impl {
 
+struct DrawableRegistrationOptions {
+	std::optional<std::string_view> name;
+	std::optional<std::string_view> group;
+};
+
+struct DrawableRegistrationData {
+	std::string_view type_name;
+	DrawableRegistrationOptions options;
+};
+
+constexpr DrawableRegistrationData MakeDrawableRegistration(
+	std::string_view type_name, DrawableRegistrationOptions options = {}
+) {
+	return {
+		.type_name = type_name,
+		.options   = options,
+	};
+}
+
 template <typename T>
-struct DrawableName {
-	static constexpr std::string_view Get() {
-		return "Unknown Drawable";
+struct DrawableRegistration {
+	static constexpr DrawableRegistrationData Get() {
+		return {};
 	}
 };
 
@@ -46,8 +66,21 @@ public:
 
 	struct Info {
 		std::size_t hash{ 0 };
-		std::string_view name;
+
+		/// @brief Actual registered C++ type name.
+		std::string_view type_name;
+
+		/// @brief Optional name.
+		std::optional<std::string_view> name;
+
+		/// @brief Optional group.
+		std::optional<std::string_view> group;
+
 		DrawFunc draw{ nullptr };
+
+		[[nodiscard]] constexpr std::string_view GetDisplayName() const {
+			return name.value_or(type_name);
+		}
 	};
 
 	static auto& data() {
@@ -55,15 +88,19 @@ public:
 		return s;
 	}
 
-	static bool Register(std::size_t type_hash, std::string_view name, DrawFunc draw) {
+	static bool Register(
+		std::size_t type_hash, const DrawableRegistrationData& registration, DrawFunc draw
+	) {
 		auto& drawables{ data() };
 
 		auto it{ std::ranges::find(drawables, type_hash, &Info::hash) };
 
 		if (it != drawables.end()) {
 			PTGN_ASSERT(
-				it->draw == draw,
-				"Drawable hash collision or duplicate drawable hash with different draw function"
+				it->draw == draw && it->type_name == registration.type_name &&
+					it->name == registration.options.name &&
+					it->group == registration.options.group,
+				"Drawable hash collision or duplicate drawable registration with different metadata"
 			);
 
 			return true;
@@ -71,13 +108,15 @@ public:
 
 		drawables.push_back(
 			Info{
-				.hash = type_hash,
-				.name = name,
-				.draw = draw,
+				.hash	   = type_hash,
+				.type_name = registration.type_name,
+				.name	   = registration.options.name,
+				.group	   = registration.options.group,
+				.draw	   = draw,
 			}
 		);
 
-		std::ranges::sort(drawables, {}, &Info::name);
+		std::ranges::sort(drawables, {}, [](const Info& info) { return info.GetDisplayName(); });
 
 		return true;
 	}
@@ -122,7 +161,7 @@ public:
 
 private:
 	static bool RegisterDrawFunction() {
-		return IDrawable::Register(Hash<T>(), DrawableName<T>::Get(), &T::Draw);
+		return IDrawable::Register(Hash<T>(), DrawableRegistration<T>::Get(), &T::Draw);
 	}
 
 	static bool registered_draw;
@@ -143,39 +182,13 @@ EffectParams GetEffectParams(const Entity& entity);
 
 } // namespace ptgn
 
-#define PTGN_REGISTER_DRAWABLE_NAMED(Type, Name)  \
-	template <>                                   \
-	struct ::ptgn::impl::DrawableName<Type> {     \
-		static constexpr std::string_view Get() { \
-			return Name;                          \
-		}                                         \
-	};                                            \
+#define PTGN_REGISTER_DRAWABLE(Type, ...)                                                 \
+	template <>                                                                           \
+	struct ::ptgn::impl::DrawableRegistration<Type> {                                     \
+		static constexpr ::ptgn::impl::DrawableRegistrationData Get() {                   \
+			return ::ptgn::impl::MakeDrawableRegistration(                                \
+				#Type __VA_OPT__(, ::ptgn::impl::DrawableRegistrationOptions __VA_ARGS__) \
+			);                                                                            \
+		}                                                                                 \
+	};                                                                                    \
 	template class ::ptgn::impl::DrawableRegistrar<Type>
-
-#define PTGN_REGISTER_DRAWABLE(Type) PTGN_REGISTER_DRAWABLE_NAMED(Type, #Type)
-
-/// @param Type The effect type to register.
-/// @param ... Optional bool value indicating whether the effect requires HDR rendering. Defaults to
-/// false if not provided.
-#define PTGN_REGISTER_EFFECT(Type, ...)                                                       \
-	PTGN_REGISTER_DRAWABLE(Type);                                                             \
-	template <>                                                                               \
-	struct ::ptgn::impl::EffectTraits<Type> {                                                 \
-		static constexpr bool requires_hdr{ PTGN_IMPL_FIRST_OR_DEFAULT(false, __VA_ARGS__) }; \
-		static constexpr ::ptgn::impl::ColorRange color_range{                                \
-			requires_hdr ? ::ptgn::impl::ColorRange::HDR : ::ptgn::impl::ColorRange::SDR      \
-		};                                                                                    \
-	}
-
-/// @param Type The effect type to register.
-/// @param ... Optional bool value indicating whether the effect requires HDR rendering. Defaults to
-/// false if not provided.
-#define PTGN_REGISTER_EFFECT_NAMED(Type, Name, ...)                                           \
-	PTGN_REGISTER_DRAWABLE_NAMED(Type, Name);                                                 \
-	template <>                                                                               \
-	struct ::ptgn::impl::EffectTraits<Type> {                                                 \
-		static constexpr bool requires_hdr{ PTGN_IMPL_FIRST_OR_DEFAULT(false, __VA_ARGS__) }; \
-		static constexpr ::ptgn::impl::ColorRange color_range{                                \
-			requires_hdr ? ::ptgn::impl::ColorRange::HDR : ::ptgn::impl::ColorRange::SDR      \
-		};                                                                                    \
-	}

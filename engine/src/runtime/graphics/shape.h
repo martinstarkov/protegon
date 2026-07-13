@@ -108,14 +108,14 @@ Entity CreateCapsule(
 	FillStyle fill_style = Solid{}
 );
 
-PTGN_REGISTER_DRAWABLE_NAMED(RectDraw, "Rect");
-PTGN_REGISTER_DRAWABLE_NAMED(RoundedRectDraw, "Rounded Rect");
-PTGN_REGISTER_DRAWABLE_NAMED(PolygonDraw, "Polygon");
-PTGN_REGISTER_DRAWABLE_NAMED(TriangleDraw, "Triangle");
-PTGN_REGISTER_DRAWABLE_NAMED(CircleDraw, "Circle");
-PTGN_REGISTER_DRAWABLE_NAMED(EllipseDraw, "Ellipse");
-PTGN_REGISTER_DRAWABLE_NAMED(ArcDraw, "Arc");
-PTGN_REGISTER_DRAWABLE_NAMED(LineDraw, "Line");
-PTGN_REGISTER_DRAWABLE_NAMED(CapsuleDraw, "Capsule");
+PTGN_REGISTER_DRAWABLE(RectDraw, { .name = "Rect", .group = "Shape" });
+PTGN_REGISTER_DRAWABLE(RoundedRectDraw, { .name = "Rounded Rect", .group = "Shape" });
+PTGN_REGISTER_DRAWABLE(PolygonDraw, { .name = "Polygon", .group = "Shape" });
+PTGN_REGISTER_DRAWABLE(TriangleDraw, { .name = "Triangle", .group = "Shape" });
+PTGN_REGISTER_DRAWABLE(CircleDraw, { .name = "Circle", .group = "Shape" });
+PTGN_REGISTER_DRAWABLE(EllipseDraw, { .name = "Ellipse", .group = "Shape" });
+PTGN_REGISTER_DRAWABLE(ArcDraw, { .name = "Arc", .group = "Shape" });
+PTGN_REGISTER_DRAWABLE(LineDraw, { .name = "Line", .group = "Shape" });
+PTGN_REGISTER_DRAWABLE(CapsuleDraw, { .name = "Capsule", .group = "Shape" });
 
 } // namespace ptgn

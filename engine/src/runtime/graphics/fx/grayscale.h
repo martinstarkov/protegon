@@ -1,7 +1,7 @@
 #pragma once
 
 #include "runtime/ecs/entity.h"
-#include "runtime/graphics/drawable.h"
+#include "runtime/graphics/fx/effects.h"
 
 namespace ptgn {
 

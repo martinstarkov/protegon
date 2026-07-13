@@ -2,6 +2,8 @@
 
 #include <ecs/ecs.h>
 
+#include <optional>
+#include <string_view>
 #include <utility>
 
 #include "app/application_context.h"
@@ -12,6 +14,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/draw.h"
+#include "runtime/graphics/drawable.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
@@ -32,13 +35,39 @@ public:
 
 namespace impl {
 
+struct EffectRegistrationOptions {
+	std::optional<std::string_view> name;
+	bool hdr{ false };
+};
+
+struct EffectRegistrationData {
+	std::string_view type_name;
+	EffectRegistrationOptions options;
+};
+
+constexpr EffectRegistrationData MakeEffectRegistration(
+	std::string_view type_name, EffectRegistrationOptions options = {}
+) {
+	return {
+		.type_name = type_name,
+		.options   = options,
+	};
+}
+
+template <typename T>
+struct EffectRegistration {
+	static constexpr EffectRegistrationData Get() {
+		return {};
+	}
+};
+
 template <typename T, typename... TArgs>
 	requires BraceConstructible<T, TArgs...>
 EffectEntity<T> CreateEffect(Entity effect, TArgs&&... args) {
 	effect.Add<T>(std::forward<TArgs>(args)...);
 	effect.Add<EffectTag>();
 
-	if constexpr (EffectTraits<T>::requires_hdr) {
+	if constexpr (EffectRegistration<T>::Get().options.hdr) {
 		effect.Add<HDREffectTag>();
 	}
 
@@ -101,7 +130,7 @@ EffectEntity<T> AddEffectMargin(EffectEntity<T> effect, int margin) {
 	return effect;
 }
 
-void ClearEffects(Entity entity) {
+inline void ClearEffects(Entity entity) {
 	if (!HasChildren(entity)) {
 		return;
 	}
@@ -114,13 +143,37 @@ void ClearEffects(Entity entity) {
 	}
 }
 
-void ClearEffects(const Scene& scene) {
+inline void ClearEffects(const Scene& scene) {
 	ClearEffects(scene.GetRenderTarget());
 }
 
-void ClearScreenEffects(Scene& scene) {
+inline void ClearScreenEffects(Scene& scene) {
 	impl::ApplicationAccessor::ctx(impl::SceneContextAccessor::app(scene.ctx()))
 		.screen_effect_manager.Reset();
 }
 
 } // namespace ptgn
+
+#define PTGN_REGISTER_EFFECT(Type, ...)                                                   \
+	template <>                                                                           \
+	struct ::ptgn::impl::EffectRegistration<Type> {                                       \
+		static constexpr ::ptgn::impl::EffectRegistrationData Get() {                     \
+			return ::ptgn::impl::MakeEffectRegistration(                                  \
+				#Type __VA_OPT__(, ::ptgn::impl::EffectRegistrationOptions __VA_ARGS__)   \
+			);                                                                            \
+		}                                                                                 \
+	};                                                                                    \
+	template <>                                                                           \
+	struct ::ptgn::impl::DrawableRegistration<Type> {                                     \
+		static constexpr ::ptgn::impl::DrawableRegistrationData Get() {                   \
+			constexpr auto registration{ ::ptgn::impl::EffectRegistration<Type>::Get() }; \
+                                                                                          \
+			return ::ptgn::impl::MakeDrawableRegistration(                                \
+				registration.type_name, {                                                 \
+											.name  = registration.options.name,           \
+											.group = "Effects",                           \
+										}                                                 \
+			);                                                                            \
+		}                                                                                 \
+	};                                                                                    \
+	template class ::ptgn::impl::DrawableRegistrar<Type>

@@ -243,7 +243,7 @@ private:
 		size += V2_float{ request.effect_params.margin * 2 };
 
 		TextureDesc desc{ .size	  = size,
-						  .format = impl::GetTextureFormat(request.effect_params.color_range) };
+						  .format = impl::GetEffectTextureFormat(request.effect_params.hdr) };
 
 		if (request.texture) {
 			// Inherit texture parameters from the original texture if it exists, to ensure
