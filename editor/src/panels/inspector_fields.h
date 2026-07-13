@@ -33,6 +33,7 @@
 #include "platform/platform.h"
 #include "renderer/text/font_style.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/graphics/text/font_system.h"
 
 namespace ptgn::editor::inspector {
 
@@ -518,8 +519,16 @@ template <AssetKeyType T>
 bool DrawAssetKeyInline(T& value, const FieldOptions& options) {
 	bool read_only{ IsReadOnly(options) };
 
+	std::string hint;
+
+	if constexpr (std::same_as<T, FontKey>) {
+		if (value == kDefaultFont) {
+			hint = "Default Font";
+		}
+	}
+
 	bool changed{ DrawDisabledIf(read_only, [&]() {
-		return ImGui::InputText("##value", &value.value);
+		return ImGui::InputTextWithHint("##value", hint.c_str(), &value.value);
 	}) };
 
 	auto input_min{ ImGui::GetItemRectMin() };
@@ -1902,7 +1911,9 @@ template <typename T>
 bool DrawDefaultContents(T& value) {
 	using Value = std::remove_cvref_t<T>;
 
-	if constexpr (ReflectedMembers<Value> || ReflectedReadOnlyMembers<Value>) {
+	if constexpr (AssetKeyType<Value>) {
+		return DrawValue(TypeLabel<Value>(), value);
+	} else if constexpr (ReflectedMembers<Value> || ReflectedReadOnlyMembers<Value>) {
 		return DrawMembers(value);
 	} else if constexpr (ReflectedValue<Value>) {
 		auto member{ ReflectValue(value) };
