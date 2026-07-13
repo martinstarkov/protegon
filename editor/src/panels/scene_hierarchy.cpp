@@ -5,11 +5,9 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
-#include <cmath>
 #include <compare>
 #include <cstdint>
 #include <functional>
-#include <limits>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -55,8 +53,6 @@ namespace ptgn::editor {
 namespace {
 
 constexpr const char* kEntityDragDropPayload{ "PTGN_HIERARCHY_ENTITY" };
-constexpr float kDropDividerHeight{ 4.0f };
-constexpr float kMinimumDepthGap{ 0.0001f };
 
 using HierarchyCondition = bool (*)(Entity);
 
@@ -191,38 +187,18 @@ std::optional<std::string_view> GetHierarchyRestrictionReason(Entity entity) {
 struct PendingHierarchyDrop {
 	Entity entity;
 	Entity parent;
-	Entity before;
 
 	[[nodiscard]] explicit operator bool() const {
 		return static_cast<bool>(entity);
 	}
 };
 
-std::string Trim(std::string value) {
-	auto first{ value.find_first_not_of(" \t") };
-
-	if (first == std::string::npos) {
-		return {};
-	}
-
-	auto last{ value.find_last_not_of(" \t") };
-	return value.substr(first, last - first + 1);
-}
-
-std::string ToLower(std::string value) {
-	for (char& character : value) {
-		character = static_cast<char>(std::tolower(static_cast<unsigned char>(character)));
-	}
-
-	return value;
-}
-
 bool EntityMatchesFilter(std::string_view entity_name, std::string_view filter_text) {
 	if (filter_text.empty()) {
 		return true;
 	}
 
-	auto name{ ToLower(std::string{ entity_name }) };
+	auto name{ ToLower(entity_name) };
 	auto filter{ std::string{ filter_text } };
 
 	bool has_include{ false };
@@ -235,11 +211,11 @@ bool EntityMatchesFilter(std::string_view entity_name, std::string_view filter_t
 		auto token{ comma == std::string::npos ? filter.substr(start)
 											   : filter.substr(start, comma - start) };
 
-		token = ToLower(Trim(std::move(token)));
+		token = ToLower(TrimWhitespace(std::move(token)));
 
 		if (!token.empty()) {
 			bool exclude{ token.front() == '-' };
-			auto needle{ Trim(exclude ? token.substr(1) : token) };
+			auto needle{ TrimWhitespace(exclude ? token.substr(1) : token) };
 
 			if (!needle.empty()) {
 				bool contains{ name.find(needle) != std::string::npos };
@@ -306,27 +282,8 @@ std::vector<Entity> GetSiblings(Scene& scene, Entity parent) {
 		}
 	}
 
-	SortByDepth(siblings);
+	SortByLocalDepth(siblings);
 	return siblings;
-}
-
-std::vector<Entity> GetVisibleSiblings(Scene& scene, Entity parent, std::string_view filter_text) {
-	auto siblings{ GetSiblings(scene, parent) };
-
-	siblings.erase(
-		std::remove_if(
-			siblings.begin(), siblings.end(),
-			[&](Entity entity) { return !EntityOrDescendantMatchesFilter(entity, filter_text); }
-		),
-		siblings.end()
-	);
-
-	return siblings;
-}
-
-bool HasHierarchyParent(Entity entity, Entity parent) {
-	return parent ? ptgn::HasParent(entity) && GetParent(entity) == parent
-				  : !ptgn::HasParent(entity);
 }
 
 bool IsSameOrDescendant(Entity entity, Entity potential_ancestor) {
@@ -396,236 +353,32 @@ Entity AcceptDraggedEntity(Scene& scene) {
 	return scene.GetEntity(uuid);
 }
 
-bool IsHierarchyEntityDragActive() {
-	const ImGuiPayload* payload{ ImGui::GetDragDropPayload() };
-	return payload && payload->IsDataType(kEntityDragDropPayload);
-}
-
-bool IsImmediateNextVisibleSibling(
-	Scene& scene, Entity entity, Entity before, Entity parent, std::string_view filter_text
-) {
-	auto siblings{ GetVisibleSiblings(scene, parent, filter_text) };
-
-	for (std::size_t i{ 0 }; i + 1 < siblings.size(); ++i) {
-		if (siblings[i] == entity && siblings[i + 1] == before) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool IsLastVisibleSibling(
-	Scene& scene, Entity entity, Entity parent, std::string_view filter_text
-) {
-	auto siblings{ GetVisibleSiblings(scene, parent, filter_text) };
-	return !siblings.empty() && siblings.back() == entity;
-}
-
-void DrawDropTargetLine() {
-	if (!ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem)) {
-		return;
-	}
-
-	auto min{ ImGui::GetItemRectMin() };
-	auto max{ ImGui::GetItemRectMax() };
-	float y{ (min.y + max.y) * 0.5f };
-
-	ImGui::GetWindowDrawList()->AddLine(
-		ImVec2{ min.x, y }, ImVec2{ max.x, y }, ImGui::GetColorU32(ImGuiCol_DragDropTarget), 2.0f
-	);
-}
-
-void DrawSiblingDropDivider(
-	Scene& scene, Entity parent, Entity before, std::string_view filter_text,
-	PendingHierarchyDrop& pending_drop
-) {
-	if (!IsHierarchyEntityDragActive()) {
-		return;
-	}
-
-	Entity dragged{ GetDraggedEntity(scene) };
-
-	if (!dragged || dragged == before || !CanReparent(dragged, parent)) {
-		return;
-	}
-
-	if (HasHierarchyParent(dragged, parent) &&
-		IsImmediateNextVisibleSibling(scene, dragged, before, parent, filter_text)) {
-		return;
-	}
-
-	ImGui::PushID("BeforeEntityDropDivider");
-	ImGui::InvisibleButton(
-		"##DropDivider", ImVec2{ ImGui::GetContentRegionAvail().x, kDropDividerHeight }
-	);
-
-	if (ImGui::BeginDragDropTarget()) {
-		if (Entity dropped{ AcceptDraggedEntity(scene) };
-			dropped && dropped != before && CanReparent(dropped, parent)) {
-			pending_drop = PendingHierarchyDrop{
-				.entity{ dropped },
-				.parent{ parent },
-				.before{ before },
-			};
-		}
-
-		ImGui::EndDragDropTarget();
-	}
-
-	DrawDropTargetLine();
-	ImGui::PopID();
-}
-
-void DrawSiblingEndDropDivider(
-	Scene& scene, Entity parent, std::string_view filter_text, PendingHierarchyDrop& pending_drop
-) {
-	if (!IsHierarchyEntityDragActive()) {
-		return;
-	}
-
-	Entity dragged{ GetDraggedEntity(scene) };
-
-	if (!dragged || !CanReparent(dragged, parent) ||
-		(HasHierarchyParent(dragged, parent) &&
-		 IsLastVisibleSibling(scene, dragged, parent, filter_text))) {
-		return;
-	}
-
-	ImGui::PushID("EndSiblingDropDivider");
-	ImGui::InvisibleButton(
-		"##DropDivider", ImVec2{ ImGui::GetContentRegionAvail().x, kDropDividerHeight }
-	);
-
-	if (ImGui::BeginDragDropTarget()) {
-		if (Entity dropped{ AcceptDraggedEntity(scene) }; dropped && CanReparent(dropped, parent)) {
-			pending_drop = PendingHierarchyDrop{
-				.entity{ dropped },
-				.parent{ parent },
-				.before{},
-			};
-		}
-
-		ImGui::EndDragDropTarget();
-	}
-
-	DrawDropTargetLine();
-	ImGui::PopID();
-}
-
-bool IsAscendingDepthOrder(const std::vector<Entity>& entities) {
-	for (std::size_t i{ 1 }; i < entities.size(); ++i) {
-		float previous{ GetDepth(entities[i - 1]) };
-		float current{ GetDepth(entities[i]) };
-
-		if (previous != current) {
-			return previous < current;
-		}
-	}
-
-	return true;
-}
-
-float GetDepthStep(const std::vector<Entity>& entities) {
-	float step{ std::numeric_limits<float>::max() };
-
-	for (std::size_t i{ 1 }; i < entities.size(); ++i) {
-		float difference{ std::abs(GetDepth(entities[i]) - GetDepth(entities[i - 1])) };
-
-		if (difference > kMinimumDepthGap) {
-			step = std::min(step, difference);
-		}
-	}
-
-	return step == std::numeric_limits<float>::max() ? 1.0f : step;
-}
-
-void NormalizeSiblingDepths(std::vector<Entity>& entities, bool ascending) {
-	if (entities.empty()) {
-		return;
-	}
-
-	float step{ GetDepthStep(entities) };
-	float base_depth{ GetDepth(entities.front()) };
-
-	for (std::size_t i{ 0 }; i < entities.size(); ++i) {
-		float offset{ static_cast<float>(i) * step };
-		SetDepth(entities[i], ascending ? base_depth + offset : base_depth - offset);
-	}
-}
-
-void ApplySiblingOrder(Scene& scene, Entity entity, Entity parent, Entity before) {
-	auto siblings{ GetSiblings(scene, parent) };
-
-	siblings.erase(std::remove(siblings.begin(), siblings.end(), entity), siblings.end());
-
-	auto insertion{ siblings.end() };
-
-	if (before) {
-		insertion = std::find(siblings.begin(), siblings.end(), before);
-	}
-
-	auto index{ static_cast<std::size_t>(std::distance(siblings.begin(), insertion)) };
-	bool ascending{ IsAscendingDepthOrder(siblings) };
-	siblings.insert(insertion, entity);
-
-	if (siblings.size() <= 1) {
-		return;
-	}
-
-	float step{ GetDepthStep(siblings) };
-	std::optional<float> target_depth;
-
-	if (index == 0) {
-		float next{ GetDepth(siblings[1]) };
-		target_depth = ascending ? next - step : next + step;
-	} else if (index + 1 == siblings.size()) {
-		float previous{ GetDepth(siblings[index - 1]) };
-		target_depth = ascending ? previous + step : previous - step;
-	} else {
-		float previous{ GetDepth(siblings[index - 1]) };
-		float next{ GetDepth(siblings[index + 1]) };
-		float gap{ std::abs(next - previous) };
-
-		if (gap > kMinimumDepthGap) {
-			target_depth = previous + (next - previous) * 0.5f;
-		}
-	}
-
-	if (target_depth.has_value() && std::isfinite(target_depth.value())) {
-		SetDepth(entity, target_depth.value());
-		return;
-	}
-
-	NormalizeSiblingDepths(siblings, ascending);
-}
-
-void ApplyHierarchyDrop(Scene& scene, const PendingHierarchyDrop& drop) {
+void ApplyHierarchyDrop(const PendingHierarchyDrop& drop) {
 	if (!drop || !CanReparent(drop.entity, drop.parent)) {
 		return;
 	}
 
 	Entity previous_parent{ ptgn::HasParent(drop.entity) ? GetParent(drop.entity) : Entity{} };
-	bool parent_changed{ previous_parent != drop.parent };
+
+	if (previous_parent == drop.parent) {
+		return;
+	}
+
 	std::optional<Transform> world_transform;
 
-	if (parent_changed && drop.entity.Has<Transform>()) {
+	if (drop.entity.Has<Transform>()) {
 		world_transform = GetWorldTransform(drop.entity);
 	}
 
-	if (parent_changed) {
-		if (drop.parent) {
-			SetParent(drop.entity, drop.parent);
-		} else if (ptgn::HasParent(drop.entity)) {
-			RemoveParent(drop.entity);
-		}
+	if (drop.parent) {
+		SetParent(drop.entity, drop.parent);
+	} else if (ptgn::HasParent(drop.entity)) {
+		RemoveParent(drop.entity);
 	}
 
 	if (world_transform.has_value()) {
 		SetWorldTransform(drop.entity, world_transform.value());
 	}
-
-	ApplySiblingOrder(scene, drop.entity, drop.parent, drop.before);
 }
 
 } // namespace
@@ -884,14 +637,11 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			),
 			children.end()
 		);
-		SortByDepth(children);
+		SortByLocalDepth(children);
 
 		bool has_visible_children{ !children.empty() };
-		Entity parent{ ptgn::HasParent(entity) ? GetParent(entity) : Entity{} };
 
 		ImGui::PushID(entity.Get<UUID>());
-
-		DrawSiblingDropDivider(*selected_scene, parent, entity, filter_text, pending_drop);
 
 		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_OpenOnArrow |
 								  ImGuiTreeNodeFlags_OpenOnDoubleClick |
@@ -953,7 +703,6 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 				pending_drop = PendingHierarchyDrop{
 					.entity{ dropped },
 					.parent{ entity },
-					.before{},
 				};
 			}
 
@@ -974,7 +723,6 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 					pending_drop = PendingHierarchyDrop{
 						.entity{ entity },
 						.parent{},
-						.before{},
 					};
 				}
 
@@ -1002,8 +750,6 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 				self(self, child, recursion_depth + 1);
 			}
 
-			DrawSiblingEndDropDivider(*selected_scene, entity, filter_text, pending_drop);
-
 			ImGui::TreePop();
 		}
 
@@ -1016,7 +762,28 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		draw_entity(draw_entity, entity, 0);
 	}
 
-	DrawSiblingEndDropDivider(*selected_scene, {}, filter_text, pending_drop);
+	Entity dragged{ GetDraggedEntity(*selected_scene) };
+	bool can_drop_at_root{ dragged && ptgn::HasParent(dragged) && CanReparent(dragged, {}) };
+
+	if (can_drop_at_root) {
+		ImVec2 available{ ImGui::GetContentRegionAvail() };
+
+		if (available.x > 0.0f && available.y > 0.0f) {
+			ImGui::InvisibleButton("##HierarchyRootDropTarget", available);
+
+			if (ImGui::BeginDragDropTarget()) {
+				if (Entity dropped{ AcceptDraggedEntity(*selected_scene) };
+					dropped && ptgn::HasParent(dropped) && CanReparent(dropped, {})) {
+					pending_drop = PendingHierarchyDrop{
+						.entity{ dropped },
+						.parent{},
+					};
+				}
+
+				ImGui::EndDragDropTarget();
+			}
+		}
+	}
 
 	if (ImGui::BeginPopupContextWindow(
 			"SceneHierarchyPanelContextMenu",
@@ -1036,7 +803,7 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 	}
 
 	if (pending_drop) {
-		ApplyHierarchyDrop(*selected_scene, pending_drop);
+		ApplyHierarchyDrop(pending_drop);
 	}
 
 	if (entity_to_delete) {
