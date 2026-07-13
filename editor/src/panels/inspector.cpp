@@ -681,6 +681,8 @@ PTGN_REGISTER_COMPONENT(
 );
 
 void InspectorPanel::OnRender(EditorContext& ctx) {
+	inspector::InspectorAssetManagerScope asset_manager_scope{ ctx.editor.GetAssetManager() };
+
 	ImGui::Begin("Inspector");
 
 	auto& scene_hierarchy{ ctx.editor.GetSceneHierarchyPanel() };

@@ -8,6 +8,16 @@
 
 namespace ptgn {
 
+enum class AssetKind {
+	Texture,
+	Audio,
+	Font,
+	Json,
+	Shader,
+	Unknown
+};
+PTGN_REFLECT_ENUM(AssetKind);
+
 struct AssetKey : public StrongString<AssetKey> {
 	using StrongString::StrongString;
 
@@ -24,7 +34,11 @@ struct AssetKey : public StrongString<AssetKey> {
 struct TextureKey : public AssetKey {
 	using AssetKey::AssetKey;
 
+	static constexpr AssetKind kind{ AssetKind::Texture };
+
 	constexpr TextureKey() = default;
+
+	constexpr TextureKey(AssetKey key) : AssetKey{ std::move(key.value) } {}
 
 	constexpr auto operator<=>(const TextureKey&) const = default;
 
@@ -34,7 +48,11 @@ struct TextureKey : public AssetKey {
 struct FontKey : public AssetKey {
 	using AssetKey::AssetKey;
 
+	static constexpr AssetKind kind{ AssetKind::Font };
+
 	constexpr FontKey() = default;
+
+	constexpr FontKey(AssetKey key) : AssetKey{ std::move(key.value) } {}
 
 	constexpr auto operator<=>(const FontKey&) const = default;
 
@@ -44,7 +62,11 @@ struct FontKey : public AssetKey {
 struct AudioKey : public AssetKey {
 	using AssetKey::AssetKey;
 
+	static constexpr AssetKind kind{ AssetKind::Audio };
+
 	constexpr AudioKey() = default;
+
+	constexpr AudioKey(AssetKey key) : AssetKey{ std::move(key.value) } {}
 
 	constexpr auto operator<=>(const AudioKey&) const = default;
 
@@ -54,7 +76,11 @@ struct AudioKey : public AssetKey {
 struct ShaderKey : public AssetKey {
 	using AssetKey::AssetKey;
 
+	static constexpr AssetKind kind{ AssetKind::Shader };
+
 	constexpr ShaderKey() = default;
+
+	constexpr ShaderKey(AssetKey key) : AssetKey{ std::move(key.value) } {}
 
 	constexpr auto operator<=>(const ShaderKey&) const = default;
 
@@ -64,7 +90,11 @@ struct ShaderKey : public AssetKey {
 struct JsonKey : public AssetKey {
 	using AssetKey::AssetKey;
 
+	static constexpr AssetKind kind{ AssetKind::Json };
+
 	constexpr JsonKey() = default;
+
+	constexpr JsonKey(AssetKey key) : AssetKey{ std::move(key.value) } {}
 
 	constexpr auto operator<=>(const JsonKey&) const = default;
 

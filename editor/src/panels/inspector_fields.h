@@ -32,6 +32,7 @@
 #include "panels/content_browser.h"
 #include "platform/platform.h"
 #include "renderer/text/font_style.h"
+#include "runtime/asset/asset_manager.h"
 
 namespace ptgn::editor::inspector {
 
@@ -326,6 +327,9 @@ template <typename T>
 inline constexpr bool kIsOptional{ IsOptional<T>::value };
 
 template <typename T>
+concept AssetKeyType = std::derived_from<std::remove_cvref_t<T>, AssetKey>;
+
+template <typename T>
 bool DrawValue(
 	std::string_view label, T& value,
 	FieldOptions options = kDefaultFieldOptions<std::remove_cvref_t<T>>
@@ -461,6 +465,102 @@ bool DrawMembers(T& value) {
 	}
 
 	return changed;
+}
+
+inline AssetManager*& CurrentInspectorAssetManager() {
+	static thread_local AssetManager* assets{ nullptr };
+	return assets;
+}
+
+class InspectorAssetManagerScope {
+public:
+	explicit InspectorAssetManagerScope(AssetManager& assets) :
+		previous_{ CurrentInspectorAssetManager() } {
+		CurrentInspectorAssetManager() = &assets;
+	}
+
+	~InspectorAssetManagerScope() {
+		CurrentInspectorAssetManager() = previous_;
+	}
+
+	InspectorAssetManagerScope(const InspectorAssetManagerScope&)			 = delete;
+	InspectorAssetManagerScope& operator=(const InspectorAssetManagerScope&) = delete;
+
+	InspectorAssetManagerScope(InspectorAssetManagerScope&&)			= delete;
+	InspectorAssetManagerScope& operator=(InspectorAssetManagerScope&&) = delete;
+
+private:
+	AssetManager* previous_{ nullptr };
+};
+
+template <AssetKeyType T>
+bool IsValidAssetKey(const T& key) {
+	using Value = std::remove_cvref_t<T>;
+
+	if (key.value.empty()) {
+		return true;
+	}
+
+	auto* assets{ CurrentInspectorAssetManager() };
+
+	if (assets == nullptr) {
+		return true;
+	}
+
+	if constexpr (std::same_as<Value, AssetKey>) {
+		return assets->Has(key);
+	} else {
+		return assets->Has(key);
+	}
+}
+
+template <AssetKeyType T>
+bool DrawAssetKeyInline(T& value, const FieldOptions& options) {
+	bool read_only{ IsReadOnly(options) };
+
+	bool changed{ DrawDisabledIf(read_only, [&]() {
+		return ImGui::InputText("##value", &value.value);
+	}) };
+
+	auto input_min{ ImGui::GetItemRectMin() };
+	auto input_max{ ImGui::GetItemRectMax() };
+	bool input_hovered{ ImGui::IsItemHovered() };
+
+	if (!read_only) {
+		changed |= ptgn::editor::AcceptAssetKeyDragDrop(value);
+	}
+
+	if (IsValidAssetKey(value)) {
+		return changed;
+	}
+
+	auto error_color{ ImGui::GetColorU32(ImVec4{ 1.0f, 0.25f, 0.25f, 1.0f }) };
+
+	ImGui::GetWindowDrawList()->AddRect(
+		input_min, input_max, error_color, ImGui::GetStyle().FrameRounding
+	);
+
+	if (input_hovered) {
+		using Value = std::remove_cvref_t<T>;
+
+		if constexpr (std::same_as<Value, AssetKey>) {
+			ImGui::SetTooltip("No asset exists with key \"%s\".", value.value.c_str());
+		} else {
+			auto kind_name{ magic_enum::enum_name(Value::kind) };
+
+			ImGui::SetTooltip(
+				"No %.*s asset exists with key \"%s\".", static_cast<int>(kind_name.size()),
+				kind_name.data(), value.value.c_str()
+			);
+		}
+	}
+
+	return changed;
+}
+
+template <AssetKeyType T>
+bool DrawAssetKey(std::string_view label, T& value, const FieldOptions& options) {
+	return DrawPropertyRow(label, [&]() { return DrawAssetKeyInline(value, options); });
 }
 
 inline bool DrawFloat(std::string_view label, float& value, const FieldOptions& options) {
@@ -1386,10 +1486,10 @@ bool DrawOptionalEnum(std::string_view label, std::optional<T>& value) {
 
 template <typename T>
 inline constexpr bool kCanDrawOptionalInlineValue{
-	std::same_as<T, float> || std::same_as<T, int> || std::same_as<T, std::int64_t> ||
-	std::same_as<T, std::size_t> || DurationType<T> || std::same_as<T, std::string> ||
-	std::same_as<T, V2_float> || std::same_as<T, V2_int> || std::same_as<T, Color> ||
-	std::same_as<T, Degrees> || std::same_as<T, Radians>
+	AssetKeyType<T> || std::same_as<T, float> || std::same_as<T, int> ||
+	std::same_as<T, std::int64_t> || std::same_as<T, std::size_t> || DurationType<T> ||
+	std::same_as<T, std::string> || std::same_as<T, V2_float> || std::same_as<T, V2_int> ||
+	std::same_as<T, Color> || std::same_as<T, Degrees> || std::same_as<T, Radians>
 };
 
 template <typename T>
@@ -1515,16 +1615,11 @@ bool DrawOptionalInlineValue(T& value, const FieldOptions& options) {
 		return changed;
 	} else if constexpr (DurationType<Value>) {
 		return DrawDurationInlineValue(value, options);
+	} else if constexpr (AssetKeyType<Value>) {
+		return DrawAssetKeyInline(value, options);
 	} else if constexpr (std::same_as<Value, std::string>) {
 		return DrawDisabledIf(IsReadOnly(options), [&]() {
-			bool changed{ ImGui::InputText("##value", &value) };
-
-			// TODO: Use stricter type checking for asset keys, e.g. by using a template parameter
-			// or a type trait.
-
-			changed |= ptgn::editor::AcceptAssetKeyDragDrop(value);
-
-			return changed;
+			return ImGui::InputText("##value", &value);
 		});
 	} else if constexpr (std::same_as<Value, V2_float>) {
 		float values[2]{ value.x, value.y };
@@ -1734,26 +1829,22 @@ bool DrawValue(std::string_view label, T& value, FieldOptions options) {
 		return DrawSize(label, value, options);
 	} else if constexpr (DurationType<Value>) {
 		return DrawDuration(label, value, options);
+	} else if constexpr (AssetKeyType<Value>) {
+		return DrawAssetKey(label, value, options);
 	} else if constexpr (std::same_as<Value, std::string>) {
 		return DrawPropertyRow(label, [&]() {
 			return DrawDisabledIf(IsReadOnly(options), [&]() {
-				bool changed{ false };
-
 				if (options.multiline) {
-					changed |= ImGui::InputTextMultiline(
+					return ImGui::InputTextMultiline(
 						"##value", &value,
-						ImVec2{ -FLT_MIN, ImGui::GetTextLineHeightWithSpacing() * 4.0f }
+						ImVec2{
+							-FLT_MIN,
+							ImGui::GetTextLineHeightWithSpacing() * 4.0f,
+						}
 					);
-				} else {
-					changed |= ImGui::InputText("##value", &value);
 				}
 
-				// TODO: Use stricter type checking for asset keys, e.g. by using a template
-				// parameter or a type trait.
-
-				changed |= ptgn::editor::AcceptAssetKeyDragDrop(value);
-
-				return changed;
+				return ImGui::InputText("##value", &value);
 			});
 		});
 	} else if constexpr (std::same_as<Value, Color>) {

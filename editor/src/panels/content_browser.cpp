@@ -15,6 +15,7 @@
 #include "core/util/string.h"
 #include "platform/file_dialog.h"
 #include "platform/window.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/asset/asset_manager.h"
 #include "tools/debug/debug_system.h"
 #include "tools/debug/stats.h"
@@ -26,11 +27,11 @@ namespace {
 inline constexpr char kAssetKeyPayloadType[]{ "PTGN_ASSET_KEY" };
 
 struct AssetKeyPayload {
-	impl::AssetKind kind{ impl::AssetKind::Unknown };
+	AssetKind kind{ AssetKind::Unknown };
 	char key[256]{};
 };
 
-inline void BeginAssetKeyDragDropSource(std::string_view key, impl::AssetKind kind) {
+inline void BeginAssetKeyDragDropSource(std::string_view key, AssetKind kind) {
 	if (!ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 		return;
 	}
@@ -70,17 +71,17 @@ std::string SanitizeAssetKey(std::string key) {
 	return key;
 }
 
-std::string DefaultAssetKey(const path& asset_path) {
+AssetKey DefaultAssetKey(const path& asset_path) {
 	auto key{ asset_path.stem().string() };
 	return SanitizeAssetKey(key);
 }
 
-std::string MakeUniqueAssetKey(AssetManager& assets, const path& asset_path) {
+AssetKey MakeUniqueAssetKey(AssetManager& assets, const path& asset_path) {
 	auto base_key{ DefaultAssetKey(asset_path) };
 	auto key{ base_key };
 
 	for (auto suffix{ 1 }; assets.Has(key); ++suffix) {
-		key = base_key + "_" + std::to_string(suffix);
+		key = base_key.value + "_" + std::to_string(suffix);
 	}
 
 	return key;
@@ -106,7 +107,7 @@ void ImportAssetPaths(EditorContext& ctx, std::span<const path> asset_paths, std
 	for (auto& asset_path : asset_paths) {
 		auto kind{ impl::GetAssetKind(asset_path) };
 
-		if (kind == impl::AssetKind::Unknown) {
+		if (kind == AssetKind::Unknown) {
 			++skipped_count;
 			continue;
 		}
@@ -135,7 +136,7 @@ bool MatchesSearch(const impl::AssetRecord& asset, std::string_view search) {
 		return true;
 	}
 
-	if (ContainsInsensitive(asset.key, search)) {
+	if (ContainsInsensitive(asset.key.value, search)) {
 		return true;
 	}
 
@@ -198,20 +199,26 @@ void DrawAssetTile(
 
 } // namespace
 
-bool AcceptAssetKeyDragDrop(std::string& value, std::optional<impl::AssetKind> accepted_kind) {
+bool AcceptAssetKeyDragDrop(AssetKey& value, std::optional<AssetKind> accepted_kind) {
 	if (!ImGui::BeginDragDropTarget()) {
 		return false;
 	}
 
 	bool changed{ false };
 
-	auto* payload{ ImGui::AcceptDragDropPayload(kAssetKeyPayloadType) };
-	if (payload != nullptr && payload->DataSize == sizeof(AssetKeyPayload)) {
-		auto* asset_payload{ static_cast<const AssetKeyPayload*>(payload->Data) };
+	const auto* payload{ ImGui::GetDragDropPayload() };
 
-		if (!accepted_kind.has_value() || *accepted_kind == asset_payload->kind) {
-			value	= asset_payload->key;
-			changed = true;
+	if (payload != nullptr && payload->IsDataType(kAssetKeyPayloadType) &&
+		payload->DataSize == sizeof(AssetKeyPayload)) {
+		const auto* asset_payload{ static_cast<const AssetKeyPayload*>(payload->Data) };
+
+		bool accepts_kind{ !accepted_kind.has_value() || *accepted_kind == asset_payload->kind };
+
+		if (accepts_kind) {
+			if (ImGui::AcceptDragDropPayload(kAssetKeyPayloadType) != nullptr) {
+				value.value = asset_payload->key;
+				changed		= true;
+			}
 		}
 	}
 

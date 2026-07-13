@@ -48,17 +48,6 @@ struct AssetPath {
 	PTGN_REFLECT_VALUE(AssetPath, value)
 };
 
-enum class AssetKind {
-	Texture,
-	Audio,
-	Font,
-	Json,
-	Shader,
-	Unknown
-};
-
-PTGN_REFLECT_ENUM(AssetKind);
-
 template <typename>
 struct AssetInfo;
 
@@ -173,16 +162,16 @@ public:
 	AssetAccessor& operator=(AssetAccessor&&) noexcept = delete;
 
 	template <AssetType T>
-	ConstAsset<T> Get(AssetKey key) const;
+	ConstAsset<T> Get(const AssetKey& key) const;
 
 	template <AssetType T>
-	Asset<T> Get(AssetKey key);
+	Asset<T> Get(const AssetKey& key);
 
 	template <AssetType T>
-	[[nodiscard]] bool Has(AssetKey key) const;
+	[[nodiscard]] bool Has(const AssetKey& key) const;
 
 	[[nodiscard]] std::vector<impl::AssetRecord> GetAssets() const;
-	bool Unload(AssetKey key, impl::AssetKind kind);
+	bool Unload(const AssetKey& key, AssetKind kind);
 
 private:
 	AssetManager& assets;
@@ -237,44 +226,52 @@ public:
 	/// @param key The unique identifier used to reference the loaded asset.
 	/// @param asset_path The file system path to the asset to be loaded.
 	void Load(AssetKey key, const path& asset_path);
-	void Load(AssetKey key, const ShaderCode& shader_code);
-	void Load(AssetKey key, const ShaderPair& shader_pair);
+	void Load(ShaderKey key, const ShaderCode& shader_code);
+	void Load(ShaderKey key, const ShaderPair& shader_pair);
 
-	Audio LoadAudio(AssetKey key, const path& audio_path);
+	Audio LoadAudio(AudioKey key, const path& audio_path);
 
 	/// @brief Note: Do not brace initialize JSON objects.
 	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
-	json& LoadJson(AssetKey key, const path& json_path);
+	json& LoadJson(const JsonKey& key, const path& json_path);
 
 	Shader LoadShader(
-		AssetKey key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
+		ShaderKey key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 		std::optional<std::string_view> shader_name = std::nullopt
 	);
 
 	Texture LoadTexture(
-		AssetKey key, const path& texture_path,
+		TextureKey key, const path& texture_path,
 		TextureFormat storage_format = kDefaultTextureStorageFormat, TextureParams params = {}
 	);
 
-	Font LoadFont(AssetKey key, const path& font_path);
+	Font LoadFont(FontKey key, const path& font_path);
 
 	template <AssetType T>
-	bool Unload(AssetKey key);
+	bool Unload(const AssetKey& key);
 
 	/// @return The total number of assets currently loaded in the manager. Never below 1 (default
 	/// font is always loaded).
 	[[nodiscard]] std::size_t Size() const;
 
-	V2_int GetTextureSize(AssetKey key) const;
-	V2_int GetFontAtlasSize(AssetKey key) const;
-	impl::TextureId GetFontAtlasTexture(AssetKey key) const;
+	V2_int GetTextureSize(const TextureKey& key) const;
+	V2_int GetFontAtlasSize(const FontKey& key) const;
+	impl::TextureId GetFontAtlasTexture(const FontKey& key) const;
 
 	/// @brief Note: Do not brace initialize JSON objects.
 	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
 	[[nodiscard]] static json CreateJson(const path& json_path);
 
-	[[nodiscard]] bool Has(AssetKey key) const;
+	[[nodiscard]] bool Has(const AssetKey& key) const;
 
+	template <typename T>
+	requires std::derived_from<std::remove_cvref_t<T>, AssetKey> &&
+			 requires { std::remove_cvref_t<T>::kind; }
+	bool Has(const T& key) const {
+		using Value = std::remove_cvref_t<T>;
+
+		return Has(static_cast<const AssetKey&>(key), Value::kind);
+	}
 private:
 	friend class impl::AssetAccessor;
 	friend class impl::ApplicationContext;
@@ -293,18 +290,20 @@ private:
 
 	/// @brief Note: Do not brace initialize JSON objects.
 	template <AssetType T>
-	std::optional<ConstAsset<T>> TryGet(AssetKey key) const;
+	std::optional<ConstAsset<T>> TryGet(const AssetKey& key) const;
 	template <AssetType T>
-	std::optional<Asset<T>> TryGet(AssetKey key);
+	std::optional<Asset<T>> TryGet(const AssetKey& key);
 
 	template <AssetType T>
-	ConstAsset<T> Get(AssetKey key) const;
+	ConstAsset<T> Get(const AssetKey& key) const;
 
 	template <AssetType T>
-	Asset<T> Get(AssetKey key);
+	Asset<T> Get(const AssetKey& key);
 
 	template <AssetType T>
-	[[nodiscard]] bool Has(AssetKey key) const;
+	[[nodiscard]] bool Has(const AssetKey& key) const;
+
+	bool Has(const AssetKey& key, AssetKind kind) const;
 
 	Audio CreateAudio(const path& audio_path);
 
@@ -320,9 +319,9 @@ private:
 	Font CreateFont(const path& font_path);
 
 	[[nodiscard]] std::vector<impl::AssetRecord> GetAssets() const;
-	bool Unload(AssetKey key, impl::AssetKind kind);
+	bool Unload(const AssetKey& key, AssetKind kind);
 
-	void Load(AssetKey key, const path& asset_path, impl::AssetKind kind);
+	void Load(AssetKey key, const path& asset_path, AssetKind kind);
 
 	[[nodiscard]] Shader CreateShader(
 		bool persistent, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
@@ -357,17 +356,17 @@ private:
 namespace impl {
 
 template <AssetType T>
-ConstAsset<T> AssetAccessor::Get(AssetKey key) const {
+ConstAsset<T> AssetAccessor::Get(const AssetKey& key) const {
 	return assets.Get<T>(key);
 }
 
 template <AssetType T>
-Asset<T> AssetAccessor::Get(AssetKey key) {
+Asset<T> AssetAccessor::Get(const AssetKey& key) {
 	return assets.Get<T>(key);
 }
 
 template <AssetType T>
-bool AssetAccessor::Has(AssetKey key) const {
+bool AssetAccessor::Has(const AssetKey& key) const {
 	return assets.Has<T>(key);
 }
 
