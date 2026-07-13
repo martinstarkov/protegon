@@ -95,6 +95,16 @@ template <StreamWritable... Ts>
 	return result;
 }
 
+/// @brief Removes leading and trailing spaces, tabs, and newlines.
+constexpr std::string_view TrimWhitespace(std::string_view s) {
+	std::size_t start{ s.find_first_not_of(" \n\r\t") };
+	if (start == std::string::npos) {
+		return {};
+	}
+	std::size_t end{ s.find_last_not_of(" \n\r\t") };
+	return s.substr(start, end - start + 1);
+}
+
 /// @return New string with just the content inside R"( ... )"
 /// This function does not handle delimeters such as R"delim( ... )delim"
 [[nodiscard]] constexpr std::string TrimRawStringLiteral(std::string_view content) {

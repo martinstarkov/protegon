@@ -53,15 +53,6 @@ void LinkProgramId(ShaderId id) {
 	GLCall(glLinkProgram(id));
 }
 
-std::string_view TrimWhitespace(std::string_view s) {
-	std::size_t start{ s.find_first_not_of(" \n\r\t") };
-	if (start == std::string::npos) {
-		return "";
-	}
-	std::size_t end{ s.find_last_not_of(" \n\r\t") };
-	return s.substr(start, end - start + 1);
-}
-
 ShaderType GetShaderType(const std::string& type) {
 	if (type == "fragment") {
 		return ShaderType::Fragment;
