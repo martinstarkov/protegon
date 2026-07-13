@@ -3,6 +3,7 @@
 #include <imgui.h>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <compare>
@@ -46,6 +47,8 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scripting/script_sequence.h"
+#include "runtime/ui/button.h"
+#include "runtime/ui/button_config.h"
 
 namespace ptgn::editor {
 
@@ -54,6 +57,45 @@ namespace {
 constexpr const char* kEntityDragDropPayload{ "PTGN_HIERARCHY_ENTITY" };
 constexpr float kDropDividerHeight{ 4.0f };
 constexpr float kMinimumDepthGap{ 0.0001f };
+
+using ReparentLockCondition = bool (*)(Entity);
+
+struct ReparentLockRule {
+	ReparentLockCondition condition;
+	std::string_view reason;
+};
+
+bool IsManagedButtonVisual(Entity entity) {
+	if (!ptgn::HasParent(entity) || !GetParent(entity).Has<::ptgn::impl::ButtonData>()) {
+		return false;
+	}
+
+	return entity.HasAny<
+		ButtonBackgroundVisuals, ButtonBorderVisuals, ButtonSpriteVisuals, ButtonTextVisuals>();
+}
+
+/// @brief When a condition returns true, the entity cannot be moved to another parent or reordered
+/// among its current siblings.
+constexpr std::array kReparentLockRules{
+	ReparentLockRule{
+		.condition{ IsManagedButtonVisual },
+		.reason{ "Button visual entities are managed by their ButtonData parent" },
+	},
+};
+
+std::optional<std::string_view> GetReparentLockReason(Entity entity) {
+	if (!entity) {
+		return "Invalid entity";
+	}
+
+	for (const auto& rule : kReparentLockRules) {
+		if (rule.condition(entity)) {
+			return rule.reason;
+		}
+	}
+
+	return std::nullopt;
+}
 
 struct PendingHierarchyDrop {
 	Entity entity;
@@ -221,7 +263,23 @@ bool IsSameOrDescendant(Entity entity, Entity potential_ancestor) {
 }
 
 bool CanReparent(Entity entity, Entity parent) {
-	return entity && (!parent || !IsSameOrDescendant(parent, entity));
+	if (!entity) {
+		return false;
+	}
+
+	if (parent && IsSameOrDescendant(parent, entity)) {
+		return false;
+	}
+
+	Entity current_parent{ ptgn::HasParent(entity) ? GetParent(entity) : Entity{} };
+
+	bool changes_parent{ current_parent != parent };
+
+	if (changes_parent && GetReparentLockReason(entity).has_value()) {
+		return false;
+	}
+
+	return true;
 }
 
 Entity GetDraggedEntity(Scene& scene) {
@@ -707,6 +765,8 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			selected_entity_ = entity;
 		}
 
+		auto reparent_lock_reason{ GetReparentLockReason(entity) };
+
 		if (ImGui::BeginDragDropSource()) {
 			auto uuid{ entity.Get<UUID>() };
 			ImGui::SetDragDropPayload(kEntityDragDropPayload, &uuid, sizeof(uuid));
@@ -715,9 +775,9 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		}
 
 		Entity dragged{ GetDraggedEntity(*selected_scene) };
-		bool suppress_entity_drop_target{ dragged && IsSameOrDescendant(entity, dragged) };
+		bool can_drop_on_entity{ dragged && CanReparent(dragged, entity) };
 
-		if (!suppress_entity_drop_target && ImGui::BeginDragDropTarget()) {
+		if (can_drop_on_entity && ImGui::BeginDragDropTarget()) {
 			if (Entity dropped{ AcceptDraggedEntity(*selected_scene) };
 				dropped && CanReparent(dropped, entity)) {
 				pending_drop = PendingHierarchyDrop{
@@ -731,12 +791,29 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 		}
 
 		if (ImGui::BeginPopupContextItem()) {
-			if (ptgn::HasParent(entity) && ImGui::MenuItem("Move To Root")) {
-				pending_drop = PendingHierarchyDrop{
-					.entity{ entity },
-					.parent{},
-					.before{},
-				};
+			if (ptgn::HasParent(entity)) {
+				bool can_move_to_root{ CanReparent(entity, {}) };
+
+				ImGui::BeginDisabled(!can_move_to_root);
+
+				if (ImGui::MenuItem("Move To Root")) {
+					pending_drop = PendingHierarchyDrop{
+						.entity{ entity },
+						.parent{},
+						.before{},
+					};
+				}
+
+				ImGui::EndDisabled();
+			}
+
+			if (reparent_lock_reason.has_value()) {
+				ImGui::Separator();
+
+				ImGui::TextDisabled(
+					"%.*s", static_cast<int>(reparent_lock_reason->size()),
+					reparent_lock_reason->data()
+				);
 			}
 
 			if (ImGui::MenuItem("Delete")) {
