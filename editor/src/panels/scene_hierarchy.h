@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+
 #include "runtime/ecs/entity.h"
 
 namespace ptgn::editor {
@@ -15,6 +17,7 @@ public:
 
 private:
 	Entity selected_entity_;
+	std::array<char, 256> filter_{};
 };
 
 } // namespace ptgn::editor
