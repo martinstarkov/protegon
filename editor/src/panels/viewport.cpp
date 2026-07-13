@@ -360,7 +360,7 @@ Entity ResolveRenderTargetPick(
 		nested_id.value() >= 0, "Render target returned an invalid entity ID: ", nested_id.value()
 	);
 
-	auto nested_entity{ scene.GetEntityByUUID(nested_id.value()) };
+	auto nested_entity{ scene.GetEntity(UUID{ nested_id.value() }) };
 
 	if (!nested_entity) {
 		return outer_entity;
@@ -1579,7 +1579,7 @@ void ViewportPanel::HandleEntityPicking(
 		outer_id.value() >= 0, "Entity picking returned an invalid entity ID: ", outer_id.value()
 	);
 
-	auto outer_entity{ scene->GetEntityByUUID(outer_id.value()) };
+	auto outer_entity{ scene->GetEntity(UUID{ outer_id.value() }) };
 
 	if (!outer_entity) {
 		hierarchy.SetSelectedEntity({});

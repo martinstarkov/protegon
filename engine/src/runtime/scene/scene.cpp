@@ -566,7 +566,7 @@ void Scene::InternalExit() {
 	Refresh();
 }
 
-Entity Scene::GetEntityByUUID(int uuid) const {
+Entity Scene::GetEntity(UUID uuid) const {
 	for (const Entity& e : Entities()) {
 		PTGN_ASSERT(e.Has<UUID>(), "Entity does not have a valid UUID component");
 		if (e.Get<UUID>() == uuid) {
@@ -576,7 +576,7 @@ Entity Scene::GetEntityByUUID(int uuid) const {
 	return {};
 }
 
-Entity Scene::GetEntityByTag(std::string_view tag) const {
+Entity Scene::GetEntity(const Tag& tag) const {
 	for (const Entity& e : Entities()) {
 		PTGN_ASSERT(e.Has<Tag>(), "Entity does not have a valid Tag component");
 		if (e.Get<Tag>().value == tag) {

@@ -100,11 +100,11 @@ public:
 	Color GetBackgroundColor() const;
 
 	/// @return Null entity if no entity with the given uuid exists in the manager.
-	Entity GetEntityByUUID(int uuid) const;
+	Entity GetEntity(UUID uuid) const;
 
 	/// @return Null entity if no entity with the given tag exists in the scene.
 	/// If multiple entities have the same tag, returns the first one found.
-	Entity GetEntityByTag(std::string_view tag) const;
+	Entity GetEntity(const Tag& tag) const;
 
 	/// @brief Make sure to call Refresh() after this function.
 
