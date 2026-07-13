@@ -49,9 +49,14 @@ AudioSystem::AudioSystem(AssetManager& assets) : assets_{ assets } {
 }
 
 void AudioSystem::Play(
-	std::string_view audio_key, float volume, std::optional<int> loops, float frequency_ratio,
+	const AudioKey& audio_key, float volume, std::optional<int> loops, float frequency_ratio,
 	bool exclusive, bool force_restart
 ) {
+	if (!impl::AssetAccessor{ assets_ }.Has<Audio>(audio_key)) {
+		PTGN_WARN("No audio file with key ", audio_key, " found, skipping play");
+		return;
+	}
+
 	if (exclusive && IsPlaying(audio_key)) {
 		if (force_restart) {
 			Stop(audio_key);
@@ -78,13 +83,13 @@ void AudioSystem::Play(
 	tracks_.emplace_back(std::move(track));
 }
 
-void AudioSystem::Stop(std::string_view audio_key) {
+void AudioSystem::Stop(const AudioKey& audio_key) {
 	auto id{ Hash(audio_key) };
 
 	std::erase_if(tracks_, [id](auto& track) { return track.GetId() == id; });
 }
 
-void AudioSystem::Pause(std::string_view audio_key) {
+void AudioSystem::Pause(const AudioKey& audio_key) {
 	auto id{ Hash(audio_key) };
 
 	auto it =
@@ -95,7 +100,7 @@ void AudioSystem::Pause(std::string_view audio_key) {
 	}
 }
 
-void AudioSystem::Resume(std::string_view audio_key) {
+void AudioSystem::Resume(const AudioKey& audio_key) {
 	auto id{ Hash(audio_key) };
 
 	auto it =
@@ -106,7 +111,7 @@ void AudioSystem::Resume(std::string_view audio_key) {
 	}
 }
 
-void AudioSystem::TogglePause(std::string_view audio_key) {
+void AudioSystem::TogglePause(const AudioKey& audio_key) {
 	if (IsPaused(audio_key)) {
 		Resume(audio_key);
 	} else {
@@ -114,7 +119,7 @@ void AudioSystem::TogglePause(std::string_view audio_key) {
 	}
 }
 
-bool AudioSystem::IsPaused(std::string_view audio_key) {
+bool AudioSystem::IsPaused(const AudioKey& audio_key) {
 	auto id{ Hash(audio_key) };
 
 	auto it =
@@ -123,7 +128,7 @@ bool AudioSystem::IsPaused(std::string_view audio_key) {
 	return it != tracks_.end() && it->IsPaused();
 }
 
-bool AudioSystem::IsPlaying(std::string_view audio_key) {
+bool AudioSystem::IsPlaying(const AudioKey& audio_key) {
 	auto id{ Hash(audio_key) };
 
 	auto it =
@@ -132,7 +137,7 @@ bool AudioSystem::IsPlaying(std::string_view audio_key) {
 	return it != tracks_.end() && it->IsPlaying();
 }
 
-void AudioSystem::SetVolume(std::string_view audio_key, float volume) {
+void AudioSystem::SetVolume(const AudioKey& audio_key, float volume) {
 	auto id{ Hash(audio_key) };
 	volume = std::clamp(volume, kMinVolume, kMaxVolume);
 
@@ -144,7 +149,7 @@ void AudioSystem::SetVolume(std::string_view audio_key, float volume) {
 	}
 }
 
-float AudioSystem::GetVolume(std::string_view audio_key) {
+float AudioSystem::GetVolume(const AudioKey& audio_key) {
 	auto id{ Hash(audio_key) };
 
 	auto it =
@@ -153,7 +158,7 @@ float AudioSystem::GetVolume(std::string_view audio_key) {
 	return it != tracks_.end() ? it->GetVolume() : kMinVolume;
 }
 
-void AudioSystem::ToggleVolume(std::string_view audio_key, float new_volume) {
+void AudioSystem::ToggleVolume(const AudioKey& audio_key, float new_volume) {
 	new_volume = std::clamp(new_volume, kMinVolume, kMaxVolume);
 
 	if (float current{ GetVolume(audio_key) }; current == kMinVolume) {
