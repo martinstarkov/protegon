@@ -25,9 +25,9 @@ bool EntityDepthCompare::operator()(Entity a, Entity b) const {
 	auto depth_a{ GetDepth(a) };
 	auto depth_b{ GetDepth(b) };
 	if (depth_a == depth_b) {
-		return ascending ? a.WasCreatedBefore(b) : !a.WasCreatedBefore(b);
+		return ascending ? a.WasCreatedBefore(b) : b.WasCreatedBefore(a);
 	}
-	return ascending ? (depth_a < depth_b) : (depth_a > depth_b);
+	return ascending ? depth_a < depth_b : depth_a > depth_b;
 }
 
 } // namespace impl
@@ -38,6 +38,19 @@ bool HasDraw(Entity entity) {
 
 void RemoveDraw(Entity entity) {
 	entity.Remove<impl::IDrawable>();
+}
+
+void SortByLocalDepth(std::vector<Entity>& entities, bool ascending) {
+	std::ranges::sort(entities, [ascending](Entity a, Entity b) {
+		auto depth_a{ GetLocalDepth(a) };
+		auto depth_b{ GetLocalDepth(b) };
+
+		if (depth_a == depth_b) {
+			return ascending ? a.WasCreatedBefore(b) : b.WasCreatedBefore(a);
+		}
+
+		return ascending ? depth_a < depth_b : depth_a > depth_b;
+	});
 }
 
 void SortByDepth(std::vector<Entity>& entities, bool ascending) {
@@ -52,13 +65,17 @@ void SetDepth(Entity entity, Depth depth) {
 	entity.Add<Depth>(depth);
 }
 
+Depth GetLocalDepth(Entity entity) {
+	return entity.GetOrDefault<Depth>();
+}
+
 Depth GetDepth(Entity entity) {
-	Depth depth{ entity.GetOrDefault<Depth>() };
+	Depth depth{ GetLocalDepth(entity) };
 
 	ForEachParent(
 		entity, [](Entity e) { return e.Has<impl::IgnoreParentDepth>(); },
 		[&depth](Entity parent) {
-			depth.value += parent.GetOrDefault<Depth>().value;
+			depth.value += GetLocalDepth(parent).value;
 			return true;
 		}
 	);

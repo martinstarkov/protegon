@@ -42,6 +42,7 @@ void SetDraw(Entity entity, std::size_t drawable_type_hash);
 
 } // namespace impl
 
+void SortByLocalDepth(std::vector<Entity>& entities, bool ascending = true);
 void SortByDepth(std::vector<Entity>& entities, bool ascending = true);
 
 void SetFillStyle(Entity entity, FillStyle fill_style);
@@ -65,6 +66,10 @@ void RemoveDraw(Entity entity);
 
 void SetDepth(Entity entity, Depth depth);
 
+/// @return Local depth of the entity.
+Depth GetLocalDepth(Entity entity);
+
+/// @return Global depth of the entity, relative to all its parent depths.
 Depth GetDepth(Entity entity);
 
 void IgnoreParentDepth(Entity entity, bool ignore_parent_depth = true);
