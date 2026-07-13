@@ -665,7 +665,7 @@ std::vector<GizmoInstance> BuildGizmoInstances(
 			GizmoInstance{
 				.id{ paths[i].id },
 				.projection{ projection.value() },
-				.draw_order{ i },
+				.draw_order = i,
 			}
 		);
 	}
@@ -774,9 +774,9 @@ std::optional<GizmoHit> HitTestGizmo(
 	auto make_hit = [&](GizmoHandle handle, float distance) {
 		return GizmoHit{
 			.occurrence{ instance.id },
-			.handle{ handle },
-			.distance{ distance },
-			.draw_order{ instance.draw_order },
+			.handle		= handle,
+			.distance	= distance,
+			.draw_order = instance.draw_order,
 		};
 	};
 
