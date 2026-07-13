@@ -52,7 +52,7 @@ json Chunk::Serialize() const {
 	PTGN_ERROR("TODO: Fix chunk serialization");
 }
 
-void Chunk::Deserialize(const json& j, Scene& scene) {
+void Chunk::Deserialize(const json&, Scene&) {
 	// TODO: Fix.
 	// PTGN_ASSERT(entities.empty());
 	// const auto& json_entities = j["entities"];
