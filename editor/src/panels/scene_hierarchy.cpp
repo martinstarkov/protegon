@@ -58,15 +58,26 @@ constexpr const char* kEntityDragDropPayload{ "PTGN_HIERARCHY_ENTITY" };
 constexpr float kDropDividerHeight{ 4.0f };
 constexpr float kMinimumDepthGap{ 0.0001f };
 
-using ReparentLockCondition = bool (*)(Entity);
+using HierarchyCondition = bool (*)(Entity);
 
-struct ReparentLockRule {
-	ReparentLockCondition condition;
+enum class ParentAssignmentPolicy {
+	SameParentOnly,
+	RootOnly
+};
+
+struct ParentAssignmentRule {
+	HierarchyCondition condition;
+	ParentAssignmentPolicy policy;
+	std::string_view reason;
+};
+
+struct ChildAcceptanceRule {
+	HierarchyCondition condition;
 	std::string_view reason;
 };
 
 bool IsManagedButtonVisual(Entity entity) {
-	if (!ptgn::HasParent(entity) || !GetParent(entity).Has<::ptgn::impl::ButtonData>()) {
+	if (!ptgn::HasParent(entity) || !GetParent(entity).Has<impl::ButtonData>()) {
 		return false;
 	}
 
@@ -74,21 +85,101 @@ bool IsManagedButtonVisual(Entity entity) {
 		ButtonBackgroundVisuals, ButtonBorderVisuals, ButtonSpriteVisuals, ButtonTextVisuals>();
 }
 
-/// @brief When a condition returns true, the entity cannot be moved to another parent or reordered
-/// among its current siblings.
-constexpr std::array kReparentLockRules{
-	ReparentLockRule{
+bool IsCameraEntity(Entity entity) {
+	return entity.Has<impl::CameraData>();
+}
+
+bool IsPrimarySceneRenderTarget(Entity entity) {
+	return entity && entity == entity.GetScene().GetRenderTarget();
+}
+
+/// @brief Restrictions on which parent an entity may be assigned to.
+constexpr std::array kParentAssignmentRules{
+	ParentAssignmentRule{
 		.condition{ IsManagedButtonVisual },
-		.reason{ "Button visual entities are managed by their ButtonData parent" },
+		.policy{ ParentAssignmentPolicy::SameParentOnly },
+		.reason{
+			"Button visual entities may only be reordered under their current ButtonData parent" },
+	},
+	ParentAssignmentRule{
+		.condition{ IsCameraEntity },
+		.policy{ ParentAssignmentPolicy::RootOnly },
+		.reason{ "Cameras must remain at the scene root and cannot have children" },
+	},
+	ParentAssignmentRule{
+		.condition{ IsPrimarySceneRenderTarget },
+		.policy{ ParentAssignmentPolicy::RootOnly },
+		.reason{ "The scene's primary render target must remain at the scene root and cannot have "
+				 "children" },
 	},
 };
 
-std::optional<std::string_view> GetReparentLockReason(Entity entity) {
+/// @brief Restrictions on which entities may receive children.
+constexpr std::array kChildAcceptanceRules{
+	ChildAcceptanceRule{
+		.condition{ IsCameraEntity },
+		.reason{ "Cameras cannot have children" },
+	},
+	ChildAcceptanceRule{
+		.condition{ IsPrimarySceneRenderTarget },
+		.reason{ "The scene's primary render target cannot have children" },
+	},
+};
+
+bool IsParentAssignmentAllowed(Entity entity, Entity new_parent, ParentAssignmentPolicy policy) {
+	switch (policy) {
+		case ParentAssignmentPolicy::SameParentOnly: {
+			Entity current_parent{ ptgn::HasParent(entity) ? GetParent(entity) : Entity{} };
+
+			return current_parent == new_parent;
+		}
+
+		case ParentAssignmentPolicy::RootOnly: return !new_parent;
+	}
+
+	return false;
+}
+
+std::optional<std::string_view> GetParentAssignmentLockReason(Entity entity, Entity new_parent) {
 	if (!entity) {
 		return "Invalid entity";
 	}
 
-	for (const auto& rule : kReparentLockRules) {
+	for (const auto& rule : kParentAssignmentRules) {
+		if (rule.condition(entity) && !IsParentAssignmentAllowed(entity, new_parent, rule.policy)) {
+			return rule.reason;
+		}
+	}
+
+	return std::nullopt;
+}
+
+std::optional<std::string_view> GetChildAcceptanceLockReason(Entity parent) {
+	if (!parent) {
+		return std::nullopt;
+	}
+
+	for (const auto& rule : kChildAcceptanceRules) {
+		if (rule.condition(parent)) {
+			return rule.reason;
+		}
+	}
+
+	return std::nullopt;
+}
+
+std::optional<std::string_view> GetHierarchyRestrictionReason(Entity entity) {
+	if (!entity) {
+		return std::nullopt;
+	}
+
+	for (const auto& rule : kParentAssignmentRules) {
+		if (rule.condition(entity)) {
+			return rule.reason;
+		}
+	}
+
+	for (const auto& rule : kChildAcceptanceRules) {
 		if (rule.condition(entity)) {
 			return rule.reason;
 		}
@@ -271,11 +362,11 @@ bool CanReparent(Entity entity, Entity parent) {
 		return false;
 	}
 
-	Entity current_parent{ ptgn::HasParent(entity) ? GetParent(entity) : Entity{} };
+	if (GetParentAssignmentLockReason(entity, parent).has_value()) {
+		return false;
+	}
 
-	bool changes_parent{ current_parent != parent };
-
-	if (changes_parent && GetReparentLockReason(entity).has_value()) {
+	if (GetChildAcceptanceLockReason(parent).has_value()) {
 		return false;
 	}
 
@@ -765,7 +856,7 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			selected_entity_ = entity;
 		}
 
-		auto reparent_lock_reason{ GetReparentLockReason(entity) };
+		auto hierarchy_restriction_reason{ GetHierarchyRestrictionReason(entity) };
 
 		if (ImGui::BeginDragDropSource()) {
 			auto uuid{ entity.Get<UUID>() };
@@ -807,12 +898,12 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 				ImGui::EndDisabled();
 			}
 
-			if (reparent_lock_reason.has_value()) {
+			if (hierarchy_restriction_reason.has_value()) {
 				ImGui::Separator();
 
 				ImGui::TextDisabled(
-					"%.*s", static_cast<int>(reparent_lock_reason->size()),
-					reparent_lock_reason->data()
+					"%.*s", static_cast<int>(hierarchy_restriction_reason->size()),
+					hierarchy_restriction_reason->data()
 				);
 			}
 
