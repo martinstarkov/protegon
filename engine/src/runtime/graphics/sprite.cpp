@@ -110,7 +110,7 @@ void Sprite::Draw(DrawContext& ctx, Entity entity) {
 }
 
 Sprite& Sprite::SetTexture(TextureKey texture_key) {
-	Add<TextureKey>(texture_key);
+	Add<TextureKey>(std::move(texture_key));
 	return *this;
 }
 

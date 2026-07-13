@@ -439,7 +439,7 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 Animation CreateAnimation(
 	Scene& scene, Transform transform, TextureKey texture_key, AnimationConfig config, Origin origin
 ) {
-	Animation animation{ CreateSprite(scene, transform, texture_key, origin) };
+	Animation animation{ CreateSprite(scene, transform, std::move(texture_key), origin) };
 	animation.SetConfig(std::move(config));
 	animation.Add<Tag>("Animation");
 	return animation;
@@ -449,7 +449,9 @@ Animation PlayTemporaryAnimation(
 	Scene& scene, Transform transform, TextureKey texture_key, AnimationConfig config,
 	milliseconds destroy_delay, Origin origin
 ) {
-	Animation anim{ CreateAnimation(scene, transform, texture_key, std::move(config), origin) };
+	Animation anim{
+		CreateAnimation(scene, transform, std::move(texture_key), std::move(config), origin)
+	};
 	anim.Add<Tag>("Temporary Animation");
 
 	if (destroy_delay == 0ms) {
