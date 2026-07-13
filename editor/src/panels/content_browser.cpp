@@ -17,6 +17,7 @@
 #include "platform/window.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/asset/asset_manager.h"
+#include "runtime/graphics/text/font_system.h"
 #include "tools/debug/debug_system.h"
 #include "tools/debug/stats.h"
 
@@ -31,7 +32,9 @@ struct AssetKeyPayload {
 	char key[256]{};
 };
 
-inline void BeginAssetKeyDragDropSource(std::string_view key, AssetKind kind) {
+inline void BeginAssetKeyDragDropSource(
+	std::string_view key, AssetKind kind, std::optional<std::string_view> key_alias = std::nullopt
+) {
 	if (!ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 		return;
 	}
@@ -44,7 +47,7 @@ inline void BeginAssetKeyDragDropSource(std::string_view key, AssetKind kind) {
 	payload.key[length] = '\0';
 
 	ImGui::SetDragDropPayload(kAssetKeyPayloadType, &payload, sizeof(payload));
-	ImGui::TextUnformatted(payload.key);
+	ImGui::TextUnformatted(std::string{ key_alias.value_or(key) }.c_str());
 
 	ImGui::EndDragDropSource();
 }
@@ -160,23 +163,36 @@ void DrawAssetTile(
 
 	ImGui::BeginGroup();
 
-	if (std::string name{ magic_enum::enum_name(asset.kind) };
-		ImGui::Button(name.c_str(), ImVec2{ preview_size, preview_size })) {}
+	std::string name{ magic_enum::enum_name(asset.kind) };
+	auto key{ asset.key.value };
+	auto key_text{ key };
 
-	BeginAssetKeyDragDropSource(asset.key, asset.kind);
+	bool is_default_font{ key == kDefaultFont };
+
+	if (is_default_font) {
+		name	 = "Default Font";
+		key_text = name;
+	}
+
+	if (ImGui::Button(name.c_str(), ImVec2{ preview_size, preview_size })) {}
+
+	BeginAssetKeyDragDropSource(key, asset.kind, key_text);
+
+	bool unloadable_asset{ !is_default_font };
 
 	if (ImGui::BeginPopupContextItem("##asset_context")) {
+		ImGui::BeginDisabled(!unloadable_asset);
 		if (ImGui::MenuItem("Unload")) {
 			asset_to_unload = asset;
 		}
-
+		ImGui::EndDisabled();
 		ImGui::EndPopup();
 	}
 
-	auto key_text{ asset.key.value };
 	ImGui::SetNextItemWidth(preview_size);
-	ImGui::InputText("##key", &key_text, ImGuiInputTextFlags_ReadOnly);
-	BeginAssetKeyDragDropSource(asset.key.value, asset.kind);
+	ImGui::InputText("##key", &key, ImGuiInputTextFlags_ReadOnly);
+
+	BeginAssetKeyDragDropSource(key, asset.kind, key_text);
 
 	if (!asset.source_path.empty()) {
 		auto filename{ asset.source_path.filename().string() };
@@ -188,9 +204,11 @@ void DrawAssetTile(
 		ImGui::TextDisabled("Generated asset");
 	}
 
+	ImGui::BeginDisabled(!unloadable_asset);
 	if (ImGui::SmallButton("Unload")) {
 		asset_to_unload = asset;
 	}
+	ImGui::EndDisabled();
 
 	ImGui::EndGroup();
 
