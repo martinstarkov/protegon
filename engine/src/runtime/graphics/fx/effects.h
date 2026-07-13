@@ -3,16 +3,19 @@
 #include <ecs/ecs.h>
 
 #include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
 
 #include "app/application_context.h"
 #include "core/assert.h"
 #include "core/util/concepts.h"
+#include "core/util/type_info.h"
 #include "renderer/draw_context.h"
 #include "renderer/pipeline/effect_params.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
 #include "runtime/graphics/visible.h"
@@ -95,6 +98,10 @@ template <typename T, typename... TArgs>
 	requires BraceConstructible<T, TArgs...>
 EffectEntity<T> CreateEffect(Scene& scene, TArgs&&... args) {
 	auto effect{ scene.CreateEntity() };
+	std::string name{
+		impl::EffectRegistration<T>::Get().options.name.value_or(type_name_without_namespaces<T>())
+	};
+	PTGN_DEFAULT_NAME(effect, name + " Entity");
 	impl::CreateEffect<T>(effect, std::forward<TArgs>(args)...);
 	return EffectEntity<T>{ effect };
 }
