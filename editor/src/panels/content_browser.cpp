@@ -4,17 +4,27 @@
 #include <imgui_stdlib.h>
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cfloat>
+#include <cstring>
+#include <magic_enum/magic_enum.hpp>
+#include <optional>
 #include <span>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "core/editor.h"
 #include "core/editor_context.h"
+#include "core/graphics/surface.h"
 #include "core/util/string.h"
+#include "panels/content_browser_icons.h"
 #include "platform/file_dialog.h"
 #include "platform/window.h"
+#include "renderer/renderer.h"
+#include "renderer/resources/texture_format.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/text/font_system.h"
@@ -25,11 +35,19 @@ namespace ptgn::editor {
 
 namespace {
 
+inline constexpr int kMaxItemsPerRow{ 10 };
 inline constexpr char kAssetKeyPayloadType[]{ "PTGN_ASSET_KEY" };
+inline constexpr V2_int kEmbeddedIconSize{ 64, 64 };
 
 struct AssetKeyPayload {
 	AssetKind kind{ AssetKind::Unknown };
 	char key[256]{};
+};
+
+struct TilePreview {
+	impl::TextureId texture;
+	V2_int size;
+	bool tint_with_text_color{ false };
 };
 
 inline void BeginAssetKeyDragDropSource(
@@ -47,7 +65,9 @@ inline void BeginAssetKeyDragDropSource(
 	payload.key[length] = '\0';
 
 	ImGui::SetDragDropPayload(kAssetKeyPayloadType, &payload, sizeof(payload));
-	ImGui::TextUnformatted(std::string{ key_alias.value_or(key) }.c_str());
+
+	auto text{ key_alias.value_or(key) };
+	ImGui::TextUnformatted(text.data(), text.data() + text.size());
 
 	ImGui::EndDragDropSource();
 }
@@ -155,62 +175,227 @@ bool MatchesSearch(const impl::AssetRecord& asset, std::string_view search) {
 	return false;
 }
 
-void DrawAssetTile(
-	float preview_size, const impl::AssetRecord& asset,
-	std::optional<impl::AssetRecord>& asset_to_unload
+impl::TextureObject CreateEmbeddedIconTexture(
+	Renderer& renderer, std::span<const std::uint8_t> png
 ) {
-	ImGui::PushID(asset.key.value.c_str());
+	impl::Surface surface{ png, 4 };
 
-	ImGui::BeginGroup();
+	return impl::RendererAccessor{ renderer }.CreateTexture(
+		surface.Data(), TextureDesc{
+							.size{ surface.GetSize() },
+							.format = TextureFormat::RGBA8,
+							.params{ TextureMinFilter::Linear, TextureMagFilter::Linear },
+						}
+	);
+}
 
-	std::string name{ magic_enum::enum_name(asset.kind) };
-	auto key{ asset.key.value };
-	auto key_text{ key };
-
-	bool is_default_font{ key == kDefaultFont };
-
-	if (is_default_font) {
-		name	 = "Default Font";
-		key_text = name;
+std::optional<TilePreview> GetTilePreview(
+	const impl::AssetRecord& asset, impl::TextureId audio_icon, impl::TextureId document_icon
+) {
+	if (asset.preview.has_value()) {
+		return TilePreview{
+			.texture = asset.preview->texture,
+			.size	 = asset.preview->size,
+		};
 	}
 
-	if (ImGui::Button(name.c_str(), ImVec2{ preview_size, preview_size })) {}
+	switch (asset.kind) {
+		case AssetKind::Audio:
+			return TilePreview{
+				.texture			  = audio_icon,
+				.size				  = kEmbeddedIconSize,
+				.tint_with_text_color = true,
+			};
+
+		case AssetKind::Shader: [[fallthrough]];
+		case AssetKind::Json:
+			return TilePreview{
+				.texture			  = document_icon,
+				.size				  = kEmbeddedIconSize,
+				.tint_with_text_color = true,
+			};
+
+		case AssetKind::Texture: [[fallthrough]];
+		case AssetKind::Font:	 [[fallthrough]];
+		case AssetKind::Unknown: break;
+	}
+
+	return std::nullopt;
+}
+
+void DrawWrappedText(std::string_view text, float width, bool disabled = false) {
+	auto wrap_x{ ImGui::GetCursorPosX() + std::max(1.0f, width) };
+
+	ImGui::PushTextWrapPos(wrap_x);
+
+	if (disabled) {
+		ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+	}
+
+	ImGui::TextUnformatted(text.data(), text.data() + text.size());
+
+	if (disabled) {
+		ImGui::PopStyleColor();
+	}
+
+	ImGui::PopTextWrapPos();
+
+	if (ImGui::IsItemHovered() &&
+		ImGui::CalcTextSize(text.data(), text.data() + text.size()).x > width) {
+		ImGui::SetTooltip("%.*s", static_cast<int>(text.size()), text.data());
+	}
+}
+
+void DrawPreview(float preview_size, const std::optional<TilePreview>& preview) {
+	auto preview_min{ ImGui::GetCursorScreenPos() };
+
+	ImGui::InvisibleButton("##preview", ImVec2{ preview_size, preview_size });
+
+	auto preview_max{ ImVec2{ preview_min.x + preview_size, preview_min.y + preview_size } };
+	auto* draw_list{ ImGui::GetWindowDrawList() };
+	auto& style{ ImGui::GetStyle() };
+
+	draw_list->AddRectFilled(
+		preview_min, preview_max, ImGui::GetColorU32(ImGuiCol_FrameBg), style.FrameRounding
+	);
+	draw_list->AddRect(
+		preview_min, preview_max, ImGui::GetColorU32(ImGuiCol_Border), style.FrameRounding
+	);
+
+	if (!preview.has_value() || !preview->texture || !preview->size.IsPositive()) {
+		return;
+	}
+
+	constexpr float kPreviewPadding{ 6.0f };
+
+	auto content_size{ std::max(1.0f, preview_size - kPreviewPadding * 2.0f) };
+	auto source_width{ static_cast<float>(preview->size.x) };
+	auto source_height{ static_cast<float>(preview->size.y) };
+	auto scale{ std::min(content_size / source_width, content_size / source_height) };
+
+	ImVec2 image_size{ source_width * scale, source_height * scale };
+	ImVec2 image_min{
+		preview_min.x + (preview_size - image_size.x) * 0.5f,
+		preview_min.y + (preview_size - image_size.y) * 0.5f,
+	};
+	ImVec2 image_max{ image_min.x + image_size.x, image_min.y + image_size.y };
+
+	auto tint{ preview->tint_with_text_color ? ImGui::GetStyleColorVec4(ImGuiCol_Text)
+											 : ImVec4{ 1.0f, 1.0f, 1.0f, 1.0f } };
+
+	draw_list->AddImage(
+		static_cast<ImTextureID>(preview->texture), image_min, image_max, ImVec2{ 0.0f, 0.0f },
+		ImVec2{ 1.0f, 1.0f }, ImGui::GetColorU32(tint)
+	);
+}
+
+bool DrawSortDirectionButton(
+	const char* id, ImGuiDir direction, bool selected, const char* tooltip
+) {
+	if (selected) {
+		auto active{ ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive) };
+		ImGui::PushStyleColor(ImGuiCol_Button, active);
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, active);
+	}
+
+	bool pressed{ ImGui::ArrowButton(id, direction) };
+
+	if (selected) {
+		ImGui::PopStyleColor(2);
+	}
+
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("%s", tooltip);
+	}
+
+	return pressed;
+}
+
+bool AssetLess(
+	const impl::AssetRecord& a, const impl::AssetRecord& b, ContentBrowserPanel::SortMode sort_mode
+) {
+	auto a_kind{ magic_enum::enum_name(a.kind) };
+	auto b_kind{ magic_enum::enum_name(b.kind) };
+
+	if (sort_mode == ContentBrowserPanel::SortMode::Type) {
+		if (a_kind != b_kind) {
+			return a_kind < b_kind;
+		}
+		return a.key < b.key;
+	}
+
+	if (a.key != b.key) {
+		return a.key < b.key;
+	}
+
+	return a_kind < b_kind;
+}
+
+void DrawAssetTileContent(
+	float tile_width, const impl::AssetRecord& asset, impl::TextureId audio_icon,
+	impl::TextureId document_icon, std::optional<impl::AssetRecord>& asset_to_unload
+) {
+	ImGui::PushID(asset.key.value.c_str());
+	ImGui::BeginGroup();
+
+	auto key{ asset.key.value };
+	auto key_text{ key };
+	bool is_default_font{ key == kDefaultFont };
+	bool unloadable_asset{ !is_default_font };
+
+	if (is_default_font) {
+		key_text = "Default Font";
+	}
+
+	DrawPreview(tile_width, GetTilePreview(asset, audio_icon, document_icon));
 
 	BeginAssetKeyDragDropSource(key, asset.kind, key_text);
 
-	bool unloadable_asset{ !is_default_font };
-
 	if (ImGui::BeginPopupContextItem("##asset_context")) {
 		ImGui::BeginDisabled(!unloadable_asset);
+
 		if (ImGui::MenuItem("Unload")) {
 			asset_to_unload = asset;
 		}
+
 		ImGui::EndDisabled();
 		ImGui::EndPopup();
 	}
 
-	ImGui::SetNextItemWidth(preview_size);
-	ImGui::InputText("##key", &key, ImGuiInputTextFlags_ReadOnly);
+	auto kind_text{ magic_enum::enum_name(asset.kind) };
+	DrawWrappedText(kind_text, tile_width, true);
 
+	DrawWrappedText(key_text, tile_width);
 	BeginAssetKeyDragDropSource(key, asset.kind, key_text);
 
 	if (!asset.source_path.empty()) {
 		auto filename{ asset.source_path.filename().string() };
-
-		ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + preview_size);
-		ImGui::TextDisabled("%s", filename.c_str());
-		ImGui::PopTextWrapPos();
+		DrawWrappedText(filename, tile_width, true);
 	} else {
-		ImGui::TextDisabled("Generated asset");
+		DrawWrappedText("Generated asset", tile_width, true);
 	}
-
-	ImGui::BeginDisabled(!unloadable_asset);
-	if (ImGui::SmallButton("Unload")) {
-		asset_to_unload = asset;
-	}
-	ImGui::EndDisabled();
 
 	ImGui::EndGroup();
+	ImGui::PopID();
+}
+
+void DrawAssetTileUnloadButton(
+	float tile_width, const impl::AssetRecord& asset,
+	std::optional<impl::AssetRecord>& asset_to_unload
+) {
+	ImGui::PushID(asset.key.value.c_str());
+
+	bool unloadable_asset{ asset.key.value != kDefaultFont };
+
+	ImGui::BeginDisabled(!unloadable_asset);
+
+	if (ImGui::Button("Unload", ImVec2{ tile_width, 0.0f })) {
+		asset_to_unload = asset;
+	}
+
+	ImGui::EndDisabled();
+
+	ImGui::Dummy(ImVec2{ 0.0f, ImGui::GetStyle().FramePadding.y });
 
 	ImGui::PopID();
 }
@@ -256,6 +441,19 @@ void ContentBrowserPanel::AddDroppedFile(const path& file_path) {
 	dropped_files_.push_back(file_path);
 }
 
+void ContentBrowserPanel::InitializePreviewIcons(EditorContext& ctx) {
+	if (preview_icons_initialized_) {
+		return;
+	}
+
+	audio_icon_texture_ =
+		CreateEmbeddedIconTexture(ctx.editor.GetRenderer(), std::span{ embedded::kAudioNotePng });
+	document_icon_texture_ =
+		CreateEmbeddedIconTexture(ctx.editor.GetRenderer(), std::span{ embedded::kDocumentPng });
+
+	preview_icons_initialized_ = true;
+}
+
 void ContentBrowserPanel::OnRender(EditorContext& ctx) {
 	if (ImGui::Begin("Content Browser")) {
 		DrawContentBrowser(ctx);
@@ -271,6 +469,8 @@ void ContentBrowserPanel::OnRender(EditorContext& ctx) {
 }
 
 void ContentBrowserPanel::DrawContentBrowser(EditorContext& ctx) {
+	InitializePreviewIcons(ctx);
+
 	DrawToolbar(ctx);
 	ImGui::Separator();
 
@@ -302,29 +502,45 @@ void ContentBrowserPanel::DrawToolbar(EditorContext& ctx) {
 
 	ImGui::SameLine();
 
-	ImGui::SetNextItemWidth(180.0f);
-	ImGui::SliderInt("##items_per_row", &items_per_row_, 1, 8, "Items Per Row: %d");
-
+	ImGui::TextUnformatted("Items per row");
 	ImGui::SameLine();
 
-	if (ImGui::Button("Sort: Name")) {
-		if (sort_mode_ == SortMode::Name) {
-			sort_ascending_ = !sort_ascending_;
-		} else {
-			sort_mode_		= SortMode::Name;
-			sort_ascending_ = true;
+	ImGui::SetNextItemWidth(80.0f);
+	ImGui::InputInt("##items_per_row", &items_per_row_, 1, 1);
+
+	items_per_row_ = std::clamp(items_per_row_, 1, kMaxItemsPerRow);
+
+	ImGui::SameLine();
+	ImGui::TextUnformatted("Sort by");
+	ImGui::SameLine();
+
+	const char* sort_mode_name{ sort_mode_ == SortMode::Name ? "Name" : "Type" };
+
+	ImGui::SetNextItemWidth(100.0f);
+	if (ImGui::BeginCombo("##sort_mode", sort_mode_name)) {
+		if (ImGui::Selectable("Name", sort_mode_ == SortMode::Name)) {
+			sort_mode_ = SortMode::Name;
 		}
+		if (ImGui::Selectable("Type", sort_mode_ == SortMode::Type)) {
+			sort_mode_ = SortMode::Type;
+		}
+		ImGui::EndCombo();
 	}
 
 	ImGui::SameLine();
 
-	if (ImGui::Button("Sort: Type")) {
-		if (sort_mode_ == SortMode::Type) {
-			sort_ascending_ = !sort_ascending_;
-		} else {
-			sort_mode_		= SortMode::Type;
-			sort_ascending_ = true;
-		}
+	if (DrawSortDirectionButton(
+			"##sort_ascending", ImGuiDir_Up, sort_ascending_, "Sort ascending"
+		)) {
+		sort_ascending_ = true;
+	}
+
+	ImGui::SameLine(0.0f, 1.0f);
+
+	if (DrawSortDirectionButton(
+			"##sort_descending", ImGuiDir_Down, !sort_ascending_, "Sort descending"
+		)) {
+		sort_ascending_ = false;
 	}
 
 	ImGui::SetNextItemWidth(-FLT_MIN);
@@ -337,22 +553,7 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 	std::erase_if(assets, [&](const auto& asset) { return !MatchesSearch(asset, search_); });
 
 	std::stable_sort(assets.begin(), assets.end(), [&](const auto& a, const auto& b) {
-		bool result{ false };
-
-		if (sort_mode_ == SortMode::Type) {
-			auto a_kind{ magic_enum::enum_name(a.kind) };
-			auto b_kind{ magic_enum::enum_name(b.kind) };
-
-			if (a_kind != b_kind) {
-				result = a_kind < b_kind;
-			} else {
-				result = a.key < b.key;
-			}
-		} else {
-			result = a.key < b.key;
-		}
-
-		return sort_ascending_ ? result : !result;
+		return sort_ascending_ ? AssetLess(a, b, sort_mode_) : AssetLess(b, a, sort_mode_);
 	});
 
 	ImGui::BeginChild(
@@ -366,36 +567,50 @@ void ContentBrowserPanel::DrawAssetGrid(EditorContext& ctx) {
 		return;
 	}
 
-	auto& style{ ImGui::GetStyle() };
-
-	auto tile_padding{ 10.0f };
-	auto available_width{ ImGui::GetContentRegionAvail().x };
-	auto column_count{ std::max(1, items_per_row_) };
-	auto total_spacing{ static_cast<float>(column_count - 1) * tile_padding };
-	auto tile_width{ (available_width - total_spacing) / static_cast<float>(column_count) };
-	auto preview_size{ std::max(48.0f, tile_width) };
+	auto column_count{ std::clamp(items_per_row_, 1, kMaxItemsPerRow) };
 
 	std::optional<impl::AssetRecord> asset_to_unload;
 
 	if (ImGui::BeginTable(
 			"##ContentBrowserGrid", column_count,
-			ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_NoBordersInBody |
+			ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_NoBordersInBody |
 				ImGuiTableFlags_PadOuterX
 		)) {
-		for (auto& asset : assets) {
-			ImGui::TableNextColumn();
+		for (auto i{ 0 }; i < column_count; ++i) {
+			ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch, 1.0f);
+		}
 
-			auto start_y{ ImGui::GetCursorPosY() };
+		auto assets_per_row{ static_cast<std::size_t>(column_count) };
 
-			DrawAssetTile(preview_size, asset, asset_to_unload);
+		for (auto row_begin{ 0uz }; row_begin < assets.size(); row_begin += assets_per_row) {
+			auto row_asset_count{ std::min(assets_per_row, assets.size() - row_begin) };
 
-			auto used_height{ ImGui::GetCursorPosY() - start_y };
-			auto minimum_height{ preview_size + ImGui::GetTextLineHeightWithSpacing() * 4.0f };
+			// The table uses the tallest content cell as the height of this row.
+			ImGui::TableNextRow();
 
-			auto extra_height{ minimum_height - used_height + style.FramePadding.y };
+			for (auto column{ 0uz }; column < row_asset_count; ++column) {
+				ImGui::TableSetColumnIndex(static_cast<int>(column));
 
-			if (extra_height > 0.0f) {
-				ImGui::Dummy(ImVec2{ 0.0f, extra_height });
+				auto tile_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				auto& asset{ assets[row_begin + column] };
+
+				DrawAssetTileContent(
+					tile_width, asset, static_cast<impl::TextureId>(audio_icon_texture_),
+					static_cast<impl::TextureId>(document_icon_texture_), asset_to_unload
+				);
+			}
+
+			// Starting another table row places every button below the tallest content
+			// cell from the previous row, leaving blank space in shorter cells.
+			ImGui::TableNextRow();
+
+			for (auto column{ 0uz }; column < row_asset_count; ++column) {
+				ImGui::TableSetColumnIndex(static_cast<int>(column));
+
+				auto tile_width{ std::max(1.0f, ImGui::GetContentRegionAvail().x) };
+				auto& asset{ assets[row_begin + column] };
+
+				DrawAssetTileUnloadButton(tile_width, asset, asset_to_unload);
 			}
 		}
 

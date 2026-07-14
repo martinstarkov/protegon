@@ -246,8 +246,17 @@ Shader AssetManager::LoadShader(
 	if (auto existing{ TryGet<Shader>(key) }; existing.has_value()) {
 		return existing.value();
 	}
+
 	auto shader{ CreateShader(true, source, shader_name.value_or(key)) };
-	impl::AddAssetKey(shader.GetEntity(), std::move(key), {});
+
+	std::optional<path> source_path;
+
+	if (const auto* shader_path{ std::get_if<ShaderPath>(&source) }) {
+		source_path = shader_path->path;
+	}
+
+	impl::AddAssetKey(shader.GetEntity(), std::move(key), source_path);
+
 	return shader;
 }
 
@@ -262,8 +271,17 @@ json AssetManager::CreateJson(const path& asset_path) {
 }
 
 json& AssetManager::LoadJson(const JsonKey& key, const path& asset_path) {
-	auto [it, _] = jsons_.try_emplace(Hash(key), CreateJson(asset_path));
-	return it->second;
+	auto hash{ Hash(key) };
+
+	auto [it, _] = jsons_.try_emplace(
+		hash, impl::JsonAssetData{
+				  .key		   = key,
+				  .source_path = asset_path,
+				  .value	   = CreateJson(asset_path),
+			  }
+	);
+
+	return it->second.value;
 }
 
 void AssetManager::LoadDirectory(const path& directory, bool recursive) {
@@ -499,7 +517,7 @@ std::optional<ConstAsset<T>> AssetManager::TryGet(const AssetKey& key) const {
 		if (it == jsons_.end()) {
 			return std::nullopt;
 		}
-		return std::cref(it->second);
+		return std::cref(it->second.value);
 	} else {
 		return TryGetAssetImpl<T>(manager_, key);
 	}
@@ -512,7 +530,7 @@ std::optional<Asset<T>> AssetManager::TryGet(const AssetKey& key) {
 		if (it == jsons_.end()) {
 			return std::nullopt;
 		}
-		return std::ref(it->second);
+		return std::ref(it->second.value);
 	} else {
 		return TryGetAssetImpl<T>(manager_, key);
 	}
@@ -574,19 +592,42 @@ impl::TextureId AssetManager::GetFontAtlasTexture(const FontKey& key) const {
 
 std::vector<impl::AssetRecord> AssetManager::GetAssets() const {
 	std::vector<impl::AssetRecord> records;
+	records.reserve(manager_.Size() + jsons_.size());
 
 	for (auto [asset, key] : manager_.EntitiesWith<AssetKey>()) {
 		path source_path;
 
-		if (auto path{ asset.TryGet<impl::AssetPath>() }) {
-			source_path = path->value;
+		if (auto asset_path{ asset.TryGet<impl::AssetPath>() }) {
+			source_path = asset_path->value;
 		}
 
+		impl::AssetRecord record{
+			.key		 = key,
+			.source_path = source_path,
+			.kind		 = GetAssetKindFromEntity(asset, source_path),
+		};
+
+		if (auto texture{ asset.TryGet<impl::TextureObject>() }) {
+			record.preview = impl::AssetPreview{
+				.texture = static_cast<impl::TextureId>(*texture),
+				.size	 = texture->GetSize(),
+			};
+		} else if (auto font{ asset.TryGet<impl::FontAtlas>() }) {
+			record.preview = impl::AssetPreview{
+				.texture = font->GetTexture(),
+				.size	 = font->GetSize(),
+			};
+		}
+
+		records.emplace_back(std::move(record));
+	}
+
+	for (const auto& [_, asset] : jsons_) {
 		records.emplace_back(
 			impl::AssetRecord{
-				.key		 = key.value,
-				.source_path = source_path,
-				.kind		 = GetAssetKindFromEntity(asset, source_path),
+				.key		 = asset.key,
+				.source_path = asset.source_path,
+				.kind		 = AssetKind::Json,
 			}
 		);
 	}

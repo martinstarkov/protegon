@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "core/util/file.h"
+#include "renderer/resources/texture.h"
 #include "runtime/asset/asset_key.h"
 
 namespace ptgn::editor {
@@ -29,13 +30,15 @@ bool AcceptAssetKeyDragDrop(T& value) {
 
 class ContentBrowserPanel {
 public:
-	void OnRender(EditorContext& ctx);
-
-private:
 	enum class SortMode {
 		Name,
 		Type,
 	};
+
+	void OnRender(EditorContext& ctx);
+
+private:
+	void InitializePreviewIcons(EditorContext& ctx);
 
 	void DrawContentBrowser(EditorContext& ctx);
 	void DrawToolbar(EditorContext& ctx);
@@ -50,6 +53,10 @@ private:
 	bool sort_ascending_{ true };
 	std::string search_;
 	std::string status_;
+
+	impl::TextureObject audio_icon_texture_;
+	impl::TextureObject document_icon_texture_;
+	bool preview_icons_initialized_{ false };
 };
 
 } // namespace ptgn::editor

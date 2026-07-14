@@ -146,10 +146,22 @@ AssetKind GetAssetKind(const path& path);
 
 void AddAssetKey(ecs::Entity asset, AssetKey key, const std::optional<path>& path);
 
+struct AssetPreview {
+	TextureId texture;
+	V2_int size;
+};
+
 struct AssetRecord {
 	AssetKey key;
 	path source_path;
 	AssetKind kind{ AssetKind::Unknown };
+	std::optional<AssetPreview> preview;
+};
+
+struct JsonAssetData {
+	AssetKey key;
+	path source_path;
+	json value;
 };
 
 class AssetAccessor {
@@ -350,7 +362,7 @@ private:
 
 	ecs::Manager manager_;
 
-	std::unordered_map<std::size_t, json> jsons_;
+	std::unordered_map<std::size_t, impl::JsonAssetData> jsons_;
 };
 
 namespace impl {

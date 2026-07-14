@@ -65,14 +65,20 @@ Surface::Surface(
 	}
 }
 
-Surface::Surface(std::span<const std::byte> bytes, std::uint8_t desired_channels) {
+Surface::Surface(std::span<const std::byte> bytes, std::uint8_t desired_channels) :
+	Surface{ { reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size() },
+			 desired_channels } {
+	static_assert(std::is_same_v<std::uint8_t, unsigned char>);
+}
+
+Surface::Surface(std::span<const std::uint8_t> bytes, std::uint8_t desired_channels) {
 	PTGN_ASSERT(bytes.data(), "Embedded PNG binary is null");
 	PTGN_ASSERT(bytes.size() > 0, "Embedded PNG binary is empty");
 
 	int source_channel_count{ 0 };
 
 	auto data{ stbi_load_from_memory(
-		reinterpret_cast<const unsigned char*>(bytes.data()), // NOSONAR
+		bytes.data(), // NOSONAR
 		static_cast<int>(bytes.size()), &size_.x, &size_.y, &source_channel_count, desired_channels
 	) };
 

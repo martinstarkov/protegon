@@ -26,6 +26,7 @@ public:
 		bool flip_vertically = false
 	);
 
+	explicit Surface(std::span<const std::uint8_t> bytes, std::uint8_t desired_channels = 4);
 	explicit Surface(std::span<const std::byte> bytes, std::uint8_t desired_channels = 4);
 
 	explicit Surface(const path& file, std::uint8_t desired_channels = 4);
