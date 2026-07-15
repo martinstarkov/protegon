@@ -1,20 +1,18 @@
-// behavior_sequence_imgui_demo.cpp
+// behavior_component_inspector_demo.cpp
 //
-// Standalone Dear ImGui mock-up for authoring serialized script/tween behavior sequences.
+// Standalone Dear ImGui mock-up for a compact Behaviors entity component.
 //
-// Expected dependencies:
-//   - Dear ImGui
-//   - backends/imgui_impl_glfw.cpp
-//   - backends/imgui_impl_opengl3.cpp
-//   - GLFW
-//   - GLAD / OpenGL
+// Flat sequence entry types:
+//   - Action
+//   - Timed Action
+//   - Wait
+//   - Emit Signal
 //
-// Example CMake target shape:
+// Behaviors can be local to an entity component or references to shared global
+// definitions. Runtime state remains per entity binding even for global behaviors.
 //
-//   add_executable(behavior_sequence_demo behavior_sequence_imgui_demo.cpp)
-//   target_link_libraries(behavior_sequence_demo PRIVATE imgui glfw glad)
-//
-// The exact library target names depend on your project.
+// Expected dependencies: Dear ImGui, GLFW, GLAD/OpenGL, and the standard
+// imgui_impl_glfw / imgui_impl_opengl3 backends.
 
 #define GLFW_INCLUDE_NONE
 
@@ -26,9 +24,7 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <cfloat>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -55,36 +51,22 @@ struct TextBuffer {
 	std::array<char, N> data{};
 
 	TextBuffer() = default;
-
-	TextBuffer(std::string_view text) {
-		Assign(text);
-	}
+	explicit TextBuffer(std::string_view text) { Assign(text); }
 
 	void Assign(std::string_view text) {
 		const auto count{ std::min(text.size(), N - 1) };
 		std::memcpy(data.data(), text.data(), count);
 		data[count] = '\0';
-
 		if (count + 1 < N) {
 			std::fill(data.begin() + static_cast<std::ptrdiff_t>(count + 1), data.end(), '\0');
 		}
 	}
 
-	[[nodiscard]] char* Data() {
-		return data.data();
-	}
-
-	[[nodiscard]] const char* Data() const {
-		return data.data();
-	}
-
-	[[nodiscard]] constexpr std::size_t Size() const {
-		return N;
-	}
-
-	[[nodiscard]] bool Empty() const {
-		return data[0] == '\0';
-	}
+	char* Data() { return data.data(); }
+	const char* Data() const { return data.data(); }
+	constexpr std::size_t Size() const { return N; }
+	bool Empty() const { return data[0] == '\0'; }
+	std::string_view View() const { return Data(); }
 };
 
 enum class TriggerKind {
@@ -103,10 +85,11 @@ enum class ReentryMode {
 	Parallel
 };
 
-enum class CompletionPolicy {
-	Duration,
-	AllScriptsComplete,
-	AnyScriptComplete
+enum class SequenceItemKind {
+	Action,
+	TimedAction,
+	Wait,
+	EmitSignal
 };
 
 enum class Ease {
@@ -118,59 +101,57 @@ enum class Ease {
 	OutBack
 };
 
-enum class ScriptKind {
+enum class ActionKind {
 	SetVisible,
 	MoveTo,
 	RotateTo,
 	PlayAudio,
-	EmitSignal,
 	SetColliderMode,
-	StartBehavior,
 	ApplyDamage
 };
 
-enum class ScriptPhase {
-	OnStart,
-	During,
-	OnComplete
+constexpr std::array kTriggerNames{
+	"On Create", "Key Pressed", "Overlap Start", "Signal", "Timer", "Manual"
+};
+constexpr std::array kReentryNames{
+	"Ignore While Running", "Restart", "Queue", "Parallel"
+};
+constexpr std::array kSequenceItemNames{
+	"Action", "Timed Action", "Wait", "Emit Signal"
+};
+constexpr std::array kEaseNames{
+	"Linear", "In Quad", "Out Quad", "In-Out Quad", "Out Cubic", "Out Back"
+};
+constexpr std::array kColliderModeNames{
+	"None", "Overlap", "Discrete", "Continuous"
 };
 
-constexpr std::array kTriggerNames{ "On Create", "Key Pressed", "Overlap Start",
-									"Signal",	 "Timer",		"Manual" };
-
-constexpr std::array kReentryNames{ "Ignore While Running", "Restart", "Queue", "Parallel" };
-
-constexpr std::array kCompletionNames{ "Duration", "All Scripts Complete", "Any Script Complete" };
-
-constexpr std::array kEaseNames{ "Linear",		"In Quad",	 "Out Quad",
-								 "In-Out Quad", "Out Cubic", "Out Back" };
-
-constexpr std::array kColliderModeNames{ "None", "Overlap", "Discrete", "Continuous" };
-
 template <typename TEnum, std::size_t N>
-bool DrawEnumCombo(const char* label, TEnum& value, const std::array<const char*, N>& names) {
-	int current{ static_cast<int>(value) };
+bool DrawEnumCombo(
+	const char* label,
+	TEnum& value,
+	const std::array<const char*, N>& names,
+	float width = -FLT_MIN
+) {
+	if (width != 0.0f) {
+		ImGui::SetNextItemWidth(width);
+	}
+
 	bool changed{ false };
+	const int current{ static_cast<int>(value) };
 
 	if (ImGui::BeginCombo(label, names[static_cast<std::size_t>(current)])) {
 		for (int i{ 0 }; i < static_cast<int>(N); ++i) {
-			const bool selected{ current == i };
-
+			const bool selected{ i == current };
 			if (ImGui::Selectable(names[static_cast<std::size_t>(i)], selected)) {
-				current = i;
+				value = static_cast<TEnum>(i);
 				changed = true;
 			}
-
 			if (selected) {
 				ImGui::SetItemDefaultFocus();
 			}
 		}
-
 		ImGui::EndCombo();
-	}
-
-	if (changed) {
-		value = static_cast<TEnum>(current);
 	}
 
 	return changed;
@@ -178,138 +159,129 @@ bool DrawEnumCombo(const char* label, TEnum& value, const std::array<const char*
 
 struct TriggerDefinition {
 	Id id{ NextId() };
-	TriggerKind kind{ TriggerKind::OnCreate };
+	TriggerKind kind{ TriggerKind::Manual };
 	bool enabled{ true };
-
-	TextBuffer<64> key{ "Space" };
+	TextBuffer<48> key{ "Space" };
 	TextBuffer<64> other_tag{ "Player" };
-	TextBuffer<96> signal{ "door.opened" };
+	TextBuffer<80> signal{ "door.opened" };
 	float timer_seconds{ 1.0f };
 };
 
-struct SetVisibleParams {
-	bool visible{ true };
+struct SetVisibleParams { bool visible{ true }; };
+struct MoveToParams { float destination[2]{ 0.0f, 64.0f }; bool relative{ true }; };
+struct RotateToParams { float degrees{ 90.0f }; bool shortest_path{ true }; };
+struct PlayAudioParams { TextBuffer<80> asset{ "door_open" }; float volume{ 1.0f }; bool loop{ false }; };
+struct SetColliderModeParams { int mode{ 0 }; };
+struct ApplyDamageParams { float amount{ 10.0f }; TextBuffer<48> damage_type{ "Physical" }; bool critical{ false }; };
+
+using ActionParameters = std::variant<
+	SetVisibleParams,
+	MoveToParams,
+	RotateToParams,
+	PlayAudioParams,
+	SetColliderModeParams,
+	ApplyDamageParams
+>;
+
+struct ActionDefinition {
+	ActionKind kind{ ActionKind::SetVisible };
+	ActionParameters parameters{ SetVisibleParams{} };
 };
 
-struct MoveToParams {
-	float destination[2]{ 0.0f, 64.0f };
-	bool relative{ true };
-};
-
-struct RotateToParams {
-	float degrees{ 90.0f };
-	bool shortest_path{ true };
-};
-
-struct PlayAudioParams {
-	TextBuffer<96> asset{ "door_open" };
-	float volume{ 1.0f };
-	bool loop{ false };
-};
-
-struct EmitSignalParams {
-	TextBuffer<96> signal{ "door.opened" };
-};
-
-struct SetColliderModeParams {
-	int mode{ 0 };
-};
-
-struct StartBehaviorParams {
-	TextBuffer<96> behavior{ "Damage Flash" };
-	bool restart{ false };
-};
-
-struct ApplyDamageParams {
-	float amount{ 10.0f };
-	bool critical{ false };
-	TextBuffer<64> damage_type{ "Physical" };
-};
-
-using ScriptParameters = std::variant<
-	SetVisibleParams, MoveToParams, RotateToParams, PlayAudioParams, EmitSignalParams,
-	SetColliderModeParams, StartBehaviorParams, ApplyDamageParams>;
-
-struct ScriptDefinition {
-	Id id{ NextId() };
-	ScriptKind kind{ ScriptKind::SetVisible };
-	bool enabled{ true };
-	ScriptParameters parameters{ SetVisibleParams{} };
-};
-
-struct ScriptDescriptor {
-	ScriptKind kind;
+struct ActionDescriptor {
+	ActionKind kind;
 	const char* key;
 	const char* label;
 	const char* group;
 	const char* description;
-	const char* source;
+	bool supports_timed;
 };
 
-constexpr std::array kScriptRegistry{
-	ScriptDescriptor{ ScriptKind::SetVisible, "engine.set_visible", "Set Visible", "Entity",
-					  "Changes whether the selected entity is visible.", "Engine" },
-	ScriptDescriptor{ ScriptKind::MoveTo, "engine.move_to", "Move To", "Transform",
-					  "Interpolates an entity to a target position.", "Engine" },
-	ScriptDescriptor{ ScriptKind::RotateTo, "engine.rotate_to", "Rotate To", "Transform",
-					  "Interpolates an entity to a target rotation.", "Engine" },
-	ScriptDescriptor{ ScriptKind::PlayAudio, "engine.play_audio", "Play Audio", "Audio",
-					  "Plays an audio asset with configurable volume and looping.", "Engine" },
-	ScriptDescriptor{ ScriptKind::EmitSignal, "engine.emit_signal", "Emit Signal", "Flow",
-					  "Emits a named signal that can trigger another behavior.", "Engine" },
-	ScriptDescriptor{ ScriptKind::SetColliderMode, "engine.set_collider_mode", "Set Collider Mode",
-					  "Physics", "Changes the collision mode of the selected entity.", "Engine" },
-	ScriptDescriptor{ ScriptKind::StartBehavior, "engine.start_behavior", "Start Behavior", "Flow",
-					  "Starts another behavior by its stable authored identifier.", "Engine" },
-	ScriptDescriptor{ ScriptKind::ApplyDamage, "game.apply_damage", "Apply Damage", "Game",
-					  "Example user-registered script with reflected custom parameters.", "User" },
+constexpr std::array kActionRegistry{
+	ActionDescriptor{ ActionKind::SetVisible, "engine.set_visible", "Set Visible", "Entity", "Changes entity visibility.", false },
+	ActionDescriptor{ ActionKind::MoveTo, "engine.move_to", "Move To", "Transform", "Moves an entity to a target position.", true },
+	ActionDescriptor{ ActionKind::RotateTo, "engine.rotate_to", "Rotate To", "Transform", "Rotates an entity to a target angle.", true },
+	ActionDescriptor{ ActionKind::PlayAudio, "engine.play_audio", "Play Audio", "Audio", "Plays an audio asset.", false },
+	ActionDescriptor{ ActionKind::SetColliderMode, "engine.set_collider_mode", "Set Collider Mode", "Physics", "Changes the collider mode.", false },
+	ActionDescriptor{ ActionKind::ApplyDamage, "game.apply_damage", "Apply Damage", "Game", "Example user-registered action.", false },
 };
 
-const ScriptDescriptor& GetScriptDescriptor(ScriptKind kind) {
-	const auto it{ std::find_if(
-		kScriptRegistry.begin(), kScriptRegistry.end(),
-		[kind](const ScriptDescriptor& descriptor) { return descriptor.kind == kind; }
-	) };
-
-	return it != kScriptRegistry.end() ? *it : kScriptRegistry.front();
+const ActionDescriptor& GetActionDescriptor(ActionKind kind) {
+	const auto it{ std::ranges::find_if(kActionRegistry, [kind](const auto& descriptor) {
+		return descriptor.kind == kind;
+	}) };
+	return it != kActionRegistry.end() ? *it : kActionRegistry.front();
 }
 
-ScriptDefinition MakeScript(ScriptKind kind) {
-	ScriptDefinition script;
-	script.kind = kind;
+ActionDefinition MakeAction(ActionKind kind) {
+	ActionDefinition action;
+	action.kind = kind;
 
 	switch (kind) {
-		case ScriptKind::SetVisible:	  script.parameters = SetVisibleParams{}; break;
-		case ScriptKind::MoveTo:		  script.parameters = MoveToParams{}; break;
-		case ScriptKind::RotateTo:		  script.parameters = RotateToParams{}; break;
-		case ScriptKind::PlayAudio:		  script.parameters = PlayAudioParams{}; break;
-		case ScriptKind::EmitSignal:	  script.parameters = EmitSignalParams{}; break;
-		case ScriptKind::SetColliderMode: script.parameters = SetColliderModeParams{}; break;
-		case ScriptKind::StartBehavior:	  script.parameters = StartBehaviorParams{}; break;
-		case ScriptKind::ApplyDamage:	  script.parameters = ApplyDamageParams{}; break;
+		case ActionKind::SetVisible: action.parameters = SetVisibleParams{}; break;
+		case ActionKind::MoveTo: action.parameters = MoveToParams{}; break;
+		case ActionKind::RotateTo: action.parameters = RotateToParams{}; break;
+		case ActionKind::PlayAudio: action.parameters = PlayAudioParams{}; break;
+		case ActionKind::SetColliderMode: action.parameters = SetColliderModeParams{}; break;
+		case ActionKind::ApplyDamage: action.parameters = ApplyDamageParams{}; break;
 	}
 
-	return script;
+	return action;
 }
 
-struct SequenceStepDefinition {
-	Id id{ NextId() };
-	TextBuffer<96> name{ "New Step" };
-
-	float delay_ms{ 0.0f };
+struct ActionItem { ActionDefinition action; };
+struct TimedActionItem {
+	ActionDefinition action{ MakeAction(ActionKind::MoveTo) };
 	float duration_ms{ 300.0f };
 	Ease ease{ Ease::Linear };
-
-	int repeats{ 0 };
+	int additional_repeats{ 0 };
 	bool infinite_repeats{ false };
 	bool reversed{ false };
 	bool yoyo{ false };
+};
+struct WaitItem { float duration_ms{ 250.0f }; };
+struct EmitSignalItem { TextBuffer<80> signal{ "door.opened" }; };
 
-	CompletionPolicy completion{ CompletionPolicy::Duration };
+using SequenceItemData = std::variant<ActionItem, TimedActionItem, WaitItem, EmitSignalItem>;
 
-	std::vector<ScriptDefinition> on_start;
-	std::vector<ScriptDefinition> during;
-	std::vector<ScriptDefinition> on_complete;
+struct SequenceItem {
+	Id id{ NextId() };
+	bool enabled{ true };
+	SequenceItemKind kind{ SequenceItemKind::Action };
+	SequenceItemData data{ ActionItem{} };
+};
+
+SequenceItem MakeSequenceItem(SequenceItemKind kind) {
+	SequenceItem item;
+	item.kind = kind;
+
+	switch (kind) {
+		case SequenceItemKind::Action: item.data = ActionItem{}; break;
+		case SequenceItemKind::TimedAction: item.data = TimedActionItem{}; break;
+		case SequenceItemKind::Wait: item.data = WaitItem{}; break;
+		case SequenceItemKind::EmitSignal: item.data = EmitSignalItem{}; break;
+	}
+
+	return item;
+}
+
+void SetSequenceItemKind(SequenceItem& item, SequenceItemKind kind) {
+	if (item.kind == kind) {
+		return;
+	}
+	const Id id{ item.id };
+	const bool enabled{ item.enabled };
+	item = MakeSequenceItem(kind);
+	item.id = id;
+	item.enabled = enabled;
+}
+
+struct BehaviorDefinition {
+	Id id{ NextId() };
+	TextBuffer<80> name{ "New Behavior" };
+	ReentryMode reentry{ ReentryMode::IgnoreWhileRunning };
+	std::vector<TriggerDefinition> triggers;
+	std::vector<SequenceItem> sequence;
 };
 
 struct RuntimeState {
@@ -317,300 +289,89 @@ struct RuntimeState {
 	bool paused{ false };
 	bool completed{ false };
 	bool queued{ false };
-
-	std::size_t current_step{ 0 };
-	float step_elapsed_ms{ 0.0f };
+	std::size_t item_index{ 0 };
+	float elapsed_ms{ 0.0f };
 	int completed_runs{ 0 };
 };
 
-struct BehaviorDefinition {
+struct BehaviorBinding {
 	Id id{ NextId() };
-	TextBuffer<96> name{ "New Behavior" };
 	bool enabled{ true };
-
-	ReentryMode reentry{ ReentryMode::IgnoreWhileRunning };
-	bool destroy_owner_on_complete{ false };
-
-	std::vector<TriggerDefinition> triggers;
-	std::vector<SequenceStepDefinition> steps;
-
+	bool global_reference{ false };
+	Id global_behavior_id{ 0 };
+	BehaviorDefinition local_definition;
 	RuntimeState runtime;
 };
 
-struct SignalEvent {
-	std::string name;
-	Id source_behavior{ 0 };
+struct BehaviorsComponent { std::vector<BehaviorBinding> bindings; };
+
+struct EntityData {
+	Id id{ NextId() };
+	TextBuffer<64> name{ "Entity" };
+	float position[2]{ 0.0f, 0.0f };
+	float rotation{ 0.0f };
+	float scale[2]{ 1.0f, 1.0f };
+	bool visible{ true };
+	std::optional<BehaviorsComponent> behaviors;
 };
 
-struct SignalLogEntry {
-	std::string text;
-	float remaining_seconds{ 5.0f };
+struct GlobalBehaviorRegistry {
+	std::vector<BehaviorDefinition> definitions;
+
+	BehaviorDefinition* Find(Id id) {
+		const auto it{ std::ranges::find_if(definitions, [id](const auto& definition) {
+			return definition.id == id;
+		}) };
+		return it != definitions.end() ? &*it : nullptr;
+	}
+
+	const BehaviorDefinition* Find(Id id) const {
+		return const_cast<GlobalBehaviorRegistry*>(this)->Find(id);
+	}
 };
 
-struct SequenceRuntimeContext {
-	std::deque<SignalEvent> pending_signals;
-	std::vector<SignalLogEntry> signal_log;
-};
-
-ScriptDefinition CloneScript(const ScriptDefinition& source) {
-	ScriptDefinition copy{ source };
-	copy.id = NextId();
-	return copy;
+BehaviorDefinition* ResolveBehavior(BehaviorBinding& binding, GlobalBehaviorRegistry& registry) {
+	return binding.global_reference ? registry.Find(binding.global_behavior_id) : &binding.local_definition;
 }
 
-SequenceStepDefinition CloneStep(const SequenceStepDefinition& source) {
-	SequenceStepDefinition copy{ source };
-	copy.id = NextId();
-
-	for (auto& script : copy.on_start) {
-		script.id = NextId();
-	}
-
-	for (auto& script : copy.during) {
-		script.id = NextId();
-	}
-
-	for (auto& script : copy.on_complete) {
-		script.id = NextId();
-	}
-
-	return copy;
+const BehaviorDefinition* ResolveBehavior(const BehaviorBinding& binding, const GlobalBehaviorRegistry& registry) {
+	return binding.global_reference ? registry.Find(binding.global_behavior_id) : &binding.local_definition;
 }
 
 BehaviorDefinition CloneBehavior(const BehaviorDefinition& source) {
 	BehaviorDefinition copy{ source };
-	copy.id		 = NextId();
-	copy.runtime = {};
-
+	copy.id = NextId();
 	for (auto& trigger : copy.triggers) {
 		trigger.id = NextId();
 	}
-
-	for (auto& step : copy.steps) {
-		step = CloneStep(step);
+	for (auto& item : copy.sequence) {
+		item.id = NextId();
 	}
-
 	return copy;
 }
 
-void PushSignalLog(SequenceRuntimeContext& context, std::string text) {
-	context.signal_log.push_back(
-		SignalLogEntry{
-			.text			   = std::move(text),
-			.remaining_seconds = 5.0f,
-		}
-	);
+struct SignalEvent {
+	std::string name;
+	Id source_entity{ 0 };
+	Id source_behavior{ 0 };
+};
 
-	constexpr std::size_t kMaxSignalLogEntries{ 12 };
+struct ActivityEntry {
+	std::string text;
+	float remaining_seconds{ 7.0f };
+};
 
-	if (context.signal_log.size() > kMaxSignalLogEntries) {
-		context.signal_log.erase(
-			context.signal_log.begin(),
-			context.signal_log.begin() +
-				static_cast<std::ptrdiff_t>(context.signal_log.size() - kMaxSignalLogEntries)
-		);
+struct DemoRuntimeContext {
+	std::deque<SignalEvent> pending_signals;
+	std::vector<ActivityEntry> activity;
+};
+
+void AddActivity(DemoRuntimeContext& context, std::string text) {
+	context.activity.push_back({ std::move(text), 7.0f });
+	constexpr std::size_t kMaxEntries{ 10 };
+	if (context.activity.size() > kMaxEntries) {
+		context.activity.erase(context.activity.begin());
 	}
-}
-
-void ExecuteScripts(
-	const std::vector<ScriptDefinition>& scripts, const BehaviorDefinition& behavior,
-	SequenceRuntimeContext& context
-) {
-	for (const auto& script : scripts) {
-		if (!script.enabled) {
-			continue;
-		}
-
-		switch (script.kind) {
-			case ScriptKind::EmitSignal: {
-				const auto& params{ std::get<EmitSignalParams>(script.parameters) };
-
-				if (params.signal.Empty()) {
-					break;
-				}
-
-				context.pending_signals.push_back(
-					SignalEvent{
-						.name			 = params.signal.Data(),
-						.source_behavior = behavior.id,
-					}
-				);
-
-				PushSignalLog(
-					context, std::string{ behavior.name.Data() } + " emitted \"" +
-								 params.signal.Data() + "\""
-				);
-				break;
-			}
-
-			default:
-				// Other script kinds are only visualized by this standalone UI demo.
-				break;
-		}
-	}
-}
-
-void EnterCurrentStep(BehaviorDefinition& behavior, SequenceRuntimeContext& context) {
-	auto& runtime{ behavior.runtime };
-
-	if (!runtime.running || runtime.current_step >= behavior.steps.size()) {
-		return;
-	}
-
-	const auto& step{ behavior.steps[runtime.current_step] };
-	ExecuteScripts(step.on_start, behavior, context);
-}
-
-void StartRuntime(
-	BehaviorDefinition& behavior, SequenceRuntimeContext& context, bool restart = true
-) {
-	if (!behavior.enabled) {
-		return;
-	}
-
-	auto& runtime{ behavior.runtime };
-
-	if (runtime.running && !restart) {
-		switch (behavior.reentry) {
-			case ReentryMode::IgnoreWhileRunning: return;
-
-			case ReentryMode::Restart:			  break;
-
-			case ReentryMode::Queue:			  runtime.queued = true; return;
-
-			case ReentryMode::Parallel:
-				// The demo visualizes one runtime. A real implementation would create another
-				// independent runtime instance here.
-				break;
-		}
-	}
-
-	runtime.running			= !behavior.steps.empty();
-	runtime.paused			= false;
-	runtime.completed		= behavior.steps.empty();
-	runtime.current_step	= 0;
-	runtime.step_elapsed_ms = 0.0f;
-
-	if (runtime.running) {
-		PushSignalLog(context, std::string{ behavior.name.Data() } + " started");
-		EnterCurrentStep(behavior, context);
-	}
-}
-
-void StopRuntime(BehaviorDefinition& behavior) {
-	behavior.runtime = {};
-}
-
-void CompleteCurrentStep(BehaviorDefinition& behavior, SequenceRuntimeContext& context) {
-	auto& runtime{ behavior.runtime };
-
-	if (!runtime.running || behavior.steps.empty() ||
-		runtime.current_step >= behavior.steps.size()) {
-		return;
-	}
-
-	const auto& completed_step{ behavior.steps[runtime.current_step] };
-	ExecuteScripts(completed_step.on_complete, behavior, context);
-
-	if (runtime.current_step + 1 < behavior.steps.size()) {
-		++runtime.current_step;
-		runtime.step_elapsed_ms = 0.0f;
-		EnterCurrentStep(behavior, context);
-		return;
-	}
-
-	runtime.running	  = false;
-	runtime.paused	  = false;
-	runtime.completed = true;
-	++runtime.completed_runs;
-
-	PushSignalLog(context, std::string{ behavior.name.Data() } + " completed");
-
-	if (runtime.queued) {
-		runtime.queued = false;
-		StartRuntime(behavior, context);
-	}
-}
-
-float GetActiveStepProgress(const BehaviorDefinition& behavior) {
-	const auto& runtime{ behavior.runtime };
-
-	if (!runtime.running || runtime.current_step >= behavior.steps.size()) {
-		return runtime.completed ? 1.0f : 0.0f;
-	}
-
-	const auto& step{ behavior.steps[runtime.current_step] };
-	const float active_elapsed{ runtime.step_elapsed_ms - step.delay_ms };
-
-	if (active_elapsed <= 0.0f) {
-		return 0.0f;
-	}
-
-	if (step.duration_ms <= 0.0f) {
-		return 1.0f;
-	}
-
-	return std::clamp(active_elapsed / step.duration_ms, 0.0f, 1.0f);
-}
-
-void UpdateRuntime(
-	BehaviorDefinition& behavior, float delta_seconds, SequenceRuntimeContext& context
-) {
-	auto& runtime{ behavior.runtime };
-
-	if (!runtime.running || runtime.paused || runtime.current_step >= behavior.steps.size()) {
-		return;
-	}
-
-	const auto& step{ behavior.steps[runtime.current_step] };
-	runtime.step_elapsed_ms += delta_seconds * 1000.0f;
-
-	// During scripts would receive progress here in the real engine.
-	// This demo keeps their parameter UI visible while simulating timing only.
-	const float total_duration{ std::max(0.0f, step.delay_ms) + std::max(0.0f, step.duration_ms) };
-
-	if (runtime.step_elapsed_ms >= total_duration) {
-		CompleteCurrentStep(behavior, context);
-	}
-}
-
-bool HasMatchingSignalTrigger(const BehaviorDefinition& behavior, std::string_view signal) {
-	return behavior.enabled &&
-		   std::ranges::any_of(behavior.triggers, [signal](const TriggerDefinition& trigger) {
-			   return trigger.enabled && trigger.kind == TriggerKind::Signal &&
-					  std::string_view{ trigger.signal.Data() } == signal;
-		   });
-}
-
-void DispatchPendingSignals(
-	std::vector<BehaviorDefinition>& behaviors, SequenceRuntimeContext& context
-) {
-	while (!context.pending_signals.empty()) {
-		SignalEvent event{ std::move(context.pending_signals.front()) };
-		context.pending_signals.pop_front();
-
-		for (auto& behavior : behaviors) {
-			if (!HasMatchingSignalTrigger(behavior, event.name)) {
-				continue;
-			}
-
-			PushSignalLog(
-				context, std::string{ behavior.name.Data() } + " received \"" + event.name + "\""
-			);
-
-			StartRuntime(behavior, context, false);
-		}
-	}
-}
-
-void UpdateSignalLog(SequenceRuntimeContext& context, float delta_seconds) {
-	for (auto& entry : context.signal_log) {
-		entry.remaining_seconds -= delta_seconds;
-	}
-
-	std::erase_if(context.signal_log, [](const SignalLogEntry& entry) {
-		return entry.remaining_seconds <= 0.0f;
-	});
 }
 
 template <typename T>
@@ -619,100 +380,512 @@ void MoveItem(std::vector<T>& items, int from, int to) {
 		to >= static_cast<int>(items.size()) || from == to) {
 		return;
 	}
-
 	T moved{ std::move(items[static_cast<std::size_t>(from)]) };
 	items.erase(items.begin() + from);
-
-	// "to" refers to the original hovered item. After erasing, inserting at the same
-	// numeric index places a downward drag after that item and an upward drag before it.
 	items.insert(items.begin() + to, std::move(moved));
 }
 
-void DrawHelpMarker(const char* text) {
-	ImGui::SameLine();
-	ImGui::TextDisabled("(?)");
+void ExecuteAction(
+	const ActionDefinition& action,
+	const EntityData& entity,
+	const BehaviorDefinition& behavior,
+	DemoRuntimeContext& context,
+	bool timed
+) {
+	AddActivity(
+		context,
+		std::string{ entity.name.Data() } + " / " + behavior.name.Data() +
+			(timed ? " timed: " : " action: ") + GetActionDescriptor(action.kind).label
+	);
+}
 
-	if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) {
-		ImGui::BeginTooltip();
-		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28.0f);
-		ImGui::TextUnformatted(text);
-		ImGui::PopTextWrapPos();
-		ImGui::EndTooltip();
+void EmitSignal(
+	const EmitSignalItem& emit,
+	const EntityData& entity,
+	const BehaviorDefinition& behavior,
+	DemoRuntimeContext& context
+) {
+	if (emit.signal.Empty()) {
+		return;
+	}
+	context.pending_signals.push_back({ std::string{ emit.signal.Data() }, entity.id, behavior.id });
+	AddActivity(
+		context,
+		std::string{ entity.name.Data() } + " / " + behavior.name.Data() +
+			" emitted \"" + emit.signal.Data() + "\""
+	);
+}
+
+bool IsTimedItem(const SequenceItem& item) {
+	return item.kind == SequenceItemKind::Wait || item.kind == SequenceItemKind::TimedAction;
+}
+
+float GetItemDuration(const SequenceItem& item) {
+	switch (item.kind) {
+		case SequenceItemKind::Wait:
+			return std::max(0.0f, std::get<WaitItem>(item.data).duration_ms);
+		case SequenceItemKind::TimedAction:
+			return std::max(0.0f, std::get<TimedActionItem>(item.data).duration_ms);
+		case SequenceItemKind::Action:
+		case SequenceItemKind::EmitSignal:
+			return 0.0f;
+	}
+	return 0.0f;
+}
+
+void StartBehaviorRuntime(
+	EntityData& entity,
+	BehaviorBinding& binding,
+	GlobalBehaviorRegistry& registry,
+	DemoRuntimeContext& context,
+	bool force_restart = true
+);
+
+void FinishBehavior(
+	EntityData& entity,
+	BehaviorBinding& binding,
+	const BehaviorDefinition& behavior,
+	GlobalBehaviorRegistry& registry,
+	DemoRuntimeContext& context
+) {
+	auto& runtime{ binding.runtime };
+	runtime.running = false;
+	runtime.paused = false;
+	runtime.completed = true;
+	++runtime.completed_runs;
+	AddActivity(context, std::string{ entity.name.Data() } + " / " + behavior.name.Data() + " completed");
+	if (runtime.queued) {
+		runtime.queued = false;
+		StartBehaviorRuntime(entity, binding, registry, context);
 	}
 }
 
-void DrawSectionTitle(const char* title) {
-	ImGui::Spacing();
-	ImGui::TextUnformatted(title);
-	ImGui::Separator();
+void ProcessImmediateItems(
+	EntityData& entity,
+	BehaviorBinding& binding,
+	const BehaviorDefinition& behavior,
+	GlobalBehaviorRegistry& registry,
+	DemoRuntimeContext& context
+) {
+	auto& runtime{ binding.runtime };
+
+	while (runtime.running && runtime.item_index < behavior.sequence.size()) {
+		const auto& item{ behavior.sequence[runtime.item_index] };
+		if (!item.enabled) {
+			++runtime.item_index;
+			continue;
+		}
+
+		if (IsTimedItem(item)) {
+			if (GetItemDuration(item) <= 0.0f) {
+				if (item.kind == SequenceItemKind::TimedAction) {
+					ExecuteAction(std::get<TimedActionItem>(item.data).action, entity, behavior, context, true);
+				}
+				++runtime.item_index;
+				runtime.elapsed_ms = 0.0f;
+				continue;
+			}
+			break;
+		}
+
+		switch (item.kind) {
+			case SequenceItemKind::Action:
+				ExecuteAction(std::get<ActionItem>(item.data).action, entity, behavior, context, false);
+				break;
+			case SequenceItemKind::EmitSignal:
+				EmitSignal(std::get<EmitSignalItem>(item.data), entity, behavior, context);
+				break;
+			case SequenceItemKind::TimedAction:
+			case SequenceItemKind::Wait:
+				break;
+		}
+
+		++runtime.item_index;
+		runtime.elapsed_ms = 0.0f;
+	}
+
+	if (runtime.running && runtime.item_index >= behavior.sequence.size()) {
+		FinishBehavior(entity, binding, behavior, registry, context);
+	}
 }
 
-bool DrawTriggerEditor(TriggerDefinition& trigger) {
+void StartBehaviorRuntime(
+	EntityData& entity,
+	BehaviorBinding& binding,
+	GlobalBehaviorRegistry& registry,
+	DemoRuntimeContext& context,
+	bool force_restart
+) {
+	if (!binding.enabled) {
+		return;
+	}
+	const auto* behavior{ ResolveBehavior(binding, registry) };
+	if (!behavior) {
+		return;
+	}
+
+	auto& runtime{ binding.runtime };
+	if (runtime.running && !force_restart) {
+		switch (behavior->reentry) {
+			case ReentryMode::IgnoreWhileRunning: return;
+			case ReentryMode::Restart: break;
+			case ReentryMode::Queue: runtime.queued = true; return;
+			case ReentryMode::Parallel: break;
+		}
+	}
+
+	runtime.running = !behavior->sequence.empty();
+	runtime.paused = false;
+	runtime.completed = behavior->sequence.empty();
+	runtime.item_index = 0;
+	runtime.elapsed_ms = 0.0f;
+	AddActivity(context, std::string{ entity.name.Data() } + " / " + behavior->name.Data() + " started");
+	if (runtime.running) {
+		ProcessImmediateItems(entity, binding, *behavior, registry, context);
+	}
+}
+
+void UpdateBehaviorRuntime(
+	EntityData& entity,
+	BehaviorBinding& binding,
+	float delta_seconds,
+	GlobalBehaviorRegistry& registry,
+	DemoRuntimeContext& context
+) {
+	auto& runtime{ binding.runtime };
+	if (!runtime.running || runtime.paused) {
+		return;
+	}
+
+	const auto* behavior{ ResolveBehavior(binding, registry) };
+	if (!behavior || runtime.item_index >= behavior->sequence.size()) {
+		if (behavior) {
+			FinishBehavior(entity, binding, *behavior, registry, context);
+		}
+		return;
+	}
+
+	const auto& item{ behavior->sequence[runtime.item_index] };
+	if (!item.enabled || !IsTimedItem(item)) {
+		ProcessImmediateItems(entity, binding, *behavior, registry, context);
+		return;
+	}
+
+	runtime.elapsed_ms += delta_seconds * 1000.0f;
+	if (runtime.elapsed_ms < GetItemDuration(item)) {
+		return;
+	}
+
+	if (item.kind == SequenceItemKind::TimedAction) {
+		ExecuteAction(std::get<TimedActionItem>(item.data).action, entity, *behavior, context, true);
+	}
+	++runtime.item_index;
+	runtime.elapsed_ms = 0.0f;
+	ProcessImmediateItems(entity, binding, *behavior, registry, context);
+}
+
+bool MatchesSignalTrigger(const BehaviorDefinition& behavior, std::string_view signal) {
+	return std::ranges::any_of(behavior.triggers, [signal](const auto& trigger) {
+		return trigger.enabled && trigger.kind == TriggerKind::Signal && trigger.signal.View() == signal;
+	});
+}
+
+void DispatchSignals(
+	std::vector<EntityData>& entities,
+	GlobalBehaviorRegistry& registry,
+	DemoRuntimeContext& context
+) {
+	while (!context.pending_signals.empty()) {
+		SignalEvent event{ std::move(context.pending_signals.front()) };
+		context.pending_signals.pop_front();
+
+		for (auto& entity : entities) {
+			if (!entity.behaviors) {
+				continue;
+			}
+			for (auto& binding : entity.behaviors->bindings) {
+				const auto* behavior{ ResolveBehavior(binding, registry) };
+				if (!behavior || !MatchesSignalTrigger(*behavior, event.name)) {
+					continue;
+				}
+				AddActivity(
+					context,
+					std::string{ entity.name.Data() } + " / " + behavior->name.Data() +
+						" received \"" + event.name + "\""
+				);
+				StartBehaviorRuntime(entity, binding, registry, context, false);
+			}
+		}
+	}
+}
+
+void UpdateActivity(DemoRuntimeContext& context, float delta_seconds) {
+	for (auto& entry : context.activity) {
+		entry.remaining_seconds -= delta_seconds;
+	}
+	std::erase_if(context.activity, [](const auto& entry) {
+		return entry.remaining_seconds <= 0.0f;
+	});
+}
+
+float GetRuntimeProgress(const BehaviorBinding& binding, const BehaviorDefinition& behavior) {
+	const auto& runtime{ binding.runtime };
+	if (runtime.completed) {
+		return 1.0f;
+	}
+	if (!runtime.running || runtime.item_index >= behavior.sequence.size()) {
+		return 0.0f;
+	}
+	const float duration{ GetItemDuration(behavior.sequence[runtime.item_index]) };
+	return duration > 0.0f ? std::clamp(runtime.elapsed_ms / duration, 0.0f, 1.0f) : 0.0f;
+}
+
+std::string TriggerSummary(const TriggerDefinition& trigger) {
+	switch (trigger.kind) {
+		case TriggerKind::OnCreate: return "On Create";
+		case TriggerKind::KeyPressed: return std::string{ "Key: " } + trigger.key.Data();
+		case TriggerKind::OverlapStart: return std::string{ "Overlap: " } + trigger.other_tag.Data();
+		case TriggerKind::Signal: return std::string{ "Signal: " } + trigger.signal.Data();
+		case TriggerKind::Timer: {
+			char buffer[64]{};
+			std::snprintf(buffer, sizeof(buffer), "Timer: %.2fs", trigger.timer_seconds);
+			return buffer;
+		}
+		case TriggerKind::Manual: return "Manual";
+	}
+	return {};
+}
+
+std::string SequenceItemSummary(const SequenceItem& item) {
+	char buffer[160]{};
+	switch (item.kind) {
+		case SequenceItemKind::Action:
+			return GetActionDescriptor(std::get<ActionItem>(item.data).action.kind).label;
+		case SequenceItemKind::TimedAction: {
+			const auto& timed{ std::get<TimedActionItem>(item.data) };
+			std::snprintf(buffer, sizeof(buffer), "%s  %.0fms", GetActionDescriptor(timed.action.kind).label, timed.duration_ms);
+			return buffer;
+		}
+		case SequenceItemKind::Wait:
+			std::snprintf(buffer, sizeof(buffer), "%.0fms", std::get<WaitItem>(item.data).duration_ms);
+			return buffer;
+		case SequenceItemKind::EmitSignal:
+			return std::get<EmitSignalItem>(item.data).signal.Data();
+	}
+	return {};
+}
+
+void DrawActionParameters(ActionDefinition& action) {
+	switch (action.kind) {
+		case ActionKind::SetVisible: {
+			auto& p{ std::get<SetVisibleParams>(action.parameters) };
+			ImGui::Checkbox("Visible", &p.visible);
+			break;
+		}
+		case ActionKind::MoveTo: {
+			auto& p{ std::get<MoveToParams>(action.parameters) };
+			ImGui::DragFloat2("Destination", p.destination, 1.0f, -100000.0f, 100000.0f, "%.0f");
+			ImGui::Checkbox("Relative", &p.relative);
+			break;
+		}
+		case ActionKind::RotateTo: {
+			auto& p{ std::get<RotateToParams>(action.parameters) };
+			ImGui::DragFloat("Degrees", &p.degrees, 1.0f, -3600.0f, 3600.0f, "%.1f deg");
+			ImGui::Checkbox("Shortest Path", &p.shortest_path);
+			break;
+		}
+		case ActionKind::PlayAudio: {
+			auto& p{ std::get<PlayAudioParams>(action.parameters) };
+			ImGui::InputText("Audio", p.asset.Data(), p.asset.Size());
+			ImGui::SliderFloat("Volume", &p.volume, 0.0f, 1.0f, "%.2f");
+			ImGui::Checkbox("Loop", &p.loop);
+			break;
+		}
+		case ActionKind::SetColliderMode: {
+			auto& p{ std::get<SetColliderModeParams>(action.parameters) };
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::BeginCombo("Mode", kColliderModeNames[static_cast<std::size_t>(p.mode)])) {
+				for (int i{ 0 }; i < static_cast<int>(kColliderModeNames.size()); ++i) {
+					const bool selected{ p.mode == i };
+					if (ImGui::Selectable(kColliderModeNames[static_cast<std::size_t>(i)], selected)) {
+						p.mode = i;
+					}
+				}
+				ImGui::EndCombo();
+			}
+			break;
+		}
+		case ActionKind::ApplyDamage: {
+			auto& p{ std::get<ApplyDamageParams>(action.parameters) };
+			ImGui::DragFloat("Amount", &p.amount, 0.25f, 0.0f, 100000.0f, "%.2f");
+			ImGui::InputText("Damage Type", p.damage_type.Data(), p.damage_type.Size());
+			ImGui::Checkbox("Critical", &p.critical);
+			break;
+		}
+	}
+}
+
+bool DrawActionPicker(const char* label, ActionDefinition& action, bool timed_only) {
+	bool changed{ false };
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	if (ImGui::BeginCombo(label, GetActionDescriptor(action.kind).label)) {
+		const char* previous_group{ nullptr };
+		for (const auto& descriptor : kActionRegistry) {
+			if (timed_only && !descriptor.supports_timed) {
+				continue;
+			}
+			if (!previous_group || std::strcmp(previous_group, descriptor.group) != 0) {
+				if (previous_group) {
+					ImGui::Separator();
+				}
+				ImGui::TextDisabled("%s", descriptor.group);
+				previous_group = descriptor.group;
+			}
+			const bool selected{ action.kind == descriptor.kind };
+			if (ImGui::Selectable(descriptor.label, selected)) {
+				action = MakeAction(descriptor.kind);
+				changed = true;
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("%s\n%s", descriptor.description, descriptor.key);
+			}
+		}
+		ImGui::EndCombo();
+	}
+	return changed;
+}
+
+bool DrawTriggerCompact(TriggerDefinition& trigger) {
 	bool remove{ false };
-
 	ImGui::PushID(static_cast<int>(trigger.id));
+	const std::string summary{ TriggerSummary(trigger) };
+	const bool open{ ImGui::TreeNodeEx("##Trigger", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowOverlap, "%s", summary.c_str()) };
 
-	char header[160]{};
-	std::snprintf(
-		header, sizeof(header), "%s%s", trigger.enabled ? "" : "[Disabled] ",
-		kTriggerNames[static_cast<std::size_t>(trigger.kind)]
-	);
-
-	const bool open{ ImGui::TreeNodeEx(
-		"##trigger", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth, "%s",
-		header
-	) };
-
-	if (ImGui::BeginPopupContextItem("TriggerContext")) {
-		if (ImGui::MenuItem(trigger.enabled ? "Disable" : "Enable")) {
-			trigger.enabled = !trigger.enabled;
-		}
-
-		ImGui::Separator();
-
-		if (ImGui::MenuItem("Remove")) {
-			remove = true;
-		}
-
-		ImGui::EndPopup();
+	ImGui::SameLine();
+	ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - 44.0f);
+	ImGui::Checkbox("##Enabled", &trigger.enabled);
+	ImGui::SameLine();
+	if (ImGui::SmallButton("x")) {
+		remove = true;
 	}
 
 	if (open) {
-		ImGui::Checkbox("Enabled", &trigger.enabled);
-		DrawEnumCombo("Type", trigger.kind, kTriggerNames);
-
+		DrawEnumCombo("##Kind", trigger.kind, kTriggerNames);
 		switch (trigger.kind) {
-			case TriggerKind::OnCreate:
-				ImGui::TextDisabled("Runs once when the behavior owner is created.");
-				break;
-
-			case TriggerKind::KeyPressed:
-				ImGui::InputText("Key", trigger.key.Data(), trigger.key.Size());
-				ImGui::TextDisabled("Demo field. Replace with your Key enum drawer.");
-				break;
-
-			case TriggerKind::OverlapStart:
-				ImGui::InputText(
-					"Other Entity Tag", trigger.other_tag.Data(), trigger.other_tag.Size()
-				);
-				break;
-
-			case TriggerKind::Signal:
-				ImGui::InputText("Signal", trigger.signal.Data(), trigger.signal.Size());
-				break;
-
+			case TriggerKind::OnCreate: ImGui::TextDisabled("Runs when this entity is created."); break;
+			case TriggerKind::KeyPressed: ImGui::InputText("Key", trigger.key.Data(), trigger.key.Size()); break;
+			case TriggerKind::OverlapStart: ImGui::InputText("Other Tag", trigger.other_tag.Data(), trigger.other_tag.Size()); break;
+			case TriggerKind::Signal: ImGui::InputText("Signal", trigger.signal.Data(), trigger.signal.Size()); break;
 			case TriggerKind::Timer:
-				ImGui::DragFloat(
-					"After", &trigger.timer_seconds, 0.05f, 0.0f, 3600.0f, "%.2f s",
-					ImGuiSliderFlags_AlwaysClamp
-				);
+				ImGui::DragFloat("After", &trigger.timer_seconds, 0.05f, 0.0f, 3600.0f, "%.2fs", ImGuiSliderFlags_AlwaysClamp);
 				break;
+			case TriggerKind::Manual: ImGui::TextDisabled("Started by code or the preview button."); break;
+		}
+		ImGui::TreePop();
+	}
+	ImGui::PopID();
+	return remove;
+}
 
-			case TriggerKind::Manual:
-				ImGui::TextDisabled("Triggered by code or the editor preview button.");
-				break;
+struct SequenceDragPayload { int index; };
+
+bool DrawSequenceItemCompact(SequenceItem& item, int index, bool active, float progress, bool& duplicate) {
+	bool remove{ false };
+	ImGui::PushID(static_cast<int>(item.id));
+
+	ImGui::SmallButton("::");
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Drag to reorder");
+	}
+	if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+		const SequenceDragPayload payload{ index };
+		ImGui::SetDragDropPayload("PTGN_SEQUENCE_ITEM", &payload, sizeof(payload));
+		ImGui::Text("%d. %s", index + 1, SequenceItemSummary(item).c_str());
+		ImGui::EndDragDropSource();
+	}
+
+	ImGui::SameLine();
+	const std::string summary{ SequenceItemSummary(item) };
+	char header[220]{};
+	std::snprintf(
+		header,
+		sizeof(header),
+		"%d. %s | %s%s",
+		index + 1,
+		kSequenceItemNames[static_cast<std::size_t>(item.kind)],
+		summary.c_str(),
+		active ? " [Running]" : ""
+	);
+	const bool open{ ImGui::TreeNodeEx("##Item", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_AllowOverlap, "%s", header) };
+
+	if (ImGui::BeginPopupContextItem("ItemMenu")) {
+		if (ImGui::MenuItem(item.enabled ? "Disable" : "Enable")) {
+			item.enabled = !item.enabled;
+		}
+		if (ImGui::MenuItem("Duplicate")) {
+			duplicate = true;
+		}
+		ImGui::Separator();
+		if (ImGui::MenuItem("Remove")) {
+			remove = true;
+		}
+		ImGui::EndPopup();
+	}
+
+	ImGui::SameLine();
+	ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - 44.0f);
+	ImGui::Checkbox("##Enabled", &item.enabled);
+	ImGui::SameLine();
+	if (ImGui::SmallButton("x")) {
+		remove = true;
+	}
+
+	if (active) {
+		ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 2.0f }, "");
+	}
+
+	if (open) {
+		SequenceItemKind new_kind{ item.kind };
+		if (DrawEnumCombo("Type", new_kind, kSequenceItemNames)) {
+			SetSequenceItemKind(item, new_kind);
 		}
 
+		switch (item.kind) {
+			case SequenceItemKind::Action: {
+				auto& action{ std::get<ActionItem>(item.data).action };
+				DrawActionPicker("Action", action, false);
+				DrawActionParameters(action);
+				break;
+			}
+			case SequenceItemKind::TimedAction: {
+				auto& timed{ std::get<TimedActionItem>(item.data) };
+				DrawActionPicker("Action", timed.action, true);
+				ImGui::DragFloat("Duration", &timed.duration_ms, 10.0f, 0.0f, 3600000.0f, "%.0fms", ImGuiSliderFlags_AlwaysClamp);
+				DrawEnumCombo("Ease", timed.ease, kEaseNames);
+				ImGui::Checkbox("Infinite", &timed.infinite_repeats);
+				ImGui::SameLine();
+				ImGui::BeginDisabled(timed.infinite_repeats);
+				ImGui::SetNextItemWidth(80.0f);
+				ImGui::InputInt("Repeats", &timed.additional_repeats);
+				timed.additional_repeats = std::max(0, timed.additional_repeats);
+				ImGui::EndDisabled();
+				ImGui::Checkbox("Reversed", &timed.reversed);
+				ImGui::SameLine();
+				ImGui::Checkbox("Yoyo", &timed.yoyo);
+				DrawActionParameters(timed.action);
+				break;
+			}
+			case SequenceItemKind::Wait: {
+				auto& wait{ std::get<WaitItem>(item.data) };
+				ImGui::DragFloat("Duration", &wait.duration_ms, 10.0f, 0.0f, 3600000.0f, "%.0fms", ImGuiSliderFlags_AlwaysClamp);
+				break;
+			}
+			case SequenceItemKind::EmitSignal: {
+				auto& emit{ std::get<EmitSignalItem>(item.data) };
+				ImGui::InputText("Signal", emit.signal.Data(), emit.signal.Size());
+				break;
+			}
+		}
 		ImGui::TreePop();
 	}
 
@@ -720,1015 +893,539 @@ bool DrawTriggerEditor(TriggerDefinition& trigger) {
 	return remove;
 }
 
-void DrawScriptParameters(ScriptDefinition& script) {
-	switch (script.kind) {
-		case ScriptKind::SetVisible: {
-			auto& params{ std::get<SetVisibleParams>(script.parameters) };
-			ImGui::Checkbox("Visible", &params.visible);
-			break;
-		}
-
-		case ScriptKind::MoveTo: {
-			auto& params{ std::get<MoveToParams>(script.parameters) };
-			ImGui::DragFloat2("Destination", params.destination, 1.0f, -100000.0f, 100000.0f);
-			ImGui::Checkbox("Relative", &params.relative);
-			break;
-		}
-
-		case ScriptKind::RotateTo: {
-			auto& params{ std::get<RotateToParams>(script.parameters) };
-			ImGui::DragFloat("Degrees", &params.degrees, 1.0f, -3600.0f, 3600.0f, "%.1f deg");
-			ImGui::Checkbox("Shortest Path", &params.shortest_path);
-			break;
-		}
-
-		case ScriptKind::PlayAudio: {
-			auto& params{ std::get<PlayAudioParams>(script.parameters) };
-			ImGui::InputText("Audio Asset", params.asset.Data(), params.asset.Size());
-			ImGui::SliderFloat("Volume", &params.volume, 0.0f, 1.0f, "%.2f");
-			ImGui::Checkbox("Loop", &params.loop);
-			break;
-		}
-
-		case ScriptKind::EmitSignal: {
-			auto& params{ std::get<EmitSignalParams>(script.parameters) };
-			ImGui::InputText("Signal", params.signal.Data(), params.signal.Size());
-			break;
-		}
-
-		case ScriptKind::SetColliderMode: {
-			auto& params{ std::get<SetColliderModeParams>(script.parameters) };
-
-			if (ImGui::BeginCombo(
-					"Mode", kColliderModeNames[static_cast<std::size_t>(params.mode)]
-				)) {
-				for (int i{ 0 }; i < static_cast<int>(kColliderModeNames.size()); ++i) {
-					const bool selected{ params.mode == i };
-
-					if (ImGui::Selectable(
-							kColliderModeNames[static_cast<std::size_t>(i)], selected
-						)) {
-						params.mode = i;
-					}
-
-					if (selected) {
-						ImGui::SetItemDefaultFocus();
-					}
-				}
-
-				ImGui::EndCombo();
-			}
-
-			break;
-		}
-
-		case ScriptKind::StartBehavior: {
-			auto& params{ std::get<StartBehaviorParams>(script.parameters) };
-			ImGui::InputText("Behavior", params.behavior.Data(), params.behavior.Size());
-			ImGui::Checkbox("Restart If Running", &params.restart);
-			break;
-		}
-
-		case ScriptKind::ApplyDamage: {
-			auto& params{ std::get<ApplyDamageParams>(script.parameters) };
-			ImGui::DragFloat("Amount", &params.amount, 0.25f, 0.0f, 100000.0f, "%.2f");
-			ImGui::InputText("Damage Type", params.damage_type.Data(), params.damage_type.Size());
-			ImGui::Checkbox("Critical", &params.critical);
-			break;
-		}
-	}
-}
-
-bool MatchesSearch(std::string_view text, std::string_view search) {
-	if (search.empty()) {
-		return true;
-	}
-
-	std::string lower_text{ text };
-	std::string lower_search{ search };
-
-	std::ranges::transform(lower_text, lower_text.begin(), [](unsigned char c) {
-		return static_cast<char>(std::tolower(c));
-	});
-
-	std::ranges::transform(lower_search, lower_search.begin(), [](unsigned char c) {
-		return static_cast<char>(std::tolower(c));
-	});
-
-	return lower_text.find(lower_search) != std::string::npos;
-}
-
-std::optional<ScriptDefinition> DrawAddScriptPopup(const char* popup_name) {
-	std::optional<ScriptDefinition> result;
-
-	if (!ImGui::BeginPopup(popup_name)) {
-		return result;
-	}
-
-	static TextBuffer<96> search;
-	ImGui::SetNextItemWidth(-FLT_MIN);
-	ImGui::InputTextWithHint(
-		"##ScriptSearch", "Search registered scripts...", search.Data(), search.Size()
-	);
-
-	ImGui::Separator();
-
-	const std::string_view search_view{ search.Data() };
-	const char* previous_group{ nullptr };
-
-	for (const auto& descriptor : kScriptRegistry) {
-		const bool matches{ MatchesSearch(descriptor.label, search_view) ||
-							MatchesSearch(descriptor.key, search_view) ||
-							MatchesSearch(descriptor.group, search_view) };
-
-		if (!matches) {
-			continue;
-		}
-
-		if (!previous_group || std::strcmp(previous_group, descriptor.group) != 0) {
-			if (previous_group) {
-				ImGui::Spacing();
-			}
-
-			ImGui::TextDisabled("%s", descriptor.group);
-			previous_group = descriptor.group;
-		}
-
-		ImGui::PushID(static_cast<int>(descriptor.kind));
-
-		if (ImGui::Selectable(descriptor.label)) {
-			result = MakeScript(descriptor.kind);
-			search.Assign("");
-			ImGui::CloseCurrentPopup();
-		}
-
-		if (ImGui::IsItemHovered()) {
-			ImGui::BeginTooltip();
-			ImGui::TextUnformatted(descriptor.description);
-			ImGui::Separator();
-			ImGui::TextDisabled("%s", descriptor.key);
-			ImGui::TextDisabled("Source: %s", descriptor.source);
-			ImGui::EndTooltip();
-		}
-
-		ImGui::PopID();
-	}
-
-	ImGui::EndPopup();
-	return result;
-}
-
-struct ScriptDragPayload {
-	Id list_id;
-	int index;
-};
-
-void DrawScriptList(const char* label, std::vector<ScriptDefinition>& scripts, Id list_id) {
-	ImGui::PushID(label);
-
-	if (scripts.empty()) {
-		ImGui::TextDisabled("No scripts.");
-	}
-
+void DrawBehaviorSequence(BehaviorDefinition& behavior, BehaviorBinding& binding) {
 	int remove_index{ -1 };
 	int duplicate_index{ -1 };
 	int move_from{ -1 };
 	int move_to{ -1 };
 
-	for (int i{ 0 }; i < static_cast<int>(scripts.size()); ++i) {
-		auto& script{ scripts[static_cast<std::size_t>(i)] };
-		const auto& descriptor{ GetScriptDescriptor(script.kind) };
-
-		ImGui::PushID(static_cast<int>(script.id));
-
-		char header[192]{};
-		std::snprintf(
-			header, sizeof(header), "%s%s", script.enabled ? "" : "[Disabled] ", descriptor.label
-		);
-
-		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_DefaultOpen |
-								  ImGuiTreeNodeFlags_SpanAvailWidth |
-								  ImGuiTreeNodeFlags_AllowOverlap };
-
-		const bool open{ ImGui::TreeNodeEx("##script", flags, "%s", header) };
-
-		if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
-			const ScriptDragPayload payload{ list_id, i };
-			ImGui::SetDragDropPayload("PTGN_SEQUENCE_SCRIPT", &payload, sizeof(payload));
-			ImGui::Text("Move %s", descriptor.label);
-			ImGui::EndDragDropSource();
+	for (int i{ 0 }; i < static_cast<int>(behavior.sequence.size()); ++i) {
+		auto& item{ behavior.sequence[static_cast<std::size_t>(i)] };
+		const bool active{ binding.runtime.running && binding.runtime.item_index == static_cast<std::size_t>(i) };
+		bool duplicate{ false };
+		if (DrawSequenceItemCompact(item, i, active, active ? GetRuntimeProgress(binding, behavior) : 0.0f, duplicate)) {
+			remove_index = i;
 		}
 
 		if (ImGui::BeginDragDropTarget()) {
-			if (const ImGuiPayload* payload{
-					ImGui::AcceptDragDropPayload("PTGN_SEQUENCE_SCRIPT") }) {
-				const auto* drag{ static_cast<const ScriptDragPayload*>(payload->Data) };
-
-				if (drag && drag->list_id == list_id) {
+			if (const ImGuiPayload* payload{ ImGui::AcceptDragDropPayload("PTGN_SEQUENCE_ITEM") }) {
+				const auto* drag{ static_cast<const SequenceDragPayload*>(payload->Data) };
+				if (drag) {
 					move_from = drag->index;
-					move_to	  = i;
+					move_to = i;
 				}
 			}
-
 			ImGui::EndDragDropTarget();
 		}
-
-		if (ImGui::BeginPopupContextItem("ScriptContext")) {
-			if (ImGui::MenuItem(script.enabled ? "Disable" : "Enable")) {
-				script.enabled = !script.enabled;
-			}
-
-			if (ImGui::MenuItem("Duplicate")) {
-				duplicate_index = i;
-			}
-
-			ImGui::Separator();
-
-			if (ImGui::MenuItem("Remove")) {
-				remove_index = i;
-			}
-
-			ImGui::EndPopup();
+		if (duplicate) {
+			duplicate_index = i;
 		}
-
-		if (open) {
-			ImGui::Checkbox("Enabled", &script.enabled);
-			ImGui::TextDisabled("%s", descriptor.key);
-			ImGui::TextWrapped("%s", descriptor.description);
-			ImGui::Spacing();
-
-			DrawScriptParameters(script);
-
-			ImGui::TreePop();
-		}
-
-		ImGui::PopID();
 	}
 
 	if (move_from >= 0 && move_to >= 0) {
-		MoveItem(scripts, move_from, move_to);
+		MoveItem(behavior.sequence, move_from, move_to);
 	}
-
 	if (duplicate_index >= 0) {
-		auto copy{ CloneScript(scripts[static_cast<std::size_t>(duplicate_index)]) };
-		scripts.insert(scripts.begin() + duplicate_index + 1, std::move(copy));
+		auto copy{ behavior.sequence[static_cast<std::size_t>(duplicate_index)] };
+		copy.id = NextId();
+		behavior.sequence.insert(behavior.sequence.begin() + duplicate_index + 1, std::move(copy));
 	}
-
 	if (remove_index >= 0) {
-		scripts.erase(scripts.begin() + remove_index);
+		behavior.sequence.erase(behavior.sequence.begin() + remove_index);
+		binding.runtime = {};
 	}
 
-	ImGui::Spacing();
-
-	char add_label[128]{};
-	std::snprintf(add_label, sizeof(add_label), "+ Add %s Script", label);
-
-	if (ImGui::Button(add_label, ImVec2{ -FLT_MIN, 0.0f })) {
-		ImGui::OpenPopup("AddScriptPopup");
+	if (ImGui::Button("+ Sequence Item", ImVec2{ -FLT_MIN, 0.0f })) {
+		ImGui::OpenPopup("AddSequenceItem");
 	}
-
-	if (auto added{ DrawAddScriptPopup("AddScriptPopup") }) {
-		scripts.emplace_back(std::move(*added));
-	}
-
-	ImGui::PopID();
-}
-
-void DrawStepEditor(
-	SequenceStepDefinition& step, bool active, float active_progress, bool& request_remove,
-	bool& request_duplicate
-) {
-	ImGui::PushID(static_cast<int>(step.id));
-
-	char label[192]{};
-	std::snprintf(
-		label, sizeof(label), "%s%s", active ? "[Running] " : "",
-		step.name.Empty() ? "Unnamed Step" : step.name.Data()
-	);
-
-	ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth |
-							  ImGuiTreeNodeFlags_AllowOverlap };
-
-	const bool open{ ImGui::TreeNodeEx("##step", flags, "%s", label) };
-
-	if (ImGui::BeginPopupContextItem("StepContext")) {
-		if (ImGui::MenuItem("Duplicate")) {
-			request_duplicate = true;
+	if (ImGui::BeginPopup("AddSequenceItem")) {
+		for (int i{ 0 }; i < static_cast<int>(kSequenceItemNames.size()); ++i) {
+			if (ImGui::MenuItem(kSequenceItemNames[static_cast<std::size_t>(i)])) {
+				behavior.sequence.push_back(MakeSequenceItem(static_cast<SequenceItemKind>(i)));
+			}
 		}
-
-		ImGui::Separator();
-
-		if (ImGui::MenuItem("Remove")) {
-			request_remove = true;
-		}
-
 		ImGui::EndPopup();
 	}
+}
 
-	if (active) {
-		ImGui::ProgressBar(active_progress, ImVec2{ -FLT_MIN, 3.0f }, "");
+void PromoteBindingToGlobal(BehaviorBinding& binding, GlobalBehaviorRegistry& registry) {
+	if (binding.global_reference) {
+		return;
+	}
+	BehaviorDefinition global{ std::move(binding.local_definition) };
+	const Id id{ global.id };
+	registry.definitions.push_back(std::move(global));
+	binding.global_reference = true;
+	binding.global_behavior_id = id;
+	binding.local_definition = {};
+	binding.runtime = {};
+}
+
+void DetachBindingToLocal(BehaviorBinding& binding, GlobalBehaviorRegistry& registry) {
+	if (!binding.global_reference) {
+		return;
+	}
+	const auto* global{ registry.Find(binding.global_behavior_id) };
+	binding.local_definition = global ? CloneBehavior(*global) : BehaviorDefinition{};
+	if (global) {
+		binding.local_definition.name.Assign(std::string{ global->name.Data() } + " Local");
+	}
+	binding.global_reference = false;
+	binding.global_behavior_id = 0;
+	binding.runtime = {};
+}
+
+void DrawRuntimeButtons(
+	EntityData& entity,
+	BehaviorBinding& binding,
+	GlobalBehaviorRegistry& registry,
+	DemoRuntimeContext& context
+) {
+	if (ImGui::SmallButton(binding.runtime.running ? "Restart" : "Play")) {
+		StartBehaviorRuntime(entity, binding, registry, context);
+	}
+	ImGui::SameLine();
+	ImGui::BeginDisabled(!binding.runtime.running);
+	if (ImGui::SmallButton(binding.runtime.paused ? "Resume" : "Pause")) {
+		binding.runtime.paused = !binding.runtime.paused;
+	}
+	ImGui::EndDisabled();
+	ImGui::SameLine();
+	if (ImGui::SmallButton("Stop")) {
+		binding.runtime = {};
+	}
+}
+
+bool DrawBehaviorBinding(
+	EntityData& entity,
+	BehaviorBinding& binding,
+	GlobalBehaviorRegistry& registry,
+	DemoRuntimeContext& context
+) {
+	auto* behavior{ ResolveBehavior(binding, registry) };
+	if (!behavior) {
+		ImGui::TextDisabled("Missing global behavior");
+		ImGui::SameLine();
+		return ImGui::SmallButton("Remove");
+	}
+
+	bool remove{ false };
+	ImGui::PushID(static_cast<int>(binding.id));
+	char header[180]{};
+	std::snprintf(
+		header,
+		sizeof(header),
+		"%s%s%s",
+		binding.runtime.running ? "> " : "",
+		binding.global_reference ? "[Global] " : "",
+		behavior->name.Data()
+	);
+	const bool open{ ImGui::TreeNodeEx(
+		"##Behavior",
+		ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth |
+			ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_Framed,
+		"%s",
+		header
+	) };
+	ImGui::SameLine();
+	ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - 44.0f);
+	ImGui::Checkbox("##Enabled", &binding.enabled);
+	ImGui::SameLine();
+	if (ImGui::SmallButton("x")) {
+		remove = true;
 	}
 
 	if (open) {
-		ImGui::InputText("Name", step.name.Data(), step.name.Size());
-
-		ImGui::DragFloat(
-			"Delay Before", &step.delay_ms, 10.0f, 0.0f, 3600000.0f, "%.0f ms",
-			ImGuiSliderFlags_AlwaysClamp
-		);
-
-		ImGui::DragFloat(
-			"Duration", &step.duration_ms, 10.0f, 0.0f, 3600000.0f, "%.0f ms",
-			ImGuiSliderFlags_AlwaysClamp
-		);
-
-		DrawEnumCombo("Ease", step.ease, kEaseNames);
-		DrawEnumCombo("Completion", step.completion, kCompletionNames);
-
-		ImGui::Checkbox("Infinite Repeats", &step.infinite_repeats);
-
-		ImGui::BeginDisabled(step.infinite_repeats);
-		ImGui::InputInt("Additional Repeats", &step.repeats);
-		step.repeats = std::max(0, step.repeats);
-		ImGui::EndDisabled();
-
-		ImGui::Checkbox("Reversed", &step.reversed);
+		ImGui::InputText("Name", behavior->name.Data(), behavior->name.Size());
+		bool global{ binding.global_reference };
+		if (ImGui::Checkbox("Global", &global)) {
+			if (global) {
+				PromoteBindingToGlobal(binding, registry);
+			} else {
+				DetachBindingToLocal(binding, registry);
+			}
+			behavior = ResolveBehavior(binding, registry);
+		}
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip(
+				binding.global_reference
+					? "Shared definition. Untick to make a local copy."
+					: "Move this definition into the global registry."
+			);
+		}
 		ImGui::SameLine();
-		ImGui::Checkbox("Yoyo", &step.yoyo);
+		DrawEnumCombo("##Reentry", behavior->reentry, kReentryNames, 185.0f);
+		ImGui::SameLine();
+		DrawRuntimeButtons(entity, binding, registry, context);
 
-		ImGui::Spacing();
-
-		if (ImGui::BeginTabBar("ScriptPhases")) {
-			if (ImGui::BeginTabItem("On Start")) {
-				DrawScriptList(
-					"On Start", step.on_start, step.id * 10 + static_cast<Id>(ScriptPhase::OnStart)
-				);
-				ImGui::EndTabItem();
+		ImGui::SeparatorText("Triggers");
+		int remove_trigger{ -1 };
+		for (int i{ 0 }; i < static_cast<int>(behavior->triggers.size()); ++i) {
+			if (DrawTriggerCompact(behavior->triggers[static_cast<std::size_t>(i)])) {
+				remove_trigger = i;
 			}
-
-			if (ImGui::BeginTabItem("During")) {
-				DrawScriptList(
-					"During", step.during, step.id * 10 + static_cast<Id>(ScriptPhase::During)
-				);
-				ImGui::EndTabItem();
-			}
-
-			if (ImGui::BeginTabItem("On Complete")) {
-				DrawScriptList(
-					"On Complete", step.on_complete,
-					step.id * 10 + static_cast<Id>(ScriptPhase::OnComplete)
-				);
-				ImGui::EndTabItem();
-			}
-
-			ImGui::EndTabBar();
+		}
+		if (remove_trigger >= 0) {
+			behavior->triggers.erase(behavior->triggers.begin() + remove_trigger);
+		}
+		if (ImGui::SmallButton("+ Trigger")) {
+			behavior->triggers.emplace_back();
 		}
 
+		ImGui::SeparatorText("Sequence");
+		DrawBehaviorSequence(*behavior, binding);
+		if (binding.runtime.running) {
+			ImGui::TextDisabled("Running item %zu / %zu", binding.runtime.item_index + 1, behavior->sequence.size());
+		} else if (binding.runtime.completed) {
+			ImGui::TextDisabled("Completed");
+		}
 		ImGui::TreePop();
 	}
 
 	ImGui::PopID();
+	return remove;
 }
 
-struct StepDragPayload {
-	int index;
-};
-
-void DrawBehaviorInspector(BehaviorDefinition& behavior) {
-	ImGui::PushID(static_cast<int>(behavior.id));
-
-	ImGui::InputText("Name", behavior.name.Data(), behavior.name.Size());
-	ImGui::Checkbox("Enabled", &behavior.enabled);
-
-	DrawEnumCombo("Reentry", behavior.reentry, kReentryNames);
-	DrawHelpMarker(
-		"Controls what happens when the behavior is triggered again while already running."
-	);
-
-	ImGui::Checkbox("Destroy Owner On Complete", &behavior.destroy_owner_on_complete);
-
-	DrawSectionTitle("Triggers");
-
-	int remove_trigger{ -1 };
-
-	for (int i{ 0 }; i < static_cast<int>(behavior.triggers.size()); ++i) {
-		if (DrawTriggerEditor(behavior.triggers[static_cast<std::size_t>(i)])) {
-			remove_trigger = i;
-		}
-	}
-
-	if (remove_trigger >= 0) {
-		behavior.triggers.erase(behavior.triggers.begin() + remove_trigger);
-	}
-
-	if (ImGui::Button("+ Add Trigger")) {
-		behavior.triggers.emplace_back();
-	}
-
-	DrawSectionTitle("Sequence");
-
-	if (behavior.steps.empty()) {
-		ImGui::TextDisabled("No sequence steps. Add a step to begin authoring.");
-	}
-
-	int remove_step{ -1 };
-	int duplicate_step{ -1 };
-	int move_from{ -1 };
-	int move_to{ -1 };
-
-	const float active_progress{ GetActiveStepProgress(behavior) };
-
-	for (int i{ 0 }; i < static_cast<int>(behavior.steps.size()); ++i) {
-		auto& step{ behavior.steps[static_cast<std::size_t>(i)] };
-
-		bool request_remove{ false };
-		bool request_duplicate{ false };
-
-		const bool active{ behavior.runtime.running &&
-						   behavior.runtime.current_step == static_cast<std::size_t>(i) };
-
-		ImGui::PushID(static_cast<int>(step.id));
-		ImGui::SmallButton("::");
-
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("Drag to reorder this step");
-		}
-
-		if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
-			const StepDragPayload payload{ i };
-			ImGui::SetDragDropPayload("PTGN_SEQUENCE_STEP", &payload, sizeof(payload));
-			ImGui::Text("Move %s", step.name.Data());
-			ImGui::EndDragDropSource();
-		}
-
-		if (ImGui::BeginDragDropTarget()) {
-			if (const ImGuiPayload* payload{ ImGui::AcceptDragDropPayload("PTGN_SEQUENCE_STEP") }) {
-				const auto* drag{ static_cast<const StepDragPayload*>(payload->Data) };
-
-				if (drag) {
-					move_from = drag->index;
-					move_to	  = i;
-				}
-			}
-
-			ImGui::EndDragDropTarget();
-		}
-
-		ImGui::SameLine();
-		ImGui::PopID();
-
-		DrawStepEditor(
-			step, active, active ? active_progress : 0.0f, request_remove, request_duplicate
-		);
-
-		if (request_remove) {
-			remove_step = i;
-		}
-
-		if (request_duplicate) {
-			duplicate_step = i;
-		}
-
-		ImGui::Spacing();
-	}
-
-	if (move_from >= 0 && move_to >= 0) {
-		MoveItem(behavior.steps, move_from, move_to);
-	}
-
-	if (duplicate_step >= 0) {
-		auto copy{ CloneStep(behavior.steps[static_cast<std::size_t>(duplicate_step)]) };
-		behavior.steps.insert(behavior.steps.begin() + duplicate_step + 1, std::move(copy));
-	}
-
-	if (remove_step >= 0) {
-		behavior.steps.erase(behavior.steps.begin() + remove_step);
-
-		if (behavior.runtime.current_step >= behavior.steps.size()) {
-			StopRuntime(behavior);
-		}
-	}
-
-	if (ImGui::Button("+ Add Step", ImVec2{ -FLT_MIN, 0.0f })) {
-		behavior.steps.emplace_back();
-	}
-
-	ImGui::PopID();
+BehaviorBinding MakeLocalBinding() {
+	BehaviorBinding binding;
+	binding.local_definition.triggers.emplace_back();
+	binding.local_definition.sequence.push_back(MakeSequenceItem(SequenceItemKind::Action));
+	return binding;
 }
 
-void DrawRuntimeControls(BehaviorDefinition& behavior, SequenceRuntimeContext& context) {
-	auto& runtime{ behavior.runtime };
-
-	if (ImGui::Button(runtime.running && !runtime.paused ? "Restart" : "Play")) {
-		StartRuntime(behavior, context);
-	}
-
-	ImGui::SameLine();
-
-	ImGui::BeginDisabled(!runtime.running);
-
-	if (ImGui::Button(runtime.paused ? "Resume" : "Pause")) {
-		runtime.paused = !runtime.paused;
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::Button("Advance Step")) {
-		CompleteCurrentStep(behavior, context);
-	}
-
-	ImGui::EndDisabled();
-
-	ImGui::SameLine();
-
-	if (ImGui::Button("Stop")) {
-		StopRuntime(behavior);
-	}
+BehaviorBinding MakeGlobalBinding(Id id) {
+	BehaviorBinding binding;
+	binding.global_reference = true;
+	binding.global_behavior_id = id;
+	return binding;
 }
 
-void DrawRuntimePanel(BehaviorDefinition& behavior, SequenceRuntimeContext& context) {
-	DrawSectionTitle("Runtime Preview");
-	DrawRuntimeControls(behavior, context);
-
-	const auto& runtime{ behavior.runtime };
-
-	ImGui::Spacing();
-
-	if (runtime.running) {
-		ImGui::Text("State: %s", runtime.paused ? "Paused" : "Running");
-
-		if (runtime.current_step < behavior.steps.size()) {
-			const auto& step{ behavior.steps[runtime.current_step] };
-			ImGui::Text("Step: %zu / %zu", runtime.current_step + 1, behavior.steps.size());
-			ImGui::TextWrapped("Current: %s", step.name.Data());
-
-			const float progress{ GetActiveStepProgress(behavior) };
-			ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 0.0f });
-
-			if (runtime.step_elapsed_ms < step.delay_ms) {
-				ImGui::Text("Waiting: %.0f / %.0f ms", runtime.step_elapsed_ms, step.delay_ms);
-			} else {
-				ImGui::Text(
-					"Active: %.0f / %.0f ms",
-					std::max(0.0f, runtime.step_elapsed_ms - step.delay_ms), step.duration_ms
-				);
-			}
-		}
-	} else if (runtime.completed) {
-		ImGui::Text("State: Completed");
-		ImGui::ProgressBar(1.0f, ImVec2{ -FLT_MIN, 0.0f });
-	} else {
-		ImGui::TextDisabled("State: Stopped");
-	}
-
-	ImGui::Text("Completed Runs: %d", runtime.completed_runs);
-
-	if (runtime.queued) {
-		ImGui::TextDisabled("One additional run is queued.");
-	}
-
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
-
-	ImGui::TextWrapped(
-		"This is a visual simulation only. In the engine, each play would instantiate "
-		"registered script definitions into independent runtime script objects."
-	);
-}
-
-void DrawSignalActivityPanel(const SequenceRuntimeContext& context) {
-	DrawSectionTitle("Signal Activity");
-
-	if (context.signal_log.empty()) {
-		ImGui::TextDisabled("Run Open Door to see door.opened start Door Celebration.");
+void DrawAddBehaviorPopup(BehaviorsComponent& component, GlobalBehaviorRegistry& registry) {
+	if (!ImGui::BeginPopup("AddBehaviorPopup")) {
 		return;
 	}
 
-	for (auto it{ context.signal_log.rbegin() }; it != context.signal_log.rend(); ++it) {
-		ImGui::BulletText("%s", it->text.c_str());
+	if (ImGui::MenuItem("Create New Behavior")) {
+		component.bindings.push_back(MakeLocalBinding());
 	}
+	if (ImGui::MenuItem("Create New Global Behavior")) {
+		BehaviorDefinition definition;
+		definition.name.Assign("New Global Behavior");
+		definition.triggers.emplace_back();
+		definition.sequence.push_back(MakeSequenceItem(SequenceItemKind::Action));
+		const Id id{ definition.id };
+		registry.definitions.push_back(std::move(definition));
+		component.bindings.push_back(MakeGlobalBinding(id));
+	}
+
+	ImGui::SeparatorText("Existing Global Behaviors");
+	for (const auto& definition : registry.definitions) {
+		const bool attached{ std::ranges::any_of(component.bindings, [&definition](const auto& binding) {
+			return binding.global_reference && binding.global_behavior_id == definition.id;
+		}) };
+		ImGui::BeginDisabled(attached);
+		if (ImGui::MenuItem(definition.name.Data())) {
+			component.bindings.push_back(MakeGlobalBinding(definition.id));
+		}
+		ImGui::EndDisabled();
+	}
+	ImGui::EndPopup();
 }
 
-void DrawRegistryPanel() {
-	DrawSectionTitle("Registered Scripts");
-
-	static TextBuffer<96> search;
-	ImGui::InputTextWithHint(
-		"##RegistrySearch", "Filter registry...", search.Data(), search.Size()
-	);
-
-	ImGui::Spacing();
-
-	for (const auto& descriptor : kScriptRegistry) {
-		const std::string_view search_view{ search.Data() };
-
-		if (!MatchesSearch(descriptor.label, search_view) &&
-			!MatchesSearch(descriptor.key, search_view) &&
-			!MatchesSearch(descriptor.group, search_view) &&
-			!MatchesSearch(descriptor.source, search_view)) {
-			continue;
-		}
-
-		ImGui::PushID(static_cast<int>(descriptor.kind));
-
-		const bool open{ ImGui::TreeNodeEx(
-			"##registry", ImGuiTreeNodeFlags_SpanAvailWidth, "%s", descriptor.label
-		) };
-
-		if (open) {
-			ImGui::TextDisabled("%s", descriptor.key);
-			ImGui::Text("Group: %s", descriptor.group);
-			ImGui::Text("Source: %s", descriptor.source);
-			ImGui::TextWrapped("%s", descriptor.description);
-			ImGui::TreePop();
-		}
-
+void DrawBehaviorsComponent(
+	EntityData& entity,
+	GlobalBehaviorRegistry& registry,
+	DemoRuntimeContext& context
+) {
+	auto& component{ *entity.behaviors };
+	ImGui::PushID("BehaviorsComponent");
+	const bool open{ ImGui::TreeNodeEx(
+		"##Behaviors",
+		ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth |
+			ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_AllowOverlap,
+		"Behaviors (%zu)",
+		component.bindings.size()
+	) };
+	ImGui::SameLine();
+	ImGui::SetCursorPosX(ImGui::GetWindowContentRegionMax().x - 22.0f);
+	if (ImGui::SmallButton("x")) {
+		entity.behaviors.reset();
 		ImGui::PopID();
+		return;
 	}
 
-	ImGui::Spacing();
-	ImGui::Separator();
-	ImGui::Spacing();
+	if (open) {
+		int remove_index{ -1 };
+		for (int i{ 0 }; i < static_cast<int>(component.bindings.size()); ++i) {
+			if (DrawBehaviorBinding(entity, component.bindings[static_cast<std::size_t>(i)], registry, context)) {
+				remove_index = i;
+			}
+		}
+		if (remove_index >= 0) {
+			component.bindings.erase(component.bindings.begin() + remove_index);
+		}
 
-	ImGui::TextWrapped(
-		"game.apply_damage demonstrates a user-provided registration. "
-		"The editor treats it the same way as engine presets."
-	);
+		if (ImGui::Button("+ Add Behavior", ImVec2{ -FLT_MIN, 0.0f })) {
+			ImGui::OpenPopup("AddBehaviorPopup");
+		}
+		DrawAddBehaviorPopup(component, registry);
+
+		if (ImGui::CollapsingHeader("Demo Activity")) {
+			if (context.activity.empty()) {
+				ImGui::TextDisabled("No activity yet.");
+			}
+			for (auto it{ context.activity.rbegin() }; it != context.activity.rend(); ++it) {
+				ImGui::BulletText("%s", it->text.c_str());
+			}
+		}
+		ImGui::TreePop();
+	}
+	ImGui::PopID();
 }
 
-std::vector<BehaviorDefinition> MakeDemoBehaviors() {
-	std::vector<BehaviorDefinition> behaviors;
+void DrawInspector(EntityData& entity, GlobalBehaviorRegistry& registry, DemoRuntimeContext& context) {
+	ImGui::TextDisabled("Entity");
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	ImGui::InputText("##Name", entity.name.Data(), entity.name.Size());
 
-	BehaviorDefinition open_door;
-	open_door.name.Assign("Open Door");
-	open_door.reentry = ReentryMode::IgnoreWhileRunning;
+	if (ImGui::TreeNodeEx("Transform", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+		ImGui::DragFloat2("Position", entity.position, 1.0f, -100000.0f, 100000.0f, "%.0f");
+		ImGui::DragFloat("Rotation", &entity.rotation, 1.0f, -3600.0f, 3600.0f, "%.1f deg");
+		ImGui::DragFloat2("Scale", entity.scale, 0.01f, -1000.0f, 1000.0f, "%.2f");
+		ImGui::TreePop();
+	}
+	if (ImGui::TreeNodeEx("Visible", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth)) {
+		ImGui::Checkbox("Value", &entity.visible);
+		ImGui::TreePop();
+	}
+	if (entity.behaviors) {
+		DrawBehaviorsComponent(entity, registry, context);
+	}
 
-	TriggerDefinition overlap;
-	overlap.kind = TriggerKind::OverlapStart;
-	overlap.other_tag.Assign("Player");
-	open_door.triggers.push_back(overlap);
+	if (ImGui::Button("+ Add Component", ImVec2{ -FLT_MIN, 0.0f })) {
+		ImGui::OpenPopup("AddComponentPopup");
+	}
+	if (ImGui::BeginPopup("AddComponentPopup")) {
+		ImGui::BeginDisabled(entity.behaviors.has_value());
+		if (ImGui::MenuItem("Behaviors")) {
+			entity.behaviors.emplace();
+		}
+		ImGui::EndDisabled();
+		ImGui::EndPopup();
+	}
+}
 
-	SequenceStepDefinition open;
-	open.name.Assign("Open");
-	open.duration_ms = 300.0f;
-	open.ease		 = Ease::OutCubic;
+std::vector<EntityData> MakeDemoEntities(GlobalBehaviorRegistry& registry) {
+	BehaviorDefinition celebration;
+	celebration.name.Assign("Door Celebration");
+	celebration.reentry = ReentryMode::Restart;
+	TriggerDefinition signal_trigger;
+	signal_trigger.kind = TriggerKind::Signal;
+	signal_trigger.signal.Assign("door.opened");
+	celebration.triggers.push_back(std::move(signal_trigger));
 
-	auto move{ MakeScript(ScriptKind::MoveTo) };
-	auto& move_params{ std::get<MoveToParams>(move.parameters) };
-	move_params.destination[0] = 0.0f;
-	move_params.destination[1] = 64.0f;
-	move_params.relative	   = true;
-	open.during.push_back(std::move(move));
+	auto celebration_audio{ MakeSequenceItem(SequenceItemKind::Action) };
+	auto& audio_action{ std::get<ActionItem>(celebration_audio.data).action };
+	audio_action = MakeAction(ActionKind::PlayAudio);
+	std::get<PlayAudioParams>(audio_action.parameters).asset.Assign("success_chime");
+	celebration.sequence.push_back(std::move(celebration_audio));
 
-	auto play_audio{ MakeScript(ScriptKind::PlayAudio) };
-	auto& audio_params{ std::get<PlayAudioParams>(play_audio.parameters) };
-	audio_params.asset.Assign("door_open");
-	open.on_complete.push_back(std::move(play_audio));
+	auto celebration_rotate{ MakeSequenceItem(SequenceItemKind::TimedAction) };
+	auto& rotate{ std::get<TimedActionItem>(celebration_rotate.data) };
+	rotate.action = MakeAction(ActionKind::RotateTo);
+	std::get<RotateToParams>(rotate.action.parameters).degrees = 360.0f;
+	rotate.duration_ms = 750.0f;
+	rotate.ease = Ease::OutBack;
+	celebration.sequence.push_back(std::move(celebration_rotate));
 
-	open_door.steps.push_back(std::move(open));
+	auto celebration_wait{ MakeSequenceItem(SequenceItemKind::Wait) };
+	std::get<WaitItem>(celebration_wait.data).duration_ms = 250.0f;
+	celebration.sequence.push_back(std::move(celebration_wait));
 
-	SequenceStepDefinition disable_collider;
-	disable_collider.name.Assign("Disable Collider");
-	disable_collider.delay_ms	 = 100.0f;
-	disable_collider.duration_ms = 0.0f;
-
-	auto collider{ MakeScript(ScriptKind::SetColliderMode) };
-	std::get<SetColliderModeParams>(collider.parameters).mode = 0;
-	disable_collider.on_start.push_back(std::move(collider));
-
-	open_door.steps.push_back(std::move(disable_collider));
-
-	SequenceStepDefinition announce_opened;
-	announce_opened.name.Assign("Announce Door Opened");
-	announce_opened.duration_ms = 0.0f;
-
-	auto emit_door_opened{ MakeScript(ScriptKind::EmitSignal) };
-	std::get<EmitSignalParams>(emit_door_opened.parameters).signal.Assign("door.opened");
-	announce_opened.on_complete.push_back(std::move(emit_door_opened));
-
-	open_door.steps.push_back(std::move(announce_opened));
-	behaviors.push_back(std::move(open_door));
-
-	BehaviorDefinition door_celebration;
-	door_celebration.name.Assign("Door Celebration");
-	door_celebration.reentry = ReentryMode::Restart;
-
-	TriggerDefinition door_opened_signal;
-	door_opened_signal.kind = TriggerKind::Signal;
-	door_opened_signal.signal.Assign("door.opened");
-	door_celebration.triggers.push_back(std::move(door_opened_signal));
-
-	SequenceStepDefinition celebrate;
-	celebrate.name.Assign("Celebrate Door Opened");
-	celebrate.duration_ms = 750.0f;
-	celebrate.ease		  = Ease::OutBack;
-
-	auto celebration_rotation{ MakeScript(ScriptKind::RotateTo) };
-	std::get<RotateToParams>(celebration_rotation.parameters).degrees = 360.0f;
-	celebrate.during.push_back(std::move(celebration_rotation));
-
-	auto celebration_audio{ MakeScript(ScriptKind::PlayAudio) };
-	std::get<PlayAudioParams>(celebration_audio.parameters).asset.Assign("success_chime");
-	celebrate.on_start.push_back(std::move(celebration_audio));
-
-	door_celebration.steps.push_back(std::move(celebrate));
-	behaviors.push_back(std::move(door_celebration));
+	const Id celebration_id{ celebration.id };
+	registry.definitions.push_back(std::move(celebration));
 
 	BehaviorDefinition damage_flash;
 	damage_flash.name.Assign("Damage Flash");
 	damage_flash.reentry = ReentryMode::Restart;
+	TriggerDefinition damaged;
+	damaged.kind = TriggerKind::Signal;
+	damaged.signal.Assign("player.damaged");
+	damage_flash.triggers.push_back(std::move(damaged));
+	auto damage_action_item{ MakeSequenceItem(SequenceItemKind::Action) };
+	auto& damage_action{ std::get<ActionItem>(damage_action_item.data).action };
+	damage_action = MakeAction(ActionKind::ApplyDamage);
+	std::get<ApplyDamageParams>(damage_action.parameters).amount = 25.0f;
+	damage_flash.sequence.push_back(std::move(damage_action_item));
+	const Id damage_id{ damage_flash.id };
+	registry.definitions.push_back(std::move(damage_flash));
 
-	TriggerDefinition damage_signal;
-	damage_signal.kind = TriggerKind::Signal;
-	damage_signal.signal.Assign("player.damaged");
-	damage_flash.triggers.push_back(damage_signal);
+	std::vector<EntityData> entities;
 
-	SequenceStepDefinition apply_damage;
-	apply_damage.name.Assign("Apply Damage");
-	apply_damage.duration_ms = 0.0f;
+	EntityData door;
+	door.name.Assign("Door");
+	door.position[0] = 120.0f;
+	door.position[1] = 40.0f;
+	door.behaviors.emplace();
+	BehaviorBinding open_door{ MakeLocalBinding() };
+	auto& open{ open_door.local_definition };
+	open.name.Assign("Open Door");
+	open.triggers.clear();
+	open.sequence.clear();
+	TriggerDefinition overlap;
+	overlap.kind = TriggerKind::OverlapStart;
+	overlap.other_tag.Assign("Player");
+	open.triggers.push_back(std::move(overlap));
 
-	auto damage{ MakeScript(ScriptKind::ApplyDamage) };
-	auto& damage_params{ std::get<ApplyDamageParams>(damage.parameters) };
-	damage_params.amount = 25.0f;
-	damage_params.damage_type.Assign("Storm");
-	apply_damage.on_start.push_back(std::move(damage));
+	auto move{ MakeSequenceItem(SequenceItemKind::TimedAction) };
+	auto& timed_move{ std::get<TimedActionItem>(move.data) };
+	timed_move.action = MakeAction(ActionKind::MoveTo);
+	auto& move_params{ std::get<MoveToParams>(timed_move.action.parameters) };
+	move_params.destination[1] = 64.0f;
+	timed_move.duration_ms = 300.0f;
+	timed_move.ease = Ease::OutCubic;
+	open.sequence.push_back(std::move(move));
 
-	damage_flash.steps.push_back(std::move(apply_damage));
+	auto wait{ MakeSequenceItem(SequenceItemKind::Wait) };
+	std::get<WaitItem>(wait.data).duration_ms = 100.0f;
+	open.sequence.push_back(std::move(wait));
 
-	SequenceStepDefinition flash;
-	flash.name.Assign("Flash");
-	flash.duration_ms = 120.0f;
-	flash.repeats	  = 1;
-	flash.yoyo		  = true;
+	auto collider{ MakeSequenceItem(SequenceItemKind::Action) };
+	auto& collider_action{ std::get<ActionItem>(collider.data).action };
+	collider_action = MakeAction(ActionKind::SetColliderMode);
+	std::get<SetColliderModeParams>(collider_action.parameters).mode = 0;
+	open.sequence.push_back(std::move(collider));
 
-	auto hide{ MakeScript(ScriptKind::SetVisible) };
-	std::get<SetVisibleParams>(hide.parameters).visible = false;
-	flash.during.push_back(std::move(hide));
+	auto audio{ MakeSequenceItem(SequenceItemKind::Action) };
+	auto& door_audio{ std::get<ActionItem>(audio.data).action };
+	door_audio = MakeAction(ActionKind::PlayAudio);
+	std::get<PlayAudioParams>(door_audio.parameters).asset.Assign("door_open");
+	open.sequence.push_back(std::move(audio));
 
-	auto show{ MakeScript(ScriptKind::SetVisible) };
-	std::get<SetVisibleParams>(show.parameters).visible = true;
-	flash.on_complete.push_back(std::move(show));
+	auto emit{ MakeSequenceItem(SequenceItemKind::EmitSignal) };
+	std::get<EmitSignalItem>(emit.data).signal.Assign("door.opened");
+	open.sequence.push_back(std::move(emit));
+	door.behaviors->bindings.push_back(std::move(open_door));
+	entities.push_back(std::move(door));
 
-	damage_flash.steps.push_back(std::move(flash));
-	behaviors.push_back(std::move(damage_flash));
+	EntityData light;
+	light.name.Assign("Celebration Light");
+	light.position[0] = 260.0f;
+	light.position[1] = 40.0f;
+	light.behaviors.emplace();
+	light.behaviors->bindings.push_back(MakeGlobalBinding(celebration_id));
+	entities.push_back(std::move(light));
 
-	BehaviorDefinition intro;
-	intro.name.Assign("Intro Sequence");
-	intro.reentry = ReentryMode::IgnoreWhileRunning;
+	EntityData player;
+	player.name.Assign("Player");
+	player.position[0] = -60.0f;
+	player.position[1] = 40.0f;
+	player.behaviors.emplace();
+	player.behaviors->bindings.push_back(MakeGlobalBinding(damage_id));
+	entities.push_back(std::move(player));
 
-	TriggerDefinition on_create;
-	on_create.kind = TriggerKind::OnCreate;
-	intro.triggers.push_back(on_create);
-
-	SequenceStepDefinition wait;
-	wait.name.Assign("Initial Delay");
-	wait.delay_ms	 = 500.0f;
-	wait.duration_ms = 0.0f;
-	intro.steps.push_back(std::move(wait));
-
-	SequenceStepDefinition rotate;
-	rotate.name.Assign("Rotate Logo");
-	rotate.duration_ms = 900.0f;
-	rotate.ease		   = Ease::OutBack;
-
-	auto rotate_script{ MakeScript(ScriptKind::RotateTo) };
-	std::get<RotateToParams>(rotate_script.parameters).degrees = 360.0f;
-	rotate.during.push_back(std::move(rotate_script));
-
-	intro.steps.push_back(std::move(rotate));
-	behaviors.push_back(std::move(intro));
-
-	return behaviors;
+	EntityData camera;
+	camera.name.Assign("Main Camera");
+	entities.push_back(std::move(camera));
+	return entities;
 }
 
-struct BehaviorDragPayload {
-	int index;
-};
-
-void DrawBehaviorList(
-	std::vector<BehaviorDefinition>& behaviors, int& selected_index, SequenceRuntimeContext& context
-) {
-	ImGui::TextUnformatted("Behaviors");
+void DrawHierarchy(std::vector<EntityData>& entities, int& selected_index) {
+	ImGui::TextDisabled("Scene Hierarchy");
 	ImGui::Separator();
-
-	int remove_index{ -1 };
-	int duplicate_index{ -1 };
-	int move_from{ -1 };
-	int move_to{ -1 };
-
-	for (int i{ 0 }; i < static_cast<int>(behaviors.size()); ++i) {
-		auto& behavior{ behaviors[static_cast<std::size_t>(i)] };
-
-		ImGui::PushID(static_cast<int>(behavior.id));
-
-		const bool selected{ selected_index == i };
-
-		char label[160]{};
-		std::snprintf(
-			label, sizeof(label), "%s%s%s", behavior.runtime.running ? "> " : "",
-			behavior.enabled ? "" : "[Disabled] ", behavior.name.Data()
-		);
-
-		if (ImGui::Selectable(label, selected, 0, ImVec2{ 0.0f, 34.0f })) {
+	for (int i{ 0 }; i < static_cast<int>(entities.size()); ++i) {
+		if (ImGui::Selectable(entities[static_cast<std::size_t>(i)].name.Data(), selected_index == i, 0, ImVec2{ 0.0f, 25.0f })) {
 			selected_index = i;
 		}
-
-		if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
-			const BehaviorDragPayload payload{ i };
-			ImGui::SetDragDropPayload("PTGN_BEHAVIOR", &payload, sizeof(payload));
-			ImGui::Text("Move %s", behavior.name.Data());
-			ImGui::EndDragDropSource();
-		}
-
-		if (ImGui::BeginDragDropTarget()) {
-			if (const ImGuiPayload* payload{ ImGui::AcceptDragDropPayload("PTGN_BEHAVIOR") }) {
-				const auto* drag{ static_cast<const BehaviorDragPayload*>(payload->Data) };
-
-				if (drag) {
-					move_from = drag->index;
-					move_to	  = i;
-				}
-			}
-
-			ImGui::EndDragDropTarget();
-		}
-
-		if (ImGui::BeginPopupContextItem("BehaviorContext")) {
-			if (ImGui::MenuItem("Preview Trigger")) {
-				StartRuntime(behavior, context, false);
-			}
-
-			if (ImGui::MenuItem("Duplicate")) {
-				duplicate_index = i;
-			}
-
-			ImGui::Separator();
-
-			if (ImGui::MenuItem("Remove")) {
-				remove_index = i;
-			}
-
-			ImGui::EndPopup();
-		}
-
-		ImGui::PopID();
 	}
-
-	if (move_from >= 0 && move_to >= 0) {
-		MoveItem(behaviors, move_from, move_to);
-
-		if (selected_index == move_from) {
-			selected_index = move_to;
-		}
+	if (ImGui::Button("+ Entity", ImVec2{ -FLT_MIN, 0.0f })) {
+		EntityData entity;
+		entity.name.Assign("New Entity");
+		entities.push_back(std::move(entity));
+		selected_index = static_cast<int>(entities.size()) - 1;
 	}
+}
 
-	if (duplicate_index >= 0) {
-		auto copy{ CloneBehavior(behaviors[static_cast<std::size_t>(duplicate_index)]) };
-		copy.name.Assign(
-			std::string{ behaviors[static_cast<std::size_t>(duplicate_index)].name.Data() } +
-			" Copy"
-		);
+void DrawSceneView(const std::vector<EntityData>& entities, int selected_index) {
+	const ImVec2 start{ ImGui::GetCursorScreenPos() };
+	const ImVec2 size{ ImGui::GetContentRegionAvail() };
+	ImDrawList* draw{ ImGui::GetWindowDrawList() };
+	draw->AddRectFilled(start, ImVec2{ start.x + size.x, start.y + size.y }, ImGui::GetColorU32(ImGuiCol_FrameBg));
+	const ImVec2 center{ start.x + size.x * 0.5f, start.y + size.y * 0.5f };
 
-		behaviors.insert(behaviors.begin() + duplicate_index + 1, std::move(copy));
-		selected_index = duplicate_index + 1;
+	for (int i{ 0 }; i < static_cast<int>(entities.size()); ++i) {
+		const auto& entity{ entities[static_cast<std::size_t>(i)] };
+		const ImVec2 p{ center.x + entity.position[0], center.y - entity.position[1] };
+		const ImU32 color{ ImGui::GetColorU32(i == selected_index ? ImGuiCol_ButtonHovered : ImGuiCol_Button) };
+		draw->AddRectFilled(ImVec2{ p.x - 42.0f, p.y - 18.0f }, ImVec2{ p.x + 42.0f, p.y + 18.0f }, color, 3.0f);
+		draw->AddText(ImVec2{ p.x - 36.0f, p.y - 6.0f }, ImGui::GetColorU32(ImGuiCol_Text), entity.name.Data());
 	}
-
-	if (remove_index >= 0) {
-		behaviors.erase(behaviors.begin() + remove_index);
-
-		if (behaviors.empty()) {
-			selected_index = -1;
-		} else {
-			selected_index = std::clamp(selected_index, 0, static_cast<int>(behaviors.size()) - 1);
-		}
-	}
-
-	ImGui::Spacing();
-
-	if (ImGui::Button("+ Add Behavior", ImVec2{ -FLT_MIN, 0.0f })) {
-		behaviors.emplace_back();
-		selected_index = static_cast<int>(behaviors.size()) - 1;
-	}
-
-	ImGui::Spacing();
-	ImGui::TextWrapped(
-		"Drag behaviors to reorder. Right-click for preview, duplicate, and remove."
+	draw->AddText(
+		ImVec2{ start.x + 10.0f, start.y + 10.0f },
+		ImGui::GetColorU32(ImGuiCol_TextDisabled),
+		"Select Door, then Play Open Door. Its final Emit Signal starts the global Door Celebration."
 	);
+	ImGui::InvisibleButton("SceneCanvas", size);
 }
 
-void DrawToolbar(BehaviorDefinition* selected, SequenceRuntimeContext& context) {
-	if (!selected) {
-		ImGui::TextDisabled("No behavior selected.");
-		return;
-	}
-
-	DrawRuntimeControls(*selected, context);
-
-	ImGui::SameLine();
-	ImGui::TextDisabled("|");
-	ImGui::SameLine();
-
-	if (ImGui::Button("Fire Trigger")) {
-		StartRuntime(*selected, context, false);
-	}
-
-	ImGui::SameLine();
-	ImGui::TextDisabled("%s", selected->name.Data());
-
-	if (std::string_view{ selected->name.Data() } == "Open Door") {
-		ImGui::SameLine();
-		ImGui::TextDisabled("-> emits door.opened -> starts Door Celebration");
-	}
-}
-
-void DrawMainEditor(
-	std::vector<BehaviorDefinition>& behaviors, int& selected_index, SequenceRuntimeContext& context
+void DrawApplication(
+	std::vector<EntityData>& entities,
+	int& selected_index,
+	GlobalBehaviorRegistry& registry,
+	DemoRuntimeContext& context
 ) {
 	ImGuiViewport* viewport{ ImGui::GetMainViewport() };
-
 	ImGui::SetNextWindowPos(viewport->WorkPos);
 	ImGui::SetNextWindowSize(viewport->WorkSize);
 	ImGui::SetNextWindowViewport(viewport->ID);
+	constexpr ImGuiWindowFlags flags{
+		ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+		ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus
+	};
+	ImGui::Begin("Behavior Component Inspector Demo", nullptr, flags);
 
-	constexpr ImGuiWindowFlags window_flags{ ImGuiWindowFlags_NoDecoration |
-											 ImGuiWindowFlags_NoMove |
-											 ImGuiWindowFlags_NoSavedSettings |
-											 ImGuiWindowFlags_NoBringToFrontOnFocus };
-
-	ImGui::Begin("Behavior Sequence Authoring Demo", nullptr, window_flags);
-
-	BehaviorDefinition* selected{ selected_index >= 0 &&
-										  selected_index < static_cast<int>(behaviors.size())
-									  ? &behaviors[static_cast<std::size_t>(selected_index)]
-									  : nullptr };
-
-	ImGui::BeginChild("Toolbar", ImVec2{ 0.0f, 42.0f }, true);
-	DrawToolbar(selected, context);
-	ImGui::EndChild();
-
-	if (ImGui::BeginTable(
-			"MainLayout", 3,
-			ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV |
-				ImGuiTableFlags_SizingStretchProp
-		)) {
-		ImGui::TableSetupColumn("Behavior List", ImGuiTableColumnFlags_WidthFixed, 245.0f);
-
-		ImGui::TableSetupColumn("Inspector", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-
-		ImGui::TableSetupColumn("Registry", ImGuiTableColumnFlags_WidthFixed, 330.0f);
+	if (ImGui::BeginTable("Layout", 3, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
+		ImGui::TableSetupColumn("Hierarchy", ImGuiTableColumnFlags_WidthFixed, 200.0f);
+		ImGui::TableSetupColumn("Scene", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+		ImGui::TableSetupColumn("Inspector", ImGuiTableColumnFlags_WidthFixed, 500.0f);
 
 		ImGui::TableNextColumn();
-		ImGui::BeginChild("BehaviorListChild", ImVec2{ 0.0f, 0.0f }, false);
-		DrawBehaviorList(behaviors, selected_index, context);
+		ImGui::BeginChild("HierarchyChild");
+		DrawHierarchy(entities, selected_index);
 		ImGui::EndChild();
 
 		ImGui::TableNextColumn();
-		ImGui::BeginChild("InspectorChild", ImVec2{ 0.0f, 0.0f }, false);
+		ImGui::BeginChild("SceneChild");
+		DrawSceneView(entities, selected_index);
+		ImGui::EndChild();
 
-		selected = selected_index >= 0 && selected_index < static_cast<int>(behaviors.size())
-					 ? &behaviors[static_cast<std::size_t>(selected_index)]
-					 : nullptr;
-
-		if (selected) {
-			DrawBehaviorInspector(*selected);
-		} else {
-			ImGui::TextDisabled("Select or create a behavior.");
+		ImGui::TableNextColumn();
+		ImGui::BeginChild("InspectorChild");
+		ImGui::TextDisabled("Inspector");
+		ImGui::Separator();
+		if (selected_index >= 0 && selected_index < static_cast<int>(entities.size())) {
+			DrawInspector(entities[static_cast<std::size_t>(selected_index)], registry, context);
 		}
-
 		ImGui::EndChild();
-
-		ImGui::TableNextColumn();
-		ImGui::BeginChild("RightPanelChild", ImVec2{ 0.0f, 0.0f }, false);
-
-		if (selected) {
-			DrawRuntimePanel(*selected, context);
-		}
-
-		DrawSignalActivityPanel(context);
-		DrawRegistryPanel();
-		ImGui::EndChild();
-
 		ImGui::EndTable();
 	}
-
 	ImGui::End();
 }
 
 void ConfigureStyle() {
 	ImGui::StyleColorsDark();
-
 	ImGuiStyle& style{ ImGui::GetStyle() };
-	style.WindowRounding	= 0.0f;
-	style.ChildRounding		= 4.0f;
-	style.FrameRounding		= 3.0f;
-	style.PopupRounding		= 4.0f;
-	style.ScrollbarRounding = 4.0f;
-	style.GrabRounding		= 3.0f;
-	style.TabRounding		= 3.0f;
-	style.WindowPadding		= ImVec2{ 10.0f, 10.0f };
-	style.FramePadding		= ImVec2{ 7.0f, 5.0f };
-	style.ItemSpacing		= ImVec2{ 8.0f, 7.0f };
+	style.WindowRounding = 0.0f;
+	style.ChildRounding = 2.0f;
+	style.FrameRounding = 2.0f;
+	style.PopupRounding = 3.0f;
+	style.ScrollbarRounding = 3.0f;
+	style.GrabRounding = 2.0f;
+	style.WindowPadding = ImVec2{ 7.0f, 7.0f };
+	style.FramePadding = ImVec2{ 5.0f, 3.0f };
+	style.ItemSpacing = ImVec2{ 5.0f, 4.0f };
+	style.ItemInnerSpacing = ImVec2{ 4.0f, 3.0f };
+	style.IndentSpacing = 14.0f;
 }
 
 void GlfwErrorCallback(int error, const char* description) {
@@ -1739,7 +1436,6 @@ void GlfwErrorCallback(int error, const char* description) {
 
 int main() {
 	glfwSetErrorCallback(demo::GlfwErrorCallback);
-
 	if (!glfwInit()) {
 		return 1;
 	}
@@ -1757,20 +1453,14 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #endif
 
-	GLFWwindow* window{
-		glfwCreateWindow(1600, 950, "Protegon Behavior Sequence UI Demo", nullptr, nullptr)
-	};
-
+	GLFWwindow* window{ glfwCreateWindow(1500, 900, "Protegon Behaviors Inspector Demo", nullptr, nullptr) };
 	if (!window) {
 		glfwTerminate();
 		return 1;
 	}
-
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1);
-
-	int status{ gladLoadGL(glfwGetProcAddress) };
-	if (!status) {
+	if (!gladLoadGL(glfwGetProcAddress)) {
 		glfwDestroyWindow(window);
 		glfwTerminate();
 		return 1;
@@ -1778,45 +1468,42 @@ int main() {
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-
-	ImGuiIO& io{ ImGui::GetIO() };
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-
+	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 	demo::ConfigureStyle();
-
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
-	auto behaviors{ demo::MakeDemoBehaviors() };
-	demo::SequenceRuntimeContext runtime_context;
-	int selected_behavior{ 0 };
+	demo::GlobalBehaviorRegistry registry;
+	auto entities{ demo::MakeDemoEntities(registry) };
+	demo::DemoRuntimeContext runtime;
+	int selected_entity{ 0 };
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
-
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		for (auto& behavior : behaviors) {
-			demo::UpdateRuntime(behavior, io.DeltaTime, runtime_context);
+		const float dt{ ImGui::GetIO().DeltaTime };
+		for (auto& entity : entities) {
+			if (!entity.behaviors) {
+				continue;
+			}
+			for (auto& binding : entity.behaviors->bindings) {
+				demo::UpdateBehaviorRuntime(entity, binding, dt, registry, runtime);
+			}
 		}
-
-		demo::DispatchPendingSignals(behaviors, runtime_context);
-		demo::UpdateSignalLog(runtime_context, io.DeltaTime);
-
-		demo::DrawMainEditor(behaviors, selected_behavior, runtime_context);
+		demo::DispatchSignals(entities, registry, runtime);
+		demo::UpdateActivity(runtime, dt);
+		demo::DrawApplication(entities, selected_entity, registry, runtime);
 
 		ImGui::Render();
-
-		int display_width{ 0 };
-		int display_height{ 0 };
-		glfwGetFramebufferSize(window, &display_width, &display_height);
-
-		glViewport(0, 0, display_width, display_height);
+		int width{ 0 };
+		int height{ 0 };
+		glfwGetFramebufferSize(window, &width, &height);
+		glViewport(0, 0, width, height);
 		glClearColor(0.055f, 0.060f, 0.070f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
-
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 		glfwSwapBuffers(window);
 	}
@@ -1824,9 +1511,7 @@ int main() {
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
-
 	glfwDestroyWindow(window);
 	glfwTerminate();
-
 	return 0;
 }
