@@ -120,6 +120,25 @@ enum class ActionKind {
 	ApplyDamage
 };
 
+enum class LifecycleEventKind {
+	Start,
+	Progress,
+	Complete,
+	Reset,
+	Stop,
+	Pause,
+	Resume,
+	PointStart,
+	PointComplete,
+	Repeat,
+	Yoyo
+};
+
+enum class LifecycleCallbackKind {
+	Action,
+	EmitSignal
+};
+
 constexpr std::array kTriggerNames{ "On Create",	  "Signal",			 "Key Pressed",
 									"Key Released",	  "Key Held",		 "Mouse Pressed",
 									"Mouse Released", "Mouse Held",		 "Overlap Start",
@@ -136,6 +155,11 @@ constexpr std::array kEaseNames{
 constexpr std::array kColliderModeNames{
 	"None", "Overlap", "Discrete", "Continuous"
 };
+constexpr std::array kLifecycleEventNames{ "On Start",	"On Progress",	 "On Complete",
+										   "On Reset",	"On Stop",		 "On Pause",
+										   "On Resume", "On Item Start", "On Item Complete",
+										   "On Repeat", "On Yoyo" };
+constexpr std::array kLifecycleCallbackKindNames{ "Action", "Emit Signal" };
 
 template <typename TEnum, std::size_t N>
 bool DrawEnumCombo(
@@ -216,6 +240,54 @@ bool DrawTriggerKindCombo(const char* label, TriggerKind& kind, float width = -F
 	if (ImGui::BeginMenu("Collision")) {
 		draw_item(TriggerKind::CollisionStart);
 		draw_item(TriggerKind::CollisionStop);
+		ImGui::EndMenu();
+	}
+
+	ImGui::EndCombo();
+	return changed;
+}
+
+bool DrawLifecycleEventCombo(const char* label, LifecycleEventKind& event, float width = -FLT_MIN) {
+	ImGui::SetNextItemWidth(width);
+
+	const char* preview{ kLifecycleEventNames[static_cast<std::size_t>(event)] };
+	bool changed{ false };
+
+	if (!ImGui::BeginCombo(label, preview)) {
+		return false;
+	}
+
+	auto draw_item = [&](LifecycleEventKind candidate) {
+		const bool selected{ event == candidate };
+
+		if (ImGui::MenuItem(
+				kLifecycleEventNames[static_cast<std::size_t>(candidate)], nullptr, selected
+			)) {
+			event	= candidate;
+			changed = true;
+		}
+	};
+
+	if (ImGui::BeginMenu("Behavior")) {
+		draw_item(LifecycleEventKind::Start);
+		draw_item(LifecycleEventKind::Progress);
+		draw_item(LifecycleEventKind::Complete);
+		draw_item(LifecycleEventKind::Reset);
+		draw_item(LifecycleEventKind::Stop);
+		draw_item(LifecycleEventKind::Pause);
+		draw_item(LifecycleEventKind::Resume);
+		ImGui::EndMenu();
+	}
+
+	if (ImGui::BeginMenu("Sequence Item")) {
+		draw_item(LifecycleEventKind::PointStart);
+		draw_item(LifecycleEventKind::PointComplete);
+		ImGui::EndMenu();
+	}
+
+	if (ImGui::BeginMenu("Timed Action")) {
+		draw_item(LifecycleEventKind::Repeat);
+		draw_item(LifecycleEventKind::Yoyo);
 		ImGui::EndMenu();
 	}
 
@@ -507,6 +579,15 @@ ActionDefinition MakeAction(ActionKind kind) {
 	return action;
 }
 
+struct LifecycleCallbackDefinition {
+	Id id{ NextId() };
+	bool enabled{ true };
+	LifecycleEventKind event{ LifecycleEventKind::Complete };
+	LifecycleCallbackKind kind{ LifecycleCallbackKind::EmitSignal };
+	ActionDefinition action{ MakeAction(ActionKind::SetVisible) };
+	TextBuffer<80> signal{ "behavior.completed" };
+};
+
 struct ActionItem { ActionDefinition action; };
 struct TimedActionItem {
 	ActionDefinition action{ MakeAction(ActionKind::MoveTo) };
@@ -594,8 +675,10 @@ struct BehaviorDefinition {
 	Id id{ NextId() };
 	TextBuffer<80> name{ "New Behavior" };
 	ReentryMode reentry{ ReentryMode::IgnoreWhileRunning };
+	bool destroy_on_complete{ false };
 	std::vector<TriggerDefinition> triggers;
 	std::vector<SequenceItem> sequence;
+	std::vector<LifecycleCallbackDefinition> lifecycle_callbacks;
 };
 
 struct RuntimeState {
@@ -604,6 +687,7 @@ struct RuntimeState {
 	bool completed{ false };
 	bool queued{ false };
 	std::size_t item_index{ 0 };
+	std::optional<std::size_t> started_item_index;
 	float elapsed_ms{ 0.0f };
 	int completed_runs{ 0 };
 };
@@ -671,6 +755,9 @@ BehaviorDefinition CloneBehavior(const BehaviorDefinition& source) {
 	}
 	for (auto& item : copy.sequence) {
 		item.id = NextId();
+	}
+	for (auto& callback : copy.lifecycle_callbacks) {
+		callback.id = NextId();
 	}
 	return copy;
 }
@@ -745,6 +832,30 @@ void EmitSignal(
 	);
 }
 
+void InvokeLifecycleCallbacks(
+	LifecycleEventKind event, EntityData& entity, const BehaviorDefinition& behavior,
+	DemoRuntimeContext& context
+) {
+	for (const auto& callback : behavior.lifecycle_callbacks) {
+		if (!callback.enabled || callback.event != event) {
+			continue;
+		}
+
+		switch (callback.kind) {
+			case LifecycleCallbackKind::Action:
+				ExecuteAction(callback.action, entity, behavior, context, false);
+				break;
+
+			case LifecycleCallbackKind::EmitSignal: {
+				EmitSignalItem emit;
+				emit.signal = callback.signal;
+				EmitSignal(emit, entity, behavior, context);
+				break;
+			}
+		}
+	}
+}
+
 bool IsTimedItem(const SequenceItem& item) {
 	return item.kind == SequenceItemKind::Wait || item.kind == SequenceItemKind::TimedAction;
 }
@@ -778,13 +889,32 @@ void FinishBehavior(
 	DemoRuntimeContext& context
 ) {
 	auto& runtime{ binding.runtime };
+	const bool queued{ runtime.queued };
+
 	runtime.running = false;
 	runtime.paused = false;
 	runtime.completed = true;
+	runtime.queued	  = false;
+	runtime.started_item_index.reset();
 	++runtime.completed_runs;
-	AddActivity(context, std::string{ entity.name.Data() } + " / " + behavior.name.Data() + " completed");
-	if (runtime.queued) {
-		runtime.queued = false;
+
+	AddActivity(
+		context, std::string{ entity.name.Data() } + " / " + behavior.name.Data() + " completed"
+	);
+	InvokeLifecycleCallbacks(LifecycleEventKind::Complete, entity, behavior, context);
+
+	if (behavior.destroy_on_complete) {
+		const int completed_runs{ runtime.completed_runs };
+		binding.runtime				   = {};
+		binding.runtime.completed_runs = completed_runs;
+		AddActivity(
+			context, std::string{ entity.name.Data() } + " / " + behavior.name.Data() +
+						 " destroyed its runtime on complete"
+		);
+		return;
+	}
+
+	if (queued) {
 		StartBehaviorRuntime(entity, binding, registry, context);
 	}
 }
@@ -800,36 +930,57 @@ void ProcessImmediateItems(
 
 	while (runtime.running && runtime.item_index < behavior.sequence.size()) {
 		const auto& item{ behavior.sequence[runtime.item_index] };
+
 		if (!item.enabled) {
 			++runtime.item_index;
+			runtime.started_item_index.reset();
 			continue;
+		}
+
+		if (runtime.started_item_index != runtime.item_index) {
+			runtime.started_item_index = runtime.item_index;
+			InvokeLifecycleCallbacks(LifecycleEventKind::PointStart, entity, behavior, context);
 		}
 
 		if (IsTimedItem(item)) {
 			if (GetItemDuration(item) <= 0.0f) {
 				if (item.kind == SequenceItemKind::TimedAction) {
-					ExecuteAction(std::get<TimedActionItem>(item.data).action, entity, behavior, context, true);
+					ExecuteAction(
+						std::get<TimedActionItem>(item.data).action, entity, behavior, context, true
+					);
 				}
+
+				InvokeLifecycleCallbacks(
+					LifecycleEventKind::PointComplete, entity, behavior, context
+				);
 				++runtime.item_index;
+				runtime.started_item_index.reset();
 				runtime.elapsed_ms = 0.0f;
 				continue;
 			}
+
 			break;
 		}
 
 		switch (item.kind) {
 			case SequenceItemKind::Action:
-				ExecuteAction(std::get<ActionItem>(item.data).action, entity, behavior, context, false);
+				ExecuteAction(
+					std::get<ActionItem>(item.data).action, entity, behavior, context, false
+				);
 				break;
+
 			case SequenceItemKind::EmitSignal:
 				EmitSignal(std::get<EmitSignalItem>(item.data), entity, behavior, context);
 				break;
+
 			case SequenceItemKind::TimedAction:
 			case SequenceItemKind::Wait:
 				break;
 		}
 
+		InvokeLifecycleCallbacks(LifecycleEventKind::PointComplete, entity, behavior, context);
 		++runtime.item_index;
+		runtime.started_item_index.reset();
 		runtime.elapsed_ms = 0.0f;
 	}
 
@@ -848,30 +999,86 @@ void StartBehaviorRuntime(
 	if (!binding.enabled) {
 		return;
 	}
+
 	const auto* behavior{ ResolveBehavior(binding, registry) };
 	if (!behavior) {
 		return;
 	}
 
 	auto& runtime{ binding.runtime };
+
 	if (runtime.running && !force_restart) {
 		switch (behavior->reentry) {
 			case ReentryMode::IgnoreWhileRunning: return;
-			case ReentryMode::Restart: break;
-			case ReentryMode::Queue: runtime.queued = true; return;
-			case ReentryMode::Parallel: break;
+
+			case ReentryMode::Restart:			  break;
+
+			case ReentryMode::Queue:			  runtime.queued = true; return;
+
+			case ReentryMode::Parallel:			  break;
 		}
+	}
+
+	const bool resetting{ force_restart &&
+						  (runtime.running || runtime.paused || runtime.completed ||
+						   runtime.started_item_index.has_value()) };
+
+	if (resetting) {
+		InvokeLifecycleCallbacks(LifecycleEventKind::Reset, entity, *behavior, context);
 	}
 
 	runtime.running = !behavior->sequence.empty();
 	runtime.paused = false;
-	runtime.completed = behavior->sequence.empty();
+	runtime.completed  = false;
+	runtime.queued	   = false;
 	runtime.item_index = 0;
+	runtime.started_item_index.reset();
 	runtime.elapsed_ms = 0.0f;
-	AddActivity(context, std::string{ entity.name.Data() } + " / " + behavior->name.Data() + " started");
+
+	AddActivity(
+		context, std::string{ entity.name.Data() } + " / " + behavior->name.Data() + " started"
+	);
+	InvokeLifecycleCallbacks(LifecycleEventKind::Start, entity, *behavior, context);
+
 	if (runtime.running) {
 		ProcessImmediateItems(entity, binding, *behavior, registry, context);
+	} else {
+		FinishBehavior(entity, binding, *behavior, registry, context);
 	}
+}
+
+void SetBehaviorPaused(
+	EntityData& entity, BehaviorBinding& binding, const BehaviorDefinition& behavior,
+	DemoRuntimeContext& context, bool paused
+) {
+	if (!binding.runtime.running || binding.runtime.paused == paused) {
+		return;
+	}
+
+	binding.runtime.paused = paused;
+	InvokeLifecycleCallbacks(
+		paused ? LifecycleEventKind::Pause : LifecycleEventKind::Resume, entity, behavior, context
+	);
+	AddActivity(
+		context, std::string{ entity.name.Data() } + " / " + behavior.name.Data() +
+					 (paused ? " paused" : " resumed")
+	);
+}
+
+void StopBehaviorRuntime(
+	EntityData& entity, BehaviorBinding& binding, const BehaviorDefinition& behavior,
+	DemoRuntimeContext& context
+) {
+	if (!binding.runtime.running && !binding.runtime.paused) {
+		binding.runtime = {};
+		return;
+	}
+
+	InvokeLifecycleCallbacks(LifecycleEventKind::Stop, entity, behavior, context);
+	AddActivity(
+		context, std::string{ entity.name.Data() } + " / " + behavior.name.Data() + " stopped"
+	);
+	binding.runtime = {};
 }
 
 void UpdateBehaviorRuntime(
@@ -900,15 +1107,27 @@ void UpdateBehaviorRuntime(
 		return;
 	}
 
+	if (runtime.started_item_index != runtime.item_index) {
+		runtime.started_item_index = runtime.item_index;
+		InvokeLifecycleCallbacks(LifecycleEventKind::PointStart, entity, *behavior, context);
+	}
+
 	runtime.elapsed_ms += delta_seconds * 1000.0f;
+	InvokeLifecycleCallbacks(LifecycleEventKind::Progress, entity, *behavior, context);
+
 	if (runtime.elapsed_ms < GetItemDuration(item)) {
 		return;
 	}
 
 	if (item.kind == SequenceItemKind::TimedAction) {
-		ExecuteAction(std::get<TimedActionItem>(item.data).action, entity, *behavior, context, true);
+		ExecuteAction(
+			std::get<TimedActionItem>(item.data).action, entity, *behavior, context, true
+		);
 	}
+
+	InvokeLifecycleCallbacks(LifecycleEventKind::PointComplete, entity, *behavior, context);
 	++runtime.item_index;
+	runtime.started_item_index.reset();
 	runtime.elapsed_ms = 0.0f;
 	ProcessImmediateItems(entity, binding, *behavior, registry, context);
 }
@@ -1229,6 +1448,121 @@ bool DrawActionPicker(
 	}
 
 	return changed;
+}
+
+bool DrawLifecycleCallbackCompact(LifecycleCallbackDefinition& callback) {
+	bool remove{ false };
+	float value_left_screen_x{ ImGui::GetCursorScreenPos().x };
+
+	ImGui::PushID(static_cast<int>(callback.id));
+
+	const float remove_width{ ImGui::GetFrameHeight() };
+
+	if (ImGui::BeginTable("LifecycleCallbackRow", 5, ImGuiTableFlags_SizingStretchProp)) {
+		ImGui::TableSetupColumn("Event", ImGuiTableColumnFlags_WidthFixed, 126.0f);
+		ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, 94.0f);
+		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Enabled", ImGuiTableColumnFlags_WidthFixed, 21.0f);
+		ImGui::TableSetupColumn("Remove", ImGuiTableColumnFlags_WidthFixed, remove_width);
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+		ImGui::TableSetColumnIndex(0);
+		DrawLifecycleEventCombo("##Event", callback.event);
+		DrawItemTooltip("Lifecycle event that invokes this callback.");
+
+		ImGui::TableSetColumnIndex(1);
+		DrawEnumCombo("##CallbackKind", callback.kind, kLifecycleCallbackKindNames);
+
+		ImGui::TableSetColumnIndex(2);
+		value_left_screen_x = ImGui::GetCursorScreenPos().x;
+
+		switch (callback.kind) {
+			case LifecycleCallbackKind::Action:
+				DrawActionPicker("##CallbackAction", callback.action, false);
+				break;
+
+			case LifecycleCallbackKind::EmitSignal:
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::InputTextWithHint(
+					"##CallbackSignal", "Signal name", callback.signal.Data(),
+					callback.signal.Size()
+				);
+				DrawItemTooltip("Unique signal emitted when this lifecycle event occurs.");
+				break;
+		}
+
+		ImGui::TableSetColumnIndex(3);
+		ImGui::Checkbox("##Enabled", &callback.enabled);
+
+		ImGui::TableSetColumnIndex(4);
+		if (ImGui::Button("x", ImVec2{ remove_width, ImGui::GetFrameHeight() })) {
+			remove = true;
+		}
+
+		ImGui::EndTable();
+	}
+
+	if (callback.kind == LifecycleCallbackKind::Action) {
+		DrawActionParametersCompact(callback.action, value_left_screen_x);
+	}
+
+	ImGui::PopID();
+	return remove;
+}
+
+void DrawLifecycleSection(BehaviorDefinition& behavior) {
+	char lifecycle_label[96]{};
+	std::snprintf(
+		lifecycle_label, sizeof(lifecycle_label), "Lifecycle & Cleanup (%zu)%s",
+		behavior.lifecycle_callbacks.size(),
+		behavior.destroy_on_complete ? "  [Destroy on Complete]" : ""
+	);
+
+	const bool lifecycle_open{ ImGui::TreeNodeEx(
+		"##Lifecycle", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen,
+		"%s", lifecycle_label
+	) };
+	DrawItemTooltip(
+		"Optional lifecycle callbacks and completion cleanup. Leave collapsed for normal behaviors."
+	);
+
+	if (!lifecycle_open) {
+		return;
+	}
+
+	if (ImGui::Checkbox("Destroy on Complete", &behavior.destroy_on_complete)) {
+		// UI-only demo option; the runtime below simulates cleanup of the transient execution.
+	}
+	DrawItemTooltip(
+		"Destroys the transient behavior runtime after completion. The owning entity and behavior "
+		"definition remain."
+	);
+
+	if (!behavior.lifecycle_callbacks.empty()) {
+		ImGui::Separator();
+	}
+
+	int remove_callback{ -1 };
+
+	for (int i{ 0 }; i < static_cast<int>(behavior.lifecycle_callbacks.size()); ++i) {
+		if (DrawLifecycleCallbackCompact(
+				behavior.lifecycle_callbacks[static_cast<std::size_t>(i)]
+			)) {
+			remove_callback = i;
+		}
+	}
+
+	if (remove_callback >= 0) {
+		behavior.lifecycle_callbacks.erase(behavior.lifecycle_callbacks.begin() + remove_callback);
+	}
+
+	if (behavior.lifecycle_callbacks.empty()) {
+		ImGui::TextDisabled("No lifecycle callbacks.");
+	}
+
+	if (ImGui::Button("+ Lifecycle Callback", ImVec2{ -FLT_MIN, 0.0f })) {
+		behavior.lifecycle_callbacks.emplace_back();
+	}
 }
 
 bool DrawTriggerCompact(TriggerDefinition& trigger) {
@@ -1688,13 +2022,19 @@ void DrawRuntimeButtons(
 				binding.runtime.paused ? "Resume" : "Pause",
 				ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
 			)) {
-			binding.runtime.paused = !binding.runtime.paused;
+			if (const auto* behavior{ ResolveBehavior(binding, registry) }) {
+				SetBehaviorPaused(entity, binding, *behavior, context, !binding.runtime.paused);
+			}
 		}
 		ImGui::EndDisabled();
 
 		ImGui::TableSetColumnIndex(2);
 		if (ImGui::Button("Stop", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
-			binding.runtime = {};
+			if (const auto* behavior{ ResolveBehavior(binding, registry) }) {
+				StopBehaviorRuntime(entity, binding, *behavior, context);
+			} else {
+				binding.runtime = {};
+			}
 		}
 
 		ImGui::EndTable();
@@ -1774,13 +2114,13 @@ bool DrawBehaviorBinding(
 					binding.runtime.paused ? "Resume" : "Pause",
 					ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
 				)) {
-				binding.runtime.paused = !binding.runtime.paused;
+				SetBehaviorPaused(entity, binding, *behavior, context, !binding.runtime.paused);
 			}
 			ImGui::EndDisabled();
 
 			ImGui::TableSetColumnIndex(4);
 			if (ImGui::Button("Stop", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
-				binding.runtime = {};
+				StopBehaviorRuntime(entity, binding, *behavior, context);
 			}
 
 			ImGui::EndTable();
@@ -1814,6 +2154,8 @@ bool DrawBehaviorBinding(
 			);
 			ImGui::EndTable();
 		}
+
+		DrawLifecycleSection(*behavior);
 
 		char trigger_label[64]{};
 		std::snprintf(trigger_label, sizeof(trigger_label), "Triggers (%zu)", behavior->triggers.size());
@@ -2079,12 +2421,26 @@ std::vector<EntityData> MakeDemoEntities(GlobalBehaviorRegistry& registry) {
 	std::get<WaitItem>(celebration_wait.data).duration_ms = 250.0f;
 	celebration.sequence.push_back(std::move(celebration_wait));
 
+	LifecycleCallbackDefinition celebration_complete;
+	celebration_complete.event = LifecycleEventKind::Complete;
+	celebration_complete.kind  = LifecycleCallbackKind::EmitSignal;
+	celebration_complete.signal.Assign("celebration.finished");
+	celebration.lifecycle_callbacks.push_back(std::move(celebration_complete));
+
+	LifecycleCallbackDefinition celebration_yoyo;
+	celebration_yoyo.event	= LifecycleEventKind::Yoyo;
+	celebration_yoyo.kind	= LifecycleCallbackKind::Action;
+	celebration_yoyo.action = MakeAction(ActionKind::PlayAudio);
+	std::get<PlayAudioParams>(celebration_yoyo.action.parameters).asset.Assign("yoyo_tick");
+	celebration.lifecycle_callbacks.push_back(std::move(celebration_yoyo));
+
 	const Id celebration_id{ celebration.id };
 	registry.definitions.push_back(std::move(celebration));
 
 	BehaviorDefinition damage_flash;
 	damage_flash.name.Assign("Damage Flash");
 	damage_flash.reentry = ReentryMode::Restart;
+	damage_flash.destroy_on_complete = true;
 	TriggerDefinition damaged;
 	damaged.kind = TriggerKind::Signal;
 	damaged.signal.Assign("player.damaged");
