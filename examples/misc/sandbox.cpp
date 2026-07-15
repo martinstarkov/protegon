@@ -1325,7 +1325,7 @@ bool DrawSequenceItemCompact(
 	const float drag_width{ 28.0f };
 	const float type_width{ 108.0f };
 	const float duration_width{ 82.0f };
-	float action_left_screen_x{ ImGui::GetCursorScreenPos().x };
+	float type_left_screen_x{ ImGui::GetCursorScreenPos().x };
 
 	if (ImGui::BeginTable("SequenceRow", column_count, ImGuiTableFlags_SizingStretchProp)) {
 		ImGui::TableSetupColumn("Drag", ImGuiTableColumnFlags_WidthFixed, drag_width);
@@ -1363,6 +1363,7 @@ bool DrawSequenceItemCompact(
 		}
 
 		ImGui::TableSetColumnIndex(1);
+		type_left_screen_x = ImGui::GetCursorScreenPos().x;
 		SequenceItemKind new_kind{ item.kind };
 
 		if (DrawEnumCombo("##Type", new_kind, kSequenceItemNames)) {
@@ -1373,7 +1374,6 @@ bool DrawSequenceItemCompact(
 		switch (item.kind) {
 			case SequenceItemKind::Action: {
 				ImGui::TableSetColumnIndex(2);
-				action_left_screen_x = ImGui::GetCursorScreenPos().x;
 				auto& action{ std::get<ActionItem>(item.data).action };
 				DrawActionPicker("##Action", action, false);
 				OpenPopupOnRightClick("ItemMenu");
@@ -1393,7 +1393,6 @@ bool DrawSequenceItemCompact(
 				OpenPopupOnRightClick("ItemMenu");
 
 				ImGui::TableSetColumnIndex(3);
-				action_left_screen_x = ImGui::GetCursorScreenPos().x;
 				DrawActionPicker("##Action", timed.action, true);
 				OpenPopupOnRightClick("ItemMenu");
 				break;
@@ -1444,11 +1443,11 @@ bool DrawSequenceItemCompact(
 	if (item.kind == SequenceItemKind::TimedAction) {
 		auto& timed{ std::get<TimedActionItem>(item.data) };
 
-		ImGui::SetCursorScreenPos(ImVec2{ action_left_screen_x, ImGui::GetCursorScreenPos().y });
+		ImGui::SetCursorScreenPos(ImVec2{ type_left_screen_x, ImGui::GetCursorScreenPos().y });
 
 		const float available_width{ std::max(
 			220.0f,
-			ImGui::GetWindowContentRegionMax().x + ImGui::GetWindowPos().x - action_left_screen_x
+			ImGui::GetWindowContentRegionMax().x + ImGui::GetWindowPos().x - type_left_screen_x
 		) };
 
 		if (ImGui::BeginTable(
@@ -1471,9 +1470,9 @@ bool DrawSequenceItemCompact(
 			ImGui::EndTable();
 		}
 
-		DrawActionParametersCompact(timed.action, action_left_screen_x);
+		DrawActionParametersCompact(timed.action, type_left_screen_x);
 	} else if (item.kind == SequenceItemKind::Action) {
-		DrawActionParametersCompact(std::get<ActionItem>(item.data).action, action_left_screen_x);
+		DrawActionParametersCompact(std::get<ActionItem>(item.data).action, type_left_screen_x);
 	}
 
 	ImGui::PopID();
@@ -1604,7 +1603,7 @@ void DrawRuntimeButtons(
 
 		ImGui::TableSetColumnIndex(0);
 		if (ImGui::Button(
-				binding.runtime.running ? "Restart" : "Play",
+				binding.runtime.running ? "Restart" : "Start",
 				ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
 			)) {
 			StartBehaviorRuntime(entity, binding, registry, context);
@@ -1690,7 +1689,7 @@ bool DrawBehaviorBinding(
 
 			ImGui::TableSetColumnIndex(2);
 			if (ImGui::Button(
-					binding.runtime.running ? "Restart" : "Play",
+					binding.runtime.running ? "Restart" : "Start",
 					ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
 				)) {
 				StartBehaviorRuntime(entity, binding, registry, context);
@@ -2126,9 +2125,9 @@ void DrawSceneView(const std::vector<EntityData>& entities, int selected_index) 
 		draw->AddText(ImVec2{ p.x - 36.0f, p.y - 6.0f }, ImGui::GetColorU32(ImGuiCol_Text), entity.name.Data());
 	}
 	draw->AddText(
-		ImVec2{ start.x + 10.0f, start.y + 10.0f },
-		ImGui::GetColorU32(ImGuiCol_TextDisabled),
-		"Select Door, then Play Open Door. Its final Emit Signal starts the global Door Celebration."
+		ImVec2{ start.x + 10.0f, start.y + 10.0f }, ImGui::GetColorU32(ImGuiCol_TextDisabled),
+		"Select Door, then Start Open Door. Its final Emit Signal starts the global Door "
+		"Celebration."
 	);
 	ImGui::InvisibleButton("SceneCanvas", size);
 }
