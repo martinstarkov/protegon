@@ -433,7 +433,8 @@ struct TriggerDefinition {
 	bool enabled{ true };
 	TextBuffer<48> key{ "Space" };
 	TextBuffer<32> mouse_button{ "Left" };
-	TextBuffer<64> other_tag{ "Player" };
+	TextBuffer<96> tag_filter{ "Player" };
+	TextBuffer<64> mask_filter{};
 	TextBuffer<80> signal{ "door.opened" };
 	float duration_ms{ 0.0f };
 };
@@ -989,16 +990,16 @@ std::string TriggerSummary(const TriggerDefinition& trigger) {
 			return std::string{ "Mouse Held: " } + trigger.mouse_button.Data();
 
 		case TriggerKind::OverlapStart:
-			return std::string{ "Overlap Start: " } + trigger.other_tag.Data();
+			return std::string{ "Overlap Start: " } + trigger.tag_filter.Data();
 
 		case TriggerKind::OverlapStop:
-			return std::string{ "Overlap Stop: " } + trigger.other_tag.Data();
+			return std::string{ "Overlap Stop: " } + trigger.tag_filter.Data();
 
 		case TriggerKind::CollisionStart:
-			return std::string{ "Collision Start: " } + trigger.other_tag.Data();
+			return std::string{ "Collision Start: " } + trigger.tag_filter.Data();
 
 		case TriggerKind::CollisionStop:
-			return std::string{ "Collision Stop: " } + trigger.other_tag.Data();
+			return std::string{ "Collision Stop: " } + trigger.tag_filter.Data();
 	}
 
 	return {};
@@ -1024,6 +1025,9 @@ std::string SequenceItemSummary(const SequenceItem& item) {
 }
 
 void DrawActionParametersCompact(ActionDefinition& action, float left_screen_x) {
+	const float right_screen_x{ ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x };
+	const float available_width{ std::max(1.0f, right_screen_x - left_screen_x) };
+
 	ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 
 	switch (action.kind) {
@@ -1036,38 +1040,71 @@ void DrawActionParametersCompact(ActionDefinition& action, float left_screen_x) 
 		case ActionKind::MoveTo: {
 			auto& p{ std::get<MoveToParams>(action.parameters) };
 
-			ImGui::AlignTextToFramePadding();
-			ImGui::TextDisabled("Position");
-			ImGui::SameLine();
-			ImGui::SetNextItemWidth(std::max(90.0f, ImGui::GetContentRegionAvail().x - 82.0f));
-			ImGui::DragFloat2("##Destination", p.destination, 1.0f, -100000.0f, 100000.0f, "%.0f");
-			ImGui::SameLine();
-			ImGui::Checkbox("Relative", &p.relative);
+			if (ImGui::BeginTable(
+					"MoveToParams", 3, ImGuiTableFlags_SizingStretchProp,
+					ImVec2{ available_width, 0.0f }
+				)) {
+				ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 53.0f);
+				ImGui::TableSetupColumn("Position", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Relative", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+				ImGui::TableSetColumnIndex(0);
+				ImGui::AlignTextToFramePadding();
+				ImGui::TextDisabled("Position");
+
+				ImGui::TableSetColumnIndex(1);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::DragFloat2(
+					"##Destination", p.destination, 1.0f, -100000.0f, 100000.0f, "%.0f"
+				);
+
+				ImGui::TableSetColumnIndex(2);
+				ImGui::Checkbox("Relative", &p.relative);
+				ImGui::EndTable();
+			}
 			break;
 		}
 
 		case ActionKind::RotateTo: {
 			auto& p{ std::get<RotateToParams>(action.parameters) };
 
-			ImGui::AlignTextToFramePadding();
-			ImGui::TextDisabled("Angle");
-			ImGui::SameLine();
-			ImGui::SetNextItemWidth(std::max(80.0f, ImGui::GetContentRegionAvail().x - 102.0f));
-			ImGui::DragFloat("##Degrees", &p.degrees, 1.0f, -3600.0f, 3600.0f, "%.1f deg");
-			ImGui::SameLine();
-			ImGui::Checkbox("Shortest", &p.shortest_path);
-			DrawItemTooltip("Uses the shortest rotational path to the target angle.");
+			if (ImGui::BeginTable(
+					"RotateToParams", 3, ImGuiTableFlags_SizingStretchProp,
+					ImVec2{ available_width, 0.0f }
+				)) {
+				ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 40.0f);
+				ImGui::TableSetupColumn("Angle", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Shortest", ImGuiTableColumnFlags_WidthFixed, 82.0f);
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+				ImGui::TableSetColumnIndex(0);
+				ImGui::AlignTextToFramePadding();
+				ImGui::TextDisabled("Angle");
+
+				ImGui::TableSetColumnIndex(1);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::DragFloat("##Degrees", &p.degrees, 1.0f, -3600.0f, 3600.0f, "%.1f deg");
+
+				ImGui::TableSetColumnIndex(2);
+				ImGui::Checkbox("Shortest", &p.shortest_path);
+				DrawItemTooltip("Uses the shortest rotational path to the target angle.");
+				ImGui::EndTable();
+			}
 			break;
 		}
 
 		case ActionKind::PlayAudio: {
 			auto& p{ std::get<PlayAudioParams>(action.parameters) };
 
-			if (ImGui::BeginTable("AudioParams", 3, ImGuiTableFlags_SizingStretchProp)) {
+			if (ImGui::BeginTable(
+					"AudioParams", 3, ImGuiTableFlags_SizingStretchProp,
+					ImVec2{ available_width, 0.0f }
+				)) {
 				ImGui::TableSetupColumn("Asset", ImGuiTableColumnFlags_WidthStretch);
 				ImGui::TableSetupColumn("Volume", ImGuiTableColumnFlags_WidthFixed, 90.0f);
 				ImGui::TableSetupColumn("Loops", ImGuiTableColumnFlags_WidthFixed, 126.0f);
-				ImGui::TableNextRow();
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 				ImGui::TableSetColumnIndex(0);
 				ImGui::SetNextItemWidth(-FLT_MIN);
@@ -1086,18 +1123,25 @@ void DrawActionParametersCompact(ActionDefinition& action, float left_screen_x) 
 
 		case ActionKind::SetColliderMode: {
 			auto& p{ std::get<SetColliderModeParams>(action.parameters) };
-			ImGui::SetNextItemWidth(-FLT_MIN);
+			ImGui::SetNextItemWidth(available_width);
 
-			if (ImGui::BeginCombo("##ColliderMode", kColliderModeNames[static_cast<std::size_t>(p.mode)])) {
+			if (ImGui::BeginCombo(
+					"##ColliderMode", kColliderModeNames[static_cast<std::size_t>(p.mode)]
+				)) {
 				for (int i{ 0 }; i < static_cast<int>(kColliderModeNames.size()); ++i) {
 					const bool selected{ p.mode == i };
-					if (ImGui::Selectable(kColliderModeNames[static_cast<std::size_t>(i)], selected)) {
+
+					if (ImGui::Selectable(
+							kColliderModeNames[static_cast<std::size_t>(i)], selected
+						)) {
 						p.mode = i;
 					}
+
 					if (selected) {
 						ImGui::SetItemDefaultFocus();
 					}
 				}
+
 				ImGui::EndCombo();
 			}
 			break;
@@ -1106,11 +1150,14 @@ void DrawActionParametersCompact(ActionDefinition& action, float left_screen_x) 
 		case ActionKind::ApplyDamage: {
 			auto& p{ std::get<ApplyDamageParams>(action.parameters) };
 
-			if (ImGui::BeginTable("DamageParams", 3, ImGuiTableFlags_SizingStretchProp)) {
+			if (ImGui::BeginTable(
+					"DamageParams", 3, ImGuiTableFlags_SizingStretchProp,
+					ImVec2{ available_width, 0.0f }
+				)) {
 				ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthFixed, 92.0f);
 				ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch);
 				ImGui::TableSetupColumn("Critical", ImGuiTableColumnFlags_WidthFixed, 62.0f);
-				ImGui::TableNextRow();
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 				ImGui::TableSetColumnIndex(0);
 				ImGui::SetNextItemWidth(-FLT_MIN);
@@ -1280,11 +1327,40 @@ bool DrawTriggerCompact(TriggerDefinition& trigger) {
 			case TriggerKind::OverlapStart:
 			case TriggerKind::OverlapStop:
 			case TriggerKind::CollisionStart:
-			case TriggerKind::CollisionStop:
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				ImGui::InputText("##OtherTag", trigger.other_tag.Data(), trigger.other_tag.Size());
-				DrawItemTooltip("Optional tag used to filter the other entity.");
+			case TriggerKind::CollisionStop:  {
+				ImGui::PushStyleVar(
+					ImGuiStyleVar_CellPadding, ImVec2{ 2.0f, ImGui::GetStyle().CellPadding.y }
+				);
+
+				if (ImGui::BeginTable("ContactFilters", 2, ImGuiTableFlags_SizingStretchProp)) {
+					ImGui::TableSetupColumn("Tags", ImGuiTableColumnFlags_WidthStretch, 1.45f);
+					ImGui::TableSetupColumn("Masks", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+					ImGui::TableNextRow();
+
+					ImGui::TableSetColumnIndex(0);
+					ImGui::SetNextItemWidth(-FLT_MIN);
+					ImGui::InputTextWithHint(
+						"##Tags", "Tags: Player,-Enemy", trigger.tag_filter.Data(),
+						trigger.tag_filter.Size()
+					);
+					DrawItemTooltip("Comma-separated tags. Prefix a tag with '-' to exclude it.");
+
+					ImGui::TableSetColumnIndex(1);
+					ImGui::SetNextItemWidth(-FLT_MIN);
+					ImGui::InputTextWithHint(
+						"##Masks", "Masks: 1,4,-8", trigger.mask_filter.Data(),
+						trigger.mask_filter.Size()
+					);
+					DrawItemTooltip(
+						"Comma-separated integer masks. Positive values include; '-' excludes."
+					);
+
+					ImGui::EndTable();
+				}
+
+				ImGui::PopStyleVar();
 				break;
+			}
 		}
 
 		ImGui::TableSetColumnIndex(2);
@@ -1341,7 +1417,24 @@ bool DrawSequenceItemCompact(
 		ImGui::TableSetColumnIndex(0);
 		ImGui::Button("::", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() });
 		DrawItemTooltip("Drag to reorder. Right-click for options.");
-		OpenPopupOnRightClick("ItemMenu");
+
+		if (ImGui::BeginPopupContextItem("ItemMenu")) {
+			if (ImGui::MenuItem(item.enabled ? "Disable" : "Enable")) {
+				item.enabled = !item.enabled;
+			}
+
+			if (ImGui::MenuItem("Duplicate")) {
+				duplicate = true;
+			}
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Delete")) {
+				remove = true;
+			}
+
+			ImGui::EndPopup();
+		}
 
 		if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 			const SequenceDragPayload payload{ index };
@@ -1369,14 +1462,12 @@ bool DrawSequenceItemCompact(
 		if (DrawEnumCombo("##Type", new_kind, kSequenceItemNames)) {
 			SetSequenceItemKind(item, new_kind);
 		}
-		OpenPopupOnRightClick("ItemMenu");
 
 		switch (item.kind) {
 			case SequenceItemKind::Action: {
 				ImGui::TableSetColumnIndex(2);
 				auto& action{ std::get<ActionItem>(item.data).action };
 				DrawActionPicker("##Action", action, false);
-				OpenPopupOnRightClick("ItemMenu");
 				break;
 			}
 
@@ -1385,16 +1476,11 @@ bool DrawSequenceItemCompact(
 
 				ImGui::TableSetColumnIndex(2);
 				DrawDurationInput(
-					"##Duration",
-					timed.duration_ms,
-					-FLT_MIN,
-					"Duration of the timed action."
+					"##Duration", timed.duration_ms, -FLT_MIN, "Duration of the timed action."
 				);
-				OpenPopupOnRightClick("ItemMenu");
 
 				ImGui::TableSetColumnIndex(3);
 				DrawActionPicker("##Action", timed.action, true);
-				OpenPopupOnRightClick("ItemMenu");
 				break;
 			}
 
@@ -1402,7 +1488,6 @@ bool DrawSequenceItemCompact(
 				ImGui::TableSetColumnIndex(2);
 				auto& wait{ std::get<WaitItem>(item.data) };
 				DrawDurationInput("##Duration", wait.duration_ms, -FLT_MIN, "Wait duration.");
-				OpenPopupOnRightClick("ItemMenu");
 				break;
 			}
 
@@ -1412,7 +1497,6 @@ bool DrawSequenceItemCompact(
 				ImGui::SetNextItemWidth(-FLT_MIN);
 				ImGui::InputText("##Signal", emit.signal.Data(), emit.signal.Size());
 				DrawItemTooltip("Unique name used to identify this signal.");
-				OpenPopupOnRightClick("ItemMenu");
 				break;
 			}
 		}
@@ -1421,20 +1505,6 @@ bool DrawSequenceItemCompact(
 	}
 
 	ImGui::PopStyleVar();
-
-	if (ImGui::BeginPopup("ItemMenu")) {
-		if (ImGui::MenuItem(item.enabled ? "Disable" : "Enable")) {
-			item.enabled = !item.enabled;
-		}
-		if (ImGui::MenuItem("Duplicate")) {
-			duplicate = true;
-		}
-		ImGui::Separator();
-		if (ImGui::MenuItem("Delete")) {
-			remove = true;
-		}
-		ImGui::EndPopup();
-	}
 
 	if (active) {
 		ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 2.0f }, "");
@@ -1450,12 +1520,16 @@ bool DrawSequenceItemCompact(
 			ImGui::GetWindowContentRegionMax().x + ImGui::GetWindowPos().x - type_left_screen_x
 		) };
 
+		ImGui::PushStyleVar(
+			ImGuiStyleVar_CellPadding, ImVec2{ 2.0f, ImGui::GetStyle().CellPadding.y }
+		);
+
 		if (ImGui::BeginTable(
 				"TimedOptions", 3, ImGuiTableFlags_SizingStretchProp,
 				ImVec2{ available_width, 0.0f }
 			)) {
-			ImGui::TableSetupColumn("Ease", ImGuiTableColumnFlags_WidthFixed, 82.0f);
-			ImGui::TableSetupColumn("Repeats", ImGuiTableColumnFlags_WidthFixed, 132.0f);
+			ImGui::TableSetupColumn("Ease", ImGuiTableColumnFlags_WidthFixed, 96.0f);
+			ImGui::TableSetupColumn("Repeats", ImGuiTableColumnFlags_WidthFixed, 128.0f);
 			ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthStretch);
 			ImGui::TableNextRow();
 
@@ -1469,6 +1543,8 @@ bool DrawSequenceItemCompact(
 			DrawTimedFlagsCombo(timed);
 			ImGui::EndTable();
 		}
+
+		ImGui::PopStyleVar();
 
 		DrawActionParametersCompact(timed.action, type_left_screen_x);
 	} else if (item.kind == SequenceItemKind::Action) {
@@ -2038,7 +2114,7 @@ std::vector<EntityData> MakeDemoEntities(GlobalBehaviorRegistry& registry) {
 	open.sequence.clear();
 	TriggerDefinition overlap;
 	overlap.kind = TriggerKind::OverlapStart;
-	overlap.other_tag.Assign("Player");
+	overlap.tag_filter.Assign("Player");
 	open.triggers.push_back(std::move(overlap));
 
 	auto move{ MakeSequenceItem(SequenceItemKind::TimedAction) };
