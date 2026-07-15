@@ -1046,7 +1046,7 @@ void DrawActionParametersCompact(ActionDefinition& action, float left_screen_x) 
 				)) {
 				ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 53.0f);
 				ImGui::TableSetupColumn("Position", ImGuiTableColumnFlags_WidthStretch);
-				ImGui::TableSetupColumn("Relative", ImGuiTableColumnFlags_WidthFixed, 72.0f);
+				ImGui::TableSetupColumn("Relative", ImGuiTableColumnFlags_WidthFixed, 88.0f);
 				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 				ImGui::TableSetColumnIndex(0);
@@ -1328,37 +1328,26 @@ bool DrawTriggerCompact(TriggerDefinition& trigger) {
 			case TriggerKind::OverlapStop:
 			case TriggerKind::CollisionStart:
 			case TriggerKind::CollisionStop:  {
-				ImGui::PushStyleVar(
-					ImGuiStyleVar_CellPadding, ImVec2{ 2.0f, ImGui::GetStyle().CellPadding.y }
+				const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+				const float available{ ImGui::GetContentRegionAvail().x };
+				const float tag_width{ std::max(80.0f, (available - spacing) * 0.58f) };
+
+				ImGui::SetNextItemWidth(tag_width);
+				ImGui::InputTextWithHint(
+					"##Tags", "Tags: Player,-Enemy", trigger.tag_filter.Data(),
+					trigger.tag_filter.Size()
 				);
+				DrawItemTooltip("Comma-separated tags. Prefix a tag with '-' to exclude it.");
 
-				if (ImGui::BeginTable("ContactFilters", 2, ImGuiTableFlags_SizingStretchProp)) {
-					ImGui::TableSetupColumn("Tags", ImGuiTableColumnFlags_WidthStretch, 1.45f);
-					ImGui::TableSetupColumn("Masks", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-					ImGui::TableNextRow();
-
-					ImGui::TableSetColumnIndex(0);
-					ImGui::SetNextItemWidth(-FLT_MIN);
-					ImGui::InputTextWithHint(
-						"##Tags", "Tags: Player,-Enemy", trigger.tag_filter.Data(),
-						trigger.tag_filter.Size()
-					);
-					DrawItemTooltip("Comma-separated tags. Prefix a tag with '-' to exclude it.");
-
-					ImGui::TableSetColumnIndex(1);
-					ImGui::SetNextItemWidth(-FLT_MIN);
-					ImGui::InputTextWithHint(
-						"##Masks", "Masks: 1,4,-8", trigger.mask_filter.Data(),
-						trigger.mask_filter.Size()
-					);
-					DrawItemTooltip(
-						"Comma-separated integer masks. Positive values include; '-' excludes."
-					);
-
-					ImGui::EndTable();
-				}
-
-				ImGui::PopStyleVar();
+				ImGui::SameLine(0.0f, spacing);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::InputTextWithHint(
+					"##Masks", "Masks: 1,4,-8", trigger.mask_filter.Data(),
+					trigger.mask_filter.Size()
+				);
+				DrawItemTooltip(
+					"Comma-separated integer masks. Positive values include; '-' excludes."
+				);
 				break;
 			}
 		}
@@ -1418,6 +1407,9 @@ bool DrawSequenceItemCompact(
 		ImGui::Button("::", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() });
 		DrawItemTooltip("Drag to reorder. Right-click for options.");
 
+		// Keep disabled sequence rows faded, but always render their context menu at full opacity.
+		ImGui::PopStyleVar();
+
 		if (ImGui::BeginPopupContextItem("ItemMenu")) {
 			if (ImGui::MenuItem(item.enabled ? "Disable" : "Enable")) {
 				item.enabled = !item.enabled;
@@ -1435,6 +1427,11 @@ bool DrawSequenceItemCompact(
 
 			ImGui::EndPopup();
 		}
+
+		ImGui::PushStyleVar(
+			ImGuiStyleVar_Alpha,
+			item.enabled ? ImGui::GetStyle().Alpha : ImGui::GetStyle().Alpha * 0.55f
+		);
 
 		if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 			const SequenceDragPayload payload{ index };
