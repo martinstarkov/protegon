@@ -75,11 +75,17 @@ struct TextBuffer {
 
 enum class TriggerKind {
 	OnCreate,
-	KeyPressed,
-	OverlapStart,
 	Signal,
-	Timer,
-	Manual
+	KeyPressed,
+	KeyReleased,
+	KeyHeld,
+	MousePressed,
+	MouseReleased,
+	MouseHeld,
+	OverlapStart,
+	OverlapStop,
+	CollisionStart,
+	CollisionStop
 };
 
 enum class ReentryMode {
@@ -114,9 +120,10 @@ enum class ActionKind {
 	ApplyDamage
 };
 
-constexpr std::array kTriggerNames{
-	"On Create", "Key Pressed", "Overlap Start", "Signal", "Timer", "Manual"
-};
+constexpr std::array kTriggerNames{ "On Create",	  "Signal",			 "Key Pressed",
+									"Key Released",	  "Key Held",		 "Mouse Pressed",
+									"Mouse Released", "Mouse Held",		 "Overlap Start",
+									"Overlap Stop",	  "Collision Start", "Collision Stop" };
 constexpr std::array kReentryNames{
 	"Ignore While Running", "Restart", "Queue", "Parallel"
 };
@@ -158,6 +165,61 @@ bool DrawEnumCombo(
 		ImGui::EndCombo();
 	}
 
+	return changed;
+}
+
+bool DrawTriggerKindCombo(const char* label, TriggerKind& kind, float width = -FLT_MIN) {
+	ImGui::SetNextItemWidth(width);
+
+	const char* preview{ kTriggerNames[static_cast<std::size_t>(kind)] };
+	bool changed{ false };
+
+	if (!ImGui::BeginCombo(label, preview)) {
+		return false;
+	}
+
+	auto draw_item = [&](TriggerKind candidate) {
+		const bool selected{ kind == candidate };
+
+		if (ImGui::MenuItem(
+				kTriggerNames[static_cast<std::size_t>(candidate)], nullptr, selected
+			)) {
+			kind	= candidate;
+			changed = true;
+		}
+	};
+
+	draw_item(TriggerKind::OnCreate);
+	draw_item(TriggerKind::Signal);
+	ImGui::Separator();
+
+	if (ImGui::BeginMenu("Key")) {
+		draw_item(TriggerKind::KeyPressed);
+		draw_item(TriggerKind::KeyReleased);
+		draw_item(TriggerKind::KeyHeld);
+		ImGui::EndMenu();
+	}
+
+	if (ImGui::BeginMenu("Mouse")) {
+		draw_item(TriggerKind::MousePressed);
+		draw_item(TriggerKind::MouseReleased);
+		draw_item(TriggerKind::MouseHeld);
+		ImGui::EndMenu();
+	}
+
+	if (ImGui::BeginMenu("Overlap")) {
+		draw_item(TriggerKind::OverlapStart);
+		draw_item(TriggerKind::OverlapStop);
+		ImGui::EndMenu();
+	}
+
+	if (ImGui::BeginMenu("Collision")) {
+		draw_item(TriggerKind::CollisionStart);
+		draw_item(TriggerKind::CollisionStop);
+		ImGui::EndMenu();
+	}
+
+	ImGui::EndCombo();
 	return changed;
 }
 
@@ -256,7 +318,7 @@ void FormatDurationMilliseconds(float milliseconds, char* buffer, std::size_t si
 	};
 
 	if (clamped == 0.0) {
-		std::snprintf(buffer, size, "0ms");
+		std::snprintf(buffer, size, "0s");
 		return;
 	}
 
@@ -367,12 +429,13 @@ void DrawCountControl(const char* label, int& value, bool disabled = false) {
 
 struct TriggerDefinition {
 	Id id{ NextId() };
-	TriggerKind kind{ TriggerKind::Manual };
+	TriggerKind kind{ TriggerKind::OnCreate };
 	bool enabled{ true };
 	TextBuffer<48> key{ "Space" };
+	TextBuffer<32> mouse_button{ "Left" };
 	TextBuffer<64> other_tag{ "Player" };
 	TextBuffer<80> signal{ "door.opened" };
-	float timer_ms{ 1000.0f };
+	float duration_ms{ 0.0f };
 };
 
 struct SetVisibleParams { bool visible{ true }; };
@@ -577,6 +640,17 @@ struct GlobalBehaviorRegistry {
 
 	const BehaviorDefinition* Find(Id id) const {
 		return const_cast<GlobalBehaviorRegistry*>(this)->Find(id);
+	}
+
+	BehaviorDefinition* FindByName(std::string_view name) {
+		const auto it{ std::ranges::find_if(definitions, [name](const auto& definition) {
+			return definition.name.View() == name;
+		}) };
+		return it != definitions.end() ? &*it : nullptr;
+	}
+
+	const BehaviorDefinition* FindByName(std::string_view name) const {
+		return const_cast<GlobalBehaviorRegistry*>(this)->FindByName(name);
 	}
 };
 
@@ -889,17 +963,44 @@ float GetRuntimeProgress(const BehaviorBinding& binding, const BehaviorDefinitio
 
 std::string TriggerSummary(const TriggerDefinition& trigger) {
 	switch (trigger.kind) {
-		case TriggerKind::OnCreate: return "On Create";
-		case TriggerKind::KeyPressed: return std::string{ "Key: " } + trigger.key.Data();
-		case TriggerKind::OverlapStart: return std::string{ "Overlap: " } + trigger.other_tag.Data();
-		case TriggerKind::Signal: return std::string{ "Signal: " } + trigger.signal.Data();
-		case TriggerKind::Timer: {
+		case TriggerKind::OnCreate: {
 			char buffer[64]{};
-			std::snprintf(buffer, sizeof(buffer), "After %.2fs", trigger.timer_ms / 1000.0f);
+			char duration[32]{};
+			FormatDurationMilliseconds(trigger.duration_ms, duration, sizeof(duration));
+			std::snprintf(buffer, sizeof(buffer), "On Create — Delay: %s", duration);
 			return buffer;
 		}
-		case TriggerKind::Manual: return "Manual";
+
+		case TriggerKind::Signal:	   return std::string{ "Signal: " } + trigger.signal.Data();
+
+		case TriggerKind::KeyPressed:  return std::string{ "Key Pressed: " } + trigger.key.Data();
+
+		case TriggerKind::KeyReleased: return std::string{ "Key Released: " } + trigger.key.Data();
+
+		case TriggerKind::KeyHeld:	   return std::string{ "Key Held: " } + trigger.key.Data();
+
+		case TriggerKind::MousePressed:
+			return std::string{ "Mouse Pressed: " } + trigger.mouse_button.Data();
+
+		case TriggerKind::MouseReleased:
+			return std::string{ "Mouse Released: " } + trigger.mouse_button.Data();
+
+		case TriggerKind::MouseHeld:
+			return std::string{ "Mouse Held: " } + trigger.mouse_button.Data();
+
+		case TriggerKind::OverlapStart:
+			return std::string{ "Overlap Start: " } + trigger.other_tag.Data();
+
+		case TriggerKind::OverlapStop:
+			return std::string{ "Overlap Stop: " } + trigger.other_tag.Data();
+
+		case TriggerKind::CollisionStart:
+			return std::string{ "Collision Start: " } + trigger.other_tag.Data();
+
+		case TriggerKind::CollisionStop:
+			return std::string{ "Collision Stop: " } + trigger.other_tag.Data();
 	}
+
 	return {};
 }
 
@@ -922,8 +1023,8 @@ std::string SequenceItemSummary(const SequenceItem& item) {
 	return {};
 }
 
-void DrawActionParametersCompact(ActionDefinition& action, float left_offset) {
-	ImGui::SetCursorPosX(ImGui::GetCursorPosX() + left_offset);
+void DrawActionParametersCompact(ActionDefinition& action, float left_screen_x) {
+	ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 
 	switch (action.kind) {
 		case ActionKind::SetVisible: {
@@ -1029,7 +1130,7 @@ void DrawActionParametersCompact(ActionDefinition& action, float left_offset) {
 }
 
 void DrawActionParameters(ActionDefinition& action) {
-	DrawActionParametersCompact(action, 0.0f);
+	DrawActionParametersCompact(action, ImGui::GetCursorScreenPos().x);
 }
 
 bool DrawActionPicker(
@@ -1088,32 +1189,31 @@ bool DrawTriggerCompact(TriggerDefinition& trigger) {
 
 	ImGui::PushID(static_cast<int>(trigger.id));
 
+	const float remove_width{ ImGui::GetFrameHeight() };
+
 	if (ImGui::BeginTable("TriggerRow", 4, ImGuiTableFlags_SizingStretchProp)) {
-		ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, 122.0f);
+		ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, 132.0f);
 		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableSetupColumn("Enabled", ImGuiTableColumnFlags_WidthFixed, 21.0f);
-		ImGui::TableSetupColumn("Remove", ImGuiTableColumnFlags_WidthFixed, 21.0f);
-		ImGui::TableNextRow();
+		ImGui::TableSetupColumn("Remove", ImGuiTableColumnFlags_WidthFixed, remove_width);
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 		ImGui::TableSetColumnIndex(0);
-		DrawEnumCombo("##Kind", trigger.kind, kTriggerNames);
+		DrawTriggerKindCombo("##Kind", trigger.kind);
 
 		ImGui::TableSetColumnIndex(1);
 
 		switch (trigger.kind) {
-			case TriggerKind::OnCreate:
-				ImGui::TextDisabled("Entity created");
+			case TriggerKind::OnCreate: {
+				ImGui::AlignTextToFramePadding();
+				ImGui::TextDisabled("Delay:");
+				ImGui::SameLine();
+				DrawDurationInput(
+					"##Delay", trigger.duration_ms, -FLT_MIN,
+					"Delay before the behavior starts after the entity is created."
+				);
 				break;
-
-			case TriggerKind::KeyPressed:
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				ImGui::InputText("##Key", trigger.key.Data(), trigger.key.Size());
-				break;
-
-			case TriggerKind::OverlapStart:
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				ImGui::InputText("##OtherTag", trigger.other_tag.Data(), trigger.other_tag.Size());
-				break;
+			}
 
 			case TriggerKind::Signal:
 				ImGui::SetNextItemWidth(-FLT_MIN);
@@ -1121,17 +1221,69 @@ bool DrawTriggerCompact(TriggerDefinition& trigger) {
 				DrawItemTooltip("Unique name of the signal to listen for.");
 				break;
 
-			case TriggerKind::Timer:
-				DrawDurationInput(
-					"##TimerDuration",
-					trigger.timer_ms,
-					-FLT_MIN,
-					"Delay after the entity is created."
+			case TriggerKind::KeyPressed:
+			case TriggerKind::KeyReleased:
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::InputText("##Key", trigger.key.Data(), trigger.key.Size());
+				break;
+
+			case TriggerKind::KeyHeld: {
+				if (ImGui::BeginTable("HeldKey", 2, ImGuiTableFlags_SizingStretchProp)) {
+					ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthStretch);
+					ImGui::TableSetupColumn("Duration", ImGuiTableColumnFlags_WidthFixed, 92.0f);
+					ImGui::TableNextRow();
+
+					ImGui::TableSetColumnIndex(0);
+					ImGui::SetNextItemWidth(-FLT_MIN);
+					ImGui::InputText("##Key", trigger.key.Data(), trigger.key.Size());
+
+					ImGui::TableSetColumnIndex(1);
+					DrawDurationInput(
+						"##HeldDuration", trigger.duration_ms, -FLT_MIN,
+						"How long the key must be held."
+					);
+					ImGui::EndTable();
+				}
+				break;
+			}
+
+			case TriggerKind::MousePressed:
+			case TriggerKind::MouseReleased:
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::InputText(
+					"##MouseButton", trigger.mouse_button.Data(), trigger.mouse_button.Size()
 				);
 				break;
 
-			case TriggerKind::Manual:
-				ImGui::TextDisabled("Manual");
+			case TriggerKind::MouseHeld: {
+				if (ImGui::BeginTable("HeldMouse", 2, ImGuiTableFlags_SizingStretchProp)) {
+					ImGui::TableSetupColumn("Button", ImGuiTableColumnFlags_WidthStretch);
+					ImGui::TableSetupColumn("Duration", ImGuiTableColumnFlags_WidthFixed, 92.0f);
+					ImGui::TableNextRow();
+
+					ImGui::TableSetColumnIndex(0);
+					ImGui::SetNextItemWidth(-FLT_MIN);
+					ImGui::InputText(
+						"##MouseButton", trigger.mouse_button.Data(), trigger.mouse_button.Size()
+					);
+
+					ImGui::TableSetColumnIndex(1);
+					DrawDurationInput(
+						"##HeldDuration", trigger.duration_ms, -FLT_MIN,
+						"How long the mouse button must be held."
+					);
+					ImGui::EndTable();
+				}
+				break;
+			}
+
+			case TriggerKind::OverlapStart:
+			case TriggerKind::OverlapStop:
+			case TriggerKind::CollisionStart:
+			case TriggerKind::CollisionStop:
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::InputText("##OtherTag", trigger.other_tag.Data(), trigger.other_tag.Size());
+				DrawItemTooltip("Optional tag used to filter the other entity.");
 				break;
 		}
 
@@ -1139,7 +1291,7 @@ bool DrawTriggerCompact(TriggerDefinition& trigger) {
 		ImGui::Checkbox("##Enabled", &trigger.enabled);
 
 		ImGui::TableSetColumnIndex(3);
-		if (ImGui::SmallButton("x")) {
+		if (ImGui::Button("x", ImVec2{ remove_width, ImGui::GetFrameHeight() })) {
 			remove = true;
 		}
 
@@ -1170,9 +1322,10 @@ bool DrawSequenceItemCompact(
 	);
 
 	const int column_count{ item.kind == SequenceItemKind::TimedAction ? 4 : 3 };
-	const float drag_width{ 23.0f };
+	const float drag_width{ 28.0f };
 	const float type_width{ 108.0f };
 	const float duration_width{ 82.0f };
+	float action_left_screen_x{ ImGui::GetCursorScreenPos().x };
 
 	if (ImGui::BeginTable("SequenceRow", column_count, ImGuiTableFlags_SizingStretchProp)) {
 		ImGui::TableSetupColumn("Drag", ImGuiTableColumnFlags_WidthFixed, drag_width);
@@ -1183,11 +1336,11 @@ bool DrawSequenceItemCompact(
 		}
 
 		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-		ImGui::TableNextRow();
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 		ImGui::TableSetColumnIndex(0);
 		ImGui::Button("::", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() });
-		DrawItemTooltip("Drag to reorder.");
+		DrawItemTooltip("Drag to reorder. Right-click for options.");
 		OpenPopupOnRightClick("ItemMenu");
 
 		if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
@@ -1200,6 +1353,7 @@ bool DrawSequenceItemCompact(
 		if (ImGui::BeginDragDropTarget()) {
 			if (const ImGuiPayload* payload{ ImGui::AcceptDragDropPayload("PTGN_SEQUENCE_ITEM") }) {
 				const auto* drag{ static_cast<const SequenceDragPayload*>(payload->Data) };
+
 				if (drag) {
 					move_from = drag->index;
 					move_to = index;
@@ -1210,6 +1364,7 @@ bool DrawSequenceItemCompact(
 
 		ImGui::TableSetColumnIndex(1);
 		SequenceItemKind new_kind{ item.kind };
+
 		if (DrawEnumCombo("##Type", new_kind, kSequenceItemNames)) {
 			SetSequenceItemKind(item, new_kind);
 		}
@@ -1218,6 +1373,7 @@ bool DrawSequenceItemCompact(
 		switch (item.kind) {
 			case SequenceItemKind::Action: {
 				ImGui::TableSetColumnIndex(2);
+				action_left_screen_x = ImGui::GetCursorScreenPos().x;
 				auto& action{ std::get<ActionItem>(item.data).action };
 				DrawActionPicker("##Action", action, false);
 				OpenPopupOnRightClick("ItemMenu");
@@ -1226,6 +1382,7 @@ bool DrawSequenceItemCompact(
 
 			case SequenceItemKind::TimedAction: {
 				auto& timed{ std::get<TimedActionItem>(item.data) };
+
 				ImGui::TableSetColumnIndex(2);
 				DrawDurationInput(
 					"##Duration",
@@ -1236,6 +1393,7 @@ bool DrawSequenceItemCompact(
 				OpenPopupOnRightClick("ItemMenu");
 
 				ImGui::TableSetColumnIndex(3);
+				action_left_screen_x = ImGui::GetCursorScreenPos().x;
 				DrawActionPicker("##Action", timed.action, true);
 				OpenPopupOnRightClick("ItemMenu");
 				break;
@@ -1283,15 +1441,21 @@ bool DrawSequenceItemCompact(
 		ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 2.0f }, "");
 	}
 
-	const float base_action_offset{
-		drag_width + type_width + ImGui::GetStyle().CellPadding.x * 2.0f
-	};
-
 	if (item.kind == SequenceItemKind::TimedAction) {
 		auto& timed{ std::get<TimedActionItem>(item.data) };
 
-		if (ImGui::BeginTable("TimedOptions", 3, ImGuiTableFlags_SizingStretchProp)) {
-			ImGui::TableSetupColumn("Ease", ImGuiTableColumnFlags_WidthFixed, 88.0f);
+		ImGui::SetCursorScreenPos(ImVec2{ action_left_screen_x, ImGui::GetCursorScreenPos().y });
+
+		const float available_width{ std::max(
+			220.0f,
+			ImGui::GetWindowContentRegionMax().x + ImGui::GetWindowPos().x - action_left_screen_x
+		) };
+
+		if (ImGui::BeginTable(
+				"TimedOptions", 3, ImGuiTableFlags_SizingStretchProp,
+				ImVec2{ available_width, 0.0f }
+			)) {
+			ImGui::TableSetupColumn("Ease", ImGuiTableColumnFlags_WidthFixed, 82.0f);
 			ImGui::TableSetupColumn("Repeats", ImGuiTableColumnFlags_WidthFixed, 132.0f);
 			ImGui::TableSetupColumn("Flags", ImGuiTableColumnFlags_WidthStretch);
 			ImGui::TableNextRow();
@@ -1307,15 +1471,9 @@ bool DrawSequenceItemCompact(
 			ImGui::EndTable();
 		}
 
-		DrawActionParametersCompact(
-			timed.action,
-			base_action_offset + duration_width
-		);
+		DrawActionParametersCompact(timed.action, action_left_screen_x);
 	} else if (item.kind == SequenceItemKind::Action) {
-		DrawActionParametersCompact(
-			std::get<ActionItem>(item.data).action,
-			base_action_offset
-		);
+		DrawActionParametersCompact(std::get<ActionItem>(item.data).action, action_left_screen_x);
 	}
 
 	ImGui::PopID();
@@ -1406,6 +1564,15 @@ void PromoteBindingToGlobal(BehaviorBinding& binding, GlobalBehaviorRegistry& re
 	if (binding.global_reference) {
 		return;
 	}
+
+	if (auto* existing{ registry.FindByName(binding.local_definition.name.View()) }) {
+		binding.global_reference   = true;
+		binding.global_behavior_id = existing->id;
+		binding.local_definition   = {};
+		binding.runtime			   = {};
+		return;
+	}
+
 	BehaviorDefinition global{ std::move(binding.local_definition) };
 	const Id id{ global.id };
 	registry.definitions.push_back(std::move(global));
@@ -1504,11 +1671,14 @@ bool DrawBehaviorBinding(
 	}
 
 	if (open) {
-		if (ImGui::BeginTable("BehaviorMainRow", 3, ImGuiTableFlags_SizingStretchProp)) {
+		if (ImGui::BeginTable("BehaviorMainRow", 6, ImGuiTableFlags_SizingStretchProp)) {
 			ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 38.0f);
-			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 1.4f);
-			ImGui::TableSetupColumn("Runtime", ImGuiTableColumnFlags_WidthStretch, 1.6f);
-			ImGui::TableNextRow();
+			ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 1.6f);
+			ImGui::TableSetupColumn("Play", ImGuiTableColumnFlags_WidthStretch, 0.6f);
+			ImGui::TableSetupColumn("Pause", ImGuiTableColumnFlags_WidthStretch, 0.6f);
+			ImGui::TableSetupColumn("Stop", ImGuiTableColumnFlags_WidthStretch, 0.6f);
+			ImGui::TableSetupColumn("Padding", ImGuiTableColumnFlags_WidthFixed, 0.0f);
+			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 			ImGui::TableSetColumnIndex(0);
 			ImGui::AlignTextToFramePadding();
@@ -1519,7 +1689,28 @@ bool DrawBehaviorBinding(
 			ImGui::InputText("##Name", behavior->name.Data(), behavior->name.Size());
 
 			ImGui::TableSetColumnIndex(2);
-			DrawRuntimeButtons(entity, binding, registry, context);
+			if (ImGui::Button(
+					binding.runtime.running ? "Restart" : "Play",
+					ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
+				)) {
+				StartBehaviorRuntime(entity, binding, registry, context);
+			}
+
+			ImGui::TableSetColumnIndex(3);
+			ImGui::BeginDisabled(!binding.runtime.running);
+			if (ImGui::Button(
+					binding.runtime.paused ? "Resume" : "Pause",
+					ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
+				)) {
+				binding.runtime.paused = !binding.runtime.paused;
+			}
+			ImGui::EndDisabled();
+
+			ImGui::TableSetColumnIndex(4);
+			if (ImGui::Button("Stop", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
+				binding.runtime = {};
+			}
+
 			ImGui::EndTable();
 		}
 
@@ -1573,12 +1764,15 @@ bool DrawBehaviorBinding(
 				behavior->triggers.erase(behavior->triggers.begin() + remove_trigger);
 			}
 
-			const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-			const float add_button_width{
-				(ImGui::GetContentRegionAvail().x - spacing * 3.0f) * 0.25f
-			};
-			if (ImGui::Button("+ Trigger", ImVec2{ add_button_width, 0.0f })) {
-				behavior->triggers.emplace_back();
+			if (behavior->triggers.empty()) {
+				ImGui::TextDisabled("No triggers: this behavior is started manually.");
+			}
+
+			if (ImGui::Button("+ Trigger", ImVec2{ -FLT_MIN, 0.0f })) {
+				TriggerDefinition trigger;
+				trigger.kind		= TriggerKind::OnCreate;
+				trigger.duration_ms = 0.0f;
+				behavior->triggers.push_back(std::move(trigger));
 			}
 		}
 
@@ -1603,8 +1797,10 @@ bool DrawBehaviorBinding(
 
 BehaviorBinding MakeLocalBinding() {
 	BehaviorBinding binding;
-	binding.local_definition.triggers.emplace_back();
-	binding.local_definition.sequence.push_back(MakeSequenceItem(SequenceItemKind::Action));
+	TriggerDefinition on_create;
+	on_create.kind		  = TriggerKind::OnCreate;
+	on_create.duration_ms = 0.0f;
+	binding.local_definition.triggers.push_back(std::move(on_create));
 	return binding;
 }
 
