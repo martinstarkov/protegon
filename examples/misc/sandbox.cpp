@@ -268,28 +268,23 @@ bool DrawLifecycleEventCombo(const char* label, LifecycleEventKind& event, float
 		}
 	};
 
-	if (ImGui::BeginMenu("Behavior")) {
-		draw_item(LifecycleEventKind::Start);
-		draw_item(LifecycleEventKind::Progress);
-		draw_item(LifecycleEventKind::Complete);
-		draw_item(LifecycleEventKind::Reset);
-		draw_item(LifecycleEventKind::Stop);
-		draw_item(LifecycleEventKind::Pause);
-		draw_item(LifecycleEventKind::Resume);
-		ImGui::EndMenu();
-	}
+	draw_item(LifecycleEventKind::Start);
+	draw_item(LifecycleEventKind::Progress);
+	draw_item(LifecycleEventKind::Complete);
+	draw_item(LifecycleEventKind::Reset);
+	draw_item(LifecycleEventKind::Stop);
+	draw_item(LifecycleEventKind::Pause);
+	draw_item(LifecycleEventKind::Resume);
 
-	if (ImGui::BeginMenu("Sequence Item")) {
-		draw_item(LifecycleEventKind::PointStart);
-		draw_item(LifecycleEventKind::PointComplete);
-		ImGui::EndMenu();
-	}
+	ImGui::Separator();
 
-	if (ImGui::BeginMenu("Timed Action")) {
-		draw_item(LifecycleEventKind::Repeat);
-		draw_item(LifecycleEventKind::Yoyo);
-		ImGui::EndMenu();
-	}
+	draw_item(LifecycleEventKind::PointStart);
+	draw_item(LifecycleEventKind::PointComplete);
+
+	ImGui::Separator();
+
+	draw_item(LifecycleEventKind::Repeat);
+	draw_item(LifecycleEventKind::Yoyo);
 
 	ImGui::EndCombo();
 	return changed;
@@ -1452,7 +1447,7 @@ bool DrawActionPicker(
 
 bool DrawLifecycleCallbackCompact(LifecycleCallbackDefinition& callback) {
 	bool remove{ false };
-	float value_left_screen_x{ ImGui::GetCursorScreenPos().x };
+	float callback_left_screen_x{ ImGui::GetCursorScreenPos().x };
 
 	ImGui::PushID(static_cast<int>(callback.id));
 
@@ -1467,6 +1462,7 @@ bool DrawLifecycleCallbackCompact(LifecycleCallbackDefinition& callback) {
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 		ImGui::TableSetColumnIndex(0);
+		callback_left_screen_x = ImGui::GetCursorScreenPos().x;
 		DrawLifecycleEventCombo("##Event", callback.event);
 		DrawItemTooltip("Lifecycle event that invokes this callback.");
 
@@ -1474,7 +1470,6 @@ bool DrawLifecycleCallbackCompact(LifecycleCallbackDefinition& callback) {
 		DrawEnumCombo("##CallbackKind", callback.kind, kLifecycleCallbackKindNames);
 
 		ImGui::TableSetColumnIndex(2);
-		value_left_screen_x = ImGui::GetCursorScreenPos().x;
 
 		switch (callback.kind) {
 			case LifecycleCallbackKind::Action:
@@ -1503,7 +1498,7 @@ bool DrawLifecycleCallbackCompact(LifecycleCallbackDefinition& callback) {
 	}
 
 	if (callback.kind == LifecycleCallbackKind::Action) {
-		DrawActionParametersCompact(callback.action, value_left_screen_x);
+		DrawActionParametersCompact(callback.action, callback_left_screen_x);
 	}
 
 	ImGui::PopID();
@@ -1522,9 +1517,7 @@ void DrawLifecycleSection(BehaviorDefinition& behavior) {
 		"##Lifecycle", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen,
 		"%s", lifecycle_label
 	) };
-	DrawItemTooltip(
-		"Optional lifecycle callbacks and completion cleanup. Leave collapsed for normal behaviors."
-	);
+	DrawItemTooltip("Optional lifecycle callbacks and completion cleanup.");
 
 	if (!lifecycle_open) {
 		return;
@@ -1537,10 +1530,6 @@ void DrawLifecycleSection(BehaviorDefinition& behavior) {
 		"Destroys the transient behavior runtime after completion. The owning entity and behavior "
 		"definition remain."
 	);
-
-	if (!behavior.lifecycle_callbacks.empty()) {
-		ImGui::Separator();
-	}
 
 	int remove_callback{ -1 };
 
