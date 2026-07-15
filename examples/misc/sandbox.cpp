@@ -11,7 +11,7 @@
 // Also demonstrates:
 //   - Prefab creation and reflected component editing.
 //   - Spawn Entity and filtered Delete Entities actions.
-//   - Reflected Add Component and comma-separated Remove Component actions.
+//   - Reflected multi-component Add/Remove Component actions.
 //   - Lifecycle callbacks and completion cleanup.
 //
 // Behaviors can be local to an entity component or references to shared global
@@ -349,7 +349,7 @@ std::optional<float> ParseDurationMilliseconds(std::string_view text) {
 	}
 
 	if (unit.empty()) {
-		return std::nullopt;
+		unit = "ms";
 	}
 
 	std::string normalized_unit{ unit };
@@ -406,7 +406,7 @@ void FormatDurationMilliseconds(float milliseconds, char* buffer, std::size_t si
 	};
 
 	if (clamped == 0.0) {
-		std::snprintf(buffer, size, "0s");
+		std::snprintf(buffer, size, "0ms");
 		return;
 	}
 
@@ -622,6 +622,24 @@ ComponentDefinition MakeComponent(ComponentKind kind) {
 	return component;
 }
 
+std::string ComponentSelectionPreview(
+	const std::vector<ComponentKind>& components, std::string_view empty_text
+) {
+	if (components.empty()) {
+		return std::string{ empty_text };
+	}
+
+	std::string preview;
+	for (const auto kind : components) {
+		if (!preview.empty()) {
+			preview += ", ";
+		}
+		preview += GetComponentDescriptor(kind).label;
+	}
+
+	return preview;
+}
+
 struct PrefabDefinition {
 	Id id{ NextId() };
 	TextBuffer<96> key{ "prefabs/new_entity" };
@@ -658,24 +676,30 @@ struct PlayAudioParams {
 struct SetColliderModeParams { int mode{ 0 }; };
 struct ApplyDamageParams { float amount{ 10.0f }; TextBuffer<48> damage_type{ "Physical" }; bool critical{ false }; };
 
-struct SpawnEntityParams {
+struct SpawnEntityDefinition {
+	Id id{ NextId() };
 	TextBuffer<96> prefab_key{ "prefabs/zombie" };
 	bool inherit_owner_transform{ true };
 	bool parent_to_owner{ false };
 };
 
+struct SpawnEntityParams {
+	std::vector<SpawnEntityDefinition> entities{ SpawnEntityDefinition{} };
+};
+
 struct DeleteEntitiesParams {
 	TextBuffer<96> tag_filter{};
-	TextBuffer<160> component_filter{ "Zombie,-Health" };
+	std::vector<ComponentKind> included_components{ ComponentKind::Zombie };
+	std::vector<ComponentKind> excluded_components{ ComponentKind::Health };
 	bool include_owner{ false };
 };
 
 struct AddComponentParams {
-	ComponentDefinition component{ MakeComponent(ComponentKind::Health) };
+	std::vector<ComponentDefinition> components{ MakeComponent(ComponentKind::Health) };
 };
 
 struct RemoveComponentParams {
-	TextBuffer<160> components{ "Health" };
+	std::vector<ComponentKind> components{ ComponentKind::Health };
 };
 
 using ActionParameters = std::variant<
@@ -706,16 +730,30 @@ struct ActionDescriptor {
 };
 
 constexpr std::array kActionRegistry{
-	ActionDescriptor{ ActionKind::SetVisible, "engine.set_visible", "Set Visible", "Entity", "Changes entity visibility.", false },
-	ActionDescriptor{ ActionKind::MoveTo, "engine.move_to", "Move To", "Transform", "Moves an entity to a target position.", true },
-	ActionDescriptor{ ActionKind::RotateTo, "engine.rotate_to", "Rotate To", "Transform", "Rotates an entity to a target angle.", true },
-	ActionDescriptor{ ActionKind::PlayAudio, "engine.play_audio", "Play Audio", "Audio", "Plays an audio asset.", false },
-	ActionDescriptor{ ActionKind::SetColliderMode, "engine.set_collider_mode", "Set Collider Mode", "Physics", "Changes the collider mode.", false },
-	ActionDescriptor{ ActionKind::SpawnEntity, "engine.spawn_entity", "Spawn Entity", "Scene", "Spawns a runtime entity from a prefab key.", false },
-	ActionDescriptor{ ActionKind::DeleteEntities, "engine.delete_entities", "Delete Entities", "Scene", "Deletes entities matching tag and registered-component filters.", false },
-	ActionDescriptor{ ActionKind::AddComponent, "engine.add_component", "Add Component", "Components", "Adds a registered component with reflected serialized values to the owner.", false },
-	ActionDescriptor{ ActionKind::RemoveComponent, "engine.remove_component", "Remove Component", "Components", "Removes comma-separated registered components from the owner.", false },
-	ActionDescriptor{ ActionKind::ApplyDamage, "game.apply_damage", "Apply Damage", "Game", "Example user-registered action.", false },
+	ActionDescriptor{ ActionKind::SetVisible, "engine.set_visible", "Set Visible", "Entity",
+					  "Changes entity visibility.", false },
+	ActionDescriptor{ ActionKind::MoveTo, "engine.move_to", "Move To", "Transform",
+					  "Moves an entity to a target position.", true },
+	ActionDescriptor{ ActionKind::RotateTo, "engine.rotate_to", "Rotate To", "Transform",
+					  "Rotates an entity to a target angle.", true },
+	ActionDescriptor{ ActionKind::PlayAudio, "engine.play_audio", "Play Audio", "Audio",
+					  "Plays an audio asset.", false },
+	ActionDescriptor{ ActionKind::SetColliderMode, "engine.set_collider_mode", "Set Collider Mode",
+					  "Physics", "Changes the collider mode.", false },
+	ActionDescriptor{ ActionKind::SpawnEntity, "engine.spawn_entity", "Spawn Entity", "Entity",
+					  "Spawns a runtime entity from a prefab key.", false },
+	ActionDescriptor{ ActionKind::DeleteEntities, "engine.delete_entities", "Delete Entities",
+					  "Entity", "Deletes entities matching tag and registered-component filters.",
+					  false },
+	ActionDescriptor{
+		ActionKind::AddComponent, "engine.add_component", "Add Component", "Entity",
+		"Adds one or more registered components with reflected serialized values to the owner.",
+		false },
+	ActionDescriptor{ ActionKind::RemoveComponent, "engine.remove_component", "Remove Component",
+					  "Entity",
+					  "Removes one or more selected registered components from the owner.", false },
+	ActionDescriptor{ ActionKind::ApplyDamage, "game.apply_damage", "Apply Damage", "Game",
+					  "Example user-registered action.", false },
 };
 
 const ActionDescriptor& GetActionDescriptor(ActionKind kind) {
@@ -978,29 +1016,49 @@ void ExecuteAction(
 	std::string detail{ GetActionDescriptor(action.kind).label };
 
 	switch (action.kind) {
-		case ActionKind::SpawnEntity:
-			detail += " [" + std::string{ std::get<SpawnEntityParams>(action.parameters).prefab_key.Data() } + "]";
+		case ActionKind::SpawnEntity: {
+			const auto& params{ std::get<SpawnEntityParams>(action.parameters) };
+			detail += " [";
+			for (std::size_t i{ 0 }; i < params.entities.size(); ++i) {
+				if (i != 0) {
+					detail += ", ";
+				}
+				detail += params.entities[i].prefab_key.Data();
+			}
+			detail += "]";
 			break;
+		}
 
 		case ActionKind::DeleteEntities: {
 			const auto& params{ std::get<DeleteEntitiesParams>(action.parameters) };
 			detail += " [tags=" + std::string{ params.tag_filter.Data() } +
-				", components=" + params.component_filter.Data() + "]";
+					  ", include=" + ComponentSelectionPreview(params.included_components, "Any") +
+					  ", exclude=" + ComponentSelectionPreview(params.excluded_components, "None") +
+					  "]";
 			break;
 		}
 
 		case ActionKind::AddComponent:
-			detail += " [" + std::string{
-				GetComponentDescriptor(
-					std::get<AddComponentParams>(action.parameters).component.kind
-				).label
-			} + "]";
+			detail += " [";
+			for (std::size_t i{ 0 };
+				 i < std::get<AddComponentParams>(action.parameters).components.size(); ++i) {
+				if (i != 0) {
+					detail += ", ";
+				}
+				detail += GetComponentDescriptor(
+							  std::get<AddComponentParams>(action.parameters).components[i].kind
+				)
+							  .label;
+			}
+			detail += "]";
 			break;
 
 		case ActionKind::RemoveComponent:
-			detail += " [" + std::string{
-				std::get<RemoveComponentParams>(action.parameters).components.Data()
-			} + "]";
+			detail += " [" +
+					  ComponentSelectionPreview(
+						  std::get<RemoveComponentParams>(action.parameters).components, "None"
+					  ) +
+					  "]";
 			break;
 
 		case ActionKind::SetVisible:
@@ -1492,6 +1550,148 @@ bool DrawComponentKindCombo(
 	return changed;
 }
 
+bool ContainsComponentKind(const std::vector<ComponentKind>& components, ComponentKind kind) {
+	return std::ranges::find(components, kind) != components.end();
+}
+
+void RemoveComponentKind(std::vector<ComponentKind>& components, ComponentKind kind) {
+	std::erase(components, kind);
+}
+
+bool DrawComponentMultiSelectCombo(
+	const char* label, std::vector<ComponentKind>& selected, const char* empty_text,
+	float width = -FLT_MIN, std::vector<ComponentKind>* mutually_exclusive = nullptr
+) {
+	const std::string preview{ ComponentSelectionPreview(selected, empty_text) };
+	ImGui::SetNextItemWidth(width);
+
+	bool changed{ false };
+
+	if (ImGui::BeginCombo(label, preview.c_str())) {
+		constexpr std::array groups{ "Core", "Graphics", "Physics", "Gameplay" };
+
+		for (const char* group : groups) {
+			if (!ImGui::BeginMenu(group)) {
+				continue;
+			}
+
+			for (const auto& descriptor : kComponentRegistry) {
+				if (std::strcmp(descriptor.group, group) != 0) {
+					continue;
+				}
+
+				bool checked{ ContainsComponentKind(selected, descriptor.kind) };
+
+				if (ImGui::Checkbox(descriptor.label, &checked)) {
+					if (checked) {
+						selected.push_back(descriptor.kind);
+						if (mutually_exclusive) {
+							RemoveComponentKind(*mutually_exclusive, descriptor.kind);
+						}
+					} else {
+						RemoveComponentKind(selected, descriptor.kind);
+					}
+					changed = true;
+				}
+
+				if (ImGui::IsItemHovered()) {
+					ImGui::SetTooltip("%s\n%s", descriptor.description, descriptor.key);
+				}
+			}
+
+			ImGui::EndMenu();
+		}
+
+		ImGui::EndCombo();
+	}
+
+	return changed;
+}
+
+bool DrawAddComponentCombo(
+	const char* label, std::vector<ComponentDefinition>& components, float width = -FLT_MIN
+) {
+	ImGui::SetNextItemWidth(width);
+	bool changed{ false };
+
+	if (ImGui::BeginCombo(label, "Add registered component...")) {
+		constexpr std::array groups{ "Core", "Graphics", "Physics", "Gameplay" };
+
+		for (const char* group : groups) {
+			if (!ImGui::BeginMenu(group)) {
+				continue;
+			}
+
+			for (const auto& descriptor : kComponentRegistry) {
+				if (std::strcmp(descriptor.group, group) != 0) {
+					continue;
+				}
+
+				const bool already_added{ std::ranges::any_of(
+					components, [&descriptor](const auto& component) {
+						return component.kind == descriptor.kind;
+					}
+				) };
+
+				ImGui::BeginDisabled(already_added);
+				if (ImGui::MenuItem(descriptor.label)) {
+					components.push_back(MakeComponent(descriptor.kind));
+					changed = true;
+				}
+				ImGui::EndDisabled();
+
+				if (ImGui::IsItemHovered(already_added ? ImGuiHoveredFlags_AllowWhenDisabled : 0)) {
+					ImGui::SetTooltip(
+						already_added ? "Already selected.\n%s\n%s" : "%s\n%s",
+						descriptor.description, descriptor.key
+					);
+				}
+			}
+
+			ImGui::EndMenu();
+		}
+
+		ImGui::EndCombo();
+	}
+
+	return changed;
+}
+
+std::string SpawnOptionsPreview(const SpawnEntityDefinition& spawn) {
+	std::string preview;
+
+	auto append = [&preview](std::string_view option) {
+		if (!preview.empty()) {
+			preview += ", ";
+		}
+		preview += option;
+	};
+
+	if (spawn.inherit_owner_transform) {
+		append("At Owner");
+	}
+	if (spawn.parent_to_owner) {
+		append("Parented");
+	}
+
+	return preview.empty() ? "Options" : preview;
+}
+
+void DrawSpawnOptionsCombo(SpawnEntityDefinition& spawn) {
+	const std::string preview{ SpawnOptionsPreview(spawn) };
+	ImGui::SetNextItemWidth(-FLT_MIN);
+
+	if (ImGui::BeginCombo("##SpawnOptions", preview.c_str())) {
+		ImGui::Checkbox("At Owner", &spawn.inherit_owner_transform);
+		DrawItemTooltip("Initialize the spawned root transform from the behavior owner.");
+
+		ImGui::Checkbox("Parent to Owner", &spawn.parent_to_owner);
+		DrawItemTooltip("Make the behavior owner the spawned entity's parent.");
+
+		ImGui::EndCombo();
+	}
+}
+
 bool DrawPrefabKeyPicker(
 	const char* label, TextBuffer<96>& prefab_key, const PrefabRegistry& prefabs,
 	float width = -FLT_MIN
@@ -1875,26 +2075,48 @@ void DrawActionParametersCompact(
 
 		case ActionKind::SpawnEntity: {
 			auto& p{ std::get<SpawnEntityParams>(action.parameters) };
+			int remove_spawn{ -1 };
 
-			if (ImGui::BeginTable(
-					"SpawnEntityParams", 3, ImGuiTableFlags_SizingStretchProp,
-					ImVec2{ available_width, 0.0f }
-				)) {
-				ImGui::TableSetupColumn("Prefab", ImGuiTableColumnFlags_WidthStretch);
-				ImGui::TableSetupColumn("Transform", ImGuiTableColumnFlags_WidthFixed, 116.0f);
-				ImGui::TableSetupColumn("Parent", ImGuiTableColumnFlags_WidthFixed, 108.0f);
-				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+			for (int i{ 0 }; i < static_cast<int>(p.entities.size()); ++i) {
+				auto& spawn{ p.entities[static_cast<std::size_t>(i)] };
+				ImGui::PushID(static_cast<int>(spawn.id));
 
-				ImGui::TableSetColumnIndex(0);
-				DrawPrefabKeyPicker("##PrefabKey", p.prefab_key, prefabs);
+				if (ImGui::BeginTable(
+						"SpawnEntityRow", 3, ImGuiTableFlags_SizingStretchProp,
+						ImVec2{ available_width, 0.0f }
+					)) {
+					ImGui::TableSetupColumn("Prefab", ImGuiTableColumnFlags_WidthFixed, 218.0f);
+					ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthStretch);
+					ImGui::TableSetupColumn(
+						"Remove", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight()
+					);
+					ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
-				ImGui::TableSetColumnIndex(1);
-				ImGui::Checkbox("At Owner", &p.inherit_owner_transform);
-				DrawItemTooltip("Initialize the spawned root transform from the behavior owner.");
+					ImGui::TableSetColumnIndex(0);
+					DrawPrefabKeyPicker("##PrefabKey", spawn.prefab_key, prefabs);
 
-				ImGui::TableSetColumnIndex(2);
-				ImGui::Checkbox("Parent to Owner", &p.parent_to_owner);
-				ImGui::EndTable();
+					ImGui::TableSetColumnIndex(1);
+					DrawSpawnOptionsCombo(spawn);
+
+					ImGui::TableSetColumnIndex(2);
+					if (ImGui::Button(
+							"x", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }
+						)) {
+						remove_spawn = i;
+					}
+
+					ImGui::EndTable();
+				}
+
+				ImGui::PopID();
+			}
+
+			if (remove_spawn >= 0) {
+				p.entities.erase(p.entities.begin() + remove_spawn);
+			}
+
+			if (ImGui::Button("+ Spawn Entity", ImVec2{ available_width, 0.0f })) {
+				p.entities.emplace_back();
 			}
 			break;
 		}
@@ -1903,11 +2125,12 @@ void DrawActionParametersCompact(
 			auto& p{ std::get<DeleteEntitiesParams>(action.parameters) };
 
 			if (ImGui::BeginTable(
-					"DeleteEntitiesParams", 2, ImGuiTableFlags_SizingStretchProp,
+					"DeleteEntitiesParams", 3, ImGuiTableFlags_SizingStretchProp,
 					ImVec2{ available_width, 0.0f }
 				)) {
-				ImGui::TableSetupColumn("Tags", ImGuiTableColumnFlags_WidthStretch, 0.8f);
-				ImGui::TableSetupColumn("Components", ImGuiTableColumnFlags_WidthStretch, 1.2f);
+				ImGui::TableSetupColumn("Tags", ImGuiTableColumnFlags_WidthStretch, 1.05f);
+				ImGui::TableSetupColumn("Included", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+				ImGui::TableSetupColumn("Excluded", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 				ImGui::TableSetColumnIndex(0);
@@ -1921,15 +2144,19 @@ void DrawActionParametersCompact(
 				);
 
 				ImGui::TableSetColumnIndex(1);
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				ImGui::InputTextWithHint(
-					"##DeleteComponents", "Components: Zombie,-Health",
-					p.component_filter.Data(), p.component_filter.Size()
+				DrawComponentMultiSelectCombo(
+					"##IncludedComponents", p.included_components, "Include components", -FLT_MIN,
+					&p.excluded_components
 				);
-				DrawItemTooltip(
-					"Registered component type names. Included types must exist; '-Type' must be absent. "
-					"Example: Zombie,-Health."
+				DrawItemTooltip("Every selected component must exist on the entity.");
+
+				ImGui::TableSetColumnIndex(2);
+				DrawComponentMultiSelectCombo(
+					"##ExcludedComponents", p.excluded_components, "Exclude components", -FLT_MIN,
+					&p.included_components
 				);
+				DrawItemTooltip("Every selected component must be absent from the entity.");
+
 				ImGui::EndTable();
 			}
 
@@ -1939,23 +2166,59 @@ void DrawActionParametersCompact(
 
 		case ActionKind::AddComponent: {
 			auto& p{ std::get<AddComponentParams>(action.parameters) };
-			DrawComponentKindCombo("##AddComponentType", p.component, available_width);
+			DrawAddComponentCombo("##AddComponentType", p.components, available_width);
 			DrawItemTooltip(
-				"Select a registered component. Its reflected values are stored as serialized action data."
+				"Select registered components to add. Their reflected values are serialized with "
+				"the action."
 			);
-			DrawComponentMembers(p.component, left_screen_x);
+
+			int remove_component{ -1 };
+
+			for (int i{ 0 }; i < static_cast<int>(p.components.size()); ++i) {
+				auto& component{ p.components[static_cast<std::size_t>(i)] };
+				ImGui::PushID(static_cast<int>(component.id));
+				ImGui::Separator();
+
+				if (ImGui::BeginTable(
+						"AddComponentTitle", 2, ImGuiTableFlags_SizingStretchProp,
+						ImVec2{ available_width, 0.0f }
+					)) {
+					ImGui::TableSetupColumn("Title", ImGuiTableColumnFlags_WidthStretch);
+					ImGui::TableSetupColumn(
+						"Remove", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight()
+					);
+					ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+					ImGui::TableSetColumnIndex(0);
+					ImGui::AlignTextToFramePadding();
+					ImGui::TextUnformatted(GetComponentDescriptor(component.kind).label);
+
+					ImGui::TableSetColumnIndex(1);
+					if (ImGui::Button(
+							"x", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }
+						)) {
+						remove_component = i;
+					}
+					ImGui::EndTable();
+				}
+
+				DrawComponentMembers(component, left_screen_x);
+				ImGui::PopID();
+			}
+
+			if (remove_component >= 0) {
+				p.components.erase(p.components.begin() + remove_component);
+			}
 			break;
 		}
 
 		case ActionKind::RemoveComponent: {
 			auto& p{ std::get<RemoveComponentParams>(action.parameters) };
-			ImGui::SetNextItemWidth(available_width);
-			ImGui::InputTextWithHint(
-				"##RemoveComponents", "Components: Health,Damage", p.components.Data(),
-				p.components.Size()
+			DrawComponentMultiSelectCombo(
+				"##RemoveComponents", p.components, "Select components to remove", available_width
 			);
 			DrawItemTooltip(
-				"Comma-separated registered component type names removed from the behavior owner."
+				"Every selected registered component is removed from the behavior owner."
 			);
 			break;
 		}
@@ -1976,7 +2239,7 @@ bool DrawActionPicker(
 	ImGui::SetNextItemWidth(width);
 
 	if (ImGui::BeginCombo(label, GetActionDescriptor(action.kind).label)) {
-		constexpr std::array groups{ "Entity", "Transform", "Audio", "Physics", "Scene", "Components", "Game" };
+		constexpr std::array groups{ "Entity", "Transform", "Audio", "Physics", "Game" };
 
 		for (const char* group : groups) {
 			const bool has_entries{ std::ranges::any_of(
@@ -3564,26 +3827,37 @@ std::vector<EntityData> MakeDemoEntities(GlobalBehaviorRegistry& registry) {
 	auto spawn_zombie{ MakeSequenceItem(SequenceItemKind::Action) };
 	auto& spawn_action{ std::get<ActionItem>(spawn_zombie.data).action };
 	spawn_action = MakeAction(ActionKind::SpawnEntity);
-	std::get<SpawnEntityParams>(spawn_action.parameters).prefab_key.Assign("prefabs/zombie");
+	auto& spawn_params{ std::get<SpawnEntityParams>(spawn_action.parameters) };
+	spawn_params.entities.clear();
+	SpawnEntityDefinition zombie_spawn;
+	zombie_spawn.prefab_key.Assign("prefabs/zombie");
+	spawn_params.entities.push_back(std::move(zombie_spawn));
+	SpawnEntityDefinition projectile_spawn;
+	projectile_spawn.prefab_key.Assign("prefabs/fireball_projectile");
+	projectile_spawn.parent_to_owner = true;
+	spawn_params.entities.push_back(std::move(projectile_spawn));
 	tools.sequence.push_back(std::move(spawn_zombie));
 
 	auto add_health{ MakeSequenceItem(SequenceItemKind::Action) };
 	auto& add_health_action{ std::get<ActionItem>(add_health.data).action };
 	add_health_action = MakeAction(ActionKind::AddComponent);
-	auto& health_payload{
-		std::get<AddComponentParams>(add_health_action.parameters).component
-	};
-	health_payload = MakeComponent(ComponentKind::Health);
+	auto& add_components{ std::get<AddComponentParams>(add_health_action.parameters).components };
+	add_components.clear();
+	auto health_payload{ MakeComponent(ComponentKind::Health) };
 	std::get<HealthComponentData>(health_payload.data).maximum = 200.0f;
 	std::get<HealthComponentData>(health_payload.data).current = 200.0f;
+	add_components.push_back(std::move(health_payload));
+	auto visible_payload{ MakeComponent(ComponentKind::Visible) };
+	std::get<VisibleComponentData>(visible_payload.data).visible = true;
+	add_components.push_back(std::move(visible_payload));
 	tools.sequence.push_back(std::move(add_health));
 
 	auto remove_damage{ MakeSequenceItem(SequenceItemKind::Action) };
 	auto& remove_damage_action{ std::get<ActionItem>(remove_damage.data).action };
 	remove_damage_action = MakeAction(ActionKind::RemoveComponent);
-	std::get<RemoveComponentParams>(remove_damage_action.parameters).components.Assign(
-		"Damage,Lifetime"
-	);
+	std::get<RemoveComponentParams>(remove_damage_action.parameters).components = {
+		ComponentKind::Damage, ComponentKind::Lifetime
+	};
 	tools.sequence.push_back(std::move(remove_damage));
 
 	auto delete_zombies{ MakeSequenceItem(SequenceItemKind::Action) };
@@ -3591,7 +3865,8 @@ std::vector<EntityData> MakeDemoEntities(GlobalBehaviorRegistry& registry) {
 	delete_action = MakeAction(ActionKind::DeleteEntities);
 	auto& delete_params{ std::get<DeleteEntitiesParams>(delete_action.parameters) };
 	delete_params.tag_filter.Assign("Enemy");
-	delete_params.component_filter.Assign("Zombie,-Health");
+	delete_params.included_components = { ComponentKind::Zombie };
+	delete_params.excluded_components = { ComponentKind::Health };
 	tools.sequence.push_back(std::move(delete_zombies));
 
 	factory.behaviors->bindings.push_back(std::move(entity_tools));
