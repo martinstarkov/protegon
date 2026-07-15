@@ -8,6 +8,12 @@
 //   - Wait
 //   - Emit Signal
 //
+// Also demonstrates:
+//   - Prefab creation and reflected component editing.
+//   - Spawn Entity and filtered Delete Entities actions.
+//   - Reflected Add Component and comma-separated Remove Component actions.
+//   - Lifecycle callbacks and completion cleanup.
+//
 // Behaviors can be local to an entity component or references to shared global
 // definitions. Runtime state remains per entity binding even for global behaviors.
 //
@@ -111,13 +117,28 @@ enum class Ease {
 	OutBack
 };
 
+enum class ComponentKind {
+	Transform,
+	Visible,
+	Sprite,
+	Collider,
+	Health,
+	Zombie,
+	Damage,
+	Lifetime
+};
+
 enum class ActionKind {
 	SetVisible,
 	MoveTo,
 	RotateTo,
 	PlayAudio,
 	SetColliderMode,
-	ApplyDamage
+	ApplyDamage,
+	SpawnEntity,
+	DeleteEntities,
+	AddComponent,
+	RemoveComponent
 };
 
 enum class LifecycleEventKind {
@@ -506,6 +527,124 @@ struct TriggerDefinition {
 	float duration_ms{ 0.0f };
 };
 
+struct TransformComponentData {
+	float position[2]{ 0.0f, 0.0f };
+	float rotation{ 0.0f };
+	float scale[2]{ 1.0f, 1.0f };
+};
+
+struct VisibleComponentData { bool visible{ true }; };
+
+struct SpriteComponentData {
+	TextBuffer<96> texture{ "textures/entity.png" };
+	float size[2]{ 32.0f, 32.0f };
+	bool flip_x{ false };
+};
+
+struct ColliderComponentData {
+	int mode{ 1 };
+	float radius{ 16.0f };
+	int mask{ 1 };
+};
+
+struct HealthComponentData {
+	float maximum{ 100.0f };
+	float current{ 100.0f };
+};
+
+struct ZombieComponentData {};
+
+struct DamageComponentData {
+	float amount{ 10.0f };
+	TextBuffer<48> damage_type{ "Physical" };
+};
+
+struct LifetimeComponentData { float duration_ms{ 3000.0f }; };
+
+using ComponentData = std::variant<
+	TransformComponentData,
+	VisibleComponentData,
+	SpriteComponentData,
+	ColliderComponentData,
+	HealthComponentData,
+	ZombieComponentData,
+	DamageComponentData,
+	LifetimeComponentData
+>;
+
+struct ComponentDefinition {
+	Id id{ NextId() };
+	ComponentKind kind{ ComponentKind::Transform };
+	ComponentData data{ TransformComponentData{} };
+};
+
+struct ComponentDescriptor {
+	ComponentKind kind;
+	const char* key;
+	const char* label;
+	const char* group;
+	const char* description;
+};
+
+constexpr std::array kComponentRegistry{
+	ComponentDescriptor{ ComponentKind::Transform, "ptgn.Transform", "Transform", "Core", "Position, rotation, and scale." },
+	ComponentDescriptor{ ComponentKind::Visible, "ptgn.Visible", "Visible", "Core", "Controls whether the entity is visible." },
+	ComponentDescriptor{ ComponentKind::Sprite, "ptgn.Sprite", "Sprite", "Graphics", "Sprite texture and display size." },
+	ComponentDescriptor{ ComponentKind::Collider, "ptgn.Collider", "Collider", "Physics", "Collider mode, shape radius, and mask." },
+	ComponentDescriptor{ ComponentKind::Health, "game.Health", "Health", "Gameplay", "Maximum and current health." },
+	ComponentDescriptor{ ComponentKind::Zombie, "game.Zombie", "Zombie", "Gameplay", "Tag component identifying zombie entities." },
+	ComponentDescriptor{ ComponentKind::Damage, "game.Damage", "Damage", "Gameplay", "Damage amount and type." },
+	ComponentDescriptor{ ComponentKind::Lifetime, "game.Lifetime", "Lifetime", "Gameplay", "Destroys the runtime entity after a duration." },
+};
+
+const ComponentDescriptor& GetComponentDescriptor(ComponentKind kind) {
+	const auto it{ std::ranges::find_if(kComponentRegistry, [kind](const auto& descriptor) {
+		return descriptor.kind == kind;
+	}) };
+	return it != kComponentRegistry.end() ? *it : kComponentRegistry.front();
+}
+
+ComponentDefinition MakeComponent(ComponentKind kind) {
+	ComponentDefinition component;
+	component.kind = kind;
+
+	switch (kind) {
+		case ComponentKind::Transform: component.data = TransformComponentData{}; break;
+		case ComponentKind::Visible: component.data = VisibleComponentData{}; break;
+		case ComponentKind::Sprite: component.data = SpriteComponentData{}; break;
+		case ComponentKind::Collider: component.data = ColliderComponentData{}; break;
+		case ComponentKind::Health: component.data = HealthComponentData{}; break;
+		case ComponentKind::Zombie: component.data = ZombieComponentData{}; break;
+		case ComponentKind::Damage: component.data = DamageComponentData{}; break;
+		case ComponentKind::Lifetime: component.data = LifetimeComponentData{}; break;
+	}
+
+	return component;
+}
+
+struct PrefabDefinition {
+	Id id{ NextId() };
+	TextBuffer<96> key{ "prefabs/new_entity" };
+	TextBuffer<80> name{ "New Prefab" };
+	TextBuffer<64> tag{};
+	std::vector<ComponentDefinition> components;
+};
+
+struct PrefabRegistry {
+	std::vector<PrefabDefinition> definitions;
+
+	PrefabDefinition* FindByKey(std::string_view key) {
+		const auto it{ std::ranges::find_if(definitions, [key](const auto& prefab) {
+			return prefab.key.View() == key;
+		}) };
+		return it != definitions.end() ? &*it : nullptr;
+	}
+
+	const PrefabDefinition* FindByKey(std::string_view key) const {
+		return const_cast<PrefabRegistry*>(this)->FindByKey(key);
+	}
+};
+
 struct SetVisibleParams { bool visible{ true }; };
 struct MoveToParams { float destination[2]{ 0.0f, 64.0f }; bool relative{ true }; };
 struct RotateToParams { float degrees{ 90.0f }; bool shortest_path{ true };
@@ -519,13 +658,37 @@ struct PlayAudioParams {
 struct SetColliderModeParams { int mode{ 0 }; };
 struct ApplyDamageParams { float amount{ 10.0f }; TextBuffer<48> damage_type{ "Physical" }; bool critical{ false }; };
 
+struct SpawnEntityParams {
+	TextBuffer<96> prefab_key{ "prefabs/zombie" };
+	bool inherit_owner_transform{ true };
+	bool parent_to_owner{ false };
+};
+
+struct DeleteEntitiesParams {
+	TextBuffer<96> tag_filter{};
+	TextBuffer<160> component_filter{ "Zombie,-Health" };
+	bool include_owner{ false };
+};
+
+struct AddComponentParams {
+	ComponentDefinition component{ MakeComponent(ComponentKind::Health) };
+};
+
+struct RemoveComponentParams {
+	TextBuffer<160> components{ "Health" };
+};
+
 using ActionParameters = std::variant<
 	SetVisibleParams,
 	MoveToParams,
 	RotateToParams,
 	PlayAudioParams,
 	SetColliderModeParams,
-	ApplyDamageParams
+	ApplyDamageParams,
+	SpawnEntityParams,
+	DeleteEntitiesParams,
+	AddComponentParams,
+	RemoveComponentParams
 >;
 
 struct ActionDefinition {
@@ -548,6 +711,10 @@ constexpr std::array kActionRegistry{
 	ActionDescriptor{ ActionKind::RotateTo, "engine.rotate_to", "Rotate To", "Transform", "Rotates an entity to a target angle.", true },
 	ActionDescriptor{ ActionKind::PlayAudio, "engine.play_audio", "Play Audio", "Audio", "Plays an audio asset.", false },
 	ActionDescriptor{ ActionKind::SetColliderMode, "engine.set_collider_mode", "Set Collider Mode", "Physics", "Changes the collider mode.", false },
+	ActionDescriptor{ ActionKind::SpawnEntity, "engine.spawn_entity", "Spawn Entity", "Scene", "Spawns a runtime entity from a prefab key.", false },
+	ActionDescriptor{ ActionKind::DeleteEntities, "engine.delete_entities", "Delete Entities", "Scene", "Deletes entities matching tag and registered-component filters.", false },
+	ActionDescriptor{ ActionKind::AddComponent, "engine.add_component", "Add Component", "Components", "Adds a registered component with reflected serialized values to the owner.", false },
+	ActionDescriptor{ ActionKind::RemoveComponent, "engine.remove_component", "Remove Component", "Components", "Removes comma-separated registered components from the owner.", false },
 	ActionDescriptor{ ActionKind::ApplyDamage, "game.apply_damage", "Apply Damage", "Game", "Example user-registered action.", false },
 };
 
@@ -569,6 +736,10 @@ ActionDefinition MakeAction(ActionKind kind) {
 		case ActionKind::PlayAudio: action.parameters = PlayAudioParams{}; break;
 		case ActionKind::SetColliderMode: action.parameters = SetColliderModeParams{}; break;
 		case ActionKind::ApplyDamage: action.parameters = ApplyDamageParams{}; break;
+		case ActionKind::SpawnEntity: action.parameters = SpawnEntityParams{}; break;
+		case ActionKind::DeleteEntities: action.parameters = DeleteEntitiesParams{}; break;
+		case ActionKind::AddComponent: action.parameters = AddComponentParams{}; break;
+		case ActionKind::RemoveComponent: action.parameters = RemoveComponentParams{}; break;
 	}
 
 	return action;
@@ -701,6 +872,7 @@ struct BehaviorsComponent { std::vector<BehaviorBinding> bindings; };
 struct EntityData {
 	Id id{ NextId() };
 	TextBuffer<64> name{ "Entity" };
+	TextBuffer<64> tag{};
 	float position[2]{ 0.0f, 0.0f };
 	float rotation{ 0.0f };
 	float scale[2]{ 1.0f, 1.0f };
@@ -803,10 +975,47 @@ void ExecuteAction(
 	DemoRuntimeContext& context,
 	bool timed
 ) {
+	std::string detail{ GetActionDescriptor(action.kind).label };
+
+	switch (action.kind) {
+		case ActionKind::SpawnEntity:
+			detail += " [" + std::string{ std::get<SpawnEntityParams>(action.parameters).prefab_key.Data() } + "]";
+			break;
+
+		case ActionKind::DeleteEntities: {
+			const auto& params{ std::get<DeleteEntitiesParams>(action.parameters) };
+			detail += " [tags=" + std::string{ params.tag_filter.Data() } +
+				", components=" + params.component_filter.Data() + "]";
+			break;
+		}
+
+		case ActionKind::AddComponent:
+			detail += " [" + std::string{
+				GetComponentDescriptor(
+					std::get<AddComponentParams>(action.parameters).component.kind
+				).label
+			} + "]";
+			break;
+
+		case ActionKind::RemoveComponent:
+			detail += " [" + std::string{
+				std::get<RemoveComponentParams>(action.parameters).components.Data()
+			} + "]";
+			break;
+
+		case ActionKind::SetVisible:
+		case ActionKind::MoveTo:
+		case ActionKind::RotateTo:
+		case ActionKind::PlayAudio:
+		case ActionKind::SetColliderMode:
+		case ActionKind::ApplyDamage:
+			break;
+	}
+
 	AddActivity(
 		context,
 		std::string{ entity.name.Data() } + " / " + behavior.name.Data() +
-			(timed ? " timed: " : " action: ") + GetActionDescriptor(action.kind).label
+			(timed ? " timed: " : " action: ") + detail
 	);
 }
 
@@ -1238,7 +1447,283 @@ std::string SequenceItemSummary(const SequenceItem& item) {
 	return {};
 }
 
-void DrawActionParametersCompact(ActionDefinition& action, float left_screen_x) {
+
+bool DrawComponentKindCombo(
+	const char* label, ComponentDefinition& component, float width = -FLT_MIN
+) {
+	ImGui::SetNextItemWidth(width);
+
+	const auto& current{ GetComponentDescriptor(component.kind) };
+	bool changed{ false };
+
+	if (ImGui::BeginCombo(label, current.label)) {
+		constexpr std::array groups{ "Core", "Graphics", "Physics", "Gameplay" };
+
+		for (const char* group : groups) {
+			if (!ImGui::BeginMenu(group)) {
+				continue;
+			}
+
+			for (const auto& descriptor : kComponentRegistry) {
+				if (std::strcmp(descriptor.group, group) != 0) {
+					continue;
+				}
+
+				const bool selected{ component.kind == descriptor.kind };
+
+				if (ImGui::MenuItem(descriptor.label, nullptr, selected)) {
+					const Id id{ component.id };
+					component = MakeComponent(descriptor.kind);
+					component.id = id;
+					changed = true;
+				}
+
+				if (ImGui::IsItemHovered()) {
+					ImGui::SetTooltip("%s\n%s", descriptor.description, descriptor.key);
+				}
+			}
+
+			ImGui::EndMenu();
+		}
+
+		ImGui::EndCombo();
+	}
+
+	return changed;
+}
+
+bool DrawPrefabKeyPicker(
+	const char* label, TextBuffer<96>& prefab_key, const PrefabRegistry& prefabs,
+	float width = -FLT_MIN
+) {
+	ImGui::SetNextItemWidth(width);
+
+	const char* preview{ prefab_key.Empty() ? "Select prefab key" : prefab_key.Data() };
+	bool changed{ false };
+
+	if (ImGui::BeginCombo(label, preview)) {
+		ImGui::SetNextItemWidth(260.0f);
+		if (ImGui::InputTextWithHint(
+				"##CustomPrefabKey", "Type prefab key", prefab_key.Data(), prefab_key.Size()
+			)) {
+			changed = true;
+		}
+		DrawItemTooltip("A custom key may reference a prefab asset that is not loaded in this demo.");
+
+		if (!prefabs.definitions.empty()) {
+			ImGui::Separator();
+		}
+
+		for (const auto& prefab : prefabs.definitions) {
+			const bool selected{ prefab.key.View() == prefab_key.View() };
+
+			if (ImGui::MenuItem(prefab.key.Data(), nullptr, selected)) {
+				prefab_key.Assign(prefab.key.View());
+				changed = true;
+			}
+
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("%s\nTag: %s", prefab.name.Data(),
+					prefab.tag.Empty() ? "(none)" : prefab.tag.Data());
+			}
+		}
+
+		ImGui::EndCombo();
+	}
+
+	return changed;
+}
+
+void DrawComponentMembers(ComponentDefinition& component, float left_screen_x) {
+	const float right_screen_x{ ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x };
+	const float available_width{ std::max(1.0f, right_screen_x - left_screen_x) };
+
+	ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
+	ImGui::PushID(static_cast<int>(component.id));
+
+	switch (component.kind) {
+		case ComponentKind::Transform: {
+			auto& data{ std::get<TransformComponentData>(component.data) };
+
+			if (ImGui::BeginTable(
+					"TransformMembers", 3, ImGuiTableFlags_SizingStretchProp,
+					ImVec2{ available_width, 0.0f }
+				)) {
+				ImGui::TableSetupColumn("Position", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Rotation", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+				ImGui::TableSetupColumn("Scale", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+				ImGui::TableSetColumnIndex(0);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::DragFloat2(
+					"##Position", data.position, 1.0f, -100000.0f, 100000.0f, "P %.0f"
+				);
+
+				ImGui::TableSetColumnIndex(1);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::DragFloat(
+					"##Rotation", &data.rotation, 1.0f, -3600.0f, 3600.0f, "%.1f deg"
+				);
+
+				ImGui::TableSetColumnIndex(2);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::DragFloat2(
+					"##Scale", data.scale, 0.01f, -1000.0f, 1000.0f, "S %.2f"
+				);
+				ImGui::EndTable();
+			}
+			break;
+		}
+
+		case ComponentKind::Visible: {
+			auto& data{ std::get<VisibleComponentData>(component.data) };
+			ImGui::Checkbox("Visible", &data.visible);
+			break;
+		}
+
+		case ComponentKind::Sprite: {
+			auto& data{ std::get<SpriteComponentData>(component.data) };
+
+			if (ImGui::BeginTable(
+					"SpriteMembers", 3, ImGuiTableFlags_SizingStretchProp,
+					ImVec2{ available_width, 0.0f }
+				)) {
+				ImGui::TableSetupColumn("Texture", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Size", ImGuiTableColumnFlags_WidthFixed, 142.0f);
+				ImGui::TableSetupColumn("Flip", ImGuiTableColumnFlags_WidthFixed, 58.0f);
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+				ImGui::TableSetColumnIndex(0);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::InputTextWithHint(
+					"##Texture", "Texture key", data.texture.Data(), data.texture.Size()
+				);
+
+				ImGui::TableSetColumnIndex(1);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::DragFloat2(
+					"##Size", data.size, 1.0f, 0.0f, 100000.0f, "%.0f"
+				);
+
+				ImGui::TableSetColumnIndex(2);
+				ImGui::Checkbox("Flip X", &data.flip_x);
+				ImGui::EndTable();
+			}
+			break;
+		}
+
+		case ComponentKind::Collider: {
+			auto& data{ std::get<ColliderComponentData>(component.data) };
+
+			if (ImGui::BeginTable(
+					"ColliderMembers", 3, ImGuiTableFlags_SizingStretchProp,
+					ImVec2{ available_width, 0.0f }
+				)) {
+				ImGui::TableSetupColumn("Mode", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Radius", ImGuiTableColumnFlags_WidthFixed, 105.0f);
+				ImGui::TableSetupColumn("Mask", ImGuiTableColumnFlags_WidthFixed, 90.0f);
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+				ImGui::TableSetColumnIndex(0);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				if (ImGui::BeginCombo(
+						"##Mode", kColliderModeNames[static_cast<std::size_t>(data.mode)]
+					)) {
+					for (int i{ 0 }; i < static_cast<int>(kColliderModeNames.size()); ++i) {
+						const bool selected{ data.mode == i };
+						if (ImGui::Selectable(
+								kColliderModeNames[static_cast<std::size_t>(i)], selected
+							)) {
+							data.mode = i;
+						}
+					}
+					ImGui::EndCombo();
+				}
+
+				ImGui::TableSetColumnIndex(1);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::DragFloat("##Radius", &data.radius, 0.5f, 0.0f, 100000.0f, "R %.1f");
+
+				ImGui::TableSetColumnIndex(2);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::InputInt("##Mask", &data.mask);
+				ImGui::EndTable();
+			}
+			break;
+		}
+
+		case ComponentKind::Health: {
+			auto& data{ std::get<HealthComponentData>(component.data) };
+
+			if (ImGui::BeginTable(
+					"HealthMembers", 2, ImGuiTableFlags_SizingStretchSame,
+					ImVec2{ available_width, 0.0f }
+				)) {
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+				ImGui::TableSetColumnIndex(0);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::DragFloat(
+					"##Maximum", &data.maximum, 1.0f, 0.0f, 100000.0f, "Maximum %.0f"
+				);
+
+				ImGui::TableSetColumnIndex(1);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::DragFloat(
+					"##Current", &data.current, 1.0f, 0.0f, 100000.0f, "Current %.0f"
+				);
+				ImGui::EndTable();
+			}
+			break;
+		}
+
+		case ComponentKind::Zombie:
+			ImGui::TextDisabled("Tag component: no reflected members.");
+			break;
+
+		case ComponentKind::Damage: {
+			auto& data{ std::get<DamageComponentData>(component.data) };
+
+			if (ImGui::BeginTable(
+					"DamageMembers", 2, ImGuiTableFlags_SizingStretchProp,
+					ImVec2{ available_width, 0.0f }
+				)) {
+				ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthFixed, 115.0f);
+				ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+				ImGui::TableSetColumnIndex(0);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::DragFloat("##Damage", &data.amount, 0.5f, 0.0f, 100000.0f, "%.1f");
+
+				ImGui::TableSetColumnIndex(1);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::InputTextWithHint(
+					"##DamageType", "Damage type", data.damage_type.Data(),
+					data.damage_type.Size()
+				);
+				ImGui::EndTable();
+			}
+			break;
+		}
+
+		case ComponentKind::Lifetime: {
+			auto& data{ std::get<LifetimeComponentData>(component.data) };
+			DrawDurationInput(
+				"##Lifetime", data.duration_ms, available_width,
+				"Runtime lifetime before the spawned entity is destroyed."
+			);
+			break;
+		}
+	}
+
+	ImGui::PopID();
+}
+
+void DrawActionParametersCompact(
+	ActionDefinition& action, float left_screen_x, const PrefabRegistry& prefabs
+) {
 	const float right_screen_x{ ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x };
 	const float available_width{ std::max(1.0f, right_screen_x - left_screen_x) };
 
@@ -1387,11 +1872,98 @@ void DrawActionParametersCompact(ActionDefinition& action, float left_screen_x) 
 			}
 			break;
 		}
+
+		case ActionKind::SpawnEntity: {
+			auto& p{ std::get<SpawnEntityParams>(action.parameters) };
+
+			if (ImGui::BeginTable(
+					"SpawnEntityParams", 3, ImGuiTableFlags_SizingStretchProp,
+					ImVec2{ available_width, 0.0f }
+				)) {
+				ImGui::TableSetupColumn("Prefab", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Transform", ImGuiTableColumnFlags_WidthFixed, 116.0f);
+				ImGui::TableSetupColumn("Parent", ImGuiTableColumnFlags_WidthFixed, 108.0f);
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+				ImGui::TableSetColumnIndex(0);
+				DrawPrefabKeyPicker("##PrefabKey", p.prefab_key, prefabs);
+
+				ImGui::TableSetColumnIndex(1);
+				ImGui::Checkbox("At Owner", &p.inherit_owner_transform);
+				DrawItemTooltip("Initialize the spawned root transform from the behavior owner.");
+
+				ImGui::TableSetColumnIndex(2);
+				ImGui::Checkbox("Parent to Owner", &p.parent_to_owner);
+				ImGui::EndTable();
+			}
+			break;
+		}
+
+		case ActionKind::DeleteEntities: {
+			auto& p{ std::get<DeleteEntitiesParams>(action.parameters) };
+
+			if (ImGui::BeginTable(
+					"DeleteEntitiesParams", 2, ImGuiTableFlags_SizingStretchProp,
+					ImVec2{ available_width, 0.0f }
+				)) {
+				ImGui::TableSetupColumn("Tags", ImGuiTableColumnFlags_WidthStretch, 0.8f);
+				ImGui::TableSetupColumn("Components", ImGuiTableColumnFlags_WidthStretch, 1.2f);
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+				ImGui::TableSetColumnIndex(0);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::InputTextWithHint(
+					"##DeleteTags", "Tags: Enemy,-Boss", p.tag_filter.Data(),
+					p.tag_filter.Size()
+				);
+				DrawItemTooltip(
+					"Optional comma-separated tag filter. Positive tags include; '-' excludes."
+				);
+
+				ImGui::TableSetColumnIndex(1);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::InputTextWithHint(
+					"##DeleteComponents", "Components: Zombie,-Health",
+					p.component_filter.Data(), p.component_filter.Size()
+				);
+				DrawItemTooltip(
+					"Registered component type names. Included types must exist; '-Type' must be absent. "
+					"Example: Zombie,-Health."
+				);
+				ImGui::EndTable();
+			}
+
+			ImGui::Checkbox("Allow deleting the behavior owner", &p.include_owner);
+			break;
+		}
+
+		case ActionKind::AddComponent: {
+			auto& p{ std::get<AddComponentParams>(action.parameters) };
+			DrawComponentKindCombo("##AddComponentType", p.component, available_width);
+			DrawItemTooltip(
+				"Select a registered component. Its reflected values are stored as serialized action data."
+			);
+			DrawComponentMembers(p.component, left_screen_x);
+			break;
+		}
+
+		case ActionKind::RemoveComponent: {
+			auto& p{ std::get<RemoveComponentParams>(action.parameters) };
+			ImGui::SetNextItemWidth(available_width);
+			ImGui::InputTextWithHint(
+				"##RemoveComponents", "Components: Health,Damage", p.components.Data(),
+				p.components.Size()
+			);
+			DrawItemTooltip(
+				"Comma-separated registered component type names removed from the behavior owner."
+			);
+			break;
+		}
 	}
 }
 
-void DrawActionParameters(ActionDefinition& action) {
-	DrawActionParametersCompact(action, ImGui::GetCursorScreenPos().x);
+void DrawActionParameters(ActionDefinition& action, const PrefabRegistry& prefabs) {
+	DrawActionParametersCompact(action, ImGui::GetCursorScreenPos().x, prefabs);
 }
 
 bool DrawActionPicker(
@@ -1404,7 +1976,7 @@ bool DrawActionPicker(
 	ImGui::SetNextItemWidth(width);
 
 	if (ImGui::BeginCombo(label, GetActionDescriptor(action.kind).label)) {
-		constexpr std::array groups{ "Entity", "Transform", "Audio", "Physics", "Game" };
+		constexpr std::array groups{ "Entity", "Transform", "Audio", "Physics", "Scene", "Components", "Game" };
 
 		for (const char* group : groups) {
 			const bool has_entries{ std::ranges::any_of(
@@ -1445,7 +2017,9 @@ bool DrawActionPicker(
 	return changed;
 }
 
-bool DrawLifecycleCallbackCompact(LifecycleCallbackDefinition& callback) {
+bool DrawLifecycleCallbackCompact(
+	LifecycleCallbackDefinition& callback, const PrefabRegistry& prefabs
+) {
 	bool remove{ false };
 	float callback_left_screen_x{ ImGui::GetCursorScreenPos().x };
 
@@ -1498,14 +2072,14 @@ bool DrawLifecycleCallbackCompact(LifecycleCallbackDefinition& callback) {
 	}
 
 	if (callback.kind == LifecycleCallbackKind::Action) {
-		DrawActionParametersCompact(callback.action, callback_left_screen_x);
+		DrawActionParametersCompact(callback.action, callback_left_screen_x, prefabs);
 	}
 
 	ImGui::PopID();
 	return remove;
 }
 
-void DrawLifecycleSection(BehaviorDefinition& behavior) {
+void DrawLifecycleSection(BehaviorDefinition& behavior, const PrefabRegistry& prefabs) {
 	char lifecycle_label[96]{};
 	std::snprintf(
 		lifecycle_label, sizeof(lifecycle_label), "Lifecycle & Cleanup (%zu)%s",
@@ -1535,7 +2109,7 @@ void DrawLifecycleSection(BehaviorDefinition& behavior) {
 
 	for (int i{ 0 }; i < static_cast<int>(behavior.lifecycle_callbacks.size()); ++i) {
 		if (DrawLifecycleCallbackCompact(
-				behavior.lifecycle_callbacks[static_cast<std::size_t>(i)]
+				behavior.lifecycle_callbacks[static_cast<std::size_t>(i)], prefabs
 			)) {
 			remove_callback = i;
 		}
@@ -1699,7 +2273,8 @@ bool DrawSequenceItemCompact(
 	float progress,
 	bool& duplicate,
 	int& move_from,
-	int& move_to
+	int& move_to,
+	const PrefabRegistry& prefabs
 ) {
 	bool remove{ false };
 
@@ -1866,9 +2441,11 @@ bool DrawSequenceItemCompact(
 
 		ImGui::PopStyleVar();
 
-		DrawActionParametersCompact(timed.action, type_left_screen_x);
+		DrawActionParametersCompact(timed.action, type_left_screen_x, prefabs);
 	} else if (item.kind == SequenceItemKind::Action) {
-		DrawActionParametersCompact(std::get<ActionItem>(item.data).action, type_left_screen_x);
+		DrawActionParametersCompact(
+			std::get<ActionItem>(item.data).action, type_left_screen_x, prefabs
+		);
 	}
 
 	ImGui::PopID();
@@ -1877,7 +2454,8 @@ bool DrawSequenceItemCompact(
 
 void DrawBehaviorSequence(
 	BehaviorDefinition& behavior,
-	BehaviorBinding& binding
+	BehaviorBinding& binding,
+	const PrefabRegistry& prefabs
 ) {
 	int remove_index{ -1 };
 	int duplicate_index{ -1 };
@@ -1899,7 +2477,8 @@ void DrawBehaviorSequence(
 				active ? GetRuntimeProgress(binding, behavior) : 0.0f,
 				duplicate,
 				move_from,
-				move_to
+				move_to,
+				prefabs
 			)) {
 			remove_index = i;
 		}
@@ -2034,7 +2613,8 @@ bool DrawBehaviorBinding(
 	EntityData& entity,
 	BehaviorBinding& binding,
 	GlobalBehaviorRegistry& registry,
-	DemoRuntimeContext& context
+	DemoRuntimeContext& context,
+	const PrefabRegistry& prefabs
 ) {
 	auto* behavior{ ResolveBehavior(binding, registry) };
 
@@ -2144,7 +2724,7 @@ bool DrawBehaviorBinding(
 			ImGui::EndTable();
 		}
 
-		DrawLifecycleSection(*behavior);
+		DrawLifecycleSection(*behavior, prefabs);
 
 		char trigger_label[64]{};
 		std::snprintf(trigger_label, sizeof(trigger_label), "Triggers (%zu)", behavior->triggers.size());
@@ -2190,7 +2770,7 @@ bool DrawBehaviorBinding(
 		) };
 
 		if (sequence_open) {
-			DrawBehaviorSequence(*behavior, binding);
+			DrawBehaviorSequence(*behavior, binding, prefabs);
 		}
 	}
 
@@ -2260,7 +2840,8 @@ void DrawAddBehaviorPopup(
 void DrawBehaviorsComponent(
 	EntityData& entity,
 	GlobalBehaviorRegistry& registry,
-	DemoRuntimeContext& context
+	DemoRuntimeContext& context,
+	const PrefabRegistry& prefabs
 ) {
 	auto& component{ *entity.behaviors };
 	ImGui::PushID("BehaviorsComponent");
@@ -2299,7 +2880,8 @@ void DrawBehaviorsComponent(
 					entity,
 					component.bindings[static_cast<std::size_t>(i)],
 					registry,
-					context
+					context,
+					prefabs
 				)) {
 				remove_index = i;
 			}
@@ -2351,10 +2933,25 @@ void DrawBehaviorsComponent(
 	ImGui::PopID();
 }
 
-void DrawInspector(EntityData& entity, GlobalBehaviorRegistry& registry, DemoRuntimeContext& context) {
+void DrawInspector(
+	EntityData& entity, GlobalBehaviorRegistry& registry, DemoRuntimeContext& context,
+	const PrefabRegistry& prefabs
+) {
 	ImGui::TextDisabled("Entity");
-	ImGui::SetNextItemWidth(-FLT_MIN);
-	ImGui::InputText("##Name", entity.name.Data(), entity.name.Size());
+	if (ImGui::BeginTable("EntityIdentity", 2, ImGuiTableFlags_SizingStretchProp)) {
+		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Tag", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+		ImGui::TableSetColumnIndex(0);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		ImGui::InputTextWithHint("##Name", "Entity name", entity.name.Data(), entity.name.Size());
+
+		ImGui::TableSetColumnIndex(1);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		ImGui::InputTextWithHint("##Tag", "Tag", entity.tag.Data(), entity.tag.Size());
+		ImGui::EndTable();
+	}
 
 	if (ImGui::TreeNodeEx("Transform", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth)) {
 		ImGui::DragFloat2("Position", entity.position, 1.0f, -100000.0f, 100000.0f, "%.0f");
@@ -2367,7 +2964,7 @@ void DrawInspector(EntityData& entity, GlobalBehaviorRegistry& registry, DemoRun
 		ImGui::TreePop();
 	}
 	if (entity.behaviors) {
-		DrawBehaviorsComponent(entity, registry, context);
+		DrawBehaviorsComponent(entity, registry, context, prefabs);
 	}
 
 	if (ImGui::Button("+ Add Component", ImVec2{ -FLT_MIN, 0.0f })) {
@@ -2381,6 +2978,448 @@ void DrawInspector(EntityData& entity, GlobalBehaviorRegistry& registry, DemoRun
 		ImGui::EndDisabled();
 		ImGui::EndPopup();
 	}
+}
+
+
+std::string MakePrefabKey(std::string_view name) {
+	std::string key{ "prefabs/" };
+	bool previous_separator{ false };
+
+	for (unsigned char c : name) {
+		if (std::isalnum(c)) {
+			key.push_back(static_cast<char>(std::tolower(c)));
+			previous_separator = false;
+		} else if (!previous_separator && key.size() > std::string_view{ "prefabs/" }.size()) {
+			key.push_back('_');
+			previous_separator = true;
+		}
+	}
+
+	while (!key.empty() && key.back() == '_') {
+		key.pop_back();
+	}
+
+	if (key == "prefabs/") {
+		key += "new_entity";
+	}
+
+	return key;
+}
+
+std::string MakeUniquePrefabKey(const PrefabRegistry& prefabs, std::string base) {
+	if (!prefabs.FindByKey(base)) {
+		return base;
+	}
+
+	for (int suffix{ 2 }; suffix < 10000; ++suffix) {
+		std::string candidate{ base + "_" + std::to_string(suffix) };
+		if (!prefabs.FindByKey(candidate)) {
+			return candidate;
+		}
+	}
+
+	return base + "_copy";
+}
+
+bool HasPrefabComponent(const PrefabDefinition& prefab, ComponentKind kind) {
+	return std::ranges::any_of(prefab.components, [kind](const auto& component) {
+		return component.kind == kind;
+	});
+}
+
+PrefabDefinition MakeNewPrefab(const PrefabRegistry& prefabs) {
+	PrefabDefinition prefab;
+	prefab.name.Assign("New Prefab");
+	prefab.key.Assign(MakeUniquePrefabKey(prefabs, "prefabs/new_entity"));
+	prefab.components.push_back(MakeComponent(ComponentKind::Transform));
+	prefab.components.push_back(MakeComponent(ComponentKind::Visible));
+	return prefab;
+}
+
+PrefabDefinition MakePrefabFromEntity(const EntityData& entity, const PrefabRegistry& prefabs) {
+	PrefabDefinition prefab;
+	prefab.name.Assign(entity.name.View());
+	prefab.key.Assign(MakeUniquePrefabKey(prefabs, MakePrefabKey(entity.name.View())));
+	prefab.tag.Assign(entity.tag.View());
+
+	auto transform{ MakeComponent(ComponentKind::Transform) };
+	auto& transform_data{ std::get<TransformComponentData>(transform.data) };
+	transform_data.position[0] = entity.position[0];
+	transform_data.position[1] = entity.position[1];
+	transform_data.rotation = entity.rotation;
+	transform_data.scale[0] = entity.scale[0];
+	transform_data.scale[1] = entity.scale[1];
+	prefab.components.push_back(std::move(transform));
+
+	auto visible{ MakeComponent(ComponentKind::Visible) };
+	std::get<VisibleComponentData>(visible.data).visible = entity.visible;
+	prefab.components.push_back(std::move(visible));
+
+	return prefab;
+}
+
+PrefabRegistry MakeDemoPrefabs() {
+	PrefabRegistry prefabs;
+
+	PrefabDefinition zombie;
+	zombie.key.Assign("prefabs/zombie");
+	zombie.name.Assign("Zombie");
+	zombie.tag.Assign("Enemy");
+	zombie.components.push_back(MakeComponent(ComponentKind::Transform));
+
+	auto zombie_sprite{ MakeComponent(ComponentKind::Sprite) };
+	auto& zombie_sprite_data{ std::get<SpriteComponentData>(zombie_sprite.data) };
+	zombie_sprite_data.texture.Assign("textures/zombie.png");
+	zombie_sprite_data.size[0] = 48.0f;
+	zombie_sprite_data.size[1] = 64.0f;
+	zombie.components.push_back(std::move(zombie_sprite));
+
+	auto zombie_collider{ MakeComponent(ComponentKind::Collider) };
+	auto& zombie_collider_data{ std::get<ColliderComponentData>(zombie_collider.data) };
+	zombie_collider_data.mode = 2;
+	zombie_collider_data.radius = 18.0f;
+	zombie_collider_data.mask = 4;
+	zombie.components.push_back(std::move(zombie_collider));
+
+	auto zombie_health{ MakeComponent(ComponentKind::Health) };
+	auto& zombie_health_data{ std::get<HealthComponentData>(zombie_health.data) };
+	zombie_health_data.maximum = 120.0f;
+	zombie_health_data.current = 120.0f;
+	zombie.components.push_back(std::move(zombie_health));
+	zombie.components.push_back(MakeComponent(ComponentKind::Zombie));
+	prefabs.definitions.push_back(std::move(zombie));
+
+	PrefabDefinition projectile;
+	projectile.key.Assign("prefabs/fireball_projectile");
+	projectile.name.Assign("Fireball Projectile");
+	projectile.tag.Assign("Projectile");
+	projectile.components.push_back(MakeComponent(ComponentKind::Transform));
+
+	auto projectile_sprite{ MakeComponent(ComponentKind::Sprite) };
+	auto& projectile_sprite_data{ std::get<SpriteComponentData>(projectile_sprite.data) };
+	projectile_sprite_data.texture.Assign("textures/fireball.png");
+	projectile_sprite_data.size[0] = 24.0f;
+	projectile_sprite_data.size[1] = 24.0f;
+	projectile.components.push_back(std::move(projectile_sprite));
+
+	auto projectile_collider{ MakeComponent(ComponentKind::Collider) };
+	auto& projectile_collider_data{ std::get<ColliderComponentData>(projectile_collider.data) };
+	projectile_collider_data.mode = 3;
+	projectile_collider_data.radius = 10.0f;
+	projectile_collider_data.mask = 8;
+	projectile.components.push_back(std::move(projectile_collider));
+
+	auto projectile_damage{ MakeComponent(ComponentKind::Damage) };
+	auto& projectile_damage_data{ std::get<DamageComponentData>(projectile_damage.data) };
+	projectile_damage_data.amount = 25.0f;
+	projectile_damage_data.damage_type.Assign("Fire");
+	projectile.components.push_back(std::move(projectile_damage));
+
+	auto projectile_lifetime{ MakeComponent(ComponentKind::Lifetime) };
+	std::get<LifetimeComponentData>(projectile_lifetime.data).duration_ms = 2200.0f;
+	projectile.components.push_back(std::move(projectile_lifetime));
+	prefabs.definitions.push_back(std::move(projectile));
+
+	PrefabDefinition pickup;
+	pickup.key.Assign("prefabs/health_pickup");
+	pickup.name.Assign("Health Pickup");
+	pickup.tag.Assign("Pickup");
+	pickup.components.push_back(MakeComponent(ComponentKind::Transform));
+
+	auto pickup_sprite{ MakeComponent(ComponentKind::Sprite) };
+	std::get<SpriteComponentData>(pickup_sprite.data).texture.Assign("textures/health_pickup.png");
+	pickup.components.push_back(std::move(pickup_sprite));
+	pickup.components.push_back(MakeComponent(ComponentKind::Collider));
+	prefabs.definitions.push_back(std::move(pickup));
+
+	return prefabs;
+}
+
+bool DrawPrefabComponent(ComponentDefinition& component) {
+	bool remove{ false };
+	float members_left_screen_x{ ImGui::GetCursorScreenPos().x };
+
+	ImGui::PushID(static_cast<int>(component.id));
+
+	bool open{ false };
+	if (ImGui::BeginTable("PrefabComponentHeader", 2, ImGuiTableFlags_SizingStretchProp)) {
+		ImGui::TableSetupColumn("Component", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Remove", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight());
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+		ImGui::TableSetColumnIndex(0);
+		members_left_screen_x = ImGui::GetCursorScreenPos().x;
+		open = ImGui::TreeNodeEx(
+			"##Component",
+			ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
+				ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen,
+			"%s", GetComponentDescriptor(component.kind).label
+		);
+		DrawItemTooltip(GetComponentDescriptor(component.kind).description);
+
+		ImGui::TableSetColumnIndex(1);
+		if (ImGui::Button("x", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() })) {
+			remove = true;
+		}
+
+		ImGui::EndTable();
+	}
+
+	if (open) {
+		DrawComponentMembers(component, members_left_screen_x);
+	}
+
+	ImGui::PopID();
+	return remove;
+}
+
+void DrawPrefabInspector(PrefabDefinition& prefab) {
+	ImGui::TextDisabled("Prefab Asset");
+
+	if (ImGui::BeginTable("PrefabIdentity", 2, ImGuiTableFlags_SizingStretchProp)) {
+		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Tag", ImGuiTableColumnFlags_WidthFixed, 145.0f);
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+		ImGui::TableSetColumnIndex(0);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		ImGui::InputTextWithHint("##PrefabName", "Display name", prefab.name.Data(), prefab.name.Size());
+
+		ImGui::TableSetColumnIndex(1);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		ImGui::InputTextWithHint("##PrefabTag", "Tag", prefab.tag.Data(), prefab.tag.Size());
+		ImGui::EndTable();
+	}
+
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	ImGui::InputTextWithHint("##PrefabKey", "Prefab key", prefab.key.Data(), prefab.key.Size());
+	DrawItemTooltip("Stable asset key referenced by Spawn Entity actions.");
+
+	char components_label[64]{};
+	std::snprintf(components_label, sizeof(components_label), "Components (%zu)", prefab.components.size());
+
+	const bool components_open{ ImGui::TreeNodeEx(
+		"##PrefabComponents",
+		ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth |
+			ImGuiTreeNodeFlags_NoTreePushOnOpen,
+		"%s", components_label
+	) };
+
+	if (!components_open) {
+		return;
+	}
+
+	int remove_component{ -1 };
+	for (int i{ 0 }; i < static_cast<int>(prefab.components.size()); ++i) {
+		if (DrawPrefabComponent(prefab.components[static_cast<std::size_t>(i)])) {
+			remove_component = i;
+		}
+	}
+
+	if (remove_component >= 0) {
+		prefab.components.erase(prefab.components.begin() + remove_component);
+	}
+
+	if (ImGui::Button("+ Add Component", ImVec2{ -FLT_MIN, 0.0f })) {
+		ImGui::OpenPopup("AddPrefabComponent");
+	}
+
+	if (ImGui::BeginPopup("AddPrefabComponent")) {
+		constexpr std::array groups{ "Core", "Graphics", "Physics", "Gameplay" };
+
+		for (const char* group : groups) {
+			if (!ImGui::BeginMenu(group)) {
+				continue;
+			}
+
+			for (const auto& descriptor : kComponentRegistry) {
+				if (std::strcmp(descriptor.group, group) != 0) {
+					continue;
+				}
+
+				const bool already_added{ HasPrefabComponent(prefab, descriptor.kind) };
+				ImGui::BeginDisabled(already_added);
+
+				if (ImGui::MenuItem(descriptor.label)) {
+					prefab.components.push_back(MakeComponent(descriptor.kind));
+				}
+
+				ImGui::EndDisabled();
+
+				if (already_added && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+					ImGui::SetTooltip("Prefab already contains this component.");
+				}
+			}
+
+			ImGui::EndMenu();
+		}
+
+		ImGui::EndPopup();
+	}
+
+	ImGui::TextDisabled(
+		"These reflected values are serialized into the prefab asset and copied into each spawn."
+	);
+}
+
+void DrawPrefabPanel(
+	PrefabRegistry& prefabs, const std::vector<EntityData>& entities, int selected_entity,
+	int& selected_prefab, bool& inspect_prefab
+) {
+	ImGui::TextDisabled("Prefabs");
+	ImGui::Separator();
+
+	int delete_index{ -1 };
+	int duplicate_index{ -1 };
+
+	for (int i{ 0 }; i < static_cast<int>(prefabs.definitions.size()); ++i) {
+		auto& prefab{ prefabs.definitions[static_cast<std::size_t>(i)] };
+		ImGui::PushID(static_cast<int>(prefab.id));
+
+		if (ImGui::Selectable(
+				prefab.name.Data(), inspect_prefab && selected_prefab == i, 0,
+				ImVec2{ 0.0f, 25.0f }
+			)) {
+			selected_prefab = i;
+			inspect_prefab = true;
+		}
+		DrawItemTooltip(prefab.key.Data());
+
+		if (ImGui::BeginPopupContextItem("PrefabContext")) {
+			if (ImGui::MenuItem("Duplicate")) {
+				duplicate_index = i;
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem("Delete")) {
+				delete_index = i;
+			}
+			ImGui::EndPopup();
+		}
+
+		ImGui::PopID();
+	}
+
+	if (duplicate_index >= 0) {
+		PrefabDefinition copy{ prefabs.definitions[static_cast<std::size_t>(duplicate_index)] };
+		copy.id = NextId();
+		copy.name.Assign(std::string{ copy.name.Data() } + " Copy");
+		copy.key.Assign(MakeUniquePrefabKey(prefabs, std::string{ copy.key.Data() } + "_copy"));
+		for (auto& component : copy.components) {
+			component.id = NextId();
+		}
+		prefabs.definitions.insert(
+			prefabs.definitions.begin() + duplicate_index + 1, std::move(copy)
+		);
+		selected_prefab = duplicate_index + 1;
+		inspect_prefab = true;
+	}
+
+	if (delete_index >= 0) {
+		prefabs.definitions.erase(prefabs.definitions.begin() + delete_index);
+
+		if (prefabs.definitions.empty()) {
+			selected_prefab = -1;
+			inspect_prefab = false;
+		} else {
+			if (selected_prefab > delete_index) {
+				--selected_prefab;
+			}
+			selected_prefab = std::clamp(
+				selected_prefab, 0, static_cast<int>(prefabs.definitions.size()) - 1
+			);
+		}
+	}
+
+	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+	const float button_width{ (ImGui::GetContentRegionAvail().x - spacing) * 0.5f };
+
+	if (ImGui::Button("+ New", ImVec2{ button_width, 0.0f })) {
+		prefabs.definitions.push_back(MakeNewPrefab(prefabs));
+		selected_prefab = static_cast<int>(prefabs.definitions.size()) - 1;
+		inspect_prefab = true;
+	}
+
+	ImGui::SameLine();
+
+	const bool has_selected_entity{
+		selected_entity >= 0 && selected_entity < static_cast<int>(entities.size())
+	};
+	ImGui::BeginDisabled(!has_selected_entity);
+
+	if (ImGui::Button("From Entity", ImVec2{ button_width, 0.0f })) {
+		prefabs.definitions.push_back(
+			MakePrefabFromEntity(
+				entities[static_cast<std::size_t>(selected_entity)], prefabs
+			)
+		);
+		selected_prefab = static_cast<int>(prefabs.definitions.size()) - 1;
+		inspect_prefab = true;
+	}
+
+	ImGui::EndDisabled();
+	DrawItemTooltip("Create a prefab from the selected entity's reflected demo components.");
+}
+
+void DrawPrefabPreview(const PrefabDefinition& prefab) {
+	const ImVec2 start{ ImGui::GetCursorScreenPos() };
+	const ImVec2 size{ ImGui::GetContentRegionAvail() };
+	ImDrawList* draw{ ImGui::GetWindowDrawList() };
+
+	draw->AddRectFilled(
+		start, ImVec2{ start.x + size.x, start.y + size.y },
+		ImGui::GetColorU32(ImGuiCol_FrameBg)
+	);
+
+	const float card_width{ std::min(440.0f, std::max(260.0f, size.x - 80.0f)) };
+	const float card_height{ std::min(
+		360.0f, 110.0f + static_cast<float>(prefab.components.size()) * 28.0f
+	) };
+	const ImVec2 card_min{
+		start.x + (size.x - card_width) * 0.5f,
+		start.y + (size.y - card_height) * 0.5f
+	};
+	const ImVec2 card_max{ card_min.x + card_width, card_min.y + card_height };
+
+	draw->AddRectFilled(card_min, card_max, ImGui::GetColorU32(ImGuiCol_ChildBg), 6.0f);
+	draw->AddRect(card_min, card_max, ImGui::GetColorU32(ImGuiCol_Border), 6.0f);
+	draw->AddText(
+		ImVec2{ card_min.x + 16.0f, card_min.y + 14.0f },
+		ImGui::GetColorU32(ImGuiCol_Text), prefab.name.Data()
+	);
+	draw->AddText(
+		ImVec2{ card_min.x + 16.0f, card_min.y + 36.0f },
+		ImGui::GetColorU32(ImGuiCol_TextDisabled), prefab.key.Data()
+	);
+
+	std::string tag_line{ "Tag: " };
+	tag_line += prefab.tag.Empty() ? "(none)" : prefab.tag.Data();
+	draw->AddText(
+		ImVec2{ card_min.x + 16.0f, card_min.y + 58.0f },
+		ImGui::GetColorU32(ImGuiCol_TextDisabled), tag_line.c_str()
+	);
+
+	float y{ card_min.y + 92.0f };
+	for (const auto& component : prefab.components) {
+		const auto& descriptor{ GetComponentDescriptor(component.kind) };
+		draw->AddRectFilled(
+			ImVec2{ card_min.x + 16.0f, y - 3.0f },
+			ImVec2{ card_max.x - 16.0f, y + 20.0f },
+			ImGui::GetColorU32(ImGuiCol_Button), 3.0f
+		);
+		draw->AddText(
+			ImVec2{ card_min.x + 24.0f, y },
+			ImGui::GetColorU32(ImGuiCol_Text), descriptor.label
+		);
+		y += 28.0f;
+	}
+
+	draw->AddText(
+		ImVec2{ start.x + 10.0f, start.y + 10.0f },
+		ImGui::GetColorU32(ImGuiCol_TextDisabled),
+		"Prefab preview: this is serialized construction data, not a live ECS entity."
+	);
+
+	ImGui::InvisibleButton("PrefabCanvas", size);
 }
 
 std::vector<EntityData> MakeDemoEntities(GlobalBehaviorRegistry& registry) {
@@ -2446,6 +3485,7 @@ std::vector<EntityData> MakeDemoEntities(GlobalBehaviorRegistry& registry) {
 
 	EntityData door;
 	door.name.Assign("Door");
+	door.tag.Assign("Interactable");
 	door.position[0] = 120.0f;
 	door.position[1] = 40.0f;
 	door.behaviors.emplace();
@@ -2492,6 +3532,7 @@ std::vector<EntityData> MakeDemoEntities(GlobalBehaviorRegistry& registry) {
 
 	EntityData light;
 	light.name.Assign("Celebration Light");
+	light.tag.Assign("Decoration");
 	light.position[0] = 260.0f;
 	light.position[1] = 40.0f;
 	light.behaviors.emplace();
@@ -2500,31 +3541,112 @@ std::vector<EntityData> MakeDemoEntities(GlobalBehaviorRegistry& registry) {
 
 	EntityData player;
 	player.name.Assign("Player");
+	player.tag.Assign("Player");
 	player.position[0] = -60.0f;
 	player.position[1] = 40.0f;
 	player.behaviors.emplace();
 	player.behaviors->bindings.push_back(MakeGlobalBinding(damage_id));
 	entities.push_back(std::move(player));
 
+	EntityData factory;
+	factory.name.Assign("Runtime Factory");
+	factory.tag.Assign("Spawner");
+	factory.position[0] = -240.0f;
+	factory.position[1] = -90.0f;
+	factory.behaviors.emplace();
+
+	BehaviorBinding entity_tools{ MakeLocalBinding() };
+	auto& tools{ entity_tools.local_definition };
+	tools.name.Assign("Runtime Entity Tools");
+	tools.triggers.clear();
+	tools.sequence.clear();
+
+	auto spawn_zombie{ MakeSequenceItem(SequenceItemKind::Action) };
+	auto& spawn_action{ std::get<ActionItem>(spawn_zombie.data).action };
+	spawn_action = MakeAction(ActionKind::SpawnEntity);
+	std::get<SpawnEntityParams>(spawn_action.parameters).prefab_key.Assign("prefabs/zombie");
+	tools.sequence.push_back(std::move(spawn_zombie));
+
+	auto add_health{ MakeSequenceItem(SequenceItemKind::Action) };
+	auto& add_health_action{ std::get<ActionItem>(add_health.data).action };
+	add_health_action = MakeAction(ActionKind::AddComponent);
+	auto& health_payload{
+		std::get<AddComponentParams>(add_health_action.parameters).component
+	};
+	health_payload = MakeComponent(ComponentKind::Health);
+	std::get<HealthComponentData>(health_payload.data).maximum = 200.0f;
+	std::get<HealthComponentData>(health_payload.data).current = 200.0f;
+	tools.sequence.push_back(std::move(add_health));
+
+	auto remove_damage{ MakeSequenceItem(SequenceItemKind::Action) };
+	auto& remove_damage_action{ std::get<ActionItem>(remove_damage.data).action };
+	remove_damage_action = MakeAction(ActionKind::RemoveComponent);
+	std::get<RemoveComponentParams>(remove_damage_action.parameters).components.Assign(
+		"Damage,Lifetime"
+	);
+	tools.sequence.push_back(std::move(remove_damage));
+
+	auto delete_zombies{ MakeSequenceItem(SequenceItemKind::Action) };
+	auto& delete_action{ std::get<ActionItem>(delete_zombies.data).action };
+	delete_action = MakeAction(ActionKind::DeleteEntities);
+	auto& delete_params{ std::get<DeleteEntitiesParams>(delete_action.parameters) };
+	delete_params.tag_filter.Assign("Enemy");
+	delete_params.component_filter.Assign("Zombie,-Health");
+	tools.sequence.push_back(std::move(delete_zombies));
+
+	factory.behaviors->bindings.push_back(std::move(entity_tools));
+	entities.push_back(std::move(factory));
+
 	EntityData camera;
 	camera.name.Assign("Main Camera");
+	camera.tag.Assign("Camera");
 	entities.push_back(std::move(camera));
 	return entities;
 }
 
-void DrawHierarchy(std::vector<EntityData>& entities, int& selected_index) {
+void DrawHierarchy(
+	std::vector<EntityData>& entities, int& selected_index, bool& inspect_prefab
+) {
 	ImGui::TextDisabled("Scene Hierarchy");
 	ImGui::Separator();
+
 	for (int i{ 0 }; i < static_cast<int>(entities.size()); ++i) {
-		if (ImGui::Selectable(entities[static_cast<std::size_t>(i)].name.Data(), selected_index == i, 0, ImVec2{ 0.0f, 25.0f })) {
+		if (ImGui::Selectable(
+				entities[static_cast<std::size_t>(i)].name.Data(),
+				!inspect_prefab && selected_index == i, 0, ImVec2{ 0.0f, 25.0f }
+			)) {
 			selected_index = i;
+			inspect_prefab = false;
 		}
 	}
+
 	if (ImGui::Button("+ Entity", ImVec2{ -FLT_MIN, 0.0f })) {
 		EntityData entity;
 		entity.name.Assign("New Entity");
 		entities.push_back(std::move(entity));
 		selected_index = static_cast<int>(entities.size()) - 1;
+		inspect_prefab = false;
+	}
+}
+
+void DrawSidebar(
+	std::vector<EntityData>& entities, int& selected_entity, PrefabRegistry& prefabs,
+	int& selected_prefab, bool& inspect_prefab
+) {
+	if (ImGui::BeginTabBar("SidebarTabs")) {
+		if (ImGui::BeginTabItem("Scene")) {
+			DrawHierarchy(entities, selected_entity, inspect_prefab);
+			ImGui::EndTabItem();
+		}
+
+		if (ImGui::BeginTabItem("Prefabs")) {
+			DrawPrefabPanel(
+				prefabs, entities, selected_entity, selected_prefab, inspect_prefab
+			);
+			ImGui::EndTabItem();
+		}
+
+		ImGui::EndTabBar();
 	}
 }
 
@@ -2532,29 +3654,45 @@ void DrawSceneView(const std::vector<EntityData>& entities, int selected_index) 
 	const ImVec2 start{ ImGui::GetCursorScreenPos() };
 	const ImVec2 size{ ImGui::GetContentRegionAvail() };
 	ImDrawList* draw{ ImGui::GetWindowDrawList() };
-	draw->AddRectFilled(start, ImVec2{ start.x + size.x, start.y + size.y }, ImGui::GetColorU32(ImGuiCol_FrameBg));
+	draw->AddRectFilled(
+		start, ImVec2{ start.x + size.x, start.y + size.y },
+		ImGui::GetColorU32(ImGuiCol_FrameBg)
+	);
 	const ImVec2 center{ start.x + size.x * 0.5f, start.y + size.y * 0.5f };
 
 	for (int i{ 0 }; i < static_cast<int>(entities.size()); ++i) {
 		const auto& entity{ entities[static_cast<std::size_t>(i)] };
 		const ImVec2 p{ center.x + entity.position[0], center.y - entity.position[1] };
-		const ImU32 color{ ImGui::GetColorU32(i == selected_index ? ImGuiCol_ButtonHovered : ImGuiCol_Button) };
-		draw->AddRectFilled(ImVec2{ p.x - 42.0f, p.y - 18.0f }, ImVec2{ p.x + 42.0f, p.y + 18.0f }, color, 3.0f);
-		draw->AddText(ImVec2{ p.x - 36.0f, p.y - 6.0f }, ImGui::GetColorU32(ImGuiCol_Text), entity.name.Data());
+		const ImU32 color{
+			ImGui::GetColorU32(i == selected_index ? ImGuiCol_ButtonHovered : ImGuiCol_Button)
+		};
+		draw->AddRectFilled(
+			ImVec2{ p.x - 48.0f, p.y - 18.0f },
+			ImVec2{ p.x + 48.0f, p.y + 18.0f }, color, 3.0f
+		);
+		draw->AddText(
+			ImVec2{ p.x - 42.0f, p.y - 6.0f },
+			ImGui::GetColorU32(ImGuiCol_Text), entity.name.Data()
+		);
 	}
+
 	draw->AddText(
-		ImVec2{ start.x + 10.0f, start.y + 10.0f }, ImGui::GetColorU32(ImGuiCol_TextDisabled),
-		"Select Door, then Start Open Door. Its final Emit Signal starts the global Door "
-		"Celebration."
+		ImVec2{ start.x + 10.0f, start.y + 10.0f },
+		ImGui::GetColorU32(ImGuiCol_TextDisabled),
+		"Use the Prefabs tab to author serialized component templates. Select Runtime Factory to "
+		"see spawn, delete, add-component, and remove-component actions."
 	);
 	ImGui::InvisibleButton("SceneCanvas", size);
 }
 
 void DrawApplication(
 	std::vector<EntityData>& entities,
-	int& selected_index,
+	int& selected_entity,
 	GlobalBehaviorRegistry& registry,
-	DemoRuntimeContext& context
+	DemoRuntimeContext& context,
+	PrefabRegistry& prefabs,
+	int& selected_prefab,
+	bool& inspect_prefab
 ) {
 	ImGuiViewport* viewport{ ImGui::GetMainViewport() };
 	ImGui::SetNextWindowPos(viewport->WorkPos);
@@ -2566,28 +3704,56 @@ void DrawApplication(
 	};
 	ImGui::Begin("Behavior Component Inspector Demo", nullptr, flags);
 
-	if (ImGui::BeginTable("Layout", 3, ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
-		ImGui::TableSetupColumn("Hierarchy", ImGuiTableColumnFlags_WidthFixed, 200.0f);
+	if (ImGui::BeginTable(
+			"Layout", 3,
+			ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV |
+				ImGuiTableFlags_SizingStretchProp
+		)) {
+		ImGui::TableSetupColumn("Hierarchy", ImGuiTableColumnFlags_WidthFixed, 235.0f);
 		ImGui::TableSetupColumn("Scene", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-		ImGui::TableSetupColumn("Inspector", ImGuiTableColumnFlags_WidthFixed, 500.0f);
+		ImGui::TableSetupColumn("Inspector", ImGuiTableColumnFlags_WidthFixed, 570.0f);
 
 		ImGui::TableNextColumn();
 		ImGui::BeginChild("HierarchyChild");
-		DrawHierarchy(entities, selected_index);
+		DrawSidebar(
+			entities, selected_entity, prefabs, selected_prefab, inspect_prefab
+		);
 		ImGui::EndChild();
 
 		ImGui::TableNextColumn();
 		ImGui::BeginChild("SceneChild");
-		DrawSceneView(entities, selected_index);
+
+		const bool valid_prefab{
+			inspect_prefab && selected_prefab >= 0 &&
+			selected_prefab < static_cast<int>(prefabs.definitions.size())
+		};
+
+		if (valid_prefab) {
+			DrawPrefabPreview(prefabs.definitions[static_cast<std::size_t>(selected_prefab)]);
+		} else {
+			DrawSceneView(entities, selected_entity);
+		}
+
 		ImGui::EndChild();
 
 		ImGui::TableNextColumn();
 		ImGui::BeginChild("InspectorChild");
-		ImGui::TextDisabled("Inspector");
+		ImGui::TextDisabled(valid_prefab ? "Prefab Inspector" : "Inspector");
 		ImGui::Separator();
-		if (selected_index >= 0 && selected_index < static_cast<int>(entities.size())) {
-			DrawInspector(entities[static_cast<std::size_t>(selected_index)], registry, context);
+
+		if (valid_prefab) {
+			DrawPrefabInspector(
+				prefabs.definitions[static_cast<std::size_t>(selected_prefab)]
+			);
+		} else if (
+			selected_entity >= 0 && selected_entity < static_cast<int>(entities.size())
+		) {
+			DrawInspector(
+				entities[static_cast<std::size_t>(selected_entity)], registry, context,
+				prefabs
+			);
 		}
+
 		ImGui::EndChild();
 		ImGui::EndTable();
 	}
@@ -2635,7 +3801,7 @@ int main() {
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #endif
 
-	GLFWwindow* window{ glfwCreateWindow(1500, 900, "Protegon Behaviors Inspector Demo", nullptr, nullptr) };
+	GLFWwindow* window{ glfwCreateWindow(1650, 950, "Protegon Behaviors and Prefabs Demo", nullptr, nullptr) };
 	if (!window) {
 		glfwTerminate();
 		return 1;
@@ -2657,8 +3823,11 @@ int main() {
 
 	demo::GlobalBehaviorRegistry registry;
 	auto entities{ demo::MakeDemoEntities(registry) };
+	demo::PrefabRegistry prefabs{ demo::MakeDemoPrefabs() };
 	demo::DemoRuntimeContext runtime;
 	int selected_entity{ 0 };
+	int selected_prefab{ -1 };
+	bool inspect_prefab{ false };
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -2677,7 +3846,10 @@ int main() {
 		}
 		demo::DispatchSignals(entities, registry, runtime);
 		demo::UpdateActivity(runtime, dt);
-		demo::DrawApplication(entities, selected_entity, registry, runtime);
+		demo::DrawApplication(
+			entities, selected_entity, registry, runtime, prefabs, selected_prefab,
+			inspect_prefab
+		);
 
 		ImGui::Render();
 		int width{ 0 };
