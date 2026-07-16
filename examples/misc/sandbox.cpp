@@ -144,7 +144,7 @@ enum class ActionKind {
 
 enum class LifecycleEventKind {
 	Start,
-	Progress,
+	// Progress,
 	Complete,
 	Reset,
 	Stop,
@@ -177,10 +177,11 @@ constexpr std::array kEaseNames{
 constexpr std::array kColliderModeNames{
 	"None", "Overlap", "Discrete", "Continuous"
 };
-constexpr std::array kLifecycleEventNames{ "On Start",	"On Progress",	 "On Complete",
-										   "On Reset",	"On Stop",		 "On Pause",
-										   "On Resume", "On Item Start", "On Item Complete",
-										   "On Repeat", "On Yoyo" };
+constexpr std::array kLifecycleEventNames{ "On Start",		/*"On Progress",*/ "On Complete",
+										   "On Reset",		"On Stop",
+										   "On Pause",		"On Resume",
+										   "On Item Start", "On Item Complete",
+										   "On Repeat",		"On Yoyo" };
 constexpr std::array kLifecycleCallbackKindNames{ "Action", "Emit Signal" };
 
 template <typename TEnum, std::size_t N>
@@ -291,7 +292,7 @@ bool DrawLifecycleEventCombo(const char* label, LifecycleEventKind& event, float
 	};
 
 	draw_item(LifecycleEventKind::Start);
-	draw_item(LifecycleEventKind::Progress);
+	// draw_item(LifecycleEventKind::Progress);
 	draw_item(LifecycleEventKind::Complete);
 	draw_item(LifecycleEventKind::Reset);
 	draw_item(LifecycleEventKind::Stop);
@@ -1418,7 +1419,7 @@ void UpdateBehaviorRuntime(
 	}
 
 	runtime.elapsed_ms += delta_seconds * 1000.0f;
-	InvokeLifecycleCallbacks(LifecycleEventKind::Progress, entity, *behavior, context);
+	// InvokeLifecycleCallbacks(LifecycleEventKind::Progress, entity, *behavior, context);
 
 	if (runtime.elapsed_ms < GetItemDuration(item)) {
 		return;
@@ -2651,7 +2652,7 @@ bool DrawLifecycleCallbackCompact(
 void DrawLifecycleSection(BehaviorDefinition& behavior, const PrefabRegistry& prefabs) {
 	char lifecycle_label[96]{};
 	std::snprintf(
-		lifecycle_label, sizeof(lifecycle_label), "Lifecycle & Cleanup (%zu)%s",
+		lifecycle_label, sizeof(lifecycle_label), "Lifecycle (%zu)%s",
 		behavior.lifecycle_callbacks.size(),
 		behavior.destroy_on_complete ? "  [Destroy on Complete]" : ""
 	);
