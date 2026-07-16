@@ -556,15 +556,28 @@ void DrawVolumeControl(float& volume) {
 	}
 }
 
+float GetCountControlWidth(const char* label) {
+	constexpr float button_width{ 22.0f };
+	constexpr float text_button_spacing{ 3.0f };
+	constexpr float button_spacing{ 3.0f };
+	const std::string widest_text{ std::string{ label } + ": 100" };
+	return ImGui::CalcTextSize(widest_text.c_str()).x + text_button_spacing + button_width * 2.0f +
+		   button_spacing;
+}
+
 void DrawCountControl(
-	const char* label, int& value, bool disabled = false, const char* tooltip = nullptr
+	const char* label, int& value, int minimum, int maximum = 100, bool disabled = false,
+	const char* tooltip = nullptr
 ) {
-	value = std::max(0, value);
+	if (minimum > maximum) {
+		std::swap(minimum, maximum);
+	}
+	value = std::clamp(value, minimum, maximum);
 
 	constexpr float button_width{ 22.0f };
 	constexpr float text_button_spacing{ 3.0f };
 	constexpr float button_spacing{ 3.0f };
-	const std::string widest_text{ std::string{ label } + ": 000" };
+	const std::string widest_text{ std::string{ label } + ": 100" };
 	const float reserved_text_width{ ImGui::CalcTextSize(widest_text.c_str()).x };
 	const float text_start_x{ ImGui::GetCursorScreenPos().x };
 
@@ -582,18 +595,19 @@ void DrawCountControl(
 		ImVec2{ text_start_x + reserved_text_width + text_button_spacing,
 				ImGui::GetCursorScreenPos().y }
 	);
+	ImGui::BeginDisabled(value >= maximum);
 	if (ImGui::Button("+", ImVec2{ button_width, 0.0f })) {
 		++value;
 	}
+	ImGui::EndDisabled();
 
 	ImGui::SameLine(0.0f, button_spacing);
-	ImGui::BeginDisabled(value == 0);
-
+	ImGui::BeginDisabled(value <= minimum);
 	if (ImGui::Button("-", ImVec2{ button_width, 0.0f })) {
 		--value;
 	}
-
 	ImGui::EndDisabled();
+
 	ImGui::EndDisabled();
 	ImGui::PopID();
 }
@@ -2186,11 +2200,12 @@ void DrawActionParametersCompact(
 			auto& p{ std::get<MoveToParams>(action.parameters) };
 
 			if (ImGui::BeginTable(
-					"MoveToParams", 3, ImGuiTableFlags_SizingStretchProp,
+					"MoveToParams", 4, ImGuiTableFlags_SizingStretchProp,
 					ImVec2{ available_width, 0.0f }
 				)) {
 				ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 53.0f);
-				ImGui::TableSetupColumn("Position", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch);
 				ImGui::TableSetupColumn("Relative", ImGuiTableColumnFlags_WidthFixed, 88.0f);
 				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
@@ -2200,11 +2215,17 @@ void DrawActionParametersCompact(
 
 				ImGui::TableSetColumnIndex(1);
 				ImGui::SetNextItemWidth(-FLT_MIN);
-				ImGui::DragFloat2(
-					"##Destination", p.destination, 1.0f, -100000.0f, 100000.0f, "%.0f"
+				ImGui::DragFloat(
+					"##DestinationX", &p.destination[0], 1.0f, -100000.0f, 100000.0f, "X: %.0f"
 				);
 
 				ImGui::TableSetColumnIndex(2);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::DragFloat(
+					"##DestinationY", &p.destination[1], 1.0f, -100000.0f, 100000.0f, "Y: %.0f"
+				);
+
+				ImGui::TableSetColumnIndex(3);
 				ImGui::Checkbox("Relative", &p.relative);
 				ImGui::EndTable();
 			}
@@ -2248,7 +2269,9 @@ void DrawActionParametersCompact(
 				)) {
 				ImGui::TableSetupColumn("Asset", ImGuiTableColumnFlags_WidthStretch);
 				ImGui::TableSetupColumn("Volume", ImGuiTableColumnFlags_WidthFixed, 90.0f);
-				ImGui::TableSetupColumn("Loops", ImGuiTableColumnFlags_WidthFixed, 126.0f);
+				ImGui::TableSetupColumn(
+					"Loops", ImGuiTableColumnFlags_WidthFixed, GetCountControlWidth("Loops")
+				);
 				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 				ImGui::TableSetColumnIndex(0);
@@ -2259,7 +2282,7 @@ void DrawActionParametersCompact(
 				DrawVolumeControl(p.volume);
 
 				ImGui::TableSetColumnIndex(2);
-				DrawCountControl("Loops", p.loops);
+				DrawCountControl("Loops", p.loops, 0);
 
 				ImGui::EndTable();
 			}
@@ -2321,17 +2344,12 @@ void DrawActionParametersCompact(
 
 		case ActionKind::SpawnEntity: {
 			auto& spawn{ std::get<SpawnEntityParams>(action.parameters) };
-			spawn.count				= std::max(1, spawn.count);
+			spawn.count				= std::clamp(spawn.count, 1, 100);
 			spawn.rectangle_size[0] = std::max(0.0f, spawn.rectangle_size[0]);
 			spawn.rectangle_size[1] = std::max(0.0f, spawn.rectangle_size[1]);
 			spawn.radius			= std::max(0.0f, spawn.radius);
 
-			const float count_button_width{ ImGui::GetFrameHeight() };
-			const float count_text_button_spacing{ 3.0f };
-			const float count_button_spacing{ 3.0f };
-			const float count_text_width{ ImGui::CalcTextSize("Count: 000").x };
-			const float count_control_width{ count_text_width + count_text_button_spacing +
-											 count_button_width * 2.0f + count_button_spacing };
+			const float count_control_width{ GetCountControlWidth("Count") };
 
 			ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 			if (ImGui::BeginTable(
@@ -2348,29 +2366,10 @@ void DrawActionParametersCompact(
 				DrawPrefabKeyPicker("##PrefabKey", spawn.prefab_key, prefabs);
 
 				ImGui::TableSetColumnIndex(1);
-				const float count_text_start_x{ ImGui::GetCursorScreenPos().x };
-				ImGui::AlignTextToFramePadding();
-				ImGui::Text("Count: %d", spawn.count);
-				DrawItemTooltip("Number of prefab instances created by this action.");
-
-				ImGui::PushID("SpawnCount");
-				ImGui::SameLine();
-				ImGui::SetCursorScreenPos(
-					ImVec2{ count_text_start_x + count_text_width + count_text_button_spacing,
-							ImGui::GetCursorScreenPos().y }
+				DrawCountControl(
+					"Count", spawn.count, 1, 100, false,
+					"Number of prefab instances created by this action."
 				);
-				if (ImGui::Button("+", ImVec2{ count_button_width, ImGui::GetFrameHeight() })) {
-					++spawn.count;
-				}
-
-				ImGui::SameLine(0.0f, count_button_spacing);
-				ImGui::BeginDisabled(spawn.count <= 1);
-				if (ImGui::Button("-", ImVec2{ count_button_width, ImGui::GetFrameHeight() })) {
-					spawn.count = std::max(1, spawn.count - 1);
-				}
-				ImGui::EndDisabled();
-
-				ImGui::PopID();
 				ImGui::EndTable();
 			}
 
@@ -2978,8 +2977,8 @@ bool DrawSequenceItemCompact(
 
 	const float drag_width{ 28.0f };
 	const float type_width{ 108.0f };
-	const float duration_width{ 82.0f };
-	const float repeats_width{ ImGui::CalcTextSize("Repeats: 000").x + 44.0f + 6.0f };
+	const float duration_width{ 76.0f };
+	const float repeats_width{ GetCountControlWidth("Repeats") };
 	const float add_width{ ImGui::GetFrameHeight() };
 	const float remove_width{ ImGui::GetFrameHeight() };
 
@@ -3109,7 +3108,7 @@ bool DrawSequenceItemCompact(
 
 				ImGui::TableSetColumnIndex(4);
 				DrawCountControl(
-					"Repeats", timed.additional_repeats, timed.infinite_repeats,
+					"Repeats", timed.additional_repeats, 0, 100, timed.infinite_repeats,
 					"Additional full-duration cycles. Each repeat runs the timed action for the "
 					"complete duration again."
 				);
