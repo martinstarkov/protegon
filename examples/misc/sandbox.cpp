@@ -175,9 +175,7 @@ constexpr std::array kTriggerNames{ "On Create",	  "Signal",			 "Key Pressed",
 									"Key Released",	  "Key Held",		 "Mouse Pressed",
 									"Mouse Released", "Mouse Held",		 "Overlap Start",
 									"Overlap Stop",	  "Collision Start", "Collision Stop" };
-constexpr std::array kReentryNames{
-	"Ignore While Running", "Restart", "Queue", "Parallel"
-};
+constexpr std::array kReentryNames{ "Ignore", "Restart", "Queue", "Parallel" };
 constexpr std::array kSequenceItemNames{
 	"Action", "Timed Action", "Wait", "Emit Signal"
 };
@@ -512,7 +510,9 @@ void DrawVolumeControl(float& volume) {
 	}
 }
 
-void DrawCountControl(const char* label, int& value, bool disabled = false) {
+void DrawCountControl(
+	const char* label, int& value, bool disabled = false, const char* tooltip = nullptr
+) {
 	value = std::max(0, value);
 
 	ImGui::PushID(label);
@@ -520,6 +520,9 @@ void DrawCountControl(const char* label, int& value, bool disabled = false) {
 
 	ImGui::AlignTextToFramePadding();
 	ImGui::Text("%s: %d", label, value);
+	if (tooltip) {
+		DrawItemTooltip(tooltip);
+	}
 	ImGui::SameLine();
 
 	if (ImGui::Button("+", ImVec2{ 22.0f, 0.0f })) {
@@ -1784,10 +1787,10 @@ std::vector<std::string_view> GetSpawnOptionLabels(const SpawnEntityParams& spaw
 		labels.emplace_back("Parent to Owner");
 	}
 	if (spawn.inherit_owner_rotation) {
-		labels.emplace_back("Inherit Owner Rotation");
+		labels.emplace_back("Parent Rotation");
 	}
 	if (spawn.inherit_owner_scale) {
-		labels.emplace_back("Inherit Owner Scale");
+		labels.emplace_back("Parent Scale");
 	}
 	if (spawn.random_rotation) {
 		labels.emplace_back("Random Rotation");
@@ -1812,6 +1815,10 @@ std::string SpawnOptionsPreview(const SpawnEntityParams& spawn) {
 }
 
 void DrawSpawnOptionsCombo(SpawnEntityParams& spawn) {
+	if (spawn.inherit_owner_rotation && spawn.random_rotation) {
+		spawn.random_rotation = false;
+	}
+
 	const std::string preview{ SpawnOptionsPreview(spawn) };
 	ImGui::SetNextItemWidth(-FLT_MIN);
 	const bool open{ ImGui::BeginCombo("##SpawnOptions", preview.c_str()) };
@@ -1826,14 +1833,44 @@ void DrawSpawnOptionsCombo(SpawnEntityParams& spawn) {
 		ImGui::Checkbox("Parent to Owner", &spawn.parent_to_owner);
 		DrawItemTooltip("Make the behavior owner the spawned entity's parent.");
 
-		ImGui::Checkbox("Inherit Owner Rotation", &spawn.inherit_owner_rotation);
-		DrawItemTooltip("Apply the behavior owner's rotation to each spawned entity.");
+		ImGui::BeginDisabled(spawn.random_rotation);
+		bool parent_rotation{ spawn.inherit_owner_rotation };
+		if (ImGui::Checkbox("Parent Rotation", &parent_rotation)) {
+			spawn.inherit_owner_rotation = parent_rotation;
+			if (parent_rotation) {
+				spawn.random_rotation = false;
+			}
+		}
+		ImGui::EndDisabled();
+		if (ImGui::IsItemHovered(spawn.random_rotation ? ImGuiHoveredFlags_AllowWhenDisabled : 0)) {
+			ImGui::SetTooltip(
+				"%s", spawn.random_rotation
+						  ? "Disabled while Random Rotation is selected."
+						  : "Apply the behavior owner's rotation to each spawned entity."
+			);
+		}
 
-		ImGui::Checkbox("Inherit Owner Scale", &spawn.inherit_owner_scale);
+		ImGui::Checkbox("Parent Scale", &spawn.inherit_owner_scale);
 		DrawItemTooltip("Apply the behavior owner's scale to each spawned entity.");
 
-		ImGui::Checkbox("Random Rotation", &spawn.random_rotation);
-		DrawItemTooltip("Give each spawned entity a uniformly random rotation.");
+		ImGui::BeginDisabled(spawn.inherit_owner_rotation);
+		bool random_rotation{ spawn.random_rotation };
+		if (ImGui::Checkbox("Random Rotation", &random_rotation)) {
+			spawn.random_rotation = random_rotation;
+			if (random_rotation) {
+				spawn.inherit_owner_rotation = false;
+			}
+		}
+		ImGui::EndDisabled();
+		if (ImGui::IsItemHovered(
+				spawn.inherit_owner_rotation ? ImGuiHoveredFlags_AllowWhenDisabled : 0
+			)) {
+			ImGui::SetTooltip(
+				"%s", spawn.inherit_owner_rotation
+						  ? "Disabled while Parent Rotation is selected."
+						  : "Give each spawned entity a uniformly random rotation."
+			);
+		}
 
 		ImGui::EndCombo();
 	}
@@ -2232,92 +2269,147 @@ void DrawActionParametersCompact(
 			spawn.rectangle_size[1] = std::max(0.0f, spawn.rectangle_size[1]);
 			spawn.radius			= std::max(0.0f, spawn.radius);
 
+			const float count_label_width{ ImGui::CalcTextSize("Count: 000").x +
+										   ImGui::GetStyle().FramePadding.x * 2.0f };
+			const float count_button_width{ ImGui::GetFrameHeight() };
+
 			ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 			if (ImGui::BeginTable(
-					"SpawnEntityPrimaryRow", 3, ImGuiTableFlags_SizingStretchProp,
+					"SpawnEntityPrimaryRow", 4, ImGuiTableFlags_SizingStretchProp,
 					ImVec2{ available_width, 0.0f }
 				)) {
 				ImGui::TableSetupColumn("Prefab", ImGuiTableColumnFlags_WidthStretch);
-				ImGui::TableSetupColumn("Count", ImGuiTableColumnFlags_WidthFixed, 105.0f);
-				ImGui::TableSetupColumn("Origin", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+				ImGui::TableSetupColumn(
+					"Count", ImGuiTableColumnFlags_WidthFixed, count_label_width
+				);
+				ImGui::TableSetupColumn(
+					"Increase", ImGuiTableColumnFlags_WidthFixed, count_button_width
+				);
+				ImGui::TableSetupColumn(
+					"Decrease", ImGuiTableColumnFlags_WidthFixed, count_button_width
+				);
 				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 				ImGui::TableSetColumnIndex(0);
 				DrawPrefabKeyPicker("##PrefabKey", spawn.prefab_key, prefabs);
 
 				ImGui::TableSetColumnIndex(1);
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				if (ImGui::InputInt("##SpawnCount", &spawn.count, 1, 10)) {
-					spawn.count = std::max(1, spawn.count);
-				}
+				ImGui::AlignTextToFramePadding();
+				ImGui::Text("Count: %d", spawn.count);
 				DrawItemTooltip("Number of prefab instances created by this action.");
 
+				ImGui::PushID("SpawnCount");
+
 				ImGui::TableSetColumnIndex(2);
+				if (ImGui::Button("+", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
+					++spawn.count;
+				}
+
+				ImGui::TableSetColumnIndex(3);
+				ImGui::BeginDisabled(spawn.count <= 1);
+				if (ImGui::Button("-", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
+					spawn.count = std::max(1, spawn.count - 1);
+				}
+				ImGui::EndDisabled();
+
+				ImGui::PopID();
+				ImGui::EndTable();
+			}
+
+			const SpawnArea displayed_area{ spawn.area };
+			int placement_columns{ 4 };
+			if (displayed_area == SpawnArea::Rectangle) {
+				placement_columns += 2;
+			} else if (displayed_area == SpawnArea::Circle) {
+				++placement_columns;
+			}
+
+			ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
+			if (ImGui::BeginTable(
+					"SpawnEntityPlacementRow", placement_columns, ImGuiTableFlags_SizingStretchProp,
+					ImVec2{ available_width, 0.0f }
+				)) {
+				ImGui::TableSetupColumn("Origin", ImGuiTableColumnFlags_WidthFixed, 128.0f);
+				ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch, 0.8f);
+				ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch, 0.8f);
+				ImGui::TableSetupColumn("Shape", ImGuiTableColumnFlags_WidthFixed, 94.0f);
+
+				if (displayed_area == SpawnArea::Rectangle) {
+					ImGui::TableSetupColumn("Width", ImGuiTableColumnFlags_WidthStretch, 0.8f);
+					ImGui::TableSetupColumn("Height", ImGuiTableColumnFlags_WidthStretch, 0.8f);
+				} else if (displayed_area == SpawnArea::Circle) {
+					ImGui::TableSetupColumn("Radius", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+				}
+
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+				ImGui::TableSetColumnIndex(0);
 				DrawEnumCombo("##SpawnOrigin", spawn.origin, kSpawnOriginNames);
 				DrawItemTooltip(
 					"Use the behavior entity as the placement origin or provide an explicit world "
 					"position."
 				);
-				ImGui::EndTable();
-			}
-
-			ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
-
-			// The area combo can change spawn.area while this table is being drawn. Keep the
-			// table shape and the remaining fields based on the mode used to open the table.
-			// The new mode is reflected on the following frame.
-			const SpawnArea displayed_area{ spawn.area };
-			const int placement_columns{ displayed_area == SpawnArea::Point ? 2 : 3 };
-			if (ImGui::BeginTable(
-					"SpawnEntityPlacementRow", placement_columns, ImGuiTableFlags_SizingStretchProp,
-					ImVec2{ available_width, 0.0f }
-				)) {
-				ImGui::TableSetupColumn("Area", ImGuiTableColumnFlags_WidthFixed, 125.0f);
-				ImGui::TableSetupColumn("Center", ImGuiTableColumnFlags_WidthStretch);
-				if (displayed_area != SpawnArea::Point) {
-					ImGui::TableSetupColumn("Extent", ImGuiTableColumnFlags_WidthStretch);
-				}
-				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
-
-				ImGui::TableSetColumnIndex(0);
-				DrawEnumCombo("##SpawnArea", spawn.area, kSpawnAreaNames);
-				DrawItemTooltip(
-					"Point uses the center exactly. Rectangle and Circle choose a uniformly random "
-					"position inside the selected area."
-				);
 
 				ImGui::TableSetColumnIndex(1);
 				ImGui::SetNextItemWidth(-FLT_MIN);
-				ImGui::DragFloat2(
-					"##SpawnCenter", spawn.center, 1.0f, -100000.0f, 100000.0f, "%.0f"
+				ImGui::DragFloat(
+					"##SpawnX", &spawn.center[0], 1.0f, -100000.0f, 100000.0f, "X: %.0f"
 				);
 				DrawItemTooltip(
 					spawn.origin == SpawnOrigin::BehaviorEntity
-						? "Center offset from the behavior entity."
-						: "World-space center position."
+						? "Horizontal offset from the behavior entity."
+						: "World-space X position."
+				);
+
+				ImGui::TableSetColumnIndex(2);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				ImGui::DragFloat(
+					"##SpawnY", &spawn.center[1], 1.0f, -100000.0f, 100000.0f, "Y: %.0f"
+				);
+				DrawItemTooltip(
+					spawn.origin == SpawnOrigin::BehaviorEntity
+						? "Vertical offset from the behavior entity."
+						: "World-space Y position."
+				);
+
+				ImGui::TableSetColumnIndex(3);
+				DrawEnumCombo("##SpawnArea", spawn.area, kSpawnAreaNames);
+				DrawItemTooltip(
+					"Point uses the position exactly. Rectangle and Circle choose a uniformly "
+					"random position inside the selected area."
 				);
 
 				if (displayed_area == SpawnArea::Rectangle) {
-					ImGui::TableSetColumnIndex(2);
-					ImGui::SetNextItemWidth(-FLT_MIN);
-					if (ImGui::DragFloat2(
-							"##SpawnRectangleSize", spawn.rectangle_size, 1.0f, 0.0f, 100000.0f,
-							"Size %.0f"
-						)) {
-						spawn.rectangle_size[0] = std::max(0.0f, spawn.rectangle_size[0]);
-						spawn.rectangle_size[1] = std::max(0.0f, spawn.rectangle_size[1]);
-					}
-					DrawItemTooltip("Full width and height of the random spawn rectangle.");
-				} else if (displayed_area == SpawnArea::Circle) {
-					ImGui::TableSetColumnIndex(2);
+					ImGui::TableSetColumnIndex(4);
 					ImGui::SetNextItemWidth(-FLT_MIN);
 					if (ImGui::DragFloat(
-							"##SpawnRadius", &spawn.radius, 1.0f, 0.0f, 100000.0f, "Radius %.0f"
+							"##SpawnRectangleWidth", &spawn.rectangle_size[0], 1.0f, 0.0f,
+							100000.0f, "W: %.0f"
+						)) {
+						spawn.rectangle_size[0] = std::max(0.0f, spawn.rectangle_size[0]);
+					}
+					DrawItemTooltip("Full width of the uniformly sampled spawn rectangle.");
+
+					ImGui::TableSetColumnIndex(5);
+					ImGui::SetNextItemWidth(-FLT_MIN);
+					if (ImGui::DragFloat(
+							"##SpawnRectangleHeight", &spawn.rectangle_size[1], 1.0f, 0.0f,
+							100000.0f, "H: %.0f"
+						)) {
+						spawn.rectangle_size[1] = std::max(0.0f, spawn.rectangle_size[1]);
+					}
+					DrawItemTooltip("Full height of the uniformly sampled spawn rectangle.");
+				} else if (displayed_area == SpawnArea::Circle) {
+					ImGui::TableSetColumnIndex(4);
+					ImGui::SetNextItemWidth(-FLT_MIN);
+					if (ImGui::DragFloat(
+							"##SpawnRadius", &spawn.radius, 1.0f, 0.0f, 100000.0f, "R: %.0f"
 						)) {
 						spawn.radius = std::max(0.0f, spawn.radius);
 					}
 					DrawItemTooltip(
-						"Radius of the random spawn circle. Sampling is uniform by area."
+						"Radius of the random spawn circle. Positions are sampled uniformly by "
+						"area."
 					);
 				}
 
@@ -2532,6 +2624,54 @@ bool DrawLifecycleCallbackCompact(
 	return remove;
 }
 
+bool DrawAddableSectionHeader(
+	const char* id, const char* label, bool default_open, bool empty, const char* section_tooltip,
+	const char* empty_tooltip, const char* add_tooltip, bool& add_requested
+) {
+	static std::unordered_map<ImGuiID, bool> force_open_next_frame;
+
+	ImGui::PushID(id);
+	const ImGuiID tree_id{ ImGui::GetID("Tree") };
+
+	if (force_open_next_frame[tree_id]) {
+		ImGui::SetNextItemOpen(true, ImGuiCond_Always);
+		force_open_next_frame[tree_id] = false;
+	}
+
+	bool open{ false };
+	const float add_width{ ImGui::GetFrameHeight() };
+
+	if (ImGui::BeginTable("SectionHeaderRow", 2, ImGuiTableFlags_SizingStretchProp)) {
+		ImGui::TableSetupColumn("Section", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Add", ImGuiTableColumnFlags_WidthFixed, add_width);
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+		ImGui::TableSetColumnIndex(0);
+		ImGuiTreeNodeFlags flags{ ImGuiTreeNodeFlags_SpanAvailWidth |
+								  ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_Framed };
+		if (default_open) {
+			flags |= ImGuiTreeNodeFlags_DefaultOpen;
+		}
+		open = ImGui::TreeNodeEx("Tree", flags, "%s", label);
+
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("%s", empty ? empty_tooltip : section_tooltip);
+		}
+
+		ImGui::TableSetColumnIndex(1);
+		if (ImGui::Button("+", ImVec2{ add_width, ImGui::GetFrameHeight() })) {
+			add_requested				   = true;
+			open						   = true;
+			force_open_next_frame[tree_id] = true;
+		}
+		DrawItemTooltip(add_tooltip);
+		ImGui::EndTable();
+	}
+
+	ImGui::PopID();
+	return open;
+}
+
 void DrawLifecycleSection(BehaviorDefinition& behavior, const PrefabRegistry& prefabs) {
 	char lifecycle_label[96]{};
 	std::snprintf(
@@ -2540,11 +2680,16 @@ void DrawLifecycleSection(BehaviorDefinition& behavior, const PrefabRegistry& pr
 		behavior.destroy_on_complete ? "  [Destroy on Complete]" : ""
 	);
 
-	const bool lifecycle_open{ ImGui::TreeNodeEx(
-		"##Lifecycle", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen,
-		"%s", lifecycle_label
+	bool add_callback{ false };
+	const bool lifecycle_open{ DrawAddableSectionHeader(
+		"LifecycleSection", lifecycle_label, false, behavior.lifecycle_callbacks.empty(),
+		"Optional lifecycle callbacks and completion cleanup.", "No lifecycle callbacks.",
+		"Add a lifecycle callback.", add_callback
 	) };
-	DrawItemTooltip("Optional lifecycle callbacks and completion cleanup.");
+
+	if (add_callback) {
+		behavior.lifecycle_callbacks.emplace_back();
+	}
 
 	if (!lifecycle_open) {
 		return;
@@ -2563,14 +2708,6 @@ void DrawLifecycleSection(BehaviorDefinition& behavior, const PrefabRegistry& pr
 	if (remove_callback >= 0) {
 		behavior.lifecycle_callbacks.erase(behavior.lifecycle_callbacks.begin() + remove_callback);
 	}
-
-	if (behavior.lifecycle_callbacks.empty()) {
-		ImGui::TextDisabled("No lifecycle callbacks.");
-	}
-
-	if (ImGui::Button("+ Lifecycle Callback", ImVec2{ -FLT_MIN, 0.0f })) {
-		behavior.lifecycle_callbacks.emplace_back();
-	}
 }
 
 bool DrawTriggerCompact(TriggerDefinition& trigger, bool stop_trigger = false) {
@@ -2581,7 +2718,7 @@ bool DrawTriggerCompact(TriggerDefinition& trigger, bool stop_trigger = false) {
 	const float remove_width{ ImGui::GetFrameHeight() };
 
 	if (ImGui::BeginTable("TriggerRow", 4, ImGuiTableFlags_SizingStretchProp)) {
-		ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, 132.0f);
+		ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, 120.0f);
 		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableSetupColumn("Enabled", ImGuiTableColumnFlags_WidthFixed, 21.0f);
 		ImGui::TableSetupColumn("Remove", ImGuiTableColumnFlags_WidthFixed, remove_width);
@@ -2720,6 +2857,16 @@ bool DrawTriggerCompact(TriggerDefinition& trigger, bool stop_trigger = false) {
 	return remove;
 }
 
+void AddTrigger(std::vector<TriggerDefinition>& triggers, bool stop_triggers) {
+	TriggerDefinition trigger;
+	trigger.kind		= stop_triggers ? TriggerKind::Signal : TriggerKind::OnCreate;
+	trigger.duration_ms = 0.0f;
+	if (stop_triggers) {
+		trigger.signal.Assign("behavior.stop");
+	}
+	triggers.push_back(std::move(trigger));
+}
+
 void DrawTriggerList(std::vector<TriggerDefinition>& triggers, bool stop_triggers) {
 	int remove_trigger{ -1 };
 
@@ -2732,24 +2879,30 @@ void DrawTriggerList(std::vector<TriggerDefinition>& triggers, bool stop_trigger
 	if (remove_trigger >= 0) {
 		triggers.erase(triggers.begin() + remove_trigger);
 	}
+}
 
-	if (triggers.empty()) {
-		ImGui::TextDisabled(
-			stop_triggers ? "No stop triggers: this behavior only stops manually or on completion."
-						  : "No start triggers: this behavior is started manually."
-		);
+void DrawTriggerSection(std::vector<TriggerDefinition>& triggers, bool stop_triggers) {
+	char label[64]{};
+	std::snprintf(
+		label, sizeof(label), stop_triggers ? "Stop Triggers (%zu)" : "Start Triggers (%zu)",
+		triggers.size()
+	);
+
+	bool add_trigger{ false };
+	const bool open{ DrawAddableSectionHeader(
+		stop_triggers ? "StopTriggerSection" : "StartTriggerSection", label, true, triggers.empty(),
+		stop_triggers ? "Triggers that stop this behavior." : "Triggers that start this behavior.",
+		stop_triggers ? "No stop triggers: this behavior only stops manually or on completion."
+					  : "No start triggers: this behavior is started manually.",
+		stop_triggers ? "Add a stop trigger." : "Add a start trigger.", add_trigger
+	) };
+
+	if (add_trigger) {
+		AddTrigger(triggers, stop_triggers);
 	}
 
-	if (ImGui::Button(
-			stop_triggers ? "+ Stop Trigger" : "+ Start Trigger", ImVec2{ -FLT_MIN, 0.0f }
-		)) {
-		TriggerDefinition trigger;
-		trigger.kind		= stop_triggers ? TriggerKind::Signal : TriggerKind::OnCreate;
-		trigger.duration_ms = 0.0f;
-		if (stop_triggers) {
-			trigger.signal.Assign("behavior.stop");
-		}
-		triggers.push_back(std::move(trigger));
+	if (open) {
+		DrawTriggerList(triggers, stop_triggers);
 	}
 }
 
@@ -2772,28 +2925,34 @@ bool DrawSequenceItemCompact(
 	const float drag_width{ 28.0f };
 	const float type_width{ 108.0f };
 	const float duration_width{ 82.0f };
-	const float repeats_width{ 128.0f };
+	const float repeats_width{ 136.0f };
 	const float add_width{ ImGui::GetFrameHeight() };
+	const float remove_width{ ImGui::GetFrameHeight() };
 
+	const SequenceItemKind displayed_kind{ item.kind };
 	bool show_add_button{ false };
-	if (item.kind == SequenceItemKind::Action) {
+
+	if (displayed_kind == SequenceItemKind::Action) {
 		show_add_button = SupportsInlineAddButton(std::get<ActionItem>(item.data).action.kind);
 	}
 
-	int column_count{ 3 };
-	if (item.kind == SequenceItemKind::Action && show_add_button) {
+	int column_count{ 4 };
+	if (displayed_kind == SequenceItemKind::Action && show_add_button) {
 		++column_count;
-	} else if (item.kind == SequenceItemKind::TimedAction) {
-		column_count = 5;
+	} else if (displayed_kind == SequenceItemKind::TimedAction) {
+		column_count = 6;
 	}
 
+	const int remove_column{ column_count - 1 };
 	float type_left_screen_x{ ImGui::GetCursorScreenPos().x };
+	SequenceItemKind requested_kind{ item.kind };
+	bool kind_changed{ false };
 
 	if (ImGui::BeginTable("SequenceRow", column_count, ImGuiTableFlags_SizingStretchProp)) {
 		ImGui::TableSetupColumn("Drag", ImGuiTableColumnFlags_WidthFixed, drag_width);
 		ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, type_width);
 
-		switch (item.kind) {
+		switch (displayed_kind) {
 			case SequenceItemKind::Action:
 				ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch);
 				if (show_add_button) {
@@ -2815,6 +2974,7 @@ bool DrawSequenceItemCompact(
 				break;
 		}
 
+		ImGui::TableSetupColumn("Remove", ImGuiTableColumnFlags_WidthFixed, remove_width);
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 		ImGui::TableSetColumnIndex(0);
@@ -2837,12 +2997,6 @@ bool DrawSequenceItemCompact(
 
 			if (ImGui::MenuItem("Duplicate")) {
 				duplicate = true;
-			}
-
-			ImGui::Separator();
-
-			if (ImGui::MenuItem("Delete")) {
-				remove = true;
 			}
 
 			ImGui::EndPopup();
@@ -2869,13 +3023,9 @@ bool DrawSequenceItemCompact(
 
 		ImGui::TableSetColumnIndex(1);
 		type_left_screen_x = ImGui::GetCursorScreenPos().x;
-		SequenceItemKind new_kind{ item.kind };
+		kind_changed	   = DrawEnumCombo("##Type", requested_kind, kSequenceItemNames);
 
-		if (DrawEnumCombo("##Type", new_kind, kSequenceItemNames)) {
-			SetSequenceItemKind(item, new_kind);
-		}
-
-		switch (item.kind) {
+		switch (displayed_kind) {
 			case SequenceItemKind::Action: {
 				auto& action_item{ std::get<ActionItem>(item.data) };
 
@@ -2904,7 +3054,11 @@ bool DrawSequenceItemCompact(
 				DrawActionPicker("##Action", timed.action, true);
 
 				ImGui::TableSetColumnIndex(4);
-				DrawCountControl("Repeats", timed.additional_repeats, timed.infinite_repeats);
+				DrawCountControl(
+					"Repeats", timed.additional_repeats, timed.infinite_repeats,
+					"Additional full-duration cycles. Each repeat runs the timed action for the "
+					"complete duration again."
+				);
 				break;
 			}
 
@@ -2925,7 +3079,17 @@ bool DrawSequenceItemCompact(
 			}
 		}
 
+		ImGui::TableSetColumnIndex(remove_column);
+		if (ImGui::Button("x", ImVec2{ remove_width, ImGui::GetFrameHeight() })) {
+			remove = true;
+		}
+		DrawItemTooltip("Delete this sequence item.");
+
 		ImGui::EndTable();
+	}
+
+	if (kind_changed) {
+		SetSequenceItemKind(item, requested_kind);
 	}
 
 	if (item.kind == SequenceItemKind::TimedAction) {
@@ -3221,8 +3385,8 @@ bool DrawBehaviorBinding(
 		const float destroy_width{ ImGui::GetFrameHeight() + style.ItemInnerSpacing.x +
 								   ImGui::CalcTextSize("Destroy on Complete").x };
 		const float reentry_width{ std::max(
-			1.0f,
-			ImGui::GetContentRegionAvail().x - global_width - destroy_width - style.ItemSpacing.x
+			1.0f, ImGui::GetContentRegionAvail().x - global_width - destroy_width -
+					  style.ItemSpacing.x - 30.0f
 		) };
 
 		DrawEnumCombo("##Reentry", behavior->reentry, kReentryNames, reentry_width);
@@ -3254,39 +3418,8 @@ bool DrawBehaviorBinding(
 
 		DrawLifecycleSection(*behavior, prefabs);
 
-		char start_trigger_label[64]{};
-		std::snprintf(
-			start_trigger_label, sizeof(start_trigger_label), "Start Triggers (%zu)",
-			behavior->triggers.size()
-		);
-
-		const bool start_triggers_open{ ImGui::TreeNodeEx(
-			"##StartTriggers",
-			ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth |
-				ImGuiTreeNodeFlags_NoTreePushOnOpen,
-			"%s", start_trigger_label
-		) };
-
-		if (start_triggers_open) {
-			DrawTriggerList(behavior->triggers, false);
-		}
-
-		char stop_trigger_label[64]{};
-		std::snprintf(
-			stop_trigger_label, sizeof(stop_trigger_label), "Stop Triggers (%zu)",
-			behavior->stop_triggers.size()
-		);
-
-		const bool stop_triggers_open{ ImGui::TreeNodeEx(
-			"##StopTriggers",
-			ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth |
-				ImGuiTreeNodeFlags_NoTreePushOnOpen,
-			"%s", stop_trigger_label
-		) };
-
-		if (stop_triggers_open) {
-			DrawTriggerList(behavior->stop_triggers, true);
-		}
+		DrawTriggerSection(behavior->triggers, false);
+		DrawTriggerSection(behavior->stop_triggers, true);
 
 		char sequence_label[64]{};
 		std::snprintf(sequence_label, sizeof(sequence_label), "Sequence (%zu)", behavior->sequence.size());
@@ -3294,7 +3427,7 @@ bool DrawBehaviorBinding(
 		const bool sequence_open{ ImGui::TreeNodeEx(
 			"##Sequence",
 			ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth |
-				ImGuiTreeNodeFlags_NoTreePushOnOpen,
+				ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_Framed,
 			"%s", sequence_label
 		) };
 
