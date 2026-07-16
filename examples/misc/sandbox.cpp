@@ -2387,10 +2387,10 @@ void DrawActionParametersCompact(
 					"SpawnEntityPlacementRow", placement_columns, ImGuiTableFlags_SizingStretchProp,
 					ImVec2{ available_width, 0.0f }
 				)) {
-				ImGui::TableSetupColumn("Origin", ImGuiTableColumnFlags_WidthFixed, 92.0f);
+				ImGui::TableSetupColumn("Origin", ImGuiTableColumnFlags_WidthFixed, 80.0f);
 				ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch, 0.8f);
 				ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch, 0.8f);
-				ImGui::TableSetupColumn("Shape", ImGuiTableColumnFlags_WidthFixed, 94.0f);
+				ImGui::TableSetupColumn("Shape", ImGuiTableColumnFlags_WidthFixed, 90.0f);
 
 				if (displayed_area == SpawnArea::Rectangle) {
 					ImGui::TableSetupColumn("Width", ImGuiTableColumnFlags_WidthStretch, 0.8f);
