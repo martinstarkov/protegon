@@ -10,8 +10,8 @@
 //
 // Also demonstrates:
 //   - Prefab creation and reflected component editing.
-//   - Spawn Entity and filtered Delete Entities actions.
-//   - Reflected multi-component Add/Remove Component actions.
+//   - Spawn Entities and filtered Delete Entities actions.
+//   - Reflected multi-component Add/Remove Components actions.
 //   - Lifecycle callbacks and completion cleanup.
 //
 // Behaviors can be local to an entity component or references to shared global
@@ -744,15 +744,15 @@ struct ActionDescriptor {
 };
 
 constexpr std::array kActionRegistry{
-	ActionDescriptor{ ActionKind::SpawnEntity, "engine.spawn_entity", "Spawn Entity", "Entity",
+	ActionDescriptor{ ActionKind::SpawnEntity, "engine.spawn_entity", "Spawn Entities", "Entity",
 					  "Spawns one or more runtime entities from prefab keys.", false },
 	ActionDescriptor{ ActionKind::DeleteEntities, "engine.delete_entities", "Delete Entities",
 					  "Entity", "Deletes one or more groups of entities matching filters.", false },
 	ActionDescriptor{
-		ActionKind::AddComponent, "engine.add_component", "Add Component", "Entity",
+		ActionKind::AddComponent, "engine.add_component", "Add Components", "Entity",
 		"Adds one or more registered components with reflected serialized values to the owner.",
 		false },
-	ActionDescriptor{ ActionKind::RemoveComponent, "engine.remove_component", "Remove Component",
+	ActionDescriptor{ ActionKind::RemoveComponent, "engine.remove_component", "Remove Components",
 					  "Entity",
 					  "Removes one or more selected registered components from the owner.", false },
 	ActionDescriptor{ ActionKind::SetVisible, "engine.set_visible", "Set Visible", "Entity",
@@ -2259,6 +2259,7 @@ void DrawActionParametersCompact(
 			for (int i{ 0 }; i < static_cast<int>(p.entities.size()); ++i) {
 				auto& spawn{ p.entities[static_cast<std::size_t>(i)] };
 				ImGui::PushID(static_cast<int>(spawn.id));
+				ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 
 				if (ImGui::BeginTable(
 						"SpawnEntityRow", 3, ImGuiTableFlags_SizingStretchProp,
@@ -2305,6 +2306,7 @@ void DrawActionParametersCompact(
 			for (int i{ 0 }; i < static_cast<int>(p.groups.size()); ++i) {
 				auto& group{ p.groups[static_cast<std::size_t>(i)] };
 				ImGui::PushID(static_cast<int>(group.id));
+				ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 
 				if (ImGui::BeginTable(
 						"DeleteEntitiesRow", 5, ImGuiTableFlags_SizingStretchProp,
@@ -2389,6 +2391,7 @@ void DrawActionParametersCompact(
 
 		case ActionKind::AddComponent: {
 			auto& p{ std::get<AddComponentParams>(action.parameters) };
+			ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 			DrawAddComponentCombo("##AddComponentType", p.components, available_width);
 
 			int remove_component{ -1 };
@@ -2396,6 +2399,7 @@ void DrawActionParametersCompact(
 			for (int i{ 0 }; i < static_cast<int>(p.components.size()); ++i) {
 				auto& component{ p.components[static_cast<std::size_t>(i)] };
 				ImGui::PushID(static_cast<int>(component.id));
+				ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 
 				if (ImGui::BeginTable(
 						"AddComponentTitle", 2, ImGuiTableFlags_SizingStretchProp,
@@ -2432,6 +2436,7 @@ void DrawActionParametersCompact(
 
 		case ActionKind::RemoveComponent: {
 			auto& p{ std::get<RemoveComponentParams>(action.parameters) };
+			ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 			DrawComponentMultiSelectCombo(
 				"##RemoveComponents", p.components, "Select components to remove", available_width
 			);
@@ -3763,7 +3768,7 @@ void DrawPrefabInspector(PrefabDefinition& prefab) {
 
 	ImGui::SetNextItemWidth(-FLT_MIN);
 	ImGui::InputTextWithHint("##PrefabKey", "Prefab key", prefab.key.Data(), prefab.key.Size());
-	DrawItemTooltip("Stable asset key referenced by Spawn Entity actions.");
+	DrawItemTooltip("Stable asset key referenced by Spawn Entities actions.");
 
 	char components_label[64]{};
 	std::snprintf(components_label, sizeof(components_label), "Components (%zu)", prefab.components.size());
