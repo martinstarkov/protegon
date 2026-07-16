@@ -3475,6 +3475,9 @@ bool DrawBehaviorBinding(
 		DrawTriggerSection(behavior->triggers, false);
 		DrawTriggerSection(behavior->stop_triggers, true);
 
+		const ImVec2 trigger_position{ ImGui::GetCursorScreenPos() };
+		ImGui::SetCursorScreenPos(ImVec2{ trigger_position.x, trigger_position.y + 2.0f });
+
 		char sequence_label[64]{};
 		std::snprintf(sequence_label, sizeof(sequence_label), "Sequence (%zu)", behavior->sequence.size());
 
@@ -3607,10 +3610,20 @@ void DrawBehaviorsComponent(
 			component.bindings.erase(component.bindings.begin() + remove_index);
 		}
 
+		const ImVec2 add_behavior_position{ ImGui::GetCursorScreenPos() };
+		ImGui::SetCursorScreenPos(
+			ImVec2{ add_behavior_position.x, add_behavior_position.y + 4.0f }
+		);
+
 		if (ImGui::Button("+ Add Behavior", ImVec2{ -FLT_MIN, 0.0f })) {
 			ImGui::OpenPopup("AddBehaviorPopup");
 		}
 		DrawAddBehaviorPopup(component, registry);
+
+		const ImVec2 add_behavior_position2{ ImGui::GetCursorScreenPos() };
+		ImGui::SetCursorScreenPos(
+			ImVec2{ add_behavior_position2.x, add_behavior_position2.y + 4.0f }
+		);
 
 		char activity_label[64]{};
 		std::snprintf(activity_label, sizeof(activity_label), "Demo Activity (%zu)", context.activity.size());
