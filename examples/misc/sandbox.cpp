@@ -12,6 +12,7 @@
 //   - Prefab creation and reflected component editing.
 //   - Spawn Entities and filtered Delete Entities actions.
 //   - Reflected multi-component Add/Remove Components actions.
+//   - Start and stop trigger tabs.
 //   - Lifecycle callbacks and completion cleanup.
 //
 // Behaviors can be local to an entity component or references to shared global
@@ -910,6 +911,7 @@ struct BehaviorDefinition {
 	ReentryMode reentry{ ReentryMode::IgnoreWhileRunning };
 	bool destroy_on_complete{ false };
 	std::vector<TriggerDefinition> triggers;
+	std::vector<TriggerDefinition> stop_triggers;
 	std::vector<SequenceItem> sequence;
 	std::vector<LifecycleCallbackDefinition> lifecycle_callbacks;
 };
@@ -985,6 +987,9 @@ BehaviorDefinition CloneBehavior(const BehaviorDefinition& source) {
 	BehaviorDefinition copy{ source };
 	copy.id = NextId();
 	for (auto& trigger : copy.triggers) {
+		trigger.id = NextId();
+	}
+	for (auto& trigger : copy.stop_triggers) {
 		trigger.id = NextId();
 	}
 	for (auto& item : copy.sequence) {
@@ -1432,9 +1437,10 @@ void UpdateBehaviorRuntime(
 	ProcessImmediateItems(entity, binding, *behavior, registry, context);
 }
 
-bool MatchesSignalTrigger(const BehaviorDefinition& behavior, std::string_view signal) {
-	return std::ranges::any_of(behavior.triggers, [signal](const auto& trigger) {
-		return trigger.enabled && trigger.kind == TriggerKind::Signal && trigger.signal.View() == signal;
+bool MatchesSignalTrigger(const std::vector<TriggerDefinition>& triggers, std::string_view signal) {
+	return std::ranges::any_of(triggers, [signal](const auto& trigger) {
+		return trigger.enabled && trigger.kind == TriggerKind::Signal &&
+			   trigger.signal.View() == signal;
 	});
 }
 
@@ -1453,13 +1459,27 @@ void DispatchSignals(
 			}
 			for (auto& binding : entity.behaviors->bindings) {
 				const auto* behavior{ ResolveBehavior(binding, registry) };
-				if (!behavior || !MatchesSignalTrigger(*behavior, event.name)) {
+				if (!behavior) {
 					continue;
 				}
+
+				// Stop triggers take precedence when the same signal appears in both lists.
+				if (MatchesSignalTrigger(behavior->stop_triggers, event.name)) {
+					AddActivity(
+						context, std::string{ entity.name.Data() } + " / " + behavior->name.Data() +
+									 " received stop signal \"" + event.name + "\""
+					);
+					StopBehaviorRuntime(entity, binding, *behavior, context);
+					continue;
+				}
+
+				if (!MatchesSignalTrigger(behavior->triggers, event.name)) {
+					continue;
+				}
+
 				AddActivity(
-					context,
-					std::string{ entity.name.Data() } + " / " + behavior->name.Data() +
-						" received \"" + event.name + "\""
+					context, std::string{ entity.name.Data() } + " / " + behavior->name.Data() +
+								 " received start signal \"" + event.name + "\""
 				);
 				StartBehaviorRuntime(entity, binding, registry, context, false);
 			}
@@ -2677,7 +2697,7 @@ void DrawLifecycleSection(BehaviorDefinition& behavior, const PrefabRegistry& pr
 	}
 }
 
-bool DrawTriggerCompact(TriggerDefinition& trigger) {
+bool DrawTriggerCompact(TriggerDefinition& trigger, bool stop_trigger = false) {
 	bool remove{ false };
 
 	ImGui::PushID(static_cast<int>(trigger.id));
@@ -2703,7 +2723,8 @@ bool DrawTriggerCompact(TriggerDefinition& trigger) {
 				ImGui::SameLine();
 				DrawDurationInput(
 					"##Delay", trigger.duration_ms, -FLT_MIN,
-					"Delay before the behavior starts after the entity is created."
+					stop_trigger ? "Delay before the behavior stops after the entity is created."
+								 : "Delay before the behavior starts after the entity is created."
 				);
 				break;
 			}
@@ -2821,6 +2842,39 @@ bool DrawTriggerCompact(TriggerDefinition& trigger) {
 
 	ImGui::PopID();
 	return remove;
+}
+
+void DrawTriggerList(std::vector<TriggerDefinition>& triggers, bool stop_triggers) {
+	int remove_trigger{ -1 };
+
+	for (int i{ 0 }; i < static_cast<int>(triggers.size()); ++i) {
+		if (DrawTriggerCompact(triggers[static_cast<std::size_t>(i)], stop_triggers)) {
+			remove_trigger = i;
+		}
+	}
+
+	if (remove_trigger >= 0) {
+		triggers.erase(triggers.begin() + remove_trigger);
+	}
+
+	if (triggers.empty()) {
+		ImGui::TextDisabled(
+			stop_triggers ? "No stop triggers: this behavior only stops manually or on completion."
+						  : "No start triggers: this behavior is started manually."
+		);
+	}
+
+	if (ImGui::Button(
+			stop_triggers ? "+ Stop Trigger" : "+ Start Trigger", ImVec2{ -FLT_MIN, 0.0f }
+		)) {
+		TriggerDefinition trigger;
+		trigger.kind		= stop_triggers ? TriggerKind::Signal : TriggerKind::OnCreate;
+		trigger.duration_ms = 0.0f;
+		if (stop_triggers) {
+			trigger.signal.Assign("behavior.stop");
+		}
+		triggers.push_back(std::move(trigger));
+	}
 }
 
 struct SequenceDragPayload { int index; };
@@ -3301,8 +3355,11 @@ bool DrawBehaviorBinding(
 
 		DrawLifecycleSection(*behavior, prefabs);
 
-		char trigger_label[64]{};
-		std::snprintf(trigger_label, sizeof(trigger_label), "Triggers (%zu)", behavior->triggers.size());
+		char trigger_label[96]{};
+		std::snprintf(
+			trigger_label, sizeof(trigger_label), "Triggers (%zu start, %zu stop)",
+			behavior->triggers.size(), behavior->stop_triggers.size()
+		);
 
 		const bool triggers_open{ ImGui::TreeNodeEx(
 			"##Triggers",
@@ -3311,27 +3368,30 @@ bool DrawBehaviorBinding(
 			"%s", trigger_label
 		) };
 
-		if (triggers_open) {
-			int remove_trigger{ -1 };
-			for (int i{ 0 }; i < static_cast<int>(behavior->triggers.size()); ++i) {
-				if (DrawTriggerCompact(behavior->triggers[static_cast<std::size_t>(i)])) {
-					remove_trigger = i;
-				}
-			}
-			if (remove_trigger >= 0) {
-				behavior->triggers.erase(behavior->triggers.begin() + remove_trigger);
+		if (triggers_open && ImGui::BeginTabBar("TriggerTabs")) {
+			char start_tab_label[64]{};
+			std::snprintf(
+				start_tab_label, sizeof(start_tab_label), "Start Triggers (%zu)",
+				behavior->triggers.size()
+			);
+
+			if (ImGui::BeginTabItem(start_tab_label)) {
+				DrawTriggerList(behavior->triggers, false);
+				ImGui::EndTabItem();
 			}
 
-			if (behavior->triggers.empty()) {
-				ImGui::TextDisabled("No triggers: this behavior is started manually.");
+			char stop_tab_label[64]{};
+			std::snprintf(
+				stop_tab_label, sizeof(stop_tab_label), "Stop Triggers (%zu)",
+				behavior->stop_triggers.size()
+			);
+
+			if (ImGui::BeginTabItem(stop_tab_label)) {
+				DrawTriggerList(behavior->stop_triggers, true);
+				ImGui::EndTabItem();
 			}
 
-			if (ImGui::Button("+ Trigger", ImVec2{ -FLT_MIN, 0.0f })) {
-				TriggerDefinition trigger;
-				trigger.kind		= TriggerKind::OnCreate;
-				trigger.duration_ms = 0.0f;
-				behavior->triggers.push_back(std::move(trigger));
-			}
+			ImGui::EndTabBar();
 		}
 
 		char sequence_label[64]{};
@@ -4005,6 +4065,11 @@ std::vector<EntityData> MakeDemoEntities(GlobalBehaviorRegistry& registry) {
 	signal_trigger.kind = TriggerKind::Signal;
 	signal_trigger.signal.Assign("door.opened");
 	celebration.triggers.push_back(std::move(signal_trigger));
+
+	TriggerDefinition stop_signal_trigger;
+	stop_signal_trigger.kind = TriggerKind::Signal;
+	stop_signal_trigger.signal.Assign("celebration.stop");
+	celebration.stop_triggers.push_back(std::move(stop_signal_trigger));
 
 	auto celebration_audio{ MakeSequenceItem(SequenceItemKind::Action) };
 	auto& audio_action{ std::get<ActionItem>(celebration_audio.data).action };
