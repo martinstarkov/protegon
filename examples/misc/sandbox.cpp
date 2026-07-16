@@ -3371,7 +3371,7 @@ bool DrawBehaviorBinding(
 		if (triggers_open && ImGui::BeginTabBar("TriggerTabs")) {
 			char start_tab_label[64]{};
 			std::snprintf(
-				start_tab_label, sizeof(start_tab_label), "Start Triggers (%zu)",
+				start_tab_label, sizeof(start_tab_label), "Start Triggers (%zu)###StartTriggers",
 				behavior->triggers.size()
 			);
 
@@ -3382,7 +3382,7 @@ bool DrawBehaviorBinding(
 
 			char stop_tab_label[64]{};
 			std::snprintf(
-				stop_tab_label, sizeof(stop_tab_label), "Stop Triggers (%zu)",
+				stop_tab_label, sizeof(stop_tab_label), "Stop Triggers (%zu)###StopTriggers",
 				behavior->stop_triggers.size()
 			);
 
