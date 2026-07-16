@@ -322,6 +322,10 @@ std::string BuildSelectionTooltip(
 	std::string_view empty_item = "None"
 );
 
+std::string BuildCommaSeparatedTooltip(
+	std::string_view explanation, std::string_view comma_separated_values
+);
+
 std::optional<float> ParseDurationMilliseconds(std::string_view text) {
 	while (!text.empty() && std::isspace(static_cast<unsigned char>(text.front()))) {
 		text.remove_prefix(1);
@@ -1597,8 +1601,9 @@ std::string BuildSelectionTooltip(
 	std::string_view empty_item
 ) {
 	std::string tooltip{ heading };
+
 	if (selected.empty()) {
-		tooltip += "\n- ";
+		tooltip += "\n";
 		tooltip += empty_item;
 		return tooltip;
 	}
@@ -1607,6 +1612,40 @@ std::string BuildSelectionTooltip(
 		tooltip += "\n- ";
 		tooltip += item;
 	}
+
+	return tooltip;
+}
+
+std::string BuildCommaSeparatedTooltip(
+	std::string_view explanation, std::string_view comma_separated_values
+) {
+	std::string tooltip{ explanation };
+	std::size_t start{ 0 };
+
+	while (start <= comma_separated_values.size()) {
+		const std::size_t comma{ comma_separated_values.find(',', start) };
+		const std::size_t end{ comma == std::string_view::npos ? comma_separated_values.size()
+															   : comma };
+		std::string_view item{ comma_separated_values.substr(start, end - start) };
+
+		while (!item.empty() && std::isspace(static_cast<unsigned char>(item.front()))) {
+			item.remove_prefix(1);
+		}
+		while (!item.empty() && std::isspace(static_cast<unsigned char>(item.back()))) {
+			item.remove_suffix(1);
+		}
+
+		if (!item.empty()) {
+			tooltip += "\n- ";
+			tooltip += item;
+		}
+
+		if (comma == std::string_view::npos) {
+			break;
+		}
+		start = comma + 1;
+	}
+
 	return tooltip;
 }
 
@@ -1634,14 +1673,15 @@ void DrawComponentSelectionTooltip(
 
 bool DrawComponentMultiSelectCombo(
 	const char* label, std::vector<ComponentKind>& selected, const char* empty_text,
-	float width = -FLT_MIN, std::vector<ComponentKind>* mutually_exclusive = nullptr
+	float width = -FLT_MIN, std::vector<ComponentKind>* mutually_exclusive = nullptr,
+	std::string_view tooltip_heading = "Selected components:"
 ) {
 	const std::string preview{ ComponentSelectionPreview(selected, empty_text) };
 	ImGui::SetNextItemWidth(width);
 
 	bool changed{ false };
 	const bool open{ ImGui::BeginCombo(label, preview.c_str()) };
-	DrawComponentSelectionTooltip(selected);
+	DrawComponentSelectionTooltip(selected, tooltip_heading);
 
 	if (open) {
 		constexpr std::array groups{ "Core", "Graphics", "Physics", "Gameplay" };
@@ -2060,7 +2100,8 @@ void DrawComponentMembers(ComponentDefinition& component, float left_screen_x) {
 }
 
 void DrawActionParametersCompact(
-	ActionDefinition& action, float left_screen_x, const PrefabRegistry& prefabs
+	ActionDefinition& action, float left_screen_x, const PrefabRegistry& prefabs,
+	bool compact_delete_layout = false
 ) {
 	const float right_screen_x{ ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x };
 	const float available_width{ std::max(1.0f, right_screen_x - left_screen_x) };
@@ -2237,11 +2278,13 @@ void DrawActionParametersCompact(
 					DrawSpawnOptionsCombo(spawn);
 
 					ImGui::TableSetColumnIndex(2);
+					ImGui::BeginDisabled(p.entities.size() <= 1);
 					if (ImGui::Button(
 							"x", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }
 						)) {
 						remove_spawn = i;
 					}
+					ImGui::EndDisabled();
 
 					ImGui::EndTable();
 				}
@@ -2267,10 +2310,27 @@ void DrawActionParametersCompact(
 						"DeleteEntitiesRow", 5, ImGuiTableFlags_SizingStretchProp,
 						ImVec2{ available_width, 0.0f }
 					)) {
-					ImGui::TableSetupColumn("Tags", ImGuiTableColumnFlags_WidthStretch, 1.1f);
-					ImGui::TableSetupColumn("Included", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-					ImGui::TableSetupColumn("Excluded", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-					ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthFixed, 104.0f);
+					if (compact_delete_layout) {
+						ImGui::TableSetupColumn("Tags", ImGuiTableColumnFlags_WidthFixed, 108.0f);
+						ImGui::TableSetupColumn(
+							"Included", ImGuiTableColumnFlags_WidthStretch, 1.0f
+						);
+						ImGui::TableSetupColumn(
+							"Excluded", ImGuiTableColumnFlags_WidthStretch, 1.0f
+						);
+						ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthFixed, 86.0f);
+					} else {
+						ImGui::TableSetupColumn("Tags", ImGuiTableColumnFlags_WidthStretch, 1.1f);
+						ImGui::TableSetupColumn(
+							"Included", ImGuiTableColumnFlags_WidthStretch, 1.0f
+						);
+						ImGui::TableSetupColumn(
+							"Excluded", ImGuiTableColumnFlags_WidthStretch, 1.0f
+						);
+						ImGui::TableSetupColumn(
+							"Options", ImGuiTableColumnFlags_WidthFixed, 104.0f
+						);
+					}
 					ImGui::TableSetupColumn(
 						"Remove", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight()
 					);
@@ -2282,31 +2342,38 @@ void DrawActionParametersCompact(
 						"##DeleteTags", "Tags: Enemy,-Boss", group.tag_filter.Data(),
 						group.tag_filter.Size()
 					);
-					DrawItemTooltip(
-						"Optional comma-separated tag filter. Positive tags include; '-' excludes."
-					);
+					if (ImGui::IsItemHovered()) {
+						const std::string tooltip{ BuildCommaSeparatedTooltip(
+							"Optional comma-separated tag filter. Positive tags include; '-' "
+							"excludes.",
+							group.tag_filter.View()
+						) };
+						ImGui::SetTooltip("%s", tooltip.c_str());
+					}
 
 					ImGui::TableSetColumnIndex(1);
 					DrawComponentMultiSelectCombo(
 						"##IncludedComponents", group.included_components, "Include components",
-						-FLT_MIN, &group.excluded_components
+						-FLT_MIN, &group.excluded_components, "Included components:"
 					);
 
 					ImGui::TableSetColumnIndex(2);
 					DrawComponentMultiSelectCombo(
 						"##ExcludedComponents", group.excluded_components, "Exclude components",
-						-FLT_MIN, &group.included_components
+						-FLT_MIN, &group.included_components, "Excluded components:"
 					);
 
 					ImGui::TableSetColumnIndex(3);
 					DrawDeleteOptionsCombo(group);
 
 					ImGui::TableSetColumnIndex(4);
+					ImGui::BeginDisabled(p.groups.size() <= 1);
 					if (ImGui::Button(
 							"x", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }
 						)) {
 						remove_group = i;
 					}
+					ImGui::EndDisabled();
 
 					ImGui::EndTable();
 				}
@@ -2499,9 +2566,33 @@ bool DrawLifecycleCallbackCompact(
 		ImGui::TableSetColumnIndex(2);
 
 		switch (callback.kind) {
-			case LifecycleCallbackKind::Action:
-				DrawActionPicker("##CallbackAction", callback.action, false);
+			case LifecycleCallbackKind::Action: {
+				const bool supports_multiple_rows{
+					SupportsMultipleActionRows(callback.action.kind)
+				};
+				const float add_width{ ImGui::GetFrameHeight() };
+				const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+				const float picker_width{
+					supports_multiple_rows
+						? std::max(1.0f, ImGui::GetContentRegionAvail().x - add_width - spacing)
+						: -FLT_MIN
+				};
+
+				DrawActionPicker("##CallbackAction", callback.action, false, picker_width);
+
+				if (supports_multiple_rows) {
+					ImGui::SameLine(0.0f, spacing);
+					if (ImGui::Button("+", ImVec2{ add_width, ImGui::GetFrameHeight() })) {
+						AddActionParameterRow(callback.action);
+					}
+					DrawItemTooltip(
+						callback.action.kind == ActionKind::SpawnEntity
+							? "Add another entity to spawn."
+							: "Add another entity filter group."
+					);
+				}
 				break;
+			}
 
 			case LifecycleCallbackKind::EmitSignal:
 				ImGui::SetNextItemWidth(-FLT_MIN);
@@ -2525,7 +2616,7 @@ bool DrawLifecycleCallbackCompact(
 	}
 
 	if (callback.kind == LifecycleCallbackKind::Action) {
-		DrawActionParametersCompact(callback.action, callback_left_screen_x, prefabs);
+		DrawActionParametersCompact(callback.action, callback_left_screen_x, prefabs, true);
 	}
 
 	ImGui::PopID();
@@ -2687,7 +2778,13 @@ bool DrawTriggerCompact(TriggerDefinition& trigger) {
 					"##Tags", "Tags: Player,-Enemy", trigger.tag_filter.Data(),
 					trigger.tag_filter.Size()
 				);
-				DrawItemTooltip("Comma-separated tags. Prefix a tag with '-' to exclude it.");
+				if (ImGui::IsItemHovered()) {
+					const std::string tooltip{ BuildCommaSeparatedTooltip(
+						"Comma-separated tags. Prefix a tag with '-' to exclude it.",
+						trigger.tag_filter.View()
+					) };
+					ImGui::SetTooltip("%s", tooltip.c_str());
+				}
 
 				ImGui::SameLine(0.0f, spacing);
 				ImGui::SetNextItemWidth(-FLT_MIN);
@@ -2695,9 +2792,13 @@ bool DrawTriggerCompact(TriggerDefinition& trigger) {
 					"##Masks", "Masks: 1,4,-8", trigger.mask_filter.Data(),
 					trigger.mask_filter.Size()
 				);
-				DrawItemTooltip(
-					"Comma-separated integer masks. Positive values include; '-' excludes."
-				);
+				if (ImGui::IsItemHovered()) {
+					const std::string tooltip{ BuildCommaSeparatedTooltip(
+						"Comma-separated integer masks. Positive values include; '-' excludes.",
+						trigger.mask_filter.View()
+					) };
+					ImGui::SetTooltip("%s", tooltip.c_str());
+				}
 				break;
 			}
 		}
@@ -2738,7 +2839,6 @@ bool DrawSequenceItemCompact(
 	const float type_width{ 108.0f };
 	const float duration_width{ 82.0f };
 	float type_left_screen_x{ ImGui::GetCursorScreenPos().x };
-	float action_left_screen_x{ type_left_screen_x };
 
 	if (ImGui::BeginTable("SequenceRow", column_count, ImGuiTableFlags_SizingStretchProp)) {
 		ImGui::TableSetupColumn("Drag", ImGuiTableColumnFlags_WidthFixed, drag_width);
@@ -2746,9 +2846,10 @@ bool DrawSequenceItemCompact(
 
 		if (item.kind == SequenceItemKind::TimedAction) {
 			ImGui::TableSetupColumn("Duration", ImGuiTableColumnFlags_WidthFixed, duration_width);
+			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+		} else {
+			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 		}
-
-		ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 		ImGui::TableSetColumnIndex(0);
@@ -2760,8 +2861,8 @@ bool DrawSequenceItemCompact(
 			ImGui::PopStyleVar();
 		}
 		DrawItemTooltip(
-			item.enabled ? "Drag to reorder. Right-click for options."
-						 : "Disabled. Drag to reorder or right-click for options."
+			item.enabled ? "Right-click for options. Drag to reorder."
+						 : "Disabled. Right-click for options or drag to reorder."
 		);
 
 		if (ImGui::BeginPopupContextItem("ItemMenu")) {
@@ -2813,34 +2914,26 @@ bool DrawSequenceItemCompact(
 			case SequenceItemKind::Action: {
 				ImGui::TableSetColumnIndex(2);
 				auto& action{ std::get<ActionItem>(item.data).action };
-				action_left_screen_x = ImGui::GetCursorScreenPos().x;
+				const bool supports_multiple_rows{ SupportsMultipleActionRows(action.kind) };
+				const float add_width{ ImGui::GetFrameHeight() };
+				const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+				const float picker_width{
+					supports_multiple_rows
+						? std::max(1.0f, ImGui::GetContentRegionAvail().x - add_width - spacing)
+						: -FLT_MIN
+				};
 
-				if (SupportsMultipleActionRows(action.kind)) {
-					if (ImGui::BeginTable("ActionWithAdd", 2, ImGuiTableFlags_SizingStretchProp)) {
-						ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch);
-						ImGui::TableSetupColumn(
-							"Add", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight()
-						);
-						ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+				DrawActionPicker("##Action", action, false, picker_width);
 
-						ImGui::TableSetColumnIndex(0);
-						action_left_screen_x = ImGui::GetCursorScreenPos().x;
-						DrawActionPicker("##Action", action, false);
-
-						ImGui::TableSetColumnIndex(1);
-						if (ImGui::Button(
-								"+", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }
-							)) {
-							AddActionParameterRow(action);
-						}
-						DrawItemTooltip(
-							action.kind == ActionKind::SpawnEntity ? "Add another entity to spawn."
-															 : "Add another entity filter group."
-						);
-						ImGui::EndTable();
+				if (supports_multiple_rows) {
+					ImGui::SameLine(0.0f, spacing);
+					if (ImGui::Button("+", ImVec2{ add_width, ImGui::GetFrameHeight() })) {
+						AddActionParameterRow(action);
 					}
-				} else {
-					DrawActionPicker("##Action", action, false);
+					DrawItemTooltip(
+						action.kind == ActionKind::SpawnEntity ? "Add another entity to spawn."
+															   : "Add another entity filter group."
+					);
 				}
 				break;
 			}
@@ -2854,7 +2947,6 @@ bool DrawSequenceItemCompact(
 				);
 
 				ImGui::TableSetColumnIndex(3);
-				action_left_screen_x = ImGui::GetCursorScreenPos().x;
 				DrawActionPicker("##Action", timed.action, true);
 				break;
 			}
@@ -2921,11 +3013,9 @@ bool DrawSequenceItemCompact(
 
 		DrawActionParametersCompact(timed.action, type_left_screen_x, prefabs);
 	} else if (item.kind == SequenceItemKind::Action) {
-		auto& action{ std::get<ActionItem>(item.data).action };
-		const float parameter_left_screen_x{
-			action.kind == ActionKind::AddComponent ? action_left_screen_x : type_left_screen_x
-		};
-		DrawActionParametersCompact(action, parameter_left_screen_x, prefabs);
+		DrawActionParametersCompact(
+			std::get<ActionItem>(item.data).action, type_left_screen_x, prefabs
+		);
 	}
 
 	ImGui::PopID();
