@@ -182,7 +182,7 @@ constexpr std::array kSequenceItemNames{
 constexpr std::array kEaseNames{
 	"Linear", "In Quad", "Out Quad", "In-Out Quad", "Out Cubic", "Out Back"
 };
-constexpr std::array kSpawnOriginNames{ "Behavior Entity", "Position" };
+constexpr std::array kSpawnOriginNames{ "Entity", "Position" };
 constexpr std::array kSpawnAreaNames{ "Point", "Rectangle", "Circle" };
 constexpr std::array kColliderModeNames{
 	"None", "Overlap", "Discrete", "Continuous"
@@ -220,6 +220,52 @@ bool DrawEnumCombo(
 			}
 		}
 		ImGui::EndCombo();
+	}
+
+	return changed;
+}
+
+bool DrawSpawnOriginCombo(const char* label, SpawnOrigin& origin, float width = -FLT_MIN) {
+	if (width != 0.0f) {
+		ImGui::SetNextItemWidth(width);
+	}
+
+	const auto tooltip_for = [](SpawnOrigin value) {
+		switch (value) {
+			case SpawnOrigin::BehaviorEntity:
+				return "Use the behavior entity as the placement origin. X and Y are offsets.";
+			case SpawnOrigin::Position:
+				return "Use an explicit world-space position. X and Y are coordinates.";
+		}
+		return "";
+	};
+
+	bool changed{ false };
+	const char* preview{ kSpawnOriginNames[static_cast<std::size_t>(origin)] };
+
+	if (ImGui::BeginCombo(label, preview)) {
+		for (int i{ 0 }; i < static_cast<int>(kSpawnOriginNames.size()); ++i) {
+			const auto candidate{ static_cast<SpawnOrigin>(i) };
+			const bool selected{ origin == candidate };
+
+			if (ImGui::Selectable(kSpawnOriginNames[static_cast<std::size_t>(i)], selected)) {
+				origin	= candidate;
+				changed = true;
+			}
+
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("%s", tooltip_for(candidate));
+			}
+
+			if (selected) {
+				ImGui::SetItemDefaultFocus();
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("%s", tooltip_for(origin));
 	}
 
 	return changed;
@@ -515,6 +561,13 @@ void DrawCountControl(
 ) {
 	value = std::max(0, value);
 
+	constexpr float button_width{ 22.0f };
+	constexpr float text_button_spacing{ 3.0f };
+	constexpr float button_spacing{ 3.0f };
+	const std::string widest_text{ std::string{ label } + ": 000" };
+	const float reserved_text_width{ ImGui::CalcTextSize(widest_text.c_str()).x };
+	const float text_start_x{ ImGui::GetCursorScreenPos().x };
+
 	ImGui::PushID(label);
 	ImGui::BeginDisabled(disabled);
 
@@ -523,16 +576,20 @@ void DrawCountControl(
 	if (tooltip) {
 		DrawItemTooltip(tooltip);
 	}
-	ImGui::SameLine();
 
-	if (ImGui::Button("+", ImVec2{ 22.0f, 0.0f })) {
+	ImGui::SameLine();
+	ImGui::SetCursorScreenPos(
+		ImVec2{ text_start_x + reserved_text_width + text_button_spacing,
+				ImGui::GetCursorScreenPos().y }
+	);
+	if (ImGui::Button("+", ImVec2{ button_width, 0.0f })) {
 		++value;
 	}
 
-	ImGui::SameLine();
+	ImGui::SameLine(0.0f, button_spacing);
 	ImGui::BeginDisabled(value == 0);
 
-	if (ImGui::Button("-", ImVec2{ 22.0f, 0.0f })) {
+	if (ImGui::Button("-", ImVec2{ button_width, 0.0f })) {
 		--value;
 	}
 
@@ -2269,24 +2326,21 @@ void DrawActionParametersCompact(
 			spawn.rectangle_size[1] = std::max(0.0f, spawn.rectangle_size[1]);
 			spawn.radius			= std::max(0.0f, spawn.radius);
 
-			const float count_label_width{ ImGui::CalcTextSize("Count: 000").x +
-										   ImGui::GetStyle().FramePadding.x * 2.0f };
 			const float count_button_width{ ImGui::GetFrameHeight() };
+			const float count_text_button_spacing{ 3.0f };
+			const float count_button_spacing{ 3.0f };
+			const float count_text_width{ ImGui::CalcTextSize("Count: 000").x };
+			const float count_control_width{ count_text_width + count_text_button_spacing +
+											 count_button_width * 2.0f + count_button_spacing };
 
 			ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 			if (ImGui::BeginTable(
-					"SpawnEntityPrimaryRow", 4, ImGuiTableFlags_SizingStretchProp,
+					"SpawnEntityPrimaryRow", 2, ImGuiTableFlags_SizingStretchProp,
 					ImVec2{ available_width, 0.0f }
 				)) {
 				ImGui::TableSetupColumn("Prefab", ImGuiTableColumnFlags_WidthStretch);
 				ImGui::TableSetupColumn(
-					"Count", ImGuiTableColumnFlags_WidthFixed, count_label_width
-				);
-				ImGui::TableSetupColumn(
-					"Increase", ImGuiTableColumnFlags_WidthFixed, count_button_width
-				);
-				ImGui::TableSetupColumn(
-					"Decrease", ImGuiTableColumnFlags_WidthFixed, count_button_width
+					"Count", ImGuiTableColumnFlags_WidthFixed, count_control_width
 				);
 				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
@@ -2294,20 +2348,24 @@ void DrawActionParametersCompact(
 				DrawPrefabKeyPicker("##PrefabKey", spawn.prefab_key, prefabs);
 
 				ImGui::TableSetColumnIndex(1);
+				const float count_text_start_x{ ImGui::GetCursorScreenPos().x };
 				ImGui::AlignTextToFramePadding();
 				ImGui::Text("Count: %d", spawn.count);
 				DrawItemTooltip("Number of prefab instances created by this action.");
 
 				ImGui::PushID("SpawnCount");
-
-				ImGui::TableSetColumnIndex(2);
-				if (ImGui::Button("+", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
+				ImGui::SameLine();
+				ImGui::SetCursorScreenPos(
+					ImVec2{ count_text_start_x + count_text_width + count_text_button_spacing,
+							ImGui::GetCursorScreenPos().y }
+				);
+				if (ImGui::Button("+", ImVec2{ count_button_width, ImGui::GetFrameHeight() })) {
 					++spawn.count;
 				}
 
-				ImGui::TableSetColumnIndex(3);
+				ImGui::SameLine(0.0f, count_button_spacing);
 				ImGui::BeginDisabled(spawn.count <= 1);
-				if (ImGui::Button("-", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
+				if (ImGui::Button("-", ImVec2{ count_button_width, ImGui::GetFrameHeight() })) {
 					spawn.count = std::max(1, spawn.count - 1);
 				}
 				ImGui::EndDisabled();
@@ -2329,7 +2387,7 @@ void DrawActionParametersCompact(
 					"SpawnEntityPlacementRow", placement_columns, ImGuiTableFlags_SizingStretchProp,
 					ImVec2{ available_width, 0.0f }
 				)) {
-				ImGui::TableSetupColumn("Origin", ImGuiTableColumnFlags_WidthFixed, 128.0f);
+				ImGui::TableSetupColumn("Origin", ImGuiTableColumnFlags_WidthFixed, 92.0f);
 				ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch, 0.8f);
 				ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch, 0.8f);
 				ImGui::TableSetupColumn("Shape", ImGuiTableColumnFlags_WidthFixed, 94.0f);
@@ -2344,11 +2402,7 @@ void DrawActionParametersCompact(
 				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 				ImGui::TableSetColumnIndex(0);
-				DrawEnumCombo("##SpawnOrigin", spawn.origin, kSpawnOriginNames);
-				DrawItemTooltip(
-					"Use the behavior entity as the placement origin or provide an explicit world "
-					"position."
-				);
+				DrawSpawnOriginCombo("##SpawnOrigin", spawn.origin);
 
 				ImGui::TableSetColumnIndex(1);
 				ImGui::SetNextItemWidth(-FLT_MIN);
@@ -2925,7 +2979,7 @@ bool DrawSequenceItemCompact(
 	const float drag_width{ 28.0f };
 	const float type_width{ 108.0f };
 	const float duration_width{ 82.0f };
-	const float repeats_width{ 136.0f };
+	const float repeats_width{ ImGui::CalcTextSize("Repeats: 000").x + 44.0f + 6.0f };
 	const float add_width{ ImGui::GetFrameHeight() };
 	const float remove_width{ ImGui::GetFrameHeight() };
 
@@ -3380,13 +3434,14 @@ bool DrawBehaviorBinding(
 		ImGui::SameLine();
 
 		const auto& style{ ImGui::GetStyle() };
+		const float reentry_checkbox_spacing{ 8.0f };
 		const float global_width{ ImGui::GetFrameHeight() + style.ItemInnerSpacing.x +
 								  ImGui::CalcTextSize("Global").x };
 		const float destroy_width{ ImGui::GetFrameHeight() + style.ItemInnerSpacing.x +
 								   ImGui::CalcTextSize("Destroy on Complete").x };
 		const float reentry_width{ std::max(
 			1.0f, ImGui::GetContentRegionAvail().x - global_width - destroy_width -
-					  style.ItemSpacing.x - 30.0f
+					  reentry_checkbox_spacing - style.ItemSpacing.x - 30.0f
 		) };
 
 		DrawEnumCombo("##Reentry", behavior->reentry, kReentryNames, reentry_width);
@@ -3394,7 +3449,7 @@ bool DrawBehaviorBinding(
 			"Controls what happens if this behavior is triggered while already running."
 		);
 
-		ImGui::SameLine(0.0f, 0.0f);
+		ImGui::SameLine(0.0f, reentry_checkbox_spacing);
 		bool global{ binding.global_reference };
 		if (ImGui::Checkbox("Global", &global)) {
 			if (global) {
