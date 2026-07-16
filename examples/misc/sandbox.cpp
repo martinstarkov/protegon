@@ -317,6 +317,11 @@ void DrawItemTooltip(const char* text) {
 	}
 }
 
+std::string BuildSelectionTooltip(
+	std::string_view heading, const std::vector<std::string_view>& selected,
+	std::string_view empty_item = "None"
+);
+
 std::optional<float> ParseDurationMilliseconds(std::string_view text) {
 	while (!text.empty() && std::isspace(static_cast<unsigned char>(text.front()))) {
 		text.remove_prefix(1);
@@ -687,11 +692,16 @@ struct SpawnEntityParams {
 	std::vector<SpawnEntityDefinition> entities{ SpawnEntityDefinition{} };
 };
 
-struct DeleteEntitiesParams {
+struct DeleteEntityDefinition {
+	Id id{ NextId() };
 	TextBuffer<96> tag_filter{};
-	std::vector<ComponentKind> included_components{ ComponentKind::Zombie };
-	std::vector<ComponentKind> excluded_components{ ComponentKind::Health };
+	std::vector<ComponentKind> included_components;
+	std::vector<ComponentKind> excluded_components;
 	bool include_owner{ false };
+};
+
+struct DeleteEntitiesParams {
+	std::vector<DeleteEntityDefinition> groups{ DeleteEntityDefinition{} };
 };
 
 struct AddComponentParams {
@@ -730,6 +740,17 @@ struct ActionDescriptor {
 };
 
 constexpr std::array kActionRegistry{
+	ActionDescriptor{ ActionKind::SpawnEntity, "engine.spawn_entity", "Spawn Entity", "Entity",
+					  "Spawns one or more runtime entities from prefab keys.", false },
+	ActionDescriptor{ ActionKind::DeleteEntities, "engine.delete_entities", "Delete Entities",
+					  "Entity", "Deletes one or more groups of entities matching filters.", false },
+	ActionDescriptor{
+		ActionKind::AddComponent, "engine.add_component", "Add Component", "Entity",
+		"Adds one or more registered components with reflected serialized values to the owner.",
+		false },
+	ActionDescriptor{ ActionKind::RemoveComponent, "engine.remove_component", "Remove Component",
+					  "Entity",
+					  "Removes one or more selected registered components from the owner.", false },
 	ActionDescriptor{ ActionKind::SetVisible, "engine.set_visible", "Set Visible", "Entity",
 					  "Changes entity visibility.", false },
 	ActionDescriptor{ ActionKind::MoveTo, "engine.move_to", "Move To", "Transform",
@@ -740,18 +761,6 @@ constexpr std::array kActionRegistry{
 					  "Plays an audio asset.", false },
 	ActionDescriptor{ ActionKind::SetColliderMode, "engine.set_collider_mode", "Set Collider Mode",
 					  "Physics", "Changes the collider mode.", false },
-	ActionDescriptor{ ActionKind::SpawnEntity, "engine.spawn_entity", "Spawn Entity", "Entity",
-					  "Spawns a runtime entity from a prefab key.", false },
-	ActionDescriptor{ ActionKind::DeleteEntities, "engine.delete_entities", "Delete Entities",
-					  "Entity", "Deletes entities matching tag and registered-component filters.",
-					  false },
-	ActionDescriptor{
-		ActionKind::AddComponent, "engine.add_component", "Add Component", "Entity",
-		"Adds one or more registered components with reflected serialized values to the owner.",
-		false },
-	ActionDescriptor{ ActionKind::RemoveComponent, "engine.remove_component", "Remove Component",
-					  "Entity",
-					  "Removes one or more selected registered components from the owner.", false },
 	ActionDescriptor{ ActionKind::ApplyDamage, "game.apply_damage", "Apply Damage", "Game",
 					  "Example user-registered action.", false },
 };
@@ -829,8 +838,24 @@ std::string TimedFlagsPreview(const TimedActionItem& timed) {
 void DrawTimedFlagsCombo(TimedActionItem& timed) {
 	const std::string preview{ TimedFlagsPreview(timed) };
 	ImGui::SetNextItemWidth(-FLT_MIN);
+	const bool open{ ImGui::BeginCombo("##TimedFlags", preview.c_str()) };
 
-	if (ImGui::BeginCombo("##TimedFlags", preview.c_str())) {
+	if (ImGui::IsItemHovered()) {
+		std::vector<std::string_view> selected;
+		if (timed.infinite_repeats) {
+			selected.emplace_back("Infinite");
+		}
+		if (timed.reversed) {
+			selected.emplace_back("Reversed");
+		}
+		if (timed.yoyo) {
+			selected.emplace_back("Yoyo");
+		}
+		const std::string tooltip{ BuildSelectionTooltip("Selected options:", selected) };
+		ImGui::SetTooltip("%s", tooltip.c_str());
+	}
+
+	if (open) {
 		ImGui::Checkbox("Infinite", &timed.infinite_repeats);
 		DrawItemTooltip("Repeat the timed action indefinitely.");
 		ImGui::Checkbox("Reversed", &timed.reversed);
@@ -1031,10 +1056,19 @@ void ExecuteAction(
 
 		case ActionKind::DeleteEntities: {
 			const auto& params{ std::get<DeleteEntitiesParams>(action.parameters) };
-			detail += " [tags=" + std::string{ params.tag_filter.Data() } +
-					  ", include=" + ComponentSelectionPreview(params.included_components, "Any") +
-					  ", exclude=" + ComponentSelectionPreview(params.excluded_components, "None") +
-					  "]";
+			detail += " [";
+			for (std::size_t i{ 0 }; i < params.groups.size(); ++i) {
+				if (i != 0) {
+					detail += "; ";
+				}
+				const auto& group{ params.groups[i] };
+				detail += "tags=" + std::string{ group.tag_filter.Data() } +
+						  ", include=" +
+						  ComponentSelectionPreview(group.included_components, "Any") +
+						  ", exclude=" +
+						  ComponentSelectionPreview(group.excluded_components, "None");
+			}
+			detail += "]";
 			break;
 		}
 
@@ -1558,6 +1592,46 @@ void RemoveComponentKind(std::vector<ComponentKind>& components, ComponentKind k
 	std::erase(components, kind);
 }
 
+std::string BuildSelectionTooltip(
+	std::string_view heading, const std::vector<std::string_view>& selected,
+	std::string_view empty_item
+) {
+	std::string tooltip{ heading };
+	if (selected.empty()) {
+		tooltip += "\n- ";
+		tooltip += empty_item;
+		return tooltip;
+	}
+
+	for (const auto item : selected) {
+		tooltip += "\n- ";
+		tooltip += item;
+	}
+	return tooltip;
+}
+
+std::vector<std::string_view> GetComponentSelectionLabels(
+	const std::vector<ComponentKind>& selected
+) {
+	std::vector<std::string_view> labels;
+	labels.reserve(selected.size());
+	for (const auto kind : selected) {
+		labels.emplace_back(GetComponentDescriptor(kind).label);
+	}
+	return labels;
+}
+
+void DrawComponentSelectionTooltip(
+	const std::vector<ComponentKind>& selected, std::string_view heading = "Selected components:"
+) {
+	if (!ImGui::IsItemHovered()) {
+		return;
+	}
+	const auto labels{ GetComponentSelectionLabels(selected) };
+	const std::string tooltip{ BuildSelectionTooltip(heading, labels) };
+	ImGui::SetTooltip("%s", tooltip.c_str());
+}
+
 bool DrawComponentMultiSelectCombo(
 	const char* label, std::vector<ComponentKind>& selected, const char* empty_text,
 	float width = -FLT_MIN, std::vector<ComponentKind>* mutually_exclusive = nullptr
@@ -1566,8 +1640,10 @@ bool DrawComponentMultiSelectCombo(
 	ImGui::SetNextItemWidth(width);
 
 	bool changed{ false };
+	const bool open{ ImGui::BeginCombo(label, preview.c_str()) };
+	DrawComponentSelectionTooltip(selected);
 
-	if (ImGui::BeginCombo(label, preview.c_str())) {
+	if (open) {
 		constexpr std::array groups{ "Core", "Graphics", "Physics", "Gameplay" };
 
 		for (const char* group : groups) {
@@ -1613,8 +1689,19 @@ bool DrawAddComponentCombo(
 ) {
 	ImGui::SetNextItemWidth(width);
 	bool changed{ false };
+	const bool open{ ImGui::BeginCombo(label, "Add registered component...") };
 
-	if (ImGui::BeginCombo(label, "Add registered component...")) {
+	if (ImGui::IsItemHovered()) {
+		std::vector<std::string_view> labels;
+		labels.reserve(components.size());
+		for (const auto& component : components) {
+			labels.emplace_back(GetComponentDescriptor(component.kind).label);
+		}
+		const std::string tooltip{ BuildSelectionTooltip("Selected components:", labels) };
+		ImGui::SetTooltip("%s", tooltip.c_str());
+	}
+
+	if (open) {
 		constexpr std::array groups{ "Core", "Graphics", "Physics", "Gameplay" };
 
 		for (const char* group : groups) {
@@ -1657,37 +1744,83 @@ bool DrawAddComponentCombo(
 	return changed;
 }
 
-std::string SpawnOptionsPreview(const SpawnEntityDefinition& spawn) {
-	std::string preview;
+std::vector<std::string_view> GetSpawnOptionLabels(const SpawnEntityDefinition& spawn) {
+	std::vector<std::string_view> labels;
+	if (spawn.inherit_owner_transform) {
+		labels.emplace_back("At Owner");
+	}
+	if (spawn.parent_to_owner) {
+		labels.emplace_back("Parent to Owner");
+	}
+	return labels;
+}
 
-	auto append = [&preview](std::string_view option) {
+std::string SpawnOptionsPreview(const SpawnEntityDefinition& spawn) {
+	const auto labels{ GetSpawnOptionLabels(spawn) };
+	if (labels.empty()) {
+		return "Options";
+	}
+
+	std::string preview;
+	for (const auto label : labels) {
 		if (!preview.empty()) {
 			preview += ", ";
 		}
-		preview += option;
-	};
-
-	if (spawn.inherit_owner_transform) {
-		append("At Owner");
+		preview += label;
 	}
-	if (spawn.parent_to_owner) {
-		append("Parented");
-	}
-
-	return preview.empty() ? "Options" : preview;
+	return preview;
 }
 
 void DrawSpawnOptionsCombo(SpawnEntityDefinition& spawn) {
 	const std::string preview{ SpawnOptionsPreview(spawn) };
 	ImGui::SetNextItemWidth(-FLT_MIN);
+	const bool open{ ImGui::BeginCombo("##SpawnOptions", preview.c_str()) };
 
-	if (ImGui::BeginCombo("##SpawnOptions", preview.c_str())) {
+	if (ImGui::IsItemHovered()) {
+		const auto labels{ GetSpawnOptionLabels(spawn) };
+		const std::string tooltip{ BuildSelectionTooltip("Selected options:", labels) };
+		ImGui::SetTooltip("%s", tooltip.c_str());
+	}
+
+	if (open) {
 		ImGui::Checkbox("At Owner", &spawn.inherit_owner_transform);
 		DrawItemTooltip("Initialize the spawned root transform from the behavior owner.");
 
 		ImGui::Checkbox("Parent to Owner", &spawn.parent_to_owner);
 		DrawItemTooltip("Make the behavior owner the spawned entity's parent.");
 
+		ImGui::EndCombo();
+	}
+}
+
+std::vector<std::string_view> GetDeleteOptionLabels(const DeleteEntityDefinition& group) {
+	std::vector<std::string_view> labels;
+	if (group.include_owner) {
+		labels.emplace_back("Allow Behavior Owner");
+	}
+	return labels;
+}
+
+std::string DeleteOptionsPreview(const DeleteEntityDefinition& group) {
+	return group.include_owner ? "Allow Owner" : "Options";
+}
+
+void DrawDeleteOptionsCombo(DeleteEntityDefinition& group) {
+	const std::string preview{ DeleteOptionsPreview(group) };
+	ImGui::SetNextItemWidth(-FLT_MIN);
+	const bool open{ ImGui::BeginCombo("##DeleteOptions", preview.c_str()) };
+
+	if (ImGui::IsItemHovered()) {
+		const auto labels{ GetDeleteOptionLabels(group) };
+		const std::string tooltip{ BuildSelectionTooltip("Selected options:", labels) };
+		ImGui::SetTooltip("%s", tooltip.c_str());
+	}
+
+	if (open) {
+		ImGui::Checkbox("Allow deleting behavior owner", &group.include_owner);
+		DrawItemTooltip(
+			"Allows this filter group to delete the entity that owns and executes the behavior."
+		);
 		ImGui::EndCombo();
 	}
 }
@@ -1700,8 +1833,13 @@ bool DrawPrefabKeyPicker(
 
 	const char* preview{ prefab_key.Empty() ? "Select prefab key" : prefab_key.Data() };
 	bool changed{ false };
+	const bool open{ ImGui::BeginCombo(label, preview) };
 
-	if (ImGui::BeginCombo(label, preview)) {
+	if (ImGui::IsItemHovered()) {
+		ImGui::SetTooltip("Selected prefab:\n%s", prefab_key.Empty() ? "(none)" : prefab_key.Data());
+	}
+
+	if (open) {
 		ImGui::SetNextItemWidth(260.0f);
 		if (ImGui::InputTextWithHint(
 				"##CustomPrefabKey", "Type prefab key", prefab_key.Data(), prefab_key.Size()
@@ -2085,7 +2223,7 @@ void DrawActionParametersCompact(
 						"SpawnEntityRow", 3, ImGuiTableFlags_SizingStretchProp,
 						ImVec2{ available_width, 0.0f }
 					)) {
-					ImGui::TableSetupColumn("Prefab", ImGuiTableColumnFlags_WidthFixed, 218.0f);
+					ImGui::TableSetupColumn("Prefab", ImGuiTableColumnFlags_WidthFixed, 190.0f);
 					ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthStretch);
 					ImGui::TableSetupColumn(
 						"Remove", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight()
@@ -2114,70 +2252,83 @@ void DrawActionParametersCompact(
 			if (remove_spawn >= 0) {
 				p.entities.erase(p.entities.begin() + remove_spawn);
 			}
-
-			if (ImGui::Button("+ Spawn Entity", ImVec2{ available_width, 0.0f })) {
-				p.entities.emplace_back();
-			}
 			break;
 		}
 
 		case ActionKind::DeleteEntities: {
 			auto& p{ std::get<DeleteEntitiesParams>(action.parameters) };
+			int remove_group{ -1 };
 
-			if (ImGui::BeginTable(
-					"DeleteEntitiesParams", 3, ImGuiTableFlags_SizingStretchProp,
-					ImVec2{ available_width, 0.0f }
-				)) {
-				ImGui::TableSetupColumn("Tags", ImGuiTableColumnFlags_WidthStretch, 1.05f);
-				ImGui::TableSetupColumn("Included", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-				ImGui::TableSetupColumn("Excluded", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+			for (int i{ 0 }; i < static_cast<int>(p.groups.size()); ++i) {
+				auto& group{ p.groups[static_cast<std::size_t>(i)] };
+				ImGui::PushID(static_cast<int>(group.id));
 
-				ImGui::TableSetColumnIndex(0);
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				ImGui::InputTextWithHint(
-					"##DeleteTags", "Tags: Enemy,-Boss", p.tag_filter.Data(),
-					p.tag_filter.Size()
-				);
-				DrawItemTooltip(
-					"Optional comma-separated tag filter. Positive tags include; '-' excludes."
-				);
+				if (ImGui::BeginTable(
+						"DeleteEntitiesRow", 5, ImGuiTableFlags_SizingStretchProp,
+						ImVec2{ available_width, 0.0f }
+					)) {
+					ImGui::TableSetupColumn("Tags", ImGuiTableColumnFlags_WidthStretch, 1.1f);
+					ImGui::TableSetupColumn("Included", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+					ImGui::TableSetupColumn("Excluded", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+					ImGui::TableSetupColumn("Options", ImGuiTableColumnFlags_WidthFixed, 104.0f);
+					ImGui::TableSetupColumn(
+						"Remove", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight()
+					);
+					ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
-				ImGui::TableSetColumnIndex(1);
-				DrawComponentMultiSelectCombo(
-					"##IncludedComponents", p.included_components, "Include components", -FLT_MIN,
-					&p.excluded_components
-				);
-				DrawItemTooltip("Every selected component must exist on the entity.");
+					ImGui::TableSetColumnIndex(0);
+					ImGui::SetNextItemWidth(-FLT_MIN);
+					ImGui::InputTextWithHint(
+						"##DeleteTags", "Tags: Enemy,-Boss", group.tag_filter.Data(),
+						group.tag_filter.Size()
+					);
+					DrawItemTooltip(
+						"Optional comma-separated tag filter. Positive tags include; '-' excludes."
+					);
 
-				ImGui::TableSetColumnIndex(2);
-				DrawComponentMultiSelectCombo(
-					"##ExcludedComponents", p.excluded_components, "Exclude components", -FLT_MIN,
-					&p.included_components
-				);
-				DrawItemTooltip("Every selected component must be absent from the entity.");
+					ImGui::TableSetColumnIndex(1);
+					DrawComponentMultiSelectCombo(
+						"##IncludedComponents", group.included_components, "Include components",
+						-FLT_MIN, &group.excluded_components
+					);
 
-				ImGui::EndTable();
+					ImGui::TableSetColumnIndex(2);
+					DrawComponentMultiSelectCombo(
+						"##ExcludedComponents", group.excluded_components, "Exclude components",
+						-FLT_MIN, &group.included_components
+					);
+
+					ImGui::TableSetColumnIndex(3);
+					DrawDeleteOptionsCombo(group);
+
+					ImGui::TableSetColumnIndex(4);
+					if (ImGui::Button(
+							"x", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }
+						)) {
+						remove_group = i;
+					}
+
+					ImGui::EndTable();
+				}
+
+				ImGui::PopID();
 			}
 
-			ImGui::Checkbox("Allow deleting the behavior owner", &p.include_owner);
+			if (remove_group >= 0) {
+				p.groups.erase(p.groups.begin() + remove_group);
+			}
 			break;
 		}
 
 		case ActionKind::AddComponent: {
 			auto& p{ std::get<AddComponentParams>(action.parameters) };
 			DrawAddComponentCombo("##AddComponentType", p.components, available_width);
-			DrawItemTooltip(
-				"Select registered components to add. Their reflected values are serialized with "
-				"the action."
-			);
 
 			int remove_component{ -1 };
 
 			for (int i{ 0 }; i < static_cast<int>(p.components.size()); ++i) {
 				auto& component{ p.components[static_cast<std::size_t>(i)] };
 				ImGui::PushID(static_cast<int>(component.id));
-				ImGui::Separator();
 
 				if (ImGui::BeginTable(
 						"AddComponentTitle", 2, ImGuiTableFlags_SizingStretchProp,
@@ -2217,9 +2368,6 @@ void DrawActionParametersCompact(
 			DrawComponentMultiSelectCombo(
 				"##RemoveComponents", p.components, "Select components to remove", available_width
 			);
-			DrawItemTooltip(
-				"Every selected registered component is removed from the behavior owner."
-			);
 			break;
 		}
 	}
@@ -2239,8 +2387,34 @@ bool DrawActionPicker(
 	ImGui::SetNextItemWidth(width);
 
 	if (ImGui::BeginCombo(label, GetActionDescriptor(action.kind).label)) {
-		constexpr std::array groups{ "Entity", "Transform", "Audio", "Physics", "Game" };
+		auto draw_action = [&](ActionKind kind) {
+			const auto& descriptor{ GetActionDescriptor(kind) };
+			if (timed_only && !descriptor.supports_timed) {
+				return;
+			}
 
+			const bool selected{ action.kind == kind };
+			if (ImGui::MenuItem(descriptor.label, nullptr, selected)) {
+				action = MakeAction(kind);
+				changed = true;
+			}
+			if (ImGui::IsItemHovered()) {
+				ImGui::SetTooltip("%s\n%s", descriptor.description, descriptor.key);
+			}
+		};
+
+		if (!timed_only && ImGui::BeginMenu("Entity")) {
+			draw_action(ActionKind::SpawnEntity);
+			draw_action(ActionKind::DeleteEntities);
+			ImGui::Separator();
+			draw_action(ActionKind::AddComponent);
+			draw_action(ActionKind::RemoveComponent);
+			ImGui::Separator();
+			draw_action(ActionKind::SetVisible);
+			ImGui::EndMenu();
+		}
+
+		constexpr std::array groups{ "Transform", "Audio", "Physics", "Game" };
 		for (const char* group : groups) {
 			const bool has_entries{ std::ranges::any_of(
 				kActionRegistry, [group, timed_only](const auto& descriptor) {
@@ -2258,17 +2432,7 @@ bool DrawActionPicker(
 					(timed_only && !descriptor.supports_timed)) {
 					continue;
 				}
-
-				const bool selected{ action.kind == descriptor.kind };
-
-				if (ImGui::MenuItem(descriptor.label, nullptr, selected)) {
-					action	= MakeAction(descriptor.kind);
-					changed = true;
-				}
-
-				if (ImGui::IsItemHovered()) {
-					ImGui::SetTooltip("%s\n%s", descriptor.description, descriptor.key);
-				}
+				draw_action(descriptor.kind);
 			}
 
 			ImGui::EndMenu();
@@ -2278,6 +2442,32 @@ bool DrawActionPicker(
 	}
 
 	return changed;
+}
+
+bool SupportsMultipleActionRows(ActionKind kind) {
+	return kind == ActionKind::SpawnEntity || kind == ActionKind::DeleteEntities;
+}
+
+void AddActionParameterRow(ActionDefinition& action) {
+	switch (action.kind) {
+		case ActionKind::SpawnEntity:
+			std::get<SpawnEntityParams>(action.parameters).entities.emplace_back();
+			break;
+
+		case ActionKind::DeleteEntities:
+			std::get<DeleteEntitiesParams>(action.parameters).groups.emplace_back();
+			break;
+
+		case ActionKind::SetVisible:
+		case ActionKind::MoveTo:
+		case ActionKind::RotateTo:
+		case ActionKind::PlayAudio:
+		case ActionKind::SetColliderMode:
+		case ActionKind::ApplyDamage:
+		case ActionKind::AddComponent:
+		case ActionKind::RemoveComponent:
+			break;
+	}
 }
 
 bool DrawLifecycleCallbackCompact(
@@ -2542,16 +2732,13 @@ bool DrawSequenceItemCompact(
 	bool remove{ false };
 
 	ImGui::PushID(static_cast<int>(item.id));
-	ImGui::PushStyleVar(
-		ImGuiStyleVar_Alpha,
-		item.enabled ? ImGui::GetStyle().Alpha : ImGui::GetStyle().Alpha * 0.55f
-	);
 
 	const int column_count{ item.kind == SequenceItemKind::TimedAction ? 4 : 3 };
 	const float drag_width{ 28.0f };
 	const float type_width{ 108.0f };
 	const float duration_width{ 82.0f };
 	float type_left_screen_x{ ImGui::GetCursorScreenPos().x };
+	float action_left_screen_x{ type_left_screen_x };
 
 	if (ImGui::BeginTable("SequenceRow", column_count, ImGuiTableFlags_SizingStretchProp)) {
 		ImGui::TableSetupColumn("Drag", ImGuiTableColumnFlags_WidthFixed, drag_width);
@@ -2565,11 +2752,17 @@ bool DrawSequenceItemCompact(
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 		ImGui::TableSetColumnIndex(0);
+		if (!item.enabled) {
+			ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.45f);
+		}
 		ImGui::Button("::", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() });
-		DrawItemTooltip("Drag to reorder. Right-click for options.");
-
-		// Keep disabled sequence rows faded, but always render their context menu at full opacity.
-		ImGui::PopStyleVar();
+		if (!item.enabled) {
+			ImGui::PopStyleVar();
+		}
+		DrawItemTooltip(
+			item.enabled ? "Drag to reorder. Right-click for options."
+						 : "Disabled. Drag to reorder or right-click for options."
+		);
 
 		if (ImGui::BeginPopupContextItem("ItemMenu")) {
 			if (ImGui::MenuItem(item.enabled ? "Disable" : "Enable")) {
@@ -2588,11 +2781,6 @@ bool DrawSequenceItemCompact(
 
 			ImGui::EndPopup();
 		}
-
-		ImGui::PushStyleVar(
-			ImGuiStyleVar_Alpha,
-			item.enabled ? ImGui::GetStyle().Alpha : ImGui::GetStyle().Alpha * 0.55f
-		);
 
 		if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 			const SequenceDragPayload payload{ index };
@@ -2625,7 +2813,35 @@ bool DrawSequenceItemCompact(
 			case SequenceItemKind::Action: {
 				ImGui::TableSetColumnIndex(2);
 				auto& action{ std::get<ActionItem>(item.data).action };
-				DrawActionPicker("##Action", action, false);
+				action_left_screen_x = ImGui::GetCursorScreenPos().x;
+
+				if (SupportsMultipleActionRows(action.kind)) {
+					if (ImGui::BeginTable("ActionWithAdd", 2, ImGuiTableFlags_SizingStretchProp)) {
+						ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch);
+						ImGui::TableSetupColumn(
+							"Add", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight()
+						);
+						ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
+						ImGui::TableSetColumnIndex(0);
+						action_left_screen_x = ImGui::GetCursorScreenPos().x;
+						DrawActionPicker("##Action", action, false);
+
+						ImGui::TableSetColumnIndex(1);
+						if (ImGui::Button(
+								"+", ImVec2{ ImGui::GetFrameHeight(), ImGui::GetFrameHeight() }
+							)) {
+							AddActionParameterRow(action);
+						}
+						DrawItemTooltip(
+							action.kind == ActionKind::SpawnEntity ? "Add another entity to spawn."
+															 : "Add another entity filter group."
+						);
+						ImGui::EndTable();
+					}
+				} else {
+					DrawActionPicker("##Action", action, false);
+				}
 				break;
 			}
 
@@ -2638,6 +2854,7 @@ bool DrawSequenceItemCompact(
 				);
 
 				ImGui::TableSetColumnIndex(3);
+				action_left_screen_x = ImGui::GetCursorScreenPos().x;
 				DrawActionPicker("##Action", timed.action, true);
 				break;
 			}
@@ -2661,8 +2878,6 @@ bool DrawSequenceItemCompact(
 
 		ImGui::EndTable();
 	}
-
-	ImGui::PopStyleVar();
 
 	if (active) {
 		ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 2.0f }, "");
@@ -2706,9 +2921,11 @@ bool DrawSequenceItemCompact(
 
 		DrawActionParametersCompact(timed.action, type_left_screen_x, prefabs);
 	} else if (item.kind == SequenceItemKind::Action) {
-		DrawActionParametersCompact(
-			std::get<ActionItem>(item.data).action, type_left_screen_x, prefabs
-		);
+		auto& action{ std::get<ActionItem>(item.data).action };
+		const float parameter_left_screen_x{
+			action.kind == ActionKind::AddComponent ? action_left_screen_x : type_left_screen_x
+		};
+		DrawActionParametersCompact(action, parameter_left_screen_x, prefabs);
 	}
 
 	ImGui::PopID();
@@ -3864,9 +4081,12 @@ std::vector<EntityData> MakeDemoEntities(GlobalBehaviorRegistry& registry) {
 	auto& delete_action{ std::get<ActionItem>(delete_zombies.data).action };
 	delete_action = MakeAction(ActionKind::DeleteEntities);
 	auto& delete_params{ std::get<DeleteEntitiesParams>(delete_action.parameters) };
-	delete_params.tag_filter.Assign("Enemy");
-	delete_params.included_components = { ComponentKind::Zombie };
-	delete_params.excluded_components = { ComponentKind::Health };
+	delete_params.groups.clear();
+	DeleteEntityDefinition delete_group;
+	delete_group.tag_filter.Assign("Enemy");
+	delete_group.included_components = { ComponentKind::Zombie };
+	delete_group.excluded_components = { ComponentKind::Health };
+	delete_params.groups.push_back(std::move(delete_group));
 	tools.sequence.push_back(std::move(delete_zombies));
 
 	factory.behaviors->bindings.push_back(std::move(entity_tools));
