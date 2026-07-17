@@ -255,12 +255,23 @@ Dropdown& Dropdown::AddButton(Button button) {
 		return *this;
 	}
 
+	Entity old_parent;
+
+	if (HasParent(button)) {
+		old_parent = GetParent(button);
+	}
+
 	SetParent(button, *this);
 
-	button.TryAdd<impl::DropdownItem>();
+	auto& item{ button.TryAdd<impl::DropdownItem>() };
+	item.enabled_state.reset();
 
 	if (!HasScript<impl::DropdownItemScript>(button)) {
 		AddScript<impl::DropdownItemScript>(button);
+	}
+
+	if (old_parent && old_parent != *this && old_parent.Has<impl::DropdownData>()) {
+		Dropdown{ old_parent }.RecalculateButtonPositions();
 	}
 
 	if (IsOpen()) {
