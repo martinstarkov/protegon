@@ -65,23 +65,47 @@ void DropdownItemScript::OnEvent(Event event) {
 
 void Dropdown::HideDropdownBranch(Button button) {
 	if (button.Has<impl::DropdownData>()) {
-		Dropdown dropdown{ button };
+		Dropdown{ button }.Close(false);
+	}
 
-		dropdown.Close(false);
+	if (!button.Has<impl::DropdownItem>()) {
+		PTGN_WARN("Cannot hide dropdown button which does not have dropdown item component");
+		return;
+	}
 
-		for (const auto& child_button : dropdown.GetButtons()) {
-			HideDropdownBranch(child_button);
-		}
+	auto& item{ button.Get<impl::DropdownItem>() };
+
+	if (!item.enabled_state.has_value()) {
+		item.enabled_state = impl::DropdownItem::EnabledState{
+			.press = button.IsEnabled(false),
+			.hover = button.IsEnabled(true),
+		};
 	}
 
 	Hide(button);
-	button.Disable();
+
+	// Refresh after hiding so all button visual children are also hidden.
+	button.SetEnabled(false, false, true);
 }
 
 void Dropdown::ShowDropdownItem(Button button) const {
 	Show(button);
-	button.Enable();
-	button.RefreshVisualState();
+
+	if (!button.Has<impl::DropdownItem>()) {
+		PTGN_WARN("Cannot show dropdown button which does not have dropdown item component");
+		return;
+	}
+
+	auto& item{ button.Get<impl::DropdownItem>() };
+
+	if (item.enabled_state.has_value()) {
+		auto state{ item.enabled_state.value() };
+		item.enabled_state.reset();
+
+		button.SetEnabled(state.press, state.hover, true);
+	} else {
+		button.RefreshVisualState();
+	}
 
 	if (!button.Has<impl::DropdownData>()) {
 		return;

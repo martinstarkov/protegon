@@ -12,6 +12,7 @@
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
 #include "runtime/ui/button.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -54,7 +55,18 @@ struct DropdownData {
 };
 
 /// @brief Marker for direct child buttons that are dropdown items.
-struct DropdownItem {};
+struct DropdownItem {
+	struct EnabledState {
+		bool press{ true };
+		bool hover{ true };
+
+		PTNG_REFLECT(EnabledState, press, hover)
+	};
+
+	std::optional<EnabledState> enabled_state;
+
+	PTNG_REFLECT_VALUE(DropdownItem, enabled_state)
+};
 
 class DropdownScript : public Script {
 public:
