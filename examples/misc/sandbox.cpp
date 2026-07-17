@@ -3630,6 +3630,14 @@ void DemoEditor::DrawActionParameters(Action& action, float left_screen_x) {
 		action.type == ActionRegistry::Key<EmitSignalAction>()) {
 		return;
 	}
+
+	if (action.type == ActionRegistry::Key<AddComponentsAction>()) {
+		const auto* add_components{ std::any_cast<AddComponentsAction>(&action.value) };
+		if (!add_components || add_components->components.empty()) {
+			return;
+		}
+	}
+
 	const float right_screen_x{ ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x };
 	ImGui::SetCursorScreenPos(ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y });
 	if (ImGui::BeginChild(
@@ -3767,7 +3775,9 @@ bool DemoEditor::DrawAction(
 					DrawDurationInput("##Duration", action.timing->duration_ms, -FLT_MIN, "Wait before continuing.");
 					break;
 				case ActionForm::EmitSignal:
-					DrawEmitSignalCompact(std::any_cast<EmitSignalAction&>(action.value));
+					if (auto* emit{ std::any_cast<EmitSignalAction>(&action.value) }) {
+						DrawEmitSignalCompact(*emit);
+					}
 					break;
 				case ActionForm::TimedAction:
 					break;
@@ -3775,9 +3785,11 @@ bool DemoEditor::DrawAction(
 
 			if (show_add_component_button) {
 				ImGui::TableSetColumnIndex(column++);
-				DrawAddComponentButton(
-					std::any_cast<AddComponentsAction&>(action.value), "AddComponentMenu"
-				);
+				if (action.type == ActionRegistry::Key<AddComponentsAction>()) {
+					if (auto* add_components{ std::any_cast<AddComponentsAction>(&action.value) }) {
+						DrawAddComponentButton(*add_components, "AddComponentMenu");
+					}
+				}
 			}
 		}
 
@@ -3881,14 +3893,29 @@ void DemoEditor::DrawLifecycle(ScriptSequence& sequence) {
 	for (int i{ 0 }; i < static_cast<int>(sequence.lifecycle_actions.size()); ++i) {
 		auto& callback{ sequence.lifecycle_actions[static_cast<std::size_t>(i)] };
 		ImGui::PushID(static_cast<int>(callback.id));
+
 		const float lifecycle_width{ 145.0f };
 		const float kind_width{ 108.0f };
 		const float button_width{ ImGui::GetFrameHeight() };
-		if (ImGui::BeginTable("LifecycleRow", 6, ImGuiTableFlags_SizingStretchProp)) {
+		const bool is_emit_signal{ GetActionForm(callback.action) == ActionForm::EmitSignal };
+		const bool is_add_components{
+			!is_emit_signal && callback.action.type == ActionRegistry::Key<AddComponentsAction>()
+		};
+		const int column_count{ is_add_components ? 6 : 5 };
+		const int value_column{ 2 };
+		const int add_component_column{ is_add_components ? 3 : -1 };
+		const int enabled_column{ is_add_components ? 4 : 3 };
+		const int remove_column{ is_add_components ? 5 : 4 };
+
+		if (ImGui::BeginTable("LifecycleRow", column_count, ImGuiTableFlags_SizingStretchProp)) {
 			ImGui::TableSetupColumn("Lifecycle", ImGuiTableColumnFlags_WidthFixed, lifecycle_width);
 			ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, kind_width);
 			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-			ImGui::TableSetupColumn("Add Component", ImGuiTableColumnFlags_WidthFixed, button_width);
+			if (is_add_components) {
+				ImGui::TableSetupColumn(
+					"Add Component", ImGuiTableColumnFlags_WidthFixed, button_width
+				);
+			}
 			ImGui::TableSetupColumn("Enabled", ImGuiTableColumnFlags_WidthFixed, 21.0f);
 			ImGui::TableSetupColumn("Remove", ImGuiTableColumnFlags_WidthFixed, button_width);
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
@@ -3904,7 +3931,7 @@ void DemoEditor::DrawLifecycle(ScriptSequence& sequence) {
 			}
 			DrawItemTooltip("Choose when this callback runs.");
 
-			int kind{ GetActionForm(callback.action) == ActionForm::EmitSignal ? 1 : 0 };
+			int kind{ is_emit_signal ? 1 : 0 };
 			ImGui::TableSetColumnIndex(1);
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			if (ImGui::Combo(
@@ -3917,33 +3944,37 @@ void DemoEditor::DrawLifecycle(ScriptSequence& sequence) {
 			}
 			DrawItemTooltip("Run an Action or broadcast a Signal.");
 
-			ImGui::TableSetColumnIndex(2);
+			ImGui::TableSetColumnIndex(value_column);
 			if (GetActionForm(callback.action) == ActionForm::EmitSignal) {
-				DrawEmitSignalCompact(std::any_cast<EmitSignalAction&>(callback.action.value));
+				if (auto* emit{ std::any_cast<EmitSignalAction>(&callback.action.value) }) {
+					DrawEmitSignalCompact(*emit);
+				}
 			} else {
 				DrawActionPicker(callback.action, false);
 			}
 
-			ImGui::TableSetColumnIndex(3);
-			if (GetActionForm(callback.action) == ActionForm::Action &&
-				callback.action.type == ActionRegistry::Key<AddComponentsAction>()) {
-				DrawAddComponentButton(
-					std::any_cast<AddComponentsAction&>(callback.action.value),
-					"LifecycleAddComponentMenu"
-				);
+			if (is_add_components) {
+				ImGui::TableSetColumnIndex(add_component_column);
+				if (callback.action.type == ActionRegistry::Key<AddComponentsAction>()) {
+					if (auto* add_components{
+							std::any_cast<AddComponentsAction>(&callback.action.value) }) {
+						DrawAddComponentButton(*add_components, "LifecycleAddComponentMenu");
+					}
+				}
 			}
 
-			ImGui::TableSetColumnIndex(4);
+			ImGui::TableSetColumnIndex(enabled_column);
 			ImGui::Checkbox("##Enabled", &callback.enabled);
 			DrawItemTooltip("Enable or disable this lifecycle callback.");
 
-			ImGui::TableSetColumnIndex(5);
+			ImGui::TableSetColumnIndex(remove_column);
 			if (ImGui::Button("x", ImVec2{ button_width, ImGui::GetFrameHeight() })) {
 				remove = i;
 			}
 			DrawItemTooltip("Remove this lifecycle callback.");
 			ImGui::EndTable();
 		}
+
 		if (GetActionForm(callback.action) != ActionForm::EmitSignal) {
 			DrawActionParameters(callback.action, ImGui::GetCursorScreenPos().x);
 		}
