@@ -522,6 +522,7 @@ public:
 	}
 
 	template <typename T>
+		requires (!std::convertible_to<std::remove_cvref_t<T>, std::string_view>)
 	[[nodiscard]] static Action Make(T value = {}) {
 		const auto* entry{ Find(TypeId<T>()) };
 		return entry ? Action{
@@ -2246,14 +2247,16 @@ void DemoEditor::RegisterEditorTypes() {
 		}
 		return false;
 	};
-	auto draw_entity_filter = [](EntityMaskFilter& filter) {
+	auto draw_entity_filter = [](
+		EntityMaskFilter& filter, const char* tags_hint, const char* masks_hint
+	) {
 		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 		const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
 		bool changed{ false };
 		ImGui::SetNextItemWidth(width);
-		changed |= ImGui::InputTextWithHint("##Tags", "Tags", &filter.tags);
+		changed |= ImGui::InputTextWithHint("##Tags", tags_hint, &filter.tags);
 		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("Comma-separated included tags; prefix exclusions with -.");
+			ImGui::SetTooltip("Comma-separated tags; prefix excluded tags with -.");
 		}
 		ImGui::SameLine();
 		const InclusionFilter parsed{ ParseEntityMaskFilter(filter) };
@@ -2263,7 +2266,7 @@ void DemoEditor::RegisterEditorTypes() {
 			ImGui::PushStyleColor(ImGuiCol_Border, ImVec4{ 0.95f, 0.28f, 0.25f, 1.0f });
 		}
 		ImGui::SetNextItemWidth(width);
-		changed |= ImGui::InputTextWithHint("##Masks", "Masks", &filter.masks);
+		changed |= ImGui::InputTextWithHint("##Masks", masks_hint, &filter.masks);
 		const bool hovered{ ImGui::IsItemHovered() };
 		if (invalid) {
 			ImGui::PopStyleColor();
@@ -2278,10 +2281,16 @@ void DemoEditor::RegisterEditorTypes() {
 				}
 				ImGui::SetTooltip("%s", tooltip.c_str());
 			} else {
-				ImGui::SetTooltip("Comma-separated included masks; prefix exclusions with -.");
+				ImGui::SetTooltip("Comma-separated masks; prefix excluded masks with -.");
 			}
 		}
 		return changed;
+	};
+	auto draw_overlap_filter = [draw_entity_filter](EntityMaskFilter& filter) {
+		return draw_entity_filter(filter, "Tags", "Masks");
+	};
+	auto draw_collision_filter = [draw_entity_filter](EntityMaskFilter& filter) {
+		return draw_entity_filter(filter, "Tags: Player, -Enemy", "Masks: 1, -4");
 	};
 	auto draw_on_create_filter = [](OnCreateFilter& filter) {
 		ImGui::AlignTextToFramePadding();
@@ -2340,22 +2349,22 @@ void DemoEditor::RegisterEditorTypes() {
 	EventEditorRegistry::Register<EntityMaskFilter, ptgn::event::OverlapStart>(
 		"ptgn.event.OverlapStart",
 		{ .label = "Overlap Start", .group = "Overlap", .description = "Fired when an overlap begins." },
-		draw_entity_filter, draw_runtime_payload
+		draw_overlap_filter, draw_runtime_payload
 	);
 	EventEditorRegistry::Register<EntityMaskFilter, ptgn::event::Overlap>(
 		"ptgn.event.Overlap",
 		{ .label = "Overlap", .group = "Overlap", .description = "Fired while an overlap continues." },
-		draw_entity_filter, draw_runtime_payload
+		draw_overlap_filter, draw_runtime_payload
 	);
 	EventEditorRegistry::Register<EntityMaskFilter, ptgn::event::OverlapStop>(
 		"ptgn.event.OverlapStop",
 		{ .label = "Overlap Stop", .group = "Overlap", .description = "Fired when an overlap ends." },
-		draw_entity_filter, draw_runtime_payload
+		draw_overlap_filter, draw_runtime_payload
 	);
 	EventEditorRegistry::Register<EntityMaskFilter, ptgn::event::Collision>(
 		"ptgn.event.Collision",
 		{ .label = "Collision", .group = "Collision", .description = "Fired for a collision." },
-		draw_entity_filter, draw_runtime_payload
+		draw_collision_filter, draw_runtime_payload
 	);
 
 	ActionEditorRegistry::Register<WaitAction>(
@@ -2665,23 +2674,28 @@ void DemoEditor::RegisterEditorTypes() {
 			}
 
 			auto draw_enum_combo = [](const char* id, auto& value) {
-				using Enum = std::remove_cvref_t<decltype(value)>;
-				const std::string preview{ std::string{ magic_enum::enum_name(value) } };
-				bool local_changed{ false };
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				if (ImGui::BeginCombo(id, preview.c_str())) {
-					for (const auto candidate : magic_enum::enum_values<Enum>()) {
-						const std::string label{ std::string{ magic_enum::enum_name(candidate) } };
-						if (ImGui::Selectable(label.c_str(), candidate == value)) {
-							value = candidate;
-							local_changed = true;
-						}
-					}
-					ImGui::EndCombo();
+			using Enum = std::remove_cvref_t<decltype(value)>;
+			auto label_for = [](Enum candidate) {
+				if constexpr (std::same_as<Enum, SpawnOrigin>) {
+					return std::string{ candidate == SpawnOrigin::OwnerEntity ? "Entity" : "Position" };
 				}
-				return local_changed;
+				return std::string{ magic_enum::enum_name(candidate) };
 			};
-
+			const std::string preview{ label_for(value) };
+			bool local_changed{ false };
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::BeginCombo(id, preview.c_str())) {
+				for (const auto candidate : magic_enum::enum_values<Enum>()) {
+					const std::string label{ label_for(candidate) };
+					if (ImGui::Selectable(label.c_str(), candidate == value)) {
+						value = candidate;
+						local_changed = true;
+					}
+				}
+				ImGui::EndCombo();
+			}
+			return local_changed;
+		};
 			const SpawnArea displayed_area{ action.area };
 			int columns{ 4 };
 			if (displayed_area == SpawnArea::Rectangle) {
@@ -2690,15 +2704,15 @@ void DemoEditor::RegisterEditorTypes() {
 				++columns;
 			}
 			if (ImGui::BeginTable("SpawnEntityPlacementRow", columns, ImGuiTableFlags_SizingStretchProp)) {
-				ImGui::TableSetupColumn("Origin", ImGuiTableColumnFlags_WidthFixed, 86.0f);
-				ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch);
-				ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch);
-				ImGui::TableSetupColumn("Shape", ImGuiTableColumnFlags_WidthFixed, 92.0f);
+				ImGui::TableSetupColumn("Origin", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+				ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+				ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+				ImGui::TableSetupColumn("Shape", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 				if (displayed_area == SpawnArea::Rectangle) {
-					ImGui::TableSetupColumn("Width", ImGuiTableColumnFlags_WidthStretch);
-					ImGui::TableSetupColumn("Height", ImGuiTableColumnFlags_WidthStretch);
+					ImGui::TableSetupColumn("Width", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+					ImGui::TableSetupColumn("Height", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 				} else if (displayed_area == SpawnArea::Circle) {
-					ImGui::TableSetupColumn("Radius", ImGuiTableColumnFlags_WidthStretch);
+					ImGui::TableSetupColumn("Radius", ImGuiTableColumnFlags_WidthStretch, 1.0f);
 				}
 				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 				ImGui::TableSetColumnIndex(0);
@@ -2741,9 +2755,19 @@ void DemoEditor::RegisterEditorTypes() {
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			if (ImGui::BeginCombo("##SpawnOptions", options.c_str())) {
 				changed |= ImGui::Checkbox("Parent to Owner", &action.parent_to_owner);
-				changed |= ImGui::Checkbox("Inherit Owner Rotation", &action.inherit_owner_rotation);
-				changed |= ImGui::Checkbox("Inherit Owner Scale", &action.inherit_owner_scale);
-				changed |= ImGui::Checkbox("Random Rotation", &action.random_rotation);
+				if (ImGui::Checkbox("Inherit Rotation", &action.inherit_owner_rotation)) {
+					changed = true;
+					if (action.inherit_owner_rotation) {
+						action.random_rotation = false;
+					}
+				}
+				changed |= ImGui::Checkbox("Inherit Scale", &action.inherit_owner_scale);
+				if (ImGui::Checkbox("Random Rotation", &action.random_rotation)) {
+					changed = true;
+					if (action.random_rotation) {
+						action.inherit_owner_rotation = false;
+					}
+				}
 				ImGui::EndCombo();
 			}
 			return changed;
@@ -3468,7 +3492,7 @@ void DemoEditor::DrawActionPicker(Action& action, bool timed_only) {
 		if (ImGui::MenuItem(candidate.options.label.c_str(), nullptr, candidate.key == action.type)) {
 			const Id id{ action.id };
 			const bool enabled{ action.enabled };
-			action = ActionRegistry::Make(candidate.key);
+			action = ActionRegistry::Make(std::string_view{ candidate.key });
 			action.id = id;
 			action.enabled = enabled;
 			if (timed_only) {
@@ -3796,39 +3820,56 @@ void DemoEditor::DrawLifecycle(ScriptSequence& sequence) {
 	if (!open) {
 		return;
 	}
+
+	static constexpr std::array lifecycle_action_kinds{ "Action", "Emit Signal" };
 	int remove{ -1 };
 	for (int i{ 0 }; i < static_cast<int>(sequence.lifecycle_actions.size()); ++i) {
 		auto& callback{ sequence.lifecycle_actions[static_cast<std::size_t>(i)] };
 		ImGui::PushID(static_cast<int>(callback.id));
 		const float lifecycle_width{ 145.0f };
+		const float kind_width{ 108.0f };
 		const float enabled_width{ 21.0f };
 		const float remove_width{ ImGui::GetFrameHeight() };
-		if (ImGui::BeginTable("LifecycleRow", 4, ImGuiTableFlags_SizingStretchProp)) {
+		if (ImGui::BeginTable("LifecycleRow", 5, ImGuiTableFlags_SizingStretchProp)) {
 			ImGui::TableSetupColumn("Lifecycle", ImGuiTableColumnFlags_WidthFixed, lifecycle_width);
-			ImGui::TableSetupColumn("Action", ImGuiTableColumnFlags_WidthStretch);
+			ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, kind_width);
+			ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 			ImGui::TableSetupColumn("Enabled", ImGuiTableColumnFlags_WidthFixed, enabled_width);
 			ImGui::TableSetupColumn("Remove", ImGuiTableColumnFlags_WidthFixed, remove_width);
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+
 			ImGui::TableSetColumnIndex(0);
 			int lifecycle{ static_cast<int>(callback.lifecycle) };
 			ImGui::SetNextItemWidth(-FLT_MIN);
-			if (ImGui::Combo("##Lifecycle", &lifecycle, kLifecycleLabels.data(), static_cast<int>(kLifecycleLabels.size()))) {
+			if (ImGui::Combo(
+					"##Lifecycle", &lifecycle, kLifecycleLabels.data(),
+					static_cast<int>(kLifecycleLabels.size())
+				)) {
 				callback.lifecycle = static_cast<SequenceLifecycle>(lifecycle);
 			}
+
+			int kind{ GetActionForm(callback.action) == ActionForm::EmitSignal ? 1 : 0 };
 			ImGui::TableSetColumnIndex(1);
-			ActionForm form{ GetActionForm(callback.action) };
-			if (form == ActionForm::TimedAction || form == ActionForm::Wait) {
-				SetActionForm(callback.action, ActionForm::Action);
-				form = ActionForm::Action;
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::Combo(
+					"##LifecycleActionKind", &kind, lifecycle_action_kinds.data(),
+					static_cast<int>(lifecycle_action_kinds.size())
+				)) {
+				SetActionForm(
+					callback.action, kind == 1 ? ActionForm::EmitSignal : ActionForm::Action
+				);
 			}
-			if (form == ActionForm::EmitSignal) {
+
+			ImGui::TableSetColumnIndex(2);
+			if (GetActionForm(callback.action) == ActionForm::EmitSignal) {
 				DrawEmitSignalCompact(std::any_cast<EmitSignalAction&>(callback.action.value));
 			} else {
 				DrawActionPicker(callback.action, false);
 			}
-			ImGui::TableSetColumnIndex(2);
-			ImGui::Checkbox("##Enabled", &callback.enabled);
+
 			ImGui::TableSetColumnIndex(3);
+			ImGui::Checkbox("##Enabled", &callback.enabled);
+			ImGui::TableSetColumnIndex(4);
 			if (ImGui::Button("x", ImVec2{ remove_width, ImGui::GetFrameHeight() })) {
 				remove = i;
 			}
