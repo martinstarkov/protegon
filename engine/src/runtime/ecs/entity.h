@@ -51,7 +51,7 @@ public:
 		return entity_.operator bool() && entity_.IsAlive();
 	}
 
-	bool operator==(const Entity&) const = default;
+	constexpr bool operator==(const Entity&) const = default;
 
 	friend std::strong_ordering operator<=>(const Entity& lhs, const Entity& rhs) {
 		if (lhs == rhs) {
@@ -94,20 +94,20 @@ public:
 
 	template <typename... TComponents>
 	void Remove() {
-		PTGN_ASSERT(entity_, "Cannot remove a component from a null entity");
+		if (!*this) {
+			return;
+		}
 		entity_.Remove<TComponents...>();
 	}
 
 	template <typename... TComponents>
 	bool Has() const {
-		PTGN_ASSERT(entity_, "Cannot check if a null entity has a component");
-		return entity_.Has<TComponents...>();
+		return *this && entity_.Has<TComponents...>();
 	}
 
 	template <typename... TComponents>
 	bool HasAny() const {
-		PTGN_ASSERT(entity_, "Cannot check if a null entity has any component");
-		return entity_.HasAny<TComponents...>();
+		return *this && entity_.HasAny<TComponents...>();
 	}
 
 	template <typename... TComponents>
@@ -124,13 +124,17 @@ public:
 
 	template <typename T>
 	const T* TryGet() const {
-		PTGN_ASSERT(entity_, "Cannot try get a component from a null entity");
+		if (!*this) {
+			return nullptr;
+		}
 		return entity_.TryGet<T>();
 	}
 
 	template <typename T>
 	T* TryGet() {
-		PTGN_ASSERT(entity_, "Cannot try get a component from a null entity");
+		if (!*this) {
+			return nullptr;
+		}
 		return entity_.TryGet<T>();
 	}
 
