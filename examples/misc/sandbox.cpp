@@ -1,4 +1,4 @@
-// script_sequence_old_ui_registry_demo_v6.cpp
+// script_sequence_old_ui_registry_demo_v7.cpp
 //
 // Old compact ImGui UI rebuilt on static registry-driven Events + Scripts + Script Sequences.
 //
@@ -11,8 +11,8 @@
 //   Every registered Action affects its owning entity when applicable. Cross-entity behavior is
 //   expressed by emitting an Event and attaching an Event-driven ScriptSequence to the other entity.
 //
-// The demo uses WASD movement. Entering/leaving the green sensor emits door.opened/door.closed Signals;
-// the orange panel owns sequences that listen for those Events and move itself.
+// The demo uses WASD movement and tests door Signals, random prefab spawning and recall,
+// configurable input Events, and an overlap-driven damage/cooldown sequence.
 
 #define GLFW_INCLUDE_NONE
 
@@ -26,6 +26,8 @@
 
 #include "core/event/key_event.h"
 #include "core/event/mouse_event.h"
+#include "core/input/key.h"
+#include "core/input/mouse.h"
 #include "core/math/easing.h"
 #include "core/util/strong_string.h"
 #include "core/math/geometry/circle.h"
@@ -42,6 +44,7 @@
 #include <array>
 #include <cfloat>
 #include <cmath>
+#include <concepts>
 #include <cctype>
 #include <cstdlib>
 #include <cstddef>
@@ -325,6 +328,7 @@ private:
 struct EventMatchContext {
 	RuntimeHost& host;
 	ptgn::Entity owner;
+	float held_duration_ms{ 0.0f };
 };
 
 struct EventEnvelope {
@@ -333,6 +337,7 @@ struct EventEnvelope {
 	std::optional<ptgn::Entity> target;
 	ptgn::Entity source;
 	EventDelivery delivery{ EventDelivery::Target };
+	float held_duration_ms{ 0.0f };
 };
 
 /// @brief Narrow host interface required by the reusable sequence runtime.
@@ -358,8 +363,12 @@ public:
 	[[nodiscard]] virtual std::string_view Name(ptgn::Entity entity) const = 0;
 	[[nodiscard]] virtual std::string_view Tag(ptgn::Entity entity) const = 0;
 	[[nodiscard]] virtual int Mask(ptgn::Entity entity) const = 0;
-	[[nodiscard]] virtual bool KeyDown(int key) const = 0;
+	[[nodiscard]] virtual bool KeyDown(ptgn::Key key) const = 0;
+	[[nodiscard]] virtual float KeyHoldDuration(ptgn::Key key) const = 0;
+	[[nodiscard]] virtual bool MouseDown(ptgn::Mouse button) const = 0;
+	[[nodiscard]] virtual float MouseHoldDuration(ptgn::Mouse button) const = 0;
 	virtual ptgn::Entity SpawnPrefab(const PrefabSpawnRequest& request) = 0;
+	virtual void Destroy(ptgn::Entity entity) = 0;
 };
 
 struct EventRegistration {
@@ -368,6 +377,7 @@ struct EventRegistration {
 	std::function<std::any()> make_default_filter;
 	std::function<std::any()> make_default_payload;
 	std::function<bool(const std::any&, const std::any&, EventMatchContext&)> matches;
+	std::function<float(const std::any&)> start_delay_ms;
 };
 
 class EventRegistry {
@@ -394,6 +404,12 @@ public:
 					std::any_cast<const TFilter&>(filter),
 					context
 				);
+			},
+			.start_delay_ms = [](const std::any& filter) {
+				if constexpr (requires(const TFilter& value) { value.delay_ms; }) {
+					return std::max(0.0f, std::any_cast<const TFilter&>(filter).delay_ms);
+				}
+				return 0.0f;
 			},
 		});
 		return true;
@@ -656,6 +672,7 @@ struct ScriptSequenceRuntime {
 	float elapsed_ms{ 0.0f };
 	int current_repeat{ 0 };
 	bool currently_reversed{ false };
+	float pending_start_delay_ms{ -1.0f };
 	std::unique_ptr<IActionInstance> action_instance;
 	int completed_runs{ 0 };
 
@@ -776,12 +793,18 @@ struct OnCreate {
 	ptgn::Entity entity;
 };
 
+struct OnCreateFilter {
+	float delay_ms{ 0.0f };
+};
+
 struct KeyListFilter {
 	std::string keys{ "W" };
+	float hold_duration_ms{ 500.0f };
 };
 
 struct MouseListFilter {
 	std::string buttons{ "Left" };
+	float hold_duration_ms{ 500.0f };
 };
 
 struct EntityMaskFilter {
@@ -790,8 +813,8 @@ struct EntityMaskFilter {
 };
 
 template <typename TEnum>
-struct ParsedEnumList {
-	std::vector<TEnum> values;
+struct ParsedEnumExpression {
+	std::vector<std::vector<TEnum>> alternatives;
 	std::vector<std::string> invalid_tokens;
 
 	[[nodiscard]] bool IsValid() const {
@@ -822,6 +845,21 @@ inline std::string NormalizeEnumToken(std::string_view value) {
 }
 
 template <typename TEnum>
+[[nodiscard]] bool IsValidNumericEnumValue(long long numeric) {
+	using Underlying = std::underlying_type_t<TEnum>;
+	if constexpr (std::same_as<TEnum, ptgn::Mouse>) {
+		return numeric >= 0 &&
+			numeric <= static_cast<long long>(static_cast<Underlying>(ptgn::Mouse::Last));
+	}
+	if constexpr (std::same_as<TEnum, ptgn::Key>) {
+		return (numeric >= 32 && numeric <= 96) ||
+			numeric == 161 || numeric == 162 ||
+			(numeric >= 256 && numeric <= 348);
+	}
+	return magic_enum::enum_cast<TEnum>(static_cast<Underlying>(numeric)).has_value();
+}
+
+template <typename TEnum>
 [[nodiscard]] std::optional<TEnum> ParseEnumToken(std::string_view token) {
 	token = TrimView(token);
 	if (token.empty()) {
@@ -834,29 +872,31 @@ template <typename TEnum>
 	const auto* end{ token.data() + token.size() };
 	const auto [ptr, error]{ std::from_chars(begin, end, numeric) };
 	if (error == std::errc{} && ptr == end) {
-		if constexpr (std::is_signed_v<Underlying>) {
-			if (numeric < static_cast<long long>(std::numeric_limits<Underlying>::min()) ||
-				numeric > static_cast<long long>(std::numeric_limits<Underlying>::max())) {
-				return std::nullopt;
-			}
-		} else if (numeric < 0 ||
-			static_cast<unsigned long long>(numeric) >
-				static_cast<unsigned long long>(std::numeric_limits<Underlying>::max())) {
+		if (!IsValidNumericEnumValue<TEnum>(numeric)) {
 			return std::nullopt;
 		}
-		if (const auto value{ magic_enum::enum_cast<TEnum>(static_cast<Underlying>(numeric)) }) {
-			return value;
+		return static_cast<TEnum>(static_cast<Underlying>(numeric));
+	}
+
+	const std::string normalized{ NormalizeEnumToken(token) };
+	if constexpr (std::same_as<TEnum, ptgn::Mouse>) {
+		if (normalized == "left") {
+			return ptgn::Mouse::Left;
 		}
-		return std::nullopt;
+		if (normalized == "right") {
+			return ptgn::Mouse::Right;
+		}
+		if (normalized == "middle") {
+			return ptgn::Mouse::Middle;
+		}
 	}
 
 	if (const auto value{ magic_enum::enum_cast<TEnum>(token, magic_enum::case_insensitive) }) {
 		return value;
 	}
 
-	std::string normalized{ NormalizeEnumToken(token) };
 	for (const auto& [value, name] : magic_enum::enum_entries<TEnum>()) {
-		std::string candidate{ NormalizeEnumToken(name) };
+		const std::string candidate{ NormalizeEnumToken(name) };
 		if (normalized == candidate) {
 			return value;
 		}
@@ -873,28 +913,80 @@ template <typename TEnum>
 }
 
 template <typename TEnum>
-[[nodiscard]] ParsedEnumList<TEnum> ParseEnumList(std::string_view text) {
-	ParsedEnumList<TEnum> result;
-	std::size_t start{};
-	while (start <= text.size()) {
-		const std::size_t comma{ text.find(',', start) };
-		const std::size_t finish{ comma == std::string_view::npos ? text.size() : comma };
-		const std::string_view token{ TrimView(text.substr(start, finish - start)) };
-		if (!token.empty()) {
-			if (const auto value{ ParseEnumToken<TEnum>(token) }) {
-				if (!std::ranges::contains(result.values, *value)) {
-					result.values.push_back(*value);
+[[nodiscard]] ParsedEnumExpression<TEnum> ParseEnumExpression(std::string_view text) {
+	ParsedEnumExpression<TEnum> result;
+	std::size_t alternative_start{};
+	while (alternative_start <= text.size()) {
+		const std::size_t comma{ text.find(',', alternative_start) };
+		const std::size_t alternative_finish{
+			comma == std::string_view::npos ? text.size() : comma
+		};
+		const std::string_view alternative_text{
+			TrimView(text.substr(alternative_start, alternative_finish - alternative_start))
+		};
+
+		std::vector<TEnum> combination;
+		std::size_t token_start{};
+		while (token_start <= alternative_text.size()) {
+			const std::size_t plus{ alternative_text.find('+', token_start) };
+			const std::size_t token_finish{
+				plus == std::string_view::npos ? alternative_text.size() : plus
+			};
+			const std::string_view token{
+				TrimView(alternative_text.substr(token_start, token_finish - token_start))
+			};
+			if (!token.empty()) {
+				if (const auto value{ ParseEnumToken<TEnum>(token) }) {
+					if (!std::ranges::contains(combination, *value)) {
+						combination.push_back(*value);
+					}
+				} else {
+					result.invalid_tokens.emplace_back(token);
 				}
-			} else {
-				result.invalid_tokens.emplace_back(token);
 			}
+			if (plus == std::string_view::npos) {
+				break;
+			}
+			token_start = plus + 1;
+		}
+
+		if (!combination.empty()) {
+			result.alternatives.push_back(std::move(combination));
 		}
 		if (comma == std::string_view::npos) {
 			break;
 		}
-		start = comma + 1;
+		alternative_start = comma + 1;
 	}
 	return result;
+}
+
+template <typename TEnum, typename TDown>
+[[nodiscard]] bool MatchesPressedOrHeldCombination(
+	TEnum event_value,
+	const ParsedEnumExpression<TEnum>& expression,
+	TDown&& is_down
+) {
+	return std::ranges::any_of(expression.alternatives, [&](const auto& combination) {
+		return std::ranges::contains(combination, event_value) &&
+			std::ranges::all_of(combination, [&](TEnum value) {
+				return std::invoke(is_down, value);
+			});
+	});
+}
+
+template <typename TEnum, typename TDown>
+[[nodiscard]] bool MatchesReleasedCombination(
+	TEnum event_value,
+	const ParsedEnumExpression<TEnum>& expression,
+	TDown&& is_down
+) {
+	return std::ranges::any_of(expression.alternatives, [&](const auto& combination) {
+		return std::ranges::contains(combination, event_value) &&
+			std::ranges::none_of(combination, [&](TEnum value) {
+				return std::invoke(is_down, value);
+			});
+	});
 }
 
 struct InclusionFilter {
@@ -994,6 +1086,26 @@ inline void ParseMaskTokens(
 			return (mask & included) != 0;
 		}) };
 	return tag_matches && mask_matches;
+}
+
+template <typename TEvent>
+[[nodiscard]] ptgn::Mouse MouseFromEvent(const TEvent& event) {
+	if constexpr (requires { event.button; }) {
+		return static_cast<ptgn::Mouse>(event.button);
+	} else if constexpr (requires { event.mouse; }) {
+		return static_cast<ptgn::Mouse>(event.mouse);
+	} else {
+		return static_cast<ptgn::Mouse>(event);
+	}
+}
+
+template <typename TEvent>
+void SetMouseEvent(TEvent& event, ptgn::Mouse mouse) {
+	if constexpr (requires { event.button = mouse; }) {
+		event.button = mouse;
+	} else if constexpr (requires { event.mouse = mouse; }) {
+		event.mouse = mouse;
+	}
 }
 
 template <typename TEvent>
@@ -1346,6 +1458,7 @@ struct EditorContext;
 struct EditorVisual {
 	ImVec4 color{ 0.35f, 0.43f, 0.57f, 1.0f };
 	bool sensor{ false };
+	float health_fraction{ -1.0f };
 };
 
 using namespace script_sequence_demo::engine;
@@ -1465,6 +1578,8 @@ struct ActionEditorOptions {
 	std::string label;
 	std::string group;
 	std::string description;
+	int menu_order{ 100 };
+	bool separator_after{ false };
 };
 
 struct ActionEditorRegistration {
@@ -1753,7 +1868,7 @@ bool DemoEditor::DrawDurationInput(
 	auto format = [](float value, char* buffer, std::size_t size) {
 		const double clamped{ std::max(0.0, static_cast<double>(value)) };
 		if (clamped == 0.0) {
-			std::snprintf(buffer, size, "0ms");
+			std::snprintf(buffer, size, "0s");
 		} else if (clamped >= 1000.0 && std::fmod(clamped, 1000.0) == 0.0) {
 			std::snprintf(buffer, size, "%.4gs", clamped / 1000.0);
 		} else {
@@ -2007,25 +2122,23 @@ void DemoEditor::RegisterEditorTypes() {
 		}
 	);
 
-	auto draw_no_filter = [](NoEventFilter&) {
-		return false;
-	};
 	auto draw_runtime_payload = [](auto&) {
 		return false;
 	};
-	auto draw_enum_list = []<typename TEnum>(
+	auto draw_enum_expression = []<typename TEnum>(
 		const char* id,
 		const char* hint,
 		std::string& text,
-		const char* noun
+		const char* noun,
+		float width
 	) {
-		const auto parsed{ ParseEnumList<TEnum>(text) };
+		const auto parsed{ ParseEnumExpression<TEnum>(text) };
 		const bool invalid{ !text.empty() && !parsed.IsValid() };
 		if (invalid) {
 			ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
 			ImGui::PushStyleColor(ImGuiCol_Border, ImVec4{ 0.95f, 0.28f, 0.25f, 1.0f });
 		}
-		ImGui::SetNextItemWidth(-FLT_MIN);
+		ImGui::SetNextItemWidth(width);
 		const bool changed{ ImGui::InputTextWithHint(id, hint, &text) };
 		const bool hovered{ ImGui::IsItemHovered() };
 		if (invalid) {
@@ -2041,26 +2154,68 @@ void DemoEditor::RegisterEditorTypes() {
 					tooltip += "\n- ";
 					tooltip += token;
 				}
-				tooltip += "\nUse comma-separated enum names or numeric scancodes, for example W, UpArrow.";
+				tooltip += "\nUse valid enum names or numeric scancodes.";
 				ImGui::SetTooltip("%s", tooltip.c_str());
 			} else {
 				ImGui::SetTooltip(
-					"Comma-separated %s names or numeric scancodes.\nExample: W, UpArrow",
+					"Comma separates alternatives; + requires all %s entries.",
 					noun
 				);
 			}
 		}
 		return changed;
 	};
-	auto draw_key_filter = [draw_enum_list](KeyListFilter& filter) mutable {
-		return draw_enum_list.template operator()<ptgn::Key>(
-			"##Keys", "W, UpArrow, 32", filter.keys, "key"
+	auto draw_key_filter = [draw_enum_expression](KeyListFilter& filter) mutable {
+		return draw_enum_expression.template operator()<ptgn::Key>(
+			"##Keys", "W, UpArrow, 32", filter.keys, "key", -FLT_MIN
 		);
 	};
-	auto draw_mouse_filter = [draw_enum_list](MouseListFilter& filter) mutable {
-		return draw_enum_list.template operator()<ptgn::Mouse>(
-			"##MouseButtons", "Left, Right, 0", filter.buttons, "mouse button"
+	auto draw_key_held_filter = [draw_enum_expression](KeyListFilter& filter) mutable {
+		const float duration_width{ 78.0f };
+		const float label_width{ ImGui::CalcTextSize("Hold:").x };
+		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		const float key_width{ std::max(
+			60.0f,
+			ImGui::GetContentRegionAvail().x - duration_width - label_width - spacing * 2.0f
+		) };
+		bool changed{ draw_enum_expression.template operator()<ptgn::Key>(
+			"##Keys", "W, UpArrow, 32", filter.keys, "key", key_width
+		) };
+		ImGui::SameLine();
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextUnformatted("Hold:");
+		ImGui::SameLine();
+		changed |= DrawDurationInput(
+			"##HoldDuration", filter.hold_duration_ms, duration_width,
+			"Minimum time the key combination must remain held."
 		);
+		return changed;
+	};
+	auto draw_mouse_filter = [draw_enum_expression](MouseListFilter& filter) mutable {
+		return draw_enum_expression.template operator()<ptgn::Mouse>(
+			"##MouseButtons", "Left, Middle, 0", filter.buttons, "mouse button", -FLT_MIN
+		);
+	};
+	auto draw_mouse_held_filter = [draw_enum_expression](MouseListFilter& filter) mutable {
+		const float duration_width{ 78.0f };
+		const float label_width{ ImGui::CalcTextSize("Hold:").x };
+		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		const float button_width{ std::max(
+			60.0f,
+			ImGui::GetContentRegionAvail().x - duration_width - label_width - spacing * 2.0f
+		) };
+		bool changed{ draw_enum_expression.template operator()<ptgn::Mouse>(
+			"##MouseButtons", "Left, Middle, 0", filter.buttons, "mouse button", button_width
+		) };
+		ImGui::SameLine();
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextUnformatted("Hold:");
+		ImGui::SameLine();
+		changed |= DrawDurationInput(
+			"##HoldDuration", filter.hold_duration_ms, duration_width,
+			"Minimum time the mouse-button combination must remain held."
+		);
+		return changed;
 	};
 	auto draw_key_payload = [](auto& event) {
 		std::string value{ std::string{ magic_enum::enum_name(event.key) } };
@@ -2077,79 +2232,75 @@ void DemoEditor::RegisterEditorTypes() {
 		return false;
 	};
 	auto draw_mouse_payload = [](auto& event) {
-		std::string value{ std::string{ magic_enum::enum_name(event.button) } };
+		const ptgn::Mouse mouse{ MouseFromEvent(event) };
+		std::string value{ std::string{ magic_enum::enum_name(mouse) } };
 		if (value.empty()) {
-			value = std::to_string(static_cast<int>(event.button));
+			value = std::to_string(static_cast<int>(mouse));
 		}
 		if (!ImGui::InputText("Button", &value)) {
 			return false;
 		}
 		if (const auto parsed{ ParseEnumToken<ptgn::Mouse>(value) }) {
-			event.button = *parsed;
+			SetMouseEvent(event, *parsed);
 			return true;
 		}
 		return false;
 	};
 	auto draw_entity_filter = [](EntityMaskFilter& filter) {
+		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
 		bool changed{ false };
-		if (ImGui::BeginTable("EntityMaskFilter", 2, ImGuiTableFlags_SizingStretchSame)) {
-			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
-			ImGui::TableSetColumnIndex(0);
-			ImGui::SetNextItemWidth(-FLT_MIN);
-			changed |= ImGui::InputTextWithHint(
-				"##Tags", "Tags: Player, -Enemy", &filter.tags
-			);
-			if (ImGui::IsItemHovered()) {
-				ImGui::SetTooltip(
-					"Comma-separated included and excluded tags.\nPrefix exclusions with -.\nExample: Player, Ally, -Enemy"
-				);
-			}
-
-			ImGui::TableSetColumnIndex(1);
-			const InclusionFilter parsed{ ParseEntityMaskFilter(filter) };
-			const bool invalid{ !parsed.invalid_masks.empty() };
+		ImGui::SetNextItemWidth(width);
+		changed |= ImGui::InputTextWithHint("##Tags", "Tags", &filter.tags);
+		if (ImGui::IsItemHovered()) {
+			ImGui::SetTooltip("Comma-separated included tags; prefix exclusions with -.");
+		}
+		ImGui::SameLine();
+		const InclusionFilter parsed{ ParseEntityMaskFilter(filter) };
+		const bool invalid{ !parsed.invalid_masks.empty() };
+		if (invalid) {
+			ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+			ImGui::PushStyleColor(ImGuiCol_Border, ImVec4{ 0.95f, 0.28f, 0.25f, 1.0f });
+		}
+		ImGui::SetNextItemWidth(width);
+		changed |= ImGui::InputTextWithHint("##Masks", "Masks", &filter.masks);
+		const bool hovered{ ImGui::IsItemHovered() };
+		if (invalid) {
+			ImGui::PopStyleColor();
+			ImGui::PopStyleVar();
+		}
+		if (hovered) {
 			if (invalid) {
-				ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-				ImGui::PushStyleColor(ImGuiCol_Border, ImVec4{ 0.95f, 0.28f, 0.25f, 1.0f });
-			}
-			ImGui::SetNextItemWidth(-FLT_MIN);
-			changed |= ImGui::InputTextWithHint(
-				"##Masks", "Masks: 1, 2, -4", &filter.masks
-			);
-			const bool hovered{ ImGui::IsItemHovered() };
-			if (invalid) {
-				ImGui::PopStyleColor();
-				ImGui::PopStyleVar();
-			}
-			if (hovered) {
-				if (invalid) {
-					std::string tooltip{ "Unrecognized integer mask:" };
-					for (const auto& token : parsed.invalid_masks) {
-						tooltip += "\n- ";
-						tooltip += token;
-					}
-					ImGui::SetTooltip("%s", tooltip.c_str());
-				} else {
-					ImGui::SetTooltip(
-						"Comma-separated included and excluded integer masks.\nPrefix exclusions with -.\nExample: 1, 2, -4"
-					);
+				std::string tooltip{ "Unrecognized integer mask:" };
+				for (const auto& token : parsed.invalid_masks) {
+					tooltip += "\n- ";
+					tooltip += token;
 				}
+				ImGui::SetTooltip("%s", tooltip.c_str());
+			} else {
+				ImGui::SetTooltip("Comma-separated included masks; prefix exclusions with -.");
 			}
-			ImGui::EndTable();
 		}
 		return changed;
 	};
-	auto draw_signal = [](Signal& signal) {
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		return ImGui::InputTextWithHint(
-			"##Signal", "Signal name", &signal.key.value
+	auto draw_on_create_filter = [](OnCreateFilter& filter) {
+		ImGui::AlignTextToFramePadding();
+		ImGui::TextUnformatted("Delay:");
+		ImGui::SameLine();
+		return DrawDurationInput(
+			"##CreateDelay", filter.delay_ms, -FLT_MIN,
+			"Delay after script creation before starting the sequence."
 		);
 	};
+	auto draw_signal = [](Signal& signal) {
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		return ImGui::InputTextWithHint("##Signal", "Signal name", &signal.key.value);
+	};
 
-	EventEditorRegistry::Register<NoEventFilter, OnCreate>(
+	EventEditorRegistry::Register<OnCreateFilter, OnCreate>(
 		"ptgn.event.OnCreate",
 		{ .label = "On Create", .group = "", .description = "Fired after the owning entity is created." },
-		draw_no_filter, draw_runtime_payload
+		draw_on_create_filter, draw_runtime_payload
 	);
 	EventEditorRegistry::Register<Signal, Signal>(
 		"ptgn.event.Signal",
@@ -2163,8 +2314,8 @@ void DemoEditor::RegisterEditorTypes() {
 	);
 	EventEditorRegistry::Register<KeyListFilter, ptgn::event::KeyHeld>(
 		"ptgn.event.KeyHeld",
-		{ .label = "Key Held", .group = "Key", .description = "Fired every frame while held." },
-		draw_key_filter, draw_key_payload
+		{ .label = "Key Held", .group = "Key", .description = "Fired after a key combination remains held." },
+		draw_key_held_filter, draw_key_payload
 	);
 	EventEditorRegistry::Register<KeyListFilter, ptgn::event::KeyReleased>(
 		"ptgn.event.KeyReleased",
@@ -2178,8 +2329,8 @@ void DemoEditor::RegisterEditorTypes() {
 	);
 	EventEditorRegistry::Register<MouseListFilter, ptgn::event::MouseHeld>(
 		"ptgn.event.MouseHeld",
-		{ .label = "Mouse Held", .group = "Mouse", .description = "Fired every frame while held." },
-		draw_mouse_filter, draw_mouse_payload
+		{ .label = "Mouse Held", .group = "Mouse", .description = "Fired after a mouse-button combination remains held." },
+		draw_mouse_held_filter, draw_mouse_payload
 	);
 	EventEditorRegistry::Register<MouseListFilter, ptgn::event::MouseReleased>(
 		"ptgn.event.MouseReleased",
@@ -2264,7 +2415,7 @@ void DemoEditor::RegisterEditorTypes() {
 	);
 	ActionEditorRegistry::Register<SetVisibleAction>(
 		"engine.set_visible",
-		{ .label = "Set Visible", .group = "Entity", .description = "Set the owning entity visibility." },
+		{ .label = "Set Visible", .group = "Entity", .description = "Set the owning entity visibility.", .menu_order = 3 },
 		[](SetVisibleAction& action, EditorContext&) {
 			return ImGui::Checkbox("Visible", &action.visible);
 		}
@@ -2291,6 +2442,15 @@ void DemoEditor::RegisterEditorTypes() {
 					"##Volume", &action.volume, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp
 				);
 				DrawItemTooltip("Audio volume. Double-click to enter an exact value.");
+				if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+					ImGui::OpenPopup("ExactVolume");
+				}
+				if (ImGui::BeginPopup("ExactVolume")) {
+					ImGui::SetNextItemWidth(110.0f);
+					changed |= ImGui::InputFloat("Volume", &action.volume, 0.01f, 0.1f, "%.3f");
+					action.volume = std::clamp(action.volume, 0.0f, 1.0f);
+					ImGui::EndPopup();
+				}
 				ImGui::TableSetColumnIndex(2);
 				const int previous_loops{ action.loops };
 				DrawCountControl("Loops", action.loops, 0, 100, false, "Additional audio loops.");
@@ -2307,7 +2467,7 @@ void DemoEditor::RegisterEditorTypes() {
 	);
 	ActionEditorRegistry::Register<AddComponentsAction>(
 		"engine.add_components",
-		{ .label = "Add Components", .group = "Entity", .description = "Add registered components to the owner." },
+		{ .label = "Add Components", .group = "Entity", .description = "Add registered components to the owner.", .menu_order = 1 },
 		[](AddComponentsAction& action, EditorContext&) {
 			bool changed{ false };
 			int remove{ -1 };
@@ -2343,20 +2503,29 @@ void DemoEditor::RegisterEditorTypes() {
 				changed = true;
 			}
 
+			static std::unordered_map<ImGuiID, std::string> pending_components;
+			const ImGuiID pending_id{ ImGui::GetID("##PendingComponent") };
+			auto& pending_key{ pending_components[pending_id] };
+			const ComponentRegistration* pending_registration{ ComponentRegistry::Find(pending_key) };
+			const auto* pending_editor{
+				pending_registration ? ComponentEditorRegistry::Find(pending_registration->type_id) : nullptr
+			};
+			const char* preview{
+				pending_editor ? pending_editor->options.label.c_str() : "Select component"
+			};
 			const float button_size{ ImGui::GetFrameHeight() };
-			if (ImGui::Button("+", ImVec2{ button_size, button_size })) {
-				ImGui::OpenPopup("AddComponentPopup");
-			}
-			DrawItemTooltip("Add a registered component.");
-			if (ImGui::BeginPopup("AddComponentPopup")) {
+			const float combo_width{
+				std::max(1.0f, ImGui::GetContentRegionAvail().x - button_size - ImGui::GetStyle().ItemSpacing.x)
+			};
+			ImGui::SetNextItemWidth(combo_width);
+			if (ImGui::BeginCombo("##PendingComponent", preview)) {
 				std::vector<std::string> groups;
 				for (const auto& component_registration : ComponentRegistry::Entries()) {
 					const auto* component_editor{ ComponentEditorRegistry::Find(component_registration.type_id) };
-					if (!component_editor || component_editor->options.group.empty() ||
-						std::ranges::contains(groups, component_editor->options.group)) {
-						continue;
+					if (component_editor && !component_editor->options.group.empty() &&
+						!std::ranges::contains(groups, component_editor->options.group)) {
+						groups.push_back(component_editor->options.group);
 					}
-					groups.push_back(component_editor->options.group);
 				}
 				for (const auto& group : groups) {
 					if (!ImGui::BeginMenu(group.c_str())) {
@@ -2371,9 +2540,11 @@ void DemoEditor::RegisterEditorTypes() {
 							return component.type == component_registration.key;
 						}) };
 						ImGui::BeginDisabled(already_added);
-						if (ImGui::MenuItem(component_editor->options.label.c_str())) {
-							action.components.push_back(ComponentRegistry::Make(component_registration.key));
-							changed = true;
+						if (ImGui::MenuItem(
+								component_editor->options.label.c_str(), nullptr,
+								pending_key == component_registration.key
+							)) {
+							pending_key = component_registration.key;
 						}
 						ImGui::EndDisabled();
 						if (ImGui::IsItemHovered(already_added ? ImGuiHoveredFlags_AllowWhenDisabled : 0)) {
@@ -2385,14 +2556,32 @@ void DemoEditor::RegisterEditorTypes() {
 					}
 					ImGui::EndMenu();
 				}
-				ImGui::EndPopup();
+				ImGui::EndCombo();
 			}
+			pending_registration = ComponentRegistry::Find(pending_key);
+			ImGui::SameLine();
+			const bool can_add{
+				pending_registration &&
+				!std::ranges::any_of(action.components, [&](const auto& component) {
+					return component.type == pending_registration->key;
+				})
+			};
+			ImGui::BeginDisabled(!can_add);
+			if (ImGui::Button("+", ImVec2{ button_size, button_size })) {
+				action.components.push_back(ComponentRegistry::Make(pending_registration->key));
+				pending_key.clear();
+				changed = true;
+			}
+			ImGui::EndDisabled();
+			DrawItemTooltip(
+				can_add ? "Add the selected registered component." : "Select a component to add."
+			);
 			return changed;
 		}
 	);
 	ActionEditorRegistry::Register<RemoveComponentsAction>(
 		"engine.remove_components",
-		{ .label = "Remove Components", .group = "Entity", .description = "Remove selected registered components from the owner." },
+		{ .label = "Remove Components", .group = "Entity", .description = "Remove selected registered components from the owner.", .menu_order = 2, .separator_after = true },
 		[](RemoveComponentsAction& action, EditorContext&) {
 			std::string preview;
 			for (const auto& key : action.components) {
@@ -2445,7 +2634,7 @@ void DemoEditor::RegisterEditorTypes() {
 	);
 	ActionEditorRegistry::Register<SpawnEntityAction>(
 		"engine.spawn_entity",
-		{ .label = "Spawn Entity", .group = "Entity", .description = "Spawn one or more prefab instances." },
+		{ .label = "Spawn Entity", .group = "Entity", .description = "Spawn one or more prefab instances.", .menu_order = 0 },
 		[](SpawnEntityAction& action, EditorContext& context) {
 			action.count = std::clamp(action.count, 1, 100);
 			action.rectangle_size.x = std::max(0.0f, action.rectangle_size.x);
@@ -2638,6 +2827,22 @@ void DemoEditor::DrawScene() {
 		} else {
 			continue;
 		}
+		if (visual.health_fraction >= 0.0f) {
+			const float bar_height{ 6.0f };
+			const float bar_y{ minimum.y - 11.0f };
+			const ImVec2 bar_min{ minimum.x, bar_y };
+			const ImVec2 bar_max{ maximum.x, bar_y + bar_height };
+			draw->AddRectFilled(bar_min, bar_max, IM_COL32(48, 38, 42, 235), 2.0f);
+			draw->AddRectFilled(
+				bar_min,
+				ImVec2{
+					bar_min.x + (bar_max.x - bar_min.x) * std::clamp(visual.health_fraction, 0.0f, 1.0f),
+					bar_max.y
+				},
+				IM_COL32(70, 210, 95, 255), 2.0f
+			);
+			draw->AddRect(bar_min, bar_max, IM_COL32(225, 225, 225, 170), 2.0f);
+		}
 		if (!inspect_prefab_ && i == selected_entity_) {
 			draw->AddRect(
 				ImVec2{ minimum.x - 3.0f, minimum.y - 3.0f },
@@ -2664,6 +2869,14 @@ void DemoEditor::DrawScene() {
 	draw->AddText(
 		ImVec2{ start.x + 12.0f, start.y + 50.0f }, ImGui::GetColorU32(ImGuiCol_TextDisabled),
 		"Sliding Panel owns Actions that affect itself."
+	);
+	draw->AddText(
+		ImVec2{ start.x + 12.0f, start.y + 70.0f }, ImGui::GetColorU32(ImGuiCol_TextDisabled),
+		"Circle Spawner creates random circles; leaving recalls them by Signal."
+	);
+	draw->AddText(
+		ImVec2{ start.x + 12.0f, start.y + 90.0f }, ImGui::GetColorU32(ImGuiCol_TextDisabled),
+		"Damage Target takes 25 damage every 3 seconds while overlapped."
 	);
 	ImGui::InvisibleButton("SceneCanvas", size);
 }
@@ -3285,9 +3498,19 @@ void DemoEditor::DrawActionPicker(Action& action, bool timed_only) {
 		if (!ImGui::BeginMenu(group.c_str())) {
 			continue;
 		}
+		std::vector<const ActionEditorRegistration*> candidates;
 		for (const auto& candidate : ActionEditorRegistry::Entries()) {
 			if (is_available(candidate) && candidate.options.group == group) {
-				select_candidate(candidate);
+				candidates.push_back(&candidate);
+			}
+		}
+		std::ranges::sort(candidates, {}, [](const auto* candidate) {
+			return candidate->options.menu_order;
+		});
+		for (const auto* candidate : candidates) {
+			select_candidate(*candidate);
+			if (candidate->options.separator_after) {
+				ImGui::Separator();
 			}
 		}
 		ImGui::EndMenu();
@@ -3627,7 +3850,7 @@ void DemoEditor::DrawAddSequencePopup(ScriptsComponent& scripts) {
 	}
 	if (ImGui::MenuItem("Create New Script Sequence")) {
 		ScriptSequence sequence;
-		sequence.start_events.push_back(EventRegistry::MakeCondition<OnCreate, NoEventFilter>());
+		sequence.start_events.push_back(EventRegistry::MakeCondition<OnCreate, OnCreateFilter>());
 		scripts.sequences.push_back(std::move(sequence));
 	}
 	if (ImGui::BeginMenu("Existing Script Sequence")) {
@@ -3874,6 +4097,8 @@ struct MaskComponent {
 
 struct ApplyDamageAction {
 	float amount{ 10.0f };
+	std::string damage_type{ "Physical" };
+	bool critical{ false };
 	void OnStart(ActionContext& context);
 };
 
@@ -3946,11 +4171,19 @@ public:
 	}
 
 	[[nodiscard]] script_sequence_demo::editor::EditorVisual Visual(ptgn::Entity entity) const override {
+		script_sequence_demo::editor::EditorVisual result;
 		if (entity && entity.Has<DemoVisual>()) {
 			const auto& visual{ entity.Get<DemoVisual>() };
-			return { .color = visual.color, .sensor = visual.sensor };
+			result.color = visual.color;
+			result.sensor = visual.sensor;
 		}
-		return {};
+		if (entity && entity.Has<Health>()) {
+			const auto& health{ entity.Get<Health>() };
+			result.health_fraction = health.maximum > 0.0f
+				? std::clamp(health.current / health.maximum, 0.0f, 1.0f)
+				: 0.0f;
+		}
+		return result;
 	}
 
 	void Log(std::string text) override {
@@ -4006,17 +4239,38 @@ public:
 		return entity;
 	}
 
-	[[nodiscard]] bool KeyDown(int key) const override {
-		return glfwGetKey(window_, key) == GLFW_PRESS;
+	[[nodiscard]] bool KeyDown(ptgn::Key key) const override {
+		return glfwGetKey(window_, static_cast<int>(key)) == GLFW_PRESS;
+	}
+
+	[[nodiscard]] float KeyHoldDuration(ptgn::Key key) const override {
+		const auto it{ key_hold_duration_ms_.find(static_cast<int>(key)) };
+		return it == key_hold_duration_ms_.end() ? 0.0f : it->second;
+	}
+
+	[[nodiscard]] bool MouseDown(ptgn::Mouse button) const override {
+		return glfwGetMouseButton(window_, static_cast<int>(button)) == GLFW_PRESS;
+	}
+
+	[[nodiscard]] float MouseHoldDuration(ptgn::Mouse button) const override {
+		const auto it{ mouse_hold_duration_ms_.find(static_cast<int>(button)) };
+		return it == mouse_hold_duration_ms_.end() ? 0.0f : it->second;
+	}
+
+	void Destroy(ptgn::Entity entity) override {
+		if (entity && !std::ranges::contains(pending_destroy_, entity)) {
+			pending_destroy_.push_back(entity);
+		}
 	}
 
 	void Update(float delta_seconds) {
-		UpdateInputEvents();
+		UpdateInputEvents(delta_seconds);
 		UpdateResidentScripts(delta_seconds);
 		UpdateOverlapEvents();
 		DispatchEvents();
 
-		for (auto entity : entities_) {
+		const auto sequence_entities{ entities_ };
+		for (auto entity : sequence_entities) {
 			if (auto* scripts{ entity.TryGet<ScriptsComponent>() }) {
 				for (auto& sequence : scripts->sequences) {
 					UpdateSequence(entity, sequence, delta_seconds);
@@ -4025,6 +4279,7 @@ public:
 		}
 
 		DispatchEvents();
+		ProcessPendingDestroy();
 		for (auto& entry : activity_) {
 			entry.remaining_seconds -= delta_seconds;
 		}
@@ -4065,6 +4320,7 @@ public:
 			}
 		}
 
+		runtime.pending_start_delay_ms = -1.0f;
 		runtime.running = true;
 		runtime.paused = false;
 		runtime.completed = false;
@@ -4140,8 +4396,9 @@ private:
 	void RegisterEngineTypes();
 	void CreatePrefabs();
 	void CreateDemoScene();
-	void UpdateInputEvents();
+	void UpdateInputEvents(float delta_seconds);
 	void UpdateResidentScripts(float delta_seconds);
+	void ProcessPendingDestroy();
 	void UpdateOverlapEvents();
 	void DispatchEvents();
 	void UpdateSequence(ptgn::Entity owner, ScriptSequence& binding, float delta_seconds);
@@ -4165,7 +4422,12 @@ private:
 	std::deque<EventEnvelope> pending_events_;
 	std::vector<ActivityEntry> activity_;
 	std::unordered_map<int, bool> previous_key_states_;
+	std::unordered_map<int, float> key_hold_duration_ms_;
+	std::unordered_map<int, bool> previous_mouse_states_;
+	std::unordered_map<int, float> mouse_hold_duration_ms_;
+	std::vector<ptgn::Entity> pending_destroy_;
 	bool player_overlapping_sensor_{ false };
+	bool player_overlapping_spawner_{ false };
 };
 
 void PlayerMovementScript::OnUpdate(ScriptContext& context) {
@@ -4174,16 +4436,16 @@ void PlayerMovementScript::OnUpdate(ScriptContext& context) {
 	}
 
 	ptgn::V2_float direction{};
-	if (context.host.KeyDown(GLFW_KEY_A)) {
+	if (context.host.KeyDown(static_cast<ptgn::Key>(GLFW_KEY_A))) {
 		direction.x -= 1.0f;
 	}
-	if (context.host.KeyDown(GLFW_KEY_D)) {
+	if (context.host.KeyDown(static_cast<ptgn::Key>(GLFW_KEY_D))) {
 		direction.x += 1.0f;
 	}
-	if (context.host.KeyDown(GLFW_KEY_S)) {
+	if (context.host.KeyDown(static_cast<ptgn::Key>(GLFW_KEY_S))) {
 		direction.y -= 1.0f;
 	}
-	if (context.host.KeyDown(GLFW_KEY_W)) {
+	if (context.host.KeyDown(static_cast<ptgn::Key>(GLFW_KEY_W))) {
 		direction.y += 1.0f;
 	}
 
@@ -4203,9 +4465,15 @@ using namespace script_sequence_demo::editor;
 
 void ApplyDamageAction::OnStart(ActionContext& context) {
 	if (auto* health{ context.owner.TryGet<Health>() }) {
-		health->current = std::max(0.0f, health->current - amount);
-		context.host.Log(std::string{ context.host.Name(context.owner) } + " took " +
-			std::to_string(static_cast<int>(amount)) + " damage");
+		const float applied{ std::max(0.0f, amount) * (critical ? 2.0f : 1.0f) };
+		health->current -= applied;
+		context.host.Log(
+			std::string{ context.host.Name(context.owner) } + " took " +
+			std::to_string(static_cast<int>(applied)) + " " + damage_type + " damage"
+		);
+		if (health->current <= 0.0f) {
+			context.host.Destroy(context.owner);
+		}
 	}
 }
 
@@ -4252,9 +4520,25 @@ void DemoWorld::RegisterEditorExtensions() {
 	);
 	ActionEditorRegistry::Register<ApplyDamageAction>(
 		"game.apply_damage",
-		{ .label = "Apply Damage", .group = "Game", .description = "Example user-registered gameplay Action." },
+		{ .label = "Apply Damage", .group = "Game", .description = "Apply damage to the owning entity." },
 		[](ApplyDamageAction& action, EditorContext&) {
-			return ImGui::DragFloat("Amount", &action.amount, 0.25f, 0.0f);
+			bool changed{ false };
+			if (ImGui::BeginTable("DamageParams", 3, ImGuiTableFlags_SizingStretchProp)) {
+				ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthFixed, 92.0f);
+				ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch);
+				ImGui::TableSetupColumn("Critical", ImGuiTableColumnFlags_WidthFixed, 62.0f);
+				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
+				ImGui::TableSetColumnIndex(0);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				changed |= ImGui::DragFloat("##Amount", &action.amount, 0.25f, 0.0f, 100000.0f, "%.2f");
+				ImGui::TableSetColumnIndex(1);
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				changed |= ImGui::InputText("##DamageType", &action.damage_type);
+				ImGui::TableSetColumnIndex(2);
+				changed |= ImGui::Checkbox("Critical", &action.critical);
+				ImGui::EndTable();
+			}
+			return changed;
 		}
 	);
 	ScriptEditorRegistry::Register<PlayerMovementScript>(
@@ -4278,49 +4562,97 @@ void DemoWorld::RegisterEngineTypes() {
 	ComponentRegistry::Register<Damage>("game.Damage");
 	ComponentRegistry::Register<Lifetime>("game.Lifetime");
 	ComponentRegistry::Register<MaskComponent>("demo.Mask");
+	ComponentRegistry::Register<ScriptsComponent>("engine.Scripts");
 
 	// Existing engine Events plus the data-driven Signal Event.
-	auto match_key = [](const auto& event, const KeyListFilter& filter, EventMatchContext&) {
-		const auto parsed{ ParseEnumList<ptgn::Key>(filter.keys) };
-		return std::ranges::contains(parsed.values, event.key);
+	auto match_key_pressed = [](const auto& event, const KeyListFilter& filter, EventMatchContext& context) {
+		const auto parsed{ ParseEnumExpression<ptgn::Key>(filter.keys) };
+		return parsed.IsValid() && MatchesPressedOrHeldCombination(
+			event.key, parsed, [&](ptgn::Key key) { return context.host.KeyDown(key); }
+		);
 	};
-	auto match_mouse = [](const auto& event, const MouseListFilter& filter, EventMatchContext&) {
-		const auto parsed{ ParseEnumList<ptgn::Mouse>(filter.buttons) };
-		return std::ranges::contains(parsed.values, event.button);
+	auto match_key_held = [](const auto& event, const KeyListFilter& filter, EventMatchContext& context) {
+		const auto parsed{ ParseEnumExpression<ptgn::Key>(filter.keys) };
+		const float required_duration{ std::max(0.0f, filter.hold_duration_ms) };
+		return parsed.IsValid() && std::ranges::any_of(
+			parsed.alternatives,
+			[&](const auto& combination) {
+				return std::ranges::contains(combination, event.key) &&
+					std::ranges::all_of(combination, [&](ptgn::Key key) {
+						return context.host.KeyDown(key) &&
+							context.host.KeyHoldDuration(key) >= required_duration;
+					});
+			}
+		);
+	};
+	auto match_key_released = [](const auto& event, const KeyListFilter& filter, EventMatchContext& context) {
+		const auto parsed{ ParseEnumExpression<ptgn::Key>(filter.keys) };
+		return parsed.IsValid() && MatchesReleasedCombination(
+			event.key, parsed, [&](ptgn::Key key) { return context.host.KeyDown(key); }
+		);
+	};
+	auto match_mouse_pressed = [](const auto& event, const MouseListFilter& filter, EventMatchContext& context) {
+		const auto parsed{ ParseEnumExpression<ptgn::Mouse>(filter.buttons) };
+		return parsed.IsValid() && MatchesPressedOrHeldCombination(
+			MouseFromEvent(event), parsed,
+			[&](ptgn::Mouse button) { return context.host.MouseDown(button); }
+		);
+	};
+	auto match_mouse_held = [](const auto& event, const MouseListFilter& filter, EventMatchContext& context) {
+		const auto parsed{ ParseEnumExpression<ptgn::Mouse>(filter.buttons) };
+		const ptgn::Mouse event_button{ MouseFromEvent(event) };
+		const float required_duration{ std::max(0.0f, filter.hold_duration_ms) };
+		return parsed.IsValid() && std::ranges::any_of(
+			parsed.alternatives,
+			[&](const auto& combination) {
+				return std::ranges::contains(combination, event_button) &&
+					std::ranges::all_of(combination, [&](ptgn::Mouse button) {
+						return context.host.MouseDown(button) &&
+							context.host.MouseHoldDuration(button) >= required_duration;
+					});
+			}
+		);
+	};
+	auto match_mouse_released = [](const auto& event, const MouseListFilter& filter, EventMatchContext& context) {
+		const auto parsed{ ParseEnumExpression<ptgn::Mouse>(filter.buttons) };
+		return parsed.IsValid() && MatchesReleasedCombination(
+			MouseFromEvent(event), parsed,
+			[&](ptgn::Mouse button) { return context.host.MouseDown(button); }
+		);
 	};
 	auto match_entity = [](const auto& event, const EntityMaskFilter& filter, EventMatchContext& context) {
 		return MatchesEntityMaskFilter(OtherEntity(event), filter, context.host);
 	};
-	auto match_on_create = [](const OnCreate&, const NoEventFilter&, EventMatchContext&) {
+	auto match_on_create = [](const OnCreate&, const OnCreateFilter&, EventMatchContext&) {
 		return true;
 	};
 	auto match_signal = [](const Signal& event, const Signal& filter, EventMatchContext&) {
 		return event.key == filter.key;
 	};
 
-	EventRegistry::Register<OnCreate, NoEventFilter>(
+	EventRegistry::Register<OnCreate, OnCreateFilter>(
 		"ptgn.event.OnCreate", match_on_create
 	);
 	EventRegistry::Register<Signal, Signal>(
 		"ptgn.event.Signal", match_signal
 	);
 	EventRegistry::Register<ptgn::event::KeyPressed, KeyListFilter>(
-		"ptgn.event.KeyPressed", match_key
+		"ptgn.event.KeyPressed", match_key_pressed
 	);
 	EventRegistry::Register<ptgn::event::KeyHeld, KeyListFilter>(
-		"ptgn.event.KeyHeld", match_key
+		"ptgn.event.KeyHeld", match_key_held
 	);
 	EventRegistry::Register<ptgn::event::KeyReleased, KeyListFilter>(
-		"ptgn.event.KeyReleased", match_key
+		"ptgn.event.KeyReleased", match_key_released
 	);
 	EventRegistry::Register<ptgn::event::MousePressed, MouseListFilter>(
-		"ptgn.event.MousePressed", match_mouse
+		"ptgn.event.MousePressed", match_mouse_pressed
 	);
 	EventRegistry::Register<ptgn::event::MouseHeld, MouseListFilter>(
-		"ptgn.event.MouseHeld", match_mouse
+		"ptgn.event.MouseHeld", match_mouse_held
 	);
 	EventRegistry::Register<ptgn::event::MouseReleased, MouseListFilter>(
-		"ptgn.event.MouseReleased", match_mouse
+		"ptgn.event.MouseReleased", match_mouse_released
 	);
 	EventRegistry::Register<ptgn::event::OverlapStart, EntityMaskFilter>(
 		"ptgn.event.OverlapStart", match_entity
@@ -4365,12 +4697,34 @@ void DemoWorld::CreatePrefabs() {
 	zombie.name = "Zombie";
 	zombie.tag = "Zombie";
 	zombie.components.push_back(ComponentRegistry::Make("ptgn.Rect"));
-	std::any_cast<ptgn::Rect&>(zombie.components.back().value) = ptgn::Rect{ ptgn::V2_float{ 32.0f, 32.0f } };
+	std::any_cast<ptgn::Rect&>(zombie.components.back().value) =
+		ptgn::Rect{ ptgn::V2_float{ 32.0f, 32.0f } };
 	zombie.components.push_back(ComponentRegistry::Make("demo.Visual"));
-	std::any_cast<DemoVisual&>(zombie.components.back().value).color = ImVec4{ 0.45f, 0.75f, 0.30f, 1.0f };
+	std::any_cast<DemoVisual&>(zombie.components.back().value).color =
+		ImVec4{ 0.45f, 0.75f, 0.30f, 1.0f };
 	zombie.components.push_back(ComponentRegistry::Make("game.Health"));
 	zombie.components.push_back(ComponentRegistry::Make("game.Zombie"));
 	prefabs_.definitions.push_back(std::move(zombie));
+
+	PrefabDefinition circle;
+	circle.key = "prefabs/recall_circle";
+	circle.name = "Recall Circle";
+	circle.tag = "SpawnedCircle";
+	circle.components.push_back(ComponentRegistry::Make("ptgn.Circle"));
+	std::any_cast<ptgn::Circle&>(circle.components.back().value).radius = 13.0f;
+	circle.components.push_back(ComponentRegistry::Make("demo.Visual"));
+	std::any_cast<DemoVisual&>(circle.components.back().value).color =
+		ImVec4{ 0.78f, 0.42f, 0.88f, 1.0f };
+
+	ScriptsComponent circle_scripts;
+	ScriptSequenceBuilder destroy_builder{ "Destroy on Recall" };
+	destroy_builder.StartOn<Signal>(Signal{ SignalKey{ "spawned_circles.destroy" } });
+	ScriptSequence destroy_sequence{ destroy_builder.Build() };
+	destroy_sequence.destroy_on_complete = true;
+	circle_scripts.sequences.push_back(std::move(destroy_sequence));
+	circle.components.push_back(ComponentRegistry::Make("engine.Scripts"));
+	std::any_cast<ScriptsComponent&>(circle.components.back().value) = std::move(circle_scripts);
+	prefabs_.definitions.push_back(std::move(circle));
 }
 
 void DemoWorld::CreateDemoScene() {
@@ -4480,21 +4834,49 @@ void DemoWorld::CreateDemoScene() {
 		indicator.Get<ScriptsComponent>().sequences.push_back(std::move(closed_binding));
 	}
 
-	ptgn::Entity factory{ CreateEntity("Runtime Factory", "Spawner") };
-	factory.Get<ptgn::Transform>().position = { -300.0f, -180.0f };
-	factory.Add<ptgn::Rect>(ptgn::V2_float{ 120.0f, 42.0f });
-	factory.Get<DemoVisual>().color = ImVec4{ 0.47f, 0.41f, 0.63f, 1.0f };
+	ptgn::Entity factory{ CreateEntity("Circle Spawner", "Spawner") };
+	factory.Get<ptgn::Transform>().position = { -265.0f, -165.0f };
+	factory.Add<ptgn::Rect>(ptgn::V2_float{ 130.0f, 72.0f });
+	factory.Get<DemoVisual>().color = ImVec4{ 0.47f, 0.41f, 0.63f, 0.55f };
+	factory.Get<DemoVisual>().sensor = true;
 	factory.Add<ScriptsComponent>();
-	ScriptSequenceBuilder tools_builder{ "Runtime Entity Tools" };
-	tools_builder.Then(SpawnEntityAction{
-		.prefab_key = "prefabs/zombie",
-		.count = 3,
-		.origin = SpawnOrigin::OwnerEntity,
-		.area = SpawnArea::Rectangle,
-		.center = { 0.0f, 60.0f },
-		.rectangle_size = { 120.0f, 40.0f },
-	});
-	factory.Get<ScriptsComponent>().sequences.push_back(tools_builder.Build());
+
+	ScriptSequenceBuilder spawn_builder{ "Spawn Recall Circles" };
+	spawn_builder
+		.Reentry(ReentryMode::IgnoreWhileRunning)
+		.StartOn<ptgn::event::OverlapStart>(EntityMaskFilter{ .tags = "Player" })
+		.Then(SpawnEntityAction{
+			.prefab_key = "prefabs/recall_circle",
+			.count = 10,
+			.origin = SpawnOrigin::OwnerEntity,
+			.area = SpawnArea::Circle,
+			.center = { 0.0f, 95.0f },
+			.radius = 92.0f,
+			.random_rotation = true,
+		});
+	factory.Get<ScriptsComponent>().sequences.push_back(spawn_builder.Build());
+
+	ScriptSequenceBuilder recall_builder{ "Recall Spawned Circles" };
+	recall_builder
+		.Reentry(ReentryMode::Restart)
+		.StartOn<ptgn::event::OverlapStop>(EntityMaskFilter{ .tags = "Player" })
+		.EmitSignal(SignalKey{ "spawned_circles.destroy" });
+	factory.Get<ScriptsComponent>().sequences.push_back(recall_builder.Build());
+
+	ptgn::Entity damage_target{ CreateEntity("Damage Target", "DamageTarget") };
+	damage_target.Get<ptgn::Transform>().position = { 315.0f, 105.0f };
+	damage_target.Add<ptgn::Rect>(ptgn::V2_float{ 105.0f, 86.0f });
+	damage_target.Get<DemoVisual>().color = ImVec4{ 0.78f, 0.27f, 0.29f, 1.0f };
+	damage_target.Add<Health>(Health{ .maximum = 100.0f, .current = 100.0f });
+	damage_target.Add<ScriptsComponent>();
+
+	ScriptSequenceBuilder damage_builder{ "Overlap Damage Cooldown" };
+	damage_builder
+		.Reentry(ReentryMode::IgnoreWhileRunning)
+		.StartOn<ptgn::event::Overlap>(EntityMaskFilter{ .tags = "Player" })
+		.Then(ApplyDamageAction{ .amount = 25.0f })
+		.Wait(3000.0f);
+	damage_target.Get<ScriptsComponent>().sequences.push_back(damage_builder.Build());
 
 	manager_.Refresh();
 	for (auto entity : entities_) {
@@ -4504,33 +4886,149 @@ void DemoWorld::CreateDemoScene() {
 	}
 }
 
-void DemoWorld::UpdateInputEvents() {
-	constexpr std::array keys{ GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D, GLFW_KEY_SPACE };
-	for (const int key : keys) {
-		const bool down{ glfwGetKey(window_, key) == GLFW_PRESS };
-		const bool previous{ previous_key_states_[key] };
-		const auto ptgn_key{ static_cast<ptgn::Key>(key) };
+void DemoWorld::UpdateInputEvents(float delta_seconds) {
+	std::vector<int> key_codes{
+		GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D, GLFW_KEY_SPACE,
+		GLFW_KEY_UP, GLFW_KEY_DOWN, GLFW_KEY_LEFT, GLFW_KEY_RIGHT,
+		GLFW_KEY_LEFT_SHIFT, GLFW_KEY_RIGHT_SHIFT,
+		GLFW_KEY_LEFT_CONTROL, GLFW_KEY_RIGHT_CONTROL,
+		GLFW_KEY_ENTER, GLFW_KEY_ESCAPE
+	};
+
+	const auto collect_condition_keys = [&](const EventCondition& condition) {
+		const bool is_key_event{
+			condition.type == EventRegistry::Key<ptgn::event::KeyPressed>() ||
+			condition.type == EventRegistry::Key<ptgn::event::KeyHeld>() ||
+			condition.type == EventRegistry::Key<ptgn::event::KeyReleased>()
+		};
+		if (!is_key_event || condition.filter.type() != typeid(KeyListFilter)) {
+			return;
+		}
+		const auto parsed{
+			ParseEnumExpression<ptgn::Key>(std::any_cast<const KeyListFilter&>(condition.filter).keys)
+		};
+		for (const auto& combination : parsed.alternatives) {
+			for (const ptgn::Key key : combination) {
+				const int key_code{ static_cast<int>(key) };
+				if (!std::ranges::contains(key_codes, key_code)) {
+					key_codes.push_back(key_code);
+				}
+			}
+		}
+	};
+
+	for (const auto& record : entities_) {
+		const auto* scripts{ record.TryGet<ScriptsComponent>() };
+		if (!scripts) {
+			continue;
+		}
+		for (const auto& binding : scripts->sequences) {
+			const auto* sequence{ Resolve(binding) };
+			if (!sequence) {
+				continue;
+			}
+			for (const auto& condition : sequence->start_events) {
+				collect_condition_keys(condition);
+			}
+			for (const auto& condition : sequence->stop_events) {
+				collect_condition_keys(condition);
+			}
+		}
+	}
+
+	const float delta_ms{ std::max(0.0f, delta_seconds) * 1000.0f };
+	for (const int key_code : key_codes) {
+		const bool down{ glfwGetKey(window_, key_code) == GLFW_PRESS };
+		const bool previous{ previous_key_states_[key_code] };
+		auto& hold_duration{ key_hold_duration_ms_[key_code] };
+		const auto key{ static_cast<ptgn::Key>(key_code) };
+
+		if (down) {
+			hold_duration = previous ? hold_duration + delta_ms : delta_ms;
+		} else if (previous) {
+			const float released_duration{ hold_duration };
+			auto event{ EventRegistry::MakeEvent<ptgn::event::KeyReleased>(
+				ptgn::event::KeyReleased{ key }, std::nullopt, {}, EventDelivery::Broadcast
+			) };
+			event.held_duration_ms = released_duration;
+			Queue(std::move(event));
+			hold_duration = 0.0f;
+		}
+
 		if (down && !previous) {
-			Queue(EventRegistry::MakeEvent<ptgn::event::KeyPressed>(
-				ptgn::event::KeyPressed{ ptgn_key }, std::nullopt, {}, EventDelivery::Broadcast
-			));
+			auto event{ EventRegistry::MakeEvent<ptgn::event::KeyPressed>(
+				ptgn::event::KeyPressed{ key }, std::nullopt, {}, EventDelivery::Broadcast
+			) };
+			event.held_duration_ms = hold_duration;
+			Queue(std::move(event));
 		}
 		if (down) {
-			Queue(EventRegistry::MakeEvent<ptgn::event::KeyHeld>(
-				ptgn::event::KeyHeld{ ptgn_key }, std::nullopt, {}, EventDelivery::Broadcast
-			));
+			auto event{ EventRegistry::MakeEvent<ptgn::event::KeyHeld>(
+				ptgn::event::KeyHeld{ key }, std::nullopt, {}, EventDelivery::Broadcast
+			) };
+			event.held_duration_ms = hold_duration;
+			Queue(std::move(event));
 		}
-		if (!down && previous) {
-			Queue(EventRegistry::MakeEvent<ptgn::event::KeyReleased>(
-				ptgn::event::KeyReleased{ ptgn_key }, std::nullopt, {}, EventDelivery::Broadcast
-			));
+		previous_key_states_[key_code] = down;
+	}
+
+	for (int button_code{ 0 }; button_code <= static_cast<int>(ptgn::Mouse::Last); ++button_code) {
+		const bool down{ glfwGetMouseButton(window_, button_code) == GLFW_PRESS };
+		const bool previous{ previous_mouse_states_[button_code] };
+		auto& hold_duration{ mouse_hold_duration_ms_[button_code] };
+		const auto button{ static_cast<ptgn::Mouse>(button_code) };
+
+		if (down) {
+			hold_duration = previous ? hold_duration + delta_ms : delta_ms;
+		} else if (previous) {
+			const float released_duration{ hold_duration };
+			auto event{ EventRegistry::MakeEvent<ptgn::event::MouseReleased>(
+				ptgn::event::MouseReleased{ button }, std::nullopt, {}, EventDelivery::Broadcast
+			) };
+			event.held_duration_ms = released_duration;
+			Queue(std::move(event));
+			hold_duration = 0.0f;
 		}
-		previous_key_states_[key] = down;
+
+		if (down && !previous) {
+			auto event{ EventRegistry::MakeEvent<ptgn::event::MousePressed>(
+				ptgn::event::MousePressed{ button }, std::nullopt, {}, EventDelivery::Broadcast
+			) };
+			event.held_duration_ms = hold_duration;
+			Queue(std::move(event));
+		}
+		if (down) {
+			auto event{ EventRegistry::MakeEvent<ptgn::event::MouseHeld>(
+				ptgn::event::MouseHeld{ button }, std::nullopt, {}, EventDelivery::Broadcast
+			) };
+			event.held_duration_ms = hold_duration;
+			Queue(std::move(event));
+		}
+		previous_mouse_states_[button_code] = down;
 	}
 }
 
+void DemoWorld::ProcessPendingDestroy() {
+	if (pending_destroy_.empty()) {
+		return;
+	}
+	for (ptgn::Entity entity : pending_destroy_) {
+		if (!entity) {
+			continue;
+		}
+		Log("Destroyed " + std::string{ Name(entity) });
+		entity.Destroy();
+	}
+	std::erase_if(entities_, [](ptgn::Entity entity) {
+		return !entity;
+	});
+	pending_destroy_.clear();
+	manager_.Refresh();
+}
+
 void DemoWorld::UpdateResidentScripts(float delta_seconds) {
-	for (auto entity : entities_) {
+	const auto script_entities{ entities_ };
+	for (auto entity : script_entities) {
 		auto* scripts{ entity.TryGet<ScriptsComponent>() };
 		if (!scripts) {
 			continue;
@@ -4571,25 +5069,40 @@ bool DemoWorld::Overlap(ptgn::Entity a, ptgn::Entity b) const {
 
 void DemoWorld::UpdateOverlapEvents() {
 	const ptgn::Entity player{ FindByTag("Player") };
-	const ptgn::Entity sensor{ FindByTag("Door") };
-	if (!player || !sensor) {
+	if (!player) {
 		return;
 	}
-	const bool overlapping{ Overlap(player, sensor) };
-	if (overlapping == player_overlapping_sensor_) {
-		return;
-	}
-	player_overlapping_sensor_ = overlapping;
-	if (overlapping) {
-		Queue(EventRegistry::MakeEvent<ptgn::event::OverlapStart>(
-			ptgn::event::OverlapStart{ player }, sensor, sensor
+
+	auto update_transition = [&](ptgn::Entity sensor, bool& previous, std::string_view label) {
+		if (!sensor) {
+			previous = false;
+			return;
+		}
+		const bool overlapping{ Overlap(player, sensor) };
+		if (overlapping != previous) {
+			previous = overlapping;
+			if (overlapping) {
+				Queue(EventRegistry::MakeEvent<ptgn::event::OverlapStart>(
+					ptgn::event::OverlapStart{ player }, sensor, sensor
+				));
+				Log("OverlapStart(" + std::string{ label } + ", Player)");
+			} else {
+				Queue(EventRegistry::MakeEvent<ptgn::event::OverlapStop>(
+					ptgn::event::OverlapStop{ player }, sensor, sensor
+				));
+				Log("OverlapStop(" + std::string{ label } + ", Player)");
+			}
+		}
+	};
+
+	update_transition(FindByTag("Door"), player_overlapping_sensor_, "Door Sensor");
+	update_transition(FindByTag("Spawner"), player_overlapping_spawner_, "Circle Spawner");
+
+	const ptgn::Entity damage_target{ FindByTag("DamageTarget") };
+	if (damage_target && Overlap(player, damage_target)) {
+		Queue(EventRegistry::MakeEvent<ptgn::event::Overlap>(
+			ptgn::event::Overlap{ player }, damage_target, damage_target
 		));
-		Log("OverlapStart(Door Sensor, Player)");
-	} else {
-		Queue(EventRegistry::MakeEvent<ptgn::event::OverlapStop>(
-			ptgn::event::OverlapStop{ player }, sensor, sensor
-		));
-		Log("OverlapStop(Door Sensor, Player)");
 	}
 }
 
@@ -4605,7 +5118,7 @@ bool DemoWorld::Matches(
 	if (!registration) {
 		return false;
 	}
-	EventMatchContext context{ .host = *this, .owner = owner };
+	EventMatchContext context{ .host = *this, .owner = owner, .held_duration_ms = event.held_duration_ms };
 	return registration->matches(event.payload, condition.filter, context);
 }
 
@@ -4614,7 +5127,8 @@ void DemoWorld::DispatchEvents() {
 		EventEnvelope event{ std::move(pending_events_.front()) };
 		pending_events_.pop_front();
 
-		for (auto entity : entities_) {
+		const auto event_entities{ entities_ };
+		for (auto entity : event_entities) {
 			if (event.delivery == EventDelivery::Target &&
 				(!event.target || entity != *event.target)) {
 				continue;
@@ -4645,11 +5159,26 @@ void DemoWorld::DispatchEvents() {
 					Stop(entity, binding);
 					continue;
 				}
-				const bool start{ std::ranges::any_of(sequence->start_events, [&](const auto& condition) {
-					return Matches(condition, event, entity);
-				}) };
-				if (start) {
-					Start(entity, binding);
+				const auto start_it{ std::ranges::find_if(
+					sequence->start_events,
+					[&](const auto& condition) {
+						return Matches(condition, event, entity);
+					}
+				) };
+				if (start_it != sequence->start_events.end()) {
+					const auto* registration{ EventRegistry::Find(start_it->type) };
+					const float delay_ms{
+						registration && registration->start_delay_ms
+							? registration->start_delay_ms(start_it->filter)
+							: 0.0f
+					};
+					if (delay_ms > 0.0f && !binding.runtime.running) {
+						if (binding.runtime.pending_start_delay_ms < 0.0f) {
+							binding.runtime.pending_start_delay_ms = delay_ms;
+						}
+					} else {
+						Start(entity, binding);
+					}
 				}
 			}
 		}
@@ -4741,8 +5270,8 @@ void DemoWorld::CompleteSequence(ptgn::Entity owner, ScriptSequence& binding) {
 	InvokeLifecycle(owner, binding, SequenceLifecycle::Complete);
 	Log(std::string{ Name(owner) } + " / " + sequence->name + " completed");
 	if (sequence->destroy_on_complete) {
-		binding.runtime = ScriptSequenceRuntime{};
-		binding.runtime.completed_runs = completed_runs;
+		Destroy(owner);
+		return;
 	}
 	if (queued) {
 		Start(owner, binding, true);
@@ -4755,6 +5284,14 @@ void DemoWorld::UpdateSequence(
 	float delta_seconds
 ) {
 	auto& runtime{ binding.runtime };
+	if (!runtime.running && runtime.pending_start_delay_ms >= 0.0f) {
+		runtime.pending_start_delay_ms -= std::max(0.0f, delta_seconds) * 1000.0f;
+		if (runtime.pending_start_delay_ms <= 0.0f) {
+			runtime.pending_start_delay_ms = -1.0f;
+			Start(owner, binding, true);
+		}
+		return;
+	}
 	if (!runtime.running || runtime.paused) {
 		return;
 	}
