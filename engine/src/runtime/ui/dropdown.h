@@ -54,18 +54,18 @@ struct DropdownData {
 	Origin origin{ Origin::CenterBottom };
 };
 
+struct DropdownEnabledState {
+	bool press{ true };
+	bool hover{ true };
+
+	PTGN_REFLECT(DropdownEnabledState, press, hover)
+};
+
 /// @brief Marker for direct child buttons that are dropdown items.
 struct DropdownItem {
-	struct EnabledState {
-		bool press{ true };
-		bool hover{ true };
+	std::optional<DropdownEnabledState> enabled_state;
 
-		PTNG_REFLECT(EnabledState, press, hover)
-	};
-
-	std::optional<EnabledState> enabled_state;
-
-	PTNG_REFLECT_VALUE(DropdownItem, enabled_state)
+	PTGN_REFLECT_VALUE(DropdownItem, enabled_state)
 };
 
 class DropdownScript : public Script {

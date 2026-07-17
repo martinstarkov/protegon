@@ -76,7 +76,7 @@ void Dropdown::HideDropdownBranch(Button button) {
 	auto& item{ button.Get<impl::DropdownItem>() };
 
 	if (!item.enabled_state.has_value()) {
-		item.enabled_state = impl::DropdownItem::EnabledState{
+		item.enabled_state = impl::DropdownEnabledState{
 			.press = button.IsEnabled(false),
 			.hover = button.IsEnabled(true),
 		};
