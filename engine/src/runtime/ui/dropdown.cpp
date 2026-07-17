@@ -33,11 +33,15 @@ void DropdownScript::OnEvent(Event event) {
 
 void DropdownItemScript::OnEvent(Event event) {
 	event.Dispatch<ptgn::event::ButtonPress>([this]() {
-		PTGN_ASSERT(HasParent(entity));
+		if (!HasParent(entity)) {
+			PTGN_WARN("Cannot update dropdown item script if item has no parent");
+			return;
+		}
 
 		Entity parent{ GetParent(entity) };
 
 		if (!parent.Has<impl::DropdownData>()) {
+			PTGN_WARN("Cannot update dropdown item script if item parent has no dropdown data");
 			return;
 		}
 
@@ -63,16 +67,15 @@ void Dropdown::HideDropdownBranch(Button button) {
 	if (button.Has<impl::DropdownData>()) {
 		Dropdown dropdown{ button };
 
-		auto& info{ dropdown.Get<impl::DropdownData>() };
-		info.open = false;
+		dropdown.Close(false);
 
 		for (const auto& child_button : dropdown.GetButtons()) {
 			HideDropdownBranch(child_button);
 		}
 	}
 
-	button.Disable();
 	Hide(button);
+	button.Disable();
 }
 
 void Dropdown::ShowDropdownItem(Button button) const {
@@ -94,12 +97,14 @@ void Dropdown::ShowDropdownItem(Button button) const {
 }
 
 bool Dropdown::IsOpen() const {
-	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot query open state of invalid dropdown");
-	return Get<impl::DropdownData>().open;
+	return Has<impl::DropdownData>() && Get<impl::DropdownData>().open;
 }
 
 bool Dropdown::WillStartOpen() const {
-	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot query start-open state of invalid dropdown");
+	if (!Has<impl::DropdownData>()) {
+		PTGN_WARN("Cannot check if dropdown with no dropdown data will start open");
+		return false;
+	}
 
 	if (!Get<impl::DropdownData>().start_open) {
 		return false;
@@ -134,6 +139,7 @@ Dropdown& Dropdown::Size(float radius) {
 
 Dropdown& Dropdown::Origin(ptgn::Origin origin) {
 	Entity::Add<ptgn::Origin>(origin);
+	RefreshVisualState();
 
 	RecalculateButtonPositions();
 	RecalculateParentDropdown(*this);
@@ -174,9 +180,10 @@ void Dropdown::RecalculateParentDropdown(Entity entity) const {
 }
 
 void Dropdown::RecalculateButtonPositions() {
-	PTGN_ASSERT(
-		Has<impl::DropdownData>(), "Cannot recalculate button positions of invalid dropdown"
-	);
+	if (!Has<impl::DropdownData>()) {
+		PTGN_WARN("Cannot recalculate button positions of dropdown with no dropdown data");
+		return;
+	}
 
 	const auto& buttons{ GetButtons() };
 
@@ -208,23 +215,17 @@ void Dropdown::RecalculateButtonPositions() {
 	auto scaled_parent_size{ get_scaled_size(parent_shape) };
 
 	const auto get_button_size = [parent_shape,
-								  &info](const auto& button) -> std::variant<V2_float, float> {
-		if (auto rect{ button.template TryGet<Rect>() }) {
-			return rect->GetSize();
-		}
-		if (auto circle{ button.template TryGet<Circle>() }) {
-			return circle->radius;
-		}
+								  &info](const Button&) -> std::variant<V2_float, float> {
 		if (info.button_size.has_value()) {
 			return info.button_size.value();
 		}
+
 		return parent_shape;
 	};
 
 	V2_float parent_center{ GetOffset(GetOrDefault<ptgn::Origin>(), scaled_parent_size) };
 	V2_float parent_edge{ parent_center - GetOffset(info.origin, scaled_parent_size) };
 
-	PTGN_ASSERT(buttons.size() >= 1);
 	const auto& first_button{ buttons.front() };
 	auto shape_size{ get_button_size(first_button) };
 	auto scaled_size{ get_scaled_size(shape_size) };
@@ -241,15 +242,18 @@ void Dropdown::RecalculateButtonPositions() {
 			offset -= GetOffset(info.direction, scaled_size);
 		}
 		SetPosition(button, offset);
-		std::visit([&](const auto& s) { button.Size(s); }, shape_size);
 		button.Add<ptgn::Origin>(ptgn::Origin::Center);
+		std::visit([&](const auto& s) { button.Size(s); }, shape_size);
 		// Offset is added separately while moving through dropdown buttons.
 		offset -= GetOffset(info.direction, scaled_size);
 	}
 }
 
 Dropdown& Dropdown::AddButton(Button button) {
-	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot add item to invalid dropdown");
+	if (!Has<impl::DropdownData>()) {
+		PTGN_WARN("Cannot add button to dropdown with no dropdown data");
+		return *this;
+	}
 
 	SetParent(button, *this);
 
@@ -293,7 +297,10 @@ Button Dropdown::AddItem(std::string_view text) {
 }
 
 Dropdown& Dropdown::SetButtonSize(std::optional<V2_float> button_size) {
-	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set button size of invalid dropdown");
+	if (!Has<impl::DropdownData>()) {
+		PTGN_WARN("Cannot set button size of dropdown with no dropdown data");
+		return *this;
+	}
 
 	auto& info{ Get<impl::DropdownData>() };
 
@@ -309,7 +316,10 @@ Dropdown& Dropdown::SetButtonSize(std::optional<V2_float> button_size) {
 }
 
 Dropdown& Dropdown::SetButtonOffset(V2_float button_offset) {
-	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set button offset of invalid dropdown");
+	if (!Has<impl::DropdownData>()) {
+		PTGN_WARN("Cannot set button offset of dropdown with no dropdown data");
+		return *this;
+	}
 
 	auto& info{ Get<impl::DropdownData>() };
 
@@ -325,10 +335,15 @@ Dropdown& Dropdown::SetButtonOffset(V2_float button_offset) {
 }
 
 Dropdown& Dropdown::SetDropdownDirection(ptgn::Origin dropdown_direction) {
-	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set dropdown direction of invalid dropdown");
-	PTGN_ASSERT(
-		dropdown_direction != ptgn::Origin::Center, "Cannot set dropdown direction to Origin::Center"
-	);
+	if (!Has<impl::DropdownData>()) {
+		PTGN_WARN("Cannot set dropdown direction of dropdown with no dropdown data");
+		return *this;
+	}
+
+	if (dropdown_direction == ptgn::Origin::Center) {
+		PTGN_WARN("Cannot set dropdown direction to Origin::Center");
+		return *this;
+	}
 
 	auto& info{ Get<impl::DropdownData>() };
 
@@ -344,8 +359,15 @@ Dropdown& Dropdown::SetDropdownDirection(ptgn::Origin dropdown_direction) {
 }
 
 Dropdown& Dropdown::SetDropdownOrigin(ptgn::Origin dropdown_origin) {
-	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot set dropdown origin of invalid dropdown");
-	PTGN_ASSERT(dropdown_origin != ptgn::Origin::Center, "Cannot set dropdown origin to Origin::Center");
+	if (!Has<impl::DropdownData>()) {
+		PTGN_WARN("Cannot set dropdown origin of dropdown with no dropdown data");
+		return *this;
+	}
+
+	if (dropdown_origin == ptgn::Origin::Center) {
+		PTGN_WARN("Cannot set dropdown origin to Origin::Center");
+		return *this;
+	}
 
 	auto& info{ Get<impl::DropdownData>() };
 
@@ -369,7 +391,10 @@ Dropdown& Dropdown::Toggle() {
 }
 
 Dropdown& Dropdown::Open() {
-	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot open invalid dropdown");
+	if (!Has<impl::DropdownData>()) {
+		PTGN_WARN("Cannot open dropdown with no dropdown data");
+		return *this;
+	}
 
 	auto& info{ Get<impl::DropdownData>() };
 
@@ -389,7 +414,10 @@ Dropdown& Dropdown::Open() {
 }
 
 Dropdown& Dropdown::Close(bool close_parents) {
-	PTGN_ASSERT(Has<impl::DropdownData>(), "Cannot close invalid dropdown");
+	if (!Has<impl::DropdownData>()) {
+		PTGN_WARN("Cannot close dropdown with no dropdown data");
+		return *this;
+	}
 
 	auto& info{ Get<impl::DropdownData>() };
 
