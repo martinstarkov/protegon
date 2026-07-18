@@ -3505,7 +3505,7 @@ void DemoEditor::DrawScripts(ptgn::Entity entity, ScriptsComponent& scripts) {
 		ImGui::OpenPopup("AddResidentScript");
 	}
 	ImGui::PopStyleColor(3);
-	DrawItemTooltip("Add a resident script.");
+	DrawItemTooltip("Add a script.");
 	SameLineControl();
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.35f, 0.24f, 0.39f, 1.0f });
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.44f, 0.31f, 0.48f, 1.0f });
@@ -3554,15 +3554,15 @@ void DemoEditor::DrawResidentScripts(ScriptsComponent& scripts) {
 			);
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
 			ImGui::TableSetColumnIndex(0);
-			ImGui::PushStyleColor(
-				ImGuiCol_Header, ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f }
-			);
-			ImGui::PushStyleColor(
-				ImGuiCol_HeaderHovered, ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f }
-			);
-			ImGui::PushStyleColor(
-				ImGuiCol_HeaderActive, ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f }
-			);
+			const ImVec4 header{ script.enabled ? ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f }
+												: ImVec4{ 0.25f, 0.25f, 0.25f, 1.0f } };
+			const ImVec4 header_hovered{ script.enabled ? ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f }
+														: ImVec4{ 0.30f, 0.30f, 0.30f, 1.0f } };
+			const ImVec4 header_active{ script.enabled ? ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f }
+													   : ImVec4{ 0.34f, 0.34f, 0.34f, 1.0f } };
+			ImGui::PushStyleColor(ImGuiCol_Header, header);
+			ImGui::PushStyleColor(ImGuiCol_HeaderHovered, header_hovered);
+			ImGui::PushStyleColor(ImGuiCol_HeaderActive, header_active);
 			open = ImGui::TreeNodeEx(
 				"##ResidentScript",
 				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
@@ -3577,9 +3577,7 @@ void DemoEditor::DrawResidentScripts(ScriptsComponent& scripts) {
 
 			ImGui::TableSetColumnIndex(1);
 			if (DrawEnabledDeleteControls(
-					script.enabled,
-					"Enable or disable this resident script.",
-					"Remove this resident script."
+					script.enabled, "Enable or disable this script.", "Remove this script."
 				)) {
 				remove = i;
 			}
