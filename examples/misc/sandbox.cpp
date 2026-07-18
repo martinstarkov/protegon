@@ -1,4 +1,4 @@
-// script_sequence_old_ui_registry_demo_v14.cpp
+// script_sequence_old_ui_registry_demo_v15.cpp
 //
 // Old compact ImGui UI rebuilt on static registry-driven Events + Scripts + Script Sequences.
 //
@@ -1833,6 +1833,19 @@ private:
 	static bool DrawDurationInput(
 		const char* label, float& milliseconds, float width, const char* tooltip
 	);
+	static float CompactControlSpacing();
+	static void SameLineControl();
+	static float EnabledDeleteControlsWidth();
+	static bool DrawEnabledDeleteControls(
+		bool& enabled, const char* enabled_tooltip, const char* delete_tooltip
+	);
+	static bool DrawCenteredTextButton(
+		const char* id, const char* text, ImVec2 size
+	);
+	static bool DrawToggleButton(
+		const char* label, bool& value, ImVec2 size, const char* tooltip
+	);
+	static float GetHalfRowWidth();
 	static float GetCountControlWidth(const char* label);
 	static void DrawCountControl(
 		const char* label, int& value, int minimum, int maximum = 100,
@@ -1983,19 +1996,88 @@ bool DemoEditor::DrawDurationInput(
 	return commit;
 }
 
+float DemoEditor::CompactControlSpacing() {
+	return ImGui::GetStyle().ItemSpacing.x;
+}
+
+void DemoEditor::SameLineControl() {
+	ImGui::SameLine(0.0f, CompactControlSpacing());
+}
+
+float DemoEditor::EnabledDeleteControlsWidth() {
+	return ImGui::GetFrameHeight() * 2.0f + CompactControlSpacing();
+}
+
+bool DemoEditor::DrawEnabledDeleteControls(
+	bool& enabled, const char* enabled_tooltip, const char* delete_tooltip
+) {
+	const float size{ ImGui::GetFrameHeight() };
+	ImGui::Checkbox("##Enabled", &enabled);
+	DrawItemTooltip(enabled_tooltip);
+	SameLineControl();
+	const bool remove{ ImGui::Button("x", ImVec2{ size, size }) };
+	DrawItemTooltip(delete_tooltip);
+	return remove;
+}
+
+bool DemoEditor::DrawCenteredTextButton(
+	const char* id, const char* text, ImVec2 size
+) {
+	const bool pressed{ ImGui::Button(id, size) };
+	const ImVec2 minimum{ ImGui::GetItemRectMin() };
+	const ImVec2 maximum{ ImGui::GetItemRectMax() };
+	const ImVec2 text_size{ ImGui::CalcTextSize(text) };
+	const ImVec2 text_position{
+		minimum.x + (maximum.x - minimum.x - text_size.x) * 0.5f,
+		minimum.y + (maximum.y - minimum.y - text_size.y) * 0.5f
+	};
+	ImGui::GetWindowDrawList()->AddText(
+		text_position, ImGui::GetColorU32(ImGuiCol_Text), text
+	);
+	return pressed;
+}
+
+bool DemoEditor::DrawToggleButton(
+	const char* label, bool& value, ImVec2 size, const char* tooltip
+) {
+	const bool dimmed{ !value };
+	if (dimmed) {
+		ImGui::PushStyleVar(
+			ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.45f
+		);
+	}
+	const bool pressed{ ImGui::Button(label, size) };
+	if (dimmed) {
+		ImGui::PopStyleVar();
+	}
+	if (pressed) {
+		value = !value;
+	}
+	DrawItemTooltip(tooltip);
+	return pressed;
+}
+
+float DemoEditor::GetHalfRowWidth() {
+	return std::max(
+		1.0f,
+		(ImGui::GetContentRegionAvail().x - CompactControlSpacing()) * 0.5f
+	);
+}
+
 float DemoEditor::GetCountControlWidth(const char* label) {
-	constexpr float button_width{ 22.0f };
-	constexpr float spacing{ 3.0f };
+	const float button_width{ ImGui::GetFrameHeight() };
+	const float spacing{ CompactControlSpacing() };
 	const std::string widest{ std::string{ label } + ": 100" };
-	return ImGui::CalcTextSize(widest.c_str()).x + button_width * 2.0f + spacing * 3.0f;
+	return ImGui::CalcTextSize(widest.c_str()).x +
+		button_width * 2.0f + spacing * 2.0f;
 }
 
 void DemoEditor::DrawCountControl(
 	const char* label, int& value, int minimum, int maximum, bool disabled, const char* tooltip
 ) {
 	value = std::clamp(value, minimum, maximum);
-	constexpr float button_width{ 22.0f };
-	constexpr float spacing{ 3.0f };
+	const float button_width{ ImGui::GetFrameHeight() };
+	const float spacing{ CompactControlSpacing() };
 	const std::string widest{ std::string{ label } + ": 100" };
 	const float text_width{ ImGui::CalcTextSize(widest.c_str()).x };
 	const float start_x{ ImGui::GetCursorScreenPos().x };
@@ -2005,16 +2087,18 @@ void DemoEditor::DrawCountControl(
 	ImGui::AlignTextToFramePadding();
 	ImGui::Text("%s: %d", label, value);
 	DrawItemTooltip(tooltip);
-	ImGui::SameLine();
-	ImGui::SetCursorScreenPos(ImVec2{ start_x + text_width + spacing, ImGui::GetCursorScreenPos().y });
+	ImGui::SameLine(0.0f, spacing);
+	ImGui::SetCursorScreenPos(
+		ImVec2{ start_x + text_width + spacing, ImGui::GetCursorScreenPos().y }
+	);
 	ImGui::BeginDisabled(value >= maximum);
-	if (ImGui::Button("+", ImVec2{ button_width, 0.0f })) {
+	if (ImGui::Button("+", ImVec2{ button_width, button_width })) {
 		++value;
 	}
 	ImGui::EndDisabled();
-	ImGui::SameLine(0.0f, spacing);
+	SameLineControl();
 	ImGui::BeginDisabled(value <= minimum);
-	if (ImGui::Button("-", ImVec2{ button_width, 0.0f })) {
+	if (ImGui::Button("-", ImVec2{ button_width, button_width })) {
 		--value;
 	}
 	ImGui::EndDisabled();
@@ -2128,9 +2212,7 @@ void DemoEditor::DrawSelectedItemsTooltip(std::span<const std::string> items) {
 	if (!ImGui::IsItemHovered()) {
 		return;
 	}
-	std::string tooltip{ "Selected " };
-	tooltip += std::to_string(items.size());
-	tooltip += ":";
+	std::string tooltip{ "Selected:" };
 	if (items.empty()) {
 		tooltip += "\nNone";
 	} else {
@@ -2574,38 +2656,41 @@ void DemoEditor::RegisterEditorTypes() {
 		{ .label = "Move To", .group = "Transform", .description = "Move the owning entity." },
 		[](MoveToAction& action, EditorContext&) {
 			bool changed{ false };
-			if (ImGui::BeginTable("MoveToInline", 3, ImGuiTableFlags_SizingStretchProp)) {
-				ImGui::TableSetupColumn("X", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-				ImGui::TableSetupColumn("Y", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-				ImGui::TableSetupColumn("Mode", ImGuiTableColumnFlags_WidthFixed, 82.0f);
-				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
-				ImGui::TableSetColumnIndex(0);
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				changed |= ImGui::DragFloat(
-					"##X", &action.destination.x, 1.0f,
-					-100000.0f, 100000.0f, "X: %.0f"
-				);
-				ImGui::TableSetColumnIndex(1);
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				changed |= ImGui::DragFloat(
-					"##Y", &action.destination.y, 1.0f,
-					-100000.0f, 100000.0f, "Y: %.0f"
-				);
-				ImGui::TableSetColumnIndex(2);
-				if (ImGui::Button(
-						action.relative ? "Relative" : "Absolute",
-						ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
-					)) {
-					action.relative = !action.relative;
-					changed = true;
-				}
-				DrawItemTooltip(
-					action.relative
-						? "Offset from the entity's current position."
-						: "Use an absolute world position."
-				);
-				ImGui::EndTable();
+			const float available{ ImGui::GetContentRegionAvail().x };
+			const float spacing{ CompactControlSpacing() };
+			const float mode_width{
+				std::max(
+					ImGui::CalcTextSize("Relative").x,
+					ImGui::CalcTextSize("Absolute").x
+				) + ImGui::GetStyle().FramePadding.x * 2.0f
+			};
+			const float field_width{ std::max(
+				36.0f, (available - mode_width - spacing * 2.0f) * 0.5f
+			) };
+			ImGui::SetNextItemWidth(field_width);
+			changed |= ImGui::DragFloat(
+				"##X", &action.destination.x, 1.0f,
+				-100000.0f, 100000.0f, "X: %.0f"
+			);
+			SameLineControl();
+			ImGui::SetNextItemWidth(field_width);
+			changed |= ImGui::DragFloat(
+				"##Y", &action.destination.y, 1.0f,
+				-100000.0f, 100000.0f, "Y: %.0f"
+			);
+			SameLineControl();
+			if (ImGui::Button(
+					action.relative ? "Relative" : "Absolute",
+					ImVec2{ mode_width, ImGui::GetFrameHeight() }
+				)) {
+				action.relative = !action.relative;
+				changed = true;
 			}
+			DrawItemTooltip(
+				action.relative
+					? "Offset from the entity's current position."
+					: "Use an absolute world position."
+			);
 			return changed;
 		},
 		[](MoveToAction&, EditorContext&) { return false; }
@@ -2614,35 +2699,27 @@ void DemoEditor::RegisterEditorTypes() {
 		"engine.rotate_to",
 		{ .label = "Rotate To", .group = "Transform", .description = "Rotate the owning entity to an angle." },
 		[](RotateToAction& action, EditorContext&) {
+			const float available{ ImGui::GetContentRegionAvail().x };
+			const float spacing{ CompactControlSpacing() };
+			const float shortest_width{
+				ImGui::CalcTextSize("Shortest").x +
+				ImGui::GetStyle().FramePadding.x * 2.0f
+			};
+			const float degrees_width{ std::max(
+				48.0f, available - shortest_width - spacing
+			) };
 			bool changed{ false };
-			if (ImGui::BeginTable("RotateToInline", 2, ImGuiTableFlags_SizingStretchProp)) {
-				ImGui::TableSetupColumn("Degrees", ImGuiTableColumnFlags_WidthStretch);
-				ImGui::TableSetupColumn("Shortest", ImGuiTableColumnFlags_WidthFixed, 82.0f);
-				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
-				ImGui::TableSetColumnIndex(0);
-				ImGui::SetNextItemWidth(-FLT_MIN);
-				changed |= ImGui::DragFloat(
-					"##Degrees", &action.degrees, 1.0f,
-					-3600.0f, 3600.0f, "%.1f deg"
-				);
-				ImGui::TableSetColumnIndex(1);
-				if (!action.shortest_path) {
-					ImGui::PushStyleVar(
-						ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.45f
-					);
-				}
-				if (ImGui::Button(
-						"Shortest", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
-					)) {
-					action.shortest_path = !action.shortest_path;
-					changed = true;
-				}
-				if (!action.shortest_path) {
-					ImGui::PopStyleVar();
-				}
-				DrawItemTooltip("Toggle the shortest rotational path.");
-				ImGui::EndTable();
-			}
+			ImGui::SetNextItemWidth(degrees_width);
+			changed |= ImGui::DragFloat(
+				"##Degrees", &action.degrees, 1.0f,
+				-3600.0f, 3600.0f, "%.1f deg"
+			);
+			SameLineControl();
+			changed |= DrawToggleButton(
+				"Shortest", action.shortest_path,
+				ImVec2{ shortest_width, ImGui::GetFrameHeight() },
+				"Toggle the shortest rotational path."
+			);
 			return changed;
 		},
 		[](RotateToAction&, EditorContext&) { return false; }
@@ -2744,7 +2821,7 @@ void DemoEditor::RegisterEditorTypes() {
 				preview += label;
 			}
 			if (preview.empty()) {
-				preview = "Select components to add";
+				preview = "None";
 			}
 
 			bool changed{ false };
@@ -2897,7 +2974,7 @@ void DemoEditor::RegisterEditorTypes() {
 				preview += label;
 			}
 			if (preview.empty()) {
-				preview = "Select components to remove";
+				preview = "None";
 			}
 
 			bool changed{ false };
@@ -3420,10 +3497,7 @@ void DemoEditor::DrawScripts(ptgn::Entity entity, ScriptsComponent& scripts) {
 		return;
 	}
 
-	const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-	const float half_width{ std::max(
-		1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f
-	) };
+	const float half_width{ GetHalfRowWidth() };
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f });
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f });
 	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f });
@@ -3432,11 +3506,11 @@ void DemoEditor::DrawScripts(ptgn::Entity entity, ScriptsComponent& scripts) {
 	}
 	ImGui::PopStyleColor(3);
 	DrawItemTooltip("Add a resident script.");
-	ImGui::SameLine();
+	SameLineControl();
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.35f, 0.24f, 0.39f, 1.0f });
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.44f, 0.31f, 0.48f, 1.0f });
 	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.50f, 0.36f, 0.55f, 1.0f });
-	if (ImGui::Button("+ Script Sequence", ImVec2{ -FLT_MIN, 0.0f })) {
+	if (ImGui::Button("+ Script Sequence", ImVec2{ half_width, 0.0f })) {
 		ImGui::OpenPopup("AddScriptSequencePopup");
 	}
 	ImGui::PopStyleColor(3);
@@ -3471,14 +3545,12 @@ void DemoEditor::DrawResidentScripts(ScriptsComponent& scripts) {
 		bool open{ false };
 		const float button_size{ ImGui::GetFrameHeight() };
 		if (ImGui::BeginTable(
-				"ResidentScriptRow", 3, ImGuiTableFlags_SizingStretchProp
+				"ResidentScriptRow", 2, ImGuiTableFlags_SizingStretchProp
 			)) {
 			ImGui::TableSetupColumn("Script", ImGuiTableColumnFlags_WidthStretch);
 			ImGui::TableSetupColumn(
-				"Enabled", ImGuiTableColumnFlags_WidthFixed, 21.0f
-			);
-			ImGui::TableSetupColumn(
-				"Remove", ImGuiTableColumnFlags_WidthFixed, button_size
+				"Controls", ImGuiTableColumnFlags_WidthFixed,
+				EnabledDeleteControlsWidth()
 			);
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
 			ImGui::TableSetColumnIndex(0);
@@ -3504,14 +3576,13 @@ void DemoEditor::DrawResidentScripts(ScriptsComponent& scripts) {
 			}
 
 			ImGui::TableSetColumnIndex(1);
-			ImGui::Checkbox("##Enabled", &script.enabled);
-			DrawItemTooltip("Enable or disable this resident script.");
-
-			ImGui::TableSetColumnIndex(2);
-			if (ImGui::Button("x", ImVec2{ button_size, button_size })) {
+			if (DrawEnabledDeleteControls(
+					script.enabled,
+					"Enable or disable this resident script.",
+					"Remove this resident script."
+				)) {
 				remove = i;
 			}
-			DrawItemTooltip("Remove this resident script.");
 			ImGui::EndTable();
 		}
 		if (open && editor && editor->draw(script.value)) {
@@ -3593,11 +3664,12 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 	bool remove{ false };
 	ImGui::PushID(static_cast<int>(binding.id));
 	const float button_size{ ImGui::GetFrameHeight() };
-	const float options_width{ 154.0f };
 	const int runtime_columns{ show_runtime_controls_ ? 3 : 0 };
-	const int column_count{ 4 + runtime_columns };
+	const int column_count{ 3 + runtime_columns };
 	const float available_width{ ImGui::GetContentRegionAvail().x };
-	const float sequence_width{ std::max(1.0f, available_width * 0.5f) };
+	const float sequence_width{ std::max(
+		1.0f, (available_width - CompactControlSpacing()) * 0.5f
+	) };
 	bool open{ sequence_open_states_.try_emplace(binding.id, true).first->second };
 	ImVec2 name_input_min{};
 	ImVec2 name_input_max{};
@@ -3613,7 +3685,7 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 			"Sequence", ImGuiTableColumnFlags_WidthFixed, sequence_width
 		);
 		ImGui::TableSetupColumn(
-			"Options", ImGuiTableColumnFlags_WidthFixed, options_width
+			"Options", ImGuiTableColumnFlags_WidthStretch
 		);
 		if (show_runtime_controls_) {
 			ImGui::TableSetupColumn(
@@ -3627,10 +3699,8 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 			);
 		}
 		ImGui::TableSetupColumn(
-			"Enabled", ImGuiTableColumnFlags_WidthFixed, 21.0f
-		);
-		ImGui::TableSetupColumn(
-			"Remove", ImGuiTableColumnFlags_WidthFixed, button_size
+			"Controls", ImGuiTableColumnFlags_WidthFixed,
+			EnabledDeleteControlsWidth()
 		);
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
 
@@ -3815,12 +3885,9 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 
 		int column{ 2 };
 		if (show_runtime_controls_) {
-			ImGui::PushStyleVar(
-				ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.5f, 0.5f }
-			);
 			ImGui::TableSetColumnIndex(column++);
-			if (ImGui::Button(
-					">", ImVec2{ button_size, button_size }
+			if (DrawCenteredTextButton(
+					"##Play", ">", ImVec2{ button_size, button_size }
 				)) {
 				world_.Start(owner, binding, true);
 			}
@@ -3832,8 +3899,8 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 
 			ImGui::TableSetColumnIndex(column++);
 			ImGui::BeginDisabled(!binding.runtime.running);
-			if (ImGui::Button(
-					"||", ImVec2{ button_size, button_size }
+			if (DrawCenteredTextButton(
+					"##Pause", "||", ImVec2{ button_size, button_size }
 				)) {
 				world_.SetPaused(
 					owner, binding, !binding.runtime.paused
@@ -3848,27 +3915,21 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 
 			ImGui::TableSetColumnIndex(column++);
 			ImGui::BeginDisabled(!binding.runtime.running);
-			if (ImGui::Button(
-					"[]", ImVec2{ button_size, button_size }
+			if (DrawCenteredTextButton(
+					"##Stop", "[]", ImVec2{ button_size, button_size }
 				)) {
 				world_.Stop(owner, binding);
 			}
 			ImGui::EndDisabled();
 			DrawItemTooltip("Stop this sequence.");
-			ImGui::PopStyleVar();
 		}
-
-		ImGui::TableSetColumnIndex(column++);
-		ImGui::Checkbox("##Enabled", &binding.enabled);
-		DrawItemTooltip("Enable or disable this script sequence.");
 
 		ImGui::TableSetColumnIndex(column);
-		if (ImGui::Button(
-				"x", ImVec2{ button_size, button_size }
-			)) {
-			remove = true;
-		}
-		DrawItemTooltip("Delete this script sequence.");
+		remove = DrawEnabledDeleteControls(
+			binding.enabled,
+			"Enable or disable this script sequence.",
+			"Delete this script sequence."
+		);
 		ImGui::EndTable();
 	}
 
@@ -4098,7 +4159,7 @@ bool DemoEditor::DrawEvent(
 	};
 	const auto* selected{ EventEditorRegistry::Find(event.type) };
 	if (ImGui::BeginTable(
-			"EventRow", 5, ImGuiTableFlags_SizingStretchProp
+			"EventRow", 4, ImGuiTableFlags_SizingStretchProp
 		)) {
 		ImGui::TableSetupColumn(
 			"Kind", ImGuiTableColumnFlags_WidthFixed, kind_width
@@ -4110,10 +4171,8 @@ bool DemoEditor::DrawEvent(
 			"Filter", ImGuiTableColumnFlags_WidthStretch
 		);
 		ImGui::TableSetupColumn(
-			"Enabled", ImGuiTableColumnFlags_WidthFixed, 21.0f
-		);
-		ImGui::TableSetupColumn(
-			"Remove", ImGuiTableColumnFlags_WidthFixed, remove_width
+			"Controls", ImGuiTableColumnFlags_WidthFixed,
+			EnabledDeleteControlsWidth()
 		);
 		ImGui::TableNextRow(
 			ImGuiTableRowFlags_None, ImGui::GetFrameHeight()
@@ -4196,16 +4255,11 @@ bool DemoEditor::DrawEvent(
 		ImGui::EndDisabled();
 
 		ImGui::TableSetColumnIndex(3);
-		ImGui::Checkbox("##Enabled", &event.enabled);
-		DrawItemTooltip("Enable or disable this trigger.");
-
-		ImGui::TableSetColumnIndex(4);
-		if (ImGui::Button(
-				"x", ImVec2{ remove_width, ImGui::GetFrameHeight() }
-			)) {
-			remove = true;
-		}
-		DrawItemTooltip("Remove this trigger.");
+		remove = DrawEnabledDeleteControls(
+			event.enabled,
+			"Enable or disable this trigger.",
+			"Remove this trigger."
+		);
 		ImGui::EndTable();
 	}
 	ImGui::PopID();
@@ -4394,20 +4448,11 @@ void DemoEditor::DrawTimingOptions(
 			-3600.0f, 3600.0f, "%.1f deg"
 		);
 		ImGui::TableSetColumnIndex(column++);
-		if (!rotate->shortest_path) {
-			ImGui::PushStyleVar(
-				ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.45f
-			);
-		}
-		if (ImGui::Button(
-				"Shortest", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() }
-			)) {
-			rotate->shortest_path = !rotate->shortest_path;
-		}
-		if (!rotate->shortest_path) {
-			ImGui::PopStyleVar();
-		}
-		DrawItemTooltip("Toggle the shortest rotational path.");
+		DrawToggleButton(
+			"Shortest", rotate->shortest_path,
+			ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() },
+			"Toggle the shortest rotational path."
+		);
 	}
 
 	ImGui::TableSetColumnIndex(column++);
@@ -4509,6 +4554,12 @@ bool DemoEditor::DrawAction(
 	};
 	const float repeats_width{ GetCountControlWidth("Repeats") };
 	const float button_width{ ImGui::GetFrameHeight() };
+	const float controls_width{
+		EnabledDeleteControlsWidth() +
+		(GetActionForm(action) == ActionForm::Tween
+			? CompactControlSpacing() + repeats_width
+			: 0.0f)
+	};
 	ActionForm displayed_form{ GetActionForm(action) };
 	ActionForm requested_form{ displayed_form };
 	bool form_changed{ false };
@@ -4516,11 +4567,9 @@ bool DemoEditor::DrawAction(
 
 	const int column_count{
 		displayed_form == ActionForm::Tween
-			? (lifecycle ? 6 : 7)
-			: (lifecycle ? 4 : 5)
+			? (lifecycle ? 4 : 5)
+			: (lifecycle ? 3 : 4)
 	};
-	const int enabled_column{ column_count - 2 };
-	const int remove_column{ column_count - 1 };
 
 	if (ImGui::BeginTable(
 			"ActionRow", column_count, ImGuiTableFlags_SizingStretchProp
@@ -4540,32 +4589,27 @@ bool DemoEditor::DrawAction(
 			ImGui::TableSetupColumn(
 				"Action", ImGuiTableColumnFlags_WidthStretch
 			);
-			ImGui::TableSetupColumn(
-				"Repeats", ImGuiTableColumnFlags_WidthFixed, repeats_width
-			);
 		} else {
 			ImGui::TableSetupColumn(
 				"Value", ImGuiTableColumnFlags_WidthStretch
 			);
 		}
 		ImGui::TableSetupColumn(
-			"Enabled", ImGuiTableColumnFlags_WidthFixed, button_width
-		);
-		ImGui::TableSetupColumn(
-			"Remove", ImGuiTableColumnFlags_WidthFixed, button_width
+			"Controls", ImGuiTableColumnFlags_WidthFixed, controls_width
 		);
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_width);
 
 		int column{};
 		if (!lifecycle) {
 			ImGui::TableSetColumnIndex(column++);
-			if (!action.enabled) {
+			const bool dimmed{ !action.enabled };
+			if (dimmed) {
 				ImGui::PushStyleVar(
 					ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.45f
 				);
 			}
 			ImGui::Button("::", ImVec2{ drag_width, button_width });
-			if (!action.enabled) {
+			if (dimmed) {
 				ImGui::PopStyleVar();
 			}
 			if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
@@ -4638,12 +4682,6 @@ bool DemoEditor::DrawAction(
 			);
 			ImGui::TableSetColumnIndex(column++);
 			DrawActionPicker(action, true);
-			ImGui::TableSetColumnIndex(column++);
-			DrawCountControl(
-				"Repeats", action.timing->additional_repeats, 0, 100,
-				action.timing->infinite_repeats,
-				"Additional full-duration cycles."
-			);
 		} else {
 			ImGui::TableSetColumnIndex(column++);
 			switch (displayed_form) {
@@ -4661,17 +4699,20 @@ bool DemoEditor::DrawAction(
 			}
 		}
 
-		ImGui::TableSetColumnIndex(enabled_column);
-		ImGui::Checkbox("##Enabled", &action.enabled);
-		DrawItemTooltip("Enable or disable this action.");
-
-		ImGui::TableSetColumnIndex(remove_column);
-		if (ImGui::Button(
-				"x", ImVec2{ button_width, button_width }
-			)) {
-			remove = true;
+		ImGui::TableSetColumnIndex(column);
+		if (displayed_form == ActionForm::Tween) {
+			DrawCountControl(
+				"Repeats", action.timing->additional_repeats, 0, 100,
+				action.timing->infinite_repeats,
+				"Additional full-duration cycles."
+			);
+			SameLineControl();
 		}
-		DrawItemTooltip("Delete this action.");
+		remove = DrawEnabledDeleteControls(
+			action.enabled,
+			"Enable or disable this action.",
+			"Delete this action."
+		);
 		ImGui::EndTable();
 	}
 
@@ -4737,7 +4778,7 @@ void DemoEditor::DrawLifecycleRows(ScriptSequence& sequence) {
 		const float lifecycle_width{ 145.0f };
 		const float button_width{ ImGui::GetFrameHeight() };
 		if (ImGui::BeginTable(
-				"LifecycleRow", 4, ImGuiTableFlags_SizingStretchProp
+				"LifecycleRow", 3, ImGuiTableFlags_SizingStretchProp
 			)) {
 			ImGui::TableSetupColumn(
 				"Lifecycle", ImGuiTableColumnFlags_WidthFixed, lifecycle_width
@@ -4746,10 +4787,8 @@ void DemoEditor::DrawLifecycleRows(ScriptSequence& sequence) {
 				"Action", ImGuiTableColumnFlags_WidthStretch
 			);
 			ImGui::TableSetupColumn(
-				"Enabled", ImGuiTableColumnFlags_WidthFixed, button_width
-			);
-			ImGui::TableSetupColumn(
-				"Remove", ImGuiTableColumnFlags_WidthFixed, button_width
+				"Controls", ImGuiTableColumnFlags_WidthFixed,
+				EnabledDeleteControlsWidth()
 			);
 			ImGui::TableNextRow(
 				ImGuiTableRowFlags_None, ImGui::GetFrameHeight()
@@ -4774,16 +4813,13 @@ void DemoEditor::DrawLifecycleRows(ScriptSequence& sequence) {
 			ImGui::EndDisabled();
 
 			ImGui::TableSetColumnIndex(2);
-			ImGui::Checkbox("##Enabled", &callback.enabled);
-			DrawItemTooltip("Enable or disable this lifecycle callback.");
-
-			ImGui::TableSetColumnIndex(3);
-			if (ImGui::Button(
-					"x", ImVec2{ button_width, ImGui::GetFrameHeight() }
+			if (DrawEnabledDeleteControls(
+					callback.enabled,
+					"Enable or disable this lifecycle callback.",
+					"Remove this lifecycle callback."
 				)) {
 				remove = i;
 			}
-			DrawItemTooltip("Remove this lifecycle callback.");
 			ImGui::EndTable();
 		}
 
