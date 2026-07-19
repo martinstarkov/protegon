@@ -547,7 +547,7 @@ void DrawTransformComponent(Entity entity) {
 	auto& transform{ entity.TryAdd<Transform>() };
 	auto& depth{ entity.TryAdd<Depth>() };
 
-	ImGui::PushID(ComponentTypeId<Transform>());
+	ImGui::PushID(static_cast<int>(Hash<Transform>()));
 	bool open{ ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen) };
 	ImGui::PopID();
 

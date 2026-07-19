@@ -124,4 +124,4 @@ private:
 
 /// @param Optional: bool argument to enable rendering on the editor layer. Defaults to true.
 #define PTGN_WITH_EDITOR(application, ...) \
-	application.PushLayer<editor::Editor>(application).EnableRendering(__VA_ARGS__)
+	application.PushLayer<::ptgn::editor::Editor>(application).EnableRendering(__VA_ARGS__)

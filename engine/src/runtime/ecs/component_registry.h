@@ -17,9 +17,6 @@ namespace ptgn {
 namespace impl {
 
 template <typename T>
-inline constexpr unsigned char kRegisteredComponentTypeId{ 0 };
-
-template <typename T>
 [[nodiscard]] bool HasRegisteredComponent(Entity entity) {
 	return entity.Has<T>();
 }
@@ -37,6 +34,13 @@ void AddDefaultRegisteredComponent(Entity entity) {
 template <typename T>
 void SerializeRegisteredComponent(json& output, Entity entity) {
 	output = entity.Get<T>();
+}
+
+template <typename T>
+[[nodiscard]] json MakeDefaultRegisteredComponentJson() {
+	json output;
+	output = T{};
+	return output;
 }
 
 template <typename T>
@@ -65,14 +69,9 @@ void DeserializeRegisteredComponent(const json& input, Entity entity) {
 
 } // namespace impl
 
-template <typename T>
-[[nodiscard]] constexpr const void* ComponentTypeId() noexcept {
-	return &impl::kRegisteredComponentTypeId<std::remove_cvref_t<T>>;
-}
-
 struct ReflectedComponentMember {
 	std::string_view name;
-	const void* type_id{ nullptr };
+	std::size_t type_id{ 0 };
 	const void* value{ nullptr };
 	void* mutable_value{ nullptr };
 	bool read_only{ false };
@@ -111,7 +110,7 @@ void VisitRegisteredComponentMembers(Entity entity, ComponentReflectionVisitor v
 					 visitor.user_data,
 					 ReflectedComponentMember{
 						 .name			= member.name,
-						 .type_id		= ComponentTypeId<decltype(member.value)>(),
+						 .type_id		= Hash<decltype(member.value)>(),
 						 .value			= std::addressof(member.value),
 						 .mutable_value = std::addressof(member.value),
 						 .read_only		= false,
@@ -132,7 +131,7 @@ void VisitRegisteredComponentMembers(Entity entity, ComponentReflectionVisitor v
 					 visitor.user_data,
 					 ReflectedComponentMember{
 						 .name			= member.name,
-						 .type_id		= ComponentTypeId<decltype(member.value)>(),
+						 .type_id		= Hash<decltype(member.value)>(),
 						 .value			= std::addressof(member.value),
 						 .mutable_value = nullptr,
 						 .read_only		= true,
@@ -146,20 +145,21 @@ void VisitRegisteredComponentMembers(Entity entity, ComponentReflectionVisitor v
 }
 
 /// @brief Ensures the translation unit containing the engine component
-/// registrations are linked into the application.
+/// registrations is linked into the application.
 void EnsureEngineComponentsRegistered();
 
 } // namespace impl
 
-using ComponentHasCallback			= bool (*)(Entity entity);
-using ComponentRemoveCallback		= void (*)(Entity entity);
-using ComponentAddDefaultCallback	= void (*)(Entity entity);
-using ComponentSerializeCallback	= void (*)(json& output, Entity entity);
-using ComponentDeserializeCallback	= void (*)(const json& input, Entity entity);
+using ComponentHasCallback			   = bool (*)(Entity entity);
+using ComponentRemoveCallback		   = void (*)(Entity entity);
+using ComponentAddDefaultCallback	   = void (*)(Entity entity);
+using ComponentSerializeCallback	   = void (*)(json& output, Entity entity);
+using ComponentDeserializeCallback	   = void (*)(const json& input, Entity entity);
+using ComponentMakeDefaultJsonCallback = json (*)();
 using ComponentVisitMembersCallback = void (*)(Entity entity, ComponentReflectionVisitor visitor);
 
 struct RegisteredComponent {
-	const void* type_id{ nullptr };
+	std::size_t type_id{ 0 };
 	std::string_view name;
 	bool is_empty{ false };
 	bool default_constructible{ false };
@@ -171,6 +171,7 @@ struct RegisteredComponent {
 	ComponentAddDefaultCallback add_default{ nullptr };
 	ComponentSerializeCallback serialize{ nullptr };
 	ComponentDeserializeCallback deserialize{ nullptr };
+	ComponentMakeDefaultJsonCallback make_default_json{ nullptr };
 	ComponentVisitMembersCallback visit_members{ nullptr };
 };
 
@@ -181,7 +182,7 @@ public:
 		using Component = std::remove_cvref_t<T>;
 
 		auto& components{ MutableComponents() };
-		const void* type_id{ ComponentTypeId<Component>() };
+		auto type_id{ Hash<Component>() };
 
 		for (auto& component : components) {
 			if (component.type_id == type_id) {
@@ -197,6 +198,7 @@ public:
 		ComponentAddDefaultCallback add_default{ nullptr };
 		ComponentSerializeCallback serialize{ nullptr };
 		ComponentDeserializeCallback deserialize{ nullptr };
+		ComponentMakeDefaultJsonCallback make_default_json{ nullptr };
 		ComponentVisitMembersCallback visit_members{ nullptr };
 
 		if constexpr (std::default_initializable<Component>) {
@@ -205,6 +207,10 @@ public:
 
 		if constexpr (JsonSerializable<Component>) {
 			serialize = &impl::SerializeRegisteredComponent<Component>;
+		}
+
+		if constexpr (std::default_initializable<Component> && JsonSerializable<Component>) {
+			make_default_json = &impl::MakeDefaultRegisteredComponentJson<Component>;
 		}
 
 		if constexpr (
@@ -233,6 +239,7 @@ public:
 				.add_default		   = add_default,
 				.serialize			   = serialize,
 				.deserialize		   = deserialize,
+				.make_default_json	   = make_default_json,
 				.visit_members		   = visit_members,
 			}
 		);
@@ -255,7 +262,7 @@ public:
 		return nullptr;
 	}
 
-	[[nodiscard]] static const RegisteredComponent* Find(const void* type_id) {
+	[[nodiscard]] static const RegisteredComponent* Find(std::size_t type_id) {
 		for (const auto& component : Components()) {
 			if (component.type_id == type_id) {
 				return &component;
@@ -267,7 +274,7 @@ public:
 
 	template <typename T>
 	[[nodiscard]] static const RegisteredComponent* Find() {
-		return Find(ComponentTypeId<T>());
+		return Find(Hash<T>());
 	}
 
 private:

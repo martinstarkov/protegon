@@ -23,6 +23,7 @@ using ComponentEditorChangedCallback = void (*)(Entity entity);
 /// only. If value is empty, reason is not displayed.
 using ComponentEditorReadOnlyCallback	  = std::optional<std::string_view> (*)(Entity entity);
 using ComponentEditorDrawContentsCallback = bool (*)(Entity entity);
+using ComponentEditorDrawJsonCallback	  = bool (*)(json& value);
 using ComponentEditorAddMenuCallback	  = void (*)(Entity entity, std::string_view label);
 
 struct ComponentEditorOptions {
@@ -66,13 +67,14 @@ struct ResolvedComponentEditorOptions {
 };
 
 struct RegisteredComponentEditor {
-	const void* type_id{ nullptr };
+	std::size_t type_id{ 0 };
 	std::string default_label;
 	ComponentEditorOptions options;
 	void (*draw)(
 		Entity entity, const RegisteredComponent& component,
 		const ResolvedComponentEditorOptions& options
 	){ nullptr };
+	ComponentEditorDrawJsonCallback draw_json{ nullptr };
 };
 
 namespace impl {
@@ -83,6 +85,9 @@ void DrawRegisteredEditorComponent(
 	const ResolvedComponentEditorOptions& options
 );
 
+template <typename T>
+bool DrawRegisteredEditorComponentJson(json& input);
+
 } // namespace impl
 
 class ComponentEditorRegistry {
@@ -92,7 +97,16 @@ public:
 		using Component = std::remove_cvref_t<T>;
 
 		auto& entries{ MutableEntries() };
-		const void* type_id{ ComponentTypeId<Component>() };
+		auto type_id{ Hash<Component>() };
+
+		ComponentEditorDrawJsonCallback draw_json{ nullptr };
+
+		if constexpr (
+			JsonSerializable<Component> && JsonDeserializable<Component> &&
+			(std::default_initializable<Component> || ::ptgn::impl::JsonGettable<Component>)
+		) {
+			draw_json = &impl::DrawRegisteredEditorComponentJson<Component>;
+		}
 
 		for (auto& entry : entries) {
 			if (entry.type_id != type_id) {
@@ -106,6 +120,7 @@ public:
 				entry.options = std::move(registration.options.value());
 			}
 			entry.draw = &impl::DrawRegisteredEditorComponent<Component>;
+			entry.draw_json = draw_json;
 			return false;
 		}
 
@@ -115,13 +130,14 @@ public:
 				.default_label = inspector::TypeLabel<Component>(),
 				.options	   = registration.options.value_or(ComponentEditorOptions{}),
 				.draw		   = &impl::DrawRegisteredEditorComponent<Component>,
+				.draw_json	   = draw_json,
 			}
 		);
 
 		return true;
 	}
 
-	[[nodiscard]] static const RegisteredComponentEditor* Find(const void* type_id) {
+	[[nodiscard]] static const RegisteredComponentEditor* Find(std::size_t type_id) {
 		for (const auto& entry : Entries()) {
 			if (entry.type_id == type_id) {
 				return &entry;
@@ -157,6 +173,21 @@ public:
 		resolved.draw_add_menu		  = editor.options.draw_add_menu;
 
 		return resolved;
+	}
+
+	static bool DrawJson(const RegisteredComponent& component, json& value) {
+		const auto* editor{ Find(component.type_id) };
+
+		if (!editor || !editor->draw_json) {
+			return false;
+		}
+
+		return editor->draw_json(value);
+	}
+
+	static bool DrawJson(std::string_view component_name, json& value) {
+		const auto* component{ ComponentRegistry::Find(component_name) };
+		return component && DrawJson(*component, value);
 	}
 
 	static void DrawComponents(Entity entity, bool draw_after_tags = false) {
@@ -318,7 +349,7 @@ private:
 		const ResolvedComponentEditorOptions& options
 	) {
 		ImGui::Spacing();
-		ImGui::PushID(component.type_id);
+		ImGui::PushID(static_cast<int>(component.type_id));
 		ImGui::Selectable(options.label.c_str(), false);
 
 		if (options.removable && ImGui::BeginPopupContextItem("TagComponentContextMenu")) {
@@ -357,7 +388,7 @@ private:
 		Entity entity, const RegisteredComponent& component,
 		const ResolvedComponentEditorOptions& options
 	) {
-		ImGui::PushID(component.type_id);
+		ImGui::PushID(static_cast<int>(component.type_id));
 
 		auto flags{ options.default_open ? ImGuiTreeNodeFlags_DefaultOpen
 										 : ImGuiTreeNodeFlags_None };
@@ -419,15 +450,40 @@ void DrawRegisteredEditorComponent(
 
 		inspector::ReadOnlyScope read_only_scope{ read_only };
 
-		bool changed{ options.draw_contents
-						  ? options.draw_contents(entity)
-						  : inspector::DrawDefaultComponentContents(entity.Get<T>()) };
+		bool changed{ options.draw_contents ? options.draw_contents(entity)
+											: inspector::DrawComponentContents(entity.Get<T>()) };
 
 		if (changed && !read_only && options.on_changed) {
 			options.on_changed(entity);
 		}
 
 		ImGui::Unindent();
+	}
+}
+
+template <typename T>
+bool DrawRegisteredEditorComponentJson(json& input) {
+	if constexpr (std::is_empty_v<T>) {
+		return false;
+	} else if constexpr (std::default_initializable<T>) {
+		T value{};
+		input.get_to(value);
+
+		if (!inspector::DrawComponentContents(value)) {
+			return false;
+		}
+
+		input = value;
+		return true;
+	} else {
+		T value{ input.template get<T>() };
+
+		if (!inspector::DrawComponentContents(value)) {
+			return false;
+		}
+
+		input = value;
+		return true;
 	}
 }
 
