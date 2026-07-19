@@ -145,8 +145,8 @@ void VisitRegisteredComponentMembers(Entity entity, ComponentReflectionVisitor v
 	}
 }
 
-/// Ensures the translation unit containing the built-in component
-/// registrations is linked into the application.
+/// @brief Ensures the translation unit containing the engine component
+/// registrations are linked into the application.
 void EnsureEngineComponentsRegistered();
 
 } // namespace impl
