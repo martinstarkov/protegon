@@ -174,7 +174,21 @@ public:
 	/// @brief Equivalent of setting the entity handle to {}
 	/// Does not destroy the entity.
 	void Invalidate();
-
+                                         
+	friend constexpr auto ReflectReadOnlyMembers(Entity& entity) {                       
+		return std::tuple{                                                                         
+					::ptgn::reflection::ReadOnlyMember {                  
+				std::string_view{ "uuid" }, entity.Get<UUID>()        
+			}
+		};                                                                                      
+	}                                                                                              
+	friend constexpr auto ReflectReadOnlyMembers(const Entity& entity) {                 
+		return std::tuple{                                                                         
+					::ptgn::reflection::ReadOnlyMember {                  
+				std::string_view{ "uuid" }, entity.Get<UUID>()        
+			}
+		};                                                                                         
+	}
 private:
 	friend class Manager;
 	friend class Scene;

@@ -217,7 +217,9 @@ void to_json(json& j, const Entity& entity) {
 
 	j["uuid"]  = entity.Get<UUID>();
 	j["tag"]   = entity.Get<Tag>();
-	j["scene"] = entity.GetScene().GetTag();
+	if (entity.HasScene()) {
+		j["scene"] = entity.GetScene().GetTag();
+	}
 }
 
 void from_json(const json& j, Entity& entity) {

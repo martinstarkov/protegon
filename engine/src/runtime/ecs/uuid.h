@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "serialization/json/fwd.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -14,9 +14,7 @@ public:
 
 	operator int() const; // NOSONAR
 
-	friend void to_json(json& j, const UUID& uuid);
-	friend void from_json(const json& j, UUID& uuid);
-
+	PTGN_REFLECT_VALUE(UUID, uuid_)
 private:
 	int uuid_{ 0 };
 };
