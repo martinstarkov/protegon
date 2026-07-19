@@ -1,38 +1,40 @@
-// script_sequence_old_ui_registry_demo_v18.cpp
+// script_sequence_old_ui_registry_demo_v29.cpp
 //
-// Old compact ImGui UI rebuilt on static registry-driven Events + Scripts + Script Sequences.
+// Registry-driven Script and ScriptSequence demo using the engine ptgn::Scene.
 //
-// Architecture boundaries in this file:
-//   engine  - authored/runtime sequence data and static engine registries.
-//   editor  - static editor registries and compact Dear ImGui inspectors.
-//   demo    - replaceable demo world, scene setup, actions, and application loop.
+// Architecture boundaries:
+//   runtime - concrete registered Script/ScriptAction objects and sequence playback.
+//   editor  - free registry-driven Dear ImGui drawing functions.
+//   demo    - a normal ptgn::Scene launched through ptgn::Application.
 //
-// Important behavior rule:
-//   Every registered Action affects its owning entity when applicable. Cross-entity behavior is
-//   expressed by emitting an Event and attaching an Event-driven ScriptSequence to the other entity.
-//
-// The demo uses typed registry values for Events, Actions, and Scripts; the engine component
-// registry stores detached prefab/action component values as JSON. It also uses double-buffered
-// local/global event handlers, resident scripts, sequence handles/channels,
-// duration/action-controlled/infinite Actions, old-style tween helpers, and script-driven Buttons.
+// A ScriptSequence is authored data used by SequenceScript, which is registered and attached through
+// the same Script API as custom C++ scripts. Events use the engine Event dispatcher. Sequence event
+// conditions store only their registered identity and a JSON value. The event registries convert
+// that JSON to the concrete registered condition type for matching and editor drawing.
 
-#define GLFW_INCLUDE_NONE
-
-#include <GLFW/glfw3.h>
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_opengl3.h>
-#include <glad/gl.h>
 #include <imgui.h>
 #include <imgui_stdlib.h>
+
+#ifndef MAGIC_ENUM_RANGE_MAX
+#define MAGIC_ENUM_RANGE_MAX 512
+#endif
 #include <magic_enum/magic_enum.hpp>
 
+#include "app/application.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scripting/script.h"
+
+#include "core/editor.h"
 #include "panels/inspector_fields.h"
+#include "core/assert.h"
+#include "core/event/event.h"
 #include "core/event/key_event.h"
 #include "core/event/mouse_event.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
 #include "core/math/easing.h"
 #include "core/util/hash.h"
+#include "core/util/reflection.h"
 #include "core/util/strong_string.h"
 #include "core/util/type_info.h"
 #include "core/math/geometry/circle.h"
@@ -40,10 +42,13 @@
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "panels/component_editor_registry.h"
+#include "runtime/ecs/component_registration.h"
+#include "runtime/ecs/tag.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/visible.h"
+#include "runtime/interaction/draggable.h"
 #include "runtime/physics/collision_event.h"
 #include "serialization/json/json.h"
 
@@ -70,162 +75,71 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 namespace ptgn {
 
-using Id = std::uint64_t;
+inline void to_json(ptgn::json& output, const ImVec4& value) {
+	output = ptgn::json{ value.x, value.y, value.z, value.w };
+}
 
-class IdGenerator {
-public:
-	static Id Next() {
-		static Id next{ 1 };
-		return next++;
-	}
-};
+inline void from_json(const ptgn::json& input, ImVec4& value) {
+	value = ImVec4{
+		input.at(0).get<float>(),
+		input.at(1).get<float>(),
+		input.at(2).get<float>(),
+		input.at(3).get<float>(),
+	};
+}
+
+using SequenceId = std::uint64_t;
 
 using TypeHashValue = std::size_t;
 
 template <typename T>
-[[nodiscard]] TypeHashValue TypeHash() {
-	return ptgn::Hash<std::remove_cvref_t<T>>();
+[[nodiscard]] bool TryReadJson(const ptgn::json& input, T& output) {
+	if (input.is_null()) {
+		return false;
+	}
+	try {
+		input.get_to(output);
+		return true;
+	} catch (...) {
+		return false;
+	}
 }
 
 template <typename T>
-[[nodiscard]] std::string_view TypeName() {
-	return ptgn::type_name_without_namespaces<std::remove_cvref_t<T>>();
+[[nodiscard]] T JsonValueOr(
+	const ptgn::json& input,
+	std::string_view key,
+	T fallback
+) {
+	if (!input.is_object()) {
+		return fallback;
+	}
+	const auto it{ input.find(std::string{ key }) };
+	if (it == input.end() || it->is_null()) {
+		return fallback;
+	}
+	try {
+		return it->template get<T>();
+	} catch (...) {
+		return fallback;
+	}
 }
-
-/// @brief Small cloneable typed value used by the registries and editor.
-///
-/// This keeps authored values strongly identified by Hash<T>() without relying on std::any or
-/// unchecked casts. Copying a value invokes the stored type's copy constructor, which also means
-/// copied ScriptsComponent values receive fresh runtime-only script/sequence state.
-class TypedValue {
-public:
-	TypedValue() = default;
-
-	template <typename T>
-		requires (!std::same_as<std::remove_cvref_t<T>, TypedValue>)
-	TypedValue(T&& value) :
-		storage_{ std::make_unique<Storage<std::remove_cvref_t<T>>>(std::forward<T>(value)) } {}
-
-	TypedValue(const TypedValue& other) :
-		storage_{ other.storage_ ? other.storage_->Clone() : nullptr } {}
-
-	TypedValue& operator=(const TypedValue& other) {
-		if (this != &other) {
-			storage_ = other.storage_ ? other.storage_->Clone() : nullptr;
-		}
-		return *this;
-	}
-
-	TypedValue(TypedValue&&) noexcept = default;
-	TypedValue& operator=(TypedValue&&) noexcept = default;
-
-	template <typename T>
-	[[nodiscard]] bool Is() const {
-		return storage_ && storage_->GetTypeHash() == TypeHash<T>() &&
-			storage_->GetTypeName() == TypeName<T>();
-	}
-
-	template <typename T>
-	[[nodiscard]] T* TryGet() {
-		return Is<T>() ? static_cast<T*>(storage_->Get()) : nullptr;
-	}
-
-	template <typename T>
-	[[nodiscard]] const T* TryGet() const {
-		return Is<T>() ? static_cast<const T*>(storage_->Get()) : nullptr;
-	}
-
-	template <typename T>
-	[[nodiscard]] T& Get() {
-		auto* value{ TryGet<T>() };
-		if (!value) {
-			std::abort();
-		}
-		return *value;
-	}
-
-	template <typename T>
-	[[nodiscard]] const T& Get() const {
-		const auto* value{ TryGet<T>() };
-		if (!value) {
-			std::abort();
-		}
-		return *value;
-	}
-
-	[[nodiscard]] TypeHashValue GetTypeHash() const {
-		return storage_ ? storage_->GetTypeHash() : 0;
-	}
-
-	[[nodiscard]] std::string_view GetTypeName() const {
-		return storage_ ? storage_->GetTypeName() : std::string_view{};
-	}
-
-	[[nodiscard]] explicit operator bool() const {
-		return storage_ != nullptr;
-	}
-
-private:
-	class IStorage {
-	public:
-		virtual ~IStorage() = default;
-		[[nodiscard]] virtual std::unique_ptr<IStorage> Clone() const = 0;
-		[[nodiscard]] virtual TypeHashValue GetTypeHash() const = 0;
-		[[nodiscard]] virtual std::string_view GetTypeName() const = 0;
-		[[nodiscard]] virtual void* Get() = 0;
-		[[nodiscard]] virtual const void* Get() const = 0;
-	};
-
-	template <typename T>
-	class Storage final : public IStorage {
-	public:
-		template <typename U>
-		explicit Storage(U&& value) : value_{ std::forward<U>(value) } {}
-
-		[[nodiscard]] std::unique_ptr<IStorage> Clone() const override {
-			return std::make_unique<Storage<T>>(value_);
-		}
-
-		[[nodiscard]] TypeHashValue GetTypeHash() const override {
-			return TypeHash<T>();
-		}
-
-		[[nodiscard]] std::string_view GetTypeName() const override {
-			return TypeName<T>();
-		}
-
-		[[nodiscard]] void* Get() override { return &value_; }
-		[[nodiscard]] const void* Get() const override { return &value_; }
-
-	private:
-		T value_;
-	};
-
-	std::unique_ptr<IStorage> storage_;
-};
 
 enum class ReentryMode {
 	IgnoreWhileRunning,
 	Restart,
 	Queue
 };
-
-enum class EventDelivery {
-	Target,
-	Broadcast
-};
-
-enum class EventResult {
-	Continue,
-	Handled
-};
+PTGN_REFLECT_ENUM(ReentryMode);
 
 enum class ActionStatus {
 	Running,
@@ -238,6 +152,7 @@ enum class ActionCompletion {
 	ActionControlled,
 	Infinite
 };
+PTGN_REFLECT_ENUM(ActionCompletion);
 
 enum class SequenceCancelReason {
 	Stopped,
@@ -267,6 +182,7 @@ enum class SequenceLifecycle {
 	Repeat,
 	Yoyo
 };
+PTGN_REFLECT_ENUM(SequenceLifecycle);
 
 struct ActionTiming {
 	float duration_ms{ 300.0f };
@@ -275,165 +191,111 @@ struct ActionTiming {
 	bool infinite_repeats{ false };
 	bool reversed{ false };
 	bool yoyo{ false };
+
+	PTGN_REFLECT(
+		ActionTiming, duration_ms, ease, additional_repeats, infinite_repeats, reversed, yoyo
+	)
 };
 
 struct ComponentDefinition {
-	Id id{ IdGenerator::Next() };
+	TypeHashValue type_hash{ 0 };
 	std::string type;
 	ptgn::json value;
+
+	// C++-authored prefab components avoid a needless JSON round-trip at runtime.
+	std::function<void(ptgn::Entity)> apply_live;
+
+	PTGN_REFLECT(ComponentDefinition, type_hash, type, value)
 };
 
 struct EventCondition {
-	Id id{ IdGenerator::Next() };
 	bool enabled{ true };
 	bool consume{ false };
+	TypeHashValue type_hash{ 0 };
 	std::string type;
-	TypedValue filter;
+	ptgn::json value{ ptgn::json::object() };
+
+	PTGN_REFLECT(EventCondition, enabled, consume, type_hash, type, value)
 };
 
+class ScriptAction;
+
 struct Action {
-	Id id{ IdGenerator::Next() };
 	bool enabled{ true };
+	TypeHashValue type_hash{ 0 };
 	std::string type;
-	TypedValue value;
+	ptgn::json value;
 	std::optional<ActionCompletion> completion;
 	std::optional<ActionTiming> timing;
+
+	// Authored C++ actions keep a typed construction path so runtime playback does not
+	// have to round-trip through JSON. Loaded/editor-authored actions use the registry JSON path.
+	std::function<std::unique_ptr<ScriptAction>(ptgn::Entity)> runtime_factory;
+
+	PTGN_REFLECT(Action, enabled, type_hash, type, value, completion, timing)
 };
 
 struct LifecycleAction {
-	Id id{ IdGenerator::Next() };
 	bool enabled{ true };
 	SequenceLifecycle lifecycle{ SequenceLifecycle::Complete };
 	Action action;
+
+	PTGN_REFLECT(LifecycleAction, enabled, lifecycle, action)
 };
 
-class RuntimeHost;
-class EventView;
-class TimedActionBuilder;
-struct NoEventFilter;
-struct SceneContext;
+class SequenceScript;
+struct ScriptsComponent;
+struct ScriptEntry;
 struct ScriptSequence;
 struct SequenceHandle;
 struct SequenceChannelKey;
 struct SignalKey;
 
-struct ActionContext {
-	RuntimeHost& host;
-	ptgn::Entity owner;
-	SceneContext* scene{ nullptr };
-	float delta_seconds{ 0.0f };
-	float linear_progress{ 0.0f };
-	float progress{ 0.0f };
-	int repeat{ 0 };
-	bool reversed{ false };
-};
-
-struct ScriptContext {
-	RuntimeHost& host;
-	ptgn::Entity owner;
-	SceneContext* scene{ nullptr };
-	float delta_seconds{ 0.0f };
-};
-
-class IActionInstance {
+class ScriptAction {
 public:
-	virtual ~IActionInstance() = default;
-	virtual void Begin(ActionContext&) {}
-	[[nodiscard]] virtual ActionStatus Update(ActionContext&) { return ActionStatus::Running; }
-	virtual void Repeat(ActionContext&) {}
-	virtual void Complete(ActionContext&) {}
-	virtual void Cancel(ActionContext&, SequenceCancelReason) {}
-};
+	virtual ~ScriptAction() = default;
 
-class IScriptInstance {
+	virtual void OnStart() {}
+	[[nodiscard]] virtual ActionStatus OnUpdate() { return ActionStatus::Running; }
+	virtual void OnRepeat() {}
+	virtual void OnComplete() {}
+	virtual void OnCancel(SequenceCancelReason) {}
+
+	[[nodiscard]] ptgn::Entity Owner() const { return entity; }
+	[[nodiscard]] ptgn::Scene& GetScene() { return entity.GetScene(); }
+	[[nodiscard]] const ptgn::Scene& GetScene() const { return entity.GetScene(); }
+	[[nodiscard]] float DeltaSeconds() const { return delta_seconds_; }
+	[[nodiscard]] float LinearProgress() const { return linear_progress_; }
+	[[nodiscard]] float Progress() const { return progress_; }
+	[[nodiscard]] int RepeatIndex() const { return repeat_; }
+	[[nodiscard]] bool IsReversed() const { return reversed_; }
+
+protected:
+	ptgn::Entity entity;
+
 public:
-	virtual ~IScriptInstance() = default;
-	virtual void OnCreate(ScriptContext&) {}
-	virtual void OnUpdate(ScriptContext&) {}
-	[[nodiscard]] virtual EventResult OnEvent(ScriptContext&, const EventView&) {
-		return EventResult::Continue;
-	}
-};
+	// Runtime binding hooks used by the registry-driven sequence player.
+	void Bind(ptgn::Entity owner) { entity = owner; }
 
-template <typename T>
-class TypedActionInstance final : public IActionInstance {
-public:
-	explicit TypedActionInstance(T value) : value_{ std::move(value) } {}
-
-	void Begin(ActionContext& context) override {
-		if constexpr (requires(T& value) { value.OnStart(context); }) {
-			value_.OnStart(context);
-		}
+	void SetFrame(
+		float delta_seconds,
+		float linear_progress,
+		float progress,
+		int repeat,
+		bool reversed
+	) {
+		delta_seconds_ = delta_seconds;
+		linear_progress_ = linear_progress;
+		progress_ = progress;
+		repeat_ = repeat;
+		reversed_ = reversed;
 	}
 
-	[[nodiscard]] ActionStatus Update(ActionContext& context) override {
-		if constexpr (requires(T& value) {
-			{ value.OnUpdate(context) } -> std::same_as<ActionStatus>;
-		}) {
-			return value_.OnUpdate(context);
-		} else if constexpr (requires(T& value) { value.OnUpdate(context); }) {
-			value_.OnUpdate(context);
-		}
-		return ActionStatus::Running;
-	}
-
-	void Repeat(ActionContext& context) override {
-		if constexpr (requires(T& value) { value.OnRepeat(context); }) {
-			value_.OnRepeat(context);
-		}
-	}
-
-	void Complete(ActionContext& context) override {
-		if constexpr (requires(T& value) { value.OnComplete(context); }) {
-			value_.OnComplete(context);
-		}
-	}
-
-	void Cancel(ActionContext& context, SequenceCancelReason reason) override {
-		if constexpr (requires(T& value) { value.OnCancel(context, reason); }) {
-			value_.OnCancel(context, reason);
-		} else if constexpr (requires(T& value) { value.OnCancel(context); }) {
-			value_.OnCancel(context);
-		}
-	}
-
-private:
-	T value_;
-};
-
-template <typename T>
-class TypedScriptInstance final : public IScriptInstance {
-public:
-	explicit TypedScriptInstance(T value) : value_{ std::move(value) } {}
-
-	void OnCreate(ScriptContext& context) override {
-		if constexpr (requires(T& value) { value.OnCreate(context); }) {
-			value_.OnCreate(context);
-		}
-	}
-
-	void OnUpdate(ScriptContext& context) override {
-		if constexpr (requires(T& value) { value.OnUpdate(context); }) {
-			value_.OnUpdate(context);
-		}
-	}
-
-	[[nodiscard]] EventResult OnEvent(
-		ScriptContext& context,
-		const EventView& event
-	) override {
-		if constexpr (requires(T& value) {
-			{ value.OnEvent(context, event) } -> std::same_as<EventResult>;
-		}) {
-			return value_.OnEvent(context, event);
-		} else if constexpr (requires(T& value) { value.OnEvent(context, event); }) {
-			value_.OnEvent(context, event);
-		}
-		return EventResult::Continue;
-	}
-
-private:
-	T value_;
+	float delta_seconds_{ 0.0f };
+	float linear_progress_{ 0.0f };
+	float progress_{ 0.0f };
+	int repeat_{ 0 };
+	bool reversed_{ false };
 };
 
 [[nodiscard]] inline ComponentDefinition MakeComponentDefinition(
@@ -443,10 +305,22 @@ private:
 		return {};
 	}
 
+	ptgn::json value{ component.make_default_json() };
+	if (value.is_null()) {
+		value = ptgn::json::object();
+	}
+
+	const std::string component_name{ component.name };
 	return ComponentDefinition{
-		.id = IdGenerator::Next(),
-		.type = std::string{ component.name },
-		.value = component.make_default_json(),
+		.type_hash = static_cast<TypeHashValue>(component.type_id),
+		.type = component_name,
+		.value = std::move(value),
+		.apply_live = [component_name](ptgn::Entity entity) {
+			if (const auto* registration{ ptgn::ComponentRegistry::Find(component_name) };
+				registration && registration->add_default) {
+				registration->add_default(entity);
+			}
+		},
 	};
 }
 
@@ -468,61 +342,25 @@ template <typename T>
 		return {};
 	}
 
+	T typed_value{ std::move(value) };
 	ptgn::json component_json;
-	component_json = std::move(value);
+	component_json = typed_value;
+	auto prototype{ std::make_shared<T>(std::move(typed_value)) };
 
 	return ComponentDefinition{
-		.id = IdGenerator::Next(),
+		.type_hash = ptgn::Hash<T>(),
 		.type = std::string{ component->name },
 		.value = std::move(component_json),
+		.apply_live = [prototype](ptgn::Entity entity) {
+			if (entity.Has<T>()) {
+				entity.Get<T>() = *prototype;
+			} else {
+				entity.Add<T>(*prototype);
+			}
+		},
 	};
 }
 
-struct EventMatchContext {
-	RuntimeHost& host;
-	ptgn::Entity owner;
-	float held_duration_ms{ 0.0f };
-};
-
-struct EventEnvelope {
-	TypeHashValue type_hash{ 0 };
-	std::string type;
-	TypedValue payload;
-	std::optional<ptgn::Entity> target;
-	ptgn::Entity source;
-	EventDelivery delivery{ EventDelivery::Target };
-	float held_duration_ms{ 0.0f };
-};
-
-class EventView {
-public:
-	explicit EventView(const EventEnvelope& event) : event_{ &event } {}
-
-	template <typename T>
-	[[nodiscard]] bool Is() const {
-		return event_->type_hash == TypeHash<T>() && event_->payload.Is<T>();
-	}
-
-	template <typename T>
-	[[nodiscard]] const T& Get() const {
-		return event_->payload.Get<T>();
-	}
-
-	[[nodiscard]] std::string_view Type() const { return event_->type; }
-	[[nodiscard]] TypeHashValue TypeHashCode() const { return event_->type_hash; }
-	[[nodiscard]] ptgn::Entity Source() const { return event_->source; }
-	[[nodiscard]] std::optional<ptgn::Entity> Target() const { return event_->target; }
-	[[nodiscard]] float HeldDurationMs() const { return event_->held_duration_ms; }
-	[[nodiscard]] EventDelivery Delivery() const { return event_->delivery; }
-
-private:
-	const EventEnvelope* event_{ nullptr };
-};
-
-/// @brief Narrow host interface required by the reusable sequence runtime.
-///
-/// The real engine can implement this with Scene/Application services. The standalone demo uses
-/// A standalone host can implement it without coupling the engine model to the application loop.
 struct PrefabSpawnRequest {
 	std::string_view prefab_key;
 	ptgn::Entity owner;
@@ -533,133 +371,124 @@ struct PrefabSpawnRequest {
 	bool random_rotation{ false };
 };
 
-class RuntimeHost {
-public:
-	virtual ~RuntimeHost() = default;
+struct SharedScriptSequenceRegistry;
 
-	virtual void Queue(EventEnvelope event) = 0;
-	virtual void Log(std::string text) = 0;
-	[[nodiscard]] virtual std::string_view Name(ptgn::Entity entity) const = 0;
-	[[nodiscard]] virtual std::string_view Tag(ptgn::Entity entity) const = 0;
-	[[nodiscard]] virtual int Mask(ptgn::Entity entity) const = 0;
-	[[nodiscard]] virtual bool KeyDown(ptgn::Key key) const = 0;
-	[[nodiscard]] virtual float KeyHoldDuration(ptgn::Key key) const = 0;
-	[[nodiscard]] virtual bool MouseDown(ptgn::Mouse button) const = 0;
-	[[nodiscard]] virtual float MouseHoldDuration(ptgn::Mouse button) const = 0;
-	virtual ptgn::Entity SpawnPrefab(const PrefabSpawnRequest& request) = 0;
-	virtual void Destroy(ptgn::Entity entity) = 0;
+void LogScriptActivity(ptgn::Scene& scene, std::string text);
+[[nodiscard]] std::string_view GetEntityName(ptgn::Entity entity);
+[[nodiscard]] std::string_view GetEntityTag(ptgn::Entity entity);
+[[nodiscard]] int GetEntityMask(ptgn::Entity entity);
+[[nodiscard]] ptgn::Entity SpawnScriptPrefab(
+	ptgn::Scene& scene,
+	const PrefabSpawnRequest& request
+);
+[[nodiscard]] SharedScriptSequenceRegistry& GetSharedScriptSequences(ptgn::Scene& scene);
 
-	virtual SequenceHandle RunSequence(ptgn::Entity owner, ScriptSequence sequence) = 0;
-	virtual SequenceHandle RunInChannel(
-		ptgn::Entity owner,
-		SequenceChannelKey channel,
-		ScriptSequence sequence,
-		ReentryMode reentry
-	) = 0;
-	virtual bool StartSequence(ptgn::Entity owner, Id id, bool force = false) = 0;
-	virtual void StopSequenceChannel(
-		ptgn::Entity owner,
-		SequenceChannelKey channel,
-		SequenceStopMode mode
-	) = 0;
-	virtual bool StopSequence(
-		ptgn::Entity owner,
-		Id id,
-		SequenceCancelReason reason = SequenceCancelReason::Stopped
-	) = 0;
-	virtual bool ResetSequence(ptgn::Entity owner, Id id) = 0;
-	virtual bool ClearSequence(ptgn::Entity owner, Id id) = 0;
-	virtual bool SkipSequenceAction(ptgn::Entity owner, Id id) = 0;
-	virtual bool SeekSequence(ptgn::Entity owner, Id id, float progress) = 0;
-	virtual bool SetSequencePaused(ptgn::Entity owner, Id id, bool paused) = 0;
-	[[nodiscard]] virtual float SequenceProgress(ptgn::Entity owner, Id id) const = 0;
-	[[nodiscard]] virtual bool SequenceRunning(ptgn::Entity owner, Id id) const = 0;
-	[[nodiscard]] virtual bool SequencePaused(ptgn::Entity owner, Id id) const = 0;
-	[[nodiscard]] virtual bool SequenceCompleted(ptgn::Entity owner, Id id) const = 0;
-};
-
-struct EventRegistration {
+struct SequenceEventRegistration {
 	TypeHashValue type_hash{ 0 };
+	TypeHashValue event_type_hash{ 0 };
 	std::uint32_t schema_version{ 1 };
 	std::string key;
-	std::function<TypedValue()> make_default_filter;
-	std::function<TypedValue()> make_default_payload;
-	std::function<bool(const TypedValue&, const TypedValue&, EventMatchContext&)> matches;
-	std::function<float(const TypedValue&)> start_delay_ms;
+	std::function<void(EventCondition&)> set_defaults;
+	std::function<bool(ptgn::Entity, Event, const EventCondition&, bool consume)> matches;
+	std::function<bool(ptgn::Entity)> available;
 };
 
-class EventRegistry {
+class SequenceEventRegistry {
 public:
-	template <typename TEvent, typename TFilter, typename F>
-	static bool Register(std::string key, F&& matches) {
+	template <typename TEvent, typename FMatch, typename FAvailable>
+	static bool Register(
+		std::string key,
+		ptgn::json default_value,
+		FMatch&& matches,
+		FAvailable&& available
+	) {
 		auto& entries{ MutableEntries() };
-		if (Find(key) || Find(TypeHash<TEvent>())) {
+		const TypeHashValue type_hash{ ptgn::Hash(std::string_view{ key }) };
+		if (Find(key) || Find(type_hash)) {
 			return false;
 		}
-		entries.push_back(EventRegistration{
-			.type_hash = TypeHash<TEvent>(),
-			.key = std::move(key),
-			.make_default_filter = [] { return TypedValue{ TFilter{} }; },
-			.make_default_payload = [] { return TypedValue{ TEvent{} }; },
-			.matches = [fn = std::forward<F>(matches)](
-				const TypedValue& payload,
-				const TypedValue& filter,
-				EventMatchContext& context
-			) mutable {
-				return std::invoke(
-					fn,
-					payload.Get<TEvent>(),
-					filter.Get<TFilter>(),
-					context
-				);
-			},
-			.start_delay_ms = [](const TypedValue& filter) {
-				if constexpr (requires(const TFilter& value) { value.delay_ms; }) {
-					return std::max(0.0f, filter.Get<TFilter>().delay_ms);
-				}
-				return 0.0f;
-			},
-		});
+		if (default_value.is_null()) {
+			default_value = ptgn::json::object();
+		}
+
+		entries.push_back(
+			SequenceEventRegistration{
+				.type_hash = type_hash,
+				.event_type_hash = ptgn::Hash<TEvent>(),
+				.key = std::move(key),
+				.set_defaults = [value = std::move(default_value)](EventCondition& output) {
+					output.value = value;
+				},
+				.matches =
+					[fn = std::forward<FMatch>(matches)](
+						ptgn::Entity owner,
+						Event event,
+						const EventCondition& input,
+						bool consume
+					) mutable {
+						bool matched{ false };
+						if constexpr (std::is_empty_v<TEvent>) {
+							event.Dispatch<TEvent>([&]() -> bool {
+								matched = std::invoke(fn, owner, input.value, TEvent{});
+								return matched && consume;
+							});
+						} else {
+							event.Dispatch<TEvent>([&](const TEvent& payload) -> bool {
+								matched = std::invoke(fn, owner, input.value, payload);
+								return matched && consume;
+							});
+						}
+						return matched;
+					},
+				.available = std::forward<FAvailable>(available),
+			}
+		);
 		return true;
 	}
 
-	template <typename TEvent>
-	[[nodiscard]] static std::string_view Key() {
-		const auto* entry{ Find(TypeHash<TEvent>()) };
-		return entry ? std::string_view{ entry->key } : std::string_view{};
+	template <typename TEvent, typename FMatch>
+	static bool Register(
+		std::string key,
+		ptgn::json default_value,
+		FMatch&& matches
+	) {
+		return Register<TEvent>(
+			std::move(key),
+			std::move(default_value),
+			std::forward<FMatch>(matches),
+			[](ptgn::Entity) {
+				return true;
+			}
+		);
 	}
 
-	template <typename TEvent, typename TFilter>
-	[[nodiscard]] static EventCondition MakeCondition(TFilter filter = {}) {
-		const auto* entry{ Find(TypeHash<TEvent>()) };
-		return entry ? EventCondition{
-			.id = IdGenerator::Next(),
+	[[nodiscard]] static EventCondition MakeCondition(
+		std::string_view key,
+		ptgn::json value = nullptr
+	) {
+		const auto* entry{ Find(key) };
+		if (!entry) {
+			return {};
+		}
+
+		EventCondition condition{
 			.enabled = true,
 			.consume = false,
-			.type = entry->key,
-			.filter = TypedValue{ std::move(filter) },
-		} : EventCondition{};
-	}
-
-	template <typename TEvent>
-	[[nodiscard]] static EventEnvelope MakeEvent(
-		TEvent payload = {},
-		std::optional<ptgn::Entity> target = std::nullopt,
-		ptgn::Entity source = {},
-		EventDelivery delivery = EventDelivery::Target
-	) {
-		const auto* entry{ Find(TypeHash<TEvent>()) };
-		return entry ? EventEnvelope{
 			.type_hash = entry->type_hash,
 			.type = entry->key,
-			.payload = TypedValue{ std::move(payload) },
-			.target = target,
-			.source = source,
-			.delivery = delivery,
-		} : EventEnvelope{};
+		};
+		if (value.is_null()) {
+			entry->set_defaults(condition);
+		} else {
+			condition.value = std::move(value);
+		}
+		if (condition.value.is_null()) {
+			condition.value = ptgn::json::object();
+		}
+		return condition;
 	}
 
-	[[nodiscard]] static const EventRegistration* Find(std::string_view key) {
+	[[nodiscard]] static const SequenceEventRegistration* Find(std::string_view key) {
 		const auto& entries{ Entries() };
 		const auto it{ std::ranges::find_if(entries, [key](const auto& entry) {
 			return entry.key == key;
@@ -667,7 +496,7 @@ public:
 		return it == entries.end() ? nullptr : &*it;
 	}
 
-	[[nodiscard]] static const EventRegistration* Find(TypeHashValue type_hash) {
+	[[nodiscard]] static const SequenceEventRegistration* Find(TypeHashValue type_hash) {
 		const auto& entries{ Entries() };
 		const auto it{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
@@ -675,118 +504,14 @@ public:
 		return it == entries.end() ? nullptr : &*it;
 	}
 
-	[[nodiscard]] static const std::vector<EventRegistration>& Entries() {
+	[[nodiscard]] static const std::vector<SequenceEventRegistration>& Entries() {
 		return MutableEntries();
 	}
 
 private:
-	[[nodiscard]] static std::vector<EventRegistration>& MutableEntries() {
-		static std::vector<EventRegistration> entries;
+	[[nodiscard]] static std::vector<SequenceEventRegistration>& MutableEntries() {
+		static std::vector<SequenceEventRegistration> entries;
 		return entries;
-	}
-};
-
-/// @brief Double-buffered event queue. Events pushed while dispatching are stored for the next pass.
-class BufferedEventQueue {
-public:
-	void Push(EventEnvelope event) {
-		if (!event.type.empty()) {
-			pending_.push_back(std::move(event));
-		}
-	}
-
-	void BeginDispatch() {
-		if (dispatching_.empty()) {
-			dispatching_.swap(pending_);
-		}
-	}
-
-	[[nodiscard]] bool Empty() const { return dispatching_.empty(); }
-
-	EventEnvelope Pop() {
-		EventEnvelope event{ std::move(dispatching_.front()) };
-		dispatching_.pop_front();
-		return event;
-	}
-
-	void Clear() {
-		pending_.clear();
-		dispatching_.clear();
-	}
-
-private:
-	std::deque<EventEnvelope> pending_;
-	std::deque<EventEnvelope> dispatching_;
-};
-
-class LocalEventHandler {
-public:
-	template <typename TEvent>
-	void Push(ptgn::Entity target, TEvent event = {}, ptgn::Entity source = {}) {
-		queue_.Push(EventRegistry::MakeEvent<TEvent>(
-			std::move(event), target, source, EventDelivery::Target
-		));
-	}
-
-	void Push(EventEnvelope event) {
-		event.delivery = EventDelivery::Target;
-		queue_.Push(std::move(event));
-	}
-
-	void BeginDispatch() { queue_.BeginDispatch(); }
-	[[nodiscard]] bool Empty() const { return queue_.Empty(); }
-	EventEnvelope Pop() { return queue_.Pop(); }
-	void Clear() { queue_.Clear(); }
-
-private:
-	BufferedEventQueue queue_;
-};
-
-class GlobalEventHandler {
-public:
-	template <typename TEvent>
-	void Push(TEvent event = {}, ptgn::Entity source = {}) {
-		queue_.Push(EventRegistry::MakeEvent<TEvent>(
-			std::move(event), std::nullopt, source, EventDelivery::Broadcast
-		));
-	}
-
-	void Push(EventEnvelope event) {
-		event.target.reset();
-		event.delivery = EventDelivery::Broadcast;
-		queue_.Push(std::move(event));
-	}
-
-	void BeginDispatch() { queue_.BeginDispatch(); }
-	[[nodiscard]] bool Empty() const { return queue_.Empty(); }
-	EventEnvelope Pop() { return queue_.Pop(); }
-	void Clear() { queue_.Clear(); }
-
-private:
-	BufferedEventQueue queue_;
-};
-
-struct PointerFrame {
-	ptgn::V2_float world_position{};
-	bool inside_scene{ false };
-	std::array<bool, 3> pressed{};
-	std::array<bool, 3> released{};
-};
-
-struct SceneContext {
-	RuntimeHost* host{ nullptr };
-	ptgn::Manager& manager;
-	LocalEventHandler& local_events;
-	GlobalEventHandler& global_events;
-
-	template <typename TEvent>
-	void PushLocal(ptgn::Entity target, TEvent event = {}, ptgn::Entity source = {}) {
-		local_events.Push<TEvent>(target, std::move(event), source);
-	}
-
-	template <typename TEvent>
-	void PushGlobal(TEvent event = {}, ptgn::Entity source = {}) {
-		global_events.Push<TEvent>(std::move(event), source);
 	}
 };
 
@@ -799,13 +524,15 @@ struct ActionRegistration {
 	bool requires_timing{ false };
 	bool serializable{ true };
 	std::optional<ActionTiming> default_timing;
-	std::function<TypedValue()> make_default;
-	std::function<std::unique_ptr<IActionInstance>(const TypedValue&)> instantiate;
+	std::function<ptgn::json()> make_default;
+	std::function<std::unique_ptr<ScriptAction>(ptgn::Entity)> instantiate_default;
+	std::function<std::unique_ptr<ScriptAction>(ptgn::Entity, const ptgn::json&)> instantiate;
 };
 
 class ActionRegistry {
 public:
 	template <typename T>
+		requires std::derived_from<T, ScriptAction>
 	static bool Register(
 		std::string key,
 		bool supports_timing = false,
@@ -815,59 +542,87 @@ public:
 		bool serializable = true
 	) {
 		auto& entries{ MutableEntries() };
-		if (Find(key) || Find(TypeHash<T>())) {
+		if (Find(key) || Find(ptgn::Hash<T>())) {
 			return false;
 		}
 		if (requires_timing && completion == ActionCompletion::Instant) {
 			completion = ActionCompletion::Duration;
 		}
 
-		entries.push_back(ActionRegistration{
-			.type_hash = TypeHash<T>(),
-			.key = std::move(key),
-			.completion = completion,
-			.supports_timing = supports_timing,
-			.requires_timing = requires_timing,
-			.serializable = serializable,
-			.default_timing = default_timing,
-			.make_default = [] { return TypedValue{ T{} }; },
-			.instantiate = [](const TypedValue& value) {
-				return std::make_unique<TypedActionInstance<T>>(
-					value.Get<T>()
-				);
-			},
-		});
+		entries.push_back(
+			ActionRegistration{
+				.type_hash = ptgn::Hash<T>(),
+				.key = std::move(key),
+				.completion = completion,
+				.supports_timing = supports_timing,
+				.requires_timing = requires_timing,
+				.serializable = serializable,
+				.default_timing = default_timing,
+				.make_default = [] {
+					ptgn::json output;
+					output = T{};
+					return output;
+				},
+				.instantiate_default = [](ptgn::Entity owner) {
+					auto action{ std::make_unique<T>() };
+					action->Bind(owner);
+					return action;
+				},
+				.instantiate = [](ptgn::Entity owner, const ptgn::json& input) {
+					auto action{ std::make_unique<T>() };
+					(void)TryReadJson(input, *action);
+					action->Bind(owner);
+					return action;
+				},
+			}
+		);
 		return true;
 	}
 
 	template <typename T>
 	[[nodiscard]] static std::string_view Key() {
-		const auto* entry{ Find(TypeHash<T>()) };
+		const auto* entry{ Find(ptgn::Hash<T>()) };
 		return entry ? std::string_view{ entry->key } : std::string_view{};
 	}
 
 	template <typename T>
 		requires (!std::convertible_to<std::remove_cvref_t<T>, std::string_view>)
 	[[nodiscard]] static Action Make(T value = {}) {
-		const auto* entry{ Find(TypeHash<T>()) };
-		return entry ? Action{
-			.id = IdGenerator::Next(),
+		const auto* entry{ Find(ptgn::Hash<T>()) };
+		if (!entry) {
+			return {};
+		}
+
+		T typed_value{ std::move(value) };
+		ptgn::json action_json;
+		action_json = typed_value;
+		return Action{
 			.enabled = true,
+			.type_hash = entry->type_hash,
 			.type = entry->key,
-			.value = TypedValue{ std::move(value) },
+			.value = std::move(action_json),
 			.timing = entry->default_timing,
-		} : Action{};
+			.runtime_factory =
+				[typed_value = std::move(typed_value)](ptgn::Entity owner) mutable {
+					auto action{ std::make_unique<T>(typed_value) };
+					action->Bind(owner);
+					return action;
+				},
+		};
 	}
 
 	[[nodiscard]] static Action Make(std::string_view key) {
 		const auto* entry{ Find(key) };
-		return entry ? Action{
-			.id = IdGenerator::Next(),
-			.enabled = true,
-			.type = entry->key,
-			.value = entry->make_default(),
-			.timing = entry->default_timing,
-		} : Action{};
+		return entry
+			? Action{
+				.enabled = true,
+				.type_hash = entry->type_hash,
+				.type = entry->key,
+				.value = entry->make_default(),
+				.timing = entry->default_timing,
+				.runtime_factory = entry->instantiate_default,
+			}
+			: Action{};
 	}
 
 	[[nodiscard]] static const ActionRegistration* Find(std::string_view key) {
@@ -901,36 +656,54 @@ struct ScriptRegistration {
 	TypeHashValue type_hash{ 0 };
 	std::uint32_t schema_version{ 1 };
 	std::string key;
-	std::function<TypedValue()> make_default;
-	std::function<std::unique_ptr<IScriptInstance>(const TypedValue&)> instantiate;
+	std::function<ptgn::json()> make_default;
+	std::function<ptgn::Script*(ptgn::Entity, const ptgn::json&)> attach;
+	std::function<void(ptgn::Script&, const ptgn::json&)> apply;
 };
 
 class ScriptRegistry {
 public:
 	template <typename T>
+		requires std::derived_from<T, ptgn::Script>
 	static bool Register(std::string key) {
 		auto& entries{ MutableEntries() };
-		if (Find(key) || Find(TypeHash<T>())) {
+		if (Find(key) || Find(ptgn::Hash<T>())) {
 			return false;
 		}
-		entries.push_back(ScriptRegistration{
-			.type_hash = TypeHash<T>(),
-			.key = std::move(key),
-			.make_default = [] { return TypedValue{ T{} }; },
-			.instantiate = [](const TypedValue& value) {
-				return std::make_unique<TypedScriptInstance<T>>(
-					value.Get<T>()
-				);
-			},
-		});
+
+		entries.push_back(
+			ScriptRegistration{
+				.type_hash = ptgn::Hash<T>(),
+				.key = std::move(key),
+				.make_default = [] {
+					ptgn::json output;
+					output = T{};
+					return output;
+				},
+				.attach = [](ptgn::Entity owner, const ptgn::json& input) {
+					T value{};
+					(void)TryReadJson(input, value);
+					auto& script{ ptgn::AddScript<T>(owner, std::move(value)) };
+					return static_cast<ptgn::Script*>(&script);
+				},
+				.apply = [](ptgn::Script& script, const ptgn::json& input) {
+					(void)TryReadJson(input, static_cast<T&>(script));
+				},
+			}
+		);
 		return true;
 	}
 
 	template <typename T>
 	[[nodiscard]] static std::string_view Key() {
-		const auto* entry{ Find(TypeHash<T>()) };
+		const auto* entry{ Find(ptgn::Hash<T>()) };
 		return entry ? std::string_view{ entry->key } : std::string_view{};
 	}
+
+	template <typename T>
+	[[nodiscard]] static ScriptEntry Make(T value = {});
+
+	[[nodiscard]] static ScriptEntry Make(std::string_view key);
 
 	[[nodiscard]] static const ScriptRegistration* Find(std::string_view key) {
 		const auto& entries{ Entries() };
@@ -959,40 +732,11 @@ private:
 	}
 };
 
-struct ScriptEntry {
-	Id id{ IdGenerator::Next() };
-	bool enabled{ true };
-	std::string type;
-	TypedValue value;
-
-	// Runtime-only state. A copied ScriptsComponent receives a fresh script instance.
-	std::unique_ptr<IScriptInstance> instance;
-	bool created{ false };
-
-	ScriptEntry() = default;
-	ScriptEntry(ScriptEntry&&) noexcept = default;
-	ScriptEntry& operator=(ScriptEntry&&) noexcept = default;
-
-	ScriptEntry(const ScriptEntry& other) :
-		id{ IdGenerator::Next() },
-		enabled{ other.enabled },
-		type{ other.type },
-		value{ other.value } {}
-
-	ScriptEntry& operator=(const ScriptEntry& other) {
-		if (this == &other) {
-			return *this;
-		}
-
-		ScriptEntry copy{ other };
-		*this = std::move(copy);
-		return *this;
-	}
-};
-
 struct SequenceChannelKey : ptgn::StrongString<SequenceChannelKey> {
 	using StrongString::StrongString;
 	SequenceChannelKey() = default;
+
+	PTGN_REFLECT_VALUE(SequenceChannelKey, value)
 };
 
 struct ScriptSequenceRuntime {
@@ -1005,8 +749,7 @@ struct ScriptSequenceRuntime {
 	float elapsed_ms{ 0.0f };
 	int current_repeat{ 0 };
 	bool currently_reversed{ false };
-	float pending_start_delay_ms{ -1.0f };
-	std::unique_ptr<IActionInstance> action_instance;
+	std::unique_ptr<ScriptAction> action_instance;
 	int completed_runs{ 0 };
 
 	ScriptSequenceRuntime() = default;
@@ -1024,10 +767,17 @@ struct ScriptSequenceRuntime {
 };
 
 struct ScriptSequence {
-	Id id{ IdGenerator::Next() };
+private:
+	[[nodiscard]] static SequenceId NextSequenceId() {
+		static SequenceId next{ 1 };
+		return next++;
+	}
+
+public:
+	SequenceId id{ NextSequenceId() };
 	bool enabled{ true };
 	bool shared_reference{ false };
-	Id shared_sequence_id{ 0 };
+	SequenceId shared_sequence_id{ 0 };
 	std::string name{ "New Script Sequence" };
 	ReentryMode reentry{ ReentryMode::IgnoreWhileRunning };
 	std::optional<SequenceChannelKey> channel;
@@ -1050,11 +800,8 @@ struct ScriptSequence {
 	ScriptSequence& Transient(bool remove_on_complete = true);
 	ScriptSequence& DestroyOwnerOnComplete(bool value = true);
 
-	template <typename TEvent, typename TFilter = NoEventFilter>
-	ScriptSequence& StartOn(TFilter filter = {});
-
-	template <typename TEvent, typename TFilter = NoEventFilter>
-	ScriptSequence& StopOn(TFilter filter = {});
+	ScriptSequence& StartOn(std::string_view key, ptgn::json value = nullptr);
+	ScriptSequence& StopOn(std::string_view key, ptgn::json value = nullptr);
 
 	template <typename TAction>
 	ScriptSequence& Then(TAction action = {});
@@ -1066,13 +813,18 @@ struct ScriptSequence {
 	ScriptSequence& Forever(TAction action = {});
 
 	template <typename TAction>
-	TimedActionBuilder During(float duration_ms, TAction action = {});
+	ScriptSequence& During(float duration_ms, TAction action = {});
 
+	ScriptSequence& Ease(ptgn::Ease value);
+	ScriptSequence& Repeat(int additional_repeats);
+	ScriptSequence& Infinite();
+	ScriptSequence& Reversed(bool value = true);
+	ScriptSequence& Yoyo(bool value = true);
 	ScriptSequence& Wait(float duration_ms);
 	ScriptSequence& EmitSignal(SignalKey signal);
 
 	ScriptSequence(const ScriptSequence& other) :
-		id{ IdGenerator::Next() },
+		id{ NextSequenceId() },
 		enabled{ other.enabled },
 		shared_reference{ other.shared_reference },
 		shared_sequence_id{ other.shared_sequence_id },
@@ -1085,21 +837,7 @@ struct ScriptSequence {
 		start_events{ other.start_events },
 		stop_events{ other.stop_events },
 		actions{ other.actions },
-		lifecycle_actions{ other.lifecycle_actions } {
-		for (auto& event : start_events) {
-			event.id = IdGenerator::Next();
-		}
-		for (auto& event : stop_events) {
-			event.id = IdGenerator::Next();
-		}
-		for (auto& action : actions) {
-			action.id = IdGenerator::Next();
-		}
-		for (auto& lifecycle : lifecycle_actions) {
-			lifecycle.id = IdGenerator::Next();
-			lifecycle.action.id = IdGenerator::Next();
-		}
-	}
+		lifecycle_actions{ other.lifecycle_actions } {}
 
 	ScriptSequence& operator=(const ScriptSequence& other) {
 		if (this == &other) {
@@ -1110,36 +848,123 @@ struct ScriptSequence {
 		return *this;
 	}
 
-private:
-	friend class TimedActionBuilder;
+	PTGN_REFLECT(
+		ScriptSequence, id, enabled, shared_reference, shared_sequence_id, name, reentry, channel,
+		transient, remove_binding_on_complete, destroy_owner_on_complete, start_events, stop_events,
+		actions, lifecycle_actions
+	)
 
-	ActionTiming& FindTiming(Id action_id);
+private:
+	ActionTiming& LatestDuringTiming();
 };
+
+class SequenceScript final : public ptgn::Script {
+public:
+	ScriptSequence sequence;
+	bool initialized{ false };
+
+	void OnCreate() override;
+	void OnUpdate() override;
+	void OnEvent(Event event) override;
+
+	PTGN_REFLECT(SequenceScript, sequence)
+};
+
+struct ScriptEntry {
+	bool enabled{ true };
+	TypeHashValue type_hash{ 0 };
+	std::string type;
+	ptgn::json value;
+
+	// Non-owning. The engine's normal ptgn::impl::Scripts container owns the Script.
+	ptgn::Script* instance{ nullptr };
+	// C++-authored entries retain a typed prototype; serialized entries fall back to JSON.
+	std::function<ptgn::Script*(ptgn::Entity)> attach_live;
+
+	ScriptEntry() = default;
+	ScriptEntry(ScriptEntry&&) noexcept = default;
+	ScriptEntry& operator=(ScriptEntry&&) noexcept = default;
+
+	ScriptEntry(const ScriptEntry& other) :
+		enabled{ other.enabled },
+		type_hash{ other.type_hash },
+		type{ other.type },
+		value{ other.value },
+		attach_live{ other.attach_live } {}
+
+	ScriptEntry& operator=(const ScriptEntry& other) {
+		if (this == &other) {
+			return *this;
+		}
+		ScriptEntry copy{ other };
+		*this = std::move(copy);
+		return *this;
+	}
+
+	PTGN_REFLECT(ScriptEntry, enabled, type_hash, type, value)
+};
+
+template <typename T>
+ScriptEntry ScriptRegistry::Make(T value) {
+	const auto* registration{ Find(ptgn::Hash<T>()) };
+	if (!registration) {
+		return {};
+	}
+
+	T typed_value{ std::move(value) };
+	ptgn::json snapshot;
+	snapshot = typed_value;
+	auto prototype{ std::make_shared<T>(std::move(typed_value)) };
+
+	ScriptEntry entry;
+	entry.enabled = true;
+	entry.type_hash = registration->type_hash;
+	entry.type = registration->key;
+	entry.value = std::move(snapshot);
+	entry.attach_live = [prototype](ptgn::Entity owner) {
+		T script{ *prototype };
+		if constexpr (requires { script.sequence.id; prototype->sequence.id; }) {
+			script.sequence.id = prototype->sequence.id;
+		}
+		return static_cast<ptgn::Script*>(
+			&ptgn::AddScript<T>(owner, std::move(script))
+		);
+	};
+	return entry;
+}
+
+inline ScriptEntry ScriptRegistry::Make(std::string_view key) {
+	const auto* registration{ Find(key) };
+	if (!registration) {
+		return {};
+	}
+
+	ScriptEntry entry;
+	entry.enabled = true;
+	entry.type_hash = registration->type_hash;
+	entry.type = registration->key;
+	entry.value = registration->make_default();
+	return entry;
+}
 
 struct SequenceChannelRuntime {
 	SequenceChannelKey key;
-	std::optional<Id> active;
-	std::deque<Id> waiting;
+	std::optional<SequenceId> active;
+	std::deque<SequenceId> waiting;
 };
 
 struct ScriptsComponent {
 	std::vector<ScriptEntry> scripts;
-	std::vector<ScriptSequence> sequences;
 	std::vector<SequenceChannelRuntime> channels;
-
-	// Mutations are applied outside the active script/sequence iteration pass.
-	std::vector<ScriptEntry> pending_script_additions;
-	std::vector<Id> pending_script_removals;
-	std::vector<ScriptSequence> pending_sequence_additions;
-	std::vector<Id> pending_sequence_removals;
+	std::vector<ScriptEntry> pending_additions;
+	std::vector<SequenceId> pending_removals;
 
 	ScriptsComponent() = default;
 	ScriptsComponent(ScriptsComponent&&) noexcept = default;
 	ScriptsComponent& operator=(ScriptsComponent&&) noexcept = default;
 
 	ScriptsComponent(const ScriptsComponent& other) :
-		scripts{ other.scripts },
-		sequences{ other.sequences } {}
+		scripts{ other.scripts } {}
 
 	ScriptsComponent& operator=(const ScriptsComponent& other) {
 		if (this != &other) {
@@ -1150,98 +975,52 @@ struct ScriptsComponent {
 	}
 
 	template <typename TScript>
-	Id AddScriptDeferred(TScript value = {}) {
-		const auto* registration{ ScriptRegistry::Find(TypeHash<TScript>()) };
-		if (!registration) {
-			return 0;
+	void AddDeferred(TScript value = {}) {
+		ScriptEntry entry{ ScriptRegistry::Make<TScript>(std::move(value)) };
+		if (!entry.type.empty()) {
+			pending_additions.push_back(std::move(entry));
 		}
-		ScriptEntry entry;
-		entry.enabled = true;
-		entry.type = registration->key;
-		entry.value = TypedValue{ std::move(value) };
-		const Id id{ entry.id };
-		pending_script_additions.push_back(std::move(entry));
-		return id;
 	}
 
-	Id AddSequenceDeferred(ScriptSequence sequence) {
-		const Id id{ sequence.id };
-		pending_sequence_additions.push_back(std::move(sequence));
-		return id;
+	void AddEntryDeferred(ScriptEntry entry) {
+		if (!entry.type.empty()) {
+			pending_additions.push_back(std::move(entry));
+		}
 	}
 
-	void RemoveScriptDeferred(Id id) { pending_script_removals.push_back(id); }
-	void RemoveSequenceDeferred(Id id) { pending_sequence_removals.push_back(id); }
+	void RemoveDeferred(SequenceId sequence_id) { pending_removals.push_back(sequence_id); }
+
+	PTGN_REFLECT(ScriptsComponent, scripts)
 };
 
 struct SequenceHandle {
-	RuntimeHost* host{ nullptr };
 	ptgn::Entity owner;
-	Id binding_id{ 0 };
+	SequenceId binding_id{ 0 };
 
 	[[nodiscard]] explicit operator bool() const {
-		return host && owner && binding_id != 0;
+		return owner && binding_id != 0;
 	}
 
-	bool Start(bool force = false) const {
-		return *this && host->StartSequence(owner, binding_id, force);
-	}
+	bool Start(bool force = false) const;
+	bool Stop() const;
+	bool Pause() const;
+	bool Resume() const;
+	bool TogglePaused() const;
+	bool Toggle() const;
+	bool Reset() const;
+	bool Clear() const;
+	bool Skip() const;
+	bool Seek(float progress) const;
 
-	bool Stop() const {
-		return *this && host->StopSequence(owner, binding_id);
-	}
-
-	bool Pause() const {
-		return *this && host->SetSequencePaused(owner, binding_id, true);
-	}
-
-	bool Resume() const {
-		return *this && host->SetSequencePaused(owner, binding_id, false);
-	}
-
-	bool TogglePaused() const {
-		return *this && host->SetSequencePaused(
-			owner, binding_id, !host->SequencePaused(owner, binding_id)
-		);
-	}
-
-	bool Toggle() const {
-		return IsRunning() ? Stop() : Start();
-	}
-
-	bool Reset() const {
-		return *this && host->ResetSequence(owner, binding_id);
-	}
-
-	bool Clear() const {
-		return *this && host->ClearSequence(owner, binding_id);
-	}
-
-	bool Skip() const {
-		return *this && host->SkipSequenceAction(owner, binding_id);
-	}
-
-	bool Seek(float progress) const {
-		return *this && host->SeekSequence(owner, binding_id, progress);
-	}
-
-	[[nodiscard]] bool IsRunning() const {
-		return *this && host->SequenceRunning(owner, binding_id);
-	}
-
-	[[nodiscard]] bool IsPaused() const {
-		return *this && host->SequencePaused(owner, binding_id);
-	}
-
-	[[nodiscard]] bool IsCompleted() const {
-		return *this && host->SequenceCompleted(owner, binding_id);
-	}
-
-	[[nodiscard]] float Progress() const {
-		return *this ? host->SequenceProgress(owner, binding_id) : 0.0f;
-	}
+	[[nodiscard]] bool IsRunning() const;
+	[[nodiscard]] bool IsPaused() const;
+	[[nodiscard]] bool IsCompleted() const;
+	[[nodiscard]] float Progress() const;
 };
 
+static_assert(std::copy_constructible<Action>);
+static_assert(std::is_copy_assignable_v<Action>);
+static_assert(std::movable<Action>);
 static_assert(std::copy_constructible<ScriptEntry>);
 static_assert(std::is_copy_assignable_v<ScriptEntry>);
 static_assert(std::copy_constructible<ScriptSequence>);
@@ -1252,22 +1031,129 @@ static_assert(std::is_copy_assignable_v<ScriptsComponent>);
 struct SharedScriptSequenceRegistry {
 	std::vector<ScriptSequence> sequences;
 
-	[[nodiscard]] ScriptSequence* Find(Id id) {
+	[[nodiscard]] ScriptSequence* Find(SequenceId id) {
 		const auto it{ std::ranges::find_if(sequences, [id](const auto& sequence) {
 			return sequence.id == id;
 		}) };
 		return it == sequences.end() ? nullptr : &*it;
 	}
 
-	[[nodiscard]] const ScriptSequence* Find(Id id) const {
+	[[nodiscard]] const ScriptSequence* Find(SequenceId id) const {
 		return const_cast<SharedScriptSequenceRegistry*>(this)->Find(id);
 	}
 };
 
-struct NoEventFilter {};
+namespace script_runtime {
 
-struct MouseButtonFilter {
+void AttachEntry(ptgn::Entity entity, ScriptEntry& entry);
+void AttachAll(ptgn::Entity entity);
+[[nodiscard]] bool IsScriptEnabled(ptgn::Entity entity, const ptgn::Script* script);
+void Update(ptgn::Scene& scene, float delta_seconds);
+[[nodiscard]] float DeltaSeconds();
+void ApplyPending(ptgn::Scene& scene);
+
+[[nodiscard]] ScriptSequence* Resolve(
+	ptgn::Entity owner,
+	ScriptSequence& binding
+);
+[[nodiscard]] const ScriptSequence* Resolve(
+	ptgn::Entity owner,
+	const ScriptSequence& binding
+);
+[[nodiscard]] SequenceHandle RunSequence(
+	ptgn::Entity owner,
+	ScriptSequence sequence
+);
+[[nodiscard]] SequenceHandle RunInChannel(
+	ptgn::Entity owner,
+	SequenceChannelKey channel,
+	ScriptSequence sequence,
+	ReentryMode reentry
+);
+[[nodiscard]] bool Start(ptgn::Entity owner, SequenceId id, bool force = false);
+void StopChannel(
+	ptgn::Entity owner,
+	SequenceChannelKey channel,
+	SequenceStopMode mode
+);
+[[nodiscard]] bool Stop(
+	ptgn::Entity owner,
+	SequenceId id,
+	SequenceCancelReason reason = SequenceCancelReason::Stopped
+);
+[[nodiscard]] bool Reset(ptgn::Entity owner, SequenceId id);
+[[nodiscard]] bool Clear(ptgn::Entity owner, SequenceId id);
+[[nodiscard]] bool Skip(ptgn::Entity owner, SequenceId id);
+[[nodiscard]] bool Seek(ptgn::Entity owner, SequenceId id, float progress);
+[[nodiscard]] bool SetPaused(ptgn::Entity owner, SequenceId id, bool paused);
+[[nodiscard]] float Progress(ptgn::Entity owner, SequenceId id);
+[[nodiscard]] bool IsRunning(ptgn::Entity owner, SequenceId id);
+[[nodiscard]] bool IsPaused(ptgn::Entity owner, SequenceId id);
+[[nodiscard]] bool IsCompleted(ptgn::Entity owner, SequenceId id);
+
+} // namespace script_runtime
+
+struct SignalKey : ptgn::StrongString<SignalKey> {
+	using StrongString::StrongString;
+	SignalKey() = default;
+
+	PTGN_REFLECT_VALUE(SignalKey, value)
+};
+
+struct Signal {
+	SignalKey key;
+
+	PTGN_REFLECT(Signal, key)
+};
+
+struct MouseMoveOver {
+	ptgn::Entity pointer;
+
+	PTGN_REFLECT(MouseMoveOver, pointer)
+};
+
+struct MouseMoveOut {
+	ptgn::Entity pointer;
+
+	PTGN_REFLECT(MouseMoveOut, pointer)
+};
+
+struct MousePressedOver {
 	ptgn::Mouse button{ ptgn::Mouse::Left };
+
+	PTGN_REFLECT(MousePressedOver, button)
+};
+
+struct MouseReleasedOver {
+	ptgn::Mouse button{ ptgn::Mouse::Left };
+	bool released_over{ false };
+
+	PTGN_REFLECT(MouseReleasedOver, button, released_over)
+};
+
+struct ButtonPress {
+	ptgn::Mouse button{ ptgn::Mouse::Left };
+
+	PTGN_REFLECT(ButtonPress, button)
+};
+
+struct DragStart {
+	ptgn::Entity pointer;
+
+	PTGN_REFLECT(DragStart, pointer)
+};
+
+struct Drag {
+	ptgn::Entity pointer;
+	ptgn::V2_float position{};
+
+	PTGN_REFLECT(Drag, pointer, position)
+};
+
+struct DragStop {
+	ptgn::Entity pointer;
+
+	PTGN_REFLECT(DragStop, pointer)
 };
 
 inline constexpr std::array kMouseButtons{
@@ -1285,414 +1171,38 @@ inline constexpr std::array kMouseButtons{
 	}
 }
 
-struct SignalKey : ptgn::StrongString<SignalKey> {
-	using StrongString::StrongString;
-	SignalKey() = default;
-};
-
-struct Signal {
-	SignalKey key;
-};
-
-struct MouseMoveOver {
-	ptgn::Entity pointer;
-};
-
-struct MouseMoveOut {
-	ptgn::Entity pointer;
-};
-
-struct MousePressedOver {
-	ptgn::Mouse button{ ptgn::Mouse::Left };
-};
-
-struct MouseReleasedOver {
-	ptgn::Mouse button{ ptgn::Mouse::Left };
-	bool released_over{ false };
-};
-
-struct ButtonPress {
-	ptgn::Mouse button{ ptgn::Mouse::Left };
-};
-
-struct OnCreate {
-	ptgn::Entity entity;
-};
-
-struct OnCreateFilter {
-	float delay_ms{ 0.0f };
-};
-
-struct KeyListFilter {
-	std::string keys{ "W" };
-	float hold_duration_ms{ 500.0f };
-};
-
-struct MouseListFilter {
-	std::string buttons{ "Left" };
-	float hold_duration_ms{ 500.0f };
-};
-
-struct EntityMaskFilter {
-	std::string tags;
-	std::string masks;
-};
-
-template <typename TEnum>
-struct ParsedEnumExpression {
-	std::vector<std::vector<TEnum>> alternatives;
-	std::vector<std::string> invalid_tokens;
-
-	[[nodiscard]] bool IsValid() const {
-		return invalid_tokens.empty();
-	}
-};
-
-inline std::string_view TrimView(std::string_view value) {
-	while (!value.empty() && std::isspace(static_cast<unsigned char>(value.front()))) {
-		value.remove_prefix(1);
-	}
-	while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back()))) {
-		value.remove_suffix(1);
-	}
-	return value;
-}
-
-inline std::string NormalizeEnumToken(std::string_view value) {
-	std::string normalized;
-	normalized.reserve(value.size());
-	for (const char c : value) {
-		if (c == ' ' || c == '_' || c == '-') {
-			continue;
-		}
-		normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-	}
-	return normalized;
-}
-
-template <typename TEnum>
-[[nodiscard]] bool IsValidNumericEnumValue(long long numeric) {
-	using Underlying = std::underlying_type_t<TEnum>;
-	if constexpr (std::same_as<TEnum, ptgn::Mouse>) {
-		return numeric >= 0 &&
-			numeric <= static_cast<long long>(static_cast<Underlying>(ptgn::Mouse::Last));
-	}
-	if constexpr (std::same_as<TEnum, ptgn::Key>) {
-		return (numeric >= 32 && numeric <= 96) ||
-			numeric == 161 || numeric == 162 ||
-			(numeric >= 256 && numeric <= 348);
-	}
-	return magic_enum::enum_cast<TEnum>(static_cast<Underlying>(numeric)).has_value();
-}
-
-template <typename TEnum>
-[[nodiscard]] std::optional<TEnum> ParseEnumToken(std::string_view token) {
-	token = TrimView(token);
-	if (token.empty()) {
-		return std::nullopt;
-	}
-
-	using Underlying = std::underlying_type_t<TEnum>;
-	long long numeric{};
-	const auto* begin{ token.data() };
-	const auto* end{ token.data() + token.size() };
-	const auto [ptr, error]{ std::from_chars(begin, end, numeric) };
-	if (error == std::errc{} && ptr == end) {
-		if (!IsValidNumericEnumValue<TEnum>(numeric)) {
-			return std::nullopt;
-		}
-		return static_cast<TEnum>(static_cast<Underlying>(numeric));
-	}
-
-	const std::string normalized{ NormalizeEnumToken(token) };
-	if constexpr (std::same_as<TEnum, ptgn::Mouse>) {
-		if (normalized == "left") {
-			return ptgn::Mouse::Left;
-		}
-		if (normalized == "right") {
-			return ptgn::Mouse::Right;
-		}
-		if (normalized == "middle") {
-			return ptgn::Mouse::Middle;
-		}
-	}
-
-	if (const auto value{ magic_enum::enum_cast<TEnum>(token, magic_enum::case_insensitive) }) {
-		return value;
-	}
-
-	for (const auto& [value, name] : magic_enum::enum_entries<TEnum>()) {
-		const std::string candidate{ NormalizeEnumToken(name) };
-		if (normalized == candidate) {
-			return value;
-		}
-		if (normalized.ends_with("arrow") &&
-			normalized.substr(0, normalized.size() - std::string_view{ "arrow" }.size()) == candidate) {
-			return value;
-		}
-		if (candidate.ends_with("arrow") &&
-			candidate.substr(0, candidate.size() - std::string_view{ "arrow" }.size()) == normalized) {
-			return value;
-		}
-	}
-	return std::nullopt;
-}
-
-template <typename TEnum>
-[[nodiscard]] ParsedEnumExpression<TEnum> ParseEnumExpression(std::string_view text) {
-	ParsedEnumExpression<TEnum> result;
-	std::size_t alternative_start{};
-	while (alternative_start <= text.size()) {
-		const std::size_t comma{ text.find(',', alternative_start) };
-		const std::size_t alternative_finish{
-			comma == std::string_view::npos ? text.size() : comma
-		};
-		const std::string_view alternative_text{
-			TrimView(text.substr(alternative_start, alternative_finish - alternative_start))
-		};
-
-		std::vector<TEnum> combination;
-		std::size_t token_start{};
-		while (token_start <= alternative_text.size()) {
-			const std::size_t plus{ alternative_text.find('+', token_start) };
-			const std::size_t token_finish{
-				plus == std::string_view::npos ? alternative_text.size() : plus
-			};
-			const std::string_view token{
-				TrimView(alternative_text.substr(token_start, token_finish - token_start))
-			};
-			if (!token.empty()) {
-				if (const auto value{ ParseEnumToken<TEnum>(token) }) {
-					if (!std::ranges::contains(combination, *value)) {
-						combination.push_back(*value);
-					}
-				} else {
-					result.invalid_tokens.emplace_back(token);
-				}
-			}
-			if (plus == std::string_view::npos) {
-				break;
-			}
-			token_start = plus + 1;
-		}
-
-		if (!combination.empty()) {
-			result.alternatives.push_back(std::move(combination));
-		}
-		if (comma == std::string_view::npos) {
-			break;
-		}
-		alternative_start = comma + 1;
-	}
-	return result;
-}
-
-template <typename TEnum, typename TDown>
-[[nodiscard]] bool MatchesPressedOrHeldCombination(
-	TEnum event_value,
-	const ParsedEnumExpression<TEnum>& expression,
-	TDown&& is_down
-) {
-	return std::ranges::any_of(expression.alternatives, [&](const auto& combination) {
-		return std::ranges::contains(combination, event_value) &&
-			std::ranges::all_of(combination, [&](TEnum value) {
-				return std::invoke(is_down, value);
-			});
-	});
-}
-
-template <typename TEnum, typename TDown>
-[[nodiscard]] bool MatchesReleasedCombination(
-	TEnum event_value,
-	const ParsedEnumExpression<TEnum>& expression,
-	TDown&& is_down
-) {
-	return std::ranges::any_of(expression.alternatives, [&](const auto& combination) {
-		return std::ranges::contains(combination, event_value) &&
-			std::ranges::none_of(combination, [&](TEnum value) {
-				return std::invoke(is_down, value);
-			});
-	});
-}
-
-struct InclusionFilter {
-	std::vector<std::string> included_tags;
-	std::vector<std::string> excluded_tags;
-	std::vector<int> included_masks;
-	std::vector<int> excluded_masks;
-	std::vector<std::string> invalid_masks;
-};
-
-inline void ParseTagTokens(
-	std::string_view text,
-	std::vector<std::string>& included,
-	std::vector<std::string>& excluded
-) {
-	std::size_t start{};
-	while (start <= text.size()) {
-		const std::size_t comma{ text.find(',', start) };
-		const std::size_t finish{ comma == std::string_view::npos ? text.size() : comma };
-		std::string_view token{ TrimView(text.substr(start, finish - start)) };
-		bool is_excluded{ false };
-		if (!token.empty() && token.front() == '-') {
-			is_excluded = true;
-			token = TrimView(token.substr(1));
-		}
-		if (!token.empty()) {
-			(is_excluded ? excluded : included).emplace_back(token);
-		}
-		if (comma == std::string_view::npos) {
-			break;
-		}
-		start = comma + 1;
-	}
-}
-
-inline void ParseMaskTokens(
-	std::string_view text,
-	std::vector<int>& included,
-	std::vector<int>& excluded,
-	std::vector<std::string>& invalid
-) {
-	std::size_t start{};
-	while (start <= text.size()) {
-		const std::size_t comma{ text.find(',', start) };
-		const std::size_t finish{ comma == std::string_view::npos ? text.size() : comma };
-		std::string_view token{ TrimView(text.substr(start, finish - start)) };
-		bool is_excluded{ false };
-		if (!token.empty() && token.front() == '-') {
-			is_excluded = true;
-			token = TrimView(token.substr(1));
-		}
-		if (!token.empty()) {
-			int value{};
-			const auto [ptr, error]{ std::from_chars(token.data(), token.data() + token.size(), value) };
-			if (error == std::errc{} && ptr == token.data() + token.size()) {
-				(is_excluded ? excluded : included).push_back(value);
-			} else {
-				invalid.emplace_back(token);
-			}
-		}
-		if (comma == std::string_view::npos) {
-			break;
-		}
-		start = comma + 1;
-	}
-}
-
-[[nodiscard]] inline InclusionFilter ParseEntityMaskFilter(const EntityMaskFilter& filter) {
-	InclusionFilter parsed;
-	ParseTagTokens(filter.tags, parsed.included_tags, parsed.excluded_tags);
-	ParseMaskTokens(filter.masks, parsed.included_masks, parsed.excluded_masks, parsed.invalid_masks);
-	return parsed;
-}
-
-[[nodiscard]] inline bool MatchesEntityMaskFilter(
-	ptgn::Entity other,
-	const EntityMaskFilter& filter,
-	const RuntimeHost& host
-) {
-	const InclusionFilter parsed{ ParseEntityMaskFilter(filter) };
-	if (parsed.included_tags.empty() && parsed.excluded_tags.empty() &&
-		parsed.included_masks.empty() && parsed.excluded_masks.empty()) {
-		return false;
-	}
-
-	const std::string_view tag{ other ? host.Tag(other) : std::string_view{} };
-	const int mask{ other ? host.Mask(other) : 0 };
-
-	if (std::ranges::contains(parsed.excluded_tags, tag)) {
-		return false;
-	}
-	for (const int excluded : parsed.excluded_masks) {
-		if ((mask & excluded) != 0) {
-			return false;
-		}
-	}
-
-	const bool tag_matches{ parsed.included_tags.empty() ||
-		std::ranges::contains(parsed.included_tags, tag) };
-	const bool mask_matches{ parsed.included_masks.empty() ||
-		std::ranges::any_of(parsed.included_masks, [mask](int included) {
-			return (mask & included) != 0;
-		}) };
-	return tag_matches && mask_matches;
-}
-
 template <typename TEvent>
-[[nodiscard]] ptgn::Mouse MouseFromEvent(const TEvent& event) {
-	if constexpr (requires { event.button; }) {
-		return static_cast<ptgn::Mouse>(event.button);
-	} else if constexpr (requires { event.mouse; }) {
-		return static_cast<ptgn::Mouse>(event.mouse);
+[[nodiscard]] ptgn::Mouse EventMouse(const TEvent& event) {
+	if constexpr (requires { event.mouse; }) {
+		return event.mouse;
 	} else {
-		return static_cast<ptgn::Mouse>(event);
+		return event.button;
 	}
 }
 
-template <typename TEvent>
-void SetMouseEvent(TEvent& event, ptgn::Mouse mouse) {
-	if constexpr (requires { event.button = mouse; }) {
-		event.button = mouse;
-	} else if constexpr (requires { event.mouse = mouse; }) {
-		event.mouse = mouse;
-	}
-}
-
-template <typename TEvent>
-[[nodiscard]] ptgn::Entity OtherEntity(const TEvent& event) {
-	if constexpr (requires { event.overlap_entity; }) {
-		return event.overlap_entity;
-	} else if constexpr (requires { event.collision.other_entity; }) {
-		return event.collision.other_entity;
-	} else if constexpr (requires { event.collision.other; }) {
-		return event.collision.other;
-	} else if constexpr (requires { event.collision.entity; }) {
-		return event.collision.entity;
-	} else {
-		return {};
-	}
-}
-
-struct PrefabDefinition {
-	Id id{ IdGenerator::Next() };
-	std::string key{ "prefabs/new_entity" };
-	std::string name{ "New Prefab" };
-	std::string tag;
-	std::vector<ComponentDefinition> components;
-	std::optional<ScriptsComponent> scripts;
-};
-
-struct PrefabRegistry {
-	std::vector<PrefabDefinition> definitions;
-
-	[[nodiscard]] PrefabDefinition* Find(std::string_view key) {
-		const auto it{ std::ranges::find_if(definitions, [key](const auto& prefab) {
-			return prefab.key == key;
-		}) };
-		return it == definitions.end() ? nullptr : &*it;
-	}
-
-	[[nodiscard]] const PrefabDefinition* Find(std::string_view key) const {
-		return const_cast<PrefabRegistry*>(this)->Find(key);
-	}
-};
+// Key parsing is driven directly by the reflected ptgn::Key enum.
+inline constexpr auto kEventKeys{ magic_enum::enum_values<ptgn::Key>() };
+static_assert(!kEventKeys.empty(), "ptgn::Key must define at least one reflected value");
 
 enum class SpawnOrigin {
 	OwnerEntity,
 	Position
 };
+PTGN_REFLECT_ENUM(SpawnOrigin);
 
 enum class SpawnArea {
 	Point,
 	Rectangle,
 	Circle
 };
+PTGN_REFLECT_ENUM(SpawnArea);
 
-// Built-in Actions. Each Action affects ActionContext::owner when applicable.
-struct WaitAction {};
+// Built-in Actions. Each action directly owns the entity it affects.
+struct WaitAction final : ScriptAction {
+	PTGN_REFLECT_EMPTY(WaitAction)
+};
 
-struct MoveToAction {
+struct MoveToAction final : ScriptAction {
 	ptgn::V2_float destination{ 0.0f, 64.0f };
 	bool relative{ true };
 
@@ -1700,16 +1210,18 @@ struct MoveToAction {
 	MoveToAction(ptgn::V2_float destination, bool relative) :
 		destination{ destination }, relative{ relative } {}
 
-	void OnStart(ActionContext& context);
-	void OnUpdate(ActionContext& context);
-	void OnRepeat(ActionContext& context);
+	void OnStart() override;
+	ActionStatus OnUpdate() override;
+	void OnRepeat() override;
+
+	PTGN_REFLECT(MoveToAction, destination, relative)
 
 private:
 	ptgn::V2_float start_{};
 	ptgn::V2_float end_{};
 };
 
-struct RotateToAction {
+struct RotateToAction final : ScriptAction {
 	float degrees{ 90.0f };
 	bool shortest_path{ true };
 	bool relative{ false };
@@ -1718,16 +1230,18 @@ struct RotateToAction {
 	RotateToAction(float degrees, bool shortest_path = true, bool relative = false) :
 		degrees{ degrees }, shortest_path{ shortest_path }, relative{ relative } {}
 
-	void OnStart(ActionContext& context);
-	void OnUpdate(ActionContext& context);
-	void OnRepeat(ActionContext& context);
+	void OnStart() override;
+	ActionStatus OnUpdate() override;
+	void OnRepeat() override;
+
+	PTGN_REFLECT(RotateToAction, degrees, shortest_path, relative)
 
 private:
 	float start_degrees_{ 0.0f };
 	float delta_degrees_{ 0.0f };
 };
 
-struct ScaleToAction {
+struct ScaleToAction final : ScriptAction {
 	ptgn::V2_float scale{ 1.0f, 1.0f };
 	bool relative{ false };
 
@@ -1735,75 +1249,116 @@ struct ScaleToAction {
 	ScaleToAction(ptgn::V2_float scale, bool relative = false) :
 		scale{ scale }, relative{ relative } {}
 
-	void OnStart(ActionContext& context);
-	void OnUpdate(ActionContext& context);
-	void OnRepeat(ActionContext& context);
+	void OnStart() override;
+	ActionStatus OnUpdate() override;
+	void OnRepeat() override;
+
+	PTGN_REFLECT(ScaleToAction, scale, relative)
 
 private:
 	ptgn::V2_float start_{};
 	ptgn::V2_float end_{};
 };
 
-/// @brief Action-controlled example: no fixed duration is required.
-struct FollowTargetAction {
+struct FollowTargetAction final : ScriptAction {
 	ptgn::Entity target;
 	float speed{ 120.0f };
 	float stopping_distance{ 2.0f };
 
-	[[nodiscard]] ActionStatus OnUpdate(ActionContext& context);
+	FollowTargetAction() = default;
+	FollowTargetAction(ptgn::Entity target, float speed, float stopping_distance = 2.0f) :
+		target{ target }, speed{ speed }, stopping_distance{ stopping_distance } {}
+
+	[[nodiscard]] ActionStatus OnUpdate() override;
+
+	// Entity serialization is intentionally omitted from the demo inspector.
+	PTGN_REFLECT(FollowTargetAction, target, speed, stopping_distance)
 };
 
-struct NativeAction {
-	std::function<void(ActionContext&)> on_start;
-	std::function<ActionStatus(ActionContext&)> on_update;
-	std::function<void(ActionContext&)> on_complete;
-	std::function<void(ActionContext&, SequenceCancelReason)> on_cancel;
-
-	void OnStart(ActionContext& context) {
-		if (on_start) { on_start(context); }
-	}
-
-	[[nodiscard]] ActionStatus OnUpdate(ActionContext& context) {
-		return on_update ? on_update(context) : ActionStatus::Complete;
-	}
-
-	void OnComplete(ActionContext& context) {
-		if (on_complete) { on_complete(context); }
-	}
-
-	void OnCancel(ActionContext& context, SequenceCancelReason reason) {
-		if (on_cancel) { on_cancel(context, reason); }
-	}
+struct NativeActionCallbacks {
+	std::function<void(ScriptAction&)> on_start;
+	std::function<ActionStatus(ScriptAction&)> on_update;
+	std::function<void(ScriptAction&)> on_complete;
+	std::function<void(ScriptAction&, SequenceCancelReason)> on_cancel;
 };
 
-struct SetVisibleAction {
+struct NativeAction final : ScriptAction {
+	std::shared_ptr<NativeActionCallbacks> callbacks;
+
+	NativeAction() = default;
+	explicit NativeAction(NativeActionCallbacks value) :
+		callbacks{ std::make_shared<NativeActionCallbacks>(std::move(value)) } {}
+
+	void OnStart() override {
+		if (callbacks && callbacks->on_start) {
+			callbacks->on_start(*this);
+		}
+	}
+
+	[[nodiscard]] ActionStatus OnUpdate() override {
+		if (callbacks && callbacks->on_update) {
+			return callbacks->on_update(*this);
+		}
+		return ActionStatus::Complete;
+	}
+
+	void OnComplete() override {
+		if (callbacks && callbacks->on_complete) {
+			callbacks->on_complete(*this);
+		}
+	}
+
+	void OnCancel(SequenceCancelReason reason) override {
+		if (callbacks && callbacks->on_cancel) {
+			callbacks->on_cancel(*this, reason);
+		}
+	}
+
+	PTGN_REFLECT_EMPTY(NativeAction)
+};
+
+struct SetVisibleAction final : ScriptAction {
 	bool visible{ true };
-	void OnStart(ActionContext& context);
+	void OnStart() override;
+
+	PTGN_REFLECT(SetVisibleAction, visible)
 };
 
-struct PlayAudioAction {
+struct PlayAudioAction final : ScriptAction {
 	std::string asset{ "door_open" };
 	float volume{ 1.0f };
 	int loops{ 0 };
-	void OnStart(ActionContext& context);
+	void OnStart() override;
+
+	PTGN_REFLECT(PlayAudioAction, asset, volume, loops)
 };
 
-struct EmitSignalAction {
+struct EmitSignalAction final : ScriptAction {
 	SignalKey signal{ "sequence.completed" };
-	void OnStart(ActionContext& context);
+
+	EmitSignalAction() = default;
+	explicit EmitSignalAction(SignalKey signal) : signal{ std::move(signal) } {}
+
+	void OnStart() override;
+
+	PTGN_REFLECT(EmitSignalAction, signal)
 };
 
-struct AddComponentsAction {
+struct AddComponentsAction final : ScriptAction {
 	std::vector<ComponentDefinition> components;
-	void OnStart(ActionContext& context);
+	void OnStart() override;
+
+	PTGN_REFLECT(AddComponentsAction, components)
 };
 
-struct RemoveComponentsAction {
+struct RemoveComponentsAction final : ScriptAction {
 	std::vector<std::string> components;
-	void OnStart(ActionContext& context);
+	void OnStart() override;
+
+	PTGN_REFLECT(RemoveComponentsAction, components)
 };
 
-struct SpawnEntityAction {
+struct SpawnEntityAction final : ScriptAction {
 	std::string prefab_key{ "prefabs/zombie" };
 	int count{ 1 };
 	SpawnOrigin origin{ SpawnOrigin::OwnerEntity };
@@ -1815,27 +1370,12 @@ struct SpawnEntityAction {
 	bool inherit_owner_rotation{ true };
 	bool inherit_owner_scale{ true };
 	bool random_rotation{ false };
-	void OnStart(ActionContext& context);
-};
+	void OnStart() override;
 
-// Fluent timing modifier for the Action most recently added through ScriptSequence::During().
-class TimedActionBuilder {
-public:
-	TimedActionBuilder& Ease(ptgn::Ease ease);
-	TimedActionBuilder& Repeat(int additional_repeats);
-	TimedActionBuilder& Infinite();
-	TimedActionBuilder& Reversed(bool reversed = true);
-	TimedActionBuilder& Yoyo(bool yoyo = true);
-	ScriptSequence& End();
-
-private:
-	friend struct ScriptSequence;
-	TimedActionBuilder(ScriptSequence& parent, Id action_id) :
-		parent_{ &parent }, action_id_{ action_id } {}
-
-	ActionTiming& Timing();
-	ScriptSequence* parent_{ nullptr };
-	Id action_id_{ 0 };
+	PTGN_REFLECT(
+		SpawnEntityAction, prefab_key, count, origin, area, center, rectangle_size, radius,
+		parent_to_owner, inherit_owner_rotation, inherit_owner_scale, random_rotation
+	)
 };
 
 inline ScriptSequence& ScriptSequence::Reentry(ReentryMode value) {
@@ -1859,15 +1399,19 @@ inline ScriptSequence& ScriptSequence::DestroyOwnerOnComplete(bool value) {
 	return *this;
 }
 
-template <typename TEvent, typename TFilter>
-ScriptSequence& ScriptSequence::StartOn(TFilter filter) {
-	start_events.push_back(EventRegistry::MakeCondition<TEvent>(std::move(filter)));
+inline ScriptSequence& ScriptSequence::StartOn(
+	std::string_view key,
+	ptgn::json value
+) {
+	start_events.push_back(SequenceEventRegistry::MakeCondition(key, std::move(value)));
 	return *this;
 }
 
-template <typename TEvent, typename TFilter>
-ScriptSequence& ScriptSequence::StopOn(TFilter filter) {
-	stop_events.push_back(EventRegistry::MakeCondition<TEvent>(std::move(filter)));
+inline ScriptSequence& ScriptSequence::StopOn(
+	std::string_view key,
+	ptgn::json value
+) {
+	stop_events.push_back(SequenceEventRegistry::MakeCondition(key, std::move(value)));
 	return *this;
 }
 
@@ -1894,14 +1438,57 @@ ScriptSequence& ScriptSequence::Forever(TAction action) {
 }
 
 template <typename TAction>
-TimedActionBuilder ScriptSequence::During(float duration_ms, TAction action) {
+ScriptSequence& ScriptSequence::During(float duration_ms, TAction action) {
 	Action definition{ ActionRegistry::Make<TAction>(std::move(action)) };
 	definition.completion = ActionCompletion::Duration;
 	definition.timing = definition.timing.value_or(ActionTiming{});
 	definition.timing->duration_ms = std::max(0.0f, duration_ms);
-	const Id action_id{ definition.id };
 	actions.push_back(std::move(definition));
-	return TimedActionBuilder{ *this, action_id };
+	return *this;
+}
+
+inline ActionTiming& ScriptSequence::LatestDuringTiming() {
+	auto it{ std::ranges::find_if(
+		actions.rbegin(),
+		actions.rend(),
+		[](const Action& action) {
+			return action.timing.has_value() &&
+				action.completion == ActionCompletion::Duration &&
+				action.type_hash != ptgn::Hash<WaitAction>();
+		}
+	) };
+	PTGN_ASSERT(
+		it != actions.rend(),
+		"Ease, Repeat, Infinite, Reversed, and Yoyo require a preceding During call"
+	);
+	return *it->timing;
+}
+
+inline ScriptSequence& ScriptSequence::Ease(ptgn::Ease value) {
+	LatestDuringTiming().ease = value;
+	return *this;
+}
+
+inline ScriptSequence& ScriptSequence::Repeat(int additional_repeats) {
+	auto& timing{ LatestDuringTiming() };
+	timing.additional_repeats = std::max(0, additional_repeats);
+	timing.infinite_repeats = false;
+	return *this;
+}
+
+inline ScriptSequence& ScriptSequence::Infinite() {
+	LatestDuringTiming().infinite_repeats = true;
+	return *this;
+}
+
+inline ScriptSequence& ScriptSequence::Reversed(bool value) {
+	LatestDuringTiming().reversed = value;
+	return *this;
+}
+
+inline ScriptSequence& ScriptSequence::Yoyo(bool value) {
+	LatestDuringTiming().yoyo = value;
+	return *this;
 }
 
 inline ScriptSequence& ScriptSequence::Wait(float duration_ms) {
@@ -1914,71 +1501,28 @@ inline ScriptSequence& ScriptSequence::Wait(float duration_ms) {
 }
 
 inline ScriptSequence& ScriptSequence::EmitSignal(SignalKey signal) {
-	return Then(EmitSignalAction{ .signal = std::move(signal) });
+	return Then(EmitSignalAction{ std::move(signal) });
 }
 
-inline ActionTiming& ScriptSequence::FindTiming(Id action_id) {
-	auto it{ std::ranges::find_if(actions, [action_id](const auto& action) {
-		return action.id == action_id;
-	}) };
-	if (it == actions.end() || !it->timing) {
-		std::abort();
-	}
-	return *it->timing;
-}
-
-inline ActionTiming& TimedActionBuilder::Timing() {
-	return parent_->FindTiming(action_id_);
-}
-
-inline TimedActionBuilder& TimedActionBuilder::Ease(ptgn::Ease ease) {
-	Timing().ease = ease;
-	return *this;
-}
-
-inline TimedActionBuilder& TimedActionBuilder::Repeat(int additional_repeats) {
-	Timing().additional_repeats = std::max(0, additional_repeats);
-	Timing().infinite_repeats = false;
-	return *this;
-}
-
-inline TimedActionBuilder& TimedActionBuilder::Infinite() {
-	Timing().infinite_repeats = true;
-	return *this;
-}
-
-inline TimedActionBuilder& TimedActionBuilder::Reversed(bool reversed) {
-	Timing().reversed = reversed;
-	return *this;
-}
-
-inline TimedActionBuilder& TimedActionBuilder::Yoyo(bool yoyo) {
-	Timing().yoyo = yoyo;
-	return *this;
-}
-
-inline ScriptSequence& TimedActionBuilder::End() {
-	return *parent_;
-}
-
-void MoveToAction::OnStart(ActionContext& context) {
-	start_ = context.owner.Get<ptgn::Transform>().position;
+void MoveToAction::OnStart() {
+	start_ = Owner().Get<ptgn::Transform>().position;
 	end_ = relative ? start_ + destination : destination;
 }
 
-void MoveToAction::OnUpdate(ActionContext& context) {
-	context.owner.Get<ptgn::Transform>().position =
-		start_ + (end_ - start_) * context.progress;
+ActionStatus MoveToAction::OnUpdate() {
+	Owner().Get<ptgn::Transform>().position =
+		start_ + (end_ - start_) * Progress();
+	return ActionStatus::Running;
 }
 
-void MoveToAction::OnRepeat(ActionContext& context) {
-	if (!context.reversed) {
-		OnStart(context);
+void MoveToAction::OnRepeat() {
+	if (!IsReversed()) {
+		OnStart();
 	}
 }
 
-void RotateToAction::OnStart(ActionContext& context) {
-	start_degrees_ = context.owner.Get<ptgn::Transform>().rotation.ToDeg().value;
+void RotateToAction::OnStart() {
+	start_degrees_ = Owner().Get<ptgn::Transform>().rotation.ToDeg().value;
 	const float end_degrees{ relative ? start_degrees_ + degrees : degrees };
 	delta_degrees_ = end_degrees - start_degrees_;
 	if (shortest_path) {
@@ -1986,46 +1530,48 @@ void RotateToAction::OnStart(ActionContext& context) {
 	}
 }
 
-void RotateToAction::OnUpdate(ActionContext& context) {
-	const float value{ start_degrees_ + delta_degrees_ * context.progress };
-	context.owner.Get<ptgn::Transform>().rotation = ptgn::Degrees{ value }.ToRad();
+ActionStatus RotateToAction::OnUpdate() {
+	const float value{ start_degrees_ + delta_degrees_ * Progress() };
+	Owner().Get<ptgn::Transform>().rotation = ptgn::Degrees{ value }.ToRad();
+	return ActionStatus::Running;
 }
 
-void RotateToAction::OnRepeat(ActionContext& context) {
-	if (!context.reversed) {
-		OnStart(context);
+void RotateToAction::OnRepeat() {
+	if (!IsReversed()) {
+		OnStart();
 	}
 }
 
-void ScaleToAction::OnStart(ActionContext& context) {
-	start_ = context.owner.Get<ptgn::Transform>().scale;
+void ScaleToAction::OnStart() {
+	start_ = Owner().Get<ptgn::Transform>().scale;
 	end_ = relative ? start_ * scale : scale;
 }
 
-void ScaleToAction::OnUpdate(ActionContext& context) {
-	context.owner.Get<ptgn::Transform>().scale =
-		start_ + (end_ - start_) * context.progress;
+ActionStatus ScaleToAction::OnUpdate() {
+	Owner().Get<ptgn::Transform>().scale =
+		start_ + (end_ - start_) * Progress();
+	return ActionStatus::Running;
 }
 
-void ScaleToAction::OnRepeat(ActionContext& context) {
-	if (!context.reversed) {
-		OnStart(context);
+void ScaleToAction::OnRepeat() {
+	if (!IsReversed()) {
+		OnStart();
 	}
 }
 
-ActionStatus FollowTargetAction::OnUpdate(ActionContext& context) {
-	if (!target || !target.Has<ptgn::Transform>() || !context.owner.Has<ptgn::Transform>()) {
+ActionStatus FollowTargetAction::OnUpdate() {
+	if (!target || !target.Has<ptgn::Transform>() || !Owner().Has<ptgn::Transform>()) {
 		return ActionStatus::Complete;
 	}
 
-	auto& position{ context.owner.Get<ptgn::Transform>().position };
+	auto& position{ Owner().Get<ptgn::Transform>().position };
 	const ptgn::V2_float offset{ target.Get<ptgn::Transform>().position - position };
 	const float distance{ std::sqrt(offset.x * offset.x + offset.y * offset.y) };
 	if (distance <= std::max(0.0f, stopping_distance)) {
 		return ActionStatus::Complete;
 	}
 
-	const float step{ std::max(0.0f, speed) * std::max(0.0f, context.delta_seconds) };
+	const float step{ std::max(0.0f, speed) * std::max(0.0f, DeltaSeconds()) };
 	if (step >= distance) {
 		position += offset;
 		return ActionStatus::Complete;
@@ -2035,50 +1581,56 @@ ActionStatus FollowTargetAction::OnUpdate(ActionContext& context) {
 	return ActionStatus::Running;
 }
 
-void SetVisibleAction::OnStart(ActionContext& context) {
-	context.owner.TryAdd<ptgn::Visible>().visible = visible;
+void SetVisibleAction::OnStart() {
+	ptgn::SetVisible(Owner(), visible);
 }
 
-void PlayAudioAction::OnStart(ActionContext& context) {
-	context.host.Log(
-		std::string{ context.host.Name(context.owner) } + " played " + asset +
-		" (volume " + std::to_string(volume) + ", loops " + std::to_string(loops) + ")"
+void PlayAudioAction::OnStart() {
+	LogScriptActivity(
+		GetScene(),
+		std::string{ GetEntityName(Owner()) } + " played " + asset +
+			" (volume " + std::to_string(volume) + ", loops " + std::to_string(loops) + ")"
 	);
 }
 
-void EmitSignalAction::OnStart(ActionContext& context) {
-	if (context.scene) {
-		context.scene->PushGlobal<Signal>(Signal{ signal }, context.owner);
-		return;
-	}
-	context.host.Queue(EventRegistry::MakeEvent<Signal>(
-		Signal{ signal }, std::nullopt, context.owner, EventDelivery::Broadcast
-	));
+void EmitSignalAction::OnStart() {
+	GetScene().ctx().event.PushGlobal<Signal>(Signal{ signal });
 }
 
-void AddComponentsAction::OnStart(ActionContext& context) {
+void AddComponentsAction::OnStart() {
 	for (const auto& component : components) {
+		if (component.apply_live) {
+			component.apply_live(Owner());
+			continue;
+		}
 		const auto* registration{ ptgn::ComponentRegistry::Find(component.type) };
-		if (registration && registration->deserialize) {
-			registration->deserialize(component.value, context.owner);
+		if (!registration) {
+			continue;
+		}
+		if (registration->is_empty && registration->add_default) {
+			registration->add_default(Owner());
+		} else if (registration->deserialize && !component.value.is_null()) {
+			registration->deserialize(component.value, Owner());
+		} else if (registration->add_default) {
+			registration->add_default(Owner());
 		}
 	}
 }
 
-void RemoveComponentsAction::OnStart(ActionContext& context) {
+void RemoveComponentsAction::OnStart() {
 	for (const auto& name : components) {
 		if (const auto* registration{ ptgn::ComponentRegistry::Find(name) }) {
-			registration->remove(context.owner);
+			registration->remove(Owner());
 		}
 	}
 }
 
-void SpawnEntityAction::OnStart(ActionContext& context) {
+void SpawnEntityAction::OnStart() {
 	static std::mt19937 generator{ std::random_device{}() };
 	std::uniform_real_distribution<float> unit{ 0.0f, 1.0f };
 	const ptgn::V2_float base{
 		origin == SpawnOrigin::OwnerEntity
-			? context.owner.Get<ptgn::Transform>().position + center
+			? Owner().Get<ptgn::Transform>().position + center
 			: center
 	};
 
@@ -2093,82 +1645,24 @@ void SpawnEntityAction::OnStart(ActionContext& context) {
 			position += ptgn::V2_float{ std::cos(angle), std::sin(angle) } * distance;
 		}
 
-		context.host.SpawnPrefab(PrefabSpawnRequest{
-			.prefab_key = prefab_key,
-			.owner = context.owner,
-			.position = position,
-			.parent_to_owner = parent_to_owner,
-			.inherit_owner_rotation = inherit_owner_rotation,
-			.inherit_owner_scale = inherit_owner_scale,
-			.random_rotation = random_rotation,
-		});
+		(void)SpawnScriptPrefab(
+			GetScene(),
+			PrefabSpawnRequest{
+				.prefab_key = prefab_key,
+				.owner = Owner(),
+				.position = position,
+				.parent_to_owner = parent_to_owner,
+				.inherit_owner_rotation = inherit_owner_rotation,
+				.inherit_owner_scale = inherit_owner_scale,
+				.random_rotation = random_rotation,
+			}
+		);
 	}
 }
 
-/// @brief Minimal scene shell that owns the ECS manager and scene-scoped services.
-///
-/// Script mutations and events are double buffered: changes generated during a pass are applied or
-/// dispatched only after the active iteration finishes. The second dispatch pass allows Actions to
-/// emit Events that are still observed in the same frame without mutating an active queue.
-class Scene {
-public:
-	Scene() : context_{
-		.host = nullptr,
-		.manager = manager_,
-		.local_events = local_events_,
-		.global_events = global_events_,
-	} {}
-	virtual ~Scene() = default;
-
-	void BindRuntimeHost(RuntimeHost& host) { context_.host = &host; }
-
-	[[nodiscard]] SceneContext& Context() { return context_; }
-	[[nodiscard]] const SceneContext& Context() const { return context_; }
-	[[nodiscard]] ptgn::Manager& Manager() { return manager_; }
-
-	void Update(float delta_seconds) {
-		ApplyPendingScriptChanges();
-		OnBeforeScriptUpdate(delta_seconds);
-
-		BeginEventDispatch();
-		DispatchBufferedEvents();
-
-		UpdateResidentScripts(delta_seconds);
-		UpdateScriptSequences(delta_seconds);
-
-		ApplyPendingScriptChanges();
-		BeginEventDispatch();
-		DispatchBufferedEvents();
-
-		OnAfterScriptUpdate(delta_seconds);
-	}
-
-protected:
-	virtual void OnBeforeScriptUpdate(float) {}
-	virtual void UpdateResidentScripts(float) = 0;
-	virtual void UpdateScriptSequences(float) = 0;
-	virtual void ApplyPendingScriptChanges() = 0;
-	virtual void DispatchBufferedEvents() = 0;
-	virtual void OnAfterScriptUpdate(float) {}
-
-	void BeginEventDispatch() {
-		local_events_.BeginDispatch();
-		global_events_.BeginDispatch();
-	}
-
-	ptgn::Manager manager_;
-	LocalEventHandler local_events_;
-	GlobalEventHandler global_events_;
-	SceneContext context_;
-};
-
-/// @brief Runtime-only replacement for the old generic TweenTo(getter, setter) helper.
-///
-/// The generated NativeAction is deliberately non-serializable, while concrete editor actions such
-/// as MoveToAction and ScaleToAction remain registry-backed and serializable.
+/// @brief Runtime-only property tween helper used from custom C++ scripts.
 template <typename T, typename TGetter, typename TSetter>
 SequenceHandle PropertyTo(
-	SceneContext& context,
 	ptgn::Entity entity,
 	SequenceChannelKey channel,
 	T target,
@@ -2178,7 +1672,7 @@ SequenceHandle PropertyTo(
 	ptgn::Ease ease = ptgn::Ease::Linear,
 	bool force = true
 ) {
-	if (!context.host || !entity) {
+	if (!entity) {
 		return {};
 	}
 
@@ -2189,21 +1683,21 @@ SequenceHandle PropertyTo(
 	auto state{ std::make_shared<State>() };
 	state->target = std::move(target);
 
-	NativeAction action{
-		.on_start = [state, getter = std::move(getter)](ActionContext& action_context) mutable {
-			state->start = std::invoke(getter, action_context.owner);
+	NativeAction action{ NativeActionCallbacks{
+		.on_start = [state, getter = std::move(getter)](ScriptAction& action) mutable {
+			state->start = std::invoke(getter, action.Owner());
 		},
-		.on_update = [state, setter = std::move(setter)](ActionContext& action_context) mutable {
+		.on_update = [state, setter = std::move(setter)](ScriptAction& action) mutable {
 			std::invoke(
 				setter,
-				action_context.owner,
-				state->start + (state->target - state->start) * action_context.progress
+				action.Owner(),
+				state->start + (state->target - state->start) * action.Progress()
 			);
-			return action_context.linear_progress >= 1.0f
+			return action.LinearProgress() >= 1.0f
 				? ActionStatus::Complete
 				: ActionStatus::Running;
 		},
-	};
+	} };
 
 	ScriptSequence sequence{ "Property To" };
 	sequence
@@ -2211,14 +1705,15 @@ SequenceHandle PropertyTo(
 		.Transient()
 		.During(duration_ms, std::move(action))
 		.Ease(ease);
-	return context.host->RunInChannel(
-		entity, std::move(channel), std::move(sequence),
+	return script_runtime::RunInChannel(
+		entity,
+		std::move(channel),
+		std::move(sequence),
 		force ? ReentryMode::Restart : ReentryMode::Queue
 	);
 }
 
 inline SequenceHandle TranslateTo(
-	SceneContext& context,
 	ptgn::Entity entity,
 	ptgn::V2_float destination,
 	float duration_ms,
@@ -2226,7 +1721,7 @@ inline SequenceHandle TranslateTo(
 	bool force = true,
 	bool relative = false
 ) {
-	if (!context.host || !entity) {
+	if (!entity) {
 		return {};
 	}
 	ScriptSequence sequence{ "Translate To" };
@@ -2235,14 +1730,15 @@ inline SequenceHandle TranslateTo(
 		.Transient()
 		.During(duration_ms, MoveToAction{ destination, relative })
 		.Ease(ease);
-	return context.host->RunInChannel(
-		entity, *sequence.channel, std::move(sequence),
+	return script_runtime::RunInChannel(
+		entity,
+		*sequence.channel,
+		std::move(sequence),
 		force ? ReentryMode::Restart : ReentryMode::Queue
 	);
 }
 
 inline SequenceHandle RotateTo(
-	SceneContext& context,
 	ptgn::Entity entity,
 	float degrees,
 	float duration_ms,
@@ -2251,7 +1747,7 @@ inline SequenceHandle RotateTo(
 	bool shortest_path = true,
 	bool relative = false
 ) {
-	if (!context.host || !entity) {
+	if (!entity) {
 		return {};
 	}
 	ScriptSequence sequence{ "Rotate To" };
@@ -2260,14 +1756,15 @@ inline SequenceHandle RotateTo(
 		.Transient()
 		.During(duration_ms, RotateToAction{ degrees, shortest_path, relative })
 		.Ease(ease);
-	return context.host->RunInChannel(
-		entity, *sequence.channel, std::move(sequence),
+	return script_runtime::RunInChannel(
+		entity,
+		*sequence.channel,
+		std::move(sequence),
 		force ? ReentryMode::Restart : ReentryMode::Queue
 	);
 }
 
 inline SequenceHandle ScaleTo(
-	SceneContext& context,
 	ptgn::Entity entity,
 	ptgn::V2_float scale,
 	float duration_ms,
@@ -2275,7 +1772,7 @@ inline SequenceHandle ScaleTo(
 	bool force = true,
 	bool relative = false
 ) {
-	if (!context.host || !entity) {
+	if (!entity) {
 		return {};
 	}
 	ScriptSequence sequence{ "Scale To" };
@@ -2284,41 +1781,39 @@ inline SequenceHandle ScaleTo(
 		.Transient()
 		.During(duration_ms, ScaleToAction{ scale, relative })
 		.Ease(ease);
-	return context.host->RunInChannel(
-		entity, *sequence.channel, std::move(sequence),
+	return script_runtime::RunInChannel(
+		entity,
+		*sequence.channel,
+		std::move(sequence),
 		force ? ReentryMode::Restart : ReentryMode::Queue
 	);
 }
 
 inline SequenceHandle Follow(
-	SceneContext& context,
 	ptgn::Entity entity,
 	ptgn::Entity target,
 	float speed,
 	float stopping_distance = 2.0f,
 	bool force = true
 ) {
-	if (!context.host || !entity) {
+	if (!entity) {
 		return {};
 	}
 	ScriptSequence sequence{ "Follow Target" };
 	sequence
 		.Channel(SequenceChannelKey{ "movement.follow" })
 		.Transient()
-		.UntilComplete(FollowTargetAction{
-			.target = target,
-			.speed = speed,
-			.stopping_distance = stopping_distance,
-		});
-	return context.host->RunInChannel(
-		entity, *sequence.channel, std::move(sequence),
+		.UntilComplete(FollowTargetAction{ target, speed, stopping_distance });
+	return script_runtime::RunInChannel(
+		entity,
+		*sequence.channel,
+		std::move(sequence),
 		force ? ReentryMode::Restart : ReentryMode::Queue
 	);
 }
 
 template <std::ranges::input_range TRange>
 std::vector<SequenceHandle> TranslateTo(
-	SceneContext& context,
 	TRange&& entities,
 	ptgn::V2_float destination,
 	float duration_ms,
@@ -2329,7 +1824,7 @@ std::vector<SequenceHandle> TranslateTo(
 	std::vector<SequenceHandle> handles;
 	for (ptgn::Entity entity : entities) {
 		handles.push_back(TranslateTo(
-			context, entity, destination, duration_ms, ease, force, relative
+			entity, destination, duration_ms, ease, force, relative
 		));
 	}
 	return handles;
@@ -2337,7 +1832,6 @@ std::vector<SequenceHandle> TranslateTo(
 
 template <std::ranges::input_range TRange>
 std::vector<SequenceHandle> RotateTo(
-	SceneContext& context,
 	TRange&& entities,
 	float degrees,
 	float duration_ms,
@@ -2349,7 +1843,7 @@ std::vector<SequenceHandle> RotateTo(
 	std::vector<SequenceHandle> handles;
 	for (ptgn::Entity entity : entities) {
 		handles.push_back(RotateTo(
-			context, entity, degrees, duration_ms, ease, force, shortest_path, relative
+			entity, degrees, duration_ms, ease, force, shortest_path, relative
 		));
 	}
 	return handles;
@@ -2357,7 +1851,6 @@ std::vector<SequenceHandle> RotateTo(
 
 template <std::ranges::input_range TRange>
 std::vector<SequenceHandle> ScaleTo(
-	SceneContext& context,
 	TRange&& entities,
 	ptgn::V2_float scale,
 	float duration_ms,
@@ -2368,19 +1861,18 @@ std::vector<SequenceHandle> ScaleTo(
 	std::vector<SequenceHandle> handles;
 	for (ptgn::Entity entity : entities) {
 		handles.push_back(ScaleTo(
-			context, entity, scale, duration_ms, ease, force, relative
+			entity, scale, duration_ms, ease, force, relative
 		));
 	}
 	return handles;
 }
 
 inline SequenceHandle After(
-	SceneContext& context,
 	ptgn::Entity owner,
 	float delay_ms,
-	std::function<void(ActionContext&)> callback
+	std::function<void(ScriptAction&)> callback
 ) {
-	if (!context.host || !owner) {
+	if (!owner) {
 		return {};
 	}
 
@@ -2388,22 +1880,46 @@ inline SequenceHandle After(
 	sequence
 		.Transient()
 		.Wait(delay_ms)
-		.Then(NativeAction{ .on_start = std::move(callback) });
-	return context.host->RunSequence(owner, std::move(sequence));
+		.Then(NativeAction{ NativeActionCallbacks{ .on_start = std::move(callback) } });
+	return script_runtime::RunSequence(owner, std::move(sequence));
 }
 
 inline void StopChannel(
-	RuntimeHost& host,
 	ptgn::Entity entity,
 	SequenceChannelKey channel,
 	SequenceStopMode mode = SequenceStopMode::All
 ) {
-	host.StopSequenceChannel(entity, std::move(channel), mode);
+	script_runtime::StopChannel(entity, std::move(channel), mode);
 }
+
+struct PrefabDefinition {
+	std::string key{ "prefabs/new_entity" };
+	std::string name{ "New Prefab" };
+	std::string tag;
+	std::vector<ComponentDefinition> components;
+	std::optional<ScriptsComponent> scripts;
+
+	PTGN_REFLECT(PrefabDefinition, key, name, tag, components, scripts)
+};
+
+struct PrefabRegistry {
+	std::vector<PrefabDefinition> definitions;
+
+	[[nodiscard]] PrefabDefinition* Find(std::string_view key) {
+		const auto it{ std::ranges::find_if(definitions, [key](const auto& prefab) {
+			return prefab.key == key;
+		}) };
+		return it == definitions.end() ? nullptr : &*it;
+	}
+
+	[[nodiscard]] const PrefabDefinition* Find(std::string_view key) const {
+		return const_cast<PrefabRegistry*>(this)->Find(key);
+	}
+};
 
 namespace editor {
 
-struct EditorContext;
+struct EditorContextTemp;
 
 struct EditorVisual {
 	ImVec4 color{ 0.35f, 0.43f, 0.57f, 1.0f };
@@ -2447,42 +1963,61 @@ struct EventEditorOptions {
 };
 
 struct EventEditorRegistration {
+	TypeHashValue type_hash{ 0 };
 	std::string key;
 	EventEditorOptions options;
-	std::function<bool(TypedValue&)> draw_filter;
-	std::function<bool(TypedValue&)> draw_payload;
+	int inline_fields{ 0 };
+	std::function<bool(ptgn::json&)> draw;
 };
 
 class EventEditorRegistry {
 public:
-	template <typename TFilter, typename TEvent, typename FFilter, typename FPayload>
+	template <typename F>
 	static bool Register(
 		std::string key,
 		EventEditorOptions options,
-		FFilter&& draw_filter,
-		FPayload&& draw_payload
+		int inline_fields,
+		F&& draw
 	) {
 		auto& entries{ MutableEntries() };
-		if (Find(key)) {
-			return false;
-		}
-		entries.push_back(EventEditorRegistration{
-			.key = std::move(key),
-			.options = std::move(options),
-			.draw_filter = [fn = std::forward<FFilter>(draw_filter)](TypedValue& value) mutable {
-				return std::invoke(fn, value.Get<TFilter>());
-			},
-			.draw_payload = [fn = std::forward<FPayload>(draw_payload)](TypedValue& value) mutable {
-				return std::invoke(fn, value.Get<TEvent>());
-			},
+		const TypeHashValue type_hash{ ptgn::Hash(std::string_view{ key }) };
+		const bool inserted{ !Find(key) };
+
+		std::erase_if(entries, [&](const EventEditorRegistration& entry) {
+			return entry.key == key || entry.type_hash == type_hash;
 		});
-		return true;
+
+		entries.push_back(
+			EventEditorRegistration{
+				.type_hash = type_hash,
+				.key = std::move(key),
+				.options = std::move(options),
+				.inline_fields = std::max(0, inline_fields),
+				.draw = [fn = std::forward<F>(draw)](ptgn::json& value) mutable {
+					if (value.is_null()) {
+						value = ptgn::json::object();
+					}
+					const ptgn::json previous{ value };
+					const bool changed{ std::invoke(fn, value) };
+					return changed || value != previous;
+				},
+			}
+		);
+		return inserted;
 	}
 
 	[[nodiscard]] static const EventEditorRegistration* Find(std::string_view key) {
 		const auto& entries{ Entries() };
 		const auto it{ std::ranges::find_if(entries, [key](const auto& entry) {
 			return entry.key == key;
+		}) };
+		return it == entries.end() ? nullptr : &*it;
+	}
+
+	[[nodiscard]] static const EventEditorRegistration* Find(TypeHashValue type_hash) {
+		const auto& entries{ Entries() };
+		const auto it{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
 		}) };
 		return it == entries.end() ? nullptr : &*it;
 	}
@@ -2507,32 +2042,70 @@ struct ActionEditorOptions {
 };
 
 struct ActionEditorRegistration {
+	TypeHashValue type_hash{ 0 };
 	std::string key;
 	ActionEditorOptions options;
-	std::function<bool(TypedValue&, EditorContext&)> draw_inline;
-	std::function<bool(TypedValue&, EditorContext&)> draw;
+	std::function<bool(ptgn::json&, EditorContextTemp&)> draw_inline;
+	std::function<bool(ptgn::json&, EditorContextTemp&)> draw;
 };
+
+template <typename T>
+struct TypedJsonEditorState {
+	T value{};
+	ptgn::json synchronized_value;
+	bool initialized{ false };
+};
+
+template <typename T, typename F>
+bool DrawTypedJsonEditor(
+	ptgn::json& input,
+	EditorContextTemp& context,
+	F& fn
+) {
+	static std::unordered_map<const ptgn::json*, TypedJsonEditorState<T>> states;
+	auto& state{ states[&input] };
+	if (!state.initialized || state.synchronized_value != input) {
+		state.value = T{};
+		(void)TryReadJson(input, state.value);
+		state.synchronized_value = input;
+		state.initialized = true;
+	}
+
+	const bool changed{ std::invoke(fn, state.value, context) };
+	ptgn::json updated;
+	try {
+		updated = state.value;
+	} catch (...) {
+		updated = input;
+	}
+	const bool serialized_changed{ updated != input };
+	input = std::move(updated);
+	state.synchronized_value = input;
+	return changed || serialized_changed;
+}
 
 class ActionEditorRegistry {
 public:
 	template <typename T, typename F>
 	static bool Register(std::string key, ActionEditorOptions options, F&& draw) {
 		auto& entries{ MutableEntries() };
-		if (Find(key)) {
-			return false;
-		}
+		const bool inserted{ !Find(key) };
+		std::erase_if(entries, [&](const ActionEditorRegistration& entry) {
+			return entry.key == key || entry.type_hash == ptgn::Hash<T>();
+		});
 		entries.push_back(ActionEditorRegistration{
+			.type_hash = ptgn::Hash<T>(),
 			.key = std::move(key),
 			.options = std::move(options),
 			.draw_inline = {},
 			.draw = [fn = std::forward<F>(draw)](
-				TypedValue& value,
-				EditorContext& context
+				ptgn::json& input,
+				EditorContextTemp& context
 			) mutable {
-				return std::invoke(fn, value.Get<T>(), context);
+				return DrawTypedJsonEditor<T>(input, context, fn);
 			},
 		});
-		return true;
+		return inserted;
 	}
 
 	template <typename T, typename FInline, typename FDetails>
@@ -2543,26 +2116,28 @@ public:
 		FDetails&& draw_details
 	) {
 		auto& entries{ MutableEntries() };
-		if (Find(key)) {
-			return false;
-		}
+		const bool inserted{ !Find(key) };
+		std::erase_if(entries, [&](const ActionEditorRegistration& entry) {
+			return entry.key == key || entry.type_hash == ptgn::Hash<T>();
+		});
 		entries.push_back(ActionEditorRegistration{
+			.type_hash = ptgn::Hash<T>(),
 			.key = std::move(key),
 			.options = std::move(options),
 			.draw_inline = [fn = std::forward<FInline>(draw_inline)](
-				TypedValue& value,
-				EditorContext& context
+				ptgn::json& input,
+				EditorContextTemp& context
 			) mutable {
-				return std::invoke(fn, value.Get<T>(), context);
+				return DrawTypedJsonEditor<T>(input, context, fn);
 			},
 			.draw = [fn = std::forward<FDetails>(draw_details)](
-				TypedValue& value,
-				EditorContext& context
+				ptgn::json& input,
+				EditorContextTemp& context
 			) mutable {
-				return std::invoke(fn, value.Get<T>(), context);
+				return DrawTypedJsonEditor<T>(input, context, fn);
 			},
 		});
-		return true;
+		return inserted;
 	}
 
 	[[nodiscard]] static const ActionEditorRegistration* Find(std::string_view key) {
@@ -2591,10 +2166,11 @@ struct ScriptEditorOptions {
 };
 
 struct ScriptEditorRegistration {
+	TypeHashValue type_hash{ 0 };
 	std::string key;
 	ScriptEditorOptions options;
 	bool has_contents{ false };
-	std::function<bool(TypedValue&)> draw;
+	std::function<bool(ptgn::json&)> draw;
 };
 
 class ScriptEditorRegistry {
@@ -2602,18 +2178,28 @@ public:
 	template <typename T, typename F>
 	static bool Register(std::string key, ScriptEditorOptions options, F&& draw) {
 		auto& entries{ MutableEntries() };
-		if (Find(key)) {
-			return false;
-		}
+		const bool inserted{ !Find(key) };
+		std::erase_if(entries, [&](const ScriptEditorRegistration& entry) {
+			return entry.key == key || entry.type_hash == ptgn::Hash<T>();
+		});
 		entries.push_back(ScriptEditorRegistration{
+			.type_hash = ptgn::Hash<T>(),
 			.key = std::move(key),
 			.options = std::move(options),
 			.has_contents = !std::is_empty_v<T>,
-			.draw = [fn = std::forward<F>(draw)](TypedValue& value) mutable {
-				return std::invoke(fn, value.Get<T>());
+			.draw = [fn = std::forward<F>(draw)](ptgn::json& input) mutable {
+				T value{};
+				if (!TryReadJson(input, value)) {
+					input = value;
+				}
+				if (!std::invoke(fn, value)) {
+					return false;
+				}
+				input = std::move(value);
+				return true;
 			},
 		});
-		return true;
+		return inserted;
 	}
 
 	[[nodiscard]] static const ScriptEditorRegistration* Find(std::string_view key) {
@@ -2635,213 +2221,389 @@ private:
 	}
 };
 
+struct PointerFrame {
+	ptgn::V2_float world_position{};
+	bool inside_scene{ false };
+	std::array<bool, 3> pressed{};
+	std::array<bool, 3> released{};
+};
+
 class EditorHost {
 public:
 	virtual ~EditorHost() = default;
 
 	[[nodiscard]] virtual PrefabRegistry& GetPrefabs() = 0;
 	[[nodiscard]] virtual SharedScriptSequenceRegistry& GetSharedSequences() = 0;
-	[[nodiscard]] virtual const std::vector<ptgn::Entity>& Entities() const = 0;
+	[[nodiscard]] virtual std::vector<ptgn::Entity> Entities() const = 0;
 	[[nodiscard]] virtual std::vector<std::string> ActivityText() const = 0;
 	[[nodiscard]] virtual std::string_view Name(ptgn::Entity entity) const = 0;
 	[[nodiscard]] virtual EditorVisual Visual(ptgn::Entity entity) const = 0;
 	[[nodiscard]] virtual std::string& EditableName(ptgn::Entity entity) = 0;
 	[[nodiscard]] virtual std::string& EditableTag(ptgn::Entity entity) = 0;
 	virtual ptgn::Entity CreateEntity(std::string name, std::string tag = {}) = 0;
-	[[nodiscard]] virtual ScriptSequence* Resolve(ScriptSequence& binding) = 0;
-	[[nodiscard]] virtual const ScriptSequence* Resolve(const ScriptSequence& binding) const = 0;
+	[[nodiscard]] virtual ScriptSequence* Resolve(
+		ptgn::Entity owner, ScriptSequence& binding
+	) = 0;
+	[[nodiscard]] virtual const ScriptSequence* Resolve(
+		ptgn::Entity owner, const ScriptSequence& binding
+	) const = 0;
 	virtual void Start(ptgn::Entity owner, ScriptSequence& binding, bool force = false) = 0;
 	virtual void Stop(ptgn::Entity owner, ScriptSequence& binding, bool log = true) = 0;
 	virtual void SetPaused(ptgn::Entity owner, ScriptSequence& binding, bool paused) = 0;
-	[[nodiscard]] virtual float Progress(const ScriptSequence& binding) const = 0;
+	[[nodiscard]] virtual float Progress(
+		ptgn::Entity owner, const ScriptSequence& binding
+	) const = 0;
 	virtual void SubmitPointerFrame(PointerFrame frame) = 0;
-	virtual void RegisterEditorExtensions() = 0;
 };
 
-struct EditorContext {
+struct EditorContextTemp {
 	EditorHost& host;
 	PrefabRegistry& prefabs;
 };
 
+// Wraps any registry call while preserving its return value. This keeps all
+// registration sites visually consistent, including direct editor-only registrations.
+#define PTGN_REGISTER(...) (__VA_ARGS__)
+
+template <typename T>
+struct ActionRegistrationOptions {
+	std::string key;
+	bool supports_timing{ false };
+	bool requires_timing{ false };
+	std::optional<ActionTiming> default_timing;
+	ActionCompletion completion{ ActionCompletion::Instant };
+	bool serializable{ true };
+	ActionEditorOptions editor;
+	std::function<bool(T&, EditorContextTemp&)> draw_inline;
+	std::function<bool(T&, EditorContextTemp&)> draw;
+};
+
+template <typename T>
+bool RegisterAction(ActionRegistrationOptions<T> options) {
+	const std::string key{ options.key };
+	const bool runtime_registered{ PTGN_REGISTER(
+		ActionRegistry::Register<T>(
+			key, options.supports_timing, options.requires_timing, options.default_timing,
+			options.completion, options.serializable
+		)
+	) };
+
+	std::function<bool(T&, EditorContextTemp&)> draw{ std::move(options.draw) };
+
+	if (!draw) {
+		draw = [](T&, EditorContextTemp&) {
+			return false;
+		};
+	}
+
+	if (options.draw_inline) {
+		PTGN_REGISTER(
+			ActionEditorRegistry::RegisterInline<T>(
+				key, std::move(options.editor), std::move(options.draw_inline), std::move(draw)
+			)
+		);
+	} else {
+		PTGN_REGISTER(
+			ActionEditorRegistry::Register<T>(
+				key, std::move(options.editor), std::move(draw)
+			)
+		);
+	}
+	return runtime_registered;
+}
+
+template <typename... TComponent>
+[[nodiscard]] std::function<bool(ptgn::Entity)> RequireComponents() {
+	return [](ptgn::Entity entity) {
+		return (entity.Has<TComponent>() && ...);
+	};
+}
+
+template <typename TEvent>
+struct EventRegistrationOptions {
+	std::string key;
+	EventEditorOptions editor;
+	ptgn::json default_value{ ptgn::json::object() };
+	int inline_fields{ 0 };
+	std::function<bool(ptgn::Entity, const ptgn::json&, const TEvent&)> matches;
+	std::function<bool(ptgn::json&)> draw{
+		[](ptgn::json&) {
+			return false;
+		}
+	};
+	std::function<bool(ptgn::Entity)> available{
+		[](ptgn::Entity) {
+			return true;
+		}
+	};
+};
+
+template <typename TEvent>
+bool RegisterEvent(EventRegistrationOptions<TEvent> options) {
+	const std::string key{ options.key };
+	const bool runtime_registered{ PTGN_REGISTER(
+		SequenceEventRegistry::Register<TEvent>(
+			key,
+			std::move(options.default_value),
+			std::move(options.matches),
+			std::move(options.available)
+		)
+	) };
+
+	PTGN_REGISTER(
+		EventEditorRegistry::Register(
+			key,
+			std::move(options.editor),
+			options.inline_fields,
+			std::move(options.draw)
+		)
+	);
+	return runtime_registered;
+}
+
+template <typename T>
+struct ScriptRegistrationOptions {
+	std::string key;
+	ScriptEditorOptions editor;
+	// Custom Script drawers are opt-in. This avoids instantiating the generic
+	// reflected drawer for Script types that contain registry-backed JSON values.
+	std::function<bool(T&)> draw{ [](T&) { return false; } };
+};
+
+template <typename T>
+bool RegisterScript(ScriptRegistrationOptions<T> options) {
+	const std::string key{ options.key };
+	const bool runtime_registered{
+		PTGN_REGISTER(ScriptRegistry::Register<T>(key))
+	};
+	PTGN_REGISTER(
+		ScriptEditorRegistry::Register<T>(
+			key, std::move(options.editor), std::move(options.draw)
+		)
+	);
+	return runtime_registered;
+}
+
+#define PTGN_REGISTER_ACTION(Type, ...)                                      \
+	(void)PTGN_REGISTER(::ptgn::editor::RegisterAction<Type>(                  \
+		::ptgn::editor::ActionRegistrationOptions<Type> __VA_ARGS__               \
+	))
+
+#define PTGN_REGISTER_EVENT(EventType, ...)                                  \
+	(void)PTGN_REGISTER(::ptgn::editor::RegisterEvent<EventType>(                \
+		::ptgn::editor::EventRegistrationOptions<EventType> __VA_ARGS__              \
+	))
+
+#define PTGN_REGISTER_SCRIPT(Type, ...)                                      \
+	(void)PTGN_REGISTER(::ptgn::editor::RegisterScript<Type>(                  \
+		::ptgn::editor::ScriptRegistrationOptions<Type> __VA_ARGS__               \
+	))
+
+enum class ActionForm {
+	Action,
+	Tween,
+	Delay
+};
+
+struct ActionDragPayload {
+	int index;
+};
+
+struct DurationEditState {
+	std::array<char, 32> buffer{};
+	bool initialized{ false };
+	bool was_active{ false };
+};
+
+inline constexpr std::array kReentryLabels{ "Ignore", "Restart", "Queue" };
+inline constexpr std::array kLifecycleLabels{
+	"On Start", "On Complete", "On Reset", "On Stop", "On Pause",
+	"On Resume", "On Action Start", "On Action Complete", "On Action Cancel",
+	"On Repeat", "On Yoyo"
+};
+inline constexpr std::array kActionFormLabels{ "Action", "Tween", "Delay" };
+inline constexpr std::array kEaseEntries{
+	std::pair{ ptgn::Ease::Linear, "Linear" },
+	std::pair{ ptgn::Ease::InQuad, "In Quad" },
+	std::pair{ ptgn::Ease::OutQuad, "Out Quad" },
+	std::pair{ ptgn::Ease::InOutQuad, "In-Out Quad" },
+	std::pair{ ptgn::Ease::OutCubic, "Out Cubic" },
+	std::pair{ ptgn::Ease::OutBack, "Out Back" },
+};
+
+struct DemoEditorState {
+	int selected_entity{ 0 };
+	int selected_prefab{ -1 };
+	bool inspect_prefab{ false };
+	bool show_runtime_controls{ false };
+	std::optional<SequenceId> editing_sequence_name;
+	std::string editing_sequence_original_name;
+	std::unordered_map<SequenceId, bool> sequence_open_states;
+};
+
+struct DemoEditorDrawContext {
+	EditorContextTemp& context;
+	DemoEditorState& state;
+};
+
+void RegisterEditorTypes();
+void DrawItemTooltip(const char* text);
+bool DrawDurationInput(
+	const char* label, float& milliseconds, float width, const char* tooltip
+);
+float CompactControlSpacing();
+void SameLineControl();
+float EnabledDeleteControlsWidth();
+bool DrawEnabledDeleteControls(
+	bool& enabled, const char* enabled_tooltip, const char* delete_tooltip
+);
+bool DrawCenteredTextButton(const char* id, const char* text, ImVec2 size);
+bool DrawToggleButton(
+	const char* label, bool& value, ImVec2 size, const char* tooltip
+);
+float GetHalfRowWidth();
+float GetCountControlWidth(const char* label);
+void DrawCountControl(
+	const char* label, int& value, int minimum, int maximum = 100,
+	bool disabled = false, const char* tooltip = nullptr
+);
+bool DrawAddableSectionHeader(
+	const char* id, const char* label, bool default_open, bool empty,
+	const char* section_tooltip, const char* empty_tooltip,
+	const char* add_tooltip, bool& add_requested
+);
+bool DrawUnframedSectionHeader(
+	const char* id, const char* label, bool default_open, bool empty,
+	const char* tooltip, bool show_add_button,
+	const char* add_tooltip, bool& add_requested
+);
+void DrawSelectedItemsTooltip(std::span<const std::string> items);
+ActionForm GetActionForm(const Action& action);
+void SetActionForm(Action& action, ActionForm form);
+std::string ActionSummary(const Action& action);
+void MoveAction(std::vector<Action>& actions, int from, int to);
+bool DrawAddComponentButton(AddComponentsAction& action, const char* popup_id);
+
+[[nodiscard]] ptgn::Entity SelectedEntity(const DemoEditorDrawContext& ui);
+void DrawSidebar(DemoEditorDrawContext& ui);
+void DrawScene(DemoEditorDrawContext& ui);
+void DrawInspector(DemoEditorDrawContext& ui);
+void DrawEntityComponents(DemoEditorDrawContext& ui, ptgn::Entity entity);
+void DrawScripts(
+	DemoEditorDrawContext& ui, ptgn::Entity entity, ScriptsComponent& scripts
+);
+void DrawResidentScripts(
+	DemoEditorDrawContext& ui, ptgn::Entity entity, ScriptsComponent& scripts
+);
+bool DrawSequence(
+	DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& binding
+);
+void DrawRuntimeButtons(
+	DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& binding
+);
+void DrawEvents(
+	DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& sequence
+);
+bool DrawEvent(
+	DemoEditorDrawContext& ui, ptgn::Entity owner, EventCondition& event,
+	bool stop_event, bool& switch_kind
+);
+void DrawActionPicker(
+	DemoEditorDrawContext& ui, Action& action, bool timed_only,
+	float width = -FLT_MIN
+);
+void DrawActionPickerWithInline(
+	DemoEditorDrawContext& ui, Action& action, bool timed_only
+);
+void DrawActionParameters(
+	DemoEditorDrawContext& ui, Action& action, float left_screen_x
+);
+void DrawActions(
+	DemoEditorDrawContext& ui, ScriptSequence& sequence, ScriptSequence& binding
+);
+void DrawLifecycleRows(DemoEditorDrawContext& ui, ScriptSequence& sequence);
+void DrawTimingOptions(
+	DemoEditorDrawContext& ui, Action& action, ActionTiming& timing,
+	float left_screen_x
+);
+void DrawEmitSignalCompact(DemoEditorDrawContext& ui, EmitSignalAction& emit);
+void DrawComponentDefinition(
+	DemoEditorDrawContext& ui, ComponentDefinition& component, bool removable,
+	int* remove_index = nullptr, int index = -1
+);
+void DrawPrefabs(DemoEditorDrawContext& ui);
+void DrawPrefabInspector(DemoEditorDrawContext& ui, PrefabDefinition& prefab);
+void DrawActivity(DemoEditorDrawContext& ui);
+void PromoteToShared(DemoEditorDrawContext& ui, ScriptSequence& binding);
+void DetachToLocal(DemoEditorDrawContext& ui, ScriptSequence& binding);
+void DrawAddResidentScriptPopup(
+	DemoEditorDrawContext& ui, ScriptsComponent& scripts
+);
+
 class DemoEditor {
 public:
 	explicit DemoEditor(EditorHost& world) :
-		world_{ world },
-		context_{ .host = world, .prefabs = world.GetPrefabs() } {
-		RegisterEditorTypes();
-		world_.RegisterEditorExtensions();
-	}
+		context_{ .host = world, .prefabs = world.GetPrefabs() } {}
 
-	void Draw() {
-		ImGuiViewport* viewport{ ImGui::GetMainViewport() };
-		ImGui::SetNextWindowPos(viewport->WorkPos);
-		ImGui::SetNextWindowSize(viewport->WorkSize);
-		ImGui::SetNextWindowViewport(viewport->ID);
-		constexpr ImGuiWindowFlags flags{
-			ImGuiWindowFlags_NoDecoration |
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoSavedSettings |
-			ImGuiWindowFlags_NoBringToFrontOnFocus
-		};
-		ImGui::Begin("Old UI + Static Registry Script Sequence Demo", nullptr, flags);
-		ImGui::Checkbox("Runtime", &show_runtime_controls_);
-		DrawItemTooltip("Show sequence playback controls in the inspector.");
-		ImGui::Separator();
-		if (ImGui::BeginTable(
-				"ApplicationLayout", 3,
-				ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV |
-					ImGuiTableFlags_SizingStretchProp
-			)) {
-			ImGui::TableSetupColumn("Sidebar", ImGuiTableColumnFlags_WidthFixed, 235.0f);
-			ImGui::TableSetupColumn("Scene", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-			ImGui::TableSetupColumn("Inspector", ImGuiTableColumnFlags_WidthFixed, 680.0f);
-
-			ImGui::TableNextColumn();
-			ImGui::BeginChild("Sidebar");
-			DrawSidebar();
-			ImGui::EndChild();
-
-			ImGui::TableNextColumn();
-			ImGui::BeginChild("Scene");
-			DrawScene();
-			ImGui::EndChild();
-
-			ImGui::TableNextColumn();
-			ImGui::BeginChild("Inspector");
-			DrawInspector();
-			ImGui::EndChild();
-			ImGui::EndTable();
-		}
-		ImGui::End();
-	}
+	void Draw();
 
 private:
-	enum class ActionForm {
-		Action,
-		Tween,
-		Delay
-	};
-
-	struct ActionDragPayload { int index; };
-	struct DurationEditState {
-		std::array<char, 32> buffer{};
-		bool initialized{ false };
-		bool was_active{ false };
-	};
-
-	static constexpr std::array kReentryLabels{ "Ignore", "Restart", "Queue" };
-	static constexpr std::array kLifecycleLabels{
-		"On Start", "On Complete", "On Reset", "On Stop", "On Pause",
-		"On Resume", "On Action Start", "On Action Complete", "On Action Cancel",
-		"On Repeat", "On Yoyo"
-	};
-	static constexpr std::array kActionFormLabels{
-		"Action", "Tween", "Delay"
-	};
-	static constexpr std::array kEaseEntries{
-		std::pair{ ptgn::Ease::Linear, "Linear" },
-		std::pair{ ptgn::Ease::InQuad, "In Quad" },
-		std::pair{ ptgn::Ease::OutQuad, "Out Quad" },
-		std::pair{ ptgn::Ease::InOutQuad, "In-Out Quad" },
-		std::pair{ ptgn::Ease::OutCubic, "Out Cubic" },
-		std::pair{ ptgn::Ease::OutBack, "Out Back" },
-	};
-
-	static void RegisterEditorTypes();
-	static void DrawItemTooltip(const char* text);
-	static bool DrawDurationInput(
-		const char* label, float& milliseconds, float width, const char* tooltip
-	);
-	static float CompactControlSpacing();
-	static void SameLineControl();
-	static float EnabledDeleteControlsWidth();
-	static bool DrawEnabledDeleteControls(
-		bool& enabled, const char* enabled_tooltip, const char* delete_tooltip
-	);
-	static bool DrawCenteredTextButton(
-		const char* id, const char* text, ImVec2 size
-	);
-	static bool DrawToggleButton(
-		const char* label, bool& value, ImVec2 size, const char* tooltip
-	);
-	static float GetHalfRowWidth();
-	static float GetCountControlWidth(const char* label);
-	static void DrawCountControl(
-		const char* label, int& value, int minimum, int maximum = 100,
-		bool disabled = false, const char* tooltip = nullptr
-	);
-	static bool DrawAddableSectionHeader(
-		const char* id, const char* label, bool default_open, bool empty,
-		const char* section_tooltip, const char* empty_tooltip,
-		const char* add_tooltip, bool& add_requested
-	);
-	static bool DrawUnframedSectionHeader(
-		const char* id, const char* label, bool default_open, bool empty,
-		const char* tooltip, bool show_add_button,
-		const char* add_tooltip, bool& add_requested
-	);
-	static void DrawSelectedItemsTooltip(std::span<const std::string> items);
-	static ActionForm GetActionForm(const Action& action);
-	static void SetActionForm(Action& action, ActionForm form);
-	static std::string ActionSummary(const Action& action);
-	static void MoveAction(std::vector<Action>& actions, int from, int to);
-	static bool DrawAddComponentButton(AddComponentsAction& action, const char* popup_id);
-
-	void DrawSidebar();
-	void DrawScene();
-	void DrawInspector();
-	void DrawEntityComponents(ptgn::Entity entity);
-	void DrawScripts(ptgn::Entity entity, ScriptsComponent& scripts);
-	void DrawResidentScripts(ScriptsComponent& scripts);
-	bool DrawSequence(ptgn::Entity owner, ScriptSequence& binding);
-	void DrawRuntimeButtons(ptgn::Entity owner, ScriptSequence& binding);
-	void DrawEvents(ScriptSequence& sequence);
-	bool DrawEvent(EventCondition& event, bool stop_event, bool& switch_kind);
-	void DrawLifecycleRows(ScriptSequence& sequence);
-	void DrawActions(ScriptSequence& sequence, ScriptSequence& binding);
-	bool DrawAction(
-		Action& action, int index, ScriptSequence* binding, bool& duplicate,
-		int& move_from, int& move_to, bool lifecycle = false
-	);
-	void DrawActionPicker(Action& action, bool timed_only, float width = -FLT_MIN);
-	void DrawActionPickerWithInline(Action& action, bool timed_only);
-	void DrawActionParameters(Action& action, float left_screen_x);
-	void DrawTimingOptions(Action& action, ActionTiming& timing, float left_screen_x);
-	void DrawEmitSignalCompact(EmitSignalAction& emit);
-	void DrawComponentDefinition(ComponentDefinition& component, bool removable, int* remove_index = nullptr, int index = -1);
-	void DrawPrefabs();
-	void DrawPrefabInspector(PrefabDefinition& prefab);
-	void DrawActivity();
-	void PromoteToShared(ScriptSequence& binding);
-	void DetachToLocal(ScriptSequence& binding);
-	void DrawAddResidentScriptPopup(ScriptsComponent& scripts);
-	void DrawAddSequencePopup(ScriptsComponent& scripts);
-
-	[[nodiscard]] ptgn::Entity SelectedEntity() const {
-		const auto& entities{ world_.Entities() };
-		return selected_entity_ >= 0 && selected_entity_ < static_cast<int>(entities.size())
-			? entities[static_cast<std::size_t>(selected_entity_)]
-			: ptgn::Entity{};
-	}
-
-	EditorHost& world_;
-	EditorContext context_;
-	int selected_entity_{ 0 };
-	int selected_prefab_{ -1 };
-	bool inspect_prefab_{ false };
-	bool show_runtime_controls_{ false };
-	std::optional<Id> editing_sequence_name_;
-	std::string editing_sequence_original_name_;
-	std::unordered_map<Id, bool> sequence_open_states_;
+	EditorContextTemp context_;
+	DemoEditorState state_;
 };
 
-void DemoEditor::DrawItemTooltip(const char* text) {
+void DemoEditor::Draw() {
+	DemoEditorDrawContext ui{ .context = context_, .state = state_ };
+
+	ImGuiViewport* viewport{ ImGui::GetMainViewport() };
+	ImGui::SetNextWindowPos(viewport->WorkPos);
+	ImGui::SetNextWindowSize(viewport->WorkSize);
+	ImGui::SetNextWindowViewport(viewport->ID);
+	constexpr ImGuiWindowFlags flags{
+		ImGuiWindowFlags_NoDecoration |
+		ImGuiWindowFlags_NoMove |
+		ImGuiWindowFlags_NoSavedSettings |
+		ImGuiWindowFlags_NoBringToFrontOnFocus
+	};
+	ImGui::Begin("Old UI + Static Registry Script Sequence Demo", nullptr, flags);
+	ImGui::Checkbox("Runtime", &state_.show_runtime_controls);
+	DrawItemTooltip("Show sequence playback controls in the inspector.");
+	ImGui::Separator();
+	if (ImGui::BeginTable(
+			"ApplicationLayout", 3,
+			ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV |
+				ImGuiTableFlags_SizingStretchProp
+		)) {
+		ImGui::TableSetupColumn("Sidebar", ImGuiTableColumnFlags_WidthFixed, 235.0f);
+		ImGui::TableSetupColumn("Scene", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+		ImGui::TableSetupColumn("Inspector", ImGuiTableColumnFlags_WidthFixed, 680.0f);
+
+		ImGui::TableNextColumn();
+		ImGui::BeginChild("Sidebar");
+		DrawSidebar(ui);
+		ImGui::EndChild();
+
+		ImGui::TableNextColumn();
+		ImGui::BeginChild("Scene");
+		DrawScene(ui);
+		ImGui::EndChild();
+
+		ImGui::TableNextColumn();
+		ImGui::BeginChild("Inspector");
+		DrawInspector(ui);
+		ImGui::EndChild();
+		ImGui::EndTable();
+	}
+	ImGui::End();
+}
+
+void DrawItemTooltip(const char* text) {
 	if (text && ImGui::IsItemHovered()) {
 		ImGui::SetTooltip("%s", text);
 	}
 }
 
-bool DemoEditor::DrawDurationInput(
+bool DrawDurationInput(
 	const char* label, float& milliseconds, float width, const char* tooltip
 ) {
 	static std::unordered_map<ImGuiID, DurationEditState> states;
@@ -2915,19 +2677,19 @@ bool DemoEditor::DrawDurationInput(
 	return commit;
 }
 
-float DemoEditor::CompactControlSpacing() {
+float CompactControlSpacing() {
 	return ImGui::GetStyle().ItemSpacing.x;
 }
 
-void DemoEditor::SameLineControl() {
+void SameLineControl() {
 	ImGui::SameLine(0.0f, CompactControlSpacing());
 }
 
-float DemoEditor::EnabledDeleteControlsWidth() {
+float EnabledDeleteControlsWidth() {
 	return ImGui::GetFrameHeight() * 2.0f + CompactControlSpacing();
 }
 
-bool DemoEditor::DrawEnabledDeleteControls(
+bool DrawEnabledDeleteControls(
 	bool& enabled, const char* enabled_tooltip, const char* delete_tooltip
 ) {
 	const float size{ ImGui::GetFrameHeight() };
@@ -2939,7 +2701,7 @@ bool DemoEditor::DrawEnabledDeleteControls(
 	return remove;
 }
 
-bool DemoEditor::DrawCenteredTextButton(
+bool DrawCenteredTextButton(
 	const char* id, const char* text, ImVec2 size
 ) {
 	const bool pressed{ ImGui::Button(id, size) };
@@ -2956,7 +2718,7 @@ bool DemoEditor::DrawCenteredTextButton(
 	return pressed;
 }
 
-bool DemoEditor::DrawToggleButton(
+bool DrawToggleButton(
 	const char* label, bool& value, ImVec2 size, const char* tooltip
 ) {
 	const bool dimmed{ !value };
@@ -2976,14 +2738,14 @@ bool DemoEditor::DrawToggleButton(
 	return pressed;
 }
 
-float DemoEditor::GetHalfRowWidth() {
+float GetHalfRowWidth() {
 	return std::max(
 		1.0f,
 		(ImGui::GetContentRegionAvail().x - CompactControlSpacing()) * 0.5f
 	);
 }
 
-float DemoEditor::GetCountControlWidth(const char* label) {
+float GetCountControlWidth(const char* label) {
 	const float button_width{ ImGui::GetFrameHeight() };
 	const float spacing{ CompactControlSpacing() };
 	const std::string widest{ std::string{ label } + ": 100" };
@@ -2991,7 +2753,7 @@ float DemoEditor::GetCountControlWidth(const char* label) {
 		button_width * 2.0f + spacing * 2.0f;
 }
 
-void DemoEditor::DrawCountControl(
+void DrawCountControl(
 	const char* label, int& value, int minimum, int maximum, bool disabled, const char* tooltip
 ) {
 	value = std::clamp(value, minimum, maximum);
@@ -3025,7 +2787,7 @@ void DemoEditor::DrawCountControl(
 	ImGui::PopID();
 }
 
-bool DemoEditor::DrawAddableSectionHeader(
+bool DrawAddableSectionHeader(
 	const char* id, const char* label, bool default_open, bool empty,
 	const char* section_tooltip, const char* empty_tooltip,
 	const char* add_tooltip, bool& add_requested
@@ -3073,7 +2835,7 @@ bool DemoEditor::DrawAddableSectionHeader(
 	return open;
 }
 
-bool DemoEditor::DrawUnframedSectionHeader(
+bool DrawUnframedSectionHeader(
 	const char* id, const char* label, bool default_open, bool empty,
 	const char* tooltip, bool show_add_button,
 	const char* add_tooltip, bool& add_requested
@@ -3127,7 +2889,7 @@ bool DemoEditor::DrawUnframedSectionHeader(
 	return open || add_requested;
 }
 
-void DemoEditor::DrawSelectedItemsTooltip(std::span<const std::string> items) {
+void DrawSelectedItemsTooltip(std::span<const std::string> items) {
 	if (!ImGui::IsItemHovered()) {
 		return;
 	}
@@ -3143,15 +2905,14 @@ void DemoEditor::DrawSelectedItemsTooltip(std::span<const std::string> items) {
 	ImGui::SetTooltip("%s", tooltip.c_str());
 }
 
-DemoEditor::ActionForm DemoEditor::GetActionForm(const Action& action) {
+ActionForm GetActionForm(const Action& action) {
 	if (action.type == ActionRegistry::Key<WaitAction>()) {
 		return ActionForm::Delay;
 	}
 	return action.timing ? ActionForm::Tween : ActionForm::Action;
 }
 
-void DemoEditor::SetActionForm(Action& action, ActionForm form) {
-	const Id id{ action.id };
+void SetActionForm(Action& action, ActionForm form) {
 	const bool enabled{ action.enabled };
 	const auto* registration{ ActionRegistry::Find(action.type) };
 
@@ -3181,11 +2942,23 @@ void DemoEditor::SetActionForm(Action& action, ActionForm form) {
 			break;
 	}
 
-	action.id = id;
 	action.enabled = enabled;
 }
 
-std::string DemoEditor::ActionSummary(const Action& action) {
+void EnsureActionValue(Action& action) {
+	if (!action.value.is_null()) {
+		return;
+	}
+	if (const auto* registration{ ActionRegistry::Find(action.type_hash) };
+		registration && registration->make_default) {
+		action.value = registration->make_default();
+	}
+	if (action.value.is_null()) {
+		action.value = ptgn::json::object();
+	}
+}
+
+std::string ActionSummary(const Action& action) {
 	const auto* editor{ editor::ActionEditorRegistry::Find(action.type) };
 	std::string result{ editor ? editor->options.label : action.type };
 	if (action.timing) {
@@ -3194,7 +2967,7 @@ std::string DemoEditor::ActionSummary(const Action& action) {
 	return result;
 }
 
-void DemoEditor::MoveAction(std::vector<Action>& actions, int from, int to) {
+void MoveAction(std::vector<Action>& actions, int from, int to) {
 	if (from < 0 || to < 0 || from >= static_cast<int>(actions.size()) ||
 		to >= static_cast<int>(actions.size()) || from == to) {
 		return;
@@ -3204,7 +2977,7 @@ void DemoEditor::MoveAction(std::vector<Action>& actions, int from, int to) {
 	actions.insert(actions.begin() + to, std::move(moved));
 }
 
-bool DemoEditor::DrawAddComponentButton(
+bool DrawAddComponentButton(
 	AddComponentsAction& action,
 	const char* popup_id
 ) {
@@ -3287,275 +3060,28 @@ bool DemoEditor::DrawAddComponentButton(
 	return changed;
 }
 
-void DemoEditor::RegisterEditorTypes() {
+void RegisterEditorTypes() {
 	if (!ptgn::editor::ComponentEditorRegistry::Find(
-			ptgn::ComponentTypeId<ptgn::Transform>()
+			ptgn::Hash<ptgn::Transform>()
 		)) {
-		ptgn::editor::ComponentEditorRegistry::Register<ptgn::Transform>(
+		PTGN_REGISTER(ptgn::editor::ComponentEditorRegistry::Register<ptgn::Transform>(
 			ptgn::editor::MakeComponentEditorRegistration(
 				ptgn::editor::ComponentEditorOptions{
 					.label = "Transform",
 					.group = "Core",
 				}
 			)
-		);
+		));
 	}
-
-	auto draw_runtime_payload = [](auto&) {
-		return false;
-	};
-	auto draw_enum_expression = []<typename TEnum>(
-		const char* id,
-		const char* hint,
-		std::string& text,
-		const char* noun,
-		float width
-	) {
-		const auto parsed{ ParseEnumExpression<TEnum>(text) };
-		const bool invalid{ !text.empty() && !parsed.IsValid() };
-		if (invalid) {
-			ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-			ImGui::PushStyleColor(ImGuiCol_Border, ImVec4{ 0.95f, 0.28f, 0.25f, 1.0f });
-		}
-		ImGui::SetNextItemWidth(width);
-		const bool changed{ ImGui::InputTextWithHint(id, hint, &text) };
-		const bool hovered{ ImGui::IsItemHovered() };
-		if (invalid) {
-			ImGui::PopStyleColor();
-			ImGui::PopStyleVar();
-		}
-		if (hovered) {
-			if (invalid) {
-				std::string tooltip{ "Unrecognized " };
-				tooltip += noun;
-				tooltip += " name or scancode:";
-				for (const auto& token : parsed.invalid_tokens) {
-					tooltip += "\n- ";
-					tooltip += token;
-				}
-				tooltip += "\nUse valid enum names or numeric scancodes.";
-				ImGui::SetTooltip("%s", tooltip.c_str());
-			} else {
-				ImGui::SetTooltip(
-					"Comma separates alternatives; + requires all %s entries.",
-					noun
-				);
-			}
-		}
-		return changed;
-	};
-	auto draw_key_filter = [draw_enum_expression](KeyListFilter& filter) mutable {
-		return draw_enum_expression.template operator()<ptgn::Key>(
-			"##Keys", "W, UpArrow, 32", filter.keys, "key", -FLT_MIN
-		);
-	};
-	auto draw_key_held_filter = [draw_enum_expression](KeyListFilter& filter) mutable {
-		const float duration_width{ 78.0f };
-		const float label_width{ ImGui::CalcTextSize("Hold:").x };
-		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-		const float key_width{ std::max(
-			60.0f,
-			ImGui::GetContentRegionAvail().x - duration_width - label_width - spacing * 2.0f
-		) };
-		bool changed{ draw_enum_expression.template operator()<ptgn::Key>(
-			"##Keys", "W, UpArrow, 32", filter.keys, "key", key_width
-		) };
-		ImGui::SameLine();
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextUnformatted("Hold:");
-		ImGui::SameLine();
-		changed |= DrawDurationInput(
-			"##HoldDuration", filter.hold_duration_ms, duration_width,
-			"Minimum time the key combination must remain held."
-		);
-		return changed;
-	};
-	auto draw_mouse_filter = [draw_enum_expression](MouseListFilter& filter) mutable {
-		return draw_enum_expression.template operator()<ptgn::Mouse>(
-			"##MouseButtons", "Left, Middle, 0", filter.buttons, "mouse button", -FLT_MIN
-		);
-	};
-	auto draw_mouse_held_filter = [draw_enum_expression](MouseListFilter& filter) mutable {
-		const float duration_width{ 78.0f };
-		const float label_width{ ImGui::CalcTextSize("Hold:").x };
-		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-		const float button_width{ std::max(
-			60.0f,
-			ImGui::GetContentRegionAvail().x - duration_width - label_width - spacing * 2.0f
-		) };
-		bool changed{ draw_enum_expression.template operator()<ptgn::Mouse>(
-			"##MouseButtons", "Left, Middle, 0", filter.buttons, "mouse button", button_width
-		) };
-		ImGui::SameLine();
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextUnformatted("Hold:");
-		ImGui::SameLine();
-		changed |= DrawDurationInput(
-			"##HoldDuration", filter.hold_duration_ms, duration_width,
-			"Minimum time the mouse-button combination must remain held."
-		);
-		return changed;
-	};
-	auto draw_key_payload = [](auto& event) {
-		std::string value{ std::string{ magic_enum::enum_name(event.key) } };
-		if (value.empty()) {
-			value = std::to_string(static_cast<int>(event.key));
-		}
-		if (!ImGui::InputText("Key", &value)) {
-			return false;
-		}
-		if (const auto parsed{ ParseEnumToken<ptgn::Key>(value) }) {
-			event.key = *parsed;
-			return true;
-		}
-		return false;
-	};
-	auto draw_mouse_payload = [](auto& event) {
-		const ptgn::Mouse mouse{ MouseFromEvent(event) };
-		std::string value{ std::string{ magic_enum::enum_name(mouse) } };
-		if (value.empty()) {
-			value = std::to_string(static_cast<int>(mouse));
-		}
-		if (!ImGui::InputText("Button", &value)) {
-			return false;
-		}
-		if (const auto parsed{ ParseEnumToken<ptgn::Mouse>(value) }) {
-			SetMouseEvent(event, *parsed);
-			return true;
-		}
-		return false;
-	};
-	auto draw_entity_filter = [](
-		EntityMaskFilter& filter, const char* tags_hint, const char* masks_hint
-	) {
-		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
-		const float width{ std::max(1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f) };
-		bool changed{ false };
-		ImGui::SetNextItemWidth(width);
-		changed |= ImGui::InputTextWithHint("##Tags", tags_hint, &filter.tags);
-		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("Comma-separated tags; prefix excluded tags with -.");
-		}
-		ImGui::SameLine();
-		const InclusionFilter parsed{ ParseEntityMaskFilter(filter) };
-		const bool invalid{ !parsed.invalid_masks.empty() };
-		if (invalid) {
-			ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
-			ImGui::PushStyleColor(ImGuiCol_Border, ImVec4{ 0.95f, 0.28f, 0.25f, 1.0f });
-		}
-		ImGui::SetNextItemWidth(width);
-		changed |= ImGui::InputTextWithHint("##Masks", masks_hint, &filter.masks);
-		const bool hovered{ ImGui::IsItemHovered() };
-		if (invalid) {
-			ImGui::PopStyleColor();
-			ImGui::PopStyleVar();
-		}
-		if (hovered) {
-			if (invalid) {
-				std::string tooltip{ "Unrecognized integer mask:" };
-				for (const auto& token : parsed.invalid_masks) {
-					tooltip += "\n- ";
-					tooltip += token;
-				}
-				ImGui::SetTooltip("%s", tooltip.c_str());
-			} else {
-				ImGui::SetTooltip("Comma-separated masks; prefix excluded masks with -.");
-			}
-		}
-		return changed;
-	};
-	auto draw_overlap_filter = [draw_entity_filter](EntityMaskFilter& filter) {
-		return draw_entity_filter(
-			filter, "Tags: Player, -Enemy", "Masks: 1, -4"
-		);
-	};
-	auto draw_collision_filter = [draw_entity_filter](EntityMaskFilter& filter) {
-		return draw_entity_filter(filter, "Tags: Player, -Enemy", "Masks: 1, -4");
-	};
-	auto draw_on_create_filter = [](OnCreateFilter& filter) {
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextUnformatted("Delay:");
-		ImGui::SameLine();
-		return DrawDurationInput(
-			"##CreateDelay", filter.delay_ms, -FLT_MIN,
-			"Delay after script creation before starting the sequence."
-		);
-	};
-	auto draw_signal = [](Signal& signal) {
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		return ImGui::InputTextWithHint("##Signal", "Signal name", &signal.key.value);
-	};
-
-	editor::EventEditorRegistry::Register<OnCreateFilter, OnCreate>(
-		"ptgn.event.OnCreate",
-		{ .label = "On Create", .group = "", .description = "Fired after the owning entity is created." },
-		draw_on_create_filter, draw_runtime_payload
-	);
-	editor::EventEditorRegistry::Register<Signal, Signal>(
-		"ptgn.event.Signal",
-		{ .label = "On Signal", .group = "", .description = "Data-driven broadcast event identified by a strong string key." },
-		draw_signal, draw_signal
-	);
-	editor::EventEditorRegistry::Register<KeyListFilter, ptgn::event::KeyPressed>(
-		"ptgn.event.KeyPressed",
-		{ .label = "On Key Pressed", .group = "Key", .description = "Fired on the first pressed frame." },
-		draw_key_filter, draw_key_payload
-	);
-	editor::EventEditorRegistry::Register<KeyListFilter, ptgn::event::KeyHeld>(
-		"ptgn.event.KeyHeld",
-		{ .label = "On Key Held", .group = "Key", .description = "Fired after a key combination remains held." },
-		draw_key_held_filter, draw_key_payload
-	);
-	editor::EventEditorRegistry::Register<KeyListFilter, ptgn::event::KeyReleased>(
-		"ptgn.event.KeyReleased",
-		{ .label = "On Key Released", .group = "Key", .description = "Fired when a key is released." },
-		draw_key_filter, draw_key_payload
-	);
-	editor::EventEditorRegistry::Register<MouseListFilter, ptgn::event::MousePressed>(
-		"ptgn.event.MousePressed",
-		{ .label = "On Mouse Pressed", .group = "Mouse", .description = "Fired on the first pressed frame." },
-		draw_mouse_filter, draw_mouse_payload
-	);
-	editor::EventEditorRegistry::Register<MouseListFilter, ptgn::event::MouseHeld>(
-		"ptgn.event.MouseHeld",
-		{ .label = "On Mouse Held", .group = "Mouse", .description = "Fired after a mouse-button combination remains held." },
-		draw_mouse_held_filter, draw_mouse_payload
-	);
-	editor::EventEditorRegistry::Register<MouseListFilter, ptgn::event::MouseReleased>(
-		"ptgn.event.MouseReleased",
-		{ .label = "On Mouse Released", .group = "Mouse", .description = "Fired when a mouse button is released." },
-		draw_mouse_filter, draw_mouse_payload
-	);
-	editor::EventEditorRegistry::Register<EntityMaskFilter, ptgn::event::OverlapStart>(
-		"ptgn.event.OverlapStart",
-		{ .label = "On Overlap Start", .group = "Overlap", .description = "Fired when an overlap begins." },
-		draw_overlap_filter, draw_runtime_payload
-	);
-	editor::EventEditorRegistry::Register<EntityMaskFilter, ptgn::event::Overlap>(
-		"ptgn.event.Overlap",
-		{ .label = "On Overlap", .group = "Overlap", .description = "Fired while an overlap continues." },
-		draw_overlap_filter, draw_runtime_payload
-	);
-	editor::EventEditorRegistry::Register<EntityMaskFilter, ptgn::event::OverlapStop>(
-		"ptgn.event.OverlapStop",
-		{ .label = "On Overlap Stop", .group = "Overlap", .description = "Fired when an overlap ends." },
-		draw_overlap_filter, draw_runtime_payload
-	);
-	editor::EventEditorRegistry::Register<EntityMaskFilter, ptgn::event::Collision>(
-		"ptgn.event.Collision",
-		{ .label = "On Collision", .group = "Collision", .description = "Fired for a collision." },
-		draw_collision_filter, draw_runtime_payload
-	);
-
-	editor::ActionEditorRegistry::Register<WaitAction>(
+	PTGN_REGISTER(editor::ActionEditorRegistry::Register<WaitAction>(
 		"engine.wait",
 		{ .label = "Delay", .group = "Timing", .description = "Delay before continuing the sequence." },
-		[](WaitAction&, EditorContext&) { return false; }
-	);
-	editor::ActionEditorRegistry::RegisterInline<MoveToAction>(
+		[](WaitAction&, EditorContextTemp&) { return false; }
+	));
+	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<MoveToAction>(
 		"engine.move_to",
 		{ .label = "Move To", .group = "Transform", .description = "Move the owning entity." },
-		[](MoveToAction& action, EditorContext&) {
+		[](MoveToAction& action, EditorContextTemp&) {
 			bool changed{ false };
 			const float available{ ImGui::GetContentRegionAvail().x };
 			const float spacing{ CompactControlSpacing() };
@@ -3587,19 +3113,19 @@ void DemoEditor::RegisterEditorTypes() {
 				action.relative = !action.relative;
 				changed = true;
 			}
-			DrawItemTooltip(
+			editor::DrawItemTooltip(
 				action.relative
 					? "Offset from the entity's current position."
 					: "Use an absolute world position."
 			);
 			return changed;
 		},
-		[](MoveToAction&, EditorContext&) { return false; }
-	);
-	editor::ActionEditorRegistry::RegisterInline<RotateToAction>(
+		[](MoveToAction&, EditorContextTemp&) { return false; }
+	));
+	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<RotateToAction>(
 		"engine.rotate_to",
 		{ .label = "Rotate To", .group = "Transform", .description = "Rotate the owning entity to an angle." },
-		[](RotateToAction& action, EditorContext&) {
+		[](RotateToAction& action, EditorContextTemp&) {
 			const float available{ ImGui::GetContentRegionAvail().x };
 			const float spacing{ CompactControlSpacing() };
 			const float shortest_width{
@@ -3633,12 +3159,12 @@ void DemoEditor::RegisterEditorTypes() {
 			);
 			return changed;
 		},
-		[](RotateToAction&, EditorContext&) { return false; }
-	);
-	editor::ActionEditorRegistry::RegisterInline<SetVisibleAction>(
+		[](RotateToAction&, EditorContextTemp&) { return false; }
+	));
+	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<SetVisibleAction>(
 		"engine.set_visible",
 		{ .label = "Set Visible", .group = "Entity", .description = "Set the owning entity visibility.", .menu_order = 3 },
-		[](SetVisibleAction& action, EditorContext&) {
+		[](SetVisibleAction& action, EditorContextTemp&) {
 			const char* preview{ action.visible ? "True" : "False" };
 			bool changed{ false };
 			ImGui::SetNextItemWidth(-FLT_MIN);
@@ -3656,12 +3182,12 @@ void DemoEditor::RegisterEditorTypes() {
 			DrawItemTooltip("Visibility value assigned by this action.");
 			return changed;
 		},
-		[](SetVisibleAction&, EditorContext&) { return false; }
-	);
-	editor::ActionEditorRegistry::Register<PlayAudioAction>(
+		[](SetVisibleAction&, EditorContextTemp&) { return false; }
+	));
+	PTGN_REGISTER(editor::ActionEditorRegistry::Register<PlayAudioAction>(
 		"engine.play_audio",
 		{ .label = "Play Audio", .group = "Audio", .description = "Play an audio asset." },
-		[](PlayAudioAction& action, EditorContext&) {
+		[](PlayAudioAction& action, EditorContextTemp&) {
 			action.loops = std::clamp(action.loops, 0, 100);
 			bool changed{ false };
 			if (ImGui::BeginTable("AudioParams", 3, ImGuiTableFlags_SizingStretchProp)) {
@@ -3697,11 +3223,11 @@ void DemoEditor::RegisterEditorTypes() {
 			}
 			return changed;
 		}
-	);
-	editor::ActionEditorRegistry::RegisterInline<EmitSignalAction>(
+	));
+	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<EmitSignalAction>(
 		"engine.emit_signal",
 		{ .label = "Emit Signal", .group = "", .description = "Broadcast a Signal identified by a strong string key." },
-		[](EmitSignalAction& action, EditorContext&) {
+		[](EmitSignalAction& action, EditorContextTemp&) {
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			const bool changed{ ImGui::InputTextWithHint(
 				"##SignalName", "Signal name", &action.signal.value
@@ -3709,12 +3235,12 @@ void DemoEditor::RegisterEditorTypes() {
 			DrawItemTooltip("Signal name to broadcast.");
 			return changed;
 		},
-		[](EmitSignalAction&, EditorContext&) { return false; }
-	);
-	editor::ActionEditorRegistry::RegisterInline<AddComponentsAction>(
+		[](EmitSignalAction&, EditorContextTemp&) { return false; }
+	));
+	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<AddComponentsAction>(
 		"engine.add_components",
 		{ .label = "Add Components", .group = "Entity", .description = "Add registered components to the owner.", .menu_order = 1 },
-		[](AddComponentsAction& action, EditorContext&) {
+		[](AddComponentsAction& action, EditorContextTemp&) {
 			std::vector<std::string> selected_labels;
 			std::string preview;
 			for (const auto& definition : action.components) {
@@ -3806,14 +3332,18 @@ void DemoEditor::RegisterEditorTypes() {
 			DrawSelectedItemsTooltip(selected_labels);
 			return changed;
 		},
-		[](AddComponentsAction& action, EditorContext&) {
+		[](AddComponentsAction& action, EditorContextTemp&) {
 			bool changed{ false };
 			int remove{ -1 };
 			for (int i{ 0 }; i < static_cast<int>(action.components.size()); ++i) {
 				auto& definition{ action.components[static_cast<std::size_t>(i)] };
 				const auto* component{ ptgn::ComponentRegistry::Find(definition.type) };
-				ImGui::PushID(static_cast<int>(definition.id));
+				ImGui::PushID(definition.type.c_str());
 
+				const std::string label{
+					component ? ResolveComponentEditor(*component).label
+							  : definition.type
+				};
 				if (ImGui::BeginTable(
 						"ComponentTitle", 2, ImGuiTableFlags_SizingStretchProp
 					)) {
@@ -3828,10 +3358,6 @@ void DemoEditor::RegisterEditorTypes() {
 						ImGuiTableRowFlags_None, ImGui::GetFrameHeight()
 					);
 					ImGui::TableSetColumnIndex(0);
-					const std::string label{
-						component ? ResolveComponentEditor(*component).label
-								  : definition.type
-					};
 					ImGui::SeparatorText(label.c_str());
 					if (component && component->is_empty) {
 						DrawItemTooltip("Tag component");
@@ -3851,9 +3377,21 @@ void DemoEditor::RegisterEditorTypes() {
 				}
 
 				if (component && !component->is_empty) {
-					changed |= ptgn::editor::ComponentEditorRegistry::DrawJson(
-						*component, definition.value
-					);
+					if (definition.value.is_null() && component->make_default_json) {
+						definition.value = component->make_default_json();
+					}
+					if (definition.value.is_null()) {
+						definition.value = ptgn::json::object();
+					}
+					const bool component_changed{
+						ptgn::editor::ComponentEditorRegistry::DrawJson(
+							*component, definition.value
+						)
+					};
+					changed |= component_changed;
+					if (component_changed) {
+						definition.apply_live = {};
+					}
 				}
 				ImGui::PopID();
 			}
@@ -3864,11 +3402,11 @@ void DemoEditor::RegisterEditorTypes() {
 			}
 			return changed;
 		}
-	);
-	editor::ActionEditorRegistry::RegisterInline<RemoveComponentsAction>(
+	));
+	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<RemoveComponentsAction>(
 		"engine.remove_components",
 		{ .label = "Remove Components", .group = "Entity", .description = "Remove selected registered components from the owner.", .menu_order = 2, .separator_after = true },
-		[](RemoveComponentsAction& action, EditorContext&) {
+		[](RemoveComponentsAction& action, EditorContextTemp&) {
 			std::vector<std::string> selected_labels;
 			std::string preview;
 			for (const auto& name : action.components) {
@@ -3946,12 +3484,12 @@ void DemoEditor::RegisterEditorTypes() {
 			DrawSelectedItemsTooltip(selected_labels);
 			return changed;
 		},
-		[](RemoveComponentsAction&, EditorContext&) { return false; }
-	);
-	editor::ActionEditorRegistry::Register<SpawnEntityAction>(
+		[](RemoveComponentsAction&, EditorContextTemp&) { return false; }
+	));
+	PTGN_REGISTER(editor::ActionEditorRegistry::Register<SpawnEntityAction>(
 		"engine.spawn_entity",
 		{ .label = "Spawn Entity", .group = "Entity", .description = "Spawn one or more prefab instances.", .menu_order = 0 },
-		[](SpawnEntityAction& action, EditorContext& context) {
+		[](SpawnEntityAction& action, EditorContextTemp& context) {
 			action.count = std::clamp(action.count, 1, 100);
 			action.rectangle_size.x = std::max(0.0f, action.rectangle_size.x);
 			action.rectangle_size.y = std::max(0.0f, action.rectangle_size.y);
@@ -4138,45 +3676,53 @@ void DemoEditor::RegisterEditorTypes() {
 			}
 			return changed;
 		}
-	);
+	));
 
 
 
 }
 
-void DemoEditor::DrawSidebar() {
+ptgn::Entity SelectedEntity(const DemoEditorDrawContext& ui) {
+	const auto& entities{ ui.context.host.Entities() };
+	return ui.state.selected_entity >= 0 &&
+		ui.state.selected_entity < static_cast<int>(entities.size())
+		? entities[static_cast<std::size_t>(ui.state.selected_entity)]
+		: ptgn::Entity{};
+}
+
+void DrawSidebar(DemoEditorDrawContext& ui) {
 	if (!ImGui::BeginTabBar("SidebarTabs")) {
 		return;
 	}
 	if (ImGui::BeginTabItem("Scene")) {
 		ImGui::TextDisabled("Scene Hierarchy");
 		ImGui::Separator();
-		for (int i{ 0 }; i < static_cast<int>(world_.Entities().size()); ++i) {
-			const auto entity{ world_.Entities()[static_cast<std::size_t>(i)] };
+		for (int i{ 0 }; i < static_cast<int>(ui.context.host.Entities().size()); ++i) {
+			const auto entity{ ui.context.host.Entities()[static_cast<std::size_t>(i)] };
 			if (ImGui::Selectable(
-					std::string{ world_.Name(entity) }.c_str(),
-					!inspect_prefab_ && selected_entity_ == i,
+					std::string{ ui.context.host.Name(entity) }.c_str(),
+					!ui.state.inspect_prefab && ui.state.selected_entity == i,
 					0, ImVec2{ 0.0f, 25.0f }
 				)) {
-				selected_entity_ = i;
-				inspect_prefab_ = false;
+				ui.state.selected_entity = i;
+				ui.state.inspect_prefab = false;
 			}
 		}
 		if (ImGui::Button("+ Entity", ImVec2{ -FLT_MIN, 0.0f })) {
-			world_.CreateEntity("New Entity");
-			selected_entity_ = static_cast<int>(world_.Entities().size()) - 1;
-			inspect_prefab_ = false;
+			ui.context.host.CreateEntity("New Entity");
+			ui.state.selected_entity = static_cast<int>(ui.context.host.Entities().size()) - 1;
+			ui.state.inspect_prefab = false;
 		}
 		ImGui::EndTabItem();
 	}
 	if (ImGui::BeginTabItem("Prefabs")) {
-		DrawPrefabs();
+		DrawPrefabs(ui);
 		ImGui::EndTabItem();
 	}
 	ImGui::EndTabBar();
 }
 
-void DemoEditor::DrawScene() {
+void DrawScene(DemoEditorDrawContext& ui) {
 	const ImVec2 start{ ImGui::GetCursorScreenPos() };
 	const ImVec2 size{ ImGui::GetContentRegionAvail() };
 	ImDrawList* draw{ ImGui::GetWindowDrawList() };
@@ -4189,14 +3735,13 @@ void DemoEditor::DrawScene() {
 		ImGui::GetColorU32(ImGuiCol_Border)
 	);
 
-	for (int i{ 0 }; i < static_cast<int>(world_.Entities().size()); ++i) {
-		const auto entity{ world_.Entities()[static_cast<std::size_t>(i)] };
-		if (!entity.Has<ptgn::Transform>() ||
-			(entity.Has<ptgn::Visible>() && !entity.Get<ptgn::Visible>().visible)) {
+	for (int i{ 0 }; i < static_cast<int>(ui.context.host.Entities().size()); ++i) {
+		const auto entity{ ui.context.host.Entities()[static_cast<std::size_t>(i)] };
+		if (!entity.Has<ptgn::Transform>() || !ptgn::IsVisible(entity)) {
 			continue;
 		}
 		const auto& transform{ entity.Get<ptgn::Transform>() };
-		const auto visual{ world_.Visual(entity) };
+		const auto visual{ ui.context.host.Visual(entity) };
 		const ImVec2 position{ center.x + transform.position.x, center.y - transform.position.y };
 		const ImU32 color{ ImGui::ColorConvertFloat4ToU32(visual.color) };
 		ImVec2 minimum{};
@@ -4234,14 +3779,14 @@ void DemoEditor::DrawScene() {
 			);
 			draw->AddRect(bar_min, bar_max, IM_COL32(225, 225, 225, 170), 2.0f);
 		}
-		if (!inspect_prefab_ && i == selected_entity_) {
+		if (!ui.state.inspect_prefab && i == ui.state.selected_entity) {
 			draw->AddRect(
 				ImVec2{ minimum.x - 3.0f, minimum.y - 3.0f },
 				ImVec2{ maximum.x + 3.0f, maximum.y + 3.0f },
 				ImGui::GetColorU32(ImGuiCol_ButtonHovered), 5.0f, 0, 2.0f
 			);
 		}
-		const std::string name{ world_.Name(entity) };
+		const std::string name{ ui.context.host.Name(entity) };
 		const ImVec2 text_size{ ImGui::CalcTextSize(name.c_str()) };
 		draw->AddText(
 			ImVec2{ position.x - text_size.x * 0.5f, maximum.y + 5.0f },
@@ -4271,7 +3816,7 @@ void DemoEditor::DrawScene() {
 	);
 	draw->AddText(
 		ImVec2{ start.x + 12.0f, start.y + 110.0f }, ImGui::GetColorU32(ImGuiCol_TextDisabled),
-		"Buttons receive local pointer Events in ButtonScript; one emits a global Signal."
+		"Buttons expose component-driven pointer Events; one emits a global Signal."
 	);
 	ImGui::InvisibleButton("SceneCanvas", size);
 	const bool inside_scene{ ImGui::IsItemHovered() };
@@ -4286,19 +3831,19 @@ void DemoEditor::DrawScene() {
 			inside_scene && ImGui::IsMouseClicked(button);
 		pointer_frame.released[i] = ImGui::IsMouseReleased(button);
 	}
-	world_.SubmitPointerFrame(pointer_frame);
+	ui.context.host.SubmitPointerFrame(pointer_frame);
 }
 
-void DemoEditor::DrawInspector() {
-	if (inspect_prefab_) {
-		if (selected_prefab_ >= 0 &&
-			selected_prefab_ < static_cast<int>(context_.prefabs.definitions.size())) {
-			DrawPrefabInspector(context_.prefabs.definitions[static_cast<std::size_t>(selected_prefab_)]);
+void DrawInspector(DemoEditorDrawContext& ui) {
+	if (ui.state.inspect_prefab) {
+		if (ui.state.selected_prefab >= 0 &&
+			ui.state.selected_prefab < static_cast<int>(ui.context.prefabs.definitions.size())) {
+			DrawPrefabInspector(ui, ui.context.prefabs.definitions[static_cast<std::size_t>(ui.state.selected_prefab)]);
 		}
 		return;
 	}
 
-	ptgn::Entity entity{ SelectedEntity() };
+	ptgn::Entity entity{ SelectedEntity(ui) };
 	if (!entity) {
 		ImGui::TextDisabled("Select an entity.");
 		return;
@@ -4311,22 +3856,22 @@ void DemoEditor::DrawInspector() {
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 		ImGui::TableSetColumnIndex(0);
 		ImGui::SetNextItemWidth(-FLT_MIN);
-		ImGui::InputTextWithHint("##Name", "Name", &world_.EditableName(entity));
+		ImGui::InputTextWithHint("##Name", "Name", &ui.context.host.EditableName(entity));
 		ImGui::TableSetColumnIndex(1);
 		ImGui::SetNextItemWidth(-FLT_MIN);
-		ImGui::InputTextWithHint("##Tag", "Tag", &world_.EditableTag(entity));
+		ImGui::InputTextWithHint("##Tag", "Tag", &ui.context.host.EditableTag(entity));
 		ImGui::EndTable();
 	}
 
-	DrawEntityComponents(entity);
+	DrawEntityComponents(ui, entity);
 	if (auto* scripts{ entity.TryGet<ScriptsComponent>() }) {
-		DrawScripts(entity, *scripts);
+		DrawScripts(ui, entity, *scripts);
 	} else if (ImGui::Button("+ Scripts Component", ImVec2{ -FLT_MIN, 0.0f })) {
 		entity.Add<ScriptsComponent>();
 	}
 }
 
-void DemoEditor::DrawEntityComponents(ptgn::Entity entity) {
+void DrawEntityComponents(DemoEditorDrawContext& ui, ptgn::Entity entity) {
 	ImGui::PushID("EntityComponents");
 	const bool open{ ImGui::TreeNodeEx(
 		"##Components", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
@@ -4445,13 +3990,20 @@ void DemoEditor::DrawEntityComponents(ptgn::Entity entity) {
 	ImGui::PopID();
 }
 
-void DemoEditor::DrawScripts(ptgn::Entity entity, ScriptsComponent& scripts) {
+void DrawScripts(
+	DemoEditorDrawContext& ui,
+	ptgn::Entity entity,
+	ScriptsComponent& scripts
+) {
 	ImGui::PushID("ScriptsComponent");
 	const bool open{ ImGui::TreeNodeEx(
-		"##Scripts", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
+		"##Scripts",
+		ImGuiTreeNodeFlags_DefaultOpen |
+			ImGuiTreeNodeFlags_Framed |
 			ImGuiTreeNodeFlags_SpanAvailWidth,
 		"Scripts"
 	) };
+
 	bool remove_component{ false };
 	if (ImGui::BeginPopupContextItem("ScriptsContext")) {
 		if (ImGui::MenuItem("Delete Component")) {
@@ -4459,6 +4011,7 @@ void DemoEditor::DrawScripts(ptgn::Entity entity, ScriptsComponent& scripts) {
 		}
 		ImGui::EndPopup();
 	}
+
 	if (remove_component) {
 		if (open) {
 			ImGui::TreePop();
@@ -4467,77 +4020,119 @@ void DemoEditor::DrawScripts(ptgn::Entity entity, ScriptsComponent& scripts) {
 		ImGui::PopID();
 		return;
 	}
+
 	if (!open) {
 		ImGui::PopID();
 		return;
 	}
 
-	const float half_width{ GetHalfRowWidth() };
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f });
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f });
 	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f });
-	if (ImGui::Button("+ Script", ImVec2{ half_width, 0.0f })) {
-		ImGui::OpenPopup("AddResidentScript");
+	if (ImGui::Button("+ Script", ImVec2{ -FLT_MIN, 0.0f })) {
+		ImGui::OpenPopup("AddScript");
 	}
 	ImGui::PopStyleColor(3);
-	DrawItemTooltip("Add a script.");
-	SameLineControl();
-	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{ 0.35f, 0.24f, 0.39f, 1.0f });
-	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4{ 0.44f, 0.31f, 0.48f, 1.0f });
-	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4{ 0.50f, 0.36f, 0.55f, 1.0f });
-	if (ImGui::Button("+ Script Sequence", ImVec2{ half_width, 0.0f })) {
-		ImGui::OpenPopup("AddScriptSequencePopup");
-	}
-	ImGui::PopStyleColor(3);
-	DrawItemTooltip("Add a script sequence.");
-	DrawAddResidentScriptPopup(scripts);
-	DrawAddSequencePopup(scripts);
+	DrawItemTooltip("Add a custom script or an editor-authored sequence script.");
 
-	DrawResidentScripts(scripts);
-	int remove_sequence{ -1 };
-	for (int i{ 0 }; i < static_cast<int>(scripts.sequences.size()); ++i) {
-		if (DrawSequence(entity, scripts.sequences[static_cast<std::size_t>(i)])) {
-			remove_sequence = i;
-		}
-	}
-	if (remove_sequence >= 0) {
-		scripts.sequences.erase(scripts.sequences.begin() + remove_sequence);
-	}
+	DrawAddResidentScriptPopup(ui, scripts);
+	DrawResidentScripts(ui, entity, scripts);
 
 	const ImVec2 activity_position{ ImGui::GetCursorScreenPos() };
-	ImGui::SetCursorScreenPos(ImVec2{ activity_position.x, activity_position.y + 4.0f });
-	DrawActivity();
+	ImGui::SetCursorScreenPos(ImVec2{
+		activity_position.x,
+		activity_position.y + 4.0f
+	});
+	DrawActivity(ui);
+
 	ImGui::TreePop();
 	ImGui::PopID();
 }
 
-void DemoEditor::DrawResidentScripts(ScriptsComponent& scripts) {
+void DrawResidentScripts(
+	DemoEditorDrawContext& ui,
+	ptgn::Entity entity,
+	ScriptsComponent& scripts
+) {
 	int remove{ -1 };
+
+	std::vector<int> display_order;
+	display_order.reserve(scripts.scripts.size());
 	for (int i{ 0 }; i < static_cast<int>(scripts.scripts.size()); ++i) {
+		if (scripts.scripts[static_cast<std::size_t>(i)].type_hash !=
+			ptgn::Hash<SequenceScript>()) {
+			display_order.push_back(i);
+		}
+	}
+	for (int i{ 0 }; i < static_cast<int>(scripts.scripts.size()); ++i) {
+		if (scripts.scripts[static_cast<std::size_t>(i)].type_hash ==
+			ptgn::Hash<SequenceScript>()) {
+			display_order.push_back(i);
+		}
+	}
+
+	for (const int i : display_order) {
 		auto& script{ scripts.scripts[static_cast<std::size_t>(i)] };
+		const auto* registration{ ScriptRegistry::Find(script.type_hash) };
 		const auto* editor{ ScriptEditorRegistry::Find(script.type) };
-		ImGui::PushID(static_cast<int>(script.id));
+
+		if (script.type_hash == ptgn::Hash<SequenceScript>()) {
+			if (!script.instance && registration) {
+				script_runtime::AttachEntry(entity, script);
+			}
+
+			auto* sequence_script{
+				dynamic_cast<SequenceScript*>(script.instance)
+			};
+			if (!sequence_script) {
+				continue;
+			}
+
+			sequence_script->sequence.enabled = script.enabled;
+			if (DrawSequence(ui, entity, sequence_script->sequence)) {
+				remove = i;
+			}
+			script.enabled = sequence_script->sequence.enabled;
+			script.value = *sequence_script;
+			continue;
+		}
+
+		ImGui::PushID(&script);
 		bool open{ false };
 		const float button_size{ ImGui::GetFrameHeight() };
+
 		if (ImGui::BeginTable(
-				"ResidentScriptRow", 2, ImGuiTableFlags_SizingStretchProp
+				"ScriptRow", 2, ImGuiTableFlags_SizingStretchProp
 			)) {
 			ImGui::TableSetupColumn("Script", ImGuiTableColumnFlags_WidthStretch);
 			ImGui::TableSetupColumn(
-				"Controls", ImGuiTableColumnFlags_WidthFixed,
+				"Controls",
+				ImGuiTableColumnFlags_WidthFixed,
 				EnabledDeleteControlsWidth()
 			);
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
 			ImGui::TableSetColumnIndex(0);
-			const ImVec4 header{ script.enabled ? ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f }
-												: ImVec4{ 0.25f, 0.25f, 0.25f, 1.0f } };
-			const ImVec4 header_hovered{ script.enabled ? ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f }
-														: ImVec4{ 0.30f, 0.30f, 0.30f, 1.0f } };
-			const ImVec4 header_active{ script.enabled ? ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f }
-													   : ImVec4{ 0.34f, 0.34f, 0.34f, 1.0f } };
+
+			const ImVec4 header{
+				script.enabled
+					? ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f }
+					: ImVec4{ 0.25f, 0.25f, 0.25f, 1.0f }
+			};
+			const ImVec4 header_hovered{
+				script.enabled
+					? ImVec4{ 0.26f, 0.43f, 0.41f, 1.0f }
+					: ImVec4{ 0.30f, 0.30f, 0.30f, 1.0f }
+			};
+			const ImVec4 header_active{
+				script.enabled
+					? ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f }
+					: ImVec4{ 0.34f, 0.34f, 0.34f, 1.0f }
+			};
+
 			ImGui::PushStyleColor(ImGuiCol_Header, header);
 			ImGui::PushStyleColor(ImGuiCol_HeaderHovered, header_hovered);
 			ImGui::PushStyleColor(ImGuiCol_HeaderActive, header_active);
+
 			const bool has_contents{ editor && editor->has_contents };
 			ImGuiTreeNodeFlags flags{
 				ImGuiTreeNodeFlags_Framed |
@@ -4549,35 +4144,52 @@ void DemoEditor::DrawResidentScripts(ScriptsComponent& scripts) {
 			} else {
 				flags |= ImGuiTreeNodeFlags_Leaf;
 			}
+
 			open = ImGui::TreeNodeEx(
-				"##ResidentScript", flags, "%s",
+				"##Script",
+				flags,
+				"%s",
 				editor ? editor->options.label.c_str() : script.type.c_str()
 			);
 			ImGui::PopStyleColor(3);
+
 			if (editor) {
 				DrawItemTooltip(editor->options.description.c_str());
 			}
 
 			ImGui::TableSetColumnIndex(1);
 			if (DrawEnabledDeleteControls(
-					script.enabled, "Enable or disable this script.", "Remove this script."
+					script.enabled,
+					"Enable or disable this script.",
+					"Remove this script."
 				)) {
 				remove = i;
 			}
 			ImGui::EndTable();
 		}
+
 		if (open && editor && editor->has_contents && editor->draw(script.value)) {
-			script.instance.reset();
-			script.created = false;
+			if (!script.instance) {
+				script_runtime::AttachEntry(entity, script);
+			} else if (registration && registration->apply) {
+				registration->apply(*script.instance, script.value);
+			}
 		}
+
 		ImGui::PopID();
 	}
+
 	if (remove >= 0) {
+		auto& entry{ scripts.scripts[static_cast<std::size_t>(remove)] };
+		entry.enabled = false;
+		if (auto* sequence{ dynamic_cast<SequenceScript*>(entry.instance) }) {
+			sequence->sequence.enabled = false;
+		}
 		scripts.scripts.erase(scripts.scripts.begin() + remove);
 	}
 }
 
-void DemoEditor::PromoteToShared(ScriptSequence& binding) {
+void PromoteToShared(DemoEditorDrawContext& ui, ScriptSequence& binding) {
 	if (binding.shared_reference) {
 		return;
 	}
@@ -4585,25 +4197,25 @@ void DemoEditor::PromoteToShared(ScriptSequence& binding) {
 	shared.shared_reference = false;
 	shared.shared_sequence_id = 0;
 	shared.runtime = ScriptSequenceRuntime{};
-	const Id shared_id{ shared.id };
-	world_.GetSharedSequences().sequences.push_back(std::move(shared));
+	const SequenceId shared_id{ shared.id };
+	ui.context.host.GetSharedSequences().sequences.push_back(std::move(shared));
 	binding.shared_reference = true;
 	binding.shared_sequence_id = shared_id;
 	binding.runtime = ScriptSequenceRuntime{};
 }
 
-void DemoEditor::DetachToLocal(ScriptSequence& binding) {
+void DetachToLocal(DemoEditorDrawContext& ui, ScriptSequence& binding) {
 	if (!binding.shared_reference) {
 		return;
 	}
-	const auto* shared{ world_.GetSharedSequences().Find(binding.shared_sequence_id) };
+	const auto* shared{ ui.context.host.GetSharedSequences().Find(binding.shared_sequence_id) };
 	if (!shared) {
 		binding.shared_reference = false;
 		binding.shared_sequence_id = 0;
 		return;
 	}
 	ScriptSequence local{ *shared };
-	const Id binding_id{ binding.id };
+	const SequenceId binding_id{ binding.id };
 	const bool enabled{ binding.enabled };
 	binding = std::move(local);
 	binding.id = binding_id;
@@ -4613,30 +4225,30 @@ void DemoEditor::DetachToLocal(ScriptSequence& binding) {
 	binding.runtime = ScriptSequenceRuntime{};
 }
 
-void DemoEditor::DrawRuntimeButtons(ptgn::Entity owner, ScriptSequence& binding) {
+void DrawRuntimeButtons(DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& binding) {
 	if (!ImGui::BeginTable("RuntimeButtons", 3, ImGuiTableFlags_SizingStretchSame)) {
 		return;
 	}
 	ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 	ImGui::TableSetColumnIndex(0);
 	if (ImGui::Button(binding.runtime.running ? "Restart" : "Start", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
-		world_.Start(owner, binding, true);
+		ui.context.host.Start(owner, binding, true);
 	}
 	ImGui::TableSetColumnIndex(1);
 	ImGui::BeginDisabled(!binding.runtime.running);
 	if (ImGui::Button(binding.runtime.paused ? "Resume" : "Pause", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
-		world_.SetPaused(owner, binding, !binding.runtime.paused);
+		ui.context.host.SetPaused(owner, binding, !binding.runtime.paused);
 	}
 	ImGui::EndDisabled();
 	ImGui::TableSetColumnIndex(2);
 	if (ImGui::Button("Stop", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
-		world_.Stop(owner, binding);
+		ui.context.host.Stop(owner, binding);
 	}
 	ImGui::EndTable();
 }
 
-bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
-	ScriptSequence* sequence{ world_.Resolve(binding) };
+bool DrawSequence(DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& binding) {
+	ScriptSequence* sequence{ ui.context.host.Resolve(owner, binding) };
 	if (!sequence) {
 		ImGui::TextDisabled("Missing shared Script Sequence");
 		return false;
@@ -4645,13 +4257,13 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 	bool remove{ false };
 	ImGui::PushID(static_cast<int>(binding.id));
 	const float button_size{ ImGui::GetFrameHeight() };
-	const int runtime_columns{ show_runtime_controls_ ? 3 : 0 };
+	const int runtime_columns{ ui.state.show_runtime_controls ? 3 : 0 };
 	const int column_count{ 3 + runtime_columns };
 	const float available_width{ ImGui::GetContentRegionAvail().x };
 	const float sequence_width{ std::max(
 		1.0f, (available_width - CompactControlSpacing()) * 0.5f
 	) };
-	bool open{ sequence_open_states_.try_emplace(binding.id, true).first->second };
+	bool open{ ui.state.sequence_open_states.try_emplace(binding.id, true).first->second };
 	ImVec2 name_input_min{};
 	ImVec2 name_input_max{};
 	bool name_input_drawn{ false };
@@ -4668,7 +4280,7 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 		ImGui::TableSetupColumn(
 			"Options", ImGuiTableColumnFlags_WidthStretch
 		);
-		if (show_runtime_controls_) {
+		if (ui.state.show_runtime_controls) {
 			ImGui::TableSetupColumn(
 				"Play", ImGuiTableColumnFlags_WidthFixed, button_size
 			);
@@ -4686,10 +4298,10 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
 
 		ImGui::TableSetColumnIndex(0);
-		auto& stored_open{ sequence_open_states_[binding.id] };
+		auto& stored_open{ ui.state.sequence_open_states[binding.id] };
 		ImGui::SetNextItemOpen(stored_open, ImGuiCond_Always);
 		const bool editing_before_draw{
-			editing_sequence_name_ == binding.id
+			ui.state.editing_sequence_name == binding.id
 		};
 		const ImVec4 header{
 			binding.enabled
@@ -4757,8 +4369,8 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 			ImGui::EndPopup();
 		}
 		if (begin_edit) {
-			editing_sequence_name_ = binding.id;
-			editing_sequence_original_name_ = sequence->name;
+			ui.state.editing_sequence_name = binding.id;
+			ui.state.editing_sequence_original_name = sequence->name;
 			began_name_edit_this_frame = true;
 		}
 
@@ -4768,7 +4380,7 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 			stored_open = open;
 		}
 
-		if (editing_sequence_name_ == binding.id) {
+		if (ui.state.editing_sequence_name == binding.id) {
 			ImGui::SetCursorScreenPos(
 				ImVec2{ text_start_x, tree_min.y }
 			);
@@ -4790,13 +4402,13 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 			name_input_hovered =
 				ImGui::IsItemHovered() || ImGui::IsItemActive();
 			if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
-				sequence->name = editing_sequence_original_name_;
-				editing_sequence_name_.reset();
+				sequence->name = ui.state.editing_sequence_original_name;
+				ui.state.editing_sequence_name.reset();
 			} else if (submitted) {
-				editing_sequence_name_.reset();
+				ui.state.editing_sequence_name.reset();
 			}
 		}
-		if (tree_hovered && editing_sequence_name_ != binding.id) {
+		if (tree_hovered && ui.state.editing_sequence_name != binding.id) {
 			ImGui::SetTooltip("Double-click name to rename.");
 		}
 
@@ -4832,11 +4444,11 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 					"Global sequence", nullptr, global
 				)) {
 				if (global) {
-					DetachToLocal(binding);
+					DetachToLocal(ui, binding);
 				} else {
-					PromoteToShared(binding);
+					PromoteToShared(ui, binding);
 				}
-				sequence = world_.Resolve(binding);
+				sequence = ui.context.host.Resolve(owner, binding);
 			}
 			if (sequence && ImGui::MenuItem(
 					"Remove binding on complete", nullptr,
@@ -4888,12 +4500,12 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 		DrawSelectedItemsTooltip(selected_sequence_options);
 
 		int column{ 2 };
-		if (show_runtime_controls_) {
+		if (ui.state.show_runtime_controls) {
 			ImGui::TableSetColumnIndex(column++);
 			if (DrawCenteredTextButton(
 					"##Play", ">", ImVec2{ button_size, button_size }
 				)) {
-				world_.Start(owner, binding, true);
+				ui.context.host.Start(owner, binding, true);
 			}
 			DrawItemTooltip(
 				binding.runtime.running
@@ -4906,7 +4518,7 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 			if (DrawCenteredTextButton(
 					"##Pause", "||", ImVec2{ button_size, button_size }
 				)) {
-				world_.SetPaused(
+				ui.context.host.SetPaused(
 					owner, binding, !binding.runtime.paused
 				);
 			}
@@ -4922,7 +4534,7 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 			if (DrawCenteredTextButton(
 					"##Stop", "[]", ImVec2{ button_size, button_size }
 				)) {
-				world_.Stop(owner, binding);
+				ui.context.host.Stop(owner, binding);
 			}
 			ImGui::EndDisabled();
 			DrawItemTooltip("Stop this sequence.");
@@ -4937,7 +4549,7 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 		ImGui::EndTable();
 	}
 
-	if (editing_sequence_name_ == binding.id && name_input_drawn &&
+	if (ui.state.editing_sequence_name == binding.id && name_input_drawn &&
 		!began_name_edit_this_frame) {
 		const bool clicked{
 			ImGui::IsMouseClicked(ImGuiMouseButton_Left) ||
@@ -4952,12 +4564,12 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 			mouse.y <= name_input_max.y
 		};
 		if (clicked && !inside_input && !name_input_hovered) {
-			editing_sequence_name_.reset();
+			ui.state.editing_sequence_name.reset();
 		}
 	}
 
 	if (open && !remove) {
-		sequence = world_.Resolve(binding);
+		sequence = ui.context.host.Resolve(owner, binding);
 		if (sequence) {
 			if (sequence->channel &&
 				ImGui::BeginTable("SequenceChannelRow", 2, ImGuiTableFlags_SizingStretchProp)) {
@@ -4985,7 +4597,7 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 				);
 				ImGui::EndTable();
 			}
-			DrawEvents(*sequence);
+			DrawEvents(ui, owner, *sequence);
 
 			bool add_action_requested{ false };
 			const bool sequence_open{
@@ -5026,7 +4638,7 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 			}
 			ImGui::PopID();
 			if (sequence_open) {
-				DrawActions(*sequence, binding);
+				DrawActions(ui, *sequence, binding);
 			}
 		}
 	}
@@ -5035,7 +4647,7 @@ bool DemoEditor::DrawSequence(ptgn::Entity owner, ScriptSequence& binding) {
 	return remove;
 }
 
-void DemoEditor::DrawEvents(ScriptSequence& sequence) {
+void DrawEvents(DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& sequence) {
 	bool add_requested{ false };
 	const bool empty{
 		sequence.start_events.empty() && sequence.stop_events.empty() &&
@@ -5053,15 +4665,29 @@ void DemoEditor::DrawEvents(ScriptSequence& sequence) {
 	}
 	if (ImGui::BeginPopup("AddEventEntry")) {
 		if (ImGui::BeginMenu("Trigger")) {
+			auto candidate_available = [&](const EventEditorRegistration& candidate) {
+				const auto* registration{
+					SequenceEventRegistry::Find(candidate.type_hash)
+				};
+				return registration &&
+					(!registration->available || registration->available(owner));
+			};
 			auto add_candidate = [&](const EventEditorRegistration& candidate) {
+				const auto* registration{
+					SequenceEventRegistry::Find(candidate.type_hash)
+				};
+				if (!candidate_available(candidate)) {
+					return;
+				}
+
 				if (ImGui::MenuItem(candidate.options.label.c_str())) {
-					if (const auto* registration{ EventRegistry::Find(candidate.key) }) {
-						sequence.start_events.push_back(EventCondition{
-							.id = IdGenerator::Next(), .enabled = true,
-							.type = registration->key,
-							.filter = registration->make_default_filter(),
-						});
-					}
+					EventCondition event{
+						.enabled = true,
+						.type_hash = registration->type_hash,
+						.type = registration->key,
+					};
+					registration->set_defaults(event);
+					sequence.start_events.push_back(std::move(event));
 				}
 				DrawItemTooltip(candidate.options.description.c_str());
 			};
@@ -5074,6 +4700,7 @@ void DemoEditor::DrawEvents(ScriptSequence& sequence) {
 			std::vector<std::string> groups;
 			for (const auto& candidate : editor::EventEditorRegistry::Entries()) {
 				if (!candidate.options.group.empty() &&
+					candidate_available(candidate) &&
 					!std::ranges::contains(groups, candidate.options.group)) {
 					groups.push_back(candidate.options.group);
 				}
@@ -5095,7 +4722,7 @@ void DemoEditor::DrawEvents(ScriptSequence& sequence) {
 			for (int i{ 0 }; i < static_cast<int>(kLifecycleLabels.size()); ++i) {
 				if (ImGui::MenuItem(kLifecycleLabels[static_cast<std::size_t>(i)])) {
 					sequence.lifecycle_actions.push_back(LifecycleAction{
-						.id = IdGenerator::Next(), .enabled = true,
+						.enabled = true,
 						.lifecycle = static_cast<SequenceLifecycle>(i),
 						.action = ActionRegistry::Make<EmitSignalAction>(),
 					});
@@ -5117,7 +4744,7 @@ void DemoEditor::DrawEvents(ScriptSequence& sequence) {
 	for (int i{ 0 }; i < static_cast<int>(sequence.start_events.size()); ++i) {
 		bool switch_kind{ false };
 		if (DrawEvent(
-				sequence.start_events[static_cast<std::size_t>(i)], false, switch_kind
+				ui, owner, sequence.start_events[static_cast<std::size_t>(i)], false, switch_kind
 			)) {
 			remove_start = i;
 		}
@@ -5131,7 +4758,7 @@ void DemoEditor::DrawEvents(ScriptSequence& sequence) {
 	for (int i{ 0 }; i < static_cast<int>(sequence.stop_events.size()); ++i) {
 		bool switch_kind{ false };
 		if (DrawEvent(
-				sequence.stop_events[static_cast<std::size_t>(i)], true, switch_kind
+				ui, owner, sequence.stop_events[static_cast<std::size_t>(i)], true, switch_kind
 			)) {
 			remove_stop = i;
 		}
@@ -5172,14 +4799,19 @@ void DemoEditor::DrawEvents(ScriptSequence& sequence) {
 		sequence.start_events.push_back(std::move(*moved_to_start));
 	}
 
-	DrawLifecycleRows(sequence);
+	DrawLifecycleRows(ui, sequence);
 }
 
-bool DemoEditor::DrawEvent(
-	EventCondition& event, bool stop_event, bool& switch_kind
+bool DrawEvent(
+	DemoEditorDrawContext& ui,
+	ptgn::Entity owner,
+	EventCondition& event,
+	bool stop_event,
+	bool& switch_kind
 ) {
+	(void)ui;
 	bool remove{ false };
-	ImGui::PushID(static_cast<int>(event.id));
+	ImGui::PushID(&event);
 
 	const float kind_width{
 		std::max(
@@ -5188,41 +4820,29 @@ bool DemoEditor::DrawEvent(
 		) + ImGui::GetStyle().FramePadding.x * 2.0f
 	};
 	const float consume_width{
-		ImGui::CalcTextSize("Consume").x +
-		ImGui::GetStyle().FramePadding.x * 2.0f
+		ImGui::CalcTextSize("Consume").x + ImGui::GetStyle().FramePadding.x * 2.0f
 	};
-	const bool has_filter{ !event.filter.Is<NoEventFilter>() };
-	const int column_count{ has_filter ? 5 : 4 };
-	const auto* selected{ editor::EventEditorRegistry::Find(event.type) };
+	const EventEditorRegistration* selected{
+		editor::EventEditorRegistry::Find(event.type_hash)
+	};
+	bool event_type_changed{ false };
+
+	auto inline_field_count = [](const EventEditorRegistration* registration) {
+		return registration ? registration->inline_fields : 0;
+	};
 
 	if (ImGui::BeginTable(
-			"EventRow", column_count, ImGuiTableFlags_SizingStretchProp
+			"EventRow", 4,
+			ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_NoSavedSettings
 		)) {
-		ImGui::TableSetupColumn(
-			"Kind", ImGuiTableColumnFlags_WidthFixed, kind_width
-		);
-		ImGui::TableSetupColumn(
-			"Event", ImGuiTableColumnFlags_WidthFixed, 145.0f
-		);
-		if (has_filter) {
-			ImGui::TableSetupColumn(
-				"Filter", ImGuiTableColumnFlags_WidthStretch
-			);
-			ImGui::TableSetupColumn(
-				"Consume", ImGuiTableColumnFlags_WidthFixed, consume_width
-			);
-		} else {
-			ImGui::TableSetupColumn(
-				"Consume", ImGuiTableColumnFlags_WidthStretch
-			);
-		}
+		ImGui::TableSetupColumn("Kind", ImGuiTableColumnFlags_WidthFixed, kind_width);
+		ImGui::TableSetupColumn("Event", ImGuiTableColumnFlags_WidthStretch);
+		ImGui::TableSetupColumn("Consume", ImGuiTableColumnFlags_WidthFixed, consume_width);
 		ImGui::TableSetupColumn(
 			"Controls", ImGuiTableColumnFlags_WidthFixed,
 			EnabledDeleteControlsWidth()
 		);
-		ImGui::TableNextRow(
-			ImGuiTableRowFlags_None, ImGui::GetFrameHeight()
-		);
+		ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 
 		int column{};
 		ImGui::TableSetColumnIndex(column++);
@@ -5234,30 +4854,59 @@ bool DemoEditor::DrawEvent(
 			switch_kind = true;
 		}
 		DrawItemTooltip(
-			stop_event
-				? "Change this to a start trigger."
-				: "Change this to a stop trigger."
+			stop_event ? "Change this to a start event." : "Change this to a stop event."
 		);
 		ImGui::EndDisabled();
 
 		ImGui::TableSetColumnIndex(column++);
 		ImGui::BeginDisabled(!event.enabled);
-		ImGui::SetNextItemWidth(-FLT_MIN);
+
+		const int initial_inline_fields{ inline_field_count(selected) };
+		const float available_width{ ImGui::GetContentRegionAvail().x };
+		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		float event_width{ available_width };
+		if (initial_inline_fields > 0) {
+			event_width = std::clamp(available_width * 0.4f, 110.0f, 190.0f);
+			const float minimum_fields_width{ 80.0f * initial_inline_fields };
+			if (available_width - event_width - spacing * initial_inline_fields <
+				minimum_fields_width) {
+				event_width = std::max(
+					90.0f,
+					available_width - spacing * initial_inline_fields - minimum_fields_width
+				);
+			}
+		}
+
+		ImGui::SetNextItemWidth(std::max(1.0f, event_width));
 		if (ImGui::BeginCombo(
 				"##Event",
 				selected ? selected->options.label.c_str() : "Missing Event"
 			)) {
+			auto candidate_available = [&](const EventEditorRegistration& candidate) {
+				const auto* registration{
+					SequenceEventRegistry::Find(candidate.type_hash)
+				};
+				return registration &&
+					(!registration->available || registration->available(owner));
+			};
 			auto select_candidate = [&](const EventEditorRegistration& candidate) {
+				const auto* registration{
+					SequenceEventRegistry::Find(candidate.type_hash)
+				};
+				if (!candidate_available(candidate)) {
+					return;
+				}
+
 				if (ImGui::MenuItem(
-						candidate.options.label.c_str(), nullptr,
-						candidate.key == event.type
+						candidate.options.label.c_str(),
+						nullptr,
+						candidate.type_hash == event.type_hash
 					)) {
+					event.type_hash = candidate.type_hash;
 					event.type = candidate.key;
-					if (const auto* registration{
-							EventRegistry::Find(candidate.key)
-						}) {
-						event.filter = registration->make_default_filter();
-					}
+					registration->set_defaults(event);
+					selected = editor::EventEditorRegistry::Find(event.type_hash);
+					event_type_changed = true;
 				}
 				DrawItemTooltip(candidate.options.description.c_str());
 			};
@@ -5271,6 +4920,7 @@ bool DemoEditor::DrawEvent(
 			std::vector<std::string> groups;
 			for (const auto& candidate : editor::EventEditorRegistry::Entries()) {
 				if (!candidate.options.group.empty() &&
+					candidate_available(candidate) &&
 					!std::ranges::contains(groups, candidate.options.group)) {
 					groups.push_back(candidate.options.group);
 				}
@@ -5288,36 +4938,29 @@ bool DemoEditor::DrawEvent(
 			}
 			ImGui::EndCombo();
 		}
-		ImGui::EndDisabled();
 
-		if (has_filter) {
-			ImGui::TableSetColumnIndex(column++);
-			ImGui::BeginDisabled(!event.enabled);
-			selected = editor::EventEditorRegistry::Find(event.type);
-			if (selected) {
-				selected->draw_filter(event.filter);
-			} else {
-				ImGui::AlignTextToFramePadding();
-				ImGui::TextDisabled("Missing Trigger editor");
-			}
-			ImGui::EndDisabled();
+		if (selected && !event_type_changed &&
+			selected->inline_fields > 0 && selected->draw) {
+			ImGui::SameLine();
+			(void)selected->draw(event.value);
 		}
+		ImGui::EndDisabled();
 
 		ImGui::TableSetColumnIndex(column++);
 		ImGui::BeginDisabled(!event.enabled);
 		DrawToggleButton(
-			"Consume", event.consume,
+			"Consume",
+			event.consume,
 			ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() },
-			"Stop propagation after this trigger matches. Targeted events stop on this entity; "
-			"broadcast events stop before later entities."
+			"Stop propagation after this event matches."
 		);
 		ImGui::EndDisabled();
 
 		ImGui::TableSetColumnIndex(column);
 		remove = DrawEnabledDeleteControls(
 			event.enabled,
-			"Enable or disable this trigger.",
-			"Remove this trigger."
+			"Enable or disable this event.",
+			"Remove this event."
 		);
 		ImGui::EndTable();
 	}
@@ -5326,7 +4969,7 @@ bool DemoEditor::DrawEvent(
 	return remove;
 }
 
-void DemoEditor::DrawActionPicker(Action& action, bool timed_only, float width) {
+void DrawActionPicker(DemoEditorDrawContext& ui, Action& action, bool timed_only, float width) {
 	const auto* current{ editor::ActionEditorRegistry::Find(action.type) };
 	ImGui::SetNextItemWidth(width);
 	const bool open{ ImGui::BeginCombo(
@@ -5342,7 +4985,8 @@ void DemoEditor::DrawActionPicker(Action& action, bool timed_only, float width) 
 
 	auto is_available = [&](const ActionEditorRegistration& candidate) {
 		const auto* registration{ ActionRegistry::Find(candidate.key) };
-		return registration && candidate.key != ActionRegistry::Key<WaitAction>() &&
+		return registration && registration->serializable &&
+			candidate.key != ActionRegistry::Key<WaitAction>() &&
 			(!timed_only || registration->supports_timing) &&
 			(timed_only || !registration->requires_timing);
 	};
@@ -5352,10 +4996,8 @@ void DemoEditor::DrawActionPicker(Action& action, bool timed_only, float width) 
 			return;
 		}
 		if (ImGui::MenuItem(candidate.options.label.c_str(), nullptr, candidate.key == action.type)) {
-			const Id id{ action.id };
 			const bool enabled{ action.enabled };
 			action = ActionRegistry::Make(std::string_view{ candidate.key });
-			action.id = id;
 			action.enabled = enabled;
 			if (timed_only) {
 				action.completion = ActionCompletion::Duration;
@@ -5408,13 +5050,14 @@ void DemoEditor::DrawActionPicker(Action& action, bool timed_only, float width) 
 	ImGui::EndCombo();
 }
 
-void DemoEditor::DrawActionPickerWithInline(Action& action, bool timed_only) {
+void DrawActionPickerWithInline(DemoEditorDrawContext& ui, Action& action, bool timed_only) {
+	EnsureActionValue(action);
 	const auto* editor{ editor::ActionEditorRegistry::Find(action.type) };
 	const bool has_inline_editor{
 		!timed_only && editor && static_cast<bool>(editor->draw_inline)
 	};
 	if (!has_inline_editor) {
-		DrawActionPicker(action, timed_only);
+		DrawActionPicker(ui, action, timed_only);
 		return;
 	}
 
@@ -5423,25 +5066,30 @@ void DemoEditor::DrawActionPickerWithInline(Action& action, bool timed_only) {
 	const float picker_width{
 		std::min(150.0f, std::max(110.0f, available * 0.32f))
 	};
-	DrawActionPicker(action, timed_only, picker_width);
+	DrawActionPicker(ui, action, timed_only, picker_width);
 
 	editor = editor::ActionEditorRegistry::Find(action.type);
 	if (editor && editor->draw_inline) {
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(-FLT_MIN);
-		editor->draw_inline(action.value, context_);
+		if (editor->draw_inline(action.value, ui.context)) {
+			action.runtime_factory = {};
+		}
 	}
 }
 
-void DemoEditor::DrawEmitSignalCompact(EmitSignalAction& emit) {
+void DrawEmitSignalCompact(DemoEditorDrawContext& ui, EmitSignalAction& emit) {
 	ImGui::SetNextItemWidth(-FLT_MIN);
 	ImGui::InputTextWithHint("##EmitSignal", "Signal name", &emit.signal.value);
 	DrawItemTooltip("Broadcast Signal name.");
 }
 
-void DemoEditor::DrawTimingOptions(
-	Action& action, ActionTiming& timing, float left_screen_x
+void DrawTimingOptions(
+	DemoEditorDrawContext& ui, Action& action, ActionTiming& timing, float left_screen_x
 ) {
+	(void)ui;
+	EnsureActionValue(action);
+
 	const float right_screen_x{
 		ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x
 	};
@@ -5450,9 +5098,27 @@ void DemoEditor::DrawTimingOptions(
 		ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y }
 	);
 
-	auto* move{ action.value.TryGet<MoveToAction>() };
-	auto* rotate{ action.value.TryGet<RotateToAction>() };
-	auto* scale{ action.value.TryGet<ScaleToAction>() };
+	std::optional<MoveToAction> move;
+	std::optional<RotateToAction> rotate;
+	std::optional<ScaleToAction> scale;
+
+	if (action.type_hash == ptgn::Hash<MoveToAction>()) {
+		MoveToAction value{};
+		if (TryReadJson(action.value, value)) {
+			move = std::move(value);
+		}
+	} else if (action.type_hash == ptgn::Hash<RotateToAction>()) {
+		RotateToAction value{};
+		if (TryReadJson(action.value, value)) {
+			rotate = std::move(value);
+		}
+	} else if (action.type_hash == ptgn::Hash<ScaleToAction>()) {
+		ScaleToAction value{};
+		if (TryReadJson(action.value, value)) {
+			scale = std::move(value);
+		}
+	}
+
 	const int columns{ move || scale ? 5 : (rotate ? 4 : 2) };
 	if (!ImGui::BeginTable(
 			"TweenOptions", columns, ImGuiTableFlags_SizingStretchProp,
@@ -5589,9 +5255,21 @@ void DemoEditor::DrawTimingOptions(
 	}
 	DrawSelectedItemsTooltip(selected_options);
 	ImGui::EndTable();
+
+	if (move) {
+		action.value = *move;
+		action.runtime_factory = {};
+	} else if (rotate) {
+		action.value = *rotate;
+		action.runtime_factory = {};
+	} else if (scale) {
+		action.value = *scale;
+		action.runtime_factory = {};
+	}
 }
 
-void DemoEditor::DrawActionParameters(Action& action, float left_screen_x) {
+void DrawActionParameters(DemoEditorDrawContext& ui, Action& action, float left_screen_x) {
+	EnsureActionValue(action);
 	const auto* action_editor{ editor::ActionEditorRegistry::Find(action.type) };
 	if (!action_editor || action.type == ActionRegistry::Key<WaitAction>() ||
 		action.type == ActionRegistry::Key<EmitSignalAction>() ||
@@ -5603,9 +5281,10 @@ void DemoEditor::DrawActionParameters(Action& action, float left_screen_x) {
 		return;
 	}
 
-	if (action.type == ActionRegistry::Key<AddComponentsAction>()) {
-		const auto* add_components{ action.value.TryGet<AddComponentsAction>() };
-		if (!add_components || add_components->components.empty()) {
+	if (action.type_hash == ptgn::Hash<AddComponentsAction>()) {
+		AddComponentsAction add_components;
+		if (!TryReadJson(action.value, add_components) ||
+			add_components.components.empty()) {
 			return;
 		}
 	}
@@ -5616,17 +5295,19 @@ void DemoEditor::DrawActionParameters(Action& action, float left_screen_x) {
 			"ActionParameters", ImVec2{ std::max(1.0f, right_screen_x - left_screen_x), 0.0f },
 			ImGuiChildFlags_AutoResizeY
 		)) {
-		action_editor->draw(action.value, context_);
+		if (action_editor->draw(action.value, ui.context)) {
+			action.runtime_factory = {};
+		}
 	}
 	ImGui::EndChild();
 }
 
-bool DemoEditor::DrawAction(
-	Action& action, int index, ScriptSequence* binding, bool& duplicate,
-	int& move_from, int& move_to, bool lifecycle
+bool DrawAction(
+	DemoEditorDrawContext& ui, Action& action, int index, ScriptSequence* binding,
+	bool& duplicate, int& move_from, int& move_to, bool lifecycle
 ) {
 	bool remove{ false };
-	ImGui::PushID(static_cast<int>(action.id));
+	ImGui::PushID(&action);
 	const float drag_width{ lifecycle ? 0.0f : 28.0f };
 	const float label_width{
 		std::max({
@@ -5772,12 +5453,12 @@ bool DemoEditor::DrawAction(
 				"Duration of each Tween cycle."
 			);
 			ImGui::TableSetColumnIndex(column++);
-			DrawActionPicker(action, true);
+			DrawActionPicker(ui, action, true);
 		} else {
 			ImGui::TableSetColumnIndex(column++);
 			switch (displayed_form) {
 				case ActionForm::Action:
-					DrawActionPickerWithInline(action, false);
+					DrawActionPickerWithInline(ui, action, false);
 					break;
 				case ActionForm::Delay:
 					DrawDurationInput(
@@ -5812,23 +5493,30 @@ bool DemoEditor::DrawAction(
 		displayed_form = requested_form;
 	}
 	if (displayed_form == ActionForm::Tween && action.timing) {
-		DrawTimingOptions(action, *action.timing, parameter_left_screen_x);
+		DrawTimingOptions(ui, action, *action.timing, parameter_left_screen_x);
 	}
 	if (displayed_form == ActionForm::Action ||
 		displayed_form == ActionForm::Tween) {
-		DrawActionParameters(action, parameter_left_screen_x);
+		DrawActionParameters(ui, action, parameter_left_screen_x);
 	}
 	if (binding && binding->runtime.running &&
 		binding->runtime.action_index == static_cast<std::size_t>(index)) {
-		ImGui::ProgressBar(
-			world_.Progress(*binding), ImVec2{ -FLT_MIN, 2.0f }, ""
-		);
+		const auto& runtime_action{ binding->actions[binding->runtime.action_index] };
+		const float progress{
+			runtime_action.timing && runtime_action.timing->duration_ms > 0.0f
+				? std::clamp(
+					binding->runtime.elapsed_ms / runtime_action.timing->duration_ms,
+					0.0f, 1.0f
+				)
+				: 0.0f
+		};
+		ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 2.0f }, "");
 	}
 	ImGui::PopID();
 	return remove;
 }
 
-void DemoEditor::DrawActions(ScriptSequence& sequence, ScriptSequence& binding) {
+void DrawActions(DemoEditorDrawContext& ui, ScriptSequence& sequence, ScriptSequence& binding) {
 	int remove_index{ -1 };
 	int duplicate_index{ -1 };
 	int move_from{ -1 };
@@ -5836,8 +5524,8 @@ void DemoEditor::DrawActions(ScriptSequence& sequence, ScriptSequence& binding) 
 	for (int i{ 0 }; i < static_cast<int>(sequence.actions.size()); ++i) {
 		bool duplicate{ false };
 		if (DrawAction(
-				sequence.actions[static_cast<std::size_t>(i)], i, &binding, duplicate,
-				move_from, move_to
+				ui, sequence.actions[static_cast<std::size_t>(i)], i, &binding,
+				duplicate, move_from, move_to, false
 			)) {
 			remove_index = i;
 		}
@@ -5850,7 +5538,6 @@ void DemoEditor::DrawActions(ScriptSequence& sequence, ScriptSequence& binding) 
 	}
 	if (duplicate_index >= 0) {
 		Action copy{ sequence.actions[static_cast<std::size_t>(duplicate_index)] };
-		copy.id = IdGenerator::Next();
 		sequence.actions.insert(sequence.actions.begin() + duplicate_index + 1, std::move(copy));
 	}
 	if (remove_index >= 0) {
@@ -5859,11 +5546,11 @@ void DemoEditor::DrawActions(ScriptSequence& sequence, ScriptSequence& binding) 
 	}
 }
 
-void DemoEditor::DrawLifecycleRows(ScriptSequence& sequence) {
+void DrawLifecycleRows(DemoEditorDrawContext& ui, ScriptSequence& sequence) {
 	int remove{ -1 };
 	for (int i{ 0 }; i < static_cast<int>(sequence.lifecycle_actions.size()); ++i) {
 		auto& callback{ sequence.lifecycle_actions[static_cast<std::size_t>(i)] };
-		ImGui::PushID(static_cast<int>(callback.id));
+		ImGui::PushID(&callback);
 
 		const float lifecycle_width{ 145.0f };
 		const float button_width{ ImGui::GetFrameHeight() };
@@ -5899,7 +5586,7 @@ void DemoEditor::DrawLifecycleRows(ScriptSequence& sequence) {
 
 			ImGui::TableSetColumnIndex(1);
 			ImGui::BeginDisabled(!callback.enabled);
-			DrawActionPickerWithInline(callback.action, false);
+			DrawActionPickerWithInline(ui, callback.action, false);
 			ImGui::EndDisabled();
 
 			ImGui::TableSetColumnIndex(2);
@@ -5914,7 +5601,7 @@ void DemoEditor::DrawLifecycleRows(ScriptSequence& sequence) {
 		}
 
 		ImGui::BeginDisabled(!callback.enabled);
-		DrawActionParameters(
+		DrawActionParameters(ui, 
 			callback.action, ImGui::GetCursorScreenPos().x
 		);
 		ImGui::EndDisabled();
@@ -5927,8 +5614,8 @@ void DemoEditor::DrawLifecycleRows(ScriptSequence& sequence) {
 	}
 }
 
-void DemoEditor::DrawAddResidentScriptPopup(ScriptsComponent& scripts) {
-	if (!ImGui::BeginPopup("AddResidentScript")) {
+void DrawAddResidentScriptPopup(DemoEditorDrawContext& ui, ScriptsComponent& scripts) {
+	if (!ImGui::BeginPopup("AddScript")) {
 		return;
 	}
 	std::vector<std::string> groups;
@@ -5963,6 +5650,7 @@ void DemoEditor::DrawAddResidentScriptPopup(ScriptsComponent& scripts) {
 			}
 			if (ImGui::MenuItem(editor->options.label.c_str())) {
 				ScriptEntry script;
+				script.type_hash = registration.type_hash;
 				script.type = registration.key;
 				script.value = registration.make_default();
 				scripts.scripts.push_back(std::move(script));
@@ -5974,42 +5662,8 @@ void DemoEditor::DrawAddResidentScriptPopup(ScriptsComponent& scripts) {
 	ImGui::EndPopup();
 }
 
-void DemoEditor::DrawAddSequencePopup(ScriptsComponent& scripts) {
-	if (!ImGui::BeginPopup("AddScriptSequencePopup")) {
-		return;
-	}
-	if (ImGui::MenuItem("Create New Script Sequence")) {
-		ScriptSequence sequence;
-		sequence.start_events.push_back(EventRegistry::MakeCondition<OnCreate, OnCreateFilter>());
-		scripts.sequences.push_back(std::move(sequence));
-	}
-	if (ImGui::BeginMenu("Existing Script Sequence")) {
-		if (world_.GetSharedSequences().sequences.empty()) {
-			ImGui::TextDisabled("No global Script Sequences");
-		}
-		for (const auto& shared : world_.GetSharedSequences().sequences) {
-			const bool attached{ std::ranges::any_of(scripts.sequences, [&shared](const auto& binding) {
-				return binding.shared_reference && binding.shared_sequence_id == shared.id;
-			}) };
-			ImGui::BeginDisabled(attached);
-			if (ImGui::MenuItem(shared.name.c_str())) {
-				ScriptSequence binding;
-				binding.shared_reference = true;
-				binding.shared_sequence_id = shared.id;
-				scripts.sequences.push_back(std::move(binding));
-			}
-			ImGui::EndDisabled();
-			if (attached && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-				ImGui::SetTooltip("Already attached to this entity");
-			}
-		}
-		ImGui::EndMenu();
-	}
-	ImGui::EndPopup();
-}
-
-void DemoEditor::DrawComponentDefinition(
-	ComponentDefinition& definition, bool removable,
+void DrawComponentDefinition(
+	DemoEditorDrawContext& ui, ComponentDefinition& definition, bool removable,
 	int* remove_index, int index
 ) {
 	const auto* component{ ptgn::ComponentRegistry::Find(definition.type) };
@@ -6018,7 +5672,7 @@ void DemoEditor::DrawComponentDefinition(
 		component ? ResolveComponentEditor(*component).label : definition.type
 	};
 
-	ImGui::PushID(static_cast<int>(definition.id));
+	ImGui::PushID(definition.type.c_str());
 	bool open{ false };
 	if (ImGui::BeginTable(
 			"PrefabComponentHeader", removable ? 2 : 1,
@@ -6067,14 +5721,22 @@ void DemoEditor::DrawComponentDefinition(
 	}
 
 	if (open && component && editor && !component->is_empty) {
-		ptgn::editor::ComponentEditorRegistry::DrawJson(
-			*component, definition.value
-		);
+		if (definition.value.is_null() && component->make_default_json) {
+			definition.value = component->make_default_json();
+		}
+		if (definition.value.is_null()) {
+			definition.value = ptgn::json::object();
+		}
+		if (ptgn::editor::ComponentEditorRegistry::DrawJson(
+				*component, definition.value
+			)) {
+			definition.apply_live = {};
+		}
 	}
 	ImGui::PopID();
 }
 
-void DemoEditor::DrawPrefabInspector(PrefabDefinition& prefab) {
+void DrawPrefabInspector(DemoEditorDrawContext& ui, PrefabDefinition& prefab) {
 	ImGui::TextDisabled("Prefab Asset");
 	if (ImGui::BeginTable("PrefabIdentity", 2, ImGuiTableFlags_SizingStretchProp)) {
 		ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch);
@@ -6104,7 +5766,7 @@ void DemoEditor::DrawPrefabInspector(PrefabDefinition& prefab) {
 	}
 	int remove{ -1 };
 	for (int i{ 0 }; i < static_cast<int>(prefab.components.size()); ++i) {
-		DrawComponentDefinition(prefab.components[static_cast<std::size_t>(i)], true, &remove, i);
+		DrawComponentDefinition(ui, prefab.components[static_cast<std::size_t>(i)], true, &remove, i);
 	}
 	if (remove >= 0) {
 		prefab.components.erase(prefab.components.begin() + remove);
@@ -6148,17 +5810,17 @@ void DemoEditor::DrawPrefabInspector(PrefabDefinition& prefab) {
 	ImGui::TextDisabled("Registry-backed values are copied into each spawned entity.");
 }
 
-void DemoEditor::DrawPrefabs() {
+void DrawPrefabs(DemoEditorDrawContext& ui) {
 	ImGui::TextDisabled("Prefabs");
 	ImGui::Separator();
 	int delete_index{ -1 };
 	int duplicate_index{ -1 };
-	for (int i{ 0 }; i < static_cast<int>(context_.prefabs.definitions.size()); ++i) {
-		auto& prefab{ context_.prefabs.definitions[static_cast<std::size_t>(i)] };
-		ImGui::PushID(static_cast<int>(prefab.id));
-		if (ImGui::Selectable(prefab.name.c_str(), inspect_prefab_ && selected_prefab_ == i, 0, ImVec2{ 0.0f, 25.0f })) {
-			selected_prefab_ = i;
-			inspect_prefab_ = true;
+	for (int i{ 0 }; i < static_cast<int>(ui.context.prefabs.definitions.size()); ++i) {
+		auto& prefab{ ui.context.prefabs.definitions[static_cast<std::size_t>(i)] };
+		ImGui::PushID(&prefab);
+		if (ImGui::Selectable(prefab.name.c_str(), ui.state.inspect_prefab && ui.state.selected_prefab == i, 0, ImVec2{ 0.0f, 25.0f })) {
+			ui.state.selected_prefab = i;
+			ui.state.inspect_prefab = true;
 		}
 		DrawItemTooltip(prefab.key.c_str());
 		if (ImGui::BeginPopupContextItem("PrefabContext")) {
@@ -6174,31 +5836,27 @@ void DemoEditor::DrawPrefabs() {
 		ImGui::PopID();
 	}
 	if (duplicate_index >= 0) {
-		PrefabDefinition copy{ context_.prefabs.definitions[static_cast<std::size_t>(duplicate_index)] };
-		copy.id = IdGenerator::Next();
+		PrefabDefinition copy{ ui.context.prefabs.definitions[static_cast<std::size_t>(duplicate_index)] };
 		copy.name += " Copy";
 		copy.key += "_copy";
-		for (auto& component : copy.components) {
-			component.id = IdGenerator::Next();
-		}
-		context_.prefabs.definitions.insert(context_.prefabs.definitions.begin() + duplicate_index + 1, std::move(copy));
-		selected_prefab_ = duplicate_index + 1;
-		inspect_prefab_ = true;
+		ui.context.prefabs.definitions.insert(ui.context.prefabs.definitions.begin() + duplicate_index + 1, std::move(copy));
+		ui.state.selected_prefab = duplicate_index + 1;
+		ui.state.inspect_prefab = true;
 	}
 	if (delete_index >= 0) {
-		context_.prefabs.definitions.erase(context_.prefabs.definitions.begin() + delete_index);
-		selected_prefab_ = context_.prefabs.definitions.empty() ? -1 : std::clamp(selected_prefab_, 0, static_cast<int>(context_.prefabs.definitions.size()) - 1);
-		inspect_prefab_ = selected_prefab_ >= 0;
+		ui.context.prefabs.definitions.erase(ui.context.prefabs.definitions.begin() + delete_index);
+		ui.state.selected_prefab = ui.context.prefabs.definitions.empty() ? -1 : std::clamp(ui.state.selected_prefab, 0, static_cast<int>(ui.context.prefabs.definitions.size()) - 1);
+		ui.state.inspect_prefab = ui.state.selected_prefab >= 0;
 	}
 	if (ImGui::Button("+ New Prefab", ImVec2{ -FLT_MIN, 0.0f })) {
-		context_.prefabs.definitions.emplace_back();
-		selected_prefab_ = static_cast<int>(context_.prefabs.definitions.size()) - 1;
-		inspect_prefab_ = true;
+		ui.context.prefabs.definitions.emplace_back();
+		ui.state.selected_prefab = static_cast<int>(ui.context.prefabs.definitions.size()) - 1;
+		ui.state.inspect_prefab = true;
 	}
 }
 
-void DemoEditor::DrawActivity() {
-	const auto activity{ world_.ActivityText() };
+void DrawActivity(DemoEditorDrawContext& ui) {
+	const auto activity{ ui.context.host.ActivityText() };
 	char label[64]{};
 	std::snprintf(label, sizeof(label), "Demo Activity (%zu)", activity.size());
 	const bool open{ ImGui::TreeNodeEx(
@@ -6224,15 +5882,15 @@ void DemoEditor::DrawActivity() {
 
 struct NameComponent {
 	std::string value{ "Entity" };
-};
 
-struct TagComponent {
-	std::string value;
+	PTGN_REFLECT(NameComponent, value)
 };
 
 struct DemoVisual {
 	ImVec4 color{ 0.35f, 0.43f, 0.57f, 1.0f };
 	bool sensor{ false };
+
+	PTGN_REFLECT(DemoVisual, color, sensor)
 };
 
 enum class ButtonState {
@@ -6241,6 +5899,7 @@ enum class ButtonState {
 	Pressed,
 	Disabled
 };
+PTGN_REFLECT_ENUM(ButtonState);
 
 struct ButtonData {
 	bool enabled{ true };
@@ -6248,6 +5907,8 @@ struct ButtonData {
 	bool hovered{ false };
 	bool pressed{ false };
 	ptgn::Mouse pressed_button{ ptgn::Mouse::Left };
+
+	PTGN_REFLECT(ButtonData, enabled, state, hovered, pressed, pressed_button)
 };
 
 struct ButtonStyle {
@@ -6255,156 +5916,61 @@ struct ButtonStyle {
 	ImVec4 hovered{ 0.30f, 0.49f, 0.82f, 1.0f };
 	ImVec4 pressed{ 0.16f, 0.29f, 0.54f, 1.0f };
 	ImVec4 disabled{ 0.28f, 0.29f, 0.32f, 1.0f };
+
+	PTGN_REFLECT(ButtonStyle, idle, hovered, pressed, disabled)
 };
 
-struct ButtonScript {
-	[[nodiscard]] EventResult OnEvent(ScriptContext& context, const EventView& event);
-};
-
-struct PlayerMovementScript {
+struct PlayerMovementScript final : ptgn::Script {
 	float speed{ 220.0f };
-	void OnUpdate(ScriptContext& context);
+	void OnUpdate() override;
+
+	PTGN_REFLECT(PlayerMovementScript, speed)
 };
 
 struct Health {
 	float maximum{ 100.0f };
 	float current{ 100.0f };
+
+	PTGN_REFLECT(Health, maximum, current)
 };
 
-struct Zombie {};
+struct Zombie {
+	PTGN_REFLECT_EMPTY(Zombie)
+};
 
 struct Damage {
 	float amount{ 10.0f };
 	std::string damage_type{ "Physical" };
+
+	PTGN_REFLECT(Damage, amount, damage_type)
 };
 
 struct Lifetime {
 	float duration_ms{ 3000.0f };
+
+	PTGN_REFLECT(Lifetime, duration_ms)
 };
 
 struct MaskComponent {
 	int value{ 1 };
+
+	PTGN_REFLECT(MaskComponent, value)
 };
 
-struct ApplyDamageAction {
+struct ApplyDamageAction final : ScriptAction {
 	float amount{ 10.0f };
 	std::string damage_type{ "Physical" };
 	bool critical{ false };
-	void OnStart(ActionContext& context);
+
+	ApplyDamageAction() = default;
+	explicit ApplyDamageAction(
+		float amount, std::string damage_type = "Physical", bool critical = false
+	) : amount{ amount }, damage_type{ std::move(damage_type) }, critical{ critical } {}
+
+	void OnStart() override;
+
+	PTGN_REFLECT(ApplyDamageAction, amount, damage_type, critical)
 };
-
-inline void to_json(ptgn::json& output, const DemoVisual& visual) {
-	output = ptgn::json{
-		{ "color", { visual.color.x, visual.color.y, visual.color.z, visual.color.w } },
-		{ "sensor", visual.sensor },
-	};
-}
-
-inline void from_json(const ptgn::json& input, DemoVisual& visual) {
-	const auto& color{ input.at("color") };
-	visual.color = ImVec4{
-		color.at(0).get<float>(),
-		color.at(1).get<float>(),
-		color.at(2).get<float>(),
-		color.at(3).get<float>(),
-	};
-	visual.sensor = input.value("sensor", false);
-}
-
-inline void to_json(ptgn::json& output, const Health& health) {
-	output = ptgn::json{
-		{ "maximum", health.maximum },
-		{ "current", health.current },
-	};
-}
-
-inline void from_json(const ptgn::json& input, Health& health) {
-	health.maximum = input.value("maximum", 100.0f);
-	health.current = input.value("current", health.maximum);
-}
-
-inline void to_json(ptgn::json& output, const Zombie&) {
-	output = ptgn::json::object();
-}
-
-inline void from_json(const ptgn::json&, Zombie&) {}
-
-inline void to_json(ptgn::json& output, const Damage& damage) {
-	output = ptgn::json{
-		{ "amount", damage.amount },
-		{ "damage_type", damage.damage_type },
-	};
-}
-
-inline void from_json(const ptgn::json& input, Damage& damage) {
-	damage.amount = input.value("amount", 10.0f);
-	damage.damage_type = input.value("damage_type", std::string{ "Physical" });
-}
-
-inline void to_json(ptgn::json& output, const Lifetime& lifetime) {
-	output = ptgn::json{ { "duration_ms", lifetime.duration_ms } };
-}
-
-inline void from_json(const ptgn::json& input, Lifetime& lifetime) {
-	lifetime.duration_ms = input.value("duration_ms", 3000.0f);
-}
-
-inline void to_json(ptgn::json& output, const MaskComponent& mask) {
-	output = ptgn::json{ { "value", mask.value } };
-}
-
-inline void from_json(const ptgn::json& input, MaskComponent& mask) {
-	mask.value = input.value("value", 1);
-}
-
-inline void to_json(ptgn::json& output, const ButtonData& button) {
-	output = ptgn::json{
-		{ "enabled", button.enabled },
-		{ "state", static_cast<int>(button.state) },
-		{ "hovered", button.hovered },
-		{ "pressed", button.pressed },
-		{ "pressed_button", static_cast<int>(button.pressed_button) },
-	};
-}
-
-inline void from_json(const ptgn::json& input, ButtonData& button) {
-	button.enabled = input.value("enabled", true);
-	button.state = static_cast<ButtonState>(
-		input.value("state", static_cast<int>(ButtonState::Idle))
-	);
-	button.hovered = input.value("hovered", false);
-	button.pressed = input.value("pressed", false);
-	button.pressed_button = static_cast<ptgn::Mouse>(
-		input.value("pressed_button", static_cast<int>(ptgn::Mouse::Left))
-	);
-}
-
-inline void to_json(ptgn::json& output, const ButtonStyle& style) {
-	auto color = [](const ImVec4& value) {
-		return ptgn::json{ value.x, value.y, value.z, value.w };
-	};
-	output = ptgn::json{
-		{ "idle", color(style.idle) },
-		{ "hovered", color(style.hovered) },
-		{ "pressed", color(style.pressed) },
-		{ "disabled", color(style.disabled) },
-	};
-}
-
-inline void from_json(const ptgn::json& input, ButtonStyle& style) {
-	auto color = [](const ptgn::json& value) {
-		return ImVec4{
-			value.at(0).get<float>(),
-			value.at(1).get<float>(),
-			value.at(2).get<float>(),
-			value.at(3).get<float>(),
-		};
-	};
-	style.idle = color(input.at("idle"));
-	style.hovered = color(input.at("hovered"));
-	style.pressed = color(input.at("pressed"));
-	style.disabled = color(input.at("disabled"));
-}
 
 template <typename T>
 bool DrawRegisteredDemoContents(ptgn::Entity entity) {
@@ -6486,789 +6052,1303 @@ struct Contents<ButtonStyle> {
 
 } // namespace ptgn::editor::inspector
 
-class DemoWorld :
-	public Scene,
-	public RuntimeHost,
-	public editor::EditorHost {
+PTGN_REGISTER_COMPONENT(
+	ptgn::Transform,
+	{
+		.label = "Transform",
+		.group = "Core",
+	}
+);
+
+PTGN_REGISTER_COMPONENT(
+	DemoVisual,
+	{
+		.label = "Demo Visual",
+		.group = "Graphics",
+		.draw_contents = &DrawRegisteredDemoContents<DemoVisual>,
+	}
+);
+
+PTGN_REGISTER_COMPONENT(
+	Health,
+	{
+		.label = "Health",
+		.group = "Gameplay",
+		.draw_contents = &DrawRegisteredDemoContents<Health>,
+	}
+);
+
+PTGN_REGISTER_COMPONENT(
+	Zombie,
+	{
+		.label = "Zombie",
+		.group = "Gameplay",
+	}
+);
+
+PTGN_REGISTER_COMPONENT(
+	Damage,
+	{
+		.label = "Damage",
+		.group = "Gameplay",
+		.draw_contents = &DrawRegisteredDemoContents<Damage>,
+	}
+);
+
+PTGN_REGISTER_COMPONENT(
+	Lifetime,
+	{
+		.label = "Lifetime",
+		.group = "Gameplay",
+		.draw_contents = &DrawRegisteredDemoContents<Lifetime>,
+	}
+);
+
+PTGN_REGISTER_COMPONENT(
+	MaskComponent,
+	{
+		.label = "Mask",
+		.group = "Physics",
+		.draw_contents = &DrawRegisteredDemoContents<MaskComponent>,
+	}
+);
+
+PTGN_REGISTER_COMPONENT(
+	ButtonData,
+	{
+		.label = "Button",
+		.group = "UI",
+		.draw_contents = &DrawRegisteredDemoContents<ButtonData>,
+	}
+);
+
+PTGN_REGISTER_COMPONENT(
+	ButtonStyle,
+	{
+		.label = "Button Style",
+		.group = "UI",
+		.draw_contents = &DrawRegisteredDemoContents<ButtonStyle>,
+	}
+);
+
+void RegisterDemoEditorTypes();
+
+class DemoScene final : public ptgn::Scene, public editor::EditorHost {
 public:
 	struct ActivityEntry {
 		std::string text;
 		float remaining_seconds{ 8.0f };
 	};
 
-	explicit DemoWorld(GLFWwindow* window) : window_{ window } {
-		BindRuntimeHost(*this);
-		RegisterEngineTypes();
-		CreatePrefabs();
-		CreateDemoScene();
-	}
-
-	void RegisterEditorExtensions() override;
+	void OnEnter() override;
+	void OnUpdate() override;
 
 	[[nodiscard]] PrefabRegistry& GetPrefabs() override { return prefabs_; }
-	[[nodiscard]] SharedScriptSequenceRegistry& GetSharedSequences() override { return shared_sequences_; }
-	[[nodiscard]] const std::vector<ptgn::Entity>& Entities() const override { return entities_; }
-	[[nodiscard]] std::vector<ptgn::Entity>& Entities() { return entities_; }
-	[[nodiscard]] const std::vector<ActivityEntry>& Activity() const { return activity_; }
-	[[nodiscard]] std::vector<std::string> ActivityText() const override {
-		std::vector<std::string> result;
-		result.reserve(activity_.size());
-		for (const auto& entry : activity_) {
-			result.push_back(entry.text);
-		}
-		return result;
+	[[nodiscard]] SharedScriptSequenceRegistry& GetSharedSequences() override {
+		return shared_sequences_;
 	}
-
-	[[nodiscard]] ptgn::Entity FindByTag(std::string_view tag) const {
-		for (auto entity : entities_) {
-			if (const auto* component{ entity.TryGet<TagComponent>() };
-				component && component->value == tag) {
-				return entity;
-			}
-		}
-		return {};
+	[[nodiscard]] std::vector<ptgn::Entity> Entities() const override {
+		return ptgn::Scene::Entities().GetVector();
 	}
-
-	[[nodiscard]] std::string_view Name(ptgn::Entity entity) const override {
-		if (entity && entity.Has<NameComponent>()) {
-			return entity.Get<NameComponent>().value;
-		}
-		return "Entity";
+	[[nodiscard]] std::vector<std::string> ActivityText() const override;
+	[[nodiscard]] std::string_view Name(ptgn::Entity entity) const override;
+	[[nodiscard]] editor::EditorVisual Visual(ptgn::Entity entity) const override;
+	[[nodiscard]] std::string& EditableName(ptgn::Entity entity) override;
+	[[nodiscard]] std::string& EditableTag(ptgn::Entity entity) override;
+	ptgn::Entity CreateEntity(std::string name, std::string tag = {}) override;
+	[[nodiscard]] ScriptSequence* Resolve(
+		ptgn::Entity owner, ScriptSequence& binding
+	) override {
+		return script_runtime::Resolve(owner, binding);
 	}
-
-	[[nodiscard]] std::string& EditableName(ptgn::Entity entity) override {
-		return entity.TryAdd<NameComponent>().value;
+	[[nodiscard]] const ScriptSequence* Resolve(
+		ptgn::Entity owner, const ScriptSequence& binding
+	) const override {
+		return script_runtime::Resolve(owner, binding);
 	}
-
-	[[nodiscard]] std::string& EditableTag(ptgn::Entity entity) override {
-		return entity.TryAdd<TagComponent>().value;
-	}
-
-	[[nodiscard]] std::string_view Tag(ptgn::Entity entity) const override {
-		if (entity && entity.Has<TagComponent>()) {
-			return entity.Get<TagComponent>().value;
-		}
-		return {};
-	}
-
-	[[nodiscard]] int Mask(ptgn::Entity entity) const override {
-		if (entity && entity.Has<MaskComponent>()) {
-			return entity.Get<MaskComponent>().value;
-		}
-		return 0;
-	}
-
-	[[nodiscard]] editor::EditorVisual Visual(ptgn::Entity entity) const override {
-		editor::EditorVisual result;
-		if (entity && entity.Has<DemoVisual>()) {
-			const auto& visual{ entity.Get<DemoVisual>() };
-			result.color = visual.color;
-			result.sensor = visual.sensor;
-		}
-		if (entity && entity.Has<ButtonData>() && entity.Has<ButtonStyle>()) {
-			const auto& button{ entity.Get<ButtonData>() };
-			const auto& style{ entity.Get<ButtonStyle>() };
-			switch (button.state) {
-				case ButtonState::Idle: result.color = style.idle; break;
-				case ButtonState::Hovered: result.color = style.hovered; break;
-				case ButtonState::Pressed: result.color = style.pressed; break;
-				case ButtonState::Disabled: result.color = style.disabled; break;
-			}
-		}
-		if (entity && entity.Has<Health>()) {
-			const auto& health{ entity.Get<Health>() };
-			result.health_fraction = health.maximum > 0.0f
-				? std::clamp(health.current / health.maximum, 0.0f, 1.0f)
-				: 0.0f;
-		}
-		return result;
-	}
-
-	void Log(std::string text) override {
-		activity_.push_back(ActivityEntry{ .text = std::move(text) });
-		constexpr std::size_t maximum{ 18 };
-		if (activity_.size() > maximum) {
-			activity_.erase(activity_.begin());
-		}
-	}
-
-	void Queue(EventEnvelope event) override {
-		if (event.type.empty()) {
-			return;
-		}
-		if (event.delivery == EventDelivery::Target) {
-			Context().local_events.Push(std::move(event));
-		} else {
-			Context().global_events.Push(std::move(event));
-		}
-	}
-
-	ptgn::Entity CreateEntity(std::string name, std::string tag = {}) override {
-		ptgn::Entity entity{ manager_.CreateEntity() };
-		entity.Add<NameComponent>(NameComponent{ std::move(name) });
-		entity.Add<TagComponent>(TagComponent{ std::move(tag) });
-		entity.Add<ptgn::Transform>();
-		entity.Add<ptgn::Visible>();
-		entity.Add<DemoVisual>();
-		entity.Add<MaskComponent>();
-		entities_.push_back(entity);
-		manager_.Refresh();
-		return entity;
-	}
-
-	ptgn::Entity SpawnPrefab(const PrefabDefinition& prefab, ptgn::V2_float position) {
-		ptgn::Entity entity{ CreateEntity(prefab.name, prefab.tag) };
-		for (const auto& component : prefab.components) {
-			const auto* registration{
-				ptgn::ComponentRegistry::Find(component.type)
-			};
-			if (registration && registration->deserialize) {
-				registration->deserialize(component.value, entity);
-			}
-		}
-		if (prefab.scripts.has_value()) {
-			entity.Add<ScriptsComponent>(prefab.scripts.value());
-		}
-		entity.Get<ptgn::Transform>().position = position;
-		Log("Spawned prefab " + prefab.key);
-		return entity;
-	}
-
-	ptgn::Entity SpawnPrefab(const PrefabSpawnRequest& request) override {
-		const auto* prefab{ prefabs_.Find(request.prefab_key) };
-		if (!prefab) {
-			return {};
-		}
-		ptgn::Entity entity{ SpawnPrefab(*prefab, request.position) };
-		if (request.random_rotation && entity) {
-			static std::mt19937 generator{ std::random_device{}() };
-			std::uniform_real_distribution<float> angle{ -180.0f, 180.0f };
-			entity.Get<ptgn::Transform>().rotation = ptgn::Degrees{ angle(generator) }.ToRad();
-		}
-		return entity;
-	}
-
-	[[nodiscard]] bool KeyDown(ptgn::Key key) const override {
-		return glfwGetKey(window_, static_cast<int>(key)) == GLFW_PRESS;
-	}
-
-	[[nodiscard]] float KeyHoldDuration(ptgn::Key key) const override {
-		const auto it{ key_hold_duration_ms_.find(static_cast<int>(key)) };
-		return it == key_hold_duration_ms_.end() ? 0.0f : it->second;
-	}
-
-	[[nodiscard]] bool MouseDown(ptgn::Mouse button) const override {
-		return glfwGetMouseButton(window_, static_cast<int>(button)) == GLFW_PRESS;
-	}
-
-	[[nodiscard]] float MouseHoldDuration(ptgn::Mouse button) const override {
-		const auto it{ mouse_hold_duration_ms_.find(static_cast<int>(button)) };
-		return it == mouse_hold_duration_ms_.end() ? 0.0f : it->second;
-	}
-
-	void Destroy(ptgn::Entity entity) override {
-		if (entity && !std::ranges::contains(pending_destroy_, entity)) {
-			pending_destroy_.push_back(entity);
-		}
-	}
-
-	void Update(float delta_seconds) {
-		Scene::Update(delta_seconds);
-	}
-
-	[[nodiscard]] const ScriptSequence* Resolve(const ScriptSequence& binding) const override {
-		return binding.shared_reference
-			? shared_sequences_.Find(binding.shared_sequence_id)
-			: &binding;
-	}
-
-	[[nodiscard]] ScriptSequence* Resolve(ScriptSequence& binding) override {
-		return binding.shared_reference
-			? shared_sequences_.Find(binding.shared_sequence_id)
-			: &binding;
-	}
-
 	void Start(ptgn::Entity owner, ScriptSequence& binding, bool force = false) override {
-		(void)StartBinding(owner, binding, force);
+		(void)script_runtime::Start(owner, binding.id, force);
 	}
-
-	void Stop(ptgn::Entity owner, ScriptSequence& binding, bool log = true) override {
-		(void)CancelBinding(owner, binding, SequenceCancelReason::Stopped, log, true);
+	void Stop(ptgn::Entity owner, ScriptSequence& binding, bool) override {
+		(void)script_runtime::Stop(owner, binding.id);
 	}
-
 	void SetPaused(ptgn::Entity owner, ScriptSequence& binding, bool paused) override {
-		(void)SetBindingPaused(owner, binding, paused);
+		(void)script_runtime::SetPaused(owner, binding.id, paused);
 	}
-
-	[[nodiscard]] float Progress(const ScriptSequence& binding) const override {
-		const auto* sequence{ Resolve(binding) };
-		if (!sequence || !binding.runtime.running ||
-			binding.runtime.action_index >= sequence->actions.size()) {
-			return binding.runtime.completed ? 1.0f : 0.0f;
-		}
-		const auto& action{ sequence->actions[binding.runtime.action_index] };
-		if (!action.timing || action.timing->duration_ms <= 0.0f) {
-			return 0.0f;
-		}
-		return std::clamp(
-			binding.runtime.elapsed_ms / action.timing->duration_ms,
-			0.0f,
-			1.0f
-		);
+	[[nodiscard]] float Progress(
+		ptgn::Entity owner, const ScriptSequence& binding
+	) const override {
+		return script_runtime::Progress(owner, binding.id);
 	}
-
-	SequenceHandle RunSequence(ptgn::Entity owner, ScriptSequence sequence) override {
-		if (!owner) {
-			return {};
-		}
-		auto& scripts{ owner.TryAdd<ScriptsComponent>() };
-		const Id id{ scripts.AddSequenceDeferred(std::move(sequence)) };
-		(void)StartSequence(owner, id, true);
-		return SequenceHandle{ .host = this, .owner = owner, .binding_id = id };
-	}
-
-	SequenceHandle RunInChannel(
-		ptgn::Entity owner,
-		SequenceChannelKey channel,
-		ScriptSequence sequence,
-		ReentryMode reentry
-	) override {
-		if (!owner) {
-			return {};
-		}
-
-		auto& scripts{ owner.TryAdd<ScriptsComponent>() };
-		auto& channel_runtime{ FindOrCreateChannel(scripts, channel) };
-		if (channel_runtime.active) {
-			if (reentry == ReentryMode::IgnoreWhileRunning) {
-				return SequenceHandle{
-					.host = this,
-					.owner = owner,
-					.binding_id = *channel_runtime.active,
-				};
-			}
-			if (reentry == ReentryMode::Restart) {
-				StopSequenceChannel(owner, channel, SequenceStopMode::All);
-			}
-		}
-
-		sequence.channel = channel;
-		sequence.reentry = reentry;
-		sequence.transient = true;
-		sequence.remove_binding_on_complete = true;
-		const Id id{ scripts.AddSequenceDeferred(std::move(sequence)) };
-
-		if (reentry == ReentryMode::Queue && channel_runtime.active) {
-			channel_runtime.waiting.push_back(id);
-			if (auto* binding{ FindBinding(owner, id) }) {
-				binding->runtime.waiting_for_channel = true;
-			}
-		} else {
-			channel_runtime.active = id;
-			(void)StartSequence(owner, id, true);
-		}
-
-		return SequenceHandle{ .host = this, .owner = owner, .binding_id = id };
-	}
-
-	bool StartSequence(ptgn::Entity owner, Id id, bool force = false) override {
-		auto* binding{ FindBinding(owner, id) };
-		return binding && StartBinding(owner, *binding, force);
-	}
-
-	void StopSequenceChannel(
-		ptgn::Entity owner,
-		SequenceChannelKey channel,
-		SequenceStopMode mode
-	) override {
-		auto* scripts{ owner.TryGet<ScriptsComponent>() };
-		if (!scripts) {
-			return;
-		}
-		auto* runtime{ FindChannel(*scripts, channel) };
-		if (!runtime) {
-			return;
-		}
-
-		const std::optional<Id> active{ runtime->active };
-		std::vector<Id> waiting{ runtime->waiting.begin(), runtime->waiting.end() };
-		if (mode == SequenceStopMode::All) {
-			runtime->active.reset();
-			runtime->waiting.clear();
-		}
-
-		if (active) {
-			if (auto* binding{ FindBinding(owner, *active) }) {
-				(void)CancelBinding(
-					owner, *binding, SequenceCancelReason::Replaced, false,
-					mode == SequenceStopMode::Current
-				);
-			}
-		}
-		if (mode == SequenceStopMode::All) {
-			for (const Id id : waiting) {
-				if (auto* binding{ FindBinding(owner, id) }) {
-					(void)CancelBinding(
-						owner, *binding, SequenceCancelReason::Replaced, false, false
-					);
-				}
-			}
-		}
-	}
-
-	bool StopSequence(
-		ptgn::Entity owner,
-		Id id,
-		SequenceCancelReason reason = SequenceCancelReason::Stopped
-	) override {
-		auto* binding{ FindBinding(owner, id) };
-		return binding && CancelBinding(owner, *binding, reason, true, true);
-	}
-
-	bool ResetSequence(ptgn::Entity owner, Id id) override {
-		auto* binding{ FindBinding(owner, id) };
-		if (!binding) {
-			return false;
-		}
-		(void)CancelBinding(owner, *binding, SequenceCancelReason::Reset, false, true);
-		InvokeLifecycle(owner, *binding, SequenceLifecycle::Reset);
-		return true;
-	}
-
-	bool ClearSequence(ptgn::Entity owner, Id id) override {
-		auto* binding{ FindBinding(owner, id) };
-		if (!binding) {
-			return false;
-		}
-		(void)CancelBinding(owner, *binding, SequenceCancelReason::Cleared, false, true);
-		if (binding->shared_reference || binding->transient) {
-			owner.Get<ScriptsComponent>().RemoveSequenceDeferred(id);
-		} else {
-			binding->actions.clear();
-			binding->start_events.clear();
-			binding->stop_events.clear();
-			binding->lifecycle_actions.clear();
-		}
-		return true;
-	}
-
-	bool SkipSequenceAction(ptgn::Entity owner, Id id) override {
-		auto* binding{ FindBinding(owner, id) };
-		if (!binding || !binding->runtime.running) {
-			return false;
-		}
-		if (binding->runtime.action_instance) {
-			ActionContext context{ .host = *this, .owner = owner, .scene = &Context() };
-			binding->runtime.action_instance->Cancel(context, SequenceCancelReason::Skipped);
-			InvokeLifecycle(owner, *binding, SequenceLifecycle::ActionCancel);
-		}
-		++binding->runtime.action_index;
-		binding->runtime.ClearActiveAction();
-		ProcessImmediateActions(owner, *binding);
-		return true;
-	}
-
-	bool SeekSequence(ptgn::Entity owner, Id id, float progress) override {
-		auto* binding{ FindBinding(owner, id) };
-		if (!binding) {
-			return false;
-		}
-		if (!binding->runtime.running && !StartBinding(owner, *binding, true)) {
-			return false;
-		}
-		const auto* sequence{ Resolve(*binding) };
-		if (!sequence || binding->runtime.action_index >= sequence->actions.size()) {
-			return false;
-		}
-		const auto& action{ sequence->actions[binding->runtime.action_index] };
-		if (!action.timing) {
-			return false;
-		}
-		binding->runtime.elapsed_ms =
-			std::clamp(progress, 0.0f, 1.0f) * std::max(0.0f, action.timing->duration_ms);
-		UpdateSequence(owner, *binding, 0.0f);
-		return true;
-	}
-
-	bool SetSequencePaused(ptgn::Entity owner, Id id, bool paused) override {
-		auto* binding{ FindBinding(owner, id) };
-		return binding && SetBindingPaused(owner, *binding, paused);
-	}
-
-	[[nodiscard]] float SequenceProgress(ptgn::Entity owner, Id id) const override {
-		const auto* binding{ FindBinding(owner, id) };
-		return binding ? Progress(*binding) : 0.0f;
-	}
-
-	[[nodiscard]] bool SequenceRunning(ptgn::Entity owner, Id id) const override {
-		const auto* binding{ FindBinding(owner, id) };
-		return binding && binding->runtime.running;
-	}
-
-	[[nodiscard]] bool SequencePaused(ptgn::Entity owner, Id id) const override {
-		const auto* binding{ FindBinding(owner, id) };
-		return binding && binding->runtime.paused;
-	}
-
-	[[nodiscard]] bool SequenceCompleted(ptgn::Entity owner, Id id) const override {
-		const auto* binding{ FindBinding(owner, id) };
-		return binding && binding->runtime.completed;
-	}
-
-	void SubmitPointerFrame(PointerFrame frame) override {
+	void SubmitPointerFrame(editor::PointerFrame frame) override {
 		pointer_frame_ = frame;
 		pointer_frame_pending_ = true;
 	}
 
-private:
-	friend struct PlayerMovementScript;
-	friend struct MoveToAction;
-	friend struct RotateToAction;
-	friend struct SetVisibleAction;
-	friend struct PlayAudioAction;
-	friend struct EmitSignalAction;
-	friend struct AddComponentsAction;
-	friend struct RemoveComponentsAction;
-	friend struct SpawnEntityAction;
-	friend struct ApplyDamageAction;
-	friend class editor::DemoEditor;
+	void Log(std::string text);
+	void RequestDestroy(ptgn::Entity entity);
+	[[nodiscard]] ptgn::Entity FindByTag(std::string_view tag) const;
+	[[nodiscard]] int Mask(ptgn::Entity entity) const;
+	[[nodiscard]] ptgn::Entity SpawnPrefab(
+		const PrefabDefinition& prefab, ptgn::V2_float position
+	);
+	[[nodiscard]] ptgn::Entity SpawnPrefab(const PrefabSpawnRequest& request);
 
-	void RegisterEngineTypes();
+private:
 	void CreatePrefabs();
 	void CreateDemoScene();
-	void UpdateInputEvents(float delta_seconds);
 	void UpdateButtonInteraction();
-	void ProcessPendingDestroy();
 	void UpdateOverlapEvents();
-
-	void OnBeforeScriptUpdate(float delta_seconds) override;
-	void UpdateResidentScripts(float delta_seconds) override;
-	void UpdateScriptSequences(float delta_seconds) override;
-	void ApplyPendingScriptChanges() override;
-	void DispatchBufferedEvents() override;
-	void OnAfterScriptUpdate(float delta_seconds) override;
-
-	void DispatchEvents();
-	void UpdateSequence(ptgn::Entity owner, ScriptSequence& binding, float delta_seconds);
-	void ProcessImmediateActions(ptgn::Entity owner, ScriptSequence& binding);
-	void CompleteCurrentAction(ptgn::Entity owner, ScriptSequence& binding);
-	void CompleteSequence(ptgn::Entity owner, ScriptSequence& binding);
-	void InvokeLifecycle(ptgn::Entity owner, ScriptSequence& binding, SequenceLifecycle lifecycle);
-	void ExecuteInstant(ptgn::Entity owner, const Action& action);
-	[[nodiscard]] ScriptSequence* FindBinding(ptgn::Entity owner, Id id);
-	[[nodiscard]] const ScriptSequence* FindBinding(ptgn::Entity owner, Id id) const;
-	[[nodiscard]] SequenceChannelRuntime* FindChannel(
-		ScriptsComponent& scripts, const SequenceChannelKey& key
-	);
-	[[nodiscard]] SequenceChannelRuntime& FindOrCreateChannel(
-		ScriptsComponent& scripts, const SequenceChannelKey& key
-	);
-	[[nodiscard]] bool StartBinding(ptgn::Entity owner, ScriptSequence& binding, bool force);
-	[[nodiscard]] bool CancelBinding(
-		ptgn::Entity owner,
-		ScriptSequence& binding,
-		SequenceCancelReason reason,
-		bool log,
-		bool promote_channel,
-		bool remove_transient = true
-	);
-	[[nodiscard]] bool SetBindingPaused(
-		ptgn::Entity owner, ScriptSequence& binding, bool paused
-	);
-	void ReleaseChannel(ptgn::Entity owner, ScriptSequence& binding, bool promote);
-	void PromoteNextInChannel(ptgn::Entity owner, SequenceChannelRuntime& channel);
-	[[nodiscard]] bool Matches(
-		const EventCondition& condition,
-		const EventEnvelope& event,
-		ptgn::Entity owner
-	);
+	void ProcessPendingDestroy();
 	[[nodiscard]] bool Overlap(ptgn::Entity a, ptgn::Entity b) const;
 
-	GLFWwindow* window_{ nullptr };
 	PrefabRegistry prefabs_;
 	SharedScriptSequenceRegistry shared_sequences_;
-	std::vector<ptgn::Entity> entities_;
 	std::vector<ActivityEntry> activity_;
-	std::unordered_map<int, bool> previous_key_states_;
-	std::unordered_map<int, float> key_hold_duration_ms_;
-	std::unordered_map<int, bool> previous_mouse_states_;
-	std::unordered_map<int, float> mouse_hold_duration_ms_;
 	std::vector<ptgn::Entity> pending_destroy_;
-	bool player_overlapping_sensor_{ false };
-	bool player_overlapping_spawner_{ false };
-	PointerFrame pointer_frame_{};
+	std::unique_ptr<editor::DemoEditor> editor_;
+
+	editor::PointerFrame pointer_frame_{};
 	bool pointer_frame_pending_{ false };
 	ptgn::Entity hovered_button_;
 	std::array<ptgn::Entity, 3> pressed_buttons_{};
+	bool player_overlapping_sensor_{ false };
+	bool player_overlapping_spawner_{ false };
 };
 
-EventResult ButtonScript::OnEvent(ScriptContext& context, const EventView& event) {
-	auto* button{ context.owner.TryGet<ButtonData>() };
-	if (!button) {
-		return EventResult::Continue;
+namespace {
+
+template <typename TEvent>
+[[nodiscard]] ptgn::Entity OtherEntity(const TEvent& event) {
+	if constexpr (requires { event.overlap_entity; }) {
+		return event.overlap_entity;
+	} else if constexpr (requires { event.collision.other_entity; }) {
+		return event.collision.other_entity;
+	} else if constexpr (requires { event.collision.other; }) {
+		return event.collision.other;
+	} else if constexpr (requires { event.collision.entity; }) {
+		return event.collision.entity;
+	} else if constexpr (requires { event.entity; }) {
+		return event.entity;
+	} else {
+		return {};
 	}
-
-	if (!button->enabled) {
-		button->hovered = false;
-		button->pressed = false;
-		button->state = ButtonState::Disabled;
-		return EventResult::Continue;
-	}
-
-	if (event.Is<MouseMoveOver>()) {
-		button->hovered = true;
-		button->state = button->pressed ? ButtonState::Pressed : ButtonState::Hovered;
-		return EventResult::Continue;
-	}
-
-	if (event.Is<MouseMoveOut>()) {
-		button->hovered = false;
-		button->state = button->pressed ? ButtonState::Pressed : ButtonState::Idle;
-		return EventResult::Continue;
-	}
-
-	if (event.Is<MousePressedOver>()) {
-		const auto& pressed{ event.Get<MousePressedOver>() };
-		button->pressed = true;
-		button->pressed_button = pressed.button;
-		button->state = ButtonState::Pressed;
-		return EventResult::Continue;
-	}
-
-	if (event.Is<MouseReleasedOver>()) {
-		const auto& released{ event.Get<MouseReleasedOver>() };
-		if (!button->pressed || released.button != button->pressed_button) {
-			return EventResult::Continue;
-		}
-
-		const bool activate{ released.released_over };
-		button->pressed = false;
-		button->state = button->hovered ? ButtonState::Hovered : ButtonState::Idle;
-
-		if (activate) {
-			if (context.scene) {
-				context.scene->PushLocal<ButtonPress>(
-					context.owner, ButtonPress{ released.button }, context.owner
-				);
-			} else {
-				context.host.Queue(EventRegistry::MakeEvent<ButtonPress>(
-					ButtonPress{ released.button }, context.owner, context.owner,
-					EventDelivery::Target
-				));
-			}
-		}
-		return EventResult::Continue;
-	}
-
-	return EventResult::Continue;
 }
 
-void PlayerMovementScript::OnUpdate(ScriptContext& context) {
-	if (ImGui::GetIO().WantTextInput) {
+[[nodiscard]] std::string_view TrimFilterToken(std::string_view token) {
+	while (!token.empty() && std::isspace(static_cast<unsigned char>(token.front()))) {
+		token.remove_prefix(1);
+	}
+	while (!token.empty() && std::isspace(static_cast<unsigned char>(token.back()))) {
+		token.remove_suffix(1);
+	}
+	return token;
+}
+
+template <typename F>
+void ForEachFilterToken(std::string_view text, F&& fn) {
+	while (true) {
+		const std::size_t separator{ text.find(',') };
+		std::string_view token{ TrimFilterToken(text.substr(0, separator)) };
+		if (!token.empty()) {
+			std::invoke(fn, token);
+		}
+		if (separator == std::string_view::npos) {
+			break;
+		}
+		text.remove_prefix(separator + 1);
+	}
+}
+
+[[nodiscard]] bool MatchesTagFilters(std::string_view filters, std::string_view tag) {
+	bool has_include{ false };
+	bool include_match{ false };
+	bool excluded{ false };
+
+	ForEachFilterToken(filters, [&](std::string_view token) {
+		const bool exclude{ token.front() == '-' };
+		if (exclude) {
+			token = TrimFilterToken(token.substr(1));
+		}
+		if (token.empty()) {
+			return;
+		}
+		if (exclude) {
+			excluded |= tag == token;
+		} else {
+			has_include = true;
+			include_match |= tag == token;
+		}
+	});
+
+	return !excluded && (!has_include || include_match);
+}
+
+[[nodiscard]] bool MatchesMaskFilters(std::string_view filters, int mask) {
+	bool has_include{ false };
+	bool include_match{ false };
+	bool excluded{ false };
+
+	ForEachFilterToken(filters, [&](std::string_view token) {
+		const bool exclude{ token.front() == '-' };
+		if (exclude) {
+			token = TrimFilterToken(token.substr(1));
+		}
+		if (!token.empty() && token.front() == '+') {
+			token.remove_prefix(1);
+		}
+		if (token.empty()) {
+			return;
+		}
+
+		int value{};
+		const auto [end, error]{ std::from_chars(token.data(), token.data() + token.size(), value) };
+		if (error != std::errc{} || end != token.data() + token.size() || value <= 0) {
+			return;
+		}
+
+		const bool matches{ (mask & value) != 0 };
+		if (exclude) {
+			excluded |= matches;
+		} else {
+			has_include = true;
+			include_match |= matches;
+		}
+	});
+
+	return !excluded && (!has_include || include_match);
+}
+
+[[nodiscard]] std::string NormalizeKeyToken(std::string_view token) {
+	std::string normalized;
+	normalized.reserve(token.size());
+	for (const unsigned char c : token) {
+		if (std::isalnum(c)) {
+			normalized.push_back(static_cast<char>(std::tolower(c)));
+		}
+	}
+	return normalized;
+}
+
+[[nodiscard]] std::optional<ptgn::Key> ParseKeyToken(std::string_view token) {
+	token = TrimFilterToken(token);
+	if (token.empty()) {
+		return std::nullopt;
+	}
+
+	std::string normalized{ NormalizeKeyToken(token) };
+	if (normalized.empty()) {
+		return std::nullopt;
+	}
+
+	const bool numeric_name{
+		std::ranges::all_of(normalized, [](unsigned char c) {
+			return std::isdigit(c) != 0;
+		})
+	};
+	if (numeric_name) {
+		// A single digit means the number-row key. Longer numbers are GLFW scancodes.
+		if (normalized.size() == 1) {
+			normalized.insert(normalized.begin(), 'k');
+		} else {
+			using KeyValue = std::underlying_type_t<ptgn::Key>;
+			KeyValue scancode{};
+			const auto [end, error]{ std::from_chars(
+				normalized.data(), normalized.data() + normalized.size(), scancode
+			) };
+			if (error == std::errc{} && end == normalized.data() + normalized.size()) {
+				if (const auto key{ magic_enum::enum_cast<ptgn::Key>(scancode) }) {
+					return *key;
+				}
+			}
+			return std::nullopt;
+		}
+	}
+
+	// Common unsided modifier names imply the left modifier.
+	if (normalized == "shift") {
+		normalized = "leftshift";
+	} else if (normalized == "ctrl" || normalized == "control") {
+		normalized = "leftctrl";
+	} else if (normalized == "alt" || normalized == "option") {
+		normalized = "leftalt";
+	} else if (normalized == "super" || normalized == "cmd" ||
+		normalized == "command") {
+		normalized = "leftsuper";
+	} else if (normalized == "leftcontrol") {
+		normalized = "leftctrl";
+	} else if (normalized == "rightcontrol") {
+		normalized = "rightctrl";
+	}
+
+	for (const auto [key, name] : magic_enum::enum_entries<ptgn::Key>()) {
+		if (NormalizeKeyToken(name) == normalized) {
+			return key;
+		}
+	}
+	return std::nullopt;
+}
+
+struct ParsedKeyExpression {
+	std::vector<std::vector<ptgn::Key>> alternatives;
+	std::string error;
+
+	[[nodiscard]] explicit operator bool() const {
+		return error.empty() && !alternatives.empty();
+	}
+};
+
+[[nodiscard]] ParsedKeyExpression ParseKeyExpression(std::string_view expression) {
+	ParsedKeyExpression result;
+	while (true) {
+		const std::size_t comma{ expression.find(',') };
+		std::string_view group{ TrimFilterToken(expression.substr(0, comma)) };
+		if (group.empty()) {
+			result.error = "Expected a key name or scancode between commas.";
+			return result;
+		}
+
+		std::vector<ptgn::Key> keys;
+		while (true) {
+			const std::size_t plus{ group.find('+') };
+			const std::string_view token{ TrimFilterToken(group.substr(0, plus)) };
+			const auto key{ ParseKeyToken(token) };
+			if (!key) {
+				result.error =
+					"Unknown key '" + std::string{ token } +
+					"'. Use a Key enum name or numeric scancode.";
+				return result;
+			}
+			if (!std::ranges::contains(keys, *key)) {
+				keys.push_back(*key);
+			}
+			if (plus == std::string_view::npos) {
+				break;
+			}
+			group.remove_prefix(plus + 1);
+			if (TrimFilterToken(group).empty()) {
+				result.error = "Expected a key after '+'.";
+				return result;
+			}
+		}
+		result.alternatives.push_back(std::move(keys));
+
+		if (comma == std::string_view::npos) {
+			break;
+		}
+		expression.remove_prefix(comma + 1);
+		if (TrimFilterToken(expression).empty()) {
+			result.error = "Expected a key after ','.";
+			return result;
+		}
+	}
+	return result;
+}
+
+enum class KeyExpressionEvent {
+	Pressed,
+	Held,
+	Released
+};
+
+[[nodiscard]] int MouseButtonIndex(ptgn::Mouse button) {
+	for (int i{ 0 }; i < static_cast<int>(kMouseButtons.size()); ++i) {
+		if (kMouseButtons[static_cast<std::size_t>(i)] == button) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+struct InputExpressionState {
+	std::unordered_set<int> keys_down;
+	std::unordered_map<int, double> key_down_since;
+	std::array<bool, kMouseButtons.size()> mouse_down{};
+	std::array<double, kMouseButtons.size()> mouse_down_since{};
+	int observed_frame{ -1 };
+	std::unordered_set<std::size_t> observed_events;
+
+	void BeginFrame() {
+		const int frame{ ImGui::GetFrameCount() };
+		if (observed_frame != frame) {
+			observed_frame = frame;
+			observed_events.clear();
+		}
+	}
+
+	template <typename TEvent>
+	[[nodiscard]] bool MarkObserved(int value) {
+		BeginFrame();
+		const std::size_t signature{
+			ptgn::Hash<TEvent>() ^
+			(static_cast<std::size_t>(value) + 0x9e3779b97f4a7c15ULL +
+				(ptgn::Hash<TEvent>() << 6U) + (ptgn::Hash<TEvent>() >> 2U))
+		};
+		return observed_events.insert(signature).second;
+	}
+
+	void PressKey(ptgn::Key key) {
+		const int value{ static_cast<int>(key) };
+		if (keys_down.insert(value).second) {
+			key_down_since[value] = ImGui::GetTime();
+		}
+	}
+
+	void ReleaseKey(ptgn::Key key) {
+		const int value{ static_cast<int>(key) };
+		keys_down.erase(value);
+		key_down_since.erase(value);
+	}
+
+	void PressMouse(ptgn::Mouse button) {
+		const int index{ MouseButtonIndex(button) };
+		if (index < 0) {
+			return;
+		}
+		auto& down{ mouse_down[static_cast<std::size_t>(index)] };
+		if (!down) {
+			down = true;
+			mouse_down_since[static_cast<std::size_t>(index)] = ImGui::GetTime();
+		}
+	}
+
+	void ReleaseMouse(ptgn::Mouse button) {
+		const int index{ MouseButtonIndex(button) };
+		if (index < 0) {
+			return;
+		}
+		mouse_down[static_cast<std::size_t>(index)] = false;
+		mouse_down_since[static_cast<std::size_t>(index)] = 0.0;
+	}
+
+	[[nodiscard]] bool IsKeyDown(ptgn::Key key) const {
+		return keys_down.contains(static_cast<int>(key));
+	}
+
+	[[nodiscard]] float KeyChordHeldMilliseconds(
+		const std::vector<ptgn::Key>& keys
+	) const {
+		double chord_start{};
+		for (const auto key : keys) {
+			const int value{ static_cast<int>(key) };
+			const auto it{ key_down_since.find(value) };
+			if (!keys_down.contains(value) || it == key_down_since.end()) {
+				return 0.0f;
+			}
+			chord_start = std::max(chord_start, it->second);
+		}
+		return static_cast<float>(
+			std::max(0.0, ImGui::GetTime() - chord_start) * 1000.0
+		);
+	}
+
+	[[nodiscard]] float MouseHeldMilliseconds(ptgn::Mouse button) const {
+		const int index{ MouseButtonIndex(button) };
+		if (index < 0 || !mouse_down[static_cast<std::size_t>(index)]) {
+			return 0.0f;
+		}
+		return static_cast<float>(
+			std::max(
+				0.0,
+				ImGui::GetTime() -
+					mouse_down_since[static_cast<std::size_t>(index)]
+			) * 1000.0
+		);
+	}
+};
+
+[[nodiscard]] InputExpressionState& GetInputExpressionState() {
+	static InputExpressionState state;
+	return state;
+}
+
+void ObserveInputExpressionEvent(Event event) {
+	auto& state{ GetInputExpressionState() };
+	event.Dispatch<ptgn::event::KeyPressed>([&](const auto& input) {
+		if (state.MarkObserved<ptgn::event::KeyPressed>(static_cast<int>(input.key))) {
+			state.PressKey(input.key);
+		}
+	});
+	event.Dispatch<ptgn::event::KeyHeld>([&](const auto& input) {
+		if (state.MarkObserved<ptgn::event::KeyHeld>(static_cast<int>(input.key))) {
+			state.PressKey(input.key);
+		}
+	});
+	event.Dispatch<ptgn::event::KeyReleased>([&](const auto& input) {
+		if (state.MarkObserved<ptgn::event::KeyReleased>(static_cast<int>(input.key))) {
+			state.ReleaseKey(input.key);
+		}
+	});
+	event.Dispatch<ptgn::event::MousePressed>([&](const auto& input) {
+		const auto button{ EventMouse(input) };
+		if (state.MarkObserved<ptgn::event::MousePressed>(static_cast<int>(button))) {
+			state.PressMouse(button);
+		}
+	});
+	event.Dispatch<ptgn::event::MouseHeld>([&](const auto& input) {
+		const auto button{ EventMouse(input) };
+		if (state.MarkObserved<ptgn::event::MouseHeld>(static_cast<int>(button))) {
+			state.PressMouse(button);
+		}
+	});
+	event.Dispatch<ptgn::event::MouseReleased>([&](const auto& input) {
+		const auto button{ EventMouse(input) };
+		if (state.MarkObserved<ptgn::event::MouseReleased>(static_cast<int>(button))) {
+			state.ReleaseMouse(button);
+		}
+	});
+}
+
+[[nodiscard]] bool MatchesKeyExpression(
+	std::string_view expression,
+	ptgn::Key event_key,
+	KeyExpressionEvent event_kind,
+	float held_duration_ms = 0.0f
+) {
+	const ParsedKeyExpression parsed{ ParseKeyExpression(expression) };
+	if (!parsed) {
+		return false;
+	}
+
+	const auto& state{ GetInputExpressionState() };
+	for (const auto& alternative : parsed.alternatives) {
+		if (!std::ranges::contains(alternative, event_key)) {
+			continue;
+		}
+
+		const bool complete{ std::ranges::all_of(
+			alternative,
+			[&](ptgn::Key key) {
+				if (event_kind == KeyExpressionEvent::Released && key == event_key) {
+					return true;
+				}
+				return state.IsKeyDown(key);
+			}
+		) };
+		if (!complete) {
+			continue;
+		}
+
+		if (event_kind != KeyExpressionEvent::Held ||
+			state.KeyChordHeldMilliseconds(alternative) >=
+				std::max(0.0f, held_duration_ms)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+[[nodiscard]] bool MatchesMouseHeld(
+	ptgn::Mouse configured,
+	ptgn::Mouse event_button,
+	float duration_ms
+) {
+	return configured == event_button &&
+		GetInputExpressionState().MouseHeldMilliseconds(configured) >=
+			std::max(0.0f, duration_ms);
+}
+
+template <typename TScript>
+	requires std::derived_from<TScript, ptgn::Script>
+[[nodiscard]] ScriptEntry MakeLiveScriptEntry(TScript script) {
+	return ScriptRegistry::Make<TScript>(std::move(script));
+}
+
+[[nodiscard]] ScriptEntry MakeSequenceEntry(ScriptSequence sequence) {
+	SequenceScript script;
+	script.sequence = std::move(sequence);
+	return ScriptRegistry::Make(std::move(script));
+}
+
+void AttachSequence(ptgn::Entity entity, ScriptSequence sequence) {
+	auto& scripts{ entity.TryAdd<ScriptsComponent>() };
+	scripts.scripts.push_back(MakeSequenceEntry(std::move(sequence)));
+	script_runtime::AttachEntry(entity, scripts.scripts.back());
+}
+
+template <typename TScript>
+void AttachScript(ptgn::Entity entity, TScript script = {}) {
+	auto& scripts{ entity.TryAdd<ScriptsComponent>() };
+	scripts.scripts.push_back(MakeLiveScriptEntry(std::move(script)));
+	script_runtime::AttachEntry(entity, scripts.scripts.back());
+}
+
+void RegisterDemoTypes() {
+	static bool registered{ false };
+	if (registered) {
 		return;
 	}
+	registered = true;
 
-	ptgn::V2_float direction{};
-	if (context.host.KeyDown(static_cast<ptgn::Key>(GLFW_KEY_A))) {
-		direction.x -= 1.0f;
-	}
-	if (context.host.KeyDown(static_cast<ptgn::Key>(GLFW_KEY_D))) {
-		direction.x += 1.0f;
-	}
-	if (context.host.KeyDown(static_cast<ptgn::Key>(GLFW_KEY_S))) {
-		direction.y -= 1.0f;
-	}
-	if (context.host.KeyDown(static_cast<ptgn::Key>(GLFW_KEY_W))) {
-		direction.y += 1.0f;
-	}
-
-	const float magnitude{ std::sqrt(direction.x * direction.x + direction.y * direction.y) };
-	if (magnitude > 0.0f) {
-		direction /= magnitude;
-	}
-
-	auto& transform{ context.owner.Get<ptgn::Transform>() };
-	transform.position += direction * speed * context.delta_seconds;
-	transform.position.x = std::clamp(transform.position.x, -430.0f, 430.0f);
-	transform.position.y = std::clamp(transform.position.y, -250.0f, 250.0f);
-}
-
-void ApplyDamageAction::OnStart(ActionContext& context) {
-	if (auto* health{ context.owner.TryGet<Health>() }) {
-		const float applied{ std::max(0.0f, amount) * (critical ? 2.0f : 1.0f) };
-		health->current -= applied;
-		context.host.Log(
-			std::string{ context.host.Name(context.owner) } + " took " +
-			std::to_string(static_cast<int>(applied)) + " " + damage_type + " damage"
-		);
-		if (health->current <= 0.0f) {
-			context.host.Destroy(context.owner);
-		}
-	}
-}
-
-void DemoWorld::RegisterEditorExtensions() {
-	ptgn::editor::ComponentEditorRegistry::Register<DemoVisual>(
-		ptgn::editor::MakeComponentEditorRegistration(
-			ptgn::editor::ComponentEditorOptions{
-				.label = "Demo Visual",
-				.group = "Graphics",
-				.draw_contents = &DrawRegisteredDemoContents<DemoVisual>,
-			}
-		)
-	);
-	ptgn::editor::ComponentEditorRegistry::Register<Health>(
-		ptgn::editor::MakeComponentEditorRegistration(
-			ptgn::editor::ComponentEditorOptions{
-				.label = "Health",
-				.group = "Gameplay",
-				.draw_contents = &DrawRegisteredDemoContents<Health>,
-			}
-		)
-	);
-	ptgn::editor::ComponentEditorRegistry::Register<Zombie>(
-		ptgn::editor::MakeComponentEditorRegistration(
-			ptgn::editor::ComponentEditorOptions{
-				.label = "Zombie",
-				.group = "Gameplay",
-			}
-		)
-	);
-	ptgn::editor::ComponentEditorRegistry::Register<Damage>(
-		ptgn::editor::MakeComponentEditorRegistration(
-			ptgn::editor::ComponentEditorOptions{
-				.label = "Damage",
-				.group = "Gameplay",
-				.draw_contents = &DrawRegisteredDemoContents<Damage>,
-			}
-		)
-	);
-	ptgn::editor::ComponentEditorRegistry::Register<Lifetime>(
-		ptgn::editor::MakeComponentEditorRegistration(
-			ptgn::editor::ComponentEditorOptions{
-				.label = "Lifetime",
-				.group = "Gameplay",
-				.draw_contents = &DrawRegisteredDemoContents<Lifetime>,
-			}
-		)
-	);
-	ptgn::editor::ComponentEditorRegistry::Register<MaskComponent>(
-		ptgn::editor::MakeComponentEditorRegistration(
-			ptgn::editor::ComponentEditorOptions{
-				.label = "Mask",
-				.group = "Physics",
-				.draw_contents = &DrawRegisteredDemoContents<MaskComponent>,
-			}
-		)
-	);
-	ptgn::editor::ComponentEditorRegistry::Register<ButtonData>(
-		ptgn::editor::MakeComponentEditorRegistration(
-			ptgn::editor::ComponentEditorOptions{
-				.label = "Button",
-				.group = "UI",
-				.draw_contents = &DrawRegisteredDemoContents<ButtonData>,
-			}
-		)
-	);
-	ptgn::editor::ComponentEditorRegistry::Register<ButtonStyle>(
-		ptgn::editor::MakeComponentEditorRegistration(
-			ptgn::editor::ComponentEditorOptions{
-				.label = "Button Style",
-				.group = "UI",
-				.draw_contents = &DrawRegisteredDemoContents<ButtonStyle>,
-			}
-		)
-	);
-
-	auto draw_no_event_filter = [](NoEventFilter&) {
-		return false;
+	const auto always = [](ptgn::Entity, const ptgn::json&, const auto&) {
+		return true;
 	};
-	auto draw_mouse_button_filter = [](MouseButtonFilter& filter) {
-		const char* preview{ MouseButtonLabel(filter.button) };
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		if (!ImGui::BeginCombo("##MouseButton", preview)) {
-			return false;
+	const auto button_available{ editor::RequireComponents<ButtonData>() };
+	const auto draggable_available{
+		editor::RequireComponents<ptgn::impl::Draggable>()
+	};
+	const auto always_available = [](ptgn::Entity) { return true; };
+
+	const auto draw_key = [](ptgn::json& value, bool with_duration) {
+		std::string keys{ JsonValueOr<std::string>(value, "keys", "W") };
+		float duration_ms{ JsonValueOr<float>(value, "duration_ms", 500.0f) };
+		duration_ms = std::max(0.0f, duration_ms);
+
+		const ParsedKeyExpression before{ ParseKeyExpression(keys) };
+		const bool valid_before{ static_cast<bool>(before) };
+		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		const float duration_width{ 92.0f };
+		const float keys_width{
+			with_duration
+				? std::max(
+					1.0f,
+					ImGui::GetContentRegionAvail().x - duration_width - spacing
+				)
+				: -FLT_MIN
+		};
+
+		if (!valid_before) {
+			ImGui::PushStyleColor(ImGuiCol_Border, ImVec4{ 0.90f, 0.25f, 0.25f, 1.0f });
+			ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f);
+		}
+		ImGui::SetNextItemWidth(keys_width);
+		bool changed{ ImGui::InputTextWithHint(
+			"##Keys", "Keys: W + Left Shift, Space", &keys
+		) };
+		if (!valid_before) {
+			ImGui::PopStyleVar();
+			ImGui::PopStyleColor();
 		}
 
-		bool changed{ false };
-		for (ptgn::Mouse button : kMouseButtons) {
-			if (ImGui::Selectable(
-					MouseButtonLabel(button), button == filter.button
-				)) {
-				filter.button = button;
-				changed = true;
+		const ParsedKeyExpression parsed{ ParseKeyExpression(keys) };
+		editor::DrawItemTooltip(
+			parsed
+				? "Use '+' for AND and ',' for OR. Names are matched case-insensitively against ptgn::Key; numeric key codes are also accepted."
+				: parsed.error.c_str()
+		);
+
+		if (with_duration) {
+			ImGui::SameLine(0.0f, spacing);
+			ImGui::SetNextItemWidth(duration_width);
+			changed |= ImGui::InputFloat(
+				"##HeldDuration",
+				&duration_ms,
+				0.0f,
+				0.0f,
+				"%.0f ms",
+				ImGuiInputTextFlags_CharsDecimal
+			);
+			duration_ms = std::max(0.0f, duration_ms);
+			editor::DrawItemTooltip(
+				"How long the complete key expression must remain held before matching."
+			);
+		}
+
+		if (changed) {
+			value["keys"] = std::move(keys);
+			if (with_duration) {
+				value["duration_ms"] = duration_ms;
 			}
 		}
-		ImGui::EndCombo();
 		return changed;
 	};
-	auto draw_runtime_event_payload = [](auto&) {
-		ImGui::AlignTextToFramePadding();
-		ImGui::TextDisabled("Runtime payload");
-		return false;
-	};
-	auto draw_button_payload = [](auto& event) {
-		const char* preview{ MouseButtonLabel(event.button) };
+
+	const auto draw_mouse = [](ptgn::json& value, bool with_duration) {
+		ptgn::Mouse button{
+			JsonValueOr<ptgn::Mouse>(value, "button", ptgn::Mouse::Left)
+		};
+		float duration_ms{ JsonValueOr<float>(value, "duration_ms", 500.0f) };
+		duration_ms = std::max(0.0f, duration_ms);
+
+		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		const float duration_width{ 92.0f };
+		const float button_width{
+			with_duration
+				? std::max(
+					1.0f,
+					ImGui::GetContentRegionAvail().x - duration_width - spacing
+				)
+				: -FLT_MIN
+		};
+
 		bool changed{ false };
-		if (ImGui::BeginCombo("Button", preview)) {
-			for (ptgn::Mouse button : kMouseButtons) {
+		ImGui::SetNextItemWidth(button_width);
+		if (ImGui::BeginCombo("##Mouse", MouseButtonLabel(button))) {
+			for (const auto candidate : kMouseButtons) {
 				if (ImGui::Selectable(
-						MouseButtonLabel(button), button == event.button
+						MouseButtonLabel(candidate), candidate == button
 					)) {
-					event.button = button;
+					button = candidate;
 					changed = true;
 				}
 			}
 			ImGui::EndCombo();
 		}
-		if constexpr (requires { event.released_over; }) {
-			changed |= ImGui::Checkbox("Released Over", &event.released_over);
+		editor::DrawItemTooltip("Only the selected mouse button matches this event.");
+
+		if (with_duration) {
+			ImGui::SameLine(0.0f, spacing);
+			ImGui::SetNextItemWidth(duration_width);
+			changed |= ImGui::InputFloat(
+				"##HeldDuration",
+				&duration_ms,
+				0.0f,
+				0.0f,
+				"%.0f ms",
+				ImGuiInputTextFlags_CharsDecimal
+			);
+			duration_ms = std::max(0.0f, duration_ms);
+			editor::DrawItemTooltip(
+				"How long the mouse button must remain held before matching."
+			);
+		}
+
+		if (changed) {
+			value["button"] = button;
+			if (with_duration) {
+				value["duration_ms"] = duration_ms;
+			}
 		}
 		return changed;
 	};
-	editor::EventEditorRegistry::Register<NoEventFilter, MouseMoveOver>(
-		"ptgn.event.MouseMoveOver",
-		{ .label = "On Mouse Enter", .group = "Button", .description = "Targeted local event fired when the pointer enters a button." },
-		draw_no_event_filter, draw_runtime_event_payload
+
+	const auto draw_entity_filters = [](ptgn::json& value) {
+		std::string tags{ JsonValueOr<std::string>(value, "tags", "") };
+		std::string masks{ JsonValueOr<std::string>(value, "masks", "") };
+		const float spacing{ ImGui::GetStyle().ItemSpacing.x };
+		const float width{ std::max(
+			1.0f, (ImGui::GetContentRegionAvail().x - spacing) * 0.5f
+		) };
+
+		ImGui::SetNextItemWidth(width);
+		bool changed{ ImGui::InputTextWithHint(
+			"##Tags", "Tags: Player, -Enemy", &tags
+		) };
+		editor::DrawItemTooltip(
+			"Comma-separated tag filters. Positive tags are included; tags prefixed with '-' are excluded."
+		);
+
+		ImGui::SameLine(0.0f, spacing);
+		ImGui::SetNextItemWidth(-FLT_MIN);
+		changed |= ImGui::InputTextWithHint(
+			"##Masks", "Masks: 1, -2", &masks
+		);
+		editor::DrawItemTooltip(
+			"Comma-separated mask filters. Positive masks require overlapping bits; masks prefixed with '-' exclude overlapping bits."
+		);
+
+		if (changed) {
+			value["tags"] = std::move(tags);
+			value["masks"] = std::move(masks);
+		}
+		return changed;
+	};
+
+	const auto entity_filter_matches = [](
+		ptgn::Entity,
+		const ptgn::json& value,
+		const auto& event
+	) {
+		const ptgn::Entity other{ OtherEntity(event) };
+		if (!other) {
+			return false;
+		}
+		return MatchesTagFilters(
+				JsonValueOr<std::string>(value, "tags", ""),
+				GetEntityTag(other)
+			) &&
+			MatchesMaskFilters(
+				JsonValueOr<std::string>(value, "masks", ""),
+				GetEntityMask(other)
+			);
+	};
+
+#define PTGN_REGISTER_SIMPLE_KEY_EVENT(EventType, Key, Label, EventKind)        \
+	PTGN_REGISTER_EVENT(                                                          \
+		EventType,                                                                   \
+		{                                                                            \
+			.key = Key,                                                                  \
+			.editor = {                                                                  \
+				.label = Label,                                                              \
+				.group = "Key",                                                              \
+				.description = "Matches a key expression using '+' for AND and ',' for OR.",\
+			},                                                                           \
+			.default_value = ptgn::json{ { "keys", "W" } },                              \
+			.inline_fields = 1,                                                          \
+			.matches = [](                                                                \
+				ptgn::Entity, const ptgn::json& value, const EventType& event               \
+			) {                                                                           \
+				return MatchesKeyExpression(                                                \
+					JsonValueOr<std::string>(value, "keys", "W"),                             \
+					event.key, EventKind                                                       \
+				);                                                                          \
+			},                                                                           \
+			.draw = [draw_key](ptgn::json& value) { return draw_key(value, false); },     \
+		}                                                                            \
+	)
+
+	PTGN_REGISTER_SIMPLE_KEY_EVENT(
+		ptgn::event::KeyPressed,
+		"ptgn.event.KeyPressed", "On Key Pressed", KeyExpressionEvent::Pressed
 	);
-	editor::EventEditorRegistry::Register<NoEventFilter, MouseMoveOut>(
-		"ptgn.event.MouseMoveOut",
-		{ .label = "On Mouse Leave", .group = "Button", .description = "Targeted local event fired when the pointer leaves a button." },
-		draw_no_event_filter, draw_runtime_event_payload
+	PTGN_REGISTER_EVENT(
+		ptgn::event::KeyHeld,
+		{
+			.key = "ptgn.event.KeyHeld",
+			.editor = {
+				.label = "On Key Held",
+				.group = "Key",
+				.description = "Matches after a key expression remains held for the configured duration.",
+			},
+			.default_value = ptgn::json{
+				{ "keys", "W" },
+				{ "duration_ms", 500.0f },
+			},
+			.inline_fields = 2,
+			.matches = [](
+				ptgn::Entity,
+				const ptgn::json& value,
+				const ptgn::event::KeyHeld& event
+			) {
+				return MatchesKeyExpression(
+					JsonValueOr<std::string>(value, "keys", "W"),
+					event.key,
+					KeyExpressionEvent::Held,
+					JsonValueOr<float>(value, "duration_ms", 500.0f)
+				);
+			},
+			.draw = [draw_key](ptgn::json& value) { return draw_key(value, true); },
+		}
 	);
-	editor::EventEditorRegistry::Register<MouseButtonFilter, MousePressedOver>(
-		"ptgn.event.MousePressedOver",
-		{ .label = "On Mouse Pressed Over", .group = "Button", .description = "Targeted local event fired when a mouse button is pressed over the entity." },
-		draw_mouse_button_filter, draw_button_payload
+	PTGN_REGISTER_SIMPLE_KEY_EVENT(
+		ptgn::event::KeyReleased,
+		"ptgn.event.KeyReleased", "On Key Released", KeyExpressionEvent::Released
 	);
-	editor::EventEditorRegistry::Register<MouseButtonFilter, MouseReleasedOver>(
-		"ptgn.event.MouseReleasedOver",
-		{ .label = "On Mouse Released", .group = "Button", .description = "Targeted local event fired when the active mouse press is released." },
-		draw_mouse_button_filter, draw_button_payload
+#undef PTGN_REGISTER_SIMPLE_KEY_EVENT
+
+#define PTGN_REGISTER_SIMPLE_MOUSE_EVENT(EventType, Key, Label, Group, Available) \
+	PTGN_REGISTER_EVENT(                                                            \
+		EventType,                                                                     \
+		{                                                                              \
+			.key = Key,                                                                    \
+			.editor = {                                                                    \
+				.label = Label,                                                                \
+				.group = Group,                                                                \
+				.description = "Matches the selected mouse button.",                         \
+			},                                                                             \
+			.default_value = ptgn::json{ { "button", ptgn::Mouse::Left } },                 \
+			.inline_fields = 1,                                                            \
+			.matches = [](                                                                  \
+				ptgn::Entity, const ptgn::json& value, const EventType& event                 \
+			) {                                                                             \
+				return EventMouse(event) ==                                                   \
+					JsonValueOr<ptgn::Mouse>(value, "button", ptgn::Mouse::Left);               \
+			},                                                                             \
+			.draw = [draw_mouse](ptgn::json& value) { return draw_mouse(value, false); },   \
+			.available = Available,                                                         \
+		}                                                                              \
+	)
+
+	PTGN_REGISTER_SIMPLE_MOUSE_EVENT(
+		ptgn::event::MousePressed,
+		"ptgn.event.MousePressed", "On Mouse Pressed", "Mouse", always_available
 	);
-	editor::EventEditorRegistry::Register<MouseButtonFilter, ButtonPress>(
-		"ptgn.event.ButtonPress",
-		{ .label = "On Button Press", .group = "Button", .description = "Semantic event emitted by ButtonScript after a valid click." },
-		draw_mouse_button_filter, draw_button_payload
+	PTGN_REGISTER_EVENT(
+		ptgn::event::MouseHeld,
+		{
+			.key = "ptgn.event.MouseHeld",
+			.editor = {
+				.label = "On Mouse Held",
+				.group = "Mouse",
+				.description = "Matches after the selected mouse button remains held for the configured duration.",
+			},
+			.default_value = ptgn::json{
+				{ "button", ptgn::Mouse::Left },
+				{ "duration_ms", 500.0f },
+			},
+			.inline_fields = 2,
+			.matches = [](
+				ptgn::Entity,
+				const ptgn::json& value,
+				const ptgn::event::MouseHeld& event
+			) {
+				return MatchesMouseHeld(
+					JsonValueOr<ptgn::Mouse>(
+						value, "button", ptgn::Mouse::Left
+					),
+					EventMouse(event),
+					JsonValueOr<float>(value, "duration_ms", 500.0f)
+				);
+			},
+			.draw = [draw_mouse](ptgn::json& value) {
+				return draw_mouse(value, true);
+			},
+		}
+	);
+	PTGN_REGISTER_SIMPLE_MOUSE_EVENT(
+		ptgn::event::MouseReleased,
+		"ptgn.event.MouseReleased", "On Mouse Released", "Mouse", always_available
 	);
 
-	editor::ActionEditorRegistry::RegisterInline<ScaleToAction>(
+	PTGN_REGISTER_EVENT(
+		MouseMoveOver,
+		{
+			.key = "demo.button.MouseEnter",
+			.editor = {
+				.label = "On Mouse Enter",
+				.group = "Button",
+				.description = "Available when the owner has ButtonData.",
+			},
+			.matches = always,
+			.available = button_available,
+		}
+	);
+	PTGN_REGISTER_EVENT(
+		MouseMoveOut,
+		{
+			.key = "demo.button.MouseLeave",
+			.editor = {
+				.label = "On Mouse Leave",
+				.group = "Button",
+				.description = "Available when the owner has ButtonData.",
+			},
+			.matches = always,
+			.available = button_available,
+		}
+	);
+	PTGN_REGISTER_SIMPLE_MOUSE_EVENT(
+		MousePressedOver,
+		"demo.button.MousePressed", "On Mouse Pressed Over", "Button", button_available
+	);
+	PTGN_REGISTER_SIMPLE_MOUSE_EVENT(
+		MouseReleasedOver,
+		"demo.button.MouseReleased", "On Mouse Released", "Button", button_available
+	);
+	PTGN_REGISTER_SIMPLE_MOUSE_EVENT(
+		ButtonPress,
+		"demo.button.Press", "On Button Press", "Button", button_available
+	);
+#undef PTGN_REGISTER_SIMPLE_MOUSE_EVENT
+
+#define PTGN_REGISTER_EMPTY_EVENT(EventType, Key, Label, Group, Description, Available) \
+	PTGN_REGISTER_EVENT(                                                                  \
+		EventType,                                                                           \
+		{                                                                                    \
+			.key = Key,                                                                          \
+			.editor = {                                                                          \
+				.label = Label,                                                                      \
+				.group = Group,                                                                      \
+				.description = Description,                                                          \
+			},                                                                                   \
+			.matches = always,                                                                   \
+			.available = Available,                                                              \
+		}                                                                                    \
+	)
+
+	PTGN_REGISTER_EMPTY_EVENT(
+		DragStart, "demo.drag.Start", "On Drag Start", "Drag",
+		"Available when the owner has Draggable.", draggable_available
+	);
+	PTGN_REGISTER_EMPTY_EVENT(
+		Drag, "demo.drag.Update", "On Drag", "Drag",
+		"Available when the owner has Draggable.", draggable_available
+	);
+	PTGN_REGISTER_EMPTY_EVENT(
+		DragStop, "demo.drag.Stop", "On Drag Stop", "Drag",
+		"Available when the owner has Draggable.", draggable_available
+	);
+#undef PTGN_REGISTER_EMPTY_EVENT
+
+#define PTGN_REGISTER_ENTITY_FILTER_EVENT(EventType, Key, Label, Group)         \
+	PTGN_REGISTER_EVENT(                                                          \
+		EventType,                                                                   \
+		{                                                                            \
+			.key = Key,                                                                  \
+			.editor = {                                                                  \
+				.label = Label,                                                              \
+				.group = Group,                                                              \
+				.description = "Matches by comma-separated include/exclude tag and mask filters.", \
+			},                                                                           \
+			.default_value = ptgn::json{ { "tags", "" }, { "masks", "" } },            \
+			.inline_fields = 2,                                                          \
+			.matches = entity_filter_matches,                                           \
+			.draw = draw_entity_filters,                                                \
+		}                                                                            \
+	)
+
+	PTGN_REGISTER_ENTITY_FILTER_EVENT(
+		ptgn::event::OverlapStart,
+		"ptgn.event.OverlapStart", "On Overlap Start", "Overlap"
+	);
+	PTGN_REGISTER_ENTITY_FILTER_EVENT(
+		ptgn::event::Overlap,
+		"ptgn.event.Overlap", "On Overlap", "Overlap"
+	);
+	PTGN_REGISTER_ENTITY_FILTER_EVENT(
+		ptgn::event::OverlapStop,
+		"ptgn.event.OverlapStop", "On Overlap Stop", "Overlap"
+	);
+	PTGN_REGISTER_ENTITY_FILTER_EVENT(
+		ptgn::event::Collision,
+		"ptgn.event.Collision", "On Collision", "Collision"
+	);
+#undef PTGN_REGISTER_ENTITY_FILTER_EVENT
+
+	PTGN_REGISTER_EVENT(
+		Signal,
+		{
+			.key = "ptgn.event.Signal",
+			.editor = {
+				.label = "On Signal",
+				.group = "",
+				.description = "Matches the Signal name entered on the event row.",
+			},
+			.default_value = ptgn::json{ { "signal", "" } },
+			.inline_fields = 1,
+			.matches = [](
+				ptgn::Entity,
+				const ptgn::json& value,
+				const Signal& event
+			) {
+				return event.key.value ==
+					JsonValueOr<std::string>(value, "signal", "");
+			},
+			.draw = [](ptgn::json& value) {
+				std::string signal{
+					JsonValueOr<std::string>(value, "signal", "")
+				};
+				ImGui::SetNextItemWidth(-FLT_MIN);
+				const bool changed{ ImGui::InputTextWithHint(
+					"##Signal", "Signal name", &signal
+				) };
+				editor::DrawItemTooltip("Signal name matched exactly.");
+				if (changed) {
+					value["signal"] = std::move(signal);
+				}
+				return changed;
+			},
+		}
+	);
+
+	PTGN_REGISTER_ACTION(
+		WaitAction,
+		{
+			.key = "engine.wait",
+			.supports_timing = true,
+			.requires_timing = true,
+			.default_timing = ActionTiming{ .duration_ms = 250.0f },
+			.editor = {
+				.label = "Delay",
+				.group = "Timing",
+				.description = "Delay before continuing the sequence.",
+			},
+		}
+	);
+	PTGN_REGISTER_ACTION(
+		MoveToAction,
+		{
+			.key = "engine.move_to",
+			.supports_timing = true,
+			.default_timing = ActionTiming{
+				.duration_ms = 300.0f,
+				.ease = ptgn::Ease::OutCubic,
+			},
+			.completion = ActionCompletion::Duration,
+			.editor = {
+				.label = "Move To",
+				.group = "Transform",
+				.description = "Move the owning entity.",
+			},
+		}
+	);
+	PTGN_REGISTER_ACTION(
+		RotateToAction,
+		{
+			.key = "engine.rotate_to",
+			.supports_timing = true,
+			.default_timing = ActionTiming{ .duration_ms = 300.0f },
+			.completion = ActionCompletion::Duration,
+			.editor = {
+				.label = "Rotate To",
+				.group = "Transform",
+				.description = "Rotate the owning entity.",
+			},
+		}
+	);
+	PTGN_REGISTER_ACTION(
+		ScaleToAction,
+		{
+			.key = "engine.scale_to",
+			.supports_timing = true,
+			.default_timing = ActionTiming{
+				.duration_ms = 180.0f,
+				.ease = ptgn::Ease::OutBack,
+			},
+			.completion = ActionCompletion::Duration,
+			.editor = {
+				.label = "Scale To",
+				.group = "Transform",
+				.description = "Scale the owning entity.",
+			},
+		}
+	);
+	PTGN_REGISTER_ACTION(
+		FollowTargetAction,
+		{
+			.key = "engine.follow_target",
+			.completion = ActionCompletion::ActionControlled,
+			.editor = {
+				.label = "Follow Target",
+				.group = "Transform",
+				.description = "Move until the owner reaches a target entity.",
+			},
+		}
+	);
+	PTGN_REGISTER_ACTION(
+		NativeAction,
+		{
+			.key = "engine.native",
+			.serializable = false,
+			.editor = {
+				.label = "Native",
+				.group = "Runtime",
+				.description = "Runtime-only native callback action.",
+			},
+		}
+	);
+	PTGN_REGISTER_ACTION(
+		SetVisibleAction,
+		{
+			.key = "engine.set_visible",
+			.editor = {
+				.label = "Set Visibility",
+				.group = "Entity",
+				.description = "Set the owner's visibility.",
+			},
+		}
+	);
+	PTGN_REGISTER_ACTION(
+		PlayAudioAction,
+		{
+			.key = "engine.play_audio",
+			.editor = {
+				.label = "Play Audio",
+				.group = "Audio",
+				.description = "Play an audio asset.",
+			},
+		}
+	);
+	PTGN_REGISTER_ACTION(
+		EmitSignalAction,
+		{
+			.key = "engine.emit_signal",
+			.editor = {
+				.label = "Emit Signal",
+				.group = "Events",
+				.description = "Emit a global Signal event.",
+			},
+		}
+	);
+	PTGN_REGISTER_ACTION(
+		AddComponentsAction,
+		{
+			.key = "engine.add_components",
+			.editor = {
+				.label = "Add Components",
+				.group = "Entity",
+				.description = "Add registered components to the owner.",
+				.menu_order = 1,
+			},
+		}
+	);
+	PTGN_REGISTER_ACTION(
+		RemoveComponentsAction,
+		{
+			.key = "engine.remove_components",
+			.editor = {
+				.label = "Remove Components",
+				.group = "Entity",
+				.description = "Remove registered components from the owner.",
+				.menu_order = 2,
+				.separator_after = true,
+			},
+		}
+	);
+	PTGN_REGISTER_ACTION(
+		SpawnEntityAction,
+		{
+			.key = "engine.spawn_entity",
+			.editor = {
+				.label = "Spawn Entity",
+				.group = "Entity",
+				.description = "Spawn one or more prefab instances.",
+				.menu_order = 0,
+			},
+		}
+	);
+	PTGN_REGISTER_ACTION(
+		ApplyDamageAction,
+		{
+			.key = "game.apply_damage",
+			.editor = {
+				.label = "Apply Damage",
+				.group = "Game",
+				.description = "Apply damage to the owning entity.",
+			},
+		}
+	);
+
+	PTGN_REGISTER_SCRIPT(
+		SequenceScript,
+		{
+			.key = "engine.sequence",
+			.editor = {
+				.label = "Script Sequence",
+				.group = "Sequence",
+				.description = "Editor-authored Script built from registered Actions.",
+			},
+			.draw = [](SequenceScript&) { return false; },
+		}
+	);
+	PTGN_REGISTER_SCRIPT(
+		PlayerMovementScript,
+		{
+			.key = "game.player_movement",
+			.editor = {
+				.label = "Player Movement",
+				.group = "Game",
+				.description = "WASD movement implemented as a custom C++ Script.",
+			},
+		}
+	);
+}
+
+} // namespace
+
+void RegisterDemoEditorTypes() {
+	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<ScaleToAction>(
 		"engine.scale_to",
 		{ .label = "Scale To", .group = "Transform", .description = "Scale the owning entity." },
-		[](ScaleToAction& action, editor::EditorContext&) {
+		[](ScaleToAction& action, editor::EditorContextTemp&) {
 			const float available{ ImGui::GetContentRegionAvail().x };
 			const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 			const float mode_width{
 				std::max(ImGui::CalcTextSize("Relative").x, ImGui::CalcTextSize("Absolute").x) +
 				ImGui::GetStyle().FramePadding.x * 2.0f
 			};
-			const float field_width{ std::max(36.0f, (available - mode_width - spacing * 2.0f) * 0.5f) };
+			const float field_width{
+				std::max(36.0f, (available - mode_width - spacing * 2.0f) * 0.5f)
+			};
 			bool changed{ false };
 			ImGui::SetNextItemWidth(field_width);
-			changed |= ImGui::DragFloat("##ScaleX", &action.scale.x, 0.01f, -100.0f, 100.0f, "X: %.2f");
+			changed |= ImGui::DragFloat(
+				"##ScaleX", &action.scale.x, 0.01f, -100.0f, 100.0f, "X: %.2f"
+			);
 			ImGui::SameLine(0.0f, spacing);
 			ImGui::SetNextItemWidth(field_width);
-			changed |= ImGui::DragFloat("##ScaleY", &action.scale.y, 0.01f, -100.0f, 100.0f, "Y: %.2f");
+			changed |= ImGui::DragFloat(
+				"##ScaleY", &action.scale.y, 0.01f, -100.0f, 100.0f, "Y: %.2f"
+			);
 			ImGui::SameLine(0.0f, spacing);
 			if (ImGui::Button(
 					action.relative ? "Relative" : "Absolute",
@@ -7279,12 +7359,13 @@ void DemoWorld::RegisterEditorExtensions() {
 			}
 			return changed;
 		},
-		[](ScaleToAction&, editor::EditorContext&) { return false; }
-	);
-	editor::ActionEditorRegistry::Register<FollowTargetAction>(
+		[](ScaleToAction&, editor::EditorContextTemp&) { return false; }
+	));
+
+	PTGN_REGISTER(editor::ActionEditorRegistry::Register<FollowTargetAction>(
 		"engine.follow_target",
-		{ .label = "Follow Target", .group = "Transform", .description = "Action-controlled movement that completes when the owner reaches its target." },
-		[](FollowTargetAction& action, editor::EditorContext& context) {
+		{ .label = "Follow Target", .group = "Transform", .description = "Move until the target is reached." },
+		[](FollowTargetAction& action, editor::EditorContextTemp& context) {
 			bool changed{ false };
 			if (!ImGui::BeginTable(
 					"FollowTargetParameters", 3,
@@ -7292,25 +7373,13 @@ void DemoWorld::RegisterEditorExtensions() {
 				)) {
 				return false;
 			}
-
-			ImGui::TableSetupColumn(
-				"Target", ImGuiTableColumnFlags_WidthStretch, 1.35f
-			);
-			ImGui::TableSetupColumn(
-				"Speed", ImGuiTableColumnFlags_WidthStretch, 0.85f
-			);
-			ImGui::TableSetupColumn(
-				"StoppingDistance", ImGuiTableColumnFlags_WidthStretch, 1.0f
-			);
-			ImGui::TableNextRow(
-				ImGuiTableRowFlags_None, ImGui::GetFrameHeight()
-			);
-
+			ImGui::TableSetupColumn("Target", ImGuiTableColumnFlags_WidthStretch, 1.35f);
+			ImGui::TableSetupColumn("Speed", ImGuiTableColumnFlags_WidthStretch, 0.85f);
+			ImGui::TableSetupColumn("StoppingDistance", ImGuiTableColumnFlags_WidthStretch, 1.0f);
+			ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 			ImGui::TableSetColumnIndex(0);
 			const std::string target_name{
-				action.target
-					? std::string{ context.host.Name(action.target) }
-					: std::string{ "None" }
+				action.target ? std::string{ context.host.Name(action.target) } : "None"
 			};
 			const std::string preview{ "Target: " + target_name };
 			ImGui::SetNextItemWidth(-FLT_MIN);
@@ -7321,38 +7390,33 @@ void DemoWorld::RegisterEditorExtensions() {
 				}
 				for (ptgn::Entity entity : context.host.Entities()) {
 					const std::string name{ context.host.Name(entity) };
-					if (ImGui::Selectable(
-							name.c_str(), entity == action.target
-						)) {
+					if (ImGui::Selectable(name.c_str(), entity == action.target)) {
 						action.target = entity;
 						changed = true;
 					}
 				}
 				ImGui::EndCombo();
 			}
-
 			ImGui::TableSetColumnIndex(1);
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			changed |= ImGui::DragFloat(
-				"##Speed", &action.speed, 1.0f, 0.0f, 10000.0f,
-				"Speed: %.0f"
+				"##Speed", &action.speed, 1.0f, 0.0f, 10000.0f, "Speed: %.0f"
 			);
-
 			ImGui::TableSetColumnIndex(2);
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			changed |= ImGui::DragFloat(
 				"##StoppingDistance", &action.stopping_distance,
 				0.1f, 0.0f, 1000.0f, "Distance: %.1f"
 			);
-
 			ImGui::EndTable();
 			return changed;
 		}
-	);
-	editor::ActionEditorRegistry::Register<ApplyDamageAction>(
+	));
+
+	PTGN_REGISTER(editor::ActionEditorRegistry::Register<ApplyDamageAction>(
 		"game.apply_damage",
-		{ .label = "Apply Damage", .group = "Game", .description = "Apply damage to the owning entity." },
-		[](ApplyDamageAction& action, editor::EditorContext&) {
+		{ .label = "Apply Damage", .group = "Game", .description = "Apply damage to the owner." },
+		[](ApplyDamageAction& action, editor::EditorContextTemp&) {
 			bool changed{ false };
 			if (ImGui::BeginTable("DamageParams", 3, ImGuiTableFlags_SizingStretchProp)) {
 				const float critical_width{
@@ -7361,13 +7425,13 @@ void DemoWorld::RegisterEditorExtensions() {
 				};
 				ImGui::TableSetupColumn("Amount", ImGuiTableColumnFlags_WidthStretch, 0.75f);
 				ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthStretch, 1.35f);
-				ImGui::TableSetupColumn(
-					"Critical", ImGuiTableColumnFlags_WidthFixed, critical_width
-				);
+				ImGui::TableSetupColumn("Critical", ImGuiTableColumnFlags_WidthFixed, critical_width);
 				ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
 				ImGui::TableSetColumnIndex(0);
 				ImGui::SetNextItemWidth(-FLT_MIN);
-				changed |= ImGui::DragFloat("##Amount", &action.amount, 0.25f, 0.0f, 100000.0f, "%.2f");
+				changed |= ImGui::DragFloat(
+					"##Amount", &action.amount, 0.25f, 0.0f, 100000.0f, "%.2f"
+				);
 				ImGui::TableSetColumnIndex(1);
 				ImGui::SetNextItemWidth(-FLT_MIN);
 				changed |= ImGui::InputText("##DamageType", &action.damage_type);
@@ -7377,880 +7441,94 @@ void DemoWorld::RegisterEditorExtensions() {
 			}
 			return changed;
 		}
-	);
-	editor::ScriptEditorRegistry::Register<PlayerMovementScript>(
+	));
+
+	PTGN_REGISTER(editor::ScriptEditorRegistry::Register<PlayerMovementScript>(
 		"game.player_movement",
 		{ .label = "Player Movement", .group = "Game", .description = "WASD movement for the demo player." },
 		[](PlayerMovementScript& script) {
 			return ImGui::DragFloat("Speed", &script.speed, 1.0f, 0.0f, 2000.0f);
 		}
-	);
-	editor::ScriptEditorRegistry::Register<ButtonScript>(
-		"ui.button",
-		{ .label = "Button", .group = "UI", .description = "Consumes typed local pointer events and emits ButtonPress." },
-		[](ButtonScript&) { return false; }
-	);
+	));
 }
 
-void DemoWorld::RegisterEngineTypes() {
-	// Reuse the engine component registry for live entities and detached JSON values.
-	ptgn::ComponentRegistry::Register<ptgn::Transform>("Transform");
-	ptgn::ComponentRegistry::Register<DemoVisual>("DemoVisual");
-	ptgn::ComponentRegistry::Register<Health>("DemoHealth");
-	ptgn::ComponentRegistry::Register<Zombie>("DemoZombie");
-	ptgn::ComponentRegistry::Register<Damage>("DemoDamage");
-	ptgn::ComponentRegistry::Register<Lifetime>("DemoLifetime");
-	ptgn::ComponentRegistry::Register<MaskComponent>("DemoMask");
-	ptgn::ComponentRegistry::Register<ButtonData>("DemoButtonData");
-	ptgn::ComponentRegistry::Register<ButtonStyle>("DemoButtonStyle");
-
-	// Existing engine Events plus the data-driven Signal Event.
-	auto match_key_pressed = [](const auto& event, const KeyListFilter& filter, EventMatchContext& context) {
-		const auto parsed{ ParseEnumExpression<ptgn::Key>(filter.keys) };
-		return parsed.IsValid() && MatchesPressedOrHeldCombination(
-			event.key, parsed, [&](ptgn::Key key) { return context.host.KeyDown(key); }
-		);
-	};
-	auto match_key_held = [](const auto& event, const KeyListFilter& filter, EventMatchContext& context) {
-		const auto parsed{ ParseEnumExpression<ptgn::Key>(filter.keys) };
-		const float required_duration{ std::max(0.0f, filter.hold_duration_ms) };
-		return parsed.IsValid() && std::ranges::any_of(
-			parsed.alternatives,
-			[&](const auto& combination) {
-				return std::ranges::contains(combination, event.key) &&
-					std::ranges::all_of(combination, [&](ptgn::Key key) {
-						return context.host.KeyDown(key) &&
-							context.host.KeyHoldDuration(key) >= required_duration;
-					});
-			}
-		);
-	};
-	auto match_key_released = [](const auto& event, const KeyListFilter& filter, EventMatchContext& context) {
-		const auto parsed{ ParseEnumExpression<ptgn::Key>(filter.keys) };
-		return parsed.IsValid() && MatchesReleasedCombination(
-			event.key, parsed, [&](ptgn::Key key) { return context.host.KeyDown(key); }
-		);
-	};
-	auto match_mouse_pressed = [](const auto& event, const MouseListFilter& filter, EventMatchContext& context) {
-		const auto parsed{ ParseEnumExpression<ptgn::Mouse>(filter.buttons) };
-		return parsed.IsValid() && MatchesPressedOrHeldCombination(
-			MouseFromEvent(event), parsed,
-			[&](ptgn::Mouse button) { return context.host.MouseDown(button); }
-		);
-	};
-	auto match_mouse_held = [](const auto& event, const MouseListFilter& filter, EventMatchContext& context) {
-		const auto parsed{ ParseEnumExpression<ptgn::Mouse>(filter.buttons) };
-		const ptgn::Mouse event_button{ MouseFromEvent(event) };
-		const float required_duration{ std::max(0.0f, filter.hold_duration_ms) };
-		return parsed.IsValid() && std::ranges::any_of(
-			parsed.alternatives,
-			[&](const auto& combination) {
-				return std::ranges::contains(combination, event_button) &&
-					std::ranges::all_of(combination, [&](ptgn::Mouse button) {
-						return context.host.MouseDown(button) &&
-							context.host.MouseHoldDuration(button) >= required_duration;
-					});
-			}
-		);
-	};
-	auto match_mouse_released = [](const auto& event, const MouseListFilter& filter, EventMatchContext& context) {
-		const auto parsed{ ParseEnumExpression<ptgn::Mouse>(filter.buttons) };
-		return parsed.IsValid() && MatchesReleasedCombination(
-			MouseFromEvent(event), parsed,
-			[&](ptgn::Mouse button) { return context.host.MouseDown(button); }
-		);
-	};
-	auto match_entity = [](const auto& event, const EntityMaskFilter& filter, EventMatchContext& context) {
-		return MatchesEntityMaskFilter(OtherEntity(event), filter, context.host);
-	};
-	auto match_on_create = [](const OnCreate&, const OnCreateFilter&, EventMatchContext&) {
-		return true;
-	};
-	auto match_signal = [](const Signal& event, const Signal& filter, EventMatchContext&) {
-		return event.key == filter.key;
-	};
-	auto match_all = [](const auto&, const NoEventFilter&, EventMatchContext&) {
-		return true;
-	};
-	auto match_mouse_button = [](
-		const auto& event,
-		const MouseButtonFilter& filter,
-		EventMatchContext&
-	) {
-		return event.button == filter.button;
-	};
-
-	EventRegistry::Register<OnCreate, OnCreateFilter>(
-		"ptgn.event.OnCreate", match_on_create
-	);
-	EventRegistry::Register<Signal, Signal>(
-		"ptgn.event.Signal", match_signal
-	);
-	EventRegistry::Register<MouseMoveOver, NoEventFilter>(
-		"ptgn.event.MouseMoveOver", match_all
-	);
-	EventRegistry::Register<MouseMoveOut, NoEventFilter>(
-		"ptgn.event.MouseMoveOut", match_all
-	);
-	EventRegistry::Register<MousePressedOver, MouseButtonFilter>(
-		"ptgn.event.MousePressedOver", match_mouse_button
-	);
-	EventRegistry::Register<MouseReleasedOver, MouseButtonFilter>(
-		"ptgn.event.MouseReleasedOver", match_mouse_button
-	);
-	EventRegistry::Register<ButtonPress, MouseButtonFilter>(
-		"ptgn.event.ButtonPress", match_mouse_button
-	);
-	EventRegistry::Register<ptgn::event::KeyPressed, KeyListFilter>(
-		"ptgn.event.KeyPressed", match_key_pressed
-	);
-	EventRegistry::Register<ptgn::event::KeyHeld, KeyListFilter>(
-		"ptgn.event.KeyHeld", match_key_held
-	);
-	EventRegistry::Register<ptgn::event::KeyReleased, KeyListFilter>(
-		"ptgn.event.KeyReleased", match_key_released
-	);
-	EventRegistry::Register<ptgn::event::MousePressed, MouseListFilter>(
-		"ptgn.event.MousePressed", match_mouse_pressed
-	);
-	EventRegistry::Register<ptgn::event::MouseHeld, MouseListFilter>(
-		"ptgn.event.MouseHeld", match_mouse_held
-	);
-	EventRegistry::Register<ptgn::event::MouseReleased, MouseListFilter>(
-		"ptgn.event.MouseReleased", match_mouse_released
-	);
-	EventRegistry::Register<ptgn::event::OverlapStart, EntityMaskFilter>(
-		"ptgn.event.OverlapStart", match_entity
-	);
-	EventRegistry::Register<ptgn::event::Overlap, EntityMaskFilter>(
-		"ptgn.event.Overlap", match_entity
-	);
-	EventRegistry::Register<ptgn::event::OverlapStop, EntityMaskFilter>(
-		"ptgn.event.OverlapStop", match_entity
-	);
-	EventRegistry::Register<ptgn::event::Collision, EntityMaskFilter>(
-		"ptgn.event.Collision", match_entity
-	);
-
-	// Engine Action registrations.
-	ActionRegistry::Register<WaitAction>(
-		"engine.wait", true, true,
-		ActionTiming{ .duration_ms = 250.0f }
-	);
-	ActionRegistry::Register<MoveToAction>(
-		"engine.move_to", true, false,
-		ActionTiming{ .duration_ms = 300.0f, .ease = ptgn::Ease::OutCubic },
-		ActionCompletion::Duration
-	);
-	ActionRegistry::Register<RotateToAction>(
-		"engine.rotate_to", true, false,
-		ActionTiming{ .duration_ms = 300.0f },
-		ActionCompletion::Duration
-	);
-	ActionRegistry::Register<ScaleToAction>(
-		"engine.scale_to", true, false,
-		ActionTiming{ .duration_ms = 180.0f, .ease = ptgn::Ease::OutBack },
-		ActionCompletion::Duration
-	);
-	ActionRegistry::Register<FollowTargetAction>(
-		"engine.follow_target", false, false, std::nullopt,
-		ActionCompletion::ActionControlled
-	);
-	ActionRegistry::Register<NativeAction>(
-		"engine.native", false, false, std::nullopt,
-		ActionCompletion::Instant, false
-	);
-	ActionRegistry::Register<SetVisibleAction>("engine.set_visible");
-	ActionRegistry::Register<PlayAudioAction>("engine.play_audio");
-	ActionRegistry::Register<EmitSignalAction>("engine.emit_signal");
-	ActionRegistry::Register<AddComponentsAction>("engine.add_components");
-	ActionRegistry::Register<RemoveComponentsAction>("engine.remove_components");
-	ActionRegistry::Register<SpawnEntityAction>("engine.spawn_entity");
-	ActionRegistry::Register<ApplyDamageAction>("game.apply_damage");
-
-	ScriptRegistry::Register<PlayerMovementScript>("game.player_movement");
-	ScriptRegistry::Register<ButtonScript>("ui.button");
-}
-
-void DemoWorld::CreatePrefabs() {
-	PrefabDefinition zombie;
-	zombie.key = "prefabs/zombie";
-	zombie.name = "Zombie";
-	zombie.tag = "Zombie";
-	zombie.components.push_back(
-		MakeComponentDefinition(
-			ptgn::Rect{ ptgn::V2_float{ 32.0f, 32.0f } }
-		)
-	);
-	zombie.components.push_back(
-		MakeComponentDefinition(DemoVisual{
-			.color = ImVec4{ 0.45f, 0.75f, 0.30f, 1.0f },
-		})
-	);
-	zombie.components.push_back(MakeComponentDefinition(Health{}));
-	zombie.components.push_back(MakeComponentDefinition(Zombie{}));
-	prefabs_.definitions.push_back(std::move(zombie));
-
-	PrefabDefinition circle;
-	circle.key = "prefabs/recall_circle";
-	circle.name = "Recall Circle";
-	circle.tag = "SpawnedCircle";
-	circle.components.push_back(
-		MakeComponentDefinition(ptgn::Circle{ 13.0f })
-	);
-	circle.components.push_back(
-		MakeComponentDefinition(DemoVisual{
-			.color = ImVec4{ 0.78f, 0.42f, 0.88f, 1.0f },
-		})
-	);
-
-	ScriptsComponent circle_scripts;
-	ScriptSequence destroy_sequence{ "Destroy on Recall" };
-	destroy_sequence
-		.StartOn<Signal>(Signal{ SignalKey{ "spawned_circles.destroy" } })
-		.DestroyOwnerOnComplete();
-	circle_scripts.sequences.push_back(std::move(destroy_sequence));
-	circle.scripts = std::move(circle_scripts);
-	prefabs_.definitions.push_back(std::move(circle));
-}
-
-void DemoWorld::CreateDemoScene() {
-	ScriptSequence opened_indicator{ "Door Opened Indicator" };
-	opened_indicator
-		.Reentry(ReentryMode::Restart)
-		.StartOn<Signal>(Signal{ SignalKey{ "door.opened" } })
-		.StopOn<Signal>(Signal{ SignalKey{ "door.closed" } });
-	opened_indicator
-		.During(350.0f, MoveToAction{ { 0.0f, 55.0f }, true })
-		.Ease(ptgn::Ease::OutBack)
-		.End();
-	const Id opened_indicator_id{ opened_indicator.id };
-	shared_sequences_.sequences.push_back(std::move(opened_indicator));
-
-	ScriptSequence closed_indicator{ "Door Closed Indicator" };
-	closed_indicator
-		.Reentry(ReentryMode::Restart)
-		.StartOn<Signal>(Signal{ SignalKey{ "door.closed" } })
-		.StopOn<Signal>(Signal{ SignalKey{ "door.opened" } });
-	closed_indicator
-		.During(350.0f, MoveToAction{ { 300.0f, -110.0f }, false })
-		.Ease(ptgn::Ease::OutCubic)
-		.End();
-	const Id closed_indicator_id{ closed_indicator.id };
-	shared_sequences_.sequences.push_back(std::move(closed_indicator));
-
-	ptgn::Entity player{ CreateEntity("Player", "Player") };
-	player.Get<ptgn::Transform>().position = { -330.0f, 0.0f };
-	player.Add<ptgn::Rect>(ptgn::V2_float{ 38.0f, 38.0f });
-	player.Get<DemoVisual>().color = ImVec4{ 0.27f, 0.59f, 0.96f, 1.0f };
-	player.Add<ScriptsComponent>();
-	{
-		ScriptEntry script;
-		script.type = std::string{ ScriptRegistry::Key<PlayerMovementScript>() };
-		script.value = PlayerMovementScript{};
-		player.Get<ScriptsComponent>().scripts.push_back(std::move(script));
-	}
-
-	ptgn::Entity sensor{ CreateEntity("Door Sensor", "Door") };
-	sensor.Get<ptgn::Transform>().position = { -70.0f, 0.0f };
-	sensor.Add<ptgn::Rect>(ptgn::V2_float{ 110.0f, 170.0f });
-	sensor.Get<DemoVisual>().color = ImVec4{ 0.23f, 0.75f, 0.45f, 0.30f };
-	sensor.Get<DemoVisual>().sensor = true;
-	sensor.Add<ScriptsComponent>();
-
-	// The sensor only emits Events. It never reaches across to mutate the panel.
-	ScriptSequence sensor_enter_sequence{ "Emit Door Opened" };
-	sensor_enter_sequence
-		.Reentry(ReentryMode::Restart)
-		.StartOn<ptgn::event::OverlapStart>(EntityMaskFilter{ .tags = "Player" })
-		.EmitSignal(SignalKey{ "door.opened" });
-	sensor.Get<ScriptsComponent>().sequences.push_back(std::move(sensor_enter_sequence));
-
-	ScriptSequence sensor_exit_sequence{ "Emit Door Closed" };
-	sensor_exit_sequence
-		.Reentry(ReentryMode::Restart)
-		.StartOn<ptgn::event::OverlapStop>(EntityMaskFilter{ .tags = "Player" })
-		.EmitSignal(SignalKey{ "door.closed" });
-	sensor.Get<ScriptsComponent>().sequences.push_back(std::move(sensor_exit_sequence));
-
-	ptgn::Entity panel{ CreateEntity("Sliding Panel", "MovingPanel") };
-	panel.Get<ptgn::Transform>().position = { 70.0f, 0.0f };
-	panel.Add<ptgn::Rect>(ptgn::V2_float{ 62.0f, 170.0f });
-	panel.Get<DemoVisual>().color = ImVec4{ 0.88f, 0.57f, 0.24f, 1.0f };
-	panel.Add<ScriptsComponent>();
-
-	// The panel owns the Actions that affect the panel.
-	ScriptSequence open_sequence{ "Open Sliding Panel" };
-	open_sequence
-		.Reentry(ReentryMode::Restart)
-		.StartOn<Signal>(Signal{ SignalKey{ "door.opened" } })
-		.StopOn<Signal>(Signal{ SignalKey{ "door.closed" } });
-	open_sequence
-		.During(500.0f, MoveToAction{ { 225.0f, 0.0f }, false })
-		.Ease(ptgn::Ease::OutCubic)
-		.End();
-	panel.Get<ScriptsComponent>().sequences.push_back(std::move(open_sequence));
-
-	ScriptSequence close_sequence{ "Close Sliding Panel" };
-	close_sequence
-		.Reentry(ReentryMode::Restart)
-		.StartOn<Signal>(Signal{ SignalKey{ "door.closed" } })
-		.StopOn<Signal>(Signal{ SignalKey{ "door.opened" } });
-	close_sequence
-		.During(500.0f, MoveToAction{ { 70.0f, 0.0f }, false })
-		.Ease(ptgn::Ease::OutCubic)
-		.End();
-	panel.Get<ScriptsComponent>().sequences.push_back(std::move(close_sequence));
-
-	ptgn::Entity indicator{ CreateEntity("Event Indicator", "Indicator") };
-	indicator.Get<ptgn::Transform>().position = { 300.0f, -110.0f };
-	indicator.Add<ptgn::Circle>(21.0f);
-	indicator.Get<DemoVisual>().color = ImVec4{ 0.92f, 0.80f, 0.27f, 1.0f };
-	indicator.Add<ScriptsComponent>();
-	{
-		ScriptSequence opened_binding;
-		opened_binding.shared_reference = true;
-		opened_binding.shared_sequence_id = opened_indicator_id;
-		indicator.Get<ScriptsComponent>().sequences.push_back(std::move(opened_binding));
-
-		ScriptSequence closed_binding;
-		closed_binding.shared_reference = true;
-		closed_binding.shared_sequence_id = closed_indicator_id;
-		indicator.Get<ScriptsComponent>().sequences.push_back(std::move(closed_binding));
-	}
-
-	ptgn::Entity factory{ CreateEntity("Circle Spawner", "Spawner") };
-	factory.Get<ptgn::Transform>().position = { -265.0f, -165.0f };
-	factory.Add<ptgn::Rect>(ptgn::V2_float{ 130.0f, 72.0f });
-	factory.Get<DemoVisual>().color = ImVec4{ 0.47f, 0.41f, 0.63f, 0.55f };
-	factory.Get<DemoVisual>().sensor = true;
-	factory.Add<ScriptsComponent>();
-
-	ScriptSequence spawn_sequence{ "Spawn Recall Circles" };
-	spawn_sequence
-		.Reentry(ReentryMode::IgnoreWhileRunning)
-		.StartOn<ptgn::event::OverlapStart>(EntityMaskFilter{ .tags = "Player" })
-		.Then(SpawnEntityAction{
-			.prefab_key = "prefabs/recall_circle",
-			.count = 10,
-			.origin = SpawnOrigin::OwnerEntity,
-			.area = SpawnArea::Circle,
-			.center = { 0.0f, 95.0f },
-			.radius = 92.0f,
-			.random_rotation = true,
-		});
-	factory.Get<ScriptsComponent>().sequences.push_back(std::move(spawn_sequence));
-
-	ScriptSequence recall_sequence{ "Recall Spawned Circles" };
-	recall_sequence
-		.Reentry(ReentryMode::Restart)
-		.StartOn<ptgn::event::OverlapStop>(EntityMaskFilter{ .tags = "Player" })
-		.EmitSignal(SignalKey{ "spawned_circles.destroy" });
-	factory.Get<ScriptsComponent>().sequences.push_back(std::move(recall_sequence));
-
-	ptgn::Entity damage_target{ CreateEntity("Damage Target", "DamageTarget") };
-	damage_target.Get<ptgn::Transform>().position = { 315.0f, 105.0f };
-	damage_target.Add<ptgn::Rect>(ptgn::V2_float{ 105.0f, 86.0f });
-	damage_target.Get<DemoVisual>().color = ImVec4{ 0.78f, 0.27f, 0.29f, 1.0f };
-	damage_target.Add<Health>(Health{ .maximum = 100.0f, .current = 100.0f });
-	damage_target.Add<ScriptsComponent>();
-
-	ScriptSequence damage_sequence{ "Overlap Damage Cooldown" };
-	damage_sequence
-		.Reentry(ReentryMode::IgnoreWhileRunning)
-		.StartOn<ptgn::event::Overlap>(EntityMaskFilter{ .tags = "Player" })
-		.Then(ApplyDamageAction{ .amount = 25.0f })
-		.Wait(3000.0f);
-	damage_target.Get<ScriptsComponent>().sequences.push_back(std::move(damage_sequence));
-
-	// Two basic Buttons. The editor-side pointer hit test only pushes typed local Events;
-	// ButtonScript owns the state machine and emits ButtonPress back through the local handler.
-	ptgn::Entity tween_button{ CreateEntity("Tween Button", "TweenButton") };
-	tween_button.Get<ptgn::Transform>().position = { -80.0f, -210.0f };
-	tween_button.Add<ptgn::Rect>(ptgn::V2_float{ 150.0f, 50.0f });
-	tween_button.Add<ButtonData>();
-	tween_button.Add<ButtonStyle>();
-	tween_button.Add<ScriptsComponent>();
-	{
-		ScriptEntry script;
-		script.type = std::string{ ScriptRegistry::Key<ButtonScript>() };
-		script.value = ButtonScript{};
-		tween_button.Get<ScriptsComponent>().scripts.push_back(std::move(script));
-	}
-	ScriptSequence tween_button_sequence{ "Button Scale Pulse" };
-	tween_button_sequence
-		.Reentry(ReentryMode::Restart)
-		.Channel(SequenceChannelKey{ "ui.press" })
-		.StartOn<ButtonPress>(MouseButtonFilter{ ptgn::Mouse::Left });
-	tween_button_sequence
-		.During(105.0f, ScaleToAction{ { 1.12f, 1.12f }, false })
-		.Ease(ptgn::Ease::OutBack)
-		.Repeat(1)
-		.Yoyo()
-		.End()
-		.EmitSignal(SignalKey{ "button.tween.clicked" });
-	tween_button.Get<ScriptsComponent>().sequences.push_back(std::move(tween_button_sequence));
-
-	ptgn::Entity signal_button{ CreateEntity("Global Event Button", "SignalButton") };
-	signal_button.Get<ptgn::Transform>().position = { 115.0f, -210.0f };
-	signal_button.Add<ptgn::Rect>(ptgn::V2_float{ 185.0f, 50.0f });
-	signal_button.Add<ButtonData>();
-	signal_button.Add<ButtonStyle>(ButtonStyle{
-		.idle = ImVec4{ 0.47f, 0.29f, 0.62f, 1.0f },
-		.hovered = ImVec4{ 0.61f, 0.39f, 0.78f, 1.0f },
-		.pressed = ImVec4{ 0.35f, 0.20f, 0.49f, 1.0f },
-	});
-	signal_button.Add<ScriptsComponent>();
-	{
-		ScriptEntry script;
-		script.type = std::string{ ScriptRegistry::Key<ButtonScript>() };
-		script.value = ButtonScript{};
-		signal_button.Get<ScriptsComponent>().scripts.push_back(std::move(script));
-	}
-	ScriptSequence signal_button_sequence{ "Emit Global Button Signal" };
-	signal_button_sequence
-		.Reentry(ReentryMode::Restart)
-		.StartOn<ButtonPress>(MouseButtonFilter{ ptgn::Mouse::Left })
-		.EmitSignal(SignalKey{ "button.global.clicked" });
-	signal_button.Get<ScriptsComponent>().sequences.push_back(std::move(signal_button_sequence));
-
-	ScriptSequence global_button_sequence{ "Global Button Indicator Spin" };
-	global_button_sequence
-		.Reentry(ReentryMode::Restart)
-		.Channel(SequenceChannelKey{ "transform.rotation" })
-		.StartOn<Signal>(Signal{ SignalKey{ "button.global.clicked" } });
-	global_button_sequence
-		.During(450.0f, RotateToAction{ 360.0f, false, true })
-		.Ease(ptgn::Ease::OutBack)
-		.End();
-	indicator.Get<ScriptsComponent>().sequences.push_back(std::move(global_button_sequence));
-
-	// ActionControlled example: the action decides when it has reached the Player.
-	ptgn::Entity follower{ CreateEntity("Action-Controlled Follower", "Follower") };
-	follower.Get<ptgn::Transform>().position = { 350.0f, 205.0f };
-	follower.Add<ptgn::Circle>(15.0f);
-	follower.Get<DemoVisual>().color = ImVec4{ 0.35f, 0.86f, 0.82f, 1.0f };
-	follower.Add<ScriptsComponent>();
-	ScriptSequence follow_sequence{ "Follow Player Until Reached" };
-	follow_sequence
-		.Reentry(ReentryMode::Restart)
-		.Channel(SequenceChannelKey{ "movement.follow" })
-		.StartOn<Signal>(Signal{ SignalKey{ "button.tween.clicked" } })
-		.UntilComplete(FollowTargetAction{
-			.target = player,
-			.speed = 230.0f,
-			.stopping_distance = 3.0f,
-		});
-	follower.Get<ScriptsComponent>().sequences.push_back(std::move(follow_sequence));
-
-	manager_.Refresh();
-	for (auto entity : entities_) {
-		Queue(EventRegistry::MakeEvent<OnCreate>(
-			OnCreate{ entity }, entity, entity
-		));
-	}
-}
-
-void DemoWorld::UpdateInputEvents(float delta_seconds) {
-	std::vector<int> key_codes{
-		GLFW_KEY_W, GLFW_KEY_A, GLFW_KEY_S, GLFW_KEY_D, GLFW_KEY_SPACE,
-		GLFW_KEY_UP, GLFW_KEY_DOWN, GLFW_KEY_LEFT, GLFW_KEY_RIGHT,
-		GLFW_KEY_LEFT_SHIFT, GLFW_KEY_RIGHT_SHIFT,
-		GLFW_KEY_LEFT_CONTROL, GLFW_KEY_RIGHT_CONTROL,
-		GLFW_KEY_ENTER, GLFW_KEY_ESCAPE
-	};
-
-	const auto collect_condition_keys = [&](const EventCondition& condition) {
-		const bool is_key_event{
-			condition.type == EventRegistry::Key<ptgn::event::KeyPressed>() ||
-			condition.type == EventRegistry::Key<ptgn::event::KeyHeld>() ||
-			condition.type == EventRegistry::Key<ptgn::event::KeyReleased>()
-		};
-		if (!is_key_event || !condition.filter.Is<KeyListFilter>()) {
-			return;
-		}
-		const auto parsed{
-			ParseEnumExpression<ptgn::Key>(condition.filter.Get<KeyListFilter>().keys)
-		};
-		for (const auto& combination : parsed.alternatives) {
-			for (const ptgn::Key key : combination) {
-				const int key_code{ static_cast<int>(key) };
-				if (!std::ranges::contains(key_codes, key_code)) {
-					key_codes.push_back(key_code);
-				}
-			}
-		}
-	};
-
-	for (const auto& record : entities_) {
-		const auto* scripts{ record.TryGet<ScriptsComponent>() };
-		if (!scripts) {
-			continue;
-		}
-		for (const auto& binding : scripts->sequences) {
-			const auto* sequence{ Resolve(binding) };
-			if (!sequence) {
-				continue;
-			}
-			for (const auto& condition : sequence->start_events) {
-				collect_condition_keys(condition);
-			}
-			for (const auto& condition : sequence->stop_events) {
-				collect_condition_keys(condition);
-			}
-		}
-	}
-
-	const float delta_ms{ std::max(0.0f, delta_seconds) * 1000.0f };
-	for (const int key_code : key_codes) {
-		const bool down{ glfwGetKey(window_, key_code) == GLFW_PRESS };
-		const bool previous{ previous_key_states_[key_code] };
-		auto& hold_duration{ key_hold_duration_ms_[key_code] };
-		const auto key{ static_cast<ptgn::Key>(key_code) };
-
-		if (down) {
-			hold_duration = previous ? hold_duration + delta_ms : delta_ms;
-		} else if (previous) {
-			const float released_duration{ hold_duration };
-			auto event{ EventRegistry::MakeEvent<ptgn::event::KeyReleased>(
-				ptgn::event::KeyReleased{ key }, std::nullopt, {}, EventDelivery::Broadcast
-			) };
-			event.held_duration_ms = released_duration;
-			Queue(std::move(event));
-			hold_duration = 0.0f;
-		}
-
-		if (down && !previous) {
-			auto event{ EventRegistry::MakeEvent<ptgn::event::KeyPressed>(
-				ptgn::event::KeyPressed{ key }, std::nullopt, {}, EventDelivery::Broadcast
-			) };
-			event.held_duration_ms = hold_duration;
-			Queue(std::move(event));
-		}
-		if (down) {
-			auto event{ EventRegistry::MakeEvent<ptgn::event::KeyHeld>(
-				ptgn::event::KeyHeld{ key }, std::nullopt, {}, EventDelivery::Broadcast
-			) };
-			event.held_duration_ms = hold_duration;
-			Queue(std::move(event));
-		}
-		previous_key_states_[key_code] = down;
-	}
-
-	for (int button_code{ 0 }; button_code <= static_cast<int>(ptgn::Mouse::Last); ++button_code) {
-		const bool down{ glfwGetMouseButton(window_, button_code) == GLFW_PRESS };
-		const bool previous{ previous_mouse_states_[button_code] };
-		auto& hold_duration{ mouse_hold_duration_ms_[button_code] };
-		const auto button{ static_cast<ptgn::Mouse>(button_code) };
-
-		if (down) {
-			hold_duration = previous ? hold_duration + delta_ms : delta_ms;
-		} else if (previous) {
-			const float released_duration{ hold_duration };
-			auto event{ EventRegistry::MakeEvent<ptgn::event::MouseReleased>(
-				ptgn::event::MouseReleased{ button }, std::nullopt, {}, EventDelivery::Broadcast
-			) };
-			event.held_duration_ms = released_duration;
-			Queue(std::move(event));
-			hold_duration = 0.0f;
-		}
-
-		if (down && !previous) {
-			auto event{ EventRegistry::MakeEvent<ptgn::event::MousePressed>(
-				ptgn::event::MousePressed{ button }, std::nullopt, {}, EventDelivery::Broadcast
-			) };
-			event.held_duration_ms = hold_duration;
-			Queue(std::move(event));
-		}
-		if (down) {
-			auto event{ EventRegistry::MakeEvent<ptgn::event::MouseHeld>(
-				ptgn::event::MouseHeld{ button }, std::nullopt, {}, EventDelivery::Broadcast
-			) };
-			event.held_duration_ms = hold_duration;
-			Queue(std::move(event));
-		}
-		previous_mouse_states_[button_code] = down;
-	}
-}
-
-void DemoWorld::UpdateButtonInteraction() {
-	if (!pointer_frame_pending_) {
-		return;
-	}
-	pointer_frame_pending_ = false;
-
-	ptgn::Entity hovered;
-	if (pointer_frame_.inside_scene) {
-		for (auto it{ entities_.rbegin() }; it != entities_.rend(); ++it) {
-			ptgn::Entity entity{ *it };
-			if (!entity || !entity.Has<ButtonData>() || !entity.Has<ptgn::Transform>() ||
-				!entity.Has<ptgn::Rect>() ||
-				(entity.Has<ptgn::Visible>() && !entity.Get<ptgn::Visible>().visible)) {
-				continue;
-			}
-			auto& button{ entity.Get<ButtonData>() };
-			if (!button.enabled) {
-				button.hovered = false;
-				button.pressed = false;
-				button.state = ButtonState::Disabled;
-				continue;
-			}
-			if (button.state == ButtonState::Disabled) {
-				button.state = ButtonState::Idle;
-			}
-			const auto& transform{ entity.Get<ptgn::Transform>() };
-			const auto size{ entity.Get<ptgn::Rect>().GetSize(transform) };
-			const auto offset{ pointer_frame_.world_position - transform.position };
-			if (std::abs(offset.x) <= size.x * 0.5f &&
-				std::abs(offset.y) <= size.y * 0.5f) {
-				hovered = entity;
-				break;
-			}
-		}
-	}
-
-	if (hovered != hovered_button_) {
-		if (hovered_button_) {
-			Context().PushLocal<MouseMoveOut>(
-				hovered_button_, MouseMoveOut{}, {}
-			);
-		}
-		hovered_button_ = hovered;
-		if (hovered_button_) {
-			Context().PushLocal<MouseMoveOver>(
-				hovered_button_, MouseMoveOver{}, {}
-			);
-		}
-	}
-
-	for (std::size_t i{ 0 }; i < kMouseButtons.size(); ++i) {
-		const ptgn::Mouse mouse_button{ kMouseButtons[i] };
-
-		if (pointer_frame_.pressed[i] && hovered_button_) {
-			pressed_buttons_[i] = hovered_button_;
-			Context().PushLocal<MousePressedOver>(
-				pressed_buttons_[i], MousePressedOver{ mouse_button }, {}
-			);
-		}
-
-		if (pointer_frame_.released[i] && pressed_buttons_[i]) {
-			Context().PushLocal<MouseReleasedOver>(
-				pressed_buttons_[i],
-				MouseReleasedOver{
-					.button = mouse_button,
-					.released_over = pressed_buttons_[i] == hovered_button_,
-				},
-				{}
-			);
-			pressed_buttons_[i] = {};
-		}
-	}
-}
-
-void DemoWorld::OnBeforeScriptUpdate(float delta_seconds) {
-	UpdateInputEvents(delta_seconds);
-	UpdateOverlapEvents();
-	UpdateButtonInteraction();
-}
-
-void DemoWorld::UpdateScriptSequences(float delta_seconds) {
-	const auto sequence_entities{ entities_ };
-	for (auto entity : sequence_entities) {
-		if (auto* scripts{ entity.TryGet<ScriptsComponent>() }) {
-			for (auto& sequence : scripts->sequences) {
-				UpdateSequence(entity, sequence, delta_seconds);
-			}
-		}
-	}
-}
-
-void DemoWorld::ApplyPendingScriptChanges() {
-	const auto script_entities{ entities_ };
-	for (auto entity : script_entities) {
-		auto* scripts{ entity.TryGet<ScriptsComponent>() };
-		if (!scripts) {
-			continue;
-		}
-
-		for (const Id id : scripts->pending_script_removals) {
-			std::erase_if(scripts->scripts, [id](const ScriptEntry& entry) {
-				return entry.id == id;
-			});
-			std::erase_if(scripts->pending_script_additions, [id](const ScriptEntry& entry) {
-				return entry.id == id;
-			});
-		}
-		scripts->pending_script_removals.clear();
-
-		for (const Id id : scripts->pending_sequence_removals) {
-			auto it{ std::ranges::find_if(scripts->sequences, [id](const ScriptSequence& sequence) {
-				return sequence.id == id;
-			}) };
-			if (it != scripts->sequences.end()) {
-				(void)CancelBinding(
-					entity, *it, SequenceCancelReason::BindingRemoved, false, true
-				);
-				scripts->sequences.erase(it);
-			}
-			std::erase_if(
-				scripts->pending_sequence_additions,
-				[id](const ScriptSequence& sequence) { return sequence.id == id; }
-			);
-			for (auto& channel : scripts->channels) {
-				const bool released_active{ channel.active == id };
-				if (released_active) {
-					channel.active.reset();
-				}
-				std::erase(channel.waiting, id);
-				if (released_active) {
-					PromoteNextInChannel(entity, channel);
-				}
-			}
-		}
-		scripts->pending_sequence_removals.clear();
-
-		std::ranges::move(
-			scripts->pending_script_additions,
-			std::back_inserter(scripts->scripts)
-		);
-		scripts->pending_script_additions.clear();
-
-		std::ranges::move(
-			scripts->pending_sequence_additions,
-			std::back_inserter(scripts->sequences)
-		);
-		scripts->pending_sequence_additions.clear();
-	}
-}
-
-void DemoWorld::DispatchBufferedEvents() {
-	DispatchEvents();
-}
-
-void DemoWorld::OnAfterScriptUpdate(float delta_seconds) {
-	ProcessPendingDestroy();
-	for (auto& entry : activity_) {
-		entry.remaining_seconds -= delta_seconds;
-	}
-	std::erase_if(activity_, [](const auto& entry) {
-		return entry.remaining_seconds <= 0.0f;
-	});
-}
-
-void DemoWorld::ProcessPendingDestroy() {
-	if (pending_destroy_.empty()) {
-		return;
-	}
-	for (ptgn::Entity entity : pending_destroy_) {
-		if (!entity) {
-			continue;
-		}
-		if (auto* scripts{ entity.TryGet<ScriptsComponent>() }) {
-			for (auto& binding : scripts->sequences) {
-				(void)CancelBinding(
-					entity, binding, SequenceCancelReason::OwnerDestroyed, false, false
-				);
-			}
-		}
-		if (hovered_button_ == entity) {
-			hovered_button_ = {};
-		}
-		for (auto& pressed_button : pressed_buttons_) {
-			if (pressed_button == entity) {
-				pressed_button = {};
-			}
-		}
-		Log("Destroyed " + std::string{ Name(entity) });
-		entity.Destroy();
-	}
-	std::erase_if(entities_, [](ptgn::Entity entity) {
-		return !entity;
-	});
-	pending_destroy_.clear();
-	manager_.Refresh();
-}
-
-void DemoWorld::UpdateResidentScripts(float delta_seconds) {
-	const auto script_entities{ entities_ };
-	for (auto entity : script_entities) {
-		auto* scripts{ entity.TryGet<ScriptsComponent>() };
-		if (!scripts) {
-			continue;
-		}
-		for (auto& script : scripts->scripts) {
-			if (!script.enabled) {
-				continue;
-			}
-			const auto* registration{ ScriptRegistry::Find(script.type) };
-			if (!registration) {
-				continue;
-			}
-			if (!script.instance) {
-				script.instance = registration->instantiate(script.value);
-			}
-			ScriptContext context{ .host = *this, .owner = entity, .scene = &Context(), .delta_seconds = delta_seconds };
-			if (!script.created) {
-				script.instance->OnCreate(context);
-				script.created = true;
-			}
-			script.instance->OnUpdate(context);
-		}
-	}
-}
-
-bool DemoWorld::Overlap(ptgn::Entity a, ptgn::Entity b) const {
-	if (!a || !b || !a.Has<ptgn::Transform>() || !b.Has<ptgn::Transform>() ||
-		!a.Has<ptgn::Rect>() || !b.Has<ptgn::Rect>()) {
-		return false;
-	}
-	const auto& transform_a{ a.Get<ptgn::Transform>() };
-	const auto& transform_b{ b.Get<ptgn::Transform>() };
-	const auto size_a{ a.Get<ptgn::Rect>().GetSize(transform_a) };
-	const auto size_b{ b.Get<ptgn::Rect>().GetSize(transform_b) };
-	return std::abs(transform_a.position.x - transform_b.position.x) <= (size_a.x + size_b.x) * 0.5f &&
-		std::abs(transform_a.position.y - transform_b.position.y) <= (size_a.y + size_b.y) * 0.5f;
-}
-
-void DemoWorld::UpdateOverlapEvents() {
-	const ptgn::Entity player{ FindByTag("Player") };
-	if (!player) {
+void PlayerMovementScript::OnUpdate() {
+	if (!script_runtime::IsScriptEnabled(entity, this) || !entity || ImGui::GetIO().WantTextInput) {
 		return;
 	}
 
-	auto update_transition = [&](ptgn::Entity sensor, bool& previous, std::string_view label) {
-		if (!sensor) {
-			previous = false;
-			return;
-		}
-		const bool overlapping{ Overlap(player, sensor) };
-		if (overlapping != previous) {
-			previous = overlapping;
-			if (overlapping) {
-				Queue(EventRegistry::MakeEvent<ptgn::event::OverlapStart>(
-					ptgn::event::OverlapStart{ player }, sensor, sensor
-				));
-				Log("OverlapStart(" + std::string{ label } + ", Player)");
-			} else {
-				Queue(EventRegistry::MakeEvent<ptgn::event::OverlapStop>(
-					ptgn::event::OverlapStop{ player }, sensor, sensor
-				));
-				Log("OverlapStop(" + std::string{ label } + ", Player)");
-			}
-		}
-	};
+	ptgn::V2_float direction{};
+	if (ImGui::IsKeyDown(ImGuiKey_A)) {
+		direction.x -= 1.0f;
+	}
+	if (ImGui::IsKeyDown(ImGuiKey_D)) {
+		direction.x += 1.0f;
+	}
+	if (ImGui::IsKeyDown(ImGuiKey_S)) {
+		direction.y -= 1.0f;
+	}
+	if (ImGui::IsKeyDown(ImGuiKey_W)) {
+		direction.y += 1.0f;
+	}
 
-	update_transition(FindByTag("Door"), player_overlapping_sensor_, "Door Sensor");
-	update_transition(FindByTag("Spawner"), player_overlapping_spawner_, "Circle Spawner");
+	const float magnitude{ std::sqrt(direction.x * direction.x + direction.y * direction.y) };
+	if (magnitude > 0.0f) {
+		direction /= magnitude;
+	}
 
-	const ptgn::Entity damage_target{ FindByTag("DamageTarget") };
-	if (damage_target && Overlap(player, damage_target)) {
-		Queue(EventRegistry::MakeEvent<ptgn::event::Overlap>(
-			ptgn::event::Overlap{ player }, damage_target, damage_target
-		));
+	auto& transform{ entity.Get<ptgn::Transform>() };
+	transform.position += direction * speed * script_runtime::DeltaSeconds();
+	transform.position.x = std::clamp(transform.position.x, -430.0f, 430.0f);
+	transform.position.y = std::clamp(transform.position.y, -250.0f, 250.0f);
+}
+
+void ApplyDamageAction::OnStart() {
+	if (auto* health{ Owner().TryGet<Health>() }) {
+		const float applied{ std::max(0.0f, amount) * (critical ? 2.0f : 1.0f) };
+		health->current -= applied;
+		LogScriptActivity(
+			GetScene(),
+			std::string{ GetEntityName(Owner()) } + " took " +
+				std::to_string(static_cast<int>(applied)) + " " + damage_type + " damage"
+		);
+		if (health->current <= 0.0f) {
+			static_cast<DemoScene&>(GetScene()).RequestDestroy(Owner());
+		}
 	}
 }
 
-ScriptSequence* DemoWorld::FindBinding(ptgn::Entity owner, Id id) {
+namespace script_runtime {
+namespace {
+
+float current_delta_seconds{ 0.0f };
+
+[[nodiscard]] ptgn::Script* EnsureInstance(
+	ptgn::Entity owner, ScriptEntry& entry
+) {
+	if (!entry.instance) {
+		const auto* registration{ ScriptRegistry::Find(entry.type_hash) };
+		if (!registration) {
+			return nullptr;
+		}
+		entry.instance = entry.attach_live
+			? entry.attach_live(owner)
+			: (registration->attach
+				? registration->attach(owner, entry.value)
+				: nullptr);
+	}
+	return entry.instance;
+}
+
+[[nodiscard]] SequenceScript* AsSequence(
+	ptgn::Entity owner, ScriptEntry& entry
+) {
+	if (entry.type_hash != ptgn::Hash<SequenceScript>()) {
+		return nullptr;
+	}
+	return dynamic_cast<SequenceScript*>(EnsureInstance(owner, entry));
+}
+
+[[nodiscard]] ScriptEntry* FindSequenceEntry(ptgn::Entity owner, SequenceId id) {
 	if (!owner) {
 		return nullptr;
 	}
@@ -8258,35 +7536,46 @@ ScriptSequence* DemoWorld::FindBinding(ptgn::Entity owner, Id id) {
 	if (!scripts) {
 		return nullptr;
 	}
-	auto find = [id](auto& sequences) -> ScriptSequence* {
-		auto it{ std::ranges::find_if(sequences, [id](const ScriptSequence& sequence) {
-			return sequence.id == id;
-		}) };
-		return it == sequences.end() ? nullptr : &*it;
+
+	auto find = [&](auto& entries) -> ScriptEntry* {
+		for (auto& entry : entries) {
+			if (auto* script{ AsSequence(owner, entry) };
+				script && script->sequence.id == id) {
+				return &entry;
+			}
+		}
+		return nullptr;
 	};
-	if (auto* binding{ find(scripts->sequences) }) {
-		return binding;
+
+	if (auto* entry{ find(scripts->scripts) }) {
+		return entry;
 	}
-	return find(scripts->pending_sequence_additions);
+	return find(scripts->pending_additions);
 }
 
-const ScriptSequence* DemoWorld::FindBinding(ptgn::Entity owner, Id id) const {
-	return const_cast<DemoWorld*>(this)->FindBinding(owner, id);
+[[nodiscard]] ScriptSequence* FindBinding(ptgn::Entity owner, SequenceId id) {
+	auto* entry{ FindSequenceEntry(owner, id) };
+	if (!entry) {
+		return nullptr;
+	}
+	auto* script{ AsSequence(owner, *entry) };
+	return script ? &script->sequence : nullptr;
 }
 
-SequenceChannelRuntime* DemoWorld::FindChannel(
-	ScriptsComponent& scripts,
-	const SequenceChannelKey& key
+[[nodiscard]] SequenceChannelRuntime* FindChannel(
+	ScriptsComponent& scripts, const SequenceChannelKey& key
 ) {
-	auto it{ std::ranges::find_if(scripts.channels, [&](const SequenceChannelRuntime& channel) {
-		return channel.key == key;
-	}) };
+	const auto it{ std::ranges::find_if(
+		scripts.channels,
+		[&](const SequenceChannelRuntime& channel) {
+			return channel.key == key;
+		}
+	) };
 	return it == scripts.channels.end() ? nullptr : &*it;
 }
 
-SequenceChannelRuntime& DemoWorld::FindOrCreateChannel(
-	ScriptsComponent& scripts,
-	const SequenceChannelKey& key
+[[nodiscard]] SequenceChannelRuntime& FindOrCreateChannel(
+	ScriptsComponent& scripts, const SequenceChannelKey& key
 ) {
 	if (auto* channel{ FindChannel(scripts, key) }) {
 		return *channel;
@@ -8295,44 +7584,154 @@ SequenceChannelRuntime& DemoWorld::FindOrCreateChannel(
 	return scripts.channels.back();
 }
 
-bool DemoWorld::StartBinding(ptgn::Entity owner, ScriptSequence& binding, bool force) {
-	const auto* sequence{ Resolve(binding) };
-	if (!sequence || !binding.enabled || !sequence->enabled) {
+void ExecuteInstant(ptgn::Entity owner, const Action& action);
+void ProcessImmediateActions(ptgn::Entity owner, ScriptSequence& binding);
+void CompleteSequence(ptgn::Entity owner, ScriptSequence& binding);
+void UpdateSequence(ptgn::Entity owner, ScriptSequence& binding, float delta_seconds);
+
+void InvokeLifecycle(
+	ptgn::Entity owner,
+	ScriptSequence& binding,
+	SequenceLifecycle lifecycle
+) {
+	const auto* sequence{ Resolve(owner, binding) };
+	if (!sequence) {
+		return;
+	}
+	for (const auto& callback : sequence->lifecycle_actions) {
+		if (callback.enabled && callback.lifecycle == lifecycle) {
+			ExecuteInstant(owner, callback.action);
+		}
+	}
+}
+
+void PromoteNextInChannel(
+	ptgn::Entity owner, SequenceChannelRuntime& channel
+) {
+	while (!channel.waiting.empty()) {
+		const SequenceId id{ channel.waiting.front() };
+		channel.waiting.pop_front();
+		if (auto* binding{ FindBinding(owner, id) }) {
+			binding->runtime.waiting_for_channel = false;
+			if (Start(owner, id, true)) {
+				return;
+			}
+		}
+	}
+}
+
+void ReleaseChannel(
+	ptgn::Entity owner,
+	ScriptSequence& binding,
+	bool promote
+) {
+	const auto* sequence{ Resolve(owner, binding) };
+	if (!sequence || !sequence->channel || !owner.Has<ScriptsComponent>()) {
+		return;
+	}
+
+	auto& scripts{ owner.Get<ScriptsComponent>() };
+	auto* channel{ FindChannel(scripts, *sequence->channel) };
+	if (!channel) {
+		return;
+	}
+	if (channel->active == binding.id) {
+		channel->active.reset();
+	}
+	std::erase(channel->waiting, binding.id);
+	if (promote) {
+		PromoteNextInChannel(owner, *channel);
+	}
+}
+
+[[nodiscard]] bool CancelBinding(
+	ptgn::Entity owner,
+	ScriptSequence& binding,
+	SequenceCancelReason reason,
+	bool log,
+	bool promote_channel,
+	bool remove_transient = true
+) {
+	const auto* sequence{ Resolve(owner, binding) };
+	const bool active{
+		binding.runtime.running || binding.runtime.waiting_for_channel
+	};
+
+	if (binding.runtime.action_instance) {
+		binding.runtime.action_instance->SetFrame(
+			0.0f, 0.0f, 0.0f,
+			binding.runtime.current_repeat,
+			binding.runtime.currently_reversed
+		);
+		binding.runtime.action_instance->OnCancel(reason);
+		InvokeLifecycle(owner, binding, SequenceLifecycle::ActionCancel);
+	}
+	if (active) {
+		InvokeLifecycle(owner, binding, SequenceLifecycle::Stop);
+	}
+	if (log && sequence && active) {
+		LogScriptActivity(
+			owner.GetScene(),
+			std::string{ GetEntityName(owner) } + " / " + sequence->name + " stopped"
+		);
+	}
+
+	ReleaseChannel(owner, binding, promote_channel);
+	const int completed_runs{ binding.runtime.completed_runs };
+	binding.runtime = ScriptSequenceRuntime{};
+	binding.runtime.completed_runs = completed_runs;
+
+	if (remove_transient && sequence &&
+		(sequence->transient || sequence->remove_binding_on_complete) &&
+		reason != SequenceCancelReason::Reset &&
+		reason != SequenceCancelReason::BindingRemoved &&
+		reason != SequenceCancelReason::OwnerDestroyed &&
+		owner.Has<ScriptsComponent>()) {
+		owner.Get<ScriptsComponent>().RemoveDeferred(binding.id);
+	}
+	return active;
+}
+
+[[nodiscard]] bool StartBinding(
+	ptgn::Entity owner,
+	ScriptSequence& binding,
+	bool force
+) {
+	const auto* sequence{ Resolve(owner, binding) };
+	if (!sequence || !sequence->enabled || !binding.enabled) {
 		return false;
 	}
 
 	auto& runtime{ binding.runtime };
-	if (runtime.running && !force) {
-		switch (sequence->reentry) {
+	if (runtime.running) {
+		const ReentryMode mode{ force ? ReentryMode::Restart : sequence->reentry };
+		switch (mode) {
 			case ReentryMode::IgnoreWhileRunning:
 				return false;
 			case ReentryMode::Restart:
 				(void)CancelBinding(
-					owner, binding, SequenceCancelReason::Replaced, false, false, false
+					owner, binding, SequenceCancelReason::Replaced,
+					false, false, false
 				);
 				break;
 			case ReentryMode::Queue:
 				++runtime.queued_runs;
 				return true;
 		}
-	} else if (runtime.running && force) {
-		(void)CancelBinding(
-			owner, binding, SequenceCancelReason::Replaced, false, false, false
-		);
 	}
 
 	if (sequence->channel) {
 		auto& scripts{ owner.TryAdd<ScriptsComponent>() };
 		auto& channel{ FindOrCreateChannel(scripts, *sequence->channel) };
 		if (channel.active && *channel.active != binding.id) {
-			const ReentryMode channel_reentry{
-				force ? ReentryMode::Restart : sequence->reentry
-			};
-			switch (channel_reentry) {
+			const ReentryMode mode{ force ? ReentryMode::Restart : sequence->reentry };
+			switch (mode) {
 				case ReentryMode::IgnoreWhileRunning:
 					return false;
 				case ReentryMode::Restart:
-					StopSequenceChannel(owner, *sequence->channel, SequenceStopMode::All);
+					script_runtime::StopChannel(
+						owner, *sequence->channel, SequenceStopMode::All
+					);
 					break;
 				case ReentryMode::Queue:
 					if (!std::ranges::contains(channel.waiting, binding.id)) {
@@ -8352,263 +7751,42 @@ bool DemoWorld::StartBinding(ptgn::Entity owner, ScriptSequence& binding, bool f
 	runtime.completed_runs = completed_runs;
 	runtime.queued_runs = queued_runs;
 	runtime.running = true;
-	runtime.pending_start_delay_ms = -1.0f;
-	Log(std::string{ Name(owner) } + " / " + sequence->name + " started");
+
+	LogScriptActivity(
+		owner.GetScene(),
+		std::string{ GetEntityName(owner) } + " / " + sequence->name + " started"
+	);
 	InvokeLifecycle(owner, binding, SequenceLifecycle::Start);
 	ProcessImmediateActions(owner, binding);
 	return true;
 }
 
-bool DemoWorld::CancelBinding(
-	ptgn::Entity owner,
-	ScriptSequence& binding,
-	SequenceCancelReason reason,
-	bool log,
-	bool promote_channel,
-	bool remove_transient
-) {
-	const auto* sequence{ Resolve(binding) };
-	const bool active{
-		binding.runtime.running || binding.runtime.waiting_for_channel ||
-		binding.runtime.pending_start_delay_ms >= 0.0f
-	};
-	if (binding.runtime.action_instance) {
-		ActionContext context{ .host = *this, .owner = owner, .scene = &Context() };
-		binding.runtime.action_instance->Cancel(context, reason);
-		InvokeLifecycle(owner, binding, SequenceLifecycle::ActionCancel);
-	}
-	if (active) {
-		InvokeLifecycle(owner, binding, SequenceLifecycle::Stop);
-	}
-	if (log && sequence && active) {
-		Log(std::string{ Name(owner) } + " / " + sequence->name + " stopped");
-	}
-	ReleaseChannel(owner, binding, promote_channel);
-	const int completed_runs{ binding.runtime.completed_runs };
-	binding.runtime = ScriptSequenceRuntime{};
-	binding.runtime.completed_runs = completed_runs;
-	if (remove_transient && sequence &&
-		(sequence->transient || sequence->remove_binding_on_complete) &&
-		reason != SequenceCancelReason::Reset &&
-		reason != SequenceCancelReason::BindingRemoved &&
-		reason != SequenceCancelReason::OwnerDestroyed && owner.Has<ScriptsComponent>()) {
-		owner.Get<ScriptsComponent>().RemoveSequenceDeferred(binding.id);
-	}
-	return active;
-}
-
-bool DemoWorld::SetBindingPaused(
-	ptgn::Entity owner,
-	ScriptSequence& binding,
-	bool paused
-) {
-	if (!binding.runtime.running || binding.runtime.paused == paused) {
-		return false;
-	}
-	binding.runtime.paused = paused;
-	InvokeLifecycle(owner, binding, paused ? SequenceLifecycle::Pause : SequenceLifecycle::Resume);
-	return true;
-}
-
-void DemoWorld::ReleaseChannel(
-	ptgn::Entity owner,
-	ScriptSequence& binding,
-	bool promote
-) {
-	const auto* sequence{ Resolve(binding) };
-	if (!sequence || !sequence->channel || !owner.Has<ScriptsComponent>()) {
-		return;
-	}
-	auto& scripts{ owner.Get<ScriptsComponent>() };
-	auto* channel{ FindChannel(scripts, *sequence->channel) };
-	if (!channel) {
-		return;
-	}
-	std::erase(channel->waiting, binding.id);
-	if (channel->active == binding.id) {
-		channel->active.reset();
-		if (promote) {
-			PromoteNextInChannel(owner, *channel);
-		}
-	}
-}
-
-void DemoWorld::PromoteNextInChannel(
-	ptgn::Entity owner,
-	SequenceChannelRuntime& channel
-) {
-	while (!channel.waiting.empty()) {
-		const Id next_id{ channel.waiting.front() };
-		channel.waiting.pop_front();
-		auto* next{ FindBinding(owner, next_id) };
-		if (!next) {
-			continue;
-		}
-		channel.active = next_id;
-		next->runtime.waiting_for_channel = false;
-		(void)StartBinding(owner, *next, true);
-		return;
-	}
-}
-
-bool DemoWorld::Matches(
-	const EventCondition& condition,
-	const EventEnvelope& event,
-	ptgn::Entity owner
-) {
-	if (!condition.enabled || condition.type != event.type) {
-		return false;
-	}
-	const auto* registration{ EventRegistry::Find(condition.type) };
-	if (!registration) {
-		return false;
-	}
-	EventMatchContext context{ .host = *this, .owner = owner, .held_duration_ms = event.held_duration_ms };
-	return registration->matches(event.payload, condition.filter, context);
-}
-
-void DemoWorld::DispatchEvents() {
-	auto dispatch_to_entity = [&](ptgn::Entity entity, const EventEnvelope& event) {
-		auto* scripts{ entity.TryGet<ScriptsComponent>() };
-		if (!scripts) {
-			return EventResult::Continue;
-		}
-
-		const EventView view{ event };
-		for (auto& resident : scripts->scripts) {
-			if (!resident.enabled) {
-				continue;
-			}
-			const auto* registration{ ScriptRegistry::Find(resident.type) };
-			if (!registration) {
-				continue;
-			}
-			if (!resident.instance) {
-				resident.instance = registration->instantiate(resident.value);
-			}
-			ScriptContext context{ .host = *this, .owner = entity, .scene = &Context() };
-			if (!resident.created) {
-				resident.instance->OnCreate(context);
-				resident.created = true;
-			}
-			if (resident.instance->OnEvent(context, view) == EventResult::Handled) {
-				return EventResult::Handled;
-			}
-		}
-
-		for (auto& binding : scripts->sequences) {
-			const auto* sequence{ Resolve(binding) };
-			if (!sequence) {
-				continue;
-			}
-
-			const auto stop_it{ std::ranges::find_if(sequence->stop_events, [&](const auto& condition) {
-				return Matches(condition, event, entity);
-			}) };
-			if (stop_it != sequence->stop_events.end()) {
-				Stop(entity, binding);
-				if (stop_it->consume) {
-					return EventResult::Handled;
-				}
-				continue;
-			}
-
-			const auto start_it{ std::ranges::find_if(sequence->start_events, [&](const auto& condition) {
-				return Matches(condition, event, entity);
-			}) };
-			if (start_it == sequence->start_events.end()) {
-				continue;
-			}
-
-			const auto* registration{ EventRegistry::Find(start_it->type) };
-			const float delay_ms{
-				registration && registration->start_delay_ms
-					? registration->start_delay_ms(start_it->filter)
-					: 0.0f
-			};
-			if (delay_ms > 0.0f && !binding.runtime.running) {
-				if (binding.runtime.pending_start_delay_ms < 0.0f) {
-					binding.runtime.pending_start_delay_ms = delay_ms;
-				} else {
-					switch (sequence->reentry) {
-						case ReentryMode::IgnoreWhileRunning:
-							break;
-						case ReentryMode::Restart:
-							binding.runtime.pending_start_delay_ms = delay_ms;
-							break;
-						case ReentryMode::Queue:
-							++binding.runtime.queued_runs;
-							break;
-					}
-				}
-			} else {
-				Start(entity, binding);
-			}
-			if (start_it->consume) {
-				return EventResult::Handled;
-			}
-		}
-		return EventResult::Continue;
-	};
-
-	while (!Context().local_events.Empty()) {
-		EventEnvelope event{ Context().local_events.Pop() };
-		if (event.target && *event.target) {
-			dispatch_to_entity(*event.target, event);
-		}
-	}
-
-	while (!Context().global_events.Empty()) {
-		EventEnvelope event{ Context().global_events.Pop() };
-		const auto event_entities{ entities_ };
-		for (auto entity : event_entities) {
-			if (dispatch_to_entity(entity, event) == EventResult::Handled) {
-				break;
-			}
-		}
-	}
-}
-
-void DemoWorld::ExecuteInstant(ptgn::Entity owner, const Action& action) {
-	const auto* registration{ ActionRegistry::Find(action.type) };
+void ExecuteInstant(ptgn::Entity owner, const Action& action) {
+	const auto* registration{ ActionRegistry::Find(action.type_hash) };
 	if (!registration || !action.enabled) {
 		return;
 	}
-	auto instance{ registration->instantiate(action.value) };
-	ActionContext context{
-		.host = *this,
-		.owner = owner,
-		.scene = &Context(),
-		.linear_progress = 1.0f,
-		.progress = 1.0f,
+	auto instance{
+		action.runtime_factory
+			? action.runtime_factory(owner)
+			: registration->instantiate(owner, action.value)
 	};
-	instance->Begin(context);
-	(void)instance->Update(context);
-	instance->Complete(context);
+	if (!instance) {
+		return;
+	}
+	instance->SetFrame(0.0f, 1.0f, 1.0f, 0, false);
+	instance->OnStart();
+	(void)instance->OnUpdate();
+	instance->OnComplete();
 }
 
-void DemoWorld::InvokeLifecycle(
-	ptgn::Entity owner,
-	ScriptSequence& binding,
-	SequenceLifecycle lifecycle
+void ProcessImmediateActions(
+	ptgn::Entity owner, ScriptSequence& binding
 ) {
-	const auto* sequence{ Resolve(binding) };
+	const auto* sequence{ Resolve(owner, binding) };
 	if (!sequence) {
 		return;
 	}
-	for (const auto& callback : sequence->lifecycle_actions) {
-		if (callback.enabled && callback.lifecycle == lifecycle) {
-			ExecuteInstant(owner, callback.action);
-		}
-	}
-}
-
-void DemoWorld::ProcessImmediateActions(ptgn::Entity owner, ScriptSequence& binding) {
-	const auto* sequence{ Resolve(binding) };
-	if (!sequence) {
-		return;
-	}
-
 	auto& runtime{ binding.runtime };
 	while (runtime.running && runtime.action_index < sequence->actions.size()) {
 		const auto& action{ sequence->actions[runtime.action_index] };
@@ -8616,8 +7794,7 @@ void DemoWorld::ProcessImmediateActions(ptgn::Entity owner, ScriptSequence& bind
 			++runtime.action_index;
 			continue;
 		}
-
-		const auto* registration{ ActionRegistry::Find(action.type) };
+		const auto* registration{ ActionRegistry::Find(action.type_hash) };
 		if (!registration) {
 			++runtime.action_index;
 			continue;
@@ -8628,31 +7805,27 @@ void DemoWorld::ProcessImmediateActions(ptgn::Entity owner, ScriptSequence& bind
 		if (completion != ActionCompletion::Instant) {
 			return;
 		}
-
 		InvokeLifecycle(owner, binding, SequenceLifecycle::ActionStart);
 		ExecuteInstant(owner, action);
 		InvokeLifecycle(owner, binding, SequenceLifecycle::ActionComplete);
 		++runtime.action_index;
 	}
-
 	if (runtime.running && runtime.action_index >= sequence->actions.size()) {
 		CompleteSequence(owner, binding);
 	}
 }
 
-void DemoWorld::CompleteCurrentAction(ptgn::Entity owner, ScriptSequence& binding) {
+void CompleteCurrentAction(
+	ptgn::Entity owner, ScriptSequence& binding
+) {
 	auto& runtime{ binding.runtime };
 	if (runtime.action_instance) {
-		ActionContext context{
-			.host = *this,
-			.owner = owner,
-			.scene = &Context(),
-			.linear_progress = 1.0f,
-			.progress = 1.0f,
-			.repeat = runtime.current_repeat,
-			.reversed = runtime.currently_reversed,
-		};
-		runtime.action_instance->Complete(context);
+		runtime.action_instance->SetFrame(
+			0.0f, 1.0f, 1.0f,
+			runtime.current_repeat,
+			runtime.currently_reversed
+		);
+		runtime.action_instance->OnComplete();
 	}
 	InvokeLifecycle(owner, binding, SequenceLifecycle::ActionComplete);
 	++runtime.action_index;
@@ -8660,12 +7833,13 @@ void DemoWorld::CompleteCurrentAction(ptgn::Entity owner, ScriptSequence& bindin
 	ProcessImmediateActions(owner, binding);
 }
 
-void DemoWorld::CompleteSequence(ptgn::Entity owner, ScriptSequence& binding) {
-	const auto* sequence{ Resolve(binding) };
+void CompleteSequence(
+	ptgn::Entity owner, ScriptSequence& binding
+) {
+	const auto* sequence{ Resolve(owner, binding) };
 	if (!sequence) {
 		return;
 	}
-
 	const bool remove_binding{
 		sequence->transient || sequence->remove_binding_on_complete
 	};
@@ -8678,45 +7852,38 @@ void DemoWorld::CompleteSequence(ptgn::Entity owner, ScriptSequence& binding) {
 	binding.runtime.completed = true;
 	binding.runtime.completed_runs = completed_runs;
 	binding.runtime.action_instance.reset();
-	InvokeLifecycle(owner, binding, SequenceLifecycle::Complete);
-	Log(std::string{ Name(owner) } + " / " + sequence->name + " completed");
 
-	// Re-triggers queued on this same binding run before another binding waiting in the channel.
+	InvokeLifecycle(owner, binding, SequenceLifecycle::Complete);
+	LogScriptActivity(
+		owner.GetScene(),
+		std::string{ GetEntityName(owner) } + " / " + sequence->name + " completed"
+	);
+
 	if (queued_runs > 0 && !destroy_owner) {
 		binding.runtime.queued_runs = queued_runs - 1;
 		(void)StartBinding(owner, binding, true);
 		return;
 	}
-
 	ReleaseChannel(owner, binding, true);
 	if (destroy_owner) {
-		Destroy(owner);
+		static_cast<DemoScene&>(owner.GetScene()).RequestDestroy(owner);
 		return;
 	}
 	if (remove_binding && owner.Has<ScriptsComponent>()) {
-		owner.Get<ScriptsComponent>().RemoveSequenceDeferred(binding.id);
+		owner.Get<ScriptsComponent>().RemoveDeferred(binding.id);
 	}
 }
 
-void DemoWorld::UpdateSequence(
+void UpdateSequence(
 	ptgn::Entity owner,
 	ScriptSequence& binding,
 	float delta_seconds
 ) {
 	auto& runtime{ binding.runtime };
-	if (!runtime.running && runtime.pending_start_delay_ms >= 0.0f) {
-		runtime.pending_start_delay_ms -= std::max(0.0f, delta_seconds) * 1000.0f;
-		if (runtime.pending_start_delay_ms <= 0.0f) {
-			runtime.pending_start_delay_ms = -1.0f;
-			(void)StartBinding(owner, binding, false);
-		}
-		return;
-	}
 	if (!runtime.running || runtime.paused || runtime.waiting_for_channel) {
 		return;
 	}
-
-	const auto* sequence{ Resolve(binding) };
+	const auto* sequence{ Resolve(owner, binding) };
 	if (!sequence || runtime.action_index >= sequence->actions.size()) {
 		CompleteSequence(owner, binding);
 		return;
@@ -8728,8 +7895,7 @@ void DemoWorld::UpdateSequence(
 		ProcessImmediateActions(owner, binding);
 		return;
 	}
-
-	const auto* registration{ ActionRegistry::Find(action.type) };
+	const auto* registration{ ActionRegistry::Find(action.type_hash) };
 	if (!registration) {
 		++runtime.action_index;
 		ProcessImmediateActions(owner, binding);
@@ -8744,15 +7910,19 @@ void DemoWorld::UpdateSequence(
 	}
 
 	if (!runtime.action_instance) {
-		runtime.action_instance = registration->instantiate(action.value);
+		runtime.action_instance = action.runtime_factory
+			? action.runtime_factory(owner)
+			: registration->instantiate(owner, action.value);
+		if (!runtime.action_instance) {
+			++runtime.action_index;
+			ProcessImmediateActions(owner, binding);
+			return;
+		}
 		runtime.currently_reversed = action.timing && action.timing->reversed;
-		ActionContext context{
-			.host = *this,
-			.owner = owner,
-			.scene = &Context(),
-			.reversed = runtime.currently_reversed,
-		};
-		runtime.action_instance->Begin(context);
+		runtime.action_instance->SetFrame(
+			0.0f, 0.0f, 0.0f, 0, runtime.currently_reversed
+		);
+		runtime.action_instance->OnStart();
 		InvokeLifecycle(owner, binding, SequenceLifecycle::ActionStart);
 	}
 
@@ -8760,7 +7930,6 @@ void DemoWorld::UpdateSequence(
 	if (action.timing) {
 		runtime.elapsed_ms += delta_ms;
 	}
-
 	float linear{ 0.0f };
 	float progress{ 0.0f };
 	if (action.timing) {
@@ -8772,17 +7941,11 @@ void DemoWorld::UpdateSequence(
 		progress = ptgn::ApplyEase(directed, timing.ease);
 	}
 
-	ActionContext context{
-		.host = *this,
-		.owner = owner,
-		.scene = &Context(),
-		.delta_seconds = delta_seconds,
-		.linear_progress = linear,
-		.progress = progress,
-		.repeat = runtime.current_repeat,
-		.reversed = runtime.currently_reversed,
-	};
-	const ActionStatus status{ runtime.action_instance->Update(context) };
+	runtime.action_instance->SetFrame(
+		delta_seconds, linear, progress,
+		runtime.current_repeat, runtime.currently_reversed
+	);
+	const ActionStatus status{ runtime.action_instance->OnUpdate() };
 
 	bool complete{ false };
 	switch (completion) {
@@ -8816,103 +7979,979 @@ void DemoWorld::UpdateSequence(
 			runtime.currently_reversed = !runtime.currently_reversed;
 			InvokeLifecycle(owner, binding, SequenceLifecycle::Yoyo);
 		}
-
-		ActionContext repeat_context{
-			.host = *this,
-			.owner = owner,
-			.scene = &Context(),
-			.repeat = runtime.current_repeat,
-			.reversed = runtime.currently_reversed,
-		};
-		runtime.action_instance->Repeat(repeat_context);
+		runtime.action_instance->SetFrame(
+			0.0f, 0.0f, 0.0f,
+			runtime.current_repeat, runtime.currently_reversed
+		);
+		runtime.action_instance->OnRepeat();
 		return;
 	}
-
 	CompleteCurrentAction(owner, binding);
 }
 
-class DemoApplication {
-public:
-	static void GlfwErrorCallback(int error, const char* description) {
-		std::fprintf(stderr, "GLFW error %d: %s\n", error, description);
+} // namespace
+
+void AttachEntry(ptgn::Entity entity, ScriptEntry& entry) {
+	if (!entity || !entry.type_hash) {
+		return;
+	}
+	(void)EnsureInstance(entity, entry);
+}
+
+void AttachAll(ptgn::Entity entity) {
+	if (!entity) {
+		return;
+	}
+	auto* scripts{ entity.TryGet<ScriptsComponent>() };
+	if (!scripts) {
+		return;
+	}
+	for (auto& entry : scripts->scripts) {
+		AttachEntry(entity, entry);
+	}
+	for (auto& entry : scripts->pending_additions) {
+		AttachEntry(entity, entry);
+	}
+}
+
+void ApplyPending(ptgn::Scene& scene) {
+	const auto entities{ scene.EntitiesWith<ScriptsComponent>().GetVector() };
+	for (ptgn::Entity entity : entities) {
+		auto* scripts_ptr{ entity.TryGet<ScriptsComponent>() };
+		if (!scripts_ptr) {
+			continue;
+		}
+		auto& scripts{ *scripts_ptr };
+		for (const SequenceId id : scripts.pending_removals) {
+			ScriptEntry* target{ FindSequenceEntry(entity, id) };
+			if (auto* binding{ FindBinding(entity, id) }) {
+				(void)CancelBinding(
+					entity, *binding, SequenceCancelReason::BindingRemoved,
+					false, true, false
+				);
+			}
+			if (target) {
+				target->enabled = false;
+				ptgn::Script* target_instance{ target->instance };
+				if (auto* sequence{ dynamic_cast<SequenceScript*>(target_instance) }) {
+					sequence->sequence.enabled = false;
+				}
+				std::erase_if(scripts.scripts, [target_instance](const ScriptEntry& entry) {
+					return entry.instance == target_instance;
+				});
+			}
+		}
+		scripts.pending_removals.clear();
+		for (auto& entry : scripts.pending_additions) {
+			scripts.scripts.push_back(std::move(entry));
+			AttachEntry(entity, scripts.scripts.back());
+		}
+		scripts.pending_additions.clear();
+	}
+}
+
+void Update(ptgn::Scene& scene, float delta_seconds) {
+	current_delta_seconds = std::max(0.0f, delta_seconds);
+	ApplyPending(scene);
+	const auto entities{ scene.EntitiesWith<ScriptsComponent>().GetVector() };
+	for (ptgn::Entity entity : entities) {
+		AttachAll(entity);
+	}
+}
+
+float DeltaSeconds() {
+	return current_delta_seconds;
+}
+
+ScriptSequence* Resolve(
+	ptgn::Entity owner, ScriptSequence& binding
+) {
+	return binding.shared_reference
+		? GetSharedScriptSequences(owner.GetScene()).Find(binding.shared_sequence_id)
+		: &binding;
+}
+
+const ScriptSequence* Resolve(
+	ptgn::Entity owner, const ScriptSequence& binding
+) {
+	return binding.shared_reference
+		? GetSharedScriptSequences(owner.GetScene()).Find(binding.shared_sequence_id)
+		: &binding;
+}
+
+SequenceHandle RunSequence(
+	ptgn::Entity owner, ScriptSequence sequence
+) {
+	if (!owner) {
+		return {};
+	}
+	auto& scripts{ owner.TryAdd<ScriptsComponent>() };
+	const SequenceId id{ sequence.id };
+	ScriptEntry entry{ MakeSequenceEntry(std::move(sequence)) };
+	scripts.pending_additions.push_back(std::move(entry));
+	AttachEntry(owner, scripts.pending_additions.back());
+	return SequenceHandle{ .owner = owner, .binding_id = id };
+}
+
+SequenceHandle RunInChannel(
+	ptgn::Entity owner,
+	SequenceChannelKey channel,
+	ScriptSequence sequence,
+	ReentryMode reentry
+) {
+	sequence.channel = std::move(channel);
+	sequence.reentry = reentry;
+	return RunSequence(owner, std::move(sequence));
+}
+
+bool Start(ptgn::Entity owner, SequenceId id, bool force) {
+	auto* binding{ FindBinding(owner, id) };
+	return binding && StartBinding(owner, *binding, force);
+}
+
+void StopChannel(
+	ptgn::Entity owner,
+	SequenceChannelKey channel_key,
+	SequenceStopMode mode
+) {
+	if (!owner || !owner.Has<ScriptsComponent>()) {
+		return;
+	}
+	auto& scripts{ owner.Get<ScriptsComponent>() };
+	auto* channel{ FindChannel(scripts, channel_key) };
+	if (!channel) {
+		return;
+	}
+	std::vector<SequenceId> ids;
+	if (channel->active) {
+		ids.push_back(*channel->active);
+	}
+	if (mode == SequenceStopMode::All) {
+		ids.insert(ids.end(), channel->waiting.begin(), channel->waiting.end());
+	}
+	channel->active.reset();
+	channel->waiting.clear();
+	for (SequenceId id : ids) {
+		if (auto* binding{ FindBinding(owner, id) }) {
+			(void)CancelBinding(
+				owner, *binding, SequenceCancelReason::Replaced,
+				false, false
+			);
+		}
+	}
+}
+
+bool Stop(ptgn::Entity owner, SequenceId id, SequenceCancelReason reason) {
+	auto* binding{ FindBinding(owner, id) };
+	return binding && CancelBinding(owner, *binding, reason, true, true);
+}
+
+bool Reset(ptgn::Entity owner, SequenceId id) {
+	auto* binding{ FindBinding(owner, id) };
+	if (!binding) {
+		return false;
+	}
+	(void)CancelBinding(
+		owner, *binding, SequenceCancelReason::Reset,
+		false, true
+	);
+	InvokeLifecycle(owner, *binding, SequenceLifecycle::Reset);
+	return true;
+}
+
+bool Clear(ptgn::Entity owner, SequenceId id) {
+	auto* binding{ FindBinding(owner, id) };
+	if (!binding) {
+		return false;
+	}
+	(void)CancelBinding(
+		owner, *binding, SequenceCancelReason::Cleared,
+		false, true
+	);
+	if (binding->shared_reference || binding->transient) {
+		owner.Get<ScriptsComponent>().RemoveDeferred(id);
+	} else {
+		binding->actions.clear();
+		binding->start_events.clear();
+		binding->stop_events.clear();
+		binding->lifecycle_actions.clear();
+	}
+	return true;
+}
+
+bool Skip(ptgn::Entity owner, SequenceId id) {
+	auto* binding{ FindBinding(owner, id) };
+	if (!binding || !binding->runtime.running) {
+		return false;
+	}
+	if (binding->runtime.action_instance) {
+		binding->runtime.action_instance->OnCancel(SequenceCancelReason::Skipped);
+		InvokeLifecycle(owner, *binding, SequenceLifecycle::ActionCancel);
+	}
+	++binding->runtime.action_index;
+	binding->runtime.ClearActiveAction();
+	ProcessImmediateActions(owner, *binding);
+	return true;
+}
+
+bool Seek(ptgn::Entity owner, SequenceId id, float progress) {
+	auto* binding{ FindBinding(owner, id) };
+	if (!binding) {
+		return false;
+	}
+	if (!binding->runtime.running && !StartBinding(owner, *binding, true)) {
+		return false;
+	}
+	const auto* sequence{ Resolve(owner, *binding) };
+	if (!sequence || binding->runtime.action_index >= sequence->actions.size()) {
+		return false;
+	}
+	const auto& action{ sequence->actions[binding->runtime.action_index] };
+	if (!action.timing) {
+		return false;
+	}
+	binding->runtime.elapsed_ms =
+		std::clamp(progress, 0.0f, 1.0f) *
+		std::max(0.0f, action.timing->duration_ms);
+	UpdateSequence(owner, *binding, 0.0f);
+	return true;
+}
+
+bool SetPaused(ptgn::Entity owner, SequenceId id, bool paused) {
+	auto* binding{ FindBinding(owner, id) };
+	if (!binding || !binding->runtime.running || binding->runtime.paused == paused) {
+		return false;
+	}
+	binding->runtime.paused = paused;
+	InvokeLifecycle(
+		owner, *binding,
+		paused ? SequenceLifecycle::Pause : SequenceLifecycle::Resume
+	);
+	return true;
+}
+
+float Progress(ptgn::Entity owner, SequenceId id) {
+	const auto* binding{ FindBinding(owner, id) };
+	if (!binding) {
+		return 0.0f;
+	}
+	const auto* sequence{ Resolve(owner, *binding) };
+	if (!sequence || !binding->runtime.running ||
+		binding->runtime.action_index >= sequence->actions.size()) {
+		return binding->runtime.completed ? 1.0f : 0.0f;
+	}
+	const auto& action{ sequence->actions[binding->runtime.action_index] };
+	if (!action.timing || action.timing->duration_ms <= 0.0f) {
+		return 0.0f;
+	}
+	return std::clamp(
+		binding->runtime.elapsed_ms / action.timing->duration_ms,
+		0.0f, 1.0f
+	);
+}
+
+bool IsRunning(ptgn::Entity owner, SequenceId id) {
+	const auto* binding{ FindBinding(owner, id) };
+	return binding && binding->runtime.running;
+}
+
+bool IsPaused(ptgn::Entity owner, SequenceId id) {
+	const auto* binding{ FindBinding(owner, id) };
+	return binding && binding->runtime.paused;
+}
+
+bool IsCompleted(ptgn::Entity owner, SequenceId id) {
+	const auto* binding{ FindBinding(owner, id) };
+	return binding && binding->runtime.completed;
+}
+
+} // namespace script_runtime
+
+void SequenceScript::OnCreate() {}
+
+void SequenceScript::OnUpdate() {
+	if (!script_runtime::IsScriptEnabled(entity, this)) {
+		return;
+	}
+	if (!initialized) {
+		initialized = true;
+		if (sequence.start_events.empty()) {
+			(void)script_runtime::Start(entity, sequence.id);
+		}
+	}
+	script_runtime::UpdateSequence(entity, sequence, script_runtime::DeltaSeconds());
+}
+
+void SequenceScript::OnEvent(Event event) {
+	if (!script_runtime::IsScriptEnabled(entity, this)) {
+		return;
+	}
+	ObserveInputExpressionEvent(event);
+	const auto* definition{ script_runtime::Resolve(entity, sequence) };
+	if (!definition) {
+		return;
 	}
 
-	int Run() {
-		glfwSetErrorCallback(GlfwErrorCallback);
-		if (!glfwInit()) {
-			return 1;
+	for (const auto& condition : definition->stop_events) {
+		if (!condition.enabled) {
+			continue;
 		}
-
-#if defined(__APPLE__)
-		const char* glsl_version{ "#version 150" };
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-		glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-#else
-		const char* glsl_version{ "#version 330" };
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-		glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#endif
-
-		GLFWwindow* window{ glfwCreateWindow(
-			1650, 950, "Protegon Registry Driven Script Sequences", nullptr, nullptr
-		) };
-		if (!window) {
-			glfwTerminate();
-			return 1;
+		const auto* registration{ SequenceEventRegistry::Find(condition.type_hash) };
+		if (registration && registration->matches(
+				entity, event, condition, condition.consume
+			)) {
+			(void)script_runtime::Stop(entity, sequence.id);
+			return;
 		}
-		glfwMakeContextCurrent(window);
-		glfwSwapInterval(1);
-		if (!gladLoadGL(glfwGetProcAddress)) {
-			glfwDestroyWindow(window);
-			glfwTerminate();
-			return 1;
-		}
-
-		IMGUI_CHECKVERSION();
-		ImGui::CreateContext();
-		ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-		ImGui::StyleColorsDark();
-		ImGui::GetStyle().WindowRounding = 0.0f;
-		ImGui_ImplGlfw_InitForOpenGL(window, true);
-		ImGui_ImplOpenGL3_Init(glsl_version);
-
-		DemoWorld world{ window };
-		editor::DemoEditor editor{ world };
-
-		while (!glfwWindowShouldClose(window)) {
-			glfwPollEvents();
-			ImGui_ImplOpenGL3_NewFrame();
-			ImGui_ImplGlfw_NewFrame();
-			ImGui::NewFrame();
-
-			world.Update(ImGui::GetIO().DeltaTime);
-			editor.Draw();
-
-			ImGui::Render();
-			int width{ 0 };
-			int height{ 0 };
-			glfwGetFramebufferSize(window, &width, &height);
-			glViewport(0, 0, width, height);
-			glClearColor(0.055f, 0.060f, 0.070f, 1.0f);
-			glClear(GL_COLOR_BUFFER_BIT);
-			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-			glfwSwapBuffers(window);
-		}
-
-		ImGui_ImplOpenGL3_Shutdown();
-		ImGui_ImplGlfw_Shutdown();
-		ImGui::DestroyContext();
-		glfwDestroyWindow(window);
-		glfwTerminate();
-		return 0;
 	}
-};
+
+	for (const auto& condition : definition->start_events) {
+		if (!condition.enabled) {
+			continue;
+		}
+		const auto* registration{ SequenceEventRegistry::Find(condition.type_hash) };
+		if (registration && registration->matches(
+				entity, event, condition, condition.consume
+			)) {
+			(void)script_runtime::Start(entity, sequence.id);
+			return;
+		}
+	}
+}
+
+bool SequenceHandle::Start(bool force) const {
+	return *this && script_runtime::Start(owner, binding_id, force);
+}
+bool SequenceHandle::Stop() const {
+	return *this && script_runtime::Stop(owner, binding_id);
+}
+bool SequenceHandle::Pause() const {
+	return *this && script_runtime::SetPaused(owner, binding_id, true);
+}
+bool SequenceHandle::Resume() const {
+	return *this && script_runtime::SetPaused(owner, binding_id, false);
+}
+bool SequenceHandle::TogglePaused() const {
+	return *this && script_runtime::SetPaused(
+		owner, binding_id, !script_runtime::IsPaused(owner, binding_id)
+	);
+}
+bool SequenceHandle::Toggle() const {
+	return IsRunning() ? Stop() : Start();
+}
+bool SequenceHandle::Reset() const {
+	return *this && script_runtime::Reset(owner, binding_id);
+}
+bool SequenceHandle::Clear() const {
+	return *this && script_runtime::Clear(owner, binding_id);
+}
+bool SequenceHandle::Skip() const {
+	return *this && script_runtime::Skip(owner, binding_id);
+}
+bool SequenceHandle::Seek(float progress) const {
+	return *this && script_runtime::Seek(owner, binding_id, progress);
+}
+bool SequenceHandle::IsRunning() const {
+	return *this && script_runtime::IsRunning(owner, binding_id);
+}
+bool SequenceHandle::IsPaused() const {
+	return *this && script_runtime::IsPaused(owner, binding_id);
+}
+bool SequenceHandle::IsCompleted() const {
+	return *this && script_runtime::IsCompleted(owner, binding_id);
+}
+float SequenceHandle::Progress() const {
+	return *this ? script_runtime::Progress(owner, binding_id) : 0.0f;
+}
+
+bool script_runtime::IsScriptEnabled(
+	ptgn::Entity entity, const ptgn::Script* script
+) {
+	if (!entity || !script) {
+		return false;
+	}
+	const auto* scripts{ entity.TryGet<ScriptsComponent>() };
+	if (!scripts) {
+		return false;
+	}
+	auto find_enabled = [script](const auto& entries) {
+		const auto it{ std::ranges::find_if(entries, [script](const ScriptEntry& entry) {
+			return entry.instance == script;
+		}) };
+		return it != entries.end() && it->enabled;
+	};
+	return find_enabled(scripts->scripts) || find_enabled(scripts->pending_additions);
+}
+
+std::vector<std::string> DemoScene::ActivityText() const {
+	std::vector<std::string> result;
+	result.reserve(activity_.size());
+	for (const auto& entry : activity_) {
+		result.push_back(entry.text);
+	}
+	return result;
+}
+
+std::string_view DemoScene::Name(ptgn::Entity entity) const {
+	return GetEntityName(entity);
+}
+
+std::string& DemoScene::EditableName(ptgn::Entity entity) {
+	return entity.TryAdd<NameComponent>().value;
+}
+
+std::string& DemoScene::EditableTag(ptgn::Entity entity) {
+	return entity.TryAdd<ptgn::Tag>().value;
+}
+
+int DemoScene::Mask(ptgn::Entity entity) const {
+	return GetEntityMask(entity);
+}
+
+editor::EditorVisual DemoScene::Visual(ptgn::Entity entity) const {
+	editor::EditorVisual result;
+	if (entity && entity.Has<DemoVisual>()) {
+		const auto& visual{ entity.Get<DemoVisual>() };
+		result.color = visual.color;
+		result.sensor = visual.sensor;
+	}
+	if (entity && entity.Has<ButtonData>() && entity.Has<ButtonStyle>()) {
+		const auto& button{ entity.Get<ButtonData>() };
+		const auto& style{ entity.Get<ButtonStyle>() };
+		switch (button.state) {
+			case ButtonState::Idle: result.color = style.idle; break;
+			case ButtonState::Hovered: result.color = style.hovered; break;
+			case ButtonState::Pressed: result.color = style.pressed; break;
+			case ButtonState::Disabled: result.color = style.disabled; break;
+		}
+	}
+	if (entity && entity.Has<Health>()) {
+		const auto& health{ entity.Get<Health>() };
+		result.health_fraction = health.maximum > 0.0f
+			? std::clamp(health.current / health.maximum, 0.0f, 1.0f)
+			: 0.0f;
+	}
+	return result;
+}
+
+void DemoScene::Log(std::string text) {
+	activity_.push_back(ActivityEntry{ .text = std::move(text) });
+	constexpr std::size_t maximum{ 18 };
+	if (activity_.size() > maximum) {
+		activity_.erase(activity_.begin());
+	}
+}
+
+void DemoScene::RequestDestroy(ptgn::Entity entity) {
+	if (entity && !std::ranges::contains(pending_destroy_, entity)) {
+		pending_destroy_.push_back(entity);
+	}
+}
+
+ptgn::Entity DemoScene::FindByTag(std::string_view tag) const {
+	return GetEntity(ptgn::Tag{ tag });
+}
+
+ptgn::Entity DemoScene::CreateEntity(std::string name, std::string tag) {
+	ptgn::Entity entity{ ptgn::Scene::CreateEntity(ptgn::Tag{ tag }) };
+	entity.TryAdd<NameComponent>().value = std::move(name);
+	entity.TryAdd<ptgn::Transform>();
+	entity.TryAdd<ptgn::Visible>(true);
+	entity.TryAdd<DemoVisual>();
+	entity.TryAdd<MaskComponent>();
+	return entity;
+}
+
+ptgn::Entity DemoScene::SpawnPrefab(
+	const PrefabDefinition& prefab,
+	ptgn::V2_float position
+) {
+	ptgn::Entity entity{ CreateEntity(prefab.name, prefab.tag) };
+	for (const auto& component : prefab.components) {
+		if (component.apply_live) {
+			component.apply_live(entity);
+			continue;
+		}
+		const auto* registration{ ptgn::ComponentRegistry::Find(component.type) };
+		if (!registration) {
+			continue;
+		}
+		if (registration->is_empty && registration->add_default) {
+			registration->add_default(entity);
+		} else if (registration->deserialize && !component.value.is_null()) {
+			registration->deserialize(component.value, entity);
+		} else if (registration->add_default) {
+			registration->add_default(entity);
+		}
+	}
+	if (prefab.scripts) {
+		entity.Add<ScriptsComponent>(*prefab.scripts);
+		script_runtime::AttachAll(entity);
+	}
+	entity.Get<ptgn::Transform>().position = position;
+	Log("Spawned prefab " + prefab.key);
+	return entity;
+}
+
+ptgn::Entity DemoScene::SpawnPrefab(const PrefabSpawnRequest& request) {
+	const auto* prefab{ prefabs_.Find(request.prefab_key) };
+	if (!prefab) {
+		return {};
+	}
+	ptgn::Entity entity{ SpawnPrefab(*prefab, request.position) };
+	if (request.random_rotation && entity) {
+		static std::mt19937 generator{ std::random_device{}() };
+		std::uniform_real_distribution<float> angle{ -180.0f, 180.0f };
+		entity.Get<ptgn::Transform>().rotation = ptgn::Degrees{ angle(generator) }.ToRad();
+	}
+	return entity;
+}
+
+void DemoScene::CreatePrefabs() {
+	PrefabDefinition zombie;
+	zombie.key = "prefabs/zombie";
+	zombie.name = "Zombie";
+	zombie.tag = "Zombie";
+	zombie.components.push_back(
+		MakeComponentDefinition(ptgn::Rect{ ptgn::V2_float{ 32.0f, 32.0f } })
+	);
+	zombie.components.push_back(
+		MakeComponentDefinition(DemoVisual{
+			.color = ImVec4{ 0.45f, 0.75f, 0.30f, 1.0f },
+		})
+	);
+	zombie.components.push_back(MakeComponentDefinition(Health{}));
+	zombie.components.push_back(MakeComponentDefinition(Zombie{}));
+	prefabs_.definitions.push_back(std::move(zombie));
+
+	PrefabDefinition circle;
+	circle.key = "prefabs/recall_circle";
+	circle.name = "Recall Circle";
+	circle.tag = "SpawnedCircle";
+	circle.components.push_back(MakeComponentDefinition(ptgn::Circle{ 13.0f }));
+	circle.components.push_back(
+		MakeComponentDefinition(DemoVisual{
+			.color = ImVec4{ 0.78f, 0.42f, 0.88f, 1.0f },
+		})
+	);
+	ScriptsComponent circle_scripts;
+	ScriptSequence destroy_sequence{ "Destroy on Recall" };
+	destroy_sequence
+		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "spawned_circles.destroy" } })
+		.DestroyOwnerOnComplete();
+	circle_scripts.scripts.push_back(MakeSequenceEntry(std::move(destroy_sequence)));
+	circle.scripts = std::move(circle_scripts);
+	prefabs_.definitions.push_back(std::move(circle));
+}
+
+void DemoScene::CreateDemoScene() {
+	ScriptSequence opened_indicator{ "Door Opened Indicator" };
+	opened_indicator
+		.Reentry(ReentryMode::Restart)
+		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.opened" } })
+		.StopOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.closed" } })
+		.During(350.0f, MoveToAction{ { 0.0f, 55.0f }, true })
+		.Ease(ptgn::Ease::OutBack);
+	const SequenceId opened_indicator_id{ opened_indicator.id };
+	shared_sequences_.sequences.push_back(std::move(opened_indicator));
+
+	ScriptSequence closed_indicator{ "Door Closed Indicator" };
+	closed_indicator
+		.Reentry(ReentryMode::Restart)
+		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.closed" } })
+		.StopOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.opened" } })
+		.During(350.0f, MoveToAction{ { 300.0f, -110.0f }, false })
+		.Ease(ptgn::Ease::OutCubic);
+	const SequenceId closed_indicator_id{ closed_indicator.id };
+	shared_sequences_.sequences.push_back(std::move(closed_indicator));
+
+	ptgn::Entity player{ CreateEntity("Player", "Player") };
+	player.Get<ptgn::Transform>().position = { -330.0f, 0.0f };
+	player.Add<ptgn::Rect>(ptgn::V2_float{ 38.0f, 38.0f });
+	player.Get<DemoVisual>().color = ImVec4{ 0.27f, 0.59f, 0.96f, 1.0f };
+	AttachScript(player, PlayerMovementScript{});
+
+	ptgn::Entity sensor{ CreateEntity("Door Sensor", "Door") };
+	sensor.Get<ptgn::Transform>().position = { -70.0f, 0.0f };
+	sensor.Add<ptgn::Rect>(ptgn::V2_float{ 110.0f, 170.0f });
+	sensor.Get<DemoVisual>().color = ImVec4{ 0.23f, 0.75f, 0.45f, 0.30f };
+	sensor.Get<DemoVisual>().sensor = true;
+	ScriptSequence sensor_enter{ "Emit Door Opened" };
+	sensor_enter
+		.StartOn("ptgn.event.OverlapStart", ptgn::json{ { "tags", "Player" }, { "masks", "" } })
+		.EmitSignal(SignalKey{ "door.opened" });
+	AttachSequence(sensor, std::move(sensor_enter));
+	ScriptSequence sensor_exit{ "Emit Door Closed" };
+	sensor_exit
+		.StartOn("ptgn.event.OverlapStop", ptgn::json{ { "tags", "Player" }, { "masks", "" } })
+		.EmitSignal(SignalKey{ "door.closed" });
+	AttachSequence(sensor, std::move(sensor_exit));
+
+	ptgn::Entity panel{ CreateEntity("Sliding Panel", "MovingPanel") };
+	panel.Get<ptgn::Transform>().position = { 70.0f, 0.0f };
+	panel.Add<ptgn::Rect>(ptgn::V2_float{ 62.0f, 170.0f });
+	panel.Get<DemoVisual>().color = ImVec4{ 0.88f, 0.57f, 0.24f, 1.0f };
+	ScriptSequence open_sequence{ "Open Sliding Panel" };
+	open_sequence
+		.Reentry(ReentryMode::Restart)
+		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.opened" } })
+		.StopOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.closed" } })
+		.During(500.0f, MoveToAction{ { 225.0f, 0.0f }, false })
+		.Ease(ptgn::Ease::OutCubic);
+	AttachSequence(panel, std::move(open_sequence));
+	ScriptSequence close_sequence{ "Close Sliding Panel" };
+	close_sequence
+		.Reentry(ReentryMode::Restart)
+		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.closed" } })
+		.StopOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.opened" } })
+		.During(500.0f, MoveToAction{ { 70.0f, 0.0f }, false })
+		.Ease(ptgn::Ease::OutCubic);
+	AttachSequence(panel, std::move(close_sequence));
+
+	ptgn::Entity indicator{ CreateEntity("Event Indicator", "Indicator") };
+	indicator.Get<ptgn::Transform>().position = { 300.0f, -110.0f };
+	indicator.Add<ptgn::Circle>(21.0f);
+	indicator.Get<DemoVisual>().color = ImVec4{ 0.92f, 0.80f, 0.27f, 1.0f };
+	ScriptSequence opened_binding;
+	opened_binding.shared_reference = true;
+	opened_binding.shared_sequence_id = opened_indicator_id;
+	AttachSequence(indicator, std::move(opened_binding));
+	ScriptSequence closed_binding;
+	closed_binding.shared_reference = true;
+	closed_binding.shared_sequence_id = closed_indicator_id;
+	AttachSequence(indicator, std::move(closed_binding));
+
+	ptgn::Entity factory{ CreateEntity("Circle Spawner", "Spawner") };
+	factory.Get<ptgn::Transform>().position = { -265.0f, -165.0f };
+	factory.Add<ptgn::Rect>(ptgn::V2_float{ 130.0f, 72.0f });
+	factory.Get<DemoVisual>().color = ImVec4{ 0.47f, 0.41f, 0.63f, 0.55f };
+	factory.Get<DemoVisual>().sensor = true;
+	SpawnEntityAction spawn_circles;
+	spawn_circles.prefab_key = "prefabs/recall_circle";
+	spawn_circles.count = 10;
+	spawn_circles.origin = SpawnOrigin::OwnerEntity;
+	spawn_circles.area = SpawnArea::Circle;
+	spawn_circles.center = { 0.0f, 95.0f };
+	spawn_circles.radius = 92.0f;
+	spawn_circles.random_rotation = true;
+
+	ScriptSequence spawn_sequence{ "Spawn Recall Circles" };
+	spawn_sequence
+		.Reentry(ReentryMode::IgnoreWhileRunning)
+		.StartOn("ptgn.event.OverlapStart", ptgn::json{ { "tags", "Player" }, { "masks", "" } })
+		.Then(std::move(spawn_circles));
+	AttachSequence(factory, std::move(spawn_sequence));
+	ScriptSequence recall_sequence{ "Recall Spawned Circles" };
+	recall_sequence
+		.StartOn("ptgn.event.OverlapStop", ptgn::json{ { "tags", "Player" }, { "masks", "" } })
+		.EmitSignal(SignalKey{ "spawned_circles.destroy" });
+	AttachSequence(factory, std::move(recall_sequence));
+
+	ptgn::Entity damage_target{ CreateEntity("Damage Target", "DamageTarget") };
+	damage_target.Get<ptgn::Transform>().position = { 315.0f, 105.0f };
+	damage_target.Add<ptgn::Rect>(ptgn::V2_float{ 105.0f, 86.0f });
+	damage_target.Get<DemoVisual>().color = ImVec4{ 0.78f, 0.27f, 0.29f, 1.0f };
+	damage_target.Add<Health>(Health{ .maximum = 100.0f, .current = 100.0f });
+	ScriptSequence damage_sequence{ "Overlap Damage Cooldown" };
+	damage_sequence
+		.Reentry(ReentryMode::IgnoreWhileRunning)
+		.StartOn("ptgn.event.Overlap", ptgn::json{ { "tags", "Player" }, { "masks", "" } })
+		.Then(ApplyDamageAction{ 25.0f })
+		.Wait(3000.0f);
+	AttachSequence(damage_target, std::move(damage_sequence));
+
+	ptgn::Entity tween_button{ CreateEntity("Tween Button", "TweenButton") };
+	tween_button.Get<ptgn::Transform>().position = { -80.0f, -210.0f };
+	tween_button.Add<ptgn::Rect>(ptgn::V2_float{ 150.0f, 50.0f });
+	tween_button.Add<ButtonData>();
+	tween_button.Add<ButtonStyle>();
+	ScriptSequence tween_button_sequence{ "Button Scale Pulse" };
+	tween_button_sequence
+		.Reentry(ReentryMode::Restart)
+		.Channel(SequenceChannelKey{ "ui.press" })
+		.StartOn("demo.button.Press", ptgn::json{ { "button", ptgn::Mouse::Left } })
+		.During(105.0f, ScaleToAction{ { 1.12f, 1.12f }, false })
+		.Ease(ptgn::Ease::OutBack)
+		.During(105.0f, ScaleToAction{ { 1.0f, 1.0f }, false })
+		.Ease(ptgn::Ease::OutBack)
+		.EmitSignal(SignalKey{ "button.tween.clicked" });
+	AttachSequence(tween_button, std::move(tween_button_sequence));
+
+	ptgn::Entity signal_button{ CreateEntity("Global Event Button", "SignalButton") };
+	signal_button.Get<ptgn::Transform>().position = { 115.0f, -210.0f };
+	signal_button.Add<ptgn::Rect>(ptgn::V2_float{ 185.0f, 50.0f });
+	signal_button.Add<ButtonData>();
+	signal_button.Add<ButtonStyle>(ButtonStyle{
+		.idle = ImVec4{ 0.47f, 0.29f, 0.62f, 1.0f },
+		.hovered = ImVec4{ 0.61f, 0.39f, 0.78f, 1.0f },
+		.pressed = ImVec4{ 0.35f, 0.20f, 0.49f, 1.0f },
+	});
+	ScriptSequence signal_button_sequence{ "Emit Global Button Signal" };
+	signal_button_sequence
+		.StartOn("demo.button.Press", ptgn::json{ { "button", ptgn::Mouse::Left } })
+		.EmitSignal(SignalKey{ "button.global.clicked" });
+	AttachSequence(signal_button, std::move(signal_button_sequence));
+
+	ScriptSequence global_button_sequence{ "Global Button Indicator Spin" };
+	global_button_sequence
+		.Reentry(ReentryMode::Restart)
+		.Channel(SequenceChannelKey{ "transform.rotation" })
+		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "button.global.clicked" } })
+		.During(450.0f, RotateToAction{ 360.0f, false, true })
+		.Ease(ptgn::Ease::OutBack);
+	AttachSequence(indicator, std::move(global_button_sequence));
+
+	ptgn::Entity follower{ CreateEntity("Action-Controlled Follower", "Follower") };
+	follower.Get<ptgn::Transform>().position = { 350.0f, 205.0f };
+	follower.Add<ptgn::Circle>(15.0f);
+	follower.Get<DemoVisual>().color = ImVec4{ 0.35f, 0.86f, 0.82f, 1.0f };
+	ScriptSequence follow_sequence{ "Follow Player Until Reached" };
+	follow_sequence
+		.Reentry(ReentryMode::Restart)
+		.Channel(SequenceChannelKey{ "movement.follow" })
+		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "button.tween.clicked" } })
+		.UntilComplete(FollowTargetAction{ player, 230.0f, 3.0f });
+	AttachSequence(follower, std::move(follow_sequence));
+}
+
+bool DemoScene::Overlap(ptgn::Entity a, ptgn::Entity b) const {
+	if (!a || !b || !a.Has<ptgn::Transform>() || !b.Has<ptgn::Transform>() ||
+		!a.Has<ptgn::Rect>() || !b.Has<ptgn::Rect>()) {
+		return false;
+	}
+	const auto& transform_a{ a.Get<ptgn::Transform>() };
+	const auto& transform_b{ b.Get<ptgn::Transform>() };
+	const auto size_a{ a.Get<ptgn::Rect>().GetSize(transform_a) };
+	const auto size_b{ b.Get<ptgn::Rect>().GetSize(transform_b) };
+	return std::abs(transform_a.position.x - transform_b.position.x) <=
+			(size_a.x + size_b.x) * 0.5f &&
+		std::abs(transform_a.position.y - transform_b.position.y) <=
+			(size_a.y + size_b.y) * 0.5f;
+}
+
+void DemoScene::UpdateOverlapEvents() {
+	const ptgn::Entity player{ FindByTag("Player") };
+	if (!player) {
+		return;
+	}
+	auto update_transition = [this, player](
+		ptgn::Entity sensor, bool& previous, std::string_view label
+	) {
+		if (!sensor) {
+			previous = false;
+			return;
+		}
+		const bool overlapping{ Overlap(player, sensor) };
+		if (overlapping == previous) {
+			return;
+		}
+		previous = overlapping;
+		if (overlapping) {
+			ctx().event.Push<ptgn::event::OverlapStart>(
+				sensor, ptgn::event::OverlapStart{ player }
+			);
+			Log("OverlapStart(" + std::string{ label } + ", Player)");
+		} else {
+			ctx().event.Push<ptgn::event::OverlapStop>(
+				sensor, ptgn::event::OverlapStop{ player }
+			);
+			Log("OverlapStop(" + std::string{ label } + ", Player)");
+		}
+	};
+
+	update_transition(FindByTag("Door"), player_overlapping_sensor_, "Door Sensor");
+	update_transition(FindByTag("Spawner"), player_overlapping_spawner_, "Circle Spawner");
+	const ptgn::Entity damage_target{ FindByTag("DamageTarget") };
+	if (damage_target && Overlap(player, damage_target)) {
+		ctx().event.Push<ptgn::event::Overlap>(
+			damage_target, ptgn::event::Overlap{ player }
+		);
+	}
+}
+
+void DemoScene::UpdateButtonInteraction() {
+	if (!pointer_frame_pending_) {
+		return;
+	}
+	pointer_frame_pending_ = false;
+
+	ptgn::Entity hovered;
+	if (pointer_frame_.inside_scene) {
+		auto entities{ Entities() };
+		for (auto it{ entities.rbegin() }; it != entities.rend(); ++it) {
+			ptgn::Entity entity{ *it };
+			if (!entity || !entity.Has<ButtonData>() || !entity.Has<ptgn::Transform>() ||
+				!entity.Has<ptgn::Rect>() || !ptgn::IsVisible(entity)) {
+				continue;
+			}
+			auto& button{ entity.Get<ButtonData>() };
+			if (!button.enabled) {
+				button.hovered = false;
+				button.pressed = false;
+				button.state = ButtonState::Disabled;
+				continue;
+			}
+			const auto& transform{ entity.Get<ptgn::Transform>() };
+			const auto size{ entity.Get<ptgn::Rect>().GetSize(transform) };
+			const auto offset{ pointer_frame_.world_position - transform.position };
+			if (std::abs(offset.x) <= size.x * 0.5f &&
+				std::abs(offset.y) <= size.y * 0.5f) {
+				hovered = entity;
+				break;
+			}
+		}
+	}
+
+	if (hovered != hovered_button_) {
+		if (hovered_button_) {
+			auto& button{ hovered_button_.Get<ButtonData>() };
+			button.hovered = false;
+			button.state = button.pressed ? ButtonState::Pressed : ButtonState::Idle;
+			ctx().event.Push<MouseMoveOut>(hovered_button_, MouseMoveOut{});
+		}
+		hovered_button_ = hovered;
+		if (hovered_button_) {
+			auto& button{ hovered_button_.Get<ButtonData>() };
+			button.hovered = true;
+			button.state = button.pressed ? ButtonState::Pressed : ButtonState::Hovered;
+			ctx().event.Push<MouseMoveOver>(hovered_button_, MouseMoveOver{});
+		}
+	}
+
+	for (std::size_t i{ 0 }; i < kMouseButtons.size(); ++i) {
+		const ptgn::Mouse mouse_button{ kMouseButtons[i] };
+		if (pointer_frame_.pressed[i] && hovered_button_) {
+			pressed_buttons_[i] = hovered_button_;
+			auto& button{ pressed_buttons_[i].Get<ButtonData>() };
+			button.pressed = true;
+			button.pressed_button = mouse_button;
+			button.state = ButtonState::Pressed;
+			ctx().event.Push<MousePressedOver>(
+				pressed_buttons_[i], MousePressedOver{ mouse_button }
+			);
+		}
+		if (!pointer_frame_.released[i] || !pressed_buttons_[i]) {
+			continue;
+		}
+		ptgn::Entity pressed{ pressed_buttons_[i] };
+		const bool released_over{ pressed == hovered_button_ };
+		auto& button{ pressed.Get<ButtonData>() };
+		ctx().event.Push<MouseReleasedOver>(
+			pressed,
+			MouseReleasedOver{
+				.button = mouse_button,
+				.released_over = released_over,
+			}
+		);
+		if (button.pressed && button.pressed_button == mouse_button && released_over) {
+			ctx().event.Push<ButtonPress>(pressed, ButtonPress{ mouse_button });
+		}
+		button.pressed = false;
+		button.state = button.hovered ? ButtonState::Hovered : ButtonState::Idle;
+		pressed_buttons_[i] = {};
+	}
+}
+
+void DemoScene::ProcessPendingDestroy() {
+	for (ptgn::Entity entity : pending_destroy_) {
+		if (!entity) {
+			continue;
+		}
+		if (auto* scripts{ entity.TryGet<ScriptsComponent>() }) {
+			for (auto& entry : scripts->scripts) {
+				if (auto* sequence{ dynamic_cast<SequenceScript*>(entry.instance) }) {
+					(void)script_runtime::Stop(
+						entity, sequence->sequence.id, SequenceCancelReason::OwnerDestroyed
+					);
+				}
+			}
+		}
+		if (hovered_button_ == entity) {
+			hovered_button_ = {};
+		}
+		for (auto& pressed : pressed_buttons_) {
+			if (pressed == entity) {
+				pressed = {};
+			}
+		}
+		Log("Destroyed " + std::string{ Name(entity) });
+		entity.Destroy();
+	}
+	pending_destroy_.clear();
+	Refresh();
+}
+
+void DemoScene::OnEnter() {
+	RegisterDemoTypes();
+	editor::RegisterEditorTypes();
+	RegisterDemoEditorTypes();
+	SetBackgroundColor(ptgn::Color{ 14, 15, 18, 255 });
+	CreatePrefabs();
+	CreateDemoScene();
+	Refresh();
+	for (auto [entity, _scripts] : EntitiesWith<ScriptsComponent>()) {
+		script_runtime::AttachAll(entity);
+	}
+	editor_ = std::make_unique<editor::DemoEditor>(*this);
+}
+
+void DemoScene::OnUpdate() {
+	const float delta_seconds{ std::max(0.0f, ImGui::GetIO().DeltaTime) };
+	UpdateOverlapEvents();
+	UpdateButtonInteraction();
+	script_runtime::Update(*this, delta_seconds);
+	ProcessPendingDestroy();
+	for (auto& entry : activity_) {
+		entry.remaining_seconds -= delta_seconds;
+	}
+	std::erase_if(activity_, [](const ActivityEntry& entry) {
+		return entry.remaining_seconds <= 0.0f;
+	});
+	if (editor_) {
+		editor_->Draw();
+	}
+}
+
+void LogScriptActivity(ptgn::Scene& scene, std::string text) {
+	static_cast<DemoScene&>(scene).Log(std::move(text));
+}
+
+std::string_view GetEntityName(ptgn::Entity entity) {
+	if (entity && entity.Has<NameComponent>()) {
+		return entity.Get<NameComponent>().value;
+	}
+	return "Entity";
+}
+
+std::string_view GetEntityTag(ptgn::Entity entity) {
+	if (entity && entity.Has<ptgn::Tag>()) {
+		return entity.Get<ptgn::Tag>().value;
+	}
+	return {};
+}
+
+int GetEntityMask(ptgn::Entity entity) {
+	if (entity && entity.Has<MaskComponent>()) {
+		return entity.Get<MaskComponent>().value;
+	}
+	return 0;
+}
+
+ptgn::Entity SpawnScriptPrefab(
+	ptgn::Scene& scene,
+	const PrefabSpawnRequest& request
+) {
+	return static_cast<DemoScene&>(scene).SpawnPrefab(request);
+}
+
+SharedScriptSequenceRegistry& GetSharedScriptSequences(ptgn::Scene& scene) {
+	return static_cast<DemoScene&>(scene).GetSharedSequences();
+}
 
 } // namespace ptgn
 
 int main() {
-	return ptgn::DemoApplication{}.Run();
+	ptgn::Application app{ "Protegon Registry-Driven Scripts" };
+	PTGN_WITH_EDITOR(app, true);
+	app.StartWith<ptgn::DemoScene>();
 }
