@@ -1,16 +1,16 @@
-// script_sequence_old_ui_registry_demo_v29.cpp
+// script_sequence_old_ui_registry_demo_v30.cpp
 //
 // Registry-driven Script and ScriptSequence demo using the engine ptgn::Scene.
 //
 // Architecture boundaries:
-//   runtime - concrete registered Script/ScriptAction objects and sequence playback.
+//   runtime - ScriptsComponent owns root Scripts; ScriptSequence owns its active child Script.
 //   editor  - free registry-driven Dear ImGui drawing functions.
 //   demo    - a normal ptgn::Scene launched through ptgn::Application.
 //
-// A ScriptSequence is authored data used by SequenceScript, which is registered and attached through
-// the same Script API as custom C++ scripts. Events use the engine Event dispatcher. Sequence event
-// conditions store only their registered identity and a JSON value. The event registries convert
-// that JSON to the concrete registered condition type for matching and editor drawing.
+// Every registered behavior is a Script. A Script may implement custom logic, compose child Scripts
+// through its internal ScriptSequence, or do both. Editor-authored sequence scripts use the same
+// runtime type and registry as native C++ scripts. Sequence conditions store a registry identity and
+// JSON value; event registrations interpret that value for matching and editor drawing.
 
 #include <imgui.h>
 #include <imgui_stdlib.h>
@@ -22,7 +22,6 @@
 
 #include "app/application.h"
 #include "runtime/scene/scene.h"
-#include "runtime/scripting/script.h"
 
 #include "core/editor.h"
 #include "panels/inspector_fields.h"
@@ -134,6 +133,102 @@ template <typename T>
 	}
 }
 
+/// @brief Event wrapper used by the owning ScriptsComponent runtime.
+///
+/// It intentionally mirrors ptgn::Event's Dispatch API, while allowing the demo-owned script
+/// runtime to create and route targeted or global events without relying on the old Scripts system.
+class ScriptEvent {
+public:
+	explicit ScriptEvent(impl::EventData& event) : event_{ event } {}
+
+	template <typename T, typename TEventFn>
+	void Dispatch(TEventFn&& fn) {
+		if (event_.handled || event_.type_hash != ptgn::Hash<T>()) {
+			return;
+		}
+
+		if constexpr (std::is_empty_v<T>) {
+			if constexpr (std::is_invocable_r_v<bool, TEventFn>) {
+				if (std::forward<TEventFn>(fn)()) {
+					event_.handled = true;
+				}
+			} else {
+				std::forward<TEventFn>(fn)();
+			}
+		} else {
+			PTGN_ASSERT(event_.payload, "Payload for non-empty event must be set");
+			T& value{ *static_cast<T*>(event_.payload.get()) };
+			if constexpr (std::is_invocable_r_v<bool, TEventFn, T&>) {
+				if (std::forward<TEventFn>(fn)(value)) {
+					event_.handled = true;
+				}
+			} else if constexpr (std::is_invocable_r_v<bool, TEventFn, const T&>) {
+				if (std::forward<TEventFn>(fn)(std::as_const(value))) {
+					event_.handled = true;
+				}
+			} else if constexpr (std::is_invocable_v<TEventFn, T&>) {
+				std::forward<TEventFn>(fn)(value);
+			} else if constexpr (std::is_invocable_v<TEventFn, const T&>) {
+				std::forward<TEventFn>(fn)(std::as_const(value));
+			} else if constexpr (std::is_invocable_r_v<bool, TEventFn>) {
+				if (std::forward<TEventFn>(fn)()) {
+					event_.handled = true;
+				}
+			} else {
+				std::forward<TEventFn>(fn)();
+			}
+		}
+	}
+
+	template <typename T, typename TObject, typename TMemFn>
+	void Dispatch(TMemFn memfn, TObject* object) {
+		Dispatch<T>(
+			[object, memfn]<typename... TArgs>(TArgs&&... args) -> decltype(auto) {
+				if constexpr (std::is_invocable_v<TMemFn, TObject*, TArgs...>) {
+					return std::invoke(memfn, object, std::forward<TArgs>(args)...);
+				} else {
+					return std::invoke(memfn, object);
+				}
+			}
+		);
+	}
+
+	template <typename T, typename TVariant>
+	void DispatchVariant(TVariant&& callback_variant) {
+		Dispatch<T>(
+			[callback = std::forward<TVariant>(callback_variant)]
+			<typename... TEventArgs>(TEventArgs&&... event_args) mutable -> bool {
+				return impl::VisitAndInvoke(
+					callback, std::forward<TEventArgs>(event_args)...
+				);
+			}
+		);
+	}
+
+	template <typename T, typename TVariant, typename... TBoundArgs>
+	void DispatchVariantBound(TVariant&& callback_variant, TBoundArgs&&... bound_args) {
+		Dispatch<T>(
+			[callback = std::forward<TVariant>(callback_variant),
+			 ... args = std::forward<TBoundArgs>(bound_args)]() mutable -> bool {
+				return impl::VisitAndInvoke(callback, args...);
+			}
+		);
+	}
+
+	[[nodiscard]] bool IsHandled() const { return event_.handled; }
+	[[nodiscard]] bool IsType(TypeHashValue type_hash) const {
+		return event_.type_hash == type_hash;
+	}
+	template <typename T>
+	[[nodiscard]] bool IsType() const {
+		return event_.type_hash == ptgn::Hash<T>();
+	}
+
+private:
+	impl::EventData& event_;
+};
+
+
 enum class ReentryMode {
 	IgnoreWhileRunning,
 	Restart,
@@ -141,18 +236,18 @@ enum class ReentryMode {
 };
 PTGN_REFLECT_ENUM(ReentryMode);
 
-enum class ActionStatus {
+enum class ScriptStatus {
 	Running,
 	Complete
 };
 
-enum class ActionCompletion {
+enum class ScriptCompletion {
 	Instant,
 	Duration,
-	ActionControlled,
+	ScriptControlled,
 	Infinite
 };
-PTGN_REFLECT_ENUM(ActionCompletion);
+PTGN_REFLECT_ENUM(ScriptCompletion);
 
 enum class SequenceCancelReason {
 	Stopped,
@@ -176,15 +271,15 @@ enum class SequenceLifecycle {
 	Stop,
 	Pause,
 	Resume,
-	ActionStart,
-	ActionComplete,
-	ActionCancel,
+	ScriptStart,
+	ScriptComplete,
+	ScriptCancel,
 	Repeat,
 	Yoyo
 };
 PTGN_REFLECT_ENUM(SequenceLifecycle);
 
-struct ActionTiming {
+struct ScriptTiming {
 	float duration_ms{ 300.0f };
 	ptgn::Ease ease{ ptgn::Ease::Linear };
 	int additional_repeats{ 0 };
@@ -193,7 +288,7 @@ struct ActionTiming {
 	bool yoyo{ false };
 
 	PTGN_REFLECT(
-		ActionTiming, duration_ms, ease, additional_repeats, infinite_repeats, reversed, yoyo
+		ScriptTiming, duration_ms, ease, additional_repeats, infinite_repeats, reversed, yoyo
 	)
 };
 
@@ -218,85 +313,39 @@ struct EventCondition {
 	PTGN_REFLECT(EventCondition, enabled, consume, type_hash, type, value)
 };
 
-class ScriptAction;
+namespace managed {
+class Script;
+}
 
-struct Action {
+struct ScriptStep {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
 	std::string type;
 	ptgn::json value;
-	std::optional<ActionCompletion> completion;
-	std::optional<ActionTiming> timing;
+	std::optional<ScriptCompletion> completion;
+	std::optional<ScriptTiming> timing;
 
-	// Authored C++ actions keep a typed construction path so runtime playback does not
-	// have to round-trip through JSON. Loaded/editor-authored actions use the registry JSON path.
-	std::function<std::unique_ptr<ScriptAction>(ptgn::Entity)> runtime_factory;
+	// Authored C++ sequence steps keep a typed Script construction path so playback does not
+	// have to round-trip through JSON. Loaded/editor-authored steps use the registry JSON path.
+	std::function<std::unique_ptr<managed::Script>()> runtime_factory;
 
-	PTGN_REFLECT(Action, enabled, type_hash, type, value, completion, timing)
+	PTGN_REFLECT(ScriptStep, enabled, type_hash, type, value, completion, timing)
 };
 
-struct LifecycleAction {
+struct LifecycleScript {
 	bool enabled{ true };
 	SequenceLifecycle lifecycle{ SequenceLifecycle::Complete };
-	Action action;
+	ScriptStep action;
 
-	PTGN_REFLECT(LifecycleAction, enabled, lifecycle, action)
+	PTGN_REFLECT(LifecycleScript, enabled, lifecycle, action)
 };
 
-class SequenceScript;
 struct ScriptsComponent;
 struct ScriptEntry;
 struct ScriptSequence;
 struct SequenceHandle;
 struct SequenceChannelKey;
 struct SignalKey;
-
-class ScriptAction {
-public:
-	virtual ~ScriptAction() = default;
-
-	virtual void OnStart() {}
-	[[nodiscard]] virtual ActionStatus OnUpdate() { return ActionStatus::Running; }
-	virtual void OnRepeat() {}
-	virtual void OnComplete() {}
-	virtual void OnCancel(SequenceCancelReason) {}
-
-	[[nodiscard]] ptgn::Entity Owner() const { return entity; }
-	[[nodiscard]] ptgn::Scene& GetScene() { return entity.GetScene(); }
-	[[nodiscard]] const ptgn::Scene& GetScene() const { return entity.GetScene(); }
-	[[nodiscard]] float DeltaSeconds() const { return delta_seconds_; }
-	[[nodiscard]] float LinearProgress() const { return linear_progress_; }
-	[[nodiscard]] float Progress() const { return progress_; }
-	[[nodiscard]] int RepeatIndex() const { return repeat_; }
-	[[nodiscard]] bool IsReversed() const { return reversed_; }
-
-protected:
-	ptgn::Entity entity;
-
-public:
-	// Runtime binding hooks used by the registry-driven sequence player.
-	void Bind(ptgn::Entity owner) { entity = owner; }
-
-	void SetFrame(
-		float delta_seconds,
-		float linear_progress,
-		float progress,
-		int repeat,
-		bool reversed
-	) {
-		delta_seconds_ = delta_seconds;
-		linear_progress_ = linear_progress;
-		progress_ = progress;
-		repeat_ = repeat;
-		reversed_ = reversed;
-	}
-
-	float delta_seconds_{ 0.0f };
-	float linear_progress_{ 0.0f };
-	float progress_{ 0.0f };
-	int repeat_{ 0 };
-	bool reversed_{ false };
-};
 
 [[nodiscard]] inline ComponentDefinition MakeComponentDefinition(
 	const ptgn::RegisteredComponent& component
@@ -389,7 +438,7 @@ struct SequenceEventRegistration {
 	std::uint32_t schema_version{ 1 };
 	std::string key;
 	std::function<void(EventCondition&)> set_defaults;
-	std::function<bool(ptgn::Entity, Event, const EventCondition&, bool consume)> matches;
+	std::function<bool(ptgn::Entity, ScriptEvent, const EventCondition&, bool consume)> matches;
 	std::function<bool(ptgn::Entity)> available;
 };
 
@@ -422,7 +471,7 @@ public:
 				.matches =
 					[fn = std::forward<FMatch>(matches)](
 						ptgn::Entity owner,
-						Event event,
+						ScriptEvent event,
 						const EventCondition& input,
 						bool consume
 					) mutable {
@@ -515,182 +564,295 @@ private:
 	}
 };
 
-struct ActionRegistration {
-	TypeHashValue type_hash{ 0 };
-	std::uint32_t schema_version{ 1 };
-	std::string key;
-	ActionCompletion completion{ ActionCompletion::Instant };
-	bool supports_timing{ false };
-	bool requires_timing{ false };
-	bool serializable{ true };
-	std::optional<ActionTiming> default_timing;
-	std::function<ptgn::json()> make_default;
-	std::function<std::unique_ptr<ScriptAction>(ptgn::Entity)> instantiate_default;
-	std::function<std::unique_ptr<ScriptAction>(ptgn::Entity, const ptgn::json&)> instantiate;
+struct SequenceChannelKey : ptgn::StrongString<SequenceChannelKey> {
+	using StrongString::StrongString;
+	SequenceChannelKey() = default;
+
+	PTGN_REFLECT_VALUE(SequenceChannelKey, value)
 };
 
-class ActionRegistry {
+struct ScriptSequenceRuntime {
+	bool running{ false };
+	bool paused{ false };
+	bool completed{ false };
+	bool waiting_for_channel{ false };
+	int queued_runs{ 0 };
+	std::size_t step_index{ 0 };
+	float elapsed_ms{ 0.0f };
+	int current_repeat{ 0 };
+	bool currently_reversed{ false };
+	std::unique_ptr<managed::Script> script_instance;
+	int completed_runs{ 0 };
+
+	ScriptSequenceRuntime();
+	~ScriptSequenceRuntime();
+	ScriptSequenceRuntime(ScriptSequenceRuntime&&) noexcept;
+	ScriptSequenceRuntime& operator=(ScriptSequenceRuntime&&) noexcept;
+	ScriptSequenceRuntime(const ScriptSequenceRuntime&) = delete;
+	ScriptSequenceRuntime& operator=(const ScriptSequenceRuntime&) = delete;
+
+	void ClearActiveScript();
+};
+
+struct ScriptSequence {
+private:
+	[[nodiscard]] static SequenceId NextSequenceId() {
+		static SequenceId next{ 1 };
+		return next++;
+	}
+
 public:
-	template <typename T>
-		requires std::derived_from<T, ScriptAction>
-	static bool Register(
-		std::string key,
-		bool supports_timing = false,
-		bool requires_timing = false,
-		std::optional<ActionTiming> default_timing = std::nullopt,
-		ActionCompletion completion = ActionCompletion::Instant,
-		bool serializable = true
-	) {
-		auto& entries{ MutableEntries() };
-		if (Find(key) || Find(ptgn::Hash<T>())) {
-			return false;
+	SequenceId id{ NextSequenceId() };
+	bool enabled{ true };
+	bool shared_reference{ false };
+	SequenceId shared_sequence_id{ 0 };
+	std::string name{ "New Script Sequence" };
+	ReentryMode reentry{ ReentryMode::IgnoreWhileRunning };
+	std::optional<SequenceChannelKey> channel;
+	bool transient{ false };
+	bool remove_binding_on_complete{ false };
+	bool destroy_owner_on_complete{ false };
+	std::vector<EventCondition> start_events;
+	std::vector<EventCondition> stop_events;
+	std::vector<ScriptStep> steps;
+	std::vector<LifecycleScript> lifecycle_actions;
+	ScriptSequenceRuntime runtime;
+
+	ScriptSequence() = default;
+	explicit ScriptSequence(std::string sequence_name) : name{ std::move(sequence_name) } {}
+	ScriptSequence(ScriptSequence&&) noexcept = default;
+	ScriptSequence& operator=(ScriptSequence&&) noexcept = default;
+
+	ScriptSequence& Reentry(ReentryMode value);
+	ScriptSequence& Channel(SequenceChannelKey value);
+	ScriptSequence& Transient(bool remove_on_complete = true);
+	ScriptSequence& DestroyOwnerOnComplete(bool value = true);
+
+	ScriptSequence& StartOn(std::string_view key, ptgn::json value = nullptr);
+	ScriptSequence& StopOn(std::string_view key, ptgn::json value = nullptr);
+
+	template <typename TScript>
+	ScriptSequence& Then(TScript script = {});
+
+	template <typename TScript>
+	ScriptSequence& UntilComplete(TScript script = {});
+
+	template <typename TScript>
+	ScriptSequence& Forever(TScript script = {});
+
+	template <typename TScript>
+	ScriptSequence& During(float duration_ms, TScript script = {});
+
+	ScriptSequence& Ease(ptgn::Ease value);
+	ScriptSequence& Repeat(int additional_repeats);
+	ScriptSequence& Infinite();
+	ScriptSequence& Reversed(bool value = true);
+	ScriptSequence& Yoyo(bool value = true);
+	ScriptSequence& Wait(float duration_ms);
+	ScriptSequence& EmitSignal(SignalKey signal);
+
+	ScriptSequence(const ScriptSequence& other) :
+		id{ NextSequenceId() },
+		enabled{ other.enabled },
+		shared_reference{ other.shared_reference },
+		shared_sequence_id{ other.shared_sequence_id },
+		name{ other.name },
+		reentry{ other.reentry },
+		channel{ other.channel },
+		transient{ other.transient },
+		remove_binding_on_complete{ other.remove_binding_on_complete },
+		destroy_owner_on_complete{ other.destroy_owner_on_complete },
+		start_events{ other.start_events },
+		stop_events{ other.stop_events },
+		steps{ other.steps },
+		lifecycle_actions{ other.lifecycle_actions } {}
+
+	ScriptSequence& operator=(const ScriptSequence& other) {
+		if (this == &other) {
+			return *this;
 		}
-		if (requires_timing && completion == ActionCompletion::Instant) {
-			completion = ActionCompletion::Duration;
-		}
-
-		entries.push_back(
-			ActionRegistration{
-				.type_hash = ptgn::Hash<T>(),
-				.key = std::move(key),
-				.completion = completion,
-				.supports_timing = supports_timing,
-				.requires_timing = requires_timing,
-				.serializable = serializable,
-				.default_timing = default_timing,
-				.make_default = [] {
-					ptgn::json output;
-					output = T{};
-					return output;
-				},
-				.instantiate_default = [](ptgn::Entity owner) {
-					auto action{ std::make_unique<T>() };
-					action->Bind(owner);
-					return action;
-				},
-				.instantiate = [](ptgn::Entity owner, const ptgn::json& input) {
-					auto action{ std::make_unique<T>() };
-					(void)TryReadJson(input, *action);
-					action->Bind(owner);
-					return action;
-				},
-			}
-		);
-		return true;
+		ScriptSequence copy{ other };
+		*this = std::move(copy);
+		return *this;
 	}
 
-	template <typename T>
-	[[nodiscard]] static std::string_view Key() {
-		const auto* entry{ Find(ptgn::Hash<T>()) };
-		return entry ? std::string_view{ entry->key } : std::string_view{};
-	}
-
-	template <typename T>
-		requires (!std::convertible_to<std::remove_cvref_t<T>, std::string_view>)
-	[[nodiscard]] static Action Make(T value = {}) {
-		const auto* entry{ Find(ptgn::Hash<T>()) };
-		if (!entry) {
-			return {};
-		}
-
-		T typed_value{ std::move(value) };
-		ptgn::json action_json;
-		action_json = typed_value;
-		return Action{
-			.enabled = true,
-			.type_hash = entry->type_hash,
-			.type = entry->key,
-			.value = std::move(action_json),
-			.timing = entry->default_timing,
-			.runtime_factory =
-				[typed_value = std::move(typed_value)](ptgn::Entity owner) mutable {
-					auto action{ std::make_unique<T>(typed_value) };
-					action->Bind(owner);
-					return action;
-				},
-		};
-	}
-
-	[[nodiscard]] static Action Make(std::string_view key) {
-		const auto* entry{ Find(key) };
-		return entry
-			? Action{
-				.enabled = true,
-				.type_hash = entry->type_hash,
-				.type = entry->key,
-				.value = entry->make_default(),
-				.timing = entry->default_timing,
-				.runtime_factory = entry->instantiate_default,
-			}
-			: Action{};
-	}
-
-	[[nodiscard]] static const ActionRegistration* Find(std::string_view key) {
-		const auto& entries{ Entries() };
-		const auto it{ std::ranges::find_if(entries, [key](const auto& entry) {
-			return entry.key == key;
-		}) };
-		return it == entries.end() ? nullptr : &*it;
-	}
-
-	[[nodiscard]] static const ActionRegistration* Find(TypeHashValue type_hash) {
-		const auto& entries{ Entries() };
-		const auto it{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
-			return entry.type_hash == type_hash;
-		}) };
-		return it == entries.end() ? nullptr : &*it;
-	}
-
-	[[nodiscard]] static const std::vector<ActionRegistration>& Entries() {
-		return MutableEntries();
-	}
+	PTGN_REFLECT(
+		ScriptSequence, id, enabled, shared_reference, shared_sequence_id, name, reentry, channel,
+		transient, remove_binding_on_complete, destroy_owner_on_complete, start_events, stop_events,
+		steps, lifecycle_actions
+	)
 
 private:
-	[[nodiscard]] static std::vector<ActionRegistration>& MutableEntries() {
-		static std::vector<ActionRegistration> entries;
-		return entries;
+	ScriptTiming& LatestDuringTiming();
+};
+
+namespace managed {
+
+/// @brief A unit of executable behavior.
+///
+/// Root Scripts are owned by ScriptsComponent. Sequence steps instantiate the same Script types
+/// as transient children. A Script may implement custom callbacks, use its internal sequence, or do both.
+class Script {
+public:
+	Script() = default;
+	virtual ~Script() = default;
+	Script(const Script& other) : sequence{ other.sequence } {}
+	Script& operator=(const Script& other) {
+		if (this != &other) {
+			sequence = other.sequence;
+			owner_ = {};
+			delta_seconds_ = 0.0f;
+			linear_progress_ = 0.0f;
+			progress_ = 0.0f;
+			repeat_ = 0;
+			reversed_ = false;
+			completion_requested_ = false;
+		}
+		return *this;
+	}
+	Script(Script&&) noexcept = default;
+	Script& operator=(Script&&) noexcept = default;
+
+	virtual void OnCreate() {}
+	virtual void OnStart() {}
+	[[nodiscard]] virtual ScriptStatus OnUpdate() { return ScriptStatus::Running; }
+	virtual void OnEvent(ScriptEvent) {}
+	virtual void OnRepeat() {}
+	virtual void OnComplete() {}
+	virtual void OnCancel(SequenceCancelReason) {}
+
+	ScriptSequence sequence;
+
+	PTGN_REFLECT(Script, sequence)
+
+	[[nodiscard]] ptgn::Entity Owner() const { return owner_; }
+	[[nodiscard]] ptgn::Scene& GetScene() { return owner_.GetScene(); }
+	[[nodiscard]] const ptgn::Scene& GetScene() const { return owner_.GetScene(); }
+	[[nodiscard]] float DeltaSeconds() const { return delta_seconds_; }
+	[[nodiscard]] float LinearProgress() const { return linear_progress_; }
+	[[nodiscard]] float Progress() const { return progress_; }
+	[[nodiscard]] int RepeatIndex() const { return repeat_; }
+	[[nodiscard]] bool IsReversed() const { return reversed_; }
+
+protected:
+	void Complete() { completion_requested_ = true; }
+	void MoveOn() { Complete(); }
+
+private:
+	friend struct Access;
+
+	ptgn::Entity owner_;
+	float delta_seconds_{ 0.0f };
+	float linear_progress_{ 0.0f };
+	float progress_{ 0.0f };
+	int repeat_{ 0 };
+	bool reversed_{ false };
+	bool completion_requested_{ false };
+};
+
+struct Access {
+	static void Attach(Script& script, ptgn::Entity owner) { script.owner_ = owner; }
+	static void SetFrame(
+		Script& script,
+		float delta_seconds,
+		float linear_progress,
+		float progress,
+		int repeat,
+		bool reversed
+	) {
+		script.delta_seconds_ = delta_seconds;
+		script.linear_progress_ = linear_progress;
+		script.progress_ = progress;
+		script.repeat_ = repeat;
+		script.reversed_ = reversed;
+	}
+	static bool TakeCompletionRequest(Script& script) {
+		return std::exchange(script.completion_requested_, false);
 	}
 };
+
+} // namespace managed
+
+inline ScriptSequenceRuntime::ScriptSequenceRuntime() = default;
+inline ScriptSequenceRuntime::~ScriptSequenceRuntime() = default;
+inline ScriptSequenceRuntime::ScriptSequenceRuntime(ScriptSequenceRuntime&&) noexcept = default;
+inline ScriptSequenceRuntime& ScriptSequenceRuntime::operator=(ScriptSequenceRuntime&&) noexcept = default;
+inline void ScriptSequenceRuntime::ClearActiveScript() {
+	script_instance.reset();
+	elapsed_ms = 0.0f;
+	current_repeat = 0;
+	currently_reversed = false;
+}
 
 struct ScriptRegistration {
 	TypeHashValue type_hash{ 0 };
 	std::uint32_t schema_version{ 1 };
 	std::string key;
+	ScriptCompletion completion{ ScriptCompletion::ScriptControlled };
+	bool supports_timing{ false };
+	bool requires_timing{ false };
+	bool serializable{ true };
+	std::optional<ScriptTiming> default_timing;
 	std::function<ptgn::json()> make_default;
-	std::function<ptgn::Script*(ptgn::Entity, const ptgn::json&)> attach;
-	std::function<void(ptgn::Script&, const ptgn::json&)> apply;
+	std::function<ScriptSequence()> make_default_sequence;
+	std::function<std::unique_ptr<managed::Script>(const ptgn::json&)> instantiate;
+	std::function<void(managed::Script&, const ptgn::json&)> apply;
 };
 
 class ScriptRegistry {
 public:
 	template <typename T>
-		requires std::derived_from<T, ptgn::Script>
-	static bool Register(std::string key) {
+		requires std::derived_from<T, managed::Script>
+	static bool Register(
+		std::string key,
+		bool supports_timing = false,
+		bool requires_timing = false,
+		std::optional<ScriptTiming> default_timing = std::nullopt,
+		ScriptCompletion completion = ScriptCompletion::ScriptControlled,
+		bool serializable = true
+	) {
 		auto& entries{ MutableEntries() };
-		if (Find(key) || Find(ptgn::Hash<T>())) {
+		if (const auto* existing{ Find(ptgn::Hash<T>()) }) {
+			return existing->key == key;
+		}
+		if (Find(key)) {
 			return false;
 		}
+		if (requires_timing && completion == ScriptCompletion::Instant) {
+			completion = ScriptCompletion::Duration;
+		}
 
-		entries.push_back(
-			ScriptRegistration{
-				.type_hash = ptgn::Hash<T>(),
-				.key = std::move(key),
-				.make_default = [] {
-					ptgn::json output;
-					output = T{};
-					return output;
-				},
-				.attach = [](ptgn::Entity owner, const ptgn::json& input) {
-					T value{};
-					(void)TryReadJson(input, value);
-					auto& script{ ptgn::AddScript<T>(owner, std::move(value)) };
-					return static_cast<ptgn::Script*>(&script);
-				},
-				.apply = [](ptgn::Script& script, const ptgn::json& input) {
-					(void)TryReadJson(input, static_cast<T&>(script));
-				},
-			}
-		);
+		entries.push_back(ScriptRegistration{
+			.type_hash = ptgn::Hash<T>(),
+			.key = std::move(key),
+			.completion = completion,
+			.supports_timing = supports_timing,
+			.requires_timing = requires_timing,
+			.serializable = serializable,
+			.default_timing = default_timing,
+			.make_default = [] {
+				T value{};
+				ptgn::json output;
+				try {
+					output = value;
+				} catch (...) {
+					output = ptgn::json::object();
+				}
+				return output;
+			},
+			.make_default_sequence = [] {
+				T value{};
+				return value.sequence;
+			},
+			.instantiate = [](const ptgn::json& input) -> std::unique_ptr<managed::Script> {
+				auto script{ std::make_unique<T>() };
+				(void)TryReadJson(input, *script);
+				return script;
+			},
+			.apply = [](managed::Script& script, const ptgn::json& input) {
+				(void)TryReadJson(input, static_cast<T&>(script));
+			},
+		});
 		return true;
 	}
 
@@ -701,8 +863,11 @@ public:
 	}
 
 	template <typename T>
-	[[nodiscard]] static ScriptEntry Make(T value = {});
+	[[nodiscard]] static ScriptStep MakeStep(T value = {});
+	[[nodiscard]] static ScriptStep MakeStep(std::string_view key);
 
+	template <typename T>
+	[[nodiscard]] static ScriptEntry Make(T value = {});
 	[[nodiscard]] static ScriptEntry Make(std::string_view key);
 
 	[[nodiscard]] static const ScriptRegistration* Find(std::string_view key) {
@@ -732,154 +897,17 @@ private:
 	}
 };
 
-struct SequenceChannelKey : ptgn::StrongString<SequenceChannelKey> {
-	using StrongString::StrongString;
-	SequenceChannelKey() = default;
-
-	PTGN_REFLECT_VALUE(SequenceChannelKey, value)
-};
-
-struct ScriptSequenceRuntime {
-	bool running{ false };
-	bool paused{ false };
-	bool completed{ false };
-	bool waiting_for_channel{ false };
-	int queued_runs{ 0 };
-	std::size_t action_index{ 0 };
-	float elapsed_ms{ 0.0f };
-	int current_repeat{ 0 };
-	bool currently_reversed{ false };
-	std::unique_ptr<ScriptAction> action_instance;
-	int completed_runs{ 0 };
-
-	ScriptSequenceRuntime() = default;
-	ScriptSequenceRuntime(ScriptSequenceRuntime&&) noexcept = default;
-	ScriptSequenceRuntime& operator=(ScriptSequenceRuntime&&) noexcept = default;
-	ScriptSequenceRuntime(const ScriptSequenceRuntime&) = delete;
-	ScriptSequenceRuntime& operator=(const ScriptSequenceRuntime&) = delete;
-
-	void ClearActiveAction() {
-		action_instance.reset();
-		elapsed_ms = 0.0f;
-		current_repeat = 0;
-		currently_reversed = false;
-	}
-};
-
-struct ScriptSequence {
-private:
-	[[nodiscard]] static SequenceId NextSequenceId() {
-		static SequenceId next{ 1 };
-		return next++;
-	}
-
-public:
-	SequenceId id{ NextSequenceId() };
-	bool enabled{ true };
-	bool shared_reference{ false };
-	SequenceId shared_sequence_id{ 0 };
-	std::string name{ "New Script Sequence" };
-	ReentryMode reentry{ ReentryMode::IgnoreWhileRunning };
-	std::optional<SequenceChannelKey> channel;
-	bool transient{ false };
-	bool remove_binding_on_complete{ false };
-	bool destroy_owner_on_complete{ false };
-	std::vector<EventCondition> start_events;
-	std::vector<EventCondition> stop_events;
-	std::vector<Action> actions;
-	std::vector<LifecycleAction> lifecycle_actions;
-	ScriptSequenceRuntime runtime;
-
-	ScriptSequence() = default;
-	explicit ScriptSequence(std::string sequence_name) : name{ std::move(sequence_name) } {}
-	ScriptSequence(ScriptSequence&&) noexcept = default;
-	ScriptSequence& operator=(ScriptSequence&&) noexcept = default;
-
-	ScriptSequence& Reentry(ReentryMode value);
-	ScriptSequence& Channel(SequenceChannelKey value);
-	ScriptSequence& Transient(bool remove_on_complete = true);
-	ScriptSequence& DestroyOwnerOnComplete(bool value = true);
-
-	ScriptSequence& StartOn(std::string_view key, ptgn::json value = nullptr);
-	ScriptSequence& StopOn(std::string_view key, ptgn::json value = nullptr);
-
-	template <typename TAction>
-	ScriptSequence& Then(TAction action = {});
-
-	template <typename TAction>
-	ScriptSequence& UntilComplete(TAction action = {});
-
-	template <typename TAction>
-	ScriptSequence& Forever(TAction action = {});
-
-	template <typename TAction>
-	ScriptSequence& During(float duration_ms, TAction action = {});
-
-	ScriptSequence& Ease(ptgn::Ease value);
-	ScriptSequence& Repeat(int additional_repeats);
-	ScriptSequence& Infinite();
-	ScriptSequence& Reversed(bool value = true);
-	ScriptSequence& Yoyo(bool value = true);
-	ScriptSequence& Wait(float duration_ms);
-	ScriptSequence& EmitSignal(SignalKey signal);
-
-	ScriptSequence(const ScriptSequence& other) :
-		id{ NextSequenceId() },
-		enabled{ other.enabled },
-		shared_reference{ other.shared_reference },
-		shared_sequence_id{ other.shared_sequence_id },
-		name{ other.name },
-		reentry{ other.reentry },
-		channel{ other.channel },
-		transient{ other.transient },
-		remove_binding_on_complete{ other.remove_binding_on_complete },
-		destroy_owner_on_complete{ other.destroy_owner_on_complete },
-		start_events{ other.start_events },
-		stop_events{ other.stop_events },
-		actions{ other.actions },
-		lifecycle_actions{ other.lifecycle_actions } {}
-
-	ScriptSequence& operator=(const ScriptSequence& other) {
-		if (this == &other) {
-			return *this;
-		}
-		ScriptSequence copy{ other };
-		*this = std::move(copy);
-		return *this;
-	}
-
-	PTGN_REFLECT(
-		ScriptSequence, id, enabled, shared_reference, shared_sequence_id, name, reentry, channel,
-		transient, remove_binding_on_complete, destroy_owner_on_complete, start_events, stop_events,
-		actions, lifecycle_actions
-	)
-
-private:
-	ActionTiming& LatestDuringTiming();
-};
-
-class SequenceScript final : public ptgn::Script {
-public:
-	ScriptSequence sequence;
-	bool initialized{ false };
-
-	void OnCreate() override;
-	void OnUpdate() override;
-	void OnEvent(Event event) override;
-
-	PTGN_REFLECT(SequenceScript, sequence)
-};
-
 struct ScriptEntry {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
 	std::string type;
 	ptgn::json value;
+	ScriptSequence sequence;
 
-	// Non-owning. The engine's normal ptgn::impl::Scripts container owns the Script.
-	ptgn::Script* instance{ nullptr };
-	// C++-authored entries retain a typed prototype; serialized entries fall back to JSON.
-	std::function<ptgn::Script*(ptgn::Entity)> attach_live;
+	// ScriptsComponent owns root Script instances directly.
+	std::unique_ptr<managed::Script> instance;
+	// C++-authored entries retain a typed prototype for direct owned construction.
+	std::function<std::unique_ptr<managed::Script>()> runtime_factory;
 
 	ScriptEntry() = default;
 	ScriptEntry(ScriptEntry&&) noexcept = default;
@@ -890,7 +918,8 @@ struct ScriptEntry {
 		type_hash{ other.type_hash },
 		type{ other.type },
 		value{ other.value },
-		attach_live{ other.attach_live } {}
+		sequence{ other.sequence },
+		runtime_factory{ other.runtime_factory } {}
 
 	ScriptEntry& operator=(const ScriptEntry& other) {
 		if (this == &other) {
@@ -901,8 +930,46 @@ struct ScriptEntry {
 		return *this;
 	}
 
-	PTGN_REFLECT(ScriptEntry, enabled, type_hash, type, value)
+	PTGN_REFLECT(ScriptEntry, enabled, type_hash, type, value, sequence)
 };
+
+template <typename T>
+ScriptStep ScriptRegistry::MakeStep(T value) {
+	const auto* registration{ Find(ptgn::Hash<T>()) };
+	if (!registration) {
+		return {};
+	}
+	T typed_value{ std::move(value) };
+	ptgn::json script_json;
+	try {
+		script_json = typed_value;
+	} catch (...) {
+		script_json = ptgn::json::object();
+	}
+	return ScriptStep{
+		.enabled = true,
+		.type_hash = registration->type_hash,
+		.type = registration->key,
+		.value = std::move(script_json),
+		.timing = registration->default_timing,
+		.runtime_factory = [typed_value = std::move(typed_value)]() mutable {
+			return std::make_unique<T>(typed_value);
+		},
+	};
+}
+
+inline ScriptStep ScriptRegistry::MakeStep(std::string_view key) {
+	const auto* registration{ Find(key) };
+	return registration
+		? ScriptStep{
+			.enabled = true,
+			.type_hash = registration->type_hash,
+			.type = registration->key,
+			.value = registration->make_default(),
+			.timing = registration->default_timing,
+		}
+		: ScriptStep{};
+}
 
 template <typename T>
 ScriptEntry ScriptRegistry::Make(T value) {
@@ -910,10 +977,13 @@ ScriptEntry ScriptRegistry::Make(T value) {
 	if (!registration) {
 		return {};
 	}
-
 	T typed_value{ std::move(value) };
 	ptgn::json snapshot;
-	snapshot = typed_value;
+	try {
+		snapshot = typed_value;
+	} catch (...) {
+		snapshot = ptgn::json::object();
+	}
 	auto prototype{ std::make_shared<T>(std::move(typed_value)) };
 
 	ScriptEntry entry;
@@ -921,14 +991,13 @@ ScriptEntry ScriptRegistry::Make(T value) {
 	entry.type_hash = registration->type_hash;
 	entry.type = registration->key;
 	entry.value = std::move(snapshot);
-	entry.attach_live = [prototype](ptgn::Entity owner) {
-		T script{ *prototype };
-		if constexpr (requires { script.sequence.id; prototype->sequence.id; }) {
-			script.sequence.id = prototype->sequence.id;
-		}
-		return static_cast<ptgn::Script*>(
-			&ptgn::AddScript<T>(owner, std::move(script))
-		);
+	entry.sequence = prototype->sequence;
+	// Preserve the authored root sequence identity. ScriptSequence copy assignment intentionally
+	// creates a fresh ID for duplication, but creating the owning ScriptEntry is not duplication.
+	entry.sequence.id = prototype->sequence.id;
+	entry.sequence.runtime = ScriptSequenceRuntime{};
+	entry.runtime_factory = [prototype] {
+		return std::make_unique<T>(*prototype);
 	};
 	return entry;
 }
@@ -938,12 +1007,12 @@ inline ScriptEntry ScriptRegistry::Make(std::string_view key) {
 	if (!registration) {
 		return {};
 	}
-
 	ScriptEntry entry;
 	entry.enabled = true;
 	entry.type_hash = registration->type_hash;
 	entry.type = registration->key;
 	entry.value = registration->make_default();
+	entry.sequence = registration->make_default_sequence();
 	return entry;
 }
 
@@ -962,10 +1031,7 @@ struct ScriptsComponent {
 	ScriptsComponent() = default;
 	ScriptsComponent(ScriptsComponent&&) noexcept = default;
 	ScriptsComponent& operator=(ScriptsComponent&&) noexcept = default;
-
-	ScriptsComponent(const ScriptsComponent& other) :
-		scripts{ other.scripts } {}
-
+	ScriptsComponent(const ScriptsComponent& other) : scripts{ other.scripts } {}
 	ScriptsComponent& operator=(const ScriptsComponent& other) {
 		if (this != &other) {
 			ScriptsComponent copy{ other };
@@ -1018,9 +1084,9 @@ struct SequenceHandle {
 	[[nodiscard]] float Progress() const;
 };
 
-static_assert(std::copy_constructible<Action>);
-static_assert(std::is_copy_assignable_v<Action>);
-static_assert(std::movable<Action>);
+static_assert(std::copy_constructible<ScriptStep>);
+static_assert(std::is_copy_assignable_v<ScriptStep>);
+static_assert(std::movable<ScriptStep>);
 static_assert(std::copy_constructible<ScriptEntry>);
 static_assert(std::is_copy_assignable_v<ScriptEntry>);
 static_assert(std::copy_constructible<ScriptSequence>);
@@ -1047,10 +1113,23 @@ namespace script_runtime {
 
 void AttachEntry(ptgn::Entity entity, ScriptEntry& entry);
 void AttachAll(ptgn::Entity entity);
-[[nodiscard]] bool IsScriptEnabled(ptgn::Entity entity, const ptgn::Script* script);
 void Update(ptgn::Scene& scene, float delta_seconds);
 [[nodiscard]] float DeltaSeconds();
 void ApplyPending(ptgn::Scene& scene);
+[[nodiscard]] bool DispatchEvent(ptgn::Entity entity, impl::EventData& data);
+[[nodiscard]] bool DispatchGlobalEvent(ptgn::Scene& scene, impl::EventData& data);
+
+template <typename T, typename... TArgs>
+[[nodiscard]] bool Dispatch(ptgn::Entity entity, TArgs&&... args) {
+	auto data{ impl::EventData::Create<T>(std::forward<TArgs>(args)...) };
+	return DispatchEvent(entity, data);
+}
+
+template <typename T, typename... TArgs>
+[[nodiscard]] bool DispatchGlobal(ptgn::Scene& scene, TArgs&&... args) {
+	auto data{ impl::EventData::Create<T>(std::forward<TArgs>(args)...) };
+	return DispatchGlobalEvent(scene, data);
+}
 
 [[nodiscard]] ScriptSequence* Resolve(
 	ptgn::Entity owner,
@@ -1197,97 +1276,97 @@ enum class SpawnArea {
 };
 PTGN_REFLECT_ENUM(SpawnArea);
 
-// Built-in Actions. Each action directly owns the entity it affects.
-struct WaitAction final : ScriptAction {
-	PTGN_REFLECT_EMPTY(WaitAction)
+// Built-in Scripts used as sequence steps. Each Script operates on its owning entity.
+struct WaitScript final : managed::Script {
+	PTGN_REFLECT_EMPTY(WaitScript)
 };
 
-struct MoveToAction final : ScriptAction {
+struct MoveToScript final : managed::Script {
 	ptgn::V2_float destination{ 0.0f, 64.0f };
 	bool relative{ true };
 
-	MoveToAction() = default;
-	MoveToAction(ptgn::V2_float destination, bool relative) :
+	MoveToScript() = default;
+	MoveToScript(ptgn::V2_float destination, bool relative) :
 		destination{ destination }, relative{ relative } {}
 
 	void OnStart() override;
-	ActionStatus OnUpdate() override;
+	ScriptStatus OnUpdate() override;
 	void OnRepeat() override;
 
-	PTGN_REFLECT(MoveToAction, destination, relative)
+	PTGN_REFLECT(MoveToScript, destination, relative)
 
 private:
 	ptgn::V2_float start_{};
 	ptgn::V2_float end_{};
 };
 
-struct RotateToAction final : ScriptAction {
+struct RotateToScript final : managed::Script {
 	float degrees{ 90.0f };
 	bool shortest_path{ true };
 	bool relative{ false };
 
-	RotateToAction() = default;
-	RotateToAction(float degrees, bool shortest_path = true, bool relative = false) :
+	RotateToScript() = default;
+	RotateToScript(float degrees, bool shortest_path = true, bool relative = false) :
 		degrees{ degrees }, shortest_path{ shortest_path }, relative{ relative } {}
 
 	void OnStart() override;
-	ActionStatus OnUpdate() override;
+	ScriptStatus OnUpdate() override;
 	void OnRepeat() override;
 
-	PTGN_REFLECT(RotateToAction, degrees, shortest_path, relative)
+	PTGN_REFLECT(RotateToScript, degrees, shortest_path, relative)
 
 private:
 	float start_degrees_{ 0.0f };
 	float delta_degrees_{ 0.0f };
 };
 
-struct ScaleToAction final : ScriptAction {
+struct ScaleToScript final : managed::Script {
 	ptgn::V2_float scale{ 1.0f, 1.0f };
 	bool relative{ false };
 
-	ScaleToAction() = default;
-	ScaleToAction(ptgn::V2_float scale, bool relative = false) :
+	ScaleToScript() = default;
+	ScaleToScript(ptgn::V2_float scale, bool relative = false) :
 		scale{ scale }, relative{ relative } {}
 
 	void OnStart() override;
-	ActionStatus OnUpdate() override;
+	ScriptStatus OnUpdate() override;
 	void OnRepeat() override;
 
-	PTGN_REFLECT(ScaleToAction, scale, relative)
+	PTGN_REFLECT(ScaleToScript, scale, relative)
 
 private:
 	ptgn::V2_float start_{};
 	ptgn::V2_float end_{};
 };
 
-struct FollowTargetAction final : ScriptAction {
+struct FollowTargetScript final : managed::Script {
 	ptgn::Entity target;
 	float speed{ 120.0f };
 	float stopping_distance{ 2.0f };
 
-	FollowTargetAction() = default;
-	FollowTargetAction(ptgn::Entity target, float speed, float stopping_distance = 2.0f) :
+	FollowTargetScript() = default;
+	FollowTargetScript(ptgn::Entity target, float speed, float stopping_distance = 2.0f) :
 		target{ target }, speed{ speed }, stopping_distance{ stopping_distance } {}
 
-	[[nodiscard]] ActionStatus OnUpdate() override;
+	[[nodiscard]] ScriptStatus OnUpdate() override;
 
 	// Entity serialization is intentionally omitted from the demo inspector.
-	PTGN_REFLECT(FollowTargetAction, target, speed, stopping_distance)
+	PTGN_REFLECT(FollowTargetScript, target, speed, stopping_distance)
 };
 
-struct NativeActionCallbacks {
-	std::function<void(ScriptAction&)> on_start;
-	std::function<ActionStatus(ScriptAction&)> on_update;
-	std::function<void(ScriptAction&)> on_complete;
-	std::function<void(ScriptAction&, SequenceCancelReason)> on_cancel;
+struct NativeScriptCallbacks {
+	std::function<void(managed::Script&)> on_start;
+	std::function<ScriptStatus(managed::Script&)> on_update;
+	std::function<void(managed::Script&)> on_complete;
+	std::function<void(managed::Script&, SequenceCancelReason)> on_cancel;
 };
 
-struct NativeAction final : ScriptAction {
-	std::shared_ptr<NativeActionCallbacks> callbacks;
+struct NativeScript final : managed::Script {
+	std::shared_ptr<NativeScriptCallbacks> callbacks;
 
-	NativeAction() = default;
-	explicit NativeAction(NativeActionCallbacks value) :
-		callbacks{ std::make_shared<NativeActionCallbacks>(std::move(value)) } {}
+	NativeScript() = default;
+	explicit NativeScript(NativeScriptCallbacks value) :
+		callbacks{ std::make_shared<NativeScriptCallbacks>(std::move(value)) } {}
 
 	void OnStart() override {
 		if (callbacks && callbacks->on_start) {
@@ -1295,11 +1374,11 @@ struct NativeAction final : ScriptAction {
 		}
 	}
 
-	[[nodiscard]] ActionStatus OnUpdate() override {
+	[[nodiscard]] ScriptStatus OnUpdate() override {
 		if (callbacks && callbacks->on_update) {
 			return callbacks->on_update(*this);
 		}
-		return ActionStatus::Complete;
+		return ScriptStatus::Complete;
 	}
 
 	void OnComplete() override {
@@ -1314,51 +1393,51 @@ struct NativeAction final : ScriptAction {
 		}
 	}
 
-	PTGN_REFLECT_EMPTY(NativeAction)
+	PTGN_REFLECT_EMPTY(NativeScript)
 };
 
-struct SetVisibleAction final : ScriptAction {
+struct SetVisibleScript final : managed::Script {
 	bool visible{ true };
 	void OnStart() override;
 
-	PTGN_REFLECT(SetVisibleAction, visible)
+	PTGN_REFLECT(SetVisibleScript, visible)
 };
 
-struct PlayAudioAction final : ScriptAction {
+struct PlayAudioScript final : managed::Script {
 	std::string asset{ "door_open" };
 	float volume{ 1.0f };
 	int loops{ 0 };
 	void OnStart() override;
 
-	PTGN_REFLECT(PlayAudioAction, asset, volume, loops)
+	PTGN_REFLECT(PlayAudioScript, asset, volume, loops)
 };
 
-struct EmitSignalAction final : ScriptAction {
+struct EmitSignalScript final : managed::Script {
 	SignalKey signal{ "sequence.completed" };
 
-	EmitSignalAction() = default;
-	explicit EmitSignalAction(SignalKey signal) : signal{ std::move(signal) } {}
+	EmitSignalScript() = default;
+	explicit EmitSignalScript(SignalKey signal) : signal{ std::move(signal) } {}
 
 	void OnStart() override;
 
-	PTGN_REFLECT(EmitSignalAction, signal)
+	PTGN_REFLECT(EmitSignalScript, signal)
 };
 
-struct AddComponentsAction final : ScriptAction {
+struct AddComponentsScript final : managed::Script {
 	std::vector<ComponentDefinition> components;
 	void OnStart() override;
 
-	PTGN_REFLECT(AddComponentsAction, components)
+	PTGN_REFLECT(AddComponentsScript, components)
 };
 
-struct RemoveComponentsAction final : ScriptAction {
+struct RemoveComponentsScript final : managed::Script {
 	std::vector<std::string> components;
 	void OnStart() override;
 
-	PTGN_REFLECT(RemoveComponentsAction, components)
+	PTGN_REFLECT(RemoveComponentsScript, components)
 };
 
-struct SpawnEntityAction final : ScriptAction {
+struct SpawnEntityScript final : managed::Script {
 	std::string prefab_key{ "prefabs/zombie" };
 	int count{ 1 };
 	SpawnOrigin origin{ SpawnOrigin::OwnerEntity };
@@ -1373,7 +1452,7 @@ struct SpawnEntityAction final : ScriptAction {
 	void OnStart() override;
 
 	PTGN_REFLECT(
-		SpawnEntityAction, prefab_key, count, origin, area, center, rectangle_size, radius,
+		SpawnEntityScript, prefab_key, count, origin, area, center, rectangle_size, radius,
 		parent_to_owner, inherit_owner_rotation, inherit_owner_scale, random_rotation
 	)
 };
@@ -1415,50 +1494,50 @@ inline ScriptSequence& ScriptSequence::StopOn(
 	return *this;
 }
 
-template <typename TAction>
-ScriptSequence& ScriptSequence::Then(TAction action) {
-	actions.push_back(ActionRegistry::Make<TAction>(std::move(action)));
+template <typename TScript>
+ScriptSequence& ScriptSequence::Then(TScript script) {
+	steps.push_back(ScriptRegistry::MakeStep<TScript>(std::move(script)));
 	return *this;
 }
 
-template <typename TAction>
-ScriptSequence& ScriptSequence::UntilComplete(TAction action) {
-	Action definition{ ActionRegistry::Make<TAction>(std::move(action)) };
-	definition.completion = ActionCompletion::ActionControlled;
-	actions.push_back(std::move(definition));
+template <typename TScript>
+ScriptSequence& ScriptSequence::UntilComplete(TScript script) {
+	ScriptStep definition{ ScriptRegistry::MakeStep<TScript>(std::move(script)) };
+	definition.completion = ScriptCompletion::ScriptControlled;
+	steps.push_back(std::move(definition));
 	return *this;
 }
 
-template <typename TAction>
-ScriptSequence& ScriptSequence::Forever(TAction action) {
-	Action definition{ ActionRegistry::Make<TAction>(std::move(action)) };
-	definition.completion = ActionCompletion::Infinite;
-	actions.push_back(std::move(definition));
+template <typename TScript>
+ScriptSequence& ScriptSequence::Forever(TScript script) {
+	ScriptStep definition{ ScriptRegistry::MakeStep<TScript>(std::move(script)) };
+	definition.completion = ScriptCompletion::Infinite;
+	steps.push_back(std::move(definition));
 	return *this;
 }
 
-template <typename TAction>
-ScriptSequence& ScriptSequence::During(float duration_ms, TAction action) {
-	Action definition{ ActionRegistry::Make<TAction>(std::move(action)) };
-	definition.completion = ActionCompletion::Duration;
-	definition.timing = definition.timing.value_or(ActionTiming{});
+template <typename TScript>
+ScriptSequence& ScriptSequence::During(float duration_ms, TScript script) {
+	ScriptStep definition{ ScriptRegistry::MakeStep<TScript>(std::move(script)) };
+	definition.completion = ScriptCompletion::Duration;
+	definition.timing = definition.timing.value_or(ScriptTiming{});
 	definition.timing->duration_ms = std::max(0.0f, duration_ms);
-	actions.push_back(std::move(definition));
+	steps.push_back(std::move(definition));
 	return *this;
 }
 
-inline ActionTiming& ScriptSequence::LatestDuringTiming() {
+inline ScriptTiming& ScriptSequence::LatestDuringTiming() {
 	auto it{ std::ranges::find_if(
-		actions.rbegin(),
-		actions.rend(),
-		[](const Action& action) {
+		steps.rbegin(),
+		steps.rend(),
+		[](const ScriptStep& action) {
 			return action.timing.has_value() &&
-				action.completion == ActionCompletion::Duration &&
-				action.type_hash != ptgn::Hash<WaitAction>();
+				action.completion == ScriptCompletion::Duration &&
+				action.type_hash != ptgn::Hash<WaitScript>();
 		}
 	) };
 	PTGN_ASSERT(
-		it != actions.rend(),
+		it != steps.rend(),
 		"Ease, Repeat, Infinite, Reversed, and Yoyo require a preceding During call"
 	);
 	return *it->timing;
@@ -1492,36 +1571,36 @@ inline ScriptSequence& ScriptSequence::Yoyo(bool value) {
 }
 
 inline ScriptSequence& ScriptSequence::Wait(float duration_ms) {
-	Action action{ ActionRegistry::Make<WaitAction>() };
-	action.completion = ActionCompletion::Duration;
-	action.timing = action.timing.value_or(ActionTiming{});
+	ScriptStep action{ ScriptRegistry::MakeStep<WaitScript>() };
+	action.completion = ScriptCompletion::Duration;
+	action.timing = action.timing.value_or(ScriptTiming{});
 	action.timing->duration_ms = std::max(0.0f, duration_ms);
-	actions.push_back(std::move(action));
+	steps.push_back(std::move(action));
 	return *this;
 }
 
 inline ScriptSequence& ScriptSequence::EmitSignal(SignalKey signal) {
-	return Then(EmitSignalAction{ std::move(signal) });
+	return Then(EmitSignalScript{ std::move(signal) });
 }
 
-void MoveToAction::OnStart() {
+void MoveToScript::OnStart() {
 	start_ = Owner().Get<ptgn::Transform>().position;
 	end_ = relative ? start_ + destination : destination;
 }
 
-ActionStatus MoveToAction::OnUpdate() {
+ScriptStatus MoveToScript::OnUpdate() {
 	Owner().Get<ptgn::Transform>().position =
 		start_ + (end_ - start_) * Progress();
-	return ActionStatus::Running;
+	return ScriptStatus::Running;
 }
 
-void MoveToAction::OnRepeat() {
+void MoveToScript::OnRepeat() {
 	if (!IsReversed()) {
 		OnStart();
 	}
 }
 
-void RotateToAction::OnStart() {
+void RotateToScript::OnStart() {
 	start_degrees_ = Owner().Get<ptgn::Transform>().rotation.ToDeg().value;
 	const float end_degrees{ relative ? start_degrees_ + degrees : degrees };
 	delta_degrees_ = end_degrees - start_degrees_;
@@ -1530,62 +1609,62 @@ void RotateToAction::OnStart() {
 	}
 }
 
-ActionStatus RotateToAction::OnUpdate() {
+ScriptStatus RotateToScript::OnUpdate() {
 	const float value{ start_degrees_ + delta_degrees_ * Progress() };
 	Owner().Get<ptgn::Transform>().rotation = ptgn::Degrees{ value }.ToRad();
-	return ActionStatus::Running;
+	return ScriptStatus::Running;
 }
 
-void RotateToAction::OnRepeat() {
+void RotateToScript::OnRepeat() {
 	if (!IsReversed()) {
 		OnStart();
 	}
 }
 
-void ScaleToAction::OnStart() {
+void ScaleToScript::OnStart() {
 	start_ = Owner().Get<ptgn::Transform>().scale;
 	end_ = relative ? start_ * scale : scale;
 }
 
-ActionStatus ScaleToAction::OnUpdate() {
+ScriptStatus ScaleToScript::OnUpdate() {
 	Owner().Get<ptgn::Transform>().scale =
 		start_ + (end_ - start_) * Progress();
-	return ActionStatus::Running;
+	return ScriptStatus::Running;
 }
 
-void ScaleToAction::OnRepeat() {
+void ScaleToScript::OnRepeat() {
 	if (!IsReversed()) {
 		OnStart();
 	}
 }
 
-ActionStatus FollowTargetAction::OnUpdate() {
+ScriptStatus FollowTargetScript::OnUpdate() {
 	if (!target || !target.Has<ptgn::Transform>() || !Owner().Has<ptgn::Transform>()) {
-		return ActionStatus::Complete;
+		return ScriptStatus::Complete;
 	}
 
 	auto& position{ Owner().Get<ptgn::Transform>().position };
 	const ptgn::V2_float offset{ target.Get<ptgn::Transform>().position - position };
 	const float distance{ std::sqrt(offset.x * offset.x + offset.y * offset.y) };
 	if (distance <= std::max(0.0f, stopping_distance)) {
-		return ActionStatus::Complete;
+		return ScriptStatus::Complete;
 	}
 
 	const float step{ std::max(0.0f, speed) * std::max(0.0f, DeltaSeconds()) };
 	if (step >= distance) {
 		position += offset;
-		return ActionStatus::Complete;
+		return ScriptStatus::Complete;
 	}
 
 	position += offset * (step / distance);
-	return ActionStatus::Running;
+	return ScriptStatus::Running;
 }
 
-void SetVisibleAction::OnStart() {
+void SetVisibleScript::OnStart() {
 	ptgn::SetVisible(Owner(), visible);
 }
 
-void PlayAudioAction::OnStart() {
+void PlayAudioScript::OnStart() {
 	LogScriptActivity(
 		GetScene(),
 		std::string{ GetEntityName(Owner()) } + " played " + asset +
@@ -1593,11 +1672,11 @@ void PlayAudioAction::OnStart() {
 	);
 }
 
-void EmitSignalAction::OnStart() {
-	GetScene().ctx().event.PushGlobal<Signal>(Signal{ signal });
+void EmitSignalScript::OnStart() {
+	(void)script_runtime::DispatchGlobal<Signal>(GetScene(), Signal{ signal });
 }
 
-void AddComponentsAction::OnStart() {
+void AddComponentsScript::OnStart() {
 	for (const auto& component : components) {
 		if (component.apply_live) {
 			component.apply_live(Owner());
@@ -1617,7 +1696,7 @@ void AddComponentsAction::OnStart() {
 	}
 }
 
-void RemoveComponentsAction::OnStart() {
+void RemoveComponentsScript::OnStart() {
 	for (const auto& name : components) {
 		if (const auto* registration{ ptgn::ComponentRegistry::Find(name) }) {
 			registration->remove(Owner());
@@ -1625,7 +1704,7 @@ void RemoveComponentsAction::OnStart() {
 	}
 }
 
-void SpawnEntityAction::OnStart() {
+void SpawnEntityScript::OnStart() {
 	static std::mt19937 generator{ std::random_device{}() };
 	std::uniform_real_distribution<float> unit{ 0.0f, 1.0f };
 	const ptgn::V2_float base{
@@ -1683,19 +1762,19 @@ SequenceHandle PropertyTo(
 	auto state{ std::make_shared<State>() };
 	state->target = std::move(target);
 
-	NativeAction action{ NativeActionCallbacks{
-		.on_start = [state, getter = std::move(getter)](ScriptAction& action) mutable {
+	NativeScript action{ NativeScriptCallbacks{
+		.on_start = [state, getter = std::move(getter)](managed::Script& action) mutable {
 			state->start = std::invoke(getter, action.Owner());
 		},
-		.on_update = [state, setter = std::move(setter)](ScriptAction& action) mutable {
+		.on_update = [state, setter = std::move(setter)](managed::Script& action) mutable {
 			std::invoke(
 				setter,
 				action.Owner(),
 				state->start + (state->target - state->start) * action.Progress()
 			);
 			return action.LinearProgress() >= 1.0f
-				? ActionStatus::Complete
-				: ActionStatus::Running;
+				? ScriptStatus::Complete
+				: ScriptStatus::Running;
 		},
 	} };
 
@@ -1728,7 +1807,7 @@ inline SequenceHandle TranslateTo(
 	sequence
 		.Channel(SequenceChannelKey{ "transform.position" })
 		.Transient()
-		.During(duration_ms, MoveToAction{ destination, relative })
+		.During(duration_ms, MoveToScript{ destination, relative })
 		.Ease(ease);
 	return script_runtime::RunInChannel(
 		entity,
@@ -1754,7 +1833,7 @@ inline SequenceHandle RotateTo(
 	sequence
 		.Channel(SequenceChannelKey{ "transform.rotation" })
 		.Transient()
-		.During(duration_ms, RotateToAction{ degrees, shortest_path, relative })
+		.During(duration_ms, RotateToScript{ degrees, shortest_path, relative })
 		.Ease(ease);
 	return script_runtime::RunInChannel(
 		entity,
@@ -1779,7 +1858,7 @@ inline SequenceHandle ScaleTo(
 	sequence
 		.Channel(SequenceChannelKey{ "transform.scale" })
 		.Transient()
-		.During(duration_ms, ScaleToAction{ scale, relative })
+		.During(duration_ms, ScaleToScript{ scale, relative })
 		.Ease(ease);
 	return script_runtime::RunInChannel(
 		entity,
@@ -1803,7 +1882,7 @@ inline SequenceHandle Follow(
 	sequence
 		.Channel(SequenceChannelKey{ "movement.follow" })
 		.Transient()
-		.UntilComplete(FollowTargetAction{ target, speed, stopping_distance });
+		.UntilComplete(FollowTargetScript{ target, speed, stopping_distance });
 	return script_runtime::RunInChannel(
 		entity,
 		*sequence.channel,
@@ -1870,7 +1949,7 @@ std::vector<SequenceHandle> ScaleTo(
 inline SequenceHandle After(
 	ptgn::Entity owner,
 	float delay_ms,
-	std::function<void(ScriptAction&)> callback
+	std::function<void(managed::Script&)> callback
 ) {
 	if (!owner) {
 		return {};
@@ -1880,7 +1959,7 @@ inline SequenceHandle After(
 	sequence
 		.Transient()
 		.Wait(delay_ms)
-		.Then(NativeAction{ NativeActionCallbacks{ .on_start = std::move(callback) } });
+		.Then(NativeScript{ NativeScriptCallbacks{ .on_start = std::move(callback) } });
 	return script_runtime::RunSequence(owner, std::move(sequence));
 }
 
@@ -2033,7 +2112,7 @@ private:
 	}
 };
 
-struct ActionEditorOptions {
+struct SequenceStepEditorOptions {
 	std::string label;
 	std::string group;
 	std::string description;
@@ -2041,10 +2120,10 @@ struct ActionEditorOptions {
 	bool separator_after{ false };
 };
 
-struct ActionEditorRegistration {
+struct SequenceStepEditorRegistration {
 	TypeHashValue type_hash{ 0 };
 	std::string key;
-	ActionEditorOptions options;
+	SequenceStepEditorOptions options;
 	std::function<bool(ptgn::json&, EditorContextTemp&)> draw_inline;
 	std::function<bool(ptgn::json&, EditorContextTemp&)> draw;
 };
@@ -2084,16 +2163,16 @@ bool DrawTypedJsonEditor(
 	return changed || serialized_changed;
 }
 
-class ActionEditorRegistry {
+class SequenceStepEditorRegistry {
 public:
 	template <typename T, typename F>
-	static bool Register(std::string key, ActionEditorOptions options, F&& draw) {
+	static bool Register(std::string key, SequenceStepEditorOptions options, F&& draw) {
 		auto& entries{ MutableEntries() };
 		const bool inserted{ !Find(key) };
-		std::erase_if(entries, [&](const ActionEditorRegistration& entry) {
+		std::erase_if(entries, [&](const SequenceStepEditorRegistration& entry) {
 			return entry.key == key || entry.type_hash == ptgn::Hash<T>();
 		});
-		entries.push_back(ActionEditorRegistration{
+		entries.push_back(SequenceStepEditorRegistration{
 			.type_hash = ptgn::Hash<T>(),
 			.key = std::move(key),
 			.options = std::move(options),
@@ -2111,16 +2190,16 @@ public:
 	template <typename T, typename FInline, typename FDetails>
 	static bool RegisterInline(
 		std::string key,
-		ActionEditorOptions options,
+		SequenceStepEditorOptions options,
 		FInline&& draw_inline,
 		FDetails&& draw_details
 	) {
 		auto& entries{ MutableEntries() };
 		const bool inserted{ !Find(key) };
-		std::erase_if(entries, [&](const ActionEditorRegistration& entry) {
+		std::erase_if(entries, [&](const SequenceStepEditorRegistration& entry) {
 			return entry.key == key || entry.type_hash == ptgn::Hash<T>();
 		});
-		entries.push_back(ActionEditorRegistration{
+		entries.push_back(SequenceStepEditorRegistration{
 			.type_hash = ptgn::Hash<T>(),
 			.key = std::move(key),
 			.options = std::move(options),
@@ -2140,7 +2219,7 @@ public:
 		return inserted;
 	}
 
-	[[nodiscard]] static const ActionEditorRegistration* Find(std::string_view key) {
+	[[nodiscard]] static const SequenceStepEditorRegistration* Find(std::string_view key) {
 		const auto& entries{ Entries() };
 		const auto it{ std::ranges::find_if(entries, [key](const auto& entry) {
 			return entry.key == key;
@@ -2148,13 +2227,13 @@ public:
 		return it == entries.end() ? nullptr : &*it;
 	}
 
-	[[nodiscard]] static const std::vector<ActionEditorRegistration>& Entries() {
+	[[nodiscard]] static const std::vector<SequenceStepEditorRegistration>& Entries() {
 		return MutableEntries();
 	}
 
 private:
-	[[nodiscard]] static std::vector<ActionEditorRegistration>& MutableEntries() {
-		static std::vector<ActionEditorRegistration> entries;
+	[[nodiscard]] static std::vector<SequenceStepEditorRegistration>& MutableEntries() {
+		static std::vector<SequenceStepEditorRegistration> entries;
 		return entries;
 	}
 };
@@ -2266,23 +2345,23 @@ struct EditorContextTemp {
 #define PTGN_REGISTER(...) (__VA_ARGS__)
 
 template <typename T>
-struct ActionRegistrationOptions {
+struct SequenceStepRegistrationOptions {
 	std::string key;
 	bool supports_timing{ false };
 	bool requires_timing{ false };
-	std::optional<ActionTiming> default_timing;
-	ActionCompletion completion{ ActionCompletion::Instant };
+	std::optional<ScriptTiming> default_timing;
+	ScriptCompletion completion{ ScriptCompletion::Instant };
 	bool serializable{ true };
-	ActionEditorOptions editor;
+	SequenceStepEditorOptions editor;
 	std::function<bool(T&, EditorContextTemp&)> draw_inline;
 	std::function<bool(T&, EditorContextTemp&)> draw;
 };
 
 template <typename T>
-bool RegisterAction(ActionRegistrationOptions<T> options) {
+bool RegisterSequenceStep(SequenceStepRegistrationOptions<T> options) {
 	const std::string key{ options.key };
 	const bool runtime_registered{ PTGN_REGISTER(
-		ActionRegistry::Register<T>(
+		ScriptRegistry::Register<T>(
 			key, options.supports_timing, options.requires_timing, options.default_timing,
 			options.completion, options.serializable
 		)
@@ -2298,13 +2377,13 @@ bool RegisterAction(ActionRegistrationOptions<T> options) {
 
 	if (options.draw_inline) {
 		PTGN_REGISTER(
-			ActionEditorRegistry::RegisterInline<T>(
+			SequenceStepEditorRegistry::RegisterInline<T>(
 				key, std::move(options.editor), std::move(options.draw_inline), std::move(draw)
 			)
 		);
 	} else {
 		PTGN_REGISTER(
-			ActionEditorRegistry::Register<T>(
+			SequenceStepEditorRegistry::Register<T>(
 				key, std::move(options.editor), std::move(draw)
 			)
 		);
@@ -2384,9 +2463,9 @@ bool RegisterScript(ScriptRegistrationOptions<T> options) {
 	return runtime_registered;
 }
 
-#define PTGN_REGISTER_ACTION(Type, ...)                                      \
-	(void)PTGN_REGISTER(::ptgn::editor::RegisterAction<Type>(                  \
-		::ptgn::editor::ActionRegistrationOptions<Type> __VA_ARGS__               \
+#define PTGN_REGISTER_SEQUENCE_STEP(Type, ...)                                      \
+	(void)PTGN_REGISTER(::ptgn::editor::RegisterSequenceStep<Type>(                  \
+		::ptgn::editor::SequenceStepRegistrationOptions<Type> __VA_ARGS__               \
 	))
 
 #define PTGN_REGISTER_EVENT(EventType, ...)                                  \
@@ -2478,11 +2557,11 @@ bool DrawUnframedSectionHeader(
 	const char* add_tooltip, bool& add_requested
 );
 void DrawSelectedItemsTooltip(std::span<const std::string> items);
-ActionForm GetActionForm(const Action& action);
-void SetActionForm(Action& action, ActionForm form);
-std::string ActionSummary(const Action& action);
-void MoveAction(std::vector<Action>& actions, int from, int to);
-bool DrawAddComponentButton(AddComponentsAction& action, const char* popup_id);
+ActionForm GetActionForm(const ScriptStep& action);
+void SetActionForm(ScriptStep& action, ActionForm form);
+std::string ActionSummary(const ScriptStep& action);
+void MoveAction(std::vector<ScriptStep>& actions, int from, int to);
+bool DrawAddComponentButton(AddComponentsScript& action, const char* popup_id);
 
 [[nodiscard]] ptgn::Entity SelectedEntity(const DemoEditorDrawContext& ui);
 void DrawSidebar(DemoEditorDrawContext& ui);
@@ -2509,24 +2588,24 @@ bool DrawEvent(
 	bool stop_event, bool& switch_kind
 );
 void DrawActionPicker(
-	DemoEditorDrawContext& ui, Action& action, bool timed_only,
+	DemoEditorDrawContext& ui, ScriptStep& action, bool timed_only,
 	float width = -FLT_MIN
 );
 void DrawActionPickerWithInline(
-	DemoEditorDrawContext& ui, Action& action, bool timed_only
+	DemoEditorDrawContext& ui, ScriptStep& action, bool timed_only
 );
 void DrawActionParameters(
-	DemoEditorDrawContext& ui, Action& action, float left_screen_x
+	DemoEditorDrawContext& ui, ScriptStep& action, float left_screen_x
 );
 void DrawActions(
 	DemoEditorDrawContext& ui, ScriptSequence& sequence, ScriptSequence& binding
 );
 void DrawLifecycleRows(DemoEditorDrawContext& ui, ScriptSequence& sequence);
 void DrawTimingOptions(
-	DemoEditorDrawContext& ui, Action& action, ActionTiming& timing,
+	DemoEditorDrawContext& ui, ScriptStep& action, ScriptTiming& timing,
 	float left_screen_x
 );
-void DrawEmitSignalCompact(DemoEditorDrawContext& ui, EmitSignalAction& emit);
+void DrawEmitSignalCompact(DemoEditorDrawContext& ui, EmitSignalScript& emit);
 void DrawComponentDefinition(
 	DemoEditorDrawContext& ui, ComponentDefinition& component, bool removable,
 	int* remove_index = nullptr, int index = -1
@@ -2905,51 +2984,51 @@ void DrawSelectedItemsTooltip(std::span<const std::string> items) {
 	ImGui::SetTooltip("%s", tooltip.c_str());
 }
 
-ActionForm GetActionForm(const Action& action) {
-	if (action.type == ActionRegistry::Key<WaitAction>()) {
+ActionForm GetActionForm(const ScriptStep& action) {
+	if (action.type == ScriptRegistry::Key<WaitScript>()) {
 		return ActionForm::Delay;
 	}
 	return action.timing ? ActionForm::Tween : ActionForm::Action;
 }
 
-void SetActionForm(Action& action, ActionForm form) {
+void SetActionForm(ScriptStep& action, ActionForm form) {
 	const bool enabled{ action.enabled };
-	const auto* registration{ ActionRegistry::Find(action.type) };
+	const auto* registration{ ScriptRegistry::Find(action.type) };
 
 	switch (form) {
 		case ActionForm::Action:
 			if (!registration || registration->requires_timing ||
-				action.type == ActionRegistry::Key<WaitAction>()) {
-				action = ActionRegistry::Make<SetVisibleAction>();
+				action.type == ScriptRegistry::Key<WaitScript>()) {
+				action = ScriptRegistry::MakeStep<SetVisibleScript>();
 			}
 			action.completion.reset();
 			action.timing.reset();
 			break;
 		case ActionForm::Tween:
 			if (!registration || !registration->supports_timing ||
-				action.type == ActionRegistry::Key<WaitAction>()) {
-				action = ActionRegistry::Make<MoveToAction>();
+				action.type == ScriptRegistry::Key<WaitScript>()) {
+				action = ScriptRegistry::MakeStep<MoveToScript>();
 			}
-			registration = ActionRegistry::Find(action.type);
-			action.completion = ActionCompletion::Duration;
+			registration = ScriptRegistry::Find(action.type);
+			action.completion = ScriptCompletion::Duration;
 			action.timing = registration && registration->default_timing
 				? registration->default_timing
-				: std::optional<ActionTiming>{ ActionTiming{} };
+				: std::optional<ScriptTiming>{ ScriptTiming{} };
 			break;
 		case ActionForm::Delay:
-			action = ActionRegistry::Make<WaitAction>();
-			action.completion = ActionCompletion::Duration;
+			action = ScriptRegistry::MakeStep<WaitScript>();
+			action.completion = ScriptCompletion::Duration;
 			break;
 	}
 
 	action.enabled = enabled;
 }
 
-void EnsureActionValue(Action& action) {
+void EnsureActionValue(ScriptStep& action) {
 	if (!action.value.is_null()) {
 		return;
 	}
-	if (const auto* registration{ ActionRegistry::Find(action.type_hash) };
+	if (const auto* registration{ ScriptRegistry::Find(action.type_hash) };
 		registration && registration->make_default) {
 		action.value = registration->make_default();
 	}
@@ -2958,27 +3037,32 @@ void EnsureActionValue(Action& action) {
 	}
 }
 
-std::string ActionSummary(const Action& action) {
-	const auto* editor{ editor::ActionEditorRegistry::Find(action.type) };
-	std::string result{ editor ? editor->options.label : action.type };
+std::string ActionSummary(const ScriptStep& action) {
+	const auto* step_editor{ editor::SequenceStepEditorRegistry::Find(action.type) };
+	const auto* script_editor{ editor::ScriptEditorRegistry::Find(action.type) };
+	std::string result{
+		step_editor
+			? step_editor->options.label
+			: (script_editor ? script_editor->options.label : action.type)
+	};
 	if (action.timing) {
 		result += " (" + std::to_string(static_cast<int>(action.timing->duration_ms)) + "ms)";
 	}
 	return result;
 }
 
-void MoveAction(std::vector<Action>& actions, int from, int to) {
+void MoveAction(std::vector<ScriptStep>& actions, int from, int to) {
 	if (from < 0 || to < 0 || from >= static_cast<int>(actions.size()) ||
 		to >= static_cast<int>(actions.size()) || from == to) {
 		return;
 	}
-	Action moved{ std::move(actions[static_cast<std::size_t>(from)]) };
+	ScriptStep moved{ std::move(actions[static_cast<std::size_t>(from)]) };
 	actions.erase(actions.begin() + from);
 	actions.insert(actions.begin() + to, std::move(moved));
 }
 
 bool DrawAddComponentButton(
-	AddComponentsAction& action,
+	AddComponentsScript& action,
 	const char* popup_id
 ) {
 	bool changed{ false };
@@ -3073,15 +3157,15 @@ void RegisterEditorTypes() {
 			)
 		));
 	}
-	PTGN_REGISTER(editor::ActionEditorRegistry::Register<WaitAction>(
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::Register<WaitScript>(
 		"engine.wait",
 		{ .label = "Delay", .group = "Timing", .description = "Delay before continuing the sequence." },
-		[](WaitAction&, EditorContextTemp&) { return false; }
+		[](WaitScript&, EditorContextTemp&) { return false; }
 	));
-	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<MoveToAction>(
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<MoveToScript>(
 		"engine.move_to",
 		{ .label = "Move To", .group = "Transform", .description = "Move the owning entity." },
-		[](MoveToAction& action, EditorContextTemp&) {
+		[](MoveToScript& action, EditorContextTemp&) {
 			bool changed{ false };
 			const float available{ ImGui::GetContentRegionAvail().x };
 			const float spacing{ CompactControlSpacing() };
@@ -3120,12 +3204,12 @@ void RegisterEditorTypes() {
 			);
 			return changed;
 		},
-		[](MoveToAction&, EditorContextTemp&) { return false; }
+		[](MoveToScript&, EditorContextTemp&) { return false; }
 	));
-	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<RotateToAction>(
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<RotateToScript>(
 		"engine.rotate_to",
 		{ .label = "Rotate To", .group = "Transform", .description = "Rotate the owning entity to an angle." },
-		[](RotateToAction& action, EditorContextTemp&) {
+		[](RotateToScript& action, EditorContextTemp&) {
 			const float available{ ImGui::GetContentRegionAvail().x };
 			const float spacing{ CompactControlSpacing() };
 			const float shortest_width{
@@ -3159,12 +3243,12 @@ void RegisterEditorTypes() {
 			);
 			return changed;
 		},
-		[](RotateToAction&, EditorContextTemp&) { return false; }
+		[](RotateToScript&, EditorContextTemp&) { return false; }
 	));
-	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<SetVisibleAction>(
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<SetVisibleScript>(
 		"engine.set_visible",
 		{ .label = "Set Visible", .group = "Entity", .description = "Set the owning entity visibility.", .menu_order = 3 },
-		[](SetVisibleAction& action, EditorContextTemp&) {
+		[](SetVisibleScript& action, EditorContextTemp&) {
 			const char* preview{ action.visible ? "True" : "False" };
 			bool changed{ false };
 			ImGui::SetNextItemWidth(-FLT_MIN);
@@ -3182,12 +3266,12 @@ void RegisterEditorTypes() {
 			DrawItemTooltip("Visibility value assigned by this action.");
 			return changed;
 		},
-		[](SetVisibleAction&, EditorContextTemp&) { return false; }
+		[](SetVisibleScript&, EditorContextTemp&) { return false; }
 	));
-	PTGN_REGISTER(editor::ActionEditorRegistry::Register<PlayAudioAction>(
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::Register<PlayAudioScript>(
 		"engine.play_audio",
 		{ .label = "Play Audio", .group = "Audio", .description = "Play an audio asset." },
-		[](PlayAudioAction& action, EditorContextTemp&) {
+		[](PlayAudioScript& action, EditorContextTemp&) {
 			action.loops = std::clamp(action.loops, 0, 100);
 			bool changed{ false };
 			if (ImGui::BeginTable("AudioParams", 3, ImGuiTableFlags_SizingStretchProp)) {
@@ -3224,10 +3308,10 @@ void RegisterEditorTypes() {
 			return changed;
 		}
 	));
-	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<EmitSignalAction>(
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<EmitSignalScript>(
 		"engine.emit_signal",
 		{ .label = "Emit Signal", .group = "", .description = "Broadcast a Signal identified by a strong string key." },
-		[](EmitSignalAction& action, EditorContextTemp&) {
+		[](EmitSignalScript& action, EditorContextTemp&) {
 			ImGui::SetNextItemWidth(-FLT_MIN);
 			const bool changed{ ImGui::InputTextWithHint(
 				"##SignalName", "Signal name", &action.signal.value
@@ -3235,12 +3319,12 @@ void RegisterEditorTypes() {
 			DrawItemTooltip("Signal name to broadcast.");
 			return changed;
 		},
-		[](EmitSignalAction&, EditorContextTemp&) { return false; }
+		[](EmitSignalScript&, EditorContextTemp&) { return false; }
 	));
-	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<AddComponentsAction>(
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<AddComponentsScript>(
 		"engine.add_components",
 		{ .label = "Add Components", .group = "Entity", .description = "Add registered components to the owner.", .menu_order = 1 },
-		[](AddComponentsAction& action, EditorContextTemp&) {
+		[](AddComponentsScript& action, EditorContextTemp&) {
 			std::vector<std::string> selected_labels;
 			std::string preview;
 			for (const auto& definition : action.components) {
@@ -3332,7 +3416,7 @@ void RegisterEditorTypes() {
 			DrawSelectedItemsTooltip(selected_labels);
 			return changed;
 		},
-		[](AddComponentsAction& action, EditorContextTemp&) {
+		[](AddComponentsScript& action, EditorContextTemp&) {
 			bool changed{ false };
 			int remove{ -1 };
 			for (int i{ 0 }; i < static_cast<int>(action.components.size()); ++i) {
@@ -3403,10 +3487,10 @@ void RegisterEditorTypes() {
 			return changed;
 		}
 	));
-	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<RemoveComponentsAction>(
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<RemoveComponentsScript>(
 		"engine.remove_components",
 		{ .label = "Remove Components", .group = "Entity", .description = "Remove selected registered components from the owner.", .menu_order = 2, .separator_after = true },
-		[](RemoveComponentsAction& action, EditorContextTemp&) {
+		[](RemoveComponentsScript& action, EditorContextTemp&) {
 			std::vector<std::string> selected_labels;
 			std::string preview;
 			for (const auto& name : action.components) {
@@ -3484,12 +3568,12 @@ void RegisterEditorTypes() {
 			DrawSelectedItemsTooltip(selected_labels);
 			return changed;
 		},
-		[](RemoveComponentsAction&, EditorContextTemp&) { return false; }
+		[](RemoveComponentsScript&, EditorContextTemp&) { return false; }
 	));
-	PTGN_REGISTER(editor::ActionEditorRegistry::Register<SpawnEntityAction>(
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::Register<SpawnEntityScript>(
 		"engine.spawn_entity",
 		{ .label = "Spawn Entity", .group = "Entity", .description = "Spawn one or more prefab instances.", .menu_order = 0 },
-		[](SpawnEntityAction& action, EditorContextTemp& context) {
+		[](SpawnEntityScript& action, EditorContextTemp& context) {
 			action.count = std::clamp(action.count, 1, 100);
 			action.rectangle_size.x = std::max(0.0f, action.rectangle_size.x);
 			action.rectangle_size.y = std::max(0.0f, action.rectangle_size.y);
@@ -4013,6 +4097,17 @@ void DrawScripts(
 	}
 
 	if (remove_component) {
+		for (auto& entry : scripts.scripts) {
+			if (!entry.instance) {
+				continue;
+			}
+			(void)script_runtime::Stop(
+				entity,
+				entry.instance->sequence.id,
+				SequenceCancelReason::BindingRemoved
+			);
+			entry.instance->OnCancel(SequenceCancelReason::BindingRemoved);
+		}
 		if (open) {
 			ImGui::TreePop();
 		}
@@ -4060,13 +4155,13 @@ void DrawResidentScripts(
 	display_order.reserve(scripts.scripts.size());
 	for (int i{ 0 }; i < static_cast<int>(scripts.scripts.size()); ++i) {
 		if (scripts.scripts[static_cast<std::size_t>(i)].type_hash !=
-			ptgn::Hash<SequenceScript>()) {
+			ptgn::Hash<managed::Script>()) {
 			display_order.push_back(i);
 		}
 	}
 	for (int i{ 0 }; i < static_cast<int>(scripts.scripts.size()); ++i) {
 		if (scripts.scripts[static_cast<std::size_t>(i)].type_hash ==
-			ptgn::Hash<SequenceScript>()) {
+			ptgn::Hash<managed::Script>()) {
 			display_order.push_back(i);
 		}
 	}
@@ -4076,13 +4171,13 @@ void DrawResidentScripts(
 		const auto* registration{ ScriptRegistry::Find(script.type_hash) };
 		const auto* editor{ ScriptEditorRegistry::Find(script.type) };
 
-		if (script.type_hash == ptgn::Hash<SequenceScript>()) {
+		if (script.type_hash == ptgn::Hash<managed::Script>()) {
 			if (!script.instance && registration) {
 				script_runtime::AttachEntry(entity, script);
 			}
 
 			auto* sequence_script{
-				dynamic_cast<SequenceScript*>(script.instance)
+				script.instance.get()
 			};
 			if (!sequence_script) {
 				continue;
@@ -4093,7 +4188,10 @@ void DrawResidentScripts(
 				remove = i;
 			}
 			script.enabled = sequence_script->sequence.enabled;
-			script.value = *sequence_script;
+			const SequenceId sequence_id{ sequence_script->sequence.id };
+			script.sequence = sequence_script->sequence;
+			script.sequence.id = sequence_id;
+			script.sequence.runtime = ScriptSequenceRuntime{};
 			continue;
 		}
 
@@ -4182,8 +4280,13 @@ void DrawResidentScripts(
 	if (remove >= 0) {
 		auto& entry{ scripts.scripts[static_cast<std::size_t>(remove)] };
 		entry.enabled = false;
-		if (auto* sequence{ dynamic_cast<SequenceScript*>(entry.instance) }) {
-			sequence->sequence.enabled = false;
+		if (entry.instance) {
+			(void)script_runtime::Stop(
+				entity,
+				entry.instance->sequence.id,
+				SequenceCancelReason::BindingRemoved
+			);
+			entry.instance->OnCancel(SequenceCancelReason::BindingRemoved);
 		}
 		scripts.scripts.erase(scripts.scripts.begin() + remove);
 	}
@@ -4603,7 +4706,7 @@ bool DrawSequence(DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence&
 			const bool sequence_open{
 				DrawUnframedSectionHeader(
 					"SequenceSection", "Sequence", true,
-					sequence->actions.empty(),
+					sequence->steps.empty(),
 					"Ordered actions executed by this script sequence.",
 					true, "Add an action to this sequence.",
 					add_action_requested
@@ -4615,23 +4718,23 @@ bool DrawSequence(DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence&
 			}
 			if (ImGui::BeginPopup("AddSequenceAction")) {
 				if (ImGui::MenuItem("Action")) {
-					sequence->actions.push_back(
-						ActionRegistry::Make<SetVisibleAction>()
+					sequence->steps.push_back(
+						ScriptRegistry::MakeStep<SetVisibleScript>()
 					);
 				}
 				if (ImGui::MenuItem("Tween")) {
-					sequence->actions.push_back(
-						ActionRegistry::Make<MoveToAction>()
+					sequence->steps.push_back(
+						ScriptRegistry::MakeStep<MoveToScript>()
 					);
 				}
 				if (ImGui::MenuItem("Delay")) {
-					sequence->actions.push_back(
-						ActionRegistry::Make<WaitAction>()
+					sequence->steps.push_back(
+						ScriptRegistry::MakeStep<WaitScript>()
 					);
 				}
 				if (ImGui::MenuItem("Emit Signal")) {
-					sequence->actions.push_back(
-						ActionRegistry::Make<EmitSignalAction>()
+					sequence->steps.push_back(
+						ScriptRegistry::MakeStep<EmitSignalScript>()
 					);
 				}
 				ImGui::EndPopup();
@@ -4721,10 +4824,10 @@ void DrawEvents(DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& s
 		if (ImGui::BeginMenu("Lifecycle callback")) {
 			for (int i{ 0 }; i < static_cast<int>(kLifecycleLabels.size()); ++i) {
 				if (ImGui::MenuItem(kLifecycleLabels[static_cast<std::size_t>(i)])) {
-					sequence.lifecycle_actions.push_back(LifecycleAction{
+					sequence.lifecycle_actions.push_back(LifecycleScript{
 						.enabled = true,
 						.lifecycle = static_cast<SequenceLifecycle>(i),
-						.action = ActionRegistry::Make<EmitSignalAction>(),
+						.action = ScriptRegistry::MakeStep<EmitSignalScript>(),
 					});
 				}
 			}
@@ -4969,79 +5072,169 @@ bool DrawEvent(
 	return remove;
 }
 
-void DrawActionPicker(DemoEditorDrawContext& ui, Action& action, bool timed_only, float width) {
-	const auto* current{ editor::ActionEditorRegistry::Find(action.type) };
+void DrawActionPicker(DemoEditorDrawContext& ui, ScriptStep& action, bool timed_only, float width) {
+	struct Candidate {
+		const ScriptRegistration* runtime{ nullptr };
+		const SequenceStepEditorRegistration* step_editor{ nullptr };
+		const ScriptEditorRegistration* script_editor{ nullptr };
+		std::string_view label;
+		std::string_view group;
+		std::string_view description;
+		int menu_order{ 100 };
+		bool separator_after{ false };
+	};
+
+	const auto resolve_candidate = [](const ScriptRegistration& registration)
+		-> std::optional<Candidate> {
+		const auto* step_editor{
+			editor::SequenceStepEditorRegistry::Find(registration.key)
+		};
+		const auto* script_editor{
+			editor::ScriptEditorRegistry::Find(registration.key)
+		};
+		if (!step_editor && !script_editor) {
+			return std::nullopt;
+		}
+
+		if (step_editor) {
+			return Candidate{
+				.runtime = &registration,
+				.step_editor = step_editor,
+				.script_editor = script_editor,
+				.label = step_editor->options.label,
+				.group = step_editor->options.group,
+				.description = step_editor->options.description,
+				.menu_order = step_editor->options.menu_order,
+				.separator_after = step_editor->options.separator_after,
+			};
+		}
+		return Candidate{
+			.runtime = &registration,
+			.script_editor = script_editor,
+			.label = script_editor->options.label,
+			.group = script_editor->options.group,
+			.description = script_editor->options.description,
+		};
+	};
+
+	const auto* current_registration{ ScriptRegistry::Find(action.type) };
+	const std::optional<Candidate> current{
+		current_registration ? resolve_candidate(*current_registration) : std::nullopt
+	};
 	ImGui::SetNextItemWidth(width);
 	const bool open{ ImGui::BeginCombo(
-		"##RegisteredAction", current ? current->options.label.c_str() : "Missing Action"
+		"##RegisteredAction",
+		current ? current->label.data() : "Missing Action"
 	) };
 	DrawItemTooltip(
-		current ? current->options.description.c_str()
-			: "Choose a registered Action for this sequence entry."
+		current ? current->description.data()
+			: "Choose a registered Script for this sequence entry."
 	);
 	if (!open) {
 		return;
 	}
 
-	auto is_available = [&](const ActionEditorRegistration& candidate) {
-		const auto* registration{ ActionRegistry::Find(candidate.key) };
-		return registration && registration->serializable &&
-			candidate.key != ActionRegistry::Key<WaitAction>() &&
-			(!timed_only || registration->supports_timing) &&
-			(timed_only || !registration->requires_timing);
+	const auto is_available = [&](const Candidate& candidate) {
+		const auto& registration{ *candidate.runtime };
+		return registration.serializable &&
+			registration.key != ScriptRegistry::Key<managed::Script>() &&
+			registration.key != ScriptRegistry::Key<WaitScript>() &&
+			(!timed_only || registration.supports_timing) &&
+			(timed_only || !registration.requires_timing);
 	};
-	auto select_candidate = [&](const ActionEditorRegistration& candidate) {
-		const auto* registration{ ActionRegistry::Find(candidate.key) };
-		if (!registration) {
-			return;
-		}
-		if (ImGui::MenuItem(candidate.options.label.c_str(), nullptr, candidate.key == action.type)) {
+	const auto select_candidate = [&](const Candidate& candidate) {
+		const auto& registration{ *candidate.runtime };
+		if (ImGui::MenuItem(
+				candidate.label.data(), nullptr, registration.key == action.type
+			)) {
 			const bool enabled{ action.enabled };
-			action = ActionRegistry::Make(std::string_view{ candidate.key });
+			action = ScriptRegistry::MakeStep(
+				std::string_view{ registration.key }
+			);
 			action.enabled = enabled;
 			if (timed_only) {
-				action.completion = ActionCompletion::Duration;
-				action.timing = registration->default_timing.value_or(ActionTiming{});
+				action.completion = ScriptCompletion::Duration;
+				action.timing = registration.default_timing.value_or(ScriptTiming{});
 			} else {
 				action.completion.reset();
 				action.timing.reset();
 			}
 		}
 		if (ImGui::IsItemHovered()) {
-			ImGui::SetTooltip("%s\n%s", candidate.options.description.c_str(), candidate.key.c_str());
+			ImGui::SetTooltip(
+				"%s\n%s", candidate.description.data(), registration.key.c_str()
+			);
 		}
 	};
 
-	for (const auto& candidate : editor::ActionEditorRegistry::Entries()) {
-		if (is_available(candidate) && candidate.options.group.empty()) {
+	if (!timed_only) {
+		const auto& shared_scripts{ ui.context.host.GetSharedSequences().sequences };
+		if (!shared_scripts.empty() && ImGui::BeginMenu("Global")) {
+			for (const auto& shared : shared_scripts) {
+				bool selected{ false };
+				if (action.type_hash == ptgn::Hash<managed::Script>()) {
+					managed::Script current_script;
+					if (TryReadJson(action.value, current_script)) {
+						selected = current_script.sequence.shared_reference &&
+							current_script.sequence.shared_sequence_id == shared.id;
+					}
+				}
+				if (ImGui::MenuItem(shared.name.c_str(), nullptr, selected)) {
+					const bool enabled{ action.enabled };
+					managed::Script script;
+					script.sequence.name = shared.name;
+					script.sequence.shared_reference = true;
+					script.sequence.shared_sequence_id = shared.id;
+					action = ScriptRegistry::MakeStep(std::move(script));
+					action.enabled = enabled;
+					action.completion = ScriptCompletion::ScriptControlled;
+					action.timing.reset();
+				}
+				DrawItemTooltip(
+					"Run this global editor-authored Script as the sequence step."
+				);
+			}
+			ImGui::EndMenu();
+		}
+	}
+
+	std::vector<Candidate> candidates;
+	for (const auto& registration : ScriptRegistry::Entries()) {
+		if (auto candidate{ resolve_candidate(registration) };
+			candidate && is_available(*candidate)) {
+			candidates.push_back(*candidate);
+		}
+	}
+
+	for (const auto& candidate : candidates) {
+		if (candidate.group.empty()) {
 			select_candidate(candidate);
 		}
 	}
-	std::vector<std::string> groups;
-	for (const auto& candidate : editor::ActionEditorRegistry::Entries()) {
-		if (is_available(candidate) && !candidate.options.group.empty() &&
-			!std::ranges::contains(groups, candidate.options.group)) {
-			groups.push_back(candidate.options.group);
+
+	std::vector<std::string_view> groups;
+	for (const auto& candidate : candidates) {
+		if (!candidate.group.empty() &&
+			!std::ranges::contains(groups, candidate.group)) {
+			groups.push_back(candidate.group);
 		}
 	}
-	for (const auto& group : groups) {
-		if (!ImGui::BeginMenu(group.c_str())) {
+	for (const auto group : groups) {
+		if (!ImGui::BeginMenu(group.data())) {
 			continue;
 		}
-		std::vector<const ActionEditorRegistration*> candidates;
-		for (const auto& candidate : editor::ActionEditorRegistry::Entries()) {
-			if (is_available(candidate) && candidate.options.group == group) {
-				candidates.push_back(&candidate);
+		std::vector<const Candidate*> grouped;
+		for (const auto& candidate : candidates) {
+			if (candidate.group == group) {
+				grouped.push_back(&candidate);
 			}
 		}
-		std::ranges::sort(candidates, {}, [](const auto* candidate) {
-			return candidate->options.menu_order;
+		std::ranges::sort(grouped, {}, [](const Candidate* candidate) {
+			return candidate->menu_order;
 		});
-		for (std::size_t i{ 0 }; i < candidates.size(); ++i) {
-			const auto* candidate{ candidates[i] };
-			select_candidate(*candidate);
-			if (candidate->options.separator_after &&
-				i + 1 < candidates.size()) {
+		for (std::size_t i{ 0 }; i < grouped.size(); ++i) {
+			select_candidate(*grouped[i]);
+			if (grouped[i]->separator_after && i + 1 < grouped.size()) {
 				ImGui::Separator();
 			}
 		}
@@ -5050,9 +5243,9 @@ void DrawActionPicker(DemoEditorDrawContext& ui, Action& action, bool timed_only
 	ImGui::EndCombo();
 }
 
-void DrawActionPickerWithInline(DemoEditorDrawContext& ui, Action& action, bool timed_only) {
+void DrawActionPickerWithInline(DemoEditorDrawContext& ui, ScriptStep& action, bool timed_only) {
 	EnsureActionValue(action);
-	const auto* editor{ editor::ActionEditorRegistry::Find(action.type) };
+	const auto* editor{ editor::SequenceStepEditorRegistry::Find(action.type) };
 	const bool has_inline_editor{
 		!timed_only && editor && static_cast<bool>(editor->draw_inline)
 	};
@@ -5068,7 +5261,7 @@ void DrawActionPickerWithInline(DemoEditorDrawContext& ui, Action& action, bool 
 	};
 	DrawActionPicker(ui, action, timed_only, picker_width);
 
-	editor = editor::ActionEditorRegistry::Find(action.type);
+	editor = editor::SequenceStepEditorRegistry::Find(action.type);
 	if (editor && editor->draw_inline) {
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(-FLT_MIN);
@@ -5078,14 +5271,14 @@ void DrawActionPickerWithInline(DemoEditorDrawContext& ui, Action& action, bool 
 	}
 }
 
-void DrawEmitSignalCompact(DemoEditorDrawContext& ui, EmitSignalAction& emit) {
+void DrawEmitSignalCompact(DemoEditorDrawContext& ui, EmitSignalScript& emit) {
 	ImGui::SetNextItemWidth(-FLT_MIN);
 	ImGui::InputTextWithHint("##EmitSignal", "Signal name", &emit.signal.value);
 	DrawItemTooltip("Broadcast Signal name.");
 }
 
 void DrawTimingOptions(
-	DemoEditorDrawContext& ui, Action& action, ActionTiming& timing, float left_screen_x
+	DemoEditorDrawContext& ui, ScriptStep& action, ScriptTiming& timing, float left_screen_x
 ) {
 	(void)ui;
 	EnsureActionValue(action);
@@ -5098,22 +5291,22 @@ void DrawTimingOptions(
 		ImVec2{ left_screen_x, ImGui::GetCursorScreenPos().y }
 	);
 
-	std::optional<MoveToAction> move;
-	std::optional<RotateToAction> rotate;
-	std::optional<ScaleToAction> scale;
+	std::optional<MoveToScript> move;
+	std::optional<RotateToScript> rotate;
+	std::optional<ScaleToScript> scale;
 
-	if (action.type_hash == ptgn::Hash<MoveToAction>()) {
-		MoveToAction value{};
+	if (action.type_hash == ptgn::Hash<MoveToScript>()) {
+		MoveToScript value{};
 		if (TryReadJson(action.value, value)) {
 			move = std::move(value);
 		}
-	} else if (action.type_hash == ptgn::Hash<RotateToAction>()) {
-		RotateToAction value{};
+	} else if (action.type_hash == ptgn::Hash<RotateToScript>()) {
+		RotateToScript value{};
 		if (TryReadJson(action.value, value)) {
 			rotate = std::move(value);
 		}
-	} else if (action.type_hash == ptgn::Hash<ScaleToAction>()) {
-		ScaleToAction value{};
+	} else if (action.type_hash == ptgn::Hash<ScaleToScript>()) {
+		ScaleToScript value{};
 		if (TryReadJson(action.value, value)) {
 			scale = std::move(value);
 		}
@@ -5268,21 +5461,24 @@ void DrawTimingOptions(
 	}
 }
 
-void DrawActionParameters(DemoEditorDrawContext& ui, Action& action, float left_screen_x) {
+void DrawActionParameters(DemoEditorDrawContext& ui, ScriptStep& action, float left_screen_x) {
 	EnsureActionValue(action);
-	const auto* action_editor{ editor::ActionEditorRegistry::Find(action.type) };
-	if (!action_editor || action.type == ActionRegistry::Key<WaitAction>() ||
-		action.type == ActionRegistry::Key<EmitSignalAction>() ||
-		action.type == ActionRegistry::Key<SetVisibleAction>() ||
-		action.type == ActionRegistry::Key<MoveToAction>() ||
-		action.type == ActionRegistry::Key<RotateToAction>() ||
-		action.type == ActionRegistry::Key<ScaleToAction>() ||
-		action.type == ActionRegistry::Key<RemoveComponentsAction>()) {
+	const auto* step_editor{ editor::SequenceStepEditorRegistry::Find(action.type) };
+	const auto* script_editor{ editor::ScriptEditorRegistry::Find(action.type) };
+	if ((!step_editor && !script_editor) ||
+		action.type == ScriptRegistry::Key<managed::Script>() ||
+		action.type == ScriptRegistry::Key<WaitScript>() ||
+		action.type == ScriptRegistry::Key<EmitSignalScript>() ||
+		action.type == ScriptRegistry::Key<SetVisibleScript>() ||
+		action.type == ScriptRegistry::Key<MoveToScript>() ||
+		action.type == ScriptRegistry::Key<RotateToScript>() ||
+		action.type == ScriptRegistry::Key<ScaleToScript>() ||
+		action.type == ScriptRegistry::Key<RemoveComponentsScript>()) {
 		return;
 	}
 
-	if (action.type_hash == ptgn::Hash<AddComponentsAction>()) {
-		AddComponentsAction add_components;
+	if (action.type_hash == ptgn::Hash<AddComponentsScript>()) {
+		AddComponentsScript add_components;
 		if (!TryReadJson(action.value, add_components) ||
 			add_components.components.empty()) {
 			return;
@@ -5295,7 +5491,12 @@ void DrawActionParameters(DemoEditorDrawContext& ui, Action& action, float left_
 			"ActionParameters", ImVec2{ std::max(1.0f, right_screen_x - left_screen_x), 0.0f },
 			ImGuiChildFlags_AutoResizeY
 		)) {
-		if (action_editor->draw(action.value, ui.context)) {
+		const bool changed{
+			step_editor
+				? step_editor->draw(action.value, ui.context)
+				: script_editor->draw(action.value)
+		};
+		if (changed) {
 			action.runtime_factory = {};
 		}
 	}
@@ -5303,7 +5504,7 @@ void DrawActionParameters(DemoEditorDrawContext& ui, Action& action, float left_
 }
 
 bool DrawAction(
-	DemoEditorDrawContext& ui, Action& action, int index, ScriptSequence* binding,
+	DemoEditorDrawContext& ui, ScriptStep& action, int index, ScriptSequence* binding,
 	bool& duplicate, int& move_from, int& move_to, bool lifecycle
 ) {
 	bool remove{ false };
@@ -5500,8 +5701,8 @@ bool DrawAction(
 		DrawActionParameters(ui, action, parameter_left_screen_x);
 	}
 	if (binding && binding->runtime.running &&
-		binding->runtime.action_index == static_cast<std::size_t>(index)) {
-		const auto& runtime_action{ binding->actions[binding->runtime.action_index] };
+		binding->runtime.step_index == static_cast<std::size_t>(index)) {
+		const auto& runtime_action{ binding->steps[binding->runtime.step_index] };
 		const float progress{
 			runtime_action.timing && runtime_action.timing->duration_ms > 0.0f
 				? std::clamp(
@@ -5521,10 +5722,10 @@ void DrawActions(DemoEditorDrawContext& ui, ScriptSequence& sequence, ScriptSequ
 	int duplicate_index{ -1 };
 	int move_from{ -1 };
 	int move_to{ -1 };
-	for (int i{ 0 }; i < static_cast<int>(sequence.actions.size()); ++i) {
+	for (int i{ 0 }; i < static_cast<int>(sequence.steps.size()); ++i) {
 		bool duplicate{ false };
 		if (DrawAction(
-				ui, sequence.actions[static_cast<std::size_t>(i)], i, &binding,
+				ui, sequence.steps[static_cast<std::size_t>(i)], i, &binding,
 				duplicate, move_from, move_to, false
 			)) {
 			remove_index = i;
@@ -5534,14 +5735,14 @@ void DrawActions(DemoEditorDrawContext& ui, ScriptSequence& sequence, ScriptSequ
 		}
 	}
 	if (move_from >= 0 && move_to >= 0) {
-		MoveAction(sequence.actions, move_from, move_to);
+		MoveAction(sequence.steps, move_from, move_to);
 	}
 	if (duplicate_index >= 0) {
-		Action copy{ sequence.actions[static_cast<std::size_t>(duplicate_index)] };
-		sequence.actions.insert(sequence.actions.begin() + duplicate_index + 1, std::move(copy));
+		ScriptStep copy{ sequence.steps[static_cast<std::size_t>(duplicate_index)] };
+		sequence.steps.insert(sequence.steps.begin() + duplicate_index + 1, std::move(copy));
 	}
 	if (remove_index >= 0) {
-		sequence.actions.erase(sequence.actions.begin() + remove_index);
+		sequence.steps.erase(sequence.steps.begin() + remove_index);
 		binding.runtime = ScriptSequenceRuntime{};
 	}
 }
@@ -5631,6 +5832,21 @@ void DrawAddResidentScriptPopup(DemoEditorDrawContext& ui, ScriptsComponent& scr
 			groups.push_back(group);
 		}
 	}
+	const auto& shared_scripts{ ui.context.host.GetSharedSequences().sequences };
+	if (!shared_scripts.empty() && ImGui::BeginMenu("Global")) {
+		for (const auto& shared : shared_scripts) {
+			if (ImGui::MenuItem(shared.name.c_str())) {
+				managed::Script script;
+				script.sequence.name = shared.name;
+				script.sequence.shared_reference = true;
+				script.sequence.shared_sequence_id = shared.id;
+				scripts.scripts.push_back(ScriptRegistry::Make(std::move(script)));
+			}
+			DrawItemTooltip("Add a reference to this global editor-authored script.");
+		}
+		ImGui::EndMenu();
+	}
+
 	for (const auto& group : groups) {
 		if (!ImGui::BeginMenu(group.c_str())) {
 			continue;
@@ -5649,11 +5865,9 @@ void DrawAddResidentScriptPopup(DemoEditorDrawContext& ui, ScriptsComponent& scr
 				continue;
 			}
 			if (ImGui::MenuItem(editor->options.label.c_str())) {
-				ScriptEntry script;
-				script.type_hash = registration.type_hash;
-				script.type = registration.key;
-				script.value = registration.make_default();
-				scripts.scripts.push_back(std::move(script));
+				scripts.scripts.push_back(
+					ScriptRegistry::Make(std::string_view{ registration.key })
+				);
 			}
 			DrawItemTooltip(editor->options.description.c_str());
 		}
@@ -5920,9 +6134,9 @@ struct ButtonStyle {
 	PTGN_REFLECT(ButtonStyle, idle, hovered, pressed, disabled)
 };
 
-struct PlayerMovementScript final : ptgn::Script {
+struct PlayerMovementScript final : managed::Script {
 	float speed{ 220.0f };
-	void OnUpdate() override;
+	ScriptStatus OnUpdate() override;
 
 	PTGN_REFLECT(PlayerMovementScript, speed)
 };
@@ -5957,19 +6171,19 @@ struct MaskComponent {
 	PTGN_REFLECT(MaskComponent, value)
 };
 
-struct ApplyDamageAction final : ScriptAction {
+struct ApplyDamageScript final : managed::Script {
 	float amount{ 10.0f };
 	std::string damage_type{ "Physical" };
 	bool critical{ false };
 
-	ApplyDamageAction() = default;
-	explicit ApplyDamageAction(
+	ApplyDamageScript() = default;
+	explicit ApplyDamageScript(
 		float amount, std::string damage_type = "Physical", bool critical = false
 	) : amount{ amount }, damage_type{ std::move(damage_type) }, critical{ critical } {}
 
 	void OnStart() override;
 
-	PTGN_REFLECT(ApplyDamageAction, amount, damage_type, critical)
+	PTGN_REFLECT(ApplyDamageScript, amount, damage_type, critical)
 };
 
 template <typename T>
@@ -6141,6 +6355,7 @@ public:
 	};
 
 	void OnEnter() override;
+	void OnEvent(Event event) override;
 	void OnUpdate() override;
 
 	[[nodiscard]] PrefabRegistry& GetPrefabs() override { return prefabs_; }
@@ -6562,7 +6777,7 @@ struct InputExpressionState {
 	return state;
 }
 
-void ObserveInputExpressionEvent(Event event) {
+void ObserveInputExpressionEvent(ScriptEvent event) {
 	auto& state{ GetInputExpressionState() };
 	event.Dispatch<ptgn::event::KeyPressed>([&](const auto& input) {
 		if (state.MarkObserved<ptgn::event::KeyPressed>(static_cast<int>(input.key))) {
@@ -6649,13 +6864,13 @@ void ObserveInputExpressionEvent(Event event) {
 }
 
 template <typename TScript>
-	requires std::derived_from<TScript, ptgn::Script>
+	requires std::derived_from<TScript, managed::Script>
 [[nodiscard]] ScriptEntry MakeLiveScriptEntry(TScript script) {
 	return ScriptRegistry::Make<TScript>(std::move(script));
 }
 
 [[nodiscard]] ScriptEntry MakeSequenceEntry(ScriptSequence sequence) {
-	SequenceScript script;
+	managed::Script script;
 	script.sequence = std::move(sequence);
 	return ScriptRegistry::Make(std::move(script));
 }
@@ -7130,13 +7345,13 @@ void RegisterDemoTypes() {
 		}
 	);
 
-	PTGN_REGISTER_ACTION(
-		WaitAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		WaitScript,
 		{
 			.key = "engine.wait",
 			.supports_timing = true,
 			.requires_timing = true,
-			.default_timing = ActionTiming{ .duration_ms = 250.0f },
+			.default_timing = ScriptTiming{ .duration_ms = 250.0f },
 			.editor = {
 				.label = "Delay",
 				.group = "Timing",
@@ -7144,16 +7359,16 @@ void RegisterDemoTypes() {
 			},
 		}
 	);
-	PTGN_REGISTER_ACTION(
-		MoveToAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		MoveToScript,
 		{
 			.key = "engine.move_to",
 			.supports_timing = true,
-			.default_timing = ActionTiming{
+			.default_timing = ScriptTiming{
 				.duration_ms = 300.0f,
 				.ease = ptgn::Ease::OutCubic,
 			},
-			.completion = ActionCompletion::Duration,
+			.completion = ScriptCompletion::Duration,
 			.editor = {
 				.label = "Move To",
 				.group = "Transform",
@@ -7161,13 +7376,13 @@ void RegisterDemoTypes() {
 			},
 		}
 	);
-	PTGN_REGISTER_ACTION(
-		RotateToAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		RotateToScript,
 		{
 			.key = "engine.rotate_to",
 			.supports_timing = true,
-			.default_timing = ActionTiming{ .duration_ms = 300.0f },
-			.completion = ActionCompletion::Duration,
+			.default_timing = ScriptTiming{ .duration_ms = 300.0f },
+			.completion = ScriptCompletion::Duration,
 			.editor = {
 				.label = "Rotate To",
 				.group = "Transform",
@@ -7175,16 +7390,16 @@ void RegisterDemoTypes() {
 			},
 		}
 	);
-	PTGN_REGISTER_ACTION(
-		ScaleToAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		ScaleToScript,
 		{
 			.key = "engine.scale_to",
 			.supports_timing = true,
-			.default_timing = ActionTiming{
+			.default_timing = ScriptTiming{
 				.duration_ms = 180.0f,
 				.ease = ptgn::Ease::OutBack,
 			},
-			.completion = ActionCompletion::Duration,
+			.completion = ScriptCompletion::Duration,
 			.editor = {
 				.label = "Scale To",
 				.group = "Transform",
@@ -7192,11 +7407,11 @@ void RegisterDemoTypes() {
 			},
 		}
 	);
-	PTGN_REGISTER_ACTION(
-		FollowTargetAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		FollowTargetScript,
 		{
 			.key = "engine.follow_target",
-			.completion = ActionCompletion::ActionControlled,
+			.completion = ScriptCompletion::ScriptControlled,
 			.editor = {
 				.label = "Follow Target",
 				.group = "Transform",
@@ -7204,8 +7419,8 @@ void RegisterDemoTypes() {
 			},
 		}
 	);
-	PTGN_REGISTER_ACTION(
-		NativeAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		NativeScript,
 		{
 			.key = "engine.native",
 			.serializable = false,
@@ -7216,8 +7431,8 @@ void RegisterDemoTypes() {
 			},
 		}
 	);
-	PTGN_REGISTER_ACTION(
-		SetVisibleAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		SetVisibleScript,
 		{
 			.key = "engine.set_visible",
 			.editor = {
@@ -7227,8 +7442,8 @@ void RegisterDemoTypes() {
 			},
 		}
 	);
-	PTGN_REGISTER_ACTION(
-		PlayAudioAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		PlayAudioScript,
 		{
 			.key = "engine.play_audio",
 			.editor = {
@@ -7238,8 +7453,8 @@ void RegisterDemoTypes() {
 			},
 		}
 	);
-	PTGN_REGISTER_ACTION(
-		EmitSignalAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		EmitSignalScript,
 		{
 			.key = "engine.emit_signal",
 			.editor = {
@@ -7249,8 +7464,8 @@ void RegisterDemoTypes() {
 			},
 		}
 	);
-	PTGN_REGISTER_ACTION(
-		AddComponentsAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		AddComponentsScript,
 		{
 			.key = "engine.add_components",
 			.editor = {
@@ -7261,8 +7476,8 @@ void RegisterDemoTypes() {
 			},
 		}
 	);
-	PTGN_REGISTER_ACTION(
-		RemoveComponentsAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		RemoveComponentsScript,
 		{
 			.key = "engine.remove_components",
 			.editor = {
@@ -7274,8 +7489,8 @@ void RegisterDemoTypes() {
 			},
 		}
 	);
-	PTGN_REGISTER_ACTION(
-		SpawnEntityAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		SpawnEntityScript,
 		{
 			.key = "engine.spawn_entity",
 			.editor = {
@@ -7286,8 +7501,8 @@ void RegisterDemoTypes() {
 			},
 		}
 	);
-	PTGN_REGISTER_ACTION(
-		ApplyDamageAction,
+	PTGN_REGISTER_SEQUENCE_STEP(
+		ApplyDamageScript,
 		{
 			.key = "game.apply_damage",
 			.editor = {
@@ -7299,15 +7514,15 @@ void RegisterDemoTypes() {
 	);
 
 	PTGN_REGISTER_SCRIPT(
-		SequenceScript,
+		managed::Script,
 		{
 			.key = "engine.sequence",
 			.editor = {
 				.label = "Script Sequence",
 				.group = "Sequence",
-				.description = "Editor-authored Script built from registered Actions.",
+				.description = "Editor-authored Script built from registered Scripts.",
 			},
-			.draw = [](SequenceScript&) { return false; },
+			.draw = [](managed::Script&) { return false; },
 		}
 	);
 	PTGN_REGISTER_SCRIPT(
@@ -7326,10 +7541,10 @@ void RegisterDemoTypes() {
 } // namespace
 
 void RegisterDemoEditorTypes() {
-	PTGN_REGISTER(editor::ActionEditorRegistry::RegisterInline<ScaleToAction>(
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<ScaleToScript>(
 		"engine.scale_to",
 		{ .label = "Scale To", .group = "Transform", .description = "Scale the owning entity." },
-		[](ScaleToAction& action, editor::EditorContextTemp&) {
+		[](ScaleToScript& action, editor::EditorContextTemp&) {
 			const float available{ ImGui::GetContentRegionAvail().x };
 			const float spacing{ ImGui::GetStyle().ItemSpacing.x };
 			const float mode_width{
@@ -7359,13 +7574,13 @@ void RegisterDemoEditorTypes() {
 			}
 			return changed;
 		},
-		[](ScaleToAction&, editor::EditorContextTemp&) { return false; }
+		[](ScaleToScript&, editor::EditorContextTemp&) { return false; }
 	));
 
-	PTGN_REGISTER(editor::ActionEditorRegistry::Register<FollowTargetAction>(
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::Register<FollowTargetScript>(
 		"engine.follow_target",
 		{ .label = "Follow Target", .group = "Transform", .description = "Move until the target is reached." },
-		[](FollowTargetAction& action, editor::EditorContextTemp& context) {
+		[](FollowTargetScript& action, editor::EditorContextTemp& context) {
 			bool changed{ false };
 			if (!ImGui::BeginTable(
 					"FollowTargetParameters", 3,
@@ -7413,10 +7628,10 @@ void RegisterDemoEditorTypes() {
 		}
 	));
 
-	PTGN_REGISTER(editor::ActionEditorRegistry::Register<ApplyDamageAction>(
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::Register<ApplyDamageScript>(
 		"game.apply_damage",
 		{ .label = "Apply Damage", .group = "Game", .description = "Apply damage to the owner." },
-		[](ApplyDamageAction& action, editor::EditorContextTemp&) {
+		[](ApplyDamageScript& action, editor::EditorContextTemp&) {
 			bool changed{ false };
 			if (ImGui::BeginTable("DamageParams", 3, ImGuiTableFlags_SizingStretchProp)) {
 				const float critical_width{
@@ -7452,9 +7667,9 @@ void RegisterDemoEditorTypes() {
 	));
 }
 
-void PlayerMovementScript::OnUpdate() {
-	if (!script_runtime::IsScriptEnabled(entity, this) || !entity || ImGui::GetIO().WantTextInput) {
-		return;
+ScriptStatus PlayerMovementScript::OnUpdate() {
+	if (!Owner() || ImGui::GetIO().WantTextInput) {
+		return ScriptStatus::Running;
 	}
 
 	ptgn::V2_float direction{};
@@ -7476,13 +7691,14 @@ void PlayerMovementScript::OnUpdate() {
 		direction /= magnitude;
 	}
 
-	auto& transform{ entity.Get<ptgn::Transform>() };
+	auto& transform{ Owner().Get<ptgn::Transform>() };
 	transform.position += direction * speed * script_runtime::DeltaSeconds();
 	transform.position.x = std::clamp(transform.position.x, -430.0f, 430.0f);
 	transform.position.y = std::clamp(transform.position.y, -250.0f, 250.0f);
+	return ScriptStatus::Running;
 }
 
-void ApplyDamageAction::OnStart() {
+void ApplyDamageScript::OnStart() {
 	if (auto* health{ Owner().TryGet<Health>() }) {
 		const float applied{ std::max(0.0f, amount) * (critical ? 2.0f : 1.0f) };
 		health->current -= applied;
@@ -7502,30 +7718,76 @@ namespace {
 
 float current_delta_seconds{ 0.0f };
 
-[[nodiscard]] ptgn::Script* EnsureInstance(
-	ptgn::Entity owner, ScriptEntry& entry
-) {
-	if (!entry.instance) {
-		const auto* registration{ ScriptRegistry::Find(entry.type_hash) };
-		if (!registration) {
-			return nullptr;
-		}
-		entry.instance = entry.attach_live
-			? entry.attach_live(owner)
-			: (registration->attach
-				? registration->attach(owner, entry.value)
-				: nullptr);
-	}
-	return entry.instance;
+[[nodiscard]] bool HasSequenceDefinition(const ScriptSequence& sequence) {
+	return sequence.shared_reference || !sequence.steps.empty() ||
+		!sequence.start_events.empty() || !sequence.stop_events.empty() ||
+		!sequence.lifecycle_actions.empty();
 }
 
-[[nodiscard]] SequenceScript* AsSequence(
+void CopySequenceDefinition(ScriptSequence& destination, const ScriptSequence& source) {
+	const SequenceId id{ source.id };
+	destination = source;
+	destination.id = id;
+	destination.runtime = ScriptSequenceRuntime{};
+}
+
+[[nodiscard]] bool StartBinding(
+	ptgn::Entity owner,
+	ScriptSequence& binding,
+	bool force
+);
+void UpdateSequence(ptgn::Entity owner, ScriptSequence& binding, float delta_seconds);
+
+[[nodiscard]] managed::Script* EnsureInstance(
 	ptgn::Entity owner, ScriptEntry& entry
 ) {
-	if (entry.type_hash != ptgn::Hash<SequenceScript>()) {
+	if (entry.instance) {
+		return entry.instance.get();
+	}
+
+	const auto* registration{ ScriptRegistry::Find(entry.type_hash) };
+	if (!registration) {
 		return nullptr;
 	}
-	return dynamic_cast<SequenceScript*>(EnsureInstance(owner, entry));
+
+	entry.instance = entry.runtime_factory
+		? entry.runtime_factory()
+		: (registration->instantiate
+			? registration->instantiate(entry.value)
+			: nullptr);
+	if (!entry.instance) {
+		return nullptr;
+	}
+
+	managed::Access::Attach(*entry.instance, owner);
+	CopySequenceDefinition(entry.instance->sequence, entry.sequence);
+	entry.instance->OnCreate();
+	entry.instance->OnStart();
+
+	if (entry.instance->sequence.enabled &&
+		entry.instance->sequence.start_events.empty() &&
+		HasSequenceDefinition(entry.instance->sequence)) {
+		(void)StartBinding(owner, entry.instance->sequence, false);
+	}
+	return entry.instance.get();
+}
+
+[[nodiscard]] ScriptSequence* FindSequenceInScript(
+	managed::Script& script, SequenceId id
+) {
+	if (script.sequence.id == id) {
+		return &script.sequence;
+	}
+	if (script.sequence.runtime.script_instance) {
+		return FindSequenceInScript(*script.sequence.runtime.script_instance, id);
+	}
+	return nullptr;
+}
+
+[[nodiscard]] const ScriptSequence* FindSequenceInScript(
+	const managed::Script& script, SequenceId id
+) {
+	return FindSequenceInScript(const_cast<managed::Script&>(script), id);
 }
 
 [[nodiscard]] ScriptEntry* FindSequenceEntry(ptgn::Entity owner, SequenceId id) {
@@ -7539,8 +7801,10 @@ float current_delta_seconds{ 0.0f };
 
 	auto find = [&](auto& entries) -> ScriptEntry* {
 		for (auto& entry : entries) {
-			if (auto* script{ AsSequence(owner, entry) };
-				script && script->sequence.id == id) {
+			const SequenceId sequence_id{
+				entry.instance ? entry.instance->sequence.id : entry.sequence.id
+			};
+			if (sequence_id == id) {
 				return &entry;
 			}
 		}
@@ -7554,12 +7818,29 @@ float current_delta_seconds{ 0.0f };
 }
 
 [[nodiscard]] ScriptSequence* FindBinding(ptgn::Entity owner, SequenceId id) {
-	auto* entry{ FindSequenceEntry(owner, id) };
-	if (!entry) {
+	if (!owner) {
 		return nullptr;
 	}
-	auto* script{ AsSequence(owner, *entry) };
-	return script ? &script->sequence : nullptr;
+	auto* scripts{ owner.TryGet<ScriptsComponent>() };
+	if (!scripts) {
+		return nullptr;
+	}
+
+	auto find = [&](auto& entries) -> ScriptSequence* {
+		for (auto& entry : entries) {
+			if (auto* script{ EnsureInstance(owner, entry) }) {
+				if (auto* sequence{ FindSequenceInScript(*script, id) }) {
+					return sequence;
+				}
+			}
+		}
+		return nullptr;
+	};
+
+	if (auto* sequence{ find(scripts->scripts) }) {
+		return sequence;
+	}
+	return find(scripts->pending_additions);
 }
 
 [[nodiscard]] SequenceChannelRuntime* FindChannel(
@@ -7584,10 +7865,9 @@ float current_delta_seconds{ 0.0f };
 	return scripts.channels.back();
 }
 
-void ExecuteInstant(ptgn::Entity owner, const Action& action);
-void ProcessImmediateActions(ptgn::Entity owner, ScriptSequence& binding);
+void ExecuteInstantStep(ptgn::Entity owner, const ScriptStep& action);
+void ProcessImmediateSteps(ptgn::Entity owner, ScriptSequence& binding);
 void CompleteSequence(ptgn::Entity owner, ScriptSequence& binding);
-void UpdateSequence(ptgn::Entity owner, ScriptSequence& binding, float delta_seconds);
 
 void InvokeLifecycle(
 	ptgn::Entity owner,
@@ -7600,7 +7880,7 @@ void InvokeLifecycle(
 	}
 	for (const auto& callback : sequence->lifecycle_actions) {
 		if (callback.enabled && callback.lifecycle == lifecycle) {
-			ExecuteInstant(owner, callback.action);
+			ExecuteInstantStep(owner, callback.action);
 		}
 	}
 }
@@ -7657,14 +7937,22 @@ void ReleaseChannel(
 		binding.runtime.running || binding.runtime.waiting_for_channel
 	};
 
-	if (binding.runtime.action_instance) {
-		binding.runtime.action_instance->SetFrame(
+	if (binding.runtime.script_instance) {
+		auto& script{ *binding.runtime.script_instance };
+		managed::Access::SetFrame(
+			script,
 			0.0f, 0.0f, 0.0f,
 			binding.runtime.current_repeat,
 			binding.runtime.currently_reversed
 		);
-		binding.runtime.action_instance->OnCancel(reason);
-		InvokeLifecycle(owner, binding, SequenceLifecycle::ActionCancel);
+		if (script.sequence.runtime.running || script.sequence.runtime.waiting_for_channel) {
+			(void)CancelBinding(
+				owner, script.sequence, reason,
+				false, false, false
+			);
+		}
+		script.OnCancel(reason);
+		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptCancel);
 	}
 	if (active) {
 		InvokeLifecycle(owner, binding, SequenceLifecycle::Stop);
@@ -7686,7 +7974,7 @@ void ReleaseChannel(
 		reason != SequenceCancelReason::Reset &&
 		reason != SequenceCancelReason::BindingRemoved &&
 		reason != SequenceCancelReason::OwnerDestroyed &&
-		owner.Has<ScriptsComponent>()) {
+		owner.Has<ScriptsComponent>() && FindSequenceEntry(owner, binding.id)) {
 		owner.Get<ScriptsComponent>().RemoveDeferred(binding.id);
 	}
 	return active;
@@ -7757,30 +8045,74 @@ void ReleaseChannel(
 		std::string{ GetEntityName(owner) } + " / " + sequence->name + " started"
 	);
 	InvokeLifecycle(owner, binding, SequenceLifecycle::Start);
-	ProcessImmediateActions(owner, binding);
+	ProcessImmediateSteps(owner, binding);
 	return true;
 }
 
-void ExecuteInstant(ptgn::Entity owner, const Action& action) {
-	const auto* registration{ ActionRegistry::Find(action.type_hash) };
-	if (!registration || !action.enabled) {
-		return;
+[[nodiscard]] std::unique_ptr<managed::Script> InstantiateStepScript(
+	ptgn::Entity owner, const ScriptStep& action
+) {
+	const auto* registration{ ScriptRegistry::Find(action.type_hash) };
+	if (!registration) {
+		return nullptr;
 	}
 	auto instance{
 		action.runtime_factory
-			? action.runtime_factory(owner)
-			: registration->instantiate(owner, action.value)
+			? action.runtime_factory()
+			: registration->instantiate(action.value)
 	};
+	if (instance) {
+		managed::Access::Attach(*instance, owner);
+	}
+	return instance;
+}
+
+void StartChildScript(
+	ptgn::Entity owner,
+	managed::Script& script,
+	float linear,
+	float progress,
+	int repeat,
+	bool reversed
+) {
+	managed::Access::SetFrame(script, 0.0f, linear, progress, repeat, reversed);
+	script.OnCreate();
+	script.OnStart();
+	if (script.sequence.enabled && script.sequence.start_events.empty() &&
+		HasSequenceDefinition(script.sequence)) {
+		(void)StartBinding(owner, script.sequence, false);
+	}
+}
+
+[[nodiscard]] ScriptStatus UpdateChildScript(
+	ptgn::Entity owner,
+	managed::Script& script,
+	float delta_seconds
+) {
+	ScriptStatus status{ script.OnUpdate() };
+	UpdateSequence(owner, script.sequence, delta_seconds);
+	if (managed::Access::TakeCompletionRequest(script) ||
+		(HasSequenceDefinition(script.sequence) && script.sequence.runtime.completed)) {
+		status = ScriptStatus::Complete;
+	}
+	return status;
+}
+
+void ExecuteInstantStep(ptgn::Entity owner, const ScriptStep& action) {
+	if (!action.enabled) {
+		return;
+	}
+	auto instance{ InstantiateStepScript(owner, action) };
 	if (!instance) {
 		return;
 	}
-	instance->SetFrame(0.0f, 1.0f, 1.0f, 0, false);
-	instance->OnStart();
-	(void)instance->OnUpdate();
+	StartChildScript(owner, *instance, 1.0f, 1.0f, 0, false);
+	managed::Access::SetFrame(*instance, 0.0f, 1.0f, 1.0f, 0, false);
+	(void)UpdateChildScript(owner, *instance, 0.0f);
 	instance->OnComplete();
 }
 
-void ProcessImmediateActions(
+void ProcessImmediateSteps(
 	ptgn::Entity owner, ScriptSequence& binding
 ) {
 	const auto* sequence{ Resolve(owner, binding) };
@@ -7788,49 +8120,50 @@ void ProcessImmediateActions(
 		return;
 	}
 	auto& runtime{ binding.runtime };
-	while (runtime.running && runtime.action_index < sequence->actions.size()) {
-		const auto& action{ sequence->actions[runtime.action_index] };
+	while (runtime.running && runtime.step_index < sequence->steps.size()) {
+		const auto& action{ sequence->steps[runtime.step_index] };
 		if (!action.enabled) {
-			++runtime.action_index;
+			++runtime.step_index;
 			continue;
 		}
-		const auto* registration{ ActionRegistry::Find(action.type_hash) };
+		const auto* registration{ ScriptRegistry::Find(action.type_hash) };
 		if (!registration) {
-			++runtime.action_index;
+			++runtime.step_index;
 			continue;
 		}
-		const ActionCompletion completion{
+		const ScriptCompletion completion{
 			action.completion.value_or(registration->completion)
 		};
-		if (completion != ActionCompletion::Instant) {
+		if (completion != ScriptCompletion::Instant) {
 			return;
 		}
-		InvokeLifecycle(owner, binding, SequenceLifecycle::ActionStart);
-		ExecuteInstant(owner, action);
-		InvokeLifecycle(owner, binding, SequenceLifecycle::ActionComplete);
-		++runtime.action_index;
+		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptStart);
+		ExecuteInstantStep(owner, action);
+		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptComplete);
+		++runtime.step_index;
 	}
-	if (runtime.running && runtime.action_index >= sequence->actions.size()) {
+	if (runtime.running && runtime.step_index >= sequence->steps.size()) {
 		CompleteSequence(owner, binding);
 	}
 }
 
-void CompleteCurrentAction(
+void CompleteCurrentStep(
 	ptgn::Entity owner, ScriptSequence& binding
 ) {
 	auto& runtime{ binding.runtime };
-	if (runtime.action_instance) {
-		runtime.action_instance->SetFrame(
+	if (runtime.script_instance) {
+		managed::Access::SetFrame(
+			*runtime.script_instance,
 			0.0f, 1.0f, 1.0f,
 			runtime.current_repeat,
 			runtime.currently_reversed
 		);
-		runtime.action_instance->OnComplete();
+		runtime.script_instance->OnComplete();
 	}
-	InvokeLifecycle(owner, binding, SequenceLifecycle::ActionComplete);
-	++runtime.action_index;
-	runtime.ClearActiveAction();
-	ProcessImmediateActions(owner, binding);
+	InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptComplete);
+	++runtime.step_index;
+	runtime.ClearActiveScript();
+	ProcessImmediateSteps(owner, binding);
 }
 
 void CompleteSequence(
@@ -7851,7 +8184,7 @@ void CompleteSequence(
 	binding.runtime.paused = false;
 	binding.runtime.completed = true;
 	binding.runtime.completed_runs = completed_runs;
-	binding.runtime.action_instance.reset();
+	binding.runtime.script_instance.reset();
 
 	InvokeLifecycle(owner, binding, SequenceLifecycle::Complete);
 	LogScriptActivity(
@@ -7870,7 +8203,12 @@ void CompleteSequence(
 		return;
 	}
 	if (remove_binding && owner.Has<ScriptsComponent>()) {
-		owner.Get<ScriptsComponent>().RemoveDeferred(binding.id);
+		if (auto* entry{ FindSequenceEntry(owner, binding.id) }) {
+			if (entry->instance) {
+				entry->instance->OnComplete();
+			}
+			owner.Get<ScriptsComponent>().RemoveDeferred(binding.id);
+		}
 	}
 }
 
@@ -7884,46 +8222,44 @@ void UpdateSequence(
 		return;
 	}
 	const auto* sequence{ Resolve(owner, binding) };
-	if (!sequence || runtime.action_index >= sequence->actions.size()) {
+	if (!sequence || runtime.step_index >= sequence->steps.size()) {
 		CompleteSequence(owner, binding);
 		return;
 	}
 
-	const auto& action{ sequence->actions[runtime.action_index] };
+	const auto& action{ sequence->steps[runtime.step_index] };
 	if (!action.enabled) {
-		++runtime.action_index;
-		ProcessImmediateActions(owner, binding);
+		++runtime.step_index;
+		ProcessImmediateSteps(owner, binding);
 		return;
 	}
-	const auto* registration{ ActionRegistry::Find(action.type_hash) };
+	const auto* registration{ ScriptRegistry::Find(action.type_hash) };
 	if (!registration) {
-		++runtime.action_index;
-		ProcessImmediateActions(owner, binding);
+		++runtime.step_index;
+		ProcessImmediateSteps(owner, binding);
 		return;
 	}
-	const ActionCompletion completion{
+	const ScriptCompletion completion{
 		action.completion.value_or(registration->completion)
 	};
-	if (completion == ActionCompletion::Instant) {
-		ProcessImmediateActions(owner, binding);
+	if (completion == ScriptCompletion::Instant) {
+		ProcessImmediateSteps(owner, binding);
 		return;
 	}
 
-	if (!runtime.action_instance) {
-		runtime.action_instance = action.runtime_factory
-			? action.runtime_factory(owner)
-			: registration->instantiate(owner, action.value);
-		if (!runtime.action_instance) {
-			++runtime.action_index;
-			ProcessImmediateActions(owner, binding);
+	if (!runtime.script_instance) {
+		runtime.script_instance = InstantiateStepScript(owner, action);
+		if (!runtime.script_instance) {
+			++runtime.step_index;
+			ProcessImmediateSteps(owner, binding);
 			return;
 		}
 		runtime.currently_reversed = action.timing && action.timing->reversed;
-		runtime.action_instance->SetFrame(
-			0.0f, 0.0f, 0.0f, 0, runtime.currently_reversed
+		StartChildScript(
+			owner, *runtime.script_instance,
+			0.0f, 0.0f, 0, runtime.currently_reversed
 		);
-		runtime.action_instance->OnStart();
-		InvokeLifecycle(owner, binding, SequenceLifecycle::ActionStart);
+		InvokeLifecycle(owner, binding, SequenceLifecycle::ScriptStart);
 	}
 
 	const float delta_ms{ std::max(0.0f, delta_seconds) * 1000.0f };
@@ -7941,25 +8277,30 @@ void UpdateSequence(
 		progress = ptgn::ApplyEase(directed, timing.ease);
 	}
 
-	runtime.action_instance->SetFrame(
+	managed::Access::SetFrame(
+		*runtime.script_instance,
 		delta_seconds, linear, progress,
 		runtime.current_repeat, runtime.currently_reversed
 	);
-	const ActionStatus status{ runtime.action_instance->OnUpdate() };
+	const ScriptStatus status{
+		UpdateChildScript(owner, *runtime.script_instance, delta_seconds)
+	};
 
 	bool complete{ false };
 	switch (completion) {
-		case ActionCompletion::Instant:
+		case ScriptCompletion::Instant:
 			complete = true;
 			break;
-		case ActionCompletion::Duration:
-			complete = status == ActionStatus::Complete || linear >= 1.0f;
+		case ScriptCompletion::Duration:
+			complete = status == ScriptStatus::Complete || linear >= 1.0f;
 			break;
-		case ActionCompletion::ActionControlled:
-			complete = status == ActionStatus::Complete;
+		case ScriptCompletion::ScriptControlled:
+			complete = status == ScriptStatus::Complete;
 			break;
-		case ActionCompletion::Infinite:
-			complete = false;
+		case ScriptCompletion::Infinite:
+			// Infinite disables automatic time-based completion, but the Script may
+			// still explicitly call Complete()/MoveOn().
+			complete = status == ScriptStatus::Complete;
 			break;
 	}
 	if (!complete) {
@@ -7979,14 +8320,73 @@ void UpdateSequence(
 			runtime.currently_reversed = !runtime.currently_reversed;
 			InvokeLifecycle(owner, binding, SequenceLifecycle::Yoyo);
 		}
-		runtime.action_instance->SetFrame(
+		managed::Access::SetFrame(
+			*runtime.script_instance,
 			0.0f, 0.0f, 0.0f,
 			runtime.current_repeat, runtime.currently_reversed
 		);
-		runtime.action_instance->OnRepeat();
+		runtime.script_instance->OnRepeat();
 		return;
 	}
-	CompleteCurrentAction(owner, binding);
+	CompleteCurrentStep(owner, binding);
+}
+
+void HandleSequenceEvent(
+	ptgn::Entity owner,
+	ScriptSequence& binding,
+	ScriptEvent event
+) {
+	const auto* definition{ Resolve(owner, binding) };
+	if (!definition) {
+		return;
+	}
+
+	for (const auto& condition : definition->stop_events) {
+		if (!condition.enabled) {
+			continue;
+		}
+		const auto* registration{ SequenceEventRegistry::Find(condition.type_hash) };
+		if (registration && registration->matches(
+				owner, event, condition, condition.consume
+			)) {
+			(void)CancelBinding(
+				owner, binding, SequenceCancelReason::Stopped,
+				true, true
+			);
+			return;
+		}
+	}
+
+	for (const auto& condition : definition->start_events) {
+		if (!condition.enabled) {
+			continue;
+		}
+		const auto* registration{ SequenceEventRegistry::Find(condition.type_hash) };
+		if (registration && registration->matches(
+				owner, event, condition, condition.consume
+			)) {
+			(void)StartBinding(owner, binding, false);
+			return;
+		}
+	}
+}
+
+void DispatchToScript(
+	ptgn::Entity owner,
+	managed::Script& script,
+	ScriptEvent event
+) {
+	script.OnEvent(event);
+	if (event.IsHandled()) {
+		return;
+	}
+	HandleSequenceEvent(owner, script.sequence, event);
+	if (event.IsHandled()) {
+		return;
+	}
+	if (script.sequence.runtime.script_instance) {
+		DispatchToScript(owner, *script.sequence.runtime.script_instance, event);
+	}
 }
 
 } // namespace
@@ -8023,23 +8423,32 @@ void ApplyPending(ptgn::Scene& scene) {
 		}
 		auto& scripts{ *scripts_ptr };
 		for (const SequenceId id : scripts.pending_removals) {
-			ScriptEntry* target{ FindSequenceEntry(entity, id) };
+			bool completed{ false };
 			if (auto* binding{ FindBinding(entity, id) }) {
-				(void)CancelBinding(
-					entity, *binding, SequenceCancelReason::BindingRemoved,
-					false, true, false
-				);
-			}
-			if (target) {
-				target->enabled = false;
-				ptgn::Script* target_instance{ target->instance };
-				if (auto* sequence{ dynamic_cast<SequenceScript*>(target_instance) }) {
-					sequence->sequence.enabled = false;
+				completed = binding->runtime.completed;
+				if (!completed) {
+					(void)CancelBinding(
+						entity, *binding, SequenceCancelReason::BindingRemoved,
+						false, true, false
+					);
 				}
-				std::erase_if(scripts.scripts, [target_instance](const ScriptEntry& entry) {
-					return entry.instance == target_instance;
-				});
 			}
+
+			const auto remove_matching_entry = [id, completed](ScriptEntry& entry) {
+				const SequenceId sequence_id{
+					entry.instance ? entry.instance->sequence.id : entry.sequence.id
+				};
+				if (sequence_id != id) {
+					return false;
+				}
+				entry.enabled = false;
+				if (entry.instance && !completed) {
+					entry.instance->OnCancel(SequenceCancelReason::BindingRemoved);
+				}
+				return true;
+			};
+			std::erase_if(scripts.scripts, remove_matching_entry);
+			std::erase_if(scripts.pending_additions, remove_matching_entry);
 		}
 		scripts.pending_removals.clear();
 		for (auto& entry : scripts.pending_additions) {
@@ -8055,12 +8464,76 @@ void Update(ptgn::Scene& scene, float delta_seconds) {
 	ApplyPending(scene);
 	const auto entities{ scene.EntitiesWith<ScriptsComponent>().GetVector() };
 	for (ptgn::Entity entity : entities) {
-		AttachAll(entity);
+		auto* scripts{ entity.TryGet<ScriptsComponent>() };
+		if (!scripts) {
+			continue;
+		}
+		for (auto& entry : scripts->scripts) {
+			auto* script{ EnsureInstance(entity, entry) };
+			if (!script || !entry.enabled) {
+				continue;
+			}
+			managed::Access::SetFrame(
+				*script, current_delta_seconds, 0.0f, 0.0f, 0, false
+			);
+			const ScriptStatus status{ script->OnUpdate() };
+			UpdateSequence(entity, script->sequence, current_delta_seconds);
+			if (status == ScriptStatus::Complete ||
+				managed::Access::TakeCompletionRequest(*script)) {
+				script->OnComplete();
+				entry.enabled = false;
+			}
+		}
 	}
 }
 
 float DeltaSeconds() {
 	return current_delta_seconds;
+}
+
+bool DispatchEvent(ptgn::Entity entity, impl::EventData& data) {
+	if (!entity || !entity.Has<ScriptsComponent>()) {
+		return false;
+	}
+	ScriptEvent event{ data };
+	ObserveInputExpressionEvent(event);
+	auto& scripts{ entity.Get<ScriptsComponent>() };
+	for (auto& entry : scripts.scripts) {
+		if (!entry.enabled) {
+			continue;
+		}
+		if (auto* script{ EnsureInstance(entity, entry) }) {
+			DispatchToScript(entity, *script, event);
+			if (event.IsHandled()) {
+				break;
+			}
+		}
+	}
+	return event.IsHandled();
+}
+
+bool DispatchGlobalEvent(ptgn::Scene& scene, impl::EventData& data) {
+	ScriptEvent event{ data };
+	ObserveInputExpressionEvent(event);
+	const auto entities{ scene.EntitiesWith<ScriptsComponent>().GetVector() };
+	for (ptgn::Entity entity : entities) {
+		auto* scripts{ entity.TryGet<ScriptsComponent>() };
+		if (!scripts) {
+			continue;
+		}
+		for (auto& entry : scripts->scripts) {
+			if (!entry.enabled) {
+				continue;
+			}
+			if (auto* script{ EnsureInstance(entity, entry) }) {
+				DispatchToScript(entity, *script, event);
+				if (event.IsHandled()) {
+					return true;
+				}
+			}
+		}
+	}
+	return event.IsHandled();
 }
 
 ScriptSequence* Resolve(
@@ -8171,7 +8644,7 @@ bool Clear(ptgn::Entity owner, SequenceId id) {
 	if (binding->shared_reference || binding->transient) {
 		owner.Get<ScriptsComponent>().RemoveDeferred(id);
 	} else {
-		binding->actions.clear();
+		binding->steps.clear();
 		binding->start_events.clear();
 		binding->stop_events.clear();
 		binding->lifecycle_actions.clear();
@@ -8184,13 +8657,13 @@ bool Skip(ptgn::Entity owner, SequenceId id) {
 	if (!binding || !binding->runtime.running) {
 		return false;
 	}
-	if (binding->runtime.action_instance) {
-		binding->runtime.action_instance->OnCancel(SequenceCancelReason::Skipped);
-		InvokeLifecycle(owner, *binding, SequenceLifecycle::ActionCancel);
+	if (binding->runtime.script_instance) {
+		binding->runtime.script_instance->OnCancel(SequenceCancelReason::Skipped);
+		InvokeLifecycle(owner, *binding, SequenceLifecycle::ScriptCancel);
 	}
-	++binding->runtime.action_index;
-	binding->runtime.ClearActiveAction();
-	ProcessImmediateActions(owner, *binding);
+	++binding->runtime.step_index;
+	binding->runtime.ClearActiveScript();
+	ProcessImmediateSteps(owner, *binding);
 	return true;
 }
 
@@ -8203,10 +8676,10 @@ bool Seek(ptgn::Entity owner, SequenceId id, float progress) {
 		return false;
 	}
 	const auto* sequence{ Resolve(owner, *binding) };
-	if (!sequence || binding->runtime.action_index >= sequence->actions.size()) {
+	if (!sequence || binding->runtime.step_index >= sequence->steps.size()) {
 		return false;
 	}
-	const auto& action{ sequence->actions[binding->runtime.action_index] };
+	const auto& action{ sequence->steps[binding->runtime.step_index] };
 	if (!action.timing) {
 		return false;
 	}
@@ -8237,10 +8710,10 @@ float Progress(ptgn::Entity owner, SequenceId id) {
 	}
 	const auto* sequence{ Resolve(owner, *binding) };
 	if (!sequence || !binding->runtime.running ||
-		binding->runtime.action_index >= sequence->actions.size()) {
+		binding->runtime.step_index >= sequence->steps.size()) {
 		return binding->runtime.completed ? 1.0f : 0.0f;
 	}
-	const auto& action{ sequence->actions[binding->runtime.action_index] };
+	const auto& action{ sequence->steps[binding->runtime.step_index] };
 	if (!action.timing || action.timing->duration_ms <= 0.0f) {
 		return 0.0f;
 	}
@@ -8267,57 +8740,6 @@ bool IsCompleted(ptgn::Entity owner, SequenceId id) {
 
 } // namespace script_runtime
 
-void SequenceScript::OnCreate() {}
-
-void SequenceScript::OnUpdate() {
-	if (!script_runtime::IsScriptEnabled(entity, this)) {
-		return;
-	}
-	if (!initialized) {
-		initialized = true;
-		if (sequence.start_events.empty()) {
-			(void)script_runtime::Start(entity, sequence.id);
-		}
-	}
-	script_runtime::UpdateSequence(entity, sequence, script_runtime::DeltaSeconds());
-}
-
-void SequenceScript::OnEvent(Event event) {
-	if (!script_runtime::IsScriptEnabled(entity, this)) {
-		return;
-	}
-	ObserveInputExpressionEvent(event);
-	const auto* definition{ script_runtime::Resolve(entity, sequence) };
-	if (!definition) {
-		return;
-	}
-
-	for (const auto& condition : definition->stop_events) {
-		if (!condition.enabled) {
-			continue;
-		}
-		const auto* registration{ SequenceEventRegistry::Find(condition.type_hash) };
-		if (registration && registration->matches(
-				entity, event, condition, condition.consume
-			)) {
-			(void)script_runtime::Stop(entity, sequence.id);
-			return;
-		}
-	}
-
-	for (const auto& condition : definition->start_events) {
-		if (!condition.enabled) {
-			continue;
-		}
-		const auto* registration{ SequenceEventRegistry::Find(condition.type_hash) };
-		if (registration && registration->matches(
-				entity, event, condition, condition.consume
-			)) {
-			(void)script_runtime::Start(entity, sequence.id);
-			return;
-		}
-	}
-}
 
 bool SequenceHandle::Start(bool force) const {
 	return *this && script_runtime::Start(owner, binding_id, force);
@@ -8362,25 +8784,6 @@ bool SequenceHandle::IsCompleted() const {
 }
 float SequenceHandle::Progress() const {
 	return *this ? script_runtime::Progress(owner, binding_id) : 0.0f;
-}
-
-bool script_runtime::IsScriptEnabled(
-	ptgn::Entity entity, const ptgn::Script* script
-) {
-	if (!entity || !script) {
-		return false;
-	}
-	const auto* scripts{ entity.TryGet<ScriptsComponent>() };
-	if (!scripts) {
-		return false;
-	}
-	auto find_enabled = [script](const auto& entries) {
-		const auto it{ std::ranges::find_if(entries, [script](const ScriptEntry& entry) {
-			return entry.instance == script;
-		}) };
-		return it != entries.end() && it->enabled;
-	};
-	return find_enabled(scripts->scripts) || find_enabled(scripts->pending_additions);
 }
 
 std::vector<std::string> DemoScene::ActivityText() const {
@@ -8550,7 +8953,7 @@ void DemoScene::CreateDemoScene() {
 		.Reentry(ReentryMode::Restart)
 		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.opened" } })
 		.StopOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.closed" } })
-		.During(350.0f, MoveToAction{ { 0.0f, 55.0f }, true })
+		.During(350.0f, MoveToScript{ { 0.0f, 55.0f }, true })
 		.Ease(ptgn::Ease::OutBack);
 	const SequenceId opened_indicator_id{ opened_indicator.id };
 	shared_sequences_.sequences.push_back(std::move(opened_indicator));
@@ -8560,7 +8963,7 @@ void DemoScene::CreateDemoScene() {
 		.Reentry(ReentryMode::Restart)
 		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.closed" } })
 		.StopOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.opened" } })
-		.During(350.0f, MoveToAction{ { 300.0f, -110.0f }, false })
+		.During(350.0f, MoveToScript{ { 300.0f, -110.0f }, false })
 		.Ease(ptgn::Ease::OutCubic);
 	const SequenceId closed_indicator_id{ closed_indicator.id };
 	shared_sequences_.sequences.push_back(std::move(closed_indicator));
@@ -8596,7 +8999,7 @@ void DemoScene::CreateDemoScene() {
 		.Reentry(ReentryMode::Restart)
 		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.opened" } })
 		.StopOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.closed" } })
-		.During(500.0f, MoveToAction{ { 225.0f, 0.0f }, false })
+		.During(500.0f, MoveToScript{ { 225.0f, 0.0f }, false })
 		.Ease(ptgn::Ease::OutCubic);
 	AttachSequence(panel, std::move(open_sequence));
 	ScriptSequence close_sequence{ "Close Sliding Panel" };
@@ -8604,7 +9007,7 @@ void DemoScene::CreateDemoScene() {
 		.Reentry(ReentryMode::Restart)
 		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.closed" } })
 		.StopOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.opened" } })
-		.During(500.0f, MoveToAction{ { 70.0f, 0.0f }, false })
+		.During(500.0f, MoveToScript{ { 70.0f, 0.0f }, false })
 		.Ease(ptgn::Ease::OutCubic);
 	AttachSequence(panel, std::move(close_sequence));
 
@@ -8626,7 +9029,7 @@ void DemoScene::CreateDemoScene() {
 	factory.Add<ptgn::Rect>(ptgn::V2_float{ 130.0f, 72.0f });
 	factory.Get<DemoVisual>().color = ImVec4{ 0.47f, 0.41f, 0.63f, 0.55f };
 	factory.Get<DemoVisual>().sensor = true;
-	SpawnEntityAction spawn_circles;
+	SpawnEntityScript spawn_circles;
 	spawn_circles.prefab_key = "prefabs/recall_circle";
 	spawn_circles.count = 10;
 	spawn_circles.origin = SpawnOrigin::OwnerEntity;
@@ -8656,7 +9059,7 @@ void DemoScene::CreateDemoScene() {
 	damage_sequence
 		.Reentry(ReentryMode::IgnoreWhileRunning)
 		.StartOn("ptgn.event.Overlap", ptgn::json{ { "tags", "Player" }, { "masks", "" } })
-		.Then(ApplyDamageAction{ 25.0f })
+		.Then(ApplyDamageScript{ 25.0f })
 		.Wait(3000.0f);
 	AttachSequence(damage_target, std::move(damage_sequence));
 
@@ -8670,9 +9073,9 @@ void DemoScene::CreateDemoScene() {
 		.Reentry(ReentryMode::Restart)
 		.Channel(SequenceChannelKey{ "ui.press" })
 		.StartOn("demo.button.Press", ptgn::json{ { "button", ptgn::Mouse::Left } })
-		.During(105.0f, ScaleToAction{ { 1.12f, 1.12f }, false })
+		.During(105.0f, ScaleToScript{ { 1.12f, 1.12f }, false })
 		.Ease(ptgn::Ease::OutBack)
-		.During(105.0f, ScaleToAction{ { 1.0f, 1.0f }, false })
+		.During(105.0f, ScaleToScript{ { 1.0f, 1.0f }, false })
 		.Ease(ptgn::Ease::OutBack)
 		.EmitSignal(SignalKey{ "button.tween.clicked" });
 	AttachSequence(tween_button, std::move(tween_button_sequence));
@@ -8697,7 +9100,7 @@ void DemoScene::CreateDemoScene() {
 		.Reentry(ReentryMode::Restart)
 		.Channel(SequenceChannelKey{ "transform.rotation" })
 		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "button.global.clicked" } })
-		.During(450.0f, RotateToAction{ 360.0f, false, true })
+		.During(450.0f, RotateToScript{ 360.0f, false, true })
 		.Ease(ptgn::Ease::OutBack);
 	AttachSequence(indicator, std::move(global_button_sequence));
 
@@ -8710,7 +9113,7 @@ void DemoScene::CreateDemoScene() {
 		.Reentry(ReentryMode::Restart)
 		.Channel(SequenceChannelKey{ "movement.follow" })
 		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "button.tween.clicked" } })
-		.UntilComplete(FollowTargetAction{ player, 230.0f, 3.0f });
+		.UntilComplete(FollowTargetScript{ player, 230.0f, 3.0f });
 	AttachSequence(follower, std::move(follow_sequence));
 }
 
@@ -8747,12 +9150,12 @@ void DemoScene::UpdateOverlapEvents() {
 		}
 		previous = overlapping;
 		if (overlapping) {
-			ctx().event.Push<ptgn::event::OverlapStart>(
+			(void)script_runtime::Dispatch<ptgn::event::OverlapStart>(
 				sensor, ptgn::event::OverlapStart{ player }
 			);
 			Log("OverlapStart(" + std::string{ label } + ", Player)");
 		} else {
-			ctx().event.Push<ptgn::event::OverlapStop>(
+			(void)script_runtime::Dispatch<ptgn::event::OverlapStop>(
 				sensor, ptgn::event::OverlapStop{ player }
 			);
 			Log("OverlapStop(" + std::string{ label } + ", Player)");
@@ -8763,7 +9166,7 @@ void DemoScene::UpdateOverlapEvents() {
 	update_transition(FindByTag("Spawner"), player_overlapping_spawner_, "Circle Spawner");
 	const ptgn::Entity damage_target{ FindByTag("DamageTarget") };
 	if (damage_target && Overlap(player, damage_target)) {
-		ctx().event.Push<ptgn::event::Overlap>(
+		(void)script_runtime::Dispatch<ptgn::event::Overlap>(
 			damage_target, ptgn::event::Overlap{ player }
 		);
 	}
@@ -8807,14 +9210,14 @@ void DemoScene::UpdateButtonInteraction() {
 			auto& button{ hovered_button_.Get<ButtonData>() };
 			button.hovered = false;
 			button.state = button.pressed ? ButtonState::Pressed : ButtonState::Idle;
-			ctx().event.Push<MouseMoveOut>(hovered_button_, MouseMoveOut{});
+			(void)script_runtime::Dispatch<MouseMoveOut>(hovered_button_, MouseMoveOut{});
 		}
 		hovered_button_ = hovered;
 		if (hovered_button_) {
 			auto& button{ hovered_button_.Get<ButtonData>() };
 			button.hovered = true;
 			button.state = button.pressed ? ButtonState::Pressed : ButtonState::Hovered;
-			ctx().event.Push<MouseMoveOver>(hovered_button_, MouseMoveOver{});
+			(void)script_runtime::Dispatch<MouseMoveOver>(hovered_button_, MouseMoveOver{});
 		}
 	}
 
@@ -8826,7 +9229,7 @@ void DemoScene::UpdateButtonInteraction() {
 			button.pressed = true;
 			button.pressed_button = mouse_button;
 			button.state = ButtonState::Pressed;
-			ctx().event.Push<MousePressedOver>(
+			(void)script_runtime::Dispatch<MousePressedOver>(
 				pressed_buttons_[i], MousePressedOver{ mouse_button }
 			);
 		}
@@ -8836,7 +9239,7 @@ void DemoScene::UpdateButtonInteraction() {
 		ptgn::Entity pressed{ pressed_buttons_[i] };
 		const bool released_over{ pressed == hovered_button_ };
 		auto& button{ pressed.Get<ButtonData>() };
-		ctx().event.Push<MouseReleasedOver>(
+		(void)script_runtime::Dispatch<MouseReleasedOver>(
 			pressed,
 			MouseReleasedOver{
 				.button = mouse_button,
@@ -8844,7 +9247,7 @@ void DemoScene::UpdateButtonInteraction() {
 			}
 		);
 		if (button.pressed && button.pressed_button == mouse_button && released_over) {
-			ctx().event.Push<ButtonPress>(pressed, ButtonPress{ mouse_button });
+			(void)script_runtime::Dispatch<ButtonPress>(pressed, ButtonPress{ mouse_button });
 		}
 		button.pressed = false;
 		button.state = button.hovered ? ButtonState::Hovered : ButtonState::Idle;
@@ -8859,11 +9262,15 @@ void DemoScene::ProcessPendingDestroy() {
 		}
 		if (auto* scripts{ entity.TryGet<ScriptsComponent>() }) {
 			for (auto& entry : scripts->scripts) {
-				if (auto* sequence{ dynamic_cast<SequenceScript*>(entry.instance) }) {
-					(void)script_runtime::Stop(
-						entity, sequence->sequence.id, SequenceCancelReason::OwnerDestroyed
-					);
+				if (!entry.instance) {
+					continue;
 				}
+				(void)script_runtime::Stop(
+					entity,
+					entry.instance->sequence.id,
+					SequenceCancelReason::OwnerDestroyed
+				);
+				entry.instance->OnCancel(SequenceCancelReason::OwnerDestroyed);
 			}
 		}
 		if (hovered_button_ == entity) {
@@ -8893,6 +9300,27 @@ void DemoScene::OnEnter() {
 		script_runtime::AttachAll(entity);
 	}
 	editor_ = std::make_unique<editor::DemoEditor>(*this);
+}
+
+void DemoScene::OnEvent(Event event) {
+	event.Dispatch<ptgn::event::KeyPressed>([this](const auto& input) {
+		return script_runtime::DispatchGlobal<ptgn::event::KeyPressed>(*this, input);
+	});
+	event.Dispatch<ptgn::event::KeyHeld>([this](const auto& input) {
+		return script_runtime::DispatchGlobal<ptgn::event::KeyHeld>(*this, input);
+	});
+	event.Dispatch<ptgn::event::KeyReleased>([this](const auto& input) {
+		return script_runtime::DispatchGlobal<ptgn::event::KeyReleased>(*this, input);
+	});
+	event.Dispatch<ptgn::event::MousePressed>([this](const auto& input) {
+		return script_runtime::DispatchGlobal<ptgn::event::MousePressed>(*this, input);
+	});
+	event.Dispatch<ptgn::event::MouseHeld>([this](const auto& input) {
+		return script_runtime::DispatchGlobal<ptgn::event::MouseHeld>(*this, input);
+	});
+	event.Dispatch<ptgn::event::MouseReleased>([this](const auto& input) {
+		return script_runtime::DispatchGlobal<ptgn::event::MouseReleased>(*this, input);
+	});
 }
 
 void DemoScene::OnUpdate() {
