@@ -1,4 +1,4 @@
-// script_sequence_old_ui_registry_demo_v30.cpp
+// script_sequence_old_ui_registry_demo_v31.cpp
 //
 // Registry-driven Script and ScriptSequence demo using the engine ptgn::Scene.
 //
@@ -623,13 +623,40 @@ public:
 	ScriptSequence(ScriptSequence&&) noexcept = default;
 	ScriptSequence& operator=(ScriptSequence&&) noexcept = default;
 
-	ScriptSequence& Reentry(ReentryMode value);
-	ScriptSequence& Channel(SequenceChannelKey value);
-	ScriptSequence& Transient(bool remove_on_complete = true);
-	ScriptSequence& DestroyOwnerOnComplete(bool value = true);
+	ScriptSequence& Reentry(ReentryMode value) {
+		reentry = value;
+		return *this;
+	}
 
-	ScriptSequence& StartOn(std::string_view key, ptgn::json value = nullptr);
-	ScriptSequence& StopOn(std::string_view key, ptgn::json value = nullptr);
+	ScriptSequence& Channel(SequenceChannelKey value) {
+		channel = std::move(value);
+		return *this;
+	}
+
+	ScriptSequence& Transient(bool remove_on_complete = true) {
+		transient = true;
+		remove_binding_on_complete = remove_on_complete;
+		return *this;
+	}
+
+	ScriptSequence& DestroyOwnerOnComplete(bool value = true) {
+		destroy_owner_on_complete = value;
+		return *this;
+	}
+
+	ScriptSequence& StartOn(std::string_view key, ptgn::json value = nullptr) {
+		start_events.push_back(
+			SequenceEventRegistry::MakeCondition(key, std::move(value))
+		);
+		return *this;
+	}
+
+	ScriptSequence& StopOn(std::string_view key, ptgn::json value = nullptr) {
+		stop_events.push_back(
+			SequenceEventRegistry::MakeCondition(key, std::move(value))
+		);
+		return *this;
+	}
 
 	template <typename TScript>
 	ScriptSequence& Then(TScript script = {});
@@ -1456,43 +1483,6 @@ struct SpawnEntityScript final : managed::Script {
 		parent_to_owner, inherit_owner_rotation, inherit_owner_scale, random_rotation
 	)
 };
-
-inline ScriptSequence& ScriptSequence::Reentry(ReentryMode value) {
-	reentry = value;
-	return *this;
-}
-
-inline ScriptSequence& ScriptSequence::Channel(SequenceChannelKey value) {
-	channel = std::move(value);
-	return *this;
-}
-
-inline ScriptSequence& ScriptSequence::Transient(bool remove_on_complete) {
-	transient = true;
-	remove_binding_on_complete = remove_on_complete;
-	return *this;
-}
-
-inline ScriptSequence& ScriptSequence::DestroyOwnerOnComplete(bool value) {
-	destroy_owner_on_complete = value;
-	return *this;
-}
-
-inline ScriptSequence& ScriptSequence::StartOn(
-	std::string_view key,
-	ptgn::json value
-) {
-	start_events.push_back(SequenceEventRegistry::MakeCondition(key, std::move(value)));
-	return *this;
-}
-
-inline ScriptSequence& ScriptSequence::StopOn(
-	std::string_view key,
-	ptgn::json value
-) {
-	stop_events.push_back(SequenceEventRegistry::MakeCondition(key, std::move(value)));
-	return *this;
-}
 
 template <typename TScript>
 ScriptSequence& ScriptSequence::Then(TScript script) {
@@ -2577,9 +2567,6 @@ void DrawResidentScripts(
 bool DrawSequence(
 	DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& binding
 );
-void DrawRuntimeButtons(
-	DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& binding
-);
 void DrawEvents(
 	DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& sequence
 );
@@ -2605,7 +2592,6 @@ void DrawTimingOptions(
 	DemoEditorDrawContext& ui, ScriptStep& action, ScriptTiming& timing,
 	float left_screen_x
 );
-void DrawEmitSignalCompact(DemoEditorDrawContext& ui, EmitSignalScript& emit);
 void DrawComponentDefinition(
 	DemoEditorDrawContext& ui, ComponentDefinition& component, bool removable,
 	int* remove_index = nullptr, int index = -1
@@ -4328,28 +4314,6 @@ void DetachToLocal(DemoEditorDrawContext& ui, ScriptSequence& binding) {
 	binding.runtime = ScriptSequenceRuntime{};
 }
 
-void DrawRuntimeButtons(DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& binding) {
-	if (!ImGui::BeginTable("RuntimeButtons", 3, ImGuiTableFlags_SizingStretchSame)) {
-		return;
-	}
-	ImGui::TableNextRow(ImGuiTableRowFlags_None, ImGui::GetFrameHeight());
-	ImGui::TableSetColumnIndex(0);
-	if (ImGui::Button(binding.runtime.running ? "Restart" : "Start", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
-		ui.context.host.Start(owner, binding, true);
-	}
-	ImGui::TableSetColumnIndex(1);
-	ImGui::BeginDisabled(!binding.runtime.running);
-	if (ImGui::Button(binding.runtime.paused ? "Resume" : "Pause", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
-		ui.context.host.SetPaused(owner, binding, !binding.runtime.paused);
-	}
-	ImGui::EndDisabled();
-	ImGui::TableSetColumnIndex(2);
-	if (ImGui::Button("Stop", ImVec2{ -FLT_MIN, ImGui::GetFrameHeight() })) {
-		ui.context.host.Stop(owner, binding);
-	}
-	ImGui::EndTable();
-}
-
 bool DrawSequence(DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& binding) {
 	ScriptSequence* sequence{ ui.context.host.Resolve(owner, binding) };
 	if (!sequence) {
@@ -4717,6 +4681,11 @@ bool DrawSequence(DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence&
 				ImGui::OpenPopup("AddSequenceAction");
 			}
 			if (ImGui::BeginPopup("AddSequenceAction")) {
+				if (ImGui::MenuItem("Emit Signal")) {
+					sequence->steps.push_back(
+						ScriptRegistry::MakeStep<EmitSignalScript>()
+					);
+				}
 				if (ImGui::MenuItem("Action")) {
 					sequence->steps.push_back(
 						ScriptRegistry::MakeStep<SetVisibleScript>()
@@ -4730,11 +4699,6 @@ bool DrawSequence(DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence&
 				if (ImGui::MenuItem("Delay")) {
 					sequence->steps.push_back(
 						ScriptRegistry::MakeStep<WaitScript>()
-					);
-				}
-				if (ImGui::MenuItem("Emit Signal")) {
-					sequence->steps.push_back(
-						ScriptRegistry::MakeStep<EmitSignalScript>()
 					);
 				}
 				ImGui::EndPopup();
@@ -5095,7 +5059,6 @@ void DrawActionPicker(DemoEditorDrawContext& ui, ScriptStep& action, bool timed_
 		if (!step_editor && !script_editor) {
 			return std::nullopt;
 		}
-
 		if (step_editor) {
 			return Candidate{
 				.runtime = &registration,
@@ -5148,9 +5111,7 @@ void DrawActionPicker(DemoEditorDrawContext& ui, ScriptStep& action, bool timed_
 				candidate.label.data(), nullptr, registration.key == action.type
 			)) {
 			const bool enabled{ action.enabled };
-			action = ScriptRegistry::MakeStep(
-				std::string_view{ registration.key }
-			);
+			action = ScriptRegistry::MakeStep(std::string_view{ registration.key });
 			action.enabled = enabled;
 			if (timed_only) {
 				action.completion = ScriptCompletion::Duration;
@@ -5166,6 +5127,25 @@ void DrawActionPicker(DemoEditorDrawContext& ui, ScriptStep& action, bool timed_
 			);
 		}
 	};
+
+	std::vector<Candidate> candidates;
+	for (const auto& registration : ScriptRegistry::Entries()) {
+		if (auto candidate{ resolve_candidate(registration) };
+			candidate && is_available(*candidate)) {
+			candidates.push_back(*candidate);
+		}
+	}
+
+	const auto emit_signal_it{ std::ranges::find_if(
+		candidates,
+		[](const Candidate& candidate) {
+			return candidate.runtime->type_hash == ptgn::Hash<EmitSignalScript>();
+		}
+	) };
+	if (emit_signal_it != candidates.end()) {
+		select_candidate(*emit_signal_it);
+		ImGui::Separator();
+	}
 
 	if (!timed_only) {
 		const auto& shared_scripts{ ui.context.host.GetSharedSequences().sequences };
@@ -5198,16 +5178,9 @@ void DrawActionPicker(DemoEditorDrawContext& ui, ScriptStep& action, bool timed_
 		}
 	}
 
-	std::vector<Candidate> candidates;
-	for (const auto& registration : ScriptRegistry::Entries()) {
-		if (auto candidate{ resolve_candidate(registration) };
-			candidate && is_available(*candidate)) {
-			candidates.push_back(*candidate);
-		}
-	}
-
 	for (const auto& candidate : candidates) {
-		if (candidate.group.empty()) {
+		if (candidate.group.empty() &&
+			candidate.runtime->type_hash != ptgn::Hash<EmitSignalScript>()) {
 			select_candidate(candidate);
 		}
 	}
@@ -5269,12 +5242,6 @@ void DrawActionPickerWithInline(DemoEditorDrawContext& ui, ScriptStep& action, b
 			action.runtime_factory = {};
 		}
 	}
-}
-
-void DrawEmitSignalCompact(DemoEditorDrawContext& ui, EmitSignalScript& emit) {
-	ImGui::SetNextItemWidth(-FLT_MIN);
-	ImGui::InputTextWithHint("##EmitSignal", "Signal name", &emit.signal.value);
-	DrawItemTooltip("Broadcast Signal name.");
 }
 
 void DrawTimingOptions(
@@ -5503,77 +5470,75 @@ void DrawActionParameters(DemoEditorDrawContext& ui, ScriptStep& action, float l
 	ImGui::EndChild();
 }
 
-bool DrawAction(
-	DemoEditorDrawContext& ui, ScriptStep& action, int index, ScriptSequence* binding,
-	bool& duplicate, int& move_from, int& move_to, bool lifecycle
-) {
-	bool remove{ false };
-	ImGui::PushID(&action);
-	const float drag_width{ lifecycle ? 0.0f : 28.0f };
-	const float label_width{
-		std::max({
-			ImGui::CalcTextSize("Action").x,
-			ImGui::CalcTextSize("Tween").x,
-			ImGui::CalcTextSize("Delay").x
-		})
-	};
-	const float type_width{
-		label_width + ImGui::GetFrameHeight() +
-		ImGui::GetStyle().FramePadding.x * 2.0f
-	};
-	const float duration_width{
-		ImGui::CalcTextSize("5000ms").x +
-		ImGui::GetStyle().FramePadding.x * 2.0f
-	};
-	const float repeats_width{ GetCountControlWidth("Repeats") };
-	const float button_width{ ImGui::GetFrameHeight() };
-	const float controls_width{
-		EnabledDeleteControlsWidth() +
-		(GetActionForm(action) == ActionForm::Tween
-			? CompactControlSpacing() + repeats_width
-			: 0.0f)
-	};
-	ActionForm displayed_form{ GetActionForm(action) };
-	ActionForm requested_form{ displayed_form };
-	bool form_changed{ false };
-	float parameter_left_screen_x{ ImGui::GetCursorScreenPos().x };
+void DrawActions(DemoEditorDrawContext& ui, ScriptSequence& sequence, ScriptSequence& binding) {
+	int remove_index{ -1 };
+	int duplicate_index{ -1 };
+	int move_from{ -1 };
+	int move_to{ -1 };
 
-	const int column_count{
-		displayed_form == ActionForm::Tween
-			? (lifecycle ? 4 : 5)
-			: (lifecycle ? 3 : 4)
-	};
+	for (int index{ 0 }; index < static_cast<int>(sequence.steps.size()); ++index) {
+		auto& action{ sequence.steps[static_cast<std::size_t>(index)] };
+		bool remove{ false };
+		bool duplicate{ false };
+		ImGui::PushID(&action);
 
-	if (ImGui::BeginTable(
-			"ActionRow", column_count, ImGuiTableFlags_SizingStretchProp
-		)) {
-		if (!lifecycle) {
+		constexpr float drag_width{ 28.0f };
+		const float label_width{
+			std::max({
+				ImGui::CalcTextSize("Action").x,
+				ImGui::CalcTextSize("Tween").x,
+				ImGui::CalcTextSize("Delay").x
+			})
+		};
+		const float type_width{
+			label_width + ImGui::GetFrameHeight() +
+			ImGui::GetStyle().FramePadding.x * 2.0f
+		};
+		const float duration_width{
+			ImGui::CalcTextSize("5000ms").x +
+			ImGui::GetStyle().FramePadding.x * 2.0f
+		};
+		const float repeats_width{ GetCountControlWidth("Repeats") };
+		const float button_width{ ImGui::GetFrameHeight() };
+		const float controls_width{
+			EnabledDeleteControlsWidth() +
+			(GetActionForm(action) == ActionForm::Tween
+				? CompactControlSpacing() + repeats_width
+				: 0.0f)
+		};
+		ActionForm displayed_form{ GetActionForm(action) };
+		ActionForm requested_form{ displayed_form };
+		bool form_changed{ false };
+		float parameter_left_screen_x{ ImGui::GetCursorScreenPos().x };
+		const int column_count{ displayed_form == ActionForm::Tween ? 5 : 4 };
+
+		if (ImGui::BeginTable(
+				"ActionRow", column_count, ImGuiTableFlags_SizingStretchProp
+			)) {
 			ImGui::TableSetupColumn(
 				"Drag", ImGuiTableColumnFlags_WidthFixed, drag_width
 			);
-		}
-		ImGui::TableSetupColumn(
-			"Type", ImGuiTableColumnFlags_WidthFixed, type_width
-		);
-		if (displayed_form == ActionForm::Tween) {
 			ImGui::TableSetupColumn(
-				"Duration", ImGuiTableColumnFlags_WidthFixed, duration_width
+				"Type", ImGuiTableColumnFlags_WidthFixed, type_width
 			);
+			if (displayed_form == ActionForm::Tween) {
+				ImGui::TableSetupColumn(
+					"Duration", ImGuiTableColumnFlags_WidthFixed, duration_width
+				);
+				ImGui::TableSetupColumn(
+					"Action", ImGuiTableColumnFlags_WidthStretch
+				);
+			} else {
+				ImGui::TableSetupColumn(
+					"Value", ImGuiTableColumnFlags_WidthStretch
+				);
+			}
 			ImGui::TableSetupColumn(
-				"Action", ImGuiTableColumnFlags_WidthStretch
+				"Controls", ImGuiTableColumnFlags_WidthFixed, controls_width
 			);
-		} else {
-			ImGui::TableSetupColumn(
-				"Value", ImGuiTableColumnFlags_WidthStretch
-			);
-		}
-		ImGui::TableSetupColumn(
-			"Controls", ImGuiTableColumnFlags_WidthFixed, controls_width
-		);
-		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_width);
+			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_width);
 
-		int column{};
-		if (!lifecycle) {
+			int column{};
 			ImGui::TableSetColumnIndex(column++);
 			const bool dimmed{ !action.enabled };
 			if (dimmed) {
@@ -5593,9 +5558,7 @@ bool DrawAction(
 					? "Drag to reorder. Right-click to duplicate."
 					: "Disabled action. Right-click to duplicate."
 			);
-			if (ImGui::BeginDragDropSource(
-					ImGuiDragDropFlags_SourceAllowNullID
-				)) {
+			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
 				const ActionDragPayload payload{ index };
 				ImGui::SetDragDropPayload(
 					"PTGN_SCRIPT_ACTION", &payload, sizeof(payload)
@@ -5619,127 +5582,113 @@ bool DrawAction(
 				}
 				ImGui::EndDragDropTarget();
 			}
-		}
 
-		ImGui::TableSetColumnIndex(column++);
-		parameter_left_screen_x = ImGui::GetCursorScreenPos().x;
-		ImGui::SetNextItemWidth(-FLT_MIN);
-		if (ImGui::BeginCombo(
-				"##Form",
-				kActionFormLabels[static_cast<std::size_t>(displayed_form)]
-			)) {
-			for (int i{ 0 }; i < static_cast<int>(kActionFormLabels.size()); ++i) {
-				const auto candidate{ static_cast<ActionForm>(i) };
-				if (lifecycle &&
-					(candidate == ActionForm::Tween ||
-						candidate == ActionForm::Delay)) {
-					continue;
+			ImGui::TableSetColumnIndex(column++);
+			parameter_left_screen_x = ImGui::GetCursorScreenPos().x;
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::BeginCombo(
+					"##Form",
+					kActionFormLabels[static_cast<std::size_t>(displayed_form)]
+				)) {
+				for (int i{ 0 }; i < static_cast<int>(kActionFormLabels.size()); ++i) {
+					const auto candidate{ static_cast<ActionForm>(i) };
+					if (ImGui::Selectable(
+							kActionFormLabels[static_cast<std::size_t>(i)],
+							candidate == displayed_form
+						)) {
+						requested_form = candidate;
+						form_changed = true;
+					}
 				}
-				if (ImGui::Selectable(
-						kActionFormLabels[static_cast<std::size_t>(i)],
-						candidate == displayed_form
-					)) {
-					requested_form = candidate;
-					form_changed = true;
+				ImGui::EndCombo();
+			}
+			DrawItemTooltip("Choose an Action, Tween, or Delay.");
+
+			if (displayed_form == ActionForm::Tween) {
+				ImGui::TableSetColumnIndex(column++);
+				DrawDurationInput(
+					"##Duration", action.timing->duration_ms, -FLT_MIN,
+					"Duration of each Tween cycle."
+				);
+				ImGui::TableSetColumnIndex(column++);
+				DrawActionPicker(ui, action, true);
+			} else {
+				ImGui::TableSetColumnIndex(column++);
+				switch (displayed_form) {
+					case ActionForm::Action:
+						DrawActionPickerWithInline(ui, action, false);
+						break;
+					case ActionForm::Delay:
+						DrawDurationInput(
+							"##Duration", action.timing->duration_ms, -FLT_MIN,
+							"Delay before continuing."
+						);
+						break;
+					case ActionForm::Tween:
+						break;
 				}
 			}
-			ImGui::EndCombo();
-		}
-		DrawItemTooltip("Choose an Action, Tween, or Delay.");
 
-		if (displayed_form == ActionForm::Tween) {
-			ImGui::TableSetColumnIndex(column++);
-			DrawDurationInput(
-				"##Duration", action.timing->duration_ms, -FLT_MIN,
-				"Duration of each Tween cycle."
-			);
-			ImGui::TableSetColumnIndex(column++);
-			DrawActionPicker(ui, action, true);
-		} else {
-			ImGui::TableSetColumnIndex(column++);
-			switch (displayed_form) {
-				case ActionForm::Action:
-					DrawActionPickerWithInline(ui, action, false);
-					break;
-				case ActionForm::Delay:
-					DrawDurationInput(
-						"##Duration", action.timing->duration_ms, -FLT_MIN,
-						"Delay before continuing."
-					);
-					break;
-				case ActionForm::Tween:
-					break;
+			ImGui::TableSetColumnIndex(column);
+			if (displayed_form == ActionForm::Tween) {
+				DrawCountControl(
+					"Repeats", action.timing->additional_repeats, 0, 100,
+					action.timing->infinite_repeats,
+					"Additional full-duration cycles."
+				);
+				SameLineControl();
 			}
-		}
-
-		ImGui::TableSetColumnIndex(column);
-		if (displayed_form == ActionForm::Tween) {
-			DrawCountControl(
-				"Repeats", action.timing->additional_repeats, 0, 100,
-				action.timing->infinite_repeats,
-				"Additional full-duration cycles."
+			remove = DrawEnabledDeleteControls(
+				action.enabled,
+				"Enable or disable this action.",
+				"Delete this action."
 			);
-			SameLineControl();
+			ImGui::EndTable();
 		}
-		remove = DrawEnabledDeleteControls(
-			action.enabled,
-			"Enable or disable this action.",
-			"Delete this action."
-		);
-		ImGui::EndTable();
-	}
 
-	if (form_changed) {
-		SetActionForm(action, requested_form);
-		displayed_form = requested_form;
-	}
-	if (displayed_form == ActionForm::Tween && action.timing) {
-		DrawTimingOptions(ui, action, *action.timing, parameter_left_screen_x);
-	}
-	if (displayed_form == ActionForm::Action ||
-		displayed_form == ActionForm::Tween) {
-		DrawActionParameters(ui, action, parameter_left_screen_x);
-	}
-	if (binding && binding->runtime.running &&
-		binding->runtime.step_index == static_cast<std::size_t>(index)) {
-		const auto& runtime_action{ binding->steps[binding->runtime.step_index] };
-		const float progress{
-			runtime_action.timing && runtime_action.timing->duration_ms > 0.0f
-				? std::clamp(
-					binding->runtime.elapsed_ms / runtime_action.timing->duration_ms,
-					0.0f, 1.0f
-				)
-				: 0.0f
-		};
-		ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 2.0f }, "");
-	}
-	ImGui::PopID();
-	return remove;
-}
+		if (form_changed) {
+			SetActionForm(action, requested_form);
+			displayed_form = requested_form;
+		}
+		if (displayed_form == ActionForm::Tween && action.timing) {
+			DrawTimingOptions(ui, action, *action.timing, parameter_left_screen_x);
+		}
+		if (displayed_form == ActionForm::Action ||
+			displayed_form == ActionForm::Tween) {
+			DrawActionParameters(ui, action, parameter_left_screen_x);
+		}
+		if (binding.runtime.running &&
+			binding.runtime.step_index == static_cast<std::size_t>(index)) {
+			const float duration_ms{
+				action.timing ? action.timing->duration_ms : 0.0f
+			};
+			const float progress{
+				duration_ms > 0.0f
+					? std::clamp(
+						binding.runtime.elapsed_ms / duration_ms, 0.0f, 1.0f
+					)
+					: 0.0f
+			};
+			ImGui::ProgressBar(progress, ImVec2{ -FLT_MIN, 2.0f }, "");
+		}
+		ImGui::PopID();
 
-void DrawActions(DemoEditorDrawContext& ui, ScriptSequence& sequence, ScriptSequence& binding) {
-	int remove_index{ -1 };
-	int duplicate_index{ -1 };
-	int move_from{ -1 };
-	int move_to{ -1 };
-	for (int i{ 0 }; i < static_cast<int>(sequence.steps.size()); ++i) {
-		bool duplicate{ false };
-		if (DrawAction(
-				ui, sequence.steps[static_cast<std::size_t>(i)], i, &binding,
-				duplicate, move_from, move_to, false
-			)) {
-			remove_index = i;
+		if (remove) {
+			remove_index = index;
 		}
 		if (duplicate) {
-			duplicate_index = i;
+			duplicate_index = index;
 		}
 	}
+
 	if (move_from >= 0 && move_to >= 0) {
 		MoveAction(sequence.steps, move_from, move_to);
 	}
 	if (duplicate_index >= 0) {
 		ScriptStep copy{ sequence.steps[static_cast<std::size_t>(duplicate_index)] };
-		sequence.steps.insert(sequence.steps.begin() + duplicate_index + 1, std::move(copy));
+		sequence.steps.insert(
+			sequence.steps.begin() + duplicate_index + 1, std::move(copy)
+		);
 	}
 	if (remove_index >= 0) {
 		sequence.steps.erase(sequence.steps.begin() + remove_index);
@@ -5819,19 +5768,28 @@ void DrawAddResidentScriptPopup(DemoEditorDrawContext& ui, ScriptsComponent& scr
 	if (!ImGui::BeginPopup("AddScript")) {
 		return;
 	}
-	std::vector<std::string> groups;
-	for (const auto& registration : ScriptRegistry::Entries()) {
+
+	const auto add_registered = [&](const ScriptRegistration& registration) {
 		const auto* editor{ ScriptEditorRegistry::Find(registration.key) };
 		if (!editor) {
-			continue;
+			return;
 		}
-		const std::string group{
-			editor->options.group.empty() ? "Other" : editor->options.group
-		};
-		if (!std::ranges::contains(groups, group)) {
-			groups.push_back(group);
+		if (ImGui::MenuItem(editor->options.label.c_str())) {
+			scripts.scripts.push_back(
+				ScriptRegistry::Make(std::string_view{ registration.key })
+			);
 		}
+		DrawItemTooltip(editor->options.description.c_str());
+	};
+
+	const auto* sequence_registration{
+		ScriptRegistry::Find(ptgn::Hash<managed::Script>())
+	};
+	if (sequence_registration) {
+		add_registered(*sequence_registration);
+		ImGui::Separator();
 	}
+
 	const auto& shared_scripts{ ui.context.host.GetSharedSequences().sequences };
 	if (!shared_scripts.empty() && ImGui::BeginMenu("Global")) {
 		for (const auto& shared : shared_scripts) {
@@ -5847,11 +5805,31 @@ void DrawAddResidentScriptPopup(DemoEditorDrawContext& ui, ScriptsComponent& scr
 		ImGui::EndMenu();
 	}
 
+	std::vector<std::string> groups;
+	for (const auto& registration : ScriptRegistry::Entries()) {
+		if (registration.type_hash == ptgn::Hash<managed::Script>()) {
+			continue;
+		}
+		const auto* editor{ ScriptEditorRegistry::Find(registration.key) };
+		if (!editor) {
+			continue;
+		}
+		const std::string group{
+			editor->options.group.empty() ? "Other" : editor->options.group
+		};
+		if (!std::ranges::contains(groups, group)) {
+			groups.push_back(group);
+		}
+	}
+
 	for (const auto& group : groups) {
 		if (!ImGui::BeginMenu(group.c_str())) {
 			continue;
 		}
 		for (const auto& registration : ScriptRegistry::Entries()) {
+			if (registration.type_hash == ptgn::Hash<managed::Script>()) {
+				continue;
+			}
 			const auto* editor{ ScriptEditorRegistry::Find(registration.key) };
 			if (!editor) {
 				continue;
@@ -5861,15 +5839,9 @@ void DrawAddResidentScriptPopup(DemoEditorDrawContext& ui, ScriptsComponent& scr
 					? std::string_view{ "Other" }
 					: std::string_view{ editor->options.group }
 			};
-			if (candidate_group != group) {
-				continue;
+			if (candidate_group == group) {
+				add_registered(registration);
 			}
-			if (ImGui::MenuItem(editor->options.label.c_str())) {
-				scripts.scripts.push_back(
-					ScriptRegistry::Make(std::string_view{ registration.key })
-				);
-			}
-			DrawItemTooltip(editor->options.description.c_str());
 		}
 		ImGui::EndMenu();
 	}
@@ -7541,6 +7513,47 @@ void RegisterDemoTypes() {
 } // namespace
 
 void RegisterDemoEditorTypes() {
+	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<managed::Script>(
+		"engine.sequence",
+		{
+			.label = "Script Sequence",
+			.group = "",
+			.description = "Run a global editor-authored Script Sequence.",
+		},
+		[](managed::Script& script, editor::EditorContextTemp& context) {
+			auto& shared_scripts{ context.host.GetSharedSequences() };
+			const auto* selected{
+				script.sequence.shared_reference
+					? shared_scripts.Find(script.sequence.shared_sequence_id)
+					: nullptr
+			};
+			const char* preview{
+				selected ? selected->name.c_str() : "Select Script Sequence"
+			};
+			bool changed{ false };
+			ImGui::SetNextItemWidth(-FLT_MIN);
+			if (ImGui::BeginCombo("##GlobalScriptSequence", preview)) {
+				for (const auto& shared : shared_scripts.sequences) {
+					const bool is_selected{
+						script.sequence.shared_reference &&
+						script.sequence.shared_sequence_id == shared.id
+					};
+					if (ImGui::Selectable(shared.name.c_str(), is_selected)) {
+						script.sequence.name = shared.name;
+						script.sequence.shared_reference = true;
+						script.sequence.shared_sequence_id = shared.id;
+						script.sequence.runtime = ScriptSequenceRuntime{};
+						changed = true;
+					}
+				}
+				ImGui::EndCombo();
+			}
+			editor::DrawItemTooltip("Choose the global Script Sequence run by this action.");
+			return changed;
+		},
+		[](managed::Script&, editor::EditorContextTemp&) { return false; }
+	));
+
 	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<ScaleToScript>(
 		"engine.scale_to",
 		{ .label = "Scale To", .group = "Transform", .description = "Scale the owning entity." },
