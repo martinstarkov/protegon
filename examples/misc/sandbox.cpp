@@ -1,4 +1,4 @@
-// script_sequence_old_ui_registry_demo_v31.cpp
+// script_sequence_old_ui_registry_demo_v32.cpp
 //
 // Registry-driven Script and ScriptSequence demo using the engine ptgn::Scene.
 //
@@ -307,10 +307,9 @@ struct EventCondition {
 	bool enabled{ true };
 	bool consume{ false };
 	TypeHashValue type_hash{ 0 };
-	std::string type;
 	ptgn::json value{ ptgn::json::object() };
 
-	PTGN_REFLECT(EventCondition, enabled, consume, type_hash, type, value)
+	PTGN_REFLECT(EventCondition, enabled, consume, type_hash, value)
 };
 
 namespace managed {
@@ -320,7 +319,6 @@ class Script;
 struct ScriptStep {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
-	std::string type;
 	ptgn::json value;
 	std::optional<ScriptCompletion> completion;
 	std::optional<ScriptTiming> timing;
@@ -329,7 +327,7 @@ struct ScriptStep {
 	// have to round-trip through JSON. Loaded/editor-authored steps use the registry JSON path.
 	std::function<std::unique_ptr<managed::Script>()> runtime_factory;
 
-	PTGN_REFLECT(ScriptStep, enabled, type_hash, type, value, completion, timing)
+	PTGN_REFLECT(ScriptStep, enabled, type_hash, value, completion, timing)
 };
 
 struct LifecycleScript {
@@ -434,9 +432,7 @@ void LogScriptActivity(ptgn::Scene& scene, std::string text);
 
 struct SequenceEventRegistration {
 	TypeHashValue type_hash{ 0 };
-	TypeHashValue event_type_hash{ 0 };
 	std::uint32_t schema_version{ 1 };
-	std::string key;
 	std::function<void(EventCondition&)> set_defaults;
 	std::function<bool(ptgn::Entity, ScriptEvent, const EventCondition&, bool consume)> matches;
 	std::function<bool(ptgn::Entity)> available;
@@ -446,85 +442,70 @@ class SequenceEventRegistry {
 public:
 	template <typename TEvent, typename FMatch, typename FAvailable>
 	static bool Register(
-		std::string key,
 		ptgn::json default_value,
 		FMatch&& matches,
 		FAvailable&& available
 	) {
 		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ ptgn::Hash(std::string_view{ key }) };
-		if (Find(key) || Find(type_hash)) {
+		const TypeHashValue type_hash{ ptgn::Hash<TEvent>() };
+		if (Find(type_hash)) {
 			return false;
 		}
 		if (default_value.is_null()) {
 			default_value = ptgn::json::object();
 		}
 
-		entries.push_back(
-			SequenceEventRegistration{
-				.type_hash = type_hash,
-				.event_type_hash = ptgn::Hash<TEvent>(),
-				.key = std::move(key),
-				.set_defaults = [value = std::move(default_value)](EventCondition& output) {
-					output.value = value;
-				},
-				.matches =
-					[fn = std::forward<FMatch>(matches)](
-						ptgn::Entity owner,
-						ScriptEvent event,
-						const EventCondition& input,
-						bool consume
-					) mutable {
-						bool matched{ false };
-						if constexpr (std::is_empty_v<TEvent>) {
-							event.Dispatch<TEvent>([&]() -> bool {
-								matched = std::invoke(fn, owner, input.value, TEvent{});
-								return matched && consume;
-							});
-						} else {
-							event.Dispatch<TEvent>([&](const TEvent& payload) -> bool {
-								matched = std::invoke(fn, owner, input.value, payload);
-								return matched && consume;
-							});
-						}
-						return matched;
-					},
-				.available = std::forward<FAvailable>(available),
-			}
-		);
+		entries.push_back(SequenceEventRegistration{
+			.type_hash = type_hash,
+			.set_defaults = [value = std::move(default_value)](EventCondition& output) {
+				output.value = value;
+			},
+			.matches = [fn = std::forward<FMatch>(matches)](
+				ptgn::Entity owner,
+				ScriptEvent event,
+				const EventCondition& input,
+				bool consume
+			) mutable {
+				bool matched{ false };
+				if constexpr (std::is_empty_v<TEvent>) {
+					event.Dispatch<TEvent>([&]() -> bool {
+						matched = std::invoke(fn, owner, input.value, TEvent{});
+						return matched && consume;
+					});
+				} else {
+					event.Dispatch<TEvent>([&](const TEvent& payload) -> bool {
+						matched = std::invoke(fn, owner, input.value, payload);
+						return matched && consume;
+					});
+				}
+				return matched;
+			},
+			.available = std::forward<FAvailable>(available),
+		});
 		return true;
 	}
 
 	template <typename TEvent, typename FMatch>
-	static bool Register(
-		std::string key,
-		ptgn::json default_value,
-		FMatch&& matches
-	) {
+	static bool Register(ptgn::json default_value, FMatch&& matches) {
 		return Register<TEvent>(
-			std::move(key),
 			std::move(default_value),
 			std::forward<FMatch>(matches),
-			[](ptgn::Entity) {
-				return true;
-			}
+			[](ptgn::Entity) { return true; }
 		);
 	}
 
 	[[nodiscard]] static EventCondition MakeCondition(
-		std::string_view key,
+		TypeHashValue type_hash,
 		ptgn::json value = nullptr
 	) {
-		const auto* entry{ Find(key) };
+		const auto* entry{ Find(type_hash) };
 		if (!entry) {
 			return {};
 		}
-
 		EventCondition condition{
 			.enabled = true,
 			.consume = false,
 			.type_hash = entry->type_hash,
-			.type = entry->key,
 		};
 		if (value.is_null()) {
 			entry->set_defaults(condition);
@@ -537,12 +518,9 @@ public:
 		return condition;
 	}
 
-	[[nodiscard]] static const SequenceEventRegistration* Find(std::string_view key) {
-		const auto& entries{ Entries() };
-		const auto it{ std::ranges::find_if(entries, [key](const auto& entry) {
-			return entry.key == key;
-		}) };
-		return it == entries.end() ? nullptr : &*it;
+	template <typename TEvent>
+	[[nodiscard]] static EventCondition MakeCondition(ptgn::json value = nullptr) {
+		return MakeCondition(ptgn::Hash<TEvent>(), std::move(value));
 	}
 
 	[[nodiscard]] static const SequenceEventRegistration* Find(TypeHashValue type_hash) {
@@ -644,16 +622,18 @@ public:
 		return *this;
 	}
 
-	ScriptSequence& StartOn(std::string_view key, ptgn::json value = nullptr) {
+	template <typename TEvent>
+	ScriptSequence& StartOn(ptgn::json value = nullptr) {
 		start_events.push_back(
-			SequenceEventRegistry::MakeCondition(key, std::move(value))
+			SequenceEventRegistry::MakeCondition<TEvent>(std::move(value))
 		);
 		return *this;
 	}
 
-	ScriptSequence& StopOn(std::string_view key, ptgn::json value = nullptr) {
+	template <typename TEvent>
+	ScriptSequence& StopOn(ptgn::json value = nullptr) {
 		stop_events.push_back(
-			SequenceEventRegistry::MakeCondition(key, std::move(value))
+			SequenceEventRegistry::MakeCondition<TEvent>(std::move(value))
 		);
 		return *this;
 	}
@@ -814,7 +794,6 @@ inline void ScriptSequenceRuntime::ClearActiveScript() {
 struct ScriptRegistration {
 	TypeHashValue type_hash{ 0 };
 	std::uint32_t schema_version{ 1 };
-	std::string key;
 	ScriptCompletion completion{ ScriptCompletion::ScriptControlled };
 	bool supports_timing{ false };
 	bool requires_timing{ false };
@@ -831,7 +810,6 @@ public:
 	template <typename T>
 		requires std::derived_from<T, managed::Script>
 	static bool Register(
-		std::string key,
 		bool supports_timing = false,
 		bool requires_timing = false,
 		std::optional<ScriptTiming> default_timing = std::nullopt,
@@ -839,19 +817,30 @@ public:
 		bool serializable = true
 	) {
 		auto& entries{ MutableEntries() };
-		if (const auto* existing{ Find(ptgn::Hash<T>()) }) {
-			return existing->key == key;
-		}
-		if (Find(key)) {
-			return false;
-		}
+		const TypeHashValue type_hash{ ptgn::Hash<T>() };
 		if (requires_timing && completion == ScriptCompletion::Instant) {
 			completion = ScriptCompletion::Duration;
 		}
 
+		const auto existing{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		}) };
+		if (existing != entries.end()) {
+			const bool has_sequence_metadata{
+				supports_timing || requires_timing || default_timing.has_value() ||
+				completion != ScriptCompletion::ScriptControlled || !serializable
+			};
+			if (has_sequence_metadata) {
+				existing->supports_timing = supports_timing;
+				existing->requires_timing = requires_timing;
+				existing->default_timing = default_timing;
+				existing->completion = completion;
+				existing->serializable = serializable;
+			}
+			return true;
+		}
 		entries.push_back(ScriptRegistration{
-			.type_hash = ptgn::Hash<T>(),
-			.key = std::move(key),
+			.type_hash = type_hash,
 			.completion = completion,
 			.supports_timing = supports_timing,
 			.requires_timing = requires_timing,
@@ -883,27 +872,14 @@ public:
 		return true;
 	}
 
-	template <typename T>
-	[[nodiscard]] static std::string_view Key() {
-		const auto* entry{ Find(ptgn::Hash<T>()) };
-		return entry ? std::string_view{ entry->key } : std::string_view{};
-	}
 
 	template <typename T>
 	[[nodiscard]] static ScriptStep MakeStep(T value = {});
-	[[nodiscard]] static ScriptStep MakeStep(std::string_view key);
+	[[nodiscard]] static ScriptStep MakeStep(TypeHashValue type_hash);
 
 	template <typename T>
 	[[nodiscard]] static ScriptEntry Make(T value = {});
-	[[nodiscard]] static ScriptEntry Make(std::string_view key);
-
-	[[nodiscard]] static const ScriptRegistration* Find(std::string_view key) {
-		const auto& entries{ Entries() };
-		const auto it{ std::ranges::find_if(entries, [key](const auto& entry) {
-			return entry.key == key;
-		}) };
-		return it == entries.end() ? nullptr : &*it;
-	}
+	[[nodiscard]] static ScriptEntry Make(TypeHashValue type_hash);
 
 	[[nodiscard]] static const ScriptRegistration* Find(TypeHashValue type_hash) {
 		const auto& entries{ Entries() };
@@ -927,7 +903,6 @@ private:
 struct ScriptEntry {
 	bool enabled{ true };
 	TypeHashValue type_hash{ 0 };
-	std::string type;
 	ptgn::json value;
 	ScriptSequence sequence;
 
@@ -943,7 +918,6 @@ struct ScriptEntry {
 	ScriptEntry(const ScriptEntry& other) :
 		enabled{ other.enabled },
 		type_hash{ other.type_hash },
-		type{ other.type },
 		value{ other.value },
 		sequence{ other.sequence },
 		runtime_factory{ other.runtime_factory } {}
@@ -957,7 +931,7 @@ struct ScriptEntry {
 		return *this;
 	}
 
-	PTGN_REFLECT(ScriptEntry, enabled, type_hash, type, value, sequence)
+	PTGN_REFLECT(ScriptEntry, enabled, type_hash, value, sequence)
 };
 
 template <typename T>
@@ -976,7 +950,6 @@ ScriptStep ScriptRegistry::MakeStep(T value) {
 	return ScriptStep{
 		.enabled = true,
 		.type_hash = registration->type_hash,
-		.type = registration->key,
 		.value = std::move(script_json),
 		.timing = registration->default_timing,
 		.runtime_factory = [typed_value = std::move(typed_value)]() mutable {
@@ -985,13 +958,12 @@ ScriptStep ScriptRegistry::MakeStep(T value) {
 	};
 }
 
-inline ScriptStep ScriptRegistry::MakeStep(std::string_view key) {
-	const auto* registration{ Find(key) };
+inline ScriptStep ScriptRegistry::MakeStep(TypeHashValue type_hash) {
+	const auto* registration{ Find(type_hash) };
 	return registration
 		? ScriptStep{
 			.enabled = true,
 			.type_hash = registration->type_hash,
-			.type = registration->key,
 			.value = registration->make_default(),
 			.timing = registration->default_timing,
 		}
@@ -1016,11 +988,8 @@ ScriptEntry ScriptRegistry::Make(T value) {
 	ScriptEntry entry;
 	entry.enabled = true;
 	entry.type_hash = registration->type_hash;
-	entry.type = registration->key;
 	entry.value = std::move(snapshot);
 	entry.sequence = prototype->sequence;
-	// Preserve the authored root sequence identity. ScriptSequence copy assignment intentionally
-	// creates a fresh ID for duplication, but creating the owning ScriptEntry is not duplication.
 	entry.sequence.id = prototype->sequence.id;
 	entry.sequence.runtime = ScriptSequenceRuntime{};
 	entry.runtime_factory = [prototype] {
@@ -1029,15 +998,14 @@ ScriptEntry ScriptRegistry::Make(T value) {
 	return entry;
 }
 
-inline ScriptEntry ScriptRegistry::Make(std::string_view key) {
-	const auto* registration{ Find(key) };
+inline ScriptEntry ScriptRegistry::Make(TypeHashValue type_hash) {
+	const auto* registration{ Find(type_hash) };
 	if (!registration) {
 		return {};
 	}
 	ScriptEntry entry;
 	entry.enabled = true;
 	entry.type_hash = registration->type_hash;
-	entry.type = registration->key;
 	entry.value = registration->make_default();
 	entry.sequence = registration->make_default_sequence();
 	return entry;
@@ -1070,13 +1038,13 @@ struct ScriptsComponent {
 	template <typename TScript>
 	void AddDeferred(TScript value = {}) {
 		ScriptEntry entry{ ScriptRegistry::Make<TScript>(std::move(value)) };
-		if (!entry.type.empty()) {
+		if (entry.type_hash != 0) {
 			pending_additions.push_back(std::move(entry));
 		}
 	}
 
 	void AddEntryDeferred(ScriptEntry entry) {
-		if (!entry.type.empty()) {
+		if (entry.type_hash != 0) {
 			pending_additions.push_back(std::move(entry));
 		}
 	}
@@ -1440,7 +1408,7 @@ struct PlayAudioScript final : managed::Script {
 };
 
 struct EmitSignalScript final : managed::Script {
-	SignalKey signal{ "sequence.completed" };
+	SignalKey signal = "sequence.completed";
 
 	EmitSignalScript() = default;
 	explicit EmitSignalScript(SignalKey signal) : signal{ std::move(signal) } {}
@@ -1795,7 +1763,7 @@ inline SequenceHandle TranslateTo(
 	}
 	ScriptSequence sequence{ "Translate To" };
 	sequence
-		.Channel(SequenceChannelKey{ "transform.position" })
+		.Channel("transform.position")
 		.Transient()
 		.During(duration_ms, MoveToScript{ destination, relative })
 		.Ease(ease);
@@ -1821,7 +1789,7 @@ inline SequenceHandle RotateTo(
 	}
 	ScriptSequence sequence{ "Rotate To" };
 	sequence
-		.Channel(SequenceChannelKey{ "transform.rotation" })
+		.Channel("transform.rotation")
 		.Transient()
 		.During(duration_ms, RotateToScript{ degrees, shortest_path, relative })
 		.Ease(ease);
@@ -1846,7 +1814,7 @@ inline SequenceHandle ScaleTo(
 	}
 	ScriptSequence sequence{ "Scale To" };
 	sequence
-		.Channel(SequenceChannelKey{ "transform.scale" })
+		.Channel("transform.scale")
 		.Transient()
 		.During(duration_ms, ScaleToScript{ scale, relative })
 		.Ease(ease);
@@ -1870,7 +1838,7 @@ inline SequenceHandle Follow(
 	}
 	ScriptSequence sequence{ "Follow Target" };
 	sequence
-		.Channel(SequenceChannelKey{ "movement.follow" })
+		.Channel("movement.follow")
 		.Transient()
 		.UntilComplete(FollowTargetScript{ target, speed, stopping_distance });
 	return script_runtime::RunInChannel(
@@ -2033,7 +2001,6 @@ struct EventEditorOptions {
 
 struct EventEditorRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::string key;
 	EventEditorOptions options;
 	int inline_fields{ 0 };
 	std::function<bool(ptgn::json&)> draw;
@@ -2041,46 +2008,28 @@ struct EventEditorRegistration {
 
 class EventEditorRegistry {
 public:
-	template <typename F>
-	static bool Register(
-		std::string key,
-		EventEditorOptions options,
-		int inline_fields,
-		F&& draw
-	) {
+	template <typename TEvent, typename F>
+	static bool Register(EventEditorOptions options, int inline_fields, F&& draw) {
 		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ ptgn::Hash(std::string_view{ key }) };
-		const bool inserted{ !Find(key) };
-
-		std::erase_if(entries, [&](const EventEditorRegistration& entry) {
-			return entry.key == key || entry.type_hash == type_hash;
+		const TypeHashValue type_hash{ ptgn::Hash<TEvent>() };
+		const bool inserted{ !Find(type_hash) };
+		std::erase_if(entries, [type_hash](const EventEditorRegistration& entry) {
+			return entry.type_hash == type_hash;
 		});
-
-		entries.push_back(
-			EventEditorRegistration{
-				.type_hash = type_hash,
-				.key = std::move(key),
-				.options = std::move(options),
-				.inline_fields = std::max(0, inline_fields),
-				.draw = [fn = std::forward<F>(draw)](ptgn::json& value) mutable {
-					if (value.is_null()) {
-						value = ptgn::json::object();
-					}
-					const ptgn::json previous{ value };
-					const bool changed{ std::invoke(fn, value) };
-					return changed || value != previous;
-				},
-			}
-		);
+		entries.push_back(EventEditorRegistration{
+			.type_hash = type_hash,
+			.options = std::move(options),
+			.inline_fields = std::max(0, inline_fields),
+			.draw = [fn = std::forward<F>(draw)](ptgn::json& value) mutable {
+				if (value.is_null()) {
+					value = ptgn::json::object();
+				}
+				const ptgn::json previous{ value };
+				const bool changed{ std::invoke(fn, value) };
+				return changed || value != previous;
+			},
+		});
 		return inserted;
-	}
-
-	[[nodiscard]] static const EventEditorRegistration* Find(std::string_view key) {
-		const auto& entries{ Entries() };
-		const auto it{ std::ranges::find_if(entries, [key](const auto& entry) {
-			return entry.key == key;
-		}) };
-		return it == entries.end() ? nullptr : &*it;
 	}
 
 	[[nodiscard]] static const EventEditorRegistration* Find(TypeHashValue type_hash) {
@@ -2112,7 +2061,6 @@ struct SequenceStepEditorOptions {
 
 struct SequenceStepEditorRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::string key;
 	SequenceStepEditorOptions options;
 	std::function<bool(ptgn::json&, EditorContextTemp&)> draw_inline;
 	std::function<bool(ptgn::json&, EditorContextTemp&)> draw;
@@ -2126,11 +2074,7 @@ struct TypedJsonEditorState {
 };
 
 template <typename T, typename F>
-bool DrawTypedJsonEditor(
-	ptgn::json& input,
-	EditorContextTemp& context,
-	F& fn
-) {
+bool DrawTypedJsonEditor(ptgn::json& input, EditorContextTemp& context, F& fn) {
 	static std::unordered_map<const ptgn::json*, TypedJsonEditorState<T>> states;
 	auto& state{ states[&input] };
 	if (!state.initialized || state.synchronized_value != input) {
@@ -2156,20 +2100,19 @@ bool DrawTypedJsonEditor(
 class SequenceStepEditorRegistry {
 public:
 	template <typename T, typename F>
-	static bool Register(std::string key, SequenceStepEditorOptions options, F&& draw) {
+	static bool Register(SequenceStepEditorOptions options, F&& draw) {
 		auto& entries{ MutableEntries() };
-		const bool inserted{ !Find(key) };
-		std::erase_if(entries, [&](const SequenceStepEditorRegistration& entry) {
-			return entry.key == key || entry.type_hash == ptgn::Hash<T>();
+		const TypeHashValue type_hash{ ptgn::Hash<T>() };
+		const bool inserted{ !Find(type_hash) };
+		std::erase_if(entries, [type_hash](const SequenceStepEditorRegistration& entry) {
+			return entry.type_hash == type_hash;
 		});
 		entries.push_back(SequenceStepEditorRegistration{
-			.type_hash = ptgn::Hash<T>(),
-			.key = std::move(key),
+			.type_hash = type_hash,
 			.options = std::move(options),
 			.draw_inline = {},
 			.draw = [fn = std::forward<F>(draw)](
-				ptgn::json& input,
-				EditorContextTemp& context
+				ptgn::json& input, EditorContextTemp& context
 			) mutable {
 				return DrawTypedJsonEditor<T>(input, context, fn);
 			},
@@ -2179,29 +2122,26 @@ public:
 
 	template <typename T, typename FInline, typename FDetails>
 	static bool RegisterInline(
-		std::string key,
 		SequenceStepEditorOptions options,
 		FInline&& draw_inline,
 		FDetails&& draw_details
 	) {
 		auto& entries{ MutableEntries() };
-		const bool inserted{ !Find(key) };
-		std::erase_if(entries, [&](const SequenceStepEditorRegistration& entry) {
-			return entry.key == key || entry.type_hash == ptgn::Hash<T>();
+		const TypeHashValue type_hash{ ptgn::Hash<T>() };
+		const bool inserted{ !Find(type_hash) };
+		std::erase_if(entries, [type_hash](const SequenceStepEditorRegistration& entry) {
+			return entry.type_hash == type_hash;
 		});
 		entries.push_back(SequenceStepEditorRegistration{
-			.type_hash = ptgn::Hash<T>(),
-			.key = std::move(key),
+			.type_hash = type_hash,
 			.options = std::move(options),
 			.draw_inline = [fn = std::forward<FInline>(draw_inline)](
-				ptgn::json& input,
-				EditorContextTemp& context
+				ptgn::json& input, EditorContextTemp& context
 			) mutable {
 				return DrawTypedJsonEditor<T>(input, context, fn);
 			},
 			.draw = [fn = std::forward<FDetails>(draw_details)](
-				ptgn::json& input,
-				EditorContextTemp& context
+				ptgn::json& input, EditorContextTemp& context
 			) mutable {
 				return DrawTypedJsonEditor<T>(input, context, fn);
 			},
@@ -2209,10 +2149,10 @@ public:
 		return inserted;
 	}
 
-	[[nodiscard]] static const SequenceStepEditorRegistration* Find(std::string_view key) {
+	[[nodiscard]] static const SequenceStepEditorRegistration* Find(TypeHashValue type_hash) {
 		const auto& entries{ Entries() };
-		const auto it{ std::ranges::find_if(entries, [key](const auto& entry) {
-			return entry.key == key;
+		const auto it{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
 		}) };
 		return it == entries.end() ? nullptr : &*it;
 	}
@@ -2236,7 +2176,6 @@ struct ScriptEditorOptions {
 
 struct ScriptEditorRegistration {
 	TypeHashValue type_hash{ 0 };
-	std::string key;
 	ScriptEditorOptions options;
 	bool has_contents{ false };
 	std::function<bool(ptgn::json&)> draw;
@@ -2245,15 +2184,15 @@ struct ScriptEditorRegistration {
 class ScriptEditorRegistry {
 public:
 	template <typename T, typename F>
-	static bool Register(std::string key, ScriptEditorOptions options, F&& draw) {
+	static bool Register(ScriptEditorOptions options, F&& draw) {
 		auto& entries{ MutableEntries() };
-		const bool inserted{ !Find(key) };
-		std::erase_if(entries, [&](const ScriptEditorRegistration& entry) {
-			return entry.key == key || entry.type_hash == ptgn::Hash<T>();
+		const TypeHashValue type_hash{ ptgn::Hash<T>() };
+		const bool inserted{ !Find(type_hash) };
+		std::erase_if(entries, [type_hash](const ScriptEditorRegistration& entry) {
+			return entry.type_hash == type_hash;
 		});
 		entries.push_back(ScriptEditorRegistration{
-			.type_hash = ptgn::Hash<T>(),
-			.key = std::move(key),
+			.type_hash = type_hash,
 			.options = std::move(options),
 			.has_contents = !std::is_empty_v<T>,
 			.draw = [fn = std::forward<F>(draw)](ptgn::json& input) mutable {
@@ -2271,10 +2210,10 @@ public:
 		return inserted;
 	}
 
-	[[nodiscard]] static const ScriptEditorRegistration* Find(std::string_view key) {
+	[[nodiscard]] static const ScriptEditorRegistration* Find(TypeHashValue type_hash) {
 		const auto& entries{ Entries() };
-		const auto it{ std::ranges::find_if(entries, [key](const auto& entry) {
-			return entry.key == key;
+		const auto it{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
 		}) };
 		return it == entries.end() ? nullptr : &*it;
 	}
@@ -2330,13 +2269,8 @@ struct EditorContextTemp {
 	PrefabRegistry& prefabs;
 };
 
-// Wraps any registry call while preserving its return value. This keeps all
-// registration sites visually consistent, including direct editor-only registrations.
-#define PTGN_REGISTER(...) (__VA_ARGS__)
-
 template <typename T>
 struct SequenceStepRegistrationOptions {
-	std::string key;
 	bool supports_timing{ false };
 	bool requires_timing{ false };
 	std::optional<ScriptTiming> default_timing;
@@ -2349,33 +2283,29 @@ struct SequenceStepRegistrationOptions {
 
 template <typename T>
 bool RegisterSequenceStep(SequenceStepRegistrationOptions<T> options) {
-	const std::string key{ options.key };
-	const bool runtime_registered{ PTGN_REGISTER(
-		ScriptRegistry::Register<T>(
-			key, options.supports_timing, options.requires_timing, options.default_timing,
-			options.completion, options.serializable
-		)
+	const bool runtime_registered{ ScriptRegistry::Register<T>(
+		options.supports_timing,
+		options.requires_timing,
+		options.default_timing,
+		options.completion,
+		options.serializable
 	) };
 
 	std::function<bool(T&, EditorContextTemp&)> draw{ std::move(options.draw) };
-
 	if (!draw) {
-		draw = [](T&, EditorContextTemp&) {
-			return false;
-		};
+		draw = [](T&, EditorContextTemp&) { return false; };
 	}
 
 	if (options.draw_inline) {
-		PTGN_REGISTER(
-			SequenceStepEditorRegistry::RegisterInline<T>(
-				key, std::move(options.editor), std::move(options.draw_inline), std::move(draw)
-			)
+		(void)SequenceStepEditorRegistry::RegisterInline<T>(
+			std::move(options.editor),
+			std::move(options.draw_inline),
+			std::move(draw)
 		);
 	} else {
-		PTGN_REGISTER(
-			SequenceStepEditorRegistry::Register<T>(
-				key, std::move(options.editor), std::move(draw)
-			)
+		(void)SequenceStepEditorRegistry::Register<T>(
+			std::move(options.editor),
+			std::move(draw)
 		);
 	}
 	return runtime_registered;
@@ -2390,49 +2320,35 @@ template <typename... TComponent>
 
 template <typename TEvent>
 struct EventRegistrationOptions {
-	std::string key;
 	EventEditorOptions editor;
 	ptgn::json default_value{ ptgn::json::object() };
 	int inline_fields{ 0 };
 	std::function<bool(ptgn::Entity, const ptgn::json&, const TEvent&)> matches;
 	std::function<bool(ptgn::json&)> draw{
-		[](ptgn::json&) {
-			return false;
-		}
+		[](ptgn::json&) { return false; }
 	};
 	std::function<bool(ptgn::Entity)> available{
-		[](ptgn::Entity) {
-			return true;
-		}
+		[](ptgn::Entity) { return true; }
 	};
 };
 
 template <typename TEvent>
 bool RegisterEvent(EventRegistrationOptions<TEvent> options) {
-	const std::string key{ options.key };
-	const bool runtime_registered{ PTGN_REGISTER(
-		SequenceEventRegistry::Register<TEvent>(
-			key,
-			std::move(options.default_value),
-			std::move(options.matches),
-			std::move(options.available)
-		)
+	const bool runtime_registered{ SequenceEventRegistry::Register<TEvent>(
+		std::move(options.default_value),
+		std::move(options.matches),
+		std::move(options.available)
 	) };
-
-	PTGN_REGISTER(
-		EventEditorRegistry::Register(
-			key,
-			std::move(options.editor),
-			options.inline_fields,
-			std::move(options.draw)
-		)
+	(void)EventEditorRegistry::Register<TEvent>(
+		std::move(options.editor),
+		options.inline_fields,
+		std::move(options.draw)
 	);
 	return runtime_registered;
 }
 
 template <typename T>
 struct ScriptRegistrationOptions {
-	std::string key;
 	ScriptEditorOptions editor;
 	// Custom Script drawers are opt-in. This avoids instantiating the generic
 	// reflected drawer for Script types that contain registry-backed JSON values.
@@ -2441,32 +2357,28 @@ struct ScriptRegistrationOptions {
 
 template <typename T>
 bool RegisterScript(ScriptRegistrationOptions<T> options) {
-	const std::string key{ options.key };
-	const bool runtime_registered{
-		PTGN_REGISTER(ScriptRegistry::Register<T>(key))
-	};
-	PTGN_REGISTER(
-		ScriptEditorRegistry::Register<T>(
-			key, std::move(options.editor), std::move(options.draw)
-		)
+	const bool runtime_registered{ ScriptRegistry::Register<T>() };
+	(void)ScriptEditorRegistry::Register<T>(
+		std::move(options.editor),
+		std::move(options.draw)
 	);
 	return runtime_registered;
 }
 
-#define PTGN_REGISTER_SEQUENCE_STEP(Type, ...)                                      \
-	(void)PTGN_REGISTER(::ptgn::editor::RegisterSequenceStep<Type>(                  \
-		::ptgn::editor::SequenceStepRegistrationOptions<Type> __VA_ARGS__               \
-	))
+#define PTGN_REGISTER_SEQUENCE_STEP(Type, ...)                                  \
+	(void)::ptgn::editor::RegisterSequenceStep<Type>(                            \
+		::ptgn::editor::SequenceStepRegistrationOptions<Type> __VA_ARGS__          \
+	)
 
-#define PTGN_REGISTER_EVENT(EventType, ...)                                  \
-	(void)PTGN_REGISTER(::ptgn::editor::RegisterEvent<EventType>(                \
-		::ptgn::editor::EventRegistrationOptions<EventType> __VA_ARGS__              \
-	))
+#define PTGN_REGISTER_EVENT(EventType, ...)                                     \
+	(void)::ptgn::editor::RegisterEvent<EventType>(                              \
+		::ptgn::editor::EventRegistrationOptions<EventType> __VA_ARGS__            \
+	)
 
-#define PTGN_REGISTER_SCRIPT(Type, ...)                                      \
-	(void)PTGN_REGISTER(::ptgn::editor::RegisterScript<Type>(                  \
-		::ptgn::editor::ScriptRegistrationOptions<Type> __VA_ARGS__               \
-	))
+#define PTGN_REGISTER_SCRIPT(Type, ...)                                         \
+	(void)::ptgn::editor::RegisterScript<Type>(                                  \
+		::ptgn::editor::ScriptRegistrationOptions<Type> __VA_ARGS__                \
+	)
 
 enum class ActionForm {
 	Action,
@@ -2971,7 +2883,7 @@ void DrawSelectedItemsTooltip(std::span<const std::string> items) {
 }
 
 ActionForm GetActionForm(const ScriptStep& action) {
-	if (action.type == ScriptRegistry::Key<WaitScript>()) {
+	if (action.type_hash == ptgn::Hash<WaitScript>()) {
 		return ActionForm::Delay;
 	}
 	return action.timing ? ActionForm::Tween : ActionForm::Action;
@@ -2979,12 +2891,12 @@ ActionForm GetActionForm(const ScriptStep& action) {
 
 void SetActionForm(ScriptStep& action, ActionForm form) {
 	const bool enabled{ action.enabled };
-	const auto* registration{ ScriptRegistry::Find(action.type) };
+	const auto* registration{ ScriptRegistry::Find(action.type_hash) };
 
 	switch (form) {
 		case ActionForm::Action:
 			if (!registration || registration->requires_timing ||
-				action.type == ScriptRegistry::Key<WaitScript>()) {
+				action.type_hash == ptgn::Hash<WaitScript>()) {
 				action = ScriptRegistry::MakeStep<SetVisibleScript>();
 			}
 			action.completion.reset();
@@ -2992,10 +2904,10 @@ void SetActionForm(ScriptStep& action, ActionForm form) {
 			break;
 		case ActionForm::Tween:
 			if (!registration || !registration->supports_timing ||
-				action.type == ScriptRegistry::Key<WaitScript>()) {
+				action.type_hash == ptgn::Hash<WaitScript>()) {
 				action = ScriptRegistry::MakeStep<MoveToScript>();
 			}
-			registration = ScriptRegistry::Find(action.type);
+			registration = ScriptRegistry::Find(action.type_hash);
 			action.completion = ScriptCompletion::Duration;
 			action.timing = registration && registration->default_timing
 				? registration->default_timing
@@ -3024,12 +2936,12 @@ void EnsureActionValue(ScriptStep& action) {
 }
 
 std::string ActionSummary(const ScriptStep& action) {
-	const auto* step_editor{ editor::SequenceStepEditorRegistry::Find(action.type) };
-	const auto* script_editor{ editor::ScriptEditorRegistry::Find(action.type) };
+	const auto* step_editor{ editor::SequenceStepEditorRegistry::Find(action.type_hash) };
+	const auto* script_editor{ editor::ScriptEditorRegistry::Find(action.type_hash) };
 	std::string result{
 		step_editor
 			? step_editor->options.label
-			: (script_editor ? script_editor->options.label : action.type)
+			: (script_editor ? script_editor->options.label : std::string{ "Missing Script" })
 	};
 	if (action.timing) {
 		result += " (" + std::to_string(static_cast<int>(action.timing->duration_ms)) + "ms)";
@@ -3134,7 +3046,7 @@ void RegisterEditorTypes() {
 	if (!ptgn::editor::ComponentEditorRegistry::Find(
 			ptgn::Hash<ptgn::Transform>()
 		)) {
-		PTGN_REGISTER(ptgn::editor::ComponentEditorRegistry::Register<ptgn::Transform>(
+		(void)(ptgn::editor::ComponentEditorRegistry::Register<ptgn::Transform>(
 			ptgn::editor::MakeComponentEditorRegistration(
 				ptgn::editor::ComponentEditorOptions{
 					.label = "Transform",
@@ -3143,13 +3055,11 @@ void RegisterEditorTypes() {
 			)
 		));
 	}
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::Register<WaitScript>(
-		"engine.wait",
+	(void)(editor::SequenceStepEditorRegistry::Register<WaitScript>(
 		{ .label = "Delay", .group = "Timing", .description = "Delay before continuing the sequence." },
 		[](WaitScript&, EditorContextTemp&) { return false; }
 	));
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<MoveToScript>(
-		"engine.move_to",
+	(void)(editor::SequenceStepEditorRegistry::RegisterInline<MoveToScript>(
 		{ .label = "Move To", .group = "Transform", .description = "Move the owning entity." },
 		[](MoveToScript& action, EditorContextTemp&) {
 			bool changed{ false };
@@ -3192,8 +3102,7 @@ void RegisterEditorTypes() {
 		},
 		[](MoveToScript&, EditorContextTemp&) { return false; }
 	));
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<RotateToScript>(
-		"engine.rotate_to",
+	(void)(editor::SequenceStepEditorRegistry::RegisterInline<RotateToScript>(
 		{ .label = "Rotate To", .group = "Transform", .description = "Rotate the owning entity to an angle." },
 		[](RotateToScript& action, EditorContextTemp&) {
 			const float available{ ImGui::GetContentRegionAvail().x };
@@ -3231,8 +3140,7 @@ void RegisterEditorTypes() {
 		},
 		[](RotateToScript&, EditorContextTemp&) { return false; }
 	));
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<SetVisibleScript>(
-		"engine.set_visible",
+	(void)(editor::SequenceStepEditorRegistry::RegisterInline<SetVisibleScript>(
 		{ .label = "Set Visible", .group = "Entity", .description = "Set the owning entity visibility.", .menu_order = 3 },
 		[](SetVisibleScript& action, EditorContextTemp&) {
 			const char* preview{ action.visible ? "True" : "False" };
@@ -3254,8 +3162,7 @@ void RegisterEditorTypes() {
 		},
 		[](SetVisibleScript&, EditorContextTemp&) { return false; }
 	));
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::Register<PlayAudioScript>(
-		"engine.play_audio",
+	(void)(editor::SequenceStepEditorRegistry::Register<PlayAudioScript>(
 		{ .label = "Play Audio", .group = "Audio", .description = "Play an audio asset." },
 		[](PlayAudioScript& action, EditorContextTemp&) {
 			action.loops = std::clamp(action.loops, 0, 100);
@@ -3294,8 +3201,7 @@ void RegisterEditorTypes() {
 			return changed;
 		}
 	));
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<EmitSignalScript>(
-		"engine.emit_signal",
+	(void)(editor::SequenceStepEditorRegistry::RegisterInline<EmitSignalScript>(
 		{ .label = "Emit Signal", .group = "", .description = "Broadcast a Signal identified by a strong string key." },
 		[](EmitSignalScript& action, EditorContextTemp&) {
 			ImGui::SetNextItemWidth(-FLT_MIN);
@@ -3307,8 +3213,7 @@ void RegisterEditorTypes() {
 		},
 		[](EmitSignalScript&, EditorContextTemp&) { return false; }
 	));
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<AddComponentsScript>(
-		"engine.add_components",
+	(void)(editor::SequenceStepEditorRegistry::RegisterInline<AddComponentsScript>(
 		{ .label = "Add Components", .group = "Entity", .description = "Add registered components to the owner.", .menu_order = 1 },
 		[](AddComponentsScript& action, EditorContextTemp&) {
 			std::vector<std::string> selected_labels;
@@ -3473,8 +3378,7 @@ void RegisterEditorTypes() {
 			return changed;
 		}
 	));
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<RemoveComponentsScript>(
-		"engine.remove_components",
+	(void)(editor::SequenceStepEditorRegistry::RegisterInline<RemoveComponentsScript>(
 		{ .label = "Remove Components", .group = "Entity", .description = "Remove selected registered components from the owner.", .menu_order = 2, .separator_after = true },
 		[](RemoveComponentsScript& action, EditorContextTemp&) {
 			std::vector<std::string> selected_labels;
@@ -3556,8 +3460,7 @@ void RegisterEditorTypes() {
 		},
 		[](RemoveComponentsScript&, EditorContextTemp&) { return false; }
 	));
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::Register<SpawnEntityScript>(
-		"engine.spawn_entity",
+	(void)(editor::SequenceStepEditorRegistry::Register<SpawnEntityScript>(
 		{ .label = "Spawn Entity", .group = "Entity", .description = "Spawn one or more prefab instances.", .menu_order = 0 },
 		[](SpawnEntityScript& action, EditorContextTemp& context) {
 			action.count = std::clamp(action.count, 1, 100);
@@ -4155,7 +4058,7 @@ void DrawResidentScripts(
 	for (const int i : display_order) {
 		auto& script{ scripts.scripts[static_cast<std::size_t>(i)] };
 		const auto* registration{ ScriptRegistry::Find(script.type_hash) };
-		const auto* editor{ ScriptEditorRegistry::Find(script.type) };
+		const auto* editor{ ScriptEditorRegistry::Find(script.type_hash) };
 
 		if (script.type_hash == ptgn::Hash<managed::Script>()) {
 			if (!script.instance && registration) {
@@ -4233,7 +4136,7 @@ void DrawResidentScripts(
 				"##Script",
 				flags,
 				"%s",
-				editor ? editor->options.label.c_str() : script.type.c_str()
+				editor ? editor->options.label.c_str() : "Missing Script"
 			);
 			ImGui::PopStyleColor(3);
 
@@ -4537,7 +4440,7 @@ bool DrawSequence(DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence&
 					if (has_channel) {
 						sequence->channel.reset();
 					} else {
-						sequence->channel = SequenceChannelKey{ "default" };
+						sequence->channel = "default";
 					}
 				}
 			}
@@ -4751,7 +4654,6 @@ void DrawEvents(DemoEditorDrawContext& ui, ptgn::Entity owner, ScriptSequence& s
 					EventCondition event{
 						.enabled = true,
 						.type_hash = registration->type_hash,
-						.type = registration->key,
 					};
 					registration->set_defaults(event);
 					sequence.start_events.push_back(std::move(event));
@@ -4970,7 +4872,6 @@ bool DrawEvent(
 						candidate.type_hash == event.type_hash
 					)) {
 					event.type_hash = candidate.type_hash;
-					event.type = candidate.key;
 					registration->set_defaults(event);
 					selected = editor::EventEditorRegistry::Find(event.type_hash);
 					event_type_changed = true;
@@ -5051,10 +4952,10 @@ void DrawActionPicker(DemoEditorDrawContext& ui, ScriptStep& action, bool timed_
 	const auto resolve_candidate = [](const ScriptRegistration& registration)
 		-> std::optional<Candidate> {
 		const auto* step_editor{
-			editor::SequenceStepEditorRegistry::Find(registration.key)
+			editor::SequenceStepEditorRegistry::Find(registration.type_hash)
 		};
 		const auto* script_editor{
-			editor::ScriptEditorRegistry::Find(registration.key)
+			editor::ScriptEditorRegistry::Find(registration.type_hash)
 		};
 		if (!step_editor && !script_editor) {
 			return std::nullopt;
@@ -5080,7 +4981,7 @@ void DrawActionPicker(DemoEditorDrawContext& ui, ScriptStep& action, bool timed_
 		};
 	};
 
-	const auto* current_registration{ ScriptRegistry::Find(action.type) };
+	const auto* current_registration{ ScriptRegistry::Find(action.type_hash) };
 	const std::optional<Candidate> current{
 		current_registration ? resolve_candidate(*current_registration) : std::nullopt
 	};
@@ -5100,18 +5001,18 @@ void DrawActionPicker(DemoEditorDrawContext& ui, ScriptStep& action, bool timed_
 	const auto is_available = [&](const Candidate& candidate) {
 		const auto& registration{ *candidate.runtime };
 		return registration.serializable &&
-			registration.key != ScriptRegistry::Key<managed::Script>() &&
-			registration.key != ScriptRegistry::Key<WaitScript>() &&
+			registration.type_hash != ptgn::Hash<managed::Script>() &&
+			registration.type_hash != ptgn::Hash<WaitScript>() &&
 			(!timed_only || registration.supports_timing) &&
 			(timed_only || !registration.requires_timing);
 	};
 	const auto select_candidate = [&](const Candidate& candidate) {
 		const auto& registration{ *candidate.runtime };
 		if (ImGui::MenuItem(
-				candidate.label.data(), nullptr, registration.key == action.type
+				candidate.label.data(), nullptr, registration.type_hash == action.type_hash
 			)) {
 			const bool enabled{ action.enabled };
-			action = ScriptRegistry::MakeStep(std::string_view{ registration.key });
+			action = ScriptRegistry::MakeStep(registration.type_hash);
 			action.enabled = enabled;
 			if (timed_only) {
 				action.completion = ScriptCompletion::Duration;
@@ -5122,8 +5023,9 @@ void DrawActionPicker(DemoEditorDrawContext& ui, ScriptStep& action, bool timed_
 			}
 		}
 		if (ImGui::IsItemHovered()) {
+			const std::string type_hash{ std::to_string(registration.type_hash) };
 			ImGui::SetTooltip(
-				"%s\n%s", candidate.description.data(), registration.key.c_str()
+				"%s\nType hash: %s", candidate.description.data(), type_hash.c_str()
 			);
 		}
 	};
@@ -5218,7 +5120,7 @@ void DrawActionPicker(DemoEditorDrawContext& ui, ScriptStep& action, bool timed_
 
 void DrawActionPickerWithInline(DemoEditorDrawContext& ui, ScriptStep& action, bool timed_only) {
 	EnsureActionValue(action);
-	const auto* editor{ editor::SequenceStepEditorRegistry::Find(action.type) };
+	const auto* editor{ editor::SequenceStepEditorRegistry::Find(action.type_hash) };
 	const bool has_inline_editor{
 		!timed_only && editor && static_cast<bool>(editor->draw_inline)
 	};
@@ -5234,7 +5136,7 @@ void DrawActionPickerWithInline(DemoEditorDrawContext& ui, ScriptStep& action, b
 	};
 	DrawActionPicker(ui, action, timed_only, picker_width);
 
-	editor = editor::SequenceStepEditorRegistry::Find(action.type);
+	editor = editor::SequenceStepEditorRegistry::Find(action.type_hash);
 	if (editor && editor->draw_inline) {
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(-FLT_MIN);
@@ -5430,17 +5332,17 @@ void DrawTimingOptions(
 
 void DrawActionParameters(DemoEditorDrawContext& ui, ScriptStep& action, float left_screen_x) {
 	EnsureActionValue(action);
-	const auto* step_editor{ editor::SequenceStepEditorRegistry::Find(action.type) };
-	const auto* script_editor{ editor::ScriptEditorRegistry::Find(action.type) };
+	const auto* step_editor{ editor::SequenceStepEditorRegistry::Find(action.type_hash) };
+	const auto* script_editor{ editor::ScriptEditorRegistry::Find(action.type_hash) };
 	if ((!step_editor && !script_editor) ||
-		action.type == ScriptRegistry::Key<managed::Script>() ||
-		action.type == ScriptRegistry::Key<WaitScript>() ||
-		action.type == ScriptRegistry::Key<EmitSignalScript>() ||
-		action.type == ScriptRegistry::Key<SetVisibleScript>() ||
-		action.type == ScriptRegistry::Key<MoveToScript>() ||
-		action.type == ScriptRegistry::Key<RotateToScript>() ||
-		action.type == ScriptRegistry::Key<ScaleToScript>() ||
-		action.type == ScriptRegistry::Key<RemoveComponentsScript>()) {
+		action.type_hash == ptgn::Hash<managed::Script>() ||
+		action.type_hash == ptgn::Hash<WaitScript>() ||
+		action.type_hash == ptgn::Hash<EmitSignalScript>() ||
+		action.type_hash == ptgn::Hash<SetVisibleScript>() ||
+		action.type_hash == ptgn::Hash<MoveToScript>() ||
+		action.type_hash == ptgn::Hash<RotateToScript>() ||
+		action.type_hash == ptgn::Hash<ScaleToScript>() ||
+		action.type_hash == ptgn::Hash<RemoveComponentsScript>()) {
 		return;
 	}
 
@@ -5770,13 +5672,13 @@ void DrawAddResidentScriptPopup(DemoEditorDrawContext& ui, ScriptsComponent& scr
 	}
 
 	const auto add_registered = [&](const ScriptRegistration& registration) {
-		const auto* editor{ ScriptEditorRegistry::Find(registration.key) };
+		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
 		if (!editor) {
 			return;
 		}
 		if (ImGui::MenuItem(editor->options.label.c_str())) {
 			scripts.scripts.push_back(
-				ScriptRegistry::Make(std::string_view{ registration.key })
+				ScriptRegistry::Make(registration.type_hash)
 			);
 		}
 		DrawItemTooltip(editor->options.description.c_str());
@@ -5810,7 +5712,7 @@ void DrawAddResidentScriptPopup(DemoEditorDrawContext& ui, ScriptsComponent& scr
 		if (registration.type_hash == ptgn::Hash<managed::Script>()) {
 			continue;
 		}
-		const auto* editor{ ScriptEditorRegistry::Find(registration.key) };
+		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
 		if (!editor) {
 			continue;
 		}
@@ -5830,7 +5732,7 @@ void DrawAddResidentScriptPopup(DemoEditorDrawContext& ui, ScriptsComponent& scr
 			if (registration.type_hash == ptgn::Hash<managed::Script>()) {
 				continue;
 			}
-			const auto* editor{ ScriptEditorRegistry::Find(registration.key) };
+			const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
 			if (!editor) {
 				continue;
 			}
@@ -7050,11 +6952,10 @@ void RegisterDemoTypes() {
 			);
 	};
 
-#define PTGN_REGISTER_SIMPLE_KEY_EVENT(EventType, Key, Label, EventKind)        \
+#define PTGN_REGISTER_SIMPLE_KEY_EVENT(EventType, Label, EventKind)        \
 	PTGN_REGISTER_EVENT(                                                          \
 		EventType,                                                                   \
 		{                                                                            \
-			.key = Key,                                                                  \
 			.editor = {                                                                  \
 				.label = Label,                                                              \
 				.group = "Key",                                                              \
@@ -7076,12 +6977,11 @@ void RegisterDemoTypes() {
 
 	PTGN_REGISTER_SIMPLE_KEY_EVENT(
 		ptgn::event::KeyPressed,
-		"ptgn.event.KeyPressed", "On Key Pressed", KeyExpressionEvent::Pressed
+		"On Key Pressed", KeyExpressionEvent::Pressed
 	);
 	PTGN_REGISTER_EVENT(
 		ptgn::event::KeyHeld,
 		{
-			.key = "ptgn.event.KeyHeld",
 			.editor = {
 				.label = "On Key Held",
 				.group = "Key",
@@ -7109,15 +7009,14 @@ void RegisterDemoTypes() {
 	);
 	PTGN_REGISTER_SIMPLE_KEY_EVENT(
 		ptgn::event::KeyReleased,
-		"ptgn.event.KeyReleased", "On Key Released", KeyExpressionEvent::Released
+		"On Key Released", KeyExpressionEvent::Released
 	);
 #undef PTGN_REGISTER_SIMPLE_KEY_EVENT
 
-#define PTGN_REGISTER_SIMPLE_MOUSE_EVENT(EventType, Key, Label, Group, Available) \
+#define PTGN_REGISTER_SIMPLE_MOUSE_EVENT(EventType, Label, Group, Available) \
 	PTGN_REGISTER_EVENT(                                                            \
 		EventType,                                                                     \
 		{                                                                              \
-			.key = Key,                                                                    \
 			.editor = {                                                                    \
 				.label = Label,                                                                \
 				.group = Group,                                                                \
@@ -7138,12 +7037,11 @@ void RegisterDemoTypes() {
 
 	PTGN_REGISTER_SIMPLE_MOUSE_EVENT(
 		ptgn::event::MousePressed,
-		"ptgn.event.MousePressed", "On Mouse Pressed", "Mouse", always_available
+		"On Mouse Pressed", "Mouse", always_available
 	);
 	PTGN_REGISTER_EVENT(
 		ptgn::event::MouseHeld,
 		{
-			.key = "ptgn.event.MouseHeld",
 			.editor = {
 				.label = "On Mouse Held",
 				.group = "Mouse",
@@ -7174,13 +7072,12 @@ void RegisterDemoTypes() {
 	);
 	PTGN_REGISTER_SIMPLE_MOUSE_EVENT(
 		ptgn::event::MouseReleased,
-		"ptgn.event.MouseReleased", "On Mouse Released", "Mouse", always_available
+		"On Mouse Released", "Mouse", always_available
 	);
 
 	PTGN_REGISTER_EVENT(
 		MouseMoveOver,
 		{
-			.key = "demo.button.MouseEnter",
 			.editor = {
 				.label = "On Mouse Enter",
 				.group = "Button",
@@ -7193,7 +7090,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_EVENT(
 		MouseMoveOut,
 		{
-			.key = "demo.button.MouseLeave",
 			.editor = {
 				.label = "On Mouse Leave",
 				.group = "Button",
@@ -7205,23 +7101,22 @@ void RegisterDemoTypes() {
 	);
 	PTGN_REGISTER_SIMPLE_MOUSE_EVENT(
 		MousePressedOver,
-		"demo.button.MousePressed", "On Mouse Pressed Over", "Button", button_available
+		"On Mouse Pressed Over", "Button", button_available
 	);
 	PTGN_REGISTER_SIMPLE_MOUSE_EVENT(
 		MouseReleasedOver,
-		"demo.button.MouseReleased", "On Mouse Released", "Button", button_available
+		"On Mouse Released", "Button", button_available
 	);
 	PTGN_REGISTER_SIMPLE_MOUSE_EVENT(
 		ButtonPress,
-		"demo.button.Press", "On Button Press", "Button", button_available
+		"On Button Press", "Button", button_available
 	);
 #undef PTGN_REGISTER_SIMPLE_MOUSE_EVENT
 
-#define PTGN_REGISTER_EMPTY_EVENT(EventType, Key, Label, Group, Description, Available) \
+#define PTGN_REGISTER_EMPTY_EVENT(EventType, Label, Group, Description, Available) \
 	PTGN_REGISTER_EVENT(                                                                  \
 		EventType,                                                                           \
 		{                                                                                    \
-			.key = Key,                                                                          \
 			.editor = {                                                                          \
 				.label = Label,                                                                      \
 				.group = Group,                                                                      \
@@ -7233,24 +7128,23 @@ void RegisterDemoTypes() {
 	)
 
 	PTGN_REGISTER_EMPTY_EVENT(
-		DragStart, "demo.drag.Start", "On Drag Start", "Drag",
+		DragStart, "On Drag Start", "Drag",
 		"Available when the owner has Draggable.", draggable_available
 	);
 	PTGN_REGISTER_EMPTY_EVENT(
-		Drag, "demo.drag.Update", "On Drag", "Drag",
+		Drag, "On Drag", "Drag",
 		"Available when the owner has Draggable.", draggable_available
 	);
 	PTGN_REGISTER_EMPTY_EVENT(
-		DragStop, "demo.drag.Stop", "On Drag Stop", "Drag",
+		DragStop, "On Drag Stop", "Drag",
 		"Available when the owner has Draggable.", draggable_available
 	);
 #undef PTGN_REGISTER_EMPTY_EVENT
 
-#define PTGN_REGISTER_ENTITY_FILTER_EVENT(EventType, Key, Label, Group)         \
+#define PTGN_REGISTER_ENTITY_FILTER_EVENT(EventType, Label, Group)         \
 	PTGN_REGISTER_EVENT(                                                          \
 		EventType,                                                                   \
 		{                                                                            \
-			.key = Key,                                                                  \
 			.editor = {                                                                  \
 				.label = Label,                                                              \
 				.group = Group,                                                              \
@@ -7265,26 +7159,25 @@ void RegisterDemoTypes() {
 
 	PTGN_REGISTER_ENTITY_FILTER_EVENT(
 		ptgn::event::OverlapStart,
-		"ptgn.event.OverlapStart", "On Overlap Start", "Overlap"
+		"On Overlap Start", "Overlap"
 	);
 	PTGN_REGISTER_ENTITY_FILTER_EVENT(
 		ptgn::event::Overlap,
-		"ptgn.event.Overlap", "On Overlap", "Overlap"
+		"On Overlap", "Overlap"
 	);
 	PTGN_REGISTER_ENTITY_FILTER_EVENT(
 		ptgn::event::OverlapStop,
-		"ptgn.event.OverlapStop", "On Overlap Stop", "Overlap"
+		"On Overlap Stop", "Overlap"
 	);
 	PTGN_REGISTER_ENTITY_FILTER_EVENT(
 		ptgn::event::Collision,
-		"ptgn.event.Collision", "On Collision", "Collision"
+		"On Collision", "Collision"
 	);
 #undef PTGN_REGISTER_ENTITY_FILTER_EVENT
 
 	PTGN_REGISTER_EVENT(
 		Signal,
 		{
-			.key = "ptgn.event.Signal",
 			.editor = {
 				.label = "On Signal",
 				.group = "",
@@ -7297,7 +7190,7 @@ void RegisterDemoTypes() {
 				const ptgn::json& value,
 				const Signal& event
 			) {
-				return event.key.value ==
+				return std::string_view{ event.key } ==
 					JsonValueOr<std::string>(value, "signal", "");
 			},
 			.draw = [](ptgn::json& value) {
@@ -7320,7 +7213,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		WaitScript,
 		{
-			.key = "engine.wait",
 			.supports_timing = true,
 			.requires_timing = true,
 			.default_timing = ScriptTiming{ .duration_ms = 250.0f },
@@ -7334,7 +7226,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		MoveToScript,
 		{
-			.key = "engine.move_to",
 			.supports_timing = true,
 			.default_timing = ScriptTiming{
 				.duration_ms = 300.0f,
@@ -7351,7 +7242,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		RotateToScript,
 		{
-			.key = "engine.rotate_to",
 			.supports_timing = true,
 			.default_timing = ScriptTiming{ .duration_ms = 300.0f },
 			.completion = ScriptCompletion::Duration,
@@ -7365,7 +7255,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		ScaleToScript,
 		{
-			.key = "engine.scale_to",
 			.supports_timing = true,
 			.default_timing = ScriptTiming{
 				.duration_ms = 180.0f,
@@ -7382,7 +7271,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		FollowTargetScript,
 		{
-			.key = "engine.follow_target",
 			.completion = ScriptCompletion::ScriptControlled,
 			.editor = {
 				.label = "Follow Target",
@@ -7394,7 +7282,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		NativeScript,
 		{
-			.key = "engine.native",
 			.serializable = false,
 			.editor = {
 				.label = "Native",
@@ -7406,7 +7293,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		SetVisibleScript,
 		{
-			.key = "engine.set_visible",
 			.editor = {
 				.label = "Set Visibility",
 				.group = "Entity",
@@ -7417,7 +7303,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		PlayAudioScript,
 		{
-			.key = "engine.play_audio",
 			.editor = {
 				.label = "Play Audio",
 				.group = "Audio",
@@ -7428,7 +7313,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		EmitSignalScript,
 		{
-			.key = "engine.emit_signal",
 			.editor = {
 				.label = "Emit Signal",
 				.group = "Events",
@@ -7439,7 +7323,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		AddComponentsScript,
 		{
-			.key = "engine.add_components",
 			.editor = {
 				.label = "Add Components",
 				.group = "Entity",
@@ -7451,7 +7334,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		RemoveComponentsScript,
 		{
-			.key = "engine.remove_components",
 			.editor = {
 				.label = "Remove Components",
 				.group = "Entity",
@@ -7464,7 +7346,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		SpawnEntityScript,
 		{
-			.key = "engine.spawn_entity",
 			.editor = {
 				.label = "Spawn Entity",
 				.group = "Entity",
@@ -7476,7 +7357,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SEQUENCE_STEP(
 		ApplyDamageScript,
 		{
-			.key = "game.apply_damage",
 			.editor = {
 				.label = "Apply Damage",
 				.group = "Game",
@@ -7488,7 +7368,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SCRIPT(
 		managed::Script,
 		{
-			.key = "engine.sequence",
 			.editor = {
 				.label = "Script Sequence",
 				.group = "Sequence",
@@ -7500,7 +7379,6 @@ void RegisterDemoTypes() {
 	PTGN_REGISTER_SCRIPT(
 		PlayerMovementScript,
 		{
-			.key = "game.player_movement",
 			.editor = {
 				.label = "Player Movement",
 				.group = "Game",
@@ -7513,8 +7391,7 @@ void RegisterDemoTypes() {
 } // namespace
 
 void RegisterDemoEditorTypes() {
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<managed::Script>(
-		"engine.sequence",
+	(void)(editor::SequenceStepEditorRegistry::RegisterInline<managed::Script>(
 		{
 			.label = "Script Sequence",
 			.group = "",
@@ -7554,8 +7431,7 @@ void RegisterDemoEditorTypes() {
 		[](managed::Script&, editor::EditorContextTemp&) { return false; }
 	));
 
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::RegisterInline<ScaleToScript>(
-		"engine.scale_to",
+	(void)(editor::SequenceStepEditorRegistry::RegisterInline<ScaleToScript>(
 		{ .label = "Scale To", .group = "Transform", .description = "Scale the owning entity." },
 		[](ScaleToScript& action, editor::EditorContextTemp&) {
 			const float available{ ImGui::GetContentRegionAvail().x };
@@ -7590,8 +7466,7 @@ void RegisterDemoEditorTypes() {
 		[](ScaleToScript&, editor::EditorContextTemp&) { return false; }
 	));
 
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::Register<FollowTargetScript>(
-		"engine.follow_target",
+	(void)(editor::SequenceStepEditorRegistry::Register<FollowTargetScript>(
 		{ .label = "Follow Target", .group = "Transform", .description = "Move until the target is reached." },
 		[](FollowTargetScript& action, editor::EditorContextTemp& context) {
 			bool changed{ false };
@@ -7641,8 +7516,7 @@ void RegisterDemoEditorTypes() {
 		}
 	));
 
-	PTGN_REGISTER(editor::SequenceStepEditorRegistry::Register<ApplyDamageScript>(
-		"game.apply_damage",
+	(void)(editor::SequenceStepEditorRegistry::Register<ApplyDamageScript>(
 		{ .label = "Apply Damage", .group = "Game", .description = "Apply damage to the owner." },
 		[](ApplyDamageScript& action, editor::EditorContextTemp&) {
 			bool changed{ false };
@@ -7671,8 +7545,7 @@ void RegisterDemoEditorTypes() {
 		}
 	));
 
-	PTGN_REGISTER(editor::ScriptEditorRegistry::Register<PlayerMovementScript>(
-		"game.player_movement",
+	(void)(editor::ScriptEditorRegistry::Register<PlayerMovementScript>(
 		{ .label = "Player Movement", .group = "Game", .description = "WASD movement for the demo player." },
 		[](PlayerMovementScript& script) {
 			return ImGui::DragFloat("Speed", &script.speed, 1.0f, 0.0f, 2000.0f);
@@ -8953,7 +8826,7 @@ void DemoScene::CreatePrefabs() {
 	ScriptsComponent circle_scripts;
 	ScriptSequence destroy_sequence{ "Destroy on Recall" };
 	destroy_sequence
-		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "spawned_circles.destroy" } })
+		.StartOn<Signal>(ptgn::json{ { "signal", "spawned_circles.destroy" } })
 		.DestroyOwnerOnComplete();
 	circle_scripts.scripts.push_back(MakeSequenceEntry(std::move(destroy_sequence)));
 	circle.scripts = std::move(circle_scripts);
@@ -8964,8 +8837,8 @@ void DemoScene::CreateDemoScene() {
 	ScriptSequence opened_indicator{ "Door Opened Indicator" };
 	opened_indicator
 		.Reentry(ReentryMode::Restart)
-		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.opened" } })
-		.StopOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.closed" } })
+		.StartOn<Signal>(ptgn::json{ { "signal", "door.opened" } })
+		.StopOn<Signal>(ptgn::json{ { "signal", "door.closed" } })
 		.During(350.0f, MoveToScript{ { 0.0f, 55.0f }, true })
 		.Ease(ptgn::Ease::OutBack);
 	const SequenceId opened_indicator_id{ opened_indicator.id };
@@ -8974,8 +8847,8 @@ void DemoScene::CreateDemoScene() {
 	ScriptSequence closed_indicator{ "Door Closed Indicator" };
 	closed_indicator
 		.Reentry(ReentryMode::Restart)
-		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.closed" } })
-		.StopOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.opened" } })
+		.StartOn<Signal>(ptgn::json{ { "signal", "door.closed" } })
+		.StopOn<Signal>(ptgn::json{ { "signal", "door.opened" } })
 		.During(350.0f, MoveToScript{ { 300.0f, -110.0f }, false })
 		.Ease(ptgn::Ease::OutCubic);
 	const SequenceId closed_indicator_id{ closed_indicator.id };
@@ -8994,13 +8867,13 @@ void DemoScene::CreateDemoScene() {
 	sensor.Get<DemoVisual>().sensor = true;
 	ScriptSequence sensor_enter{ "Emit Door Opened" };
 	sensor_enter
-		.StartOn("ptgn.event.OverlapStart", ptgn::json{ { "tags", "Player" }, { "masks", "" } })
-		.EmitSignal(SignalKey{ "door.opened" });
+		.StartOn<ptgn::event::OverlapStart>(ptgn::json{ { "tags", "Player" }, { "masks", "" } })
+		.EmitSignal("door.opened");
 	AttachSequence(sensor, std::move(sensor_enter));
 	ScriptSequence sensor_exit{ "Emit Door Closed" };
 	sensor_exit
-		.StartOn("ptgn.event.OverlapStop", ptgn::json{ { "tags", "Player" }, { "masks", "" } })
-		.EmitSignal(SignalKey{ "door.closed" });
+		.StartOn<ptgn::event::OverlapStop>(ptgn::json{ { "tags", "Player" }, { "masks", "" } })
+		.EmitSignal("door.closed");
 	AttachSequence(sensor, std::move(sensor_exit));
 
 	ptgn::Entity panel{ CreateEntity("Sliding Panel", "MovingPanel") };
@@ -9010,16 +8883,16 @@ void DemoScene::CreateDemoScene() {
 	ScriptSequence open_sequence{ "Open Sliding Panel" };
 	open_sequence
 		.Reentry(ReentryMode::Restart)
-		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.opened" } })
-		.StopOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.closed" } })
+		.StartOn<Signal>(ptgn::json{ { "signal", "door.opened" } })
+		.StopOn<Signal>(ptgn::json{ { "signal", "door.closed" } })
 		.During(500.0f, MoveToScript{ { 225.0f, 0.0f }, false })
 		.Ease(ptgn::Ease::OutCubic);
 	AttachSequence(panel, std::move(open_sequence));
 	ScriptSequence close_sequence{ "Close Sliding Panel" };
 	close_sequence
 		.Reentry(ReentryMode::Restart)
-		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.closed" } })
-		.StopOn("ptgn.event.Signal", ptgn::json{ { "signal", "door.opened" } })
+		.StartOn<Signal>(ptgn::json{ { "signal", "door.closed" } })
+		.StopOn<Signal>(ptgn::json{ { "signal", "door.opened" } })
 		.During(500.0f, MoveToScript{ { 70.0f, 0.0f }, false })
 		.Ease(ptgn::Ease::OutCubic);
 	AttachSequence(panel, std::move(close_sequence));
@@ -9054,13 +8927,13 @@ void DemoScene::CreateDemoScene() {
 	ScriptSequence spawn_sequence{ "Spawn Recall Circles" };
 	spawn_sequence
 		.Reentry(ReentryMode::IgnoreWhileRunning)
-		.StartOn("ptgn.event.OverlapStart", ptgn::json{ { "tags", "Player" }, { "masks", "" } })
+		.StartOn<ptgn::event::OverlapStart>(ptgn::json{ { "tags", "Player" }, { "masks", "" } })
 		.Then(std::move(spawn_circles));
 	AttachSequence(factory, std::move(spawn_sequence));
 	ScriptSequence recall_sequence{ "Recall Spawned Circles" };
 	recall_sequence
-		.StartOn("ptgn.event.OverlapStop", ptgn::json{ { "tags", "Player" }, { "masks", "" } })
-		.EmitSignal(SignalKey{ "spawned_circles.destroy" });
+		.StartOn<ptgn::event::OverlapStop>(ptgn::json{ { "tags", "Player" }, { "masks", "" } })
+		.EmitSignal("spawned_circles.destroy");
 	AttachSequence(factory, std::move(recall_sequence));
 
 	ptgn::Entity damage_target{ CreateEntity("Damage Target", "DamageTarget") };
@@ -9071,7 +8944,7 @@ void DemoScene::CreateDemoScene() {
 	ScriptSequence damage_sequence{ "Overlap Damage Cooldown" };
 	damage_sequence
 		.Reentry(ReentryMode::IgnoreWhileRunning)
-		.StartOn("ptgn.event.Overlap", ptgn::json{ { "tags", "Player" }, { "masks", "" } })
+		.StartOn<ptgn::event::Overlap>(ptgn::json{ { "tags", "Player" }, { "masks", "" } })
 		.Then(ApplyDamageScript{ 25.0f })
 		.Wait(3000.0f);
 	AttachSequence(damage_target, std::move(damage_sequence));
@@ -9084,13 +8957,13 @@ void DemoScene::CreateDemoScene() {
 	ScriptSequence tween_button_sequence{ "Button Scale Pulse" };
 	tween_button_sequence
 		.Reentry(ReentryMode::Restart)
-		.Channel(SequenceChannelKey{ "ui.press" })
-		.StartOn("demo.button.Press", ptgn::json{ { "button", ptgn::Mouse::Left } })
+		.Channel("ui.press")
+		.StartOn<ButtonPress>(ptgn::json{ { "button", ptgn::Mouse::Left } })
 		.During(105.0f, ScaleToScript{ { 1.12f, 1.12f }, false })
 		.Ease(ptgn::Ease::OutBack)
 		.During(105.0f, ScaleToScript{ { 1.0f, 1.0f }, false })
 		.Ease(ptgn::Ease::OutBack)
-		.EmitSignal(SignalKey{ "button.tween.clicked" });
+		.EmitSignal("button.tween.clicked");
 	AttachSequence(tween_button, std::move(tween_button_sequence));
 
 	ptgn::Entity signal_button{ CreateEntity("Global Event Button", "SignalButton") };
@@ -9104,15 +8977,15 @@ void DemoScene::CreateDemoScene() {
 	});
 	ScriptSequence signal_button_sequence{ "Emit Global Button Signal" };
 	signal_button_sequence
-		.StartOn("demo.button.Press", ptgn::json{ { "button", ptgn::Mouse::Left } })
-		.EmitSignal(SignalKey{ "button.global.clicked" });
+		.StartOn<ButtonPress>(ptgn::json{ { "button", ptgn::Mouse::Left } })
+		.EmitSignal("button.global.clicked");
 	AttachSequence(signal_button, std::move(signal_button_sequence));
 
 	ScriptSequence global_button_sequence{ "Global Button Indicator Spin" };
 	global_button_sequence
 		.Reentry(ReentryMode::Restart)
-		.Channel(SequenceChannelKey{ "transform.rotation" })
-		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "button.global.clicked" } })
+		.Channel("transform.rotation")
+		.StartOn<Signal>(ptgn::json{ { "signal", "button.global.clicked" } })
 		.During(450.0f, RotateToScript{ 360.0f, false, true })
 		.Ease(ptgn::Ease::OutBack);
 	AttachSequence(indicator, std::move(global_button_sequence));
@@ -9124,8 +8997,8 @@ void DemoScene::CreateDemoScene() {
 	ScriptSequence follow_sequence{ "Follow Player Until Reached" };
 	follow_sequence
 		.Reentry(ReentryMode::Restart)
-		.Channel(SequenceChannelKey{ "movement.follow" })
-		.StartOn("ptgn.event.Signal", ptgn::json{ { "signal", "button.tween.clicked" } })
+		.Channel("movement.follow")
+		.StartOn<Signal>(ptgn::json{ { "signal", "button.tween.clicked" } })
 		.UntilComplete(FollowTargetScript{ player, 230.0f, 3.0f });
 	AttachSequence(follower, std::move(follow_sequence));
 }
