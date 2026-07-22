@@ -56,8 +56,7 @@ bool SaveProjectScene(Application& app, const Scene& scene, bool save) {
 
 	if (!save ||
 		!app_context.project.has_value() ||
-		scene.IsRuntime() ||
-		scene.GetRegisteredType().empty()) {
+		scene.IsRuntime()) {
 		return false;
 	}
 

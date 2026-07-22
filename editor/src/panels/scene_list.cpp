@@ -306,11 +306,24 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 	}
 
 	if (ImGui::BeginPopupContextWindow(
-			"ScenesContext",
-			ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems
-		)) {
+		"ScenesContext",
+		ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems
+	)) {
 		if (ImGui::BeginMenu("Add Scene")) {
 			auto& scene_manager{ ctx.editor.GetSceneManager() };
+
+			if (ImGui::MenuItem("Scene")) {
+				std::string scene_tag{ MakeUniqueSceneTag(scene_manager, "Scene") };
+
+				if (scene_manager.Enter<Scene>(scene_tag)) {
+					QueueSceneSelection(ctx.editor, std::move(scene_tag), false);
+					ImGui::CloseCurrentPopup();
+				}
+			}
+
+			if (!impl::GetSceneRegistry().empty()) {
+				ImGui::Separator();
+			}
 
 			for (const auto& [scene_type, registration] : impl::GetSceneRegistry()) {
 				(void)scene_type;
@@ -319,10 +332,9 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 					continue;
 				}
 
-				std::string scene_tag{ MakeUniqueSceneTag(
-					scene_manager,
-					registration.display_name
-				) };
+				std::string scene_tag{
+					MakeUniqueSceneTag(scene_manager, registration.display_name)
+				};
 
 				SerializedScene serialized_scene{
 					.type = registration.type,
@@ -346,8 +358,8 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 			ImGui::EndMenu();
 		}
 
-		ImGui::EndPopup();
-	}
+	ImGui::EndPopup();
+}
 
 	DrawSceneParamUI(ctx);
 
@@ -400,7 +412,11 @@ void SceneListPanel::QueueSceneSelection(
 	};
 }
 
-void SceneListPanel::SetSelectedScene(Editor& editor, Scene* scene, const path& scene_path) {
+void SceneListPanel::SetSelectedScene(
+	Editor& editor,
+	Scene* scene,
+	const path& scene_path
+) {
 	if (selected_scene_ == scene) {
 		if (!scene_path.empty()) {
 			selected_scene_path_ = scene_path;
@@ -410,26 +426,45 @@ void SceneListPanel::SetSelectedScene(Editor& editor, Scene* scene, const path& 
 
 	auto* previous_scene{ selected_scene_ };
 
-	bool previous_scene_exists{ previous_scene && std::ranges::any_of(
-		editor.GetSceneManager().GetScenes(),
-		[previous_scene](const auto& active_scene) {
-			return active_scene.get() == previous_scene;
-		}
-	) };
+	bool previous_scene_exists{
+		previous_scene &&
+		std::ranges::any_of(
+			editor.GetSceneManager().GetScenes(),
+			[previous_scene](const auto& active_scene) {
+				return active_scene.get() == previous_scene;
+			}
+		)
+	};
 
 	selected_scene_ = scene;
 	selected_scene_path_ = scene_path;
+	state_.reset();
 
-	if (selected_scene_ && !selected_scene_->GetRegisteredType().empty()) {
-		std::string registered_type{ selected_scene_->GetRegisteredType() };
-		const auto& registration{ impl::GetSceneRegistration(registered_type) };
-
-		state_ = SceneEditorState{
-			.scene_type = registration.type,
-			.display_name = registration.display_name,
-			.scene_tag = selected_scene_->GetTag(),
-			.params = registration.serialize_parameters(*selected_scene_),
+	if (selected_scene_) {
+		std::string registered_type{
+			selected_scene_->GetRegisteredType()
 		};
+
+		if (registered_type.empty()) {
+			state_ = SceneEditorState{
+				.scene_type = {},
+				.display_name = "Scene",
+				.scene_tag = selected_scene_->GetTag(),
+				.params = json::object(),
+			};
+		} else {
+			const auto& registration{
+				impl::GetSceneRegistration(registered_type)
+			};
+
+			state_ = SceneEditorState{
+				.scene_type = registration.type,
+				.display_name = registration.display_name,
+				.scene_tag = selected_scene_->GetTag(),
+				.params =
+					registration.serialize_parameters(*selected_scene_),
+			};
+		}
 	}
 
 	editor.OnSelectedSceneChanged(

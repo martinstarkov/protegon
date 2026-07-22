@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "runtime/asset/asset_key.h"
@@ -24,6 +25,8 @@ void SaveSceneFile(const std::filesystem::path& path, const SerializedScene& sce
 [[nodiscard]] SerializedScene CaptureScene(const Scene& scene);
 
 namespace impl {
+
+inline constexpr std::string_view kBaseSceneType{ "$Scene" };
 
 [[nodiscard]] SceneFactory MakeSceneFactory(SerializedScene scene, bool runtime);
 

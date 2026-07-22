@@ -299,7 +299,7 @@ void Editor::Play() {
 	}
 
 	auto* scene{ scene_list_panel_.GetSelectedScene() };
-	if (!scene || scene->IsRuntime() || scene->GetRegisteredType().empty()) {
+	if (!scene || scene->IsRuntime()) {
 		return;
 	}
 

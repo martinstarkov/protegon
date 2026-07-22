@@ -12,6 +12,7 @@
 #include "core/assert.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_registry.h"
 
 namespace ptgn {
@@ -82,16 +83,23 @@ void SaveSceneFile(const std::filesystem::path& path, const SerializedScene& sce
 }
 
 SerializedScene CaptureScene(const Scene& scene) {
-	PTGN_ASSERT(
-		!scene.GetRegisteredType().empty(),
-		"Cannot serialize a project scene without a registered scene type"
-	);
+	std::string type;
+	json parameters = json::object();
 
-	const auto& registration{ impl::GetSceneRegistration(scene.GetRegisteredType()) };
+	if (scene.GetRegisteredType().empty()) {
+		type = impl::kBaseSceneType;
+	} else {
+		const auto& registration{
+			impl::GetSceneRegistration(scene.GetRegisteredType())
+		};
+
+		type = scene.GetRegisteredType();
+		parameters = registration.serialize_parameters(scene);
+	}
 
 	return SerializedScene{
-		.type = std::string{ scene.GetRegisteredType() },
-		.parameters = registration.serialize_parameters(scene),
+		.type = std::move(type),
+		.parameters = std::move(parameters),
 		.assets = scene.GetAssetDependencies(),
 		.content = scene.SerializeContent(),
 	};
@@ -118,32 +126,35 @@ public:
 
 SceneFactory MakeSceneFactory(SerializedScene serialized, bool runtime) {
 	return [serialized = std::move(serialized), runtime](
-			   Application& app, SceneData&& scene_data
+			   Application& app,
+			   SceneData&& scene_data
 		   ) mutable -> std::unique_ptr<Scene> {
-		auto& app_context{ ApplicationAccessor::ctx(app) };
-
-		if (app_context.project.has_value()) {
-			const auto& project{ app_context.project.value() };
-
-			app_context.assets.RegisterCatalog(project.assets);
-			app_context.assets.AddProjectAssetDependencies(project.preload_assets);
-			app_context.assets.LoadDependencies(project.preload_assets);
-		}
-
-		app_context.assets.LoadDependencies(serialized.assets);
-
-		const auto& registration{ GetSceneRegistration(serialized.type) };
-		auto scene{ registration.construct(serialized.parameters) };
-		PTGN_ASSERT(scene, "Registered scene factory returned null: ", serialized.type);
-
 		scene_data.runtime = runtime;
-		scene_data.registered_type = serialized.type;
 
-		SceneFileAccess::SetAssetDependencies(*scene, serialized.assets);
+		std::unique_ptr<Scene> scene;
+
+		if (serialized.type == impl::kBaseSceneType) {
+			scene = std::make_unique<Scene>();
+			scene_data.registered_type.clear();
+		} else {
+			const auto& registration{ GetSceneRegistration(serialized.type) };
+
+			scene = registration.construct(serialized.parameters);
+			PTGN_ASSERT(
+				scene,
+				"Registered scene factory returned null: ",
+				serialized.type
+			);
+
+			scene_data.registered_type = serialized.type;
+		}
 
 		if (serialized.content.has_value()) {
 			SceneFileAccess::InitLoaded(
-				*scene, app, std::move(scene_data), serialized.content.value()
+				*scene,
+				app,
+				std::move(scene_data),
+				serialized.content.value()
 			);
 		} else {
 			SceneFileAccess::InitNew(*scene, app, std::move(scene_data));
