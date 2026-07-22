@@ -129,7 +129,19 @@ SceneFactory MakeSceneFactory(SerializedScene serialized, bool runtime) {
 			   Application& app,
 			   SceneData&& scene_data
 		   ) mutable -> std::unique_ptr<Scene> {
+		auto& app_context{ ApplicationAccessor::ctx(app) };
+
+		if (app_context.project.has_value()) {
+			const auto& project{ app_context.project.value() };
+
+			app_context.assets.RegisterCatalog(project.assets);
+			app_context.assets.AddProjectAssetDependencies(project.preload_assets);
+			app_context.assets.LoadDependencies(project.preload_assets);
+		}
+
 		scene_data.runtime = runtime;
+
+		app_context.assets.LoadDependencies(serialized.assets);
 
 		std::unique_ptr<Scene> scene;
 
@@ -148,6 +160,8 @@ SceneFactory MakeSceneFactory(SerializedScene serialized, bool runtime) {
 
 			scene_data.registered_type = serialized.type;
 		}
+
+		SceneFileAccess::SetAssetDependencies(*scene, serialized.assets);
 
 		if (serialized.content.has_value()) {
 			SceneFileAccess::InitLoaded(

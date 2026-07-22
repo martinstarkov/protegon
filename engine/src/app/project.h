@@ -20,15 +20,22 @@ bool SaveProjectScene(Application& app, const Scene& scene, bool save);
 
 } // namespace impl
 
+struct ProjectSceneEntry {
+	std::string tag;
+	std::filesystem::path path;
+};
+
 struct Project {
 	std::string name;
 	std::filesystem::path file_path;
+
+	/// @brief Project-relative path of the scene launched in runtime mode.
 	std::filesystem::path startup_scene;
 
-	/// @brief Complete path-backed asset catalog known to the project.
-	std::vector<SerializedAsset> assets;
+	/// @brief Every serialized scene belonging to the project.
+	std::vector<ProjectSceneEntry> scenes;
 
-	/// @brief Assets loaded globally whenever any project scene is constructed.
+	std::vector<SerializedAsset> assets;
 	std::vector<AssetKey> preload_assets;
 };
 
