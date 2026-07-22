@@ -20,6 +20,7 @@
 #include "core/editor_selection.h"
 #include "core/editor_state.h"
 #include "core/math/vector2.h"
+#include "core/util/hash.h"
 #include "panels/content_browser.h"
 #include "panels/inspector.h"
 #include "panels/scene_hierarchy.h"
@@ -31,6 +32,8 @@
 #include "renderer/renderer.h"
 #include "renderer/resources/id.h"
 #include "runtime/asset/asset_manager.h"
+#include "app/project.h"
+#include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
 
@@ -44,6 +47,9 @@ constexpr float kRightColumnRatio{ 0.30f };
 } // namespace
 
 Editor::Editor(Application& app) : app{ app } {
+	// Generic application startup preference. The engine does not know why it was changed.
+	impl::ApplicationAccessor::ctx(app).start_project_runtime = false;
+
 	EditorSelection selection;
 
 	EditorState state;
@@ -107,6 +113,8 @@ void Editor::OnRender() {
 
 	ImGui::PopStyleVar(3);
 
+	DrawMainMenuBar();
+
 	auto dockspace_id{ ImGui::GetID("EditorDockspace") };
 	auto dockspace_size{ ImGui::GetContentRegionAvail() };
 
@@ -122,6 +130,39 @@ void Editor::OnRender() {
 	DrawPanels();
 
 	ImGui::End();
+}
+
+void Editor::DrawMainMenuBar() {
+	PTGN_ASSERT(context_);
+
+	if (!ImGui::BeginMenuBar()) {
+		return;
+	}
+
+	ImGui::BeginDisabled(context_->state.is_playing);
+	if (ImGui::Button("Save")) {
+		SaveProjectScene();
+	}
+	ImGui::EndDisabled();
+
+	ImGui::SameLine();
+
+	if (!context_->state.is_playing) {
+		if (ImGui::Button("Play")) {
+			Play();
+		}
+	} else {
+		if (ImGui::Button("Stop")) {
+			Stop();
+		}
+
+		ImGui::SameLine();
+		if (ImGui::Button(context_->state.is_paused ? "Resume" : "Pause")) {
+			TogglePause();
+		}
+	}
+
+	ImGui::EndMenuBar();
 }
 
 void Editor::DrawPanels() {
@@ -247,6 +288,100 @@ void Editor::ApplyEntityPickingSettings() {
 	SetSceneEntityPickingEnabled(*scene, ShouldEnableEntityPicking());
 }
 
+void Editor::Play() {
+	PTGN_ASSERT(context_);
+
+	if (context_->state.is_playing) {
+		return;
+	}
+
+	auto* scene{ scene_list_panel_.GetSelectedScene() };
+	if (!scene || scene->IsRuntime() || scene->GetRegisteredType().empty()) {
+		return;
+	}
+
+	play_snapshot_ = PlaySnapshot{
+		.scene_tag = scene->GetTag(),
+		.scene = CaptureScene(*scene),
+		.was_dirty = context_->state.is_dirty,
+	};
+
+	context_->selection.Clear();
+	undo_stack_.Clear();
+
+	SetApplicationState(ApplicationState::Running);
+
+	if (!GetSceneManager().ReEnterFactory(
+			play_snapshot_->scene_tag,
+			impl::MakeSceneFactory(play_snapshot_->scene, true)
+		)) {
+		play_snapshot_.reset();
+		return;
+	}
+
+	context_->state.is_playing = true;
+	context_->state.is_paused = false;
+}
+
+void Editor::Stop() {
+	PTGN_ASSERT(context_);
+
+	if (!context_->state.is_playing || !play_snapshot_) {
+		return;
+	}
+
+	context_->selection.Clear();
+	SetApplicationState(ApplicationState::Running);
+
+	auto factory{ impl::MakeSceneFactory(play_snapshot_->scene, false) };
+	auto& manager{ GetSceneManager() };
+	auto scene_hash{ Hash(play_snapshot_->scene_tag) };
+
+	bool accepted{ manager.HasScene(scene_hash)
+		? manager.ReEnterFactory(play_snapshot_->scene_tag, std::move(factory))
+		: manager.EnterFactory(play_snapshot_->scene_tag, std::move(factory)) };
+
+	if (!accepted) {
+		return;
+	}
+
+	context_->state.is_playing = false;
+	context_->state.is_paused = false;
+	context_->state.is_dirty = play_snapshot_->was_dirty;
+	play_snapshot_.reset();
+}
+
+void Editor::TogglePause() {
+	PTGN_ASSERT(context_);
+
+	if (!context_->state.is_playing) {
+		return;
+	}
+
+	context_->state.is_paused = !context_->state.is_paused;
+	SetApplicationState(
+		context_->state.is_paused ? ApplicationState::Paused : ApplicationState::Running
+	);
+}
+
+void Editor::SaveProjectScene() {
+	PTGN_ASSERT(context_);
+
+	if (context_->state.is_playing) {
+		return;
+	}
+
+	auto& app_context{ impl::ApplicationAccessor::ctx(app) };
+	auto* scene{ scene_list_panel_.GetSelectedScene() };
+	if (!app_context.project || !scene || scene->IsRuntime() ||
+		scene->GetRegisteredType().empty()) {
+		return;
+	}
+
+	SaveSceneFile(GetStartupScenePath(app_context.project.value()), CaptureScene(*scene));
+	context_->state.is_dirty = false;
+}
+
 void Editor::SetTimeScale(float time_scale) {
 	impl::ApplicationAccessor::ctx(app).time_scale = std::max(0.0f, time_scale);
 }
@@ -316,8 +451,11 @@ void Editor::OnProjectChanged() {
 	context_->selection.Clear();
 
 	undo_stack_.Clear();
+	play_snapshot_.reset();
 
 	context_->state.is_dirty = false;
+	context_->state.is_playing = false;
+	context_->state.is_paused = false;
 }
 
 void Editor::SetSceneEntityPickingEnabled(Scene& scene, bool enabled) {

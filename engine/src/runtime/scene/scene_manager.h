@@ -72,6 +72,16 @@ public:
 	const Scene& GetScene(std::size_t scene_tag_hash) const;
 	Scene& GetScene(std::size_t scene_tag_hash);
 
+	/// @brief Enters a scene through an already constructed type-erased factory.
+	/// Used by project-file loading and editor play mode.
+	bool EnterFactory(
+		std::string_view scene_tag, SceneFactory scene_factory,
+		SceneTransitionPriority priority = SceneTransitionPriority{}
+	);
+
+	/// @brief Replaces an active scene through a type-erased factory without a transition.
+	bool ReEnterFactory(std::string_view scene_tag, SceneFactory scene_factory);
+
 	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	bool Enter(

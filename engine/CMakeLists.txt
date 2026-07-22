@@ -62,7 +62,7 @@ target_link_libraries(
   protegon
   PUBLIC protegon::shaders ptgn_ecs nlohmann_json::nlohmann_json ptgn_imgui
          magic_enum::magic_enum
-  PRIVATE ptgn_glad glfw ptgn_miniaudio ptgn_stb Freetype::Freetype
+  PUBLIC ptgn_glad glfw ptgn_miniaudio ptgn_stb Freetype::Freetype
           msdf-atlas-gen::msdf-atlas-gen)
 
 if(NOT EMSCRIPTEN)

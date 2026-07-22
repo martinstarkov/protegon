@@ -12,6 +12,8 @@
 #include <imgui_impl_opengl3.h>
 
 #include <chrono>
+#include <filesystem>
+#include <functional>
 #include <memory>
 #include <string_view>
 #include <utility>
@@ -24,7 +26,9 @@
 #include "core/event/event.h"
 #include "core/event/event_handler.h"
 #include "core/event/window_event.h"
+#include "core/log.h"
 #include "core/math/vector2.h"
+#include "core/util/hash.h"
 #include "core/util/time.h"
 #include "platform/window.h"
 #include "renderer/draw_context.h"
@@ -33,8 +37,11 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/graphics/drawable.h"
+#include "app/project.h"
 #include "runtime/scene/scene.h"
+#include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_registry.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -48,6 +55,59 @@ Application::Application(std::string_view title, V2_int window_size) :
 	Application{ ApplicationConfig{ .window{ .title{ title }, .size{ window_size } } } } {}
 
 Application::~Application() noexcept = default;
+
+void Application::StartProject(const std::filesystem::path& project_path) {
+	StartProjectImpl(project_path, nullptr);
+}
+
+void Application::StartProjectImpl(
+	const std::filesystem::path& project_path, const impl::SceneRegistryEntry* default_scene
+) {
+	Project project;
+
+	if (std::filesystem::exists(project_path)) {
+		project = LoadProject(project_path);
+	} else {
+		PTGN_ASSERT(
+			default_scene,
+			"Project does not exist. Use StartProject<TDefaultScene>() to create it: ",
+			project_path.string()
+		);
+		project = CreateProject(project_path, *default_scene);
+	}
+
+	ctx_.project = std::move(project);
+
+	auto serialized_scene{ LoadSceneFile(GetStartupScenePath(ctx_.project.value())) };
+	auto scene_factory{
+		impl::MakeSceneFactory(std::move(serialized_scene), ctx_.start_project_runtime)
+	};
+
+	StartWithFactory("Main", std::move(scene_factory));
+}
+
+void Application::StartWithFactory(std::string_view scene_tag, impl::SceneFactory scene_factory) {
+	PTGN_ASSERT(scene_factory, "Cannot start application with a null scene factory");
+	PTGN_ASSERT(ctx_.scene_manager.scenes_.empty(), "Application has already been started");
+
+	auto first_scene{ std::invoke(
+		scene_factory, *this,
+		impl::SceneData{
+			.tag{ scene_tag },
+			.tag_hash = Hash(scene_tag),
+			.state = impl::SceneState::Active,
+			.first_scene = true,
+		}
+	) };
+
+	PTGN_ASSERT(first_scene, "Startup scene factory returned null");
+
+	auto& scene{ ctx_.scene_manager.scenes_.emplace_back(std::move(first_scene)) };
+	scene->InternalEnter();
+
+	ctx_.state = ApplicationState::Running;
+	EnterMainLoop();
+}
 
 void Application::EnterMainLoop() {
 	// Only show window after initialization has completed.
@@ -64,7 +124,7 @@ void Application::EnterMainLoop() {
 
 			app.Update();
 
-			if (!app.running_) {
+			if (!app.ctx_.running) {
 				emscripten_cancel_main_loop();
 			}
 		},
@@ -89,7 +149,7 @@ void Application::HandleGlobalEvents(bool dispatch_scene_events) {
 			continue;
 		}
 		for (const auto& scene : ctx_.scene_manager.GetScenes()) {
-			if (scene->IsAwaitingTransitionDelay()) {
+			if (!scene->IsRuntime() || scene->IsAwaitingTransitionDelay()) {
 				continue;
 			}
 			scene->InternalOnEvent(event);
@@ -138,16 +198,11 @@ void Application::Update() {
 
 	static auto start{ std::chrono::steady_clock::now() };
 	static auto end{ std::chrono::steady_clock::now() };
-	// Calculate time elapsed during previous frame.
 	ctx_.dt = end - start;
-
-	// TODO: Consider fixed FPS vs dynamic: https://gafferongames.com/post/fix_your_timestep/.
 
 	secondsf max_dt{ 1.0f / ctx_.fps };
 
 	if (ctx_.dt > max_dt) {
-		// TODO: Instead of clamping, consider using an accumulator to update multiple times if dt
-		// is large (such as in Debug mode).
 		ctx_.dt = max_dt;
 	}
 

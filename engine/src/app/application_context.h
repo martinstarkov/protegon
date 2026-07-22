@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "app/application_config.h"
@@ -14,6 +15,7 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/graphics/text/font_system.h"
+#include "app/project.h"
 #include "runtime/scene/scene_manager.h"
 #include "tools/debug/debug_system.h"
 
@@ -31,9 +33,9 @@ private:
 
 	ApplicationLibrary();
 	~ApplicationLibrary() noexcept;
-	ApplicationLibrary(const ApplicationLibrary&)				 = delete;
-	ApplicationLibrary& operator=(const ApplicationLibrary&)	 = delete;
-	ApplicationLibrary(ApplicationLibrary&&) noexcept			 = delete;
+	ApplicationLibrary(const ApplicationLibrary&)            = delete;
+	ApplicationLibrary& operator=(const ApplicationLibrary&) = delete;
+	ApplicationLibrary(ApplicationLibrary&&) noexcept         = delete;
 	ApplicationLibrary& operator=(ApplicationLibrary&&) noexcept = delete;
 };
 
@@ -67,6 +69,12 @@ public:
 
 	ApplicationState state{ ApplicationState::Launching };
 
+	/// @brief Runtime mode used when StartProject loads the startup scene.
+	/// Generic engine state; the editor sets this to false before project startup.
+	bool start_project_runtime{ true };
+
+	std::optional<Project> project;
+
 	[[nodiscard]] milliseconds TimeSinceStart() const;
 
 private:
@@ -75,9 +83,9 @@ private:
 	ApplicationContext() = delete;
 	explicit ApplicationContext(const ApplicationConfig& config);
 	~ApplicationContext() noexcept;
-	ApplicationContext(const ApplicationContext&)				 = delete;
-	ApplicationContext& operator=(const ApplicationContext&)	 = delete;
-	ApplicationContext(ApplicationContext&&) noexcept			 = delete;
+	ApplicationContext(const ApplicationContext&)            = delete;
+	ApplicationContext& operator=(const ApplicationContext&) = delete;
+	ApplicationContext(ApplicationContext&&) noexcept         = delete;
 	ApplicationContext& operator=(ApplicationContext&&) noexcept = delete;
 };
 

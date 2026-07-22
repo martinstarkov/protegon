@@ -16,7 +16,16 @@ class Editor;
 class EditorContext;
 
 struct SceneEditorState {
-	std::string scene_type_name;
+	/// Stable key used by the scene registry and scene file.
+	std::string scene_type;
+
+	/// User-facing registered name.
+	std::string display_name;
+
+	/// Tag used when entering a new scene instance.
+	std::string scene_tag{ "Main" };
+
+	/// Reflected scene-member values.
 	json params;
 };
 
@@ -30,10 +39,13 @@ public:
 
 private:
 	void DrawSceneParamUI(EditorContext& ctx);
-
-	path selected_scene_path_;
-	Scene* selected_scene_{ nullptr };
+	
 	std::optional<SceneEditorState> state_;
+
+	Scene* selected_scene_{ nullptr };
+	path selected_scene_path_;
+
+	std::optional<std::string> pending_selected_scene_tag_;
 };
 
 } // namespace editor

@@ -32,6 +32,7 @@
 #include "renderer/resources/texture_format.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/tween.h"
+#include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/manager.h"
@@ -271,6 +272,37 @@ void DrawScene(
 	);
 }
 
+json SerializeEntity(Entity entity) {
+	json components{ json::object() };
+
+	for (const auto& registration : ComponentRegistry::Components()) {
+		if (!registration.serializable || !registration.deserializable || !registration.serialize ||
+			!registration.deserialize || !registration.has(entity)) {
+			continue;
+		}
+
+		json value;
+		registration.serialize(value, entity);
+		components[std::string{ registration.name }] = std::move(value);
+	}
+
+	return json{ { "components", std::move(components) } };
+}
+
+void DeserializeEntity(const json& serialized, Entity entity) {
+	const auto& components{ serialized.at("components") };
+	PTGN_ASSERT(components.is_object(), "Serialized entity components must be a JSON object");
+
+	for (auto it{ components.begin() }; it != components.end(); ++it) {
+		const auto* registration{ ComponentRegistry::Find(it.key()) };
+		if (!registration || !registration->deserialize) {
+			continue;
+		}
+
+		registration->deserialize(it.value(), entity);
+	}
+}
+
 } // namespace
 
 Scene::Scene(Scene&& other) noexcept :
@@ -298,10 +330,29 @@ Scene& Scene::operator=(Scene&& other) noexcept {
 
 Scene::~Scene() = default;
 
-void Scene::Init(Application& app, impl::SceneData&& scene_data) {
-	data_ = std::move(scene_data);
-	ctx_  = std::make_unique<SceneContext>(app, *this);
+void Scene::InitBase(Application& app, impl::SceneData&& scene_data) {
+	data_	 = std::move(scene_data);
+	ctx_	 = std::make_unique<SceneContext>(app, *this);
+}
 
+void Scene::Init(Application& app, impl::SceneData&& scene_data) {
+	InitBase(app, std::move(scene_data));
+	CreateDefaultSceneEntities();
+	OnNew();
+	Refresh();
+	OnLoad();
+	Refresh();
+}
+
+void Scene::Init(Application& app, impl::SceneData&& scene_data, const json& serialized_content) {
+	InitBase(app, std::move(scene_data));
+	DeserializeContent(serialized_content);
+	Refresh();
+	OnLoad();
+	Refresh();
+}
+
+void Scene::CreateDefaultSceneEntities() {
 	// Must be created before scene camera.
 	ctx_->render_target_ =
 		CreateRenderTarget(*this, {}, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
@@ -315,6 +366,7 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	ctx_->fixed_camera_.SetMasks(
 		kDefaultFixedCameraIncludeLayerMask, kDefaultFixedCameraExcludeLayerMask
 	);
+
 	SetUI(ctx_->fixed_camera_, true);
 
 	if (data_.first_scene) {
@@ -322,15 +374,60 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	}
 
 	Refresh();
+}
 
-	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-		scripts.ApplyPending();
+json Scene::SerializeContent() const {
+	json entities{ json::array() };
+
+	for (Entity entity : Entities()) {
+		if (entity == GetRenderTarget() || entity == GetCamera() || entity == GetFixedCamera()) {
+			continue;
+		}
+
+		entities.emplace_back(SerializeEntity(entity));
+	}
+
+	return json{
+		{ "primary_entities",
+		  {
+			  { "render_target", SerializeEntity(GetRenderTarget()) },
+			  { "camera", SerializeEntity(GetCamera()) },
+			  { "fixed_camera", SerializeEntity(GetFixedCamera()) },
+		  } },
+		{ "entities", std::move(entities) },
+	};
+}
+
+void Scene::DeserializeContent(const json& serialized_content) {
+	CreateDefaultSceneEntities();
+
+	const auto& primary{ serialized_content.at("primary_entities") };
+	DeserializeEntity(primary.at("render_target"), GetRenderTarget());
+	DeserializeEntity(primary.at("camera"), GetCamera());
+	DeserializeEntity(primary.at("fixed_camera"), GetFixedCamera());
+
+	const auto& serialized_entities{ serialized_content.at("entities") };
+	PTGN_ASSERT(serialized_entities.is_array(), "Serialized scene entities must be a JSON array");
+
+	std::vector<Entity> entities;
+	entities.reserve(serialized_entities.size());
+
+	for ([[maybe_unused]] const auto& serialized_entity : serialized_entities) {
+		entities.emplace_back(CreateEntity());
+	}
+
+	for (std::size_t i{ 0 }; i < serialized_entities.size(); ++i) {
+		DeserializeEntity(serialized_entities.at(i), entities.at(i));
 	}
 
 	Refresh();
 }
 
 void Scene::InternalOnEvent(Event event) {
+	if (!data_.runtime) {
+		return;
+	}
+
 	// Global event, dispatched to all entities in the scene.
 	for (auto [entity, scripts] : EntitiesWith<impl::Scripts>()) {
 		entity.OnEvent(event);
@@ -349,6 +446,10 @@ void Scene::InternalOnEvent(Event event) {
 }
 
 void Scene::InternalOnEvent() {
+	if (!data_.runtime) {
+		return;
+	}
+
 	auto& events{ ctx().event };
 
 	auto current = std::exchange(events.entity_event_queue_, {});
@@ -367,10 +468,22 @@ void Scene::InternalOnEvent() {
 }
 
 void Scene::InternalPreUpdate() {
-	ctx().interaction.Update(*this);
+	if (data_.runtime) {
+		ctx().interaction.Update(*this);
+	}
 }
 
 void Scene::InternalEnter() {
+	if (!data_.runtime) {
+		return;
+	}
+
+	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
+		scripts.ApplyPending();
+	}
+
+	Refresh();
+
 	OnEnter();
 	Refresh();
 
@@ -529,6 +642,14 @@ void Scene::DrawSceneTarget(DrawContext& draw_context) const {
 }
 
 void Scene::InternalUpdate() {
+	if (data_.runtime) {
+		InternalRuntimeUpdate();
+	}
+
+	InternalMaintenanceUpdate();
+}
+
+void Scene::InternalRuntimeUpdate() {
 	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
 		scripts.Update();
 	}
@@ -545,7 +666,9 @@ void Scene::InternalUpdate() {
 	ctx().collision.Update(*this, dt);
 	ctx().physics.PostCollisionUpdate();
 	impl::UpdateButtons(*this);
+}
 
+void Scene::InternalMaintenanceUpdate() {
 	for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
 		impl::ApplyCameraBounds(SceneCamera{ camera_entity });
 	}
@@ -558,8 +681,12 @@ void Scene::InternalUpdate() {
 
 void Scene::InternalExit() {
 	Refresh();
-	OnExit();
-	Refresh();
+
+	if (data_.runtime) {
+		OnExit();
+		Refresh();
+	}
+
 	// Clears component hooks.
 	manager_.Reset();
 	ctx().physics.Reset();
@@ -607,6 +734,14 @@ std::size_t Scene::GetTagHash() const {
 
 std::string Scene::GetTag() const {
 	return data_.tag;
+}
+
+bool Scene::IsRuntime() const {
+	return data_.runtime;
+}
+
+std::string_view Scene::GetRegisteredType() const {
+	return data_.registered_type;
 }
 
 RenderTarget Scene::GetRenderTarget() const {

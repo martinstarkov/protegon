@@ -1,21 +1,17 @@
 #pragma once
 
+#include <concepts>
 #include <functional>
 #include <memory>
-#include <nlohmann/detail/macro_scope.hpp>
-#include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
-#include <tuple>
-#include <type_traits>
 #include <unordered_map>
 #include <utility>
 
 #include "core/assert.h"
-#include "core/util/concepts.h"
-#include "core/util/macro_loop.h"
 #include "core/util/string.h"
-#include "serialization/json/fwd.h"
+#include "core/util/hash.h"
+#include "runtime/scene/scene.h"
 #include "serialization/json/json.h"
 #include "serialization/serialize.h"
 
@@ -25,112 +21,149 @@ class Application;
 
 namespace impl {
 
-template <typename SceneT, typename Tuple, std::size_t... I>
-json BuildDefaultsImpl(const Tuple& fields, std::index_sequence<I...>) {
-	SceneT scene{};
-	json out = json::object();
-
-	(
-		[&] {
-			const auto& f = std::get<I>(fields);
-			using MemberT = std::remove_cvref_t<decltype(scene.*(f.member))>;
-			if constexpr (JsonSerializable<MemberT>) {
-				out[f.name] = scene.*(f.member);
-			}
-		}(),
-		...
-	);
-
-	return out;
-}
-
 using SceneFactory =
 	std::function<std::unique_ptr<Scene>(Application& app, SceneData&& scene_data)>;
 
 struct SceneRegistryEntry {
+	std::string type;
 	std::string display_name;
-	std::function<json()> default_params;
-	std::function<SceneFactory(const json&)> scene_factory;
+	std::size_t type_id{ 0 };
+
+	std::function<json()> default_parameters;
+	std::function<std::unique_ptr<Scene>(const json& parameters)> construct;
+	std::function<json(const Scene& scene)> serialize_parameters;
 };
 
-inline std::unordered_map<std::string, SceneRegistryEntry, StringHash, std::equal_to<>>&
-GetSceneRegistry() {
-	static std::unordered_map<std::string, SceneRegistryEntry, StringHash, std::equal_to<>> reg;
-	return reg;
+inline auto& GetSceneRegistry() {
+	static std::unordered_map<std::string, SceneRegistryEntry, StringHash, std::equal_to<>>
+		registry;
+	return registry;
 }
 
-template <typename SceneT, typename MemberT>
-struct FieldDesc {
-	const char* name;
-	MemberT SceneT::* member;
-};
-
-template <typename SceneT, typename MemberT>
-constexpr auto MakeField(const char* name, MemberT SceneT::* member) {
-	return FieldDesc<SceneT, MemberT>{ name, member };
+inline auto& GetSceneCppTypeRegistry() {
+	static std::unordered_map<std::size_t, std::string> registry;
+	return registry;
 }
 
-template <typename TScene, InvocableR<SceneFactory, const json&> F, typename... FieldTs>
-void RegisterScene(
-	std::string_view display_name, std::tuple<FieldTs...> fields, F&& scene_factory
-) {
-	GetSceneRegistry().emplace(
-		std::string{ type_name<TScene>() },
-		SceneRegistryEntry{
-			.display_name = std::string{ display_name },
-			.default_params =
-				[fields]() {
-					return BuildDefaultsImpl<TScene>(fields, std::index_sequence_for<FieldTs...>{});
-				},
-			.scene_factory = std::forward<F>(scene_factory) }
-	);
-}
-
-inline SceneFactory GetSceneFactory(std::string_view scene_name, const json& scene_params) {
-	auto it = GetSceneRegistry().find(scene_name);
-	if (it != GetSceneRegistry().end()) {
-		auto& entry = it->second;
-		return std::invoke(entry.scene_factory, scene_params);
+template <typename TScene>
+[[nodiscard]] json SerializeSceneParameters(const TScene& scene) {
+	if constexpr (JsonSerializable<TScene>) {
+		json parameters = scene;
+		return parameters;
 	} else {
-		PTGN_ERROR("Failed to find scene factory for scene: ", scene_name);
+		return json::object();
 	}
+}
+
+template <typename TScene>
+void DeserializeSceneParameters(const json& parameters, TScene& scene) {
+	if constexpr (JsonDeserializable<TScene>) {
+		PTGN_ASSERT(
+			parameters.is_object(),
+			"Scene parameters must be a JSON object for scene type: ",
+			type_name<TScene>()
+		);
+
+		json complete_parameters{ SerializeSceneParameters(scene) };
+
+		for (const auto& [key, value] : parameters.items()) {
+			std::string normalized_key{ key };
+
+			if (!normalized_key.empty() && normalized_key.back() == '_') {
+				normalized_key.pop_back();
+			}
+
+			complete_parameters[normalized_key] = value;
+		}
+
+		try {
+			complete_parameters.get_to(scene);
+		} catch (const json::exception& error) {
+			PTGN_ERROR(
+				"Failed to deserialize parameters for scene type ",
+				type_name<TScene>(),
+				": ",
+				error.what(),
+				"\nParameters: ",
+				complete_parameters.dump(4)
+			);
+		}
+	} else {
+		PTGN_ASSERT(
+			parameters.empty(),
+			"A scene without PTGN_REFLECT cannot have serialized parameters"
+		);
+	}
+}
+
+template <SceneType TScene>
+	requires std::default_initializable<TScene>
+bool RegisterScene(std::string_view type, std::string_view display_name) {
+	auto& registry{ GetSceneRegistry() };
+
+	constexpr auto type_id{ Hash<TScene>() };
+
+	if (auto existing{ registry.find(type) }; existing != registry.end()) {
+		PTGN_ASSERT(
+			existing->second.type_id == type_id,
+			"Scene registration key is already used by another C++ type: ", type
+		);
+		return false;
+	}
+
+	SceneRegistryEntry entry{
+		.type = std::string{ type },
+		.display_name = std::string{ display_name },
+		.type_id = type_id,
+		.default_parameters = [] {
+			TScene scene;
+			return SerializeSceneParameters(scene);
+		},
+		.construct = [](const json& parameters) -> std::unique_ptr<Scene> {
+			auto scene{ std::make_unique<TScene>() };
+			DeserializeSceneParameters(parameters, *scene);
+			return scene;
+		},
+		.serialize_parameters = [](const Scene& scene) {
+			return SerializeSceneParameters(static_cast<const TScene&>(scene));
+		},
+	};
+
+	auto [it, inserted]{ registry.emplace(entry.type, std::move(entry)) };
+	PTGN_ASSERT(inserted, "Failed to register scene type: ", type);
+
+	GetSceneCppTypeRegistry().emplace(type_id, it->first);
+	return true;
+}
+
+[[nodiscard]] inline const SceneRegistryEntry& GetSceneRegistration(std::string_view type) {
+	auto it{ GetSceneRegistry().find(type) };
+	PTGN_ASSERT(it != GetSceneRegistry().end(), "Scene type is not registered: ", type);
+	return it->second;
+}
+
+template <SceneType TScene>
+[[nodiscard]] const SceneRegistryEntry& GetSceneRegistration() {
+	constexpr auto type_id{ Hash<TScene>() };
+	auto it{ GetSceneCppTypeRegistry().find(type_id) };
+	PTGN_ASSERT(
+		it != GetSceneCppTypeRegistry().end(),
+		"Scene type has not been registered with PTGN_REGISTER_SCENE"
+	);
+	return GetSceneRegistration(it->second);
 }
 
 } // namespace impl
 
 } // namespace ptgn
 
-#define PTGN_IMPL_FIELD_OF(X, SceneTypeName) \
-	::ptgn::impl::MakeField<SceneTypeName>(#X, &SceneTypeName::X)
+#define PTGN_IMPL_SCENE_CONCAT_INNER(a, b) a##b
+#define PTGN_IMPL_SCENE_CONCAT(a, b) PTGN_IMPL_SCENE_CONCAT_INNER(a, b)
 
-#define PTGN_REGISTER_SCENE(SceneTypeName, DisplayName, ...)                                       \
-	inline void to_json(::ptgn::json& nlohmann_json_j, const SceneTypeName& nlohmann_json_t) {     \
-		__VA_OPT__(NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_TO, __VA_ARGS__) \
-		))                                                                                         \
-	}                                                                                              \
-	inline void from_json(const ::ptgn::json& nlohmann_json_j, SceneTypeName& nlohmann_json_t) {   \
-		__VA_OPT__(                                                                                \
-			NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(PTGN_IMPL_EXTEND_JSON_FROM, __VA_ARGS__))     \
-		)                                                                                          \
-	}                                                                                              \
-	namespace ptgn::impl {                                                                         \
-	static const bool _ptgn_registered_##SceneTypeName = [] {                                      \
-		RegisterScene<SceneTypeName>(                                                              \
-			DisplayName,                                                                           \
-			std::make_tuple(                                                                       \
-				__VA_OPT__(PTGN_MAP_LIST_DATA(PTGN_IMPL_FIELD_OF, SceneTypeName, __VA_ARGS__))     \
-			),                                                                                     \
-			[](const ::ptgn::json& j) -> ::ptgn::impl::SceneFactory {                              \
-				return [j](::ptgn::Application& app, ::ptgn::impl::SceneData&& scene_data          \
-					   ) -> std::unique_ptr<::ptgn::Scene> {                                       \
-					auto scene{ std::make_unique<SceneTypeName>() };                               \
-					PTGN_ASSERT(scene);                                                            \
-					from_json(j, *scene);                                                          \
-					::ptgn::impl::InitScene(*scene, app, std::move(scene_data));                   \
-					return scene;                                                                  \
-				};                                                                                 \
-			}                                                                                      \
-		);                                                                                         \
-		return true;                                                                               \
-	}();                                                                                           \
+/// @brief Registers a default-constructible scene for project-file loading.
+/// Place this once in the scene's .cpp file.
+#define PTGN_REGISTER_SCENE(SceneTypeName, DisplayName)                                      \
+	namespace {                                                                                \
+	[[maybe_unused]] const bool PTGN_IMPL_SCENE_CONCAT(_ptgn_registered_scene_, __COUNTER__) \
+		= ::ptgn::impl::RegisterScene<SceneTypeName>(#SceneTypeName, DisplayName);             \
 	}

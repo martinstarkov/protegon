@@ -22,6 +22,7 @@
 #include "runtime/scene/scene_transition.h"
 #include "runtime/scene/scene_view.h"
 #include "serialization/json/archiver.h"
+#include "serialization/json/json.h"
 
 namespace ptgn {
 
@@ -34,6 +35,8 @@ class DrawContext;
 
 namespace impl {
 
+class SceneFileAccess;
+
 enum class SceneState {
 	Active,
 	TransitionIn,
@@ -45,7 +48,9 @@ struct SceneData {
 	std::size_t tag_hash{ 0 };
 	impl::SceneState state{ impl::SceneState::Active };
 	std::unique_ptr<SceneTransition> transition;
+	bool runtime{ true };
 	bool first_scene{ false };
+	std::string registered_type;
 };
 
 template <SceneType TScene>
@@ -74,24 +79,35 @@ public:
 
 	virtual ~Scene();
 
-	/// @brief Called when the scene is added to active scenes.
+	/// @brief Called only when a new scene has no serialized ECS contents yet.
+	virtual void OnNew() {
+		/* User implementation */
+	}
+
+	/// @brief Called after either new or serialized scene contents have been initialized.
+	/// Called for both runtime and non-runtime scenes.
+	virtual void OnLoad() {
+		/* User implementation */
+	}
+
+	/// @brief Called when a runtime scene is added to active scenes.
 	virtual void OnEnter() {
-		/* user implementation */
+		/* User implementation */
 	}
 
-	/// @brief Called once per frame for each active scene.
+	/// @brief Called once per frame for each runtime scene.
 	virtual void OnUpdate() {
-		/* user implementation */
+		/* User implementation */
 	}
 
-	/// @brief Called when the scene is removed from active scenes.
+	/// @brief Called when a runtime scene is removed from active scenes.
 	virtual void OnExit() {
-		/* user implementation */
+		/* User implementation */
 	}
 
-	/// @brief Called an event is emitted by the event handler.
+	/// @brief Called when an event is emitted to a runtime scene.
 	virtual void OnEvent(Event) {
-		/* user implementation */
+		/* User implementation */
 	}
 
 	/// @brief Sets the background color of the scene. The default background color is transparent.
@@ -107,16 +123,13 @@ public:
 	/// If multiple entities have the same tag, returns the first one found.
 	Entity GetEntity(const Tag& tag) const;
 
-	/// @brief Make sure to call Refresh() after this function.
-
 	/// @brief Creates an entity with a specified tag and UUID, or a default tag and a random UUID
-	/// if unspecified.
-	/// Make sure to call Refresh() after this function.
+	/// if unspecified. Make sure to call Refresh() after this function.
 	Entity CreateEntity(Tag tag = {}, UUID uuid = {});
 
 	/// @brief Copies all of the from entity's specified components into a new entity with a
 	/// specified tag and UUID, or a default tag and a random UUID if unspecified.
-	/// @brief Make sure to call Refresh() after this function.
+	/// Make sure to call Refresh() after this function.
 	template <typename... Ts>
 	Entity CopyEntity(Entity from, Tag tag = {}, UUID uuid = {}) {
 		auto entity{ manager_.CopyEntity<Ts...>(from) };
@@ -199,13 +212,18 @@ public:
 	[[nodiscard]] SceneContext& ctx();
 
 	std::size_t GetTagHash() const;
-
 	std::string GetTag() const;
 
+	[[nodiscard]] bool IsRuntime() const;
 	[[nodiscard]] bool IsTransitioning() const;
+	[[nodiscard]] std::string_view GetRegisteredType() const;
+
+	/// @brief Serializes the persistent scene ECS state used by project save and editor play mode.
+	[[nodiscard]] json SerializeContent() const;
 
 private:
 	friend class impl::SceneManager;
+	friend class impl::SceneFileAccess;
 	friend class EventHandler;
 	friend class Application;
 	friend class FrameContext;
@@ -217,14 +235,22 @@ private:
 	template <SceneType TScene>
 	friend void impl::InitScene(TScene& scene, Application& app, impl::SceneData&& scene_data);
 
+	/// @brief Initializes a newly created scene with default primary entities and OnNew().
 	void Init(Application& app, impl::SceneData&& scene_data);
+
+	/// @brief Initializes a scene from serialized project contents.
+	void Init(Application& app, impl::SceneData&& scene_data, const json& serialized_content);
+
+	void InitBase(Application& app, impl::SceneData&& scene_data);
+	void CreateDefaultSceneEntities();
+	void DeserializeContent(const json& serialized_content);
 
 	template <typename TScene, auto Member>
 	void HookThunk(ecs::impl::BaseEntity<JsonArchiver> handle) {
 		(static_cast<TScene*>(this)->*Member)(Entity{ handle, this });
 	}
 
-	/// @brief Called by scene manager when a new scene is loaded and entered.
+	/// @brief Called by scene manager when a new runtime scene is loaded and entered.
 	void InternalEnter();
 	void InternalExit();
 	void InternalOnEvent(Event event);
@@ -232,6 +258,8 @@ private:
 	void InternalPreUpdate();
 
 	void InternalUpdate();
+	void InternalRuntimeUpdate();
+	void InternalMaintenanceUpdate();
 	void InternalDraw(DrawContext& draw_context);
 	void ClearRenderTargets();
 	void DrawCameras(DrawContext& draw_context, const std::vector<Entity>& cameras);

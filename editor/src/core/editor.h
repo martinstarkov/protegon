@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
+#include <string>
 
 #include "app/application_layer.h"
 #include "app/application_state.h"
@@ -16,6 +18,7 @@
 #include "panels/settings.h"
 #include "panels/viewport.h"
 #include "renderer/resources/id.h"
+#include "runtime/scene/scene_file.h"
 
 namespace ptgn {
 
@@ -63,6 +66,11 @@ public:
 	void SetApplicationState(ApplicationState state);
 	ApplicationState GetApplicationState() const;
 
+	void Play();
+	void Stop();
+	void TogglePause();
+	void SaveProjectScene();
+
 	SceneHierarchyPanel& GetSceneHierarchyPanel();
 	SceneListPanel& GetSceneListPanel();
 
@@ -79,10 +87,17 @@ public:
 	void SetSceneEntityPickingEnabled(Scene& scene, bool enabled);
 
 private:
+	struct PlaySnapshot {
+		std::string scene_tag;
+		SerializedScene scene;
+		bool was_dirty{ false };
+	};
+
 	Application& app;
 
 	void OnProjectChanged();
 
+	void DrawMainMenuBar();
 	void DrawPanels();
 
 	void BuildDefaultDockLayout(std::uint32_t dockspace_id);
@@ -107,6 +122,8 @@ private:
 	InspectorPanel inspector_panel_;
 	SceneHierarchyPanel scene_hierarchy_panel_;
 	SceneListPanel scene_list_panel_;
+
+	std::optional<PlaySnapshot> play_snapshot_;
 
 	std::uint32_t dock_left_column_id_{ 0 };
 	std::uint32_t dock_right_column_id_{ 0 };
