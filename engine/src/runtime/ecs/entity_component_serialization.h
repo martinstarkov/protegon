@@ -10,7 +10,7 @@
 namespace ptgn {
 
 inline json SerializeEntityComponents(Entity entity) {
-	json output{ json::object() };
+	json output;
 
 	for (const auto& component : ComponentRegistry::Components()) {
 		if (!component.serialize || !component.has(entity)) {

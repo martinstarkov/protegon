@@ -273,7 +273,7 @@ void DrawScene(
 }
 
 json SerializeEntity(Entity entity) {
-	json components{ json::object() };
+	json components;
 
 	for (const auto& registration : ComponentRegistry::Components()) {
 		if (!registration.serializable || !registration.deserializable || !registration.serialize ||
@@ -377,7 +377,7 @@ void Scene::CreateDefaultSceneEntities() {
 }
 
 json Scene::SerializeContent() const {
-	json entities{ json::array() };
+	json entities = json::array();
 
 	for (Entity entity : Entities()) {
 		if (entity == GetRenderTarget() || entity == GetCamera() || entity == GetFixedCamera()) {

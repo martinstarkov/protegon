@@ -513,7 +513,7 @@ bool AssetManager::Unload(const AssetKey& key) {
 template <AssetType T>
 std::optional<ConstAsset<T>> AssetManager::TryGet(const AssetKey& key) const {
 	if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
-		auto it{ jsons_.find(Hash(key)) };
+		auto it = jsons_.find(Hash(key));
 		if (it == jsons_.end()) {
 			return std::nullopt;
 		}
@@ -526,7 +526,7 @@ std::optional<ConstAsset<T>> AssetManager::TryGet(const AssetKey& key) const {
 template <AssetType T>
 std::optional<Asset<T>> AssetManager::TryGet(const AssetKey& key) {
 	if constexpr (std::is_same_v<std::remove_cvref_t<T>, json>) {
-		auto it{ jsons_.find(Hash(key)) };
+		auto it = jsons_.find(Hash(key));
 		if (it == jsons_.end()) {
 			return std::nullopt;
 		}

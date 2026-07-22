@@ -211,7 +211,7 @@ struct EventCondition {
 	bool enabled{ true };
 	bool consume{ false };
 	TypeHashValue type_hash{ 0 };
-	ptgn::json value{ ptgn::json::object() };
+	ptgn::json value;
 
 	PTGN_REFLECT(EventCondition, enabled, consume, type_hash, value)
 };
@@ -2225,7 +2225,7 @@ template <typename... TComponent>
 template <typename TEvent>
 struct EventRegistrationOptions {
 	EventEditorOptions editor;
-	ptgn::json default_value{ ptgn::json::object() };
+	ptgn::json default_value;
 	int inline_fields{ 0 };
 	std::function<bool(ptgn::Entity, const ptgn::json&, const TEvent&)> matches;
 	std::function<bool(ptgn::json&)> draw{

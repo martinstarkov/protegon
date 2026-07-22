@@ -64,7 +64,7 @@ void DeserializeSceneParameters(const json& parameters, TScene& scene) {
 			type_name<TScene>()
 		);
 
-		json complete_parameters{ SerializeSceneParameters(scene) };
+		json complete_parameters = SerializeSceneParameters(scene);
 
 		for (const auto& [key, value] : parameters.items()) {
 			std::string normalized_key{ key };
