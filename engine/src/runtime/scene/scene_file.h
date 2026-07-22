@@ -3,7 +3,9 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <vector>
 
+#include "runtime/asset/asset_key.h"
 #include "runtime/scene/scene_registry.h"
 #include "serialization/json/json.h"
 
@@ -12,6 +14,7 @@ namespace ptgn {
 struct SerializedScene {
 	std::string type;
 	json parameters = json::object();
+	std::vector<AssetKey> assets;
 	std::optional<json> content;
 };
 

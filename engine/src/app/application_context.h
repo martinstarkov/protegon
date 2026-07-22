@@ -73,6 +73,8 @@ public:
 	/// Generic engine state; the editor sets this to false before project startup.
 	bool start_project_runtime{ true };
 
+	bool project_bootstrap_save_pending{ false };
+
 	std::optional<Project> project;
 
 	[[nodiscard]] milliseconds TimeSinceStart() const;

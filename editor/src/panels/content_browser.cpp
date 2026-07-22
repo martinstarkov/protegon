@@ -136,7 +136,7 @@ void ImportAssetPaths(EditorContext& ctx, std::span<const path> asset_paths, std
 		}
 
 		auto key{ MakeUniqueAssetKey(ctx.editor.GetAssetManager(), asset_path) };
-		ctx.editor.GetAssetManager().Load(key, asset_path);
+		ctx.editor.GetAssetManager().LoadProjectAsset(std::move(key), asset_path);
 
 		++imported_count;
 	}

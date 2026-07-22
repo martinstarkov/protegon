@@ -79,6 +79,7 @@ void Application::StartProjectImpl(
 	ctx_.project = std::move(project);
 
 	auto serialized_scene{ LoadSceneFile(GetStartupScenePath(ctx_.project.value())) };
+	ctx_.project_bootstrap_save_pending = !serialized_scene.content.has_value();
 	auto scene_factory{
 		impl::MakeSceneFactory(std::move(serialized_scene), ctx_.start_project_runtime)
 	};

@@ -389,14 +389,16 @@ void Editor::SaveProjectScene() {
 		return;
 	}
 
-	auto& app_context{ impl::ApplicationAccessor::ctx(app) };
 	auto* scene{ scene_list_panel_.GetSelectedScene() };
-	if (!app_context.project || !scene || scene->IsRuntime() ||
-		scene->GetRegisteredType().empty()) {
+
+	if (!scene) {
 		return;
 	}
 
-	SaveSceneFile(GetStartupScenePath(app_context.project.value()), CaptureScene(*scene));
+	if (!impl::SaveProjectScene(app, *scene, true)) {
+		return;
+	}
+
 	context_->state.is_dirty = false;
 }
 

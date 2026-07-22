@@ -3,8 +3,11 @@
 #include <ecs/ecs.h>
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
+#include <functional>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -21,6 +24,7 @@
 #include "renderer/resources/texture_format.h"
 #include "renderer/text/font_atlas.h"
 #include "runtime/asset/asset_key.h"
+#include "runtime/asset/asset_serialization.h"
 #include "runtime/audio/audio.h"
 #include "runtime/ecs/key_hash.h"
 #include "runtime/graphics/text/font.h"
@@ -158,6 +162,22 @@ struct AssetRecord {
 	std::optional<AssetPreview> preview;
 };
 
+/// @brief Temporarily records path-backed asset loads as dependencies of one scene.
+class AssetCaptureScope {
+public:
+	AssetCaptureScope(AssetManager& assets, std::vector<AssetKey>& dependencies);
+	~AssetCaptureScope() noexcept;
+
+	AssetCaptureScope(const AssetCaptureScope&) = delete;
+	AssetCaptureScope& operator=(const AssetCaptureScope&) = delete;
+	AssetCaptureScope(AssetCaptureScope&&) noexcept = delete;
+	AssetCaptureScope& operator=(AssetCaptureScope&&) noexcept = delete;
+
+private:
+	AssetManager& assets_;
+	std::vector<AssetKey>& dependencies_;
+};
+
 struct JsonAssetData {
 	AssetKey key;
 	path source_path;
@@ -241,6 +261,29 @@ public:
 	void Load(ShaderKey key, const ShaderCode& shader_code);
 	void Load(ShaderKey key, const ShaderPair& shader_pair);
 
+	/// @brief Loads one persistent path-backed asset descriptor.
+	void Load(const SerializedAsset& asset);
+
+	/// @brief Loads catalog assets referenced by the provided keys.
+	void LoadDependencies(std::span<const AssetKey> dependencies);
+
+	/// @brief Loads an asset and pins it as a project-wide startup dependency.
+	void LoadProjectAsset(AssetKey key, const path& asset_path);
+
+	/// @brief Merges persistent descriptors into the known project asset catalog.
+	void RegisterCatalog(std::span<const SerializedAsset> assets);
+
+	/// @return The complete known path-backed project asset catalog.
+	[[nodiscard]] std::vector<SerializedAsset> GetCatalog() const;
+
+	void AddProjectAssetDependency(AssetKey key);
+	void AddProjectAssetDependencies(std::span<const AssetKey> dependencies);
+
+	/// @return Asset keys that should be loaded globally whenever the project starts.
+	[[nodiscard]] const std::vector<AssetKey>& GetProjectAssetDependencies() const;
+
+	[[nodiscard]] bool HasCatalogAsset(const AssetKey& key) const;
+
 	Audio LoadAudio(AudioKey key, const path& audio_path);
 
 	/// @brief Note: Do not brace initialize JSON objects.
@@ -286,6 +329,7 @@ public:
 	}
 private:
 	friend class impl::AssetAccessor;
+	friend class impl::AssetCaptureScope;
 	friend class impl::ApplicationContext;
 	friend class Shader;
 	friend class Texture;
@@ -335,6 +379,10 @@ private:
 
 	void Load(AssetKey key, const path& asset_path, AssetKind kind);
 
+	void BeginAssetCapture(std::vector<AssetKey>& dependencies);
+	void EndAssetCapture(std::vector<AssetKey>& dependencies);
+	void TrackAssetLoad(const AssetKey& key, AssetKind kind, const path& source_path);
+
 	[[nodiscard]] Shader CreateShader(
 		bool persistent, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 		std::string_view shader_name
@@ -363,6 +411,9 @@ private:
 	ecs::Manager manager_;
 
 	std::unordered_map<std::size_t, impl::JsonAssetData> jsons_;
+	std::unordered_map<std::size_t, SerializedAsset> catalog_;
+	std::vector<AssetKey> project_asset_dependencies_;
+	std::vector<AssetKey>* captured_asset_dependencies_{ nullptr };
 };
 
 namespace impl {

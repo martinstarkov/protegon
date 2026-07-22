@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "app/application.h"
+#include "app/application_context.h"
 #include "core/assert.h"
 #include "core/event/event.h"
 #include "core/graphics/color.h"
@@ -31,6 +32,7 @@
 #include "renderer/resources/texture.h"
 #include "renderer/resources/texture_format.h"
 #include "runtime/animation/animation.h"
+#include "runtime/asset/asset_manager.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
@@ -330,7 +332,8 @@ void ApplySerializedIdentity(Entity entity, const json& serialized_entity) {
 Scene::Scene(Scene&& other) noexcept :
 	ctx_{ std::exchange(other.ctx_, nullptr) },
 	manager_{ std::exchange(other.manager_, {}) },
-	data_{ std::exchange(other.data_, {}) } {
+	data_{ std::exchange(other.data_, {}) },
+	asset_dependencies_{ std::exchange(other.asset_dependencies_, {}) } {
 	if (ctx_) {
 		ctx_->Rebind(*this);
 	}
@@ -341,6 +344,7 @@ Scene& Scene::operator=(Scene&& other) noexcept {
 		ctx_	 = std::exchange(other.ctx_, nullptr);
 		manager_ = std::exchange(other.manager_, {});
 		data_	 = std::exchange(other.data_, {});
+		asset_dependencies_ = std::exchange(other.asset_dependencies_, {});
 
 		if (ctx_) {
 			ctx_->Rebind(*this);
@@ -360,8 +364,21 @@ void Scene::InitBase(Application& app, impl::SceneData&& scene_data) {
 void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	InitBase(app, std::move(scene_data));
 	CreateDefaultSceneEntities();
-	OnNew();
+
+	{
+		impl::AssetCaptureScope capture{
+			impl::ApplicationAccessor::ctx(app).assets,
+			asset_dependencies_
+		};
+
+		OnNew();
+	}
+
 	Refresh();
+	
+	auto& app_context{ impl::ApplicationAccessor::ctx(app) };
+	impl::SaveProjectScene(app, *this, app_context.project_bootstrap_save_pending);
+
 	OnLoad();
 	Refresh();
 }
@@ -877,6 +894,18 @@ SceneCamera Scene::GetCamera() const {
 
 SceneCamera Scene::GetFixedCamera() const {
 	return ctx_->fixed_camera_;
+}
+
+void Scene::AddAssetDependency(AssetKey key) {
+	if (key.value.empty() || std::ranges::contains(asset_dependencies_, key)) {
+		return;
+	}
+
+	asset_dependencies_.emplace_back(std::move(key));
+}
+
+const std::vector<AssetKey>& Scene::GetAssetDependencies() const {
+	return asset_dependencies_;
 }
 
 void Scene::Refresh() {

@@ -112,11 +112,176 @@ bool AssetAccessor::Unload(const AssetKey& key, AssetKind kind) {
 	return assets.Unload(key, kind);
 }
 
+AssetCaptureScope::AssetCaptureScope(
+	AssetManager& assets, std::vector<AssetKey>& dependencies
+) :
+	assets_{ assets }, dependencies_{ dependencies } {
+	assets_.BeginAssetCapture(dependencies_);
+}
+
+AssetCaptureScope::~AssetCaptureScope() noexcept {
+	assets_.EndAssetCapture(dependencies_);
+}
+
 } // namespace impl
 
 AssetManager::AssetManager(Renderer& renderer, AudioSystem& audio, FontSystem& font) :
 	renderer_{ renderer }, audio_{ audio }, font_{ font } {
 	// Note: Do not use audio or font systems here as those are constructed after asset manager.
+}
+
+void AssetManager::BeginAssetCapture(std::vector<AssetKey>& dependencies) {
+	PTGN_ASSERT(
+		captured_asset_dependencies_ == nullptr,
+		"Asset dependency capture cannot be nested"
+	);
+
+	captured_asset_dependencies_ = &dependencies;
+}
+
+void AssetManager::EndAssetCapture(std::vector<AssetKey>& dependencies) {
+	PTGN_ASSERT(
+		captured_asset_dependencies_ == &dependencies,
+		"Attempting to end an asset dependency capture that is not active"
+	);
+
+	captured_asset_dependencies_ = nullptr;
+}
+
+void AssetManager::TrackAssetLoad(
+	const AssetKey& key, AssetKind kind, const path& source_path
+) {
+// Ordinary runtime loads remain transient. Only an active authoring capture (OnNew)
+	// promotes them into the persistent project catalog and scene dependency list.
+	if (!captured_asset_dependencies_ || key.value.empty() || kind == AssetKind::Unknown ||
+		source_path.empty()) {
+		return;
+	}
+
+	catalog_.insert_or_assign(
+		Hash(key),
+		SerializedAsset{
+			.key = key,
+			.kind = kind,
+			.source_path = source_path,
+		}
+	);
+
+	if (!std::ranges::contains(*captured_asset_dependencies_, key)) {
+		captured_asset_dependencies_->emplace_back(key);
+	}
+}
+
+void AssetManager::RegisterCatalog(std::span<const SerializedAsset> assets) {
+	for (const auto& asset : assets) {
+		PTGN_ASSERT(!asset.key.value.empty(), "Serialized asset key cannot be empty");
+		PTGN_ASSERT(
+			asset.kind != AssetKind::Unknown,
+			"Serialized asset kind cannot be Unknown for key: ",
+			asset.key
+		);
+		PTGN_ASSERT(
+			!asset.source_path.empty(),
+			"Serialized asset path cannot be empty for key: ",
+			asset.key
+		);
+
+		catalog_.insert_or_assign(Hash(asset.key), asset);
+	}
+}
+
+std::vector<SerializedAsset> AssetManager::GetCatalog() const {
+	std::vector<SerializedAsset> assets;
+	assets.reserve(catalog_.size());
+
+	for (const auto& [_, asset] : catalog_) {
+		assets.emplace_back(asset);
+	}
+
+	std::ranges::sort(assets, [](const SerializedAsset& lhs, const SerializedAsset& rhs) {
+		if (lhs.key != rhs.key) {
+			return lhs.key < rhs.key;
+		}
+
+		return lhs.kind < rhs.kind;
+	});
+
+	return assets;
+}
+
+void AssetManager::AddProjectAssetDependency(AssetKey key) {
+	if (key.value.empty() || std::ranges::contains(project_asset_dependencies_, key)) {
+		return;
+	}
+
+	PTGN_ASSERT(
+		HasCatalogAsset(key),
+		"Cannot add an asset to the project preload list before registering its source: ",
+		key
+	);
+
+	project_asset_dependencies_.emplace_back(std::move(key));
+}
+
+void AssetManager::AddProjectAssetDependencies(std::span<const AssetKey> dependencies) {
+	for (const auto& key : dependencies) {
+		AddProjectAssetDependency(key);
+	}
+}
+
+const std::vector<AssetKey>& AssetManager::GetProjectAssetDependencies() const {
+	return project_asset_dependencies_;
+}
+
+bool AssetManager::HasCatalogAsset(const AssetKey& key) const {
+	return catalog_.contains(Hash(key));
+}
+
+void AssetManager::Load(const SerializedAsset& asset) {
+	Load(asset.key, asset.source_path, asset.kind);
+}
+
+void AssetManager::LoadDependencies(std::span<const AssetKey> dependencies) {
+	for (const auto& key : dependencies) {
+		auto it{ catalog_.find(Hash(key)) };
+
+		PTGN_ASSERT(
+			it != catalog_.end(),
+			"Asset dependency is missing from the project catalog: ",
+			key
+		);
+
+		Load(it->second);
+	}
+}
+
+void AssetManager::LoadProjectAsset(AssetKey key, const path& asset_path) {
+	AssetKey dependency{ key };
+
+	Load(std::move(key), asset_path);
+
+	PTGN_ASSERT(
+		Has(dependency),
+		"Project asset failed to load and cannot be persisted: ",
+		dependency
+	);
+
+	AssetKind kind{ impl::GetAssetKind(asset_path) };
+
+	if (kind == AssetKind::Texture && impl::IsFontAtlasPng(asset_path)) {
+		kind = AssetKind::Font;
+	}
+
+	catalog_.insert_or_assign(
+		Hash(dependency),
+		SerializedAsset{
+			.key = dependency,
+			.kind = kind,
+			.source_path = asset_path,
+		}
+	);
+
+	AddProjectAssetDependency(std::move(dependency));
 }
 
 impl::TextureObject AssetManager::CreateTexture(
@@ -168,6 +333,8 @@ Texture AssetManager::CreateTexture(
 Texture AssetManager::LoadTexture(
 	TextureKey key, const path& asset_path, TextureFormat storage_format, TextureParams params
 ) {
+	TrackAssetLoad(key, AssetKind::Texture, asset_path);
+
 	if (auto existing{ TryGet<Texture>(key) }; existing.has_value()) {
 		return existing.value();
 	}
@@ -191,6 +358,8 @@ Font AssetManager::CreateFont(const path& asset_path) {
 }
 
 Font AssetManager::LoadFont(FontKey key, const path& asset_path) {
+	TrackAssetLoad(key, AssetKind::Font, asset_path);
+
 	if (auto existing{ TryGet<Font>(key) }; existing.has_value()) {
 		return existing.value();
 	}
@@ -212,6 +381,8 @@ Audio AssetManager::CreateAudio(const path& asset_path) {
 }
 
 Audio AssetManager::LoadAudio(AudioKey key, const path& asset_path) {
+	TrackAssetLoad(key, AssetKind::Audio, asset_path);
+
 	if (auto existing{ TryGet<Audio>(key) }; existing.has_value()) {
 		return existing.value();
 	}
@@ -243,6 +414,10 @@ Shader AssetManager::LoadShader(
 	ShaderKey key, const std::variant<ShaderCode, ShaderPath, ShaderPair>& source,
 	std::optional<std::string_view> shader_name
 ) {
+	if (const auto* shader_path{ std::get_if<ShaderPath>(&source) }) {
+		TrackAssetLoad(key, AssetKind::Shader, shader_path->path);
+	}
+
 	if (auto existing{ TryGet<Shader>(key) }; existing.has_value()) {
 		return existing.value();
 	}
@@ -271,6 +446,8 @@ json AssetManager::CreateJson(const path& asset_path) {
 }
 
 json& AssetManager::LoadJson(const JsonKey& key, const path& asset_path) {
+	TrackAssetLoad(key, AssetKind::Json, asset_path);
+
 	auto hash{ Hash(key) };
 
 	auto [it, _] = jsons_.try_emplace(

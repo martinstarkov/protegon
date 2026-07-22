@@ -9,9 +9,11 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "core/event/event.h"
 #include "core/graphics/color.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/ecs/tag.h"
@@ -200,6 +202,12 @@ public:
 		return SceneHook<TComponent>{ *this, manager_.template OnUpdate<TComponent>() };
 	}
 
+	/// @brief Adds an already registered path-backed asset as a persistent dependency of this scene.
+	void AddAssetDependency(AssetKey key);
+
+	/// @return Persistent asset keys that must be loaded before this scene is initialized.
+	[[nodiscard]] const std::vector<AssetKey>& GetAssetDependencies() const;
+
 	void Refresh();
 
 	std::size_t GetEntityCount() const;
@@ -271,6 +279,7 @@ private:
 	Manager manager_;
 
 	impl::SceneData data_;
+	std::vector<AssetKey> asset_dependencies_;
 };
 
 namespace impl {
