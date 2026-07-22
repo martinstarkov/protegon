@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "core/assert.h"
+#include "core/util/hash.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/relatives.h"
@@ -17,10 +18,10 @@ namespace ptgn {
 namespace impl {
 
 [[nodiscard]] inline bool IsSceneMetadataComponent(const RegisteredComponent& component) {
-	return component.type_id == ComponentTypeId<UUID>() ||
-		   component.type_id == ComponentTypeId<Tag>() ||
-		   component.type_id == ComponentTypeId<Parent>() ||
-		   component.type_id == ComponentTypeId<Children>();
+	return component.type_id == Hash<UUID>() ||
+		   component.type_id == Hash<Tag>() ||
+		   component.type_id == Hash<Parent>() ||
+		   component.type_id == Hash<Children>();
 }
 
 } // namespace impl

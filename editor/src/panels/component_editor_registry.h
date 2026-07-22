@@ -11,6 +11,8 @@
 #include <vector>
 
 #include "panels/inspector_fields.h"
+#include "core/math/transform.h"
+#include "renderer/pipeline/render_state.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
 
@@ -192,6 +194,11 @@ public:
 
 	static void DrawComponents(Entity entity, bool draw_after_tags = false) {
 		for (const auto& component : ComponentRegistry::Components()) {
+			// Drawn manually.
+			if (component.type_id == Hash<Transform>() || component.type_id == Hash<Depth>()) {
+				continue;
+			}
+
 			const auto* editor{ Find(component.type_id) };
 
 			if (!editor) {

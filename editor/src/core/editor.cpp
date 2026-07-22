@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 
 #include "app/application.h"
@@ -139,27 +140,12 @@ void Editor::DrawMainMenuBar() {
 		return;
 	}
 
-	ImGui::BeginDisabled(context_->state.is_playing);
-	if (ImGui::Button("Save")) {
-		SaveProjectScene();
-	}
-	ImGui::EndDisabled();
-
-	ImGui::SameLine();
-
-	if (!context_->state.is_playing) {
-		if (ImGui::Button("Play")) {
-			Play();
-		}
-	} else {
-		if (ImGui::Button("Stop")) {
-			Stop();
+	if (ImGui::BeginMenu("File")) {
+		if (ImGui::MenuItem("Save", nullptr, false, !context_->state.is_playing)) {
+			SaveProjectScene();
 		}
 
-		ImGui::SameLine();
-		if (ImGui::Button(context_->state.is_paused ? "Resume" : "Pause")) {
-			TogglePause();
-		}
+		ImGui::EndMenu();
 	}
 
 	ImGui::EndMenuBar();
@@ -319,6 +305,10 @@ void Editor::Play() {
 		return;
 	}
 
+	// ReEnterFactory is deferred. Clear the raw selected-scene pointer now and
+	// select the runtime replacement once the SceneManager has applied the command.
+	scene_list_panel_.QueueSceneSelection(*this, play_snapshot_->scene_tag, true);
+
 	context_->state.is_playing = true;
 	context_->state.is_paused = false;
 }
@@ -333,17 +323,22 @@ void Editor::Stop() {
 	context_->selection.Clear();
 	SetApplicationState(ApplicationState::Running);
 
+	std::string scene_tag{ play_snapshot_->scene_tag };
 	auto factory{ impl::MakeSceneFactory(play_snapshot_->scene, false) };
 	auto& manager{ GetSceneManager() };
-	auto scene_hash{ Hash(play_snapshot_->scene_tag) };
+	auto scene_hash{ Hash(scene_tag) };
 
 	bool accepted{ manager.HasScene(scene_hash)
-		? manager.ReEnterFactory(play_snapshot_->scene_tag, std::move(factory))
-		: manager.EnterFactory(play_snapshot_->scene_tag, std::move(factory)) };
+		? manager.ReEnterFactory(scene_tag, std::move(factory))
+		: manager.EnterFactory(scene_tag, std::move(factory)) };
 
 	if (!accepted) {
 		return;
 	}
+
+	// The runtime Scene instance is about to be destroyed. Keep no raw pointer
+	// to it while the queued replacement command is pending.
+	scene_list_panel_.QueueSceneSelection(*this, scene_tag, false);
 
 	context_->state.is_playing = false;
 	context_->state.is_paused = false;

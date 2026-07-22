@@ -31,6 +31,7 @@
 #include "runtime/scene/scene_camera.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_input.h"
+#include "runtime/scene/scene_registry.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/fwd.h"
 #include "tools/debug/debug_system.h"
@@ -157,7 +158,7 @@ struct InteractiveScene : public Scene {
 		return entity;
 	}
 
-	void OnEnter() override {
+	void OnNew() override {
 		SetBackgroundColor(color::DarkGray);
 
 		ctx().debug.interaction.draw_enabled	= true;
@@ -255,9 +256,13 @@ struct InteractiveScene : public Scene {
 	}
 };
 
+PTGN_REGISTER_SCENE(InteractiveScene, "Interactive Scene");
+
 int main(int, char**) {
 	Application app{ "InteractiveScene: T: Toggle Top Only Input, WASD/QE/ZC: "
 					 "Move/Rotate/Zoom Camera" };
-	PTGN_WITH_EDITOR(app, false);
-	app.StartWith<InteractiveScene>();
+	PTGN_WITH_EDITOR(app, true);
+	app.StartProject<InteractiveScene>(
+		"InteractiveSceneProject/InteractiveScene.ptgnproj"
+	);
 }

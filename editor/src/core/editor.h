@@ -66,6 +66,7 @@ public:
 	void SetApplicationState(ApplicationState state);
 	ApplicationState GetApplicationState() const;
 
+	// Called by the viewport toolbar. These own the editor/runtime scene replacement lifecycle.
 	void Play();
 	void Stop();
 	void TogglePause();

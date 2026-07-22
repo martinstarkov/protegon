@@ -5,6 +5,7 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "core/math/transform.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_state.h"
 #include "renderer/text/text_layout.h"
@@ -40,6 +41,8 @@
 
 namespace ptgn {
 
+PTGN_REGISTER_COMPONENT(Transform);
+PTGN_REGISTER_COMPONENT(Depth);
 PTGN_REGISTER_COMPONENT(Tint);
 PTGN_REGISTER_COMPONENT(impl::IDrawable);
 PTGN_REGISTER_COMPONENT(Color);

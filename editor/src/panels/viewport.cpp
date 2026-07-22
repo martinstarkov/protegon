@@ -11,7 +11,6 @@
 #include <optional>
 #include <vector>
 
-#include "app/application_state.h"
 #include "core/assert.h"
 #include "core/editor.h"
 #include "core/editor_context.h"
@@ -1213,42 +1212,28 @@ void ViewportPanel::DrawSceneCameraOutlines(
 }
 
 void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
-	auto app_state{ ctx.editor.GetApplicationState() };
-
-	bool running{ app_state == ApplicationState::Running };
-	bool paused{ app_state == ApplicationState::Paused };
-	bool playing{ running || paused };
+	bool playing{ ctx.state.is_playing };
+	bool paused{ playing && ctx.state.is_paused };
 
 	if (ImGui::Button(playing ? "Stop" : "Play")) {
 		if (playing) {
-			ctx.editor.SetApplicationState(ApplicationState::RenderOnly);
+			ctx.editor.Stop();
 		} else {
-			ctx.editor.SetApplicationState(ApplicationState::Running);
+			ctx.editor.Play();
 		}
 	}
 
 	ImGui::SameLine();
-
-	if (!playing) {
-		ImGui::BeginDisabled();
-	}
+	ImGui::BeginDisabled(!playing);
 
 	if (ImGui::Button(paused ? "Resume" : "Pause")) {
-		ctx.editor.SetApplicationState(
-			paused ? ApplicationState::Running : ApplicationState::Paused
-		);
+		ctx.editor.TogglePause();
 	}
 
-	if (!playing) {
-		ImGui::EndDisabled();
-	}
+	ImGui::EndDisabled();
 
 	ImGui::SameLine();
-
-	if (!paused) {
-		ImGui::BeginDisabled();
-	}
-
+	ImGui::BeginDisabled(!paused);
 	ImGui::PushButtonRepeat(true);
 
 	if (ImGui::Button("Step")) {
@@ -1256,14 +1241,11 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	}
 
 	ImGui::PopButtonRepeat();
-
-	if (!paused) {
-		ImGui::EndDisabled();
-	}
+	ImGui::EndDisabled();
 
 	ImGui::SameLine();
 
-	float speed = ctx.editor.GetTimeScale();
+	float speed{ ctx.editor.GetTimeScale() };
 
 	ImGui::SetNextItemWidth(120.0f);
 	if (ImGui::DragFloat(

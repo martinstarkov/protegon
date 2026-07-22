@@ -16,36 +16,38 @@ class Editor;
 class EditorContext;
 
 struct SceneEditorState {
-	/// Stable key used by the scene registry and scene file.
 	std::string scene_type;
-
-	/// User-facing registered name.
 	std::string display_name;
-
-	/// Tag used when entering a new scene instance.
 	std::string scene_tag{ "Main" };
-
-	/// Reflected scene-member values.
-	json params;
+	json params = json::object();
 };
 
 class SceneListPanel {
 public:
 	void OnRender(EditorContext& ctx);
 
+	[[nodiscard]] Scene* GetSelectedScene() const;
+
 	void SetSelectedScene(Editor& editor, Scene* scene, const path& scene_path = {});
 
-	Scene* GetSelectedScene() const;
+	/// @brief Clears the current raw Scene pointer and selects the requested replacement once the
+	/// deferred SceneManager command has been applied.
+	void QueueSceneSelection(Editor& editor, std::string scene_tag, bool runtime);
 
 private:
+	struct PendingSceneSelection {
+		std::string tag;
+		bool runtime{ false };
+		path scene_path;
+		int earliest_frame{ 0 };
+	};
+
 	void DrawSceneParamUI(EditorContext& ctx);
-	
-	std::optional<SceneEditorState> state_;
 
 	Scene* selected_scene_{ nullptr };
 	path selected_scene_path_;
-
-	std::optional<std::string> pending_selected_scene_tag_;
+	std::optional<SceneEditorState> state_;
+	std::optional<PendingSceneSelection> pending_scene_selection_;
 };
 
 } // namespace editor
