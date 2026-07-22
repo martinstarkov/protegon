@@ -358,28 +358,46 @@ Scene* SceneListPanel::GetSelectedScene() const {
 	return selected_scene_;
 }
 
+bool SceneListPanel::ResolvePendingSceneSelection(Editor& editor) {
+	if (!pending_scene_selection_) {
+		return false;
+	}
+
+	const auto& pending{ pending_scene_selection_.value() };
+	auto& scenes{ editor.GetSceneManager().GetScenes() };
+
+	auto it{ std::ranges::find_if(
+		scenes,
+		[&pending](const auto& scene) {
+			return scene &&
+				   scene->GetTag() == pending.tag &&
+				   scene->IsRuntime() == pending.runtime;
+		}
+	) };
+
+	if (it == scenes.end()) {
+		return false;
+	}
+
+	path scene_path{ pending.scene_path };
+	pending_scene_selection_.reset();
+
+	SetSelectedScene(editor, it->get(), scene_path);
+	editor.GetSceneHierarchyPanel().SetSelectedEntity({});
+
+	return true;
+}
+
 void SceneListPanel::QueueSceneSelection(
-	Editor& editor,
+	Editor&,
 	std::string scene_tag,
 	bool runtime
 ) {
-	path scene_path;
-
-	// Preserve the file path only when this is replacing the currently selected
-	// scene rather than entering a separate scene.
-	if (selected_scene_ && selected_scene_->GetTag() == scene_tag) {
-		scene_path = selected_scene_path_;
-	}
-
 	pending_scene_selection_ = PendingSceneSelection{
 		.tag = std::move(scene_tag),
 		.runtime = runtime,
-		.scene_path = std::move(scene_path),
-		.earliest_frame = ImGui::GetFrameCount() + 1,
+		.scene_path = selected_scene_path_,
 	};
-
-	SetSelectedScene(editor, nullptr);
-	editor.GetSceneHierarchyPanel().SetSelectedEntity({});
 }
 
 void SceneListPanel::SetSelectedScene(Editor& editor, Scene* scene, const path& scene_path) {

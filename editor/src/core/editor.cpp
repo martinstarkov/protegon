@@ -152,6 +152,14 @@ void Editor::DrawMainMenuBar() {
 }
 
 void Editor::DrawPanels() {
+	if (scene_list_panel_.ResolvePendingSceneSelection(*this)) {
+		auto* scene{ scene_list_panel_.GetSelectedScene() };
+
+		viewport_panel_.SetUseEditorCamera(
+			!scene || !scene->IsRuntime()
+		);
+	}
+
 	// Needs to be rendered first so that the additional draw call can be displayed in the render
 	// stats.
 	viewport_panel_.OnRender(*context_);
@@ -314,9 +322,6 @@ void Editor::Play() {
 		return;
 	}
 
-	// Entering play mode always starts with the scene cameras.
-	viewport_panel_.SetUseEditorCamera(false);
-
 	scene_list_panel_.QueueSceneSelection(
 		*this,
 		play_snapshot_->scene_tag,
@@ -351,9 +356,6 @@ void Editor::Stop() {
 	if (!accepted) {
 		return;
 	}
-
-	// Leaving play mode always returns to the editor camera.
-	viewport_panel_.SetUseEditorCamera(true);
 
 	scene_list_panel_.QueueSceneSelection(
 		*this,

@@ -34,6 +34,8 @@ public:
 	/// deferred SceneManager command has been applied.
 	void QueueSceneSelection(Editor& editor, std::string scene_tag, bool runtime);
 
+
+	bool ResolvePendingSceneSelection(Editor& editor);
 private:
 	struct PendingSceneSelection {
 		std::string tag;
