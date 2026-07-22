@@ -2,6 +2,7 @@
 
 #include <ecs/ecs.h>
 
+#include <algorithm>
 #include <chrono>
 #include <optional>
 #include <string_view>
@@ -20,7 +21,6 @@
 #include "runtime/animation/tween_effect.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/ecs/game_object.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
@@ -32,6 +32,19 @@
 
 namespace ptgn {
 
+namespace {
+
+bool IsTooltipPart(Entity entity, impl::TooltipPart part) {
+	switch (part) {
+		case impl::TooltipPart::Background: return entity.Has<impl::TooltipBackgroundPart>();
+		case impl::TooltipPart::Text:		return entity.Has<impl::TooltipTextPart>();
+	}
+
+	return false;
+}
+
+} // namespace
+
 Tooltip::Tooltip(Entity entity) : Entity{ entity } {}
 
 void Tooltip::Show(V2_float position) {
@@ -39,7 +52,7 @@ void Tooltip::Show(V2_float position) {
 	PTGN_ASSERT(!parent_scale.HasZero(), "Attempting division by zero");
 	SetPosition(*this, position / parent_scale);
 
-	auto& instance{ Entity::Get<impl::TooltipData>() };
+	const auto& instance{ Entity::Get<impl::TooltipData>() };
 
 	milliseconds fade_in_duration{ instance.fade_in_duration };
 	Ease fade_in_ease{ instance.fade_in_ease };
@@ -50,15 +63,19 @@ void Tooltip::Show(V2_float position) {
 		FadeIn(entity, fade_in_duration, fade_in_ease, fade_in_force, true);
 	};
 
-	fade_in(instance.text);
+	auto text_entity{ FindPart(impl::TooltipPart::Text) };
+	PTGN_ASSERT(text_entity, "Tooltip has no text part");
+	Text text{ text_entity };
+	fade_in(text);
 
-	if (instance.bg.has_value()) {
-		fade_in(instance.bg.value());
+	if (auto background_entity{ FindPart(impl::TooltipPart::Background) }) {
+		Sprite background{ background_entity };
+		fade_in(background);
 	}
 }
 
 void Tooltip::Hide() {
-	auto& instance{ Entity::Get<impl::TooltipData>() };
+	const auto& instance{ Entity::Get<impl::TooltipData>() };
 
 	milliseconds fade_out_duration{ instance.fade_out_duration };
 	Ease fade_out_ease{ instance.fade_out_ease };
@@ -69,10 +86,14 @@ void Tooltip::Hide() {
 		FadeOut(entity, fade_out_duration, fade_out_ease, fade_out_force);
 	};
 
-	fade_out(instance.text);
+	auto text_entity{ FindPart(impl::TooltipPart::Text) };
+	PTGN_ASSERT(text_entity, "Tooltip has no text part");
+	Text text{ text_entity };
+	fade_out(text);
 
-	if (instance.bg.has_value()) {
-		fade_out(instance.bg.value());
+	if (auto background_entity{ FindPart(impl::TooltipPart::Background) }) {
+		Sprite background{ background_entity };
+		fade_out(background);
 	}
 }
 
@@ -84,6 +105,19 @@ std::optional<Tooltip> Tooltip::Get(Scene& scene, std::string_view tooltip_name)
 		}
 	}
 	return std::nullopt;
+}
+
+Entity Tooltip::FindPart(impl::TooltipPart part) const {
+	if (!HasChildren(*this)) {
+		return {};
+	}
+
+	auto children{ GetChildren(*this) };
+	auto it{ std::ranges::find_if(children, [part](Entity entity) {
+		return IsTooltipPart(entity, part);
+	}) };
+
+	return it != children.end() ? *it : Entity{};
 }
 
 TooltipHoverScript::TooltipHoverScript(std::string_view name, V2_float tooltip_offset) :
@@ -98,7 +132,7 @@ void TooltipHoverScript::OnCreate() {
 	auto& manager{ entity.GetManager() };
 	manager.Refresh();
 	auto tooltip{ GetTooltip() };
-	AddChild(entity, tooltip);
+	SetParent(tooltip, entity);
 	IgnoreParentRotation(tooltip);
 	IgnoreParentScale(tooltip);
 }
@@ -142,20 +176,22 @@ Tooltip CreateTooltip(
 	instance.fade_out_ease	   = tooltip_properties.fade_out_ease;
 
 	if (tooltip_properties.texture.has_value()) {
-		auto sprite{ CreateSprite(scene, {}, tooltip_properties.texture.value(), Origin::Center) };
-		sprite.Add<Tag>("Tooltip Sprite");
-		instance.bg = GameObject{ std::move(sprite) };
-		instance.bg.value().Add<Tint>(color::Transparent);
-		AddChild(tooltip, instance.bg.value());
+		auto background{
+			CreateSprite(scene, {}, tooltip_properties.texture.value(), Origin::Center)
+		};
+		background.Add<Tag>("Tooltip Sprite");
+		background.Add<impl::TooltipBackgroundPart>();
+		background.Add<Tint>(color::Transparent);
+		SetParent(background, tooltip);
 	}
 
 	Text text{
 		CreateText(scene).Content(tooltip_properties.content).Color(tooltip_properties.text_color)
 	};
 	text.Add<Tag>("Tooltip Text");
-	instance.text = GameObject<Text>{ std::move(text) };
-	instance.text.Add<Tint>(color::Transparent);
-	AddChild(tooltip, instance.text);
+	text.Add<impl::TooltipTextPart>();
+	text.Add<Tint>(color::Transparent);
+	SetParent(text, tooltip);
 
 	return tooltip;
 }
@@ -178,7 +214,7 @@ Tooltip AddTooltipOnHover(
 		rect.Add<Tag>("Tooltip Interactive Rect");
 		V2_float size{ *GetTextureSize(entity) };
 		rect.Add<Rect>(size);
-		AddInteractiveShape(entity, GameObject{ std::move(rect) });
+		AddInteractiveShape(entity, rect);
 	}
 
 	PTGN_ASSERT(

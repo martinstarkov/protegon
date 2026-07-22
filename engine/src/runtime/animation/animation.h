@@ -3,7 +3,6 @@
 #include <chrono>
 #include <optional>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
 
 #include "core/assert.h"
@@ -11,13 +10,11 @@
 #include "core/math/geometry/origin.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
-#include "core/util/hash.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
-#include "runtime/ecs/entity.h"
-#include "runtime/ecs/game_object.h"
-#include "runtime/ecs/key_hash.h"
 #include "runtime/asset/asset_key.h"
+#include "runtime/ecs/entity.h"
+#include "runtime/ecs/key_hash.h"
 #include "runtime/scripting/script.h"
 #include "serialization/serialize.h"
 
@@ -227,16 +224,7 @@ struct AnimationMapKey : public KeyHash {
 };
 
 struct AnimationMapData {
-public:
-	AnimationMapData()										 = default;
-	~AnimationMapData() noexcept							 = default;
-	AnimationMapData(AnimationMapData&&) noexcept			 = default;
-	AnimationMapData& operator=(AnimationMapData&&) noexcept = default;
-	AnimationMapData(const AnimationMapData&)				 = delete;
-	AnimationMapData& operator=(const AnimationMapData&)	 = delete;
-
 	AnimationMapKey active;
-	std::unordered_map<AnimationMapKey, GameObject<Animation>, KeyHasher> animations;
 };
 
 } // namespace impl
@@ -258,6 +246,10 @@ public:
 
 	/// @return Active animation, or nullopt if no animation is active.
 	std::optional<Animation> GetActive() const;
+
+private:
+	/// @return May return a null animation if no child has the given key.
+	[[nodiscard]] Animation Find(impl::AnimationMapKey key) const;
 };
 
 namespace impl {

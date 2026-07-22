@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -10,9 +12,7 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/game_object.h"
 #include "runtime/graphics/sprite.h"
-#include "runtime/graphics/text/text.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {
@@ -35,11 +35,18 @@ struct TooltipProperties {
 
 namespace impl {
 
+enum class TooltipPart : std::uint8_t {
+	Background,
+	Text
+};
+
+struct TooltipBackgroundPart {};
+
+struct TooltipTextPart {};
+
 class TooltipData {
 public:
 	std::size_t hash{ 0 };
-	GameObject<Text> text;
-	std::optional<GameObject<Sprite>> bg;
 
 	milliseconds fade_in_duration{ 250 };
 	milliseconds fade_out_duration{ 250 };
@@ -60,6 +67,10 @@ public:
 
 	/// @return Nullopt if no tooltip with the given name exists.
 	static std::optional<Tooltip> Get(Scene& scene, std::string_view tooltip_name);
+
+private:
+	/// @return May return a null entity if the part is not found.
+	[[nodiscard]] Entity FindPart(impl::TooltipPart part) const;
 };
 
 struct TooltipHoverScript : public Script {

@@ -1,10 +1,9 @@
 #include "runtime/animation/animation.h"
 
+#include <algorithm>
 #include <chrono>
-#include <list>
 #include <optional>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
 
 #include "core/assert.h"
@@ -16,7 +15,7 @@
 #include "core/util/timer.h"
 #include "runtime/animation/animation_event.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/game_object.h"
+#include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/visible.h"
@@ -351,30 +350,39 @@ void AnimationSystem::Update(Scene& scene, secondsf dt) {
 
 AnimationMap::AnimationMap(Entity entity) : Entity{ entity } {}
 
+Animation AnimationMap::Find(impl::AnimationMapKey key) const {
+	if (!HasChildren(*this)) {
+		return {};
+	}
+
+	auto children{ GetChildren(*this) };
+	auto it{ std::ranges::find_if(children, [key](Entity child) {
+		auto child_key{ child.TryGet<impl::AnimationMapKey>() };
+		return child_key && *child_key == key;
+	}) };
+
+	return it != children.end() ? Animation{ *it } : Animation{};
+}
+
 Animation AnimationMap::Add(std::string_view animation_key, Animation animation, bool hide) {
 	if (!Has<impl::AnimationMapData>()) {
 		return animation;
+	}
+
+	impl::AnimationMapKey key{ animation_key };
+
+	if (auto existing{ Find(key) }; existing && existing != animation) {
+		existing.Destroy();
 	}
 
 	if (hide) {
 		Hide(animation);
 	}
 
-	auto& info{ Get<impl::AnimationMapData>() };
-
-	impl::AnimationMapKey key{ animation_key };
-
 	animation.Add<impl::AnimationMapKey>(key);
+	SetParent(animation, *this);
 
-	if (auto it{ info.animations.find(key) }; it == info.animations.end()) {
-		auto [new_it, inserted] = info.animations.try_emplace(key, std::move(animation));
-		PTGN_ASSERT(inserted, "Failed to insert toggle button");
-		Animation btn{ new_it->second };
-		return btn;
-	} else {
-		it->second = GameObject{ std::move(animation) };
-		return Animation{ it->second };
-	}
+	return animation;
 }
 
 void AnimationMap::Remove(std::string_view animation_key) {
@@ -384,9 +392,15 @@ void AnimationMap::Remove(std::string_view animation_key) {
 
 	impl::AnimationMapKey key{ animation_key };
 
+	if (auto animation{ Find(key) }) {
+		animation.Destroy();
+	}
+
 	auto& info{ Get<impl::AnimationMapData>() };
 
-	info.animations.erase(key);
+	if (info.active == key) {
+		info.active = {};
+	}
 }
 
 std::optional<Animation> AnimationMap::GetActive() const {
@@ -394,15 +408,9 @@ std::optional<Animation> AnimationMap::GetActive() const {
 		return std::nullopt;
 	}
 
-	auto& info{ Get<impl::AnimationMapData>() };
+	auto animation{ Find(Get<impl::AnimationMapData>().active) };
 
-	auto it{ info.animations.find(info.active) };
-
-	if (it == info.animations.end()) {
-		return std::nullopt;
-	}
-
-	return Animation{ it->second };
+	return animation ? std::optional<Animation>{ animation } : std::nullopt;
 }
 
 bool AnimationMap::SetActive(std::string_view animation_key) {
@@ -418,21 +426,21 @@ bool AnimationMap::SetActive(std::string_view animation_key) {
 		return false;
 	}
 
-	if (!info.animations.contains(key)) {
-		PTGN_WARN("Attempting to set non-existent toggle button key to active: ", animation_key);
+	auto animation{ Find(key) };
+
+	if (!animation) {
+		PTGN_WARN("Attempting to set non-existent animation key to active: ", animation_key);
 		return false;
 	}
 
-	auto prev_active{ info.animations.find(info.active) };
-
-	// Hide and pause old active animation.
-	prev_active->second.Add<Visible>(false);
-	prev_active->second.Pause();
-
-	auto it{ info.animations.find(key) };
+	if (auto previous{ Find(info.active) }) {
+		Hide(previous);
+		previous.Pause();
+	}
 
 	info.active = key;
-	Show(it->second);
+	Show(animation);
+
 	return true;
 }
 

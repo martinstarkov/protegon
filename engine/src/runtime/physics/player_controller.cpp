@@ -16,7 +16,6 @@
 #include "runtime/audio/audio_system.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
-#include "runtime/ecs/game_object.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/graphics/draw.h"
 #include "runtime/physics/collider.h"
@@ -135,7 +134,7 @@ Entity CreateTopDownPlayer(Scene& scene, Transform transform, const TopDownPlaye
 		Transform animation_transform;
 		auto duration{ config.animation_duration.value_or(1000ms) };
 
-		AnimationMap anim_map{ player.Add<GameObject<AnimationMap>>(CreateAnimationMap(scene)) };
+		AnimationMap anim_map{ CreateAnimationMap(scene) };
 		auto anim0{ CreateAnimation(
 			scene, animation_transform, config.animation_texture_key,
 			{ .frame_count = config.animation_frame_count.value().x,
@@ -162,9 +161,7 @@ Entity CreateTopDownPlayer(Scene& scene, Transform transform, const TopDownPlaye
 		anim2.Add<Tag>("Up Animation");
 		auto a2 = anim_map.Add("up", anim2);
 
-		SetParent(a0, player);
-		SetParent(a1, player);
-		SetParent(a2, player);
+		SetParent(anim_map, player);
 
 		if (config.walk_sound_key) {
 			PTGN_ASSERT(
