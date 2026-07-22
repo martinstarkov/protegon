@@ -79,7 +79,7 @@ ResolvedTextRun ResolveTextRun(AssetManager& asset_manager, const TextRun& text_
 		PTGN_WARN("Font not found: ", text_run.font, ". Using default font instead.");
 	}
 
-	auto font_key{ has_font ? text_run.font : kDefaultFont };
+	FontKey font_key{ has_font ? text_run.font : FontKey{ kDefaultFont } };
 
 	auto font{ impl::AssetAccessor{ asset_manager }.Get<Font>(font_key) };
 

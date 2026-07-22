@@ -51,7 +51,7 @@ public:
 		return entity_.operator bool() && entity_.IsAlive();
 	}
 
-	constexpr bool operator==(const Entity&) const = default;
+	bool operator==(const Entity&) const = default;
 
 	friend std::strong_ordering operator<=>(const Entity& lhs, const Entity& rhs) {
 		if (lhs == rhs) {

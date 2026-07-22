@@ -522,7 +522,7 @@ bool DrawAssetKeyInline(T& value, const FieldOptions& options) {
 	std::string hint;
 
 	if constexpr (std::same_as<T, FontKey>) {
-		if (value == kDefaultFont) {
+		if (value.value == kDefaultFont) {
 			hint = "Default Font";
 		}
 	}

@@ -14,7 +14,7 @@ namespace ptgn {
 /// @brief Default engine font key.
 /// Do not modify this value.
 /// Use ctx().font.SetDefault(new_default_font_key); to change the default font
-inline constexpr FontKey kDefaultFont{ "" };
+inline constexpr std::string_view kDefaultFont{ "" };
 
 class AssetManager;
 class Renderer;

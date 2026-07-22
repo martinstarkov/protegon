@@ -1,4 +1,4 @@
-// script_sequence_old_ui_registry_demo_v32.cpp
+// demo.cpp
 //
 // Registry-driven Script and ScriptSequence demo using the engine ptgn::Scene.
 //
@@ -132,102 +132,6 @@ template <typename T>
 		return fallback;
 	}
 }
-
-/// @brief Event wrapper used by the owning ScriptsComponent runtime.
-///
-/// It intentionally mirrors ptgn::Event's Dispatch API, while allowing the demo-owned script
-/// runtime to create and route targeted or global events without relying on the old Scripts system.
-class ScriptEvent {
-public:
-	explicit ScriptEvent(impl::EventData& event) : event_{ event } {}
-
-	template <typename T, typename TEventFn>
-	void Dispatch(TEventFn&& fn) {
-		if (event_.handled || event_.type_hash != ptgn::Hash<T>()) {
-			return;
-		}
-
-		if constexpr (std::is_empty_v<T>) {
-			if constexpr (std::is_invocable_r_v<bool, TEventFn>) {
-				if (std::forward<TEventFn>(fn)()) {
-					event_.handled = true;
-				}
-			} else {
-				std::forward<TEventFn>(fn)();
-			}
-		} else {
-			PTGN_ASSERT(event_.payload, "Payload for non-empty event must be set");
-			T& value{ *static_cast<T*>(event_.payload.get()) };
-			if constexpr (std::is_invocable_r_v<bool, TEventFn, T&>) {
-				if (std::forward<TEventFn>(fn)(value)) {
-					event_.handled = true;
-				}
-			} else if constexpr (std::is_invocable_r_v<bool, TEventFn, const T&>) {
-				if (std::forward<TEventFn>(fn)(std::as_const(value))) {
-					event_.handled = true;
-				}
-			} else if constexpr (std::is_invocable_v<TEventFn, T&>) {
-				std::forward<TEventFn>(fn)(value);
-			} else if constexpr (std::is_invocable_v<TEventFn, const T&>) {
-				std::forward<TEventFn>(fn)(std::as_const(value));
-			} else if constexpr (std::is_invocable_r_v<bool, TEventFn>) {
-				if (std::forward<TEventFn>(fn)()) {
-					event_.handled = true;
-				}
-			} else {
-				std::forward<TEventFn>(fn)();
-			}
-		}
-	}
-
-	template <typename T, typename TObject, typename TMemFn>
-	void Dispatch(TMemFn memfn, TObject* object) {
-		Dispatch<T>(
-			[object, memfn]<typename... TArgs>(TArgs&&... args) -> decltype(auto) {
-				if constexpr (std::is_invocable_v<TMemFn, TObject*, TArgs...>) {
-					return std::invoke(memfn, object, std::forward<TArgs>(args)...);
-				} else {
-					return std::invoke(memfn, object);
-				}
-			}
-		);
-	}
-
-	template <typename T, typename TVariant>
-	void DispatchVariant(TVariant&& callback_variant) {
-		Dispatch<T>(
-			[callback = std::forward<TVariant>(callback_variant)]
-			<typename... TEventArgs>(TEventArgs&&... event_args) mutable -> bool {
-				return impl::VisitAndInvoke(
-					callback, std::forward<TEventArgs>(event_args)...
-				);
-			}
-		);
-	}
-
-	template <typename T, typename TVariant, typename... TBoundArgs>
-	void DispatchVariantBound(TVariant&& callback_variant, TBoundArgs&&... bound_args) {
-		Dispatch<T>(
-			[callback = std::forward<TVariant>(callback_variant),
-			 ... args = std::forward<TBoundArgs>(bound_args)]() mutable -> bool {
-				return impl::VisitAndInvoke(callback, args...);
-			}
-		);
-	}
-
-	[[nodiscard]] bool IsHandled() const { return event_.handled; }
-	[[nodiscard]] bool IsType(TypeHashValue type_hash) const {
-		return event_.type_hash == type_hash;
-	}
-	template <typename T>
-	[[nodiscard]] bool IsType() const {
-		return event_.type_hash == ptgn::Hash<T>();
-	}
-
-private:
-	impl::EventData& event_;
-};
-
 
 enum class ReentryMode {
 	IgnoreWhileRunning,
@@ -434,7 +338,7 @@ struct SequenceEventRegistration {
 	TypeHashValue type_hash{ 0 };
 	std::uint32_t schema_version{ 1 };
 	std::function<void(EventCondition&)> set_defaults;
-	std::function<bool(ptgn::Entity, ScriptEvent, const EventCondition&, bool consume)> matches;
+	std::function<bool(ptgn::Entity, Event, const EventCondition&, bool consume)> matches;
 	std::function<bool(ptgn::Entity)> available;
 };
 
@@ -462,7 +366,7 @@ public:
 			},
 			.matches = [fn = std::forward<FMatch>(matches)](
 				ptgn::Entity owner,
-				ScriptEvent event,
+				Event event,
 				const EventCondition& input,
 				bool consume
 			) mutable {
@@ -723,7 +627,7 @@ public:
 	virtual void OnCreate() {}
 	virtual void OnStart() {}
 	[[nodiscard]] virtual ScriptStatus OnUpdate() { return ScriptStatus::Running; }
-	virtual void OnEvent(ScriptEvent) {}
+	virtual void OnEvent(Event) {}
 	virtual void OnRepeat() {}
 	virtual void OnComplete() {}
 	virtual void OnCancel(SequenceCancelReason) {}
@@ -6651,7 +6555,7 @@ struct InputExpressionState {
 	return state;
 }
 
-void ObserveInputExpressionEvent(ScriptEvent event) {
+void ObserveInputExpressionEvent(Event event) {
 	auto& state{ GetInputExpressionState() };
 	event.Dispatch<ptgn::event::KeyPressed>([&](const auto& input) {
 		if (state.MarkObserved<ptgn::event::KeyPressed>(static_cast<int>(input.key))) {
@@ -8220,7 +8124,7 @@ void UpdateSequence(
 void HandleSequenceEvent(
 	ptgn::Entity owner,
 	ScriptSequence& binding,
-	ScriptEvent event
+	Event event
 ) {
 	const auto* definition{ Resolve(owner, binding) };
 	if (!definition) {
@@ -8260,7 +8164,7 @@ void HandleSequenceEvent(
 void DispatchToScript(
 	ptgn::Entity owner,
 	managed::Script& script,
-	ScriptEvent event
+	Event event
 ) {
 	script.OnEvent(event);
 	if (event.IsHandled()) {
@@ -8381,7 +8285,7 @@ bool DispatchEvent(ptgn::Entity entity, impl::EventData& data) {
 	if (!entity || !entity.Has<ScriptsComponent>()) {
 		return false;
 	}
-	ScriptEvent event{ data };
+	Event event{ data };
 	ObserveInputExpressionEvent(event);
 	auto& scripts{ entity.Get<ScriptsComponent>() };
 	for (auto& entry : scripts.scripts) {
@@ -8399,7 +8303,7 @@ bool DispatchEvent(ptgn::Entity entity, impl::EventData& data) {
 }
 
 bool DispatchGlobalEvent(ptgn::Scene& scene, impl::EventData& data) {
-	ScriptEvent event{ data };
+	Event event{ data };
 	ObserveInputExpressionEvent(event);
 	const auto entities{ scene.EntitiesWith<ScriptsComponent>().GetVector() };
 	for (ptgn::Entity entity : entities) {

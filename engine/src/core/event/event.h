@@ -12,12 +12,7 @@
 
 namespace ptgn {
 
-class Scene;
-class Application;
-
 namespace impl {
-
-class TweenData;
 
 struct EventData {
 	using Payload = std::unique_ptr<void, void (*)(void*)>;
@@ -93,17 +88,15 @@ concept EventFunctionType = impl::EventFunctionWithArg<F, T> || impl::EventFunct
 /// @endcode
 class Event {
 public:
+	explicit Event(impl::EventData& event) : event_{ event } {}
+
 	/// @brief Dispatches the event to the given callable if types match.
 	///
 	/// If the callback returns `true`, the event is marked handled.
 	/// If the callback does not return a bool, the event keeps propagating.
 	template <typename T, typename TEventFn>
 	void Dispatch(TEventFn&& fn) {
-		if (event_.handled) {
-			return;
-		}
-
-		if (!IsType<T>()) {
+		if (event_.handled || !IsType<T>()) {
 			return;
 		}
 
@@ -180,21 +173,18 @@ public:
 	}
 
 private:
-	friend class Application;
-	friend class Scene;
-	friend class impl::TweenData;
-
-	explicit Event(impl::EventData& event) : event_{ event } {}
-
 	template <typename T, impl::EventFunctionType<T> TEventFn>
 	void InvokeHandler(TEventFn&& fn, [[maybe_unused]] T& value) {
 		if constexpr (std::is_invocable_r_v<bool, TEventFn, T&>) {
 			if (std::forward<TEventFn>(fn)(value)) {
 				event_.handled = true;
 			}
-		} else if constexpr (std::is_invocable_r_v<void, TEventFn, T&> ||
-							 std::is_invocable_r_v<void, TEventFn, const T&>) {
+		} else if constexpr (std::is_invocable_r_v<void, TEventFn, T&>) {
 			std::forward<TEventFn>(fn)(value);
+		} else if constexpr (
+			std::is_invocable_r_v<void, TEventFn, const T&>
+		) {
+			std::forward<TEventFn>(fn)(std::as_const(value));
 		} else if constexpr (std::is_invocable_r_v<bool, TEventFn>) {
 			if (std::forward<TEventFn>(fn)()) {
 				event_.handled = true;
