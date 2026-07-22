@@ -1257,7 +1257,7 @@ void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
 	ImGui::SameLine();
 
 	if (ImGui::Button(use_editor_camera_ ? "Use Scene Cameras" : "Use Editor Camera")) {
-		use_editor_camera_ = !use_editor_camera_;
+		SetUseEditorCamera(!use_editor_camera_);
 	}
 }
 
@@ -1405,6 +1405,10 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 	}
 
 	ImGui::End();
+}
+
+void ViewportPanel::SetUseEditorCamera(bool use_editor_camera) {
+	use_editor_camera_ = use_editor_camera;
 }
 
 void ViewportPanel::DrawSelectedEntityGizmo(

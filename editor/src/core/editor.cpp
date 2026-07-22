@@ -224,6 +224,15 @@ void Editor::EnableRendering(bool enable) {
 }
 
 void Editor::OnUpdate() {
+	const auto& io{ ImGui::GetIO() };
+
+	bool save_modifier{ io.KeyCtrl || io.KeySuper };
+
+	if (save_modifier && ImGui::IsKeyPressed(ImGuiKey_S, false) &&
+		!context_->state.is_playing) {
+		SaveProjectScene();
+	}
+
 	if (ImGui::IsKeyPressed(ImGuiKey_F10)) {
 		EnableRendering(!render_enabled_);
 	}
@@ -305,9 +314,14 @@ void Editor::Play() {
 		return;
 	}
 
-	// ReEnterFactory is deferred. Clear the raw selected-scene pointer now and
-	// select the runtime replacement once the SceneManager has applied the command.
-	scene_list_panel_.QueueSceneSelection(*this, play_snapshot_->scene_tag, true);
+	// Entering play mode always starts with the scene cameras.
+	viewport_panel_.SetUseEditorCamera(false);
+
+	scene_list_panel_.QueueSceneSelection(
+		*this,
+		play_snapshot_->scene_tag,
+		true
+	);
 
 	context_->state.is_playing = true;
 	context_->state.is_paused = false;
@@ -328,17 +342,24 @@ void Editor::Stop() {
 	auto& manager{ GetSceneManager() };
 	auto scene_hash{ Hash(scene_tag) };
 
-	bool accepted{ manager.HasScene(scene_hash)
-		? manager.ReEnterFactory(scene_tag, std::move(factory))
-		: manager.EnterFactory(scene_tag, std::move(factory)) };
+	bool accepted{
+		manager.HasScene(scene_hash)
+			? manager.ReEnterFactory(scene_tag, std::move(factory))
+			: manager.EnterFactory(scene_tag, std::move(factory))
+	};
 
 	if (!accepted) {
 		return;
 	}
 
-	// The runtime Scene instance is about to be destroyed. Keep no raw pointer
-	// to it while the queued replacement command is pending.
-	scene_list_panel_.QueueSceneSelection(*this, scene_tag, false);
+	// Leaving play mode always returns to the editor camera.
+	viewport_panel_.SetUseEditorCamera(true);
+
+	scene_list_panel_.QueueSceneSelection(
+		*this,
+		scene_tag,
+		false
+	);
 
 	context_->state.is_playing = false;
 	context_->state.is_paused = false;

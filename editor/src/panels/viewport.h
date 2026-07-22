@@ -70,6 +70,8 @@ class ViewportPanel {
 public:
 	void OnRender(EditorContext& ctx);
 
+	void SetUseEditorCamera(bool use_editor_camera);
+
 private:
 	void DrawSelectedEntityGizmo(
 		EditorContext& ctx, Viewport presentation_viewport, const FrameContext& frame_context
