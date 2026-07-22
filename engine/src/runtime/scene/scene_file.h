@@ -11,7 +11,7 @@ namespace ptgn {
 
 struct SerializedScene {
 	std::string type;
-	json parameters{ json::object() };
+	json parameters = json::object();
 	std::optional<json> content;
 };
 

@@ -35,6 +35,7 @@
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/ecs/entity_serialization.h"
 #include "runtime/ecs/manager.h"
 #include "runtime/ecs/tag.h"
 #include "runtime/ecs/uuid.h"
@@ -272,35 +273,56 @@ void DrawScene(
 	);
 }
 
-json SerializeEntity(Entity entity) {
-	json components;
-
-	for (const auto& registration : ComponentRegistry::Components()) {
-		if (!registration.serializable || !registration.deserializable || !registration.serialize ||
-			!registration.deserialize || !registration.has(entity)) {
-			continue;
-		}
-
-		json value;
-		registration.serialize(value, entity);
-		components[std::string{ registration.name }] = std::move(value);
-	}
-
-	return json{ { "components", std::move(components) } };
+[[nodiscard]] UUID GetSerializedEntityUUID(const json& serialized_entity) {
+	PTGN_ASSERT(serialized_entity.is_object(), "Serialized entity must be a JSON object");
+	return serialized_entity.at("uuid").get<UUID>();
 }
 
-void DeserializeEntity(const json& serialized, Entity entity) {
-	const auto& components{ serialized.at("components") };
-	PTGN_ASSERT(components.is_object(), "Serialized entity components must be a JSON object");
+[[nodiscard]] Tag GetSerializedEntityTag(const json& serialized_entity) {
+	PTGN_ASSERT(serialized_entity.is_object(), "Serialized entity must be a JSON object");
+	return serialized_entity.at("tag").get<Tag>();
+}
 
-	for (auto it{ components.begin() }; it != components.end(); ++it) {
-		const auto* registration{ ComponentRegistry::Find(it.key()) };
-		if (!registration || !registration->deserialize) {
-			continue;
+[[nodiscard]] json SerializeSceneEntity(Entity entity) {
+	PTGN_ASSERT(entity, "Cannot serialize a null scene entity");
+	PTGN_ASSERT(entity.Has<UUID>(), "Serialized scene entity is missing UUID");
+	PTGN_ASSERT(entity.Has<Tag>(), "Serialized scene entity is missing Tag");
+
+	json children = json::array();
+
+	if (HasChildren(entity)) {
+		for (Entity child : GetChildren(entity)) {
+			PTGN_ASSERT(child, "Cannot serialize a null child entity");
+			PTGN_ASSERT(child.Has<UUID>(), "Serialized child entity is missing UUID");
+			children.emplace_back(child.Get<UUID>());
 		}
-
-		registration->deserialize(it.value(), entity);
 	}
+
+	json serialized_entity = json::object();
+	serialized_entity["uuid"] = entity.Get<UUID>();
+	serialized_entity["tag"] = entity.Get<Tag>();
+	serialized_entity["components"] = SerializeEntityComponents(entity);
+	serialized_entity["children"] = std::move(children);
+	return serialized_entity;
+}
+
+[[nodiscard]] const json* FindSerializedEntity(const json& serialized_entities, UUID uuid) {
+	for (const auto& serialized_entity : serialized_entities) {
+		if (GetSerializedEntityUUID(serialized_entity) == uuid) {
+			return &serialized_entity;
+		}
+	}
+
+	return nullptr;
+}
+
+void ApplySerializedIdentity(Entity entity, const json& serialized_entity) {
+	PTGN_ASSERT(entity, "Cannot apply serialized identity to a null entity");
+	PTGN_ASSERT(entity.Has<UUID>(), "Created entity is missing UUID");
+	PTGN_ASSERT(entity.Has<Tag>(), "Created entity is missing Tag");
+
+	entity.Get<UUID>() = GetSerializedEntityUUID(serialized_entity);
+	entity.Get<Tag>() = GetSerializedEntityTag(serialized_entity);
 }
 
 } // namespace
@@ -377,47 +399,148 @@ void Scene::CreateDefaultSceneEntities() {
 }
 
 json Scene::SerializeContent() const {
-	json entities = json::array();
+	json serialized_entities = json::array();
 
 	for (Entity entity : Entities()) {
-		if (entity == GetRenderTarget() || entity == GetCamera() || entity == GetFixedCamera()) {
-			continue;
-		}
-
-		entities.emplace_back(SerializeEntity(entity));
+		serialized_entities.emplace_back(SerializeSceneEntity(entity));
 	}
 
-	return json{
-		{ "primary_entities",
-		  {
-			  { "render_target", SerializeEntity(GetRenderTarget()) },
-			  { "camera", SerializeEntity(GetCamera()) },
-			  { "fixed_camera", SerializeEntity(GetFixedCamera()) },
-		  } },
-		{ "entities", std::move(entities) },
-	};
+	json primary_entities = json::object();
+	primary_entities["render_target"] = GetRenderTarget().Get<UUID>();
+	primary_entities["camera"] = GetCamera().Get<UUID>();
+	primary_entities["fixed_camera"] = GetFixedCamera().Get<UUID>();
+
+	json content = json::object();
+	content["primary_entities"] = std::move(primary_entities);
+	content["entities"] = std::move(serialized_entities);
+	return content;
 }
 
 void Scene::DeserializeContent(const json& serialized_content) {
-	CreateDefaultSceneEntities();
+	PTGN_ASSERT(serialized_content.is_object(), "Serialized scene content must be a JSON object");
 
-	const auto& primary{ serialized_content.at("primary_entities") };
-	DeserializeEntity(primary.at("render_target"), GetRenderTarget());
-	DeserializeEntity(primary.at("camera"), GetCamera());
-	DeserializeEntity(primary.at("fixed_camera"), GetFixedCamera());
-
+	const auto& primary_entities{ serialized_content.at("primary_entities") };
 	const auto& serialized_entities{ serialized_content.at("entities") };
+
+	PTGN_ASSERT(primary_entities.is_object(), "Serialized primary entities must be a JSON object");
 	PTGN_ASSERT(serialized_entities.is_array(), "Serialized scene entities must be a JSON array");
 
-	std::vector<Entity> entities;
-	entities.reserve(serialized_entities.size());
+	const UUID render_target_uuid{ primary_entities.at("render_target").get<UUID>() };
+	const UUID camera_uuid{ primary_entities.at("camera").get<UUID>() };
+	const UUID fixed_camera_uuid{ primary_entities.at("fixed_camera").get<UUID>() };
 
-	for ([[maybe_unused]] const auto& serialized_entity : serialized_entities) {
-		entities.emplace_back(CreateEntity());
+	PTGN_ASSERT(
+		render_target_uuid != camera_uuid && render_target_uuid != fixed_camera_uuid &&
+			camera_uuid != fixed_camera_uuid,
+		"Serialized primary entity UUIDs must be unique"
+	);
+
+	std::vector<UUID> serialized_uuids;
+	serialized_uuids.reserve(serialized_entities.size());
+
+	for (const auto& serialized_entity : serialized_entities) {
+		PTGN_ASSERT(serialized_entity.is_object(), "Serialized entity must be a JSON object");
+		PTGN_ASSERT(
+			serialized_entity.contains("uuid") && serialized_entity.contains("tag") &&
+				serialized_entity.contains("components"),
+			"Serialized entity must contain uuid, tag, and components"
+		);
+		PTGN_ASSERT(
+			serialized_entity.at("components").is_object(),
+			"Serialized entity components must be a JSON object"
+		);
+
+		if (const auto children{ serialized_entity.find("children") };
+			children != serialized_entity.end()) {
+			PTGN_ASSERT(children->is_array(), "Serialized entity children must be a JSON array");
+		}
+
+		const UUID uuid{ GetSerializedEntityUUID(serialized_entity) };
+		PTGN_ASSERT(
+			!std::ranges::contains(serialized_uuids, uuid),
+			"Serialized scene contains duplicate entity UUID"
+		);
+		serialized_uuids.emplace_back(uuid);
 	}
 
-	for (std::size_t i{ 0 }; i < serialized_entities.size(); ++i) {
-		DeserializeEntity(serialized_entities.at(i), entities.at(i));
+	const json* render_target_serialized{
+		FindSerializedEntity(serialized_entities, render_target_uuid)
+	};
+	const json* camera_serialized{ FindSerializedEntity(serialized_entities, camera_uuid) };
+	const json* fixed_camera_serialized{
+		FindSerializedEntity(serialized_entities, fixed_camera_uuid)
+	};
+
+	PTGN_ASSERT(render_target_serialized, "Serialized primary render target entity is missing");
+	PTGN_ASSERT(camera_serialized, "Serialized primary camera entity is missing");
+	PTGN_ASSERT(fixed_camera_serialized, "Serialized fixed camera entity is missing");
+
+	// Pass 1: construct every entity and assign its persistent UUID and Tag before any component
+	// data is deserialized. Primary entities use their specialized constructors so runtime-only
+	// renderer and camera components are recreated rather than loaded from JSON.
+	ctx_->render_target_ =
+		CreateRenderTarget(*this, {}, kDefaultSceneBackgroundColor, kDefaultSceneTargetFormat);
+	ApplySerializedIdentity(ctx_->render_target_, *render_target_serialized);
+	ctx_->render_target_.Remove<impl::IDrawable>();
+
+	ctx_->camera = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
+	ApplySerializedIdentity(ctx_->camera, *camera_serialized);
+
+	ctx_->fixed_camera_ = CreateCamera(*this, {}, std::nullopt, ViewportSpace::Logical);
+	ApplySerializedIdentity(ctx_->fixed_camera_, *fixed_camera_serialized);
+	ctx_->fixed_camera_.SetMasks(
+		kDefaultFixedCameraIncludeLayerMask, kDefaultFixedCameraExcludeLayerMask
+	);
+	SetUI(ctx_->fixed_camera_, true);
+
+	if (data_.first_scene) {
+		SetBlendMode(GetRenderTarget(), kDefaultFirstSceneBlendMode);
+	}
+
+	for (const auto& serialized_entity : serialized_entities) {
+		const UUID uuid{ GetSerializedEntityUUID(serialized_entity) };
+
+		if (uuid == render_target_uuid || uuid == camera_uuid || uuid == fixed_camera_uuid) {
+			continue;
+		}
+
+		CreateEntity(GetSerializedEntityTag(serialized_entity), uuid);
+	}
+
+	Refresh();
+
+	// Pass 2: all UUIDs now resolve, so ordinary component deserializers may safely run.
+	for (const auto& serialized_entity : serialized_entities) {
+		const UUID uuid{ GetSerializedEntityUUID(serialized_entity) };
+		Entity entity{ GetEntity(uuid) };
+		PTGN_ASSERT(entity, "Failed to find entity created for serialized UUID");
+		DeserializeEntityComponents(serialized_entity.at("components"), entity);
+	}
+
+	Refresh();
+
+	// Pass 3: rebuild hierarchy from child UUID lists after all entities and components exist.
+	for (const auto& serialized_entity : serialized_entities) {
+		const auto children{ serialized_entity.find("children") };
+		if (children == serialized_entity.end()) {
+			continue;
+		}
+
+		Entity parent{ GetEntity(GetSerializedEntityUUID(serialized_entity)) };
+		PTGN_ASSERT(parent, "Failed to find serialized hierarchy parent entity");
+
+		for (const auto& serialized_child_uuid : *children) {
+			const UUID child_uuid{ serialized_child_uuid.get<UUID>() };
+			Entity child{ GetEntity(child_uuid) };
+
+			PTGN_ASSERT(child, "Serialized hierarchy references a missing child UUID");
+			PTGN_ASSERT(
+				!HasParent(child),
+				"Serialized hierarchy assigns the same child to multiple parents"
+			);
+
+			AddChild(parent, child);
+		}
 	}
 
 	Refresh();

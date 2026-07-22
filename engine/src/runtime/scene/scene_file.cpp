@@ -15,20 +15,25 @@ namespace ptgn {
 namespace {
 
 [[nodiscard]] json ToJson(const SerializedScene& scene) {
-	return json{
-		{ "type", scene.type },
-		{ "parameters", scene.parameters },
-		{ "content", scene.content.has_value() ? scene.content.value() : json{} },
-	};
+	json value = json::object();
+	value["type"] = scene.type;
+	value["parameters"] = scene.parameters;
+	value["content"] = scene.content.has_value() ? scene.content.value() : json{};
+	return value;
 }
 
 [[nodiscard]] SerializedScene FromJson(const json& value) {
+	PTGN_ASSERT(value.is_object(), "Serialized scene file root must be a JSON object");
+
 	SerializedScene scene{
 		.type = value.at("type").get<std::string>(),
 		.parameters = value.value("parameters", json::object()),
 	};
 
+	PTGN_ASSERT(scene.parameters.is_object(), "Serialized scene parameters must be a JSON object");
+
 	if (const auto it{ value.find("content") }; it != value.end() && !it->is_null()) {
+		PTGN_ASSERT(it->is_object(), "Serialized scene content must be a JSON object or null");
 		scene.content = *it;
 	}
 

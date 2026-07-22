@@ -6,7 +6,6 @@
 
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/key_hash.h"
-#include "serialization/serialize.h"
 
 namespace ptgn::impl {
 
@@ -38,9 +37,9 @@ struct Children {
 	bool Has(Entity child) const;
 	bool Has(std::string_view name) const;
 
+	/// Runtime entity handles are not serialized directly. Scene serialization stores the ordered
+	/// child UUID list separately and reconstructs this component after every entity exists.
 	std::vector<Entity> children_;
-
-	PTGN_REFLECT(Children, children_)
 };
 
 } // namespace ptgn::impl
