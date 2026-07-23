@@ -1123,7 +1123,7 @@ void UpdateAndDrawGizmoInstances(
 		}
 	}
 
-	if (viewport_hovered && viewport_focused && gizmo.hot != GizmoHandle::None &&
+	if (viewport_hovered /*&& viewport_focused*/ && gizmo.hot != GizmoHandle::None &&
 		gizmo.active == GizmoHandle::None && gizmo.hot_occurrence.has_value() &&
 		ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
 		auto* instance{ FindGizmoInstance(instances, gizmo.hot_occurrence.value()) };
