@@ -17,10 +17,23 @@
 
 namespace ptgn::editor::script {
 
+namespace impl {
+
+/// @brief Ensures the translation unit containing the built-in editor registrations is linked.
+void EnsureEngineScriptEditorsRegistered();
+
+} // namespace impl
+
 struct EventEditorOptions {
 	std::string label;
 	std::string group;
 	std::string description;
+};
+
+struct EventEditorRegistrationDefinition {
+	EventEditorOptions options;
+	int inline_fields{ 0 };
+	std::function<bool(json&)> draw;
 };
 
 struct EventEditorRegistration {
@@ -32,11 +45,21 @@ struct EventEditorRegistration {
 
 class EventEditorRegistry {
 public:
+	template <typename TEvent>
+	static bool Register(EventEditorRegistrationDefinition registration) {
+		return Register<TEvent>(
+			std::move(registration.options), registration.inline_fields,
+			std::move(registration.draw)
+		);
+	}
+
 	template <typename TEvent, typename F>
 	static bool Register(EventEditorOptions options, int inline_fields, F&& draw) {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<TEvent>() };
-		const bool inserted{ !Find(type_hash) };
+		const bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		}) };
 		std::erase_if(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		});
@@ -119,7 +142,9 @@ public:
 	static bool Register(SequenceStepEditorOptions options, F&& draw) {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<T>() };
-		const bool inserted{ !Find(type_hash) };
+		const bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		}) };
 		std::erase_if(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		});
@@ -160,7 +185,9 @@ public:
 	static bool Register(ScriptEditorOptions options, F&& draw) {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<T>() };
-		const bool inserted{ !Find(type_hash) };
+		const bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		}) };
 		std::erase_if(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		});
@@ -182,6 +209,60 @@ private:
 	[[nodiscard]] static std::vector<ScriptEditorRegistration>& MutableEntries();
 };
 
-void RegisterEngineScriptEditors();
+template <typename F>
+struct SequenceStepEditorDefinition {
+	SequenceStepEditorOptions options;
+	F draw;
+};
+
+template <typename F>
+[[nodiscard]] auto SequenceStepEditor(SequenceStepEditorOptions options, F&& draw) {
+	return SequenceStepEditorDefinition<std::decay_t<F>>{
+		.options = std::move(options),
+		.draw = std::forward<F>(draw),
+	};
+}
+
+template <typename F>
+struct RootScriptEditorDefinition {
+	ScriptEditorOptions options;
+	F draw;
+};
+
+template <typename F>
+[[nodiscard]] auto RootScriptEditor(ScriptEditorOptions options, F&& draw) {
+	return RootScriptEditorDefinition<std::decay_t<F>>{
+		.options = std::move(options),
+		.draw = std::forward<F>(draw),
+	};
+}
+
+namespace impl {
+
+template <ScriptType T, typename F>
+bool RegisterScriptEditorDefinition(SequenceStepEditorDefinition<F> definition) {
+	return SequenceStepEditorRegistry::Register<T>(
+		std::move(definition.options), std::move(definition.draw)
+	);
+}
+
+template <ScriptType T, typename F>
+bool RegisterScriptEditorDefinition(RootScriptEditorDefinition<F> definition) {
+	return ScriptEditorRegistry::Register<T>(
+		std::move(definition.options), std::move(definition.draw)
+	);
+}
+
+} // namespace impl
+
+template <ScriptType T, typename... TDefinition>
+bool RegisterScriptEditors(TDefinition&&... definition) {
+	bool inserted{ false };
+	((inserted = impl::RegisterScriptEditorDefinition<T>(
+		  std::forward<TDefinition>(definition)
+	  ) || inserted),
+	 ...);
+	return inserted;
+}
 
 } // namespace ptgn::editor::script

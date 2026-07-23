@@ -151,20 +151,32 @@ ScriptSequence& ScriptSequence::Wait(float duration_ms) {
 	return *this;
 }
 
-std::vector<ScriptRegistration>& ScriptRegistry::MutableEntries() {
-	static std::vector<ScriptRegistration> entries;
-	return entries;
-}
 
 const ScriptRegistration* ScriptRegistry::Find(TypeHashValue type_hash) {
-	const auto& entries{ Entries() };
-	const auto it{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
-		return entry.type_hash == type_hash;
-	}) };
-	return it == entries.end() ? nullptr : &*it;
+	for (const auto& entry : Entries()) {
+		if (entry.type_hash == type_hash) {
+			return &entry;
+		}
+	}
+	return nullptr;
 }
 
 const std::vector<ScriptRegistration>& ScriptRegistry::Entries() {
+	impl::EnsureEngineScriptsRegistered();
+	return MutableEntries();
+}
+
+const SequenceEventRegistration* SequenceEventRegistry::Find(TypeHashValue type_hash) {
+	for (const auto& entry : Entries()) {
+		if (entry.type_hash == type_hash) {
+			return &entry;
+		}
+	}
+	return nullptr;
+}
+
+const std::vector<SequenceEventRegistration>& SequenceEventRegistry::Entries() {
+	impl::EnsureEngineScriptsRegistered();
 	return MutableEntries();
 }
 
@@ -1013,7 +1025,6 @@ void AttachEntry(Entity entity, ScriptEntry& entry) {
 }
 
 void AttachAll(Entity entity) {
-	RegisterEngineScriptTypes();
 	if (!entity) {
 		return;
 	}
@@ -1076,7 +1087,6 @@ void ApplyPending(Scene& scene) {
 }
 
 void Update(Scene& scene, secondsf delta_time) {
-	RegisterEngineScriptTypes();
 	const float delta_seconds{ std::max(0.0f, delta_time.count()) };
 	ApplyPending(scene);
 	const auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
@@ -1107,7 +1117,6 @@ void Update(Scene& scene, secondsf delta_time) {
 
 
 bool DispatchEvent(Entity entity, Event event) {
-	RegisterEngineScriptTypes();
 	if (!entity || !entity.Has<impl::Scripts>()) {
 		return false;
 	}
@@ -1128,7 +1137,6 @@ bool DispatchEvent(Entity entity, Event event) {
 }
 
 bool DispatchGlobalEvent(Scene& scene, Event event) {
-	RegisterEngineScriptTypes();
 	const auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
 	for (Entity entity : entities) {
 		auto* scripts{ entity.TryGet<impl::Scripts>() };

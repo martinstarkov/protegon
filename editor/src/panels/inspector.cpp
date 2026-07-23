@@ -696,8 +696,6 @@ bool DrawScriptsComponent(Entity entity) {
 	if (!entity) {
 		return false;
 	}
-	RegisterEngineScriptTypes();
-	RegisterEngineScriptEditors();
 
 	auto* scripts{ entity.TryGet<impl::Scripts>() };
 	if (!scripts) {

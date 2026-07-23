@@ -321,6 +321,22 @@ template <typename T>
 	}
 }
 
+namespace impl {
+
+/// @brief Ensures the translation unit containing the built-in script/event registrations is linked.
+void EnsureEngineScriptsRegistered();
+
+} // namespace impl
+
+struct ScriptRegistrationOptions {
+	std::uint32_t schema_version{ 1 };
+	ScriptCompletion completion{ ScriptCompletion::ScriptControlled };
+	bool supports_timing{ false };
+	bool requires_timing{ false };
+	bool serializable{ true };
+	std::optional<ScriptTiming> default_timing;
+};
+
 struct ScriptRegistration {
 	TypeHashValue type_hash{ 0 };
 	std::uint32_t schema_version{ 1 };
@@ -338,36 +354,27 @@ struct ScriptRegistration {
 class ScriptRegistry {
 public:
 	template <ScriptType T>
-	static bool Register(
-		bool supports_timing = false, bool requires_timing = false,
-		std::optional<ScriptTiming> default_timing = std::nullopt,
-		ScriptCompletion completion = ScriptCompletion::ScriptControlled, bool serializable = true
-	) {
+	static bool Register() {
+		return Register<T>(ScriptRegistrationOptions{});
+	}
+
+	template <ScriptType T>
+	static bool Register(ScriptRegistrationOptions options) {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<T>() };
-		if (requires_timing && completion == ScriptCompletion::Instant) {
-			completion = ScriptCompletion::Duration;
+
+		if (options.requires_timing && options.completion == ScriptCompletion::Instant) {
+			options.completion = ScriptCompletion::Duration;
 		}
 
-		const auto existing{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
-			return entry.type_hash == type_hash;
-		}) };
-		if (existing != entries.end()) {
-			existing->supports_timing = supports_timing;
-			existing->requires_timing = requires_timing;
-			existing->default_timing = default_timing;
-			existing->completion = completion;
-			existing->serializable = serializable;
-			return false;
-		}
-
-		entries.push_back(ScriptRegistration{
+		ScriptRegistration registration{
 			.type_hash = type_hash,
-			.completion = completion,
-			.supports_timing = supports_timing,
-			.requires_timing = requires_timing,
-			.serializable = serializable,
-			.default_timing = default_timing,
+			.schema_version = options.schema_version,
+			.completion = options.completion,
+			.supports_timing = options.supports_timing,
+			.requires_timing = options.requires_timing,
+			.serializable = options.serializable,
+			.default_timing = std::move(options.default_timing),
 			.make_default = [] {
 				json output{ json::object() };
 				if constexpr (std::default_initializable<T>) {
@@ -409,8 +416,34 @@ public:
 					(void)input;
 				}
 			},
-		});
+		};
+
+		const auto existing{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		}) };
+		if (existing != entries.end()) {
+			*existing = std::move(registration);
+			return false;
+		}
+
+		entries.push_back(std::move(registration));
 		return true;
+	}
+
+	/// @brief Compatibility overload for direct registrations that have not migrated to options.
+	template <ScriptType T>
+	static bool Register(
+		bool supports_timing, bool requires_timing = false,
+		std::optional<ScriptTiming> default_timing = std::nullopt,
+		ScriptCompletion completion = ScriptCompletion::ScriptControlled, bool serializable = true
+	) {
+		return Register<T>(ScriptRegistrationOptions{
+			.completion = completion,
+			.supports_timing = supports_timing,
+			.requires_timing = requires_timing,
+			.serializable = serializable,
+			.default_timing = std::move(default_timing),
+		});
 	}
 
 	template <ScriptType T>
@@ -423,10 +456,9 @@ public:
 					input.get_to(value);
 				}
 			};
-			(void)Register<T>(
-				false, false, std::nullopt, ScriptCompletion::ScriptControlled,
-				json_serializable
-			);
+			(void)Register<T>(ScriptRegistrationOptions{
+				.serializable = json_serializable,
+			});
 		}
 	}
 
@@ -488,6 +520,14 @@ struct SharedScriptSequenceRegistry {
 	PTGN_REFLECT(SharedScriptSequenceRegistry, sequences)
 };
 
+template <typename TEvent>
+struct SequenceEventRegistrationOptions {
+	std::uint32_t schema_version{ 1 };
+	json default_value{ json::object() };
+	std::function<bool(Entity, const json&, const TEvent&)> matches;
+	std::function<bool(Entity)> available{ [](Entity) { return true; } };
+};
+
 struct SequenceEventRegistration {
 	TypeHashValue type_hash{ 0 };
 	std::uint32_t schema_version{ 1 };
@@ -498,25 +538,31 @@ struct SequenceEventRegistration {
 
 class SequenceEventRegistry {
 public:
-	template <typename TEvent, typename FMatch, typename FAvailable>
-	static bool Register(json default_value, FMatch&& matches, FAvailable&& available) {
+	template <typename TEvent>
+	static bool Register(SequenceEventRegistrationOptions<TEvent> options) {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<TEvent>() };
-		if (Find(type_hash)) {
-			return false;
+
+		if (options.default_value.is_null()) {
+			options.default_value = json::object();
 		}
-		if (default_value.is_null()) {
-			default_value = json::object();
+		if (!options.available) {
+			options.available = [](Entity) { return true; };
 		}
 
-		entries.push_back(SequenceEventRegistration{
+		SequenceEventRegistration registration{
 			.type_hash = type_hash,
-			.set_defaults = [value = std::move(default_value)](EventCondition& output) {
+			.schema_version = options.schema_version,
+			.set_defaults = [value = std::move(options.default_value)](EventCondition& output) {
 				output.value = value;
 			},
-			.matches = [fn = std::forward<FMatch>(matches)](
+			.matches = [fn = std::move(options.matches)](
 				Entity owner, Event event, const EventCondition& input, bool consume
 			) mutable {
+				if (!fn) {
+					return false;
+				}
+
 				bool matched{ false };
 				if constexpr (std::is_empty_v<TEvent>) {
 					event.Dispatch<TEvent>([&]() -> bool {
@@ -531,16 +577,36 @@ public:
 				}
 				return matched;
 			},
+			.available = std::move(options.available),
+		};
+
+		const auto existing{ std::ranges::find_if(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		}) };
+		if (existing != entries.end()) {
+			*existing = std::move(registration);
+			return false;
+		}
+
+		entries.push_back(std::move(registration));
+		return true;
+	}
+
+	template <typename TEvent, typename FMatch, typename FAvailable>
+	static bool Register(json default_value, FMatch&& matches, FAvailable&& available) {
+		return Register<TEvent>(SequenceEventRegistrationOptions<TEvent>{
+			.default_value = std::move(default_value),
+			.matches = std::forward<FMatch>(matches),
 			.available = std::forward<FAvailable>(available),
 		});
-		return true;
 	}
 
 	template <typename TEvent, typename FMatch>
 	static bool Register(json default_value, FMatch&& matches) {
-		return Register<TEvent>(
-			std::move(default_value), std::forward<FMatch>(matches), [](Entity) { return true; }
-		);
+		return Register<TEvent>(SequenceEventRegistrationOptions<TEvent>{
+			.default_value = std::move(default_value),
+			.matches = std::forward<FMatch>(matches),
+		});
 	}
 
 	[[nodiscard]] static EventCondition MakeCondition(

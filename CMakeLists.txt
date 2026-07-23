@@ -26,8 +26,9 @@ if(NOT EMSCRIPTEN)
 endif()
 
 set(
-  PTGN_COMPONENT_REGISTRATION_SOURCE
+  PTGN_COMPONENT_REGISTRATION_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/engine/src/runtime/ecs/component_registry.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/engine/src/runtime/scripting/script_registry.cpp"
 )
 
 add_subdirectory(engine)
