@@ -11,6 +11,7 @@
 #include <ostream>
 #include <ranges>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -21,6 +22,7 @@
 #include "core/util/hash.h"
 #include "core/util/reflection.h"
 #include "core/util/strong_string.h"
+#include "core/util/type_info.h"
 #include "core/util/time.h"
 #include "runtime/ecs/entity.h"
 #include "serialization/json/json.h"
@@ -310,14 +312,18 @@ struct impl_ScriptAccess {
 
 template <typename T>
 bool TryReadScriptJson(const json& input, T& output) {
-	if (input.is_null()) {
+	if constexpr (!requires(const json& value, T& result) { value.get_to(result); }) {
 		return false;
-	}
-	try {
-		input.get_to(output);
-		return true;
-	} catch (...) {
-		return false;
+	} else {
+		if (input.is_null()) {
+			return false;
+		}
+		try {
+			input.get_to(output);
+			return true;
+		} catch (...) {
+			return false;
+		}
 	}
 }
 
@@ -339,6 +345,7 @@ struct ScriptRegistrationOptions {
 
 struct ScriptRegistration {
 	TypeHashValue type_hash{ 0 };
+	std::string type;
 	std::uint32_t schema_version{ 1 };
 	ScriptCompletion completion{ ScriptCompletion::ScriptControlled };
 	bool supports_timing{ false };
@@ -355,6 +362,13 @@ class ScriptRegistry {
 public:
 	template <ScriptClass T>
 	static bool Register() {
+		auto& entries{ MutableEntries() };
+		const TypeHashValue type_hash{ Hash<T>() };
+		if (std::ranges::any_of(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		})) {
+			return false;
+		}
 		return Register<T>(ScriptRegistrationOptions{});
 	}
 
@@ -369,6 +383,7 @@ public:
 
 		ScriptRegistration registration{
 			.type_hash = type_hash,
+			.type = std::string{ type_name_without_namespaces<T>() },
 			.schema_version = options.schema_version,
 			.completion = options.completion,
 			.supports_timing = options.supports_timing,
@@ -446,15 +461,10 @@ public:
 	template <ScriptClass T>
 	static void EnsureRegistered() {
 		if (!Find(Hash<T>())) {
-			constexpr bool json_serializable{
-				std::default_initializable<T> &&
-				requires(json& output, const json& input, T& value, const T& const_value) {
-					output = const_value;
-					input.get_to(value);
-				}
-			};
+			// Script identity is serializable independently of whether T has reflected/custom JSON
+			// payload data. A default-constructible stateless Script can be restored from its type.
 			Register<T>(ScriptRegistrationOptions{
-				.serializable = json_serializable,
+				.serializable = std::default_initializable<T>,
 			});
 		}
 	}
@@ -465,6 +475,7 @@ public:
 	[[nodiscard]] static ScriptStep MakeStep(TypeHashValue type_hash);
 
 	[[nodiscard]] static const ScriptRegistration* Find(TypeHashValue type_hash);
+	[[nodiscard]] static const ScriptRegistration* Find(std::string_view type);
 	[[nodiscard]] static const std::vector<ScriptRegistration>& Entries();
 
 private:
@@ -535,6 +546,21 @@ struct SequenceEventRegistration {
 
 class SequenceEventRegistry {
 public:
+	/// @brief Registers an event that matches every dispatched event of TEvent.
+	///
+	/// A default registration never replaces an existing explicit matcher.
+	template <typename TEvent>
+	static bool Register() {
+		auto& entries{ MutableEntries() };
+		const TypeHashValue type_hash{ Hash<TEvent>() };
+		if (std::ranges::any_of(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		})) {
+			return false;
+		}
+		return Register<TEvent>(SequenceEventRegistrationOptions<TEvent>{});
+	}
+
 	template <typename TEvent>
 	static bool Register(SequenceEventRegistrationOptions<TEvent> options) {
 		auto& entries{ MutableEntries() };
@@ -542,6 +568,11 @@ public:
 
 		if (options.default_value.is_null()) {
 			options.default_value = json::object();
+		}
+		if (!options.matches) {
+			options.matches = [](Entity, const json&, const TEvent&) {
+				return true;
+			};
 		}
 		if (!options.available) {
 			options.available = [](Entity) { return true; };
@@ -556,10 +587,6 @@ public:
 			.matches = [fn = std::move(options.matches)](
 				Entity owner, Event event, const EventCondition& input, bool consume
 			) mutable {
-				if (!fn) {
-					return false;
-				}
-
 				bool matched{ false };
 				if constexpr (std::is_empty_v<TEvent>) {
 					event.Dispatch<TEvent>([&]() -> bool {

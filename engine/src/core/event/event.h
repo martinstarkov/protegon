@@ -7,6 +7,7 @@
 #include <variant>
 
 #include "core/assert.h"
+#include "core/util/type_info.h"
 #include "core/util/concepts.h"
 #include "core/util/hash.h"
 
@@ -17,6 +18,9 @@ namespace impl {
 struct EventData {
 	using Payload = std::unique_ptr<void, void (*)(void*)>;
 
+	/// @brief For debug purposes.
+	std::string_view name;
+
 	std::size_t type_hash{ 0 };
 	bool handled{ false };
 	Payload payload{ nullptr, +[](void*) {
@@ -26,11 +30,11 @@ struct EventData {
 		requires BraceConstructible<T, TArgs...>
 	static EventData Create(TArgs&&... args) {
 		if constexpr (sizeof...(TArgs) == 0 && std::is_empty_v<T>) {
-			return EventData{ Hash<T>(), false, { nullptr, +[](void*) {
-												 } } };
+			return EventData{ .name = type_name_without_namespaces<T>(), .type_hash = Hash<T>(), .handled = false };
 		} else {
 			auto payload{ new T{ std::forward<TArgs>(args)... } };
-			return EventData{ Hash<T>(), false, Payload{ payload, +[](void* ptr) {
+			return EventData{ .name = type_name_without_namespaces<T>(), .type_hash = Hash<T>(), .handled = false,
+				.payload = Payload{ payload, +[](void* ptr) {
 															delete static_cast<T*>(ptr);
 														} } };
 		}

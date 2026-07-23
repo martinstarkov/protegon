@@ -117,10 +117,6 @@ template <typename T>
 	}
 }
 
-bool DrawEmptyEvent(json&) {
-	return false;
-}
-
 bool DrawKey(json& value) {
 	Key key{ JsonValueOr<Key>(value, "key", Key::W) };
 	bool changed{ false };
@@ -562,12 +558,6 @@ bool DrawFollowTarget(FollowTargetScript& script, ScriptEditorContext&) {
 	return changed;
 }
 
-bool DrawFollowTargetRoot(FollowTargetScript& script, ScriptEditorContext&) {
-	bool changed{ ImGui::DragFloat("Speed", &script.speed, 1.0f, 0.0f) };
-	changed |= ImGui::DragFloat("Stopping Distance", &script.stopping_distance, 0.1f, 0.0f);
-	return changed;
-}
-
 bool DrawTintTo(TintToScript& script, ScriptEditorContext&) {
 	auto tint{ script.tint.Normalized() };
 	if (!ImGui::ColorEdit4("Tint", tint.Data())) {
@@ -655,25 +645,6 @@ const std::vector<EventEditorRegistration>& EventEditorRegistry::Entries() {
 	return MutableEntries();
 }
 
-const SequenceStepEditorRegistration* SequenceStepEditorRegistry::Find(TypeHashValue type_hash) {
-	for (const auto& entry : Entries()) {
-		if (entry.type_hash == type_hash) {
-			return &entry;
-		}
-	}
-	return nullptr;
-}
-
-std::vector<SequenceStepEditorRegistration>& SequenceStepEditorRegistry::MutableEntries() {
-	static std::vector<SequenceStepEditorRegistration> entries;
-	return entries;
-}
-
-const std::vector<SequenceStepEditorRegistration>& SequenceStepEditorRegistry::Entries() {
-	impl::EnsureEngineScriptEditorsRegistered();
-	return MutableEntries();
-}
-
 const ScriptEditorRegistration* ScriptEditorRegistry::Find(TypeHashValue type_hash) {
 	for (const auto& entry : Entries()) {
 		if (entry.type_hash == type_hash) {
@@ -695,363 +666,406 @@ const std::vector<ScriptEditorRegistration>& ScriptEditorRegistry::Entries() {
 
 PTGN_REGISTER_SCRIPT(
 	Script,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Script Sequence",
-			.group = "",
-			.description = "Run a global editor-authored Script Sequence.",
-		},
-		&DrawScriptSequenceInline,
-		&DrawNothing<Script>
-	),
-	RootScriptEditor(
-		ScriptEditorOptions{
-			.label = "Script Sequence",
-			.group = "Sequence",
-			.description = "Editor-authored sequence of registered scripts.",
-		},
-		&DrawNothing<Script>
-	)
+	{
+		.label = "Script Sequence",
+		.group = "Sequence",
+		.description = "Editor-authored sequence of registered scripts.",
+		.type = ScriptType::Both,
+		.draw_inline = &DrawScriptSequenceInline,
+		.draw = &DrawNothing<Script>,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	WaitScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Delay",
-			.group = "Timing",
-			.description = "Wait before continuing.",
-		},
-		&DrawNothing<WaitScript>
-	)
+	{
+		.label = "Delay",
+		.group = "Timing",
+		.description = "Wait before continuing.",
+		.type = ScriptType::Sequence,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	MoveToScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Move To",
-			.group = "Transform",
-			.description = "Move the owning entity.",
-		},
-		&DrawMoveToInline,
-		&DrawNothing<MoveToScript>
-	),
-	RootScriptEditor(
-		ScriptEditorOptions{
-			.label = "Move To",
-			.group = "Transform",
-			.description = "Root movement script.",
-		},
-		&DrawMoveTo
-	)
+	{
+		.label = "Move To",
+		.group = "Transform",
+		.description = "Move the owning entity.",
+		.type = ScriptType::Both,
+		.draw_inline = &DrawMoveToInline,
+		.draw = &DrawMoveTo,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	RotateToScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Rotate To",
-			.group = "Transform",
-			.description = "Rotate the owning entity.",
-		},
-		&DrawRotateToInline,
-		&DrawNothing<RotateToScript>
-	)
+	{
+		.label = "Rotate To",
+		.group = "Transform",
+		.description = "Rotate the owning entity.",
+		.type = ScriptType::Sequence,
+		.draw_inline = &DrawRotateToInline,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	ScaleToScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Scale To",
-			.group = "Transform",
-			.description = "Scale the owning entity.",
-		},
-		&DrawScaleToInline,
-		&DrawNothing<ScaleToScript>
-	)
+	{
+		.label = "Scale To",
+		.group = "Transform",
+		.description = "Scale the owning entity.",
+		.type = ScriptType::Sequence,
+		.draw_inline = &DrawScaleToInline,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	TintToScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Tint To",
-			.group = "Animation",
-			.description = "Animate the owner tint to a color.",
-		},
-		&DrawTintTo
-	)
+	{
+		.label = "Tint To",
+		.group = "Animation",
+		.description = "Animate the owner tint to a color.",
+		.type = ScriptType::Sequence,
+		.draw = &DrawTintTo,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	BounceScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Bounce",
-			.group = "Animation",
-			.description = "Apply a positional bounce offset.",
-		},
-		&DrawBounce
-	)
+	{
+		.label = "Bounce",
+		.group = "Animation",
+		.description = "Apply a positional bounce offset.",
+		.type = ScriptType::Sequence,
+		.draw = &DrawBounce,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	ShakeScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Shake",
-			.group = "Animation",
-			.description = "Raise or lower persistent shake trauma.",
-		},
-		&DrawShake
-	)
+	{
+		.label = "Shake",
+		.group = "Animation",
+		.description = "Raise or lower persistent shake trauma.",
+		.type = ScriptType::Sequence,
+		.draw = &DrawShake,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	AddShakeTraumaScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Add Shake Trauma",
-			.group = "Animation",
-			.description = "Immediately raise or lower persistent shake trauma.",
-		},
-		&DrawAddShakeTrauma
-	)
+	{
+		.label = "Add Shake Trauma",
+		.group = "Animation",
+		.description = "Immediately raise or lower persistent shake trauma.",
+		.type = ScriptType::Sequence,
+		.draw = &DrawAddShakeTrauma,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	RecoverShakeScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Recover Shake",
-			.group = "Animation",
-			.description = "Reduce shake trauma to zero.",
-		},
-		&DrawRecoverShake
-	)
+	{
+		.label = "Recover Shake",
+		.group = "Animation",
+		.description = "Reduce shake trauma to zero.",
+		.type = ScriptType::Sequence,
+		.draw = &DrawRecoverShake,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	ResetShakeScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Reset Shake",
-			.group = "Animation",
-			.description = "Immediately clear shake trauma and offsets.",
-		},
-		&DrawNothing<ResetShakeScript>
-	)
+	{
+		.label = "Reset Shake",
+		.group = "Animation",
+		.description = "Immediately clear shake trauma and offsets.",
+		.type = ScriptType::Sequence,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	FollowTargetScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Follow Target",
-			.group = "Transform",
-			.description = "Follow an entity until close enough.",
-		},
-		&DrawFollowTarget
-	),
-	RootScriptEditor(
-		ScriptEditorOptions{
-			.label = "Follow Target",
-			.group = "Transform",
-			.description = "Root follow behavior.",
-		},
-		&DrawFollowTargetRoot
-	)
+	{
+		.label = "Follow Target",
+		.group = "Transform",
+		.description = "Follow an entity until close enough.",
+		.type = ScriptType::Both,
+		.draw = &DrawFollowTarget,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	FollowEntityScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Follow Entity",
-			.group = "Movement",
-			.description = "Follow an entity using TargetFollowConfig.",
-		},
-		&DrawFollowEntity
-	),
-	RootScriptEditor(
-		ScriptEditorOptions{
-			.label = "Follow Entity",
-			.group = "Movement",
-			.description = "Root configured entity-follow behavior.",
-		},
-		&DrawFollowEntity
-	)
+	{
+		.label = "Follow Entity",
+		.group = "Movement",
+		.description = "Follow an entity using TargetFollowConfig.",
+		.type = ScriptType::Both,
+		.draw = &DrawFollowEntity,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	FollowPathScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Follow Path",
-			.group = "Movement",
-			.description = "Follow a configurable waypoint path.",
-		},
-		&DrawFollowPath
-	),
-	RootScriptEditor(
-		ScriptEditorOptions{
-			.label = "Follow Path",
-			.group = "Movement",
-			.description = "Root configured path-follow behavior.",
-		},
-		&DrawFollowPath
-	)
+	{
+		.label = "Follow Path",
+		.group = "Movement",
+		.description = "Follow a configurable waypoint path.",
+		.type = ScriptType::Both,
+		.draw = &DrawFollowPath,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	SetVisibleScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Set Visibility",
-			.group = "Entity",
-			.description = "Set owner visibility.",
-			.menu_order = 3,
-		},
-		&DrawSetVisibleInline,
-		&DrawNothing<SetVisibleScript>
-	)
+	{
+		.label = "Set Visibility",
+		.group = "Entity",
+		.description = "Set owner visibility.",
+		.type = ScriptType::Sequence,
+		.menu_order = 3,
+		.draw_inline = &DrawSetVisibleInline,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	EmitSignalScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Emit Signal",
-			.group = "",
-			.description = "Emit a global signal.",
-		},
-		&DrawEmitSignalInline,
-		&DrawNothing<EmitSignalScript>
-	)
+	{
+		.label = "Emit Signal",
+		.group = "",
+		.description = "Emit a global signal.",
+		.type = ScriptType::Sequence,
+		.draw_inline = &DrawEmitSignalInline,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	AddComponentsScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Add Components",
-			.group = "Entity",
-			.description = "Add registered components to the owner.",
-			.menu_order = 1,
-		},
-		&DrawAddComponentsInline,
-		&DrawAddComponentsDetails
-	)
+	{
+		.label = "Add Components",
+		.group = "Entity",
+		.description = "Add registered components to the owner.",
+		.type = ScriptType::Sequence,
+		.menu_order = 1,
+		.draw_inline = &DrawAddComponentsInline,
+		.draw = &DrawAddComponentsDetails,
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	RemoveComponentsScript,
-	SequenceStepEditor(
-		SequenceStepEditorOptions{
-			.label = "Remove Components",
-			.group = "Entity",
-			.description = "Remove registered components from the owner.",
-			.menu_order = 2,
-			.separator_after = true,
-		},
-		&DrawRemoveComponentsInline,
-		&DrawNothing<RemoveComponentsScript>
-	)
+	{
+		.label = "Remove Components",
+		.group = "Entity",
+		.description = "Remove registered components from the owner.",
+		.type = ScriptType::Sequence,
+		.menu_order = 2,
+		.separator_after = true,
+		.draw_inline = &DrawRemoveComponentsInline,
+	}
 );
 
-#define PTGN_REGISTER_KEY_EVENT(Type, Label)                                             \
-	PTGN_REGISTER_EVENT(                                                                  \
-		Type,                                                                               \
-		(EventEditorRegistrationDefinition{                                                 \
-			.options = {                                                                      \
-				.label = Label,                                                                 \
-				.group = "Key",                                                                \
-				.description = "Matches one key.",                                              \
-			},                                                                                \
-			.inline_fields = 1,                                                               \
-			.draw = &DrawKey,                                                                  \
-		})                                                                                  \
-	)
+PTGN_REGISTER_EVENT(
+	event::KeyPressed,
+	{
+		.label = "On Key Pressed",
+		.group = "Key",
+		.description = "Matches one key.",
+		.inline_fields = 1,
+		.draw = &DrawKey,
+	}
+);
 
-#define PTGN_REGISTER_MOUSE_EVENT(Type, Label, Group)                                    \
-	PTGN_REGISTER_EVENT(                                                                  \
-		Type,                                                                               \
-		(EventEditorRegistrationDefinition{                                                 \
-			.options = {                                                                      \
-				.label = Label,                                                                 \
-				.group = Group,                                                                 \
-				.description = "Matches one mouse button.",                                     \
-			},                                                                                \
-			.inline_fields = 1,                                                               \
-			.draw = &DrawMouse,                                                                \
-		})                                                                                  \
-	)
+PTGN_REGISTER_EVENT(
+	event::KeyHeld,
+	{
+		.label = "On Key Held",
+		.group = "Key",
+		.description = "Matches one key.",
+		.inline_fields = 1,
+		.draw = &DrawKey,
+	}
+);
 
-#define PTGN_REGISTER_EMPTY_EVENT(Type, Label, Group, Description)                       \
-	PTGN_REGISTER_EVENT(                                                                  \
-		Type,                                                                               \
-		(EventEditorRegistrationDefinition{                                                 \
-			.options = {                                                                      \
-				.label = Label,                                                                 \
-				.group = Group,                                                                 \
-				.description = Description,                                                     \
-			},                                                                                \
-			.draw = &DrawEmptyEvent,                                                          \
-		})                                                                                  \
-	)
+PTGN_REGISTER_EVENT(
+	event::KeyReleased,
+	{
+		.label = "On Key Released",
+		.group = "Key",
+		.description = "Matches one key.",
+		.inline_fields = 1,
+		.draw = &DrawKey,
+	}
+);
 
-PTGN_REGISTER_KEY_EVENT(event::KeyPressed, "On Key Pressed");
-PTGN_REGISTER_KEY_EVENT(event::KeyHeld, "On Key Held");
-PTGN_REGISTER_KEY_EVENT(event::KeyReleased, "On Key Released");
-PTGN_REGISTER_MOUSE_EVENT(event::MousePressed, "On Mouse Pressed", "Mouse");
-PTGN_REGISTER_MOUSE_EVENT(event::MouseHeld, "On Mouse Held", "Mouse");
-PTGN_REGISTER_MOUSE_EVENT(event::MouseReleased, "On Mouse Released", "Mouse");
+PTGN_REGISTER_EVENT(
+	event::MousePressed,
+	{
+		.label = "On Mouse Pressed",
+		.group = "Mouse",
+		.description = "Matches one mouse button.",
+		.inline_fields = 1,
+		.draw = &DrawMouse,
+	}
+);
 
-PTGN_REGISTER_EMPTY_EVENT(
-	event::MouseMoveOver, "On Mouse Enter", "Interaction",
-	"Matches when the pointer enters the owner."
+PTGN_REGISTER_EVENT(
+	event::MouseHeld,
+	{
+		.label = "On Mouse Held",
+		.group = "Mouse",
+		.description = "Matches one mouse button.",
+		.inline_fields = 1,
+		.draw = &DrawMouse,
+	}
 );
-PTGN_REGISTER_EMPTY_EVENT(
-	event::MouseMoveOut, "On Mouse Leave", "Interaction",
-	"Matches when the pointer leaves the owner."
+
+PTGN_REGISTER_EVENT(
+	event::MouseReleased,
+	{
+		.label = "On Mouse Released",
+		.group = "Mouse",
+		.description = "Matches one mouse button.",
+		.inline_fields = 1,
+		.draw = &DrawMouse,
+	}
 );
-PTGN_REGISTER_MOUSE_EVENT(event::MousePressedOver, "On Mouse Pressed Over", "Interaction");
-PTGN_REGISTER_MOUSE_EVENT(event::MouseHeldOver, "On Mouse Held Over", "Interaction");
-PTGN_REGISTER_MOUSE_EVENT(event::MouseReleasedOver, "On Mouse Released Over", "Interaction");
-PTGN_REGISTER_EMPTY_EVENT(
-	event::ButtonPress, "On Button Press", "Button",
-	"Matches when the owner emits ButtonPress."
+
+PTGN_REGISTER_EVENT(
+	event::MouseMoveOver,
+	{
+		.label = "On Mouse Enter",
+		.group = "Interaction",
+		.description = "Matches when the pointer enters the owner.",
+	}
 );
-PTGN_REGISTER_EMPTY_EVENT(event::DragStart, "On Drag Start", "Drag", "Matches drag start.");
-PTGN_REGISTER_EMPTY_EVENT(event::Drag, "On Drag", "Drag", "Matches while dragging.");
-PTGN_REGISTER_EMPTY_EVENT(event::DragStop, "On Drag Stop", "Drag", "Matches drag stop.");
-PTGN_REGISTER_EMPTY_EVENT(
-	event::OverlapStart, "On Overlap Start", "Physics", "Matches overlap start."
+
+PTGN_REGISTER_EVENT(
+	event::MouseMoveOut,
+	{
+		.label = "On Mouse Leave",
+		.group = "Interaction",
+		.description = "Matches when the pointer leaves the owner.",
+	}
 );
-PTGN_REGISTER_EMPTY_EVENT(event::Overlap, "On Overlap", "Physics", "Matches overlap.");
-PTGN_REGISTER_EMPTY_EVENT(
-	event::OverlapStop, "On Overlap Stop", "Physics", "Matches overlap stop."
+
+PTGN_REGISTER_EVENT(
+	event::MousePressedOver,
+	{
+		.label = "On Mouse Pressed Over",
+		.group = "Interaction",
+		.description = "Matches one mouse button.",
+		.inline_fields = 1,
+		.draw = &DrawMouse,
+	}
 );
-PTGN_REGISTER_EMPTY_EVENT(event::Collision, "On Collision", "Physics", "Matches collision.");
+
+PTGN_REGISTER_EVENT(
+	event::MouseHeldOver,
+	{
+		.label = "On Mouse Held Over",
+		.group = "Interaction",
+		.description = "Matches one mouse button.",
+		.inline_fields = 1,
+		.draw = &DrawMouse,
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::MouseReleasedOver,
+	{
+		.label = "On Mouse Released Over",
+		.group = "Interaction",
+		.description = "Matches one mouse button.",
+		.inline_fields = 1,
+		.draw = &DrawMouse,
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::ButtonPress,
+	{
+		.label = "On Button Press",
+		.group = "Button",
+		.description = "Matches when the owner emits ButtonPress.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DragStart,
+	{
+		.label = "On Drag Start",
+		.group = "Drag",
+		.description = "Matches drag start.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::Drag,
+	{
+		.label = "On Drag",
+		.group = "Drag",
+		.description = "Matches while dragging.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::DragStop,
+	{
+		.label = "On Drag Stop",
+		.group = "Drag",
+		.description = "Matches drag stop.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::OverlapStart,
+	{
+		.label = "On Overlap Start",
+		.group = "Physics",
+		.description = "Matches overlap start.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::Overlap,
+	{
+		.label = "On Overlap",
+		.group = "Physics",
+		.description = "Matches overlap.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::OverlapStop,
+	{
+		.label = "On Overlap Stop",
+		.group = "Physics",
+		.description = "Matches overlap stop.",
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::Collision,
+	{
+		.label = "On Collision",
+		.group = "Physics",
+		.description = "Matches collision.",
+	}
+);
 
 PTGN_REGISTER_EVENT(
 	Signal,
-	(EventEditorRegistrationDefinition{
-		.options = {
-			.label = "On Signal",
-			.group = "",
-			.description = "Matches an exact signal name.",
-		},
+	{
+		.label = "On Signal",
+		.group = "",
+		.description = "Matches an exact signal name.",
 		.inline_fields = 1,
 		.draw = &DrawSignalEvent,
-	})
+	}
 );
-
-#undef PTGN_REGISTER_KEY_EVENT
-#undef PTGN_REGISTER_MOUSE_EVENT
-#undef PTGN_REGISTER_EMPTY_EVENT
 
 namespace impl {
 

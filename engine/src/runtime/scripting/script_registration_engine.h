@@ -6,47 +6,46 @@
 #define PTGN_IMPL_SCRIPT_REGISTRATION_JOIN(lhs, rhs) \
 	PTGN_IMPL_SCRIPT_REGISTRATION_JOIN_IMPL(lhs, rhs)
 
-#define PTGN_IMPL_REGISTER_ENGINE_SCRIPT_IMPL(Type, Id, RegisterArgs)                    \
-	namespace {                                                                           \
-	[[maybe_unused]] const bool PTGN_IMPL_SCRIPT_REGISTRATION_JOIN(                       \
-		ptgn_registered_engine_script_, Id                                                  \
-	){ ::ptgn::ScriptRegistry::Register<Type> RegisterArgs };                             \
+#define PTGN_IMPL_REGISTER_ENGINE_SCRIPT_IMPL(Type, Id, ...)                              \
+	namespace {                                                                            \
+	[[maybe_unused]] const bool PTGN_IMPL_SCRIPT_REGISTRATION_JOIN(                        \
+		ptgn_registered_engine_script_, Id                                                   \
+	){ ::ptgn::ScriptRegistry::Register<Type>(__VA_ARGS__) };                              \
 	}
 
-#define PTGN_IMPL_REGISTER_ENGINE_SCRIPT(Type, RegisterArgs) \
-	PTGN_IMPL_REGISTER_ENGINE_SCRIPT_IMPL(Type, __COUNTER__, RegisterArgs)
+#define PTGN_IMPL_REGISTER_ENGINE_SCRIPT(Type, ...)                                       \
+	PTGN_IMPL_REGISTER_ENGINE_SCRIPT_IMPL(                                                 \
+		Type, __COUNTER__ __VA_OPT__(, ) __VA_ARGS__                                        \
+	)
 
-#define PTGN_IMPL_REGISTER_ENGINE_EVENT_IMPL(Type, Id, RegisterArgs)                     \
-	namespace {                                                                           \
-	[[maybe_unused]] const bool PTGN_IMPL_SCRIPT_REGISTRATION_JOIN(                       \
-		ptgn_registered_engine_event_, Id                                                   \
-	){ ::ptgn::SequenceEventRegistry::Register<Type> RegisterArgs };                      \
+#define PTGN_IMPL_REGISTER_ENGINE_EVENT_IMPL(Type, Id, ...)                               \
+	namespace {                                                                            \
+	[[maybe_unused]] const bool PTGN_IMPL_SCRIPT_REGISTRATION_JOIN(                        \
+		ptgn_registered_engine_event_, Id                                                    \
+	){ ::ptgn::SequenceEventRegistry::Register<Type>(__VA_ARGS__) };                       \
 	}
 
-#define PTGN_IMPL_REGISTER_ENGINE_EVENT(Type, RegisterArgs) \
-	PTGN_IMPL_REGISTER_ENGINE_EVENT_IMPL(Type, __COUNTER__, RegisterArgs)
+#define PTGN_IMPL_REGISTER_ENGINE_EVENT(Type, ...)                                        \
+	PTGN_IMPL_REGISTER_ENGINE_EVENT_IMPL(                                                  \
+		Type, __COUNTER__ __VA_OPT__(, ) __VA_ARGS__                                        \
+	)
 
-/// @brief Registers a Script type with the runtime registry.
+/// @brief Registers a Script type with optional runtime metadata.
 ///
-/// RegisterArgs must be parenthesized because it is appended directly to
-/// ScriptRegistry::Register<Type>. Any optional editor definitions are discarded in an
-/// engine-only translation unit.
+/// PTGN_REGISTER_SCRIPT(MyScript);
 ///
 /// PTGN_REGISTER_SCRIPT(
 ///     MoveToScript,
-///     (ScriptRegistrationOptions{
-///         .supports_timing = true,
-///         .default_timing = ScriptTiming{ .duration_ms = 300.0f },
+///     {
 ///         .completion = ScriptCompletion::Duration,
-///     })
+///         .supports_timing = true,
+///     }
 /// );
-#define PTGN_REGISTER_SCRIPT(Type, RegisterArgs, ...) \
-	PTGN_IMPL_REGISTER_ENGINE_SCRIPT(Type, RegisterArgs)
+#define PTGN_REGISTER_SCRIPT(Type, ...)                                                   \
+	PTGN_IMPL_REGISTER_ENGINE_SCRIPT(Type __VA_OPT__(, ) __VA_ARGS__)
 
-/// @brief Registers an event type with the sequence-event runtime registry.
+/// @brief Registers an event type with optional runtime matching metadata.
 ///
-/// RegisterArgs must be parenthesized because it is appended directly to
-/// SequenceEventRegistry::Register<Type>. Any optional editor definition is discarded in an
-/// engine-only translation unit.
-#define PTGN_REGISTER_EVENT(Type, RegisterArgs, ...) \
-	PTGN_IMPL_REGISTER_ENGINE_EVENT(Type, RegisterArgs)
+/// With no options, every dispatched event of the registered type matches.
+#define PTGN_REGISTER_EVENT(Type, ...)                                                    \
+	PTGN_IMPL_REGISTER_ENGINE_EVENT(Type __VA_OPT__(, ) __VA_ARGS__)

@@ -151,6 +151,15 @@ const ScriptRegistration* ScriptRegistry::Find(TypeHashValue type_hash) {
 	return nullptr;
 }
 
+const ScriptRegistration* ScriptRegistry::Find(std::string_view type) {
+	for (const auto& entry : Entries()) {
+		if (entry.type == type) {
+			return &entry;
+		}
+	}
+	return nullptr;
+}
+
 std::vector<ScriptRegistration>& ScriptRegistry::MutableEntries() {
 	static std::vector<ScriptRegistration> entries;
 	return entries;
@@ -298,41 +307,161 @@ namespace {
 		});
 }
 
+[[nodiscard]] bool HasAuthoredSequenceDefinition(const ScriptSequence& sequence) {
+	return !sequence.enabled || sequence.shared_reference || sequence.shared_sequence_id != 0 ||
+		sequence.name != "New Script Sequence" ||
+		sequence.reentry != ReentryMode::IgnoreWhileRunning || sequence.channel.has_value() ||
+		sequence.transient || sequence.remove_binding_on_complete ||
+		sequence.destroy_owner_on_complete || !sequence.start_events.empty() ||
+		!sequence.stop_events.empty() || !sequence.steps.empty() ||
+		!sequence.lifecycle_actions.empty();
+}
+
+[[nodiscard]] bool HasSerializedScriptValue(const json& value) {
+	return !value.is_null() && !(value.is_object() && value.empty());
+}
+
+[[nodiscard]] SequenceId GetEntrySequenceId(const ScriptEntry& entry) {
+	return entry.instance ? entry.instance->sequence.id : entry.sequence.id;
+}
+
+[[nodiscard]] bool IsPendingRemoval(const impl::Scripts& scripts, const ScriptEntry& entry) {
+	return std::ranges::contains(scripts.pending_removals, GetEntrySequenceId(entry));
+}
+
+void SerializeScriptEntry(json& output, const ScriptEntry& entry) {
+	const auto* registration{ ScriptRegistry::Find(entry.type_hash) };
+	const auto& sequence{ entry.instance ? entry.instance->sequence : entry.sequence };
+	if (!registration || !registration->serializable || !IsSerializableSequence(sequence)) {
+		return;
+	}
+
+	const bool has_value{ HasSerializedScriptValue(entry.value) };
+	const bool has_sequence{ HasAuthoredSequenceDefinition(sequence) };
+
+	// The registered type is the Script's serialized identity. Stateless Scripts therefore need no
+	// reflected JSON payload and can use the compact string representation.
+	if (entry.enabled && !has_value && !has_sequence) {
+		output.push_back(registration->type);
+		return;
+	}
+
+	json serialized{
+		{ "type", registration->type },
+	};
+
+	if (!entry.enabled) {
+		serialized["enabled"] = false;
+	}
+	if (has_value) {
+		serialized["value"] = entry.value;
+	}
+	if (has_sequence) {
+		serialized["sequence"] = sequence;
+	}
+
+	output.push_back(std::move(serialized));
+}
+
+[[nodiscard]] const ScriptRegistration* ResolveSerializedScriptRegistration(const json& input) {
+	if (input.is_string()) {
+		return ScriptRegistry::Find(input.get<std::string>());
+	}
+	if (!input.is_object()) {
+		return nullptr;
+	}
+
+	if (const auto type{ input.find("type") }; type != input.end() && type->is_string()) {
+		return ScriptRegistry::Find(type->get<std::string>());
+	}
+
+	// Backward compatibility with the previous hash-based ScriptEntry representation.
+	if (const auto hash{ input.find("type_hash") };
+		hash != input.end() && hash->is_number_unsigned()) {
+		return ScriptRegistry::Find(hash->get<TypeHashValue>());
+	}
+
+	return nullptr;
+}
+
+void DeserializeScriptEntry(const json& input, std::vector<ScriptEntry>& output) {
+	const auto* registration{ ResolveSerializedScriptRegistration(input) };
+	if (!registration) {
+		return;
+	}
+
+	ScriptEntry entry;
+	entry.type_hash = registration->type_hash;
+	entry.enabled = true;
+	entry.value = registration->make_default ? registration->make_default() : json{};
+	entry.sequence = registration->make_default_sequence
+		? registration->make_default_sequence()
+		: ScriptSequence{};
+
+	if (input.is_object()) {
+		if (const auto enabled{ input.find("enabled") };
+			enabled != input.end() && enabled->is_boolean()) {
+			entry.enabled = enabled->get<bool>();
+		}
+		if (const auto value{ input.find("value") }; value != input.end()) {
+			entry.value = *value;
+		}
+		if (const auto sequence{ input.find("sequence") }; sequence != input.end()) {
+			try {
+				sequence->get_to(entry.sequence);
+			} catch (...) {
+				entry.sequence = registration->make_default_sequence
+					? registration->make_default_sequence()
+					: ScriptSequence{};
+			}
+		}
+	}
+
+	output.push_back(std::move(entry));
+}
+
 } // namespace
 
 namespace impl {
 
 void to_json(json& output, const Scripts& scripts) {
-	output = json{ { "scripts", json::array() } };
-	auto& serialized{ output["scripts"] };
-	for (const auto& entry : scripts.scripts) {
-		const auto* registration{ ScriptRegistry::Find(entry.type_hash) };
-		const auto& sequence{ entry.instance ? entry.instance->sequence : entry.sequence };
-		if (!registration || !registration->serializable || !IsSerializableSequence(sequence)) {
-			continue;
-		}
+	output = json::array();
 
-		// Serialize the authoring snapshot, updating only the sequence definition when a live
-		// instance exists. Runtime state/factories/instances remain excluded by ScriptEntry reflection.
-		if (entry.instance) {
-			json serialized_entry;
-			serialized_entry["enabled"] = entry.enabled;
-			serialized_entry["type_hash"] = entry.type_hash;
-			serialized_entry["value"] = entry.value;
-			serialized_entry["sequence"] = sequence;
-			serialized.push_back(std::move(serialized_entry));
-		} else {
-			serialized.push_back(entry);
+	for (const auto& entry : scripts.scripts) {
+		if (!IsPendingRemoval(scripts, entry)) {
+			SerializeScriptEntry(output, entry);
+		}
+	}
+
+	// Deferred additions are part of the current authoring state even before the next runtime
+	// update promotes them into the active Script collection.
+	for (const auto& entry : scripts.pending_additions) {
+		if (!IsPendingRemoval(scripts, entry)) {
+			SerializeScriptEntry(output, entry);
 		}
 	}
 }
 
 void from_json(const json& input, Scripts& scripts) {
-	if (input.is_object() && input.contains("scripts")) {
-		input.at("scripts").get_to(scripts.scripts);
-	} else if (input.is_array()) {
-		input.get_to(scripts.scripts);
+	scripts.scripts.clear();
+
+	const json* serialized{ nullptr };
+	if (input.is_array()) {
+		serialized = &input;
+	} else if (input.is_object()) {
+		// Backward compatibility with the old { "scripts": [...] } component representation.
+		const auto legacy{ input.find("scripts") };
+		if (legacy != input.end() && legacy->is_array()) {
+			serialized = &*legacy;
+		}
 	}
+
+	if (serialized) {
+		for (const auto& entry : *serialized) {
+			DeserializeScriptEntry(entry, scripts.scripts);
+		}
+	}
+
 	scripts.channels.clear();
 	scripts.pending_additions.clear();
 	scripts.pending_removals.clear();

@@ -47,11 +47,6 @@ template <typename TEvent>
 }
 
 template <typename TEvent>
-[[nodiscard]] bool MatchAlwaysEvent(Entity, const json&, const TEvent&) {
-	return true;
-}
-
-template <typename TEvent>
 [[nodiscard]] bool MatchKeyEvent(Entity, const json& value, const TEvent& event) {
 	return event.key == JsonValueOr<Key>(value, "key", Key::W);
 }
@@ -63,200 +58,231 @@ template <typename TEvent>
 
 } // namespace
 
-PTGN_REGISTER_SCRIPT(Script, (ScriptRegistrationOptions{}));
+PTGN_REGISTER_SCRIPT(Script);
 
 PTGN_REGISTER_SCRIPT(
 	WaitScript,
-	(ScriptRegistrationOptions{
+	{
 		.completion = ScriptCompletion::Duration,
 		.supports_timing = true,
 		.requires_timing = true,
 		.default_timing = ScriptTiming{ .duration_ms = 250.0f },
-	})
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	MoveToScript,
-	(ScriptRegistrationOptions{
+	{
 		.completion = ScriptCompletion::Duration,
 		.supports_timing = true,
 		.default_timing = ScriptTiming{
 			.duration_ms = 300.0f,
 			.ease = Ease::OutCubic,
 		},
-	})
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	RotateToScript,
-	(ScriptRegistrationOptions{
+	{
 		.completion = ScriptCompletion::Duration,
 		.supports_timing = true,
 		.default_timing = ScriptTiming{ .duration_ms = 300.0f },
-	})
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	ScaleToScript,
-	(ScriptRegistrationOptions{
+	{
 		.completion = ScriptCompletion::Duration,
 		.supports_timing = true,
 		.default_timing = ScriptTiming{
 			.duration_ms = 180.0f,
 			.ease = Ease::OutBack,
 		},
-	})
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	TintToScript,
-	(ScriptRegistrationOptions{
+	{
 		.completion = ScriptCompletion::Duration,
 		.supports_timing = true,
 		.default_timing = ScriptTiming{ .duration_ms = 300.0f },
-	})
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	BounceScript,
-	(ScriptRegistrationOptions{
+	{
 		.completion = ScriptCompletion::Duration,
 		.supports_timing = true,
 		.requires_timing = true,
 		.default_timing = ScriptTiming{ .duration_ms = 500.0f },
-	})
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	ShakeScript,
-	(ScriptRegistrationOptions{
+	{
 		.completion = ScriptCompletion::ScriptControlled,
 		.supports_timing = true,
-	})
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	AddShakeTraumaScript,
-	(ScriptRegistrationOptions{ .completion = ScriptCompletion::Instant })
+	{ .completion = ScriptCompletion::Instant }
 );
 
 PTGN_REGISTER_SCRIPT(
 	RecoverShakeScript,
-	(ScriptRegistrationOptions{
-		.completion = ScriptCompletion::ScriptControlled,
-	})
+	{ .completion = ScriptCompletion::ScriptControlled }
 );
 
 PTGN_REGISTER_SCRIPT(
 	ResetShakeScript,
-	(ScriptRegistrationOptions{ .completion = ScriptCompletion::Instant })
+	{ .completion = ScriptCompletion::Instant }
 );
 
 PTGN_REGISTER_SCRIPT(
 	FollowTargetScript,
-	(ScriptRegistrationOptions{ .completion = ScriptCompletion::ScriptControlled })
+	{ .completion = ScriptCompletion::ScriptControlled }
 );
 
 PTGN_REGISTER_SCRIPT(
 	FollowEntityScript,
-	(ScriptRegistrationOptions{ .completion = ScriptCompletion::ScriptControlled })
+	{ .completion = ScriptCompletion::ScriptControlled }
 );
 
 PTGN_REGISTER_SCRIPT(
 	FollowPathScript,
-	(ScriptRegistrationOptions{ .completion = ScriptCompletion::ScriptControlled })
+	{ .completion = ScriptCompletion::ScriptControlled }
 );
 
 PTGN_REGISTER_SCRIPT(
 	NativeScript,
-	(ScriptRegistrationOptions{
+	{
 		.completion = ScriptCompletion::ScriptControlled,
 		.supports_timing = true,
 		.serializable = false,
-	})
+	}
 );
 
 PTGN_REGISTER_SCRIPT(
 	SetVisibleScript,
-	(ScriptRegistrationOptions{ .completion = ScriptCompletion::Instant })
+	{ .completion = ScriptCompletion::Instant }
 );
 
 PTGN_REGISTER_SCRIPT(
 	EmitSignalScript,
-	(ScriptRegistrationOptions{ .completion = ScriptCompletion::Instant })
+	{ .completion = ScriptCompletion::Instant }
 );
 
 PTGN_REGISTER_SCRIPT(
 	AddComponentsScript,
-	(ScriptRegistrationOptions{ .completion = ScriptCompletion::Instant })
+	{ .completion = ScriptCompletion::Instant }
 );
 
 PTGN_REGISTER_SCRIPT(
 	RemoveComponentsScript,
-	(ScriptRegistrationOptions{ .completion = ScriptCompletion::Instant })
+	{ .completion = ScriptCompletion::Instant }
 );
 
-#define PTGN_REGISTER_KEY_EVENT(Type)                                                    \
-	PTGN_REGISTER_EVENT(                                                                  \
-		Type,                                                                               \
-		(SequenceEventRegistrationOptions<Type>{                                            \
-			.default_value = json{ { "key", Key::W } },                                      \
-			.matches = &MatchKeyEvent<Type>,                                                  \
-		})                                                                                  \
-	)
+PTGN_REGISTER_EVENT(
+	event::KeyPressed,
+	{
+		.default_value = json{ { "key", Key::W } },
+		.matches = &MatchKeyEvent<event::KeyPressed>,
+	}
+);
 
-#define PTGN_REGISTER_MOUSE_EVENT(Type)                                                  \
-	PTGN_REGISTER_EVENT(                                                                  \
-		Type,                                                                               \
-		(SequenceEventRegistrationOptions<Type>{                                            \
-			.default_value = json{ { "button", Mouse::Left } },                               \
-			.matches = &MatchMouseEvent<Type>,                                                \
-		})                                                                                  \
-	)
+PTGN_REGISTER_EVENT(
+	event::KeyHeld,
+	{
+		.default_value = json{ { "key", Key::W } },
+		.matches = &MatchKeyEvent<event::KeyHeld>,
+	}
+);
 
-#define PTGN_REGISTER_EMPTY_EVENT(Type)                                                  \
-	PTGN_REGISTER_EVENT(                                                                  \
-		Type,                                                                               \
-		(SequenceEventRegistrationOptions<Type>{ .matches = &MatchAlwaysEvent<Type> })       \
-	)
+PTGN_REGISTER_EVENT(
+	event::KeyReleased,
+	{
+		.default_value = json{ { "key", Key::W } },
+		.matches = &MatchKeyEvent<event::KeyReleased>,
+	}
+);
 
-PTGN_REGISTER_KEY_EVENT(event::KeyPressed);
-PTGN_REGISTER_KEY_EVENT(event::KeyHeld);
-PTGN_REGISTER_KEY_EVENT(event::KeyReleased);
-PTGN_REGISTER_MOUSE_EVENT(event::MousePressed);
-PTGN_REGISTER_MOUSE_EVENT(event::MouseHeld);
-PTGN_REGISTER_MOUSE_EVENT(event::MouseReleased);
+PTGN_REGISTER_EVENT(
+	event::MousePressed,
+	{
+		.default_value = json{ { "button", Mouse::Left } },
+		.matches = &MatchMouseEvent<event::MousePressed>,
+	}
+);
 
-PTGN_REGISTER_EMPTY_EVENT(event::MouseMoveOver);
-PTGN_REGISTER_EMPTY_EVENT(event::MouseMoveOut);
-PTGN_REGISTER_MOUSE_EVENT(event::MousePressedOver);
-PTGN_REGISTER_MOUSE_EVENT(event::MouseHeldOver);
-PTGN_REGISTER_MOUSE_EVENT(event::MouseReleasedOver);
-PTGN_REGISTER_EMPTY_EVENT(event::ButtonPress);
+PTGN_REGISTER_EVENT(
+	event::MouseHeld,
+	{
+		.default_value = json{ { "button", Mouse::Left } },
+		.matches = &MatchMouseEvent<event::MouseHeld>,
+	}
+);
 
-PTGN_REGISTER_EMPTY_EVENT(event::DragStart);
-PTGN_REGISTER_EMPTY_EVENT(event::Drag);
-PTGN_REGISTER_EMPTY_EVENT(event::DragStop);
+PTGN_REGISTER_EVENT(
+	event::MouseReleased,
+	{
+		.default_value = json{ { "button", Mouse::Left } },
+		.matches = &MatchMouseEvent<event::MouseReleased>,
+	}
+);
 
-PTGN_REGISTER_EMPTY_EVENT(event::OverlapStart);
-PTGN_REGISTER_EMPTY_EVENT(event::Overlap);
-PTGN_REGISTER_EMPTY_EVENT(event::OverlapStop);
-PTGN_REGISTER_EMPTY_EVENT(event::Collision);
+PTGN_REGISTER_EVENT(event::MouseMoveOver);
+PTGN_REGISTER_EVENT(event::MouseMoveOut);
+
+PTGN_REGISTER_EVENT(
+	event::MousePressedOver,
+	{
+		.default_value = json{ { "button", Mouse::Left } },
+		.matches = &MatchMouseEvent<event::MousePressedOver>,
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::MouseHeldOver,
+	{
+		.default_value = json{ { "button", Mouse::Left } },
+		.matches = &MatchMouseEvent<event::MouseHeldOver>,
+	}
+);
+
+PTGN_REGISTER_EVENT(
+	event::MouseReleasedOver,
+	{
+		.default_value = json{ { "button", Mouse::Left } },
+		.matches = &MatchMouseEvent<event::MouseReleasedOver>,
+	}
+);
+
+PTGN_REGISTER_EVENT(event::ButtonPress);
+PTGN_REGISTER_EVENT(event::DragStart);
+PTGN_REGISTER_EVENT(event::Drag);
+PTGN_REGISTER_EVENT(event::DragStop);
+PTGN_REGISTER_EVENT(event::OverlapStart);
+PTGN_REGISTER_EVENT(event::Overlap);
+PTGN_REGISTER_EVENT(event::OverlapStop);
+PTGN_REGISTER_EVENT(event::Collision);
 
 PTGN_REGISTER_EVENT(
 	Signal,
-	(SequenceEventRegistrationOptions<Signal>{
+	{
 		.default_value = json{ { "signal", "" } },
 		.matches = [](Entity, const json& value, const Signal& event) {
 			return std::string_view{ event.key } ==
 				JsonValueOr<std::string>(value, "signal", "");
 		},
-	})
+	}
 );
-
-#undef PTGN_REGISTER_KEY_EVENT
-#undef PTGN_REGISTER_MOUSE_EVENT
-#undef PTGN_REGISTER_EMPTY_EVENT
 
 namespace impl {
 
@@ -264,7 +290,7 @@ void EnsureEngineScriptsRegistered() {
 	// Intentionally empty.
 	//
 	// Referencing this function forces the linker to include this object file. The namespace-scope
-	// PTGN_REGISTER_SCRIPT and PTGN_REGISTER_EVENT initializers then populate the runtime registries.
+	// registration initializers then populate the runtime registries.
 }
 
 } // namespace impl

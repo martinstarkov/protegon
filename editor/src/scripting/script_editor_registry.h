@@ -1,8 +1,8 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdint>
 #include <functional>
-#include <optional>
 #include <ranges>
 #include <string>
 #include <type_traits>
@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "core/util/hash.h"
+#include "core/util/type_info.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/scripting/script.h"
 #include "serialization/json/json.h"
@@ -28,10 +29,6 @@ struct EventEditorOptions {
 	std::string label;
 	std::string group;
 	std::string description;
-};
-
-struct EventEditorRegistrationDefinition {
-	EventEditorOptions options;
 	int inline_fields{ 0 };
 	std::function<bool(json&)> draw;
 };
@@ -39,42 +36,54 @@ struct EventEditorRegistrationDefinition {
 struct EventEditorRegistration {
 	TypeHashValue type_hash{ 0 };
 	EventEditorOptions options;
-	int inline_fields{ 0 };
-	std::function<bool(json&)> draw;
 };
 
 class EventEditorRegistry {
 public:
 	template <typename TEvent>
-	static bool Register(EventEditorRegistrationDefinition registration) {
-		return Register<TEvent>(
-			std::move(registration.options), registration.inline_fields,
-			std::move(registration.draw)
-		);
+	static bool Register() {
+		auto& entries{ MutableEntries() };
+		const TypeHashValue type_hash{ Hash<TEvent>() };
+		if (std::ranges::any_of(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		})) {
+			return false;
+		}
+		return Register<TEvent>(EventEditorOptions{});
 	}
 
-	template <typename TEvent, typename F>
-	static bool Register(EventEditorOptions options, int inline_fields, F&& draw) {
+	template <typename TEvent>
+	static bool Register(EventEditorOptions options) {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<TEvent>() };
 		const bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		}) };
+
 		std::erase_if(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		});
-		entries.push_back(EventEditorRegistration{
-			.type_hash = type_hash,
-			.options = std::move(options),
-			.inline_fields = std::max(0, inline_fields),
-			.draw = [fn = std::forward<F>(draw)](json& value) mutable {
+
+		if (options.label.empty()) {
+			options.label = std::string{ type_name_without_namespaces<TEvent>() };
+		}
+		options.inline_fields = std::max(0, options.inline_fields);
+
+		if (options.draw) {
+			auto draw{ std::move(options.draw) };
+			options.draw = [fn = std::move(draw)](json& value) mutable {
 				if (value.is_null()) {
 					value = json::object();
 				}
 				const json previous{ value };
 				const bool changed{ std::invoke(fn, value) };
 				return changed || value != previous;
-			},
+			};
+		}
+
+		entries.push_back(EventEditorRegistration{
+			.type_hash = type_hash,
+			.options = std::move(options),
 		});
 		return inserted;
 	}
@@ -86,22 +95,61 @@ private:
 	[[nodiscard]] static std::vector<EventEditorRegistration>& MutableEntries();
 };
 
-struct SequenceStepEditorOptions {
-	std::string label;
-	std::string group;
-	std::string description;
-	int menu_order{ 100 };
-	bool separator_after{ false };
+enum class ScriptType : std::uint8_t {
+	None	 = 0,
+	Resident = 1 << 0,
+	Sequence = 1 << 1,
+	Both	 = (1 << 0) | (1 << 1)
 };
+
+[[nodiscard]] constexpr ScriptType operator|(ScriptType lhs, ScriptType rhs) {
+	return static_cast<ScriptType>(
+		static_cast<std::uint8_t>(lhs) | static_cast<std::uint8_t>(rhs)
+	);
+}
+
+[[nodiscard]] constexpr ScriptType operator&(ScriptType lhs, ScriptType rhs) {
+	return static_cast<ScriptType>(
+		static_cast<std::uint8_t>(lhs) & static_cast<std::uint8_t>(rhs)
+	);
+}
+
+[[nodiscard]] constexpr bool HasScriptType(ScriptType value, ScriptType type) {
+	return (value & type) != ScriptType::None;
+}
 
 struct ScriptEditorContext {
 	Entity owner;
 	SharedScriptSequenceRegistry& shared_sequences;
 };
 
-struct SequenceStepEditorRegistration {
+template <ScriptClass T>
+struct ScriptEditorOptions {
+	std::string label;
+	std::string group;
+	std::string description;
+	ScriptType type{ ScriptType::Resident };
+	int menu_order{ 100 };
+	bool separator_after{ false };
+	bool hidden{ false };
+	std::function<bool(T&, ScriptEditorContext&)> draw_inline;
+	std::function<bool(T&, ScriptEditorContext&)> draw;
+};
+
+struct RegisteredScriptEditorOptions {
+	std::string label;
+	std::string group;
+	std::string description;
+	ScriptType type{ ScriptType::Resident };
+	int menu_order{ 100 };
+	bool separator_after{ false };
+	bool hidden{ false };
+};
+
+struct ScriptEditorRegistration {
 	TypeHashValue type_hash{ 0 };
-	SequenceStepEditorOptions options;
+	RegisteredScriptEditorOptions options;
+	bool has_contents{ false };
 	std::function<bool(json&, ScriptEditorContext&)> draw_inline;
 	std::function<bool(json&, ScriptEditorContext&)> draw;
 };
@@ -119,121 +167,96 @@ bool DrawTypedJsonEditor(json& input, ScriptEditorContext& context, F& fn) {
 	auto& state{ states[&input] };
 	if (!state.initialized || state.synchronized_value != input) {
 		state.value = T{};
-		TryReadScriptJson(input, state.value);
+		if constexpr (requires(const json& value, T& output) { value.get_to(output); }) {
+			TryReadScriptJson(input, state.value);
+		}
 		state.synchronized_value = input;
 		state.initialized = true;
 	}
 
 	const bool changed{ std::invoke(fn, state.value, context) };
-	json updated;
-	try {
-		updated = state.value;
-	} catch (...) {
-		updated = input;
+
+	if constexpr (requires(json& output, const T& value) { output = value; }) {
+		json updated;
+		try {
+			updated = state.value;
+		} catch (...) {
+			updated = input;
+		}
+		const bool serialized_changed{ updated != input };
+		input = std::move(updated);
+		state.synchronized_value = input;
+		return changed || serialized_changed;
+	} else {
+		// Metadata-only Script registrations do not require a JSON adapter. A custom drawer for a
+		// non-serializable Script may still run, but there is no payload to write back.
+		state.synchronized_value = input;
+		return changed;
 	}
-	const bool serialized_changed{ updated != input };
-	input = std::move(updated);
-	state.synchronized_value = input;
-	return changed || serialized_changed;
 }
-
-class SequenceStepEditorRegistry {
-public:
-	template <ScriptClass T, typename F>
-	static bool Register(SequenceStepEditorOptions options, F&& draw) {
-		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ Hash<T>() };
-		const bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
-			return entry.type_hash == type_hash;
-		}) };
-		std::erase_if(entries, [type_hash](const auto& entry) {
-			return entry.type_hash == type_hash;
-		});
-		entries.push_back(SequenceStepEditorRegistration{
-			.type_hash = type_hash,
-			.options = std::move(options),
-			.draw_inline = {},
-			.draw = [fn = std::forward<F>(draw)](
-				json& input, ScriptEditorContext& context
-			) mutable {
-				return DrawTypedJsonEditor<T>(input, context, fn);
-			},
-		});
-		return inserted;
-	}
-
-	template <ScriptClass T, typename FInline, typename FDetails>
-	static bool RegisterInline(
-		SequenceStepEditorOptions options, FInline&& draw_inline, FDetails&& draw_details
-	) {
-		auto& entries{ MutableEntries() };
-		const TypeHashValue type_hash{ Hash<T>() };
-		const bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
-			return entry.type_hash == type_hash;
-		}) };
-		std::erase_if(entries, [type_hash](const auto& entry) {
-			return entry.type_hash == type_hash;
-		});
-		entries.push_back(SequenceStepEditorRegistration{
-			.type_hash = type_hash,
-			.options = std::move(options),
-			.draw_inline = [fn = std::forward<FInline>(draw_inline)](
-				json& input, ScriptEditorContext& context
-			) mutable {
-				return DrawTypedJsonEditor<T>(input, context, fn);
-			},
-			.draw = [fn = std::forward<FDetails>(draw_details)](
-				json& input, ScriptEditorContext& context
-			) mutable {
-				return DrawTypedJsonEditor<T>(input, context, fn);
-			},
-		});
-		return inserted;
-	}
-
-	[[nodiscard]] static const SequenceStepEditorRegistration* Find(TypeHashValue type_hash);
-	[[nodiscard]] static const std::vector<SequenceStepEditorRegistration>& Entries();
-
-private:
-	[[nodiscard]] static std::vector<SequenceStepEditorRegistration>& MutableEntries();
-};
-
-struct ScriptEditorOptions {
-	std::string label;
-	std::string group;
-	std::string description;
-	bool hidden{ false };
-};
-
-struct ScriptEditorRegistration {
-	TypeHashValue type_hash{ 0 };
-	ScriptEditorOptions options;
-	bool has_contents{ false };
-	std::function<bool(json&, ScriptEditorContext&)> draw;
-};
 
 class ScriptEditorRegistry {
 public:
-	template <ScriptClass T, typename F>
-	static bool Register(ScriptEditorOptions options, F&& draw) {
+	template <ScriptClass T>
+	static bool Register() {
+		auto& entries{ MutableEntries() };
+		const TypeHashValue type_hash{ Hash<T>() };
+		if (std::ranges::any_of(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		})) {
+			return false;
+		}
+		return Register<T>(ScriptEditorOptions<T>{});
+	}
+
+	template <ScriptClass T>
+	static bool Register(ScriptEditorOptions<T> options) {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<T>() };
 		const bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		}) };
+
 		std::erase_if(entries, [type_hash](const auto& entry) {
 			return entry.type_hash == type_hash;
 		});
-		entries.push_back(ScriptEditorRegistration{
+
+		if (options.label.empty()) {
+			options.label = std::string{ type_name_without_namespaces<T>() };
+		}
+
+		ScriptEditorRegistration registration{
 			.type_hash = type_hash,
-			.options = std::move(options),
-			.has_contents = !std::is_empty_v<T>,
-			.draw = [fn = std::forward<F>(draw)](
-				json& input, ScriptEditorContext& context
-			) mutable {
-				return DrawTypedJsonEditor<T>(input, context, fn);
+			.options = {
+				.label = std::move(options.label),
+				.group = std::move(options.group),
+				.description = std::move(options.description),
+				.type = options.type,
+				.menu_order = options.menu_order,
+				.separator_after = options.separator_after,
+				.hidden = options.hidden,
 			},
-		});
+			.has_contents = static_cast<bool>(options.draw),
+		};
+
+		if (options.draw_inline) {
+			registration.draw_inline =
+				[fn = std::move(options.draw_inline)](
+					json& input, ScriptEditorContext& context
+				) mutable {
+					return DrawTypedJsonEditor<T>(input, context, fn);
+				};
+		}
+		if (options.draw) {
+			registration.draw =
+				[fn = std::move(options.draw)](
+					json& input, ScriptEditorContext& context
+				) mutable {
+					return DrawTypedJsonEditor<T>(input, context, fn);
+				};
+		}
+
+		entries.push_back(std::move(registration));
 		return inserted;
 	}
 
@@ -243,91 +266,5 @@ public:
 private:
 	[[nodiscard]] static std::vector<ScriptEditorRegistration>& MutableEntries();
 };
-
-template <typename F>
-struct SequenceStepEditorDefinition {
-	SequenceStepEditorOptions options;
-	F draw;
-};
-
-template <typename FInline, typename FDetails>
-struct InlineSequenceStepEditorDefinition {
-	SequenceStepEditorOptions options;
-	FInline draw_inline;
-	FDetails draw_details;
-};
-
-template <typename F>
-[[nodiscard]] auto SequenceStepEditor(SequenceStepEditorOptions options, F&& draw) {
-	return SequenceStepEditorDefinition<std::decay_t<F>>{
-		.options = std::move(options),
-		.draw = std::forward<F>(draw),
-	};
-}
-
-template <typename FInline, typename FDetails>
-[[nodiscard]] auto SequenceStepEditor(
-	SequenceStepEditorOptions options, FInline&& draw_inline, FDetails&& draw_details
-) {
-	return InlineSequenceStepEditorDefinition<
-		std::decay_t<FInline>, std::decay_t<FDetails>
-	>{
-		.options = std::move(options),
-		.draw_inline = std::forward<FInline>(draw_inline),
-		.draw_details = std::forward<FDetails>(draw_details),
-	};
-}
-
-template <typename F>
-struct RootScriptEditorDefinition {
-	ScriptEditorOptions options;
-	F draw;
-};
-
-template <typename F>
-[[nodiscard]] auto RootScriptEditor(ScriptEditorOptions options, F&& draw) {
-	return RootScriptEditorDefinition<std::decay_t<F>>{
-		.options = std::move(options),
-		.draw = std::forward<F>(draw),
-	};
-}
-
-namespace impl {
-
-template <ScriptClass T, typename F>
-bool RegisterScriptEditorDefinition(SequenceStepEditorDefinition<F> definition) {
-	return SequenceStepEditorRegistry::Register<T>(
-		std::move(definition.options), std::move(definition.draw)
-	);
-}
-
-template <ScriptClass T, typename FInline, typename FDetails>
-bool RegisterScriptEditorDefinition(
-	InlineSequenceStepEditorDefinition<FInline, FDetails> definition
-) {
-	return SequenceStepEditorRegistry::RegisterInline<T>(
-		std::move(definition.options), std::move(definition.draw_inline),
-		std::move(definition.draw_details)
-	);
-}
-
-template <ScriptClass T, typename F>
-bool RegisterScriptEditorDefinition(RootScriptEditorDefinition<F> definition) {
-	return ScriptEditorRegistry::Register<T>(
-		std::move(definition.options), std::move(definition.draw)
-	);
-}
-
-} // namespace impl
-
-template <ScriptClass T, typename... TDefinition>
-bool RegisterScriptEditors(TDefinition&&... definition) {
-	bool inserted{ false };
-	((inserted = impl::RegisterScriptEditorDefinition<T>(
-		  std::forward<TDefinition>(definition)
-	  ) || inserted),
-	 ...);
-	return inserted;
-}
 
 } // namespace ptgn::editor

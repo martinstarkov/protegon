@@ -428,12 +428,8 @@ void SetActionForm(ScriptStep& action, ActionForm form) {
 }
 
 std::string ActionSummary(const ScriptStep& action) {
-	const auto* step_editor{ SequenceStepEditorRegistry::Find(action.type_hash) };
-	const auto* script_editor{ ScriptEditorRegistry::Find(action.type_hash) };
-	std::string result{
-		step_editor ? step_editor->options.label
-					: (script_editor ? script_editor->options.label : std::string{ "Missing Script" })
-	};
+	const auto* editor{ ScriptEditorRegistry::Find(action.type_hash) };
+	std::string result{ editor ? editor->options.label : std::string{ "Missing Script" } };
 	if (action.timing) {
 		result += " (" + std::to_string(static_cast<int>(action.timing->duration_ms)) + "ms)";
 	}
@@ -529,8 +525,7 @@ bool DrawActionPicker(
 ) {
 	struct Candidate {
 		const ScriptRegistration* runtime{ nullptr };
-		const SequenceStepEditorRegistration* step_editor{ nullptr };
-		const ScriptEditorRegistration* script_editor{ nullptr };
+		const ScriptEditorRegistration* editor{ nullptr };
 		std::string_view label;
 		std::string_view group;
 		std::string_view description;
@@ -540,29 +535,18 @@ bool DrawActionPicker(
 
 	const auto resolve_candidate = [](const ScriptRegistration& registration)
 		-> std::optional<Candidate> {
-		const auto* step_editor{ SequenceStepEditorRegistry::Find(registration.type_hash) };
-		const auto* script_editor{ ScriptEditorRegistry::Find(registration.type_hash) };
-		if (!step_editor && !script_editor) {
+		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
+		if (!editor || !HasScriptType(editor->options.type, ScriptType::Sequence)) {
 			return std::nullopt;
-		}
-		if (step_editor) {
-			return Candidate{
-				.runtime = &registration,
-				.step_editor = step_editor,
-				.script_editor = script_editor,
-				.label = step_editor->options.label,
-				.group = step_editor->options.group,
-				.description = step_editor->options.description,
-				.menu_order = step_editor->options.menu_order,
-				.separator_after = step_editor->options.separator_after,
-			};
 		}
 		return Candidate{
 			.runtime = &registration,
-			.script_editor = script_editor,
-			.label = script_editor->options.label,
-			.group = script_editor->options.group,
-			.description = script_editor->options.description,
+			.editor = editor,
+			.label = editor->options.label,
+			.group = editor->options.group,
+			.description = editor->options.description,
+			.menu_order = editor->options.menu_order,
+			.separator_after = editor->options.separator_after,
 		};
 	};
 
@@ -588,7 +572,7 @@ bool DrawActionPicker(
 		return registration.serializable &&
 			registration.type_hash != Hash<Script>() &&
 			registration.type_hash != Hash<WaitScript>() &&
-			(!candidate.script_editor || !candidate.script_editor->options.hidden) &&
+			!candidate.editor->options.hidden &&
 			(!timed_only || registration.supports_timing) &&
 			(timed_only || !registration.requires_timing);
 	};
@@ -705,9 +689,11 @@ bool DrawActionPickerWithInline(
 	ScriptEditorContext& context, ScriptStep& action, bool timed_only
 ) {
 	EnsureActionValue(action);
-	const auto* editor{ SequenceStepEditorRegistry::Find(action.type_hash) };
+	const auto* editor{ ScriptEditorRegistry::Find(action.type_hash) };
 	const bool has_inline_editor{
-		!timed_only && editor && static_cast<bool>(editor->draw_inline)
+		!timed_only && editor &&
+		HasScriptType(editor->options.type, ScriptType::Sequence) &&
+		static_cast<bool>(editor->draw_inline)
 	};
 	if (!has_inline_editor) {
 		return DrawActionPicker(context, action, timed_only);
@@ -719,7 +705,7 @@ bool DrawActionPickerWithInline(
 	const float picker_width{ std::min(150.0f, std::max(110.0f, available * 0.32f)) };
 	changed |= DrawActionPicker(context, action, timed_only, picker_width);
 
-	editor = SequenceStepEditorRegistry::Find(action.type_hash);
+	editor = ScriptEditorRegistry::Find(action.type_hash);
 	if (editor && editor->draw_inline) {
 		ImGui::SameLine(0.0f, spacing);
 		ImGui::SetNextItemWidth(-FLT_MIN);
@@ -914,9 +900,10 @@ bool DrawActionParameters(
 	ScriptEditorContext& context, ScriptStep& action, float left_screen_x
 ) {
 	EnsureActionValue(action);
-	const auto* step_editor{ SequenceStepEditorRegistry::Find(action.type_hash) };
-	const auto* script_editor{ ScriptEditorRegistry::Find(action.type_hash) };
-	if ((!step_editor && !script_editor) ||
+	const auto* editor{ ScriptEditorRegistry::Find(action.type_hash) };
+	if (!editor ||
+		!HasScriptType(editor->options.type, ScriptType::Sequence) ||
+		!editor->draw ||
 		action.type_hash == Hash<Script>() ||
 		action.type_hash == Hash<WaitScript>() ||
 		action.type_hash == Hash<EmitSignalScript>() ||
@@ -946,9 +933,7 @@ bool DrawActionParameters(
 			ImVec2{ std::max(1.0f, right_screen_x - left_screen_x), 0.0f },
 			ImGuiChildFlags_AutoResizeY
 		)) {
-		changed = step_editor
-			? step_editor->draw(action.value, context)
-			: script_editor->draw(action.value, context);
+		changed = editor->draw(action.value, context);
 		if (changed) {
 			action.runtime_factory = {};
 		}
@@ -1258,7 +1243,7 @@ bool DrawEvent(
 	bool event_type_changed{ false };
 
 	auto inline_field_count = [](const EventEditorRegistration* registration) {
-		return registration ? registration->inline_fields : 0;
+		return registration ? registration->options.inline_fields : 0;
 	};
 
 	if (ImGui::BeginTable(
@@ -1361,9 +1346,9 @@ bool DrawEvent(
 			ImGui::EndCombo();
 		}
 
-		if (selected && !event_type_changed && selected->inline_fields > 0 && selected->draw) {
+		if (selected && !event_type_changed && selected->options.inline_fields > 0 && selected->options.draw) {
 			ImGui::SameLine();
-			changed |= selected->draw(event.value);
+			changed |= selected->options.draw(event.value);
 		}
 		ImGui::EndDisabled();
 
@@ -1960,7 +1945,9 @@ bool DrawAddRootScriptPopup(
 	bool changed{ false };
 	const auto add_registered = [&](const ScriptRegistration& registration) {
 		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
-		if (!editor || editor->options.hidden) {
+		if (!editor ||
+			!HasScriptType(editor->options.type, ScriptType::Resident) ||
+			editor->options.hidden) {
 			return;
 		}
 		if (ImGui::MenuItem(editor->options.label.c_str())) {
@@ -1997,7 +1984,9 @@ bool DrawAddRootScriptPopup(
 			continue;
 		}
 		const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
-		if (!editor || editor->options.hidden) {
+		if (!editor ||
+			!HasScriptType(editor->options.type, ScriptType::Resident) ||
+			editor->options.hidden) {
 			continue;
 		}
 		const std::string group{
@@ -2017,7 +2006,9 @@ bool DrawAddRootScriptPopup(
 				continue;
 			}
 			const auto* editor{ ScriptEditorRegistry::Find(registration.type_hash) };
-			if (!editor || editor->options.hidden) {
+			if (!editor ||
+				!HasScriptType(editor->options.type, ScriptType::Resident) ||
+				editor->options.hidden) {
 				continue;
 			}
 			const std::string_view candidate_group{
@@ -2056,7 +2047,13 @@ bool DrawResidentScripts(
 	for (const int i : display_order) {
 		auto& script{ scripts.scripts[static_cast<std::size_t>(i)] };
 		const auto* registration{ ScriptRegistry::Find(script.type_hash) };
-		const auto* editor{ ScriptEditorRegistry::Find(script.type_hash) };
+		const auto* registered_editor{ ScriptEditorRegistry::Find(script.type_hash) };
+		const auto* editor{
+			registered_editor &&
+				HasScriptType(registered_editor->options.type, ScriptType::Resident)
+				? registered_editor
+				: nullptr
+		};
 
 		if (script.type_hash == Hash<Script>()) {
 			if (!script.instance && registration) {
