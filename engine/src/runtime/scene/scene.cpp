@@ -601,21 +601,14 @@ void Scene::InternalOnEvent(Event event) {
 		return;
 	}
 
-	// Global event, dispatched to all entities in the scene.
-	for (auto [entity, scripts] : EntitiesWith<impl::Scripts>()) {
-		entity.OnEvent(event);
-		if (event.IsHandled()) {
-			break;
-		}
-	}
+	// Global event, dispatched to all scripted entities and sequence triggers in the scene.
+	(void)script_runtime::DispatchGlobalEvent(*this, event);
 
 	if (!event.IsHandled()) {
 		OnEvent(event);
 	}
 
-	for (auto [entity, scripts] : EntitiesWith<impl::Scripts>()) {
-		scripts.ApplyPending();
-	}
+	script_runtime::ApplyPending(*this);
 }
 
 void Scene::InternalOnEvent() {
@@ -632,12 +625,14 @@ void Scene::InternalOnEvent() {
 
 		if (entity_event.entity) {
 			// Single entity event.
-			entity_event.entity.OnEvent(event);
+			(void)script_runtime::DispatchEvent(entity_event.entity, event);
 			continue;
 		}
 
 		InternalOnEvent(event);
 	}
+
+	script_runtime::ApplyPending(*this);
 }
 
 void Scene::InternalPreUpdate() {
@@ -651,18 +646,20 @@ void Scene::InternalEnter() {
 		return;
 	}
 
-	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-		scripts.ApplyPending();
+	for (auto [entity, _scripts] : EntitiesWith<impl::Scripts>()) {
+		script_runtime::AttachAll(entity);
 	}
+	script_runtime::ApplyPending(*this);
 
 	Refresh();
 
 	OnEnter();
 	Refresh();
 
-	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-		scripts.ApplyPending();
+	for (auto [entity, _scripts] : EntitiesWith<impl::Scripts>()) {
+		script_runtime::AttachAll(entity);
 	}
+	script_runtime::ApplyPending(*this);
 
 	Refresh();
 }
@@ -827,13 +824,10 @@ void Scene::InternalUpdate() {
 }
 
 void Scene::InternalRuntimeUpdate() {
-	for (auto [e, scripts] : EntitiesWith<impl::Scripts>()) {
-		scripts.Update();
-	}
+	auto dt{ ctx().dt() };
+	script_runtime::Update(*this, dt);
 
 	OnUpdate();
-
-	auto dt{ ctx().dt() };
 
 	ParticleEmitter::Update(*this, dt);
 	impl::AnimationSystem::Update(*this, dt);
@@ -865,6 +859,13 @@ void Scene::InternalExit() {
 		OnExit();
 		Refresh();
 	}
+
+	for (auto [entity, scripts] : EntitiesWith<impl::Scripts>()) {
+		scripts.Attach(entity);
+		scripts.CancelAll(SequenceCancelReason::OwnerDestroyed);
+	}
+	script_runtime::ApplyPending(*this);
+	Refresh();
 
 	// Clears component hooks.
 	manager_.Reset();
