@@ -118,9 +118,7 @@ void DrawJsonEditor(const char* label, json& value) {
 
 } // namespace
 
-void SceneListPanel::DrawSceneParamUI(
-	EditorContext& ctx
-) {
+void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
 	ImGui::SeparatorText("Scene Parameters");
 
 	if (pending_scene_selection_.has_value()) {
@@ -152,6 +150,13 @@ void SceneListPanel::DrawSceneParamUI(
 		return;
 	}
 
+	bool disabled{
+		ctx.state.is_playing ||
+		selected_scene_->IsRuntime()
+	};
+
+	ImGui::BeginDisabled(disabled);
+
 	for (auto it{ state.params.begin() };
 		 it != state.params.end();
 		 ++it) {
@@ -161,7 +166,22 @@ void SceneListPanel::DrawSceneParamUI(
 		);
 	}
 
-	if (!ImGui::Button("Apply Parameters")) {
+	bool apply_parameters{
+		ImGui::Button("Apply Parameters")
+	};
+
+	ImGui::EndDisabled();
+
+	if (disabled &&
+		ImGui::IsItemHovered(
+			ImGuiHoveredFlags_AllowWhenDisabled
+		)) {
+		ImGui::SetTooltip(
+			"Stop Play mode before changing scene parameters."
+		);
+	}
+
+	if (!apply_parameters) {
 		return;
 	}
 
