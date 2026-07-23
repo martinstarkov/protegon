@@ -22,7 +22,6 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
-#include "runtime/scripting/script_sequence.h"
 
 namespace ptgn {
 
@@ -457,24 +456,28 @@ Animation PlayTemporaryAnimation(
 	Scene& scene, Transform transform, TextureKey texture_key, AnimationConfig config,
 	milliseconds destroy_delay, Origin origin
 ) {
-	Animation anim{
+	Animation animation{
 		CreateAnimation(scene, transform, std::move(texture_key), std::move(config), origin)
 	};
-	anim.Add<Tag>("Temporary Animation");
+	animation.Add<Tag>("Temporary Animation");
 
-	if (destroy_delay == 0ms) {
-		anim.OnComplete([](auto& a) mutable { a.animation.Destroy(); });
-	} else {
-		auto script_sequence{ CreateScriptSequence(scene) };
-		script_sequence.Add<Tag>("Temporary Animation Script Sequence");
-		script_sequence.Wait(destroy_delay);
-		script_sequence.Then([anim]() mutable { anim.Destroy(); });
-		anim.OnComplete([script_sequence]() mutable { script_sequence.Start(); });
-	}
+	animation.OnComplete([destroy_delay](auto& event) mutable {
+		if (destroy_delay == 0ms) {
+			event.animation.Destroy();
+			return;
+		}
 
-	anim.Start(true);
+		(void)After(
+			event.animation.GetScene(),
+			destroy_delay,
+			[animation = event.animation]() mutable {
+				animation.Destroy();
+			}
+		);
+	});
 
-	return anim;
+	animation.Start(true);
+	return animation;
 }
 
 AnimationMap CreateAnimationMap(Scene& scene) {

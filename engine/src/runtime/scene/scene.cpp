@@ -33,7 +33,6 @@
 #include "renderer/resources/texture_format.h"
 #include "runtime/animation/animation.h"
 #include "runtime/asset/asset_manager.h"
-#include "runtime/animation/tween.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -837,7 +836,6 @@ void Scene::InternalRuntimeUpdate() {
 	auto dt{ ctx().dt() };
 
 	ParticleEmitter::Update(*this, dt);
-	Tween::Update(*this, dt);
 	impl::AnimationSystem::Update(*this, dt);
 	Lifetime::Update(*this, dt);
 	ctx().physics.PreCollisionUpdate();

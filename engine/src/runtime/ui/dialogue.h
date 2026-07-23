@@ -18,7 +18,6 @@
 #include "core/util/time.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
-#include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
@@ -39,8 +38,7 @@ PTGN_REFLECT_ENUM(DialogueBehavior);
 
 enum class DialoguePartRole : std::uint8_t {
 	Background,
-	Text,
-	Tween,
+	Text
 };
 PTGN_REFLECT_ENUM(DialoguePartRole);
 
@@ -52,19 +50,20 @@ struct DialoguePart {
 	PTGN_REFLECT(DialoguePart, role)
 };
 
-struct DialogueWaitScript : public Script {
+struct DialogueWaitScript final : Script {
 	void OnEvent(Event event) override;
+
+	PTGN_REFLECT_EMPTY(DialogueWaitScript)
 
 private:
 	void OnKeyPressed(Key key) const;
 };
 
-struct DialogueScrollScript : public Script {
-	void OnEvent(Event event) override;
+struct DialogueScrollScript final : Script {
+	[[nodiscard]] ScriptStatus OnUpdate() override;
+	void OnComplete() override;
 
-private:
-	void OnPointComplete() const;
-	void OnProgress(float elapsed_fraction) const;
+	PTGN_REFLECT_EMPTY(DialogueScrollScript)
 };
 
 } // namespace impl
@@ -193,9 +192,6 @@ public:
 	Text TextPart();
 	[[nodiscard]] std::optional<Text> TryTextPart() const;
 
-	Tween TweenPart();
-	[[nodiscard]] std::optional<Tween> TryTweenPart() const;
-
 	[[nodiscard]] std::optional<Sprite> TryBackground() const;
 	[[nodiscard]] std::optional<Entity> TryBackgroundEntity() const;
 
@@ -208,6 +204,7 @@ private:
 
 	void ApplyCurrentPage();
 	void StartCurrentPageScroll();
+	void StopCurrentPageScroll();
 	void PositionTextForPage(const DialoguePageProperties& properties);
 };
 

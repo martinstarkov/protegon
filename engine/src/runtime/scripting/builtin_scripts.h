@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -8,9 +10,12 @@
 #include <variant>
 #include <vector>
 
+#include "core/graphics/color.h"
 #include "core/math/transform.h"
 #include "core/math/vector2.h"
 #include "core/util/strong_string.h"
+#include "runtime/animation/follow_config.h"
+#include "runtime/animation/shake_config.h"
 #include "runtime/ecs/component_registry.h"
 #include "runtime/scripting/script.h"
 
@@ -75,7 +80,15 @@ template <typename T>
 	};
 }
 
-struct MoveToScript final : Script {
+namespace impl {
+
+void ResetBounceAnimationState(Entity entity);
+void ResetShakeAnimationState(Entity entity);
+void ResetFollowAnimationState(Entity entity, bool reset_waypoints);
+
+} // namespace impl
+
+struct MoveToScript : public Script {
 	V2_float destination{ 0.0f, 64.0f };
 	bool relative{ true };
 
@@ -94,7 +107,7 @@ private:
 	V2_float end_{};
 };
 
-struct RotateToScript final : Script {
+struct RotateToScript : public Script {
 	float degrees{ 90.0f };
 	bool shortest_path{ true };
 	bool relative{ false };
@@ -114,7 +127,7 @@ private:
 	float delta_degrees_{ 0.0f };
 };
 
-struct ScaleToScript final : Script {
+struct ScaleToScript : public Script {
 	V2_float scale{ 1.0f, 1.0f };
 	bool relative{ false };
 
@@ -132,7 +145,102 @@ private:
 	V2_float end_{};
 };
 
-struct FollowTargetScript final : Script {
+struct TintToScript : public Script {
+	Color tint{ color::White };
+
+	TintToScript() = default;
+	explicit TintToScript(Color tint) : tint{ tint } {}
+
+	void OnStart() override;
+	[[nodiscard]] ScriptStatus OnUpdate() override;
+	void OnRepeat() override;
+
+	PTGN_REFLECT(TintToScript, tint)
+
+private:
+	Color start_{ color::White };
+};
+
+/// Uses the sequence step's duration, easing, and repeat settings.
+struct BounceScript : public Script {
+	V2_float amplitude{ 0.0f, -16.0f };
+	V2_float static_offset{};
+	bool symmetrical{ false };
+
+	BounceScript() = default;
+	BounceScript(V2_float amplitude, V2_float static_offset = {}, bool symmetrical = false) :
+		amplitude{ amplitude }, static_offset{ static_offset }, symmetrical{ symmetrical } {}
+
+	void OnStart() override;
+	[[nodiscard]] ScriptStatus OnUpdate() override;
+	void OnComplete() override;
+	void OnCancel(SequenceCancelReason) override;
+
+	PTGN_REFLECT(BounceScript, amplitude, static_offset, symmetrical)
+};
+
+/// Raises or lowers the entity's persistent shake trauma.
+///
+/// When used as a timed step, Progress() ramps to the new trauma target. When used without timing,
+/// the new target is applied immediately and the script continues until explicitly stopped.
+struct ShakeScript : public Script {
+	float intensity{ 1.0f };
+	ShakeConfig config;
+	bool reset_on_complete{ false };
+
+	ShakeScript() = default;
+	ShakeScript(float intensity, ShakeConfig config = {}, bool reset_on_complete = false) :
+		intensity{ intensity }, config{ std::move(config) },
+		reset_on_complete{ reset_on_complete } {}
+
+	void OnStart() override;
+	[[nodiscard]] ScriptStatus OnUpdate() override;
+	void OnRepeat() override;
+	void OnComplete() override;
+	void OnCancel(SequenceCancelReason) override;
+
+	PTGN_REFLECT(ShakeScript, intensity, config, reset_on_complete)
+
+private:
+	float start_trauma_{ 0.0f };
+	float target_trauma_{ 0.0f };
+};
+
+/// Immediately changes the persistent shake trauma.
+struct AddShakeTraumaScript : public Script {
+	float intensity{ 1.0f };
+	ShakeConfig config;
+
+	AddShakeTraumaScript() = default;
+	AddShakeTraumaScript(float intensity, ShakeConfig config = {}) :
+		intensity{ intensity }, config{ std::move(config) } {}
+
+	void OnStart() override;
+
+	PTGN_REFLECT(AddShakeTraumaScript, intensity, config)
+};
+
+/// Reduces shake trauma according to ShakeConfig::recovery_speed and completes at zero.
+struct RecoverShakeScript : public Script {
+	ShakeConfig config;
+
+	RecoverShakeScript() = default;
+	explicit RecoverShakeScript(ShakeConfig config) : config{ std::move(config) } {}
+
+	[[nodiscard]] ScriptStatus OnUpdate() override;
+	void OnComplete() override;
+	void OnCancel(SequenceCancelReason) override;
+
+	PTGN_REFLECT(RecoverShakeScript, config)
+};
+
+struct ResetShakeScript : public Script {
+	void OnStart() override;
+
+	PTGN_REFLECT_EMPTY(ResetShakeScript)
+};
+
+struct FollowTargetScript : public Script {
 	Entity target;
 	float speed{ 120.0f };
 	float stopping_distance{ 2.0f };
@@ -146,6 +254,45 @@ struct FollowTargetScript final : Script {
 	PTGN_REFLECT(FollowTargetScript, target, speed, stopping_distance)
 };
 
+/// Full configured target-follow behavior matching TargetFollowConfig.
+struct FollowEntityScript : public Script {
+	Entity target;
+	TargetFollowConfig config;
+
+	FollowEntityScript() = default;
+	FollowEntityScript(Entity target, TargetFollowConfig config = {}) :
+		target{ target }, config{ std::move(config) } {}
+
+	void OnStart() override;
+	[[nodiscard]] ScriptStatus OnUpdate() override;
+	void OnComplete() override;
+	void OnCancel(SequenceCancelReason) override;
+
+	PTGN_REFLECT(FollowEntityScript, target, config)
+};
+
+/// Full configured waypoint-follow behavior matching PathFollowConfig.
+struct FollowPathScript : public Script {
+	std::vector<V2_float> waypoints;
+	PathFollowConfig config;
+	bool reset_waypoint_index{ false };
+
+	FollowPathScript() = default;
+	FollowPathScript(
+		std::vector<V2_float> waypoints, PathFollowConfig config = {},
+		bool reset_waypoint_index = false
+	) :
+		waypoints{ std::move(waypoints) }, config{ std::move(config) },
+		reset_waypoint_index{ reset_waypoint_index } {}
+
+	void OnStart() override;
+	[[nodiscard]] ScriptStatus OnUpdate() override;
+	void OnComplete() override;
+	void OnCancel(SequenceCancelReason) override;
+
+	PTGN_REFLECT(FollowPathScript, waypoints, config, reset_waypoint_index)
+};
+
 struct NativeScriptCallbacks {
 	std::function<void(Script&)> on_start;
 	std::function<ScriptStatus(Script&)> on_update;
@@ -153,7 +300,7 @@ struct NativeScriptCallbacks {
 	std::function<void(Script&, SequenceCancelReason)> on_cancel;
 };
 
-struct NativeScript final : Script {
+struct NativeScript : public Script {
 	std::shared_ptr<NativeScriptCallbacks> callbacks;
 
 	NativeScript() = default;
@@ -168,7 +315,7 @@ struct NativeScript final : Script {
 	PTGN_REFLECT_EMPTY(NativeScript)
 };
 
-struct SetVisibleScript final : Script {
+struct SetVisibleScript : public Script {
 	bool visible{ true };
 
 	SetVisibleScript() = default;
@@ -179,7 +326,7 @@ struct SetVisibleScript final : Script {
 	PTGN_REFLECT(SetVisibleScript, visible)
 };
 
-struct EmitSignalScript final : Script {
+struct EmitSignalScript : public Script {
 	SignalKey signal{ "sequence.completed" };
 
 	EmitSignalScript() = default;
@@ -190,7 +337,7 @@ struct EmitSignalScript final : Script {
 	PTGN_REFLECT(EmitSignalScript, signal)
 };
 
-struct AddComponentsScript final : Script {
+struct AddComponentsScript : public Script {
 	std::vector<ComponentDefinition> components;
 
 	void OnStart() override;
@@ -198,7 +345,7 @@ struct AddComponentsScript final : Script {
 	PTGN_REFLECT(AddComponentsScript, components)
 };
 
-struct RemoveComponentsScript final : Script {
+struct RemoveComponentsScript : public Script {
 	std::vector<std::string> components;
 
 	void OnStart() override;
@@ -215,6 +362,7 @@ ScriptSequence& EmitSignal(ScriptSequence& sequence, SignalKey signal);
 SequenceHandle After(Scene& scene, milliseconds duration, SequenceFunction function);
 SequenceHandle During(Scene& scene, milliseconds duration, DuringSequenceFunction function);
 
+/// Runtime-only property animation helper used from custom C++ scripts.
 template <typename T, typename TGetter, typename TSetter>
 SequenceHandle PropertyTo(
 	Entity entity, SequenceChannelKey channel, T target, float duration_ms, TGetter getter,
@@ -240,7 +388,9 @@ SequenceHandle PropertyTo(
 				setter, script.Owner(),
 				state->start + (state->target - state->start) * script.Progress()
 			);
-			return ScriptStatus::Running;
+			return script.LinearProgress() >= 1.0f
+				? ScriptStatus::Complete
+				: ScriptStatus::Running;
 		},
 	} };
 

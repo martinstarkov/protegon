@@ -26,8 +26,6 @@
 #include "renderer/resources/texture.h"
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
-#include "runtime/animation/tween.h"
-#include "runtime/animation/tween_event.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"
@@ -46,6 +44,17 @@
 namespace ptgn {
 
 namespace {
+
+constexpr std::string_view kDialogueScrollChannel{ "dialogue.scroll" };
+
+void StopDialogueScroll(Entity dialogue) {
+	if (!dialogue) {
+		return;
+	}
+	script_runtime::StopChannel(
+		dialogue, SequenceChannelKey{ kDialogueScrollChannel }, SequenceStopMode::All
+	);
+}
 
 [[nodiscard]] Rect GetLocalRect(Origin origin, V2_float size) {
 	V2_float center{ GetOffset(origin, size) };
@@ -151,23 +160,23 @@ void DialogueWaitScript::OnKeyPressed(Key key) const {
 	dialogue.NextPage();
 }
 
-void DialogueScrollScript::OnEvent(Event event) {
-	event.Dispatch<event::TweenPointComplete>(&DialogueScrollScript::OnPointComplete, this);
-	event.Dispatch<event::TweenProgress>(&DialogueScrollScript::OnProgress, this);
+ScriptStatus DialogueScrollScript::OnUpdate() {
+	DialogueBox dialogue{ Owner() };
+
+	if (!dialogue.IsOpen()) {
+		return ScriptStatus::Complete;
+	}
+
+	dialogue.TextPart().RevealFraction(Progress());
+	return ScriptStatus::Running;
 }
 
-void DialogueScrollScript::OnPointComplete() const {
-	PTGN_ASSERT(HasParent(entity));
+void DialogueScrollScript::OnComplete() {
+	DialogueBox dialogue{ Owner() };
 
-	DialogueBox dialogue{ GetParent(entity) };
-	dialogue.TextPart().RevealAll();
-}
-
-void DialogueScrollScript::OnProgress(float elapsed_fraction) const {
-	PTGN_ASSERT(HasParent(entity));
-
-	DialogueBox dialogue{ GetParent(entity) };
-	dialogue.TextPart().RevealFraction(elapsed_fraction);
+	if (dialogue.IsOpen()) {
+		dialogue.TextPart().RevealAll();
+	}
 }
 
 } // namespace impl
@@ -553,6 +562,8 @@ DialogueBox& DialogueBox::Open(std::string_view dialogue_name) {
 }
 
 DialogueBox& DialogueBox::Close() {
+	StopCurrentPageScroll();
+
 	auto& data{ Data() };
 
 	data.open		  = false;
@@ -565,10 +576,6 @@ DialogueBox& DialogueBox::Close() {
 
 	if (auto background{ TryBackgroundEntity() }) {
 		Hide(background.value());
-	}
-
-	if (auto tween{ TryTweenPart() }) {
-		tween.value().Clear();
 	}
 
 	return *this;
@@ -592,12 +599,8 @@ DialogueBox& DialogueBox::NextPage() {
 }
 
 DialogueBox& DialogueBox::CompletePage() {
+	StopCurrentPageScroll();
 	TextPart().RevealAll();
-
-	if (auto tween{ TryTweenPart() }) {
-		tween.value().Clear();
-	}
-
 	return *this;
 }
 
@@ -691,10 +694,9 @@ Entity DialogueBox::Part(DialoguePartRole role) {
 	Entity entity{ GetScene().CreateEntity() };
 
 	switch (role) {
-		case DialoguePartRole::Tween:	   entity.Add<Tag>("Dialogue Tween"); break;
-		case DialoguePartRole::Text:	   entity.Add<Tag>("Dialogue Text"); break;
+		case DialoguePartRole::Text:		 entity.Add<Tag>("Dialogue Text"); break;
 		case DialoguePartRole::Background: entity.Add<Tag>("Dialogue Sprite"); break;
-		default:						   PTGN_ERROR("Unknown DialoguePartRole: ", std::to_underlying(role));
+		default:							 PTGN_ERROR("Unknown DialoguePartRole: ", std::to_underlying(role));
 	}
 
 	entity.Add<impl::DialoguePart>(role);
@@ -725,29 +727,6 @@ std::optional<Text> DialogueBox::TryTextPart() const {
 	}
 
 	return Text{ part.value() };
-}
-
-Tween DialogueBox::TweenPart() {
-	if (auto tween{ TryTweenPart() }) {
-		return tween.value();
-	}
-
-	Tween tween{ CreateTween(GetScene()) };
-	tween.Add<Tag>("Dialogue Tween");
-	tween.Add<impl::DialoguePart>(DialoguePartRole::Tween);
-	SetParent(tween, *this);
-
-	return tween;
-}
-
-std::optional<Tween> DialogueBox::TryTweenPart() const {
-	auto part{ TryPart(DialoguePartRole::Tween) };
-
-	if (!part.has_value()) {
-		return std::nullopt;
-	}
-
-	return Tween{ part.value() };
 }
 
 std::optional<Sprite> DialogueBox::TryBackground() const {
@@ -804,15 +783,29 @@ void DialogueBox::StartCurrentPageScroll() {
 		return;
 	}
 
-	Tween tween{ TweenPart() };
-	tween.Clear();
+	StopCurrentPageScroll();
 
 	if (!dialogue->scroll || page->properties.scroll_duration <= 0ms) {
 		TextPart().RevealAll();
 		return;
 	}
 
-	tween.During(page->properties.scroll_duration).AddScript<impl::DialogueScrollScript>().Start();
+	ScriptSequence sequence{ "Dialogue Text Reveal" };
+	sequence
+		.Transient()
+		.During(
+			static_cast<float>(page->properties.scroll_duration.count()),
+			impl::DialogueScrollScript{}
+		);
+
+	(void)script_runtime::RunInChannel(
+		*this, SequenceChannelKey{ kDialogueScrollChannel }, std::move(sequence),
+		ReentryMode::Restart
+	);
+}
+
+void DialogueBox::StopCurrentPageScroll() {
+	StopDialogueScroll(*this);
 }
 
 void DialogueBox::PositionTextForPage(const DialoguePageProperties& properties) {
@@ -872,7 +865,6 @@ DialogueBox CreateDialogueBox(Scene& scene, Transform transform, const DialogueD
 	}
 
 	dialogue.TextPart();
-	dialogue.TweenPart();
 
 	dialogue.Data().LoadFromJson(scene, desc.data, default_properties);
 

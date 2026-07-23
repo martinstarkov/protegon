@@ -53,7 +53,7 @@ void SetEntityTag(Entity entity, std::string_view tag) {
 ///
 /// The scene creates ordinary engine entities in OnNew and attaches runtime scripts in OnEnter.
 /// Select an entity while the scene is playing to inspect its live Scripts component.
-class ScriptSequenceSceneDemo final : public Scene {
+class ScriptSequenceSceneDemo : public Scene {
 public:
 	ScriptSequenceSceneDemo() = default;
 

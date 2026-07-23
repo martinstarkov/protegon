@@ -20,6 +20,7 @@
 #include "core/input/mouse.h"
 #include "scripting/script_registration_editor.h"
 #include "runtime/ecs/component_registry.h"
+#include "panels/inspector_fields.h"
 #include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/dropzone_event.h"
 #include "runtime/interaction/interactive_event.h"
@@ -176,6 +177,66 @@ bool DrawRotateTo(RotateToScript& script, ScriptEditorContext&) {
 bool DrawScaleTo(ScaleToScript& script, ScriptEditorContext&) {
 	bool changed{ ImGui::DragFloat2("Scale", &script.scale.x, 0.01f) };
 	changed |= ImGui::Checkbox("Relative", &script.relative);
+	return changed;
+}
+
+bool DrawTintTo(TintToScript& script, ScriptEditorContext&) {
+	return ImGui::ColorEdit4("Tint", &script.tint.x);
+}
+
+bool DrawBounce(BounceScript& script, ScriptEditorContext&) {
+	bool changed{ ImGui::DragFloat2("Amplitude", &script.amplitude.x, 0.1f) };
+	changed |= ImGui::DragFloat2("Static Offset", &script.static_offset.x, 0.1f);
+	changed |= ImGui::Checkbox("Symmetrical", &script.symmetrical);
+	return changed;
+}
+
+bool DrawShake(ShakeScript& script, ScriptEditorContext&) {
+	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, -1.0f, 1.0f) };
+	changed |= ImGui::Checkbox("Reset On Complete", &script.reset_on_complete);
+	changed |= editor::inspector::DrawComponentContents(script.config);
+	return changed;
+}
+
+bool DrawAddShakeTrauma(AddShakeTraumaScript& script, ScriptEditorContext&) {
+	bool changed{ ImGui::DragFloat("Intensity", &script.intensity, 0.01f, -1.0f, 1.0f) };
+	changed |= editor::inspector::DrawComponentContents(script.config);
+	return changed;
+}
+
+bool DrawRecoverShake(RecoverShakeScript& script, ScriptEditorContext&) {
+	return editor::inspector::DrawComponentContents(script.config);
+}
+
+bool DrawFollowEntity(FollowEntityScript& script, ScriptEditorContext&) {
+	ImGui::TextDisabled("Target selection should use your UUID/entity-reference field.");
+	return editor::inspector::DrawComponentContents(script.config);
+}
+
+bool DrawFollowPath(FollowPathScript& script, ScriptEditorContext&) {
+	bool changed{ false };
+	int remove{ -1 };
+	for (int i{ 0 }; i < static_cast<int>(script.waypoints.size()); ++i) {
+		ImGui::PushID(i);
+		changed |= ImGui::DragFloat2(
+			"##Waypoint", &script.waypoints[static_cast<std::size_t>(i)].x, 0.1f
+		);
+		ImGui::SameLine();
+		if (ImGui::SmallButton("x")) {
+			remove = i;
+		}
+		ImGui::PopID();
+	}
+	if (remove >= 0) {
+		script.waypoints.erase(script.waypoints.begin() + remove);
+		changed = true;
+	}
+	if (ImGui::Button("+ Waypoint", ImVec2{ -FLT_MIN, 0.0f })) {
+		script.waypoints.emplace_back();
+		changed = true;
+	}
+	changed |= ImGui::Checkbox("Reset Waypoint Index", &script.reset_waypoint_index);
+	changed |= editor::inspector::DrawComponentContents(script.config);
 	return changed;
 }
 
@@ -340,6 +401,78 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(
+	TintToScript,
+	SequenceStepEditor(
+		SequenceStepEditorOptions{
+			.label = "Tint To",
+			.group = "Animation",
+			.description = "Animate the owner tint to a color.",
+		},
+		&DrawTintTo
+	)
+);
+
+PTGN_REGISTER_SCRIPT(
+	BounceScript,
+	SequenceStepEditor(
+		SequenceStepEditorOptions{
+			.label = "Bounce",
+			.group = "Animation",
+			.description = "Apply a positional bounce offset.",
+		},
+		&DrawBounce
+	)
+);
+
+PTGN_REGISTER_SCRIPT(
+	ShakeScript,
+	SequenceStepEditor(
+		SequenceStepEditorOptions{
+			.label = "Shake",
+			.group = "Animation",
+			.description = "Raise or lower persistent shake trauma.",
+		},
+		&DrawShake
+	)
+);
+
+PTGN_REGISTER_SCRIPT(
+	AddShakeTraumaScript,
+	SequenceStepEditor(
+		SequenceStepEditorOptions{
+			.label = "Add Shake Trauma",
+			.group = "Animation",
+			.description = "Immediately raise or lower persistent shake trauma.",
+		},
+		&DrawAddShakeTrauma
+	)
+);
+
+PTGN_REGISTER_SCRIPT(
+	RecoverShakeScript,
+	SequenceStepEditor(
+		SequenceStepEditorOptions{
+			.label = "Recover Shake",
+			.group = "Animation",
+			.description = "Reduce shake trauma to zero.",
+		},
+		&DrawRecoverShake
+	)
+);
+
+PTGN_REGISTER_SCRIPT(
+	ResetShakeScript,
+	SequenceStepEditor(
+		SequenceStepEditorOptions{
+			.label = "Reset Shake",
+			.group = "Animation",
+			.description = "Immediately clear shake trauma and offsets.",
+		},
+		&DrawNothing<ResetShakeScript>
+	)
+);
+
+PTGN_REGISTER_SCRIPT(
 	FollowTargetScript,
 	SequenceStepEditor(
 		SequenceStepEditorOptions{
@@ -356,6 +489,46 @@ PTGN_REGISTER_SCRIPT(
 			.description = "Root follow behavior.",
 		},
 		&DrawFollowTargetRoot
+	)
+);
+
+PTGN_REGISTER_SCRIPT(
+	FollowEntityScript,
+	SequenceStepEditor(
+		SequenceStepEditorOptions{
+			.label = "Follow Entity",
+			.group = "Movement",
+			.description = "Follow an entity using TargetFollowConfig.",
+		},
+		&DrawFollowEntity
+	),
+	RootScriptEditor(
+		ScriptEditorOptions{
+			.label = "Follow Entity",
+			.group = "Movement",
+			.description = "Root configured entity-follow behavior.",
+		},
+		&DrawFollowEntity
+	)
+);
+
+PTGN_REGISTER_SCRIPT(
+	FollowPathScript,
+	SequenceStepEditor(
+		SequenceStepEditorOptions{
+			.label = "Follow Path",
+			.group = "Movement",
+			.description = "Follow a configurable waypoint path.",
+		},
+		&DrawFollowPath
+	),
+	RootScriptEditor(
+		ScriptEditorOptions{
+			.label = "Follow Path",
+			.group = "Movement",
+			.description = "Root configured path-follow behavior.",
+		},
+		&DrawFollowPath
 	)
 );
 

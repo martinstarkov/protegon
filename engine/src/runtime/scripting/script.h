@@ -284,7 +284,7 @@ private:
 	bool completion_requested_{ false };
 };
 
-struct WaitScript final : Script {
+struct WaitScript : public Script {
 	PTGN_REFLECT_EMPTY(WaitScript)
 };
 
@@ -932,5 +932,24 @@ static_assert(std::copy_constructible<ScriptSequence>);
 static_assert(std::is_copy_assignable_v<ScriptSequence>);
 static_assert(std::copy_constructible<impl::Scripts>);
 static_assert(std::is_copy_assignable_v<impl::Scripts>);
+
+namespace impl {
+
+template <typename TEvent>
+struct EventScript : public Script {
+	EventScript() = default;
+
+	explicit EventScript(EventCallback<TEvent> callback) :
+		callback_{ std::move(callback) } {}
+
+	void OnEvent(Event event) override {
+		event.DispatchVariant<TEvent>(callback_);
+	}
+
+private:
+	EventCallback<TEvent> callback_;
+};
+
+} // namespace impl
 
 } // namespace ptgn

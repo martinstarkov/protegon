@@ -109,7 +109,61 @@ PTGN_REGISTER_SCRIPT(
 );
 
 PTGN_REGISTER_SCRIPT(
+	TintToScript,
+	(ScriptRegistrationOptions{
+		.completion = ScriptCompletion::Duration,
+		.supports_timing = true,
+		.default_timing = ScriptTiming{ .duration_ms = 300.0f },
+	})
+);
+
+PTGN_REGISTER_SCRIPT(
+	BounceScript,
+	(ScriptRegistrationOptions{
+		.completion = ScriptCompletion::Duration,
+		.supports_timing = true,
+		.requires_timing = true,
+		.default_timing = ScriptTiming{ .duration_ms = 500.0f },
+	})
+);
+
+PTGN_REGISTER_SCRIPT(
+	ShakeScript,
+	(ScriptRegistrationOptions{
+		.completion = ScriptCompletion::ScriptControlled,
+		.supports_timing = true,
+	})
+);
+
+PTGN_REGISTER_SCRIPT(
+	AddShakeTraumaScript,
+	(ScriptRegistrationOptions{ .completion = ScriptCompletion::Instant })
+);
+
+PTGN_REGISTER_SCRIPT(
+	RecoverShakeScript,
+	(ScriptRegistrationOptions{
+		.completion = ScriptCompletion::ScriptControlled,
+	})
+);
+
+PTGN_REGISTER_SCRIPT(
+	ResetShakeScript,
+	(ScriptRegistrationOptions{ .completion = ScriptCompletion::Instant })
+);
+
+PTGN_REGISTER_SCRIPT(
 	FollowTargetScript,
+	(ScriptRegistrationOptions{ .completion = ScriptCompletion::ScriptControlled })
+);
+
+PTGN_REGISTER_SCRIPT(
+	FollowEntityScript,
+	(ScriptRegistrationOptions{ .completion = ScriptCompletion::ScriptControlled })
+);
+
+PTGN_REGISTER_SCRIPT(
+	FollowPathScript,
 	(ScriptRegistrationOptions{ .completion = ScriptCompletion::ScriptControlled })
 );
 

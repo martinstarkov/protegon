@@ -12,7 +12,6 @@
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/offsets.h"
-#include "runtime/animation/tween.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/ecs/component_registration.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -94,7 +93,6 @@ PTGN_REGISTER_COMPONENT(impl::ButtonData);
 PTGN_REGISTER_COMPONENT(impl::ButtonAnimationPart);
 PTGN_REGISTER_COMPONENT(impl::AnimationData);
 PTGN_REGISTER_COMPONENT(impl::Offsets);
-PTGN_REGISTER_COMPONENT(impl::TweenData);
 PTGN_REGISTER_COMPONENT(ButtonBackgroundVisuals);
 PTGN_REGISTER_COMPONENT(ButtonBorderVisuals);
 PTGN_REGISTER_COMPONENT(ButtonSpriteVisuals);

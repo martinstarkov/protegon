@@ -30,7 +30,6 @@
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
 #include "runtime/animation/animation_event.h"
-#include "runtime/animation/tween_effect.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/audio/audio.h"
 #include "runtime/audio/audio_system.h"
