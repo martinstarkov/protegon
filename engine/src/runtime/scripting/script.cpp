@@ -1063,8 +1063,9 @@ void ApplyPending(Scene& scene) {
 
 void Update(Scene& scene, secondsf delta_time) {
 	const float delta_seconds{ std::max(0.0f, delta_time.count()) };
-	ApplyPending(scene);
+	
 	const auto entities{ scene.EntitiesWith<impl::Scripts>().GetVector() };
+	
 	for (Entity entity : entities) {
 		auto* scripts{ entity.TryGet<impl::Scripts>() };
 		if (!scripts) {
