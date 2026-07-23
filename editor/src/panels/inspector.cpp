@@ -2092,6 +2092,11 @@ bool DrawResidentScripts(
 			ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
 			ImGui::TableSetColumnIndex(0);
 
+			const ImVec2 header_min{ ImGui::GetCursorScreenPos() };
+			const ImVec2 header_max{
+				header_min.x + std::max(1.0f, ImGui::GetContentRegionAvail().x),
+				header_min.y + button_size
+			};
 			const ImVec4 header{
 				script.enabled ? ImVec4{ 0.20f, 0.34f, 0.33f, 1.0f }
 							   : ImVec4{ 0.25f, 0.25f, 0.25f, 1.0f }
@@ -2104,13 +2109,31 @@ bool DrawResidentScripts(
 				script.enabled ? ImVec4{ 0.31f, 0.49f, 0.47f, 1.0f }
 							   : ImVec4{ 0.34f, 0.34f, 0.34f, 1.0f }
 			};
-			ImGui::PushStyleColor(ImGuiCol_Header, header);
-			ImGui::PushStyleColor(ImGuiCol_HeaderHovered, header_hovered);
-			ImGui::PushStyleColor(ImGuiCol_HeaderActive, header_active);
+			const bool header_hovered_before_draw{
+				ImGui::IsMouseHoveringRect(header_min, header_max)
+			};
+			const bool header_active_before_draw{
+				header_hovered_before_draw &&
+				ImGui::IsMouseDown(ImGuiMouseButton_Left)
+			};
+			const ImVec4 header_color{
+				header_active_before_draw
+					? header_active
+					: (header_hovered_before_draw ? header_hovered : header)
+			};
+			ImGui::GetWindowDrawList()->AddRectFilled(
+				header_min, header_max, ImGui::GetColorU32(header_color),
+				ImGui::GetStyle().FrameRounding
+			);
+
+			const ImVec4 transparent{};
+			ImGui::PushStyleColor(ImGuiCol_Header, transparent);
+			ImGui::PushStyleColor(ImGuiCol_HeaderHovered, transparent);
+			ImGui::PushStyleColor(ImGuiCol_HeaderActive, transparent);
 
 			const bool has_contents{ editor && editor->has_contents };
 			ImGuiTreeNodeFlags flags{
-				ImGuiTreeNodeFlags_Framed |
+				ImGuiTreeNodeFlags_FramePadding |
 				ImGuiTreeNodeFlags_SpanAvailWidth |
 				ImGuiTreeNodeFlags_NoTreePushOnOpen
 			};
