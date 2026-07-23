@@ -33,6 +33,7 @@
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_registry.h"
 #include "runtime/scripting/script.h"
+#include "runtime/scripting/script_registration.h"
 #include "serialization/json/fwd.h"
 #include "tools/debug/debug_system.h"
 
@@ -257,6 +258,9 @@ struct InteractiveScene : public Scene {
 };
 
 PTGN_REGISTER_SCENE(InteractiveScene, "Interactive Scene");
+PTGN_REGISTER_SCRIPT(DragScript);
+PTGN_REGISTER_SCRIPT(DropzoneScript);
+PTGN_REGISTER_SCRIPT(DraggableScript);
 
 int main(int, char**) {
 	Application app{ "InteractiveScene: T: Toggle Top Only Input, WASD/QE/ZC: "
