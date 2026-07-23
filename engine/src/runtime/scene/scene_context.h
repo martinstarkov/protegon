@@ -12,6 +12,7 @@
 #include "runtime/scene/scene_event_handler.h"
 #include "runtime/scene/scene_input.h"
 #include "runtime/scene/scene_manager.h"
+#include "runtime/scripting/script.h"
 #include "tools/debug/debug_system.h"
 
 namespace ptgn {
@@ -42,9 +43,9 @@ public:
 	SceneContext() = delete;
 	explicit SceneContext(Application& app, Scene& parent_scene);
 	~SceneContext() noexcept;
-	SceneContext(const SceneContext&)				 = delete;
-	SceneContext& operator=(const SceneContext&)	 = delete;
-	SceneContext(SceneContext&&) noexcept			 = delete;
+	SceneContext(const SceneContext&) = delete;
+	SceneContext& operator=(const SceneContext&) = delete;
+	SceneContext(SceneContext&&) noexcept = delete;
 	SceneContext& operator=(SceneContext&&) noexcept = delete;
 
 	Window& window;
@@ -61,6 +62,9 @@ public:
 	InteractionSystem interaction;
 	Physics physics;
 	CollisionHandler collision;
+
+	/// @brief Scene-local shared ScriptSequence definitions used by shared sequence bindings.
+	SharedScriptSequenceRegistry shared_script_sequences;
 
 	/// @brief The default camera used by all objects in the scene. By default it resizes to the
 	/// logical size.

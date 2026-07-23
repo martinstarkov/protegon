@@ -33,6 +33,7 @@
 #include "runtime/physics/collider.h"
 #include "runtime/physics/lifetime.h"
 #include "runtime/physics/movement.h"
+#include "runtime/scripting/script.h"
 #include "runtime/physics/physics.h"
 #include "runtime/physics/rigid_body.h"
 #include "runtime/scene/scene_camera.h"
@@ -60,6 +61,8 @@ PTGN_REGISTER_COMPONENT(Capsule);
 PTGN_REGISTER_COMPONENT(Arc);
 PTGN_REGISTER_COMPONENT(FillStyle);
 PTGN_REGISTER_COMPONENT(BlendMode);
+
+PTGN_REGISTER_COMPONENT(impl::Scripts);
 
 PTGN_REGISTER_COMPONENT(impl::Interactive, { .group = "Interactive Components" });
 PTGN_REGISTER_COMPONENT(impl::Draggable, { .group = "Interactive Components" });

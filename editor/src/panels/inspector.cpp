@@ -5,6 +5,14 @@
 
 #include <algorithm>
 #include <array>
+#include <cfloat>
+#include <optional>
+#include <ranges>
+#include <utility>
+#include <vector>
+#ifndef MAGIC_ENUM_RANGE_MAX
+#define MAGIC_ENUM_RANGE_MAX 512
+#endif
 #include <magic_enum/magic_enum.hpp>
 #include <string>
 #include <string_view>
@@ -26,6 +34,7 @@
 #include "renderer/text/text_layout.h"
 #include "renderer/text/text_style.h"
 #include "runtime/animation/animation.h"
+#include "runtime/scripting/script.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/animation/tween.h"
 #include "runtime/ecs/component_registration.h"
@@ -54,10 +63,716 @@
 #include "runtime/scene/scene_camera.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
+#include "core/util/hash.h"
+#include "runtime/scene/scene.h"
+#include "runtime/scene/scene_context.h"
+#include "runtime/scripting/script.h"
 
 namespace ptgn::editor::inspector {
 
 namespace {
+
+template <typename T>
+[[nodiscard]] T JsonValueOr(const json& input, const char* key, T fallback) {
+	if (!input.is_object()) {
+		return fallback;
+	}
+	const auto it{ input.find(key) };
+	if (it == input.end() || it->is_null()) {
+		return fallback;
+	}
+	try {
+		return it->template get<T>();
+	} catch (...) {
+		return fallback;
+	}
+}
+
+bool DrawKey(json& value) {
+	Key key{ JsonValueOr<Key>(value, "key", Key::W) };
+	bool changed{ false };
+	if (ImGui::BeginCombo("Key", std::string{ magic_enum::enum_name(key) }.c_str())) {
+		for (const auto candidate : magic_enum::enum_values<Key>()) {
+			if (ImGui::Selectable(
+					std::string{ magic_enum::enum_name(candidate) }.c_str(), candidate == key
+				)) {
+				key = candidate;
+				changed = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	if (changed) {
+		value["key"] = key;
+	}
+	return changed;
+}
+
+bool DrawMouse(json& value) {
+	Mouse mouse{ JsonValueOr<Mouse>(value, "button", Mouse::Left) };
+	bool changed{ false };
+	if (ImGui::BeginCombo("Button", std::string{ magic_enum::enum_name(mouse) }.c_str())) {
+		for (const auto candidate : magic_enum::enum_values<Mouse>()) {
+			if (ImGui::Selectable(
+					std::string{ magic_enum::enum_name(candidate) }.c_str(), candidate == mouse
+				)) {
+				mouse = candidate;
+				changed = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+	if (changed) {
+		value["button"] = mouse;
+	}
+	return changed;
+}
+
+template <typename TEvent>
+void RegisterEmptyEvent(std::string label, std::string group, std::string description) {
+	(void)EventEditorRegistry::Register<TEvent>(
+		{ .label = std::move(label), .group = std::move(group), .description = std::move(description) },
+		0, [](json&) { return false; }
+	);
+}
+
+template <typename TEvent>
+void RegisterKeyEvent(std::string label) {
+	(void)EventEditorRegistry::Register<TEvent>(
+		{ .label = std::move(label), .group = "Key", .description = "Matches one key." },
+		1, &DrawKey
+	);
+}
+
+template <typename TEvent>
+void RegisterMouseEvent(std::string label, std::string group = "Mouse") {
+	(void)EventEditorRegistry::Register<TEvent>(
+		{ .label = std::move(label), .group = std::move(group), .description = "Matches one mouse button." },
+		1, &DrawMouse
+	);
+}
+
+
+void DrawTooltip(const char* text) {
+	if (text && *text && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+		ImGui::SetTooltip("%s", text);
+	}
+}
+
+const char* CompletionLabel(ScriptCompletion completion) {
+	switch (completion) {
+		case ScriptCompletion::Instant: return "Action";
+		case ScriptCompletion::Duration: return "Tween";
+		case ScriptCompletion::ScriptControlled: return "Until Complete";
+		case ScriptCompletion::Infinite: return "Forever";
+	}
+	return "Unknown";
+}
+
+const char* ReentryLabel(ReentryMode mode) {
+	switch (mode) {
+		case ReentryMode::IgnoreWhileRunning: return "Ignore";
+		case ReentryMode::Restart: return "Restart";
+		case ReentryMode::Queue: return "Queue";
+	}
+	return "Unknown";
+}
+
+const char* LifecycleLabel(SequenceLifecycle lifecycle) {
+	switch (lifecycle) {
+		case SequenceLifecycle::Start: return "On Start";
+		case SequenceLifecycle::Complete: return "On Complete";
+		case SequenceLifecycle::Reset: return "On Reset";
+		case SequenceLifecycle::Stop: return "On Stop";
+		case SequenceLifecycle::Pause: return "On Pause";
+		case SequenceLifecycle::Resume: return "On Resume";
+		case SequenceLifecycle::ScriptStart: return "On Script Start";
+		case SequenceLifecycle::ScriptComplete: return "On Script Complete";
+		case SequenceLifecycle::ScriptCancel: return "On Script Cancel";
+		case SequenceLifecycle::Repeat: return "On Repeat";
+		case SequenceLifecycle::Yoyo: return "On Yoyo";
+	}
+	return "Unknown";
+}
+
+bool DrawTiming(ScriptStep& step, const ScriptRegistration& registration) {
+	if (!registration.supports_timing && !registration.requires_timing) {
+		return false;
+	}
+
+	bool changed{ false };
+	bool timed{ step.timing.has_value() };
+	if (registration.requires_timing) {
+		timed = true;
+	}
+	if (!registration.requires_timing) {
+		changed |= ImGui::Checkbox("Timed", &timed);
+		ImGui::SameLine();
+	}
+	if (timed && !step.timing) {
+		step.timing = registration.default_timing.value_or(ScriptTiming{});
+		changed = true;
+	} else if (!timed && step.timing) {
+		step.timing.reset();
+		changed = true;
+	}
+	if (!step.timing) {
+		return changed;
+	}
+
+	auto& timing{ *step.timing };
+	ImGui::SetNextItemWidth(100.0f);
+	changed |= ImGui::DragFloat(
+		"Duration", &timing.duration_ms, 10.0f, 0.0f, 3600000.0f, "%.0f ms"
+	);
+
+	ImGui::SameLine();
+	ImGui::SetNextItemWidth(130.0f);
+	if (ImGui::BeginCombo("Ease", std::string{ magic_enum::enum_name(timing.ease) }.c_str())) {
+		for (const auto ease : magic_enum::enum_values<Ease>()) {
+			const bool selected{ ease == timing.ease };
+			if (ImGui::Selectable(std::string{ magic_enum::enum_name(ease) }.c_str(), selected)) {
+				timing.ease = ease;
+				changed = true;
+			}
+		}
+		ImGui::EndCombo();
+	}
+
+	changed |= ImGui::InputInt("Additional Repeats", &timing.additional_repeats);
+	timing.additional_repeats = std::max(0, timing.additional_repeats);
+	changed |= ImGui::Checkbox("Infinite Repeats", &timing.infinite_repeats);
+	ImGui::SameLine();
+	changed |= ImGui::Checkbox("Reversed", &timing.reversed);
+	ImGui::SameLine();
+	changed |= ImGui::Checkbox("Yoyo", &timing.yoyo);
+	return changed;
+}
+
+bool DrawStepEditor(Entity owner, ScriptStep& step, const char* id_prefix) {
+	bool changed{ false };
+	const auto* registration{ ScriptRegistry::Find(step.type_hash) };
+	const auto* editor{ SequenceStepEditorRegistry::Find(step.type_hash) };
+	const char* label{ editor ? editor->options.label.c_str() : "Missing Script" };
+
+	ImGui::PushID(&step);
+	bool open{ ImGui::TreeNodeEx(
+		id_prefix,
+		ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
+			ImGuiTreeNodeFlags_SpanAvailWidth,
+		"%s", label
+	) };
+	if (editor) {
+		DrawTooltip(editor->options.description.c_str());
+	}
+	ImGui::SameLine();
+	changed |= ImGui::Checkbox("Enabled", &step.enabled);
+
+	if (open) {
+		if (registration) {
+			ScriptCompletion completion{ step.completion.value_or(registration->completion) };
+			ImGui::SetNextItemWidth(150.0f);
+			if (ImGui::BeginCombo("Completion", CompletionLabel(completion))) {
+				for (const auto candidate : {
+					ScriptCompletion::Instant,
+					ScriptCompletion::Duration,
+					ScriptCompletion::ScriptControlled,
+					ScriptCompletion::Infinite,
+				}) {
+					if (ImGui::Selectable(CompletionLabel(candidate), candidate == completion)) {
+						completion = candidate;
+						step.completion = candidate;
+						if (candidate == ScriptCompletion::Duration && !step.timing) {
+							step.timing = registration->default_timing.value_or(ScriptTiming{});
+						} else if (candidate == ScriptCompletion::Instant &&
+							!registration->requires_timing) {
+							step.timing.reset();
+						}
+						changed = true;
+					}
+				}
+				ImGui::EndCombo();
+			}
+			changed |= DrawTiming(step, *registration);
+		}
+
+		if (editor && editor->draw) {
+			ScriptEditorContext context{ owner, owner.GetScene().ctx().shared_script_sequences };
+			changed |= editor->draw(step.value, context);
+		}
+		ImGui::TreePop();
+	}
+	ImGui::PopID();
+	return changed;
+}
+
+bool DrawEventCondition(Entity owner, EventCondition& condition, const char* id_prefix) {
+	bool changed{ false };
+	const auto* editor{ EventEditorRegistry::Find(condition.type_hash) };
+	const char* label{ editor ? editor->options.label.c_str() : "Missing Event" };
+
+	ImGui::PushID(&condition);
+	bool open{ ImGui::TreeNodeEx(
+		id_prefix,
+		ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
+			ImGuiTreeNodeFlags_SpanAvailWidth,
+		"%s", label
+	) };
+	if (editor) {
+		DrawTooltip(editor->options.description.c_str());
+	}
+	ImGui::SameLine();
+	changed |= ImGui::Checkbox("Enabled", &condition.enabled);
+	ImGui::SameLine();
+	changed |= ImGui::Checkbox("Consume", &condition.consume);
+	if (open) {
+		if (editor && editor->draw) {
+			changed |= editor->draw(condition.value);
+		}
+		ImGui::TreePop();
+	}
+	ImGui::PopID();
+	return changed;
+}
+
+void DrawAddEventPopup(Entity owner, std::vector<EventCondition>& conditions, const char* popup_id) {
+	if (!ImGui::BeginPopup(popup_id)) {
+		return;
+	}
+	std::string group;
+	for (const auto& entry : EventEditorRegistry::Entries()) {
+		const auto* runtime{ SequenceEventRegistry::Find(entry.type_hash) };
+		if (!runtime || (runtime->available && !runtime->available(owner))) {
+			continue;
+		}
+		if (entry.options.group != group) {
+			if (!group.empty()) {
+				ImGui::Separator();
+			}
+			group = entry.options.group;
+			if (!group.empty()) {
+				ImGui::TextDisabled("%s", group.c_str());
+			}
+		}
+		if (ImGui::MenuItem(entry.options.label.c_str())) {
+			conditions.push_back(SequenceEventRegistry::MakeCondition(entry.type_hash));
+		}
+	}
+	ImGui::EndPopup();
+}
+
+bool DrawEventList(Entity owner, const char* label, std::vector<EventCondition>& conditions) {
+	bool changed{ false };
+	if (!ImGui::TreeNodeEx(label, ImGuiTreeNodeFlags_DefaultOpen)) {
+		return false;
+	}
+
+	int remove{ -1 };
+	for (int i{ 0 }; i < static_cast<int>(conditions.size()); ++i) {
+		ImGui::PushID(i);
+		changed |= DrawEventCondition(owner, conditions[static_cast<std::size_t>(i)], "##Event");
+		ImGui::SameLine();
+		if (ImGui::SmallButton("x")) {
+			remove = i;
+		}
+		ImGui::PopID();
+	}
+	if (remove >= 0) {
+		conditions.erase(conditions.begin() + remove);
+		changed = true;
+	}
+
+	const std::string popup{ std::string{ "Add" } + label };
+	if (ImGui::Button((std::string{ "+ " } + label).c_str(), ImVec2{ -FLT_MIN, 0.0f })) {
+		ImGui::OpenPopup(popup.c_str());
+	}
+	DrawAddEventPopup(owner, conditions, popup.c_str());
+	ImGui::TreePop();
+	return changed;
+}
+
+void DrawAddStepPopup(std::vector<ScriptStep>& steps, const char* popup_id, bool instant_only) {
+	if (!ImGui::BeginPopup(popup_id)) {
+		return;
+	}
+
+	std::vector<const SequenceStepEditorRegistration*> entries;
+	for (const auto& entry : SequenceStepEditorRegistry::Entries()) {
+		const auto* registration{ ScriptRegistry::Find(entry.type_hash) };
+		if (!registration || !registration->serializable) {
+			continue;
+		}
+		if (instant_only && registration->completion != ScriptCompletion::Instant) {
+			continue;
+		}
+		entries.push_back(&entry);
+	}
+	std::ranges::sort(entries, [](const auto* a, const auto* b) {
+		if (a->options.group != b->options.group) {
+			return a->options.group < b->options.group;
+		}
+		if (a->options.menu_order != b->options.menu_order) {
+			return a->options.menu_order < b->options.menu_order;
+		}
+		return a->options.label < b->options.label;
+	});
+
+	std::string group;
+	for (const auto* entry : entries) {
+		if (entry->options.group != group) {
+			if (!group.empty()) {
+				ImGui::Separator();
+			}
+			group = entry->options.group;
+			if (!group.empty()) {
+				ImGui::TextDisabled("%s", group.c_str());
+			}
+		}
+		if (ImGui::MenuItem(entry->options.label.c_str())) {
+			steps.push_back(ScriptRegistry::MakeStep(entry->type_hash));
+		}
+		if (entry->options.separator_after) {
+			ImGui::Separator();
+		}
+	}
+	ImGui::EndPopup();
+}
+
+bool DrawSteps(Entity owner, ScriptSequence& sequence) {
+	bool changed{ false };
+	if (!ImGui::TreeNodeEx("Scripts", ImGuiTreeNodeFlags_DefaultOpen)) {
+		return false;
+	}
+
+	int remove{ -1 };
+	for (int i{ 0 }; i < static_cast<int>(sequence.steps.size()); ++i) {
+		ImGui::PushID(i);
+		changed |= DrawStepEditor(owner, sequence.steps[static_cast<std::size_t>(i)], "##Step");
+		ImGui::SameLine();
+		if (ImGui::SmallButton("x")) {
+			remove = i;
+		}
+		ImGui::PopID();
+	}
+	if (remove >= 0) {
+		sequence.steps.erase(sequence.steps.begin() + remove);
+		changed = true;
+	}
+
+	if (ImGui::Button("+ Script", ImVec2{ -FLT_MIN, 0.0f })) {
+		ImGui::OpenPopup("AddSequenceScript");
+	}
+	DrawAddStepPopup(sequence.steps, "AddSequenceScript", false);
+	ImGui::TreePop();
+	return changed;
+}
+
+bool DrawLifecycleActions(Entity owner, ScriptSequence& sequence) {
+	bool changed{ false };
+	if (!ImGui::TreeNode("Lifecycle")) {
+		return false;
+	}
+
+	int remove{ -1 };
+	for (int i{ 0 }; i < static_cast<int>(sequence.lifecycle_actions.size()); ++i) {
+		auto& lifecycle{ sequence.lifecycle_actions[static_cast<std::size_t>(i)] };
+		ImGui::PushID(i);
+		ImGui::SetNextItemWidth(150.0f);
+		if (ImGui::BeginCombo("##Lifecycle", LifecycleLabel(lifecycle.lifecycle))) {
+			for (const auto candidate : magic_enum::enum_values<SequenceLifecycle>()) {
+				if (ImGui::Selectable(
+						LifecycleLabel(candidate), candidate == lifecycle.lifecycle
+					)) {
+					lifecycle.lifecycle = candidate;
+					changed = true;
+				}
+			}
+			ImGui::EndCombo();
+		}
+		ImGui::SameLine();
+		changed |= DrawStepEditor(owner, lifecycle.action, "##LifecycleScript");
+		ImGui::SameLine();
+		if (ImGui::SmallButton("x")) {
+			remove = i;
+		}
+		ImGui::PopID();
+	}
+	if (remove >= 0) {
+		sequence.lifecycle_actions.erase(sequence.lifecycle_actions.begin() + remove);
+		changed = true;
+	}
+
+	if (ImGui::Button("+ Lifecycle Script", ImVec2{ -FLT_MIN, 0.0f })) {
+		ImGui::OpenPopup("AddLifecycleScript");
+	}
+	if (ImGui::BeginPopup("AddLifecycleScript")) {
+		for (const auto& entry : SequenceStepEditorRegistry::Entries()) {
+			const auto* registration{ ScriptRegistry::Find(entry.type_hash) };
+			if (!registration || !registration->serializable ||
+				registration->completion != ScriptCompletion::Instant) {
+				continue;
+			}
+			if (ImGui::MenuItem(entry.options.label.c_str())) {
+				sequence.lifecycle_actions.push_back(LifecycleScript{
+					.enabled = true,
+					.lifecycle = SequenceLifecycle::Complete,
+					.action = ScriptRegistry::MakeStep(entry.type_hash),
+				});
+			}
+		}
+		ImGui::EndPopup();
+	}
+	ImGui::TreePop();
+	return changed;
+}
+
+bool DrawSequence(Entity owner, ScriptSequence& binding) {
+	ScriptSequence* sequence{ script_runtime::Resolve(owner, binding) };
+	if (!sequence) {
+		ImGui::TextDisabled("Missing shared Script Sequence");
+		return false;
+	}
+
+	bool changed{ false };
+	ImGui::PushID(static_cast<int>(binding.id));
+	bool open{ ImGui::TreeNodeEx(
+		"##Sequence",
+		ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
+			ImGuiTreeNodeFlags_SpanAvailWidth,
+		"%s", sequence->name.c_str()
+	) };
+	ImGui::SameLine();
+	changed |= ImGui::Checkbox("Enabled", &binding.enabled);
+	ImGui::SameLine();
+	if (ImGui::SmallButton(binding.runtime.running ? "Restart" : "Play")) {
+		(void)script_runtime::Start(owner, binding.id, binding.runtime.running);
+	}
+	ImGui::SameLine();
+	if (ImGui::SmallButton(binding.runtime.paused ? "Resume" : "Pause")) {
+		(void)script_runtime::SetPaused(owner, binding.id, !binding.runtime.paused);
+	}
+	ImGui::SameLine();
+	if (ImGui::SmallButton("Stop")) {
+		(void)script_runtime::Stop(owner, binding.id);
+	}
+
+	if (open) {
+		auto& shared_registry{ owner.GetScene().ctx().shared_script_sequences };
+		if (binding.shared_reference) {
+			const char* preview{ sequence ? sequence->name.c_str() : "Missing Shared Sequence" };
+			ImGui::SetNextItemWidth(220.0f);
+			if (ImGui::BeginCombo("Shared Sequence", preview)) {
+				for (const auto& shared : shared_registry.sequences) {
+					const bool selected{ shared.id == binding.shared_sequence_id };
+					if (ImGui::Selectable(shared.name.c_str(), selected)) {
+						binding.shared_sequence_id = shared.id;
+						binding.runtime = ScriptSequenceRuntime{};
+						changed = true;
+					}
+				}
+				ImGui::EndCombo();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Make Local")) {
+				if (const auto* shared{ shared_registry.Find(binding.shared_sequence_id) }) {
+					ScriptSequence local{ *shared };
+					const SequenceId binding_id{ binding.id };
+					const bool enabled{ binding.enabled };
+					binding = std::move(local);
+					binding.id = binding_id;
+					binding.enabled = enabled;
+					binding.shared_reference = false;
+					binding.shared_sequence_id = 0;
+					binding.runtime = ScriptSequenceRuntime{};
+					changed = true;
+				}
+			}
+		} else if (ImGui::Button("Make Shared")) {
+			ScriptSequence shared{ binding };
+			shared.shared_reference = false;
+			shared.shared_sequence_id = 0;
+			shared.runtime = ScriptSequenceRuntime{};
+			const SequenceId shared_id{ shared.id };
+			shared_registry.sequences.push_back(std::move(shared));
+			binding.shared_reference = true;
+			binding.shared_sequence_id = shared_id;
+			binding.runtime = ScriptSequenceRuntime{};
+			changed = true;
+		}
+
+		sequence = script_runtime::Resolve(owner, binding);
+		if (!sequence) {
+			ImGui::TextDisabled("Missing shared Script Sequence");
+			ImGui::TreePop();
+			ImGui::PopID();
+			return changed;
+		}
+		changed |= ImGui::InputText("Name", &sequence->name);
+
+		ImGui::SetNextItemWidth(140.0f);
+		if (ImGui::BeginCombo("Reentry", ReentryLabel(sequence->reentry))) {
+			for (const auto mode : {
+				ReentryMode::IgnoreWhileRunning, ReentryMode::Restart, ReentryMode::Queue
+			}) {
+				if (ImGui::Selectable(ReentryLabel(mode), mode == sequence->reentry)) {
+					sequence->reentry = mode;
+					changed = true;
+				}
+			}
+			ImGui::EndCombo();
+		}
+
+		bool has_channel{ sequence->channel.has_value() };
+		changed |= ImGui::Checkbox("Channel", &has_channel);
+		if (has_channel && !sequence->channel) {
+			sequence->channel.emplace("Default");
+			changed = true;
+		} else if (!has_channel && sequence->channel) {
+			sequence->channel.reset();
+			changed = true;
+		}
+		if (sequence->channel) {
+			changed |= ImGui::InputText("Channel Name", &sequence->channel->value);
+		}
+
+		changed |= ImGui::Checkbox("Remove Binding On Complete", &sequence->remove_binding_on_complete);
+		changed |= ImGui::Checkbox("Destroy Owner On Complete", &sequence->destroy_owner_on_complete);
+
+		changed |= DrawEventList(owner, "Start Triggers", sequence->start_events);
+		changed |= DrawEventList(owner, "Stop Triggers", sequence->stop_events);
+		changed |= DrawSteps(owner, *sequence);
+		changed |= DrawLifecycleActions(owner, *sequence);
+
+		if (binding.runtime.running || binding.runtime.completed) {
+			ImGui::ProgressBar(script_runtime::Progress(owner, binding.id), ImVec2{ -FLT_MIN, 0.0f });
+		}
+		ImGui::TreePop();
+	}
+	ImGui::PopID();
+	return changed;
+}
+
+ScriptEntry MakeRootEntry(TypeHashValue type_hash) {
+	const auto* registration{ ScriptRegistry::Find(type_hash) };
+	if (!registration) {
+		return {};
+	}
+	ScriptEntry entry;
+	entry.enabled = true;
+	entry.type_hash = type_hash;
+	entry.value = registration->make_default ? registration->make_default() : json::object();
+	entry.sequence = registration->make_default_sequence
+		? registration->make_default_sequence()
+		: ScriptSequence{};
+	return entry;
+}
+
+void DrawAddRootScriptPopup(impl::Scripts& scripts) {
+	if (!ImGui::BeginPopup("AddRootScript")) {
+		return;
+	}
+	std::string group;
+	for (const auto& entry : ScriptEditorRegistry::Entries()) {
+		if (entry.options.hidden) {
+			continue;
+		}
+		if (entry.options.group != group) {
+			if (!group.empty()) {
+				ImGui::Separator();
+			}
+			group = entry.options.group;
+			if (!group.empty()) {
+				ImGui::TextDisabled("%s", group.c_str());
+			}
+		}
+		if (ImGui::MenuItem(entry.options.label.c_str())) {
+			scripts.AddEntryDeferred(MakeRootEntry(entry.type_hash));
+		}
+	}
+	ImGui::EndPopup();
+}
+
+bool DrawScriptsComponent(Entity entity) {
+	if (!entity) {
+		return false;
+	}
+	RegisterEngineScriptTypes();
+	RegisterEngineScriptEditors();
+
+	auto* scripts{ entity.TryGet<impl::Scripts>() };
+	if (!scripts) {
+		return false;
+	}
+	scripts->Attach(entity);
+
+	bool changed{ false };
+	if (ImGui::Button("+ Script", ImVec2{ -FLT_MIN, 0.0f })) {
+		ImGui::OpenPopup("AddRootScript");
+	}
+	DrawAddRootScriptPopup(*scripts);
+
+	int remove{ -1 };
+	for (int i{ 0 }; i < static_cast<int>(scripts->scripts.size()); ++i) {
+		auto& entry{ scripts->scripts[static_cast<std::size_t>(i)] };
+		script_runtime::AttachEntry(entity, entry);
+		ImGui::PushID(&entry);
+
+		if (entry.type_hash == Hash<Script>()) {
+			if (entry.instance) {
+				entry.instance->sequence.enabled = entry.enabled;
+				changed |= DrawSequence(entity, entry.instance->sequence);
+				entry.enabled = entry.instance->sequence.enabled;
+				const SequenceId id{ entry.instance->sequence.id };
+				entry.sequence = entry.instance->sequence;
+				entry.sequence.id = id;
+				entry.sequence.runtime = ScriptSequenceRuntime{};
+			}
+		} else {
+			const auto* editor{ ScriptEditorRegistry::Find(entry.type_hash) };
+			const auto* registration{ ScriptRegistry::Find(entry.type_hash) };
+			const char* label{ editor ? editor->options.label.c_str() : "Missing Script" };
+			bool open{ ImGui::TreeNodeEx(
+				"##RootScript",
+				ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed |
+					ImGuiTreeNodeFlags_SpanAvailWidth,
+				"%s", label
+			) };
+			if (editor) {
+				DrawTooltip(editor->options.description.c_str());
+			}
+			ImGui::SameLine();
+			changed |= ImGui::Checkbox("Enabled", &entry.enabled);
+			ImGui::SameLine();
+			if (ImGui::SmallButton("x")) {
+				remove = i;
+			}
+			if (open) {
+				if (editor && editor->draw) {
+					ScriptEditorContext context{
+						entity, entity.GetScene().ctx().shared_script_sequences
+					};
+					if (editor->draw(entry.value, context)) {
+						changed = true;
+						if (entry.instance && registration && registration->apply) {
+							registration->apply(*entry.instance, entry.value);
+						}
+					}
+				}
+				ImGui::TreePop();
+			}
+		}
+		ImGui::PopID();
+	}
+
+	if (remove >= 0) {
+		auto& entry{ scripts->scripts[static_cast<std::size_t>(remove)] };
+		const SequenceId id{ entry.instance ? entry.instance->sequence.id : entry.sequence.id };
+		scripts->RemoveDeferred(id);
+		changed = true;
+	}
+	return changed;
+}
+
 
 template <std::size_t N>
 struct FixedString {
@@ -658,6 +1373,12 @@ bool DrawRenderTargetSizeContents(Entity entity) {
 }
 
 } // namespace
+
+PTGN_REGISTER_COMPONENT(::ptgn::impl::Scripts,
+	{
+		.draw_contents = &DrawScriptsComponent,
+	}
+);
 
 PTGN_REGISTER_COMPONENT(
 	::ptgn::impl::RenderTargetSize,
