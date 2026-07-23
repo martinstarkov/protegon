@@ -102,6 +102,8 @@ struct ButtonData {
 	struct VisualLock {
 		ButtonVisualState state{ ButtonVisualState::Idle };
 		bool block_press{ false };
+
+		PTGN_REFLECT(VisualLock, state, block_press)
 	};
 
 	std::optional<VisualLock> visual_lock;
@@ -111,6 +113,7 @@ struct ButtonData {
 	ButtonDirty dirty{ ButtonDirty::All };
 
 	PTGN_REFLECT(ButtonData, press_enabled, hover_enabled)
+	PTGN_REFLECT_READONLY(ButtonData, state, visual_lock, applied_visual_state, dirty)
 };
 
 struct ButtonAnimationPart {
