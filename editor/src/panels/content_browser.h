@@ -54,8 +54,8 @@ private:
 	std::string search_;
 	std::string status_;
 
-	impl::TextureObject audio_icon_texture_;
-	impl::TextureObject document_icon_texture_;
+	::ptgn::impl::TextureObject audio_icon_texture_;
+	::ptgn::impl::TextureObject document_icon_texture_;
 	bool preview_icons_initialized_{ false };
 };
 

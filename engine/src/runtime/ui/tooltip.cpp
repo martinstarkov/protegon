@@ -18,7 +18,7 @@
 #include "core/util/hash.h"
 #include "core/util/time.h"
 #include "renderer/resources/texture.h"
-#include "runtime/animation/tween_effect.h"
+#include "runtime/animation/scripted_animation.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/ecs/tag.h"

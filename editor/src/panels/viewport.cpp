@@ -1094,7 +1094,7 @@ void DrawGizmoInstance(
 
 void UpdateAndDrawGizmoInstances(
 	ImDrawList* draw_list, GizmoState& gizmo, Transform& transform,
-	const std::vector<GizmoInstance>& instances, bool viewport_hovered, bool viewport_focused,
+	const std::vector<GizmoInstance>& instances, bool viewport_hovered, [[maybe_unused]] bool viewport_focused,
 	bool use_local_orientation
 ) {
 	const auto& io{ ImGui::GetIO() };
@@ -1488,7 +1488,7 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 	Transform local_transform_after{ GetTransform(selected_entity) };
 
 	if (applied_handle != GizmoHandle::None) {
-		(void)ApplyGizmoDeltaToButtonVisualTransforms(
+		ApplyGizmoDeltaToButtonVisualTransforms(
 			selected_entity, applied_handle, local_transform_before, local_transform_after
 		);
 	}

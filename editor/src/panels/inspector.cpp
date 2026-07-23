@@ -28,6 +28,7 @@
 #include "core/math/transform.h"
 #include "panels/component_editor_registry.h"
 #include "panels/inspector_fields.h"
+#include "scripting/script_editor_registry.h"
 #include "panels/scene_hierarchy.h"
 #include "renderer/pipeline/blend_mode.h"
 #include "renderer/pipeline/render_state.h"
@@ -36,7 +37,6 @@
 #include "runtime/animation/animation.h"
 #include "runtime/scripting/script.h"
 #include "runtime/animation/offsets.h"
-#include "runtime/animation/tween.h"
 #include "runtime/ecs/component_registration.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -71,87 +71,6 @@
 namespace ptgn::editor::inspector {
 
 namespace {
-
-template <typename T>
-[[nodiscard]] T JsonValueOr(const json& input, const char* key, T fallback) {
-	if (!input.is_object()) {
-		return fallback;
-	}
-	const auto it{ input.find(key) };
-	if (it == input.end() || it->is_null()) {
-		return fallback;
-	}
-	try {
-		return it->template get<T>();
-	} catch (...) {
-		return fallback;
-	}
-}
-
-bool DrawKey(json& value) {
-	Key key{ JsonValueOr<Key>(value, "key", Key::W) };
-	bool changed{ false };
-	if (ImGui::BeginCombo("Key", std::string{ magic_enum::enum_name(key) }.c_str())) {
-		for (const auto candidate : magic_enum::enum_values<Key>()) {
-			if (ImGui::Selectable(
-					std::string{ magic_enum::enum_name(candidate) }.c_str(), candidate == key
-				)) {
-				key = candidate;
-				changed = true;
-			}
-		}
-		ImGui::EndCombo();
-	}
-	if (changed) {
-		value["key"] = key;
-	}
-	return changed;
-}
-
-bool DrawMouse(json& value) {
-	Mouse mouse{ JsonValueOr<Mouse>(value, "button", Mouse::Left) };
-	bool changed{ false };
-	if (ImGui::BeginCombo("Button", std::string{ magic_enum::enum_name(mouse) }.c_str())) {
-		for (const auto candidate : magic_enum::enum_values<Mouse>()) {
-			if (ImGui::Selectable(
-					std::string{ magic_enum::enum_name(candidate) }.c_str(), candidate == mouse
-				)) {
-				mouse = candidate;
-				changed = true;
-			}
-		}
-		ImGui::EndCombo();
-	}
-	if (changed) {
-		value["button"] = mouse;
-	}
-	return changed;
-}
-
-template <typename TEvent>
-void RegisterEmptyEvent(std::string label, std::string group, std::string description) {
-	(void)EventEditorRegistry::Register<TEvent>(
-		{ .label = std::move(label), .group = std::move(group), .description = std::move(description) },
-		0, [](json&) { return false; }
-	);
-}
-
-template <typename TEvent>
-void RegisterKeyEvent(std::string label) {
-	(void)EventEditorRegistry::Register<TEvent>(
-		{ .label = std::move(label), .group = "Key", .description = "Matches one key." },
-		1, &DrawKey
-	);
-}
-
-template <typename TEvent>
-void RegisterMouseEvent(std::string label, std::string group = "Mouse") {
-	(void)EventEditorRegistry::Register<TEvent>(
-		{ .label = std::move(label), .group = std::move(group), .description = "Matches one mouse button." },
-		1, &DrawMouse
-	);
-}
-
 
 void DrawTooltip(const char* text) {
 	if (text && *text && ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
@@ -306,7 +225,7 @@ bool DrawStepEditor(Entity owner, ScriptStep& step, const char* id_prefix) {
 	return changed;
 }
 
-bool DrawEventCondition(Entity owner, EventCondition& condition, const char* id_prefix) {
+bool DrawEventCondition([[maybe_unused]] Entity owner, EventCondition& condition, const char* id_prefix) {
 	bool changed{ false };
 	const auto* editor{ EventEditorRegistry::Find(condition.type_hash) };
 	const char* label{ editor ? editor->options.label.c_str() : "Missing Event" };
@@ -545,15 +464,15 @@ bool DrawSequence(Entity owner, ScriptSequence& binding) {
 	changed |= ImGui::Checkbox("Enabled", &binding.enabled);
 	ImGui::SameLine();
 	if (ImGui::SmallButton(binding.runtime.running ? "Restart" : "Play")) {
-		(void)script_runtime::Start(owner, binding.id, binding.runtime.running);
+		script_runtime::Start(owner, binding.id, binding.runtime.running);
 	}
 	ImGui::SameLine();
 	if (ImGui::SmallButton(binding.runtime.paused ? "Resume" : "Pause")) {
-		(void)script_runtime::SetPaused(owner, binding.id, !binding.runtime.paused);
+		script_runtime::SetPaused(owner, binding.id, !binding.runtime.paused);
 	}
 	ImGui::SameLine();
 	if (ImGui::SmallButton("Stop")) {
-		(void)script_runtime::Stop(owner, binding.id);
+		script_runtime::Stop(owner, binding.id);
 	}
 
 	if (open) {
@@ -667,7 +586,7 @@ ScriptEntry MakeRootEntry(TypeHashValue type_hash) {
 	return entry;
 }
 
-void DrawAddRootScriptPopup(impl::Scripts& scripts) {
+void DrawAddRootScriptPopup(::ptgn::impl::Scripts& scripts) {
 	if (!ImGui::BeginPopup("AddRootScript")) {
 		return;
 	}
@@ -697,7 +616,7 @@ bool DrawScriptsComponent(Entity entity) {
 		return false;
 	}
 
-	auto* scripts{ entity.TryGet<impl::Scripts>() };
+	auto* scripts{ entity.TryGet<::ptgn::impl::Scripts>() };
 	if (!scripts) {
 		return false;
 	}
@@ -892,7 +811,7 @@ struct Contents<::ptgn::impl::CameraData> {
 		changed |= DrawValue("Pixel Rounding", camera.pixel_rounding);
 		changed |= DrawValue("Bounding Box", camera.bounding_box);
 
-		(void)DrawReadOnlyValue("View Projection", camera.view_projection);
+		DrawReadOnlyValue("View Projection", camera.view_projection);
 
 		return changed;
 	}

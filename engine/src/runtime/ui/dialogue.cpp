@@ -798,7 +798,7 @@ void DialogueBox::StartCurrentPageScroll() {
 			impl::DialogueScrollScript{}
 		);
 
-	(void)script_runtime::RunInChannel(
+	script_runtime::RunInChannel(
 		*this, SequenceChannelKey{ kDialogueScrollChannel }, std::move(sequence),
 		ReentryMode::Restart
 	);

@@ -13,6 +13,7 @@
 #include "core/math/vector2.h"
 #include "core/util/time.h"
 #include "core/util/timer.h"
+#include "runtime/scripting/builtin_scripts.h"
 #include "runtime/animation/animation_event.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
@@ -467,7 +468,7 @@ Animation PlayTemporaryAnimation(
 			return;
 		}
 
-		(void)After(
+		After(
 			event.animation.GetScene(),
 			destroy_delay,
 			[animation = event.animation]() mutable {

@@ -68,28 +68,28 @@ template <EntityType E, typename T, typename F>
 
 } // namespace impl
 
-[[nodiscard]] SequenceHandle TranslateTo(
+SequenceHandle TranslateTo(
 	Entity entity, V2_float target_position, milliseconds duration, Ease ease = Ease::Linear,
 	bool force = true, bool relative = false
 );
 
-[[nodiscard]] SequenceHandle RotateTo(
+SequenceHandle RotateTo(
 	Entity entity, Degrees target_angle, milliseconds duration, Ease ease = Ease::Linear,
 	bool force = true, bool shortest_path = true, bool relative = false
 );
 
-[[nodiscard]] SequenceHandle ScaleTo(
+SequenceHandle ScaleTo(
 	Entity entity, V2_float target_scale, milliseconds duration, Ease ease = Ease::Linear,
 	bool force = true, bool relative = false
 );
 
-[[nodiscard]] SequenceHandle TintTo(
+SequenceHandle TintTo(
 	Entity entity, Color target_tint, milliseconds duration, Ease ease = Ease::Linear,
 	bool force = true
 );
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> TranslateTo(
+std::vector<SequenceHandle> TranslateTo(
 	std::span<const E> entities, V2_float target_position, milliseconds duration,
 	Ease ease = Ease::Linear, bool force = true, bool relative = false
 ) {
@@ -99,7 +99,7 @@ template <EntityType E>
 }
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> TranslateTo(
+std::vector<SequenceHandle> TranslateTo(
 	std::span<const E> entities, std::span<const V2_float> target_positions,
 	milliseconds duration, Ease ease = Ease::Linear, bool force = true,
 	bool relative = false
@@ -113,7 +113,7 @@ template <EntityType E>
 }
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> RotateTo(
+std::vector<SequenceHandle> RotateTo(
 	std::span<const E> entities, Degrees target_angle, milliseconds duration,
 	Ease ease = Ease::Linear, bool force = true, bool shortest_path = true,
 	bool relative = false
@@ -126,7 +126,7 @@ template <EntityType E>
 }
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> RotateTo(
+std::vector<SequenceHandle> RotateTo(
 	std::span<const E> entities, std::span<const Degrees> target_angles,
 	milliseconds duration, Ease ease = Ease::Linear, bool force = true,
 	bool shortest_path = true, bool relative = false
@@ -142,7 +142,7 @@ template <EntityType E>
 }
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> ScaleTo(
+std::vector<SequenceHandle> ScaleTo(
 	std::span<const E> entities, V2_float target_scale, milliseconds duration,
 	Ease ease = Ease::Linear, bool force = true, bool relative = false
 ) {
@@ -152,7 +152,7 @@ template <EntityType E>
 }
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> ScaleTo(
+std::vector<SequenceHandle> ScaleTo(
 	std::span<const E> entities, std::span<const V2_float> target_scales,
 	milliseconds duration, Ease ease = Ease::Linear, bool force = true,
 	bool relative = false
@@ -166,7 +166,7 @@ template <EntityType E>
 }
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> TintTo(
+std::vector<SequenceHandle> TintTo(
 	std::span<const E> entities, Color target_tint, milliseconds duration,
 	Ease ease = Ease::Linear, bool force = true
 ) {
@@ -176,7 +176,7 @@ template <EntityType E>
 }
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> TintTo(
+std::vector<SequenceHandle> TintTo(
 	std::span<const E> entities, std::span<const Color> target_tints,
 	milliseconds duration, Ease ease = Ease::Linear, bool force = true
 ) {
@@ -188,18 +188,18 @@ template <EntityType E>
 	);
 }
 
-[[nodiscard]] SequenceHandle FadeIn(
+SequenceHandle FadeIn(
 	Entity entity, milliseconds duration, Ease ease = Ease::Linear, bool force = true,
 	bool start_transparent = false
 );
 
-[[nodiscard]] SequenceHandle FadeOut(
+SequenceHandle FadeOut(
 	Entity entity, milliseconds duration, Ease ease = Ease::Linear, bool force = true,
 	bool start_opaque = false
 );
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> FadeIn(
+std::vector<SequenceHandle> FadeIn(
 	std::span<const E> entities, milliseconds duration, Ease ease = Ease::Linear,
 	bool force = true, bool start_transparent = false
 ) {
@@ -209,7 +209,7 @@ template <EntityType E>
 }
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> FadeOut(
+std::vector<SequenceHandle> FadeOut(
 	std::span<const E> entities, milliseconds duration, Ease ease = Ease::Linear,
 	bool force = true, bool start_opaque = false
 ) {
@@ -219,21 +219,21 @@ template <EntityType E>
 }
 
 /// Runs one complete bounce cycle per period.
-[[nodiscard]] SequenceHandle Bounce(
+SequenceHandle Bounce(
 	Entity entity, V2_float amplitude, milliseconds period,
 	std::optional<std::size_t> total_periods = std::nullopt,
 	Ease ease = Ease::Linear, V2_float static_offset = {}, bool force = true
 );
 
 /// Runs a positive and negative bounce within each period.
-[[nodiscard]] SequenceHandle SymmetricalBounce(
+SequenceHandle SymmetricalBounce(
 	Entity entity, V2_float amplitude, milliseconds period,
 	std::optional<std::size_t> total_periods = std::nullopt,
 	Ease ease = Ease::Linear, V2_float static_offset = {}, bool force = true
 );
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> Bounce(
+std::vector<SequenceHandle> Bounce(
 	std::span<const E> entities, V2_float amplitude, milliseconds period,
 	std::optional<std::size_t> total_periods = std::nullopt,
 	Ease ease = Ease::Linear, V2_float static_offset = {}, bool force = true
@@ -246,7 +246,7 @@ template <EntityType E>
 }
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> SymmetricalBounce(
+std::vector<SequenceHandle> SymmetricalBounce(
 	std::span<const E> entities, V2_float amplitude, milliseconds period,
 	std::optional<std::size_t> total_periods = std::nullopt,
 	Ease ease = Ease::Linear, V2_float static_offset = {}, bool force = true
@@ -271,24 +271,24 @@ void StopBounce(std::span<const E> entities, bool force = true) {
 ///
 /// A null duration holds the resulting trauma until StopShake is called. A finite duration ramps to
 /// the target and then either resets immediately or recovers using ShakeConfig::recovery_speed.
-[[nodiscard]] SequenceHandle Shake(
+SequenceHandle Shake(
 	Entity entity, float intensity, std::optional<milliseconds> duration,
 	const ShakeConfig& config = {}, Ease ease = Ease::None, bool force = true,
 	bool reset_trauma = false
 );
 
-[[nodiscard]] SequenceHandle Shake(
+SequenceHandle Shake(
 	Entity entity, float intensity, std::optional<milliseconds> duration,
 	const ShakeConfig& config, bool force, bool reset_trauma = false
 );
 
 /// Adds trauma immediately and then recovers naturally.
-[[nodiscard]] SequenceHandle Shake(
+SequenceHandle Shake(
 	Entity entity, float intensity, const ShakeConfig& config = {}, bool force = true
 );
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> Shake(
+std::vector<SequenceHandle> Shake(
 	std::span<const E> entities, float intensity, milliseconds duration,
 	const ShakeConfig& config = {}, Ease ease = Ease::None, bool force = true,
 	bool reset_trauma = false
@@ -301,7 +301,7 @@ template <EntityType E>
 }
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> Shake(
+std::vector<SequenceHandle> Shake(
 	std::span<const E> entities, float intensity, milliseconds duration,
 	const ShakeConfig& config, bool force, bool reset_trauma = false
 ) {
@@ -313,7 +313,7 @@ template <EntityType E>
 }
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> Shake(
+std::vector<SequenceHandle> Shake(
 	std::span<const E> entities, float intensity, const ShakeConfig& config = {},
 	bool force = true
 ) {
@@ -331,14 +331,14 @@ void StopShake(std::span<const E> entities, bool force = true) {
 	});
 }
 
-/// Simple constant-speed follow behavior from the script-sequencing demo.
-[[nodiscard]] SequenceHandle Follow(
+/// Simple constant speed follow behavior from the script sequencing demo.
+SequenceHandle Follow(
 	Entity entity, Entity target, float speed, float stopping_distance = 2.0f,
 	bool force = true
 );
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> Follow(
+std::vector<SequenceHandle> Follow(
 	std::span<const E> entities, Entity target, float speed,
 	float stopping_distance = 2.0f, bool force = true
 ) {
@@ -347,19 +347,19 @@ template <EntityType E>
 	});
 }
 
-[[nodiscard]] SequenceHandle StartFollow(
+SequenceHandle StartFollow(
 	Entity entity, Entity target, const TargetFollowConfig& config = {},
 	bool force = true
 );
 
-[[nodiscard]] SequenceHandle StartFollow(
+SequenceHandle StartFollow(
 	Entity entity, std::span<const V2_float> waypoints,
 	const PathFollowConfig& config = {}, bool force = true,
 	bool reset_waypoint_index = false
 );
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> StartFollow(
+std::vector<SequenceHandle> StartFollow(
 	std::span<const E> entities, Entity target,
 	const TargetFollowConfig& config = {}, bool force = true
 ) {
@@ -369,7 +369,7 @@ template <EntityType E>
 }
 
 template <EntityType E>
-[[nodiscard]] std::vector<SequenceHandle> StartFollow(
+std::vector<SequenceHandle> StartFollow(
 	std::span<const E> entities, std::span<const V2_float> waypoints,
 	const PathFollowConfig& config = {}, bool force = true,
 	bool reset_waypoint_index = false

@@ -593,7 +593,7 @@ void SetVisibleScript::OnStart() {
 }
 
 void EmitSignalScript::OnStart() {
-	(void)script_runtime::DispatchGlobal<Signal>(GetScene(), Signal{ signal });
+	script_runtime::DispatchGlobal<Signal>(GetScene(), Signal{ signal });
 }
 
 void AddComponentsScript::OnStart() {
@@ -661,7 +661,7 @@ SequenceHandle After(Scene& scene, milliseconds duration, SequenceFunction funct
 
 	auto handle{ script_runtime::RunSequence(owner, std::move(sequence)) };
 	*handle_ref = handle;
-	(void)handle.Start();
+	handle.Start();
 	return handle;
 }
 
@@ -690,7 +690,7 @@ SequenceHandle During(Scene& scene, milliseconds duration, DuringSequenceFunctio
 		.DestroyOwnerOnComplete();
 
 	auto handle{ script_runtime::RunSequence(owner, std::move(sequence)) };
-	(void)handle.Start();
+	handle.Start();
 	return handle;
 }
 

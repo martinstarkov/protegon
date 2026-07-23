@@ -15,7 +15,7 @@
 #include "runtime/scripting/script.h"
 #include "serialization/json/json.h"
 
-namespace ptgn::editor::script {
+namespace ptgn::editor {
 
 namespace impl {
 
@@ -118,7 +118,7 @@ bool DrawTypedJsonEditor(json& input, ScriptEditorContext& context, F& fn) {
 	auto& state{ states[&input] };
 	if (!state.initialized || state.synchronized_value != input) {
 		state.value = T{};
-		(void)TryReadScriptJson(input, state.value);
+		TryReadScriptJson(input, state.value);
 		state.synchronized_value = input;
 		state.initialized = true;
 	}
@@ -265,4 +265,4 @@ bool RegisterScriptEditors(TDefinition&&... definition) {
 	return inserted;
 }
 
-} // namespace ptgn::editor::script
+} // namespace ptgn::editor

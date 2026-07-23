@@ -24,7 +24,6 @@
 #include "core/math/vector2.h"
 #include "panels/scene_list.h"
 #include "runtime/animation/animation.h"
-#include "runtime/animation/tween.h"
 #include "runtime/ecs/entity.h"
 #include "runtime/ecs/entity_hierarchy.h"
 #include "runtime/graphics/custom_shader.h"
@@ -46,7 +45,6 @@
 #include "runtime/graphics/visible.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
-#include "runtime/scripting/script_sequence.h"
 #include "runtime/ui/button.h"
 #include "runtime/ui/button_config.h"
 
@@ -586,12 +584,6 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 			create_menu_item("Custom Shader", [&]() {
 				return CreateCustomShader(*selected_scene);
 			});
-
-			create_menu_item("Script Sequence", [&]() {
-				return CreateScriptSequence(*selected_scene);
-			});
-
-			create_menu_item("Tween", [&]() { return CreateTween(*selected_scene); });
 
 			draw_submenu("Effects", [&]() {
 				create_menu_item("Bloom", [&]() { return CreateEffect<Bloom>(*selected_scene); });

@@ -49,6 +49,7 @@
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_event.h"
 #include "runtime/scripting/script.h"
+#include "runtime/animation/scripted_animation.h"
 #include "runtime/ui/button_config.h"
 #include "runtime/ui/toggle_button.h"
 

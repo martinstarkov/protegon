@@ -214,7 +214,7 @@ public:
 	template <typename TScript>
 	ScriptSequence& During(float duration_ms, TScript script = {});
 
-	ScriptSequence& Ease(Ease value);
+	ScriptSequence& Ease(ptgn::Ease value);
 	ScriptSequence& Repeat(int additional_repeats);
 	ScriptSequence& Infinite();
 	ScriptSequence& Reversed(bool value = true);
@@ -309,7 +309,7 @@ struct impl_ScriptAccess {
 };
 
 template <typename T>
-[[nodiscard]] bool TryReadScriptJson(const json& input, T& output) {
+bool TryReadScriptJson(const json& input, T& output) {
 	if (input.is_null()) {
 		return false;
 	}
@@ -401,19 +401,16 @@ public:
 				if constexpr (std::default_initializable<T>) {
 					auto script{ std::make_unique<T>() };
 					if constexpr (requires(const json& j, T& v) { j.get_to(v); }) {
-						(void)TryReadScriptJson(input, *script);
+						TryReadScriptJson(input, *script);
 					}
 					return script;
 				} else {
 					return nullptr;
 				}
 			},
-			.apply = [](Script& script, const json& input) {
+			.apply = []([[maybe_unused]] Script& script, [[maybe_unused]] const json& input) {
 				if constexpr (requires(const json& j, T& v) { j.get_to(v); }) {
-					(void)TryReadScriptJson(input, static_cast<T&>(script));
-				} else {
-					(void)script;
-					(void)input;
+					TryReadScriptJson(input, static_cast<T&>(script));
 				}
 			},
 		};
@@ -456,7 +453,7 @@ public:
 					input.get_to(value);
 				}
 			};
-			(void)Register<T>(ScriptRegistrationOptions{
+			Register<T>(ScriptRegistrationOptions{
 				.serializable = json_serializable,
 			});
 		}
@@ -661,9 +658,6 @@ public:
 	void OnEvent(Event event);
 	void OnEvent(Event event) const { const_cast<Scripts*>(this)->OnEvent(event); }
 
-	friend void from_json(const json& j, Scripts& scripts);
-	friend void to_json(json& j, const Scripts& scripts);
-
 	PTGN_REFLECT_EMPTY(Scripts)
 
 	friend std::ostream& operator<<(std::ostream& os, const Scripts& scripts_component) {
@@ -681,6 +675,9 @@ private:
 };
 
 } // namespace impl
+
+void from_json(const json& j, impl::Scripts& scripts);
+void to_json(json& j, const impl::Scripts& scripts);
 
 struct SequenceHandle {
 	Entity owner;
@@ -711,39 +708,39 @@ void AttachEntry(Entity entity, ScriptEntry& entry);
 void AttachAll(Entity entity);
 void ApplyPending(Scene& scene);
 void Update(Scene& scene, secondsf delta_time);
-[[nodiscard]] bool DispatchEvent(Entity entity, Event event);
-[[nodiscard]] bool DispatchGlobalEvent(Scene& scene, Event event);
+bool DispatchEvent(Entity entity, Event event);
+bool DispatchGlobalEvent(Scene& scene, Event event);
 
 template <typename T, typename... TArgs>
 	requires BraceConstructible<T, TArgs...>
-[[nodiscard]] bool Dispatch(Entity entity, TArgs&&... args) {
+bool Dispatch(Entity entity, TArgs&&... args) {
 	auto data{ impl::EventData::Create<T>(std::forward<TArgs>(args)...) };
 	return DispatchEvent(entity, Event{ data });
 }
 
 template <typename T, typename... TArgs>
 	requires BraceConstructible<T, TArgs...>
-[[nodiscard]] bool DispatchGlobal(Scene& scene, TArgs&&... args) {
+bool DispatchGlobal(Scene& scene, TArgs&&... args) {
 	auto data{ impl::EventData::Create<T>(std::forward<TArgs>(args)...) };
 	return DispatchGlobalEvent(scene, Event{ data });
 }
 
 [[nodiscard]] ScriptSequence* Resolve(Entity owner, ScriptSequence& binding);
 [[nodiscard]] const ScriptSequence* Resolve(Entity owner, const ScriptSequence& binding);
-[[nodiscard]] SequenceHandle RunSequence(Entity owner, ScriptSequence sequence);
-[[nodiscard]] SequenceHandle RunInChannel(
+SequenceHandle RunSequence(Entity owner, ScriptSequence sequence);
+SequenceHandle RunInChannel(
 	Entity owner, SequenceChannelKey channel, ScriptSequence sequence, ReentryMode reentry
 );
-[[nodiscard]] bool Start(Entity owner, SequenceId id, bool force = false);
+bool Start(Entity owner, SequenceId id, bool force = false);
 void StopChannel(Entity owner, SequenceChannelKey channel, SequenceStopMode mode);
-[[nodiscard]] bool Stop(
+bool Stop(
 	Entity owner, SequenceId id, SequenceCancelReason reason = SequenceCancelReason::Stopped
 );
-[[nodiscard]] bool Reset(Entity owner, SequenceId id);
-[[nodiscard]] bool Clear(Entity owner, SequenceId id);
-[[nodiscard]] bool Skip(Entity owner, SequenceId id);
-[[nodiscard]] bool Seek(Entity owner, SequenceId id, float progress);
-[[nodiscard]] bool SetPaused(Entity owner, SequenceId id, bool paused);
+bool Reset(Entity owner, SequenceId id);
+bool Clear(Entity owner, SequenceId id);
+bool Skip(Entity owner, SequenceId id);
+bool Seek(Entity owner, SequenceId id, float progress);
+bool SetPaused(Entity owner, SequenceId id, bool paused);
 [[nodiscard]] float Progress(Entity owner, SequenceId id);
 [[nodiscard]] bool IsRunning(Entity owner, SequenceId id);
 [[nodiscard]] bool IsPaused(Entity owner, SequenceId id);

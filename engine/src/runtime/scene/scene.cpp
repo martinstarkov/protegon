@@ -602,7 +602,7 @@ void Scene::InternalOnEvent(Event event) {
 	}
 
 	// Global event, dispatched to all scripted entities and sequence triggers in the scene.
-	(void)script_runtime::DispatchGlobalEvent(*this, event);
+	script_runtime::DispatchGlobalEvent(*this, event);
 
 	if (!event.IsHandled()) {
 		OnEvent(event);
@@ -625,7 +625,7 @@ void Scene::InternalOnEvent() {
 
 		if (entity_event.entity) {
 			// Single entity event.
-			(void)script_runtime::DispatchEvent(entity_event.entity, event);
+			script_runtime::DispatchEvent(entity_event.entity, event);
 			continue;
 		}
 

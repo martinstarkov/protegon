@@ -433,7 +433,7 @@ bool DrawReadOnlyValue(std::string_view label, const T& value, FieldOptions opti
 	options.read_only = true;
 
 	ImGui::PushID(&value);
-	(void)DrawValue(label, display_value, options);
+	DrawValue(label, display_value, options);
 	ImGui::PopID();
 
 	return false;
@@ -459,7 +459,7 @@ bool DrawMembers(T& value) {
 
 		std::apply(
 			[]<typename... TMember>(TMember&&... member) {
-				((void)DrawReadOnlyValue(PrettyName(member.name), member.value), ...);
+				(DrawReadOnlyValue(PrettyName(member.name), member.value), ...);
 			},
 			members
 		);

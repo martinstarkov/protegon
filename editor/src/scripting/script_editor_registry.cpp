@@ -28,64 +28,9 @@
 #include "runtime/scripting/builtin_scripts.h"
 #include "runtime/ui/button.h"
 
-namespace ptgn::editor::script {
-
-const EventEditorRegistration* EventEditorRegistry::Find(TypeHashValue type_hash) {
-	for (const auto& entry : Entries()) {
-		if (entry.type_hash == type_hash) {
-			return &entry;
-		}
-	}
-	return nullptr;
-}
-
-const std::vector<EventEditorRegistration>& EventEditorRegistry::Entries() {
-	impl::EnsureEngineScriptEditorsRegistered();
-	return MutableEntries();
-}
-
-const SequenceStepEditorRegistration* SequenceStepEditorRegistry::Find(
-	TypeHashValue type_hash
-) {
-	for (const auto& entry : Entries()) {
-		if (entry.type_hash == type_hash) {
-			return &entry;
-		}
-	}
-	return nullptr;
-}
-
-const std::vector<SequenceStepEditorRegistration>& SequenceStepEditorRegistry::Entries() {
-	impl::EnsureEngineScriptEditorsRegistered();
-	return MutableEntries();
-}
-
-const ScriptEditorRegistration* ScriptEditorRegistry::Find(TypeHashValue type_hash) {
-	for (const auto& entry : Entries()) {
-		if (entry.type_hash == type_hash) {
-			return &entry;
-		}
-	}
-	return nullptr;
-}
-
-const std::vector<ScriptEditorRegistration>& ScriptEditorRegistry::Entries() {
-	impl::EnsureEngineScriptEditorsRegistered();
-	return MutableEntries();
-}
-
-} // namespace ptgn::editor::script
-
-namespace ptgn {
+namespace ptgn::editor {
 
 namespace {
-
-using editor::script::EventEditorRegistrationDefinition;
-using editor::script::RootScriptEditor;
-using editor::script::ScriptEditorContext;
-using editor::script::ScriptEditorOptions;
-using editor::script::SequenceStepEditor;
-using editor::script::SequenceStepEditorOptions;
 
 template <typename T>
 [[nodiscard]] T JsonValueOr(const json& input, std::string_view key, T fallback) {
@@ -181,7 +126,14 @@ bool DrawScaleTo(ScaleToScript& script, ScriptEditorContext&) {
 }
 
 bool DrawTintTo(TintToScript& script, ScriptEditorContext&) {
-	return ImGui::ColorEdit4("Tint", &script.tint.x);
+	auto tint{ script.tint.Normalized() };
+
+	if (!ImGui::ColorEdit4("Tint", tint.Data())) {
+		return false;
+	}
+
+	script.tint = Color{ tint };
+	return true;
 }
 
 bool DrawBounce(BounceScript& script, ScriptEditorContext&) {
@@ -331,6 +283,65 @@ bool DrawRemoveComponents(RemoveComponentsScript& script, ScriptEditorContext&) 
 }
 
 } // namespace
+
+const EventEditorRegistration* EventEditorRegistry::Find(TypeHashValue type_hash) {
+	for (const auto& entry : Entries()) {
+		if (entry.type_hash == type_hash) {
+			return &entry;
+		}
+	}
+	return nullptr;
+}
+
+std::vector<EventEditorRegistration>& EventEditorRegistry::MutableEntries() {
+	static std::vector<EventEditorRegistration> entries;
+	return entries;
+}
+
+const std::vector<EventEditorRegistration>& EventEditorRegistry::Entries() {
+	impl::EnsureEngineScriptEditorsRegistered();
+	return MutableEntries();
+}
+
+const SequenceStepEditorRegistration* SequenceStepEditorRegistry::Find(
+	TypeHashValue type_hash
+) {
+	for (const auto& entry : Entries()) {
+		if (entry.type_hash == type_hash) {
+			return &entry;
+		}
+	}
+	return nullptr;
+}
+
+std::vector<SequenceStepEditorRegistration>& SequenceStepEditorRegistry::MutableEntries() {
+	static std::vector<SequenceStepEditorRegistration> entries;
+	return entries;
+}
+
+const std::vector<SequenceStepEditorRegistration>& SequenceStepEditorRegistry::Entries() {
+	impl::EnsureEngineScriptEditorsRegistered();
+	return MutableEntries();
+}
+
+const ScriptEditorRegistration* ScriptEditorRegistry::Find(TypeHashValue type_hash) {
+	for (const auto& entry : Entries()) {
+		if (entry.type_hash == type_hash) {
+			return &entry;
+		}
+	}
+	return nullptr;
+}
+
+std::vector<ScriptEditorRegistration>& ScriptEditorRegistry::MutableEntries() {
+	static std::vector<ScriptEditorRegistration> entries;
+	return entries;
+}
+
+const std::vector<ScriptEditorRegistration>& ScriptEditorRegistry::Entries() {
+	impl::EnsureEngineScriptEditorsRegistered();
+	return MutableEntries();
+}
 
 PTGN_REGISTER_SCRIPT(
 	Script,
@@ -681,7 +692,7 @@ PTGN_REGISTER_EVENT(
 #undef PTGN_REGISTER_MOUSE_EVENT
 #undef PTGN_REGISTER_EMPTY_EVENT
 
-namespace editor::script::impl {
+namespace impl {
 
 void EnsureEngineScriptEditorsRegistered() {
 	// Intentionally empty.
@@ -690,6 +701,6 @@ void EnsureEngineScriptEditorsRegistered() {
 	// PTGN_REGISTER_SCRIPT and PTGN_REGISTER_EVENT initializers then populate the editor registries.
 }
 
-} // namespace editor::script::impl
+} // namespace impl
 
-} // namespace ptgn
+} // namespace ptgn::editor

@@ -403,12 +403,7 @@ void SceneListPanel::OnRender(
 				ImGui::Separator();
 			}
 
-			for (const auto& [
-				scene_type,
-				registration
-			] : impl::GetSceneRegistry()) {
-				(void)scene_type;
-
+			for (const auto& [_, registration] : impl::GetSceneRegistry()) {
 				if (!ImGui::MenuItem(
 						registration
 							.display_name

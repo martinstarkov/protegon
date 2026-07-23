@@ -229,8 +229,7 @@ void KDTree::PartialUpdate() {
 	for (const auto& entity : moved_entities) {
 		// If entity isn't present in the tree (inserted this frame), skip removal
 		// Insert it below from entity_map
-		bool found_and_removed = RemoveFromTree(root.get(), entity, 0, touched_leaves);
-		(void)found_and_removed; // fine if not found
+		[[maybe_unused]] bool found_and_removed = RemoveFromTree(root.get(), entity, 0, touched_leaves);
 	}
 
 	// Bulk-insert: gather moved objects from entity_map and insert into leaves without
