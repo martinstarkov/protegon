@@ -4,6 +4,8 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <unordered_set>
 
 #include "app/application_layer.h"
 #include "app/application_state.h"
@@ -87,6 +89,23 @@ public:
 
 	void SetSceneEntityPickingEnabled(Scene& scene, bool enabled);
 
+	bool CreateProjectScene(
+		std::string_view preferred_name,
+		SerializedScene serialized_scene
+	);
+
+	bool DeleteProjectScene(
+		std::string_view scene_tag
+	);
+
+	bool SetStartupProjectScene(
+		std::string_view scene_tag
+	);
+
+	[[nodiscard]] bool IsStartupProjectScene(
+		std::string_view scene_tag
+	) const;
+
 private:
 	struct PlaySnapshot {
 		std::string scene_tag;
@@ -95,6 +114,8 @@ private:
 	};
 
 	Application& app;
+
+	void SavePendingBootstrapScenes();
 
 	void OnProjectChanged();
 
@@ -134,6 +155,8 @@ private:
 	V2_float previous_dockspace_size_;
 
 	bool dock_layout_built_{ false };
+
+	std::unordered_set<std::string> pending_scene_bootstrap_saves_;
 };
 
 } // namespace editor

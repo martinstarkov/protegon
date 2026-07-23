@@ -377,7 +377,12 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	Refresh();
 	
 	auto& app_context{ impl::ApplicationAccessor::ctx(app) };
-	impl::SaveProjectScene(app, *this, app_context.project_bootstrap_save_pending);
+	
+	impl::SaveBootstrapProjectScene(
+		app,
+		*this,
+		app_context.project_bootstrap_save_pending
+	);
 
 	OnLoad();
 	Refresh();

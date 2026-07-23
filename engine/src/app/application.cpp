@@ -61,7 +61,8 @@ void Application::StartProject(const std::filesystem::path& project_path) {
 }
 
 void Application::StartProjectImpl(
-	const std::filesystem::path& project_path, const impl::SceneRegistryEntry* default_scene
+	const std::filesystem::path& project_path,
+	const impl::SceneRegistryEntry* default_scene
 ) {
 	Project project;
 
@@ -70,21 +71,170 @@ void Application::StartProjectImpl(
 	} else {
 		PTGN_ASSERT(
 			default_scene,
-			"Project does not exist. Use StartProject<TDefaultScene>() to create it: ",
+			"Project does not exist. Use "
+			"StartProject<TDefaultScene>() to create it: ",
 			project_path.string()
 		);
-		project = CreateProject(project_path, *default_scene);
+
+		project = CreateProject(
+			project_path,
+			*default_scene
+		);
 	}
 
 	ctx_.project = std::move(project);
 
-	auto serialized_scene{ LoadSceneFile(GetStartupScenePath(ctx_.project.value())) };
-	ctx_.project_bootstrap_save_pending = !serialized_scene.content.has_value();
-	auto scene_factory{
-		impl::MakeSceneFactory(std::move(serialized_scene), ctx_.start_project_runtime)
+	auto& loaded_project{ ctx_.project.value() };
+
+	if (ctx_.start_project_runtime) {
+		const auto& startup{
+			GetStartupProjectScene(loaded_project)
+		};
+
+		auto serialized_scene{
+			LoadSceneFile(
+				GetProjectScenePath(
+					loaded_project,
+					startup
+				)
+			)
+		};
+
+		auto scene_factory{
+			impl::MakeSceneFactory(
+				std::move(serialized_scene),
+				true
+			)
+		};
+
+		StartWithFactory(
+			startup.tag,
+			std::move(scene_factory)
+		);
+
+		return;
+	}
+
+	PTGN_ASSERT(
+		ctx_.scene_manager.scenes_.empty(),
+		"Application has already been started"
+	);
+
+	const auto& startup{
+		GetStartupProjectScene(loaded_project)
 	};
 
-	StartWithFactory("Main", std::move(scene_factory));
+	std::vector<const ProjectSceneEntry*> ordered_scenes;
+	ordered_scenes.reserve(loaded_project.scenes.size());
+
+	// Load the startup scene first so it remains the primary editor
+	// scene and initial selection.
+	ordered_scenes.emplace_back(&startup);
+
+	for (const auto& entry : loaded_project.scenes) {
+		if (&entry != &startup) {
+			ordered_scenes.emplace_back(&entry);
+		}
+	}
+
+	struct BootstrapScene {
+		const ProjectSceneEntry* entry{ nullptr };
+		Scene* scene{ nullptr };
+	};
+
+	std::vector<BootstrapScene> bootstrap_scenes;
+
+	for (std::size_t i{ 0 };
+		 i < ordered_scenes.size();
+		 ++i) {
+		const auto& entry{ *ordered_scenes[i] };
+
+		auto serialized_scene{
+			LoadSceneFile(
+				GetProjectScenePath(
+					loaded_project,
+					entry
+				)
+			)
+		};
+
+		bool requires_bootstrap_save{
+			!serialized_scene.content.has_value()
+		};
+
+		auto scene_factory{
+			impl::MakeSceneFactory(
+				std::move(serialized_scene),
+				false
+			)
+		};
+
+		auto scene{ std::invoke(
+			scene_factory,
+			*this,
+			impl::SceneData{
+				.tag = entry.tag,
+				.tag_hash = Hash(entry.tag),
+				.state = impl::SceneState::Active,
+				.runtime = false,
+				.first_scene = i == 0,
+			}
+		) };
+
+		PTGN_ASSERT(
+			scene,
+			"Project scene factory returned null: ",
+			entry.tag
+		);
+
+		auto* scene_ptr{ scene.get() };
+
+		ctx_.scene_manager.scenes_.emplace_back(
+			std::move(scene)
+		);
+
+		if (requires_bootstrap_save) {
+			bootstrap_scenes.emplace_back(
+				BootstrapScene{
+					.entry = &entry,
+					.scene = scene_ptr,
+				}
+			);
+		}
+	}
+
+	if (!bootstrap_scenes.empty()) {
+		loaded_project.assets =
+			ctx_.assets.GetCatalog();
+
+		loaded_project.preload_assets =
+			ctx_.assets.GetProjectAssetDependencies();
+
+		// Save catalog entries before scene dependency keys.
+		SaveProject(loaded_project);
+
+		for (const auto& bootstrap :
+			 bootstrap_scenes) {
+			PTGN_ASSERT(
+				bootstrap.entry &&
+				bootstrap.scene
+			);
+
+			SaveSceneFile(
+				GetProjectScenePath(
+					loaded_project,
+					*bootstrap.entry
+				),
+				CaptureScene(
+					*bootstrap.scene
+				)
+			);
+		}
+	}
+
+	ctx_.state = ApplicationState::Running;
+
+	EnterMainLoop();
 }
 
 void Application::StartWithFactory(std::string_view scene_tag, impl::SceneFactory scene_factory) {

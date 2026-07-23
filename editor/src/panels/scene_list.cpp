@@ -118,107 +118,149 @@ void DrawJsonEditor(const char* label, json& value) {
 
 } // namespace
 
-void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
+void SceneListPanel::DrawSceneParamUI(
+	EditorContext& ctx
+) {
+	ImGui::SeparatorText("Scene Parameters");
+
 	if (pending_scene_selection_.has_value()) {
-		ImGui::SeparatorText("Scene Parameters");
 		ImGui::TextDisabled("Loading scene...");
 		return;
 	}
 
-	if (!state_.has_value()) {
-		state_ = MakeSceneEditorState("EditorScene");
-	}
-
-	if (!state_.has_value()) {
+	if (!selected_scene_ || !state_.has_value()) {
+		ImGui::TextDisabled("No scene selected.");
 		return;
 	}
 
 	auto& state{ state_.value() };
 
-	ImGui::SeparatorText("Scene Parameters");
-	ImGui::Text("Type: %s", state.display_name.c_str());
+	ImGui::Text(
+		"Type: %s",
+		state.display_name.c_str()
+	);
 
-	if (selected_scene_) {
-		ImGui::Text("Scene Name: %s", selected_scene_->GetTag().c_str());
-	} else {
-		ImGui::InputText("Scene Name", &state.scene_tag);
-	}
+	ImGui::Text(
+		"Scene Name: %s",
+		selected_scene_->GetTag().c_str()
+	);
 
-	for (auto it{ state.params.begin() }; it != state.params.end(); ++it) {
-		DrawJsonEditor(it.key().c_str(), it.value());
-	}
-
-	std::string button_text{ selected_scene_ ? "Apply Parameters"
-											 : "Enter " + state.display_name };
-
-	if (!ImGui::Button(button_text.c_str())) {
+	if (state.scene_type.empty()) {
+		ImGui::TextDisabled(
+			"Default scenes have no custom parameters."
+		);
 		return;
 	}
 
-	std::string target_scene_tag;
-	SerializedScene serialized_scene;
-
-	if (selected_scene_) {
-		target_scene_tag = selected_scene_->GetTag();
-		serialized_scene = CaptureScene(*selected_scene_);
-	} else {
-		target_scene_tag = state.scene_tag;
-		serialized_scene = SerializedScene{
-			.type = state.scene_type,
-			.parameters = state.params,
-			.content = std::nullopt,
-		};
+	for (auto it{ state.params.begin() };
+		 it != state.params.end();
+		 ++it) {
+		DrawJsonEditor(
+			it.key().c_str(),
+			it.value()
+		);
 	}
+
+	if (!ImGui::Button("Apply Parameters")) {
+		return;
+	}
+
+	std::string scene_tag{
+		selected_scene_->GetTag()
+	};
+
+	SerializedScene serialized_scene{
+		CaptureScene(*selected_scene_)
+	};
 
 	serialized_scene.type = state.scene_type;
 	serialized_scene.parameters = state.params;
 
-	auto scene_factory{ impl::MakeSceneFactory(std::move(serialized_scene), false) };
-	auto& scene_manager{ ctx.editor.GetSceneManager() };
-
-	bool command_accepted{ selected_scene_
-		? scene_manager.ReEnterFactory(target_scene_tag, std::move(scene_factory))
-		: scene_manager.EnterFactory(target_scene_tag, std::move(scene_factory)) };
-
-	if (!command_accepted) {
+	if (!ctx.editor.GetSceneManager().ReEnterFactory(
+			scene_tag,
+			impl::MakeSceneFactory(
+				std::move(serialized_scene),
+				false
+			)
+		)) {
 		return;
 	}
 
-	QueueSceneSelection(ctx.editor, std::move(target_scene_tag), false);
+	ctx.state.is_dirty = true;
+
+	QueueSceneSelection(
+		ctx.editor,
+		std::move(scene_tag),
+		false
+	);
 }
 
-void SceneListPanel::OnRender(EditorContext& ctx) {
+void SceneListPanel::OnRender(
+	EditorContext& ctx
+) {
 	ImGui::Begin("Scenes");
 
-	auto& scenes{ ctx.editor.GetSceneManager().GetScenes() };
+	auto& scenes{
+		ctx.editor.GetSceneManager().GetScenes()
+	};
 
-	auto select_scene = [&](Scene* scene, const path& scene_path = path{}) {
-		SetSelectedScene(ctx.editor, scene, scene_path);
+	auto select_scene = [&](Scene* scene) {
+		SetSelectedScene(
+			ctx.editor,
+			scene
+		);
 
 		if (!selected_scene_) {
 			return;
 		}
 
-		auto& scene_hierarchy{ ctx.editor.GetSceneHierarchyPanel() };
-		const auto& entities{ selected_scene_->Entities() };
-
-		auto select_if_present = [&](Entity entity) {
-			if (!entity || !entities.Contains(entity)) {
-				return false;
-			}
-
-			scene_hierarchy.SetSelectedEntity(entity);
-			return true;
+		auto& scene_hierarchy{
+			ctx.editor.GetSceneHierarchyPanel()
 		};
 
-		auto& scene_ctx{ selected_scene_->ctx() };
-		auto render_target{ selected_scene_->GetRenderTarget() };
-		auto fixed_camera{ impl::SceneContextAccessor::GetFixedCamera(scene_ctx) };
+		const auto& entities{
+			selected_scene_->Entities()
+		};
+
+		auto select_if_present =
+			[&](Entity entity) {
+				if (!entity ||
+					!entities.Contains(entity)) {
+					return false;
+				}
+
+				scene_hierarchy.SetSelectedEntity(
+					entity
+				);
+
+				return true;
+			};
+
+		auto& scene_ctx{
+			selected_scene_->ctx()
+		};
+
+		auto render_target{
+			selected_scene_->GetRenderTarget()
+		};
+
+		auto fixed_camera{
+			impl::SceneContextAccessor::
+				GetFixedCamera(scene_ctx)
+		};
+
 		auto camera{ scene_ctx.camera };
 
-		auto regular_entity{ entities.FindIf([&](Entity entity) {
-			return entity != render_target && entity != fixed_camera && entity != camera;
-		}) };
+		auto regular_entity{
+			entities.FindIf(
+				[&](Entity entity) {
+					return
+						entity != render_target &&
+						entity != fixed_camera &&
+						entity != camera;
+				}
+			)
+		};
 
 		if (select_if_present(regular_entity)) {
 			return;
@@ -236,51 +278,93 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 	};
 
 	if (pending_scene_selection_.has_value() &&
-		ImGui::GetFrameCount() >= pending_scene_selection_->earliest_frame) {
-		const auto& pending{ pending_scene_selection_.value() };
+		ImGui::GetFrameCount() >=
+			pending_scene_selection_->
+				earliest_frame) {
+		const auto& pending{
+			pending_scene_selection_.value()
+		};
 
-		auto it{ std::ranges::find_if(
-			scenes,
-			[&pending](const auto& scene) {
-				return scene && scene->GetTag() == pending.tag &&
-					   scene->IsRuntime() == pending.runtime;
-			}
-		) };
+		auto it{
+			std::ranges::find_if(
+				scenes,
+				[&pending](
+					const auto& scene
+				) {
+					return
+						scene &&
+						scene->GetTag() ==
+							pending.tag &&
+						scene->IsRuntime() ==
+							pending.runtime;
+				}
+			)
+		};
 
 		if (it != scenes.end()) {
-			path scene_path{ pending.scene_path };
 			pending_scene_selection_.reset();
-			select_scene(it->get(), scene_path);
+			select_scene(it->get());
 		}
 	}
 
-	bool selected_scene_exists{ selected_scene_ && std::ranges::any_of(
-		scenes,
-		[this](const auto& scene) {
-			return scene.get() == selected_scene_;
-		}
-	) };
+	bool selected_scene_exists{
+		selected_scene_ &&
+		std::ranges::any_of(
+			scenes,
+			[this](const auto& scene) {
+				return
+					scene.get() ==
+					selected_scene_;
+			}
+		)
+	};
 
-	if (!selected_scene_exists && selected_scene_) {
-		// Do not pass the stale pointer to Editor::OnSelectedSceneChanged().
+	if (!selected_scene_exists &&
+		selected_scene_) {
 		selected_scene_ = nullptr;
-		selected_scene_path_.clear();
-		ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity({});
+		state_.reset();
+
+		ctx.editor
+			.GetSceneHierarchyPanel()
+			.SetSelectedEntity({});
 	}
 
-	if (!selected_scene_ && !pending_scene_selection_.has_value()) {
-		select_scene(scenes.empty() ? nullptr : scenes.front().get());
+	if (!selected_scene_ &&
+		!pending_scene_selection_.has_value()) {
+		select_scene(
+			scenes.empty()
+				? nullptr
+				: scenes.front().get()
+		);
 	}
 
-	for (auto i{ 0uz }; i < scenes.size(); ++i) {
-		const auto& scene{ scenes[i] };
+	for (const auto& scene : scenes) {
 		PTGN_ASSERT(scene);
 
-		bool selected{ scene.get() == selected_scene_ };
-		auto tag{ scene->GetTag() };
-		auto label{ tag.empty() ? "Untitled Scene" : tag.c_str() };
+		bool selected{
+			scene.get() == selected_scene_
+		};
 
-		if (ImGui::Selectable(label, selected)) {
+		std::string tag{ scene->GetTag() };
+
+		std::string label{
+			tag.empty()
+				? "Untitled Scene"
+				: tag
+		};
+
+		bool startup{
+			ctx.editor.IsStartupProjectScene(tag)
+		};
+
+		if (startup) {
+			label += " [Startup]";
+		}
+
+		if (ImGui::Selectable(
+				label.c_str(),
+				selected
+			)) {
 			select_scene(scene.get());
 		}
 
@@ -288,15 +372,26 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 			continue;
 		}
 
-		if (ImGui::MenuItem("Delete")) {
-			if (scene.get() == selected_scene_) {
-				SetSelectedScene(ctx.editor, nullptr);
-				ctx.editor.GetSceneHierarchyPanel().SetSelectedEntity({});
-			}
+		if (ImGui::MenuItem(
+				"Set as Startup Scene",
+				nullptr,
+				startup,
+				!startup &&
+					!ctx.state.is_playing
+			)) {
+			ctx.editor.SetStartupProjectScene(
+				tag
+			);
+		}
 
-			// Must happen after SetSelectedScene(ctx.editor, nullptr).
-			// TODO: Fix.
-			// ctx.editor.DeleteScene(i);
+		if (ImGui::MenuItem(
+				"Delete",
+				nullptr,
+				false,
+				!startup &&
+					!ctx.state.is_playing
+			)) {
+			ctx.editor.DeleteProjectScene(tag);
 
 			ImGui::EndPopup();
 			break;
@@ -306,60 +401,70 @@ void SceneListPanel::OnRender(EditorContext& ctx) {
 	}
 
 	if (ImGui::BeginPopupContextWindow(
-		"ScenesContext",
-		ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems
-	)) {
+			"ScenesContext",
+			ImGuiPopupFlags_MouseButtonRight |
+				ImGuiPopupFlags_NoOpenOverItems
+		)) {
 		if (ImGui::BeginMenu("Add Scene")) {
-			auto& scene_manager{ ctx.editor.GetSceneManager() };
-
 			if (ImGui::MenuItem("Scene")) {
-				std::string scene_tag{ MakeUniqueSceneTag(scene_manager, "Scene") };
+				ctx.editor.CreateProjectScene(
+					"Scene",
+					SerializedScene{
+						.type =
+							std::string{
+								impl::kBaseSceneType
+							},
+						.parameters =
+							json::object(),
+						.assets = {},
+						.content =
+							std::nullopt,
+					}
+				);
 
-				if (scene_manager.Enter<Scene>(scene_tag)) {
-					QueueSceneSelection(ctx.editor, std::move(scene_tag), false);
-					ImGui::CloseCurrentPopup();
-				}
+				ImGui::CloseCurrentPopup();
 			}
 
 			if (!impl::GetSceneRegistry().empty()) {
 				ImGui::Separator();
 			}
 
-			for (const auto& [scene_type, registration] : impl::GetSceneRegistry()) {
+			for (const auto& [
+				scene_type,
+				registration
+			] : impl::GetSceneRegistry()) {
 				(void)scene_type;
 
-				if (!ImGui::MenuItem(registration.display_name.c_str())) {
+				if (!ImGui::MenuItem(
+						registration
+							.display_name
+							.c_str()
+					)) {
 					continue;
 				}
 
-				std::string scene_tag{
-					MakeUniqueSceneTag(scene_manager, registration.display_name)
-				};
+				ctx.editor.CreateProjectScene(
+					registration.display_name,
+					SerializedScene{
+						.type =
+							registration.type,
+						.parameters =
+							registration
+								.default_parameters(),
+						.assets = {},
+						.content =
+							std::nullopt,
+					}
+				);
 
-				SerializedScene serialized_scene{
-					.type = registration.type,
-					.parameters = registration.default_parameters(),
-					.content = std::nullopt,
-				};
-
-				bool accepted{ scene_manager.EnterFactory(
-					scene_tag,
-					impl::MakeSceneFactory(std::move(serialized_scene), false)
-				) };
-
-				if (!accepted) {
-					continue;
-				}
-
-				QueueSceneSelection(ctx.editor, std::move(scene_tag), false);
 				ImGui::CloseCurrentPopup();
 			}
 
 			ImGui::EndMenu();
 		}
 
-	ImGui::EndPopup();
-}
+		ImGui::EndPopup();
+	}
 
 	DrawSceneParamUI(ctx);
 
@@ -371,56 +476,74 @@ Scene* SceneListPanel::GetSelectedScene() const {
 }
 
 bool SceneListPanel::ResolvePendingSceneSelection(Editor& editor) {
-	if (!pending_scene_selection_) {
+	if (!pending_scene_selection_.has_value()) {
 		return false;
 	}
 
-	const auto& pending{ pending_scene_selection_.value() };
-	auto& scenes{ editor.GetSceneManager().GetScenes() };
+	if (ImGui::GetFrameCount() <
+		pending_scene_selection_->earliest_frame) {
+		return false;
+	}
 
-	auto it{ std::ranges::find_if(
-		scenes,
-		[&pending](const auto& scene) {
-			return scene &&
-				   scene->GetTag() == pending.tag &&
-				   scene->IsRuntime() == pending.runtime;
-		}
-	) };
+	const auto& pending{
+		pending_scene_selection_.value()
+	};
+
+	auto& scenes{
+		editor.GetSceneManager().GetScenes()
+	};
+
+	auto it{
+		std::ranges::find_if(
+			scenes,
+			[&pending](const auto& scene) {
+				return scene &&
+					   scene->GetTag() == pending.tag &&
+					   scene->IsRuntime() == pending.runtime;
+			}
+		)
+	};
 
 	if (it == scenes.end()) {
 		return false;
 	}
 
-	path scene_path{ pending.scene_path };
+	auto* scene{ it->get() };
+
 	pending_scene_selection_.reset();
 
-	SetSelectedScene(editor, it->get(), scene_path);
-	editor.GetSceneHierarchyPanel().SetSelectedEntity({});
+	SetSelectedScene(editor, scene);
+
+	editor
+		.GetSceneHierarchyPanel()
+		.SetSelectedEntity({});
 
 	return true;
 }
 
 void SceneListPanel::QueueSceneSelection(
-	Editor&,
+	Editor& editor,
 	std::string scene_tag,
 	bool runtime
 ) {
-	pending_scene_selection_ = PendingSceneSelection{
-		.tag = std::move(scene_tag),
-		.runtime = runtime,
-		.scene_path = selected_scene_path_,
-	};
+	pending_scene_selection_ =
+		PendingSceneSelection{
+			.tag = std::move(scene_tag),
+			.runtime = runtime,
+			.earliest_frame =
+				ImGui::GetFrameCount() + 1,
+		};
+
+	editor
+		.GetSceneHierarchyPanel()
+		.SetSelectedEntity({});
 }
 
 void SceneListPanel::SetSelectedScene(
 	Editor& editor,
-	Scene* scene,
-	const path& scene_path
+	Scene* scene
 ) {
 	if (selected_scene_ == scene) {
-		if (!scene_path.empty()) {
-			selected_scene_path_ = scene_path;
-		}
 		return;
 	}
 
@@ -429,46 +552,62 @@ void SceneListPanel::SetSelectedScene(
 	bool previous_scene_exists{
 		previous_scene &&
 		std::ranges::any_of(
-			editor.GetSceneManager().GetScenes(),
-			[previous_scene](const auto& active_scene) {
-				return active_scene.get() == previous_scene;
+			editor.GetSceneManager()
+				.GetScenes(),
+			[previous_scene](
+				const auto& active_scene
+			) {
+				return
+					active_scene.get() ==
+					previous_scene;
 			}
 		)
 	};
 
 	selected_scene_ = scene;
-	selected_scene_path_ = scene_path;
 	state_.reset();
 
 	if (selected_scene_) {
 		std::string registered_type{
-			selected_scene_->GetRegisteredType()
+			selected_scene_->
+				GetRegisteredType()
 		};
 
 		if (registered_type.empty()) {
 			state_ = SceneEditorState{
 				.scene_type = {},
 				.display_name = "Scene",
-				.scene_tag = selected_scene_->GetTag(),
+				.scene_tag =
+					selected_scene_->GetTag(),
 				.params = json::object(),
 			};
 		} else {
 			const auto& registration{
-				impl::GetSceneRegistration(registered_type)
+				impl::GetSceneRegistration(
+					registered_type
+				)
 			};
 
 			state_ = SceneEditorState{
-				.scene_type = registration.type,
-				.display_name = registration.display_name,
-				.scene_tag = selected_scene_->GetTag(),
+				.scene_type =
+					registration.type,
+				.display_name =
+					registration.display_name,
+				.scene_tag =
+					selected_scene_->GetTag(),
 				.params =
-					registration.serialize_parameters(*selected_scene_),
+					registration
+						.serialize_parameters(
+							*selected_scene_
+						),
 			};
 		}
 	}
 
 	editor.OnSelectedSceneChanged(
-		previous_scene_exists ? previous_scene : nullptr,
+		previous_scene_exists
+			? previous_scene
+			: nullptr,
 		selected_scene_
 	);
 }

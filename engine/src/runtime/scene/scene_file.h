@@ -12,6 +12,12 @@
 
 namespace ptgn {
 
+namespace impl {
+
+inline constexpr std::string_view kBaseSceneType{ "$Scene" };
+
+} // namespace impl
+
 struct SerializedScene {
 	std::string type;
 	json parameters = json::object();
@@ -19,16 +25,25 @@ struct SerializedScene {
 	std::optional<json> content;
 };
 
-[[nodiscard]] SerializedScene LoadSceneFile(const std::filesystem::path& path);
-void SaveSceneFile(const std::filesystem::path& path, const SerializedScene& scene);
+[[nodiscard]] SerializedScene LoadSceneFile(
+	const std::filesystem::path& path
+);
 
-[[nodiscard]] SerializedScene CaptureScene(const Scene& scene);
+void SaveSceneFile(
+	const std::filesystem::path& path,
+	const SerializedScene& scene
+);
+
+[[nodiscard]] SerializedScene CaptureScene(
+	const Scene& scene
+);
 
 namespace impl {
 
-inline constexpr std::string_view kBaseSceneType{ "$Scene" };
-
-[[nodiscard]] SceneFactory MakeSceneFactory(SerializedScene scene, bool runtime);
+[[nodiscard]] SceneFactory MakeSceneFactory(
+	SerializedScene scene,
+	bool runtime
+);
 
 } // namespace impl
 

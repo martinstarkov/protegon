@@ -9,6 +9,10 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <cctype>
+#include <filesystem>
+#include <system_error>
+#include <vector>
 
 #include "app/application.h"
 #include "app/application_context.h"
@@ -21,6 +25,7 @@
 #include "core/editor_selection.h"
 #include "core/editor_state.h"
 #include "core/math/vector2.h"
+#include "core/util/file.h"
 #include "core/util/hash.h"
 #include "panels/content_browser.h"
 #include "panels/inspector.h"
@@ -44,6 +49,134 @@ namespace {
 
 constexpr float kLeftColumnRatio{ 0.25f };
 constexpr float kRightColumnRatio{ 0.30f };
+
+std::string MakeUniqueProjectSceneTag(
+	const Project& project,
+	std::string_view preferred_name
+) {
+	std::string base{
+		preferred_name.empty()
+			? "Scene"
+			: std::string{ preferred_name }
+	};
+
+	auto is_available =
+		[&project](std::string_view candidate) {
+			return FindProjectScene(
+				project,
+				candidate
+			) == nullptr;
+		};
+
+	if (is_available(base)) {
+		return base;
+	}
+
+	for (std::size_t index{ 2 };; ++index) {
+		std::string candidate{
+			base + " " + std::to_string(index)
+		};
+
+		if (is_available(candidate)) {
+			return candidate;
+		}
+	}
+}
+
+std::string SanitizeSceneFileName(
+	std::string_view preferred_name
+) {
+	std::string result;
+	result.reserve(preferred_name.size());
+
+	for (char c : preferred_name) {
+		auto byte{
+			static_cast<unsigned char>(c)
+		};
+
+		if (std::isalnum(byte) ||
+			c == ' ' ||
+			c == '-' ||
+			c == '_') {
+			result.push_back(c);
+		} else {
+			result.push_back('_');
+		}
+	}
+
+	while (!result.empty() &&
+		   (result.back() == ' ' ||
+			result.back() == '.')) {
+		result.pop_back();
+	}
+
+	if (result.empty()) {
+		return "Scene";
+	}
+
+	return result;
+}
+
+path MakeUniqueProjectScenePath(
+	const Project& project,
+	std::string_view preferred_name
+) {
+	std::string base{
+		SanitizeSceneFileName(preferred_name)
+	};
+
+	auto is_available =
+		[&project](
+			const path& candidate
+		) {
+			bool used_by_project{
+				std::ranges::any_of(
+					project.scenes,
+					[&candidate](
+						const ProjectSceneEntry& scene
+					) {
+						return
+							scene.scene_path.lexically_normal()
+								.generic_string() ==
+							candidate.lexically_normal()
+								.generic_string();
+					}
+				)
+			};
+
+			if (used_by_project) {
+				return false;
+			}
+
+			return !std::filesystem::exists(
+				project.file_path.parent_path() /
+				candidate
+			);
+		};
+
+	path candidate{
+		path{ "Scenes" } /
+		(base + ".ptgnscene")
+	};
+
+	if (is_available(candidate)) {
+		return candidate;
+	}
+
+	for (std::size_t index{ 2 };; ++index) {
+		candidate =
+			path{ "Scenes" } /
+			(
+				base + " " +
+				std::to_string(index) +
+				".ptgnscene"
+			);
+
+		if (is_available(candidate)) {
+			return candidate;
+		}
+	}
+}
 
 } // namespace
 
@@ -131,6 +264,315 @@ void Editor::OnRender() {
 	DrawPanels();
 
 	ImGui::End();
+}
+
+bool Editor::CreateProjectScene(
+	std::string_view preferred_name,
+	SerializedScene serialized_scene
+) {
+	PTGN_ASSERT(context_);
+
+	if (context_->state.is_playing) {
+		return false;
+	}
+
+	auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
+
+	if (!app_context.project.has_value()) {
+		return false;
+	}
+
+	auto& project{ app_context.project.value() };
+
+	std::string scene_tag{
+		MakeUniqueProjectSceneTag(
+			project,
+			preferred_name
+		)
+	};
+
+	std::filesystem::path relative_path{
+		MakeUniqueProjectScenePath(
+			project,
+			scene_tag
+		)
+	};
+
+	ProjectSceneEntry entry{
+		.tag = scene_tag,
+		.scene_path = relative_path,
+	};
+
+	auto absolute_path{
+		GetProjectScenePath(project, entry)
+	};
+
+	// Create the file before adding it to the project manifest.
+	SaveSceneFile(
+		absolute_path,
+		serialized_scene
+	);
+
+	project.scenes.emplace_back(entry);
+
+	SaveProject(project);
+
+	bool accepted{
+		GetSceneManager().EnterFactory(
+			scene_tag,
+			impl::MakeSceneFactory(
+				std::move(serialized_scene),
+				false
+			)
+		)
+	};
+
+	if (!accepted) {
+		std::erase_if(
+			project.scenes,
+			[&scene_tag](
+				const ProjectSceneEntry& scene
+			) {
+				return scene.tag == scene_tag;
+			}
+		);
+
+		SaveProject(project);
+
+		std::error_code error;
+		std::filesystem::remove(
+			absolute_path,
+			error
+		);
+
+		return false;
+	}
+
+	pending_scene_bootstrap_saves_.emplace(
+		scene_tag
+	);
+
+	scene_list_panel_.QueueSceneSelection(
+		*this,
+		scene_tag,
+		false
+	);
+
+	return true;
+}
+
+bool Editor::DeleteProjectScene(
+	std::string_view scene_tag
+) {
+	PTGN_ASSERT(context_);
+
+	if (context_->state.is_playing) {
+		return false;
+	}
+
+	auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
+
+	if (!app_context.project.has_value()) {
+		return false;
+	}
+
+	auto& project{ app_context.project.value() };
+
+	auto* entry{
+		FindProjectScene(project, scene_tag)
+	};
+
+	if (!entry) {
+		return false;
+	}
+
+	if (entry->scene_path.lexically_normal() ==
+		project.startup_scene.lexically_normal()) {
+		return false;
+	}
+
+	auto absolute_path{
+		GetProjectScenePath(project, *entry)
+	};
+
+	auto& scene_manager{ GetSceneManager() };
+
+	if (!scene_manager.Exit(scene_tag)) {
+		return false;
+	}
+
+	auto* selected_scene{
+		scene_list_panel_.GetSelectedScene()
+	};
+
+	if (selected_scene &&
+		selected_scene->GetTag() == scene_tag) {
+		scene_list_panel_.SetSelectedScene(
+			*this,
+			nullptr
+		);
+
+		scene_hierarchy_panel_.SetSelectedEntity({});
+	}
+
+	pending_scene_bootstrap_saves_.erase(
+		std::string{ scene_tag }
+	);
+
+	std::erase_if(
+		project.scenes,
+		[scene_tag](
+			const ProjectSceneEntry& scene
+		) {
+			return scene.tag == scene_tag;
+		}
+	);
+
+	// Remove the manifest entry before deleting the file.
+	SaveProject(project);
+
+	std::error_code error;
+
+	std::filesystem::remove(
+		absolute_path,
+		error
+	);
+
+	return true;
+}
+
+bool Editor::SetStartupProjectScene(
+	std::string_view scene_tag
+) {
+	PTGN_ASSERT(context_);
+
+	if (context_->state.is_playing) {
+		return false;
+	}
+
+	auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
+
+	if (!app_context.project.has_value()) {
+		return false;
+	}
+
+	auto& project{ app_context.project.value() };
+
+	const auto* entry{
+		FindProjectScene(project, scene_tag)
+	};
+
+	if (!entry) {
+		return false;
+	}
+
+	project.startup_scene = entry->scene_path;
+
+	SaveProject(project);
+
+	return true;
+}
+
+bool Editor::IsStartupProjectScene(
+	std::string_view scene_tag
+) const {
+	const auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
+
+	if (!app_context.project.has_value()) {
+		return false;
+	}
+
+	const auto& project{
+		app_context.project.value()
+	};
+
+	const auto* entry{
+		FindProjectScene(project, scene_tag)
+	};
+
+	return entry &&
+		   entry->scene_path.lexically_normal() ==
+			   project.startup_scene.lexically_normal();
+}
+
+void Editor::SavePendingBootstrapScenes() {
+	if (pending_scene_bootstrap_saves_.empty()) {
+		return;
+	}
+
+	auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
+
+	if (!app_context.project.has_value()) {
+		pending_scene_bootstrap_saves_.clear();
+		return;
+	}
+
+	auto& project{ app_context.project.value() };
+	auto& scene_manager{ GetSceneManager() };
+
+	std::vector<const Scene*> scenes;
+	std::vector<std::string> saved_tags;
+
+	scenes.reserve(
+		pending_scene_bootstrap_saves_.size()
+	);
+
+	saved_tags.reserve(
+		pending_scene_bootstrap_saves_.size()
+	);
+
+	for (const auto& scene_tag :
+		 pending_scene_bootstrap_saves_) {
+		auto scene_hash{ Hash(scene_tag) };
+
+		if (!scene_manager.HasScene(scene_hash)) {
+			continue;
+		}
+
+		auto& scene{
+			scene_manager.GetScene(scene_hash)
+		};
+
+		if (scene.IsRuntime()) {
+			continue;
+		}
+
+		PTGN_ASSERT(
+			FindProjectScene(project, scene_tag),
+			"Pending bootstrap scene is not in the project manifest: ",
+			scene_tag
+		);
+
+		scenes.emplace_back(&scene);
+		saved_tags.emplace_back(scene_tag);
+	}
+
+	if (scenes.empty()) {
+		return;
+	}
+
+	if (!impl::SaveProjectScenes(
+			app,
+			std::span<const Scene* const>{ scenes }
+		)) {
+		return;
+	}
+
+	for (const auto& scene_tag : saved_tags) {
+		pending_scene_bootstrap_saves_.erase(
+			scene_tag
+		);
+	}
 }
 
 void Editor::DrawMainMenuBar() {
@@ -232,21 +674,27 @@ void Editor::EnableRendering(bool enable) {
 }
 
 void Editor::OnUpdate() {
-	const auto& io{ ImGui::GetIO() };
-
-	bool save_modifier{ io.KeyCtrl || io.KeySuper };
-
-	if (save_modifier && ImGui::IsKeyPressed(ImGuiKey_S, false) &&
-		!context_->state.is_playing) {
-		SaveProjectScene();
-	}
-
 	if (ImGui::IsKeyPressed(ImGuiKey_F10)) {
 		EnableRendering(!render_enabled_);
 	}
 
-	if (auto* scene{ scene_list_panel_.GetSelectedScene() }) {
-		SetSceneEntityPickingEnabled(*scene, ShouldEnableEntityPicking());
+	const auto& io{ ImGui::GetIO() };
+
+	if ((io.KeyCtrl || io.KeySuper) &&
+		ImGui::IsKeyPressed(ImGuiKey_S, false) &&
+		!context_->state.is_playing) {
+		SaveProjectScene();
+	}
+
+	SavePendingBootstrapScenes();
+
+	if (auto* scene{
+			scene_list_panel_.GetSelectedScene()
+		}) {
+		SetSceneEntityPickingEnabled(
+			*scene,
+			ShouldEnableEntityPicking()
+		);
 	}
 }
 
@@ -298,7 +746,10 @@ void Editor::Play() {
 		return;
 	}
 
-	auto* scene{ scene_list_panel_.GetSelectedScene() };
+	auto* scene{
+		scene_list_panel_.GetSelectedScene()
+	};
+
 	if (!scene || scene->IsRuntime()) {
 		return;
 	}
@@ -312,11 +763,16 @@ void Editor::Play() {
 	context_->selection.Clear();
 	undo_stack_.Clear();
 
-	SetApplicationState(ApplicationState::Running);
+	SetApplicationState(
+		ApplicationState::Running
+	);
 
 	if (!GetSceneManager().ReEnterFactory(
 			play_snapshot_->scene_tag,
-			impl::MakeSceneFactory(play_snapshot_->scene, true)
+			impl::MakeSceneFactory(
+				play_snapshot_->scene,
+				true
+			)
 		)) {
 		play_snapshot_.reset();
 		return;
@@ -328,6 +784,8 @@ void Editor::Play() {
 		true
 	);
 
+	viewport_panel_.SetUseEditorCamera(false);
+
 	context_->state.is_playing = true;
 	context_->state.is_paused = false;
 }
@@ -335,22 +793,41 @@ void Editor::Play() {
 void Editor::Stop() {
 	PTGN_ASSERT(context_);
 
-	if (!context_->state.is_playing || !play_snapshot_) {
+	if (!context_->state.is_playing ||
+		!play_snapshot_) {
 		return;
 	}
 
 	context_->selection.Clear();
-	SetApplicationState(ApplicationState::Running);
 
-	std::string scene_tag{ play_snapshot_->scene_tag };
-	auto factory{ impl::MakeSceneFactory(play_snapshot_->scene, false) };
+	SetApplicationState(
+		ApplicationState::Running
+	);
+
+	std::string scene_tag{
+		play_snapshot_->scene_tag
+	};
+
+	auto factory{
+		impl::MakeSceneFactory(
+			play_snapshot_->scene,
+			false
+		)
+	};
+
 	auto& manager{ GetSceneManager() };
 	auto scene_hash{ Hash(scene_tag) };
 
 	bool accepted{
 		manager.HasScene(scene_hash)
-			? manager.ReEnterFactory(scene_tag, std::move(factory))
-			: manager.EnterFactory(scene_tag, std::move(factory))
+			? manager.ReEnterFactory(
+				scene_tag,
+				std::move(factory)
+			)
+			: manager.EnterFactory(
+				scene_tag,
+				std::move(factory)
+			)
 	};
 
 	if (!accepted) {
@@ -363,9 +840,13 @@ void Editor::Stop() {
 		false
 	);
 
+	viewport_panel_.SetUseEditorCamera(true);
+
 	context_->state.is_playing = false;
 	context_->state.is_paused = false;
-	context_->state.is_dirty = play_snapshot_->was_dirty;
+	context_->state.is_dirty =
+		play_snapshot_->was_dirty;
+
 	play_snapshot_.reset();
 }
 
@@ -389,13 +870,49 @@ void Editor::SaveProjectScene() {
 		return;
 	}
 
-	auto* scene{ scene_list_panel_.GetSelectedScene() };
+	auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
 
-	if (!scene) {
+	if (!app_context.project.has_value()) {
 		return;
 	}
 
-	if (!impl::SaveProjectScene(app, *scene, true)) {
+	const auto& project{
+		app_context.project.value()
+	};
+
+	auto& scene_manager{ GetSceneManager() };
+
+	std::vector<const Scene*> scenes;
+	scenes.reserve(project.scenes.size());
+
+	for (const auto& entry : project.scenes) {
+		auto scene_hash{ Hash(entry.tag) };
+
+		PTGN_ASSERT(
+			scene_manager.HasScene(scene_hash),
+			"Project scene is not loaded in the editor: ",
+			entry.tag
+		);
+
+		auto& scene{
+			scene_manager.GetScene(scene_hash)
+		};
+
+		PTGN_ASSERT(
+			!scene.IsRuntime(),
+			"Cannot save a runtime scene: ",
+			entry.tag
+		);
+
+		scenes.emplace_back(&scene);
+	}
+
+	if (!impl::SaveProjectScenes(
+			app,
+			std::span<const Scene* const>{ scenes }
+		)) {
 		return;
 	}
 
@@ -467,11 +984,16 @@ V2_int Editor::GetPresentationTextureSize() const {
 }
 
 void Editor::OnProjectChanged() {
-	PTGN_ASSERT(context_, "Editor context must be initialized");
+	PTGN_ASSERT(
+		context_,
+		"Editor context must be initialized"
+	);
+
 	context_->selection.Clear();
 
 	undo_stack_.Clear();
 	play_snapshot_.reset();
+	pending_scene_bootstrap_saves_.clear();
 
 	context_->state.is_dirty = false;
 	context_->state.is_playing = false;
