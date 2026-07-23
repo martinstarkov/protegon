@@ -104,7 +104,7 @@ struct EventCondition {
 	bool enabled{ true };
 	bool consume{ false };
 	TypeHashValue type_hash{ 0 };
-	json value{ json::object() };
+	json value;
 
 	PTGN_REFLECT(EventCondition, enabled, consume, type_hash, value)
 };
@@ -376,7 +376,7 @@ public:
 			.serializable = options.serializable,
 			.default_timing = std::move(options.default_timing),
 			.make_default = [] {
-				json output{ json::object() };
+				json output;
 				if constexpr (std::default_initializable<T>) {
 					T value{};
 					if constexpr (requires(json& j, const T& v) { j = v; }) {
@@ -520,7 +520,7 @@ struct SharedScriptSequenceRegistry {
 template <typename TEvent>
 struct SequenceEventRegistrationOptions {
 	std::uint32_t schema_version{ 1 };
-	json default_value{ json::object() };
+	json default_value;
 	std::function<bool(Entity, const json&, const TEvent&)> matches;
 	std::function<bool(Entity)> available{ [](Entity) { return true; } };
 };
@@ -674,10 +674,10 @@ private:
 	Entity owner_;
 };
 
-} // namespace impl
+void from_json(const json& j, Scripts& scripts);
+void to_json(json& j, const Scripts& scripts);
 
-void from_json(const json& j, impl::Scripts& scripts);
-void to_json(json& j, const impl::Scripts& scripts);
+} // namespace impl
 
 struct SequenceHandle {
 	Entity owner;
@@ -864,7 +864,7 @@ T& impl::Scripts::Add(Entity owner, TArgs&&... constructor_args) {
 	impl_ScriptAccess::Attach(*instance, owner);
 	auto* raw{ instance.get() };
 
-	json snapshot{ json::object() };
+	json snapshot;
 	if constexpr (requires(json& j, const T& value) { j = value; }) {
 		try {
 			snapshot = *instance;

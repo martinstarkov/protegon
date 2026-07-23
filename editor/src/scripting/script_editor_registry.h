@@ -102,6 +102,7 @@ struct ScriptEditorContext {
 struct SequenceStepEditorRegistration {
 	TypeHashValue type_hash{ 0 };
 	SequenceStepEditorOptions options;
+	std::function<bool(json&, ScriptEditorContext&)> draw_inline;
 	std::function<bool(json&, ScriptEditorContext&)> draw;
 };
 
@@ -151,7 +152,39 @@ public:
 		entries.push_back(SequenceStepEditorRegistration{
 			.type_hash = type_hash,
 			.options = std::move(options),
-			.draw = [fn = std::forward<F>(draw)](json& input, ScriptEditorContext& context) mutable {
+			.draw_inline = {},
+			.draw = [fn = std::forward<F>(draw)](
+				json& input, ScriptEditorContext& context
+			) mutable {
+				return DrawTypedJsonEditor<T>(input, context, fn);
+			},
+		});
+		return inserted;
+	}
+
+	template <ScriptType T, typename FInline, typename FDetails>
+	static bool RegisterInline(
+		SequenceStepEditorOptions options, FInline&& draw_inline, FDetails&& draw_details
+	) {
+		auto& entries{ MutableEntries() };
+		const TypeHashValue type_hash{ Hash<T>() };
+		const bool inserted{ std::ranges::none_of(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		}) };
+		std::erase_if(entries, [type_hash](const auto& entry) {
+			return entry.type_hash == type_hash;
+		});
+		entries.push_back(SequenceStepEditorRegistration{
+			.type_hash = type_hash,
+			.options = std::move(options),
+			.draw_inline = [fn = std::forward<FInline>(draw_inline)](
+				json& input, ScriptEditorContext& context
+			) mutable {
+				return DrawTypedJsonEditor<T>(input, context, fn);
+			},
+			.draw = [fn = std::forward<FDetails>(draw_details)](
+				json& input, ScriptEditorContext& context
+			) mutable {
 				return DrawTypedJsonEditor<T>(input, context, fn);
 			},
 		});
@@ -195,7 +228,9 @@ public:
 			.type_hash = type_hash,
 			.options = std::move(options),
 			.has_contents = !std::is_empty_v<T>,
-			.draw = [fn = std::forward<F>(draw)](json& input, ScriptEditorContext& context) mutable {
+			.draw = [fn = std::forward<F>(draw)](
+				json& input, ScriptEditorContext& context
+			) mutable {
 				return DrawTypedJsonEditor<T>(input, context, fn);
 			},
 		});
@@ -215,11 +250,31 @@ struct SequenceStepEditorDefinition {
 	F draw;
 };
 
+template <typename FInline, typename FDetails>
+struct InlineSequenceStepEditorDefinition {
+	SequenceStepEditorOptions options;
+	FInline draw_inline;
+	FDetails draw_details;
+};
+
 template <typename F>
 [[nodiscard]] auto SequenceStepEditor(SequenceStepEditorOptions options, F&& draw) {
 	return SequenceStepEditorDefinition<std::decay_t<F>>{
 		.options = std::move(options),
 		.draw = std::forward<F>(draw),
+	};
+}
+
+template <typename FInline, typename FDetails>
+[[nodiscard]] auto SequenceStepEditor(
+	SequenceStepEditorOptions options, FInline&& draw_inline, FDetails&& draw_details
+) {
+	return InlineSequenceStepEditorDefinition<
+		std::decay_t<FInline>, std::decay_t<FDetails>
+	>{
+		.options = std::move(options),
+		.draw_inline = std::forward<FInline>(draw_inline),
+		.draw_details = std::forward<FDetails>(draw_details),
 	};
 }
 
@@ -243,6 +298,16 @@ template <ScriptType T, typename F>
 bool RegisterScriptEditorDefinition(SequenceStepEditorDefinition<F> definition) {
 	return SequenceStepEditorRegistry::Register<T>(
 		std::move(definition.options), std::move(definition.draw)
+	);
+}
+
+template <ScriptType T, typename FInline, typename FDetails>
+bool RegisterScriptEditorDefinition(
+	InlineSequenceStepEditorDefinition<FInline, FDetails> definition
+) {
+	return SequenceStepEditorRegistry::RegisterInline<T>(
+		std::move(definition.options), std::move(definition.draw_inline),
+		std::move(definition.draw_details)
 	);
 }
 

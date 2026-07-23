@@ -241,13 +241,13 @@ struct ResetShakeScript : public Script {
 };
 
 struct FollowTargetScript : public Script {
-	Entity target;
+	UUID target;
 	float speed{ 120.0f };
 	float stopping_distance{ 2.0f };
 
 	FollowTargetScript() = default;
 	FollowTargetScript(Entity target, float speed, float stopping_distance = 2.0f) :
-		target{ target }, speed{ speed }, stopping_distance{ stopping_distance } {}
+		target{ target.Get<UUID>() }, speed{ speed }, stopping_distance{ stopping_distance } {}
 
 	[[nodiscard]] ScriptStatus OnUpdate() override;
 
@@ -256,12 +256,12 @@ struct FollowTargetScript : public Script {
 
 /// Full configured target-follow behavior matching TargetFollowConfig.
 struct FollowEntityScript : public Script {
-	Entity target;
+	UUID target;
 	TargetFollowConfig config;
 
 	FollowEntityScript() = default;
 	FollowEntityScript(Entity target, TargetFollowConfig config = {}) :
-		target{ target }, config{ std::move(config) } {}
+		target{ target.Get<UUID>() }, config{ std::move(config) } {}
 
 	void OnStart() override;
 	[[nodiscard]] ScriptStatus OnUpdate() override;

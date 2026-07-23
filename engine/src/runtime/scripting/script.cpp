@@ -300,7 +300,9 @@ namespace {
 
 } // namespace
 
-void to_json(json& output, const impl::Scripts& scripts) {
+namespace impl {
+
+void to_json(json& output, const Scripts& scripts) {
 	output = json{ { "scripts", json::array() } };
 	auto& serialized{ output["scripts"] };
 	for (const auto& entry : scripts.scripts) {
@@ -325,7 +327,7 @@ void to_json(json& output, const impl::Scripts& scripts) {
 	}
 }
 
-void from_json(const json& input, impl::Scripts& scripts) {
+void from_json(const json& input, Scripts& scripts) {
 	if (input.is_object() && input.contains("scripts")) {
 		input.at("scripts").get_to(scripts.scripts);
 	} else if (input.is_array()) {
@@ -336,6 +338,8 @@ void from_json(const json& input, impl::Scripts& scripts) {
 	scripts.pending_removals.clear();
 	scripts.Attach({});
 }
+
+} // namespace impl
 
 namespace script_runtime {
 

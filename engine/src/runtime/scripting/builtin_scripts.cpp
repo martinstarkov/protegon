@@ -427,12 +427,15 @@ void ResetShakeScript::OnStart() {
 }
 
 ScriptStatus FollowTargetScript::OnUpdate() {
-	if (!target || !target.Has<Transform>() || !Owner().Has<Transform>()) {
+	const auto& scene{ entity.GetScene() };
+	auto target_entity{ scene.GetEntity(target) };
+
+	if (!target_entity || !target_entity.Has<Transform>() || !Owner().Has<Transform>()) {
 		return ScriptStatus::Complete;
 	}
 
 	auto& position{ Owner().Get<Transform>().position };
-	const V2_float offset{ target.Get<Transform>().position - position };
+	const V2_float offset{ target_entity.Get<Transform>().position - position };
 	const float distance{ std::sqrt(offset.x * offset.x + offset.y * offset.y) };
 	if (distance <= std::max(0.0f, stopping_distance)) {
 		return ScriptStatus::Complete;
@@ -449,8 +452,11 @@ ScriptStatus FollowTargetScript::OnUpdate() {
 }
 
 void FollowEntityScript::OnStart() {
-	if (config.teleport_on_start && target) {
-		SetPosition(Owner(), GetPosition(target) + config.offset);
+	const auto& scene{ entity.GetScene() };
+	auto target_entity{ scene.GetEntity(target) };
+
+	if (config.teleport_on_start && target_entity) {
+		SetPosition(Owner(), GetPosition(target_entity) + config.offset);
 	}
 	StartFollowMovement(Owner(), config);
 }
@@ -459,12 +465,16 @@ ScriptStatus FollowEntityScript::OnUpdate() {
 	if (!config.follow_x && !config.follow_y) {
 		return ScriptStatus::Running;
 	}
-	if (!target) {
+
+	const auto& scene{ entity.GetScene() };
+	auto target_entity{ scene.GetEntity(target) };
+
+	if (!target_entity) {
 		return ScriptStatus::Complete;
 	}
 
 	const V2_float current{ GetWorldPosition(Owner()) };
-	const V2_float target_position{ GetWorldPosition(target) + config.offset };
+	const V2_float target_position{ GetWorldPosition(target_entity) + config.offset };
 	V2_float direction{ target_position - current };
 
 	if (config.move_mode == MoveMode::Velocity) {
