@@ -23,52 +23,6 @@ namespace ptgn::editor {
 
 namespace {
 
-std::string MakeUniqueSceneTag(
-	const impl::SceneManager& scene_manager,
-	std::string_view base_name
-) {
-	auto is_available = [&](std::string_view tag) {
-		return std::ranges::none_of(
-			scene_manager.GetScenes(),
-			[tag](const auto& scene) {
-				return scene && scene->GetTag() == tag;
-			}
-		);
-	};
-
-	std::string base{ base_name.empty() ? "Scene" : std::string{ base_name } };
-
-	if (is_available(base)) {
-		return base;
-	}
-
-	for (std::size_t index{ 2 };; ++index) {
-		std::string candidate{ base + " " + std::to_string(index) };
-
-		if (is_available(candidate)) {
-			return candidate;
-		}
-	}
-}
-
-std::optional<SceneEditorState> MakeSceneEditorState(std::string_view scene_type) {
-	auto& registry{ impl::GetSceneRegistry() };
-	auto it{ registry.find(scene_type) };
-
-	if (it == registry.end()) {
-		return std::nullopt;
-	}
-
-	const auto& registration{ it->second };
-
-	return SceneEditorState{
-		.scene_type = registration.type,
-		.display_name = registration.display_name,
-		.scene_tag = "Main",
-		.params = registration.default_parameters(),
-	};
-}
-
 void DrawJsonEditor(const char* label, json& value) {
 	if (value.is_boolean()) {
 		bool v{ value.get<bool>() };

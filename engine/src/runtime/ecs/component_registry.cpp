@@ -41,6 +41,7 @@
 
 namespace ptgn {
 
+PTGN_REGISTER_COMPONENT(impl::RenderTargetSize);
 PTGN_REGISTER_COMPONENT(Transform);
 PTGN_REGISTER_COMPONENT(Depth);
 PTGN_REGISTER_COMPONENT(Tint);

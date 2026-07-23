@@ -16,6 +16,7 @@
 #include "core/math/geometry/circle.h"
 #include "core/math/geometry/origin.h"
 #include "core/math/geometry/rect.h"
+#include "runtime/graphics/render_target.h"
 #include "core/math/transform.h"
 #include "panels/component_editor_registry.h"
 #include "panels/inspector_fields.h"
@@ -616,7 +617,59 @@ void DrawTransformComponent(Entity entity) {
 	ImGui::Unindent();
 }
 
+
+bool DrawRenderTargetSizeContents(Entity entity) {
+	auto& target_size{ entity.Get<::ptgn::impl::RenderTargetSize>() };
+
+	bool changed{
+		ImGui::Checkbox(
+			"Follow Display Size",
+			&target_size.follow_display_size
+		)
+	};
+
+	ImGui::BeginDisabled(target_size.follow_display_size);
+
+	int size[2]{
+		target_size.size.x,
+		target_size.size.y,
+	};
+
+	if (ImGui::DragInt2(
+			"Size",
+			size,
+			1.0f,
+			1,
+			16384,
+			"%d",
+			ImGuiSliderFlags_AlwaysClamp
+		)) {
+		target_size.size = {
+			std::max(size[0], 1),
+			std::max(size[1], 1),
+		};
+
+		changed = true;
+	}
+
+	ImGui::EndDisabled();
+
+	return changed;
+}
+
 } // namespace
+
+PTGN_REGISTER_COMPONENT(
+	::ptgn::impl::RenderTargetSize,
+	{
+		.label = "Render Target Size",
+		.group = "Graphics",
+		.removable = false,
+		.addable = false,
+		.draw_contents = &DrawRenderTargetSizeContents,
+	}
+);
+
 
 PTGN_REGISTER_COMPONENT(
 	::ptgn::impl::CameraData,

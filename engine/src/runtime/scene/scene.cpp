@@ -77,6 +77,33 @@ constexpr std::string_view kDefaultSceneFixedCameraTag{ "Fixed Camera" };
 constexpr LayerMask kDefaultFixedCameraIncludeLayerMask{ kLayersNone };
 constexpr LayerMask kDefaultFixedCameraExcludeLayerMask{ kLayersAll };
 
+void UpdateRenderTargetSizes(Scene& scene) {
+	auto display_size{ scene.ctx().renderer.GetDisplaySize() };
+
+	if (!display_size.IsPositive()) {
+		display_size = scene.ctx().renderer.GetPresentationSize();
+	}
+
+	if (!display_size.IsPositive()) {
+		return;
+	}
+
+	for (auto [entity, framebuffer] : scene.EntitiesWith<impl::FramebufferObject>()) {
+		if (!entity.Has<impl::RenderTargetSize>()) {
+			// Backwards compatibility for render targets serialized before
+			// RenderTargetSize existed. Existing targets become fixed-size.
+			entity.Add<impl::RenderTargetSize>(
+				impl::RenderTargetSize{
+					.follow_display_size = false,
+					.size = framebuffer.GetDesc().size,
+				}
+			);
+		}
+
+		RenderTarget{ entity }.UpdateSize(display_size);
+	}
+}
+
 void ApplyCameraEffects(
 	Renderer& render, DrawContext& draw_context, Viewport display_viewport,
 	V2_float render_target_size, const Matrix4& view_projection, Color tint,
@@ -375,7 +402,8 @@ void Scene::Init(Application& app, impl::SceneData&& scene_data) {
 	}
 
 	Refresh();
-	
+	UpdateRenderTargetSizes(*this);
+
 	auto& app_context{ impl::ApplicationAccessor::ctx(app) };
 	
 	impl::SaveBootstrapProjectScene(
@@ -566,6 +594,7 @@ void Scene::DeserializeContent(const json& serialized_content) {
 	}
 
 	Refresh();
+	UpdateRenderTargetSizes(*this);
 }
 
 void Scene::InternalOnEvent(Event event) {
@@ -693,6 +722,10 @@ void Scene::DrawCameras(DrawContext& draw_context, const std::vector<Entity>& ca
 }
 
 void Scene::InternalDraw(DrawContext& draw_context) {
+	// The editor may update its presentation viewport after scene update.
+	// Synchronize again immediately before rendering to avoid a stretched frame.
+	UpdateRenderTargetSizes(*this);
+
 	ClearRenderTargets();
 
 	if (const auto& primary_world_camera{ ctx().renderer.GetPrimaryWorldCamera() };
@@ -814,6 +847,9 @@ void Scene::InternalRuntimeUpdate() {
 }
 
 void Scene::InternalMaintenanceUpdate() {
+	// Runs for editor and runtime scenes, unlike gameplay-only resize events.
+	UpdateRenderTargetSizes(*this);
+
 	for (auto [camera_entity, _data] : EntitiesWith<impl::CameraData>()) {
 		impl::ApplyCameraBounds(SceneCamera{ camera_entity });
 	}
