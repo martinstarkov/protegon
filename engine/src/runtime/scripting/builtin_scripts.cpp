@@ -156,10 +156,10 @@ void StartFollowMovement(Entity entity, const FollowConfig& config) {
 }
 
 void MoveUsingVelocity(const FollowConfig& config, Entity entity, V2_float direction) {
-	PTGN_ASSERT(
-		entity.Has<TopDownMovement>(),
-		"Entity with MoveMode::Velocity must have a TopDownMovement component"
-	);
+	if (!entity.Has<TopDownMovement>()) {
+		PTGN_WARN("Entity with MoveMode::Velocity should have a TopDownMovement component");
+		return;
+	}
 
 	const float distance_squared{ direction.MagnitudeSquared() };
 	if (config.stop_distance.has_value() &&
