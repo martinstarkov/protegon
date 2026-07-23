@@ -26,13 +26,6 @@ namespace ptgn {
 
 namespace {
 
-V2_int ClampRenderTargetSize(V2_int size) {
-	return {
-		std::max(size.x, 1),
-		std::max(size.y, 1),
-	};
-}
-
 V2_int GetInitialDisplaySize(Renderer& renderer) {
 	auto size{ renderer.GetDisplaySize() };
 
@@ -57,7 +50,7 @@ RenderTarget CreateRenderTargetImpl(
 ) {
 	RenderTarget render_target{ scene.CreateEntity() };
 
-	target_size.size = ClampRenderTargetSize(target_size.size);
+	target_size.size = Max(target_size.size, { 1, 1 });
 
 	render_target.Add<Tag>("Render Target");
 	render_target.Add<Visible>(true);
@@ -285,7 +278,7 @@ bool RenderTarget::UpdateSize(V2_int display_size) {
 
 		target_size.size = display_size;
 	} else {
-		target_size.size = ClampRenderTargetSize(target_size.size);
+		target_size.size = Max(target_size.size, { 1, 1 });
 	}
 
 	auto& framebuffer{ Get<impl::FramebufferObject>() };

@@ -26,6 +26,7 @@ namespace impl {
 
 struct RenderTargetSize {
 	bool follow_display_size{ true };
+	/// @brief Must be above zero.
 	V2_int size{ 1, 1 };
 
 	PTGN_REFLECT(RenderTargetSize, follow_display_size, size)
@@ -95,11 +96,11 @@ public:
 	void SetClearDepthStencil(DepthStencil clear_depth_stencil);
 	std::optional<DepthStencil> GetClearDepthStencil() const;
 
-	/// @brief Enables or disables automatic display-size tracking.
-	/// When disabled, the current frame-buffer size becomes the custom size.
+	/// @brief Enables or disables automatic display size tracking.
+	/// When disabled, the current framebuffer size becomes the custom size.
 	RenderTarget& SetFollowDisplaySize(bool follow_display_size);
 
-	/// @brief Sets a custom render-target size and disables display-size tracking.
+	/// @brief Sets a custom render target size and disables display size tracking.
 	RenderTarget& SetSize(V2_int size);
 
 	/// @return Whether the target tracks the renderer display size.
@@ -109,10 +110,10 @@ public:
 	/// When following the display, this is refreshed every frame.
 	V2_int GetConfiguredSize() const;
 
-	/// @return The scale of the actual frame-buffer size relative to the logical size.
+	/// @return The scale of the actual framebuffer size relative to the logical size.
 	V2_float GetScale() const;
 
-	/// @return The actual frame-buffer size.
+	/// @return The actual framebuffer size.
 	V2_int GetSize() const;
 
 	TextureFormat GetFormat() const;
