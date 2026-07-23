@@ -139,7 +139,7 @@ bool DrawTypedJsonEditor(json& input, ScriptEditorContext& context, F& fn) {
 
 class SequenceStepEditorRegistry {
 public:
-	template <ScriptType T, typename F>
+	template <ScriptClass T, typename F>
 	static bool Register(SequenceStepEditorOptions options, F&& draw) {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<T>() };
@@ -162,7 +162,7 @@ public:
 		return inserted;
 	}
 
-	template <ScriptType T, typename FInline, typename FDetails>
+	template <ScriptClass T, typename FInline, typename FDetails>
 	static bool RegisterInline(
 		SequenceStepEditorOptions options, FInline&& draw_inline, FDetails&& draw_details
 	) {
@@ -214,7 +214,7 @@ struct ScriptEditorRegistration {
 
 class ScriptEditorRegistry {
 public:
-	template <ScriptType T, typename F>
+	template <ScriptClass T, typename F>
 	static bool Register(ScriptEditorOptions options, F&& draw) {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<T>() };
@@ -294,14 +294,14 @@ template <typename F>
 
 namespace impl {
 
-template <ScriptType T, typename F>
+template <ScriptClass T, typename F>
 bool RegisterScriptEditorDefinition(SequenceStepEditorDefinition<F> definition) {
 	return SequenceStepEditorRegistry::Register<T>(
 		std::move(definition.options), std::move(definition.draw)
 	);
 }
 
-template <ScriptType T, typename FInline, typename FDetails>
+template <ScriptClass T, typename FInline, typename FDetails>
 bool RegisterScriptEditorDefinition(
 	InlineSequenceStepEditorDefinition<FInline, FDetails> definition
 ) {
@@ -311,7 +311,7 @@ bool RegisterScriptEditorDefinition(
 	);
 }
 
-template <ScriptType T, typename F>
+template <ScriptClass T, typename F>
 bool RegisterScriptEditorDefinition(RootScriptEditorDefinition<F> definition) {
 	return ScriptEditorRegistry::Register<T>(
 		std::move(definition.options), std::move(definition.draw)
@@ -320,7 +320,7 @@ bool RegisterScriptEditorDefinition(RootScriptEditorDefinition<F> definition) {
 
 } // namespace impl
 
-template <ScriptType T, typename... TDefinition>
+template <ScriptClass T, typename... TDefinition>
 bool RegisterScriptEditors(TDefinition&&... definition) {
 	bool inserted{ false };
 	((inserted = impl::RegisterScriptEditorDefinition<T>(

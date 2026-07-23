@@ -120,9 +120,9 @@ int main() {
 	/*
 	std::weak_ptr<CollisionScript> weak = entity.GetComponent<CollisionScript>();
 
-	std::unordered_map<ScriptType, std::vector<std::function<void()>>> queues;
+	std::unordered_map<ScriptClass, std::vector<std::function<void()>>> queues;
 
-	queues[ScriptType::CollisionInfo].emplace_back([weak]() {
+	queues[ScriptClass::CollisionInfo].emplace_back([weak]() {
 		if (auto script = weak.lock()) {
 			script->OnCollisionStart(...);
 		}

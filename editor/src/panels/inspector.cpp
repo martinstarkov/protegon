@@ -465,7 +465,7 @@ ScriptEntry MakeRootEntry(TypeHashValue type_hash) {
 	return entry;
 }
 
-template <ScriptType T>
+template <ScriptClass T>
 ScriptEntry MakeRootEntry(T script) {
 	const auto* registration{ ScriptRegistry::Find(Hash<T>()) };
 	if (!registration) {

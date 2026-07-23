@@ -289,7 +289,7 @@ struct WaitScript : public Script {
 };
 
 template <typename T>
-concept ScriptType = std::derived_from<T, Script>;
+concept ScriptClass = std::derived_from<T, Script>;
 
 struct impl_ScriptAccess {
 	static void Attach(Script& script, Entity owner) { script.entity = owner; }
@@ -353,12 +353,12 @@ struct ScriptRegistration {
 
 class ScriptRegistry {
 public:
-	template <ScriptType T>
+	template <ScriptClass T>
 	static bool Register() {
 		return Register<T>(ScriptRegistrationOptions{});
 	}
 
-	template <ScriptType T>
+	template <ScriptClass T>
 	static bool Register(ScriptRegistrationOptions options) {
 		auto& entries{ MutableEntries() };
 		const TypeHashValue type_hash{ Hash<T>() };
@@ -428,7 +428,7 @@ public:
 	}
 
 	/// @brief Compatibility overload for direct registrations that have not migrated to options.
-	template <ScriptType T>
+	template <ScriptClass T>
 	static bool Register(
 		bool supports_timing, bool requires_timing = false,
 		std::optional<ScriptTiming> default_timing = std::nullopt,
@@ -443,7 +443,7 @@ public:
 		});
 	}
 
-	template <ScriptType T>
+	template <ScriptClass T>
 	static void EnsureRegistered() {
 		if (!Find(Hash<T>())) {
 			constexpr bool json_serializable{
@@ -459,7 +459,7 @@ public:
 		}
 	}
 
-	template <ScriptType T>
+	template <ScriptClass T>
 	[[nodiscard]] static ScriptStep MakeStep(T value = {});
 
 	[[nodiscard]] static ScriptStep MakeStep(TypeHashValue type_hash);
@@ -640,14 +640,14 @@ public:
 	Scripts& operator=(Scripts&&) noexcept = default;
 
 
-	template <ScriptType T, typename... TArgs>
+	template <ScriptClass T, typename... TArgs>
 		requires BraceConstructible<T, TArgs...>
 	T& Add(Entity owner, TArgs&&... constructor_args);
 
-	template <ScriptType T>
+	template <ScriptClass T>
 	void Remove();
 
-	template <ScriptType T>
+	template <ScriptClass T>
 	[[nodiscard]] bool Has() const;
 
 	void AddEntryDeferred(ScriptEntry entry);
@@ -749,7 +749,7 @@ bool SetPaused(Entity owner, SequenceId id, bool paused);
 } // namespace script_runtime
 
 /// @brief Adds an instance of a script of type T to the entity.
-template <ScriptType T, typename... TArgs>
+template <ScriptClass T, typename... TArgs>
 	requires BraceConstructible<T, TArgs...>
 T& AddScript(Entity entity, TArgs&&... constructor_args) {
 	auto& scripts{ entity.TryAdd<impl::Scripts>() };
@@ -757,7 +757,7 @@ T& AddScript(Entity entity, TArgs&&... constructor_args) {
 }
 
 /// @brief Removes all root script instances of type T from the entity.
-template <ScriptType T>
+template <ScriptClass T>
 void RemoveScript(Entity entity) {
 	if (auto* scripts{ entity.TryGet<impl::Scripts>() }) {
 		scripts->Attach(entity);
@@ -766,7 +766,7 @@ void RemoveScript(Entity entity) {
 }
 
 /// @return True if the entity has a root script instance of type T.
-template <ScriptType T>
+template <ScriptClass T>
 [[nodiscard]] bool HasScript(Entity entity) {
 	if (auto* scripts{ entity.TryGet<impl::Scripts>() }) {
 		return scripts->Has<T>();
@@ -774,7 +774,7 @@ template <ScriptType T>
 	return false;
 }
 
-template <ScriptType T>
+template <ScriptClass T>
 ScriptStep ScriptRegistry::MakeStep(T value) {
 	EnsureRegistered<T>();
 	const auto* registration{ Find(Hash<T>()) };
@@ -813,7 +813,7 @@ ScriptSequence& ScriptSequence::StopOn(json value) {
 
 template <typename TScript>
 ScriptSequence& ScriptSequence::Then(TScript script) {
-	static_assert(ScriptType<TScript>);
+	static_assert(ScriptClass<TScript>);
 	auto step{ ScriptRegistry::MakeStep<TScript>(std::move(script)) };
 	step.completion = ScriptCompletion::Instant;
 	step.timing.reset();
@@ -823,7 +823,7 @@ ScriptSequence& ScriptSequence::Then(TScript script) {
 
 template <typename TScript>
 ScriptSequence& ScriptSequence::UntilComplete(TScript script) {
-	static_assert(ScriptType<TScript>);
+	static_assert(ScriptClass<TScript>);
 	auto step{ ScriptRegistry::MakeStep<TScript>(std::move(script)) };
 	step.completion = ScriptCompletion::ScriptControlled;
 	steps.push_back(std::move(step));
@@ -832,7 +832,7 @@ ScriptSequence& ScriptSequence::UntilComplete(TScript script) {
 
 template <typename TScript>
 ScriptSequence& ScriptSequence::Forever(TScript script) {
-	static_assert(ScriptType<TScript>);
+	static_assert(ScriptClass<TScript>);
 	auto step{ ScriptRegistry::MakeStep<TScript>(std::move(script)) };
 	step.completion = ScriptCompletion::Infinite;
 	if (!step.timing) {
@@ -844,7 +844,7 @@ ScriptSequence& ScriptSequence::Forever(TScript script) {
 
 template <typename TScript>
 ScriptSequence& ScriptSequence::During(float duration_ms, TScript script) {
-	static_assert(ScriptType<TScript>);
+	static_assert(ScriptClass<TScript>);
 	auto step{ ScriptRegistry::MakeStep<TScript>(std::move(script)) };
 	step.completion = ScriptCompletion::Duration;
 	step.timing = step.timing.value_or(ScriptTiming{});
@@ -853,7 +853,7 @@ ScriptSequence& ScriptSequence::During(float duration_ms, TScript script) {
 	return *this;
 }
 
-template <ScriptType T, typename... TArgs>
+template <ScriptClass T, typename... TArgs>
 	requires BraceConstructible<T, TArgs...>
 T& impl::Scripts::Add(Entity owner, TArgs&&... constructor_args) {
 	Attach(owner);
@@ -892,7 +892,7 @@ T& impl::Scripts::Add(Entity owner, TArgs&&... constructor_args) {
 	return *raw;
 }
 
-template <ScriptType T>
+template <ScriptClass T>
 void impl::Scripts::Remove() {
 	const auto hash{ Hash<T>() };
 	const auto queue = [&](const auto& entries) {
@@ -909,7 +909,7 @@ void impl::Scripts::Remove() {
 	queue(pending_additions);
 }
 
-template <ScriptType T>
+template <ScriptClass T>
 [[nodiscard]] bool impl::Scripts::Has() const {
 	const auto hash{ Hash<T>() };
 	const auto contains = [&](const auto& entries) {
