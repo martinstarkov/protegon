@@ -1299,11 +1299,11 @@ bool DrawEvent(
 		if (initial_inline_fields > 0) {
 			event_width = std::clamp(available_width * 0.4f, 110.0f, 190.0f);
 			const float minimum_fields_width{ 80.0f * initial_inline_fields };
-			if (available_width - event_width - spacing * initial_inline_fields <
+			if (available_width - event_width - spacing * static_cast<float>(initial_inline_fields) <
 				minimum_fields_width) {
 				event_width = std::max(
 					90.0f,
-					available_width - spacing * initial_inline_fields - minimum_fields_width
+					available_width - spacing * static_cast<float>(initial_inline_fields) - minimum_fields_width
 				);
 			}
 		}
@@ -1590,6 +1590,13 @@ bool DrawSequence(
 		ImGui::TableNextRow(ImGuiTableRowFlags_None, button_size);
 
 		ImGui::TableSetColumnIndex(0);
+		const ImVec2 header_min{ ImGui::GetCursorScreenPos() };
+		const ImVec2 header_max{
+			header_min.x + std::max(1.0f, ImGui::GetContentRegionAvail().x),
+			header_min.y + button_size
+		};
+		const ImVec2 mouse{ ImGui::GetMousePos() };
+
 		auto& stored_open{ state.sequence_open_states[binding.id] };
 		ImGui::SetNextItemOpen(stored_open, ImGuiCond_Always);
 		const bool editing_before_draw{ state.editing_sequence_name == binding.id };
@@ -1605,15 +1612,34 @@ bool DrawSequence(
 			binding.enabled ? ImVec4{ 0.50f, 0.36f, 0.55f, 1.0f }
 							: ImVec4{ 0.34f, 0.34f, 0.34f, 1.0f }
 		};
-		ImGui::PushStyleColor(ImGuiCol_Header, header);
-		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, header_hovered);
-		ImGui::PushStyleColor(
-			ImGuiCol_HeaderActive, editing_before_draw ? header : header_active
+
+		const bool header_hovered_before_draw{
+			ImGui::IsMouseHoveringRect(header_min, header_max)
+		};
+		const bool header_active_before_draw{
+			!editing_before_draw && header_hovered_before_draw &&
+			ImGui::IsMouseDown(ImGuiMouseButton_Left)
+		};
+		const ImVec4 header_color{
+			editing_before_draw
+				? header
+				: (header_active_before_draw
+					? header_active
+					: (header_hovered_before_draw ? header_hovered : header))
+		};
+		ImGui::GetWindowDrawList()->AddRectFilled(
+			header_min, header_max, ImGui::GetColorU32(header_color),
+			ImGui::GetStyle().FrameRounding
 		);
+
+		const ImVec4 transparent{};
+		ImGui::PushStyleColor(ImGuiCol_Header, transparent);
+		ImGui::PushStyleColor(ImGuiCol_HeaderHovered, transparent);
+		ImGui::PushStyleColor(ImGuiCol_HeaderActive, transparent);
 		open = ImGui::TreeNodeEx(
 			"##ScriptSequence",
 			ImGuiTreeNodeFlags_OpenOnArrow |
-				ImGuiTreeNodeFlags_Framed |
+				ImGuiTreeNodeFlags_FramePadding |
 				ImGuiTreeNodeFlags_SpanAvailWidth |
 				ImGuiTreeNodeFlags_NoTreePushOnOpen |
 				ImGuiTreeNodeFlags_AllowOverlap,
@@ -1621,10 +1647,13 @@ bool DrawSequence(
 		);
 		ImGui::PopStyleColor(3);
 		stored_open = open;
-		const ImVec2 tree_min{ ImGui::GetItemRectMin() };
-		const ImVec2 tree_max{ ImGui::GetItemRectMax() };
+
+		// Use the measured table-cell rectangle for both display and edit modes. Framed TreeNodeEx
+		// expands its native background beyond the cursor by a style-dependent amount, which causes
+		// the one- or two-pixel width change when the InputText overlay becomes active.
+		const ImVec2 tree_min{ header_min };
+		const ImVec2 tree_max{ header_max };
 		const bool tree_hovered{ ImGui::IsItemHovered() };
-		const ImVec2 mouse{ ImGui::GetMousePos() };
 		const float text_start_x{ tree_min.x + ImGui::GetFrameHeight() };
 		const float minimum_name_width{ 48.0f };
 		const float visible_name_width{
