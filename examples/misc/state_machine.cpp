@@ -8,7 +8,6 @@
 #include "core/math/geometry/rect.h"
 #include "core/math/vector2.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/game_object.h"
 #include "runtime/ecs/state.h"
 #include "runtime/graphics/shape.h"
 #include "runtime/interaction/interactive.h"
@@ -30,7 +29,7 @@ struct StateMachineScene : public Scene {
 
 		auto r		= CreateRect(*this, {}, rsize, color::Green, 1.0f);
 		auto rchild = CreateInteractiveRect(rsize);
-		AddInteractiveShape(r, GameObject{ std::move(rchild) });
+		AddInteractiveShape(r, rchild);
 
 		struct Normal {};
 

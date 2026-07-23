@@ -16,7 +16,6 @@
 #include "renderer/pipeline/viewport.h"
 #include "renderer/renderer.h"
 #include "runtime/ecs/entity.h"
-#include "runtime/ecs/game_object.h"
 #include "runtime/graphics/fx/light.h"
 #include "runtime/graphics/render_target.h"
 #include "runtime/graphics/shape.h"
@@ -86,7 +85,7 @@ struct SplitScreenScene : public Scene {
 		auto rect = CreateRect(*this, { 0, 0 }, rect_size, color::Green);
 		auto child0{ CreateEntity() };
 		child0.Add<Rect>(rect_size);
-		AddInteractiveShape(rect, GameObject{ std::move(child0) });
+		AddInteractiveShape(rect, child0);
 		SetDraggable(rect);
 		AddScript<RectDragScript>(rect);
 
