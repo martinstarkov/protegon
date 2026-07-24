@@ -316,21 +316,35 @@ void DrawScene(
 	PTGN_ASSERT(entity.Has<UUID>(), "Serialized scene entity is missing UUID");
 	PTGN_ASSERT(entity.Has<Tag>(), "Serialized scene entity is missing Tag");
 
-	json children = json::array();
+	json serialized_entity{
+		{ "uuid", entity.Get<UUID>() },
+		{ "tag", entity.Get<Tag>() },
+	};
+
+	auto tags = SerializeEntityTags(entity);
+	if (!tags.empty()) {
+		serialized_entity["tags"] = std::move(tags);
+	}
+
+	auto components = SerializeEntityComponents(entity);
+	if (!components.empty()) {
+		serialized_entity["components"] = std::move(components);
+	}
 
 	if (HasChildren(entity)) {
+		json children = json::array();
+
 		for (Entity child : GetChildren(entity)) {
 			PTGN_ASSERT(child, "Cannot serialize a null child entity");
 			PTGN_ASSERT(child.Has<UUID>(), "Serialized child entity is missing UUID");
 			children.emplace_back(child.Get<UUID>());
 		}
+
+		if (!children.empty()) {
+			serialized_entity["children"] = std::move(children);
+		}
 	}
 
-	json serialized_entity = json::object();
-	serialized_entity["uuid"] = entity.Get<UUID>();
-	serialized_entity["tag"] = entity.Get<Tag>();
-	serialized_entity["components"] = SerializeEntityComponents(entity);
-	serialized_entity["children"] = std::move(children);
 	return serialized_entity;
 }
 
@@ -462,14 +476,15 @@ json Scene::SerializeContent() const {
 	json content = json::object();
 	content["primary_entities"] = std::move(primary_entities);
 	content["entities"] = std::move(serialized_entities);
+	
 	return content;
 }
 
 void Scene::DeserializeContent(const json& serialized_content) {
 	PTGN_ASSERT(serialized_content.is_object(), "Serialized scene content must be a JSON object");
 
-	const auto& primary_entities{ serialized_content.at("primary_entities") };
-	const auto& serialized_entities{ serialized_content.at("entities") };
+	const auto& primary_entities = serialized_content.at("primary_entities");
+	const auto& serialized_entities = serialized_content.at("entities");
 
 	PTGN_ASSERT(primary_entities.is_object(), "Serialized primary entities must be a JSON object");
 	PTGN_ASSERT(serialized_entities.is_array(), "Serialized scene entities must be a JSON array");
@@ -489,19 +504,35 @@ void Scene::DeserializeContent(const json& serialized_content) {
 
 	for (const auto& serialized_entity : serialized_entities) {
 		PTGN_ASSERT(serialized_entity.is_object(), "Serialized entity must be a JSON object");
+		
 		PTGN_ASSERT(
-			serialized_entity.contains("uuid") && serialized_entity.contains("tag") &&
-				serialized_entity.contains("components"),
-			"Serialized entity must contain uuid, tag, and components"
+			serialized_entity.contains("uuid") &&
+				serialized_entity.contains("tag"),
+			"Serialized entity must contain uuid and tag"
 		);
-		PTGN_ASSERT(
-			serialized_entity.at("components").is_object(),
-			"Serialized entity components must be a JSON object"
-		);
+
+		if (const auto components{ serialized_entity.find("components") };
+			components != serialized_entity.end()) {
+			PTGN_ASSERT(
+				components->is_object(),
+				"Serialized entity components must be a JSON object"
+			);
+		}
+
+		if (const auto tags{ serialized_entity.find("tags") };
+			tags != serialized_entity.end()) {
+			PTGN_ASSERT(
+				tags->is_array(),
+				"Serialized entity tags must be a JSON array"
+			);
+		}
 
 		if (const auto children{ serialized_entity.find("children") };
 			children != serialized_entity.end()) {
-			PTGN_ASSERT(children->is_array(), "Serialized entity children must be a JSON array");
+			PTGN_ASSERT(
+				children->is_array(),
+				"Serialized entity children must be a JSON array"
+			);
 		}
 
 		const UUID uuid{ GetSerializedEntityUUID(serialized_entity) };
@@ -562,8 +593,18 @@ void Scene::DeserializeContent(const json& serialized_content) {
 	for (const auto& serialized_entity : serialized_entities) {
 		const UUID uuid{ GetSerializedEntityUUID(serialized_entity) };
 		Entity entity{ GetEntity(uuid) };
+
 		PTGN_ASSERT(entity, "Failed to find entity created for serialized UUID");
-		DeserializeEntityComponents(serialized_entity.at("components"), entity);
+
+		if (const auto tags{ serialized_entity.find("tags") };
+			tags != serialized_entity.end()) {
+			DeserializeEntityTags(*tags, entity);
+		}
+
+		if (const auto components{ serialized_entity.find("components") };
+			components != serialized_entity.end()) {
+			DeserializeEntityComponents(*components, entity);
+		}
 	}
 
 	Refresh();

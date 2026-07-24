@@ -22,6 +22,7 @@ struct SerializedScene {
 	std::string type;
 	json parameters = json::object();
 	std::vector<AssetKey> assets;
+	/// @brief Nullopt for unserialized scenes.
 	std::optional<json> content;
 };
 
