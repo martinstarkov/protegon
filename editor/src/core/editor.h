@@ -106,6 +106,8 @@ public:
 		std::string_view scene_tag
 	) const;
 
+	bool CanSaveProject() const;
+
 private:
 	struct PlaySnapshot {
 		std::string scene_tag;

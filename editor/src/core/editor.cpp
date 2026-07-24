@@ -583,7 +583,7 @@ void Editor::DrawMainMenuBar() {
 	}
 
 	if (ImGui::BeginMenu("File")) {
-		if (ImGui::MenuItem("Save", nullptr, false, !context_->state.is_playing)) {
+		if (ImGui::MenuItem("Save", nullptr, false, CanSaveProject())) {
 			SaveProjectScene();
 		}
 
@@ -682,7 +682,7 @@ void Editor::OnUpdate() {
 
 	if ((io.KeyCtrl || io.KeySuper) &&
 		ImGui::IsKeyPressed(ImGuiKey_S, false) &&
-		!context_->state.is_playing) {
+		CanSaveProject()) {
 		SaveProjectScene();
 	}
 
@@ -860,6 +860,33 @@ void Editor::TogglePause() {
 	context_->state.is_paused = !context_->state.is_paused;
 	SetApplicationState(
 		context_->state.is_paused ? ApplicationState::Paused : ApplicationState::Running
+	);
+}
+
+bool Editor::CanSaveProject() const {
+	if (!context_ || context_->state.is_playing) {
+		return false;
+	}
+
+	const auto& app_context{
+		impl::ApplicationAccessor::ctx(app)
+	};
+
+	if (!app_context.project.has_value()) {
+		return false;
+	}
+
+	const auto& project{ app_context.project.value() };
+	const auto& scene_manager{ app_context.scene_manager };
+
+	return std::ranges::none_of(
+		project.scenes,
+		[&scene_manager](const ProjectSceneEntry& entry) {
+			const auto scene_hash{ Hash(entry.tag) };
+
+			return scene_manager.HasScene(scene_hash) &&
+				scene_manager.GetScene(scene_hash).IsRuntime();
+		}
 	);
 }
 
