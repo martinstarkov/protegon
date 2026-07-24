@@ -175,7 +175,10 @@ public:
 	[[nodiscard]] constexpr bool IsType() const {
 		return event_.type_hash == Hash<T>();
 	}
-
+	
+	[[nodiscard]] constexpr std::string_view Name() const {
+		return event_.name;
+	}
 private:
 	template <typename T, impl::EventFunctionType<T> TEventFn>
 	void InvokeHandler(TEventFn&& fn, [[maybe_unused]] T& value) {

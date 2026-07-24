@@ -67,6 +67,7 @@ struct DropzoneScript : public Script {
 
 struct DraggableScript : public Script {
 	void OnEvent(Event d) override {
+		PTGN_LOG(d.Name());
 		d.Dispatch<event::Drag>(&DraggableScript::OnDrag, this);
 		d.Dispatch<event::MousePressedOver>(&DraggableScript::OnMousePressedOver, this);
 		d.Dispatch<event::MousePressedOut>(&DraggableScript::OnMousePressedOut, this);
