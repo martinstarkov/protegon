@@ -225,10 +225,8 @@ public:
 				continue;
 			}
 
-			if (Resolve(component, *editor).group == kTagComponentGroup) {
-				has_tags = true;
-				break;
-			}
+			has_tags = true;
+			break;
 		}
 
 		if (!has_tags) {
@@ -251,9 +249,7 @@ public:
 
 			auto options{ Resolve(component, *editor) };
 
-			if (options.group == kTagComponentGroup) {
-				DrawTagComponent(entity, component, options);
-			}
+			DrawTagComponent(entity, component, options);
 		}
 
 		ImGui::Unindent();
