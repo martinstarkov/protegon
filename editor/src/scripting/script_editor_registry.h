@@ -157,7 +157,7 @@ struct ScriptEditorRegistration {
 template <typename T>
 struct TypedJsonEditorState {
 	T value{};
-	json synchronized_value;
+	json synchronized_value = json::object();
 	bool initialized{ false };
 };
 

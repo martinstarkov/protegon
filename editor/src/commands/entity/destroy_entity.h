@@ -20,7 +20,7 @@ public:
 private:
 	Scene* scene_{ nullptr };
 	Entity entity_;
-	json backup_;
+	json backup_ = json::object();
 };
 
 } // namespace editor

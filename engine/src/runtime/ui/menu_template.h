@@ -33,7 +33,7 @@ public:
 	TemplateMenuScene(const std::string& key, const json& scene_json_arg);
 
 	std::string key;
-	json scene_json;
+	json scene_json = json::object();
 
 	void OnEnter() override;
 };

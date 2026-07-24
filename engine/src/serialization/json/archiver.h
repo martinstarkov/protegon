@@ -23,7 +23,7 @@ public:
 			} else {
 				// Serialize components which are empty json objects for component tracking.
 				// This may or may not be useful to have.
-				j[class_name] = json{};
+				j[class_name] = json::object();
 			}
 		}
 	}
@@ -128,7 +128,7 @@ public:
 		}
 	}
 
-	json j;
+	json j = json::object();
 };
 
 } // namespace ptgn

@@ -37,7 +37,7 @@ struct Signal {
 struct ComponentDefinition {
 	TypeHashValue type_hash{ 0 };
 	std::string type;
-	json value;
+	json value = json::object();
 
 	// C++-authored definitions avoid a JSON round-trip at runtime.
 	std::function<void(Entity)> apply_live;
@@ -62,8 +62,7 @@ template <typename T>
 	}
 
 	T typed_value{ std::move(value) };
-	json component_json;
-	component_json = typed_value;
+	json component_json = typed_value;
 	auto prototype{ std::make_shared<T>(std::move(typed_value)) };
 
 	return ComponentDefinition{

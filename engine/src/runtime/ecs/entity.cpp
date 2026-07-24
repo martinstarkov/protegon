@@ -209,7 +209,7 @@ void Entity::OnEvent(const Event& event) {
 }
 
 void to_json(json& j, const Entity& entity) {
-	j = json{};
+	j = json::object();
 
 	if (!entity) {
 		return;

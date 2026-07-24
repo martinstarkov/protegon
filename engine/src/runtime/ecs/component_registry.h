@@ -38,8 +38,7 @@ void SerializeRegisteredComponent(json& output, Entity entity) {
 
 template <typename T>
 [[nodiscard]] json MakeDefaultRegisteredComponentJson() {
-	json output;
-	output = T{};
+	json output = T{};
 	return output;
 }
 

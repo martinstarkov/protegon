@@ -151,7 +151,7 @@ struct DialogueData {
 struct DialogueDesc {
 	Origin origin{ Origin::Center };
 
-	json data;
+	json data = json::object();
 
 	/// @brief Used when no background texture is supplied, and as a fallback if texture size cannot
 	/// be resolved.
