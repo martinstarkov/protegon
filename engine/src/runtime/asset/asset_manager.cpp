@@ -38,6 +38,7 @@
 #include "runtime/graphics/text/font.h"
 #include "runtime/graphics/text/font_system.h"
 #include "serialization/json/fwd.h"
+#include "serialization/json/json_file.h"
 
 namespace ptgn {
 
@@ -435,14 +436,8 @@ Shader AssetManager::LoadShader(
 	return shader;
 }
 
-json AssetManager::CreateJson(const path& asset_path) {
-	PTGN_ASSERT(
-		FileExists(asset_path),
-		"Cannot load json file from a nonexistent file path: ", asset_path.string()
-	);
-	std::ifstream json_file(asset_path);
-	json j = json::parse(json_file);
-	return j;
+json AssetManager::CreateJson(const path& asset_path) const {
+	json j = ptgn::LoadJson(asset_path);
 }
 
 json& AssetManager::LoadJson(const JsonKey& key, const path& asset_path) {

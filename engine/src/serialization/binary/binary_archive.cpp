@@ -7,9 +7,9 @@
 //
 // namespace ptgn {
 //
-// BinaryInputArchive::BinaryInputArchive(const path& filepath) :
-//	stream_{ std::ifstream(filepath, std::ifstream::in | std::ifstream::binary) } {
-//	PTGN_CHECK(stream_.is_open(), "Failed to open binary file for reading: " + filepath.string());
+// BinaryInputArchive::BinaryInputArchive(const path& file_path) :
+//	stream_{ std::ifstream(file_path, std::ifstream::in | std::ifstream::binary) } {
+//	PTGN_CHECK(stream_.is_open(), "Failed to open binary file for reading: " + file_path.string());
 // }
 //
 // BinaryInputArchive::~BinaryInputArchive() {
@@ -38,9 +38,9 @@
 //	return IsStreamGood();
 // }
 //
-// BinaryOutputArchive::BinaryOutputArchive(const path& filepath) :
-//	stream_{ std::ofstream(filepath, std::ifstream::out | std::ifstream::binary) } {
-//	PTGN_CHECK(stream_.is_open(), "Failed to open binary file for writing: " + filepath.string());
+// BinaryOutputArchive::BinaryOutputArchive(const path& file_path) :
+//	stream_{ std::ofstream(file_path, std::ifstream::out | std::ifstream::binary) } {
+//	PTGN_CHECK(stream_.is_open(), "Failed to open binary file for writing: " + file_path.string());
 // }
 //
 // BinaryOutputArchive::~BinaryOutputArchive() {

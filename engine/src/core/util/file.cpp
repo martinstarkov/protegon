@@ -21,6 +21,11 @@
 namespace ptgn {
 
 void EnsureDirectory(const path& path) {
+	if (path.empty()) {
+		PTGN_WARN("Cannot create directory for empty path");
+		return;
+	}
+
 	std::error_code ec;
 
 	fs::create_directories(path, ec);

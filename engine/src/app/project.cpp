@@ -7,15 +7,16 @@
 #include <span>
 #include <vector>
 
+#include "app/application_context.h"
+#include "app/application.h"
 #include "core/util/file.h"
 #include "core/assert.h"
 #include "runtime/scene/scene_file.h"
 #include "runtime/scene/scene_registry.h"
-#include "serialization/json/json.h"
-#include "app/application_context.h"
-#include "app/application.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/scene/scene.h"
+#include "serialization/json/json.h"
+#include "serialization/json/json_file.h"
 
 namespace ptgn {
 
@@ -86,38 +87,6 @@ void ValidateProject(const Project& project) {
 		"Project startup scene is not present in the project scene list: ",
 		project.startup_scene.string()
 	);
-}
-
-[[nodiscard]] json SerializeAsset(const SerializedAsset& asset) {
-	json value = json::object();
-	value["key"] = asset.key.value;
-	value["kind"] = asset.kind;
-	value["path"] = asset.source_path.generic_string();
-	return value;
-}
-
-[[nodiscard]] SerializedAsset DeserializeAsset(const json& value) {
-	PTGN_ASSERT(value.is_object(), "Serialized project asset must be a JSON object");
-
-	SerializedAsset asset{
-		.key = AssetKey{ value.at("key").get<std::string>() },
-		.kind = value.at("kind").get<AssetKind>(),
-		.source_path = path{ value.at("path").get<std::string>() },
-	};
-
-	PTGN_ASSERT(!asset.key.value.empty(), "Serialized project asset key cannot be empty");
-	PTGN_ASSERT(
-		asset.kind != AssetKind::Unknown,
-		"Serialized project asset kind cannot be Unknown: ",
-		asset.key
-	);
-	PTGN_ASSERT(
-		!asset.source_path.empty(),
-		"Serialized project asset path cannot be empty: ",
-		asset.key
-	);
-
-	return asset;
 }
 
 } // namespace
@@ -213,91 +182,10 @@ bool SaveBootstrapProjectScene(
 
 } // namespace impl
 
-Project LoadProject(const std::filesystem::path& path) {
-	std::ifstream stream{ path };
+Project LoadProject(const path& file_path) {
+	Project project{ LoadJson(file_path).get<Project>() };
 
-	PTGN_ASSERT(
-		stream.is_open(),
-		"Failed to open project file: ",
-		path.string()
-	);
-
-	json value;
-	stream >> value;
-
-	PTGN_ASSERT(
-		value.is_object(),
-		"Project file root must be a JSON object"
-	);
-
-	Project project{
-		.name = value.at("name").get<std::string>(),
-		.file_path = path,
-		.startup_scene = std::filesystem::path{
-			value.at("startup_scene").get<std::string>()
-		},
-	};
-
-	if (const auto it{ value.find("scenes") }; it != value.end()) {
-		PTGN_ASSERT(
-			it->is_array(),
-			"Project scenes must be a JSON array"
-		);
-
-		for (const auto& serialized_scene : *it) {
-			PTGN_ASSERT(
-				serialized_scene.is_object(),
-				"Project scene entry must be a JSON object"
-			);
-
-			project.scenes.emplace_back(ProjectSceneEntry{
-				.tag = serialized_scene.at("tag").get<std::string>(),
-				.scene_path = std::filesystem::path{
-					serialized_scene.at("path").get<std::string>()
-				},
-			});
-		}
-	}
-
-	// Backward compatibility for the original one-scene format.
-	if (project.scenes.empty()) {
-		project.scenes.emplace_back(ProjectSceneEntry{
-			.tag = "Main",
-			.scene_path = project.startup_scene,
-		});
-	}
-
-	if (const auto it{ value.find("assets") }; it != value.end()) {
-		PTGN_ASSERT(
-			it->is_array(),
-			"Project assets must be a JSON array"
-		);
-
-		for (const auto& serialized_asset : *it) {
-			project.assets.emplace_back(
-				DeserializeAsset(serialized_asset)
-			);
-		}
-	}
-
-	if (const auto it{ value.find("preload_assets") };
-		it != value.end()) {
-		PTGN_ASSERT(
-			it->is_array(),
-			"Project preload_assets must be a JSON array"
-		);
-
-		for (const auto& key : *it) {
-			PTGN_ASSERT(
-				key.is_string(),
-				"Project preload asset keys must be strings"
-			);
-
-			project.preload_assets.emplace_back(
-				key.get<std::string>()
-			);
-		}
-	}
+	project.file_path = file_path;
 
 	ValidateProject(project);
 
@@ -305,27 +193,23 @@ Project LoadProject(const std::filesystem::path& path) {
 }
 
 Project CreateProject(
-	const std::filesystem::path& path,
+	const path& file_path,
 	const impl::SceneRegistryEntry& default_scene
 ) {
-	const auto root{ path.parent_path() };
+	const auto root{ file_path.parent_path() };
 
-	if (!root.empty()) {
-		std::filesystem::create_directories(root);
-	}
-
-	std::filesystem::create_directories(root / "Scenes");
+	EnsureDirectory(root / "Scenes");
 
 	Project project{
-		.name = path.stem().string(),
-		.file_path = path,
+		.name = file_path.stem().string(),
+		.file_path = file_path,
 		.startup_scene =
-			std::filesystem::path{ "Scenes" } / "Main.ptgnscene",
+			path{ "Scenes" } / "Main.ptgnscene",
 		.scenes = {
 			ProjectSceneEntry{
 				.tag = "Main",
 				.scene_path =
-					std::filesystem::path{ "Scenes" } /
+					path{ "Scenes" } /
 					"Main.ptgnscene",
 			},
 		},
@@ -351,53 +235,8 @@ Project CreateProject(
 void SaveProject(const Project& project) {
 	ValidateProject(project);
 
-	if (const auto parent{ project.file_path.parent_path() };
-		!parent.empty()) {
-		std::filesystem::create_directories(parent);
-	}
-
-	std::ofstream stream{
-		project.file_path,
-		std::ios::trunc
-	};
-
-	PTGN_ASSERT(
-		stream.is_open(),
-		"Failed to write project file: ",
-		project.file_path.string()
-	);
-
-	json scenes = json::array();
-
-	for (const auto& scene : project.scenes) {
-		scenes.emplace_back(json{
-			{ "tag", scene.tag },
-			{ "path", scene.scene_path.generic_string() },
-		});
-	}
-
-	json assets = json::array();
-
-	for (const auto& asset : project.assets) {
-		assets.emplace_back(SerializeAsset(asset));
-	}
-
-	json preload_assets = json::array();
-
-	for (const auto& key : project.preload_assets) {
-		preload_assets.emplace_back(key.value);
-	}
-
-	json value = json::object();
-
-	value["name"] = project.name;
-	value["startup_scene"] =
-		project.startup_scene.generic_string();
-	value["scenes"] = std::move(scenes);
-	value["assets"] = std::move(assets);
-	value["preload_assets"] = std::move(preload_assets);
-
-	stream << value.dump(4) << '\n';
+	EnsureDirectory(project.file_path.parent_path());
+	SaveJson(json{ project }, project.file_path);
 }
 
 ProjectSceneEntry* FindProjectScene(
@@ -454,14 +293,14 @@ const ProjectSceneEntry& GetStartupProjectScene(
 	return *it;
 }
 
-std::filesystem::path GetProjectScenePath(
+path GetProjectScenePath(
 	const Project& project,
 	const ProjectSceneEntry& scene
 ) {
 	return project.file_path.parent_path() / scene.scene_path;
 }
 
-std::filesystem::path GetStartupScenePath(
+path GetStartupScenePath(
 	const Project& project
 ) {
 	return GetProjectScenePath(

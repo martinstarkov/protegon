@@ -21,7 +21,7 @@
 // class BinaryInputArchive {
 // public:
 //	BinaryInputArchive() = delete;
-//	explicit BinaryInputArchive(const path& filepath);
+//	explicit BinaryInputArchive(const path& file_path);
 //	BinaryInputArchive& operator=(BinaryInputArchive&&) noexcept = default;
 //	BinaryInputArchive(BinaryInputArchive&&) noexcept			 = default;
 //	BinaryInputArchive& operator=(const BinaryInputArchive&)	 = delete;
@@ -130,7 +130,7 @@
 // class BinaryOutputArchive {
 // public:
 //	BinaryOutputArchive() = delete;
-//	explicit BinaryOutputArchive(const path& filepath);
+//	explicit BinaryOutputArchive(const path& file_path);
 //	BinaryOutputArchive& operator=(BinaryOutputArchive&&) noexcept = default;
 //	BinaryOutputArchive(BinaryOutputArchive&&) noexcept			   = default;
 //	BinaryOutputArchive& operator=(const BinaryOutputArchive&)	   = delete;

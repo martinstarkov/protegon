@@ -1,11 +1,9 @@
 #include "runtime/scene/scene_file.h"
 
-#include <filesystem>
-#include <fstream>
 #include <memory>
 #include <string>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "app/application_context.h"
 #include "app/project.h"
@@ -14,101 +12,58 @@
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 #include "runtime/scene/scene_registry.h"
+#include "serialization/json/json_file.h"
 
 namespace ptgn {
 
 namespace {
 
-[[nodiscard]] json ToJson(const SerializedScene& scene) {
-	json assets = json::array();
-
-	for (const auto& key : scene.assets) {
-		assets.emplace_back(key.value);
-	}
-
-	json value = json::object();
-
-	value["type"] = scene.type;
-	value["parameters"] = scene.parameters;
-	value["assets"] = std::move(assets);
-	value["content"] =
-		scene.content.has_value()
-			? scene.content.value()
-			: json{};
-
-	return value;
-}
-
-[[nodiscard]] SerializedScene FromJson(const json& value) {
+void ValidateSerializedScene(const SerializedScene& scene) {
 	PTGN_ASSERT(
-		value.is_object(),
-		"Serialized scene file root must be a JSON object"
+		!scene.type.empty(),
+		"Serialized scene type cannot be empty"
 	);
-
-	SerializedScene scene{
-		.type = value.at("type").get<std::string>(),
-		.parameters = value.value(
-			"parameters",
-			json::object()
-		),
-	};
 
 	PTGN_ASSERT(
 		scene.parameters.is_object(),
 		"Serialized scene parameters must be a JSON object"
 	);
 
-	if (const auto it{ value.find("assets") };
-		it != value.end()) {
+	PTGN_ASSERT(
+		!scene.content.has_value() ||
+			scene.content->is_object(),
+		"Serialized scene content must be an object or null"
+	);
+
+	for (const auto& key : scene.assets) {
 		PTGN_ASSERT(
-			it->is_array(),
-			"Serialized scene assets must be a JSON array"
+			!key.value.empty(),
+			"Serialized scene asset key cannot be empty"
 		);
-
-		for (const auto& key : *it) {
-			PTGN_ASSERT(
-				key.is_string(),
-				"Serialized scene asset keys must be strings"
-			);
-
-			scene.assets.emplace_back(
-				key.get<std::string>()
-			);
-		}
 	}
-
-	if (const auto it{ value.find("content") };
-		it != value.end() && !it->is_null()) {
-		PTGN_ASSERT(
-			it->is_object(),
-			"Serialized scene content must be an object or null"
-		);
-
-		scene.content = *it;
-	}
-
-	return scene;
 }
 
 } // namespace
 
-SerializedScene LoadSceneFile(const std::filesystem::path& path) {
-	std::ifstream stream{ path };
-	PTGN_ASSERT(stream.is_open(), "Failed to open scene file: ", path.string());
+SerializedScene LoadSceneFile(const path& file_path) {
+	auto scene{ LoadJson(file_path).get<SerializedScene>() };
 
-	json value;
-	stream >> value;
-	return FromJson(value);
+	ValidateSerializedScene(scene);
+
+	return scene;
 }
 
-void SaveSceneFile(const std::filesystem::path& path, const SerializedScene& scene) {
-	if (const auto parent{ path.parent_path() }; !parent.empty()) {
-		std::filesystem::create_directories(parent);
-	}
+void SaveSceneFile(
+	const path& path,
+	const SerializedScene& scene
+) {
+	ValidateSerializedScene(scene);
 
-	std::ofstream stream{ path, std::ios::trunc };
-	PTGN_ASSERT(stream.is_open(), "Failed to write scene file: ", path.string());
-	stream << ToJson(scene).dump(4) << '\n';
+	EnsureDirectory(path.parent_path());
+
+	json value = scene;
+
+	SaveJson(value, path);
 }
 
 SerializedScene CaptureScene(const Scene& scene) {

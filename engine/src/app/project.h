@@ -1,13 +1,15 @@
 #pragma once
 
 #include <filesystem>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
-#include <span>
 
+#include "app/project_settings.h"
 #include "runtime/asset/asset_key.h"
 #include "runtime/asset/asset_serialization.h"
+#include "serialization/serialize.h"
 
 namespace ptgn {
 
@@ -25,7 +27,7 @@ bool SaveProjectScenes(
 	std::span<const Scene* const> scenes
 );
 
-/// @brief Performs the one-time automatic save after a new scene's OnNew().
+/// @brief Performs the one time automatic save after a new scene's OnNew().
 bool SaveBootstrapProjectScene(
 	Application& app,
 	const Scene& scene,
@@ -36,55 +38,73 @@ bool SaveBootstrapProjectScene(
 
 struct ProjectSceneEntry {
 	std::string tag;
-	std::filesystem::path scene_path;
+	path scene_path;
+
+	PTGN_REFLECT(ProjectSceneEntry, tag, scene_path)
 };
 
 struct Project {
 	std::string name;
-	std::filesystem::path file_path;
 
-	/// @brief Project-relative path of the scene used for runtime startup.
-	std::filesystem::path startup_scene;
+	/// @brief Absolute or working directory relative location from which this project was loaded.
+	/// This is runtime state and is intentionally not serialized.
+	path file_path;
+
+	/// @brief Project relative path of the scene used for runtime startup.
+	path startup_scene;
 
 	/// @brief Every serialized scene belonging to the project.
 	std::vector<ProjectSceneEntry> scenes;
 
-	/// @brief Complete path-backed asset catalog known to the project.
+	/// @brief Complete path asset catalog known to the project.
 	std::vector<SerializedAsset> assets;
 
 	/// @brief Assets loaded globally whenever the project is opened.
 	std::vector<AssetKey> preload_assets;
+
+	/// @brief Shared project settings.
+	ProjectSettings settings;
+
+	PTGN_REFLECT(
+		Project,
+		name,
+		startup_scene,
+		scenes,
+		assets,
+		preload_assets
+	)
 };
 
-[[nodiscard]] Project LoadProject(const std::filesystem::path& path);
 
-[[nodiscard]] Project CreateProject(
-	const std::filesystem::path& path,
+Project LoadProject(const path& file_path);
+
+Project CreateProject(
+	const path& file_path,
 	const impl::SceneRegistryEntry& default_scene
 );
 
 void SaveProject(const Project& project);
 
-[[nodiscard]] ProjectSceneEntry* FindProjectScene(
+ProjectSceneEntry* FindProjectScene(
 	Project& project,
 	std::string_view scene_tag
 );
 
-[[nodiscard]] const ProjectSceneEntry* FindProjectScene(
+const ProjectSceneEntry* FindProjectScene(
 	const Project& project,
 	std::string_view scene_tag
 );
 
-[[nodiscard]] const ProjectSceneEntry& GetStartupProjectScene(
+const ProjectSceneEntry& GetStartupProjectScene(
 	const Project& project
 );
 
-[[nodiscard]] std::filesystem::path GetProjectScenePath(
+path GetProjectScenePath(
 	const Project& project,
 	const ProjectSceneEntry& scene
 );
 
-[[nodiscard]] std::filesystem::path GetStartupScenePath(
+path GetStartupScenePath(
 	const Project& project
 );
 

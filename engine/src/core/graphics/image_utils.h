@@ -12,8 +12,8 @@ namespace ptgn {
 
 /// @param coordinate Pixel coordinate from [0, size).
 /// @return Color value of the given pixel.
-Color GetPixel(const path& texture_filepath, V2_int coordinate) {
-	impl::Surface s{ texture_filepath };
+Color GetPixel(const path& texture_path, V2_int coordinate) {
+	impl::Surface s{ texture_path };
 	return s.GetPixel(coordinate);
 }
 
@@ -21,8 +21,8 @@ Color GetPixel(const path& texture_filepath, V2_int coordinate) {
 /// @param function The function must be callable as void(V2_int, Color).
 /// @return The pixel size of the looped texture.
 template <InvocableR<void, V2_int, Color> F>
-V2_int ForEachPixel(const path& texture_filepath, F&& func) {
-	impl::Surface s{ texture_filepath };
+V2_int ForEachPixel(const path& texture_path, F&& func) {
+	impl::Surface s{ texture_path };
 	s.ForEachPixel(std::forward<F>(func));
 	return s.GetSize();
 }

@@ -1134,7 +1134,7 @@ void Framebuffers::SavePNGImpl(const path& path, FramebufferId framebuffer, Atta
 	PTGN_ASSERT(IsColorAttachment(attachment), "SavePNG only supports color attachments");
 
 	if (path.has_parent_path()) {
-		std::filesystem::create_directories(path.parent_path());
+		EnsureDirectory(path.parent_path());
 	}
 
 	PixelBuffer buffer{ ReadPixelsImpl(framebuffer, attachment) };

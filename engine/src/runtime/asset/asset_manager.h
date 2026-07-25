@@ -315,7 +315,7 @@ public:
 
 	/// @brief Note: Do not brace initialize JSON objects.
 	/// See: https://json.nlohmann.me/home/faq/#brace-initialization-yields-arrays
-	[[nodiscard]] static json CreateJson(const path& json_path);
+	[[nodiscard]] json CreateJson(const path& json_path) const;
 
 	[[nodiscard]] bool Has(const AssetKey& key) const;
 

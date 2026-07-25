@@ -10,6 +10,8 @@ struct SerializedAsset {
 	AssetKey key;
 	AssetKind kind{ AssetKind::Unknown };
 	path source_path;
+
+	PTGN_REFLECT(SerializedAsset, key, kind, source_path)
 };
 
 } // namespace ptgn

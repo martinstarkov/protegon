@@ -56,17 +56,17 @@ Application::Application(std::string_view title, V2_int window_size) :
 
 Application::~Application() noexcept = default;
 
-void Application::StartProject(const std::filesystem::path& project_path) {
+void Application::StartProject(const path& project_path) {
 	StartProjectImpl(project_path, nullptr);
 }
 
 void Application::StartProjectImpl(
-	const std::filesystem::path& project_path,
+	const path& project_path,
 	const impl::SceneRegistryEntry* default_scene
 ) {
 	Project project;
 
-	if (std::filesystem::exists(project_path)) {
+	if (FileExists(project_path)) {
 		project = LoadProject(project_path);
 	} else {
 		PTGN_ASSERT(

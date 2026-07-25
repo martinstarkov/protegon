@@ -12,6 +12,7 @@
 #include "app/application_layer.h"
 #include "app/application_state.h"
 #include "core/math/vector2.h"
+#include "core/util/file.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_common.h"
 #include "runtime/scene/scene_context.h"
@@ -35,14 +36,14 @@ public:
 	Application& operator=(Application&&) noexcept = delete;
 
 	/// @brief Opens an existing project. The project file must already exist.
-	void StartProject(const std::filesystem::path& project_path);
+	void StartProject(const path& project_path);
 
 	/// @brief Opens a project or creates it with TDefaultScene when it does not exist.
 	template <SceneType TDefaultScene>
 		requires std::default_initializable<TDefaultScene>
-	void StartProject(const std::filesystem::path& project_path) {
+	void StartProject(const path& project_path) {
 		const impl::SceneRegistryEntry* default_scene{ nullptr };
-		if (!std::filesystem::exists(project_path)) {
+		if (!FileExists(project_path)) {
 			default_scene = &impl::GetSceneRegistration<TDefaultScene>();
 		}
 		StartProjectImpl(project_path, default_scene);
@@ -87,7 +88,7 @@ private:
 	}
 
 	void StartProjectImpl(
-		const std::filesystem::path& project_path,
+		const path& project_path,
 		const impl::SceneRegistryEntry* default_scene
 	);
 	void StartWithFactory(std::string_view scene_tag, impl::SceneFactory scene_factory);
