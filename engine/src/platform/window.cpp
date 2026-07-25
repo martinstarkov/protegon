@@ -563,8 +563,8 @@ void Window::SetAlwaysOnTop(bool on) {
 	glfwSetWindowAttrib(instance_.get(), GLFW_FLOATING, on ? GLFW_TRUE : GLFW_FALSE);
 }
 
-void Window::SetOSCursor(const path& img_filepath, V2_int cursor_hotspot) {
-	impl::Surface surface{ img_filepath };
+void Window::SetOSCursor(const path& img_path, V2_int cursor_hotspot) {
+	impl::Surface surface{ img_path };
 	PTGN_ASSERT(!surface.IsEmpty(), "Failed to load cursor surface");
 
 	GLFWimage image{};
@@ -654,12 +654,16 @@ V2_int Window::GetSize() const {
 	return window_size / scale;
 }
 
-void Window::SetBackgroundColor(Color background_color) {
-	background_color_ = background_color;
+WindowSettings Window::GetSettings() const {
+	return window_settings_;
 }
 
-Color Window::GetBackgroundColor() const {
-	return background_color_;
+void Window::SetSettings(const WindowSettings& settings) {
+	SetBackgroundColor(settings.background_color);
+}
+
+void Window::SetBackgroundColor(Color background_color) {
+	window_settings_.background_color = background_color;
 }
 
 void Window::Center() {

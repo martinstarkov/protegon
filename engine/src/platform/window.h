@@ -17,6 +17,7 @@
 #include "core/util/concepts.h"
 #include "core/util/file.h"
 #include "core/util/time.h"
+#include "platform/window_settings.h"
 #include "platform/file_dialog.h"
 #include "serialization/serialize.h"
 
@@ -138,7 +139,7 @@ struct WindowConfig {
 
 class Window {
 public:
-	void SetOSCursor(const path& img_filepath, V2_int cursor_hotspot = {});
+	void SetOSCursor(const path& img_path, V2_int cursor_hotspot = {});
 	void ResetOSCursor();
 	void SetOSCursorVisibility(bool visibility = true);
 
@@ -159,8 +160,10 @@ public:
 
 	void Center();
 
+	WindowSettings GetSettings() const;
+	void SetSettings(const WindowSettings& settings);
+
 	void SetBackgroundColor(Color background_color = color::Transparent);
-	Color GetBackgroundColor() const;
 
 	void SetPosition(V2_int new_origin);
 
@@ -230,7 +233,7 @@ private:
 
 	bool focused_{ true };
 
-	Color background_color_{ color::Transparent };
+	WindowSettings window_settings_;
 
 	std::string title_;
 	V2_int minimum_size_{ 1, 1 };

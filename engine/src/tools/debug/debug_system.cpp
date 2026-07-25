@@ -32,6 +32,7 @@
 #include "runtime/scene/scene_context.h"
 #include "tools/debug/profiling.h"
 #include "tools/debug/stats.h"
+#include "tools/debug/debug_settings.h"
 
 namespace ptgn {
 
@@ -285,13 +286,21 @@ void DrawDebug(
 	Scene& scene, const SceneCamera& camera, const Camera& cam, const RenderTarget& render_target,
 	const impl::EntityFilterFunc& filter, const DebugSystem& debug
 ) {
-	DrawDebugLightVisibilityPolygons(scene, camera, filter, debug.light);
-	DrawDebugTextBoundingBoxes(scene, camera, filter, debug.text);
-	DrawDebugColliders(scene, camera, filter, debug.collision);
-	DrawDebugInteractiveShapes(scene, camera, cam, render_target, filter, debug.interaction);
+	DrawDebugLightVisibilityPolygons(scene, camera, filter, debug.settings.light);
+	DrawDebugTextBoundingBoxes(scene, camera, filter, debug.settings.text);
+	DrawDebugColliders(scene, camera, filter, debug.settings.collision);
+	DrawDebugInteractiveShapes(scene, camera, cam, render_target, filter, debug.settings.interaction);
 }
 
 } // namespace impl
+
+void DebugSystem::SetSettings(const DebugSettings& debug_settings) {
+	settings = debug_settings;
+}
+
+DebugSettings DebugSystem::GetSettings() const {
+	return settings;
+}
 
 void DebugSystem::PreUpdate() {
 	impl::GetProfiler().timings_.clear();

@@ -1547,7 +1547,7 @@ bool DrawSequence(
 	auto& state{ GetScriptInspectorState() };
 	ImGui::PushID(static_cast<int>(binding.id));
 	const float button_size{ ImGui::GetFrameHeight() };
-	const bool show_runtime_controls{ context.ctx.state.is_playing };
+	const bool show_runtime_controls{ context.ctx.editor.IsPlaying() };
 	const int column_count{ show_runtime_controls ? 6 : 3 };
 	const float available_width{ ImGui::GetContentRegionAvail().x };
 	const float sequence_width{

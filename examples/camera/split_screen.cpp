@@ -78,8 +78,8 @@ struct SplitScreenScene : public Scene {
 		ctx().camera.SetClearColor(color::LightGold.WithAlpha(0.5f));
 		second_camera.SetClearColor(color::LightPink.WithAlpha(0.5f));
 
-		ctx().debug.interaction.draw_enabled	= true;
-		ctx().debug.interaction.draw_line_width = 10.0f;
+		ctx().debug.settings.interaction.draw_enabled	= true;
+		ctx().debug.settings.interaction.draw_line_width = 10.0f;
 
 		V2_int rect_size{ 100, 100 };
 		auto rect = CreateRect(*this, { 0, 0 }, rect_size, color::Green);

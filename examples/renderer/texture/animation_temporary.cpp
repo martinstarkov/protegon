@@ -25,7 +25,7 @@ class AnimationTemporaryScene : public Scene {
 
 	void OnEnter() override {
 		ctx().asset.Load("anim", "assets/animation_bubble.png");
-		ctx().debug.collision.draw_enabled = true;
+		ctx().debug.settings.collision.draw_enabled = true;
 
 		player =
 			CreateRect(*this, { 100, 100 }, { 20, 40 }, color::Orange, Solid{}, Origin::Center);

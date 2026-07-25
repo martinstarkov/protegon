@@ -13,7 +13,7 @@
 #include "core/math/math_utils.h"
 #include "core/math/vector2.h"
 #include "platform/window.h"
-#include "renderer/render_settings.h"
+#include "renderer/renderer_settings.h"
 #include "renderer/renderer.h"
 #include "runtime/asset/asset_manager.h"
 #include "runtime/graphics/fx/bloom.h"

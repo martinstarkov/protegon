@@ -17,7 +17,7 @@
 #include "platform/window.h"
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/viewport.h"
-#include "renderer/render_settings.h"
+#include "renderer/renderer_settings.h"
 #include "renderer/renderer.h"
 #include "tools/debug/debug_system.h"
 
@@ -112,8 +112,8 @@ struct Contents<TextDebugSettings> {
 };
 
 template <>
-struct Contents<RenderSettings> {
-	static bool Draw(EditorContext& ctx, RenderSettings& settings) {
+struct Contents<RendererSettings> {
+	static bool Draw(EditorContext& ctx, RendererSettings& settings) {
 		bool changed{ false };
 
 		changed |= DrawValue(ctx, "Tone Mapping", settings.tone_mapping.op);
@@ -186,7 +186,7 @@ bool DrawResolutionMode(EditorContext& ctx) {
 
 	auto& renderer{ ctx.editor.GetRenderer() };
 
-	int mode{ renderer.HasLogicalSize() ? 1 : 0 };
+	int mode{ renderer.GetSettings().logical_size.has_value() ? 1 : 0 };
 
 	bool changed{ DrawPropertyRow("Resolution Source", [&]() {
 		return ImGui::Combo("##value", &mode, names.data(), static_cast<int>(names.size()));
@@ -251,7 +251,7 @@ void DrawDisplaySettings(EditorContext& ctx) {
 
 	auto& renderer{ ctx.editor.GetRenderer() };
 
-	if (renderer.HasLogicalSize()) {
+	if (renderer.GetSettings().logical_size.has_value()) {
 		DrawResolutionPreset(ctx);
 
 		auto logical_size{ renderer.GetLogicalSize() };
@@ -269,7 +269,7 @@ void DrawDisplaySettings(EditorContext& ctx) {
 			renderer.SetLogicalSize(logical_size);
 		}
 
-		auto scaling_mode{ renderer.GetScalingMode() };
+		auto scaling_mode{ renderer.GetSettings().scaling_mode };
 
 		if (DrawValue(ctx, "Scaling Mode", scaling_mode)) {
 			renderer.SetScalingMode(scaling_mode);
@@ -283,12 +283,12 @@ void DrawDisplaySettings(EditorContext& ctx) {
 	}
 
 	settings::EditValue(ctx,
-		"Window Background", [&]() { return ctx.editor.GetWindow().GetBackgroundColor(); },
+		"Window Background", [&]() { return ctx.editor.GetWindow().GetSettings().background_color; },
 		[&](Color color) { ctx.editor.GetWindow().SetBackgroundColor(color); }
 	);
 
 	settings::EditValue(ctx,
-		"Renderer Background", [&]() { return ctx.editor.GetRenderer().GetBackgroundColor(); },
+		"Renderer Background", [&]() { return ctx.editor.GetRenderer().GetSettings().background_color; },
 		[&](Color color) { ctx.editor.GetRenderer().SetBackgroundColor(color); }
 	);
 
@@ -308,7 +308,7 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 
 	settings::EditSection(ctx,
 		"Rendering", [&]() { return ctx.editor.GetRenderer().GetSettings(); },
-		[&](const RenderSettings& value) { ctx.editor.GetRenderer().SetSettings(value); }
+		[&](const RendererSettings& value) { ctx.editor.GetRenderer().SetSettings(value); }
 	);
 
 	ImGui::End();
@@ -317,33 +317,33 @@ void EngineSettingsPanel::OnRender(EditorContext& ctx) {
 void DebugSettingsPanel::OnRender(EditorContext& ctx) {
 	ImGui::Begin("Debug Settings");
 
-	ImGui::Checkbox("ImGui Metrics", &show_imgui_metrics_);
+	ImGui::Checkbox("ImGui Metrics", &ctx.local.settings.show_imgui_metrics);
 
-	if (show_imgui_metrics_) {
-		ImGui::ShowMetricsWindow(&show_imgui_metrics_);
+	if (ctx.local.settings.show_imgui_metrics) {
+		ImGui::ShowMetricsWindow(&ctx.local.settings.show_imgui_metrics);
 	}
 
 	settings::EditSection(ctx,
-		"Interaction", [&]() { return ctx.editor.GetDebugSystem().interaction; },
+		"Interaction", [&]() { return ctx.editor.GetDebugSystem().settings.interaction; },
 		[&](const InteractiveDebugSettings& value) {
-			ctx.editor.GetDebugSystem().interaction = value;
+			ctx.editor.GetDebugSystem().settings.interaction = value;
 		}
 	);
 
 	settings::EditSection(ctx,
-		"Collision", [&]() { return ctx.editor.GetDebugSystem().collision; },
-		[&](const CollisionDebugSettings& value) { ctx.editor.GetDebugSystem().collision = value; }
+		"Collision", [&]() { return ctx.editor.GetDebugSystem().settings.collision; },
+		[&](const CollisionDebugSettings& value) { ctx.editor.GetDebugSystem().settings.collision = value; }
 	);
 
 	settings::EditSection(ctx,
-		"Text", [&]() { return ctx.editor.GetDebugSystem().text; },
-		[&](const TextDebugSettings& value) { ctx.editor.GetDebugSystem().text = value; }
+		"Text", [&]() { return ctx.editor.GetDebugSystem().settings.text; },
+		[&](const TextDebugSettings& value) { ctx.editor.GetDebugSystem().settings.text = value; }
 	);
 
 	settings::EditSection(ctx,
-		"Light Visibility", [&]() { return ctx.editor.GetDebugSystem().light; },
+		"Light Visibility", [&]() { return ctx.editor.GetDebugSystem().settings.light; },
 		[&](const LightVisibilityDebugSettings& value) {
-			ctx.editor.GetDebugSystem().light = value;
+			ctx.editor.GetDebugSystem().settings.light = value;
 		}
 	);
 

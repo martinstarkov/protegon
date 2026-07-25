@@ -148,7 +148,7 @@ path MakeUniqueProjectScenePath(
 				return false;
 			}
 
-			return !std::filesystem::exists(
+			return !FileExists(
 				project.file_path.parent_path() /
 				candidate
 			);
@@ -184,19 +184,8 @@ Editor::Editor(Application& app) : app{ app } {
 	// Generic application startup preference. The engine does not know why it was changed.
 	impl::ApplicationAccessor::ctx(app).start_project_runtime = false;
 
-	EditorSelection selection;
-
-	EditorState state;
-
-	state.is_dirty			= false;
-	state.is_paused			= false;
-	state.is_playing		= false;
-	state.viewport.focused	= false;
-	state.viewport.hovered	= false;
-	state.viewport.viewport = {};
-
 	context_ = std::make_unique<EditorContext>(
-		*this, commands_, undo_stack_, std::move(selection), std::move(state)
+		*this, commands_, undo_stack_
 	);
 
 	commands_ = EditorCommands{ &undo_stack_, &scene_list_panel_ };
@@ -293,7 +282,7 @@ bool Editor::CreateProjectScene(
 		)
 	};
 
-	std::filesystem::path relative_path{
+	auto relative_path{
 		MakeUniqueProjectScenePath(
 			project,
 			scene_tag
@@ -342,7 +331,7 @@ bool Editor::CreateProjectScene(
 		SaveProject(project);
 
 		std::error_code error;
-		std::filesystem::remove(
+		fs::remove(
 			absolute_path,
 			error
 		);
@@ -437,7 +426,7 @@ bool Editor::DeleteProjectScene(
 
 	std::error_code error;
 
-	std::filesystem::remove(
+	fs::remove(
 		absolute_path,
 		error
 	);
@@ -634,7 +623,7 @@ SceneListPanel& Editor::GetSceneListPanel() {
 
 bool Editor::ShouldEnableEntityPicking() const {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
-	return context_->settings.entity_picking && render_enabled_;
+	return context_->local.settings.entity_picking && render_enabled_;
 }
 
 ::ptgn::impl::FramebufferId Editor::GetSceneFramebuffer(Scene& scene) const {
@@ -702,25 +691,25 @@ void Editor::OnUpdate() {
 
 const EditorSettings& Editor::GetSettings() const {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
-	return context_->settings;
+	return context_->local.settings;
 }
 
 void Editor::SetGizmoUsesLocalOrientation(bool enabled) {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 
-	context_->settings.gizmo_uses_local_orientation = enabled;
+	context_->local.settings.gizmo_uses_local_orientation = enabled;
 }
 
 void Editor::SetEntityPickingMode(bool enabled) {
 	PTGN_ASSERT(context_, "Editor context must be initialized");
 
-	if (context_->settings.entity_picking == enabled) {
+	if (context_->local.settings.entity_picking == enabled) {
 		return;
 	}
 
 	auto previously_enabled{ ShouldEnableEntityPicking() };
 
-	context_->settings.entity_picking = enabled;
+	context_->local.settings.entity_picking = enabled;
 
 	auto currently_enabled{ ShouldEnableEntityPicking() };
 
@@ -759,10 +748,10 @@ void Editor::Play() {
 	play_snapshot_ = PlaySnapshot{
 		.scene_tag = scene->GetTag(),
 		.scene = CaptureScene(*scene),
-		.was_dirty = context_->state.is_dirty,
+		.was_dirty = context_->local.state.is_dirty,
 	};
 
-	context_->selection.Clear();
+	context_->local.selection.Clear();
 	undo_stack_.Clear();
 
 	SetApplicationState(
@@ -788,8 +777,8 @@ void Editor::Play() {
 
 	viewport_panel_.SetUseEditorCamera(false);
 
-	context_->state.is_playing = true;
-	context_->state.is_paused = false;
+	context_->local.state.is_playing = true;
+	context_->local.state.is_paused = false;
 }
 
 void Editor::Stop() {
@@ -800,7 +789,7 @@ void Editor::Stop() {
 		return;
 	}
 
-	context_->selection.Clear();
+	context_->local.selection.Clear();
 
 	SetApplicationState(
 		ApplicationState::Running
@@ -844,9 +833,9 @@ void Editor::Stop() {
 
 	viewport_panel_.SetUseEditorCamera(true);
 
-	context_->state.is_playing = false;
-	context_->state.is_paused = false;
-	context_->state.is_dirty =
+	context_->local.state.is_playing = false;
+	context_->local.state.is_paused = false;
+	context_->local.state.is_dirty =
 		play_snapshot_->was_dirty;
 
 	play_snapshot_.reset();
@@ -859,9 +848,9 @@ void Editor::TogglePause() {
 		return;
 	}
 
-	context_->state.is_paused = !context_->state.is_paused;
+	context_->local.state.is_paused = !context_->local.state.is_paused;
 	SetApplicationState(
-		context_->state.is_paused ? ApplicationState::Paused : ApplicationState::Running
+		context_->local.state.is_paused ? ApplicationState::Paused : ApplicationState::Running
 	);
 }
 
@@ -945,13 +934,19 @@ void Editor::SaveProjectScene() {
 		return;
 	}
 
-	context_->state.is_dirty = false;
+	context_->local.state.is_dirty = false;
 }
 
 bool Editor::IsPlaying() const {
 	PTGN_ASSERT(context_);
 
-	return context_->state.is_playing;
+	return context_->local.state.is_playing;
+}
+
+bool Editor::IsPaused() const {
+	PTGN_ASSERT(context_);
+
+	return context_->local.state.is_paused;
 }
 
 void Editor::SetTimeScale(float time_scale) {
@@ -1024,15 +1019,15 @@ void Editor::OnProjectChanged() {
 		"Editor context must be initialized"
 	);
 
-	context_->selection.Clear();
+	context_->local.selection.Clear();
 
 	undo_stack_.Clear();
 	play_snapshot_.reset();
 	pending_scene_bootstrap_saves_.clear();
 
-	context_->state.is_dirty = false;
-	context_->state.is_playing = false;
-	context_->state.is_paused = false;
+	context_->local.state.is_dirty = false;
+	context_->local.state.is_playing = false;
+	context_->local.state.is_paused = false;
 }
 
 void Editor::SetSceneEntityPickingEnabled(Scene& scene, bool enabled) {

@@ -22,7 +22,7 @@ public:
 	Button button;
 
 	void OnEnter() override {
-		ctx().debug.interaction.draw_enabled = true;
+		ctx().debug.settings.interaction.draw_enabled = true;
 
 		ctx().asset.Load(
 			{ { "hover", "assets/hover.ogg" },

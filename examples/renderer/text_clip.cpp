@@ -192,7 +192,7 @@ struct TextClipScene : public Scene {
 	void OnEnter() override {
 		SetBackgroundColor(color::LightGray);
 
-		ctx().debug.text.draw_enabled = true;
+		ctx().debug.settings.text.draw_enabled = true;
 
 		ctx().asset.Load(font, "assets/Arial.ttf");
 

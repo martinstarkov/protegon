@@ -19,7 +19,7 @@ using namespace ptgn;
 class ButtonTemplatesScene : public Scene {
 public:
 	void OnEnter() override {
-		ctx().debug.interaction.draw_enabled = true;
+		ctx().debug.settings.interaction.draw_enabled = true;
 		SetBackgroundColor(color::LightGray);
 
 		ctx().asset.Load(

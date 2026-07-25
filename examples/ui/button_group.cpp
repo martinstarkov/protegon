@@ -62,7 +62,7 @@ class ToggleButtonGroupScene : public Scene {
 
 	void OnEnter() override {
 		ctx().asset.Load("arial", "assets/Arial.ttf");
-		ctx().debug.interaction.draw_enabled = true;
+		ctx().debug.settings.interaction.draw_enabled = true;
 
 		std::string name1{ "Group 1" };
 

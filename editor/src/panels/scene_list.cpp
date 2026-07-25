@@ -105,7 +105,7 @@ void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
 	}
 
 	bool disabled{
-		ctx.state.is_playing ||
+		ctx.editor.IsPlaying() ||
 		selected_scene_->IsRuntime()
 	};
 
@@ -160,7 +160,7 @@ void SceneListPanel::DrawSceneParamUI(EditorContext& ctx) {
 		return;
 	}
 
-	ctx.state.is_dirty = true;
+	ctx.local.state.is_dirty = true;
 
 	QueueSceneSelection(
 		ctx,
@@ -351,7 +351,7 @@ void SceneListPanel::OnRender(
 				nullptr,
 				startup,
 				!startup &&
-					!ctx.state.is_playing
+					!ctx.editor.IsPlaying()
 			)) {
 			ctx.editor.SetStartupProjectScene(
 				tag
@@ -363,7 +363,7 @@ void SceneListPanel::OnRender(
 				nullptr,
 				false,
 				!startup &&
-					!ctx.state.is_playing
+					!ctx.editor.IsPlaying()
 			)) {
 			ctx.editor.DeleteProjectScene(tag);
 

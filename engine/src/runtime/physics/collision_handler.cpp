@@ -338,7 +338,7 @@ std::vector<impl::SweepCollision> CollisionHandler::GetSortedCollisions(
 }
 
 void CollisionHandler::Sweep(Scene& scene, Entity entity, secondsf dt) {
-	bool draw_ccd{ scene.ctx().debug.collision.DrawCCD() };
+	bool draw_ccd{ scene.ctx().debug.settings.collision.DrawCCD() };
 
 	PTGN_ASSERT(entity.Has<Collider>());
 	PTGN_ASSERT(entity.Get<Collider>().mode == CollisionMode::Continuous);

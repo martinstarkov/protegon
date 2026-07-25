@@ -109,6 +109,7 @@ public:
 	bool CanSaveProject() const;
 
 	bool IsPlaying() const;
+	bool IsPaused() const;
 private:
 	struct PlaySnapshot {
 		std::string scene_tag;

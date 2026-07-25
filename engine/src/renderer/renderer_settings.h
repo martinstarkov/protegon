@@ -3,8 +3,10 @@
 #include <string_view>
 #include <utility>
 
+#include "core/graphics/color.h"
 #include "core/log.h"
 #include "serialization/serialize.h"
+#include "renderer/pipeline/scaling_mode.h"
 
 namespace ptgn {
 
@@ -25,14 +27,21 @@ struct ToneMappingSettings {
 	PTGN_REFLECT(ToneMappingSettings, op, exposure)
 };
 
-struct RenderSettings {
+struct RendererSettings {
+	Color background_color{ color::Transparent };
+
+	/// @brief If nullopt, uses the window size as the logical size.
+	std::optional<V2_int> logical_size;
+	
+	ScalingMode scaling_mode{ ScalingMode::Letterbox };
+
 	ToneMappingSettings tone_mapping;
 	/// @brief Gamma value to use for gamma correction. This is applied after tone mapping and
 	/// should be set to 2.2 for correct sRGB output. Setting this to 1.0 will disable gamma
 	/// correction.
 	float gamma{ 2.2f };
 
-	PTGN_REFLECT(RenderSettings, tone_mapping, gamma)
+	PTGN_REFLECT(RendererSettings, background_color, logical_size, scaling_mode, tone_mapping, gamma)
 };
 
 namespace impl {

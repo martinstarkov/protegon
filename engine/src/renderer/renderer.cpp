@@ -46,7 +46,7 @@
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
-#include "renderer/render_settings.h"
+#include "renderer/renderer_settings.h"
 #include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/shader.h"
@@ -107,7 +107,7 @@ Renderer::Renderer(Window& window, Stats& stats, EventSink&& event_sink) :
 
 	SetCurrentPipeline("texture");
 
-	logical_size_ = GetWindowSize();
+	renderer_settings_.logical_size = GetWindowSize();
 
 	auto display{ RecalculateDisplayViewport() };
 
@@ -406,7 +406,7 @@ void Renderer::OnWindowResize(V2_int size) {
 		return;
 	}
 
-	if (!logical_size_.has_value()) {
+	if (!renderer_settings_.logical_size.has_value()) {
 		event_sink_(size, impl::ResizeType::Logical);
 	}
 
@@ -415,32 +415,40 @@ void Renderer::OnWindowResize(V2_int size) {
 	display_viewport_dirty_ = true;
 }
 
-void Renderer::SetSettings(const RenderSettings& settings) {
-	render_settings_ = settings;
+RendererSettings Renderer::GetSettings() const {
+	return renderer_settings_;
 }
 
-RenderSettings Renderer::GetSettings() const {
-	return render_settings_;
+void Renderer::SetSettings(const RendererSettings& settings) {
+	SetToneMappingOperator(settings.tone_mapping.op);
+	SetToneMappingExposure(settings.tone_mapping.exposure);
+	SetGamma(settings.gamma);
+	SetBackgroundColor(settings.background_color);
+	SetLogicalSize(settings.logical_size, settings.scaling_mode);
 }
 
 void Renderer::SetToneMappingOperator(ToneMappingOperator op) {
-	render_settings_.tone_mapping.op = op;
+	renderer_settings_.tone_mapping.op = op;
 }
 
 void Renderer::SetToneMappingExposure(float exposure) {
-	render_settings_.tone_mapping.exposure = exposure;
+	renderer_settings_.tone_mapping.exposure = exposure;
 }
 
 void Renderer::SetGamma(float gamma) {
-	render_settings_.gamma = gamma;
+	renderer_settings_.gamma = gamma;
+}
+
+void Renderer::SetBackgroundColor(Color background_color) {
+	renderer_settings_.background_color = background_color;
 }
 
 void Renderer::SetLogicalSize(
 	std::optional<V2_int> logical_size, std::optional<ScalingMode> scaling_mode
 ) {
-	if (logical_size_ == logical_size &&
+	if (renderer_settings_.logical_size == logical_size &&
 		(!scaling_mode.has_value() ||
-		 (scaling_mode.has_value() && scaling_mode_ == scaling_mode))) {
+		 (scaling_mode.has_value() && renderer_settings_.scaling_mode == scaling_mode))) {
 		return;
 	}
 
@@ -449,9 +457,9 @@ void Renderer::SetLogicalSize(
 		"Logical size cannot be set to negative value or zero"
 	);
 
-	logical_size_ = logical_size;
+	renderer_settings_.logical_size = logical_size;
 	if (scaling_mode.has_value()) {
-		scaling_mode_ = scaling_mode.value();
+		renderer_settings_.scaling_mode = scaling_mode.value();
 	}
 
 	auto size{ GetLogicalSize() };
@@ -462,11 +470,11 @@ void Renderer::SetLogicalSize(
 }
 
 void Renderer::SetScalingMode(ScalingMode scaling_mode) {
-	if (scaling_mode_ == scaling_mode) {
+	if (renderer_settings_.scaling_mode == scaling_mode) {
 		return;
 	}
 
-	scaling_mode_ = scaling_mode;
+	renderer_settings_.scaling_mode = scaling_mode;
 
 	display_viewport_dirty_ = true;
 }
@@ -484,7 +492,7 @@ void Renderer::SetPresentationViewport(std::optional<Viewport> presentation_view
 
 	auto size{ Ceil(presentation_viewport_.value().size) };
 
-	if (!logical_size_.has_value()) {
+	if (!renderer_settings_.logical_size.has_value()) {
 		event_sink_(size, impl::ResizeType::Logical);
 	}
 
@@ -492,19 +500,11 @@ void Renderer::SetPresentationViewport(std::optional<Viewport> presentation_view
 	display_viewport_dirty_ = true;
 }
 
-bool Renderer::HasLogicalSize() const {
-	return logical_size_.has_value();
-}
-
 V2_int Renderer::GetLogicalSize() const {
-	if (HasLogicalSize()) {
-		return logical_size_.value();
+	if (renderer_settings_.logical_size.has_value()) {
+		return renderer_settings_.logical_size.value();
 	}
 	return GetPresentationSize();
-}
-
-ScalingMode Renderer::GetScalingMode() const {
-	return scaling_mode_;
 }
 
 Viewport Renderer::GetPresentationViewport() const {
@@ -551,14 +551,6 @@ V2_int Renderer::GetWindowSize() const {
 	return window_.GetSize();
 }
 
-void Renderer::SetBackgroundColor(Color background_color) {
-	background_color_ = background_color;
-}
-
-Color Renderer::GetBackgroundColor() const {
-	return background_color_;
-}
-
 void Renderer::SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera) {
 	primary_world_camera_ = primary_world_camera;
 }
@@ -598,7 +590,7 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 
 	PTGN_ASSERT(presentation.size.IsPositive());
 
-	auto logical_size{ logical_size_.value_or(presentation.size) };
+	auto logical_size{ renderer_settings_.logical_size.value_or(presentation.size) };
 
 	PTGN_ASSERT(logical_size.IsPositive());
 
@@ -627,7 +619,7 @@ Renderer::DisplayResizeInfo Renderer::RecalculateDisplayViewport() const {
 		}
 	};
 
-	switch (scaling_mode_) {
+	switch (renderer_settings_.scaling_mode) {
 		case ScalingMode::Letterbox: compute_aspect_fit(true); break;
 		case ScalingMode::Overscan:	 compute_aspect_fit(false); break;
 
@@ -688,7 +680,7 @@ void Renderer::BeginFrame() {
 
 	if (!presentation_viewport_.has_value()) {
 		auto presentation{ GetPresentationViewport() };
-		Color window_background_color{ window_.GetBackgroundColor() };
+		Color window_background_color{ window_.GetSettings().background_color };
 		auto _ = gl_->Bind(impl::FramebufferId{ 0 }, false);
 		gl_->SetClearColor(window_background_color);
 		SetViewport(presentation);
@@ -700,7 +692,7 @@ void Renderer::BeginFrame() {
 	SetScissor(ScissorState{ false });
 	SetViewport(display_viewport_);
 
-	Clear(presentation_framebuffer_, background_color_, false);
+	Clear(presentation_framebuffer_, renderer_settings_.background_color, false);
 }
 
 void Renderer::BindUniforms() {

@@ -49,7 +49,7 @@ struct TextEffectsScene : public Scene {
 	}
 
 	void OnEnter() override {
-		ctx().debug.text.draw_enabled = true;
+		ctx().debug.settings.text.draw_enabled = true;
 		SetBackgroundColor(color::LightGray);
 
 		ctx().asset.Load("custom_ttf", "assets/Inter-VariableFont.ttf");

@@ -31,7 +31,7 @@ void LogFileDialogResult(const char* label, const FileDialog::Result<T>& result)
 		return;
 	}
 
-	if constexpr (std::same_as<T, std::filesystem::path>) {
+	if constexpr (std::same_as<T, path>) {
 		PTGN_LOG(label, " selected: ", (**result).string());
 	} else {
 		PTGN_LOG(label, " selected ", (**result).size(), " paths:");
@@ -46,7 +46,7 @@ void LogFileDialogResult(const char* label, const FileDialog::Result<T>& result)
 class FileDialogDemoScene : public Scene {
 public:
 	void OnEnter() override {
-		ctx().debug.interaction.draw_enabled = true;
+		ctx().debug.settings.interaction.draw_enabled = true;
 
 		const Origin button_origin{ Origin::Center };
 		const V2_int button_size{ 360, 72 };

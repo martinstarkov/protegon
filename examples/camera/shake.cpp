@@ -47,7 +47,7 @@ public:
 		ctx().asset.LoadShader("whirlpool", "assets/shader.glsl", "whirlpool");
 		ctx().asset.LoadTexture("noise", "assets/noise.png");
 
-		ctx().debug.interaction.draw_enabled = true;
+		ctx().debug.settings.interaction.draw_enabled = true;
 
 		ctx().interaction.SetTopOnly(true);
 		auto res{ ctx().renderer.GetLogicalSize() };

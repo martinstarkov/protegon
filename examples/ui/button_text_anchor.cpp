@@ -63,7 +63,7 @@ public:
 	void OnEnter() override {
 		SetBackgroundColor(color::LightGray);
 
-		ctx().debug.interaction.draw_enabled = true;
+		ctx().debug.settings.interaction.draw_enabled = true;
 
 		for (std::size_t i{ 0 }; i < anchor_tests.size(); ++i) {
 			int column{ static_cast<int>(i % 3) };

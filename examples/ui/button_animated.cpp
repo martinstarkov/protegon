@@ -18,7 +18,7 @@ using namespace ptgn;
 class AnimatedButtonScene : public Scene {
 public:
 	void OnEnter() override {
-		ctx().debug.interaction.draw_enabled = true;
+		ctx().debug.settings.interaction.draw_enabled = true;
 
 		ctx().asset.Load(
 			{ { "idle", "assets/bell.png" },

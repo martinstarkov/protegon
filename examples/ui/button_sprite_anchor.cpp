@@ -67,7 +67,7 @@ public:
 		ctx().asset.Load("button_sprite", "assets/button_idle.png");
 		SetBackgroundColor(color::LightGray);
 
-		ctx().debug.interaction.draw_enabled = true;
+		ctx().debug.settings.interaction.draw_enabled = true;
 
 		for (auto i{ 0uz }; i < anchor_tests.size(); ++i) {
 			int column{ static_cast<int>(i % 3) };

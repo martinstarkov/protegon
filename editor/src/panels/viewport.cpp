@@ -1212,8 +1212,8 @@ void ViewportPanel::DrawSceneCameraOutlines(
 }
 
 void ViewportPanel::DrawViewportToolbar(EditorContext& ctx) {
-	bool playing{ ctx.state.is_playing };
-	bool paused{ playing && ctx.state.is_paused };
+	bool playing{ ctx.editor.IsPlaying() };
+	bool paused{ playing && ctx.editor.IsPaused() };
 
 	if (ImGui::Button(playing ? "Stop" : "Play")) {
 		if (playing) {
@@ -1311,9 +1311,9 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	Viewport presentation_viewport{ .position{ min }, .size{ size } };
 
-	ctx.state.viewport.viewport = presentation_viewport;
-	ctx.state.viewport.focused	= ImGui::IsWindowFocused();
-	ctx.state.viewport.hovered	= ImGui::IsWindowHovered();
+	ctx.local.state.viewport.viewport = presentation_viewport;
+	ctx.local.state.viewport.focused	= ImGui::IsWindowFocused();
+	ctx.local.state.viewport.hovered	= ImGui::IsWindowHovered();
 
 	auto& renderer{ ctx.editor.GetRenderer() };
 	auto& window{ ctx.editor.GetWindow() };
@@ -1337,9 +1337,9 @@ void ViewportPanel::OnRender(EditorContext& ctx) {
 
 	auto draw_list{ ImGui::GetWindowDrawList() };
 
-	auto bg{ window.GetBackgroundColor() };
+	auto window_background_color{ window.GetSettings().background_color };
 
-	draw_list->AddRectFilled(ToImGui(min), ToImGui(max), ToImGui(bg));
+	draw_list->AddRectFilled(ToImGui(min), ToImGui(max), ToImGui(window_background_color));
 
 	auto display_viewport{ renderer.GetDisplayViewport() };
 	auto presentation_texture{ ctx.editor.GetPresentationTexture() };
@@ -1429,7 +1429,7 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 		ResetGizmoInteraction(gizmo_state_);
 	}
 
-	if (ctx.state.viewport.hovered && !ImGui::GetIO().WantTextInput) {
+	if (ctx.local.state.viewport.hovered && !ImGui::GetIO().WantTextInput) {
 		if (ImGui::IsKeyPressed(ImGuiKey_W)) {
 			gizmo_state_.tool = GizmoTool::Translate;
 		}
@@ -1472,7 +1472,7 @@ void ViewportPanel::DrawSelectedEntityGizmo(
 
 	UpdateAndDrawGizmoInstances(
 		ImGui::GetWindowDrawList(), gizmo_state_, editable_transform, gizmo_instances,
-		ctx.state.viewport.hovered, ctx.state.viewport.focused,
+		ctx.local.state.viewport.hovered, ctx.local.state.viewport.focused,
 		ctx.editor.GetSettings().gizmo_uses_local_orientation
 	);
 
@@ -1516,7 +1516,7 @@ void ViewportPanel::HandleEntityPicking(
 		return;
 	}
 
-	if (!ctx.state.viewport.hovered) {
+	if (!ctx.local.state.viewport.hovered) {
 		return;
 	}
 

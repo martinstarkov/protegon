@@ -60,7 +60,7 @@ class PlatformingScene : public Scene {
 	}
 
 	void OnEnter() override {
-		ctx().debug.collision = { .draw_ccd = true, .draw_enabled = true };
+		ctx().debug.settings.collision = { .draw_ccd = true, .draw_enabled = true };
 
 		V2_float ws{ logical_size };
 		ctx().physics.SetGravity({ 0.0f, 1.0f });

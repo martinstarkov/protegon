@@ -150,8 +150,8 @@ struct InteractiveScene : public Scene {
 	void OnNew() override {
 		SetBackgroundColor(color::DarkGray);
 
-		ctx().debug.interaction.draw_enabled	= true;
-		ctx().debug.interaction.draw_line_width = 3.0f;
+		ctx().debug.settings.interaction.draw_enabled	= true;
+		ctx().debug.settings.interaction.draw_line_width = 3.0f;
 
 		ctx().asset.Load(
 			{ { "circle", "assets/circle.png" },

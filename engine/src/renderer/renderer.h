@@ -37,7 +37,7 @@
 #include "renderer/pipeline/scaling_mode.h"
 #include "renderer/pipeline/vertex.h"
 #include "renderer/pipeline/viewport.h"
-#include "renderer/render_settings.h"
+#include "renderer/renderer_settings.h"
 #include "renderer/resources/framebuffer.h"
 #include "renderer/resources/id.h"
 #include "renderer/resources/resource.h"
@@ -59,7 +59,6 @@ class ApplicationContext;
 class RenderCommands;
 class RendererAccessor;
 
-inline constexpr Color kDefaultRendererBackgroundColor{ color::Transparent };
 inline constexpr const char* kGammaUniform{ "u_Gamma" };
 inline constexpr const char* kExposureUniform{ "u_Exposure" };
 
@@ -79,14 +78,16 @@ enum class ResizeType {
 
 class Renderer {
 public:
-	void SetSettings(const RenderSettings& settings);
-	RenderSettings GetSettings() const;
+	RendererSettings GetSettings() const;
+	void SetSettings(const RendererSettings& settings);
 
 	void SetToneMappingOperator(ToneMappingOperator op);
 
 	void SetToneMappingExposure(float exposure);
 
 	void SetGamma(float gamma);
+
+	void SetBackgroundColor(Color background_color);
 
 	/// @param logical_size Setting to nullopt will dynamically use the presentation viewport size.
 	void SetLogicalSize(
@@ -102,15 +103,8 @@ public:
 	/// Viewport position should be relative to the window top left.
 	void SetPresentationViewport(std::optional<Viewport> presentation_viewport = std::nullopt);
 
-	/// @return True if the logical size is set, false otherwise.
-	[[nodiscard]] bool HasLogicalSize() const;
-
 	/// @return The logical size of the renderer. Returns presentation viewport size if unset.
 	V2_int GetLogicalSize() const;
-
-	/// @return The method by which the logical size is scaled to fit the presentation
-	/// viewport.
-	ScalingMode GetScalingMode() const;
 
 	/// @return The presentation viewport with position relative to the window top left.
 	/// Returns a viewport covering the entire window if unset.
@@ -141,9 +135,6 @@ public:
 	/// @return The size of the entire viewport that the presentation viewport is within. This is
 	/// always equal to the window size.
 	V2_int GetWindowSize() const;
-
-	void SetBackgroundColor(Color background_color);
-	Color GetBackgroundColor() const;
 
 	void SetPrimaryWorldCamera(const std::optional<Camera>& primary_world_camera = std::nullopt);
 
@@ -462,7 +453,7 @@ private:
 			ApplyPresentationEffect(std::forward<F>(presentation_effect_callback));
 		}
 
-		auto op{ render_settings_.tone_mapping.op };
+		auto op{ renderer_settings_.tone_mapping.op };
 
 		PTGN_ASSERT(
 			!impl::RequiresHDRInput(op) ||
@@ -476,10 +467,10 @@ private:
 
 				auto result{ pass.Apply(gamma_and_tonemapping_shader) };
 
-				result.Uniform(impl::kGammaUniform, render_settings_.gamma);
+				result.Uniform(impl::kGammaUniform, renderer_settings_.gamma);
 
 				if (op == ToneMappingOperator::Exposure || op == ToneMappingOperator::ACES) {
-					result.Uniform(impl::kExposureUniform, render_settings_.tone_mapping.exposure);
+					result.Uniform(impl::kExposureUniform, renderer_settings_.tone_mapping.exposure);
 				}
 
 				return result;
@@ -634,7 +625,6 @@ private:
 
 	std::unique_ptr<impl::gl::GLContext> gl_;
 
-	Color background_color_{ impl::kDefaultRendererBackgroundColor };
 	impl::FramebufferObject presentation_framebuffer_;
 
 	std::size_t current_texture_slot_capacity_{ 1 };
@@ -647,13 +637,11 @@ private:
 	std::vector<impl::FramebufferObject> temp_framebuffers_;
 	impl::TextureObject white_texture_;
 
-	RenderSettings render_settings_;
+	RendererSettings renderer_settings_;
 
-	std::optional<V2_int> logical_size_;
 	Viewport display_viewport_;
 	/// @brief Flag to indicate whether the display viewport needs to be recalculated.
 	bool display_viewport_dirty_{ true };
-	ScalingMode scaling_mode_{ ScalingMode::Letterbox };
 
 	/// @brief The viewport used for presentation (i.e. the final output to the screen). This
 	/// may be different from the window if using the editor, which has a separate viewport for
