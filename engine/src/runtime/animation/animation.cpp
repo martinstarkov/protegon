@@ -415,6 +415,10 @@ std::optional<Animation> AnimationMap::GetActive() const {
 	return animation ? std::optional<Animation>{ animation } : std::nullopt;
 }
 
+Animation AnimationMap::GetAnimation(std::string_view animation_key) const {
+	return Find(impl::AnimationMapKey{ animation_key });
+}
+
 bool AnimationMap::SetActive(std::string_view animation_key) {
 	if (!Has<impl::AnimationMapData>()) {
 		return false;

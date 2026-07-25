@@ -82,6 +82,105 @@ public:
 	/// @brief Replaces an active scene through a type-erased factory without a transition.
 	bool ReEnterFactory(std::string_view scene_tag, SceneFactory scene_factory);
 
+	/// @brief Creates a type-erased factory for a scene registered with PTGN_REGISTER_SCENE.
+	[[nodiscard]] static SceneFactory MakeRegisteredFactory(
+		std::string scene_type, json parameters = json::object()
+	) {
+		return [scene_type = std::move(scene_type), parameters = std::move(parameters)](
+			Application& app, SceneData&& scene_data
+		) -> std::unique_ptr<Scene> {
+			const auto& registration{ GetSceneRegistration(scene_type) };
+			auto scene{ registration.construct(parameters) };
+			scene->Init(app, std::move(scene_data));
+			return scene;
+		};
+	}
+
+	/// @brief Enters a scene through a type-erased factory with an optional transition.
+	bool EnterFactory(
+		std::string_view scene_tag, SceneFactory scene_factory,
+		std::unique_ptr<SceneTransition> transition_in,
+		SceneTransitionPriority priority = SceneTransitionPriority{}
+	) {
+		const auto scene_tag_hash{ Hash(scene_tag) };
+		if (!CanIssueCommands(scene_tag_hash)) {
+			return false;
+		}
+
+		if (HasScene(scene_tag_hash)) {
+			return ReEnterFactory(
+				scene_tag, std::move(scene_factory), nullptr, std::move(transition_in)
+			);
+		}
+
+		PushCommand(
+			CommandType::Enter, std::string{ scene_tag }, scene_tag_hash, priority,
+			std::move(scene_factory), nullptr, std::move(transition_in)
+		);
+		return true;
+	}
+
+	/// @brief Replaces an active scene through a type-erased factory with optional transitions.
+	bool ReEnterFactory(
+		std::string_view scene_tag, SceneFactory scene_factory,
+		std::unique_ptr<SceneTransition> transition_out,
+		std::unique_ptr<SceneTransition> transition_in
+	) {
+		const auto scene_tag_hash{ Hash(scene_tag) };
+		if (!CanIssueCommands(scene_tag_hash)) {
+			return false;
+		}
+
+		PTGN_ASSERT(
+			HasScene(scene_tag_hash), "Cannot re-enter a scene tag hash which has not been entered"
+		);
+
+		PushCommand(
+			CommandType::ReEnter, std::string{ scene_tag }, scene_tag_hash,
+			SceneTransitionPriority{ std::numeric_limits<std::size_t>::max() },
+			std::move(scene_factory), std::move(transition_out), std::move(transition_in)
+		);
+		return true;
+	}
+
+	/// @brief Exits a scene with a type-erased optional transition.
+	bool Exit(
+		std::string_view scene_tag, std::unique_ptr<SceneTransition> transition_out,
+		SceneTransitionPriority priority = SceneTransitionPriority{}
+	) {
+		const auto scene_tag_hash{ Hash(scene_tag) };
+		if (!CanIssueCommands(scene_tag_hash) || !HasScene(scene_tag_hash)) {
+			return false;
+		}
+
+		PushCommand(
+			CommandType::Exit, std::string{ scene_tag }, scene_tag_hash, priority, nullptr,
+			std::move(transition_out), nullptr
+		);
+		return true;
+	}
+
+	/// @brief Exits one scene and enters another through a type-erased factory.
+	bool TransitionFactory(
+		std::string_view from_scene_tag, std::string_view to_scene_tag,
+		SceneFactory scene_factory, std::unique_ptr<SceneTransition> transition_out,
+		std::unique_ptr<SceneTransition> transition_in,
+		SceneTransitionPriority priority = SceneTransitionPriority{}
+	) {
+		if (from_scene_tag == to_scene_tag) {
+			return ReEnterFactory(
+				to_scene_tag, std::move(scene_factory), std::move(transition_out),
+				std::move(transition_in)
+			);
+		}
+
+		const bool exited{ Exit(from_scene_tag, std::move(transition_out), priority) };
+		const bool entered{ EnterFactory(
+			to_scene_tag, std::move(scene_factory), std::move(transition_in), priority
+		) };
+		return exited || entered;
+	}
+
 	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	bool Enter(
@@ -352,6 +451,46 @@ private:
 
 class LocalSceneManager {
 public:
+	bool EnterFactory(
+		std::string_view scene_tag, impl::SceneFactory scene_factory,
+		std::unique_ptr<SceneTransition> transition_in,
+		SceneTransitionPriority priority = SceneTransitionPriority{}
+	) {
+		return scene_manager_.EnterFactory(
+			scene_tag, std::move(scene_factory), std::move(transition_in), priority
+		);
+	}
+
+	bool Exit(
+		std::string_view scene_tag, std::unique_ptr<SceneTransition> transition_out,
+		SceneTransitionPriority priority = SceneTransitionPriority{}
+	) {
+		return scene_manager_.Exit(scene_tag, std::move(transition_out), priority);
+	}
+
+	bool ReEnterFactory(
+		std::string_view scene_tag, impl::SceneFactory scene_factory,
+		std::unique_ptr<SceneTransition> transition_out,
+		std::unique_ptr<SceneTransition> transition_in
+	) {
+		return scene_manager_.ReEnterFactory(
+			scene_tag, std::move(scene_factory), std::move(transition_out),
+			std::move(transition_in)
+		);
+	}
+
+	bool TransitionFactory(
+		std::string_view from_scene_tag, std::string_view to_scene_tag,
+		impl::SceneFactory scene_factory, std::unique_ptr<SceneTransition> transition_out,
+		std::unique_ptr<SceneTransition> transition_in,
+		SceneTransitionPriority priority = SceneTransitionPriority{}
+	) {
+		return scene_manager_.TransitionFactory(
+			from_scene_tag, to_scene_tag, std::move(scene_factory),
+			std::move(transition_out), std::move(transition_in), priority
+		);
+	}
+
 	template <SceneType T, SceneTransitionType TransitionIn, typename... TArgs>
 		requires std::constructible_from<T, TArgs...>
 	bool Enter(

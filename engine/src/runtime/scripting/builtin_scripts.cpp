@@ -7,17 +7,23 @@
 #include <type_traits>
 #include <utility>
 
+#include "core/log.h"
 #include "core/math/angle.h"
 #include "core/math/math_utils.h"
 #include "core/math/noise.h"
 #include "core/math/rng.h"
 #include "core/math/tolerance.h"
+#include "runtime/animation/animation.h"
 #include "runtime/animation/offsets.h"
 #include "runtime/ecs/entity_hierarchy.h"
+#include "runtime/graphics/sprite.h"
 #include "runtime/graphics/tint.h"
 #include "runtime/graphics/visible.h"
 #include "runtime/physics/movement.h"
 #include "runtime/physics/rigid_body.h"
+#include "runtime/scene/scene_manager.h"
+#include "runtime/scene/scene_registry.h"
+#include "runtime/scene/scene_transitions.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_context.h"
 
@@ -39,6 +45,94 @@ struct PathFollowAnimationState {
 } // namespace impl
 
 namespace {
+
+[[nodiscard]] Animation ResolveAnimation(Entity owner, std::string_view animation_key) {
+	if (owner.Has<impl::AnimationMapData>()) {
+		AnimationMap map{ owner };
+		if (animation_key.empty()) {
+			return map.GetActive().value_or(Animation{});
+		}
+
+		auto animation{ map.GetAnimation(animation_key) };
+		if (!animation) {
+			return {};
+		}
+		map.SetActive(animation_key);
+		return animation;
+	}
+
+	return owner.Has<impl::AnimationData>() ? Animation{ owner } : Animation{};
+}
+
+[[nodiscard]] milliseconds MillisecondsFromFloat(float value) {
+	using Rep = milliseconds::rep;
+	return milliseconds{ static_cast<Rep>(std::max(0.0f, value)) };
+}
+
+struct SceneTransitionPointers {
+	std::unique_ptr<SceneTransition> out;
+	std::unique_ptr<SceneTransition> in;
+};
+
+[[nodiscard]] SceneTransitionPointers MakeSceneTransitions(const SceneChangeScript& script) {
+	SceneTransitionPointers transitions;
+	if (script.transition == SceneTransitionStyle::None) {
+		return transitions;
+	}
+
+	const milliseconds duration{ MillisecondsFromFloat(script.duration_ms) };
+	const milliseconds delay{ MillisecondsFromFloat(script.delay_ms) };
+	const V2_float direction{ script.direction.IsZero() ? V2_float{ 1.0f, 0.0f } : script.direction };
+	const bool has_out{
+		script.action == SceneChangeAction::Exit || script.action == SceneChangeAction::Switch ||
+		script.action == SceneChangeAction::ReEnter
+	};
+	const bool has_in{
+		script.action == SceneChangeAction::Enter || script.action == SceneChangeAction::Switch ||
+		script.action == SceneChangeAction::ReEnter
+	};
+
+	switch (script.transition) {
+		case SceneTransitionStyle::None:
+			break;
+		case SceneTransitionStyle::Fade: {
+			if (has_out) {
+				transitions.out =
+					std::make_unique<FadeOutTransition>(duration, delay, script.ease);
+			}
+			if (has_in) {
+				const milliseconds in_delay{ has_out ? delay + duration : delay };
+				transitions.in =
+					std::make_unique<FadeInTransition>(duration, in_delay, script.ease);
+			}
+			break;
+		}
+		case SceneTransitionStyle::CrossFade:
+			if (has_out) {
+				transitions.out =
+					std::make_unique<FadeOutTransition>(duration, delay, script.ease);
+			}
+			if (has_in) {
+				transitions.in =
+					std::make_unique<FadeInTransition>(duration, delay, script.ease);
+			}
+			break;
+		case SceneTransitionStyle::Slide:
+			if (has_out) {
+				transitions.out = std::make_unique<SlideOutTransition>(
+					duration, direction, delay, script.ease
+				);
+			}
+			if (has_in) {
+				transitions.in = std::make_unique<SlideInTransition>(
+					duration, -direction, delay, script.ease
+				);
+			}
+			break;
+	}
+
+	return transitions;
+}
 
 [[nodiscard]] float BounceWave(float progress, bool symmetrical) {
 	const float phase{
@@ -600,6 +694,144 @@ void NativeScript::OnCancel(SequenceCancelReason reason) {
 
 void SetVisibleScript::OnStart() {
 	SetVisible(Owner(), visible);
+}
+
+void AnimationActionScript::OnStart() {
+	auto animation{ ResolveAnimation(Owner(), animation_key) };
+	if (!animation) {
+		PTGN_WARN(
+			"Animation action requires an Animation owner or an AnimationMap with an active/keyed "
+			"animation"
+		);
+		return;
+	}
+
+	switch (action) {
+		case AnimationAction::Start:
+			animation.Start(force);
+			break;
+		case AnimationAction::Stop:
+			animation.Stop(reset_on_stop);
+			break;
+		case AnimationAction::Reset:
+			animation.Reset();
+			break;
+		case AnimationAction::Pause:
+			animation.Pause();
+			break;
+		case AnimationAction::Resume:
+			animation.Resume();
+			break;
+		case AnimationAction::TogglePlaying:
+			animation.Toggle();
+			break;
+		case AnimationAction::SetFrame:
+			animation.SetCurrentFrame(frame);
+			break;
+		case AnimationAction::NextFrame:
+			animation.IncrementFrame();
+			break;
+		case AnimationAction::PreviousFrame: {
+			const std::size_t frame_count{ animation.GetFrameCount() };
+			if (frame_count > 0) {
+				animation.SetCurrentFrame(
+					(animation.GetCurrentFrame() + frame_count - 1) % frame_count
+				);
+			}
+			break;
+		}
+	}
+}
+
+void SetTextureScript::OnStart() {
+	Sprite{ Owner() }.SetTexture(texture_key);
+}
+
+void SetEnabledScript::OnStart() {
+	const auto* registration{ ComponentRegistry::Find(component) };
+	if (!registration || !registration->has || !registration->has(Owner())) {
+		PTGN_WARN("Cannot set enabled state for missing component: ", component);
+		return;
+	}
+	if (!registration->serialize || !registration->deserialize) {
+		PTGN_WARN("Component does not support enabled-state serialization: ", component);
+		return;
+	}
+
+	json value;
+	registration->serialize(value, Owner());
+	if (value.is_boolean()) {
+		value = enabled;
+	} else if (value.is_object()) {
+		auto it{ value.find("enabled") };
+		if (it == value.end() || !it->is_boolean()) {
+			PTGN_WARN("Component does not expose a bool enabled field: ", component);
+			return;
+		}
+		*it = enabled;
+	} else {
+		PTGN_WARN("Component does not expose a supported enabled value: ", component);
+		return;
+	}
+
+	registration->deserialize(value, Owner());
+}
+
+void SceneChangeScript::OnStart() {
+	auto& current_scene{ GetScene() };
+	auto& scene_manager{ current_scene.ctx().scene };
+
+	const std::string target_tag{ scene_tag.empty() ? current_scene.GetTag() : scene_tag };
+	auto transitions{ MakeSceneTransitions(*this) };
+	const SceneTransitionPriority transition_priority{ priority };
+
+	if (action == SceneChangeAction::Exit) {
+		scene_manager.Exit(
+			target_tag, std::move(transitions.out), transition_priority
+		);
+		return;
+	}
+
+	std::string target_type{ scene_type };
+	json parameters = scene_parameters;
+	if (target_type.empty() && target_tag == current_scene.GetTag()) {
+		target_type = std::string{ current_scene.GetRegisteredType() };
+		if (!target_type.empty() && parameters.empty()) {
+			const auto& registration{ impl::GetSceneRegistration(target_type) };
+			parameters = registration.serialize_parameters(current_scene);
+		}
+	}
+
+	if (target_type.empty() || !impl::GetSceneRegistry().contains(target_type)) {
+		PTGN_WARN("Scene action requires a registered scene type: ", target_type);
+		return;
+	}
+
+	auto factory{ impl::SceneManager::MakeRegisteredFactory(
+		std::move(target_type), std::move(parameters)
+	) };
+
+	switch (action) {
+		case SceneChangeAction::Enter:
+			scene_manager.EnterFactory(
+				target_tag, std::move(factory), std::move(transitions.in), transition_priority
+			);
+			break;
+		case SceneChangeAction::Exit:
+			break;
+		case SceneChangeAction::Switch:
+			scene_manager.TransitionFactory(
+				current_scene.GetTag(), target_tag, std::move(factory),
+				std::move(transitions.out), std::move(transitions.in), transition_priority
+			);
+			break;
+		case SceneChangeAction::ReEnter:
+			scene_manager.ReEnterFactory(
+				target_tag, std::move(factory), std::move(transitions.out),
+				std::move(transitions.in)
+			);
+			break;
+	}
 }
 
 void EmitSignalScript::OnStart() {

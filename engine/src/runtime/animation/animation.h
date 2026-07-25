@@ -257,6 +257,9 @@ public:
 	/// @return Active animation, or nullopt if no animation is active.
 	std::optional<Animation> GetActive() const;
 
+	/// @return Animation with the provided map key, or a null animation if it does not exist.
+	[[nodiscard]] Animation GetAnimation(std::string_view animation_key) const;
+
 private:
 	/// @return May return a null animation if no child has the given key.
 	[[nodiscard]] Animation Find(impl::AnimationMapKey key) const;

@@ -16,7 +16,9 @@
 #include "core/util/strong_string.h"
 #include "runtime/animation/follow_config.h"
 #include "runtime/animation/shake_config.h"
+#include "runtime/asset/asset_key.h"
 #include "runtime/ecs/component_registry.h"
+#include "runtime/scene/scene_transition.h"
 #include "runtime/scripting/script.h"
 
 namespace ptgn {
@@ -323,6 +325,96 @@ struct SetVisibleScript : public Script {
 	void OnStart() override;
 
 	PTGN_REFLECT(SetVisibleScript, visible)
+};
+
+enum class AnimationAction : std::uint8_t {
+	Start,
+	Stop,
+	Reset,
+	Pause,
+	Resume,
+	TogglePlaying,
+	SetFrame,
+	NextFrame,
+	PreviousFrame
+};
+
+/// @brief Controls an Animation directly, or the active/keyed child of an AnimationMap.
+struct AnimationActionScript : public Script {
+	AnimationAction action{ AnimationAction::Start };
+	std::string animation_key;
+	std::size_t frame{ 0 };
+	bool force{ true };
+	bool reset_on_stop{ false };
+
+	void OnStart() override;
+
+	PTGN_REFLECT(AnimationActionScript, action, animation_key, frame, force, reset_on_stop)
+};
+
+/// @brief Assigns a TextureKey to the owning entity.
+struct SetTextureScript : public Script {
+	TextureKey texture_key;
+
+	SetTextureScript() = default;
+	explicit SetTextureScript(TextureKey texture_key) : texture_key{ std::move(texture_key) } {}
+
+	void OnStart() override;
+
+	PTGN_REFLECT(SetTextureScript, texture_key)
+};
+
+/// @brief Sets the reflected enabled value of a registered component on the owning entity.
+/// Supports value-reflected bool components such as Interactive and object-reflected components
+/// with a bool field named enabled, such as Draggable and Dropzone.
+struct SetEnabledScript : public Script {
+	std::string component{ "Interactive" };
+	bool enabled{ true };
+
+	SetEnabledScript() = default;
+	SetEnabledScript(std::string component, bool enabled = true) :
+		component{ std::move(component) }, enabled{ enabled } {}
+
+	void OnStart() override;
+
+	PTGN_REFLECT(SetEnabledScript, component, enabled)
+};
+
+enum class SceneChangeAction : std::uint8_t {
+	Enter,
+	Exit,
+	Switch,
+	ReEnter
+};
+
+enum class SceneTransitionStyle : std::uint8_t {
+	None,
+	Fade,
+	CrossFade,
+	Slide
+};
+
+/// @brief Queues a type-erased scene enter, exit, switch, or re-entry operation.
+/// Registered scene construction uses scene_type and scene_parameters.
+struct SceneChangeScript : public Script {
+	SceneChangeAction action{ SceneChangeAction::Switch };
+	std::string scene_tag{ "Main" };
+	std::string scene_type;
+	json scene_parameters = json::object();
+
+	SceneTransitionStyle transition{ SceneTransitionStyle::None };
+	float duration_ms{ 500.0f };
+	float delay_ms{ 0.0f };
+	Ease ease{ Ease::Linear };
+	V2_float direction{ 1.0f, 0.0f };
+	std::size_t priority{ 0 };
+
+	void OnStart() override;
+
+	PTGN_REFLECT(
+		SceneChangeScript, action, scene_tag, scene_type, scene_parameters, transition,
+		duration_ms, delay_ms, ease, direction, priority
+	)
 };
 
 struct EmitSignalScript : public Script {

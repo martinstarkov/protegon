@@ -8,6 +8,7 @@
 #include "core/event/mouse_event.h"
 #include "core/input/key.h"
 #include "core/input/mouse.h"
+#include "runtime/animation/animation_event.h"
 #include "runtime/interaction/draggable_event.h"
 #include "runtime/interaction/dropzone_event.h"
 #include "runtime/interaction/interactive_event.h"
@@ -35,6 +36,13 @@ template <typename T>
 	} catch (...) {
 		return fallback;
 	}
+}
+
+template <typename T>
+[[nodiscard]] json MakeEventDefault(std::string_view key, T value) {
+	json result = json::object();
+	result[std::string{ key }] = std::move(value);
+	return result;
 }
 
 template <typename TEvent>
@@ -144,35 +152,12 @@ PTGN_REGISTER_SCRIPT(
 	}
 );
 
-PTGN_REGISTER_SCRIPT(
-	AddShakeTraumaScript,
-	{ .completion = ScriptCompletion::Instant }
-);
-
-PTGN_REGISTER_SCRIPT(
-	RecoverShakeScript,
-	{ .completion = ScriptCompletion::ScriptControlled }
-);
-
-PTGN_REGISTER_SCRIPT(
-	ResetShakeScript,
-	{ .completion = ScriptCompletion::Instant }
-);
-
-PTGN_REGISTER_SCRIPT(
-	FollowTargetScript,
-	{ .completion = ScriptCompletion::ScriptControlled }
-);
-
-PTGN_REGISTER_SCRIPT(
-	FollowEntityScript,
-	{ .completion = ScriptCompletion::ScriptControlled }
-);
-
-PTGN_REGISTER_SCRIPT(
-	FollowPathScript,
-	{ .completion = ScriptCompletion::ScriptControlled }
-);
+PTGN_REGISTER_SCRIPT(AddShakeTraumaScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RecoverShakeScript, { .completion = ScriptCompletion::ScriptControlled });
+PTGN_REGISTER_SCRIPT(ResetShakeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(FollowTargetScript, { .completion = ScriptCompletion::ScriptControlled });
+PTGN_REGISTER_SCRIPT(FollowEntityScript, { .completion = ScriptCompletion::ScriptControlled });
+PTGN_REGISTER_SCRIPT(FollowPathScript, { .completion = ScriptCompletion::ScriptControlled });
 
 PTGN_REGISTER_SCRIPT(
 	NativeScript,
@@ -183,30 +168,19 @@ PTGN_REGISTER_SCRIPT(
 	}
 );
 
-PTGN_REGISTER_SCRIPT(
-	SetVisibleScript,
-	{ .completion = ScriptCompletion::Instant }
-);
-
-PTGN_REGISTER_SCRIPT(
-	EmitSignalScript,
-	{ .completion = ScriptCompletion::Instant }
-);
-
-PTGN_REGISTER_SCRIPT(
-	AddComponentsScript,
-	{ .completion = ScriptCompletion::Instant }
-);
-
-PTGN_REGISTER_SCRIPT(
-	RemoveComponentsScript,
-	{ .completion = ScriptCompletion::Instant }
-);
+PTGN_REGISTER_SCRIPT(SetVisibleScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AnimationActionScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SetTextureScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SetEnabledScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(SceneChangeScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(EmitSignalScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(AddComponentsScript, { .completion = ScriptCompletion::Instant });
+PTGN_REGISTER_SCRIPT(RemoveComponentsScript, { .completion = ScriptCompletion::Instant });
 
 PTGN_REGISTER_EVENT(
 	event::KeyPressed,
 	{
-		.default_value = json{ { "key", Key::W } },
+		.default_value = MakeEventDefault("key", Key::W),
 		.matches = &MatchKeyEvent<event::KeyPressed>,
 	}
 );
@@ -214,7 +188,7 @@ PTGN_REGISTER_EVENT(
 PTGN_REGISTER_EVENT(
 	event::KeyHeld,
 	{
-		.default_value = json{ { "key", Key::W } },
+		.default_value = MakeEventDefault("key", Key::W),
 		.matches = &MatchKeyEvent<event::KeyHeld>,
 	}
 );
@@ -222,7 +196,7 @@ PTGN_REGISTER_EVENT(
 PTGN_REGISTER_EVENT(
 	event::KeyReleased,
 	{
-		.default_value = json{ { "key", Key::W } },
+		.default_value = MakeEventDefault("key", Key::W),
 		.matches = &MatchKeyEvent<event::KeyReleased>,
 	}
 );
@@ -230,7 +204,7 @@ PTGN_REGISTER_EVENT(
 PTGN_REGISTER_EVENT(
 	event::MousePressed,
 	{
-		.default_value = json{ { "button", Mouse::Left } },
+		.default_value = MakeEventDefault("button", Mouse::Left),
 		.matches = &MatchMouseEvent<event::MousePressed>,
 	}
 );
@@ -238,7 +212,7 @@ PTGN_REGISTER_EVENT(
 PTGN_REGISTER_EVENT(
 	event::MouseHeld,
 	{
-		.default_value = json{ { "button", Mouse::Left } },
+		.default_value = MakeEventDefault("button", Mouse::Left),
 		.matches = &MatchMouseEvent<event::MouseHeld>,
 	}
 );
@@ -246,7 +220,7 @@ PTGN_REGISTER_EVENT(
 PTGN_REGISTER_EVENT(
 	event::MouseReleased,
 	{
-		.default_value = json{ { "button", Mouse::Left } },
+		.default_value = MakeEventDefault("button", Mouse::Left),
 		.matches = &MatchMouseEvent<event::MouseReleased>,
 	}
 );
@@ -257,7 +231,7 @@ PTGN_REGISTER_EVENT(event::MouseMoveOut);
 PTGN_REGISTER_EVENT(
 	event::MousePressedOver,
 	{
-		.default_value = json{ { "button", Mouse::Left } },
+		.default_value = MakeEventDefault("button", Mouse::Left),
 		.matches = &MatchMouseEvent<event::MousePressedOver>,
 	}
 );
@@ -265,7 +239,7 @@ PTGN_REGISTER_EVENT(
 PTGN_REGISTER_EVENT(
 	event::MouseHeldOver,
 	{
-		.default_value = json{ { "button", Mouse::Left } },
+		.default_value = MakeEventDefault("button", Mouse::Left),
 		.matches = &MatchMouseEvent<event::MouseHeldOver>,
 	}
 );
@@ -273,7 +247,7 @@ PTGN_REGISTER_EVENT(
 PTGN_REGISTER_EVENT(
 	event::MouseReleasedOver,
 	{
-		.default_value = json{ { "button", Mouse::Left } },
+		.default_value = MakeEventDefault("button", Mouse::Left),
 		.matches = &MatchMouseEvent<event::MouseReleasedOver>,
 	}
 );
@@ -331,10 +305,19 @@ PTGN_REGISTER_EVENT(event::Overlap);
 PTGN_REGISTER_EVENT(event::OverlapStop);
 PTGN_REGISTER_EVENT(event::Collision);
 
+PTGN_REGISTER_EVENT(event::AnimationStart);
+PTGN_REGISTER_EVENT(event::AnimationStop);
+PTGN_REGISTER_EVENT(event::AnimationPause);
+PTGN_REGISTER_EVENT(event::AnimationResume);
+PTGN_REGISTER_EVENT(event::AnimationFrameChange);
+PTGN_REGISTER_EVENT(event::AnimationUpdate);
+PTGN_REGISTER_EVENT(event::AnimationComplete);
+PTGN_REGISTER_EVENT(event::AnimationLoopComplete);
+
 PTGN_REGISTER_EVENT(
 	Signal,
 	{
-		.default_value = json{ { "signal", "" } },
+		.default_value = MakeEventDefault("signal", std::string{}),
 		.matches = [](Entity, const json& value, const Signal& event) {
 			return std::string_view{ event.key } ==
 				JsonValueOr<std::string>(value, "signal", "");
