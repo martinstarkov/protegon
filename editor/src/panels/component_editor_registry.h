@@ -28,13 +28,18 @@ using ComponentEditorDrawContentsCallback = bool (*)(Entity entity);
 using ComponentEditorDrawJsonCallback	  = bool (*)(json& value);
 using ComponentEditorAddMenuCallback	  = void (*)(Entity entity, std::string_view label);
 
+/// @brief Sparse editor overrides for a component registration.
+///
+/// Fields left unset preserve values supplied by another registration of the same component.
+/// This makes registrations from separate translation units independent of static initialization
+/// order.
 struct ComponentEditorOptions {
 	std::string_view label{};
 	std::optional<std::string_view> group;
-	bool removable{ true };
-	bool default_open{ false };
-	bool addable{ true };
-	bool draw_after_tags{ false };
+	std::optional<bool> removable;
+	std::optional<bool> default_open;
+	std::optional<bool> addable;
+	std::optional<bool> draw_after_tags;
 	ComponentEditorChangedCallback on_changed{ nullptr };
 	ComponentEditorReadOnlyCallback get_read_only_reason{ nullptr };
 	ComponentEditorDrawContentsCallback draw_contents{ nullptr };
@@ -115,11 +120,11 @@ public:
 				continue;
 			}
 
-			// A later registration refreshes the typed adapter. Explicit options replace earlier
-			// options, while an option-less registration preserves them.
+			// Component registrations can be spread across translation units. Merge sparse editor
+			// overrides so the result does not depend on static initialization order.
 			entry.default_label = inspector::TypeLabel<Component>();
 			if (registration.options.has_value()) {
-				entry.options = std::move(registration.options.value());
+				MergeOptions(entry.options, registration.options.value());
 			}
 			entry.draw = &impl::DrawRegisteredEditorComponent<Component>;
 			entry.draw_json = draw_json;
@@ -165,10 +170,10 @@ public:
 			resolved.group = editor.options.group.value();
 		}
 
-		resolved.removable			  = editor.options.removable;
-		resolved.default_open		  = editor.options.default_open;
-		resolved.addable			  = editor.options.addable;
-		resolved.draw_after_tags	  = editor.options.draw_after_tags;
+		resolved.removable			  = editor.options.removable.value_or(true);
+		resolved.default_open		  = editor.options.default_open.value_or(false);
+		resolved.addable			  = editor.options.addable.value_or(true);
+		resolved.draw_after_tags	  = editor.options.draw_after_tags.value_or(false);
 		resolved.on_changed			  = editor.options.on_changed;
 		resolved.get_read_only_reason = editor.options.get_read_only_reason;
 		resolved.draw_contents		  = editor.options.draw_contents;
@@ -313,6 +318,50 @@ public:
 	}
 
 private:
+	static void MergeOptions(
+		ComponentEditorOptions& destination, const ComponentEditorOptions& source
+	) {
+		if (!source.label.empty()) {
+			destination.label = source.label;
+		}
+
+		if (source.group.has_value()) {
+			destination.group = source.group;
+		}
+
+		if (source.removable.has_value()) {
+			destination.removable = source.removable;
+		}
+
+		if (source.default_open.has_value()) {
+			destination.default_open = source.default_open;
+		}
+
+		if (source.addable.has_value()) {
+			destination.addable = source.addable;
+		}
+
+		if (source.draw_after_tags.has_value()) {
+			destination.draw_after_tags = source.draw_after_tags;
+		}
+
+		if (source.on_changed) {
+			destination.on_changed = source.on_changed;
+		}
+
+		if (source.get_read_only_reason) {
+			destination.get_read_only_reason = source.get_read_only_reason;
+		}
+
+		if (source.draw_contents) {
+			destination.draw_contents = source.draw_contents;
+		}
+
+		if (source.draw_add_menu) {
+			destination.draw_add_menu = source.draw_add_menu;
+		}
+	}
+
 	[[nodiscard]] static const std::vector<RegisteredComponentEditor>& Entries() {
 		return MutableEntries();
 	}
