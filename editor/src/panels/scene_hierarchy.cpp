@@ -43,6 +43,9 @@
 #include "runtime/graphics/sprite.h"
 #include "runtime/graphics/text/text.h"
 #include "runtime/graphics/visible.h"
+#include "runtime/interaction/draggable.h"
+#include "runtime/interaction/dropzone.h"
+#include "runtime/interaction/interactive.h"
 #include "runtime/scene/scene.h"
 #include "runtime/scene/scene_camera.h"
 #include "runtime/ui/button.h"
@@ -670,6 +673,88 @@ void SceneHierarchyPanel::OnRender(EditorContext& ctx) {
 					return CreateCapsule(
 						*selected_scene, {}, { -100, -100 }, { 100, 100 }, kShapeRadius, kShapeColor
 					);
+				});
+			});
+
+			draw_submenu("Interactive", [&]() {
+				constexpr auto kInteractiveColor{ color::White };
+				constexpr V2_float kInteractiveRectSize{ 100, 100 };
+				constexpr float kInteractiveCircleRadius{ 50.0f };
+				constexpr V2_float kInteractiveSpriteSize{ 100, 100 };
+
+				auto create_interactive_rect = [&](auto&& configure) {
+					auto entity = CreateRect(
+						*selected_scene, {}, kInteractiveRectSize, kInteractiveColor
+					);
+					auto shape = selected_scene->CreateEntity();
+					shape.Add<Rect>(kInteractiveRectSize);
+					AddInteractiveShape(entity, shape);
+					std::invoke(std::forward<decltype(configure)>(configure), entity);
+					return entity;
+				};
+
+				auto create_interactive_circle = [&](auto&& configure) {
+					auto entity = CreateCircle(
+						*selected_scene, {}, kInteractiveCircleRadius, kInteractiveColor
+					);
+					auto shape = selected_scene->CreateEntity();
+					shape.Add<Circle>(kInteractiveCircleRadius);
+					AddInteractiveShape(entity, shape);
+					std::invoke(std::forward<decltype(configure)>(configure), entity);
+					return entity;
+				};
+
+				auto create_interactive_sprite = [&](auto&& configure) {
+					auto entity = CreateSprite(*selected_scene);
+					auto shape = selected_scene->CreateEntity();
+					shape.Add<Rect>(kInteractiveSpriteSize);
+					AddInteractiveShape(entity, shape);
+					std::invoke(std::forward<decltype(configure)>(configure), entity);
+					return entity;
+				};
+
+				auto leave_interactive = [](Entity) {};
+				auto make_draggable = [](Entity entity) { SetDraggable(entity); };
+				auto make_dropzone = [](Entity entity) { SetDropzone(entity); };
+
+				create_menu_item("Rect", [&]() {
+					return create_interactive_rect(leave_interactive);
+				});
+
+				create_menu_item("Circle", [&]() {
+					return create_interactive_circle(leave_interactive);
+				});
+
+				create_menu_item("Sprite", [&]() {
+					return create_interactive_sprite(leave_interactive);
+				});
+
+				draw_submenu("Draggable", [&]() {
+					create_menu_item("Rect", [&]() {
+						return create_interactive_rect(make_draggable);
+					});
+
+					create_menu_item("Circle", [&]() {
+						return create_interactive_circle(make_draggable);
+					});
+
+					create_menu_item("Sprite", [&]() {
+						return create_interactive_sprite(make_draggable);
+					});
+				});
+
+				draw_submenu("Dropzone", [&]() {
+					create_menu_item("Rect", [&]() {
+						return create_interactive_rect(make_dropzone);
+					});
+
+					create_menu_item("Circle", [&]() {
+						return create_interactive_circle(make_dropzone);
+					});
+
+					create_menu_item("Sprite", [&]() {
+						return create_interactive_sprite(make_dropzone);
+					});
 				});
 			});
 
