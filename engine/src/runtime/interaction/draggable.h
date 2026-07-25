@@ -39,9 +39,9 @@ struct Draggable {
 	std::vector<Entity> last_hovered_dropzones;
 
 	PTGN_REFLECT(
-		Draggable, offset, start, dragging, enabled, move_condition, drop_condition,
-		pickup_condition
+		Draggable, enabled, move_condition, drop_condition, pickup_condition
 	)
+	PTGN_REFLECT_READONLY(Draggable, offset, start, dragging)
 };
 
 } // namespace impl
