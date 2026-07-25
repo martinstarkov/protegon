@@ -235,7 +235,7 @@ struct TextMeasurement {
 struct TextLayout {
 	std::vector<LineLayout> lines;
 
-	/// @brief One style per StyledText run. Glyph::source_run_index indexes this array.
+	/// @brief One style per styled text run. Glyph::source_run_index indexes this array.
 	std::vector<TextBatchStyle> batch_styles;
 
 	/// @brief Final logical size after wrapping, max-line handling, ellipsis, and justification.
@@ -313,9 +313,13 @@ enum class TextClipMode : std::uint8_t {
 };
 PTGN_REFLECT_ENUM(TextClipMode)
 
-struct TextClipConstraint {
+struct TextClip {
 	Rect rect;
 	TextClipMode mode{ TextClipMode::Clip };
+
+	constexpr bool operator==(const TextClip&) const = default;
+
+	PTGN_REFLECT(TextClip, rect, mode)
 };
 
 struct DrawTextRequest {
@@ -323,7 +327,7 @@ struct DrawTextRequest {
 	Color tint{ color::White };
 	Depth depth;
 	int entity_id{ impl::kNoEntityId };
-	std::span<const TextClipConstraint> clips;
+	std::span<const TextClip> clips;
 	std::size_t reveal_glyph_count{ std::numeric_limits<std::size_t>::max() };
 	float time{ 0.0f };
 };
@@ -336,28 +340,15 @@ struct TextDrawBatch {
 	std::vector<impl::TextureQuad> quads;
 };
 
-struct TextReveal {
-	std::size_t glyph_count{ std::numeric_limits<std::size_t>::max() };
-
-	PTGN_REFLECT_VALUE(TextReveal, glyph_count)
-};
-
-struct TextClip {
-	std::optional<Rect> rect;
-	TextClipMode mode{ TextClipMode::Clip };
-
-	PTGN_REFLECT(TextClip, rect, mode)
-};
-
 struct PreparedTextDraw {
 	Transform transform;
 
-	std::array<TextClipConstraint, 2> clips;
+	std::array<TextClip, 2> clips;
 	std::size_t clip_count{ 0 };
 
 	bool drawable{ true };
 
-	std::span<const TextClipConstraint> GetClips() const {
+	std::span<const TextClip> GetClips() const {
 		return { clips.data(), clip_count };
 	}
 };
@@ -376,7 +367,7 @@ std::vector<TextDrawBatch> BuildTextDrawBatches(const DrawTextRequest& request);
 
 [[nodiscard]] PreparedTextDraw PrepareTextDraw(
 	Transform transform, const TextLayout& layout, const TextBox& box, Origin origin,
-	std::optional<TextClipConstraint> explicit_clip = std::nullopt
+	std::optional<TextClip> explicit_clip = std::nullopt
 );
 
 } // namespace impl

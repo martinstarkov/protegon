@@ -175,7 +175,7 @@ void DialogueScrollScript::OnComplete() {
 	DialogueBox dialogue{ Owner() };
 
 	if (dialogue.IsOpen()) {
-		dialogue.TextPart().RevealAll();
+		dialogue.TextPart().Reveal();
 	}
 }
 
@@ -600,7 +600,7 @@ DialogueBox& DialogueBox::NextPage() {
 
 DialogueBox& DialogueBox::CompletePage() {
 	StopCurrentPageScroll();
-	TextPart().RevealAll();
+	TextPart().Reveal();
 	return *this;
 }
 
@@ -786,7 +786,7 @@ void DialogueBox::StartCurrentPageScroll() {
 	StopCurrentPageScroll();
 
 	if (!dialogue->scroll || page->properties.scroll_duration <= 0ms) {
-		TextPart().RevealAll();
+		TextPart().Reveal();
 		return;
 	}
 

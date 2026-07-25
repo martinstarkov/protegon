@@ -183,9 +183,9 @@ struct TextClipScene : public Scene {
 		clip_enabled = !clip_enabled;
 
 		if (clip_enabled) {
-			text->Clip(clip_rect, TextClipMode::Clip);
+			text->Clip({ .rect = clip_rect, .mode = TextClipMode::Clip });
 		} else {
-			text->ClearClip();
+			text->Clip(std::nullopt);
 		}
 	}
 

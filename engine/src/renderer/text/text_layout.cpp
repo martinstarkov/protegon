@@ -1249,7 +1249,7 @@ float GetEffectScale(const Glyph& glyph, float time) {
 	return 1.0f + std::sin(time * effect.speed + phase) * effect.amplitude;
 }
 
-bool LinePassesClips(const LineLayout& line, std::span<const TextClipConstraint> clips) {
+bool LinePassesClips(const LineLayout& line, std::span<const TextClip> clips) {
 	for (const auto& clip : clips) {
 		if (clip.mode == TextClipMode::None) {
 			continue;
@@ -1485,7 +1485,7 @@ bool TextLayoutFitsInBox(const TextLayout& layout, Rect box) {
 
 PreparedTextDraw PrepareTextDraw(
 	Transform transform, const TextLayout& layout, const TextBox& box, Origin origin,
-	std::optional<TextClipConstraint> explicit_clip
+	std::optional<TextClip> explicit_clip
 ) {
 	PreparedTextDraw result;
 	result.transform = transform;
@@ -1508,7 +1508,7 @@ PreparedTextDraw PrepareTextDraw(
 
 		PTGN_ASSERT(result.clip_count < result.clips.size());
 
-		result.clips[result.clip_count] = TextClipConstraint{
+		result.clips[result.clip_count] = TextClip{
 			.rect = rect,
 			.mode = mode,
 		};

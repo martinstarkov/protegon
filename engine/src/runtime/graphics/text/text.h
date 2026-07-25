@@ -51,8 +51,22 @@ struct StyledText {
 
 namespace impl {
 
-struct TextEditState {
+struct TextData {
+	StyledText text;
+	TextBox box;
+	
+	/// @brief Number of glyphs revealed. Set to numeric limits max for all glyphs.
+	std::size_t glyph_count{ std::numeric_limits<std::size_t>::max() };
+
+	std::optional<TextClip> clip;
+
+	/// @brief Index of the current text run being edited.
 	std::size_t current_run_index{ 0 };
+
+	constexpr bool operator==(const TextData&) const = default;
+
+	PTGN_REFLECT(TextData, text, box, glyph_count, clip)
+	PTGN_REFLECT_READONLY(TextData, current_run_index)
 };
 
 [[nodiscard]] ResolvedTextRun ResolveTextRun(AssetManager& asset_manager, const TextRun& text_run);
@@ -114,17 +128,12 @@ public:
 	/// @brief Useful for something like a scrollable text box where you want to clip the text to
 	/// the box, but still allow the user to scroll the text outside of the box.
 	/// Rectangle is positioned relative to the text's transform.
-	Text& Clip(Rect rect, TextClipMode mode = TextClipMode::Clip);
-
-	/// @brief Removes any clipping that was previously set.
-	Text& ClearClip();
+	/// If nullopt, clears any previously set clipping.
+	Text& Clip(std::optional<TextClip> clip = std::nullopt);
 
 	/// @brief Sets the number of glyphs to reveal. If the count is greater than the total number of
 	/// glyphs, all glyphs will be revealed.
-	Text& Reveal(std::size_t glyph_count);
-
-	/// @brief Removes any previously set reveal restrictions.
-	Text& RevealAll();
+	Text& Reveal(std::size_t glyph_count = std::numeric_limits<std::size_t>::max());
 
 	/// @brief Sets the fraction of the total glyphs to reveal. Clamped to range: [0.0, 1.0]. 0.0 =
 	/// no glyphs revealed, 1.0 = all glyphs revealed.
@@ -155,6 +164,7 @@ public:
 
 	/// @brief Sets the number of space columns between tab stops.
 	/// A tab advances to the next multiple of this many spaces.
+	/// @param spaces Clamped to be at least one space.
 	Text& TabWidth(std::size_t spaces);
 
 	Text& LineSpacing(float line_spacing);
@@ -213,6 +223,10 @@ public:
 	const TextLayout& GetLayout() const;
 
 private:
+	friend class Scene;
+	
+	void UpdateLayout() const;
+
 	TextRun& CurrentRun();
 	void InvalidateLayout();
 };

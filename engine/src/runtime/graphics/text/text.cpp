@@ -112,34 +112,25 @@ TextLayout BuildTextLayout(
 void Text::Draw(DrawContext& ctx, Entity entity) {
 	auto& scene{ entity.GetScene() };
 
-	if (!entity.Has<StyledText, TextBox>()) {
+	if (!entity.Has<impl::TextData>()) {
+		PTGN_WARN("Cannot draw text without TextData component");
 		return;
 	}
 
 	Text text{ entity };
 
-	if (const auto& styled_text{ text.GetStyledText() }; !styled_text.HasContent()) {
+	const auto& data{ entity.Get<impl::TextData>() };
+
+	if (!data.text.HasContent()) {
 		return;
 	}
 
-	const auto& box{ text.GetTextBox() };
-
 	const auto& layout{ text.GetLayout() };
 
-	std::optional<TextClipConstraint> explicit_clip;
-
-	if (auto clip{ entity.TryGet<impl::TextClip>() }; clip && clip->rect.has_value()) {
-		explicit_clip = TextClipConstraint{
-			.rect = clip->rect.value(),
-			.mode = clip->mode == TextClipMode::None ? TextClipMode::Clip : clip->mode,
-		};
-	}
-
 	auto transform{ GetDrawTransform(entity) };
-
 	auto origin{ entity.GetOrDefault<Origin>() };
 
-	auto prepared{ impl::PrepareTextDraw(transform, layout, box, origin, explicit_clip) };
+	auto prepared{ impl::PrepareTextDraw(transform, layout, data.box, origin, data.clip) };
 
 	if (!prepared.drawable) {
 		return;
@@ -165,15 +156,19 @@ void Text::Draw(DrawContext& ctx, Entity entity) {
 Text::Text(Entity entity) : Entity{ entity } {}
 
 Text& Text::Clear() {
-	auto& styled_text{ Get<StyledText>() };
-	auto& edit_state{ Get<impl::TextEditState>() };
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot clear text without TextData component");
+		return *this;
+	}
 
-	bool changed{ styled_text.HasContent() };
+	auto& data{ Get<impl::TextData>() };
 
-	styled_text.runs.clear();
-	styled_text.runs.emplace_back();
+	bool changed{ data.text.HasContent() };
 
-	edit_state.current_run_index = 0;
+	data.text.runs.clear();
+	data.text.runs.emplace_back();
+
+	data.current_run_index = 0;
 
 	if (changed) {
 		InvalidateLayout();
@@ -183,13 +178,17 @@ Text& Text::Clear() {
 }
 
 Text& Text::Content(std::string_view content) {
-	auto& styled_text{ Get<StyledText>() };
-	auto& edit_state{ Get<impl::TextEditState>() };
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot add text content without TextData component");
+		return *this;
+	}
 
-	if (styled_text.runs.size() == 1 && styled_text.runs.front().text.empty()) {
-		edit_state.current_run_index = 0;
+	auto& data{ Get<impl::TextData>() };
 
-		if (auto& run{ styled_text.runs.front() }; run.text != content) {
+	if (data.text.runs.size() == 1 && data.text.runs.front().text.empty()) {
+		data.current_run_index = 0;
+
+		if (auto& run{ data.text.runs.front() }; run.text != content) {
 			run.text = std::string{ content };
 			InvalidateLayout();
 		}
@@ -197,9 +196,9 @@ Text& Text::Content(std::string_view content) {
 		return *this;
 	}
 
-	auto& run{ styled_text.runs.emplace_back() };
+	auto& run{ data.text.runs.emplace_back() };
 
-	edit_state.current_run_index = styled_text.runs.size() - 1;
+	data.current_run_index = data.text.runs.size() - 1;
 
 	if (!content.empty()) {
 		run.text = std::string{ content };
@@ -210,61 +209,86 @@ Text& Text::Content(std::string_view content) {
 }
 
 Text& Text::Content(StyledText styled_text) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot add text content without TextData component");
+		return *this;
+	}
+
 	if (styled_text.runs.empty()) {
 		styled_text.runs.emplace_back();
 	}
 
-	if (auto& text{ Get<StyledText>() }; text != styled_text) {
-		text = std::move(styled_text);
+	auto& data{ Get<impl::TextData>() };
+
+	if (data.text != styled_text) {
+		data.text = std::move(styled_text);
 		InvalidateLayout();
 	}
 
-	Get<impl::TextEditState>().current_run_index = 0;
+	data.current_run_index = 0;
 
 	return *this;
 }
 
 Text& Text::Select(std::size_t index) {
-	if (const auto& styled_text{ GetStyledText() }; index >= styled_text.runs.size()) {
-		index = styled_text.runs.size() - 1;
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot select text index without TextData component");
+		return *this;
 	}
 
-	Get<impl::TextEditState>().current_run_index = index;
+	auto& data{ Get<impl::TextData>() };
+	data.current_run_index = std::max(index, data.text.runs.size() - 1);
 
 	return *this;
 }
 
 Text& Text::Box(Rect text_rect) {
-	if (auto& box{ Get<TextBox>() }; text_rect != box.rect) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text box rect without TextData component");
+		return *this;
+	}
+
+	if (auto& box{ Get<impl::TextData>().box }; text_rect != box.rect) {
 		box.rect = text_rect;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::Box(const TextBox& text_box) {
-	if (auto& box{ Get<TextBox>() }; text_box != box) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text box without TextData component");
+		return *this;
+	}
+
+	if (auto& box{ Get<impl::TextData>().box }; text_box != box) {
 		box = text_box;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::Reveal(std::size_t glyph_count) {
-	auto& reveal{ TryAdd<impl::TextReveal>() };
-	reveal.glyph_count = glyph_count;
-	return *this;
-}
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text glyph reveal count without TextData component");
+		return *this;
+	}
 
-Text& Text::RevealAll() {
-	Remove<impl::TextReveal>();
+	auto& data{ Get<impl::TextData>() };
+	data.glyph_count = glyph_count;
+
 	return *this;
 }
 
 Text& Text::Align(Alignment alignment) {
-	auto& current{ Get<TextBox>().style.alignment };
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text alignment without TextData component");
+		return *this;
+	}
 
-	if (current != alignment) {
+	if (auto& current{ Get<impl::TextData>().box.style.alignment }; current != alignment) {
 		current = alignment;
 		InvalidateLayout();
 	}
@@ -286,10 +310,13 @@ Text& Text::Align(ptgn::HorizontalAlign horizontal, ptgn::VerticalAlign vertical
 }
 
 Text& Text::HorizontalAlign(ptgn::HorizontalAlign horizontal) {
-	auto& alignment{ Get<TextBox>().style.alignment };
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text horizontal alignment without TextData component");
+		return *this;
+	}
 
-	if (alignment.horizontal != horizontal) {
-		alignment.horizontal = horizontal;
+	if (auto& current{ Get<impl::TextData>().box.style.alignment }; current.horizontal != horizontal) {
+		current.horizontal = horizontal;
 		InvalidateLayout();
 	}
 
@@ -297,10 +324,13 @@ Text& Text::HorizontalAlign(ptgn::HorizontalAlign horizontal) {
 }
 
 Text& Text::VerticalAlign(ptgn::VerticalAlign vertical) {
-	auto& alignment{ Get<TextBox>().style.alignment };
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text vertical alignment without TextData component");
+		return *this;
+	}
 
-	if (alignment.vertical != vertical) {
-		alignment.vertical = vertical;
+	if (auto& current{ Get<impl::TextData>().box.style.alignment }; current.vertical != vertical) {
+		current.vertical = vertical;
 		InvalidateLayout();
 	}
 
@@ -308,11 +338,14 @@ Text& Text::VerticalAlign(ptgn::VerticalAlign vertical) {
 }
 
 Text& Text::ClearAlignment() {
-	auto& alignment{ Get<TextBox>().style.alignment };
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot clear text alignment without TextData component");
+		return *this;
+	}
 
-	if (alignment.vertical.has_value() || alignment.horizontal.has_value()) {
-		alignment.vertical.reset();
-		alignment.horizontal.reset();
+	if (auto& current{ Get<impl::TextData>().box.style.alignment }; current.vertical.has_value() || current.horizontal.has_value()) {
+		current.vertical.reset();
+		current.horizontal.reset();
 		InvalidateLayout();
 	}
 
@@ -320,14 +353,24 @@ Text& Text::ClearAlignment() {
 }
 
 V2_float Text::GetSize() const {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot get text size without TextData component");
+		return {};
+	}
+
 	return GetLayout().size;
 }
 
 Rect Text::GetBounds() const {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot get text bounds without TextData component");
+		return {};
+	}
+
 	const auto& layout{ GetLayout() };
 	auto bounds{ layout.GetBounds() };
 
-	if (const auto& box{ GetTextBox() }; box.HasBox()) {
+	if (const auto& box{ Get<impl::TextData>().box }; box.HasBox()) {
 		auto origin{ GetOrDefault<Origin>() };
 		auto origin_point{ box.rect.GetOriginPoint(origin) };
 		// TODO: Check if this is correct.
@@ -338,7 +381,12 @@ Rect Text::GetBounds() const {
 }
 
 Text& Text::Wrap(WrapMode mode) {
-	if (auto& box{ Get<TextBox>() }; box.style.wrap.mode != mode) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text wrap without TextData component");
+		return *this;
+	}
+
+	if (auto& box{ Get<impl::TextData>().box }; box.style.wrap.mode != mode) {
 		box.style.wrap.mode = mode;
 		InvalidateLayout();
 	}
@@ -346,7 +394,12 @@ Text& Text::Wrap(WrapMode mode) {
 }
 
 Text& Text::WrapSettings(const ptgn::WrapSettings& settings) {
-	if (auto& box{ Get<TextBox>() }; box.style.wrap != settings) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text wrap settings without TextData component");
+		return *this;
+	}
+
+	if (auto& box{ Get<impl::TextData>().box }; box.style.wrap != settings) {
 		box.style.wrap = settings;
 		InvalidateLayout();
 	}
@@ -354,45 +407,67 @@ Text& Text::WrapSettings(const ptgn::WrapSettings& settings) {
 }
 
 Text& Text::Overflow(OverflowMode mode) {
-	if (auto& box{ Get<TextBox>() }; box.style.overflow != mode) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text overflow without TextData component");
+		return *this;
+	}
+
+	if (auto& box{ Get<impl::TextData>().box }; box.style.overflow != mode) {
 		box.style.overflow = mode;
 		InvalidateLayout();
 	}
 	return *this;
 }
 
-Text& Text::Clip(Rect rect, TextClipMode mode) {
-	Add<impl::TextClip>(impl::TextClip{
-		.rect = rect,
-		.mode = mode,
-	});
-	return *this;
-}
+Text& Text::Clip(std::optional<TextClip> clip) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text clip without TextData component");
+		return *this;
+	}
 
-Text& Text::ClearClip() {
-	Remove<impl::TextClip>();
+	auto& data{ Get<impl::TextData>() };
+	data.clip = clip;
+
 	return *this;
 }
 
 Text& Text::CollapseSpaces(bool collapse) {
-	if (auto& box{ Get<TextBox>() }; box.style.collapse_spaces != collapse) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot collapse text spaces without TextData component");
+		return *this;
+	}
+
+	if (auto& box{ Get<impl::TextData>().box }; box.style.collapse_spaces != collapse) {
 		box.style.collapse_spaces = collapse;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::JustifyLastLine(bool justify) {
-	if (auto& box{ Get<TextBox>() }; box.style.justify_last_line != justify) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot just last text line without TextData component");
+		return *this;
+	}
+
+	if (auto& box{ Get<impl::TextData>().box }; box.style.justify_last_line != justify) {
 		box.style.justify_last_line = justify;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::TabWidth(std::size_t spaces) {
-	PTGN_ASSERT(spaces > 0, "Text tab width must be at least one space");
-	if (auto& box{ Get<TextBox>() }; box.style.tab_width != spaces) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text tab width without TextData component");
+		return *this;
+	}
+
+	spaces = std::max(1uz, spaces);
+
+	if (auto& box{ Get<impl::TextData>().box }; box.style.tab_width != spaces) {
 		box.style.tab_width = spaces;
 		InvalidateLayout();
 	}
@@ -400,21 +475,31 @@ Text& Text::TabWidth(std::size_t spaces) {
 }
 
 Text& Text::MaxLines(std::size_t max_lines) {
-	if (auto& box{ Get<TextBox>() }; box.style.max_lines != max_lines) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set max text lines without TextData component");
+		return *this;
+	}
+
+	if (auto& box{ Get<impl::TextData>().box }; box.style.max_lines != max_lines) {
 		box.style.max_lines = max_lines;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::ScaleToFit(float min_scale, float max_scale) {
-	PTGN_ASSERT(min_scale > 0.0f, "Minimum text scale must be positive");
-	PTGN_ASSERT(max_scale > 0.0f, "Maximum text scale must be positive");
-	PTGN_ASSERT(min_scale <= max_scale, "Minimum text scale cannot exceed maximum text scale");
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text scale to fit without TextData component");
+		return *this;
+	}
+
+	min_scale = std::clamp(min_scale, kEpsilon<float>, max_scale);
+	max_scale = std::max(kEpsilon<float>, max_scale);
 
 	ShrinkScale scale{ .min = min_scale, .max = max_scale };
 
-	if (auto& style{ Get<TextBox>().style };
+	if (auto& style{ Get<impl::TextData>().box.style };
 		style.overflow != OverflowMode::ScaleToFit || style.shrink_scale != scale) {
 		style.overflow		   = OverflowMode::ScaleToFit;
 		style.shrink_scale.min = min_scale;
@@ -426,62 +511,109 @@ Text& Text::ScaleToFit(float min_scale, float max_scale) {
 }
 
 Text& Text::Font(FontKey font_key) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text font without TextData component");
+		return *this;
+	}
+
 	if (auto& run{ CurrentRun() }; run.font != font_key) {
 		run.font = std::move(font_key);
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::Color(ptgn::Color color) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text color without TextData component");
+		return *this;
+	}
+
 	if (auto& run{ CurrentRun() }; run.style.color != color) {
 		run.style.color = color;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::Size(float font_size) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text size without TextData component");
+		return *this;
+	}
+
 	if (auto& run{ CurrentRun() }; !NearlyEqual(run.style.size, font_size)) {
 		run.style.size = font_size;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::Kerning(float kerning) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text kerning without TextData component");
+		return *this;
+	}
+
 	if (auto& run{ CurrentRun() }; !NearlyEqual(run.style.kerning, kerning)) {
 		run.style.kerning = kerning;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::Tracking(float tracking) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text tracking without TextData component");
+		return *this;
+	}
+
 	if (auto& run{ CurrentRun() }; !NearlyEqual(run.style.tracking, tracking)) {
 		run.style.tracking = tracking;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::LineSpacing(float line_spacing) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text line spacing without TextData component");
+		return *this;
+	}
+
 	if (auto& run{ CurrentRun() }; !NearlyEqual(run.style.line_spacing, line_spacing)) {
 		run.style.line_spacing = line_spacing;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::Style(FontStyle flags) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text font style without TextData component");
+		return *this;
+	}
+
 	if (auto& run{ CurrentRun() }; run.style.flags != flags) {
 		run.style.flags = flags;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::Bold(bool enabled, float weight) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot bold text without TextData component");
+		return *this;
+	}
+
 	auto& run{ CurrentRun() };
 
 	bool was_enabled{ HasFontFlag(run.style.flags, FontStyle::Bold) };
@@ -499,44 +631,69 @@ Text& Text::Bold(bool enabled, float weight) {
 }
 
 Text& Text::Italic(bool enabled) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot italicize text without TextData component");
+		return *this;
+	}
+
 	if (auto& run{ CurrentRun() }; HasFontFlag(run.style.flags, FontStyle::Italic) != enabled) {
 		run.style.flags = SetFontFlag(run.style.flags, FontStyle::Italic, enabled);
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::Underline(bool enabled) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot underline text without TextData component");
+		return *this;
+	}
+
 	if (auto& run{ CurrentRun() }; HasFontFlag(run.style.flags, FontStyle::Underline) != enabled) {
 		run.style.flags = SetFontFlag(run.style.flags, FontStyle::Underline, enabled);
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::Strikethrough(bool enabled) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot strikethrough text without TextData component");
+		return *this;
+	}
+
 	if (auto& run{ CurrentRun() };
 		HasFontFlag(run.style.flags, FontStyle::Strikethrough) != enabled) {
 		run.style.flags = SetFontFlag(run.style.flags, FontStyle::Strikethrough, enabled);
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::Outline(ptgn::Color color, float width, float softness) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot outline text without TextData component");
+		return *this;
+	}
+
 	DistanceFieldLayerStyle outline{ .color = color, .width = width, .softness = softness };
 	if (auto& run{ CurrentRun() }; run.style.sdf.outline != outline) {
 		run.style.sdf.outline = outline;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
-Text& Text::Shadow(ptgn::Color color, V2_float offset, float softness) {
-	return Shadow(color, offset, 0.0f, softness);
-}
-
 Text& Text::Shadow(ptgn::Color color, V2_float offset, float width, float softness) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text shadow without TextData component");
+		return *this;
+	}
+
 	DistanceFieldLayerStyle shadow{ .color = color, .width = width, .softness = softness };
 	if (auto& run{ CurrentRun() };
 		run.style.sdf.shadow != shadow || run.style.sdf.shadow_offset != offset) {
@@ -544,28 +701,50 @@ Text& Text::Shadow(ptgn::Color color, V2_float offset, float width, float softne
 		run.style.sdf.shadow_offset = offset;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
+Text& Text::Shadow(ptgn::Color color, V2_float offset, float softness) {
+	return Shadow(color, offset, 0.0f, softness);
+}
+
 Text& Text::OuterGlow(ptgn::Color color, float width, float softness) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set outer text glow without TextData component");
+		return *this;
+	}
+
 	DistanceFieldLayerStyle outer_glow{ .color = color, .width = width, .softness = softness };
 	if (auto& run{ CurrentRun() }; run.style.sdf.outer_glow != outer_glow) {
 		run.style.sdf.outer_glow = outer_glow;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::InnerGlow(ptgn::Color color, float width, float softness) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set inner text glow without TextData component");
+		return *this;
+	}
+
 	DistanceFieldLayerStyle inner_glow{ .color = color, .width = width, .softness = softness };
 	if (auto& run{ CurrentRun() }; run.style.sdf.inner_glow != inner_glow) {
 		run.style.sdf.inner_glow = inner_glow;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 Text& Text::ClearSdfEffects() {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot clear text sdf effects without TextData component");
+		return *this;
+	}
+
 	if (auto& run{ CurrentRun() }; run.style.sdf != DistanceFieldStyle{}) {
 		run.style.sdf = {};
 		InvalidateLayout();
@@ -576,6 +755,11 @@ Text& Text::ClearSdfEffects() {
 Text& Text::Effect(
 	GlyphEffectType type, float amplitude, float frequency, float speed, float phase
 ) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text effect without TextData component");
+		return *this;
+	}
+
 	GlyphEffectStyle effect{
 		.type = type, .amplitude = amplitude, .frequency = frequency, .speed = speed, .phase = phase
 	};
@@ -583,11 +767,18 @@ Text& Text::Effect(
 		run.style.effect = effect;
 		InvalidateLayout();
 	}
+
 	return *this;
 }
 
 TextMeasurement Text::Measure() const {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot measure text without TextData component");
+		return {};
+	}
+	
 	const auto& layout{ GetLayout() };
+
 	return {
 		.size			   = layout.size,
 		.line_count		   = layout.lines.size(),
@@ -597,6 +788,11 @@ TextMeasurement Text::Measure() const {
 }
 
 Text& Text::RevealFraction(float fraction) {
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot set text reveal fraction without TextData component");
+		return *this;
+	}
+
 	fraction = std::clamp(fraction, 0.0f, 1.0f);
 
 	auto glyph_count{ GetLayout().GetVisibleGlyphCount() };
@@ -609,47 +805,56 @@ Text& Text::RevealFraction(float fraction) {
 }
 
 std::size_t Text::GetRevealGlyphCount() const {
-	if (auto reveal{ TryGet<impl::TextReveal>() }) {
-		return reveal->glyph_count;
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot get text glyph reveal count without TextData component");
+		return 0;
 	}
-	return std::numeric_limits<std::size_t>::max();
+
+	const auto& data{ Get<impl::TextData>() };
+
+	return data.glyph_count;
 }
 
 bool Text::IsFullyRevealed() const {
-	if (auto reveal{ TryGet<impl::TextReveal>() }) {
-		auto glyph_count{ GetLayout().GetVisibleGlyphCount() };
-		return reveal->glyph_count >= glyph_count;
+	if (!Has<impl::TextData>()) {
+		PTGN_WARN("Cannot check if text is fully revealed without TextData component");
+		return false;
 	}
-	return true;
+
+	const auto& data{ Get<impl::TextData>() };
+	auto glyph_count{ GetLayout().GetVisibleGlyphCount() };
+
+	return data.glyph_count >= glyph_count;
 }
 
 const StyledText& Text::GetStyledText() const {
-	return Get<StyledText>();
+	return Get<impl::TextData>().text;
 }
 
 const TextBox& Text::GetTextBox() const {
-	return Get<TextBox>();
+	return Get<impl::TextData>().box;
 }
 
 const TextLayout& Text::GetLayout() const {
+	UpdateLayout();
+	return Get<TextLayout>();
+}
+
+void Text::UpdateLayout() const {
 	auto& asset_manager{ GetScene().ctx().asset };
 	const auto& styled_text{ GetStyledText() };
 	const auto& box{ GetTextBox() };
 
-	UpdateLayout(*this, asset_manager, styled_text, box);
-
-	return Get<TextLayout>();
+	ptgn::UpdateLayout(*this, asset_manager, styled_text, box);
 }
 
 TextRun& Text::CurrentRun() {
-	auto& styled_text{ Get<StyledText>() };
-	const auto& edit_state{ Get<impl::TextEditState>() };
+	PTGN_ASSERT(Has<impl::TextData>(), "Cannot get current text run without TextData component");
 
-	PTGN_ASSERT(
-		edit_state.current_run_index < styled_text.runs.size(), "Invalid current text run index"
-	);
+	auto& data{ Get<impl::TextData>() };
+	auto index{ std::clamp(data.current_run_index, 0uz, data.text.runs.size() - 1) };
 
-	return styled_text.runs[edit_state.current_run_index];
+	return data.text.runs[index];
 }
 
 void Text::InvalidateLayout() {
@@ -661,9 +866,7 @@ void Text::InvalidateLayout() {
 Text CreateText(Scene& scene, Transform transform, StyledText styled_text, Origin origin) {
 	Text text{ scene.CreateEntity() };
 
-	text.Add<impl::TextEditState>();
-	text.Add<StyledText>();
-	text.Add<TextBox>();
+	text.Add<impl::TextData>();
 	text.Add<TextLayout>();
 	text.Add<Transform>(transform);
 	text.Add<Origin>(origin);

@@ -93,13 +93,12 @@ void DrawDebugTextBoundingBoxes(
 		return;
 	}
 
-	for (const auto& [entity, styled_text, box] :
-		 std::as_const(scene).EntitiesWith<StyledText, TextBox>()) {
+	for (const auto& [entity, data] : std::as_const(scene).EntitiesWith<impl::TextData>()) {
 		if (filter(entity)) {
 			continue;
 		}
 
-		if (!styled_text.HasContent()) {
+		if (!data.text.HasContent()) {
 			continue;
 		}
 
@@ -107,6 +106,7 @@ void DrawDebugTextBoundingBoxes(
 
 		auto transform{ GetDrawTransform(entity) };
 		auto origin{ entity.GetOrDefault<Origin>() };
+		const auto& box{ data.box };
 
 		auto prepared{ impl::PrepareTextDraw(transform, layout, box, origin) };
 
@@ -180,8 +180,8 @@ void DrawDebugTextBoundingBoxes(
 
 		// An explicit clip rectangle always has both dimensions and is local
 		// to the same prepared text transform.
-		if (auto clip{ entity.TryGet<impl::TextClip>() }; clip && clip->rect.has_value()) {
-			draw_rect(clip->rect.value(), settings.clip_draw_color);
+		if (data.clip.has_value()) {
+			draw_rect(data.clip.value().rect, settings.clip_draw_color);
 		}
 	}
 }
@@ -245,7 +245,7 @@ void DrawDebugLightVisibilityPolygons(
 	}
 
 	for (auto [entity, _light, visibility_polygon] :
-		 scene.EntitiesWith<LightConfig, impl::VisibilityPolygon>()) {
+		 scene.EntitiesWith<LightData, impl::VisibilityPolygon>()) {
 		// Mask test: entity layers vs camera include/exclude.
 		if (filter(entity)) {
 			continue;

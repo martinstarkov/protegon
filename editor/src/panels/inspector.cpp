@@ -2866,21 +2866,11 @@ PTGN_REGISTER_COMPONENT(
 );
 
 PTGN_REGISTER_COMPONENT(
-	StyledText, {
+	::ptgn::impl::TextData, {
 					.on_changed = &MarkTextLayoutDirty,
 					.get_read_only_reason =
 						&HasAnyComponent<"Controlled by Button Text Visuals", ButtonTextVisuals>,
-					.draw_contents = &DrawRegisteredContents<StyledText>,
-				}
-);
-
-PTGN_REGISTER_COMPONENT(
-	TextBox, {
-				 .on_changed = &MarkTextLayoutDirty,
-				 .get_read_only_reason =
-					 &HasAnyComponent<"Controlled by Button Text Visuals", ButtonTextVisuals>,
-				 .draw_contents = &DrawRegisteredContents<TextBox>,
-			 }
+	}
 );
 
 PTGN_REGISTER_COMPONENT(
