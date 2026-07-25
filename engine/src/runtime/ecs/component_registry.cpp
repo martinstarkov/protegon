@@ -46,11 +46,10 @@ PTGN_REGISTER_COMPONENT(Transform, { .group = "Core" });
 PTGN_REGISTER_COMPONENT(impl::Scripts, { .group = "Core" });
 
 // Drawable description and geometry.
-PTGN_REGISTER_COMPONENT(StyledText, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(TextBox, { .group = "Drawing" });
+PTGN_REGISTER_COMPONENT(impl::TextData, { .group = "Drawing" });
 PTGN_REGISTER_COMPONENT(impl::GraphicsData, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(impl::ParticleEmitterComponent, { .group = "Drawing" });
-PTGN_REGISTER_COMPONENT(LightConfig, { .group = "Drawing" });
+PTGN_REGISTER_COMPONENT(impl::ParticleEmitterData, { .group = "Drawing" });
+PTGN_REGISTER_COMPONENT(LightData, { .group = "Drawing" });
 PTGN_REGISTER_COMPONENT(impl::ShadowCaster, { .group = "Drawing" });
 PTGN_REGISTER_COMPONENT(impl::IDrawable, { .group = "Drawing" });
 PTGN_REGISTER_COMPONENT(Depth, { .group = "Drawing" });

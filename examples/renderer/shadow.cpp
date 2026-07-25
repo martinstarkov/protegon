@@ -29,7 +29,7 @@ public:
 	int mouse_light{ 0 };
 
 	void OnEnter() override {
-		constexpr LightConfig properties{
+		constexpr LightData properties{
 			.color = color::Cyan, .radius = 400.0f, .intensity = 0.5f, .falloff = 2.0f
 		};
 		constexpr V2_int light_starting_pos{ 130, 0 };

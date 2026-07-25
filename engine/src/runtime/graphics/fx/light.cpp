@@ -394,7 +394,7 @@ void DrawUnmaskedLight(
 	ctx.DrawShader(draw_transform, material, std::move(params));
 }
 
-std::array<UniformWrite, 9> GetUniforms(const LightConfig& light, Color tint) {
+std::array<UniformWrite, 9> GetUniforms(const LightData& light, Color tint) {
 	auto color{ Color::Multiply(light.color, tint) };
 	V4_float color_n{ color.Normalized() };
 
@@ -435,7 +435,7 @@ void UpdateLightVisibilityPolygons(
 	for (auto order{ 0uz }; order < commands.size(); ++order) {
 		auto entity{ commands[order].entity };
 
-		if (entity.Has<LightConfig>()) {
+		if (entity.Has<LightData>()) {
 			entity.Remove<impl::VisibilityPolygon>();
 		}
 
@@ -478,7 +478,7 @@ void UpdateLightVisibilityPolygons(
 	for (auto order{ 0uz }; order < commands.size(); ++order) {
 		auto entity{ commands[order].entity };
 
-		if (!entity.Has<LightConfig>()) {
+		if (!entity.Has<LightData>()) {
 			continue;
 		}
 
@@ -505,11 +505,11 @@ void UpdateLightVisibilityPolygons(
 Light::Light(Entity entity) : Entity{ entity } {}
 
 void Light::Draw(DrawContext& ctx, Entity entity) {
-	if (!entity.Has<LightConfig>()) {
+	if (!entity.Has<LightData>()) {
 		return;
 	}
 
-	const auto& light{ entity.Get<LightConfig>() };
+	const auto& light{ entity.Get<LightData>() };
 
 	if (light.cone_angle.has_value() && light.cone_angle.value() == Degrees{ 0.0f }) {
 		return;
@@ -545,53 +545,53 @@ void Light::Draw(DrawContext& ctx, Entity entity) {
 }
 
 Light& Light::Intensity(float intensity) {
-	if (auto light{ TryGet<LightConfig>() }) {
+	if (auto light{ TryGet<LightData>() }) {
 		light->intensity = std::max(intensity, 0.0f);
 	}
 	return *this;
 }
 
 Light& Light::Color(ptgn::Color color) {
-	if (auto light{ TryGet<LightConfig>() }) {
+	if (auto light{ TryGet<LightData>() }) {
 		light->color = color;
 	}
 	return *this;
 }
 
 Light& Light::AmbientIntensity(float ambient_intensity) {
-	if (auto light{ TryGet<LightConfig>() }) {
+	if (auto light{ TryGet<LightData>() }) {
 		light->ambient_intensity = std::max(ambient_intensity, 0.0f);
 	}
 	return *this;
 }
 
 Light& Light::AmbientColor(ptgn::Color ambient_color) {
-	if (auto light{ TryGet<LightConfig>() }) {
+	if (auto light{ TryGet<LightData>() }) {
 		light->ambient_color = ambient_color;
 	}
 	return *this;
 }
 
 Light& Light::Radius(float radius) {
-	if (auto light{ TryGet<LightConfig>() }) {
+	if (auto light{ TryGet<LightData>() }) {
 		light->radius = std::max(radius, 0.0f);
 	}
 	return *this;
 }
 
 Light& Light::Falloff(float falloff) {
-	if (auto light{ TryGet<LightConfig>() }) {
+	if (auto light{ TryGet<LightData>() }) {
 		light->falloff = std::max(falloff, 0.0f);
 	}
 	return *this;
 }
 
 Light& Light::ConeAngle(std::optional<Degrees> cone_angle) {
-	if (!Has<LightConfig>()) {
+	if (!Has<LightData>()) {
 		return *this;
 	}
 
-	auto& light{ Get<LightConfig>() };
+	auto& light{ Get<LightData>() };
 
 	if (!cone_angle.has_value()) {
 		light.cone_angle = std::nullopt;
@@ -603,24 +603,24 @@ Light& Light::ConeAngle(std::optional<Degrees> cone_angle) {
 	return *this;
 }
 
-Light& Light::Config(LightConfig config) {
-	Add<LightConfig>(std::move(config));
+Light& Light::Config(LightData config) {
+	Add<LightData>(std::move(config));
 	SetRotation(*this, config.direction_angle);
 	return *this;
 }
 
-LightConfig Light::GetConfig() const {
-	PTGN_ASSERT(Has<LightConfig>());
-	return Get<LightConfig>();
+LightData Light::GetConfig() const {
+	PTGN_ASSERT(Has<LightData>());
+	return Get<LightData>();
 }
 
-Light CreateLight(Scene& scene, Transform transform, LightConfig config) {
+Light CreateLight(Scene& scene, Transform transform, LightData config) {
 	Light light{ scene.CreateEntity() };
 
 	light.Add<Tag>("Light");
 	light.Add<Transform>(transform);
 	light.Add<Visible>(true);
-	light.Add<LightConfig>(std::move(config));
+	light.Add<LightData>(std::move(config));
 	SetRotation(light, config.direction_angle);
 
 	// Blend mode with which the lights are added to the scene.

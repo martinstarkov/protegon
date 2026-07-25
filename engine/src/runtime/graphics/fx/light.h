@@ -17,7 +17,7 @@ namespace ptgn {
 class DrawContext;
 class Scene;
 
-struct LightConfig {
+struct LightData {
 	/// @brief Color of the light.
 	Color color{ color::Red };
 
@@ -47,7 +47,7 @@ struct LightConfig {
 	float ambient_intensity{ 0.0f };
 
 	PTGN_REFLECT(
-		LightConfig, color, radius, intensity, falloff, cone_angle, direction_angle, ambient_color,
+		LightData, color, radius, intensity, falloff, cone_angle, direction_angle, ambient_color,
 		ambient_intensity
 	)
 };
@@ -99,19 +99,19 @@ public:
 	Light& AmbientColor(ptgn::Color ambient_color);
 	Light& Radius(float radius);
 	Light& Falloff(float falloff);
-	Light& Config(LightConfig config);
+	Light& Config(LightData config);
 
 	/// @param cone_angle Angle of the light cone. If std::nullopt, the light is a
 	/// point light. Range: [0.0, 360.0]. 0.0 means no light is drawn, 360.0 means the light is a
 	/// point light and has no cone.
 	Light& ConeAngle(std::optional<Degrees> cone_angle);
 
-	LightConfig GetConfig() const;
+	LightData GetConfig() const;
 };
 
 PTGN_REGISTER_DRAWABLE(Light);
 
-Light CreateLight(Scene& scene, Transform transform = {}, LightConfig config = {});
+Light CreateLight(Scene& scene, Transform transform = {}, LightData config = {});
 
 /// @brief Marks an entity as a shadow occluder.
 /// @param entity Entity that should cast shadows.
